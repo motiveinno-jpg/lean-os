@@ -1,645 +1,645 @@
 {
-  "generated_at": "2026-07-28T08:08:33.442Z",
+  "generated_at": "2026-07-29T09:31:10.737Z",
   "entries": [
     {
-      "hash": "d5c1354",
-      "date": "2026-07-28",
+      "hash": "e7b88a1",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "platform",
-      "title": "헬스체크 실패를 \"서비스 장애\"로 오표시하던 문제 — 실패 사유 설명으로"
+      "scope": "ops+hr",
+      "title": "24h 오류 5건 근본원인 수정 + 대시보드/시스템상태 카운트 통일"
     },
     {
-      "hash": "b266c6e",
-      "date": "2026-07-28",
-      "type": "style",
-      "label": "다듬기",
-      "scope": "landing",
-      "title": "주요 기능 제목 — \"일은 한 번만 하면 돼요\""
-    },
-    {
-      "hash": "c7d8638",
-      "date": "2026-07-28",
-      "type": "style",
-      "label": "다듬기",
-      "scope": "landing",
-      "title": "섹션 제목 3개를 감성 문구로 — 어미는 서로 다르게"
-    },
-    {
-      "hash": "800c083",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "platform",
-      "title": "운영 콘솔 전면 정비 — 공통 킷 + 전 페이지 검색·CSV·자동갱신 + 메뉴 4그룹"
-    },
-    {
-      "hash": "81923be",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "platform",
-      "title": "카드 숫자와 목록이 따로 세던 구조 제거 — 판정 함수 일원화"
-    },
-    {
-      "hash": "0100804",
-      "date": "2026-07-28",
-      "type": "style",
-      "label": "다듬기",
-      "scope": "landing",
-      "title": "모바일 섹션 좌우 정렬 + 문구 다듬기"
-    },
-    {
-      "hash": "5cc9893",
-      "date": "2026-07-28",
-      "type": "copy",
-      "label": "문구",
-      "scope": "landing",
-      "title": "하루 섹션 제목·설명 다듬기"
-    },
-    {
-      "hash": "b5c542f",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "platform",
-      "title": "시스템 상태 통합 — 에러해석·의존성·사고기록·감사로그 4메뉴 → 1개"
-    },
-    {
-      "hash": "7aa123e",
-      "date": "2026-07-28",
+      "hash": "154df1f",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
       "scope": "landing",
-      "title": "섹션 간 흐름 정리 — 하루·커버리지·모바일 문구 + 축 순서 + 카드 음영 정렬"
+      "title": "폰 스와이프 전환 + 뭉친 칩·겹친 폰 화면 수정, 가격·사례 문구 정정"
     },
     {
-      "hash": "d69aa2f",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "platform",
-      "title": "퍼널 단계 클릭 시 명단이 안 나오던 회귀 — RPC 덮어쓰기 충돌"
-    },
-    {
-      "hash": "df8678e",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "platform",
-      "title": "만료된 체험이 '체험 중' 으로 집계되던 문제"
-    },
-    {
-      "hash": "a62070e",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "demo",
-      "title": "자금 전망 잔액 차트를 실제 앱 컴포넌트(AreaTrend)로 교체 — 지어낸 원색 막대 제거"
-    },
-    {
-      "hash": "de4aec2",
-      "date": "2026-07-28",
+      "hash": "c469162",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
-      "scope": "platform",
-      "title": "개요 대시보드 전면 재배치 — 히어로 밴드 + 본문/작업레일 콘솔형"
+      "scope": "landing",
+      "title": "주요 기능 9장 배치 교체 — 2열 4줄 → 축마다 한 줄(지그재그)"
     },
     {
-      "hash": "88253d7",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "platform",
-      "title": "가입 퍼널 단계 클릭 → 오늘 명단 + 가입사 행 전체 클릭"
-    },
-    {
-      "hash": "2bb91a7",
-      "date": "2026-07-28",
+      "hash": "c7924c0",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "platform",
-      "title": "이용 등급 명칭 정리 — 무료/체험 혼동 제거"
+      "scope": "landing",
+      "title": "문구 전면 점검 — 기승전결 순서 교정, 겹치는 말·톤 어긋난 곳 정리"
     },
     {
-      "hash": "e70bdd8",
-      "date": "2026-07-28",
+      "hash": "f45a92e",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
-      "scope": "platform",
-      "title": "운영자 셸 리디자인 — 톱바·브랜드 배지·모바일 대응"
+      "scope": "landing",
+      "title": "경쟁사 비교 반영한 랜딩 구조 개편 — 캐러셀→그리드, 공감·사례·가격 신설"
     },
     {
-      "hash": "159662a",
-      "date": "2026-07-28",
+      "hash": "31eca74",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "demo",
-      "title": "랜딩에 남아 있던 옛 레이아웃 화면 12개 전부 실화면 기준으로 교체 (3차·완료)"
+      "scope": "landing",
+      "title": "이미지 전량 재캡처(이중 라운드 제거) + 전수 감사 + 모바일도 웹과 같은 연출"
     },
     {
-      "hash": "0918e5e",
-      "date": "2026-07-28",
+      "hash": "de97195",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "하루 섹션 — 시간대 넘김을 휠 2칸으로 균일하게"
+    },
+    {
+      "hash": "3f64527",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
-      "scope": "platform",
-      "title": "위험 신호·성장 신호 섹션 — 이탈 방지 + 매출 리드 대시보드"
+      "scope": "landing",
+      "title": "레일을 네이티브 스크롤+스냅으로(애플 벤치) · AI 카드 통일 · 히어로 화질 · 모임 연출 지연"
     },
     {
-      "hash": "85c789f",
-      "date": "2026-07-28",
+      "hash": "84357a8",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "editor",
+      "title": "PDF 글자 행간(세로)도 밀어내기 — 높이 변화량만큼 아래 줄 이동"
+    },
+    {
+      "hash": "040ea38",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "AI 카드 — 흰 UI 가 어두운 여백에 떠 있던 배치 교정"
+    },
+    {
+      "hash": "f8f18b1",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "editor",
+      "title": "PDF 글자 조각이 옆 조각을 침범하던 겹침 — 같은 줄 조각 밀어내기"
+    },
+    {
+      "hash": "b2c87cc",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
-      "scope": "platform",
-      "title": "개요 대시보드 재디자인 — 운영 인박스 신설 + 섹션 위계 정리"
+      "scope": "editor",
+      "title": "굵게·색상도 PDF 글자에 적용 — pdfActive 라우팅 확장"
     },
     {
-      "hash": "3e0aac8",
-      "date": "2026-07-28",
+      "hash": "b441a26",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "landing",
+      "title": "히어로 마름모 — 옆 카드를 누르면 가운데로 온다 + 통합 재생 시점 교정"
+    },
+    {
+      "hash": "843c95c",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "하루 섹션 화면 2건이 설명과 어긋나 있었다 + 전/후 → 비포/애프터"
+    },
+    {
+      "hash": "c6ca653",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "editor",
+      "title": "PDF 서식 편집 3종 — 원크기 렌더·글자크기 적용·변수 커서삽입"
+    },
+    {
+      "hash": "9145e22",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "통합 장면을 \"들어오면 한 번 재생\"으로 + 모바일 섹션 스와이프·앞뒤 이동"
+    },
+    {
+      "hash": "1182392",
+      "date": "2026-07-29",
       "type": "chore",
       "label": "정비",
-      "scope": "guide",
-      "title": "사용 가이드·메뉴 도움말에서도 대출·자산 제거"
+      "scope": "ops",
+      "title": "방문자 타일 라벨 명확화 — 전체/포함 관계 표기"
     },
     {
-      "hash": "ec82aa4",
-      "date": "2026-07-28",
+      "hash": "025da0e",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "platform",
+      "title": "시스템 상태 오류 카운트가 처리완료 건까지 세던 것 — 3개 RPC 수정"
+    },
+    {
+      "hash": "358b9ae",
+      "date": "2026-07-29",
       "type": "chore",
       "label": "정비",
-      "scope": "sidebar",
-      "title": "대출·자산 메뉴 노출 제거 — 라우트·데이터는 유지"
+      "scope": null,
+      "title": "소스 내 타사 서비스 언급 전량 중립화 — 상업 출시 대비"
     },
     {
-      "hash": "526d677",
-      "date": "2026-07-28",
+      "hash": "8ea6e14",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "landing",
-      "title": "없는 기능인 대출·자산 메뉴 제거 — 메뉴 20 → 18개"
+      "scope": "dashboard",
+      "title": "위젯 그리드가 1열 세로로 짜부돼 영구 고정되던 사고 — 3중 수정"
     },
     {
-      "hash": "96ef923",
-      "date": "2026-07-28",
+      "hash": "2f3721d",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
-      "scope": "billing",
-      "title": "결제 확인 모달에 할인코드 적용 상태 표시"
+      "scope": "tax",
+      "title": "세금계산서 엑셀 일괄발행 — 위하고/그렌터식 벤치마킹"
     },
     {
-      "hash": "f55147e",
-      "date": "2026-07-28",
+      "hash": "1e9dbc6",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "platform",
-      "title": "시스템 현황에 구버전·미확정 요금제가 그대로 노출되던 문제"
+      "scope": "build",
+      "title": "누락된 ui-icon 컴포넌트 추가 — 아이콘 교체 커밋들이 참조하나 미커밋 상태였음"
     },
     {
-      "hash": "37f3317",
-      "date": "2026-07-28",
+      "hash": "d779c35",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "billing",
-      "title": "'플랜 선택하고 시작' 버튼 무반응 — 요금제 탭에서도 플랜 카드로 스크롤"
+      "scope": "hr",
+      "title": "PDF 업로드 글자 겹침·깨짐 수정 — 오버레이 좌표를 반응형 비율로"
     },
     {
-      "hash": "a6573e7",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "platform",
-      "title": "KPI 카드 클릭 시 해당 회사 목록으로 필터"
-    },
-    {
-      "hash": "673a821",
-      "date": "2026-07-28",
+      "hash": "007fd78",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "demo",
-      "title": "나머지 전 메뉴를 실화면 구조로 재작성 (2차)"
+      "scope": "qa",
+      "title": "무음 실패 결함류 2건 — 운영자 콘솔 저장 실패 배너 + 서명 완료 메일 실패 로깅"
     },
     {
-      "hash": "075ccf6",
-      "date": "2026-07-28",
+      "hash": "132ba19",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "billing",
-      "title": "요금제 카드 결제 버튼을 카드 하단에 통일 정렬"
+      "scope": "build",
+      "title": "\"use client\" 위에 삽입된 ui-icon import 3곳 — 빌드 전면 실패 복구"
     },
     {
-      "hash": "b907fd5",
-      "date": "2026-07-28",
-      "type": "security",
-      "label": "보안",
-      "scope": "platform",
-      "title": "운영자 권한을 creative@mo-tive.com 단일 계정으로 제한"
-    },
-    {
-      "hash": "253a34b",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "platform",
-      "title": "운영자 페이지가 자기 회사만 보던 RLS 결함 + 최근 가입사 목록"
-    },
-    {
-      "hash": "efcb963",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "billing",
-      "title": "결제 실패 원인을 error_logs 에 남기고 사용자 원인 오류는 그대로 안내"
-    },
-    {
-      "hash": "591d54d",
-      "date": "2026-07-28",
-      "type": "copy",
-      "label": "문구",
-      "scope": "billing",
-      "title": "영업코드 안내 문구 — '영업사원에게 받은 코드' → '할인 코드'"
-    },
-    {
-      "hash": "70661f9",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "auth",
-      "title": "개설 실패 시 고아 회사 정리를 RLS 안전한 RPC 로"
-    },
-    {
-      "hash": "3782faa",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "platform",
-      "title": "오늘 가입 퍼널 + 회사 미등록 가입자 목록"
-    },
-    {
-      "hash": "7cbe5f3",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "demo",
-      "title": "실화면 대조 후 분석·거래 장부·세금·증빙·정산 4개 화면 재작성"
-    },
-    {
-      "hash": "879d931",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "platform",
-      "title": "운영자 대시보드 트래픽·이용 현황"
-    },
-    {
-      "hash": "4bbe15e",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "db",
-      "title": "notifications type CHECK 확장 — 결재 알림 전체가 무음 실패하던 결함"
-    },
-    {
-      "hash": "7227ba7",
-      "date": "2026-07-28",
-      "type": "hotfix",
-      "label": "긴급수정",
-      "scope": "auth",
-      "title": "신규 회사 개설 RLS 위반 — upsert 를 insert+조건부 update 로 롤백"
-    },
-    {
-      "hash": "d20d1ef",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "주요 기능 9개 탭 전부 \"처리 전 → 처리 후\" 전환 적용"
-    },
-    {
-      "hash": "941fc68",
-      "date": "2026-07-28",
-      "type": "security",
-      "label": "보안",
-      "scope": "db",
-      "title": "자격증명 암복호화 함수의 anon 실행 권한 회수"
-    },
-    {
-      "hash": "259296b",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "주요 기능 화면에 전→후 2단 전환 + 커버리지 문구 · 드롭다운 가독성 · 메뉴명"
-    },
-    {
-      "hash": "ab466e2",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "전체 메뉴 → \"커버리지\" 섹션으로 재기획 (문장·레이아웃·배치)"
-    },
-    {
-      "hash": "b35ab8a",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "주요 기능에서 떠 있던 수치 칩 제거 — 설명과 화면만 남긴다"
-    },
-    {
-      "hash": "05316c8",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "전체 기능 배너 → 메뉴 20개를 펼쳐 보여주는 섹션, 주요 기능 바로 뒤로"
-    },
-    {
-      "hash": "83b17d4",
-      "date": "2026-07-28",
-      "type": "style",
-      "label": "다듬기",
-      "scope": "landing",
-      "title": "리퀴드 글래스·입체감 전면 강화 + 팔레트 밝게"
-    },
-    {
-      "hash": "a5ab846",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "한글·라틴이 다른 폰트로 떨어지던 문제 + 타이포 스케일 정수 단계로 통일"
-    },
-    {
-      "hash": "2aa7a4e",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "copilot",
-      "title": "근로계약 생성·발송 + 직원 근태 수정요청 액션"
-    },
-    {
-      "hash": "d003ac9",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "로그인된 상태로 /auth 방문 시 계정 상태에 맞는 화면으로 자동 이동"
-    },
-    {
-      "hash": "209a706",
-      "date": "2026-07-28",
+      "hash": "2ec73a6",
+      "date": "2026-07-29",
       "type": "copy",
       "label": "문구",
       "scope": "landing",
-      "title": "히어로 위계 교체 · CTA 라벨 · 배너 문구 · 비용 문구 + 타임라인 선 정렬"
+      "title": "모바일 섹션 설명 — \"이동 중에도 결정이 밀리지 않아요.\""
     },
     {
-      "hash": "d566139",
-      "date": "2026-07-28",
+      "hash": "9e55327",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "landing",
+      "title": "레일 스와이프 + 모바일에서 하루·통합 핀 유지, 하루·모바일 문구"
+    },
+    {
+      "hash": "33923ee",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "demo",
-      "title": "세금·증빙을 실제 화면 구조로 재작성 + 파이낸스 하위 탭 + 데모 배너 폭 정렬"
+      "scope": "qa",
+      "title": "같은 화면 캐시 비동기화 결함류 전수 소탕 — 3건 추가 수정"
     },
     {
-      "hash": "86fa230",
-      "date": "2026-07-28",
+      "hash": "64d3c56",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
-      "scope": "auth,hr",
-      "title": "신규·레거시 계정 limbo 결함류 일괄 수정 (정식 배포일 스윕)"
+      "scope": "dashboard",
+      "title": "직원 대시보드 기본 배치가 왼쪽 1/3에 몰리던 문제 — 3열 꽉 채움"
     },
     {
-      "hash": "a876662",
-      "date": "2026-07-28",
+      "hash": "a010e66",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "attendance",
+      "title": "출근 후 대시보드 두 카드가 새로고침 없이 즉시 동기화"
+    },
+    {
+      "hash": "bdeb1a6",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "bank",
+      "title": "통장거래 예금주명 간간이 빈칸 — 원인 확인 + 복구 가능한 건 백필"
+    },
+    {
+      "hash": "1f4a0f3",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "landing",
+      "title": "AI 카드를 손그림 → 실제 제품 화면(DOM 조각) + 어두운 무대"
+    },
+    {
+      "hash": "77cef03",
+      "date": "2026-07-29",
+      "type": "design",
+      "label": "기타",
+      "scope": null,
+      "title": "이모지 아이콘 정리 2차 — 잔여 렌더 경로 전환 + 매핑 31종 추가"
+    },
+    {
+      "hash": "121876e",
+      "date": "2026-07-29",
+      "type": "design",
+      "label": "기타",
+      "scope": null,
+      "title": "앱 전반 이모지 아이콘 → 선형 SVG 아이콘 통일 (1차 300+곳)"
+    },
+    {
+      "hash": "6265d79",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
       "scope": "landing",
-      "title": "숫자 카드 일러스트를 글래스로 재작업 + 클래스명 충돌로 인디고 덩어리 제거"
+      "title": "코어 카드 이미지를 DOM 조각 캡처로 — 좌표 크롭을 완전히 버린다"
     },
     {
-      "hash": "36cb861",
-      "date": "2026-07-28",
+      "hash": "5bc81cc",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "스크롤 연출이 뚝뚝 끊기던 문제 — 재생 헤드에 관성, 칩·화면 크로스페이드"
+    },
+    {
+      "hash": "f0c6c83",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
-      "scope": "copilot",
-      "title": "AI 참모 2단계 — 쓰기 액션 + 직원 제한 모드"
+      "scope": "landing",
+      "title": "AI 섹션을 설명 일러스트 + 화살표 내비로 재구성"
     },
     {
-      "hash": "12fda6b",
-      "date": "2026-07-28",
+      "hash": "aca0ed5",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "errors",
+      "title": "운영자 에러로그 잔여 미해결 전수 소탕 — 근본원인 2건 코드 수정"
+    },
+    {
+      "hash": "07c6363",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "ops",
+      "title": "유입경로 '(직접 유입)' 이중 카운트 제거"
+    },
+    {
+      "hash": "dfa5ba3",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "요금제별 기능을 실제 DB 한도와 일치시킴 + 누락 기능 추가"
+    },
+    {
+      "hash": "84bb793",
+      "date": "2026-07-29",
+      "type": "chore",
+      "label": "정비",
+      "scope": null,
+      "title": "고아 파일 27개 삭제 본체 (직전 커밋 4df5d5c 에서 autostash 로 누락된 삭제분)"
+    },
+    {
+      "hash": "9c01fa5",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "히어로 부채꼴 카드에 외곽선 — 흰 카드가 옅은 배경에 묻히던 문제"
+    },
+    {
+      "hash": "4df5d5c",
+      "date": "2026-07-29",
+      "type": "chore",
+      "label": "정비",
+      "scope": null,
+      "title": "고아 파일 27개 삭제 + 죽은 엣지 2종 410 봉인"
+    },
+    {
+      "hash": "8fff5bc",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "qa",
+      "title": "스키마 드리프트 전수 스윕 — 코드가 참조하는 컬럼·키·RPC 전체를 DB와 대조"
+    },
+    {
+      "hash": "a38e1e0",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "ops",
+      "title": "성장 분석에 비로그인 방문자 지표 타일·차트 추가"
+    },
+    {
+      "hash": "fbd360e",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "design",
+      "title": "사이드바·상단바도 흰색으로 + 앱 배경 2차로 더 옅게, 이미지 27장 재캡처"
+    },
+    {
+      "hash": "eb587ef",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "ops",
+      "title": "페이지뷰 — 실제 사람 조회만 카운팅"
+    },
+    {
+      "hash": "bea9390",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "signup",
+      "title": "간편가입 관문 실패 전수 로깅 — 이탈/오류 구분 가능하게"
+    },
+    {
+      "hash": "4ad8a42",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "design",
+      "title": "카드를 솔리드 흰색으로 · 앱 배경 더 옅게 + 랜딩 이미지 27장 전량 재캡처"
+    },
+    {
+      "hash": "9db447d",
+      "date": "2026-07-29",
+      "type": "chore",
+      "label": "정비",
+      "scope": "qa",
+      "title": "PostgREST 임베드 전수 스윕(165개) — 잔여 결함 1건 정정"
+    },
+    {
+      "hash": "0084e96",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "landing",
+      "title": "마름모 강조 + 패널을 내용 높이로 재캡처 + 커버리지 아이콘·문구"
+    },
+    {
+      "hash": "d2a910f",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "hr",
+      "title": "급여명세서 하단도 표준 발급 서식으로 통일"
+    },
+    {
+      "hash": "db3abaf",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "hr",
+      "title": "경력증명서도 표준 발급 서식으로 통일"
+    },
+    {
+      "hash": "85802fb",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "hr",
+      "title": "재직증명서 서식 — 재직기간(입사일~발급일) 자동 + 표준 발급 문구"
+    },
+    {
+      "hash": "23766d0",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "bank",
+      "title": "거래내용 정렬 추가 + 예금주/거래내용 뒤바뀜 매핑 수정"
+    },
+    {
+      "hash": "89591b9",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": null,
+      "title": "운영자 에러 피드 3종 — 결재 댓글 임베드 400 · 증명서 발급 FK 409"
+    },
+    {
+      "hash": "ae7ea32",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
       "scope": "auth",
-      "title": "회사 미설정 계정 무한 \"불러오는 중\" — 셸 가드 + verify 오류 라우팅"
+      "title": "소셜 콜백 실패가 아무 안내 없이 로그인 화면만 띄우던 문제"
     },
     {
-      "hash": "99286bd",
-      "date": "2026-07-28",
+      "hash": "661f6dc",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "platform",
+      "title": "성장 분석 섹션 리디자인 — 일/월/년 시계열 + 지표 드릴다운"
+    },
+    {
+      "hash": "bdf4256",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "hr",
+      "title": "서식 탭 PDF 업로드에 '원본 그대로·수정 가능' 방식 연결"
+    },
+    {
+      "hash": "9eac545",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "editor",
+      "title": "PDF 그대로 모드 = 원본 이미지 + 그 위 글자 클릭 수정"
+    },
+    {
+      "hash": "0800845",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "코어 카드 — 설명과 다른 부분이 보이던 확대 크롭 제거"
+    },
+    {
+      "hash": "80d532a",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "hr",
+      "title": "증명서 용도·제출처 선택 발급 + PDF 편집모드 원본 재현도 강화"
+    },
+    {
+      "hash": "23daa33",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "히어로 부채꼴을 마름모 배열로 — 옆 장을 내리던 fy 제거"
+    },
+    {
+      "hash": "035d077",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "editor",
+      "title": "'PDF 그대로' 모드 — 표·서식·줄바꿈 원본과 100% 동일하게 삽입"
+    },
+    {
+      "hash": "97e8509",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
       "scope": "landing",
-      "title": "숫자 4개를 설명 카드로 재구성 — 문장 + 오너뷰 UI 조각 일러스트"
+      "title": "코어 카드 재설계(틴트 판 + 좌상단 설명) + 부채꼴을 크기 낙차형으로"
     },
     {
-      "hash": "06b5a37",
-      "date": "2026-07-28",
-      "type": "style",
-      "label": "다듬기",
-      "scope": "landing",
-      "title": "스크롤 고정 CTA 를 버튼 하나로 축소"
-    },
-    {
-      "hash": "24945cb",
-      "date": "2026-07-28",
-      "type": "copy",
-      "label": "문구",
-      "scope": "landing",
-      "title": "히어로 후킹과 소개 문단의 역할 분리 — 위는 정체성, 아래는 통합 가치"
-    },
-    {
-      "hash": "28a33e4",
-      "date": "2026-07-28",
+      "hash": "2a6c86e",
+      "date": "2026-07-29",
       "type": "fix",
       "label": "수정",
       "scope": "landing",
-      "title": "섹션 배경 교차 + 여백 확대, 아래로 갈수록 좁아지던 폭 교정"
+      "title": "부채꼴을 최상단으로 — 페이지 열리면 퍼진다. 통합은 대시보드 한 장으로 원복"
     },
     {
-      "hash": "29f9bd6",
-      "date": "2026-07-28",
-      "type": "style",
-      "label": "다듬기",
-      "scope": "landing",
-      "title": "숫자 4개를 아이콘 + 파스텔 타일 카드로 재구성"
+      "hash": "ab6c34f",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "signup",
+      "title": "회원가입·회사설정에 휴대전화 입력 — 알림톡 발송 대상 확보"
     },
     {
-      "hash": "334578f",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "소개 문구 가독성·배경 정리 + 섹션 여백 확대"
-    },
-    {
-      "hash": "b07d85d",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "히어로 롤링 1줄·정지 없음 + 롤링 아래 서비스 소개 문단 신설"
-    },
-    {
-      "hash": "2effbdc",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "attendance",
-      "title": "출퇴근 기록 다이얼로그 — 날짜 픽커 중복 제거 + 기본값 채우기"
-    },
-    {
-      "hash": "f1c9ac5",
-      "date": "2026-07-28",
+      "hash": "992a361",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
       "scope": "landing",
-      "title": "히어로 재기획 — 후킹 문구 교체 + 정적 대시보드 한 장 → 실제 화면 가로 롤링"
+      "title": "코어 레일 풀블리드 + 설명 위치 변주, 제품 화면 17장 고해상도 재캡처"
     },
     {
-      "hash": "895f123",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "attendance",
-      "title": "출퇴근 기록 추가 다이얼로그 직원 목록이 비어 보이던 문제"
-    },
-    {
-      "hash": "6844848",
-      "date": "2026-07-28",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "둘러보기 드롭다운 세부 메뉴를 가로 배열로 + 패널 화면 중앙 정렬"
-    },
-    {
-      "hash": "93b8dbc",
-      "date": "2026-07-28",
-      "type": "feat",
-      "label": "기능",
-      "scope": "demo",
-      "title": "사이드바 메뉴를 실제로 눌러 볼 수 있게 — 메뉴마다 가상 데이터 화면"
-    },
-    {
-      "hash": "deb7529",
-      "date": "2026-07-27",
-      "type": "fix",
-      "label": "수정",
-      "scope": "attendance",
-      "title": "수정 팝업 KST 기본값 · 조기출근 연장 오산정 · 관리자 대행 기록"
-    },
-    {
-      "hash": "4f97172",
-      "date": "2026-07-27",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "AI 자동화 전용 페이지 신설(엔진과 통합) + 공통 네비 + /features 단일 영역 뷰"
-    },
-    {
-      "hash": "620a120",
-      "date": "2026-07-27",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "둘러보기 드롭다운을 영역별 전환식으로 + 2단 간격 확대 + 하루 스크롤 균등화"
-    },
-    {
-      "hash": "f08fc9b",
-      "date": "2026-07-27",
+      "hash": "914a3c6",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
       "scope": "approvals",
-      "title": "결재함 '내가 결재한 건'에서도 PDF 저장"
+      "title": "양식 만들기의 기본 내용/설명 템플릿에 표·서식 편집기 적용"
     },
     {
-      "hash": "0752ef0",
-      "date": "2026-07-27",
+      "hash": "c9ce34b",
+      "date": "2026-07-29",
       "type": "feat",
       "label": "기능",
-      "scope": "approvals",
-      "title": "내 요청 상세 팝업에서 PDF 저장"
+      "scope": "notify",
+      "title": "알림 발송 로그 테이블 — 카카오 알림톡 1단계"
     },
     {
-      "hash": "ce44254",
-      "date": "2026-07-27",
+      "hash": "c70aa4f",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing",
+      "title": "히어로 제목이 사라지던 문제 + 통합 장면을 화면 5장 부채꼴로 + 체크 문구"
+    },
+    {
+      "hash": "be2190b",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "ops",
+      "title": "MRR/ARR 에서 내부 부여 구독 제외 + 지표 설명 추가"
+    },
+    {
+      "hash": "dee19ec",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "hr+ops",
+      "title": "자동퇴근 연장 오계산 수정 · 운영자 오류 클릭 상세 설명"
+    },
+    {
+      "hash": "6e99a9f",
+      "date": "2026-07-29",
+      "type": "feat",
+      "label": "기능",
+      "scope": "landing",
+      "title": "세 축·AI 레일을 스크롤 구동 → 자동 재생 + 컨트롤, 섹션 순서 조정"
+    },
+    {
+      "hash": "9ea0329",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "ops",
+      "title": "운영자 타임라인을 채우던 무해 브라우저 소음 오류 적재 차단"
+    },
+    {
+      "hash": "0e5363e",
+      "date": "2026-07-29",
+      "type": "fix",
+      "label": "수정",
+      "scope": "approvals",
+      "title": "직원 계정 결재허브 배지에 남의 지급대기 건 카운트되던 버그"
+    },
+    {
+      "hash": "db55ba1",
+      "date": "2026-07-29",
       "type": "style",
       "label": "다듬기",
       "scope": "landing",
-      "title": "타이포·이미지 전체 스케일 업 + 실제 앱에 없는 오버레이 UI 제거"
+      "title": "흩어진 도구 칩 — 색 아이콘 + 불규칙 배치, 제목 위로는 안 올린다"
     },
     {
-      "hash": "d2abbed",
-      "date": "2026-07-27",
-      "type": "feat",
-      "label": "기능",
-      "scope": "legal",
-      "title": "기존 회원 재동의 관문 + 약관 문구 리스크 완화"
-    },
-    {
-      "hash": "9be32a4",
-      "date": "2026-07-27",
-      "type": "chore",
-      "label": "정비",
+      "hash": "ef3f812",
+      "date": "2026-07-28",
+      "type": "fix",
+      "label": "수정",
       "scope": "landing",
-      "title": "데모 배너가 찍힌 모바일 캡처 1차분 삭제"
+      "title": "무대 제목이 상단바에 잘리던 문제 + 레일 끝 빈 화면"
     },
     {
-      "hash": "5bd1ede",
-      "date": "2026-07-27",
-      "type": "feat",
-      "label": "기능",
+      "hash": "a9c9f83",
+      "date": "2026-07-28",
+      "type": "copy",
+      "label": "문구",
       "scope": "landing",
-      "title": "모바일 섹션 스크롤 핀 + 3D 폰 목업, 화면 프레임 입체·글래스, 등장 모션 강화"
+      "title": "모바일 섹션 제목 — 누락됐던 교체 반영"
     },
     {
-      "hash": "f0f5d59",
-      "date": "2026-07-27",
-      "type": "feat",
-      "label": "기능",
-      "scope": "legal",
-      "title": "약관 동의 기록 저장 — 누가·언제·어느 버전에 동의했는지"
-    },
-    {
-      "hash": "6b472fb",
-      "date": "2026-07-27",
-      "type": "feat",
-      "label": "기능",
-      "scope": "features",
-      "title": "토글 하나당 화면 하나로 분리 + 토글 바 상단 고정, 네비 세로정렬 수정"
-    },
-    {
-      "hash": "cb950f5",
-      "date": "2026-07-27",
-      "type": "feat",
-      "label": "기능",
-      "scope": "legal",
-      "title": "연간 환불불가 동의 체크박스 + 소셜 가입 약관 동의 누락 차단"
-    },
-    {
-      "hash": "901b190",
-      "date": "2026-07-27",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "주요 기능 둘러보기 탭 섹션 + 전 이미지 균일 비율·고화질 재캡처"
-    },
-    {
-      "hash": "e0c6199",
-      "date": "2026-07-27",
-      "type": "docs",
-      "label": "문서",
-      "scope": "legal",
-      "title": "가입·환불 약관을 실제 구현에 맞춰 재작성"
+      "hash": "e2f4101",
+      "date": "2026-07-28",
+      "type": "fix",
+      "label": "수정",
+      "scope": "dashboard",
+      "title": "데이터 없는 신규 가입사에 현금펄스 50점 표시되던 오도 수정"
     }
   ]
 }

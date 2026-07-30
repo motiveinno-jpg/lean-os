@@ -76,7 +76,8 @@ ${COMMON_RULES}
 - snapshot 만으로 답할 수 있으면 툴을 부르지 말고 곧바로 respond 로 마무리합니다.
 - 직원을 이름으로 지목한 질문은 find_employee 로 employee_id 를 먼저 확인한 뒤 get_attendance 를 부르세요.
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
-- 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms 로 확인하세요. 양식 내용 수정은 당신이 직접 할 수 없으니, 양식이 있으면 결재 허브의 양식 관리 화면(href: /approvals)에서 수정하도록 안내하세요.
+- 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
+- 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
 - 필요한 조회를 마쳤으면 반드시 respond 툴로 최종 답변을 반환합니다.`;
 
 const SYSTEM_EMPLOYEE = `당신은 OwnerView ERP를 쓰는 직원을 돕는 "AI 비서"입니다. 본인 근태·결재 같은 개인 업무를 처리해 줍니다.
@@ -193,6 +194,15 @@ const MANAGER_READ_TOOLS = [
     description: "결재 허브의 결재 양식(신청서·품의서 등 서식) 목록을 반환합니다. 사용자가 특정 양식의 존재·이름을 언급하면 반드시 이 툴로 확인한 뒤 답하세요. 없다고 단정하기 전에 필수.",
     input_schema: { type: "object", additionalProperties: false, properties: {} },
   },
+  {
+    name: "get_approval_form",
+    description: "특정 결재 양식의 현재 구성(이름·설명·입력 항목 목록)을 반환합니다. 양식을 수정하기 전 반드시 이 툴로 현재 상태를 확인하세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: { name: { type: "string", description: "양식 이름 또는 이름 일부" } },
+      required: ["name"],
+    },
+  },
 ];
 
 const EMPLOYEE_READ_TOOLS = [
@@ -296,6 +306,41 @@ const ACTION_TOOLS = [
           send: { type: "boolean", description: "사용자가 '보내줘'라고 했으면 true. 생성만 원하면 false." },
         },
         required: ["employee_id", "template_ids", "title"],
+      },
+    },
+  },
+  {
+    name: "upsert_approval_form",
+    tier: "confirm",
+    label: "결재 양식 저장",
+    def: {
+      name: "upsert_approval_form",
+      description: "결재 양식을 수정하거나 새로 만듭니다(대표·관리자 전용, 사용자 확인 후 저장). 수정이면 get_approval_form 으로 얻은 form_id 를 넣고, 신규면 form_id 를 생략하세요. fields 는 전체 항목 목록입니다 — 수정 시에도 유지할 기존 항목까지 모두 포함해야 합니다(빠진 항목은 삭제됨).",
+      input_schema: {
+        type: "object", additionalProperties: false,
+        properties: {
+          form_id: { type: "string", description: "수정할 양식 id (get_approval_form 결과). 신규 생성이면 생략" },
+          name: { type: "string", description: "양식 이름" },
+          description: { type: "string", description: "양식 설명(작성자에게 보이는 안내)" },
+          use_attachment: { type: "boolean", description: "첨부파일 첨부란 사용 여부 (증빙 서류가 필요한 양식이면 true)" },
+          fields: {
+            type: "array",
+            description: "입력 항목 전체 목록(순서대로)",
+            items: {
+              type: "object", additionalProperties: false,
+              properties: {
+                key: { type: "string", description: "영문 키(snake_case). 기존 항목을 유지할 땐 기존 key 그대로" },
+                label: { type: "string", description: "항목 이름(한국어)" },
+                type: { type: "string", enum: ["text", "number", "amount", "date", "period", "select", "textarea", "fixed"], description: "입력 형태" },
+                required: { type: "boolean" },
+                options: { type: "array", items: { type: "string" }, description: "type=select 일 때 선택지" },
+                default_value: { type: "string", description: "type=fixed 일 때 고정 표시 값" },
+              },
+              required: ["label", "type"],
+            },
+          },
+        },
+        required: ["name", "fields"],
       },
     },
   },
@@ -455,8 +500,22 @@ async function executeReadTool(
     return {
       custom_forms: forms.data ?? [],
       policy_forms: (policies.data ?? []).map((p: { id: string; name: string; label: string | null }) => ({ id: p.id, name: p.label || p.name })),
-      note: "양식 수정은 결재 허브(/approvals)의 양식 관리에서 가능",
+      note: "양식 수정·신규 생성은 upsert_approval_form 액션으로 가능(사용자 확인 후 저장)",
     };
+  }
+
+  if (name === "get_approval_form") {
+    const q = String(input.name ?? "").trim().slice(0, 100);
+    if (!q) return { error: "양식 이름을 지정하세요." };
+    const { data, error } = await admin
+      .from("approval_forms")
+      .select("id, name, description, fields, use_attachment, is_active")
+      .eq("company_id", companyId)
+      .ilike("name", `%${q}%`)
+      .limit(3);
+    if (error) return { error: "양식 조회에 실패했습니다." };
+    if (!data?.length) return { forms: [], note: "일치하는 양식이 없습니다. list_approval_forms 로 전체 목록을 확인하세요." };
+    return { forms: data };
   }
 
   return { error: `알 수 없는 툴입니다: ${name}` };
@@ -484,6 +543,30 @@ function sanitizeActionArgs(name: string, input: Record<string, unknown>): Recor
       check_out_time: hhmm(input.check_out_time),
       status: ["present", "late", "remote", "half_day", "absent"].includes(st) ? st : "",
       reason: String(input.reason ?? "").trim().slice(0, 500),
+    };
+  }
+  if (name === "upsert_approval_form") {
+    const ALLOWED_TYPES = ["text", "number", "amount", "date", "period", "select", "textarea", "fixed"];
+    const rawFields = Array.isArray(input.fields) ? input.fields : [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fields = rawFields.slice(0, 30).map((f: any, i: number) => {
+      const type = ALLOWED_TYPES.includes(String(f?.type)) ? String(f.type) : "text";
+      const label = String(f?.label ?? "").trim().slice(0, 100);
+      const key = (String(f?.key ?? "").trim().replace(/[^a-zA-Z0-9_]/g, "").slice(0, 50)) || `field_${i + 1}`;
+      const out: Record<string, unknown> = { key, label, type };
+      if (f?.required === true) out.required = true;
+      if (type === "select" && Array.isArray(f?.options)) {
+        out.options = f.options.map((o: unknown) => String(o).slice(0, 100)).filter(Boolean).slice(0, 20);
+      }
+      if (type === "fixed" && f?.default_value != null) out.default_value = String(f.default_value).slice(0, 500);
+      return out;
+    }).filter((f: Record<string, unknown>) => f.label);
+    return {
+      form_id: UUID_RE.test(String(input.form_id ?? "")) ? String(input.form_id) : "",
+      name: String(input.name ?? "").trim().slice(0, 100),
+      description: String(input.description ?? "").trim().slice(0, 1000),
+      use_attachment: input.use_attachment === true,
+      fields,
     };
   }
   if (name === "create_employee_contract") {
@@ -658,7 +741,7 @@ serve(withSentry("owner-copilot", async (req) => {
         companyId,
         userId: profile.id,
         admin,
-        promptVersion: "copilot-v6-forms",
+        promptVersion: "copilot-v7-form-edit",
       });
 
       if (!result.ok) {
@@ -696,9 +779,9 @@ serve(withSentry("owner-copilot", async (req) => {
           // 액션 툴 — 실행하지 않는다. 의도만 채택하고 모델에게 그 사실을 알린다.
           if (pendingAction) {
             payload = { accepted: false, reason: "이미 한 건의 액션이 접수됐습니다. 액션은 한 번에 하나만 가능합니다." };
-          } else if (callName === "create_employee_contract" && mode !== "manager") {
-            payload = { accepted: false, reason: "근로계약 생성은 대표·관리자만 할 수 있습니다." };
-          } else if (!["create_approval_request", "create_employee_contract"].includes(callName) && !myEmployeeId) {
+          } else if (["create_employee_contract", "upsert_approval_form"].includes(callName) && mode !== "manager") {
+            payload = { accepted: false, reason: "이 작업은 대표·관리자만 할 수 있습니다." };
+          } else if (!["create_approval_request", "create_employee_contract", "upsert_approval_form"].includes(callName) && !myEmployeeId) {
             payload = { accepted: false, reason: "본인 직원 정보가 연결돼 있지 않아 출퇴근을 기록할 수 없습니다. 관리자에게 문의하세요." };
           } else {
             pendingAction = {
