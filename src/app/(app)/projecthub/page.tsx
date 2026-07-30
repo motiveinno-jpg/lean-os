@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 //   2026-06-17 핸드오프 v2: 신규 테이블 없이 기존 deals 재사용. 목록 → 상세(탭) 구조.
 //   목록 컬럼: 프로젝트명·거래처·담당자·단계·계약금액·진행률·기간. (직접원가·원가율은 손익 단계에서 추가)
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -19,10 +19,15 @@ import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
-import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, getOverallAchievement, type ProjectType, type KpiSource } from "@/lib/project-types";
+import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getOverallAchievement, type ProjectType, type KpiSource } from "@/lib/project-types";
+// 유형 3분할 폐지(2026-07-30) — 목록은 유형으로 걸러지지 않는다. 대표 지표는 있는 데이터에서 고른다.
+import { getHeadline, READY_LIST_VIEWS, normalizeListView, viewStorageKey, type ProjectSignals } from "@/lib/project-sections";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { useMyPermissions } from "@/lib/permissions";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
+// 워크플로우 보드 — 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
+//   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다(2026-07-30 사장님 승인).
+import { MondayBoard } from "@/components/monday-board";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
@@ -39,12 +44,13 @@ export default function ProjectHubPage() {
   const canViewAllProjects = projMaster || projHasPerm("/projecthub:all");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(true); // 성과 대시보드 — 목표형 탭 선택 시 기본 열림(토글 가능)
+  const [showDashboard, setShowDashboard] = useState(false); // 성과 대시보드(사람별·부서별) — 관리자 토글. 유형 폐지로 전 프로젝트 대상
   const [editDeal, setEditDeal] = useState<any | null>(null);
   const [delDeal, setDelDeal] = useState<any | null>(null);
   // 콕핏(2026-07-22) — "지금 챙길 것" 렌즈 필터 + 카드 ⋯메뉴 열림 상태
-  // 4번째 렌즈는 유형별로 달라짐 — 수익형/전체=미수금, 목표형=달성 저조, 실행형=지연 과제
-  const [lens, setLens] = useState<null | "risk" | "due" | "progress" | "receivable" | "goalBehind" | "delayed">(null);
+  //   유형별로 갈렸던 4번째 렌즈(달성 저조·지연 과제)는 폐지 — 미수금으로 통일하고
+  //   지연은 '위험' 렌즈가 이미 포함한다(2026-07-30).
+  const [lens, setLens] = useState<null | "risk" | "due" | "progress" | "receivable">(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
@@ -118,49 +124,50 @@ export default function ProjectHubPage() {
     return { totalOutstanding, projects };
   }, [outstandingByDeal]);
 
-  // 유형별 실적 — 목표형(자동/수동), 실행형(태스크). 핵심지표 정규화·요약·위험 판정에 사용.
-  const goalDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "goal").map((d) => d.id), [topDeals]);
-  const deliveryDealIds = useMemo(() => topDeals.filter((d) => normalizeProjectType(d.project_type) === "delivery").map((d) => d.id), [topDeals]);
+  // ⚠️ 2026-07-30 유형 3분할 폐지 — KPI·태스크를 "목표형·실행형" 프로젝트만 조회하던 것을
+  //    전체 프로젝트로 넓혔다. 수익형으로 만든 프로젝트 30개가 진행률·달성률을 아예 갖지
+  //    못했던 원인이 이 필터였다(실측: 태스크는 2개, KPI는 3개 프로젝트에만 존재).
+  const allDealIds = useMemo(() => topDeals.map((d) => d.id), [topDeals]);
 
-  // 목표형 KPI 정의 (다중 KPI 성과관리 모델)
+  // KPI 정의 (다중 KPI 성과관리 모델) — 전 프로젝트
   const { data: goalKpis = [] } = useQuery({
-    queryKey: ["projecthub-goal-kpis", companyId, goalDealIds.length],
+    queryKey: ["projecthub-kpis", companyId, allDealIds.length],
     queryFn: async () => {
-      if (goalDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase).from("project_kpis").select("id, deal_id, target_value, direction, source").in("deal_id", goalDealIds));
+      if (allDealIds.length === 0) return [];
+      const data = logRead('projecthub/page:data', await (supabase).from("project_kpis").select("id, deal_id, target_value, direction, source").in("deal_id", allDealIds));
       return (data || []) as any[];
     },
-    enabled: !!companyId && goalDealIds.length > 0,
+    enabled: !!companyId && allDealIds.length > 0,
   });
-  // 목표형 수동 KPI 실적(kpi_id 별 합)
+  // 수동 KPI 실적(kpi_id 별 합)
   const { data: goalEntries = [] } = useQuery({
-    queryKey: ["projecthub-goal-entries", companyId, goalDealIds.length],
+    queryKey: ["projecthub-kpi-entries", companyId, allDealIds.length],
     queryFn: async () => {
-      if (goalDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase).from("project_kpi_entries").select("kpi_id, value").in("deal_id", goalDealIds));
+      if (allDealIds.length === 0) return [];
+      const data = logRead('projecthub/page:data', await (supabase).from("project_kpi_entries").select("kpi_id, value").in("deal_id", allDealIds));
       return (data || []) as any[];
     },
-    enabled: !!companyId && goalDealIds.length > 0,
+    enabled: !!companyId && allDealIds.length > 0,
   });
-  // 목표형 자동 실적(v_deal_kpi_auto — 매출/이익/건수)
+  // 자동 실적(v_deal_kpi_auto — 매출/이익/건수)
   const { data: goalAutos = [] } = useQuery({
-    queryKey: ["projecthub-goal-autos", companyId, goalDealIds.length],
+    queryKey: ["projecthub-kpi-autos", companyId, allDealIds.length],
     queryFn: async () => {
-      if (goalDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase).from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", goalDealIds));
+      if (allDealIds.length === 0) return [];
+      const data = logRead('projecthub/page:data', await (supabase).from("v_deal_kpi_auto").select("deal_id, revenue_actual, profit_actual, output_count").in("deal_id", allDealIds));
       return (data || []) as any[];
     },
-    enabled: !!companyId && goalDealIds.length > 0,
+    enabled: !!companyId && allDealIds.length > 0,
   });
-  // 실행형 태스크(진행률·지연)
+  // 태스크(진행률·지연) — 전 프로젝트
   const { data: tasksRows = [] } = useQuery({
-    queryKey: ["projecthub-tasks", companyId, deliveryDealIds.length],
+    queryKey: ["projecthub-tasks", companyId, allDealIds.length],
     queryFn: async () => {
-      if (deliveryDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase).from("project_tasks").select("deal_id, status, due_date").in("deal_id", deliveryDealIds).is("archived_at", null));
+      if (allDealIds.length === 0) return [];
+      const data = logRead('projecthub/page:data', await (supabase).from("project_tasks").select("deal_id, status, due_date").in("deal_id", allDealIds).is("archived_at", null));
       return (data || []) as any[];
     },
-    enabled: !!companyId && deliveryDealIds.length > 0,
+    enabled: !!companyId && allDealIds.length > 0,
   });
 
   const todayStr = todayKst();
@@ -181,7 +188,8 @@ export default function ProjectHubPage() {
     for (const k of goalKpis as any[]) (kpisByDeal[k.deal_id] ||= []).push(k);
     const m: Record<string, number | null> = {};
     for (const d of topDeals) {
-      if (normalizeProjectType(d.project_type) !== "goal") continue;
+      // KPI 가 없는 프로젝트는 달성률 자체가 없다(유형이 아니라 데이터로 판정).
+      if (!kpisByDeal[d.id]?.length) continue;
       const ks = kpisByDeal[d.id] || [];
       m[d.id] = getOverallAchievement(ks.map((k) => ({
         target: Number(k.target_value || 0),
@@ -203,35 +211,52 @@ export default function ProjectHubPage() {
     return m;
   }, [tasksRows, todayStr]);
 
-  // 핵심지표(0~100 정규화) — 행 유형별 마진률/달성률/진행률 + 위험 판정
-  const heroByDeal = useMemo(() => {
-    const m: Record<string, ReturnType<typeof getHeroMetric> & { delayed?: boolean }> = {};
+  // 프로젝트가 실제로 가진 데이터 신호 — 유형(project_type) 대신 이걸로 판단한다.
+  //   돈: 계약금액·태그된 매출·미수 중 하나라도 / 일: 태스크 / 성과: KPI
+  const signalsByDeal = useMemo(() => {
+    const m: Record<string, ProjectSignals> = {};
     for (const d of topDeals) {
-      const type = normalizeProjectType(d.project_type);
-      if (type === "goal") {
-        // 종합 달성률(0~1) → HeroMetric. KPI 없으면 raw=null('—').
-        const ov = goalOverallByDeal[d.id];
-        if (ov == null) {
-          m[d.id] = { pct: 0, raw: null, risk: false, label: "—" };
-        } else {
-          const p = Math.round(ov * 100);
-          m[d.id] = { pct: Math.min(100, p), raw: ov, risk: false, label: `${p}%` };
-        }
-      } else if (type === "delivery") {
-        const st = taskStatsByDeal[d.id];
-        const h = getHeroMetric("delivery", { taskTotal: st?.total || 0, taskDone: st?.done || 0 });
-        m[d.id] = { ...h, delayed: (st?.delayed || 0) > 0, risk: (st?.delayed || 0) > 0 };
-      } else {
-        const p = pnlByDeal[d.id];
-        const revenue = Number(d.contract_total || 0) || Number(p?.revenue || 0);
-        m[d.id] = getHeroMetric("margin", { revenue, cost: Number(p?.direct_cost || 0) });
-      }
+      const p = pnlByDeal[d.id];
+      m[d.id] = {
+        hasMoney: Number(d.contract_total || 0) > 0 || Number(p?.revenue || 0) > 0 || (outstandingByDeal[d.id] || 0) > 1,
+        hasWork: (taskStatsByDeal[d.id]?.total || 0) > 0,
+        hasGoal: goalOverallByDeal[d.id] != null,
+      };
     }
     return m;
-  }, [topDeals, goalOverallByDeal, taskStatsByDeal, pnlByDeal]);
+  }, [topDeals, pnlByDeal, outstandingByDeal, taskStatsByDeal, goalOverallByDeal]);
 
-  // 유형 필터 — 전체(기본) + 수익형/목표형/실행형. 2026-07-13 개편: 전체 뷰 + 검색 + 내담당 + 카드형.
-  const [typeFilter, setTypeFilter] = useState<"all" | ProjectType>("all");
+  // 대표 지표(0~100 정규화) — 있는 데이터에서 자동 선택(돈>성과>일). 사용자가 고르지 않는다.
+  //   지연 태스크가 있으면 지표 종류와 무관하게 위험으로 표시한다.
+  const headlineByDeal = useMemo(() => {
+    const m: Record<string, ReturnType<typeof getHeadline> & { delayed?: boolean }> = {};
+    for (const d of topDeals) {
+      const s = signalsByDeal[d.id] || {};
+      const p = pnlByDeal[d.id];
+      const delayed = (taskStatsByDeal[d.id]?.delayed || 0) > 0;
+      const h = getHeadline(s, {
+        revenue: Number(d.contract_total || 0) || Number(p?.revenue || 0),
+        cost: Number(p?.direct_cost || 0),
+        taskTotal: taskStatsByDeal[d.id]?.total || 0,
+        taskDone: taskStatsByDeal[d.id]?.done || 0,
+        achievement: goalOverallByDeal[d.id] ?? null,
+      });
+      m[d.id] = { ...h, delayed, risk: h.risk || delayed };
+    }
+    return m;
+  }, [topDeals, signalsByDeal, pnlByDeal, taskStatsByDeal, goalOverallByDeal]);
+
+  // 보기 전환(2026-07-30) — 유형 칩이 있던 자리를 대신한다. 카드=기본(처음 쓰는 사람),
+  //   표=정렬·비교, 보드=회사가 만든 컬럼(구 워크플로우 탭). 고른 보기는 사람별로 기억한다.
+  const [listView, setListView] = useState<string>("card");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setListView(normalizeListView(window.localStorage.getItem(viewStorageKey("list", user?.id))));
+  }, [user?.id]);
+  const pickListView = (v: string) => {
+    setListView(v);
+    if (typeof window !== "undefined") window.localStorage.setItem(viewStorageKey("list", user?.id), v);
+  };
   // 2026-07-20 QA: 전역 검색(⌘K)에서 프로젝트 결과 클릭 시 ?q=<이름> 딥링크로 진입 —
   //   검색어를 초기값으로 물려받고, 남의 담당 프로젝트도 보이도록 내담당 필터는 해제 상태로 시작.
   const searchParams = useSearchParams();
@@ -272,31 +297,26 @@ export default function ProjectHubPage() {
     const dd = daysToEnd(d);
     return dd != null && dd >= 0 && dd <= 7;
   };
-  // 위험 판정(엄격, 2026-07-22) — 실제 적자·지연·기한초과만. 초기·미착수 상태는 위험 아님.
-  //   · 수익형: 매출>0 이고 마진<0(getHeroMetric.risk 가 이미 revenue<=0 가드) 또는 기한초과
-  //   · 실행형: 마감 지난 미완료 태스크 있음 또는 기한초과
-  //   · 목표형: 기한초과만. (달성률 0% 자체는 위험 아님 — 이제 막 시작한 정상 프로젝트가 위로 몰리던 것 제거)
+  // 위험 판정(엄격, 2026-07-22 / 유형 분기 제거 2026-07-30) — 실제 적자·지연·기한초과만.
+  //   초기·미착수 상태는 위험 아님(달성률 0% 자체도 위험 아님 — 막 시작한 프로젝트가 위로
+  //   몰리던 것 제거). 유형이 아니라 있는 데이터로 판정하므로 모든 프로젝트에 같은 규칙이다.
   const isRisk = (d: any) => {
-    const type = normalizeProjectType(d.project_type);
-    const h = heroByDeal[d.id];
+    const h = headlineByDeal[d.id];
     const overdue = d.end_date && String(d.end_date).slice(0, 10) < todayStr && !isDone(d);
-    if (type === "delivery") return !!h?.delayed || !!overdue;
-    if (type === "goal") return !!overdue;
     return !!h?.risk || !!overdue;
   };
   // 카드 "다음 액션" 줄 — 기존 데이터(마감일·단계·미수·지연태스크)만으로 구성.
   const nextAction = (d: any): { icon: string; text: string; dday: string; tone: "risk" | "soon" | "ok" } => {
     const dd = daysToEnd(d);
-    const type = normalizeProjectType(d.project_type);
     const out = outstandingByDeal[d.id] || 0;
     if (isDone(d)) {
       if (out > 1) return { icon: "💵", text: "정산 대기 · 미수 있음", dday: won(out), tone: "soon" };
       return { icon: "✅", text: d.stage === "settlement" ? "정산 단계" : "완료", dday: "완료", tone: "ok" };
     }
     if (dd != null && dd < 0) return { icon: "⏰", text: "마감 기한 초과", dday: `D+${-dd}`, tone: "risk" };
-    if (type === "delivery" && heroByDeal[d.id]?.delayed) return { icon: "💤", text: "지연된 태스크 있음", dday: "지연", tone: "risk" };
+    if (headlineByDeal[d.id]?.delayed) return { icon: "💤", text: "지연된 할 일 있음", dday: "지연", tone: "risk" };
     if (dd != null && dd <= 7) return { icon: "⏰", text: "마감 임박", dday: `D-${dd}`, tone: "soon" };
-    if (type === "margin" && out > 1) return { icon: "💵", text: "미수금 회수 필요", dday: won(out), tone: "soon" };
+    if (out > 1) return { icon: "💵", text: "미수금 회수 필요", dday: won(out), tone: "soon" };
     if (dd != null) return { icon: "🗓", text: "다음 마감", dday: `D-${dd}`, tone: "ok" };
     return { icon: "🗓", text: "기간 미정", dday: "—", tone: "ok" };
   };
@@ -310,10 +330,6 @@ export default function ProjectHubPage() {
     //   실사용 패턴 대응 — 견적 단계라도 아직 안 끝났으면 진행중으로 본다(2026-07-22).
     if (lens === "progress") return !isDone(d);
     if (lens === "receivable") return (outstandingByDeal[d.id] || 0) > 1;
-    // 목표형 전용 — 종합 달성률이 목표 절반 미만(달성 저조)
-    if (lens === "goalBehind") { const h = heroByDeal[d.id]; return !isDone(d) && h?.raw != null && h.raw < 0.5; }
-    // 실행형 전용 — 마감 지난 미완료 태스크 있음(지연 과제)
-    if (lens === "delayed") return !isDone(d) && !!heroByDeal[d.id]?.delayed;
     return true;
   };
   // 긴급도 랭크(낮을수록 위) — 위험 → 이번주마감 → 미수 → 나머지 → 완료
@@ -328,7 +344,6 @@ export default function ProjectHubPage() {
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = topDeals.filter((d) => {
-      if (typeFilter !== "all" && normalizeProjectType(d.project_type) !== typeFilter) return false;
       if (mineOnly && d.internal_manager_id !== userId) return false;
       if (!matchesLens(d)) return false;
       if (q) {
@@ -358,26 +373,25 @@ export default function ProjectHubPage() {
         case "stage": c = STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage); break;
         case "direct_cost": c = Number(pnlByDeal[a.id]?.direct_cost || 0) - Number(pnlByDeal[b.id]?.direct_cost || 0); break;
         case "cost_ratio": c = Number(pnlByDeal[a.id]?.direct_cost_ratio || 0) - Number(pnlByDeal[b.id]?.direct_cost_ratio || 0); break;
-        case "progress": c = (heroByDeal[a.id]?.pct ?? -1) - (heroByDeal[b.id]?.pct ?? -1); break;
+        case "progress": c = (headlineByDeal[a.id]?.pct ?? -1) - (headlineByDeal[b.id]?.pct ?? -1); break;
         case "period": c = (a.start_date || "").localeCompare(b.start_date || ""); break;
         default: c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       }
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [topDeals, typeFilter, search, mineOnly, userId, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, heroByDeal, outstandingByDeal]);
+  }, [topDeals, search, mineOnly, userId, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal]);
 
-  // 렌즈 카운트 — 유형·내담당·검색 스코프(lens 제외)에서 집계. baseDeals 는 typeFilter 미반영이라 별도 구성.
+  // 렌즈 카운트 — 내담당·검색 스코프(lens 제외)에서 집계.
   const lensScope = useMemo(() => rows.length === 0 || lens ? topDeals.filter((d) => {
     const q = search.trim().toLowerCase();
-    if (typeFilter !== "all" && normalizeProjectType(d.project_type) !== typeFilter) return false;
     if (mineOnly && d.internal_manager_id !== userId) return false;
     if (q) {
       const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${userName[d.internal_manager_id] || ""}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
-  }) : rows, [rows, lens, topDeals, typeFilter, mineOnly, userId, search, partnerName, userName]);
+  }) : rows, [rows, lens, topDeals, mineOnly, userId, search, partnerName, userName]);
   const lensCounts = useMemo(() => {
     let receivableSum = 0, receivableCount = 0;
     for (const d of lensScope) {
@@ -389,44 +403,11 @@ export default function ProjectHubPage() {
       due: lensScope.filter(isDueSoon).length,
       progress: lensScope.filter((d) => !isDone(d)).length,
       receivableSum, receivableCount,
-      goalBehind: lensScope.filter((d) => { const h = heroByDeal[d.id]; return !isDone(d) && h?.raw != null && h.raw < 0.5; }).length,
-      delayed: lensScope.filter((d) => !isDone(d) && !!heroByDeal[d.id]?.delayed).length,
     };
-  }, [lensScope, outstandingByDeal, heroByDeal]);
+  }, [lensScope, outstandingByDeal, headlineByDeal]);
 
-  // 2026-07-20 QA: 유형 칩 카운트가 내담당·검색 필터를 무시해 "전체 7"인데 KPI·목록은 0으로
-  //   따로 놀던 혼란 — 칩도 동일한 기준(typeFilter 제외한 나머지 필터)을 따르게 한다.
-  const baseDeals = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return topDeals.filter((d) => {
-      if (mineOnly && d.internal_manager_id !== userId) return false;
-      if (q) {
-        const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${userName[d.internal_manager_id] || ""}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [topDeals, mineOnly, userId, search, partnerName, userName]);
-
-  // 유형별 요약 구획
-  const typeSummary = useMemo(() => {
-    const marginDeals = baseDeals.filter((d) => normalizeProjectType(d.project_type) === "margin");
-    const goalDeals = baseDeals.filter((d) => normalizeProjectType(d.project_type) === "goal");
-    const deliveryDeals = baseDeals.filter((d) => normalizeProjectType(d.project_type) === "delivery");
-    const marginSum = marginDeals.reduce((s, d) => {
-      const p = pnlByDeal[d.id]; const rev = Number(d.contract_total || 0) || Number(p?.revenue || 0);
-      return s + (rev - Number(p?.direct_cost || 0));
-    }, 0);
-    const goalRates = goalDeals.map((d) => heroByDeal[d.id]?.raw).filter((r): r is number => r != null);
-    const avgGoal = goalRates.length ? Math.round((goalRates.reduce((s, r) => s + r, 0) / goalRates.length) * 100) : null;
-    const delRates = deliveryDeals.map((d) => heroByDeal[d.id]?.raw).filter((r): r is number => r != null);
-    const avgDelivery = delRates.length ? Math.round((delRates.reduce((s, r) => s + r, 0) / delRates.length) * 100) : null;
-    return {
-      margin: { count: marginDeals.length, marginSum },
-      goal: { count: goalDeals.length, avgGoal },
-      delivery: { count: deliveryDeals.length, avgDelivery },
-    };
-  }, [baseDeals, pnlByDeal, heroByDeal]);
+  // 유형별 요약 구획(수익형 마진합·목표형 평균달성·실행형 평균진행)은 유형 칩과 함께 폐지했다.
+  //   회사 전체 집계는 목록 '차트' 보기에서 다루기로 정리(2026-07-30 기획 v3 3단계).
 
   if (tabLoading) return null;
   if (!tabAllowed) return <AccessDenied detail="프로젝트 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
@@ -466,31 +447,29 @@ export default function ProjectHubPage() {
               {sortDir === "asc" ? "▲" : "▼"}
             </button>
           </div>
-          {isManager && typeFilter === "goal" && (
+          {isManager && (
             <button onClick={() => setShowDashboard((v) => !v)} className={`btn-sm ${showDashboard ? "btn-primary" : "btn-secondary"}`}>성과 대시보드</button>
           )}
           <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 생성</button>
         </div>
       </div>
 
-      {/* 유형 필터 — 전체 + 3유형 칩. 전체가 기본(모든 유형 한눈에), 클릭 시 그 유형만 */}
-      <div className="type-filter-chips">
-        {([["all", "전체", baseDeals.length]] as [string, string, number][])
-          .concat(PROJECT_TYPE_ORDER.map((t) => [t, `${PROJECT_TYPES[t].icon} ${PROJECT_TYPES[t].label}`, typeSummary[t].count] as [string, string, number]))
-          .map(([key, label, count]) => {
-            const active = typeFilter === key;
-            return (
-              <button key={key} onClick={() => { setTypeFilter(key as "all" | ProjectType); setLens(null); }}
-                className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${active ? "bg-[var(--primary)] text-white shadow-sm" : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]"}`}>
-                {label} <span className={active ? "opacity-80" : "text-[var(--text-dim)]"}>{count}</span>
-              </button>
-            );
-          })}
+      {/* 보기 전환 — 유형 칩(전체·수익형·목표형·실행형)이 있던 자리. 분류를 고르는 대신
+          같은 프로젝트를 다르게 본다. '보드'가 구 워크플로우(회사가 만든 컬럼) 보기다. */}
+      <div className="ph-view-bar">
+        <span className="ph-view-label">보기</span>
+        {READY_LIST_VIEWS.map((v) => (
+          <button key={v.key} onClick={() => pickListView(v.key)} title={v.desc}
+            aria-pressed={listView === v.key}
+            className={`ph-view-btn ${listView === v.key ? "ph-view-btn-on" : ""}`}>
+            {v.label}
+          </button>
+        ))}
+        <span className="ph-view-desc">{READY_LIST_VIEWS.find((v) => v.key === listView)?.desc}</span>
       </div>
-      {typeFilter !== "all" && <p className="text-[11px] text-[var(--text-dim)] -mt-3">{PROJECT_TYPES[typeFilter].desc}</p>}
 
-      {/* 성과 대시보드 — 목표형(KPI·체크인) 전용 집계라 목표형 탭에서만 표시 */}
-      {showDashboard && typeFilter === "goal" && companyId && (
+      {/* 성과 대시보드 — 사람별·부서별·입력률 집계. 유형 폐지로 전 프로젝트 대상이 됐다 */}
+      {showDashboard && companyId && (
         <PerformanceDashboard companyId={companyId} onClose={() => setShowDashboard(false)} />
       )}
 
@@ -556,34 +535,19 @@ export default function ProjectHubPage() {
             <div className="ph-lens-sub">완료·정산 전 진행 중</div>
             <span className="ph-lens-go">목록 필터 ↓</span>
           </button>
-          {/* 4번째 렌즈 — 유형 목적별: 수익형/전체=미수금(돈) · 목표형=달성 저조 · 실행형=지연 과제 */}
-          {(typeFilter === "all" || typeFilter === "margin") ? (
-            <button onClick={() => setLens(lens === "receivable" ? null : "receivable")} className={`ph-lens glass-card ${lens === "receivable" ? "ph-lens-on" : ""}`}>
-              <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />{mineOnly ? "내 미수금" : "미수금"}</span>
-              <div className="ph-lens-num text-[var(--danger)] !text-[19px] !mt-2.5">{lensCounts.receivableCount > 0 ? won(lensCounts.receivableSum) : "₩0"}</div>
-              <div className="ph-lens-sub">발행했지만 미입금 · {lensCounts.receivableCount}건</div>
-              <span className="ph-lens-go">목록 필터 ↓</span>
-            </button>
-          ) : typeFilter === "goal" ? (
-            <button onClick={() => setLens(lens === "goalBehind" ? null : "goalBehind")} className={`ph-lens glass-card ${lens === "goalBehind" ? "ph-lens-on" : ""}`}>
-              <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />달성 저조</span>
-              <div className="ph-lens-num text-[var(--danger)]">{lensCounts.goalBehind}</div>
-              <div className="ph-lens-sub">종합 달성률 목표 절반 미만</div>
-              <span className="ph-lens-go">목록 필터 ↓</span>
-            </button>
-          ) : (
-            <button onClick={() => setLens(lens === "delayed" ? null : "delayed")} className={`ph-lens glass-card ${lens === "delayed" ? "ph-lens-on" : ""}`}>
-              <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />지연 과제</span>
-              <div className="ph-lens-num text-[var(--danger)]">{lensCounts.delayed}</div>
-              <div className="ph-lens-sub">마감 지난 미완료 태스크</div>
-              <span className="ph-lens-go">목록 필터 ↓</span>
-            </button>
-          )}
+          {/* 4번째 렌즈 — 유형별로 갈렸던 것(달성 저조·지연 과제)을 미수금으로 통일.
+              지연은 '위험' 렌즈가 이미 포함한다(2026-07-30 유형 폐지). */}
+          <button onClick={() => setLens(lens === "receivable" ? null : "receivable")} className={`ph-lens glass-card ${lens === "receivable" ? "ph-lens-on" : ""}`}>
+            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />{mineOnly ? "내 미수금" : "미수금"}</span>
+            <div className="ph-lens-num text-[var(--danger)] !text-[19px] !mt-2.5">{lensCounts.receivableCount > 0 ? won(lensCounts.receivableSum) : "₩0"}</div>
+            <div className="ph-lens-sub">발행했지만 미입금 · {lensCounts.receivableCount}건</div>
+            <span className="ph-lens-go">목록 필터 ↓</span>
+          </button>
         </div>
       </div>
 
-      {/* 회사 전체 미수금 롤업(Phase 3) — 수익형/전체 뷰에서 미수 발생 시 노출 */}
-      {(typeFilter === "margin" || typeFilter === "all") && settleSummary.totalOutstanding > 1 && (
+      {/* 회사 전체 미수금 롤업 — 미수 발생 시 노출 */}
+      {settleSummary.totalOutstanding > 1 && (
         <div className="receivables-rollup glass-card">
           <span className="kpi-icon danger text-base leading-none"><Ico e="💸" /></span>
           <div className="min-w-0">
@@ -602,7 +566,7 @@ export default function ProjectHubPage() {
         <div>
           {lens && (
             <button onClick={() => setLens(null)} className="ph-filter-pill">
-              {lens === "risk" ? "위험·지연" : lens === "due" ? "⏰ 이번 주 마감" : lens === "progress" ? "진행중" : lens === "goalBehind" ? "달성 저조" : lens === "delayed" ? "지연 과제" : "미수금"}{" "}
+              {lens === "risk" ? "위험·지연" : lens === "due" ? "⏰ 이번 주 마감" : lens === "progress" ? "진행중" : "미수금"}{" "}
               {lens === "receivable" ? `${lensCounts.receivableCount}건만` : `${rows.length}건만`} 보는 중 · 해제 ✕
             </button>
           )}
@@ -610,14 +574,18 @@ export default function ProjectHubPage() {
         <span className="text-[12px] text-[var(--text-muted)]">총 <b className="text-[var(--text)]">{rows.length}</b>건</span>
       </div>
 
-      {/* 목록 — 카드형. 긴급도순 정렬 + 다음 액션 줄(2026-07-22). 클릭 시 상세. */}
-      {isLoading ? (
+      {/* 보드 보기 — 회사 전체 프로젝트를 커스텀 컬럼으로. 검색·렌즈·정렬은 보드 자체 툴바가
+          담당하므로 여기서는 그대로 임베드한다(구 실행형 상세 '워크플로우' 탭과 동일 컴포넌트). */}
+      {listView === "board" && companyId ? (
+        <MondayBoard companyId={companyId} users={users as any} />
+      ) : isLoading ? (
         <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
         <div className="glass-card py-14 flex flex-col items-center justify-center text-center gap-2">
-          <div className="text-4xl">{typeFilter === "all" ? "📁" : PROJECT_TYPES[typeFilter].icon}</div>
+          <div className="text-4xl">📁</div>
           <div className="text-sm font-semibold text-[var(--text)]">
-            {search ? "조건에 맞는 프로젝트가 없습니다." : (mineOnly || !canViewAllProjects) ? "내가 담당한 프로젝트가 없습니다." : typeFilter === "all" ? "아직 프로젝트가 없습니다." : `${PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다.`}
+            {/* 유형 분기 제거(유형 폐지) + 열람 범위 권한 조건은 유지 */}
+            {search ? "조건에 맞는 프로젝트가 없습니다." : (mineOnly || !canViewAllProjects) ? "내가 담당한 프로젝트가 없습니다." : "아직 프로젝트가 없습니다."}
           </div>
           {/* '전체 보기' 유도는 전체 열람 권한자에게만 — 없으면 눌러도 결과가 같다 */}
           {mineOnly && !search && canViewAllProjects ? (
@@ -627,18 +595,57 @@ export default function ProjectHubPage() {
             <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 프로젝트 생성</button>
           </>}
         </div>
+      ) : listView === "table" ? (
+        /* 표 보기 — 정렬·비교용. 대표 지표는 프로젝트마다 종류가 다르므로 값 옆에 이름을 함께 쓴다. */
+        <div className="ph-table-wrap">
+          <table className="ph-table">
+            <thead>
+              <tr>
+                <th>프로젝트</th><th>거래처</th><th>담당</th><th>단계</th>
+                <th className="ph-table-n">계약</th><th className="ph-table-n">대표 지표</th>
+                <th className="ph-table-n">미수</th><th className="ph-table-n">마감</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((d) => {
+                const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
+                const sc = STAGE_COLOR[stage];
+                const h = headlineByDeal[d.id];
+                const out = outstandingByDeal[d.id] || 0;
+                const dd = daysToEnd(d);
+                const risk = isRisk(d);
+                return (
+                  <tr key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)} className="ph-table-row">
+                    <td>
+                      {risk && <span className="ph-table-risk" title="위험 — 확인 필요">●</span>}
+                      <b>{d.name || "(이름 없음)"}</b>
+                      {childCount[d.id] > 0 && <span className="ph-sub-badge">하위 {childCount[d.id]}</span>}
+                    </td>
+                    <td className="ph-table-dim">{partnerName[d.partner_id] || "—"}</td>
+                    <td className="ph-table-dim">{userName[d.internal_manager_id] || "—"}</td>
+                    <td><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span></td>
+                    <td className="ph-table-n">{Number(d.contract_total || 0) > 0 ? won(d.contract_total) : "—"}</td>
+                    <td className="ph-table-n">
+                      {h && h.raw != null ? <><b>{h.label}</b> <span className="ph-table-dim">{h.name}</span></> : "—"}
+                    </td>
+                    <td className={`ph-table-n ${out > 1 ? "ph-table-bad" : ""}`}>{out > 1 ? won(out) : "—"}</td>
+                    <td className="ph-table-n ph-table-dim">{dd == null ? "—" : dd < 0 ? `D+${-dd}` : `D-${dd}`}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div className="project-card-grid">
           {rows.map((d) => {
             const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
             const sc = STAGE_COLOR[stage];
-            const p = pnlByDeal[d.id];
-            const ptype = normalizeProjectType(d.project_type);
-            const tc = PROJECT_TYPES[ptype];
-            const hero = heroByDeal[d.id];
+            const hero = headlineByDeal[d.id];
             const risk = isRisk(d);
             const sup = Number(d.contract_total || 0);
-            const footerLeft = ptype === "margin" && sup > 0
+            // 계약금액이 있으면 그걸, 없으면 기간을 쓴다(유형이 아니라 데이터로 판단).
+            const footerLeft = sup > 0
               ? `계약 ${won(sup)} (VAT별도)`
               : fmtDate(d.start_date) ? `${fmtDate(d.start_date)}${d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}` : "기간 미정";
             return (
@@ -648,14 +655,18 @@ export default function ProjectHubPage() {
                 //   스태킹 컨텍스트 때문에 카드 내부 메뉴(z-20)가 배경막에 덮여 수정·삭제
                 //   클릭이 전부 배경막에 먹히던 버그 (2026-07-30 사장님: "버튼이 반응을 안 해").
                 className={`project-card glass-card ${risk ? "!border-[var(--danger)]/40" : ""} ${openMenu === d.id ? "relative z-20" : ""}`}>
+                {/* 유형 배지(💰수익형·🎯목표형·✅실행형)가 있던 자리 — 분류 대신 지금 상태를 쓴다.
+                    지연이 있으면 그것부터 보여주고, 없으면 단계만 남긴다(2026-07-30). */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap"><Ico e={tc.icon} /> {tc.label}</span>
+                  {hero?.delayed
+                    ? <span className="ph-card-flag">지연 있음</span>
+                    : <span className="ph-card-flag-off">{hero && hero.raw != null ? hero.name : "지표 없음"}</span>}
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
                 </div>
                 <div className="text-sm font-bold text-[var(--text)] leading-snug">
                   {risk && <span className="mr-1 text-[var(--danger)]" title="위험 — 확인 필요">●</span>}
                   {d.name || "(이름 없음)"}
-                  {childCount[d.id] > 0 && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle">캠페인 {childCount[d.id]}</span>}
+                  {childCount[d.id] > 0 && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle">하위 {childCount[d.id]}</span>}
                 </div>
                 <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] min-w-0">
                   <span className="truncate"><Ico e="🏢" /> {partnerName[d.partner_id] || "—"}</span>
@@ -663,13 +674,13 @@ export default function ProjectHubPage() {
                   <span className="truncate"><Ico e="👤" /> {userName[d.internal_manager_id] || "—"}</span>
                 </div>
                 {hero && hero.raw != null && (
-                  <div className="flex items-center gap-2" title={`${tc.hero} ${hero.label}`}>
-                    <span className="text-[10px] text-[var(--text-dim)] w-11 shrink-0 truncate">{tc.hero}</span>
+                  <div className="flex items-center gap-2" title={`${hero.name} ${hero.label}`}>
+                    <span className="text-[10px] text-[var(--text-dim)] w-11 shrink-0 truncate">{hero.name}</span>
                     <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
                       <div className={`h-full rounded-full ${risk ? "bg-[var(--danger)]" : hero.pct >= 70 ? "bg-[var(--success)]" : "bg-[var(--primary)]"}`} style={{ width: `${hero.pct}%` }} />
                     </div>
                     <span className={`text-[10px] mono-number w-9 text-right ${risk ? "text-[var(--danger)] font-semibold" : "text-[var(--text-muted)]"}`}>{hero.label}</span>
-                    {ptype === "delivery" && hero.delayed && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-semibold shrink-0">지연</span>}
+                    {hero.delayed && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-semibold shrink-0">지연</span>}
                   </div>
                 )}
                 {/* 다음 액션 줄 — 마감/미수/완료를 한 줄로(2026-07-22) */}
@@ -702,7 +713,9 @@ export default function ProjectHubPage() {
         </div>
       )}
 
-      <p className="text-[11px] text-[var(--text-dim)]">※ 진행 단계·실적·비용은 프로젝트 상세의 ‘개요’ 탭에서, 활동·일정은 ‘프로젝트 운영’ 탭에서 확인합니다.</p>
+      {listView !== "board" && (
+        <p className="text-[11px] text-[var(--text-dim)]">※ 대표 지표는 그 프로젝트에 있는 데이터에서 자동으로 골라요 — 돈이 걸렸으면 마진율, 목표가 있으면 달성률, 할 일만 있으면 진행률.</p>
+      )}
     </div>
   );
 }

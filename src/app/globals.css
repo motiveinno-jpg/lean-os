@@ -3462,6 +3462,28 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mine-scope-toggle { @apply flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden text-[13px] font-semibold shrink-0; }
 .sort-control { @apply flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }
 .type-filter-chips { @apply flex flex-wrap gap-1.5; }
+/* 프로젝트 목록 보기 전환(2026-07-30) — 유형 칩(type-filter-chips)을 대체한다.
+   카드·표·보드(구 워크플로우). type-filter-chips 정의는 다른 화면 참조 가능성 때문에 남겨둔다. */
+.ph-view-bar { @apply flex flex-wrap items-center gap-1.5; }
+.ph-view-label { @apply text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-dim)] mr-0.5; }
+.ph-view-btn { @apply px-3 py-1.5 rounded-lg text-[13px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
+.ph-view-btn-on { @apply bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm hover:text-white; }
+.ph-view-desc { @apply text-[11px] text-[var(--text-dim)] ml-1; }
+/* 표 보기 */
+.ph-table-wrap { @apply overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.ph-table { @apply w-full border-collapse text-[13px] min-w-[46rem]; }
+.ph-table thead th { @apply text-left px-3 py-2 bg-[var(--bg-surface)] text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap border-b border-[var(--border)]; }
+.ph-table tbody td { @apply px-3 py-2.5 border-b border-[var(--border)]/60 align-middle; }
+.ph-table tbody tr:last-child td { @apply border-b-0; }
+.ph-table-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
+.ph-table-n { @apply text-right whitespace-nowrap; font-variant-numeric: tabular-nums; }
+.ph-table-dim { @apply text-[var(--text-dim)]; }
+.ph-table-bad { @apply text-[var(--danger)] font-semibold; }
+.ph-table-risk { @apply mr-1 text-[var(--danger)]; }
+.ph-sub-badge { @apply ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle; }
+/* 카드 상단 상태 칩 — 유형 배지 자리 */
+.ph-card-flag { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--danger)]/10 text-[var(--danger)] whitespace-nowrap; }
+.ph-card-flag-off { @apply text-[10px] px-2 py-0.5 rounded-full font-semibold bg-[var(--bg-surface)] text-[var(--text-dim)] whitespace-nowrap; }
 .projecthub-summary-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
 .receivables-rollup { @apply p-4 flex items-center gap-4 flex-wrap border border-[var(--danger)]/30 bg-[var(--danger)]/5; }
 .project-card-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4; }
