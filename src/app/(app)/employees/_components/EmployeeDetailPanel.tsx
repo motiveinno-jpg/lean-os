@@ -37,7 +37,7 @@ type DetailTab = "info" | "docs" | "notes" | "history" | "contracts" | "certific
 export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab }: { employeeId: string; companyId: string; onClose: () => void; initialTab?: DetailTab }) {
   const [detailTab, setDetailTab] = useState<DetailTab>(initialTab || "info");
   const { user: viewer } = useUser();
-  const canManageAccess = viewer?.role === "owner" || viewer?.role === "admin";
+  const canManageAccess = !!(viewer as any)?.is_master; // (P3) 권한 부여는 마스터만
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();

@@ -57,7 +57,7 @@ export function SubscriptionsPanel() {
   const { confirm, confirmElement } = useConfirm();
   const qc = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const canEdit = role === "owner" || role === "admin";
+  const canEdit = role !== "partner"; // (P3) 진입 자체가 권한 게이트 — 보유자 전원 편집
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);

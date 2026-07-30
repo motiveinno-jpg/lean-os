@@ -269,7 +269,7 @@ export function OvertimeRequestCard({ companyId, userId }: { companyId: string; 
         <select value={approverId} onChange={(e) => setApproverId(e.target.value)}
           className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]">
           <option value="">미지정</option>
-          {approvers.map((a) => <option key={a.id} value={a.id}>{a.name || "관리자"}{a.role === "owner" ? " (대표)" : ""}</option>)}
+          {approvers.map((a) => <option key={a.id} value={a.id}>{a.name || "관리자"}{(a as any).is_master ? " (마스터)" : ""}</option>)}
         </select>
       </div>
       <div className="flex justify-end mb-5">

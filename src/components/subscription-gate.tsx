@@ -34,7 +34,7 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   // 운영자 / 로딩 중 / 정보 없음 → 게이트 없이 통과
   if (isOperator || !gate) return <>{children}</>;
 
-  const isManager = role === "owner" || role === "admin";
+  const isManager = (user as any)?.is_master || role !== "partner"; // (P3) 멤버도 요금제 안내 노출(결제 접근은 /billing 권한 게이트)
   const onAllowedRoute = ALLOW_WHEN_BLOCKED.some((r) => pathname === r || pathname.startsWith(r + "/"));
 
   // ── 하드 페이월: trial 만료 · 해지 후 기간 종료 ──

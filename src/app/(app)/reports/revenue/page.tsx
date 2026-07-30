@@ -66,7 +66,7 @@ export default function RevenuePage() {
     enabled: !!companyId, staleTime: 60_000,
   });
 
-  if (role === "partner" || role === "employee") {
+  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
     return <AccessDenied detail="매출 현황은 대표·관리자 전용입니다." />;
   }
 
