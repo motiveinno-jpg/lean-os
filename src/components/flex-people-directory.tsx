@@ -220,11 +220,11 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
         />
       )}
 
-      {/* ── 직원 상세(계약서 탭) — 디렉토리에서 "계약서" 클릭 시 ── */}
+      {/* ── 직원 상세(정보 탭) — 디렉토리에서 "상세보기" 클릭 시 (2026-07-30 계약서→상세보기 개편) ── */}
       {contractsEmpId && (
         <div className="flex-people-contracts-modal-backdrop fixed inset-0" onClick={() => setContractsEmpId(null)}>
           <div className="w-full max-w-5xl my-6" onClick={(e) => e.stopPropagation()}>
-            <EmployeeDetailPanel employeeId={contractsEmpId} companyId={companyId} initialTab="contracts" onClose={() => setContractsEmpId(null)} />
+            <EmployeeDetailPanel employeeId={contractsEmpId} companyId={companyId} initialTab="info" onClose={() => setContractsEmpId(null)} />
           </div>
         </div>
       )}
@@ -326,14 +326,21 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
 
         {/* 바로가기 */}
         <div className="flex-people-profile-shortcuts">
-          <Link href="/attendance" className="block w-full text-center px-4 py-2.5 rounded-xl text-xs font-bold text-white transition hover:brightness-110 bg-[var(--primary)]">
-            근태 기록 보기
-          </Link>
-          {isManager && (
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => onOpenContracts(emp.id)} className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">계약서</button>
-              <Link href="/employees?tab=payroll" className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">급여명세</Link>
-            </div>
+          {/* 2026-07-30 사장님: 계약서→상세보기(정보 탭 연결)로 명칭·링크 변경 + 근태 기록 보기와 위치 맞교환 */}
+          {isManager ? (
+            <>
+              <button onClick={() => onOpenContracts(emp.id)} className="block w-full text-center px-4 py-2.5 rounded-xl text-xs font-bold text-white transition hover:brightness-110 bg-[var(--primary)]">
+                상세보기
+              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <Link href="/attendance" className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">근태 기록 보기</Link>
+                <Link href="/employees?tab=payroll" className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">급여명세</Link>
+              </div>
+            </>
+          ) : (
+            <Link href="/attendance" className="block w-full text-center px-4 py-2.5 rounded-xl text-xs font-bold text-white transition hover:brightness-110 bg-[var(--primary)]">
+              근태 기록 보기
+            </Link>
           )}
         </div>
       </div>
