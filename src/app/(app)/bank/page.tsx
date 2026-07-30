@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
@@ -49,6 +50,16 @@ export default function BankPage() {
   const bankCd = useSyncCooldown(companyId, "bank"); // 통장 연동 30분 쿨타임 (회사 공유 — 연속 클릭이 CODEF 오류·은행 이중로그인 유발)
   const userId = user?.id ?? null;
   const [tab, setTab] = useState<Tab>("accounts");
+  const { isMaster: bankTabMaster, hasPerm: bankTabPerm } = useMyPermissions();
+  // 미허용 탭 진입 가드 — 첫 허용 탭으로
+  useEffect(() => {
+    const allowed = (k: Tab) => bankTabMaster || bankTabPerm(`/bank:${k}`);
+    if (!allowed(tab)) {
+      const first = (["overview", "accounts", "transactions"] as Tab[]).find(allowed);
+      if (first) setTab(first);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, bankTabMaster, bankTabPerm]);
   const queryClient = useQueryClient();
   const [mapOpenId, setMapOpenId] = useState<string | null>(null);
   const [mapCat, setMapCat] = useState("");
@@ -487,11 +498,12 @@ export default function BankPage() {
     </div>
   );
 
-  const tabs: { key: Tab; label: string }[] = [
+  // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/bank:탭키)만
+  const tabs: { key: Tab; label: string }[] = ([
     { key: "overview", label: "개요" },
     { key: "accounts", label: "통장" },
     { key: "transactions", label: "거래내역" },
-  ];
+  ] as { key: Tab; label: string }[]).filter((t) => bankTabMaster || bankTabPerm(`/bank:${t.key}`));
 
   return (
     <div>

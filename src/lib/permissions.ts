@@ -27,14 +27,14 @@ export const PERMISSION_CATALOG: PermGroup[] = [
   {
     group: "파이낸스",
     menus: [
-      { route: "/partners", label: "거래처", tabs: [
-        { key: "list", label: "거래처 목록" },
-        { key: "ledger", label: "거래처 원장" },
-        { key: "reconciliation", label: "거래 매칭" },
-      ] },
+      { route: "/partners", label: "거래처" },
+      { route: "/partners/ledger", label: "거래처 원장" },
       { route: "/tax-invoices", label: "세금계산서", tabs: [
-        { key: "invoices", label: "세금계산서 목록·발행" },
-        { key: "bulk", label: "엑셀 일괄발행" },
+        { key: "sales", label: "매출" },
+        { key: "purchase", label: "매입" },
+        { key: "vat", label: "부가세" },
+        { key: "summary", label: "요약" },
+        { key: "queue", label: "발행 대기" },
         { key: "sync", label: "홈택스 동기화" },
       ] },
       { route: "/cash-receipts", label: "현금영수증" },
@@ -91,9 +91,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     group: "자산관리",
     menus: [
       { route: "/bank", label: "통장", tabs: [
+        { key: "overview", label: "개요" },
         { key: "accounts", label: "계좌·잔액" },
         { key: "transactions", label: "거래내역" },
-        { key: "sync", label: "CODEF 연동 실행" },
       ] },
       { route: "/cards", label: "카드" },
       { route: "/payments", label: "정기 지출" },
@@ -103,11 +103,20 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     group: "설정·관리",
     menus: [
       { route: "/settings", label: "회사 설정", tabs: [
-        { key: "company", label: "회사 정보" },
-        { key: "team", label: "팀·초대" },
-        { key: "bank", label: "은행 연동(자격증명)" },
-        { key: "notifications", label: "알림 설정" },
-        { key: "approvals", label: "결재 정책" },
+        { key: "company-info", label: "회사정보" },
+        { key: "team", label: "팀·권한" },
+        { key: "cash", label: "자금·통장" },
+        { key: "chart", label: "계정과목" },
+        { key: "closing", label: "회계마감" },
+        { key: "tax", label: "세무자동화" },
+        { key: "bank", label: "은행연동" },
+        { key: "certificate", label: "인증서" },
+        { key: "departments", label: "부서" },
+        { key: "attendance", label: "근태·가산수당" },
+        { key: "approval", label: "승인·결재" },
+        { key: "deal", label: "딜 분류" },
+        { key: "forms", label: "회사 양식" },
+        { key: "data", label: "데이터 관리" },
       ] },
       { route: "/billing", label: "요금제·결제" },
       { route: "/announcements", label: "공지사항", always: true },

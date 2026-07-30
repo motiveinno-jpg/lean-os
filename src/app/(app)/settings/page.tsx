@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
@@ -113,6 +114,17 @@ export default function SettingsPage() {
     }
   };
   const activeGroup = groupOfLeaf(tab);
+  // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/settings:leaf)만
+  const { isMaster: permMaster, hasPerm: permHas } = useMyPermissions();
+  const visibleGroups = SETTINGS_GROUPS
+    .map((g) => ({ ...g, tabs: g.tabs.filter((t) => permMaster || permHas(`/settings:${t.key}`)) }))
+    .filter((g) => g.tabs.length > 0);
+  const firstAllowedLeaf = visibleGroups[0]?.tabs[0]?.key;
+  useEffect(() => {
+    const allowed = visibleGroups.some((g) => g.tabs.some((t) => t.key === tab));
+    if (!allowed && firstAllowedLeaf) setTabState(firstAllowedLeaf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, permMaster, firstAllowedLeaf, visibleGroups.map((g) => g.tabs.map((t) => t.key).join()).join()]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [balance, setBalance] = useState("");
   const [fixedCost, setFixedCost] = useState("");
@@ -235,7 +247,7 @@ export default function SettingsPage() {
     );
   }
 
-  const currentGroup = SETTINGS_GROUPS.find((g) => g.key === activeGroup) || SETTINGS_GROUPS[0];
+  const currentGroup = visibleGroups.find((g) => g.key === activeGroup) || visibleGroups[0] || { key: "none", label: "", icon: "", tabs: [] };
 
   return (
     <div className="space-y-6">
@@ -244,7 +256,7 @@ export default function SettingsPage() {
       {/* 상단 그룹 탭(1단) — 아이콘 + 라벨. 클릭 시 해당 그룹 첫 세부탭으로 이동 */}
       <div className="settings-group-tabs page-sticky-header">
         <div className="seg-bar flex w-full overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
-          {SETTINGS_GROUPS.map((g) => {
+          {visibleGroups.map((g) => {
             const active = activeGroup === g.key;
             const danger = g.key === "system";
             return (

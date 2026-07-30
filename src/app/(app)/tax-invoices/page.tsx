@@ -1,6 +1,7 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
 import { getHometaxPausedUntil, setHometaxPause, clearHometaxPause } from "@/lib/data-sync";
+import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
@@ -286,6 +287,8 @@ export default function TaxInvoicesPage() {
   });
   // 2026-05-21 사장님 요청: "matching" 탭 통째 제거. ?tab=matching 딥링크는 분석 허브로 리다이렉트(별건 — 우선 sales 폴백).
   const searchParams = useSearchParams();
+  const { isMaster: taxTabMaster, hasPerm: taxTabPerm } = useMyPermissions();
+  const taxTabAllowed = (k: string) => taxTabMaster || taxTabPerm(`/tax-invoices:${k}`);
   const [tab, setTab] = useState<"sales" | "purchase" | "vat" | "summary" | "queue" | "sync">(() => {
     const t = searchParams?.get("tab");
     if (t === "sales" || t === "purchase" || t === "vat" || t === "summary" || t === "queue" || t === "sync") {
@@ -293,6 +296,15 @@ export default function TaxInvoicesPage() {
     }
     return "sales";
   });
+  // (P3) 미허용 탭 진입 시 첫 허용 탭으로
+  useEffect(() => {
+    if (!taxTabAllowed(tab)) {
+      const first = (["sales", "purchase", "vat", "summary", "queue", "sync"] as const).find((k) => taxTabAllowed(k));
+      if (first) setTab(first);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, taxTabMaster]);
+
   // ?tab= 딥링크는 마운트 시에만 반영됐음 — 이미 이 페이지에 있는 상태에서 대시보드의
   //   '부가세 납부'(?tab=vat) 링크를 눌러도 탭이 안 바뀌던 문제. searchParams 변경도 동기화.
   useEffect(() => {
@@ -1460,7 +1472,7 @@ export default function TaxInvoicesPage() {
           {[
             { key: "sales" as const, label: "매출", count: salesInvoices.length },
             { key: "purchase" as const, label: "매입", count: purchaseInvoices.length },
-          ].map((t) => (
+          ].filter((t) => taxTabAllowed(t.key)).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)} className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
               {t.label}<span className="text-xs opacity-70 ml-1">({t.count})</span>
             </button>
@@ -1470,7 +1482,7 @@ export default function TaxInvoicesPage() {
           {([
             { key: "queue", label: "자동발행" },
             { key: "summary", label: "기간별 집계" },
-          ] as const).map((t) => (
+          ] as const).filter((t) => taxTabAllowed(t.key)).map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-2.5 py-1 rounded-lg text-[13px] font-medium transition ${tab === t.key ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "text-[var(--text-dim)] hover:text-[var(--text)]"}`}>
               {t.label}
