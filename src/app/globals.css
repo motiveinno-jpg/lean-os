@@ -2651,6 +2651,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .copilot2-action-fields dt { @apply w-14 shrink-0 text-[var(--text-dim)]; }
 .copilot2-action-fields dd { @apply text-[var(--text)] font-medium; }
 .copilot2-action-desc { @apply whitespace-pre-wrap leading-relaxed; }
+/* 결재 양식 저장 확인 카드 — 제안된 입력 항목 목록 (2026-07-30) */
+.copilot2-form-field-list { @apply list-decimal list-inside space-y-0.5 text-[13px] font-normal; }
 .copilot2-action-confirm-btns { @apply flex gap-2 justify-end; }
 .copilot2-action-cancel-btn { @apply px-4 py-2 rounded-lg text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-card)] transition; }
 .copilot2-action-note { @apply text-[10px] text-[var(--text-dim)] mt-2 text-right; }

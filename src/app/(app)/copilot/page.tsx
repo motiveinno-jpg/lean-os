@@ -257,6 +257,44 @@ export default function CopilotPage() {
         return;
       }
 
+      if (action.tool === "upsert_approval_form") {
+        // 결재 양식 수정/생성 — AI 는 항목 구성을 제안만 하고, 확인 버튼을 누른 지금 저장한다.
+        //   fields 는 엣지에서 형식 검증(sanitize)된 전체 항목 목록. RLS 로 자기 회사 양식만 가능.
+        const a = action.args as {
+          form_id?: string; name?: string; description?: string; use_attachment?: boolean;
+          fields?: { key: string; label: string; type: string }[];
+        };
+        if (!a.name) throw new Error("양식 이름이 비어 있습니다.");
+        if (!a.fields?.length) throw new Error("양식 입력 항목이 비어 있습니다.");
+        if (a.form_id) {
+          const { error } = await supabase.from("approval_forms")
+            .update({
+              name: a.name,
+              description: a.description || null,
+              fields: a.fields as never,
+              use_attachment: a.use_attachment ?? true,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", a.form_id).eq("company_id", companyId);
+          if (error) throw error;
+          setActionState(idx, "done", `결재 양식을 수정했습니다. (${a.name} · 항목 ${a.fields.length}개) 결재 허브에서 확인하세요.`);
+        } else {
+          const { error } = await supabase.from("approval_forms")
+            .insert({
+              company_id: companyId,
+              name: a.name,
+              description: a.description || null,
+              fields: a.fields as never,
+              use_attachment: a.use_attachment ?? true,
+              is_active: true,
+              created_by: user.id,
+            } as never);
+          if (error) throw error;
+          setActionState(idx, "done", `결재 양식을 만들었습니다. (${a.name} · 항목 ${a.fields.length}개) 결재 허브에서 확인하세요.`);
+        }
+        return;
+      }
+
       throw new Error("지원하지 않는 액션입니다.");
     } catch (e) {
       setActionState(idx, "error", friendlyError(e, "실행에 실패했습니다."));
@@ -494,6 +532,23 @@ function ActionCard({ msg, onRun, onCancel }: {
             {args.description && <div><dt>내용</dt><dd className="copilot2-action-desc">{clean(args.description)}</dd></div>}
           </>
         )}
+        {act.tool === "upsert_approval_form" && (() => {
+          const f = act.args as { form_id?: string; name?: string; description?: string; use_attachment?: boolean; fields?: { label: string; type: string; required?: boolean; options?: string[] }[] };
+          return (
+            <>
+              <div><dt>양식</dt><dd>{clean(f.name) || "—"} {f.form_id ? "(기존 양식 수정)" : "(새 양식)"}</dd></div>
+              {f.description && <div><dt>설명</dt><dd className="copilot2-action-desc">{clean(f.description)}</dd></div>}
+              <div><dt>첨부란</dt><dd>{f.use_attachment ? "사용 (증빙 첨부)" : "사용 안 함"}</dd></div>
+              <div><dt>입력 항목</dt><dd>
+                <ol className="copilot2-form-field-list">
+                  {(f.fields || []).map((fd, i) => (
+                    <li key={i}>{fd.label}{fd.required ? " (필수)" : ""}{fd.options?.length ? ` — ${fd.options.join("/")}` : ""}</li>
+                  ))}
+                </ol>
+              </dd></div>
+            </>
+          );
+        })()}
       </dl>
       <div className="copilot2-action-confirm-btns">
         <button onClick={onCancel} className="copilot2-action-cancel-btn">취소</button>
