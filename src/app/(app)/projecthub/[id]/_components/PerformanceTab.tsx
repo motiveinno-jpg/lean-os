@@ -16,6 +16,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
 import { getKpiAchievement, KPI_SOURCE_LABEL, type KpiSource } from "@/lib/project-types";
+import { buildCheckinDraft } from "@/lib/project-brief";
 import { getCompanyMembers } from "@/lib/hr";
 import { computePeriodStart, computeDueDate, periodLabel, normalizeCadence, CADENCE_LABEL, WEEKDAY_LABEL, todayYMD, type Cadence } from "@/lib/project-checkin";
 
@@ -288,6 +289,34 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
     queryFn: async () => (await db.from("project_tasks").select("id, title, due_date, status").eq("deal_id", dealId).is("archived_at", null).neq("status", "done").order("due_date", { ascending: true })).data || [],
     enabled: !!dealId,
   });
+  // ── 이번 기간 초안 (2026-07-30 4단계) ──
+  //   체크인이 프로덕션 전체에서 1건만 쓰인 이유는 매주 빈 칸을 사람이 채워야 했기 때문이다.
+  //   숫자는 이미 여기 다 있으니 초안을 만들어 두고, 사람은 '판단:' 뒤 한 줄만 쓴다.
+  const draft = useMemo(() => {
+    const ks = (kpis as Kpi[]).map((k) => ({
+      label: k.label,
+      unit: k.unit,
+      achievement: getKpiAchievement(Number(k.target_value || 0), actualOf(k), k.direction),
+    }));
+    // 지난 체크인의 종합 달성률 — kpi_snapshot(작성 시점 스냅샷) 평균. 없으면 비교 문장 생략.
+    const prevSnap = ((updates as any[])[0]?.kpi_snapshot ?? null) as any;
+    let prevOverall: number | null = null;
+    if (Array.isArray(prevSnap)) {
+      const vals = prevSnap
+        .map((r: any) => (typeof r?.achievement === "number" ? r.achievement : null))
+        .filter((v: number | null): v is number => v != null);
+      if (vals.length > 0) prevOverall = vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+    }
+    const overdueTasks = (chkOpenTasks as any[]).filter((t) => t.due_date && String(t.due_date).slice(0, 10) < todayStr()).length;
+    return buildCheckinDraft({
+      periodLabel: cadence === "none" ? null : periodLabel(curPeriod, cadence),
+      kpis: ks,
+      prevOverall,
+      overdueTasks,
+      openIssues: (chkOpenIssues as any[]).length,
+    });
+  }, [kpis, entries, autoActual, updates, chkOpenTasks, chkOpenIssues, cadence, curPeriod]);
+
   const [chkDate, setChkDate] = useState(todayStr());
   const [chkKpiVals, setChkKpiVals] = useState<Record<string, string>>({});
   const [savingChk, setSavingChk] = useState(false);
@@ -668,8 +697,16 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
             </div>
           )}
           <div>
-            <label className={LB}><Ico e="✅" /> 이번 기간 성과·코멘트</label>
-            <textarea value={chkDid} onChange={(e) => setChkDid(e.target.value)} rows={2} placeholder="한 일·달성한 것·특이사항 한두 줄" className={`${IN} resize-y`} />
+            <div className="checkin-draft-row">
+              <label className={`${LB} !mb-0`}><Ico e="✅" /> 이번 기간 성과·코멘트</label>
+              <button type="button" className="checkin-draft-btn"
+                onClick={() => { setChkDid(draft.body); setChkStatus(draft.status); }}
+                title={`신호등 제안: ${draft.reason}`}>
+                초안 채우기 <span>숫자는 이미 계산돼 있어요</span>
+              </button>
+            </div>
+            <textarea value={chkDid} onChange={(e) => setChkDid(e.target.value)} rows={3} placeholder="한 일·달성한 것·특이사항 한두 줄" className={`${IN} resize-y`} />
+            <p className="checkin-draft-hint">{draft.reason}</p>
           </div>
           {/* 이슈·다음 계획은 재입력하지 않고 구조화 탭(이슈/실행)을 연결 */}
           <div className="checkin-context-grid">

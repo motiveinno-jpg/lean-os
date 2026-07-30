@@ -608,20 +608,45 @@ export default function ProjectHubPage() {
       ) : isLoading ? (
         <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
-        <div className="glass-card py-14 flex flex-col items-center justify-center text-center gap-2">
-          <div className="text-4xl">📁</div>
-          <div className="text-sm font-semibold text-[var(--text)]">
-            {/* 유형 분기 제거(유형 폐지) + 열람 범위 권한 조건은 유지 */}
-            {search ? "조건에 맞는 프로젝트가 없습니다." : (mineOnly || !canViewAllProjects) ? "내가 담당한 프로젝트가 없습니다." : "아직 프로젝트가 없습니다."}
+        /* 빈 상태 — 신규 사용자가 가장 먼저 보는 화면. 검색·필터 때문에 빈 것과
+           진짜 아무것도 없는 것을 구분한다(구분 없이 안내하면 있는데 없다고 읽힌다). */
+        /* 열람 범위 권한이 없으면(내 담당만 보이는 직원) 회사에 프로젝트가 있어도 목록이 빈다 —
+           그 경우 '첫 프로젝트를 만들어 보세요' 는 사실과 다르므로 필터 안내 쪽으로 보낸다. */
+        search || mineOnly || !canViewAllProjects ? (
+          <div className="glass-card py-14 flex flex-col items-center justify-center text-center gap-2">
+            <div className="text-4xl">🔍</div>
+            <div className="text-sm font-semibold text-[var(--text)]">
+              {search ? "조건에 맞는 프로젝트가 없어요." : "내가 담당한 프로젝트가 없어요."}
+            </div>
+            {/* '전체 보기' 유도는 전체 열람 권한자에게만 — 없으면 눌러도 결과가 같다 */}
+            {mineOnly && canViewAllProjects && (
+              <button onClick={() => setMineOnly(false)} className="btn-secondary btn-sm mt-2">전체 프로젝트 보기 →</button>
+            )}
           </div>
-          {/* '전체 보기' 유도는 전체 열람 권한자에게만 — 없으면 눌러도 결과가 같다 */}
-          {mineOnly && !search && canViewAllProjects ? (
-            <button onClick={() => setMineOnly(false)} className="btn-secondary btn-sm mt-2">전체 프로젝트 보기 →</button>
-          ) : !search && <>
-            <div className="text-xs text-[var(--text-muted)]">‘+ 프로젝트 생성’으로 추가하세요.</div>
-            <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 프로젝트 생성</button>
-          </>}
-        </div>
+        ) : (
+          <div className="ph-onboard glass-card">
+            <div className="ph-onboard-head">
+              <h3>첫 프로젝트를 만들어 보세요</h3>
+              <p>이름만 적으면 만들어져요. 아래는 만든 다음에 필요할 때 하나씩 채우면 되는 것들이에요.</p>
+            </div>
+            <div className="ph-onboard-steps">
+              <div className="ph-onboard-step">
+                <b>돈</b>
+                <span>견적서를 만들면 공급가·부가세가 자동 계산되고, 승인되면 계약서 초안까지 만들어져요. 계산서·입금까지 이어져 마진과 미수가 저절로 잡혀요.</span>
+              </div>
+              <div className="ph-onboard-step">
+                <b>일</b>
+                <span>할 일을 적고 담당을 지정하면 진행률이 자동으로 계산돼요. 칸반·간트로 보고, 마감이 지나면 알려줘요.</span>
+              </div>
+              <div className="ph-onboard-step">
+                <b>성과</b>
+                <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고, 이번 주 요약 초안까지 만들어져요.</span>
+              </div>
+            </div>
+            <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 만들기</button>
+            <p className="ph-onboard-note">유형을 고르지 않아요 — 필요한 것만 쓰면 그 자리가 저절로 생겨요.</p>
+          </div>
+        )
       ) : listView === "timeline" ? (
         <ProjectTimeline rows={rows as any[]}
           headlineOf={(id) => headlineByDeal[id]}

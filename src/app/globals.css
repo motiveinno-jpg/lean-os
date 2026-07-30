@@ -3503,6 +3503,20 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pj-starter > b { @apply text-[13.5px] font-bold text-[var(--text)]; }
 .pj-starter > span:last-child { @apply text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
 .cost-mix { @apply p-4; }
+/* 프로젝트 없음 — 신규 사용자 첫 화면(2단계) */
+.ph-onboard { @apply p-7 flex flex-col items-center text-center gap-4; }
+.ph-onboard-head h3 { @apply text-base font-extrabold text-[var(--text)]; }
+.ph-onboard-head p { @apply text-[12.5px] text-[var(--text-muted)] mt-1 max-w-xl; }
+.ph-onboard-steps { @apply grid gap-2.5 sm:grid-cols-3 w-full max-w-3xl text-left; }
+.ph-onboard-step { @apply flex flex-col gap-1 p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.ph-onboard-step b { @apply text-[12.5px] font-extrabold text-[var(--primary)]; }
+.ph-onboard-step span { @apply text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
+.ph-onboard-note { @apply text-[11px] text-[var(--text-dim)]; }
+/* 체크인 초안 채우기 — 빈 칸을 사람이 채우던 것을 숫자로 먼저 채운다(4단계) */
+.checkin-draft-row { @apply flex flex-wrap items-center justify-between gap-2 mb-1; }
+.checkin-draft-btn { @apply text-[11.5px] font-bold px-2.5 py-1 rounded-lg border border-[var(--primary)]/35 text-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/15 whitespace-nowrap; }
+.checkin-draft-btn span { @apply font-normal text-[10.5px] text-[var(--text-dim)] ml-1; }
+.checkin-draft-hint { @apply text-[11px] text-[var(--text-dim)] mt-1; }
 /* 사람과 기록 — 담당 배정(deal_assignments) 4단계 */
 .pj-team { @apply grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-start; }
 .pj-team-owner { @apply lg:col-span-2 p-3 flex flex-wrap items-baseline gap-2; }
