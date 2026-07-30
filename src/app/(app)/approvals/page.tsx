@@ -2139,6 +2139,71 @@ const LEAVE_UNIT_OPTIONS = [
 // Tab 5: 새 요청
 // ══════════════════════════════════════════════
 
+// 입력 필드 블록 재배치 (2026-07-30 사장님 — "사람마다 원하는 배치가 다 달라"):
+//   각 블록을 드래그 핸들(⠿) 또는 ↑↓ 로 옮길 수 있고, 순서는 브라우저(localStorage)에
+//   사용자·양식별로 저장돼 다음 작성 때 유지된다. 값·검증 로직은 순서와 무관.
+function OrderableFieldBlocks({ storageKey, blocks }: { storageKey: string; blocks: { key: string; node: React.ReactNode }[] }) {
+  const [savedOrder, setSavedOrder] = useState<string[]>([]);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  useEffect(() => {
+    try { setSavedOrder(JSON.parse(localStorage.getItem(storageKey) || "[]")); } catch { setSavedOrder([]); }
+    setDragKey(null);
+  }, [storageKey]);
+  // 저장된 순서 우선 적용, 저장에 없는(새로 생긴) 블록은 원래 자리 순서대로 뒤에 붙인다
+  const seq = useMemo(() => {
+    const present = blocks.map((b) => b.key);
+    const kept = savedOrder.filter((k) => present.includes(k));
+    return [...kept, ...present.filter((k) => !kept.includes(k))];
+  }, [blocks, savedOrder]);
+  const persist = (next: string[]) => {
+    setSavedOrder(next);
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* 저장 실패해도 이번 화면 순서는 유지 */ }
+  };
+  const move = (key: string, dir: -1 | 1) => {
+    const i = seq.indexOf(key);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= seq.length) return;
+    const next = [...seq];
+    [next[i], next[j]] = [next[j], next[i]];
+    persist(next);
+  };
+  const dropOn = (targetKey: string) => {
+    if (!dragKey || dragKey === targetKey) return;
+    const next = seq.filter((k) => k !== dragKey);
+    next.splice(next.indexOf(targetKey), 0, dragKey);
+    persist(next);
+  };
+  return (
+    <>
+      {seq.map((k) => {
+        const b = blocks.find((x) => x.key === k);
+        if (!b) return null;
+        return (
+          <div
+            key={k}
+            className={`orderable-field-block ${dragKey === k ? "orderable-field-block-dragging" : ""}`}
+            onDragOver={(e) => { if (dragKey) e.preventDefault(); }}
+            onDrop={(e) => { e.preventDefault(); dropOn(k); }}
+          >
+            <div className="orderable-field-controls">
+              <span
+                draggable
+                onDragStart={(e) => { setDragKey(k); e.dataTransfer.effectAllowed = "move"; }}
+                onDragEnd={() => setDragKey(null)}
+                title="끌어서 위치 이동"
+                className="orderable-drag-handle"
+              >⠿</span>
+              <button type="button" onClick={() => move(k, -1)} title="위로" className="orderable-move-btn">↑</button>
+              <button type="button" onClick={() => move(k, 1)} title="아래로" className="orderable-move-btn">↓</button>
+            </div>
+            {b.node}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }: {
   companyId: string; userId: string; invalidate: () => void; onComplete: () => void; presetType?: string | null;
 }) {
@@ -2631,158 +2696,187 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   </div>
                 )}
 
-                {/* Leave type + unit */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 유형 *</label>
-                    <select
-                      value={leaveForm.leaveType}
-                      onChange={(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })}
-                      className="field-input"
-                    >
-                      {LEAVE_TYPE_OPTIONS.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 단위 *</label>
-                    <select
-                      value={leaveForm.leaveUnit}
-                      onChange={(e) => setLeaveForm({ ...leaveForm, leaveUnit: e.target.value })}
-                      className="field-input"
-                    >
-                      {LEAVE_UNIT_OPTIONS.map((u) => (
-                        <option key={u.value} value={u.value}>{u.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Date selection */}
-                <div className={`grid ${leaveForm.leaveUnit === "full_day" ? "grid-cols-2" : ""} gap-3`}>
-                  <div>
-                    <label className="block text-xs text-[var(--text-muted)] mb-1">
-                      {leaveForm.leaveUnit === "full_day" ? "시작일 *" : "휴가일 *"}
-                    </label>
-                    <DateField
-                      value={leaveForm.startDate}
-                      onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value, endDate: leaveForm.leaveUnit !== "full_day" ? e.target.value : leaveForm.endDate })}
-                      className="field-input"
-                    />
-                  </div>
-                  {leaveForm.leaveUnit === "full_day" && (
-                    <div>
-                      <label className="block text-xs text-[var(--text-muted)] mb-1">종료일 *</label>
-                      <DateField
-                        value={leaveForm.endDate}
-                        min={leaveForm.startDate}
-                        onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
-                        className="field-input"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Time selection for 2-hour leave */}
-                {leaveForm.leaveUnit === "two_hours" && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs text-[var(--text-muted)] mb-1">시작 시간</label>
-                      <input
-                        type="time"
-                        value={leaveForm.startTime}
-                        onChange={(e) => setLeaveForm({ ...leaveForm, startTime: e.target.value })}
-                        className="field-input"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-[var(--text-muted)] mb-1">종료 시간</label>
-                      <input
-                        type="time"
-                        value={leaveForm.endTime}
-                        onChange={(e) => setLeaveForm({ ...leaveForm, endTime: e.target.value })}
-                        className="field-input"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Leave days summary */}
-                {leaveForm.startDate && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-surface)] rounded-lg">
-                    <span className="text-xs text-[var(--text-muted)]">사용 일수:</span>
-                    <span className="text-sm font-bold text-[var(--primary)]">{leaveDays}일</span>
-                    {remainingLeave !== null && leaveDays > remainingLeave && leaveForm.leaveType === "annual" && (
-                      <span className="text-xs text-red-500 font-semibold ml-2">잔여 연차 초과</span>
-                    )}
-                  </div>
-                )}
-
-                {/* Auto-generated title preview */}
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">제목 (자동 생성)</label>
-                  <div className="px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)]">
-                    {leaveTitle || "날짜를 선택하면 자동으로 생성됩니다"}
-                  </div>
-                </div>
-
-                {/* Reason */}
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
-                  <textarea
-                    value={leaveForm.reason}
-                    onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
-                    rows={2}
-                    placeholder="휴가 사유를 입력하세요..."
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
-                  />
-                </div>
+                {/* 휴가 입력 블록 — 재배치 가능 (2026-07-30, 사용자별 localStorage 저장) */}
+                <OrderableFieldBlocks
+                  storageKey={`ov-req-block-order-${userId}-leave`}
+                  blocks={[
+                    {
+                      key: "leave-type-unit",
+                      node: (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 유형 *</label>
+                            <select
+                              value={leaveForm.leaveType}
+                              onChange={(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })}
+                              className="field-input"
+                            >
+                              {LEAVE_TYPE_OPTIONS.map((t) => (
+                                <option key={t.value} value={t.value}>{t.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 단위 *</label>
+                            <select
+                              value={leaveForm.leaveUnit}
+                              onChange={(e) => setLeaveForm({ ...leaveForm, leaveUnit: e.target.value })}
+                              className="field-input"
+                            >
+                              {LEAVE_UNIT_OPTIONS.map((u) => (
+                                <option key={u.value} value={u.value}>{u.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ),
+                    },
+                    {
+                      key: "leave-dates",
+                      node: (
+                        <div className="space-y-4">
+                          <div className={`grid ${leaveForm.leaveUnit === "full_day" ? "grid-cols-2" : ""} gap-3`}>
+                            <div>
+                              <label className="block text-xs text-[var(--text-muted)] mb-1">
+                                {leaveForm.leaveUnit === "full_day" ? "시작일 *" : "휴가일 *"}
+                              </label>
+                              <DateField
+                                value={leaveForm.startDate}
+                                onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value, endDate: leaveForm.leaveUnit !== "full_day" ? e.target.value : leaveForm.endDate })}
+                                className="field-input"
+                              />
+                            </div>
+                            {leaveForm.leaveUnit === "full_day" && (
+                              <div>
+                                <label className="block text-xs text-[var(--text-muted)] mb-1">종료일 *</label>
+                                <DateField
+                                  value={leaveForm.endDate}
+                                  min={leaveForm.startDate}
+                                  onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
+                                  className="field-input"
+                                />
+                              </div>
+                            )}
+                          </div>
+                          {leaveForm.leaveUnit === "two_hours" && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs text-[var(--text-muted)] mb-1">시작 시간</label>
+                                <input
+                                  type="time"
+                                  value={leaveForm.startTime}
+                                  onChange={(e) => setLeaveForm({ ...leaveForm, startTime: e.target.value })}
+                                  className="field-input"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-[var(--text-muted)] mb-1">종료 시간</label>
+                                <input
+                                  type="time"
+                                  value={leaveForm.endTime}
+                                  onChange={(e) => setLeaveForm({ ...leaveForm, endTime: e.target.value })}
+                                  className="field-input"
+                                />
+                              </div>
+                            </div>
+                          )}
+                          {leaveForm.startDate && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-surface)] rounded-lg">
+                              <span className="text-xs text-[var(--text-muted)]">사용 일수:</span>
+                              <span className="text-sm font-bold text-[var(--primary)]">{leaveDays}일</span>
+                              {remainingLeave !== null && leaveDays > remainingLeave && leaveForm.leaveType === "annual" && (
+                                <span className="text-xs text-red-500 font-semibold ml-2">잔여 연차 초과</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ),
+                    },
+                    {
+                      key: "leave-title",
+                      node: (
+                        <div>
+                          <label className="block text-xs text-[var(--text-muted)] mb-1">제목 (자동 생성)</label>
+                          <div className="px-3 py-2.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)]">
+                            {leaveTitle || "날짜를 선택하면 자동으로 생성됩니다"}
+                          </div>
+                        </div>
+                      ),
+                    },
+                    {
+                      key: "leave-reason",
+                      node: (
+                        <div>
+                          <label className="block text-xs text-[var(--text-muted)] mb-1">사유</label>
+                          <textarea
+                            value={leaveForm.reason}
+                            onChange={(e) => setLeaveForm({ ...leaveForm, reason: e.target.value })}
+                            rows={2}
+                            placeholder="휴가 사유를 입력하세요..."
+                            className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none"
+                          />
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
               </>
             ) : (
-              /* ── Non-leave fields ── */
-              <>
-                {/* Title */}
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label>
-                  <input
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder="결재 요청 제목을 입력하세요"
-                    className="field-input"
-                  />
-                </div>
-
-                {/* Amount — 커스텀 양식 선택 시 숨김(양식 자체의 금액 필드가 기준, 없으면 금액 없는 결재). 선택 입력. */}
-                {!selectedForm && (
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) <span className="text-[var(--text-dim)]">— 선택, 금액 없는 결재는 비워두세요</span></label>
-                  <CurrencyInput
-                    value={form.amount}
-                    onValueChange={(raw) => { setForm({ ...form, amount: raw }); }}
-                    placeholder="0"
-                    className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
-                  />
-                </div>
-                )}
-
-                {/* Description with template — 2026-07-16: 표·서식 지원 리치에디터 (사장님 요청) */}
-                <div>
-                  <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
-                  {/* 표는 한글(HWP) 문서 서식 그대로 — .approval-desc-editor 스코프에서 globals.css 가 적용 (2026-07-27) */}
-                  <div className="approval-desc-editor">
-                    <RichEditor
-                      ref={descEditorRef}
-                      content={form.description}
-                      onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
-                      placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
-                      maxHeight="320px"
-                    />
-                  </div>
-                </div>
-                {activeFields.length > 0 && (
-                  <div className="space-y-2">
-                    {activeFields.map((fd) => (
+              /* ── Non-leave fields — 블록 재배치 가능 (2026-07-30, 사용자·양식별 localStorage 저장) ── */
+              <OrderableFieldBlocks
+                storageKey={`ov-req-block-order-${userId}-${form.requestType}`}
+                blocks={[
+                  {
+                    key: "title",
+                    node: (
+                      <div>
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label>
+                        <input
+                          value={form.title}
+                          onChange={(e) => setForm({ ...form, title: e.target.value })}
+                          placeholder="결재 요청 제목을 입력하세요"
+                          className="field-input"
+                        />
+                      </div>
+                    ),
+                  },
+                  // Amount — 커스텀 양식 선택 시 숨김(양식 자체의 금액 필드가 기준, 없으면 금액 없는 결재). 선택 입력.
+                  ...(!selectedForm ? [{
+                    key: "amount",
+                    node: (
+                      <div>
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) <span className="text-[var(--text-dim)]">— 선택, 금액 없는 결재는 비워두세요</span></label>
+                        <CurrencyInput
+                          value={form.amount}
+                          onValueChange={(raw) => { setForm({ ...form, amount: raw }); }}
+                          placeholder="0"
+                          className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
+                        />
+                      </div>
+                    ),
+                  }] : []),
+                  {
+                    key: "description",
+                    node: (
+                      // Description with template — 2026-07-16: 표·서식 지원 리치에디터 (사장님 요청)
+                      <div>
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">상세 내용</label>
+                        {/* 표는 한글(HWP) 문서 서식 그대로 — .approval-desc-editor 스코프에서 globals.css 가 적용 (2026-07-27) */}
+                        <div className="approval-desc-editor">
+                          <RichEditor
+                            ref={descEditorRef}
+                            content={form.description}
+                            onChange={(html) => setForm((prev) => ({ ...prev, description: html }))}
+                            placeholder="결재 요청에 대한 상세 설명을 입력하세요..."
+                            maxHeight="320px"
+                          />
+                        </div>
+                      </div>
+                    ),
+                  },
+                  ...activeFields.map((fd) => ({
+                    key: `cf:${fd.key}`,
+                    node: (
                       <div key={fd.key}>
                         <label className="block text-xs text-[var(--text-muted)] mb-1">{fd.label}{fd.required ? " *" : ""}</label>
                         {fd.type === "textarea" ? (
@@ -2810,10 +2904,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                           <input type={fd.type === "number" ? "number" : "text"} value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
                         )}
                       </div>
-                    ))}
-                  </div>
-                )}
-              </>
+                    ),
+                  })),
+                ]}
+              />
             )}
 
             {/* File upload — 드롭존 스타일. 2026-07-21 사장님 요청으로 승인자/참조자 위로 이동 */}

@@ -80,6 +80,16 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const refresh = () => qc.invalidateQueries({ queryKey: ["approval-forms", companyId] });
   const userName = (id: string) => { const u = (users as any[]).find((x) => x.id === id); return u?.name || u?.email || "구성원"; };
 
+  // 필드 순서 이동 (2026-07-30 사장님 — 입력 필드 배치를 양식에서 자유롭게)
+  const [dragField, setDragField] = useState<{ list: "custom" | "default"; i: number } | null>(null);
+  const moveArr = <T,>(arr: T[], from: number, to: number): T[] => {
+    if (to < 0 || to >= arr.length) return arr;
+    const next = [...arr];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    return next;
+  };
+
   const openNew = () => setEditing({ name: "", category: "", description: "", fields: [], content_template: "", stages: [emptyStage(1)], reference_user_ids: [], allow_requester_edit: true, use_attachment: true });
   const openEdit = (f: ApprovalForm) => setEditing({ ...f });
 
@@ -302,7 +312,12 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               ) : (
                 <div className="space-y-1.5">
                   {(editing.fields || []).map((f, i) => (
-                    <div key={f.key} className="field-row">
+                    <div key={f.key} className="field-row"
+                      onDragOver={(e) => { if (dragField?.list === "custom") e.preventDefault(); }}
+                      onDrop={(e) => { e.preventDefault(); if (dragField?.list === "custom" && dragField.i !== i) patch({ fields: moveArr(editing.fields || [], dragField.i, i) }); setDragField(null); }}>
+                      <span draggable title="끌어서 순서 이동" className="orderable-drag-handle"
+                        onDragStart={(e) => { setDragField({ list: "custom", i }); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragEnd={() => setDragField(null)}>⠿</span>
                       <input value={f.label} onChange={(e) => setField(i, { label: e.target.value })} placeholder="필드 이름"
                         className="flex-1 min-w-[120px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
                       <select value={f.type} onChange={(e) => setField(i, { type: e.target.value as ApprovalFieldType })}
@@ -344,6 +359,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                       <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
                         <input type="checkbox" checked={!!f.required} onChange={(e) => setField(i, { required: e.target.checked })} className="accent-[var(--primary)]" /> 필수
                       </label>
+                      <button onClick={() => patch({ fields: moveArr(editing.fields || [], i, i - 1) })} title="위로" className="orderable-move-btn">↑</button>
+                      <button onClick={() => patch({ fields: moveArr(editing.fields || [], i, i + 1) })} title="아래로" className="orderable-move-btn">↓</button>
                       <button onClick={() => patch({ fields: (editing.fields || []).filter((_, j) => j !== i) })} className="text-[var(--danger)] text-xs px-1">✕</button>
                     </div>
                   ))}
@@ -484,7 +501,12 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               ) : (
                 <div className="space-y-1.5">
                   {defaultForm.fields.map((f, i) => (
-                    <div key={f.key} className="field-row">
+                    <div key={f.key} className="field-row"
+                      onDragOver={(e) => { if (dragField?.list === "default") e.preventDefault(); }}
+                      onDrop={(e) => { e.preventDefault(); if (dragField?.list === "default" && dragField.i !== i) setDefaultForm((st) => ({ ...st, fields: moveArr(st.fields, dragField.i, i) })); setDragField(null); }}>
+                      <span draggable title="끌어서 순서 이동" className="orderable-drag-handle"
+                        onDragStart={(e) => { setDragField({ list: "default", i }); e.dataTransfer.effectAllowed = "move"; }}
+                        onDragEnd={() => setDragField(null)}>⠿</span>
                       <input value={f.label} onChange={(e) => setDefaultField(i, { label: e.target.value })} placeholder="필드 이름"
                         className="flex-1 min-w-[120px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
                       <select value={f.type} onChange={(e) => setDefaultField(i, { type: e.target.value as ApprovalFieldType })}
@@ -521,6 +543,8 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                       <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
                         <input type="checkbox" checked={!!f.required} onChange={(e) => setDefaultField(i, { required: e.target.checked })} className="accent-[var(--primary)]" /> 필수
                       </label>
+                      <button onClick={() => setDefaultForm((s) => ({ ...s, fields: moveArr(s.fields, i, i - 1) }))} title="위로" className="orderable-move-btn">↑</button>
+                      <button onClick={() => setDefaultForm((s) => ({ ...s, fields: moveArr(s.fields, i, i + 1) }))} title="아래로" className="orderable-move-btn">↓</button>
                       <button onClick={() => setDefaultForm((s) => ({ ...s, fields: s.fields.filter((_, j) => j !== i) }))} className="text-[var(--danger)] text-xs px-1">✕</button>
                     </div>
                   ))}

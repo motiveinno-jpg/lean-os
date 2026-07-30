@@ -2106,6 +2106,15 @@ thead th { white-space: nowrap; word-break: keep-all; }
   position: relative;
 }
 .approval-new-request-form { @apply lg:col-span-2; }
+
+/* 새 요청 입력 블록 재배치 (2026-07-30) — 호버 시 우상단에 이동 컨트롤 노출 */
+.orderable-field-block { @apply relative; }
+.orderable-field-block-dragging { @apply opacity-50; }
+.orderable-field-controls { @apply absolute -top-1.5 right-0 z-10 flex items-center gap-0.5 opacity-0 transition-opacity; }
+.orderable-field-block:hover .orderable-field-controls,
+.orderable-field-controls:focus-within { @apply opacity-100; }
+.orderable-drag-handle { @apply cursor-grab select-none px-1 text-sm leading-none text-[var(--text-dim)] hover:text-[var(--text)] rounded bg-[var(--bg-surface)] border border-[var(--border)]; }
+.orderable-move-btn { @apply px-1 text-[11px] leading-4 text-[var(--text-dim)] hover:text-[var(--text)] rounded bg-[var(--bg-surface)] border border-[var(--border)]; }
 .approval-type-picker { @apply flex flex-wrap gap-2; }
 .approval-leave-balance-card { @apply flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm; }
 .approval-new-request-sidebar { @apply space-y-4; }
