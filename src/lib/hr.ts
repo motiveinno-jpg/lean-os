@@ -1265,20 +1265,48 @@ export async function getLeaveRequests(companyId: string, status?: string) {
   if (status) approvalQuery = approvalQuery.eq('status', status);
   const { data: approvalLeaves } = await approvalQuery;
 
-  const mapped = (approvalLeaves || []).map((a: any) => ({
-    id: `approval-${a.id}`,
-    company_id: a.company_id,
-    employee_id: a.requester_id,
-    leave_type: a.description?.match(/종류:\s*(\S+)/)?.[1] || 'annual',
-    start_date: a.description?.match(/기간:\s*(\S+)/)?.[1] || a.created_at?.slice(0, 10),
-    end_date: a.description?.match(/~\s*(\S+)/)?.[1] || a.created_at?.slice(0, 10),
-    days: Number(a.description?.match(/(\d+(?:\.\d+)?)일/)?.[1]) || 1,
-    reason: a.title,
-    status: a.status,
-    created_at: a.created_at,
-    employees: a.users ? { name: a.users.name || a.users.email, department: '' } : null,
-    _source: 'approval',
-  }));
+  // 전자결재(approval_requests) 휴가를 휴가 목록·캘린더에 병합.
+  //   ⚠️ 날짜는 구조화 필드(custom_fields.leave) 우선. description 텍스트("휴가 기간: 2026.07.28")를
+  //      그대로 넘기면 점 표기가 로컬시간으로 파싱돼(new Date("2026.07.28") = KST 자정) 캘린더가 쓰는
+  //      UTC 키에서 하루 앞으로 밀렸다 — 휴가 캘린더에 실제 휴가일 하루 전(= 신청일)에도 칩이 찍힌 원인.
+  //   ⚠️ 최종 승인 시 native leave_requests 에도 같은 휴가가 기록되므로(2026-07-30 워크보드 수정),
+  //      같은 건(기간·일수·제목 동일)이면 병합에서 제외 — 캘린더·집계 중복 방지.
+  const isoDate = (v?: string | null): string | null => {
+    const m = String(v ?? '').match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
+    return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : null;
+  };
+  const nativeKey = (start: string, end: string, days: number, title: string) =>
+    `${start}|${end}|${days}|${title}`;
+  const nativeKeys = new Set(
+    (leaveData || []).map((r: any) =>
+      nativeKey(String(r.start_date).slice(0, 10), String(r.end_date).slice(0, 10), Number(r.days), r.reason ?? '')
+    )
+  );
+
+  const mapped = (approvalLeaves || []).flatMap((a: any) => {
+    const lv = a.custom_fields?.leave || {};
+    const startDate =
+      isoDate(lv.start_date) || isoDate(a.description?.match(/기간:\s*(\S+)/)?.[1]) || a.created_at?.slice(0, 10);
+    const endDate = isoDate(lv.end_date) || isoDate(a.description?.match(/~\s*(\S+)/)?.[1]) || startDate;
+    const days = Number(lv.days ?? a.description?.match(/(\d+(?:\.\d+)?)일/)?.[1]) || 1;
+    // 제목 폴백은 승인 시 기록되는 값(approval-workflow.applyLeaveDeduction)과 동일해야 매칭된다.
+    if (nativeKeys.has(nativeKey(startDate, endDate, days, a.title || '전자결재 휴가'))) return [];
+    return [{
+      id: `approval-${a.id}`,
+      company_id: a.company_id,
+      employee_id: a.requester_id,
+      leave_type: lv.leave_type || a.description?.match(/종류:\s*(\S+)/)?.[1] || 'annual',
+      leave_unit: lv.leave_unit || 'full_day',
+      start_date: startDate,
+      end_date: endDate,
+      days,
+      reason: a.title,
+      status: a.status,
+      created_at: a.created_at,
+      employees: a.users ? { name: a.users.name || a.users.email, department: '' } : null,
+      _source: 'approval',
+    }];
+  });
 
   return [...(leaveData || []), ...mapped];
 }

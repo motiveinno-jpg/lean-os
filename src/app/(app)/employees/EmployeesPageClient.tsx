@@ -3051,13 +3051,16 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     const dateMap: Record<string, { name: string; type: string; bucket: "annual" | "half" | "other" }[]> = {};
 
     approved.forEach((r: any) => {
-      const start = new Date(r.start_date);
-      const end = new Date(r.end_date);
+      if (!r.start_date) return;
+      // 날짜 문자열을 UTC 자정으로 고정해 순회 — 로컬 파싱이면 캘린더 키(toISOString)가 하루 밀린다.
+      const start = new Date(String(r.start_date).slice(0, 10) + "T00:00:00Z");
+      const end = new Date(String(r.end_date || r.start_date).slice(0, 10) + "T00:00:00Z");
       const name = directoryNameById[r.employee_id] || r.employees?.name || "구성원";
       const type = LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
       const isHalf = r.leave_unit === "half_day" || r.leave_unit === "two_hours";
       const bucket: "annual" | "half" | "other" = isHalf ? "half" : r.leave_type === "annual" ? "annual" : "other";
-      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      let guard = 0;
+      for (let d = new Date(start); d <= end && guard++ < 400; d = new Date(d.getTime() + 86400000)) {
         const key = d.toISOString().slice(0, 10);
         if (!dateMap[key]) dateMap[key] = [];
         dateMap[key].push({ name, type, bucket });
