@@ -34,7 +34,6 @@ import {
   ACCRUAL_BASIS_LABELS, type MonthlyAccrualBasis,
 } from "@/lib/leave-grants";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
-import { MemberRoleManager } from "./_components/MemberRoleManager";
 import {
   getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
   markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
@@ -48,7 +47,7 @@ import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { type PayrollItem } from "@/lib/payment-batch";
-import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, resendEmployeeInvitationByEmail, addExistingMemberAsEmployee } from "@/lib/invitations";
+import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, addExistingMemberAsEmployee } from "@/lib/invitations";
 import {
   MonthlyRecomputeButton,
   AttendanceEditRequestDialog,
@@ -56,7 +55,6 @@ import {
 } from "@/components/hr-attendance-extras";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
-import { useConfirm } from "@/components/confirm-dialog";
 import { PayrollHero, CertificatesHero } from "@/components/flex-hr-heroes";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
@@ -120,8 +118,7 @@ export default function EmployeesPage() {
 
   // V1: 급여이력(SalaryTab/salary-history) 제거 — '급여' 탭은 명세만.
 
-  // 보드 스타일: 인력관리 탭 = [디렉토리](카드·프로필 패널) 기본 / [관리·수정](기존 EmployeeTab) 토글
-  const [empView, setEmpView] = useState<"dir" | "manage">("dir");
+  // (2026-07-30) 관리·추가/수정 뷰 삭제 — 디렉토리 단일.
 
   // ── Expenses ──
   const { data: expenses = [] } = useQuery({
@@ -232,22 +229,12 @@ export default function EmployeesPage() {
       )}
 
       {/* Tab Content — S-1: effectiveTab 으로 직원 비허용 탭 컴포넌트 미마운트 */}
-      {/* 보드 스타일(2026-06-12): 디렉토리(카드 그리드+프로필 슬라이드) 기본, 추가/수정은 관리 모드 */}
+      {/* (2026-07-30 사장님) '관리·추가/수정' 화면 삭제 — 디렉토리 단일 화면 + 초대 섹션만 이동.
+          직원 정보 수정은 디렉토리 카드 → 상세보기에서. */}
       {effectiveTab === "employees" && (
         <>
-          <div className="employee-view-toggle seg-bar">
-            {([["dir", "디렉토리"], ["manage", "⚙️ 관리 · 추가/수정"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setEmpView(k)}
-                className={`seg-item ${empView === k ? "seg-item-active" : ""}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-          {empView === "dir" ? (
-            <FlexPeopleDirectory companyId={companyId} employees={employees} isManager={!isEmployee} />
-          ) : (
-            <EmployeeTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} />
-          )}
+          {!isEmployee && <EmployeeInviteSection companyId={companyId} userId={userId} queryClient={queryClient} />}
+          <FlexPeopleDirectory companyId={companyId} employees={employees} isManager={!isEmployee} />
         </>
       )}
 
@@ -295,58 +282,20 @@ export default function EmployeesPage() {
   );
 }
 
-// ── Employee Tab (초대 기반 통합) ──
-const EMP_STATUS: Record<string, { label: string; bg: string; text: string }> = {
-  invited: { label: "초대중", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
-  joined: { label: "가입완료", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
-  contract_pending: { label: "계약대기", bg: "bg-purple-500/10", text: "text-purple-400" },
-  active: { label: "재직", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
-  inactive: { label: "퇴직", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]" },
-  resigned: { label: "퇴사", bg: "bg-[var(--bg-surface)]", text: "text-[var(--text-muted)]" },
-};
-
-function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
+// ── 구성원 초대 섹션 (2026-07-30 사장님) — 구 '관리·추가/수정' 화면에서 초대만 발췌해 디렉토리로 이동.
+//   목록 테이블·조직도·역할 관리 등 관리 화면은 삭제(수정은 디렉토리 상세보기에서).
+function EmployeeInviteSection({ companyId, userId, queryClient }: any) {
   const { toast } = useToast();
-  const { confirm, confirmElement } = useConfirm();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
-  // 이미 가입한 회원을 초대 없이 바로 추가하는 모드
   const [addExisting, setAddExisting] = useState(false);
-  const [detailEmpId, setDetailEmpId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "orgchart">("list");
-  // ESC 닫기 — 확인 액션은 EmployeeDetailPanel 내부(탭별 저장/퇴사확정)가 자체 처리
-  useModalKeys(!!detailEmpId, () => setDetailEmpId(null));
 
-  const currentYear = new Date().getFullYear();
-
-  // 잔여연차 조회
-  const { data: leaveBalancesForList = [] } = useQuery({
-    queryKey: ["leave-balances-list", companyId, currentYear],
-    queryFn: async () => {
-      const data = logRead('employees/page:data', await (supabase)
-        .from("leave_balances")
-        .select("employee_id, total_days, used_days, remaining_days")
-        .eq("company_id", companyId)
-        .eq("year", currentYear));
-      return data || [];
-    },
-    enabled: !!companyId,
-  });
-
-  const leaveBalanceMap: Record<string, number> = {};
-  leaveBalancesForList.forEach((b: any) => {
-    leaveBalanceMap[b.employee_id] = b.remaining_days ?? (Number(b.total_days || 0) - Number(b.used_days || 0));
-  });
-
-  // 초대 목록
   const { data: invitations = [] } = useQuery({
     queryKey: ["employee-invitations", companyId],
     queryFn: () => getEmployeeInvitations(companyId!),
     enabled: !!companyId,
   });
-
-  // 회사명 + EDI용 회사정보 (이메일 발송용)
   const { data: companyData } = useQuery({
     queryKey: ["company-name", companyId],
     queryFn: async () => {
@@ -356,24 +305,19 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     enabled: !!companyId,
   });
 
-  // 4대보험 취득신고 EDI state
   const [showAcqEdi, setShowAcqEdi] = useState(false);
   const [acqEdiData, setAcqEdiData] = useState<{ name: string; department: string; position: string; salary: string } | null>(null);
-  const [acqEdiGenerated, setAcqEdiGenerated] = useState(false);
 
-  // 직원 초대 mutation
   const inviteMut = useMutation({
     mutationFn: async () => {
       if (!companyId || !userId) throw new Error("인증 필요");
       const trimmedEmail = form.email.trim().toLowerCase();
       if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) throw new Error("올바른 이메일 주소를 입력해주세요.");
       if (!form.department?.trim()) throw new Error("부서를 입력해주세요.");
-      // 1. 초대 레코드 생성
       const invitation = await createEmployeeInvitation({
         companyId, email: form.email, name: form.name || undefined,
         role: form.role, invitedBy: userId,
       });
-      // 2. employees 테이블에도 추가 (user_id=null, status=invited)
       await supabase.from("employees").insert({
         company_id: companyId,
         name: form.name || form.email.split("@")[0],
@@ -389,7 +333,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     onSuccess: async (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
       queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
-      // 이메일 발송
       if (data?.invite_token) {
         const result = await sendInviteEmail({
           email: data.email, name: data.name || undefined,
@@ -401,10 +344,8 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
           : { ok: false, msg: result.error || "이메일 발송 실패 (초대 링크는 생성됨)" }
         );
       }
-      // 4대보험 취득신고 EDI 생성 안내
       setAcqEdiData({ name: form.name || form.email.split("@")[0], department: form.department, position: form.position, salary: form.salary });
       setShowAcqEdi(true);
-      setAcqEdiGenerated(false);
       setShowForm(false);
       setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "" });
     },
@@ -419,7 +360,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     },
   });
 
-  // 이미 가입한 회원 → 바로 직원 추가 (초대 없이). 회원 소속이 우리 회사로 전환됨.
   const addExistingMut = useMutation({
     mutationFn: async () => {
       const trimmedEmail = form.email.trim().toLowerCase();
@@ -443,46 +383,27 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     },
   });
 
-  // 초대 취소
+  // 초대 취소 — 초대 레코드 + 수락 전(invited) 직원 행까지 함께 정리 (구 관리 화면의 삭제 기능 흡수)
   const cancelMut = useMutation({
-    mutationFn: (id: string) => cancelEmployeeInvitation(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["employee-invitations"] }),
+    mutationFn: async (inv: any) => {
+      await cancelEmployeeInvitation(inv.id);
+      if (inv.email) {
+        await supabase.from("employees").delete().eq("email", inv.email).eq("company_id", companyId).eq("status", "invited");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
+      queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
+    },
     onError: (err: any) => toast("초대 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // 직원 삭제 (중복/초대 정리용)
-  const deleteMut = useMutation({
-    mutationFn: async (empId: string) => {
-      const emp = employees.find((e: any) => e.id === empId);
-      if (!emp) throw new Error("직원을 찾을 수 없습니다");
-      if (["active", "joined"].includes(emp.status)) throw new Error("재직 중인 직원은 삭제할 수 없습니다");
-      if (emp.email) {
-        await supabase.from("employee_invitations").delete().eq("email", emp.email).eq("company_id", companyId);
-      }
-      const { error } = await supabase.from("employees").delete().eq("id", empId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
-      queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
-      setInviteMsg({ ok: true, msg: "삭제 완료" });
-      setTimeout(() => setInviteMsg(null), 3000);
-    },
-    onError: (err: any) => {
-      setInviteMsg({ ok: false, msg: err.message || "삭제 실패" });
-      setTimeout(() => setInviteMsg(null), 4000);
-    },
-  });
-
-  // 초대 링크 복사
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   function copyLink(token: string) {
     navigator.clipboard.writeText(getInviteUrl(token));
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 2000);
   }
-
-  // 초대 이메일 재발송
   const [resending, setResending] = useState<string | null>(null);
   async function resend(inv: any) {
     if (!inv.invite_token || resending) return;
@@ -497,12 +418,10 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
     setTimeout(() => setInviteMsg(null), 4000);
   }
 
-  // 대기중인 초대 (아직 수락 안 한 건)
   const pendingInvites = invitations.filter((i: any) => i.status === "pending");
 
   return (
-    <div>
-      {/* 상단 버튼 + 알림 */}
+    <div className="employee-invite-section">
       <div className="employee-toolbar">
         <div className="text-xs text-[var(--text-dim)]">
           {pendingInvites.length > 0 && <span className="text-[var(--warning)] font-semibold">초대 대기 {pendingInvites.length}명</span>}
@@ -518,7 +437,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         </div>
       )}
 
-      {/* 4대보험 취득신고 EDI 생성 패널 */}
       {showAcqEdi && acqEdiData && (
         <div className="employee-insurance-edi-panel">
           <div className="flex items-center justify-between mb-3">
@@ -531,14 +449,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             </div>
             <button onClick={() => { setShowAcqEdi(false); setAcqEdiData(null); }} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">닫기</button>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3 text-[10px]">
-            <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">국민연금</span></div>
-            <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">건강보험</span></div>
-            <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">고용보험</span></div>
-            <div className="bg-[var(--bg-surface)] rounded-lg px-2.5 py-1.5 border border-[var(--border)]"><span className="text-[var(--text-dim)]">산재보험</span></div>
-          </div>
-          {/* P0(2026-07-23): 기존 생성기는 공식 규격이 아닌 자체 TXT라 Web EDI 에서 거부됨.
-              정식 XLSX 규격 적용 전까지 제출용 다운로드 비활성 — 잘못된 파일을 제출용으로 내보내지 않는다. */}
           <div className="edi-prep-notice">
             국민건강보험 Web EDI 업로드용 <b>정식 파일(XLSX)</b>을 준비 중입니다. 준비 완료 전까지 이 화면에서 제출용 파일을 내려받을 수 없습니다.
             취득 신고가 급하시면 <b>공단 Web EDI</b>에서 직접 진행해주세요.
@@ -546,7 +456,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         </div>
       )}
 
-      {/* 초대 폼 */}
       {showForm && (
         <div className="employee-invite-form glass-card">
           <div className="flex items-center gap-2 mb-4">
@@ -561,7 +470,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">이름</label><input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="홍길동" className="field-input" /></div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">권한</label>
-              {/* (P4) 역할 선택 제거 — 전원 멤버로 합류, 메뉴·기능 권한은 합류 후 마스터가 부여 */}
               <div className="px-3 py-2.5 rounded-xl text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)]">
                 멤버로 합류 — 합류 후 구성원 상세의 <b>탭 권한</b>에서 마스터가 메뉴·기능을 부여합니다
               </div>
@@ -593,7 +501,6 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
         </div>
       )}
 
-      {/* 대기중 초대 목록 */}
       {pendingInvites.length > 0 && (
         <div className="employee-pending-invites">
           <h4 className="text-xs font-bold text-[var(--text-muted)] mb-2">초대 대기중</h4>
@@ -611,322 +518,17 @@ function EmployeeTab({ employees, companyId, userId, queryClient }: any) {
                   <button onClick={() => copyLink(inv.invite_token)} className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]">
                     {copiedToken === inv.invite_token ? "복사됨!" : "링크"}
                   </button>
-                  <button onClick={() => cancelMut.mutate(inv.id)} className="text-xs text-[var(--danger)]/60 hover:text-[var(--danger)]">취소</button>
+                  <button onClick={() => cancelMut.mutate(inv)} className="text-xs text-[var(--danger)]/60 hover:text-[var(--danger)]">취소</button>
                 </div>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* 뷰 전환: 목록 / 조직도 */}
-      <div className="employee-view-mode-toggle seg-bar">
-        <button onClick={() => setViewMode("list")} className={`seg-item ${viewMode === "list" ? "seg-item-active" : ""}`}>
-          <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>목록
-        </button>
-        <button onClick={() => setViewMode("orgchart")} className={`seg-item ${viewMode === "orgchart" ? "seg-item-active" : ""}`}>
-          <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>조직도
-        </button>
-      </div>
-
-      {viewMode === "orgchart" ? (
-        /* ── 조직도 뷰 (SVG 트리) ── */
-        <OrgChartSVG employees={employees} onSelect={setDetailEmpId} />
-      ) : (
-      /* ── 직원 목록 뷰 ── */
-      <div className="employee-list-table glass-card">
-        {employees.length === 0 ? (
-          <div className="p-16 text-center"><div className="text-4xl mb-4"><Ico e="👥" /></div><div className="text-sm font-medium text-[var(--text)]">직원을 등록하면 급여 자동계산, 4대보험이 시작됩니다</div><div className="text-xs text-[var(--text-muted)] mt-1">근태, 휴가, 증명서 발급까지 한번에 관리하세요</div><button onClick={() => setShowForm(true)} className="btn-primary mt-4">+ 직원 등록</button></div>
-        ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-            <thead className="sticky-bar"><tr className="table-head-row">
-              <th className="th-cell text-left">이름</th>
-              <th className="th-cell text-left">부서</th>
-              <th className="th-cell text-left">직위</th>
-              <th className="th-cell text-right">연봉</th>
-              <th className="th-cell text-left">입사일</th>
-              <th className="th-cell text-center">잔여연차</th>
-              <th className="th-cell text-right">퇴직충당금</th>
-              <th className="th-cell text-center">상태</th>
-              <th className="px-3 py-3 font-medium w-10"></th>
-            </tr></thead>
-            <tbody>
-              {employees.map((e: any) => {
-                const st = EMP_STATUS[e.status] || EMP_STATUS.active;
-                return (
-                  <tr key={e.id} onClick={() => setDetailEmpId(detailEmpId === e.id ? null : e.id)} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer">
-                    <td className="px-5 py-3 text-sm font-medium">
-                      <div className="flex items-center gap-2">
-                        {e.name}
-                        {e.onboarding_completed_at ? null : e.status !== "active" && e.status !== "inactive" && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-[var(--warning)]/10 text-[var(--warning)] rounded-full">온보딩 미완료</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.department || "—"}</td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.position || "—"}</td>
-                    <td className="px-5 py-3 text-sm text-right">{Number(e.salary) > 0 ? `₩${(Number(e.salary) * 12).toLocaleString()}` : "—"}</td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.hire_date || "—"}</td>
-                    <td className="px-5 py-3 text-center">
-                      {leaveBalanceMap[e.id] !== undefined ? (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          leaveBalanceMap[e.id] <= 0 ? "bg-[var(--danger-dim)] text-[var(--danger)]"
-                            : leaveBalanceMap[e.id] <= 3 ? "bg-[var(--warning-dim)] text-[var(--warning)]"
-                            : "bg-[var(--success-dim)] text-[var(--success)]"
-                        }`}>
-                          {leaveBalanceMap[e.id]}일{leaveBalanceMap[e.id] <= 0 ? " (소진)" : leaveBalanceMap[e.id] <= 3 ? " (임박)" : ""}
-                        </span>
-                      ) : (
-                        <span className="caption">미설정</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-sm text-right text-[var(--warning)]">₩{Number(e.retirement_accrual || 0).toLocaleString()}</td>
-                    <td className="px-5 py-3 text-center">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        {e.status === "invited" && e.email && (
-                          <button
-                            onClick={async (ev) => {
-                              ev.stopPropagation();
-                              const btn = ev.currentTarget;
-                              btn.disabled = true; // 더블서밋 가드 — 동시 2클릭 시 초대 레코드 중복 생성 방지
-                              try {
-                                let inv = await resendEmployeeInvitationByEmail(e.email, companyId);
-                                if (!inv?.invite_token) {
-                                  inv = await createEmployeeInvitation({
-                                    companyId, email: e.email, name: e.name || undefined,
-                                    role: (e.role as 'employee' | 'admin') || "employee", invitedBy: userId,
-                                  });
-                                  queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
-                                }
-                                const result = await sendInviteEmail({
-                                  email: e.email, name: e.name || undefined,
-                                  role: inv.role || "employee", inviteToken: inv.invite_token,
-                                  companyName: companyData?.name || undefined,
-                                });
-                                setInviteMsg(result.success ? { ok: true, msg: `${e.email}로 초대 메일 발송 완료` } : { ok: false, msg: result.error || "이메일 발송 실패" });
-                              } catch (err: any) {
-                                setInviteMsg({ ok: false, msg: err?.message || "초대 발송 중 오류 발생" });
-                              } finally { btn.disabled = false; }
-                              setTimeout(() => setInviteMsg(null), 4000);
-                            }}
-                            className="text-[10px] text-[var(--primary)] hover:underline"
-                            title="초대 메일 재발송"
-                          >
-                            재발송
-                          </button>
-                        )}
-                        {e.status !== "active" && (
-                          <button
-                            onClick={async (ev) => {
-                              ev.stopPropagation();
-                              const { ok } = await confirm({ title: "직원 삭제", desc: `${e.name} 직원을 삭제하시겠습니까?`, danger: true });
-                              if (ok) deleteMut.mutate(e.id);
-                            }}
-                            className="text-[var(--text-dim)] hover:text-[var(--danger)] transition"
-                            title="삭제"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table></div>
-        )}
-      </div>
-      )}
-
-      {/* 구성원 권한 관리 (회사 설정 '멤버 관리'에서 이동) — 역할/인사파일/회사제외 */}
-      <div className="employee-member-role-section">
-        <MemberRoleManager companyId={companyId} />
-      </div>
-
-      {/* Employee Detail Panel — 중앙 모달 팝업(기존엔 목록 하단 인라인이라 멀리 떠서 안 보였음) */}
-      {detailEmpId && (
-        <div className="employee-detail-overlay fixed inset-0 animate-fade-in" onClick={() => setDetailEmpId(null)}>
-          <div className="w-full max-w-5xl my-6" onClick={(e) => e.stopPropagation()}>
-            <EmployeeDetailPanel employeeId={detailEmpId} companyId={companyId} onClose={() => setDetailEmpId(null)} />
-          </div>
-        </div>
-      )}
-      {confirmElement}
     </div>
   );
 }
 
-// ── SVG 트리 조직도 ──
-// 부서 구분색 — 원색(꽉 찬 채도)을 그대로 칠하면 촌스러워, 각 색을 "은은한 틴트 배경 + 색 텍스트"로만
-// 사용한다(아래 렌더링 참조). 팔레트 자체도 브랜드 인디고를 첫 색으로 둔 차분한 조화 톤.
-const ORG_DEPT_COLORS = ["#4F46E5", "#0EA5E9", "#0D9488", "#D97706", "#DB2777", "#7C3AED", "#059669", "#DC2626"];
-// 16진 색 + 알파(00~FF) 헬퍼 — 틴트 배경/보더/서브텍스트에 사용
-const withAlpha = (hex: string, alpha: string) => `${hex}${alpha}`;
-
-function OrgChartSVG({ employees, onSelect }: { employees: any[]; onSelect: (id: string) => void }) {
-  const active = employees.filter((e: any) => e.status === "active" || e.status === "joined" || e.status === "contract_pending");
-  const ceo = active.filter((e: any) => (e.position || "").toLowerCase().includes("ceo") || (e.position || "").includes("대표") || (e.department || "").includes("대표"));
-  const ceoIds = new Set(ceo.map((c: any) => c.id));
-  const deptMap: Record<string, any[]> = {};
-  active.forEach((e: any) => {
-    if (ceoIds.has(e.id)) return;
-    const d = e.department || "미배정";
-    if (!deptMap[d]) deptMap[d] = [];
-    deptMap[d].push(e);
-  });
-  const deptEntries = Object.entries(deptMap).sort((a, b) => b[1].length - a[1].length);
-
-  if (active.length === 0) {
-    return (
-      <div className="glass-card p-16 text-center">
-        <div className="text-4xl mb-4"><Ico e="🏢" /></div>
-        <div className="text-sm text-[var(--text-muted)]">등록된 직원이 없어 조직도를 표시할 수 없습니다</div>
-      </div>
-    );
-  }
-
-  // 좌표 계산
-  const NODE_W = 180;
-  const NODE_H = 64;
-  const DEPT_GAP_X = 24;
-  const ROW_GAP_Y = 80;
-  const MEMBER_GAP_Y = 12;
-  const MEMBER_H = 48;
-  const PAD_X = 40;
-  const PAD_Y = 30;
-
-  const ceoY = PAD_Y;
-  const busY = ceoY + NODE_H + 36;
-  const deptHeaderY = busY + 16;
-  const memberStartY = deptHeaderY + NODE_H + 18;
-
-  const totalDeptW = deptEntries.length * NODE_W + Math.max(0, deptEntries.length - 1) * DEPT_GAP_X;
-  const svgW = Math.max(720, totalDeptW + PAD_X * 2);
-  const tallestCol = Math.max(1, ...deptEntries.map(([, m]) => m.length));
-  const svgH = memberStartY + tallestCol * (MEMBER_H + MEMBER_GAP_Y) + PAD_Y;
-
-  const ceoX = svgW / 2;
-  const startX = (svgW - totalDeptW) / 2;
-  const deptCenters = deptEntries.map((_, i) => startX + i * (NODE_W + DEPT_GAP_X) + NODE_W / 2);
-
-  const downloadSvg = () => {
-    const el = document.getElementById("orgchart-svg");
-    if (!el) return;
-    const blob = new Blob([new XMLSerializer().serializeToString(el)], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `조직도_${todayKst()}.svg`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="org-chart-panel glass-card">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]">
-        <div className="text-xs text-[var(--text-muted)]">총 {active.length}명 · {deptEntries.length}개 부서</div>
-        <button onClick={downloadSvg} className="text-xs px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg)] border border-[var(--border)] rounded-lg font-semibold transition">
-          <Ico e="⬇" /> SVG 다운로드
-        </button>
-      </div>
-      {/* 화면 폭에 맞춰 자동 축소(가로 스크롤 없이 항상 한눈에). 자연 크기(svgW)보다 넓은 컨테이너에서는
-          자연 크기로 중앙 정렬, 좁으면 비율 유지하며 축소. */}
-      <div className="overflow-y-auto px-4 py-4 max-h-[70vh]">
-        <svg
-          id="orgchart-svg"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox={`0 0 ${svgW} ${svgH}`}
-          preserveAspectRatio="xMidYMin meet"
-          style={{ width: "100%", maxWidth: svgW, height: "auto", display: "block", margin: "0 auto", background: "transparent" }}
-        >
-          <defs>
-            <style>{`
-              .org-node { cursor: pointer; }
-              .org-node rect { transition: filter 0.15s ease; }
-              .org-node:hover rect { filter: brightness(0.98) drop-shadow(0 4px 10px rgba(0,0,0,0.10)); }
-              .org-ceo-rect { fill: var(--primary, #4F46E5); }
-              .ceo-name { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 700; font-size: 13px; fill: #fff; }
-              .ceo-pos { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: rgba(255,255,255,0.82); }
-              .org-link { stroke: var(--border, #d8dce8); stroke-width: 1.5; fill: none; }
-              .dept-name { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 700; font-size: 13px; }
-              .dept-count { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; font-weight: 600; }
-              .member-card { fill: var(--bg-card, #ffffff); stroke: var(--border, #e5e8f0); stroke-width: 1; }
-              .member-name { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; font-weight: 600; fill: var(--text, #18181b); }
-              .member-pos { font-family: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 10px; fill: var(--text-muted, #52525b); }
-            `}</style>
-          </defs>
-
-          {/* CEO — 브랜드 인디고 솔리드(계층 최상단 강조) */}
-          {ceo.length > 0 && (
-            <g className="org-node" onClick={() => onSelect(ceo[0].id)} transform={`translate(${ceoX - NODE_W / 2}, ${ceoY})`}>
-              <rect className="org-ceo-rect" width={NODE_W} height={NODE_H} rx={14} />
-              <circle cx={30} cy={NODE_H / 2} r={18} fill="rgba(255,255,255,0.20)" />
-              <text x={30} y={NODE_H / 2 + 5} textAnchor="middle" className="ceo-name" fontSize={16}>{(ceo[0].name || "?")[0]}</text>
-              <text x={58} y={27} className="ceo-name">{ceo[0].name}</text>
-              <text x={58} y={44} className="ceo-pos">{ceo[0].position || "대표"}</text>
-            </g>
-          )}
-
-          {/* CEO -> 버스 수직선 */}
-          {ceo.length > 0 && deptEntries.length > 0 && (
-            <line className="org-link" x1={ceoX} y1={ceoY + NODE_H} x2={ceoX} y2={busY} />
-          )}
-
-          {/* 수평 버스 */}
-          {deptEntries.length > 1 && (
-            <line className="org-link" x1={deptCenters[0]} y1={busY} x2={deptCenters[deptCenters.length - 1]} y2={busY} />
-          )}
-
-          {/* 부서별 */}
-          {deptEntries.map(([dept, members], dIdx) => {
-            const color = ORG_DEPT_COLORS[dIdx % ORG_DEPT_COLORS.length];
-            const cx = deptCenters[dIdx];
-            const headX = cx - NODE_W / 2;
-            const lead = members.find((m: any) => (m.position || "").includes("팀장") || (m.position || "").includes("본부장") || (m.position || "").includes("리드"));
-            const others = members.filter((m: any) => m.id !== lead?.id);
-            const ordered = lead ? [lead, ...others] : members;
-            return (
-              <g key={dept}>
-                {/* 버스 -> 부서 헤더 */}
-                <line className="org-link" x1={cx} y1={busY} x2={cx} y2={deptHeaderY} />
-                {/* 부서 헤더 — 원색 솔리드 대신 은은한 틴트 배경 + 색 텍스트 */}
-                <g>
-                  <rect x={headX} y={deptHeaderY} width={NODE_W} height={NODE_H} rx={12} fill={withAlpha(color, "14")} stroke={withAlpha(color, "40")} strokeWidth={1.5} />
-                  <rect x={headX} y={deptHeaderY} width={4} height={NODE_H} rx={2} fill={color} />
-                  <text x={cx} y={deptHeaderY + 27} textAnchor="middle" className="dept-name" fill={color}>{dept}</text>
-                  <text x={cx} y={deptHeaderY + 46} textAnchor="middle" className="dept-count" fill={withAlpha(color, "B0")}>{members.length}명</text>
-                </g>
-                {/* 헤더 -> 멤버 그룹 수직선 */}
-                {ordered.length > 0 && (
-                  <line x1={cx} y1={deptHeaderY + NODE_H} x2={cx} y2={memberStartY + ordered.length * (MEMBER_H + MEMBER_GAP_Y) - MEMBER_GAP_Y - MEMBER_H / 2} stroke={withAlpha(color, "40")} strokeWidth={1.2} />
-                )}
-                {/* 멤버 카드 */}
-                {ordered.map((m: any, mi: number) => {
-                  const my = memberStartY + mi * (MEMBER_H + MEMBER_GAP_Y);
-                  const mx = headX;
-                  return (
-                    <g key={m.id} className="org-node" onClick={() => onSelect(m.id)}>
-                      <line x1={cx} y1={my + MEMBER_H / 2} x2={mx + 4} y2={my + MEMBER_H / 2} stroke={withAlpha(color, "40")} strokeWidth={1.2} />
-                      <rect className="member-card" x={mx} y={my} width={NODE_W} height={MEMBER_H} rx={10} />
-                      <circle cx={mx + 24} cy={my + MEMBER_H / 2} r={14} fill={withAlpha(color, "1F")} />
-                      <text x={mx + 24} y={my + MEMBER_H / 2 + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={color}>{(m.name || "?")[0]}</text>
-                      <text x={mx + 46} y={my + 19} className="member-name">{m.name}</text>
-                      <text x={mx + 46} y={my + 36} className="member-pos">{m.position || "—"}</text>
-                    </g>
-                  );
-                })}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-    </div>
-  );
-}
 
 // ── Salary Tab ──
 function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, companyId, userId, queryClient }: any) {
