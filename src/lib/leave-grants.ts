@@ -8,7 +8,7 @@ import { initLeaveBalance } from '@/lib/hr';
 
 const db = supabase as any;
 
-export type LeaveGrantType = 'base' | 'monthly' | 'carryover' | 'adjustment';
+export type LeaveGrantType = 'base' | 'monthly' | 'annual' | 'carryover' | 'adjustment';
 
 export type LeaveGrant = {
   id: string;
@@ -25,13 +25,18 @@ export type LeaveGrant = {
 export const GRANT_TYPE_LABELS: Record<LeaveGrantType, string> = {
   base: '연차 부여',
   monthly: '월 발생',
+  annual: '1주년 부여',
   carryover: '이월',
   adjustment: '조정',
 };
 
-// ── 1년 미만 근속자 월 1일 자동 발생 설정 ──
+// ── 연차 자동 발생 설정 ──
 //   company_settings.settings JSONB 에 저장(스키마 변경 아님, leave_grant_method 와 동일 패턴).
-//   실제 발생은 DB 함수 generate_monthly_leave_grants() 를 pg_cron 이 매일 KST 00:10 에 실행.
+//   실제 발생은 DB 함수 generate_leave_accruals() 를 pg_cron('leave-accrual') 이 매일 KST 00:10 에 실행:
+//     · 1년 미만 — 입사 응당일마다 1일 (최대 11일)
+//     · 1주년부터 — 근속연수별 법정 연차 (1~2년 15일, 3년 이상 2년마다 +1일, 상한 25일)
+//   ⚠️ 기본값은 '켬' — settings 에 'false' 로 명시한 회사만 자동 발생에서 빠진다(DB 함수와 동일 규칙).
+//      과거엔 'true' 를 켠 회사만 대상이라 실제로는 어느 회사도 자동 발생이 안 됐다(2026-07-30 교정).
 
 export type MonthlyAccrualBasis = 'hire' | 'fiscal';
 export type MonthlyAccrualSettings = { enabled: boolean; basis: MonthlyAccrualBasis };
@@ -49,7 +54,8 @@ export async function getMonthlyAccrualSettings(companyId: string): Promise<Mont
     .maybeSingle());
   const s = (data?.settings as Record<string, unknown> | null) || {};
   return {
-    enabled: s.monthly_leave_accrual_enabled === 'true' || s.monthly_leave_accrual_enabled === true,
+    // 설정이 없으면 켬 — 끈 회사만 'false' 로 남는다.
+    enabled: s.monthly_leave_accrual_enabled !== 'false' && s.monthly_leave_accrual_enabled !== false,
     basis: s.monthly_leave_accrual_basis === 'fiscal' ? 'fiscal' : 'hire',
   };
 }
@@ -73,9 +79,9 @@ export async function setMonthlyAccrualSettings(companyId: string, next: Monthly
   if (error) throw error;
 }
 
-/** 관리자 "지금 반영" — 누락된 과거 발생분을 즉시 생성. 본인 회사만(RPC 안에서 owner/admin 검사). */
-export async function syncMonthlyLeaveGrants(): Promise<number> {
-  const { data, error } = await db.rpc('sync_my_monthly_leave_grants');
+/** 관리자 "지금 반영" — 누락된 발생분(월 1일 + 1주년)을 즉시 생성. 본인 회사만(RPC 안에서 권한 검사). */
+export async function syncLeaveAccruals(): Promise<number> {
+  const { data, error } = await db.rpc('sync_my_leave_accruals');
   if (error) throw error;
   return Number(data || 0);
 }

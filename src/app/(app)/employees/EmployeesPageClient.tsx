@@ -30,7 +30,7 @@ import {
   getLeavePromotionCandidates, sendLeavePromotionNotice, getLeavePromotionNotices,
 } from "@/lib/hr";
 import {
-  getMonthlyAccrualSettings, setMonthlyAccrualSettings, syncMonthlyLeaveGrants,
+  getMonthlyAccrualSettings, setMonthlyAccrualSettings, syncLeaveAccruals,
   ACCRUAL_BASIS_LABELS, type MonthlyAccrualBasis,
 } from "@/lib/leave-grants";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
@@ -2998,8 +2998,9 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast("부여 방식 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // 1년 미만 근속자 월 1일 자동 발생 — on/off + 기준(입사일/회계연도). 실제 생성은 pg_cron.
-  const { data: accrual = { enabled: false, basis: "hire" as MonthlyAccrualBasis } } = useQuery({
+  // 연차 자동 발생(1년 미만 월 1일 + 1주년 법정 부여) — on/off + 기준(입사일/회계연도).
+  //   실제 생성은 pg_cron. 설정이 없으면 켬이 기본이라 초기값도 true 로 둔다(로딩 중 잠깐 꺼짐으로 보이지 않게).
+  const { data: accrual = { enabled: true, basis: "hire" as MonthlyAccrualBasis } } = useQuery({
     queryKey: ["leave-monthly-accrual", companyId],
     queryFn: () => getMonthlyAccrualSettings(companyId!),
     enabled: !!companyId,
@@ -3008,12 +3009,12 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     mutationFn: (next: { enabled: boolean; basis: MonthlyAccrualBasis }) => setMonthlyAccrualSettings(companyId!, next),
     onSuccess: (_d, next) => {
       queryClient.invalidateQueries({ queryKey: ["leave-monthly-accrual", companyId] });
-      toast(next.enabled ? `월 1일 자동 발생 켬 · ${ACCRUAL_BASIS_LABELS[next.basis].label}` : "월 1일 자동 발생 끔", "success");
+      toast(next.enabled ? `연차 자동 발생 켬 · ${ACCRUAL_BASIS_LABELS[next.basis].label}` : "연차 자동 발생 끔", "success");
     },
     onError: (err: any) => toast("저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
   const syncAccrualMut = useMutation({
-    mutationFn: () => syncMonthlyLeaveGrants(),
+    mutationFn: () => syncLeaveAccruals(),
     onSuccess: (count: number) => {
       queryClient.invalidateQueries({ queryKey: ["leave-balances-list"] });
       queryClient.invalidateQueries({ queryKey: ["emp-leave-grants"] });
@@ -3163,7 +3164,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         </div>
       </div>
 
-      {/* 1년 미만 근속자 월 1일 자동 발생 (근로기준법 60조 2항) — 켜면 매일 자정 자동 생성 */}
+      {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성 */}
       {!isEmployee && (
         <div className="leave-accrual-panel glass-card">
           <label className="leave-accrual-toggle">
@@ -3175,9 +3176,13 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               className="w-4 h-4 accent-[var(--primary)] shrink-0"
             />
             <div className="min-w-0">
-              <div className="text-sm font-bold">1년 미만 근속자 월 1일 연차 자동 발생</div>
+              <div className="text-sm font-bold">연차 자동 발생</div>
               <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                입사 1년 전까지 매월 1일씩(최대 11일) 자동으로 발생 이력에 쌓입니다. 근로기준법 60조 2항.
+                입사 1년 전까지는 매월 1일씩(최대 11일), 1주년부터는 근속연수별 법정 연차(1~2년 15일 · 3년 이상 2년마다 +1일 · 상한 25일)가
+                입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
+              </p>
+              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                그 해에 총 부여일수를 직접 설정해 둔 직원은 1주년 부여를 건너뜁니다(중복 방지) — 다음 해 응당일부터 자동 부여됩니다.
               </p>
             </div>
           </label>
