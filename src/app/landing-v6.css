@@ -123,21 +123,6 @@
   object-fit: cover; object-position: left top; display: block;
 }
 
-.lp5-autos {
-  margin-top: 22px; padding: 26px 28px; border-radius: 18px;
-  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
-}
-.lp5-autos-h { font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 16px; }
-.lp5-autos-list {
-  list-style: none; margin: 0 0 20px; padding: 0;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 22px;
-}
-.lp5-autos-list li {
-  display: flex; align-items: baseline; gap: 9px; font-size: 14px;
-  padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.07);
-}
-.lp5-autos-list b { color: #fff; font-weight: 700; }
-.lp5-autos-list span { color: #8B8B9E; font-size: 12.5px; }
 
 /* ══ 커버리지 — 그룹 4개 ══ */
 .lp5-cov4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
@@ -272,7 +257,6 @@
 @media (max-width: 999px) {
   .lp5-pain-grid, .lp5-eng-grid2, .lp5-proof { grid-template-columns: 1fr; }
   .lp5-cov4 { grid-template-columns: repeat(2, 1fr); }
-  .lp5-autos-list { grid-template-columns: repeat(2, 1fr); }
   .lp5-nav-ask { display: none; }
 }
 
@@ -314,7 +298,7 @@
 }
 
 @media (max-width: 620px) {
-  .lp5-cov4, .lp5-autos-list { grid-template-columns: 1fr; }
+  .lp5-cov4 { grid-template-columns: 1fr; }
   .lp5-case-nums { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -380,14 +364,14 @@
 .lp5-aid-kicknum { font-size: 11.5px; font-weight: 800; letter-spacing: .09em; color: var(--brand2); }
 .lp5-aid-tag { font-size: 10.5px; font-weight: 800; padding: 2.5px 8px; border-radius: 999px; }
 .lp5-aid-tag-ai { background: rgba(124,107,255,.16); color: #CBC1FF; border: 1px solid rgba(124,107,255,.3); }
-.lp5-aid-tag-auto { background: rgba(255,255,255,.055); color: #9494A6; border: 1px solid rgba(255,255,255,.085); }
+.lp5-aid-tag-auto { background: rgba(255,255,255,.07); color: #B2B2C4; border: 1px solid rgba(255,255,255,.12); }
 .lp5-aid-name {
   margin: 0; font-size: clamp(19px, 1.9vw, 27px); font-weight: 800; letter-spacing: -.02em;
   line-height: 1.25; color: #fff; word-break: keep-all;
 }
-.lp5-aid-desc { margin: 0; font-size: clamp(13px, 1.02vw, 15px); line-height: 1.7; color: #B9B9C6; word-break: keep-all; }
-.lp5-aid-beat { margin: 0; font-size: 11.5px; color: #7C7C8D; }
-.lp5-aid-where { margin: 6px 0 0; font-size: 12px; color: #7C7C8D; }
+.lp5-aid-desc { margin: 0; font-size: clamp(13px, 1.02vw, 15px); line-height: 1.7; color: #C6C6D2; word-break: keep-all; }
+.lp5-aid-beat { margin: 0; font-size: 11.5px; color: #9A9AAE; }
+.lp5-aid-where { margin: 6px 0 0; font-size: 12px; color: #9A9AAE; }
 
 /* ── 앱 화면 ── */
 .lp5-aid-screen {
@@ -492,9 +476,13 @@
 .lp5-aid-waylbl b { display: block; font-size: 1.08em; font-weight: 800; color: var(--s-text); }
 .lp5-aid-wayamt { font-weight: 800; white-space: nowrap; }
 .lp5-aid-waysum {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 800;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 800;
   margin-top: auto; padding-top: 10px; border-top: 1px solid var(--s-line);
 }
+/* ⚠️ 타이핑 문장이 길어지면서 칩을 밀어 "확정 대기" 가 잘렸다(사장님 지적).
+      문장만 줄어들게 두고 칩은 절대 줄이지 않는다. */
+.lp5-aid-waysum .lp5-aid-type { min-width: 0; flex: 1 1 auto; }
+.lp5-aid-waysum .lp5-aid-chip { flex: none; }
 
 /* ── 04 생존 레이더 ── */
 .lp5-aid-radaccs { display: flex; flex-direction: column; gap: 5px; }
@@ -583,6 +571,86 @@
   padding-top: 9px; border-top: 1px solid var(--s-line); color: var(--s-muted);
 }
 
+/* ── 07 아침 브리핑 ── */
+.lp5-aid-bfstat {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 8px 11px; border-radius: 9px; background: var(--s-surface);
+}
+.lp5-aid-bfstat span { font-size: .84em; font-weight: 700; color: var(--s-dim); }
+.lp5-aid-bfstat b { font-size: 1.3em; font-weight: 800; letter-spacing: -.022em; }
+.lp5-aid-bfstat em { font-style: normal; font-size: .86em; font-weight: 700; color: var(--s-risk); }
+.lp5-aid-bffoot {
+  display: flex; align-items: center; gap: 7px; margin-top: auto;
+  padding-top: 9px; border-top: 1px solid var(--s-line); color: var(--s-muted);
+}
+
+/* ── 08·09 목록형(휴면 감지 · 계약 갱신) ── */
+.lp5-aid-lbody { display: flex; flex-direction: column; gap: 6px; }
+.lp5-aid-lrow {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 12px; border: 1px solid var(--s-line); border-radius: 10px;
+}
+.lp5-aid-lname { min-width: 0; font-size: .9em; color: var(--s-muted); }
+.lp5-aid-lname b {
+  display: block; font-size: 1.08em; font-weight: 800; color: var(--s-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lp5-aid-lfoot {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: auto; padding-top: 10px; border-top: 1px solid var(--s-line);
+  font-weight: 800; color: var(--s-text);
+}
+/* 자동으로 보내지 않는다 — 버튼은 사람이 누른다(모양만 실제 버튼과 같게) */
+.lp5-aid-lbtn {
+  flex: none; font-size: .84em; font-weight: 800; padding: 5px 12px; border-radius: 8px;
+  background: var(--s-brand); color: #fff;
+}
+
+/* ── 03 보강: 금액 대조가 보이게 ── */
+.lp5-aid-waybody { position: relative; padding-right: 62px; }
+.lp5-aid-waytie {
+  position: absolute; top: 16px; bottom: 16px; right: 0; width: 56px;
+  display: flex; align-items: center; gap: 7px; pointer-events: none;
+}
+.lp5-aid-waytie i {
+  width: 9px; align-self: stretch; flex: none;
+  border: 2px solid #C7CBD8; border-left: 0; border-radius: 0 8px 8px 0;
+  transform: scaleY(0);
+}
+.lp5-aid-waytie b {
+  font-size: .82em; font-weight: 800; white-space: nowrap; opacity: 0;
+  padding: 2.5px 7px; border-radius: 6px;
+  background: rgba(5,150,105,.09); color: var(--s-ok);
+}
+.lp5-aid-play .lp5-aid-waytie i { animation: lp5-aid-tie .5s cubic-bezier(.3,.1,.3,1) 2.05s both; }
+@keyframes lp5-aid-tie { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.lp5-aid-play .lp5-aid-waytie b { animation: lp5-aid-pop .4s cubic-bezier(.2,1.45,.4,1) 2.45s both; }
+.lp5-aid-done .lp5-aid-waytie i { transform: scaleY(1); }
+.lp5-aid-done .lp5-aid-waytie b { opacity: 1; }
+/* 금액이 하나씩 "읽힌다" — 켜질 때 인디고로 번지고 원래 색으로 돌아온다 */
+.lp5-aid-way-on .lp5-aid-wayamt { animation: lp5-aid-amt .85s cubic-bezier(.3,.1,.3,1) both; }
+@keyframes lp5-aid-amt {
+  0% { background: rgba(79,70,229,0); color: var(--s-text); transform: none; }
+  28% { background: rgba(79,70,229,.16); color: var(--s-brand); transform: translateX(-2px); }
+  100% { background: rgba(79,70,229,0); color: var(--s-text); transform: none; }
+}
+.lp5-aid-way-on .lp5-aid-waymark { animation: lp5-aid-mark .42s cubic-bezier(.3,.1,.3,1) both; }
+@keyframes lp5-aid-mark { from { transform: scale(.5); } 62% { transform: scale(1.2); } to { transform: scale(1); } }
+
+/* ── 07~09 연출 시점 ── */
+.lp5-aid-play .lp5-aid-bfstat { animation-delay: .1s; }
+.lp5-aid-play .lp5-aid-brief .lp5-aid-head { animation-delay: .8s; }
+.lp5-aid-play .lp5-aid-brief .lp5-aid-act:nth-child(1) { animation-delay: 1.2s; }
+.lp5-aid-play .lp5-aid-brief .lp5-aid-act:nth-child(2) { animation-delay: 1.7s; }
+.lp5-aid-play .lp5-aid-brief .lp5-aid-act:nth-child(3) { animation-delay: 2.2s; }
+.lp5-aid-play .lp5-aid-bffoot { animation-delay: 2.8s; }
+
+.lp5-aid-play .lp5-aid-lrow:nth-child(1) { animation-delay: .35s; }
+.lp5-aid-play .lp5-aid-lrow:nth-child(2) { animation-delay: .95s; }
+.lp5-aid-play .lp5-aid-lrow:nth-child(3) { animation-delay: 1.55s; }
+.lp5-aid-play .lp5-aid-dorm .lp5-aid-lbtn { animation-delay: 2.7s; }
+.lp5-aid-play .lp5-aid-renew .lp5-aid-chip-done { animation-delay: 2.6s; }
+
 /* ── 연출 시점 — 한곳에 모아 리듬을 조율한다(단축 규칙 뒤에 와야 한다) ── */
 .lp5-aid-play .lp5-aid-head { animation-delay: 2.1s; }
 .lp5-aid-play .lp5-aid-act:nth-child(1) { animation-delay: 2.4s; }
@@ -648,7 +716,7 @@
 .lp5-aid-play-btn:hover { background: rgba(255,255,255,.14); }
 .lp5-aid-play-btn svg { width: 13px; height: 13px; fill: currentColor; }
 .lp5-aid-dot:focus-visible, .lp5-aid-play-btn:focus-visible { outline: 2px solid var(--brand2); outline-offset: 3px; }
-.lp5-aid-note { font-size: 12px; color: #7C7C8D; }
+.lp5-aid-note { font-size: 12px; color: #9A9AAE; }
 
 /* 좁은 화면: 폭 차이를 없애고(어차피 한 장씩 본다) 전부 세로로 쌓는다 */
 @media (max-width: 860px) {
@@ -659,6 +727,8 @@
   }
   .lp5-aid-copy { gap: 6px; }
   .lp5-aid-beat { display: none; }   /* 폰에선 설명이 길어 데모가 화면 아래로 밀린다 */
+  .lp5-aid-waybody { padding-right: 0; }
+  .lp5-aid-waytie { display: none; }  /* 좁은 화면에선 괄호 자리가 없다 — 금액 pulse 로만 보여준다 */
   .lp5-aid-where { margin-top: 0; }
   .lp5-aid-screen { font-size: 12px; }
 }

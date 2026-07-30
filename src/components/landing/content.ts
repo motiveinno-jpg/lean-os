@@ -619,6 +619,20 @@ export const AI_DEMOS = [
     name: "찍으면 읽어서 채워요",
     desc: "영수증에서 상호·날짜·금액·사업자번호를 읽어 경비로 넘겨요. 회사 양식 PDF도 그대로 읽어 서식으로 만들어요.",
     beat: "스캔 → 필드 인식 → 경비로 전달", where: "결재 허브 › 경비 · 문서 › 서식" },
+  // 07~09 는 "이 밖에도 AI가 알아서 하는 일" 목록이었다(2026-07-30 카드로 승격).
+  //   사장님: "3가지도 이 방식으로 넣자. 검정 박스 위 설명은 잘 안 보인다."
+  { key: "brief", num: "07", eng: "Morning Brief", kind: "ai", size: "md", len: 3800,
+    name: "아침마다 오늘 챙길 일부터",
+    desc: "밤새 들어온 잔고·미수금·마감을 읽고 오늘 먼저 볼 일을 순서대로 정리해요. 출근해서 홈 화면 맨 위에서 바로 봐요.",
+    beat: "밤새 데이터 → 우선순위 → 아침 브리핑", where: "홈 › 대시보드" },
+  { key: "dormant", num: "08", eng: "Dormancy Watch", kind: "auto", size: "md", stack: true, len: 3400,
+    name: "한동안 조용한 거래처를 찾아줘요",
+    desc: "오래 거래가 없는 거래처와 멈춰 있는 프로젝트를 찾아 알려줘요. 리마인더는 대표님이 눌러서 보내요.",
+    beat: "무거래 감지 → 목록 → 리마인더", where: "거래처 · 프로젝트" },
+  { key: "renew", num: "09", eng: "Renewal Alert", kind: "auto", size: "sm", stack: true, len: 3200,
+    name: "계약 만료 전에 미리 알려드려요",
+    desc: "만료가 다가오는 계약을 찾아 담당자에게 먼저 알려요. 갱신 시기를 놓치지 않아요.",
+    beat: "만료일 계산 → 사전 알림", where: "전자계약" },
 ] as const;
 
 export const AI_DEMO_TAG: Record<string, string> = { ai: "AI 판단", auto: "자동 처리" };

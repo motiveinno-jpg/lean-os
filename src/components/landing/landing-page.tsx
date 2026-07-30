@@ -21,7 +21,7 @@ import { Scene, Rise, useNarrow } from "@/components/landing/scene";
 import { AiDemoRail } from "@/components/landing/ai-demo-rail";
 
 import {
-  HERO, HERO_INTRO, PAINS, DAY, PILLARS, AI_AUTOMATION, CATALOG, MOBILE,
+  HERO, HERO_INTRO, PAINS, DAY, PILLARS, CATALOG, MOBILE,
   PLANS, CASES, CASES_NOTE, FAQS, FOOTER,
 } from "@/components/landing/content";
 
@@ -616,9 +616,6 @@ function SceneAxes() {
 //      현금 예측·계약 초안은 "자동 처리"(계산·서식 치환이므로 AI라고 말하지 않는다).
 //   레일은 화면 폭을 꽉 써야 해서 lp5-wrap 밖에 둔다.
 function SceneAI() {
-  // 데모 카드가 다루는 것은 목록에서 뺀다 — 같은 걸 두 번 말하지 않는다.
-  const covered = new Set(["AI 참모", "AI 거래 분류", "3-Way 자동 매칭", "현금 소진 예측", "영수증 OCR"]);
-  const autos = AI_AUTOMATION.filter((a) => !covered.has(a.name));
   return (
     <section id="engines" className="lp5-sect lp5-sect-dark">
       <div className="lp5-eng-bg" />
@@ -634,20 +631,15 @@ function SceneAI() {
         </Rise>
       </div>
 
+      {/* ⚠️ 아래에 "이 밖에도 AI가 알아서 하는 일 3가지" 목록 박스와 "자동화 전체 보기" 버튼이 있었다.
+          사장님: (1) 그 3가지도 카드로 넣자 → 07~09 카드로 승격,
+                  (2) 위에서 다 설명하는데 전체 보기 버튼이 필요하냐 → 삭제,
+                  (3) 검정 박스 위 설명 글씨가 잘 안 보인다 → 박스 자체를 없애 해결.
+          ⚠️ 버튼 글씨가 안 보인 건 스타일 버그이기도 했다 — .lp5-btn-ghost 는 .lp5-scene-dark
+             에서만 흰 글씨가 되고 이 구간은 .lp5-sect-dark 라 어두운 글씨가 그대로 나왔다.
+          /ai 페이지는 상단 메뉴(AI 자동화 메가메뉴)에서 계속 들어갈 수 있다. */}
       <div className="lp5-eng-layer">
         <AiDemoRail />
-      </div>
-
-      <div className="lp5-wrap lp5-eng-layer">
-        <Rise className="lp5-autos">
-          <div className="lp5-autos-h">이 밖에도 AI가 알아서 하는 일 {autos.length}가지</div>
-          <ul className="lp5-autos-list">
-            {autos.map((a) => (
-              <li key={a.name}><b>{a.name}</b><span>{a.tag}</span></li>
-            ))}
-          </ul>
-          <Link href="/ai" className="lp5-btn lp5-btn-ghost">자동화 전체 보기 <Arrow /></Link>
-        </Rise>
       </div>
     </section>
   );

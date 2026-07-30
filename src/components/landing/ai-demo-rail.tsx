@@ -97,6 +97,8 @@ function ScreenWay() {
   return (
     <div className="lp5-aid-screen lp5-aid-way" data-demo="way" data-len={4000}>
       <div className="lp5-aid-top"><span className="lp5-aid-tab">모티브 리뉴얼</span><span className="lp5-aid-meta">미정산 대조</span></div>
+      {/* 대조가 눈에 보이게 — 금액이 하나씩 켜지고(pulse), 세 금액을 묶는 괄호가 그려진 뒤 "일치".
+          사장님: "금액 대조가 되는 게 잘 안 보인다" → 모션을 여기에 몰아 준다. */}
       <div className="lp5-aid-waybody">
         {WAY_ROWS.map((r) => (
           <div key={r.k} className="lp5-aid-wayitem" data-way="">
@@ -105,9 +107,10 @@ function ScreenWay() {
             <span className="lp5-aid-wayamt lp5-aid-fig">3,300,000</span>
           </div>
         ))}
+        <span className="lp5-aid-waytie" aria-hidden="true"><i /><b>일치</b></span>
       </div>
       <div className="lp5-aid-waysum">
-        <span className="lp5-aid-type" data-type="세 금액 일치 · 전표 초안 만들었어요" data-delay={2100} />
+        <span className="lp5-aid-type" data-type="차액 0원 · 전표 초안 만들었어요" data-delay={2700} />
         <span className="lp5-aid-chip lp5-aid-chip-done lp5-aid-pop">확정 대기</span>
       </div>
     </div>
@@ -224,9 +227,93 @@ function ScreenDoc() {
   );
 }
 
+function ScreenBrief() {
+  return (
+    <div className="lp5-aid-screen lp5-aid-brief" data-demo="brief" data-len={3800}>
+      <div className="lp5-aid-top"><span className="lp5-aid-tab">아침 브리핑</span><span className="lp5-aid-meta">07·30 08:00 기준</span></div>
+      <div className="lp5-aid-bfstat lp5-aid-anim">
+        <span>현금 잔액</span>
+        <b className="lp5-aid-fig">4,820만원</b>
+        <em className="lp5-aid-fig">어제보다 −320만원</em>
+      </div>
+      <p className="lp5-aid-head lp5-aid-anim">오늘은 이 세 가지만 챙기면 돼요.</p>
+      <div className="lp5-aid-acts">
+        <div className="lp5-aid-act lp5-aid-anim">
+          <span className="lp5-aid-chip lp5-aid-chip-watch">오늘</span>
+          <p><b>세금계산서 3건 발행</b> <span>— 이번 달 마감 마지막 날</span></p>
+        </div>
+        <div className="lp5-aid-act lp5-aid-anim">
+          <span className="lp5-aid-chip lp5-aid-chip-plain">D-3</span>
+          <p><b>급여 지급 준비</b> <span>— 배치 만들고 검토만 하면 돼요</span></p>
+        </div>
+        <div className="lp5-aid-act lp5-aid-anim">
+          <span className="lp5-aid-chip lp5-aid-chip-plain">확인</span>
+          <p><b>디자인랩 입금 지연 12일</b> <span>— 담당자에게 연락해 두세요</span></p>
+        </div>
+      </div>
+      <div className="lp5-aid-bffoot lp5-aid-anim">
+        <span className="lp5-aid-type" data-type="밤새 읽어서 정리해 뒀어요" data-delay={3100} />
+      </div>
+    </div>
+  );
+}
+
+const DORMANT_ROWS = [
+  { n: "(주)한빛상사", s: "마지막 거래 118일 전 · 누적 4,200만원", c: "휴면", watch: true },
+  { n: "(주)오션테크", s: "마지막 거래 96일 전 · 누적 1,850만원", c: "휴면", watch: true },
+  { n: "브랜드 리뉴얼 (진행)", s: "42일째 진행 기록 없음", c: "정체", watch: false },
+];
+
+function ScreenDormant() {
+  return (
+    <div className="lp5-aid-screen lp5-aid-dorm" data-demo="dormant" data-len={3400}>
+      <div className="lp5-aid-top"><span className="lp5-aid-tab">거래처 · 프로젝트</span><span className="lp5-aid-meta">90일 기준</span></div>
+      <div className="lp5-aid-lbody">
+        {DORMANT_ROWS.map((r) => (
+          <div key={r.n} className="lp5-aid-lrow lp5-aid-anim">
+            <span className="lp5-aid-lname"><b>{r.n}</b>{r.s}</span>
+            <span className={r.watch ? "lp5-aid-chip lp5-aid-chip-watch" : "lp5-aid-chip lp5-aid-chip-plain"}>{r.c}</span>
+          </div>
+        ))}
+      </div>
+      {/* 발송은 사람이 누른다 — 자동으로 보내지 않는다(오너뷰 자동화 원칙) */}
+      <div className="lp5-aid-lfoot">
+        <span className="lp5-aid-type" data-type="2곳에 리마인더 보낼까요?" data-delay={2200} />
+        <span className="lp5-aid-lbtn lp5-aid-pop">보내기</span>
+      </div>
+    </div>
+  );
+}
+
+const RENEW_ROWS = [
+  { n: "용역계약 · (주)디자인랩", s: "만료 2026·08·31 · 자동연장 없음", c: "D-30", watch: false },
+  { n: "유지보수계약 · (주)오션테크", s: "만료 2026·08·15 · 월 120만원", c: "D-14", watch: true },
+];
+
+function ScreenRenew() {
+  return (
+    <div className="lp5-aid-screen lp5-aid-renew" data-demo="renew" data-len={3200}>
+      <div className="lp5-aid-top"><span className="lp5-aid-tab">전자계약</span><span className="lp5-aid-meta">만료 임박 2건</span></div>
+      <div className="lp5-aid-lbody">
+        {RENEW_ROWS.map((r) => (
+          <div key={r.n} className="lp5-aid-lrow lp5-aid-anim">
+            <span className="lp5-aid-lname"><b>{r.n}</b>{r.s}</span>
+            <span className={r.watch ? "lp5-aid-chip lp5-aid-chip-watch" : "lp5-aid-chip lp5-aid-chip-plain"}>{r.c}</span>
+          </div>
+        ))}
+      </div>
+      <div className="lp5-aid-lfoot">
+        <span className="lp5-aid-type" data-type="담당자에게 알림 보냈어요" data-delay={2100} />
+        <span className="lp5-aid-chip lp5-aid-chip-done lp5-aid-pop">발송 완료</span>
+      </div>
+    </div>
+  );
+}
+
 const SCREENS: Record<string, () => ReactNode> = {
   copilot: ScreenCopilot, tx: ScreenTx, way: ScreenWay,
   radar: ScreenRadar, pipe: ScreenPipe, doc: ScreenDoc,
+  brief: ScreenBrief, dormant: ScreenDormant, renew: ScreenRenew,
 };
 
 /* ══════════ 레일 ══════════ */
