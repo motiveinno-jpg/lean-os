@@ -1454,6 +1454,17 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     enabled: !!companyId && !isEmployeeRole,
     staleTime: 60_000,
   });
+  // 오늘 통계 카드 클릭 → 명단 펼침 (2026-07-30 사장님: 숫자만으론 누구인지 모름)
+  const [todayStatOpen, setTodayStatOpen] = useState<string | null>(null);
+  const todayStatNames = useMemo(() => {
+    const nameOf = (id: string) => (employees as any[]).find((e: any) => e.id === id)?.name || "구성원";
+    const present = (todayStatus?.presentIds || []).map(nameOf);
+    const late = (todayStatus?.lateIds || []).map(nameOf);
+    const leave = (todayStatus?.leaveIds || []).map(nameOf);
+    const counted = new Set([...(todayStatus?.presentIds || []), ...(todayStatus?.lateIds || []), ...(todayStatus?.leaveIds || [])]);
+    const absent = activeEmployees.filter((e: any) => !counted.has(e.id)).map((e: any) => e.name || "구성원");
+    return { present, late, absent, leave } as Record<string, string[]>;
+  }, [todayStatus, employees, activeEmployees]);
 
   // 캘린더에서 선택한 날짜 — 없으면 조회 중인 달이 이번 달일 때만 오늘을 기본 선택(시안처럼 진입 시 바로 상세 노출).
   const effectiveSelectedDay = selectedDay || (
@@ -1640,24 +1651,42 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           {/* 우 — 오늘 통계 2x2 + 선택일 상세 (관리자 전용). 캘린더와 높이 맞춤(flex-1로 하단까지 채움). */}
           {!isEmployeeRole && (
             <div className="attendance-today-panel">
+              {/* 카드 클릭 → 하단에 해당 인원 명단 (2026-07-30 사장님) */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="glass-card p-5">
-                  <div className="text-xs text-[var(--text-dim)] mb-1.5">오늘 출근</div>
-                  <div className="text-3xl font-extrabold text-[var(--text)]">{todayStatus?.present ?? 0}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
-                </div>
-                <div className="glass-card p-5">
-                  <div className="text-xs text-[var(--text-dim)] mb-1.5">지각</div>
-                  <div className="text-3xl font-extrabold text-yellow-500">{todayStatus?.late ?? 0}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
-                </div>
-                <div className="glass-card p-5">
-                  <div className="text-xs text-[var(--text-dim)] mb-1.5">결근</div>
-                  <div className="text-3xl font-extrabold text-[var(--danger)]">{Math.max(0, activeEmployees.length - (todayStatus?.present ?? 0) - (todayStatus?.late ?? 0) - (todayStatus?.leave ?? 0))}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
-                </div>
-                <div className="glass-card p-5">
-                  <div className="text-xs text-[var(--text-dim)] mb-1.5">자리비움</div>
-                  <div className="text-3xl font-extrabold text-[var(--info)]">{todayStatus?.leave ?? 0}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
-                </div>
+                {([
+                  { key: "present", label: "오늘 출근", count: todayStatus?.present ?? 0, cls: "text-[var(--text)]" },
+                  { key: "late", label: "지각", count: todayStatus?.late ?? 0, cls: "text-yellow-500" },
+                  { key: "absent", label: "결근", count: Math.max(0, activeEmployees.length - (todayStatus?.present ?? 0) - (todayStatus?.late ?? 0) - (todayStatus?.leave ?? 0)), cls: "text-[var(--danger)]" },
+                  { key: "leave", label: "자리비움", count: todayStatus?.leave ?? 0, cls: "text-[var(--info)]" },
+                ] as const).map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setTodayStatOpen((cur) => (cur === c.key ? null : c.key))}
+                    className={`glass-card p-5 text-left transition ${todayStatOpen === c.key ? "ring-2 ring-inset ring-[var(--primary)]" : "hover:bg-[var(--bg-surface)]/60"}`}
+                    title="클릭하면 해당 인원 명단이 아래에 표시됩니다"
+                  >
+                    <div className="text-xs text-[var(--text-dim)] mb-1.5">{c.label}</div>
+                    <div className={`text-3xl font-extrabold ${c.cls}`}>{c.count}<span className="text-sm font-semibold text-[var(--text-dim)]"> 명</span></div>
+                  </button>
+                ))}
               </div>
+              {todayStatOpen && (
+                <div className="glass-card p-4">
+                  <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
+                    오늘 {{ present: "출근", late: "지각", absent: "결근", leave: "자리비움" }[todayStatOpen]} — {todayStatNames[todayStatOpen]?.length ?? 0}명
+                  </div>
+                  {(todayStatNames[todayStatOpen] || []).length === 0 ? (
+                    <div className="text-xs text-[var(--text-dim)]">해당 인원이 없습니다</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {todayStatNames[todayStatOpen].map((name, i) => (
+                        <span key={i} className="inline-flex items-center px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">{name}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {effectiveSelectedDay && (() => {
                 const [, , dStr] = effectiveSelectedDay.split("-");
