@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 //   탭: 개요 / 견적서 / 계약 / 진행현황 / 손익. 모두 기존 테이블 읽기(연결·표시), 원본 무수정.
 //   손익(원가율) 은 journal_entries.deal_id + v_deal_pnl 추가 후 별도 단계에서 채움.
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -24,17 +24,20 @@ import { useTabParam } from "@/lib/use-tab-param";
 import { DateField } from "@/components/date-field";
 import { ProjectSlideOver } from "@/components/project-slide-over";
 import { SubDealsTab } from "./_components/SubDealsTab";
-import { getProjectTypeConfig, normalizeProjectType, type ProjectTabKey } from "@/lib/project-types";
+import { type ProjectTabKey } from "@/lib/project-types";
+import {
+  SECTION_ORDER, SECTION_LABEL, SECTION_TITLE, SECTION_VIEWS,
+  getVisibleSections, viewStorageKey, type SectionKey,
+} from "@/lib/project-sections";
 import { PerformanceTab } from "./_components/PerformanceTab";
 import { GoalOverviewTab } from "./_components/GoalOverviewTab";
-import { RadialGauge, WorkloadChart, BurnUpChart } from "@/components/charts";
+import { RadialGauge, WorkloadChart, BurnUpChart, BarList } from "@/components/charts";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
 import { createTaxInvoice } from "@/lib/tax-invoice";
 import { deleteDocument } from "@/lib/queries";
 import { TasksTab } from "./_components/TasksTab";
 import { IssuesTab } from "./_components/IssuesTab";
-import { MondayBoard } from "@/components/monday-board";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase;
@@ -98,23 +101,28 @@ const quoteAmount = (doc: any): number => {
 };
 
 type TabKey = ProjectTabKey;
-// 전체 탭 라벨 사전 — 유형별로 보이는 탭만 PROJECT_TYPES[type].tabs 로 필터.
-const TAB_LABEL: Record<TabKey, string> = {
-  overview: "개요",
-  quote: "견적서",
-  contract: "전자계약",
-  subdeals: "매출/매입 관리",
-  transactions: "거래",
-  issues: "이슈",
-  sales_pipeline: "수주(매출)",
-  purchase_pipeline: "발주(매입)",
-  subprojects: "세부 프로젝트(캠페인)",
-  pnl: "프로젝트 운영",
-  performance: "성과",
-  tasks: "실행",
-  workflow: "워크플로우",
+// ⚠️ 2026-07-30 탭 폐지 — 유형별로 보이는 탭이 달라 프로젝트마다 다른 앱처럼 보였고,
+//    유형은 생성 후 변경 불가라 수익형 30개가 진행률·성과에 영구히 접근할 수 없었다.
+//    한 페이지 + 자리(SECTION_ORDER) 6개로 바꾼다. 자리 순서는 절대 바뀌지 않는다.
+//
+// 내부 컴포넌트들(MoneyFlow·PipelineRibbon·SettlementPanel·MarginOnboarding·PerformanceTab)은
+//   onOpen("transactions") 처럼 기존 탭 키로 이동을 요청한다. 그 컴포넌트들을 그대로 두기 위해
+//   탭 키를 자리로 번역해 해당 자리로 스크롤한다(프롭 시그니처 무변경).
+const TAB_TO_SECTION: Record<TabKey, SectionKey> = {
+  overview: "flow",
+  quote: "money",
+  contract: "money",
+  subdeals: "money",
+  transactions: "money",
+  sales_pipeline: "money",
+  purchase_pipeline: "money",
+  subprojects: "money",
+  pnl: "team",          // 구 '프로젝트 운영'(활동·일정) → 사람과 기록
+  issues: "work",
+  tasks: "work",
+  workflow: "work",
+  performance: "goal",
 };
-const ALL_TAB_KEYS: TabKey[] = ["overview", "quote", "contract", "subdeals", "transactions", "issues", "sales_pipeline", "purchase_pipeline", "subprojects", "pnl", "performance", "tasks", "workflow"];
 
 // ── 결제 조건(선금/중도금/잔금) ──
 type PayMode = "full" | "two" | "three";
@@ -152,7 +160,44 @@ export default function ProjectHubDetailPage() {
   const params = useParams();
   const router = useRouter();
   const dealId = String(params?.id || "");
-  const [tab, setTab] = useTabParam<TabKey>("overview", { valid: ALL_TAB_KEYS });
+  // 목차에서 고른 자리(스크롤 위치 표시용). ?tab= 딥링크는 자리 키를 받는다.
+  const [sec, setSec] = useTabParam<SectionKey>("todo", { valid: SECTION_ORDER });
+  // 자리별 보기 — 사람마다 기억한다(대표는 돈=추세, 실무자는 일=칸반으로 열리게).
+  const [views, setViews] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const next: Record<string, string> = {};
+    for (const k of SECTION_ORDER) {
+      const saved = window.localStorage.getItem(viewStorageKey(`sec.${k}`, userId));
+      if (saved && SECTION_VIEWS[k].some((v) => v.key === saved)) next[k] = saved;
+    }
+    setViews(next);
+  }, [userId]);
+  const viewOf = (k: SectionKey) => views[k] || SECTION_VIEWS[k][0].key;
+  const pickView = (k: SectionKey, v: string) => {
+    setViews((prev) => ({ ...prev, [k]: v }));
+    if (typeof window !== "undefined") window.localStorage.setItem(viewStorageKey(`sec.${k}`, userId), v);
+  };
+
+  // 한 페이지라 여섯 자리가 한꺼번에 조회를 쏘면 안 된다 — 화면에 들어온 자리만 마운트한다.
+  //   처음엔 상단 세 자리(할 일·흐름·돈)만 열고, 나머지는 스크롤로 들어올 때 열린다.
+  const [openSecs, setOpenSecs] = useState<Set<SectionKey>>(() => new Set<SectionKey>(["todo", "flow", "money"]));
+  const markSecOpen = useCallback((k: SectionKey) => {
+    setOpenSecs((prev) => (prev.has(k) ? prev : new Set(prev).add(k)));
+  }, []);
+  const moneyOpen = openSecs.has("money");
+  // 목차 클릭 → 그 자리로 스크롤(자리는 즉시 마운트한다. 스크롤 도착 전에 조회가 시작되게)
+  const goSection = useCallback((k: SectionKey) => {
+    markSecOpen(k);
+    setSec(k);
+    if (typeof document === "undefined") return;
+    requestAnimationFrame(() => {
+      document.getElementById(`pj-sec-${k}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [markSecOpen, setSec]);
+  // 구 탭 키로 이동을 요청하는 내부 컴포넌트용 — 탭 키를 자리로 번역한다.
+  const goTab = useCallback((t: TabKey) => goSection(TAB_TO_SECTION[t] || "flow"), [goSection]);
+
   // 세부 프로젝트(캠페인) 추가 폼 — 금액은 생성 후 '매출/매입 관리'에서 입력
   const [showChildForm, setShowChildForm] = useState(false);
   const [childName, setChildName] = useState("");
@@ -413,7 +458,7 @@ export default function ProjectHubDetailPage() {
       }
       qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
       toast(reflected ? `견적서로 계약서를 생성하고 계약금액(매출) ${won(amt)}을 개요에 반영했습니다.` : "견적서로 계약서를 생성했습니다. 계약 탭에서 확인·발송하세요.", "success");
-      setTab("contract");
+      goSection("money");
     } catch (e: any) {
       toast(e?.message || "계약 생성 실패", "error");
     } finally {
@@ -555,14 +600,32 @@ export default function ProjectHubDetailPage() {
     },
     enabled: !!deal?.internal_manager_id,
   });
-  // 회사 구성원 — 태스크 담당 선택용 (실행형 + 목표형 실행 보드에서 로드)
+  // 회사 구성원 — 할 일 담당·성과 책임자·사람과 기록에서 모두 쓴다. 유형 조건 제거(2026-07-30).
   const { data: companyUsers = [] } = useQuery({
     queryKey: ["projecthub-company-users", companyId],
     queryFn: async () => {
       const data = logRead('[id]/page:data', await db.from("users").select("id, name").eq("company_id", companyId ?? "").order("name", { ascending: true }));
       return (data || []) as any[];
     },
-    enabled: !!companyId && ["delivery", "goal"].includes(normalizeProjectType(deal?.project_type)),
+    enabled: !!companyId,
+  });
+
+  // 자리 노출 판정용 존재 확인 — 할 일·목표가 하나라도 있으면 그 자리를 편다(개수는 각 자리가 조회).
+  const { data: hasWorkRow = false } = useQuery({
+    queryKey: ["projecthub-has-work", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("project_tasks").select("id").eq("deal_id", dealId).is("archived_at", null).limit(1));
+      return ((data || []) as any[]).length > 0;
+    },
+    enabled: !!companyId && !!dealId,
+  });
+  const { data: hasGoalRow = false } = useQuery({
+    queryKey: ["projecthub-has-goal", dealId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:data', await db.from("project_kpis").select("id").eq("deal_id", dealId).limit(1));
+      return ((data || []) as any[]).length > 0;
+    },
+    enabled: !!companyId && !!dealId,
   });
 
   // 세부 프로젝트(캠페인) — 이 프로젝트를 부모로 하는 deals. 손익 롤업·목록 양쪽에 사용 → 항상 로드.
@@ -612,7 +675,7 @@ export default function ProjectHubDetailPage() {
         .in("parent_deal_id", costDealIds));
       return (data || []) as any[];
     },
-    enabled: !!companyId && !!dealId && (tab === "overview" || tab === "subprojects"),
+    enabled: !!companyId && !!dealId && moneyOpen,
   });
   // 공급가액(net) — VAT 포함 입력분은 ÷1.1, 별도면 입력값 그대로. 마진 정확성용.
   const subNet = (s: any) => (s?.vat_type === "inclusive" ? Math.round(Number(s.contract_amount || 0) / 1.1) : Number(s.contract_amount || 0));
@@ -734,10 +797,9 @@ export default function ProjectHubDetailPage() {
     } catch (e: any) { toast(e?.message || "삭제 실패", "error"); } finally { setDeletingChild(false); }
   };
 
-  // 파이프라인(방향) 탭 — 견적/계약/매출·매입을 방향(sub_deal.type)으로 걸러 한 흐름에 표시
-  const pipelineDir: "sales" | "purchase" | null = tab === "sales_pipeline" ? "sales" : tab === "purchase_pipeline" ? "purchase" : null;
-  const isTransTab = tab === "transactions"; // 통합 '거래' 탭 — 방향 필터 없이 문서 흐름 전체 표시
-  const isDocTab = tab === "quote" || tab === "contract" || !!pipelineDir || isTransTab;
+  // ⚠️ 방향별 파이프라인 탭(수주/발주)은 어느 유형에도 노출되지 않는 죽은 탭이었다 → 제거.
+  //    거래 원장·문서 흐름은 모두 '돈' 자리 안에서 다룬다(2026-07-30).
+  //    돈 자리가 열렸을 때만 문서·계산서·비용 조회가 돌게 한다(한 페이지라 지연 마운트 필수).
 
   // 견적 승인 시 계약 자동생성 토글 (company_settings.settings.auto_contract_on_approve)
   const { data: autoContractOn = false } = useQuery({
@@ -746,7 +808,7 @@ export default function ProjectHubDetailPage() {
       const data = logRead('[id]/page:data', await db.from("company_settings").select("settings").eq("company_id", companyId ?? "").maybeSingle());
       return !!((data?.settings as any)?.auto_contract_on_approve);
     },
-    enabled: !!companyId && !!pipelineDir,
+    enabled: !!companyId && moneyOpen,
   });
   const toggleAutoContract = async (val: boolean) => {
     if (!companyId) return;
@@ -765,7 +827,7 @@ export default function ProjectHubDetailPage() {
       const data = logRead('[id]/page:data', await db.from("documents").select("id, name, status, content_type, contract_amount, document_number, created_at, content_json, sub_deal_id, source_document_id").eq("deal_id", dealId).order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
-    enabled: !!dealId && isDocTab,
+    enabled: !!dealId && moneyOpen,
   });
   const docIds = useMemo(() => documents.map((d) => d.id), [documents]);
   // 견적서 탭 / 전자계약 탭 문서 분리 — 견적서(invoice·quote) vs 계약(나머지)
@@ -778,7 +840,7 @@ export default function ProjectHubDetailPage() {
       const data = logRead('[id]/page:data', await db.from("sub_deals").select("id, name, type").eq("parent_deal_id", dealId).order("created_at", { ascending: true }));
       return (data || []) as { id: string; name: string; type: string | null }[];
     },
-    enabled: !!dealId && (tab === "quote" || !!pipelineDir || isTransTab),
+    enabled: !!dealId && moneyOpen,
   });
   const { data: quoteTracking = [] } = useQuery({
     queryKey: ["projecthub-quotes", dealId, docIds.length],
@@ -787,7 +849,7 @@ export default function ProjectHubDetailPage() {
       const data = logRead('[id]/page:data', await db.from("quote_tracking").select("*").in("document_id", docIds));
       return (data || []) as any[];
     },
-    enabled: (tab === "quote" || !!pipelineDir || isTransTab) && docIds.length > 0,
+    enabled: moneyOpen && docIds.length > 0,
   });
   const { data: approvals = [] } = useQuery({
     queryKey: ["projecthub-approvals", dealId],
@@ -795,7 +857,7 @@ export default function ProjectHubDetailPage() {
       const data = logRead('[id]/page:data', await db.from("quote_approvals").select("*").eq("deal_id", dealId).order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
-    enabled: isDocTab && !!dealId,
+    enabled: moneyOpen && !!dealId,
   });
   const { data: sigRequests = [] } = useQuery({
     queryKey: ["projecthub-sigs", dealId, docIds.length],
@@ -804,12 +866,14 @@ export default function ProjectHubDetailPage() {
       const data = logRead('[id]/page:data', await db.from("signature_requests").select("id, title, status, signer_name, signer_email, signed_at, our_signed_at, signed_contract_url, document_id").in("document_id", docIds).order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
-    enabled: (tab === "contract" || !!pipelineDir || isTransTab) && docIds.length > 0,
+    enabled: moneyOpen && docIds.length > 0,
   });
 
   // 손익 — 프로젝트(deal_id)에 태그된 비용처리 내역: 세금계산서(매입)·현금영수증·카드사용·수동전표
   //   수익형(margin) 개요에서만 — 목표형/실행형은 자체 히어로 사용.
-  const costEnabled = (tab === "overview") && !!dealId && normalizeProjectType(deal?.project_type) === "margin";
+  // ⚠️ 기존엔 '수익형' 프로젝트에서만 비용·손익을 집계했다(유형 필터). 유형 폐지로 전 프로젝트가
+  //    같은 집계를 갖는다 — 내부 프로젝트에도 경비가 붙으면 원가·마진이 잡혀야 한다.
+  const costEnabled = moneyOpen && !!dealId;
   const { data: costInvoices = [] } = useQuery({
     queryKey: ["projecthub-cost-inv", dealId, descendantIds.length],
     queryFn: async () => {
@@ -896,8 +960,6 @@ export default function ProjectHubDetailPage() {
 
   const stage = (STAGE_ORDER.includes(deal.stage) ? deal.stage : "estimate") as ProjectStage;
   const sc = STAGE_COLOR[stage];
-  const projectType = normalizeProjectType(deal.project_type);
-  const typeCfg = getProjectTypeConfig(deal.project_type);
   const hasChildren = (children as any[]).length > 0;
   const ownContract = Number(deal.contract_total || 0);
   // 확정 비용 = 프로젝트에 태그된 각 비용원 합 (카테고리별 — 같은 비용을 두 곳에 태그하면 중복이니 한 곳만)
@@ -922,16 +984,21 @@ export default function ProjectHubDetailPage() {
     { key: "voucher", label: "수동 전표", total: costVoucherSum, count: costVouchers.length, items: costVouchers as any[] },
   ];
 
-  // 방향별 파이프라인 표시 — 문서 방향 판정(sub_deal.type, 미지정=매출) + 방향 필터 + 진행 스텝
-  const dirOfDoc = (d: any): "sales" | "purchase" => {
-    const explicit = (d.content_json as any)?.direction;
-    if (explicit === "purchase" || explicit === "sales") return explicit;
-    const sd = (subDealOpts as any[]).find((x) => x.id === d.sub_deal_id);
-    return sd?.type === "purchase" ? "purchase" : "sales";
+  // 문서는 방향 구분 없이 전부 보여준다(수주/발주 방향 필터는 죽은 탭과 함께 제거, 2026-07-30).
+  const quoteDocsShown = quoteDocs as any[];
+  const contractDocsShown = contractDocs as any[];
+
+  // ── 자리 노출 판정 — 유형이 아니라 데이터로 정한다 ──
+  //   돈: 계약금액·약정·문서·계산서 중 하나라도 / 일: 할 일 / 성과: 목표(KPI)
+  //   사람과 기록: 기본정보·활동은 어느 프로젝트에나 있으므로 항상 열어둔다.
+  const signals = {
+    hasMoney: ownContract > 0 || planRevenue > 0 || totalCost > 0 || (documents as any[]).length > 0,
+    hasWork: hasWorkRow,
+    hasGoal: hasGoalRow,
+    hasTeam: true,
   };
-  const quoteDocsShown = pipelineDir ? (quoteDocs as any[]).filter((d) => dirOfDoc(d) === pipelineDir) : (quoteDocs as any[]);
-  const contractDocsShown = pipelineDir ? (contractDocs as any[]).filter((d) => dirOfDoc(d) === pipelineDir) : (contractDocs as any[]);
-  const stepReached = (sigRequests as any[]).length > 0 ? 2 : contractDocsShown.length > 0 ? 1 : quoteDocsShown.length > 0 ? 0 : -1;
+  const liveSecs = getVisibleSections(signals);
+  const isLive = (k: SectionKey) => liveSecs.includes(k);
 
   return (
     <div className="project-detail-page">
@@ -942,11 +1009,10 @@ export default function ProjectHubDetailPage() {
           <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
         )}
         {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">세부 프로젝트</span>}
-        {/* 영업단계 배지는 수익형 전용 — 목표형/실행형엔 견적·계약 개념이 없어 유형 배지로 대체 */}
-        {projectType === "margin" ? (
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
-        ) : (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]"><Ico e={typeCfg.icon} /> {typeCfg.label}</span>
+        {/* 유형 배지(💰🎯✅)는 폐지 — 분류 대신 지금 상태(단계·미수)를 쓴다 */}
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
+        {settleFigs(pipe).outstanding > 1 && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--danger)]/10 text-[var(--danger)]">미수 {won(settleFigs(pipe).outstanding)}</span>
         )}
         {editingName ? (
           <input
@@ -964,66 +1030,74 @@ export default function ProjectHubDetailPage() {
             <svg className="w-3.5 h-3.5 text-[var(--text-dim)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </h1>
         )}
-        {/* 거래처 문구 — 수익형만 '미지정' 유도. 목표형/실행형(내부 프로젝트)은 있을 때만 표시 */}
-        <span className="text-xs text-[var(--text-dim)]">{[partner?.name || (projectType === "margin" ? "거래처 미지정" : null), manager?.name ? `담당 ${manager.name}` : null].filter(Boolean).join(" · ")}</span>
+        {/* 거래처는 있을 때만 — 내부 프로젝트에 '미지정' 을 띄우면 안 채운 칸처럼 보인다 */}
+        <span className="text-xs text-[var(--text-dim)]">{[partner?.name || null, manager?.name ? `담당 ${manager.name}` : null].filter(Boolean).join(" · ")}</span>
       </div>
 
-      {/* 탭 — 유형별 노출 탭(typeCfg.tabs). 세부 프로젝트(캠페인) 화면에서는 '세부 프로젝트'(2단계 제한)·'프로젝트 운영' 숨김 */}
-      <div className="seg-bar overflow-x-auto max-w-full">
-        {typeCfg.tabs.map((k) => (
-          <button key={k} onClick={() => setTab(k)}
-            className={`seg-item whitespace-nowrap ${tab === k ? "seg-item-active" : ""}`}>
-            {TAB_LABEL[k]}
-            {k === "subprojects" && hasChildren && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]">{(children as any[]).length}</span>}
-          </button>
-        ))}
-      </div>
+      {/* ══ 한 페이지 + 목차 — 탭 폐지(2026-07-30). 자리 순서는 프로젝트가 달라도 고정 ══ */}
+      <div className="pj-layout">
+        <nav className="pj-rail" aria-label="이 프로젝트 목차">
+          {SECTION_ORDER.map((k) => (
+            <button key={k} type="button" onClick={() => goSection(k)}
+              className={`pj-rail-item ${sec === k ? "pj-rail-item-on" : ""} ${isLive(k) ? "" : "pj-rail-item-dim"}`}>
+              {SECTION_LABEL[k]}
+              {k === "money" && hasChildren && <em>{(children as any[]).length}</em>}
+            </button>
+          ))}
+        </nav>
 
-      {/* 개요 — 목표형 성과 콕핏(그래프 대시보드) */}
-      {tab === "overview" && projectType === "goal" && (
-        <GoalOverviewTab deal={deal} />
-      )}
+        <div className="pj-secs">
+        {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
+        <PjSection k="todo" active={sec === "todo"} onSeen={markSecOpen}
+          hint={signals.hasMoney || signals.hasWork ? "데이터에서 자동으로 뽑아요" : "무엇부터 하면 되는지 알려드려요"}>
+          <TodoQueue
+            deal={deal} pipe={pipe} won={won}
+            hasMoney={signals.hasMoney} hasWork={signals.hasWork} hasGoal={signals.hasGoal}
+            quoteCount={quoteDocsShown.length} contractCount={contractDocsShown.length}
+            onGo={goSection} onNewQuote={createQuoteInstant} creating={creatingQuote} />
+        </PjSection>
 
-      {/* 개요 — 실행형 콕핏(태스크 진행률·상태분포·마감·담당자별 현황) */}
-      {tab === "overview" && projectType === "delivery" && (
-        <DeliveryOverview deal={deal} dealId={dealId} partner={partner} manager={manager} companyUsers={companyUsers as any[]} />
-      )}
+        {/* ② 어디까지 왔나 — 견적→계약→진행→청구→정산 한 줄 + 단계 보정 */}
+        <PjSection k="flow" active={sec === "flow"} onSeen={markSecOpen}
+          hint="견적 승인·서명·발행·입금으로 판정해요">
+          {signals.hasMoney ? (
+            <>
+              <PipelineRibbon pipe={pipe} contractTotal={ownContract} onOpen={goTab} />
+              <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
+            </>
+          ) : signals.hasWork ? (
+            <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
+          ) : (
+            <p className="pj-sec-empty">견적이나 할 일이 하나라도 생기면 여기에 진행 흐름이 나타나요.</p>
+          )}
+        </PjSection>
 
-      {/* 개요 — 수익형(margin): 마진 콕핏(예상→확정 한 축) + 단계 스텝 + 확정비용/기본정보.
-          매출은 단일 산식(자체계약+매출형, 캠페인 롤업)으로 통일 — 약정/실적 매출 불일치 제거. */}
-      {tab === "overview" && projectType === "margin" && (
-        (planRevenue === 0 && totalCost === 0 && subPurchaseSum === 0) ? (
-          <MarginOnboarding onTab={setTab} />
+        {/* ③ 돈 — 마진 콕핏 + 원장 + 문서 흐름 + 확정비용. 유형(수익형) 조건 없이 모든 프로젝트가 갖는다 */}
+        <PjSection k="money" active={sec === "money"} onSeen={markSecOpen}
+          views={SECTION_VIEWS.money} view={viewOf("money")} onView={(v: string) => pickView("money", v)}
+          hint={revenueBasis === "미입력" ? "견적서를 만들면 채워져요" : revenueBasis}>
+        {(planRevenue === 0 && totalCost === 0 && subPurchaseSum === 0 && (documents as any[]).length === 0) ? (
+          <MarginOnboarding onTab={goTab} />
         ) : (
         <div className="margin-overview-panel">
           {/* ① 상태 밴드 */}
           <MarginBand revenue={salesSoT} planCost={planCost} actualCost={totalCost} pipe={pipe} rolled={hasChildren ? (children as any[]).length : 0} />
           {/* ② 돈 흐름 + 수익 구조 */}
-          <MoneyFlow pipe={pipe} contractTotal={ownContract} revenue={salesSoT} revenueBasis={revenueBasis} actualCost={totalCost} onOpen={setTab} />
+          <MoneyFlow pipe={pipe} contractTotal={ownContract} revenue={salesSoT} revenueBasis={revenueBasis} actualCost={totalCost} onOpen={goTab} />
           {confirmedRevenue > 0 && planRevenue > 0 && Math.abs(confirmedRevenue - planRevenue) > Math.max(1000, planRevenue * 0.01) && (
             <div className="amount-mismatch-warning glass-card">
               <span className="shrink-0"><Ico e="⚠" /></span>
               <span>계약·약정 매출 <b className="mono-number">{won(planRevenue)}</b> 과 계산서 발행액 <b className="mono-number">{won(confirmedRevenue)}</b> 이 다릅니다. 중간에 금액이 바뀌었다면 계약 금액 또는 발행 계산서를 확인·수정하세요.</span>
             </div>
           )}
-          {/* ③ 진행 파이프라인 */}
-          <PipelineRibbon pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
           {hasInclusiveSub && (
             <p className="text-[11px] text-[var(--text-dim)]">※ VAT <b className="text-[var(--text-muted)]">포함</b>으로 입력한 매출/매입 항목은 <b className="text-[var(--text-muted)]">공급가액(VAT 제외)</b> 기준으로 환산해 계산됩니다.</p>
           )}
-          {/* ④ 상세 — 정산 현황 · 확정비용 구성 · 영업단계 · 기본정보 */}
-          <details className="pj-details glass-card">
-            <summary>
-              <span className="flex items-center gap-2.5 flex-wrap">
-                상세
-                {settleFigs(pipe).outstanding > 1 && <span className="pj-detail-chip danger">미수 {won(settleFigs(pipe).outstanding)}</span>}
-                <span className="text-[11px] font-normal text-[var(--text-dim)]">· 정산 현황 · 확정비용 · 영업단계 · 기본정보</span>
-              </span>
-              <span className="pj-detail-chev">▸</span>
-            </summary>
+          {/* ④ 비용 보기 — 정산 현황 + 확정비용 구성. 접힌 '상세' 였던 것을 보기로 승격했다
+              (미수·원가는 매일 보는 숫자인데 details 안에 숨어 있었다). 기본 정보는 '사람과 기록' 으로 이동. */}
+          {viewOf("money") === "cost" && (
             <div className="pj-detail-body">
-              <SettlementPanel pipe={pipe} contractTotal={ownContract} onOpen={setTab} />
-              <StageStepper stage={stage} onPick={(s) => !stageMut.isPending && stageMut.mutate(s)} pending={stageMut.isPending} />
+              <SettlementPanel pipe={pipe} contractTotal={ownContract} onOpen={goTab} />
               <div className="grid gap-5 lg:grid-cols-3">
                 <div className="lg:col-span-2 space-y-5">
                   <div className="cost-breakdown glass-card">
@@ -1051,18 +1125,11 @@ export default function ProjectHubDetailPage() {
                   </div>
                 </div>
                 <div className="space-y-5">
-                  <div className="project-basic-info glass-card">
-                    <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">기본 정보</h3></div>
-                    <div className="grid grid-cols-1 gap-y-3 text-sm">
-                      <Info label="거래처" value={partner?.name || "—"} />
-                      <Info label="담당자" value={manager?.name || "—"} />
-                      <Info label="분류" value={deal.classification || "—"} />
-                      <Info label="단계" value={STAGE_LABEL[stage]} />
-                      <Info label="시작일" value={fmtDate(deal.start_date)} />
-                      <Info label="종료일" value={fmtDate(deal.end_date)} />
-                      <Info label="상태" value={deal.status || "—"} />
-                      <Info label="다음 액션" value={deal.next_action_text || "—"} />
-                    </div>
+                  {/* 원가 구성 — 어디서 돈이 나갔는지 순위. 위 목록과 같은 데이터의 다른 표현 */}
+                  <div className="cost-mix glass-card">
+                    <h3 className="text-sm font-bold mb-3">원가 구성</h3>
+                    <BarList unit="원" emptyText="아직 태그된 지출이 없어요. 각 내역 화면에서 이 프로젝트를 지정하면 여기에 모여요."
+                      items={COST_SOURCES.filter((c) => c.total > 0).map((c) => ({ label: c.label, value: c.total }))} />
                   </div>
                   <div className="cost-note-card glass-card">
                     · <b className="text-[var(--text)]">확정 비용</b> = 태그된 세금계산서·현금영수증·카드·전표 합계. 각 내역 화면에서 이 프로젝트를 지정하면 자동 집계됩니다. <b className="text-[var(--text)]">같은 지출을 두 곳에 중복 태그하지 마세요</b>(이중 계상).
@@ -1070,39 +1137,15 @@ export default function ProjectHubDetailPage() {
                 </div>
               </div>
             </div>
-          </details>
+          )}
         </div>
-        )
-      )}
+        )}
 
-      {/* 세부 프로젝트 */}
-      {tab === "subdeals" && companyId && <SubDealsTab dealId={dealId} companyId={companyId} />}
+      {/* ⚠️ 수주/발주 방향 파이프라인 헤더는 접근 경로가 없는 죽은 UI 였다(어느 유형에도 노출 안 됨).
+          그 안에만 있던 '견적 승인 시 계약서 자동 생성' 설정은 실제로 쓰이는 자동화라 아래 '문서' 보기로 살려 옮겼다. */}
 
-      {/* 견적서 */}
-      {/* 방향별 파이프라인 스텝 인디케이터 (수주/발주 탭 상단) */}
-      {pipelineDir && (
-        <div className="pipeline-direction-header glass-card">
-          <div className="pipeline-direction-toolbar">
-            <h3 className="text-sm font-bold text-[var(--text)]">{pipelineDir === "sales" ? "수주(매출) 파이프라인" : "발주(매입) 파이프라인"}</h3>
-            <span className="text-[11px] text-[var(--text-dim)]">{pipelineDir === "sales" ? "고객 견적 발송 → 승인 → 계약 생성 → 서명 → 정산" : "협력사 견적 등록 → 발주 계약 → 서명 → 검수 → 정산"}</span>
-          </div>
-          <div className="pipeline-steps">
-            {["견적", "계약", "서명", "진행", "정산"].map((s, i) => (
-              <div key={s} className="pipeline-step-item">
-                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${i <= stepReached ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>{s}</span>
-                {i < 4 && <span className={`mx-0.5 text-xs ${i < stepReached ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>▶</span>}
-              </div>
-            ))}
-          </div>
-          <label className="auto-contract-toggle">
-            <input type="checkbox" checked={autoContractOn} onChange={(e) => toggleAutoContract(e.target.checked)} className="accent-[var(--primary)]" />
-            견적 승인 시 계약서 자동 생성 (회사 전체 설정)
-          </label>
-        </div>
-      )}
-
-      {/* 거래 탭 — 부호 기반 매출·매입 원장(상단) + 견적/계약/계산서 문서 흐름(하단) */}
-      {isTransTab && companyId && (
+      {/* 원장 보기 — 부호 기반 매출·매입 항목(마진 산정 기준) */}
+      {viewOf("money") === "ledger" && companyId && (
         <div className="transactions-ledger-section">
           <div className="transactions-ledger-header">
             <h3 className="text-sm font-bold text-[var(--text)]">거래 원장</h3>
@@ -1113,17 +1156,22 @@ export default function ProjectHubDetailPage() {
         </div>
       )}
 
-      {(tab === "quote" || pipelineDir || isTransTab) && (
+      {viewOf("money") === "docs" && (
         <div className="quote-list-section">
-          {isTransTab && <div className="pt-2 mt-2 border-t border-[var(--border)]/50" />}
+          <label className="auto-contract-toggle">
+            <input type="checkbox" checked={autoContractOn} onChange={(e) => toggleAutoContract(e.target.checked)} className="accent-[var(--primary)]" />
+            견적 승인 시 계약서 자동 생성 (회사 전체 설정)
+          </label>
           <div className="quote-list-toolbar">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
             <div className="quote-list-actions">
               {companyId && <button onClick={() => setTplManagerKind("quote")} className="btn-secondary text-xs"><Ico e="📄" /> 양식 관리</button>}
               <button onClick={() => setShowColSettings((v) => !v)}
                 className="btn-secondary text-xs"><Ico e="⚙" /> 열 설정</button>
-              <button onClick={pipelineDir === "purchase" ? createInboundQuote : createQuoteInstant} disabled={creatingQuote}
-                className="btn-primary text-xs hover:opacity-90">{creatingQuote ? "생성 중..." : pipelineDir === "purchase" ? "협력사 견적 등록" : "+ 견적서 작성"}</button>
+              <button onClick={createQuoteInstant} disabled={creatingQuote}
+                className="btn-primary text-xs hover:opacity-90">{creatingQuote ? "생성 중..." : "+ 견적서 작성"}</button>
+              <button onClick={createInboundQuote} disabled={creatingQuote} className="btn-secondary text-xs"
+                title="협력사가 보낸 견적을 매입으로 등록합니다">협력사 견적 등록</button>
               {showColSettings && (
                 <>
                   <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />
@@ -1210,7 +1258,7 @@ export default function ProjectHubDetailPage() {
       )}
 
       {/* 계약 */}
-      {(tab === "contract" || pipelineDir || isTransTab) && (
+      {viewOf("money") === "docs" && (
         <div className="contract-list-section">
           <div className="contract-list-toolbar">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 계약서·전자서명입니다. <span className="text-[var(--text-dim)]">계약서 작성·발송은 여기서 관리합니다(견적서와 분리).</span></p>
@@ -1245,13 +1293,11 @@ export default function ProjectHubDetailPage() {
                     return null;
                   })()}
                   <span className="text-[11px] text-[var(--text-dim)] shrink-0 mono-number">{fmtDate(doc.created_at)}</span>
-                  {pipelineDir !== "purchase" && (
-                    <button onClick={() => openInvoiceModal(doc)} disabled={issuingInvoiceFrom === doc.id}
-                      className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap shrink-0"
-                      title="이 계약금액으로 매출 세금계산서를 발행합니다(전액 또는 선금/잔금 분할)">
-                      {issuingInvoiceFrom === doc.id ? "발행 중…" : "계산서 발행"}
-                    </button>
-                  )}
+                  <button onClick={() => openInvoiceModal(doc)} disabled={issuingInvoiceFrom === doc.id}
+                    className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 disabled:opacity-50 whitespace-nowrap shrink-0"
+                    title="이 계약금액으로 매출 세금계산서를 발행합니다(전액 또는 선금/잔금 분할)">
+                    {issuingInvoiceFrom === doc.id ? "발행 중…" : "계산서 발행"}
+                  </button>
                   <Link href={`/documents?id=${doc.id}&print=1`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:underline shrink-0">인쇄</Link>
                   <Link href={`/documents?id=${doc.id}`} className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:underline shrink-0">수정</Link>
                   <button onClick={() => setDelDoc(doc)} className="text-[11px] font-semibold text-[var(--danger)]/80 hover:text-[var(--danger)] shrink-0" title="계약서 삭제">삭제</button>
@@ -1290,18 +1336,8 @@ export default function ProjectHubDetailPage() {
         </div>
       )}
 
-      {/* 매출/매입 관리 — 파이프라인 탭(방향별) 하단 */}
-      {pipelineDir && companyId && (
-        <div className="subdeal-management-section">
-          <div className="text-xs font-bold text-[var(--text-muted)] mb-2 mt-1">{pipelineDir === "sales" ? "매출 항목 관리" : "매입 항목 관리"}</div>
-          {/* 최상위 프로젝트에서만 '캠페인으로도 생성' 허용 (세부 프로젝트 2단계 제한) */}
-          <SubDealsTab dealId={dealId} companyId={companyId} direction={pipelineDir}
-            campaignInherit={{ partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
-        </div>
-      )}
-
-      {/* 세부 프로젝트 (캠페인 속 캠페인) */}
-      {tab === "subprojects" && (
+      {/* 하위 프로젝트 — 구 '세부 프로젝트(캠페인)'. 원장 보기 안에서 금액 롤업과 함께 본다 */}
+      {viewOf("money") === "ledger" && (
         <div className="subprojects-section">
           <div className="subprojects-toolbar">
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트 안의 세부 프로젝트입니다. <span className="text-[var(--text-dim)]">행을 클릭하면 해당 세부 프로젝트의 개요·거래·문서로 이동합니다(상위와 동일 구조).</span></p>
@@ -1451,30 +1487,76 @@ export default function ProjectHubDetailPage() {
         </div>
       )}
 
-      {/* 프로젝트 운영 — 활동 + 일정 (구 '워크플로우' 통합) */}
-      {tab === "pnl" && companyId && (
-        <ProjectSlideOver variant="embed" dealId={dealId} companyId={companyId} onClose={() => {}} />
-      )}
+        </PjSection>
 
-      {/* 목표형 — 성과(KPI 관리 · 실적 · 체크인) */}
-      {tab === "performance" && companyId && (
-        <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => setTab(t as TabKey)} />
-      )}
+        {/* ④ 일 — 할 일(칸반·간트)·진행률·담당자별 부하. 유형(실행형) 조건 없이 모든 프로젝트가 쓴다.
+            ⚠️ 프로젝트 안의 '워크플로우' 탭(전사 보드)은 제거했다 — 회사 전체 보드는 프로젝트
+               목록의 '보드' 보기가 맡는다(같은 컴포넌트, 위치만 이동). */}
+        <PjSection k="work" active={sec === "work"} onSeen={markSecOpen}
+          views={SECTION_VIEWS.work} view={viewOf("work")} onView={(v: string) => pickView("work", v)}
+          hint={signals.hasWork ? "진행률은 완료된 할 일에서 자동 계산돼요" : undefined}>
+          {!openSecs.has("work") ? <p className="pj-sec-empty">불러오는 중…</p>
+            : !companyId ? null
+            : viewOf("work") === "issues" ? (
+              <IssuesTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+            ) : !signals.hasWork ? (
+              <div className="pj-sec-cta">
+                <p>할 일을 적으면 진행률이 저절로 계산돼요. 담당을 지정하면 그 사람 화면에도 보여요.</p>
+                <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+              </div>
+            ) : (
+              <>
+                <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+                {/* 진행률·상태분포·마감·담당자별 부하(번업·워크로드 차트) — 구 실행형 개요 */}
+                <DeliveryOverview deal={deal} dealId={dealId} partner={partner} manager={manager} companyUsers={companyUsers as any[]} />
+              </>
+            )}
+        </PjSection>
 
-      {/* 실행형 — 태스크(칸반/간트) */}
-      {tab === "tasks" && companyId && (
-        <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
-      )}
+        {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
+        <PjSection k="goal" active={sec === "goal"} onSeen={markSecOpen}
+          views={SECTION_VIEWS.goal} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
+          hint={signals.hasGoal ? "매출·이익·건수는 태그된 회계 데이터에서 자동으로 채워져요" : undefined}>
+          {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
+            : !companyId ? null
+            : !signals.hasGoal ? (
+              <div className="pj-sec-cta">
+                <p>목표(매출·건수 등)를 하나 정하면 실적이 자동으로 채워지고 예상 착지까지 계산돼요.</p>
+                <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
+              </div>
+            ) : viewOf("goal") === "manage" ? (
+              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
+            ) : (
+              <GoalOverviewTab deal={deal} />
+            )}
+        </PjSection>
 
-      {/* 목표형 — 이슈 트래커 (문제점·리스크 체크 → 해결) */}
-      {tab === "issues" && companyId && (
-        <IssuesTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
-      )}
-
-      {/* 실행형 — 워크플로우 (전사 칸반 보드 임베드, 사이드바 '워크플로우' 메뉴 이동) */}
-      {tab === "workflow" && companyId && (
-        <MondayBoard companyId={companyId} users={companyUsers as any} />
-      )}
+        {/* ⑥ 사람과 기록 — 활동·일정(구 '프로젝트 운영')과 기본 정보.
+            다중 담당·부서 롤업·프로젝트 채널은 4단계에서 이 자리에 붙는다. */}
+        <PjSection k="team" active={sec === "team"} onSeen={markSecOpen}
+          views={SECTION_VIEWS.team} view={viewOf("team")} onView={(v: string) => pickView("team", v)}
+          hint="담당 배정·부서 롤업·프로젝트 채널은 다음 단계에서 이 자리에 붙어요">
+          {!openSecs.has("team") ? <p className="pj-sec-empty">불러오는 중…</p>
+            : viewOf("team") === "info" ? (
+              <div className="project-basic-info glass-card">
+                <div className="flex items-center justify-between mb-4"><h3 className="text-sm font-bold">기본 정보</h3></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                  <Info label="거래처" value={partner?.name || "—"} />
+                  <Info label="담당자" value={manager?.name || "—"} />
+                  <Info label="분류" value={deal.classification || "—"} />
+                  <Info label="단계" value={STAGE_LABEL[stage]} />
+                  <Info label="시작일" value={fmtDate(deal.start_date)} />
+                  <Info label="종료일" value={fmtDate(deal.end_date)} />
+                  <Info label="상태" value={deal.status || "—"} />
+                  <Info label="다음 액션" value={deal.next_action_text || "—"} />
+                </div>
+              </div>
+            ) : companyId ? (
+              <ProjectSlideOver variant="embed" dealId={dealId} companyId={companyId} onClose={() => {}} />
+            ) : null}
+        </PjSection>
+        </div>
+      </div>
 
       {/* 문서 작성 모달 — 견적서 탭(견적서) / 전자계약 탭(계약서) 공용. formKind 로 양식·기본구조 분기 */}
       {/* 양식 관리 모달 — 회사 견적/계약 양식 PDF 업로드·인식(버튼으로 열기, 화면 상단 점유 제거) */}
@@ -1680,6 +1762,120 @@ export default function ProjectHubDetailPage() {
 }
 
 // 결제 조건 입력 — 전액 / 선금·잔금(2단계) / 선금·중도금·잔금(3단계). 계약 작성·발행 공용.
+// ── 자리(섹션) 셸 ────────────────────────────────────────────
+//   탭을 없앤 대신 이 셸이 자리 제목·보기 전환·지연 마운트를 맡는다.
+//   한 페이지에 여섯 자리가 있으므로, 화면에 들어온 자리만 onSeen 으로 열어 조회를 시작한다.
+function PjSection({ k, active, hint, views, view, onView, onSeen, children }: {
+  k: SectionKey;
+  active: boolean;
+  hint?: string;
+  views?: { key: string; label: string }[];
+  view?: string;
+  onView?: (v: string) => void;
+  onSeen: (k: SectionKey) => void;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") { onSeen(k); return; }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { onSeen(k); io.disconnect(); }
+    }, { rootMargin: "300px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [k, onSeen]);
+  return (
+    <div ref={ref} id={`pj-sec-${k}`} className={`pj-sec ${active ? "pj-sec-on" : ""}`}>
+      <div className="pj-sec-head">
+        <h2 className="pj-sec-title">{SECTION_TITLE[k]}</h2>
+        {hint && <span className="pj-sec-hint">{hint}</span>}
+        {views && views.length > 1 && (
+          <div className="pj-sec-views">
+            {views.map((v) => (
+              <button key={v.key} type="button" onClick={() => onView?.(v.key)} aria-pressed={view === v.key}
+                className={`pj-sec-view ${view === v.key ? "pj-sec-view-on" : ""}`}>{v.label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── 지금 할 일 ───────────────────────────────────────────────
+//   사람이 목록을 만들지 않는다. 이미 있는 데이터(미수·마감·서명 대기·문서 유무)로만 만든다.
+//   ⚠️ 여기에 "있으면 좋은" 항목을 상상해서 넣지 말 것 — 근거 없는 줄이 하나 생기면 전체를 못 믿는다.
+//   마일스톤 기반 '청구 가능' 판정과 주간 요약 초안은 4단계에서 추가한다.
+function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, contractCount, onGo, onNewQuote, creating }: {
+  deal: any; pipe: any; won: (n: number | null | undefined) => string;
+  hasMoney: boolean; hasWork: boolean; hasGoal: boolean;
+  quoteCount: number; contractCount: number;
+  onGo: (k: SectionKey) => void; onNewQuote: () => void; creating: boolean;
+}) {
+  const today = todayKst();
+  const rows: { tone: "bad" | "warn" | "ok"; text: string; why: string; cta?: string; go?: () => void }[] = [];
+
+  const out = settleFigs(pipe).outstanding;
+  if (out > 1) rows.push({
+    tone: "bad", text: `미수 ${won(out)} — 발행했는데 아직 입금이 안 됐어요`,
+    why: "계산서 발행액과 통장 입금(자동 매칭)의 차이", cta: "정산 보기", go: () => onGo("money"),
+  });
+
+  const end = deal?.end_date ? String(deal.end_date).slice(0, 10) : null;
+  const done = deal?.stage === "completed" || deal?.stage === "settlement";
+  if (end && !done) {
+    const d = Math.round((new Date(`${end}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
+    if (d < 0) rows.push({ tone: "bad", text: `마감이 ${-d}일 지났어요`, why: `종료일 ${end}`, cta: "일 보기", go: () => onGo("work") });
+    else if (d <= 7) rows.push({ tone: "warn", text: `마감이 ${d}일 남았어요`, why: `종료일 ${end}`, cta: "일 보기", go: () => onGo("work") });
+  }
+
+  if (quoteCount > 0 && contractCount === 0) rows.push({
+    tone: "warn", text: "견적은 보냈는데 계약서가 아직 없어요",
+    why: "승인되면 계약서 초안이 자동으로 만들어져요(문서 보기에서 설정)", cta: "문서 보기", go: () => onGo("money"),
+  });
+
+  if (rows.length > 0) {
+    return (
+      <div className="pj-queue">
+        {rows.map((r, i) => (
+          <div key={i} className={`pj-queue-row pj-queue-${r.tone}`}>
+            <i className="pj-queue-stripe" />
+            <p>{r.text}<em>{r.why}</em></p>
+            {r.cta && <button type="button" className="pj-queue-cta" onClick={r.go}>{r.cta}</button>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // 데이터가 하나도 없으면 — 무엇부터 하면 되는지 세 갈래로 제안한다(유형 선택 대체).
+  if (!hasMoney && !hasWork && !hasGoal) {
+    return (
+      <div className="pj-starters">
+        <button type="button" className="pj-starter" onClick={onNewQuote} disabled={creating}>
+          <span className="pj-starter-k">보통 여기서 시작해요</span>
+          <b>{creating ? "만드는 중…" : "견적서 만들기"}</b>
+          <span>거래처와 품목을 넣으면 공급가·부가세가 자동으로 계산돼요. 승인되면 계약서 초안까지 만들어져요.</span>
+        </button>
+        <button type="button" className="pj-starter" onClick={() => onGo("work")}>
+          <span className="pj-starter-k">할 일부터라면</span>
+          <b>할 일 적기</b>
+          <span>해야 할 것을 적고 담당을 지정하면 진행률이 저절로 계산돼요.</span>
+        </button>
+        <button type="button" className="pj-starter" onClick={() => onGo("goal")}>
+          <span className="pj-starter-k">목표 관리라면</span>
+          <b>목표 정하기</b>
+          <span>매출·건수 같은 목표를 정하면 실적이 자동으로 채워져요.</span>
+        </button>
+      </div>
+    );
+  }
+  return <p className="pj-sec-empty">지금 당장 챙길 일은 없어요. 미수·마감·서명 지연이 생기면 여기에 먼저 올라와요.</p>;
+}
+
 function PaymentTermsField({ mode, onMode, adv, onAdv, mid, onMid, supply }: {
   mode: PayMode; onMode: (v: PayMode) => void; adv: number; onAdv: (v: number) => void; mid: number; onMid: (v: number) => void; supply: number;
 }) {

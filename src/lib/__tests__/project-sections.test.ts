@@ -136,7 +136,7 @@ describe("보기(뷰) 정의", () => {
     for (const k of SECTION_ORDER) {
       expect(SECTION_VIEWS[k].length).toBeGreaterThan(0);
     }
-    expect(SECTION_VIEWS.work[0].key).toBe("list"); // 처음 쓰는 사람 기준 = 가장 단순한 보기
+    expect(SECTION_VIEWS.work[0].key).toBe("tasks"); // 처음 쓰는 사람 기준 = 가장 단순한 보기
     expect(SECTION_VIEWS.money[0].key).toBe("ledger");
   });
 

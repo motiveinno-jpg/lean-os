@@ -3462,6 +3462,47 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mine-scope-toggle { @apply flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden text-[13px] font-semibold shrink-0; }
 .sort-control { @apply flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }
 .type-filter-chips { @apply flex flex-wrap gap-1.5; }
+/* 프로젝트 상세 — 탭 폐지, 한 페이지 + 목차(2026-07-30).
+   자리 순서는 프로젝트가 달라도 고정된다. 목차는 데스크톱에서 좌측 고정, 모바일에선 가로 스크롤. */
+.pj-layout { @apply grid gap-5 items-start; grid-template-columns: 8.5rem minmax(0, 1fr); }
+.pj-rail { @apply flex flex-col gap-0.5 sticky top-2; }
+.pj-rail-item { @apply text-left text-[13px] font-semibold px-2.5 py-1.5 border-l-2 border-[var(--border)] text-[var(--text-dim)] transition hover:text-[var(--text-muted)] flex items-center justify-between gap-1.5; }
+.pj-rail-item-on { @apply border-l-[var(--primary)] text-[var(--primary)] font-bold; }
+.pj-rail-item-dim { @apply opacity-45; }
+.pj-rail-item em { @apply not-italic text-[10px] font-bold px-1.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]; }
+.pj-secs { @apply flex flex-col gap-7 min-w-0; }
+.pj-sec { @apply flex flex-col gap-3 scroll-mt-20; }
+.pj-sec-head { @apply flex flex-wrap items-baseline gap-x-3 gap-y-1; }
+.pj-sec-title { @apply text-[15px] font-extrabold text-[var(--text)]; }
+.pj-sec-hint { @apply text-[11px] text-[var(--text-dim)]; }
+.pj-sec-views { @apply flex items-center gap-1 ml-auto; }
+.pj-sec-view { @apply text-[12px] font-semibold px-2.5 py-1 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
+.pj-sec-view-on { @apply bg-[var(--primary)] text-white border-[var(--primary)] hover:text-white; }
+.pj-sec-empty { @apply text-[12.5px] text-[var(--text-dim)] px-3 py-4 rounded-xl border border-dashed border-[var(--border)]; }
+.pj-sec-cta { @apply flex flex-col gap-3; }
+.pj-sec-cta > p { @apply text-[12.5px] text-[var(--text-muted)] px-3 py-2.5 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20; }
+@media (max-width: 900px) {
+  .pj-layout { grid-template-columns: minmax(0, 1fr); }
+  .pj-rail { @apply flex-row overflow-x-auto static pb-1; }
+  .pj-rail-item { @apply border-l-0 border-b-2 whitespace-nowrap; }
+  .pj-rail-item-on { @apply border-b-[var(--primary)]; }
+}
+/* 지금 할 일 — 자동 생성 큐 + 빈 프로젝트 시작 제안 */
+.pj-queue { @apply flex flex-col rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-card)]; }
+.pj-queue-row { @apply grid items-center gap-3 pr-3 border-t border-[var(--border)] first:border-t-0; grid-template-columns: 3px minmax(0, 1fr) auto; }
+.pj-queue-row > p { @apply text-[13px] leading-snug py-2.5; }
+.pj-queue-row em { @apply block not-italic text-[11px] text-[var(--text-dim)] mt-0.5; }
+.pj-queue-stripe { @apply block self-stretch; }
+.pj-queue-bad .pj-queue-stripe { @apply bg-[var(--danger)]; }
+.pj-queue-warn .pj-queue-stripe { @apply bg-[var(--warning)]; }
+.pj-queue-ok .pj-queue-stripe { @apply bg-[var(--success)]; }
+.pj-queue-cta { @apply text-[11.5px] font-bold whitespace-nowrap px-2.5 py-1 rounded-lg border border-[var(--primary)]/35 text-[var(--primary)] bg-[var(--bg-card)] hover:bg-[var(--primary)]/10; }
+.pj-starters { @apply grid gap-2.5 sm:grid-cols-3; }
+.pj-starter { @apply text-left flex flex-col gap-1 p-3.5 rounded-xl border border-dashed border-[var(--border-light)] bg-[var(--bg-card)] transition hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-60; }
+.pj-starter-k { @apply text-[10.5px] font-extrabold uppercase tracking-wider text-[var(--primary)]; }
+.pj-starter > b { @apply text-[13.5px] font-bold text-[var(--text)]; }
+.pj-starter > span:last-child { @apply text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
+.cost-mix { @apply p-4; }
 /* 프로젝트 목록 보기 전환(2026-07-30) — 유형 칩(type-filter-chips)을 대체한다.
    카드·표·보드(구 워크플로우). type-filter-chips 정의는 다른 화면 참조 가능성 때문에 남겨둔다. */
 .ph-view-bar { @apply flex flex-wrap items-center gap-1.5; }

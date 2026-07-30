@@ -43,13 +43,15 @@ export const SECTION_TITLE: Record<SectionKey, string> = {
 //   같은 데이터를 다르게 본다. 첫 항목이 그 자리의 기본 보기(가장 단순한 것).
 export type SectionView = { key: string; label: string };
 
+//   ⚠️ 여기 정의한 보기는 화면에 실제로 구현된 것만 둔다 — 정의만 있고 화면이 없으면
+//      눌렀을 때 빈 화면이 된다. 추세·분해 같은 추가 보기는 구현과 함께 넣는다.
 export const SECTION_VIEWS: Record<SectionKey, SectionView[]> = {
-  todo: [{ key: "queue", label: "급한 순" }, { key: "mine", label: "내 것만" }],
-  flow: [{ key: "ribbon", label: "흐름" }, { key: "hist", label: "이력" }],
-  money: [{ key: "ledger", label: "원장" }, { key: "trend", label: "추세" }, { key: "mix", label: "구성" }],
-  work: [{ key: "list", label: "목록" }, { key: "kanban", label: "칸반" }, { key: "gantt", label: "간트" }, { key: "burn", label: "번업" }],
-  goal: [{ key: "score", label: "스코어카드" }, { key: "trend", label: "추세" }, { key: "split", label: "분해" }, { key: "checkin", label: "체크인" }],
-  team: [{ key: "who", label: "사람" }, { key: "load", label: "부하" }, { key: "log", label: "기록" }],
+  todo: [{ key: "queue", label: "급한 순" }],
+  flow: [{ key: "ribbon", label: "흐름" }],
+  money: [{ key: "ledger", label: "원장" }, { key: "docs", label: "문서" }, { key: "cost", label: "비용" }],
+  work: [{ key: "tasks", label: "할 일" }, { key: "issues", label: "이슈" }],
+  goal: [{ key: "score", label: "성과" }, { key: "manage", label: "목표 관리" }],
+  team: [{ key: "activity", label: "활동" }, { key: "info", label: "기본 정보" }],
 };
 
 // ── 목록 화면 보기 ──────────────────────────────────────────

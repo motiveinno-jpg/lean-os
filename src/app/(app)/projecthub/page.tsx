@@ -19,7 +19,8 @@ import { AccessDenied } from "@/components/access-denied";
 import { getDeals, getCompanyUsers } from "@/lib/queries";
 import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
-import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getOverallAchievement, type ProjectType, type KpiSource } from "@/lib/project-types";
+// 유형(margin/goal/delivery) 참조는 이 화면에서 전부 사라졌다 — 달성률 산식만 남는다.
+import { getOverallAchievement } from "@/lib/project-types";
 // 유형 3분할 폐지(2026-07-30) — 목록은 유형으로 걸러지지 않는다. 대표 지표는 있는 데이터에서 고른다.
 import { getHeadline, READY_LIST_VIEWS, normalizeListView, viewStorageKey, type ProjectSignals } from "@/lib/project-sections";
 import { useCanAccessTab } from "@/lib/tab-access";
@@ -728,10 +729,10 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   const db = supabase;
   const isEdit = !!editDeal;
   const [saving, setSaving] = useState(false);
-  // 생성 흐름: 1단계 유형 선택 → 2단계 입력. 수정은 기존 유형 유지(유형은 수정 불가, 입력만).
-  const editType: ProjectType = normalizeProjectType(editDeal?.project_type);
-  const [step, setStep] = useState<1 | 2>(isEdit ? 2 : 1);
-  const [projectType, setProjectType] = useState<ProjectType>(editType);
+  // ⚠️ 유형 선택 단계 폐지(2026-07-30) — 상세 화면이 유형을 더는 참조하지 않으므로 고르게 하면
+  //    아무 효과 없는 되돌릴 수 없는 질문만 남는다. deals.project_type 은 NOT NULL(기본 'margin')
+  //    이라 컬럼째 드롭하는 4단계까지는 기본값으로 들어간다.
+  //    KPI 는 생성 때 강제하지 않는다 — 프로젝트 상세 '성과' 자리에서 필요할 때 정한다.
   const [form, setForm] = useState(() => editDeal ? {
     name: editDeal.name || "", partner_id: editDeal.partner_id || "", manager_id: editDeal.internal_manager_id || "",
     start_date: (editDeal.start_date || "").slice(0, 10), end_date: (editDeal.end_date || "").slice(0, 10),
@@ -755,63 +756,24 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
     return (partners as any[]).filter((p) => (p.name || "").toLowerCase().includes(t) || (p.business_number || "").replace(/-/g, "").includes(tn)).slice(0, 200);
   }, [partners, ptSearch]);
 
-  // 목표형 — 생성 시 정의할 KPI 목록(1개 이상). 수정은 '성과' 탭에서 관리하므로 여기선 생성에만 사용.
-  type KpiDraft = { label: string; target: string; unit: string; direction: "up" | "down"; source: KpiSource };
-  const [kpiDrafts, setKpiDrafts] = useState<KpiDraft[]>([{ label: "매출", target: "", unit: "원", direction: "up", source: "revenue_auto" }]);
-  const setKpi = (i: number, patch: Partial<KpiDraft>) => setKpiDrafts((arr) => arr.map((k, idx) => (idx === i ? { ...k, ...patch } : k)));
-  const addKpi = () => setKpiDrafts((arr) => [...arr, { label: "", target: "", unit: "원", direction: "up", source: "manual" }]);
-  const removeKpiDraft = (i: number) => setKpiDrafts((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
 
   const submit = async () => {
     if (!form.name.trim()) { toast("프로젝트명을 입력하세요", "error"); return; }
     const raw = Number(String(form.contract_total).replace(/[^0-9]/g, ""));
-    // 목표형(신규 생성) — KPI 1개 이상 유효성 검사
-    let validKpis: { label: string; target_value: number; unit: string; direction: "up" | "down"; source: KpiSource }[] = [];
-    if (projectType === "goal" && !isEdit) {
-      validKpis = kpiDrafts
-        .map((k) => ({ label: k.label.trim(), target_value: Number(String(k.target).replace(/[^0-9.-]/g, "")) || 0, unit: k.unit.trim() || "원", direction: k.direction, source: k.source }))
-        .filter((k) => k.label && k.target_value > 0);
-      if (validKpis.length === 0) { toast("KPI를 1개 이상 입력하세요 (이름·목표값 필수)", "error"); return; }
-    }
     setSaving(true);
     try {
       const contractAmount = form.vatType === "include" ? Math.round(raw / 1.1) : raw;
-      // 공통 척추 — 유형 무관 항목
-      const base: any = {
+      // 유형 분기 없는 단일 payload — 모든 프로젝트가 같은 칸을 갖는다(안 쓰면 비어 있을 뿐).
+      const payload: any = {
         name: form.name.trim(),
         start_date: form.start_date || null, end_date: form.end_date || null,
         internal_manager_id: form.manager_id || null,
+        partner_id: form.partner_id || null,
+        classification: form.classification,
+        contract_total: contractAmount || 0,
       };
-      // 유형별 분기 payload
-      let payload: any;
-      if (projectType === "goal") {
-        payload = {
-          ...base,
-          project_type: "goal",
-          partner_id: form.partner_id || null,
-          // KPI 는 별도 테이블(project_kpis)에 저장. deals 의 단일목표 컬럼은 미사용.
-        };
-      } else if (projectType === "delivery") {
-        payload = {
-          ...base,
-          project_type: "delivery",
-          partner_id: form.partner_id || null,
-          // (선택) 예산은 contract_total 재사용
-          contract_total: contractAmount || 0,
-        };
-      } else {
-        // margin — 현행 100% 보존
-        payload = {
-          ...base,
-          project_type: "margin",
-          classification: form.classification,
-          contract_total: contractAmount || 0,
-          partner_id: form.partner_id || null,
-        };
-      }
       if (isEdit) {
-        // 단계(stage)·상태(status)·project_type 은 건드리지 않음(유형 변경 불가) — 기본 정보만 수정
-        delete payload.project_type;
+        // 단계(stage)·상태(status)는 건드리지 않음 — 기본 정보만 수정
         const { error } = await db.from("deals").update(payload).eq("id", editDeal.id);
         if (error) throw new Error(error.message);
         toast("프로젝트가 수정되었습니다", "success");
@@ -821,12 +783,6 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
           company_id: companyId, status: "active", stage: "estimate", ...payload,
         }).select("id").single();
         if (error) throw new Error(error.message);
-        // 목표형 — 정의한 KPI 들을 project_kpis 에 삽입
-        if (projectType === "goal" && data?.id && validKpis.length > 0) {
-          const rows = validKpis.map((k, i) => ({ company_id: companyId, deal_id: data.id, label: k.label, target_value: k.target_value, unit: k.unit, direction: k.direction, source: k.source, sort_order: i }));
-          const { error: kErr } = await db.from("project_kpis").insert(rows);
-          if (kErr) throw new Error(kErr.message);
-        }
         toast("프로젝트가 생성되었습니다", "success");
         onSaved(data?.id);
       }
@@ -835,68 +791,29 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
 
   const IN = "field-input";
   const LB = "block text-xs text-[var(--text-muted)] mb-1";
-  const cfg = PROJECT_TYPES[projectType];
 
-  useModalKeys(true, onClose, !isEdit && step === 1 ? () => setStep(2) : (saving || !form.name.trim() ? undefined : submit));
+  useModalKeys(true, onClose, saving || !form.name.trim() ? undefined : submit);
 
   return (
     <div className="project-form-modal fixed inset-0">
       <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="project-form-modal-header">
-          <div className="text-sm font-bold text-[var(--text)]">
-            {isEdit ? "프로젝트 수정" : step === 1 ? "+ 프로젝트 생성 · 유형 선택" : `+ ${cfg.label} 프로젝트`}
-          </div>
+          <div className="text-sm font-bold text-[var(--text)]">{isEdit ? "프로젝트 수정" : "+ 프로젝트 만들기"}</div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl leading-none">✕</button>
         </div>
 
-        {/* 1단계 — 유형 선택 (생성 시에만) */}
-        {!isEdit && step === 1 && (
-          <div className="project-type-step">
-            <p className="text-xs text-[var(--text-muted)]">프로젝트 유형을 선택하세요. 유형에 따라 히어로 지표와 탭이 달라집니다.</p>
-            <div className="grid grid-cols-1 gap-2.5">
-              {PROJECT_TYPE_ORDER.map((t) => {
-                const c = PROJECT_TYPES[t];
-                const active = projectType === t;
-                return (
-                  <button key={t} onClick={() => setProjectType(t)}
-                    className={`project-type-option ${active ? "border-[var(--primary)] bg-[var(--primary)]/5 ring-1 ring-[var(--primary)]/30" : "border-[var(--border)] hover:bg-[var(--bg-surface)]"}`}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl"><Ico e={c.icon} /></span>
-                      <span className="text-sm font-bold text-[var(--text)]">{c.label}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-dim)]">히어로: {c.hero}</span>
-                    </div>
-                    <p className="text-[11px] text-[var(--text-dim)] mt-1 leading-relaxed">{c.desc}</p>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <button onClick={onClose} className="btn-secondary">취소</button>
-              <button onClick={() => setStep(2)} className="btn-primary">다음 →</button>
-            </div>
-          </div>
-        )}
-
-        {/* 2단계 — 유형별 입력 */}
-        {(isEdit || step === 2) && (
-          <>
+        <>
             <div className="project-form-fields">
-              {!isEdit && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-[var(--text-dim)]">유형:</span>
-                  <span className="font-semibold text-[var(--text)]"><Ico e={cfg.icon} /> {cfg.label}</span>
-                  <button onClick={() => setStep(1)} className="text-[var(--primary)] hover:underline">변경</button>
-                </div>
-              )}
               <div>
-                <label className={LB}>프로젝트명 *</label>
+                <label className={LB}>무슨 일인가요? *</label>
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">이름만 있으면 만들 수 있어요. 나머지는 나중에 채워도 돼요.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                {/* 거래처 — 실행형(내부 태스크)은 숨김, 목표형은 선택 */}
-                {projectType !== "delivery" && (
+                {/* 거래처 — 내부 프로젝트면 비워두면 된다 */}
+                {(
                   <div className="partner-search-field">
-                    <label className={LB}>거래처 {projectType === "goal" && <span className="font-normal text-[var(--text-dim)]">(선택)</span>}</label>
+                    <label className={LB}>거래처 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
                     <input
                       value={ptSearch}
                       onChange={(e) => { setPtSearch(e.target.value); setPtOpen(true); if (form.partner_id) set({ partner_id: "" }); }}
@@ -923,7 +840,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                     )}
                   </div>
                 )}
-                <div className={projectType === "delivery" ? "col-span-2" : ""}>
+                <div>
                   <label className={LB}>담당자</label>
                   <select value={form.manager_id} onChange={(e) => set({ manager_id: e.target.value })} className={IN}>
                     <option value="">미지정</option>
@@ -932,8 +849,8 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 </div>
               </div>
 
-              {/* 수익형(margin) — 분류 + 계약금액 (현행) */}
-              {projectType === "margin" && (
+              {/* 분류 + 계약금액 — 유형과 무관하게 항상. 안 쓰면 비워두면 된다(내부 프로젝트) */}
+              {(
                 <div className="margin-type-fields">
                   <div>
                     <label className={LB}>분류</label>
@@ -953,55 +870,8 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 </div>
               )}
 
-              {/* 목표형(goal) — 다중 KPI 정의 (생성 시). 수정은 '성과' 탭에서 관리. */}
-              {projectType === "goal" && !isEdit && (
-                <div className="goal-kpi-drafts">
-                  <div className="flex items-center justify-between">
-                    <label className={`${LB} mb-0`}>KPI <span className="font-normal text-[var(--text-dim)]">(1개 이상 — 이름·목표값 필수)</span></label>
-                    <button type="button" onClick={addKpi} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">+ KPI 추가</button>
-                  </div>
-                  {kpiDrafts.map((k, i) => (
-                    <div key={i} className="kpi-draft-row">
-                      <div className="flex items-center gap-2">
-                        <input value={k.label} onChange={(e) => setKpi(i, { label: e.target.value })} placeholder="KPI 이름 (예: 신규 매출)" className={`${IN} flex-1`} />
-                        {kpiDrafts.length > 1 && <button type="button" onClick={() => removeKpiDraft(i)} className="px-2 py-1 text-[11px] rounded-md text-[var(--danger)] hover:bg-[var(--danger)]/10" aria-label="KPI 삭제">✕</button>}
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <input value={k.target} onChange={(e) => setKpi(i, { target: comma(e.target.value) })} inputMode="numeric" placeholder="목표값" className={`${IN} text-right mono-number`} />
-                        <input value={k.unit} onChange={(e) => setKpi(i, { unit: e.target.value })} placeholder="단위(원)" className={IN} />
-                        <select value={k.direction} onChange={(e) => setKpi(i, { direction: e.target.value as "up" | "down" })} className={IN}>
-                          <option value="up">↑ 높을수록</option>
-                          <option value="down">↓ 낮을수록</option>
-                        </select>
-                        <select value={k.source} onChange={(e) => setKpi(i, { source: e.target.value as KpiSource })} className={IN}>
-                          <option value="manual">수동</option>
-                          <option value="revenue_auto">매출자동</option>
-                          <option value="profit_auto">이익자동</option>
-                          <option value="count_auto">건수자동</option>
-                        </select>
-                      </div>
-                    </div>
-                  ))}
-                  <p className="text-[11px] text-[var(--text-dim)]">‘매출자동’ KPI는 매출 세금계산서(공급가액)를 자동 집계합니다. 생성 후 ‘성과’ 탭에서 KPI·실적·체크인을 관리합니다.</p>
-                </div>
-              )}
-              {projectType === "goal" && isEdit && (
-                <p className="text-[11px] text-[var(--text-dim)]">KPI·실적·성과 체크인은 프로젝트 상세의 <b className="text-[var(--text-muted)]">‘성과’</b> 탭에서 관리합니다.</p>
-              )}
-
-              {/* 실행형(delivery) — (선택) 예산 */}
-              {projectType === "delivery" && (
-                <div className="delivery-type-fields">
-                  <label className={LB}>예산 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
-                  <div className="flex gap-1">
-                    <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
-                    <select value={form.vatType} onChange={(e) => set({ vatType: e.target.value as "exclude" | "include" })} className="px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
-                      <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
+              {/* 목표(KPI)는 생성 때 묻지 않는다 — 프로젝트 상세 '성과' 자리에서 필요할 때 정한다.
+                  실행형 전용 '예산' 칸도 계약금액과 중복이라 없앴다(2026-07-30). */}
               <div className="project-date-fields">
                 <div>
                   <label className={LB}>시작일</label>
@@ -1014,9 +884,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               </div>
             </div>
             <div className="project-form-modal-footer">
-              {!isEdit ? (
-                <button onClick={() => setStep(1)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">← 이전</button>
-              ) : <span />}
+              <span />
               <div className="flex gap-2">
                 <button onClick={onClose} className="btn-secondary">취소</button>
                 <button onClick={submit} disabled={saving || !form.name.trim()} className="btn-primary">
@@ -1025,7 +893,6 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               </div>
             </div>
           </>
-        )}
       </div>
     </div>
   );
