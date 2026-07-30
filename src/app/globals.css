@@ -2492,6 +2492,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .leave-accrual-basis { @apply mt-3 pt-3 border-t border-[var(--border)]; }
 .leave-accrual-basis-opt { @apply text-left px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] transition hover:border-[var(--primary)]/40; }
 .leave-accrual-basis-opt-on { @apply border-[var(--primary)]/50 bg-[var(--primary)]/8; }
+/* 자동 부여 도입일 — 이 날짜 이후 응당일만 발생 */
+.leave-accrual-start { @apply mt-3 pt-3 border-t border-[var(--border)]; }
+.leave-accrual-start-input { @apply px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text)]; }
 
 /* 구성원 상세 — 연차 발생 이력 목록/추가 폼 */
 .employee-leave-grants { @apply p-4; }

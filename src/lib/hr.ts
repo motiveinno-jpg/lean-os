@@ -1917,7 +1917,13 @@ export async function getLeaveBalances(companyId: string, year: number) {
     .select('*, employees(name, department)')
     .eq('company_id', companyId)
     .eq('year', year));
-  return data || [];
+  // 이름순 고정 정렬 — 정렬을 안 주면 Postgres 가 heap 순서로 돌려줘서, 한 명의 연차를 수정(UPDATE)할
+  //   때마다 그 행이 뒤로 밀려 화면의 직원 카드 순서가 계속 바뀌었다(2026-07-30 사장님 제보).
+  return (data || []).slice().sort((a: any, b: any) => {
+    const an = a.employees?.name || '';
+    const bn = b.employees?.name || '';
+    return an.localeCompare(bn, 'ko') || String(a.employee_id).localeCompare(String(b.employee_id));
+  });
 }
 
 // ── Leave: 근로기준법 기반 연차 자동계산 ──
