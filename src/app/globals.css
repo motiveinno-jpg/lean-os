@@ -2107,6 +2107,13 @@ thead th { white-space: nowrap; word-break: keep-all; }
 }
 .approval-new-request-form { @apply lg:col-span-2; }
 
+/* 연간 결제 혜택 쿠폰 (2026-07-30) */
+.billing-coupon-section { @apply mb-5; }
+.billing-coupon-list { @apply space-y-2; }
+.billing-coupon-card { @apply glass-card flex items-center gap-4 p-4 border border-dashed border-[var(--primary)]/40; }
+.billing-coupon-card-used { @apply border-solid border-[var(--border)] opacity-90; }
+.billing-coupon-used-badge { @apply shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--success-dim)] text-[var(--success)]; }
+
 /* 새 요청 입력 블록 재배치 (2026-07-30) — 호버 시 우상단에 이동 컨트롤 노출 */
 .orderable-field-block { @apply relative; }
 .orderable-field-block-dragging { @apply opacity-50; }

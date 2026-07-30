@@ -148,6 +148,37 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     await db.from('subscriptions').insert({ company_id: companyId, ...patch });
   }
 
+  // 연간 결제 혜택 — 추가인원 12명 무료 등록 쿠폰 발급 (2026-07-30 사장님).
+  //   구독당 1장(stripe_subscription_id 유니크로 멱등 — 웹훅 재전송에도 중복 발급 없음).
+  //   사용은 요금제 화면의 쿠폰 섹션에서 관리자/대표가 직접(redeem_seat_coupon RPC).
+  if (billingCycle === 'annual') {
+    try {
+      const { error: couponErr } = await (db as any).from('billing_seat_coupons').insert({
+        company_id: companyId,
+        free_seats: 12,
+        source: 'annual_subscription',
+        stripe_subscription_id: stripeSubscriptionId,
+      });
+      if (!couponErr) {
+        const buyerId = session.metadata?.userId;
+        if (buyerId) {
+          const { data: buyer } = await db.from('users').select('id').eq('auth_id', buyerId).maybeSingle();
+          if (buyer) {
+            await db.from('notifications').insert({
+              company_id: companyId,
+              user_id: buyer.id,
+              type: 'system',
+              title: '연간 결제 혜택 쿠폰이 발급되었습니다',
+              message: '추가인원 12명 무료 등록 쿠폰 — 요금제 화면의 쿠폰 섹션에서 사용할 수 있습니다.',
+              link: '/billing',
+            } as any);
+          }
+        }
+      }
+      // 유니크 충돌(재전송)은 정상 — 무시
+    } catch { /* 쿠폰 발급 실패가 결제 처리를 막지 않는다 */ }
+  }
+
   // 회사 캐시 플랜 — trialing 도 해당 플랜 권한 유지.
   await db.from('companies').update({ current_plan: planSlug }).eq('id', companyId);
 

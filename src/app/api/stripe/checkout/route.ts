@@ -121,9 +121,20 @@ export async function POST(request: NextRequest) {
     }
     const trialDays = BASE_TRIAL_DAYS + bonusTrialDays;
 
-    // 좌석 수는 서버에서 재계산 — 클라 값 그대로 신뢰하지 않음. 추가좌석 = max(0, 좌석 - 기본좌석).
+    // 좌석 수는 서버에서 재계산 — 클라 값 그대로 신뢰하지 않음. 추가좌석 = max(0, 좌석 - 기본좌석 - 무료쿠폰좌석).
+    //   무료쿠폰좌석: 연간 결제 혜택 쿠폰(추가인원 12명 무료)을 사용(redeemed)한 회사는 그만큼 과금 제외
+    //   (2026-07-30 사장님 — "쿠폰으로 등록된 인원은 추가인원 비용으로 빠져나가지 않게").
     const requestedSeats = Math.max(1, Math.min(Number(seatCount) || 1, 500));
-    const extraSeats = Math.max(0, requestedSeats - plan.includedSeats);
+    let freeCouponSeats = 0;
+    try {
+      const { data: coupons } = await (supabase as any)
+        .from('billing_seat_coupons')
+        .select('free_seats')
+        .eq('company_id', companyId)
+        .eq('status', 'redeemed');
+      freeCouponSeats = (coupons || []).reduce((s: number, c: any) => s + Number(c.free_seats || 0), 0);
+    } catch { /* 쿠폰 조회 실패 시 무료좌석 0 으로 진행(과소청구 방지) */ }
+    const extraSeats = Math.max(0, requestedSeats - plan.includedSeats - freeCouponSeats);
 
     const lineItems: { price: string; quantity: number }[] = [{ price: priceSet.base, quantity: 1 }];
     if (extraSeats > 0 && priceSet.extraSeat) {

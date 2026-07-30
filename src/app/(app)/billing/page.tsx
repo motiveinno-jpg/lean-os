@@ -92,6 +92,34 @@ export default function BillingPage() {
   });
 
   // 요금제 목록
+  // 연간 결제 혜택 쿠폰 — 추가인원 12명 무료 등록 (2026-07-30 사장님)
+  const { data: seatCoupons = [] } = useQuery({
+    queryKey: ["seat-coupons", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("billing_seat_coupons")
+        .select("id, free_seats, status, issued_at, redeemed_at")
+        .eq("company_id", companyId)
+        .order("issued_at", { ascending: false });
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+  const redeemCouponMut = useMutation({
+    mutationFn: async (couponId: string) => {
+      const { data, error } = await (supabase as any).rpc("redeem_seat_coupon", { p_coupon_id: couponId });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "쿠폰 사용 실패");
+      return data;
+    },
+    onSuccess: (d: any) => {
+      toast(`쿠폰이 적용되었습니다 — 추가인원 ${d.free_seats}명이 무료로 등록됩니다`, "success");
+      qc.invalidateQueries({ queryKey: ["seat-coupons", companyId] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "쿠폰 사용 실패"), "error"),
+  });
+  const redeemedFreeSeats = (seatCoupons as any[]).filter((c) => c.status === "redeemed").reduce((s, c) => s + Number(c.free_seats || 0), 0);
+
   const { data: plans } = useQuery({
     queryKey: ["plans"],
     queryFn: async () => {
@@ -537,6 +565,42 @@ export default function BillingPage() {
           )}
 
 
+          {/* 연간 결제 혜택 쿠폰 — 발급/사용 (2026-07-30 사장님) */}
+          {(seatCoupons as any[]).length > 0 && (
+            <div className="billing-coupon-section">
+              <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-2">내 쿠폰</div>
+              <div className="billing-coupon-list">
+                {(seatCoupons as any[]).map((c: any) => (
+                  <div key={c.id} className={`billing-coupon-card ${c.status === "redeemed" ? "billing-coupon-card-used" : ""}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-[var(--text)]">추가인원 {c.free_seats}명 무료 등록 쿠폰</div>
+                      <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                        연간 결제 혜택 · 발급 {new Date(c.issued_at).toLocaleDateString("ko-KR")}
+                        {c.status === "redeemed" && c.redeemed_at && <> · 사용 {new Date(c.redeemed_at).toLocaleDateString("ko-KR")}</>}
+                      </div>
+                      <div className="text-[11px] text-[var(--text-dim)] mt-1">
+                        {c.status === "issued"
+                          ? "사용하면 기본 5명 외에 추가로 인원을 등록해도 그 인원만큼 추가좌석 요금이 청구되지 않습니다."
+                          : "적용 중 — 추가 인원 등록 시 이 쿠폰 좌석만큼은 결제(자동결제 포함)에서 제외됩니다."}
+                      </div>
+                    </div>
+                    {c.status === "issued" ? (
+                      <button
+                        onClick={() => redeemCouponMut.mutate(c.id)}
+                        disabled={redeemCouponMut.isPending}
+                        className="btn-primary btn-sm shrink-0"
+                      >
+                        {redeemCouponMut.isPending ? "적용 중..." : "쿠폰 사용하기"}
+                      </button>
+                    ) : (
+                      <span className="billing-coupon-used-badge">적용 중</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div id="billing-plan-cards" className="billing-plan-grid scroll-mt-24">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
@@ -822,8 +886,8 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 {showUpgradeModal === "free" ? "무료" : (() => {
                   const p = (plans || []).find((pl: any) => pl.slug === showUpgradeModal);
                   if (!p) return "-";
-                  // 기본 좌석 초과분만 좌석당 과금(월간, VAT 별도)
-                  const extra = Math.max(0, (subscription?.seat_count || 1) - ((p as any).included_seats || 0));
+                  // 기본 좌석 초과분만 좌석당 과금(월간, VAT 별도) — 사용된 무료좌석 쿠폰(연간 혜택) 제외
+                  const extra = Math.max(0, (subscription?.seat_count || 1) - ((p as any).included_seats || 0) - redeemedFreeSeats);
                   const total = p.base_price + p.per_seat_price * extra;
                   return `₩${total.toLocaleString()}/월 (VAT 별도)`;
                 })()}
