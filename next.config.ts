@@ -16,6 +16,7 @@ const supaUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim();
 const localSupaCsp = /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(supaUrl)
   ? ` ${supaUrl} ${supaUrl.replace("http://", "ws://")}`
   : "";
+const localSupaImgCsp = localSupaCsp ? ` ${supaUrl}` : "";
 
 const securityHeaders = [
   {
@@ -24,7 +25,7 @@ const securityHeaders = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app https://*.daumcdn.net",
       "style-src 'self' 'unsafe-inline' https://*.daumcdn.net https://fonts.googleapis.com https://cdn.jsdelivr.net",
-      "img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net",
+      `img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net${localSupaImgCsp}`,
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
       `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net${localSupaCsp}`,
       "frame-src 'self' blob: https://*.daumcdn.net https://*.daum.net https://*.kakao.com",

@@ -20,7 +20,7 @@ import {
   type OverlayField, type PdfFormTemplate,
 } from "@/lib/form-templates";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { pdfToEditableHtml } from "@/lib/pdf-editable";
+import { pdfToFlowHtml } from "@/lib/pdf-flow";
 import { uploadFile } from "@/lib/file-storage";
 import { getCurrentUser } from "@/lib/queries";
 
@@ -97,8 +97,9 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
     } finally { setBusy(false); }
   };
 
-  // 원본 그대로·수정 가능 업로드 — 페이지 전체 이미지는 보존하고, 같은 좌표에 투명한
-  // 글자 편집 레이어를 얹는다. 수정한 조각만 원본 위에 덮여 원본 충실도와 변수 편집을 함께 보장.
+  // 문서형 PDF 업로드 — A4 페이지 전체 배경 이미지는 넣지 않는다. 글자·서식·표는
+  // 편집 가능한 흐름 요소로, 로고·직인 등 개별 이미지만 이미지 요소로 불러온다.
+  // 새 표/문장을 중간에 넣으면 한글/워드처럼 아래 내용이 자연스럽게 밀린다.
   const onFileExact = async (file: File) => {
     if (!companyId) return;
     if (!name.trim()) { toast("양식 이름을 먼저 입력하세요", "error"); return; }
@@ -107,13 +108,18 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
     setBusy(true);
     try {
       const u = await getCurrentUser();
-      const { html, pageCount } = await pdfToEditableHtml(file, u ? async (f) => {
+      const { html, pageCount, skippedBackgroundImages } = await pdfToFlowHtml(file, u ? async (f) => {
         const res = await uploadFile({ companyId, bucket: "company-assets", file: f, userId: u.id });
         return res.fileUrl;
       } : undefined);
       const filePath = await uploadTemplateFile(companyId, file);
       setTextEditing({ filePath, pageCount, initialHtml: html });
-      toast("원본 모양 그대로 불러왔습니다 — 글자를 클릭해 수정하고 {{변수}}를 넣으세요", "info");
+      toast(
+        skippedBackgroundImages > 0
+          ? `문서 내용만 불러왔습니다 — 페이지 배경 이미지 ${skippedBackgroundImages}개는 제외했습니다`
+          : "문서 내용만 불러왔습니다 — 글자·표·이미지를 자유롭게 편집하세요",
+        "info",
+      );
     } catch (e: any) { toast("PDF 변환 실패: " + (e?.message || ""), "error"); }
     finally { setBusy(false); }
   };
@@ -265,9 +271,9 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 표준 근로계약서"
             className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         </div>
-        {/* 기본(권장): 원본 그대로 + 글자 클릭 수정 (2026-07-29). 오버레이는 필드 위치 지정용 보조. */}
-        <label className={`hr-form-upload-text-btn ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="PDF 원본 모양(표·서식·배치) 그대로 불러오고, 글자를 클릭해 바로 수정·{{변수}} 삽입 (권장)">
-          {busy ? "처리 중…" : "PDF 업로드 (원본 그대로·수정 가능)"}
+        {/* 기본(권장): 페이지 배경 없이 글자·표·개별 이미지를 일반 문서로 변환. */}
+        <label className={`hr-form-upload-text-btn ${busy ? "bg-[var(--bg-surface)] text-[var(--text-dim)]" : "bg-[var(--primary)] text-white hover:opacity-90"}`} title="A4 페이지 배경은 제외하고 글자·서식·표·개별 이미지만 한글/워드처럼 편집 가능한 문서로 불러오기 (권장)">
+          {busy ? "처리 중…" : "PDF 업로드 (배경 없이 문서로 편집)"}
           <input type="file" accept=".pdf,application/pdf" className="hidden" disabled={busy}
             onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileExact(f); e.target.value = ""; }} />
         </label>

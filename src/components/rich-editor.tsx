@@ -20,6 +20,42 @@ import {
   type PdfEditableText,
 } from "@/lib/pdf-editable";
 
+// 흐름형 PDF에서 추출한 로고·직인 등 개별 이미지의 원래 폭/들여쓰기를 저장한다.
+// 페이지 전체 배경은 pdf-flow 단계에서 제외되며, 이 이미지는 일반 문서 요소라
+// 앞에 표·문장을 삽입하면 다른 내용과 함께 자연스럽게 아래로 이동한다.
+const FlowImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      flowImage: {
+        default: false,
+        parseHTML: (element: HTMLElement) => element.getAttribute("data-flow-image") === "1",
+        renderHTML: (attributes: { flowImage?: boolean; flowWidth?: number; flowOffset?: number }) =>
+          attributes.flowImage
+            ? {
+                "data-flow-image": "1",
+                style:
+                  `width:${Math.max(16, Number(attributes.flowWidth) || 160)}px;max-width:100%;height:auto;` +
+                  `display:block;margin-left:${Math.max(0, Number(attributes.flowOffset) || 0)}px;`,
+              }
+            : {},
+      },
+      flowWidth: {
+        default: null,
+        parseHTML: (element: HTMLElement) => Number(element.getAttribute("data-flow-width")) || null,
+        renderHTML: (attributes: { flowWidth?: number }) =>
+          attributes.flowWidth ? { "data-flow-width": String(attributes.flowWidth) } : {},
+      },
+      flowOffset: {
+        default: null,
+        parseHTML: (element: HTMLElement) => Number(element.getAttribute("data-flow-offset")) || null,
+        renderHTML: (attributes: { flowOffset?: number }) =>
+          attributes.flowOffset != null ? { "data-flow-offset": String(attributes.flowOffset) } : {},
+      },
+    };
+  },
+});
+
 export interface RichEditorRef {
   insertText: (text: string) => void;
   setContent: (content: string) => void;
@@ -343,7 +379,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       FontSize,
       FontFamily,
       Highlight.configure({ multicolor: true }),
-      Image.configure({ inline: false, allowBase64: true }),
+      FlowImage.configure({ inline: false, allowBase64: true }),
       TableKit.configure({ table: { resizable: true } }),
       PdfPage,
     ],
@@ -409,7 +445,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       // 워드/한글식 흐름 문서 변환 — 공용 lib (hr 서식 새양식 업로드와 동일 경로)
       if (pdfModeRef.current === "text") {
         const { pdfToFlowHtml } = await import("@/lib/pdf-flow");
-        const html = await pdfToFlowHtml(file, onUploadImage, (m) => setPdfProgress(m));
+        const { html } = await pdfToFlowHtml(file, onUploadImage, (m) => setPdfProgress(m));
         setPdfProgress("본문에 삽입 중...");
         editor.chain().focus().insertContent(html).run();
         setPdfProgress(null);

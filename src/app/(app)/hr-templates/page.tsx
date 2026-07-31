@@ -81,7 +81,7 @@ export default function HrTemplatesPage() {
                         <button onClick={() => { setPdfSignal((n) => n + 1); setChooserOpen(false); }}
                           className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
                           <div className="text-sm font-semibold text-[var(--text)]"><Ico e="📄" /> PDF 업로드 <span className="ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/12 text-[var(--primary)]">권장</span></div>
-                          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">쓰던 회사 양식 PDF를 올려 바로 사용</div>
+                          <div className="text-[11px] text-[var(--text-muted)] mt-0.5">배경 없이 글자·표·이미지를 문서처럼 편집</div>
                         </button>
                         <button onClick={() => { setTextSignal((n) => n + 1); setChooserOpen(false); }}
                           className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
