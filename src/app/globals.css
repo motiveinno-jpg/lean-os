@@ -4860,13 +4860,16 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 /* text-template-editor-modal.tsx */
 .tpl-editor-overlay { @apply fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4; }
-.tpl-editor-panel { @apply bg-[var(--bg-card)] rounded-xl max-w-[1100px] w-full max-h-[94vh] overflow-auto p-4; }
-.tpl-editor-header { @apply flex items-center justify-between mb-1; }
+/* 2026-07-31 사장님: PDF 원본 등 긴 내용이면 취소/저장 버튼이 패널 스크롤 아래로 밀려나
+   에디터·미리보기 내부 스크롤에 갇혀 버튼에 도달 불가("취소하고 닫기 계속 안돼").
+   → 패널을 flex 세로 배치로 바꿔 본문만 내부 스크롤, 푸터(취소/저장)는 항상 하단 고정. */
+.tpl-editor-panel { @apply bg-[var(--bg-card)] rounded-xl max-w-[1100px] w-full max-h-[94vh] p-4 flex flex-col; }
+.tpl-editor-header { @apply flex items-center justify-between mb-1 shrink-0; }
 .tpl-preview-toggle { @apply text-[11px] px-2 py-1 rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]; }
-.tpl-editor-hint { @apply text-[11px] text-[var(--text-muted)] mb-2; }
-.tpl-var-buttons { @apply flex flex-wrap gap-1 mb-2; }
-.tpl-editor-body { @apply grid gap-3; }
-.tpl-editor-footer { @apply flex justify-end gap-2 mt-3; }
+.tpl-editor-hint { @apply text-[11px] text-[var(--text-muted)] mb-2 shrink-0; }
+.tpl-var-buttons { @apply flex flex-wrap gap-1 mb-2 shrink-0; }
+.tpl-editor-body { @apply grid gap-3 flex-1 min-h-0 overflow-auto; }
+.tpl-editor-footer { @apply flex justify-end gap-2 mt-3 shrink-0; }
 /* tpl-preview: globals.css 에 이미 .tpl-preview p/table/th/td 등 하위선택자 정의 있어 트랩체크 목록에 걸림 — 신규 @apply 미생성, className 그대로(마커+유틸 병기) 유지 */
 
 /* query-status.tsx */
