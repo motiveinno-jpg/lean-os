@@ -719,7 +719,7 @@ export default function ProjectHubDetailPage() {
 
   const createChild = async () => {
     if (!companyId || creatingChild) return;
-    if (!childName.trim()) { toast("세부 프로젝트명을 입력하세요", "error"); return; }
+    if (!childName.trim()) { toast("하위 프로젝트명을 입력하세요", "error"); return; }
     setCreatingChild(true);
     try {
       // 캠페인 금액은 deals.contract_total 이 아니라 생성 후 '매출/매입 관리'(sub_deals)에 입력 → 개요 마진 자동 산출
@@ -746,7 +746,7 @@ export default function ProjectHubDetailPage() {
       qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
       qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
       setShowChildForm(false); resetChildForm();
-      toast("세부 프로젝트를 생성했습니다", "success");
+      toast("하위 프로젝트를 만들었어요", "success");
       if (newChildId) router.push(`/projecthub/${newChildId}`);
     } catch (e: any) { toast(e?.message || "생성 실패", "error"); } finally { setCreatingChild(false); }
   };
@@ -761,7 +761,7 @@ export default function ProjectHubDetailPage() {
   };
   const saveChild = async () => {
     if (!editChild || savingChild) return;
-    if (!editChildName.trim()) { toast("캠페인명을 입력하세요", "error"); return; }
+    if (!editChildName.trim()) { toast("하위 프로젝트명을 입력하세요", "error"); return; }
     setSavingChild(true);
     try {
       const { error } = await db.from("deals").update({
@@ -773,7 +773,7 @@ export default function ProjectHubDetailPage() {
       if (error) throw new Error(error.message);
       qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
       qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
-      toast("캠페인을 수정했습니다", "success");
+      toast("하위 프로젝트를 수정했어요", "success");
       setEditChild(null);
     } catch (e: any) { toast(e?.message || "수정 실패", "error"); } finally { setSavingChild(false); }
   };
@@ -796,7 +796,7 @@ export default function ProjectHubDetailPage() {
       } catch { /* audit 실패 무시 */ }
       qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
       qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
-      toast("캠페인을 삭제했습니다", "success");
+      toast("하위 프로젝트를 삭제했어요", "success");
       setDeleteTarget(null);
     } catch (e: any) { toast(e?.message || "삭제 실패", "error"); } finally { setDeletingChild(false); }
   };
@@ -1008,11 +1008,11 @@ export default function ProjectHubDetailPage() {
     <div className="project-detail-page">
       <div className="page-sticky-header flex flex-wrap items-center gap-2">
         {deal.parent_deal_id ? (
-          <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트의 세부 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
+          <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트의 하위 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
         ) : (
           <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
         )}
-        {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">세부 프로젝트</span>}
+        {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">하위 프로젝트</span>}
         {/* 유형 배지(💰🎯✅)는 폐지 — 분류 대신 지금 상태(단계·미수)를 쓴다 */}
         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
         {settleFigs(pipe).outstanding > 1 && (
@@ -1344,21 +1344,21 @@ export default function ProjectHubDetailPage() {
       {viewOf("money") === "ledger" && (
         <div className="subprojects-section">
           <div className="subprojects-toolbar">
-            <p className="text-xs text-[var(--text-muted)]">이 프로젝트 안의 세부 프로젝트입니다. <span className="text-[var(--text-dim)]">행을 클릭하면 해당 세부 프로젝트의 개요·거래·문서로 이동합니다(상위와 동일 구조).</span></p>
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트 안의 하위 프로젝트예요. <span className="text-[var(--text-dim)]">행을 클릭하면 상위와 똑같은 구조로 열려요.</span></p>
             <button onClick={() => { resetChildForm(); setChildName(`${deal.name || "프로젝트"} 세부`); setShowChildForm(true); }}
-              className="btn-primary text-xs hover:opacity-90">+ 세부 프로젝트 추가</button>
+              className="btn-primary text-xs hover:opacity-90">+ 하위 프로젝트 추가</button>
           </div>
 
           {showChildForm && (
             <div className="add-subproject-modal fixed inset-0">
               <div className="add-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold">세부 프로젝트(캠페인) 추가</h3>
+                  <h3 className="text-base font-bold">하위 프로젝트 추가</h3>
                   <button onClick={() => setShowChildForm(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
                 </div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">캠페인명 *</label>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">하위 프로젝트명 *</label>
                 <input autoFocus value={childName} onChange={(e) => setChildName(e.target.value)}
-                  placeholder="예: 봄 시즌 캠페인"
+                  placeholder="예: 2차 물량 · 봄 시즌"
                   className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
                 <div className="text-xs font-medium text-[var(--text-muted)] mb-1.5">초기 금액 <span className="font-normal text-[var(--text-dim)]">(선택 · 매출 또는 매입 하나)</span></div>
                 <div className="flex items-center gap-2 mb-1">
@@ -1388,7 +1388,7 @@ export default function ProjectHubDetailPage() {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)]">
-                    <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)]">캠페인명</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)]">이름</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[80px]">단계</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[120px]">매출</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[120px]">마진</th>
@@ -1441,10 +1441,10 @@ export default function ProjectHubDetailPage() {
             <div className="edit-subproject-modal fixed inset-0">
               <div className="edit-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold">캠페인 수정</h3>
+                  <h3 className="text-base font-bold">하위 프로젝트 수정</h3>
                   <button onClick={() => setEditChild(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl leading-none" aria-label="닫기">✕</button>
                 </div>
-                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">캠페인명 *</label>
+                <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">하위 프로젝트명 *</label>
                 <input autoFocus value={editChildName} onChange={(e) => setEditChildName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); saveChild(); } }}
                   className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
@@ -1465,7 +1465,7 @@ export default function ProjectHubDetailPage() {
                       className="w-full h-11 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
                   </div>
                 </div>
-                <p className="text-[11px] text-[var(--text-dim)]">매출/매입 금액은 캠페인의 <b className="text-[var(--text-muted)]">‘매출/매입 관리’</b> 탭에서 수정하세요.</p>
+                <p className="text-[11px] text-[var(--text-dim)]">매출/매입 금액은 그 하위 프로젝트를 열어 <b className="text-[var(--text-muted)]">돈 › 원장</b>에서 수정해요.</p>
                 <div className="flex items-center justify-end gap-2.5 mt-5">
                   <button onClick={() => setEditChild(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
                   <button onClick={saveChild} disabled={savingChild || !editChildName.trim()} className="btn-primary">{savingChild ? "저장 중..." : "저장"}</button>
@@ -1478,8 +1478,8 @@ export default function ProjectHubDetailPage() {
           {deleteTarget && (
             <div className="delete-subproject-modal fixed inset-0" onClick={() => setDeleteTarget(null)}>
               <div className="delete-subproject-modal-card" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-base font-bold mb-2">캠페인 삭제</h3>
-                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{deleteTarget.name || "(이름 없음)"}</b> 캠페인을 목록에서 삭제할까요?</p>
+                <h3 className="text-base font-bold mb-2">하위 프로젝트 삭제</h3>
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-1"><b className="text-[var(--text)]">{deleteTarget.name || "(이름 없음)"}</b> 하위 프로젝트를 목록에서 삭제할까요?</p>
                 <p className="text-[11px] text-[var(--text-dim)] mb-5">매출·매입·견적·계약 등 회계 데이터는 보존되며, 목록에서만 숨겨집니다.</p>
                 <div className="flex items-center justify-end gap-2.5">
                   <button onClick={() => setDeleteTarget(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>

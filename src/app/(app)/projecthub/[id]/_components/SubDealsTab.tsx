@@ -118,7 +118,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
     onSuccess: (r) => {
       invalidate(r?.madeCampaign);
       setDraft(emptyDraft(draft.sign));
-      toast(r?.madeCampaign ? "항목을 추가하고 세부 프로젝트(캠페인)로도 생성했습니다" : "항목을 추가했습니다", "success");
+      toast(r?.madeCampaign ? "항목을 추가하고 하위 프로젝트로도 생성했습니다" : "항목을 추가했습니다", "success");
     },
     onError: (e: any) => toast(e?.message || "저장 실패", "error"),
   });
@@ -209,7 +209,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40">
                     <button onClick={() => startEdit(s)} className="text-[var(--text)] font-medium hover:text-[var(--primary)] hover:underline text-left">{s.name}</button>
                     {s.parent_deal_id !== dealId && (
-                      <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap" title="세부 프로젝트(캠페인) 소속 항목"><Ico e="📁" /> {childNameById[s.parent_deal_id] || "캠페인"}</span>
+                      <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap" title="하위 프로젝트 소속 항목"><Ico e="📁" /> {childNameById[s.parent_deal_id] || "하위"}</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-[var(--text-muted)] truncate">{partnerName(s.partner_id)}</td>
@@ -252,7 +252,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
       {campaignInherit && (
         <label className="subdeals-campaign-toggle">
           <input type="checkbox" checked={draft.asCampaign} onChange={(e) => setDraft((d) => ({ ...d, asCampaign: e.target.checked }))} className="accent-[var(--primary)]" />
-          새 항목을 세부 프로젝트(캠페인)로도 생성 <span className="text-[var(--text-dim)]">— 상단 ‘세부 프로젝트’ 탭에 같은 이름으로 표시</span>
+          새 항목을 하위 프로젝트로도 생성 <span className="text-[var(--text-dim)]">— 돈 자리 아래 ‘하위 프로젝트’ 목록에 같은 이름으로 표시</span>
         </label>
       )}
     </div>

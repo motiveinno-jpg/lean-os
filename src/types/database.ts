@@ -4517,7 +4517,6 @@ export type Database = {
           partner_id: string | null
           priority: string | null
           program_id: string | null
-          project_type: string
           risk_level: string | null
           stage: string | null
           start_date: string | null
@@ -4555,7 +4554,6 @@ export type Database = {
           partner_id?: string | null
           priority?: string | null
           program_id?: string | null
-          project_type?: string
           risk_level?: string | null
           stage?: string | null
           start_date?: string | null
@@ -4593,7 +4591,6 @@ export type Database = {
           partner_id?: string | null
           priority?: string | null
           program_id?: string | null
-          project_type?: string
           risk_level?: string | null
           stage?: string | null
           start_date?: string | null
