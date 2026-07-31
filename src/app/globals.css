@@ -3480,6 +3480,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pj-sec-view-on { @apply bg-[var(--primary)] text-white border-[var(--primary)] hover:text-white; }
 .pj-sec-empty { @apply text-[12.5px] text-[var(--text-dim)] px-3 py-4 rounded-xl border border-dashed border-[var(--border)]; }
 .pj-sec-cta { @apply flex flex-col gap-3; }
+/* 프로젝트 만들기 — 선택 정보 접기(생성은 이름 하나로 끝난다) */
+.project-form-more { @apply w-full text-left text-[12.5px] font-semibold px-3 py-2.5 rounded-xl border border-dashed border-[var(--border-light)] text-[var(--text-muted)] transition hover:border-[var(--primary)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/5; }
+.project-form-more span { @apply font-normal text-[11px] text-[var(--text-dim)] ml-1; }
 /* 안 쓰는 자리 — 한 줄 제안. 누르면 그 자리에서 펼쳐진다(스크롤 절약) */
 .pj-sec-add { @apply w-full text-left flex flex-wrap items-baseline gap-x-2 gap-y-1 px-3.5 py-3 rounded-xl border border-dashed border-[var(--border-light)] bg-[var(--bg-card)] text-[var(--text-dim)] transition hover:border-[var(--primary)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/5; }
 .pj-sec-add > b { @apply text-[13px] font-bold text-[var(--text)]; }

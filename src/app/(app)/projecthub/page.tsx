@@ -813,6 +813,10 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   const comma = (s: string) => { const n = Number(String(s).replace(/[^0-9]/g, "")); return n ? n.toLocaleString("ko-KR") : ""; };
 
   // 거래처 검색 픽커 — 네이티브 select(620개) 대신 검색 입력 + 스타일 드롭다운 (SubDealsTab 동일 패턴)
+  // 생성은 이름 하나로 끝난다 — 나머지는 접어 둔다(실측: 분류는 9/9 기본값 그대로,
+  //   계약금액은 6/9 가 0원. 늘 보이면 "금액 없는 프로젝트는 어떻게 하지?" 로 막힌다).
+  //   수정은 값을 고치러 들어온 것이므로 처음부터 펼친다.
+  const [showMore, setShowMore] = useState(isEdit);
   const [ptSearch, setPtSearch] = useState(() => (editDeal?.partner_id ? ((partners as any[]).find((p) => p.id === editDeal.partner_id)?.name || "") : ""));
   const [ptOpen, setPtOpen] = useState(false);
   const ptMatches = useMemo(() => {
@@ -875,6 +879,12 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
                 <p className="text-[11px] text-[var(--text-dim)] mt-1">이름만 있으면 만들 수 있어요. 나머지는 나중에 채워도 돼요.</p>
               </div>
+              {!showMore && (
+                <button type="button" onClick={() => setShowMore(true)} className="project-form-more">
+                  ＋ 거래처·담당·기간·금액 넣기 <span>선택 — 지금 몰라도 돼요</span>
+                </button>
+              )}
+              {showMore && <>
               <div className="grid grid-cols-2 gap-3">
                 {/* 거래처 — 내부 프로젝트면 비워두면 된다 */}
                 {(
@@ -907,7 +917,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                   </div>
                 )}
                 <div>
-                  <label className={LB}>담당자</label>
+                  <label className={LB}>담당자 <span className="font-normal text-[var(--text-dim)]">(선택)</span></label>
                   <select value={form.manager_id} onChange={(e) => set({ manager_id: e.target.value })} className={IN}>
                     <option value="">미지정</option>
                     {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -915,19 +925,22 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                 </div>
               </div>
 
-              {/* 분류 + 계약금액 — 유형과 무관하게 항상. 안 쓰면 비워두면 된다(내부 프로젝트) */}
+              {/* 분류는 생성 때 묻지 않는다 — 실측 9/9 가 기본값(B2B) 그대로였다. 수정에서만 고친다.
+                  계약금액도 '없으면 비워두는 칸' 임을 라벨·플레이스홀더로 분명히 한다. */}
               {(
                 <div className="margin-type-fields">
-                  <div>
-                    <label className={LB}>분류</label>
-                    <select value={form.classification} onChange={(e) => set({ classification: e.target.value })} className={IN}>
-                      <option value="B2B">B2B</option><option value="B2C">B2C</option><option value="B2G">B2G</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={LB}>계약금액</label>
+                  {isEdit && (
+                    <div>
+                      <label className={LB}>분류</label>
+                      <select value={form.classification} onChange={(e) => set({ classification: e.target.value })} className={IN}>
+                        <option value="B2B">B2B</option><option value="B2C">B2C</option><option value="B2G">B2G</option>
+                      </select>
+                    </div>
+                  )}
+                  <div className={isEdit ? "" : "col-span-2"}>
+                    <label className={LB}>계약금액 <span className="font-normal text-[var(--text-dim)]">(선택 — 견적·계약을 만들면 자동으로 잡혀요)</span></label>
                     <div className="flex gap-1">
-                      <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="0" className={`${IN} text-right mono-number`} />
+                      <input value={form.contract_total} onChange={(e) => set({ contract_total: comma(e.target.value) })} inputMode="numeric" placeholder="비워두면 나중에" className={`${IN} text-right mono-number`} />
                       <select value={form.vatType} onChange={(e) => set({ vatType: e.target.value as "exclude" | "include" })} className="px-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
                         <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
                       </select>
@@ -948,6 +961,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                   <DateField value={form.end_date} min={form.start_date || undefined} onChange={(e) => set({ end_date: e.target.value })} className={`${IN} mono-number`} />
                 </div>
               </div>
+              </>}
             </div>
             <div className="project-form-modal-footer">
               <span />
