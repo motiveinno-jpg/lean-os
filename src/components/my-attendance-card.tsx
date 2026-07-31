@@ -11,6 +11,14 @@ import { AttendanceBadges } from "@/components/attendance-badges";
 
 const db = supabase;
 
+// 근무 중 전환 가능한 근무 유형 — attendance_records.attendance_type CHECK 허용값과 1:1
+const WORK_TYPES = [
+  { value: "normal", label: "사무실" },
+  { value: "remote", label: "재택" },
+  { value: "field_work", label: "외근" },
+  { value: "business_trip", label: "출장" },
+] as const;
+
 function fmtTime(ts?: string | null): string {
   if (!ts) return "—";
   const d = new Date(ts);
@@ -110,6 +118,28 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     }
     setBusy(false);
   };
+  // 근무 중 유형 변경 (2026-07-31 사장님) — 사무실 정상출근 후 외근을 나가는 경우 등.
+  //   상태(status)·지각 판정은 건드리지 않고 attendance_type 만 바꾼다 (분 계산에도 무영향).
+  const doChangeType = async (type: string) => {
+    if (!employeeId || busy) return;
+    setBusy(true);
+    try {
+      const { error } = await db
+        .from("attendance_records")
+        .update({ attendance_type: type })
+        .eq("company_id", companyId)
+        .eq("employee_id", employeeId)
+        .eq("date", today);
+      if (error) throw error;
+      const label = WORK_TYPES.find((t) => t.value === type)?.label || type;
+      toast(`근무 유형을 '${label}'(으)로 변경했습니다`, "success");
+      refresh();
+    } catch (e: any) {
+      toast(`유형 변경 실패: ${e.message || ""}`, "error");
+    }
+    setBusy(false);
+  };
+
   const doCancelCheckOut = async () => {
     if (!employeeId || !(await appConfirm("퇴근 기록을 취소하시겠습니까?"))) return;
     setBusy(true);
@@ -230,6 +260,31 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
               {label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* 근무 중 유형 전환 — 정상출근 후 외근/출장을 나갈 때 본인이 바로 변경 (2026-07-31 사장님) */}
+      {isCheckedIn && !isCheckedOut && (
+        <div className="attendance-worktype-row">
+          <span className="attendance-worktype-label">근무 유형</span>
+          {WORK_TYPES.map(({ value, label }) => {
+            const current = (todayAtt?.attendance_type || "normal") === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => !current && doChangeType(value)}
+                disabled={busy}
+                className={`attendance-worktype-btn ${
+                  current
+                    ? "bg-[var(--primary)]/15 text-[var(--primary)] border-[var(--primary)]/40"
+                    : "bg-[var(--bg-surface)] text-[var(--text-muted)] border-[var(--border)]"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       )}
 

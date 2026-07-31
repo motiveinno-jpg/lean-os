@@ -4077,6 +4077,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .attendance-times-row { @apply flex items-center gap-6 mb-4; }
 .attendance-badges-row { @apply flex flex-wrap items-center gap-1.5 mb-3; }
 .attendance-status-picker { @apply flex gap-2 mb-3 flex-wrap; }
+/* 근무 중 유형 전환 줄 (2026-07-31) — 정상출근 후 외근/출장 전환 */
+.attendance-worktype-row { @apply flex items-center gap-1.5 mb-3 flex-wrap; }
+.attendance-worktype-label { @apply text-[11px] font-semibold text-[var(--text-dim)] mr-1; }
+.attendance-worktype-btn { @apply px-2.5 py-1 rounded-lg text-[11px] font-semibold transition border disabled:opacity-50; }
 .attendance-action-row { @apply flex gap-3; }
 
 /* document-templates-panel.tsx */
