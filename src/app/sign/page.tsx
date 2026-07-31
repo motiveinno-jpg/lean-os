@@ -554,8 +554,9 @@ function SignContent() {
         return;
       }
 
-      // Check expiration
-      const expired = p.expires_at ? new Date(p.expires_at) < new Date() : false;
+      // Check expiration — 서명 "대기" 건에만 적용. 완료된 계약은 만료일이 지나도
+      //   열람 가능해야 한다(2026-07-31 사장님: 완료 계약 클릭 시 만료 화면이 떠 계약서가 안 보이던 버그).
+      const expired = p.status !== "completed" && (p.expires_at ? new Date(p.expires_at) < new Date() : false);
 
       // Items 는 RPC 가 sort_order 정렬로 함께 반환
       const items = p.items || [];
