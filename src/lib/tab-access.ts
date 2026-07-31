@@ -7,6 +7,7 @@ import { logRead } from "@/lib/log-read";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 
 const db = supabase;
 
@@ -79,10 +80,11 @@ export function effectiveTabAccess(route: string, role: string | null | undefine
 
 // 페이지 가드용 — 이 route 접근 가능?
 export function useCanAccessTab(route: string): { allowed: boolean; loading: boolean } {
-  const { user } = useUser();
-  const { map, loading } = useMyTabOverrides();
-  if (user?.role === "owner") return { allowed: true, loading: false };
-  return { allowed: effectiveTabAccess(route, user?.role, map), loading };
+  // (2026-07-31) 새 권한 체계(member_permissions)로 연결 — 구 user_tab_access 판정 폐기.
+  //   프로젝트/정기지출/세금계산서 페이지가 이 훅으로 자체 게이트를 걸고 있어, 템플릿으로
+  //   새 권한을 받아도 구 시스템 기준으로 차단되던 버그(사장님 제보: 프로젝트 안 들어가짐).
+  const { isMaster, hasPerm, loading } = useMyPermissions();
+  return { allowed: isMaster || hasPerm(route), loading };
 }
 
 // 특정 직원의 명시 오버라이드(관리자 부여 UI용)
