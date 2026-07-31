@@ -71,6 +71,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     menus: [
       { route: "/employees", label: "구성원", tabs: [
         { key: "employees", label: "인력관리" },
+        // 열람 범위 — 이 키가 없으면 구성원 화면에서 '본인 정보'만 보인다(RLS 가 행 단위로 차단).
+        //   2026-07-31 사장님: "구성원 탭 권한을 주면 전 직원 내용이 보인다 — 몇몇만 전체, 대부분 본인만".
+        { key: "all", label: "전 직원 정보 열람 (미부여 시 본인 정보만 보임)" },
         { key: "salary", label: "급여" },
         { key: "leave", label: "휴가 관리" },
         { key: "certificates", label: "증명서 발급" },

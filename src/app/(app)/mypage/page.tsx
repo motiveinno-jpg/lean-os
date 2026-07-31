@@ -15,7 +15,6 @@ import { NotificationsTab } from "../settings/_components/NotificationsTab";
 // 개인 인사기록 허브(2026-07-15) — 근로계약서/급여명세/증명서를 마이페이지로 이관.
 import { MyContractsCard } from "./_components/MyContractsCard";
 import { MyPayslips } from "./_components/MyPayslips";
-import { MyCertificates } from "./_components/MyCertificates";
 // 내 근태(2026-07-20) — 인사관리>근태관리는 전 직원, 여기는 본인 출퇴근만.
 import { MyAttendance } from "./_components/MyAttendance";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
@@ -454,8 +453,6 @@ export default function MyPage() {
         )}
       </div>
 
-      {/* 내 증명서 — 재직/경력 증명서 본인 발급 (개인 인사기록) */}
-      {employee?.id && <MyCertificates companyId={companyId} userId={userId} employee={employee} />}
       </div>
       )}
 
