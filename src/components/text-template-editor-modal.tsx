@@ -4,6 +4,9 @@
 //   사장님 QA: "편집화면이 어렵고 표나 글자서식 설정도 없어" → 평문 textarea 를 버리고
 //   기존 RichEditor(TipTap: 표·굵기·정렬·색·크기·이미지)를 재사용. {{변수}}는 버튼으로 커서에 삽입.
 //   content_html 을 직접 편집·저장하므로 굵기/표가 발급 PDF(wrapTemplatePrintHtml)에 그대로 반영.
+// 2026-07-31 사장님: 옆 미리보기 때문에 편집칸이 좁아 PDF 원본이 가로 스크롤로 잘렸다
+//   → 상시 미리보기 제거, 편집기가 전체 폭·높이 사용. 저장 버튼을 누르면 미리보기 단계가
+//   나타나고 거기서 '이대로 저장'으로 확정한다.
 
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -22,7 +25,8 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
 }) {
   const [html, setHtml] = useState(initialHtml);
   const [saving, setSaving] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
+  // 저장 전 확인 단계 — edit(전체 폭 편집) → preview(발급 미리보기) → 이대로 저장
+  const [step, setStep] = useState<"edit" | "preview">("edit");
   const editorRef = useRef<RichEditorRef>(null);
 
   const insertVar = (v: string) => editorRef.current?.insertText(v);
@@ -32,53 +36,72 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
     try { await onSave(html); } finally { setSaving(false); }
   };
 
-  // 리치에디터(Tiptap, contenteditable) 안의 줄바꿈용 Enter는 저장으로 새지 않게 제외.
-  useModalKeys(true, onClose, saving ? undefined : () => {
-    const ae = document.activeElement as HTMLElement | null;
-    if (ae?.isContentEditable) return;
-    save();
-  });
+  // ESC: 미리보기 단계에선 편집으로 복귀, 편집 단계에선 모달 닫기.
+  // Enter: 편집→미리보기, 미리보기→저장 확정. 리치에디터(contenteditable) 줄바꿈 Enter 는 제외.
+  useModalKeys(
+    true,
+    step === "preview" ? () => setStep("edit") : onClose,
+    saving ? undefined : () => {
+      const ae = document.activeElement as HTMLElement | null;
+      if (ae?.isContentEditable) return;
+      if (step === "edit") setStep("preview");
+      else save();
+    },
+  );
 
   if (typeof document === "undefined") return null;
   return createPortal(
     <div className="tpl-editor-overlay fixed inset-0">
       <div className="tpl-editor-panel" onClick={(e) => e.stopPropagation()}>
         <div className="tpl-editor-header">
-          <div className="text-sm font-bold text-[var(--text)]">텍스트 양식 편집 — {title}</div>
-          <button type="button" onClick={() => setShowPreview((v) => !v)}
-            className="tpl-preview-toggle">
-            {showPreview ? "미리보기 접기" : "미리보기 펼치기"}
-          </button>
-        </div>
-        <p className="tpl-editor-hint">
-          내용을 자유롭게 고치세요 — 굵게·정렬·글자크기·<b>표(▦)</b> 모두 툴바에서. 값이 채워질 자리는 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으면 발급 시 실제 값으로 채워집니다.
-        </p>
-        <div className="tpl-var-buttons">
-          {vars.map((v) => (
-            <button key={v} type="button" onClick={() => insertVar(v)}
-              className="text-[11px] px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--primary)] hover:bg-[var(--primary)]/10 font-medium">{v}</button>
-          ))}
-        </div>
-        <div className={`tpl-editor-body ${showPreview ? "lg:grid-cols-2" : "grid-cols-1"}`}>
-          <div className="tpl-editor-col">
-            <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">편집</div>
-            <RichEditor ref={editorRef} content={initialHtml} onChange={setHtml} placeholder="양식 내용을 입력하세요..." maxHeight="52vh" />
+          <div className="text-sm font-bold text-[var(--text)]">
+            {step === "edit" ? "텍스트 양식 편집" : "발급 미리보기"} — {title}
           </div>
-          {showPreview && (
-            <div className="tpl-preview-col">
-              <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1">발급 미리보기 <span className="text-[var(--text-dim)]">(변수는 발급 시 값으로 채워짐)</span></div>
-              <div className="tpl-preview w-full max-h-[58vh] min-h-[300px] px-4 py-3 rounded-xl bg-white text-black border border-[var(--border)] overflow-auto text-[13px] leading-relaxed"
+        </div>
+        {step === "edit" ? (
+          <>
+            <p className="tpl-editor-hint">
+              내용을 자유롭게 고치세요 — 굵게·정렬·글자크기·<b>표(▦)</b> 모두 툴바에서. 값이 채워질 자리는 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으면 발급 시 실제 값으로 채워집니다. 저장 버튼을 누르면 발급 미리보기가 먼저 표시됩니다.
+            </p>
+            <div className="tpl-var-buttons">
+              {vars.map((v) => (
+                <button key={v} type="button" onClick={() => insertVar(v)}
+                  className="text-[11px] px-2 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--primary)] hover:bg-[var(--primary)]/10 font-medium">{v}</button>
+              ))}
+            </div>
+            {/* 편집기 단독 전체 폭·높이 — step 왕복 시 최신 html 로 재마운트(content 는 초기값 전용) */}
+            <div className="tpl-editor-single">
+              <RichEditor ref={editorRef} content={html} onChange={setHtml} placeholder="양식 내용을 입력하세요..." fillHeight />
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="tpl-editor-hint">
+              발급 시 이렇게 나갑니다 — <code>{"{{변수}}"}</code> 자리는 실제 값으로 채워집니다. 고칠 곳이 있으면 &lsquo;돌아가서 수정&rsquo;을 누르세요.
+            </p>
+            <div className="tpl-preview-stage">
+              <div className="tpl-preview w-full min-h-full px-6 py-5 bg-white text-black text-[13px] leading-relaxed"
                 style={{ fontFamily: "'Pretendard', system-ui, sans-serif" }}
                 dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(fillTextTemplate(html, {}, { highlightMissing: true })) }} />
             </div>
-          )}
-        </div>
+          </>
+        )}
         <div className="tpl-editor-footer">
-          <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-          <button onClick={save} disabled={saving}
-            className="btn-primary btn-sm">
-            {saving ? "저장 중…" : (saveLabel || "텍스트 양식 저장")}
-          </button>
+          {step === "edit" ? (
+            <>
+              <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              <button onClick={() => setStep("preview")} className="btn-primary btn-sm">
+                {saveLabel || "텍스트 양식 저장"}
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setStep("edit")} disabled={saving} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">돌아가서 수정</button>
+              <button onClick={save} disabled={saving} className="btn-primary btn-sm">
+                {saving ? "저장 중…" : "이대로 저장"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>,
