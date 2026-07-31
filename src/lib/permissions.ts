@@ -174,7 +174,11 @@ export function useMyPermissions(): {
       return new Set<string>((data || []).map((r: any) => r.perm_key));
     },
     enabled: !!user?.id && !isMaster,
-    staleTime: 60_000,
+    // 마스터가 권한을 부여하면 직원 화면이 새로고침 없이 따라오도록 주기 갱신
+    //   (2026-07-31 사장님: 템플릿 부여 직후 '권한 없음'으로 보이던 캐시 문제)
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
   const set = perms || new Set<string>();
   // ⚠️ 기본 제공(always) 단축은 메뉴 키에만 — 세부탭 키(:포함)는 반드시 명시 부여 필요
