@@ -2638,6 +2638,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .billing-trial-start-banner { @apply flex items-center justify-between gap-4 flex-wrap mb-4 p-4 rounded-2xl border border-[var(--primary)]/30 bg-[var(--primary)]/5; }
 /* 연간 결제 환불불가 동의 (2026-07-27) — 결제 시점 고지가 필요한 항목이라 눈에 띄게. */
 .billing-annual-ack { @apply flex items-start gap-2.5 mt-3 p-3 rounded-xl border border-[var(--warning)]/30 bg-[var(--warning)]/5 cursor-pointer; }
+.billing-overseas-card-notice { @apply flex items-start gap-2.5 mb-4 p-3 rounded-xl border border-[var(--info)]/30 bg-[var(--info)]/5 text-xs leading-6 text-[var(--text-muted)]; }
 
 /* 기존 회원 재동의 관문 (2026-07-27) */
 .consent-gate-overlay { @apply z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4; }

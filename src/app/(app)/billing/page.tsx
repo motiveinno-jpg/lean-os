@@ -601,6 +601,19 @@ export default function BillingPage() {
             </div>
           )}
 
+          {/* 결제 가능 카드 안내 — 결제 대행사(Stripe) 가맹점이 해외라 카드사에는 '해외 승인'으로 잡힌다.
+              국내전용 카드·해외결제 차단 카드는 승인이 거절되는데, 안내가 없어 원인을 모른 채
+              이탈하던 문제(2026-07-31 사장님). 결제 진입 직전인 플랜 선택 위에 고정 노출. */}
+          <div className="billing-overseas-card-notice">
+            <span className="shrink-0"><Ico e="💳" /></span>
+            <span>
+              <b className="text-[var(--text)]">해외 결제가 가능한 카드로만 결제됩니다.</b>{" "}
+              요금은 원화(KRW)로 청구되지만 결제는 해외 승인으로 처리돼, <b>국내 전용 카드</b>나
+              카드사에서 <b>해외 결제를 차단</b>해 둔 카드(법인카드 포함)는 승인이 거절될 수 있습니다.
+              결제가 거절되면 카드사에 해외 결제 허용 여부를 확인하시거나 다른 카드로 시도해 주세요.
+            </span>
+          </div>
+
           <div id="billing-plan-cards" className="billing-plan-grid scroll-mt-24">
             {(plans || []).map((plan: any) => {
               const slug = plan.slug as string;
