@@ -865,9 +865,11 @@ export function isLate(currentKstMin: number, policy: AttendancePolicy): boolean
 }
 
 // ── Attendance: Check In ──
-// 시그니처 불변: (companyId, employeeId, status?)
+// 시그니처 불변: (companyId, employeeId, status?) — attendanceType 은 뒤에 옵션으로만 추가.
 // status === 'auto' (기본) → 회사 정책 기준 KST 시각으로 present/late 자동 판정
-export async function checkIn(companyId: string, employeeId: string, status: string = "auto") {
+// attendanceType(2026-07-31 사장님): 출근 시 본인이 고른 유형(field_work 외근/business_trip 출장 등).
+//   checkin 엣지함수는 status 만 받으므로 성공 직후 본인 레코드에 attendance_type 을 채운다.
+export async function checkIn(companyId: string, employeeId: string, status: string = "auto", attendanceType?: string) {
   if (status === "auto") {
     const policy = await getAttendancePolicy(companyId, employeeId);
     const mins = nowKstMinutes();
@@ -908,6 +910,23 @@ export async function checkIn(companyId: string, employeeId: string, status: str
   }
 
   const result = await invokeAttendance("checkin", { companyId, employeeId, status, overtimeRequestId });
+  // 출근 유형 저장 — RLS 는 본인 행 update 허용(attendance_records_update_admin_or_self).
+  //   실패해도 체크인 자체는 성공 처리 (아래 지각 판정 chain 과 동일 원칙).
+  if (attendanceType && attendanceType !== "normal") {
+    try {
+      const { error: typeErr } = await db
+        .from("attendance_records")
+        .update({ attendance_type: attendanceType })
+        .eq("company_id", companyId)
+        .eq("employee_id", employeeId)
+        .eq("date", todayKst());
+      if (typeErr) throw typeErr;
+    } catch (e) {
+      if (typeof window !== "undefined") {
+        console.warn("[checkIn] 출근 유형 저장 실패 (체크인은 성공):", e);
+      }
+    }
+  }
   // 갭④: 출근 즉시 is_late·late_minutes 채움 (퇴근 전에도 직원 본인 화면에서 배지 노출).
   //   recomputeAttendance 는 check_out 있을 때만 분 컬럼 풀 산정 — 본 chain 은 퇴근 전
   //   late 만 즉시 갱신. 연장/야간/휴일은 퇴근 시 recomputeAttendance(checkOut chain) 처리.

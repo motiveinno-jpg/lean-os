@@ -83,7 +83,14 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
     if (!employeeId) return;
     setBusy(true);
     try {
-      await hrCheckIn(companyId, employeeId, attendanceStatus === "present" ? "auto" : attendanceStatus);
+      // 외근/출장은 status 가 아니라 attendance_type — 지각 판정(auto)은 그대로 두고 유형만 함께 기록.
+      const isType = attendanceStatus === "field_work" || attendanceStatus === "business_trip";
+      await hrCheckIn(
+        companyId,
+        employeeId,
+        isType || attendanceStatus === "present" ? "auto" : attendanceStatus,
+        isType ? attendanceStatus : undefined,
+      );
       toast("출근 처리 완료", "success");
       refresh();
     } catch (e: any) {
@@ -205,9 +212,12 @@ export function MyAttendanceCard({ companyId, userId, compact = false }: { compa
 
       {!isCheckedIn && (
         <div className="attendance-status-picker">
+          {/* 외근/출장(2026-07-31 사장님) — attendance_type 으로 기록, 지각 판정은 동일 적용 */}
           {[
             { value: "present", label: "출근" },
             { value: "remote", label: "재택" },
+            { value: "field_work", label: "외근" },
+            { value: "business_trip", label: "출장" },
             { value: "half_day", label: "반차" },
             { value: "absent", label: "결근" },
           ].map(({ value, label }) => (

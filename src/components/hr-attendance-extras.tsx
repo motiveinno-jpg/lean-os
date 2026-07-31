@@ -28,6 +28,14 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 const fmtKRW = (n: number) => `${(n || 0).toLocaleString("ko-KR")}원`;
 const minToH = (m: number) => `${(m / 60).toFixed(1)}h`;
 
+// 수정 요청 인박스 표시용 한글 라벨 (status / attendance_type)
+const STATUS_KO: Record<string, string> = {
+  present: "정상 출근", late: "지각", remote: "재택", half_day: "반차", absent: "결근",
+};
+const TYPE_KO: Record<string, string> = {
+  field_work: "외근", business_trip: "출장", on_duty: "당직", remote: "원격", normal: "일반",
+};
+
 // ── C-2: 직원 본인 — 이번 달 가산수당 요약 카드 ──
 
 export function ExtraPaySummaryCard({
@@ -140,6 +148,9 @@ export function AttendanceEditRequestDialog({
     return isNaN(d.getTime()) ? "기록 없음" : d.toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
+  // '근무중' 선택(2026-07-31 사장님) — 퇴근 전 상태를 유지한 채 출근 시각만 정정.
+  //   status 로 보내지 않고(DB status 에 '근무중' 없음) 퇴근 필드를 잠가 check_in 만 요청한다.
+  const isWorkingOnly = form.status === "working";
   const mut = useMutation({
     mutationFn: () =>
       createAttendanceEditRequest({
@@ -149,8 +160,13 @@ export function AttendanceEditRequestDialog({
         requestedChanges: {
           // 픽커 값은 KST 로 해석 — 브라우저 타임존이 KST 가 아니면 시각이 밀렸다.
           ...(kstLocalToIso(form.check_in) ? { check_in: kstLocalToIso(form.check_in)! } : {}),
-          ...(kstLocalToIso(form.check_out) ? { check_out: kstLocalToIso(form.check_out)! } : {}),
-          ...(form.status ? { status: form.status } : {}),
+          ...(!isWorkingOnly && kstLocalToIso(form.check_out) ? { check_out: kstLocalToIso(form.check_out)! } : {}),
+          // 외근/출장은 status 가 아니라 attendance_type (DB CHECK: field_work/business_trip 허용)
+          ...(form.status && !isWorkingOnly
+            ? form.status.startsWith("type:")
+              ? { attendance_type: form.status.slice(5) }
+              : { status: form.status }
+            : {}),
         },
         reason: form.reason || undefined,
       }),
@@ -163,8 +179,12 @@ export function AttendanceEditRequestDialog({
       toast(friendlyError(err, "요청 전송에 실패했습니다."), "error"),
   });
 
+  // '근무중'은 출근 시각이 있어야 보낼 게 있음. 그 외엔 셋 중 하나라도 입력돼야 함.
+  const cannotSubmit = isWorkingOnly
+    ? !form.check_in
+    : !form.check_in && !form.check_out && !form.status;
   // ESC 닫기 · Enter 확인(요청 보내기 — 변경 항목 없거나 전송 중이면 비활성). Hook 규칙상 early return 이전에 항상 호출.
-  useModalKeys(open, onClose, mut.isPending || (!form.check_in && !form.check_out && !form.status) ? undefined : () => mut.mutate());
+  useModalKeys(open, onClose, mut.isPending || cannotSubmit ? undefined : () => mut.mutate());
 
   if (!open) return null;
 
@@ -188,24 +208,30 @@ export function AttendanceEditRequestDialog({
             />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">퇴근 시각 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 현재: {fmtCur(initial?.check_out)}</span></label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">퇴근 시각 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· {isWorkingOnly ? "근무중은 출근 시각만 변경할 수 있습니다" : `현재: ${fmtCur(initial?.check_out)}`}</span></label>
             <DateTimeField
-              value={form.check_out}
+              value={isWorkingOnly ? "" : form.check_out}
               onChange={(e) => setForm({ ...form, check_out: e.target.value })}
-              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+              disabled={isWorkingOnly}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs disabled:opacity-50"
             />
           </div>
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 유형 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 재택/결근/반차 등</span></label>
+            <label className="block text-xs text-[var(--text-muted)] mb-1">출근 유형 변경 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 재택/외근/출장/근무중 등</span></label>
             <select
               value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
+              onChange={(e) => setForm({ ...form, status: e.target.value, ...(e.target.value === "working" ? { check_out: "" } : {}) })}
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
             >
               <option value="">변경 안 함</option>
+              {/* 근무중 — 아직 퇴근 전. 출근 시각만 정정하고 상태는 그대로 둔다 (2026-07-31 사장님) */}
+              <option value="working">근무중 (출근 시각만 변경)</option>
               <option value="present">정상 출근</option>
               <option value="late">지각</option>
               <option value="remote">재택</option>
+              {/* 외근/출장 — attendance_type 으로 기록 (배지: 🚗외근 ✈️출장) */}
+              <option value="type:field_work">외근</option>
+              <option value="type:business_trip">출장</option>
               <option value="half_day">반차</option>
               <option value="absent">결근</option>
             </select>
@@ -227,7 +253,7 @@ export function AttendanceEditRequestDialog({
           </button>
           <button
             onClick={() => mut.mutate()}
-            disabled={mut.isPending || (!form.check_in && !form.check_out && !form.status)}
+            disabled={mut.isPending || cannotSubmit}
             className="flex-1 btn-primary btn-sm"
           >
             {mut.isPending ? "전송 중…" : "요청 보내기"}
@@ -540,6 +566,9 @@ export function EditRequestInbox({ companyId, reviewerId }: { companyId: string;
                 {changes.check_in ? new Date(changes.check_in as string).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
                 {" / "}
                 {changes.check_out ? new Date(changes.check_out as string).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                {/* 상태·출근유형 변경 요청도 표시 — 시각만 보이면 외근/재택 요청이 안 보였다 */}
+                {changes.status ? ` · 상태→${STATUS_KO[String(changes.status)] || changes.status}` : ""}
+                {changes.attendance_type ? ` · 유형→${TYPE_KO[String(changes.attendance_type)] || changes.attendance_type}` : ""}
               </div>
               {r.reason && <div className="text-[10px] text-[var(--text-dim)] mt-1">"{r.reason}"</div>}
             </div>
