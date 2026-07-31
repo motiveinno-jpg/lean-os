@@ -65,7 +65,9 @@ const PdfPage = Node.create({
   name: "pdfPage",
   group: "block",
   atom: true,
-  selectable: true,
+  // PDF 페이지나 문장 조각을 별도 개체처럼 선택하지 않는다. 일반 워드프로세서처럼
+  // 글자에 바로 커서가 놓이게 하고, 페이지/문장 단위 선택 테두리는 표시하지 않는다.
+  selectable: false,
   draggable: false,
 
   addAttributes() {
@@ -151,6 +153,9 @@ const PdfPage = Node.create({
           sp.contentEditable = "true";
           sp.spellcheck = false;
           sp.style.outline = "none";
+          sp.style.border = "0";
+          sp.style.boxShadow = "none";
+          sp.style.cursor = "text";
           // 겹침 방지 — 조각은 절대좌표라 글자를 추가해도 옆 조각이 밀려나지 않고
           //   겹쳤다(2026-07-29 사장님). 편집 시작 시 폭과 같은 줄 오른쪽 조각들의
           //   원래 x 를 기억해 두고, 폭 변화량만큼 그 조각들을 함께 밀어준다
@@ -194,7 +199,9 @@ const PdfPage = Node.create({
             }
           };
           const applyStoredStyle = (forceVisible = false) => {
-            sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h, forceVisible) + "outline:none;";
+            sp.style.cssText =
+              pdfTextSpanStyle(texts[i], cur.attrs.h, forceVisible)
+              + "outline:none;border:0;box-shadow:none;cursor:text;";
           };
           const markEdited = () => {
             if (!texts[i].e) texts[i].e = true;
@@ -228,9 +235,9 @@ const PdfPage = Node.create({
           sp.addEventListener("focus", () => {
             captureBase();
             // 미수정 조각은 평소 투명해 원본 이미지의 폰트·색이 그대로 보인다.
-            // 포커스한 동안만 추출한 서식으로 표시해 커서와 편집 대상을 확인한다.
+            // 포커스한 동안만 추출한 서식으로 표시하되, 워드/한글처럼 커서만 보이고
+            // 문장 단위의 테두리나 편집 영역 박스는 만들지 않는다.
             applyStoredStyle(true);
-            sp.style.outline = "1px solid rgba(59,130,246,0.45)";
             // 크기·굵기 변경도 폭이 변하므로 다음 프레임에 같은 줄 조각을 재배치 후 저장
             const restyleAndCommit = () => {
               texts[i].e = true;
