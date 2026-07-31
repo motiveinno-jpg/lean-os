@@ -50,7 +50,12 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     group: "워크스페이스",
     menus: [
       { route: "/schedule", label: "일정 / 할 일", always: true },
-      { route: "/projecthub", label: "프로젝트" },
+      // 열람 범위 — 구성원(/employees:all)과 같은 방식. '전체'가 없으면 자기가 담당자인 프로젝트만 보인다.
+      //   2026-07-31 사장님: "프로젝트도 내 담당과 전체를 권한으로 주자".
+      { route: "/projecthub", label: "프로젝트", tabs: [
+        { key: "mine", label: "내 담당 프로젝트 (담당자로 지정된 것만)" },
+        { key: "all", label: "전체 프로젝트 열람 (미부여 시 내 담당만 보임)" },
+      ] },
       { route: "/approvals", label: "결재 허브", tabs: [
         { key: "my-approvals", label: "내 결재함" },
         { key: "my-requests", label: "내 요청" },

@@ -21,6 +21,7 @@ import { getPartners } from "@/lib/partners";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 import { PROJECT_TYPES, PROJECT_TYPE_ORDER, normalizeProjectType, getHeroMetric, getOverallAchievement, type ProjectType, type KpiSource } from "@/lib/project-types";
 import { useCanAccessTab } from "@/lib/tab-access";
+import { useMyPermissions } from "@/lib/permissions";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
@@ -33,6 +34,9 @@ export default function ProjectHubPage() {
   const isManager = true; // (P3) 프로젝트 권한 보유자 전원 관리 뷰
   const router = useRouter();
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
+  // 열람 범위 — '/projecthub:all' 이 없으면 자기가 담당자인 프로젝트만 보인다(2026-07-31).
+  const { isMaster: projMaster, hasPerm: projHasPerm } = useMyPermissions();
+  const canViewAllProjects = projMaster || projHasPerm("/projecthub:all");
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [showDashboard, setShowDashboard] = useState(true); // 성과 대시보드 — 목표형 탭 선택 시 기본 열림(토글 가능)
@@ -60,7 +64,12 @@ export default function ProjectHubPage() {
   });
 
   // 세부 프로젝트(캠페인)는 목록에서 숨기고 상위 프로젝트만 노출. 자식 수는 배지로 표시.
-  const topDeals = useMemo(() => (deals as any[]).filter((d) => !d.parent_deal_id), [deals]);
+  //   전체 열람 권한이 없으면 여기서 내 담당 건으로 좁힌다 — 목록·KPI·칩 카운트가 전부 이 배열을 쓰므로
+  //   한 곳만 막아도 화면 전체 스코프가 맞춰진다.
+  const topDeals = useMemo(
+    () => (deals as any[]).filter((d) => !d.parent_deal_id && (canViewAllProjects || d.internal_manager_id === user?.id)),
+    [deals, canViewAllProjects, user?.id],
+  );
   const childCount = useMemo(() => {
     const m: Record<string, number> = {};
     for (const d of deals as any[]) if (d.parent_deal_id) m[d.parent_deal_id] = (m[d.parent_deal_id] || 0) + 1;
@@ -434,7 +443,8 @@ export default function ProjectHubPage() {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="프로젝트·거래처·담당 검색"
               className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--primary)]" />
           </div>
-          <div className="mine-scope-toggle">
+          {/* 전체 열람 권한이 없으면 스코프 전환 자체를 감춘다 — 어차피 내 담당만 조회된다 */}
+          {canViewAllProjects && <div className="mine-scope-toggle">
             <button onClick={() => setMineOnly(true)}
               className={`px-3 h-full whitespace-nowrap transition ${mineOnly ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
               내 담당
@@ -443,7 +453,7 @@ export default function ProjectHubPage() {
               className={`px-3 h-full whitespace-nowrap transition border-l border-[var(--border)] ${!mineOnly ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
               전체
             </button>
-          </div>
+          </div>}
         </div>
         <div className="flex items-center gap-2">
           <div className="sort-control">
@@ -607,9 +617,10 @@ export default function ProjectHubPage() {
         <div className="glass-card py-14 flex flex-col items-center justify-center text-center gap-2">
           <div className="text-4xl">{typeFilter === "all" ? "📁" : PROJECT_TYPES[typeFilter].icon}</div>
           <div className="text-sm font-semibold text-[var(--text)]">
-            {search ? "조건에 맞는 프로젝트가 없습니다." : mineOnly ? "내가 담당한 프로젝트가 없습니다." : typeFilter === "all" ? "아직 프로젝트가 없습니다." : `${PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다.`}
+            {search ? "조건에 맞는 프로젝트가 없습니다." : (mineOnly || !canViewAllProjects) ? "내가 담당한 프로젝트가 없습니다." : typeFilter === "all" ? "아직 프로젝트가 없습니다." : `${PROJECT_TYPES[typeFilter].label} 프로젝트가 없습니다.`}
           </div>
-          {mineOnly && !search ? (
+          {/* '전체 보기' 유도는 전체 열람 권한자에게만 — 없으면 눌러도 결과가 같다 */}
+          {mineOnly && !search && canViewAllProjects ? (
             <button onClick={() => setMineOnly(false)} className="btn-secondary btn-sm mt-2">전체 프로젝트 보기 →</button>
           ) : !search && <>
             <div className="text-xs text-[var(--text-muted)]">‘+ 프로젝트 생성’으로 추가하세요.</div>

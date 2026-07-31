@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { AccessDenied } from "@/components/access-denied";
+import { useMyPermissions } from "@/lib/permissions";
 import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 import { createFromTemplate, nextQuoteNumber } from "@/lib/documents";
 import { seedDefaultDocTemplates, STANDARD_CONTRACT_CONTENT } from "@/lib/default-doc-templates";
@@ -144,6 +145,9 @@ export default function ProjectHubDetailPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
   const userId = user?.id ?? null;
+  // 열람 범위 — '/projecthub:all' 없으면 자기가 담당자인 프로젝트(그 하위 캠페인 포함)만 열린다(2026-07-31).
+  const { isMaster: projMaster, hasPerm: projHasPerm, loading: projPermLoading } = useMyPermissions();
+  const canViewAllProjects = projMaster || projHasPerm("/projecthub:all");
   const role = user?.role;
   const params = useParams();
   const router = useRouter();
@@ -637,10 +641,10 @@ export default function ProjectHubDetailPage() {
   }, [subDeals, children, childrenMap]);
 
   // 상위 프로젝트 (이 deal 이 세부 프로젝트일 때) — 브레드크럼·복귀 링크
-  const { data: parentDeal } = useQuery({
+  const { data: parentDeal, isLoading: parentLoading } = useQuery({
     queryKey: ["projecthub-parent", deal?.parent_deal_id],
     queryFn: async () => {
-      const data = logRead('[id]/page:data', await db.from("deals").select("id, name").eq("id", deal.parent_deal_id).maybeSingle());
+      const data = logRead('[id]/page:data', await db.from("deals").select("id, name, internal_manager_id").eq("id", deal.parent_deal_id).maybeSingle());
       return data as any;
     },
     enabled: !!deal?.parent_deal_id,
@@ -880,8 +884,15 @@ export default function ProjectHubDetailPage() {
     previewUrl ? () => { (document.getElementById("quote-preview-iframe") as HTMLIFrameElement | null)?.contentWindow?.print(); } : undefined);
 
   // 접근 권한은 RouteGuard(user_tab_access grant)가 처리 — 여기서 role 하드코딩 차단 제거(담당자 직원 접근 허용)
-  if (isLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+  if (isLoading || projPermLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
   if (!deal) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">프로젝트를 찾을 수 없습니다. <Link href="/projecthub" className="text-[var(--primary)] hover:underline">목록으로</Link></div>;
+  // 열람 범위 게이트 — 전체 열람 권한이 없으면 내가 담당인 프로젝트(또는 그 하위 캠페인)만. 상위 조회 중엔 판정 보류.
+  if (!canViewAllProjects && deal.internal_manager_id !== userId) {
+    if (deal.parent_deal_id && parentLoading) return <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>;
+    if (parentDeal?.internal_manager_id !== userId) {
+      return <AccessDenied detail="내가 담당한 프로젝트만 열람할 수 있습니다. 전체 프로젝트 열람이 필요하면 마스터에게 '프로젝트 → 전체 프로젝트 열람' 권한을 요청하세요." />;
+    }
+  }
 
   const stage = (STAGE_ORDER.includes(deal.stage) ? deal.stage : "estimate") as ProjectStage;
   const sc = STAGE_COLOR[stage];
