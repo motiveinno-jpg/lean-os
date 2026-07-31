@@ -2174,7 +2174,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .board-filter-bar { @apply flex-wrap; }
 .board-toolbar-actions { @apply flex flex-wrap items-center gap-2 ml-auto; }
 .board-post-form-overlay { @apply fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto; }
-.board-post-form-modal { @apply p-5 sm:p-6 my-8 w-full max-w-2xl space-y-3 shadow-2xl; }
+.board-post-form-modal { @apply p-5 sm:p-6 my-8 w-full max-w-3xl space-y-3 shadow-2xl; }
 .board-empty-state { @apply py-16 text-center; }
 .board-post-list { @apply space-y-3; }
 .board-post-card { @apply bg-[var(--bg-card)] rounded-2xl border transition; }
@@ -5334,3 +5334,26 @@ td .rounded-full { white-space: nowrap; }
 .bulk-invite-progress { @apply flex-1 flex items-center gap-3 text-xs text-[var(--text-muted)]; }
 .bulk-invite-progress-bar { @apply flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
 .bulk-invite-progress-bar > div { @apply h-full bg-[var(--primary)] transition-all; }
+
+/* ── 게시판 글쓰기 개편 (2026-07-31) — 작성칸 확대·서식 편집기·첨부 컴팩트 2열 ── */
+.board-content-editor { @apply rounded-xl border border-[var(--border)] overflow-hidden; }
+.board-attach-grid { @apply grid grid-cols-1 sm:grid-cols-2 gap-3; }
+.board-attach-block { @apply rounded-xl border border-[var(--border)] p-3; }
+/* 컴팩트 드롭존 — 기본 .file-upload-dropzone(p-6) 뒤에 선언돼 패딩만 축소 */
+.file-upload-dropzone-compact { @apply p-2.5; }
+.file-upload-compact-label { @apply text-xs leading-5; }
+/* 게시판 본문(서식 HTML) 렌더 — 기존 평문 글은 pre-wrap 경로라 이 클래스를 안 탄다 */
+.board-desc-html { @apply text-sm text-[var(--text)] leading-relaxed border-t border-[var(--border)] pt-3; }
+.board-desc-html p { margin: 0.3rem 0; }
+.board-desc-html img { @apply max-w-full rounded-lg my-2; }
+.board-desc-html ul { @apply list-disc pl-5 my-1; }
+.board-desc-html ol { @apply list-decimal pl-5 my-1; }
+.board-desc-html blockquote { @apply border-l-2 border-[var(--border)] pl-3 text-[var(--text-muted)] my-1; }
+.board-desc-html h1 { @apply text-xl font-extrabold mt-3 mb-1.5; }
+.board-desc-html h2 { @apply text-lg font-bold mt-2.5 mb-1; }
+.board-desc-html h3 { @apply text-base font-semibold mt-2 mb-1; }
+.board-desc-html a { @apply text-[var(--primary)] underline; }
+.board-desc-html hr { @apply my-3 border-t border-[var(--border)]; }
+.board-desc-html table { @apply border-collapse w-full my-2; }
+.board-desc-html td, .board-desc-html th { @apply border border-[var(--border)] px-2 py-1 text-sm; }
+.board-desc-html th { @apply bg-[var(--bg-surface)] font-bold; }

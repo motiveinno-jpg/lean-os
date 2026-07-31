@@ -10,6 +10,8 @@ interface FileUploadMultiProps {
   maxFiles?: number; // default 20
   accept?: string; // MIME types comma-separated
   label?: string;
+  // 2026-07-31 게시판 글쓰기 모달 — 드롭존을 한 줄 높이로 축소 (아이콘·형식 목록 생략)
+  compact?: boolean;
 }
 
 // ── Allowed MIME types ──
@@ -67,6 +69,7 @@ export function FileUploadMulti({
   maxFiles = 20,
   accept,
   label,
+  compact = false,
 }: FileUploadMultiProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -213,13 +216,20 @@ export function FileUploadMulti({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         disabled={disabled}
-        className={`file-upload-dropzone ${
+        className={`file-upload-dropzone ${compact ? "file-upload-dropzone-compact" : ""} ${
           isDragging
             ? "border-[var(--primary)] bg-[var(--primary)]/5 scale-[1.01]"
             : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/3"
         }`}
       >
-        {/* Upload icon */}
+        {compact ? (
+          /* 컴팩트 — 아이콘·형식 목록 없이 한 줄 */
+          <p className="file-upload-compact-label">
+            <span className="font-medium text-[var(--text)]">{label || "파일 선택 / 드래그"}</span>
+            <span className="text-[var(--text-muted)]"> · 최대 {maxSize}MB, {maxFiles}개</span>
+          </p>
+        ) : (
+        /* Upload icon */
         <div className="flex flex-col items-center gap-2">
           <div
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
@@ -254,6 +264,7 @@ export function FileUploadMulti({
             </p>
           </div>
         </div>
+        )}
       </button>
 
       {/* Error messages */}

@@ -13,6 +13,8 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { FileUploadMulti } from "@/components/file-upload-multi";
+import { RichEditor } from "@/components/rich-editor";
+import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { MentionDropdown } from "@/components/mention-dropdown";
 import { getCompanyUsers } from "@/lib/queries";
 import { friendlyError } from "@/lib/friendly-error";
@@ -70,6 +72,34 @@ const BOARD_BUCKET = "board-files";
 
 function isImage(type: string) {
   return type.startsWith("image/");
+}
+
+// ── 서식 본문 (2026-07-31 사장님: 글 작성에 서식 추가) ──
+//   새 글은 RichEditor HTML 로 저장, 기존 글은 평문 그대로 — 렌더 시 둘을 구분한다
+//   (approvals 의 description 처리와 동일 규칙).
+const isHtmlContent = (s?: string | null) => !!s && /^\s*</.test(String(s).trim());
+
+function escapeHtmlText(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/** 평문(기존 글) → RichEditor 초기값 HTML. 이미 HTML 이면 그대로. */
+function plainToHtml(text: string): string {
+  if (!text) return "";
+  if (isHtmlContent(text)) return text;
+  return text.split("\n").map((line) => (line.trim() === "" ? "<p><br/></p>" : `<p>${escapeHtmlText(line)}</p>`)).join("");
+}
+
+/** RichEditor 빈 문서(<p></p> 등) 판별 — 텍스트·이미지·표 전부 없으면 빈 것 */
+function isEmptyHtml(html: string): boolean {
+  if (!html) return true;
+  if (/<(img|table)/i.test(html)) return false;
+  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim() === "";
+}
+
+/** 검색용 — HTML 태그를 걷어내고 텍스트만 */
+function stripHtml(s: string): string {
+  return isHtmlContent(s) ? s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ") : s;
 }
 
 export default function BoardPage() {
@@ -245,10 +275,23 @@ export default function BoardPage() {
     return out;
   }
 
+  // RichEditor 본문 삽입 이미지 — dataURL 인라인 대신 board-files 스토리지 업로드
+  //   (본문이 DB text 컬럼이라 대용량 dataURL 이 그대로 저장되는 것 방지)
+  async function uploadEditorImage(file: File): Promise<string> {
+    const ext = file.name.split(".").pop() || "png";
+    const storagePath = `${companyId}/board/editor/${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
+    const { error } = await supabase.storage.from(BOARD_BUCKET).upload(storagePath, file);
+    if (error) throw error;
+    return supabase.storage.from(BOARD_BUCKET).getPublicUrl(storagePath).data.publicUrl;
+  }
+
   const savePost = useMutation({
     mutationFn: async () => {
-      if (!form.title.trim() || !form.content.trim())
+      if (!form.title.trim() || isEmptyHtml(form.content))
         throw new Error("제목과 내용을 입력하세요.");
+      // 수정은 작성자 본인만 (2026-07-31 사장님) — 버튼 노출 조건과 이중 방어
+      if (editing && editing.author_id !== user?.id)
+        throw new Error("작성자 본인만 수정할 수 있습니다.");
 
       const cleanPollOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
       if (pollQuestion.trim() && cleanPollOptions.length < 2)
@@ -286,12 +329,13 @@ export default function BoardPage() {
           .from("board_posts")
           .update({
             title: form.title.trim(),
-            content: form.content.trim(),
+            content: form.content,
             updated_at: new Date().toISOString(),
             ...ext,
             attachments: merged,
           })
-          .eq("id", editing.id);
+          .eq("id", editing.id)
+          .eq("author_id", user!.id);
         if (error) throw error;
       } else {
         const { error } = await db.from("board_posts").insert({
@@ -300,7 +344,7 @@ export default function BoardPage() {
           author_name: user?.name || null,
           author_email: user?.email || null,
           title: form.title.trim(),
-          content: form.content.trim(),
+          content: form.content,
           ...ext,
         });
         if (error) throw error;
@@ -633,13 +677,13 @@ export default function BoardPage() {
     if (filter === "poll" && !p.poll_question) return false;
     if (filter === "file" && !(p.attachments?.length)) return false;
     if (filter === "mine" && p.author_id !== user?.id) return false;
-    if (q && !(`${p.title} ${p.content}`.toLowerCase().includes(q))) return false;
+    if (q && !(`${p.title} ${stripHtml(p.content)}`.toLowerCase().includes(q))) return false;
     return true;
   });
 
   // 글쓰기/수정 모달 — ESC 닫기, Enter 저장(제목·내용 미입력·업로드/저장 중엔 비활성)
   const canSavePost =
-    !savePost.isPending && !uploading && !!form.title.trim() && !!form.content.trim();
+    !savePost.isPending && !uploading && !!form.title.trim() && !isEmptyHtml(form.content);
   useModalKeys(showForm, resetForm, canSavePost ? () => savePost.mutate() : undefined);
 
   return (
@@ -702,13 +746,16 @@ export default function BoardPage() {
             placeholder="제목"
             className="field-input"
           />
-          <textarea
-            value={form.content}
-            onChange={(e) => setForm({ ...form, content: e.target.value })}
-            placeholder="내용"
-            rows={6}
-            className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm resize-y focus:outline-none focus:border-[var(--primary)]"
-          />
+          {/* 본문 — 서식 편집기 (2026-07-31 사장님: 작성칸 확대 + 서식). 기존 평문 글은 plainToHtml 로 초기화 */}
+          <div className="board-content-editor">
+            <RichEditor
+              content={form.content}
+              onChange={(html) => setForm((f) => ({ ...f, content: html }))}
+              placeholder="내용"
+              maxHeight="46vh"
+              onUploadImage={uploadEditorImage}
+            />
+          </div>
 
           {/* ① 일정 */}
           <div className="rounded-xl border border-[var(--border)] p-3">
@@ -796,34 +843,36 @@ export default function BoardPage() {
             )}
           </div>
 
-          {/* ③ 사진 첨부 */}
-          <div className="rounded-xl border border-[var(--border)] p-3">
-            <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-              <Ico e="🖼" /> 사진 첨부 (선택)
+          {/* ③④ 사진·파일 첨부 — 컴팩트 2열 (2026-07-31 사장님: 첨부 영역 축소, 작성칸 확대) */}
+          <div className="board-attach-grid">
+            <div className="board-attach-block">
+              <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
+                <Ico e="🖼" /> 사진 첨부 (선택)
+              </div>
+              <FileUploadMulti
+                onFilesSelect={setPhotoFiles}
+                accept={IMAGE_TYPES}
+                maxSize={10}
+                maxFiles={10}
+                label="사진 선택 / 드래그"
+                disabled={uploading}
+                compact
+              />
             </div>
-            <FileUploadMulti
-              onFilesSelect={setPhotoFiles}
-              accept={IMAGE_TYPES}
-              maxSize={10}
-              maxFiles={10}
-              label="사진을 드래그하거나 클릭하여 선택"
-              disabled={uploading}
-            />
-          </div>
-
-          {/* ④ 파일 첨부 */}
-          <div className="rounded-xl border border-[var(--border)] p-3">
-            <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
-              <Ico e="📎" /> 파일 첨부 (선택)
+            <div className="board-attach-block">
+              <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">
+                <Ico e="📎" /> 파일 첨부 (선택)
+              </div>
+              <FileUploadMulti
+                onFilesSelect={setDocFiles}
+                accept={FILE_TYPES}
+                maxSize={50}
+                maxFiles={10}
+                label="파일 선택 / 드래그"
+                disabled={uploading}
+                compact
+              />
             </div>
-            <FileUploadMulti
-              onFilesSelect={setDocFiles}
-              accept={FILE_TYPES}
-              maxSize={50}
-              maxFiles={10}
-              label="파일을 드래그하거나 클릭하여 선택"
-              disabled={uploading}
-            />
           </div>
 
           <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
@@ -954,9 +1003,17 @@ export default function BoardPage() {
                 </button>
                 {open && (
                   <div className="board-post-detail">
-                    <div className="text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed border-t border-[var(--border)] pt-3">
-                      {p.content}
-                    </div>
+                    {/* 본문 — 새 글(HTML 서식)은 sanitize 후 렌더, 기존 평문 글은 pre-wrap 유지 */}
+                    {isHtmlContent(p.content) ? (
+                      <div
+                        className="board-desc-html"
+                        dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(p.content) }}
+                      />
+                    ) : (
+                      <div className="text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed border-t border-[var(--border)] pt-3">
+                        {p.content}
+                      </div>
+                    )}
 
                     {/* 일정 표시 */}
                     {p.event_date && (
@@ -1097,12 +1154,12 @@ export default function BoardPage() {
                           {p.pinned ? "고정 해제" : "상단 고정"}
                         </button>
                       )}
-                      {(isMine || canPin) && (
-                        <>
+                      {/* 수정은 작성자 본인만 (2026-07-31 사장님). 삭제는 기존대로 본인+관리 가능자 */}
+                      {isMine && (
                           <button
                             onClick={() => {
                               setEditing(p);
-                              setForm({ title: p.title, content: p.content });
+                              setForm({ title: p.title, content: plainToHtml(p.content) });
                               setEventDate(p.event_date || "");
                               setPollQuestion(p.poll_question || "");
                               setPollOptions(
@@ -1129,6 +1186,8 @@ export default function BoardPage() {
                           >
                             수정
                           </button>
+                      )}
+                      {(isMine || canPin) && (
                           <button
                             onClick={async () => {
                               if (await appConfirm("이 글을 삭제하시겠습니까?", { danger: true }))
@@ -1138,7 +1197,6 @@ export default function BoardPage() {
                           >
                             삭제
                           </button>
-                        </>
                       )}
                     </div>
 
