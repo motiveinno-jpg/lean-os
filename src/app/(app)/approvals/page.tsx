@@ -55,6 +55,9 @@ const db = supabase;
 
 type Tab = "my-approvals" | "my-requests" | "references" | "all" | "new-request" | "policies" | "forms";
 
+// 알림/딥링크(?tab=...)로 진입 가능한 탭 키 — 오타·구 링크는 무시하고 기본 탭 유지
+const TAB_KEYS: Tab[] = ["my-approvals", "my-requests", "references", "all", "new-request", "policies", "forms"];
+
 // ── 2026-07-03 결재관리 리디자인 — 유형·상태·진행 프리미티브 ──
 
 // 상태: 점 + 라벨 pill (대기는 은은한 펄스)
@@ -422,12 +425,15 @@ function formatDateTime(dateStr: string | null) {
 export default function ApprovalsPage() {
   const sp = useSearchParams();
   const newType = sp?.get('new'); // expense / payment / general — 대시보드 quick action 에서 전달
-  // 참조 알림(entity_type=approval_reference)에서 ?tab=references 로 진입 (notification-routes.ts)
+  // 알림에서 ?tab=... 로 진입 (notification-routes.ts) — 참조 통보는 references,
+  //   결재 승인·반려 결과는 my-requests + ?request=<id> (해당 건 상세 자동 열림)
   const tabParam = sp?.get('tab');
+  const deepLinkTab = tabParam && TAB_KEYS.includes(tabParam as Tab) ? (tabParam as Tab) : null;
+  const focusRequestId = sp?.get('request') || null;
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>(newType ? "new-request" : tabParam === "references" ? "references" : "my-approvals");
+  const [tab, setTab] = useState<Tab>(newType ? "new-request" : deepLinkTab ?? "my-approvals");
   const [presetType, setPresetType] = useState<string | null>(newType);
   const [allTabStatusFilter, setAllTabStatusFilter] = useState<string>("");
   const queryClient = useQueryClient();
@@ -446,10 +452,10 @@ export default function ApprovalsPage() {
     }
   }, [newType]);
 
-  // URL ?tab=references (참조 알림 클릭) → 참조 탭 동기화
+  // URL ?tab=... (알림 클릭) → 해당 탭 동기화. 이미 /approvals 에 머문 상태에서 알림을 눌러도 이동한다.
   useEffect(() => {
-    if (!newType && tabParam === "references") setTab("references");
-  }, [tabParam, newType]);
+    if (!newType && deepLinkTab) setTab(deepLinkTab);
+  }, [deepLinkTab, newType]);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -590,7 +596,7 @@ export default function ApprovalsPage() {
         <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} />
       )}
       {tab === "my-requests" && companyId && userId && (
-        <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} />
+        <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} focusRequestId={focusRequestId} />
       )}
       {tab === "references" && companyId && userId && (
         <ReferencedRequestsTab companyId={companyId} userId={userId} />
@@ -1199,8 +1205,8 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
 // Tab 2: 내 요청
 // ══════════════════════════════════════════════
 
-function MyRequestsTab({ companyId, userId, invalidate }: {
-  companyId: string; userId: string; invalidate: () => void;
+function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
+  companyId: string; userId: string; invalidate: () => void; focusRequestId?: string | null;
 }) {
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
@@ -1212,6 +1218,17 @@ function MyRequestsTab({ companyId, userId, invalidate }: {
     queryFn: () => getMyRequests(userId, companyId),
     enabled: !!userId && !!companyId,
   });
+
+  // 승인·반려 알림에서 ?request=<id> 로 진입 → 그 건의 상세(결재선·결과)를 바로 연다.
+  //   목록 로딩 후 1회만 열고, 사용자가 닫으면 다시 열지 않는다.
+  const focusedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusRequestId || focusedRef.current === focusRequestId) return;
+    if ((requests as any[]).some((r) => r.id === focusRequestId)) {
+      focusedRef.current = focusRequestId;
+      setExpandedId(focusRequestId);
+    }
+  }, [focusRequestId, requests]);
 
   // 2026-07-16 QA: 참조자(reference_user_ids)가 "내 요청" 화면엔 전혀 표시 안 되던 버그 —
   //   이름 매핑용 회사 사용자 목록 조회.

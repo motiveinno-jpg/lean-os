@@ -50,8 +50,8 @@ export const TYPE_HREF: Record<string, (id: string | null) => string> = {
   contract_expiry: (id) => id ? `/documents?id=${id}` : `/documents`,
   approval: () => `/approvals`,
   approval_request: () => `/approvals`,
-  approval_approved: () => `/approvals`,
-  approval_rejected: () => `/approvals`,
+  approval_approved: (id) => id ? `/approvals?tab=my-requests&request=${encodeURIComponent(id)}` : `/approvals?tab=my-requests`,
+  approval_rejected: (id) => id ? `/approvals?tab=my-requests&request=${encodeURIComponent(id)}` : `/approvals?tab=my-requests`,
   chat: () => `/chat`,
   company_join_request: () => `/settings?tab=team`,
 };
@@ -73,6 +73,13 @@ export function resolveNotificationHref(
   //   떨어져 내용을 못 본다(2026-07-30 사장님 제보: 연준호 건). 참조함으로 직행.
   if (n.entity_type === "leave_request" && (n.title || "").startsWith("[참조]")) {
     return "/approvals?tab=references";
+  }
+  // 결재 결과 알림(승인·반려)은 요청자 본인에게 가는 것이다. entity_type 매핑만 타면 /approvals 기본 탭
+  //   = '내 결재함'(남이 올린 결재 대기함)으로 떨어져 정작 내 요청 결과가 안 보인다(2026-07-31 사장님 제보).
+  //   → '내 요청' 탭 + 해당 건 상세를 바로 연다. 참조자 통보는 entity_type=approval_reference 라 여기 안 걸림.
+  if ((n.type === "approval_approved" || n.type === "approval_rejected")
+      && n.entity_type === "approval_request" && n.entity_id) {
+    return `/approvals?tab=my-requests&request=${encodeURIComponent(n.entity_id)}`;
   }
   if (n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type]) {
     return ENTITY_HREF[n.entity_type](n.entity_id);
