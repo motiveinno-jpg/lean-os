@@ -22,7 +22,7 @@ import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { getContractTemplates, createContractPackage, sendContractPackage, buildDefaultContractFields, type ContractField } from "@/lib/hr-contracts";
+import { getContractTemplates, createContractPackage, sendContractPackage, buildContractFieldsForTemplates, type ContractField } from "@/lib/hr-contracts";
 
 // 구성원 디렉토리(flex-people-directory)와 동일한 해시 팔레트 — 같은 직원은 어디서나 같은 아바타 색.
 function avatarColor(id: string): string {
@@ -153,7 +153,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   const [showCreateContract, setShowCreateContract] = useState(false);
   const [contractTitle, setContractTitle] = useState("");
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
-  const [contractFields, setContractFields] = useState<ContractField[]>(() => buildDefaultContractFields(null));
+  // 입력 필드는 고정 목록이 아니라 '선택한 서식이 실제로 쓰는 {{변수}}' 에서 만든다(2026-07-31 사장님:
+  //   근로계약·서식에서 만든 양식의 변수 입력칸이 여기 없고 금액도 안 채워지던 문제).
+  const [contractFields, setContractFields] = useState<ContractField[]>([]);
 
   const { data: contractTemplates = [] } = useQuery({
     queryKey: ["contract-templates", companyId],
@@ -164,12 +166,24 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   function openCreateContract() {
     setContractTitle(`${emp?.name || ""} ${new Date().getFullYear()}년 계약`);
     setSelectedTemplateIds([]);
-    setContractFields(buildDefaultContractFields(emp));
+    setContractFields([]);
     setShowCreateContract(true);
   }
 
   function toggleContractTemplate(id: string) {
-    setSelectedTemplateIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+    const next = selectedTemplateIds.includes(id)
+      ? selectedTemplateIds.filter((t) => t !== id)
+      : [...selectedTemplateIds, id];
+    setSelectedTemplateIds(next);
+    // 선택이 바뀔 때마다 입력 항목을 서식 변수로 다시 구성 — 이미 입력한 값은 변수명 기준으로 유지한다.
+    const picked = (contractTemplates as any[]).filter((t) => next.includes(t.id));
+    setContractFields((prev) => {
+      const kept = new Map(prev.map((f) => [f.key, f]));
+      return buildContractFieldsForTemplates(picked, emp, companyInfo).map((f) => {
+        const old = kept.get(f.key);
+        return old ? { ...f, value: old.value, included: old.included } : f;
+      });
+    });
   }
 
   const sendContractMut = useMutation({
@@ -632,7 +646,12 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 </div>
 
                 <div>
-                  <label className="block text-[10px] text-[var(--text-dim)] mb-1.5">필수 입력 정보 <span className="text-[var(--text-dim)] font-normal">— 서식의 {"{{변수명}}"} 자리에 자동 치환됨</span></label>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-1.5">필수 입력 정보 <span className="text-[var(--text-dim)] font-normal">— 선택한 서식의 {"{{변수명}}"} 자리에 자동 치환됨 (비워 두면 직원·회사 정보가 그대로 들어갑니다)</span></label>
+                  {selectedTemplateIds.length === 0 ? (
+                    <p className="text-xs text-[var(--text-dim)]">서식을 선택하면 그 서식이 쓰는 입력 항목이 여기에 표시됩니다.</p>
+                  ) : contractFields.length === 0 ? (
+                    <p className="text-xs text-[var(--text-dim)]">선택한 서식에는 입력할 변수가 없습니다.</p>
+                  ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {contractFields.map((f, i) => (
                       <div key={f.key + i} className={f.included ? "" : "opacity-40"}>
@@ -660,6 +679,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                       </div>
                     ))}
                   </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2 pt-1">

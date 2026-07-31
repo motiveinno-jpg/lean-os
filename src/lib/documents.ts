@@ -147,7 +147,7 @@ export async function createBlankDocument(params: {
 
 // ── Fill template variables ──
 // 변수명을 공백·률/율 정규화해서 매칭 (예: "수습기간 시작일" → "{{수습기간시작일}}" 도 치환됨)
-function normalizeVarName(s: string): string {
+export function normalizeVarName(s: string): string {
   return s
     .replace(/\s+/g, '')
     .replace(/률/g, '율')

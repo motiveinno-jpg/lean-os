@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { supabase } from './supabase';
-import { fillVariables } from './documents';
+import { fillVariables, normalizeVarName } from './documents';
 import { calculatePayroll } from './payment-batch';
 import { calculateAnnualLeave, autoInitLeaveBalance } from './hr';
 import { logAuditTrail } from '@/lib/audit-trail';
@@ -77,21 +77,67 @@ export interface ContractField {
   custom?: boolean;     // 사용자 추가 필드
 }
 
-export function buildDefaultContractFields(emp: any | null): ContractField[] {
-  const today = todayKst();
-  const year = new Date().getFullYear();
-  return [
-    { key: "직원명", label: "구성원 이름", type: "text", value: emp?.name || "", included: true },
-    { key: "계약일", label: "계약일", type: "date", value: today, included: true },
-    { key: "생년월일", label: "생년월일", type: "date", value: emp?.birth_date || "", included: true },
-    { key: "수습시작일", label: "수습기간 시작일", type: "date", value: "", included: true },
-    { key: "수습종료일", label: "수습기간 종료일", type: "date", value: "", included: true },
-    { key: "수습급여율", label: "수습기간 급여지급률", type: "text", value: "90%", included: true },
-    { key: "직무", label: "직무", type: "text", value: emp?.position || emp?.department || "", included: true },
-    { key: "계약시작일", label: "임금계약 시작일", type: "date", value: `${year}-01-01`, included: true },
-    { key: "급여기준", label: "급여기준", type: "select", value: "연봉", included: true, options: ["연봉", "월급", "시급"] },
-    { key: "계약금액", label: "계약 금액", type: "number", value: emp?.salary ? String(Number(emp.salary) * 12) : "", included: true },
-  ];
+// 이름만으로 입력 타입을 정한다 — 서식마다 변수 이름이 자유로워 스키마가 따로 없다.
+const VAR_SELECT_OPTIONS: Record<string, string[]> = {
+  급여기준: ["연봉", "월급", "시급"],
+};
+
+function inferFieldType(name: string): ContractFieldType {
+  const n = name.replace(/\s+/g, "");
+  if (VAR_SELECT_OPTIONS[n]) return "select";
+  if (/(일자|날짜|일$)/.test(n)) return "date";
+  if (/(연봉|급여|금액|임금|수당|상여|보수|단가)/.test(n)) return "number";
+  return "text";
+}
+
+/** 서식 본문에 실제로 쓰인 {{변수}} 목록 — 등장 순서 유지, 중복 제거(공백·률/율 차이는 같은 변수로 본다). */
+export function extractTemplateVariables(template: any): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (raw: unknown) => {
+    const name = String(raw ?? "").trim();
+    if (!name) return;
+    const k = normalizeVarName(name);
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push(name);
+  };
+  const body = template?.content_json ? JSON.stringify(template.content_json) : "";
+  for (const m of body.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)) push(m[1]);
+  for (const v of (template?.required_variables || [])) push(v);
+  return out;
+}
+
+/** 선택한 서식들이 쓰는 변수 전체 → '필수 입력 정보' 입력 폼(2026-07-31 사장님: 서식에 맞춰 자동으로).
+ *  값은 직원·회사 정보에서 자동으로 채우고, 비워 두면 발송 시 같은 자동값이 그대로 치환된다. */
+export function buildContractFieldsForTemplates(
+  templates: any[],
+  emp: any | null,
+  company: any | null,
+): ContractField[] {
+  const defaults = buildVariableMap(emp || {}, company || {});
+  const normDefaults: Record<string, string> = {};
+  for (const [k, v] of Object.entries(defaults)) normDefaults[normalizeVarName(k)] = v;
+
+  const fields: ContractField[] = [];
+  const seen = new Set<string>();
+  for (const t of templates) {
+    for (const name of extractTemplateVariables(t)) {
+      const k = normalizeVarName(name);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const type = inferFieldType(name);
+      fields.push({
+        key: name,
+        label: name,
+        type,
+        value: defaults[name] ?? normDefaults[k] ?? "",
+        included: true,
+        options: type === "select" ? VAR_SELECT_OPTIONS[name.replace(/\s+/g, "")] : undefined,
+      });
+    }
+  }
+  return fields;
 }
 
 // ── Built-in HR Document Templates (fallback when DB is empty) ──
@@ -314,9 +360,23 @@ export async function buildContractVariables(
 
   if (!company) throw new Error('회사 정보를 찾을 수 없습니다');
 
+  const vars = buildVariableMap(employee, company);
+
+  // Apply overrides
+  if (overrides) {
+    Object.assign(vars, overrides);
+  }
+
+  return vars;
+}
+
+/** 직원·회사 정보 → 계약서 변수 기본값 사전.
+ *  서명본 치환(buildContractVariables)과 구성원 상세 '필수 입력 정보'의 자동 채움이 같은 값을
+ *  쓰도록 DB 조회 없는 순수 계산만 분리했다(2026-07-31). 값 산식은 기존과 동일. */
+export function buildVariableMap(employee: any, company: any): Record<string, string> {
   // Calculate payroll deductions
   const monthlySalary = Math.round(Number(employee.salary || 0) / 12);
-  const payroll = monthlySalary > 0 ? calculatePayroll(monthlySalary, employee.name, employeeId) : null;
+  const payroll = monthlySalary > 0 ? calculatePayroll(monthlySalary, employee.name, employee.id) : null;
 
   // Comprehensive labor: calculate base + OT split (roughly 83% base, 17% OT for 20hr/mo)
   const basePay = Math.round(monthlySalary * 0.83);
@@ -421,11 +481,6 @@ export async function buildContractVariables(
     소득세_공제: fmt((payroll?.incomeTax || 0) + (payroll?.localIncomeTax || 0)),
     실수령액: fmt(payroll?.netPay || 0),
   };
-
-  // Apply overrides
-  if (overrides) {
-    Object.assign(vars, overrides);
-  }
 
   return vars;
 }
