@@ -5,8 +5,8 @@
 //   기존 RichEditor(TipTap: 표·굵기·정렬·색·크기·이미지)를 재사용. {{변수}}는 버튼으로 커서에 삽입.
 //   content_html 을 직접 편집·저장하므로 굵기/표가 발급 PDF(wrapTemplatePrintHtml)에 그대로 반영.
 // 2026-07-31 사장님: 옆 미리보기 때문에 편집칸이 좁아 PDF 원본이 가로 스크롤로 잘렸다
-//   → 상시 미리보기 제거, 편집기가 전체 폭·높이 사용. 저장 버튼을 누르면 미리보기 단계가
-//   나타나고 거기서 '이대로 저장'으로 확정한다.
+//   → 상시 미리보기 제거, 편집기가 전체 폭·높이 사용.
+//   (2차) 미리보기는 별도 버튼으로 — '미리보기'를 누르면 미리보기 화면, '양식 저장'은 바로 저장.
 
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -25,7 +25,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
 }) {
   const [html, setHtml] = useState(initialHtml);
   const [saving, setSaving] = useState(false);
-  // 저장 전 확인 단계 — edit(전체 폭 편집) → preview(발급 미리보기) → 이대로 저장
+  // edit(전체 폭 편집) ↔ preview(발급 미리보기, '미리보기' 버튼으로 진입). 저장은 어느 단계에서든 즉시.
   const [step, setStep] = useState<"edit" | "preview">("edit");
   const editorRef = useRef<RichEditorRef>(null);
 
@@ -37,15 +37,14 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
   };
 
   // ESC: 미리보기 단계에선 편집으로 복귀, 편집 단계에선 모달 닫기.
-  // Enter: 편집→미리보기, 미리보기→저장 확정. 리치에디터(contenteditable) 줄바꿈 Enter 는 제외.
+  // Enter: 바로 저장(버튼과 동일). 리치에디터(contenteditable) 줄바꿈 Enter 는 제외.
   useModalKeys(
     true,
     step === "preview" ? () => setStep("edit") : onClose,
     saving ? undefined : () => {
       const ae = document.activeElement as HTMLElement | null;
       if (ae?.isContentEditable) return;
-      if (step === "edit") setStep("preview");
-      else save();
+      save();
     },
   );
 
@@ -61,7 +60,7 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
         {step === "edit" ? (
           <>
             <p className="tpl-editor-hint">
-              내용을 자유롭게 고치세요 — 굵게·정렬·글자크기·<b>표(▦)</b> 모두 툴바에서. 값이 채워질 자리는 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으면 발급 시 실제 값으로 채워집니다. 저장 버튼을 누르면 발급 미리보기가 먼저 표시됩니다.
+              내용을 자유롭게 고치세요 — 굵게·정렬·글자크기·<b>표(▦)</b> 모두 툴바에서. 값이 채워질 자리는 아래 변수 버튼으로 <code>{"{{변수}}"}</code>를 넣으면 발급 시 실제 값으로 채워집니다. 발급 모습은 &lsquo;미리보기&rsquo; 버튼으로 확인하세요.
             </p>
             <div className="tpl-var-buttons">
               {vars.map((v) => (
@@ -90,15 +89,16 @@ export function TextTemplateEditorModal({ title, vars, initialHtml, saveLabel, o
           {step === "edit" ? (
             <>
               <button onClick={onClose} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
-              <button onClick={() => setStep("preview")} className="btn-primary btn-sm">
-                {saveLabel || "텍스트 양식 저장"}
+              <button onClick={() => setStep("preview")} className="btn-secondary btn-sm">미리보기</button>
+              <button onClick={save} disabled={saving} className="btn-primary btn-sm">
+                {saving ? "저장 중…" : (saveLabel || "텍스트 양식 저장")}
               </button>
             </>
           ) : (
             <>
               <button onClick={() => setStep("edit")} disabled={saving} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">돌아가서 수정</button>
               <button onClick={save} disabled={saving} className="btn-primary btn-sm">
-                {saving ? "저장 중…" : "이대로 저장"}
+                {saving ? "저장 중…" : (saveLabel || "텍스트 양식 저장")}
               </button>
             </>
           )}
