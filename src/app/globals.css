@@ -3480,6 +3480,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pj-sec-view-on { @apply bg-[var(--primary)] text-white border-[var(--primary)] hover:text-white; }
 .pj-sec-empty { @apply text-[12.5px] text-[var(--text-dim)] px-3 py-4 rounded-xl border border-dashed border-[var(--border)]; }
 .pj-sec-cta { @apply flex flex-col gap-3; }
+/* 안 쓰는 자리 — 한 줄 제안. 누르면 그 자리에서 펼쳐진다(스크롤 절약) */
+.pj-sec-add { @apply w-full text-left flex flex-wrap items-baseline gap-x-2 gap-y-1 px-3.5 py-3 rounded-xl border border-dashed border-[var(--border-light)] bg-[var(--bg-card)] text-[var(--text-dim)] transition hover:border-[var(--primary)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/5; }
+.pj-sec-add > b { @apply text-[13px] font-bold text-[var(--text)]; }
+.pj-sec-add > span { @apply text-[11.5px] text-[var(--text-muted)]; }
 .pj-sec-cta > p { @apply text-[12.5px] text-[var(--text-muted)] px-3 py-2.5 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20; }
 @media (max-width: 900px) {
   .pj-layout { grid-template-columns: minmax(0, 1fr); }

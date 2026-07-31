@@ -190,6 +190,11 @@ export default function ProjectHubDetailPage() {
     setOpenSecs((prev) => (prev.has(k) ? prev : new Set(prev).add(k)));
   }, []);
   const moneyOpen = openSecs.has("money");
+  // 데이터가 없는 자리는 한 줄 제안만 둔다(무거운 컴포넌트를 마운트하지 않는다).
+  //   ⚠️ 안 쓰는 기능이 펼쳐져 있으면 스크롤만 길어진다 — 실측 3.4화면 중 1화면이 빈 자리였다.
+  //   누르면 그 자리에서 바로 펼쳐진다(생성 때 미리 고르게 하지 않는 이유: 그 시점엔 판단 근거가 없다).
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const openNow = (k: SectionKey) => setExpanded((p) => ({ ...p, [k]: true }));
   // 목차 클릭 → 그 자리로 스크롤(자리는 즉시 마운트한다. 스크롤 도착 전에 조회가 시작되게)
   const goSection = useCallback((k: SectionKey) => {
     markSecOpen(k);
@@ -1497,7 +1502,7 @@ export default function ProjectHubDetailPage() {
             ⚠️ 프로젝트 안의 '워크플로우' 탭(전사 보드)은 제거했다 — 회사 전체 보드는 프로젝트
                목록의 '보드' 보기가 맡는다(같은 컴포넌트, 위치만 이동). */}
         <PjSection k="work" active={sec === "work"} onSeen={markSecOpen}
-          views={SECTION_VIEWS.work} view={viewOf("work")} onView={(v: string) => pickView("work", v)}
+          views={signals.hasWork || expanded.work ? SECTION_VIEWS.work : undefined} view={viewOf("work")} onView={(v: string) => pickView("work", v)}
           hint={signals.hasWork ? "진행률은 완료된 할 일에서 자동 계산돼요" : undefined}>
           {!openSecs.has("work") ? <p className="pj-sec-empty">불러오는 중…</p>
             : !companyId ? null
@@ -1505,11 +1510,13 @@ export default function ProjectHubDetailPage() {
               <ProjectScheduleTab dealId={dealId} />
             ) : viewOf("work") === "issues" ? (
               <IssuesTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
+            ) : !signals.hasWork && !expanded.work ? (
+              <button type="button" className="pj-sec-add" onClick={() => openNow("work")}>
+                ＋ <b>할 일 적기</b>
+                <span>적어두면 진행률이 저절로 계산돼요. 담당을 지정하면 그 사람 화면에도 보여요.</span>
+              </button>
             ) : !signals.hasWork ? (
-              <div className="pj-sec-cta">
-                <p>할 일을 적으면 진행률이 저절로 계산돼요. 담당을 지정하면 그 사람 화면에도 보여요.</p>
-                <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
-              </div>
+              <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
             ) : (
               <>
                 <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
@@ -1521,15 +1528,17 @@ export default function ProjectHubDetailPage() {
 
         {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
         <PjSection k="goal" active={sec === "goal"} onSeen={markSecOpen}
-          views={SECTION_VIEWS.goal} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
+          views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
           hint={signals.hasGoal ? "매출·이익·건수는 태그된 회계 데이터에서 자동으로 채워져요" : undefined}>
           {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
             : !companyId ? null
-            : !signals.hasGoal ? (
-              <div className="pj-sec-cta">
-                <p>목표(매출·건수 등)를 하나 정하면 실적이 자동으로 채워지고 예상 착지까지 계산돼요.</p>
-                <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
-              </div>
+            : !signals.hasGoal && !expanded.goal ? (
+              <button type="button" className="pj-sec-add" onClick={() => openNow("goal")}>
+                ＋ <b>목표 정하기</b>
+                <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고 예상 착지까지 계산돼요.</span>
+              </button>
+            ) : !signals.hasGoal ? (
+              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
             ) : viewOf("goal") === "manage" ? (
               <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
             ) : (
