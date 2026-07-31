@@ -1653,8 +1653,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* tax-invoices/page.tsx — marker/utility separation (globals.css @apply additions) */
 .tax-invoice-toolbar { @apply mb-3 rounded-lg overflow-hidden border border-[var(--border)]; } /* no-print은 기능 클래스라 JSX에 리터럴로 유지 */
 .tax-invoice-issuance-badge { @apply ml-auto self-center px-2.5 py-1 rounded-md text-[11px] font-semibold border; }
-.tax-sync-fold { @apply mb-2; } /* glass-card(기존)·no-print(기능)·group(함정3, @apply 불가)은 JSX에 나란히 병기 */
-.tax-invoice-sync-result-panel { @apply p-5 mb-6; } /* glass-card(기존)·no-print(기능)는 JSX 병기 */
 .tax-invoice-tabs { @apply flex items-center gap-2 mb-4 flex-wrap; }
 .tax-invoice-summary-cards { @apply grid grid-cols-2 md:grid-cols-4 gap-4 mb-6; }
 .tax-check-report { @apply p-5 mb-6; } /* glass-card(기존)·no-print(기능)는 JSX 병기 */

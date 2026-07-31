@@ -1,5 +1,4 @@
 "use client";
-import { appConfirm } from "@/components/global-confirm";
 import { getHometaxPausedUntil, setHometaxPause, clearHometaxPause } from "@/lib/data-sync";
 import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
@@ -23,9 +22,6 @@ import {
   markInvoiceMatched,
   getTaxInvoiceSummary,
   getVATPreview,
-  bulkImportTaxInvoices,
-  parseHomeTaxExcel,
-  syncHomeTaxInvoices,
   modifyTaxInvoice,
   getInvoiceQueue,
   approveQueueItem,
@@ -344,13 +340,8 @@ export default function TaxInvoicesPage() {
   const [modifyTarget, setModifyTarget] = useState<any>(null);
   const [modifyReason, setModifyReason] = useState("");
   const [modifyAmount, setModifyAmount] = useState("");
-  const [syncing, setSyncing] = useState(false);
-  const [syncProgress, setSyncProgress] = useState<{ done: number; total: number; label: string } | null>(null);
   // 동기화 기간 = 상단 조회기간(viewFromMonth~viewToMonth) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
-  // Incremental sync 토글 — ON 이면 last_hometax_sync_at - 30일 ~ today 자동 사용 (picker 무시).
-  const [incrementalMode, setIncrementalMode] = useState(false);
-  // Background sync 토글 — ON 이면 hometax-sync-async 호출 (백그라운드).
-  const [backgroundMode, setBackgroundMode] = useState(false);
+  // 불러오기는 현금영수증 화면과 동일하게 백그라운드 job 하나로 통일 (2026-07-31 사장님 "방식 통일").
   // 백그라운드 진행 중인 job ID (Realtime 구독용) — localStorage 와 동기화하여 페이지 무관 chain.
   const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -373,45 +364,6 @@ export default function TaxInvoicesPage() {
     setActiveJobId(null);
     if (!silent) toast("멈춘 백그라운드 동기화를 해제했습니다. 다시 시도할 수 있습니다.", "info");
   };
-  // 월별 동기화 결과 — 완료 후 사용자에게 명확히 표시 (누락 N건 식)
-  type MonthSyncResult = { month: string; responseCount: number; synced: number; status: "ok" | "partial" | "error"; errorMsg?: string };
-  const [syncResultDetail, setSyncResultDetail] = useState<MonthSyncResult[] | null>(null);
-
-  // sync 헬퍼 — timeout 발생 시 한 번만 반으로 분할 시도 (depth=1 한도).
-  // 더 깊은 재귀는 시간만 소비하고 답답 → 거기서도 실패하면 결과 패널의 "재시도" 버튼으로 사용자 결정.
-  async function syncRangeWithSplit(
-    companyId: string, startYmd: string, endYmd: string, depth = 0,
-  ): Promise<{ synced: number; responseCount: number; errors: any[] }> {
-    const startISO = `${startYmd.slice(0, 4)}-${startYmd.slice(4, 6)}-${startYmd.slice(6, 8)}`;
-    const endISO = `${endYmd.slice(0, 4)}-${endYmd.slice(4, 6)}-${endYmd.slice(6, 8)}`;
-    const r = await syncHomeTaxInvoices({ companyId, startDate: startISO, endDate: endISO });
-    const timedOut = (r.notes || []).some((n: any) => n.code === "CF-TIMEOUT");
-    const startDate = new Date(parseInt(startYmd.slice(0, 4)), parseInt(startYmd.slice(4, 6)) - 1, parseInt(startYmd.slice(6, 8)));
-    const endDate = new Date(parseInt(endYmd.slice(0, 4)), parseInt(endYmd.slice(4, 6)) - 1, parseInt(endYmd.slice(6, 8)));
-    const days = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
-    // depth 3 — 1달 → 16일 → 8일 → 4일까지 분할 시도. 매출 130건+ 같은 거래 폭증 방어.
-    // 1월 매출 149건 같은 케이스 잡으려면 4일 단위까지 가야 함. 시간 오래 걸리지만 정확성 우선.
-    // 4일도 timeout 이면 결과 패널 + 재시도 버튼 (사용자 결정).
-    if (timedOut && depth < 3 && days >= 4) {
-      const midOffset = Math.floor(days / 2) - 1;
-      const mid = new Date(startDate.getTime() + midOffset * 86400000);
-      const midNext = new Date(mid.getTime() + 86400000);
-      const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-      const r1 = await syncRangeWithSplit(companyId, startYmd, fmt(mid), depth + 1);
-      const r2 = await syncRangeWithSplit(companyId, fmt(midNext), endYmd, depth + 1);
-      return {
-        synced: r1.synced + r2.synced,
-        responseCount: r1.responseCount + r2.responseCount,
-        errors: [...r1.errors, ...r2.errors],
-      };
-    }
-    return {
-      synced: r.synced || 0,
-      responseCount: r.responseCount || 0,
-      errors: [...(r.errors || []), ...(timedOut ? r.notes : [])],
-    };
-  }
-
   // Background sync 시작 — 즉시 응답 받고 사용자는 페이지 떠나도 됨.
   async function runHometaxSyncBackground(fromMonth: string, toMonth: string) {
     if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
@@ -422,6 +374,12 @@ export default function TaxInvoicesPage() {
     const lastDay = new Date(ty, tm, 0).getDate();
     const startDate = `${fromMonth}-01`;
     const endDate = `${toMonth}-${String(lastDay).padStart(2, '0')}`;
+    // 홈택스 연동 일시정지 중이면 시작하지 않음 — 현금영수증 화면과 동일한 가드(2026-07-31 통일)
+    if (isHometaxPaused) {
+      const t = new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+      toast(`홈택스 연동 일시정지 중 (${t}까지) — 정지를 해제한 뒤 다시 시도하세요.`, 'info');
+      return;
+    }
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('로그인 필요');
@@ -449,109 +407,6 @@ export default function TaxInvoicesPage() {
     }
   }
 
-  // 사용자가 선택한 시작~종료 월 범위로 sequential 동기화. 진행 상황 syncProgress 로 표시.
-  // CODEF 가 동시 호출 거부(CF-00016/CF-TIMEOUT) 라 매월/매출/매입 모두 sequential 필수.
-  async function runHometaxSync(fromMonth: string, toMonth: string) {
-    if (syncing) return;
-    if (!isHometaxConnected) { toast('먼저 설정 > 은행연동에서 홈택스를 연결하세요', 'error'); return; }
-    if (!companyId) { toast('회사 정보를 불러올 수 없습니다', 'error'); return; }
-    if (fromMonth > toMonth) { toast('시작 월이 종료 월보다 늦을 수 없습니다', 'error'); return; }
-
-    const months: string[] = [];
-    let cur = new Date(parseInt(fromMonth.slice(0, 4)), parseInt(fromMonth.slice(5, 7)) - 1, 1);
-    const endD = new Date(parseInt(toMonth.slice(0, 4)), parseInt(toMonth.slice(5, 7)) - 1, 1);
-    while (cur <= endD) {
-      months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
-      cur.setMonth(cur.getMonth() + 1);
-    }
-
-    setSyncing(true);
-    setSyncProgress({ done: 0, total: months.length, label: '시작' });
-    setSyncResultDetail(null);
-    const monthResults: MonthSyncResult[] = [];
-    try {
-      for (let i = 0; i < months.length; i++) {
-        const ml = months[i];
-        setSyncProgress({ done: i + 1, total: months.length, label: ml });
-        const [my, mm] = ml.split('-').map(Number);
-        const lastDay = new Date(my, mm, 0).getDate();
-        const startYmd = `${my}${String(mm).padStart(2, '0')}01`;
-        const endYmd = `${my}${String(mm).padStart(2, '0')}${String(lastDay).padStart(2, '0')}`;
-        try {
-          const r = await syncRangeWithSplit(companyId, startYmd, endYmd);
-          const responseCount = r.responseCount;
-          const hasErrors = r.errors.length > 0;
-          const status: "ok" | "partial" | "error" =
-            hasErrors && r.synced === 0 ? "error"
-            : (hasErrors || responseCount > r.synced) ? "partial"
-            : "ok";
-          monthResults.push({
-            month: ml,
-            responseCount,
-            synced: r.synced || 0,
-            status,
-            errorMsg: r.errors[0]?.hint || r.errors[0]?.message,
-          });
-        } catch (e: any) {
-          monthResults.push({ month: ml, responseCount: 0, synced: 0, status: "error", errorMsg: e.message });
-        }
-      }
-      setSyncResultDetail(monthResults);
-      const totalSynced = monthResults.reduce((s, m) => s + m.synced, 0);
-      const failedMonths = monthResults.filter(m => m.status !== "ok");
-      const periodLabel = months.length === 1 ? months[0] : `${months[0]} ~ ${months[months.length - 1]}`;
-      if (failedMonths.length === 0) {
-        toast(`홈택스 동기화 완료 (${periodLabel}): ${totalSynced}건`, 'success');
-      } else if (totalSynced > 0) {
-        toast(`부분 동기화: ${totalSynced}건 · ${failedMonths.length}개 월 누락 (아래 결과에서 재시도)`, 'info');
-      } else {
-        toast(`동기화 실패: ${monthResults[0]?.errorMsg || ''}`, 'error');
-      }
-      // 보기 범위를 동기화 범위로 자동 세팅 → 사용자가 동기화 직후 그 데이터를 바로 봄
-      setViewFromMonth(fromMonth);
-      setViewToMonth(toMonth);
-      invalidate();
-      queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
-      queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
-      queryClient.invalidateQueries({ queryKey: ["invoice-queue"] });
-    } finally {
-      setSyncing(false);
-      setSyncProgress(null);
-    }
-  }
-
-  // 단일 월만 다시 sync — 결과 패널의 "재시도" 버튼에서 사용.
-  async function retryMonthSync(month: string) {
-    if (syncing || !companyId) return;
-    setSyncing(true);
-    setSyncProgress({ done: 1, total: 1, label: month });
-    try {
-      const [my, mm] = month.split('-').map(Number);
-      const lastDay = new Date(my, mm, 0).getDate();
-      const startYmd = `${my}${String(mm).padStart(2, '0')}01`;
-      const endYmd = `${my}${String(mm).padStart(2, '0')}${String(lastDay).padStart(2, '0')}`;
-      const r = await syncRangeWithSplit(companyId, startYmd, endYmd);
-      const responseCount = r.responseCount;
-      const hasErrors = r.errors.length > 0;
-      const status: "ok" | "partial" | "error" =
-        hasErrors && r.synced === 0 ? "error"
-        : (hasErrors || responseCount > r.synced) ? "partial"
-        : "ok";
-      setSyncResultDetail((prev) => (prev || []).map((m) =>
-        m.month === month ? { month, responseCount, synced: r.synced || 0, status, errorMsg: r.errors[0]?.hint || r.errors[0]?.message } : m
-      ));
-      if (status === "ok") toast(`${month} 재동기화 완료: ${r.synced}건`, 'success');
-      else toast(`${month} 재시도: ${r.synced}건 동기화 (누락 남음)`, 'info');
-      invalidate();
-      queryClient.invalidateQueries({ queryKey: ["last-sync-time"] });
-      queryClient.invalidateQueries({ queryKey: ["hometax-sync-logs"] });
-    } catch (e: any) {
-      toast(`${month} 재시도 실패: ${e.message}`, 'error');
-    } finally {
-      setSyncing(false);
-      setSyncProgress(null);
-    }
-  }
   // matchFilter state 는 3-way 매칭 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
   const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
   // 거래매칭 — 목록에서 통장 입출금 거래를 바로 연결 (인라인 팝업)
@@ -904,25 +759,6 @@ export default function TaxInvoicesPage() {
   // Excel import handler
   const [showBulkIssue, setShowBulkIssue] = useState(false);
 
-  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !companyId) return;
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data);
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws);
-    const parsed = parseHomeTaxExcel(rows);
-    if (parsed.length === 0) {
-      toast("유효한 세금계산서 데이터가 없습니다", "error");
-      return;
-    }
-    if (await appConfirm(`${parsed.length}건의 세금계산서를 가져올까요?`)) {
-      await bulkImportTaxInvoices(companyId, parsed);
-      invalidate();
-    }
-    e.target.value = "";
-  };
-
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
   };
@@ -1250,23 +1086,62 @@ export default function TaxInvoicesPage() {
               국세청 발행 이번 달 {issuanceStatus.used}/{issuanceStatus.limit}건
             </span>
           )}
-          {/* 등록 영역 — 엑셀 업로드·내보내기·등록을 한 곳에 모음(2026-07-14 UI 정리) */}
+          {/* 액션 영역 — 홈택스 불러오기·엑셀 일괄발행·내보내기·등록 (2026-07-31 불러오기 통일) */}
           <div className="ml-auto self-center flex items-center gap-2 flex-wrap">
+            {/* 홈택스에서 가져오기 — 현금영수증 화면과 동일한 방식으로 통일(2026-07-31 사장님).
+                조회기간 범위를 백그라운드 job 하나로 처리하고, 진행률은 버튼에 표시한다. */}
+            {!isHometaxConnected ? (
+              <Link href="/settings?tab=bank" className="text-[11px] text-[var(--primary)] font-semibold hover:underline">
+                홈택스 연결 필요 (설정 &gt; 은행연동)
+              </Link>
+            ) : (
+              <button
+                onClick={() => hometaxCd.run(() => runHometaxSyncBackground(viewFromMonth, viewToMonth))}
+                disabled={!!activeJobId || hometaxCd.disabled}
+                aria-busy={!!activeJobId}
+                className="btn-primary text-xs disabled:cursor-not-allowed"
+                title={hometaxCd.disabled
+                  ? `30분 쿨타임 — ${hometaxCd.label}`
+                  : `조회기간(${viewFromMonth} ~ ${viewToMonth}) 범위로 홈택스에 이미 발행된 세금계산서를 가져옵니다${lastSyncData ? ` · 마지막 업데이트 ${new Date(lastSyncData).toLocaleString("ko", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}`}
+              >
+                <svg className={`w-3.5 h-3.5 ${activeJobId ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                <span aria-live="polite">
+                  {activeJobId
+                    ? `백그라운드 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0} (${(activeJob?.current_progress as any)?.label || ""})`
+                    : hometaxCd.disabled ? `⏳ ${hometaxCd.label}`
+                    : "홈택스에서 가져오기"}
+                </span>
+              </button>
+            )}
+            {activeJobId && (
+              <button type="button" onClick={() => forceClearStuckJob(activeJobId)}
+                title="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 rounded-lg text-xs font-semibold transition">
+                동기화 취소
+              </button>
+            )}
+            {/* 홈택스 연동 정지 — 현금영수증 화면도 이 설정을 참조한다(정지 중이면 그쪽 불러오기도 막힘) */}
+            <button
+              type="button"
+              onClick={() => hometaxPauseMut.mutate()}
+              disabled={hometaxPauseMut.isPending}
+              className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition ${
+                isHometaxPaused
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-600 hover:bg-amber-500/25"
+                  : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+              }`}
+              title="홈택스 연동 잠시 멈추기 (30분) — 홈택스 사이트에 직접 로그인할 때 우리 앱의 동기화 로그인이 겹치는 것을 막습니다"
+            >
+              {isHometaxPaused
+                ? <>▶ 정지 해제 ({new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)</>
+                : <>⏸ 연동 정지</>}
+            </button>
             {/* 엑셀 일괄발행 — 양식 다운로드→검증→국세청 전자발행까지 (2026-07-30) */}
             <button onClick={() => setShowBulkIssue(true)} className="btn-primary" title="엑셀 양식으로 여러 건을 한 번에 국세청 전자발행합니다">
               엑셀 일괄발행
             </button>
-            {/* Excel import */}
-            <label className="btn-secondary cursor-pointer" title="엑셀/CSV로 세금계산서를 일괄 등록합니다">
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-                <polyline points="14 2 14 8 20 8" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="12" y1="18" x2="12" y2="12" strokeLinecap="round"/>
-                <polyline points="9 15 12 12 15 15" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              엑셀 업로드
-              <input type="file" accept=".xlsx,.xls,.csv" onChange={handleExcelImport} className="hidden" />
-            </label>
             {/* Export — 엑셀 내보내기 (회계 프로그램 호환 양식 CSV) — 매출·매입 목록에 데이터 있을 때만 */}
             {(tab === "sales" || tab === "purchase") && currentList.length > 0 && (
               <button
@@ -1295,176 +1170,6 @@ export default function TaxInvoicesPage() {
           </div>
         </div>
       </div>
-
-      {/* Sync bar — 접이식(기본 접힘). 평소엔 한 줄 요약, 동기화할 때만 펼침. 로직 무변경. */}
-      <details className="tax-sync-fold glass-card no-print group">
-        <summary className="px-4 py-2.5 cursor-pointer list-none flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)]">
-          <span className="text-[10px] text-[var(--text-dim)] group-open:rotate-90 transition-transform">▸</span>
-          ⟳ 홈택스 동기화
-          <span className="font-normal text-[var(--text-dim)] truncate">{lastSyncData ? `· 마지막 업데이트 ${new Date(lastSyncData).toLocaleDateString("ko", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : isHometaxConnected ? "· 연결됨" : "· 미연결 (설정 > 은행연동)"}</span>
-        </summary>
-      <div className="flex items-center justify-between px-4 pb-3 pt-1 gap-2 flex-wrap">
-        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          {lastSyncData ? (
-            <span>
-              마지막 업데이트: <strong className="text-[var(--text)]">{new Date(lastSyncData).toLocaleString('ko', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</strong>
-            </span>
-          ) : isHometaxConnected ? (
-            <span>홈택스 연결됨</span>
-          ) : (
-            <span>
-              홈택스 미연결 —{" "}
-              <Link href="/settings?tab=bank" className="text-[var(--primary)] font-semibold hover:underline">
-                설정 &gt; 은행연동
-              </Link>
-              에서 연결하세요
-            </span>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Incremental — last_sync 이후만 (빠름) */}
-          <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)]" title="마지막 sync 이후 데이터만 가져옵니다 (30일 buffer). picker 무시.">
-            <input type="checkbox" checked={incrementalMode} onChange={(e) => setIncrementalMode(e.target.checked)} disabled={syncing || !!activeJobId} />
-            최신만
-          </label>
-          {/* Background — 페이지 떠나도 진행 */}
-          <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] cursor-pointer hover:text-[var(--text)]" title="백그라운드에서 처리. 페이지 떠나도 됨. 완료 시 알림.">
-            <input type="checkbox" checked={backgroundMode} onChange={(e) => setBackgroundMode(e.target.checked)} disabled={syncing || !!activeJobId} />
-            백그라운드
-          </label>
-          <button
-            type="button"
-            onClick={() => hometaxPauseMut.mutate()}
-            disabled={hometaxPauseMut.isPending}
-            className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition ${
-              isHometaxPaused
-                ? "bg-amber-500/15 border-amber-500/40 text-amber-600 hover:bg-amber-500/25"
-                : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
-            title="홈택스 연동 잠시 멈추기 (30분) — 홈택스 사이트에 직접 로그인할 때 우리 앱의 동기화 로그인이 겹치는 것을 막습니다"
-          >
-            {isHometaxPaused
-              ? <>▶ 정지 해제 ({new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)</>
-              : <>⏸ 연동 정지</>}
-          </button>
-          <span
-            className={`px-2 py-1 text-[11px] rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] ${incrementalMode ? "opacity-50" : ""}`}
-            title="동기화 기간은 상단 '조회기간'과 동일합니다 — 기간을 바꾸려면 위의 조회기간을 수정하세요.">
-            조회기간 <b className="text-[var(--text)] mono-number">{viewFromMonth} ~ {viewToMonth}</b> 기준
-          </span>
-          <button
-            onClick={() => hometaxCd.run(async () => {
-              // Incremental — last_sync_at - 30일 ~ today. 기본은 상단 조회기간과 동일(기준 통일).
-              let from = viewFromMonth, to = viewToMonth;
-              if (incrementalMode) {
-                if (!lastHometaxSyncAt) {
-                  toast('마지막 동기화 기록이 없습니다. 먼저 일반 동기화 한 번 진행하세요.', 'info');
-                  return;
-                }
-                const last = new Date(lastHometaxSyncAt);
-                last.setDate(last.getDate() - 30);  // 30일 buffer
-                const today = new Date();
-                from = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}`;
-                to = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-              }
-              if (backgroundMode) {
-                await runHometaxSyncBackground(from, to);
-              } else {
-                await runHometaxSync(from, to);
-              }
-            })}
-            disabled={syncing || !!activeJobId || !isHometaxConnected || hometaxCd.disabled}
-            className={`flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg text-xs font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${hometaxCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={hometaxCd.disabled ? `30분 쿨타임 — ${hometaxCd.label}` : !isHometaxConnected ? "홈택스 연결 후 사용 가능합니다" : "상단 조회기간 범위로 동기화"}
-          >
-            <svg className={`w-3.5 h-3.5 ${(syncing || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {syncing ? (syncProgress ? `${syncProgress.done}/${syncProgress.total} (${syncProgress.label})` : "동기화 중...")
-              : activeJobId ? `백그라운드 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0} (${(activeJob?.current_progress as any)?.label || ''})`
-              : hometaxCd.disabled ? `⏳ ${hometaxCd.label}`
-              : "홈택스에서 가져오기"}
-          </button>
-          {activeJobId && (
-            <button type="button" onClick={() => forceClearStuckJob(activeJobId)}
-              title="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다"
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 rounded-lg text-xs font-semibold transition">
-              동기화 취소
-            </button>
-          )}
-        </div>
-      </div>
-      <p className="px-4 pb-3 text-[10px] text-[var(--text-muted)]">
-        ※ 이 버튼은 홈택스에 <b>이미 발행된</b> 세금계산서를 가져오는 조회 동작입니다. 새 세금계산서 발행은 매출 탭에서 "발행" 버튼 또는 매출 스케줄 자동 발행으로 진행됩니다.
-      </p>
-      </details>
-
-      {/* 동기화 결과 패널 — 월별 응답 수 vs 저장 수 비교, 누락 월에 재시도 버튼 */}
-      {syncResultDetail && syncResultDetail.length > 0 && (
-        <div className="tax-invoice-sync-result-panel glass-card no-print">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-xs font-bold text-[var(--text)]">
-              동기화 결과
-              {(() => {
-                const okCount = syncResultDetail.filter(m => m.status === "ok").length;
-                const failCount = syncResultDetail.length - okCount;
-                const totalSynced = syncResultDetail.reduce((s, m) => s + m.synced, 0);
-                const totalResp = syncResultDetail.reduce((s, m) => s + m.responseCount, 0);
-                const missing = totalResp - totalSynced;
-                return (
-                  <span className="ml-2 font-normal text-[var(--text-muted)]">
-                    · 총 {totalSynced}건 동기화
-                    {missing > 0 && <span className="ml-1 text-orange-400">· {missing}건 응답 받았으나 저장 누락</span>}
-                    {failCount > 0 && <span className="ml-1 text-red-400">· {failCount}개 월 누락</span>}
-                  </span>
-                );
-              })()}
-            </div>
-            <button
-              onClick={() => setSyncResultDetail(null)}
-              className="text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]"
-            >
-              닫기
-            </button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-            {syncResultDetail.map((m) => (
-              <div
-                key={m.month}
-                className={`rounded-lg p-2 text-[11px] ${
-                  m.status === "ok" ? "bg-green-500/10 border border-green-500/30"
-                  : m.status === "partial" ? "bg-yellow-500/10 border border-yellow-500/30"
-                  : "bg-red-500/10 border border-red-500/30"
-                }`}
-              >
-                <div className="font-semibold text-[var(--text)]">{m.month}</div>
-                <div className={
-                  m.status === "ok" ? "text-green-400"
-                  : m.status === "partial" ? "text-yellow-400"
-                  : "text-red-400"
-                }>
-                  {m.status === "ok" && `✓ ${m.synced}건`}
-                  {m.status === "partial" && `⚠ ${m.synced}/${m.responseCount}건`}
-                  {m.status === "error" && `✗ 0건 — ${m.errorMsg?.slice(0, 30) || '실패'}`}
-                </div>
-                {m.status !== "ok" && (
-                  <button
-                    onClick={() => retryMonthSync(m.month)}
-                    disabled={syncing}
-                    className="mt-1 text-[10px] underline text-[var(--primary)] hover:text-[var(--primary-hover)] disabled:opacity-50"
-                  >
-                    재시도
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
 
       {/* Tabs — 매출·매입 + 자동발행·집계 (목록 위로 이동, 순서 정리 2026-07-13) */}
       <div className="tax-invoice-tabs">
@@ -1926,7 +1631,7 @@ export default function TaxInvoicesPage() {
 
       </>)}
 
-      {/* 엑셀 업로드·내보내기는 상단 '세금계산서 등록' 영역으로 이동(2026-07-14 UI 정리). */}
+      {/* 엑셀 내보내기·등록은 상단 액션 영역으로 이동(2026-07-14 UI 정리). 엑셀 업로드는 제거(2026-07-31 사장님). */}
       {/* 정렬 — 별도 버튼 툴바 제거(2026-07-13). 표 헤더(작성일자·거래처·품목·공급가액…)를 클릭하면 정렬됩니다. */}
 
       {/* Batch Actions */}
@@ -1997,7 +1702,7 @@ export default function TaxInvoicesPage() {
                 세금계산서가 등록되면 3-Way 매칭이 시작됩니다
               </div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5">
-                홈택스 엑셀을 업로드하거나 직접 등록할 수 있습니다
+                홈택스에서 불러오거나 직접 등록할 수 있습니다
               </div>
               <button
                 onClick={() => setShowForm(true)}
