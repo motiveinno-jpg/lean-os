@@ -63,6 +63,7 @@ function useContainerWidth(): [(node: HTMLDivElement | null) => void, number] {
 
 export function DashboardGrid({
   storageKey, catalog, defaultActiveIds, title = "", recommended = [], sidebarCollapsed = false,
+  layoutMigration,
 }: {
   storageKey: string;
   catalog: CatalogWidget[];
@@ -70,6 +71,9 @@ export function DashboardGrid({
   title?: string;
   recommended?: string[];
   sidebarCollapsed?: boolean;
+  // 위젯 내용이 커졌을 때 이미 저장된 배치를 한 번만 끌어올린다(id 가 바뀔 때만 재적용).
+  //   저장본이 있는 계정은 카탈로그 기본 크기를 안 쓰기 때문에, 이게 없으면 큰 카드가 옛 높이에 갇힌다.
+  layoutMigration?: { id: string; minH: Record<string, number> };
 }) {
   const [edit, setEdit] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -94,6 +98,17 @@ export function DashboardGrid({
         //   저장된 계정이 있다 (2026-07-29 직원 대시보드 짜부 사고). 그 시그니처면 폐기하고 기본 배치로.
         const poisoned = raw.length > 1 && raw.every((l: Layout) => (l?.w ?? 0) <= 1 && (l?.x ?? 0) === 0);
         if (poisoned) { try { localStorage.removeItem(storageKey); } catch { /* noop */ } }
+        else if (layoutMigration && localStorage.getItem(`${storageKey}::mig`) !== layoutMigration.id) {
+          const bumped = raw.map((l: Layout) => {
+            const min = layoutMigration.minH[l.i];
+            return min && (l.h ?? 0) < min ? { ...l, h: min } : l;
+          });
+          setLayout(bumped);
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(bumped));
+            localStorage.setItem(`${storageKey}::mig`, layoutMigration.id);
+          } catch { /* noop */ }
+        }
         else setLayout(raw);
       }
     } catch { /* noop */ }

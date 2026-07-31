@@ -85,7 +85,7 @@ const RISK_LABELS: Record<RiskLabel, { title: string; icon: string; color: strin
 //   오너/직원 공용. 직원 화면엔 재무·attendance·tax 위젯이 없어 해당 항목은 자동으로 미적용(그리드가 무시).
 //   목록에 없는 위젯(work-appr/proj/sign/ment 등 조건부 카드)은 표시될 때 그리드가 자동 배치.
 const DEFAULT_WIDGET_POS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  attendance: { x: 0, y: 0, w: 4, h: 2 }, calendar: { x: 0, y: 2, w: 4, h: 9 }, "work-tasks": { x: 0, y: 11, w: 4, h: 4 },
+  attendance: { x: 0, y: 0, w: 4, h: 5 }, calendar: { x: 0, y: 5, w: 4, h: 9 }, "work-tasks": { x: 0, y: 14, w: 4, h: 4 },
   projects: { x: 4, y: 0, w: 4, h: 5 }, revenue: { x: 4, y: 5, w: 4, h: 5 }, tax: { x: 4, y: 10, w: 4, h: 5 },
   biz: { x: 8, y: 0, w: 4, h: 4 }, receivables: { x: 8, y: 4, w: 4, h: 5 }, assets: { x: 8, y: 9, w: 4, h: 3 }, cards: { x: 8, y: 12, w: 4, h: 3 },
 };
@@ -548,7 +548,9 @@ export default function DashboardPage() {
               { id: "cards", name: "카드", icon: "💳", desc: "이번 달 카드 사용액", category: "자금", ...P.cards, render: () => <CardsSummaryCard companyId={companyId} /> },
               { id: "assets", name: "자산", icon: "🏦", desc: "계좌별 잔액·총자산", category: "자금", ...P.assets, render: () => <AssetsSummaryCard companyId={companyId} /> },
               { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", ...P.calendar, render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
-              { id: "attendance", name: "내 근태", icon: "🕘", desc: "출퇴근 상태", category: "개인", ...P.attendance, render: () => <MyAttendanceCard companyId={companyId} userId={uid} compact /> },
+              // 2026-07-31 사장님: 한 줄짜리 압축 카드 말고 큰 출근 카드로. (compact 제거 = 출근/퇴근 시각·
+              //   지각/연장 배지·재택/반차 선택 + 큰 '출근하기' 버튼)
+              { id: "attendance", name: "출퇴근", icon: "🕘", desc: "출근/퇴근 기록 + 오늘 근무 상태", category: "개인", ...P.attendance, render: () => <MyAttendanceCard companyId={companyId} userId={uid} /> },
               { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", ...P["work-tasks"], render: () => <MyTasksCard userId={uid} /> },
               // ── 추가 가능(기본 비활성) ──
               { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금 내역", category: "자금", w: 4, h: 5, render: () => <BankRecentCard companyId={companyId} /> },
@@ -568,7 +570,9 @@ export default function DashboardPage() {
             const recommended: string[] = [];
             if ((dashboard.sixPack.arOver30 ?? 0) > 0) recommended.push("receivables");
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
-            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed} />;
+            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed}
+              // 저장된 배치에 남아있는 옛 압축 높이(h=2)를 큰 출근 카드에 맞춰 한 번 끌어올린다.
+              layoutMigration={{ id: "attendance-full-20260731", minH: { attendance: 5 } }} />;
           })()}
         </div>
       )}
