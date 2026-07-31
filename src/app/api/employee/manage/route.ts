@@ -3,6 +3,7 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
+import { requirePerm } from "@/lib/api-authz";
 
 type Role = "owner" | "admin" | "employee" | "partner";
 type Action = "update-role" | "register-hr" | "unregister-hr" | "remove-from-company";
@@ -16,11 +17,11 @@ export async function POST(req: NextRequest) {
     if (!caller) return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const callerRow = logRead('manage/route:callerRow', await admin.from("users").select("id, company_id, role").eq("auth_id", caller.id).maybeSingle());
+    const callerRow = logRead('manage/route:callerRow', await admin.from("users").select("id, company_id").eq("auth_id", caller.id).maybeSingle());
     if (!callerRow?.company_id) return NextResponse.json({ error: "회사 정보를 찾을 수 없습니다." }, { status: 403 });
-    if (!["owner", "admin"].includes(callerRow.role || "")) {
-      return NextResponse.json({ error: "멤버 관리는 대표/관리자만 가능합니다." }, { status: 403 });
-    }
+    // 인가 = 마스터 + 부여된 권한 (2026-07-31 역할 폐지 — users.role 로 판단하지 않는다)
+    const gate = await requirePerm(admin as any, caller.id, '/employees:employees');
+    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
     // 회사 스코프는 body 가 아니라 호출자 소속에서 결정 — 남의 회사 지정 불가
     const companyId = callerRow.company_id;
 

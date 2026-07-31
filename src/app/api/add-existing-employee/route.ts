@@ -3,6 +3,7 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { requirePerm } from '@/lib/api-authz';
 
 // 이미 가입된 회원을 초대/가입 단계 없이 바로 우리 회사 직원으로 추가.
 //   초대 수락(api/invite-accept) 과 동일 패턴: public.users 를 우리 회사+역할로 전환 + employees join.
@@ -15,11 +16,11 @@ export async function POST(req: NextRequest) {
     if (!caller) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
 
     const admin = createSupabaseAdminClient();
-    const callerRow = logRead('add-existing-employee/route:callerRow', await admin.from('users').select('id, company_id, role').eq('auth_id', caller.id).maybeSingle());
+    const callerRow = logRead('add-existing-employee/route:callerRow', await admin.from('users').select('id, company_id').eq('auth_id', caller.id).maybeSingle());
     if (!callerRow?.company_id) return NextResponse.json({ error: '회사 정보를 찾을 수 없습니다.' }, { status: 403 });
-    if (!['owner', 'admin'].includes(callerRow.role || '')) {
-      return NextResponse.json({ error: '직원 추가는 대표/관리자만 가능합니다.' }, { status: 403 });
-    }
+    // 인가 = 마스터 + 부여된 권한 (2026-07-31 역할 폐지 — users.role 로 판단하지 않는다)
+    const gate = await requirePerm(admin as any, caller.id, '/employees:employees');
+    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
     const companyId = callerRow.company_id;
 
     // 2) 입력 검증

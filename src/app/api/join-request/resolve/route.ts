@@ -2,6 +2,7 @@ import { logRead } from "@/lib/log-read";
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { createSupabaseAdminClient } from '@/lib/supabase-admin';
+import { requirePerm } from '@/lib/api-authz';
 
 // 합류 요청 승인/거절 — 회사 대표/관리자 전용.
 //   승인 = 요청자의 public.users 를 이 회사로 생성/연결 (invite-accept 와 동일 shape).
@@ -14,11 +15,11 @@ export async function POST(req: NextRequest) {
 
     // company_join_requests 는 신규 테이블 — 생성 타입 미반영이라 any (기존 코드 관례)
     const admin = createSupabaseAdminClient() as any;
-    const callerRow = logRead('resolve/route:callerRow', await admin.from('users').select('id, company_id, role').eq('auth_id', caller.id).maybeSingle());
+    const callerRow = logRead('resolve/route:callerRow', await admin.from('users').select('id, company_id').eq('auth_id', caller.id).maybeSingle());
     if (!callerRow?.company_id) return NextResponse.json({ error: '회사 정보를 찾을 수 없습니다.' }, { status: 403 });
-    if (!['owner', 'admin'].includes(callerRow.role || '')) {
-      return NextResponse.json({ error: '합류 요청 처리는 대표/관리자만 가능합니다.' }, { status: 403 });
-    }
+    // 인가 = 마스터 + 부여된 권한 (2026-07-31 역할 폐지 — users.role 로 판단하지 않는다)
+    const gate = await requirePerm(admin as any, caller.id, '/settings:team');
+    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
 
     const body = await req.json();
     const requestId = String(body.requestId || '');
