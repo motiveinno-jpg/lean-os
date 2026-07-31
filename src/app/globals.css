@@ -1142,6 +1142,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .oauth-buttons { @apply space-y-2.5 mb-5; }
 .oauth-kakao-btn { @apply w-full flex items-center justify-center gap-2.5 py-3 bg-[#FEE500] hover:bg-[#F5DC00] text-[#191919] rounded-xl font-semibold text-sm transition shadow-sm; }
 .oauth-google-btn { @apply w-full flex items-center justify-center gap-2.5 py-3 bg-white hover:bg-gray-50 text-gray-700 rounded-xl font-semibold text-sm transition shadow-sm border border-gray-200; }
+/* 네이버 지정 색(#03C75A) — 로그인 버튼 디자인 가이드가 검수 항목이라 임의 변경 금지 */
+.oauth-naver-btn { @apply w-full flex items-center justify-center gap-2.5 py-3 bg-[#03C75A] hover:bg-[#02B351] text-white rounded-xl font-semibold text-sm transition shadow-sm; }
 .auth-divider { @apply flex items-center gap-3 mb-5; }
 .company-name-field { @apply mb-4; }
 .biz-no-field { @apply mb-4; }

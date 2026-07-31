@@ -66,6 +66,24 @@ export default function AuthPage() {
   //   지금까지는 아무 안내 없이 로그인 화면만 떠서 사용자가 영문을 몰랐다(2026-07-29).
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
+    // 네이버는 Supabase 내장 제공자가 아니라 자체 라우트(/api/auth/naver/*)를 쓰므로 실패 사유가 더 구체적이다.
+    const NAVER_ERRORS: Record<string, string> = {
+      naver_not_configured: "네이버 로그인이 아직 준비 중입니다. 다른 방법으로 로그인해주세요.",
+      naver_state_mismatch: "네이버 로그인이 취소되었거나 시간이 초과됐습니다. 다시 시도해주세요.",
+      naver_token_failed: "네이버 인증에 실패했습니다. 잠시 후 다시 시도해주세요.",
+      naver_profile_failed: "네이버 계정 정보를 가져오지 못했습니다. 다시 시도해주세요.",
+      naver_no_email: "네이버 로그인 시 '이메일 주소' 제공에 동의해야 계정을 연결할 수 있습니다.",
+      naver_user_failed: "계정 생성에 실패했습니다. 고객센터로 문의해주세요.",
+      naver_session_failed: "로그인 세션을 만들지 못했습니다. 다시 시도해주세요.",
+    };
+    const naverError = NAVER_ERRORS[sp.get("error") || ""];
+    if (naverError) {
+      setError(naverError);
+      sp.delete("error");
+      const qs = sp.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+      return;
+    }
     if (sp.get("error") === "auth_callback_error") {
       setError("소셜 로그인이 완료되지 않았습니다. 동의를 거부했거나 링크가 만료됐을 수 있어요. 다시 시도해주세요.");
       // 새로고침 시 에러가 또 뜨지 않게 주소만 정리 (히스토리 오염 없이)
@@ -512,6 +530,30 @@ export default function AuthPage() {
               </svg>
               Google로 시작하기
             </button>
+            {/* 네이버 — Supabase 내장 제공자가 아니라 자체 OAuth 라우트로 나간다.
+                네이버 검수 통과 전에는 노출하지 않는다(테스트 계정 외 로그인 불가라 실패만 보임):
+                Vercel 환경변수 NEXT_PUBLIC_NAVER_LOGIN_ENABLED=true 로 켠다. */}
+            {process.env.NEXT_PUBLIC_NAVER_LOGIN_ENABLED === "true" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  if (mode === "signup" && !agreed) {
+                    return setError("이용약관·개인정보처리방침·환불규정에 동의해야 가입할 수 있습니다.");
+                  }
+                  if (mode === "signup") markConsentPending(); // 콜백 후 세션 생기면 기록
+                  window.location.href = "/api/auth/naver/start?next=/auth/verify";
+                }}
+                disabled={mode === "signup" && !agreed}
+                title={mode === "signup" && !agreed ? "약관에 동의해야 가입할 수 있습니다" : undefined}
+                className={`oauth-naver-btn ${mode === "signup" && !agreed ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M11.44 9.6L6.32 2H2v14h4.56V8.4L11.68 16H16V2h-4.56v7.6z" fill="#fff"/>
+                </svg>
+                네이버로 시작하기
+              </button>
+            )}
           </div>
 
           {/* 구분선 */}
