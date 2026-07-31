@@ -5114,3 +5114,35 @@ td .rounded-full { white-space: nowrap; }
 .bulk-issue-progress { @apply flex-1 flex items-center gap-3 text-xs text-[var(--text-muted)]; }
 .bulk-issue-progress-bar { @apply flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
 .bulk-issue-progress-bar > div { @apply h-full bg-[var(--primary)] transition-all; }
+
+/* ── 직원 엑셀 대량 초대 모달 (2026-07-31) — 일괄발행 모달과 같은 3단계 흐름 ── */
+.bulk-invite-overlay { @apply fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-4; }
+.bulk-invite-modal { @apply w-full max-w-4xl max-h-[88vh] flex flex-col p-6 overflow-hidden; }
+.bulk-invite-head { @apply flex items-start justify-between gap-4 mb-4; }
+.bulk-invite-title { @apply text-base font-bold text-[var(--text)]; }
+.bulk-invite-sub { @apply text-xs text-[var(--text-muted)] mt-1 leading-relaxed max-w-2xl; }
+.bulk-invite-close { @apply w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-muted)] hover:bg-[var(--bg-surface)] shrink-0; }
+.bulk-invite-step1 { @apply flex-1 min-h-0 flex flex-col gap-4 overflow-auto; }
+.bulk-invite-step1-actions { @apply flex items-center justify-center gap-3 pb-2; }
+.bulk-invite-guide { @apply flex flex-col gap-2; }
+.bulk-invite-guide-title { @apply text-xs font-bold text-[var(--text)]; }
+.bulk-invite-rules { @apply list-disc pl-4 text-[11px] text-[var(--text-muted)] leading-relaxed space-y-0.5; }
+.bulk-invite-summary { @apply flex items-center gap-3 flex-wrap text-xs mb-2; }
+.bulk-invite-file { @apply font-semibold text-[var(--text)]; }
+.bulk-invite-count-ok { @apply text-[var(--success)] font-semibold; }
+.bulk-invite-count-bad { @apply text-[var(--danger)] font-semibold; }
+.bulk-invite-reset { @apply ml-auto text-[11px] text-[var(--text-muted)] underline; }
+.bulk-invite-table-wrap { @apply flex-1 min-h-0 overflow-auto border border-[var(--border)] rounded-xl; }
+/* 양식 안내표는 예시 1행뿐 — 세로로 늘리지 않고 가로 스크롤만 */
+.bulk-invite-guide-table-wrap { @apply shrink-0 overflow-x-auto border border-[var(--border)] rounded-xl; }
+.bulk-invite-table { @apply w-full text-xs; }
+.bulk-invite-table th { @apply sticky top-0 bg-[var(--bg-surface)] text-left px-3 py-2 font-semibold text-[var(--text-muted)] whitespace-nowrap; }
+.bulk-invite-table td { @apply px-3 py-2 border-t border-[var(--border)] text-[var(--text)] whitespace-nowrap; }
+.bulk-invite-row-bad { @apply bg-[var(--danger-dim)]/30; }
+.bulk-invite-ok { @apply text-[var(--success)] font-semibold; }
+.bulk-invite-warn { @apply text-[var(--warning)] whitespace-normal; }
+.bulk-invite-err { @apply text-[var(--danger)] whitespace-normal; }
+.bulk-invite-actions { @apply flex items-center justify-end gap-2 mt-4; }
+.bulk-invite-progress { @apply flex-1 flex items-center gap-3 text-xs text-[var(--text-muted)]; }
+.bulk-invite-progress-bar { @apply flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.bulk-invite-progress-bar > div { @apply h-full bg-[var(--primary)] transition-all; }

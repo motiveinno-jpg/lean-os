@@ -41,6 +41,7 @@ import {
 import { getSignedUrl } from "@/lib/file-storage";
 import { previewPayroll } from "@/lib/payroll";
 import { PayrollBatchTab } from "@/components/payroll-batch"; // 급여 일괄 지급 — 정기지출에서 이관(2026-07-08)
+import { EmployeeBulkInviteModal } from "@/components/employee-bulk-invite"; // 엑셀 대량 초대(2026-07-31)
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
@@ -290,6 +291,8 @@ function EmployeeInviteSection({ companyId, userId, queryClient }: any) {
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [addExisting, setAddExisting] = useState(false);
+  // 엑셀 대량 초대 (2026-07-31 사장님) — 단건 초대와 동일 경로를 행 단위로 반복
+  const [showBulkInvite, setShowBulkInvite] = useState(false);
 
   const { data: invitations = [] } = useQuery({
     queryKey: ["employee-invitations", companyId],
@@ -427,9 +430,24 @@ function EmployeeInviteSection({ companyId, userId, queryClient }: any) {
           {pendingInvites.length > 0 && <span className="text-[var(--warning)] font-semibold">초대 대기 {pendingInvites.length}명</span>}
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowBulkInvite(true)} className="btn-secondary">엑셀로 대량 초대</button>
           <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 직원 초대</button>
         </div>
       </div>
+
+      {showBulkInvite && companyId && userId && (
+        <EmployeeBulkInviteModal
+          companyId={companyId}
+          userId={userId}
+          companyName={companyData?.name || undefined}
+          onClose={() => setShowBulkInvite(false)}
+          onDone={() => {
+            queryClient.invalidateQueries({ queryKey: ["employees", companyId] });
+            queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
+            queryClient.invalidateQueries({ queryKey: ["employee-emails", companyId] });
+          }}
+        />
+      )}
 
       {inviteMsg && (
         <div className={`employee-invite-banner ${inviteMsg.ok ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" : "bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20"}`}>
