@@ -1089,6 +1089,8 @@ export async function upsertAttendanceRecordAsAdmin(params: {
   checkIn?: string | null;  // ISO
   checkOut?: string | null; // ISO
   status?: string;
+  // 근무 유형(외근 field_work/출장 business_trip 등) — 미지정 시 기존 값 유지 (2026-07-31 사장님)
+  attendanceType?: string;
   note?: string | null;
   editedBy?: string | null;
 }) {
@@ -1105,6 +1107,8 @@ export async function upsertAttendanceRecordAsAdmin(params: {
     check_in: params.checkIn || null,
     check_out: params.checkOut || null,
     status: params.status || 'present',
+    // 지정했을 때만 포함 — 미지정 upsert 가 기존 유형을 지우지 않도록.
+    ...(params.attendanceType ? { attendance_type: params.attendanceType } : {}),
     note: params.note || null,
     edited_by: params.editedBy || null,
     edited_at: new Date().toISOString(),

@@ -342,6 +342,8 @@ export function ManualAttendanceDialog({
     return kstLocalToIso(`${day}T${time}`);
   };
 
+  // 외근/출장은 status 가 아니라 attendance_type — 지각 판정은 출근 시각으로 자동('type:' 접두)
+  const isTypeChoice = form.status.startsWith("type:");
   const mut = useMutation({
     mutationFn: async () => {
       const rec = await upsertAttendanceRecordAsAdmin({
@@ -350,7 +352,8 @@ export function ManualAttendanceDialog({
         date: form.date,
         checkIn: toIso(form.date, form.checkInTime),
         checkOut: toIso(form.date, form.checkOutTime, form.nextDayOut),
-        status: form.status || undefined,
+        status: isTypeChoice ? undefined : form.status || undefined,
+        attendanceType: isTypeChoice ? form.status.slice(5) : undefined,
         note: form.note || null,
         editedBy: userId || null,
       });
@@ -465,6 +468,9 @@ export function ManualAttendanceDialog({
               <option value="present">정상 출근</option>
               <option value="late">지각</option>
               <option value="remote">재택</option>
+              {/* 외근/출장 — attendance_type 으로 기록, 지각 판정은 출근 시각으로 자동 (2026-07-31 사장님) */}
+              <option value="type:field_work">외근</option>
+              <option value="type:business_trip">출장</option>
               <option value="half_day">반차</option>
               <option value="absent">결근</option>
             </select>
