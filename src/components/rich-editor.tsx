@@ -13,6 +13,12 @@ import { TableKit } from "@tiptap/extension-table";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
+import {
+  PDF_PAGE_W,
+  pdfTextSpanStyle,
+  pdfToEditableHtml,
+  type PdfEditableText,
+} from "@/lib/pdf-editable";
 
 export interface RichEditorRef {
   insertText: (text: string) => void;
@@ -53,19 +59,7 @@ function escapeHtml(s: string): string {
 //   좌표계: 페이지 폭 794px(A4@96dpi) 기준 px. 저장 HTML 도 동일 구조라
 //   서명 화면(sanitize 렌더)에서도 그대로 보인다.
 
-type PdfPageText = { t: string; x: number; y: number; fs: number; b?: boolean; c?: string };
-
-const PDF_PAGE_W = 794;
-
-// 좌표·글자크기를 페이지 폭 대비 비율로 — 편집 패널·미리보기·서명 화면 어디서든
-// 컨테이너 폭에 맞춰 이미지와 함께 스케일된다(px 고정 시 좁은 패널에서 전부 겹치던 버그).
-// cqw = 컨테이너 폭의 1% (부모 div 에 container-type:inline-size 필요).
-function pdfTextSpanStyle(t: PdfPageText, pageH: number): string {
-  const left = ((t.x / PDF_PAGE_W) * 100).toFixed(3);
-  const top = pageH > 0 ? ((t.y / pageH) * 100).toFixed(3) : "0";
-  const fs = ((t.fs / PDF_PAGE_W) * 100).toFixed(3);
-  return `position:absolute;left:${left}%;top:${top}%;font-size:${fs}cqw;${t.b ? "font-weight:700;" : ""}white-space:pre;line-height:1.15;color:${t.c || "#111"};`;
-}
+type PdfPageText = PdfEditableText;
 
 const PdfPage = Node.create({
   name: "pdfPage",
@@ -199,42 +193,76 @@ const PdfPage = Node.create({
               if (el) el.style.top = `${((ny / pageH) * 100).toFixed(3)}%`;
             }
           };
-          sp.addEventListener("input", reposition);
+          const applyStoredStyle = (forceVisible = false) => {
+            sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h, forceVisible) + "outline:none;";
+          };
+          const markEdited = () => {
+            if (!texts[i].e) texts[i].e = true;
+            applyStoredStyle();
+          };
+          sp.addEventListener("input", () => {
+            markEdited();
+            reposition();
+            commit();
+          });
           // 마지막으로 포커스한 글자 조각을 editor.storage 에 등록 — 툴바 글자크기·
           //   변수 삽입 버튼이 PM 본문이 아니라 이 조각에 적용되게 (2026-07-29 사장님:
           //   "크기 변경이 안 되고 변수가 새 페이지에 생긴다").
-          const saveCaret = () => {
+          const saveSelection = () => {
             const sel = document.getSelection();
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const pa = (editor.storage as any).pdfActive;
-            if (pa?.el === sp && sel?.anchorNode && sp.contains(sel.anchorNode)) pa.caret = sel.anchorOffset;
+            if (pa?.el !== sp || !sel?.anchorNode || !sel.focusNode
+              || !sp.contains(sel.anchorNode) || !sp.contains(sel.focusNode)) return;
+            const selectedRange = sel.rangeCount ? sel.getRangeAt(0) : null;
+            if (!selectedRange) return;
+            const before = document.createRange();
+            before.selectNodeContents(sp);
+            before.setEnd(selectedRange.startContainer, selectedRange.startOffset);
+            const start = before.toString().length;
+            pa.selection = {
+              start,
+              end: start + selectedRange.toString().length,
+            };
           };
           sp.addEventListener("focus", () => {
-            sp.style.background = "rgba(59,130,246,0.12)";
             captureBase();
+            // 미수정 조각은 평소 투명해 원본 이미지의 폰트·색이 그대로 보인다.
+            // 포커스한 동안만 추출한 서식으로 표시해 커서와 편집 대상을 확인한다.
+            applyStoredStyle(true);
+            sp.style.outline = "1px solid rgba(59,130,246,0.45)";
             // 크기·굵기 변경도 폭이 변하므로 다음 프레임에 같은 줄 조각을 재배치 후 저장
             const restyleAndCommit = () => {
-              sp.style.cssText = pdfTextSpanStyle(texts[i], cur.attrs.h) + "outline:none;";
+              texts[i].e = true;
+              applyStoredStyle();
               requestAnimationFrame(() => { reposition(); commit(); });
             };
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (editor.storage as any).pdfActive = {
               el: sp,
-              caret: null as number | null,
+              selection: null as { start: number; end: number } | null,
               setFontSize: (px: number) => { texts[i].fs = px; restyleAndCommit(); },
               toggleBold: () => { texts[i].b = texts[i].b ? undefined : true; restyleAndCommit(); },
               setColor: (c: string | null) => { texts[i].c = c || undefined; restyleAndCommit(); },
               insertText: (text: string) => {
+                // 변수 버튼을 누르면 span 이 blur 됐다가 다시 focus 되며 focus 핸들러가
+                // pdfActive 를 새로 만든다. 재포커스 전에 선택 범위를 먼저 보존해야
+                // 선택한 기존 값 전체를 {{변수}}로 교체할 수 있다.
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const saved = (editor.storage as any).pdfActive?.selection as
+                  { start: number; end: number } | null | undefined;
                 sp.focus();
+                texts[i].e = true;
+                applyStoredStyle();
                 const sel = document.getSelection();
                 const node = sp.firstChild;
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const saved = (editor.storage as any).pdfActive?.caret;
                 if (sel && node && node.nodeType === 3) {
-                  const off = Math.min(saved ?? (node.textContent?.length || 0), node.textContent?.length || 0);
+                  const length = node.textContent?.length || 0;
+                  const start = Math.min(saved?.start ?? length, length);
+                  const end = Math.min(saved?.end ?? start, length);
                   const range = document.createRange();
-                  range.setStart(node, off);
-                  range.collapse(true);
+                  range.setStart(node, start);
+                  range.setEnd(node, end);
                   sel.removeAllRanges();
                   sel.addRange(range);
                 }
@@ -246,9 +274,9 @@ const PdfPage = Node.create({
               },
             };
           });
-          sp.addEventListener("keyup", saveCaret);
-          sp.addEventListener("mouseup", saveCaret);
-          sp.addEventListener("blur", () => { sp.style.background = "transparent"; commit(); });
+          sp.addEventListener("keyup", saveSelection);
+          sp.addEventListener("mouseup", saveSelection);
+          sp.addEventListener("blur", () => { applyStoredStyle(); commit(); });
         }
         spanEls.push(sp);
         dom.appendChild(sp);
@@ -366,12 +394,8 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     editor.chain().focus().setImage({ src }).run();
   };
 
-  // PDF → 원형 그대로 복원 (2026-07-28 사장님: "pdf 모양 그대로 — 줄바꿈·정렬·서식·표 그대로")
-  //   · 줄바꿈: PDF 의 시각적 줄(y좌표) 하나 = 한 줄. 임의 재줄바꿈 없음.
-  //   · 글자 크기: PDF 폰트 크기(pt)를 px(×4/3)로 환산해 줄마다 그대로 적용.
-  //   · 정렬: 줄의 좌우 여백으로 가운데/오른쪽 정렬 감지 → text-align 부여.
-  //   · 표: 연속된 다열(多列) 줄들을 열 좌표로 묶어 실제 편집 가능한 <table> 로 재구성.
-  //     표 재구성이 안 된 괘선 페이지·이미지 페이지만 기존처럼 페이지 PNG 로 보존.
+  // exact: 원본 페이지 이미지를 유지한 채 같은 좌표에 투명 편집 레이어를 얹는다.
+  // text: PDF 텍스트를 일반 문단/표 흐름으로 재구성한다.
   const handlePdfInsert = async (file: File) => {
     setPdfProgress("PDF 불러오는 중...");
     try {
@@ -385,94 +409,14 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
         return;
       }
 
-      const pdfjs: any = await import("pdfjs-dist");
-      pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-        "pdfjs-dist/build/pdf.worker.min.mjs",
-        import.meta.url
-      ).toString();
-
-      const buf = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: buf }).promise;
-      const total = pdf.numPages;
-
-      // ── "PDF 그대로" 모드 (2026-07-29 사장님: 원본 모양 그대로 + 글자 수정 가능) ──
-      //   ① 페이지를 고해상도로 렌더 → 글자 영역만 흰색으로 지운 배경 이미지 생성
-      //   ② 글자들은 PDF 원좌표(794px 페이지 기준)대로 편집 가능한 span 으로 얹음 (PdfPage 노드)
-      //   → 보기는 원본과 동일, 글자는 클릭해서 바로 수정.
       if (pdfModeRef.current === "exact") {
-        const Util = pdfjs.Util;
-        const nodes: any[] = [];
-        for (let i = 1; i <= total; i++) {
-          setPdfProgress(`${total}페이지 중 ${i}페이지 변환 중...`);
-          const page = await pdf.getPage(i);
-          const vp1 = page.getViewport({ scale: 1.0 });
-          const factor = 794 / vp1.width;           // 페이지 → 화면(794px) 배율
-          const S = 2.5;                             // 배경 이미지 해상도 배율
-          const vpImg = page.getViewport({ scale: S });
-
-          const canvas = document.createElement("canvas");
-          canvas.width = vpImg.width;
-          canvas.height = vpImg.height;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) continue;
-          await page.render({ canvasContext: ctx, viewport: vpImg }).promise;
-
-          // 글자 수집 + 배경에서 글자 지우기 (흰 사각형 — 계약서류는 흰 배경이라 안전)
-          const texts: { t: string; x: number; y: number; fs: number; b?: boolean }[] = [];
-          try {
-            try { await page.getOperatorList(); } catch { /* 폰트 로딩 실패 무시 */ }
-            const boldCache = new Map<string, boolean>();
-            const isBold = (fn: string): boolean => {
-              if (!fn) return false;
-              if (boldCache.has(fn)) return boldCache.get(fn)!;
-              let b = false;
-              try {
-                const fo: any = (page as any).commonObjs.has(fn) ? (page as any).commonObjs.get(fn) : null;
-                b = /bold|black|heavy|extrab|semib/i.test(String(fo?.name || ""));
-              } catch { /* ignore */ }
-              boldCache.set(fn, b);
-              return b;
-            };
-            const tc = await page.getTextContent();
-            for (const it of tc.items as any[]) {
-              if (typeof it.str !== "string" || !Array.isArray(it.transform)) continue;
-              const fh = Math.hypot(it.transform[2] || 0, it.transform[3] || 0) || 10;
-              // 페이지 좌표 → 화면 px (vp1.transform 적용 후 factor 배)
-              const [dx, dy] = Util.applyTransform([it.transform[4], it.transform[5]], vp1.transform);
-              const fs = Math.max(6, Math.round(fh * factor * 10) / 10);
-              if (it.str.trim().length > 0) {
-                texts.push({ t: it.str, x: Math.round(dx * factor), y: Math.round(dy * factor - fs * 0.83), fs, b: isBold(it.fontName) || undefined });
-              }
-              // 배경 이미지에서 이 글자 영역을 흰색으로 (테두리·표 괘선은 보존)
-              const ex = dx * S, ey = dy * S;
-              const ew = (it.width || 0) * S, eh = fh * S;
-              ctx.fillStyle = "#ffffff";
-              ctx.fillRect(ex - 1, ey - eh * 1.06, Math.max(0, ew + 2), eh * 1.32);
-            }
-          } catch { /* 텍스트 레이어 없으면 이미지만 */ }
-
-          let src: string;
-          if (onUploadImage) {
-            const blob: Blob | null = await new Promise((res) => canvas.toBlob((b) => res(b), "image/png"));
-            try {
-              src = blob
-                ? await onUploadImage(new File([blob], `${file.name.replace(/\.pdf$/i, "")}-p${i}.png`, { type: "image/png" }))
-                : canvas.toDataURL("image/png");
-            } catch {
-              // 스토리지 업로드 실패해도 삽입은 계속 — 인라인 dataURL 폴백
-              src = canvas.toDataURL("image/png");
-            }
-          } else {
-            src = canvas.toDataURL("image/png");
-          }
-
-          nodes.push({
-            type: "pdfPage",
-            attrs: { src, w: 794, h: Math.round(vp1.height * factor), texts },
-          });
-        }
+        const { html } = await pdfToEditableHtml(
+          file,
+          onUploadImage,
+          (message) => setPdfProgress(message),
+        );
         setPdfProgress("본문에 삽입 중...");
-        editor.chain().focus().insertContent(nodes).run();
+        editor.chain().focus().insertContent(html).run();
         setPdfProgress(null);
         return;
       }

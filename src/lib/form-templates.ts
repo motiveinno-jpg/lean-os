@@ -111,6 +111,11 @@ export function wrapTemplatePrintHtml(bodyHtml: string): string {
   .tpl-body ul, .tpl-body ol { margin: 2px 0; padding-left: 22px; }
   .tpl-body blockquote { border-left: 3px solid #d1d5db; margin: 4px 0; padding-left: 10px; color: #4b5563; }
   .tpl-body hr:not(.tpl-page-break) { border: none; border-top: 1px solid #d1d5db; margin: 8px 0; }
+  /* 원본 보존 PDF 페이지는 자체 A4 여백·배치를 이미 포함한다. 바깥 문서 패딩을
+     제거하고 페이지마다 정확히 나눠 인쇄해야 원본 크기와 줄바꿈이 유지된다. */
+  .tpl-body:has(> [data-pdf-page]) { padding: 0; font-size: initial; line-height: normal; }
+  .tpl-body > [data-pdf-page] { margin: 0 auto !important; break-after: page; page-break-after: always; }
+  .tpl-body > [data-pdf-page]:last-child { break-after: auto; page-break-after: auto; }
 </style></head>
 <body><div class="tpl-body">${bodyHtml}</div></body></html>`;
 }
