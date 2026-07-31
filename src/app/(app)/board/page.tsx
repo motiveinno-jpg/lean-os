@@ -361,7 +361,13 @@ export default function BoardPage() {
 
   const delPost = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await db.from("board_posts").delete().eq("id", id);
+      // 삭제는 작성자 본인만 (2026-07-31 사장님) — 버튼 노출 조건과 이중 방어
+      if (!user?.id) throw new Error("작성자 본인만 삭제할 수 있습니다.");
+      const { error } = await db
+        .from("board_posts")
+        .delete()
+        .eq("id", id)
+        .eq("author_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1154,7 +1160,7 @@ export default function BoardPage() {
                           {p.pinned ? "고정 해제" : "상단 고정"}
                         </button>
                       )}
-                      {/* 수정은 작성자 본인만 (2026-07-31 사장님). 삭제는 기존대로 본인+관리 가능자 */}
+                      {/* 수정·삭제 모두 작성자 본인만 (2026-07-31 사장님) */}
                       {isMine && (
                           <button
                             onClick={() => {
@@ -1187,7 +1193,7 @@ export default function BoardPage() {
                             수정
                           </button>
                       )}
-                      {(isMine || canPin) && (
+                      {isMine && (
                           <button
                             onClick={async () => {
                               if (await appConfirm("이 글을 삭제하시겠습니까?", { danger: true }))
