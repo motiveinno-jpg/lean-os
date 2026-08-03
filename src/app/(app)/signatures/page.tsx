@@ -19,7 +19,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments } from "@/lib/queries";
 import ContractTemplatesManager from "@/components/contract-templates-manager";
-import { listContractTemplates } from "@/lib/contract-templates";
+import { listContractTemplates, getHiddenContractTemplateIds } from "@/lib/contract-templates";
 import {
   getSignatureRequests,
   getSignatureProof,
@@ -145,11 +145,22 @@ export default function SignaturesDashboardPage() {
   }, [allDocuments, hrPackageDocIds]);
 
   // 계약 양식(contract_templates) — 전자계약 양식 통합(2026-07-23). 발송 목록의 양식 소스는 이걸로 일원화.
-  const { data: contractTemplates = [] } = useQuery({
+  const { data: allContractTemplates = [] } = useQuery({
     queryKey: ["contract-templates", companyId],
     queryFn: () => listContractTemplates(companyId!),
     enabled: !!companyId,
   });
+  // 양식관리에서 숨긴 표준 양식은 발송 목록에서도 뺀다 — 2026-08-03 사장님:
+  //   "양식관리에서 삭제하면 발송하기에 안 나타나야 한다". 회사 양식은 실제 삭제라 목록에서 바로 빠진다.
+  const { data: hiddenTemplateIds = [] } = useQuery({
+    queryKey: ["hidden-contract-templates", companyId],
+    queryFn: () => getHiddenContractTemplateIds(companyId!),
+    enabled: !!companyId,
+  });
+  const contractTemplates = useMemo(() => {
+    const hidden = new Set(hiddenTemplateIds);
+    return (allContractTemplates as any[]).filter((t) => !hidden.has(t.id));
+  }, [allContractTemplates, hiddenTemplateIds]);
 
   const filtered = useMemo(() => {
     return (requests as any[]).filter((r) => {

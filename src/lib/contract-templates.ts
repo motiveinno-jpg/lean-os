@@ -119,6 +119,30 @@ export async function deleteContractTemplate(id: string): Promise<void> {
 }
 
 // ──────────────────────────────────────────────────────────
+// 표준(시스템) 양식 숨김 — 회사 단위
+// ──────────────────────────────────────────────────────────
+//   표준 양식은 전 회사가 공유하는 행이라 삭제하면 남의 회사 것까지 사라진다.
+//   그래서 "우리 회사 목록에서만 감추는" 방식으로 company_settings.settings 에 id 목록을 둔다.
+//   (2026-08-03 사장님: 양식관리에서 지운 계약서가 발송하기에 계속 나오면 안 된다)
+const HIDDEN_KEY = "hidden_contract_template_ids";
+
+export async function getHiddenContractTemplateIds(companyId: string): Promise<string[]> {
+  const { data } = await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+  const ids = ((data as any)?.settings || {})[HIDDEN_KEY];
+  return Array.isArray(ids) ? ids.filter((v: unknown) => typeof v === "string") : [];
+}
+
+export async function setContractTemplateHidden(companyId: string, templateId: string, hidden: boolean): Promise<void> {
+  const { data } = await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+  const settings = { ...(((data as any)?.settings) || {}) } as Record<string, unknown>;
+  const cur = new Set<string>(Array.isArray(settings[HIDDEN_KEY]) ? (settings[HIDDEN_KEY] as string[]) : []);
+  if (hidden) cur.add(templateId); else cur.delete(templateId);
+  settings[HIDDEN_KEY] = Array.from(cur);
+  const { error } = await db.from("company_settings").update({ settings } as never).eq("company_id", companyId);
+  if (error) throw error;
+}
+
+// ──────────────────────────────────────────────────────────
 // 변수 처리
 // ──────────────────────────────────────────────────────────
 

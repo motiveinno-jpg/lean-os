@@ -30,6 +30,8 @@ import {
   updateContractTemplate,
   deleteContractTemplate,
   extractVariables,
+  getHiddenContractTemplateIds,
+  setContractTemplateHidden,
   type ContractTemplate,
 } from "@/lib/contract-templates";
 
@@ -54,6 +56,22 @@ export default function ContractTemplatesManager({ companyId }: Props) {
 
   const systemTemplates = useMemo(() => templates.filter((t) => t.is_system), [templates]);
   const companyTemplates = useMemo(() => templates.filter((t) => !t.is_system), [templates]);
+
+  // 표준 양식 숨김 목록(회사 단위) — 발송 목록과 같은 쿼리 키를 써서 숨기면 양쪽이 함께 갱신된다.
+  const { data: hiddenList = [] } = useQuery({
+    queryKey: ["hidden-contract-templates", companyId],
+    queryFn: () => getHiddenContractTemplateIds(companyId),
+    enabled: !!companyId,
+  });
+  const hiddenIds = useMemo(() => new Set(hiddenList), [hiddenList]);
+  const hideMut = useMutation({
+    mutationFn: ({ id, hidden }: { id: string; hidden: boolean }) => setContractTemplateHidden(companyId, id, hidden),
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["hidden-contract-templates", companyId] });
+      toast(v.hidden ? "표준 양식을 숨겼습니다 — 발송 목록에도 나오지 않습니다" : "다시 표시합니다", "success");
+    },
+    onError: (e: any) => toast(`변경 실패: ${friendlyError(e, "일시 오류")}`, "error"),
+  });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteContractTemplate(id),
@@ -103,7 +121,50 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </div>
       </div>
 
-      {/* 우리 회사가 만든 계약 양식만 노출 (시스템 양식은 '양식 추가 › 직접 작성'의 시작점으로만 사용) */}
+      {/* 표준(시스템) 양식 — 2026-08-03 사장님: 발송하기엔 나오는데 양식관리엔 안 보여 관리가 안 됐다.
+          전 회사 공유 행이라 삭제는 불가 → 우리 회사 목록에서만 숨긴다(숨기면 발송 목록에서도 빠짐). */}
+      {systemTemplates.length > 0 && (
+        <div className="mb-4">
+          <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">
+            표준 양식 <span className="font-normal">— 오너뷰가 제공. 수정하려면 복제하세요. 숨기면 발송 목록에도 안 나옵니다.</span>
+          </div>
+          <div className="grid gap-1.5">
+            {systemTemplates.map((t) => {
+              const isHidden = hiddenIds.has(t.id);
+              return (
+                <div key={t.id} className={`template-row ${isHidden ? "opacity-50" : ""}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-[var(--text)] truncate">
+                      {t.name} <span className="template-standard-badge">표준</span>
+                      {isHidden && <span className="text-[10px] text-[var(--text-dim)] ml-1">숨김</span>}
+                    </div>
+                    <div className="caption">변수 {t.variables.length}개 · {t.file_type === "pdf" ? "PDF" : "직접 작성"}</div>
+                  </div>
+                  <button
+                    onClick={() => { setInitialMode(t.file_type === "pdf" ? "pdf" : "html"); setEditing(null); setShowAdd(true); }}
+                    className="text-[10px] px-2 py-1 rounded bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
+                    title="표준 양식은 직접 수정할 수 없습니다 — 복제해서 우리 회사 양식으로 만드세요"
+                  >
+                    복제해서 수정
+                  </button>
+                  <button
+                    onClick={() => hideMut.mutate({ id: t.id, hidden: !isHidden })}
+                    disabled={hideMut.isPending}
+                    className={`text-[10px] px-2 py-1 rounded transition ${isHidden ? "text-[var(--primary)] hover:bg-[var(--primary)]/10" : "text-red-400 hover:bg-red-500/10"}`}
+                  >
+                    {isHidden ? "다시 표시" : "숨기기"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 우리 회사가 만든 계약 양식 */}
+      {companyTemplates.length > 0 && (
+        <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">우리 회사 양식</div>
+      )}
       {companyTemplates.length === 0 ? (
         <div className="templates-empty">
           아직 만든 계약 양식이 없습니다. <b>+ 양식 추가</b>로 만들어 보세요. (표준 계약서에서 시작할 수 있어요)
