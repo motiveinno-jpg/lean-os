@@ -73,10 +73,17 @@ const DOC_CATEGORIES: Record<string, string> = {
 };
 
 export default function VaultPage() {
-  const { role } = useUser();
+  const { role, loading } = useUser();
+  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03).
+  //   loading 가드도 추가: role 확정 전 AccessDenied 가 깜빡이던 문제 함께 차단.
+  if (loading) return null;
   if (role !== "owner") {
     return <AccessDenied detail="보관함(중요 자료)은 대표 계정 전용입니다." />;
   }
+  return <VaultPageInner />;
+}
+
+function VaultPageInner() {
   const { toast } = useToast();
   const { confirm: confirmDialog, confirmElement } = useConfirm();
   const router = useRouter();

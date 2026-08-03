@@ -307,9 +307,14 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
 /* ------------------------------------------------------------------ */
 export default function PnlPage() {
   const { role } = useUser();
+  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03)
   if (role === "partner") {
     return <AccessDenied detail="손익계산서는 대표·관리자 전용입니다." />;
   }
+  return <PnlPageInner />;
+}
+
+function PnlPageInner() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [data, setData] = useState<PnlData | null>(null);
   const [isLoading, setIsLoading] = useState(true);

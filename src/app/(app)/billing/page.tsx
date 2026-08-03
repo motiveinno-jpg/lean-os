@@ -41,9 +41,14 @@ const ANNUAL_BILLING_AVAILABLE = true;
 
 export default function BillingPage() {
   const { role } = useUser();
+  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03)
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
     return <AccessDenied detail="요금제 / 결제는 대표·관리자 전용입니다." />;
   }
+  return <BillingPageInner />;
+}
+
+function BillingPageInner() {
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("plan");
   const [cycle, setCycle] = useState<BillingCycle>("monthly"); // 2026-07-22 연간 토글 복원 (연간 10% 할인)

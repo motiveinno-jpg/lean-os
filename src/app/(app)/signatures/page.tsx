@@ -50,9 +50,14 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 export default function SignaturesDashboardPage() {
   const { role } = useUser();
   // 직원도 전자계약 발송 가능. 외부 파트너만 차단. (영구 삭제·발송실패 패널은 아래에서 관리자 전용)
+  // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03)
   if (role === "partner") {
     return <AccessDenied detail="전자서명 대시보드는 회사 구성원 전용입니다." />;
   }
+  return <SignaturesDashboardInner />;
+}
+
+function SignaturesDashboardInner() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { open: openDocViewer } = useDocumentViewer();
