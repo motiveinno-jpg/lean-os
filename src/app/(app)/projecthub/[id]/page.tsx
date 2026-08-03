@@ -27,6 +27,7 @@ import { ProjectSlideOver } from "@/components/project-slide-over";
 //   이름이 맞는 '일' 자리로 옮긴다(2026-07-30). 실데이터 9건이 여기에 있다.
 import { ProjectScheduleTab } from "@/components/project-schedule-tab";
 import { SubDealsTab } from "./_components/SubDealsTab";
+import { OverviewDashboard } from "./_components/OverviewDashboard";
 import { type ProjectTabKey } from "@/lib/project-types";
 import {
   SECTION_ORDER, SECTION_TITLE, SECTION_VIEWS,
@@ -694,21 +695,38 @@ export default function ProjectHubDetailPage() {
       const tasks = (logRead('[id]/page:facts.tasks', tk) || []) as any[];
       const invoices = (logRead('[id]/page:facts.invoices', inv) || []) as any[];
       const today = todayKst();
-      let outstanding = 0;
+      let outstanding = 0, billed = 0, paid = 0;
       let oldestUnpaidDays: number | null = null;
+      const byMonth = new Map<string, { ym: string; billed: number; paid: number }>();
       for (const iv of invoices) {
         if (iv.status === "draft") continue;
-        const left = Number(iv.total_amount || 0) - Number(iv.settled_amount || 0);
+        const amt = Number(iv.total_amount || 0);
+        const got = Number(iv.settled_amount || 0);
+        billed += amt; paid += got;
+        const left = amt - got;
+        if (iv.issue_date) {
+          const ym = String(iv.issue_date).slice(0, 7);
+          const m = byMonth.get(ym) || { ym, billed: 0, paid: 0 };
+          m.billed += amt; m.paid += got;
+          byMonth.set(ym, m);
+        }
         if (left <= 1) continue;
         outstanding += left;
         if (!iv.issue_date) continue;
         const days = Math.floor((new Date(`${today}T00:00:00`).getTime() - new Date(`${String(iv.issue_date).slice(0, 10)}T00:00:00`).getTime()) / 86_400_000);
         if (oldestUnpaidDays == null || days > oldestUnpaidDays) oldestUnpaidDays = days;
       }
+      const openTasks = tasks.filter((t) => t.status !== "done");
+      const dueDates = openTasks.map((t) => (t.due_date ? String(t.due_date).slice(0, 10) : null)).filter(Boolean).sort() as string[];
       return {
         taskCount: tasks.length,
-        overdueTasks: tasks.some((t) => t.status !== "done" && t.due_date && String(t.due_date).slice(0, 10) < today),
-        outstanding, oldestUnpaidDays,
+        taskDone: tasks.filter((t) => t.status === "done").length,
+        overdueCount: openTasks.filter((t) => t.due_date && String(t.due_date).slice(0, 10) < today).length,
+        overdueTasks: openTasks.some((t) => t.due_date && String(t.due_date).slice(0, 10) < today),
+        outstanding, oldestUnpaidDays, billed, paid,
+        // 최근 6개월만 — 더 넣으면 축이 촘촘해져 안 읽힌다
+        months: [...byMonth.values()].sort((a, b) => a.ym.localeCompare(b.ym)).slice(-6),
+        nextDue: dueDates[0] || null,
       };
     },
     enabled: !!companyId && !!dealId,
@@ -1157,6 +1175,13 @@ export default function ProjectHubDetailPage() {
 
       <div className="pj-layout">
         <div className="pj-secs">
+        {/* 개요 대시보드 — 지표 타일이 맨 위, 차트는 '지금 챙길 것' 아래(2026-08-03 사장님 지시:
+            "지표는 한눈에, 뭘 해야 할지가 보이게"). 개요 탭에서만 그린다. */}
+        {TAB_OF_SECTION(sec).key === "overview" && (
+          <OverviewDashboard part="tiles" contract={ownContract} facts={facts as any} won={won}
+            endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
+        )}
+
         {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
         <PjSection k="todo" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
           hint={signals.hasMoney || signals.hasWork ? "데이터에서 자동으로 뽑아요" : "무엇부터 하면 되는지 알려드려요"}>
@@ -1167,6 +1192,11 @@ export default function ProjectHubDetailPage() {
             onGo={goSection} onNewQuote={createQuoteInstant} creating={creatingQuote}
             isNew={justCreated} onAddTasks={addFirstTasks} onSetDue={setFirstDue} saving={savingFirst} />
         </PjSection>
+
+        {TAB_OF_SECTION(sec).key === "overview" && (
+          <OverviewDashboard part="charts" contract={ownContract} facts={facts as any} won={won}
+            endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
+        )}
 
         {/* ② 어디까지 왔나 — 견적→계약→진행→청구→정산 한 줄 + 단계 보정 */}
         <PjSection k="flow" inTab={TAB_OF_SECTION(sec).secs.includes("flow")} active={sec === "flow"} onSeen={markSecOpen}

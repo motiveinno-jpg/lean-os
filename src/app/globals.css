@@ -5533,3 +5533,47 @@ td .rounded-full { white-space: nowrap; }
 .ph-person-dot-normal { @apply bg-[var(--success)]; }
 .ph-person-name { @apply text-[12.5px] text-[var(--text-muted)] min-w-0 truncate; }
 .ph-person-pct { @apply ml-auto text-[11.5px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+
+/* 프로젝트 개요 대시보드(2026-08-03) — 지표 타일 + 얇은 차트.
+   ⚠️ 막대는 6px 를 넘기지 않는다. 두꺼운 막대와 원색 남발은 촌스럽다(사장님 강조). */
+.pj-dash { @apply flex flex-col gap-3; }
+.pj-dash-tiles { @apply grid gap-3 grid-cols-2 lg:grid-cols-4; }
+.pj-dash-sub { @apply text-[11px] text-[var(--text-muted)] leading-snug; }
+.pj-dash-risk { @apply text-[var(--danger)]; }
+.pj-dash-ok { @apply text-[var(--success)]; }
+.pj-dash-dim { @apply text-[var(--text-dim)]; }
+.pj-dash-charts { @apply grid gap-3 lg:grid-cols-3; }
+.pj-dash-card { @apply flex flex-col gap-2.5 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.pj-dash-head { @apply flex flex-wrap items-baseline gap-x-2 gap-y-0.5; }
+.pj-dash-head b { @apply text-[13px] font-extrabold text-[var(--text)]; }
+.pj-dash-head span { @apply text-[11px] text-[var(--text-dim)]; }
+.pj-dash-empty { @apply text-[12px] text-[var(--text-dim)] py-6 text-center; }
+.pj-dash-note { @apply text-[11.5px] text-[var(--text-muted)] mt-0.5; }
+.pj-dash-note b { @apply text-[var(--danger)] font-bold; }
+/* 막대 색 — 기본(연한 회색) · 중간(브랜드) · 완료(초록) · 지연(빨강) 4가지만 쓴다 */
+.pj-fill-base { @apply block h-full rounded-full bg-[var(--text-dim)]/35; }
+.pj-fill-mid { @apply block h-full rounded-full bg-[var(--primary)]/70; }
+.pj-fill-ok { @apply block h-full rounded-full bg-[var(--success)]; }
+.pj-fill-risk { @apply block h-full rounded-full bg-[var(--danger)]; }
+.pj-fill-rest { @apply block h-full rounded-full bg-[var(--bg-surface)] border border-[var(--border)]; }
+/* 돈 흐름 — 라벨 · 얇은 막대 · 금액 */
+.pj-dash-flow { @apply flex flex-col gap-2; }
+.pj-flow-row { @apply grid items-center gap-2.5; grid-template-columns: 2.2rem minmax(0, 1fr) auto; }
+.pj-flow-label { @apply text-[11.5px] text-[var(--text-muted)]; }
+.pj-flow-track { @apply block h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.pj-flow-val { @apply text-[12px] font-bold text-[var(--text)] whitespace-nowrap; font-variant-numeric: tabular-nums; }
+/* 월별 막대 — 발행/입금 두 줄을 나란히, 최대 6px 폭 */
+.pj-dash-bars { @apply flex items-end justify-between gap-1.5 h-24 pt-1; }
+.pj-bar-col { @apply flex flex-col items-center gap-1 flex-1 min-w-0 h-full justify-end; }
+.pj-bar-stack { @apply flex items-end justify-center gap-1 w-full flex-1; }
+.pj-bar-stack i { @apply w-1.5 rounded-t-full self-end; min-height: 2px; }
+.pj-bar-x { @apply text-[10px] text-[var(--text-dim)] whitespace-nowrap; }
+.pj-dash-legend { @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[var(--text-muted)]; }
+.pj-dash-legend span { @apply inline-flex items-center gap-1.5; }
+.pj-dash-legend i { @apply block w-2.5 h-1.5 rounded-full; }
+/* 일정과 업무 */
+.pj-dash-when { @apply flex flex-col gap-1.5; }
+.pj-when-row { @apply flex items-baseline justify-between gap-2 text-[12.5px]; }
+.pj-when-label { @apply text-[var(--text-muted)]; }
+.pj-when-val { @apply text-[var(--text)] font-semibold; font-variant-numeric: tabular-nums; }
+.pj-task-stack { @apply flex h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mt-1; }
