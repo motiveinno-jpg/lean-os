@@ -46,8 +46,6 @@ const CAND_MIN_AMOUNT = 3_000_000;
 const CAND_MAX = 5;
 const CAND_HIDE_KEY = "ov.projecthub.candHidden";
 const NUDGE_OPEN_KEY = "ov.projecthub.nudgeOpen";
-// 목록 맨 위에 카드로 크게 띄우는 최대 건수 — 넘치면 표가 밀린다
-const FOCUS_MAX = 3;
 type Candidate = { partnerId: string; name: string; cnt: number; amt: number; first: string; last: string; ids: string[] };
 
 export default function ProjectHubPage() {
@@ -492,6 +490,28 @@ export default function ProjectHubPage() {
     return { icon: "🗓", text: "기간 미정", dday: "—", tone: "ok" };
   };
 
+  // 확인 사항 — 걸리는 것을 짧은 칩으로 모은다(해당되는 것 전부).
+  //   상태(project-status)는 대표 사유 하나만 주므로 목록에서는 여기서 다시 모은다.
+  const reasonsOf = (d: any): { text: string; tone: "risk" | "warn" | "dim" }[] => {
+    const list: { text: string; tone: "risk" | "warn" | "dim" }[] = [];
+    if (isDone(d)) return list;
+    const dd = ddOf(d);
+    if (dd != null && dd < 0) list.push({ text: `마감 ${-dd}일 지남`, tone: "risk" });
+    else if (dd != null && dd <= 7) list.push({ text: `마감 D-${dd}`, tone: "warn" });
+    if (headlineByDeal[d.id]?.delayed) list.push({ text: "지연된 업무 있음", tone: "risk" });
+    const out = outstandingByDeal[d.id] || 0;
+    if (out > 1) {
+      const days = oldestUnpaidByDeal[d.id];
+      const old = days != null && days > 60;
+      list.push({ text: old ? `미수금 ${days}일째` : "미수금 있음", tone: old ? "risk" : "warn" });
+    }
+    const last = lastActByDeal[d.id];
+    const quiet = last ? Math.floor((Date.now() - last) / 86_400_000) : null;
+    if (quiet != null && quiet >= 14) list.push({ text: `${quiet}일째 변동 없음`, tone: "dim" });
+    if (headlineByDeal[d.id]?.risk) list.push({ text: "마진 적자", tone: "risk" });
+    return list;
+  };
+
   // 상태 칩 필터 — 지연·주의·정상 중 하나만 보기(구 렌즈 4타일을 대체, 2026-08-03)
   const matchesLens = (d: any) => !lens || statusOf(d) === lens;
   // 급한 순 — 상태 순서(지연→주의→정상→완료)가 곧 긴급도다
@@ -849,91 +869,61 @@ export default function ProjectHubPage() {
           won={won}
           onOpen={(id) => router.push(`/projecthub/${id}`)} />
       ) : (
-        /* 목록 보기 — 챙길 건(지연·주의) 위에 카드로, 나머지는 한 줄씩(2026-08-03 개편 ②).
-           보기를 고르게 하는 대신 한 화면에서 둘 다 준다. 상태 단어는 project-status.ts 한 곳에서. */
-        <>
-        {(() => {
-          const focus = rows.filter((d: any) => statusOf(d) === "late" || statusOf(d) === "warn").slice(0, FOCUS_MAX);
-          const rest = rows.filter((d: any) => !focus.includes(d));
-          return (
-            <>
-              {focus.length > 0 && (
-                <div className="ph-focus-list">
-                  {focus.map((d: any) => {
-                    const st = statusByDeal[d.id];
-                    const h = headlineByDeal[d.id];
-                    const na = nextAction(d);
-                    return (
-                      <div key={d.id} className={`ph-focus ph-focus-${st.key}`} onClick={() => router.push(`/projecthub/${d.id}`)}>
-                        <div className="ph-focus-top">
-                          <span className={`ph-st ph-st-${st.key}`}>{st.label}</span>
-                          <b>{d.name || "(이름 없음)"}</b>
-                          <span className="ph-focus-who">{partnerName[d.partner_id] || "내부"} · {userName[d.internal_manager_id] || "담당 없음"}</span>
-                          <span className="ph-focus-next">다음: {na.text} {na.dday}</span>
+        /* 한 리스트로 본다 — 같은 프로젝트를 위(카드)와 아래(표)로 나누니 헷갈렸다
+           (2026-08-03 사장님 지적). 대신 행마다 상태 줄무늬와 '확인 사항' 코멘트를 붙여
+           지연·미수를 그 자리에서 읽게 한다. */
+        <div className="ph-table-wrap">
+          <table className="ph-table">
+            <thead>
+              <tr>
+                <th>프로젝트</th><th>담당</th><th>상태</th><th className="ph-table-n">진행</th>
+                <th className="ph-table-n">미수금</th><th>확인 사항</th><th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((d: any) => {
+                const st = statusByDeal[d.id];
+                const h = headlineByDeal[d.id];
+                const out = outstandingByDeal[d.id] || 0;
+                const reasons = reasonsOf(d);
+                return (
+                  <tr key={d.id} onClick={() => { if (openMenu) { setOpenMenu(null); return; } router.push(`/projecthub/${d.id}`); }}
+                    className={`ph-table-row ph-row-${st?.key || "normal"}`}>
+                    <td>
+                      <b>{d.name || "(이름 없음)"}</b>
+                      {childCount[d.id] > 0 && <span className="ph-sub-badge">하위 {childCount[d.id]}</span>}
+                      <span className="ph-table-partner">{partnerName[d.partner_id] || "내부"}</span>
+                    </td>
+                    <td className="ph-table-dim">{userName[d.internal_manager_id] || "—"}</td>
+                    <td><span className={`ph-st ph-st-${st?.key || "normal"}`}>{st?.label || "정상"}</span></td>
+                    <td className="ph-table-n">
+                      {h && h.raw != null
+                        ? <span className="ph-table-prog"><span className="ph-table-track"><i style={{ width: `${h.pct}%` }} /></span>{h.label}</span>
+                        : "—"}
+                    </td>
+                    <td className={`ph-table-n ${out > 1 ? "ph-table-bad" : ""}`}>{out > 1 ? won(out) : "—"}</td>
+                    <td>
+                      {reasons.length === 0 ? <span className="ph-table-dim">특이사항 없음</span> : (
+                        <span className="ph-reasons">
+                          {reasons.map((r) => <span key={r.text} className={`ph-reason ph-reason-${r.tone}`}>{r.text}</span>)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="ph-table-kebab">
+                      <button onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === d.id ? null : d.id); }} className="ph-kebab" title="수정·삭제" aria-label="더보기">⋯</button>
+                      {openMenu === d.id && (
+                        <div className="ph-card-menu" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={() => { setOpenMenu(null); setEditDeal(d); }}>✏ 수정</button>
+                          <button onClick={() => { setOpenMenu(null); setDelDeal(d); }} className="!text-[var(--danger)]"><Ico e="🗑" /> 삭제</button>
                         </div>
-                        {h && h.raw != null && (
-                          <div className="ph-focus-bar"><i className={`ph-focus-fill ph-focus-fill-${st.key}`} style={{ width: `${h.pct}%` }} /></div>
-                        )}
-                        <div className="ph-focus-sub">
-                          {st.why}
-                          {h && h.raw != null ? ` · ${h.name} ${h.label}` : ""}
-                          {(outstandingByDeal[d.id] || 0) > 1 ? ` · 미수금 ${won(outstandingByDeal[d.id])}` : ""}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="ph-table-wrap">
-                <table className="ph-table">
-                  <thead>
-                    <tr>
-                      <th>프로젝트</th><th>담당</th><th>상태</th><th className="ph-table-n">진행</th>
-                      <th className="ph-table-n">미수금</th><th>다음 액션</th><th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rest.map((d: any) => {
-                      const st = statusByDeal[d.id];
-                      const h = headlineByDeal[d.id];
-                      const out = outstandingByDeal[d.id] || 0;
-                      const na = nextAction(d);
-                      return (
-                        <tr key={d.id} onClick={() => { if (openMenu) { setOpenMenu(null); return; } router.push(`/projecthub/${d.id}`); }} className="ph-table-row">
-                          <td>
-                            <b>{d.name || "(이름 없음)"}</b>
-                            {childCount[d.id] > 0 && <span className="ph-sub-badge">하위 {childCount[d.id]}</span>}
-                            <span className="ph-table-partner">{partnerName[d.partner_id] || "내부"}</span>
-                          </td>
-                          <td className="ph-table-dim">{userName[d.internal_manager_id] || "—"}</td>
-                          <td><span className={`ph-st ph-st-${st.key}`}>{st.label}</span></td>
-                          <td className="ph-table-n">
-                            {h && h.raw != null
-                              ? <span className="ph-table-prog"><span className="ph-table-track"><i style={{ width: `${h.pct}%` }} /></span>{h.label}</span>
-                              : "—"}
-                          </td>
-                          <td className={`ph-table-n ${out > 1 ? "ph-table-bad" : ""}`}>{out > 1 ? won(out) : "—"}</td>
-                          <td className="ph-table-dim">{na.text}{na.dday && na.dday !== na.text ? <> <span className="mono-number">{na.dday}</span></> : null}</td>
-                          <td className="ph-table-kebab">
-                            <button onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === d.id ? null : d.id); }} className="ph-kebab" title="수정·삭제" aria-label="더보기">⋯</button>
-                            {openMenu === d.id && (
-                              <div className="ph-card-menu" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => { setOpenMenu(null); setEditDeal(d); }}>✏ 수정</button>
-                                <button onClick={() => { setOpenMenu(null); setDelDeal(d); }} className="!text-[var(--danger)]"><Ico e="🗑" /> 삭제</button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                {rest.length === 0 && <p className="ph-table-none">나머지 프로젝트는 없어요 — 위 {focus.length}건이 전부예요.</p>}
-              </div>
-            </>
-          );
-        })()}
-        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {listView !== "board" && (
