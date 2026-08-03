@@ -331,6 +331,18 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* ── 반응형 스탯 숫자 (2026-08-03 사장님: "화면 줄이면 숫자가 튀어나온다 — 정확히 반응형으로") ──
+   .stat-fit 을 숫자의 부모(카드 폭을 차지하는 요소)에 주면 그 폭이 컨테이너가 되고,
+   .stat-fit-value 글자 크기가 컨테이너 폭(cqw)에 비례해 13~26px 사이에서 자동 축소된다.
+   nowrap 이라 줄바꿈 없이 항상 카드 안에 들어온다. mono-number·색상 클래스는 JSX 에 병기. */
+.stat-fit { container-type: inline-size; min-width: 0; }
+.stat-fit-value {
+  /* 굵기(font-extrabold/black)·색은 JSX 에 병기 — 여기서 지정하면 사이트별 굵기와 충돌 */
+  @apply block max-w-full overflow-hidden whitespace-nowrap;
+  font-size: clamp(13px, 10.5cqw, 26px);
+  line-height: 1.3;
+}
+
 /* Survival bar compat */
 .survival-bar {
   background: var(--bg-card);

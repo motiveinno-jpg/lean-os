@@ -285,8 +285,8 @@ export default function PlatformOverview() {
             { label: "유료 전환율", value: `${conversionRate}%` },
             { label: "오늘 활동", value: `${usage?.accounts?.dau ?? 0}명` },
           ].map((m) => (
-            <div key={m.label} className="platform-hero-metric">
-              <span className={`text-[22px] md:text-[26px] leading-8 font-extrabold mono-number ${m.accent ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>{m.value}</span>
+            <div key={m.label} className="platform-hero-metric stat-fit">
+              <span className={`stat-fit-value font-extrabold mono-number ${m.accent ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>{m.value}</span>
               <span className="text-[11px] font-semibold text-[var(--text-muted)]">{m.label}</span>
             </div>
           ))}

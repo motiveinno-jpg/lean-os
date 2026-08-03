@@ -452,7 +452,7 @@ export default function LoansPage() {
             {/* Portfolio Summary */}
             <div className="loan-portfolio-summary glass-card">
               <h3 className="text-sm font-bold mb-3">상환 현황</h3>
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div>
                   <div className="caption">총 대출잔액</div>
                   <div className="text-base font-bold mt-0.5">{fmtW(summary?.totalRemaining || 0)}</div>

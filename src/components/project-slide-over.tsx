@@ -1130,7 +1130,7 @@ function MoneyTab({ data, dealId, companyId }: { data: PanelData; dealId: string
       {/* 마진 */}
       <div className="margin-section">
         <h3 className="text-xs font-bold text-[var(--text-muted)] mb-3">예상 마진</h3>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <KV label="계약가" value={`₩${contract.toLocaleString()}`} />
           <KV label="비용합" value={`₩${costTotal.toLocaleString()}`} />
           <KV

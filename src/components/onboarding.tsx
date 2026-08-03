@@ -636,7 +636,7 @@ function StepBankSetup({ banks, form, setForm, add, remove, isCompleted }: {
           </div>
           <Field label="계좌번호 *" value={form.account_number} onChange={(v) => setForm({ ...form, account_number: v })} placeholder="123-456-789012" small />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="별칭" value={form.alias} onChange={(v) => setForm({ ...form, alias: v })} placeholder="메인 운영통장" small />
           <Field label="현재 잔고 (원)" value={form.balance} onChange={(v) => setForm({ ...form, balance: v.replace(/[^0-9]/g, "") })} placeholder="50,000,000" small />
           <div>

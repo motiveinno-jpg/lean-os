@@ -700,8 +700,8 @@ function BalanceSheetPageInner() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">{card.icon}</svg>
                 </span>
               </div>
-              <div className="flex items-end gap-2 flex-wrap">
-                <span className={`text-[26px] leading-8 font-extrabold mono-number ${card.value < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
+              <div className="stat-fit flex items-end gap-2 flex-wrap">
+                <span className={`stat-fit-value font-extrabold mono-number ${card.value < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
                   {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
                 </span>
                 {delta !== undefined && (

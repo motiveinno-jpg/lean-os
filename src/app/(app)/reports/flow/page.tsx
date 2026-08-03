@@ -375,8 +375,8 @@ export default function BusinessFlowPage() {
         ].map((c) => (
           <div key={c.label} className="flow-kpi-card glass-card">
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">{c.label}</span>
-            <div className="flex items-end gap-2">
-              <span className="mono-number truncate text-[26px] leading-8 font-extrabold" style={{ color: c.color }}>₩{fmtKrw(c.value)}</span>
+            <div className="stat-fit flex items-end gap-2">
+              <span className="mono-number stat-fit-value font-extrabold" style={{ color: c.color }}>₩{fmtKrw(c.value)}</span>
             </div>
             <div className="text-[11px] text-[var(--text-dim)]">{c.hint}</div>
           </div>

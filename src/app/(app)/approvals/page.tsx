@@ -582,8 +582,8 @@ export default function ApprovalsPage() {
               <span className="text-[13px] font-semibold text-[var(--text-muted)]">{k.label}</span>
               <span className={`kpi-icon ${k.tone}`}>{k.icon}</span>
             </div>
-            <div className="flex items-end gap-1">
-              <span className={`text-[26px] leading-8 font-extrabold mono-number truncate ${k.valueCls}`}>{k.value}</span>
+            <div className="stat-fit flex items-end gap-1">
+              <span className={`stat-fit-value font-extrabold mono-number ${k.valueCls}`}>{k.value}</span>
               <span className="text-xs font-semibold text-[var(--text-dim)] mb-1">건</span>
             </div>
           </div>
@@ -3443,7 +3443,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         <div className="approval-policy-form glass-card">
           <h3 className="section-title">{editingPolicy ? "양식 · 결재선 수정" : "새 양식 · 결재선"}</h3>
 
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">정책 이름 *</label>
               <input
@@ -3487,7 +3487,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
           </div>
 
           {/* 양식(요청자 화면) 표시 이름 + 설명 템플릿 */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">양식 표시 이름 (선택)</label>
               <input

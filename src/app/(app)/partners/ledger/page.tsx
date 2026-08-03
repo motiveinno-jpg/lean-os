@@ -292,21 +292,21 @@ export default function PartnerLedgerPage() {
 
       {/* KPI 행: 총 미수금/미지급 + 거래처 수 + 반대편 미니 카드(클릭 전환) */}
       <div className="ledger-kpi-row">
-        <div className="ledger-kpi-total glass-card">
+        <div className="ledger-kpi-total glass-card stat-fit">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</span>
-          <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight" style={{ color: pal.main }}>{won(total)}</span>
+          <span className="stat-fit-value font-extrabold mono-number tracking-tight" style={{ color: pal.main }}>{won(total)}</span>
         </div>
-        <div className="ledger-kpi-count glass-card">
+        <div className="ledger-kpi-count glass-card stat-fit">
           <span className="text-[13px] font-semibold text-[var(--text-muted)]">{pal.label}</span>
-          <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></span>
+          <span className="stat-fit-value font-extrabold mono-number tracking-tight text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></span>
         </div>
         {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
         <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
-          className="ledger-kpi-other glass-card"
+          className="ledger-kpi-other glass-card stat-fit"
           title="클릭하여 전환">
           {/* 2026-07-21 QA: 옆 카드는 "N곳"인데 이 카드만 금액이라 "매입처 ₩0"처럼 단위가 헷갈리던 것 — 무엇의 금액인지 라벨에 명시 */}
           <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1">{other.arrow} {other.label} {ledgerType === "sales" ? "총 미지급금" : "총 미수금"}</span>
-          <span className={`text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap tracking-tight ${other.tintText}`}>{won(otherTotal)}</span>
+          <span className={`stat-fit-value font-extrabold mono-number tracking-tight ${other.tintText}`}>{won(otherTotal)}</span>
         </button>
       </div>
       <p className="text-[11px] text-[var(--text-dim)]">잔액 = 전기이월 + 당기 잔액 · 확정된 매칭(거래 매칭)만 정산으로 반영</p>

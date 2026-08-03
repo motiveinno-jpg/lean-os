@@ -1212,8 +1212,8 @@ function TaxInvoicesPageInner() {
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">조회기간 매출</span>
             <span className="kpi-icon success text-base leading-none"><Ico e="📈" /></span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap text-[var(--text)]">{fmt(totalSales)}</span>
+          <div className="stat-fit flex items-end gap-2">
+            <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{fmt(totalSales)}</span>
           </div>
           <div className="text-xs text-[var(--text-muted)]">
             {salesInvoices.length}건
@@ -1229,8 +1229,8 @@ function TaxInvoicesPageInner() {
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">조회기간 매입</span>
             <span className="kpi-icon warning text-base leading-none"><Ico e="📉" /></span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap text-[var(--text)]">{fmt(totalPurchase)}</span>
+          <div className="stat-fit flex items-end gap-2">
+            <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{fmt(totalPurchase)}</span>
           </div>
           <div className="text-xs text-[var(--text-muted)]">
             {purchaseInvoices.length}건
@@ -1246,8 +1246,8 @@ function TaxInvoicesPageInner() {
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">딜 미연결 건수</span>
             <span className={`kpi-icon text-base leading-none ${unmatched > 0 ? "danger" : "success"}`}><Ico e="🔗" /></span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className={`text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap ${unmatched > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{unmatched}건</span>
+          <div className="stat-fit flex items-end gap-2">
+            <span className={`stat-fit-value font-extrabold mono-number ${unmatched > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>{unmatched}건</span>
           </div>
           <div className="text-xs text-[var(--text-muted)]">
             {unmatched > 0 ? `전체 ${invoices.length}건 중 딜 자동연결 안 됨` : "모든 계산서 딜 연결 완료"}
@@ -1261,8 +1261,8 @@ function TaxInvoicesPageInner() {
             <span className="text-[13px] font-semibold text-[var(--text-muted)]">예상 부가세 납부액</span>
             <span className="kpi-icon text-base leading-none"><Ico e="🧾" /></span>
           </div>
-          <div className="flex items-end gap-2">
-            <span className="text-[17px] sm:text-[26px] leading-7 sm:leading-8 font-extrabold mono-number whitespace-nowrap text-[var(--text)]">{fmt(Math.abs(vatEstimate))}</span>
+          <div className="stat-fit flex items-end gap-2">
+            <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{fmt(Math.abs(vatEstimate))}</span>
           </div>
           <div className="text-xs text-[var(--text-muted)]">
             {vatEstimate >= 0 ? "납부 예정" : "환급 예정"}
@@ -2391,15 +2391,15 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1">연간 매출세액</div>
-          <div className="text-xl font-black text-green-500">₩{vatPreview.reduce((s: number, v: any) => s + v.salesTax, 0).toLocaleString()}</div>
+          <div className="text-base sm:text-xl font-black mono-number truncate text-green-500">₩{vatPreview.reduce((s: number, v: any) => s + v.salesTax, 0).toLocaleString()}</div>
         </div>
         <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1">연간 매입세액 + 카드공제</div>
-          <div className="text-xl font-black text-orange-500">₩{vatPreview.reduce((s: number, v: any) => s + v.purchaseTax + v.cardDeduction, 0).toLocaleString()}</div>
+          <div className="text-base sm:text-xl font-black mono-number truncate text-orange-500">₩{vatPreview.reduce((s: number, v: any) => s + v.purchaseTax + v.cardDeduction, 0).toLocaleString()}</div>
         </div>
         <div className="glass-card p-5">
           <div className="text-xs text-[var(--text-dim)] mb-1">연간 예상 납부세액</div>
-          <div className={`text-xl font-black ${totalVAT >= 0 ? "text-[var(--primary)]" : "text-red-400"}`}>
+          <div className={`text-base sm:text-xl font-black mono-number truncate ${totalVAT >= 0 ? "text-[var(--primary)]" : "text-red-400"}`}>
             ₩{totalVAT.toLocaleString()}
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-1">{totalVAT >= 0 ? "납부" : "환급"}</div>

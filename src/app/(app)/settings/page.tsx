@@ -347,7 +347,7 @@ function SettingsPageInner() {
               <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-[var(--text-muted)]"><Ico e="💰" /> 총 가용 현금 (대시보드 반영)</div>
-                  <div className="text-2xl font-black mono-number text-[var(--primary)]">
+                  <div className="text-lg sm:text-2xl font-black mono-number text-[var(--primary)]">
                     ₩{(totalBankBalance + (Number(balance) || 0)).toLocaleString()}
                   </div>
                 </div>

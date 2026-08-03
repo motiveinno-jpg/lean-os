@@ -643,8 +643,8 @@ export default function CashReceiptsPage() {
                 </svg>
               </span>
             </div>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{summary.incomeCount}건</span>
+            <div className="stat-fit flex items-end gap-2">
+              <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{summary.incomeCount}건</span>
             </div>
             <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{summary.incomeTotal.toLocaleString()}
@@ -659,8 +659,8 @@ export default function CashReceiptsPage() {
                 </svg>
               </span>
             </div>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{summary.expenseCount}건</span>
+            <div className="stat-fit flex items-end gap-2">
+              <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{summary.expenseCount}건</span>
             </div>
             <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{summary.expenseTotal.toLocaleString()}
@@ -675,8 +675,8 @@ export default function CashReceiptsPage() {
                 </svg>
               </span>
             </div>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--primary)]">₩{summary.expenseTax.toLocaleString()}</span>
+            <div className="stat-fit flex items-end gap-2">
+              <span className="stat-fit-value font-extrabold mono-number text-[var(--primary)]">₩{summary.expenseTax.toLocaleString()}</span>
             </div>
             <div className="text-xs text-[var(--text-muted)]">부가세 신고 시 공제</div>
           </div>
@@ -689,8 +689,8 @@ export default function CashReceiptsPage() {
                 </svg>
               </span>
             </div>
-            <div className="flex items-end gap-2">
-              <span className="text-[26px] leading-8 font-extrabold mono-number text-[var(--text)]">{summary.incomeCount + summary.expenseCount}건</span>
+            <div className="stat-fit flex items-end gap-2">
+              <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{summary.incomeCount + summary.expenseCount}건</span>
             </div>
             <div className="text-xs text-[var(--text-muted)] mono-number">
               ₩{(summary.incomeTotal + summary.expenseTotal).toLocaleString()}

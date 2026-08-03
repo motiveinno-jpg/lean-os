@@ -605,12 +605,12 @@ export default function VoucherEntryPage() {
         <div className="voucher-entry-summary-bar sticky bottom-0 z-10 px-5 py-3 border-t-2 border-[var(--border)] rounded-b-[18px] bg-[var(--bg-card)] flex flex-wrap items-center gap-x-6 gap-y-2">
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">차변합</span>
-            <span className="text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalD.toLocaleString()}</span>
+            <span className="text-lg sm:text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalD.toLocaleString()}</span>
           </div>
           <span aria-hidden className="hidden sm:block w-px h-6 bg-[var(--border)]" />
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-dim)]">대변합</span>
-            <span className="text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalC.toLocaleString()}</span>
+            <span className="text-lg sm:text-2xl font-black mono-number tracking-tight text-[var(--text)]">{pendTotalC.toLocaleString()}</span>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {pendMissing && <span className="px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[11px] font-bold">· 계정과목 미지정 행 있음</span>}

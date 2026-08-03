@@ -217,14 +217,14 @@ export default function CostsPage() {
               { label: `${year}년 변동비`, value: totals.variable, tone: "info", hint: "카드·일회성 지출 등", icon: "M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" },
               { label: `${year}년 총비용`, value: totals.total, tone: "", hint: "고정비 + 변동비", icon: "M12 6v12m0-12c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2-3-.9-3-2" },
             ].map((c) => (
-              <div key={c.label} className="costs-summary-card glass-card">
+              <div key={c.label} className="costs-summary-card glass-card stat-fit">
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] font-semibold text-[var(--text-muted)] truncate">{c.label}</span>
                   <span className={`kpi-icon shrink-0 ${c.tone}`}>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={c.icon} /></svg>
                   </span>
                 </div>
-                <div className="mono-number truncate text-[26px] leading-8 font-extrabold text-[var(--text)]">₩{fmtKrw(c.value)}</div>
+                <div className="mono-number stat-fit-value font-extrabold text-[var(--text)]">₩{fmtKrw(c.value)}</div>
                 <div className="text-[11px] text-[var(--text-dim)] truncate">{c.hint}</div>
               </div>
             ))}

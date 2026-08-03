@@ -456,20 +456,20 @@ function SignaturesDashboardInner() {
       <div className="signature-status-cards">
         <button
           onClick={() => setStatusFilter("all")}
-          className={`p-4 rounded-xl text-left transition ${
+          className={`stat-fit p-4 rounded-xl text-left transition ${
             statusFilter === "all"
               ? "bg-[var(--primary)] text-white shadow-md"
               : "glass-card card-hover"
           }`}
         >
           <div className={`text-[11px] font-semibold uppercase tracking-wider ${statusFilter === "all" ? "text-white/80" : "text-[var(--text-dim)]"}`}>전체</div>
-          <div className={`text-2xl font-black mono-number mt-0.5 ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</div>
+          <div className={`stat-fit-value font-black mono-number mt-0.5 ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</div>
         </button>
         {SIGNATURE_STATUS.map((s) => (
           <button
             key={s.value}
             onClick={() => setStatusFilter(s.value)}
-            className={`p-4 rounded-xl text-left transition ${
+            className={`stat-fit p-4 rounded-xl text-left transition ${
               statusFilter === s.value
                 ? `${s.bg} ${s.text} ring-2 ring-current/30`
                 : "glass-card card-hover"
@@ -479,7 +479,7 @@ function SignaturesDashboardInner() {
               <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
               {s.label}
             </div>
-            <div className="text-2xl font-black mono-number mt-0.5 text-[var(--text)]">{counts[s.value] || 0}</div>
+            <div className="stat-fit-value font-black mono-number mt-0.5 text-[var(--text)]">{counts[s.value] || 0}</div>
           </button>
         ))}
       </div>
