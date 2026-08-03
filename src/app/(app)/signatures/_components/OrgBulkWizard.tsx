@@ -7,6 +7,8 @@ import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import Link from "next/link";
 import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn } from "@/lib/signatures";
 import { materializeContractTemplate } from "@/lib/documents";
+import { setContractTemplateOrder, sortTemplatesByOrder } from "@/lib/contract-templates";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -82,6 +84,7 @@ export function OrgBulkWizard({
   userId,
   documents,
   contractTemplates = [],
+  templateOrder = [],
   onClose,
   onCreated,
 }: {
@@ -90,6 +93,7 @@ export function OrgBulkWizard({
   documents: any[];
   docTemplates?: any[];          // 레거시(호환용) — 발송 양식 소스는 contractTemplates 로 일원화(2026-07-23)
   contractTemplates?: any[];
+  templateOrder?: string[];      // 회사 공통 노출 순서(id 배열) — 드래그로 변경, company_settings 저장
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -104,6 +108,49 @@ export function OrgBulkWizard({
   // 2026-08-03 사장님: 우리 회사 양식은 '문서' 그룹에, 표준(기본) 양식은 '양식 관리' 그룹에.
   const companyTpls = useMemo(() => (contractTemplates as any[]).filter((t: any) => !t.is_system), [contractTemplates]);
   const standardTpls = useMemo(() => (contractTemplates as any[]).filter((t: any) => t.is_system), [contractTemplates]);
+
+  // ── 목록 순서: 드래그로 변경, 회사 전체 공통 적용 (2026-08-03 사장님) ──
+  //   저장은 company_settings.settings.contract_template_order — 양식관리 ▲▼ 와 같은 배열을 공유하고
+  //   문서 id 도 함께 담아 '문서' 구역의 순서까지 기억한다. 드래그 즉시 로컬 반영 후 서버 저장.
+  const qc = useQueryClient();
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
+  const effectiveOrder = localOrder ?? templateOrder;
+  type PickItem = { kind: "doc" | "tpl"; id: string; doc?: any; tpl?: any };
+  const docSection: PickItem[] = useMemo(() => sortTemplatesByOrder([
+    ...documents.map((d) => ({ kind: "doc" as const, id: d.id as string, doc: d })),
+    ...companyTpls.map((t: any) => ({ kind: "tpl" as const, id: t.id as string, tpl: t })),
+  ], effectiveOrder), [documents, companyTpls, effectiveOrder]);
+  const stdSection = useMemo(() => sortTemplatesByOrder(standardTpls as any[], effectiveOrder), [standardTpls, effectiveOrder]);
+  const [dragKey, setDragKey] = useState<string | null>(null);   // "구역|id"
+  const [dropKey, setDropKey] = useState<string | null>(null);
+  const handleDrop = (section: "doc" | "std", targetId: string) => {
+    setDropKey(null);
+    if (!dragKey) return;
+    const [sec, id] = dragKey.split("|");
+    setDragKey(null);
+    if (sec !== section || id === targetId) return;
+    const ids = (section === "doc" ? docSection : stdSection).map((x: any) => x.id as string);
+    const from = ids.indexOf(id);
+    const to = ids.indexOf(targetId);
+    if (from < 0 || to < 0) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, id);
+    const combined = section === "doc"
+      ? [...ids, ...stdSection.map((x: any) => x.id as string)]
+      : [...docSection.map((x) => x.id), ...ids];
+    setLocalOrder(combined);
+    setContractTemplateOrder(companyId, combined)
+      .then(() => qc.invalidateQueries({ queryKey: ["contract-template-order", companyId] }))
+      .catch((e) => toast(friendlyError(e, "순서 저장 실패 — 새로고침 후 다시 시도하세요"), "error"));
+  };
+  const dragProps = (section: "doc" | "std", id: string) => ({
+    draggable: true,
+    onDragStart: () => setDragKey(`${section}|${id}`),
+    onDragOver: (e: React.DragEvent) => { e.preventDefault(); setDropKey(`${section}|${id}`); },
+    onDragLeave: () => setDropKey((k) => (k === `${section}|${id}` ? null : k)),
+    onDrop: () => handleDrop(section, id),
+    onDragEnd: () => { setDragKey(null); setDropKey(null); },
+  });
   const [materializedDocs, setMaterializedDocs] = useState<any[]>([]);
   const [materializing, setMaterializing] = useState(false);
   const allDocuments = useMemo(() => [...documents, ...materializedDocs], [documents, materializedDocs]);
@@ -437,41 +484,51 @@ export function OrgBulkWizard({
                 <div className="p-6 text-center text-sm text-[var(--text-muted)]">작성된 문서·양식이 없습니다.</div>
               ) : (
                 <>
-                  {(documents.length > 0 || companyTpls.length > 0) && (
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">문서</div>
+                  {docSection.length > 0 && (
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">문서 <span className="normal-case font-normal">— 드래그로 순서 변경(모든 구성원 공통)</span></div>
                   )}
-                  {documents.map((d) => (
-                    <label
-                      key={d.id}
-                      className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
-                        docId === d.id ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="docId"
-                        value={d.id}
-                        checked={docId === d.id}
-                        onChange={() => setDocId(d.id)}
-                      />
-                      <div className="flex-1">
-                        <div className="text-sm text-[var(--text)]">{d.name}</div>
-                        <div className="text-[10px] text-[var(--text-muted)]">
-                          {d.doc_templates?.name || d.doc_templates?.type || "—"} · 상태 {d.status}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                  {companyTpls.map((t: any) => {
+                  {docSection.map((item) => {
+                    const rowKey = `doc|${item.id}`;
+                    const dropHl = dropKey === rowKey ? "ring-1 ring-[var(--primary)]" : "";
+                    if (item.kind === "doc") {
+                      const d = item.doc;
+                      return (
+                        <label
+                          key={d.id}
+                          {...dragProps("doc", item.id)}
+                          className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
+                            docId === d.id ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
+                          } ${dropHl}`}
+                        >
+                          <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>
+                          <input
+                            type="radio"
+                            name="docId"
+                            value={d.id}
+                            checked={docId === d.id}
+                            onChange={() => setDocId(d.id)}
+                          />
+                          <div className="flex-1">
+                            <div className="text-sm text-[var(--text)]">{d.name}</div>
+                            <div className="text-[10px] text-[var(--text-muted)]">
+                              {d.doc_templates?.name || d.doc_templates?.type || "—"} · 상태 {d.status}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    }
+                    const t = item.tpl;
                     const materialized = allDocuments.find((d) => (d.content_json as any)?.source_template_id === t.id || d.name === t.name);
                     const checked = !!materialized && docId === materialized.id;
                     return (
                       <label
                         key={t.id}
+                        {...dragProps("doc", item.id)}
                         className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
                           checked ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
-                        } ${materializing ? "opacity-60 pointer-events-none" : ""}`}
+                        } ${materializing ? "opacity-60 pointer-events-none" : ""} ${dropHl}`}
                       >
+                        <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>
                         <input
                           type="radio"
                           name="docId"
@@ -485,19 +542,23 @@ export function OrgBulkWizard({
                       </label>
                     );
                   })}
-                  {standardTpls.length > 0 && (
+                  {stdSection.length > 0 && (
                     <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 — 표준 양식</div>
                   )}
-                  {standardTpls.map((t: any) => {
+                  {stdSection.map((t: any) => {
+                    const rowKey = `std|${t.id}`;
+                    const dropHl = dropKey === rowKey ? "ring-1 ring-[var(--primary)]" : "";
                     const materialized = allDocuments.find((d) => (d.content_json as any)?.source_template_id === t.id || d.name === t.name);
                     const checked = !!materialized && docId === materialized.id;
                     return (
                       <label
                         key={t.id}
+                        {...dragProps("std", t.id)}
                         className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
                           checked ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
-                        } ${materializing ? "opacity-60 pointer-events-none" : ""}`}
+                        } ${materializing ? "opacity-60 pointer-events-none" : ""} ${dropHl}`}
                       >
+                        <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>
                         <input
                           type="radio"
                           name="docId"

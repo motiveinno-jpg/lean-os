@@ -131,9 +131,16 @@ export default function SignaturesDashboardPage() {
     enabled: !!companyId,
   });
 
+  // 회사가 정한 노출 순서(양식관리 ▲▼·일괄발송 드래그) — 문서·양식 모두 이 순서를 따른다.
+  const { data: templateOrder = [] } = useQuery({
+    queryKey: ["contract-template-order", companyId],
+    queryFn: () => getContractTemplateOrder(companyId!),
+    enabled: !!companyId,
+  });
+
   const documents = useMemo(() => {
     const hrIds = hrPackageDocIds || new Set<string>();
-    return (allDocuments as any[]).filter(
+    const list = (allDocuments as any[]).filter(
       (d) =>
         !HR_TEMPLATE_CATEGORIES.has(d.doc_templates?.category || "") &&
         !hrIds.has(d.id) &&
@@ -145,7 +152,8 @@ export default function SignaturesDashboardPage() {
         //   사본까지 보이면 같은 계약서가 2개씩 나온다(2026-08-03 사장님).
         !(d.content_json as any)?.source_template_id,
     );
-  }, [allDocuments, hrPackageDocIds]);
+    return sortTemplatesByOrder(list, templateOrder);
+  }, [allDocuments, hrPackageDocIds, templateOrder]);
 
   // 계약 양식(contract_templates) — 전자계약 양식 통합(2026-07-23). 발송 목록의 양식 소스는 이걸로 일원화.
   const { data: allContractTemplates = [] } = useQuery({
@@ -158,12 +166,6 @@ export default function SignaturesDashboardPage() {
   const { data: hiddenTemplateIds = [] } = useQuery({
     queryKey: ["hidden-contract-templates", companyId],
     queryFn: () => getHiddenContractTemplateIds(companyId!),
-    enabled: !!companyId,
-  });
-  // 회사가 정한 노출 순서(양식관리에서 ↑↓ 로 변경) — 발송 목록도 같은 순서를 따른다.
-  const { data: templateOrder = [] } = useQuery({
-    queryKey: ["contract-template-order", companyId],
-    queryFn: () => getContractTemplateOrder(companyId!),
     enabled: !!companyId,
   });
   const contractTemplates = useMemo(() => {
@@ -667,6 +669,7 @@ export default function SignaturesDashboardPage() {
           userId={userId}
           documents={documents as any[]}
           contractTemplates={contractTemplates as any[]}
+          templateOrder={templateOrder}
           onClose={() => setShowOrgBulkWizard(false)}
           onCreated={() => {
             setShowOrgBulkWizard(false);
