@@ -6,11 +6,12 @@
 // 템플릿은 **부서가 아니라 일의 형태**로 나눈다 — 같은 표가 여러 업무를 덮는다.
 //   예: '집행 · 성과' 하나가 마케팅 캠페인 · 광고 · 전시회 · 교육 · 지원사업 집행에 다 쓰인다.
 //
-// 그룹 원칙 (2026-08-03 사장님: "템플릿마다 준비·집행중·종료가 똑같이 들어갈 필요는 없다")
-//   · 그룹은 **행이 옮겨 다니는 흐름**이 있을 때만 여러 개 만든다(할 일·수주·요청).
-//     이때는 상태 컬럼을 따로 두지 않는다 — 그룹이 곧 상태라 두 번 적게 된다.
-//   · 흐름이 없고 '목록'인 표(집행·비용·일정)는 **그룹 하나**로 시작하고 상태 컬럼을 쓴다.
-//     필요하면 사용자가 그룹을 더 만든다(월별·채널별 등, 회사마다 다르다).
+// 단계는 '섹션'이 아니라 '라벨'이다 (2026-08-03 사장님: "요청·작업중·검수·완료로 섹션이
+//   나뉘어 있는데 굳이 섹션까지 나눌 필요 없이 기본 라벨로 제공하는 게 좋겠다")
+//   · 모든 템플릿은 **그룹 하나**로 시작한다. 단계는 상태 컬럼의 **기본 라벨**로 준다.
+//   · 그래서 단계 이동 = 셀에서 라벨 바꾸기 = 칸반에서 카드 끌기. 셋이 같은 값을 만진다.
+//   · 그룹은 사용자가 필요할 때 더 만든다(월별·채널별 등, 회사마다 다르다).
+//   · 흐름을 나타내는 상태 컬럼에는 settings.flow = true 를 준다 — 칸반이 이 컬럼을 열로 쓴다.
 //
 // 절대규칙: 순수 정의만 둔다(조회·side-effect 0). 화면과 시드가 이 파일만 본다.
 
@@ -18,12 +19,17 @@
 export type ColType = "text" | "number" | "date" | "status" | "person" | "partner";
 
 export type StatusOption = { id: string; label: string; color: string };
-export type ColumnDef = { name: string; type: ColType; settings?: { options?: StatusOption[]; unit?: string } };
+export type ColumnDef = { name: string; type: ColType; settings?: { options?: StatusOption[]; unit?: string; flow?: boolean } };
 export type GroupDef = { name: string; color: string };
+
+/** 기본 입력화면 — 표는 어느 템플릿에서든 전환으로 늘 쓸 수 있다. 기본값만 다르다. */
+export type InputMode = "grid" | "board";
 
 export type BoardTemplate = {
   key: string;
   name: string;
+  /** 처음 열 때 보여줄 입력화면(2026-08-03 기획: 일의 형태별 최적화). 기본 grid */
+  input?: InputMode;
   /** 무슨 일에 쓰는 표인지 — 고를 때 이게 이름보다 중요하다 */
   desc: string;
   uses: string;
@@ -38,6 +44,8 @@ export const C = {
 };
 
 const STATUS = (options: StatusOption[]): ColumnDef["settings"] => ({ options });
+/** 흐름(단계) 상태 — 칸반이 이 컬럼을 열로 쓴다 */
+const FLOW = (options: StatusOption[]): ColumnDef["settings"] => ({ options, flow: true });
 
 /** 진행 상태 — 거의 모든 표가 쓰는 기본 상태 컬럼 */
 const PROGRESS = STATUS([
@@ -53,7 +61,13 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "할 일 · 진행",
     desc: "가장 단순한 표. 무엇을 누가 언제까지",
     uses: "실행 업무 · 오픈 준비 · 개선 과제 · 회의 후속조치",
+    input: "board",
     columns: [
+      { name: "상태", type: "status", settings: FLOW([
+        { id: "todo", label: "할 일", color: C.indigo },
+        { id: "doing", label: "진행 중", color: C.orange },
+        { id: "done", label: "완료", color: C.green },
+      ]) },
       { name: "담당", type: "person" },
       { name: "마감", type: "date" },
       { name: "우선순위", type: "status", settings: STATUS([
@@ -62,8 +76,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
         { id: "low", label: "낮음", color: C.blue },
       ]) },
     ],
-    // 행을 그룹 사이로 옮기는 흐름이라 상태 컬럼을 따로 두지 않는다
-    groups: [{ name: "할 일", color: C.indigo }, { name: "진행 중", color: C.orange }, { name: "완료", color: C.green }],
+    groups: [{ name: "할 일 목록", color: C.indigo }],
   },
   {
     key: "budget",
@@ -112,48 +125,62 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "매출 · 청구",
     desc: "받을 돈을 견적 → 계약 → 발행 → 입금 으로",
     uses: "프로젝트 매출 · 청구 · 수금 · 기성 청구",
+    input: "board",
     columns: [
+      { name: "단계", type: "status", settings: FLOW([
+        { id: "quote", label: "견적", color: C.gray },
+        { id: "contract", label: "계약", color: C.indigo },
+        { id: "issued", label: "발행", color: C.purple },
+        { id: "paid", label: "입금", color: C.green },
+      ]) },
       { name: "거래처", type: "partner" },
       { name: "금액", type: "number", settings: { unit: "원" } },
       { name: "예정일", type: "date" },
       { name: "담당", type: "person" },
       { name: "비고", type: "text" },
     ],
-    // 단계가 곧 그룹이다 — 견적을 만들고 계약으로, 계약을 계산서로 옮기며 관리한다.
-    //   이 템플릿의 행에서는 견적서를 바로 만들 수 있다(ProjectBoards 의 문서 셀).
-    groups: [
-      { name: "견적", color: C.gray }, { name: "계약", color: C.indigo },
-      { name: "발행", color: C.purple }, { name: "입금", color: C.green },
-    ],
+    // 이 템플릿의 행에서는 견적서를 바로 만들 수 있다(ProjectBoards 의 문서 셀).
+    groups: [{ name: "청구 목록", color: C.indigo }],
   },
   {
     key: "pipeline",
     name: "수주 · 매출",
     desc: "들어올 돈을 단계로 관리",
     uses: "영업 파이프라인 · 견적 · 입찰 · 재계약 · 제휴 제안",
+    input: "board",
     columns: [
+      { name: "단계", type: "status", settings: FLOW([
+        { id: "review", label: "검토", color: C.gray },
+        { id: "proposal", label: "제안", color: C.indigo },
+        { id: "won", label: "계약", color: C.green },
+      ]) },
       { name: "거래처", type: "partner" },
       { name: "금액", type: "number", settings: { unit: "원" } },
       { name: "확률", type: "number", settings: { unit: "%" } },
       { name: "예상일", type: "date" },
       { name: "담당", type: "person" },
     ],
-    // 단계가 곧 그룹이다 — 행을 옮기며 관리한다
-    groups: [{ name: "검토", color: C.gray }, { name: "제안", color: C.indigo }, { name: "계약", color: C.green }],
+    groups: [{ name: "수주 목록", color: C.indigo }],
   },
   {
     key: "review",
     name: "요청 · 검수",
     desc: "누가 요청하고 누가 확인하는 흐름",
     uses: "디자인 시안 · 문서 검토 · 고객 요청 처리 · 하자·A/S · 인허가 서류",
+    input: "board",
     columns: [
+      { name: "상태", type: "status", settings: FLOW([
+        { id: "req", label: "요청", color: C.gray },
+        { id: "doing", label: "작업 중", color: C.orange },
+        { id: "check", label: "검수", color: C.purple },
+        { id: "done", label: "완료", color: C.green },
+      ]) },
       { name: "요청자", type: "person" },
       { name: "담당", type: "person" },
       { name: "기한", type: "date" },
       { name: "링크", type: "text" },
     ],
-    // 요청 → 작업 → 검수 → 완료 로 옮겨 다니는 흐름이라 그룹이 상태를 대신한다
-    groups: [{ name: "요청", color: C.gray }, { name: "작업 중", color: C.orange }, { name: "검수", color: C.purple }, { name: "완료", color: C.green }],
+    groups: [{ name: "요청 목록", color: C.indigo }],
   },
   {
     key: "schedule",
@@ -214,7 +241,24 @@ export function sumColumn(items: BoardItem[], colId: string): number {
 //   ③ 단위가 다른 숫자 둘을 뺐다 ('수주·매출'에서 금액(원) − 확률(%)) → 단위가 같을 때만 뺀다.
 
 /** 끝난 것으로 볼 말 — 그룹 이름과 상태 옵션 라벨에 같이 쓴다 */
-export const DONE_WORD_RE = /완료|종료|계약|승인|마감됨/;
+export const DONE_WORD_RE = /완료|종료|계약|승인|마감됨|입금|수금/;
+
+/** 상태 컬럼의 종착 옵션 — 여러 개가 걸리면 **마지막** 것이 종착지다
+ *  ('매출 · 청구' 의 견적·계약·발행·입금 에서는 '계약' 이 아니라 '입금' 이 끝이다) */
+export function terminalOptionId(col: { settings?: any }): string | null {
+  const options: any[] = col?.settings?.options || [];
+  for (let i = options.length - 1; i >= 0; i--) {
+    if (DONE_WORD_RE.test(String(options[i].label))) return String(options[i].id);
+  }
+  return null;
+}
+
+/** 칸반이 열로 쓸 컬럼 — 흐름 표시(flow)가 붙은 상태 컬럼, 없으면 첫 상태 컬럼 */
+export function flowColumnOf<T extends { type: string; settings?: any }>(cols: T[]): T | null {
+  return cols.find((c) => c.type === "status" && c.settings?.flow)
+    || cols.find((c) => c.type === "status")
+    || null;
+}
 /** 기한이 아닌 날짜 컬럼 — 시작일이 과거인 건 정상이다 */
 export const START_DATE_RE = /시작|착수|개시|접수일/;
 
@@ -228,8 +272,8 @@ export function isDoneRow(
   if (g && DONE_WORD_RE.test(g.name)) return true;
   return cols.some((c) => {
     if (c.type !== "status") return false;
-    const opt = (c.settings?.options || []).find((o: any) => o.id === it.values?.[c.id]);
-    return !!opt && DONE_WORD_RE.test(String(opt.label));
+    const term = terminalOptionId(c);
+    return !!term && it.values?.[c.id] === term;
   });
 }
 export type SummaryCard =
@@ -296,10 +340,10 @@ export function buildBoardSummary(
       label: o.label, color: o.color, count: items.filter((it) => it.values?.[c.id] === o.id).length,
     })).filter((p) => p.count > 0);
     if (parts.length === 0) continue;
-    const done = options.find((o) => /완료|종료|계약/.test(String(o.label)));
-    const doneCount = done ? items.filter((it) => it.values?.[c.id] === done.id).length : 0;
+    const term = terminalOptionId(c);
+    const doneCount = term ? items.filter((it) => it.values?.[c.id] === term).length : 0;
     const total = parts.reduce((n, p) => n + p.count, 0);
-    cards.push({ kind: "status", label: c.name, parts, doneRate: done && total > 0 ? Math.round((doneCount / total) * 100) : null });
+    cards.push({ kind: "status", label: c.name, parts, doneRate: term && total > 0 ? Math.round((doneCount / total) * 100) : null });
   }
 
   // 날짜 — 끝난 행은 빼고 센다(끝난 일의 지난 마감은 지연이 아니다).

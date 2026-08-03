@@ -5811,3 +5811,32 @@ th:hover .pb-col-x { @apply opacity-100; }
 .pj-input-note { @apply flex flex-wrap items-center gap-x-2 gap-y-1 px-3.5 py-2.5 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20 text-[12px] text-[var(--text-muted)]; }
 .pj-input-note b { @apply text-[var(--text)] font-bold; }
 .pj-input-note > button { @apply ml-auto text-[12px] font-bold text-[var(--primary)] hover:underline; }
+
+/* 칸반 — 단계가 라벨이라 카드를 끌면 그 라벨이 바뀐다 (2026-08-03) */
+.pb-viewpick { @apply inline-flex rounded-lg border border-[var(--border)] overflow-hidden; }
+.pb-viewbtn { @apply h-7 px-2.5 text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pb-viewbtn-on { @apply bg-[var(--primary)] text-white hover:!text-white; }
+.pb-kanban { @apply flex gap-3 overflow-x-auto pb-2 items-start; }
+.pb-kcol { @apply shrink-0 w-[264px] flex flex-col gap-2 p-2 rounded-2xl bg-[var(--bg-surface)] border border-transparent transition; }
+.pb-kcol-over { @apply border-[var(--primary)] bg-[var(--primary)]/5; }
+.pb-kcol-loose { @apply border-dashed border-[var(--border)]; }
+.pb-kcol-head { @apply flex items-center gap-1.5 px-1.5 py-1; }
+.pb-kcol-head i { @apply block w-2 h-2 rounded-full shrink-0; }
+.pb-kcol-head b { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
+.pb-kcol-head span { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
+.pb-kcol-head em { @apply ml-auto not-italic text-[11px] font-bold text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.pb-kcol-body { @apply flex flex-col gap-2; }
+.pb-card { @apply relative flex flex-col gap-1.5 p-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-sm cursor-grab active:cursor-grabbing; }
+.pb-card-drag { @apply opacity-40; }
+.pb-card-name { @apply w-full bg-transparent border-0 pr-5 text-[13px] font-bold text-[var(--text)] focus:outline-none; }
+.pb-card-fields { @apply flex flex-col gap-1; }
+.pb-card-field { @apply flex items-center gap-1.5 min-w-0; }
+.pb-card-field > label { @apply w-11 shrink-0 text-[10.5px] font-semibold text-[var(--text-dim)]; }
+.pb-card-field > *:last-child { @apply min-w-0; }
+/* 카드 안에서는 값이 라벨에 붙어 왼쪽으로 — 표처럼 칸을 꽉 채우면 덩어리로 보인다 */
+.pb-card-field .pb-in { @apply w-auto min-w-0 flex-1 px-1; }
+.pb-card-field .pb-status { @apply min-w-0 h-5 px-0.5 text-[10.5px]; }
+.pb-card-field .pb-status i { @apply px-1.5; }
+.pb-card-x { @apply absolute right-1.5 top-1.5 w-5 h-5 rounded text-[10px] text-[var(--text-dim)] opacity-0 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]; }
+.pb-card:hover .pb-card-x { @apply opacity-100; }
+.pb-kadd { @apply h-8 rounded-xl border border-dashed border-[var(--border)] text-[12px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }

@@ -10,7 +10,7 @@
 //
 // 절대규칙: 순수 함수. 조회는 화면이 하고 여기서는 계산만 한다.
 
-import { DONE_WORD_RE, START_DATE_RE, isDoneRow } from "@/lib/project-boards";
+import { DONE_WORD_RE, START_DATE_RE, isDoneRow, terminalOptionId, flowColumnOf } from "@/lib/project-boards";
 
 export type ListBoard = { id: string; deal_id: string; name: string; template_key: string | null };
 export type ListColumn = { id: string; board_id: string; type: string; name: string; settings?: any };
@@ -62,15 +62,24 @@ export function rollupProject(
     }
   }
 
-  // 완료율 — ① 마지막 그룹이 '완료'류면 그 그룹 비율 ② 아니면 상태 컬럼의 완료 옵션 비율
+  // 완료율 — 단계는 이제 라벨이므로 **흐름 상태 컬럼**의 종착 옵션 비율로 낸다.
+  //   그룹을 여러 개 쓴 옛 표(또는 사용자가 직접 나눈 표)는 완료류 그룹 비율로 계산한다.
   let doneRate: number | null = null;
-  const flowBoards = boards.filter((b) => myGroups.filter((g) => g.board_id === b.id).length > 1);
-  if (flowBoards.length > 0) {
+  {
     let total = 0, done = 0;
-    for (const b of flowBoards) {
-      const gs = myGroups.filter((g) => g.board_id === b.id).sort((a, z) => a.position - z.position);
-      const doneGroup = gs.find((g) => DONE_WORD_RE.test(g.name));
+    for (const b of boards) {
       const rows = myItems.filter((i) => i.board_id === b.id);
+      if (rows.length === 0) continue;
+      const flowCol = flowColumnOf(myCols.filter((c) => c.board_id === b.id));
+      const term = flowCol ? terminalOptionId(flowCol) : null;
+      if (flowCol && term) {
+        total += rows.length;
+        done += rows.filter((i) => i.values?.[flowCol.id] === term).length;
+        continue;
+      }
+      const gs = myGroups.filter((g) => g.board_id === b.id).sort((a, z) => a.position - z.position);
+      if (gs.length <= 1) continue;
+      const doneGroup = gs.find((g) => DONE_WORD_RE.test(g.name));
       total += rows.length;
       if (doneGroup) done += rows.filter((i) => i.group_id === doneGroup.id).length;
     }

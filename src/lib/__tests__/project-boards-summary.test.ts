@@ -2,7 +2,7 @@
 //   ① 끝난 행은 '기한 지남'에서 뺀다   ② 시작일은 기한이 아니다
 //   ③ 단위가 다른 숫자 둘은 빼지 않는다 (수주·매출: 금액(원) − 확률(%))
 import { describe, it, expect } from "vitest";
-import { buildBoardSummary, type BoardColumn, type BoardGroup, type BoardItem } from "@/lib/project-boards";
+import { buildBoardSummary, terminalOptionId, flowColumnOf, type BoardColumn, type BoardGroup, type BoardItem } from "@/lib/project-boards";
 import { rollupProject, listStatusOf } from "@/lib/project-list-summary";
 
 const TODAY = "2026-08-03";
@@ -114,6 +114,46 @@ describe("rollupProject — 목록 집계도 같은 규칙", () => {
   });
   it("지연이 있으면 목록 상태는 '기한 지남'", () => {
     expect(listStatusOf(r)).toBe("late");
+  });
+});
+
+describe("단계는 라벨 — 종착 옵션은 '마지막에 걸리는 것'", () => {
+  // '매출 · 청구' 는 견적 → 계약 → 발행 → 입금. '계약' 도 완료류 낱말이지만 끝은 '입금' 이다.
+  const stage = col({ id: "c_stage", name: "단계", type: "status", settings: { flow: true, options: [
+    { id: "quote", label: "견적", color: "#C4C4C4" },
+    { id: "contract", label: "계약", color: "#5559DF" },
+    { id: "issued", label: "발행", color: "#A25DDC" },
+    { id: "paid", label: "입금", color: "#00C875" },
+  ] } });
+  const groups: BoardGroup[] = [{ id: "g1", board_id: "b1", name: "청구 목록", color: "#5559DF", position: 0 }];
+  const items = [
+    item("a", "g1", { c_stage: "paid" }),
+    item("b", "g1", { c_stage: "contract" }),
+    item("c", "g1", { c_stage: "quote" }),
+    item("d", "g1", { c_stage: "issued" }),
+  ];
+
+  it("종착은 '입금' 이지 '계약' 이 아니다", () => {
+    expect(terminalOptionId(stage)).toBe("paid");
+  });
+  it("완료율은 입금 기준 25%", () => {
+    const cards = buildBoardSummary([stage], items, groups, nameOf, TODAY);
+    const st = cards.find((c) => c.kind === "status") as any;
+    expect(st.doneRate).toBe(25);
+  });
+  it("흐름 컬럼을 칸반 열로 고른다", () => {
+    const plain = col({ id: "c_pri", name: "우선순위", type: "status", settings: PROGRESS });
+    expect(flowColumnOf([plain, stage])?.id).toBe("c_stage");
+  });
+  it("목록 완료율도 라벨에서 낸다 — 그룹이 하나여도", () => {
+    const r = rollupProject(
+      [{ id: "b1", deal_id: "d1", name: "매출 · 청구", template_key: "billing" }],
+      [{ id: "c_stage", board_id: "b1", type: "status", name: "단계", settings: stage.settings }],
+      [{ id: "g1", board_id: "b1", name: "청구 목록", position: 0 }],
+      items.map((i) => ({ board_id: "b1", group_id: "g1", values: i.values, updated_at: "2026-08-02T00:00:00.000Z" })),
+      TODAY,
+    );
+    expect(r.doneRate).toBe(25);
   });
 });
 

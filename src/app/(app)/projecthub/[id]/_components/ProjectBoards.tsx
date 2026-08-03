@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
+  flowColumnOf, type InputMode,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
 
@@ -46,6 +47,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
   const [renaming, setRenaming] = useState(false);
   // 정렬 — 컬럼 이름을 누르면 그 컬럼 기준. 표마다 따로 기억한다(저장은 안 한다, 보기 상태일 뿐).
   const [sort, setSort] = useState<{ colId: string; dir: "asc" | "desc" } | null>(null);
+  // 입력화면 — 템플릿이 정한 기본값에서 시작하고, 사용자가 바꾸면 그걸 따른다(2026-08-03 기획 1단계).
+  //   null = 아직 손대지 않음 → 템플릿 기본값을 쓴다.
+  const [viewPick, setViewPick] = useState<InputMode | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ["pb-boards", dealId],
@@ -219,6 +225,23 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
     } finally { setMakingDoc(null); }
   };
 
+  // 카드를 다른 열로 — 흐름 컬럼이 있으면 그 값을, 없으면 그룹을 바꾼다.
+  //   단계 이동이 셀 편집·칸반 드래그 어느 쪽이든 **같은 값**을 만지게 한다.
+  const moveCard = async (itemId: string, colKey: string) => {
+    const it = items.find((x) => x.id === itemId);
+    if (!it) return;
+    const patch: any = { updated_at: new Date().toISOString() };
+    if (flowCol) {
+      if (it.values?.[flowCol.id] === colKey) return;
+      patch.values = { ...(it.values || {}), [flowCol.id]: colKey };
+    } else {
+      if (it.group_id === colKey) return;
+      patch.group_id = colKey;
+    }
+    await db.from("project_board_items").update(patch).eq("id", itemId);
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+  };
+
   const removeColumn = async (c: BoardColumn) => {
     if (!window.confirm(`'${c.name}' 컬럼을 지울까요? 이 컬럼에 넣은 값도 화면에서 사라집니다.`)) return;
     await db.from("project_board_columns").delete().eq("id", c.id);
@@ -232,9 +255,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
 
-  const addItem = async (groupId: string) => {
+  const addItem = async (groupId: string, values?: Record<string, any>) => {
     const pos = (itemsByGroup[groupId] || []).length;
-    const { error } = await db.from("project_board_items").insert({ board_id: boardId, group_id: groupId, name: "", position: pos });
+    const { error } = await db.from("project_board_items").insert({ board_id: boardId, group_id: groupId, name: "", position: pos, values: values || {} });
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
@@ -304,6 +327,18 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
   }
 
   const nameLabel = ITEM_LABEL[board?.template_key || "blank"] || "이름";
+  // 칸반이 열로 쓸 컬럼 — 흐름 상태 컬럼. 없으면 그룹으로 열을 만든다.
+  const flowCol = flowColumnOf(cols);
+  const view: InputMode = viewPick || (findTemplate(board?.template_key).input || "grid");
+  // 칸반 열 — 흐름 컬럼의 옵션 순서, 없으면 그룹 순서
+  const kanbanCols = flowCol
+    ? ((flowCol.settings?.options || []) as any[]).map((o) => ({ key: String(o.id), label: String(o.label), color: String(o.color || "#C4C4C4") }))
+    : groups.map((g) => ({ key: g.id, label: g.name, color: g.color }));
+  const cardsOf = (key: string) => (flowCol
+    ? items.filter((it) => String(it.values?.[flowCol.id] ?? "") === key)
+    : items.filter((it) => it.group_id === key));
+  // 어느 열에도 안 잡힌 행(값이 비었거나 지운 옵션) — 숨기면 영영 안 보인다
+  const loose = flowCol ? items.filter((it) => !kanbanCols.some((c) => String(it.values?.[flowCol.id] ?? "") === c.key)) : [];
   //   '매출 · 청구' 만 행에서 견적서를 만든다 — 다른 템플릿에 문서 열을 붙이면 군더더기다
   const isBilling = board?.template_key === "billing";
   const numberCols = cols.filter((c) => c.type === "number");
@@ -313,7 +348,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
       {/* 템플릿 탭 — ＋ 로 같은 프로젝트에 템플릿을 더 붙인다 */}
       <div className="pb-tabs">
         {boards.map((b) => (
-          <button key={b.id} type="button" onClick={() => { setActiveId(b.id); setShowSummary(false); setSort(null); }}
+          <button key={b.id} type="button" onClick={() => { setActiveId(b.id); setShowSummary(false); setSort(null); setViewPick(null); }}
             onDoubleClick={() => { if (b.id === boardId) setRenaming(true); }}
             title="더블클릭하면 이름을 바꿉니다"
             className={`pb-tab ${b.id === boardId && !showSummary ? "pb-tab-on" : ""}`}>{b.name}</button>
@@ -322,6 +357,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
         {/* 정리 — 입력된 값만으로 자동 요약(2026-08-03 기획 v2 4단계) */}
         <button type="button" className={`pb-tab pb-tab-sum ${showSummary ? "pb-tab-on" : ""}`} onClick={() => setShowSummary(true)}>정리</button>
         <div className="pb-tab-tools">
+          {/* 입력화면 전환 — 표는 어느 템플릿에서든 늘 쓸 수 있다(기본값만 다르다) */}
+          <span className="pb-viewpick">
+            {(["board", "grid"] as InputMode[]).map((v) => (
+              <button key={v} type="button" onClick={() => setViewPick(v)} aria-pressed={view === v}
+                className={`pb-viewbtn ${view === v ? "pb-viewbtn-on" : ""}`}>{v === "board" ? "칸반" : "표"}</button>
+            ))}
+          </span>
           <span className="pb-addcol">
             컬럼 추가
             <select value="" onChange={(e) => { if (e.target.value) addColumn(e.target.value as ColType); }}>
@@ -347,6 +389,76 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
 
       {showSummary ? (
         <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users} />
+      ) : view === "board" ? (
+        /* 칸반 — 카드를 끌어 다음 단계로. 단계는 라벨이므로 셀에서 바꾸는 것과 같은 값을 만진다
+           (2026-08-03 사장님: "굳이 섹션까지 나눌 필요 없이 기본 라벨로"). */
+        <div className="pb-kanban">
+          {kanbanCols.map((kc) => {
+            const cards = cardsOf(kc.key);
+            const sum = numberCols.length > 0 ? sumColumn(cards, numberCols[0].id) : 0;
+            return (
+              <section key={kc.key}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(kc.key); }}
+                onDragLeave={() => setDragOver((v) => (v === kc.key ? null : v))}
+                onDrop={(e) => { e.preventDefault(); if (dragId) moveCard(dragId, kc.key); setDragId(null); setDragOver(null); }}
+                className={`pb-kcol ${dragOver === kc.key ? "pb-kcol-over" : ""}`}>
+                <div className="pb-kcol-head">
+                  <i style={{ background: kc.color }} />
+                  <b>{kc.label}</b>
+                  <span>{cards.length}</span>
+                  {sum > 0 && <em>{won(sum)}</em>}
+                </div>
+                <div className="pb-kcol-body">
+                  {cards.map((it) => (
+                    <article key={it.id} draggable
+                      onDragStart={() => setDragId(it.id)} onDragEnd={() => { setDragId(null); setDragOver(null); }}
+                      className={`pb-card ${dragId === it.id ? "pb-card-drag" : ""}`}>
+                      <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
+                        onBlur={(e) => saveName(it, e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                        className="pb-card-name" />
+                      <div className="pb-card-fields">
+                        {cols.filter((c) => c.id !== flowCol?.id).slice(0, 4).map((c) => (
+                          <span key={c.id} className="pb-card-field">
+                            <label>{c.name}</label>
+                            <Cell col={c} item={it} users={users} partners={partners as any[]} companyId={companyId}
+                              onPartnerCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })}
+                              onSave={(v) => saveValue(it, c.id, v)} />
+                          </span>
+                        ))}
+                      </div>
+                      {isBilling && (() => {
+                        const linked = (it.values || {})[DOC_VALUE_KEY] as { id?: string; no?: string } | undefined;
+                        return linked?.id
+                          ? <button type="button" className="pb-doc-open" onClick={() => openQuote(it)}>{linked.no || "견적서 열기"}</button>
+                          : <button type="button" className="pb-doc-new" disabled={makingDoc === it.id || !userId} onClick={() => openQuote(it)}>
+                              {makingDoc === it.id ? "만드는 중…" : "＋ 견적서"}</button>;
+                      })()}
+                      <button type="button" className="pb-card-x" title="행 삭제" onClick={() => removeItem(it)}>✕</button>
+                    </article>
+                  ))}
+                  <button type="button" className="pb-kadd"
+                    onClick={() => addItem(groups[0]?.id || "", flowCol ? { [flowCol.id]: kc.key } : undefined)}>
+                    ＋ {nameLabel}
+                  </button>
+                </div>
+              </section>
+            );
+          })}
+          {loose.length > 0 && (
+            <section className="pb-kcol pb-kcol-loose">
+              <div className="pb-kcol-head"><i style={{ background: "#C4C4C4" }} /><b>단계 미지정</b><span>{loose.length}</span></div>
+              <div className="pb-kcol-body">
+                {loose.map((it) => (
+                  <article key={it.id} draggable onDragStart={() => setDragId(it.id)} onDragEnd={() => setDragId(null)} className="pb-card">
+                    <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
+                      onBlur={(e) => saveName(it, e.target.value)} className="pb-card-name" />
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       ) : (<>
 
       {groups.map((g) => {
