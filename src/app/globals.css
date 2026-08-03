@@ -5758,3 +5758,10 @@ td .rounded-full { white-space: nowrap; }
 .pb-partner-new { @apply font-bold text-[var(--primary)] hover:bg-[var(--primary)]/10; }
 .pb-partner-clear { @apply text-[var(--text-dim)]; }
 .pb-partner-none { @apply text-[12px] text-[var(--text-dim)] px-2 py-2; }
+
+/* 프로젝트 정리 — 표별 구획(2026-08-03) */
+.pb-sum-all { @apply flex flex-col gap-5; }
+.pb-sum-top { @apply text-[12px] text-[var(--text-muted)]; }
+.pb-sum-sec { @apply flex flex-col gap-2; }
+.pb-sum-sec-h { @apply flex items-baseline gap-2 text-[13px] font-extrabold text-[var(--text)]; }
+.pb-sum-sec-h em { @apply not-italic text-[11px] font-semibold text-[var(--text-dim)]; }

@@ -83,6 +83,39 @@ export function ProjectBoards({ dealId, companyId, users }: {
     enabled: !!boardId,
   });
 
+  // ── 정리는 **프로젝트 전체** 를 본다(2026-08-03 시연: 표 3개짜리 프로젝트에서
+  //    보고 있던 표 하나만 요약돼 "프로젝트 정리" 라는 이름과 어긋났다).
+  //    누르기 전에는 안 불러온다 — 표 화면은 지금 보는 표만 있으면 된다.
+  const boardIds = useMemo(() => boards.map((b) => b.id), [boards]);
+  const { data: allCols = [] } = useQuery({
+    queryKey: ["pb-all-cols", dealId, boardIds.length],
+    queryFn: async () => {
+      const data = logRead("ProjectBoards:allCols", await db.from("project_board_columns")
+        .select("id, board_id, name, type, settings, position").in("board_id", boardIds).order("position", { ascending: true }));
+      return (data || []) as BoardColumn[];
+    },
+    enabled: showSummary && boardIds.length > 0,
+  });
+  const { data: allGroups = [] } = useQuery({
+    queryKey: ["pb-all-groups", dealId, boardIds.length],
+    queryFn: async () => {
+      const data = logRead("ProjectBoards:allGroups", await db.from("project_board_groups")
+        .select("id, board_id, name, color, position").in("board_id", boardIds).order("position", { ascending: true }));
+      return (data || []) as BoardGroup[];
+    },
+    enabled: showSummary && boardIds.length > 0,
+  });
+  const { data: allItems = [] } = useQuery({
+    queryKey: ["pb-all-items", dealId, boardIds.length],
+    queryFn: async () => {
+      const data = logRead("ProjectBoards:allItems", await db.from("project_board_items")
+        .select("id, board_id, group_id, parent_item_id, name, values, position").in("board_id", boardIds)
+        .order("position", { ascending: true }).limit(2000));
+      return (data || []) as BoardItem[];
+    },
+    enabled: showSummary && boardIds.length > 0,
+  });
+
   // 거래처 컬럼이 있는 표에서만 목록을 불러온다(620개 규모 — 필요할 때만)
   const hasPartnerCol = cols.some((c) => c.type === "partner");
   const { data: partners = [] } = useQuery({
@@ -268,7 +301,7 @@ export function ProjectBoards({ dealId, companyId, users }: {
       )}
 
       {showSummary ? (
-        <BoardSummary cols={cols} items={items} groups={groups} users={users} />
+        <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users} />
       ) : (<>
 
       {groups.map((g) => {
@@ -343,7 +376,34 @@ export function ProjectBoards({ dealId, companyId, users }: {
   );
 }
 
-// ── 정리 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
+// ── 프로젝트 정리 — 이 프로젝트의 **모든 표**를 표별로 한 구획씩 ──
+//   한 프로젝트에 표를 여러 개 붙이는 게 기본이라(＋), 정리도 그 단위여야 맞다.
+function ProjectSummary({ boards, cols, groups, items, users }: {
+  boards: { id: string; name: string; template_key: string | null }[];
+  cols: BoardColumn[]; groups: BoardGroup[]; items: BoardItem[]; users: { id: string; name: string }[];
+}) {
+  const filled = boards.filter((b) => items.some((i) => i.board_id === b.id));
+  if (filled.length === 0) {
+    return <p className="pj-sec-empty">표에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
+  }
+  return (
+    <div className="pb-sum-all">
+      <p className="pb-sum-top">표 {filled.length}개 · 총 {items.length}행 — 입력된 칸만 요약했어요.</p>
+      {filled.map((b) => (
+        <section key={b.id} className="pb-sum-sec">
+          <h4 className="pb-sum-sec-h">{b.name}<em>{items.filter((i) => i.board_id === b.id).length}행</em></h4>
+          <BoardSummary
+            cols={cols.filter((c) => c.board_id === b.id)}
+            items={items.filter((i) => i.board_id === b.id)}
+            groups={groups.filter((g) => g.board_id === b.id)}
+            users={users} />
+        </section>
+      ))}
+    </div>
+  );
+}
+
+// ── 표 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
 function BoardSummary({ cols, items, groups, users }: {
   cols: BoardColumn[]; items: BoardItem[]; groups: BoardGroup[]; users: { id: string; name: string }[];
 }) {
