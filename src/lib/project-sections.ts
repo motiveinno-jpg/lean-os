@@ -15,9 +15,11 @@ import { getHeroMetric, type HeroMetric, type HeroMetricInput } from "@/lib/proj
 // ── 자리(섹션) ─────────────────────────────────────────────
 //   순서는 "보는 빈도 × 지금 행동해야 하는가" 기준으로 고정한다. 프로젝트마다 자리가
 //   늘거나 줄 뿐, 순서는 절대 바뀌지 않는다(한 번 배우면 다시 안 배운다).
-export type SectionKey = "todo" | "flow" | "money" | "work" | "goal" | "team";
+export type SectionKey = "todo" | "flow" | "money" | "work" | "goal" | "team" | "boards";
 
-export const SECTION_ORDER: SectionKey[] = ["todo", "flow", "money", "work", "goal", "team"];
+//   boards = 새 프로젝트 구조의 표(2026-08-03 기획 v2). 1단계에서는 별도 탭으로 붙여 두고,
+//   구조가 자리 잡으면 나머지 자리를 여기로 흡수한다.
+export const SECTION_ORDER: SectionKey[] = ["boards", "todo", "flow", "money", "work", "goal", "team"];
 
 /** 목차(레일)에 쓰는 짧은 이름
  *   ⚠️ 이름은 회사에서 실제로 쓰는 말로만 짓는다(2026-08-03 사장님 지시).
@@ -30,6 +32,7 @@ export const SECTION_LABEL: Record<SectionKey, string> = {
   work: "업무",
   goal: "목표·실적",
   team: "구성원",
+  boards: "표",
 };
 
 /** 자리 제목 — 본문 머리에 쓰는 이름 */
@@ -40,6 +43,7 @@ export const SECTION_TITLE: Record<SectionKey, string> = {
   work: "업무",
   goal: "목표별 실적",
   team: "구성원과 기록",
+  boards: "표",
 };
 
 // ── 보기(뷰) ───────────────────────────────────────────────
@@ -55,6 +59,7 @@ export const SECTION_VIEWS: Record<SectionKey, SectionView[]> = {
   work: [{ key: "tasks", label: "할 일" }, { key: "schedule", label: "마일스톤" }, { key: "issues", label: "이슈" }],
   goal: [{ key: "score", label: "실적" }, { key: "manage", label: "목표 설정" }],
   team: [{ key: "who", label: "담당" }, { key: "activity", label: "활동 이력" }, { key: "info", label: "기본 정보" }],
+  boards: [{ key: "table", label: "표" }],
 };
 
 // ── 목록 화면 보기 ──────────────────────────────────────────
@@ -115,6 +120,7 @@ export type ProjectSignals = {
 export function getVisibleSections(s: ProjectSignals): SectionKey[] {
   const hasAny = !!s.hasMoney || !!s.hasWork;
   const on: Record<SectionKey, boolean> = {
+    boards: true,   // 표는 언제나 열려 있다 — 입력이 기본 활동이다
     todo: true,
     flow: hasAny,
     money: !!s.hasMoney,

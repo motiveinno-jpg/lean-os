@@ -28,6 +28,7 @@ import { ProjectSlideOver } from "@/components/project-slide-over";
 import { ProjectScheduleTab } from "@/components/project-schedule-tab";
 import { SubDealsTab } from "./_components/SubDealsTab";
 import { OverviewDashboard } from "./_components/OverviewDashboard";
+import { ProjectBoards } from "./_components/ProjectBoards";
 import { type ProjectTabKey } from "@/lib/project-types";
 import {
   SECTION_ORDER, SECTION_TITLE, SECTION_VIEWS,
@@ -53,6 +54,8 @@ const db = supabase;
 // 상세 탭 — 여섯 자리를 네 묶음으로(2026-08-03 개편 ③). 순서는 프로젝트가 달라도 고정이고,
 //   데이터가 없는 탭도 자리를 지킨다(흐리게). 한 번 익히면 어느 프로젝트든 같은 위치다.
 const PJ_TABS: { key: string; label: string; secs: SectionKey[] }[] = [
+  // 표 = 새 구조의 기본 화면(2026-08-03 기획 v2 1단계). 입력이 먼저다.
+  { key: "boards", label: "표", secs: ["boards"] },
   { key: "overview", label: "개요", secs: ["todo", "flow", "goal"] },
   { key: "money", label: "매출·비용", secs: ["money"] },
   { key: "work", label: "업무", secs: ["work"] },
@@ -1278,6 +1281,12 @@ export default function ProjectHubDetailPage() {
 
       <div className="pj-layout">
         <div className="pj-secs">
+        {/* 표 — 새 프로젝트 구조의 기본 화면. 템플릿에서 만든 표에 값을 채운다(2026-08-03 기획 v2) */}
+        <PjSection k="boards" inTab={TAB_OF_SECTION(sec).secs.includes("boards")} active={sec === "boards"} onSeen={markSecOpen}
+          hint="템플릿에서 표를 만들고 값을 채우면, 정리는 저절로 따라옵니다">
+          {!companyId ? null : <ProjectBoards dealId={dealId} companyId={companyId} users={companyUsers as any[]} />}
+        </PjSection>
+
         {/* 개요 대시보드 — 지표 타일이 맨 위, 차트는 '지금 챙길 것' 아래(2026-08-03 사장님 지시:
             "지표는 한눈에, 뭘 해야 할지가 보이게"). 개요 탭에서만 그린다. */}
         {TAB_OF_SECTION(sec).key === "overview" && (

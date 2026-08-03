@@ -5679,3 +5679,54 @@ td .rounded-full { white-space: nowrap; }
 .pj-bchip-good { @apply bg-[#10B981]/25 text-white; }
 .pj-bchip-issue { @apply bg-[#EF4444]/25 text-white; }
 .pj-bchip-next { @apply bg-white/18 text-white; }
+
+/* ── 프로젝트 표(보드) — 새 구조 1단계(2026-08-03 기획 v2) ── */
+.pb { @apply flex flex-col gap-4; }
+/* 표 탭 — ＋ 로 같은 프로젝트에 표를 더 붙인다 */
+.pb-tabs { @apply flex flex-wrap items-center gap-1 border-b border-[var(--border)]; }
+.pb-tab { @apply text-[12.5px] font-bold px-3 py-2 text-[var(--text-muted)] border-b-2 border-transparent transition hover:text-[var(--text)]; }
+.pb-tab-on { @apply text-[var(--primary)] border-b-[var(--primary)]; }
+.pb-tab-add { @apply text-[15px] text-[var(--text-dim)] px-2.5 hover:text-[var(--primary)]; }
+.pb-tab-tools { @apply ml-auto flex items-center gap-2 pb-1; }
+.pb-addcol { @apply inline-flex items-center gap-1 text-[11.5px] text-[var(--text-dim)]; }
+.pb-addcol select { @apply h-7 px-1.5 rounded-md bg-[var(--bg-card)] border border-[var(--border)] text-[11.5px] text-[var(--text-muted)]; }
+.pb-mini { @apply h-7 px-2.5 rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[11.5px] font-semibold text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)]; }
+/* 그룹 */
+.pb-group { @apply flex flex-col gap-1.5; }
+.pb-group-head { @apply flex items-center gap-2 text-[13px] font-extrabold text-[var(--text)]; }
+.pb-group-dot { @apply w-2.5 h-2.5 rounded-sm shrink-0; }
+.pb-group-n { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
+.pb-scroll { @apply overflow-x-auto rounded-xl border border-[var(--border)]; }
+.pb-table { @apply w-full border-collapse bg-[var(--bg-card)] text-[12.5px]; }
+.pb-table th { @apply text-left text-[10.5px] font-bold text-[var(--text-dim)] px-2.5 py-2 bg-[var(--bg-surface)] border-b border-[var(--border)] whitespace-nowrap; }
+.pb-table td { @apply px-2.5 py-1.5 border-b border-[var(--border)]/50 text-[var(--text)] whitespace-nowrap align-middle; }
+.pb-table tr:last-child td { @apply border-b-0; }
+.pb-th-name { @apply min-w-[200px]; }
+.pb-th-num, .pb-td-num { @apply text-right; }
+.pb-td-num { font-variant-numeric: tabular-nums; }
+.pb-th-x { @apply w-8; }
+.pb-td-x { @apply text-center; }
+.pb-x { @apply text-[11px] text-[var(--text-dim)] opacity-0 transition hover:text-[var(--danger)]; }
+.pb-table tr:hover .pb-x { @apply opacity-100; }
+/* 셀 편집기 — 표 안에서 테두리 없이, 포커스 때만 드러난다 */
+.pb-in { @apply w-full min-w-[70px] bg-transparent border border-transparent rounded-md px-1.5 py-1 text-[12.5px] text-[var(--text)] transition focus:outline-none focus:border-[var(--primary)] focus:bg-[var(--bg)]; }
+.pb-in-num { @apply text-right; font-variant-numeric: tabular-nums; }
+.pb-in-date { @apply min-w-[110px]; }
+.pb-in-sel { @apply cursor-pointer; }
+.pb-status { @apply relative inline-flex items-center justify-center min-w-[74px] h-6 rounded-md text-[11px] font-bold text-white bg-[var(--bg-surface)]; }
+.pb-status i { @apply not-italic px-2 pointer-events-none; }
+.pb-status select { @apply absolute inset-0 opacity-0 cursor-pointer; }
+.pb-add { @apply text-[12px] text-[var(--text-dim)] cursor-pointer hover:text-[var(--primary)] hover:bg-[var(--bg-surface)]; }
+.pb-sum td { @apply bg-[var(--bg-surface)] font-extrabold text-[var(--text)]; }
+/* 템플릿 고르기 */
+.pb-pick { @apply flex flex-col gap-3; }
+.pb-pick-head { @apply flex flex-wrap items-baseline gap-x-2 gap-y-1; }
+.pb-pick-head b { @apply text-[14px] font-extrabold text-[var(--text)]; }
+.pb-pick-head span { @apply text-[12px] text-[var(--text-muted)]; }
+.pb-pick-close { @apply ml-auto text-[11.5px] font-bold text-[var(--text-dim)] hover:text-[var(--text)]; }
+.pb-tpls { @apply grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3; }
+.pb-tpl { @apply text-left flex flex-col gap-1 p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] transition hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-50; }
+.pb-tpl b { @apply text-[13.5px] font-extrabold text-[var(--text)]; }
+.pb-tpl span { @apply text-[11.5px] text-[var(--text-muted)]; }
+.pb-tpl em { @apply not-italic text-[11px] text-[var(--text-dim)] leading-snug; }
+.pb-tpl-blank { @apply border-dashed; }

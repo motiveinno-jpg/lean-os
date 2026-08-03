@@ -18,19 +18,19 @@ import {
 
 describe("getVisibleSections — 데이터가 생기면 자리가 열린다", () => {
   it("방금 만든 프로젝트: 할 일 자리만 (흐름도 아직 없음)", () => {
-    expect(getVisibleSections({})).toEqual(["todo"]);
+    expect(getVisibleSections({})).toEqual(["boards", "todo"]);
   });
 
   it("견적을 넣으면 흐름·돈이 열린다", () => {
-    expect(getVisibleSections({ hasMoney: true })).toEqual(["todo", "flow", "money"]);
+    expect(getVisibleSections({ hasMoney: true })).toEqual(["boards", "todo", "flow", "money"]);
   });
 
   it("할 일만 적어도 흐름이 열린다 (내부 프로젝트)", () => {
-    expect(getVisibleSections({ hasWork: true })).toEqual(["todo", "flow", "work"]);
+    expect(getVisibleSections({ hasWork: true })).toEqual(["boards", "todo", "flow", "work"]);
   });
 
   it("KPI만 있으면 성과는 열리지만 흐름은 안 열린다 (보여줄 단계가 없음)", () => {
-    expect(getVisibleSections({ hasGoal: true })).toEqual(["todo", "goal"]);
+    expect(getVisibleSections({ hasGoal: true })).toEqual(["boards", "todo", "goal"]);
   });
 
   it("전부 있으면 여섯 자리 모두 — 순서는 항상 SECTION_ORDER", () => {
@@ -40,7 +40,7 @@ describe("getVisibleSections — 데이터가 생기면 자리가 열린다", ()
 
   it("자리 순서는 신호 조합이 달라도 뒤바뀌지 않는다", () => {
     const a = getVisibleSections({ hasTeam: true, hasGoal: true, hasMoney: true });
-    expect(a).toEqual(["todo", "flow", "money", "goal", "team"]);
+    expect(a).toEqual(["boards", "todo", "flow", "money", "goal", "team"]);
   });
 });
 
