@@ -38,6 +38,10 @@ import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { uniquePdfName, downloadBlob } from "./_components/pdf-utils";
+// 인사(근로계약·서식) 서식 카테고리 — hr-contracts.getContractTemplates 가 인사 화면에 노출하는 것과 같은 목록.
+const HR_TEMPLATE_CATEGORIES = new Set([
+  "salary_contract", "nda", "non_compete", "privacy_consent", "comprehensive_labor", "contract_labor",
+]);
 import { FailurePanel } from "./_components/FailurePanel";
 import { InviteModal } from "./_components/InviteModal";
 import { OrgBulkWizard } from "./_components/OrgBulkWizard";
@@ -104,11 +108,35 @@ export default function SignaturesDashboardPage() {
   });
   const contractLimitReached = !!contractStatus && contractStatus.limit !== null && (contractStatus.remaining ?? 0) <= 0;
 
-  const { data: documents = [] } = useQuery({
+  const { data: allDocuments = [] } = useQuery({
     queryKey: ["documents-for-sign", companyId],
     queryFn: () => getDocuments(companyId!),
     enabled: !!companyId,
   });
+
+  // 인사(근로계약·서식) 문서는 이 화면의 발송 목록에서 제외한다 — 2026-08-03 사장님:
+  //   "일괄발송·새 계약 요청에 근로계약·서식 계약서까지 다 나온다".
+  //   그 문서들은 구성원 상세 > 근로계약 탭에서 직원별로 보내는 경로가 따로 있다.
+  //   판별 두 갈래: ① 서식 카테고리(회사가 만든 인사 서식) ② 인사 계약 패키지가 만든 문서
+  //   (내장 서식은 template_id 가 없어 카테고리로 못 잡히므로 패키지 쪽도 함께 본다).
+  const { data: hrPackageDocIds } = useQuery({
+    queryKey: ["hr-package-doc-ids", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_contract_package_items")
+        .select("document_id, hr_contract_packages!inner(company_id)")
+        .eq("hr_contract_packages.company_id", companyId!);
+      return new Set<string>((data || []).map((r: any) => r.document_id).filter(Boolean));
+    },
+    enabled: !!companyId,
+  });
+
+  const documents = useMemo(() => {
+    const hrIds = hrPackageDocIds || new Set<string>();
+    return (allDocuments as any[]).filter(
+      (d) => !HR_TEMPLATE_CATEGORIES.has(d.doc_templates?.category || "") && !hrIds.has(d.id),
+    );
+  }, [allDocuments, hrPackageDocIds]);
 
   // 계약 양식(contract_templates) — 전자계약 양식 통합(2026-07-23). 발송 목록의 양식 소스는 이걸로 일원화.
   const { data: contractTemplates = [] } = useQuery({

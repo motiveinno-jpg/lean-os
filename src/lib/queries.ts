@@ -1002,7 +1002,8 @@ export async function getDocTemplates(companyId: string) {
 export async function getDocuments(companyId: string) {
   const data = logRead('getDocuments', await supabase
     .from('documents')
-    .select('*, deals(name), doc_templates(name, type), users!documents_created_by_fkey(name, email)')
+    // category — 전자계약 발송 목록에서 인사(근로계약·서식) 문서를 걸러내는 데 쓴다(2026-08-03).
+    .select('*, deals(name), doc_templates(name, type, category), users!documents_created_by_fkey(name, email)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false }));
   return data || [];
