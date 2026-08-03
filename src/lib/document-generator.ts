@@ -983,8 +983,9 @@ function parseDocBlocks(html: string): DocBlock[] {
     const hasText = tokens.some((t) => !t.ws && !t.br && t.text !== '');
     const isHeading = /^h[1-6]$/.test(el.tagName.toLowerCase());
     if (!hasText) {
-      // 빈 문단은 한 줄 띄움으로만 반영(에디터의 빈 줄 보존)
-      blocks.push({ kind: 'para', align, tokens: [], indent, gapBefore: 0, gapAfter: 2.6 });
+      // 빈 문단은 한 줄 띄움으로 반영(에디터의 빈 줄 보존) — 2.6mm 는 반 줄이라
+      //   화면과 달리 단락 구분이 뭉개져 보였다(2026-08-03). 본문 줄간격(6mm)과 동일하게.
+      blocks.push({ kind: 'para', align, tokens: [], indent, gapBefore: 0, gapAfter: 6 });
       return;
     }
     blocks.push({ kind: 'para', align, tokens, indent, gapBefore: isHeading ? 2 : 0, gapAfter: isHeading ? 1.6 : 1 });
