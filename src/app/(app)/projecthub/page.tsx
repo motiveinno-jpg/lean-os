@@ -30,7 +30,8 @@ import { useMyPermissions } from "@/lib/permissions";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
 import { QuietCheckins } from "./_components/QuietCheckins";
 import { PeopleView } from "./_components/PeopleView";
-import { rollupProject, listStatusOf, listReasons, LIST_STATUS_LABEL, type ProjectRollup, type ListStatus } from "@/lib/project-list-summary";
+import { rollupProject, listStatusOf, listReasons, type ProjectRollup, type ListStatus } from "@/lib/project-list-summary";
+import { BOARD_TEMPLATES } from "@/lib/project-boards";
 // 워크플로우 보드 — 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
 //   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다(2026-07-30 사장님 승인).
 import { MondayBoard } from "@/components/monday-board";
@@ -708,13 +709,16 @@ export default function ProjectHubPage() {
         )}
       </div>
 
-      {/* ② 상태 칩 + 보기 — 구 렌즈 4타일과 보기 6종이 이 한 줄로 합쳐졌다.
-          상태 단어는 목록·카드·표·상세가 모두 같은 것을 쓴다(project-status.ts). */}
+      {/* ② 상태 칩 + 보기.
+          '정상'을 뺐다 (2026-08-03 사장님: "일정이 없는 프로젝트는 어떻게 보여줄 생각이지?").
+          날짜 칸을 안 쓰는 프로젝트를 초록 '정상'으로 찍으면 확인한 적 없는 걸 확인했다고 말하는 셈이다.
+          남긴 칩은 판정이 아니라 **센 사실**뿐이고, 셀 게 0이면 그 칩은 아예 안 나온다.
+          어디에도 안 잡히는 프로젝트는 '전체'에 그냥 남는다 — 그게 정확하다. */}
       <div className="ph-statusbar">
         <div className="ph-stchips">
-          {([["", "전체", lensCounts.total], ["late", "지연", lensCounts.late], ["warn", "주의", lensCounts.warn],
-             ["normal", "정상", lensCounts.normal], ["empty", "시작 전", lensCounts.empty]] as const).map(([k, label, n]) => (
-            (k === "empty" && n === 0) ? null : (
+          {([["", "전체", lensCounts.total], ["late", "기한 지남", lensCounts.late],
+             ["warn", "이번 주", lensCounts.warn], ["empty", "입력 전", lensCounts.empty]] as const).map(([k, label, n]) => (
+            (k !== "" && n === 0) ? null : (
               <button key={k || "all"} type="button" onClick={() => setLens((prev) => (prev === k || k === "" ? null : k as any))}
                 aria-pressed={k === "" ? lens === null : lens === k}
                 className={`ph-stchip ${k ? `ph-stchip-${k}` : ""} ${(k === "" ? lens === null : lens === k) ? "ph-stchip-on" : ""}`}>
@@ -836,27 +840,30 @@ export default function ProjectHubPage() {
             )}
           </div>
         ) : (
+          /* 빈 화면 = 새 구조 설명서. 옛 문구(매출·비용/업무/목표·실적)는 지금 화면에 없는 것을
+             설명하고 있었다(2026-08-03 사장님 지적). 지금 실제로 하게 되는 세 걸음만 적는다.
+             표 이름은 BOARD_TEMPLATES 에서 직접 읽어 템플릿이 바뀌어도 문구가 어긋나지 않게 한다. */
           <div className="ph-onboard glass-card">
             <div className="ph-onboard-head">
               <h3>첫 프로젝트를 만들어 보세요</h3>
-              <p>이름만 적으면 만들어져요. 아래는 만든 다음에 필요할 때 하나씩 채우면 되는 것들이에요.</p>
+              <p>이름만 적으면 만들어져요. 그다음 하는 일에 맞는 표를 고르면 돼요.</p>
             </div>
             <div className="ph-onboard-steps">
               <div className="ph-onboard-step">
-                <b>매출·비용</b>
-                <span>견적서를 만들면 공급가·부가세가 자동 계산되고, 승인되면 계약서 초안까지 만들어져요. 계산서·입금까지 이어져 마진과 미수가 저절로 잡혀요.</span>
+                <b>① 이름만 적기</b>
+                <span>거래처·금액·기간은 안 물어봐요. 프로젝트명 하나면 만들어져요.</span>
               </div>
               <div className="ph-onboard-step">
-                <b>업무</b>
-                <span>할 일을 적고 담당을 지정하면 진행률이 자동으로 계산돼요. 칸반·간트로 보고, 마감이 지나면 알려줘요.</span>
+                <b>② 표 고르기</b>
+                <span>{BOARD_TEMPLATES.map((t) => t.name).join(" · ")} 중에 필요한 것만. ＋ 로 한 프로젝트에 여러 개 붙일 수 있어요.</span>
               </div>
               <div className="ph-onboard-step">
-                <b>목표·실적</b>
-                <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고, 이번 주 요약 초안까지 만들어져요.</span>
+                <b>③ 정리 보기</b>
+                <span>입력한 칸만 골라 합계·진행·기한을 자동으로 요약해요. 안 쓴 칸은 아예 안 나와요.</span>
               </div>
             </div>
             <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 만들기</button>
-            <p className="ph-onboard-note">유형을 고르지 않아요 — 필요한 것만 쓰면 그 자리가 저절로 생겨요.</p>
+            <p className="ph-onboard-note">표는 부서가 아니라 &apos;일의 형태&apos;로 나눠요 — 마케팅 캠페인·전시회·지원사업이 같은 &apos;집행 · 성과&apos; 표를 씁니다.</p>
           </div>
         )
       ) : listView === "timeline" ? (
@@ -890,7 +897,9 @@ export default function ProjectHubPage() {
           <table className="ph-table">
             <thead>
               <tr>
-                <th>프로젝트</th><th>표</th><th>담당</th><th>상태</th><th className="ph-table-n">입력</th>
+                {/* '상태(지연/주의/정상)' 열을 뺐다 — 옆 '확인 사항'이 같은 내용을 근거와 함께 적고,
+                    행 왼쪽 줄무늬가 색을 이미 맡는다. 판정 단어가 셋이면 셋 다 안 읽힌다. */}
+                <th>프로젝트</th><th>표</th><th>담당</th><th className="ph-table-n">입력</th>
                 <th>확인 사항</th><th>마지막 입력</th><th />
               </tr>
             </thead>
@@ -913,7 +922,6 @@ export default function ProjectHubPage() {
                         : <span className="ph-table-dim">없음</span>}
                     </td>
                     <td className="ph-table-dim">{userName[d.internal_manager_id] || "—"}</td>
-                    <td><span className={`ph-st ph-st-${key}`}>{LIST_STATUS_LABEL[key]}</span></td>
                     <td className="ph-table-n">
                       {r && r.itemCount > 0
                         ? <>{r.itemCount}행{r.doneRate != null && <span className="ph-table-dim"> · {r.doneRate}%</span>}</>
@@ -980,7 +988,9 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
   // 생성은 이름 하나로 끝난다 — 나머지는 접어 둔다(실측: 분류는 9/9 기본값 그대로,
   //   계약금액은 6/9 가 0원. 늘 보이면 "금액 없는 프로젝트는 어떻게 하지?" 로 막힌다).
   //   수정은 값을 고치러 들어온 것이므로 처음부터 펼친다.
-  const [showMore, setShowMore] = useState(isEdit);
+  //   생성에서는 이름만 받는다 — 접어둔 칸도 없앴다(2026-08-03 사장님: "프로젝트명 밑에
+  //   거래처·담당 등 내용이 있어, 이것도 없어져야 할 것 같다"). 거래처·담당·기간·금액은
+  //   '수정'에서만 보인다(값을 고치러 들어온 화면이니 거기서는 처음부터 펼쳐 둔다).
   const [ptSearch, setPtSearch] = useState(() => (editDeal?.partner_id ? ((partners as any[]).find((p) => p.id === editDeal.partner_id)?.name || "") : ""));
   const [ptOpen, setPtOpen] = useState(false);
   const ptMatches = useMemo(() => {
@@ -1041,14 +1051,9 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               <div>
                 <label className={LB}>무슨 일인가요? *</label>
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">이름만 있으면 만들 수 있어요. 나머지는 나중에 채워도 돼요.</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">{isEdit ? "이름만 있으면 돼요. 나머지는 비워둬도 괜찮아요." : "만들고 나면 하는 일에 맞는 표를 고르게 돼요."}</p>
               </div>
-              {!showMore && (
-                <button type="button" onClick={() => setShowMore(true)} className="project-form-more">
-                  ＋ 거래처·담당·기간·금액 넣기 <span>선택 — 지금 몰라도 돼요</span>
-                </button>
-              )}
-              {showMore && <>
+              {isEdit && <>
               <div className="grid grid-cols-2 gap-3">
                 {/* 거래처 — 내부 프로젝트면 비워두면 된다 */}
                 {(

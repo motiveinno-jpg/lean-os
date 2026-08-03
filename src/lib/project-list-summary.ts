@@ -85,10 +85,6 @@ export function rollupProject(
 
 export type ListStatus = "late" | "warn" | "normal" | "empty";
 
-export const LIST_STATUS_LABEL: Record<ListStatus, string> = {
-  late: "지연", warn: "주의", normal: "정상", empty: "시작 전",
-};
-
 /**
  * 목록 상태 — 표 데이터만으로 정한다.
  *   지연: 기한이 지난 행이 있다
