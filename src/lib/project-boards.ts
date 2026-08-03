@@ -6,6 +6,12 @@
 // 템플릿은 **부서가 아니라 일의 형태**로 나눈다 — 같은 표가 여러 업무를 덮는다.
 //   예: '집행 · 성과' 하나가 마케팅 캠페인 · 광고 · 전시회 · 교육 · 지원사업 집행에 다 쓰인다.
 //
+// 그룹 원칙 (2026-08-03 사장님: "템플릿마다 준비·집행중·종료가 똑같이 들어갈 필요는 없다")
+//   · 그룹은 **행이 옮겨 다니는 흐름**이 있을 때만 여러 개 만든다(할 일·수주·요청).
+//     이때는 상태 컬럼을 따로 두지 않는다 — 그룹이 곧 상태라 두 번 적게 된다.
+//   · 흐름이 없고 '목록'인 표(집행·비용·일정)는 **그룹 하나**로 시작하고 상태 컬럼을 쓴다.
+//     필요하면 사용자가 그룹을 더 만든다(월별·채널별 등, 회사마다 다르다).
+//
 // 절대규칙: 순수 정의만 둔다(조회·side-effect 0). 화면과 시드가 이 파일만 본다.
 
 export type ColType = "text" | "number" | "date" | "status" | "person";
@@ -54,8 +60,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
         { id: "mid", label: "보통", color: C.indigo },
         { id: "low", label: "낮음", color: C.blue },
       ]) },
-      { name: "상태", type: "status", settings: PROGRESS },
     ],
+    // 행을 그룹 사이로 옮기는 흐름이라 상태 컬럼을 따로 두지 않는다
     groups: [{ name: "할 일", color: C.indigo }, { name: "진행 중", color: C.orange }, { name: "완료", color: C.green }],
   },
   {
@@ -77,7 +83,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
       { name: "성과", type: "number" },
       { name: "상태", type: "status", settings: PROGRESS },
     ],
-    groups: [{ name: "준비", color: C.indigo }, { name: "집행 중", color: C.orange }, { name: "종료", color: C.green }],
+    // 목록형 — 상태는 컬럼이 맡는다. 월별·채널별로 나누고 싶으면 사용자가 그룹을 더 만든다
+    groups: [{ name: "집행 목록", color: C.indigo }],
   },
   {
     key: "cost",
@@ -97,7 +104,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
       { name: "결제일", type: "date" },
       { name: "상태", type: "status", settings: PROGRESS },
     ],
-    groups: [{ name: "예정", color: C.indigo }, { name: "집행", color: C.orange }, { name: "완료", color: C.green }],
+    groups: [{ name: "지출 목록", color: C.indigo }],
   },
   {
     key: "pipeline",
@@ -110,13 +117,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
       { name: "확률", type: "number", settings: { unit: "%" } },
       { name: "예상일", type: "date" },
       { name: "담당", type: "person" },
-      { name: "단계", type: "status", settings: STATUS([
-        { id: "lead", label: "검토", color: C.gray },
-        { id: "quote", label: "제안", color: C.indigo },
-        { id: "won", label: "계약", color: C.green },
-        { id: "lost", label: "무산", color: C.red },
-      ]) },
     ],
+    // 단계가 곧 그룹이다 — 행을 옮기며 관리한다
     groups: [{ name: "검토", color: C.gray }, { name: "제안", color: C.indigo }, { name: "계약", color: C.green }],
   },
   {
@@ -128,14 +130,9 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
       { name: "요청자", type: "person" },
       { name: "담당", type: "person" },
       { name: "기한", type: "date" },
-      { name: "상태", type: "status", settings: STATUS([
-        { id: "req", label: "요청", color: C.gray },
-        { id: "work", label: "작업 중", color: C.orange },
-        { id: "review", label: "검수", color: C.purple },
-        { id: "done", label: "완료", color: C.green },
-      ]) },
       { name: "링크", type: "text" },
     ],
+    // 요청 → 작업 → 검수 → 완료 로 옮겨 다니는 흐름이라 그룹이 상태를 대신한다
     groups: [{ name: "요청", color: C.gray }, { name: "작업 중", color: C.orange }, { name: "검수", color: C.purple }, { name: "완료", color: C.green }],
   },
   {
@@ -149,7 +146,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
       { name: "담당", type: "person" },
       { name: "상태", type: "status", settings: PROGRESS },
     ],
-    groups: [{ name: "예정", color: C.indigo }, { name: "진행", color: C.orange }, { name: "완료", color: C.green }],
+    groups: [{ name: "일정", color: C.indigo }],
   },
 ];
 
@@ -182,4 +179,84 @@ export type BoardItem = { id: string; board_id: string; group_id: string | null;
 /** 숫자 컬럼 합계 — 그룹 바닥줄과 정리 탭이 같이 쓴다 */
 export function sumColumn(items: BoardItem[], colId: string): number {
   return items.reduce((n, it) => n + (Number(it.values?.[colId]) || 0), 0);
+}
+
+// ── 정리(요약) — 컬럼 타입만 보고 만든다(2026-08-03 기획 v2 4단계) ──
+//   템플릿을 새로 만들어도 이 함수는 그대로다. 값이 없는 항목은 만들지 않는다.
+export type SummaryCard =
+  | { kind: "number"; label: string; sum: number; avg: number; filled: number; unit: string }
+  | { kind: "diff"; label: string; value: number; a: string; b: string; unit: string }
+  | { kind: "status"; label: string; parts: { label: string; color: string; count: number }[]; doneRate: number | null }
+  | { kind: "date"; label: string; soon: number; late: number; next: string | null }
+  | { kind: "person"; label: string; rows: { name: string; count: number }[] }
+  | { kind: "group"; label: string; parts: { label: string; color: string; count: number }[] };
+
+const isFilled = (v: any) => v !== null && v !== undefined && v !== "";
+
+export function buildBoardSummary(
+  cols: BoardColumn[], items: BoardItem[], groups: BoardGroup[],
+  nameOf: (userId: string) => string, today: string,
+): SummaryCard[] {
+  const cards: SummaryCard[] = [];
+  if (items.length === 0) return cards;
+
+  // 그룹이 여럿이면 그룹 분포가 곧 진행 상태다(할 일·수주·요청 템플릿)
+  if (groups.length > 1) {
+    const parts = groups.map((g) => ({
+      label: g.name, color: g.color, count: items.filter((it) => it.group_id === g.id).length,
+    })).filter((p) => p.count > 0);
+    if (parts.length > 0) cards.push({ kind: "group", label: "그룹별", parts });
+  }
+
+  const numberCols = cols.filter((c) => c.type === "number");
+  for (const c of numberCols) {
+    const vals = items.map((it) => Number(it.values?.[c.id])).filter((n) => Number.isFinite(n) && n !== 0);
+    if (vals.length === 0) continue;
+    const sum = vals.reduce((a, b) => a + b, 0);
+    cards.push({ kind: "number", label: c.name, sum, avg: Math.round(sum / vals.length), filled: vals.length, unit: c.settings?.unit || "" });
+  }
+  // 숫자 컬럼이 둘이면 차이도 준다(예산−집행 = 잔여 / 예상−확정)
+  if (numberCols.length >= 2) {
+    const [a, b] = numberCols;
+    const sa = sumColumn(items, a.id), sb = sumColumn(items, b.id);
+    if (sa !== 0 || sb !== 0) {
+      cards.push({ kind: "diff", label: `${a.name} − ${b.name}`, value: sa - sb, a: a.name, b: b.name, unit: a.settings?.unit || "" });
+    }
+  }
+
+  for (const c of cols.filter((x) => x.type === "status")) {
+    const options: any[] = c.settings?.options || [];
+    const parts = options.map((o) => ({
+      label: o.label, color: o.color, count: items.filter((it) => it.values?.[c.id] === o.id).length,
+    })).filter((p) => p.count > 0);
+    if (parts.length === 0) continue;
+    const done = options.find((o) => /완료|종료|계약/.test(String(o.label)));
+    const doneCount = done ? items.filter((it) => it.values?.[c.id] === done.id).length : 0;
+    const total = parts.reduce((n, p) => n + p.count, 0);
+    cards.push({ kind: "status", label: c.name, parts, doneRate: done && total > 0 ? Math.round((doneCount / total) * 100) : null });
+  }
+
+  for (const c of cols.filter((x) => x.type === "date")) {
+    const dates = items.map((it) => String(it.values?.[c.id] || "")).filter((d) => /^\d{4}-\d{2}-\d{2}/.test(d));
+    if (dates.length === 0) continue;
+    const late = dates.filter((d) => d < today).length;
+    const week = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+    const soon = dates.filter((d) => d >= today && d <= week).length;
+    const next = dates.filter((d) => d >= today).sort()[0] || null;
+    cards.push({ kind: "date", label: c.name, soon, late, next });
+  }
+
+  for (const c of cols.filter((x) => x.type === "person")) {
+    const m: Record<string, number> = {};
+    for (const it of items) {
+      const v = it.values?.[c.id];
+      if (!isFilled(v)) continue;
+      m[v] = (m[v] || 0) + 1;
+    }
+    const rows = Object.entries(m).map(([id, count]) => ({ name: nameOf(id) || "이름 없음", count }))
+      .sort((x, y) => y.count - x.count).slice(0, 5);
+    if (rows.length > 0) cards.push({ kind: "person", label: c.name, rows });
+  }
+
+  return cards;
 }

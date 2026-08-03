@@ -5600,30 +5600,6 @@ td .rounded-full { white-space: nowrap; }
 .pj-queue-ghost em { @apply text-[var(--text-dim)] opacity-80; }
 
 /* ── 프로젝트 히어로 밴드(2026-08-03, 브랜드 딥) — 상태·이유·대표 지표를 한 곳에 ── */
-.pj-hero { @apply grid gap-4 items-center rounded-2xl px-5 py-5; grid-template-columns: minmax(0, 1fr); background: linear-gradient(135deg, #312E81 0%, #4F46E5 100%); color: #fff; }
-@media (min-width: 860px) { .pj-hero { grid-template-columns: minmax(0, 1fr) auto; } }
-.pj-hero-main { @apply flex flex-col gap-1.5 min-w-0; }
-.pj-hero-top { @apply flex flex-wrap items-center gap-2; }
-.pj-hero-back { @apply text-[12px] text-white/70 hover:text-white transition; }
-.pj-hero-chip { @apply text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-white/12 text-white/80; }
-.pj-hero-st { @apply text-[10.5px] font-extrabold px-2.5 py-0.5 rounded-full bg-white/18 text-white; }
-.pj-hero-st-late { @apply bg-[#EF4444]/30; }
-.pj-hero-st-warn { @apply bg-[#F59E0B]/30; }
-.pj-hero-st-normal { @apply bg-[#10B981]/30; }
-.pj-hero-name { @apply flex items-center gap-2 text-[clamp(18px,2vw,24px)] font-extrabold tracking-tight cursor-pointer leading-tight; }
-.pj-hero-input { @apply text-[22px] font-extrabold tracking-tight bg-white/10 border border-white/25 rounded-lg px-2 py-1 text-white w-full max-w-xl focus:outline-none focus:border-white/60; }
-.pj-hero-why { @apply text-[13px] text-white/75 m-0; }
-.pj-hero-why b { @apply text-white font-bold; }
-.pj-hero-meta { @apply flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-white/70 mt-0.5; }
-.pj-hero-meta b { @apply text-white font-bold; }
-.pj-hero-gauge { @apply flex items-center gap-3.5 rounded-xl px-4 py-3 bg-white/10 border border-white/20; }
-.pj-ring { @apply w-[62px] h-[62px] shrink-0; }
-.pj-ring circle { fill: none; stroke-width: 6; stroke-linecap: round; }
-.pj-ring-track { stroke: rgba(255,255,255,.18); }
-.pj-ring-val { stroke: #C7D2FE; }
-.pj-hero-gauge-t { @apply flex flex-col; }
-.pj-hero-gauge-t b { @apply text-[20px] font-extrabold tracking-tight; font-variant-numeric: tabular-nums; }
-.pj-hero-gauge-t span { @apply text-[11px] text-white/70; }
 /* 지표 타일 — 아이콘 칩 + 값 */
 .pj-tile { @apply flex items-start gap-3 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
 .pj-tile-chip { @apply w-8 h-8 rounded-[10px] grid place-items-center text-[15px] shrink-0; }
@@ -5674,11 +5650,6 @@ td .rounded-full { white-space: nowrap; }
 .ph-reason-dim { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
 
 /* 히어로 AI 브리핑 — 잘된 점 / 문제 / 다음 할 일을 칩으로. 밴드 위라 흰 계열만 쓴다 */
-.pj-hero-brief { @apply flex flex-wrap items-center gap-1.5 mt-1.5; }
-.pj-bchip { @apply text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/12 text-white/85; }
-.pj-bchip-good { @apply bg-[#10B981]/25 text-white; }
-.pj-bchip-issue { @apply bg-[#EF4444]/25 text-white; }
-.pj-bchip-next { @apply bg-white/18 text-white; }
 
 /* ── 프로젝트 표(보드) — 새 구조 1단계(2026-08-03 기획 v2) ── */
 .pb { @apply flex flex-col gap-4; }
@@ -5733,3 +5704,31 @@ td .rounded-full { white-space: nowrap; }
 .pb-tpl-cols { @apply flex flex-wrap gap-1 mt-1.5; }
 .pb-tpl-cols i { @apply not-italic text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]; }
 .pb-tpl-more { @apply text-[var(--text-dim)]; }
+
+/* 프로젝트 머리줄 — 히어로 밴드 폐지(2026-08-03). 표가 주인공이라 상단은 얇게 */
+.pj-head { @apply flex flex-wrap items-center gap-x-3 gap-y-1.5; }
+.pj-head-back { @apply text-[12px] text-[var(--text-muted)] hover:text-[var(--text)] transition; }
+.pj-head-name { @apply flex items-center gap-1.5 text-[clamp(17px,1.8vw,21px)] font-extrabold tracking-tight cursor-pointer m-0; }
+.pj-head-input { @apply text-[19px] font-extrabold tracking-tight bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-2 py-1 w-full max-w-md focus:outline-none focus:border-[var(--primary)]; }
+.pj-head-meta { @apply text-[12px] text-[var(--text-dim)]; }
+
+/* 표 — 이름 변경·삭제·정리 탭(2026-08-03 기획 v2 3·4단계) */
+.pb-tab-sum { @apply text-[var(--text-muted)]; }
+.pb-mini-x { @apply text-[var(--text-dim)] hover:!border-[var(--danger)] hover:!text-[var(--danger)]; }
+.pb-rename { @apply h-9 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--primary)] text-[13px] font-bold max-w-xs focus:outline-none; }
+.pb-group-name { @apply bg-transparent border border-transparent rounded px-1 -ml-1 text-[13px] font-extrabold text-[var(--text)] w-auto min-w-[80px] max-w-[220px] focus:outline-none focus:border-[var(--primary)]; }
+.pb-col-name { @apply bg-transparent border border-transparent rounded px-1 -ml-1 text-[10.5px] font-bold text-[var(--text-dim)] w-full min-w-[52px] focus:outline-none focus:border-[var(--primary)] focus:text-[var(--text)]; }
+/* 정리 카드 */
+.pb-sum-grid { @apply grid gap-3 grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4; }
+.pb-sum-card { @apply flex flex-col gap-0.5 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] min-w-0; }
+.pb-sum-card > span:first-child { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
+.pb-sum-card > b { @apply text-[19px] font-extrabold tracking-tight text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.pb-sum-card > em { @apply not-italic text-[11px] text-[var(--text-muted)] leading-snug; }
+.pb-sum-wide { @apply min-[480px]:col-span-2; }
+.pb-sum-ok { @apply !text-[var(--success)]; }
+.pb-sum-bad { @apply !text-[var(--danger)]; }
+.pb-sum-bar { @apply flex h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)] mt-1.5; }
+.pb-sum-bar i { @apply block h-full; }
+.pb-sum-legend { @apply flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-[var(--text-muted)] mt-1.5; }
+.pb-sum-legend span { @apply inline-flex items-center gap-1.5; }
+.pb-sum-legend i { @apply block w-2.5 h-1.5 rounded-full; }

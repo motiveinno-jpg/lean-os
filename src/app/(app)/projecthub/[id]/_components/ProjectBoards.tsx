@@ -16,9 +16,10 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
+import { todayKst } from "@/lib/kst";
 import {
-  BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn,
-  type BoardColumn, type BoardGroup, type BoardItem, type ColType,
+  BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary,
+  type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
 
 // ⚠️ 새 표(project_board*)는 아직 생성된 DB 타입(src/types/database.ts)에 없다 —
@@ -35,6 +36,8 @@ export function ProjectBoards({ dealId, companyId, users }: {
   const [activeId, setActiveId] = useState<string>("");
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);   // 마지막 탭 '정리'
+  const [renaming, setRenaming] = useState(false);
 
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ["pb-boards", dealId],
@@ -118,6 +121,31 @@ export function ProjectBoards({ dealId, companyId, users }: {
     }
   };
 
+  const renameBoard = async (name: string) => {
+    setRenaming(false);
+    if (!board || !name.trim() || name === board.name) return;
+    await db.from("project_boards").update({ name: name.trim() }).eq("id", boardId);
+    qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
+  };
+  const removeBoard = async () => {
+    if (!board) return;
+    if (!window.confirm(`'${board.name}' 표를 지울까요? 안에 입력한 행도 함께 사라집니다.`)) return;
+    await db.from("project_boards").update({ archived_at: new Date().toISOString() }).eq("id", boardId);
+    setActiveId("");
+    qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
+    toast("표를 지웠습니다.", "success");
+  };
+  const renameGroup = async (g: BoardGroup, name: string) => {
+    if (!name.trim() || name === g.name) return;
+    await db.from("project_board_groups").update({ name: name.trim() }).eq("id", g.id);
+    qc.invalidateQueries({ queryKey: ["pb-groups", boardId] });
+  };
+  const renameColumn = async (c: BoardColumn, name: string) => {
+    if (!name.trim() || name === c.name) return;
+    await db.from("project_board_columns").update({ name: name.trim() }).eq("id", c.id);
+    qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+  };
+
   const addItem = async (groupId: string) => {
     const pos = (itemsByGroup[groupId] || []).length;
     const { error } = await db.from("project_board_items").insert({ board_id: boardId, group_id: groupId, name: "", position: pos });
@@ -197,10 +225,14 @@ export function ProjectBoards({ dealId, companyId, users }: {
       {/* 표 탭 — ＋ 로 같은 프로젝트에 표를 더 붙인다 */}
       <div className="pb-tabs">
         {boards.map((b) => (
-          <button key={b.id} type="button" onClick={() => setActiveId(b.id)}
-            className={`pb-tab ${b.id === boardId ? "pb-tab-on" : ""}`}>{b.name}</button>
+          <button key={b.id} type="button" onClick={() => { setActiveId(b.id); setShowSummary(false); }}
+            onDoubleClick={() => { if (b.id === boardId) setRenaming(true); }}
+            title="더블클릭하면 이름을 바꿉니다"
+            className={`pb-tab ${b.id === boardId && !showSummary ? "pb-tab-on" : ""}`}>{b.name}</button>
         ))}
         <button type="button" className="pb-tab pb-tab-add" onClick={() => setPicking(true)} title="표 추가">＋</button>
+        {/* 정리 — 입력된 값만으로 자동 요약(2026-08-03 기획 v2 4단계) */}
+        <button type="button" className={`pb-tab pb-tab-sum ${showSummary ? "pb-tab-on" : ""}`} onClick={() => setShowSummary(true)}>정리</button>
         <div className="pb-tab-tools">
           <span className="pb-addcol">
             컬럼 추가
@@ -214,8 +246,19 @@ export function ProjectBoards({ dealId, companyId, users }: {
             </select>
           </span>
           <button type="button" className="pb-mini" onClick={addGroup}>＋ 그룹</button>
+          <button type="button" className="pb-mini pb-mini-x" onClick={removeBoard} title="이 표 지우기">표 삭제</button>
         </div>
       </div>
+
+      {renaming && board && (
+        <input autoFocus defaultValue={board.name} className="pb-rename"
+          onBlur={(e) => renameBoard(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenaming(false); }} />
+      )}
+
+      {showSummary ? (
+        <BoardSummary cols={cols} items={items} groups={groups} users={users} />
+      ) : (<>
 
       {groups.map((g) => {
         const rows = itemsByGroup[g.id] || [];
@@ -223,7 +266,9 @@ export function ProjectBoards({ dealId, companyId, users }: {
           <section key={g.id} className="pb-group">
             <div className="pb-group-head">
               <span className="pb-group-dot" style={{ background: g.color }} />
-              <b>{g.name}</b>
+              <input defaultValue={g.name} className="pb-group-name"
+                onBlur={(e) => renameGroup(g, e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
               <span className="pb-group-n">{rows.length}건</span>
             </div>
             <div className="pb-scroll">
@@ -231,7 +276,13 @@ export function ProjectBoards({ dealId, companyId, users }: {
                 <thead>
                   <tr>
                     <th className="pb-th-name">{nameLabel}</th>
-                    {cols.map((c) => <th key={c.id} className={c.type === "number" ? "pb-th-num" : ""}>{c.name}</th>)}
+                    {cols.map((c) => (
+                      <th key={c.id} className={c.type === "number" ? "pb-th-num" : ""}>
+                        <input defaultValue={c.name} className="pb-col-name"
+                          onBlur={(e) => renameColumn(c, e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                      </th>
+                    ))}
                     <th className="pb-th-x" />
                   </tr>
                 </thead>
@@ -272,6 +323,57 @@ export function ProjectBoards({ dealId, companyId, users }: {
               </table>
             </div>
           </section>
+        );
+      })}
+      </>)}
+    </div>
+  );
+}
+
+// ── 정리 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
+function BoardSummary({ cols, items, groups, users }: {
+  cols: BoardColumn[]; items: BoardItem[]; groups: BoardGroup[]; users: { id: string; name: string }[];
+}) {
+  const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
+  const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, todayKst());
+  if (cards.length === 0) {
+    return <p className="pj-sec-empty">표에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
+  }
+  return (
+    <div className="pb-sum-grid">
+      {cards.map((c, i) => {
+        if (c.kind === "number") return (
+          <div key={i} className="pb-sum-card"><span>{c.label} 합계</span>
+            <b>{c.sum.toLocaleString("ko-KR")}{c.unit}</b>
+            <em>{c.filled}건 입력 · 평균 {c.avg.toLocaleString("ko-KR")}{c.unit}</em></div>
+        );
+        if (c.kind === "diff") return (
+          <div key={i} className="pb-sum-card"><span>{c.label}</span>
+            <b className={c.value < 0 ? "pb-sum-bad" : "pb-sum-ok"}>{c.value.toLocaleString("ko-KR")}{c.unit}</b>
+            <em>{c.a}에서 {c.b}을 뺀 값</em></div>
+        );
+        if (c.kind === "status" || c.kind === "group") {
+          const total = c.parts.reduce((n, p) => n + p.count, 0) || 1;
+          return (
+            <div key={i} className="pb-sum-card pb-sum-wide"><span>{c.label}</span>
+              <b>{c.kind === "status" && c.doneRate != null ? `완료율 ${c.doneRate}%` : `${total}건`}</b>
+              <span className="pb-sum-bar">
+                {c.parts.map((p) => <i key={p.label} style={{ width: `${(p.count / total) * 100}%`, background: p.color }} />)}
+              </span>
+              <span className="pb-sum-legend">
+                {c.parts.map((p) => <span key={p.label}><i style={{ background: p.color }} />{p.label} {p.count}</span>)}
+              </span></div>
+          );
+        }
+        if (c.kind === "date") return (
+          <div key={i} className="pb-sum-card"><span>{c.label}</span>
+            <b className={c.late > 0 ? "pb-sum-bad" : ""}>{c.late > 0 ? `지난 것 ${c.late}건` : `이번 주 ${c.soon}건`}</b>
+            <em>{c.next ? `다음 ${c.next}` : "예정된 날짜 없음"}{c.late > 0 ? ` · 이번 주 ${c.soon}건` : ""}</em></div>
+        );
+        return (
+          <div key={i} className="pb-sum-card pb-sum-wide"><span>{c.label}별</span>
+            <b>{c.rows.length}명</b>
+            <em>{c.rows.map((r) => `${r.name} ${r.count}건`).join(" · ")}</em></div>
         );
       })}
     </div>

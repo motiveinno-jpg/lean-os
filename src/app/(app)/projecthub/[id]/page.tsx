@@ -1163,22 +1163,6 @@ export default function ProjectHubDetailPage() {
   // 브리핑 — **AI 토큰을 쓰지 않는다**(2026-08-03 사장님: "사실을 모아서 띄워주는 형태로").
   //   화면이 이미 조회한 사실을 규칙으로 조립한다(project-brief-rules). 비용 0 · 지연 0 · 환각 0.
   //   (엣지 함수 project-brief 는 배포돼 있지만 지금은 호출하지 않는다 — 필요해지면 켠다)
-  // 히어로 대표 지표 — 있는 데이터에서 하나만 고른다(할 일이 있으면 진행률, 없으면 수금률).
-  //   둘 다 없으면 게이지를 그리지 않는다(빈 링은 그리지 않는다).
-  const heroGauge = (() => {
-    const t = facts?.taskCount || 0;
-    if (t > 0) {
-      const pct = Math.round(((facts?.taskDone || 0) / t) * 100);
-      return { pct, label: `${pct}%`, sub: `진행률 · 업무 ${facts?.taskDone || 0}/${t}건 완료` };
-    }
-    const billed = facts?.billed || 0;
-    if (billed > 0) {
-      const pct = Math.round(((facts?.paid || 0) / billed) * 100);
-      return { pct, label: `${pct}%`, sub: "수금률 · 발행액 대비 입금" };
-    }
-    return null;
-  })();
-
   // 상태(정상·주의·지연) — 목록과 똑같은 규칙. 화면마다 다른 말을 쓰지 않는다(2026-08-03 개편 ①)
   const status = getProjectStatus({
     stage: deal.stage, endDate: deal.end_date, today: todayKst(),
@@ -1207,60 +1191,33 @@ export default function ProjectHubDetailPage() {
 
   return (
     <div className="project-detail-page">
-      {/* ══ 히어로 밴드(2026-08-03 사장님 승인 · 브랜드 딥) — 상태·이유·대표 지표를 한 곳에.
-          흰 헤더 카드에는 대표 지표가 없어 "열자마자 판단"이 안 됐다. ══ */}
-      <div className="pj-hero">
-        <div className="pj-hero-main">
-          <div className="pj-hero-top">
-            {deal.parent_deal_id ? (
-              <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="pj-hero-back" title="상위 프로젝트의 하위 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
-            ) : (
-              <Link href="/projecthub" className="pj-hero-back">← 프로젝트</Link>
-            )}
-            {deal.parent_deal_id && <span className="pj-hero-chip">하위 프로젝트</span>}
-            <span className={`pj-hero-st pj-hero-st-${status.key}`}>{status.label}</span>
-            <span className="pj-hero-chip">진행 단계 · {STAGE_LABEL[stage]}</span>
-          </div>
-          {editingName ? (
-            <input
-              value={nameInput} autoFocus
-              onChange={(e) => setNameInput(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
-              className="pj-hero-input"
-            />
-          ) : (
-            <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
-              className="pj-hero-name" title="클릭하여 프로젝트명 수정">
-              {deal.name || "(이름 없음)"}
-              <svg className="w-3.5 h-3.5 shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </h1>
-          )}
-          <p className="pj-hero-why">{brief.headline}</p>
-          <div className="pj-hero-brief">
-            {brief.goods.map((t) => <span key={t} className="pj-bchip pj-bchip-good">잘됨 · {t}</span>)}
-            {brief.issues.map((t) => <span key={t} className="pj-bchip pj-bchip-issue">문제 · {t}</span>)}
-            {brief.nexts.map((t) => <span key={t} className="pj-bchip pj-bchip-next">다음 · {t}</span>)}
-          </div>
-          <div className="pj-hero-meta">
-            {partner?.name && <span>거래처 <b>{partner.name}</b></span>}
-            {manager?.name && <span>담당 <b>{manager.name}</b></span>}
-            {(deal.start_date || deal.end_date) && (
-              <span>기간 <b>{[deal.start_date, deal.end_date].filter(Boolean).map((d: string) => String(d).slice(2, 10).replace(/-/g, ".")).join(" ~ ")}</b></span>
-            )}
-          </div>
-        </div>
-        {/* 대표 지표 — 얇은 링 하나. 두꺼운 도넛은 화면을 무겁게 만든다(사장님 강조) */}
-        {heroGauge && (
-          <div className="pj-hero-gauge">
-            <svg className="pj-ring" viewBox="0 0 80 80" aria-hidden="true">
-              <circle className="pj-ring-track" cx="40" cy="40" r="33" />
-              <circle className="pj-ring-val" cx="40" cy="40" r="33" transform="rotate(-90 40 40)"
-                strokeDasharray={`${Math.round((heroGauge.pct / 100) * 207)} 207`} />
-            </svg>
-            <span className="pj-hero-gauge-t"><b>{heroGauge.label}</b><span>{heroGauge.sub}</span></span>
-          </div>
+      {/* ══ 머리줄 — 히어로 밴드 폐지(2026-08-03 사장님: "성격이 달라져서 없어도 될 듯").
+          표(입력)가 주인공이 된 화면이라 상단은 얇게: 뒤로 · 이름 · 상태 · 거래처/담당. ══ */}
+      <div className="pj-head">
+        {deal.parent_deal_id ? (
+          <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="pj-head-back" title="상위 프로젝트로">← {parentDeal?.name || "상위 프로젝트"}</Link>
+        ) : (
+          <Link href="/projecthub" className="pj-head-back">← 프로젝트</Link>
         )}
+        {editingName ? (
+          <input
+            value={nameInput} autoFocus
+            onChange={(e) => setNameInput(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
+            className="pj-head-input"
+          />
+        ) : (
+          <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
+            className="pj-head-name" title="클릭하여 프로젝트명 수정">
+            {deal.name || "(이름 없음)"}
+            <svg className="w-3.5 h-3.5 shrink-0 opacity-40" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </h1>
+        )}
+        <span className={`ph-st ph-st-${status.key}`} title={brief.headline}>{status.label}</span>
+        <span className="pj-head-meta">
+          {[partner?.name || null, manager?.name ? `담당 ${manager.name}` : null].filter(Boolean).join(" · ")}
+        </span>
       </div>
 
       {/* ══ 탭 4개 (2026-08-03 개편 ③) — 여섯 자리를 세로로 잇던 한 페이지를 묶었다.
