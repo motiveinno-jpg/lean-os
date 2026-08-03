@@ -1086,7 +1086,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">매출 세금계산서를 <b className="text-[var(--text)]">견적서 품목대로</b> 발행할까요? (품목 {issItems.length}개)</p>
                   <div className="space-y-2">
                     <button onClick={() => issueInvoices("bulk")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--primary)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 text-left">
-                      <Ico e="📄" /> 품목 일괄 발행 <span className="text-white/80 text-xs">— 합계 1건{issItems.length > 1 ? ` (${issItems[0]?.name || "품목"} 외 ${issItems.length - 1}건)` : ""}</span>
+                      <Ico e="📄" tone="mono" /> 품목 일괄 발행 <span className="text-white/80 text-xs">— 합계 1건{issItems.length > 1 ? ` (${issItems[0]?.name || "품목"} 외 ${issItems.length - 1}건)` : ""}</span>
                     </button>
                     {issItems.length > 1 && (
                       <button onClick={() => issueInvoices("per-item")} disabled={issuing} className="w-full py-2.5 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] text-sm font-semibold hover:border-[var(--primary)] disabled:opacity-50 text-left">

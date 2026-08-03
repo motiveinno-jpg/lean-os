@@ -566,7 +566,7 @@ function PendingOurSignatureCard({ approval, onClick }: { approval: ApprovalLite
         onClick={onClick}
         className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold transition"
       >
-        <Ico e="📝" /> 우리 서명·도장 추가
+        <Ico e="📝" tone="mono" /> 우리 서명·도장 추가
       </button>
     </div>
   );
@@ -685,7 +685,7 @@ function SignedContractCard({ approval }: { approval: ApprovalLite }) {
             onClick={() => openDocViewer({ type: 'contract', id: approval.id })}
             className="btn-primary btn-sm"
           >
-            <Ico e="📄" /> 서명된 계약서 보기
+            <Ico e="📄" tone="mono" /> 서명된 계약서 보기
           </button>
         )}
         {hasPdfUrl && (

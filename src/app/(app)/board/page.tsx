@@ -967,17 +967,17 @@ export default function BoardPage() {
                     <div className="board-post-badges">
                       {p.pinned && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
-                          <Ico e="📌" /> 고정
+                          <Ico e="📌" tone="mono" /> 고정
                         </span>
                       )}
                       {p.event_date && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--info-dim)] text-[var(--info)] font-semibold">
-                          <Ico e="📅" /> {kstDateStr(new Date(p.event_date))}
+                          <Ico e="📅" tone="mono" /> {kstDateStr(new Date(p.event_date))}
                         </span>
                       )}
                       {p.poll_question && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
-                          <Ico e="🗳" /> 투표
+                          <Ico e="🗳" tone="mono" /> 투표
                         </span>
                       )}
                       {(p.attachments?.length ?? 0) > 0 && (

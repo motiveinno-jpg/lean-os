@@ -619,7 +619,7 @@ export default function VoucherEntryPage() {
             ) : pendBalanced ? (
               <span className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치 — 저장 가능</span>
             ) : (
-              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold"><Ico e="⚠" /> 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}) — 저장 불가</span>
+              <span className="px-3 py-1.5 rounded-full bg-red-500/10 text-red-500 text-[11px] font-bold"><Ico e="⚠" tone="mono" /> 차액 {won(Math.abs(pendDiff))} ({pendDiff > 0 ? "대변 부족" : "차변 부족"}) — 저장 불가</span>
             )}
           </div>
         </div>

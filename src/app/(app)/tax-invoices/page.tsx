@@ -2965,7 +2965,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
             {/* 매출인데 국세청 미발행(nts_confirm_no 없음) — 오해 방지 경고 + 실제 발행 버튼 */}
             {inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no && (
               <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2.5 text-xs text-red-500 leading-relaxed">
-                <div><Ico e="⚠" /> 이 세금계산서는 앱에만 기록됐고 <b>아직 국세청에 전자발행되지 않았습니다</b> (승인번호 없음).</div>
+                <div><Ico e="⚠" tone="mono" /> 이 세금계산서는 앱에만 기록됐고 <b>아직 국세청에 전자발행되지 않았습니다</b> (승인번호 없음).</div>
                 <div className="mt-1 text-[10px] text-red-400/90">전자발행은 최초 1회 <b>발행 등록(회원가입+인증서)</b>이 필요합니다. ① 발행 등록 → 인증서 등록 완료 후 → ② 홈택스 발행.</div>
                 <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <button

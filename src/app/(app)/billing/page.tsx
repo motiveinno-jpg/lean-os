@@ -376,7 +376,7 @@ function BillingPageInner() {
                 onClick={() => setTab(t.key)}
                 className={`seg-item inline-flex items-center gap-1.5 ${tab === t.key ? "seg-item-active" : ""}`}
               >
-                <span><Ico e={t.icon} /></span> {t.label}
+                <span><Ico e={t.icon} tone="mono" /></span> {t.label}
               </button>
             ))}
           </div>

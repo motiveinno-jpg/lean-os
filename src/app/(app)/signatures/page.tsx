@@ -440,7 +440,7 @@ function SignaturesDashboardInner() {
           title="최근 7일간 이메일 발송에 실패한 건을 확인하고 재발송하세요"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <span className="shrink-0 w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center text-lg"><Ico e="⚠" /></span>
+            <span className="shrink-0 w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center text-lg text-red-500"><Ico e="⚠" tone="mono" /></span>
             <div className="min-w-0">
               <div className="text-xs font-semibold">최근 7일 발송 실패</div>
               <div className="text-[11px] opacity-80 truncate">

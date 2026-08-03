@@ -2304,12 +2304,12 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="px-2 py-1 text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg transition">
-                          <Ico e="⬇" /> PDF
+                          <Ico e="⬇" tone="mono" /> PDF
                         </button>
                         <button onClick={() => handleSendPayslips([item.employeeId])} disabled={sending}
                           title="이 직원에게만 메일로 명세서 발송 (비밀번호=생년월일)"
                           className="px-2 py-1 text-[10px] font-semibold bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 rounded-lg transition disabled:opacity-50">
-                          <Ico e="✉" /> 발송
+                          <Ico e="✉" tone="mono" /> 발송
                         </button>
                       </div>
                     </td>

@@ -230,7 +230,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
       {/* PDF 자동 채우기 — 수동입력과 투트랙. 마감 자료 PDF를 올리면 계정별 금액을 읽어 아래 폼을 채움 */}
       <div className="closing-pdf-upload-panel">
         <div className="flex items-start gap-3">
-          <span className="p-2 rounded-lg bg-[var(--primary)]/12 text-[var(--primary)] shrink-0 text-base leading-none"><Ico e="📄" /></span>
+          <span className="p-2 rounded-lg bg-[var(--primary)]/12 text-[var(--primary)] shrink-0 text-base leading-none"><Ico e="📄" tone="mono" /></span>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-[var(--text)]">PDF로 자동 채우기 <span className="text-[10px] font-normal text-[var(--text-dim)] ml-1">(수동 입력과 자유롭게 병행)</span></div>
             <p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-relaxed">

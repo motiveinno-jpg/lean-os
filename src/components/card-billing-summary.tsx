@@ -701,7 +701,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
           <button onClick={() => { onShowDetail?.(); onSelectCard?.(b.cardId); }}
             className="px-2 py-0.5 text-[9px] font-semibold rounded bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/30 transition"
             title="청구 명세 보기 (사이클 거래·합계)"
-          ><Ico e="📄" /> 청구서</button>
+          ><Ico e="📄" tone="mono" /> 청구서</button>
           {card && (
             <button onClick={() => setEditing(v => !v)}
               className={`px-2 py-0.5 text-[9px] font-semibold rounded border transition ${
@@ -710,7 +710,7 @@ function BillingRow({ billing: b, card, onSavePayment, onChangeType, onSelectCar
                   : 'bg-[var(--bg-card)] hover:bg-[var(--primary)]/10 text-[var(--text-muted)] hover:text-[var(--primary)] border-[var(--border)]'
               }`}
               title="결제일·마감일 변경"
-            ><Ico e="⚙" /> 결제일</button>
+            ><Ico e="⚙" tone="mono" /> 결제일</button>
           )}
         </div>
       </div>

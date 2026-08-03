@@ -464,7 +464,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                               className="text-[10px] px-2 py-1 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20"
                               title="정산서 보기"
                             >
-                              <Ico e="📄" /> 정산서
+                              <Ico e="📄" tone="mono" /> 정산서
                             </button>
                           )}
                           {r.completion_id && (
@@ -473,7 +473,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
                               className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] font-semibold hover:bg-[var(--success)]/20"
                               title="완료확인서 보기"
                             >
-                              <Ico e="📄" /> 완료
+                              <Ico e="📄" tone="mono" /> 완료
                             </button>
                           )}
                           {!r.settlement_id && !r.completion_id && (

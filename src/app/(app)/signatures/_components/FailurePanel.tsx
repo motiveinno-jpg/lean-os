@@ -178,7 +178,7 @@ function FailureGroupRow({
                     className="shrink-0 px-2.5 py-1.5 text-[11px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 disabled:opacity-50"
                     title="이 요청에 리마인더 발송 + 재시도 처리"
                   >
-                    <Ico e="🔄" /> 재발송
+                    <Ico e="🔄" tone="mono" /> 재발송
                   </button>
                 ) : (
                   <span className="shrink-0 text-[10px] text-[var(--text-dim)]">요청 없음</span>

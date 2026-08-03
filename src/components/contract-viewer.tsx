@@ -362,7 +362,7 @@ export function ContractViewer({ id, backHref }: { id: string; backHref?: string
                     className="px-2 py-0.5 text-[10px] bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded font-semibold print:hidden"
                     title="우리 서명·도장 추가"
                   >
-                    <Ico e="📝" /> 우리 서명
+                    <Ico e="📝" tone="mono" /> 우리 서명
                   </button>
                 )}
               </div>

@@ -132,8 +132,9 @@ const P: Record<string, ReactNode> = {
 };
 
 // ── 아이콘별 고유 색 (2026-08-03 사장님: "아이콘들이 다 색도 없이 검정색이라 안 이쁘다") ──
-//   tone="color" 를 준 곳에서만 적용 — 기본은 기존대로 currentColor(주변 글자색).
-//   색 배경(버튼 등) 위 아이콘까지 일괄 색칠하면 대비가 깨지므로 전역 기본값은 바꾸지 않는다.
+//   기본값이 색(tone 생략 = "color") — 같은 날 "다른 화면들도 다 색으로" 지시로 전역 기본 전환.
+//   색 배경 위(흰 글자 버튼)나 시맨틱 색 배지 안에서는 tone="mono" 로 주변 글자색을 상속시킬 것
+//   (흰 버튼 위=흰색, 초록 배지 안=초록 — mono 도 결과적으로 유색이다).
 const ICO_COLOR: Record<string, string> = {
   "📊": "#3b82f6", "📈": "#10b981", "📉": "#ef4444", "🤖": "#8b5cf6", "🏢": "#6366f1",
   "🧾": "#f59e0b", "📒": "#14b8a6", "🏦": "#0ea5e9", "📁": "#eab308", "📂": "#eab308",
@@ -176,7 +177,7 @@ export function Ico({ e, className, size, tone }: { e: string; className?: strin
   return (
     <svg viewBox="0 0 24 24" width={size ?? "1.15em"} height={size ?? "1.15em"}
       className={className} aria-hidden
-      style={{ display: "inline-block", verticalAlign: "-0.2em", ...(tone === "color" ? { color: icoColor(key) } : {}) }}>
+      style={{ display: "inline-block", verticalAlign: "-0.2em", ...((tone ?? "color") === "color" ? { color: icoColor(key) } : {}) }}>
       {body}
     </svg>
   );
