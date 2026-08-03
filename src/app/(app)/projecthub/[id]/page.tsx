@@ -29,9 +29,10 @@ import { ProjectScheduleTab } from "@/components/project-schedule-tab";
 import { SubDealsTab } from "./_components/SubDealsTab";
 import { type ProjectTabKey } from "@/lib/project-types";
 import {
-  SECTION_ORDER, SECTION_LABEL, SECTION_TITLE, SECTION_VIEWS,
+  SECTION_ORDER, SECTION_TITLE, SECTION_VIEWS,
   getVisibleSections, viewStorageKey, type SectionKey,
 } from "@/lib/project-sections";
+import { getProjectStatus } from "@/lib/project-status";
 import { PerformanceTab } from "./_components/PerformanceTab";
 import { GoalOverviewTab } from "./_components/GoalOverviewTab";
 import { RadialGauge, WorkloadChart, BurnUpChart, BarList } from "@/components/charts";
@@ -45,6 +46,16 @@ import { IssuesTab } from "./_components/IssuesTab";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase;
+
+// 상세 탭 — 여섯 자리를 네 묶음으로(2026-08-03 개편 ③). 순서는 프로젝트가 달라도 고정이고,
+//   데이터가 없는 탭도 자리를 지킨다(흐리게). 한 번 익히면 어느 프로젝트든 같은 위치다.
+const PJ_TABS: { key: string; label: string; secs: SectionKey[] }[] = [
+  { key: "overview", label: "개요", secs: ["todo", "flow", "goal"] },
+  { key: "money", label: "매출·비용", secs: ["money"] },
+  { key: "work", label: "업무", secs: ["work"] },
+  { key: "record", label: "기록", secs: ["team"] },
+];
+const TAB_OF_SECTION = (k: SectionKey) => PJ_TABS.find((t) => t.secs.includes(k)) || PJ_TABS[0];
 
 // 견적서 기본 구조 — 프로젝트에서 바로 생성(문서함 이동 없이). 품목은 생성 후 편집기에서 추가.
 const QUOTE_CONTENT = {
@@ -203,8 +214,14 @@ export default function ProjectHubDetailPage() {
     markSecOpen(k);
     setSec(k);
     if (typeof document === "undefined") return;
+    // 탭이 바뀌면 그 자리는 아직 안 붙어 있을 수 있다 — 다음 프레임에 찾고, 없으면 탭 줄로 올린다
     requestAnimationFrame(() => {
-      document.getElementById(`pj-sec-${k}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const el = document.getElementById(`pj-sec-${k}`);
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+      requestAnimationFrame(() => {
+        document.getElementById(`pj-sec-${k}`)?.scrollIntoView({ behavior: "smooth", block: "start" })
+          ?? document.querySelector(".pj-tabs")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     });
   }, [markSecOpen, setSec]);
   // 구 탭 키로 이동을 요청하는 내부 컴포넌트용 — 탭 키를 자리로 번역한다.
@@ -664,15 +681,39 @@ export default function ProjectHubDetailPage() {
     enabled: !!companyId,
   });
 
-  // 자리 노출 판정용 존재 확인 — 할 일·목표가 하나라도 있으면 그 자리를 편다(개수는 각 자리가 조회).
-  const { data: hasWorkRow = false } = useQuery({
-    queryKey: ["projecthub-has-work", dealId],
+  // 상태 판정 재료 — 목록 화면과 '똑같은 규칙'으로 상태를 내려면 같은 사실이 필요하다
+  //   (2026-08-03 개편 ①: 상태는 project-status.ts 한 곳에서만 만든다).
+  //   할 일 존재 여부도 여기서 같이 받아 온다(조회 한 번 줄임).
+  const { data: facts } = useQuery({
+    queryKey: ["projecthub-status-facts", dealId],
     queryFn: async () => {
-      const data = logRead('[id]/page:data', await db.from("project_tasks").select("id").eq("deal_id", dealId).is("archived_at", null).limit(1));
-      return ((data || []) as any[]).length > 0;
+      const [tk, inv] = await Promise.all([
+        db.from("project_tasks").select("status, due_date").eq("deal_id", dealId).is("archived_at", null),
+        db.from("tax_invoices").select("total_amount, settled_amount, issue_date, status").eq("deal_id", dealId).eq("type", "sales").neq("status", "void"),
+      ]);
+      const tasks = (logRead('[id]/page:facts.tasks', tk) || []) as any[];
+      const invoices = (logRead('[id]/page:facts.invoices', inv) || []) as any[];
+      const today = todayKst();
+      let outstanding = 0;
+      let oldestUnpaidDays: number | null = null;
+      for (const iv of invoices) {
+        if (iv.status === "draft") continue;
+        const left = Number(iv.total_amount || 0) - Number(iv.settled_amount || 0);
+        if (left <= 1) continue;
+        outstanding += left;
+        if (!iv.issue_date) continue;
+        const days = Math.floor((new Date(`${today}T00:00:00`).getTime() - new Date(`${String(iv.issue_date).slice(0, 10)}T00:00:00`).getTime()) / 86_400_000);
+        if (oldestUnpaidDays == null || days > oldestUnpaidDays) oldestUnpaidDays = days;
+      }
+      return {
+        taskCount: tasks.length,
+        overdueTasks: tasks.some((t) => t.status !== "done" && t.due_date && String(t.due_date).slice(0, 10) < today),
+        outstanding, oldestUnpaidDays,
+      };
     },
     enabled: !!companyId && !!dealId,
   });
+  const hasWorkRow = (facts?.taskCount || 0) > 0;
   const { data: hasGoalRow = false } = useQuery({
     queryKey: ["projecthub-has-goal", dealId],
     queryFn: async () => {
@@ -1054,6 +1095,14 @@ export default function ProjectHubDetailPage() {
   const liveSecs = getVisibleSections(signals);
   const isLive = (k: SectionKey) => liveSecs.includes(k);
 
+  // 상태(정상·주의·지연) — 목록과 똑같은 규칙. 화면마다 다른 말을 쓰지 않는다(2026-08-03 개편 ①)
+  const status = getProjectStatus({
+    stage: deal.stage, endDate: deal.end_date, today: todayKst(),
+    overdueTasks: !!facts?.overdueTasks,
+    outstanding: facts?.outstanding ?? 0,
+    oldestUnpaidDays: facts?.oldestUnpaidDays ?? null,
+  });
+
   return (
     <div className="project-detail-page">
       <div className="page-sticky-header flex flex-wrap items-center gap-2">
@@ -1064,10 +1113,8 @@ export default function ProjectHubDetailPage() {
         )}
         {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">하위 프로젝트</span>}
         {/* 유형 배지(💰🎯✅)는 폐지 — 분류 대신 지금 상태(단계·미수)를 쓴다 */}
+        <span className={`ph-st ph-st-${status.key}`} title={status.why}>{status.label}</span>
         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
-        {settleFigs(pipe).outstanding > 1 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--danger)]/10 text-[var(--danger)]">미수 {won(settleFigs(pipe).outstanding)}</span>
-        )}
         {editingName ? (
           <input
             value={nameInput} autoFocus
@@ -1086,23 +1133,32 @@ export default function ProjectHubDetailPage() {
         )}
         {/* 거래처는 있을 때만 — 내부 프로젝트에 '미지정' 을 띄우면 안 채운 칸처럼 보인다 */}
         <span className="text-xs text-[var(--text-dim)]">{[partner?.name || null, manager?.name ? `담당 ${manager.name}` : null].filter(Boolean).join(" · ")}</span>
+        {/* 왜 이 상태인지 한 줄 — 상태 배지만 보고 이유를 찾아 헤매지 않게 */}
+        <span className="pj-why">{status.why}{(facts?.outstanding || 0) > 1 ? ` · 못 받은 돈 ${won(facts!.outstanding)}` : ""}</span>
       </div>
 
-      {/* ══ 한 페이지 + 목차 — 탭 폐지(2026-07-30). 자리 순서는 프로젝트가 달라도 고정 ══ */}
-      <div className="pj-layout">
-        <nav className="pj-rail" aria-label="이 프로젝트 목차">
-          {SECTION_ORDER.map((k) => (
-            <button key={k} type="button" onClick={() => goSection(k)}
-              className={`pj-rail-item ${sec === k ? "pj-rail-item-on" : ""} ${isLive(k) ? "" : "pj-rail-item-dim"}`}>
-              {SECTION_LABEL[k]}
-              {k === "money" && hasChildren && <em>{(children as any[]).length}</em>}
+      {/* ══ 탭 4개 (2026-08-03 개편 ③) — 여섯 자리를 세로로 잇던 한 페이지를 묶었다.
+          자리는 그대로 두고 묶기만 한다: 개요=챙길 것·진행 단계·목표, 매출·비용, 업무, 기록=구성원.
+          URL(?tab=)은 예전 자리 키를 그대로 받는다 — 옛 링크가 깨지지 않게. ══ */}
+      <nav className="pj-tabs" aria-label="이 프로젝트 보기">
+        {PJ_TABS.map((t) => {
+          const on = t.secs.includes(sec);
+          const live = t.secs.some((k) => isLive(k));
+          return (
+            <button key={t.key} type="button" onClick={() => goSection(t.secs[0])}
+              aria-pressed={on}
+              className={`pj-tab ${on ? "pj-tab-on" : ""} ${live ? "" : "pj-tab-dim"}`}>
+              {t.label}
+              {t.key === "money" && hasChildren && <em>{(children as any[]).length}</em>}
             </button>
-          ))}
-        </nav>
+          );
+        })}
+      </nav>
 
+      <div className="pj-layout">
         <div className="pj-secs">
         {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
-        <PjSection k="todo" active={sec === "todo"} onSeen={markSecOpen}
+        <PjSection k="todo" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
           hint={signals.hasMoney || signals.hasWork ? "데이터에서 자동으로 뽑아요" : "무엇부터 하면 되는지 알려드려요"}>
           <TodoQueue
             deal={deal} pipe={pipe} won={won}
@@ -1113,7 +1169,7 @@ export default function ProjectHubDetailPage() {
         </PjSection>
 
         {/* ② 어디까지 왔나 — 견적→계약→진행→청구→정산 한 줄 + 단계 보정 */}
-        <PjSection k="flow" active={sec === "flow"} onSeen={markSecOpen}
+        <PjSection k="flow" inTab={TAB_OF_SECTION(sec).secs.includes("flow")} active={sec === "flow"} onSeen={markSecOpen}
           hint="견적 승인·서명·발행·입금으로 판정해요">
           {signals.hasMoney ? (
             <>
@@ -1128,7 +1184,7 @@ export default function ProjectHubDetailPage() {
         </PjSection>
 
         {/* ③ 돈 — 마진 콕핏 + 원장 + 문서 흐름 + 확정비용. 유형(수익형) 조건 없이 모든 프로젝트가 갖는다 */}
-        <PjSection k="money" active={sec === "money"} onSeen={markSecOpen}
+        <PjSection k="money" inTab={TAB_OF_SECTION(sec).secs.includes("money")} active={sec === "money"} onSeen={markSecOpen}
           views={SECTION_VIEWS.money} view={viewOf("money")} onView={(v: string) => pickView("money", v)}
           hint={revenueBasis === "미입력" ? "견적서를 만들면 채워져요" : revenueBasis}>
         {(planRevenue === 0 && totalCost === 0 && subPurchaseSum === 0 && (documents as any[]).length === 0) ? (
@@ -1547,7 +1603,7 @@ export default function ProjectHubDetailPage() {
         {/* ④ 일 — 할 일(칸반·간트)·진행률·담당자별 부하. 유형(실행형) 조건 없이 모든 프로젝트가 쓴다.
             ⚠️ 프로젝트 안의 '워크플로우' 탭(전사 보드)은 제거했다 — 회사 전체 보드는 프로젝트
                목록의 '보드' 보기가 맡는다(같은 컴포넌트, 위치만 이동). */}
-        <PjSection k="work" active={sec === "work"} onSeen={markSecOpen}
+        <PjSection k="work" inTab={TAB_OF_SECTION(sec).secs.includes("work")} active={sec === "work"} onSeen={markSecOpen}
           views={signals.hasWork || expanded.work ? SECTION_VIEWS.work : undefined} view={viewOf("work")} onView={(v: string) => pickView("work", v)}
           hint={signals.hasWork ? "진행률은 완료된 할 일에서 자동 계산돼요" : undefined}>
           {!openSecs.has("work") ? <p className="pj-sec-empty">불러오는 중…</p>
@@ -1573,7 +1629,7 @@ export default function ProjectHubDetailPage() {
         </PjSection>
 
         {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
-        <PjSection k="goal" active={sec === "goal"} onSeen={markSecOpen}
+        <PjSection k="goal" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
           views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
           hint={signals.hasGoal ? "매출·이익·건수는 태그된 회계 데이터에서 자동으로 채워져요" : undefined}>
           {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
@@ -1594,7 +1650,7 @@ export default function ProjectHubDetailPage() {
 
         {/* ⑥ 사람과 기록 — 활동·일정(구 '프로젝트 운영')과 기본 정보.
             다중 담당·부서 롤업·프로젝트 채널은 4단계에서 이 자리에 붙는다. */}
-        <PjSection k="team" active={sec === "team"} onSeen={markSecOpen}
+        <PjSection k="team" inTab={TAB_OF_SECTION(sec).secs.includes("team")} active={sec === "team"} onSeen={markSecOpen}
           views={SECTION_VIEWS.team} view={viewOf("team")} onView={(v: string) => pickView("team", v)}
           hint="담당은 여러 명 배정할 수 있어요 · 해제해도 인수인계 기록은 남아요">
           {!openSecs.has("team") ? <p className="pj-sec-empty">불러오는 중…</p>
@@ -1829,8 +1885,10 @@ export default function ProjectHubDetailPage() {
 // ── 자리(섹션) 셸 ────────────────────────────────────────────
 //   탭을 없앤 대신 이 셸이 자리 제목·보기 전환·지연 마운트를 맡는다.
 //   한 페이지에 여섯 자리가 있으므로, 화면에 들어온 자리만 onSeen 으로 열어 조회를 시작한다.
-function PjSection({ k, active, hint, views, view, onView, onSeen, children }: {
+function PjSection({ k, inTab, active, hint, views, view, onView, onSeen, children }: {
   k: SectionKey;
+  /** 지금 열려 있는 탭에 속하는 자리인가 — 아니면 그리지 않는다(2026-08-03 개편 ③) */
+  inTab: boolean;
   active: boolean;
   hint?: string;
   views?: { key: string; label: string }[];
@@ -1850,6 +1908,7 @@ function PjSection({ k, active, hint, views, view, onView, onSeen, children }: {
     io.observe(el);
     return () => io.disconnect();
   }, [k, onSeen]);
+  if (!inTab) return null;
   return (
     <div ref={ref} id={`pj-sec-${k}`} className={`pj-sec ${active ? "pj-sec-on" : ""}`}>
       <div className="pj-sec-head">
