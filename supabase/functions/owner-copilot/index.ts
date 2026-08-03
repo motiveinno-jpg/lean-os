@@ -855,7 +855,10 @@ serve(withSentry("owner-copilot", async (req) => {
       }
 
       const result = await callClaude<never>({
-        task: "analysis", // 기본 Sonnet (복잡 질의만 Opus)
+        // 첨부→계약서 재구성은 원문 옮겨쓰기 성격 + 8,000토큰 생성이라 속도가 관건 —
+        //   Sonnet 실측 137s(게이트웨이 150s 초과) → Haiku ~50s (2026-08-03 사장님 승인).
+        //   일반 질의·분석은 기존대로 Sonnet.
+        task: attachmentContractMode ? "extract" : "analysis",
         feature: "owner_copilot", // 로그 호환 위해 feature 명 유지
         system: mode === "manager" ? SYSTEM_MANAGER : SYSTEM_EMPLOYEE,
         messages,
