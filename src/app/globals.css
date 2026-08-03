@@ -5500,6 +5500,7 @@ td .rounded-full { white-space: nowrap; }
 .ph-st-warn { @apply bg-[var(--warning)]/10 text-[var(--warning)]; }
 .ph-st-normal { @apply bg-[var(--success)]/10 text-[var(--success)]; }
 .ph-st-done { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.ph-st-empty { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
 /* 챙길 건 — 목록 맨 위에 카드로 크게(최대 3건) */
 /* 표 — 6열로 줄였다(구 8열). 거래처는 프로젝트명 아래 작은 글씨로 */
 .ph-table-partner { @apply block text-[11px] text-[var(--text-dim)] mt-0.5; }

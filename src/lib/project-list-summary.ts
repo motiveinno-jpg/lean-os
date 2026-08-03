@@ -1,0 +1,115 @@
+// 프로젝트 목록 요약 — **표(보드)에 입력된 값**에서 뽑는다 (2026-08-03 기획 v2 5단계).
+//
+// 배경 (사장님 지적):
+//   목록의 지연·주의·정상과 보드·캘린더·담당별·분석은 전부 '계약·마감·미수'(회계)를 전제로 만든
+//   지표였다. 새 구조에서는 프로젝트마다 쓰는 템플릿이 달라서 그 칸이 대부분 빈다.
+//   → 템플릿이 무엇이든 **공통으로 있는 것**만 목록에 쓴다:
+//      ① 표가 몇 개인지 ② 얼마나 채웠는지(행 수) ③ 마지막 입력이 언제인지
+//      ④ 날짜 컬럼 기준 지난 것·이번 주 ⑤ 흐름이 있으면 완료율
+//   회계(계약·미수)는 연결된 프로젝트에서만 덧붙인다 — 없으면 아예 안 보여준다.
+//
+// 절대규칙: 순수 함수. 조회는 화면이 하고 여기서는 계산만 한다.
+
+export type ListBoard = { id: string; deal_id: string; name: string; template_key: string | null };
+export type ListColumn = { id: string; board_id: string; type: string; name: string };
+export type ListGroup = { id: string; board_id: string; name: string; position: number };
+export type ListItem = { board_id: string; group_id: string | null; values: Record<string, any>; updated_at: string };
+
+export type ProjectRollup = {
+  boardCount: number;
+  boardNames: string[];
+  itemCount: number;
+  /** 마지막 입력 이후 경과일 — 표가 없으면 null */
+  quietDays: number | null;
+  /** 날짜 컬럼 기준 */
+  lateCount: number;
+  soonCount: number;
+  /** 흐름(마지막 그룹) 또는 완료 상태 기준 완료율 — 계산 불가면 null */
+  doneRate: number | null;
+};
+
+const DONE_RE = /완료|종료|계약|승인/;
+
+export function rollupProject(
+  boards: ListBoard[], columns: ListColumn[], groups: ListGroup[], items: ListItem[], today: string,
+): ProjectRollup {
+  const boardIds = new Set(boards.map((b) => b.id));
+  const myItems = items.filter((i) => boardIds.has(i.board_id));
+  const myCols = columns.filter((c) => boardIds.has(c.board_id));
+  const myGroups = groups.filter((g) => boardIds.has(g.board_id));
+
+  // 마지막 입력
+  let quietDays: number | null = null;
+  const last = myItems.map((i) => i.updated_at).filter(Boolean).sort().pop();
+  if (last) quietDays = Math.floor((Date.now() - new Date(last).getTime()) / 86_400_000);
+
+  // 날짜 컬럼 — 지난 것 / 이번 주
+  const weekLater = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+  let lateCount = 0, soonCount = 0;
+  const dateCols = myCols.filter((c) => c.type === "date");
+  for (const it of myItems) {
+    for (const c of dateCols) {
+      if (c.board_id !== it.board_id) continue;
+      const v = String(it.values?.[c.id] || "");
+      if (!/^\d{4}-\d{2}-\d{2}/.test(v)) continue;
+      if (v < today) lateCount++;
+      else if (v <= weekLater) soonCount++;
+    }
+  }
+
+  // 완료율 — ① 마지막 그룹이 '완료'류면 그 그룹 비율 ② 아니면 상태 컬럼의 완료 옵션 비율
+  let doneRate: number | null = null;
+  const flowBoards = boards.filter((b) => myGroups.filter((g) => g.board_id === b.id).length > 1);
+  if (flowBoards.length > 0) {
+    let total = 0, done = 0;
+    for (const b of flowBoards) {
+      const gs = myGroups.filter((g) => g.board_id === b.id).sort((a, z) => a.position - z.position);
+      const doneGroup = gs.find((g) => DONE_RE.test(g.name));
+      const rows = myItems.filter((i) => i.board_id === b.id);
+      total += rows.length;
+      if (doneGroup) done += rows.filter((i) => i.group_id === doneGroup.id).length;
+    }
+    if (total > 0) doneRate = Math.round((done / total) * 100);
+  }
+
+  return {
+    boardCount: boards.length,
+    boardNames: boards.map((b) => b.name),
+    itemCount: myItems.length,
+    quietDays,
+    lateCount,
+    soonCount,
+    doneRate,
+  };
+}
+
+export type ListStatus = "late" | "warn" | "normal" | "empty";
+
+export const LIST_STATUS_LABEL: Record<ListStatus, string> = {
+  late: "지연", warn: "주의", normal: "정상", empty: "시작 전",
+};
+
+/**
+ * 목록 상태 — 표 데이터만으로 정한다.
+ *   지연: 기한이 지난 행이 있다
+ *   주의: 이번 주 마감이 있거나 2주 넘게 입력이 없다
+ *   시작 전: 표가 없거나 행이 하나도 없다 (빈 프로젝트를 '정상'으로 속이지 않는다)
+ */
+export function listStatusOf(r: ProjectRollup): ListStatus {
+  if (r.boardCount === 0 || r.itemCount === 0) return "empty";
+  if (r.lateCount > 0) return "late";
+  if (r.soonCount > 0) return "warn";
+  if (r.quietDays != null && r.quietDays >= 14) return "warn";
+  return "normal";
+}
+
+/** 목록 한 줄에 쓰는 '확인 사항' — 해당되는 것만 */
+export function listReasons(r: ProjectRollup): { text: string; tone: "risk" | "warn" | "dim" }[] {
+  const out: { text: string; tone: "risk" | "warn" | "dim" }[] = [];
+  if (r.boardCount === 0) { out.push({ text: "표를 아직 안 만들었어요", tone: "dim" }); return out; }
+  if (r.itemCount === 0) { out.push({ text: "표는 있는데 입력이 없어요", tone: "dim" }); return out; }
+  if (r.lateCount > 0) out.push({ text: `기한 지난 것 ${r.lateCount}건`, tone: "risk" });
+  if (r.soonCount > 0) out.push({ text: `이번 주 ${r.soonCount}건`, tone: "warn" });
+  if (r.quietDays != null && r.quietDays >= 14) out.push({ text: `${r.quietDays}일째 입력 없음`, tone: "dim" });
+  return out;
+}

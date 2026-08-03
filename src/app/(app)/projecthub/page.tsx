@@ -30,6 +30,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
 import { QuietCheckins } from "./_components/QuietCheckins";
 import { PeopleView } from "./_components/PeopleView";
+import { rollupProject, listStatusOf, listReasons, LIST_STATUS_LABEL, type ProjectRollup, type ListStatus } from "@/lib/project-list-summary";
 // 워크플로우 보드 — 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
 //   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다(2026-07-30 사장님 승인).
 import { MondayBoard } from "@/components/monday-board";
@@ -484,6 +485,59 @@ export default function ProjectHubPage() {
     return { icon: "🗓", text: "기간 미정", dday: "—", tone: "ok" };
   };
 
+  // ── 표(보드) 집계 — 목록 지표를 **입력된 표**에서 뽑는다(2026-08-03 기획 v2 5단계) ──
+  //   계약·미수 기반 지표는 새 구조에서 대부분 비어서, 템플릿이 무엇이든 공통인 것만 쓴다.
+  const { data: pbBoards = [] } = useQuery({
+    queryKey: ["ph-boards", companyId],
+    queryFn: async () => {
+      const data = logRead("projecthub/page:pbBoards", await (supabase as any).from("project_boards")
+        .select("id, deal_id, name, template_key").eq("company_id", companyId!).is("archived_at", null));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+  const pbBoardIds = useMemo(() => (pbBoards as any[]).map((b) => b.id), [pbBoards]);
+  const { data: pbCols = [] } = useQuery({
+    queryKey: ["ph-board-cols", pbBoardIds.length],
+    queryFn: async () => {
+      if (!pbBoardIds.length) return [];
+      const data = logRead("projecthub/page:pbCols", await (supabase as any).from("project_board_columns")
+        .select("id, board_id, type, name").in("board_id", pbBoardIds));
+      return (data || []) as any[];
+    },
+    enabled: pbBoardIds.length > 0,
+  });
+  const { data: pbGroups = [] } = useQuery({
+    queryKey: ["ph-board-groups", pbBoardIds.length],
+    queryFn: async () => {
+      if (!pbBoardIds.length) return [];
+      const data = logRead("projecthub/page:pbGroups", await (supabase as any).from("project_board_groups")
+        .select("id, board_id, name, position").in("board_id", pbBoardIds));
+      return (data || []) as any[];
+    },
+    enabled: pbBoardIds.length > 0,
+  });
+  const { data: pbItems = [] } = useQuery({
+    queryKey: ["ph-board-items", pbBoardIds.length],
+    queryFn: async () => {
+      if (!pbBoardIds.length) return [];
+      const data = logRead("projecthub/page:pbItems", await (supabase as any).from("project_board_items")
+        .select("board_id, group_id, values, updated_at").in("board_id", pbBoardIds).limit(5000));
+      return (data || []) as any[];
+    },
+    enabled: pbBoardIds.length > 0,
+  });
+
+  const rollupByDeal = useMemo(() => {
+    const m: Record<string, ProjectRollup> = {};
+    for (const d of topDeals as any[]) {
+      const mine = (pbBoards as any[]).filter((b) => b.deal_id === d.id);
+      m[d.id] = rollupProject(mine, pbCols as any[], pbGroups as any[], pbItems as any[], todayStr);
+    }
+    return m;
+  }, [topDeals, pbBoards, pbCols, pbGroups, pbItems, todayStr]);
+  const listStatusOfDeal = (d: any): ListStatus => listStatusOf(rollupByDeal[d.id] || { boardCount: 0, boardNames: [], itemCount: 0, quietDays: null, lateCount: 0, soonCount: 0, doneRate: null });
+
   // 확인 사항 — 걸리는 것을 짧은 칩으로 모은다(해당되는 것 전부).
   //   상태(project-status)는 대표 사유 하나만 주므로 목록에서는 여기서 다시 모은다.
   const reasonsOf = (d: any): { text: string; tone: "risk" | "warn" | "dim" }[] => {
@@ -507,9 +561,9 @@ export default function ProjectHubPage() {
   };
 
   // 상태 칩 필터 — 지연·주의·정상 중 하나만 보기(구 렌즈 4타일을 대체, 2026-08-03)
-  const matchesLens = (d: any) => !lens || statusOf(d) === lens;
+  const matchesLens = (d: any) => !lens || listStatusOfDeal(d) === (lens as any);
   // 급한 순 — 상태 순서(지연→주의→정상→완료)가 곧 긴급도다
-  const urgencyRank = (d: any) => STATUS_RANK[statusOf(d)];
+  const urgencyRank = (d: any) => ({ late: 0, warn: 1, normal: 2, empty: 3 })[listStatusOfDeal(d)];
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -563,18 +617,17 @@ export default function ProjectHubPage() {
     return true;
   }) : rows, [rows, lens, topDeals, mineOnly, userId, search, partnerName, userName]);
   // 상태별 건수 + 한 문장 요약에 쓰는 숫자 — 내담당·검색 스코프(상태 필터 제외)에서 집계
+  // 상태 건수 — 표 기준(지연=기한 지남 / 주의=이번 주·오래 조용 / 시작 전=입력 없음)
   const lensCounts = useMemo(() => {
-    let receivableSum = 0, receivableCount = 0, dueThisWeek = 0;
-    const st: Record<ProjectStatusKey, number> = { late: 0, warn: 0, normal: 0, done: 0 };
+    const st: Record<string, number> = { late: 0, warn: 0, normal: 0, empty: 0 };
+    let lateItems = 0, soonItems = 0, boards = 0;
     for (const d of lensScope) {
-      const o = outstandingByDeal[d.id] || 0;
-      if (o > 1) { receivableSum += o; receivableCount++; }
-      const dd = ddOf(d);
-      if (!isDone(d) && dd != null && dd >= 0 && dd <= 7) dueThisWeek++;
-      st[statusOf(d)]++;
+      st[listStatusOfDeal(d)]++;
+      const r = rollupByDeal[d.id];
+      if (r) { lateItems += r.lateCount; soonItems += r.soonCount; boards += r.boardCount; }
     }
-    return { ...st, total: lensScope.length, dueThisWeek, receivableSum, receivableCount };
-  }, [lensScope, outstandingByDeal, statusByDeal, todayStr]);
+    return { ...st, total: lensScope.length, lateItems, soonItems, boards } as any;
+  }, [lensScope, rollupByDeal]);
 
   // 유형별 요약 구획(수익형 마진합·목표형 평균달성·실행형 평균진행)은 유형 칩과 함께 폐지했다.
   //   회사 전체 집계는 목록 '차트' 보기에서 다루기로 정리(2026-07-30 기획 v3 3단계).
@@ -628,14 +681,12 @@ export default function ProjectHubPage() {
           지금 챙길 게 없으면 그렇다고 말한다(빈 화면을 만들지 않는다). */}
       <div className="ph-brief">
         <p className="ph-brief-line">
-          {lensCounts.dueThisWeek + lensCounts.late + lensCounts.receivableCount === 0
-            ? <>지금 급한 건 없어요. 프로젝트 <b>{lensCounts.total}건</b>이 돌아가고 있어요.</>
+          {lensCounts.lateItems + lensCounts.soonItems === 0
+            ? <>프로젝트 <b>{lensCounts.total}건</b> · 표 <b>{lensCounts.boards}개</b>. 기한이 걸린 건 없어요.</>
             : <>
-                {lensCounts.late > 0 && <>지연 <b>{lensCounts.late}건</b></>}
-                {lensCounts.late > 0 && (lensCounts.dueThisWeek > 0 || lensCounts.receivableCount > 0) && " · "}
-                {lensCounts.dueThisWeek > 0 && <>이번 주 마감 <b>{lensCounts.dueThisWeek}건</b></>}
-                {lensCounts.dueThisWeek > 0 && lensCounts.receivableCount > 0 && " · "}
-                {lensCounts.receivableCount > 0 && <>미수금 <b>{won(lensCounts.receivableSum)}</b></>}
+                {lensCounts.lateItems > 0 && <>기한 지난 것 <b>{lensCounts.lateItems}건</b></>}
+                {lensCounts.lateItems > 0 && lensCounts.soonItems > 0 && " · "}
+                {lensCounts.soonItems > 0 && <>이번 주 <b>{lensCounts.soonItems}건</b></>}
                 {" 이 있어요."}
               </>}
         </p>
@@ -662,8 +713,8 @@ export default function ProjectHubPage() {
       <div className="ph-statusbar">
         <div className="ph-stchips">
           {([["", "전체", lensCounts.total], ["late", "지연", lensCounts.late], ["warn", "주의", lensCounts.warn],
-             ["normal", "정상", lensCounts.normal], ["done", "완료", lensCounts.done]] as const).map(([k, label, n]) => (
-            (k === "done" && n === 0) ? null : (
+             ["normal", "정상", lensCounts.normal], ["empty", "시작 전", lensCounts.empty]] as const).map(([k, label, n]) => (
+            (k === "empty" && n === 0) ? null : (
               <button key={k || "all"} type="button" onClick={() => setLens((prev) => (prev === k || k === "" ? null : k as any))}
                 aria-pressed={k === "" ? lens === null : lens === k}
                 className={`ph-stchip ${k ? `ph-stchip-${k}` : ""} ${(k === "" ? lens === null : lens === k) ? "ph-stchip-on" : ""}`}>
@@ -672,35 +723,15 @@ export default function ProjectHubPage() {
             )
           ))}
         </div>
+        {/* 보기는 둘만 — 보드·캘린더·분석은 계약·마감(회계)을 전제로 만든 화면이라
+            새 구조에서는 대부분 빈다. 표 데이터가 쌓이면 그때 표 기준으로 다시 만든다(2026-08-03). */}
         <div className="ph-viewpick">
-          {READY_LIST_VIEWS.map((v) => (
-            <button key={v.key} onClick={() => pickListView(v.key)} title={v.desc}
-              aria-pressed={listView === v.key}
-              className={`ph-view-btn ${listView === v.key ? "ph-view-btn-on" : ""}`}>
-              {v.label}
-            </button>
+          {([["table", "목록"], ["people", "담당별"]] as const).map(([k, label]) => (
+            <button key={k} onClick={() => pickListView(k)} aria-pressed={listView === k}
+              className={`ph-view-btn ${listView === k ? "ph-view-btn-on" : ""}`}>{label}</button>
           ))}
-          {/* 분석(차트·타임라인)은 평소 목록과 섞지 않는다 — 필요할 때만 연다 */}
-          <button onClick={() => pickListView(ANALYSIS_VIEWS.some((v) => v.key === listView) ? "table" : "chart")}
-            aria-pressed={ANALYSIS_VIEWS.some((v) => v.key === listView)}
-            className={`ph-view-btn ${ANALYSIS_VIEWS.some((v) => v.key === listView) ? "ph-view-btn-on" : ""}`}>
-            분석
-          </button>
         </div>
       </div>
-
-      {/* 분석 보기 안에서만 차트/타임라인을 고른다 */}
-      {ANALYSIS_VIEWS.some((v) => v.key === listView) && (
-        <div className="ph-viewpick">
-          {ANALYSIS_VIEWS.map((v) => (
-            <button key={v.key} onClick={() => pickListView(v.key)} title={v.desc}
-              className={`ph-view-btn ${listView === v.key ? "ph-view-btn-on" : ""}`}>
-              {v.label}
-            </button>
-          ))}
-          <span className="ph-nudge-hint">{ANALYSIS_VIEWS.find((v) => v.key === listView)?.desc}</span>
-        </div>
-      )}
 
       {/* 묶을 만한 거래 — 후보가 없으면 줄 자체가 사라진다(빈 상태를 만들지 않는다) */}
       {candidates.length > 0 && nudge === "cand" && (
@@ -859,39 +890,43 @@ export default function ProjectHubPage() {
           <table className="ph-table">
             <thead>
               <tr>
-                <th>프로젝트</th><th>담당</th><th>상태</th><th className="ph-table-n">진행</th>
-                <th className="ph-table-n">미수금</th><th>확인 사항</th><th />
+                <th>프로젝트</th><th>표</th><th>담당</th><th>상태</th><th className="ph-table-n">입력</th>
+                <th>확인 사항</th><th>마지막 입력</th><th />
               </tr>
             </thead>
             <tbody>
               {rows.map((d: any) => {
-                const st = statusByDeal[d.id];
-                const h = headlineByDeal[d.id];
-                const out = outstandingByDeal[d.id] || 0;
-                const reasons = reasonsOf(d);
+                const r = rollupByDeal[d.id];
+                const key = listStatusOfDeal(d);
+                const reasons = listReasons(r || { boardCount: 0, boardNames: [], itemCount: 0, quietDays: null, lateCount: 0, soonCount: 0, doneRate: null });
                 return (
                   <tr key={d.id} onClick={() => { if (openMenu) { setOpenMenu(null); return; } router.push(`/projecthub/${d.id}`); }}
-                    className={`ph-table-row ph-row-${st?.key || "normal"}`}>
+                    className={`ph-table-row ph-row-${key}`}>
                     <td>
                       <b>{d.name || "(이름 없음)"}</b>
                       {childCount[d.id] > 0 && <span className="ph-sub-badge">하위 {childCount[d.id]}</span>}
-                      <span className="ph-table-partner">{partnerName[d.partner_id] || "내부"}</span>
+                      {partnerName[d.partner_id] && <span className="ph-table-partner">{partnerName[d.partner_id]}</span>}
+                    </td>
+                    <td>
+                      {r && r.boardCount > 0
+                        ? <span className="ph-reasons">{r.boardNames.slice(0, 3).map((n) => <span key={n} className="ph-reason ph-reason-dim">{n}</span>)}{r.boardCount > 3 && <span className="ph-reason ph-reason-dim">+{r.boardCount - 3}</span>}</span>
+                        : <span className="ph-table-dim">없음</span>}
                     </td>
                     <td className="ph-table-dim">{userName[d.internal_manager_id] || "—"}</td>
-                    <td><span className={`ph-st ph-st-${st?.key || "normal"}`}>{st?.label || "정상"}</span></td>
+                    <td><span className={`ph-st ph-st-${key}`}>{LIST_STATUS_LABEL[key]}</span></td>
                     <td className="ph-table-n">
-                      {h && h.raw != null
-                        ? <span className="ph-table-prog"><span className="ph-table-track"><i style={{ width: `${h.pct}%` }} /></span>{h.label}</span>
+                      {r && r.itemCount > 0
+                        ? <>{r.itemCount}행{r.doneRate != null && <span className="ph-table-dim"> · {r.doneRate}%</span>}</>
                         : "—"}
                     </td>
-                    <td className={`ph-table-n ${out > 1 ? "ph-table-bad" : ""}`}>{out > 1 ? won(out) : "—"}</td>
                     <td>
                       {reasons.length === 0 ? <span className="ph-table-dim">특이사항 없음</span> : (
                         <span className="ph-reasons">
-                          {reasons.map((r) => <span key={r.text} className={`ph-reason ph-reason-${r.tone}`}>{r.text}</span>)}
+                          {reasons.map((x) => <span key={x.text} className={`ph-reason ph-reason-${x.tone}`}>{x.text}</span>)}
                         </span>
                       )}
                     </td>
+                    <td className="ph-table-dim">{r?.quietDays == null ? "—" : r.quietDays === 0 ? "오늘" : `${r.quietDays}일 전`}</td>
                     <td className="ph-table-kebab">
                       <button onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === d.id ? null : d.id); }} className="ph-kebab" title="수정·삭제" aria-label="더보기">⋯</button>
                       {openMenu === d.id && (
