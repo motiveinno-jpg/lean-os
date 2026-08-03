@@ -29,7 +29,7 @@ const STATUS_META: Record<string, { dot: string; label: string }> = {
   neutral: { dot: "var(--text-dim)", label: "체크인 없음" },
 };
 
-export function GoalOverviewTab({ deal }: { deal: any }) {
+export function GoalOverviewTab({ deal, compact, onExpand }: { deal: any; compact?: boolean; onExpand?: () => void }) {
   const dealId = deal.id as string;
   const companyId = deal.company_id as string;
   const [trendKpiId, setTrendKpiId] = useState<string>("");
@@ -182,6 +182,9 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
   // ④ 체크인 타임라인
   const checkinPoints = (updates as any[]).map((u) => ({ label: String(u.period_start || u.update_date || "").slice(5, 10), status: u.status }));
 
+  if (kpiList.length === 0 && compact) {
+    return <p className="pj-sec-empty">‘목표 설정’에서 목표를 정하면 달성률이 여기에 표시돼요.</p>;
+  }
   if (kpiList.length === 0) {
     return (
       <div className="glass-card p-10 text-center">
@@ -194,6 +197,31 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
 
   const issueCount = (openIssues as any[]).length;
   const overdueCount = (overdueTasks as any[]).length;
+
+  // 개요에 얹을 때는 요약만 그린다 — 대시보드 안에 또 대시보드가 들어가면 읽기 나쁘다
+  //   (2026-08-03 사장님 지적). 전체 보고서는 '자세히 보기'로 그 자리에서 펼친다.
+  if (compact) {
+    return (
+      <div className="goal-compact">
+        <div className="goal-compact-top">
+          <span className="goal-compact-pct" style={{ color: statusColor(overallPct) }}>{overallPct == null ? "—" : `${overallPct}%`}</span>
+          <span className="goal-compact-lbl">종합 달성률<em>{STATUS_META[status].label}{worst ? ` · ${worst.k.label} 가장 뒤처짐` : ""}</em></span>
+          {onExpand && <button type="button" className="goal-compact-more" onClick={onExpand}>자세히 보기 →</button>}
+        </div>
+        <ProgressBar pct={overallPct} height={6} />
+        <div className="goal-compact-rows">
+          {rows.slice(0, 3).map(({ k, actual, pct }) => (
+            <div key={k.id} className="goal-compact-row">
+              <span className="goal-compact-name">{k.label}</span>
+              <ProgressBar pct={pct} height={6} />
+              <span className="goal-compact-val" style={{ color: statusColor(pct) }}>{pct == null ? "—" : `${pct}%`}</span>
+            </div>
+          ))}
+          {rows.length > 3 && <p className="goal-compact-rest">외 {rows.length - 3}개 지표</p>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="goal-overview">

@@ -5634,3 +5634,16 @@ td .rounded-full { white-space: nowrap; }
 .pj-chip-b { @apply bg-[var(--success)]/10; }
 .pj-chip-c { @apply bg-[var(--danger)]/10; }
 .pj-chip-d { @apply bg-[var(--warning)]/10; }
+
+/* 목표·실적 요약(개요) — 전체 보고서를 그대로 얹으면 대시보드 안에 대시보드가 된다(2026-08-03) */
+.goal-compact { @apply flex flex-col gap-2.5; }
+.goal-compact-top { @apply flex items-center gap-2.5; }
+.goal-compact-pct { @apply text-[26px] font-extrabold tracking-tight leading-none; font-variant-numeric: tabular-nums; }
+.goal-compact-lbl { @apply flex flex-col text-[12px] text-[var(--text-muted)] min-w-0; }
+.goal-compact-lbl em { @apply not-italic text-[11px] text-[var(--text-dim)] truncate; }
+.goal-compact-more { @apply ml-auto text-[11.5px] font-bold text-[var(--primary)] whitespace-nowrap hover:underline; }
+.goal-compact-rows { @apply flex flex-col gap-2 mt-1; }
+.goal-compact-row { @apply grid items-center gap-2.5; grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) 2.6rem; }
+.goal-compact-name { @apply text-[12px] text-[var(--text)] truncate; }
+.goal-compact-val { @apply text-[12px] font-extrabold text-right; font-variant-numeric: tabular-nums; }
+.goal-compact-rest { @apply text-[11px] text-[var(--text-dim)]; }

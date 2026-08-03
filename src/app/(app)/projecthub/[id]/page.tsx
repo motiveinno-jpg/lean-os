@@ -209,6 +209,9 @@ export default function ProjectHubDetailPage() {
   //   ⚠️ 안 쓰는 기능이 펼쳐져 있으면 스크롤만 길어진다 — 실측 3.4화면 중 1화면이 빈 자리였다.
   //   누르면 그 자리에서 바로 펼쳐진다(생성 때 미리 고르게 하지 않는 이유: 그 시점엔 판단 근거가 없다).
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // 목표·실적 — 개요에서는 요약만 보여주고, 누르면 전체 보고서를 그 자리에서 펼친다
+  //   (2026-08-03 사장님 지적: "대시보드 안에 또 대시보드")
+  const [goalFull, setGoalFull] = useState(false);
   const openNow = (k: SectionKey) => setExpanded((p) => ({ ...p, [k]: true }));
   // 목차 클릭 → 그 자리로 스크롤(자리는 즉시 마운트한다. 스크롤 도착 전에 조회가 시작되게)
   const goSection = useCallback((k: SectionKey) => {
@@ -1221,6 +1224,28 @@ export default function ProjectHubDetailPage() {
             순서: 챙길 것 · 돈 흐름 / 월별 발행·입금 · 일정과 업무 / 진행 단계 · 목표와 실적.
             다른 탭에서는 자리가 하나뿐이라 그리드가 그대로 한 칸이 된다. */}
         <div className="pj-ov-panels">
+        {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
+        <PjSection k="goal" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
+          views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
+          hint={signals.hasGoal ? "회계 데이터에서 자동 반영" : undefined}>
+          {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
+            : !companyId ? null
+            : !signals.hasGoal && !expanded.goal ? (
+              <button type="button" className="pj-sec-add" onClick={() => openNow("goal")}>
+                ＋ <b>목표 정하기</b>
+                <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고 예상 착지까지 계산돼요.</span>
+              </button>
+            ) : !signals.hasGoal ? (
+              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
+            ) : viewOf("goal") === "manage" ? (
+              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
+            ) : (
+              <GoalOverviewTab deal={deal}
+                compact={!goalFull}
+                onExpand={() => setGoalFull(true)} />
+            )}
+        </PjSection>
+
         {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
         <PjSection k="todo" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
           hint={signals.hasMoney || signals.hasWork ? "자동 집계" : "무엇부터 할지 골라 보세요"}>
@@ -1250,25 +1275,6 @@ export default function ProjectHubDetailPage() {
           ) : (
             <p className="pj-sec-empty">견적이나 할 일이 하나라도 생기면 여기에 진행 흐름이 나타나요.</p>
           )}
-        </PjSection>
-        {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
-        <PjSection k="goal" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
-          views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
-          hint={signals.hasGoal ? "회계 데이터에서 자동 반영" : undefined}>
-          {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
-            : !companyId ? null
-            : !signals.hasGoal && !expanded.goal ? (
-              <button type="button" className="pj-sec-add" onClick={() => openNow("goal")}>
-                ＋ <b>목표 정하기</b>
-                <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고 예상 착지까지 계산돼요.</span>
-              </button>
-            ) : !signals.hasGoal ? (
-              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
-            ) : viewOf("goal") === "manage" ? (
-              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
-            ) : (
-              <GoalOverviewTab deal={deal} />
-            )}
         </PjSection>
         </div>
 
