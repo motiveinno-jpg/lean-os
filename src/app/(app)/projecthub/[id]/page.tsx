@@ -1182,8 +1182,12 @@ export default function ProjectHubDetailPage() {
             endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
         )}
 
+        {/* 개요는 세로로만 쌓지 않는다(2026-08-03 사장님 지적: 빈 공간이 크다) —
+            챙길 것(넓게)과 진행 단계(좁게)를 한 줄에 놓고, 그 아래 차트를 깐다.
+            다른 탭에서는 자리가 하나뿐이라 그리드가 그대로 한 칸이 된다. */}
+        <div className="pj-ov-grid">
         {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
-        <PjSection k="todo" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
+        <PjSection k="todo" span="wide" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
           hint={signals.hasMoney || signals.hasWork ? "데이터에서 자동으로 뽑아요" : "무엇부터 하면 되는지 알려드려요"}>
           <TodoQueue
             deal={deal} pipe={pipe} won={won}
@@ -1193,13 +1197,9 @@ export default function ProjectHubDetailPage() {
             isNew={justCreated} onAddTasks={addFirstTasks} onSetDue={setFirstDue} saving={savingFirst} />
         </PjSection>
 
-        {TAB_OF_SECTION(sec).key === "overview" && (
-          <OverviewDashboard part="charts" contract={ownContract} facts={facts as any} won={won}
-            endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
-        )}
-
+        <div className="pj-ov-side">
         {/* ② 어디까지 왔나 — 견적→계약→진행→청구→정산 한 줄 + 단계 보정 */}
-        <PjSection k="flow" inTab={TAB_OF_SECTION(sec).secs.includes("flow")} active={sec === "flow"} onSeen={markSecOpen}
+        <PjSection k="flow" span="narrow" inTab={TAB_OF_SECTION(sec).secs.includes("flow")} active={sec === "flow"} onSeen={markSecOpen}
           hint="견적 승인·서명·발행·입금으로 판정해요">
           {signals.hasMoney ? (
             <>
@@ -1212,6 +1212,32 @@ export default function ProjectHubDetailPage() {
             <p className="pj-sec-empty">견적이나 할 일이 하나라도 생기면 여기에 진행 흐름이 나타나요.</p>
           )}
         </PjSection>
+        {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
+        <PjSection k="goal" span="narrow" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
+          views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
+          hint={signals.hasGoal ? "매출·이익·건수는 태그된 회계 데이터에서 자동으로 채워져요" : undefined}>
+          {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
+            : !companyId ? null
+            : !signals.hasGoal && !expanded.goal ? (
+              <button type="button" className="pj-sec-add" onClick={() => openNow("goal")}>
+                ＋ <b>목표 정하기</b>
+                <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고 예상 착지까지 계산돼요.</span>
+              </button>
+            ) : !signals.hasGoal ? (
+              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
+            ) : viewOf("goal") === "manage" ? (
+              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
+            ) : (
+              <GoalOverviewTab deal={deal} />
+            )}
+        </PjSection>
+        </div>
+        </div>
+
+        {TAB_OF_SECTION(sec).key === "overview" && (
+          <OverviewDashboard part="charts" contract={ownContract} facts={facts as any} won={won}
+            endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
+        )}
 
         {/* ③ 돈 — 마진 콕핏 + 원장 + 문서 흐름 + 확정비용. 유형(수익형) 조건 없이 모든 프로젝트가 갖는다 */}
         <PjSection k="money" inTab={TAB_OF_SECTION(sec).secs.includes("money")} active={sec === "money"} onSeen={markSecOpen}
@@ -1658,26 +1684,6 @@ export default function ProjectHubDetailPage() {
             )}
         </PjSection>
 
-        {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
-        <PjSection k="goal" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
-          views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
-          hint={signals.hasGoal ? "매출·이익·건수는 태그된 회계 데이터에서 자동으로 채워져요" : undefined}>
-          {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
-            : !companyId ? null
-            : !signals.hasGoal && !expanded.goal ? (
-              <button type="button" className="pj-sec-add" onClick={() => openNow("goal")}>
-                ＋ <b>목표 정하기</b>
-                <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고 예상 착지까지 계산돼요.</span>
-              </button>
-            ) : !signals.hasGoal ? (
-              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
-            ) : viewOf("goal") === "manage" ? (
-              <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
-            ) : (
-              <GoalOverviewTab deal={deal} />
-            )}
-        </PjSection>
-
         {/* ⑥ 사람과 기록 — 활동·일정(구 '프로젝트 운영')과 기본 정보.
             다중 담당·부서 롤업·프로젝트 채널은 4단계에서 이 자리에 붙는다. */}
         <PjSection k="team" inTab={TAB_OF_SECTION(sec).secs.includes("team")} active={sec === "team"} onSeen={markSecOpen}
@@ -1915,10 +1921,12 @@ export default function ProjectHubDetailPage() {
 // ── 자리(섹션) 셸 ────────────────────────────────────────────
 //   탭을 없앤 대신 이 셸이 자리 제목·보기 전환·지연 마운트를 맡는다.
 //   한 페이지에 여섯 자리가 있으므로, 화면에 들어온 자리만 onSeen 으로 열어 조회를 시작한다.
-function PjSection({ k, inTab, active, hint, views, view, onView, onSeen, children }: {
+function PjSection({ k, inTab, span, active, hint, views, view, onView, onSeen, children }: {
   k: SectionKey;
   /** 지금 열려 있는 탭에 속하는 자리인가 — 아니면 그리지 않는다(2026-08-03 개편 ③) */
   inTab: boolean;
+  /** 개요 탭에서 가로로 나눠 놓을 때의 칸 수(세로로만 쌓으면 빈 공간이 크다) */
+  span?: "wide" | "narrow";
   active: boolean;
   hint?: string;
   views?: { key: string; label: string }[];
@@ -1940,7 +1948,7 @@ function PjSection({ k, inTab, active, hint, views, view, onView, onSeen, childr
   }, [k, onSeen]);
   if (!inTab) return null;
   return (
-    <div ref={ref} id={`pj-sec-${k}`} className={`pj-sec ${active ? "pj-sec-on" : ""}`}>
+    <div ref={ref} id={`pj-sec-${k}`} className={`pj-sec ${span ? `pj-sec-${span}` : ""} ${active ? "pj-sec-on" : ""}`}>
       <div className="pj-sec-head">
         <h2 className="pj-sec-title">{SECTION_TITLE[k]}</h2>
         {hint && <span className="pj-sec-hint">{hint}</span>}
