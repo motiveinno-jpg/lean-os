@@ -506,7 +506,7 @@ export default function ProjectHubPage() {
           partners={partners as any[]}
           users={users as any[]}
           onClose={() => setShowCreate(false)}
-          onSaved={(id) => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); if (id) router.push(`/projecthub/${id}`); }}
+          onSaved={(id) => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); if (id) router.push(`/projecthub/${id}?new=1`); }}
         />
       )}
 

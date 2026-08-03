@@ -19,24 +19,27 @@ export type SectionKey = "todo" | "flow" | "money" | "work" | "goal" | "team";
 
 export const SECTION_ORDER: SectionKey[] = ["todo", "flow", "money", "work", "goal", "team"];
 
-/** 목차(레일)에 쓰는 짧은 이름 */
+/** 목차(레일)에 쓰는 짧은 이름
+ *   ⚠️ 이름은 회사에서 실제로 쓰는 말로만 짓는다(2026-08-03 사장님 지시).
+ *      구 "돈 / 일 / 성과 / 팀" 은 뜻은 통해도 업무에서 안 쓰는 말이라
+ *      → 매출·비용 / 업무 / 목표·실적 / 구성원 으로 바꿨다. 회계·영업 문서와 같은 낱말을 쓴다. */
 export const SECTION_LABEL: Record<SectionKey, string> = {
-  todo: "할 일",
-  flow: "흐름",
-  money: "돈",
-  work: "일",
-  goal: "성과",
-  team: "팀",
+  todo: "챙길 것",
+  flow: "진행 단계",
+  money: "매출·비용",
+  work: "업무",
+  goal: "목표·실적",
+  team: "구성원",
 };
 
-/** 자리 제목 — 본문 머리에 쓰는 문장형 이름 */
+/** 자리 제목 — 본문 머리에 쓰는 이름 */
 export const SECTION_TITLE: Record<SectionKey, string> = {
-  todo: "지금 할 일",
-  flow: "어디까지 왔나",
-  money: "돈",
-  work: "일",
-  goal: "성과",
-  team: "사람과 기록",
+  todo: "지금 챙길 것",
+  flow: "진행 단계",
+  money: "매출·비용",
+  work: "업무",
+  goal: "목표와 실적",
+  team: "구성원과 기록",
 };
 
 // ── 보기(뷰) ───────────────────────────────────────────────
@@ -47,11 +50,11 @@ export type SectionView = { key: string; label: string };
 //      눌렀을 때 빈 화면이 된다. 추세·분해 같은 추가 보기는 구현과 함께 넣는다.
 export const SECTION_VIEWS: Record<SectionKey, SectionView[]> = {
   todo: [{ key: "queue", label: "급한 순" }],
-  flow: [{ key: "ribbon", label: "흐름" }],
-  money: [{ key: "ledger", label: "원장" }, { key: "docs", label: "문서" }, { key: "cost", label: "비용" }],
+  flow: [{ key: "ribbon", label: "단계" }],
+  money: [{ key: "ledger", label: "매출·매입" }, { key: "docs", label: "견적·계약" }, { key: "cost", label: "비용" }],
   work: [{ key: "tasks", label: "할 일" }, { key: "schedule", label: "마일스톤" }, { key: "issues", label: "이슈" }],
-  goal: [{ key: "score", label: "성과" }, { key: "manage", label: "목표 관리" }],
-  team: [{ key: "who", label: "사람" }, { key: "activity", label: "활동" }, { key: "info", label: "기본 정보" }],
+  goal: [{ key: "score", label: "실적" }, { key: "manage", label: "목표 설정" }],
+  team: [{ key: "who", label: "담당" }, { key: "activity", label: "활동 이력" }, { key: "info", label: "기본 정보" }],
 };
 
 // ── 목록 화면 보기 ──────────────────────────────────────────
@@ -123,7 +126,7 @@ export function getDormantSections(s: ProjectSignals): SectionKey[] {
 // ── 대표 지표 자동 선택 ─────────────────────────────────────
 //   유형별로 히어로 지표를 고정하던 것을 대체한다. 사용자가 "이 프로젝트의 대표 지표는
 //   무엇으로 할까" 를 정하지 않는다 — 있는 데이터에서 고른다.
-//   우선순위: 돈(마진) > 성과(달성률) > 일(진행률). 돈이 걸린 프로젝트는 마진이 먼저다.
+//   우선순위: 매출·비용(마진) > 목표·실적(달성률) > 업무(진행률). 돈이 걸린 프로젝트는 마진이 먼저다.
 
 export type HeadlineKind = "margin" | "achievement" | "progress" | "none";
 

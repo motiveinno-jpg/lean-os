@@ -10,7 +10,7 @@ import { logRead } from "@/lib/log-read";
 import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -164,6 +164,9 @@ export default function ProjectHubDetailPage() {
   const params = useParams();
   const router = useRouter();
   const dealId = String(params?.id || "");
+  // 방금 만들고 들어온 경우(목록의 만들기 → ?new=1) — 첫 한 걸음 안내 문구만 달라진다.
+  const searchParams = useSearchParams();
+  const justCreated = searchParams?.get("new") === "1";
   // 목차에서 고른 자리(스크롤 위치 표시용). ?tab= 딥링크는 자리 키를 받는다.
   const [sec, setSec] = useTabParam<SectionKey>("todo", { valid: SECTION_ORDER });
   // 자리별 보기 — 사람마다 기억한다(대표는 돈=추세, 실무자는 일=칸반으로 열리게).
@@ -472,6 +475,48 @@ export default function ProjectHubDetailPage() {
       toast(e?.message || "계약 생성 실패", "error");
     } finally {
       setCreatingContractFrom(null);
+    }
+  };
+
+  // ── 첫 한 걸음 ──────────────────────────────────────────────
+  //   방금 만든 프로젝트가 빈 채로 남지 않게, 세 가지 중 하나를 이 화면에서 끝낸다.
+  //   (실측 2026-08-03: 살아 있는 프로젝트 9개 중 4개가 아무 데이터 없이 남았고, 40개 중 5개는
+  //    만든 당일 보관됐다. 마감일이 없으면 '지금 챙길 것'이 계산할 게 없어 아무 말도 못 한다.)
+  //   예전엔 제안을 눌러도 다른 자리로 스크롤만 시켜서, 실제로 채우는 사람이 거의 없었다.
+  const [savingFirst, setSavingFirst] = useState(false);
+  const addFirstTasks = async (titles: string[]) => {
+    const rows = titles.map((t) => t.trim()).filter(Boolean);
+    if (!companyId || !userId || !rows.length || savingFirst) return;
+    setSavingFirst(true);
+    try {
+      const { error } = await db.from("project_tasks").insert(rows.map((title, i) => ({
+        company_id: companyId, deal_id: dealId, title, status: "todo",
+        assignee_id: null, assignee_ids: [], due_date: null, progress: 0, position: i + 1, created_by: userId,
+      })));
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-has-work", dealId] });
+      qc.invalidateQueries({ queryKey: ["project-tasks", dealId] });
+      toast(`할 일 ${rows.length}건을 추가했습니다. '업무'에서 담당·기한을 채우세요.`, "success");
+      goSection("work");
+    } catch (e: any) {
+      toast(e?.message || "할 일 추가 실패", "error");
+    } finally {
+      setSavingFirst(false);
+    }
+  };
+  const setFirstDue = async (date: string) => {
+    if (!date || savingFirst) return;
+    setSavingFirst(true);
+    try {
+      const { error } = await db.from("deals").update({ end_date: date }).eq("id", dealId);
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      toast("마감일을 정했습니다. 남은 날짜와 지연은 '챙길 것'에 올라옵니다.", "success");
+    } catch (e: any) {
+      toast(e?.message || "마감일 저장 실패", "error");
+    } finally {
+      setSavingFirst(false);
     }
   };
 
@@ -1063,7 +1108,8 @@ export default function ProjectHubDetailPage() {
             deal={deal} pipe={pipe} won={won}
             hasMoney={signals.hasMoney} hasWork={signals.hasWork} hasGoal={signals.hasGoal}
             quoteCount={quoteDocsShown.length} contractCount={contractDocsShown.length}
-            onGo={goSection} onNewQuote={createQuoteInstant} creating={creatingQuote} />
+            onGo={goSection} onNewQuote={createQuoteInstant} creating={creatingQuote}
+            isNew={justCreated} onAddTasks={addFirstTasks} onSetDue={setFirstDue} saving={savingFirst} />
         </PjSection>
 
         {/* ② 어디까지 왔나 — 견적→계약→진행→청구→정산 한 줄 + 단계 보정 */}
@@ -1827,11 +1873,12 @@ function PjSection({ k, active, hint, views, view, onView, onSeen, children }: {
 //   사람이 목록을 만들지 않는다. 이미 있는 데이터(미수·마감·서명 대기·문서 유무)로만 만든다.
 //   ⚠️ 여기에 "있으면 좋은" 항목을 상상해서 넣지 말 것 — 근거 없는 줄이 하나 생기면 전체를 못 믿는다.
 //   마일스톤 기반 '청구 가능' 판정과 주간 요약 초안은 4단계에서 추가한다.
-function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, contractCount, onGo, onNewQuote, creating }: {
+function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, contractCount, onGo, onNewQuote, creating, isNew, onAddTasks, onSetDue, saving }: {
   deal: any; pipe: any; won: (n: number | null | undefined) => string;
   hasMoney: boolean; hasWork: boolean; hasGoal: boolean;
   quoteCount: number; contractCount: number;
   onGo: (k: SectionKey) => void; onNewQuote: () => void; creating: boolean;
+  isNew: boolean; onAddTasks: (titles: string[]) => void; onSetDue: (date: string) => void; saving: boolean;
 }) {
   const today = todayKst();
   const rows: { tone: "bad" | "warn" | "ok"; text: string; why: string; cta?: string; go?: () => void }[] = [];
@@ -1846,8 +1893,8 @@ function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, co
   const done = deal?.stage === "completed" || deal?.stage === "settlement";
   if (end && !done) {
     const d = Math.round((new Date(`${end}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
-    if (d < 0) rows.push({ tone: "bad", text: `마감이 ${-d}일 지났어요`, why: `종료일 ${end}`, cta: "일 보기", go: () => onGo("work") });
-    else if (d <= 7) rows.push({ tone: "warn", text: `마감이 ${d}일 남았어요`, why: `종료일 ${end}`, cta: "일 보기", go: () => onGo("work") });
+    if (d < 0) rows.push({ tone: "bad", text: `마감이 ${-d}일 지났어요`, why: `종료일 ${end}`, cta: "업무 보기", go: () => onGo("work") });
+    else if (d <= 7) rows.push({ tone: "warn", text: `마감이 ${d}일 남았어요`, why: `종료일 ${end}`, cta: "업무 보기", go: () => onGo("work") });
   }
 
   if (quoteCount > 0 && contractCount === 0) rows.push({
@@ -1869,29 +1916,83 @@ function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, co
     );
   }
 
-  // 데이터가 하나도 없으면 — 무엇부터 하면 되는지 세 갈래로 제안한다(유형 선택 대체).
+  // 데이터가 하나도 없으면 — 첫 한 걸음(견적 / 할 일 / 마감일)을 이 화면에서 끝내게 한다.
   if (!hasMoney && !hasWork && !hasGoal) {
-    return (
+    return <FirstStep isNew={isNew} onNewQuote={onNewQuote} creating={creating}
+      onAddTasks={onAddTasks} onSetDue={onSetDue} saving={saving} endDate={deal?.end_date ? String(deal.end_date).slice(0, 10) : ""} />;
+  }
+  return <p className="pj-sec-empty">지금 당장 챙길 일은 없어요. 미수·마감·서명 지연이 생기면 여기에 먼저 올라와요.</p>;
+}
+
+// 첫 한 걸음 — 빈 프로젝트에서만 보인다. 고른 것을 그 자리에서 끝내는 게 핵심이다
+//   (예전 제안 카드는 다른 자리로 스크롤만 시켰다 → 채우지 않고 나가버렸다).
+//   목표(KPI)는 여기에 두지 않는다 — 실사용이 2건뿐이라 첫 걸음으로는 무겁고,
+//   '목표와 실적' 자리에 이미 한 줄 제안이 있다.
+const FIRST_TASK_HINTS = ["예: 요구사항 정리", "예: 견적 초안 검토", "예: 착수 일정 확정"];
+
+function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, endDate }: {
+  isNew: boolean; onNewQuote: () => void; creating: boolean;
+  onAddTasks: (titles: string[]) => void; onSetDue: (date: string) => void;
+  saving: boolean; endDate: string;
+}) {
+  const [open, setOpen] = useState<"" | "task" | "due">("");
+  const [titles, setTitles] = useState<string[]>(["", "", ""]);
+  const [due, setDue] = useState(endDate);
+  const setAt = (i: number, v: string) => setTitles((prev) => prev.map((t, n) => (n === i ? v : t)));
+  const toggle = (k: "task" | "due") => setOpen((p) => (p === k ? "" : k));
+
+  return (
+    <div className="pj-first">
+      <p className="pj-first-lead">
+        {isNew ? "프로젝트를 만들었어요. " : ""}하나만 고르면 시작 준비가 끝나요 — 나머지는 나중에 채워도 돼요.
+      </p>
       <div className="pj-starters">
         <button type="button" className="pj-starter" onClick={onNewQuote} disabled={creating}>
           <span className="pj-starter-k">보통 여기서 시작해요</span>
           <b>{creating ? "만드는 중…" : "견적서 만들기"}</b>
           <span>거래처와 품목을 넣으면 공급가·부가세가 자동으로 계산돼요. 승인되면 계약서 초안까지 만들어져요.</span>
         </button>
-        <button type="button" className="pj-starter" onClick={() => onGo("work")}>
+        <button type="button" className={`pj-starter ${open === "task" ? "pj-starter-on" : ""}`} onClick={() => toggle("task")}>
           <span className="pj-starter-k">할 일부터라면</span>
           <b>할 일 적기</b>
-          <span>해야 할 것을 적고 담당을 지정하면 진행률이 저절로 계산돼요.</span>
+          <span>세 줄만 적어도 '업무' 가 열리고 진행률이 저절로 계산돼요.</span>
         </button>
-        <button type="button" className="pj-starter" onClick={() => onGo("goal")}>
-          <span className="pj-starter-k">목표 관리라면</span>
-          <b>목표 정하기</b>
-          <span>매출·건수 같은 목표를 정하면 실적이 자동으로 채워져요.</span>
+        <button type="button" className={`pj-starter ${open === "due" ? "pj-starter-on" : ""}`} onClick={() => toggle("due")}>
+          <span className="pj-starter-k">기한부터라면</span>
+          <b>마감일 정하기</b>
+          <span>마감일이 있어야 남은 날짜와 지연이 여기 '챙길 것' 에 올라와요.</span>
         </button>
       </div>
-    );
-  }
-  return <p className="pj-sec-empty">지금 당장 챙길 일은 없어요. 미수·마감·서명 지연이 생기면 여기에 먼저 올라와요.</p>;
+
+      {open === "task" && (
+        <div className="pj-first-form">
+          {titles.map((t, i) => (
+            <input key={i} value={t} onChange={(e) => setAt(i, e.target.value)} placeholder={FIRST_TASK_HINTS[i]}
+              autoFocus={i === 0} className="pj-first-input"
+              onKeyDown={(e) => { if (e.key === "Enter" && titles.some((x) => x.trim())) onAddTasks(titles); }} />
+          ))}
+          <div className="pj-first-actions">
+            <button type="button" className="pj-first-save" disabled={saving || !titles.some((t) => t.trim())} onClick={() => onAddTasks(titles)}>
+              {saving ? "저장 중…" : "할 일 추가"}
+            </button>
+            <span className="pj-first-note">담당·기한은 추가한 뒤 '업무' 에서 정하면 돼요.</span>
+          </div>
+        </div>
+      )}
+
+      {open === "due" && (
+        <div className="pj-first-form">
+          <DateField value={due} onChange={(e) => setDue(e.target.value)} min={todayKst()} className="pj-first-input pj-first-date" />
+          <div className="pj-first-actions">
+            <button type="button" className="pj-first-save" disabled={saving || !due} onClick={() => onSetDue(due)}>
+              {saving ? "저장 중…" : "마감일 저장"}
+            </button>
+            <span className="pj-first-note">마감 7일 전부터 '챙길 것' 맨 위에 올라와요.</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PaymentTermsField({ mode, onMode, adv, onAdv, mid, onMid, supply }: {

@@ -252,7 +252,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
       {campaignInherit && (
         <label className="subdeals-campaign-toggle">
           <input type="checkbox" checked={draft.asCampaign} onChange={(e) => setDraft((d) => ({ ...d, asCampaign: e.target.checked }))} className="accent-[var(--primary)]" />
-          새 항목을 하위 프로젝트로도 생성 <span className="text-[var(--text-dim)]">— 돈 자리 아래 ‘하위 프로젝트’ 목록에 같은 이름으로 표시</span>
+          새 항목을 하위 프로젝트로도 생성 <span className="text-[var(--text-dim)]">— ‘매출·비용’ 아래 ‘하위 프로젝트’ 목록에 같은 이름으로 표시</span>
         </label>
       )}
     </div>

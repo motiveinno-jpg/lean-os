@@ -187,7 +187,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
       <div className="glass-card p-10 text-center">
         <div className="text-4xl mb-3"><Ico e="📊" /></div>
         <div className="text-sm font-semibold text-[var(--text)]">아직 KPI가 없습니다</div>
-        <div className="text-xs text-[var(--text-muted)] mt-1">‘성과’ 탭에서 KPI를 추가하면 목표·실적·달성률이 그래프로 표시됩니다.</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">‘목표 설정’ 에서 KPI를 추가하면 목표·실적·달성률이 그래프로 표시됩니다.</div>
       </div>
     );
   }
@@ -248,7 +248,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
           {!selHasSeries ? (
             <div className="text-xs text-[var(--text-dim)] py-8 text-center">이 KPI는 기간별 시계열을 제공하지 않습니다(이익/건수 자동). 목표 대비 현재 달성률은 우측 KPI 현황을 참고하세요.</div>
           ) : !chartHasData ? (
-            <div className="text-xs text-[var(--text-dim)] py-8 text-center">아직 기록된 실적이 없습니다. ‘성과’ 탭에서 실적을 입력하면 표시됩니다.</div>
+            <div className="text-xs text-[var(--text-dim)] py-8 text-center">아직 기록된 실적이 없습니다. ‘목표 설정’ 에서 실적을 입력하면 표시됩니다.</div>
           ) : (
             <>
               <BarLineCombo buckets={chartBuckets!} unit={chartUnit} yUnit={selKpi?.unit || ""} />
@@ -370,7 +370,7 @@ export function GoalOverviewTab({ deal }: { deal: any }) {
                     ))}
                   </div>
                 </div>
-                <BarList items={contribution || []} unit={selKpi.unit} emptyText={contribDim === "member" ? "개인별 실적 입력이 없습니다. ‘성과’ 탭에서 실적을 입력하면 입력자별로 표시됩니다." : "부서별 실적 입력이 없습니다. ‘성과’ 탭 실적 입력에서 부서를 지정하면 표시됩니다."} />
+                <BarList items={contribution || []} unit={selKpi.unit} emptyText={contribDim === "member" ? "개인별 실적 입력이 없습니다. ‘목표 설정’ 에서 실적을 입력하면 입력자별로 표시됩니다." : "부서별 실적 입력이 없습니다. ‘목표 설정’ 의 실적 입력에서 부서를 지정하면 표시됩니다."} />
               </section>
             )}
 
