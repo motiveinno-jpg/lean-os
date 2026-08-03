@@ -52,6 +52,9 @@ export interface ClaudeCallOpts {
   admin: { from: (t: string) => any };  // service-role supabase client (로깅용)
   requestId?: string;
   maxRetries?: number;
+  // 바깥 Edge/서버의 총 요청 제한보다 짧게 지정할 수 있는 개별 HTTP 상한.
+  // 미지정 시 http.ts의 호스트별 기본값을 사용한다.
+  timeoutMs?: number;
 }
 
 export interface ClaudeResult<T = unknown> {
@@ -139,7 +142,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
           "anthropic-version": ANTHROPIC_VERSION,
         },
         body: JSON.stringify(body),
-      });
+      }, opts.timeoutMs);
       if (res.status === 429 || res.status >= 500) {
         lastErr = "AI 일시 지연"; lastCode = `HTTP_${res.status}`;
         if (attempt < maxRetries) { await sleep(400 * (attempt + 1)); continue; }

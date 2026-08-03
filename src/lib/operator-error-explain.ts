@@ -400,12 +400,12 @@ const GENERIC_PATTERNS: { pattern: RegExp; key: string; explain: Omit<ErrorExpla
     },
   },
   {
-    pattern: /504 Gateway Timeout|Gateway Time-out/i,
+    pattern: /504 Gateway Timeout|Gateway Time-out|Request idle timeout limit|\[DB\s+504\].*\/functions\/v1\//i,
     key: "HTTP_504",
     explain: {
       what: "서버가 응답을 안 줘서 시간 초과됐어요.",
-      why: "Vercel 함수가 60초 안에 응답 못함. Supabase 쿼리 느림 또는 RLS 재귀.",
-      fix: "RPC 슬로우 쿼리 추적. RLS 정책 재귀 의심 시 [[feedback_rls_recursion_gate]] 참조.",
+      why: "Vercel 또는 Supabase Edge 함수가 플랫폼 제한 안에 응답하지 못했습니다.",
+      fix: "원문 경로로 느린 호출을 찾고, 내부 timeout을 바깥 gateway보다 짧게 설정한 뒤 무거운 작업을 단일 호출·배치로 분리하세요.",
       severity: "high",
       category: "network",
     },

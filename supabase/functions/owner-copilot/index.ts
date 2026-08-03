@@ -21,6 +21,10 @@ import { withSentry } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { callClaude } from "../_shared/claude.ts";
+import {
+  isAttachmentContractDraftRequest,
+  remainingOwnerCopilotCallTimeout,
+} from "../_shared/owner-copilot-policy.ts";
 
 const ALLOWED_ORIGINS = [
   "https://www.owner-view.com",
@@ -670,6 +674,7 @@ async function buildEmployeeContext(
 }
 
 serve(withSentry("owner-copilot", async (req) => {
+  const requestStartedAt = Date.now();
   const corsHeaders = getCorsHeaders(req);
   const json = (body: Record<string, unknown>, status = 200) =>
     new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -824,17 +829,30 @@ serve(withSentry("owner-copilot", async (req) => {
       input_schema: ANSWER_SCHEMA,
     };
     const TOOLS = [...READ_TOOLS, ...ACTION_TOOLS.map((a) => a.def), RESPOND_TOOL];
-    const MAX_TURNS = 6;
+    const attachmentContractMode = isAttachmentContractDraftRequest(
+      question,
+      attachments.map((attachment) => attachment.name),
+      mode,
+    );
+    // 첨부 분석은 문서 원문 자체가 충분한 컨텍스트다. 계약서 생성은 전용 액션을
+    // 첫 턴에 강제하고 서버가 확인 안내를 합성해 한 번의 AI 호출로 끝낸다.
+    const MAX_TURNS = attachments.length > 0 ? 1 : 6;
     const messages: unknown[] = [{ role: "user", content: userContent }];
 
     let answer: Answer | undefined;
     let pendingAction: PendingAction | null = null;
     let totalIn = 0, totalOut = 0;
     let lastModel = "", lastRequestId = "";
+    let requestBudgetExceeded = false;
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
       const budgetSpent = used + totalIn + totalOut;
-      const forceRespond = turn === MAX_TURNS - 1 || budgetSpent >= tokenLimit;
+      const forceRespond = !attachmentContractMode && (turn === MAX_TURNS - 1 || budgetSpent >= tokenLimit);
+      const callTimeoutMs = remainingOwnerCopilotCallTimeout(requestStartedAt);
+      if (callTimeoutMs === 0) {
+        requestBudgetExceeded = true;
+        break;
+      }
 
       const result = await callClaude<never>({
         task: "analysis", // 기본 Sonnet (복잡 질의만 Opus)
@@ -843,11 +861,15 @@ serve(withSentry("owner-copilot", async (req) => {
         messages,
         maxTokens: attachments.length > 0 ? 8000 : 4000,
         tools: TOOLS,
-        toolChoice: forceRespond ? { type: "tool", name: "respond" } : { type: "any" },
+        toolChoice: attachmentContractMode
+          ? { type: "tool", name: "create_contract_draft_from_attachment" }
+          : forceRespond ? { type: "tool", name: "respond" } : { type: "any" },
         companyId,
         userId: profile.id,
         admin,
         promptVersion: "copilot-v8-attachments-contract-draft",
+        maxRetries: 0,
+        timeoutMs: callTimeoutMs,
       });
 
       if (!result.ok) {
@@ -897,19 +919,26 @@ serve(withSentry("owner-copilot", async (req) => {
               // 파일명도 모델 출력을 믿지 않고 실제 요청에 첨부된 이름으로 강제한다.
               args.source_files = attachments.map((attachment) => attachment.name);
             }
-            pendingAction = {
-              tool: callName,
-              tier: actionSpec.tier,
-              label: actionSpec.label,
-              args,
-            };
-            payload = {
-              accepted: true,
-              executed: false,
-              note: actionSpec.tier === "immediate"
-                ? "접수됐습니다. 사용자 화면이 곧 실행합니다. 아직 실행 전이므로 '완료'라고 쓰지 말고 무엇을 할지 설명하세요."
-                : "접수됐습니다. 사용자가 화면에서 확인 버튼을 눌러야 실행됩니다. 무엇을 상신할지 설명하세요.",
-            };
+            const invalidContractDraft = callName === "create_contract_draft_from_attachment"
+              && (!String(args.name || "").trim() || !String(args.body_html || "").trim());
+            if (invalidContractDraft) {
+              payload = { accepted: false, reason: "계약서 이름 또는 본문이 비어 있습니다." };
+              isError = true;
+            } else {
+              pendingAction = {
+                tool: callName,
+                tier: actionSpec.tier,
+                label: actionSpec.label,
+                args,
+              };
+              payload = {
+                accepted: true,
+                executed: false,
+                note: actionSpec.tier === "immediate"
+                  ? "접수됐습니다. 사용자 화면이 곧 실행합니다. 아직 실행 전이므로 '완료'라고 쓰지 말고 무엇을 할지 설명하세요."
+                  : "접수됐습니다. 사용자가 화면에서 확인 버튼을 눌러야 실행됩니다. 무엇을 상신할지 설명하세요.",
+              };
+            }
           }
         } else {
           try {
@@ -934,6 +963,44 @@ serve(withSentry("owner-copilot", async (req) => {
         });
       }
       messages.push({ role: "user", content: toolResults });
+
+      if (attachmentContractMode && pendingAction?.tool === "create_contract_draft_from_attachment") {
+        const draftName = String(pendingAction.args.name || "계약서 초안");
+        answer = {
+          headline: "첨부문서를 바탕으로 계약서 초안을 준비했습니다",
+          summary: `“${draftName}”의 조항을 첨부 원문에 맞춰 재구성했습니다. 아래 확인 카드를 검토한 뒤 저장해 주세요. 아직 문서함 저장이나 외부 발송은 하지 않았습니다.`,
+          actions: [{
+            priority: "high",
+            title: "계약서 초안 검토",
+            detail: "당사자·기간·대금과 [확인 필요] 항목을 원문과 대조한 뒤 저장 여부를 결정하세요.",
+          }],
+          risks: [{
+            title: "AI 초안 검토 필요",
+            detail: "법률효과와 누락 조항은 최종 사용 전에 담당자 또는 전문가가 확인해야 합니다.",
+            severity: "medium",
+          }],
+          opportunities: [],
+          evidence: [{
+            label: "근거 첨부",
+            value: attachments.map((attachment) => attachment.name).join(", "),
+            source: "사용자 첨부문서",
+          }],
+        };
+        break;
+      }
+    }
+
+    if (requestBudgetExceeded && !answer && !pendingAction) {
+      return json({
+        error: "AI 응답 시간이 길어 요청을 안전하게 종료했습니다. 첨부파일 수나 문서 길이를 줄여 다시 시도해 주세요.",
+        code: "AI_TIMEOUT",
+      }, 504);
+    }
+    if (attachmentContractMode && !pendingAction) {
+      return json({
+        error: "첨부문서에서 계약서 초안을 완성하지 못했습니다. 문서 길이를 줄이거나 HWPX로 다시 저장해 시도해 주세요.",
+        code: "AI_DRAFT_INVALID",
+      }, 502);
     }
 
     // 구조화 파싱 성공 시 그대로. 실패(극히 드뭄) 시 원본 JSON 노출 금지 — 안내 문구만.
