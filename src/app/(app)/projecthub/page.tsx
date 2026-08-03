@@ -42,6 +42,7 @@ const CAND_MIN_COUNT = 2;
 const CAND_MIN_AMOUNT = 3_000_000;
 const CAND_MAX = 5;
 const CAND_HIDE_KEY = "ov.projecthub.candHidden";
+const NUDGE_OPEN_KEY = "ov.projecthub.nudgeOpen";
 type Candidate = { partnerId: string; name: string; cnt: number; amt: number; first: string; last: string; ids: string[] };
 
 export default function ProjectHubPage() {
@@ -333,6 +334,22 @@ export default function ProjectHubPage() {
     },
     enabled: !!companyId && canViewAllProjects,
   });
+  // 제안 줄 접힘/펼침 — 기본은 접힘. 목록 위가 길어지면 정작 프로젝트 카드가 밀린다(2026-08-03).
+  const [nudge, setNudge] = useState<"" | "cand" | "quiet">("");
+  const [quietCount, setQuietCount] = useState(0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(NUDGE_OPEN_KEY);
+    if (saved === "cand" || saved === "quiet") setNudge(saved);
+  }, []);
+  const pickNudge = (k: "cand" | "quiet") => {
+    setNudge((prev) => {
+      const next = prev === k ? "" : k;
+      if (typeof window !== "undefined") window.localStorage.setItem(NUDGE_OPEN_KEY, next);
+      return next;
+    });
+  };
+
   // 안 묶을 거래처는 이 브라우저에서만 숨긴다(테이블을 늘리지 않으려고 localStorage 사용).
   const [hiddenCands, setHiddenCands] = useState<string[]>([]);
   useEffect(() => {
@@ -592,8 +609,30 @@ export default function ProjectHubPage() {
         <span className="ph-view-desc">{READY_LIST_VIEWS.find((v) => v.key === listView)?.desc}</span>
       </div>
 
+      {/* 제안 한 줄 — 묶을 만한 거래·조용한 프로젝트를 접어 둔다(2026-08-03 사장님 지적:
+          두 블록이 최대 8줄을 차지해 정작 프로젝트 카드가 아래로 밀렸다).
+          개수는 항상 보이고, 누른 것만 아래에 펼쳐진다. 마지막 상태는 이 브라우저가 기억한다. */}
+      {(candidates.length > 0 || quietCount > 0) && (
+        <div className="ph-nudge-bar">
+          <span className="ph-nudge-label">제안</span>
+          {candidates.length > 0 && (
+            <button type="button" onClick={() => pickNudge("cand")}
+              className={`ph-nudge-chip ${nudge === "cand" ? "ph-nudge-chip-on" : ""}`}>
+              묶을 만한 거래 <em>{candidates.length}</em>
+            </button>
+          )}
+          {quietCount > 0 && (
+            <button type="button" onClick={() => pickNudge("quiet")}
+              className={`ph-nudge-chip ${nudge === "quiet" ? "ph-nudge-chip-on" : ""}`}>
+              조용한 프로젝트 <em>{quietCount}</em>
+            </button>
+          )}
+          <span className="ph-nudge-hint">{nudge ? "다시 누르면 접혀요" : "누르면 펼쳐져요"}</span>
+        </div>
+      )}
+
       {/* 묶을 만한 거래 — 후보가 없으면 줄 자체가 사라진다(빈 상태를 만들지 않는다) */}
-      {candidates.length > 0 && (
+      {candidates.length > 0 && nudge === "cand" && (
         <section className="ph-cands">
           <div className="ph-cands-head">
             <b>묶을 만한 거래가 있어요</b>
@@ -615,13 +654,15 @@ export default function ProjectHubPage() {
         </section>
       )}
 
-      {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 대상이 없으면 아무것도 그리지 않는다 */}
+      {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 대상이 없으면 아무것도 그리지 않는다.
+          접혀 있어도 마운트는 한다 — 위 한 줄에 개수를 띄우려면 판정이 돌아야 한다. */}
       {companyId && (
         <QuietCheckins
           companyId={companyId} userId={userId}
           deals={topDeals as any[]} tasks={tasksRows as any[]}
           outstandingOf={(id) => outstandingByDeal[id] || 0}
-          won={won} toast={toast} />
+          won={won} toast={toast}
+          open={nudge === "quiet"} onCount={setQuietCount} />
       )}
 
       {/* 성과 대시보드 — 사람별·부서별·입력률 집계. 유형 폐지로 전 프로젝트 대상이 됐다 */}

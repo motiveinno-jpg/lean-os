@@ -28,7 +28,7 @@ type Task = { deal_id: string; status?: string | null; updated_at?: string | nul
 
 const daysBetween = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 
-export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, won, toast }: {
+export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, won, toast, open, onCount }: {
   companyId: string;
   userId: string | null;
   deals: Deal[];
@@ -36,6 +36,10 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
   outstandingOf: (dealId: string) => number;
   won: (n: number | null | undefined) => string;
   toast: (msg: string, kind?: any) => void;
+  /** 접힘/펼침 — 목록 위가 길어지지 않게 기본은 접힌 상태다(2026-08-03 사장님 지적) */
+  open: boolean;
+  /** 접혀 있어도 개수는 위쪽 한 줄에 보여야 하므로 부모에게 알린다 */
+  onCount: (n: number) => void;
 }) {
   const qc = useQueryClient();
   const week = computePeriodStart("weekly");
@@ -134,7 +138,9 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
     }
   };
 
-  if (rows.length === 0) return null;
+  useEffect(() => { onCount(rows.length); }, [rows.length, onCount]);
+
+  if (rows.length === 0 || !open) return null;
 
   return (
     <section className="ph-checkins">
