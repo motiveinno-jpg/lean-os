@@ -131,9 +131,26 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
 /* ------------------------------------------------------------------ */
 /*  NavIcon                                                            */
 /* ------------------------------------------------------------------ */
+// 메뉴별 고유 색 (2026-08-03 사장님: "사이드바 메뉴 아이콘도 색으로") — Ico 팔레트와 같은 톤(500계열).
+//   활성 메뉴(색 배경 + text-white)는 흰색 유지 — 아래 NavIcon 에서 text-white 면 색을 안 입힌다.
+const NAV_ICON_COLOR: Record<string, string> = {
+  grid: "#3b82f6", sparkles: "#8b5cf6", user: "#f97316", bell: "#f59e0b",
+  users: "#f97316", receipt: "#f59e0b", book: "#14b8a6", "edit-3": "#a855f7",
+  "bar-chart": "#10b981", calendar: "#f43f5e", briefcase: "#6366f1",
+  "clipboard-check": "#22c55e", "message-square": "#06b6d4", "message-circle": "#0ea5e9",
+  "user-check": "#f97316", "file-text": "#64748b", folder: "#eab308",
+  "arrow-right-left": "#0ea5e9", wallet: "#6366f1", clock: "#f43f5e",
+  settings: "#64748b", megaphone: "#f97316", "credit-card": "#6366f1",
+  "help-circle": "#0ea5e9", headphones: "#10b981", shield: "#10b981",
+  "trending-up": "#10b981", crown: "#eab308", upload: "#3b82f6",
+  "alert-triangle": "#f59e0b", "user-cog": "#64748b", umbrella: "#f43f5e",
+  kanban: "#6366f1", link: "#0ea5e9",
+};
+
 function NavIcon({ name, className = "" }: { name: string; className?: string }) {
   const cn = `w-4 h-4 shrink-0 ${className}`;
-  const props = { className: cn, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const color = className.includes("text-white") ? undefined : (NAV_ICON_COLOR[name] || "#64748b");
+  const props = { className: cn, style: color ? { color } : undefined, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
   switch (name) {
     case "grid": return <svg {...props}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
