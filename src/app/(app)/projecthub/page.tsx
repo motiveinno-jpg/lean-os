@@ -28,6 +28,7 @@ import { useCanAccessTab } from "@/lib/tab-access";
 import { useMyPermissions } from "@/lib/permissions";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
 import { QuietCheckins } from "./_components/QuietCheckins";
+import { PeopleView } from "./_components/PeopleView";
 // 워크플로우 보드 — 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
 //   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다(2026-07-30 사장님 승인).
 import { MondayBoard } from "@/components/monday-board";
@@ -837,6 +838,14 @@ export default function ProjectHubPage() {
       ) : listView === "cal" ? (
         <ProjectCalendar rows={rows as any[]} monthOffset={calMonth}
           onMonth={(d) => setCalMonth((m) => m + d)}
+          onOpen={(id) => router.push(`/projecthub/${id}`)} />
+      ) : listView === "people" ? (
+        <PeopleView rows={rows as any[]}
+          statusOf={(d: any) => statusOf(d)}
+          progressOf={(d: any) => (headlineByDeal[d.id]?.raw != null ? headlineByDeal[d.id].pct : null)}
+          outstandingOf={(id) => outstandingByDeal[id] || 0}
+          userName={(id) => userName[id || ""] || ""}
+          won={won}
           onOpen={(id) => router.push(`/projecthub/${id}`)} />
       ) : (
         /* 목록 보기 — 챙길 건(지연·주의) 위에 카드로, 나머지는 한 줄씩(2026-08-03 개편 ②).

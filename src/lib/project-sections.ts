@@ -70,6 +70,7 @@ export const LIST_VIEWS: ListView[] = [
   { key: "table", label: "목록", desc: "챙길 건 위에 카드로, 나머지는 한 줄씩", ready: true },
   { key: "board", label: "보드", desc: "회사가 만든 컬럼으로 관리하는 보드(워크플로우)", ready: true },
   { key: "cal", label: "캘린더", desc: "시작일·마감을 달에 배치", ready: true },
+  { key: "people", label: "담당별", desc: "누가 몇 건을 맡고 있는지 사람 기준으로", ready: true },
 ];
 
 /** 분석 보기 — 평소 목록과 섞지 않고 '분석' 에서 연다 */

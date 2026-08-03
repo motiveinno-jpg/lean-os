@@ -5513,3 +5513,21 @@ td .rounded-full { white-space: nowrap; }
 .pj-tab em { @apply not-italic text-[10px] font-bold ml-1.5 px-1.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]; }
 .pj-tab-on em { @apply bg-white/20 text-white; }
 .pj-why { @apply text-[11.5px] text-[var(--text-muted)] w-full; }
+
+/* 담당별 보기 — 사람 기준으로 묶어 본다(2026-08-03 개편 ④) */
+.ph-people { @apply grid gap-3 sm:grid-cols-2; }
+.ph-person { @apply flex flex-col gap-2 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.ph-person-head { @apply flex flex-wrap items-center gap-x-2 gap-y-1; }
+.ph-person-head b { @apply text-[14px] font-extrabold text-[var(--text)]; }
+.ph-person-avatar { @apply w-7 h-7 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-[12px] font-extrabold grid place-items-center shrink-0; }
+.ph-person-count { @apply text-[11.5px] text-[var(--text-dim)]; }
+.ph-person-out { @apply text-[11.5px] font-bold text-[var(--danger)]; }
+.ph-person-avg { @apply ml-auto inline-flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] whitespace-nowrap; }
+.ph-person-items { @apply flex flex-col; }
+.ph-person-item { @apply flex items-center gap-2 py-1.5 text-left transition hover:text-[var(--primary)]; }
+.ph-person-dot { @apply block w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--text-dim)]; }
+.ph-person-dot-late { @apply bg-[var(--danger)]; }
+.ph-person-dot-warn { @apply bg-[var(--warning)]; }
+.ph-person-dot-normal { @apply bg-[var(--success)]; }
+.ph-person-name { @apply text-[12.5px] text-[var(--text-muted)] min-w-0 truncate; }
+.ph-person-pct { @apply ml-auto text-[11.5px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
