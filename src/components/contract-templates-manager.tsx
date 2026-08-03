@@ -32,6 +32,9 @@ import {
   extractVariables,
   getHiddenContractTemplateIds,
   setContractTemplateHidden,
+  getContractTemplateOrder,
+  setContractTemplateOrder,
+  sortTemplatesByOrder,
   type ContractTemplate,
 } from "@/lib/contract-templates";
 
@@ -54,8 +57,36 @@ export default function ContractTemplatesManager({ companyId }: Props) {
   const [initialMode, setInitialMode] = useState<"html" | "pdf">("html");
   const startAdd = (mode: "html" | "pdf") => { setInitialMode(mode); setEditing(null); setShowAdd(true); setChooserOpen(false); };
 
-  const systemTemplates = useMemo(() => templates.filter((t) => t.is_system), [templates]);
-  const companyTemplates = useMemo(() => templates.filter((t) => !t.is_system), [templates]);
+  // 회사가 정한 노출 순서 — 양식관리·발송 목록이 같은 배열을 본다(2026-08-03 사장님: "순서도 내가 변경할 수 있게").
+  const { data: templateOrder = [] } = useQuery({
+    queryKey: ["contract-template-order", companyId],
+    queryFn: () => getContractTemplateOrder(companyId),
+    enabled: !!companyId,
+  });
+  const systemTemplates = useMemo(
+    () => sortTemplatesByOrder(templates.filter((t) => t.is_system), templateOrder),
+    [templates, templateOrder],
+  );
+  const companyTemplates = useMemo(
+    () => sortTemplatesByOrder(templates.filter((t) => !t.is_system), templateOrder),
+    [templates, templateOrder],
+  );
+  const orderMut = useMutation({
+    mutationFn: (ids: string[]) => setContractTemplateOrder(companyId, ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contract-template-order", companyId] }),
+    onError: (e: any) => toast(`순서 저장 실패: ${friendlyError(e, "일시 오류")}`, "error"),
+  });
+  // 섹션 안에서 한 칸 이동 — 저장은 두 섹션의 현재 표시 순서를 합친 전체 id 배열(정렬은 섹션별 index 비교라 안전)
+  const moveTemplate = (section: "system" | "company", index: number, dir: -1 | 1) => {
+    const list = [...(section === "system" ? systemTemplates : companyTemplates)];
+    const j = index + dir;
+    if (j < 0 || j >= list.length) return;
+    [list[index], list[j]] = [list[j], list[index]];
+    const combined = section === "system"
+      ? [...companyTemplates.map((t) => t.id), ...list.map((t) => t.id)]
+      : [...list.map((t) => t.id), ...systemTemplates.map((t) => t.id)];
+    orderMut.mutate(combined);
+  };
 
   // 표준 양식 숨김 목록(회사 단위) — 발송 목록과 같은 쿼리 키를 써서 숨기면 양쪽이 함께 갱신된다.
   const { data: hiddenList = [] } = useQuery({
@@ -129,10 +160,14 @@ export default function ContractTemplatesManager({ companyId }: Props) {
             표준 양식 <span className="font-normal">— 오너뷰가 제공. 수정하려면 복제하세요. 숨기면 발송 목록에도 안 나옵니다.</span>
           </div>
           <div className="grid gap-1.5">
-            {systemTemplates.map((t) => {
+            {systemTemplates.map((t, i) => {
               const isHidden = hiddenIds.has(t.id);
               return (
                 <div key={t.id} className={`template-row ${isHidden ? "opacity-50" : ""}`}>
+                  <div className="template-order-buttons">
+                    <button onClick={() => moveTemplate("system", i, -1)} disabled={i === 0 || orderMut.isPending} title="위로">▲</button>
+                    <button onClick={() => moveTemplate("system", i, 1)} disabled={i === systemTemplates.length - 1 || orderMut.isPending} title="아래로">▼</button>
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-[var(--text)] truncate">
                       {t.name} <span className="template-standard-badge">표준</span>
@@ -171,8 +206,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </div>
       ) : (
         <div className="grid gap-1.5">
-          {companyTemplates.map((t) => (
+          {companyTemplates.map((t, i) => (
             <div key={t.id} className="template-row">
+              <div className="template-order-buttons">
+                <button onClick={() => moveTemplate("company", i, -1)} disabled={i === 0 || orderMut.isPending} title="위로">▲</button>
+                <button onClick={() => moveTemplate("company", i, 1)} disabled={i === companyTemplates.length - 1 || orderMut.isPending} title="아래로">▼</button>
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-semibold text-[var(--text)] truncate">{t.name}</div>
                 <div className="caption">변수 {t.variables.length}개 · {t.file_type === "pdf" ? "PDF" : "직접 작성"}</div>

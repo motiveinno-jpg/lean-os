@@ -143,6 +143,38 @@ export async function setContractTemplateHidden(companyId: string, templateId: s
 }
 
 // ──────────────────────────────────────────────────────────
+// 양식 순서 — 회사 단위 (2026-08-03 사장님: "순서도 내가 변경할 수 있게")
+// ──────────────────────────────────────────────────────────
+//   표준 양식 행은 전 회사 공유라 sort_order 를 직접 못 바꾼다(RLS) — 숨김과 같은 방식으로
+//   company_settings.settings 에 id 순서 배열을 두고, 화면(양식관리·발송 목록)이 이 순서로 정렬한다.
+const ORDER_KEY = "contract_template_order";
+
+export async function getContractTemplateOrder(companyId: string): Promise<string[]> {
+  const { data } = await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+  const ids = ((data as any)?.settings || {})[ORDER_KEY];
+  return Array.isArray(ids) ? ids.filter((v: unknown) => typeof v === "string") : [];
+}
+
+export async function setContractTemplateOrder(companyId: string, ids: string[]): Promise<void> {
+  const { data } = await db.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+  const settings = { ...(((data as any)?.settings) || {}) } as Record<string, unknown>;
+  settings[ORDER_KEY] = ids;
+  const { error } = await db.from("company_settings").update({ settings } as never).eq("company_id", companyId);
+  if (error) throw error;
+}
+
+/** 저장된 순서(id 배열)대로 정렬 — 배열에 있는 것 먼저(그 순서), 없는 것은 기존 순서 유지로 뒤에. */
+export function sortTemplatesByOrder<T extends { id: string }>(templates: T[], order: string[]): T[] {
+  if (!order.length) return templates;
+  const idx = new Map(order.map((id, i) => [id, i]));
+  return [...templates].sort((a, b) => {
+    const ai = idx.has(a.id) ? (idx.get(a.id) as number) : Number.MAX_SAFE_INTEGER;
+    const bi = idx.has(b.id) ? (idx.get(b.id) as number) : Number.MAX_SAFE_INTEGER;
+    return ai - bi; // 동률(둘 다 미기재)은 sort 안정성으로 기존 순서 유지
+  });
+}
+
+// ──────────────────────────────────────────────────────────
 // 변수 처리
 // ──────────────────────────────────────────────────────────
 

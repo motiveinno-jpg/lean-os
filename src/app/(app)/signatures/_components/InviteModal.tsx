@@ -32,6 +32,9 @@ export function InviteModal({
   const [docId, setDocId] = useState<string>("");
   // 계약 양식(contract_templates)을 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
   const bizTemplates = useMemo(() => contractTemplates, [contractTemplates]);
+  // 2026-08-03 사장님: 우리 회사 양식은 '문서' 그룹에, 표준(기본) 양식은 '양식 관리' 그룹에.
+  const companyTpls = useMemo(() => (contractTemplates as any[]).filter((t) => !t.is_system), [contractTemplates]);
+  const standardTpls = useMemo(() => (contractTemplates as any[]).filter((t) => t.is_system), [contractTemplates]);
   const [title, setTitle] = useState("");
   const [signers, setSigners] = useState<Signer[]>([{ name: "", email: "", phone: "" }]);
   const [sendNow, setSendNow] = useState(true);
@@ -112,18 +115,23 @@ export function InviteModal({
               className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]"
             >
               <option value="">— 선택 —</option>
-              {documents.length > 0 && (
+              {(documents.length > 0 || companyTpls.length > 0) && (
                 <optgroup label="문서">
                   {documents.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name} ({d.status})
                     </option>
                   ))}
+                  {companyTpls.map((t: any) => (
+                    <option key={t.id} value={`${TPL_PREFIX}${t.id}`}>
+                      {t.name}
+                    </option>
+                  ))}
                 </optgroup>
               )}
-              {bizTemplates.length > 0 && (
-                <optgroup label="양식 (선택 시 문서로 생성)">
-                  {bizTemplates.map((t: any) => (
+              {standardTpls.length > 0 && (
+                <optgroup label="양식 관리 — 표준 양식 (선택 시 문서로 생성)">
+                  {standardTpls.map((t: any) => (
                     <option key={t.id} value={`${TPL_PREFIX}${t.id}`}>
                       {t.name}
                     </option>

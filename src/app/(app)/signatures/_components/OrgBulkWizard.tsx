@@ -101,6 +101,9 @@ export function OrgBulkWizard({
 
   // 계약 양식(contract_templates)을 발송 목록에 노출 — 선택 시 실제 documents 행으로 실체화.
   const bizTemplates = useMemo(() => contractTemplates, [contractTemplates]);
+  // 2026-08-03 사장님: 우리 회사 양식은 '문서' 그룹에, 표준(기본) 양식은 '양식 관리' 그룹에.
+  const companyTpls = useMemo(() => (contractTemplates as any[]).filter((t: any) => !t.is_system), [contractTemplates]);
+  const standardTpls = useMemo(() => (contractTemplates as any[]).filter((t: any) => t.is_system), [contractTemplates]);
   const [materializedDocs, setMaterializedDocs] = useState<any[]>([]);
   const [materializing, setMaterializing] = useState(false);
   const allDocuments = useMemo(() => [...documents, ...materializedDocs], [documents, materializedDocs]);
@@ -433,7 +436,7 @@ export function OrgBulkWizard({
                 <div className="p-6 text-center text-sm text-[var(--text-muted)]">작성된 문서·양식이 없습니다.</div>
               ) : (
                 <>
-                  {documents.length > 0 && (
+                  {(documents.length > 0 || companyTpls.length > 0) && (
                     <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">문서</div>
                   )}
                   {documents.map((d) => (
@@ -458,10 +461,33 @@ export function OrgBulkWizard({
                       </div>
                     </label>
                   ))}
-                  {bizTemplates.length > 0 && (
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리</div>
+                  {companyTpls.map((t: any) => {
+                    const materialized = allDocuments.find((d) => d.name === t.name);
+                    const checked = !!materialized && docId === materialized.id;
+                    return (
+                      <label
+                        key={t.id}
+                        className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
+                          checked ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
+                        } ${materializing ? "opacity-60 pointer-events-none" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="docId"
+                          checked={checked}
+                          onChange={() => selectTemplate(t)}
+                        />
+                        <div className="flex-1">
+                          <div className="text-sm text-[var(--text)]">{t.name}</div>
+                          <div className="text-[10px] text-[var(--text-muted)]">우리 회사 양식 · 선택 시 문서로 생성</div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                  {standardTpls.length > 0 && (
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 — 표준 양식</div>
                   )}
-                  {bizTemplates.map((t: any) => {
+                  {standardTpls.map((t: any) => {
                     const materialized = allDocuments.find((d) => d.name === t.name);
                     const checked = !!materialized && docId === materialized.id;
                     return (

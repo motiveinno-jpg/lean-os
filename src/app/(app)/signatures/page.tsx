@@ -19,7 +19,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocuments } from "@/lib/queries";
 import ContractTemplatesManager from "@/components/contract-templates-manager";
-import { listContractTemplates, getHiddenContractTemplateIds } from "@/lib/contract-templates";
+import { listContractTemplates, getHiddenContractTemplateIds, getContractTemplateOrder, sortTemplatesByOrder } from "@/lib/contract-templates";
 import {
   getSignatureRequests,
   getSignatureProof,
@@ -157,10 +157,19 @@ export default function SignaturesDashboardPage() {
     queryFn: () => getHiddenContractTemplateIds(companyId!),
     enabled: !!companyId,
   });
+  // 회사가 정한 노출 순서(양식관리에서 ↑↓ 로 변경) — 발송 목록도 같은 순서를 따른다.
+  const { data: templateOrder = [] } = useQuery({
+    queryKey: ["contract-template-order", companyId],
+    queryFn: () => getContractTemplateOrder(companyId!),
+    enabled: !!companyId,
+  });
   const contractTemplates = useMemo(() => {
     const hidden = new Set(hiddenTemplateIds);
-    return (allContractTemplates as any[]).filter((t) => !hidden.has(t.id));
-  }, [allContractTemplates, hiddenTemplateIds]);
+    return sortTemplatesByOrder(
+      (allContractTemplates as any[]).filter((t) => !hidden.has(t.id)),
+      templateOrder,
+    );
+  }, [allContractTemplates, hiddenTemplateIds, templateOrder]);
 
   const filtered = useMemo(() => {
     return (requests as any[]).filter((r) => {

@@ -4130,6 +4130,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .panel-header-compact { @apply flex items-center justify-between gap-2; }
 .template-row { @apply flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50; }
 .template-standard-badge { @apply text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--info)]/10 text-[var(--info)] align-middle; }
+.template-order-buttons { @apply flex flex-col shrink-0; }
+.template-order-buttons button { @apply text-[9px] leading-none px-1 py-0.5 text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-25 transition; }
 .templates-empty { @apply px-3 py-6 text-center text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)]/40 rounded-lg border border-dashed border-[var(--border)]; }
 .template-editor-modal { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
 .body-mode-toggle-group { @apply flex gap-1.5; }
