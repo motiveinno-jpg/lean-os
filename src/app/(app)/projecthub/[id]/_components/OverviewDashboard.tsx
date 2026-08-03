@@ -8,6 +8,8 @@
 //
 // 절대규칙: 조회하지 않는다. 부모가 이미 받아 온 사실(facts)만 그린다.
 
+import { contractIncVat } from "@/lib/project-money";
+
 const fmtMonth = (ym: string) => `${Number(ym.slice(5, 7))}월`;
 
 export type OverviewFacts = {
@@ -31,6 +33,9 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
   daysToEnd: number | null;
   won: (n: number | null | undefined) => string;
 }) {
+  // 화면 금액은 전부 VAT 포함 기준으로 맞춘다(계약은 공급가로 저장되므로 여기서 환산).
+  //   발행·입금(tax_invoices.total_amount)은 이미 VAT 포함이라 그대로 쓴다.
+  const contractInc = contractIncVat(contract);
   const billed = facts?.billed || 0;
   const paid = facts?.paid || 0;
   const out = facts?.outstanding || 0;
@@ -42,11 +47,11 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
   const months = facts?.months || [];
   const peak = Math.max(1, ...months.map((m) => Math.max(m.billed, m.paid)));
   // 돈 흐름 막대는 같은 축을 쓴다 — 축이 다르면 길이 비교가 거짓말이 된다
-  const moneyAxis = Math.max(contract, billed, paid, 1);
+  const moneyAxis = Math.max(contractInc, billed, paid, 1);
   const bar = (v: number, axis: number) => `${Math.max(v > 0 ? 2 : 0, Math.round((v / axis) * 100))}%`;
 
   const tiles: { label: string; value: string; sub: string; icon: string; chip: string; tone?: "risk" | "ok" }[] = [
-    { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contract > 0 ? won(contract) : "—", sub: contract > 0 ? "VAT 별도" : "아직 정하지 않았어요" },
+    { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contractInc > 0 ? won(contractInc) : "—", sub: contractInc > 0 ? "VAT 포함" : "아직 정하지 않았어요" },
     { label: "입금액", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "아직 발행 전이에요", tone: "ok" },
     { label: "미수금", icon: "⏳", chip: "pj-chip-c", value: out > 1 ? won(out) : "없음", sub: out > 1 ? "발행 후 입금 확인 전" : "모두 들어왔어요", tone: out > 1 ? "risk" : undefined },
     {
@@ -77,12 +82,12 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
     <>
         {/* 돈 흐름 — 계약 → 발행 → 입금. 세 막대가 같은 축이라 길이 차이가 곧 남은 일이다 */}
         <section className="pj-panel">
-          <div className="pj-dash-head"><b>수금 현황</b><span>계약 · 발행 · 입금</span></div>
-          {contract === 0 && billed === 0 ? (
+          <div className="pj-dash-head"><b>수금 현황</b><span>계약 · 발행 · 입금 (VAT 포함)</span></div>
+          {contractInc === 0 && billed === 0 ? (
             <p className="pj-dash-empty">계약금액이나 세금계산서가 등록되면 표시돼요.</p>
           ) : (
             <div className="pj-dash-flow">
-              {([["계약", contract, "pj-fill-base"], ["발행", billed, "pj-fill-mid"], ["입금", paid, "pj-fill-ok"]] as const).map(([label, v, cls]) => (
+              {([["계약", contractInc, "pj-fill-base"], ["발행", billed, "pj-fill-mid"], ["입금", paid, "pj-fill-ok"]] as const).map(([label, v, cls]) => (
                 <div key={label} className="pj-flow-row">
                   <span className="pj-flow-label">{label}</span>
                   <span className="pj-flow-track"><i className={cls} style={{ width: bar(v, moneyAxis) }} /></span>

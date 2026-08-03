@@ -24,6 +24,7 @@ import { getOverallAchievement } from "@/lib/project-types";
 // 유형 3분할 폐지(2026-07-30) — 목록은 유형으로 걸러지지 않는다. 대표 지표는 있는 데이터에서 고른다.
 import { getHeadline, READY_LIST_VIEWS, ANALYSIS_VIEWS, normalizeListView, viewStorageKey, type ProjectSignals } from "@/lib/project-sections";
 import { getProjectStatus, daysToEnd, STATUS_RANK, type ProjectStatusKey } from "@/lib/project-status";
+import { incVat } from "@/lib/project-money";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { useMyPermissions } from "@/lib/permissions";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
@@ -1100,6 +1101,19 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
                         <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
                       </select>
                     </div>
+                    {/* 화면에는 VAT 포함으로 표기되므로, 입력값이 얼마로 잡히는지 바로 보여준다
+                        (2026-08-03 사장님: "입력은 공급가로도 되게, 최종은 VAT 합산 표기") */}
+                    {(() => {
+                      const raw = Number(String(form.contract_total).replace(/[^0-9]/g, ""));
+                      if (!raw) return null;
+                      const net = form.vatType === "include" ? Math.round(raw / 1.1) : raw;
+                      return (
+                        <p className="text-[11px] text-[var(--text-dim)] mt-1">
+                          VAT 포함 <b className="text-[var(--text)] mono-number">{incVat(net).toLocaleString("ko-KR")}원</b>
+                          <span className="ml-1">· 공급가 {net.toLocaleString("ko-KR")}원</span>
+                        </p>
+                      );
+                    })()}
                   </div>
                 </div>
               )}

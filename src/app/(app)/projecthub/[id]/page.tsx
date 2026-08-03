@@ -2225,7 +2225,7 @@ function MarginBand({ revenue, planCost, actualCost, pipe, rolled }: {
       <div className="shrink-0"><RadialGauge pct={ratePct} label={`${hasActual ? "확정" : "예상"} 마진율`} size={104} color={statusColor} /></div>
       <div className="pj-band-sep" />
       <div className="pj-band-col">
-        <span className="pj-band-lbl">수익성{rolled > 0 && <span className="font-normal"> · 세부 {rolled}개 합산</span>}</span>
+        <span className="pj-band-lbl">수익성 <span className="font-normal">· 공급가 기준</span>{rolled > 0 && <span className="font-normal"> · 세부 {rolled}개 합산</span>}</span>
         <span className="pj-band-status" style={{ color: statusColor }}><span className="inline-block w-3 h-3 rounded-full" style={{ background: statusColor }} />{statusLabel}</span>
         <span className="text-[11.5px] text-[var(--text-muted)]">마진 <b className="mono-number" style={{ color: statusColor }}>{won(headMargin)}</b></span>
       </div>
