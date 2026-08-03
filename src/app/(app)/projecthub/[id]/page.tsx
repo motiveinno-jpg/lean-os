@@ -530,7 +530,7 @@ export default function ProjectHubDetailPage() {
       if (error) throw new Error(error.message);
       qc.invalidateQueries({ queryKey: ["projecthub-deal", dealId] });
       qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
-      toast("마감일을 정했습니다. 남은 날짜와 지연은 '챙길 것'에 올라옵니다.", "success");
+      toast("마감일을 저장했습니다. 남은 날짜와 지연은 '확인 필요'에 표시됩니다.", "success");
     } catch (e: any) {
       toast(e?.message || "마감일 저장 실패", "error");
     } finally {
@@ -1119,12 +1119,12 @@ export default function ProjectHubDetailPage() {
     const t = facts?.taskCount || 0;
     if (t > 0) {
       const pct = Math.round(((facts?.taskDone || 0) / t) * 100);
-      return { pct, label: `${pct}%`, sub: `진행률 · 할 일 ${facts?.taskDone || 0}/${t} 완료` };
+      return { pct, label: `${pct}%`, sub: `진행률 · 업무 ${facts?.taskDone || 0}/${t}건 완료` };
     }
     const billed = facts?.billed || 0;
     if (billed > 0) {
       const pct = Math.round(((facts?.paid || 0) / billed) * 100);
-      return { pct, label: `${pct}%`, sub: `수금률 · 발행액 대비 입금` };
+      return { pct, label: `${pct}%`, sub: "수금률 · 발행액 대비 입금" };
     }
     return null;
   })();
@@ -1168,7 +1168,7 @@ export default function ProjectHubDetailPage() {
               <svg className="w-3.5 h-3.5 shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </h1>
           )}
-          <p className="pj-hero-why">{status.why}{(facts?.outstanding || 0) > 1 ? <> · 못 받은 돈 <b>{won(facts!.outstanding)}</b></> : null}</p>
+          <p className="pj-hero-why">{status.why}{(facts?.outstanding || 0) > 1 ? <> · 미수금 <b>{won(facts!.outstanding)}</b></> : null}</p>
           <div className="pj-hero-meta">
             {partner?.name && <span>거래처 <b>{partner.name}</b></span>}
             {manager?.name && <span>담당 <b>{manager.name}</b></span>}
@@ -1223,7 +1223,7 @@ export default function ProjectHubDetailPage() {
         <div className="pj-ov-panels">
         {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
         <PjSection k="todo" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
-          hint={signals.hasMoney || signals.hasWork ? "데이터에서 자동으로 뽑아요" : "무엇부터 하면 되는지 알려드려요"}>
+          hint={signals.hasMoney || signals.hasWork ? "자동 집계" : "무엇부터 할지 안내"}>
           <TodoQueue
             deal={deal} pipe={pipe} won={won}
             hasMoney={signals.hasMoney} hasWork={signals.hasWork} hasGoal={signals.hasGoal}
@@ -1239,7 +1239,7 @@ export default function ProjectHubDetailPage() {
 
         {/* ② 어디까지 왔나 — 견적→계약→진행→청구→정산 한 줄 + 단계 보정 */}
         <PjSection k="flow" inTab={TAB_OF_SECTION(sec).secs.includes("flow")} active={sec === "flow"} onSeen={markSecOpen}
-          hint="견적 승인·서명·발행·입금으로 판정해요">
+          hint="견적 승인·서명·발행·입금 기준">
           {signals.hasMoney ? (
             <>
               <PipelineRibbon pipe={pipe} contractTotal={ownContract} onOpen={goTab} />
@@ -1254,7 +1254,7 @@ export default function ProjectHubDetailPage() {
         {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
         <PjSection k="goal" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
           views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
-          hint={signals.hasGoal ? "매출·이익·건수는 태그된 회계 데이터에서 자동으로 채워져요" : undefined}>
+          hint={signals.hasGoal ? "회계 데이터에서 자동 반영" : undefined}>
           {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
             : !companyId ? null
             : !signals.hasGoal && !expanded.goal ? (
@@ -1694,7 +1694,7 @@ export default function ProjectHubDetailPage() {
                목록의 '보드' 보기가 맡는다(같은 컴포넌트, 위치만 이동). */}
         <PjSection k="work" inTab={TAB_OF_SECTION(sec).secs.includes("work")} active={sec === "work"} onSeen={markSecOpen}
           views={signals.hasWork || expanded.work ? SECTION_VIEWS.work : undefined} view={viewOf("work")} onView={(v: string) => pickView("work", v)}
-          hint={signals.hasWork ? "진행률은 완료된 할 일에서 자동 계산돼요" : undefined}>
+          hint={signals.hasWork ? "진행률 자동 계산" : undefined}>
           {!openSecs.has("work") ? <p className="pj-sec-empty">불러오는 중…</p>
             : !companyId ? null
             : viewOf("work") === "schedule" ? (
@@ -1721,7 +1721,7 @@ export default function ProjectHubDetailPage() {
             다중 담당·부서 롤업·프로젝트 채널은 4단계에서 이 자리에 붙는다. */}
         <PjSection k="team" inTab={TAB_OF_SECTION(sec).secs.includes("team")} active={sec === "team"} onSeen={markSecOpen}
           views={SECTION_VIEWS.team} view={viewOf("team")} onView={(v: string) => pickView("team", v)}
-          hint="담당은 여러 명 배정할 수 있어요 · 해제해도 인수인계 기록은 남아요">
+          hint="담당 다중 배정 가능 · 해제해도 이력은 유지">
           {!openSecs.has("team") ? <p className="pj-sec-empty">불러오는 중…</p>
             : viewOf("team") === "who" && companyId ? (
               <TeamTab dealId={dealId} companyId={companyId} users={companyUsers as any[]}
@@ -2055,12 +2055,12 @@ function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, co
     <div className="pj-queue">
       <div className="pj-queue-row pj-queue-none">
         <i className="pj-queue-stripe" />
-        <p>지금 챙길 일이 없어요<em>아래 세 가지가 생기면 여기에 먼저 올라와요</em></p>
+        <p>확인할 항목이 없어요<em>아래 상황이 생기면 여기에 표시돼요</em></p>
       </div>
       {[
         ["마감이 다가오거나 지났을 때", "종료일 기준 7일 전부터"],
-        ["돈이 안 들어왔을 때", "계산서는 발행했는데 입금이 확인되지 않으면"],
-        ["할 일이 밀렸을 때", "담당자가 기한을 넘긴 업무가 생기면"],
+        ["입금이 지연될 때", "세금계산서 발행 후 입금이 확인되지 않으면"],
+        ["업무가 지연될 때", "담당자가 기한을 넘긴 업무가 생기면"],
       ].map(([t, why]) => (
         <div key={t} className="pj-queue-row pj-queue-ghost">
           <i className="pj-queue-stripe" />
@@ -2102,12 +2102,12 @@ function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, 
         <button type="button" className={`pj-starter ${open === "task" ? "pj-starter-on" : ""}`} onClick={() => toggle("task")}>
           <span className="pj-starter-k">할 일부터라면</span>
           <b>할 일 적기</b>
-          <span>세 줄만 적어도 '업무' 가 열리고 진행률이 저절로 계산돼요.</span>
+          <span>세 줄만 적어도 '업무'가 열리고 진행률이 자동 계산돼요.</span>
         </button>
         <button type="button" className={`pj-starter ${open === "due" ? "pj-starter-on" : ""}`} onClick={() => toggle("due")}>
           <span className="pj-starter-k">기한부터라면</span>
           <b>마감일 정하기</b>
-          <span>마감일이 있어야 남은 날짜와 지연이 여기 '챙길 것' 에 올라와요.</span>
+          <span>마감일이 있어야 남은 날짜와 지연이 '확인 필요'에 표시돼요.</span>
         </button>
       </div>
 
@@ -2122,7 +2122,7 @@ function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, 
             <button type="button" className="pj-first-save" disabled={saving || !titles.some((t) => t.trim())} onClick={() => onAddTasks(titles)}>
               {saving ? "저장 중…" : "할 일 추가"}
             </button>
-            <span className="pj-first-note">담당·기한은 추가한 뒤 '업무' 에서 정하면 돼요.</span>
+            <span className="pj-first-note">담당·기한은 추가한 뒤 '업무'에서 지정하면 돼요.</span>
           </div>
         </div>
       )}
@@ -2134,7 +2134,7 @@ function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, 
             <button type="button" className="pj-first-save" disabled={saving || !due} onClick={() => onSetDue(due)}>
               {saving ? "저장 중…" : "마감일 저장"}
             </button>
-            <span className="pj-first-note">마감 7일 전부터 '챙길 것' 맨 위에 올라와요.</span>
+            <span className="pj-first-note">마감 7일 전부터 '확인 필요'에 표시돼요.</span>
           </div>
         </div>
       )}

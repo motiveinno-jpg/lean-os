@@ -145,14 +145,14 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
   return (
     <section className="ph-checkins">
       <div className="ph-checkins-head">
-        <b>2주 넘게 조용한 프로젝트예요</b>
-        <span>한 줄만 남겨두면 나중에 무슨 일이 있었는지 알 수 있어요. 이번 주엔 {rows.length}건만 물어봐요.</span>
+        <b>2주 이상 변동 없는 프로젝트</b>
+        <span>한 줄만 남겨두면 나중에 경과를 알 수 있어요. 이번 주는 {rows.length}건만 표시해요.</span>
       </div>
       {rows.map((r) => (
         <div key={r.deal.id} className="ph-checkin">
           <div className="ph-checkin-top">
             <b>{r.deal.name}</b>
-            <span>{r.quietDays}일째 변화 없음</span>
+            <span>{r.quietDays}일째 변동 없음</span>
             <button type="button" className="ph-checkin-skip" onClick={() => snooze(r.deal.id)}>이번 주 넘기기</button>
           </div>
           <div className="ph-checkin-write">

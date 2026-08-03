@@ -46,12 +46,12 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
   const bar = (v: number, axis: number) => `${Math.max(v > 0 ? 2 : 0, Math.round((v / axis) * 100))}%`;
 
   const tiles: { label: string; value: string; sub: string; icon: string; chip: string; tone?: "risk" | "ok" }[] = [
-    { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contract > 0 ? won(contract) : "—", sub: contract > 0 ? "VAT 별도" : "아직 정해지지 않았어요" },
-    { label: "받은 돈", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "발행한 계산서가 없어요", tone: "ok" },
-    { label: "못 받은 돈", icon: "⏳", chip: "pj-chip-c", value: out > 1 ? won(out) : "없음", sub: out > 1 ? "발행했지만 입금 확인 전" : "받을 돈이 남지 않았어요", tone: out > 1 ? "risk" : undefined },
+    { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contract > 0 ? won(contract) : "—", sub: contract > 0 ? "VAT 별도" : "미입력" },
+    { label: "입금액", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "발행 내역 없음", tone: "ok" },
+    { label: "미수금", icon: "⏳", chip: "pj-chip-c", value: out > 1 ? won(out) : "없음", sub: out > 1 ? "발행 후 입금 미확인" : "잔액 없음", tone: out > 1 ? "risk" : undefined },
     {
       label: "진행률", icon: "✅", chip: "pj-chip-d", value: progress != null ? `${progress}%` : "—",
-      sub: total > 0 ? `할 일 ${done}/${total}건 완료${overdue > 0 ? ` · 지연 ${overdue}건` : ""}` : "할 일을 적으면 계산돼요",
+      sub: total > 0 ? `업무 ${done}/${total}건 완료${overdue > 0 ? ` · 지연 ${overdue}건` : ""}` : "등록된 업무 없음",
       tone: overdue > 0 ? "risk" : undefined,
     },
   ];
@@ -77,9 +77,9 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
     <>
         {/* 돈 흐름 — 계약 → 발행 → 입금. 세 막대가 같은 축이라 길이 차이가 곧 남은 일이다 */}
         <section className="pj-panel">
-          <div className="pj-dash-head"><b>돈이 어디까지 왔나</b><span>계약 → 계산서 발행 → 입금</span></div>
+          <div className="pj-dash-head"><b>수금 현황</b><span>계약 · 발행 · 입금</span></div>
           {contract === 0 && billed === 0 ? (
-            <p className="pj-dash-empty">계약금액이나 계산서가 생기면 여기에 흐름이 나타나요.</p>
+            <p className="pj-dash-empty">계약금액이나 세금계산서가 등록되면 표시돼요.</p>
           ) : (
             <div className="pj-dash-flow">
               {([["계약", contract, "pj-fill-base"], ["발행", billed, "pj-fill-mid"], ["입금", paid, "pj-fill-ok"]] as const).map(([label, v, cls]) => (
@@ -89,7 +89,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
                   <span className="pj-flow-val">{v > 0 ? won(v) : "—"}</span>
                 </div>
               ))}
-              {out > 1 && <p className="pj-dash-note">못 받은 돈 <b>{won(out)}</b> — 발행액과 입금액의 차이예요.</p>}
+              {out > 1 && <p className="pj-dash-note">미수금 <b>{won(out)}</b> — 발행액과 입금액의 차이예요.</p>}
             </div>
           )}
         </section>
@@ -98,7 +98,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
         <section className="pj-panel">
           <div className="pj-dash-head"><b>월별 발행·입금</b><span>최근 6개월</span></div>
           {months.length === 0 ? (
-            <p className="pj-dash-empty">계산서를 발행하면 달마다 쌓여요.</p>
+            <p className="pj-dash-empty">세금계산서를 발행하면 월별로 표시돼요.</p>
           ) : (
             <>
               <div className="pj-dash-bars">
@@ -122,19 +122,19 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
 
         {/* 일정과 업무 — 마감까지 남은 날, 할 일 상태를 한 줄 스택으로 */}
         <section className="pj-panel">
-          <div className="pj-dash-head"><b>일정과 업무</b><span>마감과 할 일 상태</span></div>
+          <div className="pj-dash-head"><b>일정·업무</b><span>마감일과 진행 현황</span></div>
           <div className="pj-dash-when">
             <div className="pj-when-row">
               <span className="pj-when-label">마감</span>
               <span className="pj-when-val">
                 {endDate
                   ? <>{endDate} <b className={daysToEnd != null && daysToEnd < 0 ? "pj-dash-risk" : ""}>{daysToEnd == null ? "" : daysToEnd < 0 ? `D+${-daysToEnd}` : `D-${daysToEnd}`}</b></>
-                  : <span className="pj-dash-dim">아직 정해지지 않았어요</span>}
+                  : <span className="pj-dash-dim">미정</span>}
               </span>
             </div>
             <div className="pj-when-row">
-              <span className="pj-when-label">다음 할 일</span>
-              <span className="pj-when-val">{facts?.nextDue ? <>{facts.nextDue} 마감</> : <span className="pj-dash-dim">기한이 정해진 할 일이 없어요</span>}</span>
+              <span className="pj-when-label">다음 업무</span>
+              <span className="pj-when-val">{facts?.nextDue ? <>{facts.nextDue} 마감</> : <span className="pj-dash-dim">기한이 지정된 업무 없음</span>}</span>
             </div>
           </div>
           {total > 0 ? (
@@ -150,7 +150,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
               </div>
             </>
           ) : (
-            <p className="pj-dash-empty">할 일을 적으면 진행 상태가 여기에 그려져요.</p>
+            <p className="pj-dash-empty">업무를 등록하면 진행 현황이 표시돼요.</p>
           )}
       </section>
     </>

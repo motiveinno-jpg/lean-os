@@ -620,7 +620,7 @@ export default function ProjectHubPage() {
                 {lensCounts.late > 0 && (lensCounts.dueThisWeek > 0 || lensCounts.receivableCount > 0) && " · "}
                 {lensCounts.dueThisWeek > 0 && <>이번 주 마감 <b>{lensCounts.dueThisWeek}건</b></>}
                 {lensCounts.dueThisWeek > 0 && lensCounts.receivableCount > 0 && " · "}
-                {lensCounts.receivableCount > 0 && <>못 받은 돈 <b>{won(lensCounts.receivableSum)}</b></>}
+                {lensCounts.receivableCount > 0 && <>미수금 <b>{won(lensCounts.receivableSum)}</b></>}
                 {" 이 있어요."}
               </>}
         </p>
@@ -629,13 +629,13 @@ export default function ProjectHubPage() {
             {candidates.length > 0 && (
               <button type="button" onClick={() => pickNudge("cand")}
                 className={`ph-nudge-chip ${nudge === "cand" ? "ph-nudge-chip-on" : ""}`}>
-                묶을 만한 거래 <em>{candidates.length}</em>
+                미연결 거래 <em>{candidates.length}</em>
               </button>
             )}
             {quietCount > 0 && (
               <button type="button" onClick={() => pickNudge("quiet")}
                 className={`ph-nudge-chip ${nudge === "quiet" ? "ph-nudge-chip-on" : ""}`}>
-                조용한 프로젝트 <em>{quietCount}</em>
+                변동 없는 프로젝트 <em>{quietCount}</em>
               </button>
             )}
           </div>
@@ -691,8 +691,8 @@ export default function ProjectHubPage() {
       {candidates.length > 0 && nudge === "cand" && (
         <section className="ph-cands">
           <div className="ph-cands-head">
-            <b>묶을 만한 거래가 있어요</b>
-            <span>프로젝트에 연결되지 않은 매출이에요. 묶으면 거래처·기간·금액이 채워진 채로 시작해요.</span>
+            <b>프로젝트에 연결되지 않은 거래</b>
+            <span>묶으면 거래처·기간·금액이 채워진 채로 프로젝트가 만들어져요.</span>
           </div>
           {candidates.map((c) => (
             <div key={c.partnerId} className="ph-cand">
@@ -772,7 +772,7 @@ export default function ProjectHubPage() {
         <div className="receivables-rollup glass-card">
           <span className="kpi-icon danger text-base leading-none"><Ico e="💸" /></span>
           <div className="min-w-0">
-            <div className="text-[13px] font-bold text-[var(--text)]">아직 못 받은 돈 {won(settleSummary.totalOutstanding)}</div>
+            <div className="text-[13px] font-bold text-[var(--text)]">회사 전체 미수금 {won(settleSummary.totalOutstanding)}</div>
             <div className="text-[11px] text-[var(--text-muted)]">계산서는 발행했지만 통장 입금이 확인 안 된 금액 · {settleSummary.projects}개 프로젝트</div>
           </div>
         </div>
@@ -876,7 +876,7 @@ export default function ProjectHubPage() {
                         <div className="ph-focus-sub">
                           {st.why}
                           {h && h.raw != null ? ` · ${h.name} ${h.label}` : ""}
-                          {(outstandingByDeal[d.id] || 0) > 1 ? ` · 못 받은 돈 ${won(outstandingByDeal[d.id])}` : ""}
+                          {(outstandingByDeal[d.id] || 0) > 1 ? ` · 미수금 ${won(outstandingByDeal[d.id])}` : ""}
                         </div>
                       </div>
                     );
@@ -888,7 +888,7 @@ export default function ProjectHubPage() {
                   <thead>
                     <tr>
                       <th>프로젝트</th><th>담당</th><th>상태</th><th className="ph-table-n">진행</th>
-                      <th className="ph-table-n">못 받은 돈</th><th>다음 액션</th><th />
+                      <th className="ph-table-n">미수금</th><th>다음 액션</th><th />
                     </tr>
                   </thead>
                   <tbody>

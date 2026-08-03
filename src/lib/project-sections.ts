@@ -24,7 +24,7 @@ export const SECTION_ORDER: SectionKey[] = ["todo", "flow", "money", "work", "go
  *      구 "돈 / 일 / 성과 / 팀" 은 뜻은 통해도 업무에서 안 쓰는 말이라
  *      → 매출·비용 / 업무 / 목표·실적 / 구성원 으로 바꿨다. 회계·영업 문서와 같은 낱말을 쓴다. */
 export const SECTION_LABEL: Record<SectionKey, string> = {
-  todo: "챙길 것",
+  todo: "확인 필요",
   flow: "진행 단계",
   money: "매출·비용",
   work: "업무",
@@ -34,7 +34,7 @@ export const SECTION_LABEL: Record<SectionKey, string> = {
 
 /** 자리 제목 — 본문 머리에 쓰는 이름 */
 export const SECTION_TITLE: Record<SectionKey, string> = {
-  todo: "지금 챙길 것",
+  todo: "확인이 필요한 항목",
   flow: "진행 단계",
   money: "매출·비용",
   work: "업무",
@@ -67,7 +67,7 @@ export type ListView = { key: string; label: string; desc: string; ready: boolea
 //   가끔 보는 분석(타임라인·차트)은 따로 뺀다. 'card' 는 폐지 — 목록이 카드를 겸한다
 //   (문제 있는 건은 카드로 위에, 나머지는 한 줄씩).
 export const LIST_VIEWS: ListView[] = [
-  { key: "table", label: "목록", desc: "챙길 건 위에 카드로, 나머지는 한 줄씩", ready: true },
+  { key: "table", label: "목록", desc: "확인이 필요한 건은 카드로, 나머지는 한 줄씩", ready: true },
   { key: "board", label: "보드", desc: "회사가 만든 컬럼으로 관리하는 보드(워크플로우)", ready: true },
   { key: "cal", label: "캘린더", desc: "시작일·마감을 달에 배치", ready: true },
   { key: "people", label: "담당별", desc: "누가 몇 건을 맡고 있는지 사람 기준으로", ready: true },

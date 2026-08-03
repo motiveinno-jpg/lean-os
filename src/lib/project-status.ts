@@ -69,7 +69,7 @@ export function getProjectStatus(i: StatusInput): ProjectStatus {
 
   // 완료 — 끝났고 받을 돈도 없다. 끝났는데 미수가 남았으면 완료가 아니라 지연/주의로 내려간다.
   if (finished && out <= 1) {
-    return { key: "done", label: STATUS_LABEL.done, why: "끝났어요", daysToEnd: dd };
+    return { key: "done", label: STATUS_LABEL.done, why: "완료됐어요", daysToEnd: dd };
   }
 
   // 지연 — 기한을 넘겼거나, 할 일이 밀렸거나, 돈이 오래 안 들어왔거나, 남는 게 없다
@@ -77,13 +77,13 @@ export function getProjectStatus(i: StatusInput): ProjectStatus {
     return { key: "late", label: STATUS_LABEL.late, why: `마감일이 ${-dd}일 지났어요`, daysToEnd: dd };
   }
   if (i.overdueTasks) {
-    return { key: "late", label: STATUS_LABEL.late, why: "지연된 할 일이 있어요", daysToEnd: dd };
+    return { key: "late", label: STATUS_LABEL.late, why: "지연된 업무가 있어요", daysToEnd: dd };
   }
   if (i.oldestUnpaidDays != null && i.oldestUnpaidDays > OVERDUE_PAYMENT_DAYS && out > 1) {
-    return { key: "late", label: STATUS_LABEL.late, why: `${i.oldestUnpaidDays}일째 못 받은 돈이 있어요`, daysToEnd: dd };
+    return { key: "late", label: STATUS_LABEL.late, why: `${i.oldestUnpaidDays}일째 미수금이 남아 있어요`, daysToEnd: dd };
   }
   if (i.metricRisk) {
-    return { key: "late", label: STATUS_LABEL.late, why: "남는 게 없어요(마진 적자)", daysToEnd: dd };
+    return { key: "late", label: STATUS_LABEL.late, why: "마진이 적자예요", daysToEnd: dd };
   }
 
   // 주의 — 곧 마감이거나, 받을 돈이 있거나, 오래 조용하다
@@ -91,16 +91,16 @@ export function getProjectStatus(i: StatusInput): ProjectStatus {
     return { key: "warn", label: STATUS_LABEL.warn, why: dd === 0 ? "오늘 마감이에요" : `마감이 ${dd}일 남았어요`, daysToEnd: dd };
   }
   if (out > 1) {
-    return { key: "warn", label: STATUS_LABEL.warn, why: "아직 못 받은 돈이 있어요", daysToEnd: dd };
+    return { key: "warn", label: STATUS_LABEL.warn, why: "미수금이 남아 있어요", daysToEnd: dd };
   }
   if (i.quietDays != null && i.quietDays >= QUIET_DAYS) {
-    return { key: "warn", label: STATUS_LABEL.warn, why: `${i.quietDays}일째 변화가 없어요`, daysToEnd: dd };
+    return { key: "warn", label: STATUS_LABEL.warn, why: `${i.quietDays}일째 변동이 없어요`, daysToEnd: dd };
   }
 
   return {
     key: "normal",
     label: STATUS_LABEL.normal,
-    why: dd != null ? `다음 마감까지 ${dd}일 남았어요` : "특별히 챙길 건 없어요",
+    why: dd != null ? `다음 마감까지 ${dd}일` : "특별히 챙길 건 없어요",
     daysToEnd: dd,
   };
 }

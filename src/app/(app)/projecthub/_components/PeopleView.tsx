@@ -54,7 +54,7 @@ export function PeopleView({ rows, statusOf, progressOf, outstandingOf, userName
             <span className="ph-person-count">{c.items.length}건</span>
             {c.late > 0 && <span className="ph-st ph-st-late">{STATUS_LABEL.late} {c.late}</span>}
             {c.warn > 0 && <span className="ph-st ph-st-warn">{STATUS_LABEL.warn} {c.warn}</span>}
-            {c.out > 1 && <span className="ph-person-out">못 받은 돈 {won(c.out)}</span>}
+            {c.out > 1 && <span className="ph-person-out">미수금 {won(c.out)}</span>}
             {c.avg != null && (
               <span className="ph-person-avg">
                 <span className="ph-table-track"><i style={{ width: `${c.avg}%` }} /></span>평균 {c.avg}%
