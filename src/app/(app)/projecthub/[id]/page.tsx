@@ -33,7 +33,7 @@ import { ProjectMembers } from "./_components/ProjectMembers";
 import { type ProjectTabKey } from "@/lib/project-types";
 import {
   SECTION_ORDER, SECTION_TITLE, SECTION_VIEWS,
-  getVisibleSections, viewStorageKey, type SectionKey,
+  viewStorageKey, type SectionKey,
 } from "@/lib/project-sections";
 import { getProjectStatus } from "@/lib/project-status";
 import { buildProjectBrief } from "@/lib/project-brief-rules";
@@ -1196,8 +1196,6 @@ export default function ProjectHubDetailPage() {
     hasGoal: hasGoalRow,
     hasTeam: true,
   };
-  const liveSecs = getVisibleSections(signals);
-  const isLive = (k: SectionKey) => liveSecs.includes(k);
 
 
   // 브리핑 — **AI 토큰을 쓰지 않는다**(2026-08-03 사장님: "사실을 모아서 띄워주는 형태로").
