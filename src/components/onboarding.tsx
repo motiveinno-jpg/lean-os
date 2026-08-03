@@ -658,7 +658,7 @@ function StepBankSetup({ banks, form, setForm, add, remove, isCompleted }: {
           + 통장 추가
         </button>
       </div>
-      <LinkHint href="/settings" label="설정 > 통장/카드 탭에서 더 상세하게 관리할 수 있습니다" />
+      <LinkHint href="/settings?tab=cash" label="설정 > 자금·통장 탭에서 더 상세하게 관리할 수 있습니다" />
     </div>
   );
 }
@@ -1192,7 +1192,7 @@ function StepCertRegistration({ data, set, companyId, isCompleted }: {
           </div>
         </div>
       )}
-      <LinkHint href="/settings" label="설정 > API 연동 탭에서 인증서를 관리할 수 있습니다" />
+      <LinkHint href="/settings?tab=certificate" label="설정 > 인증서 탭에서 인증서를 관리할 수 있습니다" />
     </div>
   );
 }
@@ -1309,7 +1309,7 @@ function StepCodefConnect({ data, set, isCompleted }: {
           </div>
         )}
       </div>
-      <LinkHint href="/settings" label="설정 > 외부 연동 탭에서 CODEF 연동 상세 관리" />
+      <LinkHint href="/settings?tab=bank" label="설정 > 은행연동 탭에서 금융 연동을 상세 관리할 수 있습니다" />
     </div>
   );
 }

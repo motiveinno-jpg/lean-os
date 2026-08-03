@@ -883,8 +883,10 @@ function Step2Bank({
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            통장을 등록하면 캐시플로우 추적, 런웨이 계산 등 재무 기능이 활성화됩니다.
-            이 단계는 건너뛸 수 있으며 나중에 설정에서 추가할 수 있습니다.
+            통장을 등록하면 대시보드에서 잔액과 자금 흐름을 바로 볼 수 있습니다.
+            여기서는 계좌 정보만 적어두는 것이고, 나중에 <b>설정 &gt; 인증서</b>에서 공동인증서를 등록하면
+            은행 거래내역·카드 승인·홈택스 세금계산서까지 자동으로 수집됩니다.
+            이 단계는 건너뛸 수 있으며 <b>설정 &gt; 자금·통장</b>에서 언제든 추가할 수 있습니다.
           </p>
         </div>
       </div>
@@ -1006,7 +1008,9 @@ function Step3Employee({
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            직원 관리 페이지에서 급여 정보, 4대보험, 근태 설정을 추가할 수 있습니다.
+            등록 후 <b>구성원</b> 화면에서 이메일로 초대하면 직원이 직접 로그인해 출퇴근을 찍고
+            급여명세서를 받아볼 수 있습니다. 연차는 법정 기준으로 매달 자동 부여되고,
+            근로계약서도 전자서명으로 체결할 수 있습니다. 급여·4대보험·근태 설정도 구성원 화면에서 이어집니다.
           </p>
         </div>
       </div>
@@ -1038,7 +1042,7 @@ function Step4Deal({
       <StepHeader
         icon="sparkles"
         title="첫 프로젝트(거래) 등록"
-        description="매출이든 비용이든, 첫 번째 거래를 등록하면 대시보드가 활성화됩니다."
+        description="첫 거래를 등록하면 프로젝트 화면에서 목표 → 계약 → 발행 → 입금 → 마진 흐름을 추적할 수 있습니다."
       />
       {isCompleted && (
         <CompletedBadge message="프로젝트가 이미 등록되어 있습니다. 추가하거나 완료로 넘어가세요." />
@@ -1235,18 +1239,42 @@ function Step5Complete({ status }: { status: CompletionStatus }) {
         </p>
       )}
 
-      {/* Quick links */}
-      {isAllDone && (
-        <div className="onboarding-quick-links">
-          <QuickLink href="/dashboard" label="대시보드" />
-          <QuickLink href="/projects" label="프로젝트 관리" />
-          <QuickLink href="/employees" label="직원 관리" />
-          <QuickLink href="/settings" label="상세 설정" />
+      {/* 주요 기능 둘러보기 — 설정 완료 여부와 무관하게 처음 온 분께 오너뷰 전체 그림을 보여준다 */}
+      <div className="onboarding-feature-tour">
+        <div className="onboarding-feature-tour-title">오너뷰로 이런 것들을 할 수 있어요</div>
+        <div className="onboarding-feature-tour-sub">카드를 누르면 해당 화면으로 바로 이동합니다.</div>
+        <div className="onboarding-feature-grid">
+          {FEATURE_TOUR.map((f) => (
+            <a key={f.href} href={f.href} className="onboarding-feature-card">
+              <span className="onboarding-feature-card-emoji" aria-hidden="true">{f.emoji}</span>
+              <span>
+                <span className="onboarding-feature-card-name">{f.name}</span>
+                <span className="onboarding-feature-card-desc block">{f.desc}</span>
+              </span>
+            </a>
+          ))}
         </div>
-      )}
+        <div className="onboarding-feature-tour-guide-link">
+          <a href="/guide" className="text-xs font-semibold text-[var(--primary)] hover:underline underline-offset-2">
+            전체 사용 가이드 자세히 보기 →
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
+
+// 완료 화면 기능 둘러보기 — 현재 사이드바 메뉴 기준 (2026-08-03 최신화. 메뉴가 바뀌면 여기도 갱신)
+const FEATURE_TOUR: Array<{ emoji: string; name: string; desc: string; href: string }> = [
+  { emoji: "📊", name: "대시보드", desc: "현금·매출 현황부터 오늘 할 일, 출근 체크까지 한 화면에서 시작해요.", href: "/dashboard" },
+  { emoji: "🤖", name: "AI 참모", desc: "회사 데이터를 아는 AI에게 자금·매출·인사 현황을 바로 물어보세요.", href: "/copilot" },
+  { emoji: "🧾", name: "세금·증빙", desc: "공동인증서를 등록하면 홈택스 세금계산서·증빙이 자동으로 모여요.", href: "/tax-invoices" },
+  { emoji: "🏦", name: "통장·거래 장부", desc: "은행·카드 거래가 자동 수집되고 계정과목까지 자동 분류돼요.", href: "/bank" },
+  { emoji: "✅", name: "결재 허브", desc: "지출결의·휴가 같은 결재를 양식으로 올리고 승인부터 PDF 보관까지.", href: "/approvals" },
+  { emoji: "👥", name: "근태·급여", desc: "출퇴근 기록, 연차 자동 부여, 급여명세서와 4대보험까지 한곳에서.", href: "/attendance" },
+  { emoji: "✍️", name: "전자계약", desc: "계약서를 링크로 보내 법적 효력 있는 전자서명을 바로 받아요.", href: "/signatures" },
+  { emoji: "📁", name: "프로젝트", desc: "목표 → 계약 → 발행 → 입금 → 마진, 프로젝트 손익 흐름을 추적해요.", href: "/projecthub" },
+];
 
 // ═══════════════════════════════════════════
 // Shared UI Components
@@ -1429,16 +1457,3 @@ function StepIcon({ type, size = "lg" }: { type: string; size?: "sm" | "lg" }) {
   );
 }
 
-function QuickLink({ href, label }: { href: string; label: string }) {
-  return (
-    <a
-      href={href}
-      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/5 transition border border-[var(--border)]"
-    >
-      {label}
-      <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <polyline points="9 18 15 12 9 6" />
-      </svg>
-    </a>
-  );
-}

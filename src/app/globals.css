@@ -2603,6 +2603,16 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .onboarding-deal-step { @apply space-y-5; }
 .onboarding-complete-step { @apply flex flex-col items-center text-center relative overflow-hidden; }
 .onboarding-quick-links { @apply mt-6 flex flex-wrap gap-3 justify-center relative z-10; }
+/* 온보딩 완료 화면 — 주요 기능 둘러보기 (2026-08-03 온보딩 가이드 최신화) */
+.onboarding-feature-tour { @apply w-full mt-6 relative z-10 text-left; }
+.onboarding-feature-tour-title { @apply text-sm font-bold text-[var(--text)] mb-1 text-center; }
+.onboarding-feature-tour-sub { @apply text-xs text-[var(--text-muted)] mb-3 text-center; }
+.onboarding-feature-grid { @apply grid grid-cols-1 sm:grid-cols-2 gap-2; }
+.onboarding-feature-card { @apply flex items-start gap-2.5 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/40 hover:bg-[var(--primary)]/[.04] transition; }
+.onboarding-feature-card-emoji { @apply text-lg leading-none mt-0.5 shrink-0; }
+.onboarding-feature-card-name { @apply text-[13px] font-bold text-[var(--text)]; }
+.onboarding-feature-card-desc { @apply text-[11px] text-[var(--text-muted)] leading-relaxed mt-0.5; }
+.onboarding-feature-tour-guide-link { @apply mt-4 text-center; }
 .onboarding-step-header { @apply flex items-start gap-3 mb-1; }
 .onboarding-completed-badge { @apply px-3 py-2.5 rounded-xl flex items-start gap-2 bg-[var(--success)]/10 border border-[var(--success)]/20 shadow-sm; }
 
