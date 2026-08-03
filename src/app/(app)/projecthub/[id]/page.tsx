@@ -2018,7 +2018,26 @@ function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, co
     return <FirstStep isNew={isNew} onNewQuote={onNewQuote} creating={creating}
       onAddTasks={onAddTasks} onSetDue={onSetDue} saving={saving} endDate={deal?.end_date ? String(deal.end_date).slice(0, 10) : ""} />;
   }
-  return <p className="pj-sec-empty">지금 당장 챙길 일은 없어요. 미수·마감·서명 지연이 생기면 여기에 먼저 올라와요.</p>;
+  // 챙길 게 없을 때도 목록 모양을 유지한다 — 한 줄짜리 안내만 두면 옆 칸과 높이가 안 맞아
+  //   왼쪽이 텅 빈 것처럼 보인다(2026-08-03 사장님 지적). 무엇이 여기 올라오는지 미리 알려준다.
+  return (
+    <div className="pj-queue">
+      <div className="pj-queue-row pj-queue-none">
+        <i className="pj-queue-stripe" />
+        <p>지금 챙길 일이 없어요<em>아래 세 가지가 생기면 여기에 먼저 올라와요</em></p>
+      </div>
+      {[
+        ["마감이 다가오거나 지났을 때", "종료일 기준 7일 전부터"],
+        ["돈이 안 들어왔을 때", "계산서는 발행했는데 입금이 확인되지 않으면"],
+        ["할 일이 밀렸을 때", "담당자가 기한을 넘긴 업무가 생기면"],
+      ].map(([t, why]) => (
+        <div key={t} className="pj-queue-row pj-queue-ghost">
+          <i className="pj-queue-stripe" />
+          <p>{t}<em>{why}</em></p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // 첫 한 걸음 — 빈 프로젝트에서만 보인다. 고른 것을 그 자리에서 끝내는 게 핵심이다

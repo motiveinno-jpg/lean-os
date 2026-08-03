@@ -5587,3 +5587,10 @@ td .rounded-full { white-space: nowrap; }
 @media (min-width: 1024px) {
   .pj-ov-grid { grid-template-columns: 7fr 5fr; }
 }
+
+/* 챙길 것이 없을 때 — 목록 모양은 유지하고 '무엇이 여기 올라오는지'를 흐리게 보여준다 */
+.pj-queue-none .pj-queue-stripe { @apply bg-[var(--success)]; }
+.pj-queue-none > p { @apply text-[var(--text)] font-semibold; }
+.pj-queue-ghost .pj-queue-stripe { @apply bg-[var(--border)]; }
+.pj-queue-ghost > p { @apply text-[var(--text-dim)]; }
+.pj-queue-ghost em { @apply text-[var(--text-dim)] opacity-80; }
