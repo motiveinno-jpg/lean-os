@@ -1950,8 +1950,10 @@ export default function TaxInvoicesPage() {
               setShowModifyModal(false);
               setModifyTarget(null);
               setModifyAmount("");
+              // 초안 생성까지가 이 단계 — 국세청 전송은 목록에서 '발행'을 눌러야 한다(2026-08-03).
+              toast("수정세금계산서 초안이 만들어졌습니다. 목록에서 '발행'을 눌러야 국세청에 전송됩니다.", "success");
             } catch (err: any) {
-              toast(`오류: ${friendlyError(err, '수정세금계산서 발행 실패')}`, "error");
+              toast(`오류: ${friendlyError(err, '수정세금계산서 생성 실패')}`, "error");
             }
           }}
         />
@@ -3011,7 +3013,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
               <button
                 onClick={() => onModify(inv)}
                 disabled={!MODIFY_ISSUE_AVAILABLE}
-                title={MODIFY_ISSUE_AVAILABLE ? "수정세금계산서 발행" : "국세청 연동 기관 승인 대기 중입니다. 곧 지원 예정입니다."}
+                title={MODIFY_ISSUE_AVAILABLE ? "수정세금계산서 만들기 — 초안 생성 후 목록에서 발행" : "국세청 연동 기관 승인 대기 중입니다. 곧 지원 예정입니다."}
                 className={
                   MODIFY_ISSUE_AVAILABLE
                     ? "px-4 py-2 bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 rounded-lg text-sm font-semibold transition"
@@ -3096,12 +3098,19 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="tax-invoice-modification-modal glass-card" onClick={(e) => e.stopPropagation()}>
         <div className="px-6 py-4 border-b border-[var(--border)]">
-          <h3 className="text-sm font-bold">수정세금계산서 발행</h3>
+          <h3 className="text-sm font-bold">수정세금계산서 만들기</h3>
           <p className="text-xs text-[var(--text-muted)] mt-1">
             원본: {invoice.counterparty_name} / ₩{Number(invoice.total_amount).toLocaleString()} ({invoice.issue_date})
           </p>
         </div>
         <div className="p-6 space-y-4">
+          {/* 2단계 안내 — 이 모달은 초안만 만든다. 국세청 전송은 목록에서 '발행'을 눌러야 일어난다.
+              라벨이 '발행'이라 여기서 끝난 줄 알고 미전송으로 남던 문제(2026-08-03 사장님). */}
+          <div className="tax-invoice-modify-step-notice">
+            <b className="text-[var(--text)]">여기서는 수정세금계산서 초안만 만들어집니다.</b> 국세청 전송은
+            목록에 새로 생긴 건에서 <b>발행</b>을 눌러야 이뤄집니다.
+          </div>
+
           {/* Rules info */}
           <div className="bg-[var(--bg-surface)] rounded-xl p-4 text-xs text-[var(--text-muted)] leading-relaxed space-y-2">
             <div className="font-bold text-[var(--text)] text-sm mb-2">수정세금계산서 발행 규정</div>
@@ -3165,7 +3174,7 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
               disabled={!reason || submitting || (reason === "price_change" && !modifyAmount)}
               className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-semibold disabled:opacity-50 transition"
             >
-              {submitting ? "처리 중..." : "수정세금계산서 발행"}
+              {submitting ? "만드는 중..." : "수정세금계산서 만들기"}
             </button>
             <button
               onClick={onClose}
