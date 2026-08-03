@@ -22,7 +22,8 @@ import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/
 // 유형(margin/goal/delivery) 참조는 이 화면에서 전부 사라졌다 — 달성률 산식만 남는다.
 import { getOverallAchievement } from "@/lib/project-types";
 // 유형 3분할 폐지(2026-07-30) — 목록은 유형으로 걸러지지 않는다. 대표 지표는 있는 데이터에서 고른다.
-import { getHeadline, READY_LIST_VIEWS, normalizeListView, viewStorageKey, type ProjectSignals } from "@/lib/project-sections";
+import { getHeadline, READY_LIST_VIEWS, ANALYSIS_VIEWS, normalizeListView, viewStorageKey, type ProjectSignals } from "@/lib/project-sections";
+import { getProjectStatus, daysToEnd, STATUS_RANK, type ProjectStatusKey } from "@/lib/project-status";
 import { useCanAccessTab } from "@/lib/tab-access";
 import { useMyPermissions } from "@/lib/permissions";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
@@ -43,6 +44,8 @@ const CAND_MIN_AMOUNT = 3_000_000;
 const CAND_MAX = 5;
 const CAND_HIDE_KEY = "ov.projecthub.candHidden";
 const NUDGE_OPEN_KEY = "ov.projecthub.nudgeOpen";
+// 목록 맨 위에 카드로 크게 띄우는 최대 건수 — 넘치면 표가 밀린다
+const FOCUS_MAX = 3;
 type Candidate = { partnerId: string; name: string; cnt: number; amt: number; first: string; last: string; ids: string[] };
 
 export default function ProjectHubPage() {
@@ -63,7 +66,8 @@ export default function ProjectHubPage() {
   // 콕핏(2026-07-22) — "지금 챙길 것" 렌즈 필터 + 카드 ⋯메뉴 열림 상태
   //   유형별로 갈렸던 4번째 렌즈(달성 저조·지연 과제)는 폐지 — 미수금으로 통일하고
   //   지연은 '위험' 렌즈가 이미 포함한다(2026-07-30).
-  const [lens, setLens] = useState<null | "risk" | "due" | "progress" | "receivable">(null);
+  // 상태 필터 — 지연·주의·정상·완료 중 하나만 보기(구 렌즈 4종을 대체, 2026-08-03)
+  const [lens, setLens] = useState<ProjectStatusKey | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const { data: deals = [], isLoading } = useQuery({
@@ -425,30 +429,54 @@ export default function ProjectHubPage() {
     ["urgency", "긴급도"], ["contract", "계약금액"], ["progress", "진행·달성률"], ["stage", "단계"], ["name", "프로젝트명"], ["period", "시작일"],
   ];
   const isDone = (d: any) => d.stage === "completed" || d.stage === "settlement";
-  // 마감까지 남은 일수(음수=초과). end_date 없으면 null.
-  const daysToEnd = (d: any): number | null => {
-    if (!d.end_date) return null;
-    const end = new Date(`${String(d.end_date).slice(0, 10)}T00:00:00`);
-    const now = new Date(`${todayStr}T00:00:00`);
-    return Math.round((end.getTime() - now.getTime()) / 86_400_000);
-  };
-  // 이번 주 마감 — 진행 중이면서 마감이 0~7일 이내
-  const isDueSoon = (d: any) => {
-    if (isDone(d)) return false;
-    const dd = daysToEnd(d);
-    return dd != null && dd >= 0 && dd <= 7;
-  };
-  // 위험 판정(엄격, 2026-07-22 / 유형 분기 제거 2026-07-30) — 실제 적자·지연·기한초과만.
-  //   초기·미착수 상태는 위험 아님(달성률 0% 자체도 위험 아님 — 막 시작한 프로젝트가 위로
-  //   몰리던 것 제거). 유형이 아니라 있는 데이터로 판정하므로 모든 프로젝트에 같은 규칙이다.
-  const isRisk = (d: any) => {
-    const h = headlineByDeal[d.id];
-    const overdue = d.end_date && String(d.end_date).slice(0, 10) < todayStr && !isDone(d);
-    return !!h?.risk || !!overdue;
-  };
+  const ddOf = (d: any) => daysToEnd(d.end_date, todayStr);
+
+  // ── 상태(정상·주의·지연) — 화면 전체가 이 한 곳에서 받는다(2026-08-03 개편 ①) ──
+  //   프로젝트별 마지막 움직임: 업무 변경 / 생성 시각 중 최신.
+  //   (deals 에는 updated_at 컬럼이 없다 — 그래서 프로젝트 자체 수정 시각은 알 수 없다)
+  const lastActByDeal = useMemo(() => {
+    const m: Record<string, number> = {};
+    const touch = (id: string, iso?: string | null) => {
+      if (!id || !iso) return;
+      const t = new Date(iso).getTime();
+      if (!m[id] || t > m[id]) m[id] = t;
+    };
+    for (const d of topDeals as any[]) touch(d.id, d.created_at);
+    for (const t of tasksRows as any[]) touch(t.deal_id, t.updated_at);
+    return m;
+  }, [topDeals, tasksRows]);
+  // 가장 오래된 미수 계산서의 경과일 — 60일 넘으면 '주의'가 아니라 '지연'
+  const oldestUnpaidByDeal = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of settleRows as any[]) {
+      if (!r.deal_id || !r.issue_date) continue;
+      const left = Number(r.total_amount || 0) - Number(r.settled_amount || 0);
+      if (left <= 1) continue;
+      const days = Math.floor((new Date(`${todayStr}T00:00:00`).getTime() - new Date(`${String(r.issue_date).slice(0, 10)}T00:00:00`).getTime()) / 86_400_000);
+      if (!(m[r.deal_id] >= days)) m[r.deal_id] = days;
+    }
+    return m;
+  }, [settleRows, todayStr]);
+  const statusByDeal = useMemo(() => {
+    const m: Record<string, ReturnType<typeof getProjectStatus>> = {};
+    for (const d of topDeals as any[]) {
+      const last = lastActByDeal[d.id];
+      m[d.id] = getProjectStatus({
+        stage: d.stage, endDate: d.end_date, today: todayStr,
+        overdueTasks: !!headlineByDeal[d.id]?.delayed,
+        outstanding: outstandingByDeal[d.id] || 0,
+        oldestUnpaidDays: oldestUnpaidByDeal[d.id] ?? null,
+        quietDays: last ? Math.floor((Date.now() - last) / 86_400_000) : null,
+        metricRisk: !!headlineByDeal[d.id]?.risk,
+      });
+    }
+    return m;
+  }, [topDeals, todayStr, headlineByDeal, outstandingByDeal, oldestUnpaidByDeal, lastActByDeal]);
+  const statusOf = (d: any): ProjectStatusKey => statusByDeal[d.id]?.key || "normal";
+  const isRisk = (d: any) => statusOf(d) === "late";
   // 카드 "다음 액션" 줄 — 기존 데이터(마감일·단계·미수·지연태스크)만으로 구성.
   const nextAction = (d: any): { icon: string; text: string; dday: string; tone: "risk" | "soon" | "ok" } => {
-    const dd = daysToEnd(d);
+    const dd = ddOf(d);
     const out = outstandingByDeal[d.id] || 0;
     if (isDone(d)) {
       if (out > 1) return { icon: "💵", text: "정산 대기 · 미수 있음", dday: won(out), tone: "soon" };
@@ -462,25 +490,10 @@ export default function ProjectHubPage() {
     return { icon: "🗓", text: "기간 미정", dday: "—", tone: "ok" };
   };
 
-  // 렌즈 필터 판정 — 지금 챙길 것 칩 클릭 시 목록을 좁힌다.
-  const matchesLens = (d: any) => {
-    if (!lens) return true;
-    if (lens === "risk") return isRisk(d);
-    if (lens === "due") return isDueSoon(d);
-    // "진행중" = 완료·정산 전(살아있는) 프로젝트. 단계값(in_progress)을 안 옮기고 작업하는
-    //   실사용 패턴 대응 — 견적 단계라도 아직 안 끝났으면 진행중으로 본다(2026-07-22).
-    if (lens === "progress") return !isDone(d);
-    if (lens === "receivable") return (outstandingByDeal[d.id] || 0) > 1;
-    return true;
-  };
-  // 긴급도 랭크(낮을수록 위) — 위험 → 이번주마감 → 미수 → 나머지 → 완료
-  const urgencyRank = (d: any) => {
-    if (isDone(d)) return 4;
-    if (isRisk(d)) return 0;
-    if (isDueSoon(d)) return 1;
-    if ((outstandingByDeal[d.id] || 0) > 1) return 2;
-    return 3;
-  };
+  // 상태 칩 필터 — 지연·주의·정상 중 하나만 보기(구 렌즈 4타일을 대체, 2026-08-03)
+  const matchesLens = (d: any) => !lens || statusOf(d) === lens;
+  // 급한 순 — 상태 순서(지연→주의→정상→완료)가 곧 긴급도다
+  const urgencyRank = (d: any) => STATUS_RANK[statusOf(d)];
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -498,7 +511,7 @@ export default function ProjectHubPage() {
       if (sortKey === "urgency") {
         const ra = urgencyRank(a), rb = urgencyRank(b);
         if (ra !== rb) return ra - rb;
-        const da = daysToEnd(a), db = daysToEnd(b);
+        const da = ddOf(a), db = ddOf(b);
         const va = da == null ? Infinity : da, vb = db == null ? Infinity : db;
         if (va !== vb) return va - vb;
         return Number(b.contract_total || 0) - Number(a.contract_total || 0);
@@ -533,19 +546,19 @@ export default function ProjectHubPage() {
     }
     return true;
   }) : rows, [rows, lens, topDeals, mineOnly, userId, search, partnerName, userName]);
+  // 상태별 건수 + 한 문장 요약에 쓰는 숫자 — 내담당·검색 스코프(상태 필터 제외)에서 집계
   const lensCounts = useMemo(() => {
-    let receivableSum = 0, receivableCount = 0;
+    let receivableSum = 0, receivableCount = 0, dueThisWeek = 0;
+    const st: Record<ProjectStatusKey, number> = { late: 0, warn: 0, normal: 0, done: 0 };
     for (const d of lensScope) {
       const o = outstandingByDeal[d.id] || 0;
       if (o > 1) { receivableSum += o; receivableCount++; }
+      const dd = ddOf(d);
+      if (!isDone(d) && dd != null && dd >= 0 && dd <= 7) dueThisWeek++;
+      st[statusOf(d)]++;
     }
-    return {
-      risk: lensScope.filter(isRisk).length,
-      due: lensScope.filter(isDueSoon).length,
-      progress: lensScope.filter((d) => !isDone(d)).length,
-      receivableSum, receivableCount,
-    };
-  }, [lensScope, outstandingByDeal, headlineByDeal]);
+    return { ...st, total: lensScope.length, dueThisWeek, receivableSum, receivableCount };
+  }, [lensScope, outstandingByDeal, statusByDeal, todayStr]);
 
   // 유형별 요약 구획(수익형 마진합·목표형 평균달성·실행형 평균진행)은 유형 칩과 함께 폐지했다.
   //   회사 전체 집계는 목록 '차트' 보기에서 다루기로 정리(2026-07-30 기획 v3 3단계).
@@ -595,39 +608,81 @@ export default function ProjectHubPage() {
         </div>
       </div>
 
-      {/* 보기 전환 — 유형 칩(전체·수익형·목표형·실행형)이 있던 자리. 분류를 고르는 대신
-          같은 프로젝트를 다르게 본다. '보드'가 구 워크플로우(회사가 만든 컬럼) 보기다. */}
-      <div className="ph-view-bar">
-        <span className="ph-view-label">보기</span>
-        {READY_LIST_VIEWS.map((v) => (
-          <button key={v.key} onClick={() => pickListView(v.key)} title={v.desc}
-            aria-pressed={listView === v.key}
-            className={`ph-view-btn ${listView === v.key ? "ph-view-btn-on" : ""}`}>
-            {v.label}
-          </button>
-        ))}
-        <span className="ph-view-desc">{READY_LIST_VIEWS.find((v) => v.key === listView)?.desc}</span>
+      {/* ① 한 문장 요약 + 제안 칩 — 숫자 타일보다 말이 먼저 온다(2026-08-03 개편 ②).
+          지금 챙길 게 없으면 그렇다고 말한다(빈 화면을 만들지 않는다). */}
+      <div className="ph-brief">
+        <p className="ph-brief-line">
+          {lensCounts.dueThisWeek + lensCounts.late + lensCounts.receivableCount === 0
+            ? <>지금 급한 건 없어요. 프로젝트 <b>{lensCounts.total}건</b>이 돌아가고 있어요.</>
+            : <>
+                {lensCounts.late > 0 && <>지연 <b>{lensCounts.late}건</b></>}
+                {lensCounts.late > 0 && (lensCounts.dueThisWeek > 0 || lensCounts.receivableCount > 0) && " · "}
+                {lensCounts.dueThisWeek > 0 && <>이번 주 마감 <b>{lensCounts.dueThisWeek}건</b></>}
+                {lensCounts.dueThisWeek > 0 && lensCounts.receivableCount > 0 && " · "}
+                {lensCounts.receivableCount > 0 && <>못 받은 돈 <b>{won(lensCounts.receivableSum)}</b></>}
+                {" 이 있어요."}
+              </>}
+        </p>
+        {(candidates.length > 0 || quietCount > 0) && (
+          <div className="ph-brief-nudge">
+            {candidates.length > 0 && (
+              <button type="button" onClick={() => pickNudge("cand")}
+                className={`ph-nudge-chip ${nudge === "cand" ? "ph-nudge-chip-on" : ""}`}>
+                묶을 만한 거래 <em>{candidates.length}</em>
+              </button>
+            )}
+            {quietCount > 0 && (
+              <button type="button" onClick={() => pickNudge("quiet")}
+                className={`ph-nudge-chip ${nudge === "quiet" ? "ph-nudge-chip-on" : ""}`}>
+                조용한 프로젝트 <em>{quietCount}</em>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* 제안 한 줄 — 묶을 만한 거래·조용한 프로젝트를 접어 둔다(2026-08-03 사장님 지적:
-          두 블록이 최대 8줄을 차지해 정작 프로젝트 카드가 아래로 밀렸다).
-          개수는 항상 보이고, 누른 것만 아래에 펼쳐진다. 마지막 상태는 이 브라우저가 기억한다. */}
-      {(candidates.length > 0 || quietCount > 0) && (
-        <div className="ph-nudge-bar">
-          <span className="ph-nudge-label">제안</span>
-          {candidates.length > 0 && (
-            <button type="button" onClick={() => pickNudge("cand")}
-              className={`ph-nudge-chip ${nudge === "cand" ? "ph-nudge-chip-on" : ""}`}>
-              묶을 만한 거래 <em>{candidates.length}</em>
+      {/* ② 상태 칩 + 보기 — 구 렌즈 4타일과 보기 6종이 이 한 줄로 합쳐졌다.
+          상태 단어는 목록·카드·표·상세가 모두 같은 것을 쓴다(project-status.ts). */}
+      <div className="ph-statusbar">
+        <div className="ph-stchips">
+          {([["", "전체", lensCounts.total], ["late", "지연", lensCounts.late], ["warn", "주의", lensCounts.warn],
+             ["normal", "정상", lensCounts.normal], ["done", "완료", lensCounts.done]] as const).map(([k, label, n]) => (
+            (k === "done" && n === 0) ? null : (
+              <button key={k || "all"} type="button" onClick={() => setLens((prev) => (prev === k || k === "" ? null : k as any))}
+                aria-pressed={k === "" ? lens === null : lens === k}
+                className={`ph-stchip ${k ? `ph-stchip-${k}` : ""} ${(k === "" ? lens === null : lens === k) ? "ph-stchip-on" : ""}`}>
+                {label}<em>{n}</em>
+              </button>
+            )
+          ))}
+        </div>
+        <div className="ph-viewpick">
+          {READY_LIST_VIEWS.map((v) => (
+            <button key={v.key} onClick={() => pickListView(v.key)} title={v.desc}
+              aria-pressed={listView === v.key}
+              className={`ph-view-btn ${listView === v.key ? "ph-view-btn-on" : ""}`}>
+              {v.label}
             </button>
-          )}
-          {quietCount > 0 && (
-            <button type="button" onClick={() => pickNudge("quiet")}
-              className={`ph-nudge-chip ${nudge === "quiet" ? "ph-nudge-chip-on" : ""}`}>
-              조용한 프로젝트 <em>{quietCount}</em>
+          ))}
+          {/* 분석(차트·타임라인)은 평소 목록과 섞지 않는다 — 필요할 때만 연다 */}
+          <button onClick={() => pickListView(ANALYSIS_VIEWS.some((v) => v.key === listView) ? "table" : "chart")}
+            aria-pressed={ANALYSIS_VIEWS.some((v) => v.key === listView)}
+            className={`ph-view-btn ${ANALYSIS_VIEWS.some((v) => v.key === listView) ? "ph-view-btn-on" : ""}`}>
+            분석
+          </button>
+        </div>
+      </div>
+
+      {/* 분석 보기 안에서만 차트/타임라인을 고른다 */}
+      {ANALYSIS_VIEWS.some((v) => v.key === listView) && (
+        <div className="ph-viewpick">
+          {ANALYSIS_VIEWS.map((v) => (
+            <button key={v.key} onClick={() => pickListView(v.key)} title={v.desc}
+              className={`ph-view-btn ${listView === v.key ? "ph-view-btn-on" : ""}`}>
+              {v.label}
             </button>
-          )}
-          <span className="ph-nudge-hint">{nudge ? "다시 누르면 접혀요" : "누르면 펼쳐져요"}</span>
+          ))}
+          <span className="ph-nudge-hint">{ANALYSIS_VIEWS.find((v) => v.key === listView)?.desc}</span>
         </div>
       )}
 
@@ -710,66 +765,17 @@ export default function ProjectHubPage() {
         />
       )}
 
-      {/* ① 지금 챙길 것 — 개수 타일을 클릭 렌즈로(2026-07-22). 누르면 아래 목록이 그 조건만 표시 */}
-      <div>
-        <p className="text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-dim)] mb-2 ml-0.5">지금 챙길 것 · 누르면 아래 목록이 그 조건만 보여줘요</p>
-        <div className="ph-lens-grid">
-          <button onClick={() => setLens(lens === "risk" ? null : "risk")} className={`ph-lens glass-card ${lens === "risk" ? "ph-lens-on" : ""}`}>
-            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />위험 · 지연</span>
-            <div className="ph-lens-num text-[var(--danger)]">{lensCounts.risk}</div>
-            <div className="ph-lens-sub">기한 초과·마진 적자·태스크 지연</div>
-            <span className="ph-lens-go">목록 필터 ↓</span>
-          </button>
-          <button onClick={() => setLens(lens === "due" ? null : "due")} className={`ph-lens glass-card ${lens === "due" ? "ph-lens-on" : ""}`}>
-            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--warning)]" />이번 주 마감</span>
-            <div className="ph-lens-num text-[var(--warning)]">{lensCounts.due}</div>
-            <div className="ph-lens-sub">7일 내 마감 예정</div>
-            <span className="ph-lens-go">목록 필터 ↓</span>
-          </button>
-          <button onClick={() => setLens(lens === "progress" ? null : "progress")} className={`ph-lens glass-card ${lens === "progress" ? "ph-lens-on" : ""}`}>
-            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--text-dim)]" />진행중</span>
-            <div className="ph-lens-num text-[var(--text)]">{lensCounts.progress}</div>
-            <div className="ph-lens-sub">완료·정산 전 진행 중</div>
-            <span className="ph-lens-go">목록 필터 ↓</span>
-          </button>
-          {/* 4번째 렌즈 — 유형별로 갈렸던 것(달성 저조·지연 과제)을 미수금으로 통일.
-              지연은 '위험' 렌즈가 이미 포함한다(2026-07-30 유형 폐지). */}
-          <button onClick={() => setLens(lens === "receivable" ? null : "receivable")} className={`ph-lens glass-card ${lens === "receivable" ? "ph-lens-on" : ""}`}>
-            <span className="ph-lens-label"><span className="ph-lens-dot bg-[var(--danger)]" />{mineOnly ? "내 미수금" : "미수금"}</span>
-            <div className="ph-lens-num text-[var(--danger)] !text-[19px] !mt-2.5">{lensCounts.receivableCount > 0 ? won(lensCounts.receivableSum) : "₩0"}</div>
-            <div className="ph-lens-sub">발행했지만 미입금 · {lensCounts.receivableCount}건</div>
-            <span className="ph-lens-go">목록 필터 ↓</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 회사 전체 미수금 롤업 — 미수 발생 시 노출 */}
+      {/* 미수금 롤업 — 금액이 있을 때만 한 줄. 상태 칩(주의/지연)이 이미 건수를 말하므로
+          여기서는 회사 전체 금액만 짧게 남긴다(2026-08-03 개편 ②로 4타일 → 이 한 줄). */}
       {settleSummary.totalOutstanding > 1 && (
         <div className="receivables-rollup glass-card">
           <span className="kpi-icon danger text-base leading-none"><Ico e="💸" /></span>
           <div className="min-w-0">
-            <div className="text-[13px] font-bold text-[var(--text)]">회사 전체 미수금</div>
-            <div className="text-[11px] text-[var(--text-muted)]">계산서는 발행했지만 아직 통장에 입금 안 된 금액 (매칭 기준)</div>
-          </div>
-          <div className="ml-auto text-right">
-            <div className="text-lg font-black mono-number text-[var(--danger)]">{won(settleSummary.totalOutstanding)}</div>
-            <div className="text-[11px] text-[var(--text-muted)]">미수 프로젝트 {settleSummary.projects}건 — 각 프로젝트 개요의 정산 현황에서 확인</div>
+            <div className="text-[13px] font-bold text-[var(--text)]">아직 못 받은 돈 {won(settleSummary.totalOutstanding)}</div>
+            <div className="text-[11px] text-[var(--text-muted)]">계산서는 발행했지만 통장 입금이 확인 안 된 금액 · {settleSummary.projects}개 프로젝트</div>
           </div>
         </div>
       )}
-
-      {/* ② 목록 헤더 — 활성 렌즈 표시(해제) + 건수 */}
-      <div className="flex items-center justify-between gap-2 flex-wrap -mb-1">
-        <div>
-          {lens && (
-            <button onClick={() => setLens(null)} className="ph-filter-pill">
-              {lens === "risk" ? "위험·지연" : lens === "due" ? "⏰ 이번 주 마감" : lens === "progress" ? "진행중" : "미수금"}{" "}
-              {lens === "receivable" ? `${lensCounts.receivableCount}건만` : `${rows.length}건만`} 보는 중 · 해제 ✕
-            </button>
-          )}
-        </div>
-        <span className="text-[12px] text-[var(--text-muted)]">총 <b className="text-[var(--text)]">{rows.length}</b>건</span>
-      </div>
 
       {/* 보드 보기 — 회사 전체 프로젝트를 커스텀 컬럼으로. 검색·렌즈·정렬은 보드 자체 툴바가
           담당하므로 여기서는 그대로 임베드한다(구 실행형 상세 '워크플로우' 탭과 동일 컴포넌트). */}
@@ -832,122 +838,92 @@ export default function ProjectHubPage() {
         <ProjectCalendar rows={rows as any[]} monthOffset={calMonth}
           onMonth={(d) => setCalMonth((m) => m + d)}
           onOpen={(id) => router.push(`/projecthub/${id}`)} />
-      ) : listView === "table" ? (
-        /* 표 보기 — 정렬·비교용. 대표 지표는 프로젝트마다 종류가 다르므로 값 옆에 이름을 함께 쓴다. */
-        <div className="ph-table-wrap">
-          <table className="ph-table">
-            <thead>
-              <tr>
-                <th>프로젝트</th><th>거래처</th><th>담당</th><th>단계</th>
-                <th className="ph-table-n">계약</th><th className="ph-table-n">대표 지표</th>
-                <th className="ph-table-n">미수</th><th className="ph-table-n">마감</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((d) => {
-                const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
-                const sc = STAGE_COLOR[stage];
-                const h = headlineByDeal[d.id];
-                const out = outstandingByDeal[d.id] || 0;
-                const dd = daysToEnd(d);
-                const risk = isRisk(d);
-                return (
-                  <tr key={d.id} onClick={() => router.push(`/projecthub/${d.id}`)} className="ph-table-row">
-                    <td>
-                      {risk && <span className="ph-table-risk" title="위험 — 확인 필요">●</span>}
-                      <b>{d.name || "(이름 없음)"}</b>
-                      {childCount[d.id] > 0 && <span className="ph-sub-badge">하위 {childCount[d.id]}</span>}
-                    </td>
-                    <td className="ph-table-dim">{partnerName[d.partner_id] || "—"}</td>
-                    <td className="ph-table-dim">{userName[d.internal_manager_id] || "—"}</td>
-                    <td><span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span></td>
-                    <td className="ph-table-n">{Number(d.contract_total || 0) > 0 ? won(d.contract_total) : "—"}</td>
-                    <td className="ph-table-n">
-                      {h && h.raw != null ? <><b>{h.label}</b> <span className="ph-table-dim">{h.name}</span></> : "—"}
-                    </td>
-                    <td className={`ph-table-n ${out > 1 ? "ph-table-bad" : ""}`}>{out > 1 ? won(out) : "—"}</td>
-                    <td className="ph-table-n ph-table-dim">{dd == null ? "—" : dd < 0 ? `D+${-dd}` : `D-${dd}`}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
       ) : (
-        <div className="project-card-grid">
-          {rows.map((d) => {
-            const stage = (STAGE_ORDER.includes(d.stage) ? d.stage : "estimate") as ProjectStage;
-            const sc = STAGE_COLOR[stage];
-            const hero = headlineByDeal[d.id];
-            const risk = isRisk(d);
-            const sup = Number(d.contract_total || 0);
-            // 계약금액이 있으면 그걸, 없으면 기간을 쓴다(유형이 아니라 데이터로 판단).
-            const footerLeft = sup > 0
-              ? `계약 ${won(sup)} (VAT별도)`
-              : fmtDate(d.start_date) ? `${fmtDate(d.start_date)}${d.end_date ? ` ~ ${fmtDate(d.end_date)}` : ""}` : "기간 미정";
-            return (
-              <div key={d.id}
-                onClick={() => { if (openMenu) { setOpenMenu(null); return; } router.push(`/projecthub/${d.id}`); }}
-                // 메뉴가 열린 카드는 메뉴닫기 배경막(z-10)보다 위로 — hover transform 이 만드는
-                //   스태킹 컨텍스트 때문에 카드 내부 메뉴(z-20)가 배경막에 덮여 수정·삭제
-                //   클릭이 전부 배경막에 먹히던 버그 (2026-07-30 사장님: "버튼이 반응을 안 해").
-                className={`project-card glass-card ${risk ? "!border-[var(--danger)]/40" : ""} ${openMenu === d.id ? "relative z-20" : ""}`}>
-                {/* 유형 배지(💰수익형·🎯목표형·✅실행형)가 있던 자리 — 분류 대신 지금 상태를 쓴다.
-                    지연이 있으면 그것부터 보여주고, 없으면 단계만 남긴다(2026-07-30). */}
-                <div className="flex items-center justify-between gap-2">
-                  {hero?.delayed
-                    ? <span className="ph-card-flag">지연 있음</span>
-                    : <span className="ph-card-flag-off">{hero && hero.raw != null ? hero.name : "지표 없음"}</span>}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
+        /* 목록 보기 — 챙길 건(지연·주의) 위에 카드로, 나머지는 한 줄씩(2026-08-03 개편 ②).
+           보기를 고르게 하는 대신 한 화면에서 둘 다 준다. 상태 단어는 project-status.ts 한 곳에서. */
+        <>
+        {(() => {
+          const focus = rows.filter((d: any) => statusOf(d) === "late" || statusOf(d) === "warn").slice(0, FOCUS_MAX);
+          const rest = rows.filter((d: any) => !focus.includes(d));
+          return (
+            <>
+              {focus.length > 0 && (
+                <div className="ph-focus-list">
+                  {focus.map((d: any) => {
+                    const st = statusByDeal[d.id];
+                    const h = headlineByDeal[d.id];
+                    const na = nextAction(d);
+                    return (
+                      <div key={d.id} className={`ph-focus ph-focus-${st.key}`} onClick={() => router.push(`/projecthub/${d.id}`)}>
+                        <div className="ph-focus-top">
+                          <span className={`ph-st ph-st-${st.key}`}>{st.label}</span>
+                          <b>{d.name || "(이름 없음)"}</b>
+                          <span className="ph-focus-who">{partnerName[d.partner_id] || "내부"} · {userName[d.internal_manager_id] || "담당 없음"}</span>
+                          <span className="ph-focus-next">다음: {na.text} {na.dday}</span>
+                        </div>
+                        {h && h.raw != null && (
+                          <div className="ph-focus-bar"><i className={`ph-focus-fill ph-focus-fill-${st.key}`} style={{ width: `${h.pct}%` }} /></div>
+                        )}
+                        <div className="ph-focus-sub">
+                          {st.why}
+                          {h && h.raw != null ? ` · ${h.name} ${h.label}` : ""}
+                          {(outstandingByDeal[d.id] || 0) > 1 ? ` · 못 받은 돈 ${won(outstandingByDeal[d.id])}` : ""}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="text-sm font-bold text-[var(--text)] leading-snug">
-                  {risk && <span className="mr-1 text-[var(--danger)]" title="위험 — 확인 필요">●</span>}
-                  {d.name || "(이름 없음)"}
-                  {childCount[d.id] > 0 && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold align-middle">하위 {childCount[d.id]}</span>}
-                </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] min-w-0">
-                  <span className="truncate"><Ico e="🏢" /> {partnerName[d.partner_id] || "—"}</span>
-                  <span className="text-[var(--text-dim)]">·</span>
-                  <span className="truncate"><Ico e="👤" /> {userName[d.internal_manager_id] || "—"}</span>
-                </div>
-                {hero && hero.raw != null && (
-                  <div className="flex items-center gap-2" title={`${hero.name} ${hero.label}`}>
-                    <span className="text-[10px] text-[var(--text-dim)] w-11 shrink-0 truncate">{hero.name}</span>
-                    <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                      <div className={`h-full rounded-full ${risk ? "bg-[var(--danger)]" : hero.pct >= 70 ? "bg-[var(--success)]" : "bg-[var(--primary)]"}`} style={{ width: `${hero.pct}%` }} />
-                    </div>
-                    <span className={`text-[10px] mono-number w-9 text-right ${risk ? "text-[var(--danger)] font-semibold" : "text-[var(--text-muted)]"}`}>{hero.label}</span>
-                    {hero.delayed && <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/10 text-red-500 font-semibold shrink-0">지연</span>}
-                  </div>
-                )}
-                {/* 다음 액션 줄 — 마감/미수/완료를 한 줄로(2026-07-22) */}
-                {(() => {
-                  const na = nextAction(d);
-                  return (
-                    <div className={`ph-next-row ph-next-${na.tone}`}>
-                      <span className="text-xs"><Ico e={na.icon} /></span>
-                      <span className="ph-next-txt">다음: {na.text}</span>
-                      <span className="ph-next-dday mono-number">{na.dday}</span>
-                    </div>
-                  );
-                })()}
-                <div className="flex items-center justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)]/40 relative">
-                  <span className="text-[11px] text-[var(--text-muted)] mono-number truncate">{footerLeft}</span>
-                  <span className="flex items-center gap-1.5 shrink-0">
-                    <button onClick={(e) => { e.stopPropagation(); router.push(`/projecthub/${d.id}`); }} className="ph-open-btn">열기 →</button>
-                    <button onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === d.id ? null : d.id); }} className="ph-kebab" title="수정·삭제" aria-label="더보기">⋯</button>
-                  </span>
-                  {openMenu === d.id && (
-                    <div className="ph-card-menu" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => { setOpenMenu(null); setEditDeal(d); }}>✏ 수정</button>
-                      <button onClick={() => { setOpenMenu(null); setDelDeal(d); }} className="!text-[var(--danger)]"><Ico e="🗑" /> 삭제</button>
-                    </div>
-                  )}
-                </div>
+              )}
+              <div className="ph-table-wrap">
+                <table className="ph-table">
+                  <thead>
+                    <tr>
+                      <th>프로젝트</th><th>담당</th><th>상태</th><th className="ph-table-n">진행</th>
+                      <th className="ph-table-n">못 받은 돈</th><th>다음 액션</th><th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rest.map((d: any) => {
+                      const st = statusByDeal[d.id];
+                      const h = headlineByDeal[d.id];
+                      const out = outstandingByDeal[d.id] || 0;
+                      const na = nextAction(d);
+                      return (
+                        <tr key={d.id} onClick={() => { if (openMenu) { setOpenMenu(null); return; } router.push(`/projecthub/${d.id}`); }} className="ph-table-row">
+                          <td>
+                            <b>{d.name || "(이름 없음)"}</b>
+                            {childCount[d.id] > 0 && <span className="ph-sub-badge">하위 {childCount[d.id]}</span>}
+                            <span className="ph-table-partner">{partnerName[d.partner_id] || "내부"}</span>
+                          </td>
+                          <td className="ph-table-dim">{userName[d.internal_manager_id] || "—"}</td>
+                          <td><span className={`ph-st ph-st-${st.key}`}>{st.label}</span></td>
+                          <td className="ph-table-n">
+                            {h && h.raw != null
+                              ? <span className="ph-table-prog"><span className="ph-table-track"><i style={{ width: `${h.pct}%` }} /></span>{h.label}</span>
+                              : "—"}
+                          </td>
+                          <td className={`ph-table-n ${out > 1 ? "ph-table-bad" : ""}`}>{out > 1 ? won(out) : "—"}</td>
+                          <td className="ph-table-dim">{na.text}{na.dday && na.dday !== na.text ? <> <span className="mono-number">{na.dday}</span></> : null}</td>
+                          <td className="ph-table-kebab">
+                            <button onClick={(e) => { e.stopPropagation(); setOpenMenu(openMenu === d.id ? null : d.id); }} className="ph-kebab" title="수정·삭제" aria-label="더보기">⋯</button>
+                            {openMenu === d.id && (
+                              <div className="ph-card-menu" onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => { setOpenMenu(null); setEditDeal(d); }}>✏ 수정</button>
+                                <button onClick={() => { setOpenMenu(null); setDelDeal(d); }} className="!text-[var(--danger)]"><Ico e="🗑" /> 삭제</button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {rest.length === 0 && <p className="ph-table-none">나머지 프로젝트는 없어요 — 위 {focus.length}건이 전부예요.</p>}
               </div>
-            );
-          })}
-        </div>
+            </>
+          );
+        })()}
+        </>
       )}
 
       {listView !== "board" && (

@@ -63,20 +63,27 @@ export const SECTION_VIEWS: Record<SectionKey, SectionView[]> = {
 //   ready:false 는 아직 구현 전(3단계 예정) — UI 에 노출하지 않는다.
 export type ListView = { key: string; label: string; desc: string; ready: boolean };
 
+//   보기를 6종이나 고르게 하지 않는다(2026-08-03 개편 ②). 평소 쓰는 3종만 남기고,
+//   가끔 보는 분석(타임라인·차트)은 따로 뺀다. 'card' 는 폐지 — 목록이 카드를 겸한다
+//   (문제 있는 건은 카드로 위에, 나머지는 한 줄씩).
 export const LIST_VIEWS: ListView[] = [
-  { key: "card", label: "카드", desc: "프로젝트마다 대표 지표와 다음 액션을 한 장으로", ready: true },
-  { key: "table", label: "표", desc: "정렬·비교하기 좋은 한 줄 목록", ready: true },
+  { key: "table", label: "목록", desc: "챙길 건 위에 카드로, 나머지는 한 줄씩", ready: true },
   { key: "board", label: "보드", desc: "회사가 만든 컬럼으로 관리하는 보드(워크플로우)", ready: true },
-  { key: "timeline", label: "타임라인", desc: "프로젝트 기간을 막대로 겹쳐 보기", ready: true },
-  { key: "chart", label: "차트", desc: "파이프라인·마진 순위·미수 에이징 분석", ready: true },
   { key: "cal", label: "캘린더", desc: "시작일·마감을 달에 배치", ready: true },
 ];
 
-export const READY_LIST_VIEWS = LIST_VIEWS.filter((v) => v.ready);
+/** 분석 보기 — 평소 목록과 섞지 않고 '분석' 에서 연다 */
+export const ANALYSIS_VIEWS: ListView[] = [
+  { key: "chart", label: "차트", desc: "파이프라인·마진 순위·미수 에이징 분석", ready: true },
+  { key: "timeline", label: "타임라인", desc: "프로젝트 기간을 막대로 겹쳐 보기", ready: true },
+];
 
-/** 알 수 없는 값이 오면 기본 보기(카드)로 — 저장된 값이 깨져도 화면은 뜬다. */
+export const READY_LIST_VIEWS = LIST_VIEWS.filter((v) => v.ready);
+export const ALL_LIST_VIEWS = [...LIST_VIEWS, ...ANALYSIS_VIEWS];
+
+/** 알 수 없는 값이 오면 기본 보기(목록)로 — 옛 'card' 저장값도 목록으로 받는다. */
 export function normalizeListView(v: unknown): string {
-  return READY_LIST_VIEWS.some((x) => x.key === v) ? (v as string) : "card";
+  return ALL_LIST_VIEWS.some((x) => x.key === v) ? (v as string) : "table";
 }
 
 /** 보기 저장 키 — 사람별로 기억한다(신규 사용자는 저장값이 없어 항상 '카드'로 시작). */

@@ -140,12 +140,13 @@ describe("보기(뷰) 정의", () => {
     expect(SECTION_VIEWS.money[0].key).toBe("ledger");
   });
 
-  it("목록 기본 보기는 카드 — 저장값이 깨졌거나 미구현 뷰면 카드로 폴백", () => {
+  it("목록 기본 보기는 '목록' — 저장값이 깨졌거나 폐지된 뷰(card)면 목록으로 폴백", () => {
     expect(normalizeListView("board")).toBe("board");
-    expect(normalizeListView("timeline")).toBe("timeline");
-    expect(normalizeListView(null)).toBe("card");
-    expect(normalizeListView("몰라요")).toBe("card");
-    expect(READY_LIST_VIEWS[0].key).toBe("card");
+    expect(normalizeListView("timeline")).toBe("timeline");   // 분석 보기도 유효한 값
+    expect(normalizeListView(null)).toBe("table");
+    expect(normalizeListView("몰라요")).toBe("table");
+    expect(normalizeListView("card")).toBe("table");           // 옛 저장값
+    expect(READY_LIST_VIEWS[0].key).toBe("table");
   });
 
   it("보기 저장 키는 사람별로 갈린다", () => {
