@@ -191,6 +191,7 @@ export default function ProjectHubDetailPage() {
   const dealId = String(params?.id || "");
   // 좌측 프로젝트 레일 — 목록으로 돌아가지 않고 프로젝트를 바꾼다(먼데이 참고, 2026-08-03).
   //   넓은 화면에서만 켠다. 좁은 화면에서는 표가 설 자리가 없어 자동으로 접힌다.
+  const [headMenu, setHeadMenu] = useState(false);   // 머리줄 ⋯ (자금 · 설정)
   const [railOpen, setRailOpen] = useState(true);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1273,15 +1274,22 @@ export default function ProjectHubDetailPage() {
         )}
         <span className={`ph-st ph-st-${status.key}`} title={brief.headline}>{status.label}</span>
         <span className="pj-head-meta">{partner?.name || ""}</span>
-        {/* 오른쪽 — 참여자(여럿·부서 통째로) 와 곁가지 자리 두 개.
-            대표담당자 한 명을 지우고 참여자로 바꿨다(2026-08-03 사장님 지시). */}
+        {/* 오른쪽 — 참여자만 남긴다. 자금·설정을 버튼으로 세워 두니 템플릿보다 먼저 눈에 들어왔다
+            (2026-08-03 사장님: "담당자 옆에 자금·설정 버튼은 빠져야 하는 게 아닌지?").
+            자주 쓰는 자리가 아니라 ⋯ 안으로 넣는다 — 없애면 들어갈 길이 사라진다. */}
         <span className="pj-head-right">
           {companyId && <ProjectMembers dealId={dealId} companyId={companyId} users={companyUsers as any[]} />}
-          {/* 같은 버튼을 다시 누르면 템플릿으로 돌아온다 — 뒤로 가는 버튼을 따로 두지 않으려고 */}
-          <button type="button" className={`pj-head-go ${sec === "money" ? "pj-head-go-on" : ""}`}
-            onClick={() => goSection(sec === "money" ? "boards" : "money")}>자금</button>
-          <button type="button" className={`pj-head-go ${sec === "team" ? "pj-head-go-on" : ""}`}
-            onClick={() => goSection(sec === "team" ? "boards" : "team")}>설정</button>
+          <span className="pj-head-more">
+            <button type="button" className={`pj-head-dots ${headMenu ? "pj-head-dots-on" : ""}`}
+              onClick={() => setHeadMenu((v) => !v)} title="이 프로젝트 더보기" aria-label="더보기">⋯</button>
+            {headMenu && (<>
+              <span className="pj-head-veil" onClick={() => setHeadMenu(false)} />
+              <span className="pj-head-menu">
+                <button type="button" onClick={() => { setHeadMenu(false); goSection("money"); }}>자금 — 계약 · 계산서 · 마진</button>
+                <button type="button" onClick={() => { setHeadMenu(false); goSection("team"); }}>설정 — 구성원 · 기록</button>
+              </span>
+            </>)}
+          </span>
         </span>
       </div>
 
@@ -1294,8 +1302,9 @@ export default function ProjectHubDetailPage() {
       <div className="pj-layout">
         <div className="pj-secs">
         {/* 표 — 새 프로젝트 구조의 기본 화면. 템플릿에서 만든 표에 값을 채운다(2026-08-03 기획 v2) */}
-        <PjSection k="boards" inTab={TAB_OF_SECTION(sec).secs.includes("boards")} active={sec === "boards"} onSeen={markSecOpen}
-          hint="하는 일에 맞는 템플릿을 고르고 값을 채우면, 정리는 저절로 따라옵니다">
+        {/* 제목·설명 없이 바로 템플릿 탭 (2026-08-03 사장님: "프로젝트명 밑에 '표'라는 글자와
+            설명이 필요할까? 바로 템플릿이 나오면 될 것 같아") */}
+        <PjSection k="boards" bare inTab={TAB_OF_SECTION(sec).secs.includes("boards")} active={sec === "boards"} onSeen={markSecOpen}>
           {!companyId ? null : <ProjectBoards dealId={dealId} companyId={companyId} users={companyUsers as any[]} />}
         </PjSection>
 
@@ -2059,11 +2068,13 @@ export default function ProjectHubDetailPage() {
 // ── 자리(섹션) 셸 ────────────────────────────────────────────
 //   탭을 없앤 대신 이 셸이 자리 제목·보기 전환·지연 마운트를 맡는다.
 //   한 페이지에 여섯 자리가 있으므로, 화면에 들어온 자리만 onSeen 으로 열어 조회를 시작한다.
-function PjSection({ k, inTab, active, hint, views, view, onView, onSeen, children }: {
+function PjSection({ k, inTab, active, bare, hint, views, view, onView, onSeen, children }: {
   k: SectionKey;
   /** 지금 열려 있는 탭에 속하는 자리인가 — 아니면 그리지 않는다(2026-08-03 개편 ③) */
   inTab: boolean;
   active: boolean;
+  /** 제목 줄 없이 내용만 — 템플릿 자리는 탭이 곧 제목이라 한 줄이 더 붙으면 군더더기다 */
+  bare?: boolean;
   hint?: string;
   views?: { key: string; label: string }[];
   view?: string;
@@ -2085,7 +2096,7 @@ function PjSection({ k, inTab, active, hint, views, view, onView, onSeen, childr
   if (!inTab) return null;
   return (
     <div ref={ref} id={`pj-sec-${k}`} className={`pj-sec ${active ? "pj-sec-on" : ""}`}>
-      <div className="pj-sec-head">
+      {!bare && <div className="pj-sec-head">
         <h2 className="pj-sec-title">{SECTION_TITLE[k]}</h2>
         {hint && <span className="pj-sec-hint">{hint}</span>}
         {views && views.length > 1 && (
@@ -2096,7 +2107,7 @@ function PjSection({ k, inTab, active, hint, views, view, onView, onSeen, childr
             ))}
           </div>
         )}
-      </div>
+      </div>}
       {children}
     </div>
   );

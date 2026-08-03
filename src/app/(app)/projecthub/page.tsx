@@ -41,14 +41,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "");
 
-// 묶을 만한 거래 — 후보 기준. 너무 낮게 잡으면 반복 소액 거래처가 목록을 덮는다
-//   (실측: 최근 180일 매출 거래처 378곳 → 2건+·300만원+ 로 좁히면 22곳).
-const CAND_MIN_COUNT = 2;
-const CAND_MIN_AMOUNT = 3_000_000;
-const CAND_MAX = 5;
-const CAND_HIDE_KEY = "ov.projecthub.candHidden";
 const NUDGE_OPEN_KEY = "ov.projecthub.nudgeOpen";
-type Candidate = { partnerId: string; name: string; cnt: number; amt: number; first: string; last: string; ids: string[] };
 
 export default function ProjectHubPage() {
   const { user, role } = useUser();
@@ -314,35 +307,15 @@ export default function ProjectHubPage() {
     return m;
   }, [users]);
 
-  // ── 묶을 만한 거래 ─────────────────────────────────────────
-  //   프로젝트에 연결되지 않은 매출 계산서를 거래처별로 모아 "프로젝트로 묶을까요?" 를 제안한다.
-  //   근거(2026-08-03 실측): 계산서 1,837건 중 프로젝트에 연결된 건 9건(0.5%)이다.
-  //   빈 프로젝트를 먼저 만들고 데이터가 붙기를 기다리는 순서로는 매출·비용 자리가 영영 안 열린다.
-  //   반대로 이미 쌓인 거래에서 후보를 뽑으면 22곳이 나온다(건수 2건+·합계 300만원+ 기준).
-  //   ⚠️ 자동 생성하지 않는다 — 후보만 보여주고 만드는 것은 사람이 누른다.
-  //   ⚠️ 회사 전체 매출이 드러나므로 전체 열람 권한자에게만 조회한다.
-  const { data: looseInvoices = [] } = useQuery({
-    queryKey: ["projecthub-loose-invoices", companyId],
-    queryFn: async () => {
-      const since = kstDateStr(new Date(Date.now() - 180 * 86_400_000));
-      const data = logRead('projecthub/page:data', await (supabase).from("tax_invoices")
-        .select("id, partner_id, counterparty_name, total_amount, issue_date")
-        .eq("company_id", companyId!).eq("type", "sales")
-        .neq("status", "void").neq("status", "draft")
-        .is("deal_id", null).not("partner_id", "is", null).gte("issue_date", since));
-      return (data || []) as any[];
-    },
-    enabled: !!companyId && canViewAllProjects,
-  });
   // 제안 줄 접힘/펼침 — 기본은 접힘. 목록 위가 길어지면 정작 프로젝트 카드가 밀린다(2026-08-03).
-  const [nudge, setNudge] = useState<"" | "cand" | "quiet">("");
+  const [nudge, setNudge] = useState<"" | "quiet">("");
   const [quietCount, setQuietCount] = useState(0);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = window.localStorage.getItem(NUDGE_OPEN_KEY);
-    if (saved === "cand" || saved === "quiet") setNudge(saved);
+    if (saved === "quiet") setNudge(saved);
   }, []);
-  const pickNudge = (k: "cand" | "quiet") => {
+  const pickNudge = (k: "quiet") => {
     setNudge((prev) => {
       const next = prev === k ? "" : k;
       if (typeof window !== "undefined") window.localStorage.setItem(NUDGE_OPEN_KEY, next);
@@ -350,71 +323,6 @@ export default function ProjectHubPage() {
     });
   };
 
-  // 안 묶을 거래처는 이 브라우저에서만 숨긴다(테이블을 늘리지 않으려고 localStorage 사용).
-  const [hiddenCands, setHiddenCands] = useState<string[]>([]);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try { setHiddenCands(JSON.parse(window.localStorage.getItem(CAND_HIDE_KEY) || "[]")); } catch { /* 저장값이 깨져도 무시 */ }
-  }, []);
-  const hideCandidate = (partnerId: string) => {
-    setHiddenCands((prev) => {
-      const next = prev.includes(partnerId) ? prev : [...prev, partnerId];
-      if (typeof window !== "undefined") window.localStorage.setItem(CAND_HIDE_KEY, JSON.stringify(next));
-      return next;
-    });
-  };
-  const candidates = useMemo(() => {
-    if (!(looseInvoices as any[]).length) return [] as Candidate[];
-    const taken = new Set((deals as any[]).filter((d) => d.partner_id).map((d) => d.partner_id));
-    const m = new Map<string, Candidate>();
-    for (const iv of looseInvoices as any[]) {
-      const pid = iv.partner_id as string;
-      const cur = m.get(pid) || {
-        partnerId: pid, name: partnerName[pid] || String(iv.counterparty_name || "").replace(/\+/g, " ") || "이름 없는 거래처",
-        cnt: 0, amt: 0, first: iv.issue_date, last: iv.issue_date, ids: [] as string[],
-      };
-      cur.cnt += 1;
-      cur.amt += Number(iv.total_amount || 0);
-      cur.ids.push(iv.id);
-      if (iv.issue_date < cur.first) cur.first = iv.issue_date;
-      if (iv.issue_date > cur.last) cur.last = iv.issue_date;
-      m.set(pid, cur);
-    }
-    return [...m.values()]
-      .filter((c) => c.cnt >= CAND_MIN_COUNT && c.amt >= CAND_MIN_AMOUNT && !taken.has(c.partnerId) && !hiddenCands.includes(c.partnerId))
-      .sort((a, b) => b.amt - a.amt)
-      .slice(0, CAND_MAX);
-  }, [looseInvoices, deals, partnerName, hiddenCands]);
-
-  // 후보 → 프로젝트. 거래처·기간·금액이 채워진 채로 만들고, 근거가 된 계산서를 그 프로젝트로 옮긴다.
-  //   (연결은 세금계산서 화면에서 언제든 해제·변경할 수 있다)
-  const [bundling, setBundling] = useState<string | null>(null);
-  const bundleCandidate = async (c: Candidate) => {
-    if (!companyId || bundling) return;
-    setBundling(c.partnerId);
-    try {
-      const { data, error } = await (supabase).from("deals").insert({
-        company_id: companyId, status: "active", stage: "in_progress",
-        name: c.name, partner_id: c.partnerId, internal_manager_id: userId,
-        start_date: c.first, contract_total: c.amt,
-      }).select("id").single();
-      if (error) throw new Error(error.message);
-      const newId = data?.id as string | undefined;
-      if (newId) {
-        const { error: linkErr } = await (supabase).from("tax_invoices").update({ deal_id: newId }).in("id", c.ids);
-        if (linkErr) throw new Error(linkErr.message);
-      }
-      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
-      qc.invalidateQueries({ queryKey: ["projecthub-loose-invoices"] });
-      qc.invalidateQueries({ queryKey: ["projecthub-settle-rollup"] });
-      toast(`'${c.name}' 프로젝트를 만들고 계산서 ${c.cnt}건을 연결했습니다.`, "success");
-      if (newId) router.push(`/projecthub/${newId}`);
-    } catch (e: any) {
-      toast(e?.message || "프로젝트 생성 실패", "error");
-    } finally {
-      setBundling(null);
-    }
-  };
 
   // 제목줄 클릭 정렬 — 콕핏 기본값은 긴급도순(2026-07-22)
   type PSortKey = "urgency" | "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period";
@@ -701,8 +609,9 @@ export default function ProjectHubPage() {
         </div>
       </div>
 
-      {/* ① 한 문장 요약 + 제안 칩 — 숫자 타일보다 말이 먼저 온다(2026-08-03 개편 ②).
-          지금 챙길 게 없으면 그렇다고 말한다(빈 화면을 만들지 않는다). */}
+      {/* ① 한 문장 요약 — 숫자 타일보다 말이 먼저 온다(2026-08-03 개편 ②).
+          '미연결 거래' 제안은 뺐다(사장님 지시) — 프로젝트는 이제 입력하는 템플릿이 중심이라,
+          회계에서 후보를 역산해 권하는 줄은 성격이 다르다. */}
       <div className="ph-brief">
         <p className="ph-brief-line">
           {lensCounts.lateItems + lensCounts.soonItems === 0
@@ -714,20 +623,12 @@ export default function ProjectHubPage() {
                 {" 이 있어요."}
               </>}
         </p>
-        {(candidates.length > 0 || quietCount > 0) && (
+        {quietCount > 0 && (
           <div className="ph-brief-nudge">
-            {candidates.length > 0 && (
-              <button type="button" onClick={() => pickNudge("cand")}
-                className={`ph-nudge-chip ${nudge === "cand" ? "ph-nudge-chip-on" : ""}`}>
-                미연결 거래 <em>{candidates.length}</em>
-              </button>
-            )}
-            {quietCount > 0 && (
-              <button type="button" onClick={() => pickNudge("quiet")}
-                className={`ph-nudge-chip ${nudge === "quiet" ? "ph-nudge-chip-on" : ""}`}>
-                변동 없는 프로젝트 <em>{quietCount}</em>
-              </button>
-            )}
+            <button type="button" onClick={() => pickNudge("quiet")}
+              className={`ph-nudge-chip ${nudge === "quiet" ? "ph-nudge-chip-on" : ""}`}>
+              변동 없는 프로젝트 <em>{quietCount}</em>
+            </button>
           </div>
         )}
       </div>
@@ -760,28 +661,6 @@ export default function ProjectHubPage() {
         </div>
       </div>
 
-      {/* 묶을 만한 거래 — 후보가 없으면 줄 자체가 사라진다(빈 상태를 만들지 않는다) */}
-      {candidates.length > 0 && nudge === "cand" && (
-        <section className="ph-cands">
-          <div className="ph-cands-head">
-            <b>프로젝트에 안 묶인 거래</b>
-            <span>묶으면 거래처·기간·금액이 채워진 채로 프로젝트가 만들어져요.</span>
-          </div>
-          {candidates.map((c) => (
-            <div key={c.partnerId} className="ph-cand">
-              <span className="ph-cand-main">
-                <b>{c.name}</b>
-                <span>계산서 {c.cnt}건 · {fmtDate(c.first).slice(2).replace(/-/g, ".")} ~ {fmtDate(c.last).slice(2).replace(/-/g, ".")}</span>
-              </span>
-              <span className="ph-cand-amt mono-number">{won(c.amt)}</span>
-              <button type="button" className="ph-cand-go" disabled={!!bundling} onClick={() => bundleCandidate(c)}>
-                {bundling === c.partnerId ? "만드는 중…" : "프로젝트로 묶기"}
-              </button>
-              <button type="button" className="ph-cand-hide" title="이 거래처는 제안하지 않기" onClick={() => hideCandidate(c.partnerId)}>숨기기</button>
-            </div>
-          ))}
-        </section>
-      )}
 
       {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 대상이 없으면 아무것도 그리지 않는다.
           접혀 있어도 마운트는 한다 — 위 한 줄에 개수를 띄우려면 판정이 돌아야 한다. */}
@@ -799,7 +678,7 @@ export default function ProjectHubPage() {
         <PerformanceDashboard companyId={companyId} onClose={() => setShowDashboard(false)} />
       )}
 
-      {/* 만들면 바로 '표' 탭으로 — 이름만 받고 템플릿 고르기로 넘긴다(2026-08-03 기획 v2) */}
+      {/* 만들면 바로 템플릿 고르기로 — 이름만 받고 템플릿 고르기로 넘긴다(2026-08-03 기획 v2) */}
       {showCreate && companyId && (
         <ProjectFormModal
           companyId={companyId}
