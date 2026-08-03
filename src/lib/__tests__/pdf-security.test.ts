@@ -1,7 +1,7 @@
 // PDF 렌더 보안 회귀 — SSRF(자산 페치 allowlist) + XSS(sanitize).
 import { describe, it, expect } from "vitest";
 import { isAllowedAssetUrl } from "@/lib/pdf-fetch-guard";
-import { sanitizeDocumentHtml, sanitizePdfHtml } from "@/lib/sanitize-html";
+import { sanitizeAiContractHtml, sanitizeDocumentHtml, sanitizePdfHtml } from "@/lib/sanitize-html";
 
 const OV = "https://njbvdkuvtdtkxyylwngn.supabase.co";
 
@@ -48,5 +48,15 @@ describe("sanitize — XSS 가드", () => {
   it("javascript: URL 제거", () => {
     const out = sanitizeDocumentHtml('<a href="javascript:alert(1)">x</a>');
     expect(out).not.toContain("javascript:");
+  });
+  it("AI 계약서 초안은 외부 요청 태그와 임의 스타일을 제거", () => {
+    const out = sanitizeAiContractHtml(
+      '<h1 style="background:url(https://evil.example/x)">계약서</h1><img src="https://evil.example/pixel"><a href="https://evil.example">링크</a><p>본문</p>',
+    );
+    expect(out).toContain("계약서");
+    expect(out).toContain("본문");
+    expect(out).not.toContain("style=");
+    expect(out).not.toContain("<img");
+    expect(out).not.toContain("href=");
   });
 });

@@ -8,6 +8,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 import { logAudit } from './audit-log';
 import type { Json } from '@/types/models';
+import { sanitizeAiContractHtml } from './sanitize-html';
 
 // ── Document types ──
 export const DOC_TYPES = [
@@ -142,6 +143,66 @@ export async function createBlankDocument(params: {
     metadata: { source: 'blank', type: params.type },
   });
 
+  return data;
+}
+
+const AI_CONTRACT_TYPES = [
+  'contract', 'contract_service', 'contract_sales', 'contract_outsource',
+  'contract_labor', 'contract_lease', 'contract_partnership', 'nda',
+] as const;
+
+// AI 참모 첨부문서 기반 계약서 — 외부 발송·활성화 없이 문서함의 draft만 만든다.
+// 원본 파일/추출 텍스트는 저장하지 않고, 사용자가 확인한 정제 HTML과 출처 파일명만 보존한다.
+export async function createAiContractDraft(params: {
+  companyId: string;
+  createdBy: string;
+  name: string;
+  documentType: string;
+  bodyHtml: string;
+  variables?: string[];
+  sourceFiles?: string[];
+}) {
+  const body = sanitizeAiContractHtml(params.bodyHtml).trim();
+  if (!body) throw new Error('계약서 본문이 비어 있습니다.');
+  const contentType = AI_CONTRACT_TYPES.includes(params.documentType as (typeof AI_CONTRACT_TYPES)[number])
+    ? params.documentType
+    : 'contract';
+  const sourceFiles = (params.sourceFiles || [])
+    .map((name) => String(name).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 180))
+    .filter(Boolean)
+    .slice(0, 3);
+  const variables = Array.from(new Set((params.variables || [])
+    .map((name) => String(name).replace(/[{}]/g, '').trim().slice(0, 60))
+    .filter(Boolean)))
+    .slice(0, 50);
+  const name = params.name.trim().replace(/^\[AI 초안\]\s*/, '').slice(0, 100);
+  if (!name) throw new Error('계약서 이름이 비어 있습니다.');
+
+  const { data, error } = await supabase.from('documents').insert({
+    company_id: params.companyId,
+    name: `[AI 초안] ${name}`,
+    status: 'draft',
+    content_type: contentType,
+    content_json: {
+      type: contentType,
+      body,
+      variables,
+      metadata: { ai_generated: true, source_files: sourceFiles },
+    } as unknown as Json,
+    version: 1,
+    created_by: params.createdBy,
+  }).select().single();
+  if (error) throw error;
+
+  await logAudit({
+    company_id: params.companyId,
+    user_id: params.createdBy,
+    action: 'create',
+    entity_type: 'document',
+    entity_id: data.id,
+    entity_name: data.name,
+    metadata: { source: 'ai_attachment_draft', content_type: contentType, source_files: sourceFiles },
+  });
   return data;
 }
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Ico } from "@/components/ui-icon";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { getCurrentUser } from "@/lib/queries";
@@ -12,6 +12,15 @@ import { createContractPackage, sendContractPackage } from "@/lib/hr-contracts";
 import { createAttendanceEditRequest } from "@/lib/hr";
 import { kstLocalToIso } from "@/lib/kst";
 import { friendlyError } from "@/lib/friendly-error";
+import { sanitizeAiContractHtml } from "@/lib/sanitize-html";
+import { createAiContractDraft } from "@/lib/documents";
+import {
+  COPILOT_ATTACHMENT_ACCEPT,
+  COPILOT_MAX_ATTACHMENTS,
+  COPILOT_MAX_TOTAL_TEXT_CHARS,
+  extractCopilotAttachment,
+  type CopilotAttachment,
+} from "@/lib/copilot-attachments";
 
 // AI 참모 — 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리하는 읽기전용 AI.
 //   edge(owner-copilot)는 구조화 JSON(answer.headline/summary/actions/risks/opportunities/evidence) 반환.
@@ -41,7 +50,7 @@ type PendingAction = { tool: string; tier: "immediate" | "confirm"; label: strin
 type ActionState = "pending" | "running" | "done" | "cancelled" | "error";
 
 type AiMsg =
-  | { role: "user"; text: string }
+  | { role: "user"; text: string; attachments?: { name: string; truncated?: boolean }[] }
   | {
       role: "ai"; answer: Answer; model?: string; at: string; asOf?: string | null;
       action?: PendingAction | null; actionState?: ActionState; actionResult?: string;
@@ -81,6 +90,7 @@ function kstDay(iso?: string | null) {
 
 export default function CopilotPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: user } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
   const companyId = user?.company_id as string | undefined;
 
@@ -92,7 +102,10 @@ export default function CopilotPage() {
   const [planLocked, setPlanLocked] = useState(false);
   const [limitExceeded, setLimitExceeded] = useState(false);
   const [connErr, setConnErr] = useState(false);
+  const [attachments, setAttachments] = useState<CopilotAttachment[]>([]);
+  const [attaching, setAttaching] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 페이지 진입 시 DB에서 대화 기록 로드 (최근 MAX_HISTORY건)
   useEffect(() => {
@@ -161,6 +174,38 @@ export default function CopilotPage() {
       i === idx && msg.role === "ai" ? { ...msg, actionState: state, ...(result !== undefined ? { actionResult: result } : {}) } : msg
     ));
   }, []);
+
+  const addAttachments = useCallback(async (files: FileList | File[]) => {
+    const selected = Array.from(files);
+    if (!selected.length) return;
+    if (attachments.length + selected.length > COPILOT_MAX_ATTACHMENTS) {
+      toast(`파일은 최대 ${COPILOT_MAX_ATTACHMENTS}개까지 첨부할 수 있습니다.`, "error");
+      return;
+    }
+    setAttaching(true);
+    try {
+      const parsed: CopilotAttachment[] = [];
+      for (const file of selected) parsed.push(await extractCopilotAttachment(file));
+      const next = [...attachments, ...parsed];
+      const totalChars = next.reduce((sum, item) => sum + item.text.length, 0);
+      if (totalChars > COPILOT_MAX_TOTAL_TEXT_CHARS) {
+        throw new Error("첨부문서 내용이 너무 깁니다. 파일 수를 줄이거나 필요한 부분만 담아 주세요.");
+      }
+      setAttachments(next);
+      const truncated = parsed.filter((item) => item.truncated).length;
+      toast(
+        truncated > 0
+          ? `${parsed.length}개 파일을 읽었습니다. 긴 문서 ${truncated}개는 앞부분만 사용합니다.`
+          : `${parsed.length}개 파일을 읽었습니다.`,
+        "success",
+      );
+    } catch (error) {
+      toast(friendlyError(error, "파일을 읽지 못했습니다."), "error");
+    } finally {
+      setAttaching(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [attachments, toast]);
 
   /**
    * 액션 실행 — 기존 lib 함수를 그대로 호출한다.
@@ -295,21 +340,75 @@ export default function CopilotPage() {
         return;
       }
 
+      if (action.tool === "create_contract_draft_from_attachment") {
+        const a = action.args as {
+          name?: string;
+          document_type?: string;
+          body_html?: string;
+          variables?: string[];
+          source_files?: string[];
+        };
+        if (!a.name?.trim()) throw new Error("계약서 이름이 비어 있습니다.");
+        const bodyHtml = sanitizeAiContractHtml(a.body_html || "").trim();
+        if (!bodyHtml) throw new Error("계약서 본문이 비어 있습니다.");
+        const extractedVariables = Array.from(new Set(
+          (bodyHtml.match(/\{\{\s*[^}]+?\s*\}\}/g) || [])
+            .map((token) => token.replace(/[{}]/g, "").trim())
+            .filter(Boolean),
+        ));
+        const variables = Array.from(new Set([...(a.variables || []), ...extractedVariables])).slice(0, 50);
+        const name = a.name.trim().replace(/^\[AI 초안\]\s*/, "").slice(0, 100);
+        await createAiContractDraft({
+          companyId,
+          createdBy: user.id,
+          name,
+          documentType: a.document_type || "contract",
+          bodyHtml,
+          variables,
+          sourceFiles: a.source_files,
+        });
+        queryClient.invalidateQueries({ queryKey: ["documents"] });
+        setActionState(
+          idx,
+          "done",
+          `계약서 초안을 문서함에 저장했습니다. (${name}) 원문과 대조해 검토한 뒤 사용해 주세요.`,
+        );
+        return;
+      }
+
       throw new Error("지원하지 않는 액션입니다.");
     } catch (e) {
       setActionState(idx, "error", friendlyError(e, "실행에 실패했습니다."));
     }
-  }, [companyId, user?.id, setActionState]);
+  }, [companyId, user?.id, setActionState, queryClient]);
 
   const ask = useCallback(async (raw: string) => {
     const q = raw.trim();
-    if (!q || loading) return;
+    if ((!q && attachments.length === 0) || loading || attaching) return;
+    const sentAttachments = attachments;
+    const displayQuestion = q || "첨부한 문서를 분석해줘";
     setLimitExceeded(false);
     setLoading(true);
-    setMessages((m) => [...m, { role: "user", text: q }]);
+    setMessages((m) => [...m, {
+      role: "user",
+      text: displayQuestion,
+      attachments: sentAttachments.map((item) => ({ name: item.name, truncated: item.truncated })),
+    }]);
     setQuestion("");
+    setAttachments([]);
     try {
-      const { data, error } = await supabase.functions.invoke("owner-copilot", { body: { question: q } });
+      const { data, error } = await supabase.functions.invoke("owner-copilot", {
+        body: {
+          question: displayQuestion,
+          attachments: sentAttachments.map((item) => ({
+            name: item.name,
+            mime_type: item.mimeType,
+            size: item.size,
+            text: item.text,
+            truncated: item.truncated,
+          })),
+        },
+      });
       if (error) {
         const ctx = (error as { context?: Response })?.context;
         let code: string | undefined; let msg = "AI 참모 호출에 실패했습니다.";
@@ -318,6 +417,7 @@ export default function CopilotPage() {
         else if (code === "TOKEN_LIMIT") setLimitExceeded(true);
         else toast(msg, "error");
         setMessages((m) => m.slice(0, -1)); // 실패한 질문 카드 롤백
+        setAttachments(sentAttachments);
         return;
       }
       const d = data as { answer: Answer; model?: string; as_of?: string | null; action?: PendingAction | null };
@@ -336,7 +436,9 @@ export default function CopilotPage() {
       if (act && act.tier === "immediate" && aiIndex >= 0) void runAction(aiIndex, act);
       // DB에 대화 기록 저장 (company_id는 서버 트리거가 자동 채움)
       const insertPayload = {
-        query: q,
+        query: sentAttachments.length > 0
+          ? `${displayQuestion} [첨부: ${sentAttachments.map((item) => item.name).join(", ")}]`
+          : displayQuestion,
         answer: d.answer,
         as_of: d.as_of ?? null,
         model: d.model ?? null,
@@ -351,10 +453,11 @@ export default function CopilotPage() {
       toast("AI 참모 호출에 실패했습니다.", "error");
       setConnErr(true);
       setMessages((m) => m.slice(0, -1));
+      setAttachments(sentAttachments);
     } finally {
       setLoading(false);
     }
-  }, [loading, toast, refetchUsage, runAction]);
+  }, [attachments, attaching, loading, toast, refetchUsage, runAction]);
 
   const locked = planLocked || usage?.monthly_limit == null;
   const pct = usage?.usage_percent ?? 0;
@@ -411,7 +514,18 @@ export default function CopilotPage() {
               )}
               {messages.map((m, i) =>
                 m.role === "user" ? (
-                  <div key={i} className="copilot2-msg-user"><div className="copilot2-bubble-user">{m.text}</div></div>
+                  <div key={i} className="copilot2-msg-user">
+                    <div className="copilot2-bubble-user">
+                      {m.attachments && m.attachments.length > 0 && (
+                        <div className="copilot2-msg-files">
+                          {m.attachments.map((file) => (
+                            <span key={file.name}><Ico e="📎" /> {file.name}{file.truncated ? " (앞부분)" : ""}</span>
+                          ))}
+                        </div>
+                      )}
+                      {m.text}
+                    </div>
+                  </div>
                 ) : (
                   <AnswerCard key={i} msg={m} onRun={() => m.action && runAction(i, m.action)} onCancel={() => setActionState(i, "cancelled")} />
                 ),
@@ -437,19 +551,59 @@ export default function CopilotPage() {
                   ))}
                 </div>
 
+                {/* 첨부 파일 — 원본은 업로드하지 않고 브라우저에서 추출한 텍스트만 AI에 전달. */}
+                {attachments.length > 0 && (
+                  <div className="copilot2-attachment-strip">
+                    {attachments.map((file, index) => (
+                      <span key={`${file.name}-${index}`} className="copilot2-attachment-chip">
+                        <Ico e="📎" />
+                        <span className="truncate">{file.name}</span>
+                        <span className="copilot2-attachment-size">{Math.max(1, Math.round(file.size / 1024))}KB</span>
+                        <button
+                          type="button"
+                          aria-label={`${file.name} 첨부 삭제`}
+                          onClick={() => setAttachments((items) => items.filter((_, i) => i !== index))}
+                        >×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 {/* 입력창 */}
                 <div className="copilot2-input-row">
-                  <span className="copilot2-input-spark" aria-hidden><Ico e="✦" /></span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={COPILOT_ATTACHMENT_ACCEPT}
+                    multiple
+                    className="hidden"
+                    onChange={(event) => { if (event.target.files) void addAttachments(event.target.files); }}
+                  />
+                  <button
+                    type="button"
+                    className="copilot2-attach-btn"
+                    aria-label="파일 첨부"
+                    title="HWP·HWPX·PDF·Word·Excel·CSV·TXT 첨부"
+                    disabled={loading || attaching || attachments.length >= COPILOT_MAX_ATTACHMENTS}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {attaching ? <span className="copilot2-spinner" aria-hidden /> : <Ico e="📎" />}
+                  </button>
                   <textarea
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(question); } }}
                     placeholder="회사 상태에 대해 무엇이든 물어보세요 (Enter 전송 · Shift+Enter 줄바꿈)"
                     rows={1}
-                    disabled={loading}
+                    disabled={loading || attaching}
                     className="copilot2-input"
                   />
-                  <button onClick={() => ask(question)} disabled={loading || !question.trim()} className="copilot2-send" aria-label="전송">
+                  <button
+                    onClick={() => ask(question)}
+                    disabled={loading || attaching || (!question.trim() && attachments.length === 0)}
+                    className="copilot2-send"
+                    aria-label="전송"
+                  >
                     {loading ? <span className="copilot2-spinner" aria-hidden /> : "➤"}
                   </button>
                 </div>
@@ -469,6 +623,16 @@ export default function CopilotPage() {
 
 const APPROVAL_TYPE_LABEL: Record<string, string> = {
   expense_report: "지출결의서", approval_doc: "품의서", travel: "출장신청",
+};
+const CONTRACT_TYPE_LABEL: Record<string, string> = {
+  contract: "일반 계약서",
+  contract_service: "용역계약서",
+  contract_sales: "매매계약서",
+  contract_outsource: "업무위탁계약서",
+  contract_labor: "근로계약서",
+  contract_lease: "임대차계약서",
+  contract_partnership: "파트너십계약서",
+  nda: "비밀유지계약서",
 };
 
 /** 액션 카드 — immediate 는 진행/결과만, confirm 은 내용 확인 후 실행 버튼. */
@@ -549,6 +713,33 @@ function ActionCard({ msg, onRun, onCancel }: {
             </>
           );
         })()}
+        {act.tool === "create_contract_draft_from_attachment" && (() => {
+          const d = act.args as {
+            name?: string;
+            document_type?: string;
+            body_html?: string;
+            source_files?: string[];
+            variables?: string[];
+          };
+          return (
+            <>
+              <div><dt>초안명</dt><dd>{clean(d.name) || "—"}</dd></div>
+              <div><dt>유형</dt><dd>{CONTRACT_TYPE_LABEL[d.document_type || ""] || "계약서"}</dd></div>
+              <div><dt>원본</dt><dd>{d.source_files?.join(", ") || "첨부문서"}</dd></div>
+              <div><dt>변수</dt><dd>{d.variables?.length ? d.variables.map((v) => `{{${v}}}`).join(", ") : "없음"}</dd></div>
+              <div><dt>상태</dt><dd>문서함 초안 — 외부 발송 안 함</dd></div>
+              <div className="copilot2-contract-preview-row">
+                <dt>본문 미리보기</dt>
+                <dd>
+                  <div
+                    className="copilot2-contract-draft-preview"
+                    dangerouslySetInnerHTML={{ __html: sanitizeAiContractHtml(d.body_html || "") }}
+                  />
+                </dd>
+              </div>
+            </>
+          );
+        })()}
       </dl>
       <div className="copilot2-action-confirm-btns">
         <button onClick={onCancel} className="copilot2-action-cancel-btn">취소</button>
@@ -557,7 +748,9 @@ function ActionCard({ msg, onRun, onCancel }: {
         </button>
       </div>
       <div className="copilot2-action-note">
-        {act.tool === "create_employee_contract"
+        {act.tool === "create_contract_draft_from_attachment"
+          ? "AI가 만든 계약서는 법률 검토를 대신하지 않습니다. 원문과 대조하고 확인 필요 항목을 검토한 뒤 사용하세요."
+          : act.tool === "create_employee_contract"
           ? ((act.args as { send?: boolean }).send
               ? "발송하면 직원에게 서명 요청이 나가며 되돌릴 수 없습니다. 계약 내용은 회사 서식과 직원 정보로 자동 작성됩니다."
               : "계약 내용은 회사 서식과 직원 정보로 자동 작성됩니다.")
