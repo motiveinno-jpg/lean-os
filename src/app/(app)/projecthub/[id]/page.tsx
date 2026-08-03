@@ -751,9 +751,11 @@ export default function ProjectHubDetailPage() {
       const dueDates = openTasks.map((t) => (t.due_date ? String(t.due_date).slice(0, 10) : null)).filter(Boolean).sort() as string[];
       const purchases = (logRead('[id]/page:facts.purchases', buy) || []) as any[];
       const costNet = purchases.reduce((n, r) => n + Number(r.supply_amount || Math.round(Number(r.total_amount || 0) / 1.1)), 0);
-      const goalAmount = ((logRead('[id]/page:facts.kpis', kpi) || []) as any[])
-        .filter((k) => (k.unit || "원") === "원")
-        .reduce((n, k) => n + Number(k.target_value || 0), 0);
+      // 목표금액 = **대표 매출 목표 1개**. 합계로 잡으면 같은 매출을 자동/수동 두 지표로
+      //   재고 있을 때 목표가 두 배로 부풀어 오른다(실제 사례: 1,000만 목표가 2,000만으로 보임).
+      const moneyKpis = ((logRead('[id]/page:facts.kpis', kpi) || []) as any[]).filter((k) => (k.unit || "원") === "원");
+      const mainKpi = moneyKpis.find((k) => k.source === "revenue_auto") || moneyKpis[0];
+      const goalAmount = Number(mainKpi?.target_value || 0);
       return {
         costNet, goalAmount,
         taskCount: tasks.length,

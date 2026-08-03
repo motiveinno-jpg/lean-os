@@ -66,8 +66,11 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
 
   const tiles: { label: string; value: string; sub: string; icon: string; chip: string; tone?: "risk" | "ok" }[] = [
     goal > 0
-      ? { label: "목표 대비", icon: "🎯", chip: "pj-chip-a", value: goalPct != null ? `${goalPct}%` : "—",
-          sub: `목표 ${won(goal)} 대비`, tone: goalPct != null && goalPct >= 100 ? "ok" : undefined }
+      ? { label: "수주 달성", icon: "🎯", chip: "pj-chip-a", value: goalPct != null ? `${goalPct}%` : "—",
+          // 이 타일은 '계약이 목표를 얼마나 채웠나'다. 아래 '목표와 실적' 패널은 '실적이 얼마나
+          //   채웠나'로 다른 질문에 답한다 — 이름을 갈라 두 숫자를 헷갈리지 않게 한다(2026-08-03).
+          sub: contractInc > 0 ? `목표 ${won(goal)} · 계약 ${won(contractInc)}` : `목표 ${won(goal)} · 아직 계약 전`,
+          tone: goalPct != null && goalPct >= 100 ? "ok" : undefined }
       : { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contractInc > 0 ? won(contractInc) : "—",
           sub: contractInc > 0 ? "VAT 포함" : "아직 정하지 않았어요" },
     { label: "입금액", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "아직 발행 전이에요", tone: "ok" },

@@ -38,7 +38,7 @@ export const SECTION_TITLE: Record<SectionKey, string> = {
   flow: "진행 단계",
   money: "매출·비용",
   work: "업무",
-  goal: "목표와 실적",
+  goal: "목표별 실적",
   team: "구성원과 기록",
 };
 

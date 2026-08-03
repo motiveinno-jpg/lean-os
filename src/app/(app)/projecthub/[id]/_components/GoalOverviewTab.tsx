@@ -205,7 +205,7 @@ export function GoalOverviewTab({ deal, compact, onExpand }: { deal: any; compac
       <div className="goal-compact">
         <div className="goal-compact-top">
           <span className="goal-compact-pct" style={{ color: statusColor(overallPct) }}>{overallPct == null ? "—" : `${overallPct}%`}</span>
-          <span className="goal-compact-lbl">종합 달성률<em>{STATUS_META[status].label}{worst ? ` · ${worst.k.label} 가장 뒤처짐` : ""}</em></span>
+          <span className="goal-compact-lbl">실적 달성률 <span className="goal-compact-of">지표 {rows.length}개 평균</span><em>{STATUS_META[status].label}{worst ? ` · ${worst.k.label} 가장 뒤처짐` : ""}</em></span>
           {onExpand && <button type="button" className="goal-compact-more" onClick={onExpand}>자세히 보기 →</button>}
         </div>
         <ProgressBar pct={overallPct} height={6} />
@@ -227,7 +227,7 @@ export function GoalOverviewTab({ deal, compact, onExpand }: { deal: any; compac
     <div className="goal-overview">
       {/* ① 상태 요약 밴드 — 종합 달성률 · 상태 · 예상 착지 · 기간 */}
       <div className="goal-band glass-card">
-        <div className="goal-band-donut"><RadialGauge pct={overallPct} label="종합 달성률" size={104} /></div>
+        <div className="goal-band-donut"><RadialGauge pct={overallPct} label="실적 달성률" size={104} /></div>
         <div className="goal-band-sep" />
         <div className="goal-band-col">
           <span className="goal-band-lbl">상태</span>
