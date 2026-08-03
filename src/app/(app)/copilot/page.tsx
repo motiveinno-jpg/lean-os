@@ -362,16 +362,15 @@ export default function CopilotPage() {
           companyId,
           createdBy: user.id,
           name,
-          documentType: a.document_type || "contract",
           bodyHtml,
           variables,
           sourceFiles: a.source_files,
         });
-        queryClient.invalidateQueries({ queryKey: ["documents"] });
+        queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
         setActionState(
           idx,
           "done",
-          `계약서 초안을 문서함에 저장했습니다. (${name}) 원문과 대조해 검토한 뒤 사용해 주세요.`,
+          `계약서 초안을 전자계약 > 양식 관리에 저장했습니다. (${name}) 원문과 대조해 검토한 뒤 사용해 주세요.`,
         );
         return;
       }
@@ -727,7 +726,7 @@ function ActionCard({ msg, onRun, onCancel }: {
               <div><dt>유형</dt><dd>{CONTRACT_TYPE_LABEL[d.document_type || ""] || "계약서"}</dd></div>
               <div><dt>원본</dt><dd>{d.source_files?.join(", ") || "첨부문서"}</dd></div>
               <div><dt>변수</dt><dd>{d.variables?.length ? d.variables.map((v) => `{{${v}}}`).join(", ") : "없음"}</dd></div>
-              <div><dt>상태</dt><dd>문서함 초안 — 외부 발송 안 함</dd></div>
+              <div><dt>상태</dt><dd>전자계약 양식 초안 — 외부 발송 안 함</dd></div>
               <div className="copilot2-contract-preview-row">
                 <dt>본문 미리보기</dt>
                 <dd>

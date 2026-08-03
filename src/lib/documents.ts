@@ -146,27 +146,23 @@ export async function createBlankDocument(params: {
   return data;
 }
 
-const AI_CONTRACT_TYPES = [
-  'contract', 'contract_service', 'contract_sales', 'contract_outsource',
-  'contract_labor', 'contract_lease', 'contract_partnership', 'nda',
-] as const;
-
-// AI 참모 첨부문서 기반 계약서 — 외부 발송·활성화 없이 문서함의 draft만 만든다.
-// 원본 파일/추출 텍스트는 저장하지 않고, 사용자가 확인한 정제 HTML과 출처 파일명만 보존한다.
+// AI 참모 첨부문서 기반 계약서 — 외부 발송 없이 전자계약 > 양식 관리(contract_templates)에
+// 회사 양식으로 저장한다. 문서함(documents)은 파일 보관함 전용으로 단순화돼 documents 에
+// 넣으면 확인할 화면이 없다(2026-08-03 사장님 제보). 원본 파일/추출 텍스트는 저장하지 않고,
+// 사용자가 확인한 정제 HTML과 출처 파일명(감사로그)만 보존한다.
 export async function createAiContractDraft(params: {
   companyId: string;
   createdBy: string;
   name: string;
-  documentType: string;
   bodyHtml: string;
   variables?: string[];
   sourceFiles?: string[];
 }) {
   const body = sanitizeAiContractHtml(params.bodyHtml).trim();
   if (!body) throw new Error('계약서 본문이 비어 있습니다.');
-  const contentType = AI_CONTRACT_TYPES.includes(params.documentType as (typeof AI_CONTRACT_TYPES)[number])
-    ? params.documentType
-    : 'contract';
+  // AI 는 {{변수}} 이중 중괄호로 쓰지만 계약 양식 렌더러(renderTemplateWithVariables)는
+  // {변수} 단일 중괄호 규약 — 저장 시 변환해야 발송 때 치환된다.
+  const singleBraceBody = body.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, '{$1}');
   const sourceFiles = (params.sourceFiles || [])
     .map((name) => String(name).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 180))
     .filter(Boolean)
@@ -178,30 +174,26 @@ export async function createAiContractDraft(params: {
   const name = params.name.trim().replace(/^\[AI 초안\]\s*/, '').slice(0, 100);
   if (!name) throw new Error('계약서 이름이 비어 있습니다.');
 
-  const { data, error } = await supabase.from('documents').insert({
+  const { data, error } = await supabase.from('contract_templates').insert({
     company_id: params.companyId,
     name: `[AI 초안] ${name}`,
-    status: 'draft',
-    content_type: contentType,
-    content_json: {
-      type: contentType,
-      body,
-      variables,
-      metadata: { ai_generated: true, source_files: sourceFiles },
-    } as unknown as Json,
-    version: 1,
+    body_html: singleBraceBody,
+    file_type: 'html',
+    variables,
+    sort_order: 100,
+    is_system: false,
     created_by: params.createdBy,
-  }).select().single();
+  } as never).select().single();
   if (error) throw error;
 
   await logAudit({
     company_id: params.companyId,
     user_id: params.createdBy,
     action: 'create',
-    entity_type: 'document',
-    entity_id: data.id,
-    entity_name: data.name,
-    metadata: { source: 'ai_attachment_draft', content_type: contentType, source_files: sourceFiles },
+    entity_type: 'contract_template',
+    entity_id: (data as any).id,
+    entity_name: (data as any).name,
+    metadata: { source: 'ai_attachment_draft', source_files: sourceFiles },
   });
   return data;
 }
