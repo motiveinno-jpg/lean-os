@@ -74,7 +74,12 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
       : { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contractInc > 0 ? won(contractInc) : "—",
           sub: contractInc > 0 ? "VAT 포함" : "아직 정하지 않았어요" },
     { label: "입금액", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "아직 발행 전이에요", tone: "ok" },
-    { label: "미수금", icon: "⏳", chip: "pj-chip-c", value: out > 1 ? won(out) : "없음", sub: out > 1 ? "발행 후 입금 확인 전" : "모두 들어왔어요", tone: out > 1 ? "risk" : undefined },
+    // 발행이 아예 없으면 '없음'이 아니라 '—' 다 — 다 받은 것과 아직 청구를 안 한 것은 다르다
+    //   (2026-08-03 사장님 지적: 입금액·마진은 '—'인데 미수금만 '없음'이라 기준이 달라 보였다)
+    { label: "미수금", icon: "⏳", chip: "pj-chip-c",
+      value: out > 1 ? won(out) : billed > 0 ? "없음" : "—",
+      sub: out > 1 ? "발행 후 입금 확인 전" : billed > 0 ? "모두 들어왔어요" : "아직 발행 전이에요",
+      tone: out > 1 ? "risk" : undefined },
     {
       label: "마진", icon: "📈", chip: "pj-chip-d",
       value: revenueNet > 0 ? won(marginNet) : "—",
