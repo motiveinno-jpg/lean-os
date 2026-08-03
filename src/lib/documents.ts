@@ -54,6 +54,37 @@ export async function nextQuoteNumber(companyId: string): Promise<string> {
   return `${today}-${maxN + 1}`;
 }
 
+// ── 프로젝트 템플릿 행 → 견적서 ──
+//   '매출 · 청구' 템플릿의 한 줄에서 바로 견적서를 만든다(2026-08-03 사장님: "입력은 무조건
+//   템플릿으로"). 문서 자체는 기존 편집기가 그대로 맡고, 여기서는 껍데기만 만들어 연결한다.
+const QUOTE_SKELETON = {
+  title: "견적서",
+  sections: [
+    { title: "견적 정보", content: "공급자: {{회사명}} (대표: {{대표자명}})\n수신: {{거래처명}}\n견적일자: {{견적일자}}\n유효기간: {{유효기간}}" },
+    { title: "견적 품목", content: "[품목 테이블]\n\n※ 품목은 문서 생성 후 품목 편집 테이블에서 추가해 주세요.\n각 품목의 공급가액, 세액(10%), 합계가 자동 계산됩니다." },
+    { title: "거래 조건", content: "납품 조건: {{납품조건}}\n결제 조건: {{결제조건}}\n\n※ 상기 금액은 부가가치세 별도 금액이며, 세금계산서를 발행합니다." },
+  ],
+};
+
+export async function createQuoteForDeal(params: {
+  companyId: string; dealId: string; userId: string; name: string;
+}): Promise<{ id: string; document_number: string | null }> {
+  const { data, error } = await supabase.from("documents").insert({
+    company_id: params.companyId,
+    deal_id: params.dealId,
+    sub_deal_id: null,
+    name: params.name,
+    status: "draft",
+    document_number: await nextQuoteNumber(params.companyId),
+    content_type: "invoice",
+    content_json: QUOTE_SKELETON as unknown as Json,
+    version: 1,
+    created_by: params.userId,
+  }).select("id, document_number").single();
+  if (error) throw new Error(error.message);
+  return data as any;
+}
+
 // ── Create document from template ──
 export async function createFromTemplate(params: {
   companyId: string;

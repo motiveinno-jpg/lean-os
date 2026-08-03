@@ -35,8 +35,10 @@ const STATUS_LABEL: Record<string, string> = Object.fromEntries(STATUS_OPTS.map(
 type Draft = { name: string; sign: "plus" | "minus"; amount: string; partner_id: string; ptSearch: string; vat: "exclude" | "include"; status: string; asCampaign: boolean };
 const emptyDraft = (sign: "plus" | "minus" = "plus"): Draft => ({ name: "", sign, amount: "", partner_id: "", ptSearch: "", vat: "exclude", status: "estimate", asCampaign: false });
 
-export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
+export function SubDealsTab({ dealId, companyId, direction, campaignInherit, readOnly }: {
   dealId: string; companyId: string | null; direction?: "sales" | "purchase";
+  /** 지난 입력을 보기만 — 새 입력은 '매출 · 청구'·'비용 · 지출' 템플릿에서 한다(2026-08-03) */
+  readOnly?: boolean;
   // 상위(최상위) 프로젝트에서만 전달 — 항목 추가 시 '세부 프로젝트(캠페인)로도 생성' 옵션.
   campaignInherit?: { partnerId: string | null; managerId: string | null; classification: string | null } | null;
 }) {
@@ -191,7 +193,7 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
             {isLoading ? (
               <tr><td colSpan={6} className="p-8 text-center text-[var(--text-muted)]">불러오는 중…</td></tr>
             ) : shown.length === 0 ? (
-              <tr><td colSpan={6} className="p-8 text-center text-sm text-[var(--text-muted)]">항목이 없습니다. 아래 줄에 바로 입력하세요.</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-sm text-[var(--text-muted)]">{readOnly ? "이 방식으로 입력한 항목이 없습니다." : "항목이 없습니다. 아래 줄에 바로 입력하세요."}</td></tr>
             ) : shown.map((s) => {
               const amt = Number(s.contract_amount || 0);
               const isPurchase = s.type === "purchase";
@@ -207,7 +209,9 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
               return (
                 <tr key={s.id} className="subdeals-row">
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40">
-                    <button onClick={() => startEdit(s)} className="text-[var(--text)] font-medium hover:text-[var(--primary)] hover:underline text-left">{s.name}</button>
+                    {readOnly
+                      ? <span className="text-[var(--text)] font-medium">{s.name}</span>
+                      : <button onClick={() => startEdit(s)} className="text-[var(--text)] font-medium hover:text-[var(--primary)] hover:underline text-left">{s.name}</button>}
                     {s.parent_deal_id !== dealId && (
                       <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap" title="하위 프로젝트 소속 항목"><Ico e="📁" /> {childNameById[s.parent_deal_id] || "하위"}</span>
                     )}
@@ -220,19 +224,20 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit }: {
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-right mono-number text-[var(--text-muted)]" title="전표에서 이 항목으로 귀속한 실적원가">{actualCost(s.id) ? Number(actualCost(s.id)).toLocaleString("ko-KR") : "—"}</td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center"><span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{STATUS_LABEL[s.status || ""] || "—"}</span></td>
                   <td className="px-3 py-2.5 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
-                    <button onClick={() => startEdit(s)} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]">수정</button>
-                    <button onClick={async () => { if (await appConfirm(`'${s.name}' 항목을 삭제할까요?`, { danger: true })) delMut.mutate(s.id); }} className="ml-1 px-2 py-1 text-[11px] font-semibold rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>
+                    {/* 읽기 전용에서도 지우는 건 남긴다 — 잘못 들어간 옛 항목을 정리할 길은 있어야 한다 */}
+                    {!readOnly && <button onClick={() => startEdit(s)} className="px-2 py-1 text-[11px] font-semibold rounded text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]">수정</button>}
+                    <button onClick={async () => { if (await appConfirm(`'${s.name}' 항목을 삭제할까요?`, { danger: true })) delMut.mutate(s.id); }} className={`${readOnly ? "" : "ml-1 "}px-2 py-1 text-[11px] font-semibold rounded text-[var(--danger)] hover:bg-[var(--danger)]/10`}>삭제</button>
                   </td>
                 </tr>
               );
             })}
-            {/* 인라인 추가 행 */}
-            <tr className="subdeals-add-row">
+            {/* 인라인 추가 행 — 읽기 전용이면 없다(새 입력은 템플릿에서) */}
+            {!readOnly && <tr className="subdeals-add-row">
               <RowInputs draft={draft} setDraft={setDraft} partners={partners} onEnter={() => addMut.mutate()} placeholderName="＋ 항목명 입력…" />
               <td className="px-2 py-2 border-b border-[var(--border)]/40 text-center whitespace-nowrap">
                 <button onClick={() => addMut.mutate()} disabled={addMut.isPending || !draft.name.trim()} className="px-2.5 py-1 text-[11px] font-semibold rounded bg-[var(--primary)] text-white disabled:opacity-40">추가</button>
               </td>
-            </tr>
+            </tr>}
           </tbody>
           <tfoot>
             <tr className="subdeals-totals-row">

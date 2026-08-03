@@ -627,32 +627,6 @@ export default function ProjectHubDetailPage() {
       setCreatingQuote(false);
     }
   };
-  // ★ 협력사 견적 수취(인바운드/매입) — content_json.direction='purchase' 로 매입 방향 견적 등록 (Phase 4)
-  const createInboundQuote = async () => {
-    if (!companyId || !userId || creatingQuote) return;
-    setCreatingQuote(true);
-    try {
-      const { data, error } = await db.from("documents").insert({
-        company_id: companyId,
-        deal_id: dealId,
-        sub_deal_id: null,
-        name: "협력사 견적서",
-        status: "draft",
-        document_number: await nextQuoteNumber(companyId),
-        content_type: "invoice",
-        content_json: { ...QUOTE_CONTENT, direction: "purchase", title: "협력사 견적서" },
-        version: 1,
-        created_by: userId,
-      }).select("id").single();
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["projecthub-docs", dealId] });
-      if (data?.id) router.push(`/documents?id=${data.id}`);
-    } catch (e: any) {
-      toast(e?.message || "협력사 견적 등록 실패", "error");
-    } finally {
-      setCreatingQuote(false);
-    }
-  };
   // 양식 목록(계약서/견적서 등) — 없으면 기본양식 1회 시드
   const { data: docTemplates = [], isSuccess: templatesLoaded } = useQuery({
     queryKey: ["projecthub-doc-templates", companyId],
@@ -1305,7 +1279,8 @@ export default function ProjectHubDetailPage() {
         {/* 제목·설명 없이 바로 템플릿 탭 (2026-08-03 사장님: "프로젝트명 밑에 '표'라는 글자와
             설명이 필요할까? 바로 템플릿이 나오면 될 것 같아") */}
         <PjSection k="boards" bare inTab={TAB_OF_SECTION(sec).secs.includes("boards")} active={sec === "boards"} onSeen={markSecOpen}>
-          {!companyId ? null : <ProjectBoards dealId={dealId} companyId={companyId} users={companyUsers as any[]} />}
+          {!companyId ? null : <ProjectBoards dealId={dealId} companyId={companyId} users={companyUsers as any[]}
+            dealName={deal?.name || ""} userId={userId || undefined} />}
         </PjSection>
 
         {/* 개요 대시보드 — 지표 타일이 맨 위, 차트는 '지금 챙길 것' 아래(2026-08-03 사장님 지시:
@@ -1461,10 +1436,17 @@ export default function ProjectHubDetailPage() {
       {viewOf("money") === "ledger" && companyId && (
         <div className="transactions-ledger-section">
           <div className="transactions-ledger-header">
-            <h3 className="text-sm font-bold text-[var(--text)]">거래 원장</h3>
+            <h3 className="text-sm font-bold text-[var(--text)]">거래 원장 <span className="font-normal text-[var(--text-dim)]">— 지난 입력</span></h3>
             <span className="text-[11px] text-[var(--text-dim)]">매출·매입 항목 · 마진 산정 기준</span>
           </div>
-          <SubDealsTab dealId={dealId} companyId={companyId}
+          {/* 읽기 전용 — 매출·비용 입력은 템플릿에서만 한다(2026-08-03 사장님:
+              "이제 입력은 무조건 템플릿으로. 지금은 이전 로직이 같이 살아 있어 혼동을 준다").
+              이미 들어온 항목은 마진 계산에 계속 쓰이므로 지우지 않고 보이기만 한다. */}
+          <p className="pj-input-note">
+            새 매출·비용은 <b>&apos;매출 · 청구&apos;</b>·<b>&apos;비용 · 지출&apos;</b> 템플릿에서 입력해요.
+            <button type="button" onClick={() => goSection("boards")}>템플릿으로 →</button>
+          </p>
+          <SubDealsTab dealId={dealId} companyId={companyId} readOnly
             campaignInherit={{ partnerId: deal?.partner_id || null, managerId: deal?.internal_manager_id || null, classification: deal?.classification || null }} />
         </div>
       )}
@@ -1476,15 +1458,14 @@ export default function ProjectHubDetailPage() {
             견적 승인 시 계약서 자동 생성 (회사 전체 설정)
           </label>
           <div className="quote-list-toolbar">
+            {/* 견적서 '만들기' 는 여기서 뺐다 — '매출 · 청구' 템플릿의 행에서 시작한다(2026-08-03).
+                만들어진 문서를 보고 고치는 자리는 그대로 둔다. */}
             <p className="text-xs text-[var(--text-muted)]">이 프로젝트의 견적서·연결 문서입니다. <span className="text-[var(--text-dim)]">견적No.를 클릭하면 수정 화면으로 이동합니다.</span></p>
             <div className="quote-list-actions">
+              <button type="button" onClick={() => goSection("boards")} className="btn-primary text-xs">＋ 템플릿에서 시작</button>
               {companyId && <button onClick={() => setTplManagerKind("quote")} className="btn-secondary text-xs"><Ico e="📄" /> 양식 관리</button>}
               <button onClick={() => setShowColSettings((v) => !v)}
                 className="btn-secondary text-xs"><Ico e="⚙" /> 열 설정</button>
-              <button onClick={createQuoteInstant} disabled={creatingQuote}
-                className="btn-primary text-xs hover:opacity-90">{creatingQuote ? "생성 중..." : "+ 견적서 작성"}</button>
-              <button onClick={createInboundQuote} disabled={creatingQuote} className="btn-secondary text-xs"
-                title="협력사가 보낸 견적을 매입으로 등록합니다">협력사 견적 등록</button>
               {showColSettings && (
                 <>
                   <div className="fixed inset-0 z-[60]" onClick={() => setShowColSettings(false)} />

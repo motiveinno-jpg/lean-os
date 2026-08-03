@@ -5800,3 +5800,14 @@ td .rounded-full { white-space: nowrap; }
 .pb-col-unit { @apply w-10 shrink-0 bg-transparent border border-transparent rounded px-1 text-[10px] text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]; }
 .pb-col-x { @apply shrink-0 w-4 text-[9px] text-[var(--text-dim)] opacity-0 hover:!text-[var(--danger)]; }
 th:hover .pb-col-x { @apply opacity-100; }
+
+/* 매출 · 청구 템플릿 — 행에서 바로 견적서 (2026-08-03) */
+.pb-th-doc { @apply w-24 text-[10.5px] font-bold text-[var(--text-dim)]; }
+.pb-td-doc { @apply w-24; }
+.pb-doc-new { @apply w-full h-7 px-2 rounded-lg border border-dashed border-[var(--border)] text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)] disabled:opacity-40; }
+.pb-doc-open { @apply w-full h-7 px-2 rounded-lg bg-[var(--primary)]/10 text-[11px] font-bold text-[var(--primary)] truncate hover:bg-[var(--primary)]/20; }
+
+/* 입력은 템플릿에서 — 지난 입력 화면에 붙는 안내 (2026-08-03) */
+.pj-input-note { @apply flex flex-wrap items-center gap-x-2 gap-y-1 px-3.5 py-2.5 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20 text-[12px] text-[var(--text-muted)]; }
+.pj-input-note b { @apply text-[var(--text)] font-bold; }
+.pj-input-note > button { @apply ml-auto text-[12px] font-bold text-[var(--primary)] hover:underline; }

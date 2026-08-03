@@ -108,6 +108,25 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     groups: [{ name: "지출 목록", color: C.indigo }],
   },
   {
+    key: "billing",
+    name: "매출 · 청구",
+    desc: "받을 돈을 견적 → 계약 → 발행 → 입금 으로",
+    uses: "프로젝트 매출 · 청구 · 수금 · 기성 청구",
+    columns: [
+      { name: "거래처", type: "partner" },
+      { name: "금액", type: "number", settings: { unit: "원" } },
+      { name: "예정일", type: "date" },
+      { name: "담당", type: "person" },
+      { name: "비고", type: "text" },
+    ],
+    // 단계가 곧 그룹이다 — 견적을 만들고 계약으로, 계약을 계산서로 옮기며 관리한다.
+    //   이 템플릿의 행에서는 견적서를 바로 만들 수 있다(ProjectBoards 의 문서 셀).
+    groups: [
+      { name: "견적", color: C.gray }, { name: "계약", color: C.indigo },
+      { name: "발행", color: C.purple }, { name: "입금", color: C.green },
+    ],
+  },
+  {
     key: "pipeline",
     name: "수주 · 매출",
     desc: "들어올 돈을 단계로 관리",
@@ -164,13 +183,17 @@ export const BLANK_TEMPLATE: BoardTemplate = {
   groups: [{ name: "그룹 1", color: C.indigo }],
 };
 
+/** '매출 · 청구' 행에 붙는 견적서 연결 — 컬럼이 아니라 예약 키로 값에 담는다
+ *  (사용자가 컬럼을 지워도 연결이 끊기지 않게). { id, no } */
+export const DOC_VALUE_KEY = "__quote";
+
 export function findTemplate(key: string | null | undefined): BoardTemplate {
   return BOARD_TEMPLATES.find((t) => t.key === key) || BLANK_TEMPLATE;
 }
 
 /** 첫 컬럼(행 이름)은 표마다 이름이 다르다 — 템플릿별 라벨 */
 export const ITEM_LABEL: Record<string, string> = {
-  todo: "작업", budget: "항목", cost: "항목", pipeline: "건명", review: "요청", schedule: "이름", blank: "이름",
+  todo: "작업", budget: "항목", cost: "항목", billing: "청구 건", pipeline: "건명", review: "요청", schedule: "이름", blank: "이름",
 };
 
 export type BoardColumn = { id: string; board_id: string; name: string; type: ColType; settings: any; position: number };

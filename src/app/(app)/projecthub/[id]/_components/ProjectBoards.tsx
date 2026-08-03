@@ -17,9 +17,11 @@ import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
 import { getPartners, upsertPartner } from "@/lib/partners";
+import { createQuoteForDeal } from "@/lib/documents";
+import { useRouter } from "next/navigation";
 import { todayKst } from "@/lib/kst";
 import {
-  BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary,
+  BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
 
@@ -29,9 +31,12 @@ import {
 const db = supabase as any;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 
-export function ProjectBoards({ dealId, companyId, users }: {
+export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
   dealId: string; companyId: string; users: { id: string; name: string }[];
+  /** '매출 · 청구' 행에서 견적서를 만들 때 쓴다 */
+  dealName?: string; userId?: string;
 }) {
+  const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [activeId, setActiveId] = useState<string>("");
@@ -191,6 +196,29 @@ export function ProjectBoards({ dealId, companyId, users }: {
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
 
+  // 행 → 견적서. '매출 · 청구' 템플릿에서만 쓴다(2026-08-03 사장님: "입력은 무조건 템플릿으로").
+  //   문서 자체는 기존 편집기가 맡는다 — 여기서는 만들고 연결한 뒤 그리로 보낸다.
+  const [makingDoc, setMakingDoc] = useState<string | null>(null);
+  const openQuote = async (it: BoardItem) => {
+    const linked = (it.values || {})[DOC_VALUE_KEY] as { id?: string } | undefined;
+    if (linked?.id) { router.push(`/documents?id=${linked.id}`); return; }
+    if (!userId || makingDoc) return;
+    setMakingDoc(it.id);
+    try {
+      const doc = await createQuoteForDeal({
+        companyId, dealId, userId,
+        name: `${it.name?.trim() || dealName || "프로젝트"} 견적서`,
+      });
+      await db.from("project_board_items")
+        .update({ values: { ...(it.values || {}), [DOC_VALUE_KEY]: { id: doc.id, no: doc.document_number } }, updated_at: new Date().toISOString() })
+        .eq("id", it.id);
+      qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+      router.push(`/documents?id=${doc.id}`);
+    } catch (e: any) {
+      toast(e?.message || "견적서 생성 실패", "error");
+    } finally { setMakingDoc(null); }
+  };
+
   const removeColumn = async (c: BoardColumn) => {
     if (!window.confirm(`'${c.name}' 컬럼을 지울까요? 이 컬럼에 넣은 값도 화면에서 사라집니다.`)) return;
     await db.from("project_board_columns").delete().eq("id", c.id);
@@ -276,6 +304,8 @@ export function ProjectBoards({ dealId, companyId, users }: {
   }
 
   const nameLabel = ITEM_LABEL[board?.template_key || "blank"] || "이름";
+  //   '매출 · 청구' 만 행에서 견적서를 만든다 — 다른 템플릿에 문서 열을 붙이면 군더더기다
+  const isBilling = board?.template_key === "billing";
   const numberCols = cols.filter((c) => c.type === "number");
 
   return (
@@ -357,6 +387,7 @@ export function ProjectBoards({ dealId, companyId, users }: {
                         </span>
                       </th>
                     ))}
+                    {isBilling && <th className="pb-th-doc">견적서</th>}
                     <th className="pb-th-x" />
                   </tr>
                 </thead>
@@ -376,13 +407,25 @@ export function ProjectBoards({ dealId, companyId, users }: {
                             onSave={(v) => saveValue(it, c.id, v)} />
                         </td>
                       ))}
+                      {isBilling && (
+                        <td className="pb-td-doc">
+                          {(() => {
+                            const linked = (it.values || {})[DOC_VALUE_KEY] as { id?: string; no?: string } | undefined;
+                            if (linked?.id) return <button type="button" className="pb-doc-open" onClick={() => openQuote(it)}>{linked.no || "견적서 열기"}</button>;
+                            return (
+                              <button type="button" className="pb-doc-new" disabled={makingDoc === it.id || !userId}
+                                onClick={() => openQuote(it)}>{makingDoc === it.id ? "만드는 중…" : "＋ 견적서"}</button>
+                            );
+                          })()}
+                        </td>
+                      )}
                       <td className="pb-td-x">
                         <button type="button" className="pb-x" title="행 삭제" onClick={() => removeItem(it)}>✕</button>
                       </td>
                     </tr>
                   ))}
                   <tr>
-                    <td colSpan={cols.length + 2} className="pb-add" onClick={() => addItem(g.id)}>＋ {nameLabel} 추가</td>
+                    <td colSpan={cols.length + (isBilling ? 3 : 2)} className="pb-add" onClick={() => addItem(g.id)}>＋ {nameLabel} 추가</td>
                   </tr>
                   {rows.length > 0 && numberCols.length > 0 && (
                     <tr className="pb-sum">
@@ -392,6 +435,7 @@ export function ProjectBoards({ dealId, companyId, users }: {
                           {c.type === "number" ? won(sumColumn(rows, c.id)) : ""}
                         </td>
                       ))}
+                      {isBilling && <td />}
                       <td />
                     </tr>
                   )}
