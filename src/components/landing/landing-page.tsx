@@ -110,7 +110,7 @@ const MOBILE_OF: Record<string, string> = {
   "/product/f-settlement-v3.png":"/product/m-settlement-v2.png",
   "/product/f-payroll-v3.png":        "/product/m-payroll-v2.png",
   "/product/f-flow-v3.png":      "/product/m-outlook-v2.png",
-  "/product/f-projects-v3.png":  "/product/m-hub-v2.png",
+  "/product/f-projects-v4.png":  "/product/m-hub-v3.png",
   "/product/f-acct-v3.png":      "/product/m-analytics-v2.png",
   "/product/f-bank-v3.png":      "/product/m-bank-v2.png",
   "/product/f-hr-v3.png":     "/product/m-leave-v2.png",
@@ -124,7 +124,7 @@ const MOBILE_OF: Record<string, string> = {
  *   /features 는 계속 전체 화면(f-*.png)을 쓰므로 파일을 따로 둔다. */
 
 const CORE_SHOT: Record<string, string> = {
-  "/product/f-projects-v3.png":   "/product/c-projects-v2.png",
+  "/product/f-projects-v4.png":   "/product/c-projects-v3.png",
   "/product/f-estimate-v3.png":   "/product/c-estimate-v2.png",
   "/product/f-settlement-v3.png": "/product/c-settlement-v2.png",
   "/product/f-acct-v3.png":       "/product/c-acct-v2.png",

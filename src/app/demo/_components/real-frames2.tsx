@@ -35,24 +35,28 @@ const D = "—";
 //         "지금 챙길 것" 4카드(위험·지연 / 이번 주 마감 / 진행중 / 내 미수금) / 회사 전체 미수금 / 목록
 export function ProjectHubPanel({ before = false }: { before?: boolean }) {
   const v = (x: string) => (before ? D : x);
-  const rows = [
-    { t: "수익형", st: "진행", n: "하늘건설 사옥 리뉴얼", c: "(주)하늘건설" },
-    { t: "목표형", st: "진행", n: "26년 상반기 매출 목표", c: "사내" },
-    { t: "✅ 실행형", st: "검토", n: "오너뷰 개발 프로젝트", c: "사내" },
+  /* ⚠️ 2026-08-03 최신화: 실제 화면에서 유형 3분할(💰수익형·🎯목표형·✅실행형)이 폐지됐다.
+     대신 같은 목록을 다르게 보는 "보기 전환"(카드·표·보드·타임라인·차트·캘린더)이 들어갔고,
+     카드에는 유형 배지 자리에 "지금 상태"(지연 있음 / 대표 지표)가 온다. 그 구조로 맞춘다. */
+  const cards = [
+    { n: "하늘건설 사옥 리뉴얼", p: "(주)하늘건설", m: "김대표", flag: "지연 있음", risk: true,
+      stage: "진행", metric: "진행률", pct: 62, label: "62%", next: "잔금 청구", dday: "D-3", foot: "계약 ₩277,200,000 (VAT별도)" },
+    { n: "26년 상반기 매출 목표", p: "사내", m: "박서연", flag: "달성률", risk: false,
+      stage: "진행", metric: "달성률", pct: 78, label: "78%", next: "주간 체크인 작성", dday: "D-1", foot: "2026·01·01 ~ 06·30" },
+    { n: "오너뷰 개발 프로젝트", p: "사내", m: "이준호", flag: "지표 없음", risk: false,
+      stage: "검토", metric: "", pct: 0, label: "", next: "킥오프 일정 잡기", dday: "D-7", foot: "기간 미정" },
   ];
   return (
     <section className="pp glass-card" id={before ? "pp-hub-b" : "pp-hub"}>
       <Head
         crumb="워크스페이스 › 프로젝트"
         title="지금 챙길 것부터 보여줘요"
-        sub="수익형·목표형·실행형으로 나눠 관리하고, 위험한 건은 위로 올려요."
-        tabs={["내 담당", "전체"]}
+        sub="같은 프로젝트를 카드·표·보드·타임라인으로 골라 봐요. 위험한 건은 위로 올라와요."
+        tabs={["카드", "표", "보드", "타임라인", "차트", "캘린더"]}
       />
       <div className="pp-filter pp-mt">
-        <span className="pp-chip-on">전체 {v("3")}</span>
-        <span className="pp-chip-off"><Ico e="💰" /> 수익형 {v("1")}</span>
-        <span className="pp-chip-off"><Ico e="🎯" /> 목표형 {v("1")}</span>
-        <span className="pp-chip-off"><Ico e="✅" /> 실행형 {v("1")}</span>
+        <span className="pp-chip-off">최근 활동순 ▼</span>
+        <span className="pp-chip-off">성과 대시보드</span>
         <span className="pp-btn pp-btn-ai">+ 프로젝트 생성</span>
       </div>
 
@@ -64,24 +68,30 @@ export function ProjectHubPanel({ before = false }: { before?: boolean }) {
         <div className="pp-mini"><span>내 미수금</span><b>{v("₩12,000,000")}</b><i>발행했지만 미입금 · 1건</i></div>
       </div>
 
-      <div className="pp-notice">
-        <span><Ico e="💸" /> <b>회사 전체 미수금</b> — 계산서는 발행했지만 아직 통장에 입금 안 된 금액 (매칭 기준)</span>
-        <b>{v("₩44,002,200")}</b>
+      <div className="pp-section-t">프로젝트</div>
+      <div className="pp-pjgrid">
+        {cards.map((c) => (
+          <div key={c.n} className="pp-pj">
+            <div className="pp-pj-top">
+              <span className={c.risk ? "pp-pj-flag" : "pp-pj-flag-off"}>{before ? D : c.flag}</span>
+              <span className="pp-tag pp-tag-s">{c.stage}</span>
+            </div>
+            <div className="pp-pj-n">{c.risk && <i className="pp-pj-dot">●</i>}{c.n}</div>
+            <div className="pp-pj-meta">🏢 {c.p} · 👤 {c.m}</div>
+            {c.metric ? (
+              <div className="pp-pj-bar">
+                <span>{c.metric}</span>
+                <i><b style={{ width: before ? "0%" : `${c.pct}%` }} className={c.risk ? "pp-pj-bar-risk" : ""} /></i>
+                <em>{v(c.label)}</em>
+              </div>
+            ) : <div className="pp-pj-bar pp-pj-bar-empty"><span>지표 없음</span></div>}
+            <div className={c.risk ? "pp-pj-next pp-pj-next-warn" : "pp-pj-next"}>
+              <span>다음: {c.next}</span><em>{before ? "—" : c.dday}</em>
+            </div>
+            <div className="pp-pj-foot"><span>{v(c.foot)}</span><em>열기 →</em></div>
+          </div>
+        ))}
       </div>
-
-      <table className="pp-table">
-        <thead><tr><th>유형</th><th>프로젝트명</th><th>거래처</th><th>단계</th></tr></thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.n}>
-              <td><span className="pp-tag pp-tag-n">{r.t}</span></td>
-              <td className="pp-strong">{r.n}</td>
-              <td>{r.c}</td>
-              <td>{before ? <span className="pp-tag pp-tag-n">불러오는 중</span> : <span className="pp-tag pp-tag-s">{r.st}</span>}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </section>
   );
 }

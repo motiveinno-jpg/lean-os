@@ -26,7 +26,7 @@ export const HERO = {
 //   ⚠️ 전부 /demo 를 실제 뷰포트에서 찍은 진짜 화면이다. 렌더링·목업을 섞지 말 것.
 export const HERO_STRIP = [
   { src: "/product/dashboard-v5.png", alt: "오너뷰 대시보드" },
-  { src: "/product/f-projects-v3.png", alt: "오너뷰 프로젝트 파이프라인" },
+  { src: "/product/f-projects-v4.png", alt: "오너뷰 프로젝트 파이프라인" },
   { src: "/product/f-bank-v3.png", alt: "오너뷰 통장 거래내역" },
   { src: "/product/f-approvals-v1.png", alt: "오너뷰 결재 허브" },
   { src: "/product/f-payroll-v3.png", alt: "오너뷰 급여 배치" },
@@ -251,10 +251,10 @@ export const PILLARS = [
     menus: ["프로젝트", "결재 허브", "전자계약", "메신저"],
     blocks: [
       {
-        tab: "파이프라인", before: "/product/f-projects-b-v2.png",
+        tab: "파이프라인", before: "/product/f-projects-b-v3.png",
         title: "지금 어디까지 왔는지 한눈에",
         desc: "프로젝트별 단계·금액·진행률이 한 화면에 정리돼요. 미수금과 마진이 무너진 건은 따로 표시해줘요.",
-        src: "/product/f-projects-v3.png",
+        src: "/product/f-projects-v4.png",
         alt: "오너뷰 프로젝트 파이프라인",
       },
       {
@@ -364,7 +364,7 @@ export const SCREENS = [
   {
     key: "pipeline",
     tab: "프로젝트",
-    src: "/product/f-projects-v3.png",
+    src: "/product/f-projects-v4.png",
     alt: "오너뷰 프로젝트 파이프라인",
     title: "견적부터 입금까지 한 줄로 이어져요",
     desc: "프로젝트별 단계·금액·진행률이 한 화면에 정리돼요. 견적이 승인되면 계약서 초안까지 만들어져요.",
@@ -448,7 +448,7 @@ export const MOBILE = {
       head: "무엇부터 챙길지",
       muted: "폰에서 그대로.",
       desc: "지금 챙길 것과 진행률·계약금액이 한 화면에 정리돼요.\n입금이 안 된 건은 미수금으로 따로 표시해줘요.",
-      src: "/product/m-project-v4.png",
+      src: "/product/m-project-v5.png",
       alt: "휴대폰에서 본 오너뷰 프로젝트 — 지금 챙길 것·진행률·계약금액",
     },
     {
@@ -463,7 +463,7 @@ export const MOBILE = {
 
 export const ENGINES = [
   { num: "01", src: "/product/f-flow-v3.png", alt: "오너뷰 경영 흐름 — 현금 예측", short: "계좌를 연결하면 잔고와 거래가 자동으로 들어오고, 90일 뒤까지 예측해요.", name: "생존 레이더", eng: "Survival Radar", headline: "흩어진 계좌를 한 화면에. 위험 신호는 미리 알려드려요.", desc: "은행 통장·법인카드를 실계좌로 연동하면 잔고와 거래내역이 하루 2회 자동 동기화됩니다. 현금 소진 시점 예측, 생존 개월 수 자동 계산. 현금이 바닥나기 전에 먼저 경고합니다.", replaces: "CFO 1명", replacesCost: "연 6,000만원", steps: ["계좌 연동 → 잔고·거래내역 자동 동기화", "AI 분류 → 수입/지출 자동 분류·고정비 감지", "선제 알림 → 현금 소진 시점 예측·위험 신호 알림"], features: ["6-Pack 생존지표", "경영 흐름 콕핏", "미수금 자동 경고", "재무제표 자동 생성"] },
-  { num: "02", src: "/product/f-projects-v3.png", alt: "오너뷰 프로젝트 파이프라인", short: "견적이 승인되면 계약서 초안이 만들어지고 입금 매칭까지 이어져요.", name: "원클릭 파이프라인", eng: "Auto Pipeline", headline: "계약서 초안까지 자동으로. 대표님은 승인만 하면 돼요.", desc: "프로젝트가 성사되면 견적서→계약서 초안 원클릭 생성(설정 시)→편집→서명 요청 발송. 칸반/테이블로 전체 진행 상황을 한 화면에서 파악합니다.", replaces: "영업관리자 + 경리", replacesCost: "연 8,000만원", steps: ["견적→계약 초안 자동 생성(설정 시) → 서명 요청", "서명 완료 → 계약서 잠금·완료 알림", "입금 확인 → 송장 매칭 제안 → 전표 자동 기장"], features: ["칸반 파이프라인", "프로젝트별 전용 채팅", "휴면 프로젝트 감지", "매출 스케줄 추적"] },
+  { num: "02", src: "/product/f-projects-v4.png", alt: "오너뷰 프로젝트 파이프라인", short: "견적이 승인되면 계약서 초안이 만들어지고 입금 매칭까지 이어져요.", name: "원클릭 파이프라인", eng: "Auto Pipeline", headline: "계약서 초안까지 자동으로. 대표님은 승인만 하면 돼요.", desc: "프로젝트가 성사되면 견적서→계약서 초안 원클릭 생성(설정 시)→편집→서명 요청 발송. 칸반/테이블로 전체 진행 상황을 한 화면에서 파악합니다.", replaces: "영업관리자 + 경리", replacesCost: "연 8,000만원", steps: ["견적→계약 초안 자동 생성(설정 시) → 서명 요청", "서명 완료 → 계약서 잠금·완료 알림", "입금 확인 → 송장 매칭 제안 → 전표 자동 기장"], features: ["칸반 파이프라인", "프로젝트별 전용 채팅", "휴면 프로젝트 감지", "매출 스케줄 추적"] },
   { num: "03", src: "/product/f-payroll-v3.png", alt: "오너뷰 근태·급여 배치", short: "4대보험·원천세를 자동 계산하고 명세서를 전 직원에게 보내요.", name: "AI 인사/총무팀", eng: "AI Back Office", headline: "급여일 업무, 승인 한 번이면 끝나요.", desc: "국민연금 4.5%, 건보 3.545%, 고용 0.9%, 소득세 간이세액표 — 전부 자동 산출. 급여명세서 생성부터 전 직원 이메일 발송까지. 경비 영수증도 OCR로 자동 인식·분류.", replaces: "회계 + 인사 담당자", replacesCost: "연 4,500만원", steps: ["직원 등록 → 4대보험·원천세 요율 자동 매칭", "배치 생성 → 전 직원 자동 산출·대표 검토", "대표 승인 → 급여명세서 이메일 자동 발송"], features: ["자동 근태관리", "경비 OCR 정산", "근로계약서 전자서명", "서류 자동관리"] },
   { num: "04", src: "/product/f-bank-v3.png", alt: "오너뷰 거래 장부", short: "거래처마다 프로젝트·계약·매출 기록이 자동으로 쌓여요.", name: "거래처 자산화", eng: "Client Asset Engine", headline: "담당자가 퇴사해도 고객 관계는 회사에 남아요.", desc: "거래처를 등록하면 프로젝트, 계약서, 매출 등 모든 상호작용이 자동으로 연결·축적됩니다. 휴면 거래처는 버튼 한 번으로 감지해 담당자에게 리마인더를 보낼 수 있습니다.", replaces: "CRM + 명함관리 구독", replacesCost: "연 200만원+", steps: ["거래처 등록 → 프로젝트·계약·매출 이력 자동 연결", "휴면 감지 → 미거래 거래처 표시", "관계 유지 → 리마인더 발송·파트너 포털"], features: ["거래 이력 자동 축적", "파트너 포털", "사업자 자동조회", "거래처 원장"] },
 ];
@@ -539,7 +539,7 @@ export const CATALOG = [
       { name: "일정 / 할 일", icon: "calendar", src: "/product/f-schedule-v3.png", alt: "오너뷰 일정과 할 일",
         desc: "회사 일정과 내 할 일을 한 화면에서 봐요.",
         items: ["회사 공유 일정", "나만 보는 개인 일정", "프로젝트 마감 연동"] },
-      { name: "프로젝트", icon: "briefcase", src: "/product/f-projects-v3.png", alt: "오너뷰 프로젝트 파이프라인",
+      { name: "프로젝트", icon: "briefcase", src: "/product/f-projects-v4.png", alt: "오너뷰 프로젝트 파이프라인",
         desc: "수익형·목표형·실행형으로 나눠 관리하고, 견적에서 정산까지 5단계로 이어져요.",
         items: ["칸반 · 테이블 멀티뷰", "견적 → 계약 자동 생성", "진척·완료·정산 승인", "휴면 프로젝트 감지"] },
       { name: "결재 허브", icon: "check", src: "/product/f-approvals-v3.png", alt: "오너뷰 결재 허브 — 내 결재함",

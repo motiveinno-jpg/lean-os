@@ -1510,6 +1510,33 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pp-acct-chip-up { @apply bg-[var(--success-dim)] text-[var(--success)]; }
 .pp-acct-chip-flat { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
 .pp-acct-hint { @apply text-[9.5px] text-[var(--text-dim)] mt-2; }
+
+/* 데모 › 프로젝트 카드 — 실제 /projecthub 의 project-card 재현 (2026-08-03 최신화).
+   ⚠️ 유형 3분할(수익형·목표형·실행형) 폐지 반영: 배지 자리에 "지연 있음 / 대표 지표"가 온다. */
+.pp-pjgrid { @apply grid grid-cols-3 gap-3; }
+.pp-pj {
+  @apply p-3.5 flex flex-col gap-2;
+  background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-card);
+  box-shadow: 0 8px 32px -10px rgba(31,38,75,0.13), 0 2px 8px -3px rgba(31,38,75,0.05);
+}
+.pp-pj-top { @apply flex items-center justify-between gap-2; }
+.pp-pj-flag { @apply text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--danger-dim)] text-[var(--danger)]; }
+.pp-pj-flag-off { @apply text-[10px] font-semibold text-[var(--text-dim)]; }
+.pp-pj-n { @apply text-[13px] font-bold text-[var(--text)] leading-snug; }
+.pp-pj-dot { @apply not-italic mr-1 text-[var(--danger)]; }
+.pp-pj-meta { @apply text-[10.5px] text-[var(--text-muted)] truncate; }
+.pp-pj-bar { @apply flex items-center gap-2; }
+.pp-pj-bar span { @apply text-[10px] text-[var(--text-dim)] w-11 shrink-0; }
+.pp-pj-bar i { @apply flex-1 h-1.5 rounded-full overflow-hidden; background: var(--bg-surface); }
+.pp-pj-bar i b { @apply block h-full rounded-full; background: var(--primary); }
+.pp-pj-bar i b.pp-pj-bar-risk { background: var(--danger); }
+.pp-pj-bar em { @apply not-italic text-[10px] text-[var(--text-muted)] w-9 text-right; font-variant-numeric: tabular-nums; }
+.pp-pj-bar-empty span { @apply w-auto; }
+.pp-pj-next { @apply flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pp-pj-next-warn { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.pp-pj-next em { @apply not-italic font-bold; font-variant-numeric: tabular-nums; }
+.pp-pj-foot { @apply flex items-center justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)] text-[10.5px] text-[var(--text-muted)]; }
+.pp-pj-foot em { @apply not-italic font-bold text-[var(--primary)]; }
 .pp-dim { @apply text-[var(--text-dim)] font-normal; }
 .pp-statbar { @apply flex flex-wrap items-stretch gap-0 rounded-xl border border-[var(--border)] overflow-hidden mb-3; }
 .pp-statbar > span { @apply flex-1 min-w-[80px] flex flex-col items-center gap-0.5 px-3 py-3 border-r border-[var(--border)] last:border-r-0; }
