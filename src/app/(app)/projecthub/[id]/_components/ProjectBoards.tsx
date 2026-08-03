@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
+import { getPartners, upsertPartner } from "@/lib/partners";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary,
@@ -80,6 +81,15 @@ export function ProjectBoards({ dealId, companyId, users }: {
       return (data || []) as BoardItem[];
     },
     enabled: !!boardId,
+  });
+
+  // 거래처 컬럼이 있는 표에서만 목록을 불러온다(620개 규모 — 필요할 때만)
+  const hasPartnerCol = cols.some((c) => c.type === "partner");
+  const { data: partners = [] } = useQuery({
+    queryKey: ["pb-partners", companyId],
+    queryFn: () => getPartners(companyId),
+    enabled: !!companyId && hasPartnerCol,
+    staleTime: 5 * 60 * 1000,
   });
 
   const itemsByGroup = useMemo(() => {
@@ -172,7 +182,7 @@ export function ProjectBoards({ dealId, companyId, users }: {
     qc.invalidateQueries({ queryKey: ["pb-groups", boardId] });
   };
   const addColumn = async (type: ColType) => {
-    const label = { text: "텍스트", number: "숫자", date: "날짜", status: "상태", person: "사람" }[type];
+    const label = { text: "텍스트", number: "숫자", date: "날짜", status: "상태", person: "사람", partner: "거래처" }[type];
     const settings = type === "status"
       ? { options: [{ id: "a", label: "미정", color: "#C4C4C4" }, { id: "b", label: "진행", color: "#FDAB3D" }, { id: "c", label: "완료", color: "#00C875" }] }
       : {};
@@ -243,6 +253,7 @@ export function ProjectBoards({ dealId, companyId, users }: {
               <option value="date">날짜</option>
               <option value="status">상태</option>
               <option value="person">사람</option>
+              <option value="partner">거래처</option>
             </select>
           </span>
           <button type="button" className="pb-mini" onClick={addGroup}>＋ 그룹</button>
@@ -297,7 +308,9 @@ export function ProjectBoards({ dealId, companyId, users }: {
                       </td>
                       {cols.map((c) => (
                         <td key={c.id} className={c.type === "number" ? "pb-td-num" : ""}>
-                          <Cell col={c} item={it} users={users} onSave={(v) => saveValue(it, c.id, v)} />
+                          <Cell col={c} item={it} users={users} partners={partners as any[]} companyId={companyId}
+                            onPartnerCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })}
+                            onSave={(v) => saveValue(it, c.id, v)} />
                         </td>
                       ))}
                       <td className="pb-td-x">
@@ -381,10 +394,15 @@ function BoardSummary({ cols, items, groups, users }: {
 }
 
 // ── 셀 — 타입별 편집기. 다섯 가지만 쓴다(텍스트·숫자·날짜·상태·사람) ──
-function Cell({ col, item, users, onSave }: {
-  col: BoardColumn; item: BoardItem; users: { id: string; name: string }[]; onSave: (v: any) => void;
+function Cell({ col, item, users, partners, companyId, onSave, onPartnerCreated }: {
+  col: BoardColumn; item: BoardItem; users: { id: string; name: string }[];
+  partners: { id: string; name: string; business_number?: string | null }[];
+  companyId: string; onSave: (v: any) => void; onPartnerCreated: () => void;
 }) {
   const v = item.values?.[col.id];
+  if (col.type === "partner") {
+    return <PartnerCell value={v || ""} partners={partners} companyId={companyId} onSave={onSave} onCreated={onPartnerCreated} />;
+  }
   if (col.type === "number") {
     return (
       <input defaultValue={v == null || v === "" ? "" : Number(v).toLocaleString("ko-KR")} inputMode="numeric" placeholder="0"
@@ -426,5 +444,86 @@ function Cell({ col, item, users, onSave }: {
       onBlur={(e) => onSave(e.target.value || null)}
       onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
       className="pb-in" />
+  );
+}
+
+// ── 거래처 셀 — 검색해서 고르고, 없으면 그 자리에서 만든다(전표입력과 같은 방식) ──
+//   값은 partners.id 를 담는다. 이름만으로 만들 수 있게 해서 입력이 끊기지 않게 한다.
+function PartnerCell({ value, partners, companyId, onSave, onCreated }: {
+  value: string; partners: { id: string; name: string; business_number?: string | null }[];
+  companyId: string; onSave: (v: any) => void; onCreated: () => void;
+}) {
+  const { toast } = useToast();
+  const cur = partners.find((p) => p.id === value);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const matches = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return partners.slice(0, 20);
+    const tn = t.replace(/-/g, "");
+    return partners.filter((p) =>
+      (p.name || "").toLowerCase().includes(t) || (p.business_number || "").replace(/-/g, "").includes(tn)
+    ).slice(0, 30);
+  }, [partners, q]);
+  const exact = matches.some((p) => (p.name || "").trim() === q.trim());
+
+  const createNow = async () => {
+    const name = q.trim();
+    if (!name || saving) return;
+    setSaving(true);
+    try {
+      const row: any = await upsertPartner({ companyId, name });
+      const id = row?.id || row?.data?.id;
+      if (!id) throw new Error("등록 실패");
+      onSave(id);
+      onCreated();
+      setOpen(false);
+      setQ("");
+      toast(`'${name}' 거래처를 등록했습니다.`, "success");
+    } catch (e: any) {
+      toast(e?.message || "거래처 등록 실패", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button type="button" className="pb-in pb-partner-btn" onClick={() => { setOpen(true); setQ(""); }}>
+        {cur?.name || <span className="pb-partner-empty">거래처 선택</span>}
+      </button>
+    );
+  }
+  return (
+    <span className="pb-partner">
+      <input autoFocus value={q} placeholder="거래처 검색 또는 새 이름"
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") { setOpen(false); return; }
+          if (e.key === "Enter") { if (matches.length === 1 && !q.trim()) return; if (!exact && q.trim()) createNow(); else if (matches[0]) { onSave(matches[0].id); setOpen(false); } }
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="pb-in pb-partner-in" />
+      <span className="pb-partner-pop">
+        {value && (
+          <button type="button" className="pb-partner-opt pb-partner-clear" onMouseDown={(e) => { e.preventDefault(); onSave(null); setOpen(false); }}>선택 해제</button>
+        )}
+        {matches.map((p) => (
+          <button key={p.id} type="button" className="pb-partner-opt"
+            onMouseDown={(e) => { e.preventDefault(); onSave(p.id); setOpen(false); }}>
+            {p.name}{p.business_number ? <em>{p.business_number}</em> : null}
+          </button>
+        ))}
+        {q.trim() && !exact && (
+          <button type="button" className="pb-partner-opt pb-partner-new" disabled={saving}
+            onMouseDown={(e) => { e.preventDefault(); createNow(); }}>
+            ＋ &apos;{q.trim()}&apos; 새 거래처로 등록
+          </button>
+        )}
+        {matches.length === 0 && !q.trim() && <span className="pb-partner-none">등록된 거래처가 없어요</span>}
+      </span>
+    </span>
   );
 }

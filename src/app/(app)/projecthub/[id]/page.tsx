@@ -50,17 +50,21 @@ import { IssuesTab } from "./_components/IssuesTab";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 const db = supabase;
+const RAIL_KEY = "ov.projecthub.railOpen";
 
 // 상세 탭 — 여섯 자리를 네 묶음으로(2026-08-03 개편 ③). 순서는 프로젝트가 달라도 고정이고,
 //   데이터가 없는 탭도 자리를 지킨다(흐리게). 한 번 익히면 어느 프로젝트든 같은 위치다.
+// 탭 3개 (2026-08-03 기획 v2 마무리) — 표가 기본, 회계는 '자금'으로 얹고, 나머지는 '설정'.
+//   구 탭(개요·업무·기록)은 표와 정리가 대신한다:
+//     개요(챙길 것·진행 단계·목표) → 표의 '정리' 탭이 입력값에서 직접 만든다
+//     업무(project_tasks)        → '할 일·진행' 템플릿
+//   자리(SectionKey) 자체는 남겨 둔다 — ?tab= 옛 링크가 깨지지 않게, 그리고 되돌리기 쉽게.
 const PJ_TABS: { key: string; label: string; secs: SectionKey[] }[] = [
-  // 표 = 새 구조의 기본 화면(2026-08-03 기획 v2 1단계). 입력이 먼저다.
   { key: "boards", label: "표", secs: ["boards"] },
-  { key: "overview", label: "개요", secs: ["todo", "flow", "goal"] },
-  { key: "money", label: "매출·비용", secs: ["money"] },
-  { key: "work", label: "업무", secs: ["work"] },
-  { key: "record", label: "기록", secs: ["team"] },
+  { key: "money", label: "자금", secs: ["money"] },
+  { key: "record", label: "설정", secs: ["team"] },
 ];
+//   탭에서 빠진 자리(todo·flow·work·goal)로 들어오면 표 탭이 열린다.
 const TAB_OF_SECTION = (k: SectionKey) => PJ_TABS.find((t) => t.secs.includes(k)) || PJ_TABS[0];
 
 // 견적서 기본 구조 — 프로젝트에서 바로 생성(문서함 이동 없이). 품목은 생성 후 편집기에서 추가.
@@ -181,6 +185,25 @@ export default function ProjectHubDetailPage() {
   const params = useParams();
   const router = useRouter();
   const dealId = String(params?.id || "");
+  // 좌측 프로젝트 레일 — 목록으로 돌아가지 않고 프로젝트를 바꾼다(먼데이 참고, 2026-08-03).
+  //   넓은 화면에서만 켠다. 좁은 화면에서는 표가 설 자리가 없어 자동으로 접힌다.
+  const [railOpen, setRailOpen] = useState(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(RAIL_KEY);
+    if (saved === "0") setRailOpen(false);
+    const narrow = window.matchMedia("(max-width: 1279px)");
+    const apply = () => { if (narrow.matches) setRailOpen(false); };
+    apply();
+    narrow.addEventListener("change", apply);
+    return () => narrow.removeEventListener("change", apply);
+  }, []);
+  const toggleRail = () => setRailOpen((v) => {
+    const next = !v;
+    if (typeof window !== "undefined") window.localStorage.setItem(RAIL_KEY, next ? "1" : "0");
+    return next;
+  });
+
   // 방금 만들고 들어온 경우(목록의 만들기 → ?new=1) — 첫 한 걸음 안내 문구만 달라진다.
   const searchParams = useSearchParams();
   const justCreated = searchParams?.get("new") === "1";
@@ -690,6 +713,19 @@ export default function ProjectHubDetailPage() {
     },
     enabled: !!companyId && !!dealId,
   });
+  // 레일 목록 — 이름만. 표 개수는 목록 화면이 이미 계산하므로 여기서는 안 부른다.
+  const { data: railDeals = [] } = useQuery({
+    queryKey: ["pj-rail-deals", companyId],
+    queryFn: async () => {
+      const data = logRead('[id]/page:railDeals', await db.from("deals")
+        .select("id, name").eq("company_id", companyId!).is("archived_at", null)
+        .order("created_at", { ascending: false }).limit(50));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && railOpen,
+    staleTime: 60_000,
+  });
+
   const { data: partner } = useQuery({
     queryKey: ["projecthub-deal-partner", deal?.partner_id],
     queryFn: async () => {
@@ -1190,7 +1226,26 @@ export default function ProjectHubDetailPage() {
   });
 
   return (
-    <div className="project-detail-page">
+    <div className={`pj-shell ${railOpen ? "pj-shell-rail" : ""}`}>
+      {railOpen && (
+        <nav className="pj-rail2" aria-label="프로젝트 목록">
+          <div className="pj-rail2-head">
+            프로젝트
+            <button type="button" onClick={toggleRail} title="목록 접기">‹‹</button>
+          </div>
+          {(railDeals as any[]).map((d) => (
+            <Link key={d.id} href={`/projecthub/${d.id}`}
+              className={`pj-rail2-item ${d.id === dealId ? "pj-rail2-on" : ""}`}>
+              {d.name || "(이름 없음)"}
+            </Link>
+          ))}
+          <Link href="/projecthub" className="pj-rail2-all">전체 목록 →</Link>
+        </nav>
+      )}
+      <div className="project-detail-page">
+      {!railOpen && (
+        <button type="button" className="pj-rail2-open" onClick={toggleRail} title="프로젝트 목록 펴기">›› 프로젝트 목록</button>
+      )}
       {/* ══ 머리줄 — 히어로 밴드 폐지(2026-08-03 사장님: "성격이 달라져서 없어도 될 듯").
           표(입력)가 주인공이 된 화면이라 상단은 얇게: 뒤로 · 이름 · 상태 · 거래처/담당. ══ */}
       <div className="pj-head">
@@ -1997,6 +2052,7 @@ export default function ProjectHubDetailPage() {
         </div>,
         document.body,
       )}
+      </div>
     </div>
   );
 }

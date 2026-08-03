@@ -14,7 +14,8 @@
 //
 // 절대규칙: 순수 정의만 둔다(조회·side-effect 0). 화면과 시드가 이 파일만 본다.
 
-export type ColType = "text" | "number" | "date" | "status" | "person";
+//   partner = 거래처(검색 + 그 자리에서 신규 등록). 값은 partners.id 를 담는다.
+export type ColType = "text" | "number" | "date" | "status" | "person" | "partner";
 
 export type StatusOption = { id: string; label: string; color: string };
 export type ColumnDef = { name: string; type: ColType; settings?: { options?: StatusOption[]; unit?: string } };
@@ -98,7 +99,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
         { id: "fixed", label: "고정비", color: C.blue },
         { id: "etc", label: "기타", color: C.gray },
       ]) },
-      { name: "거래처", type: "text" },
+      { name: "거래처", type: "partner" },
       { name: "예상", type: "number", settings: { unit: "원" } },
       { name: "확정", type: "number", settings: { unit: "원" } },
       { name: "결제일", type: "date" },
@@ -112,7 +113,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     desc: "들어올 돈을 단계로 관리",
     uses: "영업 파이프라인 · 견적 · 입찰 · 재계약 · 제휴 제안",
     columns: [
-      { name: "거래처", type: "text" },
+      { name: "거래처", type: "partner" },
       { name: "금액", type: "number", settings: { unit: "원" } },
       { name: "확률", type: "number", settings: { unit: "%" } },
       { name: "예상일", type: "date" },

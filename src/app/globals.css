@@ -5733,3 +5733,28 @@ td .rounded-full { white-space: nowrap; }
 .pb-sum-legend { @apply flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-[var(--text-muted)] mt-1.5; }
 .pb-sum-legend span { @apply inline-flex items-center gap-1.5; }
 .pb-sum-legend i { @apply block w-2.5 h-1.5 rounded-full; }
+
+/* 좌측 프로젝트 레일 — 목록으로 돌아가지 않고 프로젝트를 바꾼다(2026-08-03).
+   전역 사이드바가 이미 넓어서 접이식으로 두고, 1280px 미만에서는 자동으로 접힌다. */
+.pj-shell { @apply flex flex-col gap-4; }
+@media (min-width: 1280px) {
+  .pj-shell-rail { @apply grid gap-5 items-start; grid-template-columns: 190px minmax(0, 1fr); }
+}
+.pj-rail2 { @apply hidden xl:flex flex-col gap-0.5 pr-4 border-r border-[var(--border)] sticky top-2; }
+.pj-rail2-head { @apply flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-dim)] mb-1.5; }
+.pj-rail2-head button { @apply ml-auto text-[12px] font-bold text-[var(--text-dim)] hover:text-[var(--text)]; }
+.pj-rail2-item { @apply block text-[12.5px] text-[var(--text-muted)] px-2 py-1.5 rounded-lg truncate transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.pj-rail2-on { @apply bg-[var(--primary)]/10 text-[var(--primary)] font-bold; }
+.pj-rail2-all { @apply text-[11.5px] font-bold text-[var(--primary)] px-2 py-2 mt-1; }
+.pj-rail2-open { @apply hidden xl:inline-flex self-start text-[11.5px] font-bold text-[var(--text-dim)] hover:text-[var(--primary)] mb-1; }
+/* 거래처 셀 — 검색 + 그 자리에서 신규 등록 */
+.pb-partner { @apply relative inline-block min-w-[150px]; }
+.pb-partner-btn { @apply text-left truncate; }
+.pb-partner-empty { @apply text-[var(--text-dim)]; }
+.pb-partner-in { @apply !border-[var(--primary)] !bg-[var(--bg)]; }
+.pb-partner-pop { @apply absolute left-0 top-full z-30 mt-1 w-[240px] max-h-56 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg p-1 flex flex-col; }
+.pb-partner-opt { @apply flex items-center gap-2 text-left text-[12.5px] px-2 py-1.5 rounded-lg text-[var(--text)] hover:bg-[var(--bg-surface)] whitespace-nowrap overflow-hidden; }
+.pb-partner-opt em { @apply not-italic ml-auto text-[10.5px] text-[var(--text-dim)]; }
+.pb-partner-new { @apply font-bold text-[var(--primary)] hover:bg-[var(--primary)]/10; }
+.pb-partner-clear { @apply text-[var(--text-dim)]; }
+.pb-partner-none { @apply text-[12px] text-[var(--text-dim)] px-2 py-2; }
