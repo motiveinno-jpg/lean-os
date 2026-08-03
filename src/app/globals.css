@@ -3757,7 +3757,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .ph-cal-more { @apply text-[9px] text-[var(--text-dim)] pl-1; }
 /* 카드 상단 상태 칩 — 유형 배지 자리 */
 .projecthub-summary-grid { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
-.receivables-rollup { @apply p-4 flex items-center gap-4 flex-wrap border border-[var(--danger)]/30 bg-[var(--danger)]/5; }
 /* 내 프로젝트 콕핏(2026-07-22) — 클릭 렌즈 + 다음 액션 줄 + 카드 ⋯메뉴 */
 .ph-next-row { @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[11.5px] font-semibold; }
 .ph-next-txt { @apply text-[var(--text-muted)] flex-1 min-w-0 truncate; }

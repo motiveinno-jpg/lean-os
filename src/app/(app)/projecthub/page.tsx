@@ -159,12 +159,6 @@ export default function ProjectHubPage() {
     return out;
   }, [settleRows]);
 
-  const settleSummary = useMemo(() => {
-    let totalOutstanding = 0, projects = 0;
-    for (const k in outstandingByDeal) { if (outstandingByDeal[k] > 1) { totalOutstanding += outstandingByDeal[k]; projects++; } }
-    return { totalOutstanding, projects };
-  }, [outstandingByDeal]);
-
   // ⚠️ 2026-07-30 유형 3분할 폐지 — KPI·태스크를 "목표형·실행형" 프로젝트만 조회하던 것을
   //    전체 프로젝트로 넓혔다. 수익형으로 만든 프로젝트 30개가 진행률·달성률을 아예 갖지
   //    못했던 원인이 이 필터였다(실측: 태스크는 2개, KPI는 3개 프로젝트에만 존재).
@@ -785,18 +779,6 @@ export default function ProjectHubPage() {
             qc.invalidateQueries({ queryKey: ["projects-deals"] });
           }}
         />
-      )}
-
-      {/* 미수금 롤업 — 금액이 있을 때만 한 줄. 상태 칩(주의/지연)이 이미 건수를 말하므로
-          여기서는 회사 전체 금액만 짧게 남긴다(2026-08-03 개편 ②로 4타일 → 이 한 줄). */}
-      {settleSummary.totalOutstanding > 1 && (
-        <div className="receivables-rollup glass-card">
-          <span className="kpi-icon danger text-base leading-none"><Ico e="💸" /></span>
-          <div className="min-w-0">
-            <div className="text-[13px] font-bold text-[var(--text)]">회사 전체 미수금 {won(settleSummary.totalOutstanding)}</div>
-            <div className="text-[11px] text-[var(--text-muted)]">계산서는 발행했지만 통장 입금이 확인 안 된 금액 · {settleSummary.projects}개 프로젝트</div>
-          </div>
-        </div>
       )}
 
       {/* 보드 보기 — 회사 전체 프로젝트를 커스텀 컬럼으로. 검색·렌즈·정렬은 보드 자체 툴바가
