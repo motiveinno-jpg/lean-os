@@ -131,25 +131,32 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
 /* ------------------------------------------------------------------ */
 /*  NavIcon                                                            */
 /* ------------------------------------------------------------------ */
-// 메뉴별 고유 색 (2026-08-03 사장님: "사이드바 메뉴 아이콘도 색으로") — Ico 팔레트와 같은 톤(500계열).
+// 메뉴 아이콘 색 — 그룹별 색 계열로 통일 (2026-08-03 사장님: "너무 다채로워 난잡 — 같은 그룹은 비슷한 계열로").
+//   홈=블루 · 파이낸스=그린 · 워크스페이스=바이올렛 · 인사관리=오렌지 · 자산관리=시안 · 설정·도움말=슬레이트.
+//   같은 아이콘이 여러 그룹에 쓰여서(calendar=일정+근태 등) 아이콘 이름이 아니라 메뉴 경로(href) 기준.
 //   활성 메뉴(색 배경 + text-white)는 흰색 유지 — 아래 NavIcon 에서 text-white 면 색을 안 입힌다.
-const NAV_ICON_COLOR: Record<string, string> = {
-  grid: "#3b82f6", sparkles: "#8b5cf6", user: "#f97316", bell: "#f59e0b",
-  users: "#f97316", receipt: "#f59e0b", book: "#14b8a6", "edit-3": "#a855f7",
-  "bar-chart": "#10b981", calendar: "#f43f5e", briefcase: "#6366f1",
-  "clipboard-check": "#22c55e", "message-square": "#06b6d4", "message-circle": "#0ea5e9",
-  "user-check": "#f97316", "file-text": "#64748b", folder: "#eab308",
-  "arrow-right-left": "#0ea5e9", wallet: "#6366f1", clock: "#f43f5e",
-  settings: "#64748b", megaphone: "#f97316", "credit-card": "#6366f1",
-  "help-circle": "#0ea5e9", headphones: "#10b981", shield: "#10b981",
-  "trending-up": "#10b981", crown: "#eab308", upload: "#3b82f6",
-  "alert-triangle": "#f59e0b", "user-cog": "#64748b", umbrella: "#f43f5e",
-  kanban: "#6366f1", link: "#0ea5e9",
+const NAV_ITEM_COLOR: Record<string, string> = {
+  // 홈 — 블루
+  "/dashboard": "#3b82f6", "/copilot": "#6366f1", "/mypage": "#60a5fa", "/notifications": "#818cf8",
+  // 파이낸스 — 그린
+  "/partners": "#10b981", "/tax-invoices": "#059669", "/transactions": "#14b8a6",
+  "/partners/reconciliation/voucher-entry": "#34d399", "/reports": "#22c55e",
+  // 워크스페이스 — 바이올렛
+  "/schedule": "#8b5cf6", "/projecthub": "#7c3aed", "/approvals": "#a855f7",
+  "/board": "#a78bfa", "/chat": "#c084fc", "/signatures": "#9333ea", "/my-contracts": "#c4b5fd",
+  // 인사관리 — 오렌지
+  "/employees": "#f97316", "/attendance": "#fb923c", "/hr-templates": "#f59e0b",
+  "/documents": "#fbbf24", "/team": "#ea580c",
+  // 자산관리 — 시안
+  "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
+  // 설정·도움말 — 슬레이트
+  "/settings": "#64748b", "/announcements": "#94a3b8", "/billing": "#64748b",
+  "/guide": "#94a3b8", "/support": "#64748b",
 };
 
-function NavIcon({ name, className = "" }: { name: string; className?: string }) {
+function NavIcon({ name, href, className = "" }: { name: string; href?: string; className?: string }) {
   const cn = `w-4 h-4 shrink-0 ${className}`;
-  const color = className.includes("text-white") ? undefined : (NAV_ICON_COLOR[name] || "#64748b");
+  const color = className.includes("text-white") ? undefined : ((href && NAV_ITEM_COLOR[href]) || "#64748b");
   const props = { className: cn, style: color ? { color } : undefined, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
   switch (name) {
@@ -285,7 +292,7 @@ export function Sidebar() {
               collapsed ? "justify-center px-0 py-2.5" : `gap-2.5 px-2.5 py-2 ${isChild ? "pl-8" : ""}`
             } ${active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
             <span className="relative">
-              <NavIcon name={item.icon} className={active ? "text-white" : ""} />
+              <NavIcon name={item.icon} href={item.href} className={active ? "text-white" : ""} />
               {collapsed && badge > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-[var(--danger)] text-white text-[8px] font-bold rounded-full px-0.5">{badge > 99 ? "99" : badge}</span>
               )}
@@ -336,7 +343,7 @@ export function Sidebar() {
       <div key={item.href} className="mobile-nav-item-row">
         <Link href={item.href}
           className={`mobile-nav-item-link px-2.5 ${isChild ? "pl-8" : ""} ${active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
-          <NavIcon name={item.icon} className={active ? "text-white" : ""} />
+          <NavIcon name={item.icon} href={item.href} className={active ? "text-white" : ""} />
           <span className="flex-1">{item.label}</span>
           {badge > 0 && (
             <span className="min-w-[18px] h-[18px] flex items-center justify-center bg-[var(--danger)] text-white text-[9px] font-bold rounded-full px-1">{badge > 99 ? "99+" : badge}</span>
@@ -522,7 +529,7 @@ export function Sidebar() {
                           : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                       }`}
                     >
-                      <NavIcon name={item.icon} className={active ? "text-white" : ""} />
+                      <NavIcon name={item.icon} href={item.href} className={active ? "text-white" : ""} />
                       {!collapsed && <span className="flex-1">{item.label}</span>}
                     </Link>
                   </Tooltip>
@@ -735,7 +742,7 @@ export function Sidebar() {
                             ? "nav-active"
                             : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
                         }`}>
-                        <NavIcon name={item.icon} className={active ? "text-white" : ""} />
+                        <NavIcon name={item.icon} href={item.href} className={active ? "text-white" : ""} />
                         <span className="flex-1">{item.label}</span>
                       </Link>
                     );
