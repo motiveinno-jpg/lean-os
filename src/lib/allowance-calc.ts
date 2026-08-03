@@ -31,6 +31,35 @@ import { getAttendanceCompanySettings } from './hr';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
 
+// ── allowance_entries 쓰기 권한 판정 (세션당 1회 캐시) ──
+//   RLS INSERT 정책(allowance_entries_admin_insert·p4_allowance_entries_perm)과 같은 기준.
+//   직원 본인 출퇴근 chain(마이페이지 checkOut → recomputeAttendance → 본 엔진)이 권한 없이
+//   upsert 를 쏘면 403 이 DB 오류 전수 수집(supabase-browser)에 계속 쌓인다(2026-08-03 운영자
+//   에러 로그) — 권한 없으면 계산만 하고 저장은 건너뛴다(관리자 재계산·급여 생성이 나중에 채움).
+//   판정 RPC 자체가 실패하면 기존 동작(저장 시도) 유지 — 관리자 흐름 회귀 방지.
+let _canWriteAllowanceEntries: Promise<boolean> | null = null;
+function canWriteAllowanceEntries(): Promise<boolean> {
+  if (!_canWriteAllowanceEntries) {
+    _canWriteAllowanceEntries = (async () => {
+      try {
+        const { data: admin, error: adminErr } = await db.rpc('is_company_admin');
+        if (adminErr) return true;
+        if (admin) return true;
+        const PERM_KEYS = ['/settings:attendance', '/employees:salary', '/attendance:records'];
+        const results = await Promise.all(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          PERM_KEYS.map((k) => (db as any).rpc('has_perm', { p_key: k })),
+        );
+        if (results.some((r) => r.error)) return true;
+        return results.some((r) => !!r.data);
+      } catch {
+        return true;
+      }
+    })();
+  }
+  return _canWriteAllowanceEntries;
+}
+
 // ── 타입 ──
 
 export type AllowanceEntryResult = {
@@ -308,7 +337,8 @@ export async function recomputeMonthlyAllowances(
   }
 
   // 7) UPSERT — UNIQUE(company_id, employee_id, payroll_month, allowance_type_id)
-  if (upsertRows.length > 0) {
+  //    쓰기 권한 없는 직원 컨텍스트(본인 출퇴근 chain)는 저장 생략 — 계산 결과만 반환.
+  if (upsertRows.length > 0 && (await canWriteAllowanceEntries())) {
     const { error } = await db
       .from('allowance_entries')
       .upsert(upsertRows, {
