@@ -40,11 +40,16 @@ export default function PaymentsPage() {
     if (t === 'expenses') router.replace('/approvals');
     else if (t === 'payroll') router.replace('/employees?tab=salary');
   }, [router]);
+  // 권한 게이트에서 early return 한 뒤에 나머지 훅들이 이어지면 tabLoading 이 풀리는 순간
+  // 렌더당 훅 개수가 달라져 React #310 크래시 — 본문을 별도 컴포넌트로 분리 (2026-08-03).
   if (tabLoading) return null;
   if (!tabAllowed) {
     return <AccessDenied detail="정기 지출 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
   }
+  return <PaymentsPageInner />;
+}
 
+function PaymentsPageInner() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(() => {
