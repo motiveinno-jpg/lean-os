@@ -3577,6 +3577,26 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .ph-cand-amt { @apply text-[13px] font-extrabold text-[var(--text)] whitespace-nowrap; }
 .ph-cand-go { @apply text-[12px] font-bold px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white whitespace-nowrap transition hover:opacity-90 disabled:opacity-45; }
 .ph-cand-hide { @apply text-[11.5px] text-[var(--text-dim)] hover:text-[var(--text-muted)] whitespace-nowrap; }
+/* 개인 할 일 ↔ 프로젝트 업무 잇기 — 대시보드 위젯 / 일정 › 할 일 */
+.dash-task-row { @apply flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition; }
+.mytask-head { @apply flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 pt-3.5 pb-2.5; }
+.mytask-head b { @apply text-[13px] font-extrabold text-[var(--text)]; }
+.mytask-head span { @apply text-[11px] text-[var(--text-dim)]; }
+.mytask-row { @apply flex items-center gap-3 px-4 py-2.5 transition hover:bg-[var(--bg-surface)]; }
+.mytask-title { @apply block text-[13px] font-semibold text-[var(--text)] truncate; }
+.mytask-sub { @apply block text-[11px] text-[var(--text-dim)] truncate; }
+.mytask-go { @apply text-[11.5px] font-bold text-[var(--primary)] whitespace-nowrap; }
+.todo-promote-btn { @apply text-[11.5px] font-bold px-2.5 py-1 rounded-lg border border-[var(--primary)]/35 text-[var(--primary)] hover:bg-[var(--primary)]/10 whitespace-nowrap transition; }
+.promote-modal-body { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md p-5 flex flex-col gap-3; }
+.promote-modal-head { @apply flex flex-col gap-0.5; }
+.promote-modal-head b { @apply text-sm font-bold text-[var(--text)]; }
+.promote-modal-head span { @apply text-[12px] text-[var(--text-muted)] truncate; }
+.promote-modal-search { @apply h-10 px-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--primary)]; }
+.promote-modal-list { @apply flex flex-col gap-1 max-h-64 overflow-y-auto; }
+.promote-modal-item { @apply text-left text-[13px] px-3 py-2 rounded-lg border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--primary)] hover:text-[var(--text)]; }
+.promote-modal-item-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--text)] font-bold; }
+.promote-modal-empty { @apply text-[12.5px] text-[var(--text-dim)] px-3 py-6 text-center; }
+.promote-modal-actions { @apply flex items-center justify-end gap-2; }
 /* 체크인 초안 채우기 — 빈 칸을 사람이 채우던 것을 숫자로 먼저 채운다(4단계) */
 .checkin-draft-row { @apply flex flex-wrap items-center justify-between gap-2 mb-1; }
 .checkin-draft-btn { @apply text-[11.5px] font-bold px-2.5 py-1 rounded-lg border border-[var(--primary)]/35 text-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/15 whitespace-nowrap; }

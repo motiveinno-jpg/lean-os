@@ -10,6 +10,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { getCurrentUser, getFounderData, saveExcelData, getFinancialDashboardData, getDrillDownLevel2, getDrillDownLevel3, getDrillDownLevel4, getCashPulseData } from "@/lib/queries";
 import { getCurrentSubscription } from "@/lib/billing";
+import { getMyProjectTasks } from "@/lib/my-project-tasks";
 import { buildCashPulse, getPulseLevel, type CashPulseResult } from "@/lib/cash-pulse";
 import { buildFounderDashboard, buildFinancialDashboard as buildFinDash, type FounderDashboardData, type FinancialDashboardData, type RiskLabel, type RiskItem, getRunwayLevel } from "@/lib/engines";
 import { parseExcel, type ParsedExcelData } from "@/lib/excel-parser";
@@ -870,6 +871,15 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     refetchInterval: 60_000,
   });
 
+  // 내가 담당인 프로젝트 업무 — 담당 지정률 97%인데 여기에 안 떠서, 프로젝트를 안 열면
+  //   자기 일을 놓쳤다(2026-08-03). 개인 할일·일정과 같은 목록에서 마감일 순으로 본다.
+  const { data: myTasks = [] } = useQuery({
+    queryKey: ["my-project-tasks", companyId, userId],
+    queryFn: () => getMyProjectTasks(companyId!, userId),
+    enabled: !!companyId && !!userId,
+    staleTime: 60_000,
+  });
+
   // 캘린더 일정(이번 달, 공유+개인) — 다가오는 일정도 할일 위젯에 표시
   const now = new Date();
   const { data: events = [] } = useQuery({
@@ -895,9 +905,10 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   const startOfTodayIso = today.toISOString();
   // 다가오는 일정(완료 제외, 오늘 이후) — 캘린더 내용도 위젯에 통합
   const upcomingEvents = (events as any[]).filter((e) => !e.completed && (e.end_at ?? e.start_at) >= startOfTodayIso);
-  // 할일 + 일정 통합 목록(날짜순)
-  const items: { kind: "todo" | "event"; id: string; title: string; date: string | null; raw: any }[] = [
+  // 할일 + 프로젝트 업무 + 일정 통합 목록(날짜순)
+  const items: { kind: "todo" | "event" | "task"; id: string; title: string; date: string | null; raw: any }[] = [
     ...todos.map((t) => ({ kind: "todo" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
+    ...(myTasks as any[]).map((t) => ({ kind: "task" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
     ...upcomingEvents.map((e) => ({ kind: "event" as const, id: e.id, title: e.title, date: e.start_at, raw: e })),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
 
@@ -930,7 +941,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
         <div className="space-y-1.5">
           {items.slice(0, 7).map((it) => {
             const d = it.date ? new Date(it.date) : null;
-            const overdue = it.kind === "todo" && d ? d < today : false;
+            const overdue = (it.kind === "todo" || it.kind === "task") && d ? d < today : false;
             if (it.kind === "event") {
               return (
                 <Link key={`ev-${it.id}`} href="/schedule" className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--primary)]/5 border border-[var(--primary)]/15 hover:bg-[var(--primary)]/10 transition">
@@ -940,6 +951,20 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
                     {d && <div className="text-[10px] text-[var(--text-dim)]">{kstDateStr(d)}{it.raw.all_day ? "" : ` ${d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`}</div>}
                   </div>
                   <span className="text-[9px] font-semibold text-[var(--primary)] flex-shrink-0">일정</span>
+                </Link>
+              );
+            }
+            if (it.kind === "task") {
+              return (
+                <Link key={`pt-${it.id}`} href={`/projecthub/${it.raw.deal_id}?tab=work`} className="dash-task-row">
+                  <span className="w-4 h-4 flex items-center justify-center text-[11px] flex-shrink-0"><Ico e="📁" /></span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-[var(--text)] truncate">{it.title}</div>
+                    <div className={`text-[10px] truncate ${overdue ? "text-red-400 font-bold" : "text-[var(--text-dim)]"}`}>
+                      {overdue ? "기한 지남 · " : ""}{it.raw.dealName}
+                    </div>
+                  </div>
+                  <span className="text-[9px] font-semibold text-[var(--text-muted)] flex-shrink-0">업무</span>
                 </Link>
               );
             }

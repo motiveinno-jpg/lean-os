@@ -29,6 +29,10 @@ import {
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import Link from "next/link";
+import { supabase } from "@/lib/supabase";
+import { getDeals } from "@/lib/queries";
+import { getMyProjectTasks } from "@/lib/my-project-tasks";
 
 type Tab = "calendar" | "todo";
 
@@ -593,6 +597,21 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
     enabled: !!userId,
   });
 
+  // 내가 담당인 프로젝트 업무 — 여기서 같이 본다(2026-08-03). 완료·수정은 프로젝트에서 한다.
+  const { data: myTasks = [] } = useQuery({
+    queryKey: ["my-project-tasks", companyId, userId],
+    queryFn: () => getMyProjectTasks(companyId, userId),
+    enabled: !!companyId && !!userId,
+  });
+  // 개인 할 일을 프로젝트로 올릴 때 고를 목록 — 이 탭을 열어야 조회한다.
+  const { data: deals = [] } = useQuery({
+    queryKey: ["schedule-promote-deals", companyId],
+    queryFn: () => getDeals(companyId),
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+  const [promoting, setPromoting] = useState<ScheduleTodo | null>(null);
+
   const addMut = useMutation({
     mutationFn: () => upsertTodo({
       companyId,
@@ -746,6 +765,12 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
                       )}
                     </div>
                   </div>
+                  {/* 프로젝트로 올리기 — 혼자 적어둔 일이 팀이 보는 업무가 된다 */}
+                  {!t.done && (
+                    <button onClick={() => setPromoting(t)} className="todo-promote-btn" title="이 할 일을 프로젝트 업무로 옮깁니다">
+                      프로젝트로
+                    </button>
+                  )}
                   <button
                     onClick={async () => {
                       const { ok } = await confirm({ title: "할 일 삭제", desc: "이 할 일을 삭제하시겠습니까?", danger: true });
@@ -761,6 +786,30 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
         )}
       </div>
 
+      {/* 내가 담당인 프로젝트 업무 — 없으면 구획 자체를 만들지 않는다 */}
+      {(myTasks as any[]).length > 0 && (
+        <div className="schedule-todo-list glass-card">
+          <div className="mytask-head">
+            <b>프로젝트에서 내가 맡은 업무</b>
+            <span>{(myTasks as any[]).length}건 · 완료·수정은 프로젝트에서 해요</span>
+          </div>
+          <div className="divide-y divide-[var(--border)]/50">
+            {(myTasks as any[]).map((t) => {
+              const late = t.due_date && t.due_date < today;
+              return (
+                <Link key={t.id} href={`/projecthub/${t.deal_id}?tab=work`} className="mytask-row">
+                  <span className="flex-1 min-w-0">
+                    <span className="mytask-title">{t.title}</span>
+                    <span className="mytask-sub">{t.dealName}{t.due_date ? ` · ${late ? "⚠ " : ""}${t.due_date}` : ""}</span>
+                  </span>
+                  <span className="mytask-go">열기 →</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {editing && (
         <TodoEditModal
           todo={editing}
@@ -769,7 +818,89 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
           saving={editMut.isPending}
         />
       )}
+      {promoting && (
+        <PromoteTodoModal
+          todo={promoting}
+          deals={deals as any[]}
+          companyId={companyId}
+          userId={userId}
+          toast={toast}
+          onClose={() => setPromoting(null)}
+          onDone={() => {
+            setPromoting(null);
+            queryClient.invalidateQueries({ queryKey: ["schedule-todos"] });
+            queryClient.invalidateQueries({ queryKey: ["my-project-tasks"] });
+          }}
+        />
+      )}
       {confirmElement}
+    </div>
+  );
+}
+
+// 개인 할 일 → 프로젝트 업무. 옮기면 담당은 나로 두고, 개인 목록에서는 사라진다.
+//   (실측 2026-08-03: 프로젝트 업무 62건이 단 2개 프로젝트에 몰려 있고 개인 할 일은 6건 —
+//    두 곳을 잇는 길이 없어서 "할 일부터 쓰는 사람"이 프로젝트로 못 들어왔다)
+function PromoteTodoModal({ todo, deals, companyId, userId, toast, onClose, onDone }: {
+  todo: ScheduleTodo; deals: any[]; companyId: string; userId: string;
+  toast: any; onClose: () => void; onDone: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const [dealId, setDealId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const list = deals
+    .filter((d) => !d.parent_deal_id && d.stage !== "completed")
+    .filter((d) => !q.trim() || String(d.name || "").toLowerCase().includes(q.trim().toLowerCase()))
+    .slice(0, 30);
+
+  const submit = async () => {
+    if (!dealId || saving) return;
+    setSaving(true);
+    try {
+      const { count } = await supabase.from("project_tasks")
+        .select("id", { count: "exact", head: true }).eq("deal_id", dealId).is("archived_at", null);
+      const { error } = await supabase.from("project_tasks").insert({
+        company_id: companyId, deal_id: dealId, title: todo.title, description: todo.description || null,
+        status: "todo", assignee_id: userId, assignee_ids: [userId],
+        due_date: todo.due_date || null, progress: 0, position: (count || 0) + 1, created_by: userId,
+      });
+      if (error) throw new Error(error.message);
+      await deleteTodo(todo.id);
+      toast(`'${deals.find((d) => d.id === dealId)?.name || "프로젝트"}' 의 업무로 옮겼습니다.`, "success");
+      onDone();
+    } catch (e: any) {
+      toast(e?.message || "옮기기 실패", "error");
+      setSaving(false);
+    }
+  };
+
+  useModalKeys(true, onClose, !dealId || saving ? undefined : submit);
+
+  return (
+    <div className="schedule-todo-edit-modal fixed inset-0" onClick={onClose}>
+      <div className="promote-modal-body" onClick={(e) => e.stopPropagation()}>
+        <div className="promote-modal-head">
+          <b>어느 프로젝트의 업무인가요?</b>
+          <span>{todo.title}</span>
+        </div>
+        <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="프로젝트 검색" className="promote-modal-search" />
+        <div className="promote-modal-list">
+          {list.length === 0 ? (
+            <p className="promote-modal-empty">고를 프로젝트가 없어요. 프로젝트를 먼저 만들어 주세요.</p>
+          ) : list.map((d) => (
+            <button key={d.id} type="button" onClick={() => setDealId(d.id)}
+              className={`promote-modal-item ${dealId === d.id ? "promote-modal-item-on" : ""}`}>
+              {d.name}
+            </button>
+          ))}
+        </div>
+        <div className="promote-modal-actions">
+          <button type="button" onClick={onClose} className="btn-secondary btn-sm">취소</button>
+          <button type="button" onClick={submit} disabled={!dealId || saving} className="btn-primary btn-sm">
+            {saving ? "옮기는 중…" : "프로젝트로 옮기기"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
