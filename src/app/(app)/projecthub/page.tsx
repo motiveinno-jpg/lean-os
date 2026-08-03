@@ -1,5 +1,5 @@
 "use client";
-import { todayKst } from "@/lib/kst";
+import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
@@ -35,11 +35,20 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "");
 
+// 묶을 만한 거래 — 후보 기준. 너무 낮게 잡으면 반복 소액 거래처가 목록을 덮는다
+//   (실측: 최근 180일 매출 거래처 378곳 → 2건+·300만원+ 로 좁히면 22곳).
+const CAND_MIN_COUNT = 2;
+const CAND_MIN_AMOUNT = 3_000_000;
+const CAND_MAX = 5;
+const CAND_HIDE_KEY = "ov.projecthub.candHidden";
+type Candidate = { partnerId: string; name: string; cnt: number; amt: number; first: string; last: string; ids: string[] };
+
 export default function ProjectHubPage() {
   const { user, role } = useUser();
   const companyId = user?.company_id ?? null;
   const isManager = true; // (P3) 프로젝트 권한 보유자 전원 관리 뷰
   const router = useRouter();
+  const { toast } = useToast();
   const { allowed: tabAllowed, loading: tabLoading } = useCanAccessTab("/projecthub");
   // 열람 범위 — '/projecthub:all' 이 없으면 자기가 담당자인 프로젝트만 보인다(2026-07-31).
   const { isMaster: projMaster, hasPerm: projHasPerm } = useMyPermissions();
@@ -302,6 +311,93 @@ export default function ProjectHubPage() {
     for (const u of users as any[]) m[u.id] = u.name;
     return m;
   }, [users]);
+
+  // ── 묶을 만한 거래 ─────────────────────────────────────────
+  //   프로젝트에 연결되지 않은 매출 계산서를 거래처별로 모아 "프로젝트로 묶을까요?" 를 제안한다.
+  //   근거(2026-08-03 실측): 계산서 1,837건 중 프로젝트에 연결된 건 9건(0.5%)이다.
+  //   빈 프로젝트를 먼저 만들고 데이터가 붙기를 기다리는 순서로는 매출·비용 자리가 영영 안 열린다.
+  //   반대로 이미 쌓인 거래에서 후보를 뽑으면 22곳이 나온다(건수 2건+·합계 300만원+ 기준).
+  //   ⚠️ 자동 생성하지 않는다 — 후보만 보여주고 만드는 것은 사람이 누른다.
+  //   ⚠️ 회사 전체 매출이 드러나므로 전체 열람 권한자에게만 조회한다.
+  const { data: looseInvoices = [] } = useQuery({
+    queryKey: ["projecthub-loose-invoices", companyId],
+    queryFn: async () => {
+      const since = kstDateStr(new Date(Date.now() - 180 * 86_400_000));
+      const data = logRead('projecthub/page:data', await (supabase).from("tax_invoices")
+        .select("id, partner_id, counterparty_name, total_amount, issue_date")
+        .eq("company_id", companyId!).eq("type", "sales")
+        .neq("status", "void").neq("status", "draft")
+        .is("deal_id", null).not("partner_id", "is", null).gte("issue_date", since));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId && canViewAllProjects,
+  });
+  // 안 묶을 거래처는 이 브라우저에서만 숨긴다(테이블을 늘리지 않으려고 localStorage 사용).
+  const [hiddenCands, setHiddenCands] = useState<string[]>([]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try { setHiddenCands(JSON.parse(window.localStorage.getItem(CAND_HIDE_KEY) || "[]")); } catch { /* 저장값이 깨져도 무시 */ }
+  }, []);
+  const hideCandidate = (partnerId: string) => {
+    setHiddenCands((prev) => {
+      const next = prev.includes(partnerId) ? prev : [...prev, partnerId];
+      if (typeof window !== "undefined") window.localStorage.setItem(CAND_HIDE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+  const candidates = useMemo(() => {
+    if (!(looseInvoices as any[]).length) return [] as Candidate[];
+    const taken = new Set((deals as any[]).filter((d) => d.partner_id).map((d) => d.partner_id));
+    const m = new Map<string, Candidate>();
+    for (const iv of looseInvoices as any[]) {
+      const pid = iv.partner_id as string;
+      const cur = m.get(pid) || {
+        partnerId: pid, name: partnerName[pid] || String(iv.counterparty_name || "").replace(/\+/g, " ") || "이름 없는 거래처",
+        cnt: 0, amt: 0, first: iv.issue_date, last: iv.issue_date, ids: [] as string[],
+      };
+      cur.cnt += 1;
+      cur.amt += Number(iv.total_amount || 0);
+      cur.ids.push(iv.id);
+      if (iv.issue_date < cur.first) cur.first = iv.issue_date;
+      if (iv.issue_date > cur.last) cur.last = iv.issue_date;
+      m.set(pid, cur);
+    }
+    return [...m.values()]
+      .filter((c) => c.cnt >= CAND_MIN_COUNT && c.amt >= CAND_MIN_AMOUNT && !taken.has(c.partnerId) && !hiddenCands.includes(c.partnerId))
+      .sort((a, b) => b.amt - a.amt)
+      .slice(0, CAND_MAX);
+  }, [looseInvoices, deals, partnerName, hiddenCands]);
+
+  // 후보 → 프로젝트. 거래처·기간·금액이 채워진 채로 만들고, 근거가 된 계산서를 그 프로젝트로 옮긴다.
+  //   (연결은 세금계산서 화면에서 언제든 해제·변경할 수 있다)
+  const [bundling, setBundling] = useState<string | null>(null);
+  const bundleCandidate = async (c: Candidate) => {
+    if (!companyId || bundling) return;
+    setBundling(c.partnerId);
+    try {
+      const { data, error } = await (supabase).from("deals").insert({
+        company_id: companyId, status: "active", stage: "in_progress",
+        name: c.name, partner_id: c.partnerId, internal_manager_id: userId,
+        start_date: c.first, contract_total: c.amt,
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      const newId = data?.id as string | undefined;
+      if (newId) {
+        const { error: linkErr } = await (supabase).from("tax_invoices").update({ deal_id: newId }).in("id", c.ids);
+        if (linkErr) throw new Error(linkErr.message);
+      }
+      qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
+      qc.invalidateQueries({ queryKey: ["projecthub-loose-invoices"] });
+      qc.invalidateQueries({ queryKey: ["projecthub-settle-rollup"] });
+      toast(`'${c.name}' 프로젝트를 만들고 계산서 ${c.cnt}건을 연결했습니다.`, "success");
+      if (newId) router.push(`/projecthub/${newId}`);
+    } catch (e: any) {
+      toast(e?.message || "프로젝트 생성 실패", "error");
+    } finally {
+      setBundling(null);
+    }
+  };
+
   // 제목줄 클릭 정렬 — 콕핏 기본값은 긴급도순(2026-07-22)
   type PSortKey = "urgency" | "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period";
   const [sortKey, setSortKey] = useState<PSortKey>("urgency");
@@ -495,6 +591,29 @@ export default function ProjectHubPage() {
         <span className="ph-view-desc">{READY_LIST_VIEWS.find((v) => v.key === listView)?.desc}</span>
       </div>
 
+      {/* 묶을 만한 거래 — 후보가 없으면 줄 자체가 사라진다(빈 상태를 만들지 않는다) */}
+      {candidates.length > 0 && (
+        <section className="ph-cands">
+          <div className="ph-cands-head">
+            <b>묶을 만한 거래가 있어요</b>
+            <span>프로젝트에 연결되지 않은 매출이에요. 묶으면 거래처·기간·금액이 채워진 채로 시작해요.</span>
+          </div>
+          {candidates.map((c) => (
+            <div key={c.partnerId} className="ph-cand">
+              <span className="ph-cand-main">
+                <b>{c.name}</b>
+                <span>계산서 {c.cnt}건 · {fmtDate(c.first).slice(2).replace(/-/g, ".")} ~ {fmtDate(c.last).slice(2).replace(/-/g, ".")}</span>
+              </span>
+              <span className="ph-cand-amt mono-number">{won(c.amt)}</span>
+              <button type="button" className="ph-cand-go" disabled={!!bundling} onClick={() => bundleCandidate(c)}>
+                {bundling === c.partnerId ? "만드는 중…" : "프로젝트로 묶기"}
+              </button>
+              <button type="button" className="ph-cand-hide" title="이 거래처는 제안하지 않기" onClick={() => hideCandidate(c.partnerId)}>숨기기</button>
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* 성과 대시보드 — 사람별·부서별·입력률 집계. 유형 폐지로 전 프로젝트 대상이 됐다 */}
       {showDashboard && companyId && (
         <PerformanceDashboard companyId={companyId} onClose={() => setShowDashboard(false)} />
@@ -631,15 +750,15 @@ export default function ProjectHubPage() {
             </div>
             <div className="ph-onboard-steps">
               <div className="ph-onboard-step">
-                <b>돈</b>
+                <b>매출·비용</b>
                 <span>견적서를 만들면 공급가·부가세가 자동 계산되고, 승인되면 계약서 초안까지 만들어져요. 계산서·입금까지 이어져 마진과 미수가 저절로 잡혀요.</span>
               </div>
               <div className="ph-onboard-step">
-                <b>일</b>
+                <b>업무</b>
                 <span>할 일을 적고 담당을 지정하면 진행률이 자동으로 계산돼요. 칸반·간트로 보고, 마감이 지나면 알려줘요.</span>
               </div>
               <div className="ph-onboard-step">
-                <b>성과</b>
+                <b>목표·실적</b>
                 <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고, 이번 주 요약 초안까지 만들어져요.</span>
               </div>
             </div>

@@ -3559,6 +3559,22 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .ph-onboard-step b { @apply text-[12.5px] font-extrabold text-[var(--primary)]; }
 .ph-onboard-step span { @apply text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
 .ph-onboard-note { @apply text-[11px] text-[var(--text-dim)]; }
+/* 묶을 만한 거래 — 이미 쌓인 매출에서 프로젝트 후보를 제안하는 줄(목록 맨 위) */
+.ph-cands { @apply flex flex-col gap-1.5 p-3.5 rounded-2xl border border-[var(--primary)]/25 bg-[var(--primary)]/5; }
+.ph-cands-head { @apply flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mb-0.5; }
+.ph-cands-head b { @apply text-[13px] font-extrabold text-[var(--text)]; }
+.ph-cands-head span { @apply text-[11.5px] text-[var(--text-muted)]; }
+/* 좁은 화면에서는 거래처명이 한 줄을 통째로 쓰고, 금액·버튼이 아랫줄로 내려간다
+   (flex-wrap 으로 두면 이름 칸이 눌려 '포…' 처럼 잘린다) */
+.ph-cand { @apply grid items-center gap-x-3 gap-y-2 px-3.5 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]; grid-template-columns: minmax(0, 1fr) auto auto; }
+@media (min-width: 641px) { .ph-cand { grid-template-columns: minmax(0, 1fr) auto auto auto; } }
+.ph-cand-main { @apply flex flex-col min-w-0; grid-column: 1 / -1; }
+@media (min-width: 641px) { .ph-cand-main { grid-column: auto; } }
+.ph-cand-main b { @apply text-[13px] font-bold text-[var(--text)] truncate; }
+.ph-cand-main span { @apply text-[11px] text-[var(--text-dim)] whitespace-nowrap; }
+.ph-cand-amt { @apply text-[13px] font-extrabold text-[var(--text)] whitespace-nowrap; }
+.ph-cand-go { @apply text-[12px] font-bold px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white whitespace-nowrap transition hover:opacity-90 disabled:opacity-45; }
+.ph-cand-hide { @apply text-[11.5px] text-[var(--text-dim)] hover:text-[var(--text-muted)] whitespace-nowrap; }
 /* 체크인 초안 채우기 — 빈 칸을 사람이 채우던 것을 숫자로 먼저 채운다(4단계) */
 .checkin-draft-row { @apply flex flex-wrap items-center justify-between gap-2 mb-1; }
 .checkin-draft-btn { @apply text-[11.5px] font-bold px-2.5 py-1 rounded-lg border border-[var(--primary)]/35 text-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/15 whitespace-nowrap; }
