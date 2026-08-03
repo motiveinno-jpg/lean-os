@@ -10,8 +10,10 @@
 //
 // 절대규칙: 순수 함수. 조회는 화면이 하고 여기서는 계산만 한다.
 
+import { DONE_WORD_RE, START_DATE_RE, isDoneRow } from "@/lib/project-boards";
+
 export type ListBoard = { id: string; deal_id: string; name: string; template_key: string | null };
-export type ListColumn = { id: string; board_id: string; type: string; name: string };
+export type ListColumn = { id: string; board_id: string; type: string; name: string; settings?: any };
 export type ListGroup = { id: string; board_id: string; name: string; position: number };
 export type ListItem = { board_id: string; group_id: string | null; values: Record<string, any>; updated_at: string };
 
@@ -28,8 +30,6 @@ export type ProjectRollup = {
   doneRate: number | null;
 };
 
-const DONE_RE = /완료|종료|계약|승인/;
-
 export function rollupProject(
   boards: ListBoard[], columns: ListColumn[], groups: ListGroup[], items: ListItem[], today: string,
 ): ProjectRollup {
@@ -43,12 +43,17 @@ export function rollupProject(
   const last = myItems.map((i) => i.updated_at).filter(Boolean).sort().pop();
   if (last) quietDays = Math.floor((Date.now() - new Date(last).getTime()) / 86_400_000);
 
-  // 날짜 컬럼 — 지난 것 / 이번 주
+  // 날짜 컬럼 — 지난 것 / 이번 주.
+  //   끝난 행과 '시작' 계열 컬럼은 뺀다 — 안 그러면 완료된 일과 이미 시작한 일까지
+  //   '기한 지남' 으로 잡혀 목록 첫 줄 숫자가 부풀려진다(2026-08-03 시연 데이터로 확인).
   const weekLater = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
   let lateCount = 0, soonCount = 0;
-  const dateCols = myCols.filter((c) => c.type === "date");
+  const dueCols = myCols.filter((c) => c.type === "date" && !START_DATE_RE.test(c.name));
   for (const it of myItems) {
-    for (const c of dateCols) {
+    const boardCols = myCols.filter((c) => c.board_id === it.board_id);
+    const boardGroups = myGroups.filter((g) => g.board_id === it.board_id);
+    if (isDoneRow(it as any, boardCols as any, boardGroups as any)) continue;
+    for (const c of dueCols) {
       if (c.board_id !== it.board_id) continue;
       const v = String(it.values?.[c.id] || "");
       if (!/^\d{4}-\d{2}-\d{2}/.test(v)) continue;
@@ -64,7 +69,7 @@ export function rollupProject(
     let total = 0, done = 0;
     for (const b of flowBoards) {
       const gs = myGroups.filter((g) => g.board_id === b.id).sort((a, z) => a.position - z.position);
-      const doneGroup = gs.find((g) => DONE_RE.test(g.name));
+      const doneGroup = gs.find((g) => DONE_WORD_RE.test(g.name));
       const rows = myItems.filter((i) => i.board_id === b.id);
       total += rows.length;
       if (doneGroup) done += rows.filter((i) => i.group_id === doneGroup.id).length;

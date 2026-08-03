@@ -503,7 +503,8 @@ export default function ProjectHubPage() {
     queryFn: async () => {
       if (!pbBoardIds.length) return [];
       const data = logRead("projecthub/page:pbCols", await (supabase as any).from("project_board_columns")
-        .select("id, board_id, type, name").in("board_id", pbBoardIds));
+        // settings 까지 — 상태 옵션 라벨을 봐야 '완료된 행'을 지연에서 뺄 수 있다
+        .select("id, board_id, type, name, settings").in("board_id", pbBoardIds));
       return (data || []) as any[];
     },
     enabled: pbBoardIds.length > 0,

@@ -184,6 +184,31 @@ export function sumColumn(items: BoardItem[], colId: string): number {
 
 // ── 정리(요약) — 컬럼 타입만 보고 만든다(2026-08-03 기획 v2 4단계) ──
 //   템플릿을 새로 만들어도 이 함수는 그대로다. 값이 없는 항목은 만들지 않는다.
+//
+// 시연 데이터를 6종 템플릿에 다 넣어 보고 고친 것 3가지(2026-08-03):
+//   ① 끝난 행을 '기한 지남'으로 계속 세고 있었다 → 완료 행은 날짜 집계에서 뺀다.
+//   ② '시작' 날짜가 과거인 걸 지연으로 셌다 → 시작일은 기한이 아니다(이미 시작했다는 뜻).
+//   ③ 단위가 다른 숫자 둘을 뺐다 ('수주·매출'에서 금액(원) − 확률(%)) → 단위가 같을 때만 뺀다.
+
+/** 끝난 것으로 볼 말 — 그룹 이름과 상태 옵션 라벨에 같이 쓴다 */
+export const DONE_WORD_RE = /완료|종료|계약|승인|마감됨/;
+/** 기한이 아닌 날짜 컬럼 — 시작일이 과거인 건 정상이다 */
+export const START_DATE_RE = /시작|착수|개시|접수일/;
+
+/** 이 행은 끝났나 — 상태 컬럼의 완료 옵션이 골라졌거나, 완료류 그룹에 있으면 끝난 것 */
+export function isDoneRow(
+  it: { group_id: string | null; values: Record<string, any> },
+  cols: { id: string; type: string; settings?: any }[],
+  groups: { id: string; name: string }[],
+): boolean {
+  const g = groups.find((x) => x.id === it.group_id);
+  if (g && DONE_WORD_RE.test(g.name)) return true;
+  return cols.some((c) => {
+    if (c.type !== "status") return false;
+    const opt = (c.settings?.options || []).find((o: any) => o.id === it.values?.[c.id]);
+    return !!opt && DONE_WORD_RE.test(String(opt.label));
+  });
+}
 export type SummaryCard =
   | { kind: "number"; label: string; sum: number; avg: number; filled: number; unit: string }
   | { kind: "diff"; label: string; value: number; a: string; b: string; unit: string }
@@ -216,11 +241,12 @@ export function buildBoardSummary(
     const sum = vals.reduce((a, b) => a + b, 0);
     cards.push({ kind: "number", label: c.name, sum, avg: Math.round(sum / vals.length), filled: vals.length, unit: c.settings?.unit || "" });
   }
-  // 숫자 컬럼이 둘이면 차이도 준다(예산−집행 = 잔여 / 예상−확정)
+  // 숫자 컬럼이 둘이면 차이도 준다(예산−집행 = 잔여 / 예상−확정).
+  //   단위가 같을 때만 — '수주·매출'의 금액(원) − 확률(%) 같은 카드가 뜨면 안 된다.
   if (numberCols.length >= 2) {
     const [a, b] = numberCols;
     const sa = sumColumn(items, a.id), sb = sumColumn(items, b.id);
-    if (sa !== 0 || sb !== 0) {
+    if ((a.settings?.unit || "") === (b.settings?.unit || "") && (sa !== 0 || sb !== 0)) {
       cards.push({ kind: "diff", label: `${a.name} − ${b.name}`, value: sa - sb, a: a.name, b: b.name, unit: a.settings?.unit || "" });
     }
   }
@@ -237,13 +263,19 @@ export function buildBoardSummary(
     cards.push({ kind: "status", label: c.name, parts, doneRate: done && total > 0 ? Math.round((doneCount / total) * 100) : null });
   }
 
+  // 날짜 — 끝난 행은 빼고 센다(끝난 일의 지난 마감은 지연이 아니다).
+  //   '시작' 계열 컬럼은 지남/임박을 매기지 않는다 — 다만 있으면 '다음' 은 알려준다.
+  const openItems = items.filter((it) => !isDoneRow(it, cols as any, groups as any));
   for (const c of cols.filter((x) => x.type === "date")) {
-    const dates = items.map((it) => String(it.values?.[c.id] || "")).filter((d) => /^\d{4}-\d{2}-\d{2}/.test(d));
-    if (dates.length === 0) continue;
-    const late = dates.filter((d) => d < today).length;
+    const isDue = !START_DATE_RE.test(c.name);
+    const pick = (rows: BoardItem[]) => rows.map((it) => String(it.values?.[c.id] || "")).filter((d) => /^\d{4}-\d{2}-\d{2}/.test(d));
+    const all = pick(items);
+    if (all.length === 0) continue;
+    const open = pick(openItems);
     const week = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
-    const soon = dates.filter((d) => d >= today && d <= week).length;
-    const next = dates.filter((d) => d >= today).sort()[0] || null;
+    const late = isDue ? open.filter((d) => d < today).length : 0;
+    const soon = isDue ? open.filter((d) => d >= today && d <= week).length : 0;
+    const next = open.filter((d) => d >= today).sort()[0] || null;
     cards.push({ kind: "date", label: c.name, soon, late, next });
   }
 
