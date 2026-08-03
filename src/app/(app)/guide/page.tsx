@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { Ico } from "@/components/ui-icon";
+import { Ico, icoColor } from "@/components/ui-icon";
 import Link from 'next/link';
 import { resetOnboardingDismiss } from '@/components/onboarding';
 
@@ -333,13 +333,20 @@ function FeatureCard({
       >
         <span
           style={{
-            fontSize: '24px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
+            background: `${icoColor(feature.icon)}1a`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
             lineHeight: '1.2',
             flexShrink: 0,
             marginTop: '2px',
           }}
         >
-          <Ico e={feature.icon} />
+          <Ico e={feature.icon} tone="color" />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
@@ -411,7 +418,7 @@ function FeatureCard({
       >
         <div
           style={{
-            padding: '0 20px 20px 56px',
+            padding: '0 20px 20px 72px',
           }}
         >
           {/* Key Features */}
@@ -536,6 +543,7 @@ function FeatureCard({
 type WorkflowStep = { title: string; description: string; route?: string };
 type Workflow = { id: string; icon: string; title: string; description: string; steps: WorkflowStep[] };
 
+// 현재 화면·설정 탭 기준 (2026-08-03 최신화 — 메뉴/흐름이 바뀌면 여기도 갱신)
 const WORKFLOWS: Workflow[] = [
   {
     id: 'getting-started',
@@ -543,65 +551,63 @@ const WORKFLOWS: Workflow[] = [
     title: '시작하기 — 회사 설정',
     description: '회원가입 후 첫 설정을 완료하는 과정입니다. 10분이면 시작할 수 있습니다.',
     steps: [
-      { title: '회원가입', description: '이메일 또는 카카오/구글 소셜 로그인으로 가입합니다. 가입 시 회사명을 입력하면 14일 무료 체험이 시작됩니다.' },
-      { title: '회사 정보 입력', description: '설정 → 회사정보에서 사업자등록번호, 대표자명, 주소를 입력합니다. 세금계산서 자동 발행에 필요합니다.', route: '/settings' },
-      { title: '법인통장 연결', description: '설정 → 현금관리에서 주거래 은행 계좌를 등록합니다. 계좌별 용도(운영/예비/투자)를 지정하면 자금 흐름이 자동 분류됩니다.', route: '/settings' },
-      { title: '거래처 등록', description: '거래처 메뉴에서 첫 번째 고객사 또는 공급사를 추가합니다. 사업자등록번호와 담당자 연락처를 입력하세요.', route: '/partners' },
-      { title: '첫 프로젝트 생성', description: '프로젝트 파이프라인에서 진행 중인 프로젝트를 등록합니다. 계약금액과 거래처를 연결하면 매출 추적이 시작됩니다.', route: '/projects' },
-      { title: '대시보드 확인', description: '모든 설정이 완료되면 대시보드에서 6-Pack 생존지표가 실시간으로 표시됩니다.', route: '/dashboard' },
+      { title: '회원가입', description: '이메일로 가입하고 사업자등록번호를 입력하면 국세청에서 실시간으로 확인합니다. 이미 등록된 회사라면 마스터에게 합류 요청을 보낼 수 있습니다.' },
+      { title: '온보딩 마법사', description: '가입 직후 온보딩에서 회사 정보 → 계좌 → 첫 직원 → 첫 프로젝트를 차례로 등록합니다. 건너뛴 항목은 나중에 설정에서 언제든 완료할 수 있습니다.', route: '/onboarding' },
+      { title: '회사 정보 확인', description: '설정 → 회사정보에서 사업자등록번호, 대표자명, 주소를 확인·보완합니다. 세금계산서와 계약서 등 공식 문서에 사용됩니다.', route: '/settings?tab=company-info' },
+      { title: '통장 등록', description: '설정 → 자금·통장에서 법인 계좌를 등록하고 용도(운영/세금/급여/예비)를 지정합니다.', route: '/settings?tab=cash' },
+      { title: '거래처 등록', description: '거래처 메뉴에서 첫 번째 고객사 또는 공급사를 추가합니다. 사업자등록번호는 국세청에서 자동 검증됩니다.', route: '/partners' },
+      { title: '대시보드 확인', description: '설정이 끝나면 대시보드에서 잔액·자금 흐름과 오늘 할 일이 표시되기 시작합니다.', route: '/dashboard' },
     ],
   },
   {
     id: 'codef-cert',
     icon: '🔐',
-    title: 'CODEF 인증서 등록',
+    title: '공동인증서 등록 — 자동화의 시작',
     description: '공동인증서를 등록하면 은행/카드 거래내역과 홈택스 세금계산서를 자동으로 가져올 수 있습니다.',
     steps: [
-      { title: '인증서 파일 준비', description: 'PC에 저장된 공동인증서(구 공인인증서)를 준비합니다. 보통 NPKI 폴더(USB 또는 하드디스크)에 있으며, .der / .key 파일 2개가 필요합니다.' },
-      { title: '설정 → 인증서 관리', description: '설정 페이지의 "인증서 관리" 탭에서 인증서 등록 버튼을 클릭합니다.', route: '/settings' },
-      { title: '인증서 업로드', description: '.der(인증서) 파일과 .key(개인키) 파일을 각각 선택하여 업로드합니다. 또는 PFX 파일 하나로도 등록 가능합니다.' },
-      { title: '인증서 비밀번호 입력', description: '인증서의 비밀번호를 입력합니다. 비밀번호는 암호화되어 안전하게 저장됩니다.' },
-      { title: '연결 확인', description: '등록이 완료되면 "연결됨" 상태가 표시됩니다. 이제 거래내역 자동 동기화와 홈택스 세금계산서 조회가 가능합니다.' },
+      { title: '설정 → 인증서', description: '설정 페이지의 인증서 탭에서 등록을 시작합니다.', route: '/settings?tab=certificate' },
+      { title: '인증서 불러오기', description: 'PC에 CodefCert 프로그램을 설치하면 저장된 공동인증서(구 공인인증서)를 자동으로 찾아줍니다. 프로그램 설치가 어려우면 PFX/P12 파일을 직접 업로드해도 됩니다.' },
+      { title: '비밀번호 입력', description: '인증서 비밀번호를 입력하면 암호화되어 안전하게 전송됩니다. 금융 데이터 조회에만 사용됩니다.' },
+      { title: '연결 확인', description: '등록이 완료되면 연결됨 상태가 표시되고, 이후 은행·카드·홈택스 데이터가 자동으로 수집되기 시작합니다.' },
     ],
   },
   {
     id: 'bank-card',
     icon: '🏦',
-    title: '은행/카드 연동',
-    description: '법인 계좌와 카드를 연동하면 거래내역이 자동으로 수집되고, AI가 계정과목을 분류합니다.',
+    title: '은행/카드 자동 수집',
+    description: '인증서 연동 후 거래내역이 자동으로 수집되고, 계정과목이 자동 분류됩니다.',
     steps: [
-      { title: '인증서 등록 (선행)', description: 'CODEF 인증서가 등록되어 있어야 합니다. 아직 등록하지 않았다면 위의 "CODEF 인증서 등록" 가이드를 먼저 따라하세요.' },
-      { title: '거래내역 동기화', description: '대시보드 또는 거래내역 페이지에서 "동기화" 버튼을 클릭하면 은행 거래내역을 자동으로 가져옵니다.', route: '/transactions' },
-      { title: 'AI 자동 분류', description: '가져온 거래내역에 대해 "AI 분류" 버튼을 누르면 계정과목(급여, 임대료, 매출 등)이 자동 분류됩니다.', route: '/transactions' },
-      { title: '분류 검토/수정', description: 'AI 분류 결과를 검토하고, 틀린 항목은 클릭하여 수동 수정합니다. 수정 내역은 AI가 학습하여 다음번 정확도가 높아집니다.' },
-      { title: '카드 내역 확인', description: '법인카드 거래내역도 동일한 방식으로 조회됩니다. 카드별 사용금액, 승인/취소 현황을 한눈에 확인할 수 있습니다.' },
+      { title: '인증서 등록 (선행)', description: '위의 "공동인증서 등록" 가이드를 먼저 완료하세요. 설정 → 은행연동에서 연동할 은행·카드사를 관리할 수 있습니다.', route: '/settings?tab=bank' },
+      { title: '자동 수집 확인', description: '통장 메뉴에서 계좌 잔액과 거래내역이, 카드 메뉴에서 승인내역이 자동으로 쌓이는 것을 확인합니다.', route: '/bank' },
+      { title: '자동 분류 검토', description: '거래 장부에서 자동 분류된 계정과목과 부가세 구분을 검토합니다. 잘못 분류된 항목은 직접 수정하면 됩니다.', route: '/transactions' },
+      { title: '수기 거래 입력', description: '자동 수집 밖의 거래(현금 등)는 전표입력에서 직접 기록합니다.', route: '/partners/reconciliation/voucher-entry' },
+      { title: '분석 확인', description: '장부가 쌓이면 분석 메뉴에서 기간별 매출·비용 추이를 확인할 수 있습니다.', route: '/reports' },
     ],
   },
   {
     id: 'deal-to-payment',
     icon: '📋',
-    title: '프로젝트 → 계약 → 정산 워크플로우',
-    description: '영업에서 수주한 프로젝트를 등록하고, 견적→계약→세금계산서→입금 확인까지 전 과정을 자동화합니다.',
+    title: '프로젝트 → 계약 → 정산 흐름',
+    description: '수주한 프로젝트를 등록하고 견적 → 계약 → 세금계산서 발행 → 입금 확인까지 이어갑니다.',
     steps: [
-      { title: '프로젝트 생성', description: '프로젝트 파이프라인에서 "새 프로젝트"을 클릭합니다. 프로젝트명, 거래처, 예상 계약금액, 예상 마감일을 입력합니다.', route: '/projects' },
-      { title: '견적서 작성', description: '프로젝트 상세에서 "견적서 생성" 버튼을 누르면 프로젝트 정보가 자동으로 채워진 견적서가 만들어집니다. 품목과 금액을 확인 후 발행합니다.', route: '/documents' },
-      { title: '견적 승인 → 계약서 자동 생성', description: '견적서가 승인되면 계약서가 자동으로 생성됩니다. 선금/잔금 비율, 결제 조건 등이 견적서에서 승계됩니다.' },
-      { title: '전자서명 요청', description: '계약서에서 "서명 요청"을 보내면 거래처 담당자에게 이메일이 발송됩니다. 서명 상태를 실시간으로 추적할 수 있습니다.', route: '/signatures' },
-      { title: '세금계산서 자동 발행', description: '계약 승인 시 결제 스케줄에 따라 세금계산서가 자동 발행됩니다. 선금 분, 잔금 분이 각각 생성됩니다.', route: '/tax-invoices' },
-      { title: '입금 확인 및 3-Way 매칭', description: '입금이 확인되면 세금계산서-계약서-입금내역 간 3-Way 매칭이 자동으로 이루어집니다. 매칭 결과는 매칭허브에서 확인합니다.', route: '/partners/reconciliation' },
+      { title: '프로젝트 생성', description: '프로젝트 메뉴에서 새 프로젝트를 만듭니다. 프로젝트명, 거래처, 계약 금액을 입력하면 목표 대비 진행 흐름 추적이 시작됩니다.', route: '/projecthub' },
+      { title: '견적서 작성', description: '프로젝트에서 견적서를 작성해 거래처에 전달합니다.', route: '/projecthub' },
+      { title: '계약 체결 — 전자서명', description: '전자계약에서 계약서를 만들어 서명 요청을 보냅니다. 상대방은 링크로 접속해 그 자리에서 서명하고, 완료 문서는 보관함에 저장됩니다.', route: '/signatures' },
+      { title: '세금계산서 발행', description: '세금·증빙에서 세금계산서를 발행합니다. 발행 대기함으로 발행 건을 관리할 수 있습니다.', route: '/tax-invoices' },
+      { title: '입금 확인·미수금', description: '입금이 들어오면 거래 장부에 자동 수집됩니다. 프로젝트 화면에서 발행 대비 입금·미수금과 마진을 확인하세요.', route: '/projecthub' },
     ],
   },
   {
     id: 'team-setup',
     icon: '👥',
-    title: '직원 초대 및 권한 설정',
-    description: '팀원을 초대하고 역할별 접근 권한을 설정합니다. 관리자, 직원, 파트너 3가지 역할을 지원합니다.',
+    title: '직원 초대 및 권한 부여',
+    description: '팀원을 초대하고 마스터가 구성원별로 메뉴·세부탭 권한을 부여합니다.',
     steps: [
-      { title: '팀원 초대', description: '설정 → 팀 관리에서 "초대하기"를 클릭합니다. 이메일 주소, 이름, 역할(관리자/직원/파트너)을 입력하고 초대를 보냅니다.', route: '/settings' },
-      { title: '역할 설명', description: '관리자(admin): 모든 기능 접근. 직원(employee): 자신의 출퇴근/급여/결재만 조회. 파트너(partner): 연결된 프로젝트과 채팅만 접근 가능.' },
-      { title: '초대 수락', description: '초대받은 사람은 이메일의 링크를 클릭하여 회원가입(또는 로그인)합니다. 자동으로 해당 회사에 연결됩니다.' },
-      { title: '권한 세부 설정', description: '설정 → 권한 관리에서 역할별로 페이지 접근 권한을 세부 조정할 수 있습니다. 각 메뉴별 열람/수정/삭제 권한을 설정합니다.', route: '/settings' },
-      { title: '결재선 설정', description: '설정 → 결재 정책에서 경비, 휴가, 계약 등 유형별로 결재선을 등록합니다. N단계 승인, 금액 기준 자동승인 등을 설정할 수 있습니다.', route: '/settings' },
+      { title: '직원 등록', description: '구성원 메뉴에서 직원의 인사정보(부서·직급·입사일·연봉)를 등록합니다.', route: '/employees' },
+      { title: '계정 초대', description: '이메일로 초대를 보내면 직원이 링크로 가입해 회사에 연결됩니다. 직원이 먼저 가입 요청을 보낸 경우 마스터가 승인하면 됩니다.', route: '/employees' },
+      { title: '권한 부여', description: '역할 구분 대신 마스터 1명이 구성원별로 필요한 메뉴와 세부탭 권한을 골라 부여합니다. 구성원 화면의 권한 부여 탭에서 설정하세요.', route: '/employees' },
+      { title: '직원의 셀프서비스', description: '권한과 무관하게 모든 구성원은 마이페이지에서 본인 출퇴근 체크, 연차 확인, 급여명세서 열람을 할 수 있습니다.', route: '/mypage' },
+      { title: '결재선 설정', description: '결재 허브 → 결재 정책에서 지출결의·휴가 등 유형별 결재 단계와 승인자를 설정합니다.', route: '/approvals' },
     ],
   },
 ];
@@ -648,7 +654,16 @@ function WorkflowGuides() {
                   color: 'var(--text)',
                 }}
               >
-                <span style={{ fontSize: '22px', flexShrink: 0 }}><Ico e={wf.icon} /></span>
+                <span
+                  style={{
+                    width: '38px', height: '38px', borderRadius: '10px',
+                    background: `${icoColor(wf.icon)}1a`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '19px', flexShrink: 0,
+                  }}
+                >
+                  <Ico e={wf.icon} tone="color" />
+                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '14px', fontWeight: 700 }}>{wf.title}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{wf.description}</div>
@@ -964,7 +979,7 @@ export default function GuidePage() {
               padding: '64px 16px',
             }}
           >
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}><Ico e="🔍" /></div>
+            <div style={{ fontSize: '32px', marginBottom: '12px' }}><Ico e="🔍" tone="color" /></div>
             <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 4px' }}>
               검색 결과가 없습니다
             </p>
@@ -1010,7 +1025,7 @@ export default function GuidePage() {
                 href={f.route}
                 className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-[var(--text)] rounded-lg border border-[var(--border)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-light)]"
               >
-                <span style={{ fontSize: '16px' }}><Ico e={f.icon} /></span>
+                <span style={{ fontSize: '16px' }}><Ico e={f.icon} tone="color" /></span>
                 {f.title}
               </Link>
             ))}

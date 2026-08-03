@@ -2609,7 +2609,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .onboarding-feature-tour-sub { @apply text-xs text-[var(--text-muted)] mb-3 text-center; }
 .onboarding-feature-grid { @apply grid grid-cols-1 sm:grid-cols-2 gap-2; }
 .onboarding-feature-card { @apply flex items-start gap-2.5 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:border-[var(--primary)]/40 hover:bg-[var(--primary)]/[.04] transition; }
-.onboarding-feature-card-emoji { @apply text-lg leading-none mt-0.5 shrink-0; }
+.onboarding-feature-card-emoji { @apply w-9 h-9 rounded-[10px] flex items-center justify-center text-lg leading-none shrink-0; }
 .onboarding-feature-card-name { @apply text-[13px] font-bold text-[var(--text)]; }
 .onboarding-feature-card-desc { @apply text-[11px] text-[var(--text-muted)] leading-relaxed mt-0.5; }
 .onboarding-feature-tour-guide-link { @apply mt-4 text-center; }

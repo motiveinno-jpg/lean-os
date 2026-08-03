@@ -1,6 +1,7 @@
 "use client";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { Ico, icoColor } from "@/components/ui-icon";
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -1246,7 +1247,9 @@ function Step5Complete({ status }: { status: CompletionStatus }) {
         <div className="onboarding-feature-grid">
           {FEATURE_TOUR.map((f) => (
             <a key={f.href} href={f.href} className="onboarding-feature-card">
-              <span className="onboarding-feature-card-emoji" aria-hidden="true">{f.emoji}</span>
+              <span className="onboarding-feature-card-emoji" aria-hidden="true" style={{ background: `${icoColor(f.emoji)}1a` }}>
+                <Ico e={f.emoji} tone="color" />
+              </span>
               <span>
                 <span className="onboarding-feature-card-name">{f.name}</span>
                 <span className="onboarding-feature-card-desc block">{f.desc}</span>

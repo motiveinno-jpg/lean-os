@@ -128,15 +128,55 @@ const P: Record<string, ReactNode> = {
   "🪄": <><path {...S} d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z" /></>,
   "👆": <><path {...S} d="M12 4v14M6 12l6-6 6 6" /></>,
   "🚀": <><path {...S} d="M12 15c5-4 6-9 6-12-3 0-8 1-12 6l-3 1 3 3 1 3z" /><path {...S} d="M6 15c-1.5 1-2 4-2 4s3-.5 4-2" /><circle {...S} cx="13.5" cy="8.5" r="1.3" /></>,
+  "⏰": <><circle {...S} cx="12" cy="13" r="7" /><path {...S} d="M12 10v3l2.2 2.2M5 4L2.5 6.5M19 4l2.5 2.5" /></>,
 };
 
-export function Ico({ e, className, size }: { e: string; className?: string; size?: number }) {
+// ── 아이콘별 고유 색 (2026-08-03 사장님: "아이콘들이 다 색도 없이 검정색이라 안 이쁘다") ──
+//   tone="color" 를 준 곳에서만 적용 — 기본은 기존대로 currentColor(주변 글자색).
+//   색 배경(버튼 등) 위 아이콘까지 일괄 색칠하면 대비가 깨지므로 전역 기본값은 바꾸지 않는다.
+const ICO_COLOR: Record<string, string> = {
+  "📊": "#3b82f6", "📈": "#10b981", "📉": "#ef4444", "🤖": "#8b5cf6", "🏢": "#6366f1",
+  "🧾": "#f59e0b", "📒": "#14b8a6", "🏦": "#0ea5e9", "📁": "#eab308", "📂": "#eab308",
+  "🗂": "#eab308", "✅": "#22c55e", "📅": "#f43f5e", "🗓": "#f43f5e", "💬": "#06b6d4",
+  "✍": "#a855f7", "📝": "#a855f7", "🖊": "#a855f7", "✎": "#a855f7", "🖍": "#a855f7",
+  "📄": "#64748b", "📜": "#64748b", "📑": "#64748b", "👥": "#f97316", "👤": "#f97316",
+  "🧑": "#f97316", "🙋": "#f97316", "⏰": "#f43f5e", "🕐": "#f43f5e", "🕘": "#f43f5e",
+  "⚙": "#64748b", "🏠": "#3b82f6", "💰": "#10b981", "💳": "#6366f1", "💸": "#f43f5e",
+  "💵": "#10b981", "🚀": "#6366f1", "🔐": "#f59e0b", "🔒": "#f59e0b", "🔑": "#eab308",
+  "📋": "#8b5cf6", "🔍": "#64748b", "🔎": "#64748b", "🎯": "#ef4444", "📌": "#ef4444",
+  "🔗": "#0ea5e9", "🔔": "#f59e0b", "📢": "#f97316", "🎉": "#ec4899", "✨": "#eab308",
+  "✦": "#eab308", "🪄": "#eab308", "⚡": "#eab308", "🔥": "#f97316", "💡": "#eab308",
+  "🛡": "#10b981", "🚨": "#ef4444", "❌": "#ef4444", "🚫": "#ef4444", "⚠": "#f59e0b",
+  "🚧": "#f59e0b", "📦": "#d97706", "🗑": "#ef4444", "✉": "#0ea5e9", "📨": "#0ea5e9",
+  "📞": "#10b981", "🖨": "#64748b", "💼": "#6366f1", "👔": "#6366f1", "🤝": "#f97316",
+  "🧭": "#0ea5e9", "🧮": "#8b5cf6", "📖": "#d97706", "📕": "#d97706", "🏖": "#10b981",
+  "🌴": "#10b981", "👁": "#64748b", "👀": "#64748b", "💾": "#6366f1", "🛠": "#64748b",
+  "🔨": "#64748b", "🗜": "#64748b", "🖼": "#a855f7", "🎁": "#ec4899", "🎵": "#a855f7",
+  "✈": "#0ea5e9", "🍽": "#f97316", "🚗": "#3b82f6", "🛒": "#f97316", "📱": "#6366f1",
+  "🌙": "#8b5cf6", "📤": "#3b82f6", "📥": "#10b981", "⬇": "#64748b", "🔁": "#0ea5e9",
+  "🔄": "#0ea5e9", "💤": "#8b5cf6", "🎬": "#ef4444", "🎧": "#a855f7", "🗳": "#6366f1",
+  "💺": "#6366f1", "👋": "#f59e0b", "👆": "#64748b", "💧": "#0ea5e9", "📐": "#64748b",
+  "🧩": "#a855f7", "🎟": "#ec4899", "💤︎": "#8b5cf6",
+};
+const FALLBACK_PALETTE = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#f97316", "#0ea5e9", "#ec4899", "#14b8a6"];
+
+/** 아이콘 고유 색 — 매핑 없으면 문자 코드 기반으로 팔레트에서 안정적으로 선택 */
+export function icoColor(e: string): string {
+  const key = (e || "").replace(/️/g, "").trim();
+  if (ICO_COLOR[key]) return ICO_COLOR[key];
+  let h = 0;
+  for (const ch of key) h = (h * 31 + (ch.codePointAt(0) || 0)) >>> 0;
+  return FALLBACK_PALETTE[h % FALLBACK_PALETTE.length];
+}
+
+export function Ico({ e, className, size, tone }: { e: string; className?: string; size?: number; tone?: "mono" | "color" }) {
   const key = (e || "").replace(/️/g, "").trim();
   const body = P[key];
   if (!body) return <>{e}</>; // 매핑 전 이모지는 원본 유지 — 절대 깨지지 않게
   return (
     <svg viewBox="0 0 24 24" width={size ?? "1.15em"} height={size ?? "1.15em"}
-      className={className} aria-hidden style={{ display: "inline-block", verticalAlign: "-0.2em" }}>
+      className={className} aria-hidden
+      style={{ display: "inline-block", verticalAlign: "-0.2em", ...(tone === "color" ? { color: icoColor(key) } : {}) }}>
       {body}
     </svg>
   );
