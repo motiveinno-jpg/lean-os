@@ -1223,7 +1223,7 @@ export default function ProjectHubDetailPage() {
         <div className="pj-ov-panels">
         {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
         <PjSection k="todo" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
-          hint={signals.hasMoney || signals.hasWork ? "자동 집계" : "무엇부터 할지 안내"}>
+          hint={signals.hasMoney || signals.hasWork ? "자동 집계" : "무엇부터 할지 골라 보세요"}>
           <TodoQueue
             deal={deal} pipe={pipe} won={won}
             hasMoney={signals.hasMoney} hasWork={signals.hasWork} hasGoal={signals.hasGoal}
@@ -1721,7 +1721,7 @@ export default function ProjectHubDetailPage() {
             다중 담당·부서 롤업·프로젝트 채널은 4단계에서 이 자리에 붙는다. */}
         <PjSection k="team" inTab={TAB_OF_SECTION(sec).secs.includes("team")} active={sec === "team"} onSeen={markSecOpen}
           views={SECTION_VIEWS.team} view={viewOf("team")} onView={(v: string) => pickView("team", v)}
-          hint="담당 다중 배정 가능 · 해제해도 이력은 유지">
+          hint="담당은 여러 명 지정할 수 있어요 · 해제해도 이력은 남아요">
           {!openSecs.has("team") ? <p className="pj-sec-empty">불러오는 중…</p>
             : viewOf("team") === "who" && companyId ? (
               <TeamTab dealId={dealId} companyId={companyId} users={companyUsers as any[]}

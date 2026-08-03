@@ -100,7 +100,7 @@ export function getProjectStatus(i: StatusInput): ProjectStatus {
   return {
     key: "normal",
     label: STATUS_LABEL.normal,
-    why: dd != null ? `다음 마감까지 ${dd}일` : "특별히 챙길 건 없어요",
+    why: dd != null ? `다음 마감까지 ${dd}일` : "지금은 문제 없어요",
     daysToEnd: dd,
   };
 }

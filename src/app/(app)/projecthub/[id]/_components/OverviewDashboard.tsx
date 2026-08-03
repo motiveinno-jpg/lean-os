@@ -46,12 +46,12 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
   const bar = (v: number, axis: number) => `${Math.max(v > 0 ? 2 : 0, Math.round((v / axis) * 100))}%`;
 
   const tiles: { label: string; value: string; sub: string; icon: string; chip: string; tone?: "risk" | "ok" }[] = [
-    { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contract > 0 ? won(contract) : "—", sub: contract > 0 ? "VAT 별도" : "미입력" },
-    { label: "입금액", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "발행 내역 없음", tone: "ok" },
-    { label: "미수금", icon: "⏳", chip: "pj-chip-c", value: out > 1 ? won(out) : "없음", sub: out > 1 ? "발행 후 입금 미확인" : "잔액 없음", tone: out > 1 ? "risk" : undefined },
+    { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contract > 0 ? won(contract) : "—", sub: contract > 0 ? "VAT 별도" : "아직 정하지 않았어요" },
+    { label: "입금액", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "아직 발행 전이에요", tone: "ok" },
+    { label: "미수금", icon: "⏳", chip: "pj-chip-c", value: out > 1 ? won(out) : "없음", sub: out > 1 ? "발행 후 입금 확인 전" : "모두 들어왔어요", tone: out > 1 ? "risk" : undefined },
     {
       label: "진행률", icon: "✅", chip: "pj-chip-d", value: progress != null ? `${progress}%` : "—",
-      sub: total > 0 ? `업무 ${done}/${total}건 완료${overdue > 0 ? ` · 지연 ${overdue}건` : ""}` : "등록된 업무 없음",
+      sub: total > 0 ? `업무 ${done}/${total}건 완료${overdue > 0 ? ` · 지연 ${overdue}건` : ""}` : "업무를 추가하면 계산돼요",
       tone: overdue > 0 ? "risk" : undefined,
     },
   ];

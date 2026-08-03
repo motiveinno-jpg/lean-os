@@ -145,7 +145,7 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
   return (
     <section className="ph-checkins">
       <div className="ph-checkins-head">
-        <b>2주 이상 변동 없는 프로젝트</b>
+        <b>2주 넘게 변동이 없어요</b>
         <span>한 줄만 남겨두면 나중에 경과를 알 수 있어요. 이번 주는 {rows.length}건만 표시해요.</span>
       </div>
       {rows.map((r) => (

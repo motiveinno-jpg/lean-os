@@ -691,7 +691,7 @@ export default function ProjectHubPage() {
       {candidates.length > 0 && nudge === "cand" && (
         <section className="ph-cands">
           <div className="ph-cands-head">
-            <b>프로젝트에 연결되지 않은 거래</b>
+            <b>프로젝트에 안 묶인 거래</b>
             <span>묶으면 거래처·기간·금액이 채워진 채로 프로젝트가 만들어져요.</span>
           </div>
           {candidates.map((c) => (
