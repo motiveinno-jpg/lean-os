@@ -234,10 +234,9 @@ const EXPENSE_CATEGORIES = [
 
 // ── 수정세금계산서 준비 상태 ──
 //   CODEF 수정발행은 정발행과 상품이 분리돼 있어 별도 신청이 필요하다
-//   (regist-revise-invoicer-trustee). 2026-07-27 현재 미신청 상태라 화면에서 막아둔다.
-//   서버(hometax-issue)에는 수정발행 분기가 이미 구현돼 있으므로, 승인되면
-//   이 상수만 true 로 바꾸면 열린다.
-const MODIFY_ISSUE_AVAILABLE = false;
+//   (regist-revise-invoicer-trustee). 2026-08-03 사장님이 상품 구독 완료 →
+//   수정발행 분기가 담긴 hometax-issue(v37)·modify-tax-invoice(v27) 배포 후 해제.
+const MODIFY_ISSUE_AVAILABLE = true;
 
 // ── 수정세금계산서 사유 ──
 const MODIFICATION_REASONS = [
