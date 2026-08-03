@@ -134,7 +134,13 @@ export default function SignaturesDashboardPage() {
   const documents = useMemo(() => {
     const hrIds = hrPackageDocIds || new Set<string>();
     return (allDocuments as any[]).filter(
-      (d) => !HR_TEMPLATE_CATEGORIES.has(d.doc_templates?.category || "") && !hrIds.has(d.id),
+      (d) =>
+        !HR_TEMPLATE_CATEGORIES.has(d.doc_templates?.category || "") &&
+        !hrIds.has(d.id) &&
+        // 프로젝트에서 만든 견적·계약(deal_id 보유)도 제외 — 2026-08-03 사장님:
+        //   "프로젝트에서 생성된 계약서는 프로젝트에서 따로 모아 보게".
+        //   프로젝트 상세 > 견적서/전자계약 탭이 deal_id 로 같은 문서를 이미 모아 보여준다.
+        !d.deal_id,
     );
   }, [allDocuments, hrPackageDocIds]);
 
