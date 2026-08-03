@@ -1113,6 +1113,22 @@ export default function ProjectHubDetailPage() {
   const liveSecs = getVisibleSections(signals);
   const isLive = (k: SectionKey) => liveSecs.includes(k);
 
+  // 히어로 대표 지표 — 있는 데이터에서 하나만 고른다(할 일이 있으면 진행률, 없으면 수금률).
+  //   둘 다 없으면 게이지를 그리지 않는다(빈 링은 그리지 않는다).
+  const heroGauge = (() => {
+    const t = facts?.taskCount || 0;
+    if (t > 0) {
+      const pct = Math.round(((facts?.taskDone || 0) / t) * 100);
+      return { pct, label: `${pct}%`, sub: `진행률 · 할 일 ${facts?.taskDone || 0}/${t} 완료` };
+    }
+    const billed = facts?.billed || 0;
+    if (billed > 0) {
+      const pct = Math.round(((facts?.paid || 0) / billed) * 100);
+      return { pct, label: `${pct}%`, sub: `수금률 · 발행액 대비 입금` };
+    }
+    return null;
+  })();
+
   // 상태(정상·주의·지연) — 목록과 똑같은 규칙. 화면마다 다른 말을 쓰지 않는다(2026-08-03 개편 ①)
   const status = getProjectStatus({
     stage: deal.stage, endDate: deal.end_date, today: todayKst(),
@@ -1123,36 +1139,55 @@ export default function ProjectHubDetailPage() {
 
   return (
     <div className="project-detail-page">
-      <div className="page-sticky-header flex flex-wrap items-center gap-2">
-        {deal.parent_deal_id ? (
-          <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]" title="상위 프로젝트의 하위 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
-        ) : (
-          <Link href="/projecthub" className="text-xs text-[var(--text-muted)] hover:text-[var(--text)]">← 프로젝트</Link>
+      {/* ══ 히어로 밴드(2026-08-03 사장님 승인 · 브랜드 딥) — 상태·이유·대표 지표를 한 곳에.
+          흰 헤더 카드에는 대표 지표가 없어 "열자마자 판단"이 안 됐다. ══ */}
+      <div className="pj-hero">
+        <div className="pj-hero-main">
+          <div className="pj-hero-top">
+            {deal.parent_deal_id ? (
+              <Link href={`/projecthub/${deal.parent_deal_id}?tab=subprojects`} className="pj-hero-back" title="상위 프로젝트의 하위 프로젝트 목록으로">← {parentDeal?.name || "상위 프로젝트"}</Link>
+            ) : (
+              <Link href="/projecthub" className="pj-hero-back">← 프로젝트</Link>
+            )}
+            {deal.parent_deal_id && <span className="pj-hero-chip">하위 프로젝트</span>}
+            <span className={`pj-hero-st pj-hero-st-${status.key}`}>{status.label}</span>
+            <span className="pj-hero-chip">진행 단계 · {STAGE_LABEL[stage]}</span>
+          </div>
+          {editingName ? (
+            <input
+              value={nameInput} autoFocus
+              onChange={(e) => setNameInput(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
+              className="pj-hero-input"
+            />
+          ) : (
+            <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
+              className="pj-hero-name" title="클릭하여 프로젝트명 수정">
+              {deal.name || "(이름 없음)"}
+              <svg className="w-3.5 h-3.5 shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </h1>
+          )}
+          <p className="pj-hero-why">{status.why}{(facts?.outstanding || 0) > 1 ? <> · 못 받은 돈 <b>{won(facts!.outstanding)}</b></> : null}</p>
+          <div className="pj-hero-meta">
+            {partner?.name && <span>거래처 <b>{partner.name}</b></span>}
+            {manager?.name && <span>담당 <b>{manager.name}</b></span>}
+            {(deal.start_date || deal.end_date) && (
+              <span>기간 <b>{[deal.start_date, deal.end_date].filter(Boolean).map((d: string) => String(d).slice(2, 10).replace(/-/g, ".")).join(" ~ ")}</b></span>
+            )}
+          </div>
+        </div>
+        {/* 대표 지표 — 얇은 링 하나. 두꺼운 도넛은 화면을 무겁게 만든다(사장님 강조) */}
+        {heroGauge && (
+          <div className="pj-hero-gauge">
+            <svg className="pj-ring" viewBox="0 0 80 80" aria-hidden="true">
+              <circle className="pj-ring-track" cx="40" cy="40" r="33" />
+              <circle className="pj-ring-val" cx="40" cy="40" r="33" transform="rotate(-90 40 40)"
+                strokeDasharray={`${Math.round((heroGauge.pct / 100) * 207)} 207`} />
+            </svg>
+            <span className="pj-hero-gauge-t"><b>{heroGauge.label}</b><span>{heroGauge.sub}</span></span>
+          </div>
         )}
-        {deal.parent_deal_id && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold bg-[var(--primary)]/10 text-[var(--primary)]">하위 프로젝트</span>}
-        {/* 유형 배지(💰🎯✅)는 폐지 — 분류 대신 지금 상태(단계·미수)를 쓴다 */}
-        <span className={`ph-st ph-st-${status.key}`} title={status.why}>{status.label}</span>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${sc.bg} ${sc.text}`}>{STAGE_LABEL[stage]}</span>
-        {editingName ? (
-          <input
-            value={nameInput} autoFocus
-            onChange={(e) => setNameInput(e.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
-            className="project-name-input"
-          />
-        ) : (
-          <h1 onClick={() => { setNameInput(deal.name || ""); setEditingName(true); }}
-            className="project-name-heading"
-            title="클릭하여 프로젝트명 수정">
-            {deal.name || "(이름 없음)"}
-            <svg className="w-3.5 h-3.5 text-[var(--text-dim)] shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </h1>
-        )}
-        {/* 거래처는 있을 때만 — 내부 프로젝트에 '미지정' 을 띄우면 안 채운 칸처럼 보인다 */}
-        <span className="text-xs text-[var(--text-dim)]">{[partner?.name || null, manager?.name ? `담당 ${manager.name}` : null].filter(Boolean).join(" · ")}</span>
-        {/* 왜 이 상태인지 한 줄 — 상태 배지만 보고 이유를 찾아 헤매지 않게 */}
-        <span className="pj-why">{status.why}{(facts?.outstanding || 0) > 1 ? ` · 못 받은 돈 ${won(facts!.outstanding)}` : ""}</span>
       </div>
 
       {/* ══ 탭 4개 (2026-08-03 개편 ③) — 여섯 자리를 세로로 잇던 한 페이지를 묶었다.
@@ -1182,12 +1217,12 @@ export default function ProjectHubDetailPage() {
             endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
         )}
 
-        {/* 개요는 세로로만 쌓지 않는다(2026-08-03 사장님 지적: 빈 공간이 크다) —
-            챙길 것(넓게)과 진행 단계(좁게)를 한 줄에 놓고, 그 아래 차트를 깐다.
+        {/* 개요 = 같은 모양 패널이 2열로만 반복된다(2026-08-03 사장님 승인).
+            순서: 챙길 것 · 돈 흐름 / 월별 발행·입금 · 일정과 업무 / 진행 단계 · 목표와 실적.
             다른 탭에서는 자리가 하나뿐이라 그리드가 그대로 한 칸이 된다. */}
-        <div className="pj-ov-grid">
+        <div className="pj-ov-panels">
         {/* ① 지금 할 일 — 화면을 여는 이유. 사람이 눌러야 하는 것만 급한 순으로 */}
-        <PjSection k="todo" span="wide" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
+        <PjSection k="todo" inTab={TAB_OF_SECTION(sec).secs.includes("todo")} active={sec === "todo"} onSeen={markSecOpen}
           hint={signals.hasMoney || signals.hasWork ? "데이터에서 자동으로 뽑아요" : "무엇부터 하면 되는지 알려드려요"}>
           <TodoQueue
             deal={deal} pipe={pipe} won={won}
@@ -1197,9 +1232,13 @@ export default function ProjectHubDetailPage() {
             isNew={justCreated} onAddTasks={addFirstTasks} onSetDue={setFirstDue} saving={savingFirst} />
         </PjSection>
 
-        <div className="pj-ov-side">
+        {TAB_OF_SECTION(sec).key === "overview" && (
+          <OverviewDashboard part="charts" contract={ownContract} facts={facts as any} won={won}
+            endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
+        )}
+
         {/* ② 어디까지 왔나 — 견적→계약→진행→청구→정산 한 줄 + 단계 보정 */}
-        <PjSection k="flow" span="narrow" inTab={TAB_OF_SECTION(sec).secs.includes("flow")} active={sec === "flow"} onSeen={markSecOpen}
+        <PjSection k="flow" inTab={TAB_OF_SECTION(sec).secs.includes("flow")} active={sec === "flow"} onSeen={markSecOpen}
           hint="견적 승인·서명·발행·입금으로 판정해요">
           {signals.hasMoney ? (
             <>
@@ -1213,7 +1252,7 @@ export default function ProjectHubDetailPage() {
           )}
         </PjSection>
         {/* ⑤ 성과 — 목표·달성률·추세·분해·체크인. 구 목표형 전용에서 전 프로젝트로 개방 */}
-        <PjSection k="goal" span="narrow" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
+        <PjSection k="goal" inTab={TAB_OF_SECTION(sec).secs.includes("goal")} active={sec === "goal"} onSeen={markSecOpen}
           views={signals.hasGoal || expanded.goal ? SECTION_VIEWS.goal : undefined} view={viewOf("goal")} onView={(v: string) => pickView("goal", v)}
           hint={signals.hasGoal ? "매출·이익·건수는 태그된 회계 데이터에서 자동으로 채워져요" : undefined}>
           {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
@@ -1232,12 +1271,6 @@ export default function ProjectHubDetailPage() {
             )}
         </PjSection>
         </div>
-        </div>
-
-        {TAB_OF_SECTION(sec).key === "overview" && (
-          <OverviewDashboard part="charts" contract={ownContract} facts={facts as any} won={won}
-            endDate={deal.end_date ? String(deal.end_date).slice(0, 10) : null} daysToEnd={status.daysToEnd} />
-        )}
 
         {/* ③ 돈 — 마진 콕핏 + 원장 + 문서 흐름 + 확정비용. 유형(수익형) 조건 없이 모든 프로젝트가 갖는다 */}
         <PjSection k="money" inTab={TAB_OF_SECTION(sec).secs.includes("money")} active={sec === "money"} onSeen={markSecOpen}
@@ -1921,12 +1954,10 @@ export default function ProjectHubDetailPage() {
 // ── 자리(섹션) 셸 ────────────────────────────────────────────
 //   탭을 없앤 대신 이 셸이 자리 제목·보기 전환·지연 마운트를 맡는다.
 //   한 페이지에 여섯 자리가 있으므로, 화면에 들어온 자리만 onSeen 으로 열어 조회를 시작한다.
-function PjSection({ k, inTab, span, active, hint, views, view, onView, onSeen, children }: {
+function PjSection({ k, inTab, active, hint, views, view, onView, onSeen, children }: {
   k: SectionKey;
   /** 지금 열려 있는 탭에 속하는 자리인가 — 아니면 그리지 않는다(2026-08-03 개편 ③) */
   inTab: boolean;
-  /** 개요 탭에서 가로로 나눠 놓을 때의 칸 수(세로로만 쌓으면 빈 공간이 크다) */
-  span?: "wide" | "narrow";
   active: boolean;
   hint?: string;
   views?: { key: string; label: string }[];
@@ -1948,7 +1979,7 @@ function PjSection({ k, inTab, span, active, hint, views, view, onView, onSeen, 
   }, [k, onSeen]);
   if (!inTab) return null;
   return (
-    <div ref={ref} id={`pj-sec-${k}`} className={`pj-sec ${span ? `pj-sec-${span}` : ""} ${active ? "pj-sec-on" : ""}`}>
+    <div ref={ref} id={`pj-sec-${k}`} className={`pj-sec ${active ? "pj-sec-on" : ""}`}>
       <div className="pj-sec-head">
         <h2 className="pj-sec-title">{SECTION_TITLE[k]}</h2>
         {hint && <span className="pj-sec-hint">{hint}</span>}

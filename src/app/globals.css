@@ -3249,7 +3249,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .closing-summary-bar { @apply mt-3 flex items-center justify-between p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 
 /* ═══ 클래스명 가독성 정리 재작업 — 배치10(projecthub) 마커 스타일 (2026-07-16) ═══ */
-.project-detail-page { @apply space-y-6; }
+/* 넓은 화면에서 한 줄이 지나치게 길어지지 않게 본문 최대 폭을 둔다(2026-08-03 개편 ④).
+   1600px 초과 모니터에서 표·문장이 화면 끝까지 늘어나 읽기 나빴다. */
+.project-detail-page { @apply space-y-6 mx-auto w-full; max-width: 1560px; }
 .project-name-input { @apply text-lg font-bold bg-transparent border-b-2 border-[var(--primary)] text-[var(--text)] focus:outline-none w-full max-w-md; }
 .project-name-heading { @apply text-lg font-bold text-[var(--text)] truncate cursor-text hover:opacity-80 inline-flex items-center gap-1.5 min-w-0; }
 .margin-overview-panel { @apply space-y-5; }
@@ -5539,7 +5541,8 @@ td .rounded-full { white-space: nowrap; }
 /* 프로젝트 개요 대시보드(2026-08-03) — 지표 타일 + 얇은 차트.
    ⚠️ 막대는 6px 를 넘기지 않는다. 두꺼운 막대와 원색 남발은 촌스럽다(사장님 강조). */
 .pj-dash { @apply flex flex-col gap-3; }
-.pj-dash-tiles { @apply grid gap-3 grid-cols-2 lg:grid-cols-4; }
+/* 아주 좁은 화면(≤480px)에서는 타일을 한 줄에 하나씩 — 2열로 두면 금액이 두 줄로 꺾인다 */
+.pj-dash-tiles { @apply grid gap-3 grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4; }
 .pj-dash-sub { @apply text-[11px] text-[var(--text-muted)] leading-snug; }
 .pj-dash-risk { @apply text-[var(--danger)]; }
 .pj-dash-ok { @apply text-[var(--success)]; }
@@ -5583,11 +5586,12 @@ td .rounded-full { white-space: nowrap; }
 /* 개요 탭 배치 — 세로로만 쌓으면 빈 공간이 크다(2026-08-03 사장님 지적).
    넓은 자리(챙길 것)와 좁은 자리(진행 단계·목표와 실적)를 한 줄에 놓는다.
    다른 탭은 자리가 하나뿐이라 자동으로 한 칸이 된다. */
-.pj-ov-grid { @apply grid gap-4 items-start; grid-template-columns: minmax(0, 1fr); }
-.pj-ov-side { @apply flex flex-col gap-4 min-w-0; }
-@media (min-width: 1024px) {
-  .pj-ov-grid { grid-template-columns: 7fr 5fr; }
-}
+/* 개요 = 같은 모양 패널이 2열로만 반복(2026-08-03) — 리듬을 하나로 줄인다 */
+.pj-ov-panels { @apply grid gap-3 items-start; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1024px) { .pj-ov-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* 개요 안에서는 자리(pj-sec)도 차트 패널과 같은 카드 옷을 입는다 */
+.pj-ov-panels > .pj-sec, .pj-panel { @apply flex flex-col gap-3 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] min-w-0; }
+.pj-ov-panels > .pj-sec > .pj-sec-head { @apply mb-0; }
 
 /* 챙길 것이 없을 때 — 목록 모양은 유지하고 '무엇이 여기 올라오는지'를 흐리게 보여준다 */
 .pj-queue-none .pj-queue-stripe { @apply bg-[var(--success)]; }
@@ -5595,3 +5599,38 @@ td .rounded-full { white-space: nowrap; }
 .pj-queue-ghost .pj-queue-stripe { @apply bg-[var(--border)]; }
 .pj-queue-ghost > p { @apply text-[var(--text-dim)]; }
 .pj-queue-ghost em { @apply text-[var(--text-dim)] opacity-80; }
+
+/* ── 프로젝트 히어로 밴드(2026-08-03, 브랜드 딥) — 상태·이유·대표 지표를 한 곳에 ── */
+.pj-hero { @apply grid gap-4 items-center rounded-2xl px-5 py-5; grid-template-columns: minmax(0, 1fr); background: linear-gradient(135deg, #312E81 0%, #4F46E5 100%); color: #fff; }
+@media (min-width: 860px) { .pj-hero { grid-template-columns: minmax(0, 1fr) auto; } }
+.pj-hero-main { @apply flex flex-col gap-1.5 min-w-0; }
+.pj-hero-top { @apply flex flex-wrap items-center gap-2; }
+.pj-hero-back { @apply text-[12px] text-white/70 hover:text-white transition; }
+.pj-hero-chip { @apply text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-white/12 text-white/80; }
+.pj-hero-st { @apply text-[10.5px] font-extrabold px-2.5 py-0.5 rounded-full bg-white/18 text-white; }
+.pj-hero-st-late { @apply bg-[#EF4444]/30; }
+.pj-hero-st-warn { @apply bg-[#F59E0B]/30; }
+.pj-hero-st-normal { @apply bg-[#10B981]/30; }
+.pj-hero-name { @apply flex items-center gap-2 text-[clamp(18px,2vw,24px)] font-extrabold tracking-tight cursor-pointer leading-tight; }
+.pj-hero-input { @apply text-[22px] font-extrabold tracking-tight bg-white/10 border border-white/25 rounded-lg px-2 py-1 text-white w-full max-w-xl focus:outline-none focus:border-white/60; }
+.pj-hero-why { @apply text-[13px] text-white/75 m-0; }
+.pj-hero-why b { @apply text-white font-bold; }
+.pj-hero-meta { @apply flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-white/70 mt-0.5; }
+.pj-hero-meta b { @apply text-white font-bold; }
+.pj-hero-gauge { @apply flex items-center gap-3.5 rounded-xl px-4 py-3 bg-white/10 border border-white/20; }
+.pj-ring { @apply w-[62px] h-[62px] shrink-0; }
+.pj-ring circle { fill: none; stroke-width: 6; stroke-linecap: round; }
+.pj-ring-track { stroke: rgba(255,255,255,.18); }
+.pj-ring-val { stroke: #C7D2FE; }
+.pj-hero-gauge-t { @apply flex flex-col; }
+.pj-hero-gauge-t b { @apply text-[20px] font-extrabold tracking-tight; font-variant-numeric: tabular-nums; }
+.pj-hero-gauge-t span { @apply text-[11px] text-white/70; }
+/* 지표 타일 — 아이콘 칩 + 값 */
+.pj-tile { @apply flex items-start gap-3 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.pj-tile-chip { @apply w-8 h-8 rounded-[10px] grid place-items-center text-[15px] shrink-0; }
+.pj-tile-body { @apply flex flex-col gap-0.5 min-w-0; }
+.pj-tile .stat-tile-value { font-size: 19px; }
+.pj-chip-a { @apply bg-[var(--primary)]/10; }
+.pj-chip-b { @apply bg-[var(--success)]/10; }
+.pj-chip-c { @apply bg-[var(--danger)]/10; }
+.pj-chip-d { @apply bg-[var(--warning)]/10; }

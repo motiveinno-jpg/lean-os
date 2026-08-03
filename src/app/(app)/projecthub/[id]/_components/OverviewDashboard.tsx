@@ -45,12 +45,12 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
   const moneyAxis = Math.max(contract, billed, paid, 1);
   const bar = (v: number, axis: number) => `${Math.max(v > 0 ? 2 : 0, Math.round((v / axis) * 100))}%`;
 
-  const tiles: { label: string; value: string; sub: string; tone?: "risk" | "ok" }[] = [
-    { label: "계약금액", value: contract > 0 ? won(contract) : "—", sub: contract > 0 ? "VAT 별도" : "아직 정해지지 않았어요" },
-    { label: "받은 돈", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "발행한 계산서가 없어요", tone: "ok" },
-    { label: "못 받은 돈", value: out > 1 ? won(out) : "없음", sub: out > 1 ? "발행했지만 입금 확인 전" : "받을 돈이 남지 않았어요", tone: out > 1 ? "risk" : undefined },
+  const tiles: { label: string; value: string; sub: string; icon: string; chip: string; tone?: "risk" | "ok" }[] = [
+    { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contract > 0 ? won(contract) : "—", sub: contract > 0 ? "VAT 별도" : "아직 정해지지 않았어요" },
+    { label: "받은 돈", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "발행한 계산서가 없어요", tone: "ok" },
+    { label: "못 받은 돈", icon: "⏳", chip: "pj-chip-c", value: out > 1 ? won(out) : "없음", sub: out > 1 ? "발행했지만 입금 확인 전" : "받을 돈이 남지 않았어요", tone: out > 1 ? "risk" : undefined },
     {
-      label: "진행률", value: progress != null ? `${progress}%` : "—",
+      label: "진행률", icon: "✅", chip: "pj-chip-d", value: progress != null ? `${progress}%` : "—",
       sub: total > 0 ? `할 일 ${done}/${total}건 완료${overdue > 0 ? ` · 지연 ${overdue}건` : ""}` : "할 일을 적으면 계산돼요",
       tone: overdue > 0 ? "risk" : undefined,
     },
@@ -60,10 +60,13 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
     return (
       <div className="pj-dash-tiles">
         {tiles.map((t) => (
-          <div key={t.label} className="stat-tile">
-            <span className="stat-tile-label">{t.label}</span>
-            <span className={`stat-tile-value ${t.tone === "risk" ? "pj-dash-risk" : t.tone === "ok" ? "pj-dash-ok" : ""}`}>{t.value}</span>
-            <span className="pj-dash-sub">{t.sub}</span>
+          <div key={t.label} className="pj-tile">
+            <span className={`pj-tile-chip ${t.chip}`} aria-hidden="true">{t.icon}</span>
+            <span className="pj-tile-body">
+              <span className="stat-tile-label">{t.label}</span>
+              <span className={`stat-tile-value ${t.tone === "risk" ? "pj-dash-risk" : t.tone === "ok" ? "pj-dash-ok" : ""}`}>{t.value}</span>
+              <span className="pj-dash-sub">{t.sub}</span>
+            </span>
           </div>
         ))}
       </div>
@@ -71,9 +74,9 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
   }
 
   return (
-    <div className="pj-dash-charts">
+    <>
         {/* 돈 흐름 — 계약 → 발행 → 입금. 세 막대가 같은 축이라 길이 차이가 곧 남은 일이다 */}
-        <section className="pj-dash-card">
+        <section className="pj-panel">
           <div className="pj-dash-head"><b>돈이 어디까지 왔나</b><span>계약 → 계산서 발행 → 입금</span></div>
           {contract === 0 && billed === 0 ? (
             <p className="pj-dash-empty">계약금액이나 계산서가 생기면 여기에 흐름이 나타나요.</p>
@@ -92,7 +95,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
         </section>
 
         {/* 월별 발행·입금 — 얇은 막대 두 줄. 최근 6개월만(더 보면 축이 촘촘해져 안 읽힌다) */}
-        <section className="pj-dash-card">
+        <section className="pj-panel">
           <div className="pj-dash-head"><b>월별 발행·입금</b><span>최근 6개월</span></div>
           {months.length === 0 ? (
             <p className="pj-dash-empty">계산서를 발행하면 달마다 쌓여요.</p>
@@ -118,7 +121,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
         </section>
 
         {/* 일정과 업무 — 마감까지 남은 날, 할 일 상태를 한 줄 스택으로 */}
-        <section className="pj-dash-card">
+        <section className="pj-panel">
           <div className="pj-dash-head"><b>일정과 업무</b><span>마감과 할 일 상태</span></div>
           <div className="pj-dash-when">
             <div className="pj-when-row">
@@ -150,6 +153,6 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
             <p className="pj-dash-empty">할 일을 적으면 진행 상태가 여기에 그려져요.</p>
           )}
       </section>
-    </div>
+    </>
   );
 }
