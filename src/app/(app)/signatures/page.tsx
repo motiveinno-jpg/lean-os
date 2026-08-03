@@ -140,7 +140,10 @@ export default function SignaturesDashboardPage() {
         // 프로젝트에서 만든 견적·계약(deal_id 보유)도 제외 — 2026-08-03 사장님:
         //   "프로젝트에서 생성된 계약서는 프로젝트에서 따로 모아 보게".
         //   프로젝트 상세 > 견적서/전자계약 탭이 deal_id 로 같은 문서를 이미 모아 보여준다.
-        !d.deal_id,
+        !d.deal_id &&
+        // 양식 실체화 사본(source_template_id)도 제외 — 양식 자체가 목록에 있으므로
+        //   사본까지 보이면 같은 계약서가 2개씩 나온다(2026-08-03 사장님).
+        !(d.content_json as any)?.source_template_id,
     );
   }, [allDocuments, hrPackageDocIds]);
 

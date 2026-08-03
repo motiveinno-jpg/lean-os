@@ -115,7 +115,8 @@ export function OrgBulkWizard({
   const selectTemplate = async (tpl: any) => {
     if (materializing) return;
     // 이미 실체화된 적 있으면(같은 이름 문서 존재) 재사용 — 매번 새 문서로 중복 생성 방지.
-    const already = allDocuments.find((d) => d.name === tpl.name);
+    // 양식 id 연결 우선 — 이름은 양식관리에서 바뀔 수 있다(2026-08-03)
+    const already = allDocuments.find((d) => (tpl.id && (d.content_json as any)?.source_template_id === tpl.id) || d.name === tpl.name);
     if (already) { setDocId(already.id); return; }
     setMaterializing(true);
     try {
@@ -462,7 +463,7 @@ export function OrgBulkWizard({
                     </label>
                   ))}
                   {companyTpls.map((t: any) => {
-                    const materialized = allDocuments.find((d) => d.name === t.name);
+                    const materialized = allDocuments.find((d) => (d.content_json as any)?.source_template_id === t.id || d.name === t.name);
                     const checked = !!materialized && docId === materialized.id;
                     return (
                       <label
@@ -488,7 +489,7 @@ export function OrgBulkWizard({
                     <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 — 표준 양식</div>
                   )}
                   {standardTpls.map((t: any) => {
-                    const materialized = allDocuments.find((d) => d.name === t.name);
+                    const materialized = allDocuments.find((d) => (d.content_json as any)?.source_template_id === t.id || d.name === t.name);
                     const checked = !!materialized && docId === materialized.id;
                     return (
                       <label

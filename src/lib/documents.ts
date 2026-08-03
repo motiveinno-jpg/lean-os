@@ -302,23 +302,54 @@ export async function materializeDocTemplate(companyId: string, tpl: { name: str
 //   materializeDocTemplate 의 contract_templates 판. body_html 을 그대로 documents.content_json.body 에.
 export async function materializeContractTemplate(
   companyId: string,
-  tpl: { name: string; body_html?: string | null; body_markdown?: string | null },
+  tpl: { id?: string; name: string; body_html?: string | null; body_markdown?: string | null },
 ) {
-  const existing = logRead('lib/documents:existing-ct', await supabase
-    .from("documents")
-    .select("*")
-    .eq("company_id", companyId)
-    .eq("name", tpl.name)
-    .maybeSingle());
-  if (existing) return existing;
-
   const body = tpl.body_html || tpl.body_markdown || "";
+  // 기존 실체화 문서는 양식 id(content_json.source_template_id)로 찾는다 — 이름 매칭만으로는
+  //   양식관리에서 이름을 바꾸는 순간 연결이 끊겨 사본이 중복 생성되고 옛 이름이 남았다(2026-08-03 사장님).
+  let existing: any = null;
+  if (tpl.id) {
+    const rows = logRead('lib/documents:existing-ct', await supabase
+      .from("documents")
+      .select("*")
+      .eq("company_id", companyId)
+      .contains("content_json", { source_template_id: tpl.id })
+      .limit(1));
+    existing = (rows as any[])?.[0] || null;
+  }
+  if (!existing) {
+    const rows = logRead('lib/documents:existing-ct-name', await supabase
+      .from("documents")
+      .select("*")
+      .eq("company_id", companyId)
+      .eq("name", tpl.name)
+      .limit(1));
+    existing = (rows as any[])?.[0] || null;
+  }
+
+  const contentJson = { ...(existing?.content_json as Record<string, unknown> | null || {}), body, ...(tpl.id ? { source_template_id: tpl.id } : {}) };
+  if (existing) {
+    // 양식 이름·본문 변경을 사본에 반영 — 이미 발송된 건은 signature_requests 가 자체 스냅샷을 들고 있어 안전.
+    const curBody = (existing.content_json as any)?.body ?? "";
+    const linked = (existing.content_json as any)?.source_template_id;
+    if (existing.name !== tpl.name || curBody !== body || (tpl.id && linked !== tpl.id)) {
+      const { data: updated } = await supabase
+        .from("documents")
+        .update({ name: tpl.name, content_json: contentJson as unknown as Json })
+        .eq("id", existing.id)
+        .select()
+        .single();
+      return updated ?? existing;
+    }
+    return existing;
+  }
+
   const { data, error } = await supabase
     .from("documents")
     .insert({
       company_id: companyId,
       name: tpl.name,
-      content_json: { body } as unknown as Json,
+      content_json: contentJson as unknown as Json,
       auto_classified_type: "contract",
       status: "draft",
     })
