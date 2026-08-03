@@ -26,6 +26,7 @@ import { getHeadline, READY_LIST_VIEWS, normalizeListView, viewStorageKey, type 
 import { useCanAccessTab } from "@/lib/tab-access";
 import { useMyPermissions } from "@/lib/permissions";
 import { PerformanceDashboard } from "./_components/PerformanceDashboard";
+import { QuietCheckins } from "./_components/QuietCheckins";
 // 워크플로우 보드 — 회사 전체 프로젝트를 커스텀 컬럼으로 보는 도구. 실행형 프로젝트 상세 탭에
 //   숨어 있던 것을 목록의 '보드' 보기로 끌어올렸다(2026-07-30 사장님 승인).
 import { MondayBoard } from "@/components/monday-board";
@@ -199,7 +200,7 @@ export default function ProjectHubPage() {
     queryKey: ["projecthub-tasks", companyId, allDealIds.length],
     queryFn: async () => {
       if (allDealIds.length === 0) return [];
-      const data = logRead('projecthub/page:data', await (supabase).from("project_tasks").select("deal_id, status, due_date").in("deal_id", allDealIds).is("archived_at", null));
+      const data = logRead('projecthub/page:data', await (supabase).from("project_tasks").select("deal_id, status, due_date, updated_at").in("deal_id", allDealIds).is("archived_at", null));
       return (data || []) as any[];
     },
     enabled: !!companyId && allDealIds.length > 0,
@@ -612,6 +613,15 @@ export default function ProjectHubPage() {
             </div>
           ))}
         </section>
+      )}
+
+      {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 대상이 없으면 아무것도 그리지 않는다 */}
+      {companyId && (
+        <QuietCheckins
+          companyId={companyId} userId={userId}
+          deals={topDeals as any[]} tasks={tasksRows as any[]}
+          outstandingOf={(id) => outstandingByDeal[id] || 0}
+          won={won} toast={toast} />
       )}
 
       {/* 성과 대시보드 — 사람별·부서별·입력률 집계. 유형 폐지로 전 프로젝트 대상이 됐다 */}

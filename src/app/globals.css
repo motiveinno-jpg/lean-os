@@ -3577,6 +3577,19 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .ph-cand-amt { @apply text-[13px] font-extrabold text-[var(--text)] whitespace-nowrap; }
 .ph-cand-go { @apply text-[12px] font-bold px-3 py-1.5 rounded-lg bg-[var(--primary)] text-white whitespace-nowrap transition hover:opacity-90 disabled:opacity-45; }
 .ph-cand-hide { @apply text-[11.5px] text-[var(--text-dim)] hover:text-[var(--text-muted)] whitespace-nowrap; }
+/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건 */
+.ph-checkins { @apply flex flex-col gap-1.5 p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]; }
+.ph-checkins-head { @apply flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mb-0.5; }
+.ph-checkins-head b { @apply text-[13px] font-extrabold text-[var(--text)]; }
+.ph-checkins-head span { @apply text-[11.5px] text-[var(--text-muted)]; }
+.ph-checkin { @apply flex flex-col gap-2 px-3.5 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.ph-checkin-top { @apply flex flex-wrap items-baseline gap-x-2 gap-y-0.5; }
+.ph-checkin-top b { @apply text-[13px] font-bold text-[var(--text)] min-w-0 truncate; }
+.ph-checkin-top span { @apply text-[11px] text-[var(--text-dim)]; }
+.ph-checkin-skip { @apply ml-auto text-[11.5px] text-[var(--text-dim)] hover:text-[var(--text-muted)] whitespace-nowrap; }
+.ph-checkin-write { @apply flex flex-wrap items-center gap-2; }
+.ph-checkin-input { @apply flex-1 min-w-[180px] h-9 px-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.ph-checkin-save { @apply h-9 px-4 rounded-lg bg-[var(--primary)] text-white text-[12.5px] font-bold whitespace-nowrap transition hover:opacity-90 disabled:opacity-45; }
 /* 개인 할 일 ↔ 프로젝트 업무 잇기 — 대시보드 위젯 / 일정 › 할 일 */
 .dash-task-row { @apply flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition; }
 .mytask-head { @apply flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-4 pt-3.5 pb-2.5; }
