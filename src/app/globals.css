@@ -5670,4 +5670,3 @@ td .rounded-full { white-space: nowrap; }
 .pj-bchip-good { @apply bg-[#10B981]/25 text-white; }
 .pj-bchip-issue { @apply bg-[#EF4444]/25 text-white; }
 .pj-bchip-next { @apply bg-white/18 text-white; }
-.pj-hero-regen { @apply text-[11px] font-bold text-white/70 hover:text-white underline decoration-white/30 underline-offset-2 disabled:opacity-50; }
