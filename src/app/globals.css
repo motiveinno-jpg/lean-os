@@ -5730,3 +5730,6 @@ td .rounded-full { white-space: nowrap; }
 .pb-tpl span { @apply text-[11.5px] text-[var(--text-muted)]; }
 .pb-tpl em { @apply not-italic text-[11px] text-[var(--text-dim)] leading-snug; }
 .pb-tpl-blank { @apply border-dashed; }
+.pb-tpl-cols { @apply flex flex-wrap gap-1 mt-1.5; }
+.pb-tpl-cols i { @apply not-italic text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pb-tpl-more { @apply text-[var(--text-dim)]; }

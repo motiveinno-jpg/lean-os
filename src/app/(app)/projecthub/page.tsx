@@ -741,13 +741,14 @@ export default function ProjectHubPage() {
         <PerformanceDashboard companyId={companyId} onClose={() => setShowDashboard(false)} />
       )}
 
+      {/* 만들면 바로 '표' 탭으로 — 이름만 받고 템플릿 고르기로 넘긴다(2026-08-03 기획 v2) */}
       {showCreate && companyId && (
         <ProjectFormModal
           companyId={companyId}
           partners={partners as any[]}
           users={users as any[]}
           onClose={() => setShowCreate(false)}
-          onSaved={(id) => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); if (id) router.push(`/projecthub/${id}?new=1`); }}
+          onSaved={(id) => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["projecthub-deals"] }); if (id) router.push(`/projecthub/${id}?tab=boards&new=1`); }}
         />
       )}
 

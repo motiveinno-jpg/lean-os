@@ -170,6 +170,13 @@ export function ProjectBoards({ dealId, companyId, users }: {
               <b>{t.name}</b>
               <span>{t.desc}</span>
               <em>{t.uses}</em>
+              {/* 무슨 칸이 생기는지 미리 보여준다 — 이름보다 이게 고르는 기준이다 */}
+              <span className="pb-tpl-cols">
+                {[ITEM_LABEL[t.key] || "이름", ...t.columns.map((c) => c.name)].slice(0, 6).map((n) => (
+                  <i key={n}>{n}</i>
+                ))}
+                {t.columns.length + 1 > 6 && <i className="pb-tpl-more">+{t.columns.length + 1 - 6}</i>}
+              </span>
             </button>
           ))}
           <button type="button" className="pb-tpl pb-tpl-blank" disabled={busy} onClick={() => createBoard("blank")}>

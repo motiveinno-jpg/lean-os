@@ -185,7 +185,9 @@ export default function ProjectHubDetailPage() {
   const searchParams = useSearchParams();
   const justCreated = searchParams?.get("new") === "1";
   // 목차에서 고른 자리(스크롤 위치 표시용). ?tab= 딥링크는 자리 키를 받는다.
-  const [sec, setSec] = useTabParam<SectionKey>("todo", { valid: SECTION_ORDER });
+  // 기본 탭은 '표' — 프로젝트를 열면 입력 화면부터 본다(2026-08-03 기획 v2).
+  //   ?tab= 로 들어오면 그 자리가 열리므로 옛 링크는 그대로 동작한다.
+  const [sec, setSec] = useTabParam<SectionKey>("boards", { valid: SECTION_ORDER });
   // 자리별 보기 — 사람마다 기억한다(대표는 돈=추세, 실무자는 일=칸반으로 열리게).
   const [views, setViews] = useState<Record<string, string>>({});
   useEffect(() => {
