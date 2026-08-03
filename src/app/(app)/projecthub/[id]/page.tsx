@@ -212,6 +212,30 @@ export default function ProjectHubDetailPage() {
   // 목표·실적 — 개요에서는 요약만 보여주고, 누르면 전체 보고서를 그 자리에서 펼친다
   //   (2026-08-03 사장님 지적: "대시보드 안에 또 대시보드")
   const [goalFull, setGoalFull] = useState(false);
+  // 목표금액 한 칸 — 내부적으로는 매출 KPI 1개로 저장한다(스키마 변경 없음)
+  const [goalInput, setGoalInput] = useState("");
+  const [savingGoal, setSavingGoal] = useState(false);
+  const saveGoalAmount = async () => {
+    const amt = Number(goalInput.replace(/[^0-9]/g, ""));
+    if (!companyId || !amt || savingGoal) return;
+    setSavingGoal(true);
+    try {
+      const { error } = await db.from("project_kpis").insert({
+        company_id: companyId, deal_id: dealId, label: "매출 목표", unit: "원",
+        target_value: amt, direction: "up", source: "revenue_auto", sort_order: 0,
+      });
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["projecthub-has-goal", dealId] });
+      qc.invalidateQueries({ queryKey: ["projecthub-status-facts", dealId] });
+      qc.invalidateQueries({ queryKey: ["project-kpis", dealId] });
+      setGoalInput("");
+      toast(`목표금액 ${won(amt)}을 정했습니다.`, "success");
+    } catch (e: any) {
+      toast(e?.message || "목표 저장 실패", "error");
+    } finally {
+      setSavingGoal(false);
+    }
+  };
   const openNow = (k: SectionKey) => setExpanded((p) => ({ ...p, [k]: true }));
   // 목차 클릭 → 그 자리로 스크롤(자리는 즉시 마운트한다. 스크롤 도착 전에 조회가 시작되게)
   const goSection = useCallback((k: SectionKey) => {
@@ -691,9 +715,13 @@ export default function ProjectHubDetailPage() {
   const { data: facts } = useQuery({
     queryKey: ["projecthub-status-facts", dealId],
     queryFn: async () => {
-      const [tk, inv] = await Promise.all([
+      const [tk, inv, buy, kpi] = await Promise.all([
         db.from("project_tasks").select("status, due_date").eq("deal_id", dealId).is("archived_at", null),
         db.from("tax_invoices").select("total_amount, settled_amount, issue_date, status").eq("deal_id", dealId).eq("type", "sales").neq("status", "void"),
+        // 비용(매입 계산서) — 개요 마진 타일용. 공급가 기준(마진은 회계대로 net 으로 본다)
+        db.from("tax_invoices").select("supply_amount, total_amount").eq("deal_id", dealId).eq("type", "purchase").neq("status", "void"),
+        // 목표금액 — 금액 단위(원) KPI 의 목표 합계
+        db.from("project_kpis").select("target_value, unit").eq("deal_id", dealId),
       ]);
       const tasks = (logRead('[id]/page:facts.tasks', tk) || []) as any[];
       const invoices = (logRead('[id]/page:facts.invoices', inv) || []) as any[];
@@ -721,7 +749,13 @@ export default function ProjectHubDetailPage() {
       }
       const openTasks = tasks.filter((t) => t.status !== "done");
       const dueDates = openTasks.map((t) => (t.due_date ? String(t.due_date).slice(0, 10) : null)).filter(Boolean).sort() as string[];
+      const purchases = (logRead('[id]/page:facts.purchases', buy) || []) as any[];
+      const costNet = purchases.reduce((n, r) => n + Number(r.supply_amount || Math.round(Number(r.total_amount || 0) / 1.1)), 0);
+      const goalAmount = ((logRead('[id]/page:facts.kpis', kpi) || []) as any[])
+        .filter((k) => (k.unit || "원") === "원")
+        .reduce((n, k) => n + Number(k.target_value || 0), 0);
       return {
+        costNet, goalAmount,
         taskCount: tasks.length,
         taskDone: tasks.filter((t) => t.status === "done").length,
         overdueCount: openTasks.filter((t) => t.due_date && String(t.due_date).slice(0, 10) < today).length,
@@ -1231,10 +1265,22 @@ export default function ProjectHubDetailPage() {
           {!openSecs.has("goal") ? <p className="pj-sec-empty">불러오는 중…</p>
             : !companyId ? null
             : !signals.hasGoal && !expanded.goal ? (
-              <button type="button" className="pj-sec-add" onClick={() => openNow("goal")}>
-                ＋ <b>목표 정하기</b>
-                <span>매출·건수 같은 목표를 정하면 실적이 회계 데이터에서 자동으로 채워지고 예상 착지까지 계산돼요.</span>
-              </button>
+              /* 목표금액 한 칸 — 가장 흔한 목표(금액)는 여기서 바로 넣는다(2026-08-03).
+                 자세한 지표는 '목표 설정'에서 계속 추가할 수 있다. */
+              <div className="goal-quick">
+                <label className="goal-quick-lbl">이 프로젝트로 얼마를 벌 목표인가요?</label>
+                <div className="goal-quick-row">
+                  <input value={goalInput} inputMode="numeric" placeholder="예: 20,000,000"
+                    onChange={(e) => setGoalInput(e.target.value.replace(/[^0-9]/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ","))}
+                    onKeyDown={(e) => { if (e.key === "Enter") saveGoalAmount(); }}
+                    className="goal-quick-input" />
+                  <span className="goal-quick-unit">원</span>
+                  <button type="button" className="goal-quick-save" disabled={savingGoal || !goalInput.trim()} onClick={saveGoalAmount}>
+                    {savingGoal ? "저장 중…" : "목표 정하기"}
+                  </button>
+                </div>
+                <p className="goal-quick-hint">정하면 계약·매출이 목표를 얼마나 채웠는지 자동으로 계산돼요 · 지표를 더 넣으려면 <button type="button" className="goal-quick-more" onClick={() => openNow("goal")}>목표 설정</button></p>
+              </div>
             ) : !signals.hasGoal ? (
               <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
             ) : viewOf("goal") === "manage" ? (

@@ -5647,3 +5647,17 @@ td .rounded-full { white-space: nowrap; }
 .goal-compact-name { @apply text-[12px] text-[var(--text)] truncate; }
 .goal-compact-val { @apply text-[12px] font-extrabold text-right; font-variant-numeric: tabular-nums; }
 .goal-compact-rest { @apply text-[11px] text-[var(--text-dim)]; }
+
+/* 목표금액 한 칸 — KPI 화면을 열지 않고 개요에서 바로 정한다(2026-08-03) */
+.goal-quick { @apply flex flex-col gap-2; }
+.goal-quick-lbl { @apply text-[12.5px] text-[var(--text-muted)]; }
+.goal-quick-row { @apply flex flex-wrap items-center gap-2; }
+.goal-quick-input { @apply h-9 px-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-[13px] text-right flex-1 min-w-[120px] focus:outline-none focus:border-[var(--primary)]; font-variant-numeric: tabular-nums; }
+.goal-quick-unit { @apply text-[12.5px] text-[var(--text-muted)]; }
+.goal-quick-save { @apply h-9 px-3.5 rounded-lg bg-[var(--primary)] text-white text-[12.5px] font-bold whitespace-nowrap transition hover:opacity-90 disabled:opacity-45; }
+.goal-quick-hint { @apply text-[11px] text-[var(--text-dim)]; }
+.goal-quick-more { @apply font-bold text-[var(--primary)] hover:underline; }
+/* 목표 막대 — 기준선이므로 가장 연하게 */
+.pj-fill-goal { @apply block h-full rounded-full bg-[var(--primary)]/25; }
+.pj-dash-note-plain b { @apply text-[var(--primary)]; }
+.pj-dash-goal { @apply font-bold; }
