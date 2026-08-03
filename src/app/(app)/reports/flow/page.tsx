@@ -304,7 +304,7 @@ export default function BusinessFlowPage() {
   const monthGap = issuedThisMonth - settledThisMonth;
 
   if (blocked) {
-    return <AccessDenied detail="경영 흐름은 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="경영 흐름은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
   const monthLabel = `${Number(month.split("-")[1])}월`;

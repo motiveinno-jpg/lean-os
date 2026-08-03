@@ -565,7 +565,7 @@ export default function ProjectHubPage() {
   //   회사 전체 집계는 목록 '차트' 보기에서 다루기로 정리(2026-07-30 기획 v3 3단계).
 
   if (tabLoading) return null;
-  if (!tabAllowed) return <AccessDenied detail="프로젝트 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
+  if (!tabAllowed) return <AccessDenied detail="프로젝트 접근 권한이 없습니다. 마스터에게 권한을 요청하세요." />;
 
   return (
     <div className="projecthub-page">

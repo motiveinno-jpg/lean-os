@@ -33,16 +33,10 @@ serve(withSentry("send-invite-email", async (req) => {
       );
     }
 
-    const roleLabel: Record<string, string> = {
-      admin: "관리자",
-      manager: "매니저",
-      staff: "일반 직원",
-      accountant: "회계 담당자",
-      viewer: "열람자",
-      partner: "파트너",
-    };
+    // (2026-08-03 역할 폐지 반영) 표기는 멤버/파트너 뿐. 매핑에 없던 "employee" 가 원문 그대로
+    //   메일에 노출되던 문제도 함께 수정 — 구 role 값(admin 등)은 전부 멤버로 표기.
+    const displayRole = role === "partner" ? "파트너" : "멤버";
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    const displayRole = esc(roleLabel[role] || role || "팀원");
     const displayName = esc(name || email.split("@")[0]);
     const displayCompany = esc(companyName || "OwnerView");
 
@@ -54,7 +48,7 @@ serve(withSentry("send-invite-email", async (req) => {
       <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
         <h2 style="margin:0 0 16px;font-size:18px;color:#1a1a2e">안녕하세요, ${displayName}님!</h2>
         <p style="font-size:14px;color:#374151;line-height:1.6">
-          <strong>${displayCompany}</strong>에서 <strong>${displayRole}</strong> 역할로 초대합니다.
+          <strong>${displayCompany}</strong>에서 <strong>${displayRole}</strong>로 초대합니다.
           아래 버튼을 클릭하여 가입을 완료하세요.
         </p>
         <div style="text-align:center;margin:24px 0">

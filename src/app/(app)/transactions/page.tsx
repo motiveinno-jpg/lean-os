@@ -931,7 +931,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
 
   // 권한 게이트는 모든 훅 이후에 — early return 이 훅보다 위면 Rules of Hooks 위반(크래시)
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="통장 거래 내역은 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="통장 거래 내역은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
   if (!companyId) {

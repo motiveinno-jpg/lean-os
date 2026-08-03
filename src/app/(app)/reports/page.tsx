@@ -19,7 +19,7 @@ export default function ReportsHubRedirect() {
   }, [role, router]);
 
   if (role === "partner") {
-    return <AccessDenied detail="회계 분석은 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="회계 분석은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
   return (

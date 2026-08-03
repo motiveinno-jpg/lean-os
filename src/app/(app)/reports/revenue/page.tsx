@@ -67,7 +67,7 @@ export default function RevenuePage() {
   });
 
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="매출 현황은 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="매출 현황은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
   const sales = budget.find((b) => b.month === month)?.salesRevenue ?? 0;

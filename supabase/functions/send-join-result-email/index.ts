@@ -16,7 +16,7 @@ const corsHeaders = {
 };
 const LOGIN_URL = "https://www.owner-view.com/auth/";
 const esc = (s: string) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const roleLabel = (r: string) => (r === "admin" ? "관리자" : "직원");
+// (2026-08-03 역할 폐지 반영) 승인되면 멤버 — 관리자/직원 표기 제거.
 
 serve(withSentry("send-join-result-email", async (req) => {
   const j = (b: Record<string, unknown>, status = 200) =>
@@ -71,9 +71,8 @@ serve(withSentry("send-join-result-email", async (req) => {
         <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
           <h2 style="margin:0 0 16px;font-size:18px;color:#1a1a2e">가입이 승인되었습니다</h2>
           <p style="font-size:14px;color:#374151;line-height:1.6">
-            <strong>${company}</strong> 가입 요청이 대표/관리자에 의해 승인되었습니다.
-            부여된 역할은 <strong>${esc(roleLabel(String(rq.granted_role || "employee")))}</strong> 입니다.
-            아래 버튼으로 로그인하면 회사 페이지를 사용할 수 있습니다.
+            <strong>${company}</strong> 가입 요청이 승인되어 <strong>멤버</strong>로 합류했습니다.
+            메뉴·기능 접근 권한은 회사 마스터가 부여하며, 아래 버튼으로 로그인하면 회사 페이지를 사용할 수 있습니다.
           </p>
           <div style="text-align:center;margin:24px 0">
             <a href="${LOGIN_URL}" style="display:inline-block;background:#3B82F6;color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-weight:bold;font-size:15px">OwnerView 로그인</a>
@@ -92,7 +91,7 @@ serve(withSentry("send-join-result-email", async (req) => {
             요청하신 <strong>${company}</strong> 가입이 승인되지 않았습니다.
             ${rq.rejection_reason ? `<br/>사유: ${esc(String(rq.rejection_reason))}` : ""}
           </p>
-          <p style="font-size:13px;color:#6b7280;line-height:1.6">자세한 내용은 회사 대표 또는 관리자에게 문의해주세요.</p>
+          <p style="font-size:13px;color:#6b7280;line-height:1.6">자세한 내용은 회사 마스터에게 문의해주세요.</p>
         </div>
       </body></html>`;
 

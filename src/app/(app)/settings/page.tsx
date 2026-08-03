@@ -88,7 +88,7 @@ export default function SettingsPage() {
   // 권한 게이트에서 early return 한 뒤에 나머지 훅들이 이어지면 role 이 바뀌는 렌더에서
   // 훅 개수가 달라져 React #310 크래시 — 본문을 별도 컴포넌트로 분리 (2026-08-03).
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="회사 설정은 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="회사 설정은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
   return <SettingsPageInner />;
 }

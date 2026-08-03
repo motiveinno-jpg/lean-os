@@ -385,7 +385,7 @@ export default function BalanceSheetPage() {
   const { role } = useUser();
   // 게이트 early return 뒤 훅 = React #310 결함류 — 본문 분리 (2026-08-03)
   if (role === "partner") {
-    return <AccessDenied detail="재무상태표는 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="재무상태표는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
   return <BalanceSheetPageInner />;
 }

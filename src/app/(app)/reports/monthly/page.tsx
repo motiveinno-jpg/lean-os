@@ -20,7 +20,7 @@ export default function MonthlyDetailPage() {
   useEffect(() => { getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, []);
 
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="월별 상세는 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="월별 상세는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
   return (

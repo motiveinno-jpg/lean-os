@@ -169,7 +169,7 @@ export default function CostsPage() {
   }, [rows]);
 
   if (blocked) {
-    return <AccessDenied detail="비용 리포트는 대표·관리자 전용입니다." />;
+    return <AccessDenied detail="비용 리포트는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
   return (

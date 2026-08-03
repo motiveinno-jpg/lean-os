@@ -20,7 +20,9 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
-  const [inviteRole, setInviteRole] = useState<"employee" | "admin" | "partner">("employee");
+  // (2026-08-03 역할 폐지 반영) 초대 구분은 멤버/파트너 뿐 — 멤버는 API 호환상 role="employee" 로 전송.
+  //   메뉴·탭 접근은 합류 후 구성원 상세의 '탭 권한'에서 마스터가 부여한다 (관리자/직원 역할 선택 제거).
+  const [inviteRole, setInviteRole] = useState<"employee" | "partner">("employee");
   const [inviteError, setInviteError] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [emailSending, setEmailSending] = useState<string | null>(null);
@@ -73,7 +75,6 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     },
     enabled: !!companyId,
   });
-  const [joinRole, setJoinRole] = useState<Record<string, "employee" | "admin">>({});
   const [joinReason, setJoinReason] = useState<Record<string, string>>({});
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   // 처리 후 결과메일 상태 — 발송 실패 건은 재전송 배너로 노출(승인은 이미 확정, 롤백 안 함).
@@ -110,7 +111,8 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       const res = await fetch("/api/join-request/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId: id, action, role: joinRole[id] || "employee", reason: action === "reject" ? (joinReason[id] || null) : null }),
+        // 역할 선택 폐지 — 승인하면 멤버(role 은 API 호환용 고정값). 권한은 구성원 상세에서 마스터가 부여.
+        body: JSON.stringify({ requestId: id, action, role: "employee", reason: action === "reject" ? (joinReason[id] || null) : null }),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.error || "처리 실패");
@@ -138,7 +140,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
           companyId,
           email: inviteEmail,
           name: inviteName || undefined,
-          role: inviteRole as "employee" | "admin",
+          role: "employee", // 역할 폐지 — 멤버 고정(API 호환값). 권한은 합류 후 마스터가 부여.
           invitedBy: user.id,
         });
       }
@@ -216,17 +218,19 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
     setTimeout(() => setEmailResult(null), 4000);
   }
 
-  const roleBadge = (role: string) => {
-    const colors: Record<string, string> = {
-      owner: "bg-[#2563EB] text-white",
-      admin: "bg-[#2563EB] text-white",
-      employee: "bg-[#059669] text-white",
-      partner: "bg-[#7C3AED] text-white",
+  // (2026-08-03 역할 폐지 반영) 배지: 마스터 / 멤버 / 파트너 3종 — 관리자·직원 구분 표기 제거.
+  const memberBadge = (m: { role?: string | null; is_master?: boolean | null } | string) => {
+    const isMaster = typeof m !== "string" && !!m.is_master;
+    const role = typeof m === "string" ? m : m.role || "employee";
+    const kind = isMaster ? "master" : role === "partner" ? "partner" : "member";
+    const meta: Record<string, { label: string; cls: string }> = {
+      master: { label: "마스터", cls: "bg-[#2563EB] text-white" },
+      member: { label: "멤버", cls: "bg-[#059669] text-white" },
+      partner: { label: "파트너", cls: "bg-[#7C3AED] text-white" },
     };
-    const labels: Record<string, string> = { owner: "대표", admin: "관리자", employee: "직원", partner: "파트너" };
     return (
-      <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${colors[role] || "bg-gray-400 text-white"}`}>
-        {labels[role] || role}
+      <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold ${meta[kind].cls}`}>
+        {meta[kind].label}
       </span>
     );
   };
@@ -257,7 +261,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       <div className="team-tabs-bar seg-bar">
         {([
           { key: "members" as const, label: "멤버" },
-          { key: "employees" as const, label: "직원 초대" },
+          { key: "employees" as const, label: "멤버 초대" },
           { key: "partners" as const, label: "파트너 초대" },
         ]).map((t) => (
           <button
@@ -271,7 +275,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       </div>
       <div className="team-role-info-banner">
         <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span><strong>멤버</strong>: 오너뷰 계정이 있는 사용자 (로그인 가능) · <strong>직원</strong>: HR 관리 대상 (계정 없이도 급여·근태 관리 가능, 인력관리 페이지에서 등록)</span>
+        <span><strong>멤버</strong>: 오너뷰 계정이 있는 사용자 (로그인 가능) · <strong>직원</strong>: HR 관리 대상 (계정 없이도 급여·근태 관리 가능, 구성원 페이지에서 등록) · <strong>권한</strong>: 역할 구분 없이 마스터가 구성원 상세의 <strong>탭 권한</strong>에서 메뉴·기능별로 부여</span>
       </div>
 
       {/* 결과 메일 실패 재전송 배너 — 승인/거절은 확정됐으나 메일만 실패한 건 */}
@@ -306,11 +310,6 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
                       {r.message ? ` · "${r.message}"` : ""}
                     </div>
                   </div>
-                  <select value={joinRole[r.id] || "employee"} onChange={(e) => setJoinRole((m) => ({ ...m, [r.id]: e.target.value as "employee" | "admin" }))}
-                    className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
-                    <option value="employee">직원</option>
-                    <option value="admin">관리자</option>
-                  </select>
                   <button onClick={() => resolveJoin(r.id, "approve")} disabled={resolvingId === r.id}
                     className="btn-primary btn-sm">
                     {resolvingId === r.id ? "처리 중..." : "승인"}
@@ -338,7 +337,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         <div className="team-invite-form">
           <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-400 flex items-start gap-2">
             <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            <span>부서/직위/연봉까지 한 번에 설정하려면 <strong>인력관리</strong> 페이지에서 초대하세요.</span>
+            <span>부서/직위/연봉까지 한 번에 설정하려면 <strong>구성원</strong> 페이지에서 초대하세요. 멤버의 메뉴·기능 권한은 합류 후 구성원 상세의 <strong>탭 권한</strong>에서 마스터가 부여합니다.</span>
           </div>
           {inviteError && (
             <div className="p-2 rounded-lg bg-[var(--danger-dim)] text-[var(--danger)] text-xs">{inviteError}</div>
@@ -365,12 +364,11 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
             </div>
           </div>
           <div>
-            <label className="field-label">역할</label>
+            <label className="field-label">구분</label>
             <div className="team-invite-role-picker">
               {([
-                { value: "employee" as const, label: "직원", color: "#059669" },
-                { value: "admin" as const, label: "관리자", color: "#2563EB" },
-                { value: "partner" as const, label: "파트너", color: "#7C3AED" },
+                { value: "employee" as const, label: "멤버 (우리 회사 구성원)", color: "#059669" },
+                { value: "partner" as const, label: "파트너 (외부 협력사)", color: "#7C3AED" },
               ]).map((r) => (
                 <button
                   key={r.value}
@@ -417,7 +415,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
                   <div>
                     <div className="text-sm font-medium flex items-center gap-2">
                       {m.name || m.email?.split("@")[0]}
-                      {roleBadge(m.role || "employee")}
+                      {memberBadge(m)}
                     </div>
                     <div className="text-xs text-[var(--text-dim)]">{m.email}</div>
                   </div>
@@ -432,14 +430,14 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       {tab === "employees" && (
         <div className="team-employee-invites-list">
           {empInvites.length === 0 ? (
-            <div className="text-center py-6 text-sm text-[var(--text-muted)]">직원 초대가 없습니다</div>
+            <div className="text-center py-6 text-sm text-[var(--text-muted)]">멤버 초대가 없습니다</div>
           ) : (
             empInvites.map((inv: any) => (
               <div key={inv.id} className="team-invite-row">
                 <div>
                   <div className="text-sm font-medium flex items-center gap-2">
                     {inv.name || inv.email}
-                    {roleBadge(inv.role || "employee")}
+                    {memberBadge(inv.role || "employee")}
                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
                       inv.status === "pending" ? "bg-[var(--warning-dim)] text-[var(--warning)]" :
                       inv.status === "accepted" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
@@ -496,7 +494,7 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
                 <div>
                   <div className="text-sm font-medium flex items-center gap-2">
                     {inv.name || inv.email}
-                    {roleBadge("partner")}
+                    {memberBadge("partner")}
                     <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
                       inv.status === "pending" ? "bg-[var(--warning-dim)] text-[var(--warning)]" :
                       inv.status === "accepted" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"

@@ -10,20 +10,14 @@ import { Avatar } from "@/components/avatar";
 import { useUser } from "@/components/user-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: "대표",
-  admin: "관리자",
-  partner: "파트너",
-  employee: "직원",
-};
-
 export function AccountChip() {
   const { user, role } = useUser();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const roleLabel = ROLE_LABEL[role] || "직원";
+  // (2026-08-03 역할 폐지 반영) 표시는 마스터/멤버/파트너 3종 — 관리자·직원 구분 표기 제거.
+  const roleLabel = (user as any)?.is_master ? "마스터" : role === "partner" ? "파트너" : "멤버";
 
   useEffect(() => { setOpen(false); }, []);
 

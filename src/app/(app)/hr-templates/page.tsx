@@ -54,7 +54,7 @@ export default function HrTemplatesPage() {
 
   // 외부 파트너 차단 (인사 양식은 회사 관리자 전용)
   if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="인사 양식 관리는 회사 관리자 전용입니다." />;
+    return <AccessDenied detail="인사 양식 관리는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
   return (

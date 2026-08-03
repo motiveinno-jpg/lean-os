@@ -34,10 +34,11 @@ const RECOMMEND_BY_ROLE: Record<UserRole, RecMenu[]> = {
   ],
 };
 
+// (2026-08-03 역할 폐지 반영) 관리자·직원 구분 표기 제거 — 멤버로 통일 (마스터는 아래 is_master 로 판정).
 const ROLE_LABEL: Record<UserRole, string> = {
   owner: "대표",
-  admin: "관리자",
-  employee: "직원",
+  admin: "멤버",
+  employee: "멤버",
   partner: "파트너",
 };
 

@@ -256,7 +256,7 @@ export default function TaxInvoicesPage() {
   // 렌더당 훅 개수가 달라져 React #310 크래시 — 본문을 별도 컴포넌트로 분리 (2026-08-03).
   if (tabLoading) return null;
   if (!tabAllowed) {
-    return <AccessDenied detail="세금계산서 접근 권한이 없습니다. 관리자/대표에게 권한을 요청하세요." />;
+    return <AccessDenied detail="세금계산서 접근 권한이 없습니다. 마스터에게 권한을 요청하세요." />;
   }
   return <TaxInvoicesPageInner />;
 }

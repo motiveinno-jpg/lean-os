@@ -28,7 +28,7 @@ export default function ThreeWayMatchPage() {
   const { role, loading } = useUser();
   if (loading) return <div className="p-8 text-sm text-[var(--text-muted)]">로딩 중...</div>;
   if (role === "partner") {
-    return <AccessDenied detail="3-Way 매칭은 대표/관리자 전용입니다." />;
+    return <AccessDenied detail="3-Way 매칭은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
   return <Inner />;
 }
