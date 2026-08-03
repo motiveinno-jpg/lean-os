@@ -19,6 +19,7 @@ import {
   issueCashReceiptNts,
   refreshCashReceiptNts,
   cancelCashReceiptNts,
+  syncPurchaseCashReceipts,
   STATUS_LABELS,
   PURPOSE_LABELS,
 } from "@/lib/cash-receipts";
@@ -121,6 +122,7 @@ export default function CashReceiptsPage() {
   // ─── 홈택스 sync (현금영수증 매출) ───
   // 동기화 기간 = 헤더 조회기간(startDate~endDate) 공용 — 별도 월 피커 이원화 제거 (기준 통일)
   const [syncStarting, setSyncStarting] = useState(false);
+  const [purchaseSyncing, setPurchaseSyncing] = useState(false);
   const [activeJobId, setActiveJobIdRaw] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(SYNC_STORAGE_KEY);
@@ -450,6 +452,28 @@ export default function CashReceiptsPage() {
     }
   };
 
+  // 홈택스 매입 현금영수증 가져오기 — CODEF 매입내역 API(cashbill-purchase-sync 엣지, 동기 호출).
+  //   매출 sync 와 달리 백그라운드 잡이 아니다 — 응답까지 대기 (기간이 길면 서버가 축소 재시도 안내).
+  const startPurchaseSync = async () => {
+    if (!companyId || purchaseSyncing) return;
+    if (startDate > endDate) {
+      toast("시작일이 종료일보다 이전이어야 합니다", "error");
+      return;
+    }
+    setPurchaseSyncing(true);
+    try {
+      const result = await syncPurchaseCashReceipts(startDate, endDate);
+      toast(result.message || `매입 ${result.inserted}건 가져오기 완료`, "success");
+      queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
+    } catch (err: any) {
+      toast(friendlyError(err, "매입내역 가져오기 실패"), "error");
+      if (err.hint) toast(err.hint, "info");
+    } finally {
+      setPurchaseSyncing(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!companyId || saving) return;
     const amount = Number(form.amount);
@@ -596,7 +620,7 @@ export default function CashReceiptsPage() {
               disabled={syncStarting || !!activeJobId}
               aria-busy={syncStarting || !!activeJobId}
               className="btn-primary text-xs disabled:cursor-not-allowed"
-              title="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기. 매입 내역은 CODEF API 미지원."
+              title="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기"
             >
               <svg className={`w-3.5 h-3.5 ${(syncStarting || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -615,6 +639,18 @@ export default function CashReceiptsPage() {
                 동기화 취소
               </button>
             )}
+            <button
+              onClick={startPurchaseSync}
+              disabled={purchaseSyncing}
+              aria-busy={purchaseSyncing}
+              className="btn-primary text-xs disabled:cursor-not-allowed"
+              title="조회기간 범위로 홈택스에서 현금영수증 매입(수취) 내역 가져오기 — 등록된 공동인증서로 조회합니다 (최근 37개월)"
+            >
+              <svg className={`w-3.5 h-3.5 ${purchaseSyncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span aria-live="polite">{purchaseSyncing ? "매입 조회 중..." : "홈택스 매입 가져오기"}</span>
+            </button>
             <label className="btn-secondary text-xs inline-flex items-center gap-1.5 cursor-pointer">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />

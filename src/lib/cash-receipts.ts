@@ -158,9 +158,31 @@ export async function refreshCashReceiptNts(receiptId: string) {
   return callCashbillEdge({ action: 'refresh', receipt_id: receiptId });
 }
 
-// 발행취소 (취소거래 국세청 신고 — 승인번호 필요)
+// 발행취소 — 전용 API(regist-cancel-issue). 국세청 전송 이전(발행 당일)만 취소 가능.
 export async function cancelCashReceiptNts(receiptId: string, memo?: string) {
   return callCashbillEdge({ action: 'cancel', receipt_id: receiptId, memo });
+}
+
+// ── 홈택스 매입내역 수집 (CODEF 현금영수증 매입내역 API — cashbill-purchase-sync 엣지) ──
+//   회사에 등록된 홈택스 공동인증서로 조회. 조회가능기간 최근 37개월.
+export async function syncPurchaseCashReceipts(startDate: string, endDate: string) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('로그인이 필요합니다');
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) throw new Error('Supabase URL 미설정');
+  const res = await fetch(`${supabaseUrl}/functions/v1/cashbill-purchase-sync`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+    body: JSON.stringify({ startDate, endDate }),
+  });
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(result.error || `매입내역 조회 실패 (HTTP ${res.status})`);
+    (err as any).hint = result.hint;
+    logError({ source: 'manual', message: `[현금영수증 매입 수집 실패] ${err.message}`, context: { hint: result.hint, code: result.code } });
+    throw err;
+  }
+  return result as { success: boolean; fetched: number; inserted: number; skipped_duplicate: number; message?: string };
 }
 
 // ── 집계 ──
