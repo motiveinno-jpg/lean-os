@@ -39,6 +39,8 @@ export function ProjectBoards({ dealId, companyId, users }: {
   const [busy, setBusy] = useState(false);
   const [showSummary, setShowSummary] = useState(false);   // 마지막 탭 '정리'
   const [renaming, setRenaming] = useState(false);
+  // 정렬 — 컬럼 이름을 누르면 그 컬럼 기준. 표마다 따로 기억한다(저장은 안 한다, 보기 상태일 뿐).
+  const [sort, setSort] = useState<{ colId: string; dir: "asc" | "desc" } | null>(null);
 
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ["pb-boards", dealId],
@@ -156,9 +158,9 @@ export function ProjectBoards({ dealId, companyId, users }: {
       setActiveId(bid);
       setPicking(false);
       qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
-      toast(`'${tpl.name}' 표를 만들었습니다.`, "success");
+      toast(`'${tpl.name}' 템플릿을 만들었습니다.`, "success");
     } catch (e: any) {
-      toast(e?.message || "표 생성 실패", "error");
+      toast(e?.message || "템플릿 생성 실패", "error");
     } finally {
       setBusy(false);
     }
@@ -172,11 +174,11 @@ export function ProjectBoards({ dealId, companyId, users }: {
   };
   const removeBoard = async () => {
     if (!board) return;
-    if (!window.confirm(`'${board.name}' 표를 지울까요? 안에 입력한 행도 함께 사라집니다.`)) return;
+    if (!window.confirm(`'${board.name}' 템플릿을 지울까요? 안에 입력한 행도 함께 사라집니다.`)) return;
     await db.from("project_boards").update({ archived_at: new Date().toISOString() }).eq("id", boardId);
     setActiveId("");
     qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
-    toast("표를 지웠습니다.", "success");
+    toast("템플릿을 지웠습니다.", "success");
   };
   const renameGroup = async (g: BoardGroup, name: string) => {
     if (!name.trim() || name === g.name) return;
@@ -186,6 +188,19 @@ export function ProjectBoards({ dealId, companyId, users }: {
   const renameColumn = async (c: BoardColumn, name: string) => {
     if (!name.trim() || name === c.name) return;
     await db.from("project_board_columns").update({ name: name.trim() }).eq("id", c.id);
+    qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+  };
+
+  const removeColumn = async (c: BoardColumn) => {
+    if (!window.confirm(`'${c.name}' 컬럼을 지울까요? 이 컬럼에 넣은 값도 화면에서 사라집니다.`)) return;
+    await db.from("project_board_columns").delete().eq("id", c.id);
+    if (sort?.colId === c.id) setSort(null);
+    qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+  };
+  // 숫자 컬럼 단위 — 단위를 알아야 '정리'가 합계를 제대로 읽는다(원끼리만 빼고, %는 평균을 낸다)
+  const setUnit = async (c: BoardColumn, unit: string) => {
+    const next = { ...(c.settings || {}), unit: unit.trim() || undefined };
+    await db.from("project_board_columns").update({ settings: next }).eq("id", c.id);
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
 
@@ -226,12 +241,12 @@ export function ProjectBoards({ dealId, companyId, users }: {
 
   if (isLoading) return <p className="pj-sec-empty">불러오는 중…</p>;
 
-  // ── 표가 하나도 없을 때 — 템플릿부터 고르게 한다(빈 표 앞에서 막히지 않게) ──
+  // ── 템플릿이 하나도 없을 때 — 고르는 화면부터 띄운다(빈 표 앞에서 막히지 않게) ──
   if (boards.length === 0 || picking) {
     return (
       <div className="pb-pick">
         <div className="pb-pick-head">
-          <b>{boards.length === 0 ? "어떤 표로 시작할까요?" : "표 추가"}</b>
+          <b>{boards.length === 0 ? "어떤 템플릿으로 시작할까요?" : "템플릿 추가"}</b>
           <span>부서가 아니라 <b>일의 형태</b>로 고릅니다 · 나중에 얼마든지 더 붙일 수 있어요</span>
           {boards.length > 0 && <button type="button" className="pb-pick-close" onClick={() => setPicking(false)}>닫기</button>}
         </div>
@@ -251,7 +266,7 @@ export function ProjectBoards({ dealId, companyId, users }: {
             </button>
           ))}
           <button type="button" className="pb-tpl pb-tpl-blank" disabled={busy} onClick={() => createBoard("blank")}>
-            <b>빈 표</b>
+            <b>빈 템플릿</b>
             <span>컬럼을 직접 만들어 씁니다</span>
             <em>위 형태에 안 맞는 일</em>
           </button>
@@ -265,15 +280,15 @@ export function ProjectBoards({ dealId, companyId, users }: {
 
   return (
     <div className="pb">
-      {/* 표 탭 — ＋ 로 같은 프로젝트에 표를 더 붙인다 */}
+      {/* 템플릿 탭 — ＋ 로 같은 프로젝트에 템플릿을 더 붙인다 */}
       <div className="pb-tabs">
         {boards.map((b) => (
-          <button key={b.id} type="button" onClick={() => { setActiveId(b.id); setShowSummary(false); }}
+          <button key={b.id} type="button" onClick={() => { setActiveId(b.id); setShowSummary(false); setSort(null); }}
             onDoubleClick={() => { if (b.id === boardId) setRenaming(true); }}
             title="더블클릭하면 이름을 바꿉니다"
             className={`pb-tab ${b.id === boardId && !showSummary ? "pb-tab-on" : ""}`}>{b.name}</button>
         ))}
-        <button type="button" className="pb-tab pb-tab-add" onClick={() => setPicking(true)} title="표 추가">＋</button>
+        <button type="button" className="pb-tab pb-tab-add" onClick={() => setPicking(true)} title="템플릿 추가">＋</button>
         {/* 정리 — 입력된 값만으로 자동 요약(2026-08-03 기획 v2 4단계) */}
         <button type="button" className={`pb-tab pb-tab-sum ${showSummary ? "pb-tab-on" : ""}`} onClick={() => setShowSummary(true)}>정리</button>
         <div className="pb-tab-tools">
@@ -290,7 +305,7 @@ export function ProjectBoards({ dealId, companyId, users }: {
             </select>
           </span>
           <button type="button" className="pb-mini" onClick={addGroup}>＋ 그룹</button>
-          <button type="button" className="pb-mini pb-mini-x" onClick={removeBoard} title="이 표 지우기">표 삭제</button>
+          <button type="button" className="pb-mini pb-mini-x" onClick={removeBoard} title="이 템플릿 지우기">템플릿 삭제</button>
         </div>
       </div>
 
@@ -305,7 +320,7 @@ export function ProjectBoards({ dealId, companyId, users }: {
       ) : (<>
 
       {groups.map((g) => {
-        const rows = itemsByGroup[g.id] || [];
+        const rows = sortRows(itemsByGroup[g.id] || [], sort, cols, users);
         return (
           <section key={g.id} className="pb-group">
             <div className="pb-group-head">
@@ -322,9 +337,24 @@ export function ProjectBoards({ dealId, companyId, users }: {
                     <th className="pb-th-name">{nameLabel}</th>
                     {cols.map((c) => (
                       <th key={c.id} className={c.type === "number" ? "pb-th-num" : ""}>
-                        <input defaultValue={c.name} className="pb-col-name"
-                          onBlur={(e) => renameColumn(c, e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                        <span className="pb-th-in">
+                          <input defaultValue={c.name} className="pb-col-name"
+                            onBlur={(e) => renameColumn(c, e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                          {/* 정렬 — 화살표를 눌러야 정렬된다(이름 칸은 이름 고치는 자리라 겹치면 안 된다) */}
+                          <button type="button" className={`pb-col-sort ${sort?.colId === c.id ? "pb-col-sort-on" : ""}`}
+                            title="이 컬럼으로 정렬"
+                            onClick={() => setSort((s0) => s0?.colId === c.id ? (s0.dir === "asc" ? { colId: c.id, dir: "desc" } : null) : { colId: c.id, dir: "asc" })}>
+                            {sort?.colId === c.id ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
+                          </button>
+                          {/* 숫자 컬럼은 단위를 직접 정한다 — 정리가 원끼리만 빼고 %는 평균을 낸다 */}
+                          {c.type === "number" && (
+                            <input defaultValue={c.settings?.unit || ""} placeholder="단위" className="pb-col-unit"
+                              onBlur={(e) => setUnit(c, e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                          )}
+                          <button type="button" className="pb-col-x" title="이 컬럼 지우기" onClick={() => removeColumn(c)}>✕</button>
+                        </span>
                       </th>
                     ))}
                     <th className="pb-th-x" />
@@ -376,19 +406,47 @@ export function ProjectBoards({ dealId, companyId, users }: {
   );
 }
 
-// ── 프로젝트 정리 — 이 프로젝트의 **모든 표**를 표별로 한 구획씩 ──
-//   한 프로젝트에 표를 여러 개 붙이는 게 기본이라(＋), 정리도 그 단위여야 맞다.
+/** 행 정렬 — 컬럼 타입에 맞게. 값이 빈 행은 방향과 무관하게 늘 뒤로 보낸다. */
+function sortRows(rows: BoardItem[], sort: { colId: string; dir: "asc" | "desc" } | null,
+  cols: BoardColumn[], users: { id: string; name: string }[]): BoardItem[] {
+  if (!sort) return rows;
+  const c = cols.find((x) => x.id === sort.colId);
+  if (!c) return rows;
+  const key = (it: BoardItem): string | number | null => {
+    const v = it.values?.[c.id];
+    if (v === null || v === undefined || v === "") return null;
+    if (c.type === "number") return Number(v) || 0;
+    if (c.type === "status") {
+      const i = (c.settings?.options || []).findIndex((o: any) => o.id === v);
+      return i < 0 ? null : i;
+    }
+    if (c.type === "person") return users.find((u) => u.id === v)?.name || "";
+    return String(v);
+  };
+  const sign = sort.dir === "asc" ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    if (ka === null && kb === null) return 0;
+    if (ka === null) return 1;      // 빈 값은 늘 아래
+    if (kb === null) return -1;
+    if (typeof ka === "number" && typeof kb === "number") return (ka - kb) * sign;
+    return String(ka).localeCompare(String(kb), "ko") * sign;
+  });
+}
+
+// ── 프로젝트 정리 — 이 프로젝트의 **모든 템플릿**을 하나씩 구획으로 ──
+//   한 프로젝트에 템플릿을 여러 개 붙이는 게 기본이라(＋), 정리도 그 단위여야 맞다.
 function ProjectSummary({ boards, cols, groups, items, users }: {
   boards: { id: string; name: string; template_key: string | null }[];
   cols: BoardColumn[]; groups: BoardGroup[]; items: BoardItem[]; users: { id: string; name: string }[];
 }) {
   const filled = boards.filter((b) => items.some((i) => i.board_id === b.id));
   if (filled.length === 0) {
-    return <p className="pj-sec-empty">표에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
+    return <p className="pj-sec-empty">템플릿에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
   }
   return (
     <div className="pb-sum-all">
-      <p className="pb-sum-top">표 {filled.length}개 · 총 {items.length}행 — 입력된 칸만 요약했어요.</p>
+      <p className="pb-sum-top">템플릿 {filled.length}개 · 총 {items.length}행 — 입력된 칸만 요약했어요.</p>
       {filled.map((b) => (
         <section key={b.id} className="pb-sum-sec">
           <h4 className="pb-sum-sec-h">{b.name}<em>{items.filter((i) => i.board_id === b.id).length}행</em></h4>
@@ -403,22 +461,27 @@ function ProjectSummary({ boards, cols, groups, items, users }: {
   );
 }
 
-// ── 표 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
+// ── 템플릿 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
 function BoardSummary({ cols, items, groups, users }: {
   cols: BoardColumn[]; items: BoardItem[]; groups: BoardGroup[]; users: { id: string; name: string }[];
 }) {
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
   const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, todayKst());
   if (cards.length === 0) {
-    return <p className="pj-sec-empty">표에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
+    return <p className="pj-sec-empty">템플릿에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
   }
   return (
     <div className="pb-sum-grid">
       {cards.map((c, i) => {
         if (c.kind === "number") return (
-          <div key={i} className="pb-sum-card"><span>{c.label} 합계</span>
-            <b>{c.sum.toLocaleString("ko-KR")}{c.unit}</b>
-            <em>{c.filled}건 입력 · 평균 {c.avg.toLocaleString("ko-KR")}{c.unit}</em></div>
+          <div key={i} className="pb-sum-card"><span>{c.label} {c.mode === "avg" ? "평균" : "합계"}</span>
+            <b>{(c.mode === "avg" ? c.avg : c.sum).toLocaleString("ko-KR")}{c.unit}</b>
+            <em>{c.filled}건 입력{c.mode === "avg" ? "" : ` · 평균 ${c.avg.toLocaleString("ko-KR")}${c.unit}`}</em></div>
+        );
+        if (c.kind === "weighted") return (
+          <div key={i} className="pb-sum-card"><span>{c.label}</span>
+            <b>{c.value.toLocaleString("ko-KR")}원</b>
+            <em>{c.a} × {c.b} — 확률까지 반영한 값</em></div>
         );
         if (c.kind === "diff") return (
           <div key={i} className="pb-sum-card"><span>{c.label}</span>

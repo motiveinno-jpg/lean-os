@@ -5765,3 +5765,35 @@ td .rounded-full { white-space: nowrap; }
 .pb-sum-sec { @apply flex flex-col gap-2; }
 .pb-sum-sec-h { @apply flex items-baseline gap-2 text-[13px] font-extrabold text-[var(--text)]; }
 .pb-sum-sec-h em { @apply not-italic text-[11px] font-semibold text-[var(--text-dim)]; }
+
+/* 프로젝트 머리줄 오른쪽 — 참여자 · 자금 · 설정 (2026-08-03) */
+.pj-head-right { @apply ml-auto flex items-center gap-1.5 shrink-0; }
+.pj-head-go { @apply h-8 px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[12.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
+.pj-head-go-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--text)]; }
+.pj-back-boards { @apply self-start h-8 px-3 rounded-lg text-[12.5px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)]; }
+
+/* 참여자 — 얼굴 묶음 + 팝오버 */
+.pj-mem { @apply relative inline-flex; }
+.pj-mem-faces { @apply flex items-center; }
+.pj-mem-none { @apply h-8 px-3 inline-flex items-center rounded-lg border border-dashed border-[var(--border)] text-[12.5px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]; }
+.pj-mem-face { @apply inline-flex items-center justify-center w-7 h-7 -ml-1.5 first:ml-0 rounded-full bg-[var(--primary)]/12 border border-[var(--bg-card)] text-[10.5px] font-extrabold not-italic text-[var(--primary)]; }
+.pj-mem-more { @apply bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pj-mem-dept { @apply bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pj-mem-veil { @apply fixed inset-0 z-30; }
+.pj-mem-pop { @apply absolute right-0 top-9 z-40 w-72 max-h-[70vh] overflow-y-auto flex flex-col gap-3 p-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-xl; }
+.pj-mem-in { @apply h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] focus:outline-none focus:border-[var(--primary)]; }
+.pj-mem-block { @apply flex flex-col gap-1; }
+.pj-mem-block > b { @apply text-[10.5px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pj-mem-row { @apply flex items-center gap-2 h-9 px-1.5 rounded-lg text-[13px] text-[var(--text)] text-left; }
+.pj-mem-row em { @apply ml-auto not-italic text-[11px] text-[var(--text-dim)]; }
+.pj-mem-row > button { @apply ml-auto w-6 h-6 rounded-md text-[var(--text-dim)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]; }
+.pj-mem-pick { @apply w-full hover:bg-[var(--bg-surface)] disabled:opacity-40; }
+.pj-mem-empty { @apply text-[12px] text-[var(--text-dim)] px-1.5 py-1; }
+
+/* 템플릿 헤더 — 정렬 · 단위 · 컬럼 삭제 (2026-08-03) */
+.pb-th-in { @apply flex items-center gap-1 min-w-0; }
+.pb-col-sort { @apply shrink-0 w-4 text-[9px] text-[var(--text-dim)] hover:text-[var(--primary)]; }
+.pb-col-sort-on { @apply text-[var(--primary)]; }
+.pb-col-unit { @apply w-10 shrink-0 bg-transparent border border-transparent rounded px-1 text-[10px] text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]; }
+.pb-col-x { @apply shrink-0 w-4 text-[9px] text-[var(--text-dim)] opacity-0 hover:!text-[var(--danger)]; }
+th:hover .pb-col-x { @apply opacity-100; }

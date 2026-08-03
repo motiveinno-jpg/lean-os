@@ -69,6 +69,15 @@ describe("buildBoardSummary — 수주·매출(단위가 다른 숫자 둘)", ()
   it("원 − % 차이 카드는 만들지 않는다", () => {
     expect(cards.find((c) => c.kind === "diff")).toBeUndefined();
   });
+  it("% 는 합계가 아니라 평균으로 본다", () => {
+    const pct = cards.find((c) => c.kind === "number" && c.label === "확률") as any;
+    expect(pct.mode).toBe("avg");
+    expect(pct.avg).toBe(65);
+  });
+  it("금액 × 확률 = 가중 금액 카드", () => {
+    const w = cards.find((c) => c.kind === "weighted") as any;
+    expect(w.value).toBe(48_000_000 * 1 + 7_000_000 * 0.3);
+  });
   it("그룹이 여럿이면 그룹 분포 카드를 만든다", () => {
     const g = cards.find((c) => c.kind === "group") as any;
     expect(g.parts.map((p: any) => p.label)).toEqual(["검토", "계약"]);

@@ -154,7 +154,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
 /** 빈 표 — 템플릿을 안 고르고 시작할 때. 최소한의 뼈대만 준다. */
 export const BLANK_TEMPLATE: BoardTemplate = {
   key: "blank",
-  name: "빈 표",
+  name: "빈 템플릿",
   desc: "컬럼을 직접 만들어 씁니다",
   uses: "위 형태에 안 맞는 일",
   columns: [
@@ -210,7 +210,10 @@ export function isDoneRow(
   });
 }
 export type SummaryCard =
-  | { kind: "number"; label: string; sum: number; avg: number; filled: number; unit: string }
+  //   mode="avg" 는 더하면 안 되는 값(확률 %, 달성률 등) — 합계 대신 평균을 크게 보여준다
+  | { kind: "number"; label: string; sum: number; avg: number; filled: number; unit: string; mode: "sum" | "avg" }
+  //   가중 금액 — 금액(원) × 확률(%). 수주 파이프라인에서 대표가 실제로 보는 숫자다
+  | { kind: "weighted"; label: string; value: number; a: string; b: string }
   | { kind: "diff"; label: string; value: number; a: string; b: string; unit: string }
   | { kind: "status"; label: string; parts: { label: string; color: string; count: number }[]; doneRate: number | null }
   | { kind: "date"; label: string; soon: number; late: number; next: string | null }
@@ -239,7 +242,20 @@ export function buildBoardSummary(
     const vals = items.map((it) => Number(it.values?.[c.id])).filter((n) => Number.isFinite(n) && n !== 0);
     if (vals.length === 0) continue;
     const sum = vals.reduce((a, b) => a + b, 0);
-    cards.push({ kind: "number", label: c.name, sum, avg: Math.round(sum / vals.length), filled: vals.length, unit: c.settings?.unit || "" });
+    // % 는 더하면 뜻이 없다(확률 370% 같은 카드가 떴었다) — 평균을 크게 보여준다
+    const mode = (c.settings?.unit || "") === "%" ? "avg" : "sum";
+    cards.push({ kind: "number", label: c.name, sum, avg: Math.round(sum / vals.length), filled: vals.length, unit: c.settings?.unit || "", mode });
+  }
+  // 금액(원) × 확률(%) — 둘 다 있으면 가중 합계. '수주 · 매출' 에서 실제로 쓰는 숫자다.
+  const moneyCol = numberCols.find((c) => (c.settings?.unit || "") === "원");
+  const pctCol = numberCols.find((c) => (c.settings?.unit || "") === "%");
+  if (moneyCol && pctCol) {
+    const w = items.reduce((n, it) => {
+      const amt = Number(it.values?.[moneyCol.id]) || 0;
+      const pct = Number(it.values?.[pctCol.id]);
+      return n + (Number.isFinite(pct) ? amt * (pct / 100) : 0);
+    }, 0);
+    if (w > 0) cards.push({ kind: "weighted", label: `가중 ${moneyCol.name}`, value: Math.round(w), a: moneyCol.name, b: pctCol.name });
   }
   // 숫자 컬럼이 둘이면 차이도 준다(예산−집행 = 잔여 / 예상−확정).
   //   단위가 같을 때만 — '수주·매출'의 금액(원) − 확률(%) 같은 카드가 뜨면 안 된다.

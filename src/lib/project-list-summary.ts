@@ -107,8 +107,8 @@ export function listStatusOf(r: ProjectRollup): ListStatus {
 /** 목록 한 줄에 쓰는 '확인 사항' — 해당되는 것만 */
 export function listReasons(r: ProjectRollup): { text: string; tone: "risk" | "warn" | "dim" }[] {
   const out: { text: string; tone: "risk" | "warn" | "dim" }[] = [];
-  if (r.boardCount === 0) { out.push({ text: "표를 아직 안 만들었어요", tone: "dim" }); return out; }
-  if (r.itemCount === 0) { out.push({ text: "표는 있는데 입력이 없어요", tone: "dim" }); return out; }
+  if (r.boardCount === 0) { out.push({ text: "템플릿을 아직 안 골랐어요", tone: "dim" }); return out; }
+  if (r.itemCount === 0) { out.push({ text: "템플릿은 있는데 입력이 없어요", tone: "dim" }); return out; }
   if (r.lateCount > 0) out.push({ text: `기한 지난 것 ${r.lateCount}건`, tone: "risk" });
   if (r.soonCount > 0) out.push({ text: `이번 주 ${r.soonCount}건`, tone: "warn" });
   if (r.quietDays != null && r.quietDays >= 14) out.push({ text: `${r.quietDays}일째 입력 없음`, tone: "dim" });

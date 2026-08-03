@@ -7,7 +7,7 @@ import { logRead } from "@/lib/log-read";
 //   2026-06-17 핸드오프 v2: 신규 테이블 없이 기존 deals 재사용. 목록 → 상세(탭) 구조.
 //   목록 컬럼: 프로젝트명·거래처·담당자·단계·계약금액·진행률·기간. (직접원가·원가율은 손익 단계에서 추가)
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -530,6 +530,28 @@ export default function ProjectHubPage() {
     enabled: pbBoardIds.length > 0,
   });
 
+  // 참여자 — 대표담당자 한 명 대신 여럿(2026-08-03). '내 담당' 도 이걸 기준으로 본다.
+  const { data: phMembers = [] } = useQuery({
+    queryKey: ["ph-members", companyId],
+    queryFn: async () => {
+      const data = logRead("projecthub/page:members", await (supabase as any).from("project_members")
+        .select("deal_id, user_id").eq("company_id", companyId!));
+      return (data || []) as { deal_id: string; user_id: string }[];
+    },
+    enabled: !!companyId,
+  });
+  const membersByDeal = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    for (const r of phMembers as any[]) (m[r.deal_id] = m[r.deal_id] || []).push(r.user_id);
+    return m;
+  }, [phMembers]);
+  //   참여자 표가 비어 있는 옛 프로젝트는 대표담당자를 참여자 한 명으로 본다(백필 후에도 안전판)
+  const membersOfDeal = useCallback((d: any): string[] => {
+    const list = membersByDeal[d?.id] || [];
+    if (list.length > 0) return list;
+    return d?.internal_manager_id ? [d.internal_manager_id] : [];
+  }, [membersByDeal]);
+
   const rollupByDeal = useMemo(() => {
     const m: Record<string, ProjectRollup> = {};
     for (const d of topDeals as any[]) {
@@ -570,10 +592,10 @@ export default function ProjectHubPage() {
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = topDeals.filter((d) => {
-      if (mineOnly && d.internal_manager_id !== userId) return false;
+      if (mineOnly && !membersOfDeal(d).includes(userId || "")) return false;
       if (!matchesLens(d)) return false;
       if (q) {
-        const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${userName[d.internal_manager_id] || ""}`.toLowerCase();
+        const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${membersOfDeal(d).map((id: string) => userName[id] || "").join(" ")}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -613,11 +635,11 @@ export default function ProjectHubPage() {
     const q = search.trim().toLowerCase();
     if (mineOnly && d.internal_manager_id !== userId) return false;
     if (q) {
-      const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${userName[d.internal_manager_id] || ""}`.toLowerCase();
+      const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${membersOfDeal(d).map((id: string) => userName[id] || "").join(" ")}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
-  }) : rows, [rows, lens, topDeals, mineOnly, userId, search, partnerName, userName]);
+  }) : rows, [rows, lens, topDeals, mineOnly, userId, search, partnerName, userName, membersOfDeal]);
   // 상태별 건수 + 한 문장 요약에 쓰는 숫자 — 내담당·검색 스코프(상태 필터 제외)에서 집계
   // 상태 건수 — 표 기준(지연=기한 지남 / 주의=이번 주·오래 조용 / 시작 전=입력 없음)
   const lensCounts = useMemo(() => {
@@ -646,7 +668,7 @@ export default function ProjectHubPage() {
         <div className="flex items-center gap-2 flex-1 min-w-[200px]">
           <div className="search-input-wrap">
             <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" /></svg>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="프로젝트·거래처·담당 검색"
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="프로젝트·거래처·참여자 검색"
               className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--primary)]" />
           </div>
           {/* 전체 열람 권한이 없으면 스코프 전환 자체를 감춘다 — 어차피 내 담당만 조회된다 */}
@@ -684,7 +706,7 @@ export default function ProjectHubPage() {
       <div className="ph-brief">
         <p className="ph-brief-line">
           {lensCounts.lateItems + lensCounts.soonItems === 0
-            ? <>프로젝트 <b>{lensCounts.total}건</b> · 표 <b>{lensCounts.boards}개</b>. 기한이 걸린 건 없어요.</>
+            ? <>프로젝트 <b>{lensCounts.total}건</b> · 템플릿 <b>{lensCounts.boards}개</b>. 기한이 걸린 건 없어요.</>
             : <>
                 {lensCounts.lateItems > 0 && <>기한 지난 것 <b>{lensCounts.lateItems}건</b></>}
                 {lensCounts.lateItems > 0 && lensCounts.soonItems > 0 && " · "}
@@ -847,7 +869,7 @@ export default function ProjectHubPage() {
           <div className="ph-onboard glass-card">
             <div className="ph-onboard-head">
               <h3>첫 프로젝트를 만들어 보세요</h3>
-              <p>이름만 적으면 만들어져요. 그다음 하는 일에 맞는 표를 고르면 돼요.</p>
+              <p>이름만 적으면 만들어져요. 그다음 하는 일에 맞는 템플릿을 고르면 돼요.</p>
             </div>
             <div className="ph-onboard-steps">
               <div className="ph-onboard-step">
@@ -855,7 +877,7 @@ export default function ProjectHubPage() {
                 <span>거래처·금액·기간은 안 물어봐요. 프로젝트명 하나면 만들어져요.</span>
               </div>
               <div className="ph-onboard-step">
-                <b>② 표 고르기</b>
+                <b>② 템플릿 고르기</b>
                 <span>{BOARD_TEMPLATES.map((t) => t.name).join(" · ")} 중에 필요한 것만. ＋ 로 한 프로젝트에 여러 개 붙일 수 있어요.</span>
               </div>
               <div className="ph-onboard-step">
@@ -864,7 +886,7 @@ export default function ProjectHubPage() {
               </div>
             </div>
             <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 만들기</button>
-            <p className="ph-onboard-note">표는 부서가 아니라 &apos;일의 형태&apos;로 나눠요 — 마케팅 캠페인·전시회·지원사업이 같은 &apos;집행 · 성과&apos; 표를 씁니다.</p>
+            <p className="ph-onboard-note">템플릿은 부서가 아니라 &apos;일의 형태&apos;로 나눠요 — 마케팅 캠페인·전시회·지원사업이 같은 &apos;집행 · 성과&apos; 템플릿을 씁니다.</p>
           </div>
         )
       ) : listView === "timeline" ? (
@@ -888,6 +910,7 @@ export default function ProjectHubPage() {
           progressOf={(d: any) => (headlineByDeal[d.id]?.raw != null ? headlineByDeal[d.id].pct : null)}
           outstandingOf={(id) => outstandingByDeal[id] || 0}
           userName={(id) => userName[id || ""] || ""}
+          membersOf={(id) => membersOfDeal((rows as any[]).find((r) => r.id === id))}
           won={won}
           onOpen={(id) => router.push(`/projecthub/${id}`)} />
       ) : (
@@ -900,7 +923,7 @@ export default function ProjectHubPage() {
               <tr>
                 {/* '상태(지연/주의/정상)' 열을 뺐다 — 옆 '확인 사항'이 같은 내용을 근거와 함께 적고,
                     행 왼쪽 줄무늬가 색을 이미 맡는다. 판정 단어가 셋이면 셋 다 안 읽힌다. */}
-                <th>프로젝트</th><th>표</th><th>담당</th><th className="ph-table-n">입력</th>
+                <th>프로젝트</th><th>템플릿</th><th>참여자</th><th className="ph-table-n">입력</th>
                 <th>확인 사항</th><th>마지막 입력</th><th />
               </tr>
             </thead>
@@ -922,7 +945,14 @@ export default function ProjectHubPage() {
                         ? <span className="ph-reasons">{r.boardNames.slice(0, 3).map((n) => <span key={n} className="ph-reason ph-reason-dim">{n}</span>)}{r.boardCount > 3 && <span className="ph-reason ph-reason-dim">+{r.boardCount - 3}</span>}</span>
                         : <span className="ph-table-dim">없음</span>}
                     </td>
-                    <td className="ph-table-dim">{userName[d.internal_manager_id] || "—"}</td>
+                    <td className="ph-table-dim">
+                      {(() => {
+                        const ids = membersOfDeal(d);
+                        if (ids.length === 0) return "—";
+                        const names = ids.map((id: string) => userName[id] || "").filter(Boolean);
+                        return names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} 외 ${names.length - 2}`;
+                      })()}
+                    </td>
                     <td className="ph-table-n">
                       {r && r.itemCount > 0
                         ? <>{r.itemCount}행{r.doneRate != null && <span className="ph-table-dim"> · {r.doneRate}%</span>}</>
@@ -1052,7 +1082,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               <div>
                 <label className={LB}>무슨 일인가요? *</label>
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">{isEdit ? "이름만 있으면 돼요. 나머지는 비워둬도 괜찮아요." : "만들고 나면 하는 일에 맞는 표를 고르게 돼요."}</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">{isEdit ? "이름만 있으면 돼요. 나머지는 비워둬도 괜찮아요." : "만들고 나면 하는 일에 맞는 템플릿을 고르게 돼요."}</p>
               </div>
               {isEdit && <>
               <div className="grid grid-cols-2 gap-3">

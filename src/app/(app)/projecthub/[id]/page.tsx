@@ -29,6 +29,7 @@ import { ProjectScheduleTab } from "@/components/project-schedule-tab";
 import { SubDealsTab } from "./_components/SubDealsTab";
 import { OverviewDashboard } from "./_components/OverviewDashboard";
 import { ProjectBoards } from "./_components/ProjectBoards";
+import { ProjectMembers } from "./_components/ProjectMembers";
 import { type ProjectTabKey } from "@/lib/project-types";
 import {
   SECTION_ORDER, SECTION_TITLE, SECTION_VIEWS,
@@ -54,7 +55,10 @@ const RAIL_KEY = "ov.projecthub.railOpen";
 
 // 상세 탭 — 여섯 자리를 네 묶음으로(2026-08-03 개편 ③). 순서는 프로젝트가 달라도 고정이고,
 //   데이터가 없는 탭도 자리를 지킨다(흐리게). 한 번 익히면 어느 프로젝트든 같은 위치다.
-// 탭 3개 (2026-08-03 기획 v2 마무리) — 표가 기본, 회계는 '자금'으로 얹고, 나머지는 '설정'.
+// 자리 묶음 — 화면 위 탭 줄은 없앴다(2026-08-03 사장님: "프로젝트명 클릭하면 바로 템플릿이
+//   나오면 될 것 같아. 상단에 프로젝트명 나오고 바로 밑에 템플릿").
+//   프로젝트명 바로 아래가 템플릿 탭이고, 자금·설정은 머리줄 오른쪽 작은 버튼으로 옮겼다.
+//   이 배열은 어느 자리가 어느 묶음인지만 정한다(?tab= 옛 링크 호환).
 //   구 탭(개요·업무·기록)은 표와 정리가 대신한다:
 //     개요(챙길 것·진행 단계·목표) → 표의 '정리' 탭이 입력값에서 직접 만든다
 //     업무(project_tasks)        → '할 일·진행' 템플릿
@@ -1270,34 +1274,30 @@ export default function ProjectHubDetailPage() {
           </h1>
         )}
         <span className={`ph-st ph-st-${status.key}`} title={brief.headline}>{status.label}</span>
-        <span className="pj-head-meta">
-          {[partner?.name || null, manager?.name ? `담당 ${manager.name}` : null].filter(Boolean).join(" · ")}
+        <span className="pj-head-meta">{partner?.name || ""}</span>
+        {/* 오른쪽 — 참여자(여럿·부서 통째로) 와 곁가지 자리 두 개.
+            대표담당자 한 명을 지우고 참여자로 바꿨다(2026-08-03 사장님 지시). */}
+        <span className="pj-head-right">
+          {companyId && <ProjectMembers dealId={dealId} companyId={companyId} users={companyUsers as any[]} />}
+          {/* 같은 버튼을 다시 누르면 템플릿으로 돌아온다 — 뒤로 가는 버튼을 따로 두지 않으려고 */}
+          <button type="button" className={`pj-head-go ${sec === "money" ? "pj-head-go-on" : ""}`}
+            onClick={() => goSection(sec === "money" ? "boards" : "money")}>자금</button>
+          <button type="button" className={`pj-head-go ${sec === "team" ? "pj-head-go-on" : ""}`}
+            onClick={() => goSection(sec === "team" ? "boards" : "team")}>설정</button>
         </span>
       </div>
 
-      {/* ══ 탭 4개 (2026-08-03 개편 ③) — 여섯 자리를 세로로 잇던 한 페이지를 묶었다.
-          자리는 그대로 두고 묶기만 한다: 개요=챙길 것·진행 단계·목표, 매출·비용, 업무, 기록=구성원.
-          URL(?tab=)은 예전 자리 키를 그대로 받는다 — 옛 링크가 깨지지 않게. ══ */}
-      <nav className="pj-tabs" aria-label="이 프로젝트 보기">
-        {PJ_TABS.map((t) => {
-          const on = t.secs.includes(sec);
-          const live = t.secs.some((k) => isLive(k));
-          return (
-            <button key={t.key} type="button" onClick={() => goSection(t.secs[0])}
-              aria-pressed={on}
-              className={`pj-tab ${on ? "pj-tab-on" : ""} ${live ? "" : "pj-tab-dim"}`}>
-              {t.label}
-              {t.key === "money" && hasChildren && <em>{(children as any[]).length}</em>}
-            </button>
-          );
-        })}
-      </nav>
+      {/* 탭 줄 없음 — 프로젝트명 바로 아래가 템플릿 탭이다(ProjectBoards 가 자기 탭을 그린다).
+          자금·설정으로 새면 그 자리만 그려지므로, 돌아오는 길을 한 줄로 남긴다. */}
+      {sec !== "boards" && (
+        <button type="button" className="pj-back-boards" onClick={() => goSection("boards")}>← 템플릿으로</button>
+      )}
 
       <div className="pj-layout">
         <div className="pj-secs">
         {/* 표 — 새 프로젝트 구조의 기본 화면. 템플릿에서 만든 표에 값을 채운다(2026-08-03 기획 v2) */}
         <PjSection k="boards" inTab={TAB_OF_SECTION(sec).secs.includes("boards")} active={sec === "boards"} onSeen={markSecOpen}
-          hint="템플릿에서 표를 만들고 값을 채우면, 정리는 저절로 따라옵니다">
+          hint="하는 일에 맞는 템플릿을 고르고 값을 채우면, 정리는 저절로 따라옵니다">
           {!companyId ? null : <ProjectBoards dealId={dealId} companyId={companyId} users={companyUsers as any[]} />}
         </PjSection>
 

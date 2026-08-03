@@ -10,8 +10,10 @@ import { STATUS_LABEL, type ProjectStatusKey } from "@/lib/project-status";
 
 type Row = { id: string; name?: string | null; internal_manager_id?: string | null };
 
-export function PeopleView({ rows, statusOf, progressOf, outstandingOf, userName, won, onOpen }: {
+export function PeopleView({ rows, statusOf, progressOf, outstandingOf, userName, membersOf, won, onOpen }: {
   rows: Row[];
+  /** 이 프로젝트에 참여하는 사람들 — 대표담당자 한 명 대신 여럿(2026-08-03) */
+  membersOf: (dealId: string) => string[];
   statusOf: (d: Row) => ProjectStatusKey;
   /** 대표 지표 진행률(0~100). 없으면 null */
   progressOf: (d: Row) => number | null;
@@ -20,13 +22,18 @@ export function PeopleView({ rows, statusOf, progressOf, outstandingOf, userName
   won: (n: number | null | undefined) => string;
   onOpen: (dealId: string) => void;
 }) {
-  // 담당자별로 모은다. 담당이 없는 건은 '담당 없음' 묶음으로 — 숨기면 영영 안 정해진다.
+  // 참여자별로 모은다. 한 프로젝트에 여러 명이 있으면 그 사람들 카드에 모두 들어간다
+  //   ("누가 뭘 맡고 있나" 를 보는 화면이라 중복이 맞다).
+  //   아무도 안 들어간 건은 '참여자 없음' 묶음으로 — 숨기면 영영 안 정해진다.
   const groups = new Map<string, { name: string; items: Row[] }>();
   for (const d of rows) {
-    const key = d.internal_manager_id || "__none__";
-    const g = groups.get(key) || { name: d.internal_manager_id ? userName(d.internal_manager_id) || "이름 없음" : "담당 없음", items: [] };
-    g.items.push(d);
-    groups.set(key, g);
+    const ids = membersOf(d.id);
+    const keys = ids.length > 0 ? ids : ["__none__"];
+    for (const key of keys) {
+      const g = groups.get(key) || { name: key === "__none__" ? "참여자 없음" : (userName(key) || "이름 없음"), items: [] };
+      g.items.push(d);
+      groups.set(key, g);
+    }
   }
 
   const cards = [...groups.entries()].map(([key, g]) => {
