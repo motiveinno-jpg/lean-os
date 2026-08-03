@@ -1152,6 +1152,35 @@ export default function ProjectHubDetailPage() {
   const liveSecs = getVisibleSections(signals);
   const isLive = (k: SectionKey) => liveSecs.includes(k);
 
+  // AI 브리핑 — 상단 한 줄을 "지금 어떤 상태인가 · 잘된 점 · 문제 · 다음 할 일"로 승격(2026-08-03).
+  //   서버(project-brief)가 프로젝트당 하루 1회만 생성·캐시한다. 실패하면 규칙 한 줄(status.why)로 폴백.
+  const [briefing, setBriefing] = useState(false);
+  const { data: brief } = useQuery({
+    queryKey: ["project-brief", dealId],
+    queryFn: async () => {
+      const { data, error } = await db.functions.invoke("project-brief", { body: { dealId } });
+      if (error) return null;
+      return (data as any)?.content || null;
+    },
+    enabled: !!companyId && !!dealId,
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+  const regenBrief = async () => {
+    if (briefing) return;
+    setBriefing(true);
+    try {
+      const { data } = await db.functions.invoke("project-brief", { body: { dealId, force: true } });
+      const content = (data as any)?.content;
+      if (content) qc.setQueryData(["project-brief", dealId], content);
+      else toast("지금은 분석을 만들 수 없어요. 잠시 후 다시 시도해 주세요.", "error");
+    } catch {
+      toast("지금은 분석을 만들 수 없어요. 잠시 후 다시 시도해 주세요.", "error");
+    } finally {
+      setBriefing(false);
+    }
+  };
+
   // 히어로 대표 지표 — 있는 데이터에서 하나만 고른다(할 일이 있으면 진행률, 없으면 수금률).
   //   둘 다 없으면 게이지를 그리지 않는다(빈 링은 그리지 않는다).
   const heroGauge = (() => {
@@ -1207,7 +1236,20 @@ export default function ProjectHubDetailPage() {
               <svg className="w-3.5 h-3.5 shrink-0 opacity-60" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" strokeLinecap="round" strokeLinejoin="round" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </h1>
           )}
-          <p className="pj-hero-why">{status.why}{(facts?.outstanding || 0) > 1 ? <> · 미수금 <b>{won(facts!.outstanding)}</b></> : null}</p>
+          <p className="pj-hero-why">
+            {brief?.headline || status.why}
+            {!brief && (facts?.outstanding || 0) > 1 ? <> · 미수금 <b>{won(facts!.outstanding)}</b></> : null}
+          </p>
+          {brief && (
+            <div className="pj-hero-brief">
+              {(brief.goods || []).slice(0, 2).map((t: string) => <span key={t} className="pj-bchip pj-bchip-good">잘됨 · {t}</span>)}
+              {(brief.issues || []).slice(0, 3).map((t: string) => <span key={t} className="pj-bchip pj-bchip-issue">문제 · {t}</span>)}
+              {(brief.nexts || []).slice(0, 3).map((t: string) => <span key={t} className="pj-bchip pj-bchip-next">다음 · {t}</span>)}
+              <button type="button" className="pj-hero-regen" onClick={regenBrief} disabled={briefing}>
+                {briefing ? "분석 중…" : "다시 분석"}
+              </button>
+            </div>
+          )}
           <div className="pj-hero-meta">
             {partner?.name && <span>거래처 <b>{partner.name}</b></span>}
             {manager?.name && <span>담당 <b>{manager.name}</b></span>}

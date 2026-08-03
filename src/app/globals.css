@@ -5663,3 +5663,11 @@ td .rounded-full { white-space: nowrap; }
 .ph-reason-risk { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }
 .ph-reason-warn { @apply bg-[var(--warning)]/10 text-[var(--warning)]; }
 .ph-reason-dim { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+
+/* 히어로 AI 브리핑 — 잘된 점 / 문제 / 다음 할 일을 칩으로. 밴드 위라 흰 계열만 쓴다 */
+.pj-hero-brief { @apply flex flex-wrap items-center gap-1.5 mt-1.5; }
+.pj-bchip { @apply text-[11px] font-semibold px-2 py-0.5 rounded-full bg-white/12 text-white/85; }
+.pj-bchip-good { @apply bg-[#10B981]/25 text-white; }
+.pj-bchip-issue { @apply bg-[#EF4444]/25 text-white; }
+.pj-bchip-next { @apply bg-white/18 text-white; }
+.pj-hero-regen { @apply text-[11px] font-bold text-white/70 hover:text-white underline decoration-white/30 underline-offset-2 disabled:opacity-50; }
