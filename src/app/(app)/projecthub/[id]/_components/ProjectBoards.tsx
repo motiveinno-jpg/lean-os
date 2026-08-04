@@ -10,7 +10,7 @@
 //     텍스트·숫자는 blur/Enter 에서만 저장한다.
 //   · 정렬은 position 오름차순. 새 행은 그룹 맨 아래.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -331,9 +331,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
 
-  const addItem = async (groupId: string, values?: Record<string, any>) => {
+  const addItem = async (groupId: string, values?: Record<string, any>, name?: string) => {
     const pos = (itemsByGroup[groupId] || []).length;
-    const { error } = await db.from("project_board_items").insert({ board_id: boardId, group_id: groupId, name: "", position: pos, values: values || {} });
+    const { error } = await db.from("project_board_items").insert({ board_id: boardId, group_id: groupId, name: name || "", position: pos, values: values || {} });
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
@@ -420,6 +420,15 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const loose = flowCol ? items.filter((it) => !kanbanCols.some((c) => String(it.values?.[flowCol.id] ?? "") === c.key)) : [];
   const partnerColId = cols.find((c) => c.type === "partner")?.id || null;
   const openItem = items.find((i) => i.id === openItemId) || null;
+  // 계획 대비 실적 — 같은 단위 숫자 컬럼이 둘이면 그 비율을 행에 바로 보여준다
+  //   (예산 대비 집행, 예상 대비 확정). 정리 탭의 '차이' 카드와 같은 두 컬럼을 쓴다.
+  const ratioPair = (() => {
+    const nums = cols.filter((c) => c.type === "number");
+    if (nums.length < 2) return null;
+    const [a, b] = nums;
+    if ((a.settings?.unit || "") !== (b.settings?.unit || "")) return null;
+    return { plan: a, real: b };
+  })();
   // 계약서에 결제조건이 있는데 아직 청구 행이 없는 회차 — 있으면 한 줄로 제안한다
   const proposal = useMemo(() => {
     if (!isBilling) return null;
@@ -547,6 +556,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           </span>
                         ))}
                       </div>
+                      {ratioPair && <RatioBar plan={Number(it.values?.[ratioPair.plan.id]) || 0} real={Number(it.values?.[ratioPair.real.id]) || 0} />}
                       {isBilling && (
                         <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId}
                           onQuote={() => openQuote(it)} onContract={() => makeContract(it)} />
@@ -619,6 +629,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                         </span>
                       </th>
                     ))}
+                    {ratioPair && <th className="pb-th-ratio">{ratioPair.real.name}률</th>}
                     {isBilling && <th className="pb-th-doc">견적서</th>}
                     <th className="pb-th-x" />
                   </tr>
@@ -642,6 +653,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                             onSave={(v) => saveValue(it, c.id, v)} />
                         </td>
                       ))}
+                      {ratioPair && (
+                        <td className="pb-td-ratio">
+                          <RatioBar plan={Number(it.values?.[ratioPair.plan.id]) || 0} real={Number(it.values?.[ratioPair.real.id]) || 0} />
+                        </td>
+                      )}
                       {isBilling && (
                         <td className="pb-td-doc">
                           <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId}
@@ -653,9 +669,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       </td>
                     </tr>
                   ))}
-                  <tr>
-                    <td colSpan={cols.length + (isBilling ? 3 : 2)} className="pb-add" onClick={() => addItem(g.id)}>＋ {nameLabel} 추가</td>
-                  </tr>
+                  <QuickAddRow key={`qa-${g.id}`} nameLabel={nameLabel} cols={cols}
+                    span={cols.length + (isBilling ? 3 : 2)}
+                    onAdd={(name, values) => addItem(g.id, values, name)} />
                   {rows.length > 0 && numberCols.length > 0 && (
                     <tr className="pb-sum">
                       <td>합계</td>
@@ -664,6 +680,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           {c.type === "number" ? won(sumColumn(rows, c.id)) : ""}
                         </td>
                       ))}
+                      {ratioPair && <td />}
                       {isBilling && <td />}
                       <td />
                     </tr>
@@ -676,6 +693,74 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       })}
       </>)}
     </div>
+  );
+}
+
+// ── 빠른 입력 줄 — 빈 행을 만들고 칸을 옮겨 다니는 대신 한 줄에서 끝낸다 (2026-08-04 기획 5단계) ──
+//   이름 + 첫 숫자 + 첫 날짜만 받는다. 나머지는 만들어진 행에서 채우면 된다.
+//   Enter 를 치면 저장하고 이름 칸으로 커서가 돌아온다 — 비용처럼 여러 건을 연달아 넣을 때가 많다.
+function QuickAddRow({ nameLabel, cols, span, onAdd }: {
+  nameLabel: string; cols: BoardColumn[]; span: number;
+  onAdd: (name: string, values: Record<string, any>) => Promise<void> | void;
+}) {
+  const numCol = cols.find((c) => c.type === "number") || null;
+  const dateCol = cols.find((c) => c.type === "date") || null;
+  const [name, setName] = useState("");
+  const [num, setNum] = useState("");
+  const [date, setDate] = useState("");
+  const [busy, setBusy] = useState(false);
+  const nameRef = useRef<HTMLInputElement | null>(null);
+
+  const submit = async () => {
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    try {
+      const values: Record<string, any> = {};
+      if (numCol && num.trim()) values[numCol.id] = Number(num.replace(/[^0-9.-]/g, "")) || 0;
+      if (dateCol && date) values[dateCol.id] = date;
+      await onAdd(name.trim(), values);
+      setName(""); setNum(""); setDate("");
+      nameRef.current?.focus();
+    } finally { setBusy(false); }
+  };
+  const onKey = (e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); submit(); } };
+
+  return (
+    <tr className="pb-quick">
+      <td colSpan={span}>
+        <span className="pb-quick-row">
+          <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onKey}
+            placeholder={`＋ ${nameLabel} 입력하고 Enter`} className="pb-quick-name" />
+          {numCol && (
+            <input value={num} onChange={(e) => setNum(e.target.value)} onKeyDown={onKey} inputMode="numeric"
+              placeholder={numCol.name} className="pb-quick-num" />
+          )}
+          {dateCol && (
+            <span onKeyDown={onKey}>
+              <DateField value={date} onChange={(e) => setDate(e.target.value)} className="pb-quick-date" />
+            </span>
+          )}
+          <button type="button" onClick={submit} disabled={busy || !name.trim()} className="pb-quick-go">
+            {busy ? "…" : "추가"}
+          </button>
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+// ── 계획 대비 실적 막대 — 예산 대비 집행, 예상 대비 확정 ──
+function RatioBar({ plan, real }: { plan: number; real: number }) {
+  if (!plan && !real) return <span className="pb-ratio-none">—</span>;
+  const pct = plan > 0 ? Math.round((real / plan) * 100) : null;
+  const over = pct != null && pct > 100;
+  return (
+    <span className="pb-ratio" title={pct == null ? "계획 없음" : `${real.toLocaleString("ko-KR")} / ${plan.toLocaleString("ko-KR")}`}>
+      <span className="pb-ratio-track">
+        <i className={over ? "pb-ratio-over" : ""} style={{ width: `${Math.min(100, pct ?? 0)}%` }} />
+      </span>
+      <em className={over ? "pb-ratio-bad" : ""}>{pct == null ? "—" : `${pct}%`}</em>
+    </span>
   );
 }
 

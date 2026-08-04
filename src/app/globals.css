@@ -5895,3 +5895,20 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-drawer-actions { @apply flex items-center gap-2; }
 .pb-drawer-file { @apply h-8 px-3 inline-flex items-center rounded-lg border border-[var(--border)] text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
 .pb-drawer-send { @apply ml-auto h-8 px-4 rounded-lg bg-[var(--primary)] text-[12.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
+
+/* 빠른 입력 · 집행률 (2026-08-04) */
+.pb-quick > td { @apply p-0; }
+.pb-quick-row { @apply flex items-center gap-1.5 px-2 py-1.5; }
+.pb-quick-name { @apply flex-1 min-w-0 h-8 px-2 rounded-lg bg-transparent border border-dashed border-[var(--border)] text-[12.5px] text-[var(--text)] transition focus:outline-none focus:border-[var(--primary)] focus:bg-[var(--bg-card)]; }
+.pb-quick-num { @apply w-28 h-8 px-2 rounded-lg bg-transparent border border-dashed border-[var(--border)] text-[12.5px] text-right text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; font-variant-numeric: tabular-nums; }
+.pb-quick-date { @apply w-32 h-8 px-2 rounded-lg bg-transparent border border-dashed border-[var(--border)] text-[12.5px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.pb-quick-go { @apply h-8 px-3 rounded-lg bg-[var(--primary)] text-[12px] font-bold text-white transition hover:opacity-90 disabled:opacity-30; }
+.pb-th-ratio { @apply w-24 text-[10.5px] font-bold text-[var(--text-dim)]; }
+.pb-td-ratio { @apply w-24; }
+.pb-ratio { @apply flex items-center gap-1.5; }
+.pb-ratio-track { @apply flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.pb-ratio-track i { @apply block h-full bg-[var(--primary)]; }
+.pb-ratio-track i.pb-ratio-over { @apply bg-[var(--danger)]; }
+.pb-ratio em { @apply not-italic text-[10.5px] font-bold text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.pb-ratio em.pb-ratio-bad { @apply text-[var(--danger)]; }
+.pb-ratio-none { @apply text-[11px] text-[var(--text-dim)]; }
