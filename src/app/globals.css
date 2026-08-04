@@ -6015,3 +6015,18 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 컬럼 추가 — 표 머리 끝의 ＋ */
 .pb-th-x .pb-addcol { @apply flex justify-center; }
 .pb-th-x .pb-addcol select { @apply w-7 h-6 rounded-md bg-transparent border border-transparent text-[12px] text-center text-[var(--text-dim)] cursor-pointer hover:border-[var(--border)] hover:text-[var(--primary)] focus:outline-none; }
+
+/* 되돌리기 한 줄 · 지운 항목 (2026-08-04 기획 2차) */
+.pb-undo { @apply fixed left-1/2 -translate-x-1/2 bottom-6 z-50 flex items-center gap-3 pl-4 pr-2 py-2.5 rounded-2xl bg-[var(--text)] text-white shadow-2xl; }
+.pb-undo > span { @apply text-[13px] font-semibold; }
+.pb-undo > button { @apply h-7 px-3 rounded-lg bg-white/15 text-[12.5px] font-bold text-white transition hover:bg-white/25; }
+.pb-undo-x { @apply !px-2 !bg-transparent !text-white/60 hover:!text-white; }
+.pb-trash-body { @apply flex flex-col gap-1 px-4 py-3 max-h-[60vh] overflow-y-auto; }
+.pb-trash-row { @apply flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-[var(--bg-surface)]; }
+.pb-trash-old { @apply opacity-50; }
+.pb-trash-kind { @apply shrink-0 px-1.5 py-0.5 rounded-md bg-[var(--bg-surface)] text-[10.5px] font-bold text-[var(--text-muted)]; }
+.pb-trash-name { @apply flex-1 min-w-0 truncate text-[13px] text-[var(--text)]; }
+.pb-trash-name em { @apply not-italic ml-1.5 text-[11px] text-[var(--text-dim)]; }
+.pb-trash-when { @apply shrink-0 text-[11px] text-[var(--text-dim)]; }
+.pb-trash-back { @apply shrink-0 h-7 px-2.5 rounded-lg bg-[var(--primary)]/10 text-[11.5px] font-bold text-[var(--primary)] hover:bg-[var(--primary)]/20; }
+.pb-trash-purge { @apply shrink-0 w-6 h-6 rounded-md text-[10px] text-[var(--text-dim)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]; }

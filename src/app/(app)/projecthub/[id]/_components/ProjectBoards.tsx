@@ -20,6 +20,7 @@ import { getPartners, upsertPartner } from "@/lib/partners";
 import { createQuoteForDeal, createContractFromQuoteDoc } from "@/lib/documents";
 import { BoardItemDrawer } from "./BoardItemDrawer";
 import { BoardDocModal, type DocKind } from "./BoardDocModal";
+import { BoardTrash } from "./BoardTrash";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
@@ -49,6 +50,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [renaming, setRenaming] = useState(false);
   const [tplMenu, setTplMenu] = useState(false);          // 템플릿 ⋯ (이름 · 삭제)
   const [groupMenu, setGroupMenu] = useState<string | null>(null);   // 그룹 ⋯
+  const [trashOpen, setTrashOpen] = useState(false);
+  //   지운 직후 한 번 뜨는 되돌리기 줄 — 놓쳐도 '지운 항목'에서 30일 안에 되살릴 수 있다
+  const [undo, setUndo] = useState<{ table: string; id: string; label: string } | null>(null);
   // 정렬 — 컬럼 이름을 누르면 그 컬럼 기준. 표마다 따로 기억한다(저장은 안 한다, 보기 상태일 뿐).
   const [sort, setSort] = useState<{ colId: string; dir: "asc" | "desc" } | null>(null);
   // 입력화면 — 템플릿이 정한 기본값에서 시작하고, 사용자가 바꾸면 그걸 따른다(2026-08-03 기획 1단계).
@@ -78,7 +82,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     queryKey: ["pb-cols", boardId],
     queryFn: async () => {
       const data = logRead("ProjectBoards:cols", await db.from("project_board_columns")
-        .select("id, board_id, name, type, settings, position").eq("board_id", boardId).order("position", { ascending: true }));
+        .select("id, board_id, name, type, settings, position").eq("board_id", boardId)
+        .is("archived_at", null).order("position", { ascending: true }));
       return (data || []) as BoardColumn[];
     },
     enabled: !!boardId,
@@ -87,7 +92,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     queryKey: ["pb-groups", boardId],
     queryFn: async () => {
       const data = logRead("ProjectBoards:groups", await db.from("project_board_groups")
-        .select("id, board_id, name, color, position").eq("board_id", boardId).order("position", { ascending: true }));
+        .select("id, board_id, name, color, position").eq("board_id", boardId)
+        .is("archived_at", null).order("position", { ascending: true }));
       return (data || []) as BoardGroup[];
     },
     enabled: !!boardId,
@@ -97,7 +103,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     queryFn: async () => {
       const data = logRead("ProjectBoards:items", await db.from("project_board_items")
         .select("id, board_id, group_id, parent_item_id, name, values, position").eq("board_id", boardId)
-        .order("position", { ascending: true }));
+        .is("archived_at", null).order("position", { ascending: true }));
       return (data || []) as BoardItem[];
     },
     enabled: !!boardId,
@@ -111,7 +117,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     queryKey: ["pb-all-cols", dealId, boardIds.length],
     queryFn: async () => {
       const data = logRead("ProjectBoards:allCols", await db.from("project_board_columns")
-        .select("id, board_id, name, type, settings, position").in("board_id", boardIds).order("position", { ascending: true }));
+        .select("id, board_id, name, type, settings, position").in("board_id", boardIds)
+        .is("archived_at", null).order("position", { ascending: true }));
       return (data || []) as BoardColumn[];
     },
     enabled: showSummary && boardIds.length > 0,
@@ -120,7 +127,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     queryKey: ["pb-all-groups", dealId, boardIds.length],
     queryFn: async () => {
       const data = logRead("ProjectBoards:allGroups", await db.from("project_board_groups")
-        .select("id, board_id, name, color, position").in("board_id", boardIds).order("position", { ascending: true }));
+        .select("id, board_id, name, color, position").in("board_id", boardIds)
+        .is("archived_at", null).order("position", { ascending: true }));
       return (data || []) as BoardGroup[];
     },
     enabled: showSummary && boardIds.length > 0,
@@ -130,7 +138,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     queryFn: async () => {
       const data = logRead("ProjectBoards:allItems", await db.from("project_board_items")
         .select("id, board_id, group_id, parent_item_id, name, values, position").in("board_id", boardIds)
-        .order("position", { ascending: true }).limit(2000));
+        .is("archived_at", null).order("position", { ascending: true }).limit(2000));
       return (data || []) as BoardItem[];
     },
     enabled: showSummary && boardIds.length > 0,
@@ -230,11 +238,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   };
   const removeBoard = async () => {
     if (!board) return;
-    if (!window.confirm(`'${board.name}' 템플릿을 지울까요? 안에 입력한 행도 함께 사라집니다.`)) return;
-    await db.from("project_boards").update({ archived_at: new Date().toISOString() }).eq("id", boardId);
+    // 확인창을 띄우지 않는다 — 되돌리기가 있으면 확인창은 손만 늦춘다(2026-08-04 기획 2차)
+    await softDelete("project_boards", boardId, `템플릿 '${board.name}'`, ["pb-boards"]);
     setActiveId("");
-    qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
-    toast("템플릿을 지웠습니다.", "success");
   };
   const renameGroup = async (g: BoardGroup, name: string) => {
     if (!name.trim() || name === g.name) return;
@@ -360,16 +366,33 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   };
 
   const removeColumn = async (c: BoardColumn) => {
-    if (!window.confirm(`'${c.name}' 컬럼을 지울까요? 이 컬럼에 넣은 값도 화면에서 사라집니다.`)) return;
-    await db.from("project_board_columns").delete().eq("id", c.id);
     if (sort?.colId === c.id) setSort(null);
-    qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+    // 값은 행의 jsonb 에 그대로 남는다 — 컬럼을 되살리면 값도 같이 돌아온다
+    await softDelete("project_board_columns", c.id, `컬럼 '${c.name}'`, ["pb-cols"]);
   };
   // 숫자 컬럼 단위 — 단위를 알아야 '정리'가 합계를 제대로 읽는다(원끼리만 빼고, %는 평균을 낸다)
   const setUnit = async (c: BoardColumn, unit: string) => {
     const next = { ...(c.settings || {}), unit: unit.trim() || undefined };
     await db.from("project_board_columns").update({ settings: next }).eq("id", c.id);
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+  };
+
+  // 지우는 동작은 전부 이 한 곳을 지난다 — 되돌리기가 빠지는 경로를 만들지 않으려고.
+  const softDelete = async (table: string, id: string, label: string, keys: string[]) => {
+    const { error } = await db.from(table).update({ archived_at: new Date().toISOString() }).eq("id", id);
+    if (error) { toast(error.message, "error"); return; }
+    keys.forEach((k) => qc.invalidateQueries({ queryKey: [k, k === "pb-boards" ? dealId : boardId] }));
+    setUndo({ table, id, label });
+    window.setTimeout(() => setUndo((u) => (u && u.id === id ? null : u)), 6000);
+  };
+  const runUndo = async () => {
+    if (!undo) return;
+    await db.from(undo.table).update({ archived_at: null }).eq("id", undo.id);
+    ["pb-boards", "pb-cols", "pb-groups", "pb-items"].forEach((k) =>
+      qc.invalidateQueries({ queryKey: [k, k === "pb-boards" ? dealId : boardId] }));
+    qc.invalidateQueries({ queryKey: ["pb-trash"] });
+    setUndo(null);
+    toast("되돌렸습니다.", "success");
   };
 
   const addItem = async (groupId: string, values?: Record<string, any>, name?: string) => {
@@ -388,10 +411,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     await db.from("project_board_items").update({ values: next, updated_at: new Date().toISOString() }).eq("id", item.id);
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
-  const removeItem = async (item: BoardItem) => {
-    await db.from("project_board_items").delete().eq("id", item.id);
-    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
-  };
+  const removeItem = async (item: BoardItem) =>
+    softDelete("project_board_items", item.id, `${nameLabelOf(board?.template_key)} '${item.name || "이름 없음"}'`, ["pb-items"]);
   // 그룹 삭제 — 안에 행이 있으면 다른 그룹으로 옮기고 지운다(값을 잃지 않게).
   const removeGroup = async (g: BoardGroup) => {
     setGroupMenu(null);
@@ -400,10 +421,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     const to = groups.find((x) => x.id !== g.id)!;
     if (rows.length > 0 && !window.confirm(`'${g.name}' 을 지우면 안에 있는 ${rows.length}건이 '${to.name}' 으로 옮겨집니다. 계속할까요?`)) return;
     if (rows.length > 0) await db.from("project_board_items").update({ group_id: to.id }).eq("group_id", g.id);
-    await db.from("project_board_groups").delete().eq("id", g.id);
-    qc.invalidateQueries({ queryKey: ["pb-groups", boardId] });
-    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
-    toast(rows.length > 0 ? `그룹을 지우고 ${rows.length}건을 '${to.name}' 으로 옮겼습니다.` : "그룹을 지웠습니다.", "success");
+    await softDelete("project_board_groups", g.id, `그룹 '${g.name}'`, ["pb-groups", "pb-items"]);
   };
   const recolorGroup = async (g: BoardGroup, color: string) => {
     setGroupMenu(null);
@@ -532,6 +550,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             <span className="pb-menu-veil" onClick={() => setTplMenu(false)} />
             <span className="pb-menu">
               <button type="button" onClick={() => { setTplMenu(false); setRenaming(true); }}>이름 바꾸기</button>
+              <button type="button" onClick={() => { setTplMenu(false); setTrashOpen(true); }}>지운 항목</button>
               <button type="button" className="pb-menu-danger" onClick={() => { setTplMenu(false); removeBoard(); }}>템플릿 삭제</button>
             </span>
           </>)}
@@ -580,6 +599,21 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             {proposing ? "만드는 중…" : `청구 행 ${proposal.terms.length}건 만들기`}
           </button>
         </div>
+      )}
+
+      {/* 지운 직후 한 번 — 놓쳐도 ⋯ > 지운 항목에서 되살릴 수 있다 */}
+      {undo && (
+        <div className="pb-undo" role="status">
+          <span>{undo.label} 을 지웠어요.</span>
+          <button type="button" onClick={runUndo}>되돌리기</button>
+          <button type="button" className="pb-undo-x" onClick={() => setUndo(null)} aria-label="닫기">✕</button>
+        </div>
+      )}
+
+      {trashOpen && (
+        <BoardTrash dealId={dealId} boardIds={boardIds}
+          boardNames={Object.fromEntries(boards.map((b) => [b.id, b.name]))}
+          onClose={() => setTrashOpen(false)} />
       )}
 
       {/* 문서 팝업 — 견적·계약·발행. 화면을 옮기지 않고 여기서 끝낸다 */}
@@ -1004,6 +1038,11 @@ function BoardTimeline({ items, span, flowCol, nameLabel, onAdd }: {
       )}
     </div>
   );
+}
+
+/** 행을 뭐라고 부를지 — 되돌리기 문구가 조기 반환보다 앞에서도 필요해 순수 함수로 둔다 */
+function nameLabelOf(templateKey: string | null | undefined): string {
+  return ITEM_LABEL[templateKey || "blank"] || "행";
 }
 
 /** 행 정렬 — 컬럼 타입에 맞게. 값이 빈 행은 방향과 무관하게 늘 뒤로 보낸다. */
