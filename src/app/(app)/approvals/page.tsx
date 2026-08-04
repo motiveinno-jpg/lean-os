@@ -602,7 +602,7 @@ export default function ApprovalsPage() {
         <ReferencedRequestsTab companyId={companyId} userId={userId} />
       )}
       {tab === "all" && companyId && (
-        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} />
+        <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} invalidate={invalidate} />
       )}
       {tab === "new-request" && companyId && userId && (
         <NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} />
@@ -1823,7 +1823,7 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
 // Tab 4: 전체 현황 (Admin)
 // ══════════════════════════════════════════════
 
-function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null }) {
+function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, invalidate }: { invalidate: () => void; companyId: string; initialStatusFilter?: string; userId?: string | null; userRole?: string | null }) {
   // 직원 계정은 회사 전체가 아니라 본인이 신청한 요청만 조회 (관리자/대표는 전체)
   // (P3) 전체 현황 권한(:all)이 없으면 본인 신청분만 — 구 employee 분기 대체
   const { isMaster: rMaster, hasPerm: rHasPerm } = useMyPermissions();
@@ -1840,6 +1840,56 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // 확인(열람) 표시 — 클릭해 본 건은 목록에서 제목을 연하게 (2026-08-04 사장님: 광고비 지출결의서처럼
+  //   제목이 똑같으면 어디까지 확인했는지 구분이 안 됨). 이 브라우저(localStorage) 기준, 최근 800건 유지.
+  const [viewedIds, setViewedIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try { return new Set(JSON.parse(localStorage.getItem("approvals-viewed-ids") || "[]")); } catch { return new Set(); }
+  });
+  const markViewed = (id: string) => {
+    setViewedIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      try { localStorage.setItem("approvals-viewed-ids", JSON.stringify([...next].slice(-800))); } catch { /* 저장 실패는 표시만 못 할 뿐 */ }
+      return next;
+    });
+  };
+
+  // 전체 현황에서도 결재 처리 (2026-08-04 사장님: 내 결재함까지 안 가고 여기서 바로 승인/반려).
+  //   팝업이 이미 쓰는 타임라인 쿼리(ApprovalTimelineView 와 같은 키 → 캐시 공유)로
+  //   "지금 내 차례인 단계"를 찾고, 있을 때만 승인/반려 UI 를 노출한다.
+  //   서버(approveStep/rejectStep)가 결재자 본인·pending 여부를 재검증하므로 표시는 편의일 뿐 권한 경계가 아니다.
+  const { data: expandedTimeline = [] } = useQuery({
+    queryKey: ["approval-timeline", expandedId],
+    queryFn: () => getApprovalTimeline(expandedId!),
+    enabled: !!expandedId,
+  });
+  const [decisionComment, setDecisionComment] = useState("");
+  useEffect(() => { setDecisionComment(""); }, [expandedId]);
+  const decideApproveMut = useMutation({
+    mutationFn: ({ stepId, comment }: { stepId: string; comment?: string }) => approveStep(stepId, userId!, comment),
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["approval-timeline", expandedId] });
+      setDecisionComment("");
+      toast("승인 처리했습니다", "success");
+      window.dispatchEvent(new Event("sidebar-refresh-badges"));
+    },
+    onError: (err: any) => toast("승인 처리 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
+  });
+  const decideRejectMut = useMutation({
+    mutationFn: ({ stepId, comment }: { stepId: string; comment: string }) => rejectStep(stepId, userId!, comment),
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["approval-timeline", expandedId] });
+      setDecisionComment("");
+      toast("반려 처리했습니다", "success");
+      window.dispatchEvent(new Event("sidebar-refresh-badges"));
+    },
+    onError: (err: any) => toast("반려 처리 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
+  });
 
   const { data: allRequests = [], isLoading } = useQuery({
     queryKey: ["all-requests", companyId, statusFilter, typeFilter, restrictToOwn ? userId : null],
@@ -2007,7 +2057,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                   <tr
                     key={req.id}
                     className="approval-table-row"
-                    onClick={() => setExpandedId(req.id)}
+                    onClick={() => { setExpandedId(req.id); markViewed(req.id); }}
                   >
                     <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
                     <td className="px-4 py-3.5">
@@ -2016,7 +2066,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                           <TypeIcon name={m.icon} className="w-4 h-4" />
                         </span>
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold truncate max-w-[240px]">{req.title}</div>
+                          {/* 확인한 건은 연하게 — 같은 제목이 반복될 때 진행 위치 구분용 */}
+                          <div className={`text-sm truncate max-w-[240px] ${viewedIds.has(req.id) ? "font-normal text-[var(--text-dim)]" : "font-semibold"}`}>{req.title}</div>
                           <div className="text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}</div>
                         </div>
                       </div>
@@ -2123,6 +2174,46 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole }: { 
                 <DescriptionContent text={reqContentText} className="mb-2 text-sm text-[var(--text)] leading-8" />
               )}
               <AttachmentList attachments={req.attachments} />
+
+              {/* 내 차례인 대기 건이면 여기서 바로 승인/반려 — 내 결재함과 동일 처리 경로(approveStep/rejectStep) */}
+              {(() => {
+                const myStep = req.status === "pending"
+                  ? (expandedTimeline as any[]).find((st) => st.status === "pending" && st.approver_id === userId && st.stage === req.current_stage)
+                  : null;
+                if (!myStep) return null;
+                return (
+                  <div className="mt-6 pt-5 border-t border-[var(--border)]">
+                    <label className="field-label">결재 의견 (반려 시 필수)</label>
+                    <textarea
+                      value={decisionComment}
+                      onChange={(e) => setDecisionComment(e.target.value)}
+                      rows={2}
+                      placeholder="의견을 입력하세요..."
+                      className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] resize-none mb-4"
+                    />
+                    <div className="flex gap-2.5">
+                      <button
+                        onClick={() => {
+                          if (!decisionComment.trim()) { toast("반려 사유를 입력하세요", "error"); return; }
+                          decideRejectMut.mutate({ stepId: myStep.id, comment: decisionComment });
+                        }}
+                        disabled={decideRejectMut.isPending || decideApproveMut.isPending}
+                        className="flex-1 py-3.5 rounded-full text-sm font-bold text-[var(--danger)] bg-[var(--danger-dim)] hover:opacity-90 disabled:opacity-50 transition"
+                      >
+                        {decideRejectMut.isPending ? "처리 중..." : "반려"}
+                      </button>
+                      <button
+                        onClick={() => decideApproveMut.mutate({ stepId: myStep.id, comment: decisionComment || undefined })}
+                        disabled={decideApproveMut.isPending || decideRejectMut.isPending}
+                        className="flex-1 py-3.5 rounded-full text-sm font-bold text-white bg-[var(--success)] hover:opacity-90 disabled:opacity-50 transition inline-flex items-center justify-center gap-1.5"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+                        {decideApproveMut.isPending ? "처리 중..." : "승인"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="mt-6 pt-5 border-t border-[var(--border)]">
                 <ApprovalTimelineView
