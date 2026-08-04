@@ -65,7 +65,12 @@ export function CertAutoPicker({ onExtracted }: {
       const tokenRes = await fetch("/api/codef/cert-token", {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
       });
-      if (!tokenRes.ok) throw new Error("token");
+      if (!tokenRes.ok) {
+        // 토큰 실패는 프로그램 미설치가 아니다 — 설치 안내로 오인되지 않게 별도 상태로.
+        setEngineStatus("error");
+        setError(`서버 인증 토큰 발급 실패 (HTTP ${tokenRes.status}) — PC 프로그램 문제가 아닙니다. 잠시 후 다시 시도해주세요.`);
+        return;
+      }
       const { token } = await tokenRes.json();
       codefcert.options.codefToken = token;
 
@@ -80,10 +85,14 @@ export function CertAutoPicker({ onExtracted }: {
           });
         } else {
           setEngineStatus(errorCode === "E010002" ? "not-installed" : "error");
+          if (errorCode && errorCode !== "E010002") {
+            setError(`인증 프로그램 연결 실패 (코드 ${errorCode}) — 프로그램은 설치돼 있습니다. 잠시 후 "다시 확인"을 눌러주세요.`);
+          }
         }
       });
     } catch {
-      setEngineStatus("not-installed");
+      setEngineStatus("error");
+      setError("인증 스크립트 초기화에 실패했습니다. 페이지를 새로고침한 뒤 다시 시도해주세요.");
     }
   }
 
@@ -132,7 +141,13 @@ export function CertAutoPicker({ onExtracted }: {
         </div>
       )}
 
-      {(engineStatus === "not-installed" || engineStatus === "error") && (
+      {engineStatus === "error" && (
+        <div className="cert-picker-status">
+          <button type="button" onClick={() => initEngine()} className="cert-picker-retry">다시 확인</button>
+        </div>
+      )}
+
+      {engineStatus === "not-installed" && (
         <div className="cert-picker-install">
           <div className="text-[13px] font-semibold text-[var(--text)]"><Ico e="💾" /> 인증서 자동 인식 프로그램이 필요합니다</div>
           <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">

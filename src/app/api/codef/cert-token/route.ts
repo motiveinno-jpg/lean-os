@@ -49,8 +49,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const clientId = process.env.CODEF_CLIENT_ID;
-  const clientSecret = process.env.CODEF_CLIENT_SECRET;
+  // Vercel env 일괄 등록분에 값 끝 개행 오염 이력(STRIPE_SECRET_KEY 동일 사고) — Basic auth 가 통째로 깨지므로 trim.
+  const clientId = (process.env.CODEF_CLIENT_ID || "").trim();
+  const clientSecret = (process.env.CODEF_CLIENT_SECRET || "").trim();
 
   if (!clientId || !clientSecret) {
     return NextResponse.json(
