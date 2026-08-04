@@ -120,8 +120,10 @@ export default function PlatformOverview() {
   });
 
   // 라이브 시계 — 현황판에서 "지금 몇 시 기준 화면인지" 보이게 (30초 틱)
-  const [clock, setClock] = useState(() => new Date());
+  //   SSR 시각과 클라 시각이 달라 hydration mismatch 가 나므로 마운트 후에만 채운다.
+  const [clock, setClock] = useState<Date | null>(null);
   useEffect(() => {
+    setClock(new Date());
     const t = setInterval(() => setClock(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
@@ -309,7 +311,9 @@ export default function PlatformOverview() {
       <div className="platform-hero chrome-glass">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold text-[var(--text-dim)]">
-            {kstDateStr(clock)} <span className="mono-number text-[var(--text-muted)]">{clock.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}</span> · 1분마다 갱신
+            {clock ? (
+              <>{kstDateStr(clock)} <span className="mono-number text-[var(--text-muted)]">{clock.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}</span> · 1분마다 갱신</>
+            ) : "1분마다 갱신"}
           </div>
           <h1 className="text-xl md:text-2xl font-extrabold text-[var(--text)] mt-0.5">플랫폼 개요</h1>
           <span className={`platform-header-live mt-2 inline-block ${todoTotal > 0 ? "platform-header-live-warn" : ""}`}>
@@ -329,8 +333,10 @@ export default function PlatformOverview() {
             { label: "오늘 활동", value: `${usage?.accounts?.dau ?? 0}명` },
             { label: "지금 접속", value: `${activeNow.length}곳`, live: activeNow.length > 0 },
           ].map((m: any) => (
-            <div key={m.label} className="platform-hero-metric stat-fit">
-              <span className={`stat-fit-value font-extrabold mono-number ${m.accent ? "text-[var(--primary)]" : m.live ? "text-[var(--success)]" : "text-[var(--text)]"}`}>
+            // ⚠️ stat-fit(container-type) 금지 — flex 아이템이라 폭이 0으로 붕괴해 라벨이 세로로 깨졌다
+            //   (2026-08-04 렌더 확인으로 발견). 값은 fmtW 로 짧게 축약되므로 고정 크기로 충분.
+            <div key={m.label} className="platform-hero-metric">
+              <span className={`text-xl md:text-2xl leading-tight font-extrabold mono-number whitespace-nowrap ${m.accent ? "text-[var(--primary)]" : m.live ? "text-[var(--success)]" : "text-[var(--text)]"}`}>
                 {m.live && <span className="platform-active-dot mr-1.5" />}{m.value}
               </span>
               <span className="text-[11px] font-semibold text-[var(--text-muted)]">{m.label}</span>
