@@ -20,6 +20,7 @@ import { getPartners, upsertPartner } from "@/lib/partners";
 import { createQuoteForDeal, createContractFromQuoteDoc } from "@/lib/documents";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { BoardItemDrawer } from "./BoardItemDrawer";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
@@ -51,6 +52,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   // 입력화면 — 템플릿이 정한 기본값에서 시작하고, 사용자가 바꾸면 그걸 따른다(2026-08-03 기획 1단계).
   //   null = 아직 손대지 않음 → 템플릿 기본값을 쓴다.
   const [viewPick, setViewPick] = useState<InputMode | null>(null);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);   // 행 상세 서랍
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
 
@@ -417,6 +419,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   // 어느 열에도 안 잡힌 행(값이 비었거나 지운 옵션) — 숨기면 영영 안 보인다
   const loose = flowCol ? items.filter((it) => !kanbanCols.some((c) => String(it.values?.[flowCol.id] ?? "") === c.key)) : [];
   const partnerColId = cols.find((c) => c.type === "partner")?.id || null;
+  const openItem = items.find((i) => i.id === openItemId) || null;
   // 계약서에 결제조건이 있는데 아직 청구 행이 없는 회차 — 있으면 한 줄로 제안한다
   const proposal = useMemo(() => {
     if (!isBilling) return null;
@@ -435,7 +438,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       {/* 템플릿 탭 — ＋ 로 같은 프로젝트에 템플릿을 더 붙인다 */}
       <div className="pb-tabs">
         {boards.map((b) => (
-          <button key={b.id} type="button" onClick={() => { setActiveId(b.id); setShowSummary(false); setSort(null); setViewPick(null); }}
+          <button key={b.id} type="button" onClick={() => { setActiveId(b.id); setShowSummary(false); setSort(null); setViewPick(null); setOpenItemId(null); }}
             onDoubleClick={() => { if (b.id === boardId) setRenaming(true); }}
             title="더블클릭하면 이름을 바꿉니다"
             className={`pb-tab ${b.id === boardId && !showSummary ? "pb-tab-on" : ""}`}>{b.name}</button>
@@ -487,6 +490,20 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         </div>
       )}
 
+      {/* 행 상세 — 표·칸반 어디서 열어도 같은 서랍. 칸 편집기는 같은 Cell 을 넘겨준다 */}
+      {openItem && (
+        <BoardItemDrawer
+          item={openItem} cols={cols} companyId={companyId} userId={userId} users={users}
+          nameLabel={nameLabel}
+          onClose={() => setOpenItemId(null)}
+          onSaveName={(v) => saveName(openItem, v)}
+          renderCell={(c) => (
+            <Cell col={c} item={openItem} users={users} partners={partners as any[]} companyId={companyId}
+              onPartnerCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })}
+              onSave={(v) => saveValue(openItem, c.id, v)} />
+          )} />
+      )}
+
       {showSummary ? (
         <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users} />
       ) : view === "timeline" && span ? (
@@ -534,7 +551,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                         <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId}
                           onQuote={() => openQuote(it)} onContract={() => makeContract(it)} />
                       )}
-                      <button type="button" className="pb-card-x" title="행 삭제" onClick={() => removeItem(it)}>✕</button>
+                      <span className="pb-card-tools">
+                        <button type="button" className="pb-open" title="열기 — 메모·파일" onClick={() => setOpenItemId(it.id)}>⤢</button>
+                        <button type="button" className="pb-card-x" title="행 삭제" onClick={() => removeItem(it)}>✕</button>
+                      </span>
                     </article>
                   ))}
                   <button type="button" className="pb-kadd"
@@ -607,10 +627,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                   {rows.map((it) => (
                     <tr key={it.id}>
                       <td className="pb-td-name">
-                        <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
-                          onBlur={(e) => saveName(it, e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                          className="pb-in" />
+                        <span className="pb-name-cell">
+                          <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
+                            onBlur={(e) => saveName(it, e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                            className="pb-in" />
+                          <button type="button" className="pb-open" title="열기 — 메모·파일" onClick={() => setOpenItemId(it.id)}>⤢</button>
+                        </span>
                       </td>
                       {cols.map((c) => (
                         <td key={c.id} className={c.type === "number" ? "pb-td-num" : ""}>

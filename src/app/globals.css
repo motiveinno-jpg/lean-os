@@ -5865,3 +5865,33 @@ th:hover .pb-col-x { @apply opacity-100; }
 .pb-propose { @apply flex flex-wrap items-center gap-x-2 gap-y-1 px-3.5 py-2.5 mb-3 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20 text-[12px] text-[var(--text-muted)]; }
 .pb-propose b { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
 .pb-propose > button { @apply ml-auto h-7 px-3 rounded-lg bg-[var(--primary)] text-[11.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-45; }
+
+/* 행 상세 서랍 — 메모·파일 (2026-08-04) */
+.pb-name-cell { @apply flex items-center gap-1 min-w-0; }
+.pb-open { @apply shrink-0 w-5 h-5 rounded text-[10px] text-[var(--text-dim)] opacity-0 transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
+tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
+.pb-card-tools { @apply absolute right-1.5 top-1.5 flex items-center gap-0.5; }
+.pb-drawer-veil { @apply fixed inset-0 z-40 bg-black/20; }
+.pb-drawer { @apply fixed right-0 top-0 bottom-0 z-50 w-full max-w-md flex flex-col bg-[var(--bg-card)] border-l border-[var(--border)] shadow-2xl; }
+.pb-drawer-head { @apply flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]; }
+.pb-drawer-head > button { @apply w-7 h-7 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.pb-drawer-name { @apply flex-1 min-w-0 bg-transparent border-0 text-[15px] font-extrabold text-[var(--text)] focus:outline-none; }
+.pb-drawer-fields { @apply flex flex-col gap-2 px-4 py-3 border-b border-[var(--border)]; }
+.pb-drawer-field { @apply flex items-center gap-3 min-w-0; }
+.pb-drawer-field > label { @apply w-20 shrink-0 text-[11.5px] font-semibold text-[var(--text-dim)]; }
+.pb-drawer-field > div { @apply flex-1 min-w-0; }
+.pb-drawer-notes { @apply flex-1 overflow-y-auto flex flex-col gap-2 px-4 py-3; }
+.pb-drawer-notes > b { @apply text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pb-drawer-empty { @apply text-[12px] text-[var(--text-dim)]; }
+.pb-note { @apply relative flex flex-col gap-0.5 p-2.5 rounded-xl bg-[var(--bg-surface)]; }
+.pb-note-who { @apply flex items-baseline gap-1.5 text-[11px] font-bold text-[var(--text-muted)]; }
+.pb-note-who em { @apply not-italic font-normal text-[10.5px] text-[var(--text-dim)]; }
+.pb-note-body { @apply text-[13px] text-[var(--text)] whitespace-pre-wrap break-words; }
+.pb-note-file { @apply text-[13px] font-semibold text-[var(--primary)] hover:underline break-all; }
+.pb-note > button { @apply absolute right-1.5 top-1.5 w-5 h-5 rounded text-[10px] text-[var(--text-dim)] opacity-0 transition hover:text-[var(--danger)]; }
+.pb-note:hover > button { @apply opacity-100; }
+.pb-drawer-foot { @apply flex flex-col gap-2 px-4 py-3 border-t border-[var(--border)]; }
+.pb-drawer-foot textarea { @apply w-full rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text)] resize-none focus:outline-none focus:border-[var(--primary)]; }
+.pb-drawer-actions { @apply flex items-center gap-2; }
+.pb-drawer-file { @apply h-8 px-3 inline-flex items-center rounded-lg border border-[var(--border)] text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
+.pb-drawer-send { @apply ml-auto h-8 px-4 rounded-lg bg-[var(--primary)] text-[12.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
