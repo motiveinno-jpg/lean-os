@@ -801,11 +801,27 @@ async function registerAccount(
   const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
   console.log(`[CODEF] registerAccount: env=${CODEF_ENV}, hasPublicKey=${!!publicKey}, publicKeyLen=${publicKey.length}, org=${organization}, loginType=${loginOpts.loginType}, hasDer=${!!loginOpts.derFile}, hasKey=${!!loginOpts.keyFile}, hasCertPw=${!!loginOpts.certPassword}, existingCid=${!!existingConnectedId}`);
 
-  const path = existingConnectedId ? "/v1/account/add" : "/v1/account/create";
+  const businessType = accountType === "card" ? "CD" : accountType === "hometax" ? "PB" : "BK";
+
+  // 재등록 지원 (2026-08-04 사장님): 같은 기관이 이미 connectedId 에 등록돼 있으면
+  //   add 는 중복 오류가 나므로 update 로 인증서/비밀번호를 갈아끼운다.
+  //   오류 코드 추측 대신 계정 목록을 먼저 조회해 결정적으로 분기.
+  //   /v1/account/* 는 무과금 관리 API — 상품 신청·과금과 무관.
+  let path = "/v1/account/create";
+  if (existingConnectedId) {
+    let isDuplicate = false;
+    try {
+      const existing = await getAccountList(token, existingConnectedId);
+      isDuplicate = existing.some((a: any) =>
+        String(a.organization) === String(organization) && String(a.businessType) === businessType);
+    } catch (_) { /* 목록 조회 실패 시 기존 동작(add)으로 진행 */ }
+    path = isDuplicate ? "/v1/account/update" : "/v1/account/add";
+    if (isDuplicate) console.log(`[CODEF] org=${organization} already on connectedId — using /v1/account/update (credential swap)`);
+  }
 
   const accountEntry: Record<string, any> = {
     countryCode: "KR",
-    businessType: accountType === "card" ? "CD" : accountType === "hometax" ? "PB" : "BK",
+    businessType,
     clientType: loginOpts.clientType || "B",
     organization,
     loginType: loginOpts.loginType,
