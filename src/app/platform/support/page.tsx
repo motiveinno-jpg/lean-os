@@ -13,6 +13,8 @@ import { getCurrentUser } from "@/lib/queries";
 
 const db = supabase;
 
+type Attachment = { path: string; name: string; size: number };
+
 type Ticket = {
   id: string;
   company_id: string;
@@ -24,6 +26,7 @@ type Ticket = {
   answer: string | null;
   answered_at: string | null;
   created_at: string;
+  attachments?: Attachment[] | null;
   users?: { name: string | null; email: string } | null;
   companies?: { name: string | null } | null;
 };
@@ -33,8 +36,40 @@ const CATEGORY_LABEL: Record<string, string> = {
   feature: "기능 제안",
   billing: "결제·구독",
   bug: "오류 신고",
+  data: "데이터·연동",
+  account: "계정·권한",
   etc: "기타",
 };
+
+// 첨부 스크린샷 — 프라이빗 버킷(support-attachments), 운영자는 전용 SELECT 정책으로 서명 URL 발급
+function TicketShots({ attachments }: { attachments: Attachment[] }) {
+  const paths = attachments.map((a) => a.path).join(",");
+  const { data: urls = [] } = useQuery<{ path: string; url: string }[]>({
+    queryKey: ["p-support-shot-urls", paths],
+    queryFn: async () => {
+      const out: { path: string; url: string }[] = [];
+      for (const a of attachments) {
+        const { data } = await db.storage.from("support-attachments").createSignedUrl(a.path, 3600);
+        if (data?.signedUrl) out.push({ path: a.path, url: data.signedUrl });
+      }
+      return out;
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+  if (!attachments.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2 mt-3">
+      {urls.map((u) => (
+        <a key={u.path} href={u.url} target="_blank" rel="noreferrer"
+          className="w-28 h-28 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-surface)] block"
+          title="새 탭에서 크게 보기">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={u.url} alt="첨부 스크린샷" className="w-full h-full object-cover" />
+        </a>
+      ))}
+    </div>
+  );
+}
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   open: { label: "접수", cls: "bg-[var(--warning-dim)] text-[var(--warning)]" },
@@ -153,6 +188,7 @@ export default function PlatformSupportPage() {
                   </div>
                   <div className="font-semibold text-[var(--text)]">{t.subject}</div>
                   <div className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed whitespace-pre-wrap">{t.content}</div>
+                  {Array.isArray(t.attachments) && t.attachments.length > 0 && <TicketShots attachments={t.attachments} />}
                   <div className="text-xs text-[var(--text-dim)] mt-2">
                     {t.companies?.name || "—"} · {t.users?.name || t.users?.email || "—"}
                   </div>
