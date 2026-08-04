@@ -443,13 +443,18 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     } finally { setProposing(false); }
   };
 
-  // 계산서를 만들면 그 줄을 '발행' 단계로 옮긴다 — 사람이 누른 결과이므로 바로 반영한다.
-  const markIssued = async (it: BoardItem) => {
+  // 문서에서 무언가 하면 그 줄의 단계도 따라 움직인다 — 안 그러면 단계를 손으로 또 바꿔야 한다.
+  //   (2026-08-04 사장님: "견적서를 보내면 단계가 제대로 넘어가는지도 확인이 필요하고")
+  //   사람이 누른 결과만 반영한다. 뒤로 되돌리지는 않는다(이미 앞선 단계면 그대로 둔다).
+  const markStage = async (it: BoardItem, re: RegExp) => {
     if (!flowCol) return;
-    const opt = ((flowCol.settings?.options || []) as any[]).find((o) => /발행/.test(String(o.label)));
-    if (!opt) return;
+    const options = ((flowCol.settings?.options || []) as any[]);
+    const idx = options.findIndex((o) => re.test(String(o.label)));
+    if (idx < 0) return;
+    const curIdx = options.findIndex((o) => o.id === it.values?.[flowCol.id]);
+    if (curIdx >= idx) return;           // 이미 더 간 단계면 되돌리지 않는다
     await db.from("project_board_items")
-      .update({ values: { ...(it.values || {}), [flowCol.id]: opt.id }, updated_at: new Date().toISOString() })
+      .update({ values: { ...(it.values || {}), [flowCol.id]: options[idx].id }, updated_at: new Date().toISOString() })
       .eq("id", it.id);
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
@@ -739,10 +744,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       {/* 계약 결제조건 → 청구 행 제안. 규칙대로 **만드는 건 사람이 누른다**(2026-08-04 기획 3단계) */}
       {proposal && !showSummary && (
         <div className="pb-propose">
-          <b>계약서에 결제 회차가 정해져 있어요</b>
-          <span>{proposal.terms.map((t) => `${t.label}${t.ratio ? ` ${t.ratio}%` : ""}`).join(" · ")}</span>
+          <b>계약서 결제조건대로 청구 줄을 만들까요?</b>
+          <span>
+            {proposal.terms.map((t) => `${t.label}${t.ratio ? ` ${t.ratio}%` : ""}${t.amount ? ` ${Math.round(t.amount).toLocaleString("ko-KR")}원` : ""}`).join(" · ")}
+            {" — 회차마다 한 줄씩 생기고 금액·조건이 채워집니다."}
+          </span>
           <button type="button" disabled={proposing} onClick={() => addTermRows(proposal.terms)}>
-            {proposing ? "만드는 중…" : `청구 행 ${proposal.terms.length}건 만들기`}
+            {proposing ? "만드는 중…" : `${proposal.terms.length}줄 만들기`}
           </button>
         </div>
       )}
@@ -804,9 +812,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           amount={docModalAmount}
           partnerName={docModalPartner?.name || ""}
           partnerId={docModalPartner?.id || null}
-          companyId={companyId} dealId={dealId}
+          companyId={companyId} dealId={dealId} userId={userId}
           onClose={() => setDocModal(null)}
-          onIssued={() => markIssued(docModalItem)} />
+          onSent={() => markStage(docModalItem, /견적/)}
+          onApproved={() => markStage(docModalItem, /계약/)}
+          onIssued={() => markStage(docModalItem, /발행/)} />
       )}
 
       {/* 행 상세 — 표·칸반 어디서 열어도 같은 서랍. 칸 편집기는 같은 Cell 을 넘겨준다 */}

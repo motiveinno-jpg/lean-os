@@ -6083,3 +6083,17 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-cal-day { @apply text-[11px] font-bold text-[var(--text-muted)]; }
 .pb-cal-item { @apply flex items-center gap-1 w-full px-1 py-0.5 rounded-md bg-[var(--bg-card)] text-[10.5px] text-left text-[var(--text)] truncate hover:bg-[var(--primary)]/10; }
 .pb-cal-item i { @apply block w-1.5 h-1.5 rounded-full shrink-0; }
+
+/* 문서 팝업 — 실제 작성 화면으로 (2026-08-04) */
+.pb-doc-wide { @apply max-w-3xl; }
+.pb-doc-dirty { @apply px-2 py-0.5 rounded-full bg-[var(--warning)]/15 text-[10.5px] font-bold text-[var(--warning)]; }
+.pb-doc-items { @apply flex flex-col gap-2 pt-3 border-t border-[var(--border)]; }
+.pb-doc-items > b { @apply text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pb-doc-facts dd em { @apply not-italic font-normal text-[11px] text-[var(--text-dim)]; }
+.pb-doc-send { @apply flex items-center gap-2 px-2.5 py-2 rounded-xl bg-[var(--bg-surface)] text-[12px]; }
+.pb-doc-sendst { @apply shrink-0 px-1.5 py-0.5 rounded-md bg-[var(--success)]/10 text-[10.5px] font-bold text-[var(--success)]; }
+.pb-doc-sendst-bad { @apply !bg-[var(--danger)]/10 !text-[var(--danger)]; }
+.pb-doc-sendto { @apply flex-1 min-w-0 truncate text-[var(--text-muted)]; }
+.pb-doc-sendwhen { @apply shrink-0 text-[11px] text-[var(--text-dim)]; }
+.pb-doc-send > button { @apply shrink-0 h-7 px-2.5 rounded-lg text-[11.5px] font-bold text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-40; }
+.pb-doc-sub { @apply h-9 px-3 rounded-lg border border-[var(--border)] text-[12.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)] disabled:opacity-40; }
