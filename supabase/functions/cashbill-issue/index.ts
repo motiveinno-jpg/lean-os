@@ -138,9 +138,12 @@ serve(withSentry("cashbill-issue", async (req) => {
     const token = await getCodefToken(clientId, clientSecret);
 
     // ── 발행정보 조회 공통: documentKey → 상태·국세청 승인번호·거래일자 반영 ──
+    //   corpNum: 개발자 문서 입력부에는 documentKeyList 뿐이지만 실제 게이트웨이는 corpNum 을
+    //   필수로 검증한다(2026-08-04 상품 승인 후 CF-00001 "corpNum 누락" 실측 — 누락 시 상품
+    //   미승인 상태에서는 CF-00401 로만 보여 원인 파악을 가리던 값이다).
     async function refreshReceipt(receipt: any): Promise<any> {
       if (!receipt.document_key) return receipt;
-      const info = await codefRequest(token, INFO_PATH, { documentKeyList: [receipt.document_key] });
+      const info = await codefRequest(token, INFO_PATH, { corpNum, documentKeyList: [receipt.document_key] });
       if (info?.result?.code !== "CF-00000") {
         throw Object.assign(new Error(codefErrorHint(info?.result?.code, info?.result?.message)), { codef: info?.result });
       }
