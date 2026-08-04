@@ -807,6 +807,10 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
   //   (2026-07-27 사장님 제보). 결재선에 올랐던 건은 처리 후에도 확인 가능해야 한다.
   const [view, setView] = useState<"pending" | "processed">("pending");
 
+  // 검색·유형 필터 (2026-08-04 사장님: 전체 현황과 같은 화면 구성 + 검색)
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+
   const { data: pendingApprovals = [], isLoading } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
     queryFn: () => getMyPendingApprovals(userId, companyId),
@@ -862,64 +866,110 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
     onError: (err: any) => toast("반려 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // 목록이 바뀌면(로드·처리 완료) 선택 유지 or 첫 항목으로
+  // 목록이 바뀌면(처리 완료 등으로 사라지면) 열려 있던 상세 팝업 닫기
   useEffect(() => {
-    if (pendingApprovals.length === 0) { setSelectedStepId(null); return; }
-    if (!pendingApprovals.some((p: any) => p.stepId === selectedStepId)) {
-      setSelectedStepId(pendingApprovals[0].stepId);
+    if (selectedStepId && !pendingApprovals.some((p: any) => p.stepId === selectedStepId)) {
+      setSelectedStepId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingApprovals]);
 
   const selected = pendingApprovals.find((p: any) => p.stepId === selectedStepId) || null;
 
-  // 선택된 결재 건이 있는 동안: ESC=작성 중인 의견 초기화, Enter=승인(의견은 선택 입력).
+  // 상세 팝업이 열려 있는 동안: ESC=닫기, Enter=승인(의견은 선택 입력).
   //   반려는 사유 필수 확인이 이미 버튼 클릭 시 별도 검증되므로 Enter 단축키는 승인에만 연결.
   useModalKeys(
     !!selected,
-    () => setComment(""),
+    () => { setSelectedStepId(null); setComment(""); },
     selected && !approveMut.isPending
       ? () => approveMut.mutate({ stepId: selected.stepId, comment: comment || undefined })
       : undefined,
   );
 
-  // 대기중 ↔ 처리완료 전환 바 (두 화면 공통으로 항상 보인다)
-  const viewToggle = (
-    <div className="seg-bar w-fit mb-4">
-      {([
-        ["pending", `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}`],
-        ["processed", "내가 결재한 건"],
-      ] as const).map(([k, l]) => (
-        <button key={k} onClick={() => setView(k)} className={`seg-item ${view === k ? "seg-item-active" : ""}`}>
-          {l}
-        </button>
-      ))}
+  // 검색·유형 필터 — 전체 현황과 같은 기준(제목·기안자·유형 라벨 부분일치)
+  const q = searchQuery.trim().toLowerCase();
+  const matchesFilters = (item: any) => {
+    if (typeFilter && item.requestType !== typeFilter) return false;
+    if (!q) return true;
+    const typeLabel = REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType || "";
+    return [item.title, item.requesterName, typeLabel].some((v: string) => (v || "").toLowerCase().includes(q));
+  };
+  const visiblePending = (pendingApprovals as any[]).filter(matchesFilters);
+  const visibleProcessed = (processedApprovals as any[]).filter(matchesFilters);
+
+  const typeOptions = [
+    { value: "", label: "전체 유형" },
+    ...Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
+  ];
+
+  // 필터 바 — 전체 현황과 동일 구성 (seg-bar + 유형 select + 검색 + 건수)
+  const filterBar = (
+    <div className="approval-filters">
+      <div className="seg-bar">
+        {([
+          ["pending", `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}`],
+          ["processed", "내가 결재한 건"],
+        ] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setView(k)} className={`seg-item ${view === k ? "seg-item-active" : ""}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <select
+        value={typeFilter}
+        onChange={(e) => setTypeFilter(e.target.value)}
+        className="approval-type-select"
+      >
+        {typeOptions.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <div className="approval-search-wrap">
+        <svg className="approval-search-icon" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="제목·기안자 검색"
+          className="approval-search-input"
+        />
+      </div>
+      <div className="flex-1" />
+      <div className="text-xs font-semibold text-[var(--text-dim)] self-center mono-number">
+        {(view === "pending" ? visiblePending : visibleProcessed).length}건
+      </div>
     </div>
   );
 
   if (view === "processed") {
     return (
       <div>
-        {viewToggle}
-        <ProcessedApprovalsList
-          items={processedApprovals as any[]}
-          isLoading={processedLoading}
-          formsById={formsById}
-          policies={fieldPolicies as ApprovalPolicy[]}
-          onGoToMyRequests={onGoToMyRequests}
-        />
+        {filterBar}
+        {(processedApprovals as any[]).length > 0 && visibleProcessed.length === 0 ? (
+          <div className="text-center py-16 px-6 glass-card">
+            <div className="text-sm font-bold mb-1">검색 결과가 없습니다</div>
+            <div className="text-xs text-[var(--text-muted)]">검색어나 유형 필터를 바꿔보세요</div>
+          </div>
+        ) : (
+          <ProcessedApprovalsList
+            items={visibleProcessed}
+            isLoading={processedLoading}
+            formsById={formsById}
+            policies={fieldPolicies as ApprovalPolicy[]}
+            onGoToMyRequests={onGoToMyRequests}
+          />
+        )}
       </div>
     );
   }
 
   if (isLoading) {
-    return <div>{viewToggle}<div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div></div>;
+    return <div>{filterBar}<div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div></div>;
   }
 
   if (pendingApprovals.length === 0) {
     return (
       <div>
-        {viewToggle}
+        {filterBar}
         <div className="text-center py-20 px-6 glass-card">
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -950,47 +1000,98 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
 
   return (
     <div>
-    {viewToggle}
-    <div className="flex flex-col lg:flex-row gap-4 items-start">
-      {/* LEFT — 결재 대기 목록 (분할 패널: 목록 컬럼) */}
-      <div className="approval-queue-list">
-        {pendingApprovals.map((item: any) => {
-          const m = typeMeta(item.requestType);
-          const active = item.stepId === selectedStepId;
-          return (
-            <button
-              key={item.stepId}
-              onClick={() => { setSelectedStepId(item.stepId); setComment(""); }}
-              className={`approval-queue-row ${active ? "border-[var(--primary)] bg-[var(--primary)]/6" : "border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--primary)]/30"}`}
-            >
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
-                  <TypeIcon name={m.icon} className="w-3 h-3" />
-                </span>
-                <span className="text-[10px] font-semibold text-[var(--text-dim)] truncate">{REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}</span>
-              </div>
-              <div className="text-sm font-bold truncate mb-0.5">{item.title}</div>
-              <div className="text-[11px] text-[var(--text-dim)] truncate">{item.requesterName || "알 수 없음"} · {formatDate(item.createdAt)}</div>
-              {item.amount > 0 && <div className="text-xs font-bold mono-number mt-1.5">{formatAmount(item.amount)}</div>}
-            </button>
-          );
-        })}
-      </div>
+    {filterBar}
 
-      {/* RIGHT — 문서 패널 + 승인·참조 사이드바 */}
-      {selected && (
-        <div className="flex-1 w-full min-w-0 flex flex-col xl:flex-row gap-4 items-start">
-          <div className="approval-detail-panel glass-card">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold mb-3 bg-[var(--warning-dim)] text-[var(--warning)]">
-              승인 필요
-            </span>
-            <h2 className="text-[22px] font-extrabold leading-tight mb-1.5">{selected.title}</h2>
-            <div className="text-xs text-[var(--text-dim)] mb-5">
+    {/* Table — 전체 현황과 동일 디자인 (2026-08-04 사장님: 내 결재함도 똑같이) */}
+    <div className="approval-table-wrap glass-card overflow-x-auto">
+      <table className="approval-table">
+        <thead>
+          <tr className="border-b border-[var(--border)]">
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visiblePending.length === 0 ? (
+            <tr>
+              <td colSpan={6} className="px-4 py-16 text-center">
+                <div className="text-sm font-bold mb-1">검색 결과가 없습니다</div>
+                <div className="text-xs text-[var(--text-muted)]">검색어나 유형 필터를 바꿔보세요</div>
+              </td>
+            </tr>
+          ) : (
+            visiblePending.map((item: any) => {
+              const m = typeMeta(item.requestType);
+              return (
+                <tr
+                  key={item.stepId}
+                  className="approval-table-row"
+                  onClick={() => { setSelectedStepId(item.stepId); setComment(""); }}
+                >
+                  <td className="px-4 py-3.5">
+                    <span className="approval-need-badge"><span className="approval-need-badge-dot" />승인 필요</span>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                        <TypeIcon name={m.icon} className="w-4 h-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold truncate max-w-[240px]">{item.title}</div>
+                        <div className="text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <Avatar name={item.requesterName || "?"} size={24} />
+                      <span className="text-xs text-[var(--text-muted)] truncate max-w-[100px]">{item.requesterName || "-"}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-sm font-bold mono-number text-right">{formatAmount(item.amount)}</td>
+                  <td className="px-4 py-3.5 w-[140px]">
+                    <StageProgress current={item.currentStage} total={item.totalStages} status="pending" />
+                  </td>
+                  <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(item.createdAt)}</td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+
+    {/* 결재 상세 팝업 — 전체 현황 상세와 동일 구성 + 승인/반려 처리 */}
+    {selected && (() => {
+      const m = typeMeta(selected.requestType);
+      return (
+        <div className="approval-detail-modal fixed inset-0" onClick={() => setSelectedStepId(null)}>
+          <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                  <TypeIcon name={m.icon} className="w-4 h-4" />
+                </span>
+                <span className="approval-need-badge"><span className="approval-need-badge-dot" />승인 필요</span>
+              </div>
+              <button onClick={() => setSelectedStepId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+            </div>
+            <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{selected.title}</h3>
+            <div className="text-xs text-[var(--text-dim)] mb-1.5">
               {REQUEST_TYPE_LABELS[selected.requestType as RequestType] || selected.requestType} · {selected.requesterName || "알 수 없음"} · {formatDate(selected.createdAt)}
+            </div>
+            <div className="approval-reference-line text-[11px] text-[var(--text-dim)] mb-5">
+              {Array.isArray(selected.referenceUsers) && selected.referenceUsers.length > 0
+                ? `참조: ${selected.referenceUsers.map((u: { id: string; name: string }) => u.name).join(", ")}`
+                : null}
             </div>
 
             {selected.amount > 0 && (
-              <div className="text-2xl font-extrabold mono-number mb-4">{formatAmount(selected.amount)}</div>
+              <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(selected.amount)}</div>
             )}
 
             {selectedFormFields.length > 0 && (
@@ -1003,7 +1104,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
             )}
             <AttachmentList attachments={selected.attachments} />
 
-            {/* 결재 의견 + 승인/반려 — 팝업 없이 패널 안에서 바로 처리 */}
+            {/* 결재 의견 + 승인/반려 */}
             <div className="mt-6 pt-5 border-t border-[var(--border)]">
               <label className="field-label">결재 의견 (반려 시 필수)</label>
               <textarea
@@ -1033,17 +1134,22 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
             </div>
 
             <div className="mt-6 pt-5 border-t border-[var(--border)]">
-              <ActivityTimeline requestId={selected.requestId} />
+              <ApprovalTimelineView
+                requestId={selected.requestId}
+                currentStage={selected.currentStage}
+                totalStages={selected.totalStages}
+                requestStatus="pending"
+                currentUserId={userId}
+              />
+            </div>
+            {/* 댓글 스레드 — 기존 내 결재함(활동 타임라인)에 있던 대화 기능 유지 */}
+            <div className="mt-6 pt-5 border-t border-[var(--border)]">
+              <ApprovalCommentThread requestId={selected.requestId} />
             </div>
           </div>
-
-          {/* 승인·참조 사이드바 */}
-          <div className="approval-stage-sidebar glass-card">
-            <ApprovalStageSidebar requestId={selected.requestId} referenceUsers={selected.referenceUsers} />
-          </div>
         </div>
-      )}
-    </div>
+      );
+    })()}
     </div>
   );
 }
@@ -1833,6 +1939,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
   // KPI 카드 클릭 시 이미 "전체 현황" 탭에 있어도(재마운트 없이) 필터가 갱신되도록 동기화
   useEffect(() => {
     if (initialStatusFilter !== undefined) setStatusFilter(initialStatusFilter);
@@ -2005,6 +2112,16 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     ...Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
   ];
 
+  // 검색 — 제목·요청자·유형 라벨 부분일치 (2026-08-04 사장님: 전체 현황·내 결재함에 검색)
+  const q = searchQuery.trim().toLowerCase();
+  const visibleRequests = q
+    ? allRequests.filter((r: any) => {
+        const typeLabel = REQUEST_TYPE_LABELS[r.request_type as RequestType] || r.request_type || "";
+        return [r.title, requesterNames.get(r.requester_id), typeLabel]
+          .some((v) => (v || "").toLowerCase().includes(q));
+      })
+    : allRequests;
+
   return (
     <div>
       {/* Filters — 상태는 필 칩, 유형은 pill select */}
@@ -2029,8 +2146,17 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
+        <div className="approval-search-wrap">
+          <svg className="approval-search-icon" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="제목·요청자 검색"
+            className="approval-search-input"
+          />
+        </div>
         <div className="flex-1" />
-        <div className="text-xs font-semibold text-[var(--text-dim)] self-center mono-number">{allRequests.length}건</div>
+        <div className="text-xs font-semibold text-[var(--text-dim)] self-center mono-number">{visibleRequests.length}건</div>
       </div>
 
       {/* Table */}
@@ -2049,18 +2175,18 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
             </tr>
           </thead>
           <tbody>
-            {allRequests.length === 0 ? (
+            {visibleRequests.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-16 text-center">
                   <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
                   </div>
                   <div className="text-sm font-bold mb-1">결재 요청이 없습니다</div>
-                  <div className="text-xs text-[var(--text-muted)]">필터 조건을 바꾸거나 새 요청을 기다려 보세요</div>
+                  <div className="text-xs text-[var(--text-muted)]">검색어·필터 조건을 바꾸거나 새 요청을 기다려 보세요</div>
                 </td>
               </tr>
             ) : (
-              allRequests.map((req: any) => {
+              visibleRequests.map((req: any) => {
                 const m = typeMeta(req.request_type);
                 return (
                   <tr
@@ -4032,112 +4158,6 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
           );
         })}
       </div>
-    </div>
-  );
-}
-
-// 분할 패널 우측 — 보드 스타일 "승인·참조" 사이드바 (담당자별 단계·상태 요약)
-function ApprovalStageSidebar({ requestId, referenceUsers }: { requestId: string; referenceUsers?: { id: string; name: string }[] }) {
-  const { data: steps = [] } = useQuery({
-    queryKey: ["activity-timeline", requestId],
-    queryFn: () => getApprovalTimeline(requestId),
-    enabled: !!requestId,
-  });
-  const avatarMap = useAvatarMap([...steps.map((s: any) => s.approver_id), ...(referenceUsers || []).map((u) => u.id)]);
-  if (steps.length === 0 && (!referenceUsers || referenceUsers.length === 0)) return null;
-  return (
-    <div className="space-y-5">
-      {referenceUsers && referenceUsers.length > 0 && (
-        <div>
-          <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-3">참조</div>
-          <div className="space-y-3">
-            {referenceUsers.map((u) => (
-              <div key={u.id} className="flex items-center gap-2.5">
-                <Avatar name={u.name} src={avatarMap[u.id]} size={26} />
-                <div className="flex-1 min-w-0 text-[13px] font-bold truncate">{u.name}</div>
-                <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-surface)] text-[var(--text-dim)]">참조</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {steps.length > 0 && (
-        <div>
-          <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-3">승인선</div>
-          <div className="space-y-3.5">
-            {steps.map((s) => (
-              <div key={s.id} className="flex items-start gap-2.5">
-                <Avatar name={s.approver_name || "담당자"} src={avatarMap[s.approver_id]} size={28} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-bold truncate">{s.approver_name || "담당자"}</div>
-                  <div className="text-[10px] text-[var(--text-dim)] truncate">{s.stage_name}</div>
-                </div>
-                <div className="shrink-0 mt-0.5"><StatusBadge status={s.status} /></div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── D-7: 워크플로우 활동 타임라인 (vertical) ──
-function ActivityTimeline({ requestId }: { requestId: string }) {
-  const { data: steps = [], isLoading } = useQuery({
-    queryKey: ["activity-timeline", requestId],
-    queryFn: () => getApprovalTimeline(requestId),
-    enabled: !!requestId,
-  });
-
-  if (isLoading) {
-    return <div className="text-xs text-[var(--text-muted)] py-2">활동 이력 로딩 중...</div>;
-  }
-
-  // 상태별 아이콘 서클 (체크/엑스/시계)
-  const stepVisual = (status: string) => {
-    if (status === "approved") return { cls: "bg-[var(--success-dim)] text-[var(--success)]", icon: <path d="M5 13l4 4L19 7" /> };
-    if (status === "rejected") return { cls: "bg-[var(--danger-dim)] text-[var(--danger)]", icon: <path d="M6 18L18 6M6 6l12 12" /> };
-    if (status === "pending") return { cls: "bg-[var(--warning-dim)] text-[var(--warning)]", icon: <><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15.5 14" /></> };
-    return { cls: "bg-[var(--bg-surface)] text-[var(--text-dim)]", icon: <path d="M5 12h14" /> };
-  };
-
-  return (
-    <div className="approval-activity-timeline">
-      <div className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider mb-4">활동 타임라인</div>
-      <div className="space-y-0">
-        {steps.map((step, i) => {
-          const v = stepVisual(step.status);
-          return (
-            <div key={step.id} className="flex gap-3">
-              {/* Vertical line + icon circle */}
-              <div className="flex flex-col items-center">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${v.cls}`}>
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">{v.icon}</svg>
-                </div>
-                {i < steps.length - 1 && <div className="w-px flex-1 bg-[var(--border)] my-0.5" />}
-              </div>
-              {/* Content */}
-              <div className="pb-4 flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold text-[var(--text)]">{step.approver_name || "담당자"}</span>
-                  <StatusBadge status={step.status} />
-                  <span className="caption">{step.stage_name}</span>
-                </div>
-                <div className="text-[10px] text-[var(--text-dim)] mt-0.5 mono-number">
-                  {step.decided_at ? formatDateTime(step.decided_at) : step.created_at ? `${formatDateTime(step.created_at)} 배정` : "대기 중"}
-                </div>
-                {step.comment && (
-                  <div className="mt-1.5 inline-block px-3 py-2 rounded-xl rounded-tl-sm bg-[var(--bg-surface)] text-xs text-[var(--text-muted)] whitespace-pre-wrap">{step.comment}</div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 댓글 스레드 — 결정 후에도 대화 가능 */}
-      <ApprovalCommentThread requestId={requestId} />
     </div>
   );
 }

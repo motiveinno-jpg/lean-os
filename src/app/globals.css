@@ -2096,14 +2096,17 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .approval-stat-card { @apply p-5 flex flex-col gap-3 cursor-pointer; }
 .approval-overtime-list { @apply space-y-3; }
 .approval-overtime-row { @apply p-5; }
-.approval-queue-list { @apply w-full lg:w-[300px] shrink-0 space-y-2; }
-.approval-queue-row { @apply w-full text-left p-3.5 rounded-xl border transition; }
-.approval-detail-panel { @apply flex-1 w-full min-w-0 p-6; }
-.approval-stage-sidebar { @apply w-full xl:w-[240px] shrink-0 p-4; }
 .approval-my-requests-list { @apply space-y-3; }
 .approval-request-card { @apply overflow-hidden; }
 .approval-timeline-panel { @apply border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60; }
 .approval-filters { @apply flex flex-wrap items-center gap-3 mb-4; }
+/* 결재 목록 검색창 (2026-08-04) — 전체 현황·내 결재함 공용, 유형 셀렉트와 같은 pill 형태 */
+.approval-search-wrap { @apply relative; }
+.approval-search-icon { @apply absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-dim)] pointer-events-none; }
+.approval-search-input { @apply pl-9 pr-3.5 py-2 w-[200px] bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-xs font-semibold focus:outline-none focus:border-[var(--primary)]; }
+/* 내 결재함 표의 "승인 필요" 배지 — StatusBadge 와 같은 pill 형태 */
+.approval-need-badge { @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold leading-none whitespace-nowrap bg-[var(--warning-dim)] text-[var(--warning)]; }
+.approval-need-badge-dot { @apply w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse; }
 .approval-table { @apply w-full text-left min-w-[720px]; }
 .approval-table-row { @apply border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition; }
 .approval-detail-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
