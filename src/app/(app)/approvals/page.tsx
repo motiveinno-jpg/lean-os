@@ -1216,6 +1216,10 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
     </div>
   );
 
+  // 상세 팝업 — ESC로 닫기 (전체 현황 상세와 동일한 조작감)
+  const selected = items.find((i) => i.stepId === openId) || null;
+  useModalKeys(!!selected, () => setOpenId(null));
+
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
@@ -1233,47 +1237,76 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
     );
   }
 
+  // 내가 이 단계에서 내린 결정 pill (문서 최종 상태와 다를 수 있음)
+  const myDecisionPill = (item: any) => (
+    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${
+      item.myDecision === "approved"
+        ? "bg-[var(--success-dim)] text-[var(--success)]"
+        : "bg-[var(--danger)]/10 text-[var(--danger)]"
+    }`}>
+      {item.myDecision === "approved" ? "승인" : "반려"}
+    </span>
+  );
+
   return (
     <div>
     {hint}
-    <div className="approval-my-requests-list">
-      {items.map((item) => {
-        const open = openId === item.stepId;
-        const fields = resolveFormFields(item.formId, item.customFields, formsById, policies, item.requestType);
-        const content = contentWithoutFieldLines(item.description || "", fields);
-        return (
-          <div key={item.stepId} className="approval-request-card glass-card card-hover">
-            <div className="p-5 cursor-pointer" onClick={() => setOpenId(open ? null : item.stepId)}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-[10px] font-semibold text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}</span>
-                    {/* 내 결정 */}
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                      item.myDecision === "approved"
-                        ? "bg-[var(--success-dim)] text-[var(--success)]"
-                        : "bg-[var(--danger)]/10 text-[var(--danger)]"
-                    }`}>
-                      내 결재: {item.myDecision === "approved" ? "승인" : "반려"}
+
+    {/* Table — 전체 현황과 동일 디자인 (2026-08-04 사장님: 내가 결재한 건도 똑같이) */}
+    <div className="approval-table-wrap glass-card overflow-x-auto">
+      <table className="approval-table">
+        <thead>
+          <tr className="border-b border-[var(--border)]">
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">내 결재</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">내 처리일</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">문서</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => {
+            const m = typeMeta(item.requestType);
+            return (
+              <tr
+                key={item.stepId}
+                className="approval-table-row"
+                onClick={() => setOpenId(item.stepId)}
+              >
+                <td className="px-4 py-3.5"><StatusBadge status={item.requestStatus} /></td>
+                <td className="px-4 py-3.5">{myDecisionPill(item)}</td>
+                <td className="px-4 py-3.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                      <TypeIcon name={m.icon} className="w-4 h-4" />
                     </span>
-                    {/* 문서 최종 상태 — 내 결정과 다를 수 있음 */}
-                    <StatusBadge status={item.requestStatus} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate max-w-[240px]">{item.title}</div>
+                      <div className="text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType}</div>
+                    </div>
                   </div>
-                  <div className="text-sm font-bold truncate">{item.title}</div>
-                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                    기안 {item.requesterName || "알 수 없음"} · {formatDate(item.createdAt)}
-                    {item.decidedAt ? ` · 내 처리 ${formatDateTime(item.decidedAt)}` : ""}
-                    {` · ${item.stage}단계 ${item.stageName || ""}`}
+                </td>
+                <td className="px-4 py-3.5">
+                  <div className="flex items-center gap-2">
+                    <Avatar name={item.requesterName || "?"} size={24} />
+                    <span className="text-xs text-[var(--text-muted)] truncate max-w-[100px]">{item.requesterName || "-"}</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {item.amount ? (
-                    <div className="text-sm font-bold mono-number">{Number(item.amount).toLocaleString("ko-KR")}원</div>
-                  ) : null}
+                </td>
+                <td className="px-4 py-3.5 text-sm font-bold mono-number text-right">{formatAmount(item.amount)}</td>
+                <td className="px-4 py-3.5 w-[140px]">
+                  <StageProgress current={item.currentStage} total={item.totalStages} status={item.requestStatus} />
+                </td>
+                <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(item.createdAt)}</td>
+                <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{item.decidedAt ? formatDate(item.decidedAt) : "-"}</td>
+                <td className="px-4 py-3.5">
                   <button
                     onClick={(e) => { e.stopPropagation(); handlePdf(item); }}
                     disabled={pdfLoadingId === item.stepId}
-                    title="결재 문서 PDF 저장"
+                    title="결재 문서 PDF 다운로드"
                     className="approval-modal-pdf-btn"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
@@ -1281,28 +1314,80 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
                     </svg>
                     {pdfLoadingId === item.stepId ? "생성 중..." : "PDF"}
                   </button>
-                </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+    {/* 상세 팝업 — 전체 현황 상세와 동일 구성 + 내 처리 정보 */}
+    {selected && (() => {
+      const m = typeMeta(selected.requestType);
+      const fields = resolveFormFields(selected.formId, selected.customFields, formsById, policies, selected.requestType);
+      const content = contentWithoutFieldLines(selected.description || "", fields);
+      return (
+        <div className="approval-detail-modal fixed inset-0" onClick={() => setOpenId(null)}>
+          <div className="glass-card p-6 w-full max-w-lg shadow-xl animate-count-up max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                  <TypeIcon name={m.icon} className="w-4 h-4" />
+                </span>
+                <StatusBadge status={selected.requestStatus} />
+                {myDecisionPill(selected)}
               </div>
-              {item.myComment && (
-                <div className="text-[11px] text-[var(--text-muted)] mt-2">내 의견: {item.myComment}</div>
-              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePdf(selected)}
+                  disabled={pdfLoadingId === selected.stepId}
+                  title="결재 문서 PDF 저장"
+                  className="approval-modal-pdf-btn"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+                  </svg>
+                  {pdfLoadingId === selected.stepId ? "생성 중..." : "PDF 저장"}
+                </button>
+                <button onClick={() => setOpenId(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition text-xl leading-none px-1">✕</button>
+              </div>
             </div>
-            {open && (
-              <div className="px-5 pb-5 border-t border-[var(--border)] pt-4 space-y-4">
-                {fields.length > 0 && <FormFieldRows fields={fields} />}
-                {!isEmptyHtml(content) && <DescriptionContent text={content} className="text-sm" />}
-                <ApprovalTimelineView
-                  requestId={item.requestId}
-                  currentStage={item.currentStage}
-                  totalStages={item.totalStages}
-                  requestStatus={item.requestStatus}
-                />
+            <h3 className="text-[20px] font-extrabold leading-tight mt-2 mb-1.5">{selected.title}</h3>
+            <div className="text-xs text-[var(--text-dim)] mb-1.5">
+              {REQUEST_TYPE_LABELS[selected.requestType as RequestType] || selected.requestType} · 기안 {selected.requesterName || "알 수 없음"} · {formatDate(selected.createdAt)}
+            </div>
+            <div className="text-[11px] text-[var(--text-dim)] mb-5">
+              {selected.decidedAt ? `내 처리 ${formatDateTime(selected.decidedAt)} · ` : ""}{selected.stage}단계 {selected.stageName || ""}
+              {selected.myComment ? ` · 내 의견: ${selected.myComment}` : ""}
+            </div>
+
+            {selected.amount > 0 && (
+              <div className="text-xl font-extrabold mono-number mb-4">{formatAmount(selected.amount)}</div>
+            )}
+
+            {fields.length > 0 && (
+              <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
+                <FormFieldRows fields={fields} />
               </div>
             )}
+            {!isEmptyHtml(content) && (
+              <DescriptionContent text={content} className="mb-2 text-sm text-[var(--text)] leading-8" />
+            )}
+            <AttachmentList attachments={selected.attachments} />
+
+            <div className="mt-6 pt-5 border-t border-[var(--border)]">
+              <ApprovalTimelineView
+                requestId={selected.requestId}
+                currentStage={selected.currentStage}
+                totalStages={selected.totalStages}
+                requestStatus={selected.requestStatus}
+              />
+            </div>
           </div>
-        );
-      })}
-    </div>
+        </div>
+      );
+    })()}
     </div>
   );
 }
