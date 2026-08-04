@@ -563,17 +563,24 @@ export default function DashboardPage() {
               { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 5, render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
             ];
             // (2026-07-30 사장님) 금액 위젯(경영·자금·프로젝트 계약액)은 재무 권한 보유자만 카탈로그에 노출.
-            //   기본 활성은 전원 필수 위젯(근태·캘린더·담당업무·할일·공지)만 — 나머지는 편집 모드에서 직접 추가.
+            // (2026-08-04 사장님) ① 결재/구성원/거래처 위젯도 해당 메뉴 권한 보유자만 선택 가능하게 확장,
+            //   ② 기본 활성 = 자기 권한으로 선택 가능한 위젯 전부(일부만 켜진 기본값 폐지).
             const FINANCE_WIDGET_IDS = new Set(["biz", "revenue", "receivables", "tax", "cards", "assets", "bank", "invoices", "projects"]);
-            const visibleCatalog = canFinance ? catalog : catalog.filter((w) => !FINANCE_WIDGET_IDS.has(w.id));
-            const defaultActiveIds = ["attendance", "calendar", "work-tasks", "todos", "announcements"];
+            const WIDGET_PERM_KEYS: Record<string, string> = { approvals: "/approvals", employees: "/employees", partners: "/partners" };
+            const visibleCatalog = catalog.filter((w) =>
+              FINANCE_WIDGET_IDS.has(w.id) ? canFinance
+                : WIDGET_PERM_KEYS[w.id] ? dashPerm(WIDGET_PERM_KEYS[w.id])
+                : true);
+            const defaultActiveIds = visibleCatalog.map((w) => w.id);
             // 상황 기반 추천 — 신호가 있는 위젯을 편집모드에서 추천(비활성일 때만 칩 노출).
             const recommended: string[] = [];
             if ((dashboard.sixPack.arOver30 ?? 0) > 0) recommended.push("receivables");
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
             return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed}
               // 저장된 배치에 남아있는 옛 압축 높이(h=2)를 큰 출근 카드에 맞춰 한 번 끌어올린다.
-              layoutMigration={{ id: "attendance-full-20260731", minH: { attendance: 5 } }} />;
+              layoutMigration={{ id: "attendance-full-20260731", minH: { attendance: 5 } }}
+              // 기본 전체 선택 전환(2026-08-04) — 기존 저장 선택에도 새 기본값을 1회 병합해 전 위젯이 켜진다.
+              activeMigration="all-widgets-default-20260804" />;
           })()}
         </div>
       )}

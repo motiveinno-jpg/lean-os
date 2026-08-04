@@ -63,7 +63,7 @@ function useContainerWidth(): [(node: HTMLDivElement | null) => void, number] {
 
 export function DashboardGrid({
   storageKey, catalog, defaultActiveIds, title = "", recommended = [], sidebarCollapsed = false,
-  layoutMigration,
+  layoutMigration, activeMigration,
 }: {
   storageKey: string;
   catalog: CatalogWidget[];
@@ -74,6 +74,9 @@ export function DashboardGrid({
   // 위젯 내용이 커졌을 때 이미 저장된 배치를 한 번만 끌어올린다(id 가 바뀔 때만 재적용).
   //   저장본이 있는 계정은 카탈로그 기본 크기를 안 쓰기 때문에, 이게 없으면 큰 카드가 옛 높이에 갇힌다.
   layoutMigration?: { id: string; minH: Record<string, number> };
+  // 기본 활성 목록이 바뀌었을 때, 이미 저장된 선택에도 새 기본값을 1회 병합한다(id 가 바뀔 때만 재적용).
+  //   병합 후 사용자가 위젯을 빼면 그 선택은 그대로 유지된다.
+  activeMigration?: string;
 }) {
   const [edit, setEdit] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -112,7 +115,22 @@ export function DashboardGrid({
         else setLayout(raw);
       }
     } catch { /* noop */ }
-    try { const rawA = JSON.parse(localStorage.getItem(activeKey) || "null"); if (Array.isArray(rawA)) setActiveIds(rawA); } catch { /* noop */ }
+    try {
+      const rawA = JSON.parse(localStorage.getItem(activeKey) || "null");
+      if (Array.isArray(rawA)) {
+        if (activeMigration && localStorage.getItem(`${activeKey}::mig`) !== activeMigration) {
+          const merged = [...rawA, ...defaultActiveIds.filter((id) => !rawA.includes(id))];
+          setActiveIds(merged);
+          try {
+            localStorage.setItem(activeKey, JSON.stringify(merged));
+            localStorage.setItem(`${activeKey}::mig`, activeMigration);
+          } catch { /* noop */ }
+        } else setActiveIds(rawA);
+      } else if (activeMigration) {
+        // 저장 선택이 없으면 기본값이 이미 전체 — 마이그레이션 완료로만 표시
+        try { localStorage.setItem(`${activeKey}::mig`, activeMigration); } catch { /* noop */ }
+      }
+    } catch { /* noop */ }
     setMounted(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
