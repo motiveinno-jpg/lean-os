@@ -1,5 +1,6 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { createMeterStore, runWithMeter, meterPush, flushCodefUsage } from "../_shared/codef-meter.ts";
 // hometax-issue: 홈택스(국세청) 전자세금계산서 정발행
 //
 // CODEF 발행 API(/v1/kr/public/a/tax-invoice/regist-invoicer-trustee) 호출 →
@@ -51,18 +52,30 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
 }
 
 async function codefRequest(token: string, path: string, body: Record<string, unknown>): Promise<any> {
-  const res = await tfetch(`${CODEF_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Bearer ${token}` },
-    body: encodeURIComponent(JSON.stringify(body)),
-  });
-  if (!res.ok) throw new Error(`CODEF API error: ${res.status}`);
+  let res: Response;
+  try {
+    res = await tfetch(`${CODEF_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Bearer ${token}` },
+      body: encodeURIComponent(JSON.stringify(body)),
+    });
+  } catch (e) {
+    meterPush(path, "FETCH_ERROR");
+    throw e;
+  }
+  if (!res.ok) {
+    meterPush(path, `HTTP_${res.status}`);
+    throw new Error(`CODEF API error: ${res.status}`);
+  }
   const text = await res.text();
   // 2026-07-16 QA: CODEF 응답은 application/x-www-form-urlencoded 라 공백이 '+' 로 옴.
   //   decodeURIComponent 는 '+' 를 공백으로 안 바꿔줘서(%XX 만 디코딩) 메시지가
   //   "API+요청+처리중..." 처럼 깨져 저장되던 버그 — '+' → 공백 치환을 먼저 해준다.
-  try { return JSON.parse(decodeURIComponent(text.replace(/\+/g, " "))); }
-  catch { return JSON.parse(text); }
+  let parsed: any;
+  try { parsed = JSON.parse(decodeURIComponent(text.replace(/\+/g, " "))); }
+  catch { parsed = JSON.parse(text); }
+  meterPush(path, parsed?.result?.code || "UNKNOWN");
+  return parsed;
 }
 
 // 사용자 친화 한국어 메시지
@@ -206,6 +219,9 @@ function buildIssuePayload(args: {
 serve(withSentry("hometax-issue", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // CODEF 사용량 계측 — codefRequest 호출을 수집해 finally 에서 원장 적재 (fail-open)
+  const meterStore = createMeterStore("hometax-issue");
+  return await runWithMeter(meterStore, async () => {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
@@ -230,6 +246,7 @@ serve(withSentry("hometax-issue", async (req) => {
 
     const body = await req.json();
     const { invoice_id, action } = body;
+    if (action) meterStore.action = `hometax-${action}`;
 
     // ── 발행 등록(최초 1회): 팝빌 제휴사 회원가입 + 인증서 등록 URL 발급 ──
     //   발행 PDF 선행 절차. action='register-issuer', companyId 필요.
@@ -242,6 +259,7 @@ serve(withSentry("hometax-issue", async (req) => {
       if (!uRow || uRow.company_id !== companyId) {
         return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      meterStore.companyId = companyId;
       const { data: comp } = await supabase.from("companies").select("*").eq("id", companyId).maybeSingle();
       if (!comp?.business_number) {
         return new Response(JSON.stringify({ error: "회사 사업자등록번호가 없습니다. 설정 → 회사 정보에서 입력하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -342,6 +360,7 @@ serve(withSentry("hometax-issue", async (req) => {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    meterStore.companyId = invoice.company_id;
 
     // 3-0) 🚨 2026-07-20 인시던트 가드: CODEF가 CF-05001 오류를 반환해도 팝빌에서는
     //   실제 발행이 진행됨이 확인됨(같은 건 재시도 5회 → 실발행 5건, 팝빌 발행 안내 메일로 확인).
@@ -582,5 +601,9 @@ serve(withSentry("hometax-issue", async (req) => {
     return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  } finally {
+    // 사용량 원장 적재 — 실패해도 응답에 영향 없음 (내부 try/catch)
+    await flushCodefUsage(meterStore);
   }
+  });
 }));

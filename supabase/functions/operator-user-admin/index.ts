@@ -53,7 +53,7 @@ serve(withSentry("operator-user-admin", async (req) => {
     });
 
     const body = await req.json();
-    const mode = body?.mode as "lookup" | "update";
+    const mode = body?.mode as "lookup" | "update" | "errors" | "codef-usage";
 
     // ── 조회 ──
     if (mode === "lookup") {
@@ -146,6 +146,97 @@ serve(withSentry("operator-user-admin", async (req) => {
       return json({ logs: logs || [], stats });
     }
 
+    // ── CODEF 사용량 집계 (운영자 대시보드) ──
+    //   codef_usage 원장을 월 단위로 집계: 전체 / 카테고리(통장·카드·현금영수증…)별 / 회사별.
+    //   units = 과금 추정(상품 API /v1/kr/* 성공 CF-00000), calls = 관리 API·실패 포함 전체.
+    if (mode === "codef-usage") {
+      // month: "YYYY-MM" (KST 기준, 기본값 이번 달)
+      const kstNow = new Date(Date.now() + 9 * 3600_000);
+      const month = /^\d{4}-\d{2}$/.test(String(body?.month || ""))
+        ? String(body.month)
+        : kstNow.toISOString().slice(0, 7);
+      const [y, m] = month.split("-").map(Number);
+      // KST 월 경계 → UTC (KST = UTC+9)
+      const startUtc = new Date(Date.UTC(y, m - 1, 1, -9)).toISOString();
+      const endUtc = new Date(Date.UTC(y, m, 1, -9)).toISOString();
+
+      const { data: rows, error: uErr } = await svc
+        .from("codef_usage")
+        .select("company_id, action, units, total_calls, meta")
+        .gte("created_at", startUtc)
+        .lt("created_at", endUtc)
+        .limit(10000);
+      if (uErr) return json({ error: `사용량 조회 실패: ${uErr.message}` }, 500);
+
+      // CODEF 경로 → 사용 카테고리
+      const categorize = (path: string): string => {
+        if (path.includes("/account/transfer")) return "이체";
+        if (path.includes("/kr/bank/")) return "통장";
+        if (path.includes("/kr/card/")) return "카드";
+        if (path.includes("tax-invoice")) return "세금계산서";
+        if (path.includes("cash-receipt") || path.includes("cash-bill")) return "현금영수증";
+        if (path.startsWith("/v1/account") || path.includes("pop-bill")) return "관리(무과금)";
+        return "기타";
+      };
+      const isBillable = (path: string, code: string) => code === "CF-00000" && path.startsWith("/v1/kr/");
+
+      const total = { units: 0, calls: 0, rows: rows?.length || 0 };
+      const byCategory: Record<string, { units: number; calls: number }> = {};
+      const byCompany: Record<string, { units: number; calls: number; byCategory: Record<string, number> }> = {};
+      for (const r of rows || []) {
+        total.units += r.units || 0;
+        total.calls += r.total_calls || 0;
+        const cid = r.company_id || "unknown";
+        const comp = (byCompany[cid] ||= { units: 0, calls: 0, byCategory: {} });
+        comp.units += r.units || 0;
+        comp.calls += r.total_calls || 0;
+        const byPath = (r.meta as any)?.byPath as Record<string, number> | undefined;
+        if (byPath && Object.keys(byPath).length) {
+          for (const [k, n] of Object.entries(byPath)) {
+            const i = k.lastIndexOf(":");
+            const path = i >= 0 ? k.slice(0, i) : k;
+            const code = i >= 0 ? k.slice(i + 1) : "";
+            const cat = categorize(path);
+            const c = (byCategory[cat] ||= { units: 0, calls: 0 });
+            c.calls += n as number;
+            if (isBillable(path, code)) {
+              c.units += n as number;
+              comp.byCategory[cat] = (comp.byCategory[cat] || 0) + (n as number);
+            }
+          }
+        } else {
+          // meta 없는 과거 행 — action 이름으로 근사 분류
+          const a = String(r.action || "");
+          const cat = a.includes("card") ? "카드"
+            : a.includes("bank") ? "통장"
+            : a.includes("hometax") ? "세금계산서"
+            : a.includes("cashbill") ? "현금영수증"
+            : "기타";
+          const c = (byCategory[cat] ||= { units: 0, calls: 0 });
+          c.units += r.units || 0;
+          c.calls += r.total_calls || 0;
+          if (r.units) comp.byCategory[cat] = (comp.byCategory[cat] || 0) + r.units;
+        }
+      }
+
+      // 회사명 매핑
+      const ids = Object.keys(byCompany).filter((k) => k !== "unknown");
+      const names: Record<string, string> = {};
+      if (ids.length) {
+        const { data: comps } = await svc.from("companies").select("id, name").in("id", ids);
+        for (const c of comps || []) names[c.id] = c.name;
+      }
+      const companies = Object.entries(byCompany)
+        .map(([id, v]) => ({
+          companyId: id,
+          name: names[id] || (id === "unknown" ? "(미귀속)" : id.slice(0, 8)),
+          ...v,
+        }))
+        .sort((a, b) => b.units - a.units || b.calls - a.calls);
+
+      return json({ month, total, byCategory, companies });
+    }
+
     // ── 수정 (관리자 키 필요) ──
     if (mode === "update") {
       if (!OPERATOR_ADMIN_KEY) return json({ error: "서버에 OPERATOR_ADMIN_KEY 미설정" }, 500);
@@ -202,7 +293,7 @@ serve(withSentry("operator-user-admin", async (req) => {
       return json({ success: true, before, after: updated });
     }
 
-    return json({ error: "mode 는 lookup / update / errors" }, 400);
+    return json({ error: "mode 는 lookup / update / errors / codef-usage" }, 400);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error("[operator-user-admin]", msg);

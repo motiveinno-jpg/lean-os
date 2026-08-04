@@ -1,5 +1,6 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { createMeterStore, runWithMeter, meterPush, flushCodefUsage } from "../_shared/codef-meter.ts";
 // cashbill-issue: 현금영수증 국세청 실발행 (CODEF ↔ 팝빌 제휴)
 //
 // 액션 3종 — 공식 가이드(developer.codef.io 현금영수증 발행 API, 2026-02-02) 기준:
@@ -58,15 +59,27 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
 }
 
 async function codefRequest(token: string, path: string, body: Record<string, unknown>, timeoutMs?: number): Promise<any> {
-  const res = await tfetch(`${CODEF_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Bearer ${token}` },
-    body: encodeURIComponent(JSON.stringify(body)),
-  }, timeoutMs);
-  if (!res.ok) throw new Error(`CODEF API error: ${res.status}`);
+  let res: Response;
+  try {
+    res = await tfetch(`${CODEF_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Bearer ${token}` },
+      body: encodeURIComponent(JSON.stringify(body)),
+    }, timeoutMs);
+  } catch (e) {
+    meterPush(path, "FETCH_ERROR");
+    throw e;
+  }
+  if (!res.ok) {
+    meterPush(path, `HTTP_${res.status}`);
+    throw new Error(`CODEF API error: ${res.status}`);
+  }
   const text = await res.text();
-  try { return JSON.parse(decodeURIComponent(text)); }
-  catch { return JSON.parse(text); }
+  let parsed: any;
+  try { parsed = JSON.parse(decodeURIComponent(text)); }
+  catch { parsed = JSON.parse(text); }
+  meterPush(path, parsed?.result?.code || "UNKNOWN");
+  return parsed;
 }
 
 function codefErrorHint(code?: string, message?: string): string {
@@ -87,6 +100,9 @@ const todayKst = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slic
 serve(withSentry("cashbill-issue", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // CODEF 사용량 계측 — codefRequest 호출을 수집해 finally 에서 원장 적재 (fail-open)
+  const meterStore = createMeterStore("cashbill");
+  return await runWithMeter(meterStore, async () => {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) return json({ error: "Unauthorized" }, 401);
@@ -107,6 +123,8 @@ serve(withSentry("cashbill-issue", async (req) => {
 
     const body = await req.json();
     const action = body.action || "issue";
+    meterStore.companyId = companyId;
+    meterStore.action = `cashbill-${action}`;
 
     const clientId = Deno.env.get("CODEF_CLIENT_ID");
     const clientSecret = Deno.env.get("CODEF_CLIENT_SECRET");
@@ -397,5 +415,9 @@ serve(withSentry("cashbill-issue", async (req) => {
     return json({ error: `unknown action: ${action}` }, 400);
   } catch (err: any) {
     return json({ error: err.message || "Internal error" }, 500);
+  } finally {
+    // 사용량 원장 적재 — 실패해도 응답에 영향 없음 (내부 try/catch)
+    await flushCodefUsage(meterStore);
   }
+  });
 }));

@@ -1,5 +1,6 @@
 import { tfetch } from "../_shared/http.ts";
 import { withSentry } from "../_shared/sentry.ts";
+import { flushCodefUsage } from "../_shared/codef-meter.ts";
 // OwnerView — CODEF Transfer Edge Function
 // Execute a single payment_queue entry via CODEF bank transfer API.
 // Until the CODEF transfer API contract is approved (requires 가맹점 심사), this function runs in
@@ -229,6 +230,12 @@ Deno.serve(withSentry("codef-transfer", async (req: Request) => {
       const r = await codefTransfer(token, transferBody);
       codefResult = r.data;
       const code = r.data?.result?.code;
+      // CODEF 사용량 원장 — 이체는 이 한 곳에서만 호출되므로 직접 적재 (fail-open)
+      await flushCodefUsage({
+        calls: [{ path: TRANSFER_PATH, code: code || (r.ok ? "UNKNOWN" : `HTTP_${r.status}`) }],
+        companyId,
+        action: "transfer",
+      });
       if (!r.ok || (code && code !== "CF-00000")) {
         throw new Error(`CODEF 이체 실패: ${code || r.status} / ${r.data?.result?.message || "알 수 없는 오류"}`);
       }

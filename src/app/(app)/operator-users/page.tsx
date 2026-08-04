@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Ico } from "@/components/ui-icon";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -18,6 +18,22 @@ type LookupResult = {
   auth?: any;
   candidates?: { id: string; email: string; name: string; role: string }[];
 };
+
+// KST 기준 "YYYY-MM"
+const kstMonthNow = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
+const shiftMonth = (ym: string, delta: number) => {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
+};
+
+// CODEF 사용량 집계 응답 (operator-user-admin mode=codef-usage)
+type CodefUsage = {
+  month: string;
+  total: { units: number; calls: number; rows: number };
+  byCategory: Record<string, { units: number; calls: number }>;
+  companies: { companyId: string; name: string; units: number; calls: number; byCategory: Record<string, number> }[];
+};
+const USAGE_CATEGORY_ORDER = ["통장", "카드", "현금영수증", "세금계산서", "이체", "관리(무과금)", "기타"];
 
 async function callEF(payload: Record<string, unknown>) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -49,9 +65,26 @@ export default function OperatorUsersPage() {
   const [adminKey, setAdminKey] = useState("");
   const [saving, setSaving] = useState(false);
   // OP-A: 회원 조회 ↔ 계정 수정 탭 분리 + 에러 로그 동시 조회
-  const [tab, setTab] = useState<"view" | "edit">("view");
+  const [tab, setTab] = useState<"view" | "edit" | "codef">("view");
   const [errors, setErrors] = useState<{ logs: any[]; stats: any } | null>(null);
   const [errLoading, setErrLoading] = useState(false);
+  // CODEF 사용량 탭 — 월 선택 + 집계 결과
+  const [usageMonth, setUsageMonth] = useState(kstMonthNow);
+  const [usage, setUsage] = useState<CodefUsage | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+
+  // ⚠️ 훅은 아래 early return(로딩·권한 게이트)보다 항상 먼저 (React #310 방지)
+  useEffect(() => {
+    if (tab !== "codef" || !isOperator) return;
+    let alive = true;
+    setUsageLoading(true);
+    callEF({ mode: "codef-usage", month: usageMonth })
+      .then((r) => { if (alive) setUsage(r); })
+      .catch((e: any) => { if (alive) toast("사용량 조회 실패: " + (e?.message || ""), "error"); })
+      .finally(() => { if (alive) setUsageLoading(false); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, usageMonth, isOperator]);
 
   if (loading) return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
   if (!isOperator) {
@@ -120,6 +153,7 @@ export default function OperatorUsersPage() {
             {[
               { k: "view" as const, label: "회원 조회" },
               { k: "edit" as const, label: "계정 수정" },
+              { k: "codef" as const, label: "CODEF 사용량" },
             ].map((t) => (
               <button
                 key={t.k}
@@ -130,27 +164,139 @@ export default function OperatorUsersPage() {
               </button>
             ))}
           </div>
-          <div className="flex gap-2 flex-1 sm:flex-none sm:min-w-[340px]">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") doLookup(); }}
-              placeholder="이메일 · 이름(예: 홍길동) · 계정 UUID"
-              className="flex-1 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-            />
-            <button
-              onClick={() => doLookup()}
-              disabled={searching || !query.trim()}
-              className="btn-primary px-5"
-            >
-              {searching ? "조회 중..." : "조회"}
-            </button>
-          </div>
+          {tab !== "codef" && (
+            <div className="flex gap-2 flex-1 sm:flex-none sm:min-w-[340px]">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") doLookup(); }}
+                placeholder="이메일 · 이름(예: 홍길동) · 계정 UUID"
+                className="flex-1 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
+              />
+              <button
+                onClick={() => doLookup()}
+                disabled={searching || !query.trim()}
+                className="btn-primary px-5"
+              >
+                {searching ? "조회 중..." : "조회"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* CODEF 사용량 탭 — 회원 조회와 무관하게 단독 렌더 */}
+      {tab === "codef" && (
+        <div className="codef-usage-panel">
+          <div className="codef-usage-month-bar glass-card">
+            <button onClick={() => setUsageMonth((m) => shiftMonth(m, -1))} className="codef-usage-month-btn">◀</button>
+            <span className="codef-usage-month-label">{usageMonth}</span>
+            <button
+              onClick={() => setUsageMonth((m) => shiftMonth(m, 1))}
+              disabled={usageMonth >= kstMonthNow()}
+              className="codef-usage-month-btn disabled:opacity-30"
+            >▶</button>
+            <span className="codef-usage-month-hint">
+              과금 추정 = 상품 API(/v1/kr/*) 성공 호출 건수 · 계정관리 API는 무과금 · KST 월 기준
+            </span>
+          </div>
+
+          {usageLoading ? (
+            <div className="glass-card p-8 text-center text-sm text-[var(--text-muted)]">사용량 집계 중...</div>
+          ) : !usage ? (
+            <div className="glass-card p-8 text-center text-sm text-[var(--text-muted)]">데이터가 없습니다.</div>
+          ) : (
+            <>
+              {/* 전체 요약 */}
+              <div className="codef-usage-summary-grid">
+                <div className="codef-usage-stat-card glass-card">
+                  <div className="codef-usage-stat-label">과금 추정 (units)</div>
+                  <div className="codef-usage-stat-value text-[var(--primary)]">{usage.total.units.toLocaleString()}</div>
+                </div>
+                <div className="codef-usage-stat-card glass-card">
+                  <div className="codef-usage-stat-label">전체 호출</div>
+                  <div className="codef-usage-stat-value">{usage.total.calls.toLocaleString()}</div>
+                </div>
+                <div className="codef-usage-stat-card glass-card">
+                  <div className="codef-usage-stat-label">사용 회사</div>
+                  <div className="codef-usage-stat-value">{usage.companies.length.toLocaleString()}</div>
+                </div>
+                <div className="codef-usage-stat-card glass-card">
+                  <div className="codef-usage-stat-label">원장 기록</div>
+                  <div className="codef-usage-stat-value">{usage.total.rows.toLocaleString()}</div>
+                </div>
+              </div>
+
+              {/* 사용별 (카테고리) */}
+              <div className="codef-usage-section glass-card">
+                <h3 className="text-sm font-bold mb-3">사용별 API 사용량</h3>
+                {Object.keys(usage.byCategory).length === 0 ? (
+                  <div className="text-sm text-[var(--text-muted)] text-center py-4">이 달에는 CODEF 호출이 없습니다.</div>
+                ) : (
+                  <table className="codef-usage-table">
+                    <thead>
+                      <tr>
+                        <th className="codef-usage-th">구분</th>
+                        <th className="codef-usage-th text-right">과금 추정</th>
+                        <th className="codef-usage-th text-right">전체 호출</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {USAGE_CATEGORY_ORDER.filter((c) => usage.byCategory[c]).map((c) => (
+                        <tr key={c}>
+                          <td className="codef-usage-td">{c}</td>
+                          <td className="codef-usage-td text-right font-semibold">{usage.byCategory[c].units.toLocaleString()}</td>
+                          <td className="codef-usage-td text-right text-[var(--text-muted)]">{usage.byCategory[c].calls.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* 회사별 */}
+              <div className="codef-usage-section glass-card">
+                <h3 className="text-sm font-bold mb-3">회사별 API 사용량</h3>
+                {usage.companies.length === 0 ? (
+                  <div className="text-sm text-[var(--text-muted)] text-center py-4">이 달에는 사용한 회사가 없습니다.</div>
+                ) : (
+                  <table className="codef-usage-table">
+                    <thead>
+                      <tr>
+                        <th className="codef-usage-th">회사</th>
+                        <th className="codef-usage-th text-right">과금 추정</th>
+                        <th className="codef-usage-th text-right">전체 호출</th>
+                        <th className="codef-usage-th">과금 내역</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {usage.companies.map((c) => (
+                        <tr key={c.companyId}>
+                          <td className="codef-usage-td font-medium">{c.name}</td>
+                          <td className="codef-usage-td text-right font-semibold">{c.units.toLocaleString()}</td>
+                          <td className="codef-usage-td text-right text-[var(--text-muted)]">{c.calls.toLocaleString()}</td>
+                          <td className="codef-usage-td">
+                            <div className="codef-usage-cat-tags">
+                              {USAGE_CATEGORY_ORDER.filter((k) => c.byCategory[k]).map((k) => (
+                                <span key={k} className="codef-usage-cat-tag">
+                                  {k} <b>{c.byCategory[k].toLocaleString()}</b>
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* 후보 목록 */}
-      {result && !result.found && (
+      {tab !== "codef" && result && !result.found && (
         <div className="operator-candidate-list glass-card">
           {result.candidates && result.candidates.length > 0 ? (
             <>
@@ -175,7 +321,7 @@ export default function OperatorUsersPage() {
       )}
 
       {/* 계정 정보 + 수정 — 탭별 분리 */}
-      {result?.found && u && (
+      {tab !== "codef" && result?.found && u && (
         <div className="space-y-4">
           {/* 회원 조회 탭 */}
           {tab === "view" && (

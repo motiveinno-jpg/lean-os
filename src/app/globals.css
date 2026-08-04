@@ -2257,6 +2257,22 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .error-log-fix { @apply bg-[var(--primary)]/5 border border-[var(--primary)]/15 rounded-xl p-3; }
 .error-log-context-grid { @apply grid grid-cols-2 gap-2 text-[11px]; }
 .operator-toolbar { @apply mb-6; }
+/* CODEF 사용량 탭 (operator-users) */
+.codef-usage-panel { @apply space-y-4; }
+.codef-usage-month-bar { @apply flex items-center gap-2 px-4 py-3 flex-wrap; }
+.codef-usage-month-btn { @apply px-2 py-1 rounded-lg text-sm text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition; }
+.codef-usage-month-label { @apply text-sm font-bold tabular-nums; }
+.codef-usage-month-hint { @apply text-[11px] text-[var(--text-dim)] ml-auto; }
+.codef-usage-summary-grid { @apply grid grid-cols-2 sm:grid-cols-4 gap-3; }
+.codef-usage-stat-card { @apply p-4; }
+.codef-usage-stat-label { @apply text-[10px] text-[var(--text-dim)] uppercase; }
+.codef-usage-stat-value { @apply text-xl font-bold mt-1 tabular-nums; }
+.codef-usage-section { @apply p-5; }
+.codef-usage-table { @apply w-full text-sm border-collapse; }
+.codef-usage-th { @apply text-left text-[11px] text-[var(--text-dim)] uppercase font-medium py-2 border-b border-[var(--border)]; }
+.codef-usage-td { @apply py-2 border-b border-[var(--border)] align-top; }
+.codef-usage-cat-tags { @apply flex flex-wrap gap-1; }
+.codef-usage-cat-tag { @apply text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap; }
 .operator-candidate-list { @apply p-5; }
 .operator-account-info { @apply p-5; }
 .operator-error-history { @apply p-5; }

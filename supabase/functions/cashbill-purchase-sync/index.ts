@@ -1,5 +1,6 @@
 import { withSentry } from "../_shared/sentry.ts";
 import { tfetch } from "../_shared/http.ts";
+import { createMeterStore, runWithMeter, meterPush, flushCodefUsage } from "../_shared/codef-meter.ts";
 // cashbill-purchase-sync: 현금영수증 매입내역 수집 (CODEF 국세청 현금영수증 매입내역 API)
 //
 // 공식 가이드(developer.codef.io, 2026-06-11) 기준:
@@ -57,15 +58,27 @@ async function getCodefToken(clientId: string, clientSecret: string): Promise<st
 }
 
 async function codefRequest(token: string, path: string, body: Record<string, unknown>, timeoutMs?: number): Promise<any> {
-  const res = await tfetch(`${CODEF_BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Bearer ${token}` },
-    body: encodeURIComponent(JSON.stringify(body)),
-  }, timeoutMs);
-  if (!res.ok) throw new Error(`CODEF API error: ${res.status}`);
+  let res: Response;
+  try {
+    res = await tfetch(`${CODEF_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Bearer ${token}` },
+      body: encodeURIComponent(JSON.stringify(body)),
+    }, timeoutMs);
+  } catch (e) {
+    meterPush(path, "FETCH_ERROR");
+    throw e;
+  }
+  if (!res.ok) {
+    meterPush(path, `HTTP_${res.status}`);
+    throw new Error(`CODEF API error: ${res.status}`);
+  }
   const text = await res.text();
-  try { return JSON.parse(decodeURIComponent(text)); }
-  catch { return JSON.parse(text); }
+  let parsed: any;
+  try { parsed = JSON.parse(decodeURIComponent(text)); }
+  catch { parsed = JSON.parse(text); }
+  meterPush(path, parsed?.result?.code || "UNKNOWN");
+  return parsed;
 }
 
 // RSA encrypt password with CODEF public key (PKCS1v1.5 padding required by CODEF)
@@ -111,6 +124,9 @@ const json = (body: unknown, status = 200) =>
 serve(withSentry("cashbill-purchase-sync", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // CODEF 사용량 계측 — codefRequest 호출을 수집해 finally 에서 원장 적재 (fail-open)
+  const meterStore = createMeterStore("cashbill-purchase-sync");
+  return await runWithMeter(meterStore, async () => {
   try {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) return json({ error: "Unauthorized" }, 401);
@@ -128,6 +144,7 @@ serve(withSentry("cashbill-purchase-sync", async (req) => {
     const { data: userRow } = await admin.from("users").select("company_id").eq("auth_id", user.id).maybeSingle();
     if (!userRow?.company_id) return json({ error: "회사 정보를 찾을 수 없습니다." }, 403);
     const companyId = userRow.company_id;
+    meterStore.companyId = companyId;
 
     const clientId = Deno.env.get("CODEF_CLIENT_ID");
     const clientSecret = Deno.env.get("CODEF_CLIENT_SECRET");
@@ -299,5 +316,9 @@ serve(withSentry("cashbill-purchase-sync", async (req) => {
       }, 504);
     }
     return json({ error: err.message || "Internal error" }, 500);
+  } finally {
+    // 사용량 원장 적재 — 실패해도 응답에 영향 없음 (내부 try/catch)
+    await flushCodefUsage(meterStore);
   }
+  });
 }));
