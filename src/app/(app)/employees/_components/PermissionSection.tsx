@@ -7,11 +7,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 import { friendlyError } from "@/lib/friendly-error";
 import { PERMISSION_CATALOG } from "@/lib/permissions";
 
 export function PermissionSection({ targetUserId, empName, viewerIsMaster = true }: { targetUserId: string | null; empName: string; viewerIsMaster?: boolean }) {
   const { toast } = useToast();
+  const { confirm: confirmDialog, confirmElement } = useConfirm();
   const qc = useQueryClient();
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [dirty, setDirty] = useState(false);
@@ -58,6 +60,46 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
     },
     onError: (e: any) => toast(friendlyError(e, "템플릿 저장 실패"), "error"),
   });
+  // ── 템플릿 수정·삭제 (2026-08-04 사장님: "탭권한 템플릿 수정·삭제 기능이 없어") ──
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameInput, setRenameInput] = useState("");
+  const renameTemplateMut = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await (supabase as any).from("permission_templates")
+        .update({ name, updated_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, { name }) => {
+      toast(`템플릿 이름을 "${name}"(으)로 변경했습니다`, "success");
+      setRenamingId(null); setRenameInput("");
+      qc.invalidateQueries({ queryKey: ["permission-templates"] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "이름 변경 실패 — 같은 이름의 템플릿이 이미 있는지 확인하세요"), "error"),
+  });
+  const overwriteTemplateMut = useMutation({
+    mutationFn: async (tpl: { id: string; name: string }) => {
+      const { error } = await (supabase as any).from("permission_templates")
+        .update({ perm_keys: Array.from(checked), updated_at: new Date().toISOString() }).eq("id", tpl.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, tpl) => {
+      toast(`"${tpl.name}" 템플릿을 현재 체크된 권한 ${checked.size}개로 수정했습니다`, "success");
+      qc.invalidateQueries({ queryKey: ["permission-templates"] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "템플릿 수정 실패"), "error"),
+  });
+  const deleteTemplateMut = useMutation({
+    mutationFn: async (tpl: { id: string; name: string }) => {
+      const { error } = await (supabase as any).from("permission_templates").delete().eq("id", tpl.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, tpl) => {
+      toast(`"${tpl.name}" 템플릿을 삭제했습니다 — 이미 적용된 구성원 권한은 그대로 유지됩니다`, "success");
+      qc.invalidateQueries({ queryKey: ["permission-templates"] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "템플릿 삭제 실패"), "error"),
+  });
+
   const applyTemplate = async (tpl: { name: string; perm_keys: string[] }) => {
     // 체크 상태 교체 + 즉시 저장(서버 RPC — 위임 권한 보호 규칙 동일 적용)
     setChecked(new Set(tpl.perm_keys || []));
@@ -149,7 +191,7 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
               {(templates as any[]).map((t) => <option key={t.id} value={t.id}>{t.name} ({(t.perm_keys || []).length})</option>)}
             </select>
           )}
-          <button onClick={() => setShowTemplateSave((v) => !v)} className="btn-secondary btn-sm">템플릿 만들기</button>
+          <button onClick={() => setShowTemplateSave((v) => !v)} className="btn-secondary btn-sm">{showTemplateSave ? "템플릿 닫기" : "템플릿 관리"}</button>
           <button onClick={() => toggle(allKeys, true)} className="btn-secondary btn-sm">전체 선택</button>
           <button onClick={() => toggle(allKeys, false)} className="btn-secondary btn-sm">전체 해제</button>
           <button onClick={() => saveMut.mutate()} disabled={!dirty || saveMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
@@ -158,22 +200,79 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
         </div>
       </div>
       {showTemplateSave && (
-        <div className="flex items-center gap-2 mb-3 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-          <span className="text-xs text-[var(--text-muted)] shrink-0">현재 체크된 권한 {checked.size}개를 템플릿으로 저장:</span>
-          <input
-            value={templateNameInput}
-            onChange={(e) => setTemplateNameInput(e.target.value)}
-            placeholder="예: 마케팅팀, 회계팀"
-            className="flex-1 h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
-            onKeyDown={(e) => { if (e.key === "Enter" && templateNameInput.trim()) saveTemplateMut.mutate(templateNameInput.trim()); }}
-          />
-          <button onClick={() => templateNameInput.trim() && saveTemplateMut.mutate(templateNameInput.trim())}
-            disabled={!templateNameInput.trim() || saveTemplateMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
-            {saveTemplateMut.isPending ? "저장 중..." : "저장"}
-          </button>
-          <span className="text-[10px] text-[var(--text-dim)]">같은 이름이면 덮어씁니다</span>
+        <div className="mb-3 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--text-muted)] shrink-0">현재 체크된 권한 {checked.size}개를 새 템플릿으로 저장:</span>
+            <input
+              value={templateNameInput}
+              onChange={(e) => setTemplateNameInput(e.target.value)}
+              placeholder="예: 마케팅팀, 회계팀"
+              className="flex-1 h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
+              onKeyDown={(e) => { if (e.key === "Enter" && templateNameInput.trim()) saveTemplateMut.mutate(templateNameInput.trim()); }}
+            />
+            <button onClick={() => templateNameInput.trim() && saveTemplateMut.mutate(templateNameInput.trim())}
+              disabled={!templateNameInput.trim() || saveTemplateMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
+              {saveTemplateMut.isPending ? "저장 중..." : "저장"}
+            </button>
+            <span className="text-[10px] text-[var(--text-dim)]">같은 이름이면 덮어씁니다</span>
+          </div>
+
+          {/* 기존 템플릿 목록 — 수정(덮어쓰기·이름 변경)·삭제 (2026-08-04 사장님) */}
+          {templates.length > 0 && (
+            <div className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)] bg-[var(--bg)]">
+              {(templates as any[]).map((t) => (
+                <div key={t.id} className="flex items-center gap-2 px-2.5 py-2">
+                  {renamingId === t.id ? (
+                    <>
+                      <input
+                        value={renameInput}
+                        onChange={(e) => setRenameInput(e.target.value)}
+                        autoFocus
+                        className="flex-1 h-7 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && renameInput.trim()) renameTemplateMut.mutate({ id: t.id, name: renameInput.trim() });
+                          if (e.key === "Escape") { setRenamingId(null); setRenameInput(""); }
+                        }}
+                      />
+                      <button onClick={() => renameInput.trim() && renameTemplateMut.mutate({ id: t.id, name: renameInput.trim() })}
+                        disabled={!renameInput.trim() || renameTemplateMut.isPending}
+                        className="btn-primary btn-sm disabled:opacity-40">확인</button>
+                      <button onClick={() => { setRenamingId(null); setRenameInput(""); }} className="btn-secondary btn-sm">취소</button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1 text-xs font-semibold text-[var(--text)] truncate">{t.name}
+                        <span className="ml-1.5 text-[10px] font-normal text-[var(--text-dim)]">권한 {(t.perm_keys || []).length}개</span>
+                      </span>
+                      <button
+                        onClick={async () => {
+                          if (!(await confirmDialog({ title: `"${t.name}" 템플릿 수정`, desc: `템플릿 내용을 현재 체크된 권한 ${checked.size}개로 바꿉니다. 이미 이 템플릿을 적용받은 구성원의 권한은 바뀌지 않습니다.` }))) return;
+                          overwriteTemplateMut.mutate({ id: t.id, name: t.name });
+                        }}
+                        disabled={overwriteTemplateMut.isPending}
+                        className="btn-secondary btn-sm disabled:opacity-40"
+                        title="이 템플릿의 권한 구성을 지금 화면에 체크된 권한으로 교체합니다">
+                        현재 권한으로 수정
+                      </button>
+                      <button onClick={() => { setRenamingId(t.id); setRenameInput(t.name); }} className="btn-secondary btn-sm">이름 변경</button>
+                      <button
+                        onClick={async () => {
+                          if (!(await confirmDialog({ title: `"${t.name}" 템플릿 삭제`, desc: "템플릿만 삭제됩니다 — 이미 적용된 구성원의 권한은 그대로 유지됩니다.", danger: true }))) return;
+                          deleteTemplateMut.mutate({ id: t.id, name: t.name });
+                        }}
+                        disabled={deleteTemplateMut.isPending}
+                        className="btn-sm px-2.5 rounded-lg bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 font-semibold disabled:opacity-40">
+                        삭제
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
+      {confirmElement}
 
       <div className="member-permission-groups">
         {PERMISSION_CATALOG.map((g) => {
