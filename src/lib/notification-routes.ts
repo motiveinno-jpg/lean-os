@@ -38,6 +38,9 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   attendance_edit_request: () => `/attendance?view=records`,
   expense_request: () => `/approvals`,
   quote_approval: () => `/projects`,
+  // 2026-08-04 사장님 제보: 고객센터 답변 알림이 매핑에 없어 /dashboard 로 떨어졌다
+  //   — 고객센터 내 문의 내역에서 해당 문의를 바로 펼친다.
+  support_ticket: (id) => `/support?id=${encodeURIComponent(id)}`,
 };
 
 export const TYPE_HREF: Record<string, (id: string | null) => string> = {
@@ -54,6 +57,8 @@ export const TYPE_HREF: Record<string, (id: string | null) => string> = {
   approval_rejected: (id) => id ? `/approvals?tab=my-requests&request=${encodeURIComponent(id)}` : `/approvals?tab=my-requests`,
   chat: () => `/chat`,
   company_join_request: () => `/settings?tab=team`,
+  // 운영자용 AI 진단 알림 — 고객 화면(/support)이 아니라 운영자 문의 화면으로
+  support_ai: () => `/platform/support`,
 };
 
 export function stageToAction(stage: string | null | undefined): "quote" | "contract" {
@@ -80,6 +85,10 @@ export function resolveNotificationHref(
   if ((n.type === "approval_approved" || n.type === "approval_rejected")
       && n.entity_type === "approval_request" && n.entity_id) {
     return `/approvals?tab=my-requests&request=${encodeURIComponent(n.entity_id)}`;
+  }
+  // 운영자용 AI 진단 알림은 entity_type 이 support_ticket 이라 고객 화면 매핑에 걸린다 — type 우선 분기
+  if (n.type === "support_ai") {
+    return `/platform/support`;
   }
   if (n.entity_type && n.entity_id && ENTITY_HREF[n.entity_type]) {
     return ENTITY_HREF[n.entity_type](n.entity_id);

@@ -10,7 +10,7 @@ import { logRead } from "@/lib/log-read";
 //     화면을 크게·세련되게 + 스크린샷 첨부(support-attachments 프라이빗 버킷, 회사 폴더 스코프).
 //     첨부는 추후 AI 자동 분석(에러 진단)의 입력이 된다.
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -102,6 +102,19 @@ export default function SupportPage() {
   const [dragging, setDragging] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // 답변 알림 딥링크(?id=티켓) — 해당 문의를 펼치고 내역으로 스크롤 (2026-08-04 사장님 제보:
+  //   답변 알림을 눌러도 대시보드로 갔다 → notification-routes 에 /support?id= 매핑 추가와 세트)
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get("id");
+      if (id) {
+        setOpenId(id);
+        // 목록 렌더 후 해당 문의로 스크롤
+        setTimeout(() => document.getElementById(`ticket-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 400);
+      }
+    } catch { /* noop */ }
+  }, []);
   const previews = useMemo(() => files.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })), [files]);
 
   const addFiles = (list: FileList | File[] | null) => {
@@ -320,7 +333,7 @@ export default function SupportPage() {
               const expanded = openId === t.id;
               const shots = Array.isArray(t.attachments) ? t.attachments : [];
               return (
-                <div key={t.id} className="support-ticket-item">
+                <div key={t.id} id={`ticket-${t.id}`} className="support-ticket-item">
                   <button type="button" onClick={() => setOpenId(expanded ? null : t.id)} className="support-ticket-head">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]"><Ico e={cm.icon} /> {cm.label}</span>
