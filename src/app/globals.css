@@ -5840,3 +5840,19 @@ th:hover .pb-col-x { @apply opacity-100; }
 .pb-card-x { @apply absolute right-1.5 top-1.5 w-5 h-5 rounded text-[10px] text-[var(--text-dim)] opacity-0 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]; }
 .pb-card:hover .pb-card-x { @apply opacity-100; }
 .pb-kadd { @apply h-8 rounded-xl border border-dashed border-[var(--border)] text-[12px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+
+
+/* 타임라인 — 기간이 본체인 템플릿 (2026-08-04) */
+.pb-gantt { @apply flex flex-col gap-1 p-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-x-auto; }
+.pb-gantt-head { @apply flex items-center gap-3 h-5 min-w-[640px]; }
+.pb-gantt-rows { @apply flex flex-col gap-1 min-w-[640px]; }
+.pb-gantt-row { @apply flex items-center gap-3; }
+.pb-gantt-name { @apply w-40 shrink-0 truncate; }
+.pb-gantt-track { @apply relative flex-1 h-7 rounded-lg bg-[var(--bg-surface)]; }
+.pb-gantt-head .pb-gantt-track { @apply h-5 bg-transparent; }
+.pb-gantt-head .pb-gantt-track i { @apply absolute -translate-x-1/2 not-italic text-[9.5px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+.pb-gantt-bar { @apply absolute top-1 bottom-1 rounded-md flex items-center px-2 overflow-hidden; }
+.pb-gantt-bar em { @apply not-italic text-[10.5px] font-bold text-white truncate; }
+.pb-gantt-today { @apply absolute top-0 bottom-0 w-px bg-[var(--danger)]; }
+.pb-gantt-late { @apply absolute top-1/2 -translate-y-1/2 ml-1 not-italic text-[9.5px] font-bold text-[var(--danger)]; }
+.pb-gantt-undated { @apply text-[11.5px] text-[var(--text-dim)] px-1 pt-1; }

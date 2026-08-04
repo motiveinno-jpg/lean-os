@@ -23,7 +23,7 @@ export type ColumnDef = { name: string; type: ColType; settings?: { options?: St
 export type GroupDef = { name: string; color: string };
 
 /** 기본 입력화면 — 표는 어느 템플릿에서든 전환으로 늘 쓸 수 있다. 기본값만 다르다. */
-export type InputMode = "grid" | "board";
+export type InputMode = "grid" | "board" | "timeline";
 
 export type BoardTemplate = {
   key: string;
@@ -187,6 +187,7 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "일정 · 마일스톤",
     desc: "기간이 있는 일",
     uses: "시공·설치 · 오픈 준비 · 행사 진행 · 개발 일정 · 계약 이행",
+    input: "timeline",
     columns: [
       { name: "시작", type: "date" },
       { name: "종료", type: "date" },
@@ -251,6 +252,16 @@ export function terminalOptionId(col: { settings?: any }): string | null {
     if (DONE_WORD_RE.test(String(options[i].label))) return String(options[i].id);
   }
   return null;
+}
+
+/** 간트가 쓸 기간 컬럼 — '시작' 계열이 왼쪽, 나머지 날짜 컬럼 중 첫 번째가 오른쪽.
+ *  시작이 없으면 날짜 컬럼 하나를 점(하루)으로 찍는다. 날짜가 없으면 null. */
+export function spanColumnsOf<T extends { type: string; name: string }>(cols: T[]): { start: T; end: T } | null {
+  const dates = cols.filter((c) => c.type === "date");
+  if (dates.length === 0) return null;
+  const start = dates.find((c) => START_DATE_RE.test(c.name)) || dates[0];
+  const end = dates.find((c) => c !== start) || start;
+  return { start, end };
 }
 
 /** 칸반이 열로 쓸 컬럼 — 흐름 표시(flow)가 붙은 상태 컬럼, 없으면 첫 상태 컬럼 */

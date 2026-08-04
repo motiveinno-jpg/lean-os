@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
-  flowColumnOf, type InputMode,
+  flowColumnOf, spanColumnsOf, type InputMode,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
 
@@ -329,7 +329,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
   const nameLabel = ITEM_LABEL[board?.template_key || "blank"] || "이름";
   // 칸반이 열로 쓸 컬럼 — 흐름 상태 컬럼. 없으면 그룹으로 열을 만든다.
   const flowCol = flowColumnOf(cols);
-  const view: InputMode = viewPick || (findTemplate(board?.template_key).input || "grid");
+  const span = spanColumnsOf(cols);
+  const wanted: InputMode = viewPick || (findTemplate(board?.template_key).input || "grid");
+  //   기간 컬럼을 지웠는데 타임라인이 기본이면 표로 떨어뜨린다(빈 화면을 만들지 않는다)
+  const view: InputMode = wanted === "timeline" && !span ? "grid" : wanted;
   // 칸반 열 — 흐름 컬럼의 옵션 순서, 없으면 그룹 순서
   const kanbanCols = flowCol
     ? ((flowCol.settings?.options || []) as any[]).map((o) => ({ key: String(o.id), label: String(o.label), color: String(o.color || "#C4C4C4") }))
@@ -359,9 +362,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
         <div className="pb-tab-tools">
           {/* 입력화면 전환 — 표는 어느 템플릿에서든 늘 쓸 수 있다(기본값만 다르다) */}
           <span className="pb-viewpick">
-            {(["board", "grid"] as InputMode[]).map((v) => (
+            {(span ? (["board", "timeline", "grid"] as InputMode[]) : (["board", "grid"] as InputMode[])).map((v) => (
               <button key={v} type="button" onClick={() => setViewPick(v)} aria-pressed={view === v}
-                className={`pb-viewbtn ${view === v ? "pb-viewbtn-on" : ""}`}>{v === "board" ? "칸반" : "표"}</button>
+                className={`pb-viewbtn ${view === v ? "pb-viewbtn-on" : ""}`}>
+                {v === "board" ? "칸반" : v === "timeline" ? "타임라인" : "표"}
+              </button>
             ))}
           </span>
           <span className="pb-addcol">
@@ -389,6 +394,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
 
       {showSummary ? (
         <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users} />
+      ) : view === "timeline" && span ? (
+        <BoardTimeline items={items} span={span} flowCol={flowCol} nameLabel={nameLabel}
+          onAdd={() => addItem(groups[0]?.id || "")} />
       ) : view === "board" ? (
         /* 칸반 — 카드를 끌어 다음 단계로. 단계는 라벨이므로 셀에서 바꾸는 것과 같은 값을 만진다
            (2026-08-03 사장님: "굳이 섹션까지 나눌 필요 없이 기본 라벨로"). */
@@ -558,6 +566,95 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
         );
       })}
       </>)}
+    </div>
+  );
+}
+
+// ── 타임라인(간트) — '일정 · 마일스톤' 처럼 기간이 본체인 일 (2026-08-04 기획 2단계) ──
+//   막대 색은 흐름 상태 컬럼의 옵션 색을 그대로 쓴다 — 화면마다 색 뜻이 갈리지 않게.
+function BoardTimeline({ items, span, flowCol, nameLabel, onAdd }: {
+  items: BoardItem[];
+  span: { start: BoardColumn; end: BoardColumn };
+  flowCol: BoardColumn | null;
+  nameLabel: string;
+  onAdd: () => void;
+}) {
+  const DAY = 86_400_000;
+  const dayOf = (v: any) => {
+    const sv = String(v || "");
+    if (!/^\d{4}-\d{2}-\d{2}/.test(sv)) return null;
+    return new Date(`${sv.slice(0, 10)}T00:00:00`).getTime();
+  };
+  const rows = items.map((it) => {
+    const a = dayOf(it.values?.[span.start.id]);
+    const b = dayOf(it.values?.[span.end.id]);
+    const s = a ?? b, e = b ?? a;
+    return { it, s, e: s != null && e != null ? Math.max(s, e) : e };
+  });
+  const dated = rows.filter((r) => r.s != null) as { it: BoardItem; s: number; e: number }[];
+  const undated = rows.filter((r) => r.s == null).map((r) => r.it);
+
+  if (dated.length === 0) {
+    return (
+      <p className="pj-sec-empty">
+        {span.start.name}·{span.end.name} 을 채우면 여기에 기간 막대로 그려져요.
+        <button type="button" className="pb-kadd ml-2" onClick={onAdd}>＋ {nameLabel}</button>
+      </p>
+    );
+  }
+
+  const min = Math.min(...dated.map((r) => r.s)) - 3 * DAY;
+  const max = Math.max(...dated.map((r) => r.e)) + 3 * DAY;
+  const totalDays = Math.max(1, Math.round((max - min) / DAY));
+  const pct = (ms: number) => ((ms - min) / (max - min)) * 100;
+  const todayMs = new Date(`${todayKst()}T00:00:00`).getTime();
+  const todayPct = pct(todayMs);
+
+  // 눈금 — 8칸 안팎으로 나눈다
+  const step = Math.max(1, Math.round(totalDays / 8));
+  const ticks: { left: number; label: string }[] = [];
+  for (let d = 0; d <= totalDays; d += step) {
+    const ms = min + d * DAY;
+    ticks.push({ left: pct(ms), label: new Date(ms).toISOString().slice(5, 10).replace("-", "/") });
+  }
+
+  const colorOf = (it: BoardItem) => {
+    if (!flowCol) return "var(--primary)";
+    const opt = (flowCol.settings?.options || []).find((o: any) => o.id === it.values?.[flowCol.id]);
+    return opt?.color || "var(--primary)";
+  };
+
+  return (
+    <div className="pb-gantt">
+      <div className="pb-gantt-head">
+        <span className="pb-gantt-name" />
+        <span className="pb-gantt-track">
+          {ticks.map((tk, i) => <i key={i} style={{ left: `${tk.left}%` }}>{tk.label}</i>)}
+        </span>
+      </div>
+      <div className="pb-gantt-rows">
+        {dated.sort((a, b) => a.s - b.s).map(({ it, s, e }) => {
+          const left = pct(s);
+          const width = Math.max(1.2, pct(Math.max(e, s + DAY)) - left);
+          const late = e < todayMs;
+          return (
+            <div key={it.id} className="pb-gantt-row">
+              <span className="pb-gantt-name" title={it.name || ""}>{it.name || "(이름 없음)"}</span>
+              <span className="pb-gantt-track">
+                {todayPct >= 0 && todayPct <= 100 && <b className="pb-gantt-today" style={{ left: `${todayPct}%` }} />}
+                <span className="pb-gantt-bar" style={{ left: `${left}%`, width: `${width}%`, background: colorOf(it) }}
+                  title={`${it.name || "(이름 없음)"} · ${String(it.values?.[span.start.id] || "").slice(0, 10)} ~ ${String(it.values?.[span.end.id] || "").slice(0, 10)}`}>
+                  <em>{it.name || "(이름 없음)"}</em>
+                </span>
+                {late && <i className="pb-gantt-late" style={{ left: `${Math.min(99, left + width)}%` }}>지남</i>}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {undated.length > 0 && (
+        <p className="pb-gantt-undated">날짜가 없어 안 그려진 것 {undated.length}건 — 표 보기에서 {span.start.name}을 채워 주세요.</p>
+      )}
     </div>
   );
 }
