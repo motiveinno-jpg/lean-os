@@ -156,6 +156,20 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     staleTime: 5 * 60 * 1000,
   });
 
+  // 계약서에 결제조건이 있는데 아직 청구 행이 없는 회차 — 있으면 한 줄로 제안한다.
+  //   ⚠️ 훅은 아래 조기 반환(불러오는 중 · 템플릿 고르기)보다 **반드시 앞**에 둔다.
+  //      뒤에 두면 렌더마다 훅 개수가 달라져 React #310 이 난다(2026-08-04 실제 발생).
+  const proposal = useMemo(() => {
+    if (!isBilling) return null;
+    const have = new Set((items as BoardItem[]).map((i) => (i.name || "").trim()).filter(Boolean));
+    for (const doc of dealDocs as any[]) {
+      if (doc.content_type !== "contract") continue;
+      const terms = payTermsOf(doc).filter((t) => !have.has(t.label.trim()));
+      if (terms.length > 0) return { doc, terms };
+    }
+    return null;
+  }, [isBilling, dealDocs, items]);
+
   const itemsByGroup = useMemo(() => {
     const m: Record<string, BoardItem[]> = {};
     for (const it of items) {
@@ -429,17 +443,6 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     if ((a.settings?.unit || "") !== (b.settings?.unit || "")) return null;
     return { plan: a, real: b };
   })();
-  // 계약서에 결제조건이 있는데 아직 청구 행이 없는 회차 — 있으면 한 줄로 제안한다
-  const proposal = useMemo(() => {
-    if (!isBilling) return null;
-    const have = new Set(items.map((i) => (i.name || "").trim()).filter(Boolean));
-    for (const doc of dealDocs as any[]) {
-      if (doc.content_type !== "contract") continue;
-      const terms = payTermsOf(doc).filter((t) => !have.has(t.label.trim()));
-      if (terms.length > 0) return { doc, terms };
-    }
-    return null;
-  }, [isBilling, dealDocs, items]);
   const numberCols = cols.filter((c) => c.type === "number");
 
   return (
