@@ -8,6 +8,7 @@ import { DateField } from "@/components/date-field";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { encryptCredential } from "@/lib/crypto";
+import { CertAutoPicker } from "@/components/cert-auto-picker";
 import { BANK_ROLES } from "@/lib/routing";
 import type { BankAccount } from "@/types/models";
 import { useToast } from "@/components/toast";
@@ -49,6 +50,9 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
   const [showCertPw, setShowCertPw] = useState(false);
   const [derFileB64, setDerFileB64] = useState("");
   const [keyFileB64, setKeyFileB64] = useState("");
+  // PC 인증서 자동 선택 (CodefCert 엔진) — 은행/카드 연결에 사용, 홈택스는 der/key 파일 저장이 필요해 파일 방식 유지
+  const [certSource, setCertSource] = useState<"auto" | "file">("auto");
+  const [autoPfxB64, setAutoPfxB64] = useState("");
   const [certFileName, setCertFileName] = useState("");
   // Hometax 전용 — 대표자 주민번호 앞 7자리 (선택)
   const [hometaxIdentity, setHometaxIdentity] = useState("");
@@ -194,13 +198,16 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
       // ── 은행/카드 — 기존 register/connectedId 흐름 ──
       if (authMethod === "cert") {
-        if (!derFileB64 || !keyFileB64 || !certPassword) {
-          setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
+        const useAutoPfx = certSource === "auto" && !!autoPfxB64;
+        if (useAutoPfx ? !certPassword : (!derFileB64 || !keyFileB64 || !certPassword)) {
+          setResult({ ok: false, msg: useAutoPfx ? "인증서 비밀번호를 입력하세요" : "인증서 파일과 비밀번호를 모두 입력하세요" });
           setRegistering(false);
           return;
         }
         const { registerCodefCertificate } = await import("@/lib/data-sync");
-        const res = await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword, undefined, clientType);
+        const res = useAutoPfx
+          ? await registerCodefCertificate(companyId, accountType, organization, "", "", certPassword, autoPfxB64, clientType)
+          : await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword, undefined, clientType);
         if (res.success) {
           setResult({ ok: true, msg: "금융기관 연결 성공!" });
           toast("금융기관 연결 완료", "success");
@@ -233,7 +240,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
     setRegistering(false);
   }
 
-  const isCertReady = !!derFileB64 && !!keyFileB64 && !!certPassword && !!organization;
+  const isCertReady = ((certSource === "auto" && accountType !== "hometax" && !!autoPfxB64) || (!!derFileB64 && !!keyFileB64)) && !!certPassword && !!organization;
   const isIdPwReady = !!loginId && !!loginPw && !!organization;
   const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
 
@@ -339,6 +346,30 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
           {authMethod === "cert" ? (
             <>
+              {/* 인증서 입력 방식 — PC 자동 선택(기본) vs 파일 업로드. 홈택스는 der/key 파일 저장이 필요해 파일 방식만. */}
+              {accountType !== "hometax" && (
+                <div className="cert-source-tabs">
+                  <button type="button" onClick={() => setCertSource("auto")} className={`cert-source-tab ${certSource === "auto" ? "cert-source-tab-active" : ""}`}>
+                    PC 인증서 자동 선택
+                  </button>
+                  <button type="button" onClick={() => setCertSource("file")} className={`cert-source-tab ${certSource === "file" ? "cert-source-tab-active" : ""}`}>
+                    파일 직접 업로드
+                  </button>
+                </div>
+              )}
+
+              {accountType !== "hometax" && certSource === "auto" && (
+                <CertAutoPicker
+                  onExtracted={({ pfxBase64, certName, password }) => {
+                    setAutoPfxB64(pfxBase64);
+                    setCertPassword(password);
+                    setCertFileName(certName);
+                  }}
+                />
+              )}
+
+              {(accountType === "hometax" || certSource === "file") && (
+              <>
               {/* 공동인증서 입력 */}
               <div className="certificate-upload-panel">
                 <label className="field-label">공동인증서 파일</label>
@@ -361,6 +392,8 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
                 </div>
                 <p className="text-[10px] text-[var(--text-dim)] mt-1">인증서와 비밀번호는 보안 서버에서 암호화 처리됩니다. 오너뷰는 저장하지 않습니다.</p>
               </div>
+              </>
+              )}
             </>
           ) : (
             <>

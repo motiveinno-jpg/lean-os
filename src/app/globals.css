@@ -3192,6 +3192,27 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 가입사 목록 — 회사 아바타 */
 .company-cell { @apply flex items-center gap-2.5 min-w-0; }
 .company-avatar { @apply w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] font-extrabold text-sm flex items-center justify-center shrink-0; }
+/* PC 공동인증서 자동 선택 (CodefCert) — 레퍼런스형 테이블 */
+.cert-picker { @apply space-y-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]/40 p-4; }
+.cert-picker-status { @apply flex items-center gap-2 py-4 justify-center text-[12px] text-[var(--text-muted)]; }
+.cert-picker-spinner { @apply w-4 h-4 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin inline-block; }
+.cert-picker-install { @apply space-y-3; }
+.cert-picker-retry { @apply px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition; }
+.cert-picker-tablewrap { @apply max-h-56 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg)]; }
+.cert-picker-table { @apply w-full text-xs border-collapse; }
+.cert-picker-th { @apply sticky top-0 bg-[var(--bg-surface)] text-[10px] text-[var(--text-dim)] font-semibold px-3 py-2 whitespace-nowrap; }
+.cert-picker-row { @apply cursor-pointer border-t border-[var(--border)]/60 hover:bg-[var(--bg-surface)]/70 transition; }
+.cert-picker-row-active { @apply bg-[var(--primary)]/8; }
+.cert-picker-td { @apply px-3 py-2.5 whitespace-nowrap; }
+.cert-picker-radio { @apply inline-block w-3.5 h-3.5 rounded-full border-2 border-[var(--border)] align-middle; }
+.cert-picker-radio-on { @apply border-[var(--primary)] bg-[var(--primary)]; box-shadow: inset 0 0 0 2.5px var(--bg); }
+.cert-picker-actions { @apply flex items-center gap-2 flex-wrap; }
+.cert-picker-ok { @apply text-[12px] font-semibold text-[var(--success)] bg-[var(--success-dim)] rounded-xl px-3 py-2; }
+.cert-picker-error { @apply text-[12px] text-[var(--danger)]; }
+/* 인증서 입력 방식 토글 */
+.cert-source-tabs { @apply flex rounded-xl overflow-hidden border border-[var(--border)]; }
+.cert-source-tab { @apply flex-1 py-2 text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] transition; }
+.cert-source-tab-active { @apply bg-[var(--primary)] text-white; }
 /* 문의 카드 빠른 처리중 버튼 */
 .ticket-progress-btn { @apply shrink-0 px-2 py-1 rounded-lg text-[11px] font-bold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition; }
 /* 고객 현황 스트립 상태색 점 */
