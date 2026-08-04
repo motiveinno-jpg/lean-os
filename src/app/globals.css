@@ -2256,7 +2256,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .error-log-explain { @apply bg-[var(--bg-surface)] rounded-xl p-3; }
 .error-log-fix { @apply bg-[var(--primary)]/5 border border-[var(--primary)]/15 rounded-xl p-3; }
 .error-log-context-grid { @apply grid grid-cols-2 gap-2 text-[11px]; }
-.operator-toolbar { @apply mb-6; }
 /* CODEF 사용량 탭 (operator-users) */
 .codef-usage-panel { @apply space-y-4; }
 .codef-usage-month-bar { @apply flex items-center gap-2 px-4 py-3 flex-wrap; }
@@ -2273,11 +2272,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .codef-usage-td { @apply py-2 border-b border-[var(--border)] align-top; }
 .codef-usage-cat-tags { @apply flex flex-wrap gap-1; }
 .codef-usage-cat-tag { @apply text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap; }
-.operator-candidate-list { @apply p-5; }
-.operator-account-info { @apply p-5; }
-.operator-error-history { @apply p-5; }
-.error-log-item { @apply rounded-lg border px-3 py-2; }
-.operator-edit-form { @apply p-5; }
 
 /* ═══ 클래스명 가독성 정리 재작업 — 배치6(reports) 마커 스타일 (2026-07-16) ═══ */
 .bs-toolbar { @apply mb-5 flex flex-wrap items-center justify-between gap-2; }

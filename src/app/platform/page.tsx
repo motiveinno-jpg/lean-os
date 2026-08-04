@@ -508,7 +508,7 @@ export default function PlatformOverview() {
           <div className="glass-card p-0 overflow-hidden">
             <div className="platform-card-head">
               <span className="platform-card-title">CODEF 사용량 <span className="text-[10px] font-normal text-[var(--text-dim)]">이번 달</span></span>
-              <Link href="/operator-users" className="text-[11px] text-[var(--primary)] hover:underline">상세 →</Link>
+              <Link href="/platform/codef-usage" className="text-[11px] text-[var(--primary)] hover:underline">상세 →</Link>
             </div>
             <div className="platform-rail-stats">
               <div><span className="mono-number font-extrabold text-[var(--primary)]">{(codefUsage?.total?.units ?? 0).toLocaleString()}</span><span>과금 추정</span></div>

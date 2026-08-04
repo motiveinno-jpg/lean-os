@@ -41,7 +41,9 @@ serve(withSentry("operator-user-admin", async (req) => {
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { data: userData, error: userErr } = await authClient.auth.getUser();
+    // 2026-08-04: getUser() 인자 없이 호출하면 이 EF 의 고정 버전(supabase-js@2.39.0)은
+    //   global 헤더를 auth 요청에 쓰지 않아 "유효하지 않은 세션"으로 전멸했다 — 토큰 명시 전달.
+    const { data: userData, error: userErr } = await authClient.auth.getUser(token);
     if (userErr || !userData.user) return json({ error: "유효하지 않은 세션" }, 401);
     const callerEmail = userData.user.email || "";
     if (!/@mo-tive\.com$/i.test(callerEmail)) {

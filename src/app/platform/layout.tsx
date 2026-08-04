@@ -47,6 +47,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       // 에러해석·의존성·사고기록·감사로그 4개 → "시스템 상태" 1개 (기존 라우트는 유지, 메뉴만 통합)
       { href: "/platform/health", label: "시스템 상태", icon: "alert" },
+      { href: "/platform/codef-usage", label: "CODEF 사용량", icon: "chart" },
       { href: "/platform/averages", label: "재무평균", icon: "trending" },
       { href: "/platform/industry", label: "업계분석", icon: "layers" },
     ],
