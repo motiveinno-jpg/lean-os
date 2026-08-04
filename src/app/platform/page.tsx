@@ -565,11 +565,11 @@ export default function PlatformOverview() {
         </div>
         <div className="platform-stat-strip">
           {[
-            { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const },
-            { label: "이번 달 신규", value: thisMonth, sub: "신규 가입", f: "new" as const },
-            { label: "유료 구독", value: kindCounts.paid, sub: `전환율 ${conversionRate}%`, f: "paid" as const },
-            { label: "체험 중", value: kindCounts.trial, sub: "카드 등록 · 전환 대기", f: "trial" as const },
-            { label: "체험 만료", value: kindCounts.expired, sub: "차단 중 · 연락 대상", f: "expired" as const },
+            { label: "총 가입사", value: totalCompanies, sub: `이번 달 +${thisMonth}`, f: "all" as const, dot: "var(--primary)" },
+            { label: "이번 달 신규", value: thisMonth, sub: "신규 가입", f: "new" as const, dot: "#2a78d6" },
+            { label: "유료 구독", value: kindCounts.paid, sub: `전환율 ${conversionRate}%`, f: "paid" as const, dot: "var(--success)" },
+            { label: "체험 중", value: kindCounts.trial, sub: "카드 등록 · 전환 대기", f: "trial" as const, dot: "var(--warning)" },
+            { label: "체험 만료", value: kindCounts.expired, sub: "차단 중 · 연락 대상", f: "expired" as const, dot: "var(--danger)" },
           ].map((kpi) => (
             <button
               key={kpi.label}
@@ -577,8 +577,8 @@ export default function PlatformOverview() {
               onClick={() => setKpiFilter(kpi.f)}
               className={`platform-stat-cell ${kpiFilter === kpi.f ? "platform-stat-cell-active" : ""}`}
             >
-              <span className="text-[22px] leading-7 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
-              <span className="text-[12px] font-semibold text-[var(--text-muted)]">{kpi.label}</span>
+              <span className="text-[24px] leading-8 font-extrabold mono-number text-[var(--text)]">{kpi.value}</span>
+              <span className="text-[12px] font-semibold text-[var(--text-muted)]"><span className="stat-cell-dot" style={{ background: kpi.dot }} />{kpi.label}</span>
               <span className="text-[10px] text-[var(--text-dim)]">{kpi.sub}</span>
             </button>
           ))}
@@ -594,6 +594,9 @@ export default function PlatformOverview() {
 // ── 가입 퍼널 ────────────────────────────────────────────────────────────────
 //   "총 가입사" 는 companies 기준이라 계정만 만들고 회사 등록 전에 떠난 사람이
 //   통계에서 통째로 빠진다. 그 구간을 드러내는 게 이 섹션의 목적.
+// 퍼널 단계 색 — 순차(ordinal) 블루 램프 고정 배정 (dataviz: 밝은 끝은 step 250 이상)
+const FUNNEL_COLORS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab"];
+
 function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
   const t = funnel?.today;
   const pending = funnel?.pending ?? [];
@@ -649,26 +652,36 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
         <span className="text-[11px] text-[var(--text-dim)]">최근 7일: 계정 {funnel?.period.accounts ?? 0} · 회사 {funnel?.period.companies ?? 0} · 카드를 누르면 명단이 보입니다</span>
       </div>
 
-      <div className="platform-funnel-steps glass-card">
-        {steps.map((s, i) => (
-          <button
-            key={s.label}
-            type="button"
-            onClick={() => setOpenStep(openStep === i ? null : i)}
-            className={`platform-funnel-step platform-funnel-step-btn ${openStep === i ? "platform-funnel-step-active" : ""}`}
-          >
-            <span className="text-[11px] text-[var(--text-muted)]">{s.label}</span>
-            <span className={`text-[24px] leading-7 font-extrabold mono-number ${i === worstIdx && worstDrop > 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
-              {s.n}
-            </span>
-            <span className="platform-funnel-meter">
-              <span className="platform-funnel-meter-fill" style={{ width: `${steps[0].n ? Math.round((s.n / steps[0].n) * 100) : 0}%` }} />
-            </span>
-            {i === worstIdx && worstDrop > 0 && (
-              <span className="text-[10px] font-semibold text-[var(--danger)]">-{worstDrop} 이탈</span>
-            )}
-          </button>
-        ))}
+      {/* 수직 퍼널 — 막대 길이 = 1단계 대비 비율, 단계 사이 전환율. 클릭하면 명단. */}
+      <div className="glass-card p-5">
+        <div className="funnel-viz">
+          {steps.map((s, i) => {
+            const base = steps[0].n;
+            const pct = base ? Math.round((s.n / base) * 100) : 0;
+            const conv = i > 0 && steps[i - 1].n > 0 ? Math.round((s.n / steps[i - 1].n) * 100) : null;
+            const isWorst = i === worstIdx && worstDrop > 0;
+            return (
+              <div key={s.label} className="funnel-viz-stage">
+                {i > 0 && (
+                  <div className={`funnel-viz-drop ${isWorst ? "funnel-viz-drop-worst" : ""}`}>
+                    ↓ {conv === null ? "—" : `전환 ${conv}%`}{isWorst ? ` · ${worstDrop}명 이탈` : ""}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setOpenStep(openStep === i ? null : i)}
+                  className={`funnel-viz-row ${openStep === i ? "funnel-viz-row-active" : ""}`}
+                >
+                  <span className="funnel-viz-label">{s.label}</span>
+                  <span className="funnel-viz-track">
+                    {s.n > 0 && <span className="funnel-viz-fill" style={{ width: `${Math.max(pct, 6)}%`, background: FUNNEL_COLORS[i] }} />}
+                  </span>
+                  <span className={`funnel-viz-count mono-number ${isWorst ? "text-[var(--danger)]" : ""}`}>{s.n}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {openStep !== null && (
@@ -809,9 +822,12 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
               return (
                 <tr key={c.id} onClick={() => router.push(`/platform/companies/${c.id}`)} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer">
                   <td className="px-3 py-2">
-                    <span className="font-semibold text-[var(--primary)] hover:underline">
-                      {c.name || "이름 없음"}
-                    </span>
+                    <div className="company-cell">
+                      <span className="company-avatar">{String(c.name || "?").replace(/^\(주\)/, "").charAt(0) || "?"}</span>
+                      <span className="font-semibold text-[var(--primary)] hover:underline truncate">
+                        {c.name || "이름 없음"}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{c.business_number || "—"}</td>
                   <td className="px-3 py-2 text-center mono-number text-[var(--text-muted)]">{c.users?.[0]?.count ?? 0}</td>

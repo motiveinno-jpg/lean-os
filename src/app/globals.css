@@ -3017,10 +3017,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pa-side-title { @apply text-[12px] font-bold text-[var(--text-muted)] mb-2; }
 .pa-side-foot { @apply text-[10.5px] text-[var(--text-dim)] mt-2; }
 .pa-side-empty { @apply text-[11px] text-[var(--text-dim)] py-2; }
-.pa-active-row { @apply grid grid-cols-3 gap-2; }
-.pa-active-cell { @apply flex flex-col items-center rounded-xl bg-[var(--bg-surface)] py-2.5; }
-.pa-active-num { @apply text-[18px] font-extrabold text-[var(--text)]; }
-.pa-active-label { @apply text-[10px] text-[var(--text-dim)]; }
 .pa-table-scroll { @apply overflow-auto max-h-[400px] relative; }
 .pa-table { @apply w-full min-w-[640px] text-xs; }
 .pa-table-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]; }
@@ -3030,8 +3026,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 /* 운영자 대시보드 — 가입 퍼널 (2026-07-28) */
 .platform-funnel { @apply space-y-4; }
-.platform-funnel-steps { @apply grid grid-cols-2 lg:grid-cols-4 gap-3 p-5; }
-.platform-funnel-step { @apply flex flex-col gap-1; }
 
 /* 운영자 대시보드 — 트래픽·이용 현황 (2026-07-28) */
 .platform-traffic { @apply space-y-4; }
@@ -3048,8 +3042,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-traffic-bar-col { @apply flex-1 flex flex-col items-center justify-end gap-1 h-full; }
 .platform-traffic-bar { @apply w-full rounded-t bg-[var(--primary)] min-h-[4px]; }
 .platform-traffic-bar-label { @apply text-[9px] text-[var(--text-dim)]; }
-.platform-traffic-list { @apply space-y-1.5; }
-.platform-traffic-list li { @apply flex items-center justify-between gap-3 text-xs text-[var(--text-muted)]; }
 .platform-kpi-card { @apply p-5 flex flex-col gap-3; }
 .platform-revenue-row { @apply grid grid-cols-2 lg:grid-cols-3 gap-4; }
 /* 플랫폼 개요 재디자인 (2026-07-28) — 섹션 타이틀·운영 인박스·헤더 상태 pill */
@@ -3177,8 +3169,30 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .viz-legend-label { @apply flex-1 min-w-0 truncate text-[var(--text-muted)]; }
 .viz-legend-value { @apply font-bold text-[var(--text)]; }
 .viz-legend-sub { @apply w-9 text-right text-[11px] text-[var(--text-dim)]; }
-.platform-funnel-meter { @apply block w-full h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mt-1.5; }
-.platform-funnel-meter-fill { @apply block h-full rounded-full bg-[var(--primary)]; }
+/* 수직 퍼널 (오늘 가입 퍼널) — 막대 길이 = 1단계 대비, 클릭 = 명단 */
+.funnel-viz { @apply space-y-1; }
+.funnel-viz-stage { @apply min-w-0; }
+.funnel-viz-row { @apply w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-[var(--bg-surface)] cursor-pointer; }
+.funnel-viz-row-active { @apply bg-[var(--primary)]/8 ring-1 ring-[var(--primary)]/30; }
+.funnel-viz-label { @apply w-20 shrink-0 text-[12px] font-semibold text-[var(--text-muted)]; }
+.funnel-viz-track { @apply flex-1 h-6 rounded-lg bg-[var(--bg-surface)] overflow-hidden; }
+.funnel-viz-fill { @apply block h-full rounded-lg; }
+.funnel-viz-count { @apply w-12 shrink-0 text-right text-[18px] font-extrabold text-[var(--text)]; }
+.funnel-viz-drop { @apply pl-[6.75rem] py-0.5 text-[10px] font-semibold text-[var(--text-dim)]; }
+.funnel-viz-drop-worst { @apply text-[var(--danger)]; }
+/* 사이드 가로 바 (활동 사용자·인기 페이지·유입 경로) */
+.pa-hbar-list { @apply space-y-2; }
+.pa-hbar-row { @apply flex items-center gap-2 min-w-0; }
+.pa-hbar-label { @apply w-9 shrink-0 text-[11px] text-[var(--text-muted)]; }
+.pa-hbar-label-wide { @apply w-24 truncate; }
+.pa-hbar-track { @apply flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.pa-hbar-fill { @apply block h-full rounded-full bg-[#2a78d6]; }
+.pa-hbar-value { @apply w-10 shrink-0 text-right text-[11px] font-bold text-[var(--text)]; }
+/* 가입사 목록 — 회사 아바타 */
+.company-cell { @apply flex items-center gap-2.5 min-w-0; }
+.company-avatar { @apply w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] font-extrabold text-sm flex items-center justify-center shrink-0; }
+/* 고객 현황 스트립 상태색 점 */
+.stat-cell-dot { @apply inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle; }
 /* 활동중 표시 (플랫폼 현황판) — 초록 펄스 점 + 배지 */
 .platform-active-dot { @apply inline-block w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse align-middle; }
 .platform-active-dot-off { @apply bg-[var(--text-dim)] animate-none; }
@@ -3224,8 +3238,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-detail-link { @apply px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] border border-[var(--border)] transition; }
 
 /* 가입 퍼널 단계 클릭 → 명단 (2026-07-28) */
-.platform-funnel-step-btn { @apply text-left rounded-xl px-3 py-2 -mx-3 -my-2 transition hover:bg-[var(--bg-surface)] cursor-pointer; }
-.platform-funnel-step-active { @apply bg-[var(--primary)]/8 ring-1 ring-[var(--primary)]/30; }
 .platform-funnel-people { @apply space-y-2; }
 .platform-funnel-people li { @apply flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60; }
 .platform-customers-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }

@@ -334,18 +334,27 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
         <div className="pa-side">
           <div className="glass-card p-4">
             <div className="pa-side-title">활동 사용자</div>
-            <div className="pa-active-row">
-              {[
+            {(() => {
+              const rows = [
                 { label: "오늘", v: usage?.accounts.dau ?? 0 },
                 { label: "주간", v: usage?.accounts.wau ?? 0 },
                 { label: "월간", v: usage?.accounts.mau ?? 0 },
-              ].map((x) => (
-                <div key={x.label} className="pa-active-cell">
-                  <span className="pa-active-num mono-number">{fmt(x.v)}</span>
-                  <span className="pa-active-label">{x.label}</span>
+              ];
+              const max = Math.max(1, ...rows.map((r) => r.v));
+              return (
+                <div className="pa-hbar-list">
+                  {rows.map((x) => (
+                    <div key={x.label} className="pa-hbar-row">
+                      <span className="pa-hbar-label">{x.label}</span>
+                      <span className="pa-hbar-track">
+                        {x.v > 0 && <span className="pa-hbar-fill" style={{ width: `${Math.max((x.v / max) * 100, 4)}%` }} />}
+                      </span>
+                      <span className="pa-hbar-value mono-number">{fmt(x.v)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
             <div className="pa-side-foot">미로그인 계정 {fmt(usage?.accounts.never_signed_in ?? 0)} / 전체 {fmt(usage?.accounts.total ?? 0)}</div>
           </div>
 
@@ -377,21 +386,45 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
             {(traffic?.top_paths?.length ?? 0) === 0 ? (
               <div className="pa-side-empty">수집 대기 중</div>
             ) : (
-              <ul className="platform-traffic-list">
-                {traffic!.top_paths.slice(0, 5).map((p) => (
-                  <li key={p.path} title={p.path}><span className="truncate">{pageLabel(p.path)}</span><span className="mono-number">{fmt(p.views)}</span></li>
-                ))}
-              </ul>
+              (() => {
+                const rows = traffic!.top_paths.slice(0, 5);
+                const max = Math.max(1, ...rows.map((r) => r.views));
+                return (
+                  <div className="pa-hbar-list">
+                    {rows.map((p) => (
+                      <div key={p.path} title={p.path} className="pa-hbar-row">
+                        <span className="pa-hbar-label pa-hbar-label-wide">{pageLabel(p.path)}</span>
+                        <span className="pa-hbar-track">
+                          <span className="pa-hbar-fill" style={{ width: `${Math.max((p.views / max) * 100, 4)}%` }} />
+                        </span>
+                        <span className="pa-hbar-value mono-number">{fmt(p.views)}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
             )}
             <div className="pa-side-title mt-4">유입 경로</div>
             {(traffic?.top_referrers?.length ?? 0) === 0 ? (
               <div className="pa-side-empty">수집 대기 중</div>
             ) : (
-              <ul className="platform-traffic-list">
-                {traffic!.top_referrers.slice(0, 4).map((r) => (
-                  <li key={r.host}><span className="truncate">{r.host}</span><span className="mono-number">{fmt(r.visitors)}</span></li>
-                ))}
-              </ul>
+              (() => {
+                const rows = traffic!.top_referrers.slice(0, 4);
+                const max = Math.max(1, ...rows.map((r) => r.visitors));
+                return (
+                  <div className="pa-hbar-list">
+                    {rows.map((r) => (
+                      <div key={r.host} className="pa-hbar-row">
+                        <span className="pa-hbar-label pa-hbar-label-wide">{r.host}</span>
+                        <span className="pa-hbar-track">
+                          <span className="pa-hbar-fill" style={{ width: `${Math.max((r.visitors / max) * 100, 4)}%` }} />
+                        </span>
+                        <span className="pa-hbar-value mono-number">{fmt(r.visitors)}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
             )}
           </div>
         </div>
