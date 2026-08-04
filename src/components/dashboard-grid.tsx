@@ -5,6 +5,8 @@
 //   2026-07-15 카탈로그 기반 전환: 전체 위젯 카탈로그 + 개인별 활성 목록 관리 → 편집 모드에서 위젯 추가/삭제 자유.
 //     · 활성 목록: localStorage `${storageKey}::active` (없으면 defaultActiveIds)
 //     · 배치(layout): localStorage `${storageKey}` (현재 없는 위젯 항목도 보존)
+//   2026-08-04 계정 동기화: 원본은 user_preferences.dashboard_grid(서버) — 로그인 기기 어디서든
+//     같은 편집이 보인다. localStorage 는 첫 페인트용 캐시로 유지, 마운트 후 서버 값이 덮는다.
 //   활성 위젯만 render() 호출 → 비활성 위젯의 쿼리/컴포넌트는 마운트되지 않음(비용 0).
 //   2026-07-24 반응형 완전 수정: WidthProvider 제거 → ResizeObserver로 직접 width 측정 후 prop 주입.
 //     WidthProvider는 마운트 시점에 너비를 1회 측정하는 클래스 컴포넌트라,
@@ -12,6 +14,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Ico } from "@/components/ui-icon";
+import { supabase } from "@/lib/supabase";
 import GridLayout, { type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -86,6 +89,46 @@ export function DashboardGrid({
   const [picking, setPicking] = useState(false);
 
   const activeKey = `${storageKey}::active`;
+
+  // ── 계정 단위 동기화 (2026-08-04 사장님: "다른 컴퓨터에서 로그인해도 위젯 편집 적용되게") ──
+  //   localStorage 는 즉시 반영용 캐시로 유지하고, 원본은 user_preferences.dashboard_grid
+  //   ({ [storageKey]: { layout, active, ... } }) — 마운트 시 서버 값이 로컬을 덮는다.
+  const stateRef = useRef({ layout, activeIds });
+  useEffect(() => { stateRef.current = { layout, activeIds }; });
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleServerSave = useCallback(() => {
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const authUser = session?.user;
+        if (!authUser) return;
+        // user_preferences.user_id 는 auth uid — company_id 는 users 에서 auth_id 로 조회 (sidebar-context 와 동일 규약)
+        const { data: userData } = await supabase.from("users").select("company_id").eq("auth_id", authUser.id).maybeSingle();
+        if (!userData?.company_id) return;
+        const { data: cur } = await (supabase as any)
+          .from("user_preferences").select("dashboard_grid")
+          .eq("user_id", authUser.id).eq("company_id", userData.company_id).maybeSingle();
+        const grid = {
+          ...((cur?.dashboard_grid as Record<string, unknown>) || {}),
+          [storageKey]: {
+            layout: stateRef.current.layout,
+            active: stateRef.current.activeIds,
+            layout_mig: layoutMigration?.id ?? null,
+            active_mig: activeMigration ?? null,
+            saved_at: new Date().toISOString(),
+          },
+        };
+        await (supabase as any).from("user_preferences").upsert({
+          user_id: authUser.id,
+          company_id: userData.company_id,
+          dashboard_grid: grid,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,company_id" });
+      } catch { /* 동기화 실패는 비치명 — 로컬 저장은 이미 됨 */ }
+    }, 800);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
   const catMap = useMemo(() => Object.fromEntries(catalog.map((c) => [c.id, c])), [catalog]);
   const catalogIds = catalog.map((c) => c.id).join(",");
 
@@ -132,6 +175,47 @@ export function DashboardGrid({
       }
     } catch { /* noop */ }
     setMounted(true);
+
+    // ── 서버 저장본 로드 — 로컬(캐시)을 먼저 그려두고, 도착하면 서버 값으로 덮는다(계정 동기화의 원본).
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const authUser = session?.user;
+        if (!authUser) return;
+        const { data: rows } = await (supabase as any)
+          .from("user_preferences").select("dashboard_grid").eq("user_id", authUser.id);
+        const saved = (rows || []).map((r: any) => r?.dashboard_grid?.[storageKey]).find(Boolean);
+        if (!saved) return;
+        let srvLayout: Layout[] = Array.isArray(saved.layout) ? saved.layout : [];
+        let srvActive: string[] | null = Array.isArray(saved.active) ? saved.active : null;
+        let migrated = false;
+        // 다른 기기가 옛 버전에서 저장했을 수 있으므로 서버 스냅샷에도 마이그레이션을 적용한다.
+        if (layoutMigration && saved.layout_mig !== layoutMigration.id) {
+          srvLayout = srvLayout.map((l) => {
+            const min = layoutMigration.minH[l.i];
+            return min && (l.h ?? 0) < min ? { ...l, h: min } : l;
+          });
+          migrated = true;
+        }
+        if (srvActive && activeMigration && saved.active_mig !== activeMigration) {
+          srvActive = [...srvActive, ...defaultActiveIds.filter((id) => !srvActive!.includes(id))];
+          migrated = true;
+        }
+        if (srvLayout.length) {
+          setLayout(srvLayout);
+          try { localStorage.setItem(storageKey, JSON.stringify(srvLayout)); } catch { /* noop */ }
+        }
+        if (srvActive) {
+          setActiveIds(srvActive);
+          try { localStorage.setItem(activeKey, JSON.stringify(srvActive)); } catch { /* noop */ }
+        }
+        try {
+          if (layoutMigration) localStorage.setItem(`${storageKey}::mig`, layoutMigration.id);
+          if (activeMigration) localStorage.setItem(`${activeKey}::mig`, activeMigration);
+        } catch { /* noop */ }
+        if (migrated) scheduleServerSave();
+      } catch { /* 서버 로드 실패 — 로컬 캐시로 동작 */ }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
@@ -149,7 +233,9 @@ export function DashboardGrid({
 
   const persistActive = (ids: string[]) => {
     setActiveIds(ids);
+    stateRef.current = { ...stateRef.current, activeIds: ids };
     try { localStorage.setItem(activeKey, JSON.stringify(ids)); } catch { /* noop */ }
+    scheduleServerSave();
   };
 
   const onLayoutChange = (l: Layout[]) => {
@@ -161,14 +247,21 @@ export function DashboardGrid({
       const map: Record<string, Layout> = Object.fromEntries(prev.map((x) => [x.i, x]));
       for (const it of l) map[it.i] = { i: it.i, x: it.x, y: it.y, w: it.w, h: it.h, minW: it.minW, minH: it.minH };
       const next = Object.values(map);
+      stateRef.current = { ...stateRef.current, layout: next };
       try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* noop */ }
+      scheduleServerSave();
       return next;
     });
   };
 
   const addWidget = (id: string) => { if (!activeIds.includes(id)) persistActive([...activeIds, id]); setPicking(false); };
   const removeWidget = (id: string) => persistActive(activeIds.filter((x) => x !== id));
-  const reset = () => { setLayout([]); persistActive(defaultActiveIds); try { localStorage.removeItem(storageKey); } catch { /* noop */ } };
+  const reset = () => {
+    setLayout([]);
+    stateRef.current = { ...stateRef.current, layout: [] };
+    persistActive(defaultActiveIds); // scheduleServerSave 포함 — 리셋도 다른 기기에 전파
+    try { localStorage.removeItem(storageKey); } catch { /* noop */ }
+  };
   const copyLayout = async () => {
     const json = JSON.stringify(effective.map((l) => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h })));
     try { await navigator.clipboard.writeText(json); setCopied(true); setTimeout(() => setCopied(false), 1500); }
