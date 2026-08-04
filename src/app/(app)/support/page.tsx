@@ -193,7 +193,7 @@ export default function SupportPage() {
       </div>
 
       {/* ═══ 문의 작성 ═══ */}
-      <div className="support-compose-card">
+      <div className="support-compose-card glass-card">
         <div>
           <span className="support-section-label">1. 문의 유형</span>
           <div className="support-category-grid">
@@ -219,7 +219,7 @@ export default function SupportPage() {
             onChange={(e) => setSubject(e.target.value)}
             maxLength={120}
             placeholder="한 줄로 요약해 주세요 (예: 통장 잔액이 실제와 다르게 보여요)"
-            className="support-input"
+            className="support-input field-input"
           />
         </div>
 
@@ -233,7 +233,7 @@ export default function SupportPage() {
               if (imgs.length) { e.preventDefault(); addFiles(imgs); }
             }}
             placeholder={"어떤 화면에서, 무엇을 했을 때, 어떻게 되었는지 적어주시면 가장 빠르게 해결됩니다.\n(캡처한 이미지를 여기에 붙여넣기(Ctrl+V)해도 자동으로 첨부됩니다)"}
-            className="support-textarea"
+            className="support-textarea field-input"
           />
         </div>
 
@@ -277,14 +277,14 @@ export default function SupportPage() {
           type="button"
           disabled={!canSubmit}
           onClick={() => submitMut.mutate()}
-          className="support-submit-btn"
+          className="support-submit-btn btn-primary"
         >
           {submitMut.isPending ? "접수 중…" : `문의 접수하기${files.length ? ` (사진 ${files.length}장 포함)` : ""}`}
         </button>
       </div>
 
       {/* ═══ 내 문의 내역 ═══ */}
-      <div className="support-history-card">
+      <div className="support-history-card glass-card">
         <div className="flex items-center justify-between mb-5">
           <div>
             <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">HISTORY</div>
