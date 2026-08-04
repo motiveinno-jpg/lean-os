@@ -5702,14 +5702,11 @@ td .rounded-full { white-space: nowrap; }
 /* ── 프로젝트 표(보드) — 새 구조 1단계(2026-08-03 기획 v2) ── */
 .pb { @apply flex flex-col gap-4; }
 /* 표 탭 — ＋ 로 같은 프로젝트에 표를 더 붙인다 */
-.pb-tabs { @apply flex flex-wrap items-center gap-1 border-b border-[var(--border)]; }
 .pb-tab { @apply text-[12.5px] font-bold px-3 py-2 text-[var(--text-muted)] border-b-2 border-transparent transition hover:text-[var(--text)]; }
 .pb-tab-on { @apply text-[var(--primary)] border-b-[var(--primary)]; }
 .pb-tab-add { @apply text-[15px] text-[var(--text-dim)] px-2.5 hover:text-[var(--primary)]; }
-.pb-tab-tools { @apply ml-auto flex items-center gap-2 pb-1; }
 .pb-addcol { @apply inline-flex items-center gap-1 text-[11.5px] text-[var(--text-dim)]; }
 .pb-addcol select { @apply h-7 px-1.5 rounded-md bg-[var(--bg-card)] border border-[var(--border)] text-[11.5px] text-[var(--text-muted)]; }
-.pb-mini { @apply h-7 px-2.5 rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[11.5px] font-semibold text-[var(--text-muted)] hover:border-[var(--primary)] hover:text-[var(--primary)]; }
 /* 그룹 */
 .pb-group { @apply flex flex-col gap-1.5; }
 .pb-group-head { @apply flex items-center gap-2 text-[13px] font-extrabold text-[var(--text)]; }
@@ -5761,8 +5758,6 @@ td .rounded-full { white-space: nowrap; }
 .pj-head-meta { @apply text-[12px] text-[var(--text-dim)]; }
 
 /* 표 — 이름 변경·삭제·정리 탭(2026-08-03 기획 v2 3·4단계) */
-.pb-tab-sum { @apply text-[var(--text-muted)]; }
-.pb-mini-x { @apply text-[var(--text-dim)] hover:!border-[var(--danger)] hover:!text-[var(--danger)]; }
 .pb-rename { @apply h-9 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--primary)] text-[13px] font-bold max-w-xs focus:outline-none; }
 .pb-group-name { @apply bg-transparent border border-transparent rounded px-1 -ml-1 text-[13px] font-extrabold text-[var(--text)] w-auto min-w-[80px] max-w-[220px] focus:outline-none focus:border-[var(--primary)]; }
 .pb-col-name { @apply bg-transparent border border-transparent rounded px-1 -ml-1 text-[10.5px] font-bold text-[var(--text-dim)] w-full min-w-[52px] focus:outline-none focus:border-[var(--primary)] focus:text-[var(--text)]; }
@@ -6000,3 +5995,23 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-doc-link { @apply text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)]; }
 .pb-doc-spacer { @apply flex-1; }
 .pb-doc-go { @apply h-9 px-4 rounded-lg bg-[var(--primary)] text-[13px] font-bold text-white transition hover:opacity-90 disabled:opacity-45; }
+
+/* 툴바 3층 — 템플릿 / 보기 / 그룹 (2026-08-04 사장님 지시: 성격이 다른 동작을 한 줄에 섞지 않는다) */
+.pb-bar1 { @apply flex flex-wrap items-center gap-1 pb-2 border-b border-[var(--border)]; }
+.pb-bar2 { @apply flex flex-wrap items-center gap-4 py-2.5; }
+.pb-viewgroup { @apply inline-flex items-center gap-1.5; }
+.pb-viewgroup > em { @apply not-italic text-[10.5px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pb-tplmenu { @apply relative inline-flex ml-auto; }
+.pb-gmenu { @apply relative inline-flex ml-1; }
+.pb-dots { @apply w-7 h-7 rounded-lg text-[15px] leading-none text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.pb-dots-on { @apply bg-[var(--bg-surface)] text-[var(--text)]; }
+.pb-menu-veil { @apply fixed inset-0 z-30; }
+.pb-menu { @apply absolute right-0 top-8 z-40 w-44 flex flex-col gap-0.5 p-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-xl; }
+.pb-menu > button { @apply h-8 px-2.5 rounded-lg text-left text-[12.5px] text-[var(--text)] hover:bg-[var(--bg-surface)]; }
+.pb-menu-danger { @apply !text-[var(--danger)] hover:!bg-[var(--danger)]/10; }
+.pb-menu-colors { @apply flex flex-wrap gap-1 p-1.5; }
+.pb-menu-colors button { @apply w-5 h-5 rounded-full border border-[var(--border)]; }
+.pb-addgroup { @apply self-start h-8 px-3 rounded-lg border border-dashed border-[var(--border)] text-[12px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+/* 컬럼 추가 — 표 머리 끝의 ＋ */
+.pb-th-x .pb-addcol { @apply flex justify-center; }
+.pb-th-x .pb-addcol select { @apply w-7 h-6 rounded-md bg-transparent border border-transparent text-[12px] text-center text-[var(--text-dim)] cursor-pointer hover:border-[var(--border)] hover:text-[var(--primary)] focus:outline-none; }

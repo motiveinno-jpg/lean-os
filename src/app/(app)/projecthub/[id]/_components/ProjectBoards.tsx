@@ -10,7 +10,7 @@
 //     텍스트·숫자는 blur/Enter 에서만 저장한다.
 //   · 정렬은 position 오름차순. 새 행은 그룹 맨 아래.
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -23,7 +23,7 @@ import { BoardDocModal, type DocKind } from "./BoardDocModal";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
-  flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, type InputMode, type PayTermRow,
+  flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, type InputMode, type PayTermRow,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
 
@@ -32,6 +32,8 @@ import {
 //   (레포에 이미 쓰이는 방식: (supabase as any).from/rpc)
 const db = supabase as any;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
+const VIEW_KEY = "ov.board.view.";   // + boardId
+const GROUP_COLORS = ["#5559DF", "#00C875", "#FDAB3D", "#A25DDC", "#579BFC", "#E2445C", "#C4C4C4"];
 
 export function ProjectBoards({ dealId, companyId, users, dealName, userId, dealPartnerId }: {
   dealId: string; companyId: string; users: { id: string; name: string }[];
@@ -45,6 +47,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [busy, setBusy] = useState(false);
   const [showSummary, setShowSummary] = useState(false);   // 마지막 탭 '정리'
   const [renaming, setRenaming] = useState(false);
+  const [tplMenu, setTplMenu] = useState(false);          // 템플릿 ⋯ (이름 · 삭제)
+  const [groupMenu, setGroupMenu] = useState<string | null>(null);   // 그룹 ⋯
   // 정렬 — 컬럼 이름을 누르면 그 컬럼 기준. 표마다 따로 기억한다(저장은 안 한다, 보기 상태일 뿐).
   const [sort, setSort] = useState<{ colId: string; dir: "asc" | "desc" } | null>(null);
   // 입력화면 — 템플릿이 정한 기본값에서 시작하고, 사용자가 바꾸면 그걸 따른다(2026-08-03 기획 1단계).
@@ -167,6 +171,17 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     }
     return null;
   }, [isBilling, dealDocs, items]);
+
+  // 마지막에 고른 보기를 템플릿마다 기억한다 — 기본값은 안전하게 두고 습관은 따라오게(2026-08-04).
+  useEffect(() => {
+    if (!boardId || typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(`${VIEW_KEY}${boardId}`) as InputMode | null;
+    setViewPick(saved === "grid" || saved === "board" || saved === "timeline" ? saved : null);
+  }, [boardId]);
+  const pickView = (v: InputMode) => {
+    setViewPick(v);
+    if (typeof window !== "undefined") window.localStorage.setItem(`${VIEW_KEY}${boardId}`, v);
+  };
 
   const itemsByGroup = useMemo(() => {
     const m: Record<string, BoardItem[]> = {};
@@ -377,6 +392,25 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     await db.from("project_board_items").delete().eq("id", item.id);
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
+  // 그룹 삭제 — 안에 행이 있으면 다른 그룹으로 옮기고 지운다(값을 잃지 않게).
+  const removeGroup = async (g: BoardGroup) => {
+    setGroupMenu(null);
+    if (groups.length <= 1) { toast("그룹이 하나뿐이라 지울 수 없어요.", "error"); return; }
+    const rows = itemsByGroup[g.id] || [];
+    const to = groups.find((x) => x.id !== g.id)!;
+    if (rows.length > 0 && !window.confirm(`'${g.name}' 을 지우면 안에 있는 ${rows.length}건이 '${to.name}' 으로 옮겨집니다. 계속할까요?`)) return;
+    if (rows.length > 0) await db.from("project_board_items").update({ group_id: to.id }).eq("group_id", g.id);
+    await db.from("project_board_groups").delete().eq("id", g.id);
+    qc.invalidateQueries({ queryKey: ["pb-groups", boardId] });
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+    toast(rows.length > 0 ? `그룹을 지우고 ${rows.length}건을 '${to.name}' 으로 옮겼습니다.` : "그룹을 지웠습니다.", "success");
+  };
+  const recolorGroup = async (g: BoardGroup, color: string) => {
+    setGroupMenu(null);
+    await db.from("project_board_groups").update({ color }).eq("id", g.id);
+    qc.invalidateQueries({ queryKey: ["pb-groups", boardId] });
+  };
+
   const addGroup = async () => {
     const { error } = await db.from("project_board_groups").insert({ board_id: boardId, name: `그룹 ${groups.length + 1}`, position: groups.length });
     if (error) { toast(error.message, "error"); return; }
@@ -477,42 +511,58 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 
   return (
     <div className="pb">
-      {/* 템플릿 탭 — ＋ 로 같은 프로젝트에 템플릿을 더 붙인다 */}
-      <div className="pb-tabs">
+      {/* ── 툴바 3층 (2026-08-04 사장님 지시) ──
+          성격이 다른 동작을 한 줄에 섞어 두니 버튼이 뭘 하는지 안 읽혔다. 층으로 가른다:
+            ① 템플릿 줄 — 무엇을 볼지 + 템플릿 자체 관리(⋯)
+            ② 보기 줄   — 입력(표·칸반) / 보기(타임라인·정리) 를 라벨로 나눠 묶는다
+            ③ 그룹 아래 — ＋ 그룹 추가(무엇에 대한 추가인지 위치로 말한다) */}
+      <div className="pb-bar1">
         {boards.map((b) => (
-          <button key={b.id} type="button" onClick={() => { setActiveId(b.id); setShowSummary(false); setSort(null); setViewPick(null); setOpenItemId(null); }}
+          <button key={b.id} type="button"
+            onClick={() => { setActiveId(b.id); setShowSummary(false); setSort(null); setOpenItemId(null); }}
             onDoubleClick={() => { if (b.id === boardId) setRenaming(true); }}
             title="더블클릭하면 이름을 바꿉니다"
             className={`pb-tab ${b.id === boardId && !showSummary ? "pb-tab-on" : ""}`}>{b.name}</button>
         ))}
-        <button type="button" className="pb-tab pb-tab-add" onClick={() => setPicking(true)} title="템플릿 추가">＋</button>
-        {/* 정리 — 입력된 값만으로 자동 요약(2026-08-03 기획 v2 4단계) */}
-        <button type="button" className={`pb-tab pb-tab-sum ${showSummary ? "pb-tab-on" : ""}`} onClick={() => setShowSummary(true)}>정리</button>
-        <div className="pb-tab-tools">
-          {/* 입력화면 전환 — 표는 어느 템플릿에서든 늘 쓸 수 있다(기본값만 다르다) */}
+        <button type="button" className="pb-tab pb-tab-add" onClick={() => setPicking(true)} title="템플릿 추가">＋ 템플릿</button>
+        <span className="pb-tplmenu">
+          <button type="button" className={`pb-dots ${tplMenu ? "pb-dots-on" : ""}`} onClick={() => setTplMenu((v) => !v)}
+            title="이 템플릿 관리" aria-label="템플릿 메뉴">⋯</button>
+          {tplMenu && (<>
+            <span className="pb-menu-veil" onClick={() => setTplMenu(false)} />
+            <span className="pb-menu">
+              <button type="button" onClick={() => { setTplMenu(false); setRenaming(true); }}>이름 바꾸기</button>
+              <button type="button" className="pb-menu-danger" onClick={() => { setTplMenu(false); removeBoard(); }}>템플릿 삭제</button>
+            </span>
+          </>)}
+        </span>
+      </div>
+
+      <div className="pb-bar2">
+        <span className="pb-viewgroup">
+          <em>입력</em>
           <span className="pb-viewpick">
-            {(span ? (["board", "timeline", "grid"] as InputMode[]) : (["board", "grid"] as InputMode[])).map((v) => (
-              <button key={v} type="button" onClick={() => setViewPick(v)} aria-pressed={view === v}
-                className={`pb-viewbtn ${view === v ? "pb-viewbtn-on" : ""}`}>
-                {v === "board" ? "칸반" : v === "timeline" ? "타임라인" : "표"}
+            {INPUT_MODES.map((v) => (
+              <button key={v} type="button" onClick={() => { setShowSummary(false); pickView(v); }}
+                aria-pressed={!showSummary && view === v}
+                className={`pb-viewbtn ${!showSummary && view === v ? "pb-viewbtn-on" : ""}`}>
+                {v === "board" ? "칸반" : "표"}
               </button>
             ))}
           </span>
-          <span className="pb-addcol">
-            컬럼 추가
-            <select value="" onChange={(e) => { if (e.target.value) addColumn(e.target.value as ColType); }}>
-              <option value="">선택</option>
-              <option value="text">텍스트</option>
-              <option value="number">숫자</option>
-              <option value="date">날짜</option>
-              <option value="status">상태</option>
-              <option value="person">사람</option>
-              <option value="partner">거래처</option>
-            </select>
+        </span>
+        <span className="pb-viewgroup">
+          <em>보기</em>
+          <span className="pb-viewpick">
+            {span && (
+              <button type="button" onClick={() => { setShowSummary(false); pickView("timeline"); }}
+                aria-pressed={!showSummary && view === "timeline"}
+                className={`pb-viewbtn ${!showSummary && view === "timeline" ? "pb-viewbtn-on" : ""}`}>타임라인</button>
+            )}
+            <button type="button" onClick={() => setShowSummary(true)} aria-pressed={showSummary}
+              className={`pb-viewbtn ${showSummary ? "pb-viewbtn-on" : ""}`}>정리</button>
           </span>
-          <button type="button" className="pb-mini" onClick={addGroup}>＋ 그룹</button>
-          <button type="button" className="pb-mini pb-mini-x" onClick={removeBoard} title="이 템플릿 지우기">템플릿 삭제</button>
-        </div>
+        </span>
       </div>
 
       {renaming && board && (
@@ -643,13 +693,31 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         const rows = sortRows(itemsByGroup[g.id] || [], sort, cols, users);
         return (
           <section key={g.id} className="pb-group">
-            <div className="pb-group-head">
-              <span className="pb-group-dot" style={{ background: g.color }} />
-              <input defaultValue={g.name} className="pb-group-name"
-                onBlur={(e) => renameGroup(g, e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
-              <span className="pb-group-n">{rows.length}건</span>
-            </div>
+            {/* 그룹이 하나뿐이면 머리줄을 숨긴다 — '요청 목록 6건' 한 줄이 뜻 없이 자리를 먹었다 */}
+            {groups.length > 1 && (
+              <div className="pb-group-head">
+                <span className="pb-group-dot" style={{ background: g.color }} />
+                <input defaultValue={g.name} className="pb-group-name"
+                  onBlur={(e) => renameGroup(g, e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                <span className="pb-group-n">{rows.length}건</span>
+                <span className="pb-gmenu">
+                  <button type="button" className="pb-dots" onClick={() => setGroupMenu(groupMenu === g.id ? null : g.id)}
+                    title="그룹 관리" aria-label="그룹 메뉴">⋯</button>
+                  {groupMenu === g.id && (<>
+                    <span className="pb-menu-veil" onClick={() => setGroupMenu(null)} />
+                    <span className="pb-menu">
+                      <span className="pb-menu-colors">
+                        {GROUP_COLORS.map((c) => (
+                          <button key={c} type="button" style={{ background: c }} title="색 바꾸기" onClick={() => recolorGroup(g, c)} />
+                        ))}
+                      </span>
+                      <button type="button" className="pb-menu-danger" onClick={() => removeGroup(g)}>그룹 삭제</button>
+                    </span>
+                  </>)}
+                </span>
+              </div>
+            )}
             <div className="pb-scroll">
               <table className="pb-table">
                 <thead>
@@ -679,7 +747,20 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                     ))}
                     {ratioPair && <th className="pb-th-ratio">{ratioPair.real.name}률</th>}
                     {isBilling && <th className="pb-th-doc">견적서</th>}
-                    <th className="pb-th-x" />
+                    <th className="pb-th-x">
+                      {/* 컬럼은 표의 일부다 — 툴바가 아니라 표 머리 끝에 둔다 */}
+                      <span className="pb-addcol">
+                        <select value="" title="컬럼 추가" onChange={(e) => { if (e.target.value) addColumn(e.target.value as ColType); }}>
+                          <option value="">＋</option>
+                          <option value="text">텍스트</option>
+                          <option value="number">숫자</option>
+                          <option value="date">날짜</option>
+                          <option value="status">상태</option>
+                          <option value="person">사람</option>
+                          <option value="partner">거래처</option>
+                        </select>
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -740,6 +821,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           </section>
         );
       })}
+      {/* 무엇에 대한 추가인지 위치로 말한다 — 마지막 그룹 바로 아래 */}
+      <button type="button" className="pb-addgroup" onClick={addGroup}>＋ 그룹 추가</button>
       </>)}
     </div>
   );

@@ -22,8 +22,14 @@ export type StatusOption = { id: string; label: string; color: string };
 export type ColumnDef = { name: string; type: ColType; settings?: { options?: StatusOption[]; unit?: string; flow?: boolean } };
 export type GroupDef = { name: string; color: string };
 
-/** 기본 입력화면 — 표는 어느 템플릿에서든 전환으로 늘 쓸 수 있다. 기본값만 다르다. */
+/** 보는 방식. 원칙(2026-08-04 사장님 지시):
+ *    · grid·board = **입력**하는 화면 — 기본값은 반드시 이 둘 중 하나다.
+ *    · timeline   = **읽는** 화면 — 정리한 결과를 보여줄 뿐 입력은 못 한다. 전환으로만 간다.
+ *  "타임라인은 데이터를 정리해서 보여주는 거고 표가 입력화면이잖아? 입력화면이 기본값으로 나와야" */
 export type InputMode = "grid" | "board" | "timeline";
+
+/** 입력이 되는 보기인가 — 기본값 검증과 보기 줄 묶음에 같이 쓴다 */
+export const INPUT_MODES: InputMode[] = ["grid", "board"];
 
 export type BoardTemplate = {
   key: string;
@@ -125,7 +131,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "매출 · 청구",
     desc: "받을 돈을 견적 → 계약 → 발행 → 입금 으로",
     uses: "프로젝트 매출 · 청구 · 수금 · 기성 청구",
-    input: "board",
+    //   회차 금액·예정일·거래처를 나란히 놓고 채우는 일이라 표가 빠르다(칸반은 단계 훑을 때)
+    input: "grid",
     columns: [
       { name: "단계", type: "status", settings: FLOW([
         { id: "quote", label: "견적", color: C.gray },
@@ -187,7 +194,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "일정 · 마일스톤",
     desc: "기간이 있는 일",
     uses: "시공·설치 · 오픈 준비 · 행사 진행 · 개발 일정 · 계약 이행",
-    input: "timeline",
+    //   기간은 표에서 채우고, 타임라인은 채운 걸 보는 자리다
+    input: "grid",
     columns: [
       { name: "시작", type: "date" },
       { name: "종료", type: "date" },
