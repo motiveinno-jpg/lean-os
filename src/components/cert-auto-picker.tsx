@@ -77,12 +77,7 @@ export function CertAutoPicker({ onExtracted }: {
       codefcert.initialization((success: boolean, errorCode?: string) => {
         if (success) {
           setEngineStatus("connected");
-          codefcert.engineGetCertification("", (certs: AutoCertItem[] | { SUCCESS: boolean }) => {
-            if (Array.isArray(certs)) {
-              const now = Math.floor(Date.now() / 1000);
-              setCertList(certs.filter((c) => c["cert.validity.notAfter"] > now));
-            }
-          });
+          fetchCertList();
         } else {
           setEngineStatus(errorCode === "E010002" ? "not-installed" : "error");
           if (errorCode && errorCode !== "E010002") {
@@ -107,6 +102,27 @@ export function CertAutoPicker({ onExtracted }: {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // SDK 경합 주의: initialization 성공 콜백은 WebSocket 연결·라이선스 확인이 "끝나기 전"에 불린다
+  //   (getPort 성공 직후 callback). 그 시점의 engineGetCertification 은 {SUCCESS:false} — 빈 목록으로
+  //   오인됐던 원인(2026-08-04 사장님 재현). 배열이 올 때까지 0.5초 간격 재시도.
+  function fetchCertList(attempt = 0) {
+    codefcert.engineGetCertification("", (certs: AutoCertItem[] | { SUCCESS: boolean; ERROR_CODE?: string }) => {
+      if (Array.isArray(certs)) {
+        const now = Math.floor(Date.now() / 1000);
+        setCertList(certs.filter((c) => c["cert.validity.notAfter"] > now));
+        return;
+      }
+      if (attempt < 10) {
+        setTimeout(() => fetchCertList(attempt + 1), 500);
+        return;
+      }
+      const code = (certs as { ERROR_CODE?: string })?.ERROR_CODE || "";
+      setError(code
+        ? `인증서 목록 조회 실패 (코드 ${code}) — "다시 검색"을 눌러주세요.`
+        : "인증서 목록 조회에 실패했습니다. \"다시 검색\"을 눌러주세요.");
+    });
+  }
 
   const handleExtract = () => {
     if (selectedIdx === null) { setError("인증서를 선택해주세요."); return; }
