@@ -2273,6 +2273,13 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .codef-usage-th { @apply text-[11px] text-[var(--text-dim)] uppercase font-medium px-3 py-2 whitespace-nowrap border-b border-[var(--border)]; }
 .codef-usage-td { @apply px-3 py-2 border-b border-[var(--border)] align-top; }
 .codef-usage-cat-tags { @apply flex flex-wrap gap-1; }
+/* API별 한도 현황 — 잔여 게이지 (월 10만원 대비) */
+.codef-quota-col { @apply w-[240px] min-w-[200px]; }
+.codef-quota-cell { @apply flex items-center gap-2; }
+.codef-quota-bar { @apply flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.codef-quota-fill { @apply h-full rounded-full bg-[var(--primary)]; }
+.codef-quota-fill-over { @apply bg-[var(--danger)]; }
+.codef-quota-text { @apply text-[11px] text-[var(--text-muted)] whitespace-nowrap shrink-0; }
 .codef-usage-cat-tag { @apply text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap; }
 
 /* ═══ 클래스명 가독성 정리 재작업 — 배치6(reports) 마커 스타일 (2026-07-16) ═══ */

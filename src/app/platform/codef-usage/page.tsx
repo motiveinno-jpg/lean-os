@@ -15,12 +15,25 @@ const shiftMonth = (ym: string, delta: number) => {
   return new Date(Date.UTC(y, m - 1 + delta, 1)).toISOString().slice(0, 7);
 };
 
+type CodefProduct = {
+  path: string;
+  name: string;
+  price: number | null;
+  count: number;
+  amount: number | null;
+  limit: number;
+  remaining: number | null;
+  over: number | null;
+};
 type CodefUsage = {
   month: string;
   total: { units: number; calls: number; rows: number };
   byCategory: Record<string, { units: number; calls: number }>;
   companies: { companyId: string; name: string; units: number; calls: number; byCategory: Record<string, number> }[];
+  products?: CodefProduct[];
+  product_limit?: number;
 };
+const fmtWon = (n: number) => `₩${n.toLocaleString()}`;
 const USAGE_CATEGORY_ORDER = ["통장", "카드", "현금영수증", "세금계산서", "이체", "관리(무과금)", "기타"];
 
 async function fetchUsage(month: string): Promise<CodefUsage> {
@@ -104,6 +117,57 @@ export default function PlatformCodefUsagePage() {
                 <div className="codef-usage-stat-label">원장 기록</div>
                 <div className="codef-usage-stat-value">{usage.total.rows.toLocaleString()}</div>
               </div>
+            </div>
+
+            {/* API 상품별 한도 현황 — 상품당 월 10만원 포함, 초과분 건당 과금 */}
+            <div className="codef-usage-section glass-card">
+              <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+                <h3 className="text-sm font-bold">API별 한도 사용 현황</h3>
+                <span className="text-[11px] text-[var(--text-dim)]">API(상품)당 월 {fmtWon(usage.product_limit ?? 100000)} 포함 · 초과분은 건당 요금 과금</span>
+              </div>
+              {(usage.products?.length ?? 0) === 0 ? (
+                <div className="text-sm text-[var(--text-muted)] text-center py-4">이 달에는 과금 대상 호출이 없습니다.</div>
+              ) : (
+                <table className="codef-usage-table">
+                  <thead>
+                    <tr>
+                      <th className="codef-usage-th text-left">API</th>
+                      <th className="codef-usage-th text-right">단가</th>
+                      <th className="codef-usage-th text-right">성공 건수</th>
+                      <th className="codef-usage-th text-right">사용 금액</th>
+                      <th className="codef-usage-th text-left codef-quota-col">잔여 한도</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usage.products!.map((p) => {
+                      const pct = p.amount === null ? 0 : Math.min(100, (p.amount / p.limit) * 100);
+                      const isOver = (p.over ?? 0) > 0;
+                      return (
+                        <tr key={p.path}>
+                          <td className="codef-usage-td" title={p.path}>{p.name}</td>
+                          <td className="codef-usage-td text-right mono-number text-[var(--text-muted)]">{p.price === null ? "미상" : fmtWon(p.price)}</td>
+                          <td className="codef-usage-td text-right mono-number">{p.count.toLocaleString()}</td>
+                          <td className="codef-usage-td text-right mono-number font-semibold">{p.amount === null ? "—" : fmtWon(p.amount)}</td>
+                          <td className="codef-usage-td codef-quota-col">
+                            {p.amount === null ? (
+                              <span className="text-[11px] text-[var(--text-dim)]">단가 미확인 — 건수만 집계</span>
+                            ) : (
+                              <div className="codef-quota-cell">
+                                <div className="codef-quota-bar">
+                                  <div className={`codef-quota-fill ${isOver ? "codef-quota-fill-over" : ""}`} style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className={`codef-quota-text mono-number ${isOver ? "text-[var(--danger)] font-bold" : ""}`}>
+                                  {isOver ? `초과 ${fmtWon(p.over!)}` : `${fmtWon(p.remaining!)} 남음`}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             {/* 사용별 (카테고리) */}

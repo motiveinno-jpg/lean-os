@@ -170,6 +170,35 @@ serve(withSentry("operator-user-admin", async (req) => {
         .limit(10000);
       if (uErr) return json({ error: `사용량 조회 실패: ${uErr.message}` }, 500);
 
+      // ── API 상품별 단가 (사장님 제공 CODEF 요금표 2026-08-04) ──
+      //   상품(API)당 월 100,000원 어치가 기본료에 포함되고 초과분은 성공 건당 과금.
+      //   단가 미확인 경로는 price=null 로 두고 건수만 보여준다 (임의 추정 금지).
+      const PRODUCT_MONTHLY_LIMIT = 100_000;
+      const PRODUCTS: Record<string, { name: string; price: number | null }> = {
+        "/v1/kr/bank/b/account/account-list": { name: "은행 보유계좌(기업)", price: 10 },
+        "/v1/kr/bank/p/account/account-list": { name: "은행 보유계좌(개인)", price: 10 },
+        "/v1/kr/bank/b/account/transaction-list": { name: "은행 수시입출 거래내역(기업)", price: 10 },
+        "/v1/kr/bank/p/account/transaction-list": { name: "은행 수시입출 거래내역(개인)", price: 10 },
+        "/v1/kr/card/b/account/card-list": { name: "카드 보유카드(법인)", price: 10 },
+        "/v1/kr/card/p/account/card-list": { name: "카드 보유카드(개인)", price: 10 },
+        "/v1/kr/card/b/account/approval-list": { name: "카드 승인내역(법인)", price: 10 },
+        "/v1/kr/card/p/account/approval-list": { name: "카드 승인내역(개인)", price: 10 },
+        "/v1/kr/card/b/account/billing-list": { name: "카드 청구내역(법인)", price: 10 },
+        "/v1/kr/card/p/account/billing-list": { name: "카드 청구내역(개인)", price: 10 },
+        "/v1/kr/public/nt/cash-receipt/purchase-details": { name: "현금영수증 매입내역", price: 50 },
+        "/v1/kr/public/nt/cash-receipt/sales-details": { name: "현금영수증 매출내역", price: 50 },
+        "/v1/kr/public/nt/tax-invoice/integrated-check-list": { name: "전자세금계산서 통합조회", price: 50 },
+        "/v1/kr/public/a/cash-bill/regist-issue": { name: "현금영수증 발행", price: 10 },
+        "/v1/kr/public/a/cash-bill/regist-cancel-issue": { name: "현금영수증 발행취소", price: 50 },
+        "/v1/kr/public/a/cash-bill/regist-issue-info": { name: "현금영수증 발행정보 조회", price: null },
+        "/v1/kr/public/a/pop-bill/join-member": { name: "회원가입(세금계산서 시스템)", price: 50 },
+        "/v1/kr/public/a/pop-bill/tax-cert-url": { name: "인증서 등록(세금계산서 시스템)", price: 50 },
+        "/v1/kr/public/a/tax-invoice/regist-invoicer-trustee": { name: "전자세금계산서 발행", price: 100 },
+        "/v1/kr/public/a/tax-invoice/regist-revise-invoicer-trustee": { name: "전자세금계산서 수정발행", price: 100 },
+        "/v1/kr/bank/a/account/transfer": { name: "계좌 이체", price: null },
+      };
+      const productCount: Record<string, number> = {};
+
       // CODEF 경로 → 사용 카테고리
       const categorize = (path: string): string => {
         if (path.includes("/account/transfer")) return "이체";
@@ -204,6 +233,7 @@ serve(withSentry("operator-user-admin", async (req) => {
             if (isBillable(path, code)) {
               c.units += n as number;
               comp.byCategory[cat] = (comp.byCategory[cat] || 0) + (n as number);
+              productCount[path] = (productCount[path] || 0) + (n as number);
             }
           }
         } else {
@@ -236,7 +266,25 @@ serve(withSentry("operator-user-admin", async (req) => {
         }))
         .sort((a, b) => b.units - a.units || b.calls - a.calls);
 
-      return json({ month, total, byCategory, companies });
+      // API 상품별 한도 현황 — 성공 건수 × 단가 = 사용 금액, 월 10만원 대비 잔여/초과
+      const products = Object.entries(productCount)
+        .map(([path, count]) => {
+          const p = PRODUCTS[path] || { name: path, price: null };
+          const amount = p.price === null ? null : count * p.price;
+          return {
+            path,
+            name: p.name,
+            price: p.price,
+            count,
+            amount,
+            limit: PRODUCT_MONTHLY_LIMIT,
+            remaining: amount === null ? null : Math.max(0, PRODUCT_MONTHLY_LIMIT - amount),
+            over: amount === null ? null : Math.max(0, amount - PRODUCT_MONTHLY_LIMIT),
+          };
+        })
+        .sort((a, b) => (b.amount ?? -1) - (a.amount ?? -1));
+
+      return json({ month, total, byCategory, companies, products, product_limit: PRODUCT_MONTHLY_LIMIT });
     }
 
     // ── 수정 (관리자 키 필요) ──
