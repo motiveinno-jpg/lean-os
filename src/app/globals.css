@@ -3100,6 +3100,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-mobile-nav { @apply md:hidden flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1; }
 .platform-mobile-nav-chip { @apply shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)] whitespace-nowrap; }
 /* 플랫폼 개요 콘솔형 레이아웃 (2026-07-28 전면 재배치) — 히어로 밴드 + 본문/작업레일 2컬럼 */
+/* 활동중 표시 (플랫폼 현황판) — 초록 펄스 점 + 배지 */
+.platform-active-dot { @apply inline-block w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse align-middle; }
+.platform-active-dot-off { @apply bg-[var(--text-dim)] animate-none; }
+.platform-active-badge { @apply inline-flex items-center gap-1.5 text-[11px] font-bold text-[var(--success)] whitespace-nowrap; }
 .platform-hero { @apply flex flex-col md:flex-row md:items-center justify-between gap-5 rounded-2xl border border-[var(--border)]/60 p-5 md:p-6; }
 .platform-hero-metrics { @apply grid grid-cols-2 md:flex md:items-center gap-4 md:gap-8 shrink-0; }
 .platform-hero-metric { @apply flex flex-col gap-0.5 md:items-end; }

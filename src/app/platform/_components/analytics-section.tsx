@@ -41,6 +41,79 @@ const METRICS: { key: MetricKey; label: string; unit: string }[] = [
 
 const fmt = (n: number) => n.toLocaleString("ko-KR");
 
+// ── 경로 → 한국어 페이지명 (2026-08-04 사장님: 현황판에서 주소 대신 이름으로) ──
+const PATH_LABELS: Record<string, string> = {
+  "": "랜딩페이지",
+  dashboard: "대시보드",
+  projecthub: "프로젝트허브",
+  approvals: "결재",
+  signatures: "전자서명",
+  sign: "서명하기",
+  documents: "문서함",
+  vault: "보관함",
+  auth: "로그인",
+  "auth/verify": "이메일 인증",
+  "auth/reset": "비밀번호 재설정",
+  notifications: "알림",
+  board: "게시판",
+  announcements: "공지사항",
+  employees: "직원 관리",
+  attendance: "근태",
+  schedule: "일정",
+  leave: "연차",
+  "hr-templates": "인사 서식",
+  "my-contracts": "내 계약",
+  contracts: "계약",
+  team: "팀",
+  mypage: "마이페이지",
+  chat: "채팅",
+  copilot: "AI 참모",
+  bank: "통장",
+  transactions: "거래내역",
+  cards: "카드",
+  loans: "대출",
+  "tax-invoices": "세금계산서",
+  "cash-receipts": "현금영수증",
+  reports: "리포트",
+  partners: "파트너",
+  deals: "영업 딜",
+  matching: "매칭",
+  billing: "구독 관리",
+  payments: "결제",
+  subscriptions: "구독",
+  settings: "설정",
+  onboarding: "온보딩",
+  "company-setup": "회사 등록",
+  invite: "초대",
+  "join-pending": "가입 대기",
+  support: "고객센터",
+  guide: "이용 가이드",
+  pricing: "요금제",
+  features: "기능 소개",
+  ai: "AI 소개",
+  demo: "데모",
+  quote: "견적",
+  share: "공유 문서",
+  portal: "포털",
+  platform: "운영자 대시보드",
+  "operator-users": "운영자 회원관리",
+  "error-logs": "에러 로그",
+  terms: "이용약관",
+  privacy: "개인정보처리방침",
+  refund: "환불정책",
+  status: "상태 페이지",
+  maintenance: "점검",
+};
+/** "/projecthub/uuid/" → "프로젝트허브 · 상세" 처럼 사람이 읽는 이름으로. 모르는 경로는 원문 유지. */
+function pageLabel(path: string): string {
+  const clean = path.replace(/^\/+|\/+$/g, "").split("?")[0];
+  if (clean in PATH_LABELS) return PATH_LABELS[clean];
+  const segs = clean.split("/");
+  const root = PATH_LABELS[segs[0]];
+  if (root) return segs.length > 1 ? `${root} · 상세` : root;
+  return path;
+}
+
 function bucketLabel(start: string, gran: Gran, long = false): string {
   const [y, m, d] = start.split("-");
   if (gran === "year") return `${y}년`;
@@ -306,7 +379,7 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
             ) : (
               <ul className="platform-traffic-list">
                 {traffic!.top_paths.slice(0, 5).map((p) => (
-                  <li key={p.path}><span className="truncate">{p.path}</span><span className="mono-number">{fmt(p.views)}</span></li>
+                  <li key={p.path} title={p.path}><span className="truncate">{pageLabel(p.path)}</span><span className="mono-number">{fmt(p.views)}</span></li>
                 ))}
               </ul>
             )}

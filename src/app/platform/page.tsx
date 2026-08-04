@@ -5,7 +5,7 @@ import { logRead } from "@/lib/log-read";
 import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
 import { AnalyticsSection } from "./_components/analytics-section";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
@@ -38,6 +38,17 @@ type TrafficStats = {
   top_paths: { path: string; views: number; visitors: number }[];
   top_referrers: { host: string; visitors: number }[];
 };
+// 회사별 활동 (platform_company_activity RPC — 로그인·업무행위·방문의 합집합)
+type CompanyActivity = {
+  company_id: string;
+  company: string;
+  last_login: string | null;
+  last_activity: string | null;
+  last_inquiry: string | null;
+};
+// "활동중" 판정 — 마지막 활동이 10분 이내면 접속중으로 본다
+const ACTIVE_WINDOW_MS = 10 * 60 * 1000;
+
 type OpsRisk = {
   as_of: string;
   stale_join_requests: { company: string; email: string; days: number; created_at: string }[];
@@ -60,12 +71,14 @@ function fmtW(n: number): string {
 export type { PlanKind } from "./_components/plan-kind";
 
 export default function PlatformOverview() {
+  // 현황판 모드 — 큰 화면에 상시로 띄워두므로 모든 데이터를 1분 주기로 자동 갱신한다.
   const { data: companies = [] } = useQuery({
     queryKey: ["p-companies"],
     queryFn: async () => {
       const data = logRead('platform/page:data', await db.from("companies").select("*, users(count), subscriptions(*, subscription_plans(*))").order("created_at", { ascending: false }));
       return data || [];
     },
+    refetchInterval: 60_000,
   });
 
   const { data: subscriptions = [] } = useQuery({
@@ -74,6 +87,7 @@ export default function PlatformOverview() {
       const data = logRead('platform/page:data', await db.from("subscriptions").select("*, subscription_plans(*), companies(name)").order("created_at", { ascending: false }));
       return data || [];
     },
+    refetchInterval: 60_000,
   });
 
   const { data: invoices = [] } = useQuery({
@@ -82,6 +96,7 @@ export default function PlatformOverview() {
       const data = logRead('platform/page:data', await db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }));
       return data || [];
     },
+    refetchInterval: 60_000,
   });
 
   const { data: users = [] } = useQuery({
@@ -90,7 +105,26 @@ export default function PlatformOverview() {
       const data = logRead('platform/page:data', await db.from("users").select("id").order("created_at", { ascending: false }));
       return data || [];
     },
+    refetchInterval: 60_000,
   });
+
+  // 회사별 마지막 로그인·활동 — 가입사 목록 "활동" 컬럼 + "지금 활동중" 카드
+  const { data: companyActivity = [] } = useQuery<CompanyActivity[]>({
+    queryKey: ["p-company-activity"],
+    queryFn: async () => {
+      const { data, error } = await (db as any).rpc("platform_company_activity");
+      if (error) return [];
+      return (data as CompanyActivity[]) || [];
+    },
+    refetchInterval: 60_000,
+  });
+
+  // 라이브 시계 — 현황판에서 "지금 몇 시 기준 화면인지" 보이게 (30초 틱)
+  const [clock, setClock] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setClock(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   // OP-A: 24h 에러 수 (error_logs 테이블 — 운영 신호)
   const { data: recentErrors = [] } = useQuery({
@@ -101,6 +135,7 @@ export default function PlatformOverview() {
       const data = logRead('platform/page:data', await db.from("error_logs").select("id").eq("resolved", false).gte("created_at", since));
       return data || [];
     },
+    refetchInterval: 60_000,
   });
 
   // 운영 인박스 신호 (2026-07-28) — 아침에 봐야 할 "할 일" 카운트
@@ -254,6 +289,12 @@ export default function PlatformOverview() {
     })),
   ];
 
+  // 지금 활동중 — 마지막 활동 10분 이내 회사 (현황판의 "라이브" 신호)
+  const activityById = new Map(companyActivity.map((a) => [a.company_id, a]));
+  const activeNow = companyActivity
+    .filter((a) => a.last_activity && nowMs - new Date(a.last_activity).getTime() < ACTIVE_WINDOW_MS)
+    .sort((a, b) => String(b.last_activity).localeCompare(String(a.last_activity)));
+
   // 운영 인박스 — 0건이면 초록, 있으면 주의 색으로
   const inboxItems = [
     { label: "신규 도입문의", n: (newInquiries as any[]).length, href: "/platform/partnership", icon: "📥" },
@@ -267,7 +308,9 @@ export default function PlatformOverview() {
       {/* 히어로 밴드 — 인사·날짜 + 핵심 지표 4개 (2026-07-28 전면 재배치) */}
       <div className="platform-hero chrome-glass">
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)]">{kstDateStr(new Date())} · 1분마다 갱신</div>
+          <div className="text-[11px] font-semibold text-[var(--text-dim)]">
+            {kstDateStr(clock)} <span className="mono-number text-[var(--text-muted)]">{clock.toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}</span> · 1분마다 갱신
+          </div>
           <h1 className="text-xl md:text-2xl font-extrabold text-[var(--text)] mt-0.5">플랫폼 개요</h1>
           <span className={`platform-header-live mt-2 inline-block ${todoTotal > 0 ? "platform-header-live-warn" : ""}`}>
             {todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}
@@ -284,9 +327,12 @@ export default function PlatformOverview() {
             { label: "총 가입사", value: `${totalCompanies}곳` },
             { label: "유료 전환율", value: `${conversionRate}%` },
             { label: "오늘 활동", value: `${usage?.accounts?.dau ?? 0}명` },
-          ].map((m) => (
+            { label: "지금 접속", value: `${activeNow.length}곳`, live: activeNow.length > 0 },
+          ].map((m: any) => (
             <div key={m.label} className="platform-hero-metric stat-fit">
-              <span className={`stat-fit-value font-extrabold mono-number ${m.accent ? "text-[var(--primary)]" : "text-[var(--text)]"}`}>{m.value}</span>
+              <span className={`stat-fit-value font-extrabold mono-number ${m.accent ? "text-[var(--primary)]" : m.live ? "text-[var(--success)]" : "text-[var(--text)]"}`}>
+                {m.live && <span className="platform-active-dot mr-1.5" />}{m.value}
+              </span>
               <span className="text-[11px] font-semibold text-[var(--text-muted)]">{m.label}</span>
             </div>
           ))}
@@ -326,7 +372,7 @@ export default function PlatformOverview() {
           </div>
 
           {/* 가입사 목록 */}
-          <RecentCompanies companies={companies as any[]} filter={kpiFilter} onFilter={setKpiFilter} />
+          <RecentCompanies companies={companies as any[]} filter={kpiFilter} onFilter={setKpiFilter} activityById={activityById} nowMs={nowMs} />
 
           {/* 가입 퍼널 */}
           <SignupFunnelSection funnel={funnel ?? null} />
@@ -337,6 +383,33 @@ export default function PlatformOverview() {
 
         {/* ▶ 작업 레일 */}
         <aside className="space-y-4 min-w-0">
+          {/* 지금 활동중 — 마지막 활동 10분 이내 회사 (현황판 라이브 신호) */}
+          <div className="glass-card p-0 overflow-hidden">
+            <div className="platform-card-head">
+              <span className="platform-card-title"><span className={`platform-active-dot mr-1.5 ${activeNow.length === 0 ? "platform-active-dot-off" : ""}`} />지금 활동중</span>
+              <span className="platform-rail-count">{activeNow.length}</span>
+            </div>
+            {activeNow.length === 0 ? (
+              <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">최근 10분 내 접속한 회사가 없습니다.</div>
+            ) : (
+              <div className="platform-rail-rows">
+                {activeNow.slice(0, 8).map((a) => {
+                  const mins = Math.max(0, Math.floor((nowMs - new Date(a.last_activity!).getTime()) / 60_000));
+                  return (
+                    <Link key={a.company_id} href={`/platform/companies/${a.company_id}`} className="platform-rail-row">
+                      <span className="platform-active-dot shrink-0" />
+                      <span className="flex-1 text-[12px] font-semibold text-[var(--text)] truncate">{a.company || "이름 없음"}</span>
+                      <span className="text-[11px] mono-number text-[var(--text-dim)]">{mins === 0 ? "방금" : `${mins}분 전`}</span>
+                    </Link>
+                  );
+                })}
+                {activeNow.length > 8 && (
+                  <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {activeNow.length - 8}곳</div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* 오늘 봐야 할 것 */}
           <div className="glass-card p-0 overflow-hidden">
             <div className="platform-card-head">
@@ -571,10 +644,12 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
 // ── 최근 가입사 ──────────────────────────────────────────────────────────────
 //   2026-07-28: companies SELECT 정책에 운영자 예외가 없어 이 화면이 자기 회사
 //   1건만 보고 있었다("총 가입사 1"). 정책 추가 후 전체가 보이므로 목록을 붙인다.
-function RecentCompanies({ companies, filter, onFilter }: {
+function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
   companies: any[];
   filter: "all" | "paid" | "trial" | "free" | "new" | "expired";
   onFilter: (f: "all" | "paid" | "trial" | "free" | "new" | "expired") => void;
+  activityById: Map<string, CompanyActivity>;
+  nowMs: number;
 }) {
   // 행 어디를 눌러도 상세로 — 기존엔 회사명 글자만 링크라 "눌러도 아무것도 안 나온다"는 제보 (2026-07-28)
   const router = useRouter();
@@ -620,21 +695,26 @@ function RecentCompanies({ companies, filter, onFilter }: {
         </div>
       </div>
       <div className="glass-card p-0 overflow-x-auto">
-        <table className="w-full min-w-[560px] text-xs">
+        <table className="w-full min-w-[680px] text-xs">
           <thead>
             <tr className="table-head-row">
               <th className="th-cell text-left">회사</th>
               <th className="th-cell text-left">사업자번호</th>
               <th className="th-cell text-center">인원</th>
               <th className="th-cell text-center">이용</th>
+              <th className="th-cell text-left">활동</th>
               <th className="th-cell text-left">가입</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-dim)]">해당하는 가입사가 없습니다</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-dim)]">해당하는 가입사가 없습니다</td></tr>
             ) : rows.map((c) => {
               const p = planOf(c);
+              // 활동 표시 — 10분 내 활동이면 "활동중", 아니면 마지막 로그인(없으면 마지막 활동) 시각
+              const act = activityById.get(c.id);
+              const isActive = !!act?.last_activity && nowMs - new Date(act.last_activity).getTime() < ACTIVE_WINDOW_MS;
+              const lastSeen = act?.last_login || act?.last_activity;
               return (
                 <tr key={c.id} onClick={() => router.push(`/platform/companies/${c.id}`)} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] cursor-pointer">
                   <td className="px-3 py-2">
@@ -646,6 +726,17 @@ function RecentCompanies({ companies, filter, onFilter }: {
                   <td className="px-3 py-2 text-center mono-number text-[var(--text-muted)]">{c.users?.[0]?.count ?? 0}</td>
                   <td className="px-3 py-2 text-center">
                     <span className={`platform-badge ${p.cls}`}>{p.label}</span>
+                  </td>
+                  <td className="px-3 py-2">
+                    {isActive ? (
+                      <span className="platform-active-badge" title={`마지막 활동 ${fmtKst(act!.last_activity!)}`}>
+                        <span className="platform-active-dot" />활동중
+                      </span>
+                    ) : lastSeen ? (
+                      <span className="text-[var(--text-muted)] mono-number" title={act?.last_login ? "마지막 로그인" : "마지막 활동"}>{fmtKst(lastSeen)}</span>
+                    ) : (
+                      <span className="text-[var(--text-dim)]">기록 없음</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{fmtKst(c.created_at)}</td>
                 </tr>
