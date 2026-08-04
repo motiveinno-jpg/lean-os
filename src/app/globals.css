@@ -3187,6 +3187,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .pa-hbar-label-wide { @apply w-24 truncate; }
 .pa-hbar-track { @apply flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
 .pa-hbar-fill { @apply block h-full rounded-full bg-[#2a78d6]; }
+[data-theme="dark"] .pa-hbar-fill { background: #3987e5; } /* 다크 표면용 검증 스텝 (dataviz 팔레트) */
 .pa-hbar-value { @apply w-10 shrink-0 text-right text-[11px] font-bold text-[var(--text)]; }
 /* 가입사 목록 — 회사 아바타 */
 .company-cell { @apply flex items-center gap-2.5 min-w-0; }
