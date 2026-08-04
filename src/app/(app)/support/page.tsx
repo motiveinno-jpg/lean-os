@@ -46,10 +46,32 @@ const CATEGORIES: { key: string; label: string; icon: string; desc: string }[] =
 const catMeta = (k: string) => CATEGORIES.find((c) => c.key === k) || CATEGORIES[CATEGORIES.length - 1];
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  open: { label: "접수됨", color: "var(--warning)" },
-  answered: { label: "답변 완료", color: "var(--success)" },
+  open: { label: "대기", color: "var(--warning)" },
+  in_progress: { label: "처리중", color: "var(--primary)" },
+  answered: { label: "완료", color: "var(--success)" },
   closed: { label: "종료", color: "var(--text-dim)" },
 };
+
+// 진행 단계 표시 (2026-08-04 사장님: "사용자에게 대기→처리중→완료 단계별로 나타나게")
+const STEPS = ["대기", "처리중", "완료"] as const;
+const stepIndex = (status: string) => (status === "open" ? 0 : status === "in_progress" ? 1 : 2);
+
+function TicketSteps({ status }: { status: string }) {
+  const cur = stepIndex(status);
+  return (
+    <div className="support-steps" aria-label={`진행 상태: ${STEPS[cur]}`}>
+      {STEPS.map((label, i) => (
+        <span key={label} className="contents">
+          {i > 0 && <span className="support-step-line" data-done={i <= cur ? "1" : undefined} />}
+          <span className="support-step" data-state={i < cur ? "done" : i === cur ? "current" : undefined}>
+            <span className="support-step-dot" />
+            <span className="support-step-label">{label}</span>
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 const fmtDate = (s: string) => {
   const d = new Date(s);
@@ -182,7 +204,7 @@ export default function SupportPage() {
       toast(
         r.failed > 0
           ? `문의가 접수되었습니다. (사진 ${r.uploaded}장 첨부, ${r.failed}장 실패 — 필요하면 다시 첨부해 주세요)`
-          : "문의가 접수되었습니다. 답변이 등록되면 알림으로 알려드립니다.",
+          : "문의가 접수되었습니다. 영업일 1일 이내에 처리 후 답변드리겠습니다.",
         r.failed > 0 ? "info" : "success",
       );
       setSubject(""); setContent(""); setCategory("general"); setFiles([]);
@@ -208,8 +230,9 @@ export default function SupportPage() {
           결제·연동 문제까지 어떤 내용이든 남겨주세요. 답변이 등록되면 알림으로 바로 알려드립니다.
         </p>
         <div className="support-hero-points">
+          <span className="support-hero-point"><Ico e="⏱️" /> 영업일 1일 이내에 처리 후 답변드립니다</span>
           <span className="support-hero-point"><Ico e="📸" /> 화면 사진을 첨부하면 더 빠르고 정확하게 해결됩니다</span>
-          <span className="support-hero-point"><Ico e="🔔" /> 답변 등록 시 알림 발송</span>
+          <span className="support-hero-point"><Ico e="🔔" /> 접수·답변 시 알림 발송</span>
           <span className="support-hero-point"><Ico e="🔒" /> 첨부 사진은 우리 회사만 볼 수 있습니다</span>
         </div>
       </div>
@@ -347,6 +370,7 @@ export default function SupportPage() {
                       <span className="ml-auto text-[10px] text-[var(--text-dim)] mono-number">{fmtDate(t.created_at)}</span>
                     </div>
                     <div className="text-sm font-semibold text-[var(--text)] truncate">{t.subject}</div>
+                    {t.status !== "closed" && <TicketSteps status={t.status} />}
                   </button>
                   {expanded && (
                     <div className="support-ticket-body">

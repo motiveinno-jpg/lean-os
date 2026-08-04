@@ -3111,6 +3111,18 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .support-answer-block { @apply mt-3 rounded-2xl p-4; background: color-mix(in srgb, var(--primary) 6%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent); }
 .support-ticket-shots { @apply flex flex-wrap gap-2 mt-3; }
 .support-ticket-shot { @apply w-28 h-28 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-surface)] block; }
+/* 문의 진행 단계 (대기→처리중→완료) — 2026-08-04. 상태별 하위 선택자는 @apply 대신 원시 CSS
+   (일부 유틸이 @apply 에서 거부되면 시트 갱신이 통째로 실패하는 함정 회피) */
+.support-steps { display: flex; align-items: center; margin-top: 0.5rem; }
+.support-step { display: flex; align-items: center; gap: 0.375rem; }
+.support-step-dot { width: 8px; height: 8px; border-radius: 9999px; background: var(--border); flex-shrink: 0; }
+.support-step[data-state="done"] .support-step-dot { background: var(--success); }
+.support-step[data-state="current"] .support-step-dot { background: var(--primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 15%, transparent); }
+.support-step-label { font-size: 10px; font-weight: 600; color: var(--text-dim); }
+.support-step[data-state="done"] .support-step-label { color: var(--success); }
+.support-step[data-state="current"] .support-step-label { color: var(--primary); font-weight: 700; }
+.support-step-line { width: 28px; height: 1px; margin: 0 8px; background: var(--border); flex-shrink: 0; }
+.support-step-line[data-done="1"] { background: var(--success); }
 .platform-incident-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .platform-incident-list { @apply space-y-4; }
 .platform-incident-card { @apply p-5; }

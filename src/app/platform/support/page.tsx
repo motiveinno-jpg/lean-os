@@ -93,14 +93,16 @@ function TicketShots({ attachments }: { attachments: Attachment[] }) {
 }
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  open: { label: "접수", cls: "bg-[var(--warning-dim)] text-[var(--warning)]" },
+  open: { label: "대기", cls: "bg-[var(--warning-dim)] text-[var(--warning)]" },
+  in_progress: { label: "처리중", cls: "bg-[var(--primary)]/12 text-[var(--primary)]" },
   answered: { label: "답변완료", cls: "bg-[var(--success-dim)] text-[var(--success)]" },
   closed: { label: "종료", cls: "bg-[var(--bg-surface)] text-[var(--text-muted)]" },
 };
 
 const FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "전체" },
-  { key: "open", label: "미답변" },
+  { key: "open", label: "대기" },
+  { key: "in_progress", label: "처리중" },
   { key: "answered", label: "답변완료" },
 ];
 
@@ -143,6 +145,15 @@ export default function PlatformSupportPage() {
     refetchInterval: 60_000,
   });
 
+  // '처리중' 전환 — 고객 화면의 진행 단계(대기→처리중→완료)와 연동 (2026-08-04 사장님)
+  const startProgressMut = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await db.from("support_tickets").update({ status: "in_progress" }).eq("id", id).eq("status", "open");
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["p-support-all"] }),
+  });
+
   const answerMut = useMutation({
     mutationFn: async ({ id, answer }: { id: string; answer: string }) => {
       const me = await getCurrentUser();
@@ -180,14 +191,14 @@ export default function PlatformSupportPage() {
       );
     });
   }, [tickets, filter, search, companyFilter]);
-  const openCount = useMemo(() => tickets.filter((t) => t.status === "open").length, [tickets]);
+  const openCount = useMemo(() => tickets.filter((t) => t.status === "open" || t.status === "in_progress").length, [tickets]);
 
   return (
     <div className="max-w-5xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-extrabold text-[var(--text)]">고객센터 문의</h1>
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          {openCount > 0 && <span className="px-2.5 py-1 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">미답변 {openCount}</span>}
+          {openCount > 0 && <span className="px-2.5 py-1 rounded-full bg-[var(--warning-dim)] text-[var(--warning)] font-semibold">미처리 {openCount}</span>}
           <OpsCompanySelect value={companyFilter} onChange={setCompanyFilter} options={companyOptions} />
           <OpsSearch value={search} onChange={setSearch} placeholder="제목·내용·회사 검색" />
           <OpsExportButton
@@ -233,10 +244,20 @@ export default function PlatformSupportPage() {
                   {Array.isArray(t.attachments) && t.attachments.length > 0 && <TicketShots attachments={t.attachments} />}
                   <div className="text-xs text-[var(--text-dim)] mt-2 flex items-center gap-2">
                     <span>{t.companies?.name || "—"} · {t.users?.name || t.users?.email || "—"}</span>
+                    {t.status === "open" && (
+                      <button
+                        onClick={() => startProgressMut.mutate(t.id)}
+                        disabled={startProgressMut.isPending}
+                        className="ml-auto px-2 py-1 rounded-lg bg-[var(--warning-dim)] text-[var(--warning)] font-semibold hover:opacity-80 transition disabled:opacity-50"
+                        title="고객 화면의 진행 단계가 '처리중'으로 바뀝니다"
+                      >
+                        처리 시작
+                      </button>
+                    )}
                     <button
                       onClick={() => runAnalyze(t.id)}
                       disabled={analyzingId !== null}
-                      className="ml-auto px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50"
+                      className={`px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50 ${t.status === "open" ? "" : "ml-auto"}`}
                       title="문의 본문·첨부 스크린샷·최근 에러 로그를 AI 로 대조 분석합니다"
                     >
                       {analyzingId === t.id ? "분석 중…" : t.ai_analysis ? "AI 재분석" : "AI 분석"}
