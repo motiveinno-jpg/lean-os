@@ -81,12 +81,35 @@ export default function ProjectHubPage() {
     enabled: !!companyId,
   });
 
+  // 참여자 — 대표담당자 한 명 대신 여럿(2026-08-03). '내 담당' 도 이걸 기준으로 본다.
+  const { data: phMembers = [] } = useQuery({
+    queryKey: ["ph-members", companyId],
+    queryFn: async () => {
+      const data = logRead("projecthub/page:members", await (supabase as any).from("project_members")
+        .select("deal_id, user_id").eq("company_id", companyId!));
+      return (data || []) as { deal_id: string; user_id: string }[];
+    },
+    enabled: !!companyId,
+  });
+  const membersByDeal = useMemo(() => {
+    const m: Record<string, string[]> = {};
+    for (const r of phMembers as any[]) (m[r.deal_id] = m[r.deal_id] || []).push(r.user_id);
+    return m;
+  }, [phMembers]);
+  //   참여자 표가 비어 있는 옛 프로젝트는 대표담당자를 참여자 한 명으로 본다(백필 후에도 안전판)
+  const membersOfDeal = useCallback((d: any): string[] => {
+    const list = membersByDeal[d?.id] || [];
+    if (list.length > 0) return list;
+    return d?.internal_manager_id ? [d.internal_manager_id] : [];
+  }, [membersByDeal]);
+
   // 세부 프로젝트(캠페인)는 목록에서 숨기고 상위 프로젝트만 노출. 자식 수는 배지로 표시.
   //   전체 열람 권한이 없으면 여기서 내 담당 건으로 좁힌다 — 목록·KPI·칩 카운트가 전부 이 배열을 쓰므로
   //   한 곳만 막아도 화면 전체 스코프가 맞춰진다.
   const topDeals = useMemo(
-    () => (deals as any[]).filter((d) => !d.parent_deal_id && (canViewAllProjects || d.internal_manager_id === user?.id)),
-    [deals, canViewAllProjects, user?.id],
+    () => (deals as any[]).filter((d) => !d.parent_deal_id
+      && (canViewAllProjects || membersOfDeal(d).includes(user?.id || ""))),
+    [deals, canViewAllProjects, user?.id, membersOfDeal],
   );
   const childCount = useMemo(() => {
     const m: Record<string, number> = {};
@@ -438,28 +461,6 @@ export default function ProjectHubPage() {
     enabled: pbBoardIds.length > 0,
   });
 
-  // 참여자 — 대표담당자 한 명 대신 여럿(2026-08-03). '내 담당' 도 이걸 기준으로 본다.
-  const { data: phMembers = [] } = useQuery({
-    queryKey: ["ph-members", companyId],
-    queryFn: async () => {
-      const data = logRead("projecthub/page:members", await (supabase as any).from("project_members")
-        .select("deal_id, user_id").eq("company_id", companyId!));
-      return (data || []) as { deal_id: string; user_id: string }[];
-    },
-    enabled: !!companyId,
-  });
-  const membersByDeal = useMemo(() => {
-    const m: Record<string, string[]> = {};
-    for (const r of phMembers as any[]) (m[r.deal_id] = m[r.deal_id] || []).push(r.user_id);
-    return m;
-  }, [phMembers]);
-  //   참여자 표가 비어 있는 옛 프로젝트는 대표담당자를 참여자 한 명으로 본다(백필 후에도 안전판)
-  const membersOfDeal = useCallback((d: any): string[] => {
-    const list = membersByDeal[d?.id] || [];
-    if (list.length > 0) return list;
-    return d?.internal_manager_id ? [d.internal_manager_id] : [];
-  }, [membersByDeal]);
-
   const rollupByDeal = useMemo(() => {
     const m: Record<string, ProjectRollup> = {};
     for (const d of topDeals as any[]) {
@@ -494,20 +495,20 @@ export default function ProjectHubPage() {
 
   // 상태 칩 필터 — 지연·주의·정상 중 하나만 보기(구 렌즈 4타일을 대체, 2026-08-03)
   const matchesLens = (d: any) => !lens || listStatusOfDeal(d) === (lens as any);
+  // 내 담당·검색만 보는 스코프 — 목록과 칩 카운트가 **같은 조건**을 쓰게 한 곳에 모은다.
+  //   (2026-08-04: 두 군데 따로 적혀 있다가 참여자 전환 때 한쪽만 고쳐져 칩이 사라졌다)
+  const inScope = useCallback((d: any) => {
+    if (mineOnly && !membersOfDeal(d).includes(userId || "")) return false;
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${membersOfDeal(d).map((id: string) => userName[id] || "").join(" ")}`.toLowerCase();
+    return hay.includes(q);
+  }, [mineOnly, membersOfDeal, userId, search, partnerName, userName]);
   // 급한 순 — 상태 순서(지연→주의→정상→완료)가 곧 긴급도다
   const urgencyRank = (d: any) => ({ late: 0, warn: 1, normal: 2, empty: 3 })[listStatusOfDeal(d)];
 
   const rows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const filtered = topDeals.filter((d) => {
-      if (mineOnly && !membersOfDeal(d).includes(userId || "")) return false;
-      if (!matchesLens(d)) return false;
-      if (q) {
-        const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${membersOfDeal(d).map((id: string) => userName[id] || "").join(" ")}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
+    const filtered = topDeals.filter((d) => inScope(d) && matchesLens(d));
     return filtered.slice().sort((a, b) => {
       // 긴급도 정렬 — 랭크 오름차순 + 마감 임박 우선. 방향 토글과 무관하게 항상 급한 게 위로.
       if (sortKey === "urgency") {
@@ -536,18 +537,10 @@ export default function ProjectHubPage() {
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [topDeals, search, mineOnly, userId, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal]);
+  }, [topDeals, inScope, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal]);
 
-  // 렌즈 카운트 — 내담당·검색 스코프(lens 제외)에서 집계.
-  const lensScope = useMemo(() => rows.length === 0 || lens ? topDeals.filter((d) => {
-    const q = search.trim().toLowerCase();
-    if (mineOnly && d.internal_manager_id !== userId) return false;
-    if (q) {
-      const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${membersOfDeal(d).map((id: string) => userName[id] || "").join(" ")}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  }) : rows, [rows, lens, topDeals, mineOnly, userId, search, partnerName, userName, membersOfDeal]);
+  // 칩 카운트는 **상태 필터를 뺀** 같은 스코프에서 센다 — 그래야 칩을 눌러도 숫자가 그대로다.
+  const lensScope = useMemo(() => topDeals.filter(inScope), [topDeals, inScope]);
   // 상태별 건수 + 한 문장 요약에 쓰는 숫자 — 내담당·검색 스코프(상태 필터 제외)에서 집계
   // 상태 건수 — 표 기준(지연=기한 지남 / 주의=이번 주·오래 조용 / 시작 전=입력 없음)
   const lensCounts = useMemo(() => {
@@ -642,7 +635,8 @@ export default function ProjectHubPage() {
         <div className="ph-stchips">
           {([["", "전체", lensCounts.total], ["late", "기한 지남", lensCounts.late],
              ["warn", "이번 주", lensCounts.warn], ["empty", "입력 전", lensCounts.empty]] as const).map(([k, label, n]) => (
-            (k !== "" && n === 0) ? null : (
+            // 0이면 감추되, **켜져 있는 칩은 남긴다** — 사라지면 끌 방법이 없어진다
+            (k !== "" && n === 0 && lens !== k) ? null : (
               <button key={k || "all"} type="button" onClick={() => setLens((prev) => (prev === k || k === "" ? null : k as any))}
                 aria-pressed={k === "" ? lens === null : lens === k}
                 className={`ph-stchip ${k ? `ph-stchip-${k}` : ""} ${(k === "" ? lens === null : lens === k) ? "ph-stchip-on" : ""}`}>
