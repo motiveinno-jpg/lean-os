@@ -15,6 +15,18 @@ const db = supabase;
 
 type Attachment = { path: string; name: string; size: number };
 
+// support-ticket-analyze 엣지가 저장하는 AI 진단 (스키마: 엣지 ANALYSIS_SCHEMA)
+type AiAnalysis = {
+  summary?: string;
+  probable_cause?: string;
+  matched_errors?: string[];
+  screenshot_findings?: string;
+  severity?: "high" | "medium" | "low";
+  suggested_reply?: string;
+  needs_dev?: boolean;
+  analyzed_at?: string;
+};
+
 type Ticket = {
   id: string;
   company_id: string;
@@ -27,8 +39,15 @@ type Ticket = {
   answered_at: string | null;
   created_at: string;
   attachments?: Attachment[] | null;
+  ai_analysis?: AiAnalysis | null;
   users?: { name: string | null; email: string } | null;
   companies?: { name: string | null } | null;
+};
+
+const SEVERITY_META: Record<string, { label: string; cls: string }> = {
+  high: { label: "심각", cls: "bg-red-500/12 text-red-500" },
+  medium: { label: "보통", cls: "bg-[var(--warning-dim)] text-[var(--warning)]" },
+  low: { label: "낮음", cls: "bg-[var(--bg-surface)] text-[var(--text-muted)]" },
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -87,6 +106,27 @@ export default function PlatformSupportPage() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState("all");
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+
+  // AI 진단 (재)실행 — support-ticket-analyze 엣지 (운영자는 전사 티켓 가능)
+  const runAnalyze = async (ticketId: string) => {
+    if (analyzingId) return;
+    setAnalyzingId(ticketId);
+    try {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/support-ticket-analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ ticket_id: ticketId }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) alert(result.error || "AI 분석에 실패했습니다.");
+      qc.invalidateQueries({ queryKey: ["p-support-all"] });
+    } finally {
+      setAnalyzingId(null);
+    }
+  };
 
   const { data: tickets = [] } = useQuery<Ticket[]>({
     queryKey: ["p-support-all"],
@@ -189,9 +229,56 @@ export default function PlatformSupportPage() {
                   <div className="font-semibold text-[var(--text)]">{t.subject}</div>
                   <div className="text-sm text-[var(--text-muted)] mt-1.5 leading-relaxed whitespace-pre-wrap">{t.content}</div>
                   {Array.isArray(t.attachments) && t.attachments.length > 0 && <TicketShots attachments={t.attachments} />}
-                  <div className="text-xs text-[var(--text-dim)] mt-2">
-                    {t.companies?.name || "—"} · {t.users?.name || t.users?.email || "—"}
+                  <div className="text-xs text-[var(--text-dim)] mt-2 flex items-center gap-2">
+                    <span>{t.companies?.name || "—"} · {t.users?.name || t.users?.email || "—"}</span>
+                    <button
+                      onClick={() => runAnalyze(t.id)}
+                      disabled={analyzingId !== null}
+                      className="ml-auto px-2 py-1 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50"
+                      title="문의 본문·첨부 스크린샷·최근 에러 로그를 AI 로 대조 분석합니다"
+                    >
+                      {analyzingId === t.id ? "분석 중…" : t.ai_analysis ? "AI 재분석" : "AI 분석"}
+                    </button>
                   </div>
+
+                  {t.ai_analysis && (
+                    <div className="mt-3 rounded-xl p-3.5 border border-[var(--primary)]/20 bg-[var(--primary)]/5 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[var(--primary)]">AI 진단</span>
+                        {t.ai_analysis.severity && (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(SEVERITY_META[t.ai_analysis.severity] || SEVERITY_META.low).cls}`}>
+                            {(SEVERITY_META[t.ai_analysis.severity] || SEVERITY_META.low).label}
+                          </span>
+                        )}
+                        {t.ai_analysis.needs_dev && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/12 text-red-500">개발 수정 필요</span>}
+                        {t.ai_analysis.analyzed_at && <span className="ml-auto text-[10px] text-[var(--text-dim)]">{new Date(t.ai_analysis.analyzed_at).toLocaleString("ko-KR")}</span>}
+                      </div>
+                      {t.ai_analysis.summary && <div className="text-sm font-semibold text-[var(--text)]">{t.ai_analysis.summary}</div>}
+                      {t.ai_analysis.screenshot_findings && (
+                        <div className="text-xs text-[var(--text-muted)] leading-relaxed"><b className="text-[var(--text)]">스크린샷:</b> {t.ai_analysis.screenshot_findings}</div>
+                      )}
+                      {t.ai_analysis.probable_cause && (
+                        <div className="text-xs text-[var(--text-muted)] leading-relaxed"><b className="text-[var(--text)]">추정 원인:</b> {t.ai_analysis.probable_cause}</div>
+                      )}
+                      {(t.ai_analysis.matched_errors || []).length > 0 && (
+                        <ul className="text-xs text-[var(--text-muted)] leading-relaxed list-disc pl-4">
+                          {t.ai_analysis.matched_errors!.map((m, i) => <li key={i}>{m}</li>)}
+                        </ul>
+                      )}
+                      {t.ai_analysis.suggested_reply && (
+                        <div className="pt-1 flex items-start gap-2">
+                          <div className="text-xs text-[var(--text-muted)] leading-relaxed flex-1"><b className="text-[var(--text)]">답변 초안:</b> {t.ai_analysis.suggested_reply}</div>
+                          <button
+                            onClick={() => setDrafts((d) => ({ ...d, [t.id]: t.ai_analysis?.suggested_reply || "" }))}
+                            className="shrink-0 px-2 py-1 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-[11px] font-semibold hover:text-[var(--text)] transition"
+                            title="답변 입력칸에 초안을 채웁니다 (검토 후 등록)"
+                          >
+                            초안 사용
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {t.answer && (
                     <div className="platform-support-answer-block">

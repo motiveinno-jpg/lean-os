@@ -154,6 +154,15 @@ export default function SupportPage() {
       if (uploaded.length > 0) {
         await (db as any).from("support_tickets").update({ attachments: uploaded }).eq("id", inserted.id);
       }
+      // 3) AI 자동 진단 — 접수 완료와 무관하게 백그라운드 실행 (실패해도 무시, 결과는 운영자 화면에)
+      db.auth.getSession().then(({ data: { session } }) => {
+        if (!session || !process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/support-ticket-analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ ticket_id: inserted.id }),
+        }).catch(() => { /* 진단 실패는 접수와 무관 */ });
+      });
       return { failed, uploaded: uploaded.length };
     },
     onSuccess: (r) => {
