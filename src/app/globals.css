@@ -2268,8 +2268,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .codef-usage-stat-value { @apply text-xl font-bold mt-1 tabular-nums; }
 .codef-usage-section { @apply p-5; }
 .codef-usage-table { @apply w-full text-sm border-collapse; }
-.codef-usage-th { @apply text-left text-[11px] text-[var(--text-dim)] uppercase font-medium py-2 border-b border-[var(--border)]; }
-.codef-usage-td { @apply py-2 border-b border-[var(--border)] align-top; }
+/* 정렬(text-left/right)은 JSX 유틸리티로만 — 여기 박으면 커스텀 클래스가 유틸리티 레이어를 이겨서
+   숫자 컬럼의 text-right 가 무시되고 헤더·값 정렬이 어긋난다 (2026-08-04 사장님 제보) */
+.codef-usage-th { @apply text-[11px] text-[var(--text-dim)] uppercase font-medium px-3 py-2 whitespace-nowrap border-b border-[var(--border)]; }
+.codef-usage-td { @apply px-3 py-2 border-b border-[var(--border)] align-top; }
 .codef-usage-cat-tags { @apply flex flex-wrap gap-1; }
 .codef-usage-cat-tag { @apply text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap; }
 

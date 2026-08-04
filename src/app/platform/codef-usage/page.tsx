@@ -115,7 +115,7 @@ export default function PlatformCodefUsagePage() {
                 <table className="codef-usage-table">
                   <thead>
                     <tr>
-                      <th className="codef-usage-th">구분</th>
+                      <th className="codef-usage-th text-left">구분</th>
                       <th className="codef-usage-th text-right">과금 추정</th>
                       <th className="codef-usage-th text-right">전체 호출</th>
                     </tr>
@@ -124,8 +124,8 @@ export default function PlatformCodefUsagePage() {
                     {USAGE_CATEGORY_ORDER.filter((c) => usage.byCategory[c]).map((c) => (
                       <tr key={c}>
                         <td className="codef-usage-td">{c}</td>
-                        <td className="codef-usage-td text-right font-semibold">{usage.byCategory[c].units.toLocaleString()}</td>
-                        <td className="codef-usage-td text-right text-[var(--text-muted)]">{usage.byCategory[c].calls.toLocaleString()}</td>
+                        <td className="codef-usage-td text-right font-semibold mono-number">{usage.byCategory[c].units.toLocaleString()}</td>
+                        <td className="codef-usage-td text-right text-[var(--text-muted)] mono-number">{usage.byCategory[c].calls.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -142,18 +142,18 @@ export default function PlatformCodefUsagePage() {
                 <table className="codef-usage-table">
                   <thead>
                     <tr>
-                      <th className="codef-usage-th">회사</th>
+                      <th className="codef-usage-th text-left">회사</th>
                       <th className="codef-usage-th text-right">과금 추정</th>
                       <th className="codef-usage-th text-right">전체 호출</th>
-                      <th className="codef-usage-th">과금 내역</th>
+                      <th className="codef-usage-th text-left">과금 내역</th>
                     </tr>
                   </thead>
                   <tbody>
                     {usage.companies.map((c) => (
                       <tr key={c.companyId}>
                         <td className="codef-usage-td font-medium">{c.name}</td>
-                        <td className="codef-usage-td text-right font-semibold">{c.units.toLocaleString()}</td>
-                        <td className="codef-usage-td text-right text-[var(--text-muted)]">{c.calls.toLocaleString()}</td>
+                        <td className="codef-usage-td text-right font-semibold mono-number">{c.units.toLocaleString()}</td>
+                        <td className="codef-usage-td text-right text-[var(--text-muted)] mono-number">{c.calls.toLocaleString()}</td>
                         <td className="codef-usage-td">
                           <div className="codef-usage-cat-tags">
                             {USAGE_CATEGORY_ORDER.filter((k) => c.byCategory[k]).map((k) => (
