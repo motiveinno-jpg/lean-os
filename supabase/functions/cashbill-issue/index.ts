@@ -154,6 +154,8 @@ serve(withSentry("cashbill-issue", async (req) => {
         issue_response: d,
       };
       if (d.ntsconfirmNum) patch.approval_number = d.ntsconfirmNum;
+      // 실응답에는 ntsconfirmNum 없이 confirmNum(9자리 승인번호)만 오는 경우가 확인됨(7/24 건 실측) — 폴백 저장
+      else if (d.confirmNum) patch.approval_number = d.confirmNum;
       if (String(d.stateCode) === "400") patch.status = "cancelled";
       const { data: updated } = await admin.from("cash_receipts").update(patch).eq("id", receipt.id).select().maybeSingle();
       return updated || receipt;
@@ -354,17 +356,12 @@ serve(withSentry("cashbill-issue", async (req) => {
       return json({ success: true, receipt: updated, message: stateMsg });
     }
 
-    // ══ cancel: 발행취소 — 전용 엔드포인트 regist-cancel-issue (공식 가이드 2026-02-02).
-    //   입력은 corpNum·orgConfirmNum(원본 승인번호)·orgTradeDate(원본 거래일자 yyyyMMdd)·memo 4개.
-    //   국세청 전송 이전 "발행완료" 상태만 취소 가능(전송은 발행 당일 밤 24시 일괄). ══
+    // ══ cancel: 발행취소 — 국세청 전송 상태에 따라 이원화 (2026-08-04):
+    //   · 전송 전(발행완료): 전용 regist-cancel-issue — 국세청 전송 대상에서 제외 (공식 가이드 2026-02-02)
+    //   · 전송 완료(304): 발행 API tradeType "취소거래" — 취소 현금영수증을 새로 발행해 국세청에 취소 신고
+    //     (발행 문서 입력부: 취소거래 시 원본 승인번호·거래일자 필수. 종전엔 304를 무조건 차단해
+    //      전송 완료 건은 앱에서 영영 취소 불가였다 — 사장님 7/24 건으로 실증). ══
     if (action === "cancel") {
-      // 국세청 전송이 이미 끝난 건(304)은 이 API 로 취소 불가 — 호출 전에 명확히 안내
-      if (String(receipt.nts_state_code || "") === "304") {
-        return json({
-          error: "이미 국세청 전송이 완료된 현금영수증입니다.",
-          hint: "발행취소 API 는 국세청 전송 이전(발행 당일 밤 24시 전)의 발행완료 건만 취소할 수 있습니다. 전송 완료 건은 홈택스에서 취소거래를 진행하세요.",
-        }, 400);
-      }
       // 원본 승인번호 — 발행 응답의 confirmNum 우선, 없으면 저장된 승인번호, 그래도 없으면 발행정보 재조회
       let target = receipt;
       let orgConfirmNum = String((target.issue_response as any)?.confirmNum || target.approval_number || "");
@@ -385,6 +382,58 @@ serve(withSentry("cashbill-issue", async (req) => {
       if (orgTradeDate.length !== 8) {
         return json({ error: "원본 거래일자를 확인할 수 없습니다. '승인번호 조회' 후 다시 시도하세요." }, 400);
       }
+
+      // ── 전송 완료(304): 취소거래 발행 — 원본 값 그대로 취소 현금영수증을 발행한다 ──
+      if (String(target.nts_state_code || "") === "304") {
+        const cAmount = Math.round(Number(target.amount || 0));
+        const cSupply = Math.round(Number(target.supply_amount ?? cAmount));
+        const cTax = Math.round(Number(target.tax_amount ?? 0));
+        const cancelPayload: Record<string, unknown> = {
+          corpNum,
+          corpName: company.name || "",
+          corpCEOName: company.representative || "",
+          corpAddress: company.address || "",
+          corpTEL: String(company.phone || "").replace(/\D/g, ""),
+          tradeType: "취소거래",
+          tradeUsage: target.purpose === "income_deduction" ? "소득공제용" : "지출증빙용",
+          tradeOpt: "일반",
+          taxationType: cTax > 0 ? "과세" : "비과세",
+          totalAmount: String(cAmount),
+          supplyCost: String(cSupply),
+          tax: String(cTax),
+          serviceFee: "0",
+          orgConfirmNum,
+          orgTradeDate,
+          cancelType: "1",
+          identityNum: String(target.identity_number || "").replace(/\D/g, ""),
+          customerName: target.counterparty_name || "",
+          itemName: "",
+          orderNumber: "",
+          email: "",
+          phoneNo: "",
+          memo: String(body.memo || "발행취소").slice(0, 200),
+          emailSubject: "",
+        };
+        const resp = await codefRequest(token, ISSUE_PATH, cancelPayload, GUIDE_TIMEOUT_MS);
+        const rc = resp?.result?.code;
+        const dataCode = String(resp?.data?.code ?? "");
+        if (rc !== "CF-00000" || (dataCode && dataCode !== "1")) {
+          const msg = resp?.data?.message || resp?.result?.message || "취소 실패";
+          return json({ error: `발행취소(취소거래) 실패: ${msg}`, code: rc, hint: codefErrorHint(rc, msg), raw: resp?.data ?? resp?.result }, 400);
+        }
+        const { data: updated } = await admin.from("cash_receipts").update({
+          status: "cancelled",
+          nts_state_code: "400",
+          issue_response: { ...(target.issue_response || {}), cancel: resp.data },
+        }).eq("id", receiptId).select().maybeSingle();
+        return json({
+          success: true,
+          receipt: updated,
+          message: "취소 현금영수증 발행 완료 — 취소분은 당일 밤 24시에 국세청으로 전송됩니다.",
+        });
+      }
+
+      // ── 전송 전: 전용 발행취소 엔드포인트 — 국세청 전송 대상에서 제외 ──
       // 공식 가이드 입력부 그대로 — 명시된 4개 키 외에는 아무것도 보내지 않는다
       const payload: Record<string, unknown> = {
         corpNum,
