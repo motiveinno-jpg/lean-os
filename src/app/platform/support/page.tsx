@@ -24,8 +24,8 @@ type AiAnalysis = {
   severity?: "high" | "medium" | "low";
   suggested_reply?: string;
   needs_dev?: boolean;
-  resolution?: "auto_reply" | "operator" | "dev";
-  auto_replied?: boolean; // 간단 건으로 판정돼 AI 가 답변을 자동 등록한 경우
+  // 운영자 분류용 신호 — 자동 처리 없음(2026-08-04 사장님: 전건 사람 승인)
+  resolution?: "simple" | "operator" | "dev";
   analyzed_at?: string;
 };
 
@@ -253,9 +253,8 @@ export default function PlatformSupportPage() {
                           </span>
                         )}
                         {t.ai_analysis.needs_dev && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/12 text-red-500">개발 수정 필요</span>}
-                        {t.ai_analysis.auto_replied && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--success-dim)] text-[var(--success)]" title="간단 건으로 판정돼 AI가 답변을 자동 등록했습니다 — 아래 답변을 검토하고 필요하면 수정하세요">AI 자동 답변됨</span>}
-                        {!t.ai_analysis.auto_replied && t.ai_analysis.resolution && t.ai_analysis.resolution !== "auto_reply" && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]">승인 대기 — 사람 확인 필요</span>
+                        {t.ai_analysis.resolution === "simple" && !t.answer && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[var(--success-dim)] text-[var(--success)]" title="AI 판단: 초안 검토만으로 바로 답변 가능한 간단한 건입니다 — 등록은 사람이 합니다">간단 건 — 초안 검토 후 등록</span>
                         )}
                         {t.ai_analysis.analyzed_at && <span className="ml-auto text-[10px] text-[var(--text-dim)]">{new Date(t.ai_analysis.analyzed_at).toLocaleString("ko-KR")}</span>}
                       </div>
