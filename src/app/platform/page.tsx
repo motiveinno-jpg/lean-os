@@ -7,7 +7,7 @@ import { AnalyticsSection } from "./_components/analytics-section";
 import { Donut, GaugeArc, VizLegend, VIZ_CATEGORICAL, VIZ_GRAY } from "./_components/viz";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -81,6 +81,18 @@ function fmtW(n: number): string {
 export type { PlanKind } from "./_components/plan-kind";
 
 export default function PlatformOverview() {
+  const qc = useQueryClient();
+  // 문의 카드에서 바로 '처리중' 전환 (2026-08-04 사장님) — support_tickets UPDATE 는
+  //   RLS 가 운영자 전사 허용. open 조건을 걸어 이미 처리된 건의 이중 전환을 막는다.
+  const markTicketInProgress = async (id: string) => {
+    const { error } = await db.from("support_tickets").update({ status: "in_progress" }).eq("id", id).eq("status", "open");
+    if (error) {
+      window.dispatchEvent(new CustomEvent("ownerview:mutation-error", { detail: `문의 상태 변경 실패: ${error.message}` }));
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["p-inbox-support"] });
+  };
+
   // 현황판 모드 — 큰 화면에 상시로 띄워두므로 모든 데이터를 1분 주기로 자동 갱신한다.
   const { data: companies = [] } = useQuery({
     queryKey: ["p-companies"],
@@ -533,13 +545,16 @@ export default function PlatformOverview() {
           ) : (
             <div className="platform-rail-rows">
               {(openTickets as any[]).slice(0, 5).map((t) => (
-                <Link key={t.id} href="/platform/support" className="platform-rail-row">
+                <div key={t.id} className="platform-rail-row cursor-default">
                   <span className="text-sm shrink-0"><Ico e="🎧" /></span>
-                  <div className="flex-1 min-w-0">
+                  <Link href="/platform/support" className="flex-1 min-w-0">
                     <div className="text-[12px] font-medium text-[var(--text)] truncate">{t.subject || "(제목 없음)"}</div>
                     <div className="text-[10px] text-[var(--text-dim)]">{t.companies?.name || "-"} · {fmtDT(t.created_at)}</div>
-                  </div>
-                </Link>
+                  </Link>
+                  <button type="button" onClick={() => markTicketInProgress(t.id)} className="ticket-progress-btn" title="처리중으로 표시 — 답변은 고객센터에서">
+                    처리중
+                  </button>
+                </div>
               ))}
               {openTickets.length > 5 && (
                 <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {openTickets.length - 5}건</div>

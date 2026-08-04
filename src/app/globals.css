@@ -3192,6 +3192,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 가입사 목록 — 회사 아바타 */
 .company-cell { @apply flex items-center gap-2.5 min-w-0; }
 .company-avatar { @apply w-8 h-8 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] font-extrabold text-sm flex items-center justify-center shrink-0; }
+/* 문의 카드 빠른 처리중 버튼 */
+.ticket-progress-btn { @apply shrink-0 px-2 py-1 rounded-lg text-[11px] font-bold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition; }
 /* 고객 현황 스트립 상태색 점 */
 .stat-cell-dot { @apply inline-block w-1.5 h-1.5 rounded-full mr-1.5 align-middle; }
 /* 활동중 표시 (플랫폼 현황판) — 초록 펄스 점 + 배지 */
