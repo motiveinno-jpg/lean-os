@@ -551,12 +551,6 @@ export default function PlatformOverview() {
         </div>
       </div>
 
-      {/* 가입 퍼널 — 단계별 게이지 */}
-      <SignupFunnelSection funnel={funnel ?? null} />
-
-      {/* 성장 분석 — 방문·가입 차트 */}
-      <AnalyticsSection usage={usage ?? null} traffic={traffic ?? null} companies={companies as any[]} />
-
       {/* 고객 현황 스트립(클릭=아래 목록 필터) + 가입사 목록 */}
       <div className="glass-card p-0 overflow-hidden">
         <div className="platform-card-head">
@@ -587,6 +581,12 @@ export default function PlatformOverview() {
 
       {/* 가입사 목록 */}
       <RecentCompanies companies={companies as any[]} filter={kpiFilter} onFilter={setKpiFilter} activityById={activityById} nowMs={nowMs} />
+
+      {/* 성장 분석 — 방문·가입 차트 */}
+      <AnalyticsSection usage={usage ?? null} traffic={traffic ?? null} companies={companies as any[]} />
+
+      {/* 가입 퍼널 — 단계별 게이지 */}
+      <SignupFunnelSection funnel={funnel ?? null} />
     </div>
   );
 }
