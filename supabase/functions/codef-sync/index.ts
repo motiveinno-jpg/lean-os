@@ -808,15 +808,15 @@ async function registerAccount(
   //   오류 코드 추측 대신 계정 목록을 먼저 조회해 결정적으로 분기.
   //   /v1/account/* 는 무과금 관리 API — 상품 신청·과금과 무관.
   let path = "/v1/account/create";
+  let matchedExisting: any = null;
   if (existingConnectedId) {
-    let isDuplicate = false;
     try {
       const existing = await getAccountList(token, existingConnectedId);
-      isDuplicate = existing.some((a: any) =>
-        String(a.organization) === String(organization) && String(a.businessType) === businessType);
+      matchedExisting = existing.find((a: any) =>
+        String(a.organization) === String(organization) && String(a.businessType) === businessType) || null;
     } catch (_) { /* 목록 조회 실패 시 기존 동작(add)으로 진행 */ }
-    path = isDuplicate ? "/v1/account/update" : "/v1/account/add";
-    if (isDuplicate) console.log(`[CODEF] org=${organization} already on connectedId — using /v1/account/update (credential swap)`);
+    path = matchedExisting ? "/v1/account/update" : "/v1/account/add";
+    if (matchedExisting) console.log(`[CODEF] org=${organization} already on connectedId — using /v1/account/update (credential swap)`);
   }
 
   const accountEntry: Record<string, any> = {
@@ -853,7 +853,31 @@ async function registerAccount(
     body.connectedId = existingConnectedId;
   }
 
-  const result = await codefRequest(token, path, body);
+  let result = await codefRequest(token, path, body);
+
+  // update 폴백 (2026-08-04 사장님 실기기 CF-04010 재현): 기관·기존 등록 방식에 따라 update 를
+  //   거부하는 계정이 있어 "기존 계정 삭제 → 새 자격증명으로 add" 로 전환한다.
+  //   delete/add 모두 무과금 관리 API. 우리 DB(거래내역·bank_accounts)는 CODEF 계정과 별개라 손실 없음.
+  //   delete 매칭 파라미터는 새 요청값이 아니라 "기존 등록 계정"의 값으로 보낸다 (loginType 불일치 방지).
+  if (result.result?.code !== "CF-00000" && path === "/v1/account/update" && matchedExisting) {
+    console.log(`[CODEF] update failed (${result.result?.code}) — fallback to delete+add`);
+    const delRes = await codefRequest(token, "/v1/account/delete", {
+      connectedId: existingConnectedId,
+      accountList: [{
+        countryCode: matchedExisting.countryCode || "KR",
+        businessType: matchedExisting.businessType || businessType,
+        clientType: matchedExisting.clientType || (loginOpts.clientType || "B"),
+        organization,
+        loginType: matchedExisting.loginType ?? loginOpts.loginType,
+      }],
+    });
+    if (delRes.result?.code === "CF-00000") {
+      path = "/v1/account/add";
+      result = await codefRequest(token, path, body);
+    } else {
+      console.error(`[CODEF] delete fallback failed (${delRes.result?.code})`);
+    }
+  }
 
   if (result.result?.code !== "CF-00000") {
     const hint = codefErrorHint(result.result?.code);
@@ -1057,7 +1081,10 @@ async function syncHometaxInvoices(
 
     for (const inv of invoices) {
       // CODEF 통합 API 응답: resApprovalNo = 국세청 승인번호 (= nts_confirm_no 에 저장)
-      const ntsConfirmNo = String(inv.resApprovalNo || "").trim();
+      //   2026-08-04: 목록 API 는 하이픈 포함(예: 20260722-41000203-00002561), 발행 API 는
+      //   24자리 무하이픈 — 형식이 달라 같은 계산서가 upsert 키 불일치로 중복 저장됐다.
+      //   저장 전 항상 영숫자만 남겨 정규화(발행 경로·기존 데이터 정규화와 동일 기준).
+      const ntsConfirmNo = String(inv.resApprovalNo || "").trim().replace(/[^0-9A-Za-z]/g, "");
       if (!ntsConfirmNo) continue;
 
       // ⚠️ 작성일자(공급일자) vs 발행일자 구분:
@@ -1116,14 +1143,46 @@ async function syncHometaxInvoices(
     }
 
     // Batch upsert — row 마다 1 round trip → 한 번에 처리. 큰 응답일수록 큰 효과 (100건이면 ~100배 빠름).
+    // 2026-08-04: 이미 있는 행(발행 경로 manual, 수정발행 modified 등)은 status·source·금액을
+    //   덮지 않고 hometax_synced_at 만 갱신 — '미전송' 오표시만 해소하고 로컬 상태는 보존.
+    //   신규 행만 전체 insert (국세청 발행분은 불변이라 기존 행 재갱신 필요 없음).
     if (rowsToUpsert.length > 0) {
-      const { error } = await supabase.from("tax_invoices").upsert(rowsToUpsert, { onConflict: "company_id,nts_confirm_no" });
-      if (error) {
+      const keys = rowsToUpsert.map((r) => r.nts_confirm_no);
+      const { data: existingRows, error: exErr } = await supabase
+        .from("tax_invoices")
+        .select("id, nts_confirm_no")
+        .eq("company_id", companyId)
+        .in("nts_confirm_no", keys);
+      if (exErr) {
         upsertErrors = rowsToUpsert.length;
-        firstUpsertError = { message: error.message, code: (error as any).code };
-        debug.push(`${direction} batch upsert error: ${error.message}`);
+        firstUpsertError = { message: exErr.message, code: (exErr as any).code };
+        debug.push(`${direction} existing-keys select error: ${exErr.message}`);
       } else {
-        totalSynced += rowsToUpsert.length;
+        const existingSet = new Set((existingRows || []).map((r: any) => r.nts_confirm_no));
+        const newRows = rowsToUpsert.filter((r) => !existingSet.has(r.nts_confirm_no));
+        const existingIds = (existingRows || []).map((r: any) => r.id);
+
+        if (newRows.length > 0) {
+          const { error } = await supabase.from("tax_invoices").upsert(newRows, { onConflict: "company_id,nts_confirm_no" });
+          if (error) {
+            upsertErrors = newRows.length;
+            firstUpsertError = { message: error.message, code: (error as any).code };
+            debug.push(`${direction} batch upsert error: ${error.message}`);
+          } else {
+            totalSynced += newRows.length;
+          }
+        }
+        if (existingIds.length > 0) {
+          const { error } = await supabase.from("tax_invoices")
+            .update({ hometax_synced_at: new Date().toISOString() })
+            .in("id", existingIds);
+          if (error) {
+            debug.push(`${direction} synced_at update error: ${error.message}`);
+          } else {
+            totalSynced += existingIds.length;
+          }
+        }
+        debug.push(`${direction} new=${newRows.length}, existing(synced_at only)=${existingIds.length}`);
       }
     }
     if (upsertErrors > 0) {

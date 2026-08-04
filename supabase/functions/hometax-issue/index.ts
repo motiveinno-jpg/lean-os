@@ -551,13 +551,15 @@ serve(withSentry("hometax-issue", async (req) => {
     const resultCode = codefResp?.result?.code;
     if (resultCode === "CF-00000") {
       // 승인번호 추출 — CODEF 발행 응답: ntsconfirmNum(24자리, 소문자 c). 폴백 다수 유지.
-      const ntsConfirmNum =
+      //   2026-08-04: 하이픈 포함 형식(resApprovalNo 등 폴백)이 섞이면 codef-sync upsert 키와
+      //   어긋나 같은 계산서가 중복 저장됨 → 저장 전 항상 정규화(영숫자만).
+      const ntsConfirmNum = normalizeNtsConfirmNum(
         codefResp.data?.ntsconfirmNum ||
         codefResp.data?.ntsConfirmNum ||
         codefResp.data?.resIssueNum ||
         codefResp.data?.resApprovalNo ||
         codefResp.data?.resInvoiceNumber ||
-        "";
+        "");
 
       await supabase.from("tax_invoices").update({
         nts_issue_status: "issued",
