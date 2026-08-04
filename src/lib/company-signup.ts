@@ -121,14 +121,19 @@ export async function createCompanyWithOwner(
   //   경로에도 SELECT 정책을 추가 검사하는데, users 의 SELECT 정책(company_id = get_my_company_id())은
   //   아직 회사가 없는 신규 가입자에게 항상 false → 모든 신규 개설이 RLS 위반으로 실패했다.
   //   insert 후 id 충돌(23505 = 레거시 limbo 행)일 때만 본인 행 update 로 연결하는 2단계 방식 사용.
+  // is_master: 역할 폐지 개편(2026-07-30) 후 관리 권한 판정은 is_master 뿐인데 신규 개설 경로가
+  //   이걸 안 세팅해 새 회사 대표가 권한 0 이 되던 버그(2026-08-03 (주)노딕스 실사례 — employees
+  //   생성 RLS 403, 메뉴 접근 불가). 개설자는 그 회사의 마스터다.
   let userErr: { code?: string; message: string } | null = (await db.from("users").insert({
     id: authId, auth_id: authId, company_id: companyId,
-    email, name: displayName, role: "owner",
-  })).error;
+    email, name: displayName, role: "owner", is_master: true,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any)).error;
   if (userErr?.code === "23505") {
     // 레거시 limbo(행은 있는데 company_id NULL) — 본인 행 update 는 UPDATE 정책(auth_id=auth.uid())으로 허용.
     const { data: updated, error: updErr } = await db.from("users")
-      .update({ company_id: companyId, role: "owner", name: displayName, email })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update({ company_id: companyId, role: "owner", is_master: true, name: displayName, email } as any)
       .eq("id", authId)
       .select("id");
     userErr = updErr || (updated && updated.length > 0 ? null : { message: "기존 계정 정보를 갱신하지 못했습니다. 고객센터로 문의해주세요." });
@@ -146,12 +151,14 @@ export async function createCompanyWithOwner(
   //   디렉토리에 본인이 안 보이던 버그. "기존 회원을 직원으로 추가"는 본인 추가를
   //   명시적으로 막아둬서(api/add-existing-employee) 대표가 스스로를 넣을 방법이
   //   UI 에 없었음 — 가입 시점에 바로 employees 행을 만들어준다.
-  await db.from("employees").insert({
+  const { error: empErr } = await db.from("employees").insert({
     company_id: companyId, user_id: authId, name: displayName, email,
     position: "대표", hire_date: todayKst(), status: "joined",
     // 가입 폼에서 받은 번호를 그대로 직원 레코드에 심는다 — 안 하면 알림톡 대상이 0명이 된다.
     ...(phone ? { phone } : {}),
   });
+  // 실패해도 가입은 계속하되 기록은 남긴다 — 조용히 삼켜서 노딕스 건을 늦게 발견했다(2026-08-03).
+  if (empErr) logSignupIssue("대표 직원 행 생성 실패", empErr.message, { code: empErr.code, biz: bizMask(bizDigits) });
 
   await db.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
   // 2026-07-23 가격정책: 가입 즉시 트라이얼 DB행을 만들지 않는다. 카드 등록(Stripe Checkout)
