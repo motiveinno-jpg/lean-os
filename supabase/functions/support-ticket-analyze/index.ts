@@ -160,7 +160,7 @@ serve(withSentry("support-ticket-analyze", async (req) => {
     ].filter(Boolean).join("\n");
 
     const result = await callClaude<Record<string, unknown>>({
-      task: "analysis",
+      task: "deep_analysis", // Opus — 2026-08-04 사장님: 문의 진단은 최고 정확도로 (Sonnet→Opus)
       feature: "support_analyze",
       system: SYSTEM,
       messages: [{ role: "user", content: [{ type: "text", text: textPart }, ...imageBlocks] }],
