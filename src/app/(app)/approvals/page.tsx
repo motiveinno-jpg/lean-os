@@ -1842,19 +1842,28 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // 확인(열람) 표시 — 클릭해 본 건은 목록에서 제목을 연하게 (2026-08-04 사장님: 광고비 지출결의서처럼
-  //   제목이 똑같으면 어디까지 확인했는지 구분이 안 됨). 이 브라우저(localStorage) 기준, 최근 800건 유지.
-  const [viewedIds, setViewedIds] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try { return new Set(JSON.parse(localStorage.getItem("approvals-viewed-ids") || "[]")); } catch { return new Set(); }
+  //   제목이 똑같으면 어디까지 확인했는지 구분이 안 됨). 처음엔 localStorage(기기별)였는데
+  //   같은 날 "계정별로 하자" 지시로 DB(approval_request_views, 본인 행 RLS)로 전환 — 기기 간 공유.
+  const { data: viewedRows = [] } = useQuery({
+    queryKey: ["approval-request-views", userId],
+    queryFn: async () => {
+      const data = logRead('approvals/page:viewed', await (supabase as any)
+        .from("approval_request_views").select("request_id").eq("user_id", userId!));
+      return (data || []) as { request_id: string }[];
+    },
+    enabled: !!userId,
   });
+  const viewedIds = useMemo(() => new Set(viewedRows.map((r) => r.request_id)), [viewedRows]);
   const markViewed = (id: string) => {
-    setViewedIds((prev) => {
-      if (prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.add(id);
-      try { localStorage.setItem("approvals-viewed-ids", JSON.stringify([...next].slice(-800))); } catch { /* 저장 실패는 표시만 못 할 뿐 */ }
-      return next;
-    });
+    if (!userId || viewedIds.has(id)) return;
+    // 낙관적 반영(연해지는 게 즉시 보여야 함) 후 DO NOTHING upsert — 재클릭·동시탭 충돌 무해.
+    queryClient.setQueryData(["approval-request-views", userId], (old: { request_id: string }[] | undefined) =>
+      [...(old || []), { request_id: id }]);
+    void (supabase as any).from("approval_request_views")
+      .upsert({ user_id: userId, request_id: id }, { onConflict: "user_id,request_id", ignoreDuplicates: true })
+      .then(({ error }: { error: unknown }) => {
+        if (error) queryClient.invalidateQueries({ queryKey: ["approval-request-views", userId] });
+      });
   };
 
   // 전체 현황에서도 결재 처리 (2026-08-04 사장님: 내 결재함까지 안 가고 여기서 바로 승인/반려).
