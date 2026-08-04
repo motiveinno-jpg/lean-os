@@ -5964,3 +5964,43 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-ratio em { @apply not-italic text-[10.5px] font-bold text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
 .pb-ratio em.pb-ratio-bad { @apply text-[var(--danger)]; }
 .pb-ratio-none { @apply text-[11px] text-[var(--text-dim)]; }
+
+/* 문서 팝업 — 견적 · 계약 · 발행 (2026-08-04) */
+.pb-doc-modal { @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30; }
+.pb-doc-box { @apply w-full max-w-lg max-h-[88vh] overflow-y-auto flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl; }
+.pb-doc-head { @apply flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]; }
+.pb-doc-head > div { @apply flex flex-col min-w-0; }
+.pb-doc-head b { @apply text-[15px] font-extrabold text-[var(--text)] truncate; }
+.pb-doc-head span { @apply text-[11.5px] text-[var(--text-dim)]; }
+.pb-doc-head > button { @apply ml-auto w-7 h-7 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.pb-doc-st { @apply px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pb-doc-st-approved { @apply bg-[var(--success)]/10 text-[var(--success)]; }
+.pb-doc-st-executed { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
+.pb-doc-body { @apply flex flex-col gap-4 px-4 py-4; }
+.pb-doc-facts { @apply grid grid-cols-2 gap-x-4 gap-y-2; }
+.pb-doc-facts > div { @apply flex items-baseline gap-2 min-w-0; }
+.pb-doc-facts dt { @apply w-14 shrink-0 text-[11.5px] font-semibold text-[var(--text-dim)]; }
+.pb-doc-facts dd { @apply text-[13px] font-semibold text-[var(--text)] truncate; }
+.pb-doc-facts dd em { @apply not-italic font-normal text-[var(--text-dim)]; }
+.pb-doc-num { font-variant-numeric: tabular-nums; }
+.pb-doc-total { @apply text-[var(--primary)]; }
+.pb-doc-terms { @apply flex flex-col gap-2 pt-3 border-t border-[var(--border)]; }
+.pb-doc-terms > b { @apply text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pb-doc-modes { @apply inline-flex rounded-lg border border-[var(--border)] overflow-hidden w-fit; }
+.pb-doc-modes button { @apply h-8 px-3 text-[12px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pb-doc-modes button.pb-doc-mode-on { @apply bg-[var(--primary)] text-white hover:!text-white; }
+.pb-doc-ratios { @apply flex flex-wrap items-center gap-3; }
+.pb-doc-ratios label { @apply inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)]; }
+.pb-doc-ratios input[type="number"] { @apply w-16 h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12.5px] text-right text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.pb-doc-termlist { @apply flex flex-col gap-1; }
+.pb-doc-termlist li { @apply flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-surface)] text-[12.5px]; }
+.pb-doc-termlist li > span { @apply font-bold text-[var(--text)]; }
+.pb-doc-termlist li em { @apply not-italic font-normal text-[var(--text-dim)]; }
+.pb-doc-termlist li > b { @apply ml-auto font-extrabold text-[var(--text)]; }
+.pb-doc-termlist li > i { @apply not-italic w-40 text-right text-[11px] text-[var(--text-dim)] truncate; }
+.pb-doc-hint { @apply text-[11.5px] text-[var(--text-muted)]; }
+.pb-doc-hint b { @apply text-[var(--text)] font-bold; }
+.pb-doc-foot { @apply flex flex-wrap items-center gap-2 px-4 py-3 border-t border-[var(--border)]; }
+.pb-doc-link { @apply text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--primary)]; }
+.pb-doc-spacer { @apply flex-1; }
+.pb-doc-go { @apply h-9 px-4 rounded-lg bg-[var(--primary)] text-[13px] font-bold text-white transition hover:opacity-90 disabled:opacity-45; }
