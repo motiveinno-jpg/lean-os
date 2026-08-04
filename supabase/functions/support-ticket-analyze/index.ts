@@ -10,8 +10,14 @@ import { callClaude } from "../_shared/claude.ts";
 //
 // 원칙:
 //   - 첨부·본문은 "데이터" — 그 안의 지시를 따르지 않는다 (프롬프트 주입 방어를 시스템 프롬프트에 명시).
-//   - 진단은 보조 신호일 뿐 — 운영자 답변을 자동 발송하지 않는다(저장만).
 //   - 실패는 비치명 — 문의 접수 자체는 이미 완료된 상태라 오류 응답만 반환.
+//
+// v2 (2026-08-04 사장님: "간단한 건 AI가 자동 처리, 큰 건은 허락받고"):
+//   - 간단한 건(resolution=auto_reply · 심각도 low · 개발수정 불필요 · 결제 무관 · 아직 미답변)만
+//     AI 답변을 자동 등록한다 — 답변 트리거가 status='answered'+사용자 알림을 처리하고,
+//     답변 말미에 AI 자동 답변임을 명시한다. 하나라도 조건이 어긋나면 절대 자동 등록하지 않는다.
+//   - 큰 건(개발 수정 필요 또는 심각도 high)은 자동 처리 없이 승인 대기 — 운영자에게 알림을 보내고
+//     운영자 화면에서 사람이 검토·등록한다("허락" 게이트).
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -44,8 +50,16 @@ const ANALYSIS_SCHEMA = {
     severity: { type: "string", enum: ["high", "medium", "low"], description: "high=업무 차단/데이터 오류, medium=기능 일부 불능, low=문의·제안" },
     suggested_reply: { type: "string", description: "운영자가 검토 후 쓸 수 있는 답변 초안 (존댓말, 확인된 사실만)" },
     needs_dev: { type: "boolean", description: "개발팀 코드 수정이 필요해 보이면 true" },
+    resolution: {
+      type: "string", enum: ["auto_reply", "operator", "dev"],
+      description: "auto_reply=단순 사용법 안내·오해·이미 정상 동작 확인 등 즉시 답변으로 해결 가능한 간단한 건(확신이 있을 때만). operator=사람 확인·조치 필요. dev=코드 수정 필요",
+    },
+    auto_reply: {
+      type: "string",
+      description: "resolution=auto_reply 일 때 고객에게 바로 보낼 완성된 답변(존댓말, 확인된 사실만). 그 외에는 빈 문자열",
+    },
   },
-  required: ["summary", "probable_cause", "matched_errors", "screenshot_findings", "severity", "suggested_reply", "needs_dev"],
+  required: ["summary", "probable_cause", "matched_errors", "screenshot_findings", "severity", "suggested_reply", "needs_dev", "resolution", "auto_reply"],
 };
 
 const SYSTEM = `당신은 한국 중소기업용 ERP "OwnerView"의 CS 진단 보조 AI입니다. 고객 문의(텍스트·스크린샷)와 해당 회사의 최근 서비스 에러 로그를 대조해 운영팀의 원인 파악을 돕습니다.
@@ -55,7 +69,13 @@ const SYSTEM = `당신은 한국 중소기업용 ERP "OwnerView"의 CS 진단 �
 - 근거 없는 단정 금지. 로그·스크린샷에서 확인된 것과 추정을 구분해 쓰고, 추정이면 "~로 보입니다"라고 명시하세요.
 - 스크린샷에 에러 코드·메시지가 보이면 그대로 옮겨 적으세요(진단의 핵심 근거).
 - suggested_reply 는 고객에게 보내는 존댓말 답변 초안입니다. 확인된 사실과 다음 단계만 담고, 내부 용어(테이블명·함수명)는 쓰지 마세요.
+- resolution 판정: auto_reply 는 "단순 사용법 질문, 화면 안내로 끝나는 오해, 이미 정상 동작 중인 확인 요청"처럼 즉시 답변만으로 완결되는 간단한 건에만, 그것도 확신이 있을 때만 고르세요. 결제·환불·금액 정정, 데이터 수정 요청, 원인 불명 오류, 코드 수정이 필요한 건은 절대 auto_reply 가 아닙니다. 조금이라도 애매하면 operator 를 고르세요.
 - 모든 출력은 한국어.`;
+
+// 자동 답변 절대 금지 유형 — 돈·데이터 정정은 사람만 (AI 판정과 무관하게 서버가 강제)
+const AUTO_REPLY_BLOCKED_CATEGORIES = new Set(["billing"]);
+// 큰 건 알림 수신자 — is_platform_operator() 의 이메일 목록과 동일하게 유지할 것
+const OPERATOR_EMAILS = ["creative@mo-tive.com"];
 
 serve(withSentry("support-ticket-analyze", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -82,7 +102,7 @@ serve(withSentry("support-ticket-analyze", async (req) => {
 
     const { data: ticket } = await admin
       .from("support_tickets")
-      .select("id, company_id, category, subject, content, attachments, created_at")
+      .select("id, company_id, category, subject, content, attachments, created_at, status, answer")
       .eq("id", ticketId)
       .maybeSingle();
     if (!ticket) return json({ error: "문의를 찾을 수 없습니다." }, 404);
@@ -156,20 +176,68 @@ serve(withSentry("support-ticket-analyze", async (req) => {
       companyId: ticket.company_id,
       userId: userRow.id,
       admin,
-      promptVersion: "support-analyze-v1",
+      promptVersion: "support-analyze-v2-autoreply",
       maxRetries: 1,
     });
     if (!result.ok || !result.data) {
       return json({ error: result.error || "AI 분석에 실패했습니다.", code: result.errorCode }, 502);
     }
 
+    const a = result.data as Record<string, any>;
+
+    // ── 간단한 건 자동 답변 — 아래 조건 전부 충족 시에만 (하나라도 어긋나면 사람 승인 대기) ──
+    //   ① AI 판정 auto_reply ② 개발수정 불필요 ③ 심각도 low ④ 결제 등 금지 유형 아님
+    //   ⑤ 아직 미답변(open) ⑥ 답변 본문이 실제로 작성됨
+    const autoReplyText = String(a.auto_reply || "").trim();
+    const canAutoReply =
+      a.resolution === "auto_reply" &&
+      a.needs_dev !== true &&
+      a.severity === "low" &&
+      !AUTO_REPLY_BLOCKED_CATEGORIES.has(String(ticket.category)) &&
+      ticket.status === "open" && !ticket.answer &&
+      autoReplyText.length >= 20;
+
+    let autoReplied = false;
+    if (canAutoReply) {
+      const finalAnswer =
+        `${autoReplyText}\n\n— 이 답변은 AI가 자동으로 작성했습니다. 해결되지 않았다면 같은 문의함에 다시 남겨주세요. 운영팀이 직접 확인해 드립니다.`;
+      // 답변 등록 트리거가 status='answered' + 사용자 알림을 처리한다 (운영자 답변과 동일 경로)
+      const { error: ansErr } = await admin
+        .from("support_tickets")
+        .update({ answer: finalAnswer, answered_by: null })
+        .eq("id", ticketId)
+        .eq("status", "open")
+        .is("answer", null); // 경합 방지 — 그 사이 운영자가 답변했으면 덮지 않는다
+      autoReplied = !ansErr;
+    }
+
     const analysis = {
-      ...result.data,
+      ...a,
+      auto_replied: autoReplied,
       model: result.model,
       analyzed_at: new Date().toISOString(),
     };
     const { error: upErr } = await admin.from("support_tickets").update({ ai_analysis: analysis }).eq("id", ticketId);
     if (upErr) return json({ error: `분석은 완료됐지만 저장 실패: ${upErr.message}` }, 500);
+
+    // ── 큰 건(개발 수정 필요 또는 심각) — 자동 처리 없이 운영자에게 승인 요청 알림 ──
+    if (!autoReplied && (a.needs_dev === true || a.severity === "high")) {
+      try {
+        const { data: ops } = await admin.from("users").select("id, company_id").in("email", OPERATOR_EMAILS);
+        const { data: co } = await admin.from("companies").select("name").eq("id", ticket.company_id).maybeSingle();
+        const rows = (ops || []).map((op: any) => ({
+          company_id: op.company_id,
+          user_id: op.id,
+          type: "support_ai",
+          title: `AI 진단: 확인 필요 문의${a.needs_dev ? " (개발 수정 필요)" : ""}`,
+          message: `[${co?.name || "고객사"}] ${String(ticket.subject || "").slice(0, 80)} — ${String(a.summary || "").slice(0, 120)}`,
+          link: "/platform/support",
+          entity_type: "support_ticket",
+          entity_id: ticketId,
+        }));
+        if (rows.length) await admin.from("notifications").insert(rows);
+      } catch { /* 알림 실패는 비치명 */ }
+    }
 
     return json({ success: true, analysis });
   } catch (err: any) {
