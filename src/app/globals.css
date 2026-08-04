@@ -5750,7 +5750,10 @@ td .rounded-full { white-space: nowrap; }
 .pb-in-sel { @apply cursor-pointer; }
 .pb-status { @apply relative inline-flex items-center justify-center min-w-[74px] h-6 rounded-md text-[11px] font-bold text-white bg-[var(--bg-surface)]; }
 .pb-status i { @apply not-italic px-2 pointer-events-none; }
-.pb-status select { @apply absolute inset-0 opacity-0 cursor-pointer; }
+/* 열려 있는 select 의 목록은 OS 가 그린다 — 부모의 text-white 를 물려받으면
+   흰 배경에 흰 글씨가 되어 항목이 안 보였다(2026-08-04 사장님 제보). 색을 직접 준다. */
+.pb-status select { @apply absolute inset-0 opacity-0 cursor-pointer text-[var(--text)] bg-[var(--bg-card)]; }
+.pb-status select option { @apply text-[var(--text)] bg-[var(--bg-card)]; }
 .pb-add { @apply text-[12px] text-[var(--text-dim)] cursor-pointer hover:text-[var(--primary)] hover:bg-[var(--bg-surface)]; }
 .pb-sum td { @apply bg-[var(--bg-surface)] font-extrabold text-[var(--text)]; }
 /* 템플릿 고르기 */
