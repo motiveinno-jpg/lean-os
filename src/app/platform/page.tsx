@@ -167,7 +167,10 @@ export default function PlatformOverview() {
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       // 처리(resolved)된 오류는 제외 — 시스템상태 신호등과 같은 기준(2026-07-29 사장님)
-      const data = logRead('platform/page:data', await db.from("error_logs").select("id").eq("resolved", false).gte("created_at", since));
+      const data = logRead('platform/page:data', await db.from("error_logs")
+        .select("id, error_type, message, source, created_at")
+        .eq("resolved", false).gte("created_at", since)
+        .order("created_at", { ascending: false }).limit(200));
       return data || [];
     },
     refetchInterval: 60_000,
@@ -186,7 +189,10 @@ export default function PlatformOverview() {
   const { data: openTickets = [] } = useQuery({
     queryKey: ["p-inbox-support"],
     queryFn: async () => {
-      const data = logRead('platform/page:tickets', await db.from("support_tickets").select("id").eq("status", "open"));
+      const data = logRead('platform/page:tickets', await db.from("support_tickets")
+        .select("id, subject, category, created_at, companies(name)")
+        .eq("status", "open")
+        .order("created_at", { ascending: false }).limit(200));
       return data || [];
     },
     refetchInterval: 60_000,
@@ -293,6 +299,8 @@ export default function PlatformOverview() {
 
   // 위험 신호 통합 리스트 (유형 배지 + 대상 + 시점)
   const fmtD = (iso?: string | null) => (iso ? kstDateStr(new Date(iso)) : "기록 없음");
+  const fmtDT = (iso?: string | null) =>
+    iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
   const riskRows: { type: string; cls: string; who: string; detail: string }[] = [
     ...trialEndingSoon.map((s: any) => ({
       type: "체험 만료 임박", cls: "platform-risk-trial",
@@ -483,6 +491,58 @@ export default function PlatformOverview() {
               })}
               {activeNow.length > 6 && (
                 <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {activeNow.length - 6}곳</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 시스템 에러 — 24시간 미해결 (시스템 상태에서 오는 신호) */}
+        <div className="glass-card p-0 overflow-hidden">
+          <div className="platform-card-head">
+            <span className="platform-card-title">시스템 에러 <span className="text-[10px] font-normal text-[var(--text-dim)]">24시간 · 미해결</span></span>
+            <Link href="/platform/health" className="text-[11px] text-[var(--primary)] hover:underline">전체 →</Link>
+          </div>
+          {recentErrors.length === 0 ? (
+            <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">최근 24시간 미해결 에러가 없습니다 ✓</div>
+          ) : (
+            <div className="platform-rail-rows">
+              {(recentErrors as any[]).slice(0, 5).map((e) => (
+                <Link key={e.id} href="/platform/health" className="platform-rail-row">
+                  <span className="platform-badge platform-risk-pastdue shrink-0">{e.error_type || "unknown"}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-medium text-[var(--text)] truncate">{e.message || "-"}</div>
+                    <div className="text-[10px] text-[var(--text-dim)]">{e.source || "-"} · {fmtDT(e.created_at)}</div>
+                  </div>
+                </Link>
+              ))}
+              {recentErrors.length > 5 && (
+                <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {recentErrors.length - 5}건 — 전체는 시스템 상태에서</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 고객센터 문의 — 미답변 */}
+        <div className="glass-card p-0 overflow-hidden">
+          <div className="platform-card-head">
+            <span className="platform-card-title">고객센터 문의 <span className="text-[10px] font-normal text-[var(--text-dim)]">미답변</span></span>
+            <Link href="/platform/support" className="text-[11px] text-[var(--primary)] hover:underline">전체 →</Link>
+          </div>
+          {openTickets.length === 0 ? (
+            <div className="px-4 py-5 text-[12px] text-[var(--text-dim)]">미답변 문의가 없습니다 ✓</div>
+          ) : (
+            <div className="platform-rail-rows">
+              {(openTickets as any[]).slice(0, 5).map((t) => (
+                <Link key={t.id} href="/platform/support" className="platform-rail-row">
+                  <span className="text-sm shrink-0"><Ico e="🎧" /></span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-medium text-[var(--text)] truncate">{t.subject || "(제목 없음)"}</div>
+                    <div className="text-[10px] text-[var(--text-dim)]">{t.companies?.name || "-"} · {fmtDT(t.created_at)}</div>
+                  </div>
+                </Link>
+              ))}
+              {openTickets.length > 5 && (
+                <div className="px-4 py-2 text-[11px] text-[var(--text-dim)]">외 {openTickets.length - 5}건</div>
               )}
             </div>
           )}
