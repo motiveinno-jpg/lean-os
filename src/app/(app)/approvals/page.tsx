@@ -3819,6 +3819,45 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
   });
   const avatarMap = useAvatarMap(timeline.map((s: any) => s.approver_id));
 
+  // 승인자 변경 (2026-08-04 사장님: 결재 올린 뒤에도 승인자를 바꿀 수 있게) —
+  //   마스터/전체 현황 권한자만, 대기(pending) 단계만. 서버(reassign_approval_step RPC)가
+  //   회사·권한·상태·새 승인자(같은 회사, 파트너 제외)를 재검증한다.
+  const [tlCompanyId, setTlCompanyId] = useState<string | null>(null);
+  useEffect(() => { getCurrentUser().then((u) => u && setTlCompanyId(u.company_id)).catch(() => {}); }, []);
+  const { isMaster: tlMaster, hasPerm: tlHasPerm } = useMyPermissions();
+  const canReassign = (tlMaster || tlHasPerm("/approvals:all")) && requestStatus === "pending";
+  const [reassignStepId, setReassignStepId] = useState<string | null>(null);
+  const [reassignTo, setReassignTo] = useState("");
+  const { data: tlMembers = [] } = useQuery({
+    queryKey: ["approval-members-for-reassign", tlCompanyId],
+    queryFn: async () => {
+      const data = logRead('approvals/page:tl-members', await (supabase).from("users")
+        .select("id, name, email, avatar_url, role").eq("company_id", tlCompanyId!));
+      return data || [];
+    },
+    enabled: !!tlCompanyId && canReassign,
+  });
+  const reassignMut = useMutation({
+    mutationFn: async ({ stepId, newApproverId }: { stepId: string; newApproverId: string }) => {
+      const { error } = await (supabase as any).rpc("reassign_approval_step", {
+        p_step_id: stepId, p_new_approver_id: newApproverId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["approval-timeline", requestId] });
+      qc.invalidateQueries({ queryKey: ["activity-timeline", requestId] });
+      qc.invalidateQueries({ queryKey: ["my-pending-approvals"] });
+      qc.invalidateQueries({ queryKey: ["my-pending-count"] });
+      qc.invalidateQueries({ queryKey: ["all-requests"] });
+      setReassignStepId(null);
+      setReassignTo("");
+      toast("승인자를 변경했습니다", "success");
+      window.dispatchEvent(new Event("sidebar-refresh-badges"));
+    },
+    onError: (e: any) => toast(friendlyError(e, "승인자 변경 실패"), "error"),
+  });
+
   async function saveComment(stepId: string) {
     try {
       await updateApprovalStepComment(stepId, editText.trim());
@@ -3895,6 +3934,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
         {timeline.map((step) => {
           const canEdit = !!currentUserId && step.approver_id === currentUserId && !!step.decided_at;
           const isEditing = editingStepId === step.id;
+          const isReassigning = reassignStepId === step.id;
           return (
             <div key={step.id} className="flex items-start gap-3 text-xs">
               <Avatar name={step.approver_name || "담당자"} src={avatarMap[step.approver_id]} size={26} />
@@ -3911,7 +3951,45 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
                       코멘트 {step.comment ? "수정" : "추가"}
                     </button>
                   )}
+                  {canReassign && step.status === "pending" && !isReassigning && (
+                    <button
+                      onClick={() => { setReassignStepId(step.id); setReassignTo(""); }}
+                      className="text-[10px] font-semibold text-[var(--primary)] hover:underline"
+                    >
+                      승인자 변경
+                    </button>
+                  )}
                 </div>
+                {isReassigning && (
+                  <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                    <select
+                      value={reassignTo}
+                      onChange={(e) => setReassignTo(e.target.value)}
+                      autoFocus
+                      className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] focus:outline-none focus:border-[var(--primary)]"
+                    >
+                      <option value="">새 승인자 선택...</option>
+                      {(tlMembers as any[])
+                        .filter((m) => m.role !== "partner" && m.id !== step.approver_id)
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>{m.name || m.email}</option>
+                        ))}
+                    </select>
+                    <button
+                      onClick={() => reassignTo && reassignMut.mutate({ stepId: step.id, newApproverId: reassignTo })}
+                      disabled={!reassignTo || reassignMut.isPending}
+                      className="px-2.5 py-1.5 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition disabled:opacity-50"
+                    >
+                      {reassignMut.isPending ? "변경 중..." : "변경"}
+                    </button>
+                    <button
+                      onClick={() => { setReassignStepId(null); setReassignTo(""); }}
+                      className="px-2 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition"
+                    >
+                      취소
+                    </button>
+                  </div>
+                )}
                 {isEditing ? (
                   <div className="mt-1.5">
                     <textarea
