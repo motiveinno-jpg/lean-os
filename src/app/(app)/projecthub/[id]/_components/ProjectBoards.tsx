@@ -21,6 +21,7 @@ import { createQuoteForDeal, createContractFromQuoteDoc } from "@/lib/documents"
 import { BoardItemDrawer } from "./BoardItemDrawer";
 import { BoardDocModal, type DocKind } from "./BoardDocModal";
 import { BoardTrash } from "./BoardTrash";
+import { BoardCalendar } from "./BoardCalendar";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
@@ -259,6 +260,71 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     await db.from("project_boards").update({ name: name.trim() }).eq("id", boardId);
     qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
   };
+  // 템플릿 복제 — 매달 같은 표를 새로 만드는 수고를 없앤다. **구조만** 복사하고 행은 안 가져온다.
+  const duplicateBoard = async () => {
+    if (!board || busy) return;
+    setTplMenu(false);
+    setBusy(true);
+    try {
+      const { data: nb, error } = await db.from("project_boards").insert({
+        company_id: companyId, deal_id: dealId, name: `${board.name} 사본`,
+        template_key: board.template_key, position: boards.length,
+      }).select("id").single();
+      if (error) throw new Error(error.message);
+      const bid = nb!.id as string;
+      const [cRes, gRes] = await Promise.all([
+        db.from("project_board_columns").insert(cols.map((c) => ({
+          board_id: bid, name: c.name, type: c.type, settings: c.settings || {}, position: c.position,
+        }))),
+        db.from("project_board_groups").insert(groups.map((g) => ({
+          board_id: bid, name: g.name, color: g.color, position: g.position,
+        }))),
+      ]);
+      if (cRes.error) throw new Error(cRes.error.message);
+      if (gRes.error) throw new Error(gRes.error.message);
+      setActiveId(bid);
+      qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
+      toast("템플릿 구조를 복제했습니다(행은 안 가져왔어요).", "success");
+    } catch (e: any) {
+      toast(e?.message || "복제 실패", "error");
+    } finally { setBusy(false); }
+  };
+
+  // 고른 줄을 다른 템플릿으로 — **컬럼 이름이 같은 칸만** 옮긴다. 못 옮긴 칸은 몇 개인지 말해 준다.
+  const moveToBoard = async (targetId: string) => {
+    const ids = [...selected];
+    if (ids.length === 0 || !targetId) return;
+    const tCols = logRead("ProjectBoards:moveCols", await db.from("project_board_columns")
+      .select("id, name").eq("board_id", targetId).is("archived_at", null)) as { id: string; name: string }[] | null;
+    const tGroup = logRead("ProjectBoards:moveGroup", await db.from("project_board_groups")
+      .select("id").eq("board_id", targetId).is("archived_at", null).order("position").limit(1)) as { id: string }[] | null;
+    const map = new Map<string, string>();          // 원본 컬럼 id → 대상 컬럼 id
+    for (const c of cols) {
+      const hit = (tCols || []).find((x) => x.name.trim() === c.name.trim());
+      if (hit) map.set(c.id, hit.id);
+    }
+    let dropped = 0;
+    for (const id of ids) {
+      const it = items.find((x) => x.id === id);
+      if (!it) continue;
+      const next: Record<string, any> = {};
+      for (const [k, v] of Object.entries(it.values || {})) {
+        if (k.startsWith("__")) continue;           // 문서 연결은 표를 넘어가면 뜻을 잃는다
+        const to = map.get(k);
+        if (to) next[to] = v; else if (v !== null && v !== "") dropped++;
+      }
+      await db.from("project_board_items")
+        .update({ board_id: targetId, group_id: tGroup?.[0]?.id || null, values: next, updated_at: new Date().toISOString() })
+        .eq("id", id);
+    }
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+    qc.invalidateQueries({ queryKey: ["pb-items", targetId] });
+    setSelected(new Set());
+    toast(dropped > 0
+      ? `${ids.length}건을 옮겼습니다. 이름이 같은 칸만 따라갔고 ${dropped}칸은 비웠어요.`
+      : `${ids.length}건을 옮겼습니다.`, "success");
+  };
+
   const removeBoard = async () => {
     if (!board) return;
     // 확인창을 띄우지 않는다 — 되돌리기가 있으면 확인창은 손만 늦춘다(2026-08-04 기획 2차)
@@ -547,9 +613,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   // 칸반이 열로 쓸 컬럼 — 흐름 상태 컬럼. 없으면 그룹으로 열을 만든다.
   const flowCol = flowColumnOf(cols);
   const span = spanColumnsOf(cols);
+  const hasDate = cols.some((c) => c.type === "date");
   const wanted: InputMode = viewPick || (findTemplate(board?.template_key).input || "grid");
-  //   기간 컬럼을 지웠는데 타임라인이 기본이면 표로 떨어뜨린다(빈 화면을 만들지 않는다)
-  const view: InputMode = wanted === "timeline" && !span ? "grid" : wanted;
+  //   근거가 되는 칸을 지웠는데 읽는 보기가 걸려 있으면 표로 떨어뜨린다(빈 화면을 만들지 않는다)
+  const view: InputMode = (wanted === "timeline" && !span) || (wanted === "calendar" && !hasDate) ? "grid" : wanted;
   // 칸반 열 — 흐름 컬럼의 옵션 순서, 없으면 그룹 순서
   const kanbanCols = flowCol
     ? ((flowCol.settings?.options || []) as any[]).map((o) => ({ key: String(o.id), label: String(o.label), color: String(o.color || "#C4C4C4") }))
@@ -613,6 +680,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             <span className="pb-menu-veil" onClick={() => setTplMenu(false)} />
             <span className="pb-menu">
               <button type="button" onClick={() => { setTplMenu(false); setRenaming(true); }}>이름 바꾸기</button>
+              <button type="button" onClick={duplicateBoard}>템플릿 복제</button>
               <button type="button" onClick={() => { setTplMenu(false); setTrashOpen(true); }}>지운 항목</button>
               <button type="button" className="pb-menu-danger" onClick={() => { setTplMenu(false); removeBoard(); }}>템플릿 삭제</button>
             </span>
@@ -640,6 +708,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               <button type="button" onClick={() => { setShowSummary(false); pickView("timeline"); }}
                 aria-pressed={!showSummary && view === "timeline"}
                 className={`pb-viewbtn ${!showSummary && view === "timeline" ? "pb-viewbtn-on" : ""}`}>타임라인</button>
+            )}
+            {hasDate && (
+              <button type="button" onClick={() => { setShowSummary(false); pickView("calendar"); }}
+                aria-pressed={!showSummary && view === "calendar"}
+                className={`pb-viewbtn ${!showSummary && view === "calendar" ? "pb-viewbtn-on" : ""}`}>캘린더</button>
             )}
             <button type="button" onClick={() => setShowSummary(true)} aria-pressed={showSummary}
               className={`pb-viewbtn ${showSummary ? "pb-viewbtn-on" : ""}`}>정리</button>
@@ -696,6 +769,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           )}
+          {boards.length > 1 && (
+            <select value="" onChange={(e) => { if (e.target.value) moveToBoard(e.target.value); }}>
+              <option value="">다른 템플릿으로</option>
+              {boards.filter((b) => b.id !== boardId).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          )}
           <button type="button" className="pb-bulk-x" onClick={bulkDelete}>삭제</button>
           <button type="button" className="pb-bulk-off" onClick={() => setSelected(new Set())}>선택 해제</button>
         </div>
@@ -746,6 +825,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 
       {showSummary ? (
         <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users} />
+      ) : view === "calendar" && hasDate ? (
+        <BoardCalendar items={shown} cols={cols} flowCol={flowCol} onOpen={(id) => setOpenItemId(id)} />
       ) : view === "timeline" && span ? (
         <BoardTimeline items={shown} span={span} flowCol={flowCol} nameLabel={nameLabel}
           onAdd={() => addItem(groups[0]?.id || "")} />

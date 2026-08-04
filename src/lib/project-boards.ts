@@ -24,9 +24,10 @@ export type GroupDef = { name: string; color: string };
 
 /** 보는 방식. 원칙(2026-08-04 사장님 지시):
  *    · grid·board = **입력**하는 화면 — 기본값은 반드시 이 둘 중 하나다.
- *    · timeline   = **읽는** 화면 — 정리한 결과를 보여줄 뿐 입력은 못 한다. 전환으로만 간다.
+ *    · timeline·calendar = **읽는** 화면 — 정리한 결과를 보여줄 뿐 입력은 못 한다. 전환으로만 간다.
+ *      (timeline = 기간을 본다 / calendar = 언제인지를 본다)
  *  "타임라인은 데이터를 정리해서 보여주는 거고 표가 입력화면이잖아? 입력화면이 기본값으로 나와야" */
-export type InputMode = "grid" | "board" | "timeline";
+export type InputMode = "grid" | "board" | "timeline" | "calendar";
 
 /** 입력이 되는 보기인가 — 기본값 검증과 보기 줄 묶음에 같이 쓴다 */
 export const INPUT_MODES: InputMode[] = ["grid", "board"];

@@ -6044,3 +6044,20 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-bulk select { @apply h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
 .pb-bulk-x { @apply h-8 px-3 rounded-lg text-[12px] font-bold text-[var(--danger)] hover:bg-[var(--danger)]/10; }
 .pb-bulk-off { @apply h-8 px-3 rounded-lg text-[12px] font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-surface)]; }
+
+/* 캘린더 보기 — 언제인지를 본다 (2026-08-04 기획 4차) */
+.pb-cal { @apply flex flex-col gap-2 p-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.pb-cal-head { @apply flex items-center gap-2; }
+.pb-cal-head > b { @apply text-[14px] font-extrabold text-[var(--text)]; }
+.pb-cal-head > button { @apply w-7 h-7 rounded-lg text-[15px] leading-none text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.pb-cal-today { @apply !w-auto !px-2.5 !text-[11.5px] font-bold !text-[var(--primary)]; }
+.pb-cal-pick { @apply ml-auto h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] text-[var(--text-muted)] focus:outline-none; }
+.pb-cal-dow { @apply grid grid-cols-7 gap-1; }
+.pb-cal-dow span { @apply text-center text-[10.5px] font-bold text-[var(--text-dim)] py-1; }
+.pb-cal-grid { @apply grid grid-cols-7 gap-1; }
+.pb-cal-cell { @apply min-h-[84px] flex flex-col gap-0.5 p-1.5 rounded-xl bg-[var(--bg-surface)]; }
+.pb-cal-pad { @apply bg-transparent; }
+.pb-cal-today-cell { @apply ring-1 ring-[var(--primary)]; }
+.pb-cal-day { @apply text-[11px] font-bold text-[var(--text-muted)]; }
+.pb-cal-item { @apply flex items-center gap-1 w-full px-1 py-0.5 rounded-md bg-[var(--bg-card)] text-[10.5px] text-left text-[var(--text)] truncate hover:bg-[var(--primary)]/10; }
+.pb-cal-item i { @apply block w-1.5 h-1.5 rounded-full shrink-0; }
