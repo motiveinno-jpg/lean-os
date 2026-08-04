@@ -3151,6 +3151,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-rail-badge-danger { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
 .platform-rail-count { @apply px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums bg-[var(--success-dim)] text-[var(--success)]; }
 .platform-rail-count-warn { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.platform-codef-tags { @apply flex flex-wrap gap-1.5 px-4 pb-3.5 -mt-1; }
 .platform-rail-stats { @apply grid grid-cols-3 divide-x divide-[var(--border)]/50; }
 .platform-rail-stats > div { @apply flex flex-col gap-0.5 px-4 py-3.5; }
 .platform-rail-stats > div > span:last-child { @apply text-[10px] text-[var(--text-dim)]; }

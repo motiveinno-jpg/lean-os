@@ -49,6 +49,15 @@ type CompanyActivity = {
 // "활동중" 판정 — 마지막 활동이 10분 이내면 접속중으로 본다
 const ACTIVE_WINDOW_MS = 10 * 60 * 1000;
 
+// CODEF 사용량 요약 (operator-user-admin EF mode=codef-usage — 운영자 게이트 내장)
+type CodefUsageSummary = {
+  month: string;
+  total: { units: number; calls: number; rows: number };
+  byCategory: Record<string, { units: number; calls: number }>;
+  companies: { companyId: string; name: string; units: number; calls: number }[];
+};
+const CODEF_CATEGORY_ORDER = ["통장", "카드", "현금영수증", "세금계산서", "이체", "관리(무과금)", "기타"];
+
 type OpsRisk = {
   as_of: string;
   stale_join_requests: { company: string; email: string; days: number; created_at: string }[];
@@ -117,6 +126,29 @@ export default function PlatformOverview() {
       return (data as CompanyActivity[]) || [];
     },
     refetchInterval: 60_000,
+  });
+
+  // CODEF 사용량 (이번 달) — 원장(codef_usage)은 RLS 가 자기 회사로 묶여 있어
+  //   클라 직조회가 안 된다. 운영자 검증이 내장된 EF 집계를 그대로 쓴다.
+  const { data: codefUsage } = useQuery<CodefUsageSummary | null>({
+    queryKey: ["p-codef-usage"],
+    queryFn: async () => {
+      const { data: { session } } = await db.auth.getSession();
+      if (!session) return null;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/operator-user-admin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        },
+        body: JSON.stringify({ mode: "codef-usage" }),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as CodefUsageSummary;
+    },
+    refetchInterval: 60_000,
+    retry: 1,
   });
 
   // 라이브 시계 — 현황판에서 "지금 몇 시 기준 화면인지" 보이게 (30초 틱)
@@ -470,6 +502,28 @@ export default function PlatformOverview() {
               <div><span className="mono-number font-extrabold text-[var(--success)]">{fmtW(totalRevenue)}</span><span>누적 매출</span></div>
               <div><span className="mono-number font-extrabold text-[var(--primary)]">{fmtW(mrr * 12)}</span><span>ARR</span></div>
             </div>
+          </div>
+
+          {/* CODEF 사용량 (이번 달) — 원가 신호. 상세는 운영자 회원관리의 CODEF 탭 */}
+          <div className="glass-card p-0 overflow-hidden">
+            <div className="platform-card-head">
+              <span className="platform-card-title">CODEF 사용량 <span className="text-[10px] font-normal text-[var(--text-dim)]">이번 달</span></span>
+              <Link href="/operator-users" className="text-[11px] text-[var(--primary)] hover:underline">상세 →</Link>
+            </div>
+            <div className="platform-rail-stats">
+              <div><span className="mono-number font-extrabold text-[var(--primary)]">{(codefUsage?.total?.units ?? 0).toLocaleString()}</span><span>과금 추정</span></div>
+              <div><span className="mono-number font-extrabold text-[var(--text)]">{(codefUsage?.total?.calls ?? 0).toLocaleString()}</span><span>전체 호출</span></div>
+              <div><span className="mono-number font-extrabold text-[var(--text)]">{codefUsage?.companies?.length ?? 0}</span><span>사용 회사</span></div>
+            </div>
+            {codefUsage && Object.keys(codefUsage.byCategory).length > 0 && (
+              <div className="platform-codef-tags">
+                {CODEF_CATEGORY_ORDER.filter((c) => codefUsage.byCategory[c]?.units).map((c) => (
+                  <span key={c} className="codef-usage-cat-tag">
+                    {c} <b>{codefUsage.byCategory[c].units.toLocaleString()}</b>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 성장 신호 */}
