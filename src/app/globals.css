@@ -6030,3 +6030,17 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-trash-when { @apply shrink-0 text-[11px] text-[var(--text-dim)]; }
 .pb-trash-back { @apply shrink-0 h-7 px-2.5 rounded-lg bg-[var(--primary)]/10 text-[11.5px] font-bold text-[var(--primary)] hover:bg-[var(--primary)]/20; }
 .pb-trash-purge { @apply shrink-0 w-6 h-6 rounded-md text-[10px] text-[var(--text-dim)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]; }
+
+/* 필터 · 일괄 선택 (2026-08-04 기획 3차) */
+.pb-filters { @apply ml-auto flex flex-wrap items-center gap-1; }
+.pb-filter { @apply h-7 px-2.5 rounded-full border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
+.pb-filter-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]; }
+.pb-filters em { @apply not-italic ml-1 text-[11px] text-[var(--text-dim)]; }
+.pb-th-sel { @apply w-8; }
+.pb-td-sel { @apply w-8 text-center; }
+.pb-th-sel input, .pb-td-sel input { @apply w-3.5 h-3.5 accent-[var(--primary)] cursor-pointer; }
+.pb-bulk { @apply fixed left-1/2 -translate-x-1/2 bottom-20 z-50 flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--primary)] shadow-2xl; }
+.pb-bulk > b { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
+.pb-bulk select { @apply h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.pb-bulk-x { @apply h-8 px-3 rounded-lg text-[12px] font-bold text-[var(--danger)] hover:bg-[var(--danger)]/10; }
+.pb-bulk-off { @apply h-8 px-3 rounded-lg text-[12px] font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-surface)]; }

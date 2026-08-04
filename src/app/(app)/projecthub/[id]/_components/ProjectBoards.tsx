@@ -24,7 +24,8 @@ import { BoardTrash } from "./BoardTrash";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
-  flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, type InputMode, type PayTermRow,
+  flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, isDoneRow, START_DATE_RE,
+  type InputMode, type PayTermRow,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
 
@@ -51,6 +52,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [tplMenu, setTplMenu] = useState(false);          // 템플릿 ⋯ (이름 · 삭제)
   const [groupMenu, setGroupMenu] = useState<string | null>(null);   // 그룹 ⋯
   const [trashOpen, setTrashOpen] = useState(false);
+  //   필터 — 표·칸반이 같이 쓴다. 켜진 게 없으면 아무것도 거르지 않는다.
+  const [filters, setFilters] = useState<{ mine: boolean; week: boolean; open: boolean }>({ mine: false, week: false, open: false });
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   //   지운 직후 한 번 뜨는 되돌리기 줄 — 놓쳐도 '지운 항목'에서 30일 안에 되살릴 수 있다
   const [undo, setUndo] = useState<{ table: string; id: string; label: string } | null>(null);
   // 정렬 — 컬럼 이름을 누르면 그 컬럼 기준. 표마다 따로 기억한다(저장은 안 한다, 보기 상태일 뿐).
@@ -191,14 +195,33 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     if (typeof window !== "undefined") window.localStorage.setItem(`${VIEW_KEY}${boardId}`, v);
   };
 
+  // 필터 — 셋 다 '켜면 좁아지는' 방향으로만 동작한다(AND). 무엇이 걸러졌는지 줄로 알려준다.
+  const shown = useMemo(() => {
+    if (!filters.mine && !filters.week && !filters.open) return items as BoardItem[];
+    const today = todayKst();
+    const week = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+    const personCols = cols.filter((c) => c.type === "person");
+    const dueCols = cols.filter((c) => c.type === "date" && !START_DATE_RE.test(c.name));
+    return (items as BoardItem[]).filter((it) => {
+      if (filters.mine && !(userId && personCols.some((c) => it.values?.[c.id] === userId))) return false;
+      if (filters.week && !dueCols.some((c) => {
+        const v = String(it.values?.[c.id] || "");
+        return /^\d{4}-\d{2}-\d{2}/.test(v) && v >= today && v <= week;
+      })) return false;
+      if (filters.open && isDoneRow(it as any, cols as any, groups as any)) return false;
+      return true;
+    });
+  }, [items, cols, groups, filters, userId]);
+  const hiddenCount = items.length - shown.length;
+
   const itemsByGroup = useMemo(() => {
     const m: Record<string, BoardItem[]> = {};
-    for (const it of items) {
+    for (const it of shown) {
       const k = it.group_id || "__none__";
       (m[k] = m[k] || []).push(it);
     }
     return m;
-  }, [items]);
+  }, [shown]);
 
   // ── 표 만들기 — 템플릿의 컬럼·그룹을 그대로 심는다 ──
   const createBoard = async (key: string) => {
@@ -401,6 +424,46 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
+  // 행 복제 — 정기 지출·매달 청구는 복제가 가장 빠른 입력이다(2026-08-04 기획 3차).
+  const duplicateItem = async (it: BoardItem) => {
+    const { [DOC_VALUE_KEY]: _q, [CONTRACT_VALUE_KEY]: _c, ...values } = (it.values || {}) as any;
+    const { error } = await db.from("project_board_items").insert({
+      board_id: boardId, group_id: it.group_id, name: it.name ? `${it.name} 사본` : "",
+      values, position: (it.position ?? 0) + 1,
+    });
+    if (error) { toast(error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+    toast("한 줄 복제했습니다. 문서 연결은 새로 만드세요.", "success");
+  };
+
+  // ── 고른 줄에 한 번에 ──
+  const bulkPatch = async (patch: Record<string, any>) => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    await db.from("project_board_items").update({ ...patch, updated_at: new Date().toISOString() }).in("id", ids);
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+    setSelected(new Set());
+  };
+  const bulkValue = async (colId: string, v: any) => {
+    const ids = [...selected];
+    for (const id of ids) {
+      const it = items.find((x) => x.id === id);
+      if (!it) continue;
+      await db.from("project_board_items")
+        .update({ values: { ...(it.values || {}), [colId]: v }, updated_at: new Date().toISOString() }).eq("id", id);
+    }
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+    setSelected(new Set());
+  };
+  const bulkDelete = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    await db.from("project_board_items").update({ archived_at: new Date().toISOString() }).in("id", ids);
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+    setSelected(new Set());
+    toast(`${ids.length}건을 지웠습니다. '지운 항목'에서 되살릴 수 있어요.`, "success");
+  };
+
   const saveName = async (item: BoardItem, name: string) => {
     if (name === item.name) return;
     await db.from("project_board_items").update({ name, updated_at: new Date().toISOString() }).eq("id", item.id);
@@ -492,10 +555,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     ? ((flowCol.settings?.options || []) as any[]).map((o) => ({ key: String(o.id), label: String(o.label), color: String(o.color || "#C4C4C4") }))
     : groups.map((g) => ({ key: g.id, label: g.name, color: g.color }));
   const cardsOf = (key: string) => (flowCol
-    ? items.filter((it) => String(it.values?.[flowCol.id] ?? "") === key)
-    : items.filter((it) => it.group_id === key));
+    ? shown.filter((it) => String(it.values?.[flowCol.id] ?? "") === key)
+    : shown.filter((it) => it.group_id === key));
   // 어느 열에도 안 잡힌 행(값이 비었거나 지운 옵션) — 숨기면 영영 안 보인다
-  const loose = flowCol ? items.filter((it) => !kanbanCols.some((c) => String(it.values?.[flowCol.id] ?? "") === c.key)) : [];
+  const loose = flowCol ? shown.filter((it) => !kanbanCols.some((c) => String(it.values?.[flowCol.id] ?? "") === c.key)) : [];
   const partnerColId = cols.find((c) => c.type === "partner")?.id || null;
   const openItem = items.find((i) => i.id === openItemId) || null;
   // 문서 팝업이 볼 것들 — 행, 그 행에 붙은 문서, 금액(원 단위 숫자 칸), 거래처
@@ -582,6 +645,16 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               className={`pb-viewbtn ${showSummary ? "pb-viewbtn-on" : ""}`}>정리</button>
           </span>
         </span>
+        {!showSummary && (
+          <span className="pb-filters">
+            {([["mine", "내 담당"], ["week", "이번 주"], ["open", "미완료만"]] as const).map(([k, label]) => (
+              <button key={k} type="button" aria-pressed={filters[k]}
+                onClick={() => setFilters((f) => ({ ...f, [k]: !f[k] }))}
+                className={`pb-filter ${filters[k] ? "pb-filter-on" : ""}`}>{label}</button>
+            ))}
+            {hiddenCount > 0 && <em>{hiddenCount}건 숨김</em>}
+          </span>
+        )}
       </div>
 
       {renaming && board && (
@@ -598,6 +671,33 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           <button type="button" disabled={proposing} onClick={() => addTermRows(proposal.terms)}>
             {proposing ? "만드는 중…" : `청구 행 ${proposal.terms.length}건 만들기`}
           </button>
+        </div>
+      )}
+
+      {/* 고른 줄에 한 번에 — 비용 정리·단계 이동처럼 여러 건을 같이 만질 때 */}
+      {selected.size > 0 && !showSummary && (
+        <div className="pb-bulk" role="status">
+          <b>{selected.size}건 선택</b>
+          {flowCol && (
+            <select value="" onChange={(e) => { if (e.target.value) bulkValue(flowCol.id, e.target.value); }}>
+              <option value="">{flowCol.name} 바꾸기</option>
+              {((flowCol.settings?.options || []) as any[]).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          )}
+          {cols.filter((c) => c.type === "person")[0] && (
+            <select value="" onChange={(e) => { if (e.target.value) bulkValue(cols.filter((c) => c.type === "person")[0].id, e.target.value); }}>
+              <option value="">담당 지정</option>
+              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          )}
+          {groups.length > 1 && (
+            <select value="" onChange={(e) => { if (e.target.value) bulkPatch({ group_id: e.target.value }); }}>
+              <option value="">그룹 옮기기</option>
+              {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          )}
+          <button type="button" className="pb-bulk-x" onClick={bulkDelete}>삭제</button>
+          <button type="button" className="pb-bulk-off" onClick={() => setSelected(new Set())}>선택 해제</button>
         </div>
       )}
 
@@ -647,7 +747,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       {showSummary ? (
         <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users} />
       ) : view === "timeline" && span ? (
-        <BoardTimeline items={items} span={span} flowCol={flowCol} nameLabel={nameLabel}
+        <BoardTimeline items={shown} span={span} flowCol={flowCol} nameLabel={nameLabel}
           onAdd={() => addItem(groups[0]?.id || "")} />
       ) : view === "board" ? (
         /* 칸반 — 카드를 끌어 다음 단계로. 단계는 라벨이므로 셀에서 바꾸는 것과 같은 값을 만진다
@@ -756,6 +856,15 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               <table className="pb-table">
                 <thead>
                   <tr>
+                    <th className="pb-th-sel">
+                      <input type="checkbox" aria-label="이 그룹 모두 선택"
+                        checked={rows.length > 0 && rows.every((r) => selected.has(r.id))}
+                        onChange={(e) => setSelected((prev) => {
+                          const n = new Set(prev);
+                          rows.forEach((r) => (e.target.checked ? n.add(r.id) : n.delete(r.id)));
+                          return n;
+                        })} />
+                    </th>
                     <th className="pb-th-name">{nameLabel}</th>
                     {cols.map((c) => (
                       <th key={c.id} className={c.type === "number" ? "pb-th-num" : ""}>
@@ -800,6 +909,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                 <tbody>
                   {rows.map((it) => (
                     <tr key={it.id}>
+                      <td className="pb-td-sel">
+                        <input type="checkbox" aria-label="줄 선택" checked={selected.has(it.id)}
+                          onChange={(e) => setSelected((prev) => {
+                            const n = new Set(prev);
+                            if (e.target.checked) n.add(it.id); else n.delete(it.id);
+                            return n;
+                          })} />
+                      </td>
                       <td className="pb-td-name">
                         <span className="pb-name-cell">
                           <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
@@ -807,12 +924,19 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                             className="pb-in" />
                           <button type="button" className="pb-open" title="열기 — 메모·파일" onClick={() => setOpenItemId(it.id)}>⤢</button>
+                          <button type="button" className="pb-open" title="한 줄 복제" onClick={() => duplicateItem(it)}>⧉</button>
                         </span>
                       </td>
                       {cols.map((c) => (
                         <td key={c.id} className={c.type === "number" ? "pb-td-num" : ""}>
                           <Cell col={c} item={it} users={users} partners={partners as any[]} companyId={companyId}
                             onPartnerCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })}
+                            onFillDown={() => {
+                              // 엑셀 습관 그대로 — 바로 윗줄 값을 끌어온다
+                              const idx = rows.findIndex((r) => r.id === it.id);
+                              const above = idx > 0 ? rows[idx - 1] : null;
+                              if (above) saveValue(it, c.id, above.values?.[c.id] ?? null);
+                            }}
                             onSave={(v) => saveValue(it, c.id, v)} />
                         </td>
                       ))}
@@ -834,10 +958,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                     </tr>
                   ))}
                   <QuickAddRow key={`qa-${g.id}`} nameLabel={nameLabel} cols={cols}
-                    span={cols.length + (isBilling ? 3 : 2)}
+                    span={cols.length + (isBilling ? 3 : 2) + (ratioPair ? 1 : 0) + 1}
                     onAdd={(name, values) => addItem(g.id, values, name)} />
                   {rows.length > 0 && numberCols.length > 0 && (
                     <tr className="pb-sum">
+                      <td />
                       <td>합계</td>
                       {cols.map((c) => (
                         <td key={c.id} className={c.type === "number" ? "pb-td-num" : ""}>
@@ -1156,11 +1281,17 @@ function BoardSummary({ cols, items, groups, users }: {
 }
 
 // ── 셀 — 타입별 편집기. 다섯 가지만 쓴다(텍스트·숫자·날짜·상태·사람) ──
-function Cell({ col, item, users, partners, companyId, onSave, onPartnerCreated }: {
+function Cell({ col, item, users, partners, companyId, onSave, onPartnerCreated, onFillDown }: {
   col: BoardColumn; item: BoardItem; users: { id: string; name: string }[];
   partners: { id: string; name: string; business_number?: string | null }[];
   companyId: string; onSave: (v: any) => void; onPartnerCreated: () => void;
+  /** Ctrl+D — 윗줄 값 끌어오기(표에서만 넘어온다) */
+  onFillDown?: () => void;
 }) {
+  //   입력 칸 어디서든 Ctrl/⌘+D 로 윗줄 값을 끌어온다
+  const fillKey = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) { e.preventDefault(); onFillDown?.(); }
+  };
   const v = item.values?.[col.id];
   if (col.type === "partner") {
     return <PartnerCell value={v || ""} partners={partners} companyId={companyId} onSave={onSave} onCreated={onPartnerCreated} />;
@@ -1173,19 +1304,19 @@ function Cell({ col, item, users, partners, companyId, onSave, onPartnerCreated 
           e.target.value = n ? n.toLocaleString("ko-KR") : "";
           onSave(Number.isFinite(n) && e.target.value !== "" ? n : null);
         }}
-        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+        onKeyDown={(e) => { fillKey(e); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
         className="pb-in pb-in-num" />
     );
   }
   if (col.type === "date") {
-    return <DateField value={v || ""} onChange={(e) => onSave(e.target.value || null)} className="pb-in pb-in-date" />;
+    return <span onKeyDown={fillKey}><DateField value={v || ""} onChange={(e) => onSave(e.target.value || null)} className="pb-in pb-in-date" /></span>;
   }
   if (col.type === "status") {
     const options: any[] = col.settings?.options || [];
     const cur = options.find((o) => o.id === v);
     return (
       <span className="pb-status" style={cur ? { background: cur.color } : undefined}>
-        <select value={v || ""} onChange={(e) => onSave(e.target.value || null)}>
+        <select value={v || ""} onKeyDown={fillKey} onChange={(e) => onSave(e.target.value || null)}>
           <option value="">—</option>
           {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
@@ -1195,7 +1326,7 @@ function Cell({ col, item, users, partners, companyId, onSave, onPartnerCreated 
   }
   if (col.type === "person") {
     return (
-      <select value={v || ""} onChange={(e) => onSave(e.target.value || null)} className="pb-in pb-in-sel">
+      <select value={v || ""} onKeyDown={fillKey} onChange={(e) => onSave(e.target.value || null)} className="pb-in pb-in-sel">
         <option value="">—</option>
         {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
       </select>
@@ -1204,7 +1335,7 @@ function Cell({ col, item, users, partners, companyId, onSave, onPartnerCreated 
   return (
     <input defaultValue={v || ""} placeholder="—"
       onBlur={(e) => onSave(e.target.value || null)}
-      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+      onKeyDown={(e) => { fillKey(e); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
       className="pb-in" />
   );
 }
