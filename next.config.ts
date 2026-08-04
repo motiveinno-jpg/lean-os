@@ -23,11 +23,13 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app https://*.daumcdn.net",
+      // local.espider.co.kr = CodefCert 로컬 인증 엔진(127.0.0.1 로 해석). 버전확인이 JSONP(스크립트 태그)라 script-src 필요.
+      "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app https://*.daumcdn.net https://local.espider.co.kr:24646",
       "style-src 'self' 'unsafe-inline' https://*.daumcdn.net https://fonts.googleapis.com https://cdn.jsdelivr.net",
       `img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net${localSupaImgCsp}`,
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net${localSupaCsp}`,
+      // wss://local.espider.co.kr:* — CodefCert 엔진 WebSocket(포트가 getPort 응답마다 동적).
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net wss://local.espider.co.kr:*${localSupaCsp}`,
       "frame-src 'self' blob: https://*.daumcdn.net https://*.daum.net https://*.kakao.com",
       // 'self' — 자사 페이지가 자사 페이지를 iframe 으로 임베드(메뉴 팝업 기능) 허용. 외부 출처 임베드는 여전히 차단.
       "frame-ancestors 'self'",
