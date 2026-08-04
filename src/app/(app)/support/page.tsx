@@ -6,8 +6,11 @@ import { logRead } from "@/lib/log-read";
 // 고객센터 — 사용자가 문의를 등록하고, 내가 보낸 문의·운영자 답변을 확인하는 화면.
 //   문의 저장: support_tickets (company 스코프 RLS). 답변은 운영자(/platform/support)가 작성.
 //   답변이 등록되면 트리거가 status='answered' + 알림 발송 → 사용자는 여기서 답변 확인.
+//   2026-08-04 개편(사장님): 전화 CS 폐지 — 모든 문의를 이 문의함으로 일원화.
+//     화면을 크게·세련되게 + 스크린샷 첨부(support-attachments 프라이빗 버킷, 회사 폴더 스코프).
+//     첨부는 추후 AI 자동 분석(에러 진단)의 입력이 된다.
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -15,6 +18,8 @@ import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
 
 const db = supabase;
+
+type Attachment = { path: string; name: string; size: number };
 
 type Ticket = {
   id: string;
@@ -25,16 +30,20 @@ type Ticket = {
   answer: string | null;
   answered_at: string | null;
   created_at: string;
+  attachments: Attachment[] | null;
 };
 
-const CATEGORIES: { key: string; label: string }[] = [
-  { key: "general", label: "이용 문의" },
-  { key: "feature", label: "기능 제안" },
-  { key: "billing", label: "결제·구독" },
-  { key: "bug", label: "오류 신고" },
-  { key: "etc", label: "기타" },
+// 모든 문의를 받는다 — 유형은 분류용일 뿐, 어떤 문의든 등록 가능.
+const CATEGORIES: { key: string; label: string; icon: string; desc: string }[] = [
+  { key: "general", label: "이용 문의", icon: "💬", desc: "사용법·기능이 궁금할 때" },
+  { key: "bug", label: "오류 신고", icon: "🐞", desc: "에러·이상 동작 (스크린샷 첨부 권장)" },
+  { key: "data", label: "데이터·연동", icon: "🔌", desc: "은행·홈택스 연동, 수치가 안 맞을 때" },
+  { key: "billing", label: "결제·구독", icon: "💳", desc: "요금제·결제·영수증" },
+  { key: "account", label: "계정·권한", icon: "🔐", desc: "로그인·권한·구성원 초대" },
+  { key: "feature", label: "기능 제안", icon: "💡", desc: "이런 기능이 있으면 좋겠어요" },
+  { key: "etc", label: "기타", icon: "📌", desc: "그 외 모든 문의" },
 ];
-const catLabel = (k: string) => CATEGORIES.find((c) => c.key === k)?.label || "기타";
+const catMeta = (k: string) => CATEGORIES.find((c) => c.key === k) || CATEGORIES[CATEGORIES.length - 1];
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   open: { label: "접수됨", color: "var(--warning)" },
@@ -47,6 +56,38 @@ const fmtDate = (s: string) => {
   return `${kstDateStr(d)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 
+const MAX_FILES = 5;
+const MAX_FILE_MB = 8;
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
+// 첨부 스크린샷 — 프라이빗 버킷이라 서명 URL(1시간)로만 열람
+function TicketShots({ attachments }: { attachments: Attachment[] }) {
+  const paths = attachments.map((a) => a.path).join(",");
+  const { data: urls = [] } = useQuery<{ path: string; url: string }[]>({
+    queryKey: ["support-shot-urls", paths],
+    queryFn: async () => {
+      const out: { path: string; url: string }[] = [];
+      for (const a of attachments) {
+        const { data } = await db.storage.from("support-attachments").createSignedUrl(a.path, 3600);
+        if (data?.signedUrl) out.push({ path: a.path, url: data.signedUrl });
+      }
+      return out;
+    },
+    staleTime: 30 * 60 * 1000,
+  });
+  if (!attachments.length) return null;
+  return (
+    <div className="support-ticket-shots">
+      {urls.map((u) => (
+        <a key={u.path} href={u.url} target="_blank" rel="noreferrer" className="support-ticket-shot" title="새 탭에서 크게 보기">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={u.url} alt="첨부 스크린샷" className="w-full h-full object-cover" />
+        </a>
+      ))}
+    </div>
+  );
+}
+
 export default function SupportPage() {
   const { user } = useUser();
   const companyId = user?.company_id ?? null;
@@ -57,37 +98,72 @@ export default function SupportPage() {
   const [category, setCategory] = useState("general");
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const previews = useMemo(() => files.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })), [files]);
+
+  const addFiles = (list: FileList | File[] | null) => {
+    if (!list) return;
+    const next = [...files];
+    for (const f of Array.from(list)) {
+      if (!IMAGE_TYPES.has(f.type)) { toast(`${f.name}: 이미지 파일(PNG/JPG/WEBP/GIF)만 첨부할 수 있습니다`, "error"); continue; }
+      if (f.size > MAX_FILE_MB * 1024 * 1024) { toast(`${f.name}: ${MAX_FILE_MB}MB 이하만 첨부할 수 있습니다`, "error"); continue; }
+      if (next.length >= MAX_FILES) { toast(`사진은 최대 ${MAX_FILES}장까지 첨부할 수 있습니다`, "error"); break; }
+      next.push(f);
+    }
+    setFiles(next);
+  };
 
   const { data: tickets = [], isLoading } = useQuery<Ticket[]>({
     queryKey: ["support-tickets", userId],
     queryFn: async () => {
       const data = logRead('support/page:data', await db
         .from("support_tickets")
-        .select("id, category, subject, content, status, answer, answered_at, created_at")
+        .select("id, category, subject, content, status, answer, answered_at, created_at, attachments")
         .eq("user_id", userId ?? "")
         .order("created_at", { ascending: false }));
-      return (data || []) as Ticket[];
+      // attachments 는 이 세션에서 추가된 컬럼 — 타입 재생성 전이라 unknown 경유 캐스팅
+      return (data || []) as unknown as Ticket[];
     },
     enabled: !!userId,
   });
 
   const submitMut = useMutation({
     mutationFn: async () => {
-      const { error } = await db.from("support_tickets").insert({
+      // 1) 티켓 먼저 생성 (첨부 실패해도 문의 자체는 접수되도록)
+      const { data: inserted, error } = await db.from("support_tickets").insert({
         company_id: companyId as string,
         user_id: userId as string,
         category,
         subject: subject.trim(),
         content: content.trim(),
-      });
+      }).select("id").single();
       if (error) throw error;
+      // 2) 스크린샷 업로드 → 경로를 티켓에 연결
+      const uploaded: Attachment[] = [];
+      let failed = 0;
+      for (const f of files) {
+        const ext = (f.name.split(".").pop() || "png").toLowerCase().slice(0, 8);
+        const path = `${companyId}/${inserted.id}/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await db.storage.from("support-attachments").upload(path, f, { contentType: f.type });
+        if (upErr) { failed++; continue; }
+        uploaded.push({ path, name: f.name.slice(0, 120), size: f.size });
+      }
+      if (uploaded.length > 0) {
+        await (db as any).from("support_tickets").update({ attachments: uploaded }).eq("id", inserted.id);
+      }
+      return { failed, uploaded: uploaded.length };
     },
-    onSuccess: () => {
-      toast("문의가 접수되었습니다. 답변이 등록되면 알림으로 알려드립니다.", "success");
-      setSubject("");
-      setContent("");
-      setCategory("general");
+    onSuccess: (r) => {
+      toast(
+        r.failed > 0
+          ? `문의가 접수되었습니다. (사진 ${r.uploaded}장 첨부, ${r.failed}장 실패 — 필요하면 다시 첨부해 주세요)`
+          : "문의가 접수되었습니다. 답변이 등록되면 알림으로 알려드립니다.",
+        r.failed > 0 ? "info" : "success",
+      );
+      setSubject(""); setContent(""); setCategory("general"); setFiles([]);
       qc.invalidateQueries({ queryKey: ["support-tickets", userId] });
     },
     onError: (e) => {
@@ -97,132 +173,183 @@ export default function SupportPage() {
   });
 
   const canSubmit = subject.trim().length > 0 && content.trim().length > 0 && !submitMut.isPending;
-
   const answeredCount = useMemo(() => tickets.filter((t) => t.status === "answered").length, [tickets]);
 
   return (
-    <div>
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] gap-5 items-start">
-        {/* 문의 작성 */}
-        <div className="glass-card p-5 sm:p-6">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">CONTACT</div>
-          <div className="text-sm font-bold text-[var(--text)] mb-4">문의하기</div>
-          <div className="space-y-3.5">
-            <div>
-              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">문의 유형</label>
-              <div className="flex flex-wrap gap-1.5">
-                {CATEGORIES.map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    onClick={() => setCategory(c.key)}
-                    className={`px-3 py-1.5 text-[12px] font-semibold rounded-full border transition ${category === c.key ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">제목 <span className="text-red-500">*</span></label>
-              <input
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                maxLength={120}
-                placeholder="문의 제목을 입력하세요"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">내용 <span className="text-red-500">*</span></label>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={7}
-                placeholder="문의 내용을 자세히 적어주시면 더 정확히 답변드릴 수 있습니다."
-                className="field-input resize-y"
-              />
-            </div>
-            <button
-              type="button"
-              disabled={!canSubmit}
-              onClick={() => submitMut.mutate()}
-              className="btn-primary w-full active:scale-[0.99]"
-            >
-              {submitMut.isPending ? "접수 중…" : "문의 접수"}
-            </button>
-            <p className="text-[11px] text-[var(--text-dim)] leading-relaxed">
-              접수된 문의와 답변은 오른쪽 <b className="text-[var(--text-muted)]">내 문의 내역</b>에서 확인할 수 있습니다. 답변 등록 시 알림으로 안내드립니다.
-            </p>
+    <div className="support-page-root">
+      {/* ═══ 안내 히어로 — 전화 상담 없이 문의함 일원화 ═══ */}
+      <div className="support-hero">
+        <div className="support-hero-eyebrow">SUPPORT CENTER</div>
+        <h1 className="support-hero-title">무엇이든 문의하세요 — 모든 문의는 여기서 받습니다</h1>
+        <p className="support-hero-desc">
+          OwnerView 고객 지원은 전화 상담 없이 문의함으로 운영됩니다. 이용 방법부터 오류 신고,
+          결제·연동 문제까지 어떤 내용이든 남겨주세요. 답변이 등록되면 알림으로 바로 알려드립니다.
+        </p>
+        <div className="support-hero-points">
+          <span className="support-hero-point"><Ico e="📸" /> 화면 사진을 첨부하면 더 빠르고 정확하게 해결됩니다</span>
+          <span className="support-hero-point"><Ico e="🔔" /> 답변 등록 시 알림 발송</span>
+          <span className="support-hero-point"><Ico e="🔒" /> 첨부 사진은 우리 회사만 볼 수 있습니다</span>
+        </div>
+      </div>
+
+      {/* ═══ 문의 작성 ═══ */}
+      <div className="support-compose-card">
+        <div>
+          <span className="support-section-label">1. 문의 유형</span>
+          <div className="support-category-grid">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                data-active={category === c.key ? "1" : undefined}
+                onClick={() => setCategory(c.key)}
+                className="support-category-card"
+              >
+                <span className="support-category-name"><Ico e={c.icon} /> {c.label}</span>
+                <span className="support-category-desc">{c.desc}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* 내 문의 내역 */}
-        <div className="glass-card p-5 sm:p-6">
-          <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-1">HISTORY</div>
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-sm font-bold text-[var(--text)]">내 문의 내역</div>
-            <div className="text-[11px] text-[var(--text-muted)]">
-              전체 {tickets.length}건{answeredCount > 0 && <span className="text-emerald-500 font-semibold"> · 답변 {answeredCount}건</span>}
-            </div>
-          </div>
+        <div>
+          <span className="support-section-label">2. 제목 <span className="text-red-500">*</span></span>
+          <input
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            maxLength={120}
+            placeholder="한 줄로 요약해 주세요 (예: 통장 잔액이 실제와 다르게 보여요)"
+            className="support-input"
+          />
+        </div>
 
-          {isLoading ? (
-            <div className="text-sm text-[var(--text-muted)] py-8 text-center">불러오는 중…</div>
-          ) : tickets.length === 0 ? (
-            <div className="text-center py-14">
-              <div className="text-4xl mb-3"><Ico e="💬" /></div>
-              <div className="text-sm font-semibold text-[var(--text)]">아직 등록한 문의가 없습니다.</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-1.5">왼쪽에서 첫 문의를 남겨보세요.</div>
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {tickets.map((t) => {
-                const st = STATUS_META[t.status] || STATUS_META.open;
-                const expanded = openId === t.id;
-                return (
-                  <div key={t.id} className="rounded-xl border border-[var(--border)] overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(expanded ? null : t.id)}
-                      className="w-full text-left px-4 py-3 hover:bg-[var(--bg-surface)]/50 transition"
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{catLabel(t.category)}</span>
-                        <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                          style={{ color: st.color, background: `color-mix(in srgb, ${st.color} 12%, transparent)` }}
-                        >
-                          {st.label}
-                        </span>
-                        <span className="ml-auto text-[10px] text-[var(--text-dim)] mono-number">{fmtDate(t.created_at)}</span>
-                      </div>
-                      <div className="text-sm font-semibold text-[var(--text)] truncate">{t.subject}</div>
-                    </button>
-                    {expanded && (
-                      <div className="px-4 pb-4 pt-1 border-t border-[var(--border)]">
-                        <div className="text-[12px] text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed py-2">{t.content}</div>
-                        {t.answer ? (
-                          <div className="mt-2 rounded-xl p-3.5" style={{ background: "color-mix(in srgb, var(--primary) 6%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 18%, transparent)" }}>
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                              <span className="text-[11px] font-bold text-[var(--primary)]">운영팀 답변</span>
-                              {t.answered_at && <span className="text-[10px] text-[var(--text-dim)] mono-number">{fmtDate(t.answered_at)}</span>}
-                            </div>
-                            <div className="text-[12.5px] text-[var(--text)] whitespace-pre-wrap leading-relaxed">{t.answer}</div>
-                          </div>
-                        ) : (
-                          <div className="mt-2 text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)]/50 rounded-lg px-3 py-2">
-                            아직 답변이 등록되지 않았습니다. 운영팀이 확인 중입니다.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+        <div>
+          <span className="support-section-label">3. 내용 <span className="text-red-500">*</span></span>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onPaste={(e) => {
+              const imgs = Array.from(e.clipboardData?.files || []).filter((f) => IMAGE_TYPES.has(f.type));
+              if (imgs.length) { e.preventDefault(); addFiles(imgs); }
+            }}
+            placeholder={"어떤 화면에서, 무엇을 했을 때, 어떻게 되었는지 적어주시면 가장 빠르게 해결됩니다.\n(캡처한 이미지를 여기에 붙여넣기(Ctrl+V)해도 자동으로 첨부됩니다)"}
+            className="support-textarea"
+          />
+        </div>
+
+        <div>
+          <span className="support-section-label">4. 화면 사진 첨부 <span className="text-[var(--text-dim)] font-normal">(선택 · 최대 {MAX_FILES}장, 장당 {MAX_FILE_MB}MB)</span></span>
+          <div
+            className="support-dropzone"
+            data-drag={dragging ? "1" : undefined}
+            onClick={() => fileRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+          >
+            <span className="text-2xl"><Ico e="🖼️" /></span>
+            <span className="text-[13px] font-semibold text-[var(--text)]">클릭해서 사진 선택 또는 여기로 끌어다 놓기</span>
+            <span className="text-[11px] text-[var(--text-dim)]">오류 화면·에러 메시지 캡처를 첨부하면 원인을 훨씬 빨리 찾습니다</span>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              multiple
+              className="hidden"
+              onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+            />
+          </div>
+          {previews.length > 0 && (
+            <div className="support-attach-previews">
+              {previews.map((p, i) => (
+                <div key={p.url} className="support-attach-thumb">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
+                  <button type="button" className="support-attach-remove" title="첨부 제거"
+                    onClick={() => setFiles(files.filter((_, idx) => idx !== i))}>×</button>
+                </div>
+              ))}
             </div>
           )}
         </div>
+
+        <button
+          type="button"
+          disabled={!canSubmit}
+          onClick={() => submitMut.mutate()}
+          className="support-submit-btn"
+        >
+          {submitMut.isPending ? "접수 중…" : `문의 접수하기${files.length ? ` (사진 ${files.length}장 포함)` : ""}`}
+        </button>
+      </div>
+
+      {/* ═══ 내 문의 내역 ═══ */}
+      <div className="support-history-card">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <div className="text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">HISTORY</div>
+            <div className="text-base font-bold text-[var(--text)]">내 문의 내역</div>
+          </div>
+          <div className="text-[12px] text-[var(--text-muted)]">
+            전체 {tickets.length}건{answeredCount > 0 && <span className="text-emerald-500 font-semibold"> · 답변 {answeredCount}건</span>}
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="text-sm text-[var(--text-muted)] py-8 text-center">불러오는 중…</div>
+        ) : tickets.length === 0 ? (
+          <div className="text-center py-14">
+            <div className="text-4xl mb-3"><Ico e="💬" /></div>
+            <div className="text-sm font-semibold text-[var(--text)]">아직 등록한 문의가 없습니다.</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-1.5">위에서 첫 문의를 남겨보세요.</div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {tickets.map((t) => {
+              const st = STATUS_META[t.status] || STATUS_META.open;
+              const cm = catMeta(t.category);
+              const expanded = openId === t.id;
+              const shots = Array.isArray(t.attachments) ? t.attachments : [];
+              return (
+                <div key={t.id} className="support-ticket-item">
+                  <button type="button" onClick={() => setOpenId(expanded ? null : t.id)} className="support-ticket-head">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]"><Ico e={cm.icon} /> {cm.label}</span>
+                      <span
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ color: st.color, background: `color-mix(in srgb, ${st.color} 12%, transparent)` }}
+                      >
+                        {st.label}
+                      </span>
+                      {shots.length > 0 && <span className="text-[10px] text-[var(--text-dim)]"><Ico e="📎" /> {shots.length}</span>}
+                      <span className="ml-auto text-[10px] text-[var(--text-dim)] mono-number">{fmtDate(t.created_at)}</span>
+                    </div>
+                    <div className="text-sm font-semibold text-[var(--text)] truncate">{t.subject}</div>
+                  </button>
+                  {expanded && (
+                    <div className="support-ticket-body">
+                      <div className="text-[12.5px] text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed py-2">{t.content}</div>
+                      {shots.length > 0 && <TicketShots attachments={shots} />}
+                      {t.answer ? (
+                        <div className="support-answer-block">
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className="text-[11px] font-bold text-[var(--primary)]">운영팀 답변</span>
+                            {t.answered_at && <span className="text-[10px] text-[var(--text-dim)] mono-number">{fmtDate(t.answered_at)}</span>}
+                          </div>
+                          <div className="text-[12.5px] text-[var(--text)] whitespace-pre-wrap leading-relaxed">{t.answer}</div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)]/50 rounded-lg px-3 py-2">
+                          아직 답변이 등록되지 않았습니다. 운영팀이 확인 중입니다.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

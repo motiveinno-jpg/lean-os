@@ -3077,6 +3077,37 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-support-ticket-row { @apply p-5; }
 .platform-support-answer-block { @apply mt-3 rounded-xl bg-[var(--bg-surface)] p-3.5; }
 .platform-support-answer-form { @apply mt-3; }
+
+/* ── 고객센터(문의하기) 개편 — 2026-08-04 전화 CS 폐지·문의함 일원화 ── */
+.support-page-root { @apply max-w-5xl mx-auto space-y-6; }
+.support-hero { @apply relative overflow-hidden rounded-3xl border border-[var(--border)] px-6 py-8 sm:px-10 sm:py-10; background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, var(--bg-card)), var(--bg-card) 65%); }
+.support-hero-eyebrow { @apply text-[11px] font-bold tracking-[0.18em] uppercase text-[var(--primary)] mb-2; }
+.support-hero-title { @apply text-xl sm:text-2xl font-black text-[var(--text)] leading-snug; }
+.support-hero-desc { @apply mt-2 text-[13px] text-[var(--text-muted)] leading-relaxed max-w-xl; }
+.support-hero-points { @apply mt-4 flex flex-wrap gap-2; }
+.support-hero-point { @apply inline-flex items-center gap-1.5 rounded-full bg-[var(--bg)]/70 border border-[var(--border)] px-3 py-1.5 text-[11px] font-semibold text-[var(--text-muted)]; }
+.support-compose-card { @apply glass-card p-6 sm:p-8 space-y-6; }
+.support-section-label { @apply block text-[12px] font-bold text-[var(--text)] mb-2; }
+.support-category-grid { @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2; }
+.support-category-card { @apply flex flex-col items-start gap-1 rounded-2xl border border-[var(--border)] px-3.5 py-3 text-left transition hover:bg-[var(--bg-surface)]; }
+.support-category-card[data-active="1"] { @apply border-[var(--primary)] bg-[var(--primary)]/8 ring-1 ring-[var(--primary)]/30; }
+.support-category-name { @apply text-[13px] font-bold text-[var(--text)] flex items-center gap-1.5; }
+.support-category-desc { @apply text-[11px] text-[var(--text-dim)] leading-snug; }
+.support-input { @apply field-input; height: 3rem; font-size: 0.9rem; }
+.support-textarea { @apply field-input resize-y text-[0.9rem] leading-relaxed; min-height: 11rem; }
+.support-dropzone { @apply flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-[var(--border)] px-4 py-6 text-center cursor-pointer transition hover:border-[var(--primary)]/60 hover:bg-[var(--bg-surface)]/60; }
+.support-dropzone[data-drag="1"] { @apply border-[var(--primary)] bg-[var(--primary)]/8; }
+.support-attach-previews { @apply flex flex-wrap gap-2.5 mt-3; }
+.support-attach-thumb { @apply relative w-24 h-24 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-surface)]; }
+.support-attach-remove { @apply absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-[11px] leading-none flex items-center justify-center hover:bg-black/80; }
+.support-submit-btn { @apply btn-primary w-full text-[15px] font-bold active:scale-[0.99]; height: 3.25rem; }
+.support-history-card { @apply glass-card p-6 sm:p-8; }
+.support-ticket-item { @apply rounded-2xl border border-[var(--border)] overflow-hidden; }
+.support-ticket-head { @apply w-full text-left px-5 py-4 transition hover:bg-[var(--bg-surface)]/50; }
+.support-ticket-body { @apply px-5 pb-5 pt-2 border-t border-[var(--border)]; }
+.support-answer-block { @apply mt-3 rounded-2xl p-4; background: color-mix(in srgb, var(--primary) 6%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent); }
+.support-ticket-shots { @apply flex flex-wrap gap-2 mt-3; }
+.support-ticket-shot { @apply w-28 h-28 rounded-xl overflow-hidden border border-[var(--border)] bg-[var(--bg-surface)] block; }
 .platform-incident-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .platform-incident-list { @apply space-y-4; }
 .platform-incident-card { @apply p-5; }
