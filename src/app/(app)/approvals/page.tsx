@@ -12,7 +12,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
-import { notifyOvertimeDecision } from "@/lib/notifications";
+import { createNotification, notifyOvertimeDecision } from "@/lib/notifications";
 import {
   getApprovalPolicies,
   upsertApprovalPolicy,
@@ -3843,6 +3843,23 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
         p_step_id: stepId, p_new_approver_id: newApproverId,
       });
       if (error) throw error;
+      // 새 승인자 알림 — 기존 결재 요청 알림과 같은 type/entity 라 클릭 시 내 결재함으로 이동.
+      //   notifications INSERT 트리거가 웹푸시까지 자동 발송. 알림 실패는 변경 자체를 막지 않는다.
+      try {
+        const reqRow = logRead('approvals/page:reassign-title', await (supabase)
+          .from("approval_requests").select("title").eq("id", requestId).maybeSingle());
+        if (tlCompanyId) {
+          await createNotification({
+            companyId: tlCompanyId,
+            userId: newApproverId,
+            type: "approval_request",
+            title: `결재 요청: ${(reqRow as any)?.title || "결재 건"}`,
+            message: "승인자로 지정되었습니다 — 내 결재함에서 확인하세요.",
+            entityType: "approval_request",
+            entityId: requestId,
+          });
+        }
+      } catch { /* 알림 실패는 표시만 못 할 뿐 — 변경은 이미 완료 */ }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["approval-timeline", requestId] });
