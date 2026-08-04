@@ -211,9 +211,23 @@ export const BLANK_TEMPLATE: BoardTemplate = {
   groups: [{ name: "그룹 1", color: C.indigo }],
 };
 
-/** '매출 · 청구' 행에 붙는 견적서 연결 — 컬럼이 아니라 예약 키로 값에 담는다
- *  (사용자가 컬럼을 지워도 연결이 끊기지 않게). { id, no } */
+/** '매출 · 청구' 행에 붙는 문서 연결 — 컬럼이 아니라 예약 키로 값에 담는다
+ *  (사용자가 컬럼을 지워도 연결이 끊기지 않게). 각각 { id, no } */
 export const DOC_VALUE_KEY = "__quote";
+export const CONTRACT_VALUE_KEY = "__contract";
+
+/** 계약서의 결제조건 한 회차 — documents.content_json.paymentSchedule 의 원소 */
+export type PayTermRow = { label: string; ratio?: number; amount?: number; condition?: string };
+
+/** 계약서에서 결제조건을 꺼낸다. 회차가 없으면 빈 배열. */
+export function payTermsOf(contract: any): PayTermRow[] {
+  const arr = (contract?.content_json as any)?.paymentSchedule;
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((x: any) => x && x.label).map((x: any) => ({
+    label: String(x.label), ratio: Number(x.ratio) || undefined,
+    amount: Number(x.amount) || undefined, condition: x.condition ? String(x.condition) : undefined,
+  }));
+}
 
 export function findTemplate(key: string | null | undefined): BoardTemplate {
   return BOARD_TEMPLATES.find((t) => t.key === key) || BLANK_TEMPLATE;

@@ -1280,7 +1280,7 @@ export default function ProjectHubDetailPage() {
             설명이 필요할까? 바로 템플릿이 나오면 될 것 같아") */}
         <PjSection k="boards" bare inTab={TAB_OF_SECTION(sec).secs.includes("boards")} active={sec === "boards"} onSeen={markSecOpen}>
           {!companyId ? null : <ProjectBoards dealId={dealId} companyId={companyId} users={companyUsers as any[]}
-            dealName={deal?.name || ""} userId={userId || undefined} />}
+            dealName={deal?.name || ""} userId={userId || undefined} dealPartnerId={deal?.partner_id || null} />}
         </PjSection>
 
         {/* 개요 대시보드 — 지표 타일이 맨 위, 차트는 '지금 챙길 것' 아래(2026-08-03 사장님 지시:

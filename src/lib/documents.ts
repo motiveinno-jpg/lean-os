@@ -9,6 +9,7 @@ import { supabase } from './supabase';
 import { logAudit } from './audit-log';
 import type { Json } from '@/types/models';
 import { sanitizeAiContractHtml } from './sanitize-html';
+import { STANDARD_CONTRACT_CONTENT } from './default-doc-templates';
 
 // ── Document types ──
 export const DOC_TYPES = [
@@ -81,6 +82,44 @@ export async function createQuoteForDeal(params: {
     version: 1,
     created_by: params.userId,
   }).select("id, document_number").single();
+  if (error) throw new Error(error.message);
+  return data as any;
+}
+
+/** 견적서 → 계약서. 거래처·금액·품목을 이월하고 원본 견적을 링크한다.
+ *  결제조건(선금·중도금·잔금)은 계약 편집기에서 정한다 — 여기서는 비워 둔다.
+ *  ('매출 · 청구' 템플릿의 행에서 부른다. 2026-08-04 기획 3단계) */
+export async function createContractFromQuoteDoc(params: {
+  companyId: string; dealId: string; userId: string;
+  quoteDoc: { id: string; document_number?: string | null; content_json?: any; sub_deal_id?: string | null };
+  dealName: string; partnerName?: string; amount?: number;
+}): Promise<{ id: string }> {
+  const q = (params.quoteDoc.content_json as any) || {};
+  const no = params.quoteDoc.document_number || "견적서";
+  const amt = params.amount || 0;
+  const content = {
+    ...STANDARD_CONTRACT_CONTENT,
+    direction: q.direction,
+    header: { ...(q.header || {}) },
+    items: q.items || [],
+    sections: [
+      { title: "계약 개요", content: `본 계약은 견적서(${no})에 근거한다.\n\n수신: ${params.partnerName || "{{거래처명}}"}\n계약금액: ${amt ? amt.toLocaleString("ko-KR") + "원 (VAT 별도)" : "{{계약금액}}원 (VAT 별도)"}` },
+      ...STANDARD_CONTRACT_CONTENT.sections,
+    ],
+  };
+  const { data, error } = await supabase.from("documents").insert({
+    company_id: params.companyId,
+    deal_id: params.dealId,
+    sub_deal_id: params.quoteDoc.sub_deal_id || null,
+    name: `${params.dealName || "프로젝트"} 계약서`,
+    status: "draft",
+    document_number: null,
+    content_type: "contract",
+    content_json: content as unknown as Json,
+    source_document_id: params.quoteDoc.id,
+    version: 1,
+    created_by: params.userId,
+  }).select("id").single();
   if (error) throw new Error(error.message);
   return data as any;
 }

@@ -17,12 +17,13 @@ import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
 import { getPartners, upsertPartner } from "@/lib/partners";
-import { createQuoteForDeal } from "@/lib/documents";
+import { createQuoteForDeal, createContractFromQuoteDoc } from "@/lib/documents";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
-  flowColumnOf, spanColumnsOf, type InputMode,
+  flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, type InputMode, type PayTermRow,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
 
@@ -32,10 +33,10 @@ import {
 const db = supabase as any;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 
-export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
+export function ProjectBoards({ dealId, companyId, users, dealName, userId, dealPartnerId }: {
   dealId: string; companyId: string; users: { id: string; name: string }[];
-  /** '매출 · 청구' 행에서 견적서를 만들 때 쓴다 */
-  dealName?: string; userId?: string;
+  /** '매출 · 청구' 행에서 견적서·계약서를 만들 때 쓴다 */
+  dealName?: string; userId?: string; dealPartnerId?: string | null;
 }) {
   const router = useRouter();
   const qc = useQueryClient();
@@ -66,6 +67,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
 
   const boardId = activeId && boards.some((b) => b.id === activeId) ? activeId : (boards[0]?.id || "");
   const board = boards.find((b) => b.id === boardId);
+  //   '매출 · 청구' 만 문서 체인을 쓴다 — 조회 조건에서도 보므로 여기서 먼저 정한다
+  const isBilling = board?.template_key === "billing";
 
   const { data: cols = [] } = useQuery({
     queryKey: ["pb-cols", boardId],
@@ -127,6 +130,19 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
       return (data || []) as BoardItem[];
     },
     enabled: showSummary && boardIds.length > 0,
+  });
+
+  // 이 프로젝트의 문서(견적·계약) — '매출 · 청구' 템플릿에서만 쓴다.
+  //   행에 붙은 연결(예약 키)과 별개로, 계약서의 결제조건을 읽어 청구 행을 제안하는 데 쓴다.
+  const { data: dealDocs = [] } = useQuery({
+    queryKey: ["pb-docs", dealId],
+    queryFn: async () => {
+      const data = logRead("ProjectBoards:docs", await db.from("documents")
+        .select("id, name, document_number, content_type, content_json, source_document_id, created_at")
+        .eq("deal_id", dealId).order("created_at", { ascending: false }));
+      return (data || []) as any[];
+    },
+    enabled: !!dealId && isBilling,
   });
 
   // 거래처 컬럼이 있는 표에서만 목록을 불러온다(620개 규모 — 필요할 때만)
@@ -242,6 +258,64 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
 
+  // 행의 견적서 → 계약서. 견적이 있어야 만들 수 있다(근거 없는 계약을 만들지 않게).
+  const makeContract = async (it: BoardItem) => {
+    const linked = (it.values || {})[CONTRACT_VALUE_KEY] as { id?: string } | undefined;
+    if (linked?.id) { router.push(`/documents?id=${linked.id}`); return; }
+    const q = (it.values || {})[DOC_VALUE_KEY] as { id?: string } | undefined;
+    const quoteDoc = (dealDocs as any[]).find((d) => d.id === q?.id);
+    if (!quoteDoc || !userId || makingDoc) return;
+    setMakingDoc(it.id);
+    try {
+      const amountCol = cols.find((c) => c.type === "number" && (c.settings?.unit || "") === "원");
+      const doc = await createContractFromQuoteDoc({
+        companyId, dealId, userId, quoteDoc,
+        dealName: dealName || "",
+        partnerName: (partners as any[]).find((p) => p.id === (it.values || {})[partnerColId || ""])?.name,
+        amount: amountCol ? Number(it.values?.[amountCol.id]) || 0 : 0,
+      });
+      await db.from("project_board_items")
+        .update({ values: { ...(it.values || {}), [CONTRACT_VALUE_KEY]: { id: doc.id, no: "계약서" } }, updated_at: new Date().toISOString() })
+        .eq("id", it.id);
+      qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+      qc.invalidateQueries({ queryKey: ["pb-docs", dealId] });
+      router.push(`/documents?id=${doc.id}`);
+    } catch (e: any) {
+      toast(e?.message || "계약서 생성 실패", "error");
+    } finally { setMakingDoc(null); }
+  };
+
+  // 계약서의 결제조건대로 청구 행을 만든다 — **제안만 하고, 만드는 건 사람이 누른다**.
+  const [proposing, setProposing] = useState(false);
+  const addTermRows = async (terms: PayTermRow[]) => {
+    if (proposing || terms.length === 0) return;
+    setProposing(true);
+    try {
+      const amountCol = cols.find((c) => c.type === "number" && (c.settings?.unit || "") === "원");
+      const memoCol = cols.find((c) => c.type === "text");
+      const stageId = flowCol
+        ? (((flowCol.settings?.options || []) as any[]).find((o) => /계약/.test(String(o.label)))?.id
+          || ((flowCol.settings?.options || []) as any[])[0]?.id)
+        : null;
+      const base = items.length;
+      const rows = terms.map((t, i) => ({
+        board_id: boardId, group_id: groups[0]?.id || null, name: t.label, position: base + i,
+        values: {
+          ...(flowCol && stageId ? { [flowCol.id]: stageId } : {}),
+          ...(amountCol && t.amount ? { [amountCol.id]: t.amount } : {}),
+          ...(memoCol && t.condition ? { [memoCol.id]: t.condition } : {}),
+          ...(partnerColId && dealPartnerId ? { [partnerColId]: dealPartnerId } : {}),
+        },
+      }));
+      const { error } = await db.from("project_board_items").insert(rows);
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+      toast(`청구 행 ${rows.length}건을 만들었습니다. 예정일은 직접 채워 주세요.`, "success");
+    } catch (e: any) {
+      toast(e?.message || "청구 행 생성 실패", "error");
+    } finally { setProposing(false); }
+  };
+
   const removeColumn = async (c: BoardColumn) => {
     if (!window.confirm(`'${c.name}' 컬럼을 지울까요? 이 컬럼에 넣은 값도 화면에서 사라집니다.`)) return;
     await db.from("project_board_columns").delete().eq("id", c.id);
@@ -342,8 +416,18 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
     : items.filter((it) => it.group_id === key));
   // 어느 열에도 안 잡힌 행(값이 비었거나 지운 옵션) — 숨기면 영영 안 보인다
   const loose = flowCol ? items.filter((it) => !kanbanCols.some((c) => String(it.values?.[flowCol.id] ?? "") === c.key)) : [];
-  //   '매출 · 청구' 만 행에서 견적서를 만든다 — 다른 템플릿에 문서 열을 붙이면 군더더기다
-  const isBilling = board?.template_key === "billing";
+  const partnerColId = cols.find((c) => c.type === "partner")?.id || null;
+  // 계약서에 결제조건이 있는데 아직 청구 행이 없는 회차 — 있으면 한 줄로 제안한다
+  const proposal = useMemo(() => {
+    if (!isBilling) return null;
+    const have = new Set(items.map((i) => (i.name || "").trim()).filter(Boolean));
+    for (const doc of dealDocs as any[]) {
+      if (doc.content_type !== "contract") continue;
+      const terms = payTermsOf(doc).filter((t) => !have.has(t.label.trim()));
+      if (terms.length > 0) return { doc, terms };
+    }
+    return null;
+  }, [isBilling, dealDocs, items]);
   const numberCols = cols.filter((c) => c.type === "number");
 
   return (
@@ -392,6 +476,17 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
           onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenaming(false); }} />
       )}
 
+      {/* 계약 결제조건 → 청구 행 제안. 규칙대로 **만드는 건 사람이 누른다**(2026-08-04 기획 3단계) */}
+      {proposal && !showSummary && (
+        <div className="pb-propose">
+          <b>계약서에 결제 회차가 정해져 있어요</b>
+          <span>{proposal.terms.map((t) => `${t.label}${t.ratio ? ` ${t.ratio}%` : ""}`).join(" · ")}</span>
+          <button type="button" disabled={proposing} onClick={() => addTermRows(proposal.terms)}>
+            {proposing ? "만드는 중…" : `청구 행 ${proposal.terms.length}건 만들기`}
+          </button>
+        </div>
+      )}
+
       {showSummary ? (
         <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users} />
       ) : view === "timeline" && span ? (
@@ -435,13 +530,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
                           </span>
                         ))}
                       </div>
-                      {isBilling && (() => {
-                        const linked = (it.values || {})[DOC_VALUE_KEY] as { id?: string; no?: string } | undefined;
-                        return linked?.id
-                          ? <button type="button" className="pb-doc-open" onClick={() => openQuote(it)}>{linked.no || "견적서 열기"}</button>
-                          : <button type="button" className="pb-doc-new" disabled={makingDoc === it.id || !userId} onClick={() => openQuote(it)}>
-                              {makingDoc === it.id ? "만드는 중…" : "＋ 견적서"}</button>;
-                      })()}
+                      {isBilling && (
+                        <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId}
+                          onQuote={() => openQuote(it)} onContract={() => makeContract(it)} />
+                      )}
                       <button type="button" className="pb-card-x" title="행 삭제" onClick={() => removeItem(it)}>✕</button>
                     </article>
                   ))}
@@ -529,14 +621,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
                       ))}
                       {isBilling && (
                         <td className="pb-td-doc">
-                          {(() => {
-                            const linked = (it.values || {})[DOC_VALUE_KEY] as { id?: string; no?: string } | undefined;
-                            if (linked?.id) return <button type="button" className="pb-doc-open" onClick={() => openQuote(it)}>{linked.no || "견적서 열기"}</button>;
-                            return (
-                              <button type="button" className="pb-doc-new" disabled={makingDoc === it.id || !userId}
-                                onClick={() => openQuote(it)}>{makingDoc === it.id ? "만드는 중…" : "＋ 견적서"}</button>
-                            );
-                          })()}
+                          <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId}
+                            onQuote={() => openQuote(it)} onContract={() => makeContract(it)} />
                         </td>
                       )}
                       <td className="pb-td-x">
@@ -567,6 +653,27 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId }: {
       })}
       </>)}
     </div>
+  );
+}
+
+// ── 문서 체인 — 청구 한 줄이 견적 → 계약으로 이어진다 (2026-08-04 기획 3단계) ──
+//   발행·입금은 세금계산서 화면이 맡는다. 여기서는 만들어진 문서로 가는 길만 준다.
+function DocChain({ it, busy, canMake, onQuote, onContract }: {
+  it: BoardItem; busy: boolean; canMake: boolean;
+  onQuote: () => void; onContract: () => void;
+}) {
+  const quote = (it.values || {})[DOC_VALUE_KEY] as { id?: string; no?: string } | undefined;
+  const contract = (it.values || {})[CONTRACT_VALUE_KEY] as { id?: string; no?: string } | undefined;
+  return (
+    <span className="pb-chain">
+      {quote?.id
+        ? <button type="button" className="pb-chain-on" onClick={onQuote} title="견적서 열기">견적 {quote.no || ""}</button>
+        : <button type="button" className="pb-chain-do" disabled={busy || !canMake} onClick={onQuote}>{busy ? "…" : "＋ 견적서"}</button>}
+      {quote?.id && (contract?.id
+        ? <button type="button" className="pb-chain-on" onClick={onContract} title="계약서 열기">계약</button>
+        : <button type="button" className="pb-chain-do" disabled={busy || !canMake} onClick={onContract}>＋ 계약서</button>)}
+      {contract?.id && <Link href="/tax-invoices" className="pb-chain-next" title="세금계산서 화면으로">발행 →</Link>}
+    </span>
   );
 }
 
