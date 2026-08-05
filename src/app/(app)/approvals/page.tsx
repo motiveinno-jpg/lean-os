@@ -2584,16 +2584,20 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 }) {
   const { toast } = useToast();
   // URL ?new=expense|payment|general 등 → presetType 으로 들어옴. 'leave' 도 지원.
-  const initialType: RequestType = (() => {
+  //   지정이 없으면 빈 값 — 유형을 고르기 전에는 유형 피커만 보인다 (2026-08-05 사장님:
+  //   경비 청구가 선택된 것처럼 보이면서 상세 내용은 안 뜨고, 다른 유형을 눌렀다 돌아와야
+  //   나오던 문제. 처음부터 고르게 하면 그 혼란이 사라진다).
+  const initialType = (() => {
     if (presetType === 'expense' || presetType === 'payment' || presetType === 'leave') return presetType as RequestType;
-    return 'expense';
+    return "" as const;
   })();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{ requestType: RequestType | ""; title: string; amount: string; description: string }>({
     requestType: initialType,
     title: "",
     amount: "",
     description: "",
   });
+  const typeChosen = !!form.requestType; // 유형을 고르기 전에는 아래 입력들을 감춘다
   // presetType 이 바뀌면 requestType 동기화 (대시보드에서 들어올 때)
   useEffect(() => {
     if (presetType && (presetType === 'expense' || presetType === 'payment' || presetType === 'leave' || presetType === 'general')) {
@@ -2936,7 +2940,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     },
     onSuccess: () => {
       invalidate();
-      setForm({ requestType: "expense" as RequestType, title: "", amount: "", description: "" });
+      setForm({ requestType: "", title: "", amount: "", description: "" }); // 제출 후에도 유형 선택 화면으로
       descEditorRef.current?.setContent("");
       setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
@@ -3040,8 +3044,15 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               )}
             </div>
 
+            {/* 유형 선택 전 — 아래 입력을 감추고 안내만 (2026-08-05 사장님) */}
+            {!typeChosen && (
+              <div className="approval-type-empty-hint">
+                위에서 <b>요청 유형</b>을 먼저 선택하세요. 유형을 고르면 제목·내용·결재선 입력이 나타납니다.
+              </div>
+            )}
+
             {/* ── Leave-specific fields ── */}
-            {isLeave ? (
+            {!typeChosen ? null : isLeave ? (
               <>
                 {/* Leave balance info */}
                 {leaveForm.leaveType === "annual" && (
@@ -3287,6 +3298,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               />
             )}
 
+            {typeChosen && (<>
             {/* File upload — 드롭존 스타일. 2026-07-21 사장님 요청으로 승인자/참조자 위로 이동 */}
             <div className="approval-file-upload">
               <label className="field-label">첨부파일</label>
@@ -3444,9 +3456,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 </p>
               </div>
             </div>
+            </>)}
 
           </div>
 
+          {typeChosen && (
           <div className="flex gap-2 mt-6">
             <button
               onClick={() => canSubmit && createMut.mutate()}
@@ -3470,7 +3484,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             <button
               type="button"
               onClick={() => {
-                setForm({ requestType: "expense" as RequestType, title: "", amount: "", description: "" });
+                // 초기화하면 유형 선택 전 상태로 되돌린다 (경비 청구로 되돌아가지 않음)
+                setForm({ requestType: "", title: "", amount: "", description: "" });
+                setDescriptionInited("");
                 setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
                 setFiles([]);
                 setSelectedApprovers([]);
@@ -3482,6 +3498,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               초기화
             </button>
           </div>
+          )}
 
           {createMut.isError && (
             <div className="mt-3 text-xs text-red-500">
@@ -3492,9 +3509,15 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       </div>
 
       {/* Right sidebar */}
+      {/* 유형을 골라야 결재선이 정해지므로, 고르기 전에는 오른쪽 미리보기도 감춘다 */}
       <div className="approval-new-request-sidebar">
+        {!typeChosen && (
+          <div className="approval-policy-preview glass-card text-xs text-[var(--text-muted)]">
+            요청 유형을 선택하면 이 요청에 적용될 <b>결재선</b>이 여기에 표시됩니다.
+          </div>
+        )}
         {/* Auto-generated document preview (leave) */}
-        {isLeave && leaveForm.startDate && (
+        {typeChosen && isLeave && leaveForm.startDate && (
           <div className="approval-document-preview glass-card">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-6 h-6 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
@@ -3509,6 +3532,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         )}
 
         {/* Policy Preview — 결재선 스텝퍼 */}
+        {typeChosen && (
         <div className="approval-policy-preview glass-card">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-6 h-6 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
@@ -3609,6 +3633,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );

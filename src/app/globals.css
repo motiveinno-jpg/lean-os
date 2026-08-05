@@ -2057,7 +2057,12 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .signature-table-no { @apply w-20 text-center text-[var(--text-muted)]; }
 .signature-table-status { @apply w-24; }
 .signature-table-group { @apply w-20; }
-.signature-table-batch { @apply inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap; }
+.signature-table-batch { @apply inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap transition; }
+/* 값을 눌러 그 그룹·담당자만 보기 — 켜져 있으면 채운 색으로 (2026-08-05) */
+.signature-table-batch:hover { background: color-mix(in srgb, var(--primary) 22%, transparent); }
+.signature-table-batch.is-on { background: var(--primary); color: #fff; }
+.signature-table-filter-link { @apply truncate max-w-full text-left hover:text-[var(--primary)] hover:underline transition; }
+.signature-table-filter-link.is-on { @apply text-[var(--primary)] font-semibold underline; }
 .signature-table-title { @apply min-w-[220px] max-w-[420px]; }
 .signature-table-title-link { @apply text-left font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate max-w-full inline-block align-bottom; }
 .signature-table-signer { @apply w-52 truncate text-[var(--text-muted)]; }
@@ -2301,6 +2306,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .orderable-drag-handle { @apply cursor-grab select-none px-1 text-sm leading-none text-[var(--text-dim)] hover:text-[var(--text)] rounded bg-[var(--bg-surface)] border border-[var(--border)]; }
 .orderable-move-btn { @apply px-1 text-[11px] leading-4 text-[var(--text-dim)] hover:text-[var(--text)] rounded bg-[var(--bg-surface)] border border-[var(--border)]; }
 .approval-type-picker { @apply flex flex-wrap gap-2; }
+/* 요청 유형을 고르기 전 안내 (2026-08-05) — 고른 뒤에야 제목·내용·결재선이 나온다 */
+.approval-type-empty-hint {
+  @apply rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface)]/50
+         px-4 py-5 text-center text-xs text-[var(--text-muted)];
+}
 .approval-leave-balance-card { @apply flex items-center gap-3 px-4 py-3 bg-blue-500/5 rounded-xl border border-blue-500/20 shadow-sm; }
 .approval-new-request-sidebar { @apply space-y-4; }
 .approval-document-preview { @apply p-5; }

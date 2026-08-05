@@ -79,6 +79,9 @@ function SignaturesDashboardInner() {
   const [reqTo, setReqTo] = useState("");       // 요청일 끝
   const [expFrom, setExpFrom] = useState("");   // 만료일 시작
   const [expTo, setExpTo] = useState("");       // 만료일 끝
+  // 그룹(묶음)·담당자 필터 — 그 값만 골라 보기 (2026-08-05 사장님 요청)
+  const [batchFilter, setBatchFilter] = useState("");   // "" 전체 / "none" 묶음 없음 / batch_id
+  const [managerFilter, setManagerFilter] = useState(""); // "" 전체 / created_by(uuid)
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
   // 2026-05-28 signer_inputs(라디오/조건부 텍스트 응답) 표시 추가
@@ -108,6 +111,7 @@ function SignaturesDashboardInner() {
         if (typeof p.statusFilter === "string") setStatusFilter(p.statusFilter);
         setReqFrom(p.reqFrom || ""); setReqTo(p.reqTo || "");
         setExpFrom(p.expFrom || ""); setExpTo(p.expTo || "");
+        setBatchFilter(p.batchFilter || ""); setManagerFilter(p.managerFilter || "");
       }
       if (alive) setPrefsLoaded(true);
     })();
@@ -121,13 +125,13 @@ function SignaturesDashboardInner() {
         {
           user_id: userId,
           company_id: companyId,
-          signature_list_prefs: { sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo },
+          signature_list_prefs: { sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo, batchFilter, managerFilter },
         },
         { onConflict: "user_id" },
       );
     }, 600);
     return () => clearTimeout(t);
-  }, [userId, companyId, prefsLoaded, sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo]);
+  }, [userId, companyId, prefsLoaded, sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo, batchFilter, managerFilter]);
 
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
@@ -255,6 +259,10 @@ function SignaturesDashboardInner() {
         const hay = `${r.title || ""} ${r.signer_name || ""} ${r.signer_email || ""} ${memberNames[r.created_by] || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
+      // 그룹(묶음)·담당자 — 고른 값만 보기
+      if (batchFilter === "none" && r.batch_id) return false;
+      if (batchFilter && batchFilter !== "none" && r.batch_id !== batchFilter) return false;
+      if (managerFilter && r.created_by !== managerFilter) return false;
       // 기간 설정 — 요청일/만료일 각각 범위 지정 (빈 값이면 제한 없음)
       if (reqFrom && String(r.created_at || "") < reqFrom) return false;
       if (reqTo && String(r.created_at || "") > `${reqTo}T23:59:59.999Z`) return false;
@@ -281,7 +289,27 @@ function SignaturesDashboardInner() {
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
       return String(av).localeCompare(String(bv), "ko") * dir;
     });
-  }, [requests, statusFilter, search, memberNames, reqFrom, reqTo, expFrom, expTo, sort, docNoById]);
+  }, [requests, statusFilter, search, memberNames, reqFrom, reqTo, expFrom, expTo, sort, docNoById, batchFilter, managerFilter]);
+
+  // 필터 선택지 — 실제 목록에 존재하는 묶음·담당자만 (빈 선택지를 보여주지 않는다)
+  const batchOptions = useMemo(() => {
+    const seen = new Map<string, { id: string; label: string; count: number; first: string }>();
+    for (const r of requests as any[]) {
+      if (!r.batch_id) continue;
+      const cur = seen.get(r.batch_id);
+      if (cur) { cur.count++; if (String(r.created_at || "") < cur.first) cur.first = String(r.created_at || ""); }
+      else seen.set(r.batch_id, { id: r.batch_id, label: `묶음#${r.batch_seq ?? "?"}`, count: 1, first: String(r.created_at || "") });
+    }
+    // 최근 발송이 위로
+    return Array.from(seen.values()).sort((a, b) => b.first.localeCompare(a.first));
+  }, [requests]);
+  const managerOptions = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const r of requests as any[]) if (r.created_by) seen.set(r.created_by, (seen.get(r.created_by) || 0) + 1);
+    return Array.from(seen.entries())
+      .map(([id, count]) => ({ id, name: memberNames[id] || "-", count }))
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  }, [requests, memberNames]);
 
   // 현재 필터+검색 결과 중 서명완료 건 (일괄 PDF 대상)
   const signedFiltered = useMemo(
@@ -652,8 +680,23 @@ function SignaturesDashboardInner() {
         )}
       </div>
 
-      {/* 기간 설정 — 요청일·만료일 범위 (2026-08-05 사장님 시안) */}
+      {/* 기간 설정 + 그룹·담당자 필터 (2026-08-05 사장님 시안·요청) */}
       <div className="signature-period-bar">
+        <span className="signature-period-group">
+          <span className="signature-period-label">그룹</span>
+          <select value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)} className="signature-period-input" aria-label="그룹(묶음) 필터">
+            <option value="">전체</option>
+            <option value="none">묶음 없음</option>
+            {batchOptions.map((b) => <option key={b.id} value={b.id}>{b.label} ({b.count}건)</option>)}
+          </select>
+        </span>
+        <span className="signature-period-group">
+          <span className="signature-period-label">담당자</span>
+          <select value={managerFilter} onChange={(e) => setManagerFilter(e.target.value)} className="signature-period-input" aria-label="담당자 필터">
+            <option value="">전체</option>
+            {managerOptions.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.count}건)</option>)}
+          </select>
+        </span>
         <span className="signature-period-group">
           <span className="signature-period-label">요청일</span>
           <input type="date" value={reqFrom} onChange={(e) => setReqFrom(e.target.value)} className="signature-period-input" aria-label="요청일 시작" />
@@ -666,12 +709,15 @@ function SignaturesDashboardInner() {
           <span className="text-[var(--text-dim)]">~</span>
           <input type="date" value={expTo} onChange={(e) => setExpTo(e.target.value)} className="signature-period-input" aria-label="만료일 끝" />
         </span>
-        {(reqFrom || reqTo || expFrom || expTo) && (
-          <button onClick={() => { setReqFrom(""); setReqTo(""); setExpFrom(""); setExpTo(""); }} className="btn-ghost btn-sm">
-            기간 초기화
+        {(reqFrom || reqTo || expFrom || expTo || batchFilter || managerFilter) && (
+          <button
+            onClick={() => { setReqFrom(""); setReqTo(""); setExpFrom(""); setExpTo(""); setBatchFilter(""); setManagerFilter(""); }}
+            className="btn-ghost btn-sm"
+          >
+            필터 초기화
           </button>
         )}
-        <span className="ml-auto text-[11px] text-[var(--text-dim)]">정렬·기간·페이지 크기는 계정에 저장됩니다</span>
+        <span className="ml-auto text-[11px] text-[var(--text-dim)]">정렬·필터·페이지 크기는 계정에 저장됩니다</span>
       </div>
 
       {/* 계약 목록 표 (2026-08-05 사장님 시안) — 열 머리 클릭 정렬, 본문만 스크롤 */}
@@ -751,8 +797,16 @@ function SignaturesDashboardInner() {
                             </span>
                           </td>
                           <td className="signature-table-group">
+                            {/* 값을 눌러 그 묶음만 보기 — 다시 누르면 해제 */}
                             {r.batch_id ? (
-                              <span className="signature-table-batch" title={`묶음 발송 #${r.batch_seq ?? "?"}`}>묶음{r.batch_seq ? `#${r.batch_seq}` : ""}</span>
+                              <button
+                                type="button"
+                                onClick={() => setBatchFilter((v) => (v === r.batch_id ? "" : r.batch_id))}
+                                className={`signature-table-batch ${batchFilter === r.batch_id ? "is-on" : ""}`}
+                                title={batchFilter === r.batch_id ? "이 묶음 필터 해제" : `이 묶음(#${r.batch_seq ?? "?"})만 보기`}
+                              >
+                                묶음{r.batch_seq ? `#${r.batch_seq}` : ""}
+                              </button>
                             ) : <span className="text-[var(--text-dim)]">—</span>}
                           </td>
                           <td className="signature-table-title">
@@ -768,7 +822,18 @@ function SignaturesDashboardInner() {
                             <span className="text-[var(--text)]">{r.signer_name || "—"}</span>
                             {r.signer_email && <span className="text-[var(--text-dim)]">({r.signer_email})</span>}
                           </td>
-                          <td className="signature-table-manager">{memberNames[r.created_by] || "—"}</td>
+                          <td className="signature-table-manager">
+                            {r.created_by ? (
+                              <button
+                                type="button"
+                                onClick={() => setManagerFilter((v) => (v === r.created_by ? "" : r.created_by))}
+                                className={`signature-table-filter-link ${managerFilter === r.created_by ? "is-on" : ""}`}
+                                title={managerFilter === r.created_by ? "이 담당자 필터 해제" : "이 담당자 건만 보기"}
+                              >
+                                {memberNames[r.created_by] || "—"}
+                              </button>
+                            ) : "—"}
+                          </td>
                           <td className="signature-table-date">{r.created_at ? kstDateStr(new Date(r.created_at)) : "—"}</td>
                           <td className={`signature-table-date ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : ""}`}>
                             {r.expires_at ? kstDateStr(new Date(r.expires_at)) : "—"}
