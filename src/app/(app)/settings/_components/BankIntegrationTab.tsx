@@ -390,12 +390,11 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
               {certSource === "auto" && (
                 <CertAutoPicker
-                  onExtracted={({ derB64, keyB64, certName, password }) => {
-                    // 전 유형 der/key 주입 (2026-08-05): 재포장 PFX 는 엔진 산출물 특유 인코딩 탓에
-                    // CODEF 계정등록에서 CF-04009 가 지속 — 역사적으로 검증된 certType 1(der/key)
-                    // 경로에 변환 산출물을 태운다. 은행/카드는 기존 register 파일 흐름,
-                    // 홈택스는 transient 사전 검증 후 저장 흐름이 그대로 적용된다.
-                    setAutoPfxB64("");
+                  onExtracted={({ relayPfxB64, derB64, keyB64, certName, password }) => {
+                    // 은행/카드: 공식 샘플의 중계 서버 왕복으로 정규화된 PFX 를 우선 사용 (certType 0).
+                    //   중계 실패 시 변환 der/key(certType 1) 폴백. 홈택스는 der/key 규격이라
+                    //   transient 사전 검증 후 저장 흐름이 그대로 der/key 를 쓴다.
+                    setAutoPfxB64(accountType !== "hometax" && relayPfxB64 ? relayPfxB64 : "");
                     setDerFileB64(derB64);
                     setKeyFileB64(keyB64);
                     setCertPassword(password);

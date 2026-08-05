@@ -82,7 +82,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
    * 추출·변환 성공 시 — 재포장 PFX(은행/카드 계정등록용)와 der/key(홈택스 등록용)를 모두 전달.
    * 호출측이 accountType 에 맞는 쪽을 골라 쓴다.
    */
-  onExtracted: (r: { pfxBase64: string; derB64: string; keyB64: string; certName: string; password: string }) => void;
+  onExtracted: (r: { pfxBase64: string; relayPfxB64?: string; derB64: string; keyB64: string; certName: string; password: string }) => void;
   /** register(기본): 추출·변환까지. locate: 파일 위치 안내만(예비 — 현재 미사용). */
   purpose?: "register" | "locate";
 }) {
@@ -180,11 +180,27 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
         if (result.SUCCESS && result.CONVERT) {
           const name = cert["cert.subjectname.CN"];
           try {
-            // 구식 RC2 포장 → 표준 3DES 재포장 + der/key 파생 (위 convertPfx 주석 참조)
             const converted = await convertPfx(result.CONVERT, password);
+            // 공식 샘플 흐름: 엔진 산출 PFX 를 CODEF 중계 서버(relay.codef.io)에 왕복시켜
+            // CODEF 가 반환하는 pfxFile 을 계정등록에 사용한다 (엔진 산출물 직접 등록은 CF-04009).
+            // 왕복 실패 시 der/key 변환본 경로로 폴백 — 등록 자체는 계속 진행 가능.
+            let relayPfxB64: string | undefined;
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/codef-cert-relay`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || ""}` },
+                body: JSON.stringify({ pfxFile: result.CONVERT }),
+              });
+              const body = await res.json();
+              if (res.ok && body?.pfxFile) relayPfxB64 = body.pfxFile;
+              else console.warn("[cert-relay] 실패 — der/key 폴백:", body?.error);
+            } catch (relayErr) {
+              console.warn("[cert-relay] 호출 오류 — der/key 폴백:", relayErr);
+            }
             setExtracting(false);
-            setExtractedName(name);
-            onExtracted({ ...converted, certName: name, password });
+            setExtractedName(name + (relayPfxB64 ? " · 중계 정규화 완료" : ""));
+            onExtracted({ ...converted, relayPfxB64, certName: name, password });
           } catch (e) {
             setExtracting(false);
             setExtractedName(null);
