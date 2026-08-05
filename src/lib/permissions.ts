@@ -65,7 +65,10 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "forms", label: "양식 관리" },
         { key: "policies", label: "결재 정책" },
       ] },
-      { route: "/board", label: "게시판", always: true },
+      // 게시판 자체는 전원 기본, 상단 고정만 부여 대상 (2026-08-05 사장님: 아무나 고정·해제하던 문제)
+      { route: "/board", label: "게시판", always: true, tabs: [
+        { key: "pin", label: "게시글 상단 고정·해제 (미부여 시 마스터만 가능)" },
+      ] },
       { route: "/my-contracts", label: "내 서명 요청", always: true },
       { route: "/chat", label: "메신저", always: true },
       { route: "/signatures", label: "전자계약" },

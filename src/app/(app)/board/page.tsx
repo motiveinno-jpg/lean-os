@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 import { useToast } from "@/components/toast";
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { RichEditor } from "@/components/rich-editor";
@@ -107,7 +108,10 @@ export default function BoardPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
-  const canPin = role !== "partner"; // (P3) 게시판 고정은 파트너 외 전원 — 세분화 필요 시 perm 추가
+  // 상단 고정·해제는 마스터(또는 '/board:pin' 위임자)만 — 아무나 남의 글까지 고정·해제하던 문제
+  //   (2026-08-05 사장님). 화면 게이트와 별개로 DB 트리거에서도 강제한다.
+  const { isMaster, hasPerm } = useMyPermissions();
+  const canPin = role !== "partner" && (isMaster || hasPerm("/board:pin"));
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Post | null>(null);
@@ -412,7 +416,14 @@ export default function BoardPage() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["board-posts"] }),
-    onError: (e: any) => toast("고정 실패: " + (e?.message || ""), "error"),
+    onError: (e: any) =>
+      // DB 트리거가 권한 없는 고정을 막으면 42501 — 원문 대신 안내 문구로
+      toast(
+        e?.code === "42501" || String(e?.message || "").includes("관리자만")
+          ? "게시글 상단 고정·해제는 관리자만 할 수 있습니다."
+          : "고정 실패: " + (e?.message || ""),
+        "error",
+      ),
   });
 
   // v4 B1: 댓글/답글 통합 — parentCommentId 가 있으면 답글, 없으면 root 댓글.
