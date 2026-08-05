@@ -128,20 +128,22 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       // verify API 로 회원 등록여부 확인.
       if (accountType === "hometax") {
         if (authMethod === "cert") {
-          if (!derFileB64 || !keyFileB64 || !certPassword) {
-            setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
-            setRegistering(false);
-            return;
-          }
           const { verifyHometaxRegistration } = await import("@/lib/data-sync");
-          // 0. 자동 선택(변환 산출물)은 저장 전에 transient 검증 — 실패 시 기존 파일을 절대 덮어쓰지 않는다.
-          //    (2026-08-05: 검증 없이 먼저 업로드해 정상 인증서를 거부되는 변환본으로 덮어쓴 사고 재발 방지)
+          const { encryptCredential: encCred } = await import("@/lib/crypto");
+
+          // ── PC 자동 선택(엔진 원본 PFX) 경로 ─────────────────────────────────────
+          //   CODEF API팀 답변(2026-08-05)대로 certType "pfx" 로 검증 → 성공한 경우에만 저장.
+          //   기존 der/key 파일은 건드리지 않는다(검증 없이 덮어써 정상 인증서를 잃은 사고 재발 방지).
           if (certSource === "auto") {
+            if (!autoPfxB64 || !certPassword) {
+              setResult({ ok: false, msg: "인증서를 불러온 뒤 비밀번호를 입력하세요" });
+              setRegistering(false);
+              return;
+            }
             const pre = await verifyHometaxRegistration(companyId, {
               loginType: "0",
               certPassword,
-              derFile: derFileB64,
-              keyFile: keyFileB64,
+              pfxFile: autoPfxB64,
               identity: hometaxIdentity || undefined,
             });
             if (!(pre.success && pre.registered)) {
@@ -149,6 +151,37 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
               setRegistering(false);
               return;
             }
+            // 검증 통과 → PFX 저장 + 비밀번호 병합 저장 (기존 cert_password 등 다른 키는 보존)
+            const pfxBytes = Uint8Array.from(atob(autoPfxB64), (c) => c.charCodeAt(0));
+            await supabase.storage.from("certificates").upload(
+              `${companyId}/hometax.pfx`, new Blob([pfxBytes]), { upsert: true },
+            );
+            const encPfxPw = await encCred(certPassword);
+            const { data: prevCred } = await supabase.from("automation_credentials")
+              .select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle();
+            await supabase.from("automation_credentials").upsert({
+              company_id: companyId,
+              service: "hometax",
+              credentials: {
+                ...((prevCred?.credentials as Record<string, unknown>) || {}),
+                login_method: "certificate",
+                cert_password: encPfxPw || "",   // sync 가 읽는 키 — PFX 와 같은 비밀번호
+                pfx_password: encPfxPw || "",
+              },
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "company_id,service" });
+            setResult({ ok: true, msg: "홈택스 인증 확인 완료 (PC 인증서). 세금계산서 동기화를 사용할 수 있습니다." });
+            toast("홈택스 연결 완료", "success");
+            setCertPassword("");
+            onRegistered();
+            setRegistering(false);
+            return;
+          }
+
+          if (!derFileB64 || !keyFileB64 || !certPassword) {
+            setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
+            setRegistering(false);
+            return;
           }
           // 1. 인증서 파일을 storage 에 업로드 (codef-sync 가 거기서 가져감)
           const derBytes = Uint8Array.from(atob(derFileB64), (c) => c.charCodeAt(0));
@@ -160,22 +193,19 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
             `${companyId}/signPri.key`, new Blob([keyBytes]), { upsert: true },
           );
           // 2. 인증서 비밀번호를 암호화하여 automation_credentials 에 저장 (sync 시 사용)
-          const { encryptCredential } = await import("@/lib/crypto");
-          const enc = await encryptCredential(certPassword);
+          const enc = await encCred(certPassword);
           await (supabase).from("automation_credentials").upsert({
             company_id: companyId,
             service: "hometax",
             credentials: { login_method: "certificate", cert_password: enc || "" },
             updated_at: new Date().toISOString(),
           }, { onConflict: "company_id,service" });
-          // 3. verify API 호출 — auto 는 0단계에서 이미 검증됨(중복 과금 회피), file 은 여기서 확인
-          const res = certSource === "auto"
-            ? { success: true, registered: true, message: "", error: "", hint: "" }
-            : await verifyHometaxRegistration(companyId, {
-                loginType: "0",
-                certPassword,
-                identity: hometaxIdentity || undefined,
-              });
+          // 3. verify API 호출 (파일 업로드 경로 — 자동 선택은 위에서 이미 검증 후 return)
+          const res = await verifyHometaxRegistration(companyId, {
+            loginType: "0",
+            certPassword,
+            identity: hometaxIdentity || undefined,
+          });
           if (res.success && res.registered) {
             setResult({ ok: true, msg: "홈택스 등록 확인 완료. 이제 세금계산서 동기화를 사용할 수 있습니다." });
             toast("홈택스 연결 완료", "success");
@@ -377,11 +407,11 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           {authMethod === "cert" ? (
             <>
               {/* 인증서 입력 방식 — PC 자동 선택(기본) vs 파일 업로드.
-                  자동 선택은 엔진 추출 PFX 를 브라우저에서 변환해 은행/카드는 재포장 PFX,
-                  홈택스는 der/key 로 각 규격에 맞게 등록한다 (cert-auto-picker convertPfx 참조). */}
+                  자동 선택은 엔진이 추출한 PFX 원본을 그대로 쓴다 (certType "pfx" — CODEF API팀 답변).
+                  은행/카드는 계정등록, 홈택스는 매 호출 인증에 사용. 변환·중계는 하지 않는다. */}
               <div className="cert-source-tabs">
                 <button type="button" onClick={() => setCertSource("auto")} className={`cert-source-tab ${certSource === "auto" ? "cert-source-tab-active" : ""}`}>
-                  {accountType === "hometax" ? "PC에서 인증서 찾기" : "PC 인증서 자동 선택"}
+                  PC 인증서 자동 선택
                 </button>
                 <button type="button" onClick={() => setCertSource("file")} className={`cert-source-tab ${certSource === "file" ? "cert-source-tab-active" : ""}`}>
                   파일 직접 업로드
@@ -390,15 +420,10 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
               {certSource === "auto" && (
                 <CertAutoPicker
-                  purpose={accountType === "hometax" ? "locate" : "register"}
-                  onExtracted={({ pfxBase64, derB64, keyB64, certName, password }) => {
-                    // 은행/카드: 공식 샘플의 중계 서버 왕복으로 정규화된 PFX 를 우선 사용 (certType 0).
-                    //   중계 실패 시 변환 der/key(certType 1) 폴백. 홈택스는 der/key 규격이라
-                    //   transient 사전 검증 후 저장 흐름이 그대로 der/key 를 쓴다.
-                    // CODEF API팀 답변(2026-08-05): 엔진 추출 PFX 는 certType "pfx" 로 원본 그대로 등록
-                    setAutoPfxB64(accountType !== "hometax" ? pfxBase64 : "");
-                    setDerFileB64(derB64);
-                    setKeyFileB64(keyB64);
+                  onExtracted={({ pfxBase64, certName, password }) => {
+                    // 엔진 원본 PFX 를 그대로 사용 (certType "pfx"). 은행/카드는 계정등록,
+                    // 홈택스는 검증 통과 시 hometax.pfx 로 저장 — 변환본은 쓰지 않는다.
+                    setAutoPfxB64(pfxBase64);
                     setCertPassword(password);
                     setCertFileName(certName);
                   }}

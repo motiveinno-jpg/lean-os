@@ -131,7 +131,8 @@ serve(withSentry("hometax-verify", async (req) => {
     } else if (pfxFile) {
       pfxAlgos = sniffPfxAlgos(pfxFile);
       console.log(`[hometax-verify] pfx algos: ${pfxAlgos.join(",")} len=${pfxFile.length}`);
-      certAuth = { certType: "0", certFile: pfxFile };
+      // CODEF API팀 답변(2026-08-05): pfx 인증서는 certType "0" 이 아니라 "pfx" — 은행 등록에서 실증.
+      certAuth = { certType: "pfx", certFile: pfxFile };
     } else {
       const [certDl, keyDl] = await Promise.all([
         supabase.storage.from("certificates").download(`${companyId}/signCert.der`),
