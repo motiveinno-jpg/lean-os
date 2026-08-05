@@ -191,7 +191,6 @@ export default function ProjectHubDetailPage() {
   const dealId = String(params?.id || "");
   // 좌측 프로젝트 레일 — 목록으로 돌아가지 않고 프로젝트를 바꾼다(먼데이 참고, 2026-08-03).
   //   넓은 화면에서만 켠다. 좁은 화면에서는 표가 설 자리가 없어 자동으로 접힌다.
-  const [headMenu, setHeadMenu] = useState(false);   // 머리줄 ⋯ (자금 · 설정)
   const [railOpen, setRailOpen] = useState(true);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1248,22 +1247,11 @@ export default function ProjectHubDetailPage() {
         )}
         <span className={`ph-st ph-st-${status.key}`} title={brief.headline}>{status.label}</span>
         <span className="pj-head-meta">{partner?.name || ""}</span>
-        {/* 오른쪽 — 참여자만 남긴다. 자금·설정을 버튼으로 세워 두니 템플릿보다 먼저 눈에 들어왔다
-            (2026-08-03 사장님: "담당자 옆에 자금·설정 버튼은 빠져야 하는 게 아닌지?").
-            자주 쓰는 자리가 아니라 ⋯ 안으로 넣는다 — 없애면 들어갈 길이 사라진다. */}
+        {/* 오른쪽 — 참여자만. 자금·설정은 ⋯ 안에도 두지 않는다
+            (2026-08-05 사장님: "템플릿에서 그 기능을 제공하므로 오히려 혼동을 준다").
+            자리(SectionKey)는 그대로 남아 ?tab= 옛 링크와 화면 안 이동은 계속 동작한다. */}
         <span className="pj-head-right">
           {companyId && <ProjectMembers dealId={dealId} companyId={companyId} users={companyUsers as any[]} />}
-          <span className="pj-head-more">
-            <button type="button" className={`pj-head-dots ${headMenu ? "pj-head-dots-on" : ""}`}
-              onClick={() => setHeadMenu((v) => !v)} title="이 프로젝트 더보기" aria-label="더보기">⋯</button>
-            {headMenu && (<>
-              <span className="pj-head-veil" onClick={() => setHeadMenu(false)} />
-              <span className="pj-head-menu">
-                <button type="button" onClick={() => { setHeadMenu(false); goSection("money"); }}>자금 — 계약 · 계산서 · 마진</button>
-                <button type="button" onClick={() => { setHeadMenu(false); goSection("team"); }}>설정 — 구성원 · 기록</button>
-              </span>
-            </>)}
-          </span>
         </span>
       </div>
 
