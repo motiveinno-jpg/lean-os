@@ -294,8 +294,9 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
               <div className="text-[12px] font-semibold text-[var(--text)]">이 인증서의 파일 위치</div>
               <code className="cert-picker-locate-path">{String(certList[selectedIdx]["cert.der.path"]).replace(/[\\/][^\\/]*$/, "")}</code>
               <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                은행·카드 연결은 규격상 인증서 파일 2개(signCert.der, signPri.key)가 필요합니다.
-                아래 &quot;파일 직접 업로드&quot;에서 위 폴더의 두 파일을 함께 선택해주세요.
+                연결 등록은 규격상 <b>원본</b> 인증서 파일 2개(signCert.der, signPri.key)가 필요합니다
+                (변환·추출본은 기관에서 거부됩니다). &quot;파일 직접 업로드&quot; 탭에서 위 폴더의 두 파일을
+                함께 선택해주세요.
               </p>
             </div>
           )}

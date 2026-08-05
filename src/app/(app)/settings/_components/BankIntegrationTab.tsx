@@ -381,7 +381,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
                   홈택스는 der/key 로 각 규격에 맞게 등록한다 (cert-auto-picker convertPfx 참조). */}
               <div className="cert-source-tabs">
                 <button type="button" onClick={() => setCertSource("auto")} className={`cert-source-tab ${certSource === "auto" ? "cert-source-tab-active" : ""}`}>
-                  PC 인증서 자동 선택
+                  PC에서 인증서 찾기
                 </button>
                 <button type="button" onClick={() => setCertSource("file")} className={`cert-source-tab ${certSource === "file" ? "cert-source-tab-active" : ""}`}>
                   파일 직접 업로드
@@ -390,6 +390,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
               {certSource === "auto" && (
                 <CertAutoPicker
+                  purpose="locate"
                   onExtracted={({ relayPfxB64, derB64, keyB64, certName, password }) => {
                     // 은행/카드: 공식 샘플의 중계 서버 왕복으로 정규화된 PFX 를 우선 사용 (certType 0).
                     //   중계 실패 시 변환 der/key(certType 1) 폴백. 홈택스는 der/key 규격이라
