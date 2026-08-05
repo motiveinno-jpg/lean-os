@@ -13,16 +13,8 @@ import type { Figure } from "@/lib/project-template-summary";
 
 const pctText = (v: number, total: number) => (total > 0 ? `${Math.round((v / total) * 100)}%` : "0%");
 
-export function BoardFigures({ figures }: { figures: Figure[] }) {
-  if (figures.length === 0) return null;
-  return (
-    <div className="bf-grid">
-      {figures.map((f, i) => <Fig key={`${f.kind}-${i}`} f={f} />)}
-    </div>
-  );
-}
-
-function Fig({ f }: { f: Figure }) {
+/** 그림 하나 — 정리 양식이 카드와 섞어 배치하므로 낱개로도 그릴 수 있어야 한다 */
+export function BoardFigure({ f }: { f: Figure }) {
   if (f.kind === "stat") {
     return (
       <figure className={`bf bf-stat ${f.tone === "bad" ? "bf-bad" : f.tone === "ok" ? "bf-ok" : ""}`}>

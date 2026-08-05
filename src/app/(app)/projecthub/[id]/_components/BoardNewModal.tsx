@@ -16,6 +16,7 @@ import {
   BOARD_TEMPLATES, ITEM_LABEL, COL_FORMATS, DEFAULT_STATUS_OPTIONS, LABEL_COLORS, newOptionId,
   type ColumnDef, type ColType, type StatusOption,
 } from "@/lib/project-boards";
+import type { Preset } from "@/lib/board-presets";
 
 type Draft = { key: string; name: string; type: ColType; unit: string; options: StatusOption[] };
 
@@ -30,16 +31,21 @@ function newDraft(type: ColType): Draft {
   };
 }
 
-export function BoardNewModal({ inline, busy, onPick, onCustom, onClose }: {
+export function BoardNewModal({ inline, busy, presets, onPick, onCustom, onUsePreset, onRemovePreset, onClose }: {
   /** 표가 하나도 없을 때 — 팝업이 아니라 화면에 그대로 깐다 */
   inline?: boolean;
   busy: boolean;
+  /** 회사 양식 — 우리 회사가 저장해 둔 칸 구성 */
+  presets: Preset[];
   onPick: (key: string) => void;
-  onCustom: (name: string, columns: ColumnDef[]) => void;
+  onCustom: (name: string, columns: ColumnDef[], saveToCompany: boolean) => void;
+  onUsePreset: (p: Preset) => void;
+  onRemovePreset: (p: Preset) => void;
   onClose?: () => void;
 }) {
   const [tab, setTab] = useState<"ready" | "custom">("ready");
   const [name, setName] = useState("");
+  const [saveToCompany, setSaveToCompany] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>(() => [newDraft("status"), newDraft("person"), newDraft("date")]);
 
   const patch = (key: string, next: Partial<Draft>) =>
@@ -64,7 +70,7 @@ export function BoardNewModal({ inline, busy, onPick, onCustom, onClose }: {
         if (d.type === "number") return { name: nm, type: d.type, settings: d.unit.trim() ? { unit: d.unit.trim() } : {} };
         return { name: nm, type: d.type };
       });
-    onCustom(name.trim() || "새 템플릿", columns);
+    onCustom(name.trim() || "새 템플릿", columns, saveToCompany);
   };
 
   const body = (
@@ -86,7 +92,32 @@ export function BoardNewModal({ inline, busy, onPick, onCustom, onClose }: {
         </button>
       </div>
 
-      {tab === "ready" ? (
+      {tab === "ready" ? (<>
+        {presets.length > 0 && (
+          <div className="pb-presets">
+            <b className="pb-presets-h">회사 양식 <em>우리 회사가 저장해 둔 구성</em></b>
+            <div className="pb-tpls">
+              {presets.map((p) => (
+                <div key={p.id} className="pb-tpl pb-tpl-preset">
+                  <button type="button" className="pb-tpl-main" disabled={busy} onClick={() => onUsePreset(p)}>
+                    <b>{p.name}</b>
+                    <span>{(p.payload?.columns || []).length}칸</span>
+                    <span className="pb-tpl-cols">
+                      {["이름", ...(p.payload?.columns || []).map((c: ColumnDef) => c.name)].slice(0, 6).map((n: string, i: number) => (
+                        <i key={`${n}-${i}`}>{n}</i>
+                      ))}
+                      {(p.payload?.columns || []).length + 1 > 6 && (
+                        <i className="pb-tpl-more">+{(p.payload?.columns || []).length + 1 - 6}</i>
+                      )}
+                    </span>
+                  </button>
+                  <button type="button" className="pb-tpl-del" title="회사 양식에서 빼기"
+                    onClick={() => onRemovePreset(p)}>✕</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="pb-tpls">
           {BOARD_TEMPLATES.map((t) => (
             <button key={t.key} type="button" className="pb-tpl" disabled={busy} onClick={() => onPick(t.key)}>
@@ -108,7 +139,7 @@ export function BoardNewModal({ inline, busy, onPick, onCustom, onClose }: {
             <em>위 형태에 안 맞는 일</em>
           </button>
         </div>
-      ) : (
+      </>) : (
         <div className="pb-build">
           <label className="pb-build-name">
             <span>템플릿 이름</span>
@@ -148,6 +179,11 @@ export function BoardNewModal({ inline, busy, onPick, onCustom, onClose }: {
           </div>
 
           <div className="pb-build-foot">
+            {/* 회사 양식으로 남겨 두면 다른 프로젝트에서도 이 구성으로 시작할 수 있다 */}
+            <label className="pb-build-save">
+              <input type="checkbox" checked={saveToCompany} onChange={(e) => setSaveToCompany(e.target.checked)} />
+              회사 양식으로 저장
+            </label>
             {onClose && <button type="button" className="pb-build-cancel" onClick={onClose}>취소</button>}
             <button type="button" className="pb-build-go" disabled={busy || drafts.length === 0} onClick={build}>
               이 템플릿 만들기

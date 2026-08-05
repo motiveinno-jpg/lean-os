@@ -10,7 +10,7 @@
 //     텍스트·숫자는 blur/Enter 에서만 저장한다.
 //   · 정렬은 position 오름차순. 새 행은 그룹 맨 아래.
 
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -23,10 +23,12 @@ import { BoardDocModal, type DocKind } from "./BoardDocModal";
 import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
-import { BoardFigures } from "./BoardFigures";
+import { BoardFigure } from "./BoardFigures";
 import { templateFigures, summaryCardKey } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
 import { BoardNewModal, LabelEditor } from "./BoardNewModal";
+import { listPresets, savePreset, removePreset, type Preset } from "@/lib/board-presets";
+import { applyLayout, layoutFrom, normalizeLayout, type SummaryLayout } from "@/lib/summary-layout";
 import {
   BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
   flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, isDoneRow, START_DATE_RE,
@@ -56,6 +58,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [showSummary, setShowSummary] = useState(false);   // 마지막 탭 '정리'
   const [renaming, setRenaming] = useState(false);
   const [tplMenu, setTplMenu] = useState(false);          // 템플릿 ⋯ (이름 · 삭제)
+  const [presetName, setPresetName] = useState<string | null>(null);   // 회사 양식으로 저장 — 이름 묻는 창
   const [groupMenu, setGroupMenu] = useState<string | null>(null);   // 그룹 ⋯
   const [trashOpen, setTrashOpen] = useState(false);
   //   필터 — 표·칸반이 같이 쓴다. 켜진 게 없으면 아무것도 거르지 않는다.
@@ -81,6 +84,19 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       return (data || []) as any[];
     },
     enabled: !!dealId,
+  });
+
+  // 회사 양식 — 우리 회사가 저장해 둔 칸 구성. 프로젝트를 옮겨도 같은 걸 본다.
+  const { data: boardPresets = [] } = useQuery({
+    queryKey: ["pb-presets", companyId, "board"],
+    queryFn: () => listPresets(companyId, "board"),
+    enabled: !!companyId,
+  });
+  //   정리 양식 — 무엇을 어떤 순서로 볼지. 표 형태(template_key)별로 골라 쓴다.
+  const { data: summaryPresets = [] } = useQuery({
+    queryKey: ["pb-presets", companyId, "summary"],
+    queryFn: () => listPresets(companyId, "summary"),
+    enabled: !!companyId,
   });
 
   const boardId = activeId && boards.some((b) => b.id === activeId) ? activeId : (boards[0]?.id || "");
@@ -260,8 +276,54 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   };
   const createBoard = (key: string) => createBoardFrom(key === "blank" ? BLANK_TEMPLATE : findTemplate(key));
   //   직접 짠 템플릿 — 그룹은 하나로 시작한다(단계는 상태 칸의 라벨이 맡는다)
-  const createCustomBoard = (name: string, columns: ColumnDef[]) =>
-    createBoardFrom({ key: "custom", name, columns, groups: [{ name: "목록", color: GROUP_COLORS[0] }] });
+  const createCustomBoard = async (name: string, columns: ColumnDef[], saveToCompany: boolean) => {
+    await createBoardFrom({ key: "custom", name, columns, groups: [{ name: "목록", color: GROUP_COLORS[0] }] });
+    if (!saveToCompany) return;
+    try {
+      await savePreset({ companyId, kind: "board", name, payload: { columns }, userId });
+      qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "board"] });
+      toast(`'${name}' 을 회사 양식으로 저장했습니다.`, "success");
+    } catch (e: any) {
+      toast(e?.message || "회사 양식 저장 실패", "error");
+    }
+  };
+  const useBoardPreset = (p: Preset) =>
+    createBoardFrom({ key: "custom", name: p.name, columns: (p.payload?.columns || []) as ColumnDef[],
+      groups: [{ name: "목록", color: GROUP_COLORS[0] }] });
+  const dropBoardPreset = async (p: Preset) => {
+    try {
+      await removePreset(p.id);
+      qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "board"] });
+      toast(`'${p.name}' 을 회사 양식에서 뺐습니다(이미 만든 표는 그대로예요).`, "success");
+    } catch (e: any) { toast(e?.message || "삭제 실패", "error"); }
+  };
+  const saveSummaryPreset = async (name: string, layout: SummaryLayout, templateKey: string | null) => {
+    try {
+      await savePreset({ companyId, kind: "summary", name, templateKey, payload: layout, userId });
+      qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "summary"] });
+      toast(`'${name}' 정리 양식을 저장했습니다.`, "success");
+    } catch (e: any) { toast(e?.message || "정리 양식 저장 실패", "error"); }
+  };
+  const dropSummaryPreset = async (p: Preset) => {
+    try {
+      await removePreset(p.id);
+      qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "summary"] });
+      toast(`'${p.name}' 정리 양식을 지웠습니다.`, "success");
+    } catch (e: any) { toast(e?.message || "삭제 실패", "error"); }
+  };
+  // 지금 보고 있는 표의 칸 구성을 회사 양식으로 — 이미 다듬어 쓰던 표가 가장 좋은 양식이다
+  const saveBoardAsPreset = async (name: string) => {
+    setPresetName(null);
+    try {
+      await savePreset({
+        companyId, kind: "board", name,
+        payload: { columns: cols.map((c) => ({ name: c.name, type: c.type, settings: c.settings || {} })) },
+        userId,
+      });
+      qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "board"] });
+      toast(`'${name}' 을 회사 양식으로 저장했습니다.`, "success");
+    } catch (e: any) { toast(e?.message || "회사 양식 저장 실패", "error"); }
+  };
 
   const renameBoard = async (name: string) => {
     setRenaming(false);
@@ -599,7 +661,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   // ── 템플릿이 하나도 없을 때 — 고르는 화면부터 띄운다(빈 표 앞에서 막히지 않게) ──
   //    이미 표가 있는데 더 붙일 때는 팝업으로 뜬다(아래 picking) — 보던 표가 사라지면 안 된다
   if (boards.length === 0) {
-    return <BoardNewModal inline busy={busy} onPick={createBoard} onCustom={createCustomBoard} />;
+    return <BoardNewModal inline busy={busy} presets={boardPresets} onPick={createBoard} onCustom={createCustomBoard}
+      onUsePreset={useBoardPreset} onRemovePreset={dropBoardPreset} />;
   }
 
   const nameLabel = ITEM_LABEL[board?.template_key || "blank"] || "이름";
@@ -677,6 +740,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               <span className="pb-menu">
                 <button type="button" onClick={() => { setTplMenu(false); setRenaming(true); }}>이름 바꾸기</button>
                 <button type="button" onClick={duplicateBoard}>템플릿 복제</button>
+                <button type="button" onClick={() => { setTplMenu(false); setPresetName(board?.name || "새 양식"); }}>
+                  회사 양식으로 저장
+                </button>
                 <button type="button" onClick={() => { setTplMenu(false); setTrashOpen(true); }}>지운 항목</button>
                 <button type="button" className="pb-menu-danger" onClick={() => { setTplMenu(false); removeBoard(); }}>템플릿 삭제</button>
               </span>
@@ -686,7 +752,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       </div>
 
       {picking && (
-        <BoardNewModal busy={busy} onPick={createBoard} onCustom={createCustomBoard} onClose={() => setPicking(false)} />
+        <BoardNewModal busy={busy} presets={boardPresets} onPick={createBoard} onCustom={createCustomBoard}
+          onUsePreset={(p) => { setPicking(false); useBoardPreset(p); }} onRemovePreset={dropBoardPreset}
+          onClose={() => setPicking(false)} />
+      )}
+      {presetName !== null && (
+        <NameDialog title="회사 양식으로 저장" hint={`지금 표의 칸 ${cols.length}개를 그대로 담습니다 · 행은 안 담아요`}
+          value={presetName} onCancel={() => setPresetName(null)} onSave={saveBoardAsPreset} />
       )}
 
       <div className="pb-bar2">
@@ -833,7 +905,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       )}
 
       {showSummary ? (
-        <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users} />
+        <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users}
+          presets={summaryPresets} onSavePreset={saveSummaryPreset} onRemovePreset={dropSummaryPreset} />
       ) : view === "calendar" && hasDate ? (
         <BoardCalendar items={shown} cols={cols} flowCol={flowCol} onOpen={(id) => setOpenItemId(id)} />
       ) : view === "timeline" && span ? (
@@ -1253,6 +1326,28 @@ function BoardTimeline({ items, span, flowCol, nameLabel, onAdd }: {
   );
 }
 
+/** 이름만 묻는 작은 창 — 회사 양식 저장처럼 한 줄만 받으면 되는 자리 */
+function NameDialog({ title, hint, value, onSave, onCancel }: {
+  title: string; hint?: string; value: string; onSave: (name: string) => void; onCancel: () => void;
+}) {
+  const [v, setV] = useState(value);
+  const ok = v.trim().length > 0;
+  return (
+    <div className="pb-doc-modal" onClick={onCancel}>
+      <div className="pb-doc-box pb-name-box" onClick={(e) => e.stopPropagation()}>
+        <b className="pb-name-h">{title}</b>
+        {hint && <em className="pb-name-hint">{hint}</em>}
+        <input autoFocus value={v} onChange={(e) => setV(e.target.value)} placeholder="양식 이름"
+          onKeyDown={(e) => { if (e.key === "Enter" && ok) onSave(v.trim()); if (e.key === "Escape") onCancel(); }} />
+        <span className="pb-name-foot">
+          <button type="button" onClick={onCancel}>취소</button>
+          <button type="button" className="pb-name-go" disabled={!ok} onClick={() => onSave(v.trim())}>저장</button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /** 상태 칸의 라벨 편집 — 표 머리에서 연다.
  *  글자를 칠 때마다 저장하면 DB 를 두들기게 되니, 팝오버 안에서만 고치고 닫을 때 한 번 저장한다. */
 function ColumnLabels({ col, onSave }: { col: BoardColumn; onSave: (options: StatusOption[]) => void }) {
@@ -1326,9 +1421,12 @@ function sortRows(rows: BoardItem[], sort: { colId: string; dir: "asc" | "desc" 
 
 // ── 프로젝트 정리 — 이 프로젝트의 **모든 템플릿**을 하나씩 구획으로 ──
 //   한 프로젝트에 템플릿을 여러 개 붙이는 게 기본이라(＋), 정리도 그 단위여야 맞다.
-function ProjectSummary({ boards, cols, groups, items, users }: {
+function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePreset, onRemovePreset }: {
   boards: { id: string; name: string; template_key: string | null }[];
   cols: BoardColumn[]; groups: BoardGroup[]; items: BoardItem[]; users: { id: string; name: string }[];
+  presets: Preset[];
+  onSavePreset: (name: string, layout: SummaryLayout, templateKey: string | null) => void;
+  onRemovePreset: (p: Preset) => void;
 }) {
   const filled = boards.filter((b) => items.some((i) => i.board_id === b.id));
   if (filled.length === 0) {
@@ -1347,18 +1445,78 @@ function ProjectSummary({ boards, cols, groups, items, users }: {
             cols={cols.filter((c) => c.board_id === b.id)}
             items={items.filter((i) => i.board_id === b.id)}
             groups={groups.filter((g) => g.board_id === b.id)}
-            users={users} />
+            users={users}
+            presets={presets} onSavePreset={onSavePreset} onRemovePreset={onRemovePreset} />
         </section>
       ))}
     </div>
   );
 }
 
+/** 요약 카드 하나를 그린다 — 정리 양식이 그림과 섞어 늘어놓으므로 낱개로 뽑아 뒀다 */
+function SummaryCardView({ c }: { c: SummaryCard }) {
+  if (c.kind === "number") return (
+    <div className="pb-sum-card"><span>{c.label} {c.mode === "avg" ? "평균" : "합계"}</span>
+      <b>{(c.mode === "avg" ? c.avg : c.sum).toLocaleString("ko-KR")}{c.unit}</b>
+      <em>{c.filled}건 입력{c.mode === "avg" ? "" : ` · 평균 ${c.avg.toLocaleString("ko-KR")}${c.unit}`}</em></div>
+  );
+  if (c.kind === "weighted") return (
+    <div className="pb-sum-card"><span>{c.label}</span>
+      <b>{c.value.toLocaleString("ko-KR")}원</b>
+      <em>{c.a} × {c.b} — 확률까지 반영한 값</em></div>
+  );
+  if (c.kind === "diff") return (
+    <div className="pb-sum-card"><span>{c.label}</span>
+      <b className={c.value < 0 ? "pb-sum-bad" : "pb-sum-ok"}>{c.value.toLocaleString("ko-KR")}{c.unit}</b>
+      <em>{c.a}에서 {c.b}을 뺀 값</em></div>
+  );
+  if (c.kind === "status" || c.kind === "group") {
+    const total = c.parts.reduce((n, p) => n + p.count, 0) || 1;
+    return (
+      <div className="pb-sum-card pb-sum-wide"><span>{c.label}</span>
+        <b>{c.kind === "status" && c.doneRate != null ? `완료율 ${c.doneRate}%` : `${total}건`}</b>
+        <span className="pb-sum-bar">
+          {c.parts.map((p) => <i key={p.label} style={{ width: `${(p.count / total) * 100}%`, background: p.color }} />)}
+        </span>
+        <span className="pb-sum-legend">
+          {c.parts.map((p) => <span key={p.label}><i style={{ background: p.color }} />{p.label} {p.count}</span>)}
+        </span></div>
+    );
+  }
+  if (c.kind === "date") return (
+    <div className="pb-sum-card"><span>{c.label}</span>
+      <b className={c.late > 0 ? "pb-sum-bad" : ""}>{c.late > 0 ? `지난 것 ${c.late}건` : `이번 주 ${c.soon}건`}</b>
+      <em>{c.next ? `다음 ${c.next}` : "예정된 날짜 없음"}{c.late > 0 ? ` · 이번 주 ${c.soon}건` : ""}</em></div>
+  );
+  return (
+    <div className="pb-sum-card pb-sum-wide"><span>{c.label}별</span>
+      <b>{c.rows.length}명</b>
+      <em>{c.rows.map((r) => `${r.name} ${r.count}건`).join(" · ")}</em></div>
+  );
+}
+
 // ── 템플릿 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
-function BoardSummary({ templateKey, cols, items, groups, users }: {
+//    무엇을 어떤 순서로 볼지는 '정리 양식'이 정한다(2026-08-05 사장님 지시).
+function BoardSummary({ templateKey, cols, items, groups, users, presets, onSavePreset, onRemovePreset }: {
   templateKey?: string | null;
   cols: BoardColumn[]; items: BoardItem[]; groups: BoardGroup[]; users: { id: string; name: string }[];
+  presets?: Preset[];
+  onSavePreset?: (name: string, layout: SummaryLayout, templateKey: string | null) => void;
+  onRemovePreset?: (p: Preset) => void;
 }) {
+  const tplKey = templateKey || "blank";
+  // 고른 양식은 표 형태별로 기억한다 — 같은 형태의 표는 같은 눈으로 보는 게 자연스럽다
+  const [pickedId, setPickedId] = useState<string>("");
+  const [configOpen, setConfigOpen] = useState(false);
+  const [naming, setNaming] = useState<SummaryLayout | null>(null);
+  useEffect(() => {
+    try { setPickedId(localStorage.getItem(`ov.board.sumfmt.${tplKey}`) || ""); } catch { /* 저장소 못 쓰면 기본 */ }
+  }, [tplKey]);
+  const pickFormat = (id: string) => {
+    setPickedId(id);
+    try { localStorage.setItem(`ov.board.sumfmt.${tplKey}`, id); } catch { /* 무시 */ }
+  };
+
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
   const today = todayKst();
   // 템플릿 성격에 맞는 그림이 먼저 — 일의 종류마다 궁금한 게 다르다(2026-08-05 사장님 지시)
@@ -1367,57 +1525,104 @@ function BoardSummary({ templateKey, cols, items, groups, users }: {
   const covered = new Set(covers);
   const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, today)
     .filter((c) => !covered.has(summaryCardKey(c)));
-  if (cards.length === 0 && figures.length === 0) {
+
+  // 그림과 카드를 한 줄로 세운다 — 양식이 이 목록을 골라 늘어놓는다
+  type Piece = { id: string; title: string; node: ReactNode };
+  const all: Piece[] = [
+    ...figures.map((f) => ({ id: f.id, title: f.title, node: <BoardFigure f={f} /> })),
+    ...cards.map((c) => ({ id: `card:${summaryCardKey(c)}`, title: c.label, node: <SummaryCardView c={c} /> })),
+  ];
+
+  const mine = (presets || []).filter((p) => !p.template_key || p.template_key === tplKey);
+  const picked = mine.find((p) => p.id === pickedId) || null;
+  const layout = picked ? normalizeLayout(picked.payload) : null;
+  const shown = applyLayout(all, layout);
+
+  if (all.length === 0) {
     return <p className="pj-sec-empty">템플릿에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
   }
   return (
     <>
-    <BoardFigures figures={figures} />
-    {cards.length === 0 ? null : (
-    <div className="pb-sum-grid">
-      {cards.map((c, i) => {
-        if (c.kind === "number") return (
-          <div key={i} className="pb-sum-card"><span>{c.label} {c.mode === "avg" ? "평균" : "합계"}</span>
-            <b>{(c.mode === "avg" ? c.avg : c.sum).toLocaleString("ko-KR")}{c.unit}</b>
-            <em>{c.filled}건 입력{c.mode === "avg" ? "" : ` · 평균 ${c.avg.toLocaleString("ko-KR")}${c.unit}`}</em></div>
-        );
-        if (c.kind === "weighted") return (
-          <div key={i} className="pb-sum-card"><span>{c.label}</span>
-            <b>{c.value.toLocaleString("ko-KR")}원</b>
-            <em>{c.a} × {c.b} — 확률까지 반영한 값</em></div>
-        );
-        if (c.kind === "diff") return (
-          <div key={i} className="pb-sum-card"><span>{c.label}</span>
-            <b className={c.value < 0 ? "pb-sum-bad" : "pb-sum-ok"}>{c.value.toLocaleString("ko-KR")}{c.unit}</b>
-            <em>{c.a}에서 {c.b}을 뺀 값</em></div>
-        );
-        if (c.kind === "status" || c.kind === "group") {
-          const total = c.parts.reduce((n, p) => n + p.count, 0) || 1;
-          return (
-            <div key={i} className="pb-sum-card pb-sum-wide"><span>{c.label}</span>
-              <b>{c.kind === "status" && c.doneRate != null ? `완료율 ${c.doneRate}%` : `${total}건`}</b>
-              <span className="pb-sum-bar">
-                {c.parts.map((p) => <i key={p.label} style={{ width: `${(p.count / total) * 100}%`, background: p.color }} />)}
-              </span>
-              <span className="pb-sum-legend">
-                {c.parts.map((p) => <span key={p.label}><i style={{ background: p.color }} />{p.label} {p.count}</span>)}
-              </span></div>
-          );
-        }
-        if (c.kind === "date") return (
-          <div key={i} className="pb-sum-card"><span>{c.label}</span>
-            <b className={c.late > 0 ? "pb-sum-bad" : ""}>{c.late > 0 ? `지난 것 ${c.late}건` : `이번 주 ${c.soon}건`}</b>
-            <em>{c.next ? `다음 ${c.next}` : "예정된 날짜 없음"}{c.late > 0 ? ` · 이번 주 ${c.soon}건` : ""}</em></div>
-        );
-        return (
-          <div key={i} className="pb-sum-card pb-sum-wide"><span>{c.label}별</span>
-            <b>{c.rows.length}명</b>
-            <em>{c.rows.map((r) => `${r.name} ${r.count}건`).join(" · ")}</em></div>
-        );
-      })}
-    </div>
-    )}
+      {/* 정리 양식 — 기본은 이 표 형태에 맞춰 자동으로 고른 구성이다 */}
+      <div className="pb-fmt">
+        <span className="pb-fmt-k">정리 양식</span>
+        <button type="button" className={`pb-fmt-btn ${!picked ? "pb-fmt-on" : ""}`} onClick={() => pickFormat("")}>기본</button>
+        {mine.map((p) => (
+          <button key={p.id} type="button" className={`pb-fmt-btn ${picked?.id === p.id ? "pb-fmt-on" : ""}`}
+            onClick={() => pickFormat(p.id)}>{p.name}</button>
+        ))}
+        <button type="button" className="pb-fmt-gear" onClick={() => setConfigOpen(true)}
+          title="무엇을 어떤 순서로 볼지 고르기">구성</button>
+      </div>
+
+      <div className="bf-grid">
+        {shown.map((p) => <div key={p.id} className="contents">{p.node}</div>)}
+      </div>
+
+      {configOpen && (
+        <SummaryFormatDialog all={all} layout={layout} presetName={picked?.name || null}
+          canRemove={!!picked && !!onRemovePreset}
+          onRemove={() => { if (picked && onRemovePreset) { onRemovePreset(picked); pickFormat(""); } setConfigOpen(false); }}
+          onApply={(next) => { setConfigOpen(false); setNaming(next); }}
+          onClose={() => setConfigOpen(false)} />
+      )}
+      {naming && (
+        <NameDialog title="정리 양식으로 저장" hint="이 표 형태(같은 칸 구성)에서 이 양식을 고를 수 있어요"
+          value={picked?.name || "내 정리"}
+          onCancel={() => setNaming(null)}
+          onSave={(nm) => { onSavePreset?.(nm, naming, tplKey); setNaming(null); }} />
+      )}
     </>
+  );
+}
+
+/** 정리 구성 — 무엇을 켜고 어떤 순서로 볼지. 고른 결과는 회사 양식으로 저장한다. */
+function SummaryFormatDialog({ all, layout, presetName, canRemove, onApply, onRemove, onClose }: {
+  all: { id: string; title: string }[]; layout: SummaryLayout | null; presetName: string | null;
+  canRemove: boolean; onApply: (next: SummaryLayout) => void; onRemove: () => void; onClose: () => void;
+}) {
+  const [rows, setRows] = useState(() => {
+    const ordered = applyLayout(all, layout);
+    const off = new Set(layout?.off || []);
+    const rest = all.filter((a) => off.has(a.id));
+    return [...ordered.map((a) => ({ ...a, on: true })), ...rest.map((a) => ({ ...a, on: false }))];
+  });
+  const move = (i: number, d: -1 | 1) => setRows((prev) => {
+    const j = i + d;
+    if (j < 0 || j >= prev.length) return prev;
+    const n = [...prev];
+    [n[i], n[j]] = [n[j], n[i]];
+    return n;
+  });
+
+  return (
+    <div className="pb-doc-modal" onClick={onClose}>
+      <div className="pb-doc-box pb-fmt-box" onClick={(e) => e.stopPropagation()}>
+        <b className="pb-fmt-h">정리 구성{presetName ? ` — ${presetName}` : ""}</b>
+        <em className="pb-fmt-hint">켠 것만 위에서부터 그려집니다 · 나중에 새 지표가 생기면 켜진 채 뒤에 붙어요</em>
+        <ul className="pb-fmt-rows">
+          {rows.map((r, i) => (
+            <li key={r.id} className={r.on ? "" : "pb-fmt-offrow"}>
+              <label>
+                <input type="checkbox" checked={r.on}
+                  onChange={(e) => setRows((prev) => prev.map((x, k) => (k === i ? { ...x, on: e.target.checked } : x)))} />
+                {r.title}
+              </label>
+              <button type="button" title="위로" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+              <button type="button" title="아래로" disabled={i === rows.length - 1} onClick={() => move(i, 1)}>↓</button>
+            </li>
+          ))}
+        </ul>
+        <span className="pb-fmt-foot">
+          {canRemove && <button type="button" className="pb-fmt-del" onClick={onRemove}>이 양식 삭제</button>}
+          <button type="button" onClick={onClose}>취소</button>
+          <button type="button" className="pb-fmt-go"
+            onClick={() => onApply(layoutFrom(all, rows.filter((r) => r.on).map((r) => r.id)))}>
+            양식으로 저장
+          </button>
+        </span>
+      </div>
+    </div>
   );
 }
 

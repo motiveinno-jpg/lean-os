@@ -5879,11 +5879,12 @@ td .rounded-full { white-space: nowrap; }
 .pb-col-name { @apply bg-transparent border border-transparent rounded px-1 -ml-1 text-[10.5px] font-bold text-[var(--text-dim)] w-full min-w-[52px] focus:outline-none focus:border-[var(--primary)] focus:text-[var(--text)]; }
 /* 정리 카드 */
 .pb-sum-grid { @apply grid gap-3 grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4; }
-.pb-sum-card { @apply flex flex-col gap-0.5 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] min-w-0; }
+/* 그림(.bf)과 한 격자에 서므로 같은 생김새로 — 2026-08-05 정리 양식 */
+.pb-sum-card { @apply flex flex-col gap-0.5 p-3.5 rounded-xl bg-[var(--bg-surface)] min-w-0; }
 .pb-sum-card > span:first-child { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
 .pb-sum-card > b { @apply text-[19px] font-extrabold tracking-tight text-[var(--text)]; font-variant-numeric: tabular-nums; }
 .pb-sum-card > em { @apply not-italic text-[11px] text-[var(--text-muted)] leading-snug; }
-.pb-sum-wide { @apply min-[480px]:col-span-2; }
+.pb-sum-wide { @apply sm:col-span-2; }
 .pb-sum-ok { @apply !text-[var(--success)]; }
 .pb-sum-bad { @apply !text-[var(--danger)]; }
 .pb-sum-bar { @apply flex h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)] mt-1.5; }
@@ -6450,3 +6451,42 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-collabels-foot { @apply flex items-center justify-end gap-1.5 pt-1; }
 .pb-collabels-foot button { @apply h-8 px-3 rounded-lg text-[12px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
 .pb-collabels-go { @apply !text-white bg-[var(--primary)] hover:opacity-90; }
+
+/* 회사 양식 — 저장해 둔 칸 구성 (2026-08-05) */
+.pb-presets { @apply flex flex-col gap-2; }
+.pb-presets-h { @apply flex items-baseline gap-2 text-[11.5px] font-bold text-[var(--text-dim)]; }
+.pb-presets-h em { @apply not-italic font-normal text-[11px]; }
+.pb-tpl-preset { @apply relative p-0 overflow-hidden; }
+.pb-tpl-main { @apply text-left flex flex-col gap-1 p-3.5 pr-9 w-full; }
+.pb-tpl-del { @apply absolute right-1.5 top-1.5 w-6 h-6 rounded-lg text-[11px] text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--danger)]; }
+.pb-build-save { @apply inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer; }
+.pb-build-save input { @apply w-4 h-4 accent-[var(--primary)]; }
+
+/* 이름만 묻는 작은 창 */
+.pb-name-box { @apply max-w-xs gap-2 p-4; }
+.pb-name-h { @apply text-[13.5px] font-extrabold text-[var(--text)]; }
+.pb-name-hint { @apply not-italic text-[11px] text-[var(--text-dim)] leading-snug; }
+.pb-name-box > input { @apply h-9 px-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] font-semibold text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.pb-name-foot { @apply flex items-center justify-end gap-1.5 pt-1; }
+.pb-name-foot button { @apply h-8 px-3 rounded-lg text-[12px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pb-name-go { @apply !text-white bg-[var(--primary)] hover:opacity-90 disabled:opacity-40; }
+
+/* 정리 양식 — 무엇을 어떤 순서로 볼지 (2026-08-05) */
+.pb-fmt { @apply flex flex-wrap items-center gap-1; }
+.pb-fmt-k { @apply text-[11px] font-bold text-[var(--text-dim)] mr-1; }
+.pb-fmt-btn { @apply h-7 px-2.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] bg-[var(--bg-surface)] transition hover:text-[var(--text)]; }
+.pb-fmt-on { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
+.pb-fmt-gear { @apply ml-auto h-7 px-2.5 rounded-lg border border-dashed border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+.pb-fmt-box { @apply max-w-sm gap-2 p-4; }
+.pb-fmt-h { @apply text-[13.5px] font-extrabold text-[var(--text)]; }
+.pb-fmt-hint { @apply not-italic text-[11px] text-[var(--text-dim)] leading-snug; }
+.pb-fmt-rows { @apply flex flex-col gap-1 max-h-[52vh] overflow-y-auto; }
+.pb-fmt-rows li { @apply flex items-center gap-1 p-1 pl-2 rounded-lg bg-[var(--bg-surface)]; }
+.pb-fmt-rows label { @apply flex-1 min-w-0 flex items-center gap-2 text-[12px] font-semibold text-[var(--text)] cursor-pointer truncate; }
+.pb-fmt-rows input { @apply w-4 h-4 shrink-0 accent-[var(--primary)]; }
+.pb-fmt-rows li > button { @apply w-6 h-6 shrink-0 rounded-md text-[11px] text-[var(--text-dim)] transition hover:bg-[var(--bg-card)] hover:text-[var(--text)] disabled:opacity-30; }
+.pb-fmt-offrow label { @apply text-[var(--text-dim)] font-normal line-through; }
+.pb-fmt-foot { @apply flex items-center justify-end gap-1.5 pt-1; }
+.pb-fmt-foot button { @apply h-8 px-3 rounded-lg text-[12px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pb-fmt-del { @apply mr-auto !text-[var(--danger)] hover:opacity-80; }
+.pb-fmt-go { @apply !text-white bg-[var(--primary)] hover:opacity-90; }
