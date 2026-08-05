@@ -7,7 +7,7 @@ import { markConsentPending } from "@/lib/legal";
 import { useRouter } from "next/navigation";
 import { RollingBrandText } from "@/components/brand-logo";
 import { formatPhone, isValidMobile } from "@/lib/phone";
-import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner, assertBizNoOwnerValid } from "@/lib/company-signup";
+import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, provisionCompanyForUser, createCompanyWithOwner, assertBizNoActive } from "@/lib/company-signup";
 
 import Link from "next/link";
 
@@ -42,10 +42,9 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [bizNo, setBizNo] = useState(""); // 사업자번호 — 1사업자=1회사 원칙의 키
-  // 대표자 인증 (2026-07-06) — 국세청 진위확인(번호+대표자성명+개업일자)으로 선점 방지
-  const [ownerName, setOwnerName] = useState("");
+  // 2026-08-05 관문 단순화(사장님 — 가입 이탈 50% 대응): 대표자성명·개업일자 진위확인을 개설
+  //   관문에서 제거. 번호 상태 확인(폐업·휴업·미등록 차단)만 유지 — 진위확인 함수는 사후 인증용으로 보존.
   const [phone, setPhone] = useState(""); // 휴대전화 — 알림톡 발송 대상(2026-07-29)
-  const [openDate, setOpenDate] = useState(""); // YYYY-MM-DD (input date)
   // 사업자번호가 이미 등록된 회사와 일치할 때 — 합류 요청 전환 안내 (마스킹된 회사명)
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
   // 명시적 중복 확인 상태 — 확인 완료(available) 전에는 회사 개설 제출 불가.
@@ -163,6 +162,14 @@ export default function AuthPage() {
     router.push(getRedirectPath());
   }
 
+  // 10자리 입력 즉시 자동 중복확인 — 버튼 클릭 단계 제거(2026-08-05 관문 단순화). 버튼은 재시도용으로 유지.
+  useEffect(() => {
+    if (mode !== "signup" || bizNoDigits(bizNo).length !== 10 || bizCheck !== "unchecked") return;
+    const t = setTimeout(() => { void runBizCheck(); }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, bizNo, bizCheck]);
+
   // 명시적 중복 확인 — 사업자번호 오른쪽 '중복 확인' 버튼. 입력이 바뀌면 이전 결과는 무효화됨.
   async function runBizCheck() {
     setError("");
@@ -190,7 +197,8 @@ export default function AuthPage() {
     if (!agreed) return setError("이용약관 및 개인정보처리방침에 동의해주세요.");
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError("유효한 이메일 주소를 입력해주세요.");
     // 알림톡 발송 대상이라 형식이 어긋나면 가입 후 발송이 통째로 실패한다 — 입구에서 막는다.
-    if (!isValidMobile(phone)) return setError("휴대전화 번호를 010-1234-5678 형식으로 입력해주세요.");
+    // 휴대전화는 선택(2026-08-05 관문 단순화) — 입력했을 때만 형식 검사
+    if (phone && !isValidMobile(phone)) return setError("휴대전화 번호를 010-1234-5678 형식으로 입력해주세요.");
     if (password.length < 8) return setError("비밀번호는 8자 이상이어야 합니다.");
     if (!/[a-zA-Z]/.test(password)) return setError("비밀번호에 영문자를 포함해주세요.");
     if (!/[0-9]/.test(password)) return setError("비밀번호에 숫자를 포함해주세요.");
@@ -213,8 +221,8 @@ export default function AuthPage() {
         setJoinPrompt(dup.companyNameMasked || "등록된 회사");
         return;
       }
-      // 국세청 진위확인 + 상태 — 대표자성명·개업일자 일치해야 개설(선점 방지). 진위 API 장애 시 상태조회 폴백.
-      const gate = await assertBizNoOwnerValid(bizNo, ownerName, openDate);
+      // 국세청 상태 확인(폐업·휴업·미등록 차단) — 번호만으로 확인, 추가 입력 없음(2026-08-05 관문 단순화)
+      const gate = await assertBizNoActive(bizNo);
       if (!gate.ok) {
         setLoading(false);
         return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
@@ -595,7 +603,7 @@ export default function AuthPage() {
                   <p className="text-[11px] text-[var(--danger)] mt-1">확인 중 오류가 발생했습니다. 다시 시도해주세요.</p>
                 )}
               </div>
-              {/* 사용 가능 확인 후에만 회사 개설 정보 노출 (대표자 인증 = 국세청 진위확인으로 선점 방지) */}
+              {/* 사용 가능 확인 후에만 회사 개설 정보 노출 — 회사명 하나만 (2026-08-05 관문 단순화) */}
               {bizCheck === "available" && (
                 <>
                 <div className="company-name-field">
@@ -611,34 +619,6 @@ export default function AuthPage() {
                     className="field-input"
                     required
                   />
-                </div>
-                <div className="owner-verify-fields">
-                  <div>
-                    <label htmlFor="owner-name" className="field-label">대표자 성명</label>
-                    <input
-                      id="owner-name"
-                      type="text"
-                      value={ownerName}
-                      onChange={(e) => setOwnerName(e.target.value)}
-                      placeholder="홍길동"
-                      maxLength={30}
-                      autoComplete="name"
-                      className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="open-date" className="field-label">개업일자</label>
-                    <input
-                      id="open-date"
-                      type="date"
-                      value={openDate}
-                      onChange={(e) => setOpenDate(e.target.value)}
-                      className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition"
-                      required
-                    />
-                    <p className="text-[11px] text-[var(--text-dim)] mt-1">사업자등록증의 개업연월일 — 국세청 대표자 인증에 사용됩니다.</p>
-                  </div>
                 </div>
                 </>
               )}
@@ -678,7 +658,7 @@ export default function AuthPage() {
             </div>
             {mode === "signup" && (
               <div className="signup-phone-field">
-                <label htmlFor="auth-phone" className="field-label">휴대전화</label>
+                <label htmlFor="auth-phone" className="field-label">휴대전화 <span className="text-[var(--text-dim)] font-normal">(선택)</span></label>
                 <input
                   id="auth-phone"
                   type="tel"
@@ -688,12 +668,11 @@ export default function AuthPage() {
                   placeholder="010-1234-5678"
                   autoComplete="tel"
                   className="field-input"
-                  required
                 />
                 {phone && !isValidMobile(phone) && (
                   <p className="text-[11px] text-[var(--danger)] mt-1">휴대전화 번호 형식이 올바르지 않습니다.</p>
                 )}
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">결재·계약 알림을 카카오톡으로 받는 데 사용됩니다.</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">결재·계약 알림을 카카오톡으로 받는 데 사용됩니다. 나중에 설정에서 입력해도 됩니다.</p>
               </div>
             )}
             <div className="password-field">

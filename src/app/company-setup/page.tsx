@@ -10,7 +10,7 @@ import { Ico } from "@/components/ui-icon";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, createCompanyWithOwner, assertBizNoOwnerValid } from "@/lib/company-signup";
+import { bizNoDigits, formatBizNo, isValidBizNo, checkBusinessNumberRegistered, submitJoinRequest, createCompanyWithOwner, assertBizNoActive } from "@/lib/company-signup";
 import { logError } from "@/lib/error-logger";
 import { formatPhone, isValidMobile } from "@/lib/phone";
 
@@ -20,10 +20,9 @@ export default function CompanySetupPage() {
   const [authUser, setAuthUser] = useState<{ id: string; email?: string; user_metadata?: Record<string, string> } | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [bizNo, setBizNo] = useState("");
-  // 대표자 인증 (2026-07-06) — 국세청 진위확인(번호+대표자성명+개업일자)으로 선점 방지
-  const [ownerName, setOwnerName] = useState("");
-  const [phone, setPhone] = useState(""); // 휴대전화 — 알림톡 대상(2026-07-29). 소셜 가입자는 메타에 없어 여기서 받는다.
-  const [openDate, setOpenDate] = useState(""); // YYYY-MM-DD
+  // 2026-08-05 관문 단순화(사장님 — 소셜 가입자 절반이 이 화면에서 1~2초 만에 이탈):
+  //   대표자성명·개업일자 진위확인 제거(번호 상태 확인만 유지), 휴대전화는 선택으로.
+  const [phone, setPhone] = useState(""); // 휴대전화(선택) — 알림톡 대상(2026-07-29). 소셜 가입자는 메타에 없어 여기서 받는다.
   const [joinPrompt, setJoinPrompt] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,6 +44,14 @@ export default function CompanySetupPage() {
       setReady(true);
     })();
   }, [router]);
+
+  // 10자리 입력 즉시 자동 중복확인 — 버튼 클릭 단계 제거(2026-08-05 관문 단순화). 버튼은 재시도용으로 유지.
+  useEffect(() => {
+    if (bizNoDigits(bizNo).length !== 10 || bizCheck !== "unchecked") return;
+    const t = setTimeout(() => { void runBizCheck(); }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bizNo, bizCheck]);
 
   // 명시적 중복 확인 — 입력이 바뀌면 이전 결과 무효화.
   const runBizCheck = async () => {
@@ -82,10 +89,10 @@ export default function CompanySetupPage() {
         setJoinPrompt(dup.companyNameMasked || "등록된 회사");
         return;
       }
-      // ② 국세청 진위확인 + 상태 — 대표자성명·개업일자까지 일치해야 개설(선점 방지).
-      const gate = await assertBizNoOwnerValid(bizNo, ownerName, openDate);
+      // ② 국세청 상태 확인 — 번호만으로 폐업·휴업·미등록 차단 (진위확인은 관문에서 제거, 2026-08-05)
+      const gate = await assertBizNoActive(bizNo);
       if (!gate.ok) {
-        // 진위확인 불일치도 로그 — 여기서 이탈하는 가입자가 얼마나 되는지 운영자가 봐야 한다(2026-07-29)
+        // 확인 실패도 로그 — 여기서 이탈하는 가입자가 얼마나 되는지 운영자가 봐야 한다(2026-07-29)
         try { logError({ source: "manual", message: `[간편가입] 국세청 확인 통과 실패: ${gate.error || "사유 미상"}`, context: { step: "nts_gate", biz: bizNoDigits(bizNo).slice(0, 3) + "-**-*****" } }); } catch { /* 무시 */ }
         return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
       }
@@ -168,29 +175,15 @@ export default function CompanySetupPage() {
                   className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
               </div>
               <div className="mb-4">
-                <label htmlFor="setup-phone" className="field-label">휴대전화</label>
+                <label htmlFor="setup-phone" className="field-label">휴대전화 <span className="text-[var(--text-dim)] font-normal">(선택)</span></label>
                 <input id="setup-phone" type="tel" inputMode="numeric" value={phone}
                   onChange={(e) => setPhone(formatPhone(e.target.value))}
                   placeholder="010-1234-5678" autoComplete="tel"
-                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
+                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" />
                 {phone && !isValidMobile(phone) && (
                   <p className="text-[11px] text-[var(--danger)] mt-1">휴대전화 번호 형식이 올바르지 않습니다.</p>
                 )}
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">결재·계약 알림을 카카오톡으로 받는 데 사용됩니다.</p>
-              </div>
-              <div className="mb-4 grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="setup-owner-name" className="field-label">대표자 성명</label>
-                  <input id="setup-owner-name" type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)}
-                    placeholder="홍길동" maxLength={30} autoComplete="name"
-                    className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
-                </div>
-                <div>
-                  <label htmlFor="setup-open-date" className="field-label">개업일자</label>
-                  <input id="setup-open-date" type="date" value={openDate} onChange={(e) => setOpenDate(e.target.value)}
-                    className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
-                  <p className="text-[11px] text-[var(--text-dim)] mt-1">사업자등록증의 개업연월일 — 국세청 대표자 인증에 사용됩니다.</p>
-                </div>
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">결재·계약 알림을 카카오톡으로 받는 데 사용됩니다. 나중에 설정에서 입력해도 됩니다.</p>
               </div>
               </>
             )}
