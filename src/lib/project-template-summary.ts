@@ -383,7 +383,7 @@ export function shapeFigures(
       .filter((r) => r.value !== 0)
       .sort((a, b) => b.value - a.value).slice(0, 5)
       .map((r) => ({ ...r, text: `${won(r.value)}${c.settings?.unit || ""}` }));
-    if (rows.length >= 2) out.push({ id: `bars:top:${c.name}`, kind: "hbars", title: `${c.name}이(가) 큰 항목`, rows, note: "위에서부터 다섯 개" });
+    if (rows.length >= 2) out.push({ id: `bars:top:${c.name}`, kind: "hbars", title: `${c.name} 큰 순서`, rows, note: "위에서부터 다섯 개" });
   }
   if (dueCol) {
     const bars = weekBuckets(dueCol, items, today, open);
