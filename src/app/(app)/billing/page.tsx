@@ -489,8 +489,14 @@ function BillingPageInner() {
           <div className="text-xs text-[var(--text-dim)]">기본 {currentPlan?.included_seats || 5}명 포함 · VAT 별도</div>
         </div>
         <div className="stat-tile">
-          <div className="stat-tile-label">{subscription?.status === "trialing" ? "첫 결제 예정일" : "다음 결제"}</div>
-          {subscription?.status === "trialing" ? (
+          {/* 해지 예약이면 결제 예정이 아니라 '이용 종료 예정'이다 — 결제 문구가 남아 있으면 해지가 안 된 걸로 오해(2026-08-05 사장님) */}
+          <div className="stat-tile-label">{cancelScheduled ? "이용 종료 예정" : subscription?.status === "trialing" ? "첫 결제 예정일" : "다음 결제"}</div>
+          {cancelScheduled ? (
+            <>
+              <div className="stat-tile-value">{effectiveUntilStr || "—"}</div>
+              <div className="text-xs text-[var(--text-dim)]">해지 예약됨 · 이날까지 이용 후 결제 없이 Free 전환</div>
+            </>
+          ) : subscription?.status === "trialing" ? (
             <>
               <div className="stat-tile-value">
                 {subscription?.trial_ends_at ? kstDateStr(new Date(subscription.trial_ends_at)) : "—"}
