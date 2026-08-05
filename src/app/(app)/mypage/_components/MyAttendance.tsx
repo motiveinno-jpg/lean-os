@@ -3,13 +3,20 @@ import { logRead } from "@/lib/log-read";
 import { Ico } from "@/components/ui-icon";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { AttendanceBadges } from "@/components/attendance-badges";
+import { useUser } from "@/components/user-context";
+import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
+import { createAttendanceEditRequest } from "@/lib/hr";
+import { kstLocalToIso } from "@/lib/kst";
 
 // 내 출퇴근 기록 — 인사관리>근태관리가 "전 직원"이라면 여기는 "나"만.
 //   월 단위로 내 attendance_records 를 조회해 요약(근무일·총 근무시간·지각·연장) + 일별 목록을 보여준다.
-//   기록 열람 전용 — 출퇴근 찍기는 상단 MyAttendanceCard(오늘 카드) 담당.
+//   출퇴근 찍기는 상단 MyAttendanceCard(오늘 카드) 담당.
+//   2026-08-05 사장님: 출근시간이 잘못 찍힌 날은 여기서 바로 "정정 요청" — 관리자 승인 후 반영
+//   (AI 참모의 request_attendance_edit 과 동일 인프라: attendance_edit_requests + KST ISO 변환).
 
 // "HH:MM" — check_in/out 은 timestamptz 또는 'HH:MM' 형 모두 방어 (flex-work-board 와 동일 규칙)
 function timeOf(v: string | null): string | null {
@@ -46,8 +53,72 @@ const shiftMonth = (ym: string, delta: number) => {
 };
 
 export function MyAttendance({ employeeId }: { employeeId: string | null }) {
+  const { user } = useUser();
+  const { toast } = useToast();
+  const qc = useQueryClient();
   const [month, setMonth] = useState(kstMonth());
   const isCurrentMonth = month === kstMonth();
+
+  // ── 정정 요청 모달 상태 ──
+  const [editTarget, setEditTarget] = useState<any | null>(null); // attendance_records 행
+  const [editCheckIn, setEditCheckIn] = useState("");
+  const [editCheckOut, setEditCheckOut] = useState("");
+  const [editReason, setEditReason] = useState("");
+
+  const openEdit = (r: any) => {
+    setEditTarget(r);
+    setEditCheckIn(timeOf(r.check_in) || "");
+    setEditCheckOut(timeOf(r.check_out) || "");
+    setEditReason("");
+  };
+
+  // 내 대기 중 정정 요청 — 중복 요청 방지 + "정정 대기중" 표시 (RLS: requested_by 본인 행 select 허용)
+  const { data: pendingReqs = [] } = useQuery({
+    queryKey: ["my-attendance-edit-requests", user?.id],
+    queryFn: async () => {
+      const data = logRead('_components/MyAttendance:pendingReqs', await supabase
+        .from("attendance_edit_requests")
+        .select("attendance_record_id")
+        .eq("requested_by", user!.id)
+        .eq("status", "pending"));
+      return (data || []).map((r: any) => r.attendance_record_id as string);
+    },
+    enabled: !!user?.id,
+  });
+  const pendingSet = new Set(pendingReqs);
+
+  const editReqMut = useMutation({
+    mutationFn: async () => {
+      const r = editTarget;
+      const origCi = timeOf(r.check_in) || "";
+      const origCo = timeOf(r.check_out) || "";
+      const changes: Record<string, string> = {};
+      // 시각은 KST 로 해석 — AI 참모 정정 요청과 동일 규칙 (브라우저 타임존 무관)
+      if (editCheckIn && editCheckIn !== origCi) {
+        const iso = kstLocalToIso(`${r.date}T${editCheckIn}`);
+        if (iso) changes.check_in = iso;
+      }
+      if (editCheckOut && editCheckOut !== origCo) {
+        const iso = kstLocalToIso(`${r.date}T${editCheckOut}`);
+        if (iso) changes.check_out = iso;
+      }
+      if (Object.keys(changes).length === 0) throw new Error("바뀐 시각이 없습니다 — 출근 또는 퇴근 시각을 수정해 주세요.");
+      if (!editReason.trim()) throw new Error("정정 사유를 입력해 주세요.");
+      await createAttendanceEditRequest({
+        companyId: user!.company_id!,
+        attendanceRecordId: r.id,
+        requestedBy: user!.id,
+        requestedChanges: changes,
+        reason: editReason.trim(),
+      });
+    },
+    onSuccess: () => {
+      toast(`${editTarget?.date} 정정 요청을 보냈습니다 — 관리자 승인 후 반영됩니다`, "success");
+      setEditTarget(null);
+      qc.invalidateQueries({ queryKey: ["my-attendance-edit-requests", user?.id] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "정정 요청 실패"), "error"),
+  });
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["mypage-attendance-records", employeeId, month],
@@ -148,9 +219,64 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
                     <AttendanceBadges record={r} compact />
                   </div>
                 </div>
+                {pendingSet.has(r.id) ? (
+                  <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full bg-[var(--warning-dim)] text-[var(--warning)]" title="관리자 승인 대기 중인 정정 요청이 있습니다">정정 대기중</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openEdit(r)}
+                    className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition"
+                    title="출근·퇴근 시각이 잘못 기록됐다면 관리자에게 정정을 요청하세요"
+                  >
+                    정정 요청
+                  </button>
+                )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── 정정 요청 모달 ── */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditTarget(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5 space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div>
+              <div className="text-sm font-bold text-[var(--text)]">출퇴근 시각 정정 요청</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 mono-number">{editTarget.date} — 직접 수정이 아니라 관리자 승인 요청입니다</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">출근 시각</span>
+                <input type="time" value={editCheckIn} onChange={(e) => setEditCheckIn(e.target.value)} className="field-input-sm" />
+              </label>
+              <label className="block">
+                <span className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">퇴근 시각</span>
+                <input type="time" value={editCheckOut} onChange={(e) => setEditCheckOut(e.target.value)} className="field-input-sm" />
+              </label>
+            </div>
+            <label className="block">
+              <span className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">정정 사유 <span className="text-red-500">*</span></span>
+              <textarea
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                rows={2}
+                placeholder="예: 출근 직후 태깅을 깜빡해서 실제 출근은 08:55입니다"
+                className="field-input-sm resize-y"
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setEditTarget(null)} className="btn-secondary btn-sm">취소</button>
+              <button
+                type="button"
+                onClick={() => editReqMut.mutate()}
+                disabled={editReqMut.isPending}
+                className="btn-primary btn-sm disabled:opacity-50"
+              >
+                {editReqMut.isPending ? "요청 중..." : "정정 요청 보내기"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
