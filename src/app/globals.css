@@ -5856,11 +5856,13 @@ td .rounded-full { white-space: nowrap; }
 /* 칸 너비는 colgroup 이 정한다(table-fixed) — 머리글에 든 것에 따라 칸 폭이 달라지지 않게 (2026-08-05) */
 .pb-table { @apply w-full table-fixed border-collapse bg-[var(--bg-card)] text-[12.5px]; }
 .pbc-sel { width: 34px; }
-.pbc-name { width: 220px; }
-.pbc-cell { width: 170px; }
+.pbc-name { width: 200px; }
+.pbc-cell { width: 160px; }
 .pbc-ratio { width: 96px; }
 .pbc-doc { width: 110px; }
-.pbc-tail { width: 66px; }
+.pbc-tail { width: 60px; }
+/* 끝 칸(＋ 칸 추가 · 추가 단추)은 좁으므로 좌우 여백을 줄인다 — 안 그러면 단추가 잘린다 */
+.pb-th-x, .pb-td-x { @apply px-1.5; }
 .pb-table th { @apply text-left text-[10.5px] font-bold text-[var(--text-dim)] px-2.5 py-2 bg-[var(--bg-surface)] border-b border-[var(--border)] whitespace-nowrap; }
 /* 칸 너비를 못 박았으므로 넘치는 값은 칸 안에서 잘린다 — 옆 칸을 침범하지 않게 */
 .pb-table td { @apply px-2.5 py-1.5 border-b border-[var(--border)]/50 text-[var(--text)] whitespace-nowrap align-middle overflow-hidden text-ellipsis; }

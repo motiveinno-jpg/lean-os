@@ -46,7 +46,7 @@ import {
 const db = supabase as any;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 /** 표 칸 너비(px) — globals.css 의 .pbc-* 와 같은 값. 표의 최소 너비를 셈할 때 쓴다. */
-const COL_W = { sel: 34, name: 220, cell: 170, ratio: 96, doc: 110, tail: 66 };
+const COL_W = { sel: 34, name: 200, cell: 160, ratio: 96, doc: 110, tail: 60 };
 const VIEW_KEY = "ov.board.view.";   // + boardId
 const GROUP_COLORS = ["#5559DF", "#00C875", "#FDAB3D", "#A25DDC", "#579BFC", "#E2445C", "#C4C4C4"];
 
