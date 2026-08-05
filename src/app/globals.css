@@ -6011,6 +6011,10 @@ th:hover .pb-col-x { @apply opacity-100; }
 .pb-card-field .pb-in { @apply w-auto min-w-0 flex-1 px-1; }
 .pb-card-field .pb-status { @apply min-w-0 h-5 px-0.5 text-[10.5px]; }
 .pb-card-field .pb-status i { @apply px-1.5; }
+/* 칸반에서 칸 붙이기 — 평소엔 흐릿하게 두고, 카드에 손이 가면 또렷해진다 (2026-08-05) */
+.pb-card-addcol { @apply opacity-70 transition; }
+.pb-card:hover .pb-card-addcol, .pb-card:focus-within .pb-card-addcol { @apply opacity-100; }
+.pb-card-addcol > select { @apply h-5 px-1 rounded border border-dashed border-[var(--border)] bg-transparent text-[10.5px] font-bold text-[var(--text-dim)] cursor-pointer focus:outline-none hover:text-[var(--primary)] hover:border-[var(--primary)]; }
 .pb-card-x { @apply absolute right-1.5 top-1.5 w-5 h-5 rounded text-[10px] text-[var(--text-dim)] opacity-0 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]; }
 .pb-card:hover .pb-card-x { @apply opacity-100; }
 .pb-kadd { @apply h-8 rounded-xl border border-dashed border-[var(--border)] text-[12px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
@@ -6412,9 +6416,6 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 탭이 아니라 '더한다'는 동작 — 탭 줄 오른쪽 끝에서 탭과 구분되게 테두리를 준다 */
 .pb-newtpl { @apply h-8 px-3 rounded-lg border border-dashed border-[var(--border)] text-[12px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
 .pb-pick-box { @apply max-w-3xl p-4; }
-.pb-pick-tabs { @apply inline-flex gap-1 p-1 rounded-xl bg-[var(--bg-surface)] self-start; }
-.pb-pick-tab { @apply h-8 px-3.5 rounded-lg text-[12.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
-.pb-pick-tab-on { @apply bg-[var(--bg-card)] text-[var(--primary)] shadow-sm; }
 
 .pb-build { @apply flex flex-col gap-3; }
 .pb-build-name { @apply flex flex-col gap-1; }
@@ -6430,8 +6431,20 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-build-unit { @apply w-16 h-8 px-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[12px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
 .pb-build-x { @apply w-7 h-7 shrink-0 rounded-lg text-[12px] text-[var(--text-dim)] transition hover:bg-[var(--bg-card)] hover:text-[var(--danger)]; }
 .pb-build-hint { @apply not-italic text-[11px] text-[var(--text-dim)]; }
-.pb-build-add { @apply flex flex-wrap gap-1.5; }
-.pb-build-add button { @apply h-8 px-3 rounded-lg border border-dashed border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+/* 칸 추가 — ＋ 하나를 누르면 형식을 고른다 (2026-08-05: "라벨 옆에 ＋ 로 계속 추가") */
+.pb-build-addwrap { @apply relative self-start; }
+.pb-build-addbtn { @apply h-8 px-3 rounded-lg border border-dashed border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+.pb-build-formats { @apply absolute left-0 top-9 z-50 w-64 flex flex-col p-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] shadow-xl; }
+.pb-build-formats button { @apply text-left flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg transition hover:bg-[var(--bg-surface)]; }
+.pb-build-formats b { @apply text-[12.5px] font-bold text-[var(--text)]; }
+.pb-build-formats em { @apply not-italic text-[11px] text-[var(--text-dim)]; }
+/* 어느 양식에서 출발했는지 — 다듬는 화면의 머리줄 */
+.pb-build-from { @apply flex flex-wrap items-baseline gap-x-2 gap-y-1; }
+.pb-build-from b { @apply text-[13px] font-extrabold text-[var(--text)]; }
+.pb-build-from em { @apply not-italic text-[11px] text-[var(--text-dim)]; }
+.pb-build-back { @apply h-7 px-2.5 rounded-lg text-[11.5px] font-bold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+/* 칸반이 열로 쓰는 단계 칸 표시 */
+.pb-build-flow { @apply not-italic shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]; }
 .pb-build-foot { @apply flex items-center gap-2 pt-1; }
 .pb-build-cancel { @apply ml-auto h-9 px-4 rounded-xl text-[12.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
 .pb-build-go { @apply h-9 px-5 rounded-xl bg-[var(--primary)] text-[12.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
@@ -6465,10 +6478,15 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-presets-h { @apply flex items-baseline gap-2 text-[11.5px] font-bold text-[var(--text-dim)]; }
 .pb-presets-h em { @apply not-italic font-normal text-[11px]; }
 .pb-tpl-preset { @apply relative p-0 overflow-hidden; }
-.pb-tpl-main { @apply text-left flex flex-col gap-1 p-3.5 pr-9 w-full; }
+.pb-tpl-main { @apply text-left flex flex-col gap-1 p-3.5 pr-[104px] w-full; }
 .pb-tpl-del { @apply absolute right-1.5 top-1.5 w-6 h-6 rounded-lg text-[11px] text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--danger)]; }
+/* 저장해 둔 양식에도 칸을 더 붙여서 만들 수 있다 */
+.pb-tpl-edit { @apply absolute right-9 top-1.5 h-6 px-2 rounded-lg text-[11px] font-bold text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
+/* 기본 양식 카드 — 칸이 고정이 아니라는 걸 칩으로 말해 준다 */
+.pb-tpl-plus { @apply !text-[var(--primary)] !bg-[var(--primary)]/10; }
 .pb-build-save { @apply inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer; }
 .pb-build-save input { @apply w-4 h-4 accent-[var(--primary)]; }
+.pb-build-save em { @apply not-italic font-normal text-[11px] text-[var(--text-dim)]; }
 
 /* 이름만 묻는 작은 창 */
 .pb-name-box { @apply max-w-xs gap-2 p-4; }

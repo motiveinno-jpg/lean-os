@@ -30,7 +30,7 @@ import { BoardNewModal, LabelEditor } from "./BoardNewModal";
 import { listPresets, savePreset, removePreset, type Preset } from "@/lib/board-presets";
 import { applyLayout, layoutFrom, normalizeLayout, type SummaryLayout } from "@/lib/summary-layout";
 import {
-  BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
+  findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
   flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, isDoneRow, START_DATE_RE,
   COL_FORMATS, DEFAULT_STATUS_OPTIONS,
   type InputMode, type PayTermRow, type ColumnDef, type GroupDef, type StatusOption,
@@ -274,13 +274,16 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       setBusy(false);
     }
   };
-  const createBoard = (key: string) => createBoardFrom(key === "blank" ? BLANK_TEMPLATE : findTemplate(key));
-  //   직접 짠 템플릿 — 그룹은 하나로 시작한다(단계는 상태 칸의 라벨이 맡는다)
-  const createCustomBoard = async (name: string, columns: ColumnDef[], saveToCompany: boolean) => {
-    await createBoardFrom({ key: "custom", name, columns, groups: [{ name: "목록", color: GROUP_COLORS[0] }] });
+  //   기본 양식에서 출발했으면 그 key 를 그대로 심는다 — 칸을 더 붙여도 칸반·행 이름 같은 성격이 따라온다
+  //   (2026-08-05 사장님: "기본 템플릿에 필요한 컬럼을 계속 추가하는 형태").
+  //   그룹은 출발한 양식의 것을, 처음부터 짠 것이면 하나로 시작한다(단계는 상태 칸의 라벨이 맡는다)
+  const groupsOfBase = (baseKey: string | null) =>
+    baseKey ? findTemplate(baseKey).groups : [{ name: "목록", color: GROUP_COLORS[0] }];
+  const createCustomBoard = async (name: string, columns: ColumnDef[], saveToCompany: boolean, baseKey: string | null) => {
+    await createBoardFrom({ key: baseKey || "custom", name, columns, groups: groupsOfBase(baseKey) });
     if (!saveToCompany) return;
     try {
-      await savePreset({ companyId, kind: "board", name, payload: { columns }, userId });
+      await savePreset({ companyId, kind: "board", name, templateKey: baseKey, payload: { columns }, userId });
       qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "board"] });
       toast(`'${name}' 을 회사 양식으로 저장했습니다.`, "success");
     } catch (e: any) {
@@ -288,8 +291,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     }
   };
   const useBoardPreset = (p: Preset) =>
-    createBoardFrom({ key: "custom", name: p.name, columns: (p.payload?.columns || []) as ColumnDef[],
-      groups: [{ name: "목록", color: GROUP_COLORS[0] }] });
+    createBoardFrom({ key: p.template_key || "custom", name: p.name,
+      columns: (p.payload?.columns || []) as ColumnDef[], groups: groupsOfBase(p.template_key) });
   const dropBoardPreset = async (p: Preset) => {
     try {
       await removePreset(p.id);
@@ -317,6 +320,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     try {
       await savePreset({
         companyId, kind: "board", name,
+        //   어느 기본 양식에서 나온 표인지도 같이 담는다 — 다른 프로젝트에서 꺼내 쓸 때 성격이 그대로 온다
+        templateKey: board?.template_key || null,
         payload: { columns: cols.map((c) => ({ name: c.name, type: c.type, settings: c.settings || {} })) },
         userId,
       });
@@ -661,7 +666,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   // ── 템플릿이 하나도 없을 때 — 고르는 화면부터 띄운다(빈 표 앞에서 막히지 않게) ──
   //    이미 표가 있는데 더 붙일 때는 팝업으로 뜬다(아래 picking) — 보던 표가 사라지면 안 된다
   if (boards.length === 0) {
-    return <BoardNewModal inline busy={busy} presets={boardPresets} onPick={createBoard} onCustom={createCustomBoard}
+    return <BoardNewModal inline busy={busy} presets={boardPresets} onCustom={createCustomBoard}
       onUsePreset={useBoardPreset} onRemovePreset={dropBoardPreset} />;
   }
 
@@ -752,7 +757,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       </div>
 
       {picking && (
-        <BoardNewModal busy={busy} presets={boardPresets} onPick={createBoard} onCustom={createCustomBoard}
+        <BoardNewModal busy={busy} presets={boardPresets} onCustom={createCustomBoard}
           onUsePreset={(p) => { setPicking(false); useBoardPreset(p); }} onRemovePreset={dropBoardPreset}
           onClose={() => setPicking(false)} />
       )}
@@ -940,8 +945,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                         onBlur={(e) => saveName(it, e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                         className="pb-card-name" />
+                      {/* 칸을 더 붙이면 카드에도 바로 보여야 한다 — 앞 4개만 보여 주면 추가가 안 된 것처럼 읽힌다 */}
                       <div className="pb-card-fields">
-                        {cols.filter((c) => c.id !== flowCol?.id).slice(0, 4).map((c) => (
+                        {cols.filter((c) => c.id !== flowCol?.id).map((c) => (
                           <span key={c.id} className="pb-card-field">
                             <label>{c.name}</label>
                             <Cell col={c} item={it} users={users} partners={partners as any[]} companyId={companyId}
@@ -949,6 +955,15 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                               onSave={(v) => saveValue(it, c.id, v)} />
                           </span>
                         ))}
+                        {/* 칸 추가 — 칸반에도 라벨 옆에 ＋ 를 둔다(표로 옮겨 가지 않아도 칸을 붙일 수 있게) */}
+                        <span className="pb-card-field pb-card-addcol">
+                          <label>칸 추가</label>
+                          <select value="" title="칸 추가 — 형식을 고르세요" aria-label="칸 추가"
+                            onChange={(e) => { if (e.target.value) addColumn(e.target.value as ColType); }}>
+                            <option value="">＋</option>
+                            {COL_FORMATS.map((f) => <option key={f.type} value={f.type}>{f.label}</option>)}
+                          </select>
+                        </span>
                       </div>
                       {ratioPair && <RatioBar plan={Number(it.values?.[ratioPair.plan.id]) || 0} real={Number(it.values?.[ratioPair.real.id]) || 0} />}
                       {isBilling && (
