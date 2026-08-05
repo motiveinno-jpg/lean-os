@@ -302,6 +302,98 @@ export function templateFigures(
   return { figures: out, covers: [...covers] };
 }
 
+/**
+ * 한 가지 그림으로만 본다 — 사용자가 '원형' 또는 '막대'를 골랐을 때 (2026-08-05 사장님 지시).
+ *
+ * 자동(templateFigures)은 일의 성격에 맞는 형태를 골라 주지만, 사장님이 형태를 지목했으면
+ * 그 형태로 통일해 보여 준다. 근거가 없는 칸은 만들지 않는다(빈 그림을 그리지 않는다).
+ */
+export function shapeFigures(
+  shape: "donut" | "bars",
+  cols: BoardColumn[], items: BoardItem[], groups: BoardGroup[],
+  nameOf: (id: string) => string, today: string,
+): { figures: Figure[]; covers: string[] } {
+  if (items.length === 0) return { figures: [], covers: [] };
+  const out: Figure[] = [];
+  const covers = new Set<string>();
+  const statusCols = cols.filter((c) => c.type === "status");
+  const personCols = cols.filter((c) => c.type === "person");
+  const numCols = cols.filter((c) => c.type === "number");
+  const dueCol = cols.find((c) => c.type === "date" && !START_DATE_RE.test(c.name)) || null;
+  const open = (it: BoardItem) => !isDoneRow(it as any, cols as any, groups as any);
+
+  // 그룹이 여럿이면 그룹도 하나의 분류다
+  const groupSlices: Slice[] = groups.length > 1
+    ? groups.map((g) => ({ key: g.id, label: g.name, color: g.color, value: items.filter((it) => it.group_id === g.id).length }))
+      .filter((s) => s.value > 0)
+    : [];
+
+  if (shape === "donut") {
+    for (const c of statusCols) {
+      const slices = statusSlices(c, items);
+      if (slices.length < 2) continue;   // 조각이 하나면 원이 뜻을 만들지 않는다
+      out.push({ id: `donut:${c.name}`, kind: "donut", title: `${c.name}별 건수`, slices, total: `${items.length}건` });
+      covers.add(`status:${c.name}`);
+    }
+    if (groupSlices.length >= 2) {
+      out.push({ id: "donut:group", kind: "donut", title: "그룹별 건수", slices: groupSlices, total: `${items.length}건` });
+      covers.add("group:그룹별 행 수");
+    }
+    // 금액이 있으면 '무엇이 얼마를 차지하나' — 건수보다 이게 궁금한 표가 있다
+    const money = numCols.find((c) => (c.settings?.unit || "") === "원") || null;
+    const kind = statusCols[0] || null;
+    if (money && kind) {
+      const options: any[] = (kind.settings?.options || []) as any[];
+      const slices: Slice[] = options.map((o) => ({
+        key: String(o.id), label: String(o.label), color: String(o.color || "#C4C4C4"),
+        value: items.filter((it) => it.values?.[kind.id] === o.id).reduce((s, it) => s + num(it.values?.[money.id]), 0),
+      })).filter((s) => s.value > 0);
+      const total = slices.reduce((s, x) => s + x.value, 0);
+      if (slices.length >= 2) {
+        out.push({ id: `donut:money:${kind.name}`, kind: "donut", title: `${kind.name}별 ${money.name}`, slices, total: `${shortWon(total)}원` });
+      }
+    }
+    return { figures: out, covers: [...covers] };
+  }
+
+  // bars — 크기 비교는 막대가 가장 정직하다
+  for (const c of statusCols) {
+    const slices = statusSlices(c, items);
+    if (slices.length === 0) continue;
+    out.push({
+      id: `bars:${c.name}`, kind: "hbars", title: `${c.name}별 건수`,
+      rows: slices.map((s) => ({ label: s.label, value: s.value })),
+    });
+    covers.add(`status:${c.name}`);
+  }
+  if (groupSlices.length > 0) {
+    out.push({ id: "bars:group", kind: "hbars", title: "그룹별 건수", rows: groupSlices.map((s) => ({ label: s.label, value: s.value })) });
+    covers.add("group:그룹별 행 수");
+  }
+  for (const c of personCols) {
+    const rows = byPerson(c, items, nameOf);
+    if (rows.length === 0) continue;
+    out.push({ id: `bars:person:${c.name}`, kind: "hbars", title: `${c.name}별 건수`, rows });
+    covers.add(`person:${c.name}`);
+  }
+  for (const c of numCols) {
+    // 금액이 큰 순서 다섯 — 어디에 몰려 있는지가 합계보다 먼저 보인다
+    const rows = items
+      .map((it) => ({ label: it.name || "이름 없음", value: num(it.values?.[c.id]) }))
+      .filter((r) => r.value !== 0)
+      .sort((a, b) => b.value - a.value).slice(0, 5)
+      .map((r) => ({ ...r, text: `${won(r.value)}${c.settings?.unit || ""}` }));
+    if (rows.length >= 2) out.push({ id: `bars:top:${c.name}`, kind: "hbars", title: `${c.name}이(가) 큰 항목`, rows, note: "위에서부터 다섯 개" });
+  }
+  if (dueCol) {
+    const bars = weekBuckets(dueCol, items, today, open);
+    if (bars.some((b) => b.value > 0)) {
+      out.push({ id: `bars:weeks:${dueCol.name}`, kind: "weeks", title: `주별 ${dueCol.name} 건수`, bars, note: "아직 안 끝난 건만 셉니다" });
+    }
+  }
+  return { figures: out, covers: [...covers] };
+}
+
 /** 요약 카드가 그림과 겹치는지 — 카드 라벨은 컬럼 이름 그대로다 */
 export function summaryCardKey(card: { kind: string; label: string }): string {
   return `${card.kind}:${card.label}`;

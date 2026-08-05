@@ -24,11 +24,14 @@ import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
 import { BoardFigure } from "./BoardFigures";
-import { templateFigures, summaryCardKey } from "@/lib/project-template-summary";
+import { templateFigures, shapeFigures, summaryCardKey, type Figure } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
 import { BoardNewModal, LabelEditor } from "./BoardNewModal";
 import { listPresets, savePreset, removePreset, type Preset } from "@/lib/board-presets";
-import { applyLayout, layoutFrom, normalizeLayout, type SummaryLayout } from "@/lib/summary-layout";
+import {
+  applyLayout, layoutFrom, normalizeLayout, SUMMARY_SHAPES,
+  type SummaryLayout, type SummaryShape,
+} from "@/lib/summary-layout";
 import {
   findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
   flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, isDoneRow, START_DATE_RE,
@@ -684,11 +687,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const nameLabel = ITEM_LABEL[board?.template_key || "blank"] || "이름";
   // 칸반이 열로 쓸 컬럼 — 흐름 상태 컬럼. 없으면 그룹으로 열을 만든다.
   const flowCol = flowColumnOf(cols);
-  const span = spanColumnsOf(cols);
-  const hasDate = cols.some((c) => c.type === "date");
-  const wanted: InputMode = viewPick || (findTemplate(board?.template_key).input || "grid");
-  //   근거가 되는 칸을 지웠는데 읽는 보기가 걸려 있으면 표로 떨어뜨린다(빈 화면을 만들지 않는다)
-  const view: InputMode = (wanted === "timeline" && !span) || (wanted === "calendar" && !hasDate) ? "grid" : wanted;
+  //   입력 화면은 표·칸반 둘뿐이다 — 타임라인·캘린더는 정리 안의 그림으로 옮겼다(2026-08-05).
+  //   예전에 타임라인·캘린더를 골라 뒀던 사람이 빈 화면을 보지 않게 표로 떨어뜨린다.
+  const wanted = viewPick || (findTemplate(board?.template_key).input || "grid");
+  const view: InputMode = wanted === "board" ? "board" : "grid";
   // 칸반 열 — 흐름 컬럼의 옵션 순서, 없으면 그룹 순서
   const kanbanCols = flowCol
     ? ((flowCol.settings?.options || []) as any[]).map((o) => ({ key: String(o.id), label: String(o.label), color: String(o.color || "#C4C4C4") }))
@@ -795,19 +797,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           </span>
         </div>
 
+        {/* 보기는 '정리' 하나 — 타임라인·캘린더는 정리 안에서 고르는 그림이 됐다
+            (2026-08-05 사장님: "타임라인·캘린더도 정리 템플릿에 속하는 부분. 무조건 보여주기보다
+             필요할 때 골라 보는 게 낫다"). 툴바에 버튼을 세워 두면 입력 화면처럼 읽힌다. */}
         <div className="pb-views pb-views-right" role="group" aria-label="보기 방식">
           <span className="pb-views-sec">
             <b>보기</b>
-            {span && (
-              <button type="button" onClick={() => { setShowSummary(false); pickView("timeline"); }}
-                aria-pressed={!showSummary && view === "timeline"}
-                className={`pb-viewbtn ${!showSummary && view === "timeline" ? "pb-viewbtn-on" : ""}`}>타임라인</button>
-            )}
-            {hasDate && (
-              <button type="button" onClick={() => { setShowSummary(false); pickView("calendar"); }}
-                aria-pressed={!showSummary && view === "calendar"}
-                className={`pb-viewbtn ${!showSummary && view === "calendar" ? "pb-viewbtn-on" : ""}`}>캘린더</button>
-            )}
             <button type="button" onClick={() => setShowSummary(true)} aria-pressed={showSummary}
               className={`pb-viewbtn ${showSummary ? "pb-viewbtn-on" : ""}`}>정리</button>
           </span>
@@ -924,12 +919,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 
       {showSummary ? (
         <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users}
-          presets={summaryPresets} onSavePreset={saveSummaryPreset} onRemovePreset={dropSummaryPreset} />
-      ) : view === "calendar" && hasDate ? (
-        <BoardCalendar items={shown} cols={cols} flowCol={flowCol} onOpen={(id) => setOpenItemId(id)} />
-      ) : view === "timeline" && span ? (
-        <BoardTimeline items={shown} span={span} flowCol={flowCol} nameLabel={nameLabel}
-          onAdd={() => addItem(groups[0]?.id || "")} />
+          presets={summaryPresets} onSavePreset={saveSummaryPreset} onRemovePreset={dropSummaryPreset}
+          onOpenItem={(bid, itemId) => { setActiveId(bid); setShowSummary(false); setOpenItemId(itemId); }} />
       ) : view === "board" ? (
         /* 칸반 — 카드를 끌어 다음 단계로. 단계는 라벨이므로 셀에서 바꾸는 것과 같은 값을 만진다
            (2026-08-03 사장님: "굳이 섹션까지 나눌 필요 없이 기본 라벨로"). */
@@ -1274,7 +1265,8 @@ function BoardTimeline({ items, span, flowCol, nameLabel, onAdd }: {
   span: { start: BoardColumn; end: BoardColumn };
   flowCol: BoardColumn | null;
   nameLabel: string;
-  onAdd: () => void;
+  /** 정리 안에서 그릴 때는 없다 — 거기서는 읽기만 한다 */
+  onAdd?: () => void;
 }) {
   const DAY = 86_400_000;
   const dayOf = (v: any) => {
@@ -1295,7 +1287,7 @@ function BoardTimeline({ items, span, flowCol, nameLabel, onAdd }: {
     return (
       <p className="pj-sec-empty">
         {span.start.name}·{span.end.name} 을 채우면 여기에 기간 막대로 그려져요.
-        <button type="button" className="pb-kadd ml-2" onClick={onAdd}>＋ {nameLabel}</button>
+        {onAdd && <button type="button" className="pb-kadd ml-2" onClick={onAdd}>＋ {nameLabel}</button>}
       </p>
     );
   }
@@ -1482,12 +1474,14 @@ function sortRows(rows: BoardItem[], sort: { colId: string; dir: "asc" | "desc" 
 
 // ── 프로젝트 정리 — 이 프로젝트의 **모든 템플릿**을 하나씩 구획으로 ──
 //   한 프로젝트에 템플릿을 여러 개 붙이는 게 기본이라(＋), 정리도 그 단위여야 맞다.
-function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePreset, onRemovePreset }: {
+function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePreset, onRemovePreset, onOpenItem }: {
   boards: { id: string; name: string; template_key: string | null }[];
   cols: BoardColumn[]; groups: BoardGroup[]; items: BoardItem[]; users: { id: string; name: string }[];
   presets: Preset[];
   onSavePreset: (name: string, layout: SummaryLayout, templateKey: string | null) => void;
   onRemovePreset: (p: Preset) => void;
+  /** 캘린더·간트에서 행을 누르면 그 표로 건너가 상세를 연다 */
+  onOpenItem: (boardId: string, itemId: string) => void;
 }) {
   const filled = boards.filter((b) => items.some((i) => i.board_id === b.id));
   if (filled.length === 0) {
@@ -1511,7 +1505,8 @@ function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePre
           items={items.filter((i) => i.board_id === b.id)}
           groups={groups.filter((g) => g.board_id === b.id)}
           users={users}
-          presets={presets} onSavePreset={onSavePreset} onRemovePreset={onRemovePreset} />
+          presets={presets} onSavePreset={onSavePreset} onRemovePreset={onRemovePreset}
+          onOpenItem={(itemId) => onOpenItem(b.id, itemId)} />
       ))}
     </div>
   );
@@ -1583,7 +1578,7 @@ function SummaryCardView({ c }: { c: SummaryCard }) {
 
 // ── 템플릿 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
 //    무엇을 어떤 순서로 볼지는 '정리 양식'이 정한다(2026-08-05 사장님 지시).
-function BoardSummary({ boardName, templateKey, cols, items, groups, users, presets, onSavePreset, onRemovePreset }: {
+function BoardSummary({ boardName, templateKey, cols, items, groups, users, presets, onSavePreset, onRemovePreset, onOpenItem }: {
   /** 리포트 머리에 쓸 표 이름 */
   boardName: string;
   templateKey?: string | null;
@@ -1591,24 +1586,33 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
   presets?: Preset[];
   onSavePreset?: (name: string, layout: SummaryLayout, templateKey: string | null) => void;
   onRemovePreset?: (p: Preset) => void;
+  onOpenItem?: (itemId: string) => void;
 }) {
   const tplKey = templateKey || "blank";
   // 고른 양식은 표 형태별로 기억한다 — 같은 형태의 표는 같은 눈으로 보는 게 자연스럽다
   const [pickedId, setPickedId] = useState<string>("");
+  const [shape, setShape] = useState<SummaryShape>("auto");
   const [configOpen, setConfigOpen] = useState(false);
   const [naming, setNaming] = useState<SummaryLayout | null>(null);
   useEffect(() => {
-    try { setPickedId(localStorage.getItem(`ov.board.sumfmt.${tplKey}`) || ""); } catch { /* 저장소 못 쓰면 기본 */ }
+    try {
+      setPickedId(localStorage.getItem(`ov.board.sumfmt.${tplKey}`) || "");
+      const s = localStorage.getItem(`ov.board.sumshape.${tplKey}`);
+      setShape(SUMMARY_SHAPES.includes(s as SummaryShape) ? (s as SummaryShape) : "auto");
+    } catch { /* 저장소 못 쓰면 기본 */ }
   }, [tplKey]);
-  const pickFormat = (id: string) => {
-    setPickedId(id);
-    try { localStorage.setItem(`ov.board.sumfmt.${tplKey}`, id); } catch { /* 무시 */ }
+  const pickShape = (s: SummaryShape) => {
+    setShape(s);
+    try { localStorage.setItem(`ov.board.sumshape.${tplKey}`, s); } catch { /* 무시 */ }
   };
 
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
   const today = todayKst();
-  // 템플릿 성격에 맞는 그림이 먼저 — 일의 종류마다 궁금한 게 다르다(2026-08-05 사장님 지시)
-  const { figures, covers } = templateFigures(templateKey, cols, items, groups, nameOf, today);
+  // 무엇으로 볼지 — 자동은 템플릿 성격에 맞는 그림, 원형·막대는 그 형태로 통일(2026-08-05 사장님 지시)
+  const { figures, covers } = shape === "donut" || shape === "bars"
+    ? shapeFigures(shape, cols, items, groups, nameOf, today)
+    : shape === "cards" ? { figures: [] as Figure[], covers: [] as string[] }
+      : templateFigures(templateKey, cols, items, groups, nameOf, today);
   // 그림이 이미 말한 카드는 뺀다 — 같은 얘기를 두 번 하면 정리가 아니라 나열이다
   const covered = new Set(covers);
   const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, today)
@@ -1625,11 +1629,41 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
   const picked = mine.find((p) => p.id === pickedId) || null;
   const layout = picked ? normalizeLayout(picked.payload) : null;
   const shown = applyLayout(all, layout);
+  const pickFormat = (id: string) => {
+    setPickedId(id);
+    try { localStorage.setItem(`ov.board.sumfmt.${tplKey}`, id); } catch { /* 무시 */ }
+    // 양식에 어떤 그림으로 볼지가 담겨 있으면 그것까지 따라간다 — 양식은 '보는 눈' 전체다
+    const s = normalizeLayout(mine.find((p) => p.id === id)?.payload).shape;
+    if (s) pickShape(s);
+  };
+
+  //   고를 수 있는 그림 — 근거가 되는 칸이 있는 것만 띄운다(빈 화면을 만들지 않는다)
+  const span = spanColumnsOf(cols);
+  const hasDate = cols.some((c) => c.type === "date");
+  const canDonut = cols.some((c) => c.type === "status") || groups.length > 1;
+  const SHAPES: { key: SummaryShape; label: string; ok: boolean; hint: string }[] = [
+    { key: "auto", label: "자동", ok: true, hint: "이 표에 맞는 그림을 골라 줍니다" },
+    { key: "gantt", label: "간트", ok: !!span, hint: "시작·종료로 기간 막대" },
+    { key: "calendar", label: "캘린더", ok: hasDate, hint: "날짜 칸을 달력으로" },
+    { key: "donut", label: "원형", ok: canDonut, hint: "무엇이 얼마를 차지하나" },
+    { key: "bars", label: "막대", ok: true, hint: "크기를 나란히 비교" },
+    { key: "cards", label: "숫자만", ok: true, hint: "그림 없이 합계·분포 카드만" },
+  ];
+  const shapeOk = SHAPES.find((s) => s.key === shape)?.ok;
+  //   근거 칸을 지웠는데 그 그림이 걸려 있으면 자동으로 되돌린다
+  const useShape: SummaryShape = shapeOk ? shape : "auto";
 
   const tools = (
-    // 정리 양식 — 기본은 이 표 형태에 맞춰 자동으로 고른 구성이다
     <div className="pb-fmt">
-      <span className="pb-fmt-k">보는 방식</span>
+      {/* ① 무엇으로 볼지 — 타임라인·캘린더도 여기 들어왔다(2026-08-05 사장님 지시) */}
+      <span className="pb-fmt-k">어떻게 볼까</span>
+      {SHAPES.filter((s) => s.ok).map((s) => (
+        <button key={s.key} type="button" title={s.hint}
+          className={`pb-fmt-btn ${useShape === s.key ? "pb-fmt-on" : ""}`}
+          onClick={() => pickShape(s.key)}>{s.label}</button>
+      ))}
+      {/* ② 무엇을 볼지 — 지표 고르기와 저장해 둔 정리 양식 */}
+      <span className="pb-fmt-k pb-fmt-k2">양식</span>
       <button type="button" className={`pb-fmt-btn ${!picked ? "pb-fmt-on" : ""}`} onClick={() => pickFormat("")}>기본</button>
       {mine.map((p) => (
         <button key={p.id} type="button" className={`pb-fmt-btn ${picked?.id === p.id ? "pb-fmt-on" : ""}`}
@@ -1640,17 +1674,28 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
     </div>
   );
 
+  //   그림 하나로 보는 보기(간트·캘린더)는 지표 목록이 아니라 그 그림이 본체다
+  const body = useShape === "gantt" && span ? (
+    <BoardTimeline items={items} span={span} flowCol={flowColumnOf(cols)} nameLabel="행" />
+  ) : useShape === "calendar" && hasDate ? (
+    <BoardCalendar items={items} cols={cols} flowCol={flowColumnOf(cols)} onOpen={(id) => onOpenItem?.(id)} />
+  ) : all.length === 0 ? (
+    <p className="pj-sec-empty">이 그림으로 볼 값이 아직 없어요. ‘자동’으로 보면 지금 있는 값에 맞춰 정리해 드려요.</p>
+  ) : (
+    <div className="bf-grid">
+      {shown.map((p) => <div key={p.id} className="contents">{p.node}</div>)}
+    </div>
+  );
+  const isPicture = (useShape === "gantt" && span) || (useShape === "calendar" && hasDate);
+
   return (
     <SummaryReport kicker="템플릿" title={boardName}
-      meta={all.length === 0 ? "아직 채운 값이 없어요" : `${items.length}행 · 지표 ${shown.length}개`}
-      tools={all.length === 0 ? undefined : tools}>
-      {all.length === 0 ? (
-        <p className="pj-sec-empty">값을 채우면 여기에 합계 · 분포 · 마감이 자동으로 정리돼요.</p>
-      ) : (
-        <div className="bf-grid">
-          {shown.map((p) => <div key={p.id} className="contents">{p.node}</div>)}
-        </div>
-      )}
+      meta={items.length === 0 ? "아직 채운 값이 없어요"
+        : isPicture ? `${items.length}행` : `${items.length}행 · 지표 ${shown.length}개`}
+      tools={items.length === 0 ? undefined : tools}>
+      {items.length === 0
+        ? <p className="pj-sec-empty">값을 채우면 여기에 합계 · 분포 · 마감이 자동으로 정리돼요.</p>
+        : body}
 
       {configOpen && (
         <SummaryFormatDialog all={all} layout={layout} presetName={picked?.name || null}
@@ -1660,10 +1705,10 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
           onClose={() => setConfigOpen(false)} />
       )}
       {naming && (
-        <NameDialog title="정리 양식으로 저장" hint="이 표 형태(같은 칸 구성)에서 이 양식을 고를 수 있어요"
+        <NameDialog title="정리 양식으로 저장" hint="지금 고른 그림과 지표를 함께 담습니다 · 같은 칸 구성의 표에서 고를 수 있어요"
           value={picked?.name || "내 정리"}
           onCancel={() => setNaming(null)}
-          onSave={(nm) => { onSavePreset?.(nm, naming, tplKey); setNaming(null); }} />
+          onSave={(nm) => { onSavePreset?.(nm, { ...naming, shape: useShape }, tplKey); setNaming(null); }} />
       )}
     </SummaryReport>
   );

@@ -6504,6 +6504,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 정리 양식 — 무엇을 어떤 순서로 볼지 (2026-08-05) */
 .pb-fmt { @apply flex flex-wrap items-center justify-end gap-1; }
 .pb-fmt-k { @apply text-[11px] font-bold text-[var(--text-dim)] mr-1; }
+/* 같은 줄이지만 성격이 다른 두 묶음(어떻게 볼까 / 양식) — 사이에 선을 둬 갈라 준다 (2026-08-05) */
+.pb-fmt-k2 { @apply ml-2 pl-3 border-l border-[var(--border)]; }
 .pb-fmt-btn { @apply h-7 px-2.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] bg-[var(--bg-surface)] transition hover:text-[var(--text)]; }
 .pb-fmt-on { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
 /* 리포트 머리의 오른쪽 도구 줄 안에 있으므로 밀어내지 않는다 */

@@ -6,14 +6,21 @@
 // 담는 건 **끈 것(off)과 순서(order)** 뿐이다. 켠 것만 담으면 나중에 새 지표가 생겼을 때
 // 영영 안 보이게 된다 — 모르는 항목은 켜진 채 뒤에 붙는 쪽이 안전하다.
 
-export type SummaryLayout = { off: string[]; order: string[] };
+/** 어떤 눈으로 볼지 — 타임라인·캘린더도 결국 '정리하는 한 방법'이라 여기 들어온다
+ *  (2026-08-05 사장님: "타임라인·캘린더는 정리 기준에서 정리 템플릿에 속하는 부분.
+ *   무조건 보여주기보다 필요할 때 골라서 보고, 정리도 간트·원형·막대 중에 골라 볼 수 있게"). */
+export type SummaryShape = "auto" | "gantt" | "calendar" | "donut" | "bars" | "cards";
+export const SUMMARY_SHAPES: SummaryShape[] = ["auto", "gantt", "calendar", "donut", "bars", "cards"];
+
+export type SummaryLayout = { off: string[]; order: string[]; shape?: SummaryShape };
 
 export const EMPTY_LAYOUT: SummaryLayout = { off: [], order: [] };
 
 export function normalizeLayout(v: any): SummaryLayout {
   const off = Array.isArray(v?.off) ? v.off.filter((x: any) => typeof x === "string") : [];
   const order = Array.isArray(v?.order) ? v.order.filter((x: any) => typeof x === "string") : [];
-  return { off, order };
+  const shape = SUMMARY_SHAPES.includes(v?.shape) ? (v.shape as SummaryShape) : undefined;
+  return shape ? { off, order, shape } : { off, order };
 }
 
 /** 양식대로 골라 늘어놓는다. 양식에 없는 항목은 켜진 채 원래 순서로 뒤에 남는다. */
