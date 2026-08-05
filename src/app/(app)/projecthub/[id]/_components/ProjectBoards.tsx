@@ -26,10 +26,12 @@ import { ProjectMoneyReport } from "./ProjectMoneyReport";
 import { BoardFigures } from "./BoardFigures";
 import { templateFigures, summaryCardKey } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
+import { BoardNewModal, LabelEditor } from "./BoardNewModal";
 import {
-  BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
+  BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
   flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, isDoneRow, START_DATE_RE,
-  type InputMode, type PayTermRow,
+  COL_FORMATS, DEFAULT_STATUS_OPTIONS,
+  type InputMode, type PayTermRow, type ColumnDef, type GroupDef, type StatusOption,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
 
@@ -228,11 +230,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   }, [shown]);
 
   // ── 표 만들기 — 템플릿의 컬럼·그룹을 그대로 심는다 ──
-  const createBoard = async (key: string) => {
+  //    기본 양식이든 직접 짠 것이든 같은 길로 들어온다(만드는 방법이 둘로 갈리면 안 된다)
+  const createBoardFrom = async (tpl: { key: string; name: string; columns: ColumnDef[]; groups: GroupDef[] }) => {
     if (busy) return;
     setBusy(true);
     try {
-      const tpl = key === "blank" ? BLANK_TEMPLATE : findTemplate(key);
       const { data: b, error } = await db.from("project_boards").insert({
         company_id: companyId, deal_id: dealId, name: tpl.name, template_key: tpl.key, position: boards.length,
       }).select("id").single();
@@ -256,6 +258,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       setBusy(false);
     }
   };
+  const createBoard = (key: string) => createBoardFrom(key === "blank" ? BLANK_TEMPLATE : findTemplate(key));
+  //   직접 짠 템플릿 — 그룹은 하나로 시작한다(단계는 상태 칸의 라벨이 맡는다)
+  const createCustomBoard = (name: string, columns: ColumnDef[]) =>
+    createBoardFrom({ key: "custom", name, columns, groups: [{ name: "목록", color: GROUP_COLORS[0] }] });
 
   const renameBoard = async (name: string) => {
     setRenaming(false);
@@ -572,11 +578,18 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     qc.invalidateQueries({ queryKey: ["pb-groups", boardId] });
   };
   const addColumn = async (type: ColType) => {
-    const label = { text: "텍스트", number: "숫자", date: "날짜", status: "상태", person: "사람", partner: "거래처" }[type];
-    const settings = type === "status"
-      ? { options: [{ id: "a", label: "미정", color: "#C4C4C4" }, { id: "b", label: "진행", color: "#FDAB3D" }, { id: "c", label: "완료", color: "#00C875" }] }
-      : {};
+    const label = COL_FORMATS.find((f) => f.type === type)?.label || "칸";
+    const settings = type === "status" ? { options: DEFAULT_STATUS_OPTIONS } : {};
     const { error } = await db.from("project_board_columns").insert({ board_id: boardId, name: label, type, settings, position: cols.length });
+    if (error) { toast(error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+  };
+  // 이미 있는 상태 칸의 라벨 고치기 — 이름·색을 바꾸거나 새 라벨을 더한다.
+  //   쓰던 라벨을 지우면 그 행의 값이 어느 라벨에도 안 맞게 되므로 지우기 전에 알린다.
+  const saveOptions = async (col: BoardColumn, options: StatusOption[]) => {
+    const clean = options.filter((o) => o.label.trim()).map((o) => ({ ...o, label: o.label.trim() }));
+    const { error } = await db.from("project_board_columns")
+      .update({ settings: { ...(col.settings || {}), options: clean } }).eq("id", col.id);
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
@@ -584,37 +597,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   if (isLoading) return <p className="pj-sec-empty">불러오는 중…</p>;
 
   // ── 템플릿이 하나도 없을 때 — 고르는 화면부터 띄운다(빈 표 앞에서 막히지 않게) ──
-  if (boards.length === 0 || picking) {
-    return (
-      <div className="pb-pick">
-        <div className="pb-pick-head">
-          <b>{boards.length === 0 ? "어떤 템플릿으로 시작할까요?" : "템플릿 추가"}</b>
-          <span>부서가 아니라 <b>일의 형태</b>로 고릅니다 · 나중에 얼마든지 더 붙일 수 있어요</span>
-          {boards.length > 0 && <button type="button" className="pb-pick-close" onClick={() => setPicking(false)}>닫기</button>}
-        </div>
-        <div className="pb-tpls">
-          {BOARD_TEMPLATES.map((t) => (
-            <button key={t.key} type="button" className="pb-tpl" disabled={busy} onClick={() => createBoard(t.key)}>
-              <b>{t.name}</b>
-              <span>{t.desc}</span>
-              <em>{t.uses}</em>
-              {/* 무슨 칸이 생기는지 미리 보여준다 — 이름보다 이게 고르는 기준이다 */}
-              <span className="pb-tpl-cols">
-                {[ITEM_LABEL[t.key] || "이름", ...t.columns.map((c) => c.name)].slice(0, 6).map((n) => (
-                  <i key={n}>{n}</i>
-                ))}
-                {t.columns.length + 1 > 6 && <i className="pb-tpl-more">+{t.columns.length + 1 - 6}</i>}
-              </span>
-            </button>
-          ))}
-          <button type="button" className="pb-tpl pb-tpl-blank" disabled={busy} onClick={() => createBoard("blank")}>
-            <b>빈 템플릿</b>
-            <span>컬럼을 직접 만들어 씁니다</span>
-            <em>위 형태에 안 맞는 일</em>
-          </button>
-        </div>
-      </div>
-    );
+  //    이미 표가 있는데 더 붙일 때는 팝업으로 뜬다(아래 picking) — 보던 표가 사라지면 안 된다
+  if (boards.length === 0) {
+    return <BoardNewModal inline busy={busy} onPick={createBoard} onCustom={createCustomBoard} />;
   }
 
   const nameLabel = ITEM_LABEL[board?.template_key || "blank"] || "이름";
@@ -680,21 +665,29 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             title="더블클릭하면 이름을 바꿉니다"
             className={`pb-tab ${b.id === boardId && !showSummary ? "pb-tab-on" : ""}`}>{b.name}</button>
         ))}
-        <button type="button" className="pb-tab pb-tab-add" onClick={() => setPicking(true)} title="템플릿 추가">＋ 템플릿</button>
-        <span className="pb-tplmenu">
-          <button type="button" className={`pb-dots ${tplMenu ? "pb-dots-on" : ""}`} onClick={() => setTplMenu((v) => !v)}
-            title="이 템플릿 관리" aria-label="템플릿 메뉴">⋯</button>
-          {tplMenu && (<>
-            <span className="pb-menu-veil" onClick={() => setTplMenu(false)} />
-            <span className="pb-menu">
-              <button type="button" onClick={() => { setTplMenu(false); setRenaming(true); }}>이름 바꾸기</button>
-              <button type="button" onClick={duplicateBoard}>템플릿 복제</button>
-              <button type="button" onClick={() => { setTplMenu(false); setTrashOpen(true); }}>지운 항목</button>
-              <button type="button" className="pb-menu-danger" onClick={() => { setTplMenu(false); removeBoard(); }}>템플릿 삭제</button>
-            </span>
-          </>)}
+        {/* 탭은 왼쪽에 쭉, 추가·관리는 오른쪽 끝에 모은다 (2026-08-05 사장님: "우측에 ＋버튼") */}
+        <span className="pb-bar1-right">
+          <button type="button" className="pb-newtpl" onClick={() => setPicking(true)}
+            title="템플릿 추가" aria-label="템플릿 추가">＋ 템플릿</button>
+          <span className="pb-tplmenu">
+            <button type="button" className={`pb-dots ${tplMenu ? "pb-dots-on" : ""}`} onClick={() => setTplMenu((v) => !v)}
+              title="이 템플릿 관리" aria-label="템플릿 메뉴">⋯</button>
+            {tplMenu && (<>
+              <span className="pb-menu-veil" onClick={() => setTplMenu(false)} />
+              <span className="pb-menu">
+                <button type="button" onClick={() => { setTplMenu(false); setRenaming(true); }}>이름 바꾸기</button>
+                <button type="button" onClick={duplicateBoard}>템플릿 복제</button>
+                <button type="button" onClick={() => { setTplMenu(false); setTrashOpen(true); }}>지운 항목</button>
+                <button type="button" className="pb-menu-danger" onClick={() => { setTplMenu(false); removeBoard(); }}>템플릿 삭제</button>
+              </span>
+            </>)}
+          </span>
         </span>
       </div>
+
+      {picking && (
+        <BoardNewModal busy={busy} onPick={createBoard} onCustom={createCustomBoard} onClose={() => setPicking(false)} />
+      )}
 
       <div className="pb-bar2">
         {/* 입력은 왼쪽, 보기는 오른쪽 — 한 상자에 붙여 놓으니 되레 안 읽혔다(2026-08-05).
@@ -981,6 +974,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                               onBlur={(e) => setUnit(c, e.target.value)}
                               onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
                           )}
+                          {/* 상태 칸은 무엇 중에서 고르는 칸인지를 여기서 바꾼다 — 라벨 추가·이름·색·순서 */}
+                          {c.type === "status" && <ColumnLabels col={c} onSave={(opts) => saveOptions(c, opts)} />}
                           <button type="button" className="pb-col-x" title="이 컬럼 지우기" onClick={() => removeColumn(c)}>✕</button>
                         </span>
                       </th>
@@ -990,14 +985,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                     <th className="pb-th-x">
                       {/* 컬럼은 표의 일부다 — 툴바가 아니라 표 머리 끝에 둔다 */}
                       <span className="pb-addcol">
-                        <select value="" title="컬럼 추가" onChange={(e) => { if (e.target.value) addColumn(e.target.value as ColType); }}>
+                        <select value="" title="칸 추가 — 형식을 고르세요"
+                          onChange={(e) => { if (e.target.value) addColumn(e.target.value as ColType); }}>
                           <option value="">＋</option>
-                          <option value="text">텍스트</option>
-                          <option value="number">숫자</option>
-                          <option value="date">날짜</option>
-                          <option value="status">상태</option>
-                          <option value="person">사람</option>
-                          <option value="partner">거래처</option>
+                          {COL_FORMATS.map((f) => <option key={f.type} value={f.type}>{f.label}</option>)}
                         </select>
                       </span>
                     </th>
@@ -1259,6 +1250,44 @@ function BoardTimeline({ items, span, flowCol, nameLabel, onAdd }: {
         <p className="pb-gantt-undated">날짜가 없어 안 그려진 것 {undated.length}건 — 표 보기에서 {span.start.name}을 채워 주세요.</p>
       )}
     </div>
+  );
+}
+
+/** 상태 칸의 라벨 편집 — 표 머리에서 연다.
+ *  글자를 칠 때마다 저장하면 DB 를 두들기게 되니, 팝오버 안에서만 고치고 닫을 때 한 번 저장한다. */
+function ColumnLabels({ col, onSave }: { col: BoardColumn; onSave: (options: StatusOption[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<StatusOption[]>([]);
+  const options = ((col.settings?.options || []) as StatusOption[]);
+
+  const start = () => { setDraft(options.map((o) => ({ ...o }))); setOpen(true); };
+  const close = (save: boolean) => {
+    setOpen(false);
+    if (!save) return;
+    const same = draft.length === options.length
+      && draft.every((d, i) => d.id === options[i].id && d.label === options[i].label && d.color === options[i].color);
+    if (!same) onSave(draft);
+  };
+
+  return (
+    <>
+      {/* 표는 가로로 스크롤되는 상자 안이라 붙어 뜨는 팝오버는 잘린다 — 가운데 창으로 띄운다 */}
+      <button type="button" className={`pb-collabels-btn ${open ? "pb-collabels-on" : ""}`}
+        title="라벨 고치기 · 추가" aria-label={`${col.name} 라벨 편집`} onClick={start}>라벨</button>
+      {open && (
+        <div className="pb-doc-modal" onClick={() => close(true)}>
+          <div className="pb-doc-box pb-collabels-box" onClick={(e) => e.stopPropagation()}>
+            <b className="pb-collabels-h">{col.name} 라벨</b>
+            <LabelEditor options={draft} onChange={setDraft}
+              note="쓰고 있던 라벨을 빼면 그 행은 빈칸이 됩니다(값은 남아요)." />
+            <span className="pb-collabels-foot">
+              <button type="button" onClick={() => close(false)}>취소</button>
+              <button type="button" className="pb-collabels-go" onClick={() => close(true)}>저장</button>
+            </span>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

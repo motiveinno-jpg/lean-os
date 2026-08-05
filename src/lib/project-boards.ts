@@ -209,6 +209,34 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
   },
 ];
 
+/** 칸의 형식 — 고를 때 보이는 이름과 무엇에 쓰는 칸인지.
+ *  템플릿 직접 만들기와 표 머리의 ＋ 가 **같은 목록**을 본다(두 곳에서 말이 갈리면 안 된다). */
+export const COL_FORMATS: { type: ColType; label: string; hint: string }[] = [
+  { type: "text", label: "텍스트", hint: "메모 · 링크 · 자유롭게 적는 칸" },
+  { type: "number", label: "숫자", hint: "금액 · 수량 — 단위를 정할 수 있어요" },
+  { type: "date", label: "날짜", hint: "마감 · 시작 · 예정일" },
+  { type: "status", label: "상태", hint: "라벨 중에서 고르는 칸" },
+  { type: "person", label: "담당자", hint: "회사 구성원 중에서" },
+  { type: "partner", label: "거래처", hint: "거래처를 찾거나 그 자리에서 등록" },
+];
+
+/** 상태 칸을 새로 만들 때 딸려 오는 기본 라벨 — 그대로 쓰든 고쳐 쓰든 */
+export const DEFAULT_STATUS_OPTIONS: StatusOption[] = [
+  { id: "todo", label: "대기", color: C.gray },
+  { id: "doing", label: "진행 중", color: C.orange },
+  { id: "done", label: "완료", color: C.green },
+];
+
+/** 라벨 색 — 회사 안에서 색 뜻이 갈리지 않게 이 여덟 가지만 쓴다 */
+export const LABEL_COLORS = [C.gray, C.blue, C.indigo, C.purple, C.orange, C.green, C.red, C.dark];
+
+/** 한 칸 안에서 안 겹치는 라벨 id */
+export function newOptionId(existing: { id: string }[]): string {
+  const used = new Set(existing.map((o) => o.id));
+  for (let i = 1; i < 999; i++) if (!used.has(`o${i}`)) return `o${i}`;
+  return `o${existing.length + 1}`;
+}
+
 /** 빈 표 — 템플릿을 안 고르고 시작할 때. 최소한의 뼈대만 준다. */
 export const BLANK_TEMPLATE: BoardTemplate = {
   key: "blank",
@@ -247,6 +275,7 @@ export function findTemplate(key: string | null | undefined): BoardTemplate {
 /** 첫 컬럼(행 이름)은 표마다 이름이 다르다 — 템플릿별 라벨 */
 export const ITEM_LABEL: Record<string, string> = {
   todo: "작업", budget: "항목", cost: "항목", billing: "청구 건", pipeline: "건명", review: "요청", schedule: "이름", blank: "이름",
+  custom: "이름",
 };
 
 export type BoardColumn = { id: string; board_id: string; name: string; type: ColType; settings: any; position: number };
