@@ -230,9 +230,9 @@ export async function createAiContractDraft(params: {
 }) {
   const body = sanitizeAiContractHtml(params.bodyHtml).trim();
   if (!body) throw new Error('계약서 본문이 비어 있습니다.');
-  // AI 는 {{변수}} 이중 중괄호로 쓰지만 계약 양식 렌더러(renderTemplateWithVariables)는
-  // {변수} 단일 중괄호 규약 — 저장 시 변환해야 발송 때 치환된다.
-  const singleBraceBody = body.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, '{$1}');
+  // 변수 토큰은 {{변수}} 이중 중괄호로 통일 (2026-08-05 사장님 지시) — AI 출력 형식 그대로 저장한다.
+  //   종전엔 계약 양식 렌더러가 단일 중괄호만 처리해 여기서 {{x}}→{x} 로 낮춰 저장했는데,
+  //   그 값이 전자계약 발송(이중 중괄호 치환)에서는 안 잡혀 토큰이 그대로 나가던 원인이었다.
   const sourceFiles = (params.sourceFiles || [])
     .map((name) => String(name).replace(/[\u0000-\u001f]/g, '').trim().slice(0, 180))
     .filter(Boolean)
@@ -247,7 +247,7 @@ export async function createAiContractDraft(params: {
   const { data, error } = await supabase.from('contract_templates').insert({
     company_id: params.companyId,
     name: `[AI 초안] ${name}`,
-    body_html: singleBraceBody,
+    body_html: body,
     file_type: 'html',
     variables,
     sort_order: 100,

@@ -425,10 +425,10 @@ function TemplateEditorModal({
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {detectedVars.map((v) => (
                     fileType === "html" && !readonly ? (
-                      <button key={v} type="button" onClick={() => editorRef.current?.insertText(`{${v}}`)} title="본문 커서 위치에 삽입"
-                        className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono hover:bg-[var(--primary)]/20 transition">{`{${v}}`}</button>
+                      <button key={v} type="button" onClick={() => editorRef.current?.insertText(`{{${v}}}`)} title="본문 커서 위치에 삽입"
+                        className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono hover:bg-[var(--primary)]/20 transition">{`{{${v}}}`}</button>
                     ) : (
-                      <span key={v} className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono">{`{${v}}`}</span>
+                      <span key={v} className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono">{`{{${v}}}`}</span>
                     )
                   ))}
                   {detectedVars.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">본문에 {"{변수명}"} 을 넣으면 자동 감지됩니다.</span>}
@@ -437,9 +437,9 @@ function TemplateEditorModal({
                   <div className="flex gap-1.5">
                     <input value={newVar} onChange={(e) => setNewVar(e.target.value)}
                       placeholder="예: 갑사명"
-                      onKeyDown={(e) => { if (e.key === "Enter" && newVar.trim()) { e.preventDefault(); editorRef.current?.insertText(`{${newVar.trim()}}`); setNewVar(""); } }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && newVar.trim()) { e.preventDefault(); editorRef.current?.insertText(`{{${newVar.trim()}}}`); setNewVar(""); } }}
                       className="flex-1 min-w-0 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded text-sm focus:outline-none focus:border-[var(--primary)]" />
-                    <button type="button" onClick={() => { if (newVar.trim()) { editorRef.current?.insertText(`{${newVar.trim()}}`); setNewVar(""); } }}
+                    <button type="button" onClick={() => { if (newVar.trim()) { editorRef.current?.insertText(`{{${newVar.trim()}}}`); setNewVar(""); } }}
                       className="px-3 py-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded text-xs font-semibold hover:bg-[var(--primary)]/20 transition shrink-0">삽입</button>
                   </div>
                 )}

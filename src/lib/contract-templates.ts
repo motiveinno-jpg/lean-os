@@ -178,15 +178,21 @@ export function sortTemplatesByOrder<T extends { id: string }>(templates: T[], o
 // 변수 처리
 // ──────────────────────────────────────────────────────────
 
-/** 본문에서 `{변수명}` 패턴 토큰 자동 추출 (중복 제거, 등장 순서). */
+// 변수 토큰 규약 — `{{변수명}}` 이중 중괄호로 통일 (2026-08-05 사장님 지시).
+//   전자계약 발송 경로(signatures.normalizeVariableTokens·OrgBulkWizard)가 원래 이중이었는데
+//   계약 양식 쪽만 단일이라, 편집기에서 넣은 변수가 발송 때 치환되지 않았다.
+//   레거시 단일 중괄호 `{변수명}` 본문(과거 저장분)도 계속 인식·치환한다 — 이중을 먼저 매칭.
+const TOKEN_RE = /\{\{\s*([^{}]+?)\s*\}\}|\{([^{}\s][^{}]*?)\}/g;
+
+/** 본문에서 `{{변수명}}`(레거시 `{변수명}` 포함) 토큰 자동 추출 (중복 제거, 등장 순서). */
 export function extractVariables(body: string | null | undefined): string[] {
   if (!body) return [];
-  const re = /\{([^{}\s][^{}]*?)\}/g;
+  const re = new RegExp(TOKEN_RE.source, "g");
   const seen = new Set<string>();
   const out: string[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(body)) !== null) {
-    const name = m[1].trim();
+    const name = (m[1] ?? m[2] ?? "").trim();
     if (!name || seen.has(name)) continue;
     seen.add(name);
     out.push(name);
@@ -194,13 +200,15 @@ export function extractVariables(body: string | null | undefined): string[] {
   return out;
 }
 
-/** 본문의 `{변수명}` 토큰을 vars 매핑으로 치환. 누락된 변수는 그대로 노출(빈문자열 X — 누락 인지). */
+/** 본문의 `{{변수명}}`(레거시 `{변수명}`) 토큰을 vars 매핑으로 치환.
+ *  누락된 변수는 원래 토큰을 그대로 남긴다(빈문자열 X — 누락을 눈으로 인지하게). */
 export function renderTemplateWithVariables(body: string | null | undefined, vars: Record<string, string>): string {
   if (!body) return "";
-  return body.replace(/\{([^{}\s][^{}]*?)\}/g, (_full, raw: string) => {
-    const name = raw.trim();
+  return body.replace(new RegExp(TOKEN_RE.source, "g"), (full, dbl?: string, sgl?: string) => {
+    const name = (dbl ?? sgl ?? "").trim();
+    if (!name) return full;
     const v = vars[name];
-    return v === undefined || v === null ? `{${name}}` : String(v);
+    return v === undefined || v === null ? full : String(v);
   });
 }
 

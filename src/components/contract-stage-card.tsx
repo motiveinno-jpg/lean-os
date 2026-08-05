@@ -425,7 +425,7 @@ export function ContractStageCard({
               const isDate = v.includes("기간");
               return (
                 <div key={v} className={isLong ? "sm:col-span-2" : ""}>
-                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5 font-mono">{`{${v}}`}</label>
+                  <label className="block text-[10px] text-[var(--text-dim)] mb-0.5 font-mono">{`{{${v}}}`}</label>
                   {isLong ? (
                     <textarea
                       value={vars[v] || ""}
