@@ -1,7 +1,10 @@
+// @vitest-environment jsdom
+//   실제 실행 환경과 맞춘다 — 화면용 sanitize 는 브라우저에서만 도는 코드다(2026-08-05).
 // PDF 렌더 보안 회귀 — SSRF(자산 페치 allowlist) + XSS(sanitize).
 import { describe, it, expect } from "vitest";
 import { isAllowedAssetUrl } from "@/lib/pdf-fetch-guard";
-import { sanitizeAiContractHtml, sanitizeDocumentHtml, sanitizePdfHtml } from "@/lib/sanitize-html";
+import { sanitizeAiContractHtml, sanitizeDocumentHtml } from "@/lib/sanitize-html";
+import { sanitizePdfHtml } from "@/lib/sanitize-html.server";
 
 const OV = "https://njbvdkuvtdtkxyylwngn.supabase.co";
 

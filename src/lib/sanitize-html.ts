@@ -2,7 +2,14 @@
 //   RichEditor 로 저작된 HTML 을 dangerouslySetInnerHTML 로 렌더하기 전 반드시 통과시킨다.
 //   React innerHTML 은 <script> 는 안 돌지만 <img onerror>·<svg onload>·<iframe> 이벤트는 실행됨.
 //   특히 공개 견적/계약 토큰 페이지(무인증)에서 조직 간 stored XSS 전달 벡터였음.
-import DOMPurify from "isomorphic-dompurify";
+//
+// 2026-08-05 — **브라우저 전용 dompurify 로 바꿨다(jsdom 을 물지 않는다).**
+//   왜: isomorphic-dompurify 는 서버에서 jsdom 을 끌어오는데, jsdom 의존 사슬에 ESM 전용
+//   패키지(@exodus/bytes, @csstools/css-calc …)가 계속 들어와 Turbopack 의 external require 가
+//   **모듈 평가 시점에** 죽었다. 그 결과 이 파일을 import 하는 화면들
+//   (프로젝트 상세·견적 승인)이 프로덕션에서 500 이 났다. 버전 고정은 계속 재발해서 끊었다.
+//   서버에서 정제가 필요한 곳(PDF 렌더)은 sanitize-html.server.ts 를 쓴다.
+import DOMPurify from "dompurify";
 
 // 계약/문서 본문에 필요한 서식 태그만 허용. on* 이벤트·script·iframe·object·form 등은 전부 차단.
 const ALLOWED_TAGS = [
@@ -19,8 +26,13 @@ const ALLOWED_ATTR = [
   "data-field", "data-placeholder", // 서명/양식 필드 자리표시자 보존
 ];
 
+/** 브라우저에서만 정제할 수 있다(DOM 이 필요). 서버 렌더 때는 아무것도 내보내지 않는다 —
+ *  정제 안 된 HTML 을 흘리는 것보다 잠깐 비어 있는 편이 안전하고, 하이드레이션 직후 채워진다. */
+const canSanitize = () => typeof window !== "undefined" && typeof DOMPurify.sanitize === "function";
+
 export function sanitizeDocumentHtml(dirty: string | null | undefined): string {
   if (!dirty) return "";
+  if (!canSanitize()) return "";
   return DOMPurify.sanitize(String(dirty), {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
@@ -34,8 +46,13 @@ export function sanitizeDocumentHtml(dirty: string | null | undefined): string {
 
 // AI 계약서 초안 전용 — 모델 출력에는 외부 요청을 일으킬 수 있는 이미지·링크와
 // 임의 CSS가 필요 없다. 일반 문서 에디터보다 더 좁은 허용 목록으로 저장·미리보기한다.
+//   ⚠️ 저장 경로에서도 쓰이므로 서버에서는 **조용히 빈 값을 돌려주지 않고 막는다** —
+//      빈 본문이 저장되는 사고를 만들지 않기 위해서다(화면 표시와 달리 되돌릴 수 없다).
 export function sanitizeAiContractHtml(dirty: string | null | undefined): string {
   if (!dirty) return "";
+  if (!canSanitize()) {
+    throw new Error("계약 본문 정제는 브라우저에서만 됩니다. 서버에서 필요하면 sanitize-html.server 를 쓰세요.");
+  }
   return DOMPurify.sanitize(String(dirty), {
     ALLOWED_TAGS: [
       "p", "br", "hr", "span", "div", "b", "strong", "i", "em", "u",
@@ -47,19 +64,5 @@ export function sanitizeAiContractHtml(dirty: string | null | undefined): string
       "script", "iframe", "object", "embed", "form", "input", "button", "style", "link", "meta", "img", "a",
     ],
     FORBID_ATTR: ["style", "class", "src", "href", "onerror", "onload", "onclick", "onmouseover", "onfocus"],
-  });
-}
-
-// PDF 서버 렌더용 — 회사양식 레이아웃을 위해 <style>/<head> 를 허용하되 script·on*·iframe·object·link·meta 는 차단.
-//   (실행 위험은 sanitize + puppeteer 네트워크 차단으로 이중 방어. DOMPurify 가 CSS 내 expression/javascript: 도 정제.)
-export function sanitizePdfHtml(dirty: string | null | undefined): string {
-  if (!dirty) return "";
-  return DOMPurify.sanitize(String(dirty), {
-    WHOLE_DOCUMENT: true,
-    ADD_TAGS: ["style", "html", "head", "body", "meta"],
-    ADD_ATTR: ["style", "class"],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i,
-    FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "input", "button", "link"],
-    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "formaction", "srcdoc"],
   });
 }

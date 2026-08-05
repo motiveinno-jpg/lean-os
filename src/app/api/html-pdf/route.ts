@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { sanitizePdfHtml } from "@/lib/sanitize-html";
+import { sanitizePdfHtml } from "@/lib/sanitize-html.server";
 import { isAllowedAssetUrl } from "@/lib/pdf-fetch-guard";
 import chromium from "@sparticuz/chromium";
 import puppeteer, { type Browser } from "puppeteer-core";
