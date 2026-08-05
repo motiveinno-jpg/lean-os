@@ -175,12 +175,20 @@ export default function DesignSystemPage() {
       {/* ── 프로젝트 템플릿 부품 ──────────────────────────── */}
       <Section title="프로젝트 템플릿 부품" desc="입력(표·칸반)과 보기(타임라인·캘린더·정리)를 라벨로 가른다. 기본은 항상 입력 화면.">
         <div className="ds-bar2sample">
-          <span className="pb-viewgroup"><em>입력</em>
-            <span className="pb-viewpick"><button className="pb-viewbtn pb-viewbtn-on">표</button><button className="pb-viewbtn">칸반</button></span>
-          </span>
-          <span className="pb-viewgroup"><em>보기</em>
-            <span className="pb-viewpick"><button className="pb-viewbtn">타임라인</button><button className="pb-viewbtn">캘린더</button><button className="pb-viewbtn">정리</button></span>
-          </span>
+          <div className="pb-views" role="group" aria-label="보는 방식">
+            <span className="pb-views-sec">
+              <b>입력</b>
+              <button className="pb-viewbtn pb-viewbtn-on">표</button>
+              <button className="pb-viewbtn">칸반</button>
+            </span>
+            <span className="pb-views-sep" aria-hidden="true" />
+            <span className="pb-views-sec">
+              <b>보기</b>
+              <button className="pb-viewbtn">타임라인</button>
+              <button className="pb-viewbtn">캘린더</button>
+              <button className="pb-viewbtn">정리</button>
+            </span>
+          </div>
           <span className="pb-filters">
             <button className="pb-filter">내 담당</button>
             <button className="pb-filter pb-filter-on">이번 주</button>
@@ -206,7 +214,7 @@ export default function DesignSystemPage() {
           <span className="pb-doc-sendst">보냄</span>
           <span className="pb-doc-sendst pb-doc-sendst-bad">발송 실패</span>
         </div>
-        <div className="ds-codes"><code>.pb-viewgroup</code><code>.pb-card</code><code>.pb-propose</code><code>.pb-ratio</code></div>
+        <div className="ds-codes"><code>.pb-views</code><code>.pb-card</code><code>.pb-propose</code><code>.pb-ratio</code></div>
       </Section>
 
       {/* ── 알림 줄 ───────────────────────────────────────── */}

@@ -695,9 +695,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       </div>
 
       <div className="pb-bar2">
-        <span className="pb-viewgroup">
-          <em>입력</em>
-          <span className="pb-viewpick">
+        {/* 한 상자 안에 '입력'과 '보기' 를 구분선으로 가른다. 라벨은 상자 안쪽에 두고
+            눌리지 않는 모양으로 — 라벨이 버튼처럼 보여 헛클릭이 났다(2026-08-05 사장님 지적). */}
+        <div className="pb-views" role="group" aria-label="보는 방식">
+          <span className="pb-views-sec">
+            <b>입력</b>
             {INPUT_MODES.map((v) => (
               <button key={v} type="button" onClick={() => { setShowSummary(false); pickView(v); }}
                 aria-pressed={!showSummary && view === v}
@@ -706,10 +708,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               </button>
             ))}
           </span>
-        </span>
-        <span className="pb-viewgroup">
-          <em>보기</em>
-          <span className="pb-viewpick">
+          <span className="pb-views-sep" aria-hidden="true" />
+          <span className="pb-views-sec">
+            <b>보기</b>
             {span && (
               <button type="button" onClick={() => { setShowSummary(false); pickView("timeline"); }}
                 aria-pressed={!showSummary && view === "timeline"}
@@ -723,7 +724,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             <button type="button" onClick={() => setShowSummary(true)} aria-pressed={showSummary}
               className={`pb-viewbtn ${showSummary ? "pb-viewbtn-on" : ""}`}>정리</button>
           </span>
-        </span>
+        </div>
         {!showSummary && (
           <span className="pb-filters">
             {([["mine", "내 담당"], ["week", "이번 주"], ["open", "미완료만"]] as const).map(([k, label]) => (

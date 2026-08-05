@@ -5972,8 +5972,14 @@ th:hover .pb-col-x { @apply opacity-100; }
 .pj-input-note > button { @apply ml-auto text-[12px] font-bold text-[var(--primary)] hover:underline; }
 
 /* 칸반 — 단계가 라벨이라 카드를 끌면 그 라벨이 바뀐다 (2026-08-03) */
+/* 보기 전환 — 한 상자 안에 '입력 | 보기' 를 구분선으로 가른다.
+   라벨은 상자 안쪽의 눌리지 않는 글씨라 버튼과 헷갈리지 않는다(2026-08-05). */
+.pb-views { @apply inline-flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.pb-views-sec { @apply inline-flex items-center gap-0.5; }
+.pb-views-sec > b { @apply px-1.5 text-[9.5px] font-bold text-[var(--text-dim)] uppercase tracking-wider select-none; }
+.pb-views-sep { @apply self-stretch w-px mx-1 bg-[var(--border)]; }
 .pb-viewpick { @apply inline-flex rounded-lg border border-[var(--border)] overflow-hidden; }
-.pb-viewbtn { @apply h-7 px-2.5 text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pb-viewbtn { @apply h-7 px-2.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-card)] hover:text-[var(--text)]; }
 .pb-viewbtn-on { @apply bg-[var(--primary)] text-white hover:!text-white; }
 .pb-kanban { @apply flex gap-3 overflow-x-auto pb-2 items-start; }
 .pb-kcol { @apply shrink-0 w-[264px] flex flex-col gap-2 p-2 rounded-2xl bg-[var(--bg-surface)] border border-transparent transition; }
@@ -6115,8 +6121,6 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 툴바 3층 — 템플릿 / 보기 / 그룹 (2026-08-04 사장님 지시: 성격이 다른 동작을 한 줄에 섞지 않는다) */
 .pb-bar1 { @apply flex flex-wrap items-center gap-1 pb-2 border-b border-[var(--border)]; }
 .pb-bar2 { @apply flex flex-wrap items-center gap-4 py-2.5; }
-.pb-viewgroup { @apply inline-flex items-center gap-1.5; }
-.pb-viewgroup > em { @apply not-italic text-[10.5px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
 .pb-tplmenu { @apply relative inline-flex ml-auto; }
 .pb-gmenu { @apply relative inline-flex ml-1; }
 .pb-dots { @apply w-7 h-7 rounded-lg text-[15px] leading-none text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
