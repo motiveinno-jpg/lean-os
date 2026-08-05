@@ -6164,3 +6164,69 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-doc-sendwhen { @apply shrink-0 text-[11px] text-[var(--text-dim)]; }
 .pb-doc-send > button { @apply shrink-0 h-7 px-2.5 rounded-lg text-[11.5px] font-bold text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-40; }
 .pb-doc-sub { @apply h-9 px-3 rounded-lg border border-[var(--border)] text-[12.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)] disabled:opacity-40; }
+
+/* 디자인 시스템 갤러리 /design — 부품을 한 화면에 세워 두는 자리 (2026-08-05) */
+.ds-page { @apply flex flex-col gap-8 pb-16; }
+.ds-head { @apply flex flex-col gap-1; }
+.ds-head h1 { @apply text-[20px] font-extrabold text-[var(--text)]; }
+.ds-head p { @apply text-[13px] text-[var(--text-muted)] max-w-2xl; }
+.ds-sec { @apply flex flex-col gap-3; }
+.ds-sec-head { @apply flex flex-col gap-0.5 pb-1 border-b border-[var(--border)]; }
+.ds-sec-head h2 { @apply text-[14px] font-extrabold text-[var(--text)]; }
+.ds-sec-head p { @apply text-[12px] text-[var(--text-dim)] max-w-3xl; }
+.ds-row { @apply flex flex-wrap items-center gap-2; }
+.ds-grid2 { @apply grid gap-3 grid-cols-1 md:grid-cols-2; }
+.ds-note { @apply text-[12px] text-[var(--text-muted)] mt-1; }
+.ds-codes { @apply flex flex-wrap gap-1.5 mt-1; }
+.ds-codes code, .ds-foot code { @apply px-1.5 py-0.5 rounded-md bg-[var(--bg-surface)] text-[10.5px] font-mono text-[var(--text-muted)]; }
+.ds-foot { @apply text-[12px] text-[var(--text-dim)] pt-4 border-t border-[var(--border)]; }
+
+/* 색 */
+.ds-swatches { @apply grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6; }
+.ds-swatch { @apply flex flex-col gap-1 p-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.ds-swatch i { @apply block h-9 rounded-lg border border-[var(--border)]; }
+.ds-swatch b { @apply text-[12px] font-bold text-[var(--text)]; }
+.ds-swatch code { @apply text-[10px] font-mono text-[var(--text-dim)]; }
+.ds-swatch em { @apply not-italic text-[10.5px] text-[var(--text-muted)]; }
+.ds-statuscolors { @apply flex flex-wrap gap-2; }
+.ds-statuscolor { @apply inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[11.5px] text-[var(--text)]; }
+.ds-statuscolor i { @apply block w-3 h-3 rounded-full; }
+.ds-statuscolor code { @apply text-[10px] font-mono text-[var(--text-dim)]; }
+
+/* 글자 */
+.ds-type { @apply flex flex-col gap-2 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.ds-type-row { @apply flex flex-wrap items-baseline gap-x-3 gap-y-1; }
+.ds-type-row > span { @apply w-20 shrink-0 text-[11px] font-semibold text-[var(--text-dim)]; }
+.ds-type-row > code { @apply ml-auto text-[10.5px] font-mono text-[var(--text-dim)]; }
+.ds-t1 { @apply text-[20px] font-extrabold text-[var(--text)]; }
+.ds-t2 { @apply text-[14px] font-bold text-[var(--text)]; }
+.ds-t3 { @apply text-[13px] font-normal text-[var(--text)]; }
+.ds-t4 { @apply text-[11.5px] font-normal text-[var(--text-dim)]; }
+.ds-t5 { @apply text-[15px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+
+/* 입력 */
+.ds-field { @apply flex flex-col gap-1; }
+.ds-field > span { @apply text-[11.5px] font-semibold text-[var(--text-dim)]; }
+
+/* 카드 · 표 */
+.ds-tiles { @apply grid gap-3 grid-cols-1 sm:grid-cols-3; }
+.ds-bad { @apply !text-[var(--danger)]; }
+.ds-tile-note { @apply text-[11px] text-[var(--text-muted)]; }
+.ds-cardsample { @apply p-4 flex flex-col gap-1; }
+.ds-cardsample b { @apply text-[13px] font-bold text-[var(--text)]; }
+.ds-cardsample p { @apply text-[12px] text-[var(--text-muted)]; }
+.ds-tablewrap { @apply overflow-x-auto rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.ds-table { @apply w-full text-[12.5px]; }
+.ds-table th { @apply px-3 py-2 text-left text-[10.5px] font-bold text-[var(--text-dim)] border-b border-[var(--border)] bg-[var(--bg-surface)]; }
+.ds-table td { @apply px-3 py-2.5 text-[var(--text)] border-b border-[var(--border)]/50; }
+
+/* 로딩 */
+.ds-skelbox { @apply p-4 flex flex-col gap-2 justify-center; }
+.ds-skel1 { @apply h-4 w-2/3; }
+.ds-skel2 { @apply h-4 w-full; }
+.ds-skel3 { @apply h-4 w-1/2; }
+
+/* 프로젝트 부품 */
+.ds-bar2sample { @apply flex flex-wrap items-center gap-4 p-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.ds-floats { @apply relative flex flex-wrap items-center justify-center gap-3 p-6 rounded-2xl bg-[var(--bg-surface)]; }
+.ds-floats .pb-undo, .ds-floats .pb-bulk { @apply static translate-x-0 shadow-lg; }
