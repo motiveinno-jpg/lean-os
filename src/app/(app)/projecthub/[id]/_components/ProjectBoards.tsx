@@ -82,7 +82,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     queryKey: ["pb-boards", dealId],
     queryFn: async () => {
       const data = logRead("ProjectBoards:boards", await db.from("project_boards")
-        .select("id, name, template_key, position").eq("deal_id", dealId).is("archived_at", null)
+        .select("id, name, template_key, name_label, position").eq("deal_id", dealId).is("archived_at", null)
         .order("position", { ascending: true }));
       return (data || []) as any[];
     },
@@ -428,6 +428,15 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     await db.from("project_board_columns").update({ name: name.trim() }).eq("id", c.id);
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
+  //   첫 칸 머리글 — '이름' 이 회사 말로는 상호명·현장명일 수 있다(2026-08-05 사장님 지시).
+  //   비우면 템플릿 기본 라벨로 돌아간다. 행 이름 자체(items.name)는 그대로다.
+  const renameNameColumn = async (next: string) => {
+    const v = next.trim();
+    if (!board) return;
+    const { error } = await db.from("project_boards").update({ name_label: v || null }).eq("id", boardId);
+    if (error) { toast(error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
+  };
 
   // 행 → 견적서. '매출 · 청구' 템플릿에서만 쓴다(2026-08-03 사장님: "입력은 무조건 템플릿으로").
   //   문서 자체는 기존 편집기가 맡는다 — 여기서는 만들고 연결한 뒤 그리로 보낸다.
@@ -692,7 +701,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       onUsePreset={useBoardPreset} onRemovePreset={dropBoardPreset} />;
   }
 
-  const nameLabel = ITEM_LABEL[board?.template_key || "blank"] || "이름";
+  //   첫 칸 머리글 — 회사가 바꿔 뒀으면 그걸, 아니면 템플릿 기본 라벨(2026-08-05 사장님 지시)
+  const nameLabel = String(board?.name_label || "").trim() || ITEM_LABEL[board?.template_key || "blank"] || "이름";
   // 칸반이 열로 쓸 컬럼 — 흐름 상태 컬럼. 없으면 그룹으로 열을 만든다.
   const flowCol = flowColumnOf(cols);
   //   입력 화면은 표·칸반 둘뿐이다 — 타임라인·캘린더는 정리 안의 그림으로 옮겼다(2026-08-05).
@@ -1056,7 +1066,15 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           return n;
                         })} />
                     </th>
-                    <th className="pb-th-name">{nameLabel}</th>
+                    <th className="pb-th-name">
+                      {/* 첫 칸도 이름을 바꾼다 — 다른 칸과 같은 자리·같은 방법(2026-08-05 사장님 지시) */}
+                      <span className="pb-th-in">
+                        <input key={`nl-${boardId}-${nameLabel}`} defaultValue={nameLabel} className="pb-col-name"
+                          title="첫 칸 머리글 — 비우면 기본으로 돌아갑니다"
+                          onBlur={(e) => renameNameColumn(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                      </span>
+                    </th>
                     {cols.map((c) => (
                       <th key={c.id} className={c.type === "number" ? "pb-th-num" : ""}>
                         <span className="pb-th-in">
@@ -1148,8 +1166,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       </td>
                     </tr>
                   ))}
-                  <QuickAddRow key={`qa-${g.id}`} nameLabel={nameLabel} cols={cols}
-                    span={cols.length + (isBilling ? 3 : 2) + (ratioPair ? 1 : 0) + 1}
+                  <QuickAddRow key={`qa-${g.id}`} nameLabel={nameLabel} cols={cols} users={users}
+                    extraCells={(ratioPair ? 1 : 0) + (isBilling ? 1 : 0)}
                     onAdd={(name, values) => addItem(g.id, values, name)} />
                   {rows.length > 0 && numberCols.length > 0 && (
                     <tr className="pb-sum">
@@ -1179,29 +1197,31 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 }
 
 // ── 빠른 입력 줄 — 빈 행을 만들고 칸을 옮겨 다니는 대신 한 줄에서 끝낸다 (2026-08-04 기획 5단계) ──
-//   이름 + 첫 숫자 + 첫 날짜만 받는다. 나머지는 만들어진 행에서 채우면 된다.
-//   Enter 를 치면 저장하고 이름 칸으로 커서가 돌아온다 — 비용처럼 여러 건을 연달아 넣을 때가 많다.
-function QuickAddRow({ nameLabel, cols, span, onAdd }: {
-  nameLabel: string; cols: BoardColumn[]; span: number;
+//   2026-08-05 사장님: "컬럼을 추가했는데 밑에 입력은 고정되어 있다."
+//   → 이름 + 첫 숫자 + 첫 날짜만 받던 것을 **표의 모든 칸을 그대로** 받도록 바꿨다.
+//     칸마다 자기 자리(td)에 입력기가 서므로 머리글과 세로로 맞는다.
+//   Enter 를 치면 저장하고 이름 칸으로 커서가 돌아온다 — 여러 건을 연달아 넣을 때가 많다.
+function QuickAddRow({ nameLabel, cols, users, extraCells, onAdd }: {
+  nameLabel: string; cols: BoardColumn[]; users: { id: string; name: string }[];
+  /** 비율·문서처럼 머리글에만 있는 칸 수 — 빈 칸으로 채워 자리를 맞춘다 */
+  extraCells: number;
   onAdd: (name: string, values: Record<string, any>) => Promise<void> | void;
 }) {
-  const numCol = cols.find((c) => c.type === "number") || null;
-  const dateCol = cols.find((c) => c.type === "date") || null;
   const [name, setName] = useState("");
-  const [num, setNum] = useState("");
-  const [date, setDate] = useState("");
+  const [values, setValues] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
+  const set = (id: string, v: any) => setValues((prev) => ({ ...prev, [id]: v }));
 
   const submit = async () => {
     if (!name.trim() || busy) return;
     setBusy(true);
     try {
-      const values: Record<string, any> = {};
-      if (numCol && num.trim()) values[numCol.id] = Number(num.replace(/[^0-9.-]/g, "")) || 0;
-      if (dateCol && date) values[dateCol.id] = date;
-      await onAdd(name.trim(), values);
-      setName(""); setNum(""); setDate("");
+      //   빈 칸은 아예 안 담는다 — 빈 문자열이 들어가면 '입력됨'으로 세어진다
+      const clean: Record<string, any> = {};
+      for (const [k, v] of Object.entries(values)) if (v !== "" && v != null) clean[k] = v;
+      await onAdd(name.trim(), clean);
+      setName(""); setValues({});
       nameRef.current?.focus();
     } finally { setBusy(false); }
   };
@@ -1209,26 +1229,60 @@ function QuickAddRow({ nameLabel, cols, span, onAdd }: {
 
   return (
     <tr className="pb-quick">
-      <td colSpan={span}>
-        <span className="pb-quick-row">
-          <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onKey}
-            placeholder={`＋ ${nameLabel} 입력하고 Enter`} className="pb-quick-name" />
-          {numCol && (
-            <input value={num} onChange={(e) => setNum(e.target.value)} onKeyDown={onKey} inputMode="numeric"
-              placeholder={numCol.name} className="pb-quick-num" />
-          )}
-          {dateCol && (
-            <span onKeyDown={onKey}>
-              <DateField value={date} onChange={(e) => setDate(e.target.value)} className="pb-quick-date" />
-            </span>
-          )}
-          <button type="button" onClick={submit} disabled={busy || !name.trim()} className="pb-quick-go">
-            {busy ? "…" : "추가"}
-          </button>
-        </span>
+      <td className="pb-td-sel" />
+      <td className="pb-td-name">
+        <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onKey}
+          placeholder={`＋ ${nameLabel} 입력하고 Enter`} className="pb-quick-name" />
+      </td>
+      {cols.map((c) => (
+        <td key={c.id} className={c.type === "number" ? "pb-td-num" : ""} onKeyDown={onKey}>
+          <QuickCell col={c} users={users} value={values[c.id] ?? ""} onChange={(v) => set(c.id, v)} />
+        </td>
+      ))}
+      {Array.from({ length: extraCells }, (_, i) => <td key={`x${i}`} />)}
+      <td className="pb-td-x">
+        <button type="button" onClick={submit} disabled={busy || !name.trim()} className="pb-quick-go">
+          {busy ? "…" : "추가"}
+        </button>
       </td>
     </tr>
   );
+}
+
+/** 빠른 입력 줄의 칸 하나 — 아직 행이 없으므로 저장된 셀(Cell)과 달리 값을 들고만 있는다.
+ *  거래처는 그 자리에서 새로 만드는 일이 있어 여기서는 받지 않는다(행을 만든 뒤 표에서 고른다). */
+function QuickCell({ col, users, value, onChange }: {
+  col: BoardColumn; users: { id: string; name: string }[]; value: any; onChange: (v: any) => void;
+}) {
+  if (col.type === "number") {
+    return <input value={value} inputMode="numeric" placeholder={col.settings?.unit || "0"} className="pb-quick-in pb-quick-num"
+      onChange={(e) => onChange(e.target.value.replace(/[^0-9.-]/g, ""))} />;
+  }
+  if (col.type === "date") {
+    return <DateField value={value || ""} onChange={(e) => onChange(e.target.value)} className="pb-quick-in" />;
+  }
+  if (col.type === "status") {
+    const options: StatusOption[] = (col.settings?.options || []) as StatusOption[];
+    return (
+      <select value={value || ""} className="pb-quick-in" aria-label={col.name} onChange={(e) => onChange(e.target.value)}>
+        <option value="">—</option>
+        {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+      </select>
+    );
+  }
+  if (col.type === "person") {
+    return (
+      <select value={value || ""} className="pb-quick-in" aria-label={col.name} onChange={(e) => onChange(e.target.value)}>
+        <option value="">—</option>
+        {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+      </select>
+    );
+  }
+  if (col.type === "partner") {
+    return <span className="pb-quick-later" title="행을 만든 뒤 표에서 고르세요">표에서 고르기</span>;
+  }
+  return <input value={value || ""} placeholder={col.name} className="pb-quick-in"
+    onChange={(e) => onChange(e.target.value)} />;
 }
 
 // ── 계획 대비 실적 막대 — 예산 대비 집행, 예상 대비 확정 ──
