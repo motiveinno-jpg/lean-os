@@ -1925,8 +1925,10 @@ function TaxInvoicesPageInner() {
 
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
+        // 목록에서 같은 id 의 최신 행을 우선 — 상세 보강(주소·이메일)이 끝나면 열려 있는 모달도 바로 갱신된다.
+        //   (열 때의 스냅샷만 쓰면 보강 결과가 화면에 반영되지 않았다 — 2026-08-05)
         <InvoiceDetailModal
-          invoice={selectedInvoice}
+          invoice={(invoices as any[]).find((r: any) => r.id === selectedInvoice.id) || selectedInvoice}
           companyInfo={companyInfo}
           partners={partners}
           issuanceStatus={issuanceStatus}
@@ -2601,7 +2603,11 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
         const json = await res.json().catch(() => ({}));
         if (alive && res.ok && json?.ok && json.invoice) {
           // 목록 캐시를 갱신하면 열려 있는 상세도 새 값으로 다시 그려진다
-          queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
+          //   (키가 "tax-invoices" 가 아니라 "tax-invoices-full" 이라 종전엔 갱신이 안 됐다)
+          queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+        } else if (alive && !res.ok) {
+          // 조용히 삼키면 왜 안 채워지는지 알 수 없다 — 사유를 눈에 보이게(2026-08-05 사장님 제보)
+          toast(`거래처 정보 불러오기 실패: ${json?.error || `HTTP ${res.status}`}`, "error");
         }
       } catch { /* 보강 실패는 조용히 — 기존 표시(명부 폴백) 유지 */ }
       finally { if (alive) setDetailLoading(false); }
