@@ -644,10 +644,21 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-groups", boardId] });
   };
-  const addColumn = async (type: ColType) => {
+  //   after 를 주면 그 칸 바로 오른쪽에 넣는다 — 표 끝까지 가로로 밀지 않아도 원하는 자리에 붙는다
+  //   (2026-08-05 사장님: "표에서 칸 이름 옆 ＋로 컬럼을 추가할 수 있게").
+  const addColumn = async (type: ColType, after?: BoardColumn) => {
     const label = COL_FORMATS.find((f) => f.type === type)?.label || "칸";
     const settings = type === "status" ? { options: DEFAULT_STATUS_OPTIONS } : {};
-    const { error } = await db.from("project_board_columns").insert({ board_id: boardId, name: label, type, settings, position: cols.length });
+    const pos = after ? after.position + 1 : cols.length;
+    if (after) {
+      // 뒤 칸들을 한 자리씩 민다 — 안 밀면 새 칸이 뒤 칸과 같은 자리를 두고 다툰다
+      const later = cols.filter((c) => c.position >= pos);
+      const res = await Promise.all(later.map((c) =>
+        db.from("project_board_columns").update({ position: c.position + 1 }).eq("id", c.id)));
+      const bad = res.find((r: any) => r.error);
+      if (bad) { toast(bad.error.message, "error"); return; }
+    }
+    const { error } = await db.from("project_board_columns").insert({ board_id: boardId, name: label, type, settings, position: pos });
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
@@ -1064,6 +1075,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           )}
                           {/* 상태 칸은 무엇 중에서 고르는 칸인지를 여기서 바꾼다 — 라벨 추가·이름·색·순서 */}
                           {c.type === "status" && <ColumnLabels col={c} onSave={(opts) => saveOptions(c, opts)} />}
+                          {/* 칸 이름 옆 ＋ — 이 칸 오른쪽에 새 칸을 붙인다(표 끝의 ＋ 는 맨 뒤에 붙인다) */}
+                          <span className="pb-col-plus">
+                            <select value="" title={`'${c.name}' 오른쪽에 칸 추가`} aria-label={`${c.name} 오른쪽에 칸 추가`}
+                              onChange={(e) => { if (e.target.value) addColumn(e.target.value as ColType, c); }}>
+                              <option value="">＋</option>
+                              {COL_FORMATS.map((f) => <option key={f.type} value={f.type}>{f.label}</option>)}
+                            </select>
+                          </span>
                           <button type="button" className="pb-col-x" title="이 컬럼 지우기" onClick={() => removeColumn(c)}>✕</button>
                         </span>
                       </th>
