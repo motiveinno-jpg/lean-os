@@ -282,7 +282,13 @@ async function buildAndSaveApprovalPdf(args: {
     (req.attachments || []).map(async (url) => {
       const name = attachmentFileName(url);
       const signed = await resolveSignedUrl(url, name);
-      return signed ? { name, url: signed } : null;
+      if (!signed) return null;
+      // PDF 뷰어(Edge/Chrome 내장)는 Supabase 의 filename=%EB%84%A4... 를 디코드하지 않고
+      // 그대로 저장하므로, 파일명 헤더를 우리가 제어하는 프록시를 거치게 한다 (2026-08-05).
+      const proxied = signed.includes('/storage/v1/object/')
+        ? `${window.location.origin}/api/files/download/${encodeURIComponent(name.replace(/[/\\]/g, '_'))}?u=${encodeURIComponent(signed)}`
+        : signed;
+      return { name, url: proxied };
     })
   )).filter((a): a is { name: string; url: string } => !!a);
 
