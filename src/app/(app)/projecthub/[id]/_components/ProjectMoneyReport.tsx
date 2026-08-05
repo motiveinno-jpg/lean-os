@@ -145,7 +145,7 @@ function StageBars({ income, spend }: { income: MoneyRollup["income"]; spend: Mo
   return (
     <figure className="mr-fig mr-fig-wide">
       <figcaption>
-        받을 돈 · 나갈 돈이 어느 단계까지 왔나<em>막대 전체가 총액 · 진한 칸일수록 끝난 단계</em>
+        받을 돈 · 나갈 돈이 어느 단계까지 왔나<em>막대 전체가 총액 · 왼쪽부터 단계 순서</em>
         {/* 색만으로 뜻을 전하지 않는다 — 숫자로 읽고 싶을 때를 위한 표 */}
         <button type="button" className="mr-toggle" onClick={() => setAsTable((v) => !v)}>
           {asTable ? "그래프로" : "표로 보기"}

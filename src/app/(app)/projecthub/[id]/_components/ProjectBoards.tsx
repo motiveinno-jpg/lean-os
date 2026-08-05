@@ -1435,8 +1435,8 @@ function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePre
   return (
     <div className="pb-sum-all">
       <p className="pb-sum-top">
-        리포트 {filled.length + 1}장 — 프로젝트 전체 돈 흐름 한 장과 템플릿마다 한 장씩.
-        값이 비어 있는 칸은 세지 않았어요.
+        프로젝트 전체 돈 흐름 한 장과 템플릿마다 한 장씩 정리했어요.
+        값이 비어 있는 칸은 세지 않았습니다.
       </p>
       {/* 표를 가로지르는 돈 요약이 맨 위 — 표별 리포트보다 이게 먼저 읽혀야 한다(2026-08-05) */}
       <SummaryReport kicker="프로젝트 전체" title="돈 흐름" meta="템플릿 여러 개에서 모은 금액">
