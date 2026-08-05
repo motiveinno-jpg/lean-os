@@ -744,10 +744,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             title="더블클릭하면 이름을 바꿉니다"
             className={`pb-tab ${b.id === boardId && !showSummary ? "pb-tab-on" : ""}`}>{b.name}</button>
         ))}
-        {/* 탭은 왼쪽에 쭉, 추가·관리는 오른쪽 끝에 모은다 (2026-08-05 사장님: "우측에 ＋버튼") */}
+        {/* ＋ 템플릿 은 탭 바로 옆 — 마지막 탭에 붙여 둔다
+            (2026-08-05 사장님: "＋템플릿도 우측이 아니라 기존처럼 수주·매출 옆에 있어서 자유롭게 추가").
+            오른쪽 끝은 지금 보고 있는 템플릿을 관리하는 ⋯ 만 남긴다 — 성격이 다른 동작이라 자리도 가른다. */}
+        <button type="button" className="pb-newtpl" onClick={() => setPicking(true)}
+          title="템플릿 추가" aria-label="템플릿 추가">＋ 템플릿</button>
         <span className="pb-bar1-right">
-          <button type="button" className="pb-newtpl" onClick={() => setPicking(true)}
-            title="템플릿 추가" aria-label="템플릿 추가">＋ 템플릿</button>
           <span className="pb-tplmenu">
             <button type="button" className={`pb-dots ${tplMenu ? "pb-dots-on" : ""}`} onClick={() => setTplMenu((v) => !v)}
               title="이 템플릿 관리" aria-label="템플릿 메뉴">⋯</button>
