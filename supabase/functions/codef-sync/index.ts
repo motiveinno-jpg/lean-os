@@ -929,6 +929,97 @@ async function getAccountList(
   return Array.isArray(accounts) ? accounts : accounts ? [accounts] : [];
 }
 
+// ── 홈택스 인증서 로딩 (통합조회·상세조회 공통) ──────────────────────────────
+//   storage certificates/{companyId}/signCert.der + signPri.key + automation_credentials.hometax.cert_password
+//   반환: RSA 암호화된 비밀번호까지 포함해 그대로 CODEF 요청부에 넣을 수 있는 형태.
+type HometaxCert = { certB64: string; keyB64: string; encryptedCertPw: string };
+async function loadHometaxCert(
+  supabase: any, companyId: string,
+): Promise<{ cert: HometaxCert | null; error: SyncError | null }> {
+  const ORG = "0002";
+  try {
+    const [certDl, keyDl, credRow] = await Promise.all([
+      supabase.storage.from("certificates").download(`${companyId}/signCert.der`),
+      supabase.storage.from("certificates").download(`${companyId}/signPri.key`),
+      supabase.from("automation_credentials").select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
+    ]);
+    if (certDl.error || !certDl.data || keyDl.error || !keyDl.data) {
+      return { cert: null, error: { accountNo: "", organization: ORG, code: "HOMETAX_CERT_MISSING",
+        message: "홈택스 공동인증서 파일이 storage 에 없습니다.", hint: "설정 → 은행연동 → 홈택스에서 인증서를 다시 업로드하세요." } };
+    }
+    const encryptedPw = credRow.data?.credentials?.cert_password;
+    if (!encryptedPw) {
+      return { cert: null, error: { accountNo: "", organization: ORG, code: "HOMETAX_CERT_PASSWORD_MISSING",
+        message: "홈택스 공동인증서 비밀번호가 등록되어 있지 않습니다.", hint: "설정 → 은행연동 → 홈택스에서 인증서 비밀번호를 입력하세요." } };
+    }
+    const { data: plainPw, error: decErr } = await supabase.rpc("decrypt_credential", { p_ciphertext: encryptedPw });
+    if (decErr || !plainPw) {
+      return { cert: null, error: { accountNo: "", organization: ORG, code: "HOMETAX_CERT_DECRYPT_FAILED",
+        message: `인증서 비밀번호 복호화 실패: ${decErr?.message || "응답 없음"}`, hint: "설정에서 인증서 비밀번호를 다시 저장하세요." } };
+    }
+    const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+    return {
+      cert: {
+        certB64: Buffer.from(new Uint8Array(await certDl.data.arrayBuffer())).toString("base64"),
+        keyB64: Buffer.from(new Uint8Array(await keyDl.data.arrayBuffer())).toString("base64"),
+        encryptedCertPw: publicKey ? rsaEncrypt(String(plainPw), publicKey) : String(plainPw),
+      },
+      error: null,
+    };
+  } catch (err: any) {
+    return { cert: null, error: { accountNo: "", organization: ORG, code: "HOMETAX_CERT_LOAD_FAILED",
+      message: `인증서 로드 실패: ${err?.message || err}`, hint: "설정에서 인증서를 재업로드하세요." } };
+  }
+}
+
+// ── 전자세금계산서 상세 조회 (2026-08-05 사장님: "홈택스엔 공급받는자 주소·이메일이 다 있는데") ──
+//   통합 목록 API 는 사업장 주소·이메일을 주지 않는다. 상세 API 에는 둘 다 있다:
+//     resSupplierBusinessPlace/resContractorBusinessPlace(사업장), resEmail(공급자)/resEmail1(공급받는자), 대표자명
+//   ⚠️ 건당 과금 + CODEF 문서 경고("과도한 호출 시 대상기관 IP 차단") → 한 건당 한 번만, 결과는 DB 에 캐시.
+//   승인번호(approvalNo)가 있는 발행분만 조회 가능.
+async function fetchHometaxInvoiceDetail(
+  supabase: any, token: string, invoice: any, cert: HometaxCert,
+): Promise<{ ok: boolean; code?: string; message?: string }> {
+  const approvalNo = String(invoice.nts_confirm_no || "").trim();
+  if (!approvalNo) return { ok: false, code: "NO_APPROVAL_NO", message: "승인번호가 없어 상세 조회 불가" };
+
+  const resp = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/info-detail", {
+    organization: "0002",
+    loginType: "0",
+    certType: "1",
+    certFile: cert.certB64,
+    keyFile: cert.keyB64,
+    certPassword: cert.encryptedCertPw,
+    approvalNo,
+    originDataYN: "0",   // 원문 PDF(Base64)는 용량이 커 받지 않는다
+  });
+  const code = resp?.result?.code;
+  if (code !== "CF-00000") return { ok: false, code, message: resp?.result?.message };
+
+  const d = Array.isArray(resp.data) ? resp.data[0] : resp.data;
+  if (!d) return { ok: false, code: "EMPTY", message: "상세 응답 없음" };
+
+  // 매출 = 우리가 공급자 → 거래처는 공급받는자(Contractor). 매입 = 반대(Supplier).
+  const isSales = invoice.type === "sales";
+  const pick = (v: unknown) => String(v ?? "").replace(/\+/g, " ").trim() || null;
+  const patch: Record<string, unknown> = {
+    counterparty_address: pick(isSales ? d.resContractorBusinessPlace : d.resSupplierBusinessPlace),
+    counterparty_email: pick(isSales ? (d.resEmail1 || d.resEmail2) : d.resEmail),
+    counterparty_representative: pick(isSales ? d.resContractorName : d.resSupplierName),
+    counterparty_business_type: pick(isSales ? d.resContractorBusinessTypes : d.resSupplierBusinessTypes),
+    counterparty_business_item: pick(isSales ? d.resContractorBusinessItems : d.resSupplierBusinessItems),
+    detail_fetched_at: new Date().toISOString(),
+  };
+  // 상세가 빈 값을 준 항목은 기존 값을 지우지 않는다(명부 폴백으로 채워둔 값 보호).
+  for (const k of ["counterparty_address", "counterparty_email", "counterparty_representative",
+                   "counterparty_business_type", "counterparty_business_item"]) {
+    if (patch[k] === null) delete patch[k];
+  }
+  const { error } = await supabase.from("tax_invoices").update(patch).eq("id", invoice.id);
+  if (error) return { ok: false, code: "DB_UPDATE_FAIL", message: error.message };
+  return { ok: true };
+}
+
 // HomeTax tax invoice sync via CODEF API
 // '전자세금계산서 통합 API' (/integrated-check-list) 는 connectedId 가 아닌 매번 cert 로 인증.
 // 1) Storage 의 NPKI 인증서(signCert.der/signPri.key) + automation_credentials.hometax.cert_password 로딩
@@ -1078,6 +1169,16 @@ async function syncHometaxInvoices(
     totalResponseCount += invoices.length;
     debug.push(`${direction} invoices.length=${invoices.length}`);
 
+    // 진단(2026-08-05 사장님: "홈택스엔 공급받는자 주소·이메일이 다 있는데 왜 안 불러오냐") —
+    //   CODEF 가 실제로 어떤 필드를 주는지 확인용. **필드명만** 남긴다(값은 개인정보라 금지).
+    //   주소·이메일 필드가 응답에 있으면 그걸 읽어 저장하도록 매핑을 넓히면 된다.
+    if (invoices.length > 0) {
+      const keys = Object.keys(invoices[0] || {});
+      console.log(`[HOMETAX-FIELDS] ${direction} keys=${keys.join(",")}`);
+      const interesting = keys.filter((k) => /addr|email|mail|tel|phone|zip|post/i.test(k));
+      console.log(`[HOMETAX-FIELDS] ${direction} addr/email 후보=${interesting.join(",") || "없음"}`);
+    }
+
     const isSales = direction === "매출";
     let upsertErrors = 0;
     let firstUpsertError: any = null;
@@ -1192,6 +1293,35 @@ async function syncHometaxInvoices(
     if (upsertErrors > 0) {
       debug.push(`${direction} upsertErrors=${upsertErrors}, first=${JSON.stringify(firstUpsertError)}`);
     }
+  }
+
+  // ── 신규 건 상세 보강 (2026-08-05 사장님 지시 2번) ───────────────────────────
+  //   통합 목록에 없는 사업장 주소·이메일을 상세 API 로 채운다. 새로 들어온 건만, 그리고
+  //   한 번에 DETAIL_MAX 건까지만 — CODEF 문서가 "과도한 호출 시 기관 IP 차단" 을 경고하고
+  //   건당 과금이라 배치처럼 몰아치지 않는다. 남은 건은 상세 화면을 열 때 1건씩 채워진다.
+  //   상세 실패는 동기화 자체를 실패시키지 않는다(본체는 이미 저장 완료).
+  const DETAIL_MAX = 10;
+  try {
+    const { data: pending } = await supabase
+      .from("tax_invoices")
+      .select("id, type, nts_confirm_no")
+      .eq("company_id", companyId)
+      .eq("source", "codef_hometax")
+      .is("detail_fetched_at", null)
+      .not("nts_confirm_no", "is", null)
+      .gte("issue_date", `${cappedStart.slice(0, 4)}-${cappedStart.slice(4, 6)}-${cappedStart.slice(6, 8)}`)
+      .lte("issue_date", `${cappedEnd.slice(0, 4)}-${cappedEnd.slice(4, 6)}-${cappedEnd.slice(6, 8)}`)
+      .order("issue_date", { ascending: false })
+      .limit(DETAIL_MAX);
+    let done = 0;
+    for (const row of pending || []) {
+      const r = await fetchHometaxInvoiceDetail(supabase, token, row, { certB64, keyB64, encryptedCertPw });
+      if (r.ok) done++;
+      else if (r.code && r.code.startsWith("CF-12")) break; // 기관 지연·차단 신호면 즉시 중단
+    }
+    if ((pending?.length ?? 0) > 0) debug.push(`detail 보강 ${done}/${pending!.length}건`);
+  } catch (e: any) {
+    debug.push(`detail 보강 skip: ${e?.message || e}`);
   }
 
   return { synced: totalSynced, responseCount: totalResponseCount, errors, debug };
@@ -1866,6 +1996,37 @@ serve(withSentry("codef-sync", async (req) => {
       }
     }
 
+
+    // --- Action: hometax-invoice-detail (상세 화면에서 그 건만 보강 — 2026-08-05 사장님 지시 1번) ---
+    //   통합 목록에 없는 사업장 주소·이메일·대표자명을 CODEF 상세 API 로 1건만 조회해 채운다.
+    //   건당 과금 + 기관 IP 차단 경고가 있어 **이미 보강된 건(detail_fetched_at)은 다시 부르지 않는다**.
+    if (action === "hometax-invoice-detail") {
+      const { invoiceId, force } = body;
+      if (!invoiceId) {
+        return new Response(JSON.stringify({ error: "invoiceId required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: inv } = await supabase.from("tax_invoices")
+        .select("id, company_id, type, nts_confirm_no, detail_fetched_at").eq("id", invoiceId).maybeSingle();
+      if (!inv || inv.company_id !== companyId) {
+        return new Response(JSON.stringify({ error: "세금계산서를 찾을 수 없습니다." }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (!inv.nts_confirm_no) {
+        return new Response(JSON.stringify({ ok: true, skipped: "no_approval_no", message: "국세청 승인번호가 없어 상세 조회 대상이 아닙니다." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      if (inv.detail_fetched_at && !force) {
+        return new Response(JSON.stringify({ ok: true, skipped: "already", message: "이미 보강된 건입니다." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { cert, error: certErr } = await loadHometaxCert(supabase, companyId);
+      if (!cert) {
+        return new Response(JSON.stringify({ error: certErr?.message, hint: certErr?.hint, code: certErr?.code }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const r = await fetchHometaxInvoiceDetail(supabase, token, inv, cert);
+      if (!r.ok) {
+        return new Response(JSON.stringify({ error: `상세 조회 실패: ${r.message || r.code}`, code: r.code, hint: codefErrorHint(r.code) }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: updated } = await supabase.from("tax_invoices").select("*").eq("id", invoiceId).maybeSingle();
+      return new Response(JSON.stringify({ ok: true, invoice: updated }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     // --- Action: hometax-sync-async (Background sync — job 만들고 즉시 응답 + 백그라운드 처리) ---
     if (action === "hometax-sync-async") {

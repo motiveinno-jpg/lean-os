@@ -2577,6 +2577,37 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   const [pdfLoading, setPdfLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
   const [issueLoading, setIssueLoading] = useState(false);
+  // 거래처 사업장 주소·이메일 자동 보강 (2026-08-05 사장님: "홈택스엔 다 있는데 왜 안 불러오냐").
+  //   통합 목록 API 엔 주소·이메일이 없어 상세 API 로 이 건만 1회 조회한다.
+  //   detail_fetched_at 이 찍힌 건은 다시 부르지 않는다(건당 과금 + 기관 IP 차단 경고).
+  const [detailLoading, setDetailLoading] = useState(false);
+  const detailTriedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = invoice?.id;
+    if (!id || invoice.detail_fetched_at || !invoice.nts_confirm_no) return;
+    if (detailTriedRef.current === id) return;   // 한 번 시도한 건은 재시도 안 함(모달 재렌더 방지)
+    detailTriedRef.current = id;
+    let alive = true;
+    (async () => {
+      setDetailLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/codef-sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ companyId: invoice.company_id, action: 'hometax-invoice-detail', invoiceId: id }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (alive && res.ok && json?.ok && json.invoice) {
+          // 목록 캐시를 갱신하면 열려 있는 상세도 새 값으로 다시 그려진다
+          queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
+        }
+      } catch { /* 보강 실패는 조용히 — 기존 표시(명부 폴백) 유지 */ }
+      finally { if (alive) setDetailLoading(false); }
+    })();
+    return () => { alive = false; };
+  }, [invoice?.id, invoice?.detail_fetched_at, invoice?.nts_confirm_no, invoice?.company_id, queryClient]);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -2609,7 +2640,8 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   const cpBizType = inv.counterparty_business_type || cpPartner?.business_type || '';
   const cpBizCat = inv.counterparty_business_item || cpPartner?.business_item || '';
   const cpEmail = inv.counterparty_email || cpPartner?.contact_email || cpPartner?.email || '';
-  const cpAddr = cpPartner?.address || inv.counterparty_address || '';
+  // 주소는 홈택스 상세로 받은 사업장 주소를 우선 — 명부 주소는 회사가 임의 입력한 값이라 계산서 원본과 다를 수 있다.
+  const cpAddr = inv.counterparty_address || cpPartner?.address || '';
   const supplier = {
     bizNo: fmtBizNo(isSales ? myBizNo : (inv.counterparty_bizno || '')),
     name: cleanNm(isSales ? myCompany : (inv.counterparty_name || '')),
@@ -2818,6 +2850,12 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
               <div className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] font-semibold" style={{ color: formColor }}>
                 {isSales ? "공급자 보관용" : "공급받는자 보관용"}
               </div>
+              {/* 홈택스 상세에서 사업장·이메일을 가져오는 중 (최초 1회) */}
+              {detailLoading && (
+                <div className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-semibold animate-pulse" style={{ color: formColor }}>
+                  홈택스에서 사업장·이메일 불러오는 중…
+                </div>
+              )}
             </div>
 
             {/* 승인번호 */}
