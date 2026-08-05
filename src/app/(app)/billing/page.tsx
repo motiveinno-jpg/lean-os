@@ -15,6 +15,7 @@ import { useUser } from "@/components/user-context";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { useConfirm } from "@/components/confirm-dialog";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
@@ -200,6 +201,36 @@ function BillingPageInner() {
 
   // entitlement 기반 표시: 해지 예약 중이면 기존 플랜 유지 노출, 실효(만료/해지 완료) 시 Free.
   const cancelScheduled = entitlement?.display_status === "cancel_scheduled";
+  const { confirm: confirmDialog, confirmElement } = useConfirm();
+
+  // 등록 카드 목록 (2026-08-05 사장님: 카드 삭제 가능하게) — 결제 수단 탭에서만 조회
+  const { data: pmData, isLoading: pmLoading } = useQuery({
+    queryKey: ["payment-methods", companyId],
+    queryFn: async () => {
+      const res = await fetch("/api/stripe/payment-methods");
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error?.message || "카드 조회 실패");
+      return j.data as { cards: { id: string; brand: string; last4: string; expMonth: number | null; expYear: number | null; isDefault: boolean }[]; cancelScheduled: boolean };
+    },
+    enabled: tab === "payment" && hasStripeSubscription,
+    retry: 1,
+  });
+  const deleteCardMut = useMutation({
+    mutationFn: async (pmId: string) => {
+      const res = await fetch("/api/stripe/payment-methods", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "detach", paymentMethodId: pmId }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error?.message || "카드 삭제 실패");
+    },
+    onSuccess: () => {
+      toast("카드가 삭제되었습니다.", "success");
+      qc.invalidateQueries({ queryKey: ["payment-methods", companyId] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "카드 삭제에 실패했습니다."), "error"),
+  });
   const planDisplayName = entitlement?.entitled
     ? (currentPlan?.name || "Free")
     : "Free";
@@ -782,21 +813,53 @@ function BillingPageInner() {
               <h3 className="text-sm font-bold text-[var(--text)]">결제 수단</h3>
             </div>
             {hasStripeSubscription ? (
-              <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)]">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[var(--info-dim)] flex items-center justify-center text-[var(--info)] text-lg"><Ico e="💳" /></div>
-                  <div>
-                    <div className="font-semibold text-sm text-[var(--text)]">Stripe 구독 결제</div>
-                    <div className="text-xs text-[var(--text-muted)]">등록된 카드로 자동 결제됩니다</div>
-                  </div>
+              <div className="space-y-2">
+                {pmLoading ? (
+                  <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">카드 정보를 불러오는 중...</div>
+                ) : (pmData?.cards?.length ?? 0) === 0 ? (
+                  <div className="p-4 rounded-xl bg-[var(--bg-surface)] text-xs text-[var(--text-muted)]">등록된 카드가 없습니다. 카드 변경으로 새 카드를 등록할 수 있습니다.</div>
+                ) : (
+                  pmData!.cards.map((card) => (
+                    <div key={card.id} className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-surface)]">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-lg bg-[var(--info-dim)] flex items-center justify-center text-[var(--info)] text-lg shrink-0"><Ico e="💳" /></div>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-sm text-[var(--text)] flex items-center gap-2">
+                            <span className="uppercase">{card.brand}</span>
+                            <span className="mono-number">**** {card.last4}</span>
+                            {card.isDefault && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--info-dim)] text-[var(--info)]">기본</span>}
+                          </div>
+                          <div className="text-xs text-[var(--text-muted)] mono-number">
+                            {card.expMonth && card.expYear ? `만료 ${String(card.expMonth).padStart(2, "0")}/${String(card.expYear).slice(-2)}` : "자동 결제 카드"}
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!(await confirmDialog({
+                            title: `카드 삭제 (**** ${card.last4})`,
+                            desc: "이 카드를 결제 수단에서 삭제합니다. 구독이 유지 중이면 마지막 카드는 삭제할 수 없습니다.",
+                            danger: true,
+                          }))) return;
+                          deleteCardMut.mutate(card.id);
+                        }}
+                        disabled={deleteCardMut.isPending}
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--danger)] border border-[var(--danger)]/30 hover:bg-[var(--danger-dim)] transition disabled:opacity-50"
+                      >
+                        {deleteCardMut.isPending ? "삭제 중..." : "삭제"}
+                      </button>
+                    </div>
+                  ))
+                )}
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleOpenPortal}
+                    disabled={isPaymentLoading}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--info)] border border-[var(--info)]/30 hover:bg-[var(--info-dim)] transition disabled:opacity-50"
+                  >
+                    {isPaymentLoading ? "로딩 중..." : "카드 변경·추가 (Stripe)"}
+                  </button>
                 </div>
-                <button
-                  onClick={handleOpenPortal}
-                  disabled={isPaymentLoading}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--info)] border border-[var(--info)]/30 hover:bg-[var(--info-dim)] transition disabled:opacity-50"
-                >
-                  {isPaymentLoading ? "로딩 중..." : "카드 변경"}
-                </button>
               </div>
             ) : (
               <div className="text-center py-12">
@@ -996,6 +1059,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
           </div>
         </div>
       )}
+      {confirmElement}
     </div>
   );
 }
