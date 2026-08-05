@@ -740,13 +740,21 @@ function BillingPageInner() {
                       : "현재 결제 기간이 끝나면 Free 플랜으로 전환됩니다."}
                   </div>
                 </div>
-                {hasStripeSubscription ? (
+                {/* 해지는 자체 모달로 통일(2026-08-05 사장님) — 포털은 해지 예약 후 '구독 관리'에만 사용 */}
+                {hasStripeSubscription && !cancelScheduled ? (
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--danger)] border border-[var(--danger)]/40 hover:bg-[var(--danger-dim)] transition"
+                  >
+                    구독 해지
+                  </button>
+                ) : hasStripeSubscription && cancelScheduled ? (
                   <button
                     onClick={handleOpenPortal}
                     disabled={isPaymentLoading}
                     className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--danger)] border border-[var(--danger)]/40 hover:bg-[var(--danger-dim)] transition disabled:opacity-50"
                   >
-                    {isPaymentLoading ? "로딩 중..." : cancelScheduled ? "구독 관리" : "Stripe에서 해지"}
+                    {isPaymentLoading ? "로딩 중..." : "구독 관리"}
                   </button>
                 ) : cancelScheduled ? (
                   <span className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)]">
