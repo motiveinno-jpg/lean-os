@@ -2030,11 +2030,19 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .signature-status-cards { @apply grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3; }
 .signature-search-bar { @apply flex items-center gap-2 flex-wrap; }
 .signature-search-input-wrap { @apply relative flex-1 min-w-[200px]; }
-.signature-request-list { @apply space-y-3; }
+.signature-request-list { @apply space-y-1.5; }
 .signature-empty-state { @apply py-16 px-6 text-center; }
-.signature-request-row { @apply p-5 flex items-start gap-4; }
-.signature-request-actions { @apply flex items-center gap-1 shrink-0; }
-.signature-request-meta { @apply flex items-center gap-2 mt-2 flex-wrap; }
+/* 계약건 한 줄 — 한 화면에 더 많이 보이도록 압축(2026-08-05 사장님 요청). 정보는 그대로 두고 여백·아이콘만 축소. */
+.signature-request-row { @apply px-3.5 py-2 flex items-center gap-2.5; }
+.signature-request-actions { @apply flex items-center gap-0.5 shrink-0; }
+.signature-request-meta { @apply flex items-center gap-x-2.5 gap-y-0.5 mt-0.5 flex-wrap; }
+.signature-request-doc-icon {
+  width: 1.75rem; height: 1.75rem; border-radius: 0.625rem; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--primary-light); color: var(--primary);
+}
+.signature-request-signer { @apply inline-flex items-center gap-1.5 min-w-0 max-w-[240px]; }
+.signature-request-avatar { @apply w-5 h-5 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-[9px] font-semibold shrink-0; }
 .signature-pagination-bar { @apply flex items-center justify-between px-4 py-3 text-xs; }
 .signature-proof-modal { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4; }
 .vault-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
@@ -2068,6 +2076,15 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .bulk-wizard-doc-list { @apply border border-[var(--border)] rounded-lg max-h-[360px] overflow-y-auto; }
 .bulk-wizard-step-partners { @apply space-y-3; }
 .bulk-wizard-partner-table { @apply w-full text-sm; }
+/* 2단계에서 미등록 거래처를 바로 추가하는 인라인 폼 (2026-08-05) */
+.bulk-wizard-add-partner { @apply p-3 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5; }
+.bulk-wizard-add-partner-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-2.5; }
+.bulk-wizard-add-partner-field { @apply block min-w-0; }
+.bulk-wizard-add-partner-field > span { @apply block text-[11px] font-semibold text-[var(--text-muted)] mb-1; }
+.bulk-wizard-add-partner-field > input {
+  @apply w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)];
+}
+.bulk-wizard-add-partner-field > input:focus { @apply outline-none border-[var(--primary)]; }
 .bulk-wizard-step-variables { @apply space-y-4; }
 .bulk-wizard-token-row { @apply grid grid-cols-12 gap-2 items-center; }
 .bulk-wizard-override-table { @apply text-xs w-full; }

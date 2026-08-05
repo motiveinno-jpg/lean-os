@@ -7,6 +7,7 @@ import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import Link from "next/link";
 import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn } from "@/lib/signatures";
 import { materializeContractTemplate } from "@/lib/documents";
+import { upsertPartner } from "@/lib/partners";
 import { setContractTemplateOrder, sortTemplatesByOrder } from "@/lib/contract-templates";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -234,6 +235,46 @@ export function OrgBulkWizard({
       if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
+  };
+
+  // 아직 등록 안 된 거래처를 이 화면에서 바로 추가 (2026-08-05 사장님 요청)
+  //   — 거래처 관리로 나갔다 오면 작성 중이던 마법사 입력이 날아가므로 여기서 끝낸다.
+  const [showAddPartner, setShowAddPartner] = useState(false);
+  const [savingPartner, setSavingPartner] = useState(false);
+  const emptyNewPartner = { name: "", representative: "", contact_name: "", contact_email: "", contact_phone: "", business_number: "", address: "" };
+  const [newPartner, setNewPartner] = useState(emptyNewPartner);
+
+  const saveNewPartner = async () => {
+    const name = newPartner.name.trim();
+    const email = newPartner.contact_email.trim();
+    if (!name) { toast("단체명을 입력하세요", "error"); return; }
+    if (!email) { toast("발송할 담당자 이메일을 입력하세요", "error"); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast("이메일 형식이 올바르지 않습니다", "error"); return; }
+    setSavingPartner(true);
+    try {
+      const saved = await upsertPartner({
+        companyId,
+        name,
+        representative: newPartner.representative.trim() || undefined,
+        contactName: newPartner.contact_name.trim() || undefined,
+        contactEmail: email,
+        contactPhone: newPartner.contact_phone.trim() || undefined,
+        businessNumber: newPartner.business_number.trim() || undefined,
+        address: newPartner.address.trim() || undefined,
+      });
+      const row = saved as unknown as OrgPartner;
+      setPartners((prev) => [...prev, row].sort((a, b) => (a.name || "").localeCompare(b.name || "")));
+      setSelectedPartnerIds((prev) => new Set(prev).add(row.id)); // 방금 추가한 곳은 바로 선택
+      setNewPartner(emptyNewPartner);
+      setShowAddPartner(false);
+      setPSearch("");
+      qc.invalidateQueries({ queryKey: ["partners"] });
+      toast(`${row.name} 추가됨 — 선택에 포함했습니다`, "success");
+    } catch (e) {
+      toast(friendlyError(e, "거래처를 추가하지 못했습니다"), "error");
+    } finally {
+      setSavingPartner(false);
+    }
   };
 
   // Step 3: 변수 매핑
@@ -601,13 +642,71 @@ export function OrgBulkWizard({
                   {partnerTypes.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               )}
+              <button
+                type="button"
+                onClick={() => setShowAddPartner((v) => !v)}
+                className="btn-ghost btn-sm shrink-0"
+              >
+                {showAddPartner ? "닫기" : "+ 거래처 추가"}
+              </button>
               <span className="text-xs text-[var(--text-muted)]">{selectedPartnerIds.size}곳 선택</span>
             </div>
+            {/* 미등록 거래처를 마법사를 벗어나지 않고 바로 추가 (2026-08-05) */}
+            {showAddPartner && (
+              <div className="bulk-wizard-add-partner">
+                <div className="bulk-wizard-add-partner-grid">
+                  <label className="bulk-wizard-add-partner-field">
+                    <span>단체명 *</span>
+                    <input value={newPartner.name} onChange={(e) => setNewPartner((p) => ({ ...p, name: e.target.value }))} placeholder="(주)네이처랩" autoFocus />
+                  </label>
+                  <label className="bulk-wizard-add-partner-field">
+                    <span>담당자 이메일 *</span>
+                    <input value={newPartner.contact_email} onChange={(e) => setNewPartner((p) => ({ ...p, contact_email: e.target.value }))} placeholder="contact@example.com" type="email" />
+                  </label>
+                  <label className="bulk-wizard-add-partner-field">
+                    <span>대표자</span>
+                    <input value={newPartner.representative} onChange={(e) => setNewPartner((p) => ({ ...p, representative: e.target.value }))} placeholder="홍길동" />
+                  </label>
+                  <label className="bulk-wizard-add-partner-field">
+                    <span>담당자</span>
+                    <input value={newPartner.contact_name} onChange={(e) => setNewPartner((p) => ({ ...p, contact_name: e.target.value }))} placeholder="김담당" />
+                  </label>
+                  <label className="bulk-wizard-add-partner-field">
+                    <span>사업자번호</span>
+                    <input value={newPartner.business_number} onChange={(e) => setNewPartner((p) => ({ ...p, business_number: e.target.value }))} placeholder="000-00-00000" inputMode="numeric" />
+                  </label>
+                  <label className="bulk-wizard-add-partner-field">
+                    <span>연락처</span>
+                    <input value={newPartner.contact_phone} onChange={(e) => setNewPartner((p) => ({ ...p, contact_phone: e.target.value }))} placeholder="010-0000-0000" />
+                  </label>
+                  <label className="bulk-wizard-add-partner-field md:col-span-2">
+                    <span>주소</span>
+                    <input value={newPartner.address} onChange={(e) => setNewPartner((p) => ({ ...p, address: e.target.value }))} placeholder="서울시 …" />
+                  </label>
+                </div>
+                <div className="flex items-center justify-between gap-2 mt-3">
+                  <span className="text-[11px] text-[var(--text-dim)]">
+                    대표자·사업자번호·주소는 <code className="text-[var(--primary)]">{`{{을_*}}`}</code> 토큰 치환에 쓰입니다. 계약서에 쓰는 값이면 함께 입력하세요.
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button type="button" onClick={() => { setShowAddPartner(false); setNewPartner(emptyNewPartner); }} className="btn-ghost btn-sm">취소</button>
+                    <button type="button" onClick={saveNewPartner} disabled={savingPartner} className="btn-primary btn-sm disabled:opacity-50">
+                      {savingPartner ? "추가 중..." : "추가하고 선택"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="border border-[var(--border)] rounded-lg max-h-[400px] overflow-y-auto">
               {loadingPartners ? (
                 <div className="p-6 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
               ) : filteredPartners.length === 0 ? (
-                <div className="p-6 text-center text-sm text-[var(--text-muted)]">거래처가 없습니다.</div>
+                <div className="p-6 text-center text-sm text-[var(--text-muted)]">
+                  {partners.length === 0 ? "등록된 거래처가 없습니다." : "검색 결과가 없습니다."}
+                  {!showAddPartner && (
+                    <button type="button" onClick={() => setShowAddPartner(true)} className="ml-2 text-[var(--primary)] hover:underline">+ 거래처 추가</button>
+                  )}
+                </div>
               ) : (
                 <table className="bulk-wizard-partner-table">
                   <thead className="bg-[var(--bg-surface)] text-[var(--text-muted)] sticky top-0">

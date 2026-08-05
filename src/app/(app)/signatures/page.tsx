@@ -547,14 +547,16 @@ function SignaturesDashboardInner() {
             const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
             return (
               <div key={r.id} className="signature-request-row group glass-card">
-                <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="mt-1.5 accent-[var(--primary)] shrink-0" aria-label="선택" />
-                <span className="kpi-icon shrink-0">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="accent-[var(--primary)] shrink-0" aria-label="선택" />
+                <span className="signature-request-doc-icon">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                    {/* 상태 배지와 제목을 한 줄에 둬 행 높이를 줄인다 (2026-08-05) */}
+                    <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+                      {/* 배지는 한 덩어리로 — 좁은 폭에서 배지끼리 줄이 갈리지 않게 */}
+                      <span className="inline-flex items-center gap-1.5 shrink-0">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${info.bg} ${info.text}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />{info.label}
                         </span>
@@ -563,10 +565,12 @@ function SignaturesDashboardInner() {
                             <Ico e="📦" /> 묶음{r.batch_seq ? ` #${r.batch_seq}` : ""}
                           </span>
                         )}
-                      </div>
+                      </span>
                       {/* 제목 클릭 → 상태 무관 항상 계약서 팝업(읽기 전용). 발송/열람도 편집화면 대신 팝업. */}
-                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="block w-full text-left text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate" title="계약서 보기">{r.title}</button>
-                      {r.documents?.name && <div className="text-[10px] text-[var(--text-dim)] truncate">{r.documents.name}</div>}
+                      {/* 좁은 폭에선 배지 아래 줄로 내려가 제목이 잘리지 않게 min-w 확보 */}
+                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="min-w-[8rem] max-w-full text-left text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate" title="계약서 보기">{r.title}</button>
+                      {/* 원본 문서명은 좁은 화면에서 제목 자리를 뺏지 않도록 숨긴다 */}
+                      {r.documents?.name && <span className="hidden lg:inline min-w-0 max-w-[180px] text-[10px] text-[var(--text-dim)] truncate">{r.documents.name}</span>}
                     </div>
                     <div className="signature-request-actions">
                       {canRemind && (
@@ -588,12 +592,11 @@ function SignaturesDashboardInner() {
                     </div>
                   </div>
                   <div className="signature-request-meta">
-                    <span className="inline-flex items-center gap-2 bg-[var(--bg-surface)]/60 rounded-lg px-2.5 py-1">
-                      <span className="w-6 h-6 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-[10px] font-semibold shrink-0">{(r.signer_name || "?").slice(0, 1)}</span>
-                      <span className="min-w-0">
-                        <span className="block text-xs font-medium text-[var(--text)] truncate">{r.signer_name}</span>
-                        <span className="block text-[10px] text-[var(--text-dim)] truncate">{r.signer_email}</span>
-                      </span>
+                    {/* 수신자 이름·이메일을 한 줄로 (기존 2줄 → 행 높이 축소) */}
+                    <span className="signature-request-signer" title={`${r.signer_name || ""} ${r.signer_email || ""}`.trim()}>
+                      <span className="signature-request-avatar">{(r.signer_name || "?").slice(0, 1)}</span>
+                      <span className="text-[11px] font-medium text-[var(--text)] truncate">{r.signer_name}</span>
+                      <span className="text-[11px] text-[var(--text-dim)] truncate">{r.signer_email}</span>
                     </span>
                     <span className="text-[11px] text-[var(--text-dim)]">요청 {r.created_at ? kstDateStr(new Date(r.created_at)) : "—"}</span>
                     <span className={`text-[11px] ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>만료 {r.expires_at ? kstDateStr(new Date(r.expires_at)) : "—"}</span>
