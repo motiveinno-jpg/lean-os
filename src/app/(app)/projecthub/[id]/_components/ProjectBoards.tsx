@@ -1076,13 +1076,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           {/* 상태 칸은 무엇 중에서 고르는 칸인지를 여기서 바꾼다 — 라벨 추가·이름·색·순서 */}
                           {c.type === "status" && <ColumnLabels col={c} onSave={(opts) => saveOptions(c, opts)} />}
                           {/* 칸 이름 옆 ＋ — 이 칸 오른쪽에 새 칸을 붙인다(표 끝의 ＋ 는 맨 뒤에 붙인다) */}
-                          <span className="pb-col-plus">
-                            <select value="" title={`'${c.name}' 오른쪽에 칸 추가`} aria-label={`${c.name} 오른쪽에 칸 추가`}
-                              onChange={(e) => { if (e.target.value) addColumn(e.target.value as ColType, c); }}>
-                              <option value="">＋</option>
-                              {COL_FORMATS.map((f) => <option key={f.type} value={f.type}>{f.label}</option>)}
-                            </select>
-                          </span>
+                          <ColumnPlus col={c} onAdd={(t) => addColumn(t, c)} />
                           <button type="button" className="pb-col-x" title="이 컬럼 지우기" onClick={() => removeColumn(c)}>✕</button>
                         </span>
                       </th>
@@ -1384,6 +1378,37 @@ function NameDialog({ title, hint, value, onSave, onCancel }: {
 
 /** 상태 칸의 라벨 편집 — 표 머리에서 연다.
  *  글자를 칠 때마다 저장하면 DB 를 두들기게 되니, 팝오버 안에서만 고치고 닫을 때 한 번 저장한다. */
+/** 칸 이름 옆 ＋ — 그 칸 오른쪽에 새 칸을 붙인다 (2026-08-05 사장님 지시).
+ *  표가 가로 스크롤 상자라 붙어 뜨는 팝오버는 잘린다 — 라벨 편집과 같이 가운데 창으로 띄운다. */
+function ColumnPlus({ col, onAdd }: { col: BoardColumn; onAdd: (type: ColType) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className={`pb-col-plus ${open ? "pb-col-plus-on" : ""}`}
+        title={`'${col.name}' 오른쪽에 칸 추가`} aria-label={`${col.name} 오른쪽에 칸 추가`}
+        onClick={() => setOpen(true)}>＋</button>
+      {open && (
+        <div className="pb-doc-modal" onClick={() => setOpen(false)}>
+          <div className="pb-doc-box pb-colplus-box" onClick={(e) => e.stopPropagation()}>
+            <b className="pb-collabels-h">‘{col.name}’ 오른쪽에 칸 추가</b>
+            <span className="pb-colplus-list">
+              {COL_FORMATS.map((f) => (
+                <button key={f.type} type="button" onClick={() => { setOpen(false); onAdd(f.type); }}>
+                  <b>{f.label}</b>
+                  <em>{f.hint}</em>
+                </button>
+              ))}
+            </span>
+            <span className="pb-collabels-foot">
+              <button type="button" onClick={() => setOpen(false)}>취소</button>
+            </span>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function ColumnLabels({ col, onSave }: { col: BoardColumn; onSave: (options: StatusOption[]) => void }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<StatusOption[]>([]);
