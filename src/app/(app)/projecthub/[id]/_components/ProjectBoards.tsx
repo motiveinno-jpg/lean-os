@@ -1101,17 +1101,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                             onClick={() => setSort((s0) => s0?.colId === c.id ? (s0.dir === "asc" ? { colId: c.id, dir: "desc" } : null) : { colId: c.id, dir: "asc" })}>
                             {sort?.colId === c.id ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
                           </button>
-                          {/* 숫자 컬럼은 단위를 직접 정한다 — 정리가 원끼리만 빼고 %는 평균을 낸다 */}
-                          {c.type === "number" && (
-                            <input defaultValue={c.settings?.unit || ""} placeholder="단위" className="pb-col-unit"
-                              onBlur={(e) => setUnit(c, e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
-                          )}
-                          {/* 상태 칸은 무엇 중에서 고르는 칸인지를 여기서 바꾼다 — 라벨 추가·이름·색·순서 */}
-                          {c.type === "status" && <ColumnLabels col={c} onSave={(opts) => saveOptions(c, opts)} />}
                           {/* 칸 이름 옆 ＋ — 이 칸 오른쪽에 새 칸을 붙인다(표 끝의 ＋ 는 맨 뒤에 붙인다) */}
                           <ColumnPlus col={c} onAdd={(t) => addColumn(t, c)} />
-                          <button type="button" className="pb-col-x" title="이 컬럼 지우기" onClick={() => removeColumn(c)}>✕</button>
+                          {/* 그 칸에 대한 나머지는 한 자리로 — 라벨·단위·삭제 (2026-08-05 사장님 지시:
+                              "상태를 추가하면 우측에 라벨 칸도 생겨 둘로 보인다. 기능을 합쳐라") */}
+                          <ColumnMenu col={c}
+                            onSaveOptions={(opts) => saveOptions(c, opts)}
+                            onSetUnit={(u) => setUnit(c, u)}
+                            onRemove={() => removeColumn(c)} />
                         </span>
                       </th>
                     ))}
@@ -1480,34 +1477,67 @@ function ColumnPlus({ col, onAdd }: { col: BoardColumn; onAdd: (type: ColType) =
   );
 }
 
-function ColumnLabels({ col, onSave }: { col: BoardColumn; onSave: (options: StatusOption[]) => void }) {
+/** 칸 하나에 대한 설정 — 라벨 · 단위 · 삭제를 한 자리에 모은다 (2026-08-05 사장님 지시).
+ *
+ *   "상태를 추가하면 우측에 라벨 칸도 생긴다. 상태·라벨 둘 다 칸이 있어 혼동을 준다 — 합쳐라."
+ *   머리에 '라벨' 단추와 '단위' 입력이 따로 서 있으니 그 칸이 둘로 보였다.
+ *   이제 머리에는 [이름][정렬][＋][⋯] 만 두고, 그 칸에 관한 나머지는 이 창에서 다룬다.
+ *   (표가 가로 스크롤 상자라 붙어 뜨는 팝오버는 잘린다 — 가운데 창으로 띄운다.)
+ */
+function ColumnMenu({ col, onSaveOptions, onSetUnit, onRemove }: {
+  col: BoardColumn;
+  onSaveOptions: (options: StatusOption[]) => void;
+  onSetUnit: (unit: string) => void;
+  onRemove: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<StatusOption[]>([]);
   const options = ((col.settings?.options || []) as StatusOption[]);
+  const [draft, setDraft] = useState<StatusOption[]>([]);
+  const [unit, setUnit] = useState("");
 
-  const start = () => { setDraft(options.map((o) => ({ ...o }))); setOpen(true); };
-  const close = (save: boolean) => {
+  const start = () => {
+    setDraft(options.map((o) => ({ ...o })));
+    setUnit(col.settings?.unit || "");
+    setOpen(true);
+  };
+  const save = () => {
     setOpen(false);
-    if (!save) return;
-    const same = draft.length === options.length
-      && draft.every((d, i) => d.id === options[i].id && d.label === options[i].label && d.color === options[i].color);
-    if (!same) onSave(draft);
+    if (col.type === "status") {
+      const same = draft.length === options.length
+        && draft.every((d, i) => d.id === options[i].id && d.label === options[i].label && d.color === options[i].color);
+      if (!same) onSaveOptions(draft);
+    }
+    if (col.type === "number" && unit.trim() !== (col.settings?.unit || "")) onSetUnit(unit.trim());
   };
 
   return (
     <>
-      {/* 표는 가로로 스크롤되는 상자 안이라 붙어 뜨는 팝오버는 잘린다 — 가운데 창으로 띄운다 */}
-      <button type="button" className={`pb-collabels-btn ${open ? "pb-collabels-on" : ""}`}
-        title="라벨 고치기 · 추가" aria-label={`${col.name} 라벨 편집`} onClick={start}>라벨</button>
+      <button type="button" className={`pb-colmenu-btn ${open ? "pb-colmenu-on" : ""}`}
+        title={`'${col.name}' 칸 설정`} aria-label={`${col.name} 칸 설정`} onClick={start}>⋯</button>
       {open && (
-        <div className="pb-doc-modal" onClick={() => close(true)}>
+        <div className="pb-doc-modal" onClick={() => setOpen(false)}>
           <div className="pb-doc-box pb-collabels-box" onClick={(e) => e.stopPropagation()}>
-            <b className="pb-collabels-h">{col.name} 라벨</b>
-            <LabelEditor options={draft} onChange={setDraft}
-              note="쓰고 있던 라벨을 빼면 그 행은 빈칸이 됩니다(값은 남아요)." />
+            <b className="pb-collabels-h">‘{col.name}’ 칸 설정</b>
+            {col.type === "status" && (<>
+              <em className="pb-name-hint">이 칸에서 고를 수 있는 값 — 이름 · 색 · 순서를 여기서 정합니다.</em>
+              <LabelEditor options={draft} onChange={setDraft}
+                note="쓰고 있던 라벨을 빼면 그 행은 빈칸이 됩니다(값은 남아요)." />
+            </>)}
+            {col.type === "number" && (
+              <label className="pb-colmenu-unit">
+                <span>단위</span>
+                <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="원 · % · 개"
+                  onKeyDown={(e) => { if (e.key === "Enter") save(); }} />
+                <em>정리에서 원끼리만 더하고 % 는 평균을 냅니다.</em>
+              </label>
+            )}
+            {col.type !== "status" && col.type !== "number" && (
+              <em className="pb-name-hint">이 칸은 따로 정할 설정이 없어요. 이름은 표 머리에서 바로 고칩니다.</em>
+            )}
             <span className="pb-collabels-foot">
-              <button type="button" onClick={() => close(false)}>취소</button>
-              <button type="button" className="pb-collabels-go" onClick={() => close(true)}>저장</button>
+              <button type="button" className="pb-fmt-del" onClick={() => { setOpen(false); onRemove(); }}>이 칸 삭제</button>
+              <button type="button" onClick={() => setOpen(false)}>취소</button>
+              <button type="button" className="pb-collabels-go" onClick={save}>저장</button>
             </span>
           </div>
         </div>

@@ -5990,9 +5990,14 @@ td .rounded-full { white-space: nowrap; }
 .pb-th-in { @apply flex items-center gap-1 min-w-0; }
 .pb-col-sort { @apply shrink-0 w-4 text-[9px] text-[var(--text-dim)] hover:text-[var(--primary)]; }
 .pb-col-sort-on { @apply text-[var(--primary)]; }
-.pb-col-unit { @apply w-10 shrink-0 bg-transparent border border-transparent rounded px-1 text-[10px] text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]; }
-.pb-col-x { @apply shrink-0 w-4 text-[9px] text-[var(--text-dim)] opacity-0 hover:!text-[var(--danger)]; }
-th:hover .pb-col-x { @apply opacity-100; }
+/* 그 칸에 관한 나머지(라벨·단위·삭제)는 ⋯ 한 자리로 모았다 (2026-08-05) */
+.pb-colmenu-btn { @apply shrink-0 w-4 text-[11px] leading-none text-[var(--text-dim)] opacity-60 transition hover:opacity-100 hover:text-[var(--primary)]; }
+.pb-colmenu-on { @apply opacity-100 text-[var(--primary)]; }
+th:hover .pb-colmenu-btn { @apply opacity-100; }
+.pb-colmenu-unit { @apply flex flex-col gap-1; }
+.pb-colmenu-unit > span { @apply text-[11.5px] font-bold text-[var(--text-dim)]; }
+.pb-colmenu-unit > input { @apply h-9 px-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] font-semibold text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.pb-colmenu-unit > em { @apply not-italic text-[11px] text-[var(--text-dim)]; }
 /* 칸 이름 옆 ＋ — 이 칸 오른쪽에 새 칸 (2026-08-05). 표 끝까지 밀지 않아도 칸을 붙일 수 있게 */
 .pb-col-plus { @apply shrink-0 w-4 text-[11px] leading-none text-[var(--text-dim)] opacity-60 transition hover:opacity-100 hover:text-[var(--primary)]; }
 .pb-col-plus-on { @apply opacity-100 text-[var(--primary)]; }
@@ -6513,9 +6518,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-label-add { @apply self-start h-7 px-2.5 rounded-lg border border-dashed border-[var(--border)] text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
 .pb-label-note { @apply not-italic text-[10.5px] text-[var(--text-dim)] leading-snug; }
 
-/* 표 머리에서 여는 라벨 편집 — 표가 가로 스크롤 상자라 붙어 뜨는 팝오버는 잘린다. 가운데 창으로 */
-.pb-collabels-btn { @apply h-5 px-1.5 rounded text-[10px] font-bold leading-none text-[var(--text-dim)] transition hover:bg-[var(--bg-card)] hover:text-[var(--primary)]; }
-.pb-collabels-on { @apply bg-[var(--bg-card)] text-[var(--primary)]; }
+/* 칸 설정 창 — 표가 가로 스크롤 상자라 붙어 뜨는 팝오버는 잘린다. 가운데 창으로 */
 .pb-collabels-box { @apply max-w-xs gap-2 p-4; }
 .pb-collabels-h { @apply text-[13.5px] font-extrabold text-[var(--text)]; }
 .pb-collabels-foot { @apply flex items-center justify-end gap-1.5 pt-1; }
