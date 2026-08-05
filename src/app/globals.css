@@ -3393,16 +3393,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .team-invite-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .team-partner-invites-list { @apply space-y-2; }
 .team-partner-invite-row { @apply flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
-.certificate-finder-section { @apply space-y-4; }
-.certificate-source-picker { @apply space-y-3; }
-.certificate-auto-scan-panel { @apply space-y-3; }
-.certificate-location-guide { @apply p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
-.certificate-found-list { @apply space-y-2; }
-.certificate-manual-panel { @apply space-y-3; }
-.certificate-registration-status { @apply p-3 rounded-lg bg-green-500/5 border border-green-500/20; }
 .settings-certificate-tab { @apply space-y-6; }
-.certificate-intro-banner { @apply p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 shadow-sm; }
-.certificate-upload-card { @apply p-6; }
 .bank-credentials-card { @apply p-6; }
 .bank-credential-row { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3; }
 .hometax-legacy-card { @apply p-6; }

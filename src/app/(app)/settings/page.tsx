@@ -21,7 +21,6 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
 import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
 import { TaxAutomationTab } from "./_components/TaxAutomationTab";
-import { CertificateManagementTab } from "./_components/CertificateManagementTab";
 import { BankIntegrationTab } from "./_components/BankIntegrationTab";
 import { ApprovalPolicyTab } from "./_components/ApprovalPolicyTab";
 import { TeamManagement } from "./_components/TeamManagement";
@@ -38,7 +37,7 @@ import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 type LeafKey =
   | "company-info" | "team"                       // 회사 기본
   | "cash" | "chart" | "closing" | "tax"          // 회계·세무
-  | "bank" | "certificate"                        // 연동·인증
+  | "bank"                                        // 연동·인증
   | "departments" | "attendance"                  // 인사·근태
   | "approval" | "deal" | "forms"                 // 업무 규칙
   | "data";                                       // 시스템
@@ -56,7 +55,6 @@ const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: 
   ] },
   { key: "integration", label: "연동·인증", icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5", tabs: [
     { key: "bank", label: "은행연동" },
-    { key: "certificate", label: "인증서" },
   ] },
   { key: "hr", label: "인사·근태", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z", tabs: [
     { key: "departments", label: "부서" },
@@ -77,7 +75,7 @@ const TAB_COMPAT: Record<string, LeafKey | "mypage"> = {
   general: "team",          // 합류요청 알림이 팀관리(승인 UI)로 연결되던 링크
   account: "mypage", notifications: "mypage",
   company: "company-info", approval: "approval", bank: "bank", tax: "tax",
-  certificate: "certificate", hr_attendance: "attendance", danger: "data",
+  certificate: "bank", hr_attendance: "attendance", danger: "data",
 };
 function groupOfLeaf(leaf: LeafKey): string {
   return SETTINGS_GROUPS.find((g) => g.tabs.some((t) => t.key === leaf))?.key || "basic";
@@ -636,7 +634,6 @@ function SettingsPageInner() {
       {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
 
       {/* ═══ 연동·인증 — 인증서 ═══ */}
-      {tab === "certificate" && <CertificateManagementTab companyId={companyId} />}
 
       {/* ═══ 인사·근태 — 부서 ═══ */}
       {tab === "departments" && <DepartmentsTab companyId={companyId} />}
