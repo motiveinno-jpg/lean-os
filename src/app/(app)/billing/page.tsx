@@ -290,8 +290,16 @@ function BillingPageInner() {
       }
       window.location.href = result.data.url;
     } catch (err: any) {
-      toast(friendlyError(err, "구독 관리 페이지를 열 수 없습니다."), "error");
       setIsPaymentLoading(false);
+      // 포털 실패 폴백(2026-08-05 사장님 제보 — Stripe 키의 포털 권한 부족으로 포털이 안 열림):
+      //   해지 목적이면 자체 해지 모달로 이어간다. /api/stripe/cancel 은 포털이 아니라
+      //   구독 API 권한을 쓰므로 포털이 막혀도 해지는 진행 가능하다.
+      if (!cancelScheduled) {
+        toast("Stripe 관리 페이지를 열 수 없어 자체 해지로 진행합니다.", "info");
+        setShowCancelModal(true);
+        return;
+      }
+      toast(friendlyError(err, "구독 관리 페이지를 열 수 없습니다."), "error");
     }
   }
 
