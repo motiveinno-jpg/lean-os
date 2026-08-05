@@ -662,13 +662,15 @@ export async function registerCodefCertificate(
   return callCodefRegister(companyId, params);
 }
 
-// 홈택스 회원 등록여부 검증 (CODEF 명세: /v1/kr/public/nt/tax-invoice/registration-status)
-// register/connectedId 흐름이 아닌 직접 호출 패턴.
+// 홈택스 연결 검증 — 전용 엣지 함수 hometax-verify 호출 (2026-08-05).
+//   기존 codef-sync action 'hometax-verify' 는 서버 미구현으로 기본 sync 에 폴스루되던 결함이라 교체.
+//   pfxFile(공동인증서 자동 인식 추출값, certType "0")을 지원 — CodefCert 웹 샘플가이드 §5 공식 용도.
 export async function verifyHometaxRegistration(
   companyId: string,
   params: {
     loginType: '0' | '1';
     certPassword?: string;        // loginType='0' 필수
+    pfxFile?: string;             // PC 자동 인식 추출 PFX(base64) — 있으면 der/key 대신 사용
     identity?: string;            // 법인은 대표자 주민번호 앞 7자리, 개인사업자 사업장전환 시
     id?: string;                  // loginType='1' 필수
     userPassword?: string;        // loginType='1' 필수
@@ -681,13 +683,13 @@ export async function verifyHometaxRegistration(
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (!supabaseUrl) return { success: false, error: 'Supabase URL이 설정되지 않았습니다' };
 
-    const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
+    const res = await fetch(`${supabaseUrl}/functions/v1/hometax-verify`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ companyId, action: 'hometax-verify', ...params }),
+      body: JSON.stringify({ companyId, ...params }),
     });
 
     const result = await res.json();

@@ -3212,6 +3212,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .cert-picker-actions { @apply flex items-center gap-2 flex-wrap; }
 .cert-picker-ok { @apply text-[12px] font-semibold text-[var(--success)] bg-[var(--success-dim)] rounded-xl px-3 py-2; }
 .cert-picker-error { @apply text-[12px] text-[var(--danger)]; }
+.cert-picker-locate { @apply space-y-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3; }
+.cert-picker-locate-path { @apply block text-[11px] px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text)] break-all select-all; }
 /* 인증서 입력 방식 토글 */
 .cert-source-tabs { @apply flex rounded-xl overflow-hidden border border-[var(--border)]; }
 .cert-source-tab { @apply flex-1 py-2 text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] transition; }

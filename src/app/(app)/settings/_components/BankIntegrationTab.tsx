@@ -118,6 +118,50 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       // verify API 로 회원 등록여부 확인.
       if (accountType === "hometax") {
         if (authMethod === "cert") {
+          // ── PC 자동 선택(PFX) 경로 — 검증 성공 전에는 아무것도 저장하지 않는다 ──
+          const useAutoPfx = certSource === "auto" && !!autoPfxB64;
+          if (useAutoPfx) {
+            if (!certPassword) {
+              setResult({ ok: false, msg: "인증서 비밀번호를 입력하세요" });
+              setRegistering(false);
+              return;
+            }
+            const { verifyHometaxRegistration } = await import("@/lib/data-sync");
+            const res = await verifyHometaxRegistration(companyId, {
+              loginType: "0",
+              certPassword,
+              pfxFile: autoPfxB64,
+              identity: hometaxIdentity || undefined,
+            });
+            if (!(res.success && res.registered)) {
+              setResult({ ok: false, msg: (res.message || res.error || "홈택스 인증 실패") + (res.hint ? `\n→ ${res.hint}` : "") });
+              setRegistering(false);
+              return;
+            }
+            // 검증 성공 → PFX 저장 + 비밀번호 병합 저장.
+            // 기존 der/key 파일·cert_password 는 건드리지 않는다 — 현행 동기화(der/key 기반) 무중단.
+            const pfxBytes = Uint8Array.from(atob(autoPfxB64), (c) => c.charCodeAt(0));
+            await supabase.storage.from("certificates").upload(
+              `${companyId}/hometax.pfx`, new Blob([pfxBytes]), { upsert: true },
+            );
+            const { encryptCredential } = await import("@/lib/crypto");
+            const encPfxPw = await encryptCredential(certPassword);
+            const { data: existingCred } = await supabase.from("automation_credentials")
+              .select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle();
+            await supabase.from("automation_credentials").upsert({
+              company_id: companyId,
+              service: "hometax",
+              credentials: { ...((existingCred?.credentials as Record<string, unknown>) || {}), login_method: "certificate", pfx_password: encPfxPw || "" },
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "company_id,service" });
+            setResult({ ok: true, msg: "홈택스 인증 확인 완료 (PC 인증서). 세금계산서 동기화를 사용할 수 있습니다." });
+            toast("홈택스 연결 완료", "success");
+            setCertPassword("");
+            onRegistered();
+            setRegistering(false);
+            return;
+          }
+
           if (!derFileB64 || !keyFileB64 || !certPassword) {
             setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
             setRegistering(false);
@@ -240,7 +284,8 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
     setRegistering(false);
   }
 
-  const isCertReady = ((certSource === "auto" && accountType !== "hometax" && !!autoPfxB64) || (!!derFileB64 && !!keyFileB64)) && !!certPassword && !!organization;
+  // auto 탭: 홈택스는 추출 PFX 로 등록 가능. 은행/카드 auto 는 위치 안내 전용(추출 없음)이라 ready 불가.
+  const isCertReady = ((certSource === "auto" && !!autoPfxB64) || (!!derFileB64 && !!keyFileB64)) && !!certPassword && !!organization;
   const isIdPwReady = !!loginId && !!loginPw && !!organization;
   const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
 
@@ -346,20 +391,21 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
           {authMethod === "cert" ? (
             <>
-              {/* 인증서 입력 방식 — PC 자동 선택(기본) vs 파일 업로드. 홈택스는 der/key 파일 저장이 필요해 파일 방식만. */}
-              {accountType !== "hometax" && (
-                <div className="cert-source-tabs">
-                  <button type="button" onClick={() => setCertSource("auto")} className={`cert-source-tab ${certSource === "auto" ? "cert-source-tab-active" : ""}`}>
-                    PC 인증서 자동 선택
-                  </button>
-                  <button type="button" onClick={() => setCertSource("file")} className={`cert-source-tab ${certSource === "file" ? "cert-source-tab-active" : ""}`}>
-                    파일 직접 업로드
-                  </button>
-                </div>
-              )}
+              {/* 인증서 입력 방식 — PC 자동 선택(기본) vs 파일 업로드.
+                  홈택스: 엔진 추출 PFX 로 매 호출 인증(가이드 §5 공식 용도) → 자동 선택이 정식 경로.
+                  은행/카드: 계정등록 규격이 der/key 라(엔진 PFX 는 CF-04009) 자동 선택은 파일 위치 안내 역할. */}
+              <div className="cert-source-tabs">
+                <button type="button" onClick={() => setCertSource("auto")} className={`cert-source-tab ${certSource === "auto" ? "cert-source-tab-active" : ""}`}>
+                  {accountType === "hometax" ? "PC 인증서 자동 선택" : "PC에서 인증서 찾기"}
+                </button>
+                <button type="button" onClick={() => setCertSource("file")} className={`cert-source-tab ${certSource === "file" ? "cert-source-tab-active" : ""}`}>
+                  파일 직접 업로드
+                </button>
+              </div>
 
-              {accountType !== "hometax" && certSource === "auto" && (
+              {certSource === "auto" && (
                 <CertAutoPicker
+                  purpose={accountType === "hometax" ? "register" : "locate"}
                   onExtracted={({ pfxBase64, certName, password }) => {
                     setAutoPfxB64(pfxBase64);
                     setCertPassword(password);
@@ -368,7 +414,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
                 />
               )}
 
-              {(accountType === "hometax" || certSource === "file") && (
+              {certSource === "file" && (
               <>
               {/* 공동인증서 입력 */}
               <div className="certificate-upload-panel">

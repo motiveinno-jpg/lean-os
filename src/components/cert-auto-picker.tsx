@@ -38,9 +38,15 @@ const fmtExpiry = (ts: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-export function CertAutoPicker({ onExtracted }: {
-  /** 추출 성공 시 — PFX(base64)·인증서 이름·비밀번호. 호출측이 CODEF 등록에 사용한다. */
+export function CertAutoPicker({ onExtracted, purpose = "register" }: {
+  /** 추출 성공 시 — PFX(base64)·인증서 이름·비밀번호. 호출측이 CODEF 인증에 사용한다. */
   onExtracted: (r: { pfxBase64: string; certName: string; password: string }) => void;
+  /**
+   * register(기본): PFX 추출 — 홈택스류 매 호출 인증 API 용 (CodefCert 웹 샘플가이드 §5 공식 용도).
+   * locate: 파일 위치 안내만 — 은행/카드 계정등록은 규격상 der/key 파일 업로드가 필요해
+   *   (가이드 FAQ: 엔진 추출 PFX 는 계정등록 API 에서 CF-04009), 선택한 인증서의 폴더 경로를 보여준다.
+   */
+  purpose?: "register" | "locate";
 }) {
   const [engineStatus, setEngineStatus] = useState<EngineStatus>("loading");
   const [certList, setCertList] = useState<AutoCertItem[]>([]);
@@ -220,7 +226,18 @@ export function CertAutoPicker({ onExtracted }: {
             </div>
           )}
 
-          {certList.length > 0 && (
+          {purpose === "locate" && certList.length > 0 && selectedIdx !== null && (
+            <div className="cert-picker-locate">
+              <div className="text-[12px] font-semibold text-[var(--text)]">이 인증서의 파일 위치</div>
+              <code className="cert-picker-locate-path">{String(certList[selectedIdx]["cert.der.path"]).replace(/[\\/][^\\/]*$/, "")}</code>
+              <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                은행·카드 연결은 규격상 인증서 파일 2개(signCert.der, signPri.key)가 필요합니다.
+                아래 &quot;파일 직접 업로드&quot;에서 위 폴더의 두 파일을 함께 선택해주세요.
+              </p>
+            </div>
+          )}
+
+          {purpose === "register" && certList.length > 0 && (
             <div className="cert-picker-actions">
               <div className="relative flex-1 min-w-[200px]">
                 <input
