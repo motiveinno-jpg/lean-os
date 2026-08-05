@@ -43,7 +43,6 @@ const HR_TEMPLATE_CATEGORIES = new Set([
   "salary_contract", "nda", "non_compete", "privacy_consent", "comprehensive_labor", "contract_labor",
 ]);
 import { FailurePanel } from "./_components/FailurePanel";
-import { InviteModal } from "./_components/InviteModal";
 import { OrgBulkWizard } from "./_components/OrgBulkWizard";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
@@ -67,7 +66,6 @@ function SignaturesDashboardInner() {
   const [statusFilter, setStatusFilter] = useState<"all" | SignatureStatusValue>("all");
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [showOrgBulkWizard, setShowOrgBulkWizard] = useState(false);
   const searchParams = useSearchParams();
   useEffect(() => { if (searchParams.get("bulk") === "1") setShowOrgBulkWizard(true); }, [searchParams]);
@@ -399,19 +397,13 @@ function SignaturesDashboardInner() {
                 이번 달 발송 {contractStatus.used}/{contractStatus.limit}건
               </span>
             )}
+            {/* 2026-08-05 사장님: '새 계약 요청'을 단체 일괄 발송 마법사로 통합 — 별도 '단체 일괄 발송' 버튼 제거.
+                한 곳에서 1건이든 여러 거래처든 같은 흐름으로 보낸다. */}
             <button
               onClick={() => setShowOrgBulkWizard(true)}
               disabled={contractLimitReached}
-              className="btn-secondary"
-              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다` : "여러 거래처(미가입 단체)에 같은 계약서를 변수만 바꿔 한 번에 발송"}
-            >
-              + 단체 일괄 발송
-            </button>
-            <button
-              onClick={() => setShowInviteModal(true)}
-              disabled={contractLimitReached}
               className="btn-primary"
-              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발송할 수 있습니다.` : undefined}
+              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발송할 수 있습니다.` : "계약서를 골라 거래처에 발송 — 여러 곳에 변수만 바꿔 한 번에 보낼 수도 있습니다"}
             >
               {contractLimitReached ? "이번 달 발송 한도 소진" : "+ 새 계약 요청"}
             </button>
@@ -421,8 +413,8 @@ function SignaturesDashboardInner() {
 
       {subTab === "templates" && companyId && userId && (
         <div className="signature-templates-panel">
-          {/* 온라인홍보사업 계약서·포기신청서 등 — "단체 일괄 발송"/"새 서명 요청"에서 실제 사용되는
-              문서(documents 테이블) 원본을 여기서 바로 보고 수정. OrgBulkWizard/InviteModal 이 같은
+          {/* 온라인홍보사업 계약서·포기신청서 등 — "새 계약 요청"에서 실제 사용되는
+              문서(documents 테이블) 원본을 여기서 바로 보고 수정. OrgBulkWizard 가 같은
               데이터(getDocuments)를 그대로 읽으므로 여기서 수정하면 발송 시 바로 반영됨. */}
           {/* 계약 양식 단일 시스템 — 우리 회사가 만든 계약 양식만 노출(2026-07-23). 표준 계약서는 '양식 추가 › 직접 작성'에서 시작점으로 선택. */}
           <ContractTemplatesManager companyId={companyId} />
@@ -546,7 +538,7 @@ function SignaturesDashboardInner() {
             <div className="text-5xl mb-4"><Ico e="✍" /></div>
             <div className="text-base font-bold text-[var(--text)]">문서에 서명을 요청해보세요</div>
             <div className="text-xs text-[var(--text-muted)] mt-1.5">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
-            <button onClick={() => setShowInviteModal(true)} className="btn-primary mt-5">+ 새 계약 요청</button>
+            <button onClick={() => setShowOrgBulkWizard(true)} className="btn-primary mt-5">+ 새 계약 요청</button>
           </div>
         ) : (
           filtered.slice((page - 1) * pageSize, page * pageSize).map((r: any) => {
@@ -651,21 +643,6 @@ function SignaturesDashboardInner() {
         })()}
       </div>
         </>
-      )}
-
-      {showInviteModal && companyId && userId && (
-        <InviteModal
-          companyId={companyId}
-          userId={userId}
-          documents={documents as any[]}
-          contractTemplates={contractTemplates as any[]}
-          onClose={() => setShowInviteModal(false)}
-          onCreated={() => {
-            setShowInviteModal(false);
-            qc.invalidateQueries({ queryKey: ["signature-requests"] });
-            qc.invalidateQueries({ queryKey: ["documents-for-sign", companyId] });
-          }}
-        />
       )}
 
       {showOrgBulkWizard && companyId && userId && (
