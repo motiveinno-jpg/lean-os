@@ -75,8 +75,9 @@ async function codefRequest(token: string, path: string, body: Record<string, un
     throw new Error(`CODEF API error: ${res.status}`);
   }
   const text = await res.text();
+  // urlencoded 응답의 공백이 '+' 로 오는 버그 — hometax-issue 7/16 수정과 동일 치환 (2026-08-04)
   let parsed: any;
-  try { parsed = JSON.parse(decodeURIComponent(text)); }
+  try { parsed = JSON.parse(decodeURIComponent(text.replace(/\+/g, " "))); }
   catch { parsed = JSON.parse(text); }
   meterPush(path, parsed?.result?.code || "UNKNOWN");
   return parsed;

@@ -183,9 +183,13 @@ async function codefRequest(token: string, path: string, body: Record<string, an
     throw new Error(`CODEF API error: ${res.status}`);
   }
   const text = await res.text();
+  // CODEF 응답은 application/x-www-form-urlencoded 라 공백이 '+' 로 옴.
+  //   decodeURIComponent 는 '+' 를 공백으로 안 바꿔줘서(%XX 만 디코딩) 거래처명이
+  //   "주식회사+카카오" 처럼 오염돼 저장되던 버그 (2026-08-04 사장님 제보) —
+  //   hometax-issue 의 7/16 수정과 동일하게 '+' → 공백 치환을 먼저 해준다.
   let parsed: any;
   try {
-    const decoded = decodeURIComponent(text);
+    const decoded = decodeURIComponent(text.replace(/\+/g, " "));
     parsed = JSON.parse(decoded);
   } catch {
     parsed = JSON.parse(text);
