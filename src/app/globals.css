@@ -5977,6 +5977,7 @@ th:hover .pb-col-x { @apply opacity-100; }
 .pb-views { @apply inline-flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .pb-views-sec { @apply inline-flex items-center gap-0.5; }
 .pb-views-sec > b { @apply px-1.5 text-[9.5px] font-bold text-[var(--text-dim)] uppercase tracking-wider select-none; }
+.pb-views-right { @apply ml-auto; }
 .pb-views-sep { @apply self-stretch w-px mx-1 bg-[var(--border)]; }
 .pb-viewpick { @apply inline-flex rounded-lg border border-[var(--border)] overflow-hidden; }
 .pb-viewbtn { @apply h-7 px-2.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-card)] hover:text-[var(--text)]; }
@@ -6153,6 +6154,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 
 /* 필터 · 일괄 선택 (2026-08-04 기획 3차) */
 .pb-filters { @apply ml-auto flex flex-wrap items-center gap-1; }
+.pb-views-right ~ .pb-filters { @apply ml-0; }
 .pb-filter { @apply h-7 px-2.5 rounded-full border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
 .pb-filter-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]; }
 .pb-filters em { @apply not-italic ml-1 text-[11px] text-[var(--text-dim)]; }
@@ -6344,3 +6346,53 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .mr-tip i { @apply block w-2 h-2 rounded-sm; }
 .mr-tip .mr-bad { @apply !text-[var(--tip-bad)] !opacity-100; }
 .mr-legend-note { @apply !text-[var(--text-dim)]; }
+
+/* 템플릿별 정리 그림 — 도넛·깔때기·가로막대·주별막대·진행링 (2026-08-05)
+   마크는 얇게, 격자는 뒤로, 값은 늘 글자로 함께 — 색만으로 뜻을 전하지 않는다. */
+.bf-grid { @apply grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3; }
+.bf { @apply flex flex-col gap-2 p-3.5 rounded-xl bg-[var(--bg-surface)] min-w-0; }
+.bf figcaption { @apply text-[12px] font-bold text-[var(--text)]; }
+.bf > em, .bf-note { @apply not-italic text-[11px] text-[var(--text-dim)] leading-snug; }
+.bf-bad { @apply !text-[var(--danger)]; }
+.bf-ok { @apply !text-[var(--success)]; }
+
+/* 하나짜리 수치 — 차트로 만들지 않는다. 큰 숫자는 고정폭을 쓰지 않는다(느슨해 보인다) */
+.bf-stat > b { @apply text-[26px] font-extrabold tracking-tight text-[var(--text)]; }
+.bf-stat.bf-bad > b { @apply text-[var(--danger)]; }
+.bf-stat.bf-ok > b { @apply text-[var(--success)]; }
+
+/* 진행 링 · 도넛 */
+.bf-ring-body, .bf-donut-body { @apply relative self-center w-[100px] h-[100px] flex items-center justify-center; }
+.bf-ring-body svg, .bf-donut-body svg { @apply w-full h-full; }
+.bf-ring-track { @apply fill-none stroke-[var(--bg-card)]; stroke-width: 9; }
+.bf-ring-fill { @apply fill-none stroke-[var(--primary)]; stroke-width: 9; stroke-linecap: round; }
+.bf-ring-fill.bf-ring-bad { @apply stroke-[var(--danger)]; }
+.bf-donut-seg { @apply fill-none; stroke-width: 9; }
+.bf-ring-center { @apply absolute text-[19px] font-extrabold tracking-tight text-[var(--text)]; }
+.bf-donut-total { @apply text-[15px]; }
+
+.bf-legend { @apply flex flex-col gap-1; }
+.bf-legend li { @apply flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] min-w-0; }
+.bf-legend i { @apply block w-2.5 h-2.5 rounded-sm shrink-0; }
+.bf-legend span { @apply flex-1 min-w-0 truncate; }
+.bf-legend b { @apply font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.bf-legend em { @apply not-italic w-9 text-right text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+
+/* 깔때기 — 단계는 순서가 있으니 위에서 아래로 */
+.bf-funnel-rows, .bf-hbar-rows { @apply flex flex-col gap-1.5; }
+.bf-funnel-rows li, .bf-hbar-rows li { @apply flex items-center gap-2 text-[11.5px]; }
+.bf-funnel-k { @apply w-14 shrink-0 truncate text-[var(--text-muted)]; }
+.bf-funnel-track, .bf-hbar-track { @apply flex-1 h-4 rounded-md bg-[var(--bg-card)] overflow-hidden; }
+.bf-funnel-track i, .bf-hbar-track i { @apply block h-full rounded-md; }
+.bf-hbar-track i { @apply bg-[var(--primary)]; }
+.bf-funnel-rows b, .bf-hbar-rows b { @apply shrink-0 min-w-[52px] text-right font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.bf-hbar-k { @apply w-20 shrink-0 truncate text-[var(--text-muted)]; }
+
+/* 주별 세로 막대 */
+.bf-week-row { @apply flex items-end gap-1; }
+.bf-week { @apply flex-1 flex flex-col items-center gap-0.5 min-w-0; }
+.bf-week-bar { @apply w-full h-14 flex items-end justify-center; }
+.bf-week-bar i { @apply block w-full max-w-[22px] rounded-t-md bg-[var(--primary)]; }
+.bf-week-bar i.bf-week-hot { @apply bg-[var(--danger)]; }
+.bf-week > em { @apply not-italic text-[10px] font-bold text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.bf-week-k { @apply text-[9.5px] text-[var(--text-dim)] truncate w-full text-center; }

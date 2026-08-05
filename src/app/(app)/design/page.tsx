@@ -175,13 +175,14 @@ export default function DesignSystemPage() {
       {/* ── 프로젝트 템플릿 부품 ──────────────────────────── */}
       <Section title="프로젝트 템플릿 부품" desc="입력(표·칸반)과 보기(타임라인·캘린더·정리)를 라벨로 가른다. 기본은 항상 입력 화면.">
         <div className="ds-bar2sample">
-          <div className="pb-views" role="group" aria-label="보는 방식">
+          <div className="pb-views" role="group" aria-label="입력 방식">
             <span className="pb-views-sec">
               <b>입력</b>
               <button className="pb-viewbtn pb-viewbtn-on">표</button>
               <button className="pb-viewbtn">칸반</button>
             </span>
-            <span className="pb-views-sep" aria-hidden="true" />
+          </div>
+          <div className="pb-views pb-views-right" role="group" aria-label="보기 방식">
             <span className="pb-views-sec">
               <b>보기</b>
               <button className="pb-viewbtn">타임라인</button>

@@ -23,6 +23,8 @@ import { BoardDocModal, type DocKind } from "./BoardDocModal";
 import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
+import { BoardFigures } from "./BoardFigures";
+import { templateFigures } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
@@ -695,9 +697,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       </div>
 
       <div className="pb-bar2">
-        {/* 한 상자 안에 '입력'과 '보기' 를 구분선으로 가른다. 라벨은 상자 안쪽에 두고
-            눌리지 않는 모양으로 — 라벨이 버튼처럼 보여 헛클릭이 났다(2026-08-05 사장님 지적). */}
-        <div className="pb-views" role="group" aria-label="보는 방식">
+        {/* 입력은 왼쪽, 보기는 오른쪽 — 한 상자에 붙여 놓으니 되레 안 읽혔다(2026-08-05).
+            라벨은 상자 안쪽의 눌리지 않는 글씨로 둬 버튼과 헷갈리지 않게 한다. */}
+        <div className="pb-views" role="group" aria-label="입력 방식">
           <span className="pb-views-sec">
             <b>입력</b>
             {INPUT_MODES.map((v) => (
@@ -708,7 +710,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               </button>
             ))}
           </span>
-          <span className="pb-views-sep" aria-hidden="true" />
+        </div>
+
+        <div className="pb-views pb-views-right" role="group" aria-label="보기 방식">
           <span className="pb-views-sec">
             <b>보기</b>
             {span && (
@@ -1310,6 +1314,7 @@ function ProjectSummary({ boards, cols, groups, items, users }: {
         <section key={b.id} className="pb-sum-sec">
           <h4 className="pb-sum-sec-h">{b.name}<em>{items.filter((i) => i.board_id === b.id).length}행</em></h4>
           <BoardSummary
+            templateKey={b.template_key}
             cols={cols.filter((c) => c.board_id === b.id)}
             items={items.filter((i) => i.board_id === b.id)}
             groups={groups.filter((g) => g.board_id === b.id)}
@@ -1321,15 +1326,22 @@ function ProjectSummary({ boards, cols, groups, items, users }: {
 }
 
 // ── 템플릿 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
-function BoardSummary({ cols, items, groups, users }: {
+function BoardSummary({ templateKey, cols, items, groups, users }: {
+  templateKey?: string | null;
   cols: BoardColumn[]; items: BoardItem[]; groups: BoardGroup[]; users: { id: string; name: string }[];
 }) {
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
-  const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, todayKst());
-  if (cards.length === 0) {
+  const today = todayKst();
+  // 템플릿 성격에 맞는 그림이 먼저 — 일의 종류마다 궁금한 게 다르다(2026-08-05 사장님 지시)
+  const figures = templateFigures(templateKey, cols, items, groups, nameOf, today);
+  const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, today);
+  if (cards.length === 0 && figures.length === 0) {
     return <p className="pj-sec-empty">템플릿에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
   }
   return (
+    <>
+    <BoardFigures figures={figures} />
+    {cards.length === 0 ? null : (
     <div className="pb-sum-grid">
       {cards.map((c, i) => {
         if (c.kind === "number") return (
@@ -1372,6 +1384,8 @@ function BoardSummary({ cols, items, groups, users }: {
         );
       })}
     </div>
+    )}
+    </>
   );
 }
 
