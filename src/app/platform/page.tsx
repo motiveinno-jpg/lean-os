@@ -4,7 +4,7 @@ import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
 import { AnalyticsSection } from "./_components/analytics-section";
-import { Donut, GaugeArc, VizLegend, VIZ_CATEGORICAL, VIZ_GRAY } from "./_components/viz";
+import { Donut, GaugeArc, VizLegend, VIZ_GRAY } from "./_components/viz";
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,7 +56,8 @@ type CodefUsageSummary = {
   total: { units: number; calls: number; rows: number };
   byCategory: Record<string, { units: number; calls: number }>;
   companies: { companyId: string; name: string; units: number; calls: number }[];
-  products?: { path: string; name: string; price: number | null; count: number; amount: number | null }[];
+  products?: { path: string; name: string; price: number | null; count: number; amount: number | null; limit?: number; over?: number | null }[];
+  product_limit?: number;
 };
 
 type OpsRisk = {
@@ -358,22 +359,19 @@ export default function PlatformOverview() {
     { label: "체험 만료", value: kindCounts.expired, color: "var(--danger)" },
     { label: "미구독", value: kindCounts.free, color: VIZ_GRAY },
   ];
-  const codefDonut = (() => {
-    const cat = (p: string) =>
-      p.includes("/kr/bank/") ? "통장"
-        : p.includes("/kr/card/") ? "카드"
-        : p.includes("cash-receipt") || p.includes("cash-bill") ? "현금영수증"
-        : p.includes("tax-invoice") ? "세금계산서"
-        : "기타";
-    const sums: Record<string, number> = {};
-    for (const pr of codefUsage?.products ?? []) {
-      if ((pr.amount ?? 0) > 0) sums[cat(pr.path)] = (sums[cat(pr.path)] || 0) + (pr.amount as number);
-    }
-    const order = ["통장", "카드", "현금영수증", "세금계산서", "기타"];
-    const colors = [VIZ_CATEGORICAL[0], VIZ_CATEGORICAL[1], VIZ_CATEGORICAL[2], VIZ_CATEGORICAL[3], VIZ_GRAY];
-    return order.map((l, i) => ({ label: l, value: sums[l] || 0, color: colors[i] })).filter((x) => x.value > 0);
-  })();
-  const codefAmountTotal = codefDonut.reduce((x, y) => x + y.value, 0);
+  // CODEF API별 사용률 — 사장님(2026-08-05): API(상품)당 월 10만원까지 포함, 초과분부터 과금.
+  //   10만원 = 100% 로 두고 각 API 사용액을 퍼센트 게이지로 보여준다.
+  const CODEF_PRODUCT_LIMIT = codefUsage?.product_limit ?? 100_000;
+  const codefApiBars = (codefUsage?.products ?? [])
+    .filter((p) => (p.amount ?? 0) > 0)
+    .map((p) => {
+      const amount = p.amount ?? 0;
+      const limit = p.limit ?? CODEF_PRODUCT_LIMIT;
+      return { name: p.name || p.path, amount, limit, pct: Math.round((amount / limit) * 100), over: Math.max(0, amount - limit) };
+    })
+    .sort((a, b) => b.amount - a.amount);
+  const codefAmountTotal = codefApiBars.reduce((x, y) => x + y.amount, 0);
+  const codefOverTotal = codefApiBars.reduce((x, y) => x + y.over, 0);
 
   // 운영 인박스 — 0건이면 초록, 있으면 주의 색으로
   const inboxItems = [
@@ -462,20 +460,47 @@ export default function PlatformOverview() {
           </div>
         </div>
 
-        {/* CODEF 원가 — 카테고리별 과금 도넛 */}
+        {/* CODEF 사용량 — API별 게이지: 월 10만원(포함분) = 100%, 초과분부터 과금 (2026-08-05 사장님) */}
         <div className="platform-viz-card glass-card">
           <div className="platform-viz-card-head">
-            <span className="platform-card-title">CODEF 원가 <span className="text-[10px] font-normal text-[var(--text-dim)]">이번 달</span></span>
+            <span className="platform-card-title">CODEF 사용량 <span className="text-[10px] font-normal text-[var(--text-dim)]">이번 달 · API당 ₩{CODEF_PRODUCT_LIMIT.toLocaleString()} 포함</span></span>
             <Link href="/platform/codef-usage" className="text-[11px] text-[var(--primary)] hover:underline">상세 →</Link>
           </div>
-          <div className="platform-viz-card-body">
-            <Donut segments={codefDonut} centerTop={`₩${codefAmountTotal.toLocaleString()}`} centerSub="과금 추정" />
-            {codefDonut.length === 0 ? (
-              <div className="text-[12px] text-[var(--text-dim)]">이번 달 과금 호출이 없습니다.</div>
-            ) : (
-              <VizLegend rows={codefDonut.map((x) => ({ label: x.label, color: x.color, value: `₩${x.value.toLocaleString()}` }))} />
-            )}
-          </div>
+          {codefApiBars.length === 0 ? (
+            <div className="text-[12px] text-[var(--text-dim)] py-4">이번 달 과금 호출이 없습니다.</div>
+          ) : (
+            <div className="space-y-2.5 mt-1">
+              {codefApiBars.slice(0, 5).map((b) => (
+                <div key={b.name}>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[11px] font-semibold text-[var(--text)] truncate">{b.name}</span>
+                    <span className={`text-[11px] font-bold mono-number shrink-0 ${b.over > 0 ? "text-[var(--danger)]" : b.pct >= 80 ? "text-[var(--warning)]" : "text-[var(--text-muted)]"}`}>
+                      {b.pct}% <span className="font-normal text-[var(--text-dim)]">₩{b.amount.toLocaleString()}</span>
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.min(100, b.pct)}%`,
+                        background: b.over > 0 ? "var(--danger)" : b.pct >= 80 ? "var(--warning)" : "var(--primary)",
+                      }}
+                    />
+                  </div>
+                  {b.over > 0 && (
+                    <div className="text-[10px] text-[var(--danger)] mt-0.5">한도 초과 ₩{b.over.toLocaleString()} — 초과분부터 과금</div>
+                  )}
+                </div>
+              ))}
+              {codefApiBars.length > 5 && (
+                <div className="text-[10px] text-[var(--text-dim)]">외 {codefApiBars.length - 5}개 API — 상세에서 전체 확인</div>
+              )}
+              <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[var(--border)]">
+                <span className="text-[var(--text-muted)]">이번 달 사용액 합계</span>
+                <span className="font-bold mono-number">₩{codefAmountTotal.toLocaleString()}{codefOverTotal > 0 && <span className="text-[var(--danger)]"> · 과금 ₩{codefOverTotal.toLocaleString()}</span>}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -795,7 +820,7 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
                   <th className="th-cell text-left">이메일</th>
                   <th className="th-cell text-left">가입</th>
                   <th className="th-cell text-center">경로</th>
-                  <th className="th-cell text-center">로그인</th>
+                  <th className="th-cell text-left">마지막 로그인</th>
                 </tr>
               </thead>
               <tbody>
@@ -804,9 +829,9 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
                     <td className="px-3 py-2 text-[var(--text)]">{p.email}</td>
                     <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{fmtKst(p.created_at)}</td>
                     <td className="px-3 py-2 text-center text-[var(--text-muted)]">{p.provider}</td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2">
                       {p.last_sign_in
-                        ? <span className="text-[var(--success)]">완료</span>
+                        ? <span className="text-[var(--text-muted)] mono-number">{fmtKst(p.last_sign_in)}</span>
                         : <span className="text-[var(--text-dim)]">{p.confirmed ? "미접속" : "인증 전"}</span>}
                     </td>
                   </tr>
