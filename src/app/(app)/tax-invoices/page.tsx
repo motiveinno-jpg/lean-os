@@ -2567,6 +2567,11 @@ function LinkTxPopup({ invoice, companyId, onClose, onDone }: { invoice: any; co
 }
 
 // ── Invoice Detail Modal (세금계산서 상세) ──
+// 거래처 상세 보강이 회사 단위로 막힌 상태(CODEF 상품 미승인 등)를 기억한다.
+//   모달마다 state 를 두면 계산서를 열 때마다 같은 실패를 다시 호출한다 — 모듈 스코프로 1회만.
+//   새로고침하면 초기화되므로 상품 승인 후엔 자동으로 다시 시도된다.
+const detailBlockedRef = { blocked: false, reason: "" };
+
 function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceStatus, onClose, onModify }: { invoice: any; companyInfo?: any; partners?: any[]; deals?: any[]; issuanceStatus?: { limit: number | null; used: number; remaining: number | null; planName: string | null }; onClose: () => void; onModify: (inv: any) => void }) {
   const issuanceLimitReached = !!issuanceStatus && issuanceStatus.limit !== null && (issuanceStatus.remaining ?? 0) <= 0;
   const { toast } = useToast();
@@ -2588,6 +2593,9 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
     const id = invoice?.id;
     if (!id || invoice.detail_fetched_at || !invoice.nts_confirm_no) return;
     if (detailTriedRef.current === id) return;   // 한 번 시도한 건은 재시도 안 함(모달 재렌더 방지)
+    // 상품 미승인(CF-00401/CF-00003)처럼 회사 단위로 영구 실패인 경우, 계산서를 열 때마다
+    //   같은 실패를 반복 호출하지 않는다 — 2026-08-05 실측으로 헛호출이 쌓이던 것을 확인.
+    if (detailBlockedRef.blocked) return;
     detailTriedRef.current = id;
     let alive = true;
     (async () => {
@@ -2607,7 +2615,13 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
           queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
         } else if (alive && !res.ok) {
           // 조용히 삼키면 왜 안 채워지는지 알 수 없다 — 사유를 눈에 보이게(2026-08-05 사장님 제보)
-          toast(`거래처 정보 불러오기 실패: ${json?.error || `HTTP ${res.status}`}`, "error");
+          const code = json?.code || "";
+          if (code === "CF-00401" || code === "CF-00003") {
+            // 회사 단위 영구 실패 — 이후 다른 계산서를 열어도 자동 호출하지 않는다(헛호출 방지)
+            detailBlockedRef.blocked = true;
+            detailBlockedRef.reason = json?.hint || json?.error || "";
+          }
+          toast(`${json?.error || `HTTP ${res.status}`}${json?.hint ? ` — ${json.hint}` : ""}`, "error");
         }
       } catch { /* 보강 실패는 조용히 — 기존 표시(명부 폴백) 유지 */ }
       finally { if (alive) setDetailLoading(false); }

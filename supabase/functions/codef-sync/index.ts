@@ -930,46 +930,62 @@ async function getAccountList(
   return Array.isArray(accounts) ? accounts : accounts ? [accounts] : [];
 }
 
-// ── 홈택스 인증서 로딩 (통합조회·상세조회 공통) ──────────────────────────────
-//   storage certificates/{companyId}/signCert.der + signPri.key + automation_credentials.hometax.cert_password
-//   반환: RSA 암호화된 비밀번호까지 포함해 그대로 CODEF 요청부에 넣을 수 있는 형태.
-type HometaxCert = { certB64: string; keyB64: string; encryptedCertPw: string };
+// ── 홈택스 인증 자료 로딩 (PFX 우선 → der/key 폴백) ─────────────────────────
+//   2026-08-05: CODEF API팀 답변으로 pfx 는 certType "pfx" 로 보내야 함이 확인됐고(은행 등록 실증),
+//   국세청 통합조회도 pfx 로 CF-00000 성공을 실증했다. 그래서 'PC 인증서 자동 선택'이 저장한
+//   hometax.pfx 가 있으면 그것을, 없으면 기존 signCert.der/signPri.key 를 쓴다.
+//   반환 auth 는 CODEF 요청부에 그대로 spread 하면 되는 형태.
+type HometaxCert = { auth: Record<string, string>; encryptedCertPw: string; source: "pfx" | "derkey" };
 async function loadHometaxCert(
   supabase: any, companyId: string,
 ): Promise<{ cert: HometaxCert | null; error: SyncError | null }> {
   const ORG = "0002";
+  const fail = (code: string, message: string, hint: string) =>
+    ({ cert: null, error: { accountNo: "", organization: ORG, code, message, hint } });
   try {
-    const [certDl, keyDl, credRow] = await Promise.all([
-      supabase.storage.from("certificates").download(`${companyId}/signCert.der`),
-      supabase.storage.from("certificates").download(`${companyId}/signPri.key`),
+    const [pfxDl, credRow] = await Promise.all([
+      supabase.storage.from("certificates").download(`${companyId}/hometax.pfx`),
       supabase.from("automation_credentials").select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
     ]);
-    if (certDl.error || !certDl.data || keyDl.error || !keyDl.data) {
-      return { cert: null, error: { accountNo: "", organization: ORG, code: "HOMETAX_CERT_MISSING",
-        message: "홈택스 공동인증서 파일이 storage 에 없습니다.", hint: "설정 → 은행연동 → 홈택스에서 인증서를 다시 업로드하세요." } };
-    }
     const encryptedPw = credRow.data?.credentials?.cert_password;
     if (!encryptedPw) {
-      return { cert: null, error: { accountNo: "", organization: ORG, code: "HOMETAX_CERT_PASSWORD_MISSING",
-        message: "홈택스 공동인증서 비밀번호가 등록되어 있지 않습니다.", hint: "설정 → 은행연동 → 홈택스에서 인증서 비밀번호를 입력하세요." } };
+      return fail("HOMETAX_CERT_PASSWORD_MISSING", "홈택스 공동인증서 비밀번호가 등록되어 있지 않습니다.",
+        "설정 → 은행연동 → 홈택스에서 인증서를 다시 등록하세요.");
     }
     const { data: plainPw, error: decErr } = await supabase.rpc("decrypt_credential", { p_ciphertext: encryptedPw });
     if (decErr || !plainPw) {
-      return { cert: null, error: { accountNo: "", organization: ORG, code: "HOMETAX_CERT_DECRYPT_FAILED",
-        message: `인증서 비밀번호 복호화 실패: ${decErr?.message || "응답 없음"}`, hint: "설정에서 인증서 비밀번호를 다시 저장하세요." } };
+      return fail("HOMETAX_CERT_DECRYPT_FAILED", `인증서 비밀번호 복호화 실패: ${decErr?.message || "응답 없음"}`,
+        "설정에서 인증서를 다시 등록하세요.");
     }
     const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
+    const encryptedCertPw = publicKey ? rsaEncrypt(String(plainPw), publicKey) : String(plainPw);
+
+    if (!pfxDl.error && pfxDl.data) {
+      const pfxB64 = Buffer.from(new Uint8Array(await pfxDl.data.arrayBuffer())).toString("base64");
+      return { cert: { auth: { certType: "pfx", certFile: pfxB64 }, encryptedCertPw, source: "pfx" }, error: null };
+    }
+    const [certDl, keyDl] = await Promise.all([
+      supabase.storage.from("certificates").download(`${companyId}/signCert.der`),
+      supabase.storage.from("certificates").download(`${companyId}/signPri.key`),
+    ]);
+    if (certDl.error || !certDl.data || keyDl.error || !keyDl.data) {
+      return fail("HOMETAX_CERT_MISSING", "홈택스 공동인증서가 등록되어 있지 않습니다.",
+        "설정 → 은행연동 → 홈택스에서 'PC 인증서 자동 선택'으로 등록하세요.");
+    }
     return {
       cert: {
-        certB64: Buffer.from(new Uint8Array(await certDl.data.arrayBuffer())).toString("base64"),
-        keyB64: Buffer.from(new Uint8Array(await keyDl.data.arrayBuffer())).toString("base64"),
-        encryptedCertPw: publicKey ? rsaEncrypt(String(plainPw), publicKey) : String(plainPw),
+        auth: {
+          certType: "1",
+          certFile: Buffer.from(new Uint8Array(await certDl.data.arrayBuffer())).toString("base64"),
+          keyFile: Buffer.from(new Uint8Array(await keyDl.data.arrayBuffer())).toString("base64"),
+        },
+        encryptedCertPw,
+        source: "derkey",
       },
       error: null,
     };
   } catch (err: any) {
-    return { cert: null, error: { accountNo: "", organization: ORG, code: "HOMETAX_CERT_LOAD_FAILED",
-      message: `인증서 로드 실패: ${err?.message || err}`, hint: "설정에서 인증서를 재업로드하세요." } };
+    return fail("HOMETAX_CERT_LOAD_FAILED", `인증서 로드 실패: ${err?.message || err}`, "설정에서 인증서를 재등록하세요.");
   }
 }
 
@@ -987,9 +1003,7 @@ async function fetchHometaxInvoiceDetail(
   const resp = await codefRequest(token, "/v1/kr/public/nt/tax-invoice/info-detail", {
     organization: "0002",
     loginType: "0",
-    certType: "1",
-    certFile: cert.certB64,
-    keyFile: cert.keyB64,
+    ...cert.auth,
     certPassword: cert.encryptedCertPw,
     approvalNo,
     originDataYN: "0",   // 원문 PDF(Base64)는 용량이 커 받지 않는다
@@ -1038,64 +1052,14 @@ async function syncHometaxInvoices(
   // 국세청(홈택스) organization code — '전자세금계산서 통합' product 는 0002 사용 (3a91f86 확인).
   const HOMETAX_ORG = "0002";
 
-  // ─── cert 로딩 + 비밀번호 ───
-  let certB64 = "", keyB64 = "", certPassword = "";
-  try {
-    const certPath = `${companyId}/signCert.der`;
-    const keyPath = `${companyId}/signPri.key`;
-    const [certDl, keyDl, credRow] = await Promise.all([
-      supabase.storage.from("certificates").download(certPath),
-      supabase.storage.from("certificates").download(keyPath),
-      supabase.from("automation_credentials").select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
-    ]);
-    if (certDl.error || !certDl.data || keyDl.error || !keyDl.data) {
-      errors.push({
-        accountNo: "", organization: HOMETAX_ORG,
-        code: "HOMETAX_CERT_MISSING",
-        message: "홈택스 공동인증서 파일(signCert.der/signPri.key)이 storage에 없습니다.",
-        hint: "설정 → 은행연동 → 홈택스에서 인증서를 다시 업로드하세요.",
-      });
-      return { synced: 0, errors };
-    }
-    const encryptedPw = credRow.data?.credentials?.cert_password;
-    if (!encryptedPw) {
-      errors.push({
-        accountNo: "", organization: HOMETAX_ORG,
-        code: "HOMETAX_CERT_PASSWORD_MISSING",
-        message: "홈택스 공동인증서 비밀번호가 등록되어 있지 않습니다.",
-        hint: "설정 → 은행연동 → 홈택스에서 인증서 비밀번호를 입력하세요.",
-      });
-      return { synced: 0, errors };
-    }
-    // automation_credentials 의 cert_password 는 pgcrypto AES-256 으로 암호화 저장됨.
-    // CODEF 로 보내기 전에 평문 복원 필요.
-    const { data: plainPw, error: decErr } = await supabase.rpc("decrypt_credential", { p_ciphertext: encryptedPw });
-    if (decErr || !plainPw) {
-      errors.push({
-        accountNo: "", organization: HOMETAX_ORG,
-        code: "HOMETAX_CERT_DECRYPT_FAILED",
-        message: `인증서 비밀번호 복호화 실패: ${decErr?.message || "응답 없음"}`,
-        hint: "설정에서 인증서 비밀번호를 다시 저장하세요.",
-      });
-      return { synced: 0, errors };
-    }
-    const certBytes = new Uint8Array(await certDl.data.arrayBuffer());
-    const keyBytes = new Uint8Array(await keyDl.data.arrayBuffer());
-    certB64 = Buffer.from(certBytes).toString("base64");
-    keyB64 = Buffer.from(keyBytes).toString("base64");
-    certPassword = plainPw;
-  } catch (err: any) {
-    errors.push({
-      accountNo: "", organization: HOMETAX_ORG,
-      code: "HOMETAX_CERT_LOAD_FAILED",
-      message: `인증서 로드 실패: ${err.message || err}`,
-      hint: "설정에서 인증서를 재업로드하세요.",
-    });
+  // ─── cert 로딩 (PFX 우선 → der/key 폴백) ───
+  const { cert: htCert, error: htCertErr } = await loadHometaxCert(supabase, companyId);
+  if (!htCert) {
+    errors.push(htCertErr!);
     return { synced: 0, errors };
   }
-
-  const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
-  const encryptedCertPw = publicKey ? rsaEncrypt(certPassword, publicKey) : certPassword;
+  const encryptedCertPw = htCert.encryptedCertPw;
+  debug.push(`cert source=${htCert.source}`);
 
   // CF-13001 방지: 미래 날짜는 today 로 cap. CODEF 통합 API 는 endDate > today 면 거부.
   const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
@@ -1110,9 +1074,7 @@ async function syncHometaxInvoices(
     codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
       organization: HOMETAX_ORG,
       loginType: "0",
-      certType: "1",
-      certFile: certB64,
-      keyFile: keyB64,
+      ...htCert.auth,
       certPassword: encryptedCertPw,
       inquiryType: "01",
       searchType: "01",
@@ -1316,9 +1278,15 @@ async function syncHometaxInvoices(
       .limit(DETAIL_MAX);
     let done = 0;
     for (const row of pending || []) {
-      const r = await fetchHometaxInvoiceDetail(supabase, token, row, { certB64, keyB64, encryptedCertPw });
-      if (r.ok) done++;
-      else if (r.code && r.code.startsWith("CF-12")) break; // 기관 지연·차단 신호면 즉시 중단
+      const r = await fetchHometaxInvoiceDetail(supabase, token, row, htCert);
+      if (r.ok) { done++; continue; }
+      // 영구 실패는 즉시 중단 — 재시도해도 결과가 같아 호출만 태운다.
+      //   CF-00401/CF-00003 = 상품 미신청·권한 없음 (2026-08-05 실측: 상세 상품 미신청 상태에서 44콜 낭비)
+      //   CF-12xx = 기관(국세청) 지연·차단 신호
+      if (r.code === "CF-00401" || r.code === "CF-00003" || (r.code || "").startsWith("CF-12")) {
+        debug.push(`detail 보강 중단(${r.code})`);
+        break;
+      }
     }
     if ((pending?.length ?? 0) > 0) debug.push(`detail 보강 ${done}/${pending!.length}건`);
   } catch (e: any) {
@@ -1346,62 +1314,14 @@ async function syncHometaxCashReceipts(
 
   const HOMETAX_ORG = "0003";
 
-  // ─── cert 로딩 (syncHometaxInvoices 와 동일 패턴) ───
-  let certB64 = "", keyB64 = "", certPassword = "";
-  try {
-    const certPath = `${companyId}/signCert.der`;
-    const keyPath = `${companyId}/signPri.key`;
-    const [certDl, keyDl, credRow] = await Promise.all([
-      supabase.storage.from("certificates").download(certPath),
-      supabase.storage.from("certificates").download(keyPath),
-      supabase.from("automation_credentials").select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
-    ]);
-    if (certDl.error || !certDl.data || keyDl.error || !keyDl.data) {
-      errors.push({
-        accountNo: "", organization: HOMETAX_ORG,
-        code: "HOMETAX_CERT_MISSING",
-        message: "홈택스 공동인증서 파일이 storage에 없습니다.",
-        hint: "설정 → 은행연동 → 홈택스에서 인증서를 다시 업로드하세요.",
-      });
-      return { synced: 0, responseCount: 0, errors, debug };
-    }
-    const encryptedPw = credRow.data?.credentials?.cert_password;
-    if (!encryptedPw) {
-      errors.push({
-        accountNo: "", organization: HOMETAX_ORG,
-        code: "HOMETAX_CERT_PASSWORD_MISSING",
-        message: "홈택스 공동인증서 비밀번호가 등록되어 있지 않습니다.",
-        hint: "설정 → 은행연동 → 홈택스에서 인증서 비밀번호를 입력하세요.",
-      });
-      return { synced: 0, responseCount: 0, errors, debug };
-    }
-    const { data: plainPw, error: decErr } = await supabase.rpc("decrypt_credential", { p_ciphertext: encryptedPw });
-    if (decErr || !plainPw) {
-      errors.push({
-        accountNo: "", organization: HOMETAX_ORG,
-        code: "HOMETAX_CERT_DECRYPT_FAILED",
-        message: `인증서 비밀번호 복호화 실패: ${decErr?.message || "응답 없음"}`,
-        hint: "설정에서 인증서 비밀번호를 다시 저장하세요.",
-      });
-      return { synced: 0, responseCount: 0, errors, debug };
-    }
-    const certBytes = new Uint8Array(await certDl.data.arrayBuffer());
-    const keyBytes = new Uint8Array(await keyDl.data.arrayBuffer());
-    certB64 = Buffer.from(certBytes).toString("base64");
-    keyB64 = Buffer.from(keyBytes).toString("base64");
-    certPassword = plainPw;
-  } catch (err: any) {
-    errors.push({
-      accountNo: "", organization: HOMETAX_ORG,
-      code: "HOMETAX_CERT_LOAD_FAILED",
-      message: `인증서 로드 실패: ${err.message || err}`,
-      hint: "설정에서 인증서를 재업로드하세요.",
-    });
+  // ─── cert 로딩 (PFX 우선 → der/key 폴백, syncHometaxInvoices 와 동일 헬퍼) ───
+  const { cert: htCert, error: htCertErr } = await loadHometaxCert(supabase, companyId);
+  if (!htCert) {
+    errors.push({ ...htCertErr!, organization: HOMETAX_ORG });
     return { synced: 0, responseCount: 0, errors, debug };
   }
-
-  const publicKey = Deno.env.get("CODEF_PUBLIC_KEY") || "";
-  const encryptedCertPw = publicKey ? rsaEncrypt(certPassword, publicKey) : certPassword;
+  const encryptedCertPw = htCert.encryptedCertPw;
+  debug.push(`cert source=${htCert.source}`);
 
   // 미래 날짜 cap.
   const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
@@ -1415,9 +1335,7 @@ async function syncHometaxCashReceipts(
   const result = await codefRequest(token, "/v1/kr/public/nt/cash-receipt/sales-details", {
     organization: HOMETAX_ORG,
     loginType: "0",
-    certType: "1",
-    certFile: certB64,
-    keyFile: keyB64,
+    ...htCert.auth,
     certPassword: encryptedCertPw,
     startDate: cappedStart,
     endDate: cappedEnd,
@@ -2023,7 +1941,18 @@ serve(withSentry("codef-sync", async (req) => {
       }
       const r = await fetchHometaxInvoiceDetail(supabase, token, inv, cert);
       if (!r.ok) {
-        return new Response(JSON.stringify({ error: `상세 조회 실패: ${r.message || r.code}`, code: r.code, hint: codefErrorHint(r.code) }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        // CF-00401/CF-00003 은 "상세" 상품 자체가 CODEF 에서 승인되지 않은 상태 — 코드가 아니라 상품 신청 문제.
+        //   일반 권한 안내(은행 상품 문구)로는 원인을 못 찾아 전용 문구를 준다(2026-08-05 실측).
+        const productIssue = r.code === "CF-00401" || r.code === "CF-00003";
+        return new Response(JSON.stringify({
+          error: productIssue
+            ? "CODEF 에서 '전자세금계산서 상세' 상품이 승인되지 않았습니다."
+            : `상세 조회 실패: ${r.message || r.code}`,
+          code: r.code,
+          hint: productIssue
+            ? "CODEF 관리자 페이지 → 상품 관리 → 사용 API 변경 신청에서 '전자세금계산서 상세'(/v1/kr/public/nt/tax-invoice/info-detail) 를 추가하세요. 승인되면 상세를 다시 열기만 하면 채워집니다."
+            : codefErrorHint(r.code),
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const { data: updated } = await supabase.from("tax_invoices").select("*").eq("id", invoiceId).maybeSingle();
       return new Response(JSON.stringify({ ok: true, invoice: updated }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
