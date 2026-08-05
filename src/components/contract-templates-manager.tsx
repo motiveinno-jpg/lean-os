@@ -52,10 +52,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
 
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<ContractTemplate | null>(null);
+  // 표준 양식 '복제해서 수정' 원본 — 신규 폼에 본문을 실어 연다 (2026-08-05 사장님 제보: 빈 페이지가 뜨던 문제)
+  const [duplicateFrom, setDuplicateFrom] = useState<ContractTemplate | null>(null);
   // '양식 추가' → 먼저 방식 선택(근로계약과 동일): PDF 업로드 / 직접 작성 → 그 모드로 편집기 오픈.
   const [chooserOpen, setChooserOpen] = useState(false);
   const [initialMode, setInitialMode] = useState<"html" | "pdf">("html");
-  const startAdd = (mode: "html" | "pdf") => { setInitialMode(mode); setEditing(null); setShowAdd(true); setChooserOpen(false); };
+  const startAdd = (mode: "html" | "pdf") => { setInitialMode(mode); setEditing(null); setDuplicateFrom(null); setShowAdd(true); setChooserOpen(false); };
 
   // 회사가 정한 노출 순서 — 양식관리·발송 목록이 같은 배열을 본다(2026-08-03 사장님: "순서도 내가 변경할 수 있게").
   const { data: templateOrder = [] } = useQuery({
@@ -176,7 +178,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
                     <div className="caption">변수 {t.variables.length}개 · {t.file_type === "pdf" ? "PDF" : "직접 작성"}</div>
                   </div>
                   <button
-                    onClick={() => { setInitialMode(t.file_type === "pdf" ? "pdf" : "html"); setEditing(null); setShowAdd(true); }}
+                    onClick={() => { setInitialMode(t.file_type === "pdf" ? "pdf" : "html"); setEditing(null); setDuplicateFrom(t); setShowAdd(true); }}
                     className="text-[10px] px-2 py-1 rounded bg-[var(--bg)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
                     title="표준 양식은 직접 수정할 수 없습니다 — 복제해서 우리 회사 양식으로 만드세요"
                   >
@@ -235,15 +237,18 @@ export default function ContractTemplatesManager({ companyId }: Props) {
 
       {(showAdd || editing) && (
         <TemplateEditorModal
+          key={duplicateFrom?.id || editing?.id || "new"}
           companyId={companyId}
           editing={editing}
+          duplicateFrom={duplicateFrom}
           systemTemplates={systemTemplates}
           initialMode={initialMode}
-          onClose={() => { setShowAdd(false); setEditing(null); }}
+          onClose={() => { setShowAdd(false); setEditing(null); setDuplicateFrom(null); }}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["contract-templates", companyId] });
             setShowAdd(false);
             setEditing(null);
+            setDuplicateFrom(null);
           }}
         />
       )}
@@ -257,6 +262,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
 function TemplateEditorModal({
   companyId,
   editing,
+  duplicateFrom,
   systemTemplates,
   initialMode,
   onClose,
@@ -264,6 +270,8 @@ function TemplateEditorModal({
 }: {
   companyId: string;
   editing: ContractTemplate | null;
+  /** 표준 양식 '복제해서 수정' 진입 시 원본 — 신규 작성 폼에 본문·변수를 미리 채운다 */
+  duplicateFrom: ContractTemplate | null;
   systemTemplates: ContractTemplate[];
   initialMode: "html" | "pdf";
   onClose: () => void;
@@ -272,13 +280,15 @@ function TemplateEditorModal({
   const { toast } = useToast();
   const readonly = editing?.is_system === true;
 
-  const [name, setName] = useState(editing?.name || "");
-  const [bodyHtml, setBodyHtml] = useState(editing?.body_html || "");
-  const [bodyMarkdown, setBodyMarkdown] = useState(editing?.body_markdown || "");
-  const [fileUrl, setFileUrl] = useState<string | null>(editing?.file_url || null);
-  const [fileType, setFileType] = useState<"html" | "markdown" | "pdf">(editing?.file_type || initialMode);
+  // 표준 양식 '복제해서 수정' — 원본 내용을 그대로 싣고 이름만 사본으로 (2026-08-05 사장님:
+  //   "복제해서 수정하면 빈 여백 페이지가 나온다"). 종전엔 모드만 넘기고 본문을 안 실어 빈 편집기가 떴다.
+  const [name, setName] = useState(editing?.name || (duplicateFrom ? `${duplicateFrom.name} 사본` : ""));
+  const [bodyHtml, setBodyHtml] = useState(editing?.body_html || duplicateFrom?.body_html || "");
+  const [bodyMarkdown, setBodyMarkdown] = useState(editing?.body_markdown || duplicateFrom?.body_markdown || "");
+  const [fileUrl, setFileUrl] = useState<string | null>(editing?.file_url || duplicateFrom?.file_url || null);
+  const [fileType, setFileType] = useState<"html" | "markdown" | "pdf">(editing?.file_type || duplicateFrom?.file_type || initialMode);
   const [uploading, setUploading] = useState(false);
-  const [starterId, setStarterId] = useState("");
+  const [starterId, setStarterId] = useState(duplicateFrom?.id || "");
   const [newVar, setNewVar] = useState("");
   const editorRef = useRef<RichEditorRef>(null);
 
@@ -369,8 +379,11 @@ function TemplateEditorModal({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border)] shrink-0">
           <div>
-            <h2 className="text-sm font-bold text-[var(--text)]">{readonly ? "시스템 양식 미리보기" : editing ? "계약 양식 수정" : "계약 양식 추가"}</h2>
+            <h2 className="text-sm font-bold text-[var(--text)]">{readonly ? "시스템 양식 미리보기" : editing ? "계약 양식 수정" : duplicateFrom ? "표준 양식 복제" : "계약 양식 추가"}</h2>
             {readonly && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">시스템 양식은 수정/삭제할 수 없습니다.</p>}
+            {!readonly && !editing && duplicateFrom && (
+              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">‘{duplicateFrom.name}’ 내용을 그대로 불러왔습니다. 고쳐서 저장하면 우리 회사 양식이 됩니다.</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="btn-ghost">{readonly ? "닫기" : "취소"}</button>
