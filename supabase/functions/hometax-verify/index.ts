@@ -106,7 +106,7 @@ serve(withSentry("hometax-verify", async (req) => {
     const { data: { user } } = await anon.auth.getUser(jwt);
     if (!user) return json({ error: "Unauthorized" }, 401);
 
-    const { companyId, pfxFile, certPassword, loginType = "0", id, userPassword } = await req.json();
+    const { companyId, pfxFile, derFile, keyFile, certPassword, loginType = "0", id, userPassword } = await req.json();
     if (!companyId) return json({ error: "companyId required" }, 400);
     meterStore.companyId = companyId;
 
@@ -124,6 +124,10 @@ serve(withSentry("hometax-verify", async (req) => {
     let pfxAlgos: string[] | undefined;
     if (loginType === "1") {
       certAuth = { id };
+    } else if (derFile && keyFile) {
+      // 저장 전 사전 검증(transient) — 통과해야만 클라이언트가 storage 에 저장한다 (2026-08-05:
+      //   변환 der/key 를 검증 없이 먼저 저장했다가 정상 파일을 덮어쓴 사고 재발 방지).
+      certAuth = { certType: "1", certFile: derFile, keyFile };
     } else if (pfxFile) {
       pfxAlgos = sniffPfxAlgos(pfxFile);
       console.log(`[hometax-verify] pfx algos: ${pfxAlgos.join(",")} len=${pfxFile.length}`);

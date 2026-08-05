@@ -128,11 +128,27 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       // verify API 로 회원 등록여부 확인.
       if (accountType === "hometax") {
         if (authMethod === "cert") {
-          // PC 자동 선택도 der/key 변환 산출물을 주입받아 아래 파일 흐름과 동일하게 처리된다 (2026-08-05).
           if (!derFileB64 || !keyFileB64 || !certPassword) {
             setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
             setRegistering(false);
             return;
+          }
+          const { verifyHometaxRegistration } = await import("@/lib/data-sync");
+          // 0. 자동 선택(변환 산출물)은 저장 전에 transient 검증 — 실패 시 기존 파일을 절대 덮어쓰지 않는다.
+          //    (2026-08-05: 검증 없이 먼저 업로드해 정상 인증서를 거부되는 변환본으로 덮어쓴 사고 재발 방지)
+          if (certSource === "auto") {
+            const pre = await verifyHometaxRegistration(companyId, {
+              loginType: "0",
+              certPassword,
+              derFile: derFileB64,
+              keyFile: keyFileB64,
+              identity: hometaxIdentity || undefined,
+            });
+            if (!(pre.success && pre.registered)) {
+              setResult({ ok: false, msg: (pre.message || pre.error || "홈택스 인증 실패") + "\n(기존 등록 파일은 변경하지 않았습니다)" + (pre.hint ? `\n→ ${pre.hint}` : "") });
+              setRegistering(false);
+              return;
+            }
           }
           // 1. 인증서 파일을 storage 에 업로드 (codef-sync 가 거기서 가져감)
           const derBytes = Uint8Array.from(atob(derFileB64), (c) => c.charCodeAt(0));
@@ -152,20 +168,22 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
             credentials: { login_method: "certificate", cert_password: enc || "" },
             updated_at: new Date().toISOString(),
           }, { onConflict: "company_id,service" });
-          // 3. verify API 호출 (회원 등록여부)
-          const { verifyHometaxRegistration } = await import("@/lib/data-sync");
-          const res = await verifyHometaxRegistration(companyId, {
-            loginType: "0",
-            certPassword,
-            identity: hometaxIdentity || undefined,
-          });
+          // 3. verify API 호출 — auto 는 0단계에서 이미 검증됨(중복 과금 회피), file 은 여기서 확인
+          const res = certSource === "auto"
+            ? { success: true, registered: true, message: "", error: "", hint: "" }
+            : await verifyHometaxRegistration(companyId, {
+                loginType: "0",
+                certPassword,
+                identity: hometaxIdentity || undefined,
+              });
           if (res.success && res.registered) {
             setResult({ ok: true, msg: "홈택스 등록 확인 완료. 이제 세금계산서 동기화를 사용할 수 있습니다." });
             toast("홈택스 연결 완료", "success");
             setCertPassword("");
             onRegistered();
           } else if (res.success && !res.registered) {
-            setResult({ ok: false, msg: "홈택스 미등록 사용자입니다. 홈택스 사이트에서 회원가입 후 다시 시도하세요." });
+            // 서버가 실제 CODEF 응답 코드·메시지를 내려준다 — '미등록' 단정 대신 그대로 표시
+            setResult({ ok: false, msg: res.message || "홈택스 인증에 실패했습니다. 인증서·비밀번호를 확인하세요." });
           } else {
             setResult({ ok: false, msg: (res.error || "검증 실패") + (res.hint ? `\n→ ${res.hint}` : "") });
           }
@@ -198,7 +216,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
             setLoginPw("");
             onRegistered();
           } else if (res.success && !res.registered) {
-            setResult({ ok: false, msg: "홈택스 미등록 사용자입니다." });
+            setResult({ ok: false, msg: res.message || "홈택스 인증에 실패했습니다. 아이디·비밀번호를 확인하세요." });
           } else {
             setResult({ ok: false, msg: (res.error || "검증 실패") + (res.hint ? `\n→ ${res.hint}` : "") });
           }

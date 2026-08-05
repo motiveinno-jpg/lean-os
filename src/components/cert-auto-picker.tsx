@@ -64,14 +64,14 @@ async function convertPfx(rawB64: string, password: string): Promise<{
     return pub?.n && rsaKey?.n && pub.n.compareTo(rsaKey.n) === 0;
   }) || certs[0];
 
-  // ① 재포장 PFX — 전 구간 3DES (CODEF 계정등록 서버가 여는 표준 조합)
-  const newP12 = forge.pkcs12.toPkcs12Asn1(rsaKey, certs, password, { algorithm: "3des" });
+  // ① 재포장 PFX — AES-256/PBES2 (QA 실증 2026-08-05: 이 프로파일이 CODEF 계정등록 해독 통과)
+  const newP12 = forge.pkcs12.toPkcs12Asn1(rsaKey, certs, password, { algorithm: "aes256" });
   const pfxBase64 = forge.util.encode64(forge.asn1.toDer(newP12).getBytes());
 
   // ② der/key — signCert.der(인증서 DER) + signPri.key(암호화 PKCS#8, 같은 비밀번호)
   const derB64 = forge.util.encode64(forge.asn1.toDer(forge.pki.certificateToAsn1(leaf)).getBytes());
   const keyInfo = forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(rsaKey));
-  const encKeyInfo = forge.pki.encryptPrivateKeyInfo(keyInfo, password, { algorithm: "3des" });
+  const encKeyInfo = forge.pki.encryptPrivateKeyInfo(keyInfo, password, { algorithm: "aes256" });
   const keyB64 = forge.util.encode64(forge.asn1.toDer(encKeyInfo).getBytes());
 
   return { pfxBase64, derB64, keyB64 };
@@ -305,7 +305,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
           )}
 
           {extractedName && (
-            <div className="cert-picker-ok"><Ico e="✅" /> {extractedName} — 인증서 준비 완료. 아래에서 연결을 진행하세요.</div>
+            <div className="cert-picker-ok"><Ico e="✅" /> {extractedName} — 인증서 준비 완료 (변환 vAES). 아래에서 연결을 진행하세요.</div>
           )}
         </>
       )}

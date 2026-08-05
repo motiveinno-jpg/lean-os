@@ -671,6 +671,8 @@ export async function verifyHometaxRegistration(
     loginType: '0' | '1';
     certPassword?: string;        // loginType='0' 필수
     pfxFile?: string;             // PC 자동 인식 추출 PFX(base64) — 있으면 der/key 대신 사용
+    derFile?: string;             // transient 사전 검증용 der(base64) — storage 미접촉
+    keyFile?: string;             // transient 사전 검증용 key(base64) — storage 미접촉
     identity?: string;            // 법인은 대표자 주민번호 앞 7자리, 개인사업자 사업장전환 시
     id?: string;                  // loginType='1' 필수
     userPassword?: string;        // loginType='1' 필수
