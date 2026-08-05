@@ -200,7 +200,7 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
             }
             setExtracting(false);
             setExtractedName(name + (relayPfxB64 ? " · 중계 정규화 완료" : ""));
-            onExtracted({ ...converted, relayPfxB64, certName: name, password });
+            onExtracted({ ...converted, pfxBase64: result.CONVERT, relayPfxB64, certName: name, password });
           } catch (e) {
             setExtracting(false);
             setExtractedName(null);

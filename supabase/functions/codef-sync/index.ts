@@ -842,7 +842,8 @@ async function registerAccount(
     accountEntry.password = encryptedCertPw;
 
     if (loginOpts.pfxFile) {
-      accountEntry.certType = "0";
+      // CODEF API팀 답변(2026-08-05): pfx 인증서는 certType "0"이 아니라 "pfx" — "0"이면 CF-04009.
+      accountEntry.certType = "pfx";
       accountEntry.certFile = loginOpts.pfxFile;
     } else {
       accountEntry.certType = "1";
@@ -887,7 +888,7 @@ async function registerAccount(
     const hint = codefErrorHint(result.result?.code);
     const extraMessage = result.result?.extraMessage || result.data?.errorMessage || "";
     console.error(`[CODEF] Registration failed: ${result?.result?.code || "unknown"}`);
-    const err: any = new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code})${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
+    const err: any = new Error(`계정 등록 실패: ${result.result?.message || "알 수 없는 오류"} (${result.result?.code}, tx:${result.result?.transactionId || "-"})${extraMessage ? " [" + extraMessage + "]" : ""}${hint ? " — " + hint : ""}`);
     err.codefResponse = result;
     err.diagnostics = {
       env: CODEF_ENV,
