@@ -787,7 +787,10 @@ function TaxInvoicesPageInner() {
           dealId: r.dealId || undefined,
           partnerId: r.partnerId || undefined,
           taxKind: r.taxKind,
-          label: [r.purpose, r.itemName].filter(Boolean).join(' | ') || undefined,
+          // 품목은 item_name 으로 — label 에 섞으면 홈택스 품목이 "용역"으로 발행된다(2026-08-05 교정).
+          //   label 에는 영수/청구 토큰만 남긴다(발행 엣지가 purposeType 판정에 사용).
+          itemName: r.itemName || undefined,
+          label: r.purpose || undefined,
         });
       }
       return valid.length;
@@ -1782,8 +1785,9 @@ function TaxInvoicesPageInner() {
                               {inv.original_invoice_id && <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-orange-500/10 text-orange-400">수정</span>}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px]" title={stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || (inv as any).deals?.name || ""}>
-                            {stripPurposeToken(inv.label) || (inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || (inv as any).deals?.name || "—"}
+                          {/* 품목: 국세청에 실제 발행되는 item_name 우선 표시 — label(구 데이터 품목/영수·청구·비고)은 폴백 (2026-08-05) */}
+                          <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px]" title={(inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || stripPurposeToken(inv.label) || (inv as any).deals?.name || ""}>
+                            {(inv.item_name ? String(inv.item_name).replace(/\+/g, " ") : "") || stripPurposeToken(inv.label) || (inv as any).deals?.name || "—"}
                           </td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.supply_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/40">{Number(inv.tax_amount).toLocaleString("ko")}</td>

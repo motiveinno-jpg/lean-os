@@ -45,6 +45,9 @@ export async function createTaxInvoice(params: {
   supplyAmount: number;
   issueDate: string;
   label?: string;
+  // 품목명 — 홈택스 발행 엣지가 invoice.item_name 을 품목으로 쓴다(없으면 "용역" 기본값).
+  //   label 에 품목을 섞어 넣으면 국세청에는 반영되지 않는다(2026-08-05 사장님 제보로 교정).
+  itemName?: string;
   revenueScheduleId?: string | null;
   status?: string;
   preferredDate?: string;
@@ -74,6 +77,7 @@ export async function createTaxInvoice(params: {
       issue_date: params.issueDate,
       status,
       label: params.label || null,
+      item_name: params.itemName || null,
       revenue_schedule_id: params.revenueScheduleId || null,
       preferred_date: params.preferredDate || null,
       expense_category: params.expenseCategory || null,

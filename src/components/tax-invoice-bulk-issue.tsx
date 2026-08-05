@@ -176,7 +176,10 @@ export function TaxInvoiceBulkIssueModal({ companyId, onClose }: { companyId: st
           supplyAmount: r.supplyAmount,
           issueDate: r.issueDate,
           taxKind: r.taxKind,
-          label: [r.itemName, r.memo].filter(Boolean).join(" | ") || undefined,
+          // 품목은 item_name 으로 — label 에 넣으면 홈택스 품목이 "용역"으로 나간다(2026-08-05 교정).
+          //   label(비고)은 발행 엣지의 remark1(비고란)로 전달된다.
+          itemName: r.itemName || undefined,
+          label: r.memo || undefined,
         });
         if (!inv) throw new Error("등록 실패");
         if (issueAfterCreate) {
