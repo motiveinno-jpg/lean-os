@@ -435,9 +435,11 @@ export function OrgBulkWizard({
         {/* 헤더 + 단계 인디케이터 */}
         <div className="bulk-wizard-header">
           <div>
-            <h2 className="text-lg font-bold text-[var(--text)]">단체 일괄 서명 발송</h2>
+            {/* 2026-08-05 사장님: 진입점이 '새 계약 요청' 하나로 통합돼 제목도 버튼과 같게 맞춤
+                (기존 '단체 일괄 서명 발송'). 여러 곳 동시 발송은 부제로 안내. */}
+            <h2 className="text-lg font-bold text-[var(--text)]">새 계약 요청</h2>
             <p className="text-xs text-[var(--text-muted)]">
-              여러 거래처(미가입 단체)에 같은 계약서를 변수만 다르게 채워 한 번에 발송합니다.
+              계약서를 골라 거래처에 발송합니다. 여러 곳을 선택하면 변수만 다르게 채워 한 번에 보냅니다.
             </p>
           </div>
           <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl">×</button>

@@ -1560,7 +1560,7 @@ export default function ProjectHubDetailPage() {
               {companyId && <button onClick={() => setTplManagerKind("contract")} className="btn-secondary text-xs"><Ico e="📄" /> 양식 관리</button>}
               <button onClick={() => { setFormKind("contract"); setSelectedTemplateId(""); setQuoteSubDealId(""); setPayMode("full"); setPayAdv(30); setPayMid(30); setQuoteName(`${deal?.name || "프로젝트"} 계약서`); setShowQuoteForm(true); }}
                 className="btn-primary text-xs hover:opacity-90">+ 계약서 작성</button>
-              <Link href="/signatures?bulk=1" className="btn-secondary text-xs"><Ico e="📤" /> 단체 일괄 발송</Link>
+              <Link href="/signatures?bulk=1" className="btn-secondary text-xs"><Ico e="📤" /> 새 계약 요청</Link>
               <Link href="/signatures" className="btn-secondary text-xs">전자계약 메뉴 →</Link>
             </div>
           </div>
@@ -1988,7 +1988,7 @@ export default function ProjectHubDetailPage() {
               placeholder={formKind === "quote" ? "견적서명" : "계약서명"}
               className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
             />
-            <p className="text-[11px] text-[var(--text-dim)] mt-2">{formKind === "quote" ? "견적서(품목·단가·부가세 표)로 생성되며, 생성 즉시 견적서 입력 화면으로 이동합니다." : "계약서(본문 텍스트)로 생성됩니다. 발송·서명은 ‘단체 일괄 발송 / 전자계약 메뉴’에서 진행하세요. 생성 후 목록의 ‘열기/편집’으로 작성하세요."}</p>
+            <p className="text-[11px] text-[var(--text-dim)] mt-2">{formKind === "quote" ? "견적서(품목·단가·부가세 표)로 생성되며, 생성 즉시 견적서 입력 화면으로 이동합니다." : "계약서(본문 텍스트)로 생성됩니다. 발송·서명은 ‘새 계약 요청 / 전자계약 메뉴’에서 진행하세요. 생성 후 목록의 ‘열기/편집’으로 작성하세요."}</p>
             {formKind === "contract" && (
               <div className="mt-4">
                 <PaymentTermsField mode={payMode} onMode={setPayMode} adv={payAdv} onAdv={setPayAdv} mid={payMid} onMid={setPayMid} supply={Number(deal?.contract_total || 0)} />
