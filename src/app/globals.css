@@ -6414,6 +6414,18 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .bf-week > em { @apply not-italic text-[10px] font-bold text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
 .bf-week-k { @apply text-[9.5px] text-[var(--text-dim)] truncate w-full text-center; }
 
+/* 꺾은선 — 주별 오르내림 (2026-08-05). 축 글자는 SVG 밖에 둬서 늘여도 안 찌그러진다 */
+.bf-line-body { @apply relative; }
+.bf-line-body svg { @apply w-full h-[110px] overflow-visible; }
+.bf-line-max { @apply absolute right-0 -top-0.5 text-[10px] font-bold text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+.bf-line-area { @apply fill-[var(--primary)]/10; }
+.bf-line-path { @apply fill-none stroke-[var(--primary)]; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.bf-line-dot { @apply fill-[var(--primary)]; }
+.bf-line-now { @apply stroke-[var(--text-dim)]; stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.bf-line-x { @apply flex gap-0.5; }
+.bf-line-x span { @apply flex-1 min-w-0 text-center text-[9px] text-[var(--text-dim)] truncate; }
+.bf-line-nowk { @apply !text-[var(--primary)] font-bold; }
+
 /* 템플릿 추가 — 기본 양식 / 직접 만들기 (2026-08-05 사장님 지시)
    ＋ 는 탭 줄 오른쪽 끝. 만들기 전까지는 아무것도 저장하지 않는다. */
 .pb-bar1-right { @apply ml-auto inline-flex items-center gap-1; }
@@ -6506,11 +6518,18 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-fmt-k { @apply text-[11px] font-bold text-[var(--text-dim)] mr-1; }
 /* 같은 줄이지만 성격이 다른 두 묶음(어떻게 볼까 / 양식) — 사이에 선을 둬 갈라 준다 (2026-08-05) */
 .pb-fmt-k2 { @apply ml-2 pl-3 border-l border-[var(--border)]; }
+/* 보기 아이콘 — 글자 대신 그림. 고른 것은 테두리로 눌린 티를 낸다 (2026-08-05 사장님 지시) */
+.pb-shape { @apply w-8 h-7 inline-flex items-center justify-center rounded-lg border border-transparent bg-[var(--bg-surface)] text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pb-shape-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]; }
+/* 그림이 왜 이렇게 보이는지 — 빠진 칸을 알려 주는 줄 */
+.pb-shape-note { @apply mb-2 px-3 py-2 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20 text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
+.pb-shape-note b { @apply font-bold text-[var(--text)]; }
 .pb-fmt-btn { @apply h-7 px-2.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] bg-[var(--bg-surface)] transition hover:text-[var(--text)]; }
 .pb-fmt-on { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
 /* 리포트 머리의 오른쪽 도구 줄 안에 있으므로 밀어내지 않는다 */
 .pb-fmt-gear { @apply h-7 px-2.5 rounded-lg border border-dashed border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
-.pb-fmt-box { @apply max-w-sm gap-2 p-4; }
+/* 삭제·취소·새로 저장·수정 넷이 들어가는 줄이라 sm 폭에서는 글자가 세로로 접혔다 (2026-08-05) */
+.pb-fmt-box { @apply max-w-md gap-2 p-4; }
 .pb-fmt-h { @apply text-[13.5px] font-extrabold text-[var(--text)]; }
 .pb-fmt-hint { @apply not-italic text-[11px] text-[var(--text-dim)] leading-snug; }
 .pb-fmt-rows { @apply flex flex-col gap-1 max-h-[52vh] overflow-y-auto; }
@@ -6519,8 +6538,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-fmt-rows input { @apply w-4 h-4 shrink-0 accent-[var(--primary)]; }
 .pb-fmt-rows li > button { @apply w-6 h-6 shrink-0 rounded-md text-[11px] text-[var(--text-dim)] transition hover:bg-[var(--bg-card)] hover:text-[var(--text)] disabled:opacity-30; }
 .pb-fmt-offrow label { @apply text-[var(--text-dim)] font-normal line-through; }
-.pb-fmt-foot { @apply flex items-center justify-end gap-1.5 pt-1; }
-.pb-fmt-foot button { @apply h-8 px-3 rounded-lg text-[12px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pb-fmt-foot { @apply flex flex-wrap items-center justify-end gap-1.5 pt-1; }
+.pb-fmt-foot button { @apply h-8 px-3 rounded-lg text-[12px] font-bold whitespace-nowrap text-[var(--text-muted)] transition hover:text-[var(--text)]; }
 .pb-fmt-del { @apply mr-auto !text-[var(--danger)] hover:opacity-80; }
 .pb-fmt-go { @apply !text-white bg-[var(--primary)] hover:opacity-90; }
 

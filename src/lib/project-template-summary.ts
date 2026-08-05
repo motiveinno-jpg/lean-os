@@ -31,7 +31,9 @@ export type Figure =
   /** 가로 막대 — 이름표별 크기 비교(색은 하나) */
   | { id: string; kind: "hbars"; title: string; rows: { label: string; value: number; text?: string }[]; note?: string }
   /** 세로 막대 — 주별 흐름 */
-  | { id: string; kind: "weeks"; title: string; bars: { label: string; value: number; hot?: boolean }[]; note?: string };
+  | { id: string; kind: "weeks"; title: string; bars: { label: string; value: number; hot?: boolean }[]; note?: string }
+  /** 꺾은선 — 시간에 따른 오르내림(주별). 점 사이를 이어 추세를 본다 (2026-08-05 사장님 지시) */
+  | { id: string; kind: "line"; title: string; points: { label: string; value: number; now?: boolean }[]; unit?: string; note?: string };
 
 const num = (v: any) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
@@ -302,6 +304,26 @@ export function templateFigures(
   return { figures: out, covers: [...covers] };
 }
 
+/** 주별 시계열 — 지난 4주부터 앞으로 7주까지. 꺾은선이 쓰는 점들 */
+function weekSeries(
+  col: BoardColumn, items: BoardItem[], today: string, valueOf: (it: BoardItem) => number,
+): { label: string; value: number; now?: boolean }[] {
+  const mon = mondayOfStr(today);
+  const first = addDaysStr(mon, -28);
+  const keys = Array.from({ length: 12 }, (_, i) => addDaysStr(first, i * 7));
+  const vals = keys.map(() => 0);
+  for (const it of items) {
+    const v = String(it.values?.[col.id] || "").slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) continue;
+    const idx = keys.findIndex((k, i) => v >= k && (i === keys.length - 1 ? true : v < keys[i + 1]));
+    if (idx >= 0) vals[idx] += valueOf(it);
+  }
+  return keys.map((k, i) => ({
+    label: `${Number(k.slice(5, 7))}/${Number(k.slice(8, 10))}`,
+    value: vals[i], now: k === mon,
+  }));
+}
+
 /**
  * 한 가지 그림으로만 본다 — 사용자가 '원형' 또는 '막대'를 골랐을 때 (2026-08-05 사장님 지시).
  *
@@ -309,7 +331,7 @@ export function templateFigures(
  * 그 형태로 통일해 보여 준다. 근거가 없는 칸은 만들지 않는다(빈 그림을 그리지 않는다).
  */
 export function shapeFigures(
-  shape: "donut" | "bars",
+  shape: "donut" | "bars" | "line",
   cols: BoardColumn[], items: BoardItem[], groups: BoardGroup[],
   nameOf: (id: string) => string, today: string,
 ): { figures: Figure[]; covers: string[] } {
@@ -351,6 +373,26 @@ export function shapeFigures(
       const total = slices.reduce((s, x) => s + x.value, 0);
       if (slices.length >= 2) {
         out.push({ id: `donut:money:${kind.name}`, kind: "donut", title: `${kind.name}별 ${money.name}`, slices, total: `${shortWon(total)}원` });
+      }
+    }
+    return { figures: out, covers: [...covers] };
+  }
+
+  if (shape === "line") {
+    // 꺾은선은 '시간'이 있어야 뜻이 있다 — 날짜 칸이 없으면 아무것도 그리지 않는다
+    const dateCols = cols.filter((c) => c.type === "date");
+    for (const c of dateCols) {
+      const pts = weekSeries(c, items, today, () => 1);
+      if (pts.filter((p) => p.value > 0).length < 2) continue;
+      out.push({ id: `line:count:${c.name}`, kind: "line", title: `주별 ${c.name} 건수`, points: pts, unit: "건", note: "지난 4주 ~ 앞으로 7주" });
+      covers.add(`date:${c.name}`);
+    }
+    const money = numCols.find((c) => (c.settings?.unit || "") === "원") || null;
+    const base = dateCols.find((c) => !START_DATE_RE.test(c.name)) || dateCols[0] || null;
+    if (money && base) {
+      const pts = weekSeries(base, items, today, (it) => num(it.values?.[money.id]));
+      if (pts.filter((p) => p.value > 0).length >= 2) {
+        out.push({ id: `line:money:${money.name}`, kind: "line", title: `주별 ${money.name}`, points: pts, unit: "원", note: `${base.name} 기준` });
       }
     }
     return { figures: out, covers: [...covers] };

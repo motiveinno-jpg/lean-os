@@ -9,8 +9,8 @@
 /** 어떤 눈으로 볼지 — 타임라인·캘린더도 결국 '정리하는 한 방법'이라 여기 들어온다
  *  (2026-08-05 사장님: "타임라인·캘린더는 정리 기준에서 정리 템플릿에 속하는 부분.
  *   무조건 보여주기보다 필요할 때 골라서 보고, 정리도 간트·원형·막대 중에 골라 볼 수 있게"). */
-export type SummaryShape = "auto" | "gantt" | "calendar" | "donut" | "bars" | "cards";
-export const SUMMARY_SHAPES: SummaryShape[] = ["auto", "gantt", "calendar", "donut", "bars", "cards"];
+export type SummaryShape = "auto" | "gantt" | "calendar" | "donut" | "bars" | "line" | "cards";
+export const SUMMARY_SHAPES: SummaryShape[] = ["auto", "gantt", "calendar", "donut", "bars", "line", "cards"];
 
 export type SummaryLayout = { off: string[]; order: string[]; shape?: SummaryShape };
 

@@ -27,7 +27,7 @@ import { BoardFigure } from "./BoardFigures";
 import { templateFigures, shapeFigures, summaryCardKey, type Figure } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
 import { BoardNewModal, LabelEditor } from "./BoardNewModal";
-import { listPresets, savePreset, removePreset, type Preset } from "@/lib/board-presets";
+import { listPresets, savePreset, updatePreset, removePreset, type Preset } from "@/lib/board-presets";
 import {
   applyLayout, layoutFrom, normalizeLayout, SUMMARY_SHAPES,
   type SummaryLayout, type SummaryShape,
@@ -309,6 +309,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "summary"] });
       toast(`'${name}' 정리 양식을 저장했습니다.`, "success");
     } catch (e: any) { toast(e?.message || "정리 양식 저장 실패", "error"); }
+  };
+  //   고쳐 쓰기 — 양식을 고칠 때마다 새로 쌓이면 목록이 못 쓰게 된다(2026-08-05 사장님 지시)
+  const editSummaryPreset = async (p: Preset, name: string, layout: SummaryLayout) => {
+    try {
+      await updatePreset(p.id, { name: name.trim() || p.name, payload: layout });
+      qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "summary"] });
+      toast(`'${name.trim() || p.name}' 정리 양식을 수정했습니다.`, "success");
+    } catch (e: any) { toast(e?.message || "정리 양식 수정 실패", "error"); }
   };
   const dropSummaryPreset = async (p: Preset) => {
     try {
@@ -919,7 +927,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 
       {showSummary ? (
         <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users}
-          presets={summaryPresets} onSavePreset={saveSummaryPreset} onRemovePreset={dropSummaryPreset}
+          presets={summaryPresets} onSavePreset={saveSummaryPreset} onUpdatePreset={editSummaryPreset}
+          onRemovePreset={dropSummaryPreset}
           onOpenItem={(bid, itemId) => { setActiveId(bid); setShowSummary(false); setOpenItemId(itemId); }} />
       ) : view === "board" ? (
         /* 칸반 — 카드를 끌어 다음 단계로. 단계는 라벨이므로 셀에서 바꾸는 것과 같은 값을 만진다
@@ -1474,11 +1483,12 @@ function sortRows(rows: BoardItem[], sort: { colId: string; dir: "asc" | "desc" 
 
 // ── 프로젝트 정리 — 이 프로젝트의 **모든 템플릿**을 하나씩 구획으로 ──
 //   한 프로젝트에 템플릿을 여러 개 붙이는 게 기본이라(＋), 정리도 그 단위여야 맞다.
-function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePreset, onRemovePreset, onOpenItem }: {
+function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePreset, onUpdatePreset, onRemovePreset, onOpenItem }: {
   boards: { id: string; name: string; template_key: string | null }[];
   cols: BoardColumn[]; groups: BoardGroup[]; items: BoardItem[]; users: { id: string; name: string }[];
   presets: Preset[];
   onSavePreset: (name: string, layout: SummaryLayout, templateKey: string | null) => void;
+  onUpdatePreset: (p: Preset, name: string, layout: SummaryLayout) => void;
   onRemovePreset: (p: Preset) => void;
   /** 캘린더·간트에서 행을 누르면 그 표로 건너가 상세를 연다 */
   onOpenItem: (boardId: string, itemId: string) => void;
@@ -1505,7 +1515,7 @@ function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePre
           items={items.filter((i) => i.board_id === b.id)}
           groups={groups.filter((g) => g.board_id === b.id)}
           users={users}
-          presets={presets} onSavePreset={onSavePreset} onRemovePreset={onRemovePreset}
+          presets={presets} onSavePreset={onSavePreset} onUpdatePreset={onUpdatePreset} onRemovePreset={onRemovePreset}
           onOpenItem={(itemId) => onOpenItem(b.id, itemId)} />
       ))}
     </div>
@@ -1578,13 +1588,14 @@ function SummaryCardView({ c }: { c: SummaryCard }) {
 
 // ── 템플릿 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
 //    무엇을 어떤 순서로 볼지는 '정리 양식'이 정한다(2026-08-05 사장님 지시).
-function BoardSummary({ boardName, templateKey, cols, items, groups, users, presets, onSavePreset, onRemovePreset, onOpenItem }: {
+function BoardSummary({ boardName, templateKey, cols, items, groups, users, presets, onSavePreset, onUpdatePreset, onRemovePreset, onOpenItem }: {
   /** 리포트 머리에 쓸 표 이름 */
   boardName: string;
   templateKey?: string | null;
   cols: BoardColumn[]; items: BoardItem[]; groups: BoardGroup[]; users: { id: string; name: string }[];
   presets?: Preset[];
   onSavePreset?: (name: string, layout: SummaryLayout, templateKey: string | null) => void;
+  onUpdatePreset?: (p: Preset, name: string, layout: SummaryLayout) => void;
   onRemovePreset?: (p: Preset) => void;
   onOpenItem?: (itemId: string) => void;
 }) {
@@ -1594,6 +1605,7 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
   const [shape, setShape] = useState<SummaryShape>("auto");
   const [configOpen, setConfigOpen] = useState(false);
   const [naming, setNaming] = useState<SummaryLayout | null>(null);
+  const [editing, setEditing] = useState<SummaryLayout | null>(null);   // 고른 양식 덮어쓰기(이름도 함께)
   useEffect(() => {
     try {
       setPickedId(localStorage.getItem(`ov.board.sumfmt.${tplKey}`) || "");
@@ -1608,10 +1620,30 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
 
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
   const today = todayKst();
-  // 무엇으로 볼지 — 자동은 템플릿 성격에 맞는 그림, 원형·막대는 그 형태로 통일(2026-08-05 사장님 지시)
-  const { figures, covers } = shape === "donut" || shape === "bars"
-    ? shapeFigures(shape, cols, items, groups, nameOf, today)
-    : shape === "cards" ? { figures: [] as Figure[], covers: [] as string[] }
+
+  //   고를 수 있는 그림 — 근거가 되는 칸이 있는 것만 띄운다(빈 화면을 만들지 않는다)
+  const span = spanColumnsOf(cols);
+  const dateCols = cols.filter((c) => c.type === "date");
+  const hasDate = dateCols.length > 0;
+  //   시작 칸이 없으면 기간이 아니라 한 점이다 — 간트는 그려 주되 무엇이 빠졌는지 알려 준다
+  const hasStart = dateCols.some((c) => START_DATE_RE.test(c.name)) || dateCols.length >= 2;
+  const canDonut = cols.some((c) => c.type === "status") || groups.length > 1;
+  const SHAPES: { key: SummaryShape; label: string; ok: boolean; hint: string }[] = [
+    { key: "auto", label: "자동", ok: true, hint: "자동 — 이 표에 맞는 그림을 골라 줍니다" },
+    { key: "gantt", label: "간트", ok: !!span, hint: "간트 — 시작·종료로 기간 막대" },
+    { key: "calendar", label: "캘린더", ok: hasDate, hint: "캘린더 — 날짜 칸을 달력으로" },
+    { key: "donut", label: "원형", ok: canDonut, hint: "원형 — 무엇이 얼마를 차지하나" },
+    { key: "bars", label: "막대", ok: true, hint: "막대 — 크기를 나란히 비교" },
+    { key: "line", label: "선형", ok: hasDate, hint: "선형 — 주별로 오르내림을 잇는다" },
+    { key: "cards", label: "숫자만", ok: true, hint: "숫자만 — 그림 없이 합계·분포 카드" },
+  ];
+  //   근거 칸을 지웠는데 그 그림이 걸려 있으면 자동으로 되돌린다
+  const useShape: SummaryShape = SHAPES.find((s) => s.key === shape)?.ok ? shape : "auto";
+
+  // 무엇으로 볼지 — 자동은 템플릿 성격에 맞는 그림, 고른 형태가 있으면 그 형태로 통일(2026-08-05 사장님 지시)
+  const { figures, covers } = useShape === "donut" || useShape === "bars" || useShape === "line"
+    ? shapeFigures(useShape, cols, items, groups, nameOf, today)
+    : useShape === "cards" ? { figures: [] as Figure[], covers: [] as string[] }
       : templateFigures(templateKey, cols, items, groups, nameOf, today);
   // 그림이 이미 말한 카드는 뺀다 — 같은 얘기를 두 번 하면 정리가 아니라 나열이다
   const covered = new Set(covers);
@@ -1637,30 +1669,14 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
     if (s) pickShape(s);
   };
 
-  //   고를 수 있는 그림 — 근거가 되는 칸이 있는 것만 띄운다(빈 화면을 만들지 않는다)
-  const span = spanColumnsOf(cols);
-  const hasDate = cols.some((c) => c.type === "date");
-  const canDonut = cols.some((c) => c.type === "status") || groups.length > 1;
-  const SHAPES: { key: SummaryShape; label: string; ok: boolean; hint: string }[] = [
-    { key: "auto", label: "자동", ok: true, hint: "이 표에 맞는 그림을 골라 줍니다" },
-    { key: "gantt", label: "간트", ok: !!span, hint: "시작·종료로 기간 막대" },
-    { key: "calendar", label: "캘린더", ok: hasDate, hint: "날짜 칸을 달력으로" },
-    { key: "donut", label: "원형", ok: canDonut, hint: "무엇이 얼마를 차지하나" },
-    { key: "bars", label: "막대", ok: true, hint: "크기를 나란히 비교" },
-    { key: "cards", label: "숫자만", ok: true, hint: "그림 없이 합계·분포 카드만" },
-  ];
-  const shapeOk = SHAPES.find((s) => s.key === shape)?.ok;
-  //   근거 칸을 지웠는데 그 그림이 걸려 있으면 자동으로 되돌린다
-  const useShape: SummaryShape = shapeOk ? shape : "auto";
-
   const tools = (
     <div className="pb-fmt">
-      {/* ① 무엇으로 볼지 — 타임라인·캘린더도 여기 들어왔다(2026-08-05 사장님 지시) */}
+      {/* ① 무엇으로 볼지 — 그림 모양 그대로 아이콘으로 (2026-08-05 사장님 지시) */}
       <span className="pb-fmt-k">어떻게 볼까</span>
       {SHAPES.filter((s) => s.ok).map((s) => (
-        <button key={s.key} type="button" title={s.hint}
-          className={`pb-fmt-btn ${useShape === s.key ? "pb-fmt-on" : ""}`}
-          onClick={() => pickShape(s.key)}>{s.label}</button>
+        <button key={s.key} type="button" title={s.hint} aria-label={s.hint} aria-pressed={useShape === s.key}
+          className={`pb-shape ${useShape === s.key ? "pb-shape-on" : ""}`}
+          onClick={() => pickShape(s.key)}><ShapeIcon kind={s.key} /></button>
       ))}
       {/* ② 무엇을 볼지 — 지표 고르기와 저장해 둔 정리 양식 */}
       <span className="pb-fmt-k pb-fmt-k2">양식</span>
@@ -1676,7 +1692,15 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
 
   //   그림 하나로 보는 보기(간트·캘린더)는 지표 목록이 아니라 그 그림이 본체다
   const body = useShape === "gantt" && span ? (
-    <BoardTimeline items={items} span={span} flowCol={flowColumnOf(cols)} nameLabel="행" />
+    <>
+      {!hasStart && (
+        <p className="pb-shape-note">
+          시작 칸이 없어 기간이 아니라 <b>{span.end.name} 한 점</b>으로 찍혔어요.
+          표 보기에서 칸 이름 옆 ＋ 로 <b>날짜</b> 칸을 하나 더 만들고 이름에 <b>‘시작’</b>을 넣으면 기간 막대로 그려집니다.
+        </p>
+      )}
+      <BoardTimeline items={items} span={span} flowCol={flowColumnOf(cols)} nameLabel="행" />
+    </>
   ) : useShape === "calendar" && hasDate ? (
     <BoardCalendar items={items} cols={cols} flowCol={flowColumnOf(cols)} onOpen={(id) => onOpenItem?.(id)} />
   ) : all.length === 0 ? (
@@ -1702,7 +1726,14 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
           canRemove={!!picked && !!onRemovePreset}
           onRemove={() => { if (picked && onRemovePreset) { onRemovePreset(picked); pickFormat(""); } setConfigOpen(false); }}
           onApply={(next) => { setConfigOpen(false); setNaming(next); }}
+          onUpdate={picked && onUpdatePreset ? (next) => { setConfigOpen(false); setEditing(next); } : undefined}
           onClose={() => setConfigOpen(false)} />
+      )}
+      {editing && picked && (
+        <NameDialog title="정리 양식 수정" hint="이름도 함께 바꿀 수 있어요 · 이 양식을 쓰는 다른 프로젝트에도 반영됩니다"
+          value={picked.name}
+          onCancel={() => setEditing(null)}
+          onSave={(nm) => { onUpdatePreset?.(picked, nm, { ...editing, shape: useShape }); setEditing(null); }} />
       )}
       {naming && (
         <NameDialog title="정리 양식으로 저장" hint="지금 고른 그림과 지표를 함께 담습니다 · 같은 칸 구성의 표에서 고를 수 있어요"
@@ -1714,10 +1745,62 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
   );
 }
 
-/** 정리 구성 — 무엇을 켜고 어떤 순서로 볼지. 고른 결과는 회사 양식으로 저장한다. */
-function SummaryFormatDialog({ all, layout, presetName, canRemove, onApply, onRemove, onClose }: {
+/** 보기 아이콘 — 글자보다 그림이 빠르다(2026-08-05 사장님 지시).
+ *  선 굵기·크기를 한 규격으로 맞춰 한 줄에 놓았을 때 무게가 같아 보이게 한다. */
+function ShapeIcon({ kind }: { kind: SummaryShape }) {
+  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+      {kind === "auto" && (<>
+        {/* 자동 — 반짝임(무엇을 그릴지 알아서 고른다) */}
+        <path {...p} d="M8 2.5l1.1 2.9L12 6.5 9.1 7.6 8 10.5 6.9 7.6 4 6.5l2.9-1.1z" />
+        <path {...p} d="M12.5 10.5l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5z" />
+      </>)}
+      {kind === "gantt" && (<>
+        {/* 간트 — 시작이 어긋난 가로 막대 */}
+        <rect {...p} x="2" y="3" width="7" height="2.4" rx="1.2" />
+        <rect {...p} x="5" y="6.8" width="8" height="2.4" rx="1.2" />
+        <rect {...p} x="3.5" y="10.6" width="6" height="2.4" rx="1.2" />
+      </>)}
+      {kind === "calendar" && (<>
+        <rect {...p} x="2.2" y="3.2" width="11.6" height="10.6" rx="2" />
+        <path {...p} d="M2.2 6.4h11.6M5.4 2v2.4M10.6 2v2.4" />
+        <path {...p} d="M5.2 9.2h1.6M9.2 9.2h1.6M5.2 11.6h1.6" />
+      </>)}
+      {kind === "donut" && (<>
+        <circle {...p} cx="8" cy="8" r="5.6" />
+        <circle {...p} cx="8" cy="8" r="2.1" />
+        <path {...p} d="M8 2.4v3.5M12.9 10.7l-3-1.7" />
+      </>)}
+      {kind === "bars" && (<>
+        <path {...p} d="M2.6 13.4h10.8" />
+        <rect {...p} x="3.4" y="8.4" width="2.6" height="4" rx="0.8" />
+        <rect {...p} x="6.9" y="5.4" width="2.6" height="7" rx="0.8" />
+        <rect {...p} x="10.4" y="3.2" width="2.6" height="9.2" rx="0.8" />
+      </>)}
+      {kind === "line" && (<>
+        <path {...p} d="M2.4 13.2h11.2" />
+        <path {...p} d="M3 10.6l3-3.4 2.6 2.2 4.4-5" />
+        <circle cx="6" cy="7.2" r="1.05" fill="currentColor" />
+        <circle cx="8.6" cy="9.4" r="1.05" fill="currentColor" />
+      </>)}
+      {kind === "cards" && (<>
+        <rect {...p} x="2.2" y="3.4" width="11.6" height="9.2" rx="2" />
+        <path {...p} d="M4.8 7h4.2M4.8 9.8h6.4" />
+      </>)}
+    </svg>
+  );
+}
+
+/** 정리 구성 — 무엇을 켜고 어떤 순서로 볼지. 고른 결과는 회사 양식으로 저장한다.
+ *  저장해 둔 양식을 고른 상태면 **덮어쓰기(수정)** 와 **삭제**를 여기서 한다
+ *  (2026-08-05 사장님: "양식이 설정되면 수정·삭제가 안 된다"). */
+function SummaryFormatDialog({ all, layout, presetName, canRemove, onApply, onUpdate, onRemove, onClose }: {
   all: { id: string; title: string }[]; layout: SummaryLayout | null; presetName: string | null;
-  canRemove: boolean; onApply: (next: SummaryLayout) => void; onRemove: () => void; onClose: () => void;
+  canRemove: boolean; onApply: (next: SummaryLayout) => void;
+  /** 고른 양식을 이 구성으로 덮어쓴다 — 새 양식이 늘어나지 않게 */
+  onUpdate?: (next: SummaryLayout) => void;
+  onRemove: () => void; onClose: () => void;
 }) {
   const [rows, setRows] = useState(() => {
     const ordered = applyLayout(all, layout);
@@ -1754,10 +1837,17 @@ function SummaryFormatDialog({ all, layout, presetName, canRemove, onApply, onRe
         <span className="pb-fmt-foot">
           {canRemove && <button type="button" className="pb-fmt-del" onClick={onRemove}>이 양식 삭제</button>}
           <button type="button" onClick={onClose}>취소</button>
-          <button type="button" className="pb-fmt-go"
+          <button type="button"
             onClick={() => onApply(layoutFrom(all, rows.filter((r) => r.on).map((r) => r.id)))}>
-            양식으로 저장
+            {onUpdate ? "새로 저장" : "양식으로 저장"}
           </button>
+          {/* 고른 양식이 있으면 덮어쓰기가 기본 — 고칠 때마다 양식이 늘어나면 목록이 못 쓰게 된다 */}
+          {onUpdate && (
+            <button type="button" className="pb-fmt-go"
+              onClick={() => onUpdate(layoutFrom(all, rows.filter((r) => r.on).map((r) => r.id)))}>
+              이 양식 수정
+            </button>
+          )}
         </span>
       </div>
     </div>

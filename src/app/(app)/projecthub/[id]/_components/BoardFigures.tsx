@@ -122,6 +122,44 @@ export function BoardFigure({ f }: { f: Figure }) {
     );
   }
 
+  if (f.kind === "line") {
+    // 꺾은선 — 시간의 오르내림. 축 글자는 SVG 밖(HTML)에 둬야 늘어나도 안 찌그러진다
+    const W = 320, H = 110, PAD = 6;
+    const max = Math.max(...f.points.map((p) => p.value), 1);
+    const step = f.points.length > 1 ? (W - PAD * 2) / (f.points.length - 1) : 0;
+    const xy = f.points.map((p, i) => ({
+      x: PAD + i * step, y: H - PAD - (p.value / max) * (H - PAD * 2), p,
+    }));
+    const line = xy.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" ");
+    const area = `${PAD},${H - PAD} ${line} ${(W - PAD).toFixed(1)},${H - PAD}`;
+    const nowAt = xy.find((q) => q.p.now);
+    const short = (n: number) => (f.unit === "원"
+      ? (Math.abs(n) >= 10_000 ? `${Math.round(n / 10_000).toLocaleString("ko-KR")}만` : n.toLocaleString("ko-KR"))
+      : n.toLocaleString("ko-KR"));
+    return (
+      <figure className="bf bf-line">
+        <figcaption>{f.title}</figcaption>
+        <div className="bf-line-body">
+          <span className="bf-line-max">{short(max)}{f.unit || ""}</span>
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={f.title}>
+            <polygon className="bf-line-area" points={area} />
+            <polyline className="bf-line-path" points={line} />
+            {nowAt && <line className="bf-line-now" x1={nowAt.x} y1={PAD} x2={nowAt.x} y2={H - PAD} />}
+            {xy.map((q) => <circle key={q.p.label} className="bf-line-dot" cx={q.x} cy={q.y} r={2.5} />)}
+          </svg>
+        </div>
+        <div className="bf-line-x">
+          {f.points.map((p) => (
+            <span key={p.label} className={p.now ? "bf-line-nowk" : ""} title={`${p.label} ${short(p.value)}${f.unit || ""}`}>
+              {p.label}
+            </span>
+          ))}
+        </div>
+        {f.note && <em className="bf-note">{f.note}</em>}
+      </figure>
+    );
+  }
+
   // weeks
   const max = Math.max(...f.bars.map((b) => b.value), 1);
   return (
