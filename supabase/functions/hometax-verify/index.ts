@@ -58,6 +58,35 @@ async function codefRequest(token: string, path: string, body: Record<string, an
   return parsed;
 }
 
+// PFX 구조 진단 — 어떤 PBE 알고리즘으로 포장됐는지 OID 바이트 패턴으로 식별 (키 재료는 읽지 않음).
+//   엔진 추출 PFX 가 CODEF 계정등록에서 CF-04009 로 거부되는 원인 판별용 (2026-08-05).
+//   SEED 류(한국 표준)면 계정등록 파서 미지원 가능성 — 재암호화 변환으로 해결 예정.
+const PBE_OID_HEX: Record<string, string> = {
+  seedCBC: "2a831a8c9a440104",
+  seedCBCWithSHA1: "2a831a8c9a44010f",
+  ariaCBC: "2a831a8c9a6e010102",
+  aes128CBC: "608648016503040102",
+  aes256CBC: "60864801650304012a",
+  pbeSHA_3DES: "2a864886f70d010c0103",
+  pbeSHA_RC2_40: "2a864886f70d010c0106",
+  PBES2: "2a864886f70d01050d",
+};
+function sniffPfxAlgos(pfxB64: string): string[] {
+  try {
+    const bytes = Uint8Array.from(atob(pfxB64), (c) => c.charCodeAt(0));
+    let hex = "";
+    for (const b of bytes) hex += b.toString(16).padStart(2, "0");
+    const found: string[] = [];
+    for (const [name, oid] of Object.entries(PBE_OID_HEX)) {
+      if (hex.includes(oid)) found.push(name);
+    }
+    const validMagic = bytes[0] === 0x30; // DER SEQUENCE — PKCS#12 시작
+    return [validMagic ? "der-ok" : `der-bad(0x${bytes[0]?.toString(16)})`, ...found];
+  } catch (_) {
+    return ["b64-decode-fail"];
+  }
+}
+
 serve(withSentry("hometax-verify", async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -92,9 +121,12 @@ serve(withSentry("hometax-verify", async (req) => {
 
     // 인증 자료 구성 — 인증서(loginType 0): pfxFile 우선(certType "0"), 없으면 storage 의 der/key(certType "1")
     let certAuth: Record<string, string>;
+    let pfxAlgos: string[] | undefined;
     if (loginType === "1") {
       certAuth = { id };
     } else if (pfxFile) {
+      pfxAlgos = sniffPfxAlgos(pfxFile);
+      console.log(`[hometax-verify] pfx algos: ${pfxAlgos.join(",")} len=${pfxFile.length}`);
       certAuth = { certType: "0", certFile: pfxFile };
     } else {
       const [certDl, keyDl] = await Promise.all([
@@ -140,14 +172,15 @@ serve(withSentry("hometax-verify", async (req) => {
 
     const code = result.result?.code || "UNKNOWN";
     if (code === "CF-00000") {
-      return json({ registered: true, message: "홈택스 인증 성공 — 인증서로 세금계산서 조회가 가능합니다.", code, method: pfxFile ? "pfx" : "derkey" });
+      return json({ registered: true, message: "홈택스 인증 성공 — 인증서로 세금계산서 조회가 가능합니다.", code, method: pfxFile ? "pfx" : "derkey", pfxAlgos });
     }
-    // 인증 실패류 — 화면에서 원인 구분 가능하게 코드 그대로 반환
+    // 인증 실패류 — 화면에서 원인 구분 가능하게 코드·PFX 알고리즘 진단 그대로 반환
     return json({
       registered: false,
       code,
-      message: result.result?.message || "홈택스 인증 실패",
+      message: (result.result?.message || "홈택스 인증 실패") + (pfxAlgos ? ` [pfx: ${pfxAlgos.join(",")}]` : ""),
       method: pfxFile ? "pfx" : "derkey",
+      pfxAlgos,
     });
   } catch (err: any) {
     return json({ error: err.message || "Internal error" }, 500);
