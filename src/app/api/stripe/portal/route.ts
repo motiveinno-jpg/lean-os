@@ -50,7 +50,9 @@ export async function POST(request: NextRequest) {
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('company_id', companyId)
-      .in('status', ['active', 'paused', 'past_due'])
+      // trialing 포함 — 체험(카드만 등록) 중에도 포털에서 해지/카드 관리가 가능해야 한다
+      //   (2026-08-05 사장님 제보: 체험 계정이 '활성 구독 없음' 404 로 해지 포털을 못 열었음)
+      .in('status', ['active', 'trialing', 'paused', 'past_due'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle());
