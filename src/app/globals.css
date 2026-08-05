@@ -49,6 +49,8 @@
   --mr-out-2: #F59E0B; --mr-out-2-ink: #451A03;
   --mr-out-3: #D97706; --mr-out-3-ink: #451A03;
   --mr-out-4: #92400E; --mr-out-4-ink: #FFFFFF;
+  /* 툴팁 — 배경/글씨/경고를 모드별로 따로 고른다(--text 를 배경으로 쓰면 다크에서 흰 위 흰 글씨) */
+  --tip-bg: #18181B; --tip-ink: #FFFFFF; --tip-bad: #FCA5A5;
   --danger-dim: #FEE2E2;
   --critical: #B91C1C;
   /* 더 미니멀한 그림자 — granter 스타일의 단정한 카드 */
@@ -126,6 +128,7 @@
   --mr-out-2: #B45309; --mr-out-2-ink: #FFFFFF;
   --mr-out-3: #F59E0B; --mr-out-3-ink: #451A03;
   --mr-out-4: #FCD34D; --mr-out-4-ink: #451A03;
+  --tip-bg: #F4F4F5; --tip-ink: #18181B; --tip-bad: #DC2626;
   --danger-dim: rgba(248,113,113,0.15);
   --critical: #EF4444;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
@@ -6130,10 +6133,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-th-x .pb-addcol select { @apply w-7 h-6 rounded-md bg-transparent border border-transparent text-[12px] text-center text-[var(--text-dim)] cursor-pointer hover:border-[var(--border)] hover:text-[var(--primary)] focus:outline-none; }
 
 /* 되돌리기 한 줄 · 지운 항목 (2026-08-04 기획 2차) */
-.pb-undo { @apply fixed left-1/2 -translate-x-1/2 bottom-6 z-50 flex items-center gap-3 pl-4 pr-2 py-2.5 rounded-2xl bg-[var(--text)] text-white shadow-2xl; }
+.pb-undo { @apply fixed left-1/2 -translate-x-1/2 bottom-6 z-50 flex items-center gap-3 pl-4 pr-2 py-2.5 rounded-2xl bg-[var(--tip-bg)] text-[var(--tip-ink)] shadow-2xl; }
 .pb-undo > span { @apply text-[13px] font-semibold; }
-.pb-undo > button { @apply h-7 px-3 rounded-lg bg-white/15 text-[12.5px] font-bold text-white transition hover:bg-white/25; }
-.pb-undo-x { @apply !px-2 !bg-transparent !text-white/60 hover:!text-white; }
+.pb-undo > button { @apply h-7 px-3 rounded-lg bg-[var(--tip-ink)]/15 text-[12.5px] font-bold text-[var(--tip-ink)] transition hover:bg-[var(--tip-ink)]/25; }
+.pb-undo-x { @apply !px-2 !bg-transparent opacity-60 hover:opacity-100; }
 .pb-trash-body { @apply flex flex-col gap-1 px-4 py-3 max-h-[60vh] overflow-y-auto; }
 .pb-trash-row { @apply flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-[var(--bg-surface)]; }
 .pb-trash-old { @apply opacity-50; }
@@ -6314,3 +6317,26 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .mr-table td { @apply px-2 py-1.5 text-[var(--text)] border-t border-[var(--border)]; }
 .mr-table .mr-td-n { @apply text-right; font-variant-numeric: tabular-nums; }
 .mr-table i { @apply inline-block w-2.5 h-2.5 rounded-sm mr-1.5 align-middle; }
+
+/* 주별 예정 자금 — 위 들어올 / 아래 나갈, 축은 하나 (2026-08-05 기획 3차) */
+.mr-worst { @apply ml-auto px-2 py-0.5 rounded-full bg-[var(--danger)]/10 text-[11px] font-bold text-[var(--danger)]; }
+.mr-weeks { @apply flex items-stretch gap-1 pt-1; }
+.mr-week { @apply relative flex-1 flex flex-col items-center gap-0 rounded-lg px-0.5 py-1 transition; }
+.mr-week:hover, .mr-week-on, .mr-week:focus-visible { @apply bg-[var(--bg-card)]; }
+.mr-week:focus-visible { @apply outline-none ring-1 ring-[var(--primary)]; }
+.mr-week-past { @apply opacity-80; }
+.mr-week-up { @apply relative w-full h-14 flex flex-col justify-end items-center; }
+.mr-week-dn { @apply relative w-full h-14 flex flex-col justify-start items-center; }
+.mr-week-up i, .mr-week-dn i { @apply block w-full max-w-[26px] rounded-t-md; }
+.mr-week-dn i { @apply rounded-t-none rounded-b-md; }
+.mr-week-up em { @apply not-italic order-first text-[9.5px] font-bold text-[var(--text-muted)] pb-0.5; }
+.mr-week-dn em { @apply not-italic text-[9.5px] font-bold text-[var(--text-muted)] pt-0.5; }
+.mr-week-axis { @apply w-full h-px bg-[var(--border)]; }
+.mr-week-k { @apply mt-1 text-[10px] font-semibold text-[var(--text-dim)] whitespace-nowrap; }
+/* 툴팁은 막대 **아래**로 — 위에 두면 제목을 가린다(2026-08-05 렌더 확인) */
+.mr-tip { @apply absolute left-1/2 -translate-x-1/2 top-full z-30 mt-1 w-max flex flex-col gap-0.5 px-2.5 py-2 rounded-xl bg-[var(--tip-bg)] text-[var(--tip-ink)] shadow-xl pointer-events-none; }
+.mr-tip b { @apply text-[11.5px] font-extrabold; }
+.mr-tip span { @apply inline-flex items-center gap-1.5 text-[11px] text-[var(--tip-ink)] opacity-85; }
+.mr-tip i { @apply block w-2 h-2 rounded-sm; }
+.mr-tip .mr-bad { @apply !text-[var(--tip-bad)] !opacity-100; }
+.mr-legend-note { @apply !text-[var(--text-dim)]; }

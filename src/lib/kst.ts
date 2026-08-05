@@ -49,3 +49,25 @@ export function kstLocalToIso(local: string | null | undefined): string | null {
   const d = new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:00+09:00`);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
+
+/** 날짜 문자열(YYYY-MM-DD)에 일수를 더한다.
+ *  ⚠️ new Date("...T00:00:00") 은 로컬 자정이고 toISOString() 은 UTC 라, 한국에서는
+ *     하루 밀린다. 그래서 계산도 출력도 UTC 로만 한다(문자열 → UTC → 문자열). */
+export function addDaysStr(date: string, days: number): string {
+  const [y, m, d] = String(date).slice(0, 10).split("-").map(Number);
+  const t = Date.UTC(y, (m || 1) - 1, d || 1) + days * 86_400_000;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+/** 그 날짜가 속한 주의 월요일 */
+export function mondayOfStr(date: string): string {
+  const [y, m, d] = String(date).slice(0, 10).split("-").map(Number);
+  const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
+  return addDaysStr(date, -((dt.getUTCDay() + 6) % 7));
+}
+
+/** 두 날짜 사이 일수(a - b) */
+export function daysBetweenStr(a: string, b: string): number {
+  const p = (x: string) => { const [y, m, d] = String(x).slice(0, 10).split("-").map(Number); return Date.UTC(y, (m || 1) - 1, d || 1); };
+  return Math.round((p(a) - p(b)) / 86_400_000);
+}

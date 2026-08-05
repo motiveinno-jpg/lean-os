@@ -14,8 +14,8 @@
 
 import { useMemo, useState } from "react";
 import {
-  rollupMoney, STAGE_ORDER, STAGE_LABEL, BASIS_LABEL, BASIS_NOTE,
-  type Basis, type MoneyBoard, type MoneyRollup, type MoneyStage,
+  rollupMoney, weeklyCashflow, STAGE_ORDER, STAGE_LABEL, BASIS_LABEL, BASIS_NOTE,
+  type Basis, type CashWeek, type MoneyBoard, type MoneyRollup, type MoneyStage,
 } from "@/lib/project-money-rollup";
 import { todayKst } from "@/lib/kst";
 import type { BoardColumn, BoardItem } from "@/lib/project-boards";
@@ -52,6 +52,8 @@ export function ProjectMoneyReport({ boards, cols, items }: {
   if (!hasMoney) return null;
 
   const overlapSum = r.overlaps.reduce((s, o) => s + o.amount, 0);
+  const weeks = weeklyCashflow(boards, cols, items, todayKst(), 8);
+  const hasWeeks = weeks.some((w) => w.income > 0 || w.spend > 0);
 
   return (
     <section className="mr">
@@ -86,6 +88,9 @@ export function ProjectMoneyReport({ boards, cols, items }: {
 
       {/* ── 수입·지출: 같은 축의 막대 두 줄 ─────────────── */}
       <StageBars income={r.income} spend={r.spend} />
+
+      {/* 언제 자금이 비나 — 총액보다 시점이 궁금하다 */}
+      {hasWeeks && <WeeklyCash weeks={weeks} />}
 
       <div className="mr-grid">
         {/* 예산 소진 — 집행·성과 표가 있을 때만 */}
@@ -197,6 +202,58 @@ function StageBars({ income, spend }: { income: MoneyRollup["income"]; spend: Mo
         ))}
       </div>
       </>)}
+    </figure>
+  );
+}
+
+/** 주별 예정 자금 — 위는 들어올 돈, 아래는 나갈 돈. 같은 축(원)이라 길이를 그대로 비교한다.
+ *  ⚠️ 잔액 누적선을 얹으면 축이 둘이 된다(금지). 대신 주마다 순액을 숫자로 적고,
+ *     마이너스인 주만 색으로 집는다 — 그게 실제로 챙길 주다. */
+function WeeklyCash({ weeks }: { weeks: CashWeek[] }) {
+  const [hover, setHover] = useState<string | null>(null);
+  const max = Math.max(1, ...weeks.map((w) => Math.max(w.income, w.spend)));
+  const short = (n: number) => (n === 0 ? "" : shortWon(n));
+  const worst = weeks.filter((w) => w.net < 0).sort((a, b) => a.net - b.net)[0];
+
+  return (
+    <figure className="mr-fig mr-fig-wide">
+      <figcaption>
+        언제 자금이 비나<em>앞으로 8주 · 아직 안 끝난 건만</em>
+        {worst && <span className="mr-worst">{worst.label} 에 {shortWon(Math.abs(worst.net))} 부족</span>}
+      </figcaption>
+      <div className="mr-weeks" onMouseLeave={() => setHover(null)}>
+        {weeks.map((w) => (
+          <div key={w.key} className={`mr-week ${hover === w.key ? "mr-week-on" : ""} ${w.key === "past" ? "mr-week-past" : ""}`}
+            onMouseEnter={() => setHover(w.key)} tabIndex={0} onFocus={() => setHover(w.key)}
+            aria-label={`${w.label}: 들어올 돈 ${won(w.income)}원, 나갈 돈 ${won(w.spend)}원, 순액 ${won(w.net)}원`}>
+            <span className="mr-week-up">
+              {w.income > 0 && <i style={{ height: `${(w.income / max) * 100}%`, background: "var(--mr-inc-3)" }} />}
+              {w.income > 0 && <em>{short(w.income)}</em>}
+            </span>
+            <span className="mr-week-axis" />
+            <span className="mr-week-dn">
+              {w.spend > 0 && <i style={{ height: `${(w.spend / max) * 100}%`, background: "var(--mr-out-3)" }} />}
+              {w.spend > 0 && <em>{short(w.spend)}</em>}
+            </span>
+            <span className={`mr-week-k ${w.net < 0 ? "mr-bad" : ""}`}>{w.label}</span>
+            {hover === w.key && (
+              <span className="mr-tip" role="tooltip">
+                <b>{w.label}</b>
+                <span><i style={{ background: "var(--mr-inc-3)" }} />들어올 {won(w.income)}원</span>
+                <span><i style={{ background: "var(--mr-out-3)" }} />나갈 {won(w.spend)}원</span>
+                <span className={w.net < 0 ? "mr-bad" : ""}><b>순액 {won(w.net)}원</b></span>
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mr-legend">
+        <span className="mr-legend-row">
+          <span><i style={{ background: "var(--mr-inc-3)" }} />들어올 돈</span>
+          <span><i style={{ background: "var(--mr-out-3)" }} />나갈 돈</span>
+          <span className="mr-legend-note">순액이 마이너스인 주는 날짜가 빨갛습니다</span>
+        </span>
+      </div>
     </figure>
   );
 }

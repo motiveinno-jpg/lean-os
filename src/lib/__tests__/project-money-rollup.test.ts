@@ -1,6 +1,6 @@
 // 돈 집계 — 숫자가 한 번이라도 틀리면 화면 전체를 못 믿는다. 규칙을 여기서 못박는다.
 import { describe, it, expect } from "vitest";
-import { rollupMoney, stageOfLabel, type MoneyBoard } from "@/lib/project-money-rollup";
+import { rollupMoney, stageOfLabel, weeklyCashflow, type MoneyBoard } from "@/lib/project-money-rollup";
 import type { BoardColumn, BoardItem } from "@/lib/project-boards";
 
 const TODAY = "2026-08-05";
@@ -111,6 +111,55 @@ describe("rollupMoney — 지출은 '비용 · 지출' 만 센다(이중 계상 
   it("확정 금액이 없으면 예상액을 '계획' 으로 둔다", () => {
     // 인플루언서 수수료는 확정 0 → 예상 3,000,000 이 계획 단계
     expect(r.spend.byStage.plan).toBe(3_000_000);
+  });
+});
+
+describe("weeklyCashflow — 언제 자금이 비나", () => {
+  // 2026-08-05(수)가 오늘. 그 주 월요일은 2026-08-03.
+  const boards: MoneyBoard[] = [
+    { id: "bill", name: "매출 · 청구", template_key: "billing" },
+    { id: "cost", name: "비용 · 지출", template_key: "cost" },
+    { id: "bud", name: "집행 · 성과", template_key: "budget" },
+  ];
+  const cols = [
+    col({ id: "i_st", board_id: "bill", name: "단계", type: "status", settings: FLOW_BILL }),
+    col({ id: "i_amt", board_id: "bill", name: "금액", type: "number", settings: { unit: "원" } }),
+    col({ id: "i_due", board_id: "bill", name: "예정일", type: "date" }),
+    col({ id: "s_st", board_id: "cost", name: "상태", type: "status", settings: PROGRESS }),
+    col({ id: "s_fix", board_id: "cost", name: "확정", type: "number", settings: { unit: "원" } }),
+    col({ id: "s_due", board_id: "cost", name: "결제일", type: "date" }),
+    col({ id: "b_spent", board_id: "bud", name: "집행", type: "number", settings: { unit: "원" } }),
+    col({ id: "b_due", board_id: "bud", name: "종료", type: "date" }),
+  ];
+  const items = [
+    item("a", "bill", "이번 주 입금 예정", { i_st: "issued", i_amt: 10_000_000, i_due: "2026-08-07" }),
+    item("b", "bill", "다음 주", { i_st: "contract", i_amt: 5_000_000, i_due: "2026-08-12" }),
+    item("c", "bill", "이미 받음", { i_st: "paid", i_amt: 9_000_000, i_due: "2026-08-06" }),
+    item("d", "bill", "지난 건", { i_st: "issued", i_amt: 3_000_000, i_due: "2026-07-20" }),
+    item("e", "cost", "이번 주 지급", { s_st: "doing", s_fix: 12_000_000, s_due: "2026-08-06" }),
+    item("f", "cost", "먼 미래", { s_st: "todo", s_fix: 1_000_000, s_due: "2027-01-01" }),
+    item("g", "bud", "예산 건", { b_spent: 8_000_000, b_due: "2026-08-07" }),
+  ];
+  const w = weeklyCashflow(boards, cols, items, TODAY, 8);
+  const byKey = (k: string) => w.find((x) => x.key === k)!;
+
+  it("이번 주는 들어올 1,000만 · 나갈 1,200만 → 순액 마이너스", () => {
+    const t = byKey("2026-08-03");
+    expect(t.income).toBe(10_000_000);
+    expect(t.spend).toBe(12_000_000);
+    expect(t.net).toBe(-2_000_000);
+  });
+  it("이미 오간 돈(입금 완료)은 앞날 계획에 안 넣는다", () => {
+    expect(w.reduce((s, x) => s + x.income, 0)).toBe(18_000_000);   // 10 + 5 + 지난 3
+  });
+  it("기한 지난 미완료 건은 '지남' 칸에 모은다", () => {
+    expect(byKey("past").income).toBe(3_000_000);
+  });
+  it("예산 표는 예정 자금이 아니다", () => {
+    expect(w.every((x) => x.spend !== 8_000_000)).toBe(true);
+  });
+  it("8주 밖은 안 그린다", () => {
+    expect(w.reduce((s, x) => s + x.spend, 0)).toBe(12_000_000);
   });
 });
 

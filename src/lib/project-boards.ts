@@ -15,6 +15,8 @@
 //
 // 절대규칙: 순수 정의만 둔다(조회·side-effect 0). 화면과 시드가 이 파일만 본다.
 
+import { addDaysStr } from "@/lib/kst";
+
 //   partner = 거래처(검색 + 그 자리에서 신규 등록). 값은 partners.id 를 담는다.
 export type ColType = "text" | "number" | "date" | "status" | "person" | "partner";
 
@@ -389,7 +391,7 @@ export function buildBoardSummary(
     const all = pick(items);
     if (all.length === 0) continue;
     const open = pick(openItems);
-    const week = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+    const week = addDaysStr(today, 7);
     const late = isDue ? open.filter((d) => d < today).length : 0;
     const soon = isDue ? open.filter((d) => d >= today && d <= week).length : 0;
     const next = open.filter((d) => d >= today).sort()[0] || null;

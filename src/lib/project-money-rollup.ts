@@ -19,6 +19,7 @@
 // 절대규칙: 순수 함수. 조회는 화면이 하고 여기서는 계산만 한다.
 
 import { flowColumnOf, START_DATE_RE, type BoardColumn, type BoardItem } from "@/lib/project-boards";
+import { addDaysStr, mondayOfStr, daysBetweenStr } from "@/lib/kst";
 
 /** 돈이 지나가는 단계 — 수입·지출이 같은 축을 쓴다 */
 export type MoneyStage = "plan" | "fixed" | "billed" | "paid";
@@ -132,7 +133,7 @@ export function rollupMoney(
       if (!dueCol || !today) return null;
       const v = String(it.values?.[dueCol.id] || "");
       if (!/^\d{4}-\d{2}-\d{2}/.test(v) || v >= today) return null;
-      return Math.floor((new Date(`${today}T00:00:00`).getTime() - new Date(`${v}T00:00:00`).getTime()) / 86_400_000);
+      return daysBetweenStr(today, v.slice(0, 10));
     };
 
     if (b.template_key === "billing") {
@@ -214,3 +215,74 @@ export const BASIS_NOTE: Record<Basis, string> = {
   accrual: "계약·발주까지 잡은 금액 (계획만 있는 건 제외)",
   cash: "실제로 오간 돈만 (입금·지급)",
 };
+
+// ── 주별 예정 자금 — "언제 자금이 비나" (2026-08-05 기획 3차) ──
+//   대표가 실제로 묻는 건 총액이 아니라 **시점**이다. 이번 주부터 8주를 놓고
+//   들어올 돈과 나갈 돈을 같은 축(원)에 위·아래로 놓는다.
+//   ⚠️ 잔액 누적선을 같이 그리면 축이 둘이 된다(금지). 대신 주마다 순액을 숫자로 적는다.
+
+export type CashWeek = {
+  /** 그 주 월요일 (YYYY-MM-DD). 지난 것은 "past" */
+  key: string;
+  label: string;
+  income: number;
+  spend: number;
+  /** 들어올 − 나갈 */
+  net: number;
+};
+
+/**
+ * 아직 안 끝난 건만 센다 — 입금·지급된 건은 이미 지나간 돈이라 앞날 계획이 아니다.
+ * 기한이 이미 지난 미완료 건은 맨 앞 '지남' 칸에 모은다(숨기면 영영 안 보인다).
+ */
+export function weeklyCashflow(
+  boards: MoneyBoard[], cols: BoardColumn[], items: BoardItem[],
+  today: string, weeks = 8,
+): CashWeek[] {
+  const thisMon = mondayOfStr(today);
+  const buckets = new Map<string, CashWeek>();
+  buckets.set("past", { key: "past", label: "지남", income: 0, spend: 0, net: 0 });
+  for (let i = 0; i < weeks; i++) {
+    const k = addDaysStr(thisMon, i * 7);
+    const md = `${Number(k.slice(5, 7))}/${Number(k.slice(8, 10))}`;
+    buckets.set(k, { key: k, label: i === 0 ? `이번 주 ${md}` : md, income: 0, spend: 0, net: 0 });
+  }
+  const lastMon = addDaysStr(thisMon, (weeks - 1) * 7);
+
+  for (const b of boards) {
+    const kind: "income" | "spend" | null =
+      b.template_key === "billing" ? "income" : b.template_key === "cost" ? "spend" : null;
+    if (!kind) continue;                       // 예산·수주는 예정 자금이 아니다
+    const bCols = cols.filter((c) => c.board_id === b.id);
+    const flow = flowColumnOf(bCols);
+    const options: any[] = (flow?.settings?.options || []) as any[];
+    const dateCol = bCols.find((c) => c.type === "date" && !START_DATE_RE.test(c.name));
+    if (!dateCol) continue;
+    const amtCol = kind === "income"
+      ? bCols.filter(isWon).find((c) => /금액|청구/.test(c.name)) || bCols.filter(isWon)[0]
+      : bCols.filter(isWon).find((c) => /확정|실제|지급/.test(c.name)) || bCols.filter(isWon).find((c) => /예상|계획/.test(c.name));
+    if (!amtCol) continue;
+    const fallbackCol = kind === "spend" ? bCols.filter(isWon).find((c) => /예상|계획/.test(c.name)) : null;
+
+    for (const it of items.filter((i) => i.board_id === b.id)) {
+      const opt = flow ? options.find((o) => o.id === it.values?.[flow.id]) : null;
+      const stage: MoneyStage = opt ? stageOfLabel(opt.label) : "plan";
+      if (stage === "paid") continue;          // 이미 오간 돈
+      const v = num(it.values?.[amtCol.id]) || (fallbackCol ? num(it.values?.[fallbackCol.id]) : 0);
+      if (v <= 0) continue;
+      const d = String(it.values?.[dateCol.id] || "");
+      if (!/^\d{4}-\d{2}-\d{2}/.test(d)) continue;
+      const day = d.slice(0, 10);
+      const mon = mondayOfStr(day);
+      const key = day < thisMon ? "past" : (mon > lastMon ? null : mon);
+      if (!key) continue;                      // 8주 밖은 안 그린다
+      const w = buckets.get(key);
+      if (!w) continue;
+      if (kind === "income") w.income += v; else w.spend += v;
+    }
+  }
+  const out = [...buckets.values()];
+  out.forEach((w) => { w.net = w.income - w.spend; });
+  // 지난 것이 없으면 그 칸은 안 그린다
+  return out.filter((w) => w.key !== "past" || w.income > 0 || w.spend > 0);
+}

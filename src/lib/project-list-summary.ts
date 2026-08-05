@@ -11,6 +11,7 @@
 // 절대규칙: 순수 함수. 조회는 화면이 하고 여기서는 계산만 한다.
 
 import { DONE_WORD_RE, START_DATE_RE, isDoneRow, terminalOptionId, flowColumnOf } from "@/lib/project-boards";
+import { addDaysStr } from "@/lib/kst";
 
 export type ListBoard = { id: string; deal_id: string; name: string; template_key: string | null };
 export type ListColumn = { id: string; board_id: string; type: string; name: string; settings?: any };
@@ -46,7 +47,7 @@ export function rollupProject(
   // 날짜 컬럼 — 지난 것 / 이번 주.
   //   끝난 행과 '시작' 계열 컬럼은 뺀다 — 안 그러면 완료된 일과 이미 시작한 일까지
   //   '기한 지남' 으로 잡혀 목록 첫 줄 숫자가 부풀려진다(2026-08-03 시연 데이터로 확인).
-  const weekLater = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
+  const weekLater = addDaysStr(today, 7);
   let lateCount = 0, soonCount = 0;
   const dueCols = myCols.filter((c) => c.type === "date" && !START_DATE_RE.test(c.name));
   for (const it of myItems) {
