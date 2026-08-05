@@ -607,12 +607,14 @@ export default function ProjectHubPage() {
           회계에서 후보를 역산해 권하는 줄은 성격이 다르다. */}
       <div className="ph-brief">
         <p className="ph-brief-line">
+          {/* 아래 칩은 '프로젝트' 를 세고 이 줄은 '줄(행)' 을 센다 — 같은 말로 읽히지 않게
+              단위를 문구에 못박는다(2026-08-05 실제 화면에서 확인). */}
           {lensCounts.lateItems + lensCounts.soonItems === 0
-            ? <>프로젝트 <b>{lensCounts.total}건</b> · 템플릿 <b>{lensCounts.boards}개</b>. 기한이 걸린 건 없어요.</>
+            ? <>프로젝트 <b>{lensCounts.total}건</b> · 템플릿 <b>{lensCounts.boards}개</b>. 기한이 걸린 줄은 없어요.</>
             : <>
-                {lensCounts.lateItems > 0 && <>기한 지난 것 <b>{lensCounts.lateItems}건</b></>}
+                {lensCounts.lateItems > 0 && <>기한 지난 줄 <b>{lensCounts.lateItems}건</b></>}
                 {lensCounts.lateItems > 0 && lensCounts.soonItems > 0 && " · "}
-                {lensCounts.soonItems > 0 && <>이번 주 <b>{lensCounts.soonItems}건</b></>}
+                {lensCounts.soonItems > 0 && <>이번 주 마감 <b>{lensCounts.soonItems}건</b></>}
                 {" 이 있어요."}
               </>}
         </p>
@@ -633,6 +635,7 @@ export default function ProjectHubPage() {
           어디에도 안 잡히는 프로젝트는 '전체'에 그냥 남는다 — 그게 정확하다. */}
       <div className="ph-statusbar">
         <div className="ph-stchips">
+          <span className="ph-stchips-unit">프로젝트</span>
           {([["", "전체", lensCounts.total], ["late", "기한 지남", lensCounts.late],
              ["warn", "이번 주", lensCounts.warn], ["empty", "입력 전", lensCounts.empty]] as const).map(([k, label, n]) => (
             // 0이면 감추되, **켜져 있는 칩은 남긴다** — 사라지면 끌 방법이 없어진다
@@ -827,9 +830,10 @@ export default function ProjectHubPage() {
                       })()}
                     </td>
                     <td className="ph-table-n">
-                      {r && r.itemCount > 0
-                        ? <>{r.itemCount}행{r.doneRate != null && <span className="ph-table-dim"> · {r.doneRate}%</span>}</>
-                        : "—"}
+                      {/* 완료율은 뺐다 — 비용표·일정표처럼 성격이 다른 표를 섞어 낸 %는
+                          '18행 중 0%' 처럼 전체를 가리키는 것으로 오해된다(2026-08-05 실측).
+                          챙길 것은 옆 '확인 사항' 이 근거와 함께 말한다. */}
+                      {r && r.itemCount > 0 ? `${r.itemCount}행` : "—"}
                     </td>
                     <td>
                       {reasons.length === 0 ? <span className="ph-table-dim">특이사항 없음</span> : (

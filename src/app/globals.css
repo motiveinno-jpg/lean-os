@@ -5623,6 +5623,7 @@ td .rounded-full { white-space: nowrap; }
 .ph-brief-nudge { @apply flex flex-wrap items-center gap-2; }
 .ph-statusbar { @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2; }
 .ph-stchips { @apply flex flex-wrap items-center gap-1.5; }
+.ph-stchips-unit { @apply text-[10.5px] font-bold text-[var(--text-dim)] mr-0.5; }
 .ph-stchip { @apply inline-flex items-center h-8 px-3 rounded-full border border-[var(--border)] bg-[var(--bg-card)] text-[12.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
 .ph-stchip em { @apply not-italic font-extrabold ml-1.5; }
 .ph-stchip-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--text)] font-bold; }
