@@ -612,8 +612,19 @@ function TaxInvoicesPageInner() {
   const { data: companyInfo } = useQuery({
     queryKey: ["company-info", companyId],
     queryFn: async () => {
-      const data = logRead('tax-invoices/page:data', await (supabase).from('companies').select('name, business_number, representative, address, business_type, business_category').eq('id', companyId!).maybeSingle());
-      return data;
+      // 공급자 이메일 — companies 에 email 컬럼이 없어 상세 화면에서 항상 '-' 로 나오던 문제(2026-08-05 사장님 제보).
+      //   실제 계산서에 찍히는 발행자 이메일과 같은 출처를 쓴다: automation_settings.invoicer_email → 없으면 대표 계정 이메일
+      //   (hometax-issue 엣지 함수의 발행자 이메일 결정 순서와 동일).
+      const data = logRead('tax-invoices/page:data', await (supabase).from('companies').select('name, business_number, representative, address, business_type, business_category, automation_settings').eq('id', companyId!).maybeSingle());
+      if (!data) return data;
+      let email = (data as any)?.automation_settings?.invoicer_email || '';
+      if (!email) {
+        const owner = logRead('tax-invoices/page:owner-email', await (supabase)
+          .from('users').select('email').eq('company_id', companyId!).eq('role', 'owner')
+          .order('created_at').limit(1).maybeSingle());
+        email = (owner as any)?.email || '';
+      }
+      return { ...(data as any), email };
     },
     enabled: !!companyId,
   });
