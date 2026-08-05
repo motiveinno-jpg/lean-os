@@ -3,7 +3,7 @@
 // settings/page.tsx 에서 추출 (2026-06-23, 거대 파일 분할) — 동작 무변경.
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -59,6 +59,16 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
   // Common
   const [registering, setRegistering] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const resultRef = useRef<HTMLDivElement | null>(null);
+
+  // 실패가 성공처럼 보이던 문제(2026-08-05 사장님): 결과가 바뀌면 메시지 위치로 스크롤하고,
+  // 실패는 빨간 토스트로 즉시 알린다 — 화면 어디에 있든 실패를 놓치지 않게.
+  useEffect(() => {
+    if (!result) return;
+    if (!result.ok) toast("연결 실패 — 화면의 빨간 메시지를 확인하세요", "error");
+    resultRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
 
   const orgList = accountType === "bank" ? CODEF_BANKS : accountType === "card" ? CODEF_CARDS : CODEF_PUBLIC;
 
@@ -118,50 +128,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       // verify API 로 회원 등록여부 확인.
       if (accountType === "hometax") {
         if (authMethod === "cert") {
-          // ── PC 자동 선택(PFX) 경로 — 검증 성공 전에는 아무것도 저장하지 않는다 ──
-          const useAutoPfx = certSource === "auto" && !!autoPfxB64;
-          if (useAutoPfx) {
-            if (!certPassword) {
-              setResult({ ok: false, msg: "인증서 비밀번호를 입력하세요" });
-              setRegistering(false);
-              return;
-            }
-            const { verifyHometaxRegistration } = await import("@/lib/data-sync");
-            const res = await verifyHometaxRegistration(companyId, {
-              loginType: "0",
-              certPassword,
-              pfxFile: autoPfxB64,
-              identity: hometaxIdentity || undefined,
-            });
-            if (!(res.success && res.registered)) {
-              setResult({ ok: false, msg: (res.message || res.error || "홈택스 인증 실패") + (res.hint ? `\n→ ${res.hint}` : "") });
-              setRegistering(false);
-              return;
-            }
-            // 검증 성공 → PFX 저장 + 비밀번호 병합 저장.
-            // 기존 der/key 파일·cert_password 는 건드리지 않는다 — 현행 동기화(der/key 기반) 무중단.
-            const pfxBytes = Uint8Array.from(atob(autoPfxB64), (c) => c.charCodeAt(0));
-            await supabase.storage.from("certificates").upload(
-              `${companyId}/hometax.pfx`, new Blob([pfxBytes]), { upsert: true },
-            );
-            const { encryptCredential } = await import("@/lib/crypto");
-            const encPfxPw = await encryptCredential(certPassword);
-            const { data: existingCred } = await supabase.from("automation_credentials")
-              .select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle();
-            await supabase.from("automation_credentials").upsert({
-              company_id: companyId,
-              service: "hometax",
-              credentials: { ...((existingCred?.credentials as Record<string, unknown>) || {}), login_method: "certificate", pfx_password: encPfxPw || "" },
-              updated_at: new Date().toISOString(),
-            }, { onConflict: "company_id,service" });
-            setResult({ ok: true, msg: "홈택스 인증 확인 완료 (PC 인증서). 세금계산서 동기화를 사용할 수 있습니다." });
-            toast("홈택스 연결 완료", "success");
-            setCertPassword("");
-            onRegistered();
-            setRegistering(false);
-            return;
-          }
-
+          // PC 자동 선택도 der/key 변환 산출물을 주입받아 아래 파일 흐름과 동일하게 처리된다 (2026-08-05).
           if (!derFileB64 || !keyFileB64 || !certPassword) {
             setResult({ ok: false, msg: "인증서 파일과 비밀번호를 모두 입력하세요" });
             setRegistering(false);
@@ -392,11 +359,11 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
           {authMethod === "cert" ? (
             <>
               {/* 인증서 입력 방식 — PC 자동 선택(기본) vs 파일 업로드.
-                  홈택스: 엔진 추출 PFX 로 매 호출 인증(가이드 §5 공식 용도) → 자동 선택이 정식 경로.
-                  은행/카드: 계정등록 규격이 der/key 라(엔진 PFX 는 CF-04009) 자동 선택은 파일 위치 안내 역할. */}
+                  자동 선택은 엔진 추출 PFX 를 브라우저에서 변환해 은행/카드는 재포장 PFX,
+                  홈택스는 der/key 로 각 규격에 맞게 등록한다 (cert-auto-picker convertPfx 참조). */}
               <div className="cert-source-tabs">
                 <button type="button" onClick={() => setCertSource("auto")} className={`cert-source-tab ${certSource === "auto" ? "cert-source-tab-active" : ""}`}>
-                  {accountType === "hometax" ? "PC 인증서 자동 선택" : "PC에서 인증서 찾기"}
+                  PC 인증서 자동 선택
                 </button>
                 <button type="button" onClick={() => setCertSource("file")} className={`cert-source-tab ${certSource === "file" ? "cert-source-tab-active" : ""}`}>
                   파일 직접 업로드
@@ -405,9 +372,16 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
               {certSource === "auto" && (
                 <CertAutoPicker
-                  purpose={accountType === "hometax" ? "register" : "locate"}
-                  onExtracted={({ pfxBase64, certName, password }) => {
-                    setAutoPfxB64(pfxBase64);
+                  onExtracted={({ pfxBase64, derB64, keyB64, certName, password }) => {
+                    if (accountType === "hometax") {
+                      // 홈택스는 der/key 규격 — 변환 산출물을 파일 업로드와 동일한 상태로 주입해
+                      // 검증된 기존 der/key 등록 흐름을 그대로 태운다.
+                      setDerFileB64(derB64);
+                      setKeyFileB64(keyB64);
+                    } else {
+                      // 은행/카드 계정등록은 재포장(3DES) PFX — RC2 원본은 CODEF 가 못 열어 CF-04009.
+                      setAutoPfxB64(pfxBase64);
+                    }
                     setCertPassword(password);
                     setCertFileName(certName);
                   }}
@@ -462,7 +436,7 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
       </div>
 
       {result && (
-        <div className={`bank-integration-result-message ${result.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
+        <div ref={resultRef} className={`bank-integration-result-message ${result.ok ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
           {result.msg}
         </div>
       )}

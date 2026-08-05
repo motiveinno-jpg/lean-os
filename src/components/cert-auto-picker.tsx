@@ -38,14 +38,52 @@ const fmtExpiry = (ts: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+// CodefCert 엔진이 내보내는 PFX 는 구식 RC2-40 암호가 섞인 표준 PKCS#12 (2026-08-05 진단:
+//   der-ok, pbeSHA_3DES, pbeSHA_RC2_40). CODEF 계정등록 서버가 RC2 를 못 열어 CF-04009 가 났고,
+//   홈택스류 국세청 API 는 아예 der/key 파일 2개를 요구한다.
+//   → 브라우저에서 forge 로 해체해 ①3DES 로 재포장한 PFX(은행/카드 계정등록용)
+//     ②cert DER + 암호화 PKCS#8 key(홈택스 der/key 등록용) 를 모두 만들어 넘긴다.
+async function convertPfx(rawB64: string, password: string): Promise<{
+  pfxBase64: string; derB64: string; keyB64: string;
+}> {
+  const forge = (await import("node-forge")).default;
+  const asn1 = forge.asn1.fromDer(forge.util.decode64(rawB64));
+  const p12 = forge.pkcs12.pkcs12FromAsn1(asn1, false, password);
+
+  const shrouded = p12.getBags({ bagType: forge.pki.oids.pkcs8ShroudedKeyBag })[forge.pki.oids.pkcs8ShroudedKeyBag] || [];
+  const plainKeys = p12.getBags({ bagType: forge.pki.oids.keyBag })[forge.pki.oids.keyBag] || [];
+  const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag] || [];
+  const key = (shrouded[0] || plainKeys[0])?.key;
+  const certs = certBags.map((b) => b.cert).filter(Boolean) as import("node-forge").pki.Certificate[];
+  if (!key || certs.length === 0) throw new Error("인증서 해석 실패 (key/cert 누락)");
+
+  // 사용자(leaf) 인증서 = 개인키와 모듈러스가 일치하는 것. 체인만 있고 못 찾으면 첫 번째.
+  const rsaKey = key as import("node-forge").pki.rsa.PrivateKey;
+  const leaf = certs.find((c) => {
+    const pub = c.publicKey as import("node-forge").pki.rsa.PublicKey;
+    return pub?.n && rsaKey?.n && pub.n.compareTo(rsaKey.n) === 0;
+  }) || certs[0];
+
+  // ① 재포장 PFX — 전 구간 3DES (CODEF 계정등록 서버가 여는 표준 조합)
+  const newP12 = forge.pkcs12.toPkcs12Asn1(rsaKey, certs, password, { algorithm: "3des" });
+  const pfxBase64 = forge.util.encode64(forge.asn1.toDer(newP12).getBytes());
+
+  // ② der/key — signCert.der(인증서 DER) + signPri.key(암호화 PKCS#8, 같은 비밀번호)
+  const derB64 = forge.util.encode64(forge.asn1.toDer(forge.pki.certificateToAsn1(leaf)).getBytes());
+  const keyInfo = forge.pki.wrapRsaPrivateKey(forge.pki.privateKeyToAsn1(rsaKey));
+  const encKeyInfo = forge.pki.encryptPrivateKeyInfo(keyInfo, password, { algorithm: "3des" });
+  const keyB64 = forge.util.encode64(forge.asn1.toDer(encKeyInfo).getBytes());
+
+  return { pfxBase64, derB64, keyB64 };
+}
+
 export function CertAutoPicker({ onExtracted, purpose = "register" }: {
-  /** 추출 성공 시 — PFX(base64)·인증서 이름·비밀번호. 호출측이 CODEF 인증에 사용한다. */
-  onExtracted: (r: { pfxBase64: string; certName: string; password: string }) => void;
   /**
-   * register(기본): PFX 추출 — 홈택스류 매 호출 인증 API 용 (CodefCert 웹 샘플가이드 §5 공식 용도).
-   * locate: 파일 위치 안내만 — 은행/카드 계정등록은 규격상 der/key 파일 업로드가 필요해
-   *   (가이드 FAQ: 엔진 추출 PFX 는 계정등록 API 에서 CF-04009), 선택한 인증서의 폴더 경로를 보여준다.
+   * 추출·변환 성공 시 — 재포장 PFX(은행/카드 계정등록용)와 der/key(홈택스 등록용)를 모두 전달.
+   * 호출측이 accountType 에 맞는 쪽을 골라 쓴다.
    */
+  onExtracted: (r: { pfxBase64: string; derB64: string; keyB64: string; certName: string; password: string }) => void;
+  /** register(기본): 추출·변환까지. locate: 파일 위치 안내만(예비 — 현재 미사용). */
   purpose?: "register" | "locate";
 }) {
   const [engineStatus, setEngineStatus] = useState<EngineStatus>("loading");
@@ -138,14 +176,23 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
     const cert = certList[selectedIdx];
     codefcert.engineGetExportCertificationB64(
       { certPassword: password, certPath: cert["cert.der.path"], keyPath: cert["cert.key.path"] },
-      (result: { SUCCESS: boolean; CONVERT?: string; REASON?: string }) => {
-        setExtracting(false);
+      async (result: { SUCCESS: boolean; CONVERT?: string; REASON?: string }) => {
         if (result.SUCCESS && result.CONVERT) {
           const name = cert["cert.subjectname.CN"];
-          setExtractedName(name);
-          onExtracted({ pfxBase64: result.CONVERT, certName: name, password });
+          try {
+            // 구식 RC2 포장 → 표준 3DES 재포장 + der/key 파생 (위 convertPfx 주석 참조)
+            const converted = await convertPfx(result.CONVERT, password);
+            setExtracting(false);
+            setExtractedName(name);
+            onExtracted({ ...converted, certName: name, password });
+          } catch (e) {
+            setExtracting(false);
+            setExtractedName(null);
+            setError(`인증서 변환 실패 (${e instanceof Error ? e.message : String(e)}) — "파일 직접 업로드"를 이용해주세요.`);
+          }
         } else {
           const code = result.REASON || "";
+          setExtracting(false);
           setExtractedName(null);
           setError(code === "-9997" ? "인증서 비밀번호가 일치하지 않습니다." : `인증서 추출 실패 (${code || "알 수 없는 오류"})`);
         }
