@@ -1434,22 +1434,47 @@ function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePre
   }
   return (
     <div className="pb-sum-all">
-      {/* 표를 가로지르는 돈 요약이 맨 위 — 표별 카드보다 이게 먼저 읽혀야 한다(2026-08-05) */}
-      <ProjectMoneyReport boards={boards} cols={cols} items={items} />
-      <p className="pb-sum-top">템플릿 {filled.length}개 · 총 {items.length}행 — 입력된 칸만 요약했어요.</p>
+      <p className="pb-sum-top">
+        리포트 {filled.length + 1}장 — 프로젝트 전체 돈 흐름 한 장과 템플릿마다 한 장씩.
+        값이 비어 있는 칸은 세지 않았어요.
+      </p>
+      {/* 표를 가로지르는 돈 요약이 맨 위 — 표별 리포트보다 이게 먼저 읽혀야 한다(2026-08-05) */}
+      <SummaryReport kicker="프로젝트 전체" title="돈 흐름" meta="템플릿 여러 개에서 모은 금액">
+        <ProjectMoneyReport boards={boards} cols={cols} items={items} />
+      </SummaryReport>
       {filled.map((b) => (
-        <section key={b.id} className="pb-sum-sec">
-          <h4 className="pb-sum-sec-h">{b.name}<em>{items.filter((i) => i.board_id === b.id).length}행</em></h4>
-          <BoardSummary
-            templateKey={b.template_key}
-            cols={cols.filter((c) => c.board_id === b.id)}
-            items={items.filter((i) => i.board_id === b.id)}
-            groups={groups.filter((g) => g.board_id === b.id)}
-            users={users}
-            presets={presets} onSavePreset={onSavePreset} onRemovePreset={onRemovePreset} />
-        </section>
+        <BoardSummary key={b.id}
+          boardName={b.name}
+          templateKey={b.template_key}
+          cols={cols.filter((c) => c.board_id === b.id)}
+          items={items.filter((i) => i.board_id === b.id)}
+          groups={groups.filter((g) => g.board_id === b.id)}
+          users={users}
+          presets={presets} onSavePreset={onSavePreset} onRemovePreset={onRemovePreset} />
       ))}
     </div>
+  );
+}
+
+/** 리포트 한 장 — 정리의 모든 구획이 이 껍데기를 쓴다.
+ *  머리(무엇에 대한 리포트인지)와 몸(지표)이 늘 같은 자리에 있어야 통일감이 생긴다.
+ *  (2026-08-05 사장님: "프로젝트별·템플릿별이 따로 노는데 통일감이 있어야 하고,
+ *   각 부분마다 별도 리포트로 나뉘어 있으면 좋겠다") */
+function SummaryReport({ kicker, title, meta, tools, children }: {
+  kicker: string; title: string; meta?: string; tools?: ReactNode; children: ReactNode;
+}) {
+  return (
+    <section className="pb-rep">
+      <header className="pb-rep-head">
+        <div className="pb-rep-title">
+          <span className="pb-rep-kicker">{kicker}</span>
+          <b>{title}</b>
+          {meta && <em>{meta}</em>}
+        </div>
+        {tools && <div className="pb-rep-tools">{tools}</div>}
+      </header>
+      {children}
+    </section>
   );
 }
 
@@ -1485,11 +1510,11 @@ function SummaryCardView({ c }: { c: SummaryCard }) {
   }
   if (c.kind === "date") return (
     <div className="pb-sum-card"><span>{c.label}</span>
-      <b className={c.late > 0 ? "pb-sum-bad" : ""}>{c.late > 0 ? `지난 것 ${c.late}건` : `이번 주 ${c.soon}건`}</b>
-      <em>{c.next ? `다음 ${c.next}` : "예정된 날짜 없음"}{c.late > 0 ? ` · 이번 주 ${c.soon}건` : ""}</em></div>
+      <b className={c.late > 0 ? "pb-sum-bad" : ""}>{c.late > 0 ? `기한 지난 ${c.late}건` : `이번 주 ${c.soon}건`}</b>
+      <em>{c.next ? `다음 ${c.label} ${c.next}` : `예정된 ${c.label} 없음`}{c.late > 0 ? ` · 이번 주 ${c.soon}건` : ""}</em></div>
   );
   return (
-    <div className="pb-sum-card pb-sum-wide"><span>{c.label}별</span>
+    <div className="pb-sum-card pb-sum-wide"><span>{c.label}별 인원</span>
       <b>{c.rows.length}명</b>
       <em>{c.rows.map((r) => `${r.name} ${r.count}건`).join(" · ")}</em></div>
   );
@@ -1497,7 +1522,9 @@ function SummaryCardView({ c }: { c: SummaryCard }) {
 
 // ── 템플릿 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
 //    무엇을 어떤 순서로 볼지는 '정리 양식'이 정한다(2026-08-05 사장님 지시).
-function BoardSummary({ templateKey, cols, items, groups, users, presets, onSavePreset, onRemovePreset }: {
+function BoardSummary({ boardName, templateKey, cols, items, groups, users, presets, onSavePreset, onRemovePreset }: {
+  /** 리포트 머리에 쓸 표 이름 */
+  boardName: string;
   templateKey?: string | null;
   cols: BoardColumn[]; items: BoardItem[]; groups: BoardGroup[]; users: { id: string; name: string }[];
   presets?: Preset[];
@@ -1538,26 +1565,31 @@ function BoardSummary({ templateKey, cols, items, groups, users, presets, onSave
   const layout = picked ? normalizeLayout(picked.payload) : null;
   const shown = applyLayout(all, layout);
 
-  if (all.length === 0) {
-    return <p className="pj-sec-empty">템플릿에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
-  }
-  return (
-    <>
-      {/* 정리 양식 — 기본은 이 표 형태에 맞춰 자동으로 고른 구성이다 */}
-      <div className="pb-fmt">
-        <span className="pb-fmt-k">정리 양식</span>
-        <button type="button" className={`pb-fmt-btn ${!picked ? "pb-fmt-on" : ""}`} onClick={() => pickFormat("")}>기본</button>
-        {mine.map((p) => (
-          <button key={p.id} type="button" className={`pb-fmt-btn ${picked?.id === p.id ? "pb-fmt-on" : ""}`}
-            onClick={() => pickFormat(p.id)}>{p.name}</button>
-        ))}
-        <button type="button" className="pb-fmt-gear" onClick={() => setConfigOpen(true)}
-          title="무엇을 어떤 순서로 볼지 고르기">구성</button>
-      </div>
+  const tools = (
+    // 정리 양식 — 기본은 이 표 형태에 맞춰 자동으로 고른 구성이다
+    <div className="pb-fmt">
+      <span className="pb-fmt-k">보는 방식</span>
+      <button type="button" className={`pb-fmt-btn ${!picked ? "pb-fmt-on" : ""}`} onClick={() => pickFormat("")}>기본</button>
+      {mine.map((p) => (
+        <button key={p.id} type="button" className={`pb-fmt-btn ${picked?.id === p.id ? "pb-fmt-on" : ""}`}
+          onClick={() => pickFormat(p.id)}>{p.name}</button>
+      ))}
+      <button type="button" className="pb-fmt-gear" onClick={() => setConfigOpen(true)}
+        title="무엇을 어떤 순서로 볼지 고르기">지표 고르기</button>
+    </div>
+  );
 
-      <div className="bf-grid">
-        {shown.map((p) => <div key={p.id} className="contents">{p.node}</div>)}
-      </div>
+  return (
+    <SummaryReport kicker="템플릿" title={boardName}
+      meta={all.length === 0 ? "아직 채운 값이 없어요" : `${items.length}행 · 지표 ${shown.length}개`}
+      tools={all.length === 0 ? undefined : tools}>
+      {all.length === 0 ? (
+        <p className="pj-sec-empty">값을 채우면 여기에 합계 · 분포 · 마감이 자동으로 정리돼요.</p>
+      ) : (
+        <div className="bf-grid">
+          {shown.map((p) => <div key={p.id} className="contents">{p.node}</div>)}
+        </div>
+      )}
 
       {configOpen && (
         <SummaryFormatDialog all={all} layout={layout} presetName={picked?.name || null}
@@ -1572,7 +1604,7 @@ function BoardSummary({ templateKey, cols, items, groups, users, presets, onSave
           onCancel={() => setNaming(null)}
           onSave={(nm) => { onSavePreset?.(nm, naming, tplKey); setNaming(null); }} />
       )}
-    </>
+    </SummaryReport>
   );
 }
 

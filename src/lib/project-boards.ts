@@ -366,7 +366,7 @@ export function buildBoardSummary(
     const parts = groups.map((g) => ({
       label: g.name, color: g.color, count: items.filter((it) => it.group_id === g.id).length,
     })).filter((p) => p.count > 0);
-    if (parts.length > 0) cards.push({ kind: "group", label: "그룹별", parts });
+    if (parts.length > 0) cards.push({ kind: "group", label: "그룹별 행 수", parts });
   }
 
   const numberCols = cols.filter((c) => c.type === "number");
@@ -387,7 +387,7 @@ export function buildBoardSummary(
       const pct = Number(it.values?.[pctCol.id]);
       return n + (Number.isFinite(pct) ? amt * (pct / 100) : 0);
     }, 0);
-    if (w > 0) cards.push({ kind: "weighted", label: `가중 ${moneyCol.name}`, value: Math.round(w), a: moneyCol.name, b: pctCol.name });
+    if (w > 0) cards.push({ kind: "weighted", label: `확률 반영 ${moneyCol.name}`, value: Math.round(w), a: moneyCol.name, b: pctCol.name });
   }
   // 숫자 컬럼이 둘이면 차이도 준다(예산−집행 = 잔여 / 예상−확정).
   //   단위가 같을 때만 — '수주·매출'의 금액(원) − 확률(%) 같은 카드가 뜨면 안 된다.

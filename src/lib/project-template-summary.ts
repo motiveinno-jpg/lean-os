@@ -124,23 +124,23 @@ export function templateFigures(
   switch (templateKey) {
     case "todo": {
       if (pct != null) {
-        out.push({ id: "ring:progress", kind: "ring", title: "진행률", pct, center: `${pct}%`, note: `${items.length}건 중 ${doneCount}건 완료` });
+        out.push({ id: "ring:progress", kind: "ring", title: "완료율", pct, center: `${pct}%`, note: `전체 ${items.length}건 중 ${doneCount}건 완료` });
         if (flow) covers.add(`status:${flow.name}`);
       }
       const st = statusSlices(flow, items);
       // 2조각짜리 도넛은 만들지 않는다(숫자가 낫다). 3~6조각일 때만.
       if (st.length >= 3 && flow) {
-        out.push({ id: "funnel:flow", kind: "funnel", title: "단계별로 몇 건", slices: st, note: "왼쪽이 앞 단계" });
+        out.push({ id: "funnel:flow", kind: "funnel", title: "단계별 건수", slices: st, note: "위에서 아래로 단계 순서" });
         covers.add(`status:${flow.name}`);
       }
       const pr = byPerson(personCols[0] || null, items, nameOf);
       if (pr.length > 0 && personCols[0]) {
-        out.push({ id: `hbars:person:${personCols[0].name}`, kind: "hbars", title: `${personCols[0].name}별 맡은 건수`, rows: pr });
+        out.push({ id: `hbars:person:${personCols[0].name}`, kind: "hbars", title: `${personCols[0].name}별 건수`, rows: pr });
         covers.add(`person:${personCols[0].name}`);
       }
       const wk = weekBuckets(dueCol, items, today, open);
       if (wk.some((b) => b.value > 0) && dueCol) {
-        out.push({ id: `weeks:${dueCol.name}`, kind: "weeks", title: `${dueCol.name} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+        out.push({ id: `weeks:${dueCol.name}`, kind: "weeks", title: `주별 ${dueCol.name} 건수`, bars: wk, note: "아직 안 끝난 건만 셉니다" });
         covers.add(`date:${dueCol.name}`);
       }
       break;
@@ -148,25 +148,25 @@ export function templateFigures(
     case "review": {
       const st = statusSlices(flow, items);
       if (st.length >= 3 && flow) {
-        out.push({ id: "funnel:flow", kind: "funnel", title: "어디에 쌓여 있나", slices: st, note: "요청부터 완료까지" });
+        out.push({ id: "funnel:flow", kind: "funnel", title: "단계별 건수", slices: st, note: "위에서 아래로 요청 → 완료" });
         covers.add(`status:${flow.name}`);
       }
       const waiting = items.filter(open).length;
       out.push({
-        id: "stat:waiting", kind: "stat", title: "처리 대기", value: `${waiting}건`,
-        note: waiting === 0 ? "밀린 요청이 없어요" : `전체 ${items.length}건 중`,
+        id: "stat:waiting", kind: "stat", title: "아직 안 끝난 건", value: `${waiting}건`,
+        note: waiting === 0 ? "밀린 요청이 없어요" : `전체 ${items.length}건 중 ${waiting}건`,
         tone: waiting === 0 ? "ok" : undefined,
       });
       // 요청자와 담당이 따로 있는 표라 둘 다 보여준다 — 누가 많이 넣고 누가 많이 받나
       personCols.slice(0, 2).forEach((pc) => {
         const rows = byPerson(pc, items, nameOf);
         if (rows.length === 0) return;
-        out.push({ id: `hbars:person:${pc.name}`, kind: "hbars", title: `${pc.name}별`, rows });
+        out.push({ id: `hbars:person:${pc.name}`, kind: "hbars", title: `${pc.name}별 건수`, rows });
         covers.add(`person:${pc.name}`);
       });
       const wk = weekBuckets(dueCol, items, today, open);
       if (wk.some((b) => b.value > 0) && dueCol) {
-        out.push({ id: `weeks:${dueCol.name}`, kind: "weeks", title: `${dueCol.name} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+        out.push({ id: `weeks:${dueCol.name}`, kind: "weeks", title: `주별 ${dueCol.name} 건수`, bars: wk, note: "아직 안 끝난 건만 셉니다" });
         covers.add(`date:${dueCol.name}`);
       }
       break;
@@ -183,11 +183,11 @@ export function templateFigures(
         const span = Math.max(1, (new Date(`${max}T00:00:00Z`).getTime() - new Date(`${min}T00:00:00Z`).getTime()) / 86_400_000);
         const gone = Math.min(span, Math.max(0, (new Date(`${today}T00:00:00Z`).getTime() - new Date(`${min}T00:00:00Z`).getTime()) / 86_400_000));
         const p = Math.round((gone / span) * 100);
-        out.push({ id: "ring:span", kind: "ring", title: "기간 진행", pct: p, center: `${p}%`, note: `${min} ~ ${max}` });
+        out.push({ id: "ring:span", kind: "ring", title: "기간 경과율", pct: p, center: `${p}%`, note: `${min} ~ ${max} 중 오늘까지` });
       }
       const st = statusSlices(flow, items);
       if (st.length >= 3 && flow) {
-        out.push({ id: "donut:flow", kind: "donut", title: "상태 분포", slices: st, total: `${items.length}건` });
+        out.push({ id: "donut:flow", kind: "donut", title: "상태별 건수", slices: st, total: `${items.length}건` });
         covers.add(`status:${flow.name}`);
       }
       const late = items.filter((it) => {
@@ -196,12 +196,12 @@ export function templateFigures(
         return /^\d{4}-\d{2}-\d{2}$/.test(v) && v < today;
       }).length;
       out.push({
-        id: "stat:late", kind: "stat", title: "기한 지난 일정", value: `${late}건`,
-        note: late === 0 ? "밀린 게 없어요" : "종료일이 지났는데 안 끝났어요",
+        id: "stat:late", kind: "stat", title: "종료일 지난 미완료", value: `${late}건`,
+        note: late === 0 ? "종료일 넘긴 일정 없음" : "종료일이 지났는데 안 끝난 일정",
         tone: late === 0 ? "ok" : "bad",
       });
       const wk = weekBuckets(endCol, items, today, open);
-      if (wk.some((b) => b.value > 0)) out.push({ id: "weeks:end", kind: "weeks", title: "끝나는 주", bars: wk });
+      if (wk.some((b) => b.value > 0)) out.push({ id: "weeks:end", kind: "weeks", title: "주별 종료 건수", bars: wk, note: "아직 안 끝난 건만 셉니다" });
       // 종료일은 '기한 지난 일정' + '끝나는 주' 가 이미 말한다
       if (endCol) covers.add(`date:${endCol.name}`);
       break;
@@ -215,7 +215,7 @@ export function templateFigures(
         const p = Math.round((realSum / planSum) * 100);
         out.push({
           id: "ring:planreal", kind: "ring", title: `${planCol?.name || "계획"} 대비 ${realCol?.name || "실적"}`, pct: Math.min(100, p),
-          center: `${p}%`, note: `${won(planSum)}원 중 ${won(realSum)}원`, tone: p > 100 ? "bad" : undefined,
+          center: `${p}%`, note: `${planCol?.name || "계획"} ${won(planSum)}원 중 ${realCol?.name || "실적"} ${won(realSum)}원`, tone: p > 100 ? "bad" : undefined,
         });
         // 링 하나가 계획·실적·차이를 다 말한다 — 합계 카드 셋을 뺀다
         if (planCol) covers.add(`number:${planCol.name}`);
@@ -245,11 +245,11 @@ export function templateFigures(
         const rows = items.map((it) => ({ label: it.name || "이름 없음", value: num(it.values?.[realCol.id]) }))
           .filter((r) => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 5)
           .map((r) => ({ ...r, text: `${won(r.value)}원` }));
-        if (rows.length >= 2) out.push({ id: "hbars:top", kind: "hbars", title: "금액 큰 순", rows });
+        if (rows.length >= 2) out.push({ id: "hbars:top", kind: "hbars", title: "금액이 큰 항목", rows, note: "위에서부터 다섯 개" });
       }
       const wk = weekBuckets(dueCol, items, today, open);
       if (wk.some((b) => b.value > 0) && dueCol) {
-        out.push({ id: `weeks:${dueCol.name}`, kind: "weeks", title: `${dueCol.name} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+        out.push({ id: `weeks:${dueCol.name}`, kind: "weeks", title: `주별 ${dueCol.name} 건수`, bars: wk, note: "아직 안 끝난 건만 셉니다" });
         covers.add(`date:${dueCol.name}`);
       }
       break;
@@ -264,7 +264,7 @@ export function templateFigures(
           value: items.filter((it) => it.values?.[flow.id] === o.id).reduce((s, it) => s + num(it.values?.[amtCol.id]), 0),
         })).filter((s) => s.value > 0);
         if (slices.length >= 2) {
-          out.push({ id: "funnel:amount", kind: "funnel", title: `단계별 ${amtCol.name}`, slices, note: "건수가 아니라 금액으로" });
+          out.push({ id: "funnel:amount", kind: "funnel", title: `단계별 ${amtCol.name}`, slices, note: "건수가 아니라 금액 합계입니다" });
           covers.add(`status:${flow.name}`);
         }
       }
@@ -272,7 +272,7 @@ export function templateFigures(
         const rows = items.map((it) => ({ label: it.name || "이름 없음", value: num(it.values?.[amtCol.id]) }))
           .filter((r) => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 5)
           .map((r) => ({ ...r, text: `${won(r.value)}원` }));
-        if (rows.length >= 2) out.push({ id: "hbars:top", kind: "hbars", title: "금액 큰 순", rows });
+        if (rows.length >= 2) out.push({ id: "hbars:top", kind: "hbars", title: "금액이 큰 항목", rows, note: "위에서부터 다섯 개" });
       }
       const pr = byPerson(personCols[0] || null, items, nameOf);
       if (pr.length > 0 && personCols[0]) {
@@ -281,7 +281,7 @@ export function templateFigures(
       }
       const wk = weekBuckets(dueCol, items, today, open);
       if (wk.some((b) => b.value > 0) && dueCol) {
-        out.push({ id: `weeks:${dueCol.name}`, kind: "weeks", title: `${dueCol.name} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+        out.push({ id: `weeks:${dueCol.name}`, kind: "weeks", title: `주별 ${dueCol.name} 건수`, bars: wk, note: "아직 안 끝난 건만 셉니다" });
         covers.add(`date:${dueCol.name}`);
       }
       break;
@@ -289,7 +289,7 @@ export function templateFigures(
     default: {
       const st = statusSlices(flow, items);
       if (st.length >= 3 && flow) {
-        out.push({ id: "donut:flow", kind: "donut", title: "상태 분포", slices: st, total: `${items.length}건` });
+        out.push({ id: "donut:flow", kind: "donut", title: "상태별 건수", slices: st, total: `${items.length}건` });
         covers.add(`status:${flow.name}`);
       }
       const pr = byPerson(personCols[0] || null, items, nameOf);

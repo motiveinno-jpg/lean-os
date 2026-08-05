@@ -62,7 +62,7 @@ export function ProjectMoneyReport({ boards, cols, items }: {
         <div className="mr-hero">
           <span className="mr-hero-k">마진</span>
           <b className={r.margin < 0 ? "mr-hero-v mr-bad" : "mr-hero-v"}>{won(r.margin)}원</b>
-          {r.marginRate != null && <em className={r.margin < 0 ? "mr-bad" : ""}>{r.marginRate}%</em>}
+          {r.marginRate != null && <em className={r.margin < 0 ? "mr-bad" : ""}>마진율 {r.marginRate}%</em>}
         </div>
         <div className="mr-basis">
           {(["accrual", "cash"] as Basis[]).map((b) => (
@@ -97,7 +97,7 @@ export function ProjectMoneyReport({ boards, cols, items }: {
         {r.budget && r.budget.planned > 0 && (
           <figure className="mr-fig">
             <figcaption>
-              예산 소진<em>집행 · 성과 표 기준 — 총 지출과 별개예요</em>
+              예산 소진율<em>&apos;집행 · 성과&apos; 템플릿만 셈합니다 — 위 총 지출과 별개예요</em>
             </figcaption>
             <div className="mr-meter">
               <span className="mr-meter-track">
@@ -116,7 +116,7 @@ export function ProjectMoneyReport({ boards, cols, items }: {
         {/* 막힌 곳 — 숫자를 늘리는 대신 '챙길 것' 한 줄로 */}
         {r.stuck.length > 0 && (
           <figure className="mr-fig">
-            <figcaption>막혀 있는 돈<em>기한이 지났는데 다음 단계로 안 넘어간 것</em></figcaption>
+            <figcaption>진행이 멈춘 돈<em>기한이 지났는데 다음 단계로 안 넘어간 건</em></figcaption>
             <ul className="mr-stuck">
               {r.stuck.map((s) => (
                 <li key={s.name}>
@@ -145,7 +145,7 @@ function StageBars({ income, spend }: { income: MoneyRollup["income"]; spend: Mo
   return (
     <figure className="mr-fig mr-fig-wide">
       <figcaption>
-        돈이 어디까지 왔나<em>막대 전체가 총액, 진한 쪽이 끝난 것</em>
+        받을 돈 · 나갈 돈이 어느 단계까지 왔나<em>막대 전체가 총액 · 진한 칸일수록 끝난 단계</em>
         {/* 색만으로 뜻을 전하지 않는다 — 숫자로 읽고 싶을 때를 위한 표 */}
         <button type="button" className="mr-toggle" onClick={() => setAsTable((v) => !v)}>
           {asTable ? "그래프로" : "표로 보기"}
@@ -218,8 +218,8 @@ function WeeklyCash({ weeks }: { weeks: CashWeek[] }) {
   return (
     <figure className="mr-fig mr-fig-wide">
       <figcaption>
-        언제 자금이 비나<em>앞으로 8주 · 아직 안 끝난 건만</em>
-        {worst && <span className="mr-worst">{worst.label} 에 {shortWon(Math.abs(worst.net))} 부족</span>}
+        주별 들어올 돈 · 나갈 돈<em>앞으로 8주 · 아직 안 끝난 건만</em>
+        {worst && <span className="mr-worst">{worst.label} 에 {shortWon(Math.abs(worst.net))}원 모자람</span>}
       </figcaption>
       <div className="mr-weeks" onMouseLeave={() => setHover(null)}>
         {weeks.map((w) => (
@@ -251,7 +251,7 @@ function WeeklyCash({ weeks }: { weeks: CashWeek[] }) {
         <span className="mr-legend-row">
           <span><i style={{ background: "var(--mr-inc-3)" }} />들어올 돈</span>
           <span><i style={{ background: "var(--mr-out-3)" }} />나갈 돈</span>
-          <span className="mr-legend-note">순액이 마이너스인 주는 날짜가 빨갛습니다</span>
+          <span className="mr-legend-note">들어올 돈보다 나갈 돈이 많은 주는 날짜가 빨갛습니다</span>
         </span>
       </div>
     </figure>
