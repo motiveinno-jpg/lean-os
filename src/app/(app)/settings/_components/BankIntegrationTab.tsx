@@ -390,16 +390,14 @@ function CodefAccountRegister({ companyId, onRegistered }: { companyId: string |
 
               {certSource === "auto" && (
                 <CertAutoPicker
-                  onExtracted={({ pfxBase64, derB64, keyB64, certName, password }) => {
-                    if (accountType === "hometax") {
-                      // 홈택스는 der/key 규격 — 변환 산출물을 파일 업로드와 동일한 상태로 주입해
-                      // 검증된 기존 der/key 등록 흐름을 그대로 태운다.
-                      setDerFileB64(derB64);
-                      setKeyFileB64(keyB64);
-                    } else {
-                      // 은행/카드 계정등록은 재포장(3DES) PFX — RC2 원본은 CODEF 가 못 열어 CF-04009.
-                      setAutoPfxB64(pfxBase64);
-                    }
+                  onExtracted={({ derB64, keyB64, certName, password }) => {
+                    // 전 유형 der/key 주입 (2026-08-05): 재포장 PFX 는 엔진 산출물 특유 인코딩 탓에
+                    // CODEF 계정등록에서 CF-04009 가 지속 — 역사적으로 검증된 certType 1(der/key)
+                    // 경로에 변환 산출물을 태운다. 은행/카드는 기존 register 파일 흐름,
+                    // 홈택스는 transient 사전 검증 후 저장 흐름이 그대로 적용된다.
+                    setAutoPfxB64("");
+                    setDerFileB64(derB64);
+                    setKeyFileB64(keyB64);
                     setCertPassword(password);
                     setCertFileName(certName);
                   }}
