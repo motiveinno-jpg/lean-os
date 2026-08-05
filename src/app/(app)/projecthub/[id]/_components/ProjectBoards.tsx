@@ -45,6 +45,8 @@ import {
 //   (레포에 이미 쓰이는 방식: (supabase as any).from/rpc)
 const db = supabase as any;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
+/** 표 칸 너비(px) — globals.css 의 .pbc-* 와 같은 값. 표의 최소 너비를 셈할 때 쓴다. */
+const COL_W = { sel: 34, name: 220, cell: 170, ratio: 96, doc: 110, tail: 66 };
 const VIEW_KEY = "ov.board.view.";   // + boardId
 const GROUP_COLORS = ["#5559DF", "#00C875", "#FDAB3D", "#A25DDC", "#579BFC", "#E2445C", "#C4C4C4"];
 
@@ -1054,7 +1056,19 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               </div>
             )}
             <div className="pb-scroll">
-              <table className="pb-table">
+              {/* 칸 너비를 표가 알아서 정하게 두면 머리글에 든 것(단위 칸·라벨 버튼)에 따라 칸마다 폭이
+                  달라진다 — 값이 같은 종류인데 상자 넓이가 제각각으로 보였다(2026-08-05 사장님 지시).
+                  칸 너비를 colgroup 으로 못 박고, 화면이 좁으면 가로로 스크롤한다. */}
+              <table className="pb-table" style={{ minWidth: COL_W.sel + COL_W.name + cols.length * COL_W.cell
+                + (ratioPair ? COL_W.ratio : 0) + (isBilling ? COL_W.doc : 0) + COL_W.tail }}>
+                <colgroup>
+                  <col className="pbc-sel" />
+                  <col className="pbc-name" />
+                  {cols.map((c) => <col key={c.id} className="pbc-cell" />)}
+                  {ratioPair && <col className="pbc-ratio" />}
+                  {isBilling && <col className="pbc-doc" />}
+                  <col className="pbc-tail" />
+                </colgroup>
                 <thead>
                   <tr>
                     <th className="pb-th-sel">

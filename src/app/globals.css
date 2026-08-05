@@ -5850,9 +5850,17 @@ td .rounded-full { white-space: nowrap; }
 .pb-group-dot { @apply w-2.5 h-2.5 rounded-sm shrink-0; }
 .pb-group-n { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
 .pb-scroll { @apply overflow-x-auto rounded-xl border border-[var(--border)]; }
-.pb-table { @apply w-full border-collapse bg-[var(--bg-card)] text-[12.5px]; }
+/* 칸 너비는 colgroup 이 정한다(table-fixed) — 머리글에 든 것에 따라 칸 폭이 달라지지 않게 (2026-08-05) */
+.pb-table { @apply w-full table-fixed border-collapse bg-[var(--bg-card)] text-[12.5px]; }
+.pbc-sel { width: 34px; }
+.pbc-name { width: 220px; }
+.pbc-cell { width: 170px; }
+.pbc-ratio { width: 96px; }
+.pbc-doc { width: 110px; }
+.pbc-tail { width: 66px; }
 .pb-table th { @apply text-left text-[10.5px] font-bold text-[var(--text-dim)] px-2.5 py-2 bg-[var(--bg-surface)] border-b border-[var(--border)] whitespace-nowrap; }
-.pb-table td { @apply px-2.5 py-1.5 border-b border-[var(--border)]/50 text-[var(--text)] whitespace-nowrap align-middle; }
+/* 칸 너비를 못 박았으므로 넘치는 값은 칸 안에서 잘린다 — 옆 칸을 침범하지 않게 */
+.pb-table td { @apply px-2.5 py-1.5 border-b border-[var(--border)]/50 text-[var(--text)] whitespace-nowrap align-middle overflow-hidden text-ellipsis; }
 .pb-table tr:last-child td { @apply border-b-0; }
 .pb-th-name { @apply min-w-[200px]; }
 .pb-th-num, .pb-td-num { @apply text-right; }
