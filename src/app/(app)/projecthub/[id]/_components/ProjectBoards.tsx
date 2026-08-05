@@ -22,6 +22,7 @@ import { BoardItemDrawer } from "./BoardItemDrawer";
 import { BoardDocModal, type DocKind } from "./BoardDocModal";
 import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
+import { ProjectMoneyReport } from "./ProjectMoneyReport";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
@@ -1301,6 +1302,8 @@ function ProjectSummary({ boards, cols, groups, items, users }: {
   }
   return (
     <div className="pb-sum-all">
+      {/* 표를 가로지르는 돈 요약이 맨 위 — 표별 카드보다 이게 먼저 읽혀야 한다(2026-08-05) */}
+      <ProjectMoneyReport boards={boards} cols={cols} items={items} />
       <p className="pb-sum-top">템플릿 {filled.length}개 · 총 {items.length}행 — 입력된 칸만 요약했어요.</p>
       {filled.map((b) => (
         <section key={b.id} className="pb-sum-sec">

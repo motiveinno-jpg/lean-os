@@ -38,6 +38,17 @@
   --warning: #D97706;
   --warning-dim: #FEF3C7;
   --danger: #DC2626;
+
+  /* 프로젝트 돈 단계 램프 — 순서형(한 hue 밝기 단계). 계열 색이 아니라 '얼마나 왔나' 를 뜻한다.
+     ink 는 그 칸 위 글씨 색 — 검증기가 밝은 칸의 흰 글씨를 대비 미달로 잡아서 칸마다 따로 준다. */
+  --mr-inc-1: #A5B4FC; --mr-inc-1-ink: #1E1B4B;
+  --mr-inc-2: #818CF8; --mr-inc-2-ink: #1E1B4B;
+  --mr-inc-3: #6366F1; --mr-inc-3-ink: #FFFFFF;
+  --mr-inc-4: #4338CA; --mr-inc-4-ink: #FFFFFF;
+  --mr-out-1: #FCD34D; --mr-out-1-ink: #451A03;
+  --mr-out-2: #F59E0B; --mr-out-2-ink: #451A03;
+  --mr-out-3: #D97706; --mr-out-3-ink: #451A03;
+  --mr-out-4: #92400E; --mr-out-4-ink: #FFFFFF;
   --danger-dim: #FEE2E2;
   --critical: #B91C1C;
   /* 더 미니멀한 그림자 — granter 스타일의 단정한 카드 */
@@ -105,6 +116,16 @@
   --warning: #FBBF24;
   --warning-dim: rgba(251,191,36,0.15);
   --danger: #F87171;
+
+  /* 다크에서는 뒤집지 않고 **다시 골랐다** — 어두운 면 위에서는 진행할수록 밝아져야 눈에 든다 */
+  --mr-inc-1: #312E81; --mr-inc-1-ink: #FFFFFF;
+  --mr-inc-2: #4338CA; --mr-inc-2-ink: #FFFFFF;
+  --mr-inc-3: #6366F1; --mr-inc-3-ink: #FFFFFF;
+  --mr-inc-4: #A5B4FC; --mr-inc-4-ink: #1E1B4B;
+  --mr-out-1: #78350F; --mr-out-1-ink: #FFFFFF;
+  --mr-out-2: #B45309; --mr-out-2-ink: #FFFFFF;
+  --mr-out-3: #F59E0B; --mr-out-3-ink: #451A03;
+  --mr-out-4: #FCD34D; --mr-out-4-ink: #451A03;
   --danger-dim: rgba(248,113,113,0.15);
   --critical: #EF4444;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
@@ -6233,3 +6254,63 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ds-bar2sample { @apply flex flex-wrap items-center gap-4 p-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
 .ds-floats { @apply relative flex flex-wrap items-center justify-center gap-3 p-6 rounded-2xl bg-[var(--bg-surface)]; }
 .ds-floats .pb-undo, .ds-floats .pb-bulk { @apply static translate-x-0 shadow-lg; }
+
+/* 프로젝트 돈 한 장 요약 — 정리 탭 맨 위 (2026-08-05) */
+.mr { @apply flex flex-col gap-3 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.mr-head { @apply flex flex-wrap items-end justify-between gap-3; }
+.mr-hero { @apply flex items-baseline gap-2; }
+.mr-hero-k { @apply text-[11.5px] font-bold text-[var(--text-dim)]; }
+.mr-hero-v { @apply text-[26px] font-extrabold tracking-tight text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.mr-hero em { @apply not-italic text-[13px] font-bold text-[var(--text-muted)]; }
+.mr-bad { @apply !text-[var(--danger)]; }
+.mr-basis { @apply flex flex-wrap items-center gap-1.5; }
+.mr-basis > button { @apply h-7 px-2.5 rounded-lg border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
+.mr-basis > button.mr-basis-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]; }
+.mr-basis-note { @apply text-[11px] text-[var(--text-dim)]; }
+.mr-warn { @apply flex flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 rounded-xl bg-[var(--warning)]/8 border border-[var(--warning)]/25 text-[12px] text-[var(--text-muted)]; }
+.mr-warn > b { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
+.mr-warn > button { @apply ml-auto h-7 px-3 rounded-lg text-[11.5px] font-bold text-[var(--text-muted)] hover:bg-[var(--bg-surface)]; }
+
+.mr-fig { @apply flex flex-col gap-2 p-3.5 rounded-xl bg-[var(--bg-surface)]; }
+.mr-fig-wide { @apply w-full; }
+.mr-fig figcaption { @apply flex flex-wrap items-baseline gap-2 text-[12px] font-bold text-[var(--text)]; }
+.mr-fig figcaption em { @apply not-italic text-[11px] font-normal text-[var(--text-dim)]; }
+.mr-fignote { @apply text-[11.5px] text-[var(--text-muted)]; }
+.mr-fignote b { @apply text-[var(--text)] font-bold; }
+.mr-grid { @apply grid gap-3 grid-cols-1 lg:grid-cols-2; }
+
+/* 단계 막대 — 수입·지출이 같은 축을 쓴다(길이를 그대로 비교할 수 있게) */
+.mr-bars { @apply flex flex-col gap-2; }
+.mr-bar-row { @apply flex items-center gap-2; }
+.mr-bar-k { @apply w-14 shrink-0 text-[11.5px] font-bold text-[var(--text-muted)]; }
+.mr-bar-track { @apply flex h-7 rounded-lg overflow-hidden min-w-[2px]; }
+.mr-bar-track i { @apply flex items-center justify-center h-full; box-shadow: inset -2px 0 0 var(--bg-surface); }
+.mr-bar-track i:last-child { box-shadow: none; }
+.mr-bar-track em { @apply not-italic text-[10.5px] font-bold px-1 truncate; }
+.mr-bar-total { @apply ml-auto shrink-0 text-[12px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.mr-legend { @apply flex flex-col gap-1 pt-1; }
+.mr-legend-row { @apply flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[10.5px] text-[var(--text-muted)]; }
+.mr-legend-row > b { @apply w-14 shrink-0 font-bold text-[var(--text-dim)]; }
+.mr-legend-row span { @apply inline-flex items-center gap-1; }
+.mr-legend-row i { @apply block w-2.5 h-2.5 rounded-sm; }
+
+/* 예산 소진 */
+.mr-meter { @apply flex items-center gap-2; }
+.mr-meter-track { @apply flex-1 h-2.5 rounded-full bg-[var(--bg-card)] overflow-hidden; }
+.mr-meter-track i { @apply block h-full rounded-full bg-[var(--primary)]; }
+.mr-meter-track i.mr-meter-over { @apply bg-[var(--danger)]; }
+.mr-meter > b { @apply text-[13px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+
+/* 막힌 돈 */
+.mr-stuck { @apply flex flex-col gap-1; }
+.mr-stuck li { @apply flex items-center gap-2 text-[12px] text-[var(--text)]; }
+.mr-stuck i { @apply block w-2 h-2 rounded-full shrink-0; }
+.mr-stuck span { @apply flex-1 min-w-0 truncate; }
+.mr-stuck em { @apply not-italic shrink-0 text-[11px] text-[var(--danger)] font-semibold; }
+.mr-stuck b { @apply shrink-0 font-extrabold; font-variant-numeric: tabular-nums; }
+.mr-toggle { @apply ml-auto h-7 px-2.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-card)]; }
+.mr-table { @apply w-full text-[12px] mt-1; }
+.mr-table th { @apply px-2 py-1.5 text-left text-[10.5px] font-bold text-[var(--text-dim)]; }
+.mr-table td { @apply px-2 py-1.5 text-[var(--text)] border-t border-[var(--border)]; }
+.mr-table .mr-td-n { @apply text-right; font-variant-numeric: tabular-nums; }
+.mr-table i { @apply inline-block w-2.5 h-2.5 rounded-sm mr-1.5 align-middle; }
