@@ -708,6 +708,22 @@ input, textarea, [contenteditable="true"] {
 textarea.field-input { height: auto; min-height: 5rem; padding-top: 0.625rem; padding-bottom: 0.625rem; }
 .field-input-sm { height: var(--control-h-sm); padding-top: 0; padding-bottom: 0; }
 
+/* 2-1) ⚠️ Tailwind v4 함정 — 이 파일의 클래스는 @layer 밖이라 utilities 레이어를 항상 이긴다.
+   그래서 <input className="field-input pl-10"> 의 pl-10 이 조용히 죽고 field-input 의 px-3(12px)만 적용돼
+   돋보기·"보기" 버튼 위로 글자가 겹쳤다 (2026-08-05 사장님 제보: 서명함 검색창).
+   아이콘 자리를 비우는 좌우 패딩만 같은 값으로 되살린다 — 높이·배경 등 나머지는 field-input 그대로.
+   ※ 새 조합(예: field-input pl-14)을 쓰려면 여기에 한 줄 추가해야 실제로 적용된다. */
+.field-input.pl-8 { padding-left: 2rem; }
+.field-input.pl-9 { padding-left: 2.25rem; }
+.field-input.pl-10 { padding-left: 2.5rem; }
+.field-input.pl-11 { padding-left: 2.75rem; }
+.field-input.pl-12 { padding-left: 3rem; }
+.field-input.pr-10 { padding-right: 2.5rem; }
+.field-input.pr-12 { padding-right: 3rem; }
+.field-input.pr-14 { padding-right: 3.5rem; }
+.field-input.pr-16 { padding-right: 4rem; }
+.field-input.pr-20 { padding-right: 5rem; }
+
 /* 3) 빈 상태 표준 — 아이콘 칩 + 제목 + 설명 + (선택) CTA. 이모지 대형 노출 대체 */
 .empty-state {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
