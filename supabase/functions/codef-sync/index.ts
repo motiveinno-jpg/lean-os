@@ -1184,10 +1184,18 @@ async function syncHometaxInvoices(
       const counterpartyRep = isSales
         ? (inv.resContractorName || "")
         : (inv.resSupplierName || "");
-      // 이메일 — CODEF 목록 응답에 없을 수 있음(있으면 저장, 없으면 null). 여러 필드명 대비 coalesce.
+      // 이메일 — ⚠️ 2026-08-05 사장님 지적으로 발견한 오매핑:
+      //   종전엔 resContractorEmail / resSupplierEmail 을 읽었는데 **응답에 없는 이름**이라
+      //   1,826건 전부 빈 값이었다. 통합 목록 API 실제 필드는
+      //     resEmail(공급자) / resEmail1·resEmail2(공급받는자).
       const counterpartyEmail = isSales
-        ? (inv.resContractorEmail || inv.resContractorEmail1 || inv.resContractorEmailId || "")
-        : (inv.resSupplierEmail || inv.resSupplierEmail1 || inv.resSupplierEmailId || "");
+        ? (inv.resEmail1 || inv.resEmail2 || "")
+        : (inv.resEmail || "");
+      // 사업장 주소 — 목록 응답에 이미 있는데 아예 읽지 않아 화면에서 '-' 로 나오던 값.
+      //   (매출이면 거래처=공급받는자, 매입이면 거래처=공급자)
+      const counterpartyAddress = isSales
+        ? (inv.resContractorBusinessPlace || "")
+        : (inv.resSupplierBusinessPlace || "");
 
       rowsToUpsert.push({
         company_id: companyId,
@@ -1202,6 +1210,7 @@ async function syncHometaxInvoices(
         counterparty_business_item: counterpartyBizItem,
         counterparty_representative: counterpartyRep || null,
         counterparty_email: counterpartyEmail || null,
+        counterparty_address: counterpartyAddress || null,
         supply_amount: Number(inv.resSupplyValue || 0),
         tax_amount: Number(inv.resTaxAmt || 0),
         total_amount: Number(inv.resTotalAmount || 0),
@@ -1218,7 +1227,7 @@ async function syncHometaxInvoices(
       const keys = rowsToUpsert.map((r) => r.nts_confirm_no);
       const { data: existingRows, error: exErr } = await supabase
         .from("tax_invoices")
-        .select("id, nts_confirm_no")
+        .select("id, nts_confirm_no, counterparty_address, counterparty_email, counterparty_representative")
         .eq("company_id", companyId)
         .in("nts_confirm_no", keys);
       if (exErr) {
@@ -1249,6 +1258,23 @@ async function syncHometaxInvoices(
           } else {
             totalSynced += existingIds.length;
           }
+          // 이메일·사업장 오매핑으로 과거에 못 채운 값 backfill (2026-08-05).
+          //   **비어 있는 칸만** 채운다 — 사용자가 직접 고쳐 넣은 값은 건드리지 않는다.
+          //   다시 동기화만 하면 과거 건도 채워지므로 별도 소급 작업이 필요 없다.
+          const byKey = new Map(rowsToUpsert.map((r) => [r.nts_confirm_no, r]));
+          let filled = 0;
+          for (const ex of existingRows || []) {
+            const src = byKey.get(ex.nts_confirm_no);
+            if (!src) continue;
+            const patch: Record<string, unknown> = {};
+            if (!ex.counterparty_address && src.counterparty_address) patch.counterparty_address = src.counterparty_address;
+            if (!ex.counterparty_email && src.counterparty_email) patch.counterparty_email = src.counterparty_email;
+            if (!ex.counterparty_representative && src.counterparty_representative) patch.counterparty_representative = src.counterparty_representative;
+            if (Object.keys(patch).length === 0) continue;
+            const { error: upErr } = await supabase.from("tax_invoices").update(patch).eq("id", ex.id);
+            if (!upErr) filled++;
+          }
+          if (filled > 0) debug.push(`${direction} 기존행 주소·이메일 backfill ${filled}건`);
         }
         debug.push(`${direction} new=${newRows.length}, existing(synced_at only)=${existingIds.length}`);
       }
@@ -1263,8 +1289,13 @@ async function syncHometaxInvoices(
   //   한 번에 DETAIL_MAX 건까지만 — CODEF 문서가 "과도한 호출 시 기관 IP 차단" 을 경고하고
   //   건당 과금이라 배치처럼 몰아치지 않는다. 남은 건은 상세 화면을 열 때 1건씩 채워진다.
   //   상세 실패는 동기화 자체를 실패시키지 않는다(본체는 이미 저장 완료).
+  //   ⚠️ 2026-08-05 재확인: 사업장 주소·이메일은 **통합 목록 응답에 이미 있다**(resContractorBusinessPlace,
+  //   resEmail/resEmail1). 위 매핑에서 바로 저장하므로 상세 API 를 부를 이유가 없다 — 기본 비활성.
+  //   상세 API 는 품목 리스트·원문 PDF 같은 추가 정보가 필요할 때만 쓴다(상품 승인 + 건당 과금 필요).
+  const DETAIL_ENRICH_ENABLED = false;
   const DETAIL_MAX = 10;
   try {
+    if (!DETAIL_ENRICH_ENABLED) throw new Error("detail enrich disabled — 목록 응답으로 충분");
     const { data: pending } = await supabase
       .from("tax_invoices")
       .select("id, type, nts_confirm_no")

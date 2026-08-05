@@ -2591,6 +2591,11 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
   const detailTriedRef = useRef<string | null>(null);
   useEffect(() => {
     const id = invoice?.id;
+    // 2026-08-05 재확인: 사업장 주소·이메일은 홈택스 **목록** 응답에 이미 들어 있고 동기화가 저장한다.
+    //   (종전엔 필드명을 잘못 읽어 비어 보였을 뿐) → 유료·미승인인 상세 API 를 자동 호출할 이유가 없다.
+    //   과거 건은 그 기간을 다시 동기화하면 채워진다. 상세 API 는 품목·원문 PDF 가 필요해질 때 되살린다.
+    const AUTO_DETAIL_FETCH = false;
+    if (!AUTO_DETAIL_FETCH) return;
     if (!id || invoice.detail_fetched_at || !invoice.nts_confirm_no) return;
     if (detailTriedRef.current === id) return;   // 한 번 시도한 건은 재시도 안 함(모달 재렌더 방지)
     // 상품 미승인(CF-00401/CF-00003)처럼 회사 단위로 영구 실패인 경우, 계산서를 열 때마다
