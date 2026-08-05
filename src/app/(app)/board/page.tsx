@@ -194,15 +194,20 @@ export default function BoardPage() {
     queryKey: ["board-poll-results", openId],
     queryFn: async () => {
       const counts: Record<number, number> = {};
+      // 실명 폴이면 RPC 가 옵션별 voter_user_ids 를 함께 준다 — 이걸 버리면
+      //   실명으로 만들어도 화면상 익명처럼 보인다 (2026-08-05 사장님 제보).
+      const voterIds: Record<number, string[]> = {};
       try {
         const { data, error } = await db.rpc("get_poll_results", { p_post_id: openId as string });
         if (error) throw error;
         let total = 0;
         for (const r of (data || []) as any[]) {
-          counts[Number(r.option_index)] = Number(r.vote_count || 0);
+          const k = Number(r.option_index);
+          counts[k] = Number(r.vote_count || 0);
           total += Number(r.vote_count || 0);
+          if (Array.isArray(r.voter_user_ids)) voterIds[k] = r.voter_user_ids as string[];
         }
-        return { counts, total };
+        return { counts, total, voterIds };
       } catch {
         const data = logRead('board/page:data', await db
           .from("board_poll_votes")
@@ -212,13 +217,34 @@ export default function BoardPage() {
           const k = Number(v.option_index);
           counts[k] = (counts[k] || 0) + 1;
         }
-        return { counts, total: (data || []).length };
+        return { counts, total: (data || []).length, voterIds };
       }
     },
     enabled: !!openId,
   });
   const voteCounts: Record<number, number> = pollAgg?.counts ?? {};
   const totalVotes = pollAgg?.total ?? 0;
+  const voterIdsByOption: Record<number, string[]> = useMemo(() => pollAgg?.voterIds ?? {}, [pollAgg]);
+
+  // 실명 폴의 투표자 이름 — RPC 가 준 user_id 를 회사 구성원 이름으로 바꾼다.
+  const voterIdList = useMemo(
+    () => Array.from(new Set(Object.values(voterIdsByOption).flat())),
+    [voterIdsByOption],
+  );
+  const { data: voterNames = {} } = useQuery({
+    queryKey: ["board-poll-voter-names", openId, voterIdList.join(",")],
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      if (voterIdList.length === 0) return map;
+      const data = logRead('board/page:voters', await db
+        .from("users")
+        .select("id, name, email")
+        .in("id", voterIdList));
+      for (const u of (data || []) as any[]) map[u.id] = u.name || u.email || "이름 없음";
+      return map;
+    },
+    enabled: !!openId && voterIdList.length > 0,
+  });
 
   // 내 표 — 본인 행만 조회(익명이어도 본인 선택 표시는 가능, RLS 본인범위).
   const { data: myVotes = [] } = useQuery({
@@ -517,44 +543,42 @@ export default function BoardPage() {
       toast("댓글 삭제 실패: " + (e?.message || ""), "error"),
   });
 
-  // 투표 — onConflict 미사용(구 (post_id,user_id) / 신 (post_id,user_id,
-  //   option_index) UNIQUE 양쪽에서 안전). 단일=기존 표 교체, 복수=옵션 토글.
+  // 투표 — 옵션 클릭은 '선택'까지만, 확인 버튼을 눌러야 서버에 반영한다
+  //   (2026-08-05 사장님 제보: 누르는 즉시 투표돼 오투표가 났다).
+  //   pendingVote: 아직 제출 안 한 선택. null 이면 내 기존 표(myVotes)를 그대로 표시.
+  const [pendingVote, setPendingVote] = useState<{ postId: string; options: number[] } | null>(null);
+  const pickOption = (postId: string, optionIndex: number, multi: boolean) => {
+    setPendingVote((prev) => {
+      const base = prev && prev.postId === postId ? prev.options : myVotes;
+      if (!multi) return { postId, options: [optionIndex] };
+      const next = base.includes(optionIndex)
+        ? base.filter((i) => i !== optionIndex)
+        : [...base, optionIndex];
+      return { postId, options: next };
+    });
+  };
+
+  // 확정 저장 — onConflict 미사용(구 (post_id,user_id) / 신 (post_id,user_id,
+  //   option_index) UNIQUE 양쪽에서 안전). 선택한 옵션 집합으로 통째 교체.
   const castVote = useMutation({
-    mutationFn: async ({ postId, optionIndex, multi }: { postId: string; optionIndex: number; multi: boolean }) => {
+    mutationFn: async ({ postId, optionIndexes }: { postId: string; optionIndexes: number[] }) => {
       if (!user?.id) throw new Error("로그인이 필요합니다.");
-      if (multi) {
-        const existing = logRead('board/page:existing', await db
-          .from("board_poll_votes")
-          .select("id")
-          .eq("post_id", postId)
-          .eq("user_id", user.id)
-          .eq("option_index", optionIndex)
-          .limit(1));
-        if (existing && existing.length > 0) {
-          const { error } = await db
-            .from("board_poll_votes")
-            .delete()
-            .eq("post_id", postId)
-            .eq("user_id", user.id)
-            .eq("option_index", optionIndex);
-          if (error) throw error;
-        } else {
-          const { error } = await db
-            .from("board_poll_votes")
-            .insert({ post_id: postId, company_id: companyId as string, user_id: user.id, option_index: optionIndex });
-          if (error) throw error;
-        }
-      } else {
-        await db.from("board_poll_votes").delete().eq("post_id", postId).eq("user_id", user.id);
-        const { error } = await db
-          .from("board_poll_votes")
-          .insert({ post_id: postId, company_id: companyId as string, user_id: user.id, option_index: optionIndex });
-        if (error) throw error;
-      }
+      await db.from("board_poll_votes").delete().eq("post_id", postId).eq("user_id", user.id);
+      if (optionIndexes.length === 0) return; // 전체 해제 = 기권
+      const { error } = await db.from("board_poll_votes").insert(
+        optionIndexes.map((optionIndex) => ({
+          post_id: postId,
+          company_id: companyId as string,
+          user_id: user.id,
+          option_index: optionIndex,
+        })),
+      );
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["board-poll-results"] });
       qc.invalidateQueries({ queryKey: ["board-my-poll-votes"] });
+      setPendingVote(null);
       toast("투표 완료", "success");
     },
     onError: (e: any) => toast("투표 실패: " + (e?.message || ""), "error"),
@@ -1057,17 +1081,16 @@ export default function BoardPage() {
                               totalVotes > 0
                                 ? Math.round((count / totalVotes) * 100)
                                 : 0;
-                            const voted = myVotes.includes(idx);
+                            // 아직 제출 안 한 선택이 있으면 그걸, 없으면 확정된 내 표를 표시
+                            const picked = pendingVote?.postId === p.id ? pendingVote.options : myVotes;
+                            const voted = picked.includes(idx);
+                            const voterList = (voterIdsByOption[idx] || [])
+                              .map((uid) => voterNames[uid])
+                              .filter(Boolean);
                             return (
                               <button
                                 key={idx}
-                                onClick={() =>
-                                  castVote.mutate({
-                                    postId: p.id,
-                                    optionIndex: idx,
-                                    multi: isMulti,
-                                  })
-                                }
+                                onClick={() => pickOption(p.id, idx, isMulti)}
                                 disabled={castVote.isPending || expired}
                                 className={`board-poll-option ${
                                   voted
@@ -1088,13 +1111,57 @@ export default function BoardPage() {
                                     {count}표 · {pct}%
                                   </span>
                                 </div>
+                                {/* 실명 폴이면 누가 골랐는지 공개 (익명 폴은 RPC 가 신원을 안 준다) */}
+                                {!p.poll_anonymous && voterList.length > 0 && (
+                                  <div className="board-poll-voters">
+                                    {voterList.join(", ")}
+                                  </div>
+                                )}
                               </button>
                             );
                           })}
                         </div>
+                        {/* 확인을 눌러야 반영 — 클릭 즉시 투표되던 오투표 방지 */}
+                        {!expired && (() => {
+                          const picked = pendingVote?.postId === p.id ? pendingVote.options : myVotes;
+                          const dirty = pendingVote?.postId === p.id &&
+                            (picked.length !== myVotes.length || picked.some((i) => !myVotes.includes(i)));
+                          return (
+                            <div className="board-poll-confirm-bar">
+                              <span className="text-[11px] text-[var(--text-muted)]">
+                                {dirty
+                                  ? picked.length === 0
+                                    ? "선택 해제됨 — 확인하면 내 표가 취소됩니다"
+                                    : `선택: ${picked.map((i) => opts[i]).filter(Boolean).join(", ")}`
+                                  : myVotes.length > 0
+                                    ? "투표함 — 다시 선택하면 변경할 수 있습니다"
+                                    : "선택 후 '투표하기'를 눌러야 반영됩니다"}
+                              </span>
+                              <div className="flex items-center gap-2 shrink-0">
+                                {dirty && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPendingVote(null)}
+                                    className="btn-ghost btn-sm"
+                                  >
+                                    취소
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => castVote.mutate({ postId: p.id, optionIndexes: picked })}
+                                  disabled={!dirty || castVote.isPending}
+                                  className="btn-primary btn-sm disabled:opacity-40"
+                                >
+                                  {castVote.isPending ? "반영 중..." : myVotes.length > 0 ? "투표 변경" : "투표하기"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })()}
                         <div className="text-[10px] text-[var(--text-dim)] mt-2">
                           총 {totalVotes}표 · {isMulti ? "복수 선택 가능" : "1인 1표 (변경 가능)"}
-                          {p.poll_anonymous && " · 🔒 익명"}
+                          {p.poll_anonymous ? " · 🔒 익명 투표" : " · 👤 실명 투표(투표자 공개)"}
                           {p.poll_deadline && !expired && (
                             <> · 마감 {new Date(p.poll_deadline).toLocaleString("ko-KR")}</>
                           )}
