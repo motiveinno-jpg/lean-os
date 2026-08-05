@@ -224,7 +224,8 @@ export async function getSignatureRequests(companyId: string, status?: string) {
     .from('signature_requests')
     // signature_data(서명 base64 ~20KB/행)·signer_inputs 는 목록에서 제외 — '서명본 보기' 클릭 시 getSignatureProof 로 단건 조회.
     //   (615행 × 20KB ≈ 12MB 통째 전송이 30초 폴링마다 발생해 목록 쿼리 ~1.1초였음)
-    .select('id, company_id, document_id, title, status, signer_name, signer_email, signer_phone, sent_at, viewed_at, signed_at, expires_at, created_at, sign_token, reminder_count, partner_id, batch_id, batch_seq, signature_method, our_signed_at, delivery_status, delivery_detail, delivery_at, documents(name, status)')
+    // created_by → 표의 '담당자'(요청 보낸 사람) 열. partners.representative → '대표자' 열.
+    .select('id, company_id, document_id, title, status, signer_name, signer_email, signer_phone, sent_at, viewed_at, signed_at, expires_at, created_at, created_by, sign_token, reminder_count, partner_id, batch_id, batch_seq, signature_method, our_signed_at, delivery_status, delivery_detail, delivery_at, documents(name, status), partners(name, representative)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 

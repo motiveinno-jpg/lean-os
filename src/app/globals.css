@@ -2031,6 +2031,41 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .signature-search-bar { @apply flex items-center gap-2 flex-wrap; }
 .signature-search-input-wrap { @apply relative flex-1 min-w-[200px]; }
 .signature-request-list { @apply space-y-1.5; }
+/* ── 계약 목록 표 (2026-08-05 사장님 시안) — 머리 고정 + 본문만 스크롤 ── */
+.signature-period-bar { @apply flex items-center gap-3 flex-wrap text-xs; }
+.signature-period-group { @apply inline-flex items-center gap-1.5; }
+.signature-period-label { @apply font-semibold text-[var(--text-muted)]; }
+.signature-period-input {
+  @apply px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)];
+}
+.signature-period-input:focus { @apply outline-none border-[var(--primary)]; }
+.signature-table-wrap { @apply overflow-hidden p-0; }
+/* 표 본문만 움직이고 머리·툴바는 제자리 — 화면 자리를 적게 쓰기 위해 높이 제한 */
+.signature-table-scroll { @apply overflow-auto max-h-[min(60vh,560px)]; }
+.signature-table { @apply w-full text-xs border-collapse; min-width: 1040px; }
+.signature-table thead th {
+  @apply sticky top-0 z-10 bg-[var(--bg-surface)] text-[var(--text-muted)] font-semibold text-[11px]
+         px-2.5 py-2 text-left border-b border-[var(--border)] whitespace-nowrap;
+}
+.signature-table tbody td { @apply px-2.5 py-1.5 border-b border-[var(--border)]/60 align-middle; }
+.signature-table tbody tr:hover { background: var(--bg-surface); }
+.signature-table tbody tr.is-selected { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+.signature-table-sort { @apply inline-flex items-center gap-1 hover:text-[var(--primary)] transition; }
+.signature-table-sort-mark { @apply text-[9px] text-[var(--text-dim)] opacity-60; }
+.signature-table-sort-mark.is-active { @apply text-[var(--primary)] opacity-100; }
+.signature-table-check { @apply w-9 text-center; }
+.signature-table-no { @apply w-20 text-center text-[var(--text-muted)]; }
+.signature-table-status { @apply w-24; }
+.signature-table-group { @apply w-20; }
+.signature-table-batch { @apply inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] whitespace-nowrap; }
+.signature-table-title { @apply min-w-[220px] max-w-[420px]; }
+.signature-table-title-link { @apply text-left font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate max-w-full inline-block align-bottom; }
+.signature-table-signer { @apply w-52 truncate text-[var(--text-muted)]; }
+.signature-table-manager { @apply w-24 truncate text-[var(--text-muted)]; }
+.signature-table-date { @apply w-24 whitespace-nowrap text-[var(--text-muted)]; }
+.signature-table-actions-head { @apply w-[190px] text-right; }
+.signature-table-actions { @apply w-[190px]; }
+.signature-table-actions .signature-request-actions { @apply justify-end; }
 .signature-empty-state { @apply py-16 px-6 text-center; }
 /* 계약건 한 줄 — 한 화면에 더 많이 보이도록 압축(2026-08-05 사장님 요청). 정보는 그대로 두고 여백·아이콘만 축소. */
 .signature-request-row { @apply px-3.5 py-2 flex items-center gap-2.5; }

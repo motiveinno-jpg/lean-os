@@ -72,6 +72,14 @@ function SignaturesDashboardInner() {
   // U4 페이지네이션 — 한 페이지 10/25/50건. 필터/검색 변경 시 1페이지 리셋.
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
+  // 표 정렬·기간 설정 (2026-08-05 사장님 시안) — 마지막 값은 계정별로 서버에 기억한다.
+  type SortKey = "docNo" | "status" | "batch" | "title" | "signer" | "manager" | "created" | "expires";
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created", dir: "desc" });
+  const [reqFrom, setReqFrom] = useState("");   // 요청일 시작 (YYYY-MM-DD)
+  const [reqTo, setReqTo] = useState("");       // 요청일 끝
+  const [expFrom, setExpFrom] = useState("");   // 만료일 시작
+  const [expTo, setExpTo] = useState("");       // 만료일 끝
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
   // 2026-05-28 signer_inputs(라디오/조건부 텍스트 응답) 표시 추가
   const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string } | null; title: string; signer_inputs?: Record<string, string> | null } | null>(null);
@@ -84,7 +92,45 @@ function SignaturesDashboardInner() {
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null);
   const isManager = true; // (P3) 전자계약 권한 보유자 전원 관리 뷰 (진입 자체가 권한 게이트)
-  useEffect(() => { setPage(1); }, [statusFilter, search, pageSize]);
+  useEffect(() => { setPage(1); }, [statusFilter, search, pageSize, reqFrom, reqTo, expFrom, expTo, sort]);
+
+  // 목록 보기 설정을 계정에 기억 — 다른 PC 로 로그인해도 같은 정렬·기간·페이지 크기.
+  useEffect(() => {
+    if (!userId) return;
+    let alive = true;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("user_preferences").select("signature_list_prefs").eq("user_id", userId).maybeSingle();
+      const p = data?.signature_list_prefs;
+      if (alive && p) {
+        if (p.sort?.key) setSort({ key: p.sort.key, dir: p.sort.dir === "asc" ? "asc" : "desc" });
+        if (typeof p.pageSize === "number") setPageSize(p.pageSize);
+        if (typeof p.statusFilter === "string") setStatusFilter(p.statusFilter);
+        setReqFrom(p.reqFrom || ""); setReqTo(p.reqTo || "");
+        setExpFrom(p.expFrom || ""); setExpTo(p.expTo || "");
+      }
+      if (alive) setPrefsLoaded(true);
+    })();
+    return () => { alive = false; };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !companyId || !prefsLoaded) return; // 로드 전에 기본값으로 덮어쓰지 않게
+    const t = setTimeout(() => {
+      void (supabase as any).from("user_preferences").upsert(
+        {
+          user_id: userId,
+          company_id: companyId,
+          signature_list_prefs: { sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo },
+        },
+        { onConflict: "user_id" },
+      );
+    }, 600);
+    return () => clearTimeout(t);
+  }, [userId, companyId, prefsLoaded, sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo]);
+
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -179,17 +225,63 @@ function SignaturesDashboardInner() {
     );
   }, [allContractTemplates, hiddenTemplateIds, templateOrder]);
 
+  // 문서번호 — 회사 안에서 만들어진 순서(오래된 것이 1번). 정렬·필터를 바꿔도 번호는 고정.
+  const docNoById = useMemo(() => {
+    const map = new Map<string, number>();
+    [...(requests as any[])]
+      .sort((a, b) => String(a.created_at || "").localeCompare(String(b.created_at || "")))
+      .forEach((r, i) => map.set(r.id, i + 1));
+    return map;
+  }, [requests]);
+
+  // 담당자(요청 보낸 사람) 이름 — created_by 는 uuid 라 구성원 이름으로 바꿔 보여준다.
+  const { data: memberNames = {} } = useQuery({
+    queryKey: ["signature-member-names", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("users").select("id, name, email").eq("company_id", companyId!);
+      const map: Record<string, string> = {};
+      for (const u of (data || []) as any[]) map[u.id] = u.name || u.email || "-";
+      return map;
+    },
+    enabled: !!companyId,
+  });
+
   const filtered = useMemo(() => {
-    return (requests as any[]).filter((r) => {
+    const rows = (requests as any[]).filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (search) {
         const q = search.toLowerCase();
-        const hay = `${r.title || ""} ${r.signer_name || ""} ${r.signer_email || ""}`.toLowerCase();
+        const hay = `${r.title || ""} ${r.signer_name || ""} ${r.signer_email || ""} ${memberNames[r.created_by] || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
+      // 기간 설정 — 요청일/만료일 각각 범위 지정 (빈 값이면 제한 없음)
+      if (reqFrom && String(r.created_at || "") < reqFrom) return false;
+      if (reqTo && String(r.created_at || "") > `${reqTo}T23:59:59.999Z`) return false;
+      if (expFrom && (!r.expires_at || String(r.expires_at) < expFrom)) return false;
+      if (expTo && (!r.expires_at || String(r.expires_at) > `${expTo}T23:59:59.999Z`)) return false;
       return true;
     });
-  }, [requests, statusFilter, search]);
+    // 열 머리 클릭 정렬
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const val = (r: any): string | number => {
+      switch (sort.key) {
+        case "docNo": return docNoById.get(r.id) || 0;
+        case "status": return getSignatureStatusInfo(r.status).label || r.status || "";
+        case "batch": return r.batch_id ? (r.batch_seq ?? 0) : -1;
+        case "title": return r.title || "";
+        case "signer": return r.signer_name || "";
+        case "manager": return memberNames[r.created_by] || "";
+        case "expires": return r.expires_at || "";
+        default: return r.created_at || "";
+      }
+    };
+    return [...rows].sort((a, b) => {
+      const av = val(a), bv = val(b);
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      return String(av).localeCompare(String(bv), "ko") * dir;
+    });
+  }, [requests, statusFilter, search, memberNames, reqFrom, reqTo, expFrom, expTo, sort, docNoById]);
 
   // 현재 필터+검색 결과 중 서명완료 건 (일괄 PDF 대상)
   const signedFiltered = useMemo(
@@ -348,6 +440,24 @@ function SignaturesDashboardInner() {
       qc.invalidateQueries({ queryKey: ["signature-requests"] });
     },
     onError: (err: any) => toast("삭제 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
+  });
+
+  // 체크한 건 일괄 삭제 (2026-08-05 사장님 시안) — 한 건이라도 실패하면 건수로 알린다.
+  const bulkDeleteMut = useMutation({
+    mutationFn: async (ids: string[]) => {
+      let ok = 0;
+      const failed: string[] = [];
+      for (const id of ids) {
+        try { await deleteSignatureRequest(id); ok++; } catch { failed.push(id); }
+      }
+      return { ok, failed };
+    },
+    onSuccess: ({ ok, failed }) => {
+      setSelectedIds(new Set(failed));
+      qc.invalidateQueries({ queryKey: ["signature-requests"] });
+      toast(failed.length ? `${ok}건 삭제 · ${failed.length}건 실패` : `${ok}건 삭제되었습니다`, failed.length ? "error" : "success");
+    },
+    onError: (err: any) => toast("삭제 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
   });
 
   const toggleSel = (id: string) => {
@@ -519,6 +629,19 @@ function SignaturesDashboardInner() {
             >
               일괄 리마인더 ({remindableSelected.length})
             </button>
+            {/* 체크한 건 일괄 삭제 — 되돌릴 수 없어 건수를 확인 문구에 박아 둔다 */}
+            <button
+              onClick={async () => {
+                const ids = Array.from(selectedIds);
+                if (await appConfirm(`선택한 ${ids.length}건을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.`, { danger: true, confirmLabel: `${ids.length}건 삭제` })) {
+                  bulkDeleteMut.mutate(ids);
+                }
+              }}
+              disabled={bulkDeleteMut.isPending}
+              className="btn-danger btn-sm whitespace-nowrap disabled:opacity-50"
+            >
+              {bulkDeleteMut.isPending ? "삭제 중..." : `선택 삭제 (${selectedIds.size})`}
+            </button>
             <button
               onClick={() => setSelectedIds(new Set())}
               className="btn-ghost btn-sm"
@@ -529,7 +652,29 @@ function SignaturesDashboardInner() {
         )}
       </div>
 
-      {/* 서명 요청 카드 리스트 (시안) */}
+      {/* 기간 설정 — 요청일·만료일 범위 (2026-08-05 사장님 시안) */}
+      <div className="signature-period-bar">
+        <span className="signature-period-group">
+          <span className="signature-period-label">요청일</span>
+          <input type="date" value={reqFrom} onChange={(e) => setReqFrom(e.target.value)} className="signature-period-input" aria-label="요청일 시작" />
+          <span className="text-[var(--text-dim)]">~</span>
+          <input type="date" value={reqTo} onChange={(e) => setReqTo(e.target.value)} className="signature-period-input" aria-label="요청일 끝" />
+        </span>
+        <span className="signature-period-group">
+          <span className="signature-period-label">만료일</span>
+          <input type="date" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} className="signature-period-input" aria-label="만료일 시작" />
+          <span className="text-[var(--text-dim)]">~</span>
+          <input type="date" value={expTo} onChange={(e) => setExpTo(e.target.value)} className="signature-period-input" aria-label="만료일 끝" />
+        </span>
+        {(reqFrom || reqTo || expFrom || expTo) && (
+          <button onClick={() => { setReqFrom(""); setReqTo(""); setExpFrom(""); setExpTo(""); }} className="btn-ghost btn-sm">
+            기간 초기화
+          </button>
+        )}
+        <span className="ml-auto text-[11px] text-[var(--text-dim)]">정렬·기간·페이지 크기는 계정에 저장됩니다</span>
+      </div>
+
+      {/* 계약 목록 표 (2026-08-05 사장님 시안) — 열 머리 클릭 정렬, 본문만 스크롤 */}
       <div className="signature-request-list">
         {isLoading ? (
           <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
@@ -540,82 +685,123 @@ function SignaturesDashboardInner() {
             <div className="text-xs text-[var(--text-muted)] mt-1.5">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
             <button onClick={() => setShowOrgBulkWizard(true)} className="btn-primary mt-5">+ 새 계약 요청</button>
           </div>
-        ) : (
-          filtered.slice((page - 1) * pageSize, page * pageSize).map((r: any) => {
-            const info = getSignatureStatusInfo(r.status);
-            const expired = r.expires_at && new Date(r.expires_at) < new Date();
-            const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
-            return (
-              <div key={r.id} className="signature-request-row group glass-card">
-                <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="accent-[var(--primary)] shrink-0" aria-label="선택" />
-                <span className="signature-request-doc-icon">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+        ) : (() => {
+          const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+          const allPageSelected = pageRows.length > 0 && pageRows.every((r: any) => selectedIds.has(r.id));
+          const SortHead = ({ k, label, className }: { k: SortKey; label: string; className?: string }) => (
+            <th className={className}>
+              <button type="button" onClick={() => toggleSort(k)} className="signature-table-sort" title={`${label} 기준 정렬`}>
+                {label}
+                <span className={`signature-table-sort-mark ${sort.key === k ? "is-active" : ""}`}>
+                  {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
                 </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    {/* 상태 배지와 제목을 한 줄에 둬 행 높이를 줄인다 (2026-08-05) */}
-                    <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
-                      {/* 배지는 한 덩어리로 — 좁은 폭에서 배지끼리 줄이 갈리지 않게 */}
-                      <span className="inline-flex items-center gap-1.5 shrink-0">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${info.bg} ${info.text}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />{info.label}
-                        </span>
-                        {r.batch_id && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)]" title={`묶음 발송 #${r.batch_seq ?? "?"}`}>
-                            <Ico e="📦" /> 묶음{r.batch_seq ? ` #${r.batch_seq}` : ""}
-                          </span>
-                        )}
-                      </span>
-                      {/* 제목 클릭 → 상태 무관 항상 계약서 팝업(읽기 전용). 발송/열람도 편집화면 대신 팝업. */}
-                      {/* 좁은 폭에선 배지 아래 줄로 내려가 제목이 잘리지 않게 min-w 확보 */}
-                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="min-w-[8rem] max-w-full text-left text-sm font-semibold text-[var(--text)] hover:text-[var(--primary)] hover:underline truncate" title="계약서 보기">{r.title}</button>
-                      {/* 원본 문서명은 좁은 화면에서 제목 자리를 뺏지 않도록 숨긴다 */}
-                      {r.documents?.name && <span className="hidden lg:inline min-w-0 max-w-[180px] text-[10px] text-[var(--text-dim)] truncate">{r.documents.name}</span>}
-                    </div>
-                    <div className="signature-request-actions">
-                      {canRemind && (
-                        <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송"><Ico e="🔔" /></button>
-                      )}
-                      {r.sign_token && r.status !== 'signed' && (
-                        <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명 링크 열기" title="서명 링크"><Ico e="🔗" /></a>
-                      )}
-                      <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="계약서 보기 / PDF 다운로드" title="이 계약서 보기 / PDF 다운로드"><Ico e="📄" /></button>
-                      {r.status === 'signed' && (
-                        <button onClick={async () => { const proof = await getSignatureProof(r.id); setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: proof.signature_data, title: r.title, signer_inputs: proof.signer_inputs }); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명본 보기" title="서명본 보기"><Ico e="✅" /></button>
-                      )}
-                      {canRemind && (
-                        <button onClick={async () => { if (await appConfirm("이 계약 요청을 취소하시겠습니까?", { danger: true, confirmLabel: "취소 처리" })) cancelMut.mutate(r.id); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition" aria-label="계약 요청 취소" title="취소(만료 처리)">✕</button>
-                      )}
-                      {isManager && (
-                        <button onClick={async () => { if (await appConfirm("이 계약 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.", { danger: true })) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제"><Ico e="🗑" /></button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="signature-request-meta">
-                    {/* 수신자 이름·이메일을 한 줄로 (기존 2줄 → 행 높이 축소) */}
-                    <span className="signature-request-signer" title={`${r.signer_name || ""} ${r.signer_email || ""}`.trim()}>
-                      <span className="signature-request-avatar">{(r.signer_name || "?").slice(0, 1)}</span>
-                      <span className="text-[11px] font-medium text-[var(--text)] truncate">{r.signer_name}</span>
-                      <span className="text-[11px] text-[var(--text-dim)] truncate">{r.signer_email}</span>
-                    </span>
-                    <span className="text-[11px] text-[var(--text-dim)]">요청 {r.created_at ? kstDateStr(new Date(r.created_at)) : "—"}</span>
-                    <span className={`text-[11px] ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : "text-[var(--text-dim)]"}`}>만료 {r.expires_at ? kstDateStr(new Date(r.expires_at)) : "—"}</span>
-                    {r.reminder_count ? <span className="text-[11px] text-[var(--text-dim)]">리마인더 {r.reminder_count}회</span> : null}
-                    {r.delivery_status && (() => {
-                      const m = ({
+              </button>
+            </th>
+          );
+          return (
+            <div className="signature-table-wrap glass-card">
+              <div className="signature-table-scroll">
+                <table className="signature-table">
+                  <thead>
+                    <tr>
+                      <th className="signature-table-check">
+                        <input
+                          type="checkbox"
+                          checked={allPageSelected}
+                          onChange={(e) => setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            for (const r of pageRows as any[]) { if (e.target.checked) next.add(r.id); else next.delete(r.id); }
+                            return next;
+                          })}
+                          className="accent-[var(--primary)]"
+                          aria-label="이 페이지 전체 선택"
+                        />
+                      </th>
+                      <SortHead k="docNo" label="문서번호" className="signature-table-no" />
+                      <SortHead k="status" label="상태" className="signature-table-status" />
+                      <SortHead k="batch" label="그룹" className="signature-table-group" />
+                      <SortHead k="title" label="제목" />
+                      <SortHead k="signer" label="대표자" className="signature-table-signer" />
+                      <SortHead k="manager" label="담당자" className="signature-table-manager" />
+                      <SortHead k="created" label="요청일" className="signature-table-date" />
+                      <SortHead k="expires" label="만료일" className="signature-table-date" />
+                      <th className="signature-table-actions-head">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageRows.map((r: any) => {
+                      const info = getSignatureStatusInfo(r.status);
+                      const expired = r.expires_at && new Date(r.expires_at) < new Date();
+                      const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
+                      const delivery = ({
                         delivered: { t: "전달됨", c: "bg-green-500/10 text-green-500" },
                         bounced: { t: "반송됨", c: "bg-red-500/10 text-red-500" },
                         complained: { t: "스팸신고", c: "bg-red-500/10 text-red-500" },
                         delayed: { t: "전달지연", c: "bg-amber-500/10 text-amber-500" },
                       } as any)[r.delivery_status];
-                      return m ? <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${m.c}`} title={r.delivery_detail || (r.delivery_at ? new Date(r.delivery_at).toLocaleString("ko-KR") : "")}><Ico e="✉" /> {m.t}</span> : null;
-                    })()}
-                  </div>
-                </div>
+                      return (
+                        <tr key={r.id} className={selectedIds.has(r.id) ? "is-selected" : undefined}>
+                          <td className="signature-table-check">
+                            <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="accent-[var(--primary)]" aria-label="선택" />
+                          </td>
+                          <td className="signature-table-no mono-number">{docNoById.get(r.id) ?? "—"}</td>
+                          <td className="signature-table-status">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${info.bg} ${info.text}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${info.dot}`} />{info.label}
+                            </span>
+                          </td>
+                          <td className="signature-table-group">
+                            {r.batch_id ? (
+                              <span className="signature-table-batch" title={`묶음 발송 #${r.batch_seq ?? "?"}`}>묶음{r.batch_seq ? `#${r.batch_seq}` : ""}</span>
+                            ) : <span className="text-[var(--text-dim)]">—</span>}
+                          </td>
+                          <td className="signature-table-title">
+                            {/* 제목 클릭 → 상태 무관 항상 계약서 팝업(읽기 전용) */}
+                            <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="signature-table-title-link" title={r.title}>{r.title}</button>
+                            {delivery && (
+                              <span className={`ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${delivery.c}`} title={r.delivery_detail || (r.delivery_at ? new Date(r.delivery_at).toLocaleString("ko-KR") : "")}>
+                                <Ico e="✉" /> {delivery.t}
+                              </span>
+                            )}
+                          </td>
+                          <td className="signature-table-signer" title={`${r.signer_name || ""} ${r.signer_email ? `(${r.signer_email})` : ""}`.trim()}>
+                            <span className="text-[var(--text)]">{r.signer_name || "—"}</span>
+                            {r.signer_email && <span className="text-[var(--text-dim)]">({r.signer_email})</span>}
+                          </td>
+                          <td className="signature-table-manager">{memberNames[r.created_by] || "—"}</td>
+                          <td className="signature-table-date">{r.created_at ? kstDateStr(new Date(r.created_at)) : "—"}</td>
+                          <td className={`signature-table-date ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : ""}`}>
+                            {r.expires_at ? kstDateStr(new Date(r.expires_at)) : "—"}
+                          </td>
+                          <td className="signature-table-actions">
+                            <div className="signature-request-actions">
+                              {canRemind && (
+                                <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송"><Ico e="🔔" /></button>
+                              )}
+                              {r.sign_token && r.status !== 'signed' && (
+                                <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명 링크 열기" title="서명 링크"><Ico e="🔗" /></a>
+                              )}
+                              <button onClick={() => openDocViewer({ type: 'contract', id: r.id })} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="계약서 보기 / PDF 다운로드" title="이 계약서 보기 / PDF 다운로드"><Ico e="📄" /></button>
+                              {r.status === 'signed' && (
+                                <button onClick={async () => { const proof = await getSignatureProof(r.id); setViewSignedRow({ id: r.id, signer_name: r.signer_name, signed_at: r.signed_at, signature_data: proof.signature_data, title: r.title, signer_inputs: proof.signer_inputs }); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명본 보기" title="서명본 보기"><Ico e="✅" /></button>
+                              )}
+                              {canRemind && (
+                                <button onClick={async () => { if (await appConfirm("이 계약 요청을 취소하시겠습니까?", { danger: true, confirmLabel: "취소 처리" })) cancelMut.mutate(r.id); }} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition" aria-label="계약 요청 취소" title="취소(만료 처리)">✕</button>
+                              )}
+                              {isManager && (
+                                <button onClick={async () => { if (await appConfirm("이 계약 요청을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.", { danger: true })) deleteMut.mutate(r.id); }} disabled={deleteMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50" aria-label="영구 삭제" title="영구 삭제"><Ico e="🗑" /></button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            );
-          })
-        )}
+            </div>
+          );
+        })()}
 
         {/* 페이지네이션 */}
         {filtered.length > 0 && (() => {
