@@ -24,7 +24,7 @@ import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
 import { BoardFigures } from "./BoardFigures";
-import { templateFigures } from "@/lib/project-template-summary";
+import { templateFigures, summaryCardKey } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
 import {
   BOARD_TEMPLATES, BLANK_TEMPLATE, findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
@@ -1333,8 +1333,11 @@ function BoardSummary({ templateKey, cols, items, groups, users }: {
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
   const today = todayKst();
   // 템플릿 성격에 맞는 그림이 먼저 — 일의 종류마다 궁금한 게 다르다(2026-08-05 사장님 지시)
-  const figures = templateFigures(templateKey, cols, items, groups, nameOf, today);
-  const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, today);
+  const { figures, covers } = templateFigures(templateKey, cols, items, groups, nameOf, today);
+  // 그림이 이미 말한 카드는 뺀다 — 같은 얘기를 두 번 하면 정리가 아니라 나열이다
+  const covered = new Set(covers);
+  const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, today)
+    .filter((c) => !covered.has(summaryCardKey(c)));
   if (cards.length === 0 && figures.length === 0) {
     return <p className="pj-sec-empty">템플릿에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
   }

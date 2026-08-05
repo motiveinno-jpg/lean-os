@@ -97,14 +97,18 @@ function weekBuckets(col: BoardColumn | null, items: BoardItem[], today: string,
 
 /**
  * 템플릿 성격에 맞는 그림들을 고른다. 값이 없는 것은 아예 만들지 않는다.
+ *
+ * covers — 그림이 이미 말한 요약 카드의 이름표(`종류:라벨`). 화면에서 그만큼 카드를 뺀다.
+ *   같은 얘기를 그림과 카드가 두 번 하면 정리가 아니라 나열이 된다.
  */
 export function templateFigures(
   templateKey: string | null | undefined,
   cols: BoardColumn[], items: BoardItem[], groups: BoardGroup[],
   nameOf: (id: string) => string, today: string,
-): Figure[] {
-  if (items.length === 0) return [];
+): { figures: Figure[]; covers: string[] } {
+  if (items.length === 0) return { figures: [], covers: [] };
   const out: Figure[] = [];
+  const covers = new Set<string>();
   const flow = flowColumnOf(cols);
   const term = flow ? terminalOptionId(flow) : null;
   const open = (it: BoardItem) => !isDoneRow(it as any, cols as any, groups as any);
@@ -119,19 +123,32 @@ export function templateFigures(
     case "todo": {
       if (pct != null) {
         out.push({ kind: "ring", title: "진행률", pct, center: `${pct}%`, note: `${items.length}건 중 ${doneCount}건 완료` });
+        if (flow) covers.add(`status:${flow.name}`);
       }
       const st = statusSlices(flow, items);
       // 2조각짜리 도넛은 만들지 않는다(숫자가 낫다). 3~6조각일 때만.
-      if (st.length >= 3) out.push({ kind: "funnel", title: "단계별로 몇 건", slices: st, note: "왼쪽이 앞 단계" });
+      if (st.length >= 3 && flow) {
+        out.push({ kind: "funnel", title: "단계별로 몇 건", slices: st, note: "왼쪽이 앞 단계" });
+        covers.add(`status:${flow.name}`);
+      }
       const pr = byPerson(personCols[0] || null, items, nameOf);
-      if (pr.length > 0) out.push({ kind: "hbars", title: `${personCols[0]?.name || "담당"}별 맡은 건수`, rows: pr });
+      if (pr.length > 0 && personCols[0]) {
+        out.push({ kind: "hbars", title: `${personCols[0].name}별 맡은 건수`, rows: pr });
+        covers.add(`person:${personCols[0].name}`);
+      }
       const wk = weekBuckets(dueCol, items, today, open);
-      if (wk.some((b) => b.value > 0)) out.push({ kind: "weeks", title: `${dueCol?.name || "마감"} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+      if (wk.some((b) => b.value > 0) && dueCol) {
+        out.push({ kind: "weeks", title: `${dueCol.name} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+        covers.add(`date:${dueCol.name}`);
+      }
       break;
     }
     case "review": {
       const st = statusSlices(flow, items);
-      if (st.length >= 3) out.push({ kind: "funnel", title: "어디에 쌓여 있나", slices: st, note: "요청부터 완료까지" });
+      if (st.length >= 3 && flow) {
+        out.push({ kind: "funnel", title: "어디에 쌓여 있나", slices: st, note: "요청부터 완료까지" });
+        covers.add(`status:${flow.name}`);
+      }
       const waiting = items.filter(open).length;
       out.push({
         kind: "stat", title: "처리 대기", value: `${waiting}건`,
@@ -141,10 +158,15 @@ export function templateFigures(
       // 요청자와 담당이 따로 있는 표라 둘 다 보여준다 — 누가 많이 넣고 누가 많이 받나
       personCols.slice(0, 2).forEach((pc) => {
         const rows = byPerson(pc, items, nameOf);
-        if (rows.length > 0) out.push({ kind: "hbars", title: `${pc.name}별`, rows });
+        if (rows.length === 0) return;
+        out.push({ kind: "hbars", title: `${pc.name}별`, rows });
+        covers.add(`person:${pc.name}`);
       });
       const wk = weekBuckets(dueCol, items, today, open);
-      if (wk.some((b) => b.value > 0)) out.push({ kind: "weeks", title: `${dueCol?.name || "기한"} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+      if (wk.some((b) => b.value > 0) && dueCol) {
+        out.push({ kind: "weeks", title: `${dueCol.name} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+        covers.add(`date:${dueCol.name}`);
+      }
       break;
     }
     case "schedule": {
@@ -162,7 +184,10 @@ export function templateFigures(
         out.push({ kind: "ring", title: "기간 진행", pct: p, center: `${p}%`, note: `${min} ~ ${max}` });
       }
       const st = statusSlices(flow, items);
-      if (st.length >= 3) out.push({ kind: "donut", title: "상태 분포", slices: st, total: `${items.length}건` });
+      if (st.length >= 3 && flow) {
+        out.push({ kind: "donut", title: "상태 분포", slices: st, total: `${items.length}건` });
+        covers.add(`status:${flow.name}`);
+      }
       const late = items.filter((it) => {
         if (!open(it) || !endCol) return false;
         const v = String(it.values?.[endCol.id] || "").slice(0, 10);
@@ -175,6 +200,8 @@ export function templateFigures(
       });
       const wk = weekBuckets(endCol, items, today, open);
       if (wk.some((b) => b.value > 0)) out.push({ kind: "weeks", title: "끝나는 주", bars: wk });
+      // 종료일은 '기한 지난 일정' + '끝나는 주' 가 이미 말한다
+      if (endCol) covers.add(`date:${endCol.name}`);
       break;
     }
     case "cost":
@@ -188,6 +215,10 @@ export function templateFigures(
           kind: "ring", title: `${planCol?.name || "계획"} 대비 ${realCol?.name || "실적"}`, pct: Math.min(100, p),
           center: `${p}%`, note: `${won(planSum)}원 중 ${won(realSum)}원`, tone: p > 100 ? "bad" : undefined,
         });
+        // 링 하나가 계획·실적·차이를 다 말한다 — 합계 카드 셋을 뺀다
+        if (planCol) covers.add(`number:${planCol.name}`);
+        if (realCol) covers.add(`number:${realCol.name}`);
+        if (planCol && realCol) covers.add(`diff:${planCol.name} − ${realCol.name}`);
       }
       // 구분(성격)별 금액 — 부분/전체라 도넛이 맞다. 조각이 많으면 막대로 내린다.
       const kindCol = cols.find((c) => c.type === "status" && c.id !== flow?.id) || (flow && flow.name !== "상태" ? flow : null);
@@ -200,9 +231,11 @@ export function templateFigures(
         })).filter((s) => s.value > 0);
         if (slices.length >= 3 && slices.length <= 6) {
           out.push({ kind: "donut", title: `${kindCol.name}별 ${realCol?.name || "금액"}`, slices, total: `${shortWon(realSum)}원` });
+          covers.add(`status:${kindCol.name}`);
         } else if (slices.length > 0) {
           out.push({ kind: "hbars", title: `${kindCol.name}별 ${realCol?.name || "금액"}`,
             rows: slices.map((s) => ({ label: s.label, value: s.value, text: `${won(s.value)}원` })) });
+          covers.add(`status:${kindCol.name}`);
         }
       }
       // 큰 항목 상위 — 어디에 돈이 몰렸나
@@ -213,7 +246,10 @@ export function templateFigures(
         if (rows.length >= 2) out.push({ kind: "hbars", title: "금액 큰 순", rows });
       }
       const wk = weekBuckets(dueCol, items, today, open);
-      if (wk.some((b) => b.value > 0)) out.push({ kind: "weeks", title: `${dueCol?.name || "예정일"} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+      if (wk.some((b) => b.value > 0) && dueCol) {
+        out.push({ kind: "weeks", title: `${dueCol.name} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+        covers.add(`date:${dueCol.name}`);
+      }
       break;
     }
     case "pipeline":
@@ -227,6 +263,7 @@ export function templateFigures(
         })).filter((s) => s.value > 0);
         if (slices.length >= 2) {
           out.push({ kind: "funnel", title: `단계별 ${amtCol.name}`, slices, note: "건수가 아니라 금액으로" });
+          covers.add(`status:${flow.name}`);
         }
       }
       if (amtCol) {
@@ -236,17 +273,34 @@ export function templateFigures(
         if (rows.length >= 2) out.push({ kind: "hbars", title: "금액 큰 순", rows });
       }
       const pr = byPerson(personCols[0] || null, items, nameOf);
-      if (pr.length > 0) out.push({ kind: "hbars", title: `${personCols[0]?.name || "담당"}별 건수`, rows: pr });
+      if (pr.length > 0 && personCols[0]) {
+        out.push({ kind: "hbars", title: `${personCols[0].name}별 건수`, rows: pr });
+        covers.add(`person:${personCols[0].name}`);
+      }
       const wk = weekBuckets(dueCol, items, today, open);
-      if (wk.some((b) => b.value > 0)) out.push({ kind: "weeks", title: `${dueCol?.name || "예정일"} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+      if (wk.some((b) => b.value > 0) && dueCol) {
+        out.push({ kind: "weeks", title: `${dueCol.name} 몰린 주`, bars: wk, note: "아직 안 끝난 것만" });
+        covers.add(`date:${dueCol.name}`);
+      }
       break;
     }
     default: {
       const st = statusSlices(flow, items);
-      if (st.length >= 3) out.push({ kind: "donut", title: "상태 분포", slices: st, total: `${items.length}건` });
+      if (st.length >= 3 && flow) {
+        out.push({ kind: "donut", title: "상태 분포", slices: st, total: `${items.length}건` });
+        covers.add(`status:${flow.name}`);
+      }
       const pr = byPerson(personCols[0] || null, items, nameOf);
-      if (pr.length > 0) out.push({ kind: "hbars", title: `${personCols[0]?.name || "담당"}별`, rows: pr });
+      if (pr.length > 0 && personCols[0]) {
+        out.push({ kind: "hbars", title: `${personCols[0].name}별`, rows: pr });
+        covers.add(`person:${personCols[0].name}`);
+      }
     }
   }
-  return out;
+  return { figures: out, covers: [...covers] };
+}
+
+/** 요약 카드가 그림과 겹치는지 — 카드 라벨은 컬럼 이름 그대로다 */
+export function summaryCardKey(card: { kind: string; label: string }): string {
+  return `${card.kind}:${card.label}`;
 }
