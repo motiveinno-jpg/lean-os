@@ -6748,3 +6748,35 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-rep-title b { @apply text-[14px] font-extrabold text-[var(--text)] truncate; }
 .pb-rep-title em { @apply not-italic text-[11px] text-[var(--text-dim)] truncate; }
 .pb-rep-tools { @apply ml-auto min-w-0; }
+
+/* ── 설정 > 광고 계정 (2026-08-06) — 키는 회사 금고에 한 번, 프로젝트에서는 골라 쓴다 ── */
+.ad-acc-wrap { @apply flex flex-col gap-4; }
+.ad-acc-head { @apply flex items-start gap-3; }
+.ad-acc-title { @apply text-[15px] font-extrabold text-[var(--text)]; }
+.ad-acc-desc { @apply mt-1 text-[12px] leading-relaxed text-[var(--text-muted)] max-w-2xl; }
+.ad-acc-desc b { @apply font-bold text-[var(--text)]; }
+.ad-acc-add { @apply ml-auto shrink-0 h-9 px-3.5 rounded-xl bg-[var(--primary)] text-[12.5px] font-bold text-white transition hover:opacity-90; }
+.ad-acc-empty { @apply text-[12.5px] text-[var(--text-dim)] py-6 text-center rounded-2xl border border-dashed border-[var(--border)]; }
+.ad-acc-list { @apply flex flex-col gap-2; }
+.ad-acc-card { @apply flex items-center gap-3 p-3 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.ad-acc-card-main { @apply flex flex-col gap-0.5 min-w-0 flex-1; }
+.ad-acc-name { @apply text-[13px] font-bold text-[var(--text)] truncate; }
+.ad-acc-meta { @apply text-[11px] text-[var(--text-dim)] truncate; }
+.ad-acc-err { @apply text-[11px] text-[var(--danger)] truncate; }
+.ad-acc-badge { @apply shrink-0 h-6 px-2 inline-flex items-center rounded-full text-[11px] font-bold; }
+.ad-acc-badge-wait { @apply bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.ad-acc-badge-ok { @apply bg-[var(--success)]/12 text-[var(--success)]; }
+.ad-acc-badge-bad { @apply bg-[var(--danger)]/12 text-[var(--danger)]; }
+.ad-acc-badge-off { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.ad-acc-sync { @apply shrink-0 h-8 px-3 rounded-lg border border-[var(--border)] text-[12px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)] disabled:opacity-40; }
+.ad-acc-del { @apply shrink-0 h-8 px-2.5 rounded-lg text-[12px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--danger)]; }
+.ad-acc-modal { @apply fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/30; }
+.ad-acc-box { @apply w-full max-w-md flex flex-col gap-2.5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl; }
+.ad-acc-box-h { @apply text-[14px] font-extrabold text-[var(--text)]; }
+.ad-acc-field { @apply flex flex-col gap-1; }
+.ad-acc-field > span { @apply text-[11.5px] font-bold text-[var(--text-dim)]; }
+.ad-acc-field input, .ad-acc-field select { @apply h-9 px-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.ad-acc-note { @apply text-[11px] leading-relaxed text-[var(--text-dim)] bg-[var(--bg-surface)] rounded-xl p-2.5; }
+.ad-acc-foot { @apply flex items-center justify-end gap-2 pt-1; }
+.ad-acc-foot button { @apply h-9 px-4 rounded-xl text-[12.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.ad-acc-go { @apply !text-white bg-[var(--primary)] hover:opacity-90 disabled:opacity-40; }

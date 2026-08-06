@@ -22,6 +22,7 @@ import { AccessDenied } from "@/components/access-denied";
 import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
 import { TaxAutomationTab } from "./_components/TaxAutomationTab";
 import { BankIntegrationTab } from "./_components/BankIntegrationTab";
+import { AdAccountsTab } from "./_components/AdAccountsTab";
 import { ApprovalPolicyTab } from "./_components/ApprovalPolicyTab";
 import { TeamManagement } from "./_components/TeamManagement";
 import { DepartmentsTab } from "./_components/DepartmentsTab";
@@ -37,7 +38,7 @@ import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 type LeafKey =
   | "company-info" | "team"                       // 회사 기본
   | "cash" | "chart" | "closing" | "tax"          // 회계·세무
-  | "bank"                                        // 연동·인증
+  | "bank" | "ads"                                // 연동·인증
   | "departments" | "attendance"                  // 인사·근태
   | "approval" | "deal" | "forms"                 // 업무 규칙
   | "data";                                       // 시스템
@@ -55,6 +56,7 @@ const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: 
   ] },
   { key: "integration", label: "연동·인증", icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5", tabs: [
     { key: "bank", label: "은행연동" },
+    { key: "ads", label: "광고 계정" },
   ] },
   { key: "hr", label: "인사·근태", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z", tabs: [
     { key: "departments", label: "부서" },
@@ -632,6 +634,9 @@ function SettingsPageInner() {
 
       {/* ═══ 연동·인증 — 은행연동 ═══ */}
       {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
+
+      {/* 광고 계정 — 키는 여기 한 번, 프로젝트에서는 골라 쓴다 (2026-08-06) */}
+      {tab === "ads" && companyId && <AdAccountsTab companyId={companyId} />}
 
       {/* ═══ 연동·인증 — 인증서 ═══ */}
 

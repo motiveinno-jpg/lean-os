@@ -1,0 +1,187 @@
+import { withSentry } from "../_shared/sentry.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+// 광고 성과 수집 — 1차: 네이버 검색광고 (2026-08-06 사장님 지시)
+//
+//   · 키는 ad_account_secrets 에 암호화돼 있고 **여기(서비스 역할)에서만** 푼다.
+//   · 광고비는 당일치가 나중에 바뀐다 — 그래서 **최근 3일을 매번 다시 덮어쓴다**(사장님 확정).
+//   · 캠페인×날짜 한 줄이 단위. 같은 줄은 unique 로 묶여 있어 여러 번 돌려도 쌓이지 않는다.
+//
+//   네이버 검색광고 API 인증(공식 문서 기준):
+//     X-Timestamp : epoch ms
+//     X-API-KEY   : 액세스 라이선스
+//     X-Customer  : CUSTOMER_ID
+//     X-Signature : base64( HMAC-SHA256( `${timestamp}.${method}.${path}`, 비밀키 ) )
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const NAVER_SA_BASE = "https://api.searchad.naver.com";
+/** 몇 일치를 다시 받을지 — 광고비 확정이 늦어 최근 것은 늘 다시 받는다 */
+const REFETCH_DAYS = 3;
+
+type AdAccount = { id: string; company_id: string; platform: string; label: string; external_id: string };
+type Secret = { api_key: string; api_secret: string };
+
+const admin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+/** 한국 날짜(YYYY-MM-DD) — 광고 통계는 KST 기준이다 */
+function kstDate(offsetDays = 0): string {
+  const now = new Date(Date.now() + 9 * 3600_000 + offsetDays * 86_400_000);
+  return now.toISOString().slice(0, 10);
+}
+
+async function naverSign(secret: string, timestamp: string, method: string, path: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${timestamp}.${method}.${path}`));
+  return btoa(String.fromCharCode(...new Uint8Array(sig)));
+}
+
+async function naverGet(sec: Secret, customerId: string, path: string, query: Record<string, string | string[]>) {
+  const ts = String(Date.now());
+  const url = new URL(NAVER_SA_BASE + path);
+  for (const [k, v] of Object.entries(query)) {
+    if (Array.isArray(v)) v.forEach((x) => url.searchParams.append(k, x));
+    else url.searchParams.set(k, v);
+  }
+  const res = await fetch(url.toString(), {
+    headers: {
+      "X-Timestamp": ts,
+      "X-API-KEY": sec.api_key,
+      "X-Customer": customerId,
+      "X-Signature": await naverSign(sec.api_secret, ts, "GET", path),
+      "Content-Type": "application/json; charset=UTF-8",
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`네이버 ${path} ${res.status}: ${text.slice(0, 300)}`);
+  return text ? JSON.parse(text) : null;
+}
+
+/** 캠페인 목록 — id → 이름 */
+async function naverCampaigns(sec: Secret, customerId: string): Promise<Record<string, string>> {
+  const rows = await naverGet(sec, customerId, "/ncc/campaigns", {});
+  const map: Record<string, string> = {};
+  for (const c of (rows || []) as any[]) map[String(c.nccCampaignId)] = String(c.name || "");
+  return map;
+}
+
+/** 캠페인×날짜 성과 — /stats 를 하루씩 부른다(id 를 한 번에 여러 개 넣을 수 있다) */
+async function naverStats(sec: Secret, customerId: string, ids: string[], day: string) {
+  const fields = ["impCnt", "clkCnt", "salesAmt", "ccnt", "convAmt"];
+  const out: any[] = [];
+  //   한 번에 너무 많이 넣으면 URL 이 길어져 거절당한다 — 나눠 부른다
+  for (let i = 0; i < ids.length; i += 20) {
+    const part = ids.slice(i, i + 20);
+    const data = await naverGet(sec, customerId, "/stats", {
+      ids: part,
+      fields: JSON.stringify(fields),
+      timeRange: JSON.stringify({ since: day, until: day }),
+    });
+    for (const r of (data?.data || []) as any[]) out.push({ ...r, day });
+  }
+  return out;
+}
+
+async function syncNaverSA(acc: AdAccount, sec: Secret) {
+  const campaigns = await naverCampaigns(sec, acc.external_id);
+  const ids = Object.keys(campaigns);
+  if (ids.length === 0) return { rows: 0, campaigns: 0 };
+
+  const rows: any[] = [];
+  for (let d = 0; d < REFETCH_DAYS; d++) {
+    const day = kstDate(-d);
+    const stats = await naverStats(sec, acc.external_id, ids, day);
+    for (const s of stats) {
+      const cid = String(s.id || "");
+      if (!cid) continue;
+      rows.push({
+        company_id: acc.company_id,
+        ad_account_id: acc.id,
+        platform: acc.platform,
+        campaign_id: cid,
+        campaign_name: campaigns[cid] || null,
+        stat_date: day,
+        impressions: Number(s.impCnt) || 0,
+        clicks: Number(s.clkCnt) || 0,
+        cost: Number(s.salesAmt) || 0,
+        conversions: Number(s.ccnt) || 0,
+        conv_value: Number(s.convAmt) || 0,
+        raw: s,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+  if (rows.length > 0) {
+    const { error } = await admin.from("ad_metrics_daily")
+      .upsert(rows, { onConflict: "ad_account_id,campaign_id,stat_date" });
+    if (error) throw new Error(error.message);
+  }
+  return { rows: rows.length, campaigns: ids.length };
+}
+
+async function secretsOf(adAccountId: string): Promise<Secret | null> {
+  const { data, error } = await admin.rpc("ad_account_secrets_read", { p_id: adAccountId });
+  if (error) throw new Error(error.message);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.api_key || !row?.api_secret) return null;
+  return { api_key: row.api_key, api_secret: row.api_secret };
+}
+
+serve(withSentry("ads-sync", async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  try {
+    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+    //   accountId 를 주면 그 계정만(화면의 '지금 가져오기'), 안 주면 연결된 계정 전부(매일 자동)
+    const only: string | undefined = body?.accountId;
+
+    let q = admin.from("ad_accounts").select("id, company_id, platform, label, external_id")
+      .neq("status", "disabled");
+    if (only) q = q.eq("id", only);
+    const { data: accounts, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const results: any[] = [];
+    for (const acc of (accounts || []) as AdAccount[]) {
+      try {
+        const sec = await secretsOf(acc.id);
+        if (!sec) {
+          await admin.from("ad_accounts").update({ status: "error", sync_error: "API 키가 없습니다" }).eq("id", acc.id);
+          results.push({ id: acc.id, label: acc.label, ok: false, error: "키 없음" });
+          continue;
+        }
+        if (acc.platform !== "naver_sa") {
+          results.push({ id: acc.id, label: acc.label, ok: false, error: "아직 네이버 검색광고만 가져옵니다" });
+          continue;
+        }
+        const r = await syncNaverSA(acc, sec);
+        await admin.from("ad_accounts")
+          .update({ status: "connected", sync_error: null, last_synced_at: new Date().toISOString() })
+          .eq("id", acc.id);
+        results.push({ id: acc.id, label: acc.label, ok: true, ...r });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        await admin.from("ad_accounts").update({ status: "error", sync_error: msg.slice(0, 500) }).eq("id", acc.id);
+        results.push({ id: acc.id, label: acc.label, ok: false, error: msg.slice(0, 300) });
+      }
+    }
+    return new Response(JSON.stringify({ ok: true, results }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return new Response(JSON.stringify({ ok: false, error: msg }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+}));
