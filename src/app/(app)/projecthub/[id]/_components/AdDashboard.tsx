@@ -22,6 +22,16 @@ const db = supabase as any;
 /** 합친 한 줄 — 지표 키가 무엇이 될지는 사장님이 고르는 것이라 느슨하게 둔다 */
 type Row = { date?: string; key?: string; name?: string; [metric: string]: any };
 const PICK_KEY = "ov.ads.metrics.";     // + boardId
+const WIDGET_KEY = "ov.ads.widgets.";   // + boardId
+/** 대시보드에 담을 수 있는 조각들 — 켜고 끄고 순서를 바꾼다 (2026-08-06 사장님: 위젯 편집) */
+const WIDGETS: { key: string; label: string; hint: string }[] = [
+  { key: "cards", label: "요약 카드", hint: "고른 지표를 한 줄로" },
+  { key: "trend", label: "날짜별 그래프", hint: "첫 지표를 막대로" },
+  { key: "detail", label: "세부 데이터", hint: "캠페인 › 광고그룹 › 소재" },
+  { key: "creatives", label: "광고 소재", hint: "이미지와 성과를 카드로" },
+  { key: "daily", label: "날짜별 상세표", hint: "하루 한 줄" },
+];
+const DEFAULT_WIDGETS = WIDGETS.map((w) => w.key);
 const dayStr = (offset: number) =>
   new Date(new Date(`${todayKst()}T00:00:00`).getTime() + offset * 86_400_000).toISOString().slice(0, 10);
 
@@ -51,6 +61,8 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
   const [busy, setBusy] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());   // 세부 데이터에서 펼친 줄
+  const [widgets, setWidgets] = useState<string[]>(DEFAULT_WIDGETS);   // 켜진 것만, 보이는 차례대로
+  const [widgetOpen, setWidgetOpen] = useState(false);
 
   //   고른 지표는 표마다 기억한다 — 사람마다 보는 눈이 다르다
   useEffect(() => {
@@ -59,6 +71,29 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
       if (s) { const a = JSON.parse(s); if (Array.isArray(a) && a.length) setPicked(a); }
     } catch { /* 저장소 못 쓰면 기본값 */ }
   }, [boardId]);
+  //   위젯 구성도 표마다 기억한다 — 사람마다 보고 싶은 조각이 다르다
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`${WIDGET_KEY}${boardId}`);
+      if (raw) {
+        const a = JSON.parse(raw);
+        if (Array.isArray(a)) setWidgets(a.filter((k: string) => DEFAULT_WIDGETS.includes(k)));
+      }
+    } catch { /* 저장소 못 쓰면 기본값 */ }
+  }, [boardId]);
+  const saveWidgets = (next: string[]) => {
+    setWidgets(next);
+    try { localStorage.setItem(`${WIDGET_KEY}${boardId}`, JSON.stringify(next)); } catch { /* 무시 */ }
+  };
+  const moveWidget = (key: string, delta: -1 | 1) => {
+    const i = widgets.indexOf(key);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= widgets.length) return;
+    const next = [...widgets];
+    [next[i], next[j]] = [next[j], next[i]];
+    saveWidgets(next);
+  };
+
   const savePicked = (next: string[]) => {
     setPicked(next);
     try { localStorage.setItem(`${PICK_KEY}${boardId}`, JSON.stringify(next)); } catch { /* 무시 */ }
@@ -237,7 +272,10 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
         </span>
 
         <button type="button" className="adb-metrics" onClick={() => { setQ(""); setPickOpen(true); }}>
-          지표 고르기 {picked.length}
+          지표 {picked.length}
+        </button>
+        <button type="button" className="adb-metrics" onClick={() => setWidgetOpen(true)}>
+          위젯 {widgets.length}
         </button>
         <button type="button" className="adb-sync" disabled={busy} onClick={syncNow}>
           {busy ? "가져오는 중…" : "지금 가져오기"}
@@ -252,103 +290,114 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
       ) : rows.length === 0 ? (
         <p className="pj-sec-empty">{since} ~ {until} 사이에 집행된 광고가 없어요.</p>
       ) : (<>
-        {/* 고른 지표를 카드로 — 아드리엘의 '데이터 총괄 지표'와 같은 자리 */}
-        <div className="adb-cards">
-          {shown.map((m) => (
-            <div key={m.key} className="adb-card" title={m.hint || m.label}>
-              <span>{m.label}</span>
-              <b>{formatMetric(m.key, total[m.key] ?? 0)}</b>
-            </div>
-          ))}
-        </div>
-
-        {/* 날짜별 — 첫 지표를 막대로. 무엇을 볼지는 지표 고르기에서 바뀐다 */}
-        <div className="adb-block">
-          <b className="adb-h">날짜별 {metricOf(first)?.label}</b>
-          <div className="adb-days">
-            {byDay.map((d) => (
-              <span key={d.date} className="adb-day"
-                title={`${d.date} · ${shown.map((m) => `${m.label} ${formatMetric(m.key, d[m.key] ?? 0)}`).join(" · ")}`}>
-                <i style={{ height: `${Math.max(2, ((Number(d[first]) || 0) / maxDay) * 100)}%` }} />
-              </span>
-            ))}
-          </div>
-          <span className="adb-axis"><em>{byDay[0]?.date?.slice(5)}</em><em>{byDay[byDay.length - 1]?.date?.slice(5)}</em></span>
-        </div>
-
-        {/* 세부 데이터 — 캠페인 > 광고그룹 > 소재. 삼각형을 눌러 펼친다 (2026-08-06 아드리엘 형식) */}
-        <div className="adb-block">
-          <b className="adb-h">세부 데이터 <em className="adb-sub">캠페인 › 광고그룹 › 소재</em></b>
-          <div className="adb-tablewrap">
-            <table className="adb-table">
-              <thead>
-                <tr><th>이름</th><th>상태</th>{shown.map((m) => <th key={m.key}>{m.label}</th>)}</tr>
-              </thead>
-              <tbody>
-                {(kids.get("__root__") || []).map((c: any) => (
-                  <EntityRows key={c.entity_id} node={c} depth={0} kids={kids} byEntity={byEntity}
-                    shown={shown} open={open} onToggle={(id) => setOpen((prev) => {
-                      const n = new Set(prev);
-                      if (n.has(id)) n.delete(id); else n.add(id);
-                      return n;
-                    })} />
-                ))}
-                <tr className="adb-sum">
-                  <td>합계</td><td />
-                  {shown.map((m) => <td key={m.key}>{formatMetric(m.key, total[m.key] ?? 0)}</td>)}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* 광고 소재 — 이미지와 성과를 카드로 (쇼핑검색광고는 상품 이미지가 온다) */}
-        {creatives.length > 0 && (
-          <div className="adb-block">
-            <b className="adb-h">광고 소재 <em className="adb-sub">{creatives.length}개</em></b>
-            <div className="adb-creatives">
-              {creatives.map((c: any) => (
-                <div key={c.entity_id} className="adb-cre">
-                  {c.image_url
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={c.image_url} alt={c.name || "소재"} className="adb-cre-img" loading="lazy" referrerPolicy="no-referrer" />
-                    : <span className="adb-cre-noimg">이미지 없음</span>}
-                  <b className="adb-cre-name" title={c.name || ""}>{c.name || "(이름 없음)"}</b>
-                  <span className="adb-cre-head">
-                    <em className={c.status === "ELIGIBLE" ? "adb-cre-on" : ""}>{c.status === "ELIGIBLE" ? "활성" : (c.status || "-")}</em>
-                    {c.price ? <i>{Math.round(c.price).toLocaleString("ko-KR")}원</i> : null}
-                  </span>
-                  <dl className="adb-cre-m">
-                    {shown.slice(0, 6).map((m) => (
-                      <div key={m.key}><dt>{m.label}</dt><dd>{formatMetric(m.key, c.m[m.key] ?? 0)}</dd></div>
-                    ))}
-                  </dl>
-                  {c.link_url && <a href={c.link_url} target="_blank" rel="noopener noreferrer" className="adb-cre-link">상품 보기 →</a>}
+        {/* 담긴 위젯을 고른 차례대로 그린다 — 켜고 끄기·순서는 '위젯' 에서 (2026-08-06) */}
+        {widgets.map((w) => (
+          <div key={w} className="adb-widget">
+            {w === "cards" && (<>
+    {/* 고른 지표를 카드로 — 아드리엘의 '데이터 총괄 지표'와 같은 자리 */}
+            <div className="adb-cards">
+              {shown.map((m) => (
+                <div key={m.key} className="adb-card" title={m.hint || m.label}>
+                  <span>{m.label}</span>
+                  <b>{formatMetric(m.key, total[m.key] ?? 0)}</b>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* 날짜별 표 — 아드리엘의 '일별 데이터' 자리 */}
-        <div className="adb-block">
-          <b className="adb-h">날짜별 상세</b>
-          <div className="adb-tablewrap">
-            <table className="adb-table">
-              <thead>
-                <tr><th>날짜</th>{shown.map((m) => <th key={m.key}>{m.label}</th>)}</tr>
-              </thead>
-              <tbody>
-                {[...byDay].reverse().map((d) => (
-                  <tr key={d.date}>
-                    <td>{d.date}</td>
-                    {shown.map((m) => <td key={m.key}>{formatMetric(m.key, (d as any)[m.key] ?? 0)}</td>)}
-                  </tr>
+            </>)}
+            {w === "trend" && (<>
+    {/* 날짜별 — 첫 지표를 막대로. 무엇을 볼지는 지표 고르기에서 바뀐다 */}
+            <div className="adb-block">
+              <b className="adb-h">날짜별 {metricOf(first)?.label}</b>
+              <div className="adb-days">
+                {byDay.map((d) => (
+                  <span key={d.date} className="adb-day"
+                    title={`${d.date} · ${shown.map((m) => `${m.label} ${formatMetric(m.key, d[m.key] ?? 0)}`).join(" · ")}`}>
+                    <i style={{ height: `${Math.max(2, ((Number(d[first]) || 0) / maxDay) * 100)}%` }} />
+                  </span>
                 ))}
-              </tbody>
-            </table>
+              </div>
+              <span className="adb-axis"><em>{byDay[0]?.date?.slice(5)}</em><em>{byDay[byDay.length - 1]?.date?.slice(5)}</em></span>
+            </div>
+            </>)}
+            {w === "detail" && (<>
+    {/* 세부 데이터 — 캠페인 > 광고그룹 > 소재. 삼각형을 눌러 펼친다 (2026-08-06 아드리엘 형식) */}
+            <div className="adb-block">
+              <b className="adb-h">세부 데이터 <em className="adb-sub">캠페인 › 광고그룹 › 소재</em></b>
+              <div className="adb-tablewrap">
+                <table className="adb-table">
+                  <thead>
+                    <tr><th>이름</th><th>상태</th>{shown.map((m) => <th key={m.key}>{m.label}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {(kids.get("__root__") || []).map((c: any) => (
+                      <EntityRows key={c.entity_id} node={c} depth={0} kids={kids} byEntity={byEntity}
+                        shown={shown} open={open} onToggle={(id) => setOpen((prev) => {
+                          const n = new Set(prev);
+                          if (n.has(id)) n.delete(id); else n.add(id);
+                          return n;
+                        })} />
+                    ))}
+                    <tr className="adb-sum">
+                      <td>합계</td><td />
+                      {shown.map((m) => <td key={m.key}>{formatMetric(m.key, total[m.key] ?? 0)}</td>)}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            </>)}
+            {w === "creatives" && (<>
+    {/* 광고 소재 — 이미지와 성과를 카드로 (쇼핑검색광고는 상품 이미지가 온다) */}
+            {creatives.length > 0 && (
+              <div className="adb-block">
+                <b className="adb-h">광고 소재 <em className="adb-sub">{creatives.length}개</em></b>
+                <div className="adb-creatives">
+                  {creatives.map((c: any) => (
+                    <div key={c.entity_id} className="adb-cre">
+                      {c.image_url
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={c.image_url} alt={c.name || "소재"} className="adb-cre-img" loading="lazy" referrerPolicy="no-referrer" />
+                        : <span className="adb-cre-noimg">이미지 없음</span>}
+                      <b className="adb-cre-name" title={c.name || ""}>{c.name || "(이름 없음)"}</b>
+                      <span className="adb-cre-head">
+                        <em className={c.status === "ELIGIBLE" ? "adb-cre-on" : ""}>{c.status === "ELIGIBLE" ? "활성" : (c.status || "-")}</em>
+                        {c.price ? <i>{Math.round(c.price).toLocaleString("ko-KR")}원</i> : null}
+                      </span>
+                      <dl className="adb-cre-m">
+                        {shown.slice(0, 6).map((m) => (
+                          <div key={m.key}><dt>{m.label}</dt><dd>{formatMetric(m.key, c.m[m.key] ?? 0)}</dd></div>
+                        ))}
+                      </dl>
+                      {c.link_url && <a href={c.link_url} target="_blank" rel="noopener noreferrer" className="adb-cre-link">상품 보기 →</a>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            </>)}
+            {w === "daily" && (<>
+    {/* 날짜별 표 — 아드리엘의 '일별 데이터' 자리 */}
+            <div className="adb-block">
+              <b className="adb-h">날짜별 상세</b>
+              <div className="adb-tablewrap">
+                <table className="adb-table">
+                  <thead>
+                    <tr><th>날짜</th>{shown.map((m) => <th key={m.key}>{m.label}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {[...byDay].reverse().map((d) => (
+                      <tr key={d.date}>
+                        <td>{d.date}</td>
+                        {shown.map((m) => <td key={m.key}>{formatMetric(m.key, (d as any)[m.key] ?? 0)}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            </>)}
           </div>
-        </div>
+        ))}
       </>)}
 
       {pickOpen && (
@@ -372,6 +421,42 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
             <span className="pb-collabels-foot">
               <button type="button" onClick={() => savePicked(CORE_METRIC_KEYS)}>기본으로</button>
               <button type="button" className="pb-collabels-go" onClick={() => setPickOpen(false)}>닫기</button>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {widgetOpen && (
+        <div className="pb-doc-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setWidgetOpen(false); }}>
+          <div className="pb-doc-box adb-pick-box">
+            <b className="pb-collabels-h">위젯</b>
+            <em className="pb-name-hint">담을 것을 고르고 ↑↓ 로 차례를 바꿉니다. 이 표에만 적용됩니다.</em>
+            <div className="adb-wlist">
+              {/* 담긴 것 먼저(순서대로), 그 아래 뺀 것 */}
+              {widgets.map((k, i) => {
+                const w = WIDGETS.find((x) => x.key === k)!;
+                return (
+                  <div key={k} className="adb-wrow">
+                    <input type="checkbox" checked readOnly
+                      onClick={() => saveWidgets(widgets.filter((x) => x !== k))} />
+                    <span>{w.label}</span>
+                    <em>{w.hint}</em>
+                    <button type="button" disabled={i === 0} onClick={() => moveWidget(k, -1)} aria-label="위로">↑</button>
+                    <button type="button" disabled={i === widgets.length - 1} onClick={() => moveWidget(k, 1)} aria-label="아래로">↓</button>
+                  </div>
+                );
+              })}
+              {WIDGETS.filter((w) => !widgets.includes(w.key)).map((w) => (
+                <div key={w.key} className="adb-wrow adb-wrow-off">
+                  <input type="checkbox" checked={false} readOnly onClick={() => saveWidgets([...widgets, w.key])} />
+                  <span>{w.label}</span>
+                  <em>{w.hint}</em>
+                </div>
+              ))}
+            </div>
+            <span className="pb-collabels-foot">
+              <button type="button" onClick={() => saveWidgets(DEFAULT_WIDGETS)}>기본으로</button>
+              <button type="button" className="pb-collabels-go" onClick={() => setWidgetOpen(false)}>닫기</button>
             </span>
           </div>
         </div>

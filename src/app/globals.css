@@ -6971,3 +6971,13 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .adb-cre-m dt { @apply text-[10.5px] text-[var(--text-dim)] truncate; }
 .adb-cre-m dd { @apply text-[11.5px] font-semibold text-[var(--text)]; font-variant-numeric: tabular-nums; }
 .adb-cre-link { @apply text-[11px] font-semibold text-[var(--primary)] hover:underline; }
+
+/* 위젯 편집 — 담을 것을 고르고 차례를 바꾼다 (2026-08-06) */
+.adb-widget { @apply flex flex-col gap-4; }
+.adb-wlist { @apply flex flex-col gap-0.5 max-h-80 overflow-y-auto; }
+.adb-wrow { @apply flex items-center gap-2 p-2 rounded-xl transition hover:bg-[var(--bg-surface)]; }
+.adb-wrow input { @apply w-4 h-4 accent-[var(--primary)] cursor-pointer; }
+.adb-wrow > span { @apply text-[12.5px] font-semibold text-[var(--text)]; }
+.adb-wrow > em { @apply not-italic flex-1 text-[10.5px] text-[var(--text-dim)] truncate; }
+.adb-wrow > button { @apply w-6 h-6 rounded-lg text-[11px] text-[var(--text-muted)] hover:bg-[var(--bg-card)] disabled:opacity-30; }
+.adb-wrow-off > span, .adb-wrow-off > em { @apply text-[var(--text-dim)]; }
