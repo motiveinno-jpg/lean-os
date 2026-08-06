@@ -9,7 +9,16 @@ import { supabase } from "@/lib/supabase";
 
 // 내 급여명세 — payroll_items 는 RLS(payroll_items_select_role_or_self)로 본인 행만 조회됨.
 //   개인 인사기록 허브(2026-07-15): 관리자가 발송한 월별 급여명세를 마이페이지에서 직접 확인.
+//   2026-08-06: 급여 배치(payment_batches) 종속을 끊음. 배치 기능은 실행 경로가 없어 삭제됐고,
+//     그동안 payroll_items 에 쓰는 코드가 없어 이 화면은 전 직원 항상 빈 화면이었다.
+//     이제 명세 '발송' 시점에 period_month 단위 스냅샷이 기록된다.
 const won = (n: number) => "₩" + Math.round(Number(n || 0)).toLocaleString();
+
+// "2026-08" → "2026년 8월"
+function monthLabel(periodMonth?: string | null): string {
+  const m = (periodMonth || "").match(/^(\d{4})-(\d{2})$/);
+  return m ? `${m[1]}년 ${Number(m[2])}월 급여` : "급여";
+}
 
 export function MyPayslips({ employeeId }: { employeeId: string | null }) {
   const [openId, setOpenId] = useState<string | null>(null);
@@ -23,12 +32,12 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
       const data = logRead('_components/MyPayslips:data', await db
         .from("payroll_items")
         .select(
-          "id, base_salary, national_pension, health_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, extras, created_at, payment_batches:batch_id(name, status, created_at)",
+          "id, period_month, base_salary, non_taxable_amount, national_pension, health_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, extras, issued_at, created_at",
         )
         .eq("employee_id", employeeId!)
-        .order("created_at", { ascending: false }));
-      // 배치가 승인/확정된 명세만 노출(초안 배치 숨김).
-      return (data || []).filter((it: any) => it.payment_batches);
+        .not("period_month", "is", null)
+        .order("period_month", { ascending: false }));
+      return data || [];
     },
     enabled: !!employeeId,
   });
@@ -50,8 +59,8 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
       ) : (
         <div className="mypage-payslips-list mypage-record-body space-y-2.5">
           {payslips.map((p: any) => {
-            const batch = p.payment_batches || {};
-            const dateStr = batch.created_at ? kstDateStr(new Date(batch.created_at)) : "";
+            const issuedAt = p.issued_at || p.created_at;
+            const dateStr = issuedAt ? `${kstDateStr(new Date(issuedAt))} 발급` : "";
             const extras = (Array.isArray(p.extras) ? p.extras : []) as { type: string; name: string; amount: number }[];
             const deductions = [
               { label: "국민연금", v: p.national_pension },
@@ -71,7 +80,7 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
                   className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--bg-hover)] transition"
                 >
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold truncate">{batch.name || "급여"}</div>
+                    <div className="text-sm font-semibold truncate">{monthLabel(p.period_month)}</div>
                     <div className="text-xs text-[var(--text-muted)]">{dateStr}</div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -90,6 +99,12 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
                       <span className="text-[var(--text-muted)]">기본급(과세)</span>
                       <span className="mono-number font-medium">{won(p.base_salary)}</span>
                     </div>
+                    {Number(p.non_taxable_amount) > 0 && (
+                      <div className="flex items-center justify-between py-1.5">
+                        <span className="text-[var(--text-muted)]">비과세</span>
+                        <span className="mono-number font-medium">{won(p.non_taxable_amount)}</span>
+                      </div>
+                    )}
                     {allowances.filter((a) => Number(a.amount) > 0).map((a) => (
                       <div key={a.name} className="flex items-center justify-between py-1.5">
                         <span className="text-[var(--text-muted)]">{a.name}</span>

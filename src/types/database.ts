@@ -8442,7 +8442,8 @@ export type Database = {
           bank_account: string | null
           bank_name: string | null
           base_salary: number
-          batch_id: string
+          batch_id: string | null
+          company_id: string | null
           created_at: string | null
           deductions_total: number | null
           employee_id: string
@@ -8451,16 +8452,20 @@ export type Database = {
           health_insurance: number | null
           id: string
           income_tax: number | null
+          issued_at: string | null
           local_income_tax: number | null
           national_pension: number | null
           net_pay: number
+          non_taxable_amount: number
+          period_month: string | null
           status: string | null
         }
         Insert: {
           bank_account?: string | null
           bank_name?: string | null
           base_salary?: number
-          batch_id: string
+          batch_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           deductions_total?: number | null
           employee_id: string
@@ -8469,16 +8474,20 @@ export type Database = {
           health_insurance?: number | null
           id?: string
           income_tax?: number | null
+          issued_at?: string | null
           local_income_tax?: number | null
           national_pension?: number | null
           net_pay?: number
+          non_taxable_amount?: number
+          period_month?: string | null
           status?: string | null
         }
         Update: {
           bank_account?: string | null
           bank_name?: string | null
           base_salary?: number
-          batch_id?: string
+          batch_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           deductions_total?: number | null
           employee_id?: string
@@ -8487,12 +8496,22 @@ export type Database = {
           health_insurance?: number | null
           id?: string
           income_tax?: number | null
+          issued_at?: string | null
           local_income_tax?: number | null
           national_pension?: number | null
           net_pay?: number
+          non_taxable_amount?: number
+          period_month?: string | null
           status?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payroll_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payroll_items_batch_id_fkey"
             columns: ["batch_id"]

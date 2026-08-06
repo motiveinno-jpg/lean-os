@@ -401,7 +401,7 @@ export async function sendPayslipEmails(
   // 직원 조회 — birth_date 포함 (PDF 비밀번호용)
   let q = db
     .from('employees')
-    .select('id, name, email, salary, is_4_insurance, meal_allowance_included, birth_date, department, position')
+    .select('id, name, email, salary, is_4_insurance, meal_allowance_included, birth_date, department, position, bank_account, bank_name')
     .eq('company_id', companyId)
     .in('status', ['active', 'joined', 'invited']);
   if (options?.employeeIds && options.employeeIds.length > 0) {
@@ -496,7 +496,35 @@ export async function sendPayslipEmails(
           hasPassword: !!password,
         }),
       });
-      if (res.ok) { sent++; }
+      if (res.ok) {
+        sent++;
+        // 발급 기록 — 직원 마이페이지 '내 급여명세서'의 유일한 소스 (2026-08-06).
+        //   메일만 보내고 아무 기록도 남기지 않아 직원 화면이 늘 비어 있던 문제.
+        //   발송한 그 순간의 금액을 그대로 박제한다(이후 관리자가 명세를 고쳐도 발급본은 불변).
+        //   실패해도 발송 자체는 성공이므로 메일 결과를 뒤집지 않는다.
+        if (monthKey) {
+          await db.from('payroll_items').upsert({
+            company_id: companyId,
+            employee_id: item.employeeId,
+            period_month: monthKey,
+            base_salary: item.baseSalary,
+            non_taxable_amount: item.nonTaxableAmount,
+            national_pension: item.nationalPension,
+            health_insurance: item.healthInsurance,
+            employment_insurance: item.employmentInsurance,
+            income_tax: item.incomeTax,
+            local_income_tax: item.localIncomeTax,
+            deductions_total: item.deductionsTotal,
+            net_pay: item.netPay,
+            extras: item.extras || [],
+            bank_account: emp.bank_account || null,
+            bank_name: emp.bank_name || null,
+            status: 'issued',
+            issued_at: new Date().toISOString(),
+          }, { onConflict: 'employee_id,period_month' })
+            .then(({ error }) => { if (error) errors.push(`${item.employeeName}: 발급기록 저장 실패 ${error.message}`); });
+        }
+      }
       else {
         failed++;
         const errBody = await res.text().catch(() => '');
