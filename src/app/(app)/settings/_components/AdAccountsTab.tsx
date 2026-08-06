@@ -41,7 +41,14 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ platform: "naver_sa", label: "", externalId: "", apiKey: "", apiSecret: "" });
+  const [reveal, setReveal] = useState(false);      // 붙여넣은 키가 맞는지 눈으로 확인할 때만
   const [syncing, setSyncing] = useState<string | null>(null);
+  //   창을 열 때마다 빈 칸에서 시작한다 — 앞서 넣다 만 값이 남아 있으면 다른 계정에 잘못 들어간다
+  const openForm = () => {
+    setForm({ platform: "naver_sa", label: "", externalId: "", apiKey: "", apiSecret: "" });
+    setReveal(false);
+    setOpen(true);
+  };
 
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ["ad-accounts", companyId],
@@ -112,7 +119,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
             <b> API 키는 저장 즉시 암호화되고 다시 화면에 나오지 않습니다.</b>
           </p>
         </div>
-        <button type="button" className="ad-acc-add" onClick={() => setOpen(true)}>＋ 계정 등록</button>
+        <button type="button" className="ad-acc-add" onClick={openForm}>＋ 계정 등록</button>
       </div>
 
       {isLoading ? <p className="ad-acc-empty">불러오는 중…</p>
@@ -154,28 +161,40 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
                 ))}
               </select>
             </label>
+            {/* ⚠️ type="password" 로 두면 브라우저가 '로그인 양식'으로 보고 저장해 둔 아이디·비밀번호를
+                자동으로 채워 넣는다(2026-08-06 사장님 제보: 커스터머ID·API 가 저절로 차 있었다).
+                API 키가 브라우저 비밀번호 관리자에 저장되는 것 자체가 바람직하지 않아,
+                일반 입력칸으로 두고 글자만 가린다(보기 단추로 확인 가능). */}
             <label className="ad-acc-field">
               <span>이름</span>
-              <input value={form.label} onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+              <input value={form.label} autoComplete="off" data-1p-ignore data-lpignore="true"
+                onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
                 placeholder="우리 회사 / A 클라이언트처럼 알아볼 이름" />
             </label>
             <label className="ad-acc-field">
               <span>{picked.idLabel}</span>
-              <input value={form.externalId} onChange={(e) => setForm((f) => ({ ...f, externalId: e.target.value }))}
+              <input value={form.externalId} autoComplete="off" data-1p-ignore data-lpignore="true" inputMode="numeric"
+                onChange={(e) => setForm((f) => ({ ...f, externalId: e.target.value }))}
                 placeholder={picked.idHint} />
             </label>
             <label className="ad-acc-field">
-              <span>API 키</span>
-              <input type="password" autoComplete="off" value={form.apiKey}
-                onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value }))} placeholder="액세스 라이선스" />
+              <span>API 키 <em className="ad-acc-hint">액세스 라이선스</em></span>
+              <input value={form.apiKey} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false}
+                className={reveal ? "" : "ad-acc-secret"}
+                onChange={(e) => setForm((f) => ({ ...f, apiKey: e.target.value.trim() }))} placeholder="0100000000…" />
             </label>
             <label className="ad-acc-field">
-              <span>비밀키</span>
-              <input type="password" autoComplete="off" value={form.apiSecret}
-                onChange={(e) => setForm((f) => ({ ...f, apiSecret: e.target.value }))} placeholder="시크릿 키" />
+              <span>비밀키 <em className="ad-acc-hint">시크릿 키 — API 키와 헷갈리기 쉽습니다</em></span>
+              <input value={form.apiSecret} autoComplete="off" data-1p-ignore data-lpignore="true" spellCheck={false}
+                className={reveal ? "" : "ad-acc-secret"}
+                onChange={(e) => setForm((f) => ({ ...f, apiSecret: e.target.value.trim() }))} placeholder="0100000000…" />
             </label>
+            <button type="button" className="ad-acc-reveal" onClick={() => setReveal((v) => !v)}>
+              {reveal ? "키 가리기" : "붙여넣은 키 확인하기"}
+            </button>
             <p className="ad-acc-note">
-              넣은 키는 암호화해 보관하고 서버(수집 함수)에서만 풉니다. 화면·기록 어디에도 평문으로 남지 않습니다.
+              넣은 키는 암호화해 보관하고 서버(수집 함수)에서만 풉니다. 화면·기록 어디에도 평문으로 남지 않고,
+              브라우저에도 저장되지 않습니다.
             </p>
             <span className="ad-acc-foot">
               <button type="button" onClick={() => setOpen(false)}>취소</button>

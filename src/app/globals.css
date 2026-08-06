@@ -6780,3 +6780,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ad-acc-foot { @apply flex items-center justify-end gap-2 pt-1; }
 .ad-acc-foot button { @apply h-9 px-4 rounded-xl text-[12.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
 .ad-acc-go { @apply !text-white bg-[var(--primary)] hover:opacity-90 disabled:opacity-40; }
+/* 광고 API 키 입력 — 브라우저가 '로그인 양식'으로 오해해 자동채움 하지 않도록 password 를 안 쓴다.
+   글자는 가리되(-webkit-text-security) 필요할 때 '확인하기'로 잠깐 본다 (2026-08-06 사장님 제보) */
+.ad-acc-secret { -webkit-text-security: disc; text-security: disc; font-family: monospace; letter-spacing: 0.02em; }
+.ad-acc-hint { @apply not-italic ml-1 font-normal text-[10.5px] text-[var(--text-dim)]; }
+.ad-acc-reveal { @apply self-start h-7 px-2 -mt-1 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
