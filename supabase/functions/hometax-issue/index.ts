@@ -429,37 +429,27 @@ serve(withSentry("hometax-issue", async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // 3.5) 요금제 발행 한도 확인 (기본요금제 등 유한 플랜 — monthly_tax_invoice_limit NULL=무제한)
-    const { data: subRow } = await supabase
-      .from("subscriptions")
-      .select("status, trial_ends_at, subscription_plans(name, monthly_tax_invoice_limit)")
-      .eq("company_id", invoice.company_id)
-      .in("status", ["active", "trialing", "paused", "past_due"])
-      .order("created_at", { ascending: false })
-      .limit(1)
+    // 3.5) 요금제 발행 한도 — 세금계산서+현금영수증 합산 (2026-08-06 개편, NULL=무제한).
+    //   체험 만료는 더 이상 차단 사유가 아니다(무료 플랜으로 강등되어 무료 한도가 적용됨).
+    const { data: entRow } = await supabase
+      .rpc("get_company_entitlement", { p_company_id: invoice.company_id })
       .maybeSingle();
-    // 체험 만료 서버 차단 — trialing 인데 trial_ends_at 지났으면 발행 불가(엣지 직접호출 우회 방지)
-    if (subRow?.status === "trialing" && subRow.trial_ends_at && new Date(subRow.trial_ends_at) < new Date()) {
-      return new Response(JSON.stringify({
-        error: "무료 체험이 종료되었습니다. 요금제를 구독하면 계속 발행할 수 있습니다.",
-        code: "TRIAL_EXPIRED",
-      }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const planLimit = subRow?.subscription_plans?.monthly_tax_invoice_limit;
+    const planSlug = (entRow as any)?.effective_plan_slug || "free";
+    const { data: planRow } = await supabase
+      .from("subscription_plans")
+      .select("name, monthly_issue_limit")
+      .eq("slug", planSlug)
+      .maybeSingle();
+    const planLimit = planRow?.monthly_issue_limit;
     if (typeof planLimit === "number") {
-      // KST 기준 이달 1일 0시 (현금영수증 카운트와 동일). UTC 월경계는 월초 9시간이 전월로 잡혀 한도가 어긋났음.
-      const kstYm = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
-      const monthStart = `${kstYm}-01T00:00:00+09:00`;
-      const { count } = await supabase
-        .from("tax_invoices")
-        .select("id", { count: "exact", head: true })
-        .eq("company_id", invoice.company_id)
-        .eq("nts_issue_status", "issued")
-        .gte("nts_issued_at", monthStart);
-      if ((count || 0) >= planLimit) {
+      const { data: usage } = await supabase
+        .rpc("get_monthly_issue_usage", { p_company_id: invoice.company_id })
+        .maybeSingle();
+      const used = Number((usage as any)?.total_count ?? 0);
+      if (used >= planLimit) {
         return new Response(JSON.stringify({
-          error: `이번 달 세금계산서 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
-          hint: `${subRow?.subscription_plans?.name || "현재 요금제"}는 월 ${planLimit}건까지 발행 가능합니다. 울트라로 업그레이드하면 무제한 발행할 수 있습니다.`,
+          error: `이번 달 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
+          hint: `${planRow?.name || "현재 요금제"}는 세금계산서·현금영수증 합산 월 ${planLimit}건까지 발행할 수 있습니다.`,
           code: "PLAN_LIMIT_EXCEEDED",
         }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }

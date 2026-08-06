@@ -135,7 +135,7 @@ export default function AiView() {
 
       <section className="lp4-section lp4-bg-canvas">
         <div className="lp4-narrow lp4-sec-head-c">
-          <h2 className="lp4-h2">14일 써보고 결정하세요</h2>
+          <h2 className="lp4-h2">무료로 시작하세요</h2>
           <p className="lp4-sub">가입하면 이 자동화가 전부 켜진 상태로 시작해요.</p>
           <div className="lp4-feat-cta">
             <Link href="/auth" className="lp4-btn lp4-btn-brand">무료로 시작하기 <Arrow /></Link>

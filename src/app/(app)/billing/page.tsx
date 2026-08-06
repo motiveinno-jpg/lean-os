@@ -23,12 +23,13 @@ const db = supabase;
 type Tab = "plan" | "payment" | "invoices";
 type BillingCycle = "monthly" | "annual";
 
-// 2026-07-06 4티어 정합(랜딩과 동일) — 허위 항목(SSO/SAML·API·온프레미스) 제거
+// 2026-08-06 요금제 개편 — 무료(영구) + 오너뷰 19,000원 단일 유료. 구 티어는 기존 구독자 표시용으로만 남긴다.
 const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommended?: boolean }> = {
-  free: { icon: "🎁", features: ["14일간 전 기능 무료 체험", "은행·카드 실계좌 연동", "전자서명 월 3건", "AI 분석 월 5회", "경영 대시보드·리포트", "팀 메신저·게시판"] },
-  basic: { icon: "🚀", recommended: true, features: ["직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약 월 20건", "AI 거래 분류 · 리포트 무제한", "거래처 / 파트너 무제한", "재무제표 · 경영흐름 콕핏"] },
-  ultra: { icon: "⚡", features: ["프로 전체 +", "세금계산서·현금영수증 발행 무제한", "전자계약 발송 무제한", "AI 브리핑 — 매일 액션 플랜", "신기능 우선 제공 · 우선 지원"] },
-  enterprise: { icon: "🏢", features: ["울트라 전체 +", "전담 온보딩 · CSM", "맞춤 기능 개발", "기존 데이터 이관 지원", "SLA 보장"] },
+  free: { icon: "🎁", features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판 무제한", "세금계산서+현금영수증 합산 월 5건", "전자계약 월 5건", "AI 참모 월 10회", "은행·카드 연동은 유료 플랜에서"] },
+  standard: { icon: "⚡", recommended: true, features: ["기본 5명 포함 · 추가 1명 ₩5,000/월", "세금계산서+현금영수증 합산 월 100건", "전자계약 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집", "AI 대표 참모 월 50회"] },
+  basic: { icon: "🚀", features: ["(구 요금제) 직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약 월 20건"] },
+  ultra: { icon: "⚡", features: ["(구 요금제) 발행·전자계약 무제한", "은행·카드 동기화 무제한", "AI 브리핑"] },
+  enterprise: { icon: "🏢", features: ["(구 요금제) 전담 온보딩 · 맞춤 개발", "SLA 보장"] },
 };
 
 function fmtW(n: number): string {
@@ -431,13 +432,14 @@ function BillingPageInner() {
         </div>
       </div>
 
-      {/* 무료체험 시작 배너 — 유료 권한 없는 회사(신규·미등록·만료)는 카드 등록 후 14일 무료체험 시작 */}
-      {entitlement && !entitlement.entitled && subscription?.status !== "trialing" && (
+      {/* 업그레이드 배너 — 무료 플랜이면 노출 (2026-08-06 개편: 무료가 영구 플랜이 되어 '체험 만료' 개념이 사라짐) */}
+      {entitlement && entitlement.effective_plan_slug === "free" && subscription?.status !== "trialing" && (
         <div className="billing-trial-start-banner">
           <div>
-            <div className="font-bold text-sm text-[var(--text)]">무료체험을 시작하려면 카드를 등록하세요</div>
+            <div className="font-bold text-sm text-[var(--text)]">지금은 무료 플랜입니다</div>
             <div className="text-xs text-[var(--text-muted)] mt-0.5">
-              카드 등록 후 <b>14일간 무료</b>로 전 기능을 사용하고, 기간이 끝나면 선택한 플랜으로 자동 결제됩니다. 체험 기간 내 해지 시 첫 결제가 없습니다.
+              월 <b>19,000원</b>(VAT 별도)이면 세금계산서·현금영수증 합산 월 100건, 전자계약 무제한,
+              <b> 은행·카드 전 계좌 하루 2회 자동 동기화</b>까지 열립니다. 기본 5명 포함, 추가 1명당 5,000원.
             </div>
             {/* 영업코드 — 입력하면 체험이 44일로 늘어난다. 코드가 없으면 비워두면 된다. */}
             <div className="flex items-center gap-2 mt-2 flex-wrap">

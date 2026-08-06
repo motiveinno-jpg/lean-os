@@ -167,7 +167,7 @@ export default function FeaturesView() {
       {/* 하단 전환 */}
       <section className="lp4-section lp4-bg-tint">
         <div className="lp4-narrow lp4-sec-head-c">
-          <h2 className="lp4-h2">14일 써보고 결정하세요</h2>
+          <h2 className="lp4-h2">무료로 시작하세요</h2>
           <p className="lp4-sub">따로 결제하던 {FEATURES.length}개 도구가 하나의 데이터 위에서 같이 움직여요.</p>
           <div className="lp4-mx-tools-list">
             {FEATURES.map((f) => <span key={f.tab} className="lp4-pillar-menu">{f.tab}</span>)}

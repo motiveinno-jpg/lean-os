@@ -133,7 +133,8 @@ export interface SubscriptionGateInfo {
 //   기존 status 필터 방식은 구독행이 없으면(만료/해지) limit=null 로 잡혀 '무제한'이 되던 구멍이 있었음.
 async function getEffectivePlanLimit(
   companyId: string,
-  column: 'monthly_tax_invoice_limit' | 'monthly_cashbill_limit' | 'monthly_contract_limit',
+  column: 'monthly_tax_invoice_limit' | 'monthly_cashbill_limit' | 'monthly_contract_limit'
+        | 'monthly_issue_limit' | 'monthly_ai_call_limit',
 ): Promise<{ limit: number | null; planName: string | null }> {
   const ent = await getEntitlement(companyId);
   const slug = ent.effectivePlanSlug; // 비권한이면 RPC 가 이미 'free' 반환
@@ -750,42 +751,49 @@ export interface IssuanceLimitStatus {
   planName: string | null;
 }
 
-export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  const { limit, planName } = await getEffectivePlanLimit(companyId, 'monthly_tax_invoice_limit');
-  if (limit === null) return { limit: null, used: 0, remaining: null, planName };
+/** 세금계산서 + 현금영수증 발행 합산 한도 (2026-08-06 개편 — 한 주머니에서 쓴다).
+ *  사용량은 get_monthly_issue_usage RPC 단일 소스 — 클라이언트·엣지가 같은 값을 본다. */
+export async function getIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus & { taxUsed: number; cashUsed: number }> {
+  const { limit, planName } = await getEffectivePlanLimit(companyId, 'monthly_issue_limit');
+  const { data } = await (db as any).rpc('get_monthly_issue_usage', { p_company_id: companyId });
+  const row = Array.isArray(data) ? data[0] : data;
+  const taxUsed = Number(row?.tax_count ?? 0);
+  const cashUsed = Number(row?.cash_count ?? 0);
+  const used = Number(row?.total_count ?? taxUsed + cashUsed);
+  return {
+    limit,
+    used,
+    remaining: limit === null ? null : Math.max(0, limit - used),
+    planName,
+    taxUsed,
+    cashUsed,
+  };
+}
 
-  // KST 기준 이달 1일 0시 (nts_issued_at 은 timestamptz — 오프셋 붙인 ISO 로 비교).
-  //   기존 UTC 월경계는 월초 9시간(00~09시 KST)이 전월로 잡혀 한도가 어긋나던 버그 — 현금영수증 카운트와 동일하게 KST 통일.
-  const monthStart = `${todayKst().slice(0, 7)}-01T00:00:00+09:00`;
-  const { count } = await db
-    .from('tax_invoices')
-    .select('id', { count: 'exact', head: true })
-    .eq('company_id', companyId)
-    .eq('nts_issue_status', 'issued')
-    .gte('nts_issued_at', monthStart);
-  const used = count || 0;
-  return { limit, used, remaining: Math.max(0, limit - used), planName };
+// 기존 호출부 호환 — 둘 다 같은 합산 한도를 본다.
+export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
+  return getIssuanceStatus(companyId);
 }
 
 export async function getCashReceiptIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  const { limit, planName } = await getEffectivePlanLimit(companyId, 'monthly_cashbill_limit');
-  if (limit === null) return { limit: null, used: 0, remaining: null, planName };
-
-  const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const { count } = await db
-    .from('cash_receipts')
-    .select('id', { count: 'exact', head: true })
-    .eq('company_id', companyId)
-    .eq('source', 'codef')
-    .neq('status', 'cancelled')
-    .gte('issue_date', monthStart);
-  const used = count || 0;
-  return { limit, used, remaining: Math.max(0, limit - used), planName };
+  return getIssuanceStatus(companyId);
 }
 
 // 전자계약(서명 요청) 월 발송 한도 — 프로 20건, 울트라/엔터 무제한(NULL). 서버 강제는 signature_requests
 //   BEFORE INSERT 트리거(enforce_contract_monthly_limit). 이 함수는 UI 카운터·버튼 가드용.
+/** 은행·카드 연동 허용 여부 (2026-08-06 개편) — 무료 플랜은 자동/수동 모두 차단.
+ *  CODEF 는 계좌당 월 600원이 나가는 유일한 실변동비라, 무료에 열어두면 원가를 못 막는다.
+ *  서버 강제는 codef-sync 엣지 — 이 함수는 UI 가드용. */
+export async function getBankSyncAccess(companyId: string): Promise<{ allowed: boolean; planName: string | null }> {
+  const ent = await getEntitlement(companyId);
+  const { data } = await (db as any)
+    .from('subscription_plans')
+    .select('name, bank_sync_enabled')
+    .eq('slug', ent.effectivePlanSlug)
+    .maybeSingle();
+  return { allowed: data?.bank_sync_enabled !== false, planName: data?.name ?? null };
+}
+
 export async function getContractIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
   const { limit, planName } = await getEffectivePlanLimit(companyId, 'monthly_contract_limit');
   if (limit === null) return { limit: null, used: 0, remaining: null, planName };

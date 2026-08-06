@@ -185,36 +185,27 @@ serve(withSentry("cashbill-issue", async (req) => {
         return json({ error: `회사 정보가 비어 있습니다: ${missing.join(", ")} — 설정 → 회사 정보에서 입력하세요.` }, 400);
       }
 
-      // 요금제 발행 한도 확인 (monthly_cashbill_limit NULL=무제한)
-      const { data: subRow } = await admin
-        .from("subscriptions")
-        .select("status, trial_ends_at, subscription_plans(name, monthly_cashbill_limit)")
-        .eq("company_id", companyId)
-        .in("status", ["active", "trialing", "paused", "past_due"])
-        .order("created_at", { ascending: false })
-        .limit(1)
+      // 요금제 발행 한도 — 세금계산서+현금영수증 합산 (2026-08-06 개편, NULL=무제한).
+      //   체험 만료는 차단 사유가 아니다(무료 플랜으로 강등되어 무료 한도가 적용됨).
+      const { data: entRow } = await admin
+        .rpc("get_company_entitlement", { p_company_id: companyId })
         .maybeSingle();
-      // 체험 만료 서버 차단 — trialing 인데 trial_ends_at 지났으면 발행 불가(엣지 직접호출 우회 방지)
-      if (subRow?.status === "trialing" && subRow.trial_ends_at && new Date(subRow.trial_ends_at) < new Date()) {
-        return json({
-          error: "무료 체험이 종료되었습니다. 요금제를 구독하면 계속 발행할 수 있습니다.",
-          code: "TRIAL_EXPIRED",
-        }, 402);
-      }
-      const planLimit = subRow?.subscription_plans?.monthly_cashbill_limit;
+      const planSlug = (entRow as any)?.effective_plan_slug || "free";
+      const { data: planRow } = await admin
+        .from("subscription_plans")
+        .select("name, monthly_issue_limit")
+        .eq("slug", planSlug)
+        .maybeSingle();
+      const planLimit = planRow?.monthly_issue_limit;
       if (typeof planLimit === "number") {
-        const monthStart = todayKst().slice(0, 7) + "-01";
-        const { count } = await admin
-          .from("cash_receipts")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId)
-          .eq("source", "codef")
-          .neq("status", "cancelled")
-          .gte("issue_date", monthStart);
-        if ((count || 0) >= planLimit) {
+        const { data: usage } = await admin
+          .rpc("get_monthly_issue_usage", { p_company_id: companyId })
+          .maybeSingle();
+        const used = Number((usage as any)?.total_count ?? 0);
+        if (used >= planLimit) {
           return json({
-            error: `이번 달 현금영수증 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
-            hint: `${subRow?.subscription_plans?.name || "현재 요금제"}는 월 ${planLimit}건까지 발행 가능합니다. 울트라로 업그레이드하면 무제한 발행할 수 있습니다.`,
+            error: `이번 달 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
+            hint: `${planRow?.name || "현재 요금제"}는 세금계산서·현금영수증 합산 월 ${planLimit}건까지 발행할 수 있습니다.`,
             code: "PLAN_LIMIT_EXCEEDED",
           }, 429);
         }

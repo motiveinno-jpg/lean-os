@@ -26,9 +26,11 @@ const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
   "claude-opus-4-8": { in: 5.0, out: 25.0 },
 };
 
-// 회사별 월 AI 비용 상한 — 기능 불문 합산 (2026-07-30 사장님: "회사별 월 15,000원 이하").
-//   $10 ≈ 14,000원(환율 1,400 기준) — 진행 중 요청 여유분을 남긴 값. env 로 조정 가능.
-const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "10");
+// 회사별 월 AI 비용 상한 — 기능 불문 합산.
+//   2026-08-06 요금제 개편으로 $10 → $2.5 하향. 19,000원 플랜에서 $10(14,000원)은 매출의 74%라
+//   성립하지 않는다. $2.5 ≈ 3,500원 = 참모(Sonnet) 약 60회분으로, 플랜 한도(월 50회)보다 살짝 위.
+//   env(AI_MONTHLY_COST_CAP_USD)로 조정 가능.
+const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "2.5");
 
 export interface ClaudeCallOpts {
   task: ClaudeTask;

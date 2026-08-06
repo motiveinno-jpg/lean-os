@@ -904,7 +904,7 @@ function SceneProof() {
                   </div>
                   <div className="lp5-price-amt">
                     {p.price === "0" ? <em>0원</em> : <em>₩{p.price}</em>}
-                    <span>{p.price === "0" ? "14일" : "/월"}</span>
+                    <span>{p.price === "0" ? "" : "/월"}</span>
                   </div>
                 </div>
               ))}

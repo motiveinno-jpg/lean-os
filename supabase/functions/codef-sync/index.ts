@@ -90,25 +90,55 @@ function meterPush(path: string, code: string) {
 // ── 2026-07-06 CODEF 원가 가드 — 페이월에 막힌 회사(체험 만료·해지 기간종료)는 자동 cron 제외.
 //   앱 접근도 못 하는 회사에 하루 4회 CODEF 과금이 나가는 누수 방지. 수동 동기화는 영향 없음
 //   (어차피 페이월로 화면 진입 불가). 구독행 없음(레거시)·active·trialing(유효)·past_due 는 유지.
+/** 은행·카드 동기화를 돌려도 되는 회사만 남긴다 (2026-08-06 요금제 개편).
+ *  기준이 "체험 만료 여부"에서 "현재 유효 플랜의 bank_sync_enabled"로 바뀌었다.
+ *  무료 플랜은 false — 계좌당 월 600원(CODEF)이 나가는 유일한 실변동비라 무료에 열 수 없다.
+ *  조회 장애 시엔 fail-open(전체 허용) — 구독 조회 실패가 동기화를 멈추면 안 된다. */
 async function filterBillableCompanies(supabase: any, companyIds: string[]): Promise<Set<string>> {
   const allowed = new Set(companyIds);
   if (companyIds.length === 0) return allowed;
   try {
-    const { data: subs } = await supabase
-      .from("subscriptions")
-      .select("company_id, status, trial_ends_at, current_period_end")
-      .in("company_id", companyIds);
+    const [{ data: subs }, { data: plans }] = await Promise.all([
+      supabase
+        .from("subscriptions")
+        .select("company_id, status, trial_ends_at, current_period_end, plan_id, plan_slug, created_at")
+        .in("company_id", companyIds)
+        .order("created_at", { ascending: false }),
+      supabase.from("subscription_plans").select("id, slug, bank_sync_enabled"),
+    ]);
+    const planById = new Map((plans || []).map((p: any) => [p.id, p]));
+    const planBySlug = new Map((plans || []).map((p: any) => [p.slug, p]));
+    const syncAllowed = (slug: string) => planBySlug.get(slug)?.bank_sync_enabled !== false;
+
+    // 회사별 최신 구독 1건만 본다 (created_at desc 정렬이라 첫 행이 최신)
+    const latest = new Map<string, any>();
+    for (const s of subs || []) if (!latest.has(s.company_id)) latest.set(s.company_id, s);
+
     const now = Date.now();
-    for (const s of subs || []) {
-      const trialOver = s.status === "trialing" && s.trial_ends_at && new Date(s.trial_ends_at).getTime() < now;
-      const canceledOver = s.status === "canceled" && (!s.current_period_end || new Date(s.current_period_end).getTime() < now);
-      if (trialOver || canceledOver) allowed.delete(s.company_id);
+    for (const id of companyIds) {
+      const s = latest.get(id);
+      let slug = "free";
+      if (s) {
+        const trialLive = s.status === "trialing" && s.trial_ends_at && new Date(s.trial_ends_at).getTime() > now;
+        const paidLive = ["active", "past_due", "paused"].includes(s.status)
+          && (!s.current_period_end || new Date(s.current_period_end).getTime() + 3 * 86400000 > now);
+        if (trialLive || paidLive) {
+          slug = (s.plan_id ? planById.get(s.plan_id)?.slug : null) || s.plan_slug || "free";
+        }
+      }
+      if (!syncAllowed(slug)) allowed.delete(id);
     }
   } catch (e: any) {
-    // 가드 조회 실패 시 전체 허용(fail-open) — 구독 조회 장애가 동기화를 멈추면 안 됨
-    console.error("[CRON-GUARD] subscription check failed:", e?.message);
+    console.error("[CRON-GUARD] plan check failed:", e?.message);
   }
   return allowed;
+}
+
+/** 수동 동기화도 같은 기준으로 막는다 — 무료가 버튼만 눌러 CODEF 를 태우는 경로 차단. */
+async function assertBankSyncAllowed(supabase: any, companyId: string): Promise<string | null> {
+  const allowed = await filterBillableCompanies(supabase, [companyId]);
+  if (allowed.has(companyId)) return null;
+  return "무료 플랜은 은행·카드 연동을 사용할 수 없습니다. 오너뷰 요금제로 업그레이드하면 모든 계좌를 하루 2회 자동으로 동기화합니다.";
 }
 
 async function flushCodefUsage(store: MeterStore) {
@@ -2377,6 +2407,16 @@ serve(withSentry("codef-sync", async (req) => {
     if (start > end) start = end;
 
     const results: Record<string, any> = {};
+
+    // 무료 플랜은 수동 동기화도 차단 (2026-08-06) — 홈택스만 쓰는 요청은 통과시킨다.
+    if (syncType !== "hometax") {
+      const denied = await assertBankSyncAllowed(supabase, companyId);
+      if (denied) {
+        return new Response(JSON.stringify({ error: denied, code: "PLAN_BANK_SYNC_DISABLED" }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // syncType="bank-balance": 잔고만 빠르게 (account-list 만 호출, 거래내역 skip — 대시보드 자동 갱신용)
     if (syncType === "bank-balance") {

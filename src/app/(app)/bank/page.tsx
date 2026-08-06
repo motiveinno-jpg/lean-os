@@ -16,6 +16,7 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getSyncPausedUntil, setSyncPause, clearSyncPause } from "@/lib/data-sync";
+import { getBankSyncAccess } from "@/lib/billing";
 import { DateField } from "@/components/date-field";
 import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
@@ -72,6 +73,13 @@ export default function BankPage() {
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const [syncing, setSyncing] = useState(false);
+  // 은행·카드 연동 허용 여부 (무료 플랜은 불가 — 서버도 402 로 막는다)
+  const { data: bankSync } = useQuery({
+    queryKey: ["bank-sync-access", companyId],
+    queryFn: () => getBankSyncAccess(companyId!),
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
+  });
   // 연동 일시정지(중복 로그인 방지) — company_settings.settings.sync_paused_until.
   const { data: syncPausedUntil } = useQuery({
     queryKey: ["bank-sync-paused", companyId],
@@ -553,15 +561,20 @@ export default function BankPage() {
           <button
             type="button"
             onClick={() => {
+              // 무료 플랜은 은행 연동 자체가 없다 (서버도 402 로 차단 — 여기선 안내만)
+              if (bankSync && !bankSync.allowed) {
+                toast("무료 플랜은 은행·카드 연동을 사용할 수 없습니다. 요금제를 업그레이드하면 모든 계좌를 하루 2회 자동 동기화합니다.", "info");
+                return;
+              }
               // 직원 QA — 기간 미선택 등 동기화가 실제로 시작 안 되면 쿨타임을 걸지 않음
               //   (run 은 fn 실행 전에 쿨타임을 기록하므로, 사전 검증을 run 밖에서 먼저 한다)
               if (isSyncPaused) { toast("연동이 일시정지 중입니다. 정지 해제 후 연동하세요.", "info"); return; }
               if (!bankTxFrom || !bankTxTo) { toast("통장 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요", "error"); return; }
               bankCd.run(handleSyncBank);
             }}
-            disabled={syncing || !companyId || bankCd.disabled || isSyncPaused}
-            className={`btn-primary ${bankCd.disabled || isSyncPaused ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
+            disabled={syncing || !companyId || bankCd.disabled || isSyncPaused || (bankSync ? !bankSync.allowed : false)}
+            className={`btn-primary ${bankCd.disabled || isSyncPaused || (bankSync && !bankSync.allowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
+            title={bankSync && !bankSync.allowed ? "무료 플랜은 은행·카드 연동을 사용할 수 없습니다" : isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
           >
             {syncing ? (
               <>

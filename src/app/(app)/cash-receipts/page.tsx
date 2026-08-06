@@ -598,16 +598,18 @@ export default function CashReceiptsPage() {
                 borderColor: issuanceLimitReached ? "#ef4444" : "var(--border)",
                 color: issuanceLimitReached ? "#ef4444" : "var(--text-muted)",
               }}
-              title={`${issuanceStatus.planName || "현재 요금제"} — 국세청 발행은 월 ${issuanceStatus.limit}건까지 가능합니다`}
+              title={`${issuanceStatus.planName || "현재 요금제"} — 세금계산서·현금영수증 합산 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}건 사용)`}
             >
-              국세청 발행 이번 달 {issuanceStatus.used}/{issuanceStatus.limit}건
+              {/* 남은 횟수를 앞에 세운다 (2026-08-06 사장님) */}
+              발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음
+              <span className="opacity-60"> · 세금계산서+현금영수증 {issuanceStatus.used}/{issuanceStatus.limit}</span>
             </span>
           )}
           <button
             type="button"
             onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
             disabled={issuanceLimitReached}
-            title={issuanceLimitReached ? `${issuanceStatus?.planName || '현재 요금제'}의 이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발행할 수 있습니다.` : "CODEF·팝빌 연동으로 현금영수증을 국세청에 실제 발행합니다"}
+            title={issuanceLimitReached ? `이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다. 세금계산서와 현금영수증을 합산해 계산합니다.` : "CODEF 연동으로 현금영수증을 국세청에 실제 발행합니다"}
             className="cashbill-issue-open btn-primary"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
