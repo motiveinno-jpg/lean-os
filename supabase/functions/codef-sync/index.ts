@@ -137,7 +137,7 @@ async function flushCodefUsage(store: MeterStore) {
   }
 }
 
-async function codefRequest(token: string, path: string, body: Record<string, any>): Promise<any> {
+async function codefRequest(token: string, path: string, body: Record<string, any>, timeoutMsOverride?: number): Promise<any> {
   const sanitizedBody = { ...body };
   if (sanitizedBody.accountList) {
     sanitizedBody.accountList = (sanitizedBody.accountList as any[]).map((a: any) => ({
@@ -149,8 +149,10 @@ async function codefRequest(token: string, path: string, body: Record<string, an
   }
   console.log(`[CODEF] ${path}`); // 요청 body 미로깅(민감정보)
 
+  // 호출별 타임아웃 — 한 invocation 에서 CODEF 를 1번만 부를 땐 더 길게 기다릴 수 있다.
+  const timeoutMs = timeoutMsOverride ?? CODEF_REQUEST_TIMEOUT_MS;
   const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), CODEF_REQUEST_TIMEOUT_MS);
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
   let res: Response;
   try {
     res = await fetch(`${CODEF_BASE}${path}`, {
@@ -167,9 +169,9 @@ async function codefRequest(token: string, path: string, body: Record<string, an
     if (err?.name === "AbortError") {
       // 60초 cap 초과 — CODEF 게이트웨이 응답 없음. 우리 측 가짜 응답으로 매핑해서
       // 호출자가 정상 흐름으로 처리 (errors 배열에 push, status='error').
-      console.error(`[CODEF] AbortError: ${path} > ${CODEF_REQUEST_TIMEOUT_MS}ms`);
+      console.error(`[CODEF] AbortError: ${path} > ${timeoutMs}ms`);
       meterPush(path, "CF-TIMEOUT");
-      return { result: { code: "CF-TIMEOUT", message: `CODEF 게이트웨이 응답 시간 초과 (${CODEF_REQUEST_TIMEOUT_MS / 1000}초). 잠시 후 다시 시도하세요.` } };
+      return { result: { code: "CF-TIMEOUT", message: `CODEF 게이트웨이 응답 시간 초과 (${Math.round(timeoutMs / 1000)}초). 잠시 후 다시 시도하세요.` } };
     }
     meterPush(path, "FETCH_ERROR");
     throw err;
@@ -1042,7 +1044,10 @@ async function fetchHometaxInvoiceDetail(
 // 3) verify 함수와 동일한 endpoint/필드 사용
 async function syncHometaxInvoices(
   supabase: any, token: string, companyId: string, _connectedId: string,
-  startDate: string, endDate: string
+  startDate: string, endDate: string,
+  // 조회할 방향. 한 번에 한 방향만 부르면 대기시간을 길게 줄 수 있어 CF-TIMEOUT 이 크게 준다.
+  //   (CODEF 이 API 자체 Timeout 은 600초. 우리 상한 70초가 실패의 주원인이었다 — 2026-08-06)
+  directions: ("매출" | "매입")[] = ["매출", "매입"],
 ) {
   const errors: SyncError[] = [];
   const debug: string[] = [];   // 응답 구조 진단용 — totalSynced=0 인데 진짜 0건인지 parsing 누락인지 구분
@@ -1070,6 +1075,8 @@ async function syncHometaxInvoices(
   // CODEF 가 동일 인증 정보로 같은 product 의 동시 호출 거부 (CF-00016 — 중복 요청 거부).
   // chunk 별 병렬은 불가. 한 호출에 받은 startDate~endDate 그대로 처리.
   // 1년치 sync 가 필요하면 frontend 가 월별 12번 sequential 호출.
+  // 한 방향만 조회하면 이 invocation 에서 CODEF 호출이 1번뿐 → Edge 150초 안에서 135초까지 대기 가능.
+  const perCallTimeoutMs = directions.length === 1 ? 135_000 : CODEF_REQUEST_TIMEOUT_MS;
   const callDirection = (direction: "매출" | "매입") =>
     codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
       organization: HOMETAX_ORG,
@@ -1084,16 +1091,17 @@ async function syncHometaxInvoices(
       orderBy: "0",
       transeType: direction === "매출" ? "01" : "02",
       type: "0",
-    }).then((result) => ({ direction, result, chunkStart: cappedStart, chunkEnd: cappedEnd }));
+    }, perCallTimeoutMs).then((result) => ({ direction, result, chunkStart: cappedStart, chunkEnd: cappedEnd }));
 
   const reportedCodes = new Set<string>();
   const fatalCodes = new Set(["CF-00003", "CF-00007", "CF-00401", "CF-04015", "CF-12200"]);
 
-  // 매출/매입도 sequential — CODEF 가 동시 호출 시 한 쪽 timeout 발생 (검증됨).
-  const salesRes = await callDirection("매출");
-  const purchaseRes = await callDirection("매입");
-  const settled = [salesRes, purchaseRes];
-  debug.push(`single-period sync ${cappedStart}~${cappedEnd} done (sequential)`);
+  // 매출/매입은 sequential — CODEF 가 동시 호출을 거부한다(CF-00016, 검증됨).
+  //   방향을 1개만 받으면 Edge 150초 한계 안에서 최대한 길게(135초) 기다린다.
+  //   2개를 다 받으면 종전대로 70초씩(= 최대 140초).
+  const settled: { direction: "매출" | "매입"; result: any; chunkStart: string; chunkEnd: string }[] = [];
+  for (const dir of directions) settled.push(await callDirection(dir));
+  debug.push(`sync ${cappedStart}~${cappedEnd} dirs=[${directions.join(",")}] timeout=${perCallTimeoutMs / 1000}s`);
 
   for (const { direction, result, chunkStart, chunkEnd } of settled) {
     if (result.result?.code !== "CF-00000") {
@@ -1786,21 +1794,37 @@ serve(withSentry("codef-sync", async (req) => {
         const perMonth: any[] = job.result_per_month || [];
         const MAX_RETRY = 3;
 
-        // ─── 처리할 step 결정 ───
+        // ─── step = 월 × 방향 (2026-08-06) ───────────────────────────────────
+        //   종전엔 한 step 에서 매출·매입을 연달아 불러 각 70초로 묶였고(합 140초, Edge 150초 한계),
+        //   재시도 때는 이미 성공한 방향까지 다시 불러 시간·과금을 버렸다.
+        //   방향을 나누면 ① 한 호출당 135초까지 기다릴 수 있어 CF-TIMEOUT 이 크게 줄고
+        //   ② 실패한 방향만 재시도한다. (세금계산서만 해당 — 현금영수증은 방향 개념이 없다)
+        const isInvoiceJob = job.job_type !== "cash_receipt";
+        const DIRS: ("매출" | "매입")[] = ["매출", "매입"];
+        const stepList: { month: string; direction: ("매출" | "매입") | null }[] = isInvoiceJob
+          ? monthsList.flatMap((m) => DIRS.map((d) => ({ month: m, direction: d })))
+          : monthsList.map((m) => ({ month: m, direction: null }));
+        const keyOf = (e: { month: string; direction?: string | null }) =>
+          `${e.month}|${e.direction ?? ""}`;
+        const doneKeys = new Set(perMonth.map((m) => keyOf(m)));
+
         let targetMonth: string | null = null;
+        let targetDirection: ("매출" | "매입") | null = null;
         let isRetry = false;
         let prevEntry: any = null;
 
-        if (perMonth.length < monthsList.length) {
-          // 아직 처리 안 한 월 우선
-          targetMonth = monthsList[perMonth.length];
+        const nextNew = stepList.find((st) => !doneKeys.has(keyOf(st)));
+        if (nextNew) {
+          targetMonth = nextNew.month;
+          targetDirection = nextNew.direction;
         } else {
-          // 모든 month 처리됨 — error/partial retry
+          // 모든 step 처리됨 — error/partial 만 재시도(그 방향만)
           prevEntry = perMonth.find((m) =>
             (m.status === "error" || m.status === "partial") && (m.retryCount || 0) < MAX_RETRY,
           );
           if (prevEntry) {
             targetMonth = prevEntry.month;
+            targetDirection = prevEntry.direction ?? null;
             isRetry = true;
           }
         }
@@ -1810,7 +1834,7 @@ serve(withSentry("codef-sync", async (req) => {
           await unlock({
             status: "completed",
             completed_at: new Date().toISOString(),
-            current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
+            current_progress: { done: stepList.length, total: stepList.length, label: "완료" },
           });
           const syncTsCol = job.job_type === "cash_receipt" ? "last_cashreceipt_sync_at" : "last_hometax_sync_at";
           await supabase.from("company_settings").upsert({
@@ -1839,7 +1863,8 @@ serve(withSentry("codef-sync", async (req) => {
         try {
           const r0 = job.job_type === "cash_receipt"
             ? await syncHometaxCashReceipts(supabase, token, job.company_id, monthStart, monthEnd)
-            : await syncHometaxInvoices(supabase, token, job.company_id, "", monthStart, monthEnd);
+            : await syncHometaxInvoices(supabase, token, job.company_id, "", monthStart, monthEnd,
+                targetDirection ? [targetDirection] : ["매출", "매입"]);
           r = { synced: r0.synced || 0, responseCount: r0.responseCount || 0, errors: r0.errors || [] };
         } catch (err: any) {
           r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }] };
@@ -1863,8 +1888,8 @@ serve(withSentry("codef-sync", async (req) => {
           totalSyncedDelta = r.synced - oldSynced;
           totalResponseDelta = r.responseCount - oldResp;
           newPerMonth = perMonth.map((m: any) =>
-            m.month === targetMonth ? {
-              month: targetMonth, synced: r.synced, responseCount: r.responseCount,
+            (m.month === targetMonth && (m.direction ?? null) === targetDirection) ? {
+              month: targetMonth, direction: targetDirection, synced: r.synced, responseCount: r.responseCount,
               status: monthStatus, errorMsg: r.errors[0]?.message, retryCount: newRetryCount,
             } : m,
           );
@@ -1872,24 +1897,25 @@ serve(withSentry("codef-sync", async (req) => {
           totalSyncedDelta = r.synced;
           totalResponseDelta = r.responseCount;
           newPerMonth = [...perMonth, {
-            month: targetMonth, synced: r.synced, responseCount: r.responseCount,
+            month: targetMonth, direction: targetDirection, synced: r.synced, responseCount: r.responseCount,
             status: monthStatus, errorMsg: r.errors[0]?.message, retryCount: 0,
           }];
         }
 
-        const stillPending = newPerMonth.length < monthsList.length;
+        const stillPending = newPerMonth.length < stepList.length;
         const stillRetry = newPerMonth.some((m: any) =>
           (m.status === "error" || m.status === "partial") && (m.retryCount || 0) < MAX_RETRY,
         );
 
+        const stepLabel = targetDirection ? `${targetMonth} ${targetDirection}` : targetMonth;
         const progressLabel = isRetry
-          ? `${targetMonth} (재시도 ${newRetryCount}/${MAX_RETRY})`
-          : targetMonth;
+          ? `${stepLabel} (재시도 ${newRetryCount}/${MAX_RETRY})`
+          : stepLabel;
 
         await unlock({
           current_progress: {
             done: newPerMonth.filter((m: any) => m.status === "ok").length,
-            total: monthsList.length,
+            total: stepList.length,
             label: progressLabel,
           },
           total_synced: (job.total_synced || 0) + totalSyncedDelta,
@@ -1923,7 +1949,7 @@ serve(withSentry("codef-sync", async (req) => {
           await supabase.from("hometax_sync_jobs").update({
             status: "completed",
             completed_at: new Date().toISOString(),
-            current_progress: { done: monthsList.length, total: monthsList.length, label: "완료" },
+            current_progress: { done: stepList.length, total: stepList.length, label: "완료" },
           }).eq("id", jobId);
           const syncTsCol = job.job_type === "cash_receipt" ? "last_cashreceipt_sync_at" : "last_hometax_sync_at";
           await supabase.from("company_settings").upsert({
@@ -1934,7 +1960,7 @@ serve(withSentry("codef-sync", async (req) => {
 
         return new Response(JSON.stringify({
           ok: true, monthDone: targetMonth, isRetry, retryCount: newRetryCount,
-          totalDone: newPerMonth.length, totalCount: monthsList.length,
+          totalDone: newPerMonth.length, totalCount: stepList.length,
           stillPending, stillRetry,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch (err: any) {
