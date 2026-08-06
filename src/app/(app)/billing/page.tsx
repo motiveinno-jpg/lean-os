@@ -16,6 +16,8 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useConfirm } from "@/components/confirm-dialog";
+import { useMyPermissions } from "@/lib/permissions";
+import { TossCardSection } from "./_components/TossCardSection";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
@@ -52,6 +54,8 @@ export default function BillingPage() {
 
 function BillingPageInner() {
   const { toast } = useToast();
+  // 결제수단 등록은 마스터만 — 서버(엣지 함수)에서도 동일하게 막는다.
+  const { isMaster: billingIsMaster } = useMyPermissions();
   const [tab, setTab] = useState<Tab>("plan");
   const [cycle, setCycle] = useState<BillingCycle>("monthly"); // 2026-07-22 연간 토글 복원 (연간 10% 할인)
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -878,6 +882,9 @@ function BillingPageInner() {
               </div>
             )}
           </div>
+
+          {/* 국내카드(토스) 자동결제 — 해외카드 Stripe 와 별도 등록 (2026-08-06) */}
+          <TossCardSection companyId={companyId} isMaster={billingIsMaster} />
 
           <div className="billing-payment-info-card glass-card">
             <div className="flex items-center justify-between mb-4">

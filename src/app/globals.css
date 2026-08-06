@@ -3107,6 +3107,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .edi-prep-notice { @apply text-[10px] leading-relaxed text-[var(--warning)] bg-[var(--warning-dim)] border border-[var(--warning)]/30 rounded-lg px-2.5 py-2; }
 .billing-payment-method-card { @apply p-6; }
 .billing-payment-info-card { @apply p-6; }
+/* 국내카드(토스) 자동결제 등록 (2026-08-06) */
+.billing-toss-card { @apply p-6; }
+.toss-callback-panel { @apply max-w-md mx-auto mt-16 p-8 text-center; }
 .billing-invoices-card { @apply overflow-hidden; }
 .billing-upgrade-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
 .billing-cancel-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
