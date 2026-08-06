@@ -294,6 +294,7 @@ export function ManualAttendanceDialog({
     checkInTime: "",   // 'HH:MM'
     checkOutTime: "",  // 'HH:MM'
     nextDayOut: false, // 자정을 넘겨 퇴근한 경우
+    stillWorking: false, // 아직 퇴근 전 — 퇴근 시각을 비워 저장
     status: "",
     note: "",
   });
@@ -328,6 +329,7 @@ export function ManualAttendanceDialog({
       checkInTime: hhmm(companySettings?.work_start_time),
       checkOutTime: hhmm(companySettings?.work_end_time),
       nextDayOut: false,
+      stillWorking: false,
     }));
     // defaultDate·회사설정이 바뀌었을 때만 재초기화 (입력 중 리셋 방지).
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -427,25 +429,44 @@ export function ManualAttendanceDialog({
               />
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">
-                퇴근 시각 <span className="text-[10px] text-[var(--text-dim)] font-normal">· 근무 중이면 비움</span>
-              </label>
+              <label className="block text-xs text-[var(--text-muted)] mb-1">퇴근 시각</label>
               <input
                 type="time"
                 value={form.checkOutTime}
                 onChange={(e) => { setTimesTouched(true); setForm({ ...form, checkOutTime: e.target.value }); }}
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
+                disabled={form.stillWorking}
+                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs disabled:opacity-40"
+                placeholder={form.stillWorking ? "근무 중" : undefined}
               />
             </div>
           </div>
           <div>
+            {/* 근무 중(퇴근 전) — 회사 근무시간이 자동으로 채워져 매번 지워야 했다 (2026-08-06 사장님) */}
+            <label className="manual-attendance-nextday">
+              <input
+                type="checkbox"
+                checked={form.stillWorking}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setTimesTouched(true);
+                  setForm((f) => ({
+                    ...f,
+                    stillWorking: on,
+                    // 켜면 퇴근 시각을 비우고(익일 퇴근도 해제), 끄면 기본 퇴근시각을 되살린다
+                    checkOutTime: on ? "" : (defaultTimes(f.employeeId).checkOutTime || f.checkOutTime),
+                    nextDayOut: on ? false : f.nextDayOut,
+                  }));
+                }}
+              />
+              <span>근무 중 (아직 퇴근 전 — 퇴근 시각 비움)</span>
+            </label>
             {/* 자정을 넘겨 퇴근한 날은 날짜 픽커 없이 표현할 수 없어 토글로 둔다. */}
             <label className="manual-attendance-nextday">
               <input
                 type="checkbox"
                 checked={form.nextDayOut}
                 onChange={(e) => setForm({ ...form, nextDayOut: e.target.checked })}
-                disabled={!form.checkOutTime}
+                disabled={!form.checkOutTime || form.stillWorking}
               />
               <span>익일 퇴근 (자정 넘김)</span>
             </label>

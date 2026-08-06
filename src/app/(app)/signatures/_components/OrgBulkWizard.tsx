@@ -8,6 +8,7 @@ import Link from "next/link";
 import { createBulkSignatureRequestsToOrgs, normalizeVariableTokens, buildOrgContractSnapshotHtml, type PartnerVarColumn } from "@/lib/signatures";
 import { materializeContractTemplate } from "@/lib/documents";
 import { upsertPartner } from "@/lib/partners";
+import { verifyBusinessNumber } from "@/lib/business-verification";
 import { setContractTemplateOrder, sortTemplatesByOrder } from "@/lib/contract-templates";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -244,12 +245,60 @@ export function OrgBulkWizard({
   const emptyNewPartner = { name: "", representative: "", contact_name: "", contact_email: "", contact_phone: "", business_number: "", address: "" };
   const [newPartner, setNewPartner] = useState(emptyNewPartner);
 
+  // 숫자만 쳐도 서식이 잡히게 (2026-08-06 사장님) — 사업자번호 000-00-00000 / 휴대·유선 하이픈.
+  const formatBizNoInput = (v: string) => {
+    const d = v.replace(/[^0-9]/g, "").slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 5) return `${d.slice(0, 3)}-${d.slice(3)}`;
+    return `${d.slice(0, 3)}-${d.slice(3, 5)}-${d.slice(5)}`;
+  };
+  const formatPhoneInput = (v: string) => {
+    const d = v.replace(/[^0-9]/g, "").slice(0, 11);
+    if (d.startsWith("02")) { // 서울 지역번호는 2자리
+      if (d.length <= 2) return d;
+      if (d.length <= 5) return `${d.slice(0, 2)}-${d.slice(2)}`;
+      if (d.length <= 9) return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}`;
+      return `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6, 10)}`;
+    }
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+    if (d.length <= 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+    return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7, 11)}`;
+  };
+
+  // 사업자번호 국세청 실존·상태 확인 — 10자리가 채워지면 자동으로 (디바운스).
+  //   폐업·휴업·미등록이면 경고만 하고 저장은 막지 않는다(거래처는 우리 회사 가입과 달리
+  //   과거 거래처·폐업 예정처도 등록할 수 있어야 한다). 오타는 여기서 대부분 걸러진다.
+  const [bizCheck, setBizCheck] = useState<{ state: "idle" | "checking" | "ok" | "warn" | "error"; msg: string }>({ state: "idle", msg: "" });
+  useEffect(() => {
+    const digits = newPartner.business_number.replace(/[^0-9]/g, "");
+    if (digits.length !== 10) { setBizCheck({ state: "idle", msg: "" }); return; }
+    let alive = true;
+    setBizCheck({ state: "checking", msg: "국세청 조회 중…" });
+    const t = setTimeout(async () => {
+      const v = await verifyBusinessNumber(digits).catch(() => null);
+      if (!alive) return;
+      if (!v) { setBizCheck({ state: "idle", msg: "" }); return; }          // 네트워크 장애 — 조용히 통과
+      if (!v.valid) { setBizCheck({ state: "error", msg: "형식이 올바르지 않은 번호입니다" }); return; }
+      switch (v.status) {
+        case "계속사업자": setBizCheck({ state: "ok", msg: "정상 사업자로 확인됐습니다" }); break;
+        case "휴업자": setBizCheck({ state: "warn", msg: "휴업 상태인 사업자입니다" }); break;
+        case "폐업자": setBizCheck({ state: "warn", msg: "폐업 처리된 사업자입니다" }); break;
+        case "미등록": setBizCheck({ state: "error", msg: "국세청에 등록되지 않은 번호입니다 — 다시 확인해 주세요" }); break;
+        default: setBizCheck({ state: "idle", msg: "" });                    // 확인불가(API 장애)
+      }
+    }, 500);
+    return () => { alive = false; clearTimeout(t); };
+  }, [newPartner.business_number]);
+
   const saveNewPartner = async () => {
     const name = newPartner.name.trim();
     const email = newPartner.contact_email.trim();
     if (!name) { toast("단체명을 입력하세요", "error"); return; }
     if (!email) { toast("발송할 담당자 이메일을 입력하세요", "error"); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast("이메일 형식이 올바르지 않습니다", "error"); return; }
+    // 국세청에 없는 번호는 오타일 가능성이 크므로 저장을 막는다 (휴업·폐업은 경고만)
+    if (bizCheck.state === "error") { toast(bizCheck.msg, "error"); return; }
     setSavingPartner(true);
     try {
       const saved = await upsertPartner({
@@ -673,11 +722,27 @@ export function OrgBulkWizard({
                   </label>
                   <label className="bulk-wizard-add-partner-field">
                     <span>사업자번호</span>
-                    <input value={newPartner.business_number} onChange={(e) => setNewPartner((p) => ({ ...p, business_number: e.target.value }))} placeholder="000-00-00000" inputMode="numeric" />
+                    {/* 숫자만 입력해도 하이픈이 붙고, 10자리가 되면 국세청에서 실존·상태를 확인한다 */}
+                    <input
+                      value={newPartner.business_number}
+                      onChange={(e) => setNewPartner((p) => ({ ...p, business_number: formatBizNoInput(e.target.value) }))}
+                      placeholder="000-00-00000"
+                      inputMode="numeric"
+                    />
+                    {bizCheck.state !== "idle" && (
+                      <span className={`bulk-wizard-bizcheck is-${bizCheck.state}`}>
+                        {bizCheck.state === "ok" ? "✓ " : bizCheck.state === "checking" ? "" : "⚠ "}{bizCheck.msg}
+                      </span>
+                    )}
                   </label>
                   <label className="bulk-wizard-add-partner-field">
                     <span>연락처</span>
-                    <input value={newPartner.contact_phone} onChange={(e) => setNewPartner((p) => ({ ...p, contact_phone: e.target.value }))} placeholder="010-0000-0000" />
+                    <input
+                      value={newPartner.contact_phone}
+                      onChange={(e) => setNewPartner((p) => ({ ...p, contact_phone: formatPhoneInput(e.target.value) }))}
+                      placeholder="010-0000-0000"
+                      inputMode="numeric"
+                    />
                   </label>
                   <label className="bulk-wizard-add-partner-field md:col-span-2">
                     <span>주소</span>

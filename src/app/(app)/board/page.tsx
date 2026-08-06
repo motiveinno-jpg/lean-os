@@ -235,20 +235,26 @@ export default function BoardPage() {
     () => Array.from(new Set(Object.values(voterIdsByOption).flat())),
     [voterIdsByOption],
   );
-  const { data: voterNames = {} } = useQuery({
-    queryKey: ["board-poll-voter-names", openId, voterIdList.join(",")],
+  // 회사 구성원 — 투표 현황 팝업의 '항목별 투표자'와 '미참여 멤버'를 만든다.
+  const { data: companyMembers = [] } = useQuery({
+    queryKey: ["board-company-members", companyId],
     queryFn: async () => {
-      const map: Record<string, string> = {};
-      if (voterIdList.length === 0) return map;
-      const data = logRead('board/page:voters', await db
-        .from("users")
-        .select("id, name, email")
-        .in("id", voterIdList));
-      for (const u of (data || []) as any[]) map[u.id] = u.name || u.email || "이름 없음";
-      return map;
+      const data = logRead('board/page:members', await db
+        .from("users").select("id, name, email").eq("company_id", companyId!));
+      return (data || []) as { id: string; name: string | null; email: string | null }[];
     },
-    enabled: !!openId && voterIdList.length > 0,
+    enabled: !!companyId,
   });
+  const voterNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const u of companyMembers) map[u.id] = u.name || u.email || "이름 없음";
+    // 목록에 없는(퇴사 등) 투표자도 자리는 지킨다
+    for (const id of voterIdList) if (!map[id]) map[id] = "알 수 없음";
+    return map;
+  }, [companyMembers, voterIdList]);
+
+  // 투표 현황 팝업 (2026-08-06 사장님 시안) — 본문에는 투표자를 노출하지 않고 여기서만 본다.
+  const [pollStatusPost, setPollStatusPost] = useState<Post | null>(null);
 
   // 내 표 — 본인 행만 조회(익명이어도 본인 선택 표시는 가능, RLS 본인범위).
   const { data: myVotes = [] } = useQuery({
@@ -1085,6 +1091,11 @@ export default function BoardPage() {
                             </span>
                           )}
                         </div>
+                        {/* 투표 전에는 결과를 감춘다 — 남의 표에 끌려가지 않게 (2026-08-06 사장님 시안).
+                            마감됐거나 이미 투표한 사람에게만 막대·표수를 보여준다. */}
+                        {(() => {
+                          const showResults = myVotes.length > 0 || expired;
+                          return (
                         <div className="space-y-2">
                           {opts.map((opt, idx) => {
                             const count = voteCounts[idx] || 0;
@@ -1095,9 +1106,6 @@ export default function BoardPage() {
                             // 아직 제출 안 한 선택이 있으면 그걸, 없으면 확정된 내 표를 표시
                             const picked = pendingVote?.postId === p.id ? pendingVote.options : myVotes;
                             const voted = picked.includes(idx);
-                            const voterList = (voterIdsByOption[idx] || [])
-                              .map((uid) => voterNames[uid])
-                              .filter(Boolean);
                             return (
                               <button
                                 key={idx}
@@ -1109,29 +1117,29 @@ export default function BoardPage() {
                                     : "border-[var(--border)] hover:border-[var(--primary)]/40"
                                 } ${expired ? "opacity-60 cursor-not-allowed" : ""}`}
                               >
-                                <div
-                                  className="absolute inset-y-0 left-0 bg-[var(--primary)]/10"
-                                  style={{ width: `${pct}%` }}
-                                />
+                                {showResults && (
+                                  <div
+                                    className="absolute inset-y-0 left-0 bg-[var(--primary)]/10"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                )}
                                 <div className="relative flex items-center justify-between text-xs">
                                   <span className="text-[var(--text)] font-medium">
                                     {voted && "✓ "}
                                     {opt}
                                   </span>
-                                  <span className="text-[var(--text-muted)]">
-                                    {count}표 · {pct}%
-                                  </span>
+                                  {showResults && (
+                                    <span className="text-[var(--text-muted)]">
+                                      {count}표 · {pct}%
+                                    </span>
+                                  )}
                                 </div>
-                                {/* 실명 폴이면 누가 골랐는지 공개 (익명 폴은 RPC 가 신원을 안 준다) */}
-                                {!p.poll_anonymous && voterList.length > 0 && (
-                                  <div className="board-poll-voters">
-                                    {voterList.join(", ")}
-                                  </div>
-                                )}
                               </button>
                             );
                           })}
                         </div>
+                          );
+                        })()}
                         {/* 확인을 눌러야 반영 — 클릭 즉시 투표되던 오투표 방지 */}
                         {!expired && (() => {
                           const picked = pendingVote?.postId === p.id ? pendingVote.options : myVotes;
@@ -1170,6 +1178,14 @@ export default function BoardPage() {
                             </div>
                           );
                         })()}
+                        {/* 참여 인원 — 클릭하면 항목별 투표자·미참여 멤버 팝업 */}
+                        {(myVotes.length > 0 || expired) && (
+                          <div className="board-poll-participation">
+                            <button type="button" onClick={() => setPollStatusPost(p)} className="board-poll-participation-link">
+                              {new Set(Object.values(voterIdsByOption).flat()).size || totalVotes}명 참여 &rsaquo;
+                            </button>
+                          </div>
+                        )}
                         <div className="text-[10px] text-[var(--text-dim)] mt-2">
                           총 {totalVotes}표 · {isMulti ? "복수 선택 가능" : "1인 1표 (변경 가능)"}
                           {p.poll_anonymous ? " · 🔒 익명 투표" : " · 👤 실명 투표(투표자 공개)"}
@@ -1510,6 +1526,85 @@ export default function BoardPage() {
           onClose={() => setLightbox(null)}
         />
       )}
+      {pollStatusPost && (
+        <PollStatusDialog
+          post={pollStatusPost}
+          voterIdsByOption={voterIdsByOption}
+          voterNames={voterNames}
+          members={companyMembers}
+          onClose={() => setPollStatusPost(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** 투표 현황 — 항목별 투표자와 미참여 멤버 (2026-08-06 사장님 시안).
+ *  본문에는 투표자를 노출하지 않고 이 팝업에서만 본다.
+ *  익명 투표는 서버(get_poll_results)가 신원을 아예 주지 않으므로 인원 수만 보여준다.
+ *  — 미참여 명단도 감춘다. 참여자를 역산할 수 있기 때문. */
+function PollStatusDialog({ post, voterIdsByOption, voterNames, members, onClose }: {
+  post: Post;
+  voterIdsByOption: Record<number, string[]>;
+  voterNames: Record<string, string>;
+  members: { id: string; name: string | null; email: string | null }[];
+  onClose: () => void;
+}) {
+  useModalKeys(true, onClose);
+  const opts = (post.poll_options || []) as string[];
+  const anonymous = !!post.poll_anonymous;
+  const votedIds = new Set(Object.values(voterIdsByOption).flat());
+  const notVoted = members.filter((m) => !votedIds.has(m.id));
+  return (
+    <div className="poll-status-overlay" onClick={onClose}>
+      <div className="poll-status-panel glass-card" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="min-w-0">
+            <div className="text-sm font-bold text-[var(--text)] truncate">{post.poll_question || "투표 현황"}</div>
+            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
+              {votedIds.size}명 참여{anonymous ? " · 🔒 익명 투표(투표자 비공개)" : ` · 미참여 ${notVoted.length}명`}
+            </div>
+          </div>
+          <button onClick={onClose} className="btn-ghost btn-sm shrink-0">닫기</button>
+        </div>
+
+        <div className="poll-status-body">
+          <div className="poll-status-section-title">항목별 투표자</div>
+          <div className="space-y-2">
+            {opts.map((opt, idx) => {
+              const ids = voterIdsByOption[idx] || [];
+              return (
+                <div key={idx} className="poll-status-option">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-[var(--text)] truncate">{opt}</span>
+                    <span className="text-[11px] text-[var(--text-muted)] shrink-0">{ids.length}명</span>
+                  </div>
+                  <div className="poll-status-names">
+                    {anonymous
+                      ? <span className="text-[var(--text-dim)]">익명 투표라 투표자를 공개하지 않습니다</span>
+                      : ids.length
+                        ? ids.map((id) => voterNames[id] || "알 수 없음").join(", ")
+                        : <span className="text-[var(--text-dim)]">아직 없음</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {!anonymous && (
+            <>
+              <div className="poll-status-section-title mt-4">미참여 멤버 ({notVoted.length}명)</div>
+              <div className="poll-status-option">
+                <div className="poll-status-names">
+                  {notVoted.length
+                    ? notVoted.map((m) => m.name || m.email || "이름 없음").join(", ")
+                    : <span className="text-[var(--text-dim)]">전원 참여했습니다</span>}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
