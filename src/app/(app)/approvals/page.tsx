@@ -2651,6 +2651,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // 상세 내용 서식 편집기(표 등) — tiptap 은 마운트 후 content prop 변경을 반영하지 않아
   //   템플릿 프리필/임시저장 복원/제출 초기화 때 ref 로 직접 setContent 한다.
   const descEditorRef = useRef<RichEditorRef>(null);
+  // 양식 선택으로 자동 채운 제목 — 사용자가 직접 고친 제목과 구분하려고 들고 있는다.
+  //   이게 없으면 양식을 바꿔도 처음 양식 이름이 제목에 그대로 남는다(2026-08-06 사장님 제보).
+  const autoTitleRef = useRef<string>("");
   const { data: customForms = [] } = useQuery({ queryKey: ["approval-forms", companyId], queryFn: () => listApprovalForms(), enabled: !!companyId });
   const selectedForm = (customForms as ApprovalForm[]).find((f) => `form:${f.id}` === form.requestType) || null;
   const [draftLoaded, setDraftLoaded] = useState(false);
@@ -2797,7 +2800,15 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   useEffect(() => {
     if (isLeave || form.requestType.startsWith("form:") || form.requestType === descriptionInited) return;
     const tpl = plainToHtml(matchedPolicy?.description_template || DESCRIPTION_TEMPLATES[form.requestType as RequestType] || "");
-    setForm((prev) => ({ ...prev, description: tpl }));
+    // 양식에서 일반 유형으로 옮겨 오면, 앞 양식이 자동으로 넣었던 제목은 지운다(직접 쓴 제목은 유지).
+    //   ref 는 갱신 함수 밖에서 미리 읽는다 — 안에서 읽으면 이미 지워진 값과 비교하게 된다.
+    const prevAutoTitle = autoTitleRef.current;
+    autoTitleRef.current = "";
+    setForm((prev) => ({
+      ...prev,
+      title: prev.title && prev.title === prevAutoTitle ? "" : prev.title,
+      description: tpl,
+    }));
     descEditorRef.current?.setContent(tpl);
     setDescriptionInited(form.requestType);
   }, [form.requestType, isLeave, descriptionInited, matchedPolicy]);
@@ -2806,11 +2817,20 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   useEffect(() => {
     if (!selectedForm || descriptionInited === form.requestType) return;
     const tplHtml = plainToHtml(selectedForm.content_template || "");
-    setForm((prev) => ({
-      ...prev,
-      title: prev.title || selectedForm.name,
-      description: tplHtml,
-    }));
+    // ⚠️ 갱신 함수 안에서 ref 를 읽으면 안 된다 — 그 함수는 렌더 때 실행돼, 그 시점엔 ref 가
+    //   이미 새 양식 이름으로 바뀌어 있다(비교가 항상 어긋나 제목이 첫 양식으로 굳던 원인).
+    const prevAutoTitle = autoTitleRef.current;
+    autoTitleRef.current = selectedForm.name;
+    setForm((prev) => {
+      // 비어 있거나 앞 양식이 자동으로 넣어 준 제목이면 새 양식 이름으로 교체.
+      //   요청자가 직접 쓴 제목은 양식을 바꿔도 지우지 않는다.
+      const keepUserTitle = !!prev.title && prev.title !== prevAutoTitle;
+      return {
+        ...prev,
+        title: keepUserTitle ? prev.title : selectedForm.name,
+        description: tplHtml,
+      };
+    });
     descEditorRef.current?.setContent(tplHtml);
     setDescriptionInited(form.requestType);
     // 직원 QA #11 — 고정값(fixed) 필드는 양식 지정값으로 프리필해 제출에 포함
