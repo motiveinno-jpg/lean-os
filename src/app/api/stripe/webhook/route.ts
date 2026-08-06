@@ -89,6 +89,16 @@ const STATUS_MAP: Record<string, string> = {
 };
 const toISO = (unix?: number | null) => (unix ? new Date(unix * 1000).toISOString() : null);
 
+// Stripe 2025-03-31+ 는 invoice.subscription 을 없애고 parent.subscription_details.subscription 으로 옮겼다.
+//   웹훅 엔드포인트의 API 버전이 SDK 고정 버전보다 최신일 수 있고(그 탓에 current_period_* 도 구독→아이템으로
+//   이동해 2026-08-05 핸들러가 죽었다), 여기서 못 찾으면 `if (!id) return` 으로 조용히 빠져나가
+//   결제 성공·실패 기록이 통째로 누락된다. 두 위치를 모두 본다.
+const invoiceSubId = (inv: Stripe.Invoice): string | null => {
+  const a = inv as any;
+  const v = a.subscription ?? a.parent?.subscription_details?.subscription ?? null;
+  return typeof v === 'string' ? v : (v?.id ?? null);
+};
+
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const db = getSupabaseAdmin() as any;
   const companyId = session.metadata?.companyId;
@@ -338,7 +348,7 @@ function stripeAmountToWon(amount: number, currency: string): number {
 
 async function handleInvoicePaid(invoice: Stripe.Invoice, eventId?: string) {
   const db = getSupabaseAdmin() as any;
-  const stripeSubscriptionId = invoice.subscription as string | null;
+  const stripeSubscriptionId = invoiceSubId(invoice);
   if (!stripeSubscriptionId) return;
 
   const sub = logRead('webhook/route:sub', await db
@@ -453,7 +463,7 @@ async function notifyBillingPaid(invoice: Stripe.Invoice, sub: any, amountWon: n
     const payload = {
       stripe_event_id: eventId || null,
       stripe_invoice_id: invoice.id,
-      stripe_subscription_id: invoice.subscription,
+      stripe_subscription_id: invoiceSubId(invoice),
       company_id: sub.company_id,
       notification_type: notificationType,
       company_name: company?.name || '회사',
@@ -484,7 +494,7 @@ async function notifyBillingPaid(invoice: Stripe.Invoice, sub: any, amountWon: n
 // 결제 실패(dunning) — 재시도·독촉은 Stripe 가 진행. 앱은 past_due 반영 + 대표/관리자 알림 + 운영자 메일 + 기록.
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice, eventId?: string) {
   const db = getSupabaseAdmin() as any;
-  const stripeSubscriptionId = invoice.subscription as string | null;
+  const stripeSubscriptionId = invoiceSubId(invoice);
   if (!stripeSubscriptionId) return;
 
   const sub = logRead('webhook/route:sub', await db
@@ -561,7 +571,7 @@ async function notifyBillingFailed(invoice: Stripe.Invoice, sub: any, amountWon:
     const payload = {
       stripe_event_id: eventId || null,
       stripe_invoice_id: null,
-      stripe_subscription_id: invoice.subscription,
+      stripe_subscription_id: invoiceSubId(invoice),
       company_id: sub.company_id,
       notification_type: 'failed',
       company_name: company?.name || '회사',
