@@ -6826,3 +6826,25 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-adpick-row input { @apply w-4 h-4 accent-[var(--primary)]; }
 .pb-adpick-row > span { @apply text-[12.5px] font-semibold text-[var(--text)]; }
 .pb-adpick-row > em { @apply not-italic ml-auto text-[11px] text-[var(--text-dim)]; }
+
+/* ── 정리 탭 마케팅 리포트 (2026-08-06) — 돈 → 반응 → 결과 순으로 읽히게 ── */
+.ad-rep { @apply flex flex-col gap-3; }
+.ad-rep-top { @apply flex flex-wrap items-center gap-2; }
+.ad-rep-top > em { @apply not-italic text-[11.5px] text-[var(--text-dim)]; }
+.ad-rep-periods { @apply ml-auto flex items-center gap-1; }
+.ad-rep-block { @apply flex flex-col gap-1.5; }
+.ad-rep-h { @apply text-[12px] font-extrabold text-[var(--text-dim)]; }
+/* 날짜별 광고비 — 하루가 막대 하나. 집행 없는 날도 자리를 차지해 흐름이 끊겨 보이지 않게 */
+.ad-rep-days { @apply flex items-end gap-[2px] h-24 px-1 py-1 rounded-xl bg-[var(--bg-surface)]; }
+.ad-rep-day { @apply flex-1 min-w-[3px] h-full flex items-end; }
+.ad-rep-day > i { @apply block w-full rounded-t bg-[var(--primary)]/70 transition hover:bg-[var(--primary)]; }
+.ad-rep-axis { @apply flex items-center justify-between px-1 text-[10.5px] text-[var(--text-dim)]; }
+.ad-rep-axis em { @apply not-italic; }
+/* 캠페인별 — 이름 · 막대 · 금액, 그 아래 잔가지 수치 */
+.ad-rep-camps { @apply flex flex-col gap-2; }
+.ad-rep-camp { @apply grid items-center gap-x-2 gap-y-0.5; grid-template-columns: minmax(0,10rem) 1fr auto; }
+.ad-rep-camp-name { @apply text-[12.5px] font-semibold text-[var(--text)] truncate; }
+.ad-rep-camp-bar { @apply h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.ad-rep-camp-bar > i { @apply block h-full rounded-full bg-[var(--primary)]; }
+.ad-rep-camp-num { @apply text-[12.5px] font-bold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.ad-rep-camp-sub { @apply not-italic col-start-2 col-span-2 text-[11px] text-[var(--text-dim)]; }

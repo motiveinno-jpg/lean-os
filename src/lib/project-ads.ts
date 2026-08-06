@@ -98,6 +98,33 @@ export async function rollupCampaigns(accountIds: string[], period: AdPeriodKey)
   return [...map.values()].sort((a, b) => b.cost - a.cost);
 }
 
+export type DayPoint = { date: string; impressions: number; clicks: number; cost: number; conversions: number };
+
+/** 날짜별 합계 — 리포트의 추이 그림이 쓴다. 집행이 없던 날도 0 으로 채워 줄이 끊기지 않게 한다. */
+export async function dailySeries(accountIds: string[], period: AdPeriodKey): Promise<DayPoint[]> {
+  if (accountIds.length === 0) return [];
+  const { since, until } = periodRange(period);
+  const data = logRead("project-ads:daily", await db.from("ad_metrics_daily")
+    .select("stat_date, impressions, clicks, cost, conversions")
+    .in("ad_account_id", accountIds).gte("stat_date", since).lte("stat_date", until));
+  const by = new Map<string, DayPoint>();
+  for (const r of (data || []) as any[]) {
+    const d = String(r.stat_date).slice(0, 10);
+    const cur = by.get(d) || { date: d, impressions: 0, clicks: 0, cost: 0, conversions: 0 };
+    cur.impressions += Number(r.impressions) || 0;
+    cur.clicks += Number(r.clicks) || 0;
+    cur.cost += Number(r.cost) || 0;
+    cur.conversions += Number(r.conversions) || 0;
+    by.set(d, cur);
+  }
+  const out: DayPoint[] = [];
+  for (let t = new Date(`${since}T00:00:00`).getTime(); t <= new Date(`${until}T00:00:00`).getTime(); t += 86_400_000) {
+    const d = new Date(t).toISOString().slice(0, 10);
+    out.push(by.get(d) || { date: d, impressions: 0, clicks: 0, cost: 0, conversions: 0 });
+  }
+  return out;
+}
+
 /** 칸 이름으로 지표 알아보기 — settings.ad 표시가 없는 표(먼저 만든 표·칸을 새로 더한 경우)에서도
  *  채워지게 하는 대비책. 표시가 있으면 그쪽이 우선이다. */
 const NAME_TO_METRIC: { re: RegExp; key: AdMetricKey }[] = [

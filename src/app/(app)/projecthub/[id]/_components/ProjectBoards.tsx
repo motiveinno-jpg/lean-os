@@ -24,6 +24,7 @@ import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
 import { BoardFigure } from "./BoardFigures";
+import { AdReport } from "./AdReport";
 import { templateFigures, shapeFigures, summaryCardKey, type Figure } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
 import { BoardNewModal, LabelEditor } from "./BoardNewModal";
@@ -1090,7 +1091,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       )}
 
       {showSummary ? (
-        <ProjectSummary boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users}
+        <ProjectSummary dealId={dealId} boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users}
           presets={summaryPresets} onSavePreset={saveSummaryPreset} onUpdatePreset={editSummaryPreset}
           onRemovePreset={dropSummaryPreset}
           onOpenItem={(bid, itemId) => { setActiveId(bid); setShowSummary(false); setOpenItemId(itemId); }} />
@@ -2101,7 +2102,9 @@ function sortRows(rows: BoardItem[], sort: { colId: string; dir: "asc" | "desc" 
 
 // ── 프로젝트 정리 — 이 프로젝트의 **모든 템플릿**을 하나씩 구획으로 ──
 //   한 프로젝트에 템플릿을 여러 개 붙이는 게 기본이라(＋), 정리도 그 단위여야 맞다.
-function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePreset, onUpdatePreset, onRemovePreset, onOpenItem }: {
+function ProjectSummary({ dealId, boards, cols, groups, items, users, presets, onSavePreset, onUpdatePreset, onRemovePreset, onOpenItem }: {
+  /** 마케팅 리포트는 표가 아니라 수집해 둔 일별 기록에서 읽는다 — 그래서 프로젝트 id 가 필요하다 */
+  dealId: string;
   boards: { id: string; name: string; template_key: string | null }[];
   cols: BoardColumn[]; groups: BoardGroup[]; items: BoardItem[]; users: { id: string; name: string }[];
   presets: Preset[];
@@ -2125,6 +2128,12 @@ function ProjectSummary({ boards, cols, groups, items, users, presets, onSavePre
       <SummaryReport kicker="프로젝트 전체" title="돈 흐름" meta="템플릿 여러 개에서 모은 금액">
         <ProjectMoneyReport boards={boards} cols={cols} items={items} />
       </SummaryReport>
+      {/* 광고를 붙인 프로젝트만 — 기간 전체로 얼마 쓰고 무엇을 얻었나 (2026-08-06) */}
+      {boards.some((b) => b.template_key === "ads") && (
+        <SummaryReport kicker="마케팅" title="광고 성과" meta="매체에서 받아 온 일별 기록으로 셈합니다">
+          <AdReport dealId={dealId} />
+        </SummaryReport>
+      )}
       {filled.map((b) => (
         <BoardSummary key={b.id}
           boardName={b.name}
