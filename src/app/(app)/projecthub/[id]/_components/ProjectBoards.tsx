@@ -103,6 +103,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [rowDrag, setRowDrag] = useState<string | null>(null);
   const [rowOver, setRowOver] = useState<string | null>(null);
   const [overGroup, setOverGroup] = useState<string | null>(null);   // 손이 올라가 있는 구획(그룹)
+  //   눌린 자리 — 5px 넘게 움직여야 끌기로 친다(그냥 눌렀다 뗀 것과 구분). 렌더를 안 흔들려고 ref
+  const pressRef = useRef<{ id: string; x: number; y: number } | null>(null);
 
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ["pb-boards", dealId],
@@ -1234,9 +1236,43 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                 </thead>
                 <tbody>
                   {rows.map((it) => (
+                    //   줄 어디를 눌러도 끌린다 — 손잡이(16px)만 잡히게 했더니 잡히지 않는다는 제보
+                    //   (2026-08-06). 입력기·단추 위에서 누른 것은 그대로 두고, 빈자리에서 5px 넘게
+                    //   움직였을 때만 끌기로 친다(눌렀다 뗀 것과 구분).
                     <tr key={it.id} data-row={it.id}
+                      onPointerDown={(e) => {
+                        if (sort || e.button !== 0) return;
+                        if ((e.target as HTMLElement).closest("input,select,button,textarea,a,label")) return;
+                        pressRef.current = { id: it.id, x: e.clientX, y: e.clientY };
+                        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                      }}
+                      onPointerMove={(e) => {
+                        const p = pressRef.current;
+                        if (!p || p.id !== it.id) return;
+                        if (rowDrag !== it.id) {
+                          if (Math.abs(e.clientY - p.y) < 5 && Math.abs(e.clientX - p.x) < 5) return;
+                          setRowDrag(it.id);
+                        }
+                        const el = document.elementFromPoint(e.clientX, e.clientY);
+                        const overRow = el?.closest("tr[data-row]")?.getAttribute("data-row") || null;
+                        setRowOver(overRow === it.id ? null : overRow);
+                        setOverGroup(el?.closest("section[data-group]")?.getAttribute("data-group") || null);
+                      }}
+                      onPointerUp={(e) => {
+                        const p = pressRef.current;
+                        pressRef.current = null;
+                        try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* 이미 풀림 */ }
+                        if (!p || p.id !== it.id || rowDrag !== it.id) return;
+                        if (overGroup) moveRow(overGroup, rowOver || undefined);
+                        else { setRowDrag(null); setRowOver(null); }
+                        setOverGroup(null);
+                      }}
+                      onPointerCancel={() => { pressRef.current = null; setRowDrag(null); setRowOver(null); setOverGroup(null); }}
                       className={`${rowDrag === it.id ? "pb-row-drag" : ""} ${rowOver === it.id ? "pb-row-over" : ""}`}>
                       <td className="pb-td-sel">
+                        {/* 첫 칸이 손잡이 자리 — 여기를 잡고 끌면 줄이 따라온다(이름 칸 안 16px 은 너무 좁았다) */}
+                        <span className={`pb-grip ${rowDrag === it.id ? "pb-grip-on" : ""}`}
+                          title={sort ? "정렬을 끄면 순서를 바꿀 수 있어요" : "끌어서 순서 바꾸기"}>⠿</span>
                         <input type="checkbox" aria-label="줄 선택" checked={selected.has(it.id)}
                           onChange={(e) => setSelected((prev) => {
                             const n = new Set(prev);
@@ -1246,34 +1282,6 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       </td>
                       <td className="pb-td-name">
                         <span className="pb-name-cell">
-                          {/* 손잡이만 끌린다 — 칸 안 글자를 고르는 걸 막지 않으려고.
-                              브라우저의 HTML5 끌기(draggable) 는 표 안에서 시작이 안 되는 일이 있어
-                              (2026-08-06 사장님: "드래그앤드롭 안 된다") 포인터를 직접 좇는다.
-                              손가락(터치)에서도 같은 길로 동작한다.
-                              정렬을 걸어 둔 동안은 보이는 차례와 저장된 차례가 달라 순서를 못 바꾼다 */}
-                          <span className={`pb-grip ${rowDrag === it.id ? "pb-grip-on" : ""}`}
-                            title={sort ? "정렬을 끄면 순서를 바꿀 수 있어요" : "끌어서 순서 바꾸기"}
-                            onPointerDown={(e) => {
-                              if (sort || e.button !== 0) return;
-                              e.preventDefault();           // 글자 선택이 같이 시작되지 않게
-                              (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                              setRowDrag(it.id);
-                            }}
-                            onPointerMove={(e) => {
-                              if (rowDrag !== it.id) return;
-                              const el = document.elementFromPoint(e.clientX, e.clientY);
-                              const overRow = el?.closest("tr[data-row]")?.getAttribute("data-row") || null;
-                              setRowOver(overRow === it.id ? null : overRow);
-                              setOverGroup(el?.closest("section[data-group]")?.getAttribute("data-group") || null);
-                            }}
-                            onPointerUp={(e) => {
-                              if (rowDrag !== it.id) return;
-                              (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-                              if (overGroup) moveRow(overGroup, rowOver || undefined);
-                              else { setRowDrag(null); setRowOver(null); }
-                              setOverGroup(null);
-                            }}
-                            onPointerCancel={() => { setRowDrag(null); setRowOver(null); setOverGroup(null); }}>⠿</span>
                           <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
                             onBlur={(e) => saveName(it, e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
