@@ -2890,8 +2890,8 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         )}
       </div>
 
-      {leaveView === "roster" && (
-        <div className="leave-roster">
+      {leaveView === "roster" && (<>
+        <div className="leave-roster glass-card">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 연차</h3>
             {!isEmployee && grantMethod === "auto" && (
@@ -2908,7 +2908,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           {rosterRows.length === 0 ? (
             <div className="templates-empty">표시할 구성원이 없습니다.</div>
           ) : (
-            <div className="leave-roster-scroll glass-card">
+            <div className="leave-roster-scroll">
               <table className="leave-roster-table">
                 <thead>
                   <tr>
@@ -2957,276 +2957,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               </table>
             </div>
           )}
-        </div>
-      )}
-
-
-      {leaveView === "settings" && (<>
-        {/* 휴가 유형 — 작은 칩으로 한 줄 (2026-08-06 사장님: 공간 차지 줄이기).
-            유형·기본 일수는 회사별로 편집 가능 — company_settings.settings.leave_types */}
-        <div className="leave-type-overview">
-          <div className="leave-type-head">
-            <h3 className="text-sm font-bold text-[var(--text-muted)]">휴가 유형</h3>
-            {!isEmployee && !typesEditing && (
-              <button
-                onClick={() => { setDraftTypes(companyLeaveTypes.map((t) => ({ ...t }))); setTypesEditing(true); }}
-                className="leave-type-edit-btn"
-              >
-                유형·일수 수정
-              </button>
-            )}
-          </div>
-
-          {!typesEditing ? (
-            <div className="leave-type-chip-row">
-              {leaveTypeSummary.map(lt => (
-                <div key={lt.value} className="leave-type-chip">
-                  <span className="leave-type-chip-label">{lt.label}</span>
-                  <span className="leave-type-chip-days">{lt.defaultDays}일</span>
-                  {lt.used > 0 && <span className="leave-type-chip-used">-{lt.used}</span>}
-                  {lt.pending > 0 && <span className="leave-type-chip-pending">{lt.pending}건 대기</span>}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="leave-type-editor glass-card">
-              <p className="text-[11px] text-[var(--text-dim)] mb-3">
-                회사 규정에 맞게 유형 이름과 기본 일수를 고치세요. 이미 신청된 휴가의 유형은 그대로 유지됩니다.
-              </p>
-              <div className="leave-type-editor-rows">
-                {(draftTypes || []).map((t, i) => (
-                  <div key={i} className="leave-type-editor-row">
-                    <input
-                      value={t.label}
-                      onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, label: e.target.value } : x))}
-                      placeholder="유형 이름"
-                      className="leave-type-editor-name field-input"
-                    />
-                    <div className="leave-type-editor-days-wrap">
-                      <input
-                        type="number"
-                        min={0}
-                        value={t.defaultDays}
-                        onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, defaultDays: Math.max(0, Number(e.target.value) || 0) } : x))}
-                        className="leave-type-editor-days field-input"
-                      />
-                      <span className="text-[11px] text-[var(--text-dim)]">일</span>
-                    </div>
-                    <button
-                      onClick={() => setDraftTypes((prev) => (prev || []).filter((_, xi) => xi !== i))}
-                      className="leave-type-editor-del"
-                      title="이 유형 삭제"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="leave-type-editor-actions">
-                <button
-                  onClick={() => setDraftTypes((prev) => [...(prev || []), { value: `custom_${Date.now()}`, label: "", defaultDays: 0 }])}
-                  className="btn-secondary btn-sm"
-                >
-                  유형 추가
-                </button>
-                <div className="flex gap-2 ml-auto">
-                  <button
-                    onClick={() => { setTypesEditing(false); setDraftTypes(null); }}
-                    disabled={saveTypesMut.isPending}
-                    className="leave-type-editor-cancel"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={() => {
-                      const cleaned = (draftTypes || [])
-                        .map((t) => ({ ...t, label: t.label.trim() }))
-                        .filter((t) => t.label !== "");
-                      if (cleaned.length === 0) { toast("휴가 유형을 최소 1개는 남겨주세요", "error"); return; }
-                      saveTypesMut.mutate(cleaned);
-                    }}
-                    disabled={saveTypesMut.isPending}
-                    className="btn-primary btn-sm"
-                  >
-                    {saveTypesMut.isPending ? "저장 중..." : "저장"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성.
-            2026-08-06 사장님: 공간을 너무 먹어 접힌 요약이 기본. '변경'으로 펼쳐 고른 뒤 저장. */}
-        {!isEmployee && (
-          <div className="leave-accrual-panel glass-card">
-            {!accrualEditing ? (
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-[var(--text-muted)]">
-                  연차 자동 발생 ·{" "}
-                  <strong className="text-[var(--text)]">
-                    {accrual.enabled ? `켬 · ${ACCRUAL_BASIS_LABELS[accrual.basis].label}` : "끔"}
-                  </strong>
-                </div>
-                <button
-                  onClick={() => { setPendingAccrual({ ...accrual }); setAccrualEditing(true); }}
-                  className="leave-accrual-change-btn"
-                >
-                  변경
-                </button>
-              </div>
-            ) : (
-              <>
-                <label className="leave-accrual-toggle">
-                  <input
-                    type="checkbox"
-                    checked={draftAccrual.enabled}
-                    onChange={(e) => setPendingAccrual({ ...draftAccrual, enabled: e.target.checked })}
-                    className="w-4 h-4 accent-[var(--primary)] shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold">연차 자동 발생</div>
-                    <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                      입사 1년 전까지는 매월 1일씩(최대 11일), 1주년부터는 근속연수별 법정 연차(1~2년 15일 · 3년 이상 2년마다 +1일 · 상한 25일)가
-                      입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
-                    </p>
-                    <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                      총 부여일수는 입사일 기준으로 자동 계산됩니다. 직원 카드에서 남은 연차를 직접 고치면 그 차액만 조정으로 반영됩니다.
-                    </p>
-                  </div>
-                </label>
-
-                {draftAccrual.enabled && (
-                  <div className="leave-accrual-basis">
-                    <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">발생 기준</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
-                        const on = draftAccrual.basis === k;
-                        return (
-                          <button
-                            key={k}
-                            onClick={() => setPendingAccrual({ ...draftAccrual, basis: k })}
-                            className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
-                          >
-                            <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
-                            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      <button
-                        onClick={() => syncAccrualMut.mutate()}
-                        disabled={syncAccrualMut.isPending}
-                        className="btn-secondary btn-sm disabled:opacity-50"
-                        title="누락된 과거 발생분을 지금 즉시 생성합니다"
-                      >
-                        {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
-                      </button>
-                      <span className="text-[11px] text-[var(--text-dim)]">매일 자정에도 자동으로 반영됩니다</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-2 justify-end mt-3">
-                  <button
-                    onClick={() => { setAccrualEditing(false); setPendingAccrual(null); }}
-                    disabled={saveAccrualMut.isPending}
-                    className="leave-accrual-cancel-btn"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={() => saveAccrualMut.mutate(draftAccrual, {
-                      onSuccess: () => { setAccrualEditing(false); setPendingAccrual(null); },
-                    })}
-                    disabled={saveAccrualMut.isPending}
-                    className="btn-primary btn-sm"
-                  >
-                    {saveAccrualMut.isPending ? "저장 중..." : "저장"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
-        {!isEmployee && (
-          <div className="leave-grant-method-panel glass-card">
-            {!grantEditing ? (
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-[var(--text-muted)]">
-                  연차 부여 방식 ·{" "}
-                  <strong className="text-[var(--text)]">
-                    {grantMethod === "auto" ? "자동부여 (입사일 기준)" : "직접입력"}
-                  </strong>
-                </div>
-                <button
-                  onClick={() => { setPendingGrant(grantMethod); setGrantEditing(true); }}
-                  className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0"
-                >
-                  변경
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="text-sm font-bold mb-1">연차 부여 방식</div>
-                <p className="text-[11px] text-[var(--text-dim)] mb-3">
-                  회사 정책에 맞게 선택 후 <strong>저장</strong>하세요. 저장하면 아래 UI가 그에 맞게 표시됩니다.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {([
-                    { v: "auto" as LeaveGrantMethod, label: "자동부여 (입사일 기준)", desc: "근로기준법 공식으로 자동 산정" },
-                    { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력" },
-                  ]).map((opt) => {
-                    const active = (pendingGrant ?? grantMethod) === opt.v;
-                    return (
-                      <button
-                        key={opt.v}
-                        onClick={() => setPendingGrant(opt.v)}
-                        className={`flex-1 min-w-[200px] text-left px-4 py-3 rounded-xl border transition ${
-                          active
-                            ? "border-[var(--primary)] bg-[var(--primary)]/10"
-                            : "border-[var(--border)] hover:border-[var(--primary)]/40"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${active ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--text-dim)]"}`} />
-                          <span className="text-sm font-semibold">{opt.label}</span>
-                        </div>
-                        <div className="text-[11px] text-[var(--text-dim)] mt-1 ml-[22px]">{opt.desc}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex gap-2 justify-end mt-3">
-                  <button
-                    onClick={() => { setGrantEditing(false); setPendingGrant(null); }}
-                    disabled={setGrantMethodMut.isPending}
-                    className="px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={() => {
-                      const sel = pendingGrant ?? grantMethod;
-                      setGrantMethodMut.mutate(sel, { onSuccess: () => { setGrantEditing(false); setPendingGrant(null); } });
-                    }}
-                    disabled={setGrantMethodMut.isPending}
-                    className="btn-primary btn-sm"
-                  >
-                    {setGrantMethodMut.isPending ? "저장 중..." : "저장"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-      </>)}
-
-      {leaveView === "roster" && (<>
+        <div className="leave-roster-divider" />
       {/* Controls */}
       <div ref={approveSectionRef} id="leave-approve-section" className="leave-filter-toolbar">
         <div className="flex gap-2">
@@ -3507,7 +3238,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       )}
 
       {/* Leave Requests List */}
-      <div className="leave-requests-table glass-card">
+      <div className="leave-requests-table">
         {visibleRequests.length === 0 ? (
           <div className="p-16 text-center">
             <div className="text-4xl mb-4"><Ico e="🏖" /></div>
@@ -3644,6 +3375,272 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           </table></div>
         )}
       </div>
+
+        </div>
+      </>)}
+
+      {leaveView === "settings" && (<>
+        {/* 휴가 유형 — 작은 칩으로 한 줄 (2026-08-06 사장님: 공간 차지 줄이기).
+            유형·기본 일수는 회사별로 편집 가능 — company_settings.settings.leave_types */}
+        <div className="leave-type-overview">
+          <div className="leave-type-head">
+            <h3 className="text-sm font-bold text-[var(--text-muted)]">휴가 유형</h3>
+            {!isEmployee && !typesEditing && (
+              <button
+                onClick={() => { setDraftTypes(companyLeaveTypes.map((t) => ({ ...t }))); setTypesEditing(true); }}
+                className="leave-type-edit-btn"
+              >
+                유형·일수 수정
+              </button>
+            )}
+          </div>
+
+          {!typesEditing ? (
+            <div className="leave-type-chip-row">
+              {leaveTypeSummary.map(lt => (
+                <div key={lt.value} className="leave-type-chip">
+                  <span className="leave-type-chip-label">{lt.label}</span>
+                  <span className="leave-type-chip-days">{lt.defaultDays}일</span>
+                  {lt.used > 0 && <span className="leave-type-chip-used">-{lt.used}</span>}
+                  {lt.pending > 0 && <span className="leave-type-chip-pending">{lt.pending}건 대기</span>}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="leave-type-editor glass-card">
+              <p className="text-[11px] text-[var(--text-dim)] mb-3">
+                회사 규정에 맞게 유형 이름과 기본 일수를 고치세요. 이미 신청된 휴가의 유형은 그대로 유지됩니다.
+              </p>
+              <div className="leave-type-editor-rows">
+                {(draftTypes || []).map((t, i) => (
+                  <div key={i} className="leave-type-editor-row">
+                    <input
+                      value={t.label}
+                      onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, label: e.target.value } : x))}
+                      placeholder="유형 이름"
+                      className="leave-type-editor-name field-input"
+                    />
+                    <div className="leave-type-editor-days-wrap">
+                      <input
+                        type="number"
+                        min={0}
+                        value={t.defaultDays}
+                        onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, defaultDays: Math.max(0, Number(e.target.value) || 0) } : x))}
+                        className="leave-type-editor-days field-input"
+                      />
+                      <span className="text-[11px] text-[var(--text-dim)]">일</span>
+                    </div>
+                    <button
+                      onClick={() => setDraftTypes((prev) => (prev || []).filter((_, xi) => xi !== i))}
+                      className="leave-type-editor-del"
+                      title="이 유형 삭제"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="leave-type-editor-actions">
+                <button
+                  onClick={() => setDraftTypes((prev) => [...(prev || []), { value: `custom_${Date.now()}`, label: "", defaultDays: 0 }])}
+                  className="btn-secondary btn-sm"
+                >
+                  유형 추가
+                </button>
+                <div className="flex gap-2 ml-auto">
+                  <button
+                    onClick={() => { setTypesEditing(false); setDraftTypes(null); }}
+                    disabled={saveTypesMut.isPending}
+                    className="leave-type-editor-cancel"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => {
+                      const cleaned = (draftTypes || [])
+                        .map((t) => ({ ...t, label: t.label.trim() }))
+                        .filter((t) => t.label !== "");
+                      if (cleaned.length === 0) { toast("휴가 유형을 최소 1개는 남겨주세요", "error"); return; }
+                      saveTypesMut.mutate(cleaned);
+                    }}
+                    disabled={saveTypesMut.isPending}
+                    className="btn-primary btn-sm"
+                  >
+                    {saveTypesMut.isPending ? "저장 중..." : "저장"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성.
+            2026-08-06 사장님: 공간을 너무 먹어 접힌 요약이 기본. '변경'으로 펼쳐 고른 뒤 저장. */}
+        {!isEmployee && (
+          <div className="leave-accrual-panel glass-card">
+            {!accrualEditing ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs text-[var(--text-muted)]">
+                  연차 자동 발생 ·{" "}
+                  <strong className="text-[var(--text)]">
+                    {accrual.enabled ? `켬 · ${ACCRUAL_BASIS_LABELS[accrual.basis].label}` : "끔"}
+                  </strong>
+                </div>
+                <button
+                  onClick={() => { setPendingAccrual({ ...accrual }); setAccrualEditing(true); }}
+                  className="leave-accrual-change-btn"
+                >
+                  변경
+                </button>
+              </div>
+            ) : (
+              <>
+                <label className="leave-accrual-toggle">
+                  <input
+                    type="checkbox"
+                    checked={draftAccrual.enabled}
+                    onChange={(e) => setPendingAccrual({ ...draftAccrual, enabled: e.target.checked })}
+                    className="w-4 h-4 accent-[var(--primary)] shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold">연차 자동 발생</div>
+                    <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                      입사 1년 전까지는 매월 1일씩(최대 11일), 1주년부터는 근속연수별 법정 연차(1~2년 15일 · 3년 이상 2년마다 +1일 · 상한 25일)가
+                      입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
+                    </p>
+                    <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                      총 부여일수는 입사일 기준으로 자동 계산됩니다. 직원 카드에서 남은 연차를 직접 고치면 그 차액만 조정으로 반영됩니다.
+                    </p>
+                  </div>
+                </label>
+
+                {draftAccrual.enabled && (
+                  <div className="leave-accrual-basis">
+                    <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">발생 기준</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
+                        const on = draftAccrual.basis === k;
+                        return (
+                          <button
+                            key={k}
+                            onClick={() => setPendingAccrual({ ...draftAccrual, basis: k })}
+                            className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
+                          >
+                            <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
+                            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      <button
+                        onClick={() => syncAccrualMut.mutate()}
+                        disabled={syncAccrualMut.isPending}
+                        className="btn-secondary btn-sm disabled:opacity-50"
+                        title="누락된 과거 발생분을 지금 즉시 생성합니다"
+                      >
+                        {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
+                      </button>
+                      <span className="text-[11px] text-[var(--text-dim)]">매일 자정에도 자동으로 반영됩니다</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 justify-end mt-3">
+                  <button
+                    onClick={() => { setAccrualEditing(false); setPendingAccrual(null); }}
+                    disabled={saveAccrualMut.isPending}
+                    className="leave-accrual-cancel-btn"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => saveAccrualMut.mutate(draftAccrual, {
+                      onSuccess: () => { setAccrualEditing(false); setPendingAccrual(null); },
+                    })}
+                    disabled={saveAccrualMut.isPending}
+                    className="btn-primary btn-sm"
+                  >
+                    {saveAccrualMut.isPending ? "저장 중..." : "저장"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
+        {!isEmployee && (
+          <div className="leave-grant-method-panel glass-card">
+            {!grantEditing ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs text-[var(--text-muted)]">
+                  연차 부여 방식 ·{" "}
+                  <strong className="text-[var(--text)]">
+                    {grantMethod === "auto" ? "자동부여 (입사일 기준)" : "직접입력"}
+                  </strong>
+                </div>
+                <button
+                  onClick={() => { setPendingGrant(grantMethod); setGrantEditing(true); }}
+                  className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0"
+                >
+                  변경
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="text-sm font-bold mb-1">연차 부여 방식</div>
+                <p className="text-[11px] text-[var(--text-dim)] mb-3">
+                  회사 정책에 맞게 선택 후 <strong>저장</strong>하세요. 저장하면 아래 UI가 그에 맞게 표시됩니다.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { v: "auto" as LeaveGrantMethod, label: "자동부여 (입사일 기준)", desc: "근로기준법 공식으로 자동 산정" },
+                    { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력" },
+                  ]).map((opt) => {
+                    const active = (pendingGrant ?? grantMethod) === opt.v;
+                    return (
+                      <button
+                        key={opt.v}
+                        onClick={() => setPendingGrant(opt.v)}
+                        className={`flex-1 min-w-[200px] text-left px-4 py-3 rounded-xl border transition ${
+                          active
+                            ? "border-[var(--primary)] bg-[var(--primary)]/10"
+                            : "border-[var(--border)] hover:border-[var(--primary)]/40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${active ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--text-dim)]"}`} />
+                          <span className="text-sm font-semibold">{opt.label}</span>
+                        </div>
+                        <div className="text-[11px] text-[var(--text-dim)] mt-1 ml-[22px]">{opt.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 justify-end mt-3">
+                  <button
+                    onClick={() => { setGrantEditing(false); setPendingGrant(null); }}
+                    disabled={setGrantMethodMut.isPending}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => {
+                      const sel = pendingGrant ?? grantMethod;
+                      setGrantMethodMut.mutate(sel, { onSuccess: () => { setGrantEditing(false); setPendingGrant(null); } });
+                    }}
+                    disabled={setGrantMethodMut.isPending}
+                    className="btn-primary btn-sm"
+                  >
+                    {setGrantMethodMut.isPending ? "저장 중..." : "저장"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
       </>)}
 
