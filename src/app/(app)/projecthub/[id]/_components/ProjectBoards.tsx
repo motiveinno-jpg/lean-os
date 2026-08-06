@@ -97,6 +97,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [openItemId, setOpenItemId] = useState<string | null>(null);   // 행 상세 서랍
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // 표에서 줄 끌어 옮기기 — 손잡이(⠿)를 누른 줄만 끌린다(칸 안 글자를 못 고르게 되면 안 된다).
+  //   armed = 손잡이를 누른 줄 · rowDrag = 지금 끌고 있는 줄 · rowOver = 그 위에 올라간 줄
+  const [armed, setArmed] = useState<string | null>(null);
+  const [rowDrag, setRowDrag] = useState<string | null>(null);
+  const [rowOver, setRowOver] = useState<string | null>(null);
 
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ["pb-boards", dealId],
@@ -654,6 +659,26 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
+  // 줄 옮기기 — 끌어다 놓은 자리에 넣고 그 그룹의 순서를 다시 매긴다 (2026-08-06 사장님 지시:
+  //   "항목들 위치를 자유자재로 옮길 수 있게 드래그 앤 드롭으로").
+  //   targetId 가 없으면 그 그룹 맨 뒤로 — 빈 그룹으로도 옮길 수 있어야 한다.
+  //   ⚠️ 걸러 보는 중이어도 **표에 안 보이는 줄까지** 포함해 자리를 매긴다(숨은 줄이 뒤섞이지 않게).
+  const moveRow = async (targetGroupId: string, targetId?: string) => {
+    const src = items.find((i) => i.id === rowDrag);
+    setRowDrag(null); setRowOver(null); setArmed(null);
+    if (!src || src.id === targetId) return;
+    const dest = items.filter((i) => i.group_id === targetGroupId && i.id !== src.id)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    const at = targetId ? dest.findIndex((i) => i.id === targetId) : -1;
+    const next = at < 0 ? [...dest, src] : [...dest.slice(0, at), src, ...dest.slice(at)];
+    const res = await Promise.all(next.map((r, i) => db.from("project_board_items")
+      .update(r.id === src.id ? { position: i, group_id: targetGroupId, updated_at: new Date().toISOString() } : { position: i })
+      .eq("id", r.id)));
+    const bad = res.find((r: any) => r.error);
+    if (bad) { toast(bad.error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+  };
+
   // 행 복제 — 정기 지출·매달 청구는 복제가 가장 빠른 입력이다(2026-08-04 기획 3차).
   const duplicateItem = async (it: BoardItem) => {
     const { [DOC_VALUE_KEY]: _q, [CONTRACT_VALUE_KEY]: _c, ...values } = (it.values || {}) as any;
@@ -1095,7 +1120,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       {groups.map((g) => {
         const rows = sortRows(itemsByGroup[g.id] || [], sort, cols, users);
         return (
-          <section key={g.id} className="pb-group">
+          //   줄을 이 구획 안 빈자리에 놓으면 그 그룹 맨 뒤로 — 그룹이 비어 있어도 옮길 수 있어야 한다
+          <section key={g.id} className={`pb-group ${rowDrag ? "pb-group-drop" : ""}`}
+            onDragOver={(e) => { if (rowDrag) e.preventDefault(); }}
+            onDrop={(e) => { if (!rowDrag) return; e.preventDefault(); moveRow(g.id); }}>
             {/* 그룹이 하나뿐이면 머리줄을 숨긴다 — '요청 목록 6건' 한 줄이 뜻 없이 자리를 먹었다 */}
             {groups.length > 1 && (
               <div className="pb-group-head">
@@ -1206,7 +1234,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                 </thead>
                 <tbody>
                   {rows.map((it) => (
-                    <tr key={it.id}>
+                    <tr key={it.id} draggable={armed === it.id}
+                      onDragStart={(e) => { setRowDrag(it.id); e.dataTransfer.effectAllowed = "move"; }}
+                      onDragEnd={() => { setRowDrag(null); setRowOver(null); setArmed(null); }}
+                      onDragOver={(e) => { if (!rowDrag || rowDrag === it.id) return; e.preventDefault(); setRowOver(it.id); }}
+                      onDrop={(e) => { if (!rowDrag) return; e.preventDefault(); e.stopPropagation(); moveRow(g.id, it.id); }}
+                      className={`${rowDrag === it.id ? "pb-row-drag" : ""} ${rowOver === it.id ? "pb-row-over" : ""}`}>
                       <td className="pb-td-sel">
                         <input type="checkbox" aria-label="줄 선택" checked={selected.has(it.id)}
                           onChange={(e) => setSelected((prev) => {
@@ -1217,6 +1250,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       </td>
                       <td className="pb-td-name">
                         <span className="pb-name-cell">
+                          {/* 손잡이를 눌러야 줄이 끌린다 — 칸 안 글자를 고르는 걸 막지 않으려고.
+                              정렬을 걸어 둔 동안은 보이는 차례와 저장된 차례가 달라 순서를 못 바꾼다 */}
+                          <span className="pb-grip" title={sort ? "정렬을 끄면 순서를 바꿀 수 있어요" : "끌어서 순서 바꾸기"}
+                            aria-hidden="true"
+                            onMouseDown={() => { if (!sort) setArmed(it.id); }}
+                            onMouseUp={() => setArmed(null)}>⠿</span>
                           <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
                             onBlur={(e) => saveName(it, e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}

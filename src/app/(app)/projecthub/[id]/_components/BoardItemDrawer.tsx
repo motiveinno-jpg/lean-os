@@ -121,7 +121,10 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
     if (busy) return;
     setBusy(true);
     try {
-      const safe = file.name.replace(/[^\w.\-가-힣]/g, "_");
+      //   ⚠️ 저장소 키에는 한글을 못 쓴다 — 남겨 뒀더니 'Invalid key' 로 첨부가 통째로 실패했다
+      //      (2026-08-06 사장님 제보: '리뷰.PNG'). 보이는 이름은 file_name 에 원본 그대로 남는다.
+      //      태스크 첨부(src/lib/task-attachments.ts)와 같은 규칙을 쓴다.
+      const safe = (file.name || "file").replace(/[^\w.\-]/g, "_").slice(-120) || "file";
       const path = `board-items/${companyId}/${item.id}/${Date.now()}-${safe}`;
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file);
       if (upErr) throw new Error(upErr.message);

@@ -5896,6 +5896,8 @@ td .rounded-full { white-space: nowrap; }
 .pb-addcol select { @apply h-7 px-1.5 rounded-md bg-[var(--bg-card)] border border-[var(--border)] text-[11.5px] text-[var(--text-muted)]; }
 /* 그룹 */
 .pb-group { @apply flex flex-col gap-1.5; }
+/* 줄을 끄는 동안엔 어디가 놓을 수 있는 자리인지 구획째로 보여 준다 (2026-08-06) */
+.pb-group-drop { @apply rounded-xl; outline: 1px dashed var(--border); outline-offset: 6px; }
 .pb-group-head { @apply flex items-center gap-2 text-[13px] font-extrabold text-[var(--text)]; }
 .pb-group-dot { @apply w-2.5 h-2.5 rounded-sm shrink-0; }
 .pb-group-n { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
@@ -6149,6 +6151,12 @@ th:hover .pb-colmenu-btn { @apply opacity-100; }
 
 /* 행 상세 서랍 — 메모·파일 (2026-08-04) */
 .pb-name-cell { @apply flex items-center gap-1 min-w-0; }
+/* 줄 손잡이 — 끌어서 순서를 바꾼다. 줄에 마우스를 올렸을 때만 드러난다 (2026-08-06 사장님 지시) */
+.pb-grip { @apply shrink-0 w-3 text-[11px] leading-none text-[var(--text-dim)] opacity-0 transition cursor-grab select-none hover:text-[var(--primary)] active:cursor-grabbing; }
+tr:hover .pb-grip { @apply opacity-100; }
+/* 끌고 있는 줄은 흐리게, 놓을 자리는 위쪽에 선으로 알려 준다 */
+.pb-row-drag > td { @apply opacity-40; }
+.pb-row-over > td { box-shadow: inset 0 2px 0 var(--primary); }
 .pb-open { @apply shrink-0 w-5 h-5 rounded text-[10px] text-[var(--text-dim)] opacity-0 transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
 tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-card-tools { @apply absolute right-1.5 top-1.5 flex items-center gap-0.5; }
