@@ -2908,7 +2908,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           {rosterRows.length === 0 ? (
             <div className="templates-empty">표시할 구성원이 없습니다.</div>
           ) : (
-            <div className="leave-roster-scroll">
+            <div className="leave-roster-scroll glass-card">
               <table className="leave-roster-table">
                 <thead>
                   <tr>
