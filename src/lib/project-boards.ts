@@ -21,7 +21,9 @@ import { addDaysStr } from "@/lib/kst";
 export type ColType = "text" | "number" | "date" | "status" | "person" | "partner";
 
 export type StatusOption = { id: string; label: string; color: string };
-export type ColumnDef = { name: string; type: ColType; settings?: { options?: StatusOption[]; unit?: string; flow?: boolean } };
+export type ColumnDef = { name: string; type: ColType; settings?: { options?: StatusOption[]; unit?: string; flow?: boolean;
+  /** 광고 표 전용 — 이 칸에 어떤 지표를 채울지(AdMetricKey). 이름을 바꿔도 자리가 안 어긋난다 */
+  ad?: string } };
 export type GroupDef = { name: string; color: string };
 
 /** 보는 방식. 원칙(2026-08-04 사장님 지시):
@@ -207,6 +209,31 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     ],
     groups: [{ name: "일정", color: C.indigo }],
   },
+  {
+    //   마케팅 계정 관리 — 값은 사람이 아니라 매체 API 가 채운다(2026-08-06 사장님 지시).
+    //   행 하나가 캠페인 하나. 회사 금고에 등록한 광고 계정을 이 프로젝트에 연결하면 채워진다.
+    key: "ads",
+    name: "마케팅 계정 관리",
+    desc: "광고 계정을 연결하면 캠페인 성과가 저절로 채워집니다",
+    uses: "네이버 검색광고 · 대행 클라이언트 광고 운영 · 매체별 성과 정리",
+    input: "grid",
+    columns: [
+      { name: "매체", type: "status", settings: { ad: "platform", options: [
+        { id: "naver_sa", label: "네이버 검색", color: C.green },
+        { id: "naver_gfa", label: "네이버 GFA", color: C.blue },
+        { id: "google_ads", label: "구글", color: C.orange },
+        { id: "meta_ads", label: "메타", color: C.indigo },
+      ] } },
+      { name: "노출", type: "number", settings: { ad: "impressions", unit: "회" } },
+      { name: "클릭", type: "number", settings: { ad: "clicks", unit: "회" } },
+      { name: "클릭률", type: "number", settings: { ad: "ctr", unit: "%" } },
+      { name: "광고비", type: "number", settings: { ad: "cost", unit: "원" } },
+      { name: "전환", type: "number", settings: { ad: "conversions", unit: "건" } },
+      { name: "전환당 비용", type: "number", settings: { ad: "cpa", unit: "원" } },
+      { name: "메모", type: "text" },
+    ],
+    groups: [{ name: "캠페인", color: C.indigo }],
+  },
 ];
 
 /** 칸의 형식 — 고를 때 보이는 이름과 무엇에 쓰는 칸인지.
@@ -226,6 +253,22 @@ export const DEFAULT_STATUS_OPTIONS: StatusOption[] = [
   { id: "doing", label: "진행 중", color: C.orange },
   { id: "done", label: "완료", color: C.green },
 ];
+
+// ── 마케팅(광고) 표 — 값은 사람이 아니라 매체 API 가 채운다 (2026-08-06 사장님 지시) ──
+//   ⚠️ 어느 칸에 무엇을 채울지는 **이름이 아니라 settings.ad 로** 정한다.
+//      사장님이 칸 이름을 바꿔도(예: '비용' → '광고비') 채우는 자리가 어긋나지 않게.
+export type AdMetricKey = "impressions" | "clicks" | "ctr" | "cost" | "conversions" | "cpa" | "roas" | "platform";
+/** 이 행이 어느 캠페인인지 — 칸이 아니라 예약 키로 값에 담는다(칸을 지워도 연결이 안 끊기게) */
+export const AD_VALUE_KEY = "__ad";
+export type AdRowLink = { accountId: string; campaignId: string };
+
+export const AD_TEMPLATE_KEY = "ads";
+/** 자동으로 채우는 칸 — 사람이 고쳐도 다음 수집 때 덮어써지므로 화면에서 잠근다 */
+export const AD_AUTO_KEYS: AdMetricKey[] = ["impressions", "clicks", "ctr", "cost", "conversions", "cpa", "roas", "platform"];
+export function adMetricOf(col: { settings?: any }): AdMetricKey | null {
+  const k = col?.settings?.ad;
+  return AD_AUTO_KEYS.includes(k) ? (k as AdMetricKey) : null;
+}
 
 /** 라벨 색 — 회사 안에서 색 뜻이 갈리지 않게 이 여덟 가지만 쓴다 */
 export const LABEL_COLORS = [C.gray, C.blue, C.indigo, C.purple, C.orange, C.green, C.red, C.dark];
@@ -275,6 +318,7 @@ export function findTemplate(key: string | null | undefined): BoardTemplate {
 /** 첫 컬럼(행 이름)은 표마다 이름이 다르다 — 템플릿별 라벨 */
 export const ITEM_LABEL: Record<string, string> = {
   todo: "작업", budget: "항목", cost: "항목", billing: "청구 건", pipeline: "건명", review: "요청", schedule: "이름", blank: "이름",
+  ads: "캠페인",
   custom: "이름",
 };
 

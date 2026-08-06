@@ -6785,3 +6785,21 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ad-acc-secret { -webkit-text-security: disc; text-security: disc; font-family: monospace; letter-spacing: 0.02em; }
 .ad-acc-hint { @apply not-italic ml-1 font-normal text-[10.5px] text-[var(--text-dim)]; }
 .ad-acc-reveal { @apply self-start h-7 px-2 -mt-1 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
+
+/* ── 마케팅 계정 관리 표의 머리줄 — 어느 계정을, 어느 기간으로 (2026-08-06) ── */
+.pb-adbar { @apply flex flex-wrap items-center gap-2 px-3 py-2.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.pb-adbar > b { @apply text-[12px] font-extrabold text-[var(--text-dim)]; }
+.pb-adbar-none { @apply not-italic text-[11.5px] text-[var(--text-dim)]; }
+.pb-adbar-chip { @apply h-6 px-2 inline-flex items-center rounded-full bg-[var(--primary)]/10 text-[11.5px] font-bold text-[var(--primary)]; }
+.pb-adbar-pick { @apply h-7 px-2.5 rounded-lg border border-dashed border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+.pb-adbar-periods { @apply ml-auto flex items-center gap-1; }
+.pb-adbar-period { @apply h-7 px-2.5 rounded-full border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.pb-adbar-period-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]; }
+.pb-adbar-when { @apply not-italic text-[11px] text-[var(--text-dim)]; }
+.pb-adbar-fill { @apply h-7 px-2.5 rounded-lg border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)] disabled:opacity-40; }
+.pb-adbar-go { @apply h-7 px-3 rounded-lg bg-[var(--primary)] text-[11.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
+.pb-adpick-box { @apply max-w-sm gap-1.5 p-4; }
+.pb-adpick-row { @apply flex items-center gap-2 p-2 rounded-xl transition hover:bg-[var(--bg-surface)] cursor-pointer; }
+.pb-adpick-row input { @apply w-4 h-4 accent-[var(--primary)]; }
+.pb-adpick-row > span { @apply text-[12.5px] font-semibold text-[var(--text)]; }
+.pb-adpick-row > em { @apply not-italic ml-auto text-[11px] text-[var(--text-dim)]; }
