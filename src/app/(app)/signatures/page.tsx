@@ -76,7 +76,7 @@ function SignaturesDashboardInner() {
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
   // 표 정렬·기간 설정 (2026-08-05 사장님 시안) — 마지막 값은 계정별로 서버에 기억한다.
-  type SortKey = "docNo" | "status" | "batch" | "title" | "signer" | "manager" | "created" | "expires";
+  type SortKey = "docNo" | "status" | "batch" | "title" | "signer" | "manager" | "created" | "signed";
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created", dir: "desc" });
   const [reqFrom, setReqFrom] = useState("");   // 요청일 시작 (YYYY-MM-DD)
   const [reqTo, setReqTo] = useState("");       // 요청일 끝
@@ -273,11 +273,11 @@ function SignaturesDashboardInner() {
       if (batchFilter === "none" && r.batch_id) return false;
       if (batchFilter && batchFilter !== "none" && r.batch_id !== batchFilter) return false;
       if (managerFilter && r.created_by !== managerFilter) return false;
-      // 기간 설정 — 요청일/만료일 각각 범위 지정 (빈 값이면 제한 없음)
+      // 기간 설정 — 요청일/서명완료일 각각 범위 지정 (빈 값이면 제한 없음)
       if (reqFrom && String(r.created_at || "") < reqFrom) return false;
       if (reqTo && String(r.created_at || "") > `${reqTo}T23:59:59.999Z`) return false;
-      if (expFrom && (!r.expires_at || String(r.expires_at) < expFrom)) return false;
-      if (expTo && (!r.expires_at || String(r.expires_at) > `${expTo}T23:59:59.999Z`)) return false;
+      if (expFrom && (!r.signed_at || String(r.signed_at) < expFrom)) return false;
+      if (expTo && (!r.signed_at || String(r.signed_at) > `${expTo}T23:59:59.999Z`)) return false;
       return true;
     });
     // 열 머리 클릭 정렬
@@ -290,7 +290,7 @@ function SignaturesDashboardInner() {
         case "title": return r.title || "";
         case "signer": return r.signer_name || "";
         case "manager": return memberNames[r.created_by] || "";
-        case "expires": return r.expires_at || "";
+        case "signed": return r.signed_at || "";
         default: return r.created_at || "";
       }
     };
@@ -594,32 +594,33 @@ function SignaturesDashboardInner() {
 
       {/* 상태 카운트 카드 */}
       <div className="signature-status-cards">
+        {/* 라벨+숫자를 한 줄로, 높이를 절반으로 (2026-08-06 사장님 스케치) */}
         <button
           onClick={() => setStatusFilter("all")}
-          className={`stat-fit p-4 rounded-xl text-left transition ${
+          className={`signature-status-chip ${
             statusFilter === "all"
               ? "bg-[var(--primary)] text-white shadow-md"
               : "glass-card card-hover"
           }`}
         >
-          <div className={`text-[11px] font-semibold uppercase tracking-wider ${statusFilter === "all" ? "text-white/80" : "text-[var(--text-dim)]"}`}>전체</div>
-          <div className={`stat-fit-value font-black mono-number mt-0.5 ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</div>
+          <span className={`signature-status-chip-label ${statusFilter === "all" ? "text-white/85" : "text-[var(--text-dim)]"}`}>전체</span>
+          <span className={`signature-status-chip-count mono-number ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</span>
         </button>
         {SIGNATURE_STATUS.map((s) => (
           <button
             key={s.value}
             onClick={() => setStatusFilter(s.value)}
-            className={`stat-fit p-4 rounded-xl text-left transition ${
+            className={`signature-status-chip ${
               statusFilter === s.value
                 ? `${s.bg} ${s.text} ring-2 ring-current/30`
                 : "glass-card card-hover"
             }`}
           >
-            <div className={`text-[11px] font-semibold flex items-center gap-1.5 ${s.text}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+            <span className={`signature-status-chip-label ${s.text}`}>
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
               {s.label}
-            </div>
-            <div className="stat-fit-value font-black mono-number mt-0.5 text-[var(--text)]">{counts[s.value] || 0}</div>
+            </span>
+            <span className="signature-status-chip-count mono-number text-[var(--text)]">{counts[s.value] || 0}</span>
           </button>
         ))}
       </div>
@@ -714,10 +715,10 @@ function SignaturesDashboardInner() {
           <input type="date" value={reqTo} onChange={(e) => setReqTo(e.target.value)} className="signature-period-input" aria-label="요청일 끝" />
         </span>
         <span className="signature-period-group">
-          <span className="signature-period-label">만료일</span>
-          <input type="date" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} className="signature-period-input" aria-label="만료일 시작" />
+          <span className="signature-period-label">서명완료일</span>
+          <input type="date" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} className="signature-period-input" aria-label="서명완료일 시작" />
           <span className="text-[var(--text-dim)]">~</span>
-          <input type="date" value={expTo} onChange={(e) => setExpTo(e.target.value)} className="signature-period-input" aria-label="만료일 끝" />
+          <input type="date" value={expTo} onChange={(e) => setExpTo(e.target.value)} className="signature-period-input" aria-label="서명완료일 끝" />
         </span>
         {(reqFrom || reqTo || expFrom || expTo || batchFilter || managerFilter) && (
           <button
@@ -780,14 +781,13 @@ function SignaturesDashboardInner() {
                       <SortHead k="signer" label="대표자" className="signature-table-signer" />
                       <SortHead k="manager" label="담당자" className="signature-table-manager" />
                       <SortHead k="created" label="요청일" className="signature-table-date" />
-                      <SortHead k="expires" label="만료일" className="signature-table-date" />
+                      <SortHead k="signed" label="서명완료일" className="signature-table-date" />
                       <th className="signature-table-actions-head">관리</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pageRows.map((r: any) => {
                       const info = getSignatureStatusInfo(r.status);
-                      const expired = r.expires_at && new Date(r.expires_at) < new Date();
                       const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
                       const delivery = ({
                         delivered: { t: "전달됨", c: "bg-green-500/10 text-green-500" },
@@ -845,13 +845,15 @@ function SignaturesDashboardInner() {
                             ) : "—"}
                           </td>
                           <td className="signature-table-date">{r.created_at ? kstDateStr(new Date(r.created_at)) : "—"}</td>
-                          <td className={`signature-table-date ${expired && r.status !== "signed" ? "text-red-500 font-semibold" : ""}`}>
-                            {r.expires_at ? kstDateStr(new Date(r.expires_at)) : "—"}
+                          {/* 서명완료일 — 아직 서명 전이면 공백 (2026-08-06 사장님) */}
+                          <td className="signature-table-date">
+                            {r.signed_at ? kstDateStr(new Date(r.signed_at)) : ""}
                           </td>
                           <td className="signature-table-actions">
                             <div className="signature-request-actions">
+                              {/* 실수 발송 방지 — 확인을 눌렀을 때만 보낸다 (2026-08-06 사장님) */}
                               {canRemind && (
-                                <button onClick={() => reminderMut.mutate(r.id)} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송"><Ico e="🔔" /></button>
+                                <button onClick={async () => { if (await appConfirm(`${r.signer_name}님에게 리마인더를 발송하시겠습니까?`, { confirmLabel: "발송" })) reminderMut.mutate(r.id); }} disabled={reminderMut.isPending} className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition disabled:opacity-50" aria-label="리마인더 발송" title="리마인더 발송"><Ico e="🔔" /></button>
                               )}
                               {r.sign_token && r.status !== 'signed' && (
                                 <a href={`/sign?token=${r.sign_token}`} target="_blank" rel="noopener noreferrer" className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-sm hover:bg-[var(--bg-surface)] transition" aria-label="서명 링크 열기" title="서명 링크"><Ico e="🔗" /></a>
