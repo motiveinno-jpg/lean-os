@@ -17,6 +17,7 @@ import { todayKst } from "@/lib/kst";
 import { listAdAccounts, listDealAdAccounts, linkAdAccount, unlinkAdAccount } from "@/lib/project-ads";
 import { AD_METRICS, CORE_METRIC_KEYS, aggregate, formatMetric, metricOf } from "@/lib/ad-metrics";
 import { AdRangePicker } from "./AdRangePicker";
+import { ColumnChart, BarChart, LineChart, DonutChart, FunnelChart, ScatterChart, ClusterChart, Legend, vizColor } from "@/components/charts/kit";
 
 const db = supabase as any;
 /** 합친 한 줄 — 지표 키가 무엇이 될지는 사장님이 고르는 것이라 느슨하게 둔다 */
@@ -27,6 +28,7 @@ const WIDGET_KEY = "ov.ads.widgets.";   // + boardId
 const WIDGETS: { key: string; label: string; hint: string }[] = [
   { key: "cards", label: "요약 카드", hint: "고른 지표를 한 줄로" },
   { key: "trend", label: "날짜별 그래프", hint: "첫 지표를 막대로" },
+  { key: "chart", label: "차트", hint: "종류·지표를 골라 보는 그림" },
   { key: "detail", label: "세부 데이터", hint: "캠페인 › 광고그룹 › 소재" },
   { key: "creatives", label: "광고 소재", hint: "이미지와 성과를 카드로" },
   { key: "daily", label: "날짜별 상세표", hint: "하루 한 줄" },
@@ -63,6 +65,9 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
   const [open, setOpen] = useState<Set<string>>(new Set());   // 세부 데이터에서 펼친 줄
   const [widgets, setWidgets] = useState<string[]>(DEFAULT_WIDGETS);   // 켜진 것만, 보이는 차례대로
   const [widgetOpen, setWidgetOpen] = useState(false);
+  //   차트 위젯 — 무엇을(지표) 어떻게(종류) 무엇별로(기준) 볼지 (2026-08-06 아드리엘 형식)
+  const [chart, setChart] = useState<{ type: string; metric: string; metric2: string; by: string }>(
+    { type: "column", metric: "cost", metric2: "clicks", by: "date" });
 
   //   고른 지표는 표마다 기억한다 — 사람마다 보는 눈이 다르다
   useEffect(() => {
@@ -319,6 +324,38 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
               <span className="adb-axis"><em>{byDay[0]?.date?.slice(5)}</em><em>{byDay[byDay.length - 1]?.date?.slice(5)}</em></span>
             </div>
             </>)}
+            {w === "chart" && (<>
+                <div className="adb-block">
+                  <div className="adb-charthead">
+                    <b className="adb-h">차트</b>
+                    <select value={chart.type} onChange={(e) => setChart((c) => ({ ...c, type: e.target.value }))} aria-label="차트 종류">
+                      <option value="column">세로 막대</option>
+                      <option value="bar">가로 막대</option>
+                      <option value="line">선</option>
+                      <option value="combo">콤보(선 두 개)</option>
+                      <option value="donut">도넛</option>
+                      <option value="funnel">깔때기</option>
+                      <option value="scatter">분산형</option>
+                      <option value="cluster">묶음</option>
+                    </select>
+                    <select value={chart.by} onChange={(e) => setChart((c) => ({ ...c, by: e.target.value }))} aria-label="기준">
+                      <option value="date">날짜별</option>
+                      <option value="campaign">캠페인별</option>
+                      <option value="adgroup">광고그룹별</option>
+                      <option value="ad">소재별</option>
+                    </select>
+                    <select value={chart.metric} onChange={(e) => setChart((c) => ({ ...c, metric: e.target.value }))} aria-label="지표">
+                      {AD_METRICS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                    </select>
+                    {(chart.type === "combo" || chart.type === "scatter") && (
+                      <select value={chart.metric2} onChange={(e) => setChart((c) => ({ ...c, metric2: e.target.value }))} aria-label="두 번째 지표">
+                        {AD_METRICS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+                      </select>
+                    )}
+                  </div>
+                  <ChartBody chart={chart} byDay={byDay} entities={entities} byEntity={byEntity} />
+                </div>
+            </>)}
             {w === "detail" && (<>
     {/* 세부 데이터 — 캠페인 > 광고그룹 > 소재. 삼각형을 눌러 펼친다 (2026-08-06 아드리엘 형식) */}
             <div className="adb-block">
@@ -528,4 +565,57 @@ function EntityRows({ node, depth, kids, byEntity, shown, open, onToggle }: {
       ))}
     </>
   );
+}
+
+/** 차트 한 장 — 무엇을(지표) 무엇별로(기준) 어떻게(종류) 그릴지만 정하면 된다.
+ *  ⚠️ 축은 하나다 — 단위가 다른 두 지표를 한 그림에 겹치지 않는다. 콤보도 같은 축의 두 선으로 그린다
+ *     (예: 노출과 클릭). 굳이 겹치고 싶으면 그림을 둘로 나누는 게 맞다. */
+function ChartBody({ chart, byDay, entities, byEntity }: {
+  chart: { type: string; metric: string; metric2: string; by: string };
+  byDay: any[];
+  entities: any[];
+  byEntity: Record<string, Record<string, number>>;
+}) {
+  const m1 = metricOf(chart.metric);
+  const m2 = metricOf(chart.metric2);
+  const unit = m1?.unit === "원" ? "원" : m1?.unit === "%" ? "%" : "";
+
+  //   기준이 '날짜'면 하루 한 점, 아니면 그 계층의 대상 하나가 한 점
+  const data = chart.by === "date"
+    ? byDay.map((d) => ({ label: String(d.date).slice(5), value: Number(d[chart.metric]) || 0, v2: Number(d[chart.metric2]) || 0 }))
+    : entities.filter((e) => e.level === chart.by).map((e) => {
+        const m = byEntity[`${e.level}:${e.entity_id}`] || {};
+        return { label: e.name || e.entity_id, value: Number(m[chart.metric]) || 0, v2: Number(m[chart.metric2]) || 0 };
+      }).sort((a, b) => b.value - a.value).slice(0, 12);
+
+  if (data.length === 0) return <p className="pj-sec-empty">그릴 값이 없어요.</p>;
+
+  if (chart.type === "bar") return <BarChart data={data} unit={unit} />;
+  if (chart.type === "donut") return (<>
+    <DonutChart data={data} unit={unit} />
+    <Legend items={data.slice(0, 8).map((d, i) => ({ name: d.label, color: vizColor(i) }))} />
+  </>);
+  if (chart.type === "funnel") return <FunnelChart data={data} unit={unit} />;
+  if (chart.type === "cluster") return <ClusterChart data={data} unit={unit} />;
+  if (chart.type === "scatter") return (
+    <ScatterChart xLabel={m2?.label || ""} yLabel={m1?.label || ""}
+      points={data.map((d) => ({ label: d.label, x: d.v2, y: d.value }))} />
+  );
+  if (chart.type === "line") return (
+    <LineChart unit={unit} series={[{ name: m1?.label || "", points: data.map((d) => ({ label: d.label, value: d.value })) }]} />
+  );
+  if (chart.type === "combo") {
+    const same = m1?.unit === m2?.unit;
+    return (<>
+      {!same && (
+        <p className="adb-warn">단위가 다른 지표({m1?.label} · {m2?.label})는 한 축에 겹치면 그림이 거짓말을 합니다 — 같은 단위끼리 고르세요.</p>
+      )}
+      <LineChart unit={unit} series={[
+        { name: m1?.label || "", points: data.map((d) => ({ label: d.label, value: d.value })) },
+        { name: m2?.label || "", points: data.map((d) => ({ label: d.label, value: d.v2 })) },
+      ]} />
+      <Legend items={[{ name: m1?.label || "", color: vizColor(0) }, { name: m2?.label || "", color: vizColor(1) }]} />
+    </>);
+  }
+  return <ColumnChart data={data} unit={unit} />;
 }
