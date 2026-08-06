@@ -233,15 +233,25 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const mappedStatus = statusMap[subscription.status] || 'active';
   const cancelAtPeriodEnd = !!subscription.cancel_at_period_end;
 
+  // 청구기간은 구독에 없을 수 있다 — 체험 중 구독이 대표적이고, Stripe 2025-03-31+ 는
+  //   current_period_* 를 구독이 아니라 구독 아이템으로 옮겼다. 가드 없이
+  //   new Date(undefined * 1000).toISOString() 을 하면 RangeError("Invalid time value") 로
+  //   핸들러가 통째로 죽어 상태 동기화가 멈춘다 (2026-08-05 '만들다' 계정에서 20여 회 연속 실패).
+  const subAny = subscription as any;
+  const item0 = subAny.items?.data?.[0];
+  const periodStart = toISO(subAny.current_period_start ?? item0?.current_period_start);
+  const periodEnd = toISO(subAny.current_period_end ?? item0?.current_period_end);
+
   // Stripe 를 진실원천으로 cancel_at_period_end 동기화. 예약 취소(false)면 cancel 메타 초기화(복원).
   const patch: Record<string, unknown> = {
     status: mappedStatus,
     cancel_at_period_end: cancelAtPeriodEnd,
-    trial_ends_at: toISO((subscription as any).trial_end),
-    current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-    current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+    trial_ends_at: toISO(subAny.trial_end),
     updated_at: new Date().toISOString(),
   };
+  // 값이 있을 때만 기록 — 없는 값으로 기존 기간을 지우지 않는다.
+  if (periodStart) patch.current_period_start = periodStart;
+  if (periodEnd) patch.current_period_end = periodEnd;
   if (!cancelAtPeriodEnd) {
     patch.cancel_requested_at = null;
     patch.cancel_reason = null;
