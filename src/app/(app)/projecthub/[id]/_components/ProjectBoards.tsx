@@ -57,9 +57,10 @@ const COL_WIDTHS: { key: string; label: string; px: number }[] = [
 const widthOf = (c: BoardColumn) => Number(c.settings?.width) || COL_W.cell;
 /** 값 정렬 — 쳐 넣는 글자는 왼쪽, 숫자는 오른쪽(자릿수를 맞춰 읽는다),
  *  고르는 값(담당·거래처·라벨)은 가운데 (2026-08-06 사장님 지시) */
+//   날짜도 가운데 — 자릿수가 늘 같아 가운데로 두면 줄이 눈에 잘 맞는다(2026-08-06 사장님 지시)
 const tdAlign = (type: ColType) =>
   type === "number" ? "pb-td-num"
-    : type === "status" || type === "person" || type === "partner" ? "pb-td-mid" : "";
+    : type === "status" || type === "person" || type === "partner" || type === "date" ? "pb-td-mid" : "";
 const VIEW_KEY = "ov.board.view.";   // + boardId
 const GROUP_COLORS = ["#5559DF", "#00C875", "#FDAB3D", "#A25DDC", "#579BFC", "#E2445C", "#C4C4C4"];
 
