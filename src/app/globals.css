@@ -4437,6 +4437,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .bulk-wizard-drag-handle { @apply shrink-0 text-[var(--text-dim)] cursor-grab select-none text-sm leading-none; }
 .template-order-buttons button { @apply text-[9px] leading-none px-1 py-0.5 text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-25 transition; }
 .templates-empty { @apply px-3 py-6 text-center text-[11px] text-[var(--text-dim)] bg-[var(--bg-surface)]/40 rounded-lg border border-dashed border-[var(--border)]; }
+/* 계약 양식 목록 — 회사/표준 분리 탭 (2026-08-06) */
+.template-section-tabs { @apply mb-3; }
+.template-section-count { @apply ml-1 text-[10px] font-normal opacity-70; }
 .template-editor-modal { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
 .body-mode-toggle-group { @apply flex gap-1.5; }
 .detected-vars-list { @apply flex flex-wrap gap-1.5; }

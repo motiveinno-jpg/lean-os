@@ -50,6 +50,9 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     enabled: !!companyId,
   });
 
+  // 표준/회사 양식을 탭으로 분리 (2026-08-06 사장님: "회사 양식 찾으려면 너무 밑으로 내려가야 해").
+  //   기본은 '우리 회사 양식' — 실제로 매일 쓰는 쪽이 먼저 보이게.
+  const [listTab, setListTab] = useState<"company" | "system">("company");
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<ContractTemplate | null>(null);
   // 표준 양식 '복제해서 수정' 원본 — 신규 폼에 본문을 실어 연다 (2026-08-05 사장님 제보: 빈 페이지가 뜨던 문제)
@@ -154,13 +157,32 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         </div>
       </div>
 
+      {/* 두 목록을 탭으로 분리 — 표준 양식이 길어 회사 양식이 화면 아래로 밀리던 문제(2026-08-06 사장님) */}
+      <div className="template-section-tabs seg-bar">
+        <button
+          onClick={() => setListTab("company")}
+          className={`seg-item ${listTab === "company" ? "seg-item-active" : ""}`}
+        >
+          우리 회사 양식 <span className="template-section-count">{companyTemplates.length}</span>
+        </button>
+        <button
+          onClick={() => setListTab("system")}
+          className={`seg-item ${listTab === "system" ? "seg-item-active" : ""}`}
+        >
+          표준 양식 <span className="template-section-count">{systemTemplates.length}</span>
+        </button>
+      </div>
+
       {/* 표준(시스템) 양식 — 2026-08-03 사장님: 발송하기엔 나오는데 양식관리엔 안 보여 관리가 안 됐다.
           전 회사 공유 행이라 삭제는 불가 → 우리 회사 목록에서만 숨긴다(숨기면 발송 목록에서도 빠짐). */}
-      {systemTemplates.length > 0 && (
+      {listTab === "system" && (
         <div className="mb-4">
           <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">
-            표준 양식 <span className="font-normal">— 오너뷰가 제공. 수정하려면 복제하세요. 숨기면 발송 목록에도 안 나옵니다.</span>
+            오너뷰가 제공하는 양식입니다 — 수정하려면 복제하세요. 숨기면 발송 목록에도 안 나옵니다.
           </div>
+          {systemTemplates.length === 0 ? (
+            <div className="templates-empty">제공되는 표준 양식이 없습니다.</div>
+          ) : (
           <div className="grid gap-1.5">
             {systemTemplates.map((t, i) => {
               const isHidden = hiddenIds.has(t.id);
@@ -195,14 +217,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
               );
             })}
           </div>
+          )}
         </div>
       )}
 
       {/* 우리 회사가 만든 계약 양식 */}
-      {companyTemplates.length > 0 && (
-        <div className="text-[11px] font-semibold text-[var(--text-dim)] mb-1.5">우리 회사 양식</div>
-      )}
-      {companyTemplates.length === 0 ? (
+      {listTab === "company" && (companyTemplates.length === 0 ? (
         <div className="templates-empty">
           아직 만든 계약 양식이 없습니다. <b>+ 양식 추가</b>로 만들어 보세요. (표준 계약서에서 시작할 수 있어요)
         </div>
@@ -233,7 +253,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {(showAdd || editing) && (
         <TemplateEditorModal
