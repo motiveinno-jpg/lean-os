@@ -2360,10 +2360,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .board-reply-form { @apply ml-6 mt-2 pl-3 border-l-2 border-[var(--primary)]/30 relative; }
 .board-comment-input-row { @apply flex gap-2 items-start; }
 .board-lightbox { @apply fixed inset-0 z-[100] flex items-center justify-center bg-black/85 select-none; }
-.announcement-toolbar { @apply flex flex-wrap items-center justify-end gap-2 mb-6; }
-.announcement-form { @apply bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5 mb-6; }
 .announcement-empty { @apply py-16 text-center; }
 .announcement-list { @apply overflow-hidden divide-y divide-[var(--border)]; }
+/* 이번 방문에 처음 본 공지 표시 (2026-08-06) */
+.announcement-new-tag { @apply text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--danger)] text-white; }
 .notification-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
 .notification-list { @apply overflow-hidden divide-y divide-[var(--border)]; }
 .notification-item { @apply flex items-start gap-3 px-5 py-3.5 transition; }

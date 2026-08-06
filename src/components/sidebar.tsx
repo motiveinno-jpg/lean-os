@@ -87,7 +87,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "설정·도움말",
     items: [
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
-      { href: "/announcements", label: "공지사항", icon: "megaphone" },
+      { href: "/announcements", label: "공지사항", icon: "megaphone", badgeKey: "announcements" },
       { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/support", label: "고객센터", icon: "headphones" },
@@ -237,6 +237,7 @@ export function Sidebar() {
   const [chatUnread, setChatUnread] = useState(0);
   const [approvalsPending, setApprovalsPending] = useState(0);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
+  const [announcementsUnread, setAnnouncementsUnread] = useState(0);
   const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set());
   const toggleParent = (href: string) => setCollapsedParents((prev) => { const n = new Set(prev); if (n.has(href)) n.delete(href); else n.add(href); return n; });
   // 대분류 그룹 접기/펼치기 (메뉴 간소화 — 사용자 요청). localStorage 영속.
@@ -282,7 +283,7 @@ export function Sidebar() {
   const renderDesktopItem = (item: NavItem, isChild: boolean, hasChildren = false, open = false) => {
     const active = isItemActive(item);
     const bk = (item as any).badgeKey;
-    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
+    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : bk === "announcements" ? announcementsUnread : 0;
     const pinned = isPinned(item.href);
     return (
       <Tooltip key={item.href} label={item.label} show={collapsed}>
@@ -337,7 +338,7 @@ export function Sidebar() {
   const renderMobileItem = (item: NavItem, isChild: boolean) => {
     const active = isItemActive(item);
     const bk = (item as any).badgeKey;
-    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : 0;
+    const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : bk === "announcements" ? announcementsUnread : 0;
     const pinned = isPinned(item.href);
     return (
       <div key={item.href} className="mobile-nav-item-row">
@@ -409,6 +410,11 @@ export function Sidebar() {
           .eq("is_read", false);
         setNotificationsUnread(count ?? 0);
       } catch {}
+      // 안 읽은 공지 수 — 공지사항 탭에 들어가면 전부 읽음 처리되어 배지가 사라진다 (2026-08-06).
+      try {
+        const { data } = await supabase.rpc("unread_announcement_count");
+        setAnnouncementsUnread(Number(data) || 0);
+      } catch {}
     }
     loadCounts();
     const interval = setInterval(loadCounts, 60000); // 30s→60s: 배지 폴링 절반(인스턴스 요청부하 절감)
@@ -433,6 +439,10 @@ export function Sidebar() {
           .eq("user_id", u.id)
           .eq("is_read", false);
         setNotificationsUnread(count ?? 0);
+      } catch {}
+      try {
+        const { data } = await supabase.rpc("unread_announcement_count");
+        setAnnouncementsUnread(Number(data) || 0);
       } catch {}
     }
     refreshOnNav();
