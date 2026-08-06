@@ -6,7 +6,7 @@
 //   한 줄을 열면 모든 칸을 한 화면에서 채우고, 메모와 파일을 그 줄에 붙인다.
 //   칸 편집은 표·칸반과 **같은 Cell** 을 쓴다 — 편집 방식이 화면마다 갈리지 않게.
 
-import { useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -21,13 +21,15 @@ export type ItemNote = {
   file_url: string | null; file_name: string | null; created_at: string;
 };
 
-export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabel, onClose, onSaveName, renderCell }: {
+export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabel, dealId, onClose, onSaveName, renderCell }: {
   item: BoardItem;
   cols: BoardColumn[];
   companyId: string;
   userId?: string;
   users: { id: string; name: string }[];
   nameLabel: string;
+  /** @멘션 알림이 이 프로젝트로 돌아오게 하는 데 쓴다 */
+  dealId: string;
   onClose: () => void;
   onSaveName: (name: string) => void;
   /** 칸 편집기 — 표·칸반이 쓰는 것을 그대로 받아 쓴다 */
@@ -37,6 +39,17 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
   const { toast } = useToast();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  //   파일은 label 로 감싼 숨은 input 이었는데, 모바일·사파리는 display:none 인 input 에 클릭을
+  //   넘기지 않아 **눌러도 아무 일이 없었다**(2026-08-06 사장님 제보). 단추가 직접 input 을 연다.
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  //   @멘션 — 이름을 고르면 본문에 '@이름'이 들어가고, 남기면 그 사람에게 알림이 간다
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const [at, setAt] = useState<{ q: string; idx: number } | null>(null);
+  const atList = useMemo(() => {
+    if (!at) return [];
+    const q = at.q.trim().toLowerCase();
+    return users.filter((u) => (u.name || "").toLowerCase().includes(q)).slice(0, 8);
+  }, [at, users]);
 
   const { data: notes = [] } = useQuery({
     queryKey: ["pb-notes", item.id],
@@ -52,6 +65,28 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
   const nameOf = (id: string | null) => users.find((u) => u.id === id)?.name || "";
   const refresh = () => qc.invalidateQueries({ queryKey: ["pb-notes", item.id] });
 
+  // ── @멘션 ── 캐럿 바로 앞이 '@글자' 면 고를 목록을 띄운다
+  const AT_RE = /(?:^|\s)@([^\s@]{0,20})$/;
+  const onTextChange = (el: HTMLTextAreaElement) => {
+    setText(el.value);
+    const m = AT_RE.exec(el.value.slice(0, el.selectionStart ?? el.value.length));
+    setAt(m ? { q: m[1], idx: 0 } : null);
+  };
+  const pickMention = (u: { id: string; name: string }) => {
+    const el = taRef.current;
+    if (!el) return;
+    const caret = el.selectionStart ?? text.length;
+    const m = AT_RE.exec(text.slice(0, caret));
+    if (!m) { setAt(null); return; }
+    const start = caret - m[1].length - 1;          // '@' 가 있는 자리
+    const next = `${text.slice(0, start)}@${u.name} ${text.slice(caret)}`;
+    setText(next);
+    setAt(null);
+    //   커서를 넣은 이름 뒤로 — 이어서 바로 칠 수 있게
+    const pos = start + (u.name || "").length + 2;
+    window.requestAnimationFrame(() => { el.focus(); el.setSelectionRange(pos, pos); });
+  };
+
   const addNote = async () => {
     const body = text.trim();
     if (!body || busy) return;
@@ -61,7 +96,22 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
         .insert({ company_id: companyId, item_id: item.id, user_id: userId || null, body });
       if (error) throw new Error(error.message);
       setText("");
+      setAt(null);
       refresh();
+      //   멘션 알림 — 메모는 이미 남았으니 알림이 실패해도 되돌리지 않는다(게시판과 같은 규칙).
+      //   type 은 notifications 의 enum 안에 있는 'chat' 을 쓴다(새 값 추가 X).
+      const hit = users.filter((u) => u.name && body.includes(`@${u.name}`) && u.id !== userId);
+      if (hit.length > 0) {
+        const who = users.find((u) => u.id === userId)?.name || "누군가";
+        const preview = body.length > 80 ? `${body.slice(0, 80)}…` : body;
+        const { error: nErr } = await db.from("notifications").insert(hit.map((u) => ({
+          company_id: companyId, user_id: u.id, type: "chat",
+          title: "프로젝트 멘션",
+          message: `${who} 님이 「${item.name || nameLabel}」에서 회원님을 불렀어요: ${preview}`,
+          entity_type: "project_board_item", entity_id: dealId, is_read: false,
+        })));
+        if (!nErr) toast(`${hit.map((u) => u.name).join(" · ")} 님에게 알렸습니다.`, "success");
+      }
     } catch (e: any) {
       toast(e?.message || "메모 저장 실패", "error");
     } finally { setBusy(false); }
@@ -120,20 +170,44 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
               <span className="pb-note-who">{nameOf(n.user_id) || "누군가"}<em>{String(n.created_at).slice(5, 16).replace("T", " ")}</em></span>
               {n.file_url
                 ? <a href={n.file_url} target="_blank" rel="noopener noreferrer" className="pb-note-file">📎 {n.file_name || "첨부파일"}</a>
-                : <p className="pb-note-body">{n.body}</p>}
+                : <p className="pb-note-body">{markMentions(n.body || "", users)}</p>}
               <button type="button" onClick={() => removeNote(n)} title="지우기">✕</button>
             </div>
           ))}
         </section>
 
         <footer className="pb-drawer-foot">
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} placeholder="메모 남기기"
-            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) addNote(); }} />
+          <textarea ref={taRef} value={text} onChange={(e) => onTextChange(e.currentTarget)} rows={2}
+            placeholder="메모 남기기 — @ 로 사람을 부를 수 있어요"
+            onKeyDown={(e) => {
+              if (at && atList.length > 0) {
+                if (e.key === "ArrowDown") { e.preventDefault(); setAt({ ...at, idx: (at.idx + 1) % atList.length }); return; }
+                if (e.key === "ArrowUp") { e.preventDefault(); setAt({ ...at, idx: (at.idx - 1 + atList.length) % atList.length }); return; }
+                if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); pickMention(atList[at.idx]); return; }
+                if (e.key === "Escape") { setAt(null); return; }
+              }
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) addNote();
+            }} />
+          {/* @멘션 고르기 — 게시판 멘션과 같은 모양(mention-dropdown) 을 쓴다 */}
+          {at && atList.length > 0 && (
+            <div className="mention-dropdown pb-at-pop">
+              <div className="mention-dropdown-header">멘션 — @{at.q}</div>
+              {atList.map((u, i) => (
+                <button key={u.id} type="button" onMouseDown={(e) => { e.preventDefault(); pickMention(u); }}
+                  onMouseEnter={() => setAt({ ...at, idx: i })}
+                  className={`mention-dropdown-item ${i === at.idx ? "pb-at-on" : ""}`}>
+                  <span className="pb-at-face">{(u.name || "?")[0]}</span>
+                  <span className="pb-at-name">{u.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="pb-drawer-actions">
-            <label className="pb-drawer-file">
-              📎 파일
-              <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) addFile(f); e.target.value = ""; }} />
-            </label>
+            {/* 단추가 숨은 input 을 직접 연다 — label+display:none 은 모바일에서 안 열렸다 */}
+            <button type="button" className="pb-drawer-file" disabled={busy}
+              onClick={() => fileRef.current?.click()}>{busy ? "올리는 중…" : "📎 파일"}</button>
+            <input ref={fileRef} type="file" className="pb-drawer-fileinput" tabIndex={-1} aria-hidden="true"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) addFile(f); e.target.value = ""; }} />
             <button type="button" className="pb-drawer-send" disabled={busy || !text.trim()} onClick={addNote}>
               {busy ? "저장 중…" : "남기기"}
             </button>
@@ -142,4 +216,22 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
       </aside>
     </>
   );
+}
+
+/** 남긴 메모에서 '@이름' 을 눈에 띄게 — 누구를 부른 글인지 목록에서 바로 읽힌다.
+ *  회사 사람 이름만 표시로 친다(아무 @글자나 파랗게 만들면 오해를 준다). */
+function markMentions(body: string, users: { id: string; name: string }[]): ReactNode {
+  const names = users.map((u) => u.name).filter(Boolean).sort((a, b) => b.length - a.length);
+  if (names.length === 0 || !body.includes("@")) return body;
+  const re = new RegExp(`@(${names.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "g");
+  const out: ReactNode[] = [];
+  let last = 0;
+  for (let m = re.exec(body); m; m = re.exec(body)) {
+    if (m.index > last) out.push(body.slice(last, m.index));
+    out.push(<b key={`${m.index}-${m[1]}`} className="pb-note-at">@{m[1]}</b>);
+    last = m.index + m[0].length;
+  }
+  if (last === 0) return body;
+  if (last < body.length) out.push(body.slice(last));
+  return out;
 }

@@ -6180,12 +6180,22 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-note-who em { @apply not-italic font-normal text-[10.5px] text-[var(--text-dim)]; }
 .pb-note-body { @apply text-[13px] text-[var(--text)] whitespace-pre-wrap break-words; }
 .pb-note-file { @apply text-[13px] font-semibold text-[var(--primary)] hover:underline break-all; }
+/* 메모 안의 @이름 — 누구를 부른 글인지 목록에서 바로 읽히게 (2026-08-06) */
+.pb-note-at { @apply font-bold text-[var(--primary)]; }
 .pb-note > button { @apply absolute right-1.5 top-1.5 w-5 h-5 rounded text-[10px] text-[var(--text-dim)] opacity-0 transition hover:text-[var(--danger)]; }
 .pb-note:hover > button { @apply opacity-100; }
-.pb-drawer-foot { @apply flex flex-col gap-2 px-4 py-3 border-t border-[var(--border)]; }
+/* @멘션 목록이 이 줄 위로 뜬다 — 기준이 될 상자 (2026-08-06) */
+.pb-drawer-foot { @apply relative flex flex-col gap-2 px-4 py-3 border-t border-[var(--border)]; }
 .pb-drawer-foot textarea { @apply w-full rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text)] resize-none focus:outline-none focus:border-[var(--primary)]; }
-.pb-drawer-actions { @apply flex items-center gap-2; }
-.pb-drawer-file { @apply h-8 px-3 inline-flex items-center rounded-lg border border-[var(--border)] text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
+.pb-at-pop { @apply left-4; }
+.pb-at-on { @apply bg-[var(--bg-surface)]; }
+.pb-at-face { @apply w-6 h-6 shrink-0 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--primary)]; }
+.pb-at-name { @apply text-[12px] font-medium text-[var(--text)]; }
+/* 마지막 줄 단추가 메신저 동그란 단추에 가리던 문제 — 오른쪽에 그만큼 자리를 비운다 */
+.pb-drawer-actions { @apply flex items-center gap-2 pr-16; }
+.pb-drawer-file { @apply h-8 px-3 inline-flex items-center rounded-lg border border-[var(--border)] text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer transition hover:text-[var(--text)] hover:border-[var(--primary)] disabled:opacity-50; }
+/* 눈에는 안 보이지만 클릭은 받는다 — display:none 이면 모바일에서 창이 안 열린다 */
+.pb-drawer-fileinput { @apply sr-only; }
 .pb-drawer-send { @apply ml-auto h-8 px-4 rounded-lg bg-[var(--primary)] text-[12.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
 
 /* 빠른 입력 · 집행률 (2026-08-04) */

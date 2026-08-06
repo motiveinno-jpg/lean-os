@@ -993,7 +993,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       {openItem && (
         <BoardItemDrawer
           item={openItem} cols={cols} companyId={companyId} userId={userId} users={users}
-          nameLabel={nameLabel}
+          nameLabel={nameLabel} dealId={dealId}
           onClose={() => setOpenItemId(null)}
           onSaveName={(v) => saveName(openItem, v)}
           renderCell={(c) => (
