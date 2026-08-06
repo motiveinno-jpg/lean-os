@@ -61,6 +61,9 @@ const emptyPolicyStage = (n: number): ApprovalStageConfig => ({ stage: n, name: 
 export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  // 기본 제공 유형/회사 양식을 탭으로 분리 (2026-08-06 사장님 — 계약 양식 관리와 동일한 방식).
+  //   기본은 '회사 결재 양식' — 기본 유형 카드 11개에 밀려 아래로 내려가던 쪽.
+  const [listTab, setListTab] = useState<"company" | "default">("company");
   const [editing, setEditing] = useState<null | Partial<ApprovalForm>>(null);
   const [saving, setSaving] = useState(false);
 
@@ -194,9 +197,26 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         <button onClick={openNew} className="btn-primary">+ 새 양식 추가</button>
       </div>
 
+      {/* 두 목록을 탭으로 분리 — 기본 유형 카드가 길어 회사 양식이 아래로 밀리던 문제(2026-08-06 사장님) */}
+      <div className="template-section-tabs seg-bar">
+        <button
+          onClick={() => setListTab("company")}
+          className={`seg-item ${listTab === "company" ? "seg-item-active" : ""}`}
+        >
+          회사 결재 양식 <span className="template-section-count">{(forms as ApprovalForm[]).length}</span>
+        </button>
+        <button
+          onClick={() => setListTab("default")}
+          className={`seg-item ${listTab === "default" ? "seg-item-active" : ""}`}
+        >
+          기본 제공 유형 <span className="template-section-count">{Object.keys(REQUEST_TYPE_LABELS).length}</span>
+        </button>
+      </div>
+
       {/* 기본 제공 유형 — 표시 이름·결재선을 여기서 편집(저장 방식은 그대로, 정책으로 커스터마이즈) */}
+      {listTab === "default" && (
       <div className="default-types-section">
-        <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2">기본 제공 유형</div>
+        <div className="text-[11px] text-[var(--text-muted)] mb-2">오너뷰가 제공하는 유형입니다 — 표시 이름·입력 필드·결재선을 회사에 맞게 바꿀 수 있습니다.</div>
         <div className="forms-grid">
           {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
             const p = (policies as ApprovalPolicy[]).find((x) => x.document_type === k && x.is_active);
@@ -230,9 +250,9 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
           })}
         </div>
       </div>
+      )}
 
-      <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-2">회사 결재 양식</div>
-      {(forms as ApprovalForm[]).length === 0 ? (
+      {listTab === "company" && ((forms as ApprovalForm[]).length === 0 ? (
         <div className="forms-empty-state">
           <div className="mx-auto w-14 h-14 mb-3 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
@@ -270,7 +290,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {/* 빌더 모달 */}
       {editing && typeof document !== "undefined" && createPortal(
