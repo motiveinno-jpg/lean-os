@@ -132,7 +132,11 @@ async function callCashbillEdge(body: Record<string, unknown>) {
     const err = new Error(result.error || `현금영수증 처리 실패 (HTTP ${res.status})`);
     (err as any).hint = result.hint;
     // 운영자 시스템 상태 화면 적재 (2026-07-28)
-    logError({ source: "manual", message: `[현금영수증 발행 실패] ${err.message}`, context: { action: body.action, hint: result.hint } });
+    //   단, hint 가 붙은 거절은 "이미 국세청 전송 완료" 처럼 사용자가 조치할 정상 거절이다.
+    //   화면 안내로 끝내고 운영자 오류 목록은 예상 못 한 실패만 남긴다(2026-08-06).
+    if (!result.hint) {
+      logError({ source: "manual", message: `[현금영수증 발행 실패] ${err.message}`, context: { action: body.action } });
+    }
     throw err;
   }
   return result as { success: boolean; receipt?: CashReceipt; documentKey?: string; message?: string };
