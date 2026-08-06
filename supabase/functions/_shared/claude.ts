@@ -134,7 +134,7 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
     }
   } catch { /* 조회 실패 — 차단 안 함 */ }
 
-  // 요금제별 월 호출 횟수 상한 (2026-08-06 개편 — 무료 10회 / 오너뷰 50회, NULL=무제한).
+  // 요금제별 월 호출 횟수 상한 (2026-08-06 개편 — 무료 5회 / 오너뷰 100회, NULL=무제한).
   //   비용 상한과 별개로 "몇 회"가 사용자에게 보이는 단위라 횟수로도 막는다. 조회 실패 시 통과.
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
