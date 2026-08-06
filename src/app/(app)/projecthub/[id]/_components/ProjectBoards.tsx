@@ -1505,12 +1505,18 @@ function QuickCell({ col, users, value, onChange }: {
     return <DateField value={value || ""} onChange={(e) => onChange(e.target.value)} className="pb-quick-in" />;
   }
   if (col.type === "status") {
+    //   고른 라벨은 위 줄들과 **같은 색 라벨**로 보여 준다 — 여기만 맨 select 로 두니 다른 칸처럼 보였다
+    //   (2026-08-06 사장님: "단계 부분 검토를 선택했을 때 라벨로 나와야 하는 게 아닌지").
     const options: StatusOption[] = (col.settings?.options || []) as StatusOption[];
+    const cur = options.find((o) => o.id === value);
     return (
-      <select value={value || ""} className="pb-quick-in" aria-label={col.name} onChange={(e) => onChange(e.target.value)}>
-        <option value="">—</option>
-        {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-      </select>
+      <span className={`pb-status ${cur ? "" : "pb-status-empty"}`} style={cur ? { background: cur.color } : undefined}>
+        <select value={value || ""} aria-label={col.name} onChange={(e) => onChange(e.target.value)}>
+          <option value="">—</option>
+          {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+        <i>{cur?.label || "—"}</i>
+      </span>
     );
   }
   if (col.type === "person") {

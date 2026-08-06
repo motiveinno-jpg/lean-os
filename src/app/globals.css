@@ -5971,6 +5971,10 @@ td .rounded-full { white-space: nowrap; }
    흰 배경에 흰 글씨가 되어 항목이 안 보였다(2026-08-04 사장님 제보). 색을 직접 준다. */
 .pb-status select { @apply absolute inset-0 opacity-0 cursor-pointer text-[var(--text)] bg-[var(--bg-card)]; }
 .pb-status select option { @apply text-[var(--text)] bg-[var(--bg-card)]; }
+/* 아직 안 고른 라벨 — 흰 글자로 두면 안 보인다. 입력 줄의 다른 칸처럼 점선 상자로 (2026-08-06) */
+.pb-status-empty { @apply bg-transparent border border-dashed border-[var(--border)] !text-[var(--text-dim)] font-normal; }
+/* 입력 줄에서는 다른 칸(32px)과 키를 맞춘다 */
+.pb-quick .pb-status { @apply h-8 w-full; }
 .pb-add { @apply text-[12px] text-[var(--text-dim)] cursor-pointer hover:text-[var(--primary)] hover:bg-[var(--bg-surface)]; }
 .pb-sum td { @apply bg-[var(--bg-surface)] font-extrabold text-[var(--text)]; }
 /* 템플릿 고르기 */
