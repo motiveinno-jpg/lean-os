@@ -27,7 +27,9 @@ const securityHeaders = [
       // js.tosspayments.com — 토스 결제 SDK(카드 등록창). 2026-08-06 자동결제 1단계.
       "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app https://*.daumcdn.net https://local.espider.co.kr:24646 https://js.tosspayments.com",
       "style-src 'self' 'unsafe-inline' https://*.daumcdn.net https://fonts.googleapis.com https://cdn.jsdelivr.net",
-      `img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net${localSupaImgCsp}`,
+      // *.pstatic.net — 네이버 광고 소재(쇼핑 상품) 이미지. 광고 대시보드의 소재 카드가 그린다
+      //   (2026-08-06: 허용 전에는 카드가 깨진 이미지로 떴다). 이미지 표시만 허용, 스크립트는 여전히 차단.
+      `img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net https://*.pstatic.net${localSupaImgCsp}`,
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
       // wss://local.espider.co.kr:* — CodefCert 엔진 WebSocket(포트가 getPort 응답마다 동적).
       `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net wss://local.espider.co.kr:* https://api.tosspayments.com https://*.tosspayments.com${localSupaCsp}`,

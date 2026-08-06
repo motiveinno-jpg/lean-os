@@ -311,7 +311,7 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
                 <div key={c.entity_id} className="adb-cre">
                   {c.image_url
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={c.image_url} alt={c.name || "소재"} className="adb-cre-img" loading="lazy" />
+                    ? <img src={c.image_url} alt={c.name || "소재"} className="adb-cre-img" loading="lazy" referrerPolicy="no-referrer" />
                     : <span className="adb-cre-noimg">이미지 없음</span>}
                   <b className="adb-cre-name" title={c.name || ""}>{c.name || "(이름 없음)"}</b>
                   <span className="adb-cre-head">
@@ -429,7 +429,7 @@ function EntityRows({ node, depth, kids, byEntity, shown, open, onToggle }: {
               : <i className="adb-caret-none" />}
             {node.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={node.image_url} alt="" className="adb-thumb" loading="lazy" />
+              <img src={node.image_url} alt="" className="adb-thumb" loading="lazy" referrerPolicy="no-referrer" />
             )}
             <span title={node.name || ""}>{node.name || node.entity_id}</span>
           </span>
