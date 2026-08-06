@@ -40,7 +40,6 @@ import {
 } from "@/lib/expenses";
 import { getSignedUrl } from "@/lib/file-storage";
 import { previewPayroll } from "@/lib/payroll";
-import { PayrollBatchTab } from "@/components/payroll-batch"; // 급여 일괄 지급 — 정기지출에서 이관(2026-07-08)
 import { EmployeeBulkInviteModal } from "@/components/employee-bulk-invite"; // 엑셀 대량 초대(2026-07-31)
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
@@ -246,13 +245,6 @@ export default function EmployeesPage() {
         <>
           {!isEmployee && <PayrollHero employees={employees} />}
           <div className="payroll-tab-panel flex-skin"><PayrollPreviewTab companyId={companyId} /></div>
-          {/* 급여 일괄 지급(배치) — 정기지출에서 이관(2026-07-08). 관리자/대표만. */}
-          {!isEmployee && companyId && userId && (
-            <div className="payroll-batch-section">
-              <h3 className="section-title mb-3">급여 일괄 지급</h3>
-              <PayrollBatchTab companyId={companyId} userId={userId} invalidate={() => { queryClient.invalidateQueries({ queryKey: ["payment-batches"] }); }} />
-            </div>
-          )}
         </>
       )}
 

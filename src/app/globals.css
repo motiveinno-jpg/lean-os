@@ -1860,7 +1860,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .employees-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
 /* .employee-view-toggle — pure marker, styled via co-existing seg-bar in JSX */
 /* .payroll-tab-panel — pure marker, styled via co-existing flex-skin in JSX */
-.payroll-batch-section { @apply mt-6; }
 /* .certificate-tab-panel — pure marker, styled via co-existing flex-skin in JSX */
 .employee-toolbar { @apply flex items-center justify-between mb-4; }
 .employee-insurance-edi-panel { @apply mb-4 bg-[var(--info)]/5 border border-[var(--info)]/20 rounded-2xl p-5 shadow-md; }
@@ -4262,16 +4261,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .subscription-form-actions { @apply flex gap-2; }
 .ownerview-sub-row { @apply border-b border-[var(--border)]/30 bg-[var(--primary)]/5; }
 .subscription-row { @apply border-b border-[var(--border)]/30 hover:bg-[var(--bg-surface)] transition; }
-
-/* payroll-batch.tsx */
-.copy-prompt-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }
-.payroll-header { @apply flex items-center justify-between mb-6; }
-.last-generated-preview { @apply bg-green-500/5 border border-green-500/20 rounded-2xl p-4 mb-6 shadow-md; }
-.preview-item-row { @apply flex items-center justify-between text-xs; }
-.batch-history-card { @apply overflow-hidden; }
-.batch-empty-state { @apply py-14 px-6 text-center; }
-.batch-row { @apply border-b border-[var(--border)]/50; }
-.batch-row-actions { @apply flex gap-1.5 justify-center; }
 
 /* chat-bubble.tsx */
 .chat-bubble-deleted { @apply flex justify-center my-2; }
