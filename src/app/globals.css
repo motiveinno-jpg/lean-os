@@ -3090,6 +3090,16 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .platform-partnership-row { @apply p-5 hover:bg-[var(--bg-surface)]/60 transition; }
 .platform-partnership-actions { @apply flex flex-wrap gap-1 shrink-0 justify-end; }
 
+/* 운영자 공지사항 관리 (2026-08-06) — 작성·수정·삭제는 여기서만 */
+.op-announce-header { @apply flex flex-wrap items-end justify-between gap-4; }
+.op-announce-form { @apply bg-[var(--bg-card)] rounded-2xl border border-[var(--primary)]/20 p-5; }
+.op-announce-pin-toggle { @apply flex items-center gap-2 text-sm text-[var(--text-muted)] cursor-pointer; }
+.op-announce-form-footer { @apply flex justify-end gap-2 pt-3 border-t border-[var(--border)]; }
+.op-announce-list { @apply overflow-hidden; }
+.op-announce-row { @apply p-5 hover:bg-[var(--bg-surface)]/60 transition; }
+.op-announce-actions { @apply flex flex-wrap gap-1 shrink-0 justify-end; }
+.op-announce-scope-tag { @apply px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+
 /* Left as-is (no change needed, do not add to globals.css):
    - platform-audit-footnote kpi-callout (audit/page.tsx line ~120) — marker + existing custom class only, no raw utils
    - kpi-callout warning (averages/page.tsx line ~95) — existing BEM modifier (.kpi-callout.warning already in globals.css)

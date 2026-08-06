@@ -1,21 +1,14 @@
 "use client";
-import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
-import { useMemo, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { useUser } from "@/components/user-context";
-import { useToast } from "@/components/toast";
+// 사용자 화면 — **열람 전용** (2026-08-06 사장님 지시).
+//   공지 작성·수정·삭제는 운영자 페이지(/platform/announcements)에서만 한다.
+//   DB 도 announcements_*_operator 정책으로 쓰기를 is_platform_operator() 로 막아 두었다.
 
-// 서비스 운영자 판별 — 전사 공지 작성 권한 (DB is_platform_operator() 와 동일 기준).
-//   2026-07-28: 도메인 전체(@mo-tive.com)에서 단일 계정으로 축소. 여기를 안 맞추면
-//   버튼은 보이는데 RLS 에 막혀 조용히 실패한다.
-const OPERATOR_EMAILS = ["creative@mo-tive.com"];
-function isPlatformOperator(email?: string | null): boolean {
-  return !!email && OPERATOR_EMAILS.includes(email.trim().toLowerCase());
-}
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 type Announcement = {
   id: string;
@@ -37,14 +30,6 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
 };
 
 export default function AnnouncementsPage() {
-  const { user } = useUser();
-  const { toast } = useToast();
-  const qc = useQueryClient();
-  const canWrite = isPlatformOperator(user?.email);
-
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<Announcement | null>(null);
-  const [form, setForm] = useState({ title: "", content: "", category: "notice", pinned: false });
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -59,138 +44,11 @@ export default function AnnouncementsPage() {
     },
   });
 
-  const resetForm = () => {
-    setForm({ title: "", content: "", category: "notice", pinned: false });
-    setEditing(null);
-    setShowForm(false);
-  };
-
-  const saveMut = useMutation({
-    mutationFn: async () => {
-      if (!form.title.trim() || !form.content.trim()) throw new Error("제목과 내용을 입력하세요.");
-      if (editing) {
-        const { error } = await supabase
-          .from("announcements")
-          .update({
-            title: form.title.trim(),
-            content: form.content.trim(),
-            category: form.category,
-            pinned: form.pinned,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", editing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("announcements").insert({
-          title: form.title.trim(),
-          content: form.content.trim(),
-          category: form.category,
-          pinned: form.pinned,
-          author_email: user?.email || null,
-          author_name: user?.name || null,
-        });
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["announcements"] });
-      toast(editing ? "공지가 수정되었습니다." : "공지가 등록되었습니다.", "success");
-      resetForm();
-    },
-    onError: (e: any) => toast("저장 실패: " + (e?.message || e?.code || ""), "error"),
-  });
-
-  const delMut = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("announcements").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["announcements"] });
-      toast("삭제되었습니다.", "success");
-    },
-    onError: (e: any) => toast("삭제 실패: " + (e?.message || ""), "error"),
-  });
-
-  const startEdit = (a: Announcement) => {
-    setEditing(a);
-    setForm({ title: a.title, content: a.content, category: a.category, pinned: a.pinned });
-    setShowForm(true);
-  };
-
   const pinnedRows = useMemo(() => rows.filter((r) => r.pinned), [rows]);
   const normalRows = useMemo(() => rows.filter((r) => !r.pinned), [rows]);
 
   return (
     <div className="">
-      {canWrite && !showForm && (
-        <div className="announcement-toolbar page-sticky-header">
-          <button
-            onClick={() => { resetForm(); setShowForm(true); }}
-            className="btn-primary"
-          >
-            + 공지 작성
-          </button>
-        </div>
-      )}
-
-      {/* 작성/수정 폼 (운영자만) */}
-      {canWrite && showForm && (
-        <div className="announcement-form">
-          <h3 className="section-title">{editing ? "공지 수정" : "새 공지 작성"}</h3>
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <select
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="field-input max-w-[140px]"
-              >
-                {Object.entries(CATEGORY_META).map(([k, v]) => (
-                  <option key={k} value={k}>{v.label}</option>
-                ))}
-              </select>
-              <input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="제목"
-                className="field-input flex-1"
-              />
-            </div>
-            <textarea
-              value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              placeholder="공지 내용을 입력하세요"
-              rows={6}
-              className="field-input w-full resize-y"
-            />
-            <label className="flex items-center gap-2 text-sm text-[var(--text-muted)] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.pinned}
-                onChange={(e) => setForm({ ...form, pinned: e.target.checked })}
-                className="rounded"
-              />
-              상단 고정
-            </label>
-            <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)]">
-              <button
-                onClick={resetForm}
-                className="btn-secondary"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => saveMut.mutate()}
-                disabled={saveMut.isPending || !form.title.trim() || !form.content.trim()}
-                className="btn-primary"
-              >
-                {saveMut.isPending ? "저장 중..." : editing ? "수정 저장" : "등록"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isLoading ? (
         <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       ) : rows.length === 0 ? (
@@ -233,22 +91,6 @@ export default function AnnouncementsPage() {
                     <div className="text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed border-t border-[var(--border)] pt-3">
                       {a.content}
                     </div>
-                    {canWrite && (
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => startEdit(a)}
-                          className="btn-ghost btn-sm"
-                        >
-                          수정
-                        </button>
-                        <button
-                          onClick={async () => { if (await appConfirm("이 공지를 삭제하시겠습니까?", { danger: true })) delMut.mutate(a.id); }}
-                          className="btn-danger btn-sm"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

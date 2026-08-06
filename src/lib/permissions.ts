@@ -128,10 +128,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "data", label: "데이터 관리" },
       ] },
       { route: "/billing", label: "요금제·결제" },
-      // 공지 읽기는 전원 기본, 작성·수정은 별도 권한(역할 폐지 2026-07-31 — 예전엔 owner/admin 만 가능했다)
-      { route: "/announcements", label: "공지사항", always: true, tabs: [
-        { key: "manage", label: "공지 작성·수정·삭제" },
-      ] },
+      // 공지는 전원 열람만. 작성·수정·삭제는 서비스 운영자 페이지(/platform/announcements)에서만 하고
+      //   DB 도 announcements_*_operator 정책으로 막았다 — 그래서 부여할 권한 항목이 없다(2026-08-06).
+      { route: "/announcements", label: "공지사항", always: true },
       { route: "/guide", label: "사용 가이드", always: true },
       { route: "/support", label: "고객센터", always: true },
     ],
