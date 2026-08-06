@@ -119,6 +119,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "closing", label: "회계마감" },
         { key: "tax", label: "세무자동화" },
         { key: "bank", label: "은행연동" },
+        { key: "ads", label: "광고 계정" },
         { key: "certificate", label: "인증서" },
         { key: "departments", label: "부서" },
         { key: "attendance", label: "근태·가산수당" },
