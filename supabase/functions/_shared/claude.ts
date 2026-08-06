@@ -27,10 +27,12 @@ const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
 };
 
 // 회사별 월 AI 비용 상한 — 기능 불문 합산.
-//   2026-08-06 요금제 개편으로 $10 → $2.5 하향. 19,000원 플랜에서 $10(14,000원)은 매출의 74%라
-//   성립하지 않는다. $2.5 ≈ 3,500원 = 참모(Sonnet) 약 60회분으로, 플랜 한도(월 50회)보다 살짝 위.
+//   2026-08-06 요금제 개편: $10 → $6. 25,000원 플랜의 AI 한도가 월 100회인데,
+//   실측 호출당 원가가 57~82원(참모 Sonnet / 브리핑 Opus)이라 100회 = 5,700~8,200원 ≈ $4.1~5.9.
+//   비용 상한이 이보다 낮으면 횟수를 다 쓰기 전에 막혀 한도 표기가 거짓이 된다.
+//   실제 방어선은 아래 '월 호출 횟수' 상한이고, 이 값은 폭주 안전망이다.
 //   env(AI_MONTHLY_COST_CAP_USD)로 조정 가능.
-const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "2.5");
+const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "6");
 
 export interface ClaudeCallOpts {
   task: ClaudeTask;
