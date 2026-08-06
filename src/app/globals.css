@@ -5907,8 +5907,9 @@ td .rounded-full { white-space: nowrap; }
 .pb-scroll { @apply overflow-x-auto rounded-xl border border-[var(--border)]; }
 /* 칸 너비는 colgroup 이 정한다(table-fixed) — 머리글에 든 것에 따라 칸 폭이 달라지지 않게 (2026-08-05) */
 .pb-table { @apply w-full table-fixed border-collapse bg-[var(--bg-card)] text-[12.5px]; }
-/* 첫 칸은 [손잡이][고르기] 두 개가 든다 — 손잡이를 이름 칸 안에 두니 잡을 자리가 너무 좁았다 (2026-08-06) */
-.pbc-sel { width: 52px; }
+/* 첫 칸은 [손잡이][고르기] 두 개가 든다 — 손잡이를 이름 칸 안에 두니 잡을 자리가 너무 좁았다 (2026-08-06).
+   폭이 모자라면 td 의 overflow-hidden 때문에 체크가 말줄임표로 잘린다 — 좌우 여백까지 셈해 잡는다 */
+.pbc-sel { width: 58px; }
 .pbc-name { width: 200px; }
 /* 값 칸의 너비는 칸마다 다르다(머리 ⋯ 의 '칸 너비') — colgroup 에 인라인으로 준다 (2026-08-06) */
 .pbc-ratio { width: 96px; }
@@ -6323,9 +6324,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-qf-none { @apply not-italic text-[11px] text-[var(--text-dim)] px-1; }
 .pb-qf-foot { @apply text-[11.5px] text-[var(--text-dim)] pt-1 border-t border-[var(--border)]; }
 .pb-qf-foot b { @apply font-bold text-[var(--text-muted)]; }
-.pb-th-sel { @apply w-8; }
 /* 손잡이와 고르기 칸을 나란히 — 사이가 붙으면 끌려다 체크가 눌린다 */
-.pb-td-sel { @apply w-8 text-center whitespace-nowrap; }
+.pb-th-sel, .pb-td-sel { @apply px-1.5; }
+.pb-td-sel { @apply text-center whitespace-nowrap; }
 .pb-td-sel .pb-grip + input { @apply ml-1.5; }
 .pb-th-sel input, .pb-td-sel input { @apply w-3.5 h-3.5 accent-[var(--primary)] cursor-pointer; }
 .pb-bulk { @apply fixed left-1/2 -translate-x-1/2 bottom-20 z-50 flex flex-wrap items-center gap-2 px-4 py-2.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--primary)] shadow-2xl; }

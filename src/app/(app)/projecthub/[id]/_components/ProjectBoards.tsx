@@ -46,7 +46,7 @@ import {
 const db = supabase as any;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 /** 표 칸 너비(px) — globals.css 의 .pbc-* 와 같은 값. 표의 최소 너비를 셈할 때 쓴다. */
-const COL_W = { sel: 34, name: 200, cell: 132, ratio: 96, doc: 110, tail: 60 };
+const COL_W = { sel: 58, name: 200, cell: 132, ratio: 96, doc: 110, tail: 60 };
 /** 칸마다 고르는 너비 — 머리의 ⋯ 에서 정한다. settings.width(px) 에 담으니 DB 구조는 안 바뀐다.
  *  (2026-08-06 사장님: "지금 칸이 너무 넓은 듯" — 기본을 줄이고, 긴 글이 드는 칸만 넓게 둘 수 있게) */
 const COL_WIDTHS: { key: string; label: string; px: number }[] = [
