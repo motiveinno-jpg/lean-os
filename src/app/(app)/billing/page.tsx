@@ -23,10 +23,10 @@ const db = supabase;
 type Tab = "plan" | "payment" | "invoices";
 type BillingCycle = "monthly" | "annual";
 
-// 2026-08-06 요금제 개편 — 무료(영구) + 오너뷰 19,000원 단일 유료. 구 티어는 기존 구독자 표시용으로만 남긴다.
+// 2026-08-06 요금제 개편 — 무료(영구) + 오너뷰 25,000원 단일 유료. 구 티어는 기존 구독자 표시용으로만 남긴다.
 const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommended?: boolean }> = {
-  free: { icon: "🎁", features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판 무제한", "세금계산서+현금영수증 합산 월 5건", "전자계약 월 5건", "AI 참모 월 10회", "은행·카드 연동은 유료 플랜에서"] },
-  standard: { icon: "⚡", recommended: true, features: ["기본 5명 포함 · 추가 1명 ₩5,000/월", "세금계산서+현금영수증 합산 월 100건", "전자계약 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집", "AI 대표 참모 월 50회"] },
+  free: { icon: "🎁", features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판 무제한", "세금계산서+현금영수증 합산 월 5건", "전자계약 월 5건", "AI 참모 월 5회", "은행·카드 연동은 유료 플랜에서"] },
+  standard: { icon: "⚡", recommended: true, features: ["기본 5명 포함 · 추가 1명 ₩5,000/월", "세금계산서+현금영수증 합산 월 100건", "전자계약 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집", "AI 대표 참모 월 100회"] },
   basic: { icon: "🚀", features: ["(구 요금제) 직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약 월 20건"] },
   ultra: { icon: "⚡", features: ["(구 요금제) 발행·전자계약 무제한", "은행·카드 동기화 무제한", "AI 브리핑"] },
   enterprise: { icon: "🏢", features: ["(구 요금제) 전담 온보딩 · 맞춤 개발", "SLA 보장"] },
@@ -438,7 +438,7 @@ function BillingPageInner() {
           <div>
             <div className="font-bold text-sm text-[var(--text)]">지금은 무료 플랜입니다</div>
             <div className="text-xs text-[var(--text-muted)] mt-0.5">
-              월 <b>19,000원</b>(VAT 별도)이면 세금계산서·현금영수증 합산 월 100건, 전자계약 무제한,
+              월 <b>25,000원</b>(VAT 별도)이면 세금계산서·현금영수증 합산 월 100건, 전자계약 무제한,
               <b> 은행·카드 전 계좌 하루 2회 자동 동기화</b>까지 열립니다. 기본 5명 포함, 추가 1명당 5,000원.
             </div>
             {/* 영업코드 — 입력하면 체험이 44일로 늘어난다. 코드가 없으면 비워두면 된다. */}

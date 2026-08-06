@@ -40,7 +40,7 @@ const SEAT_PRICE_MAP: Record<string, Record<BillingCycle, { base?: string; extra
     },
     includedSeats: 5,
   },
-  // 2026-08-06 요금제 개편 — 단일 유료 플랜(월 19,000원 + 추가좌석 5,000원, VAT 별도).
+  // 2026-08-06 요금제 개편 — 단일 유료 플랜(월 25,000원 + 추가좌석 5,000원, VAT 별도).
   //   Stripe 대시보드에서 price 를 만든 뒤 Vercel env 에 아래 4개를 등록해야 결제가 열린다.
   //   env 가 비어 있으면 checkout 이 400 으로 막히므로 잘못 결제될 위험은 없다.
   standard: {

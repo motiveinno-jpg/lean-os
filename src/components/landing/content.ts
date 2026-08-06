@@ -482,8 +482,8 @@ export const COMPETITORS = [
 ];
 
 export const PLANS = [
-  { name: "무료", slug: "free", regularPrice: null, price: "0", unit: "원", period: "카드 등록 없이 계속 무료", desc: "기능은 다 열려 있고, 횟수만 제한", hl: false, discount: null, features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판·문서함 무제한", "세금계산서+현금영수증 발행 합산 월 5건", "전자계약 월 5건", "AI 대표 참모 월 10회", "은행·카드 연동은 유료 플랜에서"] },
-  { name: "오너뷰", slug: "standard", regularPrice: null, price: "19,000", unit: "원/월", period: "VAT 별도 · 기본 5명 포함 · 추가 1명 ₩5,000/월", desc: "회사 하나를 통째로 굴리는 요금제", hl: true, discount: null, features: ["기본 5명 포함 · 추가 1명당 ₩5,000/월", "세금계산서+현금영수증 발행 합산 월 100건", "전자계약(서명) 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집 · 부가세 자료 정리", "AI 대표 참모 월 50회", "전자결재·근태·급여·프로젝트 전 기능 무제한"] },
+  { name: "무료", slug: "free", regularPrice: null, price: "0", unit: "원", period: "카드 등록 없이 계속 무료", desc: "기능은 다 열려 있고, 횟수만 제한", hl: false, discount: null, features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판·문서함 무제한", "세금계산서+현금영수증 발행 합산 월 5건", "전자계약 월 5건", "AI 대표 참모 월 5회", "은행·카드 연동은 유료 플랜에서"] },
+  { name: "오너뷰", slug: "standard", regularPrice: null, price: "25,000", unit: "원/월", period: "VAT 별도 · 기본 5명 포함 · 추가 1명 ₩5,000/월", desc: "회사 하나를 통째로 굴리는 요금제", hl: true, discount: null, features: ["기본 5명 포함 · 추가 1명당 ₩5,000/월", "세금계산서+현금영수증 발행 합산 월 100건", "전자계약(서명) 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집 · 부가세 자료 정리", "AI 대표 참모 월 100회", "전자결재·근태·급여·프로젝트 전 기능 무제한"] },
 ];
 
 export const FAQS = [

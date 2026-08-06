@@ -75,7 +75,7 @@ export default function PricingView() {
           <div className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Pricing</div>
             <h1 className="lp4-h2">무료로 시작하세요</h1>
-            <p className="lp4-sub">카드 등록 없이 계속 무료로 쓰고, 필요해지면 월 19,000원 하나만 결제하세요.</p>
+            <p className="lp4-sub">카드 등록 없이 계속 무료로 쓰고, 필요해지면 월 25,000원 하나만 결제하세요.</p>
           </div>
 
           <div className="lp4-price-grid">
