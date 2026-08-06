@@ -6948,3 +6948,26 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .adr-day-in { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
 .adr-day-edge { @apply bg-[var(--primary)] text-white font-bold; }
 .adr-note { @apply text-[11px] text-[var(--text-dim)]; }
+
+/* 세부 데이터(계층)와 광고 소재 카드 (2026-08-06 아드리엘 형식) */
+.adb-sub { @apply not-italic ml-1 font-normal text-[10.5px] text-[var(--text-dim)]; }
+.adb-name { @apply inline-flex items-center gap-1.5 min-w-0 max-w-[22rem]; }
+.adb-name > span { @apply truncate; }
+.adb-caret { @apply w-4 shrink-0 text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)]; }
+.adb-caret-none { @apply w-4 shrink-0 inline-block; }
+.adb-thumb { @apply w-6 h-6 shrink-0 rounded object-cover border border-[var(--border)]; }
+.adb-sub-row td { @apply bg-[var(--bg-surface)]/40; }
+.adb-creatives { @apply grid gap-2; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); }
+.adb-cre { @apply flex flex-col gap-1.5 p-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] min-w-0; }
+.adb-cre-img { @apply w-full h-28 rounded-lg object-cover bg-[var(--bg-surface)]; }
+.adb-cre-noimg { @apply w-full h-28 rounded-lg bg-[var(--bg-surface)] flex items-center justify-center text-[11px] text-[var(--text-dim)]; }
+.adb-cre-name { @apply text-[12px] font-bold text-[var(--text)] leading-snug line-clamp-2; }
+.adb-cre-head { @apply flex items-center gap-2; }
+.adb-cre-head em { @apply not-italic text-[10.5px] font-bold text-[var(--text-dim)]; }
+.adb-cre-on { @apply !text-[var(--success)]; }
+.adb-cre-head i { @apply not-italic ml-auto text-[11px] text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.adb-cre-m { @apply flex flex-col gap-0.5; }
+.adb-cre-m > div { @apply flex items-baseline justify-between gap-2; }
+.adb-cre-m dt { @apply text-[10.5px] text-[var(--text-dim)] truncate; }
+.adb-cre-m dd { @apply text-[11.5px] font-semibold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.adb-cre-link { @apply text-[11px] font-semibold text-[var(--primary)] hover:underline; }

@@ -50,6 +50,7 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [rangeOpen, setRangeOpen] = useState(false);
+  const [open, setOpen] = useState<Set<string>>(new Set());   // 세부 데이터에서 펼친 줄
 
   //   고른 지표는 표마다 기억한다 — 사람마다 보는 눈이 다르다
   useEffect(() => {
@@ -71,17 +72,31 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
     enabled: linked.length > 0 && !!since && !!until,
     queryFn: async () => {
       const data = logRead("AdDashboard:rows", await db.from("ad_metrics_daily")
-        .select("ad_account_id, platform, campaign_id, campaign_name, stat_date, impressions, clicks, cost, conversions, conv_value, raw")
+        .select("ad_account_id, platform, level, entity_id, campaign_id, campaign_name, stat_date, impressions, clicks, cost, conversions, conv_value, raw")
         .in("ad_account_id", linked).gte("stat_date", since).lte("stat_date", until)
-        .order("stat_date", { ascending: true }).limit(5000));
+        .order("stat_date", { ascending: true }).limit(20000));
       return (data || []) as any[];
     },
   });
 
-  const total = useMemo(() => aggregate(rows, picked), [rows, picked]);
+  //   계층(캠페인 > 광고그룹 > 소재)과 소재 정보 — 세부 데이터 표·소재 카드가 쓴다
+  const { data: entities = [] } = useQuery({
+    queryKey: ["ad-entities", linked.join()],
+    enabled: linked.length > 0,
+    queryFn: async () => {
+      const data = logRead("AdDashboard:entities", await db.from("ad_entities")
+        .select("ad_account_id, level, entity_id, parent_id, name, status, daily_budget, ad_type, image_url, link_url, price")
+        .in("ad_account_id", linked).limit(3000));
+      return (data || []) as any[];
+    },
+  });
+
+  //   숫자는 계층마다 따로 쌓여 있다 — 카드·추이는 캠페인 줄만 센다(중복 합산 방지)
+  const campaignRows = useMemo(() => rows.filter((r) => (r.level || "campaign") === "campaign"), [rows]);
+  const total = useMemo(() => aggregate(campaignRows, picked), [campaignRows, picked]);
   const byDay = useMemo<Row[]>(() => {
     const m = new Map<string, any[]>();
-    for (const r of rows) {
+    for (const r of campaignRows) {
       const cur = m.get(r.stat_date) || [];
       cur.push(r);
       m.set(r.stat_date, cur);
@@ -93,10 +108,10 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
       out.push({ date: d, ...aggregate(m.get(d) || [], picked) });
     }
     return out;
-  }, [rows, picked, since, until]);
+  }, [campaignRows, picked, since, until]);
   const byCampaign = useMemo(() => {
     const m = new Map<string, { name: string; rows: any[] }>();
-    for (const r of rows) {
+    for (const r of campaignRows) {
       const k = `${r.ad_account_id}:${r.campaign_id}`;
       const cur = m.get(k) || { name: String(r.campaign_name || r.campaign_id), rows: [] as any[] };
       cur.rows.push(r);
@@ -105,7 +120,37 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
     }
     return [...m.entries()].map(([k, v]) => ({ key: k, name: v.name, ...aggregate(v.rows, picked) }) as Row)
       .sort((a, b) => (Number(b.cost) || 0) - (Number(a.cost) || 0));
+  }, [campaignRows, picked]);
+
+  //   세부 데이터 — 계층 그대로. 펼친 줄만 아래를 그린다(아드리엘의 '채널 > 캠페인 > 광고세트 > 소재')
+  const byEntity = useMemo(() => {
+    const m = new Map<string, any[]>();
+    for (const r of rows) {
+      const k = `${r.level || "campaign"}:${r.entity_id}`;
+      const cur = m.get(k) || [];
+      cur.push(r);
+      m.set(k, cur);
+    }
+    const out: Record<string, Record<string, number>> = {};
+    for (const [k, rs] of m) out[k] = aggregate(rs, picked);
+    return out;
   }, [rows, picked]);
+  const kids = useMemo(() => {
+    const m = new Map<string, any[]>();
+    for (const e of entities) {
+      const k = e.parent_id || "__root__";
+      const cur = m.get(k) || [];
+      cur.push(e);
+      m.set(k, cur);
+    }
+    for (const [, arr] of m) {
+      arr.sort((a, b) => (Number(byEntity[`${b.level}:${b.entity_id}`]?.cost) || 0) - (Number(byEntity[`${a.level}:${a.entity_id}`]?.cost) || 0));
+    }
+    return m;
+  }, [entities, byEntity]);
+  const creatives = useMemo(() => entities.filter((e) => e.level === "ad")
+    .map((e) => ({ ...e, m: byEntity[`ad:${e.entity_id}`] || {} }))
+    .sort((a, b) => (Number(b.m.cost) || 0) - (Number(a.m.cost) || 0)), [entities, byEntity]);
 
   const syncNow = async () => {
     if (linked.length === 0) { toast("먼저 광고 계정을 고르세요.", "error"); return; }
@@ -231,29 +276,59 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
           <span className="adb-axis"><em>{byDay[0]?.date?.slice(5)}</em><em>{byDay[byDay.length - 1]?.date?.slice(5)}</em></span>
         </div>
 
-        {/* 캠페인별 표 — 고른 지표가 그대로 칸이 된다 */}
+        {/* 세부 데이터 — 캠페인 > 광고그룹 > 소재. 삼각형을 눌러 펼친다 (2026-08-06 아드리엘 형식) */}
         <div className="adb-block">
-          <b className="adb-h">캠페인별</b>
+          <b className="adb-h">세부 데이터 <em className="adb-sub">캠페인 › 광고그룹 › 소재</em></b>
           <div className="adb-tablewrap">
             <table className="adb-table">
               <thead>
-                <tr><th>캠페인</th>{shown.map((m) => <th key={m.key}>{m.label}</th>)}</tr>
+                <tr><th>이름</th><th>상태</th>{shown.map((m) => <th key={m.key}>{m.label}</th>)}</tr>
               </thead>
               <tbody>
-                {byCampaign.map((c) => (
-                  <tr key={c.key}>
-                    <td title={c.name}>{c.name}</td>
-                    {shown.map((m) => <td key={m.key}>{formatMetric(m.key, (c as any)[m.key] ?? 0)}</td>)}
-                  </tr>
+                {(kids.get("__root__") || []).map((c: any) => (
+                  <EntityRows key={c.entity_id} node={c} depth={0} kids={kids} byEntity={byEntity}
+                    shown={shown} open={open} onToggle={(id) => setOpen((prev) => {
+                      const n = new Set(prev);
+                      if (n.has(id)) n.delete(id); else n.add(id);
+                      return n;
+                    })} />
                 ))}
                 <tr className="adb-sum">
-                  <td>합계</td>
+                  <td>합계</td><td />
                   {shown.map((m) => <td key={m.key}>{formatMetric(m.key, total[m.key] ?? 0)}</td>)}
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
+
+        {/* 광고 소재 — 이미지와 성과를 카드로 (쇼핑검색광고는 상품 이미지가 온다) */}
+        {creatives.length > 0 && (
+          <div className="adb-block">
+            <b className="adb-h">광고 소재 <em className="adb-sub">{creatives.length}개</em></b>
+            <div className="adb-creatives">
+              {creatives.map((c: any) => (
+                <div key={c.entity_id} className="adb-cre">
+                  {c.image_url
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={c.image_url} alt={c.name || "소재"} className="adb-cre-img" loading="lazy" />
+                    : <span className="adb-cre-noimg">이미지 없음</span>}
+                  <b className="adb-cre-name" title={c.name || ""}>{c.name || "(이름 없음)"}</b>
+                  <span className="adb-cre-head">
+                    <em className={c.status === "ELIGIBLE" ? "adb-cre-on" : ""}>{c.status === "ELIGIBLE" ? "활성" : (c.status || "-")}</em>
+                    {c.price ? <i>{Math.round(c.price).toLocaleString("ko-KR")}원</i> : null}
+                  </span>
+                  <dl className="adb-cre-m">
+                    {shown.slice(0, 6).map((m) => (
+                      <div key={m.key}><dt>{m.label}</dt><dd>{formatMetric(m.key, c.m[m.key] ?? 0)}</dd></div>
+                    ))}
+                  </dl>
+                  {c.link_url && <a href={c.link_url} target="_blank" rel="noopener noreferrer" className="adb-cre-link">상품 보기 →</a>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 날짜별 표 — 아드리엘의 '일별 데이터' 자리 */}
         <div className="adb-block">
@@ -326,5 +401,46 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
         </div>
       )}
     </div>
+  );
+}
+
+/** 세부 데이터 한 줄과 그 아래 — 캠페인 > 광고그룹 > 소재를 같은 규칙으로 그린다.
+ *  펼친 줄만 아래를 그린다(다 펼쳐 두면 소재가 많은 계정에서 표가 못 쓰게 된다). */
+function EntityRows({ node, depth, kids, byEntity, shown, open, onToggle }: {
+  node: any; depth: number;
+  kids: Map<string, any[]>;
+  byEntity: Record<string, Record<string, number>>;
+  shown: { key: string; label: string }[];
+  open: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  const key = `${node.level}:${node.entity_id}`;
+  const m = byEntity[key] || {};
+  const children = kids.get(node.entity_id) || [];
+  const isOpen = open.has(node.entity_id);
+  return (
+    <>
+      <tr className={depth > 0 ? "adb-sub-row" : ""}>
+        <td>
+          <span className="adb-name" style={{ paddingLeft: depth * 14 }}>
+            {children.length > 0
+              ? <button type="button" className="adb-caret" onClick={() => onToggle(node.entity_id)}
+                  aria-expanded={isOpen}>{isOpen ? "▾" : "▸"}</button>
+              : <i className="adb-caret-none" />}
+            {node.image_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={node.image_url} alt="" className="adb-thumb" loading="lazy" />
+            )}
+            <span title={node.name || ""}>{node.name || node.entity_id}</span>
+          </span>
+        </td>
+        <td>{node.status === "ELIGIBLE" ? "활성" : (node.status || "-")}</td>
+        {shown.map((c) => <td key={c.key}>{formatMetric(c.key, m[c.key] ?? 0)}</td>)}
+      </tr>
+      {isOpen && children.map((c: any) => (
+        <EntityRows key={c.entity_id} node={c} depth={depth + 1} kids={kids} byEntity={byEntity}
+          shown={shown} open={open} onToggle={onToggle} />
+      ))}
+    </>
   );
 }
