@@ -85,9 +85,14 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
       cur.push(r);
       m.set(r.stat_date, cur);
     }
-    return [...m.entries()].sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, rs]) => ({ date, ...aggregate(rs, picked) }));
-  }, [rows, picked]);
+    //   고른 기간의 모든 날을 세운다 — 집행이 없던 날도 자리를 지켜야 '언제 몰아 썼는지'가 보인다
+    const out: Row[] = [];
+    for (let t0 = new Date(`${since}T00:00:00`).getTime(); t0 <= new Date(`${until}T00:00:00`).getTime(); t0 += 86_400_000) {
+      const d = new Date(t0).toISOString().slice(0, 10);
+      out.push({ date: d, ...aggregate(m.get(d) || [], picked) });
+    }
+    return out;
+  }, [rows, picked, since, until]);
   const byCampaign = useMemo(() => {
     const m = new Map<string, { name: string; rows: any[] }>();
     for (const r of rows) {

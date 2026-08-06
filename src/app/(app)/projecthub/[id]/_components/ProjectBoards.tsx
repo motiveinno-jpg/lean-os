@@ -931,7 +931,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           value={presetName} onCancel={() => setPresetName(null)} onSave={saveBoardAsPreset} />
       )}
 
-      <div className="pb-bar2">
+      {/* 광고 표는 입력이 없어 이 줄(입력·보기·필터)이 가리킬 곳이 없다 — 통째로 감춘다 (2026-08-06) */}
+      {!isAds && <div className="pb-bar2">
         {/* 입력은 왼쪽, 보기는 오른쪽 — 한 상자에 붙여 놓으니 되레 안 읽혔다(2026-08-05).
             라벨은 상자 안쪽의 눌리지 않는 글씨로 둬 버튼과 헷갈리지 않게 한다. */}
         <div className="pb-views" role="group" aria-label="입력 방식">
@@ -975,7 +976,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             {hiddenCount > 0 && <em>{hiddenCount}건 숨김</em>}
           </span>
         )}
-      </div>
+      </div>}
 
       {renaming && board && (
         <input autoFocus defaultValue={board.name} className="pb-rename"
