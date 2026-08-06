@@ -55,6 +55,10 @@ const COL_WIDTHS: { key: string; label: string; px: number }[] = [
   { key: "wide", label: "넓게", px: 210 },
 ];
 const widthOf = (c: BoardColumn) => Number(c.settings?.width) || COL_W.cell;
+/** 첫 칸(행 이름)의 슬롯 id — 칸 id 와 섞이지 않게 예약어를 쓴다 */
+const NAME_SLOT = "__name__";
+/** 표 머리에 서는 차례 — 첫 칸과 값 칸들을 한 줄로 세운 것. 끌어 옮기기는 이 차례를 바꾼다. */
+type Slot = { id: string; col: BoardColumn | null };
 /** 값 정렬 — 쳐 넣는 글자는 왼쪽, 숫자는 오른쪽(자릿수를 맞춰 읽는다),
  *  고르는 값(담당·거래처·라벨)은 가운데 (2026-08-06 사장님 지시) */
 //   날짜도 가운데 — 자릿수가 늘 같아 가운데로 두면 줄이 눈에 잘 맞는다(2026-08-06 사장님 지시)
@@ -105,12 +109,19 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [overGroup, setOverGroup] = useState<string | null>(null);   // 손이 올라가 있는 구획(그룹)
   //   눌린 자리 — 5px 넘게 움직여야 끌기로 친다(그냥 눌렀다 뗀 것과 구분). 렌더를 안 흔들려고 ref
   const pressRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  // 머리에서 칸 순서 바꾸기 — 첫 칸('항목')도 같이 옮긴다(2026-08-06 사장님 지시:
+  //   "항목을 끌어서 구분과 숫자 사이에 놓을 수 있도록"). 슬롯 id 는 칸 id, 첫 칸은 NAME_SLOT.
+  const [colDrag, setColDrag] = useState<string | null>(null);
+  const [colOver, setColOver] = useState<string | null>(null);
+  //   놓는 자리 — 목표 칸의 왼쪽 절반이면 그 앞, 오른쪽 절반이면 그 뒤(맨 끝으로도 보낼 수 있게)
+  const [colAfter, setColAfter] = useState(false);
+  const colPressRef = useRef<{ id: string; x: number; y: number } | null>(null);
 
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ["pb-boards", dealId],
     queryFn: async () => {
       const data = logRead("ProjectBoards:boards", await db.from("project_boards")
-        .select("id, name, template_key, name_label, position").eq("deal_id", dealId).is("archived_at", null)
+        .select("id, name, template_key, name_label, name_pos, position").eq("deal_id", dealId).is("archived_at", null)
         .order("position", { ascending: true }));
       return (data || []) as any[];
     },
@@ -622,6 +633,31 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
+  // 머리에서 칸 끌어 옮기기 — 첫 칸('항목')까지 한 줄에 놓고 차례를 다시 매긴다.
+  //   값 칸은 position 을, 첫 칸은 표의 name_pos 를 고친다(2026-08-06 사장님 지시).
+  const moveColumnTo = async (dragId: string, targetId: string, after: boolean) => {
+    setColDrag(null); setColOver(null);
+    if (dragId === targetId) return;
+    const next = slots.map((s) => s.id).filter((id) => id !== dragId);
+    const at = next.indexOf(targetId);
+    if (at < 0) return;
+    next.splice(after ? at + 1 : at, 0, dragId);
+    const reqs: Promise<any>[] = [];
+    //   값 칸: 첫 칸을 뺀 순서가 곧 position
+    const colOrder = next.filter((id) => id !== NAME_SLOT);
+    colOrder.forEach((id, i) => {
+      const c = cols.find((x) => x.id === id);
+      if (c && c.position !== i) reqs.push(db.from("project_board_columns").update({ position: i }).eq("id", id));
+    });
+    const nextNamePos = next.indexOf(NAME_SLOT);
+    if (nextNamePos !== namePos) reqs.push(db.from("project_boards").update({ name_pos: nextNamePos }).eq("id", boardId));
+    const res = await Promise.all(reqs);
+    const bad = res.find((r: any) => r?.error);
+    if (bad) { toast(bad.error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+    qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
+  };
+
   // 칸 복제 — 같은 형식·라벨의 칸을 바로 오른쪽에 하나 더. 값은 칸 id 에 매여 있어 따라오지 않는다.
   const duplicateColumn = async (c: BoardColumn) => {
     const pos = c.position + 1;
@@ -829,6 +865,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     return { plan: a, real: b };
   })();
   const numberCols = cols.filter((c) => c.type === "number");
+  //   머리에 서는 차례 — 값 칸들 사이 어디에 첫 칸이 끼는지는 표가 기억한다(name_pos, 없으면 맨 앞)
+  const namePos = Math.min(Math.max(Number(board?.name_pos) || 0, 0), cols.length);
+  const slots: Slot[] = (() => {
+    const list: Slot[] = cols.map((c) => ({ id: c.id, col: c }));
+    list.splice(namePos, 0, { id: NAME_SLOT, col: null });
+    return list;
+  })();
+  const widthOfSlot = (s: Slot) => (s.col ? widthOf(s.col) : COL_W.name);
 
   return (
     <div className="pb">
@@ -1155,13 +1199,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               {/* 칸 너비를 표가 알아서 정하게 두면 머리글에 든 것(단위 칸·라벨 버튼)에 따라 칸마다 폭이
                   달라진다 — 값이 같은 종류인데 상자 넓이가 제각각으로 보였다(2026-08-05 사장님 지시).
                   칸 너비를 colgroup 으로 못 박고, 화면이 좁으면 가로로 스크롤한다. */}
-              <table className="pb-table" style={{ minWidth: COL_W.sel + COL_W.name + cols.reduce((n, c) => n + widthOf(c), 0)
+              <table className="pb-table" style={{ minWidth: COL_W.sel + slots.reduce((n, s) => n + widthOfSlot(s), 0)
                 + (ratioPair ? COL_W.ratio : 0) + (isBilling ? COL_W.doc : 0) + COL_W.tail }}>
                 <colgroup>
                   <col className="pbc-sel" />
-                  <col className="pbc-name" />
-                  {/* 칸마다 너비를 따로 준다 — 머리 ⋯ 의 '칸 너비'에서 고른 값(기본 보통) */}
-                  {cols.map((c) => <col key={c.id} style={{ width: widthOf(c) }} />)}
+                  {/* 칸마다 너비를 따로 준다 — 머리 ⋯ 의 '칸 너비'에서 고른 값(기본 보통).
+                      첫 칸('항목')도 이 줄에 섞여 있어 끌어 옮긴 자리에 그대로 선다 */}
+                  {slots.map((s) => <col key={s.id} style={{ width: widthOfSlot(s) }} />)}
                   {ratioPair && <col className="pbc-ratio" />}
                   {isBilling && <col className="pbc-doc" />}
                   <col className="pbc-tail" />
@@ -1177,49 +1221,91 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           return n;
                         })} />
                     </th>
-                    <th className="pb-th-name">
-                      {/* 첫 칸도 이름을 바꾼다 — 다른 칸과 같은 자리·같은 방법(2026-08-05 사장님 지시) */}
-                      <span className="pb-th-in">
-                        <input key={`nl-${boardId}-${nameLabel}`} defaultValue={nameLabel} className="pb-col-name"
-                          title="첫 칸 머리글 — 비우면 기본으로 돌아갑니다"
-                          onBlur={(e) => renameNameColumn(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
-                      </span>
-                    </th>
-                    {cols.map((c) => (
-                      <th key={c.id} className={c.type === "number" ? "pb-th-num" : ""}>
-                        <span className="pb-th-in">
-                          <input defaultValue={c.name} className="pb-col-name"
-                            onBlur={(e) => renameColumn(c, e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
-                          {/* 지금 이 칸으로 정렬·필터 중이면 머리에서 바로 보이게 — 끄는 것도 여기서
-                              (나머지 조작은 전부 ⋯ 안으로 옮겼다. 머리에 단추가 셋이면 칸이 그만큼 넓어진다).
-                              머리글을 가운데로 맞추려고 표시·⋯ 는 흐름에서 빼 양옆에 띄운다(2026-08-06 사장님 지시) */}
-                          <span className="pb-th-marks">
-                            {sort?.colId === c.id && (
-                              <button type="button" className="pb-col-mark" title="정렬 끄기" onClick={() => setSort(null)}>
-                                {sort.dir === "asc" ? "▲" : "▼"}
-                              </button>
-                            )}
-                            {(valueFilters[c.id]?.length || 0) > 0 && (
-                              <button type="button" className="pb-col-mark pb-col-mark-flt" title="이 칸 필터 끄기"
-                                onClick={() => setValueFilters((prev) => { const n = { ...prev }; delete n[c.id]; return n; })}>▼</button>
-                            )}
+                    {/* 머리 칸은 끌어서 자리를 바꾼다 — 첫 칸('항목')도 값 칸들 사이로 끼워 넣을 수 있다
+                        (2026-08-06 사장님: "항목을 끌어서 구분과 숫자 사이에 놓을 수 있도록").
+                        줄 옮기기와 같은 방식: 입력기·단추 위가 아닌 곳에서 5px 넘게 움직이면 끌기. */}
+                    {slots.map((s) => {
+                      const c = s.col;
+                      const dragProps = {
+                        "data-slot": s.id,
+                        onPointerDown: (e: React.PointerEvent) => {
+                          if (e.button !== 0) return;
+                          if ((e.target as HTMLElement).closest("input,select,button,textarea,a,label")) return;
+                          colPressRef.current = { id: s.id, x: e.clientX, y: e.clientY };
+                          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                        },
+                        onPointerMove: (e: React.PointerEvent) => {
+                          const p = colPressRef.current;
+                          if (!p || p.id !== s.id) return;
+                          if (colDrag !== s.id) {
+                            if (Math.abs(e.clientX - p.x) < 5 && Math.abs(e.clientY - p.y) < 5) return;
+                            setColDrag(s.id);
+                          }
+                          const el = document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-slot]") as HTMLElement | null;
+                          const over = el?.getAttribute("data-slot") || null;
+                          const box = el?.getBoundingClientRect();
+                          setColOver(over === s.id ? null : over);
+                          setColAfter(!!box && e.clientX > box.left + box.width / 2);
+                        },
+                        onPointerUp: (e: React.PointerEvent) => {
+                          const p = colPressRef.current;
+                          colPressRef.current = null;
+                          try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* 이미 풀림 */ }
+                          if (!p || p.id !== s.id || colDrag !== s.id) return;
+                          if (colOver) moveColumnTo(s.id, colOver, colAfter);
+                          else { setColDrag(null); setColOver(null); }
+                        },
+                        onPointerCancel: () => { colPressRef.current = null; setColDrag(null); setColOver(null); },
+                        className: `${c?.type === "number" ? "pb-th-num" : ""} ${!c ? "pb-th-name" : ""}`
+                          + `${colDrag === s.id ? " pb-th-drag" : ""}`
+                          + `${colOver === s.id ? (colAfter ? " pb-th-over-after" : " pb-th-over") : ""}`,
+                      };
+                      //   첫 칸 — 머리글만 바꾼다(값 칸처럼 형식·라벨이 없다)
+                      if (!c) return (
+                        <th key={s.id} {...dragProps}>
+                          <span className="pb-th-in">
+                            <span className="pb-th-marks"><span className="pb-th-grip" title="끌어서 칸 자리 옮기기">⠿</span></span>
+                            <input key={`nl-${boardId}-${nameLabel}`} defaultValue={nameLabel} className="pb-col-name"
+                              title="첫 칸 머리글 — 비우면 기본으로 돌아갑니다"
+                              onBlur={(e) => renameNameColumn(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
                           </span>
-                          {/* 그 칸에 대한 모든 것을 한 자리로 — 정렬·필터·너비·라벨·단위·복제·칸 추가·삭제
-                              (2026-08-06 사장님 지시: "컬럼들, 이런 식으로 기능을 넣어 주는 게 좋겠다") */}
-                          <ColumnMenu col={c}
-                            sortDir={sort?.colId === c.id ? sort.dir : null}
-                            filtered={(valueFilters[c.id]?.length || 0) > 0}
-                            onSort={(dir) => setSort(dir ? { colId: c.id, dir } : null)}
-                            onFilter={() => setFilterPanel(c.id)}
-                            onSaveSettings={(patch) => saveColSettings(c, patch)}
-                            onAddRight={(t) => addColumn(t, c)}
-                            onDuplicate={() => duplicateColumn(c)}
-                            onRemove={() => removeColumn(c)} />
-                        </span>
-                      </th>
-                    ))}
+                        </th>
+                      );
+                      return (
+                        <th key={s.id} {...dragProps}>
+                          <span className="pb-th-in">
+                            <input defaultValue={c.name} className="pb-col-name"
+                              onBlur={(e) => renameColumn(c, e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                            {/* 손잡이와, 지금 이 칸에 걸린 정렬·필터 표시 — 머리글을 가운데로 맞추려고
+                                흐름에서 빼 왼쪽에 띄운다. 조작은 전부 ⋯ 안에 있다(2026-08-06) */}
+                            <span className="pb-th-marks">
+                              <span className="pb-th-grip" title="끌어서 칸 자리 옮기기">⠿</span>
+                              {sort?.colId === c.id && (
+                                <button type="button" className="pb-col-mark" title="정렬 끄기" onClick={() => setSort(null)}>
+                                  {sort.dir === "asc" ? "▲" : "▼"}
+                                </button>
+                              )}
+                              {(valueFilters[c.id]?.length || 0) > 0 && (
+                                <button type="button" className="pb-col-mark pb-col-mark-flt" title="이 칸 필터 끄기"
+                                  onClick={() => setValueFilters((prev) => { const n = { ...prev }; delete n[c.id]; return n; })}>▼</button>
+                              )}
+                            </span>
+                            {/* 그 칸에 대한 모든 것을 한 자리로 — 정렬·필터·너비·라벨·단위·복제·칸 추가·삭제 */}
+                            <ColumnMenu col={c}
+                              sortDir={sort?.colId === c.id ? sort.dir : null}
+                              filtered={(valueFilters[c.id]?.length || 0) > 0}
+                              onSort={(dir) => setSort(dir ? { colId: c.id, dir } : null)}
+                              onFilter={() => setFilterPanel(c.id)}
+                              onSaveSettings={(patch) => saveColSettings(c, patch)}
+                              onAddRight={(t) => addColumn(t, c)}
+                              onDuplicate={() => duplicateColumn(c)}
+                              onRemove={() => removeColumn(c)} />
+                          </span>
+                        </th>
+                      );
+                    })}
                     {ratioPair && <th className="pb-th-ratio">{ratioPair.real.name}률</th>}
                     {isBilling && <th className="pb-th-doc">견적서</th>}
                     <th className="pb-th-x">
@@ -1280,29 +1366,31 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                             return n;
                           })} />
                       </td>
-                      <td className="pb-td-name">
-                        <span className="pb-name-cell">
-                          <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
-                            onBlur={(e) => saveName(it, e.target.value)}
-                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                            className="pb-in" />
-                          <button type="button" className="pb-open" title="열기 — 메모·파일" onClick={() => setOpenItemId(it.id)}>⤢</button>
-                          <button type="button" className="pb-open" title="한 줄 복제" onClick={() => duplicateItem(it)}>⧉</button>
-                        </span>
-                      </td>
-                      {cols.map((c) => (
-                        <td key={c.id} className={tdAlign(c.type)}>
-                          <Cell col={c} item={it} users={users} partners={partners as any[]} companyId={companyId}
+                      {/* 값 줄도 머리와 같은 차례로 — 첫 칸이 가운데로 끼어 있으면 값도 그 자리에 선다 */}
+                      {slots.map((s) => (s.col ? (
+                        <td key={s.id} className={tdAlign(s.col.type)}>
+                          <Cell col={s.col} item={it} users={users} partners={partners as any[]} companyId={companyId}
                             onPartnerCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })}
                             onFillDown={() => {
                               // 엑셀 습관 그대로 — 바로 윗줄 값을 끌어온다
                               const idx = rows.findIndex((r) => r.id === it.id);
                               const above = idx > 0 ? rows[idx - 1] : null;
-                              if (above) saveValue(it, c.id, above.values?.[c.id] ?? null);
+                              if (above) saveValue(it, s.col!.id, above.values?.[s.col!.id] ?? null);
                             }}
-                            onSave={(v) => saveValue(it, c.id, v)} />
+                            onSave={(v) => saveValue(it, s.col!.id, v)} />
                         </td>
-                      ))}
+                      ) : (
+                        <td key={s.id} className="pb-td-name">
+                          <span className="pb-name-cell">
+                            <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
+                              onBlur={(e) => saveName(it, e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                              className="pb-in" />
+                            <button type="button" className="pb-open" title="열기 — 메모·파일" onClick={() => setOpenItemId(it.id)}>⤢</button>
+                            <button type="button" className="pb-open" title="한 줄 복제" onClick={() => duplicateItem(it)}>⧉</button>
+                          </span>
+                        </td>
+                      )))}
                       {ratioPair && (
                         <td className="pb-td-ratio">
                           <RatioBar plan={Number(it.values?.[ratioPair.plan.id]) || 0} real={Number(it.values?.[ratioPair.real.id]) || 0} />
@@ -1320,18 +1408,17 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       </td>
                     </tr>
                   ))}
-                  <QuickAddRow key={`qa-${g.id}`} nameLabel={nameLabel} cols={cols} users={users}
+                  <QuickAddRow key={`qa-${g.id}`} nameLabel={nameLabel} slots={slots} users={users}
                     extraCells={(ratioPair ? 1 : 0) + (isBilling ? 1 : 0)}
                     onAdd={(name, values) => addItem(g.id, values, name)} />
                   {rows.length > 0 && numberCols.length > 0 && (
                     <tr className="pb-sum">
                       <td />
-                      <td>합계</td>
-                      {cols.map((c) => (
-                        <td key={c.id} className={tdAlign(c.type)}>
-                          {c.type === "number" ? won(sumColumn(rows, c.id)) : ""}
+                      {slots.map((s) => (s.col ? (
+                        <td key={s.id} className={tdAlign(s.col.type)}>
+                          {s.col.type === "number" ? won(sumColumn(rows, s.col.id)) : ""}
                         </td>
-                      ))}
+                      ) : <td key={s.id}>합계</td>))}
                       {ratioPair && <td />}
                       {isBilling && <td />}
                       <td />
@@ -1355,8 +1442,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 //   → 이름 + 첫 숫자 + 첫 날짜만 받던 것을 **표의 모든 칸을 그대로** 받도록 바꿨다.
 //     칸마다 자기 자리(td)에 입력기가 서므로 머리글과 세로로 맞는다.
 //   Enter 를 치면 저장하고 이름 칸으로 커서가 돌아온다 — 여러 건을 연달아 넣을 때가 많다.
-function QuickAddRow({ nameLabel, cols, users, extraCells, onAdd }: {
-  nameLabel: string; cols: BoardColumn[]; users: { id: string; name: string }[];
+function QuickAddRow({ nameLabel, slots, users, extraCells, onAdd }: {
+  /** 머리와 같은 차례 — 첫 칸이 가운데로 끼어 있으면 입력 줄도 그 자리에 선다 */
+  nameLabel: string; slots: Slot[]; users: { id: string; name: string }[];
   /** 비율·문서처럼 머리글에만 있는 칸 수 — 빈 칸으로 채워 자리를 맞춘다 */
   extraCells: number;
   onAdd: (name: string, values: Record<string, any>) => Promise<void> | void;
@@ -1384,15 +1472,16 @@ function QuickAddRow({ nameLabel, cols, users, extraCells, onAdd }: {
   return (
     <tr className="pb-quick">
       <td className="pb-td-sel" />
-      <td className="pb-td-name">
-        <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onKey}
-          placeholder={`＋ ${nameLabel} 입력하고 Enter`} className="pb-quick-name" />
-      </td>
-      {cols.map((c) => (
-        <td key={c.id} className={tdAlign(c.type)} onKeyDown={onKey}>
-          <QuickCell col={c} users={users} value={values[c.id] ?? ""} onChange={(v) => set(c.id, v)} />
+      {slots.map((s) => (s.col ? (
+        <td key={s.id} className={tdAlign(s.col.type)} onKeyDown={onKey}>
+          <QuickCell col={s.col} users={users} value={values[s.col.id] ?? ""} onChange={(v) => set(s.col!.id, v)} />
         </td>
-      ))}
+      ) : (
+        <td key={s.id} className="pb-td-name">
+          <input ref={nameRef} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={onKey}
+            placeholder={`＋ ${nameLabel} 입력하고 Enter`} className="pb-quick-name" />
+        </td>
+      )))}
       {Array.from({ length: extraCells }, (_, i) => <td key={`x${i}`} />)}
       <td className="pb-td-x">
         <button type="button" onClick={submit} disabled={busy || !name.trim()} className="pb-quick-go">

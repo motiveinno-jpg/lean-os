@@ -6078,7 +6078,14 @@ td .rounded-full { white-space: nowrap; }
 /* 지금 이 칸에 정렬·필터가 걸려 있다는 표시 — 눌러서 바로 끈다 (2026-08-06).
    조작 단추를 머리에 늘어놓으면 그만큼 칸이 넓어져 전부 ⋯ 안으로 옮겼다.
    머리글이 칸 가운데로 오도록 표시·⋯ 는 흐름에서 빼 양옆에 겹쳐 둔다 */
-.pb-th-marks { @apply absolute left-0 top-1/2 -translate-y-1/2 flex items-center; }
+.pb-th-marks { @apply absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5; }
+/* 머리 칸 손잡이 — 끌어서 칸 자리를 바꾼다 (2026-08-06). 실제 끌기는 머리 칸(th) 이 받는다 */
+.pb-th-grip { @apply text-[10px] leading-none text-[var(--text-dim)] opacity-50 cursor-grab select-none touch-none transition hover:text-[var(--primary)] active:cursor-grabbing; }
+th:hover .pb-th-grip { @apply opacity-100; }
+/* 끌고 있는 머리 칸은 흐리게, 놓을 자리는 왼쪽에 선으로 */
+.pb-th-drag { @apply opacity-50; }
+.pb-th-over { box-shadow: inset 3px 0 0 var(--primary); }
+.pb-th-over-after { box-shadow: inset -3px 0 0 var(--primary); }
 .pb-col-mark { @apply shrink-0 w-3.5 text-[8px] text-[var(--primary)] hover:opacity-70; }
 .pb-col-mark-flt { @apply text-[var(--success)]; }
 /* 그 칸에 관한 나머지(라벨·단위·삭제)는 ⋯ 한 자리로 모았다 (2026-08-05) */
