@@ -63,7 +63,13 @@ async function naverGet(sec: Secret, customerId: string, path: string, query: Re
     },
   });
   const text = await res.text();
-  if (!res.ok) throw new Error(`네이버 ${path} ${res.status}: ${text.slice(0, 300)}`);
+  if (!res.ok) {
+    //   원문 JSON 을 그대로 흘리면 화면에서 읽을 수가 없다 — 무엇을 고쳐야 하는지로 바꿔 준다
+    const err = new Error(`네이버 ${path} ${res.status}: ${text.slice(0, 300)}`) as Error & { status?: number; authFailed?: boolean };
+    err.status = res.status;
+    err.authFailed = res.status === 401 || res.status === 403 || text.includes("auth-failed");
+    throw err;
+  }
   return text ? JSON.parse(text) : null;
 }
 
@@ -164,7 +170,23 @@ serve(withSentry("ads-sync", async (req: Request) => {
           results.push({ id: acc.id, label: acc.label, ok: false, error: "아직 네이버 검색광고만 가져옵니다" });
           continue;
         }
-        const r = await syncNaverSA(acc, sec);
+        let r;
+        try {
+          r = await syncNaverSA(acc, sec);
+        } catch (e) {
+          //   인증이 막히면 **키와 비밀키를 바꿔** 한 번 더 해 본다 — 둘 다 0100000000… 로 시작해
+          //   서로 바꿔 넣는 일이 잦다(2026-08-06 사장님 첫 등록에서 발생). 되면 무엇이 문제인지 알려 준다.
+          const auth = (e as { authFailed?: boolean })?.authFailed;
+          if (!auth) throw e;
+          let swapWorks = false;
+          try {
+            await naverCampaigns({ api_key: sec.api_secret, api_secret: sec.api_key }, acc.external_id);
+            swapWorks = true;
+          } catch { /* 바꿔도 안 되면 아래 안내로 */ }
+          throw new Error(swapWorks
+            ? "API 키와 비밀키가 서로 바뀌어 있습니다. 설정에서 두 값을 맞바꿔 다시 저장해 주세요."
+            : `네이버가 인증을 거부했습니다(Auth Failed). 확인할 것 — ①API 키·비밀키를 한 글자도 빠짐없이 복사했는지 ②CUSTOMER ID(${acc.external_id})가 그 키를 발급한 광고주 계정이 맞는지 ③검색광고 > 도구 > API 사용 관리에서 키가 '사용' 상태인지.`);
+        }
         await admin.from("ad_accounts")
           .update({ status: "connected", sync_error: null, last_synced_at: new Date().toISOString() })
           .eq("id", acc.id);
