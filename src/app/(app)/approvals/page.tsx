@@ -49,7 +49,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useAvatarMap } from "@/hooks/use-avatar-map";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { generateApprovalPdf } from "@/lib/document-generator";
-import { openStoredFile, resolveSignedUrl } from "@/lib/file-storage";
+import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 
 const db = supabase;
 
@@ -186,7 +186,7 @@ function AttachmentList({ attachments }: { attachments?: string[] }) {
           <button
             key={i}
             type="button"
-            onClick={(e) => { e.stopPropagation(); openStoredFile(url, attachmentFileName(url)); }}
+            onClick={(e) => { e.stopPropagation(); downloadStoredFile(url, attachmentFileName(url)); }}
             className="inline-flex items-center gap-2 pl-2 pr-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
           >
             <span className="w-6 h-6 rounded-lg bg-[var(--success)]/12 text-[var(--success)] flex items-center justify-center shrink-0">
@@ -4354,7 +4354,7 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
                         <img src={url} alt={attachmentFileName(url)} className="max-h-28 max-w-[180px] rounded-lg border border-[var(--border)] object-cover" />
                       </button>
                     ) : (
-                      <button key={i} type="button" onClick={() => openStoredFile(url, attachmentFileName(url))}
+                      <button key={i} type="button" onClick={() => downloadStoredFile(url, attachmentFileName(url))}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] font-medium text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40">
                         <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
                         <span className="truncate max-w-[160px]">{attachmentFileName(url)}</span>

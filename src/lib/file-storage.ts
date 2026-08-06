@@ -150,6 +150,31 @@ export async function openStoredFile(stored?: string | null, downloadName?: stri
   if (url) window.open(url, "_blank", "noopener");
 }
 
+/** 첨부파일을 **원본 파일명 그대로** 내려받는다 (2026-08-06 사장님 제보).
+ *  Supabase 서명 URL 의 `?download=` 는 Content-Disposition 에 퍼센트 인코딩된 이름을 실어,
+ *  브라우저가 그대로 저장해 `302.%EB%84%A4%EC%9D%B4...xlsx` 처럼 깨진다.
+ *  파일명 헤더를 우리가 3중으로 제어하는 프록시(/api/files/download/[filename])를 거치게 한다.
+ *  프록시를 못 타는 URL(외부 링크 등)은 종전처럼 새 탭으로 연다. */
+export async function downloadStoredFile(stored?: string | null, downloadName?: string): Promise<void> {
+  const signed = await resolveSignedUrl(stored, downloadName);
+  if (!signed) return;
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const name = (downloadName || "").trim();
+  if (!name || !base || !signed.startsWith(`${base}/storage/v1/object/`)) {
+    window.open(signed, "_blank", "noopener");
+    return;
+  }
+  // 경로 조각에도 원본 이름을 실어 헤더를 무시하는 뷰어까지 커버 (프록시 주석 참조)
+  const proxied = `/api/files/download/${encodeURIComponent(name.replace(/[/\\]/g, "_"))}?u=${encodeURIComponent(signed)}`;
+  const a = document.createElement("a");
+  a.href = proxied;
+  a.download = name;          // 같은 출처라 이 힌트도 유효
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 // 파일 레코드 배열에 signed file_url 부착 (버킷별 batch 서명). storage_path 있는 것만.
 async function attachSignedUrls<T extends { bucket?: string | null; storage_path?: string | null; file_url?: string | null }>(
   rows: T[], defaultBucket = "document-files",
