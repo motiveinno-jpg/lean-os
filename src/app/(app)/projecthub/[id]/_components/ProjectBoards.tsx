@@ -55,6 +55,11 @@ const COL_WIDTHS: { key: string; label: string; px: number }[] = [
   { key: "wide", label: "넓게", px: 210 },
 ];
 const widthOf = (c: BoardColumn) => Number(c.settings?.width) || COL_W.cell;
+/** 값 정렬 — 쳐 넣는 글자는 왼쪽, 숫자는 오른쪽(자릿수를 맞춰 읽는다),
+ *  고르는 값(담당·거래처·라벨)은 가운데 (2026-08-06 사장님 지시) */
+const tdAlign = (type: ColType) =>
+  type === "number" ? "pb-td-num"
+    : type === "status" || type === "person" || type === "partner" ? "pb-td-mid" : "";
 const VIEW_KEY = "ov.board.view.";   // + boardId
 const GROUP_COLORS = ["#5559DF", "#00C875", "#FDAB3D", "#A25DDC", "#579BFC", "#E2445C", "#C4C4C4"];
 
@@ -1221,7 +1226,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                         </span>
                       </td>
                       {cols.map((c) => (
-                        <td key={c.id} className={c.type === "number" ? "pb-td-num" : ""}>
+                        <td key={c.id} className={tdAlign(c.type)}>
                           <Cell col={c} item={it} users={users} partners={partners as any[]} companyId={companyId}
                             onPartnerCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })}
                             onFillDown={() => {
@@ -1258,7 +1263,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       <td />
                       <td>합계</td>
                       {cols.map((c) => (
-                        <td key={c.id} className={c.type === "number" ? "pb-td-num" : ""}>
+                        <td key={c.id} className={tdAlign(c.type)}>
                           {c.type === "number" ? won(sumColumn(rows, c.id)) : ""}
                         </td>
                       ))}
@@ -1319,7 +1324,7 @@ function QuickAddRow({ nameLabel, cols, users, extraCells, onAdd }: {
           placeholder={`＋ ${nameLabel} 입력하고 Enter`} className="pb-quick-name" />
       </td>
       {cols.map((c) => (
-        <td key={c.id} className={c.type === "number" ? "pb-td-num" : ""} onKeyDown={onKey}>
+        <td key={c.id} className={tdAlign(c.type)} onKeyDown={onKey}>
           <QuickCell col={c} users={users} value={values[c.id] ?? ""} onChange={(v) => set(c.id, v)} />
         </td>
       ))}
