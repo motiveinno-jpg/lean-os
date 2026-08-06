@@ -101,6 +101,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   //   끌리는 그림은 줄 전체로 바꿔 무엇을 옮기는지 보이게 한다. rowOver = 지금 올라가 있는 줄
   const [rowDrag, setRowDrag] = useState<string | null>(null);
   const [rowOver, setRowOver] = useState<string | null>(null);
+  const [overGroup, setOverGroup] = useState<string | null>(null);   // 손이 올라가 있는 구획(그룹)
 
   const { data: boards = [], isLoading } = useQuery({
     queryKey: ["pb-boards", dealId],
@@ -1120,9 +1121,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         const rows = sortRows(itemsByGroup[g.id] || [], sort, cols, users);
         return (
           //   줄을 이 구획 안 빈자리에 놓으면 그 그룹 맨 뒤로 — 그룹이 비어 있어도 옮길 수 있어야 한다
-          <section key={g.id} className={`pb-group ${rowDrag ? "pb-group-drop" : ""}`}
-            onDragOver={(e) => { if (rowDrag) e.preventDefault(); }}
-            onDrop={(e) => { if (!rowDrag) return; e.preventDefault(); moveRow(g.id); }}>
+          //   (손이 어디 위에 있는지는 data-group·data-row 로 찾는다)
+          <section key={g.id} data-group={g.id} className={`pb-group ${rowDrag ? "pb-group-drop" : ""}`}>
             {/* 그룹이 하나뿐이면 머리줄을 숨긴다 — '요청 목록 6건' 한 줄이 뜻 없이 자리를 먹었다 */}
             {groups.length > 1 && (
               <div className="pb-group-head">
@@ -1233,10 +1233,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                 </thead>
                 <tbody>
                   {rows.map((it) => (
-                    <tr key={it.id}
-                      onDragEnd={() => { setRowDrag(null); setRowOver(null); }}
-                      onDragOver={(e) => { if (!rowDrag || rowDrag === it.id) return; e.preventDefault(); setRowOver(it.id); }}
-                      onDrop={(e) => { if (!rowDrag) return; e.preventDefault(); e.stopPropagation(); moveRow(g.id, it.id); }}
+                    <tr key={it.id} data-row={it.id}
                       className={`${rowDrag === it.id ? "pb-row-drag" : ""} ${rowOver === it.id ? "pb-row-over" : ""}`}>
                       <td className="pb-td-sel">
                         <input type="checkbox" aria-label="줄 선택" checked={selected.has(it.id)}
@@ -1248,18 +1245,34 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       </td>
                       <td className="pb-td-name">
                         <span className="pb-name-cell">
-                          {/* 손잡이만 끌린다 — 칸 안 글자를 고르는 걸 막지 않으려고(칸반 카드와 같은 방식).
+                          {/* 손잡이만 끌린다 — 칸 안 글자를 고르는 걸 막지 않으려고.
+                              브라우저의 HTML5 끌기(draggable) 는 표 안에서 시작이 안 되는 일이 있어
+                              (2026-08-06 사장님: "드래그앤드롭 안 된다") 포인터를 직접 좇는다.
+                              손가락(터치)에서도 같은 길로 동작한다.
                               정렬을 걸어 둔 동안은 보이는 차례와 저장된 차례가 달라 순서를 못 바꾼다 */}
-                          <span className="pb-grip" title={sort ? "정렬을 끄면 순서를 바꿀 수 있어요" : "끌어서 순서 바꾸기"}
-                            draggable={!sort}
-                            onDragStart={(e) => {
+                          <span className={`pb-grip ${rowDrag === it.id ? "pb-grip-on" : ""}`}
+                            title={sort ? "정렬을 끄면 순서를 바꿀 수 있어요" : "끌어서 순서 바꾸기"}
+                            onPointerDown={(e) => {
+                              if (sort || e.button !== 0) return;
+                              e.preventDefault();           // 글자 선택이 같이 시작되지 않게
+                              (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
                               setRowDrag(it.id);
-                              e.dataTransfer.effectAllowed = "move";
-                              //   끌리는 그림은 줄 전체 — 손잡이 글자만 따라다니면 뭘 옮기는지 안 보인다
-                              const tr = (e.currentTarget as HTMLElement).closest("tr");
-                              if (tr) e.dataTransfer.setDragImage(tr, 24, 12);
                             }}
-                            onDragEnd={() => { setRowDrag(null); setRowOver(null); }}>⠿</span>
+                            onPointerMove={(e) => {
+                              if (rowDrag !== it.id) return;
+                              const el = document.elementFromPoint(e.clientX, e.clientY);
+                              const overRow = el?.closest("tr[data-row]")?.getAttribute("data-row") || null;
+                              setRowOver(overRow === it.id ? null : overRow);
+                              setOverGroup(el?.closest("section[data-group]")?.getAttribute("data-group") || null);
+                            }}
+                            onPointerUp={(e) => {
+                              if (rowDrag !== it.id) return;
+                              (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+                              if (overGroup) moveRow(overGroup, rowOver || undefined);
+                              else { setRowDrag(null); setRowOver(null); }
+                              setOverGroup(null);
+                            }}
+                            onPointerCancel={() => { setRowDrag(null); setRowOver(null); setOverGroup(null); }}>⠿</span>
                           <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
                             onBlur={(e) => saveName(it, e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
