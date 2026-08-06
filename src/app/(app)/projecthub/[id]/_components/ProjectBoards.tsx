@@ -24,7 +24,7 @@ import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
 import { BoardFigure } from "./BoardFigures";
-import { AdReport } from "./AdReport";
+import { AdDashboard } from "./AdDashboard";
 import { templateFigures, shapeFigures, summaryCardKey, type Figure } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
 import { BoardNewModal, LabelEditor } from "./BoardNewModal";
@@ -983,14 +983,6 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenaming(false); }} />
       )}
 
-      {/* 마케팅 계정 관리 — 회사 금고의 광고 계정을 이 프로젝트에 매달고, 기간을 골라 표를 채운다
-          (2026-08-06 사장님 지시: "프로젝트별로 광고계정을 매달아서 볼 수 있도록") */}
-      {isAds && !showSummary && (
-        <AdBoardBar dealId={dealId} companyId={companyId} boardId={boardId}
-          groupId={groups[0]?.id || ""} cols={cols} items={items}
-          onFilled={() => qc.invalidateQueries({ queryKey: ["pb-items", boardId] })} />
-      )}
-
       {/* 계약 결제조건 → 청구 행 제안. 규칙대로 **만드는 건 사람이 누른다**(2026-08-04 기획 3단계) */}
       {proposal && !showSummary && (
         <div className="pb-propose">
@@ -1090,7 +1082,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           )} />
       )}
 
-      {showSummary ? (
+      {isAds ? (
+        /* 광고 표는 **입력이 없다** — 값을 매체에서 받아오므로 대시보드만 보여 준다
+           (2026-08-06 사장님: "아드리엘처럼 입력화면 없이 대시보드만") */
+        <AdDashboard dealId={dealId} companyId={companyId} boardId={boardId} />
+      ) : showSummary ? (
         <ProjectSummary dealId={dealId} boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users}
           presets={summaryPresets} onSavePreset={saveSummaryPreset} onUpdatePreset={editSummaryPreset}
           onRemovePreset={dropSummaryPreset}
@@ -1452,123 +1448,6 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   );
 }
 
-
-// ── 마케팅 계정 관리 표의 머리줄 — 어느 광고 계정을, 어느 기간으로 볼지 (2026-08-06) ──
-//   키는 회사 금고(설정 > 연동)에 있고 여기서는 **고르기만** 한다.
-//   '가져오기'는 두 걸음이다: ① 매체에서 최근 3일을 새로 받고 ② 고른 기간으로 표를 채운다.
-function AdBoardBar({ dealId, companyId, boardId, groupId, cols, items, onFilled }: {
-  dealId: string; companyId: string; boardId: string; groupId: string;
-  cols: BoardColumn[]; items: BoardItem[]; onFilled: () => void;
-}) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const [period, setPeriod] = useState<AdPeriodKey>("7d");
-  const [busy, setBusy] = useState<"" | "sync" | "fill">("");
-  const [picking, setPicking] = useState(false);
-
-  const { data: accounts = [] } = useQuery({ queryKey: ["ad-accounts", companyId], queryFn: listAdAccounts, enabled: !!companyId });
-  const { data: linked = [] } = useQuery({ queryKey: ["deal-ad-accounts", dealId], queryFn: () => listDealAdAccounts(dealId), enabled: !!dealId });
-
-  useEffect(() => {
-    try { const s = localStorage.getItem(`ov.board.adperiod.${boardId}`); if (s) setPeriod(s as AdPeriodKey); } catch { /* 무시 */ }
-  }, [boardId]);
-  const pickPeriod = (k: AdPeriodKey) => {
-    setPeriod(k);
-    try { localStorage.setItem(`ov.board.adperiod.${boardId}`, k); } catch { /* 무시 */ }
-  };
-
-  const toggle = async (id: string) => {
-    try {
-      if (linked.includes(id)) await unlinkAdAccount(dealId, id);
-      else await linkAdAccount(dealId, companyId, id);
-      qc.invalidateQueries({ queryKey: ["deal-ad-accounts", dealId] });
-    } catch (e: any) { toast(e?.message || "연결 실패", "error"); }
-  };
-
-  //   표 채우기 — 이미 받아 둔 값으로 다시 그린다(매체를 다시 부르지 않는다)
-  const fill = async (quiet = false) => {
-    if (linked.length === 0) { if (!quiet) toast("먼저 광고 계정을 고르세요.", "error"); return; }
-    setBusy("fill");
-    try {
-      const rolls = await rollupCampaigns(linked, period);
-      const r = await fillAdBoard({ boardId, groupId, cols, items, rolls });
-      onFilled();
-      if (!quiet) toast(rolls.length === 0
-        ? "그 기간에 집행된 캠페인이 없어요."
-        : `캠페인 ${rolls.length}개 — ${r.created}줄 추가 · ${r.updated}줄 갱신했습니다.`, "success");
-    } catch (e: any) {
-      toast(e?.message || "표 채우기 실패", "error");
-    } finally { setBusy(""); }
-  };
-
-  //   매체에서 새로 받아 온 뒤 표까지 채운다
-  const syncAndFill = async () => {
-    if (linked.length === 0) { toast("먼저 광고 계정을 고르세요.", "error"); return; }
-    setBusy("sync");
-    try {
-      for (const id of linked) {
-        const { data, error } = await supabase.functions.invoke("ads-sync", { body: { accountId: id } });
-        if (error) throw new Error(error.message);
-        const r = (data as any)?.results?.[0];
-        if (r && !r.ok) throw new Error(r.error || "가져오기 실패");
-      }
-      qc.invalidateQueries({ queryKey: ["ad-accounts", companyId] });
-      await fill(true);
-      toast("매체에서 새로 받아 표를 갱신했습니다.", "success");
-    } catch (e: any) {
-      toast(e?.message || "가져오기 실패", "error");
-    } finally { setBusy(""); }
-  };
-
-  const mine = accounts.filter((a) => linked.includes(a.id));
-  const lastSync = mine.map((a) => a.last_synced_at).filter(Boolean).sort().pop();
-
-  return (
-    <div className="pb-adbar">
-      <b>광고 계정</b>
-      {mine.length === 0
-        ? <em className="pb-adbar-none">아직 고른 계정이 없어요 — 설정 &gt; 연동에 등록한 계정을 고르면 성과가 채워집니다.</em>
-        : mine.map((a) => <span key={a.id} className="pb-adbar-chip">{a.label}</span>)}
-      <button type="button" className="pb-adbar-pick" onClick={() => setPicking(true)}>계정 고르기</button>
-
-      <span className="pb-adbar-periods">
-        {AD_PERIODS.map((p) => (
-          <button key={p.key} type="button" aria-pressed={period === p.key}
-            className={`pb-adbar-period ${period === p.key ? "pb-adbar-period-on" : ""}`}
-            onClick={() => pickPeriod(p.key)}>{p.label}</button>
-        ))}
-      </span>
-
-      {lastSync && <em className="pb-adbar-when">마지막 수집 {String(lastSync).slice(5, 16).replace("T", " ")}</em>}
-      <button type="button" className="pb-adbar-fill" disabled={!!busy} onClick={() => fill()}>
-        {busy === "fill" ? "채우는 중…" : "표 채우기"}
-      </button>
-      <button type="button" className="pb-adbar-go" disabled={!!busy} onClick={syncAndFill}>
-        {busy === "sync" ? "가져오는 중…" : "지금 가져오기"}
-      </button>
-
-      {picking && (
-        <div className="pb-doc-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setPicking(false); }}>
-          <div className="pb-doc-box pb-adpick-box">
-            <b className="pb-collabels-h">이 프로젝트가 볼 광고 계정</b>
-            {accounts.length === 0 ? (
-              <em className="pb-name-hint">설정 &gt; 연동 &gt; 광고 계정에서 먼저 등록하세요.</em>
-            ) : accounts.map((a) => (
-              <label key={a.id} className="pb-adpick-row">
-                <input type="checkbox" checked={linked.includes(a.id)} onChange={() => toggle(a.id)} />
-                <span>{a.label}</span>
-                <em>{a.external_id}{a.status === "error" ? " · 연결 오류" : ""}</em>
-              </label>
-            ))}
-            <span className="pb-collabels-foot">
-              <button type="button" onClick={() => setPicking(false)}>닫기</button>
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── 빠른 입력 줄 — 빈 행을 만들고 칸을 옮겨 다니는 대신 한 줄에서 끝낸다 (2026-08-04 기획 5단계) ──
 //   2026-08-05 사장님: "컬럼을 추가했는데 밑에 입력은 고정되어 있다."
@@ -2128,12 +2007,6 @@ function ProjectSummary({ dealId, boards, cols, groups, items, users, presets, o
       <SummaryReport kicker="프로젝트 전체" title="돈 흐름" meta="템플릿 여러 개에서 모은 금액">
         <ProjectMoneyReport boards={boards} cols={cols} items={items} />
       </SummaryReport>
-      {/* 광고를 붙인 프로젝트만 — 기간 전체로 얼마 쓰고 무엇을 얻었나 (2026-08-06) */}
-      {boards.some((b) => b.template_key === "ads") && (
-        <SummaryReport kicker="마케팅" title="광고 성과" meta="매체에서 받아 온 일별 기록으로 셈합니다">
-          <AdReport dealId={dealId} />
-        </SummaryReport>
-      )}
       {filled.map((b) => (
         <BoardSummary key={b.id}
           boardName={b.name}

@@ -6878,3 +6878,47 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ad-rep-camp-bar > i { @apply block h-full rounded-full bg-[var(--primary)]; }
 .ad-rep-camp-num { @apply text-[12.5px] font-bold text-[var(--text)]; font-variant-numeric: tabular-nums; }
 .ad-rep-camp-sub { @apply not-italic col-start-2 col-span-2 text-[11px] text-[var(--text-dim)]; }
+
+/* ── 광고 대시보드 — 입력이 없는 화면 (2026-08-06 사장님 지시: "아드리엘처럼 대시보드만") ── */
+.adb { @apply flex flex-col gap-4; }
+.adb-bar { @apply flex flex-wrap items-center gap-2 px-3 py-2.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.adb-accs { @apply flex items-center gap-1.5 min-w-0; }
+.adb-accs > em { @apply not-italic text-[11.5px] text-[var(--text-dim)]; }
+.adb-chip { @apply h-6 px-2 inline-flex items-center rounded-full bg-[var(--primary)]/10 text-[11.5px] font-bold text-[var(--primary)]; }
+.adb-pickacc { @apply h-7 px-2.5 rounded-lg border border-dashed border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+.adb-dates { @apply flex items-center gap-1 ml-auto; }
+.adb-dates > i { @apply not-italic text-[11px] text-[var(--text-dim)]; }
+.adb-date { @apply h-7 px-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[11.5px] text-[var(--text)]; }
+.adb-quick { @apply flex items-center gap-1; }
+.adb-quick-btn { @apply h-7 px-2.5 rounded-full border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.adb-quick-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]; }
+.adb-metrics { @apply h-7 px-2.5 rounded-lg border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+.adb-sync { @apply h-7 px-3 rounded-lg bg-[var(--primary)] text-[11.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
+.adb-when { @apply -mt-2 px-1 text-[11px] text-[var(--text-dim)]; }
+/* 고른 지표 카드 — 개수가 달라지므로 자동으로 접힌다 */
+.adb-cards { @apply grid gap-2; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
+.adb-card { @apply flex flex-col gap-1 p-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] min-w-0; }
+.adb-card > span { @apply text-[11px] font-semibold text-[var(--text-dim)] truncate; }
+.adb-card > b { @apply text-[17px] font-extrabold tracking-tight text-[var(--text)] truncate; font-variant-numeric: tabular-nums; }
+.adb-block { @apply flex flex-col gap-1.5; }
+.adb-h { @apply text-[12px] font-extrabold text-[var(--text-dim)]; }
+.adb-days { @apply flex items-end gap-[2px] h-28 px-1 py-1 rounded-xl bg-[var(--bg-surface)]; }
+.adb-day { @apply flex-1 min-w-[3px] h-full flex items-end; }
+.adb-day > i { @apply block w-full rounded-t bg-[var(--primary)]/70 transition hover:bg-[var(--primary)]; }
+.adb-axis { @apply flex items-center justify-between px-1 text-[10.5px] text-[var(--text-dim)]; }
+.adb-axis em { @apply not-italic; }
+.adb-tablewrap { @apply overflow-x-auto rounded-xl border border-[var(--border)]; }
+.adb-table { @apply w-full border-collapse bg-[var(--bg-card)] text-[12.5px]; }
+.adb-table th { @apply text-center text-[10.5px] font-bold text-[var(--text-dim)] px-2.5 py-2 bg-[var(--bg-surface)] border-b border-[var(--border)] whitespace-nowrap; }
+.adb-table td { @apply text-center px-2.5 py-1.5 border-b border-[var(--border)]/50 text-[var(--text)] whitespace-nowrap; font-variant-numeric: tabular-nums; }
+.adb-table td:first-child, .adb-table th:first-child { @apply text-left max-w-[16rem] truncate; }
+.adb-table tr:last-child td { @apply border-b-0; }
+.adb-sum td { @apply bg-[var(--bg-surface)] font-extrabold; }
+/* 지표 고르기 */
+.adb-pick-box { @apply max-w-md gap-2 p-4; }
+.adb-pick-search { @apply h-9 px-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.adb-pick-list { @apply flex flex-col gap-0.5 max-h-80 overflow-y-auto; }
+.adb-pick-row { @apply flex items-center gap-2 p-2 rounded-xl transition hover:bg-[var(--bg-surface)] cursor-pointer; }
+.adb-pick-row input { @apply w-4 h-4 accent-[var(--primary)]; }
+.adb-pick-row > span { @apply text-[12.5px] font-semibold text-[var(--text)]; }
+.adb-pick-row > em { @apply not-italic ml-auto text-[10.5px] text-[var(--text-dim)] truncate max-w-[12rem]; }
