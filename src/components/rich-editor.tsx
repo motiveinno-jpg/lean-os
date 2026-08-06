@@ -11,7 +11,7 @@ import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
 import { Node, mergeAttributes } from "@tiptap/core";
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 import {
   PDF_PAGE_W,
@@ -395,6 +395,21 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       (editor.storage as any).pdfActive = null;
     },
   });
+
+  // 초기 content 반영 — immediatelyRender:false 라 첫 렌더에는 editor 가 없다.
+  //   그 사이에 부모가 setContent() 로 밀어넣은 템플릿은 조용히 유실된다
+  //   (결재 새 요청에서 유형을 처음 고르면 상세내용 템플릿이 안 뜨고 두 번째 선택부터
+  //    보이던 원인 — 그 화면은 유형 선택 시점에 에디터를 새로 마운트한다. 2026-08-06)
+  //   에디터가 준비된 뒤 '아직 빈 상태일 때 한 번만' 넘어온 content 를 채운다.
+  //   사용자가 이미 입력한 내용은 건드리지 않고, 이후 타이핑과도 충돌하지 않는다.
+  const contentSyncedRef = useRef(false);
+  useEffect(() => {
+    if (!editor || contentSyncedRef.current) return;
+    const incoming = content || "";
+    if (!incoming) return;              // 채울 게 아직 없으면 계속 기다린다
+    contentSyncedRef.current = true;
+    if (editor.isEmpty) editor.commands.setContent(incoming);
+  }, [editor, content]);
 
   useImperativeHandle(ref, () => ({
     insertText(text: string) {
