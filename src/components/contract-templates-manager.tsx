@@ -93,6 +93,36 @@ export default function ContractTemplatesManager({ companyId }: Props) {
     orderMut.mutate(combined);
   };
 
+  // 드래그로 순서 변경 (2026-08-06 사장님 요청) — ▲▼ 는 그대로 두고 손잡이 드래그를 추가.
+  //   결재 '새 요청' 화면의 블록 정렬과 같은 HTML5 드래그 규약.
+  //   저장 배열은 moveTemplate 과 동일하게 두 섹션의 현재 표시 순서를 합쳐 만든다.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragSection, setDragSection] = useState<"system" | "company" | null>(null);
+  const dropOnTemplate = (section: "system" | "company", targetId: string) => {
+    if (!dragId || dragId === targetId || dragSection !== section) return; // 섹션을 넘나드는 이동은 막는다
+    const list = (section === "system" ? systemTemplates : companyTemplates).map((t) => t.id);
+    const next = list.filter((id) => id !== dragId);
+    const at = next.indexOf(targetId);
+    if (at < 0) return;
+    next.splice(at, 0, dragId);
+    const other = (section === "system" ? companyTemplates : systemTemplates).map((t) => t.id);
+    orderMut.mutate(section === "system" ? [...other, ...next] : [...next, ...other]);
+  };
+  // 행에 붙일 드래그 속성 — 두 섹션이 같은 동작을 쓰도록 한곳에서 만든다
+  const dragProps = (section: "system" | "company", id: string) => ({
+    draggable: true,
+    onDragStart: (e: React.DragEvent) => {
+      const t = e.target as HTMLElement;
+      // 버튼 위에서 시작한 드래그는 이동이 아니다
+      if (t !== e.currentTarget && t.closest("button, a, input")) { e.preventDefault(); return; }
+      setDragId(id); setDragSection(section);
+      e.dataTransfer.effectAllowed = "move";
+    },
+    onDragEnd: () => { setDragId(null); setDragSection(null); },
+    onDragOver: (e: React.DragEvent) => { if (dragId && dragSection === section) e.preventDefault(); },
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); dropOnTemplate(section, id); },
+  });
+
   // 표준 양식 숨김 목록(회사 단위) — 발송 목록과 같은 쿼리 키를 써서 숨기면 양쪽이 함께 갱신된다.
   const { data: hiddenList = [] } = useQuery({
     queryKey: ["hidden-contract-templates", companyId],
@@ -187,7 +217,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
             {systemTemplates.map((t, i) => {
               const isHidden = hiddenIds.has(t.id);
               return (
-                <div key={t.id} className={`template-row ${isHidden ? "opacity-50" : ""}`}>
+                <div
+                  key={t.id}
+                  {...dragProps("system", t.id)}
+                  className={`template-row ${isHidden ? "opacity-50" : ""} ${dragId === t.id ? "template-row-dragging" : ""}`}
+                >
+                  <span className="template-drag-handle" title="끌어서 순서 변경">⠿</span>
                   <div className="template-order-buttons">
                     <button onClick={() => moveTemplate("system", i, -1)} disabled={i === 0 || orderMut.isPending} title="위로">▲</button>
                     <button onClick={() => moveTemplate("system", i, 1)} disabled={i === systemTemplates.length - 1 || orderMut.isPending} title="아래로">▼</button>
@@ -229,7 +264,12 @@ export default function ContractTemplatesManager({ companyId }: Props) {
       ) : (
         <div className="grid gap-1.5">
           {companyTemplates.map((t, i) => (
-            <div key={t.id} className="template-row">
+            <div
+              key={t.id}
+              {...dragProps("company", t.id)}
+              className={`template-row ${dragId === t.id ? "template-row-dragging" : ""}`}
+            >
+              <span className="template-drag-handle" title="끌어서 순서 변경">⠿</span>
               <div className="template-order-buttons">
                 <button onClick={() => moveTemplate("company", i, -1)} disabled={i === 0 || orderMut.isPending} title="위로">▲</button>
                 <button onClick={() => moveTemplate("company", i, 1)} disabled={i === companyTemplates.length - 1 || orderMut.isPending} title="아래로">▼</button>
