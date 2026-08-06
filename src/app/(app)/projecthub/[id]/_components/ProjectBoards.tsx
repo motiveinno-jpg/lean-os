@@ -1158,16 +1158,19 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                             onBlur={(e) => renameColumn(c, e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
                           {/* 지금 이 칸으로 정렬·필터 중이면 머리에서 바로 보이게 — 끄는 것도 여기서
-                              (나머지 조작은 전부 ⋯ 안으로 옮겼다. 머리에 단추가 셋이면 칸이 그만큼 넓어진다) */}
-                          {sort?.colId === c.id && (
-                            <button type="button" className="pb-col-mark" title="정렬 끄기" onClick={() => setSort(null)}>
-                              {sort.dir === "asc" ? "▲" : "▼"}
-                            </button>
-                          )}
-                          {(valueFilters[c.id]?.length || 0) > 0 && (
-                            <button type="button" className="pb-col-mark pb-col-mark-flt" title="이 칸 필터 끄기"
-                              onClick={() => setValueFilters((prev) => { const n = { ...prev }; delete n[c.id]; return n; })}>▼</button>
-                          )}
+                              (나머지 조작은 전부 ⋯ 안으로 옮겼다. 머리에 단추가 셋이면 칸이 그만큼 넓어진다).
+                              머리글을 가운데로 맞추려고 표시·⋯ 는 흐름에서 빼 양옆에 띄운다(2026-08-06 사장님 지시) */}
+                          <span className="pb-th-marks">
+                            {sort?.colId === c.id && (
+                              <button type="button" className="pb-col-mark" title="정렬 끄기" onClick={() => setSort(null)}>
+                                {sort.dir === "asc" ? "▲" : "▼"}
+                              </button>
+                            )}
+                            {(valueFilters[c.id]?.length || 0) > 0 && (
+                              <button type="button" className="pb-col-mark pb-col-mark-flt" title="이 칸 필터 끄기"
+                                onClick={() => setValueFilters((prev) => { const n = { ...prev }; delete n[c.id]; return n; })}>▼</button>
+                            )}
+                          </span>
                           {/* 그 칸에 대한 모든 것을 한 자리로 — 정렬·필터·너비·라벨·단위·복제·칸 추가·삭제
                               (2026-08-06 사장님 지시: "컬럼들, 이런 식으로 기능을 넣어 주는 게 좋겠다") */}
                           <ColumnMenu col={c}
