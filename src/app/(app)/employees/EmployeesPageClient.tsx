@@ -184,8 +184,9 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김 */}
-      {!isEmployee && (
+      {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김.
+          휴가 탭은 시안대로 표가 주인공이라 상단 KPI 를 감춘다 (2026-08-06 사장님). */}
+      {!isEmployee && effectiveTab !== "leave" && (
         <div className="employees-summary-stats">
           <div className="stat-tile">
             <div className="flex items-center justify-between">
@@ -2674,6 +2675,79 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast("반영 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
+  const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
+
+  // 휴가 탭 서브뷰 — '직원별 연차' / '설정' (2026-08-06 사장님 시안)
+  const [leaveView, setLeaveView] = useState<"roster" | "settings">("roster");
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  // 이름 클릭 → 그 구성원의 전체 연차 신청 내역, 월 셀 클릭 → 그 달 사용 내역
+  const [rosterEmp, setRosterEmp] = useState<{ id: string; name: string } | null>(null);
+  const [rosterMonth, setRosterMonth] = useState<{ empId: string; name: string; month: number } | null>(null);
+  useModalKeys(calendarOpen, () => setCalendarOpen(false));
+  useModalKeys(!!rosterEmp, () => setRosterEmp(null));
+  useModalKeys(!!rosterMonth, () => setRosterMonth(null));
+
+  // 연차 표용 — 그 해 전체 신청 건(상태 필터와 무관하게 항상 전량).
+  //   월별 칸은 '승인' 건만 집계한다(신청 중인 건은 아직 쓴 게 아니다).
+  const { data: yearRequests = [] } = useQuery({
+    queryKey: ["leave-requests-year", companyId, currentYear],
+    queryFn: () => getLeaveRequests(companyId!),
+    enabled: !!companyId,
+  });
+  const rosterRows = useMemo(() => {
+    const byEmp = new Map<string, { total: number; months: number[]; used: number }>();
+    const ensure = (id: string) => {
+      if (!byEmp.has(id)) byEmp.set(id, { total: 0, months: Array(12).fill(0), used: 0 });
+      return byEmp.get(id)!;
+    };
+    for (const b of (visibleBalances as any[])) {
+      const r = ensure(b.employee_id);
+      r.total = Number(b.total_days || 0);
+      r.used = Number(b.used_days || 0);
+    }
+    for (const req of (yearRequests as any[])) {
+      if (req.status !== "approved" || !req.start_date) continue;
+      const d = String(req.start_date);
+      if (!d.startsWith(String(currentYear))) continue;
+      const m = Number(d.slice(5, 7)) - 1;
+      if (m < 0 || m > 11) continue;
+      const r = ensure(req.employee_id);
+      r.months[m] += Number(req.days || 0);
+    }
+    // 표에 올릴 대상 — 관리자는 재직 직원 전원(연차 미설정자도 0으로 보이게), 직원은 본인만
+    const targets = isEmployee
+      ? (myEmployee ? [myEmployee] : [])
+      : activeEmployees;
+    return (targets as any[]).map((e: any) => {
+      const r = byEmp.get(e.id) || { total: 0, months: Array(12).fill(0), used: 0 };
+      // 총 사용일수는 월별 칸의 합 — 표 안에서 눈으로 더한 값과 어긋나지 않게(시안 규약).
+      //   leave_balances.used_days 는 차감 원장이라 조정분까지 포함될 수 있어 표의 합과 다를 수 있다.
+      const usedTotal = r.months.reduce((a, b) => a + b, 0);
+      return {
+        id: e.id,
+        name: e.name || "-",
+        total: r.total,
+        months: r.months,
+        used: usedTotal,
+        remain: Math.max(0, r.total - usedTotal),
+        hasBalance: byEmp.has(e.id),
+      };
+    });
+  }, [visibleBalances, yearRequests, activeEmployees, isEmployee, myEmployee, currentYear]);
+
+  // 이름/월 팝업에 쓸 그 직원의 신청 내역
+  const rosterEmpRequests = useMemo(
+    () => (yearRequests as any[]).filter((r: any) => r.employee_id === rosterEmp?.id),
+    [yearRequests, rosterEmp],
+  );
+  const rosterMonthRequests = useMemo(
+    () => (yearRequests as any[]).filter((r: any) =>
+      r.employee_id === rosterMonth?.empId
+      && r.status === "approved"
+      && String(r.start_date || "").startsWith(`${currentYear}-${String((rosterMonth?.month ?? 0) + 1).padStart(2, "0")}`)),
+    [yearRequests, rosterMonth, currentYear],
+  );
+
   // R12: 연차 부여 방식 — 선택+저장 후 작은 요약으로 접힘 (변경 시 펼침)
   const [grantEditing, setGrantEditing] = useState(false);
   const [pendingGrant, setPendingGrant] = useState<LeaveGrantMethod | null>(null);
@@ -2742,7 +2816,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     });
   }, [leaveRequests, isEmployee, employees, userId]);
 
-  const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
 
   // Track which employees have no balance yet
   const employeesWithBalance = new Set(balances.map((b: any) => b.employee_id));
@@ -2798,274 +2871,30 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
   return (
     <div>
-      {/* 휴가 유형 — 작은 칩으로 한 줄 (2026-08-06 사장님: 공간 차지 줄이기).
-          유형·기본 일수는 회사별로 편집 가능 — company_settings.settings.leave_types */}
-      <div className="leave-type-overview">
-        <div className="leave-type-head">
-          <h3 className="text-sm font-bold text-[var(--text-muted)]">휴가 유형</h3>
-          {!isEmployee && !typesEditing && (
+      {/* ── 휴가 탭 서브뷰 (2026-08-06 사장님 시안) ──
+          상단 KPI 카드는 이 탭에서 감추고, '직원별 연차'(표) / '설정'(부여 방식·휴가 유형) 로 나눈다. */}
+      <div className="leave-subtabs">
+        <div className="leave-subtab-group">
+          {([{ k: "roster", label: "직원별 연차" }, { k: "settings", label: "설정" }] as const).map((t) => (
             <button
-              onClick={() => { setDraftTypes(companyLeaveTypes.map((t) => ({ ...t }))); setTypesEditing(true); }}
-              className="leave-type-edit-btn"
+              key={t.k}
+              onClick={() => setLeaveView(t.k)}
+              className={`leave-subtab ${leaveView === t.k ? "leave-subtab-on" : ""}`}
             >
-              유형·일수 수정
+              {t.label}
             </button>
-          )}
+          ))}
         </div>
-
-        {!typesEditing ? (
-          <div className="leave-type-chip-row">
-            {leaveTypeSummary.map(lt => (
-              <div key={lt.value} className="leave-type-chip">
-                <span className="leave-type-chip-label">{lt.label}</span>
-                <span className="leave-type-chip-days">{lt.defaultDays}일</span>
-                {lt.used > 0 && <span className="leave-type-chip-used">-{lt.used}</span>}
-                {lt.pending > 0 && <span className="leave-type-chip-pending">{lt.pending}건 대기</span>}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="leave-type-editor glass-card">
-            <p className="text-[11px] text-[var(--text-dim)] mb-3">
-              회사 규정에 맞게 유형 이름과 기본 일수를 고치세요. 이미 신청된 휴가의 유형은 그대로 유지됩니다.
-            </p>
-            <div className="leave-type-editor-rows">
-              {(draftTypes || []).map((t, i) => (
-                <div key={i} className="leave-type-editor-row">
-                  <input
-                    value={t.label}
-                    onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, label: e.target.value } : x))}
-                    placeholder="유형 이름"
-                    className="leave-type-editor-name field-input"
-                  />
-                  <div className="leave-type-editor-days-wrap">
-                    <input
-                      type="number"
-                      min={0}
-                      value={t.defaultDays}
-                      onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, defaultDays: Math.max(0, Number(e.target.value) || 0) } : x))}
-                      className="leave-type-editor-days field-input"
-                    />
-                    <span className="text-[11px] text-[var(--text-dim)]">일</span>
-                  </div>
-                  <button
-                    onClick={() => setDraftTypes((prev) => (prev || []).filter((_, xi) => xi !== i))}
-                    className="leave-type-editor-del"
-                    title="이 유형 삭제"
-                  >
-                    삭제
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="leave-type-editor-actions">
-              <button
-                onClick={() => setDraftTypes((prev) => [...(prev || []), { value: `custom_${Date.now()}`, label: "", defaultDays: 0 }])}
-                className="btn-secondary btn-sm"
-              >
-                유형 추가
-              </button>
-              <div className="flex gap-2 ml-auto">
-                <button
-                  onClick={() => { setTypesEditing(false); setDraftTypes(null); }}
-                  disabled={saveTypesMut.isPending}
-                  className="leave-type-editor-cancel"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={() => {
-                    const cleaned = (draftTypes || [])
-                      .map((t) => ({ ...t, label: t.label.trim() }))
-                      .filter((t) => t.label !== "");
-                    if (cleaned.length === 0) { toast("휴가 유형을 최소 1개는 남겨주세요", "error"); return; }
-                    saveTypesMut.mutate(cleaned);
-                  }}
-                  disabled={saveTypesMut.isPending}
-                  className="btn-primary btn-sm"
-                >
-                  {saveTypesMut.isPending ? "저장 중..." : "저장"}
-                </button>
-              </div>
-            </div>
-          </div>
+        {leaveView === "roster" && (
+          <button onClick={() => setCalendarOpen(true)} className="btn-secondary btn-sm">휴가 캘린더</button>
         )}
       </div>
 
-      {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성.
-          2026-08-06 사장님: 공간을 너무 먹어 접힌 요약이 기본. '변경'으로 펼쳐 고른 뒤 저장. */}
-      {!isEmployee && (
-        <div className="leave-accrual-panel glass-card">
-          {!accrualEditing ? (
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-[var(--text-muted)]">
-                연차 자동 발생 ·{" "}
-                <strong className="text-[var(--text)]">
-                  {accrual.enabled ? `켬 · ${ACCRUAL_BASIS_LABELS[accrual.basis].label}` : "끔"}
-                </strong>
-              </div>
-              <button
-                onClick={() => { setPendingAccrual({ ...accrual }); setAccrualEditing(true); }}
-                className="leave-accrual-change-btn"
-              >
-                변경
-              </button>
-            </div>
-          ) : (
-            <>
-              <label className="leave-accrual-toggle">
-                <input
-                  type="checkbox"
-                  checked={draftAccrual.enabled}
-                  onChange={(e) => setPendingAccrual({ ...draftAccrual, enabled: e.target.checked })}
-                  className="w-4 h-4 accent-[var(--primary)] shrink-0"
-                />
-                <div className="min-w-0">
-                  <div className="text-sm font-bold">연차 자동 발생</div>
-                  <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                    입사 1년 전까지는 매월 1일씩(최대 11일), 1주년부터는 근속연수별 법정 연차(1~2년 15일 · 3년 이상 2년마다 +1일 · 상한 25일)가
-                    입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
-                  </p>
-                  <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                    총 부여일수는 입사일 기준으로 자동 계산됩니다. 직원 카드에서 남은 연차를 직접 고치면 그 차액만 조정으로 반영됩니다.
-                  </p>
-                </div>
-              </label>
-
-              {draftAccrual.enabled && (
-                <div className="leave-accrual-basis">
-                  <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">발생 기준</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
-                      const on = draftAccrual.basis === k;
-                      return (
-                        <button
-                          key={k}
-                          onClick={() => setPendingAccrual({ ...draftAccrual, basis: k })}
-                          className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
-                        >
-                          <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
-                          <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    <button
-                      onClick={() => syncAccrualMut.mutate()}
-                      disabled={syncAccrualMut.isPending}
-                      className="btn-secondary btn-sm disabled:opacity-50"
-                      title="누락된 과거 발생분을 지금 즉시 생성합니다"
-                    >
-                      {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
-                    </button>
-                    <span className="text-[11px] text-[var(--text-dim)]">매일 자정에도 자동으로 반영됩니다</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2 justify-end mt-3">
-                <button
-                  onClick={() => { setAccrualEditing(false); setPendingAccrual(null); }}
-                  disabled={saveAccrualMut.isPending}
-                  className="leave-accrual-cancel-btn"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={() => saveAccrualMut.mutate(draftAccrual, {
-                    onSuccess: () => { setAccrualEditing(false); setPendingAccrual(null); },
-                  })}
-                  disabled={saveAccrualMut.isPending}
-                  className="btn-primary btn-sm"
-                >
-                  {saveAccrualMut.isPending ? "저장 중..." : "저장"}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
-      {!isEmployee && (
-        <div className="leave-grant-method-panel glass-card">
-          {!grantEditing ? (
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs text-[var(--text-muted)]">
-                연차 부여 방식 ·{" "}
-                <strong className="text-[var(--text)]">
-                  {grantMethod === "auto" ? "자동부여 (입사일 기준)" : "직접입력"}
-                </strong>
-              </div>
-              <button
-                onClick={() => { setPendingGrant(grantMethod); setGrantEditing(true); }}
-                className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0"
-              >
-                변경
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="text-sm font-bold mb-1">연차 부여 방식</div>
-              <p className="text-[11px] text-[var(--text-dim)] mb-3">
-                회사 정책에 맞게 선택 후 <strong>저장</strong>하세요. 저장하면 아래 UI가 그에 맞게 표시됩니다.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {([
-                  { v: "auto" as LeaveGrantMethod, label: "자동부여 (입사일 기준)", desc: "근로기준법 공식으로 자동 산정" },
-                  { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력" },
-                ]).map((opt) => {
-                  const active = (pendingGrant ?? grantMethod) === opt.v;
-                  return (
-                    <button
-                      key={opt.v}
-                      onClick={() => setPendingGrant(opt.v)}
-                      className={`flex-1 min-w-[200px] text-left px-4 py-3 rounded-xl border transition ${
-                        active
-                          ? "border-[var(--primary)] bg-[var(--primary)]/10"
-                          : "border-[var(--border)] hover:border-[var(--primary)]/40"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${active ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--text-dim)]"}`} />
-                        <span className="text-sm font-semibold">{opt.label}</span>
-                      </div>
-                      <div className="text-[11px] text-[var(--text-dim)] mt-1 ml-[22px]">{opt.desc}</div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex gap-2 justify-end mt-3">
-                <button
-                  onClick={() => { setGrantEditing(false); setPendingGrant(null); }}
-                  disabled={setGrantMethodMut.isPending}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={() => {
-                    const sel = pendingGrant ?? grantMethod;
-                    setGrantMethodMut.mutate(sel, { onSuccess: () => { setGrantEditing(false); setPendingGrant(null); } });
-                  }}
-                  disabled={setGrantMethodMut.isPending}
-                  className="btn-primary btn-sm"
-                >
-                  {setGrantMethodMut.isPending ? "저장 중..." : "저장"}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Leave Balance Cards */}
-      <div className="leave-balance-cards">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 연차</h3>
-          {!isEmployee && grantMethod === "auto" && (
-            <div className="flex gap-2">
+      {leaveView === "roster" && (
+        <div className="leave-roster">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 연차</h3>
+            {!isEmployee && grantMethod === "auto" && (
               <button
                 onClick={() => bulkAutoMut.mutate()}
                 disabled={bulkAutoMut.isPending}
@@ -3074,203 +2903,330 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               >
                 {bulkAutoMut.isPending ? "처리 중..." : "입사일 기준 자동 부여"}
               </button>
+            )}
+          </div>
+          {rosterRows.length === 0 ? (
+            <div className="templates-empty">표시할 구성원이 없습니다.</div>
+          ) : (
+            <div className="leave-roster-scroll">
+              <table className="leave-roster-table">
+                <thead>
+                  <tr>
+                    <th className="leave-roster-th leave-roster-name-col">이름</th>
+                    <th className="leave-roster-th">부여일수</th>
+                    {Array.from({ length: 12 }, (_, m) => (
+                      <th key={m} className="leave-roster-th">{m + 1}월</th>
+                    ))}
+                    <th className="leave-roster-th">총 사용일수</th>
+                    <th className="leave-roster-th">잔여일수</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rosterRows.map((row) => (
+                    <tr key={row.id} className="leave-roster-row">
+                      <td className="leave-roster-td leave-roster-name-col">
+                        <button
+                          onClick={() => setRosterEmp({ id: row.id, name: row.name })}
+                          className="leave-roster-name"
+                          title="전체 연차 신청 내역 보기"
+                        >
+                          {row.name}
+                        </button>
+                      </td>
+                      <td className="leave-roster-td mono-number">{row.total}</td>
+                      {row.months.map((v, m) => (
+                        <td key={m} className="leave-roster-td mono-number">
+                          {v > 0 ? (
+                            <button
+                              onClick={() => setRosterMonth({ empId: row.id, name: row.name, month: m })}
+                              className="leave-roster-cell-btn"
+                              title="사용 날짜·승인 내역 보기"
+                            >
+                              {v}
+                            </button>
+                          ) : (
+                            <span className="text-[var(--text-dim)]">·</span>
+                          )}
+                        </td>
+                      ))}
+                      <td className="leave-roster-td mono-number font-semibold">{row.used}</td>
+                      <td className="leave-roster-td mono-number font-bold">{row.remain}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-        <p className="text-[11px] text-[var(--text-dim)] mb-3">
-          {grantMethod === "auto" ? (
-            <>※ 1년 미만 근무자는 입사 후 <strong>1개월 만근 시 1일</strong>씩 자동 부여 (최대 11일). 1년 이상은 자동 부여 후 일수를 직접 수정할 수 있습니다.</>
+      )}
+
+
+      {leaveView === "settings" && (<>
+        {/* 휴가 유형 — 작은 칩으로 한 줄 (2026-08-06 사장님: 공간 차지 줄이기).
+            유형·기본 일수는 회사별로 편집 가능 — company_settings.settings.leave_types */}
+        <div className="leave-type-overview">
+          <div className="leave-type-head">
+            <h3 className="text-sm font-bold text-[var(--text-muted)]">휴가 유형</h3>
+            {!isEmployee && !typesEditing && (
+              <button
+                onClick={() => { setDraftTypes(companyLeaveTypes.map((t) => ({ ...t }))); setTypesEditing(true); }}
+                className="leave-type-edit-btn"
+              >
+                유형·일수 수정
+              </button>
+            )}
+          </div>
+
+          {!typesEditing ? (
+            <div className="leave-type-chip-row">
+              {leaveTypeSummary.map(lt => (
+                <div key={lt.value} className="leave-type-chip">
+                  <span className="leave-type-chip-label">{lt.label}</span>
+                  <span className="leave-type-chip-days">{lt.defaultDays}일</span>
+                  {lt.used > 0 && <span className="leave-type-chip-used">-{lt.used}</span>}
+                  {lt.pending > 0 && <span className="leave-type-chip-pending">{lt.pending}건 대기</span>}
+                </div>
+              ))}
+            </div>
           ) : (
-            <>※ 직접입력 모드입니다. 아래 카드의 <strong>총 부여일수(/숫자)</strong>를 클릭해 직원별 연차를 직접 입력하세요.</>
-          )}
-        </p>
-
-        {/* 아직 연차 미설정 직원 — 2026-07-30 사장님: 직접입력 모드에서 이 블록이 숨어
-            신규 입사자가 휴가 탭 어디에도 안 보이던 버그 → 부여 방식과 무관하게 항상 표시 */}
-        {!isEmployee && employeesWithoutBalance.length > 0 && (
-          <div className="mb-3 bg-[var(--warning)]/5 border border-[var(--warning)]/20 rounded-xl p-3 shadow-sm">
-            <div className="text-xs text-[var(--warning)] font-medium mb-2">
-              연차 미설정 {employeesWithoutBalance.length}명
-              {grantMethod === "manual" && <span className="text-[var(--text-dim)] font-normal"> — 부여 후 카드의 남은 일수를 눌러 수정할 수 있습니다</span>}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {employeesWithoutBalance.map((e: any) => {
-                const calc = e.hire_date ? calculateAnnualLeave(e.hire_date, `${currentYear}-12-31`) : null;
-                return (
-                  <button
-                    key={e.id}
-                    onClick={() => {
-                      if (e.hire_date) autoInitMut.mutate({ employeeId: e.id, hireDate: e.hire_date });
-                      else setRemaining.mutate({ employeeId: e.id, remainingDays: 15, usedDays: 0 });
-                    }}
-                    className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-[var(--warning)]/50 transition"
-                    title={calc ? calc.formula : "입사일 미등록 — 기본 15일"}
-                  >
-                    {e.name} <span className="text-[var(--warning)] font-semibold">{calc ? `${calc.totalDays}일` : "15일"}</span> 부여
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {visibleBalances.length === 0 && (isEmployee || employeesWithoutBalance.length === 0) ? (
-          <div className="glass-card p-8 text-center text-sm text-[var(--text-muted)]">
-            연차 데이터가 없습니다. 위 &quot;입사일 기준 자동 부여&quot; 를 눌러주세요.
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {visibleBalances.map((b: any) => {
-              const remaining = b.remaining_days ?? (b.total_days - b.used_days);
-              const percent = b.total_days > 0 ? (remaining / b.total_days) * 100 : 0;
-              const empRec = employees.find((e: any) => e.id === b.employee_id);
-              const calc = empRec?.hire_date ? calculateAnnualLeave(empRec.hire_date, `${currentYear}-12-31`) : null;
-              const underOneYear = calc ? calc.yearsWorked < 1 : false;
-              const isEditing = editingBalanceId === b.id;
-              return (
-                <div key={b.id} className="glass-card p-4">
-                  <div className="text-sm font-medium mb-1">{b.employees?.name || "—"}</div>
-                  <div className="text-xs text-[var(--text-dim)] mb-2 flex items-center gap-1">
-                    {b.employees?.department || "미배정"}
-                    {calc && (
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${underOneYear ? "bg-[var(--warning)]/10 text-[var(--warning)]" : "bg-[var(--info)]/10 text-[var(--info)]"}`}>
-                        {underOneYear ? `1년미만 ${calc.monthsWorked}개월` : `${calc.yearsWorked}년차`}
-                      </span>
-                    )}
-                  </div>
-                  {/* 편집 대상은 '남은 연차' — 총부여는 남은 + 사용 으로 자동 계산해 저장한다 */}
-                  <div className="flex items-end gap-1 mb-2 flex-wrap">
-                    {isEditing ? (
-                      <>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={editingBalanceVal}
-                          autoFocus
-                          onChange={(e) => setEditingBalanceVal(e.target.value.replace(/[^0-9.]/g, ""))}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              const v = Number(editingBalanceVal);
-                              if (v >= 0) setRemaining.mutate({ employeeId: b.employee_id, remainingDays: v, usedDays: Number(b.used_days || 0) });
-                              setEditingBalanceId(null);
-                            } else if (e.key === "Escape") setEditingBalanceId(null);
-                          }}
-                          className="leave-remaining-input"
-                        />
-                        <span className="text-xs text-[var(--text-dim)] mb-0.5">
-                          / 총 {Math.round((Number(editingBalanceVal || 0) + Number(b.used_days || 0)) * 10) / 10}일
-                        </span>
-                        <button
-                          onClick={() => {
-                            const v = Number(editingBalanceVal);
-                            if (v >= 0) setRemaining.mutate({ employeeId: b.employee_id, remainingDays: v, usedDays: Number(b.used_days || 0) });
-                            setEditingBalanceId(null);
-                          }}
-                          className="text-[10px] text-[var(--primary)] font-semibold mb-0.5"
-                        >저장</button>
-                        <span className="text-[10px] text-[var(--text-dim)] w-full">
-                          남은 연차{Number(b.used_days) > 0 ? ` (사용 ${b.used_days}일 포함해 총부여 계산)` : ""}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => { if (!isEmployee) { setEditingBalanceId(b.id); setEditingBalanceVal(String(remaining)); } }}
-                          className={`text-xl font-bold ${
-                            remaining <= 0 ? "text-[var(--danger)]" : remaining <= 3 ? "text-yellow-400" : "text-[var(--success)]"
-                          } ${!isEmployee ? "hover:underline" : ""}`}
-                          title={!isEmployee ? "클릭하여 남은 연차 수정" : ""}
-                        >
-                          {remaining}
-                        </button>
-                        <span className="text-xs text-[var(--text-dim)] mb-0.5">
-                          / {b.total_days}일 {!isEmployee && <span className="text-[9px]">✏</span>}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  <div className="w-full h-1.5 bg-[var(--border)] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        remaining <= 0 ? "bg-[var(--danger)]" : remaining <= 3 ? "bg-yellow-400" : "bg-[var(--success)]"
-                      }`}
-                      style={{ width: `${Math.max(0, Math.min(100, percent))}%` }}
+            <div className="leave-type-editor glass-card">
+              <p className="text-[11px] text-[var(--text-dim)] mb-3">
+                회사 규정에 맞게 유형 이름과 기본 일수를 고치세요. 이미 신청된 휴가의 유형은 그대로 유지됩니다.
+              </p>
+              <div className="leave-type-editor-rows">
+                {(draftTypes || []).map((t, i) => (
+                  <div key={i} className="leave-type-editor-row">
+                    <input
+                      value={t.label}
+                      onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, label: e.target.value } : x))}
+                      placeholder="유형 이름"
+                      className="leave-type-editor-name field-input"
                     />
-                  </div>
-                  {!isEmployee && grantMethod === "auto" && calc && (
-                    <button
-                      onClick={() => empRec?.hire_date && autoInitMut.mutate({ employeeId: b.employee_id, hireDate: empRec.hire_date })}
-                      className="mt-2 text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] transition"
-                      title={calc.formula}
-                    >
-                      ↻ 입사일 기준 재계산 (권장 {calc.totalDays}일)
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-            {/* 연차 미설정 직원도 같은 그리드에 카드로 (2026-07-30 사장님 — 신규 입사자가 안 보인다는 제보 2차):
-                작은 안내줄만으로는 눈에 안 띄어, 미설정 직원을 점선 카드로 직접 노출 */}
-            {!isEmployee && employeesWithoutBalance.map((e: any) => {
-              const calc = e.hire_date ? calculateAnnualLeave(e.hire_date, `${currentYear}-12-31`) : null;
-              const editKey = `nb-${e.id}`;
-              const isEditingNew = editingBalanceId === editKey;
-              return (
-                <div key={editKey} className="glass-card p-4 border border-dashed border-[var(--warning)]/50">
-                  <div className="text-sm font-medium mb-1">{e.name}</div>
-                  <div className="text-xs text-[var(--text-dim)] mb-2 flex items-center gap-1">
-                    {e.department || "미배정"}
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--warning)]/10 text-[var(--warning)]">연차 미설정</span>
-                  </div>
-                  {isEditingNew ? (
-                    <span className="flex items-center gap-1">
+                    <div className="leave-type-editor-days-wrap">
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        value={editingBalanceVal}
-                        autoFocus
-                        onChange={(ev) => setEditingBalanceVal(ev.target.value.replace(/[^0-9.]/g, ""))}
-                        onKeyDown={(ev) => {
-                          if (ev.key === "Enter") {
-                            const v = Number(editingBalanceVal);
-                            if (v >= 0) setRemaining.mutate({ employeeId: e.id, remainingDays: v, usedDays: 0 });
-                            setEditingBalanceId(null);
-                          } else if (ev.key === "Escape") setEditingBalanceId(null);
-                        }}
-                        className="w-14 px-1 py-0.5 text-xs text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded"
+                        type="number"
+                        min={0}
+                        value={t.defaultDays}
+                        onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, defaultDays: Math.max(0, Number(e.target.value) || 0) } : x))}
+                        className="leave-type-editor-days field-input"
                       />
-                      <span className="text-xs text-[var(--text-dim)]">일 남음</span>
-                      <button
-                        onClick={() => {
-                          const v = Number(editingBalanceVal);
-                          if (v >= 0) setRemaining.mutate({ employeeId: e.id, remainingDays: v, usedDays: 0 });
-                          setEditingBalanceId(null);
-                        }}
-                        className="text-[10px] text-[var(--primary)] font-semibold"
-                      >저장</button>
-                    </span>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        onClick={() => { setEditingBalanceId(editKey); setEditingBalanceVal(String(calc?.totalDays ?? 15)); }}
-                        className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-[var(--primary)]/50 transition font-semibold"
-                      >남은 연차 입력</button>
-                      {e.hire_date && calc && (
-                        <button
-                          onClick={() => autoInitMut.mutate({ employeeId: e.id, hireDate: e.hire_date })}
-                          className="text-[11px] px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg hover:border-[var(--warning)]/50 transition"
-                          title={calc.formula}
-                        >자동 {calc.totalDays}일 부여</button>
-                      )}
+                      <span className="text-[11px] text-[var(--text-dim)]">일</span>
                     </div>
-                  )}
+                    <button
+                      onClick={() => setDraftTypes((prev) => (prev || []).filter((_, xi) => xi !== i))}
+                      className="leave-type-editor-del"
+                      title="이 유형 삭제"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="leave-type-editor-actions">
+                <button
+                  onClick={() => setDraftTypes((prev) => [...(prev || []), { value: `custom_${Date.now()}`, label: "", defaultDays: 0 }])}
+                  className="btn-secondary btn-sm"
+                >
+                  유형 추가
+                </button>
+                <div className="flex gap-2 ml-auto">
+                  <button
+                    onClick={() => { setTypesEditing(false); setDraftTypes(null); }}
+                    disabled={saveTypesMut.isPending}
+                    className="leave-type-editor-cancel"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => {
+                      const cleaned = (draftTypes || [])
+                        .map((t) => ({ ...t, label: t.label.trim() }))
+                        .filter((t) => t.label !== "");
+                      if (cleaned.length === 0) { toast("휴가 유형을 최소 1개는 남겨주세요", "error"); return; }
+                      saveTypesMut.mutate(cleaned);
+                    }}
+                    disabled={saveTypesMut.isPending}
+                    className="btn-primary btn-sm"
+                  >
+                    {saveTypesMut.isPending ? "저장 중..." : "저장"}
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성.
+            2026-08-06 사장님: 공간을 너무 먹어 접힌 요약이 기본. '변경'으로 펼쳐 고른 뒤 저장. */}
+        {!isEmployee && (
+          <div className="leave-accrual-panel glass-card">
+            {!accrualEditing ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs text-[var(--text-muted)]">
+                  연차 자동 발생 ·{" "}
+                  <strong className="text-[var(--text)]">
+                    {accrual.enabled ? `켬 · ${ACCRUAL_BASIS_LABELS[accrual.basis].label}` : "끔"}
+                  </strong>
+                </div>
+                <button
+                  onClick={() => { setPendingAccrual({ ...accrual }); setAccrualEditing(true); }}
+                  className="leave-accrual-change-btn"
+                >
+                  변경
+                </button>
+              </div>
+            ) : (
+              <>
+                <label className="leave-accrual-toggle">
+                  <input
+                    type="checkbox"
+                    checked={draftAccrual.enabled}
+                    onChange={(e) => setPendingAccrual({ ...draftAccrual, enabled: e.target.checked })}
+                    className="w-4 h-4 accent-[var(--primary)] shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold">연차 자동 발생</div>
+                    <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                      입사 1년 전까지는 매월 1일씩(최대 11일), 1주년부터는 근속연수별 법정 연차(1~2년 15일 · 3년 이상 2년마다 +1일 · 상한 25일)가
+                      입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
+                    </p>
+                    <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                      총 부여일수는 입사일 기준으로 자동 계산됩니다. 직원 카드에서 남은 연차를 직접 고치면 그 차액만 조정으로 반영됩니다.
+                    </p>
+                  </div>
+                </label>
+
+                {draftAccrual.enabled && (
+                  <div className="leave-accrual-basis">
+                    <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">발생 기준</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
+                        const on = draftAccrual.basis === k;
+                        return (
+                          <button
+                            key={k}
+                            onClick={() => setPendingAccrual({ ...draftAccrual, basis: k })}
+                            className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
+                          >
+                            <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
+                            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      <button
+                        onClick={() => syncAccrualMut.mutate()}
+                        disabled={syncAccrualMut.isPending}
+                        className="btn-secondary btn-sm disabled:opacity-50"
+                        title="누락된 과거 발생분을 지금 즉시 생성합니다"
+                      >
+                        {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
+                      </button>
+                      <span className="text-[11px] text-[var(--text-dim)]">매일 자정에도 자동으로 반영됩니다</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 justify-end mt-3">
+                  <button
+                    onClick={() => { setAccrualEditing(false); setPendingAccrual(null); }}
+                    disabled={saveAccrualMut.isPending}
+                    className="leave-accrual-cancel-btn"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => saveAccrualMut.mutate(draftAccrual, {
+                      onSuccess: () => { setAccrualEditing(false); setPendingAccrual(null); },
+                    })}
+                    disabled={saveAccrualMut.isPending}
+                    className="btn-primary btn-sm"
+                  >
+                    {saveAccrualMut.isPending ? "저장 중..." : "저장"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
-      </div>
 
+        {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
+        {!isEmployee && (
+          <div className="leave-grant-method-panel glass-card">
+            {!grantEditing ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs text-[var(--text-muted)]">
+                  연차 부여 방식 ·{" "}
+                  <strong className="text-[var(--text)]">
+                    {grantMethod === "auto" ? "자동부여 (입사일 기준)" : "직접입력"}
+                  </strong>
+                </div>
+                <button
+                  onClick={() => { setPendingGrant(grantMethod); setGrantEditing(true); }}
+                  className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0"
+                >
+                  변경
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="text-sm font-bold mb-1">연차 부여 방식</div>
+                <p className="text-[11px] text-[var(--text-dim)] mb-3">
+                  회사 정책에 맞게 선택 후 <strong>저장</strong>하세요. 저장하면 아래 UI가 그에 맞게 표시됩니다.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { v: "auto" as LeaveGrantMethod, label: "자동부여 (입사일 기준)", desc: "근로기준법 공식으로 자동 산정" },
+                    { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력" },
+                  ]).map((opt) => {
+                    const active = (pendingGrant ?? grantMethod) === opt.v;
+                    return (
+                      <button
+                        key={opt.v}
+                        onClick={() => setPendingGrant(opt.v)}
+                        className={`flex-1 min-w-[200px] text-left px-4 py-3 rounded-xl border transition ${
+                          active
+                            ? "border-[var(--primary)] bg-[var(--primary)]/10"
+                            : "border-[var(--border)] hover:border-[var(--primary)]/40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`w-3.5 h-3.5 rounded-full border-2 flex-shrink-0 ${active ? "border-[var(--primary)] bg-[var(--primary)]" : "border-[var(--text-dim)]"}`} />
+                          <span className="text-sm font-semibold">{opt.label}</span>
+                        </div>
+                        <div className="text-[11px] text-[var(--text-dim)] mt-1 ml-[22px]">{opt.desc}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 justify-end mt-3">
+                  <button
+                    onClick={() => { setGrantEditing(false); setPendingGrant(null); }}
+                    disabled={setGrantMethodMut.isPending}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => {
+                      const sel = pendingGrant ?? grantMethod;
+                      setGrantMethodMut.mutate(sel, { onSuccess: () => { setGrantEditing(false); setPendingGrant(null); } });
+                    }}
+                    disabled={setGrantMethodMut.isPending}
+                    className="btn-primary btn-sm"
+                  >
+                    {setGrantMethodMut.isPending ? "저장 중..." : "저장"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+      </>)}
+
+      {leaveView === "roster" && (<>
       {/* Controls */}
       <div ref={approveSectionRef} id="leave-approve-section" className="leave-filter-toolbar">
         <div className="flex gap-2">
@@ -3689,248 +3645,341 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         )}
       </div>
 
-      {/* Leave Calendar */}
-      <div className="leave-calendar">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h3 className="text-sm font-bold text-[var(--text-muted)]">휴가 캘린더</h3>
-          <div className="flex items-center gap-3">
-            {/* 범례 — 연차/반차/기타휴가 색상 구분 */}
-            <div className="flex items-center gap-2.5 text-[10px] text-[var(--text-muted)]">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />연차</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />반차</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />기타휴가</span>
+      </>)}
+
+      {/* 휴가 캘린더 — 시안대로 팝업 (2026-08-06) */}
+      {calendarOpen && (
+        <div className="leave-modal-backdrop" onClick={() => setCalendarOpen(false)}>
+          <div className="leave-modal leave-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <div className="leave-modal-head">
+              <h3 className="text-sm font-bold">휴가 캘린더</h3>
+              <button onClick={() => setCalendarOpen(false)} className="leave-modal-close">✕</button>
             </div>
-            <MonthField
-              value={calMonth}
-              onChange={(e) => setCalMonth(e.target.value)}
-              className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm"
-            />
-          </div>
-        </div>
-        <div className="glass-card overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-7 border-b border-[var(--border)]">
-            {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
-              <div
-                key={d}
-                className={`text-center text-xs font-medium py-2 ${
-                  i === 0 ? "text-[var(--danger)]" : i === 6 ? "text-[var(--info)]" : "text-[var(--text-dim)]"
-                }`}
-              >
-                {d}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7">
-            {Array.from({ length: calFirstDow }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[72px] border-b border-r border-[var(--border)]/30 bg-[var(--bg-surface)]/30" />
-            ))}
-            {Array.from({ length: calDaysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `${calMonth}-${String(day).padStart(2, "0")}`;
-              const isToday = dateStr === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-              const dow = (calFirstDow + i) % 7;
-              const isWeekend = dow === 0 || dow === 6;
-              const onLeave = leaveCalendar[dateStr] || [];
-
-              return (
-                <div
-                  key={day}
-                  className={`min-h-[72px] border-b border-r border-[var(--border)]/30 p-1.5 ${
-                    isToday ? "bg-[var(--primary)]/5" : isWeekend ? "bg-[var(--bg-surface)]/30" : ""
-                  }`}
-                >
-                  <div className={`text-xs font-medium mb-1 ${
-                    isToday ? "text-[var(--primary)] font-bold" : dow === 0 ? "text-[var(--danger)]" : dow === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
-                  }`}>
-                    {day}
-                  </div>
-                  <div className="space-y-0.5">
-                    {onLeave.slice(0, 3).map((l, idx) => {
-                      const chipCls = l.bucket === "annual"
-                        ? "bg-purple-500/10 text-purple-400"
-                        : l.bucket === "half"
-                        ? "bg-amber-500/10 text-amber-500"
-                        : "bg-blue-500/10 text-blue-400";
-                      return (
-                        <div
-                          key={idx}
-                          className={`text-[9px] px-1 py-0.5 rounded truncate ${chipCls}`}
-                          title={`${l.name} — ${l.type}${l.bucket === "half" ? " (반차)" : ""}`}
-                        >
-                          {l.name}{l.bucket !== "annual" && <span className="opacity-70"> · {l.bucket === "half" ? "반차" : l.type}</span>}
-                        </div>
-                      );
-                    })}
-                    {onLeave.length > 3 && (
-                      <div className="text-[9px] text-[var(--text-dim)]">+{onLeave.length - 3}명</div>
-                    )}
-                  </div>
+            <div className="leave-modal-body">
+          <div className="leave-calendar">
+            {/* 제목은 팝업 머리에 이미 있다 — 범례·월 선택만 남긴다 */}
+            <div className="flex items-center justify-end mb-3 flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                {/* 범례 — 연차/반차/기타휴가 색상 구분 */}
+                <div className="flex items-center gap-2.5 text-[10px] text-[var(--text-muted)]">
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />연차</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />반차</span>
+                  <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />기타휴가</span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+                <MonthField
+                  value={calMonth}
+                  onChange={(e) => setCalMonth(e.target.value)}
+                  className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm"
+                />
+              </div>
+            </div>
+            <div className="glass-card overflow-hidden">
+              {/* Header */}
+              <div className="grid grid-cols-7 border-b border-[var(--border)]">
+                {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+                  <div
+                    key={d}
+                    className={`text-center text-xs font-medium py-2 ${
+                      i === 0 ? "text-[var(--danger)]" : i === 6 ? "text-[var(--info)]" : "text-[var(--text-dim)]"
+                    }`}
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
 
-      {/* 연차 상세 월별 Breakdown */}
-      {!isEmployee && balances.length > 0 && (
-        <div className="leave-monthly-breakdown-table">
-          <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">연차 월별 사용 현황 ({currentYear}년)</h3>
-          <div className="glass-card overflow-hidden">
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
-              <thead className="sticky-bar"><tr className="table-head-row">
-                <th className="text-left px-4 py-2.5 font-medium sticky left-0 bg-[var(--bg-card)] z-10">직원</th>
-                <th className="text-center px-2 py-2.5 font-medium">총부여</th>
-                {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <th key={m} className="text-center px-2 py-2.5 font-medium">{m}월</th>)}
-                <th className="text-center px-2 py-2.5 font-medium">합계</th>
-                <th className="text-center px-2 py-2.5 font-medium">잔여</th>
-              </tr></thead>
-              <tbody>
-                {balances.map((b: any) => {
-                  const approved = leaveRequests.filter((r: any) => r.status === "approved" && r.employee_id === b.employee_id);
-                  const monthUsage = Array(12).fill(0);
-                  approved.forEach((r: any) => {
-                    const start = new Date(r.start_date);
-                    if (start.getFullYear() === currentYear) {
-                      monthUsage[start.getMonth()] += Number(r.days || 0);
-                    }
-                  });
-                  const totalUsed = monthUsage.reduce((s, v) => s + v, 0);
-                  const remaining = b.total_days - totalUsed;
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7">
+                {Array.from({ length: calFirstDow }).map((_, i) => (
+                  <div key={`empty-${i}`} className="min-h-[72px] border-b border-r border-[var(--border)]/30 bg-[var(--bg-surface)]/30" />
+                ))}
+                {Array.from({ length: calDaysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const dateStr = `${calMonth}-${String(day).padStart(2, "0")}`;
+                  const isToday = dateStr === `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                  const dow = (calFirstDow + i) % 7;
+                  const isWeekend = dow === 0 || dow === 6;
+                  const onLeave = leaveCalendar[dateStr] || [];
+
                   return (
-                    <tr key={b.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
-                      <td className="px-4 py-2.5 text-sm font-medium sticky left-0 bg-[var(--bg-card)]">{b.employees?.name || "—"}</td>
-                      <td className="px-2 py-2.5 text-xs text-center font-semibold">{b.total_days}</td>
-                      {monthUsage.map((u, i) => (
-                        <td key={i} className="px-2 py-2.5 text-center">
-                          {u > 0 ? <span className="text-xs font-semibold text-[var(--danger)]">{u}</span> : <span className="text-[10px] text-[var(--border)]">-</span>}
-                        </td>
-                      ))}
-                      <td className="px-2 py-2.5 text-xs text-center font-bold text-[var(--danger)]">{totalUsed > 0 ? totalUsed : "-"}</td>
-                      <td className={`px-2 py-2.5 text-xs text-center font-bold ${remaining <= 0 ? "text-[var(--danger)]" : remaining <= 3 ? "text-yellow-400" : "text-[var(--success)]"}`}>{remaining}</td>
-                    </tr>
+                    <div
+                      key={day}
+                      className={`min-h-[72px] border-b border-r border-[var(--border)]/30 p-1.5 ${
+                        isToday ? "bg-[var(--primary)]/5" : isWeekend ? "bg-[var(--bg-surface)]/30" : ""
+                      }`}
+                    >
+                      <div className={`text-xs font-medium mb-1 ${
+                        isToday ? "text-[var(--primary)] font-bold" : dow === 0 ? "text-[var(--danger)]" : dow === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
+                      }`}>
+                        {day}
+                      </div>
+                      <div className="space-y-0.5">
+                        {onLeave.slice(0, 3).map((l, idx) => {
+                          const chipCls = l.bucket === "annual"
+                            ? "bg-purple-500/10 text-purple-400"
+                            : l.bucket === "half"
+                            ? "bg-amber-500/10 text-amber-500"
+                            : "bg-blue-500/10 text-blue-400";
+                          return (
+                            <div
+                              key={idx}
+                              className={`text-[9px] px-1 py-0.5 rounded truncate ${chipCls}`}
+                              title={`${l.name} — ${l.type}${l.bucket === "half" ? " (반차)" : ""}`}
+                            >
+                              {l.name}{l.bucket !== "annual" && <span className="opacity-70"> · {l.bucket === "half" ? "반차" : l.type}</span>}
+                            </div>
+                          );
+                        })}
+                        {onLeave.length > 3 && (
+                          <div className="text-[9px] text-[var(--text-dim)]">+{onLeave.length - 3}명</div>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table></div>
-          </div>
-        </div>
-      )}
-
-      {/* Leave Promotion (연차촉진) Section */}
-      {!isEmployee && (
-        <div className="leave-promotion-section">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리 (근로기준법 §61)</h3>
-            <button
-              onClick={() => setShowPromotion(!showPromotion)}
-              className="text-xs px-3 py-1.5 bg-[var(--warning)]/10 text-[var(--warning)] rounded-lg hover:bg-[var(--warning)]/20 transition"
-            >
-              {showPromotion ? "접기" : "연차촉진 관리"}
-            </button>
+              </div>
+            </div>
           </div>
 
-          {showPromotion && (
-            <div className="space-y-4">
-              {/* Candidates */}
-              {promotionCandidates.length > 0 && (
-                <div className="glass-card overflow-hidden">
-                  <div className="px-5 py-3 border-b border-[var(--border)] bg-yellow-500/5">
-                    <span className="text-xs font-semibold text-[var(--warning)]">미사용 연차 보유 직원 ({promotionCandidates.length}명)</span>
-                  </div>
-                  <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
-                    <thead className="sticky-bar"><tr className="table-head-row">
-                      <th className="text-left px-5 py-2 font-medium">직원</th>
-                      <th className="text-left px-5 py-2 font-medium">부서</th>
-                      <th className="text-center px-5 py-2 font-medium">총 연차</th>
-                      <th className="text-center px-5 py-2 font-medium">사용</th>
-                      <th className="text-center px-5 py-2 font-medium">미사용</th>
-                      <th className="text-center px-5 py-2 font-medium">촉진 통보</th>
-                    </tr></thead>
-                    <tbody>
-                      {promotionCandidates.map((c: any) => (
-                        <tr key={c.employeeId} className="border-b border-[var(--border)]/50">
-                          <td className="px-5 py-2.5 text-sm font-medium">{c.employeeName}</td>
-                          <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{c.department || "—"}</td>
-                          <td className="px-5 py-2.5 text-sm text-center">{c.totalDays}일</td>
-                          <td className="px-5 py-2.5 text-sm text-center">{c.usedDays}일</td>
-                          <td className="px-5 py-2.5 text-sm text-center font-bold text-[var(--warning)]">{c.remainingDays}일</td>
-                          <td className="px-5 py-2.5 text-center">
-                            <div className="flex gap-1 justify-center">
-                              <button
-                                onClick={() => c.email && sendPromotion.mutate({
-                                  employeeId: c.employeeId, noticeType: "first",
-                                  unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
-                                })}
-                                disabled={!c.email || sendPromotion.isPending}
-                                className="text-[10px] px-2 py-1 rounded bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 disabled:opacity-50"
-                              >
-                                1차
-                              </button>
-                              <button
-                                onClick={() => c.email && sendPromotion.mutate({
-                                  employeeId: c.employeeId, noticeType: "second",
-                                  unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
-                                })}
-                                disabled={!c.email || sendPromotion.isPending}
-                                className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 disabled:opacity-50"
-                              >
-                                2차
-                              </button>
-                            </div>
-                          </td>
+          {/* 연차 상세 월별 Breakdown */}
+          {!isEmployee && balances.length > 0 && (
+            <div className="leave-monthly-breakdown-table">
+              <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">연차 월별 사용 현황 ({currentYear}년)</h3>
+              <div className="glass-card overflow-hidden">
+                <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
+                  <thead className="sticky-bar"><tr className="table-head-row">
+                    <th className="text-left px-4 py-2.5 font-medium sticky left-0 bg-[var(--bg-card)] z-10">직원</th>
+                    <th className="text-center px-2 py-2.5 font-medium">총부여</th>
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <th key={m} className="text-center px-2 py-2.5 font-medium">{m}월</th>)}
+                    <th className="text-center px-2 py-2.5 font-medium">합계</th>
+                    <th className="text-center px-2 py-2.5 font-medium">잔여</th>
+                  </tr></thead>
+                  <tbody>
+                    {balances.map((b: any) => {
+                      const approved = leaveRequests.filter((r: any) => r.status === "approved" && r.employee_id === b.employee_id);
+                      const monthUsage = Array(12).fill(0);
+                      approved.forEach((r: any) => {
+                        const start = new Date(r.start_date);
+                        if (start.getFullYear() === currentYear) {
+                          monthUsage[start.getMonth()] += Number(r.days || 0);
+                        }
+                      });
+                      const totalUsed = monthUsage.reduce((s, v) => s + v, 0);
+                      const remaining = b.total_days - totalUsed;
+                      return (
+                        <tr key={b.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                          <td className="px-4 py-2.5 text-sm font-medium sticky left-0 bg-[var(--bg-card)]">{b.employees?.name || "—"}</td>
+                          <td className="px-2 py-2.5 text-xs text-center font-semibold">{b.total_days}</td>
+                          {monthUsage.map((u, i) => (
+                            <td key={i} className="px-2 py-2.5 text-center">
+                              {u > 0 ? <span className="text-xs font-semibold text-[var(--danger)]">{u}</span> : <span className="text-[10px] text-[var(--border)]">-</span>}
+                            </td>
+                          ))}
+                          <td className="px-2 py-2.5 text-xs text-center font-bold text-[var(--danger)]">{totalUsed > 0 ? totalUsed : "-"}</td>
+                          <td className={`px-2 py-2.5 text-xs text-center font-bold ${remaining <= 0 ? "text-[var(--danger)]" : remaining <= 3 ? "text-yellow-400" : "text-[var(--success)]"}`}>{remaining}</td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table></div>
-                </div>
-              )}
+                      );
+                    })}
+                  </tbody>
+                </table></div>
+              </div>
+            </div>
+          )}
 
-              {/* Sent notices history */}
-              {promotionNotices.length > 0 && (
-                <div className="glass-card overflow-hidden">
-                  <div className="px-5 py-3 border-b border-[var(--border)]">
-                    <span className="text-xs font-semibold text-[var(--text-muted)]">촉진 통보 이력</span>
-                  </div>
-                  <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
-                    <thead className="sticky-bar"><tr className="table-head-row">
-                      <th className="text-left px-5 py-2 font-medium">직원</th>
-                      <th className="text-center px-5 py-2 font-medium">차수</th>
-                      <th className="text-center px-5 py-2 font-medium">미사용</th>
-                      <th className="text-left px-5 py-2 font-medium">발송일</th>
-                      <th className="text-left px-5 py-2 font-medium">기한</th>
-                    </tr></thead>
-                    <tbody>
-                      {promotionNotices.map((n: any) => (
-                        <tr key={n.id} className="border-b border-[var(--border)]/50">
-                          <td className="px-5 py-2.5 text-sm">{n.employees?.name || "—"}</td>
-                          <td className="px-5 py-2.5 text-center">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${n.notice_type === 'first' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-[var(--danger)]/10 text-[var(--danger)]'}`}>
-                              {n.notice_type === "first" ? "1차" : "2차"}
-                            </span>
-                          </td>
-                          <td className="px-5 py-2.5 text-sm text-center">{Number(n.unused_days)}일</td>
-                          <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.sent_at ? kstDateStr(new Date(n.sent_at)) : "—"}</td>
-                          <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.deadline || "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table></div>
-                </div>
-              )}
+          {/* Leave Promotion (연차촉진) Section */}
+          {!isEmployee && (
+            <div className="leave-promotion-section">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리 (근로기준법 §61)</h3>
+                <button
+                  onClick={() => setShowPromotion(!showPromotion)}
+                  className="text-xs px-3 py-1.5 bg-[var(--warning)]/10 text-[var(--warning)] rounded-lg hover:bg-[var(--warning)]/20 transition"
+                >
+                  {showPromotion ? "접기" : "연차촉진 관리"}
+                </button>
+              </div>
 
-              {promotionCandidates.length === 0 && (
-                <div className="glass-card p-8 text-center">
-                  <div className="text-sm text-[var(--text-muted)]">모든 직원이 연차를 전부 사용했습니다</div>
+              {showPromotion && (
+                <div className="space-y-4">
+                  {/* Candidates */}
+                  {promotionCandidates.length > 0 && (
+                    <div className="glass-card overflow-hidden">
+                      <div className="px-5 py-3 border-b border-[var(--border)] bg-yellow-500/5">
+                        <span className="text-xs font-semibold text-[var(--warning)]">미사용 연차 보유 직원 ({promotionCandidates.length}명)</span>
+                      </div>
+                      <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
+                        <thead className="sticky-bar"><tr className="table-head-row">
+                          <th className="text-left px-5 py-2 font-medium">직원</th>
+                          <th className="text-left px-5 py-2 font-medium">부서</th>
+                          <th className="text-center px-5 py-2 font-medium">총 연차</th>
+                          <th className="text-center px-5 py-2 font-medium">사용</th>
+                          <th className="text-center px-5 py-2 font-medium">미사용</th>
+                          <th className="text-center px-5 py-2 font-medium">촉진 통보</th>
+                        </tr></thead>
+                        <tbody>
+                          {promotionCandidates.map((c: any) => (
+                            <tr key={c.employeeId} className="border-b border-[var(--border)]/50">
+                              <td className="px-5 py-2.5 text-sm font-medium">{c.employeeName}</td>
+                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{c.department || "—"}</td>
+                              <td className="px-5 py-2.5 text-sm text-center">{c.totalDays}일</td>
+                              <td className="px-5 py-2.5 text-sm text-center">{c.usedDays}일</td>
+                              <td className="px-5 py-2.5 text-sm text-center font-bold text-[var(--warning)]">{c.remainingDays}일</td>
+                              <td className="px-5 py-2.5 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <button
+                                    onClick={() => c.email && sendPromotion.mutate({
+                                      employeeId: c.employeeId, noticeType: "first",
+                                      unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
+                                    })}
+                                    disabled={!c.email || sendPromotion.isPending}
+                                    className="text-[10px] px-2 py-1 rounded bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 disabled:opacity-50"
+                                  >
+                                    1차
+                                  </button>
+                                  <button
+                                    onClick={() => c.email && sendPromotion.mutate({
+                                      employeeId: c.employeeId, noticeType: "second",
+                                      unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
+                                    })}
+                                    disabled={!c.email || sendPromotion.isPending}
+                                    className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 disabled:opacity-50"
+                                  >
+                                    2차
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table></div>
+                    </div>
+                  )}
+
+                  {/* Sent notices history */}
+                  {promotionNotices.length > 0 && (
+                    <div className="glass-card overflow-hidden">
+                      <div className="px-5 py-3 border-b border-[var(--border)]">
+                        <span className="text-xs font-semibold text-[var(--text-muted)]">촉진 통보 이력</span>
+                      </div>
+                      <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
+                        <thead className="sticky-bar"><tr className="table-head-row">
+                          <th className="text-left px-5 py-2 font-medium">직원</th>
+                          <th className="text-center px-5 py-2 font-medium">차수</th>
+                          <th className="text-center px-5 py-2 font-medium">미사용</th>
+                          <th className="text-left px-5 py-2 font-medium">발송일</th>
+                          <th className="text-left px-5 py-2 font-medium">기한</th>
+                        </tr></thead>
+                        <tbody>
+                          {promotionNotices.map((n: any) => (
+                            <tr key={n.id} className="border-b border-[var(--border)]/50">
+                              <td className="px-5 py-2.5 text-sm">{n.employees?.name || "—"}</td>
+                              <td className="px-5 py-2.5 text-center">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full ${n.notice_type === 'first' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-[var(--danger)]/10 text-[var(--danger)]'}`}>
+                                  {n.notice_type === "first" ? "1차" : "2차"}
+                                </span>
+                              </td>
+                              <td className="px-5 py-2.5 text-sm text-center">{Number(n.unused_days)}일</td>
+                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.sent_at ? kstDateStr(new Date(n.sent_at)) : "—"}</td>
+                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.deadline || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table></div>
+                    </div>
+                  )}
+
+                  {promotionCandidates.length === 0 && (
+                    <div className="glass-card p-8 text-center">
+                      <div className="text-sm text-[var(--text-muted)]">모든 직원이 연차를 전부 사용했습니다</div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
+            </div>
+          </div>
         </div>
       )}
+
+      {/* 이름 클릭 — 그 구성원의 전체 연차 신청 내역. 관리자는 여기서 바로 휴가를 등록할 수 있다. */}
+      {rosterEmp && (
+        <div className="leave-modal-backdrop" onClick={() => setRosterEmp(null)}>
+          <div className="leave-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="leave-modal-head">
+              <h3 className="text-sm font-bold">{rosterEmp.name} · 연차 신청 내역</h3>
+              <button onClick={() => setRosterEmp(null)} className="leave-modal-close">✕</button>
+            </div>
+            <div className="leave-modal-body">
+              {!isEmployee && (
+                <button
+                  onClick={() => {
+                    setForm((prev: any) => ({ ...prev, employeeId: rosterEmp.id }));
+                    setRosterEmp(null);
+                    setShowForm(true);
+                  }}
+                  className="btn-primary btn-sm mb-3"
+                >
+                  이 구성원 휴가 등록
+                </button>
+              )}
+              {rosterEmpRequests.length === 0 ? (
+                <div className="templates-empty">신청 내역이 없습니다.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {rosterEmpRequests.map((r: any) => (
+                    <div key={r.id} className="leave-modal-row">
+                      <div>
+                        <div className="text-xs font-semibold">{leaveTypeLabel(r.leave_type)} · {r.days}일</div>
+                        <div className="caption">
+                          {r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-semibold">
+                        {LEAVE_REQUEST_STATUS[r.status as keyof typeof LEAVE_REQUEST_STATUS]?.label || r.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 월 셀 클릭 — 그 달 사용 날짜·승인 내역 */}
+      {rosterMonth && (
+        <div className="leave-modal-backdrop" onClick={() => setRosterMonth(null)}>
+          <div className="leave-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="leave-modal-head">
+              <h3 className="text-sm font-bold">{rosterMonth.name} · {currentYear}년 {rosterMonth.month + 1}월 사용 내역</h3>
+              <button onClick={() => setRosterMonth(null)} className="leave-modal-close">✕</button>
+            </div>
+            <div className="leave-modal-body">
+              {rosterMonthRequests.length === 0 ? (
+                <div className="templates-empty">이 달 사용 내역이 없습니다.</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {rosterMonthRequests.map((r: any) => (
+                    <div key={r.id} className="leave-modal-row">
+                      <div>
+                        <div className="text-xs font-semibold">
+                          {r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""} · {r.days}일
+                        </div>
+                        <div className="caption">{leaveTypeLabel(r.leave_type)}</div>
+                      </div>
+                      <span className="text-[11px] font-semibold text-[var(--success)]">
+                        {r.approved_at ? `${kstDateStr(new Date(r.approved_at))} 승인` : "승인"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
