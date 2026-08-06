@@ -2682,6 +2682,28 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .leave-accrual-basis { @apply mt-3 pt-3 border-t border-[var(--border)]; }
 .leave-accrual-basis-opt { @apply text-left px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] transition hover:border-[var(--primary)]/40; }
 .leave-accrual-basis-opt-on { @apply border-[var(--primary)]/50 bg-[var(--primary)]/8; }
+/* 연차 자동 발생 — 접힘 요약의 변경/취소 (2026-08-06) */
+.leave-accrual-change-btn { @apply text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0; }
+.leave-accrual-cancel-btn { @apply px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50; }
+
+/* 휴가 유형 — 작은 칩 한 줄 + 회사별 유형·일수 편집 (2026-08-06) */
+.leave-type-head { @apply flex items-center justify-between gap-3 mb-2.5; }
+.leave-type-edit-btn { @apply text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0; }
+.leave-type-chip-row { @apply flex items-center gap-1.5 overflow-x-auto pb-1; }
+.leave-type-chip { @apply inline-flex items-baseline gap-1.5 shrink-0 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] whitespace-nowrap; }
+.leave-type-chip-label { @apply text-[11px] text-[var(--text-muted)]; }
+.leave-type-chip-days { @apply text-xs font-bold; }
+.leave-type-chip-used { @apply text-[10px] text-[var(--danger)]; }
+.leave-type-chip-pending { @apply text-[10px] text-[var(--warning)]; }
+.leave-type-editor { @apply p-4; }
+.leave-type-editor-rows { @apply flex flex-col gap-2; }
+.leave-type-editor-row { @apply flex items-center gap-2; }
+.leave-type-editor-name { @apply flex-1 min-w-0 px-3 py-2 text-sm; }
+.leave-type-editor-days-wrap { @apply flex items-center gap-1 shrink-0; }
+.leave-type-editor-days { @apply w-16 px-2 py-2 text-sm text-right; }
+.leave-type-editor-del { @apply shrink-0 text-[11px] font-semibold px-2.5 py-2 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--danger)] hover:border-[var(--danger)]/40 transition; }
+.leave-type-editor-actions { @apply flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border)]; }
+.leave-type-editor-cancel { @apply px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50; }
 /* 직원 카드 — 남은 연차 직접 입력 */
 .leave-remaining-input { @apply w-14 px-1 py-0.5 text-lg font-bold text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded; }
 

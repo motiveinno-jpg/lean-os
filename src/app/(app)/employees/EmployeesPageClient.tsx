@@ -32,6 +32,7 @@ import {
 import {
   getMonthlyAccrualSettings, setMonthlyAccrualSettings, syncLeaveAccruals, setRemainingLeaveDays,
   ACCRUAL_BASIS_LABELS, type MonthlyAccrualBasis,
+  getCompanyLeaveTypes, setCompanyLeaveTypes, defaultCompanyLeaveTypes, type CompanyLeaveType,
 } from "@/lib/leave-grants";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
 import {
@@ -2637,6 +2638,32 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     },
     onError: (err: any) => toast("저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
+  // 연차 자동 발생 — 접힌 요약이 기본, '변경'으로 펼쳐 고른 뒤 저장 (2026-08-06 사장님 요청).
+  //   '연차 부여 방식' 패널과 같은 규약. 켜고 끄는 즉시 저장되던 걸 저장 버튼으로 바꾼다.
+  const [accrualEditing, setAccrualEditing] = useState(false);
+  const [pendingAccrual, setPendingAccrual] = useState<{ enabled: boolean; basis: MonthlyAccrualBasis } | null>(null);
+  const draftAccrual = pendingAccrual ?? accrual;
+
+  // 회사별 휴가 유형·기본 일수 — 저장값이 없으면 법정 기본값
+  const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
+    queryKey: ["company-leave-types", companyId],
+    queryFn: () => getCompanyLeaveTypes(companyId!),
+    enabled: !!companyId,
+  });
+  const [typesEditing, setTypesEditing] = useState(false);
+  const [draftTypes, setDraftTypes] = useState<CompanyLeaveType[] | null>(null);
+  const saveTypesMut = useMutation({
+    mutationFn: (next: CompanyLeaveType[]) => setCompanyLeaveTypes(companyId!, next),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-leave-types", companyId] });
+      setTypesEditing(false); setDraftTypes(null);
+      toast("휴가 유형을 저장했습니다", "success");
+    },
+    onError: (err: any) => toast("휴가 유형 저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
+  });
+  // 유형 라벨 조회 — 회사 설정 우선, 없으면 저장된 원본 값 그대로(과거 요청이 깨지지 않게)
+  const leaveTypeLabel = (v: string) => companyLeaveTypes.find((t) => t.value === v)?.label
+    || LEAVE_TYPES.find((t) => t.value === v)?.label || v;
   const syncAccrualMut = useMutation({
     mutationFn: () => syncLeaveAccruals(),
     onSuccess: (count: number) => {
@@ -2676,7 +2703,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       const start = new Date(String(r.start_date).slice(0, 10) + "T00:00:00Z");
       const end = new Date(String(r.end_date || r.start_date).slice(0, 10) + "T00:00:00Z");
       const name = directoryNameById[r.employee_id] || r.employees?.name || "구성원";
-      const type = LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
+      const type = leaveTypeLabel(r.leave_type);
       const isHalf = r.leave_unit === "half_day" || r.leave_unit === "two_hours";
       const bucket: "annual" | "half" | "other" = isHalf ? "half" : r.leave_type === "annual" ? "annual" : "other";
       let guard = 0;
@@ -2724,12 +2751,12 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   // Calculate leave type usage summary
   const leaveTypeSummary = useMemo(() => {
     const approved = leaveRequests.filter((r: any) => r.status === "approved");
-    return LEAVE_TYPES.slice(0, 8).map(lt => {
+    return companyLeaveTypes.map(lt => {
       const used = approved.filter((r: any) => r.leave_type === lt.value).reduce((s: number, r: any) => s + Number(r.days || 0), 0);
       const pending = leaveRequests.filter((r: any) => r.leave_type === lt.value && r.status === "pending").length;
       return { ...lt, used, pending };
     });
-  }, [leaveRequests]);
+  }, [leaveRequests, companyLeaveTypes]);
 
   // Flex 승인 체인 진행 상태 계산 (approval_steps 우선, 없으면 구 1차/2차).
   const stepInfo = (r: any): {
@@ -2771,77 +2798,191 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
   return (
     <div>
-      {/* Flex-style Leave Type Overview Cards */}
+      {/* 휴가 유형 — 작은 칩으로 한 줄 (2026-08-06 사장님: 공간 차지 줄이기).
+          유형·기본 일수는 회사별로 편집 가능 — company_settings.settings.leave_types */}
       <div className="leave-type-overview">
-        <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">휴가 유형</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {leaveTypeSummary.map(lt => (
-            <div key={lt.value} className="glass-card p-4 hover:border-[var(--primary)]/30 transition">
-              <div className="text-xs text-[var(--text-dim)]">{lt.label}</div>
-              <div className="flex items-end gap-1.5 mt-1">
-                <span className="text-lg font-bold">{lt.defaultDays}일</span>
-                {lt.used > 0 && <span className="text-[10px] text-[var(--danger)] mb-0.5">-{lt.used}일 사용</span>}
-              </div>
-              {lt.pending > 0 && <div className="text-[10px] text-[var(--warning)] mt-1">{lt.pending}건 대기</div>}
-            </div>
-          ))}
+        <div className="leave-type-head">
+          <h3 className="text-sm font-bold text-[var(--text-muted)]">휴가 유형</h3>
+          {!isEmployee && !typesEditing && (
+            <button
+              onClick={() => { setDraftTypes(companyLeaveTypes.map((t) => ({ ...t }))); setTypesEditing(true); }}
+              className="leave-type-edit-btn"
+            >
+              유형·일수 수정
+            </button>
+          )}
         </div>
+
+        {!typesEditing ? (
+          <div className="leave-type-chip-row">
+            {leaveTypeSummary.map(lt => (
+              <div key={lt.value} className="leave-type-chip">
+                <span className="leave-type-chip-label">{lt.label}</span>
+                <span className="leave-type-chip-days">{lt.defaultDays}일</span>
+                {lt.used > 0 && <span className="leave-type-chip-used">-{lt.used}</span>}
+                {lt.pending > 0 && <span className="leave-type-chip-pending">{lt.pending}건 대기</span>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="leave-type-editor glass-card">
+            <p className="text-[11px] text-[var(--text-dim)] mb-3">
+              회사 규정에 맞게 유형 이름과 기본 일수를 고치세요. 이미 신청된 휴가의 유형은 그대로 유지됩니다.
+            </p>
+            <div className="leave-type-editor-rows">
+              {(draftTypes || []).map((t, i) => (
+                <div key={i} className="leave-type-editor-row">
+                  <input
+                    value={t.label}
+                    onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, label: e.target.value } : x))}
+                    placeholder="유형 이름"
+                    className="leave-type-editor-name field-input"
+                  />
+                  <div className="leave-type-editor-days-wrap">
+                    <input
+                      type="number"
+                      min={0}
+                      value={t.defaultDays}
+                      onChange={(e) => setDraftTypes((prev) => (prev || []).map((x, xi) => xi === i ? { ...x, defaultDays: Math.max(0, Number(e.target.value) || 0) } : x))}
+                      className="leave-type-editor-days field-input"
+                    />
+                    <span className="text-[11px] text-[var(--text-dim)]">일</span>
+                  </div>
+                  <button
+                    onClick={() => setDraftTypes((prev) => (prev || []).filter((_, xi) => xi !== i))}
+                    className="leave-type-editor-del"
+                    title="이 유형 삭제"
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="leave-type-editor-actions">
+              <button
+                onClick={() => setDraftTypes((prev) => [...(prev || []), { value: `custom_${Date.now()}`, label: "", defaultDays: 0 }])}
+                className="btn-secondary btn-sm"
+              >
+                유형 추가
+              </button>
+              <div className="flex gap-2 ml-auto">
+                <button
+                  onClick={() => { setTypesEditing(false); setDraftTypes(null); }}
+                  disabled={saveTypesMut.isPending}
+                  className="leave-type-editor-cancel"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    const cleaned = (draftTypes || [])
+                      .map((t) => ({ ...t, label: t.label.trim() }))
+                      .filter((t) => t.label !== "");
+                    if (cleaned.length === 0) { toast("휴가 유형을 최소 1개는 남겨주세요", "error"); return; }
+                    saveTypesMut.mutate(cleaned);
+                  }}
+                  disabled={saveTypesMut.isPending}
+                  className="btn-primary btn-sm"
+                >
+                  {saveTypesMut.isPending ? "저장 중..." : "저장"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성 */}
+      {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성.
+          2026-08-06 사장님: 공간을 너무 먹어 접힌 요약이 기본. '변경'으로 펼쳐 고른 뒤 저장. */}
       {!isEmployee && (
         <div className="leave-accrual-panel glass-card">
-          <label className="leave-accrual-toggle">
-            <input
-              type="checkbox"
-              checked={accrual.enabled}
-              onChange={(e) => saveAccrualMut.mutate({ ...accrual, enabled: e.target.checked })}
-              disabled={saveAccrualMut.isPending}
-              className="w-4 h-4 accent-[var(--primary)] shrink-0"
-            />
-            <div className="min-w-0">
-              <div className="text-sm font-bold">연차 자동 발생</div>
-              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                입사 1년 전까지는 매월 1일씩(최대 11일), 1주년부터는 근속연수별 법정 연차(1~2년 15일 · 3년 이상 2년마다 +1일 · 상한 25일)가
-                입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
-              </p>
-              <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                총 부여일수는 입사일 기준으로 자동 계산됩니다. 직원 카드에서 남은 연차를 직접 고치면 그 차액만 조정으로 반영됩니다.
-              </p>
+          {!accrualEditing ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs text-[var(--text-muted)]">
+                연차 자동 발생 ·{" "}
+                <strong className="text-[var(--text)]">
+                  {accrual.enabled ? `켬 · ${ACCRUAL_BASIS_LABELS[accrual.basis].label}` : "끔"}
+                </strong>
+              </div>
+              <button
+                onClick={() => { setPendingAccrual({ ...accrual }); setAccrualEditing(true); }}
+                className="leave-accrual-change-btn"
+              >
+                변경
+              </button>
             </div>
-          </label>
+          ) : (
+            <>
+              <label className="leave-accrual-toggle">
+                <input
+                  type="checkbox"
+                  checked={draftAccrual.enabled}
+                  onChange={(e) => setPendingAccrual({ ...draftAccrual, enabled: e.target.checked })}
+                  className="w-4 h-4 accent-[var(--primary)] shrink-0"
+                />
+                <div className="min-w-0">
+                  <div className="text-sm font-bold">연차 자동 발생</div>
+                  <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                    입사 1년 전까지는 매월 1일씩(최대 11일), 1주년부터는 근속연수별 법정 연차(1~2년 15일 · 3년 이상 2년마다 +1일 · 상한 25일)가
+                    입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
+                  </p>
+                  <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
+                    총 부여일수는 입사일 기준으로 자동 계산됩니다. 직원 카드에서 남은 연차를 직접 고치면 그 차액만 조정으로 반영됩니다.
+                  </p>
+                </div>
+              </label>
 
-          {accrual.enabled && (
-            <div className="leave-accrual-basis">
-              <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">발생 기준</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
-                  const on = accrual.basis === k;
-                  return (
+              {draftAccrual.enabled && (
+                <div className="leave-accrual-basis">
+                  <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">발생 기준</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
+                      const on = draftAccrual.basis === k;
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => setPendingAccrual({ ...draftAccrual, basis: k })}
+                          className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
+                        >
+                          <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
+                          <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
                     <button
-                      key={k}
-                      onClick={() => saveAccrualMut.mutate({ ...accrual, basis: k })}
-                      disabled={saveAccrualMut.isPending}
-                      className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
+                      onClick={() => syncAccrualMut.mutate()}
+                      disabled={syncAccrualMut.isPending}
+                      className="btn-secondary btn-sm disabled:opacity-50"
+                      title="누락된 과거 발생분을 지금 즉시 생성합니다"
                     >
-                      <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
-                      <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
+                      {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
                     </button>
-                  );
-                })}
-              </div>
-              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                    <span className="text-[11px] text-[var(--text-dim)]">매일 자정에도 자동으로 반영됩니다</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 justify-end mt-3">
                 <button
-                  onClick={() => syncAccrualMut.mutate()}
-                  disabled={syncAccrualMut.isPending}
-                  className="btn-secondary btn-sm disabled:opacity-50"
-                  title="누락된 과거 발생분을 지금 즉시 생성합니다"
+                  onClick={() => { setAccrualEditing(false); setPendingAccrual(null); }}
+                  disabled={saveAccrualMut.isPending}
+                  className="leave-accrual-cancel-btn"
                 >
-                  {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
+                  취소
                 </button>
-                <span className="text-[11px] text-[var(--text-dim)]">매일 자정에도 자동으로 반영됩니다</span>
+                <button
+                  onClick={() => saveAccrualMut.mutate(draftAccrual, {
+                    onSuccess: () => { setAccrualEditing(false); setPendingAccrual(null); },
+                  })}
+                  disabled={saveAccrualMut.isPending}
+                  className="btn-primary btn-sm"
+                >
+                  {saveAccrualMut.isPending ? "저장 중..." : "저장"}
+                </button>
               </div>
-            </div>
+            </>
           )}
         </div>
       )}
@@ -3189,7 +3330,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">휴가 유형</label>
               <select value={form.leaveType} onChange={(e) => setForm({ ...form, leaveType: e.target.value })} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
-                {LEAVE_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+                {companyLeaveTypes.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
               </select>
             </div>
             <div>
@@ -3433,7 +3574,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             <tbody>
               {visibleRequests.map((r: any) => {
                 const st = LEAVE_REQUEST_STATUS[r.status as keyof typeof LEAVE_REQUEST_STATUS] || LEAVE_REQUEST_STATUS.pending;
-                const leaveLabel = LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
+                const leaveLabel = leaveTypeLabel(r.leave_type);
                 return (
                   <tr key={r.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                     <td className="px-5 py-3 text-sm font-medium">{r.employees?.name || "—"}</td>

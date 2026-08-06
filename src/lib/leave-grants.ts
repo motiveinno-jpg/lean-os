@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { logRead } from '@/lib/log-read';
-import { initLeaveBalance } from '@/lib/hr';
+import { initLeaveBalance, LEAVE_TYPES } from '@/lib/hr';
 
 // 연차 발생(부여) 이력 — leave_balances 는 연도별 합계 1행이라 "몇 월 며칠에 몇 개 발생"을 못 남긴다.
 //   leave_grants 에 발생 건을 날짜별로 쌓고, leave_balances.total_days 는 항상 그 합계로 동기화한다.
@@ -197,4 +197,53 @@ export async function setBaseLeaveGrant(params: {
   });
   if (error) throw error;
   await syncLeaveBalanceTotal(companyId, employeeId, year);
+}
+
+// ── 회사별 휴가 유형·기본 일수 (2026-08-06 사장님 요청) ──
+//   "유형과 일수 회사별로 수정 가능하게" — 회사마다 병가·경조사 일수가 다르고,
+//   쓰지 않는 유형도 있다. 스키마 변경 없이 company_settings.settings.leave_types 에 저장한다
+//   (monthly_leave_accrual_* 과 동일 패턴).
+//   저장값이 없으면 hr.ts 의 LEAVE_TYPES 기본값을 그대로 쓴다 — 기존 회사 동작 불변.
+//   value 는 leave_requests.leave_type 과 맞물리므로 기존 유형의 value 는 바꾸지 않는다.
+
+export type CompanyLeaveType = { value: string; label: string; defaultDays: number };
+
+export function defaultCompanyLeaveTypes(): CompanyLeaveType[] {
+  return LEAVE_TYPES.map((t) => ({ value: t.value, label: t.label, defaultDays: t.defaultDays }));
+}
+
+export async function getCompanyLeaveTypes(companyId: string): Promise<CompanyLeaveType[]> {
+  const data = logRead('lib/leave-grants:leave-types', await db
+    .from('company_settings')
+    .select('settings')
+    .eq('company_id', companyId)
+    .maybeSingle());
+  const raw = (data?.settings as Record<string, unknown> | null)?.leave_types;
+  if (!Array.isArray(raw) || raw.length === 0) return defaultCompanyLeaveTypes();
+  const cleaned = (raw as unknown[])
+    .map((t) => t as Partial<CompanyLeaveType>)
+    .filter((t) => typeof t?.value === 'string' && t.value.trim() !== '')
+    .map((t) => ({
+      value: String(t.value).trim(),
+      label: String(t.label ?? t.value).trim() || String(t.value).trim(),
+      defaultDays: Number.isFinite(Number(t.defaultDays)) ? Math.max(0, Number(t.defaultDays)) : 0,
+    }));
+  return cleaned.length > 0 ? cleaned : defaultCompanyLeaveTypes();
+}
+
+/** 기존 settings JSONB 의 다른 키를 보존하며 저장. */
+export async function setCompanyLeaveTypes(companyId: string, types: CompanyLeaveType[]): Promise<void> {
+  const existing = logRead('lib/leave-grants:leave-types-existing', await db
+    .from('company_settings')
+    .select('settings')
+    .eq('company_id', companyId)
+    .maybeSingle());
+  const nextSettings = {
+    ...((existing?.settings as Record<string, unknown> | null) || {}),
+    leave_types: types.map((t) => ({ value: t.value, label: t.label, defaultDays: t.defaultDays })),
+  };
+  const { error } = await db
+    .from('company_settings')
+    .upsert({ company_id: companyId, settings: nextSettings }, { onConflict: 'company_id' });
+  if (error) throw error;
 }
