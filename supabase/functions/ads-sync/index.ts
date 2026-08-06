@@ -107,7 +107,7 @@ async function naverStats(sec: Secret, customerId: string, ids: string[], day: s
   return out;
 }
 
-async function syncNaverSA(acc: AdAccount, sec: Secret) {
+async function syncNaverSA(acc: AdAccount, sec: Secret, days?: string[]) {
   const campaigns = await naverCampaigns(sec, acc.external_id);
   const ids = Object.keys(campaigns);
   if (ids.length === 0) return { rows: 0, campaigns: 0 };
@@ -123,8 +123,9 @@ async function syncNaverSA(acc: AdAccount, sec: Secret) {
       fields.push(f);
     } catch { /* 이 계정엔 없는 지표 — 건너뛴다 */ }
   }
-  for (let d = 0; d < REFETCH_DAYS; d++) {
-    const day = kstDate(-d);
+  //   날짜를 받으면 그 날들만(달력으로 고른 기간 채우기), 없으면 최근 3일(자동 수집)
+  const targetDays = days && days.length > 0 ? days : Array.from({ length: REFETCH_DAYS }, (_, i) => kstDate(-i));
+  for (const day of targetDays) {
     const stats = await naverStats(sec, acc.external_id, ids, day, fields);
     for (const s of stats) {
       const cid = String(s.id || "");
@@ -169,6 +170,10 @@ serve(withSentry("ads-sync", async (req: Request) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     //   accountId 를 주면 그 계정만(화면의 '지금 가져오기'), 안 주면 연결된 계정 전부(매일 자동)
     const only: string | undefined = body?.accountId;
+    //   달력에서 고른 기간을 채울 때는 날짜를 받는다(최대 92일 — 한 번에 너무 오래 돌지 않게)
+    const days: string[] | undefined = Array.isArray(body?.days)
+      ? body.days.filter((d: unknown) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 92)
+      : undefined;
 
     let q = admin.from("ad_accounts").select("id, company_id, platform, label, external_id")
       .neq("status", "disabled");
@@ -191,7 +196,7 @@ serve(withSentry("ads-sync", async (req: Request) => {
         }
         let r;
         try {
-          r = await syncNaverSA(acc, sec);
+          r = await syncNaverSA(acc, sec, days);
         } catch (e) {
           //   인증이 막히면 **키와 비밀키를 바꿔** 한 번 더 해 본다 — 둘 다 0100000000… 로 시작해
           //   서로 바꿔 넣는 일이 잦다(2026-08-06 사장님 첫 등록에서 발생). 되면 무엇이 문제인지 알려 준다.

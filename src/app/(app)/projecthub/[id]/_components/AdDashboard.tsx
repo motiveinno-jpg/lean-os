@@ -13,10 +13,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
-import { DateField } from "@/components/date-field";
 import { todayKst } from "@/lib/kst";
 import { listAdAccounts, listDealAdAccounts, linkAdAccount, unlinkAdAccount } from "@/lib/project-ads";
 import { AD_METRICS, CORE_METRIC_KEYS, aggregate, formatMetric, metricOf } from "@/lib/ad-metrics";
+import { AdRangePicker } from "./AdRangePicker";
 
 const db = supabase as any;
 /** 합친 한 줄 — 지표 키가 무엇이 될지는 사장님이 고르는 것이라 느슨하게 둔다 */
@@ -49,6 +49,7 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
   const [accOpen, setAccOpen] = useState(false);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [rangeOpen, setRangeOpen] = useState(false);
 
   //   고른 지표는 표마다 기억한다 — 사람마다 보는 눈이 다르다
   useEffect(() => {
@@ -124,6 +125,34 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
     } finally { setBusy(false); }
   };
 
+  //   고른 기간에 아직 없는 날을 매체에서 채운다 — 기간을 넓히면 그때 받아오는 게 자연스럽다
+  const applyRange = async (s2: string, u2: string) => {
+    setSince(s2); setUntil(u2); setRangeOpen(false);
+    if (linked.length === 0) return;
+    const have = new Set<string>();
+    const data = logRead("AdDashboard:have", await db.from("ad_metrics_daily")
+      .select("stat_date").in("ad_account_id", linked).gte("stat_date", s2).lte("stat_date", u2).limit(5000));
+    for (const r of (data || []) as any[]) have.add(String(r.stat_date).slice(0, 10));
+    const missing: string[] = [];
+    for (let t0 = new Date(`${s2}T00:00:00`).getTime(); t0 <= new Date(`${u2}T00:00:00`).getTime(); t0 += 86_400_000) {
+      const d = new Date(t0).toISOString().slice(0, 10);
+      if (!have.has(d) && d <= todayKst()) missing.push(d);
+    }
+    if (missing.length === 0) return;
+    setBusy(true);
+    try {
+      const days = missing.slice(-92);          // 한 번에 너무 오래 돌지 않게
+      for (const id of linked) {
+        const { error } = await supabase.functions.invoke("ads-sync", { body: { accountId: id, days } });
+        if (error) throw new Error(error.message);
+      }
+      qc.invalidateQueries({ queryKey: ["ad-rows", dealId] });
+      toast(`${days.length}일치를 새로 받아 왔습니다.`, "success");
+    } catch (e: any) {
+      toast(e?.message || "기간 채우기 실패", "error");
+    } finally { setBusy(false); }
+  };
+
   const toggleAcc = async (id: string) => {
     try {
       if (linked.includes(id)) await unlinkAdAccount(dealId, id);
@@ -150,11 +179,9 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
           <button type="button" className="adb-pickacc" onClick={() => setAccOpen(true)}>계정</button>
         </span>
 
-        <span className="adb-dates">
-          <DateField value={since} onChange={(e) => setSince(e.target.value)} className="adb-date" />
-          <i>~</i>
-          <DateField value={until} onChange={(e) => setUntil(e.target.value)} className="adb-date" />
-        </span>
+        <button type="button" className="adb-range" onClick={() => setRangeOpen(true)}>
+          {since} ~ {until}
+        </button>
         <span className="adb-quick">
           {QUICK.map((p) => (
             <button key={p.label} type="button"
@@ -273,6 +300,10 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
             </span>
           </div>
         </div>
+      )}
+
+      {rangeOpen && (
+        <AdRangePicker since={since} until={until} onApply={applyRange} onClose={() => setRangeOpen(false)} />
       )}
 
       {accOpen && (

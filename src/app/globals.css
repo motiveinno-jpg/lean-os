@@ -6925,3 +6925,21 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .adb-pick-row input { @apply w-4 h-4 accent-[var(--primary)]; }
 .adb-pick-row > span { @apply text-[12.5px] font-semibold text-[var(--text)]; }
 .adb-pick-row > em { @apply not-italic ml-auto text-[10.5px] text-[var(--text-dim)] truncate max-w-[12rem]; }
+
+/* 기간 고르기 달력 — 두 달을 나란히, 고른 구간은 이어진 띠로 (2026-08-06 사장님 이미지) */
+.adb-range { @apply ml-auto h-7 px-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text)] transition hover:border-[var(--primary)]; font-variant-numeric: tabular-nums; }
+.adr-box { @apply max-w-xl gap-2 p-4; }
+.adr-head { @apply text-[13.5px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.adr-months { @apply grid grid-cols-1 sm:grid-cols-2 gap-4; }
+.adr-month { @apply flex flex-col gap-1; }
+.adr-mhead { @apply flex items-center gap-1 h-7; }
+.adr-mhead > b { @apply flex-1 text-center text-[12.5px] font-bold text-[var(--text)]; }
+.adr-mhead button { @apply w-6 h-6 rounded-lg text-[13px] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]; }
+.adr-next { @apply order-last; }
+.adr-wd { @apply grid grid-cols-7 gap-0.5; }
+.adr-wd em { @apply not-italic h-6 flex items-center justify-center text-[10px] font-semibold text-[var(--text-dim)]; }
+.adr-grid { @apply grid grid-cols-7 gap-0.5; }
+.adr-day { @apply h-7 rounded-lg text-[11.5px] font-medium text-[var(--text)] transition hover:bg-[var(--bg-surface)] disabled:opacity-30 disabled:hover:bg-transparent; }
+.adr-day-in { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
+.adr-day-edge { @apply bg-[var(--primary)] text-white font-bold; }
+.adr-note { @apply text-[11px] text-[var(--text-dim)]; }
