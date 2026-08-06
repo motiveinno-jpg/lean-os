@@ -11,7 +11,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
-import { AD_VALUE_KEY, adMetricOf, type AdRowLink, type BoardColumn, type BoardItem } from "@/lib/project-boards";
+import { AD_VALUE_KEY, adMetricOf, type AdMetricKey, type AdRowLink, type BoardColumn, type BoardItem } from "@/lib/project-boards";
 import { todayKst } from "@/lib/kst";
 
 const db = supabase as any;
@@ -98,6 +98,25 @@ export async function rollupCampaigns(accountIds: string[], period: AdPeriodKey)
   return [...map.values()].sort((a, b) => b.cost - a.cost);
 }
 
+/** 칸 이름으로 지표 알아보기 — settings.ad 표시가 없는 표(먼저 만든 표·칸을 새로 더한 경우)에서도
+ *  채워지게 하는 대비책. 표시가 있으면 그쪽이 우선이다. */
+const NAME_TO_METRIC: { re: RegExp; key: AdMetricKey }[] = [
+  { re: /^매체$|^채널$/, key: "platform" },
+  { re: /^노출/, key: "impressions" },
+  { re: /클릭률|^CTR$/i, key: "ctr" },
+  { re: /^클릭/, key: "clicks" },
+  { re: /광고비|^비용$|^집행/, key: "cost" },
+  { re: /전환당|^CPA$/i, key: "cpa" },
+  { re: /^ROAS$/i, key: "roas" },
+  { re: /^전환/, key: "conversions" },
+];
+function metricOfColumn(c: BoardColumn): AdMetricKey | null {
+  const marked = adMetricOf(c);
+  if (marked) return marked;
+  const name = (c.name || "").trim();
+  return NAME_TO_METRIC.find((m) => m.re.test(name))?.key || null;
+}
+
 /** 캠페인 한 줄이 각 칸에 넣을 값 */
 function valuesOf(roll: CampaignRoll, cols: BoardColumn[]): Record<string, any> {
   const ctr = roll.impressions > 0 ? Math.round((roll.clicks / roll.impressions) * 1000) / 10 : 0;
@@ -109,7 +128,7 @@ function valuesOf(roll: CampaignRoll, cols: BoardColumn[]): Record<string, any> 
   };
   const out: Record<string, any> = {};
   for (const c of cols) {
-    const key = adMetricOf(c);
+    const key = metricOfColumn(c);
     if (key && by[key] !== undefined) out[c.id] = by[key];
   }
   return out;
