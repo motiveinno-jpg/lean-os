@@ -132,6 +132,36 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
     }
   } catch { /* 조회 실패 — 차단 안 함 */ }
 
+  // 요금제별 월 호출 횟수 상한 (2026-08-06 개편 — 무료 10회 / 오너뷰 50회, NULL=무제한).
+  //   비용 상한과 별개로 "몇 회"가 사용자에게 보이는 단위라 횟수로도 막는다. 조회 실패 시 통과.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const admin = opts.admin as any;
+    const { data: entRow } = await admin.rpc("get_company_entitlement", { p_company_id: opts.companyId }).maybeSingle();
+    const slug = entRow?.effective_plan_slug || "free";
+    const { data: planRow } = await admin
+      .from("subscription_plans").select("name, monthly_ai_call_limit").eq("slug", slug).maybeSingle();
+    const callLimit = planRow?.monthly_ai_call_limit;
+    if (typeof callLimit === "number") {
+      const kstYm = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 7);
+      const monthStart = `${kstYm}-01T00:00:00+09:00`;
+      const { count } = await admin
+        .from("ai_usage_log")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", opts.companyId)
+        .eq("status", "ok")
+        .gte("created_at", monthStart);
+      if ((count || 0) >= callLimit) {
+        return {
+          ...base,
+          error: `이번 달 AI 사용 횟수(${callLimit}회)를 모두 사용했습니다. 다음 달에 초기화됩니다.`,
+          errorCode: "CALL_CAP",
+          latencyMs: Date.now() - t0,
+        };
+      }
+    }
+  } catch { /* 조회 실패 — 차단 안 함 */ }
+
   let lastErr = "AI 응답 실패";
   let lastCode = "UNKNOWN";
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
