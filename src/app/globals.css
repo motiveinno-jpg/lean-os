@@ -6176,7 +6176,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-note-who { @apply flex items-baseline gap-1.5 text-[11px] font-bold text-[var(--text-muted)]; }
 .pb-note-who em { @apply not-italic font-normal text-[10.5px] text-[var(--text-dim)]; }
 .pb-note-body { @apply text-[13px] text-[var(--text)] whitespace-pre-wrap break-words; }
-.pb-note-file { @apply text-[13px] font-semibold text-[var(--primary)] hover:underline break-all; }
+.pb-note-file { @apply text-left text-[13px] font-semibold text-[var(--primary)] hover:underline break-all; }
 /* 메모 안의 @이름 — 누구를 부른 글인지 목록에서 바로 읽히게 (2026-08-06) */
 .pb-note-at { @apply font-bold text-[var(--primary)]; }
 .pb-note > button { @apply absolute right-1.5 top-1.5 w-5 h-5 rounded text-[10px] text-[var(--text-dim)] opacity-0 transition hover:text-[var(--danger)]; }

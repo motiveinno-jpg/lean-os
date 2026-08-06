@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
+import { resolveSignedUrl } from "@/lib/file-storage";
 import type { BoardColumn, BoardItem } from "@/lib/project-boards";
 
 const db = supabase as any;
@@ -139,6 +140,20 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
     } finally { setBusy(false); }
   };
 
+  // 붙인 파일 열기 — documents 버킷은 **비공개**라 공개 주소로는 안 열린다("Bucket not found").
+  //   눌렀을 때마다 잠깐 쓰는 서명 주소를 새로 받는다. 예전에 붙인 것(공개 주소로 저장된 줄)도
+  //   같은 함수가 버킷·경로를 뽑아 살려 준다. 받을 때 이름은 올릴 때 쓴 원본 이름 그대로.
+  const openFile = async (n: ItemNote) => {
+    const url = await resolveSignedUrl(n.file_url, n.file_name || undefined);
+    if (!url) { toast("파일 주소를 만들지 못했어요. 다시 올려 주세요.", "error"); return; }
+    const a = document.createElement("a");
+    a.href = url;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   const removeNote = async (n: ItemNote) => {
     await db.from("project_board_item_notes").delete().eq("id", n.id);
     refresh();
@@ -172,7 +187,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
             <div key={n.id} className="pb-note">
               <span className="pb-note-who">{nameOf(n.user_id) || "누군가"}<em>{String(n.created_at).slice(5, 16).replace("T", " ")}</em></span>
               {n.file_url
-                ? <a href={n.file_url} target="_blank" rel="noopener noreferrer" className="pb-note-file">📎 {n.file_name || "첨부파일"}</a>
+                ? <button type="button" className="pb-note-file" onClick={() => openFile(n)}>📎 {n.file_name || "첨부파일"}</button>
                 : <p className="pb-note-body">{markMentions(n.body || "", users)}</p>}
               <button type="button" onClick={() => removeNote(n)} title="지우기">✕</button>
             </div>
