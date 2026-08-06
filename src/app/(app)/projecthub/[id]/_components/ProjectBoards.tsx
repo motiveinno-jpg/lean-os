@@ -1660,15 +1660,27 @@ function BoardTimeline({ items, span, flowCol, nameLabel, onAdd }: {
   );
 }
 
+/** 창 바깥을 눌러 닫기 — **누르기 시작한 자리가 배경일 때만** 닫는다.
+ *  입력칸 안에서 글자를 끌어 고르다 바깥에서 손을 떼면 브라우저가 그 클릭을 배경 것으로 쳐서
+ *  창이 닫혔다(2026-08-06 사장님 제보). 모든 팝업이 이 한 곳을 쓴다. */
+function useVeilClose(onClose: () => void) {
+  const down = useRef(false);
+  return {
+    onMouseDown: (e: React.MouseEvent) => { down.current = e.target === e.currentTarget; },
+    onClick: (e: React.MouseEvent) => { if (down.current && e.target === e.currentTarget) onClose(); },
+  };
+}
+
 /** 이름만 묻는 작은 창 — 회사 양식 저장처럼 한 줄만 받으면 되는 자리 */
 function NameDialog({ title, hint, value, onSave, onCancel }: {
   title: string; hint?: string; value: string; onSave: (name: string) => void; onCancel: () => void;
 }) {
   const [v, setV] = useState(value);
+  const veil = useVeilClose(onCancel);
   const ok = v.trim().length > 0;
   return (
-    <div className="pb-doc-modal" onClick={onCancel}>
-      <div className="pb-doc-box pb-name-box" onClick={(e) => e.stopPropagation()}>
+    <div className="pb-doc-modal" {...veil}>
+      <div className="pb-doc-box pb-name-box">
         <b className="pb-name-h">{title}</b>
         {hint && <em className="pb-name-hint">{hint}</em>}
         <input autoFocus value={v} onChange={(e) => setV(e.target.value)} placeholder="양식 이름"
@@ -1702,6 +1714,7 @@ function ColumnMenu({ col, sortDir, filtered, onSort, onFilter, onSaveSettings, 
 }) {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);      // '오른쪽에 칸 추가' 를 고른 상태
+  const veil = useVeilClose(() => setOpen(false));
   const options = ((col.settings?.options || []) as StatusOption[]);
   const [draft, setDraft] = useState<StatusOption[]>([]);
   const [unit, setUnit] = useState("");
@@ -1734,8 +1747,8 @@ function ColumnMenu({ col, sortDir, filtered, onSort, onFilter, onSaveSettings, 
       <button type="button" className={`pb-colmenu-btn ${open ? "pb-colmenu-on" : ""}`}
         title={`'${col.name}' 칸 — 정렬 · 필터 · 너비 · 설정`} aria-label={`${col.name} 칸 메뉴`} onClick={start}>⋯</button>
       {open && (
-        <div className="pb-doc-modal" onClick={() => setOpen(false)}>
-          <div className="pb-doc-box pb-collabels-box" onClick={(e) => e.stopPropagation()}>
+        <div className="pb-doc-modal" {...veil}>
+          <div className="pb-doc-box pb-collabels-box">
             <b className="pb-collabels-h">‘{col.name}’ 칸</b>
             {adding ? (<>
               {/* 오른쪽에 칸 추가 — 표 끝까지 가로로 밀지 않아도 원하는 자리에 붙는다 */}
@@ -1885,9 +1898,10 @@ function QuickFilterPanel({ facets, picked, focusColId, total, shownCount, onTog
     ? [...facets.filter((f) => f.col.id === focusColId), ...facets.filter((f) => f.col.id !== focusColId)]
     : facets;
   const on = Object.values(picked).filter((v) => v.length > 0).length;
+  const veil = useVeilClose(onClose);
   return (
-    <div className="pb-doc-modal" onClick={onClose}>
-      <div className="pb-doc-box pb-qf-box" onClick={(e) => e.stopPropagation()}>
+    <div className="pb-doc-modal" {...veil}>
+      <div className="pb-doc-box pb-qf-box">
         <div className="pb-qf-head">
           <b>칸 값으로 거르기</b>
           <em>{total}건 중 {shownCount}건 표시{on > 0 ? ` · ${on}개 칸에 걸림` : ""}</em>
@@ -2287,10 +2301,11 @@ function SummaryFormatDialog({ all, layout, presetName, canRemove, onApply, onUp
     [n[i], n[j]] = [n[j], n[i]];
     return n;
   });
+  const veil = useVeilClose(onClose);
 
   return (
-    <div className="pb-doc-modal" onClick={onClose}>
-      <div className="pb-doc-box pb-fmt-box" onClick={(e) => e.stopPropagation()}>
+    <div className="pb-doc-modal" {...veil}>
+      <div className="pb-doc-box pb-fmt-box">
         <b className="pb-fmt-h">정리 구성{presetName ? ` — ${presetName}` : ""}</b>
         <em className="pb-fmt-hint">켠 것만 위에서부터 그려집니다 · 나중에 새 지표가 생기면 켜진 채 뒤에 붙어요</em>
         <ul className="pb-fmt-rows">

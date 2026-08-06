@@ -6,7 +6,7 @@
 // ⚠️ 키는 저장하는 순간 DB 안에서 암호화되고, **다시는 화면으로 내려오지 않는다**.
 //    (등록돼 있는지 여부만 보여 준다. 바꾸려면 새로 넣는다.)
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -42,6 +42,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ platform: "naver_sa", label: "", externalId: "", apiKey: "", apiSecret: "" });
   const [reveal, setReveal] = useState(false);      // 붙여넣은 키가 맞는지 눈으로 확인할 때만
+  const veilDown = useRef(false);                   // 누르기 시작한 자리가 배경이었는지
   const [syncing, setSyncing] = useState<string | null>(null);
   //   창을 열 때마다 빈 칸에서 시작한다 — 앞서 넣다 만 값이 남아 있으면 다른 계정에 잘못 들어간다
   const openForm = () => {
@@ -148,8 +149,13 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
         )}
 
       {open && (
-        <div className="ad-acc-modal" onClick={() => setOpen(false)}>
-          <div className="ad-acc-box" onClick={(e) => e.stopPropagation()}>
+        //   ⚠️ 배경을 '눌렀을 때'가 아니라 '누른 자리가 배경일 때'만 닫는다 — 입력칸 안에서 글자를
+        //   끌어 고르다 바깥에서 손을 떼면 브라우저가 그 클릭을 배경 것으로 쳐서 창이 닫혔다
+        //   (2026-08-06 사장님 제보).
+        <div className="ad-acc-modal"
+          onMouseDown={(e) => { veilDown.current = e.target === e.currentTarget; }}
+          onClick={(e) => { if (veilDown.current && e.target === e.currentTarget) setOpen(false); }}>
+          <div className="ad-acc-box">
             <b className="ad-acc-box-h">광고 계정 등록</b>
             <label className="ad-acc-field">
               <span>매체</span>
