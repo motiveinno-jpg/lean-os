@@ -2294,6 +2294,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .member-permission-menu { @apply pl-1; }
 .member-permission-tabs { @apply mt-1 ml-6 flex flex-wrap gap-x-4 gap-y-1; }
 
+/* 템플릿 적용 드롭다운 — 템플릿이 없을 때도 자리를 지키고 비활성으로 보인다 (2026-08-06) */
+.perm-apply-select { @apply h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs disabled:opacity-40 disabled:cursor-not-allowed; }
+
 /* 권한 템플릿 관리 팝업 (2026-08-06) — 왼쪽 목록 + 오른쪽 편집, 푸터는 고정 */
 .perm-template-modal { @apply fixed inset-0 z-50 flex items-center justify-center p-4; }
 .perm-template-panel { @apply max-w-4xl; }

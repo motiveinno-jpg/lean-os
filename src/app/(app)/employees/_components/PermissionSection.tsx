@@ -111,19 +111,20 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
           <div className="text-[11px] text-[var(--text-muted)] mt-0.5">체크된 메뉴와 세부 기능만 {empName}님에게 표시·허용됩니다. (마이페이지·알림·게시판 등 개인 영역은 기본 제공)</div>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          {templates.length > 0 && (
-            <select
-              className="h-8 px-2 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-xs"
-              value=""
-              onChange={(e) => {
-                const tpl = (templates as any[]).find((t) => t.id === e.target.value);
-                if (tpl) applyTemplate(tpl);
-              }}
-            >
-              <option value="">템플릿 적용...</option>
-              {(templates as any[]).map((t) => <option key={t.id} value={t.id}>{t.name} ({(t.perm_keys || []).length})</option>)}
-            </select>
-          )}
+          {/* 템플릿이 없어도 자리를 지킨다 — 비활성으로 두어 버튼 배치가 흔들리지 않게 (2026-08-06 사장님) */}
+          <select
+            className="perm-apply-select"
+            value=""
+            disabled={templates.length === 0}
+            title={templates.length === 0 ? "만들어 둔 템플릿이 없습니다 — 템플릿 관리에서 먼저 만드세요" : undefined}
+            onChange={(e) => {
+              const tpl = (templates as any[]).find((t) => t.id === e.target.value);
+              if (tpl) applyTemplate(tpl);
+            }}
+          >
+            <option value="">{templates.length === 0 ? "템플릿 없음" : "템플릿 적용..."}</option>
+            {(templates as any[]).map((t) => <option key={t.id} value={t.id}>{t.name} ({(t.perm_keys || []).length})</option>)}
+          </select>
           <button onClick={() => setShowTemplateModal(true)} className="btn-secondary btn-sm">템플릿 관리</button>
           <button onClick={() => toggle(allKeys, true)} className="btn-secondary btn-sm">전체 선택</button>
           <button onClick={() => toggle(allKeys, false)} className="btn-secondary btn-sm">전체 해제</button>
