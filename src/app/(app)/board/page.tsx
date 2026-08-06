@@ -374,7 +374,7 @@ export default function BoardPage() {
           .eq("author_id", user!.id);
         if (error) throw error;
       } else {
-        const { error } = await db.from("board_posts").insert({
+        const { data: created, error } = await db.from("board_posts").insert({
           company_id: companyId as string,
           author_id: user?.id || null,
           author_name: user?.name || null,
@@ -382,8 +382,31 @@ export default function BoardPage() {
           title: form.title.trim(),
           content: form.content,
           ...ext,
-        });
+        }).select("id").single();
         if (error) throw error;
+
+        // 새 글 알림 — 회사 전원에게 (2026-08-06 사장님 요청: "누가 무슨 제목의 글을
+        //   게시판에 등록했다는 알림"). 오너뷰 안의 알림만, 메일은 보내지 않는다.
+        //   entity_type=board_post 라 알림을 누르면 그 글로 바로 열린다(notification-routes).
+        //   작성자 본인은 제외. 실패해도 글 등록은 이미 끝났으므로 막지 않는다.
+        try {
+          const members = logRead('board/page:notify-members', await db
+            .from("users").select("id").eq("company_id", companyId as string));
+          const rows = (members || [])
+            .map((m: { id: string }) => m.id)
+            .filter((id: string) => id && id !== user?.id)
+            .map((id: string) => ({
+              company_id: companyId as string,
+              user_id: id,
+              type: "board_post",
+              title: `새 게시글: ${form.title.trim()}`,
+              message: `${user?.name || user?.email || "누군가"}님이 글을 등록했습니다.`,
+              entity_type: "board_post",
+              entity_id: (created as { id: string }).id,
+              is_read: false,
+            }));
+          if (rows.length > 0) await db.from("notifications").insert(rows);
+        } catch { /* 알림 실패가 글 등록을 되돌리지 않는다 */ }
       }
     },
     onSuccess: () => {
