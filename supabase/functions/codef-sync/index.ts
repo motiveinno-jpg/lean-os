@@ -1048,6 +1048,8 @@ async function syncHometaxInvoices(
   // 조회할 방향. 한 번에 한 방향만 부르면 대기시간을 길게 줄 수 있어 CF-TIMEOUT 이 크게 준다.
   //   (CODEF 이 API 자체 Timeout 은 600초. 우리 상한 70초가 실패의 주원인이었다 — 2026-08-06)
   directions: ("매출" | "매입")[] = ["매출", "매입"],
+  // 이어받기 — 앞 step 이 시간 예산 때문에 못 끝낸 페이지부터 시작한다.
+  startPage = 1,
 ) {
   const errors: SyncError[] = [];
   const debug: string[] = [];   // 응답 구조 진단용 — totalSynced=0 인데 진짜 0건인지 parsing 누락인지 구분
@@ -1077,7 +1079,11 @@ async function syncHometaxInvoices(
   // 1년치 sync 가 필요하면 frontend 가 월별 12번 sequential 호출.
   // 한 방향만 조회하면 이 invocation 에서 CODEF 호출이 1번뿐 → Edge 150초 안에서 135초까지 대기 가능.
   const perCallTimeoutMs = directions.length === 1 ? 135_000 : CODEF_REQUEST_TIMEOUT_MS;
-  const callDirection = (direction: "매출" | "매입") =>
+  // 페이지 단위 조회 (2026-08-06) — 종전엔 startPageNo/pageCount 를 안 보내 **한 달치를 통째로**
+  //   요청했고, 건수가 많은 달(6월 매출 290건)은 135초 안에 응답이 안 와 매번 실패했다.
+  //   같은 시간대에 141건(7월)은 성공, 377건(6월)은 실패 — 시간대가 아니라 응답 크기가 원인.
+  //   한 번에 한 페이지만 받아 빠르게 끝내고, 남은 페이지는 이어서 받는다.
+  const callDirection = (direction: "매출" | "매입", startPageNo: number, timeoutMs: number) =>
     codefRequest(token, "/v1/kr/public/nt/tax-invoice/integrated-check-list", {
       organization: HOMETAX_ORG,
       loginType: "0",
@@ -1091,7 +1097,20 @@ async function syncHometaxInvoices(
       orderBy: "0",
       transeType: direction === "매출" ? "01" : "02",
       type: "0",
-    }, perCallTimeoutMs).then((result) => ({ direction, result, chunkStart: cappedStart, chunkEnd: cappedEnd }));
+      startPageNo: String(startPageNo),
+      pageCount: "1",
+    }, timeoutMs).then((result) => ({ direction, result, chunkStart: cappedStart, chunkEnd: cappedEnd }));
+
+  // 응답에서 행 배열을 꺼내는 공통 로직 (아래 본 처리와 같은 규칙)
+  const unwrapRows = (data: any): any[] => {
+    let raw: any = data;
+    if (raw && !Array.isArray(raw) && typeof raw === "object") {
+      for (const key of ["resTaxInvoiceList", "resInvoiceList", "list", "resList"]) {
+        if (Array.isArray(raw[key])) { raw = raw[key]; break; }
+      }
+    }
+    return Array.isArray(raw) ? raw : raw ? [raw] : [];
+  };
 
   const reportedCodes = new Set<string>();
   const fatalCodes = new Set(["CF-00003", "CF-00007", "CF-00401", "CF-04015", "CF-12200"]);
@@ -1099,9 +1118,43 @@ async function syncHometaxInvoices(
   // 매출/매입은 sequential — CODEF 가 동시 호출을 거부한다(CF-00016, 검증됨).
   //   방향을 1개만 받으면 Edge 150초 한계 안에서 최대한 길게(135초) 기다린다.
   //   2개를 다 받으면 종전대로 70초씩(= 최대 140초).
+  //   ⚠️ Edge Function 은 실행 시간 상한(150초)이 있다. 페이지를 한 invocation 안에서 계속 돌면
+  //   상한을 넘겨 **아무것도 기록하지 못한 채 죽는다**(2026-08-06 실측: 결과 0건, 락만 갱신).
+  //   그래서 남은 예산을 보며 돌고, 못 끝낸 페이지는 다음 step 이 이어받는다(pageCursor 반환).
+  const INVOCATION_BUDGET_MS = 115_000;   // 150초 한도 - 여유(업서트·백필 시간)
+  const startedAt = Date.now();
+  const remainingMs = () => INVOCATION_BUDGET_MS - (Date.now() - startedAt);
+
   const settled: { direction: "매출" | "매입"; result: any; chunkStart: string; chunkEnd: string }[] = [];
-  for (const dir of directions) settled.push(await callDirection(dir));
-  debug.push(`sync ${cappedStart}~${cappedEnd} dirs=[${directions.join(",")}] timeout=${perCallTimeoutMs / 1000}s`);
+  const MAX_PAGES = 30;   // 무한루프 방지 상한
+  let nextCursor: { direction: "매출" | "매입"; page: number } | null = null;
+  for (const dir of directions) {
+    let page = startPage;
+    let totalPages = 1;
+    while (page <= totalPages && page <= MAX_PAGES) {
+      // 이번 호출을 제대로 감당할 시간이 없으면 **호출하지 않고** 다음 step 에 넘긴다.
+      //   (종전엔 남은 예산이 적어도 20초짜리로 강행해 그 페이지가 항상 타임아웃났다 — 2026-08-06 실측)
+      const MIN_CALL_MS = 45_000;
+      if (remainingMs() < MIN_CALL_MS) { nextCursor = { direction: dir, page }; break; }
+      const one = await callDirection(dir, page, Math.min(perCallTimeoutMs, remainingMs() - 5_000));
+      settled.push(one);
+      if (one.result?.result?.code !== "CF-00000") {
+        // 실패한 페이지부터 이어받게 커서를 남긴다 — 없으면 재시도가 1페이지부터 다시 받아
+        // 같은 자리에서 계속 막힌다(이미 받은 페이지도 다시 받아 시간·과금 낭비).
+        nextCursor = { direction: dir, page };
+        break;
+      }
+      const rows = unwrapRows(one.result.data);
+      const tp = Number(rows[0]?.resTotalPageCount || 1);
+      if (Number.isFinite(tp) && tp > totalPages) totalPages = tp;
+      if (rows.length === 0) break;
+      page++;
+      if (page > totalPages) break;
+    }
+    debug.push(`${dir} pages ${startPage}~${page - 1}/${totalPages}`);
+    if (nextCursor) break;   // 예산 소진 — 남은 방향도 다음 step 으로
+  }
+  debug.push(`sync ${cappedStart}~${cappedEnd} dirs=[${directions.join(",")}] budget=${INVOCATION_BUDGET_MS / 1000}s`);
 
   for (const { direction, result, chunkStart, chunkEnd } of settled) {
     if (result.result?.code !== "CF-00000") {
@@ -1332,7 +1385,7 @@ async function syncHometaxInvoices(
     debug.push(`detail 보강 skip: ${e?.message || e}`);
   }
 
-  return { synced: totalSynced, responseCount: totalResponseCount, errors, debug };
+  return { synced: totalSynced, responseCount: totalResponseCount, errors, debug, nextCursor };
 }
 
 // ─── 현금영수증 매출 sync ───
@@ -1864,22 +1917,28 @@ serve(withSentry("codef-sync", async (req) => {
           const r0 = job.job_type === "cash_receipt"
             ? await syncHometaxCashReceipts(supabase, token, job.company_id, monthStart, monthEnd)
             : await syncHometaxInvoices(supabase, token, job.company_id, "", monthStart, monthEnd,
-                targetDirection ? [targetDirection] : ["매출", "매입"]);
-          r = { synced: r0.synced || 0, responseCount: r0.responseCount || 0, errors: r0.errors || [] };
+                targetDirection ? [targetDirection] : ["매출", "매입"],
+                Number(prevEntry?.nextPage) > 1 ? Number(prevEntry.nextPage) : 1);
+          r = { synced: r0.synced || 0, responseCount: r0.responseCount || 0, errors: r0.errors || [],
+                nextPage: (r0 as any).nextCursor?.page || null };
         } catch (err: any) {
-          r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }] };
+          r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }], nextPage: null };
         }
 
+        // 남은 페이지가 있으면 아직 완료가 아니다 — partial 로 두어 다음 step 이 이어받게 한다.
+        const hasMorePages = !!(r as any).nextPage;
         const monthStatus: "ok" | "partial" | "error" =
           r.errors.length && r.synced === 0 ? "error"
-          : r.errors.length || (r.responseCount > r.synced) ? "partial"
+          : (r.errors.length || (r.responseCount > r.synced) || hasMorePages) ? "partial"
           : "ok";
 
         // ─── result_per_month 업데이트 ───
         let newPerMonth: any[];
         let totalSyncedDelta = 0;
         let totalResponseDelta = 0;
-        const newRetryCount = isRetry ? ((prevEntry?.retryCount || 0) + 1) : 0;
+        //   페이지 이어받기(nextPage)로 다시 도는 건 재시도가 아니라 '계속'이라 retry 를 늘리지 않는다.
+        const isPageContinuation = isRetry && Number(prevEntry?.nextPage) > 1;
+        const newRetryCount = isRetry && !isPageContinuation ? ((prevEntry?.retryCount || 0) + 1) : (prevEntry?.retryCount || 0);
 
         if (isRetry) {
           // 기존 record 갱신 (delta 계산)
@@ -1891,6 +1950,7 @@ serve(withSentry("codef-sync", async (req) => {
             (m.month === targetMonth && (m.direction ?? null) === targetDirection) ? {
               month: targetMonth, direction: targetDirection, synced: r.synced, responseCount: r.responseCount,
               status: monthStatus, errorMsg: r.errors[0]?.message, retryCount: newRetryCount,
+              nextPage: (r as any).nextPage || null,
             } : m,
           );
         } else {
@@ -1899,6 +1959,7 @@ serve(withSentry("codef-sync", async (req) => {
           newPerMonth = [...perMonth, {
             month: targetMonth, direction: targetDirection, synced: r.synced, responseCount: r.responseCount,
             status: monthStatus, errorMsg: r.errors[0]?.message, retryCount: 0,
+            nextPage: (r as any).nextPage || null,
           }];
         }
 
