@@ -6,6 +6,7 @@ import { useState } from "react";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { deleteApprovalPolicy } from "@/lib/approval-workflow";
 import { useToast } from "@/components/toast";
 
 const DOCUMENT_TYPES = [
@@ -61,6 +62,8 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
         .from("approval_policies")
         .select("*")
         .eq("company_id", companyId)
+        // 이력 때문에 지우지 못하고 비활성화된 정책은 목록에서 뺀다(삭제와 같게 보이도록).
+        .eq("is_active", true)
         .order("created_at", { ascending: false }));
       return data || [];
     },
@@ -102,8 +105,8 @@ export function ApprovalPolicyTab({ companyId }: { companyId: string | null }) {
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await db.from("approval_policies").delete().eq("id", id);
-      if (error) throw error;
+      // 결재 이력이 붙은 정책은 FK(23503) 때문에 지울 수 없다 — 이력을 남기고 비활성화한다.
+      await deleteApprovalPolicy(id);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-policies"] }),
     onError: (err: any) => toast(`삭제 실패: ${err.message || err}`, "error"),

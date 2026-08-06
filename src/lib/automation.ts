@@ -58,15 +58,17 @@ export async function applyBankClassificationRules(companyId: string) {
       }
 
       if (isMatch) {
-        await db.from('bank_transactions').update({
+        // mapped_by 는 uuid(users.id) 컬럼 — 'system' 문자열을 넣으면 22P02 로 UPDATE 전체가 실패한다.
+        //   자동 분류는 사람이 아니므로 비워 두고, mapping_status='auto_mapped' 가 자동임을 알린다.
+        const { error: upErr } = await db.from('bank_transactions').update({
           category: rule.assign_category || null,
           classification: rule.assign_classification || null,
           deal_id: rule.assign_deal_id || null,
           is_fixed_cost: rule.is_fixed_cost || false,
           mapping_status: 'auto_mapped',
-          mapped_by: 'system',
           mapped_at: new Date().toISOString(),
         }).eq('id', tx.id);
+        if (upErr) break; // 저장 실패면 처리했다고 세지 않는다
         matched++;
         break; // First match wins
       }
@@ -118,16 +120,17 @@ export async function applyCardTransactionRules(companyId: string) {
       }
 
       if (isMatch) {
-        await db.from('card_transactions').update({
+        // mapped_by 는 uuid 컬럼 — 문자열 'system' 금지(22P02). 위 은행 분류와 동일.
+        const { error: upErr } = await db.from('card_transactions').update({
           category: rule.assign_category || null,
           classification: rule.assign_classification || null,
           deal_id: rule.assign_deal_id || null,
           is_fixed_cost: rule.is_fixed_cost || false,
           is_deductible: true,
           mapping_status: 'auto_mapped',
-          mapped_by: 'system',
           mapped_at: new Date().toISOString(),
         }).eq('id', tx.id);
+        if (upErr) break;
         matched++;
         break;
       }
@@ -229,12 +232,12 @@ export async function autoMatchTransactions(companyId: string) {
         status: 'confirmed',
       });
 
-      // Update bank transaction
-      await db.from('bank_transactions').update({
+      // Update bank transaction — mapped_by 는 uuid 컬럼이라 'system' 문자열 금지(22P02).
+      const { error: upErr } = await db.from('bank_transactions').update({
         mapping_status: 'auto_mapped',
-        mapped_by: 'system',
         mapped_at: new Date().toISOString(),
       }).eq('id', tx.id);
+      if (upErr) continue;
 
       matched++;
     }
@@ -395,11 +398,12 @@ export async function autoVerifyClosingChecklist(companyId: string, checklistId:
     }
 
     if (passed) {
-      await db.from('closing_checklist_items').update({
+      // completed_by 는 uuid 컬럼 — 자동 확인은 사람이 없으므로 비워 둔다('system' 넣으면 22P02).
+      const { error: upErr } = await db.from('closing_checklist_items').update({
         is_completed: true,
-        completed_by: 'system',
         completed_at: new Date().toISOString(),
       }).eq('id', item.id);
+      if (upErr) continue;
       verified++;
     }
   }

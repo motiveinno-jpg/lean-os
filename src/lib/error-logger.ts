@@ -209,7 +209,10 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
       ],
     };
   }
-  if (/chunk|loading chunk|dynamically imported module/.test(hay)) {
+  // ⚠️ hay(=메시지+context) 로 보면 안 된다 — Next 의 componentStack 에는 항상 /_next/static/chunks/ 가
+  //   들어 있어 모든 클라이언트 오류가 "청크 로드 실패(심각도 낮음)"로 뭉개졌다(React #310 오분류, 2026-08-06).
+  //   청크 로드 실패는 메시지 자체에 드러나므로 메시지만 본다.
+  if (/loading chunk|chunkloaderror|failed to load chunk|dynamically imported module/.test(lower)) {
     return {
       type: "chunk_load", severity: "low",
       title: "코드 청크 로드 실패",
@@ -218,6 +221,19 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
       fix: [
         "사용자에게 새로고침(Ctrl+F5) 안내",
         "반복되면 CDN/서비스워커 캐시 무효화 검토",
+      ],
+    };
+  }
+  if (/minified react error/.test(lower)) {
+    return {
+      type: "react_render", severity: "high",
+      title: "화면 렌더 오류 (React)",
+      detail: "화면을 그리는 중 React 가 중단됐습니다. 해당 화면이 통째로 안 보이거나 흰 화면이 됩니다.",
+      hint: "컴포넌트 렌더 규칙 위반",
+      fix: [
+        "메시지의 오류 번호를 react.dev/errors/{번호} 에서 확인",
+        "#310 은 훅이 조건부·조기 반환 뒤에 있는 경우 — 게이트를 래퍼로 분리",
+        "배포 직후 한 사용자에게 몰렸다면 이미 고쳐졌는지 커밋 시각과 대조",
       ],
     };
   }

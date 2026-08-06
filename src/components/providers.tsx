@@ -34,10 +34,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
               try { msg = `알 수 없는 오류: ${JSON.stringify(error).slice(0, 300)}`; }
               catch { msg = "알 수 없는 오류"; }
             }
+            // 입력 검증 안내("정정 사유를 입력해 주세요." 등)는 화면 토스트로 끝낸다.
+            //   코드가 직접 던진 plain Error(new Error("..."))는 서버 오류가 아니라 사용자 안내인데,
+            //   이게 전부 error_logs 로 들어가 운영자 오류 목록이 안내 문구로 채워졌다(2026-08-06).
+            //   TypeError 등 진짜 런타임 버그와 서버 응답(code/status/details 보유)은 그대로 적재한다.
+            const isInputNotice =
+              error instanceof Error && error.name === "Error" &&
+              !eo.code && !eo.status && !eo.details && !eo.hint;
             if (typeof window !== "undefined" && !msg.includes("aborted")) {
               const event = new CustomEvent("ownerview:mutation-error", { detail: msg });
               window.dispatchEvent(event);
               // 운영자 조회용 DB 적재 — 어떤 작업/페이지였는지 context 에 기록
+              if (isInputNotice) return;
               const mKey = mutation?.options?.mutationKey;
               const actionLabel = Array.isArray(mKey) ? mKey.join(" / ") : (mKey ? String(mKey) : "데이터 저장/수정");
               import("@/lib/error-logger").then(({ logError }) => {

@@ -120,6 +120,8 @@ export async function getApprovalPolicies(companyId: string): Promise<ApprovalPo
     .from('approval_policies')
     .select('*')
     .eq('company_id', companyId)
+    // 비활성화(=이력 때문에 못 지운 삭제분)는 목록에서 제외 — 신규 매칭도 is_active=true 만 본다.
+    .eq('is_active', true)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map((row: Record<string, unknown>) => ({
@@ -202,12 +204,22 @@ export async function upsertApprovalPolicy(
 /**
  * Delete an approval policy
  */
+// 이미 결재 이력이 붙은 정책은 지울 수 없다(approval_requests.policy_id FK, ON DELETE 없음 → 23503).
+//   그 경우 이력을 보존한 채 비활성화한다. 신규 요청 매칭은 is_active=true 만 보므로 효과는 삭제와 같다.
 export async function deleteApprovalPolicy(policyId: string): Promise<void> {
   const { error } = await db
     .from('approval_policies')
     .delete()
     .eq('id', policyId);
-  if (error) throw error;
+  if (!error) return;
+  const code = (error as { code?: string }).code;
+  if (code !== '23503') throw error;
+
+  const { error: offErr } = await db
+    .from('approval_policies')
+    .update({ is_active: false })
+    .eq('id', policyId);
+  if (offErr) throw offErr;
 }
 
 // ══════════════════════════════════════════════

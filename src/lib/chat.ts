@@ -116,20 +116,9 @@ export async function inviteParticipant(params: {
   userId: string;
   role?: string;
 }) {
-  const { data, error } = await supabase
-    .from('chat_participants')
-    .insert({
-      channel_id: params.channelId,
-      user_id: params.userId,
-      role: params.role || 'member',
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // RLS SELECT 는 chat_members 기반 — 초대된 사용자가 채널/메시지를 보려면 chat_members 도 채워야 함.
-  // 이미 존재하면 unique 위반 무시(legacy 채널 호환).
+  // ⚠️ chat_members 를 반드시 먼저 넣는다. chat_participants 의 SELECT 정책
+  //   (chat_participants_select_member, RESTRICTIVE)이 is_channel_member → chat_members 를 보는데,
+  //   INSERT ... RETURNING 은 새 행에 SELECT 정책까지 적용하므로 순서가 뒤바뀌면 403 이 난다(2026-08-05).
   const db = supabase;
   await db.from('chat_members').upsert(
     {
@@ -140,12 +129,21 @@ export async function inviteParticipant(params: {
     { onConflict: 'channel_id,user_id', ignoreDuplicates: true },
   );
 
+  // RETURNING 없이 넣는다 — 반환 행에 SELECT 정책이 걸리는 걸 피하고, 호출부도 반환값을 쓰지 않는다.
+  const { error } = await supabase
+    .from('chat_participants')
+    .insert({
+      channel_id: params.channelId,
+      user_id: params.userId,
+      role: params.role || 'member',
+    });
+
+  if (error) throw error;
+
   await logEvent(params.channelId, 'user_joined', {
     user_id: params.userId,
     role: params.role || 'member',
   });
-
-  return data;
 }
 
 // ── Remove participant ──

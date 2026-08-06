@@ -84,6 +84,14 @@ function GuestChatView({ token }: { token: string }) {
           .eq('user_id', dbUser.id)
           .maybeSingle());
 
+        // 게스트도 RLS SELECT 통과를 위해 chat_members 를 **먼저** 등록 (멱등 upsert).
+        //   chat_participants 의 SELECT 정책이 chat_members 를 보므로 순서가 뒤바뀌면 403 이 난다(2026-08-05).
+        const dbAny = supabase;
+        await dbAny.from('chat_members').upsert(
+          { channel_id: channel.id, user_id: dbUser.id, role: 'GUEST' },
+          { onConflict: 'channel_id,user_id', ignoreDuplicates: true },
+        );
+
         if (!existing) {
           await supabase.from('chat_participants').insert({
             channel_id: channel.id,
@@ -91,13 +99,6 @@ function GuestChatView({ token }: { token: string }) {
             role: 'GUEST',
           });
         }
-
-        // 게스트도 RLS SELECT 통과를 위해 chat_members 동시 등록 (멱등 upsert).
-        const dbAny = supabase;
-        await dbAny.from('chat_members').upsert(
-          { channel_id: channel.id, user_id: dbUser.id, role: 'GUEST' },
-          { onConflict: 'channel_id,user_id', ignoreDuplicates: true },
-        );
 
         setSession({
           channelId: channel.id,
