@@ -50,6 +50,7 @@ import { useAvatarMap } from "@/hooks/use-avatar-map";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
+import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 
 const db = supabase;
 
@@ -2597,6 +2598,13 @@ function OrderableFieldBlocks({ storageKey, blocks }: { storageKey: string; bloc
 function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }: {
   companyId: string; userId: string; invalidate: () => void; onComplete: () => void; presetType?: string | null;
 }) {
+  // 휴가 유형은 회사 설정을 따른다 — 구성원 > 휴가 탭에서 이름·일수를 고치면 여기도 같이 바뀐다.
+  //   queryKey 는 휴가 탭과 동일해 캐시를 공유한다. (2026-08-06)
+  const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
+    queryKey: ["company-leave-types", companyId],
+    queryFn: () => getCompanyLeaveTypes(companyId),
+    enabled: !!companyId,
+  });
   const { toast } = useToast();
   // URL ?new=expense|payment|general 등 → presetType 으로 들어옴. 'leave' 도 지원.
   //   지정이 없으면 빈 값 — 유형을 고르기 전에는 유형 피커만 보인다 (2026-08-05 사장님:
@@ -2710,7 +2718,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   // Auto-generate leave title
   const leaveTitle = useMemo(() => {
-    const typeLabel = LEAVE_TYPE_OPTIONS.find((t) => t.value === leaveForm.leaveType)?.label || "휴가";
+    const typeLabel = companyLeaveTypes.find((t) => t.value === leaveForm.leaveType)?.label || "휴가";
     const unitLabel = LEAVE_UNIT_OPTIONS.find((u) => u.value === leaveForm.leaveUnit)?.label?.split(" ")[0] || "";
     const empName = currentEmployee?.name || "";
 
@@ -2726,7 +2734,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   // Auto-generate leave description
   const leaveDescription = useMemo(() => {
-    const typeLabel = LEAVE_TYPE_OPTIONS.find((t) => t.value === leaveForm.leaveType)?.label || "";
+    const typeLabel = companyLeaveTypes.find((t) => t.value === leaveForm.leaveType)?.label || "";
     const unitLabel = LEAVE_UNIT_OPTIONS.find((u) => u.value === leaveForm.leaveUnit)?.label || "";
     const startStr = leaveForm.startDate ? leaveForm.startDate.replace(/-/g, ".") : "미선택";
     const endStr = leaveForm.endDate ? leaveForm.endDate.replace(/-/g, ".") : startStr;
@@ -3112,7 +3120,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                               onChange={(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })}
                               className="field-input"
                             >
-                              {LEAVE_TYPE_OPTIONS.map((t) => (
+                              {companyLeaveTypes.map((t) => (
                                 <option key={t.value} value={t.value}>{t.label}</option>
                               ))}
                             </select>

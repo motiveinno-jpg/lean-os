@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
 import { updateEmployee, LEAVE_TYPES, calculateAnnualLeave } from "@/lib/hr";
+import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { listLeaveGrants, addLeaveGrant, deleteLeaveGrant, setBaseLeaveGrant, GRANT_TYPE_LABELS, type LeaveGrant, type LeaveGrantType } from "@/lib/leave-grants";
 import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
@@ -85,6 +86,14 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
   // Retirement pay calculation state
   const [retirementEndDate, setRetirementEndDate] = useState(todayKst());
+
+  // 휴가 유형·기본 일수는 회사 설정을 따른다 — 휴가 탭에서 이름을 바꾸면 여기도 같이 바뀐다.
+  //   queryKey 는 휴가 탭과 동일해 캐시를 공유한다. (2026-08-06)
+  const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
+    queryKey: ["company-leave-types", companyId],
+    queryFn: () => getCompanyLeaveTypes(companyId),
+    enabled: !!companyId,
+  });
 
   // Company data for EDI generation
   const { data: companyInfo } = useQuery({
@@ -921,7 +930,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
             <div>
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2">휴가 유형</div>
               <div className="grid grid-cols-3 gap-2">
-                {LEAVE_TYPES.slice(0, 6).map((lt) => {
+                {companyLeaveTypes.slice(0, 6).map((lt) => {
                   const used = empLeaveRequests.filter((r: any) => r.leave_type === lt.value && r.status === "approved")
                     .reduce((s: number, r: any) => s + Number(r.days || 0), 0);
                   return (
@@ -942,7 +951,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               ) : (
                 <div className="space-y-1.5">
                   {empLeaveRequests.slice(0, 10).map((r: any) => {
-                    const typeLabel = LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
+                    const typeLabel = companyLeaveTypes.find((t) => t.value === r.leave_type)?.label
+                      || LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
                     const statusColors: Record<string, string> = {
                       pending: "text-[var(--warning)] bg-[var(--warning)]/10",
                       approved: "text-[var(--success)] bg-[var(--success)]/10",

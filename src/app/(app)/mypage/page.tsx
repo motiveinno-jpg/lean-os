@@ -2,10 +2,11 @@
 import { logRead } from "@/lib/log-read";
 import { Ico } from "@/components/ui-icon";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, clearCurrentUserCache } from "@/lib/queries";
+import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { useUser } from "@/components/user-context";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
@@ -27,8 +28,8 @@ const EMP_STATUS: Record<string, { label: string; color: string }> = {
   inactive: { label: "퇴직", color: "text-[var(--text-muted)]" },
 };
 
+// 회사 설정에 없는 레거시 유형(경조휴가·무급휴가)까지 덮는 폴백 표기
 const LEAVE_TYPE_LABELS: Record<string, string> = { annual: "연차", sick: "병가", special: "경조휴가", unpaid: "무급휴가" };
-const leaveTypeLabel = (t: string) => LEAVE_TYPE_LABELS[t] || t;
 // 연차 원장 표기 — 'YYYY-MM-DD' → 'M월 D일'
 const fmtLedgerDate = (d?: string | null) => (d ? `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일` : "—");
 
@@ -39,6 +40,17 @@ export default function MyPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<MyPageTab>("records");
   const { role, user: ctxUser, refresh } = useUser();
+  // 휴가 유형 이름은 회사 설정을 따른다 — 구성원 > 휴가 탭에서 바꾸면 직원 화면도 같이 바뀐다.
+  //   queryKey 는 휴가 탭과 동일해 캐시를 공유한다. (2026-08-06)
+  const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
+    queryKey: ["company-leave-types", companyId],
+    queryFn: () => getCompanyLeaveTypes(companyId!),
+    enabled: !!companyId,
+  });
+  const leaveTypeLabel = useCallback(
+    (t: string) => companyLeaveTypes.find((x) => x.value === t)?.label || LEAVE_TYPE_LABELS[t] || t,
+    [companyLeaveTypes],
+  );
   // 회원 탈퇴
   const [withdrawText, setWithdrawText] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
