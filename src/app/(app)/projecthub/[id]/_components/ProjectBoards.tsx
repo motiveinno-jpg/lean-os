@@ -97,9 +97,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [openItemId, setOpenItemId] = useState<string | null>(null);   // 행 상세 서랍
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  // 표에서 줄 끌어 옮기기 — 손잡이(⠿)를 누른 줄만 끌린다(칸 안 글자를 못 고르게 되면 안 된다).
-  //   armed = 손잡이를 누른 줄 · rowDrag = 지금 끌고 있는 줄 · rowOver = 그 위에 올라간 줄
-  const [armed, setArmed] = useState<string | null>(null);
+  // 표에서 줄 끌어 옮기기 — **손잡이(⠿)만** 끌린다(줄 전체를 끌리게 하면 칸 안 글자를 못 고른다).
+  //   끌리는 그림은 줄 전체로 바꿔 무엇을 옮기는지 보이게 한다. rowOver = 지금 올라가 있는 줄
   const [rowDrag, setRowDrag] = useState<string | null>(null);
   const [rowOver, setRowOver] = useState<string | null>(null);
 
@@ -665,7 +664,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   //   ⚠️ 걸러 보는 중이어도 **표에 안 보이는 줄까지** 포함해 자리를 매긴다(숨은 줄이 뒤섞이지 않게).
   const moveRow = async (targetGroupId: string, targetId?: string) => {
     const src = items.find((i) => i.id === rowDrag);
-    setRowDrag(null); setRowOver(null); setArmed(null);
+    setRowDrag(null); setRowOver(null);
     if (!src || src.id === targetId) return;
     const dest = items.filter((i) => i.group_id === targetGroupId && i.id !== src.id)
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
@@ -1234,9 +1233,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                 </thead>
                 <tbody>
                   {rows.map((it) => (
-                    <tr key={it.id} draggable={armed === it.id}
-                      onDragStart={(e) => { setRowDrag(it.id); e.dataTransfer.effectAllowed = "move"; }}
-                      onDragEnd={() => { setRowDrag(null); setRowOver(null); setArmed(null); }}
+                    <tr key={it.id}
+                      onDragEnd={() => { setRowDrag(null); setRowOver(null); }}
                       onDragOver={(e) => { if (!rowDrag || rowDrag === it.id) return; e.preventDefault(); setRowOver(it.id); }}
                       onDrop={(e) => { if (!rowDrag) return; e.preventDefault(); e.stopPropagation(); moveRow(g.id, it.id); }}
                       className={`${rowDrag === it.id ? "pb-row-drag" : ""} ${rowOver === it.id ? "pb-row-over" : ""}`}>
@@ -1250,12 +1248,18 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       </td>
                       <td className="pb-td-name">
                         <span className="pb-name-cell">
-                          {/* 손잡이를 눌러야 줄이 끌린다 — 칸 안 글자를 고르는 걸 막지 않으려고.
+                          {/* 손잡이만 끌린다 — 칸 안 글자를 고르는 걸 막지 않으려고(칸반 카드와 같은 방식).
                               정렬을 걸어 둔 동안은 보이는 차례와 저장된 차례가 달라 순서를 못 바꾼다 */}
                           <span className="pb-grip" title={sort ? "정렬을 끄면 순서를 바꿀 수 있어요" : "끌어서 순서 바꾸기"}
-                            aria-hidden="true"
-                            onMouseDown={() => { if (!sort) setArmed(it.id); }}
-                            onMouseUp={() => setArmed(null)}>⠿</span>
+                            draggable={!sort}
+                            onDragStart={(e) => {
+                              setRowDrag(it.id);
+                              e.dataTransfer.effectAllowed = "move";
+                              //   끌리는 그림은 줄 전체 — 손잡이 글자만 따라다니면 뭘 옮기는지 안 보인다
+                              const tr = (e.currentTarget as HTMLElement).closest("tr");
+                              if (tr) e.dataTransfer.setDragImage(tr, 24, 12);
+                            }}
+                            onDragEnd={() => { setRowDrag(null); setRowOver(null); }}>⠿</span>
                           <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
                             onBlur={(e) => saveName(it, e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
