@@ -23,7 +23,10 @@ import {
 import type { Preset } from "@/lib/board-presets";
 
 /** 편집 중인 한 칸. flow 는 칸반이 열로 쓰는 단계 칸인지 — 기본 양식에서 물려받으면 유지한다 */
-type Draft = { key: string; name: string; type: ColType; unit: string; options: StatusOption[]; flow: boolean };
+type Draft = { key: string; name: string; type: ColType; unit: string; options: StatusOption[]; flow: boolean;
+  /** 광고 표처럼 '이 칸에 무엇을 채울지'가 정해진 칸 — 다듬는 화면을 지나도 안 잃게 그대로 들고 간다
+   *  (2026-08-06: 여기서 떨어뜨리면 마케팅 표가 저절로 안 채워진다) */
+  ad?: string };
 /** 어디서 출발했는지 — 기본 양식 key(없으면 처음부터 짠 것) */
 type Base = { key: string | null; name: string };
 
@@ -45,6 +48,7 @@ function draftsOf(columns: ColumnDef[]): Draft[] {
     unit: c.settings?.unit || (c.type === "number" ? "원" : ""),
     options: (c.settings?.options || []).map((o) => ({ ...o })),
     flow: !!c.settings?.flow,
+    ad: c.settings?.ad,
   }));
 }
 
@@ -96,15 +100,16 @@ export function BoardNewModal({ inline, busy, presets, onCustom, onUsePreset, on
   const build = () => {
     const columns: ColumnDef[] = drafts.map((d) => {
       const nm = d.name.trim() || nameOfFormat(d.type);
+      const ad = d.ad ? { ad: d.ad } : {};
       if (d.type === "status") {
         const options = d.options.filter((o) => o.label.trim()).map((o) => ({ ...o, label: o.label.trim() }));
         return {
           name: nm, type: d.type,
-          settings: { options: options.length ? options : DEFAULT_STATUS_OPTIONS, ...(d.flow ? { flow: true } : {}) },
+          settings: { options: options.length ? options : DEFAULT_STATUS_OPTIONS, ...(d.flow ? { flow: true } : {}), ...ad },
         };
       }
-      if (d.type === "number") return { name: nm, type: d.type, settings: d.unit.trim() ? { unit: d.unit.trim() } : {} };
-      return { name: nm, type: d.type };
+      if (d.type === "number") return { name: nm, type: d.type, settings: { ...(d.unit.trim() ? { unit: d.unit.trim() } : {}), ...ad } };
+      return { name: nm, type: d.type, settings: ad };
     });
     onCustom(name.trim() || base?.name || "새 템플릿", columns, saveToCompany, base?.key ?? null);
   };
