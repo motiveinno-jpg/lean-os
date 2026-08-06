@@ -61,6 +61,9 @@ function SignaturesDashboardInner() {
   const qc = useQueryClient();
   const { open: openDocViewer } = useDocumentViewer();
   const [userId, setUserId] = useState<string | null>(null);
+  // user_preferences.user_id 는 auth.users(id) 를 참조한다 — users.id 와 다른 계정이 있어
+  //   users.id 로 쓰면 조회·저장이 조용히 어긋난다(사이드바 고정핀에서 이미 겪은 함정).
+  const [authUid, setAuthUid] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [subTab, setSubTab] = useState<"requests" | "templates">("requests");
   const [statusFilter, setStatusFilter] = useState<"all" | SignatureStatusValue>("all");
@@ -99,11 +102,11 @@ function SignaturesDashboardInner() {
 
   // 목록 보기 설정을 계정에 기억 — 다른 PC 로 로그인해도 같은 정렬·기간·페이지 크기.
   useEffect(() => {
-    if (!userId) return;
+    if (!authUid) return;
     let alive = true;
     (async () => {
       const { data } = await (supabase as any)
-        .from("user_preferences").select("signature_list_prefs").eq("user_id", userId).maybeSingle();
+        .from("user_preferences").select("signature_list_prefs").eq("user_id", authUid).maybeSingle();
       const p = data?.signature_list_prefs;
       if (alive && p) {
         if (p.sort?.key) setSort({ key: p.sort.key, dir: p.sort.dir === "asc" ? "asc" : "desc" });
@@ -116,22 +119,28 @@ function SignaturesDashboardInner() {
       if (alive) setPrefsLoaded(true);
     })();
     return () => { alive = false; };
-  }, [userId]);
+  }, [authUid]);
 
   useEffect(() => {
-    if (!userId || !companyId || !prefsLoaded) return; // 로드 전에 기본값으로 덮어쓰지 않게
+    if (!authUid || !companyId || !prefsLoaded) return; // 로드 전에 기본값으로 덮어쓰지 않게
     const t = setTimeout(() => {
+      // 유니크 제약은 (user_id, company_id) 다. onConflict 를 user_id 로만 주면
+      //   42P10 으로 매번 실패하는데 void 로 삼켜서 무증상이었다 — 그래서 설정이
+      //   한 번도 저장되지 않았다(운영 15행 중 signature_list_prefs 0건, 2026-08-06).
       void (supabase as any).from("user_preferences").upsert(
         {
-          user_id: userId,
+          user_id: authUid,
           company_id: companyId,
           signature_list_prefs: { sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo, batchFilter, managerFilter },
+          updated_at: new Date().toISOString(),
         },
-        { onConflict: "user_id" },
-      );
+        { onConflict: "user_id,company_id" },
+      ).then(({ error }: { error: { message: string } | null }) => {
+        if (error) console.error("전자계약 목록 설정 저장 실패:", error.message);
+      });
     }, 600);
     return () => clearTimeout(t);
-  }, [userId, companyId, prefsLoaded, sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo, batchFilter, managerFilter]);
+  }, [authUid, companyId, prefsLoaded, sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo, batchFilter, managerFilter]);
 
   const toggleSort = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
@@ -140,6 +149,7 @@ function SignaturesDashboardInner() {
     getCurrentUser().then((u) => {
       if (u) {
         setUserId(u.id);
+        setAuthUid((u as any).auth_id || u.id);
         setCompanyId(u.company_id);
       }
     });
