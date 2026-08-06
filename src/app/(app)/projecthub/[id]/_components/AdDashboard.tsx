@@ -590,13 +590,24 @@ function ChartBody({ chart, byDay, entities, byEntity }: {
 
   if (data.length === 0) return <p className="pj-sec-empty">그릴 값이 없어요.</p>;
 
+  //   ⚠️ 도넛·묶음·깔때기는 '무엇이 얼마를 차지하나'를 보는 그림이다 — 조각이 여덟을 넘으면
+  //   색이 모자라 읽을 수 없다. 큰 것 일곱만 두고 나머지는 '기타'로 접는다(색을 새로 만들지 않는다).
+  const isShare = chart.type === "donut" || chart.type === "cluster" || chart.type === "funnel";
+  const shareData = (() => {
+    if (!isShare || data.length <= 8) return data;
+    const top = data.slice(0, 7);
+    const restSum = data.slice(7).reduce((n, d) => n + d.value, 0);
+    return [...top, { label: `기타 ${data.length - 7}개`, value: restSum, v2: 0 }];
+  })();
+
   if (chart.type === "bar") return <BarChart data={data} unit={unit} />;
   if (chart.type === "donut") return (<>
-    <DonutChart data={data} unit={unit} />
-    <Legend items={data.slice(0, 8).map((d, i) => ({ name: d.label, color: vizColor(i) }))} />
+    {chart.by === "date" && <p className="adb-warn">도넛은 ‘무엇이 얼마를 차지하나’를 보는 그림입니다 — 날짜별은 세로 막대나 선이 맞습니다.</p>}
+    <DonutChart data={shareData} unit={unit} />
+    <Legend items={shareData.map((d, i) => ({ name: d.label, color: vizColor(i) }))} />
   </>);
-  if (chart.type === "funnel") return <FunnelChart data={data} unit={unit} />;
-  if (chart.type === "cluster") return <ClusterChart data={data} unit={unit} />;
+  if (chart.type === "funnel") return <FunnelChart data={shareData} unit={unit} />;
+  if (chart.type === "cluster") return <ClusterChart data={shareData} unit={unit} />;
   if (chart.type === "scatter") return (
     <ScatterChart xLabel={m2?.label || ""} yLabel={m1?.label || ""}
       points={data.map((d) => ({ label: d.label, x: d.v2, y: d.value }))} />

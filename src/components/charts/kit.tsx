@@ -22,6 +22,16 @@ const GRID = "var(--border)";
 const INK = "var(--text)";
 const DIM = "var(--text-dim)";
 
+
+/** 축 글자 — 개수만큼 칸을 나누면 글자가 잘린다. 대여섯 개만 골라 양끝에 맞춰 놓는다 */
+function axisLabels(labels: string[]) {
+  if (labels.length === 0) return null;
+  const want = Math.min(labels.length, 6);
+  const step = (labels.length - 1) / Math.max(1, want - 1);
+  const idx = Array.from({ length: want }, (_, i) => Math.round(i * step));
+  return [...new Set(idx)].map((i) => <em key={`${labels[i]}-${i}`}>{labels[i]}</em>);
+}
+
 export type Datum = { label: string; value: number; color?: string };
 export type Series = { name: string; points: { label: string; value: number }[] };
 
@@ -64,11 +74,7 @@ export function ColumnChart({ data, height = 200, unit = "" }: { data: Datum[]; 
           </span>
         ))}
       </div>
-      <div className="viz-xaxis">
-        {data.map((d, i) => (
-          <em key={`${d.label}-x-${i}`}>{data.length <= 12 || i % Math.ceil(data.length / 8) === 0 ? d.label : ""}</em>
-        ))}
-      </div>
+      <div className="viz-xaxis">{axisLabels(data.map((d) => d.label))}</div>
     </div>
   );
 }
@@ -125,9 +131,7 @@ export function LineChart({ series, height = 200, unit = "" }: { series: Series[
           </span>
         ))}
       </div>
-      <div className="viz-xaxis">
-        {labels.map((l, i) => <em key={`${l}-${i}`}>{labels.length <= 12 || i % Math.ceil(labels.length / 8) === 0 ? l : ""}</em>)}
-      </div>
+      <div className="viz-xaxis">{axisLabels(labels)}</div>
     </div>
   );
 }
