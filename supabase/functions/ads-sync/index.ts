@@ -85,9 +85,12 @@ async function naverCampaigns(sec: Secret, customerId: string): Promise<Record<s
 //   대시보드에서 무엇을 볼지는 사장님이 고른다 — 그래서 **매체가 주는 만큼 넓게 받아** raw 에 담아 둔다
 //   (2026-08-06: "네이버 API 에서 제공하는 모든 데이터를 대시보드에 추가할 수 있어야").
 //   넓은 목록이 거절당하면(계정 유형에 따라 없는 필드가 있다) 기본 목록으로 한 번 더 시도한다.
-const WIDE_FIELDS = ["impCnt", "clkCnt", "salesAmt", "ccnt", "convAmt", "cpc", "ctr", "avgRnk",
-  "viewCnt", "crto", "ror", "cpConv", "drtCnt", "indrCnt", "drtSales", "indrSales"];
+//   무엇을 주는지는 **문서가 아니라 계정이 답한다** — 하나라도 없는 이름이 끼면 요청 전체가
+//   거절당하므로, 기본 목록에 후보를 하나씩만 얹어 떠보고 통과한 것만 모은다
+//   (2026-08-06: 묶어서 보냈다가 통째로 거절돼 기본 5개로 후퇴했다).
 const BASE_FIELDS = ["impCnt", "clkCnt", "salesAmt", "ccnt", "convAmt"];
+const CANDIDATE_FIELDS = ["ctr", "cpc", "avgRnk", "crto", "ror", "cpConv", "viewCnt",
+  "drtCrto", "indrCrto", "drtSales", "indrSales", "mblImpCnt", "pcImpCnt"];
 
 async function naverStats(sec: Secret, customerId: string, ids: string[], day: string, fields: string[]) {
   const out: any[] = [];
@@ -110,11 +113,16 @@ async function syncNaverSA(acc: AdAccount, sec: Secret) {
   if (ids.length === 0) return { rows: 0, campaigns: 0 };
 
   const rows: any[] = [];
-  //   넓은 목록이 안 되면 기본 목록으로 — 한 번 판정해 그 뒤로는 그대로 쓴다
-  let fields = WIDE_FIELDS;
-  try {
-    await naverStats(sec, acc.external_id, ids.slice(0, 1), kstDate(-1), WIDE_FIELDS);
-  } catch { fields = BASE_FIELDS; }
+  //   이 계정이 받아 주는 지표를 하루 한 번 가려낸다(하루치 수집 앞의 짧은 확인)
+  const fields = [...BASE_FIELDS];
+  const probeDay = kstDate(-1);
+  const probeIds = ids.slice(0, 1);
+  for (const f of CANDIDATE_FIELDS) {
+    try {
+      await naverStats(sec, acc.external_id, probeIds, probeDay, [...BASE_FIELDS, f]);
+      fields.push(f);
+    } catch { /* 이 계정엔 없는 지표 — 건너뛴다 */ }
+  }
   for (let d = 0; d < REFETCH_DAYS; d++) {
     const day = kstDate(-d);
     const stats = await naverStats(sec, acc.external_id, ids, day, fields);

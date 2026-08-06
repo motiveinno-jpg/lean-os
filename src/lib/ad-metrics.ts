@@ -44,10 +44,14 @@ export const AD_METRICS: AdMetric[] = [
   { key: "cvr", label: "전환율(CVR)", unit: "%", agg: "ratio", num: "conversions", den: "clicks", pct: true },
   { key: "avgRnk", label: "평균 노출순위", unit: "위", agg: "avg", field: "avgRnk" },
   { key: "viewCnt", label: "동영상 조회", unit: "회", agg: "sum", field: "viewCnt" },
-  { key: "drtConv", label: "직접 전환", unit: "건", agg: "sum", field: "drtCnt" },
-  { key: "indrConv", label: "간접 전환", unit: "건", agg: "sum", field: "indrCnt" },
-  { key: "drtSales", label: "직접 전환 매출", unit: "원", agg: "sum", field: "drtSales" },
-  { key: "indrSales", label: "간접 전환 매출", unit: "원", agg: "sum", field: "indrSales" },
+  //   네이버가 계산해 준 값도 함께 둔다 — 우리가 합계로 셈한 것(CTR·ROAS…)과 비교해 볼 수 있게
+  { key: "naverCtr", label: "클릭률(네이버 계산)", unit: "%", agg: "avg", field: "ctr" },
+  { key: "naverCpc", label: "CPC(네이버 계산)", unit: "원", agg: "avg", field: "cpc" },
+  { key: "naverCvr", label: "전환율(네이버 계산)", unit: "%", agg: "avg", field: "crto" },
+  { key: "naverRoas", label: "ROAS(네이버 계산)", unit: "%", agg: "avg", field: "ror" },
+  { key: "naverCpConv", label: "전환당 비용(네이버 계산)", unit: "원", agg: "avg", field: "cpConv" },
+  { key: "drtCrto", label: "직접 전환율", unit: "%", agg: "avg", field: "drtCrto" },
+  { key: "indrCrto", label: "간접 전환율", unit: "%", agg: "avg", field: "indrCrto" },
 ];
 
 export const metricOf = (key: string) => AD_METRICS.find((m) => m.key === key);
