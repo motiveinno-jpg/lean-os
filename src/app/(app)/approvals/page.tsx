@@ -176,6 +176,21 @@ function attachmentFileName(url: string): string {
   }
 }
 
+/** 댓글에 붙은 그림 미리보기 — documents 버킷은 **비공개**라 저장된 공개 주소로는 안 그려진다
+ *  (2026-08-06: 프로젝트 표에서 같은 원인으로 첨부가 안 열렸다). 띄울 때 서명 주소를 받아 그린다.
+ *  ⚠️ 여기서는 downloadName 을 주지 않는다 — 주면 '내려받기'로 바뀌어 그림이 안 보인다. */
+function AttachmentThumb({ url, name }: { url: string; name: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    resolveSignedUrl(url).then((u) => { if (alive) setSrc(u); });
+    return () => { alive = false; };
+  }, [url]);
+  if (!src) return <span className="approval-att-thumb-wait">불러오는 중…</span>;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={name} className="approval-att-thumb" />;
+}
+
 function AttachmentList({ attachments }: { attachments?: string[] }) {
   if (!attachments || attachments.length === 0) return null;
   return (
@@ -4350,8 +4365,7 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
                   <div className="mt-1.5 flex flex-wrap items-start gap-1.5">
                     {(c.attachments as string[]).map((url, i) => isImageUrl(url) ? (
                       <button key={i} type="button" onClick={() => openStoredFile(url, attachmentFileName(url))} className="block" title={attachmentFileName(url)}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={url} alt={attachmentFileName(url)} className="max-h-28 max-w-[180px] rounded-lg border border-[var(--border)] object-cover" />
+                        <AttachmentThumb url={url} name={attachmentFileName(url)} />
                       </button>
                     ) : (
                       <button key={i} type="button" onClick={() => downloadStoredFile(url, attachmentFileName(url))}

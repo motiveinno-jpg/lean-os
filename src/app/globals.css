@@ -2187,6 +2187,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .partner-recent-activity { @apply mb-5; }
 .partner-info-card { @apply p-5 md:p-6; }
 .approval-attachment-list { @apply mt-3; }
+/* 댓글 첨부 그림 — 서명 주소를 받아 그린다(비공개 버킷). 받는 동안 자리만 잡아 둔다 (2026-08-06) */
+.approval-att-thumb { @apply max-h-28 max-w-[180px] rounded-lg border border-[var(--border)] object-cover; }
+.approval-att-thumb-wait { @apply inline-flex items-center justify-center w-24 h-16 rounded-lg border border-dashed border-[var(--border)] text-[10px] text-[var(--text-dim)]; }
 .approval-form-field-rows { @apply py-1; }
 .approval-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .approval-tab-item { @apply inline-flex items-center gap-1.5; }
