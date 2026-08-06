@@ -5928,8 +5928,10 @@ td .rounded-full { white-space: nowrap; }
    칸 안의 입력기·단추도 같이 가운데로 맞춘다(안 그러면 상자만 가운데고 글자는 왼쪽에 붙는다) */
 .pb-td-mid { @apply text-center; }
 .pb-td-mid .pb-in, .pb-td-mid .pb-quick-in { @apply text-center; }
-/* 날짜 칸은 [날짜][달력 아이콘] 을 양끝으로 벌려 놔 text-center 로는 안 움직인다 — 둘을 묶어 가운데로 */
-.pb-td-mid .date-field-button { @apply justify-center gap-1.5; }
+/* 날짜 칸은 [날짜][달력 아이콘] 을 양끝으로 벌려 놔 text-center 로는 안 움직인다.
+   글자를 칸 한가운데(머리글과 같은 선)에 두고, 달력 아이콘만 오른쪽 끝에 붙여 자리를 안 먹게 한다 */
+.pb-td-mid .date-field-button { @apply relative justify-center; }
+.pb-td-mid .date-field-button > svg { @apply absolute right-0 top-1/2 -translate-y-1/2; }
 .pb-th-x { @apply w-8; }
 .pb-td-x { @apply text-center; }
 .pb-x { @apply text-[11px] text-[var(--text-dim)] opacity-0 transition hover:text-[var(--danger)]; }
