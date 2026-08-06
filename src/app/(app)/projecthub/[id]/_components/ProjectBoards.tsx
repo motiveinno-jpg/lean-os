@@ -46,7 +46,15 @@ import {
 const db = supabase as any;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 /** 표 칸 너비(px) — globals.css 의 .pbc-* 와 같은 값. 표의 최소 너비를 셈할 때 쓴다. */
-const COL_W = { sel: 34, name: 200, cell: 160, ratio: 96, doc: 110, tail: 60 };
+const COL_W = { sel: 34, name: 200, cell: 132, ratio: 96, doc: 110, tail: 60 };
+/** 칸마다 고르는 너비 — 머리의 ⋯ 에서 정한다. settings.width(px) 에 담으니 DB 구조는 안 바뀐다.
+ *  (2026-08-06 사장님: "지금 칸이 너무 넓은 듯" — 기본을 줄이고, 긴 글이 드는 칸만 넓게 둘 수 있게) */
+const COL_WIDTHS: { key: string; label: string; px: number }[] = [
+  { key: "narrow", label: "좁게", px: 100 },
+  { key: "normal", label: "보통", px: COL_W.cell },
+  { key: "wide", label: "넓게", px: 210 },
+];
+const widthOf = (c: BoardColumn) => Number(c.settings?.width) || COL_W.cell;
 const VIEW_KEY = "ov.board.view.";   // + boardId
 const GROUP_COLORS = ["#5559DF", "#00C875", "#FDAB3D", "#A25DDC", "#579BFC", "#E2445C", "#C4C4C4"];
 
@@ -68,6 +76,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [trashOpen, setTrashOpen] = useState(false);
   //   필터 — 표·칸반이 같이 쓴다. 켜진 게 없으면 아무것도 거르지 않는다.
   const [filters, setFilters] = useState<{ mine: boolean; week: boolean; open: boolean }>({ mine: false, week: false, open: false });
+  //   칸 값으로 거르기 — 엑셀 필터처럼 칸마다 든 값을 세어 두고 골라서 좁힌다(2026-08-06 사장님 지시).
+  //   같은 칸 안에서는 OR(둘 다 보기), 칸끼리는 AND(둘 다 만족). 고른 게 없으면 안 거른다.
+  const [valueFilters, setValueFilters] = useState<Record<string, string[]>>({});
+  //   필터 창 — 열려 있으면 맨 앞에 둘 칸 id("" 면 첫 칸부터). 칸 머리 ⋯ 에서도 같은 창을 연다.
+  const [filterPanel, setFilterPanel] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   //   지운 직후 한 번 뜨는 되돌리기 줄 — 놓쳐도 '지운 항목'에서 30일 안에 되살릴 수 있다
   const [undo, setUndo] = useState<{ table: string; id: string; label: string } | null>(null);
@@ -213,6 +226,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 
   // 마지막에 고른 보기를 템플릿마다 기억한다 — 기본값은 안전하게 두고 습관은 따라오게(2026-08-04).
   useEffect(() => {
+    //   표를 옮기면 앞 표의 칸 필터는 뜻을 잃는다(칸 id 가 다르다) — 같이 비운다
+    setValueFilters({});
+    setFilterPanel(null);
     if (!boardId || typeof window === "undefined") return;
     const saved = window.localStorage.getItem(`${VIEW_KEY}${boardId}`) as InputMode | null;
     setViewPick(saved === "grid" || saved === "board" || saved === "timeline" ? saved : null);
@@ -223,7 +239,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   };
 
   // 필터 — 셋 다 '켜면 좁아지는' 방향으로만 동작한다(AND). 무엇이 걸러졌는지 줄로 알려준다.
-  const shown = useMemo(() => {
+  const toggled = useMemo(() => {
     if (!filters.mine && !filters.week && !filters.open) return items as BoardItem[];
     const today = todayKst();
     const week = new Date(new Date(`${today}T00:00:00`).getTime() + 7 * 86_400_000).toISOString().slice(0, 10);
@@ -239,7 +255,28 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       return true;
     });
   }, [items, cols, groups, filters, userId]);
+
+  // 칸 값 필터 — 창에 보이는 건수는 위 세 단추까지 반영한 것을 센다(화면과 숫자가 어긋나지 않게).
+  const facets = useMemo(() => buildFacets(cols, toggled, users, partners as any[]), [cols, toggled, users, partners]);
+  const activeValueFilters = useMemo(
+    () => Object.entries(valueFilters).filter(([cid, vals]) => vals.length > 0 && cols.some((c) => c.id === cid)),
+    [valueFilters, cols]);
+  const shown = useMemo(() => {
+    if (activeValueFilters.length === 0) return toggled;
+    return toggled.filter((it) => activeValueFilters.every(([cid, vals]) => {
+      const c = cols.find((x) => x.id === cid);
+      return !c || vals.includes(facetKey(c, it));
+    }));
+  }, [toggled, activeValueFilters, cols]);
   const hiddenCount = items.length - shown.length;
+  //   한 칸의 값 하나를 켜고 끈다 — 창에서도, 칸 머리 ⋯ 에서도 같은 길로 들어온다
+  const toggleValueFilter = (colId: string, key: string) => setValueFilters((prev) => {
+    const cur = prev[colId] || [];
+    const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
+    const out = { ...prev };
+    if (next.length === 0) delete out[colId]; else out[colId] = next;
+    return out;
+  });
 
   const itemsByGroup = useMemo(() => {
     const m: Record<string, BoardItem[]> = {};
@@ -559,14 +596,33 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 
   const removeColumn = async (c: BoardColumn) => {
     if (sort?.colId === c.id) setSort(null);
+    setValueFilters((prev) => { const n = { ...prev }; delete n[c.id]; return n; });
     // 값은 행의 jsonb 에 그대로 남는다 — 컬럼을 되살리면 값도 같이 돌아온다
     await softDelete("project_board_columns", c.id, `컬럼 '${c.name}'`, ["pb-cols"]);
   };
-  // 숫자 컬럼 단위 — 단위를 알아야 '정리'가 합계를 제대로 읽는다(원끼리만 빼고, %는 평균을 낸다)
-  const setUnit = async (c: BoardColumn, unit: string) => {
-    const next = { ...(c.settings || {}), unit: unit.trim() || undefined };
-    await db.from("project_board_columns").update({ settings: next }).eq("id", c.id);
+  // 칸 설정 한 자리 — 라벨(상태)·단위(숫자)·너비를 ⋯ 창에서 한 번에 저장한다.
+  //   (따로따로 쓰면 앞 저장이 아직 안 돌아온 settings 를 덮어쓴다)
+  //   단위를 알아야 '정리'가 합계를 제대로 읽는다(원끼리만 더하고, %는 평균을 낸다)
+  const saveColSettings = async (c: BoardColumn, patch: Record<string, any>) => {
+    const next = { ...(c.settings || {}), ...patch };
+    const { error } = await db.from("project_board_columns").update({ settings: next }).eq("id", c.id);
+    if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+  };
+  // 칸 복제 — 같은 형식·라벨의 칸을 바로 오른쪽에 하나 더. 값은 칸 id 에 매여 있어 따라오지 않는다.
+  const duplicateColumn = async (c: BoardColumn) => {
+    const pos = c.position + 1;
+    const later = cols.filter((x) => x.position >= pos);
+    const res = await Promise.all(later.map((x) =>
+      db.from("project_board_columns").update({ position: x.position + 1 }).eq("id", x.id)));
+    const bad = res.find((r: any) => r.error);
+    if (bad) { toast(bad.error.message, "error"); return; }
+    const { error } = await db.from("project_board_columns").insert({
+      board_id: boardId, name: `${c.name} 사본`, type: c.type, settings: c.settings || {}, position: pos,
+    });
+    if (error) { toast(error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
+    toast(`'${c.name}' 과 같은 형식의 칸을 옆에 만들었습니다(값은 안 따라와요).`, "success");
   };
 
   // 지우는 동작은 전부 이 한 곳을 지난다 — 되돌리기가 빠지는 경로를 만들지 않으려고.
@@ -684,16 +740,6 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
   };
-  // 이미 있는 상태 칸의 라벨 고치기 — 이름·색을 바꾸거나 새 라벨을 더한다.
-  //   쓰던 라벨을 지우면 그 행의 값이 어느 라벨에도 안 맞게 되므로 지우기 전에 알린다.
-  const saveOptions = async (col: BoardColumn, options: StatusOption[]) => {
-    const clean = options.filter((o) => o.label.trim()).map((o) => ({ ...o, label: o.label.trim() }));
-    const { error } = await db.from("project_board_columns")
-      .update({ settings: { ...(col.settings || {}), options: clean } }).eq("id", col.id);
-    if (error) { toast(error.message, "error"); return; }
-    qc.invalidateQueries({ queryKey: ["pb-cols", boardId] });
-  };
-
   if (isLoading) return <p className="pj-sec-empty">불러오는 중…</p>;
 
   // ── 템플릿이 하나도 없을 때 — 고르는 화면부터 띄운다(빈 표 앞에서 막히지 않게) ──
@@ -834,6 +880,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                 onClick={() => setFilters((f) => ({ ...f, [k]: !f[k] }))}
                 className={`pb-filter ${filters[k] ? "pb-filter-on" : ""}`}>{label}</button>
             ))}
+            {/* 칸 값으로 거르기 — 엑셀처럼 칸마다 든 값을 보고 고른다(2026-08-06 사장님 지시) */}
+            {cols.length > 0 && (
+              <button type="button" aria-pressed={activeValueFilters.length > 0}
+                onClick={() => setFilterPanel("")} title="칸 값으로 거르기"
+                className={`pb-filter ${activeValueFilters.length > 0 ? "pb-filter-on" : ""}`}>
+                필터{activeValueFilters.length > 0 ? ` ${activeValueFilters.length}` : ""}
+              </button>
+            )}
             {hiddenCount > 0 && <em>{hiddenCount}건 숨김</em>}
           </span>
         )}
@@ -905,6 +959,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         <BoardTrash dealId={dealId} boardIds={boardIds}
           boardNames={Object.fromEntries(boards.map((b) => [b.id, b.name]))}
           onClose={() => setTrashOpen(false)} />
+      )}
+
+      {/* 엑셀처럼 칸 값으로 거르기 — 무슨 값이 몇 건인지 보고 고른다 (2026-08-06 사장님 지시) */}
+      {filterPanel !== null && (
+        <QuickFilterPanel facets={facets} picked={valueFilters} focusColId={filterPanel}
+          total={toggled.length} shownCount={shown.length}
+          onToggle={toggleValueFilter} onClear={() => setValueFilters({})} onClose={() => setFilterPanel(null)} />
       )}
 
       {/* 문서 팝업 — 견적·계약·발행. 화면을 옮기지 않고 여기서 끝낸다 */}
@@ -1059,12 +1120,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
               {/* 칸 너비를 표가 알아서 정하게 두면 머리글에 든 것(단위 칸·라벨 버튼)에 따라 칸마다 폭이
                   달라진다 — 값이 같은 종류인데 상자 넓이가 제각각으로 보였다(2026-08-05 사장님 지시).
                   칸 너비를 colgroup 으로 못 박고, 화면이 좁으면 가로로 스크롤한다. */}
-              <table className="pb-table" style={{ minWidth: COL_W.sel + COL_W.name + cols.length * COL_W.cell
+              <table className="pb-table" style={{ minWidth: COL_W.sel + COL_W.name + cols.reduce((n, c) => n + widthOf(c), 0)
                 + (ratioPair ? COL_W.ratio : 0) + (isBilling ? COL_W.doc : 0) + COL_W.tail }}>
                 <colgroup>
                   <col className="pbc-sel" />
                   <col className="pbc-name" />
-                  {cols.map((c) => <col key={c.id} className="pbc-cell" />)}
+                  {/* 칸마다 너비를 따로 준다 — 머리 ⋯ 의 '칸 너비'에서 고른 값(기본 보통) */}
+                  {cols.map((c) => <col key={c.id} style={{ width: widthOf(c) }} />)}
                   {ratioPair && <col className="pbc-ratio" />}
                   {isBilling && <col className="pbc-doc" />}
                   <col className="pbc-tail" />
@@ -1095,19 +1157,27 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           <input defaultValue={c.name} className="pb-col-name"
                             onBlur={(e) => renameColumn(c, e.target.value)}
                             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
-                          {/* 정렬 — 화살표를 눌러야 정렬된다(이름 칸은 이름 고치는 자리라 겹치면 안 된다) */}
-                          <button type="button" className={`pb-col-sort ${sort?.colId === c.id ? "pb-col-sort-on" : ""}`}
-                            title="이 컬럼으로 정렬"
-                            onClick={() => setSort((s0) => s0?.colId === c.id ? (s0.dir === "asc" ? { colId: c.id, dir: "desc" } : null) : { colId: c.id, dir: "asc" })}>
-                            {sort?.colId === c.id ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
-                          </button>
-                          {/* 칸 이름 옆 ＋ — 이 칸 오른쪽에 새 칸을 붙인다(표 끝의 ＋ 는 맨 뒤에 붙인다) */}
-                          <ColumnPlus col={c} onAdd={(t) => addColumn(t, c)} />
-                          {/* 그 칸에 대한 나머지는 한 자리로 — 라벨·단위·삭제 (2026-08-05 사장님 지시:
-                              "상태를 추가하면 우측에 라벨 칸도 생겨 둘로 보인다. 기능을 합쳐라") */}
+                          {/* 지금 이 칸으로 정렬·필터 중이면 머리에서 바로 보이게 — 끄는 것도 여기서
+                              (나머지 조작은 전부 ⋯ 안으로 옮겼다. 머리에 단추가 셋이면 칸이 그만큼 넓어진다) */}
+                          {sort?.colId === c.id && (
+                            <button type="button" className="pb-col-mark" title="정렬 끄기" onClick={() => setSort(null)}>
+                              {sort.dir === "asc" ? "▲" : "▼"}
+                            </button>
+                          )}
+                          {(valueFilters[c.id]?.length || 0) > 0 && (
+                            <button type="button" className="pb-col-mark pb-col-mark-flt" title="이 칸 필터 끄기"
+                              onClick={() => setValueFilters((prev) => { const n = { ...prev }; delete n[c.id]; return n; })}>▼</button>
+                          )}
+                          {/* 그 칸에 대한 모든 것을 한 자리로 — 정렬·필터·너비·라벨·단위·복제·칸 추가·삭제
+                              (2026-08-06 사장님 지시: "컬럼들, 이런 식으로 기능을 넣어 주는 게 좋겠다") */}
                           <ColumnMenu col={c}
-                            onSaveOptions={(opts) => saveOptions(c, opts)}
-                            onSetUnit={(u) => setUnit(c, u)}
+                            sortDir={sort?.colId === c.id ? sort.dir : null}
+                            filtered={(valueFilters[c.id]?.length || 0) > 0}
+                            onSort={(dir) => setSort(dir ? { colId: c.id, dir } : null)}
+                            onFilter={() => setFilterPanel(c.id)}
+                            onSaveSettings={(patch) => saveColSettings(c, patch)}
+                            onAddRight={(t) => addColumn(t, c)}
+                            onDuplicate={() => duplicateColumn(c)}
                             onRemove={() => removeColumn(c)} />
                         </span>
                       </th>
@@ -1444,32 +1514,121 @@ function NameDialog({ title, hint, value, onSave, onCancel }: {
   );
 }
 
-/** 상태 칸의 라벨 편집 — 표 머리에서 연다.
- *  글자를 칠 때마다 저장하면 DB 를 두들기게 되니, 팝오버 안에서만 고치고 닫을 때 한 번 저장한다. */
-/** 칸 이름 옆 ＋ — 그 칸 오른쪽에 새 칸을 붙인다 (2026-08-05 사장님 지시).
- *  표가 가로 스크롤 상자라 붙어 뜨는 팝오버는 잘린다 — 라벨 편집과 같이 가운데 창으로 띄운다. */
-function ColumnPlus({ col, onAdd }: { col: BoardColumn; onAdd: (type: ColType) => void }) {
+/** 칸 하나에 대한 모든 것 — 정렬 · 필터 · 너비 · 라벨 · 단위 · 복제 · 칸 추가 · 삭제 (2026-08-06 사장님 지시).
+ *
+ *   머리에 단추를 늘어놓으면 그만큼 칸이 넓어진다("지금 칸이 너무 넓은 듯").
+ *   그래서 머리는 [이름][지금 걸린 정렬·필터 표시][⋯] 만 두고, 나머지는 전부 이 창에서 다룬다.
+ *   (표가 가로 스크롤 상자라 붙어 뜨는 팝오버는 잘린다 — 가운데 창으로 띄운다.)
+ *   즉시 도는 것(정렬·필터·복제·칸 추가·삭제)과 저장을 눌러야 도는 것(라벨·단위·너비)을 층으로 가른다.
+ */
+function ColumnMenu({ col, sortDir, filtered, onSort, onFilter, onSaveSettings, onAddRight, onDuplicate, onRemove }: {
+  col: BoardColumn;
+  sortDir: "asc" | "desc" | null;
+  filtered: boolean;
+  onSort: (dir: "asc" | "desc" | null) => void;
+  onFilter: () => void;
+  onSaveSettings: (patch: Record<string, any>) => void;
+  onAddRight: (type: ColType) => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+}) {
   const [open, setOpen] = useState(false);
+  const [adding, setAdding] = useState(false);      // '오른쪽에 칸 추가' 를 고른 상태
+  const options = ((col.settings?.options || []) as StatusOption[]);
+  const [draft, setDraft] = useState<StatusOption[]>([]);
+  const [unit, setUnit] = useState("");
+  const [width, setWidth] = useState<number>(COL_W.cell);
+
+  const start = () => {
+    setDraft(options.map((o) => ({ ...o })));
+    setUnit(col.settings?.unit || "");
+    setWidth(widthOf(col));
+    setAdding(false);
+    setOpen(true);
+  };
+  const save = () => {
+    setOpen(false);
+    const patch: Record<string, any> = {};
+    if (col.type === "status") {
+      const clean = draft.filter((o) => o.label.trim()).map((o) => ({ ...o, label: o.label.trim() }));
+      const same = clean.length === options.length
+        && clean.every((d, i) => d.id === options[i].id && d.label === options[i].label && d.color === options[i].color);
+      if (!same) patch.options = clean;
+    }
+    if (col.type === "number" && unit.trim() !== (col.settings?.unit || "")) patch.unit = unit.trim() || undefined;
+    if (width !== widthOf(col)) patch.width = width;
+    if (Object.keys(patch).length > 0) onSaveSettings(patch);
+  };
+  const act = (fn: () => void) => { setOpen(false); fn(); };
+
   return (
     <>
-      <button type="button" className={`pb-col-plus ${open ? "pb-col-plus-on" : ""}`}
-        title={`'${col.name}' 오른쪽에 칸 추가`} aria-label={`${col.name} 오른쪽에 칸 추가`}
-        onClick={() => setOpen(true)}>＋</button>
+      <button type="button" className={`pb-colmenu-btn ${open ? "pb-colmenu-on" : ""}`}
+        title={`'${col.name}' 칸 — 정렬 · 필터 · 너비 · 설정`} aria-label={`${col.name} 칸 메뉴`} onClick={start}>⋯</button>
       {open && (
         <div className="pb-doc-modal" onClick={() => setOpen(false)}>
-          <div className="pb-doc-box pb-colplus-box" onClick={(e) => e.stopPropagation()}>
-            <b className="pb-collabels-h">‘{col.name}’ 오른쪽에 칸 추가</b>
-            <span className="pb-colplus-list">
-              {COL_FORMATS.map((f) => (
-                <button key={f.type} type="button" onClick={() => { setOpen(false); onAdd(f.type); }}>
-                  <b>{f.label}</b>
-                  <em>{f.hint}</em>
+          <div className="pb-doc-box pb-collabels-box" onClick={(e) => e.stopPropagation()}>
+            <b className="pb-collabels-h">‘{col.name}’ 칸</b>
+            {adding ? (<>
+              {/* 오른쪽에 칸 추가 — 표 끝까지 가로로 밀지 않아도 원하는 자리에 붙는다 */}
+              <em className="pb-name-hint">이 칸 바로 오른쪽에 붙일 칸의 형식을 고르세요.</em>
+              <span className="pb-colplus-list">
+                {COL_FORMATS.map((f) => (
+                  <button key={f.type} type="button" onClick={() => act(() => onAddRight(f.type))}>
+                    <b>{f.label}</b>
+                    <em>{f.hint}</em>
+                  </button>
+                ))}
+              </span>
+              <span className="pb-collabels-foot">
+                <button type="button" onClick={() => setAdding(false)}>뒤로</button>
+              </span>
+            </>) : (<>
+              <span className="pb-colmenu-sec">
+                <span>정렬</span>
+                <span className="pb-colmenu-pick">
+                  <button type="button" aria-pressed={sortDir === "asc"} className={sortDir === "asc" ? "pb-colmenu-on2" : ""}
+                    onClick={() => act(() => onSort("asc"))}>▲ 오름차순</button>
+                  <button type="button" aria-pressed={sortDir === "desc"} className={sortDir === "desc" ? "pb-colmenu-on2" : ""}
+                    onClick={() => act(() => onSort("desc"))}>▼ 내림차순</button>
+                  <button type="button" disabled={!sortDir} onClick={() => act(() => onSort(null))}>해제</button>
+                </span>
+              </span>
+              <span className="pb-colmenu-sec">
+                <span>칸 너비</span>
+                <span className="pb-colmenu-pick">
+                  {COL_WIDTHS.map((w) => (
+                    <button key={w.key} type="button" aria-pressed={width === w.px}
+                      className={width === w.px ? "pb-colmenu-on2" : ""} onClick={() => setWidth(w.px)}>{w.label}</button>
+                  ))}
+                </span>
+              </span>
+              {col.type === "status" && (<>
+                <em className="pb-name-hint">이 칸에서 고를 수 있는 값 — 이름 · 색 · 순서를 여기서 정합니다.</em>
+                <LabelEditor options={draft} onChange={setDraft}
+                  note="쓰고 있던 라벨을 빼면 그 행은 빈칸이 됩니다(값은 남아요)." />
+              </>)}
+              {col.type === "number" && (
+                <label className="pb-colmenu-unit">
+                  <span>단위</span>
+                  <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="원 · % · 개"
+                    onKeyDown={(e) => { if (e.key === "Enter") save(); }} />
+                  <em>정리에서 원끼리만 더하고 % 는 평균을 냅니다.</em>
+                </label>
+              )}
+              <span className="pb-colmenu-list">
+                <button type="button" onClick={() => act(onFilter)}>
+                  이 칸 값으로 거르기{filtered ? " — 지금 걸려 있음" : ""}
                 </button>
-              ))}
-            </span>
-            <span className="pb-collabels-foot">
-              <button type="button" onClick={() => setOpen(false)}>취소</button>
-            </span>
+                <button type="button" onClick={() => setAdding(true)}>오른쪽에 칸 추가 ▸</button>
+                <button type="button" onClick={() => act(onDuplicate)}>칸 복제</button>
+              </span>
+              <span className="pb-collabels-foot">
+                <button type="button" className="pb-fmt-del" onClick={() => act(onRemove)}>이 칸 삭제</button>
+                <button type="button" onClick={() => setOpen(false)}>취소</button>
+                <button type="button" className="pb-collabels-go" onClick={save}>저장</button>
+              </span>
+            </>)}
           </div>
         </div>
       )}
@@ -1477,72 +1636,119 @@ function ColumnPlus({ col, onAdd }: { col: BoardColumn; onAdd: (type: ColType) =
   );
 }
 
-/** 칸 하나에 대한 설정 — 라벨 · 단위 · 삭제를 한 자리에 모은다 (2026-08-05 사장님 지시).
- *
- *   "상태를 추가하면 우측에 라벨 칸도 생긴다. 상태·라벨 둘 다 칸이 있어 혼동을 준다 — 합쳐라."
- *   머리에 '라벨' 단추와 '단위' 입력이 따로 서 있으니 그 칸이 둘로 보였다.
- *   이제 머리에는 [이름][정렬][＋][⋯] 만 두고, 그 칸에 관한 나머지는 이 창에서 다룬다.
- *   (표가 가로 스크롤 상자라 붙어 뜨는 팝오버는 잘린다 — 가운데 창으로 띄운다.)
- */
-function ColumnMenu({ col, onSaveOptions, onSetUnit, onRemove }: {
-  col: BoardColumn;
-  onSaveOptions: (options: StatusOption[]) => void;
-  onSetUnit: (unit: string) => void;
-  onRemove: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const options = ((col.settings?.options || []) as StatusOption[]);
-  const [draft, setDraft] = useState<StatusOption[]>([]);
-  const [unit, setUnit] = useState("");
-
-  const start = () => {
-    setDraft(options.map((o) => ({ ...o })));
-    setUnit(col.settings?.unit || "");
-    setOpen(true);
-  };
-  const save = () => {
-    setOpen(false);
-    if (col.type === "status") {
-      const same = draft.length === options.length
-        && draft.every((d, i) => d.id === options[i].id && d.label === options[i].label && d.color === options[i].color);
-      if (!same) onSaveOptions(draft);
+// ── 칸 값 필터 — 엑셀 필터처럼 "이 칸에 무슨 값이 몇 건" 을 보고 골라 좁힌다 (2026-08-06 사장님 지시) ──
+/** 값이 빈 행도 골라 볼 수 있어야 한다 — 빈칸만 모으는 일이 실제로 잦다 */
+const FACET_EMPTY = "__empty";
+/** 이 행이 그 칸에서 어느 값에 속하는지. 세는 쪽과 거르는 쪽이 **같은 함수**를 써야 숫자가 안 어긋난다.
+ *  날짜는 달로 묶는다 — 하루하루 늘어놓으면 목록이 못 쓰게 된다. */
+function facetKey(col: BoardColumn, it: BoardItem): string {
+  const v = it.values?.[col.id];
+  if (v === null || v === undefined || String(v).trim() === "") return FACET_EMPTY;
+  if (col.type === "date") {
+    const s = String(v);
+    return /^\d{4}-\d{2}/.test(s) ? s.slice(0, 7) : FACET_EMPTY;
+  }
+  return String(v);
+}
+type Facet = { col: BoardColumn; opts: { key: string; label: string; color?: string; count: number }[]; more: number };
+/** 칸마다 값 목록을 만든다. 상태·담당은 정해진 순서대로, 나머지는 많은 것부터. 너무 길면 잘라 낸다. */
+function buildFacets(cols: BoardColumn[], rows: BoardItem[], users: { id: string; name: string }[], partners: any[]): Facet[] {
+  const CAP = 12;
+  const thisYear = todayKst().slice(0, 4);
+  return cols.map((col) => {
+    const count = new Map<string, number>();
+    for (const it of rows) {
+      const k = facetKey(col, it);
+      count.set(k, (count.get(k) || 0) + 1);
     }
-    if (col.type === "number" && unit.trim() !== (col.settings?.unit || "")) onSetUnit(unit.trim());
-  };
+    const options = ((col.settings?.options || []) as StatusOption[]);
+    const labelOf = (k: string): { label: string; color?: string } => {
+      if (k === FACET_EMPTY) return { label: "(빈칸)" };
+      if (col.type === "status") {
+        const o = options.find((x) => x.id === k);
+        return { label: o?.label || "(지운 라벨)", color: o?.color };
+      }
+      if (col.type === "person") return { label: users.find((u) => u.id === k)?.name || "(나간 사람)" };
+      if (col.type === "partner") return { label: partners.find((p) => p.id === k)?.name || "(지운 거래처)" };
+      if (col.type === "date") {
+        const [y, m] = k.split("-");
+        return { label: y === thisYear ? `${Number(m)}월` : `${y.slice(2)}.${m}` };
+      }
+      if (col.type === "number") return { label: Number(k).toLocaleString("ko-KR") + (col.settings?.unit || "") };
+      return { label: k };
+    };
+    //   순서 — 상태·담당은 그 칸이 이미 정해 둔 차례를, 날짜는 이른 달부터, 나머지는 건수 많은 것부터
+    let keys = [...count.keys()];
+    if (col.type === "status") {
+      const rank = new Map(options.map((o, i) => [o.id, i]));
+      keys.sort((a, b) => (rank.get(a) ?? 900) - (rank.get(b) ?? 900));
+    } else if (col.type === "person") {
+      const rank = new Map(users.map((u, i) => [u.id, i]));
+      keys.sort((a, b) => (rank.get(a) ?? 900) - (rank.get(b) ?? 900));
+    } else if (col.type === "date") {
+      keys.sort((a, b) => a.localeCompare(b));
+    } else {
+      keys.sort((a, b) => (count.get(b) || 0) - (count.get(a) || 0));
+    }
+    //   빈칸은 늘 맨 뒤 — 값이 있는 것부터 보이는 게 자연스럽다
+    keys = [...keys.filter((k) => k !== FACET_EMPTY), ...keys.filter((k) => k === FACET_EMPTY)];
+    const shownKeys = keys.slice(0, CAP);
+    return {
+      col,
+      opts: shownKeys.map((k) => ({ key: k, count: count.get(k) || 0, ...labelOf(k) })),
+      more: Math.max(0, keys.length - shownKeys.length),
+    };
+  });
+}
 
+/** 필터 창 — 칸을 가로로 늘어놓고, 칸마다 값을 눌러 켜고 끈다.
+ *  같은 칸 안에서 여럿 고르면 '둘 다 보기', 칸끼리는 '둘 다 만족'이다. */
+function QuickFilterPanel({ facets, picked, focusColId, total, shownCount, onToggle, onClear, onClose }: {
+  facets: Facet[];
+  picked: Record<string, string[]>;
+  /** 칸 머리 ⋯ 에서 열었으면 그 칸을 맨 앞에 둔다 */
+  focusColId: string;
+  total: number; shownCount: number;
+  onToggle: (colId: string, key: string) => void;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const ordered = focusColId
+    ? [...facets.filter((f) => f.col.id === focusColId), ...facets.filter((f) => f.col.id !== focusColId)]
+    : facets;
+  const on = Object.values(picked).filter((v) => v.length > 0).length;
   return (
-    <>
-      <button type="button" className={`pb-colmenu-btn ${open ? "pb-colmenu-on" : ""}`}
-        title={`'${col.name}' 칸 설정`} aria-label={`${col.name} 칸 설정`} onClick={start}>⋯</button>
-      {open && (
-        <div className="pb-doc-modal" onClick={() => setOpen(false)}>
-          <div className="pb-doc-box pb-collabels-box" onClick={(e) => e.stopPropagation()}>
-            <b className="pb-collabels-h">‘{col.name}’ 칸 설정</b>
-            {col.type === "status" && (<>
-              <em className="pb-name-hint">이 칸에서 고를 수 있는 값 — 이름 · 색 · 순서를 여기서 정합니다.</em>
-              <LabelEditor options={draft} onChange={setDraft}
-                note="쓰고 있던 라벨을 빼면 그 행은 빈칸이 됩니다(값은 남아요)." />
-            </>)}
-            {col.type === "number" && (
-              <label className="pb-colmenu-unit">
-                <span>단위</span>
-                <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="원 · % · 개"
-                  onKeyDown={(e) => { if (e.key === "Enter") save(); }} />
-                <em>정리에서 원끼리만 더하고 % 는 평균을 냅니다.</em>
-              </label>
-            )}
-            {col.type !== "status" && col.type !== "number" && (
-              <em className="pb-name-hint">이 칸은 따로 정할 설정이 없어요. 이름은 표 머리에서 바로 고칩니다.</em>
-            )}
-            <span className="pb-collabels-foot">
-              <button type="button" className="pb-fmt-del" onClick={() => { setOpen(false); onRemove(); }}>이 칸 삭제</button>
-              <button type="button" onClick={() => setOpen(false)}>취소</button>
-              <button type="button" className="pb-collabels-go" onClick={save}>저장</button>
-            </span>
-          </div>
+    <div className="pb-doc-modal" onClick={onClose}>
+      <div className="pb-doc-box pb-qf-box" onClick={(e) => e.stopPropagation()}>
+        <div className="pb-qf-head">
+          <b>칸 값으로 거르기</b>
+          <em>{total}건 중 {shownCount}건 표시{on > 0 ? ` · ${on}개 칸에 걸림` : ""}</em>
+          <button type="button" className="pb-qf-clear" disabled={on === 0} onClick={onClear}>모두 취소</button>
+          <button type="button" className="pb-qf-x" onClick={onClose} aria-label="닫기">✕</button>
         </div>
-      )}
-    </>
+        <div className="pb-qf-cols">
+          {ordered.map((f) => (
+            <section key={f.col.id} className="pb-qf-col">
+              <b>{f.col.name}</b>
+              {f.opts.length === 0 ? <em className="pb-qf-none">값 없음</em> : f.opts.map((o) => {
+                const isOn = (picked[f.col.id] || []).includes(o.key);
+                return (
+                  <button key={o.key} type="button" aria-pressed={isOn}
+                    className={`pb-qf-opt ${isOn ? "pb-qf-opt-on" : ""}`}
+                    onClick={() => onToggle(f.col.id, o.key)}>
+                    {o.color && <i style={{ background: o.color }} />}
+                    <span>{o.label}</span>
+                    <em>{o.count}</em>
+                  </button>
+                );
+              })}
+              {f.more > 0 && <em className="pb-qf-none">그 밖에 {f.more}가지 — 값을 좁히려면 정렬을 쓰세요</em>}
+            </section>
+          ))}
+        </div>
+        <p className="pb-qf-foot">같은 칸에서 여럿 고르면 <b>둘 다</b> 보이고, 칸을 여러 개 걸면 <b>모두 맞는 줄</b>만 남아요.</p>
+      </div>
+    </div>
   );
 }
 

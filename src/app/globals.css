@@ -5902,7 +5902,7 @@ td .rounded-full { white-space: nowrap; }
 .pb-table { @apply w-full table-fixed border-collapse bg-[var(--bg-card)] text-[12.5px]; }
 .pbc-sel { width: 34px; }
 .pbc-name { width: 200px; }
-.pbc-cell { width: 160px; }
+/* 값 칸의 너비는 칸마다 다르다(머리 ⋯ 의 '칸 너비') — colgroup 에 인라인으로 준다 (2026-08-06) */
 .pbc-ratio { width: 96px; }
 .pbc-doc { width: 110px; }
 .pbc-tail { width: 60px; }
@@ -6033,8 +6033,10 @@ td .rounded-full { white-space: nowrap; }
 
 /* 템플릿 헤더 — 정렬 · 단위 · 컬럼 삭제 (2026-08-03) */
 .pb-th-in { @apply flex items-center gap-1 min-w-0; }
-.pb-col-sort { @apply shrink-0 w-4 text-[9px] text-[var(--text-dim)] hover:text-[var(--primary)]; }
-.pb-col-sort-on { @apply text-[var(--primary)]; }
+/* 지금 이 칸에 정렬·필터가 걸려 있다는 표시 — 눌러서 바로 끈다 (2026-08-06).
+   조작 단추를 머리에 늘어놓으면 그만큼 칸이 넓어져 전부 ⋯ 안으로 옮겼다 */
+.pb-col-mark { @apply shrink-0 w-3.5 text-[8px] text-[var(--primary)] hover:opacity-70; }
+.pb-col-mark-flt { @apply text-[var(--success)]; }
 /* 그 칸에 관한 나머지(라벨·단위·삭제)는 ⋯ 한 자리로 모았다 (2026-08-05) */
 .pb-colmenu-btn { @apply shrink-0 w-4 text-[11px] leading-none text-[var(--text-dim)] opacity-60 transition hover:opacity-100 hover:text-[var(--primary)]; }
 .pb-colmenu-on { @apply opacity-100 text-[var(--primary)]; }
@@ -6043,12 +6045,16 @@ th:hover .pb-colmenu-btn { @apply opacity-100; }
 .pb-colmenu-unit > span { @apply text-[11.5px] font-bold text-[var(--text-dim)]; }
 .pb-colmenu-unit > input { @apply h-9 px-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] font-semibold text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
 .pb-colmenu-unit > em { @apply not-italic text-[11px] text-[var(--text-dim)]; }
-/* 칸 이름 옆 ＋ — 이 칸 오른쪽에 새 칸 (2026-08-05). 표 끝까지 밀지 않아도 칸을 붙일 수 있게 */
-.pb-col-plus { @apply shrink-0 w-4 text-[11px] leading-none text-[var(--text-dim)] opacity-60 transition hover:opacity-100 hover:text-[var(--primary)]; }
-.pb-col-plus-on { @apply opacity-100 text-[var(--primary)]; }
-th:hover .pb-col-plus { @apply opacity-100; }
+/* ⋯ 창 안의 층 — 정렬 · 칸 너비처럼 '고르는' 줄 (2026-08-06) */
+.pb-colmenu-sec { @apply flex items-center gap-2; }
+.pb-colmenu-sec > span:first-child { @apply w-14 shrink-0 text-[11.5px] font-bold text-[var(--text-dim)]; }
+.pb-colmenu-pick { @apply flex flex-wrap items-center gap-1; }
+.pb-colmenu-pick button { @apply h-7 px-2.5 rounded-lg border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)] disabled:opacity-40 disabled:hover:text-[var(--text-muted)] disabled:hover:border-[var(--border)]; }
+.pb-colmenu-on2 { @apply !border-[var(--primary)] bg-[var(--primary)]/10 !text-[var(--primary)]; }
+/* 그 자리에서 바로 도는 것들 — 거르기 · 칸 추가 · 복제 */
+.pb-colmenu-list { @apply flex flex-col gap-0.5 pt-1 border-t border-[var(--border)]; }
+.pb-colmenu-list button { @apply h-8 px-2.5 rounded-lg text-left text-[12.5px] text-[var(--text)] transition hover:bg-[var(--bg-surface)]; }
 /* 어떤 형식의 칸을 붙일지 — 표가 가로 스크롤이라 가운데 창으로 (라벨 편집과 같은 규칙) */
-.pb-colplus-box { @apply max-w-xs gap-2 p-4; }
 .pb-colplus-list { @apply flex flex-col gap-0.5; }
 .pb-colplus-list button { @apply text-left flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg transition hover:bg-[var(--bg-surface)]; }
 .pb-colplus-list b { @apply text-[12.5px] font-bold text-[var(--text)]; }
@@ -6257,6 +6263,24 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-filter { @apply h-7 px-2.5 rounded-full border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
 .pb-filter-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]; }
 .pb-filters em { @apply not-italic ml-1 text-[11px] text-[var(--text-dim)]; }
+/* 칸 값 필터 창 — 엑셀 필터처럼 칸을 가로로 늘어놓고 값을 눌러 켠다 (2026-08-06) */
+.pb-qf-box { @apply w-[min(52rem,92vw)] max-w-none gap-2 p-4; }
+.pb-qf-head { @apply flex items-center gap-2; }
+.pb-qf-head > b { @apply text-[13.5px] font-extrabold text-[var(--text)]; }
+.pb-qf-head > em { @apply not-italic text-[11.5px] text-[var(--text-dim)]; }
+.pb-qf-clear { @apply ml-auto h-7 px-2.5 rounded-lg border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--danger)] hover:border-[var(--danger)] disabled:opacity-40 disabled:hover:text-[var(--text-muted)] disabled:hover:border-[var(--border)]; }
+.pb-qf-x { @apply w-7 h-7 rounded-lg text-[12px] text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.pb-qf-cols { @apply flex gap-3 overflow-x-auto pb-1; }
+.pb-qf-col { @apply flex flex-col gap-1 shrink-0 w-40 max-h-72 overflow-y-auto; }
+.pb-qf-col > b { @apply sticky top-0 z-10 py-1 bg-[var(--bg-card)] text-[11px] font-bold text-[var(--text-dim)]; }
+.pb-qf-opt { @apply flex items-center gap-1.5 h-8 px-2 rounded-lg border border-[var(--border)] text-left text-[12px] text-[var(--text)] transition hover:border-[var(--primary)]; }
+.pb-qf-opt > i { @apply w-2 h-2 rounded-full shrink-0; }
+.pb-qf-opt > span { @apply flex-1 truncate; }
+.pb-qf-opt > em { @apply not-italic text-[10.5px] font-semibold text-[var(--text-dim)]; }
+.pb-qf-opt-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 font-bold text-[var(--primary)]; }
+.pb-qf-none { @apply not-italic text-[11px] text-[var(--text-dim)] px-1; }
+.pb-qf-foot { @apply text-[11.5px] text-[var(--text-dim)] pt-1 border-t border-[var(--border)]; }
+.pb-qf-foot b { @apply font-bold text-[var(--text-muted)]; }
 .pb-th-sel { @apply w-8; }
 .pb-td-sel { @apply w-8 text-center; }
 .pb-th-sel input, .pb-td-sel input { @apply w-3.5 h-3.5 accent-[var(--primary)] cursor-pointer; }
