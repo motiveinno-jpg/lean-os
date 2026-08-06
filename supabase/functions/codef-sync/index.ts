@@ -1130,10 +1130,15 @@ async function syncHometaxInvoices(
   let nextCursor: { direction: "매출" | "매입"; page: number } | null = null;
   for (const dir of directions) {
     let page = startPage;
-    let totalPages = 1;
-    while (page <= totalPages && page <= MAX_PAGES) {
+    // ⚠️ 총 페이지 수는 **응답을 받아야 알 수 있다**. 1 로 시작해 `page <= totalPages` 로 들어가면
+    //   이어받기(page=3 등)에서 `3 <= 1` 이 거짓이라 **호출을 한 번도 안 하고** 빈 결과로 끝나고,
+    //   그게 '완료'로 기록돼 남은 페이지가 영영 안 받아졌다 (2026-08-06 실측·수정).
+    //   → 첫 페이지는 무조건 호출하고, 총 페이지 수는 응답에서 확인한다.
+    let totalPages: number | null = null;
+    while (page <= MAX_PAGES) {
+      if (totalPages !== null && page > totalPages) break;   // 마지막 페이지까지 다 받음
       // 이번 호출을 제대로 감당할 시간이 없으면 **호출하지 않고** 다음 step 에 넘긴다.
-      //   (종전엔 남은 예산이 적어도 20초짜리로 강행해 그 페이지가 항상 타임아웃났다 — 2026-08-06 실측)
+      //   (남은 예산이 적어도 20초짜리로 강행하면 그 페이지가 항상 타임아웃났다 — 실측)
       const MIN_CALL_MS = 45_000;
       if (remainingMs() < MIN_CALL_MS) { nextCursor = { direction: dir, page }; break; }
       const one = await callDirection(dir, page, Math.min(perCallTimeoutMs, remainingMs() - 5_000));
@@ -1145,13 +1150,14 @@ async function syncHometaxInvoices(
         break;
       }
       const rows = unwrapRows(one.result.data);
-      const tp = Number(rows[0]?.resTotalPageCount || 1);
-      if (Number.isFinite(tp) && tp > totalPages) totalPages = tp;
-      if (rows.length === 0) break;
+      const tp = Number(rows[0]?.resTotalPageCount);
+      if (Number.isFinite(tp) && tp > 0) totalPages = tp;
+      else if (totalPages === null) totalPages = 1;   // 총 페이지를 안 주면 1페이지짜리로 간주
+      if (rows.length === 0) break;                   // 더 받을 데이터 없음
       page++;
-      if (page > totalPages) break;
+      if (totalPages !== null && page > totalPages) break;
     }
-    debug.push(`${dir} pages ${startPage}~${page - 1}/${totalPages}`);
+    debug.push(`${dir} pages ${startPage}~${page - 1}/${totalPages ?? "?"}`);
     if (nextCursor) break;   // 예산 소진 — 남은 방향도 다음 step 으로
   }
   debug.push(`sync ${cappedStart}~${cappedEnd} dirs=[${directions.join(",")}] budget=${INVOCATION_BUDGET_MS / 1000}s`);
@@ -1927,6 +1933,7 @@ serve(withSentry("codef-sync", async (req) => {
 
         // 남은 페이지가 있으면 아직 완료가 아니다 — partial 로 두어 다음 step 이 이어받게 한다.
         const hasMorePages = !!(r as any).nextPage;
+        // 호출을 한 번도 못 한 step(예산 부족으로 즉시 양보)도 완료가 아니다.
         const monthStatus: "ok" | "partial" | "error" =
           r.errors.length && r.synced === 0 ? "error"
           : (r.errors.length || (r.responseCount > r.synced) || hasMorePages) ? "partial"
@@ -1936,8 +1943,13 @@ serve(withSentry("codef-sync", async (req) => {
         let newPerMonth: any[];
         let totalSyncedDelta = 0;
         let totalResponseDelta = 0;
-        //   페이지 이어받기(nextPage)로 다시 도는 건 재시도가 아니라 '계속'이라 retry 를 늘리지 않는다.
-        const isPageContinuation = isRetry && Number(prevEntry?.nextPage) > 1;
+        //   페이지 이어받기(nextPage)는 재시도가 아니라 '계속'이라 retry 를 늘리지 않는다.
+        //   단 **진전이 있을 때만** — 같은 페이지에서 계속 실패하는데도 계속으로 치면 무한히 돈다.
+        //   진전 = 이번에 뭔가 받았거나(synced>0) 커서가 앞으로 갔을 때.
+        const prevPage = Number(prevEntry?.nextPage) || 0;
+        const newPage = Number((r as any).nextPage) || 0;
+        const madeProgress = (r.synced || 0) > 0 || (newPage > prevPage);
+        const isPageContinuation = isRetry && prevPage > 1 && madeProgress;
         const newRetryCount = isRetry && !isPageContinuation ? ((prevEntry?.retryCount || 0) + 1) : (prevEntry?.retryCount || 0);
 
         if (isRetry) {
