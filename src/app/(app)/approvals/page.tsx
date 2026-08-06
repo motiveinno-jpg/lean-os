@@ -51,6 +51,7 @@ import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
+import { sendApprovalMails } from "@/lib/approval-email";
 
 const db = supabase;
 
@@ -4132,7 +4133,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
       //   notifications INSERT 트리거가 웹푸시까지 자동 발송. 알림 실패는 변경 자체를 막지 않는다.
       try {
         const reqRow = logRead('approvals/page:reassign-title', await (supabase)
-          .from("approval_requests").select("title").eq("id", requestId).maybeSingle());
+          .from("approval_requests").select("title, amount, request_type").eq("id", requestId).maybeSingle());
         if (tlCompanyId) {
           await createNotification({
             companyId: tlCompanyId,
@@ -4142,6 +4143,15 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
             message: "승인자로 지정되었습니다 — 내 결재함에서 확인하세요.",
             entityType: "approval_request",
             entityId: requestId,
+          });
+          // 메일도 함께 (2026-08-06) — 설정에서 끈 사람은 내부에서 걸러진다
+          await sendApprovalMails({
+            userIds: [newApproverId],
+            kind: "reassigned",
+            title: (reqRow as any)?.title || "결재 건",
+            requestId,
+            amount: Number((reqRow as any)?.amount || 0),
+            requestType: (reqRow as any)?.request_type || "approval",
           });
         }
       } catch { /* 알림 실패는 표시만 못 할 뿐 — 변경은 이미 완료 */ }

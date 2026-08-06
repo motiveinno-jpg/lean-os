@@ -9,6 +9,7 @@ import { logAudit } from './audit';
 import { createQueueEntry } from './payment-queue';
 import { resolveBank } from './routing';
 import { createNotification } from './notifications';
+import { sendApprovalMails } from './approval-email';
 import type { ApprovalFormField } from './approval-forms';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -444,6 +445,29 @@ export async function createApprovalRequest(params: {
         entityId: request.id,
       });
     }
+
+    // 메일 통보 (2026-08-06 사장님 요청) — 인앱 알림과 함께 발송.
+    //   설정 > 알림에서 끈 사람은 sendApprovalMails 안에서 걸러진다. 실패해도 흐름을 막지 않는다.
+    await sendApprovalMails({
+      userIds: approverIds as string[],
+      kind: 'requested',
+      title: params.title,
+      requestId: request.id,
+      amount,
+      requestType: params.requestType,
+      stage: 1,
+      totalStages,
+    });
+    if (referenceIds.length > 0) {
+      await sendApprovalMails({
+        userIds: referenceIds,
+        kind: 'reference',
+        title: params.title,
+        requestId: request.id,
+        amount,
+        requestType: params.requestType,
+      });
+    }
   } catch {
     // Notification failure should not break the workflow
   }
@@ -586,6 +610,39 @@ export async function approveStep(
         .from('approval_requests')
         .update({ current_stage: nextStage, updated_at: now })
         .eq('id', step.request_id);
+
+      // 다음 단계 승인자 통보 (2026-08-06) — 그동안 단계가 넘어가도 다음 승인자에게
+      //   인앱 알림조차 가지 않아, 첫 승인자만 알고 나머지는 모르고 있었다.
+      try {
+        const nextApproverIds = [...new Set((nextSteps || [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((s: any) => s.approver_id as string)
+          .filter(Boolean))];
+        const totalStages = Number(request.total_stages || 0);
+        for (const nid of nextApproverIds) {
+          await createNotification({
+            companyId: request.company_id,
+            userId: nid,
+            type: 'approval_request',
+            title: `결재 요청: ${request.title}`,
+            message: `${nextStage}단계 결재 차례입니다.`,
+            entityType: 'approval_request',
+            entityId: request.id,
+          });
+        }
+        await sendApprovalMails({
+          userIds: nextApproverIds,
+          kind: 'stage_advanced',
+          title: request.title,
+          requestId: request.id,
+          amount: Number(request.amount || 0),
+          requestType: request.request_type,
+          stage: nextStage,
+          totalStages,
+        });
+      } catch {
+        // 통보 실패가 결재 흐름을 막지 않는다
+      }
     } else {
       // All stages complete - mark request approved
       await db

@@ -109,16 +109,19 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       // Best-effort persist to supabase if a notification_prefs table exists
       if (companyId) {
         const u = await getCurrentUser();
-        if (u) {
-          await (supabase)
+        // notification_prefs.user_id 는 auth.users(id) 를 참조한다. users.id 를 넣으면
+        //   두 값이 다른 계정에서 FK 위반으로 저장이 조용히 실패한다(2026-08-06 확인).
+        const authUid = (u as { auth_id?: string } | null)?.auth_id || u?.id;
+        if (u && authUid) {
+          const { error } = await (supabase)
             .from("notification_prefs")
             .upsert({
-              user_id: u.id,
+              user_id: authUid,
               company_id: companyId,
               prefs: prefs as never,
               updated_at: new Date().toISOString(),
-            }, { onConflict: "user_id" })
-            .then(() => {}, () => {}); // ignore if table missing
+            }, { onConflict: "user_id" });
+          if (error) console.error("알림 설정 서버 저장 실패:", error.message);
         }
       }
       toast("알림 설정 저장됨", "success");
