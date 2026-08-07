@@ -197,18 +197,15 @@ serve(withSentry("cashbill-issue", async (req) => {
         .eq("slug", planSlug)
         .maybeSingle();
       const planLimit = planRow?.monthly_issue_limit;
-      if (typeof planLimit === "number") {
-        const { data: usage } = await admin
-          .rpc("get_monthly_issue_usage", { p_company_id: companyId })
-          .maybeSingle();
-        const used = Number((usage as any)?.total_count ?? 0);
-        if (used >= planLimit) {
-          return json({
-            error: `이번 달 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
-            hint: `${planRow?.name || "현재 요금제"}는 세금계산서·현금영수증 합산 월 ${planLimit}건까지 발행할 수 있습니다.`,
-            code: "PLAN_LIMIT_EXCEEDED",
-          }, 429);
-        }
+      // 월 제공량 + 충전 잔액을 합쳐 판정 (2026-08-07 충전 도입). 세금계산서와 같은 소스를 본다.
+      const { data: allowance } = await admin.rpc("issue_allowance", { p_company_id: companyId });
+      const allow = (allowance || {}) as { unlimited?: boolean; allowed?: boolean };
+      if (!allow.unlimited && allow.allowed === false) {
+        return json({
+          error: `이번 달 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
+          hint: `${planRow?.name || "현재 요금제"}는 세금계산서·현금영수증 합산 월 ${planLimit}건까지 발행할 수 있습니다. 요금제 > 충전에서 발행 건수를 충전하면 이어서 발행할 수 있습니다.`,
+          code: "PLAN_LIMIT_EXCEEDED",
+        }, 429);
       }
 
       // 🚨 2026-07-21 이중발행 가드 — 세금계산서 CF-05001 인시던트(CODEF는 오류 응답, 팝빌은
@@ -318,6 +315,13 @@ serve(withSentry("cashbill-issue", async (req) => {
       if (insErr) {
         // 발행은 이미 성공 — DB 실패 시 documentKey(가이드: 필수 관리 대상)를 반드시 사용자에게 남긴다
         return json({ error: `발행은 완료됐지만 저장 실패: ${insErr.message} — 발행문서번호 ${documentKey} 를 보관하세요.` }, 500);
+      }
+
+      // 충전 차감 — 월 제공량이 남아 있으면 아무것도 하지 않는다. 실패해도 발행은 이미 끝났다.
+      try {
+        await admin.rpc("consume_issue_credit", { p_company_id: companyId });
+      } catch (e) {
+        console.error("[credit] consume_issue_credit failed:", (e as Error)?.message);
       }
 
       // 즉시 발행정보 1회 조회 (승인번호는 보통 아직 없음 — 상태코드·거래일자만 갱신)

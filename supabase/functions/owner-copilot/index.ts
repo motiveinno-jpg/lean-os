@@ -782,10 +782,14 @@ serve(withSentry("owner-copilot", async (req) => {
       return json({ error: "AI 참모는 유료 플랜(프로 이상)에서 이용할 수 있습니다.", code: "PLAN_REQUIRED" }, 403);
     }
 
-    const { data: usedTok } = await admin.rpc("ai_tokens_used_this_month", { p_company_id: companyId });
-    const used = Number(usedTok || 0);
-    if (used >= tokenLimit) {
-      return json({ error: "이번 달 AI 사용 한도를 모두 사용했습니다. 다음 달에 초기화됩니다.", code: "TOKEN_LIMIT" }, 429);
+    // 월 제공량 + 충전 잔액을 합쳐 판정 (2026-08-07 충전 도입).
+    const { data: allowance } = await admin.rpc("ai_token_allowance", { p_company_id: companyId });
+    const allow = (allowance || {}) as { unlimited?: boolean; allowed?: boolean; credits?: number };
+    if (!allow.unlimited && allow.allowed === false) {
+      return json({
+        error: "이번 달 AI 사용 한도를 모두 사용했습니다. 다음 달에 초기화되며, 요금제 > 충전에서 토큰을 충전하면 지금 바로 이어서 쓸 수 있습니다.",
+        code: "TOKEN_LIMIT",
+      }, 429);
     }
 
     // 본인 직원 레코드 — 액션 툴(출퇴근)과 employee 모드 조회의 스코프 기준.

@@ -441,18 +441,19 @@ serve(withSentry("hometax-issue", async (req) => {
       .eq("slug", planSlug)
       .maybeSingle();
     const planLimit = planRow?.monthly_issue_limit;
-    if (typeof planLimit === "number") {
-      const { data: usage } = await supabase
-        .rpc("get_monthly_issue_usage", { p_company_id: invoice.company_id })
-        .maybeSingle();
-      const used = Number((usage as any)?.total_count ?? 0);
-      if (used >= planLimit) {
-        return new Response(JSON.stringify({
-          error: `이번 달 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
-          hint: `${planRow?.name || "현재 요금제"}는 세금계산서·현금영수증 합산 월 ${planLimit}건까지 발행할 수 있습니다.`,
-          code: "PLAN_LIMIT_EXCEEDED",
-        }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
+    // 월 제공량 + 충전 잔액을 합쳐 판정한다 (2026-08-07 충전 도입).
+    //   issue_allowance 가 단일 소스 — 제공량이 남았는지, 충전이 남았는지까지 알려준다.
+    const { data: allowance } = await supabase
+      .rpc("issue_allowance", { p_company_id: invoice.company_id });
+    const allow = (allowance || {}) as {
+      unlimited?: boolean; allowed?: boolean; plan_remaining?: number; credits?: number;
+    };
+    if (!allow.unlimited && allow.allowed === false) {
+      return new Response(JSON.stringify({
+        error: `이번 달 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
+        hint: `${planRow?.name || "현재 요금제"}는 세금계산서·현금영수증 합산 월 ${planLimit}건까지 발행할 수 있습니다. 요금제 > 충전에서 발행 건수를 충전하면 이어서 발행할 수 있습니다.`,
+        code: "PLAN_LIMIT_EXCEEDED",
+      }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // 4) company + connected_id + credentials
@@ -560,6 +561,14 @@ serve(withSentry("hometax-issue", async (req) => {
         issue_date: invoice.issue_date || new Date().toISOString().split("T")[0],
         auto_issued: false,
       }).eq("id", invoice_id);
+
+      // 충전 차감 — 월 제공량이 남아 있으면 함수가 아무것도 하지 않는다(사용 집계로 자동 반영).
+      //   제공량을 다 쓴 뒤 발행한 건만 충전 잔액에서 1건 빠진다. 실패해도 발행은 이미 끝났으므로 막지 않는다.
+      try {
+        await supabase.rpc("consume_issue_credit", { p_company_id: invoice.company_id });
+      } catch (e) {
+        console.error("[credit] consume_issue_credit failed:", (e as Error)?.message);
+      }
 
       return new Response(JSON.stringify({
         success: true,

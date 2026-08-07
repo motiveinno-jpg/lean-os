@@ -97,20 +97,29 @@ end;
 $$;
 
 -- ④ AI 토큰 차감 — 월 제공량을 넘어선 만큼만 잔액에서 뺀다.
+--   호출 순서가 'ai_usage_log 기록 → consume_ai_tokens' 라서, 차감 시점의 누적 사용량에는
+--   이번 호출분이 이미 들어 있다. 그대로 남은 제공량을 쓰면 이번 호출분을 두 번 세어
+--   과다 차감된다(2026-08-07 검증에서 발견) — 이번 호출 '직전' 사용량을 기준으로 계산한다.
 create or replace function public.consume_ai_tokens(p_company_id uuid, p_tokens bigint)
 returns boolean
 language plpgsql security definer set search_path to 'public', 'pg_temp'
 as $$
 declare
-  v jsonb; v_plan_left bigint; v_over bigint;
+  v_slug text; v_limit bigint; v_used bigint; v_used_before bigint;
+  v_plan_left_before bigint; v_over bigint;
 begin
   if p_tokens is null or p_tokens <= 0 then return true; end if;
-  v := public.ai_token_allowance(p_company_id);
-  if coalesce((v->>'unlimited')::boolean, false) then return true; end if;
 
-  v_plan_left := coalesce((v->>'plan_remaining')::bigint, 0);
-  v_over := greatest(0, p_tokens - v_plan_left);   -- 제공량을 넘어선 만큼만
-  if v_over = 0 then return true; end if;
+  select effective_plan_slug into v_slug from public.get_company_entitlement(p_company_id);
+  v_slug := coalesce(v_slug, 'free');
+  select monthly_ai_token_limit into v_limit from public.subscription_plans where slug = v_slug;
+  if v_limit is null then return true; end if;   -- 무제한 플랜
+
+  v_used := coalesce(public.ai_tokens_used_this_month(p_company_id), 0);   -- 이번 호출분 포함
+  v_used_before := greatest(0, v_used - p_tokens);
+  v_plan_left_before := greatest(0, v_limit - v_used_before);
+  v_over := greatest(0, p_tokens - v_plan_left_before);
+  if v_over = 0 then return true; end if;        -- 제공량으로 전부 커버
 
   update public.credit_balances
      set ai_tokens = greatest(0, ai_tokens - v_over), updated_at = now()

@@ -243,6 +243,18 @@ async function logUsage(opts: ClaudeCallOpts, r: {
       request_id: r.requestId,
     });
   } catch { /* 로깅 실패는 비치명 — 호출 결과에 영향 없음 */ }
+
+  // 충전 차감 (2026-08-07) — 월 제공량을 넘어선 만큼만 잔액에서 뺀다.
+  //   모든 AI 기능이 이 한 곳을 지나므로 여기서 한 번만 부르면 된다.
+  //   성공 호출만 과금한다(실패·차단은 제외). 실패해도 응답에는 영향을 주지 않는다.
+  if (r.status === "ok" && opts.companyId) {
+    try {
+      await opts.admin.rpc("consume_ai_tokens", {
+        p_company_id: opts.companyId,
+        p_tokens: (r.inTok || 0) + (r.outTok || 0),
+      });
+    } catch { /* 차감 실패는 비치명 — 사용량 로그가 이미 남아 정산 가능 */ }
+  }
 }
 
 function sleep(ms: number): Promise<void> {
