@@ -832,6 +832,13 @@ function attAvatarColor(id: string): string {
 const attInitials = (name: string) => (/[가-힣]/.test(name || "") ? (name || "").slice(-2) : (name || "").slice(0, 2).toUpperCase());
 
 // ── Attendance Tab ──
+// 'YYYY-MM' 을 delta 개월 이동 (연 경계 넘김 포함). 마이페이지 근태와 같은 규약.
+function shiftMonth(ym: string, delta: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 export function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role }: any) {
   const { toast } = useToast();
   const today = new Date();
@@ -1109,11 +1116,30 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       <div className="attendance-toolbar">
         <div className="flex items-center gap-2.5">
           <h2 className="text-lg font-extrabold text-[var(--text)]">근태관리</h2>
-          <MonthField
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-2 py-1 bg-transparent border-0 text-sm text-[var(--text-muted)] focus:outline-none"
-          />
+          {/* 달력 넘기기 — 화살표로 전달/다음달 이동 (2026-08-07 사장님 제보: 월 선택기만으로는 불편) */}
+          <div className="attendance-month-nav">
+            <button
+              onClick={() => setSelectedMonth(shiftMonth(selectedMonth, -1))}
+              className="attendance-month-btn"
+              aria-label="이전 달"
+              title="이전 달"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <MonthField
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-2 py-1 bg-transparent border-0 text-sm text-[var(--text-muted)] focus:outline-none"
+            />
+            <button
+              onClick={() => setSelectedMonth(shiftMonth(selectedMonth, 1))}
+              className="attendance-month-btn"
+              aria-label="다음 달"
+              title="다음 달"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+            </button>
+          </div>
         </div>
         <div className="flex gap-2 items-center">
           <div className="seg-bar">

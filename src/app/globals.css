@@ -2781,6 +2781,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mypage-attendance-header { @apply flex items-center justify-between gap-3 mb-4; }
 .mypage-attendance-month-nav { @apply flex items-center gap-1; }
 .mypage-attendance-month-btn { @apply w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] border border-[var(--border)] bg-[var(--bg-surface)] transition hover:text-[var(--text)] hover:border-[var(--primary)]/40; }
+/* 근태 기록 상세 — 전달/다음달 화살표 (2026-08-07 사장님 제보) */
+.attendance-month-nav { @apply flex items-center gap-1; }
+.attendance-month-btn { @apply w-7 h-7 rounded-lg flex items-center justify-center text-[var(--text-muted)] border border-[var(--border)] bg-[var(--bg-surface)] transition hover:text-[var(--text)] hover:border-[var(--primary)]/40; }
 .mypage-attendance-summary { @apply grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4; }
 .mypage-attendance-list { @apply space-y-2 max-h-[520px] overflow-y-auto pr-0.5; }
 .mypage-attendance-row { @apply flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
