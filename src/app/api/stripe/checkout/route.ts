@@ -83,13 +83,17 @@ export async function POST(request: NextRequest) {
     }
     const priceSet = plan[cycle];
     if (!priceSet?.base) {
+      // Stripe 가격(env STRIPE_PRICE_*)이 등록되지 않은 상태. 사용자 잘못이 아니므로
+      //   '유효하지 않은 플랜' 같은 오해 소지 있는 문구 대신 상황을 그대로 알린다.
+      //   (종전엔 월간도 '유효하지 않은 플랜입니다: standard' 로 떠서 원인을 알 수 없었다)
+      console.error(`[checkout] price env missing — plan=${planSlug} cycle=${cycle}`);
       return NextResponse.json(
         {
           error: {
             code: 'CYCLE_UNAVAILABLE',
             message: cycle === 'annual'
               ? '연간 결제는 아직 준비 중입니다. 월간으로 진행해 주세요.'
-              : `유효하지 않은 플랜입니다: ${planSlug}`,
+              : '결제 준비가 아직 끝나지 않았습니다. 잠시 후 다시 시도하시고, 계속 같은 화면이 나오면 고객센터로 알려 주세요.',
           },
         },
         { status: 400 },
