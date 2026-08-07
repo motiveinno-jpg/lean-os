@@ -1087,7 +1087,7 @@ async function executeReadTool(
     if (span > 400) return { error: "기간은 최대 400일까지 조회할 수 있습니다." };
     const ty = String(input.type ?? "both");
     let q = admin.from("tax_invoices")
-      .select("type, counterparty_name, supply_amount, tax_amount, total_amount, issue_date, status, item_name, settled_amount, settlement_status")
+      .select("type, counterparty_name, supply_amount, tax_amount, total_amount, issue_date, status, item_name, settled_amount, settlement_status, original_invoice_id, modification_reason")
       .eq("company_id", companyId)
       .gte("issue_date", from).lte("issue_date", to);
     if (ty === "sales" || ty === "purchase") q = q.eq("type", ty);
@@ -1096,9 +1096,14 @@ async function executeReadTool(
     const rows = (data ?? []) as {
       type: string; counterparty_name: string | null; total_amount: number | null;
       supply_amount: number | null; tax_amount: number | null; settled_amount: number | null;
+      original_invoice_id: string | null; modification_reason: string | null;
     }[];
     const side = (want: string) => {
       const list = rows.filter((r) => r.type === want);
+      // 수정세금계산서(original_invoice_id 있음)는 취소·정정분이라 금액이 음수로 들어온다.
+      //   정상 발행과 섞어서 '몇 건' 으로만 세면, 취소만 있던 달이 '발행 3건' 처럼 보인다.
+      const normal = list.filter((r) => !r.original_invoice_id);
+      const mods = list.filter((r) => r.original_invoice_id);
       const byCp: Record<string, { amount: number; count: number }> = {};
       let total = 0, supply = 0, unsettled = 0;
       for (const r of list) {
@@ -1111,7 +1116,11 @@ async function executeReadTool(
         byCp[k].count += 1;
       }
       return {
-        count: list.length, total_amount: total, supply_amount: supply, unsettled_amount: unsettled,
+        issued_count: normal.length,
+        issued_amount: normal.reduce((s, r) => s + Number(r.total_amount ?? 0), 0),
+        modification_count: mods.length,
+        modification_amount: mods.reduce((s, r) => s + Number(r.total_amount ?? 0), 0),
+        net_amount: total, supply_amount: supply, unsettled_amount: unsettled,
         top_counterparties: Object.entries(byCp).sort((a, b) => b[1].amount - a[1].amount).slice(0, 15)
           .map(([name, v]) => ({ name, amount: v.amount, count: v.count })),
       };
@@ -1121,7 +1130,7 @@ async function executeReadTool(
       ...(ty !== "purchase" ? { sales: side("sales") } : {}),
       ...(ty !== "sales" ? { purchase: side("purchase") } : {}),
       truncated: rows.length >= 3000,
-      note: "total_amount 는 공급가+세액입니다. unsettled_amount 는 아직 정산되지 않은 금액(미수/미지급)입니다. 발행일(issue_date) 기준으로 집계했습니다.",
+      note: "금액은 공급가+세액입니다. issued_* 는 정상 발행분, modification_* 는 수정·취소 세금계산서(금액이 음수)이고 net_amount 는 둘을 합친 순액입니다. 발행 건수를 물으면 issued_count 로 답하고, 순액이 음수면 그 달에 취소분만 있었다는 뜻이니 그대로 설명하세요. unsettled_amount 는 아직 정산되지 않은 금액(미수/미지급)입니다. 발행일(issue_date) 기준입니다.",
     };
   }
 
