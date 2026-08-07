@@ -499,6 +499,14 @@ async function executeReadTool(
   }
 
   if (name === "get_attendance_summary") {
+    // ⚠️ 지각은 저장된 is_late·status 플래그를 믿지 않고 '실제 출근시각 vs 지정 출근시각+유예'로
+    //   다시 계산한다. 두 플래그가 서로도, 실제 시각과도 어긋나 있기 때문이다(2026-08-07 전수 확인):
+    //     · attendance-checkin 은 is_late 를 클라이언트가 보낸 status 로부터 만들고,
+    //       late_minutes 를 유예를 빼지 않은 '출근시각 기준' 으로 넣는다
+    //     · mark_attendance_late RPC 는 is_late 만 고치고 status 는 그대로 둔다
+    //   그 결과 유예 5분 안에 찍은 09:32~09:34 출근이 status='late' 로 남아 있고,
+    //   반대로 10:18 출근(49분 지각)이 is_late=false 로 남아 있다. 플래그 기준으로 세면
+    //   지각 아닌 사람을 지각자로 보고하게 된다.
     const from = String(input.from ?? "");
     const to = String(input.to ?? "");
     if (!DATE_RE.test(from) || !DATE_RE.test(to)) return { error: "from·to 는 YYYY-MM-DD 형식이어야 합니다." };
@@ -508,33 +516,66 @@ async function executeReadTool(
     );
     if (spanDays > 92) return { error: "기간은 최대 92일까지 조회할 수 있습니다. 기간을 나눠 조회하세요." };
 
-    const [{ data: rows, error }, { data: emps }] = await Promise.all([
+    const [{ data: rows, error }, { data: emps }, { data: cs }] = await Promise.all([
       admin
         .from("attendance_records")
-        .select("employee_id, date, status, is_late, late_minutes, work_hours, overtime_minutes")
+        .select("employee_id, date, check_in, work_hours, overtime_minutes")
         .eq("company_id", companyId)
         .gte("date", from).lte("date", to)
         .order("date", { ascending: true })
         .limit(5000),
-      admin.from("employees").select("id, name, department, status").eq("company_id", companyId),
+      admin.from("employees").select("id, name, department, status, work_start_time").eq("company_id", companyId),
+      admin.from("company_settings").select("work_start_time, late_grace_minutes, settings")
+        .eq("company_id", companyId).maybeSingle(),
     ]);
     if (error) return { error: "근태 집계에 실패했습니다." };
 
-    const nameOf = new Map<string, { name: string; department: string | null; status: string | null }>();
-    for (const e of (emps ?? []) as { id: string; name: string; department: string | null; status: string | null }[]) {
-      nameOf.set(e.id, { name: e.name, department: e.department, status: e.status });
+    // 회사 출근 기준 — lib/hr.ts getAttendancePolicy 와 같은 우선순위(컬럼 → settings → 기본값).
+    const csRow = (cs ?? {}) as { work_start_time?: string | null; late_grace_minutes?: number | null; settings?: Record<string, unknown> | null };
+    const jsonSettings = (csRow.settings ?? {}) as Record<string, unknown>;
+    const parseHm = (v: unknown): number | null => {
+      if (typeof v !== "string" || !/^\d{2}:\d{2}/.test(v)) return null;
+      return Number(v.slice(0, 2)) * 60 + Number(v.slice(3, 5));
+    };
+    const companyStartMin = parseHm(csRow.work_start_time) ?? parseHm(jsonSettings.work_start_time) ?? 9 * 60;
+    const graceRaw = Number.isFinite(Number(csRow.late_grace_minutes))
+      ? Number(csRow.late_grace_minutes)
+      : Number.isFinite(Number(jsonSettings.late_threshold_minutes))
+        ? Number(jsonSettings.late_threshold_minutes)
+        : 30;   // 미설정 회사의 기존 동작(9:00 + 30분)과 동일
+    const graceMin = Math.max(0, Math.min(240, Math.trunc(graceRaw)));
+
+    const nameOf = new Map<string, { name: string; department: string | null; status: string | null; startMin: number }>();
+    for (const e of (emps ?? []) as { id: string; name: string; department: string | null; status: string | null; work_start_time: string | null }[]) {
+      // 직원 개인 출퇴근시간이 있으면 회사 기본값을 덮어쓴다(정책 조회와 동일 규칙).
+      nameOf.set(e.id, {
+        name: e.name, department: e.department, status: e.status,
+        startMin: parseHm(e.work_start_time) ?? companyStartMin,
+      });
     }
+
+    // timestamptz 를 KST 분(0~1439)으로. postgrest 는 "2026-07-02 00:36:53.123+00" 처럼
+    // 공백·2자리 오프셋으로 주기도 해서 ISO 로 정규화한 뒤 파싱한다.
+    const kstMinuteOf = (raw: unknown): number | null => {
+      if (typeof raw !== "string" || !raw) return null;
+      const iso = raw.replace(" ", "T").replace(/([+-]\d{2})$/, "$1:00");
+      const t = Date.parse(iso);
+      if (Number.isNaN(t)) return null;
+      const kst = new Date(t + 9 * 3600 * 1000);
+      return kst.getUTCHours() * 60 + kst.getUTCMinutes();
+    };
 
     type Agg = {
       employee_name: string; department: string | null; employment_status: string | null;
       worked_days: number; late_days: number; late_minutes_total: number;
-      late_dates: { date: string; late_minutes: number }[];
+      late_dates: { date: string; check_in_kst: string; late_minutes: number }[];
       overtime_minutes_total: number; work_hours_total: number;
     };
     const byEmp = new Map<string, Agg>();
+    let noCheckIn = 0;
     for (const r of (rows ?? []) as {
-      employee_id: string; date: string; status: string | null; is_late: boolean | null;
-      late_minutes: number | null; work_hours: number | null; overtime_minutes: number | null;
+      employee_id: string; date: string; check_in: string | null;
+      work_hours: number | null; overtime_minutes: number | null;
     }[]) {
       const meta = nameOf.get(r.employee_id);
       let a = byEmp.get(r.employee_id);
@@ -551,14 +592,16 @@ async function executeReadTool(
       a.worked_days += 1;
       a.overtime_minutes_total += Number(r.overtime_minutes ?? 0);
       a.work_hours_total += Number(r.work_hours ?? 0);
-      // ⚠️ 지각은 is_late 플래그와 status='late' 중 하나만 찍힌 기록이 실제로 섞여 있다
-      //   (2026-08-07 운영 확인: 7월 한 달에만 status='late' 인데 is_late=false 인 건이 4건).
-      //   한쪽만 보면 지각자를 빠뜨리므로 둘 중 하나라도 해당하면 지각으로 센다.
-      if (r.is_late === true || r.status === "late") {
-        a.late_days += 1;
-        const m = Number(r.late_minutes ?? 0);
-        a.late_minutes_total += m;
-        if (a.late_dates.length < 40) a.late_dates.push({ date: r.date, late_minutes: m });
+
+      const ciMin = kstMinuteOf(r.check_in);
+      if (ciMin === null) { noCheckIn += 1; continue; }   // 출근 미기록 — 지각 판정 불가
+      const startMin = meta?.startMin ?? companyStartMin;
+      if (ciMin <= startMin + graceMin) continue;         // 유예 안에 찍음 = 지각 아님
+      const m = ciMin - startMin;                          // 지각 분은 지정 출근시각 기준
+      a.late_days += 1;
+      a.late_minutes_total += m;
+      if (a.late_dates.length < 40) {
+        a.late_dates.push({ date: r.date, check_in_kst: `${String(Math.floor(ciMin / 60)).padStart(2, "0")}:${String(ciMin % 60).padStart(2, "0")}`, late_minutes: m });
       }
     }
 
@@ -569,12 +612,17 @@ async function executeReadTool(
     return {
       period: { from, to },
       employees: list.slice(0, 100).map((x) => ({ ...x, work_hours_total: Math.round(x.work_hours_total * 10) / 10 })),
+      late_policy: {
+        work_start_kst: `${String(Math.floor(companyStartMin / 60)).padStart(2, "0")}:${String(companyStartMin % 60).padStart(2, "0")}`,
+        grace_minutes: graceMin,
+      },
       totals: {
         employees_with_records: list.length,
         latecomer_count: latecomers.length,
         late_day_total: latecomers.reduce((s, x) => s + x.late_days, 0),
+        records_without_check_in: noCheckIn,
       },
-      note: "지각은 is_late 플래그 또는 status='late' 중 하나라도 해당하는 날을 셌습니다. 일부 지각 기록은 late_minutes 가 0으로 저장돼 있어, 지각 '시간' 합계는 실제보다 작을 수 있습니다(지각 '일수'는 정확합니다). 기간 중 출퇴근 기록이 하나도 없는 직원은 목록에 나오지 않습니다.",
+      note: `지각은 회사 지정 출근시각(${Math.floor(companyStartMin / 60)}시 ${companyStartMin % 60}분)에 유예 ${graceMin}분을 더한 시각을 넘겨 출근한 날만 셌습니다. 유예 안에 찍은 출근은 지각이 아닙니다. 개인 출근시각이 따로 설정된 직원은 그 시각 기준으로 계산했습니다. 지각 분은 유예가 아니라 지정 출근시각 기준입니다. 기간 중 출퇴근 기록이 하나도 없는 직원은 목록에 나오지 않습니다.`,
     };
   }
 
