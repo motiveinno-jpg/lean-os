@@ -1,16 +1,32 @@
 "use client";
 
-// 대시보드 미니 캘린더 — 이번 달 일정(파랑)·할 일(주황)을 달력으로 한눈에(2026-07-14).
+// 대시보드 미니 캘린더 — 이번 달 일정(파랑)·할 일(주황)·직원 휴가(초록)를 달력으로 한눈에.
 //   날짜 클릭 시 그날 항목을 아래에 간략 표시, 클릭하면 /schedule 로 이동. 데이터는 MyTodosWidget 과 동일 캐시 공유.
+//   휴가 추가 (2026-08-07 사장님): 일정 아래에 "누구누구 연차" 로 이어서 보이게.
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTodos, getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
+import { getLeaveRequests, LEAVE_TYPES } from "@/lib/hr";
+import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
 function ymd(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+// 시각이 들어 있는 값(schedule_events.start_at)을 KST 날짜로. (2026-08-07)
+//   종전엔 ISO 문자열을 그대로 slice(0,10) 했는데, 종일 일정은 KST 자정 = 전날 15:00 UTC 라
+//   달력에 하루 앞당겨 찍혔다(8/7 전사워크샵이 8/6 에 표시). 날짜만 있는 값(due_date,
+//   start_date)은 변환 없이 그대로 쓴다.
+function kstDay(raw: string | null | undefined): string {
+  const s = String(raw || "");
+  if (!s) return "";
+  if (!s.includes("T") && !s.includes(" ")) return s.slice(0, 10);
+  const t = Date.parse(s.replace(" ", "T"));
+  if (Number.isNaN(t)) return s.slice(0, 10);
+  return new Date(t + 9 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
 export function DashboardCalendar({ userId, companyId }: { userId: string; companyId: string }) {
@@ -31,15 +47,60 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     enabled: !!companyId && !!userId, staleTime: 60_000,
   });
 
+  // 승인된 휴가 — 전자결재로 올라온 휴가까지 합쳐서 준다(getLeaveRequests 가 병합).
+  const { data: leaves = [] } = useQuery({
+    queryKey: ["dash-cal-leaves", companyId],
+    queryFn: () => getLeaveRequests(companyId, "approved"),
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
+    queryKey: ["company-leave-types", companyId],
+    queryFn: () => getCompanyLeaveTypes(companyId),
+    enabled: !!companyId, staleTime: 300_000,
+  });
+  const leaveLabel = (v: string) =>
+    companyLeaveTypes.find((x) => x.value === v)?.label
+    || LEAVE_TYPES.find((t) => t.value === v)?.label
+    || v;
+
+  // 휴가는 기간(start_date~end_date)이라 날짜별로 펼쳐 둔다.
+  //   날짜 문자열끼리만 더해 나가므로 타임존 변환이 끼어들지 않는다
+  //   (new Date 로 돌리면 KST 자정이 UTC 전날로 밀려 하루 어긋난 전례가 있다).
+  const leaveByDate = useMemo(() => {
+    const map: Record<string, { name: string; label: string }[]> = {};
+    const nextDay = (d: string) => {
+      const [y, m, dd] = d.split("-").map(Number);
+      const t = new Date(Date.UTC(y, m - 1, dd + 1));
+      return t.toISOString().slice(0, 10);
+    };
+    for (const l of leaves as any[]) {
+      const from = String(l.start_date || "").slice(0, 10);
+      const to = String(l.end_date || from).slice(0, 10);
+      if (!from) continue;
+      const name = l.employees?.name || "";
+      const label = leaveLabel(String(l.leave_type || ""));
+      let cur = from;
+      // 방어: 잘못 입력된 기간(끝<시작)이나 비정상적으로 긴 기간에서 무한 루프 방지
+      for (let i = 0; i < 366 && cur <= to; i++) {
+        (map[cur] || (map[cur] = [])).push({ name, label });
+        cur = nextDay(cur);
+      }
+    }
+    return map;
+  }, [leaves, companyLeaveTypes]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   // 날짜별 마커 집계
-  const byDate: Record<string, { todo: number; event: number }> = {};
+  const byDate: Record<string, { todo: number; event: number; leave: number }> = {};
   const bump = (raw: string | null | undefined, kind: "todo" | "event") => {
-    const k = (raw || "").slice(0, 10);
+    const k = kstDay(raw);
     if (!k) return;
-    (byDate[k] || (byDate[k] = { todo: 0, event: 0 }))[kind]++;
+    (byDate[k] || (byDate[k] = { todo: 0, event: 0, leave: 0 }))[kind]++;
   };
   (todos as ScheduleTodo[]).forEach((t) => bump(t.due_date, "todo"));
   (events as any[]).forEach((e) => { if (!e.completed) bump(e.start_at, "event"); });
+  Object.entries(leaveByDate).forEach(([k, list]) => {
+    (byDate[k] || (byDate[k] = { todo: 0, event: 0, leave: 0 })).leave = list.length;
+  });
 
   // 달력 셀
   const startWd = new Date(year, month, 1).getDay();
@@ -49,17 +110,18 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   // 선택일 항목
-  const selEvents = (events as any[]).filter((e) => (e.start_at || "").slice(0, 10) === selected && !e.completed);
-  const selTodos = (todos as ScheduleTodo[]).filter((t) => (t.due_date || "").slice(0, 10) === selected);
+  const selEvents = (events as any[]).filter((e) => kstDay(e.start_at) === selected && !e.completed);
+  const selTodos = (todos as ScheduleTodo[]).filter((t) => kstDay(t.due_date) === selected);
   const selItems = [
     ...selEvents.map((e) => ({ id: `e${e.id}`, title: e.title as string, kind: "event" as const })),
     ...selTodos.map((t) => ({ id: `t${t.id}`, title: t.title, kind: "todo" as const })),
   ];
+  const selLeaves = leaveByDate[selected] || [];
 
   return (
     <div className="dashboard-calendar glass-card">
       <div className="dashboard-calendar-header">
-        <h3 className="text-[13px] font-bold text-[var(--text)]">{year}년 {month + 1}월 <span className="text-[var(--text-dim)] font-normal">일정 · 할 일</span></h3>
+        <h3 className="text-[13px] font-bold text-[var(--text)]">{year}년 {month + 1}월 <span className="text-[var(--text-dim)] font-normal">일정 · 할 일 · 휴가</span></h3>
         <Link href="/schedule" className="text-[11px] font-semibold text-[var(--primary)] hover:underline no-underline">전체 보기 →</Link>
       </div>
 
@@ -85,6 +147,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
               <span className="flex gap-0.5 mt-0.5 h-1 items-center">
                 {marks?.event ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--primary)]"}`} /> : null}
                 {marks?.todo ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--warning)]"}`} /> : null}
+                {marks?.leave ? <span className={`w-1 h-1 rounded-full ${isSel ? "bg-white" : "bg-[var(--success)]"}`} /> : null}
               </span>
             </button>
           );
@@ -95,8 +158,8 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
         <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">
           {Number(selected.slice(5, 7))}월 {Number(selected.slice(8, 10))}일{selected === todayStr ? " · 오늘" : ""}
         </div>
-        {selItems.length === 0 ? (
-          <div className="text-[11px] text-[var(--text-dim)] py-1">일정·할 일이 없습니다.</div>
+        {selItems.length === 0 && selLeaves.length === 0 ? (
+          <div className="text-[11px] text-[var(--text-dim)] py-1">일정·할 일·휴가가 없습니다.</div>
         ) : (
           <div className="dashboard-calendar-items">
             {selItems.slice(0, 4).map((it) => (
@@ -106,6 +169,14 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
               </Link>
             ))}
             {selItems.length > 4 && <Link href="/schedule" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] no-underline">외 {selItems.length - 4}건 →</Link>}
+            {/* 휴가는 일정 아래에 이어서 — "누구누구 연차" (2026-08-07 사장님) */}
+            {selLeaves.slice(0, 4).map((l, i) => (
+              <Link key={`l${i}`} href="/employees?tab=leave" className="flex items-center gap-2 text-[12px] text-[var(--text)] no-underline hover:text-[var(--primary)] transition">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--success)]" />
+                <span className="truncate">{l.name} {l.label}</span>
+              </Link>
+            ))}
+            {selLeaves.length > 4 && <Link href="/employees?tab=leave" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] no-underline">휴가 외 {selLeaves.length - 4}명 →</Link>}
           </div>
         )}
       </div>
