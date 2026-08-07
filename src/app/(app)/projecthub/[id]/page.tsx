@@ -1235,7 +1235,7 @@ export default function ProjectHubDetailPage() {
             value={nameInput} autoFocus
             onChange={(e) => setNameInput(e.target.value)}
             onBlur={commitRename}
-            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setEditingName(false); }}
             className="pj-head-input"
           />
         ) : (
@@ -1296,7 +1296,7 @@ export default function ProjectHubDetailPage() {
                 <div className="goal-quick-row">
                   <input value={goalInput} inputMode="numeric" placeholder="예: 20,000,000"
                     onChange={(e) => setGoalInput(e.target.value.replace(/[^0-9]/g, "").replace(/\B(?=(\d{3})+(?!\d))/g, ","))}
-                    onKeyDown={(e) => { if (e.key === "Enter") saveGoalAmount(); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) saveGoalAmount(); }}
                     className="goal-quick-input" />
                   <span className="goal-quick-unit">원</span>
                   <button type="button" className="goal-quick-save" disabled={savingGoal || !goalInput.trim()} onClick={saveGoalAmount}>
@@ -1644,7 +1644,7 @@ export default function ProjectHubDetailPage() {
                     <button type="button" onClick={() => setChildKind("sales")} className={`px-3 h-10 text-xs font-bold transition ${childKind === "sales" ? "bg-[var(--success)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매출</button>
                     <button type="button" onClick={() => setChildKind("purchase")} className={`px-3 h-10 text-xs font-bold border-l border-[var(--border)] transition ${childKind === "purchase" ? "bg-[var(--danger)] text-white" : "text-[var(--text-dim)] hover:bg-[var(--bg-surface)]"}`}>매입</button>
                   </div>
-                  <input value={childAmt} onChange={(e) => setChildAmt(numComma(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); createChild(); } }} inputMode="numeric" placeholder={childKind === "sales" ? "받을 돈 0" : "줄 돈 0"}
+                  <input value={childAmt} onChange={(e) => setChildAmt(numComma(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.stopPropagation(); createChild(); } }} inputMode="numeric" placeholder={childKind === "sales" ? "받을 돈 0" : "줄 돈 0"}
                     className={`flex-1 h-10 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm text-right mono-number focus:outline-none focus:border-[var(--primary)] ${childKind === "sales" ? "text-[var(--success)]" : "text-[var(--danger)]"}`} />
                   <select value={childVat} onChange={(e) => setChildVat(e.target.value as "exclude" | "include")} className="px-2 h-10 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[11px] text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)] shrink-0">
                     <option value="exclude">VAT별도</option><option value="include">VAT포함</option>
@@ -1724,7 +1724,7 @@ export default function ProjectHubDetailPage() {
                 </div>
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">하위 프로젝트명 *</label>
                 <input autoFocus value={editChildName} onChange={(e) => setEditChildName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); saveChild(); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.stopPropagation(); saveChild(); } }}
                   className="w-full h-11 px-3.5 mb-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
                 <label className="block text-xs font-medium text-[var(--text-muted)] mb-1.5">진행 단계</label>
                 <select value={editChildStage} onChange={(e) => setEditChildStage(e.target.value)}
@@ -1972,7 +1972,7 @@ export default function ProjectHubDetailPage() {
               autoFocus
               value={quoteName}
               onChange={(e) => setQuoteName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); createDoc(); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.stopPropagation(); createDoc(); } }}
               placeholder={formKind === "quote" ? "견적서명" : "계약서명"}
               className="w-full h-11 px-3.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15 transition"
             />
@@ -2201,7 +2201,7 @@ function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, 
           {titles.map((t, i) => (
             <input key={i} value={t} onChange={(e) => setAt(i, e.target.value)} placeholder={FIRST_TASK_HINTS[i]}
               autoFocus={i === 0} className="pj-first-input"
-              onKeyDown={(e) => { if (e.key === "Enter" && titles.some((x) => x.trim())) onAddTasks(titles); }} />
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && titles.some((x) => x.trim())) onAddTasks(titles); }} />
           ))}
           <div className="pj-first-actions">
             <button type="button" className="pj-first-save" disabled={saving || !titles.some((t) => t.trim())} onClick={() => onAddTasks(titles)}>

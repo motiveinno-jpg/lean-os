@@ -342,7 +342,7 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
         {replyTo === c.id && (
           <div className="comment-reply-row">
             <input value={replyText} onChange={(e) => setReplyText(e.target.value)} autoFocus
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); add(c.id, replyText); } }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); add(c.id, replyText); } }}
               placeholder={`${nameOf(c.created_by)}님에게 답글 (Enter로 등록)`}
               className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] focus:outline-none focus:border-[var(--primary)]" />
             <button type="button" onClick={() => add(c.id, replyText)} disabled={!replyText.trim() || busy}
@@ -364,7 +364,7 @@ function TaskComments({ taskId, companyId, userId, users }: { taskId: string; co
       </div>
       <div className="task-comment-input-row">
         <input value={text} onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); add(null, text); } }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); add(null, text); } }}
           placeholder="댓글 입력 (Enter로 등록)"
           className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)]" />
         <button type="button" onClick={() => add(null, text)} disabled={!text.trim() || busy}
@@ -657,7 +657,7 @@ function TaskFormModal({ dealId, companyId, users, task, userId, existingCount, 
             {showLabelMaker && (
               <div className="label-maker-row">
                 <input value={labelText} onChange={(e) => setLabelText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); createLabel(); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); createLabel(); } }}
                   placeholder="새 라벨 이름" className={`${IN} flex-1 min-w-0`} />
                 <div className="flex items-center gap-1 shrink-0">
                   {LABEL_COLORS.map((c) => (

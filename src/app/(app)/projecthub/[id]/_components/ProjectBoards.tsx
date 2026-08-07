@@ -981,7 +981,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       {renaming && board && (
         <input autoFocus defaultValue={board.name} className="pb-rename"
           onBlur={(e) => renameBoard(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenaming(false); }} />
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenaming(false); }} />
       )}
 
       {/* 계약 결제조건 → 청구 행 제안. 규칙대로 **만드는 건 사람이 누른다**(2026-08-04 기획 3단계) */}
@@ -1118,7 +1118,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       className={`pb-card ${dragId === it.id ? "pb-card-drag" : ""}`}>
                       <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
                         onBlur={(e) => saveName(it, e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }}
                         className="pb-card-name" />
                       {/* 칸을 더 붙이면 카드에도 바로 보여야 한다 — 앞 4개만 보여 주면 추가가 안 된 것처럼 읽힌다 */}
                       <div className="pb-card-fields">
@@ -1188,7 +1188,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                 <span className="pb-group-dot" style={{ background: g.color }} />
                 <input defaultValue={g.name} className="pb-group-name"
                   onBlur={(e) => renameGroup(g, e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
                 <span className="pb-group-n">{rows.length}건</span>
                 <span className="pb-gmenu">
                   <button type="button" className="pb-dots" onClick={() => setGroupMenu(groupMenu === g.id ? null : g.id)}
@@ -1280,7 +1280,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                             <input key={`nl-${boardId}-${nameLabel}`} defaultValue={nameLabel} className="pb-col-name"
                               title="첫 칸 머리글 — 비우면 기본으로 돌아갑니다"
                               onBlur={(e) => renameNameColumn(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
                           </span>
                         </th>
                       );
@@ -1289,7 +1289,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           <span className="pb-th-in">
                             <input defaultValue={c.name} className="pb-col-name"
                               onBlur={(e) => renameColumn(c, e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+                              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
                             {/* 손잡이와, 지금 이 칸에 걸린 정렬·필터 표시 — 머리글을 가운데로 맞추려고
                                 흐름에서 빼 왼쪽에 띄운다. 조작은 전부 ⋯ 안에 있다(2026-08-06) */}
                             <span className="pb-th-marks">
@@ -1396,7 +1396,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           <span className="pb-name-cell">
                             <input defaultValue={it.name} placeholder={`${nameLabel} 입력`}
                               onBlur={(e) => saveName(it, e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }}
                               className="pb-in" />
                             <button type="button" className="pb-open" title="열기 — 메모·파일" onClick={() => setOpenItemId(it.id)}>⤢</button>
                             <button type="button" className="pb-open" title="한 줄 복제" onClick={() => duplicateItem(it)}>⧉</button>
@@ -1480,7 +1480,7 @@ function QuickAddRow({ nameLabel, slots, users, extraCells, onAdd }: {
       nameRef.current?.focus();
     } finally { setBusy(false); }
   };
-  const onKey = (e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); submit(); } };
+  const onKey = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } };
 
   return (
     <tr className="pb-quick">
@@ -1697,7 +1697,7 @@ function NameDialog({ title, hint, value, onSave, onCancel }: {
         <b className="pb-name-h">{title}</b>
         {hint && <em className="pb-name-hint">{hint}</em>}
         <input autoFocus value={v} onChange={(e) => setV(e.target.value)} placeholder="양식 이름"
-          onKeyDown={(e) => { if (e.key === "Enter" && ok) onSave(v.trim()); if (e.key === "Escape") onCancel(); }} />
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && ok) onSave(v.trim()); if (e.key === "Escape") onCancel(); }} />
         <span className="pb-name-foot">
           <button type="button" onClick={onCancel}>취소</button>
           <button type="button" className="pb-name-go" disabled={!ok} onClick={() => onSave(v.trim())}>저장</button>
@@ -1806,7 +1806,7 @@ function ColumnMenu({ col, sortDir, filtered, onSort, onFilter, onSaveSettings, 
                 <label className="pb-colmenu-unit">
                   <span>단위</span>
                   <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="원 · % · 개"
-                    onKeyDown={(e) => { if (e.key === "Enter") save(); }} />
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) save(); }} />
                   <em>정리에서 원끼리만 더하고 % 는 평균을 냅니다.</em>
                 </label>
               )}
@@ -2380,7 +2380,7 @@ function Cell({ col, item, users, partners, companyId, onSave, onPartnerCreated,
           e.target.value = n ? n.toLocaleString("ko-KR") : "";
           onSave(Number.isFinite(n) && e.target.value !== "" ? n : null);
         }}
-        onKeyDown={(e) => { fillKey(e); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+        onKeyDown={(e) => { fillKey(e); if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }}
         className="pb-in pb-in-num" />
     );
   }
@@ -2411,7 +2411,7 @@ function Cell({ col, item, users, partners, companyId, onSave, onPartnerCreated,
   return (
     <input defaultValue={v || ""} placeholder="—"
       onBlur={(e) => onSave(e.target.value || null)}
-      onKeyDown={(e) => { fillKey(e); if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+      onKeyDown={(e) => { fillKey(e); if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }}
       className="pb-in" />
   );
 }
@@ -2471,7 +2471,7 @@ function PartnerCell({ value, partners, companyId, onSave, onCreated }: {
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Escape") { setOpen(false); return; }
-          if (e.key === "Enter") { if (matches.length === 1 && !q.trim()) return; if (!exact && q.trim()) createNow(); else if (matches[0]) { onSave(matches[0].id); setOpen(false); } }
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) { if (matches.length === 1 && !q.trim()) return; if (!exact && q.trim()) createNow(); else if (matches[0]) { onSave(matches[0].id); setOpen(false); } }
         }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         className="pb-in pb-partner-in" />

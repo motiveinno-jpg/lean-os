@@ -362,7 +362,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                             placeholder="옵션 입력 후 Enter"
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
-                              if (e.key !== "Enter") return;
+                              if (e.key !== "Enter" || !e.nativeEvent.isComposing) return;
                               e.preventDefault();
                               const v = e.currentTarget.value.trim();
                               if (!v) return;
@@ -546,7 +546,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                             placeholder="옵션 입력 후 Enter"
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
-                              if (e.key !== "Enter") return;
+                              if (e.key !== "Enter" || !e.nativeEvent.isComposing) return;
                               e.preventDefault();
                               const v = e.currentTarget.value.trim();
                               if (!v) return;

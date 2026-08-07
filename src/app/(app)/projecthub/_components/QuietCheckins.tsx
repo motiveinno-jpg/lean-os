@@ -159,7 +159,7 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
             <input
               value={text[r.deal.id] ?? r.draft}
               onChange={(e) => setText((p) => ({ ...p, [r.deal.id]: e.target.value }))}
-              onKeyDown={(e) => { if (e.key === "Enter") save(r.deal.id, r.deal.name); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) save(r.deal.id, r.deal.name); }}
               placeholder="예: 거래처 검토 대기 중, 다음 주 재확인"
               className="ph-checkin-input" />
             <button type="button" className="ph-checkin-save"

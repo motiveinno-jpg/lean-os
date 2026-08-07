@@ -216,7 +216,7 @@ export function FloatingMessenger() {
                 {creating && (
                   <div className="messenger-create-row">
                     <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && newName.trim() && !createMut.isPending) createMut.mutate(); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && newName.trim() && !createMut.isPending) createMut.mutate(); }}
                       placeholder="새 채널 이름"
                       className="messenger-create-input" />
                     <button onClick={() => createMut.mutate()} disabled={!newName.trim() || createMut.isPending}

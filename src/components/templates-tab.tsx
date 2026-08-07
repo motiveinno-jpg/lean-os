@@ -293,7 +293,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                   <div className="flex gap-1.5">
                     <input value={newVar} onChange={(e) => setNewVar(e.target.value)}
                       placeholder="예: employee_name"
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addVariable())}
+                      onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && (e.preventDefault(), addVariable())}
                       className="flex-1 min-w-0 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
                     <button onClick={addVariable}
                       className="px-3 py-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-xs font-semibold hover:bg-[var(--primary)]/20 transition shrink-0">추가</button>
@@ -386,7 +386,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
             <div className="templates-variable-input-row">
               <input value={newVar} onChange={(e) => setNewVar(e.target.value)}
                 placeholder="변수명 (예: employee_name)"
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addVariable())}
+                onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && (e.preventDefault(), addVariable())}
                 className="flex-1 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
               <button onClick={addVariable}
                 className="px-3 py-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-xs font-semibold hover:bg-[var(--primary)]/20 transition">

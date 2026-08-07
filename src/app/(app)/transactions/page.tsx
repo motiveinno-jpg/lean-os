@@ -2320,7 +2320,7 @@ function ChipPicker({ options, value, onSelect, onAddOption, onDeleteOption, del
             autoFocus
             value={newChip}
             onChange={e => setNewChip(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitNew(); } if (e.key === 'Escape') { setShowAddInput(false); setNewChip(''); } }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); submitNew(); } if (e.key === 'Escape') { setShowAddInput(false); setNewChip(''); } }}
             placeholder="새 분류"
             className="w-24 px-2 py-0.5 text-[10px] bg-[var(--bg)] border border-[var(--primary)] rounded-full"
           />

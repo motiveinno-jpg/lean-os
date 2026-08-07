@@ -769,7 +769,7 @@ function ItemUpdatesPanel({ companyId, deal, subitem, onClose }: { companyId: st
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && (e.metaKey || e.ctrlKey)) submit(); }}
             placeholder="업데이트 작성... (Ctrl+Enter 등록)"
             rows={3}
             className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] resize-none focus:outline-none"
@@ -1006,7 +1006,7 @@ function DealDetailView({ companyId, deal, columns, users, updatesCount = 0, onO
           value={name}
           onChange={(e) => setNameLocal(e.target.value)}
           onBlur={() => onSetName(deal, name.trim() || deal.name)}
-          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }}
           placeholder="업체명"
           className="flex-1 min-w-0 bg-transparent text-2xl font-bold text-[var(--text)] focus:outline-none focus:border-b-2 pb-1"
           style={{ borderColor: "var(--primary)" }}
@@ -1248,7 +1248,7 @@ function TextCell({ value, onChange }: { value: any; onChange: (v: any) => void 
         autoFocus value={v}
         onChange={(e) => setV(e.target.value)}
         onBlur={() => { setEditing(false); onChange(v); }}
-        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditing(false); setV(value || ""); } }}
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditing(false); setV(value || ""); } }}
         className="w-full text-[13px] bg-transparent text-[var(--text)] text-center focus:outline-none"
         style={{ minHeight: ROW_H - 2 }}
       />
@@ -1405,7 +1405,7 @@ function NumberCell({ value, onChange }: { value: any; onChange: (v: any) => voi
         type="number" autoFocus value={v}
         onChange={(e) => setV(e.target.value)}
         onBlur={() => { setEditing(false); onChange(v === "" ? null : Number(v)); }}
-        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditing(false); setV(value ?? ""); } }}
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setEditing(false); setV(value ?? ""); } }}
         className="w-full text-[13px] bg-transparent text-[var(--text)] text-center mono-number focus:outline-none"
         style={{ minHeight: ROW_H - 2 }}
       />
@@ -1448,7 +1448,7 @@ function EditableText({ value, onSave, className = "", placeholder = "", center 
     return (
       <input autoFocus value={v} onChange={(e) => setV(e.target.value)}
         onBlur={() => { setEditing(false); onSave(v); }}
-        onKeyDown={(e) => { if (e.key === "Enter") { setEditing(false); onSave(v); } if (e.key === "Escape") { setEditing(false); setV(value); } }}
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { setEditing(false); onSave(v); } if (e.key === "Escape") { setEditing(false); setV(value); } }}
         className={`bg-[var(--bg-card)] border rounded px-1.5 py-0.5 w-full focus:outline-none ${center ? "text-center" : ""} ${className}`}
         style={{ borderColor: "var(--primary)", ...style }} />
     );

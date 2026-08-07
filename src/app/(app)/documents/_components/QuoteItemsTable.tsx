@@ -92,7 +92,7 @@ export function QuoteItemsTable({
   const editableCols = cols.filter((c) => c.type !== "calc");
   const focusCell = (r: number, c: number) => { const el = document.getElementById(`qcell-${r}-${c}`); if (el) (el as HTMLElement).focus(); };
   const onTableKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== "Enter") return;
+    if (e.key !== "Enter" || !e.nativeEvent.isComposing) return;
     const active = document.activeElement as HTMLElement | null;
     const m = active?.id?.match(/^qcell-(\d+)-(\d+)$/);
     if (!m) return;
@@ -441,7 +441,7 @@ function ColumnEditor({ cols, onClose, onSave }: { cols: QuoteCol[]; onClose: ()
         <div className="mb-5">
           <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">커스텀 항목 추가</div>
           <div className="flex items-center gap-2">
-            <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCustom(); }} placeholder="항목 이름 (예: 할인율, 납기)" className="flex-1 h-9 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
+            <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) addCustom(); }} placeholder="항목 이름 (예: 할인율, 납기)" className="flex-1 h-9 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
             <select value={newType} onChange={(e) => setNewType(e.target.value as "text" | "number")} className="h-9 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm">
               <option value="text">텍스트</option>
               <option value="number">숫자</option>

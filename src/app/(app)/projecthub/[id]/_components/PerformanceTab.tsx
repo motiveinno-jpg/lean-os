@@ -882,7 +882,7 @@ function ExecutionPlan({ dealId, companyId, users, userId }: { dealId: string; c
         {/* 인라인 추가 */}
         <div className="execution-plan-add-row">
           <span className="w-5 h-5 rounded-md border border-dashed border-[var(--border)] shrink-0" />
-          <input value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} placeholder="＋ 할 일 입력…"
+          <input value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) add(); }} placeholder="＋ 할 일 입력…"
             className="flex-1 h-8 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]" />
           <select value={assignee} onChange={(e) => setAssignee(e.target.value)} className="h-8 px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-muted)] focus:outline-none shrink-0">
             <option value="">담당</option>

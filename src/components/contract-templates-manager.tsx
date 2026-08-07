@@ -514,7 +514,13 @@ function TemplateEditorModal({
                   <div className="flex gap-1.5">
                     <input value={newVar} onChange={(e) => setNewVar(e.target.value)}
                       placeholder="예: 갑사명"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVar(); } }}
+                      // 한글 입력 중 엔터는 '조합 확정'이지 '추가'가 아니다 — 막지 않으면 마지막 글자가
+                      //   한 번 더 변수로 들어간다(가나다 → 가나다, 다). 조합이 끝난 뒤 엔터만 추가로 본다.
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+                        e.preventDefault();
+                        addVar();
+                      }}
                       className="flex-1 min-w-0 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded text-sm focus:outline-none focus:border-[var(--primary)]" />
                     <button type="button" onClick={addVar} disabled={!newVar.trim()}
                       className="px-3 py-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded text-xs font-semibold hover:bg-[var(--primary)]/20 transition shrink-0 disabled:opacity-40">변수 추가</button>

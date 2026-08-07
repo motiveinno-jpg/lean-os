@@ -80,7 +80,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       <p className="text-xs text-[var(--text-muted)] mb-4">목표형 프로젝트 성과 입력 시 선택하는 부서 목록입니다. 보관하면 새 입력 선택지에서 빠지고, 기존 기록은 유지됩니다.</p>
 
       <div className="departments-add-form">
-        <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) addMut.mutate(newName); }}
+        <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && newName.trim()) addMut.mutate(newName); }}
           placeholder="새 부서 이름 (예: 마케팅팀)" className="flex-1 h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
         <button onClick={() => newName.trim() && addMut.mutate(newName)} disabled={!newName.trim() || addMut.isPending}
           className="btn-primary h-9">추가</button>
@@ -99,7 +99,7 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
               {editId === d.id ? (
                 <>
                   <input value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus
-                    onKeyDown={(e) => { if (e.key === "Enter" && editName.trim()) renameMut.mutate({ id: d.id, name: editName }); if (e.key === "Escape") setEditId(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && editName.trim()) renameMut.mutate({ id: d.id, name: editName }); if (e.key === "Escape") setEditId(null); }}
                     className="flex-1 h-8 px-2.5 rounded-md bg-[var(--bg)] border border-[var(--primary)]/40 text-sm" />
                   <button onClick={() => editName.trim() && renameMut.mutate({ id: d.id, name: editName })} className="text-xs px-2 py-1 rounded bg-[var(--primary)] text-white">저장</button>
                   <button onClick={() => setEditId(null)} className="text-xs px-2 py-1 text-[var(--text-muted)]">취소</button>

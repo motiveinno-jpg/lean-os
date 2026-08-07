@@ -798,7 +798,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               value={shareEmailAddress}
               onChange={(e) => setShareEmailAddress(e.target.value)}
               placeholder="recipient@example.com"
-              onKeyDown={(e) => { if (e.key === 'Enter' && shareEmailAddress.trim()) { (e.target as HTMLInputElement).form?.requestSubmit(); } }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && shareEmailAddress.trim()) { (e.target as HTMLInputElement).form?.requestSubmit(); } }}
               className="flex-1 px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
             />
             <button
@@ -2493,7 +2493,7 @@ function DocumentsPageInner() {
                                   placeholder="서명자 이름"
                                   className="w-20 px-2 py-1 text-xs border border-[var(--border)] rounded bg-[var(--bg)] focus:outline-none"
                                   autoFocus
-                                  onKeyDown={(e) => e.key === 'Enter' && signCompleteMut.mutate(sig.id)}
+                                  onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && signCompleteMut.mutate(sig.id)}
                                 />
                                 <button
                                   onClick={() => signCompleteMut.mutate(sig.id)}

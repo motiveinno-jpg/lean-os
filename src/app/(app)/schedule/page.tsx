@@ -704,7 +704,7 @@ function TodoTab({ companyId, userId, toast }: { companyId: string; userId: stri
             <input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && newTitle.trim()) addMut.mutate(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && newTitle.trim()) addMut.mutate(); }}
               placeholder="예: 세금계산서 발행"
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
             />
