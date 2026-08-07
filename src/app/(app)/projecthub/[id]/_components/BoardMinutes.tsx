@@ -117,7 +117,8 @@ export function BoardMinutes({
 
       <aside className="pbm-side">
         <b>회의</b>
-        {groups.map((g) => {
+        {/*  최신 회의가 위 — 새 회의를 만들면 맨 뒤에 붙어 아래로 밀렸다(2026-08-07 시연) */}
+        {[...groups].reverse().map((g) => {
           const n = items.filter((it) => it.group_id === g.id).length;
           return (
             <button key={g.id} type="button" onClick={() => onPickGroup(g.id)}

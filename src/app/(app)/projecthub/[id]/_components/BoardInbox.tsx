@@ -48,12 +48,20 @@ export function BoardInbox({ items, cols, groups, users, userId, onAdd, onOpen, 
   };
 
   const isDone = (it: BoardItem) => !!flow && !!doneId && it.values?.[flow.id] === doneId;
+  //   이 화면의 질문은 "무엇이 급한가" 다 — 기한이 임박한 순으로 세운다(기한 없는 건은 맨 뒤).
+  //   (2026-08-07 시연: 열세 건을 넣었더니 D-1 · 오늘까지 · D-2 가 뒤죽박죽으로 서 있었다)
+  const dueKey = (it: BoardItem) => {
+    if (!dueCol) return "9999-99-99";
+    const v = String(it.values?.[dueCol.id] || "").slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "9999-99-99";
+  };
+  const byDue = (a: BoardItem, b: BoardItem) => (dueKey(a) < dueKey(b) ? -1 : dueKey(a) > dueKey(b) ? 1 : 0);
   const lists = useMemo(() => {
-    const open = items.filter((it) => !isDone(it));
+    const open = items.filter((it) => !isDone(it)).sort(byDue);
     return {
       in: me && ownerCol ? open.filter((it) => String(it.values?.[ownerCol.id] || "") === me) : open,
       out: me && askerCol ? open.filter((it) => String(it.values?.[askerCol.id] || "") === me) : [],
-      done: items.filter(isDone),
+      done: items.filter(isDone).sort(byDue),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, me, ownerCol, askerCol, flow, doneId]);

@@ -6848,6 +6848,15 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pbd-paylab b { @apply text-[var(--text)] font-extrabold; }
 .pbd-docs { @apply flex flex-wrap gap-1.5; }
 
+/* 기간 막대 — 시작·종료가 있는 표는 걸친 날마다 조각을 놓아 이어 보이게 한다 (2026-08-07) */
+.pb-cal-span { @apply !text-white font-bold justify-start -mx-0.5 rounded-none; }
+.pb-cal-span.pb-cal-s { @apply ml-0 rounded-l-md; }
+.pb-cal-span.pb-cal-e { @apply mr-0 rounded-r-md; }
+/* 만기 카드 — 금액이 없는 계약 */
+.pbx-amt-none { @apply !text-[13px] !text-[var(--text-dim)]; }
+/* 지출 목록의 결제일 */
+.pbe-when { @apply shrink-0 text-[10.5px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+
 /* 캘린더에서 끌어 기간 만들기 — '일정 · 마일스톤' 의 첫 화면 (2026-08-07) */
 .pb-cal-hint { @apply flex items-center gap-2 text-[11.5px] text-[var(--text-dim)] mb-1.5; }
 .pb-cal-hint i { @apply block w-16 h-4 rounded-md border border-dashed border-[var(--primary)] bg-[var(--primary)]/10; }

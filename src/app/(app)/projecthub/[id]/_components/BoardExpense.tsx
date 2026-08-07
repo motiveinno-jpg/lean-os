@@ -36,7 +36,19 @@ export function BoardExpense({ items, cols, groups, onAdd, onOpen, renderPartner
     return { plan, real, left: plan - real, pct: plan > 0 ? Math.round((real / plan) * 100) : null };
   }, [items, planCol, realCol]);
 
-  const recent = useMemo(() => [...items].slice(-6).reverse(), [items]);
+  //   '최근' 은 적은 차례가 아니라 **결제일이 가까운 순**이 실무에 맞다 — 오늘 이후 예정 건이 먼저,
+  //   그다음 최근에 지나간 건. (2026-08-07 시연: 표 맨 끝 여섯 줄을 뒤집어 보여 주고 있었다)
+  const dateCol = cols.find((c) => c.type === "date") || null;
+  const recent = useMemo(() => {
+    const key = (it: BoardItem) => {
+      const v = dateCol ? String(it.values?.[dateCol.id] || "").slice(0, 10) : "";
+      return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "";
+    };
+    return [...items]
+      .sort((a, b) => (key(b) || "0000").localeCompare(key(a) || "0000"))
+      .slice(0, 6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, dateCol?.id]);
   const kindOf = (it: BoardItem) => kindOptions.find((o) => o.id === it.values?.[kindCol?.id || ""]) || null;
 
   const submit = () => {
@@ -97,7 +109,13 @@ export function BoardExpense({ items, cols, groups, onAdd, onOpen, renderPartner
                 <button type="button" className="pbe-row" onClick={() => onOpen(it.id)}>
                   <b>{it.name || "(이름 없음)"}</b>
                   {k && <span className="pbe-kind" style={{ background: k.color }}>{k.label}</span>}
-                  <em>{realCol ? `${won(Number(it.values?.[realCol.id]) || 0)}원` : ""}</em>
+                  {dateCol && <span className="pbe-when">{String(it.values?.[dateCol.id] || "").slice(5, 10).replace("-", "/")}</span>}
+                  {/*  아직 안 쓴 건은 0원이 아니라 '예정' 이다 — 0 으로 적으면 안 쓴 걸 쓴 걸로 읽는다 */}
+                  <em>{realCol && Number(it.values?.[realCol.id]) > 0
+                    ? `${won(Number(it.values?.[realCol.id]))}원`
+                    : planCol && Number(it.values?.[planCol.id]) > 0
+                      ? `예정 ${won(Number(it.values?.[planCol.id]))}원`
+                      : "—"}</em>
                 </button>
               </li>
             );

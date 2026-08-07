@@ -8,6 +8,7 @@
 //
 //   ⚠️ 표·칸반은 그대로 남는다 — 이 화면은 첫 화면일 뿐이다.
 
+import { useMemo } from "react";
 import type { ReactNode } from "react";
 import { flowColumnOf, type BoardColumn, type BoardItem, type StatusOption } from "@/lib/project-boards";
 
@@ -32,13 +33,33 @@ export function BoardDeals({ items, cols, partnerName, userName, onOpen, onStage
   const personCol = cols.find((c) => c.type === "person") || null;
   const dateCol = cols.find((c) => c.type === "date") || null;
 
+  //   챙길 것부터 — 잔금이 남은 건이 위, 그중에서도 예정일이 이른 순. 완납·입금 끝난 건은 뒤로.
+  //   (2026-08-07 시연: 열세 장이 적은 차례 그대로 서 있어 무엇을 먼저 볼지 화면이 안 알려 줬다)
+  const sorted = useMemo(() => {
+    const left = (it: BoardItem) => {
+      const amt = amtCol ? Number(it.values?.[amtCol.id]) || 0 : 0;
+      const paid = paidCol ? Number(it.values?.[paidCol.id]) || 0 : 0;
+      return amt - paid;
+    };
+    const due = (it: BoardItem) => {
+      const v = dateCol ? String(it.values?.[dateCol.id] || "").slice(0, 10) : "";
+      return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "9999-99-99";
+    };
+    return [...items].sort((a, b) => {
+      const la = left(a) > 0 ? 0 : 1, lb = left(b) > 0 ? 0 : 1;
+      if (la !== lb) return la - lb;
+      return due(a) < due(b) ? -1 : due(a) > due(b) ? 1 : 0;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, amtCol?.id, paidCol?.id, dateCol?.id]);
+
   if (items.length === 0) {
     return <p className="pj-sec-empty">아직 매출 건이 없어요. ‘표’ 에서 한 줄 적으면 여기에 카드로 세워 드려요.</p>;
   }
 
   return (
     <div className="pbd">
-      {items.map((it) => {
+      {sorted.map((it) => {
         const amt = amtCol ? Number(it.values?.[amtCol.id]) || 0 : 0;
         const paid = paidCol ? Number(it.values?.[paidCol.id]) || 0 : 0;
         const left = amt - paid;

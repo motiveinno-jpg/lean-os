@@ -78,7 +78,9 @@ export function BoardExpiry({ items, cols, partnerName, onOpen, onAdvance, onCon
                 : "만기일을 표에서 채워 주세요"}
               {cur ? ` · ${cur.label}` : ""}
             </span>
-            {moneyCol && <b className="pbx-amt">{won(Number(it.values?.[moneyCol.id]) || 0)}원</b>}
+            {moneyCol && (Number(it.values?.[moneyCol.id]) > 0
+              ? <b className="pbx-amt">{won(Number(it.values?.[moneyCol.id]))}원</b>
+              : <b className="pbx-amt pbx-amt-none">금액 미정</b>)}
             {textCol && it.values?.[textCol.id] && <em className="pbx-note">{String(it.values[textCol.id])}</em>}
             <div className="pbx-acts">
               <button type="button" className="pbx-go" disabled={busyId === it.id} onClick={() => onContract(it)}>

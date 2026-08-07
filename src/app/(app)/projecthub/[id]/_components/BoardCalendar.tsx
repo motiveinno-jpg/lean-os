@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { todayKst } from "@/lib/kst";
-import { START_DATE_RE, type BoardColumn, type BoardItem } from "@/lib/project-boards";
+import { START_DATE_RE, spanColumnsOf, type BoardColumn, type BoardItem } from "@/lib/project-boards";
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -25,8 +25,12 @@ export function BoardCalendar({ items, cols, flowCol, onOpen, onCreateRange }: {
 }) {
   // 기준 날짜 — 마감 계열을 먼저 쓴다(시작일로 달력을 그리면 '언제까지'가 안 보인다)
   const dateCols = cols.filter((c) => c.type === "date");
+  //   시작·종료가 있으면 **기간**이 이 표의 본체다 — 하루 점이 아니라 막대로 이어 그린다
+  //   (2026-08-07 시연: 8/11~8/25 퍼블리싱이 8/11 하루에만 점처럼 떴다).
+  const span = spanColumnsOf(cols);
+  const SPAN_KEY = "__span__";
   const [colId, setColId] = useState<string>(
-    (dateCols.find((c) => !START_DATE_RE.test(c.name)) || dateCols[0])?.id || "",
+    span ? SPAN_KEY : (dateCols.find((c) => !START_DATE_RE.test(c.name)) || dateCols[0])?.id || "",
   );
   const [offset, setOffset] = useState(0);   // 달 이동
   //   ⚠️ 표를 옮겨도 이 컴포넌트는 같은 자리에 남아 상태가 유지된다 — 앞 표의 날짜 칸 id 를
@@ -34,9 +38,9 @@ export function BoardCalendar({ items, cols, flowCol, onOpen, onCreateRange }: {
   //      칸이 바뀌면 그 표의 기본 칸으로 되돌린다.
   const dateIds = dateCols.map((c) => c.id).join(",");
   useEffect(() => {
-    setColId((prev) => (dateCols.some((c) => c.id === prev)
+    setColId((prev) => ((prev === SPAN_KEY && span) || dateCols.some((c) => c.id === prev)
       ? prev
-      : (dateCols.find((c) => !START_DATE_RE.test(c.name)) || dateCols[0])?.id || ""));
+      : span ? SPAN_KEY : (dateCols.find((c) => !START_DATE_RE.test(c.name)) || dateCols[0])?.id || ""));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateIds]);
   //   끌어서 만들기 — 누른 날부터 손을 뗀 날까지가 기간이다
@@ -54,17 +58,43 @@ export function BoardCalendar({ items, cols, flowCol, onOpen, onCreateRange }: {
   const firstDow = base.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
+  //   기간 보기에서는 한 줄이 여러 날에 걸친다 — 걸친 날마다 조각을 놓고 양 끝만 둥글게 한다
+  const rangeOf = (it: BoardItem) => {
+    if (!span) return null;
+    const a = String(it.values?.[span.start.id] || "").slice(0, 10);
+    const b = String(it.values?.[span.end.id] || "").slice(0, 10);
+    const ok = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+    if (!ok(a) && !ok(b)) return null;
+    const from = ok(a) ? a : b, to = ok(b) ? b : a;
+    return from <= to ? { from, to } : { from: to, to: from };
+  };
+
   const byDay = useMemo(() => {
-    const m: Record<string, BoardItem[]> = {};
+    const m: Record<string, { it: BoardItem; from: string; to: string }[]> = {};
     for (const it of items) {
+      if (colId === SPAN_KEY) {
+        const r = rangeOf(it);
+        if (!r) continue;
+        //   걸친 날을 하루씩 채운다(한 달 안에서만 그린다 — 그 이상은 화면 밖이다)
+        for (let d = new Date(`${r.from}T00:00:00`); ; d.setDate(d.getDate() + 1)) {
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          (m[key] = m[key] || []).push({ it, from: r.from, to: r.to });
+          if (key >= r.to) break;
+        }
+        continue;
+      }
       const v = String(it.values?.[colId] || "");
       if (!/^\d{4}-\d{2}-\d{2}/.test(v)) continue;
-      (m[v.slice(0, 10)] = m[v.slice(0, 10)] || []).push(it);
+      const k = v.slice(0, 10);
+      (m[k] = m[k] || []).push({ it, from: k, to: k });
     }
     return m;
-  }, [items, colId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, colId, span?.start.id, span?.end.id]);
 
-  const undated = items.filter((it) => !/^\d{4}-\d{2}-\d{2}/.test(String(it.values?.[colId] || "")));
+  const undated = items.filter((it) => (colId === SPAN_KEY
+    ? !rangeOf(it)
+    : !/^\d{4}-\d{2}-\d{2}/.test(String(it.values?.[colId] || ""))));
 
   const colorOf = (it: BoardItem) => {
     if (!flowCol) return "var(--primary)";
@@ -90,8 +120,9 @@ export function BoardCalendar({ items, cols, flowCol, onOpen, onCreateRange }: {
         <b>{year}년 {month + 1}월</b>
         <button type="button" onClick={() => setOffset((o) => o + 1)} aria-label="다음 달">›</button>
         {offset !== 0 && <button type="button" className="pb-cal-today" onClick={() => setOffset(0)}>오늘</button>}
-        {dateCols.length > 1 && (
-          <select value={colId} onChange={(e) => setColId(e.target.value)} className="pb-cal-pick" title="기준 날짜">
+        {(dateCols.length > 1 || span) && (
+          <select value={colId} onChange={(e) => setColId(e.target.value)} className="pb-cal-pick" title="무엇을 기준으로 볼까">
+            {span && <option value={SPAN_KEY}>기간({span.start.name}~{span.end.name})</option>}
             {dateCols.map((c) => <option key={c.id} value={c.id}>{c.name} 기준</option>)}
           </select>
         )}
@@ -142,13 +173,22 @@ export function BoardCalendar({ items, cols, flowCol, onOpen, onCreateRange }: {
               setDraft({ from, to, name: "" });
             }}>
             {c.day && <span className="pb-cal-day">{c.day}</span>}
-            {(byDay[c.date || ""] || []).map((it) => (
-              <button key={it.id} type="button" className="pb-cal-item" onClick={() => onOpen(it.id)}
-                title={it.name || "(이름 없음)"}>
-                <i style={{ background: colorOf(it) }} />
-                {it.name || "(이름 없음)"}
-              </button>
-            ))}
+            {(byDay[c.date || ""] || []).map(({ it, from, to }) => {
+              const isStart = c.date === from;
+              const isEnd = c.date === to;
+              const dow = c.date ? new Date(`${c.date}T00:00:00`).getDay() : 0;
+              //   이름은 시작한 날과 주가 바뀌는 날(일요일)에만 — 매 칸에 적으면 달력이 글자로 덮인다
+              const showName = isStart || dow === 0;
+              return (
+                <button key={`${it.id}-${c.date}`} type="button" onClick={() => onOpen(it.id)}
+                  className={`pb-cal-item ${from !== to ? "pb-cal-span" : ""} ${isStart ? "pb-cal-s" : ""} ${isEnd ? "pb-cal-e" : ""}`}
+                  style={from !== to ? { background: colorOf(it) } : undefined}
+                  title={`${it.name || "(이름 없음)"}${from !== to ? ` · ${from} ~ ${to}` : ""}`}>
+                  {from === to && <i style={{ background: colorOf(it) }} />}
+                  {showName ? (it.name || "(이름 없음)") : ""}
+                </button>
+              );
+            })}
           </div>
           );
         })}
