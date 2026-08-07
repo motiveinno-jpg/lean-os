@@ -6931,6 +6931,86 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-peek-table .pb-peek-n { @apply text-right; font-variant-numeric: tabular-nums; }
 .pb-peek-dim { @apply text-[var(--text-dim)]; }
 .pb-peek-chip { @apply inline-block px-1.5 py-0.5 rounded-md text-[10px] font-bold text-white; }
+/* 첫 화면이 바뀐 템플릿들은 예시도 그 화면 모양이다 (2026-08-07 사장님: "예시가 안 바뀌었다") */
+/* 회의록 */
+.pb-peek-min { @apply flex flex-col gap-1.5; }
+.pb-peek-minhead { @apply flex items-baseline gap-2 pb-1.5 border-b border-[var(--border)]; }
+.pb-peek-minhead b { @apply text-[12px] font-extrabold text-[var(--text)]; }
+.pb-peek-minhead em { @apply not-italic text-[10.5px] text-[var(--text-dim)]; }
+.pb-peek-mincard { @apply flex flex-col gap-1 p-2 rounded-xl border border-[var(--border)]; }
+.pb-peek-mint { @apply flex items-center gap-1.5; }
+.pb-peek-mint b { @apply text-[11.5px] font-bold text-[var(--text)] truncate; }
+.pb-peek-mincard p { @apply m-0 text-[10.5px] text-[var(--text-muted)] leading-snug; }
+.pb-peek-minfoot { @apply flex items-center gap-2 pt-1 border-t border-dashed border-[var(--border)] text-[10px] text-[var(--text-dim)]; }
+.pb-peek-minsend { @apply ml-auto px-1.5 py-0.5 rounded-md font-bold bg-[var(--primary-light)] text-[var(--primary)]; }
+.pb-peek-addline { @apply px-2 py-1.5 rounded-lg border border-dashed border-[var(--border)] text-[10.5px] text-[var(--text-dim)]; }
+
+/* 접수함 */
+.pb-peek-inbox { @apply flex flex-col gap-1.5; }
+.pb-peek-itabs { @apply flex gap-1; }
+.pb-peek-itabs span { @apply px-2 py-1 rounded-lg text-[10px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pb-peek-itabs span.on { @apply bg-[var(--primary)] text-white; }
+.pb-peek-irow { @apply flex items-center gap-2 px-2 py-1.5 rounded-xl border border-[var(--border)]; }
+.pb-peek-irow > i { @apply block w-1.5 h-1.5 rounded-full shrink-0; }
+.pb-peek-it { @apply flex-1 min-w-0; }
+.pb-peek-it b { @apply block text-[11px] font-bold text-[var(--text)] truncate; }
+.pb-peek-it em { @apply not-italic block text-[9.5px] text-[var(--text-dim)] truncate; }
+.pb-peek-idue { @apply text-[10px] font-bold text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.pb-peek-iact { @apply px-1.5 py-0.5 rounded-md text-[9.5px] font-bold bg-[var(--primary)] text-white; }
+
+/* 캘린더 */
+.pb-peek-cal { @apply grid gap-[3px]; grid-template-columns: repeat(7, 1fr); }
+.pb-peek-cdow { @apply text-[9px] font-bold text-[var(--text-dim)] text-center; }
+.pb-peek-cday { @apply relative min-h-[34px] rounded-md bg-[var(--bg-surface)] px-1 pt-0.5 text-[9px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+.pb-peek-cbar { @apply absolute left-0 top-[14px] h-[13px] rounded-[4px] px-1 text-[9px] font-bold text-white leading-[13px] overflow-hidden whitespace-nowrap z-10; }
+
+/* 만기 카드 */
+.pb-peek-exp { @apply grid grid-cols-2 gap-1.5; }
+.pb-peek-expcard { @apply flex flex-col gap-1 p-2 rounded-xl border border-[var(--border)]; }
+.pb-peek-urgent { @apply border-[var(--danger)]; }
+.pb-peek-dday { @apply self-start px-1.5 py-0.5 rounded-full text-[9.5px] font-extrabold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pb-peek-dday-warn { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.pb-peek-expcard b { @apply text-[11.5px] font-extrabold text-[var(--text)] truncate; }
+.pb-peek-expcard em { @apply not-italic text-[9.5px] text-[var(--text-dim)] truncate; }
+.pb-peek-expamt { @apply text-[12px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.pb-peek-expgo { @apply text-center px-1.5 py-1 rounded-lg text-[10px] font-bold bg-[var(--primary)] text-white; }
+
+/* 지출 입력 */
+.pb-peek-exn { @apply flex flex-col gap-1.5; }
+.pb-peek-gauge { @apply flex items-center gap-2 p-2 rounded-xl bg-[var(--bg-surface)] text-[10px] text-[var(--text-muted)]; }
+.pb-peek-gauge b { @apply text-[var(--text)] font-extrabold; font-variant-numeric: tabular-nums; }
+.pb-peek-gauge > i { @apply flex-1 h-1.5 rounded-full bg-[var(--bg-card)] overflow-hidden; }
+.pb-peek-gauge > i > em { @apply block h-full rounded-r-full bg-[var(--primary)]; }
+.pb-peek-exnquick { @apply grid gap-1 items-center; grid-template-columns: 1.4fr 1fr .8fr .8fr auto; }
+.pb-peek-exnquick span { @apply px-1.5 py-1 rounded-lg border border-[var(--border)] text-[9.5px] text-[var(--text-dim)] truncate; }
+.pb-peek-exnquick b { @apply px-2 py-1 rounded-lg text-[9.5px] font-bold bg-[var(--primary)] text-white; }
+.pb-peek-exnrow { @apply flex items-center gap-1.5 px-2 py-1.5 rounded-xl border border-[var(--border)]; }
+.pb-peek-exnrow b { @apply flex-1 min-w-0 truncate text-[11px] font-bold text-[var(--text)]; }
+.pb-peek-exnrow em { @apply not-italic text-[11px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+
+/* 건별 카드 */
+.pb-peek-deal { @apply flex flex-col gap-2 p-2.5 rounded-xl border border-[var(--border)]; }
+.pb-peek-dtop { @apply flex items-baseline gap-1.5; }
+.pb-peek-dtop b { @apply text-[12px] font-extrabold text-[var(--text)]; }
+.pb-peek-dtop em { @apply not-italic text-[9.5px] text-[var(--text-dim)]; }
+.pb-peek-dtop span { @apply ml-auto text-[12px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.pb-peek-dsteps { @apply flex items-start; }
+.pb-peek-dstep { @apply relative flex-1 flex flex-col items-center gap-1 text-[9px] font-bold text-[var(--text-dim)]; }
+.pb-peek-dstep > i { @apply block w-2.5 h-2.5 rounded-full bg-[var(--bg-surface)] border-2 border-[var(--border)] z-10; }
+.pb-peek-dstep::before { @apply content-[''] absolute top-[5px] -left-1/2 w-full h-0.5 bg-[var(--border)]; }
+.pb-peek-dstep:first-child::before { @apply hidden; }
+.pb-peek-dstep.pb-peek-done > i { @apply bg-[var(--primary)] border-[var(--primary)]; }
+.pb-peek-dstep.pb-peek-done::before, .pb-peek-dstep.pb-peek-now::before { @apply bg-[var(--primary)]; }
+.pb-peek-dstep.pb-peek-now > i { @apply bg-[var(--bg-card)] border-[var(--primary)] ring-2 ring-[var(--primary)]/20; }
+.pb-peek-dstep.pb-peek-done, .pb-peek-dstep.pb-peek-now { @apply text-[var(--text)]; }
+.pb-peek-dpay { @apply flex items-center gap-2 text-[10px] text-[var(--text-muted)]; }
+.pb-peek-dpay b { @apply text-[var(--text)] font-extrabold; font-variant-numeric: tabular-nums; }
+.pb-peek-dpay > i { @apply flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.pb-peek-dpay > i > em { @apply block h-full rounded-r-full bg-[var(--success)]; }
+.pb-peek-ddocs { @apply flex gap-1; }
+.pb-peek-ddocs span { @apply px-1.5 py-1 rounded-lg text-[9.5px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pb-peek-ddocs .pb-peek-docon { @apply bg-[var(--primary)] text-white; }
+
 /* 칸반으로 열리는 템플릿은 예시도 칸반이다 (2026-08-07) */
 .pb-peek-kan { @apply flex gap-1.5 items-start; }
 .pb-peek-kcol { @apply flex-1 min-w-0 flex flex-col gap-1 p-1.5 rounded-xl bg-[var(--bg-surface)]; }

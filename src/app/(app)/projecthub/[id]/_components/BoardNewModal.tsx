@@ -19,8 +19,8 @@
 import { useState } from "react";
 import {
   BOARD_TEMPLATES, ITEM_LABEL, COL_FORMATS, DEFAULT_STATUS_OPTIONS, LABEL_COLORS, newOptionId,
-  TEMPLATE_SAMPLE,
-  type BoardTemplate, type ColumnDef, type ColType, type StatusOption,
+  TEMPLATE_SAMPLE, MODE_LABEL,
+  type BoardTemplate, type ColumnDef, type ColType, type InputMode, type StatusOption,
 } from "@/lib/project-boards";
 import type { Preset } from "@/lib/board-presets";
 
@@ -339,13 +339,23 @@ export function LabelEditor({ options, onChange, note }: {
 }
 
 /** 템플릿 예시 화면 — 마우스를 올리면 "이게 무슨 표인지"를 글이 아니라 **모양**으로 보여 준다
- *  (2026-08-07 사장님 지시). 진짜 표와 같은 차례·같은 라벨 색으로 그려야 예시가 뜻을 갖는다.
+ *  (2026-08-07 사장님 지시). 자리는 부모가 재서 넘긴다(모달 안에서 잘리지 않게 화면 좌표로).
  *
- *  자리는 부모가 재서 넘긴다(모달 안에서 잘리지 않게 화면 좌표로 띄운다).
- *  광고 표는 사람이 채우지 않으므로 표가 아니라 대시보드 모양으로 보여 준다. */
+ *  ⚠️ 첫 화면과 **같은 모양**이어야 한다. 템플릿마다 첫 화면이 달라졌으므로(회의록·접수함·만기·
+ *     지출 입력·건별·캘린더) 예시도 그 모양으로 그린다 — "회의록으로 열려요" 라고 적어 놓고
+ *     표를 보여 주면 그 자체가 거짓말이다(2026-08-07 사장님: "예시가 안 바뀌었다").
+ */
 function TemplatePeek({ t, x, y }: { t: BoardTemplate; x: number; y: number }) {
   const rows = TEMPLATE_SAMPLE[t.key] || [];
   const heads = [ITEM_LABEL[t.key] || "이름", ...t.columns.map((c) => c.name)];
+  const mode: InputMode = t.input || "grid";
+  //   조사 — 받침이 있으면 '으로'(회의록**으로**), 없거나 ㄹ 받침이면 '로'(캘린더**로**)
+  const ro = (w: string) => {
+    const c = w.charCodeAt(w.length - 1);
+    if (Number.isNaN(c) || c < 0xac00 || c > 0xd7a3) return "로";
+    const jong = (c - 0xac00) % 28;
+    return jong === 0 || jong === 8 ? "로" : "으로";
+  };
   //   상태 칸은 그 템플릿에 정의된 라벨 색을 그대로 찾아 쓴다 — 예시가 실제와 같은 색이어야 한다
   const colorOf = (colIdx: number, text: string) => {
     const col = t.columns[colIdx - 1];
@@ -354,35 +364,51 @@ function TemplatePeek({ t, x, y }: { t: BoardTemplate; x: number; y: number }) {
     return opt?.color || null;
   };
   const isNum = (colIdx: number) => t.columns[colIdx - 1]?.type === "number";
-  const openAs = t.input === "board" ? "칸반으로 열려요" : "표로 열려요";
-  //   ⚠️ 첫 화면이 칸반이면 예시도 칸반이어야 한다 — "칸반으로 열려요" 라고 적어 놓고 표를 보여
-  //      주면 그 자체가 거짓말이다(2026-08-07 사장님 지적).
-  const flowIdx = t.columns.findIndex((c) => c.type === "status" && c.settings?.flow);
-  const asBoard = t.input === "board" && flowIdx >= 0;
-  const personIdx = t.columns.findIndex((c) => c.type === "person");
-  const dateIdx = t.columns.findIndex((c) => c.type === "date");
+  //   예시 값은 **칸 형식**으로 집는다 — 회사가 칸 이름을 바꿔도 예시가 안 깨진다
+  const idxOf = (pred: (c: ColumnDef) => boolean) => {
+    const i = t.columns.findIndex(pred);
+    return i < 0 ? -1 : i + 1;                    // 0 번 자리는 행 이름
+  };
+  const flowIdx = idxOf((c) => c.type === "status" && !!c.settings?.flow);
+  const personIdx = idxOf((c) => c.type === "person");
+  const dateIdx = idxOf((c) => c.type === "date");
+  const lastDateIdx = (() => {
+    const ds = t.columns.map((c, i) => (c.type === "date" ? i + 1 : -1)).filter((i) => i > 0);
+    return ds.length ? ds[ds.length - 1] : -1;
+  })();
+  const textIdx = idxOf((c) => c.type === "text");
+  const moneyIdx = idxOf((c) => c.type === "number" && (c.settings?.unit || "") === "원");
+  const partnerIdx = idxOf((c) => c.type === "partner");
+  const cell = (r: string[], i: number) => (i > 0 ? r[i] || "" : "");
+  const flowColor = (label: string) => (flowIdx > 0 ? colorOf(flowIdx, label) : null) || "var(--text-dim)";
 
-  return (
-    <div className="pb-peek" style={{ left: x, top: y }} role="tooltip" aria-hidden="true">
-      <div className="pb-peek-head">
-        <b>{t.name}</b>
-        <em>{t.key === "ads" ? "입력 없이 대시보드만" : `${openAs} · 예시`}</em>
-      </div>
-      {asBoard ? (
-        //   칸반 — 단계 칸의 라벨이 열이 되고, 예시 줄이 그 열의 카드가 된다
+  const body = (() => {
+    if (t.key === "ads") {
+      return (
+        <div className="pb-peek-ads">
+          {[["노출", "21,588회"], ["클릭", "365회"], ["광고비", "678,184원"], ["전환", "66건"]].map(([k, v]) => (
+            <div key={k} className="pb-peek-kpi"><span>{k}</span><b>{v}</b></div>
+          ))}
+          <div className="pb-peek-bars">
+            {[38, 62, 45, 80, 55, 92, 70].map((h, i) => <i key={i} style={{ height: `${h}%` }} />)}
+          </div>
+          <p className="pb-peek-note">광고 계정을 연결하면 캠페인·광고그룹·소재까지 저절로 채워집니다.</p>
+        </div>
+      );
+    }
+
+    if (mode === "board" && flowIdx > 0) {
+      return (
         <div className="pb-peek-kan">
-          {((t.columns[flowIdx].settings?.options || []) as StatusOption[]).map((o) => {
-            const cards = rows.filter((r) => r[flowIdx + 1] === o.label);
+          {((t.columns[flowIdx - 1].settings?.options || []) as StatusOption[]).map((o) => {
+            const cards = rows.filter((r) => r[flowIdx] === o.label);
             return (
               <div key={o.id} className="pb-peek-kcol">
                 <div className="pb-peek-khead"><i style={{ background: o.color }} />{o.label}<em>{cards.length}</em></div>
                 {cards.map((r, i) => (
                   <div key={i} className="pb-peek-kcard">
                     <b>{r[0]}</b>
-                    <span>
-                      {personIdx >= 0 && r[personIdx + 1] ? r[personIdx + 1] : ""}
-                      {dateIdx >= 0 && r[dateIdx + 1] ? ` · ${r[dateIdx + 1]}` : ""}
-                    </span>
+                    <span>{cell(r, personIdx)}{cell(r, dateIdx) ? ` · ${cell(r, dateIdx)}` : ""}</span>
                   </div>
                 ))}
                 {cards.length === 0 && <div className="pb-peek-kempty">＋</div>}
@@ -390,43 +416,188 @@ function TemplatePeek({ t, x, y }: { t: BoardTemplate; x: number; y: number }) {
             );
           })}
         </div>
-      ) : t.key === "ads" ? (
-        <div className="pb-peek-ads">
-          {[["노출", "21,588회"], ["클릭", "365회"], ["광고비", "678,184원"], ["전환", "66건"]].map(([k, v]) => (
-            <div key={k} className="pb-peek-kpi"><span>{k}</span><b>{v}</b></div>
+      );
+    }
+
+    if (mode === "minutes") {
+      return (
+        <div className="pb-peek-min">
+          <div className="pb-peek-minhead"><b>8/7 주간회의</b><em>안건 {rows.length}건</em></div>
+          {rows.slice(0, 2).map((r, i) => (
+            <div key={i} className="pb-peek-mincard">
+              <div className="pb-peek-mint">
+                <span className="pb-peek-chip" style={{ background: flowColor(cell(r, flowIdx)) }}>{cell(r, flowIdx)}</span>
+                <b>{r[0]}</b>
+              </div>
+              <p>{cell(r, textIdx)}</p>
+              <div className="pb-peek-minfoot">
+                <span className="pb-peek-minwho">
+                  {cell(r, personIdx)}{cell(r, lastDateIdx) ? ` · ${cell(r, lastDateIdx)}까지` : ""}
+                </span>
+                <span className="pb-peek-minsend">할 일로 보내기</span>
+              </div>
+            </div>
           ))}
-          <div className="pb-peek-bars">
-            {[38, 62, 45, 80, 55, 92, 70].map((h, i) => (
-              <i key={i} style={{ height: `${h}%` }} />
+          <div className="pb-peek-addline">＋ 안건을 적고 Enter</div>
+        </div>
+      );
+    }
+
+    if (mode === "inbox") {
+      const dues = ["오늘까지", "D-2", "D-6"];
+      const dots = ["var(--danger)", "var(--warning)", "var(--text-dim)"];
+      return (
+        <div className="pb-peek-inbox">
+          <div className="pb-peek-itabs">
+            <span className="on">내게 온 요청 {rows.length}</span><span>내가 낸 요청</span><span>끝난 요청</span>
+          </div>
+          {rows.slice(0, 3).map((r, i) => (
+            <div key={i} className="pb-peek-irow">
+              <i style={{ background: dots[i] }} />
+              <span className="pb-peek-it">
+                <b>{r[0]}</b>
+                <em>{cell(r, personIdx)} 요청 · {cell(r, flowIdx)}</em>
+              </span>
+              <span className="pb-peek-idue">{dues[i]}</span>
+              <span className="pb-peek-iact">넘기기</span>
+            </div>
+          ))}
+          <div className="pb-peek-addline">＋ 요청 넣기 — 담당·기한만 고르면 끝</div>
+        </div>
+      );
+    }
+
+    if (mode === "calendar") {
+      const bars = [
+        { row: 0, from: 1, to: 4, label: rows[0]?.[0] || "일정", color: "var(--viz-1)" },
+        { row: 1, from: 2, to: 6, label: rows[1]?.[0] || "일정", color: "var(--viz-3)" },
+      ];
+      return (
+        <div>
+          <div className="pb-peek-cal">
+            {["월", "화", "수", "목", "금", "토", "일"].map((w) => <span key={w} className="pb-peek-cdow">{w}</span>)}
+            {Array.from({ length: 21 }, (_, i) => {
+              const row = Math.floor(i / 7), col = i % 7;
+              const bar = bars.find((b) => b.row === row && col === b.from);
+              return (
+                <span key={i} className="pb-peek-cday">
+                  {i + 3}
+                  {bar && (
+                    <i className="pb-peek-cbar" style={{ background: bar.color, width: `calc(${bar.to - bar.from + 1}00% + ${(bar.to - bar.from) * 3}px)` }}>
+                      {bar.label}
+                    </i>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+          <p className="pb-peek-note">빈 칸을 끌면 그 자리에 일정이 생깁니다 — 이름만 적으면 끝</p>
+        </div>
+      );
+    }
+
+    if (mode === "expiry") {
+      const ddays = ["D-21 · 갱신 결정 필요", "D-96"];
+      return (
+        <div className="pb-peek-exp">
+          {rows.slice(0, 2).map((r, i) => (
+            <div key={i} className={`pb-peek-expcard ${i === 0 ? "pb-peek-urgent" : ""}`}>
+              <span className={`pb-peek-dday ${i === 0 ? "pb-peek-dday-warn" : ""}`}>{ddays[i]}</span>
+              <b>{r[0]}</b>
+              <em>{cell(r, partnerIdx)} · {cell(r, lastDateIdx)} 만기</em>
+              <span className="pb-peek-expamt">{cell(r, moneyIdx)}원</span>
+              <span className="pb-peek-expgo">{i === 0 ? "계약서 만들기" : "계약서 열기"}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (mode === "expense") {
+      return (
+        <div className="pb-peek-exn">
+          <div className="pb-peek-gauge">
+            <span>예산 <b>10,200,000원</b> 중 <b>7,480,000원</b> 집행</span>
+            <i><em style={{ width: "73%" }} /></i>
+            <span>남은 <b>2,720,000원</b> · 73%</span>
+          </div>
+          <div className="pb-peek-exnquick">
+            <span>무엇에 썼나요</span><span>거래처</span><span>구분</span><span className="pb-peek-n">금액</span>
+            <b>적기</b>
+          </div>
+          {rows.slice(0, 2).map((r, i) => (
+            <div key={i} className="pb-peek-exnrow">
+              <b>{r[0]}</b>
+              <span className="pb-peek-chip" style={{ background: colorOf(1, cell(r, 1)) || "var(--text-dim)" }}>{cell(r, 1)}</span>
+              <em>{cell(r, moneyIdx + 1)}원</em>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (mode === "deals") {
+      const r = rows[0] || [];
+      const stages = ((t.columns[flowIdx - 1]?.settings?.options || []) as StatusOption[]);
+      const curIdx = stages.findIndex((o) => o.label === cell(r, flowIdx));
+      return (
+        <div className="pb-peek-deal">
+          <div className="pb-peek-dtop">
+            <b>{r[0]}</b><em>{cell(r, partnerIdx)}</em><span>{cell(r, moneyIdx)}원</span>
+          </div>
+          <div className="pb-peek-dsteps">
+            {stages.map((o, i) => (
+              <span key={o.id} className={`pb-peek-dstep ${i < curIdx ? "pb-peek-done" : i === curIdx ? "pb-peek-now" : ""}`}>
+                <i />{o.label}
+              </span>
             ))}
           </div>
-          <p className="pb-peek-note">광고 계정을 연결하면 캠페인·광고그룹·소재까지 저절로 채워집니다.</p>
+          <div className="pb-peek-dpay">
+            <i><em style={{ width: "33%" }} /></i>
+            <span>입금 <b>4,000,000</b> · 잔금 <b>8,000,000</b></span>
+          </div>
+          <div className="pb-peek-ddocs">
+            <span>견적서</span><span className="pb-peek-docon">계약서 만들기</span><span>발행</span>
+          </div>
         </div>
-      ) : (
-        <div className="pb-peek-tablewrap">
-          <table className="pb-peek-table">
-            <thead>
-              <tr>{heads.map((h, i) => <th key={`${h}-${i}`} className={isNum(i) ? "pb-peek-n" : ""}>{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {rows.map((r, ri) => (
-                <tr key={ri}>
-                  {heads.map((_, ci) => {
-                    const v = r[ci] || "";
-                    const c = colorOf(ci, v);
-                    return (
-                      <td key={ci} className={isNum(ci) ? "pb-peek-n" : ""}>
-                        {c ? <span className="pb-peek-chip" style={{ background: c }}>{v}</span>
-                          : ci === 0 ? <b>{v}</b> : v || <span className="pb-peek-dim">—</span>}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      );
+    }
+
+    //   표 — 그대로 격자를 채우는 템플릿
+    return (
+      <div className="pb-peek-tablewrap">
+        <table className="pb-peek-table">
+          <thead>
+            <tr>{heads.map((h, i) => <th key={`${h}-${i}`} className={isNum(i) ? "pb-peek-n" : ""}>{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.map((r, ri) => (
+              <tr key={ri}>
+                {heads.map((_, ci) => {
+                  const v = r[ci] || "";
+                  const c = colorOf(ci, v);
+                  return (
+                    <td key={ci} className={isNum(ci) ? "pb-peek-n" : ""}>
+                      {c ? <span className="pb-peek-chip" style={{ background: c }}>{v}</span>
+                        : ci === 0 ? <b>{v}</b> : v || <span className="pb-peek-dim">—</span>}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  })();
+
+  return (
+    <div className="pb-peek" style={{ left: x, top: y }} role="tooltip" aria-hidden="true">
+      <div className="pb-peek-head">
+        <b>{t.name}</b>
+        <em>{t.key === "ads" ? "입력 없이 대시보드만" : `${MODE_LABEL[mode]}${ro(MODE_LABEL[mode])} 열려요 · 예시`}</em>
+      </div>
+      {body}
     </div>
   );
 }
