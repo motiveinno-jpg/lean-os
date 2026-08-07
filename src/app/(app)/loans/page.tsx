@@ -1,4 +1,5 @@
 "use client";
+import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
 
 import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
@@ -533,6 +534,25 @@ export default function LoansPage() {
             {repaymentSchedule.length > 0 && (
               <div className="loan-schedule-panel glass-card">
                 <h3 className="text-sm font-bold mb-3">상환 스케줄 (향후 6개월 예상)</h3>
+                {/* 언제 부담이 몰리고 빚이 어떻게 줄어드는지 — 표만으로는 안 보인다.
+                    원금·이자(막대)와 잔금(선)은 모두 '원'이라 한 축에 겹쳐도 정직하다 (2026-08-07) */}
+                <div className="mb-4">
+                  <GroupedColumnChart
+                    height={200} unit="원"
+                    labels={repaymentSchedule.map((r) => r.month.slice(2))}
+                    series={[
+                      { name: "원금", values: repaymentSchedule.map((r) => r.principal) },
+                      { name: "이자", values: repaymentSchedule.map((r) => r.interest) },
+                    ]}
+                    trend={{ name: "남는 빚", values: repaymentSchedule.map((r) => r.remainingAfter) }} />
+                  <div className="mt-2 flex justify-center">
+                    <Legend items={[
+                      { name: "원금", color: vizColor(0) },
+                      { name: "이자", color: vizColor(1) },
+                      { name: "남는 빚", color: vizColor(2) },
+                    ]} />
+                  </div>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[500px]">
                     <thead>

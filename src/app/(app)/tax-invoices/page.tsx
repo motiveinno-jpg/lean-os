@@ -1,4 +1,5 @@
 "use client";
+import { WaterfallChart } from "@/components/charts/kit";
 import { getHometaxPausedUntil, setHometaxPause, clearHometaxPause } from "@/lib/data-sync";
 import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
@@ -2423,6 +2424,31 @@ function VATPreviewTab({ vatPreview, cardDeductions }: any) {
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-1">{totalVAT >= 0 ? "납부" : "환급"}</div>
         </div>
+      </div>
+
+      {/* 부가세 구조 — 화면에 글로 적힌 수식(매출세액 − 매입세액 − 카드공제 = 납부세액)을
+          그림으로 옮긴 것. 무엇이 얼마를 깎는지는 막대 여럿으로는 안 보인다 (2026-08-07) */}
+      <div className="glass-card p-5 mb-6">
+        <div className="mb-3">
+          <h3 className="text-sm font-bold text-[var(--text)]">부가세 구조</h3>
+          <p className="mt-0.5 text-[10px] text-[var(--text-dim)]">올해 합계 · 매출세액에서 무엇이 빠져 납부세액이 남는지</p>
+        </div>
+        {(() => {
+          const sales = vatPreview.reduce((n: number, v: any) => n + (v.salesTax || 0), 0);
+          const purchase = vatPreview.reduce((n: number, v: any) => n + (v.purchaseTax || 0), 0);
+          const card = vatPreview.reduce((n: number, v: any) => n + (v.cardDeduction || 0), 0);
+          if (sales === 0 && purchase === 0) {
+            return <p className="py-6 text-center text-xs text-[var(--text-dim)]">아직 집계된 세액이 없어요.</p>;
+          }
+          return (
+            <WaterfallChart height={200} unit="원" steps={[
+              { label: "매출세액", value: sales, kind: "add" },
+              { label: "매입세액", value: purchase, kind: "sub" },
+              { label: "카드공제", value: card, kind: "sub" },
+              { label: totalVAT >= 0 ? "납부세액" : "환급세액", value: Math.abs(sales - purchase - card), kind: "total" },
+            ]} />
+          );
+        })()}
       </div>
 
       {/* Quarterly Breakdown */}
