@@ -115,6 +115,8 @@ ${COMMON_RULES}
 - snapshot 만으로 답할 수 있으면 툴을 부르지 말고 곧바로 respond 로 마무리합니다.
 - 직원을 이름으로 지목한 질문은 find_employee 로 employee_id 를 먼저 확인한 뒤 get_attendance 를 부르세요.
 - 특정 직원을 지목하지 않은 근태 질문("지난달 지각한 사람", "결근 잦은 직원", "연장근무 많은 사람", "이번 달 근태 어때")은 get_attendance_summary 한 번으로 답하세요. 직원을 한 명씩 find_employee 로 훑지 말고, 데이터가 없다고 넘겨짚지도 마세요 — 이 툴이 회사 전원을 집계해 줍니다.
+- 급여·연봉·인건비 질문("월급 얼마야", "누가 제일 많이 받아", "인건비 총액", "○○ 연봉")은 get_payroll 로 답하세요. 스냅샷에는 급여가 들어 있지 않으니 "급여 데이터에 접근할 수 없다"고 답하지 말고 반드시 이 툴을 부르세요.
+- 조회 툴이 있는 주제는 "확인할 수 없다"고 넘기지 말고 먼저 툴을 부르세요. 툴을 부른 뒤에도 값이 비어 있을 때만 없다고 답합니다.
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
@@ -211,6 +213,79 @@ const MANAGER_READ_TOOLS = [
         to: { type: "string", description: "종료일 YYYY-MM-DD" },
       },
       required: ["from", "to"],
+    },
+  },
+  {
+    name: "get_payroll",
+    description: "회사 급여 현황을 반환합니다 — 직원별 월 급여·연봉 환산과 회사 전체 월 인건비 합계. '월급 얼마야', '누가 제일 많이 받아', '인건비 총액', '연봉' 같은 급여 질문은 이 툴로 답하세요. period_month(YYYY-MM)를 주면 그 달 발급된 급여명세서(실지급액·공제)도 함께 반환합니다.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        period_month: { type: "string", description: "급여명세서를 함께 볼 달 YYYY-MM (선택)" },
+        employee_name: { type: "string", description: "특정 직원만 볼 때 이름 (선택, 미지정 시 전원)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "list_employees",
+    description: "회사 전체 직원 명부를 반환합니다(이름·부서·직급·재직상태·입사일). '우리 직원 누구누구 있어', '부서별 인원', '이번 달 입사자' 처럼 이름을 모르는 질문에 쓰세요. 급여는 get_payroll 로 따로 조회합니다.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: { include_left: { type: "boolean", description: "퇴사자도 포함할지 (기본 false)" } },
+      required: [],
+    },
+  },
+  {
+    name: "get_leave_status",
+    description: "휴가 신청 현황을 반환합니다 — 기간별 승인/대기 휴가와 직원별 사용 일수. '누가 휴가 갔어', '이번 달 휴가자', '연차 많이 쓴 사람', '결재 대기 중인 휴가' 질문에 쓰세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        from: { type: "string", description: "시작일 YYYY-MM-DD" },
+        to: { type: "string", description: "종료일 YYYY-MM-DD" },
+        status: { type: "string", description: "approved|pending 등으로 좁힐 때 (선택, 미지정 시 전체)" },
+      },
+      required: ["from", "to"],
+    },
+  },
+  {
+    name: "list_approval_requests",
+    description: "전자결재 요청 현황을 반환합니다(제목·유형·금액·상태·단계·신청자). '결재 대기 몇 건이야', '내가 결재할 거 뭐 있어', '이번 달 결재 올라온 것' 질문에 쓰세요. 양식(서식) 자체를 묻는 것이면 list_approval_forms 입니다.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        status: { type: "string", description: "pending|approved|rejected 등 (선택)" },
+        from: { type: "string", description: "신청일 시작 YYYY-MM-DD (선택)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_spending",
+    description: "카드·통장 지출 내역을 반환합니다 — 기간별 합계와 가맹점/거래처 상위 목록. '이번 달 카드 얼마 썼어', '어디에 제일 많이 썼어', '고정비 얼마', '통장에서 나간 돈' 질문에 쓰세요. 기간 최대 92일.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        from: { type: "string", description: "시작일 YYYY-MM-DD" },
+        to: { type: "string", description: "종료일 YYYY-MM-DD" },
+        source: { type: "string", description: "card|bank|both (기본 both)" },
+      },
+      required: ["from", "to"],
+    },
+  },
+  {
+    name: "list_bank_accounts",
+    description: "등록된 통장 계좌와 잔액을 반환합니다. '잔고 얼마야', '어느 통장에 얼마 있어' 질문에 쓰세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: "find_partner",
+    description: "거래처를 이름·사업자번호로 찾아 연락처·구분·거래 정보를 반환합니다. 이름 없이 부르면 최근 등록순 목록을 반환합니다. '○○ 거래처 정보', '거래처 몇 곳이야' 질문에 쓰세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: { query: { type: "string", description: "거래처명 또는 사업자번호 일부 (선택)" } },
+      required: [],
     },
   },
   {
@@ -624,6 +699,265 @@ async function executeReadTool(
       },
       note: `지각은 회사 지정 출근시각(${Math.floor(companyStartMin / 60)}시 ${companyStartMin % 60}분)에 유예 ${graceMin}분을 더한 시각을 넘겨 출근한 날만 셌습니다. 유예 안에 찍은 출근은 지각이 아닙니다. 개인 출근시각이 따로 설정된 직원은 그 시각 기준으로 계산했습니다. 지각 분은 유예가 아니라 지정 출근시각 기준입니다. 기간 중 출퇴근 기록이 하나도 없는 직원은 목록에 나오지 않습니다.`,
     };
+  }
+
+  if (name === "get_payroll") {
+    // 급여의 소스는 employees.salary = '월' 급여다(연봉은 ×12). 화면(구성원 > 급여)과 같은 기준.
+    //   payroll_items 는 명세서를 발급한 달에만 행이 생기므로, 없다고 급여가 없는 게 아니다.
+    const nameQ = String(input.employee_name ?? "").trim().slice(0, 40);
+    let q = admin
+      .from("employees")
+      .select("id, name, department, position, status, hire_date, salary")
+      .eq("company_id", companyId);
+    if (nameQ) q = q.ilike("name", `%${nameQ}%`);
+    const { data: emps, error } = await q.order("salary", { ascending: false, nullsFirst: false }).limit(200);
+    if (error) return { error: "급여 조회에 실패했습니다." };
+
+    const rows = (emps ?? []) as {
+      id: string; name: string; department: string | null; position: string | null;
+      status: string | null; hire_date: string | null; salary: number | null;
+    }[];
+    // 인건비 합계는 재직 중인 사람만 — 퇴사자까지 더하면 실제 부담과 달라진다.
+    const activeStatuses = ["active", "joined", "invited"];
+    const active = rows.filter((r) => activeStatuses.includes(String(r.status ?? "")));
+    const monthlyTotal = active.reduce((s, r) => s + Number(r.salary ?? 0), 0);
+
+    const result: Record<string, unknown> = {
+      employees: rows.map((r) => ({
+        name: r.name, department: r.department, position: r.position,
+        status: r.status, hire_date: r.hire_date,
+        monthly_salary: r.salary === null ? null : Number(r.salary),
+        annual_salary: r.salary === null ? null : Number(r.salary) * 12,
+      })),
+      totals: {
+        headcount_active: active.length,
+        monthly_payroll_total: monthlyTotal,
+        annual_payroll_total: monthlyTotal * 12,
+        salary_missing_count: active.filter((r) => r.salary === null).length,
+      },
+      note: "monthly_salary 는 월 급여, annual_salary 는 ×12 환산입니다. 합계는 재직 중(active·joined·invited)인 직원만 더했습니다. salary 가 null 이면 아직 입력되지 않은 것이니 0으로 보지 말고 '미입력'으로 알려 주세요.",
+    };
+
+    // 발급된 급여명세서 — 실지급액·공제는 이 표에만 있다.
+    const pm = String(input.period_month ?? "").trim();
+    if (/^\d{4}-\d{2}$/.test(pm)) {
+      const { data: items } = await admin
+        .from("payroll_items")
+        .select("employee_id, base_salary, non_taxable_amount, deductions_total, net_pay, status, issued_at")
+        .eq("company_id", companyId)
+        .eq("period_month", `${pm}-01`)
+        .limit(200);
+      const byId = new Map(rows.map((r) => [r.id, r.name]));
+      const list = (items ?? []) as {
+        employee_id: string; base_salary: number; non_taxable_amount: number;
+        deductions_total: number | null; net_pay: number; status: string | null; issued_at: string | null;
+      }[];
+      result.payslips = {
+        period_month: pm,
+        count: list.length,
+        items: list.map((i) => ({
+          name: byId.get(i.employee_id) ?? "(퇴사자 또는 미상)",
+          base_salary: Number(i.base_salary ?? 0),
+          non_taxable_amount: Number(i.non_taxable_amount ?? 0),
+          deductions_total: Number(i.deductions_total ?? 0),
+          net_pay: Number(i.net_pay ?? 0),
+          status: i.status, issued_at: i.issued_at,
+        })),
+        note: list.length === 0
+          ? `${pm} 에 발급된 급여명세서가 없습니다. 명세서를 아직 안 만든 것이지 급여가 없다는 뜻이 아닙니다 — 위 employees 의 월 급여로 답하세요.`
+          : "명세서가 있는 달은 net_pay(실지급액)가 실제 지급 기준입니다.",
+      };
+    }
+    return result;
+  }
+
+  if (name === "list_employees") {
+    let q = admin.from("employees")
+      .select("name, department, position, status, hire_date, email, phone")
+      .eq("company_id", companyId);
+    if (!input.include_left) q = q.in("status", ["active", "joined", "invited"]);
+    const { data, error } = await q.order("hire_date", { ascending: false }).limit(300);
+    if (error) return { error: "직원 명부 조회에 실패했습니다." };
+    const rows = (data ?? []) as { department: string | null }[];
+    const byDept: Record<string, number> = {};
+    for (const r of rows) byDept[r.department || "(부서 미지정)"] = (byDept[r.department || "(부서 미지정)"] ?? 0) + 1;
+    return { employees: rows, headcount: rows.length, by_department: byDept };
+  }
+
+  if (name === "get_leave_status") {
+    const from = String(input.from ?? ""), to = String(input.to ?? "");
+    if (!DATE_RE.test(from) || !DATE_RE.test(to)) return { error: "from·to 는 YYYY-MM-DD 형식이어야 합니다." };
+    if (from > to) return { error: "from 이 to 보다 늦습니다." };
+    // 기간에 '걸치는' 휴가를 모두 — 시작일만 보면 이어지는 장기 휴가를 놓친다.
+    let q = admin.from("leave_requests")
+      .select("employee_id, leave_type, start_date, end_date, days, status, reason, leave_unit")
+      .eq("company_id", companyId)
+      .lte("start_date", to).gte("end_date", from);
+    const st = String(input.status ?? "").trim();
+    if (st) q = q.eq("status", st);
+    const [{ data: leaves, error }, { data: emps }] = await Promise.all([
+      q.order("start_date", { ascending: true }).limit(300),
+      admin.from("employees").select("id, name, department").eq("company_id", companyId),
+    ]);
+    if (error) return { error: "휴가 조회에 실패했습니다." };
+    const nameOf = new Map(((emps ?? []) as { id: string; name: string; department: string | null }[])
+      .map((e) => [e.id, e]));
+    const list = ((leaves ?? []) as {
+      employee_id: string; leave_type: string; start_date: string; end_date: string;
+      days: number; status: string | null; reason: string | null; leave_unit: string | null;
+    }[]).map((l) => ({
+      name: nameOf.get(l.employee_id)?.name ?? "(미상)",
+      department: nameOf.get(l.employee_id)?.department ?? null,
+      leave_type: l.leave_type, start_date: l.start_date, end_date: l.end_date,
+      days: Number(l.days ?? 0), status: l.status, unit: l.leave_unit, reason: l.reason,
+    }));
+    const usedByEmp: Record<string, number> = {};
+    for (const l of list) if (l.status === "approved") usedByEmp[l.name] = (usedByEmp[l.name] ?? 0) + l.days;
+    return {
+      period: { from, to },
+      leaves: list,
+      totals: {
+        count: list.length,
+        approved: list.filter((l) => l.status === "approved").length,
+        pending: list.filter((l) => l.status !== "approved" && l.status !== "rejected").length,
+      },
+      approved_days_by_employee: usedByEmp,
+      note: "기간에 걸치는 휴가를 모두 포함합니다(시작일이 기간 이전이어도 이어지면 포함). days 는 신청 일수이고, 기간을 잘라 센 값이 아닙니다.",
+    };
+  }
+
+  if (name === "list_approval_requests") {
+    let q = admin.from("approval_requests")
+      .select("title, request_type, amount, status, current_stage, total_stages, created_at, requester_id")
+      .eq("company_id", companyId);
+    const st = String(input.status ?? "").trim();
+    if (st) q = q.eq("status", st);
+    const from = String(input.from ?? "").trim();
+    if (DATE_RE.test(from)) q = q.gte("created_at", `${from}T00:00:00+09:00`);
+    const [{ data, error }, { data: users }] = await Promise.all([
+      q.order("created_at", { ascending: false }).limit(100),
+      admin.from("users").select("id, name").eq("company_id", companyId),
+    ]);
+    if (error) return { error: "결재 요청 조회에 실패했습니다." };
+    const uname = new Map(((users ?? []) as { id: string; name: string }[]).map((u) => [u.id, u.name]));
+    const rows = ((data ?? []) as {
+      title: string; request_type: string; amount: number | null; status: string | null;
+      current_stage: number | null; total_stages: number | null; created_at: string; requester_id: string | null;
+    }[]).map((r) => ({
+      title: r.title, request_type: r.request_type, amount: r.amount === null ? null : Number(r.amount),
+      status: r.status, stage: `${r.current_stage ?? "-"}/${r.total_stages ?? "-"}`,
+      requester: r.requester_id ? (uname.get(r.requester_id) ?? "(미상)") : null,
+      created_at: r.created_at,
+    }));
+    return {
+      requests: rows,
+      totals: {
+        count: rows.length,
+        pending: rows.filter((r) => r.status === "pending").length,
+        approved: rows.filter((r) => r.status === "approved").length,
+        rejected: rows.filter((r) => r.status === "rejected").length,
+      },
+    };
+  }
+
+  if (name === "get_spending") {
+    const from = String(input.from ?? ""), to = String(input.to ?? "");
+    if (!DATE_RE.test(from) || !DATE_RE.test(to)) return { error: "from·to 는 YYYY-MM-DD 형식이어야 합니다." };
+    if (from > to) return { error: "from 이 to 보다 늦습니다." };
+    const span = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+    if (span > 92) return { error: "기간은 최대 92일까지 조회할 수 있습니다." };
+    const src = String(input.source ?? "both");
+    const wantCard = src !== "bank", wantBank = src !== "card";
+
+    const top = (m: Record<string, { amount: number; count: number }>) =>
+      Object.entries(m).sort((a, b) => b[1].amount - a[1].amount).slice(0, 15)
+        .map(([k, v]) => ({ name: k, amount: v.amount, count: v.count }));
+
+    const out: Record<string, unknown> = { period: { from, to } };
+
+    if (wantCard) {
+      const { data } = await admin.from("card_transactions")
+        .select("transaction_date, merchant_name, amount, category, is_fixed_cost, card_name")
+        .eq("company_id", companyId)
+        .gte("transaction_date", from).lte("transaction_date", to)
+        .limit(3000);
+      const rows = (data ?? []) as { merchant_name: string | null; amount: number | null; category: string | null; is_fixed_cost: boolean | null }[];
+      const byMerchant: Record<string, { amount: number; count: number }> = {};
+      const byCategory: Record<string, { amount: number; count: number }> = {};
+      let total = 0, fixed = 0;
+      for (const r of rows) {
+        const amt = Number(r.amount ?? 0);
+        total += amt;
+        if (r.is_fixed_cost) fixed += amt;
+        const mk = r.merchant_name || "(가맹점 미상)";
+        (byMerchant[mk] || (byMerchant[mk] = { amount: 0, count: 0 })).amount += amt;
+        byMerchant[mk].count += 1;
+        const ck = r.category || "(미분류)";
+        (byCategory[ck] || (byCategory[ck] = { amount: 0, count: 0 })).amount += amt;
+        byCategory[ck].count += 1;
+      }
+      out.card = {
+        total_amount: total, count: rows.length, fixed_cost_amount: fixed,
+        top_merchants: top(byMerchant), by_category: top(byCategory),
+        truncated: rows.length >= 3000,
+      };
+    }
+
+    if (wantBank) {
+      const { data } = await admin.from("bank_transactions")
+        .select("transaction_date, counterparty, description, amount, type, category, is_fixed_cost")
+        .eq("company_id", companyId)
+        .gte("transaction_date", from).lte("transaction_date", to)
+        .limit(3000);
+      const rows = (data ?? []) as { counterparty: string | null; description: string | null; amount: number | null; type: string | null; category: string | null }[];
+      let inflow = 0, outflow = 0;
+      const byOut: Record<string, { amount: number; count: number }> = {};
+      for (const r of rows) {
+        const amt = Math.abs(Number(r.amount ?? 0));
+        // ⚠️ bank_transactions.amount 는 입·출금 모두 양수다(운영 확인: 음수 0건).
+        //   방향은 오직 type('expense'/'income')에 있으므로 부호로 판단하면 전부 입금이 된다.
+        const ty = String(r.type ?? "");
+        const isOut = ty === "expense" || ty.includes("출금") || ty === "withdrawal";
+        if (isOut) {
+          outflow += amt;
+          const k = r.counterparty || r.description || "(적요 없음)";
+          (byOut[k] || (byOut[k] = { amount: 0, count: 0 })).amount += amt;
+          byOut[k].count += 1;
+        } else inflow += amt;
+      }
+      out.bank = {
+        inflow_amount: inflow, outflow_amount: outflow, count: rows.length,
+        top_outflow_counterparties: top(byOut), truncated: rows.length >= 3000,
+      };
+    }
+    out.note = "금액은 원 단위입니다. truncated 가 true 면 건수가 많아 일부만 집계된 것이니 기간을 좁혀 다시 확인하세요.";
+    return out;
+  }
+
+  if (name === "list_bank_accounts") {
+    const { data, error } = await admin.from("bank_accounts")
+      .select("bank_name, alias, role, balance, is_primary")
+      .eq("company_id", companyId).order("is_primary", { ascending: false }).limit(50);
+    if (error) return { error: "계좌 조회에 실패했습니다." };
+    const rows = (data ?? []) as { balance: number | null }[];
+    return {
+      accounts: data ?? [],
+      total_balance: rows.reduce((s, r) => s + Number(r.balance ?? 0), 0),
+      note: "잔액은 마지막 동기화 시점 기준입니다. 계좌번호는 보안상 제공하지 않습니다.",
+    };
+  }
+
+  if (name === "find_partner") {
+    const qs = String(input.query ?? "").trim().slice(0, 40);
+    let q = admin.from("partners")
+      .select("name, type, classification, business_number, representative, contact_name, contact_phone, contact_email, is_active, is_dormant, created_at")
+      .eq("company_id", companyId);
+    if (qs) q = q.or(`name.ilike.%${qs}%,business_number.ilike.%${qs}%`);
+    const { data, error } = await q.order("created_at", { ascending: false }).limit(qs ? 20 : 30);
+    if (error) return { error: "거래처 조회에 실패했습니다." };
+    const { count } = await admin.from("partners")
+      .select("id", { count: "exact", head: true }).eq("company_id", companyId);
+    return { partners: data ?? [], total_partner_count: count ?? null };
   }
 
   if (name === "list_contract_templates") {
