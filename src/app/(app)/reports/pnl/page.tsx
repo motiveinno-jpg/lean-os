@@ -1,4 +1,5 @@
 "use client";
+import { WaterfallChart } from "@/components/charts/kit";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Ico } from "@/components/ui-icon";
@@ -849,8 +850,28 @@ function PnlPageInner() {
         </table>
       </div>
 
-      {/* Chart — 표 아래 */}
+      {/* 손익 구조 — 무엇이 얼마를 깎아 이익이 남는지. 막대 여럿으로는 이 관계가 안 보여
+          폭포수로 그린다 (2026-08-07 사장님: "자료에 최적인 그래프를 판단해서") */}
       <div className="pnl-chart-section">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 mb-3">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-[var(--text)]">손익 구조</h3>
+            <p className="mt-0.5 text-[10px] text-[var(--text-dim)]">고른 기간 합계 · 매출에서 무엇이 빠져 영업이익이 남는지</p>
+          </div>
+          <WaterfallChart steps={(() => {
+            const sum = (row: Record<string, number>) => months.reduce((n, m) => n + (row[m] || 0), 0);
+            const rev = sum(computed.totalRevenue);
+            const cogs = sum(computed.cogs);
+            const opex = sum(computed.totalOpex);
+            return [
+              { label: "매출", value: rev, kind: "add" as const },
+              { label: "매출원가", value: cogs, kind: "sub" as const },
+              { label: "매출총이익", value: rev - cogs, kind: "total" as const },
+              { label: "판관비", value: opex, kind: "sub" as const },
+              { label: "영업이익", value: rev - cogs - opex, kind: "total" as const },
+            ];
+          })()} />
+        </div>
         <PnlChart
           months={months}
           totalRevenue={computed.totalRevenue}

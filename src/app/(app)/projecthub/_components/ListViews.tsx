@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { BarList } from "@/components/charts";
-import { FunnelChart } from "@/components/charts/kit";
+import { FunnelChart, ColumnChart, vizColor } from "@/components/charts/kit";
 import { STAGE_LABEL, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 import { todayKst } from "@/lib/kst";
 
@@ -202,18 +202,15 @@ export function PortfolioCharts({ rows, pnlOf, outstandingOf, agingBuckets, user
         {agingTotal <= 0 ? (
           <p className="ph-view-empty">미수가 없어요. 발행한 계산서가 전부 입금됐어요.</p>
         ) : (
-          <div className="ph-aging">
-            {agingBuckets.map((b) => {
-              const h = agingTotal > 0 ? Math.round((b.amount / agingTotal) * 100) : 0;
-              return (
-                <div key={b.label} className="ph-aging-col">
-                  <span className="ph-aging-amt">{b.amount > 0 ? won(b.amount) : "—"}</span>
-                  <span className={`ph-aging-bar ph-aging-${b.label.replace(/[^0-9a-z]/gi, "")}`} style={{ height: `${Math.max(b.amount > 0 ? 6 : 2, h)}%` }} />
-                  <span className="ph-aging-label">{b.label}<br /><em>{b.count}건</em></span>
-                </div>
-              );
-            })}
-          </div>
+          /* 경과일 구간은 **순서가 있는 분포**다 — 왼→오른쪽으로 오래된 쪽이 보이도록 세로 막대로 둔다
+             (가로 목록으로 두면 '오래될수록'이라는 방향이 사라진다) */
+          <ColumnChart height={180} unit="원"
+            data={agingBuckets.map((b, i) => ({
+              label: `${b.label} (${b.count}건)`,
+              value: b.amount,
+              //   오래될수록 진하게가 아니라 — 구간마다 다른 것이므로 시리즈 색을 차례로 쓴다
+              color: vizColor(i),
+            }))} />
         )}
         <p className="ph-chart-note">계산서 발행액 − 실입금(통장 자동 매칭)으로 계산해요. 오래된 쪽부터 회수해요.</p>
       </div>

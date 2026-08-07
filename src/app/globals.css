@@ -7061,3 +7061,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .viz-group:hover > i { @apply brightness-110; }
 .viz-group-click { @apply cursor-pointer; }
 .viz-group-on { @apply bg-[var(--bg-card)]; }
+/* 폭포수 — 막대가 바닥이 아니라 앞 단계 끝에서 시작한다 (2026-08-07) */
+.viz-wf { @apply relative flex-1 min-w-[10px] h-full; }
+.viz-wf > i { @apply absolute left-1/2 -translate-x-1/2 w-full max-w-[46px] rounded transition; }
+.viz-wf:hover > i { @apply brightness-110; }
+/* 비용 구성 — 도넛(비중)과 목록(정확한 금액)을 함께 둔다 (2026-08-07) */
+.lp-donut-wrap { @apply flex flex-col items-center gap-2 mb-4; }
+.lp-dot { @apply inline-block w-2 h-2 rounded-sm mr-1.5 align-middle; }

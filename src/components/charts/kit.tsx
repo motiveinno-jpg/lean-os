@@ -189,6 +189,49 @@ export function LineChart({ series, height = 200, unit = "" }: { series: Series[
   );
 }
 
+/** 폭포수 — 무엇이 얼마를 깎아 얼마가 남는지. 손익 구조(매출 → 원가 → 판관비 → 이익)처럼
+ *  '더하고 빼서 결론에 닿는' 자료의 최적 형태다. 막대 여럿으로는 그 관계가 안 보인다.
+ *  step: 'add'(더함) · 'sub'(뺌) · 'total'(그때까지의 결론) */
+export function WaterfallChart({ steps, unit = "원", height = 220 }: {
+  steps: { label: string; value: number; kind: "add" | "sub" | "total" }[];
+  unit?: string; height?: number;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  //   막대가 떠 있는 높이를 미리 셈한다 — 결론(total) 은 바닥에서 시작한다
+  let run = 0;
+  const bars = steps.map((s) => {
+    const start = s.kind === "total" ? 0 : s.kind === "add" ? run : run - Math.abs(s.value);
+    const end = s.kind === "total" ? s.value : s.kind === "add" ? run + Math.abs(s.value) : run;
+    if (s.kind !== "total") run = s.kind === "add" ? run + Math.abs(s.value) : run - Math.abs(s.value);
+    else run = s.value;
+    return { ...s, lo: Math.min(start, end), hi: Math.max(start, end) };
+  });
+  const max = niceMax(Math.max(1, ...bars.map((b) => b.hi)));
+  //   더하는 것·빼는 것·결론을 색으로 가른다(상태색이 아니라 시리즈 색 — 좋고 나쁨이 아니다)
+  const colorOf = (k: string) => (k === "sub" ? vizColor(1) : k === "total" ? vizColor(2) : vizColor(0));
+  return (
+    <div className="viz-wrap" style={{ height }}>
+      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></div>
+      <div className="viz-plot" onMouseLeave={() => setHover(null)}>
+        <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
+        {bars.map((b, i) => (
+          <span key={`${b.label}-${i}`} className="viz-wf" onMouseEnter={() => setHover(i)}>
+            <i style={{
+              bottom: `${(b.lo / max) * 100}%`,
+              height: `${Math.max(1, ((b.hi - b.lo) / max) * 100)}%`,
+              background: colorOf(b.kind),
+            }} />
+            {hover === i && (
+              <b className="viz-tip">{b.label}<em>{b.kind === "sub" ? "−" : ""}{fmt(Math.abs(b.value))}{unit}</em></b>
+            )}
+          </span>
+        ))}
+      </div>
+      <div className="viz-xaxis">{steps.map((s, i) => <em key={`${s.label}-${i}`}>{s.label}</em>)}</div>
+    </div>
+  );
+}
+
 /** 도넛 — 무엇이 얼마를 차지하는지. 가운데에 합계를 둔다 */
 export function DonutChart({ data, total, unit = "", hole = 0.62 }: {
   data: Datum[]; total?: string; unit?: string; hole?: number;

@@ -1,4 +1,5 @@
 "use client";
+import { DonutChart, Legend, vizColor } from "@/components/charts/kit";
 
 // 비용 현황 — "어디에 썼나?"에 답하는 대표용 화면(2026-07-08).
 //   이번 달 비용 + 지난달 대비 + 고정 vs 변동 + 월별 추세 + 어디에 썼나(카테고리).
@@ -104,11 +105,24 @@ export default function ExpensePage() {
                   <div className="text-xs text-[var(--text-dim)] py-6 text-center">분류된 비용 데이터가 없습니다. 거래내역을 분류하면 채워집니다.</div>
                 ) : (
                   <>
+                    {/* '구성'을 묻는 자리다(각 줄이 이미 %를 달고 있다) — 비중은 도넛이 한눈에 들어오고,
+                        정확한 금액은 아래 목록이 맡는다. 조각이 여덟을 넘으면 큰 것 일곱 + 기타로 접는다
+                        (2026-08-07 사장님: "자료에 최적인 그래프를 판단해서") */}
+                    <div className="lp-donut-wrap">
+                      <DonutChart unit="원"
+                        data={(() => {
+                          if (cats.length <= 8) return cats.map((c) => ({ label: c.label, value: c.amt }));
+                          const top = cats.slice(0, 7).map((c) => ({ label: c.label, value: c.amt }));
+                          const rest = cats.slice(7).reduce((n, c) => n + c.amt, 0);
+                          return [...top, { label: `기타 ${cats.length - 7}개`, value: rest }];
+                        })()} />
+                      <Legend items={cats.slice(0, 8).map((c, i) => ({ name: c.label, color: vizColor(i) }))} />
+                    </div>
                     <div className="lp-bar-list">
-                      {cats.map((c) => (
+                      {cats.map((c, i) => (
                         <div key={c.label} className="lp-bar-row">
-                          <span className="lp-bar-name">{c.label}</span>
-                          <div className="lp-bar-track"><div className="lp-bar-fill" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: "var(--viz-1)" }} /></div>
+                          <span className="lp-bar-name"><i className="lp-dot" style={{ background: vizColor(i) }} />{c.label}</span>
+                          <div className="lp-bar-track"><div className="lp-bar-fill" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: vizColor(i) }} /></div>
                           <span className="lp-bar-amt mono-number">{fmt(c.amt)}</span>
                           <span className="lp-bar-share mono-number">{catSum > 0 ? Math.round((c.amt / catSum) * 100) : 0}%</span>
                         </div>
