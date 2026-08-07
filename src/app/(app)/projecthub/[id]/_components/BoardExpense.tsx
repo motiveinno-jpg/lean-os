@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { type BoardColumn, type BoardGroup, type BoardItem, type StatusOption } from "@/lib/project-boards";
+import { todayKst } from "@/lib/kst";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 
@@ -36,17 +37,18 @@ export function BoardExpense({ items, cols, groups, onAdd, onOpen, renderPartner
     return { plan, real, left: plan - real, pct: plan > 0 ? Math.round((real / plan) * 100) : null };
   }, [items, planCol, realCol]);
 
-  //   '최근' 은 적은 차례가 아니라 **결제일이 가까운 순**이 실무에 맞다 — 오늘 이후 예정 건이 먼저,
-  //   그다음 최근에 지나간 건. (2026-08-07 시연: 표 맨 끝 여섯 줄을 뒤집어 보여 주고 있었다)
+  //   '최근' 은 적은 차례가 아니라 **오늘에 가까운 결제일** 순이 실무에 맞다 — 곧 나갈 돈과
+  //   방금 나간 돈이 먼저 보여야 한다. (2026-08-07 시연: 처음엔 표 맨 끝 여섯 줄을 뒤집어 보여
+  //   줬고, 날짜순으로 고쳤더니 이번엔 **먼 미래**가 맨 위로 왔다.)
   const dateCol = cols.find((c) => c.type === "date") || null;
   const recent = useMemo(() => {
-    const key = (it: BoardItem) => {
+    const today = todayKst();
+    const dist = (it: BoardItem) => {
       const v = dateCol ? String(it.values?.[dateCol.id] || "").slice(0, 10) : "";
-      return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return Number.MAX_SAFE_INTEGER;      // 날짜 없는 건은 맨 뒤
+      return Math.abs((new Date(`${v}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
     };
-    return [...items]
-      .sort((a, b) => (key(b) || "0000").localeCompare(key(a) || "0000"))
-      .slice(0, 6);
+    return [...items].sort((a, b) => dist(a) - dist(b)).slice(0, 6);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, dateCol?.id]);
   const kindOf = (it: BoardItem) => kindOptions.find((o) => o.id === it.values?.[kindCol?.id || ""]) || null;
