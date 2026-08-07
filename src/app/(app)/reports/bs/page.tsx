@@ -852,7 +852,7 @@ function BalanceSheetPageInner() {
                   <div
                     style={{
                       width: `${Math.round((data.cashAndDeposits / data.totalAssets) * 100)}%`,
-                      background: "var(--viz-info)",
+                      background: "var(--viz-1)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -868,7 +868,7 @@ function BalanceSheetPageInner() {
                   <div
                     style={{
                       width: `${Math.round((data.accountsReceivable / data.totalAssets) * 100)}%`,
-                      background: "var(--viz-pos)",
+                      background: "var(--viz-3)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -885,7 +885,7 @@ function BalanceSheetPageInner() {
                     <div
                       style={{
                         width: `${Math.round((data.fixedAssets / data.totalAssets) * 100)}%`,
-                        background: "var(--viz-brand)",
+                        background: "var(--viz-8)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -914,7 +914,7 @@ function BalanceSheetPageInner() {
                   <div
                     style={{
                       width: `${Math.round((data.totalLiabilities / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100)}%`,
-                      background: "var(--viz-neg)",
+                      background: "var(--viz-2)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -930,7 +930,7 @@ function BalanceSheetPageInner() {
                   <div
                     style={{
                       width: `${Math.round((Math.max(data.totalEquity, 0) / (data.totalLiabilities + Math.max(data.totalEquity, 0))) * 100)}%`,
-                      background: "var(--viz-pos)",
+                      background: "var(--viz-3)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -949,13 +949,13 @@ function BalanceSheetPageInner() {
           </div>
           <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-dim)", flexWrap: "wrap" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-info)", display: "inline-block" }} />현금
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-1)", display: "inline-block" }} />현금
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-pos)", display: "inline-block" }} />채권/자본
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-3)", display: "inline-block" }} />채권/자본
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-brand)", display: "inline-block" }} />고정자산
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-8)", display: "inline-block" }} />고정자산
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-2)", display: "inline-block" }} />부채
