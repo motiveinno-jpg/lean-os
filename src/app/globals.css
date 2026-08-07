@@ -7052,3 +7052,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .adb-charthead { @apply flex flex-wrap items-center gap-1.5; }
 .adb-charthead select { @apply h-7 px-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[11.5px] font-semibold text-[var(--text-muted)] focus:outline-none focus:border-[var(--primary)]; }
 .adb-warn { @apply text-[11px] text-[var(--warning)] bg-[var(--warning)]/10 rounded-lg px-2 py-1.5; }
+/* 묶음 막대 — 한 자리에 계열 여럿. 막대 사이 2px, 묶음 사이는 더 벌린다 (2026-08-07) */
+.viz-group { @apply relative flex-1 min-w-[10px] h-full flex items-end justify-center gap-[2px] rounded-md; }
+.viz-group > i { @apply block w-full max-w-[18px] rounded-t transition; }
+.viz-group:hover > i { @apply brightness-110; }
+.viz-group-click { @apply cursor-pointer; }
+.viz-group-on { @apply bg-[var(--bg-card)]; }

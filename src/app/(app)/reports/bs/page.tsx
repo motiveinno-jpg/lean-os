@@ -1,4 +1,5 @@
 "use client";
+import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
 
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
@@ -1012,38 +1013,23 @@ function BalanceSheetPageInner() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="m-0 text-sm font-bold text-[var(--text)]">월별 추이 (최근 6개월)</h3>
             </div>
-            {(() => {
-              const maxVal = Math.max(...trend.map(p => Math.max(p.totalAssets, p.totalLiabilities + Math.max(p.totalEquity, 0))), 1);
-              return (
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 160 }}>
-                  {trend.map((p) => {
-                    const assetH = Math.round((p.totalAssets / maxVal) * 140);
-                    const liabH = Math.round((p.totalLiabilities / maxVal) * 140);
-                    const eqH = Math.round((Math.max(p.totalEquity, 0) / maxVal) * 140);
-                    return (
-                      <div key={p.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                        <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 140 }}>
-                          <div style={{ width: 18, height: assetH, background: "var(--viz-1)", borderRadius: "4px 4px 0 0", minHeight: 2 }} title={`자산: ₩${p.totalAssets.toLocaleString()}`} />
-                          <div style={{ width: 18, height: liabH, background: "var(--viz-2)", borderRadius: "4px 4px 0 0", minHeight: 2 }} title={`부채: ₩${p.totalLiabilities.toLocaleString()}`} />
-                          <div style={{ width: 18, height: eqH, background: "var(--viz-3)", borderRadius: "4px 4px 0 0", minHeight: 2 }} title={`자본: ₩${Math.max(p.totalEquity, 0).toLocaleString()}`} />
-                        </div>
-                        <div style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap" }}>{p.month}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-            <div style={{ display: "flex", gap: 16, fontSize: 10, color: "var(--text-dim)", marginTop: 12, justifyContent: "center" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-1)", display: "inline-block" }} />자산
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-2)", display: "inline-block" }} />부채
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: "var(--viz-3)", display: "inline-block" }} />자본
-              </span>
+            {/* 차트 키트의 묶음 막대 — 눈금·격자·손대면 뜨는 값·범례가 다른 화면과 같은 규칙이 된다
+                (2026-08-07 사장님: "색뿐 아니라 디자인도"). 예전엔 브라우저 기본 말풍선이라
+                1초쯤 기다려야 값이 보였고 세 계열을 한 번에 비교할 수 없었다. */}
+            <GroupedColumnChart
+              height={200} unit="원"
+              labels={trend.map((p) => p.month)}
+              series={[
+                { name: "자산", values: trend.map((p) => p.totalAssets) },
+                { name: "부채", values: trend.map((p) => p.totalLiabilities) },
+                { name: "자본", values: trend.map((p) => Math.max(p.totalEquity, 0)) },
+              ]} />
+            <div className="mt-3 flex justify-center">
+              <Legend items={[
+                { name: "자산", color: vizColor(0) },
+                { name: "부채", color: vizColor(1) },
+                { name: "자본", color: vizColor(2) },
+              ]} />
             </div>
           </div>
         </div>

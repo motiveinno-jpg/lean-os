@@ -79,6 +79,57 @@ export function ColumnChart({ data, height = 200, unit = "" }: { data: Datum[]; 
   );
 }
 
+/** 묶음 막대 — 한 자리에 계열 여럿을 나란히 세운다(예: 자산·부채·자본, 매출·비용).
+ *  ⚠️ 계열끼리 단위가 같을 때만 쓴다. 단위가 다르면 그림이 거짓말을 한다 — 그림을 둘로 나눈다.
+ *  손대면 그 자리의 **모든 계열 값**이 함께 뜬다(하나만 짚으면 비교가 안 된다). */
+export function GroupedColumnChart({ labels, series, height = 200, unit = "", trend, onColumnClick, activeIndex }: {
+  labels: string[];
+  series: { name: string; values: number[] }[];
+  height?: number; unit?: string;
+  /** 같은 축에 겹쳐 그리는 한 줄(예: 순이익) — 단위가 같을 때만 준다 */
+  trend?: { name: string; values: number[] };
+  onColumnClick?: (i: number) => void;
+  activeIndex?: number | null;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const all = [...series.flatMap((s) => s.values), ...(trend?.values || [])];
+  const max = niceMax(Math.max(1, ...all.map((v) => Math.abs(v))));
+  const trendColor = vizColor(series.length);
+  return (
+    <div className="viz-wrap" style={{ height }}>
+      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></div>
+      <div className="viz-plot" onMouseLeave={() => setHover(null)}>
+        <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
+        {trend && (
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="viz-svg">
+            <polyline fill="none" stroke={trendColor} strokeWidth="2" vectorEffect="non-scaling-stroke"
+              strokeLinejoin="round" strokeLinecap="round"
+              points={trend.values.map((v, i) => `${labels.length <= 1 ? 0 : (i / (labels.length - 1)) * 100},${100 - (Math.max(0, v) / max) * 100}`).join(" ")} />
+          </svg>
+        )}
+        {labels.map((l, i) => (
+          <span key={`${l}-${i}`}
+            className={`viz-group ${activeIndex === i ? "viz-group-on" : ""} ${onColumnClick ? "viz-group-click" : ""}`}
+            onMouseEnter={() => setHover(i)} onClick={() => onColumnClick?.(i)}>
+            {series.map((s, si) => (
+              <i key={s.name} style={{ height: `${Math.max(1, (Math.abs(s.values[i] || 0) / max) * 100)}%`, background: vizColor(si) }} />
+            ))}
+            {hover === i && (
+              <b className="viz-tip viz-tip-line">{l}
+                {series.map((s, si) => (
+                  <em key={s.name}><i style={{ background: vizColor(si) }} />{s.name} {fmt(s.values[i] || 0)}{unit}</em>
+                ))}
+                {trend && <em><i style={{ background: trendColor }} />{trend.name} {fmt(trend.values[i] || 0)}{unit}</em>}
+              </b>
+            )}
+          </span>
+        ))}
+      </div>
+      <div className="viz-xaxis">{axisLabels(labels)}</div>
+    </div>
+  );
+}
+
 /** 가로 막대 — 이름이 길거나 순위를 볼 때 */
 export function BarChart({ data, unit = "", max: fixedMax }: { data: Datum[]; unit?: string; max?: number }) {
   const max = niceMax(fixedMax || Math.max(1, ...data.map((d) => d.value)));

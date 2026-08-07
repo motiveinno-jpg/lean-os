@@ -1,4 +1,5 @@
 "use client";
+import { GroupedColumnChart } from "@/components/charts/kit";
 import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
@@ -20,7 +21,6 @@ import { generateMonthlyPLReport } from "@/lib/pdf-report";
 import { getOrCreateChecklist, toggleChecklistItem, completeClosingChecklist, lockClosingMonth, unlockClosingMonth, autoVerifyChecklist, autoCloseMonth, attachReportUrl } from "@/lib/closing";
 import { MyAttendanceCard } from "@/components/my-attendance-card";
 import { CardsSummaryCard, AssetsSummaryCard } from "@/components/dashboard-bottom-cards";
-import { BarChart } from "@/components/bar-chart";
 import { LineChart } from "@/components/line-chart";
 import { FunnelChart, type FunnelStage } from "@/components/funnel-chart";
 import { UpcomingScheduleCard } from "@/components/upcoming-schedule";
@@ -1423,15 +1423,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
 
   if (!finRaw || !finData) return null;
 
-  const barData = sliced.map(m => ({
-    label: m.label,
-    // 매출·비용은 '좋다/나쁘다'가 아니라 **서로 다른 것**이다 — 상태색(빨강)이 아니라
-    // 시리즈 색을 쓴다. 색약에서도 구분되도록 검증한 조합이다(2026-08-06 차트 키트).
-    values: [
-      { value: m.revenue, color: 'var(--viz-1)', label: '매출' },
-      { value: m.expense, color: 'var(--viz-2)', label: '비용' },
-    ],
-  }));
+
 
   const trendLine = sliced.map(m => m.netIncome);
 
@@ -1530,7 +1522,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* Bar Chart */}
-      {barData.length > 0 && (
+      {sliced.length > 0 && (
         <div className="glass-card p-4 mb-3">
           <div className="flex items-center justify-between mb-2">
             <span className="caption">매출(blue) vs 비용(red) · 순이익 추이(orange)</span>
@@ -1540,18 +1532,24 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--viz-3)]" />순이익</span>
             </div>
           </div>
-          <BarChart
-            data={barData}
-            height={200}
-            onBarClick={(i) => {
+          {/* 차트 키트의 묶음 막대 — 손대면 그 달의 매출·비용·순이익이 한 번에 뜬다.
+              눌러서 그 달로 파고드는 동작은 그대로다 (2026-08-07 키트 확산) */}
+          <GroupedColumnChart
+            height={200} unit="원"
+            labels={sliced.map((m) => m.label)}
+            series={[
+              { name: "매출", values: sliced.map((m) => m.revenue) },
+              { name: "비용", values: sliced.map((m) => m.expense) },
+            ]}
+            trend={{ name: "순이익", values: trendLine }}
+            activeIndex={drillMonth}
+            onColumnClick={(i) => {
               if (drillMonth === i) {
                 setDrillMonth(null); setDrillLevel(1); setDrillCategory(null); setDrillCounterparty(null);
               } else {
                 setDrillMonth(i); setDrillLevel(2); setDrillCategory(null); setDrillCounterparty(null);
               }
             }}
-            trendLine={trendLine}
-            trendColor="var(--viz-3)"
           />
         </div>
       )}
