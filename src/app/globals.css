@@ -1903,7 +1903,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .leave-request-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
 .leave-approval-chain-panel { @apply mt-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]/50 p-4; }
 .leave-requests-table { @apply overflow-hidden; } /* 카드(.leave-roster) 안에 들어가므로 바깥 여백 없음 */
-.leave-monthly-breakdown-table { @apply mt-6; }
 .leave-promotion-section { @apply mt-6; }
 .certificate-issue-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
 .certificate-log-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */

@@ -189,7 +189,7 @@ function buildRequestEmailHtml(p: ApprovalPayload): string {
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
         <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5">
           본 이메일은 OwnerView에서 자동 발송되었습니다.<br>
-          받고 싶지 않으시면 설정 &gt; 알림에서 '결재 요청' 이메일을 끄실 수 있습니다.
+          받고 싶지 않으시면 설정 &gt; 알림에서 '${isReference ? '결재 참조' : '결재 요청'}' 이메일을 끄실 수 있습니다.
         </p>
       </td></tr>
     </table>

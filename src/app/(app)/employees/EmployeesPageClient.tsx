@@ -3764,51 +3764,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             </div>
           </div>
 
-          {/* 연차 상세 월별 Breakdown */}
-          {!isEmployee && balances.length > 0 && (
-            <div className="leave-monthly-breakdown-table">
-              <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">연차 월별 사용 현황 ({currentYear}년)</h3>
-              <div className="glass-card overflow-hidden">
-                <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[900px]">
-                  <thead className="sticky-bar"><tr className="table-head-row">
-                    <th className="text-left px-4 py-2.5 font-medium sticky left-0 bg-[var(--bg-card)] z-10">직원</th>
-                    <th className="text-center px-2 py-2.5 font-medium">총부여</th>
-                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <th key={m} className="text-center px-2 py-2.5 font-medium">{m}월</th>)}
-                    <th className="text-center px-2 py-2.5 font-medium">합계</th>
-                    <th className="text-center px-2 py-2.5 font-medium">잔여</th>
-                  </tr></thead>
-                  <tbody>
-                    {balances.map((b: any) => {
-                      const approved = leaveRequests.filter((r: any) => r.status === "approved" && r.employee_id === b.employee_id);
-                      const monthUsage = Array(12).fill(0);
-                      approved.forEach((r: any) => {
-                        const start = new Date(r.start_date);
-                        if (start.getFullYear() === currentYear) {
-                          monthUsage[start.getMonth()] += Number(r.days || 0);
-                        }
-                      });
-                      const totalUsed = monthUsage.reduce((s, v) => s + v, 0);
-                      const remaining = b.total_days - totalUsed;
-                      return (
-                        <tr key={b.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
-                          <td className="px-4 py-2.5 text-sm font-medium sticky left-0 bg-[var(--bg-card)]">{b.employees?.name || "—"}</td>
-                          <td className="px-2 py-2.5 text-xs text-center font-semibold">{b.total_days}</td>
-                          {monthUsage.map((u, i) => (
-                            <td key={i} className="px-2 py-2.5 text-center">
-                              {u > 0 ? <span className="text-xs font-semibold text-[var(--danger)]">{u}</span> : <span className="text-[10px] text-[var(--border)]">-</span>}
-                            </td>
-                          ))}
-                          <td className="px-2 py-2.5 text-xs text-center font-bold text-[var(--danger)]">{totalUsed > 0 ? totalUsed : "-"}</td>
-                          <td className={`px-2 py-2.5 text-xs text-center font-bold ${remaining <= 0 ? "text-[var(--danger)]" : remaining <= 3 ? "text-yellow-400" : "text-[var(--success)]"}`}>{remaining}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table></div>
-              </div>
-            </div>
-          )}
-
           {/* Leave Promotion (연차촉진) Section */}
           {!isEmployee && (
             <div className="leave-promotion-section">
