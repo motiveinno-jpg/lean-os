@@ -3726,11 +3726,29 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />반차</span>
                   <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />기타휴가</span>
                 </div>
-                <MonthField
-                  value={calMonth}
-                  onChange={(e) => setCalMonth(e.target.value)}
-                  className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm"
-                />
+                <div className="attendance-month-nav">
+                  <button
+                    onClick={() => setCalMonth(shiftMonth(calMonth, -1))}
+                    className="attendance-month-btn"
+                    aria-label="이전 달"
+                    title="이전 달"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
+                  </button>
+                  <MonthField
+                    value={calMonth}
+                    onChange={(e) => setCalMonth(e.target.value)}
+                    className="px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm"
+                  />
+                  <button
+                    onClick={() => setCalMonth(shiftMonth(calMonth, 1))}
+                    className="attendance-month-btn"
+                    aria-label="다음 달"
+                    title="다음 달"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
               </div>
             </div>
             <div className="glass-card overflow-hidden">
@@ -3805,7 +3823,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           {!isEmployee && (
             <div className="leave-promotion-section">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리 (근로기준법 §61)</h3>
+                <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리</h3>
                 <button
                   onClick={() => setShowPromotion(!showPromotion)}
                   className="text-xs px-3 py-1.5 bg-[var(--warning)]/10 text-[var(--warning)] rounded-lg hover:bg-[var(--warning)]/20 transition"
