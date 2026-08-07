@@ -1,4 +1,5 @@
 "use client";
+import { DonutChart, Legend, vizColor } from "@/components/charts/kit";
 import { logRead } from "@/lib/log-read";
 import { Ico } from "@/components/ui-icon";
 
@@ -885,24 +886,34 @@ export default function CardsPage() {
           {/* 카테고리별 지출 */}
           <div className="card-category-spending-panel glass-card">
             <h3 className="text-base font-bold text-[var(--text)] mb-4">카테고리별 지출 (상위 5)</h3>
-            <div className="space-y-3">
-              {categoryStats.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)] text-center py-4">이번 달 카드 지출 없음</p>
-              ) : categoryStats.map((c) => (
-                <div key={c.name} className="card-category-row">
-                  <div className="w-28 text-sm text-[var(--text-muted)] truncate shrink-0">{c.name}</div>
-                  <div className="flex-1">
-                    <div className="w-full bg-[var(--bg-surface)] rounded-full h-3 overflow-hidden">
-                      <div className="bg-[var(--primary)] h-3 rounded-full" style={{ width: `${c.pct}%` }} />
+            {/* '어디에 얼마 비중' 을 묻는 자리다(줄마다 %가 붙어 있다) → 비중은 도넛이 한눈에,
+                정확한 금액은 아래 목록이 맡는다 (2026-08-07 자료별 최적 형태 판정) */}
+            {categoryStats.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">이번 달 카드 지출 없음</p>
+            ) : (<>
+              <div className="lp-donut-wrap">
+                <DonutChart unit="원" data={categoryStats.map((c) => ({ label: c.name, value: c.amount }))} />
+                <Legend items={categoryStats.map((c, i) => ({ name: c.name, color: vizColor(i) }))} />
+              </div>
+              <div className="space-y-3">
+                {categoryStats.map((c, i) => (
+                  <div key={c.name} className="card-category-row">
+                    <div className="w-28 text-sm text-[var(--text-muted)] truncate shrink-0">
+                      <i className="lp-dot" style={{ background: vizColor(i) }} />{c.name}
+                    </div>
+                    <div className="flex-1">
+                      <div className="w-full bg-[var(--bg-surface)] rounded-md h-3 overflow-hidden">
+                        <div className="h-3 rounded-r-md" style={{ width: `${c.pct}%`, background: vizColor(i) }} />
+                      </div>
+                    </div>
+                    <div className="w-32 text-right shrink-0">
+                      <p className="text-sm font-semibold text-[var(--text)] mono-number">{fmtW(c.amount)}</p>
+                      <p className="text-xs text-[var(--text-dim)]">{c.pct}%</p>
                     </div>
                   </div>
-                  <div className="w-32 text-right shrink-0">
-                    <p className="text-sm font-semibold text-[var(--text)] mono-number">{fmtW(c.amount)}</p>
-                    <p className="text-xs text-[var(--text-dim)]">{c.pct}%</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>)}
           </div>
 
           {/* 기존 컴포넌트 재사용 — 시안 분석 탭에 자연스럽게 녹임 */}
