@@ -1038,27 +1038,33 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
             className={`pb-viewbtn ${summaryScope === "board" ? "pb-viewbtn-on" : ""}`}>요약</button>
         </div>
 
-        {/*  프로젝트 전체는 따로 — 표마다 한 줄인 안내판이다(다 펼치지 않는다) */}
-        <button type="button" onClick={() => setSummaryScope("all")} aria-pressed={summaryScope === "all"}
-          className={`pb-allsum ${summaryScope === "all" ? "pb-allsum-on" : ""}`}>전체 요약</button>
-        {!showSummary && (
-          <span className="pb-filters">
-            {([["mine", "내 담당"], ["week", "이번 주"], ["open", "미완료만"]] as const).map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={filters[k]}
-                onClick={() => setFilters((f) => ({ ...f, [k]: !f[k] }))}
-                className={`pb-filter ${filters[k] ? "pb-filter-on" : ""}`}>{label}</button>
-            ))}
-            {/* 칸 값으로 거르기 — 엑셀처럼 칸마다 든 값을 보고 고른다(2026-08-06 사장님 지시) */}
-            {cols.length > 0 && (
-              <button type="button" aria-pressed={activeValueFilters.length > 0}
-                onClick={() => setFilterPanel("")} title="칸 값으로 거르기"
-                className={`pb-filter ${activeValueFilters.length > 0 ? "pb-filter-on" : ""}`}>
-                필터{activeValueFilters.length > 0 ? ` ${activeValueFilters.length}` : ""}
-              </button>
-            )}
-            {hiddenCount > 0 && <em>{hiddenCount}건 숨김</em>}
-          </span>
-        )}
+        {/*  오른쪽 묶음 — 필터와 '전체 요약'. 이 상자가 **늘 있어야** 단추가 안 움직인다.
+             (2026-08-07 사장님: "전체 요약이 중간에 있다가 누르면 오른쪽으로 이동한다" —
+              전에는 단추에 ml-auto 를 걸고 뒤에 필터를 뒀더니, 요약을 켜서 필터가 사라지면
+              단추가 오른쪽으로 튀었다. 이제 단추는 언제나 맨 오른쪽 끝이다.) */}
+        <div className="pb-bar2-right">
+          {!showSummary && (
+            <span className="pb-filters">
+              {([["mine", "내 담당"], ["week", "이번 주"], ["open", "미완료만"]] as const).map(([k, label]) => (
+                <button key={k} type="button" aria-pressed={filters[k]}
+                  onClick={() => setFilters((f) => ({ ...f, [k]: !f[k] }))}
+                  className={`pb-filter ${filters[k] ? "pb-filter-on" : ""}`}>{label}</button>
+              ))}
+              {/* 칸 값으로 거르기 — 엑셀처럼 칸마다 든 값을 보고 고른다(2026-08-06 사장님 지시) */}
+              {cols.length > 0 && (
+                <button type="button" aria-pressed={activeValueFilters.length > 0}
+                  onClick={() => setFilterPanel("")} title="칸 값으로 거르기"
+                  className={`pb-filter ${activeValueFilters.length > 0 ? "pb-filter-on" : ""}`}>
+                  필터{activeValueFilters.length > 0 ? ` ${activeValueFilters.length}` : ""}
+                </button>
+              )}
+              {hiddenCount > 0 && <em>{hiddenCount}건 숨김</em>}
+            </span>
+          )}
+          {/*  프로젝트 전체는 따로 — 표마다 한 줄인 안내판이다(다 펼치지 않는다) */}
+          <button type="button" onClick={() => setSummaryScope("all")} aria-pressed={summaryScope === "all"}
+            className={`pb-allsum ${summaryScope === "all" ? "pb-allsum-on" : ""}`}>전체 요약</button>
+        </div>
       </div>}
 
       {renaming && board && (

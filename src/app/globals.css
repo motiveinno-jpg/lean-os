@@ -6254,8 +6254,10 @@ th:hover .pb-colmenu-btn { @apply opacity-100; }
 /* 보기 전환 — 한 상자 안에 '입력 | 보기' 를 구분선으로 가른다.
    라벨은 상자 안쪽의 눌리지 않는 글씨라 버튼과 헷갈리지 않는다(2026-08-05). */
 .pb-views { @apply inline-flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+/* 오른쪽 묶음 — 필터가 사라져도 '전체 요약' 이 자리를 안 옮기게 늘 있는 상자로 감싼다 */
+.pb-bar2-right { @apply ml-auto flex items-center gap-2 flex-wrap justify-end; }
 /* 전체 요약 — 이 표의 보기들과 성격이 달라 상자 밖 오른쪽 끝에 따로 세운다 (2026-08-07 사장님 지시) */
-.pb-allsum { @apply ml-auto h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+.pb-allsum { @apply h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
 .pb-allsum-on { @apply bg-[var(--primary)] text-white border-[var(--primary)] hover:!text-white; }
 
 /* 전체 요약 안내판 — 표마다 한 줄 */
