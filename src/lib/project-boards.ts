@@ -31,7 +31,7 @@ export type GroupDef = { name: string; color: string };
  *    · timeline·calendar = **읽는** 화면 — 정리한 결과를 보여줄 뿐 입력은 못 한다. 전환으로만 간다.
  *      (timeline = 기간을 본다 / calendar = 언제인지를 본다)
  *  "타임라인은 데이터를 정리해서 보여주는 거고 표가 입력화면이잖아? 입력화면이 기본값으로 나와야" */
-export type InputMode = "grid" | "board" | "timeline" | "calendar" | "minutes" | "inbox";
+export type InputMode = "grid" | "board" | "timeline" | "calendar" | "minutes" | "inbox" | "expiry" | "expense" | "deals";
 
 /** 입력이 되는 보기인가 — 기본값 검증과 보기 줄 묶음에 같이 쓴다 */
 export const INPUT_MODES: InputMode[] = ["grid", "board"];
@@ -39,6 +39,7 @@ export const INPUT_MODES: InputMode[] = ["grid", "board"];
 /** 보기 이름 — 툴바 단추에 쓴다 */
 export const MODE_LABEL: Record<InputMode, string> = {
   grid: "표", board: "칸반", timeline: "타임라인", calendar: "캘린더", minutes: "회의록", inbox: "접수함",
+  expiry: "만기", expense: "지출 입력", deals: "건별",
 };
 
 /** 이 템플릿이 쓸 수 있는 입력 화면들 — **그 일의 첫 화면**이 맨 앞이다 (2026-08-07 사장님 지시:
@@ -114,6 +115,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "예산 · 지출",
     desc: "쓸 돈을 잡고, 실제로 쓴 돈을 확정",
     uses: "외주비 · 구매 · 사무실 이전 · 마케팅 집행 · 정부지원사업 정산 · 정기 지출",
+    //   쓴 돈을 적는 일이다 — 예산 게이지를 위에 두고 한 줄에서 적는다(2026-08-07)
+    input: "expense",
     columns: [
       { name: "구분", type: "status", settings: STATUS([
         { id: "outsource", label: "외주", color: C.purple },
@@ -143,8 +146,9 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "매출 흐름",
     desc: "받을 돈을 검토 → 제안 → 계약 → 발행 → 입금 한 줄로",
     uses: "영업 파이프라인 · 견적 · 수주 · 프로젝트 매출 · 청구 · 수금 · 기성",
-    //   금액·예정일·거래처를 나란히 놓고 채우는 일이라 표가 빠르다(단계 훑기는 칸반으로)
-    input: "grid",
+    //   여러 건을 채울 땐 표가 빠르지만, 한 건을 끝까지 끌고 갈 땐 서류·입금이 흩어져 보인다.
+    //   첫 화면은 건별 진행 카드로 두고 표는 보기 줄에 남긴다(2026-08-07).
+    input: "deals",
     columns: [
       { name: "단계", type: "status", settings: FLOW([
         { id: "review", label: "검토", color: C.gray },
@@ -232,7 +236,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "계약 · 갱신",
     desc: "언제 끝나고 언제 다시 맺나",
     uses: "임대차 · 유지보수 · 구독 · 용역 계약 · 라이선스 · 보험",
-    input: "grid",
+    //   이 일의 위험은 만기를 놓치는 것 하나다 — 첫 화면은 만기순 카드(2026-08-07)
+    input: "expiry",
     columns: [
       { name: "상태", type: "status", settings: FLOW([
         { id: "review", label: "검토", color: C.gray },

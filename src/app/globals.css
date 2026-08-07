@@ -6785,6 +6785,67 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-tpl-preset { @apply relative p-0 overflow-hidden; }
 /* 기본 양식 카드 — 누르면 바로 만들고, 오른쪽 위 '＋칸' 으로만 다듬기로 간다 (2026-08-07) */
 .pb-tpl-pick { @apply relative p-0 overflow-hidden; }
+/* 만기 카드 — '계약 · 갱신' 의 첫 화면 (2026-08-07). 임박한 순으로 세우고 지난 것은 빨갛게. */
+.pbx { @apply grid gap-2.5; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.pbx-card { @apply flex flex-col gap-1.5 p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.pbx-card-bad { @apply border-[var(--danger)]; }
+.pbx-dday { @apply self-start px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pbx-dday.pbx-warn { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.pbx-dday.pbx-bad { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.pbx-name { @apply text-left text-[13.5px] font-extrabold text-[var(--text)] truncate transition hover:text-[var(--primary)]; }
+.pbx-meta { @apply text-[11.5px] text-[var(--text-dim)] truncate; font-variant-numeric: tabular-nums; }
+.pbx-amt { @apply text-[15px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.pbx-note { @apply not-italic text-[11px] text-[var(--text-dim)] truncate; }
+.pbx-acts { @apply flex gap-1.5 mt-1; }
+.pbx-go { @apply flex-1 px-2 py-1.5 rounded-lg text-[11.5px] font-bold bg-[var(--primary)] text-white transition hover:opacity-90 disabled:opacity-50; }
+.pbx-next { @apply px-2.5 py-1.5 rounded-lg text-[11.5px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
+
+/* 지출 입력 — '예산 · 지출' 의 첫 화면 (2026-08-07). 예산 게이지를 위에 붙박고 한 줄로 적는다. */
+.pbe { @apply flex flex-col gap-3 p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.pbe-gauge { @apply flex items-center gap-3 flex-wrap px-3.5 py-3 rounded-xl bg-[var(--bg-surface)]; }
+.pbe-lab { @apply text-[11.5px] text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.pbe-lab b { @apply text-[var(--text)] font-extrabold; }
+.pbe-lab.pbe-bad, .pbe-lab.pbe-bad b { @apply text-[var(--danger)]; }
+.pbe-track { @apply flex-1 min-w-[120px] h-2.5 rounded-full bg-[var(--bg-card)] overflow-hidden; }
+.pbe-track i { @apply block h-full rounded-r-full bg-[var(--primary)]; }
+.pbe-track i.pbe-over { @apply bg-[var(--danger)]; }
+.pbe-quick { @apply grid gap-2 items-center; grid-template-columns: 1.6fr 1.2fr .9fr .9fr auto; }
+@media (max-width: 860px) { .pbe-quick { grid-template-columns: 1fr 1fr; } }
+.pbe-in { @apply px-2.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[12.5px] text-[var(--text)] outline-none focus:border-[var(--primary)]; }
+.pbe-num { @apply text-right; font-variant-numeric: tabular-nums; }
+.pbe-partner { @apply block min-w-0; }
+.pbe-go { @apply px-3.5 py-2 rounded-lg text-[12px] font-bold bg-[var(--primary)] text-white disabled:opacity-40; }
+.pbe-hint { @apply text-[11px] text-[var(--text-dim)]; }
+.pbe-list { @apply flex flex-col gap-1; }
+.pbe-row { @apply w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] text-left transition hover:border-[var(--primary)]; }
+.pbe-row b { @apply flex-1 min-w-0 truncate text-[12.5px] font-bold text-[var(--text)]; }
+.pbe-kind { @apply shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-bold text-white; }
+.pbe-row em { @apply not-italic shrink-0 text-[12px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+
+/* 건별 진행 카드 — '매출 흐름' 의 첫 화면 (2026-08-07). 단계·입금·서류가 한 장에 모인다. */
+.pbd { @apply grid gap-3; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.pbd-card { @apply flex flex-col gap-2.5 p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.pbd-top { @apply flex items-baseline gap-2 flex-wrap; }
+.pbd-name { @apply text-left text-[14.5px] font-extrabold text-[var(--text)] transition hover:text-[var(--primary)]; }
+.pbd-who { @apply text-[11.5px] text-[var(--text-dim)] truncate; }
+.pbd-amt { @apply ml-auto text-[16px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.pbd-steps { @apply flex items-start; }
+.pbd-step { @apply relative flex-1 flex flex-col items-center gap-1.5; }
+.pbd-step i { @apply block w-[15px] h-[15px] rounded-full bg-[var(--bg-surface)] border-2 border-[var(--border)] z-10; }
+.pbd-step span { @apply text-[10.5px] font-bold text-[var(--text-dim)]; }
+.pbd-step::before { @apply content-[''] absolute top-[7px] -left-1/2 w-full h-0.5 bg-[var(--border)]; }
+.pbd-step:first-child::before { @apply hidden; }
+.pbd-step.pbd-done i, .pbd-step.pbd-now::before, .pbd-step.pbd-done::before { @apply bg-[var(--primary)]; }
+.pbd-step.pbd-done i { @apply border-[var(--primary)]; }
+.pbd-step.pbd-now i { @apply bg-[var(--bg-card)] border-[var(--primary)] ring-4 ring-[var(--primary)]/15; }
+.pbd-step.pbd-done span, .pbd-step.pbd-now span { @apply text-[var(--text)]; }
+.pbd-pay { @apply flex items-center gap-2.5; }
+.pbd-track { @apply flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.pbd-track i { @apply block h-full rounded-r-full bg-[var(--success)]; }
+.pbd-paylab { @apply text-[11.5px] text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.pbd-paylab b { @apply text-[var(--text)] font-extrabold; }
+.pbd-docs { @apply flex flex-wrap gap-1.5; }
+
 /* 캘린더에서 끌어 기간 만들기 — '일정 · 마일스톤' 의 첫 화면 (2026-08-07) */
 .pb-cal-hint { @apply flex items-center gap-2 text-[11.5px] text-[var(--text-dim)] mb-1.5; }
 .pb-cal-hint i { @apply block w-16 h-4 rounded-md border border-dashed border-[var(--primary)] bg-[var(--primary)]/10; }

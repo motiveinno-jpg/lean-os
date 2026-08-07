@@ -25,6 +25,9 @@ import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
 import { BoardMinutes } from "./BoardMinutes";
 import { BoardInbox } from "./BoardInbox";
+import { BoardExpiry } from "./BoardExpiry";
+import { BoardExpense } from "./BoardExpense";
+import { BoardDeals } from "./BoardDeals";
 import { hasMoneyData } from "@/lib/project-money-rollup";
 import { BoardFigure } from "./BoardFigures";
 import { AdDashboard } from "./AdDashboard";
@@ -1158,6 +1161,37 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           presets={summaryPresets} onSavePreset={saveSummaryPreset} onUpdatePreset={editSummaryPreset}
           onRemovePreset={dropSummaryPreset}
           onOpenItem={(bid, itemId) => { setActiveId(bid); setShowSummary(false); setOpenItemId(itemId); }} />
+      ) : view === "expiry" ? (
+        /* 만기 카드 — '계약 · 갱신' 의 첫 화면 (2026-08-07) */
+        <BoardExpiry items={shown} cols={cols}
+          partnerName={(it) => (partners as any[]).find((p) => p.id === it.values?.[partnerColId || ""])?.name || ""}
+          onOpen={setOpenItemId}
+          onAdvance={(it, next) => { const f = flowColumnOf(cols); if (f) saveValue(it, f.id, next); }}
+          onContract={makeContract}
+          contractOf={(it) => !!((it.values || {})[CONTRACT_VALUE_KEY] as any)?.id}
+          busyId={makingDoc} />
+      ) : view === "expense" ? (
+        /* 지출 입력 — '예산 · 지출' 의 첫 화면 (2026-08-07) */
+        <BoardExpense items={shown} cols={cols} groups={groups}
+          onAdd={(gid, name, values) => addItem(gid, values, name)}
+          onOpen={setOpenItemId}
+          renderPartner={(value, onChange) => (
+            <PartnerCell value={value} partners={partners as any[]} companyId={companyId}
+              onSave={(v) => onChange(v || "")}
+              onCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })} />
+          )} />
+      ) : view === "deals" ? (
+        /* 건별 진행 카드 — '매출 흐름' 의 첫 화면 (2026-08-07) */
+        <BoardDeals items={shown} cols={cols}
+          partnerName={(it) => (partners as any[]).find((p) => p.id === it.values?.[partnerColId || ""])?.name || ""}
+          userName={(id) => users.find((u) => u.id === String(id || ""))?.name || ""}
+          onOpen={setOpenItemId}
+          onStage={(it, opt) => { const f = flowColumnOf(cols); if (f) saveValue(it, f.id, opt); }}
+          renderDocs={(it) => (
+            <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId} atContract={atContractStage(it)}
+              onQuote={() => openQuote(it)} onContract={() => makeContract(it)}
+              onIssue={() => setDocModal({ itemId: it.id, kind: "issue" })} />
+          )} />
       ) : view === "calendar" ? (
         /* 캘린더 — '일정 · 마일스톤' 의 첫 화면. 빈 칸을 끌면 그 자리에 일정이 생긴다 (2026-08-07) */
         <BoardCalendar items={shown} cols={cols} flowCol={flowCol} onOpen={setOpenItemId}
