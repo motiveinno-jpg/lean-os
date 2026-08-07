@@ -214,13 +214,15 @@ export function templateFigures(
         const v = String(it.values?.[endCol.id] || "").slice(0, 10);
         return /^\d{4}-\d{2}-\d{2}$/.test(v) && v < today;
       }).length;
+      //   칸 이름을 그대로 부른다 — 계약 표에서는 '만기', 일정 표에서는 '종료' 가 그 회사의 말이다
+      const endName = endCol?.name || "종료일";
       out.push({
-        id: "stat:late", kind: "stat", title: "종료일 지난 미완료", value: `${late}건`,
-        note: late === 0 ? "종료일 넘긴 일정 없음" : "종료일이 지났는데 안 끝난 일정",
+        id: "stat:late", kind: "stat", title: `${endName} 지난 미완료`, value: `${late}건`,
+        note: late === 0 ? `${endName} 넘긴 건 없음` : `${endName}이 지났는데 안 끝난 건`,
         tone: late === 0 ? "ok" : "bad",
       });
       const wk = weekBuckets(endCol, items, today, open);
-      if (wk.some((b) => b.value > 0)) out.push({ id: "weeks:end", kind: "weeks", title: "주별 종료 건수", bars: wk, note: "아직 안 끝난 건만 셉니다" });
+      if (wk.some((b) => b.value > 0)) out.push({ id: "weeks:end", kind: "weeks", title: `주별 ${endName} 건수`, bars: wk, note: "아직 안 끝난 건만 셉니다" });
       // 종료일은 '기한 지난 일정' + '끝나는 주' 가 이미 말한다
       if (endCol) covers.add(`date:${endCol.name}`);
       break;
