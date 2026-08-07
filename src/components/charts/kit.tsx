@@ -38,12 +38,14 @@ export type Datum = { label: string; value: number; color?: string };
 export type Series = { name: string; points: { label: string; value: number }[] };
 
 const fmt = (n: number) => Math.round(n).toLocaleString("ko-KR");
-/** 눈금 상한을 보기 좋은 값으로 (1/2/5 × 10^n) */
+/** 눈금 상한을 보기 좋은 값으로 (1/2/5/7.5 × 10^n).
+ *  7.5 단계가 없으면 5,090만짜리 자료의 축이 1억까지 올라가 그림이 절반 높이로 눌린다
+ *  — 길이가 실제보다 작게 읽히므로 한 단계를 더 둔다 (2026-08-07 비용 분석 화면에서 확인). */
 function niceMax(v: number): number {
   if (v <= 0) return 1;
   const e = Math.pow(10, Math.floor(Math.log10(v)));
   const n = v / e;
-  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * e;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : n <= 7.5 ? 7.5 : 10) * e;
 }
 
 /** 범례 — 계열이 둘 이상이면 늘 붙인다(색만으로 구분하게 두지 않는다) */
