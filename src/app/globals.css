@@ -6780,6 +6780,28 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-tpl-preset { @apply relative p-0 overflow-hidden; }
 /* 기본 양식 카드 — 누르면 바로 만들고, 오른쪽 위 '＋칸' 으로만 다듬기로 간다 (2026-08-07) */
 .pb-tpl-pick { @apply relative p-0 overflow-hidden; }
+/* 템플릿 예시 화면 — 카드에 마우스를 올리면 옆에 뜬다 (2026-08-07 사장님 지시).
+   모달 안에서 잘리지 않게 화면 좌표(fixed)로 띄우고, 손이 닿아도 사라지지 않게 클릭은 통과시킨다. */
+.pb-peek { @apply fixed z-[70] w-[420px] max-w-[92vw] p-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl pointer-events-none; }
+.pb-peek-head { @apply flex items-baseline gap-2 mb-2; }
+.pb-peek-head b { @apply text-[13px] font-extrabold text-[var(--text)]; }
+.pb-peek-head em { @apply not-italic text-[11px] text-[var(--text-dim)]; }
+.pb-peek-tablewrap { @apply overflow-hidden rounded-xl border border-[var(--border)]; }
+.pb-peek-table { @apply w-full border-collapse text-[11px]; }
+.pb-peek-table th { @apply px-2 py-1.5 text-left font-semibold text-[var(--text-dim)] bg-[var(--bg-surface)] whitespace-nowrap; }
+.pb-peek-table td { @apply px-2 py-1.5 text-[var(--text-muted)] border-t border-[var(--border)] whitespace-nowrap; }
+.pb-peek-table td b { @apply font-bold text-[var(--text)]; }
+.pb-peek-table .pb-peek-n { @apply text-right; font-variant-numeric: tabular-nums; }
+.pb-peek-dim { @apply text-[var(--text-dim)]; }
+.pb-peek-chip { @apply inline-block px-1.5 py-0.5 rounded-md text-[10px] font-bold text-white; }
+/* 광고 표 — 사람이 채우지 않으므로 예시도 대시보드 모양이다 */
+.pb-peek-ads { @apply grid grid-cols-4 gap-1.5; }
+.pb-peek-kpi { @apply flex flex-col gap-0.5 p-2 rounded-xl bg-[var(--bg-surface)]; }
+.pb-peek-kpi span { @apply text-[10px] text-[var(--text-dim)]; }
+.pb-peek-kpi b { @apply text-[12px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.pb-peek-bars { @apply col-span-4 flex items-end gap-1 h-16 px-1 pt-2 rounded-xl bg-[var(--bg-surface)]; }
+.pb-peek-bars i { @apply flex-1 rounded-t bg-[var(--viz-1)]; }
+.pb-peek-note { @apply col-span-4 text-[10.5px] text-[var(--text-dim)] leading-snug; }
 .pb-tpl-pick .pb-tpl-main { @apply pr-14; }
 .pb-tpl-main { @apply text-left flex flex-col gap-1 p-3.5 pr-[104px] w-full; }
 .pb-tpl-del { @apply absolute right-1.5 top-1.5 w-6 h-6 rounded-lg text-[11px] text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--danger)]; }

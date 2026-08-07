@@ -19,7 +19,8 @@
 import { useState } from "react";
 import {
   BOARD_TEMPLATES, ITEM_LABEL, COL_FORMATS, DEFAULT_STATUS_OPTIONS, LABEL_COLORS, newOptionId,
-  type ColumnDef, type ColType, type StatusOption,
+  TEMPLATE_SAMPLE,
+  type BoardTemplate, type ColumnDef, type ColType, type StatusOption,
 } from "@/lib/project-boards";
 import type { Preset } from "@/lib/board-presets";
 
@@ -70,6 +71,20 @@ export function BoardNewModal({ inline, busy, presets, onCustom, onUsePreset, on
   const [saveToCompany, setSaveToCompany] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [addOpen, setAddOpen] = useState(false);
+  //   마우스를 올린 템플릿의 예시 화면 — 카드 옆에 띄운다(2026-08-07 사장님 지시).
+  //   위치를 그때그때 재서 화면 밖으로 안 나가게 한다(모달 안이라 잘릴 수 있다).
+  const [peek, setPeek] = useState<{ t: BoardTemplate; x: number; y: number; flip: boolean } | null>(null);
+  const showPeek = (t: BoardTemplate, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    const W = 420, GAP = 12;
+    const flip = r.right + GAP + W > window.innerWidth;         // 오른쪽이 좁으면 왼쪽에 띄운다
+    setPeek({
+      t,
+      x: flip ? Math.max(GAP, r.left - GAP - W) : r.right + GAP,
+      y: Math.min(Math.max(GAP, r.top), Math.max(GAP, window.innerHeight - 320)),
+      flip,
+    });
+  };
 
   const startFrom = (b: Base, columns: ColumnDef[]) => {
     setBase(b);
@@ -163,9 +178,13 @@ export function BoardNewModal({ inline, busy, presets, onCustom, onUsePreset, on
         <b className="pb-presets-h">기본 양식 <em>고르면 칸을 다듬는 화면으로 갑니다</em></b>
         <div className="pb-tpls">
           {BOARD_TEMPLATES.map((t) => (
-            <div key={t.key} className="pb-tpl pb-tpl-pick">
+            <div key={t.key} className="pb-tpl pb-tpl-pick"
+              onMouseEnter={(e) => showPeek(t, e.currentTarget)}
+              onMouseLeave={() => setPeek((p) => (p?.t.key === t.key ? null : p))}>
               {/*  누르면 바로 만든다 — 그대로 쓰는 게 대부분이다 */}
               <button type="button" className="pb-tpl-main" disabled={busy}
+                onFocus={(e) => showPeek(t, e.currentTarget.parentElement as HTMLElement)}
+                onBlur={() => setPeek(null)}
                 onClick={() => onCustom(t.name, t.columns, false, t.key)}>
                 <b>{t.name}</b>
                 <span>{t.desc}</span>
@@ -193,6 +212,7 @@ export function BoardNewModal({ inline, busy, presets, onCustom, onUsePreset, on
           </button>
         </div>
       </div>
+      {peek && <TemplatePeek t={peek.t} x={peek.x} y={peek.y} />}
     </>
   );
 
@@ -314,6 +334,71 @@ export function LabelEditor({ options, onChange, note }: {
         ＋ 라벨 추가
       </button>
       {note && <em className="pb-label-note">{note}</em>}
+    </div>
+  );
+}
+
+/** 템플릿 예시 화면 — 마우스를 올리면 "이게 무슨 표인지"를 글이 아니라 **모양**으로 보여 준다
+ *  (2026-08-07 사장님 지시). 진짜 표와 같은 차례·같은 라벨 색으로 그려야 예시가 뜻을 갖는다.
+ *
+ *  자리는 부모가 재서 넘긴다(모달 안에서 잘리지 않게 화면 좌표로 띄운다).
+ *  광고 표는 사람이 채우지 않으므로 표가 아니라 대시보드 모양으로 보여 준다. */
+function TemplatePeek({ t, x, y }: { t: BoardTemplate; x: number; y: number }) {
+  const rows = TEMPLATE_SAMPLE[t.key] || [];
+  const heads = [ITEM_LABEL[t.key] || "이름", ...t.columns.map((c) => c.name)];
+  //   상태 칸은 그 템플릿에 정의된 라벨 색을 그대로 찾아 쓴다 — 예시가 실제와 같은 색이어야 한다
+  const colorOf = (colIdx: number, text: string) => {
+    const col = t.columns[colIdx - 1];
+    if (!col || col.type !== "status") return null;
+    const opt = ((col.settings?.options || []) as StatusOption[]).find((o) => o.label === text);
+    return opt?.color || null;
+  };
+  const isNum = (colIdx: number) => t.columns[colIdx - 1]?.type === "number";
+  const openAs = t.input === "board" ? "칸반으로 열려요" : "표로 열려요";
+
+  return (
+    <div className="pb-peek" style={{ left: x, top: y }} role="tooltip" aria-hidden="true">
+      <div className="pb-peek-head">
+        <b>{t.name}</b>
+        <em>{t.key === "ads" ? "입력 없이 대시보드만" : `${openAs} · 예시`}</em>
+      </div>
+      {t.key === "ads" ? (
+        <div className="pb-peek-ads">
+          {[["노출", "21,588회"], ["클릭", "365회"], ["광고비", "678,184원"], ["전환", "66건"]].map(([k, v]) => (
+            <div key={k} className="pb-peek-kpi"><span>{k}</span><b>{v}</b></div>
+          ))}
+          <div className="pb-peek-bars">
+            {[38, 62, 45, 80, 55, 92, 70].map((h, i) => (
+              <i key={i} style={{ height: `${h}%` }} />
+            ))}
+          </div>
+          <p className="pb-peek-note">광고 계정을 연결하면 캠페인·광고그룹·소재까지 저절로 채워집니다.</p>
+        </div>
+      ) : (
+        <div className="pb-peek-tablewrap">
+          <table className="pb-peek-table">
+            <thead>
+              <tr>{heads.map((h, i) => <th key={`${h}-${i}`} className={isNum(i) ? "pb-peek-n" : ""}>{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.map((r, ri) => (
+                <tr key={ri}>
+                  {heads.map((_, ci) => {
+                    const v = r[ci] || "";
+                    const c = colorOf(ci, v);
+                    return (
+                      <td key={ci} className={isNum(ci) ? "pb-peek-n" : ""}>
+                        {c ? <span className="pb-peek-chip" style={{ background: c }}>{v}</span>
+                          : ci === 0 ? <b>{v}</b> : v || <span className="pb-peek-dim">—</span>}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
