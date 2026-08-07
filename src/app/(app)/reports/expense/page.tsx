@@ -108,7 +108,7 @@ export default function ExpensePage() {
                       {cats.map((c) => (
                         <div key={c.label} className="lp-bar-row">
                           <span className="lp-bar-name">{c.label}</span>
-                          <div className="lp-bar-track"><div className="lp-bar-fill" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: "var(--warning)" }} /></div>
+                          <div className="lp-bar-track"><div className="lp-bar-fill" style={{ width: `${Math.round((c.amt / catMax) * 100)}%`, background: "var(--viz-1)" }} /></div>
                           <span className="lp-bar-amt mono-number">{fmt(c.amt)}</span>
                           <span className="lp-bar-share mono-number">{catSum > 0 ? Math.round((c.amt / catSum) * 100) : 0}%</span>
                         </div>

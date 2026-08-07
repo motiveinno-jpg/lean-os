@@ -132,7 +132,7 @@ export default function RevenuePage() {
                       {top.map((t) => (
                         <div key={t.name} className="lp-bar-row">
                           <span className="lp-bar-name">{t.name}</span>
-                          <div className="lp-bar-track"><div className="lp-bar-fill" style={{ width: `${Math.round((t.amt / topMax) * 100)}%`, background: "var(--success)" }} /></div>
+                          <div className="lp-bar-track"><div className="lp-bar-fill" style={{ width: `${Math.round((t.amt / topMax) * 100)}%`, background: "var(--viz-1)" }} /></div>
                           <span className="lp-bar-amt mono-number">{fmt(t.amt)}</span>
                           <span className="lp-bar-share mono-number">{topSum > 0 ? Math.round((t.amt / topSum) * 100) : 0}%</span>
                         </div>

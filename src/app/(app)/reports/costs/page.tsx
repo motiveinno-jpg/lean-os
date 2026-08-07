@@ -269,7 +269,7 @@ export default function CostsPage() {
                         {sum > 0 ? (
                           <div className="costs-fixed-ratio-bar">
                             <div className="hidden sm:block w-16 h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface)]">
-                              <div className="h-full rounded-full" style={{ width: `${fixedPct}%`, background: "var(--warning)" }} />
+                              <div className="h-full rounded-full" style={{ width: `${fixedPct}%`, background: "var(--viz-1)" }} />
                             </div>
                             <span className="mono-number tabular-nums" style={{ fontSize: 12, color: "var(--text-dim)", minWidth: 30, textAlign: "right" }}>{fixedPct}%</span>
                           </div>

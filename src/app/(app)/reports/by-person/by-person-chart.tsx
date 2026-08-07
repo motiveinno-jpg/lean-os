@@ -57,12 +57,12 @@ export default function ByPersonChart({ people, payByPerson }: ByPersonChartProp
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" className="by-person-chart-svg">
         <defs>
           <linearGradient id="bpPayGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--warning)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="var(--warning)" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="var(--viz-2)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="var(--viz-2)" stopOpacity="0.6" />
           </linearGradient>
           <linearGradient id="bpCardGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--viz-brand)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="var(--viz-brand)" stopOpacity="0.6" />
+            <stop offset="0%" stopColor="var(--viz-1)" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="var(--viz-1)" stopOpacity="0.6" />
           </linearGradient>
         </defs>
 
@@ -109,8 +109,8 @@ export default function ByPersonChart({ people, payByPerson }: ByPersonChartProp
         })}
       </svg>
       <div className="by-person-chart-legend">
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--warning)]/30 bg-[var(--warning-dim)] text-[var(--warning)]">
-          <span className="w-2 h-2 rounded-full bg-[var(--warning)]" />급여
+        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--viz-2)]/30 bg-[var(--bg-surface)] text-[var(--text-muted)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--viz-2)]" />급여
         </span>
       </div>
     </div>

@@ -246,7 +246,7 @@ export default function ByPersonPage() {
                       </div>
                       <div className="flex items-center" style={{ gap: 10 }}>
                         <div style={{ flex: 1, height: 6, borderRadius: 999, background: "var(--bg-surface)", overflow: "hidden" }}>
-                          <div style={{ height: "100%", borderRadius: 999, width: `${Math.min(barPct, 100)}%`, background: "var(--warning)" }} />
+                          <div style={{ height: "100%", borderRadius: 999, width: `${Math.min(barPct, 100)}%`, background: "var(--viz-2)" }} />
                         </div>
                         <span className="mono-number shrink-0" style={{ fontSize: 10, color: "var(--text-dim)", width: 40, textAlign: "right" }}>{share.toFixed(1)}%</span>
                       </div>
