@@ -881,7 +881,7 @@ function SceneProof() {
                 <div key={m.label}><b>{m.value}</b><span>{m.label}</span></div>
               ))}
             </div>
-            <span className="lp5-case-foot">{c.masked} · {c.industry} · {c.plan}<br />{CASES_NOTE}</span>
+            <span className="lp5-case-foot">{[c.masked, c.industry, c.plan].filter(Boolean).join(" · ")}<br />{CASES_NOTE}</span>
           </Rise>
 
           <Rise delay={90} className="lp5-price">

@@ -14,47 +14,50 @@ import { PLANS, COMPETITORS, FEATURES, FOOTER } from "@/components/landing/conte
 const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 
 // 플랜별 포함 여부 — 하단 기능 목록(보드형 비교표)
-const MATRIX: { group: string; rows: { name: string; free: string; basic: string; ultra: string }[] }[] = [
+// 플랜별 기능 비교 — 2026-08-07 현행 요금제(무료 + 오너뷰 25,000원) 기준.
+//   ⚠️ 숫자는 subscription_plans 의 실제 한도와 맞춰야 한다. 여기만 고치면 거짓 안내가 된다.
+//   free: 발행 합산 월 5건 / AI 10만 토큰,  standard: 발행 합산 월 100건 / AI 100만 토큰
+const MATRIX = [
   {
     group: "기본",
     rows: [
-      { name: "사용 인원", free: "체험 5명", basic: "기본 5명 + 추가 ₩10,000/월", ultra: "기본 5명 + 추가 ₩10,000/월" },
-      { name: "은행·카드 실계좌 연동", free: "✓", basic: "✓", ultra: "✓" },
-      { name: "경영 대시보드 · 리포트", free: "✓", basic: "무제한", ultra: "무제한" },
+      { name: "사용 인원", free: "5명", paid: "기본 5명 + 추가 1명 ₩5,000/월" },
+      { name: "은행·카드 실계좌 연동", free: "하루 2회 자동", paid: "계좌 수 제한 없이 하루 2회 자동" },
+      { name: "즉시 동기화 버튼", free: "횟수 제한 없음(30분 간격)", paid: "횟수 제한 없음(30분 간격)" },
+      { name: "경영 대시보드 · 리포트", free: "✓", paid: "✓" },
     ],
   },
   {
     group: "프로젝트 · 문서",
     rows: [
-      { name: "프로젝트", free: "체험", basic: "무제한", ultra: "무제한" },
-      { name: "전자결재", free: "체험", basic: "무제한", ultra: "무제한" },
-      { name: "전자계약(서명)", free: "월 3건", basic: "월 20건", ultra: "무제한" },
-      { name: "거래처 · 파트너", free: "체험", basic: "무제한", ultra: "무제한" },
+      { name: "프로젝트", free: "무제한", paid: "무제한" },
+      { name: "전자결재", free: "무제한", paid: "무제한" },
+      { name: "전자계약(서명)", free: "월 5건", paid: "무제한" },
+      { name: "거래처 · 파트너", free: "무제한", paid: "무제한" },
     ],
   },
   {
     group: "인사 · 급여",
     rows: [
-      { name: "근태 · 연차 관리", free: "체험", basic: "✓", ultra: "✓" },
-      { name: "급여 · 4대보험 자동 계산 · 명세서 발송", free: "체험", basic: "✓", ultra: "✓" },
-      { name: "근로계약서 전자서명 · 증명서 발급", free: "체험", basic: "✓", ultra: "✓" },
+      { name: "근태 · 연차 관리", free: "✓", paid: "✓" },
+      { name: "급여 · 4대보험 자동 계산 · 명세서 발송", free: "✓", paid: "✓" },
+      { name: "근로계약서 전자서명 · 증명서 발급", free: "✓", paid: "✓" },
     ],
   },
   {
     group: "회계 · 세무",
     rows: [
-      { name: "AI 거래 분류", free: "체험", basic: "무제한", ultra: "무제한" },
-      { name: "세금계산서 국세청 발행", free: "월 3건", basic: "월 10건", ultra: "무제한" },
-      { name: "현금영수증 발행", free: "월 3건", basic: "월 10건", ultra: "무제한" },
+      { name: "AI 거래 분류", free: "✓", paid: "✓" },
+      { name: "세금계산서 · 현금영수증 발행", free: "합산 월 5건", paid: "합산 월 100건" },
+      { name: "홈택스 자동 수집", free: "—", paid: "✓" },
+      { name: "다 쓰면 충전해서 이어 쓰기", free: "—", paid: "발행 300원/건 · 토큰 100만개 10,000원" },
     ],
   },
   {
-    group: "AI · 지원",
+    group: "AI",
     rows: [
-      { name: "AI 대표 참모(질문·업무 지시)", free: "—", basic: "월 50만 토큰", ultra: "월 200만 토큰" },
-      { name: "AI 브리핑", free: "—", basic: "—", ultra: "매일 우선순위 액션" },
-      { name: "신기능 얼리 액세스", free: "—", basic: "—", ultra: "✓" },
-      { name: "우선 지원", free: "—", basic: "—", ultra: "✓" },
+      { name: "AI 대표 참모(질문·업무 지시)", free: "월 10만 토큰", paid: "월 100만 토큰" },
+      { name: "AI 브리핑", free: "기본형(요약 규칙)", paid: "매일 자동 분석" },
     ],
   },
 ];
@@ -63,7 +66,7 @@ export default function PricingView() {
   const [team, setTeam] = useState(8);
   const won = (n: number) => "₩" + n.toLocaleString("ko-KR");
   const compTotal = COMPETITORS.reduce((s, c) => s + (c.perSeat ? c.price * team : c.price), 0);
-  const owvTotal = 79500 + Math.max(0, team - 5) * 10000;
+  const owvTotal = 25000 + Math.max(0, team - 5) * 5000;
   const savePct = Math.round(((compTotal - owvTotal) / compTotal) * 100);
 
   return (
@@ -117,7 +120,7 @@ export default function PricingView() {
 
           <div className="lp4-matrix">
             <div className="lp4-mx-head">
-              <span>기능</span><span>무료체험</span><span>프로</span><span>울트라</span>
+              <span>기능</span><span>무료</span><span>오너뷰</span>
             </div>
             {MATRIX.map((g) => (
               <div key={g.group} className="lp4-mx-group">
@@ -126,8 +129,7 @@ export default function PricingView() {
                   <div key={r.name} className="lp4-mx-row">
                     <span className="lp4-mx-name">{r.name}</span>
                     <span className="lp4-mx-v">{r.free}</span>
-                    <span className="lp4-mx-v lp4-mx-hl">{r.basic}</span>
-                    <span className="lp4-mx-v">{r.ultra}</span>
+                    <span className="lp4-mx-v lp4-mx-hl">{r.paid}</span>
                   </div>
                 ))}
               </div>
@@ -170,8 +172,8 @@ export default function PricingView() {
             <div className="lp4-cmp lp4-card lp4-cmp-hl">
               <div className="lp4-cmp-title">오너뷰 하나로</div>
               <div className="lp4-cmp-rows">
-                <div className="lp4-cmp-row"><span className="lp4-cmp-name">프로 (기본 5명 포함)</span><span className="lp4-cmp-price">₩79,500</span></div>
-                <div className="lp4-cmp-row"><span className="lp4-cmp-name">추가 {Math.max(0, team - 5)}명 × ₩10,000</span><span className="lp4-cmp-price">{won(Math.max(0, team - 5) * 10000)}</span></div>
+                <div className="lp4-cmp-row"><span className="lp4-cmp-name">오너뷰 (기본 5명 포함)</span><span className="lp4-cmp-price">₩25,000</span></div>
+                <div className="lp4-cmp-row"><span className="lp4-cmp-name">추가 {Math.max(0, team - 5)}명 × ₩5,000</span><span className="lp4-cmp-price">{won(Math.max(0, team - 5) * 5000)}</span></div>
                 <div className="lp4-cmp-row"><span className="lp4-cmp-name">전 기능 포함 · VAT 별도</span><span className="lp4-cmp-price lp4-cmp-inc">포함</span></div>
               </div>
               <div className="lp4-cmp-total">
