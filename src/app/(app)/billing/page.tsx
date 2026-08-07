@@ -22,7 +22,7 @@ import { TossCardSection } from "./_components/TossCardSection";
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
 
-type Tab = "plan" | "payment" | "invoices";
+type Tab = "plan" | "credits" | "payment" | "invoices";
 type BillingCycle = "monthly" | "annual";
 
 // 2026-08-06 요금제 개편 — 무료(영구) + 오너뷰 25,000원 단일 유료. 구 티어는 기존 구독자 표시용으로만 남긴다.
@@ -72,6 +72,72 @@ function BillingPageInner() {
 
   const { data: user, isLoading: isUserLoading, error: mainError, refetch: mainRefetch } = useQuery({ queryKey: ["currentUser"], queryFn: getCurrentUser });
   const companyId = user?.company_id;
+
+  // 충전 잔액·이력 (2026-08-07) — 월 제공량을 다 쓴 뒤 이어 쓰는 잔액.
+  //   적립은 결제 웹훅에서만 일어난다. 여기서는 보여주고 결제창을 열 뿐이다.
+  const { data: credits, refetch: refetchCredits } = useQuery({
+    queryKey: ["credit-balance", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const { data } = await supabase
+        .from("credit_balances").select("ai_tokens, issue_credits").eq("company_id", companyId).maybeSingle();
+      return data ?? { ai_tokens: 0, issue_credits: 0 };
+    },
+    enabled: !!companyId,
+  });
+  const { data: creditHistory = [] } = useQuery({
+    queryKey: ["credit-purchases", companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data } = await supabase
+        .from("credit_purchases")
+        .select("id, kind, quantity, amount_krw, status, created_at, paid_at")
+        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(20);
+      return data || [];
+    },
+    enabled: !!companyId && tab === "credits",
+  });
+  const [issuePacks, setIssuePacks] = useState(1);
+  const [tokenPacks, setTokenPacks] = useState(1);
+  const [creditLoading, setCreditLoading] = useState<string | null>(null);
+
+  // 결제 후 ?credit=success 로 돌아오면 충전 탭을 열고 잔액을 다시 읽는다.
+  //   적립은 웹훅이 하므로 몇 초 늦을 수 있어 잠깐 뒤 한 번 더 조회한다.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("credit");
+    if (!q) return;
+    setTab("credits");
+    if (q === "success") {
+      toast("결제가 완료됐습니다. 잠시 후 잔액에 반영됩니다.", "success");
+      refetchCredits();
+      const t = setTimeout(() => refetchCredits(), 4000);
+      window.history.replaceState({}, "", "/billing");
+      return () => clearTimeout(t);
+    }
+    window.history.replaceState({}, "", "/billing");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function startTopUp(kind: "issue" | "ai_tokens", packs: number) {
+    setCreditLoading(kind);
+    try {
+      const res = await fetch("/api/stripe/credits", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind, packs,
+          successUrl: `${window.location.origin}/billing?credit=success`,
+          cancelUrl: `${window.location.origin}/billing?credit=cancel`,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error?.message || "충전을 시작하지 못했습니다");
+      window.location.href = json.data.url;
+    } catch (e: unknown) {
+      toast(e instanceof Error ? e.message : "충전을 시작하지 못했습니다", "error");
+      setCreditLoading(null);
+    }
+  }
 
   // 사용량 통계 (현재 월 기준)
   const { data: usage } = useQuery({
@@ -341,6 +407,7 @@ function BillingPageInner() {
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
     { key: "plan", label: "요금제", icon: "💳" },
+    { key: "credits", label: "충전", icon: "🔋" },
     { key: "payment", label: "결제 수단", icon: "🏦" },
     { key: "invoices", label: "청구서", icon: "🧾" },
   ];
@@ -526,6 +593,103 @@ function BillingPageInner() {
           <div className="text-xs text-[var(--text-dim)]">이번 달 전자서명 {usage?.signatures ?? 0}건</div>
         </div>
       </div>
+
+      {/* 충전 탭 — 월 제공량을 다 쓴 뒤 이어 쓰는 잔액 (2026-08-07) */}
+      {tab === "credits" && (
+        <div className="billing-credits">
+          <div className="billing-credit-balances">
+            <div className="billing-credit-balance glass-card">
+              <div className="caption">남은 발행 충전</div>
+              <div className="billing-credit-amount mono-number">{(credits?.issue_credits ?? 0).toLocaleString()}<span className="billing-credit-unit">건</span></div>
+              <p className="billing-credit-hint">요금제의 월 제공량을 먼저 쓰고, 다 쓰면 여기서 빠집니다.</p>
+            </div>
+            <div className="billing-credit-balance glass-card">
+              <div className="caption">남은 AI 토큰 충전</div>
+              <div className="billing-credit-amount mono-number">{(credits?.ai_tokens ?? 0).toLocaleString()}<span className="billing-credit-unit">토큰</span></div>
+              <p className="billing-credit-hint">유효기간 없이 다 쓸 때까지 이월됩니다.</p>
+            </div>
+          </div>
+
+          <div className="billing-credit-shop glass-card">
+            <h3 className="section-title">충전하기</h3>
+            <p className="text-[11px] text-[var(--text-dim)] mb-4">결제하면 바로 잔액에 더해집니다. 금액은 VAT 별도입니다.</p>
+
+            <div className="billing-credit-item">
+              <div className="min-w-0">
+                <div className="text-sm font-bold">세금계산서·현금영수증 발행</div>
+                <div className="caption">10건 묶음 · 3,000원 (건당 300원)</div>
+              </div>
+              <div className="billing-credit-buy">
+                <input
+                  type="number" min={1} max={100} value={issuePacks}
+                  onChange={(e) => setIssuePacks(Math.min(100, Math.max(1, Number(e.target.value) || 1)))}
+                  className="billing-credit-qty field-input"
+                />
+                <span className="caption">묶음 = {(issuePacks * 10).toLocaleString()}건</span>
+                <button
+                  onClick={() => startTopUp("issue", issuePacks)}
+                  disabled={creditLoading !== null}
+                  className="btn-primary btn-sm disabled:opacity-50"
+                >
+                  {creditLoading === "issue" ? "이동 중..." : `${(issuePacks * 3000).toLocaleString()}원 결제`}
+                </button>
+              </div>
+            </div>
+
+            <div className="billing-credit-item">
+              <div className="min-w-0">
+                <div className="text-sm font-bold">AI 참모 토큰</div>
+                <div className="caption">100만 토큰 묶음 · 10,000원</div>
+              </div>
+              <div className="billing-credit-buy">
+                <input
+                  type="number" min={1} max={100} value={tokenPacks}
+                  onChange={(e) => setTokenPacks(Math.min(100, Math.max(1, Number(e.target.value) || 1)))}
+                  className="billing-credit-qty field-input"
+                />
+                <span className="caption">묶음 = {(tokenPacks * 100).toLocaleString()}만 토큰</span>
+                <button
+                  onClick={() => startTopUp("ai_tokens", tokenPacks)}
+                  disabled={creditLoading !== null}
+                  className="btn-primary btn-sm disabled:opacity-50"
+                >
+                  {creditLoading === "ai_tokens" ? "이동 중..." : `${(tokenPacks * 10000).toLocaleString()}원 결제`}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-[var(--text-dim)] mt-3">
+              충전은 유료 요금제에서 이용할 수 있습니다. 무료 요금제는 월 제공량까지만 사용합니다.
+            </p>
+          </div>
+
+          <div className="billing-credit-history glass-card">
+            <h3 className="section-title">충전 내역</h3>
+            {creditHistory.length === 0 ? (
+              <div className="templates-empty">아직 충전한 내역이 없습니다.</div>
+            ) : (
+              <div className="space-y-1.5">
+                {creditHistory.map((h) => (
+                  <div key={h.id} className="billing-credit-history-row">
+                    <div>
+                      <div className="text-xs font-semibold">
+                        {h.kind === "issue" ? "발행" : "AI 토큰"} {Number(h.quantity).toLocaleString()}{h.kind === "issue" ? "건" : "토큰"}
+                      </div>
+                      <div className="caption">{kstDateStr(new Date(h.created_at))}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-bold mono-number">{Number(h.amount_krw).toLocaleString()}원</div>
+                      <div className={`caption ${h.status === "paid" ? "text-[var(--success)]" : ""}`}>
+                        {h.status === "paid" ? "충전 완료" : h.status === "pending" ? "결제 대기" : "실패"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Plan Tab */}
       {tab === "plan" && (

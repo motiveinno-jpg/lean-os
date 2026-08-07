@@ -3322,6 +3322,82 @@ export type Database = {
           },
         ]
       }
+      credit_balances: {
+        Row: {
+          ai_tokens: number
+          company_id: string
+          issue_credits: number
+          updated_at: string
+        }
+        Insert: {
+          ai_tokens?: number
+          company_id: string
+          issue_credits?: number
+          updated_at?: string
+        }
+        Update: {
+          ai_tokens?: number
+          company_id?: string
+          issue_credits?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_balances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_purchases: {
+        Row: {
+          amount_krw: number
+          company_id: string
+          created_at: string
+          id: string
+          kind: string
+          paid_at: string | null
+          provider: string
+          provider_ref: string | null
+          quantity: number
+          status: string
+        }
+        Insert: {
+          amount_krw: number
+          company_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          paid_at?: string | null
+          provider?: string
+          provider_ref?: string | null
+          quantity: number
+          status?: string
+        }
+        Update: {
+          amount_krw?: number
+          company_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          paid_at?: string | null
+          provider?: string
+          provider_ref?: string | null
+          quantity?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_purchases_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null

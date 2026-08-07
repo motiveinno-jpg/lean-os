@@ -101,6 +101,23 @@ const invoiceSubId = (inv: Stripe.Invoice): string | null => {
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const db = getSupabaseAdmin() as any;
+
+  // 충전(크레딧) 결제 — 구독이 아니라 일회성 결제라 여기서 갈라 처리하고 끝낸다 (2026-08-07).
+  //   적립은 오직 이 경로에서만 한다. 성공 URL 로 돌아온 것만으로는 적립하지 않는다(위조 방지).
+  //   같은 이벤트를 두 번 받아도 apply_credit_purchase 가 status='paid' 를 보고 한 번만 적립한다.
+  if (session.metadata?.purpose === 'credit_topup') {
+    const purchaseId = session.metadata?.creditPurchaseId;
+    if (!purchaseId) { console.warn('credit_topup without purchase id', session.id); return; }
+    if (session.payment_status !== 'paid') {
+      console.warn('credit_topup not paid yet', session.id, session.payment_status);
+      return;
+    }
+    const { data, error } = await db.rpc('apply_credit_purchase', { p_purchase_id: purchaseId });
+    if (error) console.error('apply_credit_purchase failed:', error.message, purchaseId);
+    else if (data === false) console.warn('credit already applied (duplicate webhook)', purchaseId);
+    return;
+  }
+
   const companyId = session.metadata?.companyId;
   const planSlug = session.metadata?.planSlug;
   const seatCount = Math.max(1, parseInt(session.metadata?.seatCount || '1', 10) || 1);

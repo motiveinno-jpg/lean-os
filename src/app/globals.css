@@ -2778,6 +2778,20 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .leave-quick-label { @apply text-[11px] font-semibold text-[var(--text-muted)]; }
 .leave-quick-actions { @apply flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border)]; }
 .leave-quick-cancel { @apply px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50; }
+
+/* 요금제 > 충전 탭 (2026-08-07) */
+.billing-credits { @apply space-y-5; }
+.billing-credit-balances { @apply grid grid-cols-1 sm:grid-cols-2 gap-4; }
+.billing-credit-balance { @apply p-5; }
+.billing-credit-amount { @apply text-2xl font-extrabold mt-1; } /* mono-number 는 커스텀 클래스라 JSX 병기 — @apply 에 넣으면 빌드가 깨진다 */
+.billing-credit-unit { @apply text-sm font-semibold text-[var(--text-muted)] ml-1; }
+.billing-credit-hint { @apply text-[11px] text-[var(--text-dim)] mt-1.5 leading-relaxed; }
+.billing-credit-shop { @apply p-5; }
+.billing-credit-item { @apply flex items-center justify-between gap-4 py-3 border-t border-[var(--border)] flex-wrap; }
+.billing-credit-buy { @apply flex items-center gap-2 shrink-0; }
+.billing-credit-qty { @apply w-16 px-2 py-1.5 text-sm text-right; }
+.billing-credit-history { @apply p-5; }
+.billing-credit-history-row { @apply flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50; }
 /* 직원 카드 — 남은 연차 직접 입력 */
 .leave-remaining-input { @apply w-14 px-1 py-0.5 text-lg font-bold text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded; }
 
