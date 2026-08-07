@@ -580,7 +580,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                         </div>
                       </div>
                       <div className="text-[10px] text-[var(--text-dim)] mt-1">
-                        산정 기준: 평균임금 x 30일 x 재직일수 / 365일 (근로기준법 제34조)
+                        산정 기준: 평균임금 x 30일 x 재직일수 / 365일
                       </div>
                     </div>
                   </div>
