@@ -66,6 +66,29 @@ function addPeriod(from: Date, cycle: string): Date {
 
 type ChargeOutcome = { companyId: string; ok: boolean; amount?: number; error?: string; code?: string };
 
+// 결제 실패를 회사 마스터에게 알린다(인앱) — billing_events 에만 남으면 아무도 못 본다.
+async function notifyPaymentFailed(
+  supabase: any, companyId: string, amount: number, message: string, exhausted: boolean,
+) {
+  try {
+    const { data: masters } = await supabase
+      .from("users").select("id").eq("company_id", companyId).eq("is_master", true);
+    const rows = (masters || []).map((m: { id: string }) => ({
+      company_id: companyId,
+      user_id: m.id,
+      type: "billing",
+      title: exhausted ? "결제 실패 — 서비스가 곧 제한됩니다" : "구독 결제가 실패했습니다",
+      message: exhausted
+        ? `${amount.toLocaleString("ko-KR")}원 결제가 3회 모두 실패했습니다. 결제수단을 다시 등록해 주세요. (${message})`
+        : `${amount.toLocaleString("ko-KR")}원 결제가 실패했습니다. 3일 뒤 다시 시도합니다. (${message})`,
+      link: "/billing",
+    }));
+    if (rows.length) await supabase.from("notifications").insert(rows);
+  } catch (e) {
+    console.error("notifyPaymentFailed failed", e); // 알림 실패가 결제 처리를 막지 않게
+  }
+}
+
 serve(withSentry("toss-charge", async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -137,15 +160,50 @@ serve(withSentry("toss-charge", async (req: Request) => {
     const plan = planById.get(s.plan_id);
     if (!plan) { results.push({ companyId: s.company_id, ok: false, error: "요금제를 찾을 수 없습니다" }); continue; }
 
+    // ── 좌석 수를 실제 인원으로 맞춘다 (2026-08-07) ──
+    //   지금까지 seat_count 는 결제 시점 값으로 굳어 있었다 — 5명일 때 결제한 회사가
+    //   20명이 돼도 계속 5명 요금을 냈다. 청구 시점의 재직 인원으로 다시 센다.
+    const includedSeats = plan.included_seats ?? 0;
+    const perSeat = Number(plan.per_seat_price);
+    const oldSeats = s.seat_count || 1;
+    const { count: empCount } = await supabase
+      .from("employees").select("id", { count: "exact", head: true })
+      .eq("company_id", s.company_id).in("status", ["active", "joined"]);
+    const actualSeats = Math.max(1, empCount || 0);
+
+    // 지난 주기 도중 늘어난 좌석은 일할계산해 이번 청구에 더한다(줄어든 건 환불 없이 다음 주기 반영).
+    let prorationAmount = 0;
+    const prorationDetail: { employeeId: string; days: number; amount: number }[] = [];
+    const addedBillable = Math.max(0, (actualSeats - includedSeats)) - Math.max(0, (oldSeats - includedSeats));
+    if (addedBillable > 0 && perSeat > 0 && s.current_period_start) {
+      const pStart = new Date(s.current_period_start).getTime();
+      const pEnd = new Date(s.current_period_end || nowIso).getTime();
+      const periodDays = Math.max(1, Math.round((pEnd - pStart) / 86400000));
+      // 지난 주기에 새로 들어온 재직자 중 최근 입력분 addedBillable 명이 추가 과금 대상
+      const { data: newcomers } = await supabase
+        .from("employees").select("id, created_at")
+        .eq("company_id", s.company_id).in("status", ["active", "joined"])
+        .gte("created_at", new Date(pStart).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(addedBillable);
+      for (const e of (newcomers || []) as { id: string; created_at: string }[]) {
+        const joined = new Date(e.created_at).getTime();
+        const days = Math.max(0, Math.round((pEnd - joined) / 86400000));
+        const amt = Math.round(perSeat * (days / periodDays));
+        if (amt > 0) { prorationAmount += amt; prorationDetail.push({ employeeId: e.id, days, amount: amt }); }
+      }
+    }
+
     // 무료 플랜은 청구 대상이 아니다 — 주기만 다음으로 밀어 둔다.
     const supplyMonthly = Math.round(
       Number(plan.base_price) +
-      Math.max(0, (s.seat_count || 1) - (plan.included_seats ?? 0)) * Number(plan.per_seat_price),
+      Math.max(0, actualSeats - includedSeats) * perSeat,
     );
     const yearly = s.billing_cycle === "yearly" || s.billing_cycle === "annual";
-    const supply = yearly
+    const supplyBase = yearly
       ? Math.round(supplyMonthly * 12 * (1 - Number(plan.annual_discount || 0)))
       : supplyMonthly;
+    const supply = supplyBase + prorationAmount;
     const periodStart = new Date(s.current_period_end || nowIso);
     const periodEnd = addPeriod(periodStart, s.billing_cycle || "monthly");
 
@@ -228,13 +286,16 @@ serve(withSentry("toss-charge", async (req: Request) => {
         toss_payment_key: payment.paymentKey,
         toss_order_id: orderId,
         paid_at: payment.approvedAt || new Date().toISOString(),
-        description: orderName,
+        description: prorationAmount > 0
+          ? `${orderName} (좌석 ${actualSeats}명, 중도 합류 일할 ${prorationAmount.toLocaleString("ko-KR")}원 포함)`
+          : `${orderName} (좌석 ${actualSeats}명)`,
         billing_period_start: periodStart.toISOString(),
         billing_period_end: periodEnd.toISOString(),
         currency: "krw",
       });
       await supabase.from("subscriptions").update({
         status: "active",
+        seat_count: actualSeats,
         current_period_start: periodStart.toISOString(),
         current_period_end: periodEnd.toISOString(),
         payment_retry_count: 0,
@@ -244,7 +305,8 @@ serve(withSentry("toss-charge", async (req: Request) => {
       }).eq("id", s.id);
       await supabase.from("billing_events").insert({
         company_id: s.company_id, event_type: "payment_success",
-        metadata: { orderId, amount: total, paymentKey: payment.paymentKey, provider: "toss" },
+        metadata: { orderId, amount: total, paymentKey: payment.paymentKey, provider: "toss",
+          seats: actualSeats, previousSeats: oldSeats, proration: prorationAmount, prorationDetail },
       });
       results.push({ companyId: s.company_id, ok: true, amount: total });
       continue;
@@ -265,6 +327,7 @@ serve(withSentry("toss-charge", async (req: Request) => {
       company_id: s.company_id, event_type: "payment_failed",
       metadata: { orderId, amount: total, code: failCode, message: failMsg, attempt: nextCount, exhausted, provider: "toss" },
     });
+    await notifyPaymentFailed(supabase, s.company_id, total, failMsg, exhausted);
     results.push({ companyId: s.company_id, ok: false, error: failMsg, code: failCode });
   }
 
