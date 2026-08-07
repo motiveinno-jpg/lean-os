@@ -137,13 +137,13 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
     enabled: !!employeeId,
   });
 
-  // 요약 — 근태관리(getMonthlyAttendanceSummary)와 동일 규칙: is_late 는 status='present' 여도 지각으로 집계.
+  // 요약 — 근태관리(getMonthlyAttendanceSummary)와 동일 규칙: 지각은 is_late 하나만 본다.
   const workDays = records.filter((r) => r.status !== "absent").length;
   const totalMinutes = records.reduce(
     (sum, r) => sum + (Number(r.regular_minutes || 0) + Number(r.overtime_minutes || 0) || Math.round(Number(r.work_hours || 0) * 60)),
     0,
   );
-  const lateDays = records.filter((r) => r.is_late || r.status === "late").length;
+  const lateDays = records.filter((r) => r.is_late).length;
   const overtimeMinutes = records.reduce((sum, r) => sum + Number(r.overtime_minutes || 0), 0);
 
   return (

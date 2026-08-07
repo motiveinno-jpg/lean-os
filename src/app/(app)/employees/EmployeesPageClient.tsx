@@ -853,11 +853,15 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   // 직원별 월간 요약 카드 클릭 시 상세(수당내역·근무내역) 모달.
   const [summaryDetailId, setSummaryDetailId] = useState<string | null>(null);
-  // status 와 is_late 불일치 흡수: is_late=true 면 'late' 우선 (UI 일관성).
-  //   edge attendance-checkin INSERT 시 status·is_late 계산 source 가 달라 어긋날 수 있음.
-  //   근본 fix(edge 통합) 는 별건 — 본 헬퍼는 표시 단의 안전망.
-  const effectiveStatus = (r: { is_late?: boolean | null; status?: string | null }): string =>
-    r.is_late ? 'late' : (r.status || 'present');
+  // 표시용 상태 — 두 컬럼의 축이 다르다 (2026-08-07 정리).
+  //   status  = 그 날의 근무 형태(출근/재택/반차/결근)
+  //   is_late = 지각 여부. 실제 출근시각과 회사 유예로만 정해진다.
+  //   재택·반차·결근은 형태를 그대로 보여 주고, 그 외에만 지각/정상출근을 가른다.
+  const effectiveStatus = (r: { is_late?: boolean | null; status?: string | null }): string => {
+    const s = r.status || 'present';
+    if (s === 'remote' || s === 'half_day' || s === 'absent') return s;
+    return r.is_late ? 'late' : 'present';
+  };
 
   // Get month start/end for queries
   const monthStart = `${selectedMonth}-01`;
@@ -1056,7 +1060,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       const present = new Set<string>();
       const late = new Set<string>();
       for (const r of (attRes.data || []) as any[]) {
-        if (r.is_late || r.status === "late") late.add(r.employee_id);
+        if (r.is_late) late.add(r.employee_id);   // 지각 판정은 is_late 단일 소스 (2026-08-07)
         else present.add(r.employee_id);
       }
       const leaveSet = new Set<string>(((leaveRes.data || []) as any[]).map((r) => r.employee_id));

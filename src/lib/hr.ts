@@ -866,16 +866,16 @@ export function isLate(currentKstMin: number, policy: AttendancePolicy): boolean
 
 // ── Attendance: Check In ──
 // 시그니처 불변: (companyId, employeeId, status?) — attendanceType 은 뒤에 옵션으로만 추가.
-// status === 'auto' (기본) → 회사 정책 기준 KST 시각으로 present/late 자동 판정
+// status === "auto" (기본) → 서버(엣지)가 실제 출근시각·회사 유예로 지각을 판정
 // attendanceType(2026-07-31 사장님): 출근 시 본인이 고른 유형(field_work 외근/business_trip 출장 등).
-//   checkin 엣지함수는 status 만 받으므로 성공 직후 본인 레코드에 attendance_type 을 채운다.
+//   엣지함수는 유형을 받지 않으므로 성공 직후 본인 레코드에 attendance_type 을 채운다.
+//
+// 지각 판정 제거 (2026-08-07): 종전엔 status="auto" 일 때 여기서 지각을 계산해 'late'/'present'
+//   로 바꿔 엣지에 보냈다. 그런데 getAttendancePolicy() 가 설정을 못 읽으면 기본값
+//   (09:00 + 유예 30분)으로 떨어져, 실제 기준이 09:30 + 유예 5분인 회사에서 09:32 출근이
+//   'late' 로 올라갔다. 이제 엣지가 실제 설정으로 직접 판정한다.
+//   status 는 재택·반차·결근처럼 본인이 고른 근무 형태를 전달할 때만 쓰인다("auto" 면 서버 판정).
 export async function checkIn(companyId: string, employeeId: string, status: string = "auto", attendanceType?: string) {
-  if (status === "auto") {
-    const policy = await getAttendancePolicy(companyId, employeeId);
-    const mins = nowKstMinutes();
-    status = isLate(mins, policy) ? "late" : "present";
-  }
-
   // 연장근무 게이트 — work_end_time 이후 출근은 승인된 연장근무 신청이 있어야 가능.
   //   정규 시간/회사 work_end_time 미설정/승인된 연장 시간 안 이면 통과 (allowed=true).
   //   차단 시 친화 메시지로 throw → 호출자 toast(friendlyError).
@@ -1126,7 +1126,10 @@ export async function upsertAttendanceRecordAsAdmin(params: {
       const late = isLate(kstMin, policy);
       // 관리자가 상태를 명시했으면 그 값을 존중하고, 없을 때만 지각 여부로 자동 판정.
       if (!params.status) row.status = late ? 'late' : 'present';
-      row.is_late = row.status === 'late';
+      // is_late 는 status 가 아니라 실제 출근시각으로 정한다 (2026-08-07).
+      //   status='remote' 처럼 관리자가 근무 형태를 지정한 날도 지각은 지각이고,
+      //   반대로 status 만 'late' 로 찍혀 있다고 지각이 되지는 않는다.
+      row.is_late = late && row.status !== 'absent';
       row.late_minutes = row.is_late ? Math.max(0, kstMin - parseHhmmToMinutes(policy.workStartTime)) : 0;
     }
   }
@@ -1254,8 +1257,10 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
     }
     const entry = map[r.employee_id];
     entry.totalDays++;
-    // effectiveStatus 와 동일 의미: is_late=true 면 lateDays 카운트 (status='present' 회귀 차단)
-    if (r.is_late || r.status === 'late') entry.lateDays++;
+    // 지각은 is_late 하나만 본다 (2026-08-07). status 는 근무 형태(재택·반차·결근)를 담는
+    //   칸이라 지각 여부와 축이 다르고, 과거엔 클라이언트가 잘못 계산한 'late' 가 섞여 들어와
+    //   유예 안에 찍은 출근까지 지각으로 세게 만들었다.
+    if (r.is_late) entry.lateDays++;
     if (r.status === 'absent') entry.absentDays++;
     if (r.status === 'remote') entry.remoteDays++;
     if (r.status === 'half_day') entry.halfDays++;
