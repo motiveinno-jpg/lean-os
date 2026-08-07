@@ -37,12 +37,17 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function BoardDocModal({
-  kind, rowName, doc, amount, partnerName, partnerId, companyId, dealId, userId,
+  kind, rowName, doc, draft, onCreate, amount, partnerName, partnerId, companyId, dealId, userId,
   onClose, onIssued, onSent, onApproved,
 }: {
   kind: DocKind;
   rowName: string;
   doc: any | null;
+  /** 아직 만들지 않은 문서 — '만들기' 를 누르면 이 내용으로 열리고, **저장을 눌러야** 생긴다
+   *  (2026-08-07 사장님 지시). 저장 전에는 보내기·검토 요청 같은 뒷일을 할 수 없다. */
+  draft?: { name: string; content: any } | null;
+  /** 저장 — 초안이면 이걸로 문서를 만든다. 성공하면 부모가 실제 문서로 바꿔 준다 */
+  onCreate?: (contentJson: any) => Promise<boolean>;
   /** 이 청구 건의 금액(공급가) — 품목이 없을 때의 기준값 */
   amount: number;
   partnerName: string;
@@ -62,7 +67,7 @@ export function BoardDocModal({
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
 
-  const cj = (doc?.content_json as any) || {};
+  const cj = (doc?.content_json as any) || (draft?.content as any) || {};
   const [items, setItems] = useState<any[]>([]);
   const [issueDate, setIssueDate] = useState(todayKst());
   const [validUntil, setValidUntil] = useState("");
@@ -70,7 +75,7 @@ export function BoardDocModal({
 
   // 문서를 열 때 한 번만 채운다 — 편집 중에 되돌려지지 않게
   useEffect(() => {
-    const c = (doc?.content_json as any) || {};
+    const c = (doc?.content_json as any) || (draft?.content as any) || {};
     const rows = Array.isArray(c.items) && c.items.length > 0 ? c.items : (
       amount > 0
         // 품목이 없으면 행 이름·금액으로 한 줄 깔아 준다 — 빈 표 앞에서 막히지 않게
@@ -80,7 +85,7 @@ export function BoardDocModal({
     setItems(rows);
     setValidUntil(c.validUntil || kstDateStr(new Date(Date.now() + 30 * 86_400_000)));
     setDirty(false);
-  }, [doc?.id]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [doc?.id, draft?.name]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const existing: any[] = Array.isArray(cj.paymentSchedule) ? cj.paymentSchedule : [];
   const [payMode, setPayMode] = useState<PayMode>(
@@ -132,7 +137,7 @@ export function BoardDocModal({
 
   // ── 저장 — 문서함과 **같은 saveRevision** 을 쓴다(이력도 똑같이 남는다) ──
   const save = async (silent = false) => {
-    if (!doc?.id || !userId) return false;
+    if (!userId) return false;
     let allocated = 0;
     const schedule = terms.map((t, i) => {
       const amt = i === terms.length - 1 ? supply - allocated : termAmount(t.ratio);
@@ -148,6 +153,15 @@ export function BoardDocModal({
         ? { paymentSchedule: schedule, paymentTerms: schedule.map((s) => `${s.label} ${s.ratio}% (${s.condition || "협의"})`).join(", ") }
         : {}),
     };
+    //   아직 없는 문서면 이때 만든다 — '만들기' 는 편집기를 열 뿐이고 저장이 실제 생성이다
+    if (!doc?.id) {
+      if (!onCreate) return false;
+      const ok = await onCreate(next);
+      if (!ok) return false;
+      setDirty(false);
+      if (!silent) toast("저장했습니다.", "success");
+      return true;
+    }
     await saveRevision({ documentId: doc.id, authorId: userId, contentJson: next as any });
     setDirty(false);
     refreshDoc();
@@ -253,6 +267,7 @@ export function BoardDocModal({
           <div>
             <b>{rowName || "청구 건"}</b>
             <span>{DOC_LABEL[kind]}{doc?.document_number ? ` · ${doc.document_number}` : ""}</span>
+            {!doc?.id && <em className="pb-doc-unsaved">아직 저장 전 — ‘저장’ 을 눌러야 만들어집니다</em>}
           </div>
           {kind !== "issue" && <span className={`pb-doc-st pb-doc-st-${status}`}>{STATUS_LABEL[status] || status}</span>}
           {dirty && <span className="pb-doc-dirty">저장 안 됨</span>}
@@ -346,10 +361,13 @@ export function BoardDocModal({
           <span className="pb-doc-spacer" />
           {kind !== "issue" && (<>
             <button type="button" className="pb-doc-sub" disabled={busy || !canEdit} onClick={() => save()}>저장</button>
-            {status === "draft" && <button type="button" className="pb-doc-sub" disabled={busy} onClick={submit}>검토 요청</button>}
+            {status === "draft" && <button type="button" className="pb-doc-sub" disabled={busy || !doc?.id}
+              title={doc?.id ? undefined : "먼저 저장하세요"} onClick={submit}>검토 요청</button>}
             {status === "review" && <button type="button" className="pb-doc-sub" disabled={busy} onClick={approve}>승인</button>}
-            <button type="button" className="pb-doc-sub" disabled={busy} onClick={copyShareLink}>공유 링크</button>
-            <button type="button" className="pb-doc-go" disabled={busy} onClick={sendToPartner}>
+            <button type="button" className="pb-doc-sub" disabled={busy || !doc?.id}
+              title={doc?.id ? undefined : "먼저 저장하세요"} onClick={copyShareLink}>공유 링크</button>
+            <button type="button" className="pb-doc-go" disabled={busy || !doc?.id}
+              title={doc?.id ? undefined : "먼저 저장하세요"} onClick={sendToPartner}>
               {busy ? "…" : lastSend ? "다시 보내기" : "거래처에 보내기"}
             </button>
           </>)}

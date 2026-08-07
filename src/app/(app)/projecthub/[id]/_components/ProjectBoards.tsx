@@ -17,7 +17,7 @@ import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { DateField } from "@/components/date-field";
 import { getPartners, upsertPartner } from "@/lib/partners";
-import { createQuoteForDeal, createContractFromQuoteDoc } from "@/lib/documents";
+import { buildQuoteContent, buildContractContent, insertDocument } from "@/lib/documents";
 import { BoardItemDrawer } from "./BoardItemDrawer";
 import { BoardDocModal, type DocKind } from "./BoardDocModal";
 import { BoardTrash } from "./BoardTrash";
@@ -157,6 +157,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   //   '매출 · 청구' 만 문서 체인을 쓴다 — 조회 조건에서도 보므로 여기서 먼저 정한다
   //   견적서를 바로 만들 수 있는 표 — 합친 '매출 흐름' 과 합치기 전 '매출 · 청구' 둘 다 (2026-08-07)
   const isBilling = templateKind(board?.template_key) === "revenue";
+  //   ⚠️ '계약 · 갱신' 도 만기 카드에서 계약서를 만든다 — 문서 목록을 안 읽으면 만들어 놓고도
+  //      화면이 빈 문서를 열어 저장이 안 됐다(2026-08-07 사장님: "계약서 만들기가 작동 안 한다").
+  const canDoc = isBilling || board?.template_key === "contract";
   //   '마케팅 계정 관리' 표 — 값을 사람이 아니라 매체 API 가 채운다(2026-08-06)
   const isAds = board?.template_key === "ads";
 
@@ -236,7 +239,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         .eq("deal_id", dealId).order("created_at", { ascending: false }));
       return (data || []) as any[];
     },
-    enabled: !!dealId && isBilling,
+    enabled: !!dealId && canDoc,
   });
 
   // 거래처 컬럼이 있는 표에서만 목록을 불러온다(620개 규모 — 필요할 때만)
@@ -522,28 +525,23 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   //   문서 자체는 기존 편집기가 맡는다 — 여기서는 만들고 연결한 뒤 그리로 보낸다.
   const [makingDoc, setMakingDoc] = useState<string | null>(null);
   //   문서는 팝업으로 연다 — 화면을 옮기면 업무 흐름이 끊긴다(2026-08-04 사장님 지시)
-  const [docModal, setDocModal] = useState<{ itemId: string; kind: DocKind } | null>(null);
+  //   draft — 아직 만들지 않은 문서(저장을 눌러야 생긴다, 2026-08-07 사장님 지시)
+  const [docModal, setDocModal] = useState<{ itemId: string; kind: DocKind; draft?: { name: string; content: any; contentType: "invoice" | "contract"; sourceDocumentId?: string | null } } | null>(null);
   const [minutesGroup, setMinutesGroup] = useState<string | null>(null);   // 회의록에서 펼쳐 둔 회의
   const [sendingTodo, setSendingTodo] = useState<string | null>(null);
+  //   '＋ 견적서' 는 편집기를 열 뿐이다 — 문서는 **저장을 눌러야** 생긴다(2026-08-07 사장님 지시).
+  //   그래야 열어 보고 닫았을 때 빈 견적서가 문서함에 쌓이지 않는다.
   const openQuote = async (it: BoardItem) => {
     const linked = (it.values || {})[DOC_VALUE_KEY] as { id?: string } | undefined;
     if (linked?.id) { setDocModal({ itemId: it.id, kind: "quote" }); return; }
-    if (!userId || makingDoc) return;
-    setMakingDoc(it.id);
-    try {
-      const doc = await createQuoteForDeal({
-        companyId, dealId, userId,
+    if (!userId) return;
+    setDocModal({
+      itemId: it.id, kind: "quote",
+      draft: {
         name: `${it.name?.trim() || dealName || "프로젝트"} 견적서`,
-      });
-      await db.from("project_board_items")
-        .update({ values: { ...(it.values || {}), [DOC_VALUE_KEY]: { id: doc.id, no: doc.document_number } }, updated_at: new Date().toISOString() })
-        .eq("id", it.id);
-      qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
-      qc.invalidateQueries({ queryKey: ["pb-docs", dealId] });
-      setDocModal({ itemId: it.id, kind: "quote" });
-    } catch (e: any) {
-      toast(e?.message || "견적서 생성 실패", "error");
-    } finally { setMakingDoc(null); }
+        content: buildQuoteContent(), contentType: "invoice",
+      },
+    });
   };
 
   // 카드를 다른 열로 — 흐름 컬럼이 있으면 그 값을, 없으면 그룹을 바꾼다.
@@ -578,27 +576,47 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const makeContract = async (it: BoardItem) => {
     const linked = (it.values || {})[CONTRACT_VALUE_KEY] as { id?: string } | undefined;
     if (linked?.id) { setDocModal({ itemId: it.id, kind: "contract" }); return; }
+    if (!userId) return;
     const q = (it.values || {})[DOC_VALUE_KEY] as { id?: string } | undefined;
     const quoteDoc = (dealDocs as any[]).find((d) => d.id === q?.id) || null;
-    if (!userId || makingDoc) return;
-    setMakingDoc(it.id);
+    const amountCol = cols.find((c) => c.type === "number" && (c.settings?.unit || "") === "원");
+    setDocModal({
+      itemId: it.id, kind: "contract",
+      draft: {
+        name: `${it.name?.trim() || dealName || "프로젝트"} 계약서`,
+        contentType: "contract",
+        sourceDocumentId: quoteDoc?.id || null,
+        content: buildContractContent({
+          quoteDoc, dealName: dealName || "", rowName: it.name || "",
+          partnerName: (partners as any[]).find((p) => p.id === (it.values || {})[partnerColId || ""])?.name,
+          amount: amountCol ? Number(it.values?.[amountCol.id]) || 0 : 0,
+        }),
+      },
+    });
+  };
+
+  //   편집기의 '저장' 이 부른다 — 이때 문서를 만들고 그 줄에 매단다
+  const createDocFromDraft = async (contentJson: any): Promise<boolean> => {
+    const d = docModal?.draft;
+    const it = docModal ? items.find((i) => i.id === docModal.itemId) : null;
+    if (!d || !it || !userId) return false;
     try {
-      const amountCol = cols.find((c) => c.type === "number" && (c.settings?.unit || "") === "원");
-      const doc = await createContractFromQuoteDoc({
-        companyId, dealId, userId, quoteDoc,
-        dealName: dealName || "", rowName: it.name || "",
-        partnerName: (partners as any[]).find((p) => p.id === (it.values || {})[partnerColId || ""])?.name,
-        amount: amountCol ? Number(it.values?.[amountCol.id]) || 0 : 0,
+      const doc = await insertDocument({
+        companyId, dealId, userId, name: d.name,
+        contentType: d.contentType, contentJson, sourceDocumentId: d.sourceDocumentId || null,
       });
+      const key = d.contentType === "contract" ? CONTRACT_VALUE_KEY : DOC_VALUE_KEY;
       await db.from("project_board_items")
-        .update({ values: { ...(it.values || {}), [CONTRACT_VALUE_KEY]: { id: doc.id, no: "계약서" } }, updated_at: new Date().toISOString() })
+        .update({ values: { ...(it.values || {}), [key]: { id: doc.id, no: doc.document_number || (d.contentType === "contract" ? "계약서" : "견적서") } }, updated_at: new Date().toISOString() })
         .eq("id", it.id);
       qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
-      qc.invalidateQueries({ queryKey: ["pb-docs", dealId] });
-      setDocModal({ itemId: it.id, kind: "contract" });
+      await qc.invalidateQueries({ queryKey: ["pb-docs", dealId] });
+      setDocModal({ itemId: it.id, kind: docModal!.kind });   // 이제 진짜 문서다
+      return true;
     } catch (e: any) {
-      toast(e?.message || "계약서 생성 실패", "error");
-    } finally { setMakingDoc(null); }
+      toast(e?.message || "저장 실패", "error");
+      return false;
+    }
   };
 
   // 계약서의 결제조건대로 청구 행을 만든다 — **제안만 하고, 만드는 건 사람이 누른다**.
@@ -916,7 +934,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   // 문서 팝업이 볼 것들 — 행, 그 행에 붙은 문서, 금액(원 단위 숫자 칸), 거래처
   const docModalItem = docModal ? items.find((i) => i.id === docModal.itemId) || null : null;
   const docModalDoc = (() => {
-    if (!docModalItem) return null;
+    if (!docModalItem || docModal?.draft) return null;
     const key = docModal!.kind === "quote" ? DOC_VALUE_KEY : CONTRACT_VALUE_KEY;
     const linked = (docModalItem.values || {})[key] as { id?: string } | undefined;
     return (dealDocs as any[]).find((d) => d.id === linked?.id) || null;
@@ -1128,6 +1146,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           kind={docModal!.kind}
           rowName={docModalItem.name}
           doc={docModalDoc}
+          draft={docModal!.draft ? { name: docModal!.draft.name, content: docModal!.draft.content } : null}
+          onCreate={createDocFromDraft}
           amount={docModalAmount}
           partnerName={docModalPartner?.name || ""}
           partnerId={docModalPartner?.id || null}

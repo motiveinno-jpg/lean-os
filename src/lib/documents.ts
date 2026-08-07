@@ -67,6 +67,35 @@ const QUOTE_SKELETON = {
   ],
 };
 
+/** 견적서 초안 내용 — 아직 저장하지 않는다(2026-08-07 사장님: "저장 버튼을 눌렀을 때 저장").
+ *  '만들기' 를 누르면 이 내용으로 편집기가 열리고, 저장을 눌러야 문서가 생긴다. */
+export function buildQuoteContent(): any {
+  return { ...QUOTE_SKELETON };
+}
+
+/** 문서 한 건을 실제로 만든다 — 편집기의 '저장' 이 부른다 */
+export async function insertDocument(params: {
+  companyId: string; dealId: string; userId: string;
+  name: string; contentType: "invoice" | "contract"; contentJson: any;
+  sourceDocumentId?: string | null;
+}): Promise<{ id: string; document_number: string | null }> {
+  const { data, error } = await supabase.from("documents").insert({
+    company_id: params.companyId,
+    deal_id: params.dealId,
+    sub_deal_id: null,
+    name: params.name,
+    status: "draft",
+    document_number: params.contentType === "invoice" ? await nextQuoteNumber(params.companyId) : null,
+    content_type: params.contentType,
+    content_json: params.contentJson as unknown as Json,
+    source_document_id: params.sourceDocumentId || null,
+    version: 1,
+    created_by: params.userId,
+  }).select("id, document_number").single();
+  if (error) throw new Error(error.message);
+  return data as any;
+}
+
 export async function createQuoteForDeal(params: {
   companyId: string; dealId: string; userId: string; name: string;
 }): Promise<{ id: string; document_number: string | null }> {
@@ -98,19 +127,7 @@ export async function createContractFromQuoteDoc(params: {
   /** 견적 없이 만들 때 계약서 이름에 쓸 줄 이름(예: '브랜드몰 구축 1차') */
   rowName?: string;
 }): Promise<{ id: string }> {
-  const q = (params.quoteDoc?.content_json as any) || {};
-  const no = params.quoteDoc?.document_number || "견적서";
-  const amt = params.amount || 0;
-  const content = {
-    ...STANDARD_CONTRACT_CONTENT,
-    direction: q.direction,
-    header: { ...(q.header || {}) },
-    items: q.items || [],
-    sections: [
-      { title: "계약 개요", content: `본 계약은 견적서(${no})에 근거한다.\n\n수신: ${params.partnerName || "{{거래처명}}"}\n계약금액: ${amt ? amt.toLocaleString("ko-KR") + "원 (VAT 별도)" : "{{계약금액}}원 (VAT 별도)"}` },
-      ...STANDARD_CONTRACT_CONTENT.sections,
-    ],
-  };
+  const content = buildContractContent(params);
   const { data, error } = await supabase.from("documents").insert({
     company_id: params.companyId,
     deal_id: params.dealId,
@@ -126,6 +143,26 @@ export async function createContractFromQuoteDoc(params: {
   }).select("id").single();
   if (error) throw new Error(error.message);
   return data as any;
+}
+
+/** 계약서 초안 내용 — 저장 전 편집기에 실을 내용만 만든다(문서는 아직 안 생긴다) */
+export function buildContractContent(params: {
+  quoteDoc?: { id: string; document_number?: string | null; content_json?: any; sub_deal_id?: string | null } | null;
+  dealName?: string; partnerName?: string; amount?: number; rowName?: string;
+}): any {
+  const q = (params.quoteDoc?.content_json as any) || {};
+  const no = params.quoteDoc?.document_number || "견적서";
+  const amt = params.amount || 0;
+  return {
+    ...STANDARD_CONTRACT_CONTENT,
+    direction: q.direction,
+    header: { ...(q.header || {}) },
+    items: q.items || [],
+    sections: [
+      { title: "계약 개요", content: `본 계약은 견적서(${no})에 근거한다.\n\n수신: ${params.partnerName || "{{거래처명}}"}\n계약금액: ${amt ? amt.toLocaleString("ko-KR") + "원 (VAT 별도)" : "{{계약금액}}원 (VAT 별도)"}` },
+      ...STANDARD_CONTRACT_CONTENT.sections,
+    ],
+  };
 }
 
 // ── Create document from template ──

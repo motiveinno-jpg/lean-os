@@ -6848,6 +6848,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pbd-paylab b { @apply text-[var(--text)] font-extrabold; }
 .pbd-docs { @apply flex flex-wrap gap-1.5; }
 
+/* 아직 저장 전 문서 — '만들기' 는 편집기를 열 뿐이다 (2026-08-07) */
+.pb-doc-unsaved { @apply not-italic ml-1.5 px-1.5 py-0.5 rounded-md text-[10.5px] font-bold bg-[var(--warning-dim)] text-[var(--warning)]; }
+
 /* 기간 막대 — 시작·종료가 있는 표는 걸친 날마다 조각을 놓아 이어 보이게 한다 (2026-08-07) */
 /*  이름이 없는 조각도 같은 높이여야 막대가 이어져 보인다(빈 칸에서 납작해지면 끊겨 보인다) */
 .pb-cal-span { @apply !text-white font-bold justify-start -mx-0.5 rounded-none min-h-[17px]; }
