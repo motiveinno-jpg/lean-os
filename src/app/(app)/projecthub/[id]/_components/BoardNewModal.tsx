@@ -355,6 +355,12 @@ function TemplatePeek({ t, x, y }: { t: BoardTemplate; x: number; y: number }) {
   };
   const isNum = (colIdx: number) => t.columns[colIdx - 1]?.type === "number";
   const openAs = t.input === "board" ? "칸반으로 열려요" : "표로 열려요";
+  //   ⚠️ 첫 화면이 칸반이면 예시도 칸반이어야 한다 — "칸반으로 열려요" 라고 적어 놓고 표를 보여
+  //      주면 그 자체가 거짓말이다(2026-08-07 사장님 지적).
+  const flowIdx = t.columns.findIndex((c) => c.type === "status" && c.settings?.flow);
+  const asBoard = t.input === "board" && flowIdx >= 0;
+  const personIdx = t.columns.findIndex((c) => c.type === "person");
+  const dateIdx = t.columns.findIndex((c) => c.type === "date");
 
   return (
     <div className="pb-peek" style={{ left: x, top: y }} role="tooltip" aria-hidden="true">
@@ -362,7 +368,29 @@ function TemplatePeek({ t, x, y }: { t: BoardTemplate; x: number; y: number }) {
         <b>{t.name}</b>
         <em>{t.key === "ads" ? "입력 없이 대시보드만" : `${openAs} · 예시`}</em>
       </div>
-      {t.key === "ads" ? (
+      {asBoard ? (
+        //   칸반 — 단계 칸의 라벨이 열이 되고, 예시 줄이 그 열의 카드가 된다
+        <div className="pb-peek-kan">
+          {((t.columns[flowIdx].settings?.options || []) as StatusOption[]).map((o) => {
+            const cards = rows.filter((r) => r[flowIdx + 1] === o.label);
+            return (
+              <div key={o.id} className="pb-peek-kcol">
+                <div className="pb-peek-khead"><i style={{ background: o.color }} />{o.label}<em>{cards.length}</em></div>
+                {cards.map((r, i) => (
+                  <div key={i} className="pb-peek-kcard">
+                    <b>{r[0]}</b>
+                    <span>
+                      {personIdx >= 0 && r[personIdx + 1] ? r[personIdx + 1] : ""}
+                      {dateIdx >= 0 && r[dateIdx + 1] ? ` · ${r[dateIdx + 1]}` : ""}
+                    </span>
+                  </div>
+                ))}
+                {cards.length === 0 && <div className="pb-peek-kempty">＋</div>}
+              </div>
+            );
+          })}
+        </div>
+      ) : t.key === "ads" ? (
         <div className="pb-peek-ads">
           {[["노출", "21,588회"], ["클릭", "365회"], ["광고비", "678,184원"], ["전환", "66건"]].map(([k, v]) => (
             <div key={k} className="pb-peek-kpi"><span>{k}</span><b>{v}</b></div>

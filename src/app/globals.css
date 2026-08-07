@@ -6799,6 +6799,17 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-peek-table .pb-peek-n { @apply text-right; font-variant-numeric: tabular-nums; }
 .pb-peek-dim { @apply text-[var(--text-dim)]; }
 .pb-peek-chip { @apply inline-block px-1.5 py-0.5 rounded-md text-[10px] font-bold text-white; }
+/* 칸반으로 열리는 템플릿은 예시도 칸반이다 (2026-08-07) */
+.pb-peek-kan { @apply flex gap-1.5 items-start; }
+.pb-peek-kcol { @apply flex-1 min-w-0 flex flex-col gap-1 p-1.5 rounded-xl bg-[var(--bg-surface)]; }
+.pb-peek-khead { @apply flex items-center gap-1 text-[10.5px] font-bold text-[var(--text-muted)]; }
+.pb-peek-khead i { @apply block w-2 h-2 rounded-full shrink-0; }
+.pb-peek-khead em { @apply not-italic ml-auto text-[10px] text-[var(--text-dim)]; }
+.pb-peek-kcard { @apply flex flex-col gap-0.5 p-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)]; }
+.pb-peek-kcard b { @apply text-[10.5px] font-bold text-[var(--text)] leading-snug; }
+.pb-peek-kcard span { @apply text-[9.5px] text-[var(--text-dim)]; }
+.pb-peek-kempty { @apply py-1.5 text-center text-[11px] text-[var(--text-dim)] rounded-lg border border-dashed border-[var(--border)]; }
+
 /* 광고 표 — 사람이 채우지 않으므로 예시도 대시보드 모양이다 */
 .pb-peek-ads { @apply grid grid-cols-4 gap-1.5; }
 .pb-peek-kpi { @apply flex flex-col gap-0.5 p-2 rounded-xl bg-[var(--bg-surface)]; }
