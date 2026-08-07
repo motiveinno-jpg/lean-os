@@ -473,8 +473,14 @@ export function boardDigest(
   const out: BoardChip[] = [];
   const cards = buildBoardSummary(cols, items, groups, nameOf, today);
 
-  //   ① 기한 — 지난 게 있으면 그게 제일 급하다
-  const date = cards.find((c) => c.kind === "date" && (c.late > 0 || c.soon > 0)) as any;
+  //   ① 기한 — 지난 게 있으면 그게 제일 급하다.
+  //   ⚠️ '회의일·시작' 같은 날짜는 기한이 아니다 — 지난 회의를 '지남 7건' 이라고 하면 거짓 경고다
+  //      (2026-08-07 시연에서 실제로 그렇게 나왔다). 기한 성격의 칸만 본다.
+  const DUE_RE = /마감|기한|만기|종료|결제|예정|납기|지급/;
+  const NOT_DUE_RE = /시작|회의|일자|착수|등록/;
+  const dateCards = cards.filter((c) => c.kind === "date" && (c.late > 0 || c.soon > 0)) as any[];
+  const date = dateCards.find((c) => DUE_RE.test(c.label))
+    || dateCards.find((c) => !NOT_DUE_RE.test(c.label));
   if (date) {
     out.push(date.late > 0
       ? { text: `${date.label} 지남 ${date.late}건`, tone: "bad" }
