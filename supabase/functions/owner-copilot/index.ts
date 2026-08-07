@@ -46,9 +46,27 @@ function getCorsHeaders(req: Request) {
 
 type Mode = "manager" | "employee";
 
+// AI 참모가 안내해도 되는 화면 경로 — 사이드바에 실제로 있는 것만 (2026-08-07).
+//   종전엔 프롬프트가 예시 몇 개만 주고 나머지는 모델이 지어내게 뒀다. 그래서
+//   /hr/attendance/leave 처럼 존재하지 않는 주소를 안내하는 일이 있었다(사장님 제보).
+//   화면을 새로 만들면 여기에도 추가해야 안내에 등장한다.
+const ALLOWED_HREFS = [
+  "/dashboard", "/copilot", "/mypage", "/notifications",
+  "/partners", "/tax-invoices", "/transactions", "/reports",
+  "/schedule", "/projecthub", "/approvals", "/board", "/chat",
+  "/signatures", "/my-contracts", "/documents", "/vault",
+  "/employees", "/attendance", "/hr-templates", "/team",
+  "/bank", "/cards", "/payments", "/loans",
+  "/settings", "/announcements", "/billing", "/guide", "/support",
+  "/partners/reconciliation/voucher-entry",
+];
+
 const COMMON_RULES = `- 한국어. 금액은 억/만원으로 읽기 쉽게.
 - headline: 한 줄 결론(핵심 한 문장). summary: 2~3문장 요약.
-- actions(지금 해야 할 일): priority(high|medium|low), title(간결), detail(실무 지침), href(처리 화면 경로 — 예: /bank /partners /approvals /payments /signatures /tax-invoices, 모르면 생략).
+- actions(지금 해야 할 일): priority(high|medium|low), title(간결), detail(실무 지침), href(처리 화면 경로).
+- href 는 **아래 목록에 있는 경로만** 그대로 쓰세요. 목록에 없으면 href 를 생략합니다.
+  경로를 새로 만들거나 하위 경로를 붙이지 마세요(예: /attendance/leave 같은 주소는 존재하지 않습니다).
+${ALLOWED_HREFS.join(" ")}
 - risks(위험 신호): title, detail, severity(high|medium|low).
 - opportunities(기회): title, detail.
 - evidence(근거 데이터): label 은 반드시 사람이 읽는 한국어 이름(예: "현금 잔액", "이번 달 매출")만 쓰고, 원시 필드명(cash_balance, total_revenue 등)은 절대 노출하지 마세요. value 는 억/만원 등 읽기 쉬운 표기.
@@ -890,6 +908,13 @@ serve(withSentry("owner-copilot", async (req) => {
       const respondBlock = toolUses.find((b) => b.name === "respond");
       if (respondBlock?.input && typeof respondBlock.input === "object") {
         answer = respondBlock.input as Answer;
+        // 프롬프트만으로는 새는 경우가 있어 최종 응답에서도 한 번 더 거른다 —
+        //   목록에 없는 주소는 안내하지 않고 링크만 뗀다(문구는 그대로 쓸모 있으므로 유지).
+        for (const a of (answer.actions || [])) {
+          if (a.href && !ALLOWED_HREFS.includes(String(a.href).split("?")[0].replace(/\/$/, ""))) {
+            delete a.href;
+          }
+        }
         break;
       }
 
