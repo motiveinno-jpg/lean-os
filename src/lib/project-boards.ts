@@ -445,6 +445,11 @@ export function sumColumn(items: BoardItem[], colId: string): number {
 
 /** 끝난 것으로 볼 말 — 그룹 이름과 상태 옵션 라벨에 같이 쓴다 */
 export const DONE_WORD_RE = /완료|종료|계약|승인|마감됨|입금|수금/;
+/** 그룹(구획) 이름으로 '끝난 줄'을 가릴 때 쓰는 낱말 — 단계 라벨보다 **좁게** 본다.
+ *  ⚠️ '계약·입금·수금' 은 단계 라벨에서는 끝을 뜻하지만 그룹 이름에서는 그냥 분류다.
+ *     실제로 '계약 · 갱신' 템플릿의 기본 그룹이 '계약 목록' 이라, 그 표의 **모든 줄이 완료로**
+ *     취급돼 만기 지난 건이 하나도 안 잡혔다(2026-08-07 시연에서 발견). */
+export const DONE_GROUP_RE = /완료|종료|마감됨|끝난/;
 
 /** 상태 컬럼의 종착 옵션 — 여러 개가 걸리면 **마지막** 것이 종착지다
  *  ('매출 · 청구' 의 견적·계약·발행·입금 에서는 '계약' 이 아니라 '입금' 이 끝이다) */
@@ -482,7 +487,7 @@ export function isDoneRow(
   groups: { id: string; name: string }[],
 ): boolean {
   const g = groups.find((x) => x.id === it.group_id);
-  if (g && DONE_WORD_RE.test(g.name)) return true;
+  if (g && DONE_GROUP_RE.test(g.name)) return true;
   return cols.some((c) => {
     if (c.type !== "status") return false;
     const term = terminalOptionId(c);
