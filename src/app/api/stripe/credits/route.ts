@@ -17,7 +17,11 @@ function getStripe() {
 // 단가 (VAT 별도) — 사장님 결정 2026-08-07
 export const CREDIT_PRICING = {
   issue:     { unitKrw: 300,   step: 10,        label: '세금계산서·현금영수증 발행', unitLabel: '건' },
-  ai_tokens: { unitKrw: 10000, step: 1_000_000, label: 'AI 참모 토큰',              unitLabel: '토큰' },
+  // 50만 토큰 10,000원 (2026-08-07 사장님 확정) — 실측 원가 기준으로 잡은 값이다.
+  //   백만토큰당 원가: Sonnet $5.73 / Opus $10.81. 50만이면 최악(전부 Opus) $5.41 인데
+  //   판매가 10,000원(≈$7.4) 이라 어떤 사용 성향에서도 마진이 남는다.
+  //   ⚠️ 모델 단가가 바뀌면 이 묶음 크기를 다시 계산할 것.
+  ai_tokens: { unitKrw: 10000, step: 500_000, label: 'AI 참모 토큰',              unitLabel: '토큰' },
 } as const;
 
 type CreditKind = keyof typeof CREDIT_PRICING;

@@ -640,7 +640,7 @@ function BillingPageInner() {
             <div className="billing-credit-item">
               <div className="min-w-0">
                 <div className="text-sm font-bold">AI 참모 토큰</div>
-                <div className="caption">100만 토큰 묶음 · 10,000원</div>
+                <div className="caption">50만 토큰 묶음 · 10,000원</div>
               </div>
               <div className="billing-credit-buy">
                 <input
@@ -648,7 +648,7 @@ function BillingPageInner() {
                   onChange={(e) => setTokenPacks(Math.min(100, Math.max(1, Number(e.target.value) || 1)))}
                   className="billing-credit-qty field-input"
                 />
-                <span className="caption">묶음 = {(tokenPacks * 100).toLocaleString()}만 토큰</span>
+                <span className="caption">묶음 = {(tokenPacks * 50).toLocaleString()}만 토큰</span>
                 <button
                   onClick={() => startTopUp("ai_tokens", tokenPacks)}
                   disabled={creditLoading !== null}
