@@ -213,7 +213,12 @@ serve(withSentry("toss-charge", async (req: Request) => {
     }
 
     if (payment) {
-      await supabase.from("invoices").insert({
+      // 토스는 멱등키로 재요청이 오면 "원래 결제 응답"을 그대로 돌려준다(=돈은 한 번만 빠진다).
+      //   그래서 여기서 그냥 insert 하면 같은 결제에 청구서만 두 줄이 생긴다 — 매출이 2배로 보인다.
+      //   같은 주문번호의 청구서가 이미 있으면 만들지 않는다(2026-08-07 실결제 검증에서 잡음).
+      const { data: dupInvoice } = await supabase
+        .from("invoices").select("id").eq("toss_order_id", orderId).maybeSingle();
+      if (!dupInvoice) await supabase.from("invoices").insert({
         company_id: s.company_id,
         subscription_id: s.id,
         amount: supply,
