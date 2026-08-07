@@ -88,7 +88,11 @@ export interface InvoiceRecord {
 }
 
 // ── 연간 결제 할인율 ──
-const ANNUAL_DISCOUNT_RATE = 0.2; // 20% 할인
+// 연간 결제 할인율 — 10% (2026-08-07 사장님 확정).
+//   화면(요금제 토글·환불규정)은 이미 10% 로 안내하고 있었는데 계산만 20% 였다.
+//   ⚠️ 실제 청구액은 Stripe 에 등록된 연간 price 다. 그 값도 10% 로 맞춰야 표시와 청구가 일치한다.
+//      (요금제 개편 예정이라 표시부터 먼저 맞춘 상태 — Stripe price 확정 시 함께 점검할 것)
+const ANNUAL_DISCOUNT_RATE = 0.1;
 
 // ── 1. 전체 플랜 목록 조회 ──
 export async function getPlans(): Promise<PlanInfo[]> {

@@ -42,6 +42,8 @@ function fmtW(n: number): string {
 // 연간 결제 노출 여부. Stripe 라이브 연간 price(STRIPE_PRICE_*_ANNUAL) 등록 전까지는
 //   고르면 서버가 400 으로 막으므로 화면에서도 감춘다. 등록 후 true 로 바꾸면 열린다.
 const ANNUAL_BILLING_AVAILABLE = true;
+// 연간 할인율 표기 — lib/billing.ts 의 ANNUAL_DISCOUNT_RATE 와 같은 값을 유지할 것.
+const ANNUAL_DISCOUNT_DISPLAY = 0.1;
 
 export default function BillingPage() {
   const { role } = useUser();
@@ -839,8 +841,15 @@ function BillingPageInner() {
               const slug = plan.slug as string;
               const meta = PLAN_FEATURES[slug] || { icon: "📦", features: [] };
               const isCurrent = currentSlug === slug;
-              const monthlyPrice = plan.base_price;
-              const monthlySeat = plan.per_seat_price;
+              // 연간을 고르면 할인가로 보여준다 — 종전엔 토글을 바꿔도 월간 정가 그대로였다(2026-08-07).
+              //   표기는 '월 환산' 기준이고, 실제 청구는 1년치 일시불이라 아래에 연 총액을 함께 적는다.
+              const listMonthly = plan.base_price;
+              const monthlyPrice = cycle === "annual"
+                ? Math.round(listMonthly * (1 - ANNUAL_DISCOUNT_DISPLAY))
+                : listMonthly;
+              const monthlySeat = cycle === "annual"
+                ? Math.round(plan.per_seat_price * (1 - ANNUAL_DISCOUNT_DISPLAY))
+                : plan.per_seat_price;
               const includedSeats = plan.included_seats || 5;
 
               // Free 플랜은 유료 구독 중일 때만 표시 (다운그레이드 옵션용)
@@ -882,14 +891,19 @@ function BillingPageInner() {
                         </>
                       ) : (
                         <>
-                          {plan.list_price && Number(plan.list_price) > monthlyPrice && (
-                            <div className="text-sm line-through text-[var(--text-dim)]">₩{Number(plan.list_price).toLocaleString()}</div>
+                          {(cycle === "annual" ? listMonthly : Number(plan.list_price || 0)) > monthlyPrice && (
+                            <div className="text-sm line-through text-[var(--text-dim)]">
+                              ₩{(cycle === "annual" ? listMonthly : Number(plan.list_price)).toLocaleString()}
+                            </div>
                           )}
                           <div className="text-3xl font-extrabold text-[var(--text)]">
                             ₩{monthlyPrice.toLocaleString()}
                           </div>
                           <div className="text-xs text-[var(--text-muted)] mt-1">
                             /월 (VAT 별도)
+                            {cycle === "annual" && (
+                              <div className="mt-0.5">연 ₩{(monthlyPrice * 12).toLocaleString()} 일시 청구 (10% 할인 적용)</div>
+                            )}
                             {monthlySeat > 0 && (
                               <div className="mt-0.5">기본 {includedSeats}명 포함 · 추가 1명 ₩{monthlySeat.toLocaleString()}/월</div>
                             )}
