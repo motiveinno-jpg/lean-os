@@ -573,9 +573,10 @@ export default function BankPage() {
           <button
             type="button"
             onClick={() => {
-              // 무료 플랜은 은행 연동 자체가 없다 (서버도 402 로 차단 — 여기선 안내만)
-              if (bankSync && !bankSync.allowed) {
-                toast("무료 플랜은 은행·카드 연동을 사용할 수 없습니다. 요금제를 업그레이드하면 모든 계좌를 하루 2회 자동 동기화합니다.", "info");
+              // 즉시 동기화는 유료 전용 — 누를 때마다 CODEF 비용이 나간다.
+              //   무료도 자동 동기화(하루 2회)는 받으므로 '연동 불가'가 아니라 '즉시만 불가'로 안내한다.
+              if (bankSync && !bankSync.manualAllowed) {
+                toast("무료 요금제는 즉시 동기화를 쓸 수 없습니다. 통장·카드는 하루 2회(오전 9시·오후 6시) 자동으로 동기화되고, 원할 때 바로 불러오려면 요금제를 시작해 주세요.", "info");
                 return;
               }
               // 직원 QA — 기간 미선택 등 동기화가 실제로 시작 안 되면 쿨타임을 걸지 않음
@@ -584,9 +585,11 @@ export default function BankPage() {
               if (!bankTxFrom || !bankTxTo) { toast("통장 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요", "error"); return; }
               bankCd.run(handleSyncBank);
             }}
-            disabled={syncing || !companyId || bankCd.disabled || isSyncPaused || (bankSync ? !bankSync.allowed : false)}
-            className={`btn-primary ${bankCd.disabled || isSyncPaused || (bankSync && !bankSync.allowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={bankSync && !bankSync.allowed ? "무료 플랜은 은행·카드 연동을 사용할 수 없습니다" : isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
+            // 무료는 disabled 로 막지 않는다 — 눌렀을 때 왜 안 되는지 알려줘야 하는데
+            //   disabled 면 클릭 이벤트 자체가 안 온다. 흐릿하게만 표시하고 안내는 onClick 에서.
+            disabled={syncing || !companyId || bankCd.disabled || isSyncPaused}
+            className={`btn-primary ${bankCd.disabled || isSyncPaused || (bankSync && !bankSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
+            title={bankSync && !bankSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
           >
             {syncing ? (
               <>

@@ -18,6 +18,7 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { CardBillingSummary } from "@/components/card-billing-summary";
+import { getBankSyncAccess } from "@/lib/billing";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
 import { SortToolbar } from "@/components/sort-toolbar";
 import { EmptyState } from "@/components/empty-state";
@@ -94,6 +95,13 @@ export default function CardsPage() {
   const queryClient = useQueryClient();
   const companyId = user?.company_id ?? null;
   const cardCd = useSyncCooldown(companyId, "card");
+  // 즉시 동기화 권한 — 무료는 자동(하루 2회)만, 즉시 버튼은 유료 전용 (2026-08-07)
+  const { data: cardSync } = useQuery({
+    queryKey: ["bank-sync-access", companyId],
+    queryFn: () => getBankSyncAccess(companyId!),
+    enabled: !!companyId,
+    staleTime: 5 * 60_000,
+  });
   const [tab, setTab] = useState<Tab>("cards");
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const [showBalance, setShowBalance] = useState(true);
@@ -553,12 +561,18 @@ export default function CardsPage() {
         <button
           type="button"
           onClick={() => {
+            // 즉시 동기화는 유료 전용 (통장 화면과 동일 규약) — 자동 하루 2회는 무료도 받는다.
+            if (cardSync && !cardSync.manualAllowed) {
+              toast("무료 요금제는 즉시 동기화를 쓸 수 없습니다. 통장·카드는 하루 2회(오전 9시·오후 6시) 자동으로 동기화되고, 원할 때 바로 불러오려면 요금제를 시작해 주세요.", "info");
+              return;
+            }
             if (!cardTxFrom || !cardTxTo) { toast("카드 거래 기간(시작일·종료일)을 먼저 설정한 뒤 연동하세요 — 기간 없이 연동하면 새 거래 없이 쿨타임만 시작됩니다", "error"); return; }
             cardCd.run(handleSyncCards);
           }}
+          // 무료는 disabled 로 막지 않는다 — 눌렀을 때 안내가 떠야 한다(통장 화면과 동일)
           disabled={syncing || !companyId || cardCd.disabled}
-          className={`btn-primary ${cardCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-          title={cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
+          className={`btn-primary ${cardCd.disabled || (cardSync && !cardSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
+          title={cardSync && !cardSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
         >
           {syncing ? (
             <>

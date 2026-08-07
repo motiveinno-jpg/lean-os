@@ -134,11 +134,26 @@ async function filterBillableCompanies(supabase: any, companyIds: string[]): Pro
   return allowed;
 }
 
-/** 수동 동기화도 같은 기준으로 막는다 — 무료가 버튼만 눌러 CODEF 를 태우는 경로 차단. */
+/** 수동('즉시 동기화') 차단 — 자동(하루 2회)은 무료도 받지만, 버튼은 누를 때마다
+ *  CODEF 비용이 나가므로 유료 구독자만 쓴다 (2026-08-07 사장님 결정).
+ *  화면에서도 막지만 서버가 최종 판정 — 화면만 막으면 우회된다. */
 async function assertBankSyncAllowed(supabase: any, companyId: string): Promise<string | null> {
   const allowed = await filterBillableCompanies(supabase, [companyId]);
-  if (allowed.has(companyId)) return null;
-  return "무료 플랜은 은행·카드 연동을 사용할 수 없습니다. 오너뷰 요금제로 업그레이드하면 모든 계좌를 하루 2회 자동으로 동기화합니다.";
+  if (!allowed.has(companyId)) {
+    return "이 요금제에서는 은행·카드 연동을 사용할 수 없습니다.";
+  }
+  try {
+    const { data } = await supabase.rpc("get_company_entitlement", { p_company_id: companyId });
+    const row = Array.isArray(data) ? data[0] : data;
+    const slug = row?.effective_plan_slug || "free";
+    if (!row?.entitled || slug === "free") {
+      return "무료 요금제는 즉시 동기화를 쓸 수 없습니다. 통장·카드는 하루 2회(오전 9시·오후 6시) 자동으로 동기화되고, 원할 때 바로 불러오려면 요금제를 시작해 주세요.";
+    }
+  } catch (e) {
+    // 판정 실패 시엔 막지 않는다 — 조회 장애가 유료 고객의 동기화를 멈추면 안 된다(fail-open).
+    console.error("[GUARD] entitlement check failed:", (e as Error)?.message);
+  }
+  return null;
 }
 
 async function flushCodefUsage(store: MeterStore) {

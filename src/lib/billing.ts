@@ -788,14 +788,25 @@ export async function getCashReceiptIssuanceStatus(companyId: string): Promise<I
 /** 은행·카드 연동 허용 여부 (2026-08-06 개편) — 무료 플랜은 자동/수동 모두 차단.
  *  CODEF 는 계좌당 월 600원이 나가는 유일한 실변동비라, 무료에 열어두면 원가를 못 막는다.
  *  서버 강제는 codef-sync 엣지 — 이 함수는 UI 가드용. */
-export async function getBankSyncAccess(companyId: string): Promise<{ allowed: boolean; planName: string | null }> {
+/** 은행·카드 연동 접근 권한.
+ *  · allowed        — 연동 자체(자동 동기화 포함). 2026-08-07 부터 무료도 허용(하루 2회).
+ *  · manualAllowed  — '즉시 동기화' 버튼. 누를 때마다 CODEF 비용이 나가므로 유료 구독자만.
+ *    무료는 하루 2회 자동 동기화까지만 쓴다(사장님 결정 2026-08-07). */
+export async function getBankSyncAccess(
+  companyId: string,
+): Promise<{ allowed: boolean; manualAllowed: boolean; planName: string | null }> {
   const ent = await getEntitlement(companyId);
   const { data } = await (db as any)
     .from('subscription_plans')
     .select('name, bank_sync_enabled')
     .eq('slug', ent.effectivePlanSlug)
     .maybeSingle();
-  return { allowed: data?.bank_sync_enabled !== false, planName: data?.name ?? null };
+  const isFree = !ent.entitled || ent.effectivePlanSlug === 'free';
+  return {
+    allowed: data?.bank_sync_enabled !== false,
+    manualAllowed: data?.bank_sync_enabled !== false && !isFree,
+    planName: data?.name ?? null,
+  };
 }
 
 export async function getContractIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
