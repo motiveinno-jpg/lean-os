@@ -11,6 +11,7 @@ import { useToast } from "@/components/toast";
 type NotifChannel = "email" | "push";
 type NotifEvent =
   | "approval_pending"
+  | "approval_reference"
   | "deal_status"
   | "payment_due"
   | "tax_invoice"
@@ -26,6 +27,7 @@ interface NotifPrefs {
 
 const NOTIF_EVENTS: { key: NotifEvent; label: string; desc: string }[] = [
   { key: "approval_pending", label: "결재 요청", desc: "내가 결재해야 할 항목이 새로 등록될 때" },
+  { key: "approval_reference", label: "결재 참조", desc: "결재 권한 없이 참조로만 공유된 건 (2026-08-07 사장님 요청)" },
   { key: "deal_status", label: "프로젝트 상태 변경", desc: "프로젝트가 다음 단계로 이동하거나 완료될 때" },
   { key: "payment_due", label: "결제 마감 임박", desc: "D-7 이내 결제/지급 예정" },
   { key: "tax_invoice", label: "세금계산서 발행/수신", desc: "신규 세금계산서 발행 또는 매입 수신" },
@@ -40,6 +42,7 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
     address: "",
     events: {
       approval_pending: true,
+      approval_reference: true,
       deal_status: false,
       payment_due: true,
       tax_invoice: true,
@@ -52,6 +55,7 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
     enabled: false,
     events: {
       approval_pending: true,
+      approval_reference: true,
       deal_status: true,
       payment_due: true,
       tax_invoice: false,

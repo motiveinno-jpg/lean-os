@@ -59,7 +59,7 @@ async function verifyUser(req: Request): Promise<boolean> {
 
 // 수신 설정 조회 (service role) — 설정 > 알림에서 '결재 요청' 이메일을 끈 사람은 보내지 않는다.
 //   행이 없거나 읽지 못하면 '받음'(설정 화면 기본값과 동일).
-async function loadMailPref(authId?: string): Promise<{ send: boolean; address?: string }> {
+async function loadMailPref(authId?: string, kind?: string): Promise<{ send: boolean; address?: string }> {
   if (!authId) return { send: true };
   const url = Deno.env.get("SUPABASE_URL");
   const svc = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -74,7 +74,10 @@ async function loadMailPref(authId?: string): Promise<{ send: boolean; address?:
     const prefs = rows?.[0]?.prefs;
     const email = prefs?.email;
     if (!email) return { send: true };
-    const off = email.enabled === false || email?.events?.approval_pending === false;
+    // 참조 통보는 '결재 참조' 스위치를, 나머지(요청 도착·차례·승인자 지정)는 '결재 요청' 스위치를 따른다.
+    //   설정에 그 키가 아직 없으면(구 버전 저장분) 받는 것으로 본다.
+    const eventKey = kind === "reference" ? "approval_reference" : "approval_pending";
+    const off = email.enabled === false || email?.events?.[eventKey] === false;
     const address = typeof email.address === "string" && email.address.includes("@") ? email.address.trim() : undefined;
     return { send: !off, address };
   } catch {
@@ -223,7 +226,7 @@ Deno.serve(withSentry("send-approval-email", async (req: Request) => {
     // 요청 도착 메일만 수신 설정을 따른다(결과 통보는 요청자 본인에게 가는 것이라 종전대로).
     let toAddress = payload.email;
     if (payload.kind) {
-      const pref = await loadMailPref(payload.recipientAuthId);
+      const pref = await loadMailPref(payload.recipientAuthId, payload.kind);
       if (!pref.send) {
         return new Response(JSON.stringify({ success: true, skipped: "opted_out" }), {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
