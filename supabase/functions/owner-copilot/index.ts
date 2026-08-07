@@ -73,6 +73,19 @@ ${ALLOWED_HREFS.join(" ")}
 - 모든 텍스트에 마크다운·별표(**)·백틱(\`)·변수 토큰({{ }}, { }, \${ })·영문 필드명을 절대 쓰지 마세요. 순수 한국어 문장으로만 씁니다.
 - 근거 없는 값은 절대 만들지 마세요(추정 금지). 데이터가 없으면 해당 배열을 비웁니다.
 
+사실 확인 규칙 — 이걸 어기면 답변은 실패한 것입니다:
+- 숫자·금액·건수·날짜·이름은 **snapshot 이나 조회 툴 결과에 실제로 있는 값만** 씁니다.
+  기억이나 짐작으로 쓰지 마세요. 비슷한 값을 반올림해 만들어내는 것도 금지입니다.
+- 물어본 것을 데이터로 확인할 수 없으면, 아는 척하지 말고 "지금 데이터로는 확인되지 않습니다"라고
+  말하고 무엇을 보면 알 수 있는지 알려주세요. 모른다고 말하는 편이 틀린 답보다 낫습니다.
+- 조회 툴이 빈 결과를 주면 "없음"이지 "0에 가까움"이 아닙니다. 빈 결과를 채워 넣지 마세요.
+- 회사 데이터로 답할 수 없는 바깥 정보(정부지원사업·정책·법·시세·경쟁사 등)는
+  web_search 로 찾아본 뒤 답합니다. 검색하지 않고 기억으로 답하지 마세요.
+- 검색 결과를 쓸 때는 언제 기준인지와 어디서 봤는지를 문장 안에 밝힙니다.
+  검색으로도 확인이 안 되면 "확인되지 않았다"고 말합니다.
+- 추천할 때는 우리 회사 데이터의 어떤 값 때문에 그렇게 판단했는지 함께 적습니다.
+  (예: 업종·매출 규모·직원 수·설립연도 등 실제 확인된 값)
+
 액션 툴(쓰기) 사용:
 - 사용자가 "출근 찍어줘", "결재 올려줘" 처럼 실행을 요청할 때만 액션 툴을 부릅니다. 단순 질문에는 부르지 마세요.
 - 액션 툴은 한 번에 하나만 부릅니다. 부른 뒤에는 respond 로 "무엇을 하려는지" 사용자에게 설명하세요.
@@ -858,6 +871,18 @@ serve(withSentry("owner-copilot", async (req) => {
     );
     // 첨부 분석은 문서 원문 자체가 충분한 컨텍스트다. 계약서 생성은 전용 액션을
     // 첫 턴에 강제하고 서버가 확인 안내를 합성해 한 번의 AI 호출로 끝낸다.
+    // 질문 성격에 따라 모델을 고른다 (2026-08-07 사장님 결정 — "질문 종류에 따라 자동").
+    //   단순 조회(잔액·건수·언제)는 지금 모델로 충분하고, 추천·분석·비교·전략처럼
+    //   여러 데이터를 엮어 판단해야 하는 질문만 최상위 모델로 올린다.
+    //   판정은 사용자 문장 + 첨부 유무만 본다(모델 호출 없이 즉시).
+    const HEAVY_HINTS = [
+      "추천", "분석", "비교", "전략", "왜", "어떻게 하면", "개선", "제안", "리스크", "위험",
+      "전망", "예측", "계획", "우선순위", "정리해", "판단", "평가", "진단", "방안", "대안",
+      "지원사업", "정책자금", "절세", "최적", "괜찮", "괜찮을까", "해야 할까", "어느 쪽",
+    ];
+    const isHeavy = attachments.length === 0
+      && (HEAVY_HINTS.some((k) => question.includes(k)) || question.length >= 60);
+
     const MAX_TURNS = attachments.length > 0 ? 1 : 6;
     const messages: unknown[] = [{ role: "user", content: userContent }];
 
@@ -880,19 +905,23 @@ serve(withSentry("owner-copilot", async (req) => {
         // 첨부→계약서 재구성은 원문 옮겨쓰기 성격 + 8,000토큰 생성이라 속도가 관건 —
         //   Sonnet 실측 137s(게이트웨이 150s 초과) → Haiku ~50s (2026-08-03 사장님 승인).
         //   일반 질의·분석은 기존대로 Sonnet.
-        task: attachmentContractMode ? "extract" : "analysis",
+        task: attachmentContractMode ? "extract" : (isHeavy ? "deep_analysis" : "analysis"),
         feature: "owner_copilot", // 로그 호환 위해 feature 명 유지
         system: mode === "manager" ? SYSTEM_MANAGER : SYSTEM_EMPLOYEE,
         messages,
         maxTokens: attachments.length > 0 ? 8000 : 4000,
         tools: TOOLS,
+        // 회사 데이터로 답할 수 없는 질문에서 지어내는 대신 찾아보게 한다 (2026-08-07).
+        //   단순 조회에는 붙이지 않는다 — 검색 1회당 별도 비용이 든다.
+        webSearch: isHeavy,
+        webSearchMaxUses: 5,
         toolChoice: attachmentContractMode
           ? { type: "tool", name: "create_contract_draft_from_attachment" }
           : forceRespond ? { type: "tool", name: "respond" } : { type: "any" },
         companyId,
         userId: profile.id,
         admin,
-        promptVersion: "copilot-v8-attachments-contract-draft",
+        promptVersion: "copilot-v9-web-search-grounded",
         maxRetries: 0,
         timeoutMs: callTimeoutMs,
       });
@@ -923,7 +952,22 @@ serve(withSentry("owner-copilot", async (req) => {
       }
 
       const calls = toolUses.filter((b) => b.name !== "respond");
-      if (calls.length === 0) break; // 툴도 respond 도 없음 — 방어적 종료(아래 fallback)
+      if (calls.length === 0) {
+        // 웹검색(server_tool_use)만 하고 끝난 턴 — Anthropic 이 검색을 직접 실행해 결과까지
+        //   같은 응답에 담아 주므로 우리가 되먹일 tool_result 가 없다. 여기서 끊으면
+        //   검색만 하고 답을 못 하는 상태로 종료된다(2026-08-07 웹검색 붙이며 확인).
+        //   → assistant 턴(검색 결과 포함)을 그대로 남기고 다음 턴에서 respond 하게 한다.
+        const usedServerTool = blocks.some((b) => b?.type === "server_tool_use" || b?.type === "web_search_tool_result");
+        if (usedServerTool && turn < MAX_TURNS - 1) {
+          messages.push({ role: "assistant", content: result.content });
+          messages.push({
+            role: "user",
+            content: "위 검색 결과를 근거로 respond 툴을 불러 최종 답변을 정리하세요. 검색으로 확인되지 않은 것은 확인되지 않았다고 쓰세요.",
+          });
+          continue;
+        }
+        break; // 툴도 respond 도 없음 — 방어적 종료(아래 fallback)
+      }
 
       // 병렬 tool use 대응: assistant 턴을 그대로 되먹인 뒤,
       // 모든 tool_result 를 "하나의" user 턴에 담아 보낸다(쪼개면 병렬 호출이 억제됨).

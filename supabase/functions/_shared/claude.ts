@@ -48,6 +48,9 @@ export interface ClaudeCallOpts {
   //   thinking: 깊은 사고(adaptive). ⚠️ 강제 tool use(schema 옵션)와 병용 불가 — API 가 거부한다.
   //   outputConfig: output_config(json_schema 등). schema 옵션과 택일.
   thinking?: unknown;
+  // 웹검색 허용 여부 — 켜면 Anthropic 서버 도구 web_search 를 붙인다(모델이 필요할 때만 사용).
+  webSearch?: boolean;
+  webSearchMaxUses?: number;
   outputConfig?: unknown;
   promptVersion?: string;
   // 로깅 컨텍스트 (서버가 결정한 값만 — 클라 신뢰 금지)
@@ -115,7 +118,19 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
     body.tools = [{ name: "respond", description: "요청에 대한 구조화된 응답을 지정된 스키마로 반환합니다.", input_schema: opts.schema }];
     body.tool_choice = { type: "tool", name: "respond" };
   } else {
-    if (opts.tools) body.tools = opts.tools;
+    const tools = [...(opts.tools ?? [])];
+    // 웹검색 — Anthropic 서버 도구. 모델이 필요하다고 판단할 때만 검색하고,
+    //   실행·결과 수집을 Anthropic 이 직접 한다(우리가 되먹이지 않는다).
+    //   회사 데이터로 답할 수 없는 질문(정부지원사업·정책·시세 등)에서 지어내는 대신 찾아보게 하는 장치.
+    //   maxUses 로 한 번의 대화에서 검색 횟수를 묶어 비용 폭주를 막는다.
+    if (opts.webSearch) {
+      tools.push({
+        type: "web_search_20250305",
+        name: "web_search",
+        max_uses: opts.webSearchMaxUses ?? 5,
+      });
+    }
+    if (tools.length) body.tools = tools;
     if (opts.toolChoice) body.tool_choice = opts.toolChoice;
   }
 
