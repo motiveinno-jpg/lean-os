@@ -551,7 +551,7 @@ function SignaturesDashboardInner() {
               onClick={() => setShowOrgBulkWizard(true)}
               disabled={contractLimitReached}
               className="btn-primary"
-              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발송할 수 있습니다.` : "계약서를 골라 거래처에 발송 — 여러 곳에 변수만 바꿔 한 번에 보낼 수도 있습니다"}
+              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다.` : "계약서를 골라 거래처에 발송 — 여러 곳에 변수만 바꿔 한 번에 보낼 수도 있습니다"}
             >
               {contractLimitReached ? "이번 달 발송 한도 소진" : "+ 새 계약 요청"}
             </button>

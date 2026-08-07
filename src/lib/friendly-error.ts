@@ -77,7 +77,7 @@ export function friendlyError(err: AnyErr, fallback = "일시적인 오류가 �
 
   // 1.5) 앱 커스텀 한도 트리거(전자계약 월 발송 등) — prefix 벗겨 깔끔한 안내로
   if (raw.includes("CONTRACT_LIMIT_EXCEEDED")) {
-    return "이번 달 전자계약 발송 한도를 모두 사용했습니다. 울트라로 업그레이드하면 무제한 발송할 수 있습니다. (설정 → 요금제)";
+    return "이번 달 전자계약 발송 한도를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다. (설정 → 요금제)";
   }
 
   // 2) Auth 메시지 영문 → 한국어

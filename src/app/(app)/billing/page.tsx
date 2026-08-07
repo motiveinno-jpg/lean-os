@@ -29,7 +29,7 @@ type BillingCycle = "monthly" | "annual";
 const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommended?: boolean }> = {
   free: { icon: "🎁", features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판 무제한", "세금계산서+현금영수증 합산 월 5건", "전자계약 월 5건", "AI 참모 월 10만 토큰", "은행·카드 하루 2회 자동 동기화", "AI 브리핑은 기본형(요약 규칙)"] },
   standard: { icon: "⚡", recommended: true, features: ["기본 5명 포함 · 추가 1명 ₩5,000/월", "세금계산서+현금영수증 합산 월 100건", "전자계약 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집", "AI 대표 참모 월 100만 토큰", "AI 브리핑(매일 자동 분석)", "다 쓰면 충전해서 이어 쓰기"] },
-  basic: { icon: "🚀", features: ["(구 요금제) 직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한 · 전자계약 월 20건"] },
+  basic: { icon: "🚀", features: ["(구 요금제) 직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한"] },
   ultra: { icon: "⚡", features: ["(구 요금제) 발행·전자계약 무제한", "은행·카드 동기화 무제한", "AI 브리핑"] },
   enterprise: { icon: "🏢", features: ["(구 요금제) 전담 온보딩 · 맞춤 개발", "SLA 보장"] },
 };
