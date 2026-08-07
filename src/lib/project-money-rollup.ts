@@ -147,17 +147,24 @@ export function rollupMoney(
       //   확률은 **계약 전에만** 쓴다. 계약부터는 액면가가 곧 받을 돈이라 가중하면 되레 줄여 읽는다.
       //   합치기 전 표(매출·청구 / 수주·매출)도 같은 규칙으로 읽는다 — 확률 칸이 없으면 액면 그대로.
       const amt = amountColumnOf(bCols, /금액|청구/, /./);
+      //   부분 입금 — 계약금만 들어온 건은 그만큼만 '입금', 잔금은 아직 그 단계에 있다.
+      //   (2026-08-07 사장님: 계약금이 들어오면 잔금이 얼마인지 보여야 한다)
+      const paidCol = bCols.filter(isWon).find((c) => c.id !== amt?.id && /입금|수금|받은/.test(c.name));
       const pct = bCols.find((c) => c.type === "number" && (c.settings?.unit || "") === "%");
       if (!amt) continue;
       for (const it of bItems) {
         const raw = num(it.values?.[amt.id]);
         if (raw <= 0) continue;
         const st = stageOf(it);
+        //   합치기 전 '수주 · 매출' 표에만 있던 확률 칸 — 있으면 계약 전 금액을 가중한다
         const p = pct ? num(it.values?.[pct.id]) : 0;
         const v = st === "plan" && p > 0 ? Math.round(raw * (p / 100)) : raw;
-        addToAxis(income, st, v);
+        const got = Math.min(v, paidCol ? num(it.values?.[paidCol.id]) : 0);
+        if (got > 0) addToAxis(income, "paid", got);
+        const rest = v - got;
+        if (rest > 0) addToAxis(income, st, rest);
         const d = daysPast(it);
-        if (st !== "paid" && d != null && d >= 7) stuck.push({ name: it.name || "이름 없음", amount: v, stage: st, days: d });
+        if (rest > 0 && st !== "paid" && d != null && d >= 7) stuck.push({ name: it.name || "이름 없음", amount: rest, stage: st, days: d });
       }
     } else if (kind === "spend") {
       //   나갈 돈 — 예산을 잡고 실제로 쓴다 (2026-08-07 '예산 · 지출' 로 합침).

@@ -52,7 +52,7 @@ import {
 const db = supabase as any;
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 /** 표 칸 너비(px) — globals.css 의 .pbc-* 와 같은 값. 표의 최소 너비를 셈할 때 쓴다. */
-const COL_W = { sel: 58, name: 200, cell: 132, ratio: 96, doc: 110, tail: 60 };
+const COL_W = { sel: 58, name: 200, cell: 132, ratio: 116, doc: 110, tail: 60 };
 /** 칸마다 고르는 너비 — 머리의 ⋯ 에서 정한다. settings.width(px) 에 담으니 DB 구조는 안 바뀐다.
  *  (2026-08-06 사장님: "지금 칸이 너무 넓은 듯" — 기본을 줄이고, 긴 글이 드는 칸만 넓게 둘 수 있게) */
 const COL_WIDTHS: { key: string; label: string; px: number }[] = [
@@ -556,19 +556,30 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
   };
 
-  // 행의 견적서 → 계약서. 견적이 있어야 만들 수 있다(근거 없는 계약을 만들지 않게).
+  //   이 줄이 '계약' 단계인가 — 라벨로 읽는다(회사마다 라벨을 바꿔 쓰므로 낱말로 본다)
+  const atContractStage = (it: BoardItem) => {
+    const flow = flowColumnOf(cols);
+    if (!flow) return false;
+    const opt = ((flow.settings?.options || []) as StatusOption[]).find((o) => o.id === it.values?.[flow.id]);
+    return !!opt && /계약|수주/.test(opt.label);
+  };
+
+  //   행 → 계약서. 전자서명도 이 문서로 이어진다(계약서 화면의 '거래처에 보내기').
+  //   예전엔 **견적서를 먼저 만들어야만** 계약서 단추가 나왔다 — 견적 없이 바로 계약하는 일이
+  //   흔한데 '계약' 단계로 옮겨도 아무 일도 일어나지 않았다(2026-08-07 사장님 지적).
+  //   견적이 있으면 품목·수신처를 물려받고, 없으면 그 줄의 거래처·금액으로 만든다.
   const makeContract = async (it: BoardItem) => {
     const linked = (it.values || {})[CONTRACT_VALUE_KEY] as { id?: string } | undefined;
     if (linked?.id) { setDocModal({ itemId: it.id, kind: "contract" }); return; }
     const q = (it.values || {})[DOC_VALUE_KEY] as { id?: string } | undefined;
-    const quoteDoc = (dealDocs as any[]).find((d) => d.id === q?.id);
-    if (!quoteDoc || !userId || makingDoc) return;
+    const quoteDoc = (dealDocs as any[]).find((d) => d.id === q?.id) || null;
+    if (!userId || makingDoc) return;
     setMakingDoc(it.id);
     try {
       const amountCol = cols.find((c) => c.type === "number" && (c.settings?.unit || "") === "원");
       const doc = await createContractFromQuoteDoc({
         companyId, dealId, userId, quoteDoc,
-        dealName: dealName || "",
+        dealName: dealName || "", rowName: it.name || "",
         partnerName: (partners as any[]).find((p) => p.id === (it.values || {})[partnerColId || ""])?.name,
         amount: amountCol ? Number(it.values?.[amountCol.id]) || 0 : 0,
       });
@@ -1145,9 +1156,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                           </select>
                         </span>
                       </div>
-                      {ratioPair && <RatioBar plan={Number(it.values?.[ratioPair.plan.id]) || 0} real={Number(it.values?.[ratioPair.real.id]) || 0} />}
+                      {ratioPair && <RatioBar plan={Number(it.values?.[ratioPair.plan.id]) || 0} real={Number(it.values?.[ratioPair.real.id]) || 0} unit={ratioPair.real.settings?.unit || ""} />}
                       {isBilling && (
-                        <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId}
+                        <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId} atContract={atContractStage(it)}
                           onQuote={() => openQuote(it)} onContract={() => makeContract(it)}
                           onIssue={() => setDocModal({ itemId: it.id, kind: "issue" })} />
                       )}
@@ -1410,12 +1421,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       )))}
                       {ratioPair && (
                         <td className="pb-td-ratio">
-                          <RatioBar plan={Number(it.values?.[ratioPair.plan.id]) || 0} real={Number(it.values?.[ratioPair.real.id]) || 0} />
+                          <RatioBar plan={Number(it.values?.[ratioPair.plan.id]) || 0} real={Number(it.values?.[ratioPair.real.id]) || 0} unit={ratioPair.real.settings?.unit || ""} />
                         </td>
                       )}
                       {isBilling && (
                         <td className="pb-td-doc">
-                          <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId}
+                          <DocChain it={it} busy={makingDoc === it.id} canMake={!!userId} atContract={atContractStage(it)}
                             onQuote={() => openQuote(it)} onContract={() => makeContract(it)}
                             onIssue={() => setDocModal({ itemId: it.id, kind: "issue" })} />
                         </td>
@@ -1567,25 +1578,37 @@ function QuickCell({ col, users, partners, companyId, onPartnerCreated, value, o
     onChange={(e) => onChange(e.target.value)} />;
 }
 
-// ── 계획 대비 실적 막대 — 예산 대비 집행, 예상 대비 확정 ──
-function RatioBar({ plan, real }: { plan: number; real: number }) {
+// ── 계획 대비 실적 막대 — 금액 대비 입금(잔금), 예산 대비 집행(남은 예산) ──
+//   2026-08-07 사장님: "계약금이 입금되면 잔금이 얼마인지 보이면 좋겠다".
+//   비율만으로는 '얼마 남았나' 를 못 읽는다 — 원 단위면 남은 금액을 숫자로 함께 적는다.
+function RatioBar({ plan, real, unit }: { plan: number; real: number; unit?: string }) {
   if (!plan && !real) return <span className="pb-ratio-none">—</span>;
   const pct = plan > 0 ? Math.round((real / plan) * 100) : null;
   const over = pct != null && pct > 100;
+  const left = plan - real;
   return (
     <span className="pb-ratio" title={pct == null ? "계획 없음" : `${real.toLocaleString("ko-KR")} / ${plan.toLocaleString("ko-KR")}`}>
-      <span className="pb-ratio-track">
-        <i className={over ? "pb-ratio-over" : ""} style={{ width: `${Math.min(100, pct ?? 0)}%` }} />
+      <span className="pb-ratio-line">
+        <span className="pb-ratio-track">
+          <i className={over ? "pb-ratio-over" : ""} style={{ width: `${Math.min(100, pct ?? 0)}%` }} />
+        </span>
+        <em className={over ? "pb-ratio-bad" : ""}>{pct == null ? "—" : `${pct}%`}</em>
       </span>
-      <em className={over ? "pb-ratio-bad" : ""}>{pct == null ? "—" : `${pct}%`}</em>
+      {unit === "원" && plan > 0 && (
+        <b className={left < 0 ? "pb-ratio-left pb-ratio-bad" : "pb-ratio-left"}>
+          {left > 0 ? `남은 ${won(left)}` : left === 0 ? "완납" : `초과 ${won(-left)}`}
+        </b>
+      )}
     </span>
   );
 }
 
 // ── 문서 체인 — 청구 한 줄이 견적 → 계약으로 이어진다 (2026-08-04 기획 3단계) ──
 //   발행·입금은 세금계산서 화면이 맡는다. 여기서는 만들어진 문서로 가는 길만 준다.
-function DocChain({ it, busy, canMake, onQuote, onContract, onIssue }: {
+function DocChain({ it, busy, canMake, atContract, onQuote, onContract, onIssue }: {
   it: BoardItem; busy: boolean; canMake: boolean;
+  /** 이 줄이 '계약' 단계인가 — 그러면 계약서 만들기를 눈에 띄게 한다 */
+  atContract: boolean;
   onQuote: () => void; onContract: () => void; onIssue: () => void;
 }) {
   const quote = (it.values || {})[DOC_VALUE_KEY] as { id?: string; no?: string } | undefined;
@@ -1595,9 +1618,12 @@ function DocChain({ it, busy, canMake, onQuote, onContract, onIssue }: {
       {quote?.id
         ? <button type="button" className="pb-chain-on" onClick={onQuote} title="견적서 열기">견적 {quote.no || ""}</button>
         : <button type="button" className="pb-chain-do" disabled={busy || !canMake} onClick={onQuote}>{busy ? "…" : "＋ 견적서"}</button>}
-      {quote?.id && (contract?.id
-        ? <button type="button" className="pb-chain-on" onClick={onContract} title="계약서 열기">계약</button>
-        : <button type="button" className="pb-chain-do" disabled={busy || !canMake} onClick={onContract}>＋ 계약서</button>)}
+      {/*  견적이 없어도 계약서를 만든다 — 견적 없이 바로 계약하는 일이 흔하다(2026-08-07) */}
+      {contract?.id
+        ? <button type="button" className="pb-chain-on" onClick={onContract} title="계약서 열기 · 전자서명">계약</button>
+        : <button type="button" className={`pb-chain-do ${atContract ? "pb-chain-urge" : ""}`}
+            disabled={busy || !canMake} onClick={onContract}
+            title="계약서를 만들고 거래처에 전자서명을 요청합니다">＋ 계약서</button>}
       {contract?.id && <button type="button" className="pb-chain-do" onClick={onIssue} title="세금계산서 만들기">＋ 발행</button>}
     </span>
   );

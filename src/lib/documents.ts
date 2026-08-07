@@ -91,11 +91,15 @@ export async function createQuoteForDeal(params: {
  *  ('매출 · 청구' 템플릿의 행에서 부른다. 2026-08-04 기획 3단계) */
 export async function createContractFromQuoteDoc(params: {
   companyId: string; dealId: string; userId: string;
-  quoteDoc: { id: string; document_number?: string | null; content_json?: any; sub_deal_id?: string | null };
+  /** 견적서 — 없어도 된다. 견적 없이 바로 계약하는 일이 흔하다(2026-08-07 사장님 지적).
+   *  있으면 품목·수신처를 물려받고 '이 견적에 근거한다' 고 적는다. */
+  quoteDoc?: { id: string; document_number?: string | null; content_json?: any; sub_deal_id?: string | null } | null;
   dealName: string; partnerName?: string; amount?: number;
+  /** 견적 없이 만들 때 계약서 이름에 쓸 줄 이름(예: '브랜드몰 구축 1차') */
+  rowName?: string;
 }): Promise<{ id: string }> {
-  const q = (params.quoteDoc.content_json as any) || {};
-  const no = params.quoteDoc.document_number || "견적서";
+  const q = (params.quoteDoc?.content_json as any) || {};
+  const no = params.quoteDoc?.document_number || "견적서";
   const amt = params.amount || 0;
   const content = {
     ...STANDARD_CONTRACT_CONTENT,
@@ -110,13 +114,13 @@ export async function createContractFromQuoteDoc(params: {
   const { data, error } = await supabase.from("documents").insert({
     company_id: params.companyId,
     deal_id: params.dealId,
-    sub_deal_id: params.quoteDoc.sub_deal_id || null,
-    name: `${params.dealName || "프로젝트"} 계약서`,
+    sub_deal_id: params.quoteDoc?.sub_deal_id || null,
+    name: `${params.rowName || params.dealName || "프로젝트"} 계약서`,
     status: "draft",
     document_number: null,
     content_type: "contract",
     content_json: content as unknown as Json,
-    source_document_id: params.quoteDoc.id,
+    source_document_id: params.quoteDoc?.id || null,
     version: 1,
     created_by: params.userId,
   }).select("id").single();

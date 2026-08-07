@@ -6301,6 +6301,8 @@ th:hover .pb-colmenu-btn { @apply opacity-100; }
 .pb-chain { @apply flex flex-wrap items-center gap-1; }
 .pb-chain-on { @apply h-6 px-2 rounded-lg bg-[var(--primary)]/10 text-[10.5px] font-bold text-[var(--primary)] max-w-[104px] truncate hover:bg-[var(--primary)]/20; }
 .pb-chain-do { @apply h-6 px-2 rounded-lg border border-dashed border-[var(--border)] text-[10.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)] disabled:opacity-40; }
+/* '계약' 단계인데 아직 계약서가 없으면 — 지금 할 일이 이거다 (2026-08-07) */
+.pb-chain-do.pb-chain-urge { @apply border-solid border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]; }
 .pb-chain-next { @apply h-6 px-2 inline-flex items-center rounded-lg text-[10.5px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)]; }
 .pb-propose { @apply flex flex-wrap items-center gap-x-2 gap-y-1 px-3.5 py-2.5 mb-3 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20 text-[12px] text-[var(--text-muted)]; }
 .pb-propose b { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
@@ -6369,7 +6371,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-quick-go { @apply h-8 px-3 rounded-lg bg-[var(--primary)] text-[12px] font-bold text-white transition hover:opacity-90 disabled:opacity-30; }
 .pb-th-ratio { @apply w-24 text-[10.5px] font-bold text-[var(--text-dim)]; }
 .pb-td-ratio { @apply w-24; }
-.pb-ratio { @apply flex items-center gap-1.5; }
+.pb-ratio { @apply flex flex-col gap-0.5 min-w-0; }
+.pb-ratio-line { @apply flex items-center gap-1.5; }
+/* 남은 금액 — 비율만으로는 '얼마 남았나' 를 못 읽는다 (2026-08-07) */
+.pb-ratio-left { @apply text-[10px] font-bold text-[var(--text-dim)] truncate; font-variant-numeric: tabular-nums; }
 .pb-ratio-track { @apply flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
 .pb-ratio-track i { @apply block h-full bg-[var(--primary)]; }
 .pb-ratio-track i.pb-ratio-over { @apply bg-[var(--danger)]; }
