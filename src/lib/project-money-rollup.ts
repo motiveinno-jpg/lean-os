@@ -62,6 +62,11 @@ export type MoneyRollup = {
   /** 마진 — 기준에 따라 달라진다. basis 를 반드시 화면에 적을 것 */
   margin: number;
   marginRate: number | null;
+  /** 마진을 만든 재료 — 기준에 맞춰 실제로 센 금액.
+   *  확정 기준에서 계획 단계만 있는 프로젝트는 둘 다 0이라 마진도 0이 된다.
+   *  그때 화면이 '마진 0원'이라고만 하면 나갈 돈이 억대인데도 0으로 읽혀 오해가 생긴다 —
+   *  그래서 화면이 이 값을 보고 다르게 말할 수 있게 함께 돌려준다 (2026-08-07). */
+  settled: { income: number; spend: number };
   /** 예산 소진 — '집행 · 성과' 표에서만. 지출 합계에는 넣지 않는다 */
   budget: { planned: number; spent: number; rate: number | null } | null;
   /** 같은 지출이 두 표에 들어간 것으로 보이는 쌍 */
@@ -203,6 +208,7 @@ export function rollupMoney(
   return {
     income, spend, margin,
     marginRate: inc > 0 ? Math.round((margin / inc) * 100) : null,
+    settled: { income: inc, spend: sp },
     budget: hasBudget ? { planned, spent, rate: planned > 0 ? Math.round((spent / planned) * 100) : null } : null,
     overlaps,
     stuck: stuck.sort((a, b) => b.amount - a.amount).slice(0, 5),
@@ -285,4 +291,12 @@ export function weeklyCashflow(
   out.forEach((w) => { w.net = w.income - w.spend; });
   // 지난 것이 없으면 그 칸은 안 그린다
   return out.filter((w) => w.key !== "past" || w.income > 0 || w.spend > 0);
+}
+
+/** 이 프로젝트에 '돈 흐름'으로 보여줄 값이 있나 — 정리 화면이 리포트 껍데기를 그릴지 정할 때 쓴다.
+ *  값이 없으면 ProjectMoneyReport 가 아무것도 안 그리는데, 껍데기만 먼저 그리면
+ *  제목만 있고 속이 빈 리포트가 남는다(2026-08-07 사장님 지적 화면). */
+export function hasMoneyData(boards: MoneyBoard[], cols: BoardColumn[], items: BoardItem[], today: string): boolean {
+  const r = rollupMoney(boards, cols, items, { basis: "accrual", today });
+  return r.income.total > 0 || r.spend.total > 0 || !!r.budget;
 }

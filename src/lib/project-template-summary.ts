@@ -5,8 +5,8 @@
 //
 // 원칙(dataviz):
 //   · 형태는 데이터가 하는 일이 정한다 — 부분/전체는 도넛, 크기 비교는 막대,
-//     단계별 적체는 깔때기, 하나짜리 수치는 숫자(차트로 만들지 않는다).
-//   · 도넛은 6조각 이하 · 값이 비슷한 것 비교엔 안 쓴다 · 2조각짜리는 만들지 않는다.
+//     하나짜리 수치는 숫자(차트로 만들지 않는다).
+//   · 도넛은 일곱 조각 + '기타' 까지 · 값이 비슷한 것 비교엔 안 쓴다 · 2조각짜리는 만들지 않는다.
 //   · 이름표(사람·거래처 같은 명목 분류)는 **한 가지 색**으로. 크기를 색으로 또 칠하지 않는다.
 //   · 단계처럼 **순서가 있는 것**만 순서형(진한 정도) 색을 쓴다 — 그 색은 사용자가
 //     상태 옵션에 지정한 색을 그대로 가져온다(같은 뜻은 같은 색).
@@ -24,12 +24,10 @@ export type Figure =
   | { id: string; kind: "stat"; title: string; value: string; note?: string; tone?: "ok" | "bad" }
   /** 진행 링 — '전체 중 얼마나' 하나를 볼 때 */
   | { id: string; kind: "ring"; title: string; pct: number; center: string; note?: string; tone?: "ok" | "bad" }
-  /** 도넛 — 부분/전체(6조각 이하). 가운데에 합계를 적는다 */
-  | { id: string; kind: "donut"; title: string; slices: Slice[]; total: string; note?: string }
-  /** 깔때기 — 단계별로 얼마나 남아 있나(순서가 있는 분류) */
-  | { id: string; kind: "funnel"; title: string; slices: Slice[]; note?: string }
-  /** 가로 막대 — 이름표별 크기 비교(색은 하나) */
-  | { id: string; kind: "hbars"; title: string; rows: { label: string; value: number; text?: string }[]; note?: string }
+  /** 도넛 — 부분/전체(7조각 + 기타). 가운데에 합계를 적는다 */
+  | { id: string; kind: "donut"; title: string; slices: Slice[]; total: string; unit?: string; note?: string }
+  /** 가로 막대 — 크기 비교. 색은 하나가 기본이고, 단계처럼 **뜻이 있는 색**만 조각별로 준다 */
+  | { id: string; kind: "hbars"; title: string; rows: { label: string; value: number; color?: string }[]; unit?: string; note?: string }
   /** 세로 막대 — 주별 흐름 */
   | { id: string; kind: "weeks"; title: string; bars: { label: string; value: number; hot?: boolean }[]; note?: string }
   /** 꺾은선 — 시간에 따른 오르내림(주별). 점 사이를 이어 추세를 본다 (2026-08-05 사장님 지시) */
@@ -43,6 +41,21 @@ const shortWon = (n: number) => {
   if (Math.abs(v) >= 10_000) return `${Math.round(v / 10_000).toLocaleString("ko-KR")}만`;
   return v.toLocaleString("ko-KR");
 };
+
+/** 도넛 조각 상한 — 여덟 조각부터는 색이 뜻을 잃는다(색을 안 지정한 옵션은 전부 같은 회색이다).
+ *  큰 것 일곱만 남기고 나머지는 '기타'로 접는다 (2026-08-07, 광고 대시보드에서 겪은 회색 도넛). */
+function capSlices(slices: Slice[], keep = 7): Slice[] {
+  if (slices.length <= keep + 1) return slices;
+  const sorted = [...slices].sort((a, b) => b.value - a.value);
+  const rest = sorted.slice(keep).reduce((s, x) => s + x.value, 0);
+  return [...sorted.slice(0, keep), { key: "__etc__", label: `기타 ${sorted.length - keep}개`, value: rest, color: "#C4C4C4" }];
+}
+
+/** 단계별 막대 — 단계는 순서가 있으니 옵션에 적힌 차례를 지키고, 색도 그 단계 색을 그대로 쓴다.
+ *  ⚠️ 깔때기(위가 넓고 아래로 좁아지는 그림)로 그리지 않는다 — 이 값은 '단계를 통과한 수'가
+ *     아니라 '지금 그 단계에 있는 수'라서 아래가 위보다 클 수 있다. 깔때기로 그리면 거짓말이 된다. */
+const STAGE_NOTE = "단계 차례대로 · 지금 그 단계에 있는 건";
+const stageRows = (slices: Slice[]) => slices.map((s) => ({ label: s.label, value: s.value, color: s.color }));
 
 /** 상태 컬럼의 분포 — 색은 사용자가 지정한 옵션 색을 그대로 쓴다 */
 function statusSlices(col: BoardColumn | null, items: BoardItem[]): Slice[] {
@@ -130,9 +143,9 @@ export function templateFigures(
         if (flow) covers.add(`status:${flow.name}`);
       }
       const st = statusSlices(flow, items);
-      // 2조각짜리 도넛은 만들지 않는다(숫자가 낫다). 3~6조각일 때만.
+      // 2조각짜리 그림은 만들지 않는다(숫자가 낫다). 3조각부터.
       if (st.length >= 3 && flow) {
-        out.push({ id: "funnel:flow", kind: "funnel", title: "단계별 건수", slices: st, note: "위에서 아래로 단계 순서" });
+        out.push({ id: "funnel:flow", kind: "hbars", title: "단계별 건수", rows: stageRows(st), note: STAGE_NOTE });
         covers.add(`status:${flow.name}`);
       }
       const pr = byPerson(personCols[0] || null, items, nameOf);
@@ -150,7 +163,7 @@ export function templateFigures(
     case "review": {
       const st = statusSlices(flow, items);
       if (st.length >= 3 && flow) {
-        out.push({ id: "funnel:flow", kind: "funnel", title: "단계별 건수", slices: st, note: "위에서 아래로 요청 → 완료" });
+        out.push({ id: "funnel:flow", kind: "hbars", title: "단계별 건수", rows: stageRows(st), note: STAGE_NOTE });
         covers.add(`status:${flow.name}`);
       }
       const waiting = items.filter(open).length;
@@ -189,7 +202,7 @@ export function templateFigures(
       }
       const st = statusSlices(flow, items);
       if (st.length >= 3 && flow) {
-        out.push({ id: "donut:flow", kind: "donut", title: "상태별 건수", slices: st, total: `${items.length}건` });
+        out.push({ id: "donut:flow", kind: "donut", title: "상태별 건수", slices: capSlices(st), total: `${items.length}건` });
         covers.add(`status:${flow.name}`);
       }
       const late = items.filter((it) => {
@@ -234,20 +247,19 @@ export function templateFigures(
             .reduce((s, it) => s + num(it.values?.[realCol?.id || ""]), 0),
         })).filter((s) => s.value > 0);
         if (slices.length >= 3 && slices.length <= 6) {
-          out.push({ id: `dist:${kindCol.name}`, kind: "donut", title: `${kindCol.name}별 ${realCol?.name || "금액"}`, slices, total: `${shortWon(realSum)}원` });
+          out.push({ id: `dist:${kindCol.name}`, kind: "donut", title: `${kindCol.name}별 ${realCol?.name || "금액"}`, slices, total: `${shortWon(realSum)}원`, unit: "원" });
           covers.add(`status:${kindCol.name}`);
         } else if (slices.length > 0) {
           out.push({ id: `dist:${kindCol.name}`, kind: "hbars", title: `${kindCol.name}별 ${realCol?.name || "금액"}`,
-            rows: slices.map((s) => ({ label: s.label, value: s.value, text: `${won(s.value)}원` })) });
+            rows: slices.map((s) => ({ label: s.label, value: s.value, color: s.color })), unit: "원" });
           covers.add(`status:${kindCol.name}`);
         }
       }
       // 큰 항목 상위 — 어디에 돈이 몰렸나
       if (realCol) {
         const rows = items.map((it) => ({ label: it.name || "이름 없음", value: num(it.values?.[realCol.id]) }))
-          .filter((r) => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 5)
-          .map((r) => ({ ...r, text: `${won(r.value)}원` }));
-        if (rows.length >= 2) out.push({ id: "hbars:top", kind: "hbars", title: "금액이 큰 항목", rows, note: "위에서부터 다섯 개" });
+          .filter((r) => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 5);
+        if (rows.length >= 2) out.push({ id: "hbars:top", kind: "hbars", title: "금액이 큰 항목", rows, unit: "원", note: "위에서부터 다섯 개" });
       }
       const wk = weekBuckets(dueCol, items, today, open);
       if (wk.some((b) => b.value > 0) && dueCol) {
@@ -266,15 +278,15 @@ export function templateFigures(
           value: items.filter((it) => it.values?.[flow.id] === o.id).reduce((s, it) => s + num(it.values?.[amtCol.id]), 0),
         })).filter((s) => s.value > 0);
         if (slices.length >= 2) {
-          out.push({ id: "funnel:amount", kind: "funnel", title: `단계별 ${amtCol.name}`, slices, note: "건수가 아니라 금액 합계입니다" });
+          out.push({ id: "funnel:amount", kind: "hbars", title: `단계별 ${amtCol.name}`, rows: stageRows(slices),
+            unit: "원", note: `건수가 아니라 금액 합계 · ${STAGE_NOTE}` });
           covers.add(`status:${flow.name}`);
         }
       }
       if (amtCol) {
         const rows = items.map((it) => ({ label: it.name || "이름 없음", value: num(it.values?.[amtCol.id]) }))
-          .filter((r) => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 5)
-          .map((r) => ({ ...r, text: `${won(r.value)}원` }));
-        if (rows.length >= 2) out.push({ id: "hbars:top", kind: "hbars", title: "금액이 큰 항목", rows, note: "위에서부터 다섯 개" });
+          .filter((r) => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 5);
+        if (rows.length >= 2) out.push({ id: "hbars:top", kind: "hbars", title: "금액이 큰 항목", rows, unit: "원", note: "위에서부터 다섯 개" });
       }
       const pr = byPerson(personCols[0] || null, items, nameOf);
       if (pr.length > 0 && personCols[0]) {
@@ -291,7 +303,7 @@ export function templateFigures(
     default: {
       const st = statusSlices(flow, items);
       if (st.length >= 3 && flow) {
-        out.push({ id: "donut:flow", kind: "donut", title: "상태별 건수", slices: st, total: `${items.length}건` });
+        out.push({ id: "donut:flow", kind: "donut", title: "상태별 건수", slices: capSlices(st), total: `${items.length}건` });
         covers.add(`status:${flow.name}`);
       }
       const pr = byPerson(personCols[0] || null, items, nameOf);
@@ -354,11 +366,11 @@ export function shapeFigures(
     for (const c of statusCols) {
       const slices = statusSlices(c, items);
       if (slices.length < 2) continue;   // 조각이 하나면 원이 뜻을 만들지 않는다
-      out.push({ id: `donut:${c.name}`, kind: "donut", title: `${c.name}별 건수`, slices, total: `${items.length}건` });
+      out.push({ id: `donut:${c.name}`, kind: "donut", title: `${c.name}별 건수`, slices: capSlices(slices), total: `${items.length}건` });
       covers.add(`status:${c.name}`);
     }
     if (groupSlices.length >= 2) {
-      out.push({ id: "donut:group", kind: "donut", title: "그룹별 건수", slices: groupSlices, total: `${items.length}건` });
+      out.push({ id: "donut:group", kind: "donut", title: "그룹별 건수", slices: capSlices(groupSlices), total: `${items.length}건` });
       covers.add("group:그룹별 행 수");
     }
     // 금액이 있으면 '무엇이 얼마를 차지하나' — 건수보다 이게 궁금한 표가 있다
@@ -372,7 +384,7 @@ export function shapeFigures(
       })).filter((s) => s.value > 0);
       const total = slices.reduce((s, x) => s + x.value, 0);
       if (slices.length >= 2) {
-        out.push({ id: `donut:money:${kind.name}`, kind: "donut", title: `${kind.name}별 ${money.name}`, slices, total: `${shortWon(total)}원` });
+        out.push({ id: `donut:money:${kind.name}`, kind: "donut", title: `${kind.name}별 ${money.name}`, slices: capSlices(slices), total: `${shortWon(total)}원`, unit: "원" });
       }
     }
     return { figures: out, covers: [...covers] };
@@ -404,12 +416,12 @@ export function shapeFigures(
     if (slices.length === 0) continue;
     out.push({
       id: `bars:${c.name}`, kind: "hbars", title: `${c.name}별 건수`,
-      rows: slices.map((s) => ({ label: s.label, value: s.value })),
+      rows: slices.map((s) => ({ label: s.label, value: s.value, color: s.color })),
     });
     covers.add(`status:${c.name}`);
   }
   if (groupSlices.length > 0) {
-    out.push({ id: "bars:group", kind: "hbars", title: "그룹별 건수", rows: groupSlices.map((s) => ({ label: s.label, value: s.value })) });
+    out.push({ id: "bars:group", kind: "hbars", title: "그룹별 건수", rows: groupSlices.map((s) => ({ label: s.label, value: s.value, color: s.color })) });
     covers.add("group:그룹별 행 수");
   }
   for (const c of personCols) {
@@ -423,9 +435,9 @@ export function shapeFigures(
     const rows = items
       .map((it) => ({ label: it.name || "이름 없음", value: num(it.values?.[c.id]) }))
       .filter((r) => r.value !== 0)
-      .sort((a, b) => b.value - a.value).slice(0, 5)
-      .map((r) => ({ ...r, text: `${won(r.value)}${c.settings?.unit || ""}` }));
-    if (rows.length >= 2) out.push({ id: `bars:top:${c.name}`, kind: "hbars", title: `${c.name} 큰 순서`, rows, note: "위에서부터 다섯 개" });
+      .sort((a, b) => b.value - a.value).slice(0, 5);
+    if (rows.length >= 2) out.push({ id: `bars:top:${c.name}`, kind: "hbars", title: `${c.name} 큰 순서`, rows,
+      unit: c.settings?.unit || "", note: "위에서부터 다섯 개" });
   }
   if (dueCol) {
     const bars = weekBuckets(dueCol, items, today, open);

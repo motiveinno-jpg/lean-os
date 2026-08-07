@@ -48,22 +48,38 @@ export function ProjectMoneyReport({ boards, cols, items }: {
     [boards, cols, items, basis],
   );
 
+  // ⚠️ 이 조건은 hasMoneyData() 와 같아야 한다 — 정리 화면이 그 함수로 껍데기를 그릴지 정한다
   const hasMoney = r.income.total > 0 || r.spend.total > 0 || !!r.budget;
   if (!hasMoney) return null;
 
   const overlapSum = r.overlaps.reduce((s, o) => s + o.amount, 0);
   const weeks = weeklyCashflow(boards, cols, items, todayKst(), 8);
   const hasWeeks = weeks.some((w) => w.income > 0 || w.spend > 0);
+  // 이 기준으로는 아직 센 금액이 없다 — '마진 0원'이라고 하면 나갈 돈이 억대인데 0으로 읽힌다.
+  //   숫자를 지어내지 말고, 무엇이 잡혀 있고 왜 안 세는지 그대로 적는다 (2026-08-07 사장님 지적).
+  const nothingSettled = r.settled.income === 0 && r.settled.spend === 0;
+  const planTotal = r.income.byStage.plan + r.spend.byStage.plan;
 
   return (
     <section className="mr">
       {/* ── 헤드라인: 마진 하나 ─────────────────────────── */}
       <header className="mr-head">
-        <div className="mr-hero">
-          <span className="mr-hero-k">마진</span>
-          <b className={r.margin < 0 ? "mr-hero-v mr-bad" : "mr-hero-v"}>{won(r.margin)}원</b>
-          {r.marginRate != null && <em className={r.margin < 0 ? "mr-bad" : ""}>마진율 {r.marginRate}%</em>}
-        </div>
+        {nothingSettled ? (
+          <div className="mr-hero mr-hero-none">
+            <span className="mr-hero-k">마진</span>
+            <b className="mr-hero-v mr-hero-dim">아직 셀 금액이 없어요</b>
+            <em>
+              {basis === "cash" ? "실제로 오간 돈이 아직 없습니다" : "계약·발주까지 간 건이 아직 없습니다"}
+              {planTotal > 0 ? ` · 계획으로 잡힌 금액 ${shortWon(planTotal)}원` : ""}
+            </em>
+          </div>
+        ) : (
+          <div className="mr-hero">
+            <span className="mr-hero-k">마진</span>
+            <b className={r.margin < 0 ? "mr-hero-v mr-bad" : "mr-hero-v"}>{won(r.margin)}원</b>
+            {r.marginRate != null && <em className={r.margin < 0 ? "mr-bad" : ""}>마진율 {r.marginRate}%</em>}
+          </div>
+        )}
         <div className="mr-basis">
           {(["accrual", "cash"] as Basis[]).map((b) => (
             <button key={b} type="button" onClick={() => setBasis(b)} aria-pressed={basis === b}
@@ -170,7 +186,13 @@ function StageBars({ income, spend }: { income: MoneyRollup["income"]; spend: Mo
         </table>
       ) : (<>
       <div className="mr-bars">
-        {rows.map((row) => (
+        {rows.map((row) => row.ax.total === 0 ? (
+          //   값이 없는 축은 빈 막대를 그리지 않는다 — 빈 줄은 '0원'이 아니라 '아직 없음'이다
+          <div key={row.key} className="mr-bar-row">
+            <span className="mr-bar-k">{row.label}</span>
+            <span className="mr-bar-none">아직 잡힌 금액이 없어요</span>
+          </div>
+        ) : (
           <div key={row.key} className="mr-bar-row">
             <span className="mr-bar-k">{row.label}</span>
             <span className="mr-bar-track" style={{ width: `${(row.ax.total / max) * 100}%` }}>
@@ -190,13 +212,14 @@ function StageBars({ income, spend }: { income: MoneyRollup["income"]; spend: Mo
           </div>
         ))}
       </div>
-      {/* 계열이 2개 이상이면 범례는 언제나 있다 — 색만으로 뜻을 전하지 않는다 */}
+      {/* 계열이 2개 이상이면 범례는 언제나 있다 — 색만으로 뜻을 전하지 않는다.
+          단, 그리지 않은 색은 설명하지 않는다(빈 축의 네 단계를 늘어놓으면 없는 걸 있는 것처럼 읽는다) */}
       <div className="mr-legend">
-        {(["income", "spend"] as const).map((k) => (
-          <span key={k} className="mr-legend-row">
-            <b>{k === "income" ? "받을 돈" : "나갈 돈"}</b>
-            {STAGE_ORDER.map((st) => (
-              <span key={st}><i style={{ background: fill(k, st) }} />{STAGE_LABEL[k][st]}</span>
+        {rows.filter((row) => row.ax.total > 0).map((row) => (
+          <span key={row.key} className="mr-legend-row">
+            <b>{row.label}</b>
+            {STAGE_ORDER.filter((st) => row.ax.byStage[st] > 0).map((st) => (
+              <span key={st}><i style={{ background: fill(row.key, st) }} />{STAGE_LABEL[row.key][st]}</span>
             ))}
           </span>
         ))}

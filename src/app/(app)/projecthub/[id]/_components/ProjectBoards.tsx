@@ -23,6 +23,7 @@ import { BoardDocModal, type DocKind } from "./BoardDocModal";
 import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
+import { hasMoneyData } from "@/lib/project-money-rollup";
 import { BoardFigure } from "./BoardFigures";
 import { AdDashboard } from "./AdDashboard";
 import { templateFigures, shapeFigures, summaryCardKey, type Figure } from "@/lib/project-template-summary";
@@ -1998,19 +1999,26 @@ function ProjectSummary({ dealId, boards, cols, groups, items, users, presets, o
   if (filled.length === 0) {
     return <p className="pj-sec-empty">템플릿에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
   }
+  // 돈으로 볼 값이 없으면 껍데기도 그리지 않는다 — 제목만 있고 속이 빈 리포트가 남으면 안 된다
+  const money = hasMoneyData(boards, cols, items, todayKst());
+  //   같은 템플릿을 두 번 쓰면 표 이름이 같아 어느 쪽인지 알 수 없다 — 그때만 그룹 이름을 덧붙인다
+  const dupNames = new Set(filled.filter((b, i, a) => a.some((o, j) => j !== i && o.name === b.name)).map((b) => b.id));
   return (
     <div className="pb-sum-all">
       <p className="pb-sum-top">
-        프로젝트 전체 돈 흐름 한 장과 템플릿마다 한 장씩 정리했어요.
+        {money ? "프로젝트 전체 돈 흐름 한 장과 템플릿마다 한 장씩 정리했어요. " : "템플릿마다 한 장씩 정리했어요. "}
         값이 비어 있는 칸은 세지 않았습니다.
       </p>
       {/* 표를 가로지르는 돈 요약이 맨 위 — 표별 리포트보다 이게 먼저 읽혀야 한다(2026-08-05) */}
-      <SummaryReport kicker="프로젝트 전체" title="돈 흐름" meta="템플릿 여러 개에서 모은 금액">
-        <ProjectMoneyReport boards={boards} cols={cols} items={items} />
-      </SummaryReport>
+      {money && (
+        <SummaryReport kicker="프로젝트 전체" title="돈 흐름" meta="템플릿 여러 개에서 모은 금액">
+          <ProjectMoneyReport boards={boards} cols={cols} items={items} />
+        </SummaryReport>
+      )}
       {filled.map((b) => (
         <BoardSummary key={b.id}
           boardName={b.name}
+          needsHint={dupNames.has(b.id)}
           templateKey={b.template_key}
           cols={cols.filter((c) => c.board_id === b.id)}
           items={items.filter((i) => i.board_id === b.id)}
@@ -2089,9 +2097,11 @@ function SummaryCardView({ c }: { c: SummaryCard }) {
 
 // ── 템플릿 하나 — 컬럼 타입만 보고 만든 요약. 값이 없는 항목은 그리지 않는다 ──
 //    무엇을 어떤 순서로 볼지는 '정리 양식'이 정한다(2026-08-05 사장님 지시).
-function BoardSummary({ boardName, templateKey, cols, items, groups, users, presets, onSavePreset, onUpdatePreset, onRemovePreset, onOpenItem }: {
+function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, users, presets, onSavePreset, onUpdatePreset, onRemovePreset, onOpenItem }: {
   /** 리포트 머리에 쓸 표 이름 */
   boardName: string;
+  /** 같은 이름의 표가 또 있을 때 — 머리에 그룹 이름을 덧붙여 구분한다 */
+  needsHint?: boolean;
   templateKey?: string | null;
   cols: BoardColumn[]; items: BoardItem[]; groups: BoardGroup[]; users: { id: string; name: string }[];
   presets?: Preset[];
@@ -2105,6 +2115,8 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
   const [pickedId, setPickedId] = useState<string>("");
   const [shape, setShape] = useState<SummaryShape>("auto");
   const [configOpen, setConfigOpen] = useState(false);
+  const [asTable, setAsTable] = useState(false);      // 그림 대신 숫자로 읽기
+  const [openThin, setOpenThin] = useState(false);    // 볼 게 거의 없는 리포트를 펼쳤나
   const [naming, setNaming] = useState<SummaryLayout | null>(null);
   const [editing, setEditing] = useState<SummaryLayout | null>(null);   // 고른 양식 덮어쓰기(이름도 함께)
   useEffect(() => {
@@ -2154,7 +2166,7 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
   // 그림과 카드를 한 줄로 세운다 — 양식이 이 목록을 골라 늘어놓는다
   type Piece = { id: string; title: string; node: ReactNode };
   const all: Piece[] = [
-    ...figures.map((f) => ({ id: f.id, title: f.title, node: <BoardFigure f={f} /> })),
+    ...figures.map((f) => ({ id: f.id, title: f.title, node: <BoardFigure f={f} table={asTable} /> })),
     ...cards.map((c) => ({ id: `card:${summaryCardKey(c)}`, title: c.label, node: <SummaryCardView c={c} /> })),
   ];
 
@@ -2188,6 +2200,9 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
       ))}
       <button type="button" className="pb-fmt-gear" onClick={() => setConfigOpen(true)}
         title="무엇을 어떤 순서로 볼지 고르기">지표 고르기</button>
+      {/* 색을 못 가르는 눈에도 같은 값이 남아야 한다 — 그림과 표를 오간다 */}
+      <button type="button" className={`pb-fmt-btn ${asTable ? "pb-fmt-on" : ""}`}
+        onClick={() => setAsTable((v) => !v)} title="그림 대신 숫자로 읽기">{asTable ? "그림으로" : "표로"}</button>
     </div>
   );
 
@@ -2212,15 +2227,27 @@ function BoardSummary({ boardName, templateKey, cols, items, groups, users, pres
     </div>
   );
   const isPicture = (useShape === "gantt" && span) || (useShape === "calendar" && hasDate);
+  //   같은 이름의 표가 또 있을 때만 그룹 이름을 붙여 구분한다('일정 · 마일스톤'이 두 장이면 어느 쪽인지 모른다)
+  const hint = needsHint ? groups.map((g) => g.name).filter(Boolean).slice(0, 2).join(" · ") : "";
+  //   지표가 한둘뿐인 리포트는 접어 둔다 — 펼쳐 두면 자리만 차지하고 읽을 게 없다
+  const thin = !isPicture && shown.length > 0 && shown.length <= 2;
+  const collapsed = thin && !openThin;
+  const meta = items.length === 0 ? "아직 채운 값이 없어요"
+    : [hint, `${items.length}행`, isPicture ? "" : `지표 ${shown.length}개`].filter(Boolean).join(" · ");
 
   return (
-    <SummaryReport kicker="템플릿" title={boardName}
-      meta={items.length === 0 ? "아직 채운 값이 없어요"
-        : isPicture ? `${items.length}행` : `${items.length}행 · 지표 ${shown.length}개`}
-      tools={items.length === 0 ? undefined : tools}>
+    <SummaryReport kicker="템플릿" title={boardName} meta={meta}
+      tools={items.length === 0 || collapsed ? undefined : tools}>
       {items.length === 0
         ? <p className="pj-sec-empty">값을 채우면 여기에 합계 · 분포 · 마감이 자동으로 정리돼요.</p>
-        : body}
+        : collapsed
+          ? (
+            <p className="pb-rep-thin">
+              볼 지표가 {shown.length}개뿐이에요 — {shown.map((p) => p.title).join(" · ")}
+              <button type="button" onClick={() => setOpenThin(true)}>펼치기</button>
+            </p>
+          )
+          : body}
 
       {configOpen && (
         <SummaryFormatDialog all={all} layout={layout} presetName={picked?.name || null}
