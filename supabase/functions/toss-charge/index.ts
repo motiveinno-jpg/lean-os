@@ -164,55 +164,92 @@ serve(withSentry("toss-charge", async (req: Request) => {
     //   지금까지 seat_count 는 결제 시점 값으로 굳어 있었다 — 5명일 때 결제한 회사가
     //   20명이 돼도 계속 5명 요금을 냈다. 청구 시점의 재직 인원으로 다시 센다.
     const includedSeats = plan.included_seats ?? 0;
-    const perSeat = Number(plan.per_seat_price);
+    const perSeatMonthly = Number(plan.per_seat_price);
     const oldSeats = s.seat_count || 1;
+    const yearly = s.billing_cycle === "yearly" || s.billing_cycle === "annual";
+    // 좌석 1개의 "이번 주기" 값 — 연간이면 12개월치에 할인 적용.
+    //   일할계산도 이 값을 기준으로 해야 한다(월 단가로 나누면 연간 구독이 12배 적게 정산된다).
+    const perSeatPeriod = yearly
+      ? Math.round(perSeatMonthly * 12 * (1 - Number(plan.annual_discount || 0)))
+      : perSeatMonthly;
     const { count: empCount } = await supabase
       .from("employees").select("id", { count: "exact", head: true })
       .eq("company_id", s.company_id).in("status", ["active", "joined"]);
     const actualSeats = Math.max(1, empCount || 0);
 
-    // 지난 주기 도중 늘어난 좌석은 일할계산해 이번 청구에 더한다(줄어든 건 환불 없이 다음 주기 반영).
-    let prorationAmount = 0;
-    const prorationDetail: { employeeId: string; days: number; amount: number }[] = [];
-    const addedBillable = Math.max(0, (actualSeats - includedSeats)) - Math.max(0, (oldSeats - includedSeats));
-    if (addedBillable > 0 && perSeat > 0 && s.current_period_start) {
-      const pStart = new Date(s.current_period_start).getTime();
-      const pEnd = new Date(s.current_period_end || nowIso).getTime();
-      const periodDays = Math.max(1, Math.round((pEnd - pStart) / 86400000));
-      // 지난 주기에 새로 들어온 재직자 중 최근 입력분 addedBillable 명이 추가 과금 대상
-      const { data: newcomers } = await supabase
-        .from("employees").select("id, created_at")
-        .eq("company_id", s.company_id).in("status", ["active", "joined"])
-        .gte("created_at", new Date(pStart).toISOString())
-        .order("created_at", { ascending: false })
-        .limit(addedBillable);
-      for (const e of (newcomers || []) as { id: string; created_at: string }[]) {
-        const joined = new Date(e.created_at).getTime();
-        const days = Math.max(0, Math.round((pEnd - joined) / 86400000));
-        const amt = Math.round(perSeat * (days / periodDays));
-        if (amt > 0) { prorationAmount += amt; prorationDetail.push({ employeeId: e.id, days, amount: amt }); }
+    // 지난 주기 도중 좌석이 늘면 일할 가산, 줄면 일할 감액한다(2026-08-07 감액 추가).
+    //   가산 기준은 등록일, 감액 기준은 퇴사일(employees.resignation_date).
+    //   퇴사일이 비어 있으면 감액하지 않는다 — 날짜를 모르면 과다 환급이 되므로 보수적으로.
+    let prorationAmount = 0; // 가산(+) · 감액(−) 합계
+    const prorationDetail: { employeeId: string; days: number; amount: number; kind: "add" | "credit" }[] = [];
+    const billableBefore = Math.max(0, oldSeats - includedSeats);
+    const billableNow = Math.max(0, actualSeats - includedSeats);
+    const pStartMs = s.current_period_start ? new Date(s.current_period_start).getTime() : null;
+    const pEndMs = new Date(s.current_period_end || nowIso).getTime();
+    const periodDays = pStartMs ? Math.max(1, Math.round((pEndMs - pStartMs) / 86400000)) : 0;
+    const ymd = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+    if (perSeatPeriod > 0 && pStartMs && periodDays > 0) {
+      const delta = billableNow - billableBefore;
+      if (delta > 0) {
+        // 늘어난 좌석 — 지난 주기에 새로 들어온 재직자 중 최근 등록분이 추가 과금 대상
+        const { data: newcomers } = await supabase
+          .from("employees").select("id, created_at")
+          .eq("company_id", s.company_id).in("status", ["active", "joined"])
+          .gte("created_at", new Date(pStartMs).toISOString())
+          .order("created_at", { ascending: false })
+          .limit(delta);
+        for (const e of (newcomers || []) as { id: string; created_at: string }[]) {
+          const days = Math.max(0, Math.round((pEndMs - new Date(e.created_at).getTime()) / 86400000));
+          const amt = Math.round(perSeatPeriod * (days / periodDays));
+          if (amt > 0) { prorationAmount += amt; prorationDetail.push({ employeeId: e.id, days, amount: amt, kind: "add" }); }
+        }
+      } else if (delta < 0) {
+        // 줄어든 좌석 — 지난 주기에 퇴사한 인원의 "쓰지 않은 기간"만큼 돌려준다
+        const { data: leavers } = await supabase
+          .from("employees").select("id, resignation_date")
+          .eq("company_id", s.company_id)
+          .not("resignation_date", "is", null)
+          .gte("resignation_date", ymd(pStartMs))
+          .lte("resignation_date", ymd(pEndMs))
+          .order("resignation_date", { ascending: false })
+          .limit(-delta);
+        for (const e of (leavers || []) as { id: string; resignation_date: string }[]) {
+          const leftMs = new Date(`${e.resignation_date}T00:00:00Z`).getTime();
+          const days = Math.max(0, Math.round((pEndMs - leftMs) / 86400000));
+          const amt = Math.round(perSeatPeriod * (days / periodDays));
+          if (amt > 0) { prorationAmount -= amt; prorationDetail.push({ employeeId: e.id, days, amount: -amt, kind: "credit" }); }
+        }
       }
     }
 
     // 무료 플랜은 청구 대상이 아니다 — 주기만 다음으로 밀어 둔다.
-    const supplyMonthly = Math.round(
-      Number(plan.base_price) +
-      Math.max(0, actualSeats - includedSeats) * perSeat,
-    );
-    const yearly = s.billing_cycle === "yearly" || s.billing_cycle === "annual";
+    const supplyMonthly = Math.round(Number(plan.base_price) + billableNow * perSeatMonthly);
     const supplyBase = yearly
       ? Math.round(supplyMonthly * 12 * (1 - Number(plan.annual_discount || 0)))
       : supplyMonthly;
-    const supply = supplyBase + prorationAmount;
+    // 감액이 이번 청구액보다 크면 0 으로 막는다(음수 결제는 불가) — 남은 감액은 기록만 남긴다.
+    const supplyRaw = supplyBase + prorationAmount;
+    const supply = Math.max(0, supplyRaw);
+    const creditUnapplied = supply - supplyRaw;
     const periodStart = new Date(s.current_period_end || nowIso);
     const periodEnd = addPeriod(periodStart, s.billing_cycle || "monthly");
 
     if (supply <= 0) {
       await supabase.from("subscriptions").update({
+        seat_count: actualSeats,
         current_period_start: periodStart.toISOString(),
         current_period_end: periodEnd.toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("id", s.id);
+      // 감액으로 전액 상쇄된 경우도 흔적을 남긴다 — 왜 이번 달 청구가 없었는지 나중에 설명할 수 있게
+      if (prorationAmount !== 0 || creditUnapplied > 0) {
+        await supabase.from("billing_events").insert({
+          company_id: s.company_id, event_type: "payment_success",
+          metadata: { orderId: null, amount: 0, provider: "toss", seats: actualSeats,
+            previousSeats: oldSeats, proration: prorationAmount, prorationDetail, creditUnapplied },
+        });
+      }
       results.push({ companyId: s.company_id, ok: true, amount: 0 });
       continue;
     }
@@ -287,8 +324,10 @@ serve(withSentry("toss-charge", async (req: Request) => {
         toss_order_id: orderId,
         paid_at: payment.approvedAt || new Date().toISOString(),
         description: prorationAmount > 0
-          ? `${orderName} (좌석 ${actualSeats}명, 중도 합류 일할 ${prorationAmount.toLocaleString("ko-KR")}원 포함)`
-          : `${orderName} (좌석 ${actualSeats}명)`,
+          ? `${orderName} (좌석 ${actualSeats}명, 중도 합류 일할 ${prorationAmount.toLocaleString("ko-KR")}원 가산)`
+          : prorationAmount < 0
+            ? `${orderName} (좌석 ${actualSeats}명, 중도 퇴사 일할 ${Math.abs(prorationAmount).toLocaleString("ko-KR")}원 감액)`
+            : `${orderName} (좌석 ${actualSeats}명)`,
         billing_period_start: periodStart.toISOString(),
         billing_period_end: periodEnd.toISOString(),
         currency: "krw",
@@ -306,7 +345,7 @@ serve(withSentry("toss-charge", async (req: Request) => {
       await supabase.from("billing_events").insert({
         company_id: s.company_id, event_type: "payment_success",
         metadata: { orderId, amount: total, paymentKey: payment.paymentKey, provider: "toss",
-          seats: actualSeats, previousSeats: oldSeats, proration: prorationAmount, prorationDetail },
+          seats: actualSeats, previousSeats: oldSeats, proration: prorationAmount, prorationDetail, creditUnapplied },
       });
       results.push({ companyId: s.company_id, ok: true, amount: total });
       continue;
