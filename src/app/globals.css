@@ -6785,6 +6785,38 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-tpl-preset { @apply relative p-0 overflow-hidden; }
 /* 기본 양식 카드 — 누르면 바로 만들고, 오른쪽 위 '＋칸' 으로만 다듬기로 간다 (2026-08-07) */
 .pb-tpl-pick { @apply relative p-0 overflow-hidden; }
+/* 회의록 — '회의 · 결정' 의 첫 화면 (2026-08-07 사장님 지시: 템플릿마다 그 일에 맞는 화면).
+   격자가 아니라 문서로 읽히게: 회의 머리 아래로 안건이 이어지고, 결정 밑에 담당·기한이 붙는다. */
+.pbm { @apply grid gap-4 items-start; grid-template-columns: minmax(0,1fr) 210px; }
+@media (max-width: 860px) { .pbm { grid-template-columns: 1fr; } }
+.pbm-main { @apply p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.pbm-head { @apply flex items-center gap-2.5 flex-wrap pb-3 border-b border-[var(--border)]; }
+.pbm-head b { @apply text-[15px] font-extrabold text-[var(--text)]; }
+.pbm-head time { @apply text-[12px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+.pbm-head em { @apply not-italic text-[11.5px] text-[var(--text-dim)]; }
+.pbm-who { @apply flex ml-auto; }
+.pbm-who i { @apply not-italic w-6 h-6 -ml-1.5 rounded-full grid place-items-center text-[10px] font-extrabold bg-[var(--primary-light)] text-[var(--primary)] border-2 border-[var(--bg-card)]; }
+.pbm-agenda { @apply flex flex-col gap-2.5 mt-3; }
+.pbm-item { @apply flex flex-col gap-1.5 p-3 rounded-xl border border-[var(--border)]; }
+.pbm-item-t { @apply flex items-center gap-2 min-w-0; }
+.pbm-item-name { @apply flex-1 min-w-0 text-left text-[13.5px] font-bold text-[var(--text)] truncate transition hover:text-[var(--primary)]; }
+.pbm-cell { @apply inline-flex min-w-0; }
+.pbm-cell-status { @apply shrink-0 w-[92px]; }
+.pbm-decide { @apply text-[12.5px]; }
+.pbm-foot { @apply flex items-center gap-2 flex-wrap pt-2 mt-0.5 border-t border-dashed border-[var(--border)]; }
+.pbm-foot .pbm-cell { @apply w-[124px]; }
+.pbm-send { @apply ml-auto px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[var(--primary-light)] text-[var(--primary)] transition hover:bg-[var(--primary)] hover:text-white disabled:opacity-50; }
+.pbm-add { @apply flex items-center gap-2 p-2.5 rounded-xl border border-dashed border-[var(--border)]; }
+.pbm-add input { @apply flex-1 min-w-0 bg-transparent text-[12.5px] text-[var(--text)] placeholder:text-[var(--text-dim)] outline-none; }
+.pbm-add button { @apply shrink-0 px-2.5 py-1 rounded-lg text-[11.5px] font-bold bg-[var(--primary)] text-white disabled:opacity-40; }
+.pbm-side { @apply flex flex-col gap-1 p-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]; }
+.pbm-side > b { @apply text-[11.5px] font-bold text-[var(--text-muted)] mb-1; }
+.pbm-past { @apply flex flex-col gap-0.5 text-left px-2.5 py-2 rounded-xl transition hover:bg-[var(--bg-card)]; }
+.pbm-past span { @apply text-[12px] font-semibold text-[var(--text)] truncate; }
+.pbm-past em { @apply not-italic text-[10.5px] text-[var(--text-dim)]; }
+.pbm-past-on { @apply bg-[var(--bg-card)] ring-1 ring-[var(--primary)]/30; }
+.pbm-newmeet { @apply mt-1 px-2.5 py-2 rounded-xl border border-dashed border-[var(--border)] text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+
 /* 템플릿 예시 화면 — 카드에 마우스를 올리면 옆에 뜬다 (2026-08-07 사장님 지시).
    모달 안에서 잘리지 않게 화면 좌표(fixed)로 띄우고, 손이 닿아도 사라지지 않게 클릭은 통과시킨다. */
 .pb-peek { @apply fixed z-[70] w-[420px] max-w-[92vw] p-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl pointer-events-none; }

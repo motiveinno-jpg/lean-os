@@ -31,10 +31,25 @@ export type GroupDef = { name: string; color: string };
  *    · timeline·calendar = **읽는** 화면 — 정리한 결과를 보여줄 뿐 입력은 못 한다. 전환으로만 간다.
  *      (timeline = 기간을 본다 / calendar = 언제인지를 본다)
  *  "타임라인은 데이터를 정리해서 보여주는 거고 표가 입력화면이잖아? 입력화면이 기본값으로 나와야" */
-export type InputMode = "grid" | "board" | "timeline" | "calendar";
+export type InputMode = "grid" | "board" | "timeline" | "calendar" | "minutes";
 
 /** 입력이 되는 보기인가 — 기본값 검증과 보기 줄 묶음에 같이 쓴다 */
 export const INPUT_MODES: InputMode[] = ["grid", "board"];
+
+/** 보기 이름 — 툴바 단추에 쓴다 */
+export const MODE_LABEL: Record<InputMode, string> = {
+  grid: "표", board: "칸반", timeline: "타임라인", calendar: "캘린더", minutes: "회의록",
+};
+
+/** 이 템플릿이 쓸 수 있는 입력 화면들 — **그 일의 첫 화면**이 맨 앞이다 (2026-08-07 사장님 지시:
+ *  "템플릿이 다 똑같은 표라 실제 업무에 의미가 있는지 모르겠다").
+ *  표·칸반은 없애지 않는다 — 익숙한 격자가 필요하면 언제든 돌아간다. */
+export function inputModesOf(templateKey: string | null | undefined): InputMode[] {
+  const first = findTemplate(templateKey || "").input;
+  //   그 일 전용 화면(회의록 등)이 있으면 맨 앞에 세우고, 표·칸반은 뒤에 그대로 남긴다
+  const special: InputMode[] = first && !INPUT_MODES.includes(first) ? [first] : [];
+  return [...special, ...INPUT_MODES];
+}
 
 export type BoardTemplate = {
   key: string;
@@ -191,8 +206,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "회의 · 결정",
     desc: "정한 것과 다음에 할 일을 한 줄에",
     uses: "주간회의 · 킥오프 · 고객 미팅 · 이사회 · 현장 점검 회의",
-    //   회의가 끝나고 여러 줄을 이어 적는 일이라 표가 빠르다
-    input: "grid",
+    //   회의록은 격자가 아니라 문서다 — 첫 화면을 회의록으로 연다(표로 언제든 돌아간다)
+    input: "minutes",
     columns: [
       { name: "상태", type: "status", settings: FLOW([
         { id: "open", label: "논의 중", color: C.gray },

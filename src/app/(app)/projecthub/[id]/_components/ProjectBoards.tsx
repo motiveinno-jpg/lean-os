@@ -23,6 +23,7 @@ import { BoardDocModal, type DocKind } from "./BoardDocModal";
 import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
+import { BoardMinutes } from "./BoardMinutes";
 import { hasMoneyData } from "@/lib/project-money-rollup";
 import { BoardFigure } from "./BoardFigures";
 import { AdDashboard } from "./AdDashboard";
@@ -40,7 +41,7 @@ import {
 } from "@/lib/summary-layout";
 import {
   findTemplate, ITEM_LABEL, templateKind, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
-  flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, isDoneRow, START_DATE_RE,
+  flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, inputModesOf, MODE_LABEL, isDoneRow, START_DATE_RE,
   COL_FORMATS, DEFAULT_STATUS_OPTIONS,
   type InputMode, type PayTermRow, type ColumnDef, type GroupDef, type StatusOption,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
@@ -264,7 +265,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     setFilterPanel(null);
     if (!boardId || typeof window === "undefined") return;
     const saved = window.localStorage.getItem(`${VIEW_KEY}${boardId}`) as InputMode | null;
-    setViewPick(saved === "grid" || saved === "board" || saved === "timeline" ? saved : null);
+    setViewPick(saved && MODE_LABEL[saved] ? saved : null);
   }, [boardId]);
   const pickView = (v: InputMode) => {
     setViewPick(v);
@@ -518,6 +519,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [makingDoc, setMakingDoc] = useState<string | null>(null);
   //   문서는 팝업으로 연다 — 화면을 옮기면 업무 흐름이 끊긴다(2026-08-04 사장님 지시)
   const [docModal, setDocModal] = useState<{ itemId: string; kind: DocKind } | null>(null);
+  const [minutesGroup, setMinutesGroup] = useState<string | null>(null);   // 회의록에서 펼쳐 둔 회의
+  const [sendingTodo, setSendingTodo] = useState<string | null>(null);
   const openQuote = async (it: BoardItem) => {
     const linked = (it.values || {})[DOC_VALUE_KEY] as { id?: string } | undefined;
     if (linked?.id) { setDocModal({ itemId: it.id, kind: "quote" }); return; }
@@ -810,9 +813,50 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   };
 
   const addGroup = async () => {
-    const { error } = await db.from("project_board_groups").insert({ board_id: boardId, name: `그룹 ${groups.length + 1}`, position: groups.length });
+    //   회의 표의 그룹은 '회의 회차' 다 — '그룹 2' 가 아니라 날짜를 붙여 준다 (2026-08-07)
+    const name = board?.template_key === "meeting"
+      ? `${todayKst().slice(5).replace("-", "/")} 회의`
+      : `그룹 ${groups.length + 1}`;
+    const { data, error } = await db.from("project_board_groups")
+      .insert({ board_id: boardId, name, position: groups.length }).select("id").single();
     if (error) { toast(error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["pb-groups", boardId] });
+    if (data?.id) setMinutesGroup(data.id as string);
+  };
+
+  //   회의에서 정한 것을 '할 일 · 진행' 표로 넘긴다 — 결정만 적고 끝나지 않게 (2026-08-07).
+  //   담당·기한은 형식이 같은 칸을 찾아 옮긴다(칸 이름은 회사마다 다르다).
+  const sendToTodo = async (it: BoardItem) => {
+    if (sendingTodo) return;
+    const todoBoard = (boards as any[]).find((b) => b.template_key === "todo");
+    if (!todoBoard) { toast("'할 일 · 진행' 표가 없어요 — ＋ 템플릿에서 먼저 만들어 주세요.", "error"); return; }
+    setSendingTodo(it.id);
+    try {
+      const [tc, tg] = await Promise.all([
+        db.from("project_board_columns").select("id, name, type, settings").eq("board_id", todoBoard.id).order("position"),
+        db.from("project_board_groups").select("id").eq("board_id", todoBoard.id).order("position"),
+      ]);
+      const tcols = (tc.data || []) as BoardColumn[];
+      const gid = (tg.data || [])[0]?.id as string | undefined;
+      if (!gid) throw new Error("할 일 표에 그룹이 없어요");
+      const pick = (t: string) => cols.find((c) => c.type === t) || null;
+      const dst = (t: string) => tcols.find((c) => c.type === t) || null;
+      const values: Record<string, any> = {};
+      //   담당 — 사람 칸끼리
+      const p = pick("person"), dp = dst("person");
+      if (p && dp && it.values?.[p.id]) values[dp.id] = it.values[p.id];
+      //   기한 — 회의일이 아닌 날짜 칸에서 마감 칸으로
+      const dueSrc = cols.filter((c) => c.type === "date").find((c) => !/회의|일자/.test(c.name));
+      const dueDst = tcols.filter((c) => c.type === "date")[0];
+      if (dueSrc && dueDst && it.values?.[dueSrc.id]) values[dueDst.id] = it.values[dueSrc.id];
+      const { error } = await db.from("project_board_items")
+        .insert({ board_id: todoBoard.id, group_id: gid, name: it.name || "(안건)", position: 0, values });
+      if (error) throw new Error(error.message);
+      qc.invalidateQueries({ queryKey: ["pb-items", todoBoard.id] });
+      toast(`'${it.name || "안건"}' 을 할 일로 보냈습니다.`, "success");
+    } catch (e: any) {
+      toast(e?.message || "할 일로 보내기 실패", "error");
+    } finally { setSendingTodo(null); }
   };
   //   after 를 주면 그 칸 바로 오른쪽에 넣는다 — 표 끝까지 가로로 밀지 않아도 원하는 자리에 붙는다
   //   (2026-08-05 사장님: "표에서 칸 이름 옆 ＋로 컬럼을 추가할 수 있게").
@@ -845,10 +889,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const nameLabel = String(board?.name_label || "").trim() || ITEM_LABEL[board?.template_key || "blank"] || "이름";
   // 칸반이 열로 쓸 컬럼 — 흐름 상태 컬럼. 없으면 그룹으로 열을 만든다.
   const flowCol = flowColumnOf(cols);
-  //   입력 화면은 표·칸반 둘뿐이다 — 타임라인·캘린더는 정리 안의 그림으로 옮겼다(2026-08-05).
-  //   예전에 타임라인·캘린더를 골라 뒀던 사람이 빈 화면을 보지 않게 표로 떨어뜨린다.
+  //   입력 화면 — 표·칸반에 **그 일 전용 첫 화면**이 붙는다(회의록 등, 2026-08-07).
+  //   고를 수 없는 보기가 저장돼 있으면(옛 타임라인·다른 템플릿의 화면) 표로 떨어뜨린다.
+  const modes = inputModesOf(board?.template_key);
   const wanted = viewPick || (findTemplate(board?.template_key).input || "grid");
-  const view: InputMode = wanted === "board" ? "board" : "grid";
+  const view: InputMode = modes.includes(wanted) ? wanted : "grid";
   // 칸반 열 — 흐름 컬럼의 옵션 순서, 없으면 그룹 순서
   const kanbanCols = flowCol
     ? ((flowCol.settings?.options || []) as any[]).map((o) => ({ key: String(o.id), label: String(o.label), color: String(o.color || "#C4C4C4") }))
@@ -954,11 +999,11 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         <div className="pb-views" role="group" aria-label="입력 방식">
           <span className="pb-views-sec">
             <b>입력</b>
-            {INPUT_MODES.map((v) => (
+            {modes.map((v) => (
               <button key={v} type="button" onClick={() => { setShowSummary(false); pickView(v); }}
                 aria-pressed={!showSummary && view === v}
                 className={`pb-viewbtn ${!showSummary && view === v ? "pb-viewbtn-on" : ""}`}>
-                {v === "board" ? "칸반" : "표"}
+                {MODE_LABEL[v]}
               </button>
             ))}
           </span>
@@ -1108,6 +1153,22 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           presets={summaryPresets} onSavePreset={saveSummaryPreset} onUpdatePreset={editSummaryPreset}
           onRemovePreset={dropSummaryPreset}
           onOpenItem={(bid, itemId) => { setActiveId(bid); setShowSummary(false); setOpenItemId(itemId); }} />
+      ) : view === "minutes" ? (
+        /* 회의록 — '회의 · 결정' 의 첫 화면. 표는 '표' 로 언제든 돌아간다 (2026-08-07) */
+        <BoardMinutes
+          items={shown} cols={cols} groups={groups} users={users}
+          activeGroupId={minutesGroup || groups[0]?.id || null}
+          onPickGroup={setMinutesGroup}
+          onAddGroup={addGroup}
+          onAdd={(gid, name) => addItem(gid, {}, name)}
+          onOpen={setOpenItemId}
+          sending={sendingTodo}
+          onSendToTodo={sendToTodo}
+          renderCell={(c, it) => (
+            <Cell col={c} item={it} users={users} partners={partners as any[]} companyId={companyId}
+              onSave={(v) => saveValue(it, c.id, v)}
+              onPartnerCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })} />
+          )} />
       ) : view === "board" ? (
         /* 칸반 — 카드를 끌어 다음 단계로. 단계는 라벨이므로 셀에서 바꾸는 것과 같은 값을 만진다
            (2026-08-03 사장님: "굳이 섹션까지 나눌 필요 없이 기본 라벨로"). */
