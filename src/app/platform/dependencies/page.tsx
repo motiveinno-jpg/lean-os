@@ -183,8 +183,8 @@ export default function PlatformDependenciesPage() {
       </div>
 
       <div className="kpi-callout">
-        <b>OP-F</b> · 헬스 휴리스틱은 사이드 시그널만 (실제 ping X).
-        외부 status 페이지로 직접 검증 권장. 1분 간격 자동 갱신.
+        여기 표시되는 상태는 간접 신호로 추정한 값이라 실제와 다를 수 있습니다.
+        정확한 확인은 각 서비스의 공식 상태 페이지에서 하세요. 1분마다 자동 갱신됩니다.
       </div>
     </div>
   );

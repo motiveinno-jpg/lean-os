@@ -228,7 +228,7 @@ export default function VoucherEntryPage() {
   const errMsg = (m: string) =>
     m.includes("PERIOD_LOCKED") ? "마감(잠금)된 회계기간입니다 — 저장/수정/삭제 불가"
       : m.includes("UNBALANCED") ? "차변·대변 합계가 일치하지 않습니다"
-      : m.includes("does not exist") ? "전표 수정 DB(update_manual_voucher)가 아직 적용되지 않았습니다" : m;
+      : m.includes("does not exist") ? "전표 수정 기능이 아직 준비되지 않았습니다" : m;
 
   // ── 저장: 하단 편집 전표 커밋 + 상단 새 전표 저장 → §3-3-B 즉시 반영(리페치+하이라이트+스크롤+N번 토스트) ──
   //   실패 시 입력값 유지(성공해야만 초기화).
@@ -785,7 +785,7 @@ export default function VoucherEntryPage() {
       )}
 
       <p className="text-[11px] text-[var(--text-dim)]">
-        ※ 전표입력은 장부 기록입니다 — 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 매칭</Link>에서 별도 처리 · 수정은 변경 전 값이 이력(journal_entry_audits)으로 보존되고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
+        ※ 전표입력은 장부 기록입니다 — 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 매칭</Link>에서 별도 처리 · 수정하면 변경 전 값이 이력으로 남고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
       </p>
     </div>
   );

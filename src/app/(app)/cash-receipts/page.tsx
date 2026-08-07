@@ -551,7 +551,7 @@ export default function CashReceiptsPage() {
       const rows = XLSX.utils.sheet_to_json(ws);
       const parsed = parseHomeTaxCashReceipts(rows);
       if (parsed.length === 0) {
-        toast("파싱 가능한 현금영수증이 없습니다", "error");
+        toast("읽을 수 있는 현금영수증이 없습니다", "error");
         setUploading(false);
         return;
       }

@@ -401,7 +401,7 @@ export function DataResetTab({ companyId }: { companyId: string }) {
                 <p className="text-xs text-[var(--text-muted)]">모든 데이터가 삭제되었습니다. 온보딩부터 다시 시작할 수 있습니다.</p>
               ) : (
                 <div className="mt-2">
-                  <p className="text-xs text-[var(--text-muted)] mb-2">일부 테이블 삭제 중 오류가 발생했습니다 (데이터가 없거나 권한 문제):</p>
+                  <p className="text-xs text-[var(--text-muted)] mb-2">일부 데이터를 지우지 못했습니다 (데이터가 없거나 권한 문제):</p>
                   <div className="max-h-32 overflow-y-auto space-y-1">
                     {errors.map((err, i) => (
                       <p key={i} className="text-[10px] text-amber-600 font-mono">{err}</p>

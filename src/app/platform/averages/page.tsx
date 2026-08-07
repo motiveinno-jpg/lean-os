@@ -102,7 +102,7 @@ export default function PlatformAveragesPage() {
 
       {!isLoading && rows.length === 0 && (
         <div className="glass-card p-8 text-center text-sm text-[var(--text-dim)]">
-          이 달에는 집계 가능한 monthly_financials 데이터가 없습니다.
+          이 달에는 집계할 수 있는 재무 데이터가 없습니다.
         </div>
       )}
 
@@ -188,7 +188,7 @@ export default function PlatformAveragesPage() {
 
       {rows.length > 0 && (
         <div className="kpi-callout">
-          <b>OP-C</b> · 막대 안 <span className="text-[var(--warning)]">◆</span> 평균, <span className="text-[var(--primary)]">│</span> 중앙값, 박스는 P25~P75.
+          막대 안 <span className="text-[var(--warning)]">◆</span> 평균, <span className="text-[var(--primary)]">│</span> 중앙값, 박스는 P25~P75.
           업계별 분리는 <Link href="/platform/industry" className="text-[var(--primary)] hover:underline font-medium">업계 분석</Link>에서.
         </div>
       )}

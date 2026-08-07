@@ -627,7 +627,7 @@ export function MonthlyRecomputeButton({ companyId, from, to }: { companyId: str
       onClick={() => mut.mutate()}
       disabled={mut.isPending}
       className="btn-primary btn-sm"
-      title="해당 기간 attendance_records 의 가산수당 분(分) 컬럼을 회사 정책·휴일 기반으로 재산정합니다."
+      title="해당 기간의 가산수당(연장·야간·휴일) 시간을 회사 정책과 휴일 기준으로 다시 계산합니다."
     >
       {mut.isPending ? "재계산 중…" : "가산수당 재계산"}
     </button>

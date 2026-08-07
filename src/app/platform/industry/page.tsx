@@ -153,7 +153,7 @@ export default function PlatformIndustryPage() {
             <span className="text-[var(--primary)]">{selectedIndustry}</span> 업종 평균 (최신 월)
           </h3>
           {industryAvg.length === 0 ? (
-            <div className="text-sm text-[var(--text-dim)]">해당 업종의 monthly_financials 데이터가 없습니다.</div>
+            <div className="text-sm text-[var(--text-dim)]">해당 업종의 재무 데이터가 없습니다.</div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               {industryAvg.map((r) => (
@@ -217,8 +217,8 @@ export default function PlatformIndustryPage() {
       </div>
 
       <div className="kpi-callout">
-        <b>OP-D</b> · 회사 자체 설정에서 사용자가 직접 업종 선택 동선은 후속 PR.
-        지금은 운영자만 분류 가능. 표본이 작은 업종은 평균의 의미가 제한적임에 유의.
+        지금은 운영자만 업종을 분류할 수 있습니다.
+        표본이 적은 업종은 평균의 의미가 제한적이니 유의하세요.
       </div>
     </div>
   );

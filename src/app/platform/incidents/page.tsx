@@ -175,8 +175,7 @@ export default function PlatformIncidentsPage() {
       </div>
 
       <div className="kpi-callout">
-        <b>OP-F</b> · 새 사고 발생 시 즉시 기록.
-        근본원인·재발방지는 사후 분석 후 갱신. 관련 commit hash로 코드 변경 추적.
+        사고가 나면 즉시 기록하고, 근본 원인과 재발 방지책은 사후 분석 뒤에 채웁니다.
       </div>
     </div>
   );
@@ -257,7 +256,7 @@ function IncidentForm({
       />
       <input
         type="text"
-        placeholder="related commit hash (선택)"
+        placeholder="관련 코드 변경 기록 (선택)"
         value={value.related_commit || ""}
         onChange={(e) => onChange({ ...value, related_commit: e.target.value })}
         className="field-input-sm text-sm font-mono"

@@ -396,7 +396,7 @@ export default function PlatformOverview() {
             {todoTotal > 0 ? `처리 대기 ${todoTotal}건` : "모두 처리됨 ✓"}
           </span>
           {(usageErr || trafficErr || funnelErr || opsRiskErr) && (
-            <span className="platform-header-live platform-header-live-warn mt-2 ml-2 inline-block" title="일부 지표 RPC 호출이 실패했습니다 — 표시된 0은 실제 0이 아닐 수 있습니다">
+            <span className="platform-header-live platform-header-live-warn mt-2 ml-2 inline-block" title="일부 지표를 불러오지 못했습니다 — 표시된 0은 실제 0이 아닐 수 있습니다">
               <Ico e="⚠" /> 일부 데이터 로드 실패
             </span>
           )}

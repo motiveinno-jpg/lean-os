@@ -520,7 +520,7 @@ export default function PartnersPage() {
       if (rows.length < 2) { setImportError("헤더 + 1행 이상이 필요합니다"); return; }
       const headers = rows[0].map(h => h.trim().toLowerCase());
       const fieldKeys = headers.map(h => CSV_FIELD_MAP[h] || CSV_FIELD_MAP[h.replace(/\s+/g, "")] || null);
-      if (!fieldKeys.includes("name")) { setImportError("'이름' 또는 'name' 컬럼이 필수입니다"); return; }
+      if (!fieldKeys.includes("name")) { setImportError("'이름' 또는 'name' 열이 있어야 합니다"); return; }
       const preview = rows.slice(1).map((row) => {
         const obj: any = { type: "client" };
         row.forEach((cell, i) => {
@@ -537,7 +537,7 @@ export default function PartnersPage() {
       if (preview.length === 0) { setImportError("유효한 행이 없습니다"); return; }
       setImportPreview(preview);
     } catch (err: any) {
-      setImportError(err?.message || "CSV 파싱 실패");
+      setImportError(err?.message || "CSV 를 읽지 못했습니다");
     }
   }, []);
 

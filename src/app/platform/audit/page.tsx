@@ -132,8 +132,8 @@ export default function PlatformAuditPage() {
       </div>
 
       <div className="platform-audit-footnote kpi-callout">
-        <b>OP-F</b> · 운영자 행동은 RPC <span className="font-mono text-[var(--primary)]">operator_log_action</span> 호출로만 적재 (직접 INSERT 차단).
-        회사 드릴다운 진입은 [id] 페이지에서 자동 호출.
+        운영자 행동은 시스템이 자동으로 남기며, 임의로 추가하거나 지울 수 없습니다.
+        회사 상세로 들어간 기록도 함께 남습니다.
       </div>
     </div>
   );
