@@ -9,7 +9,7 @@
 //   기간을 잡는 일인데 표에 날짜를 타이핑하고 있었다. 이제 **빈 칸을 끌면** 그 자리에
 //   일정이 생긴다(시작·종료 칸에 그대로 들어간다). onCreateRange 를 준 화면에서만 켜진다.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { todayKst } from "@/lib/kst";
 import { START_DATE_RE, type BoardColumn, type BoardItem } from "@/lib/project-boards";
 
@@ -29,6 +29,16 @@ export function BoardCalendar({ items, cols, flowCol, onOpen, onCreateRange }: {
     (dateCols.find((c) => !START_DATE_RE.test(c.name)) || dateCols[0])?.id || "",
   );
   const [offset, setOffset] = useState(0);   // 달 이동
+  //   ⚠️ 표를 옮겨도 이 컴포넌트는 같은 자리에 남아 상태가 유지된다 — 앞 표의 날짜 칸 id 를
+  //      그대로 들고 있으면 값이 하나도 안 잡혀 전부 '날짜 없음' 으로 떨어진다(2026-08-07 실측).
+  //      칸이 바뀌면 그 표의 기본 칸으로 되돌린다.
+  const dateIds = dateCols.map((c) => c.id).join(",");
+  useEffect(() => {
+    setColId((prev) => (dateCols.some((c) => c.id === prev)
+      ? prev
+      : (dateCols.find((c) => !START_DATE_RE.test(c.name)) || dateCols[0])?.id || ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateIds]);
   //   끌어서 만들기 — 누른 날부터 손을 뗀 날까지가 기간이다
   const [drag, setDrag] = useState<{ a: string; b: string } | null>(null);
   const [draft, setDraft] = useState<{ from: string; to: string; name: string } | null>(null);
