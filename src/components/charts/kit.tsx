@@ -351,3 +351,71 @@ export function WordCloud({ data }: { data: Datum[] }) {
     </div>
   );
 }
+
+/** 누적 영역 — '전체가 어떻게 흘렀고, 그 안에서 구성이 어떻게 변했나' (2026-08-07).
+ *
+ *  누적 막대와 언제 갈리나: 달마다의 **값을 정확히 읽는 게 목적이면 막대**,
+ *  열두 달의 **흐름과 비중 변화를 보는 게 목적이면 영역**이다. 정확한 값이 옆이나 아래
+ *  표에 이미 있는 자리라면 영역이 맞다.
+ *
+ *  ⚠️ 부분이 전체의 일부일 때만 쓴다 — 매출과 비용처럼 성격이 다른 값을 쌓으면
+ *     꼭대기 선(합계)이 아무 뜻도 없는 숫자가 된다. 그럴 땐 묶음 막대로.
+ */
+export function StackedAreaChart({ labels, series, height = 220, unit = "" }: {
+  labels: string[];
+  series: { name: string; values: number[] }[];
+  height?: number; unit?: string;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const totals = labels.map((_, i) => series.reduce((s, sr) => s + (sr.values[i] || 0), 0));
+  const max = niceMax(Math.max(1, ...totals));
+  const W = 100, H = 100;
+  const x = (i: number) => (labels.length <= 1 ? 0 : (i / (labels.length - 1)) * W);
+  const y = (v: number) => H - (v / max) * H;
+
+  //   아래에서부터 쌓는다 — 첫 계열이 바닥, 꼭대기 선이 합계
+  let acc = labels.map(() => 0);
+  const bands = series.map((sr) => {
+    const lower = [...acc];
+    acc = acc.map((v, i) => v + (sr.values[i] || 0));
+    const upper = [...acc];
+    const top = upper.map((v, i) => `${x(i)},${y(v)}`);
+    return {
+      name: sr.name,
+      area: [...top, ...lower.map((v, i) => `${x(i)},${y(v)}`).reverse()].join(" "),
+      line: top.join(" "),
+    };
+  });
+
+  return (
+    <div className="viz-wrap" style={{ height }}>
+      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></div>
+      <div className="viz-plot" onMouseLeave={() => setHover(null)}>
+        <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="viz-svg">
+          {bands.map((b, i) => (
+            <g key={b.name}>
+              {/*  칠은 옅게, 경계는 선명하게 — 면이 진하면 위아래 계열이 서로를 가린다 */}
+              <polygon points={b.area} fill={vizColor(i)} fillOpacity={0.32} />
+              <polyline points={b.line} fill="none" stroke={vizColor(i)} strokeWidth="2"
+                vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+            </g>
+          ))}
+        </svg>
+        {labels.map((l, i) => (
+          <span key={`${l}-${i}`} className="viz-hit" style={{ left: `${x(i)}%` }} onMouseEnter={() => setHover(i)}>
+            {hover === i && (
+              <b className="viz-tip viz-tip-line">{l}
+                {series.map((s, si) => (
+                  <em key={s.name}><i style={{ background: vizColor(si) }} />{s.name} {fmt(s.values[i] || 0)}{unit}</em>
+                ))}
+                <em><i className="viz-tip-total" />합계 {fmt(totals[i])}{unit}</em>
+              </b>
+            )}
+          </span>
+        ))}
+      </div>
+      <div className="viz-xaxis">{axisLabels(labels)}</div>
+    </div>
+  );
+}

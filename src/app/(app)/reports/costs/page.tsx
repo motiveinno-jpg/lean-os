@@ -9,7 +9,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { getMonthlyBudgetOverview, getCostBreakdown, getCostCategoryDetail, type MonthlyBudget, type CostBreakdown } from "@/lib/cash-budget";
 import { CellDetail } from "../flow/_components/CellDetail";
-import CostsChart from "./costs-chart";
+import { StackedAreaChart, Legend, vizColor } from "@/components/charts/kit";
 import { ReportsTabs } from "../_components/ReportsTabs";
 import { StatementsTabs } from "../_components/StatementsTabs";
 
@@ -230,12 +230,23 @@ export default function CostsPage() {
             ))}
           </div>
 
-          {/* Chart */}
-          <CostsChart
-            months={rows.map((r) => r.month)}
-            fixed={Object.fromEntries(rows.map((r) => [r.month, r.fixedCosts]))}
-            variable={Object.fromEntries(rows.map((r) => [r.month, r.variableCosts]))}
-          />
+          {/*  연중 비용이 어떻게 흘렀고 그 안에서 고정·변동 비중이 어떻게 변했나 — 누적 영역.
+               달마다의 정확한 값은 바로 아래 표가 담당하므로, 이 자리의 일은 흐름을 보여 주는 것이다.
+               (2026-08-07: 자체 SVG 누적 막대 → 차트 키트. 손을 올리면 그 달의 고정·변동·합계가 함께 뜬다.
+                색도 계열색으로 바꿨다 — 고정비·변동비는 경고/정보 같은 '상태'가 아니라 분류다.) */}
+          <div className="costs-chart-container glass-card">
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-[var(--text)]">월별 고정비 · 변동비</h3>
+              <p className="text-[10px] text-[var(--text-dim)] mt-0.5">아래쪽이 고정비 · 쌓은 높이가 그 달의 총비용</p>
+            </div>
+            <StackedAreaChart height={220} unit="원"
+              labels={rows.map((r) => `${parseInt(r.month.split("-")[1], 10)}월`)}
+              series={[
+                { name: "고정비", values: rows.map((r) => r.fixedCosts) },
+                { name: "변동비", values: rows.map((r) => r.variableCosts) },
+              ]} />
+            <Legend items={[{ name: "고정비", color: vizColor(0) }, { name: "변동비", color: vizColor(1) }]} />
+          </div>
 
           {/* Monthly table */}
           <div className="costs-monthly-table-card glass-card" style={{ overflowX: "auto", marginTop: 24 }}>

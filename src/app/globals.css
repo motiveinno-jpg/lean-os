@@ -2507,7 +2507,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .by-person-chart-svg { @apply block; }
 .by-person-chart-legend { @apply flex flex-wrap gap-2 justify-center mt-3; }
 .costs-chart-container { @apply p-5; }
-.costs-chart-legend { @apply flex flex-wrap gap-2 justify-center mt-3; }
+.costs-chart-container .viz-legend { @apply justify-center mt-3; }
 .metric-info-trigger { @apply ml-1 inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-[var(--border)] text-[9px] font-bold leading-none text-[var(--text-dim)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition align-middle; }
 .metric-info-popover { @apply fixed z-[999] w-[280px] max-h-[60vh] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl p-3 animate-[slide-in_0.12s_ease]; }
 .cost-detail-modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
@@ -7019,6 +7019,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .viz-tip em { @apply not-italic block font-normal opacity-80; }
 .viz-tip-line em { @apply flex items-center gap-1; }
 .viz-tip-line i { @apply w-2 h-2 rounded-sm; }
+/* 합계 줄 — 계열 색이 아니라 테두리만(합계는 계열이 아니다) */
+.viz-tip .viz-tip-total { @apply border border-current bg-transparent; }
 .viz-xaxis { @apply col-start-2 flex items-center justify-between gap-1 px-1.5 pt-1 text-[10px] text-[var(--text-dim)]; }
 .viz-xaxis em { @apply not-italic flex-1 text-center truncate; }
 .viz-axis-names { @apply col-start-2 flex items-center justify-between px-1.5 pt-1 text-[10px] text-[var(--text-dim)]; }
