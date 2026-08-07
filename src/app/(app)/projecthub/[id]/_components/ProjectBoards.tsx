@@ -31,7 +31,7 @@ import { BoardDeals } from "./BoardDeals";
 import { hasMoneyData } from "@/lib/project-money-rollup";
 import { BoardFigure } from "./BoardFigures";
 import { AdDashboard } from "./AdDashboard";
-import { templateFigures, shapeFigures, summaryCardKey, type Figure } from "@/lib/project-template-summary";
+import { templateFigures, shapeFigures, summaryCardKey, type Figure, boardDigest, type BoardChip } from "@/lib/project-template-summary";
 import { todayKst } from "@/lib/kst";
 import { BoardNewModal, LabelEditor } from "./BoardNewModal";
 import { listPresets, savePreset, updatePreset, removePreset, type Preset } from "@/lib/board-presets";
@@ -89,7 +89,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const [activeId, setActiveId] = useState<string>("");
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);   // 마지막 탭 '정리'
+  //   요약을 어느 범위로 보나 — null(입력화면) · "board"(이 표만) · "all"(프로젝트 전체 안내판)
+  //   (2026-08-07 사장님: "정리는 요약으로 이름을 바꾸고, 왼쪽에 기능을 몰고, 오른쪽엔 전체 요약")
+  const [summaryScope, setSummaryScope] = useState<null | "board" | "all">(null);
+  const showSummary = summaryScope !== null;
   const [renaming, setRenaming] = useState(false);
   const [tplMenu, setTplMenu] = useState(false);          // 템플릿 ⋯ (이름 · 삭제)
   const [presetName, setPresetName] = useState<string | null>(null);   // 회사 양식으로 저장 — 이름 묻는 창
@@ -206,7 +209,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         .is("archived_at", null).order("position", { ascending: true }));
       return (data || []) as BoardColumn[];
     },
-    enabled: showSummary && boardIds.length > 0,
+    enabled: summaryScope === "all" && boardIds.length > 0,
   });
   const { data: allGroups = [] } = useQuery({
     queryKey: ["pb-all-groups", dealId, boardIds.length],
@@ -216,7 +219,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         .is("archived_at", null).order("position", { ascending: true }));
       return (data || []) as BoardGroup[];
     },
-    enabled: showSummary && boardIds.length > 0,
+    enabled: summaryScope === "all" && boardIds.length > 0,
   });
   const { data: allItems = [] } = useQuery({
     queryKey: ["pb-all-items", dealId, boardIds.length],
@@ -226,7 +229,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         .is("archived_at", null).order("position", { ascending: true }).limit(2000));
       return (data || []) as BoardItem[];
     },
-    enabled: showSummary && boardIds.length > 0,
+    enabled: summaryScope === "all" && boardIds.length > 0,
   });
 
   // 이 프로젝트의 문서(견적·계약) — '매출 · 청구' 템플릿에서만 쓴다.
@@ -351,7 +354,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       setPicking(false);
       //   방금 만든 표는 채우러 온 것이다 — '정리'를 보던 중이었어도 입력 화면으로 되돌린다
       //   (2026-08-07: 새 표를 만들었는데 빈 정리 화면이 떠서 '표'를 다시 눌러야 했다)
-      setShowSummary(false);
+      setSummaryScope(null);
       qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
       toast(`'${tpl.name}' 템플릿을 만들었습니다.`, "success");
     } catch (e: any) {
@@ -978,7 +981,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       <div className="pb-bar1">
         {boards.map((b) => (
           <button key={b.id} type="button"
-            onClick={() => { setActiveId(b.id); setShowSummary(false); setSort(null); setOpenItemId(null); }}
+            onClick={() => { setActiveId(b.id); setSummaryScope(null); setSort(null); setOpenItemId(null); }}
             onDoubleClick={() => { if (b.id === boardId) setRenaming(true); }}
             title="더블클릭하면 이름을 바꿉니다"
             className={`pb-tab ${b.id === boardId && !showSummary ? "pb-tab-on" : ""}`}>{b.name}</button>
@@ -1020,31 +1023,24 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 
       {/* 광고 표는 입력이 없어 이 줄(입력·보기·필터)이 가리킬 곳이 없다 — 통째로 감춘다 (2026-08-06) */}
       {!isAds && <div className="pb-bar2">
-        {/* 입력은 왼쪽, 보기는 오른쪽 — 한 상자에 붙여 놓으니 되레 안 읽혔다(2026-08-05).
-            라벨은 상자 안쪽의 눌리지 않는 글씨로 둬 버튼과 헷갈리지 않게 한다. */}
-        <div className="pb-views" role="group" aria-label="입력 방식">
-          <span className="pb-views-sec">
-            <b>입력</b>
-            {modes.map((v) => (
-              <button key={v} type="button" onClick={() => { setShowSummary(false); pickView(v); }}
-                aria-pressed={!showSummary && view === v}
-                className={`pb-viewbtn ${!showSummary && view === v ? "pb-viewbtn-on" : ""}`}>
-                {MODE_LABEL[v]}
-              </button>
-            ))}
-          </span>
+        {/*  이 표를 보는 방법들을 **한 자리에 몰아** 둔다 — '입력/보기' 라벨은 뺐다
+             (2026-08-07 사장님 지시). 회의 · 결정이면 [회의록][표][칸반][요약] 이 한 줄로 선다. */}
+        <div className="pb-views" role="group" aria-label="이 표를 보는 방법">
+          {modes.map((v) => (
+            <button key={v} type="button" onClick={() => { setSummaryScope(null); pickView(v); }}
+              aria-pressed={summaryScope === null && view === v}
+              className={`pb-viewbtn ${summaryScope === null && view === v ? "pb-viewbtn-on" : ""}`}>
+              {MODE_LABEL[v]}
+            </button>
+          ))}
+          {/*  요약 — 이제 **이 표만** 요약한다(예전 '정리' 는 프로젝트 전부를 펼쳐 길었다) */}
+          <button type="button" onClick={() => setSummaryScope("board")} aria-pressed={summaryScope === "board"}
+            className={`pb-viewbtn ${summaryScope === "board" ? "pb-viewbtn-on" : ""}`}>요약</button>
         </div>
 
-        {/* 보기는 '정리' 하나 — 타임라인·캘린더는 정리 안에서 고르는 그림이 됐다
-            (2026-08-05 사장님: "타임라인·캘린더도 정리 템플릿에 속하는 부분. 무조건 보여주기보다
-             필요할 때 골라 보는 게 낫다"). 툴바에 버튼을 세워 두면 입력 화면처럼 읽힌다. */}
-        <div className="pb-views pb-views-right" role="group" aria-label="보기 방식">
-          <span className="pb-views-sec">
-            <b>보기</b>
-            <button type="button" onClick={() => setShowSummary(true)} aria-pressed={showSummary}
-              className={`pb-viewbtn ${showSummary ? "pb-viewbtn-on" : ""}`}>정리</button>
-          </span>
-        </div>
+        {/*  프로젝트 전체는 따로 — 표마다 한 줄인 안내판이다(다 펼치지 않는다) */}
+        <button type="button" onClick={() => setSummaryScope("all")} aria-pressed={summaryScope === "all"}
+          className={`pb-allsum ${summaryScope === "all" ? "pb-allsum-on" : ""}`}>전체 요약</button>
         {!showSummary && (
           <span className="pb-filters">
             {([["mine", "내 담당"], ["week", "이번 주"], ["open", "미완료만"]] as const).map(([k, label]) => (
@@ -1176,11 +1172,18 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         /* 광고 표는 **입력이 없다** — 값을 매체에서 받아오므로 대시보드만 보여 준다
            (2026-08-06 사장님: "아드리엘처럼 입력화면 없이 대시보드만") */
         <AdDashboard dealId={dealId} companyId={companyId} boardId={boardId} />
-      ) : showSummary ? (
-        <ProjectSummary dealId={dealId} boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users}
+      ) : summaryScope === "all" ? (
+        /* 전체 요약 — 돈 흐름 한 장 + 표마다 한 줄. 줄을 누르면 그 표의 요약으로 간다 (2026-08-07) */
+        <ProjectDigest dealId={dealId} boards={boards} cols={allCols} groups={allGroups} items={allItems} users={users}
+          activeId={boardId}
+          onPickBoard={(bid: string) => { setActiveId(bid); setSummaryScope("board"); }} />
+      ) : summaryScope === "board" ? (
+        /* 이 표만 요약 */
+        <BoardSummary boardName={board?.name || "표"} templateKey={board?.template_key}
+          cols={cols} items={items} groups={groups} users={users}
           presets={summaryPresets} onSavePreset={saveSummaryPreset} onUpdatePreset={editSummaryPreset}
           onRemovePreset={dropSummaryPreset}
-          onOpenItem={(bid, itemId) => { setActiveId(bid); setShowSummary(false); setOpenItemId(itemId); }} />
+          onOpenItem={(itemId) => setOpenItemId(itemId)} />
       ) : view === "expiry" ? (
         /* 만기 카드 — '계약 · 갱신' 의 첫 화면 (2026-08-07) */
         <BoardExpiry items={shown} cols={cols}
@@ -2165,52 +2168,71 @@ function sortRows(rows: BoardItem[], sort: { colId: string; dir: "asc" | "desc" 
   });
 }
 
-// ── 프로젝트 정리 — 이 프로젝트의 **모든 템플릿**을 하나씩 구획으로 ──
-//   한 프로젝트에 템플릿을 여러 개 붙이는 게 기본이라(＋), 정리도 그 단위여야 맞다.
-function ProjectSummary({ dealId, boards, cols, groups, items, users, presets, onSavePreset, onUpdatePreset, onRemovePreset, onOpenItem }: {
-  /** 마케팅 리포트는 표가 아니라 수집해 둔 일별 기록에서 읽는다 — 그래서 프로젝트 id 가 필요하다 */
+// ── 전체 요약 — 프로젝트를 **한 장**으로 (2026-08-07 사장님 지시) ──
+//   예전 '정리' 는 표마다 리포트를 통째로 펼쳐, 표가 일곱 개면 일곱 장이 이어졌다.
+//   전체 요약이 할 일은 "다 보여 주는 것" 이 아니라 **"어디를 볼지 고르게 하는 것"** 이다.
+//     · 맨 위 돈 흐름 한 장(표를 가로지르는 금액)
+//     · 그 아래 표마다 한 줄 — 행 수 + 지금 챙길 것 한둘. 누르면 그 표의 '요약' 으로 간다.
+function ProjectDigest({ dealId, boards, cols, groups, items, users, activeId, onPickBoard }: {
+  /** 광고 표는 표가 아니라 수집해 둔 일별 기록에서 읽는다 — 그래서 프로젝트 id 가 필요하다 */
   dealId: string;
   boards: { id: string; name: string; template_key: string | null }[];
   cols: BoardColumn[]; groups: BoardGroup[]; items: BoardItem[]; users: { id: string; name: string }[];
-  presets: Preset[];
-  onSavePreset: (name: string, layout: SummaryLayout, templateKey: string | null) => void;
-  onUpdatePreset: (p: Preset, name: string, layout: SummaryLayout) => void;
-  onRemovePreset: (p: Preset) => void;
-  /** 캘린더·간트에서 행을 누르면 그 표로 건너가 상세를 연다 */
-  onOpenItem: (boardId: string, itemId: string) => void;
+  activeId: string;
+  onPickBoard: (boardId: string) => void;
 }) {
-  const filled = boards.filter((b) => items.some((i) => i.board_id === b.id));
-  if (filled.length === 0) {
-    return <p className="pj-sec-empty">템플릿에 값을 채우면 여기에 합계·분포·마감이 자동으로 정리돼요.</p>;
+  const today = todayKst();
+  const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
+  const money = hasMoneyData(boards, cols, items, today);
+  if (boards.length === 0) {
+    return <p className="pj-sec-empty">표를 하나 만들면 여기에 프로젝트 한 장 요약이 생겨요.</p>;
   }
-  // 돈으로 볼 값이 없으면 껍데기도 그리지 않는다 — 제목만 있고 속이 빈 리포트가 남으면 안 된다
-  const money = hasMoneyData(boards, cols, items, todayKst());
-  //   같은 템플릿을 두 번 쓰면 표 이름이 같아 어느 쪽인지 알 수 없다 — 그때만 그룹 이름을 덧붙인다
-  const dupNames = new Set(filled.filter((b, i, a) => a.some((o, j) => j !== i && o.name === b.name)).map((b) => b.id));
+  //   같은 템플릿을 두 번 쓰면 이름이 같다 — 그때만 그룹 이름을 덧붙여 구분한다
+  const dup = new Set(boards.filter((b, i, a) => a.some((o, j) => j !== i && o.name === b.name)).map((b) => b.id));
+
   return (
     <div className="pb-sum-all">
-      <p className="pb-sum-top">
-        {money ? "프로젝트 전체 돈 흐름 한 장과 템플릿마다 한 장씩 정리했어요. " : "템플릿마다 한 장씩 정리했어요. "}
-        값이 비어 있는 칸은 세지 않았습니다.
-      </p>
-      {/* 표를 가로지르는 돈 요약이 맨 위 — 표별 리포트보다 이게 먼저 읽혀야 한다(2026-08-05) */}
+      {/* 표를 가로지르는 돈이 맨 위 — 표별 줄보다 이게 먼저 읽혀야 한다 */}
       {money && (
-        <SummaryReport kicker="프로젝트 전체" title="돈 흐름" meta="템플릿 여러 개에서 모은 금액">
+        <SummaryReport kicker="프로젝트 전체" title="돈 흐름" meta="표 여러 개에서 모은 금액">
           <ProjectMoneyReport boards={boards} cols={cols} items={items} />
         </SummaryReport>
       )}
-      {filled.map((b) => (
-        <BoardSummary key={b.id}
-          boardName={b.name}
-          needsHint={dupNames.has(b.id)}
-          templateKey={b.template_key}
-          cols={cols.filter((c) => c.board_id === b.id)}
-          items={items.filter((i) => i.board_id === b.id)}
-          groups={groups.filter((g) => g.board_id === b.id)}
-          users={users}
-          presets={presets} onSavePreset={onSavePreset} onUpdatePreset={onUpdatePreset} onRemovePreset={onRemovePreset}
-          onOpenItem={(itemId) => onOpenItem(b.id, itemId)} />
-      ))}
+
+      <section className="pb-rep">
+        <header className="pb-rep-head">
+          <div className="pb-rep-title">
+            <span className="pb-rep-kicker">표</span>
+            <b>어디를 볼까</b>
+            <em>줄을 누르면 그 표의 요약으로 갑니다</em>
+          </div>
+        </header>
+        <div className="pb-dg">
+          {boards.map((b) => {
+            const bItems = items.filter((i) => i.board_id === b.id);
+            const bCols = cols.filter((c) => c.board_id === b.id);
+            const chips = boardDigest(bCols, bItems, groups.filter((g) => g.board_id === b.id), nameOf, today);
+            const hint = dup.has(b.id)
+              ? groups.filter((g) => g.board_id === b.id).map((g) => g.name).slice(0, 2).join(" · ")
+              : "";
+            return (
+              <button key={b.id} type="button" onClick={() => onPickBoard(b.id)}
+                className={`pb-dg-row ${b.id === activeId ? "pb-dg-on" : ""}`}>
+                <span className="pb-dg-k">
+                  <b>{b.name}</b>
+                  <em>{[hint, bItems.length > 0 ? `${bItems.length}건` : "아직 빈 표"].filter(Boolean).join(" · ")}</em>
+                </span>
+                <span className="pb-dg-chips">
+                  {chips.map((c: BoardChip) => (
+                    <i key={c.text} className={c.tone === "bad" ? "pb-dg-bad" : c.tone === "warn" ? "pb-dg-warn" : ""}>{c.text}</i>
+                  ))}
+                </span>
+                <span className="pb-dg-go">›</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 }

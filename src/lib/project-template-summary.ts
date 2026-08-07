@@ -13,7 +13,7 @@
 //
 // 절대규칙: 순수 함수. 조회 없음.
 
-import { flowColumnOf, isDoneRow, terminalOptionId, START_DATE_RE, type BoardColumn, type BoardItem, type BoardGroup } from "@/lib/project-boards";
+import { buildBoardSummary, flowColumnOf, isDoneRow, terminalOptionId, START_DATE_RE, type BoardColumn, type BoardItem, type BoardGroup } from "@/lib/project-boards";
 import { addDaysStr, mondayOfStr } from "@/lib/kst";
 
 export type Slice = { key: string; label: string; value: number; color?: string };
@@ -455,6 +455,49 @@ export function shapeFigures(
     }
   }
   return { figures: out, covers: [...covers] };
+}
+
+/** 표 한 줄 요약 — '전체 요약'(안내판)이 표마다 한 줄로 세울 때 쓴다 (2026-08-07 사장님 지시).
+ *
+ *  화면이 길어지는 원인은 표마다 리포트를 통째로 펼치는 것이었다. 전체 요약은 "어디를 볼지"만
+ *  고르는 자리이므로, 표마다 **지금 챙길 것 한둘**만 뽑는다.
+ *  템플릿별로 규칙을 따로 쓰지 않는다 — 칸 형식(기한·단계·금액)에서 나오는 것만 본다.
+ */
+export type BoardChip = { text: string; tone?: "bad" | "warn" };
+
+export function boardDigest(
+  cols: BoardColumn[], items: BoardItem[], groups: BoardGroup[],
+  nameOf: (id: string) => string, today: string,
+): BoardChip[] {
+  if (items.length === 0) return [];
+  const out: BoardChip[] = [];
+  const cards = buildBoardSummary(cols, items, groups, nameOf, today);
+
+  //   ① 기한 — 지난 게 있으면 그게 제일 급하다
+  const date = cards.find((c) => c.kind === "date" && (c.late > 0 || c.soon > 0)) as any;
+  if (date) {
+    out.push(date.late > 0
+      ? { text: `${date.label} 지남 ${date.late}건`, tone: "bad" }
+      : { text: `이번 주 ${date.soon}건`, tone: "warn" });
+  }
+  //   ② 돈 — 계획 대비 실적이 있으면 남은 금액(잔금·남은 예산)
+  const diff = cards.find((c) => c.kind === "diff" && c.unit === "원") as any;
+  if (diff && diff.value !== 0) {
+    out.push(diff.value > 0
+      ? { text: `남은 ${Math.round(diff.value).toLocaleString("ko-KR")}원` }
+      : { text: `초과 ${Math.round(-diff.value).toLocaleString("ko-KR")}원`, tone: "bad" });
+  }
+  //   ③ 진행 — 완료율(있으면). 위 둘이 이미 두 개면 넣지 않는다
+  if (out.length < 2) {
+    const st = cards.find((c) => c.kind === "status" && c.doneRate != null) as any;
+    if (st) out.push({ text: `완료율 ${st.doneRate}%` });
+  }
+  //   ④ 아무것도 못 뽑았으면 합계 하나라도
+  if (out.length === 0) {
+    const num = cards.find((c) => c.kind === "number") as any;
+    if (num) out.push({ text: `${num.label} ${Math.round(num.sum).toLocaleString("ko-KR")}${num.unit}` });
+  }
+  return out.slice(0, 2);
 }
 
 /** 요약 카드가 그림과 겹치는지 — 카드 라벨은 컬럼 이름 그대로다 */

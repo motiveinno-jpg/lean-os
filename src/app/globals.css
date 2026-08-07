@@ -6245,6 +6245,22 @@ th:hover .pb-colmenu-btn { @apply opacity-100; }
 /* 보기 전환 — 한 상자 안에 '입력 | 보기' 를 구분선으로 가른다.
    라벨은 상자 안쪽의 눌리지 않는 글씨라 버튼과 헷갈리지 않는다(2026-08-05). */
 .pb-views { @apply inline-flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+/* 전체 요약 — 이 표의 보기들과 성격이 달라 상자 밖 오른쪽 끝에 따로 세운다 (2026-08-07 사장님 지시) */
+.pb-allsum { @apply ml-auto h-9 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+.pb-allsum-on { @apply bg-[var(--primary)] text-white border-[var(--primary)] hover:!text-white; }
+
+/* 전체 요약 안내판 — 표마다 한 줄 */
+.pb-dg { @apply flex flex-col gap-1.5; }
+.pb-dg-row { @apply w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[var(--border)] text-left transition hover:border-[var(--primary)] hover:bg-[var(--primary)]/5; }
+.pb-dg-on { @apply ring-1 ring-[var(--primary)]/30; }
+.pb-dg-k { @apply flex-1 min-w-0; }
+.pb-dg-k b { @apply block text-[13px] font-extrabold text-[var(--text)] truncate; }
+.pb-dg-k em { @apply not-italic block text-[11px] text-[var(--text-dim)] truncate; }
+.pb-dg-chips { @apply flex items-center gap-1.5 flex-wrap justify-end; }
+.pb-dg-chips i { @apply not-italic px-2 py-0.5 rounded-lg text-[11px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)] whitespace-nowrap; font-variant-numeric: tabular-nums; }
+.pb-dg-chips i.pb-dg-warn { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.pb-dg-chips i.pb-dg-bad { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.pb-dg-go { @apply shrink-0 text-[15px] text-[var(--text-dim)]; }
 .pb-views-sec { @apply inline-flex items-center gap-0.5; }
 .pb-views-sec > b { @apply px-1.5 text-[9.5px] font-bold text-[var(--text-dim)] uppercase tracking-wider select-none; }
 .pb-views-right { @apply ml-auto; }
