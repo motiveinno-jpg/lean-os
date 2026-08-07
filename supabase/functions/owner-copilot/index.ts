@@ -116,7 +116,8 @@ ${COMMON_RULES}
 - 직원을 이름으로 지목한 질문은 find_employee 로 employee_id 를 먼저 확인한 뒤 get_attendance 를 부르세요.
 - 특정 직원을 지목하지 않은 근태 질문("지난달 지각한 사람", "결근 잦은 직원", "연장근무 많은 사람", "이번 달 근태 어때")은 get_attendance_summary 한 번으로 답하세요. 직원을 한 명씩 find_employee 로 훑지 말고, 데이터가 없다고 넘겨짚지도 마세요 — 이 툴이 회사 전원을 집계해 줍니다.
 - 급여·연봉·인건비 질문("월급 얼마야", "누가 제일 많이 받아", "인건비 총액", "○○ 연봉")은 get_payroll 로 답하세요. 스냅샷에는 급여가 들어 있지 않으니 "급여 데이터에 접근할 수 없다"고 답하지 말고 반드시 이 툴을 부르세요.
-- 조회 툴이 있는 주제는 "확인할 수 없다"고 넘기지 말고 먼저 툴을 부르세요. 툴을 부른 뒤에도 값이 비어 있을 때만 없다고 답합니다.
+- 연차 부여·잔여("연차 며칠 남았어", "총 부여 연차")는 get_leave_status 의 balances 로 답하세요. 휴가 신청 내역을 세서 계산하지 마세요. 이 툴은 직원 이름을 함께 돌려주므로 특정 직원의 연차를 물어도 find_employee 를 먼저 부를 필요가 없습니다(get_payroll·get_attendance_summary·list_hr_requests 도 같습니다 — 이름이 들어 있습니다).
+- 조회 툴이 있는 주제는 "확인할 수 없다"·"시스템에서 모른다"고 넘기지 말고 먼저 툴을 부르세요. 툴을 부른 뒤에도 값이 비어 있을 때만 없다고 답하고, 그때도 "데이터가 없다"가 아니라 어느 화면에서 입력하면 되는지 알려 주세요.
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
@@ -238,7 +239,7 @@ const MANAGER_READ_TOOLS = [
   },
   {
     name: "get_leave_status",
-    description: "휴가 신청 현황을 반환합니다 — 기간별 승인/대기 휴가와 직원별 사용 일수. '누가 휴가 갔어', '이번 달 휴가자', '연차 많이 쓴 사람', '결재 대기 중인 휴가' 질문에 쓰세요.",
+    description: "휴가 현황을 반환합니다 — 직원별 연차 부여·사용·잔여 일수(balances)와 기간별 휴가 신청 내역. '연차 며칠 남았어', '총 부여 연차', '누가 휴가 갔어', '결재 대기 중인 휴가' 질문에 모두 이 툴을 쓰세요.",
     input_schema: {
       type: "object", additionalProperties: false,
       properties: {
@@ -287,6 +288,106 @@ const MANAGER_READ_TOOLS = [
       properties: { query: { type: "string", description: "거래처명 또는 사업자번호 일부 (선택)" } },
       required: [],
     },
+  },
+  {
+    name: "get_tax_invoices",
+    description: "세금계산서 매출·매입을 기간별로 집계하고 상위 거래처를 반환합니다. '이번 달 매출 얼마', '매입 세금계산서', '누구한테 제일 많이 팔았어', '미수금' 질문에 쓰세요. 기간 최대 400일.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        from: { type: "string", description: "시작일 YYYY-MM-DD" },
+        to: { type: "string", description: "종료일 YYYY-MM-DD" },
+        type: { type: "string", description: "sales(매출)|purchase(매입)|both (기본 both)" },
+      },
+      required: ["from", "to"],
+    },
+  },
+  {
+    name: "get_documents",
+    description: "전자계약·문서 현황을 반환합니다. kind='signature' 면 서명 요청(발송·열람·서명완료·만료), 'document' 면 문서함(계약서 등)을 돌려줍니다. '계약 몇 건 남았어', '서명 안 한 사람', '보관 중인 계약서' 질문에 쓰세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        kind: { type: "string", description: "signature|document (기본 signature)" },
+        status: { type: "string", description: "signature: sent|viewed|signed|expired / document: draft|review|approved|locked (선택)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_accounting",
+    description: "월별 재무 요약(수입·지출·고정비·순현금흐름·매출)과 결산 마감 상태를 반환합니다. '지난달 얼마 남았어', '고정비 추이', '결산 어디까지 했어' 질문에 쓰세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: { months: { type: "number", description: "최근 몇 개월 (기본 12, 최대 36)" } },
+      required: [],
+    },
+  },
+  {
+    name: "list_cards",
+    description: "회사 법인카드 목록(카드사·별칭·한도·결제일·사용여부)을 반환합니다. '카드 몇 장이야', '카드 한도' 질문에 쓰세요. 사용 금액은 get_spending 입니다.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: "get_schedule",
+    description: "회사 일정과 할 일을 반환합니다. '이번 주 일정', '다음 주에 뭐 있어', '남은 할 일' 질문에 쓰세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        from: { type: "string", description: "시작일 YYYY-MM-DD" },
+        to: { type: "string", description: "종료일 YYYY-MM-DD" },
+      },
+      required: ["from", "to"],
+    },
+  },
+  {
+    name: "list_board_posts",
+    description: "사내 게시판·공지 글 목록을 반환합니다. '공지 뭐 올라왔어', '최근 게시글' 질문에 쓰세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: "list_projects",
+    description: "프로젝트 보드와 업무 항목 현황을 반환합니다. '프로젝트 뭐뭐 돌아가', '누가 무슨 일 맡고 있어' 질문에 쓰세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: "list_hr_requests",
+    description: "인사 신청 현황을 반환합니다 — 연장근무 신청, 근태 수정 요청, 지출 결의. '연장근무 신청 있어', '근태 수정 요청 몇 건', '지출결의 대기' 질문에 쓰세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: "list_deals",
+    description: "영업 딜(수주·계약 건) 목록과 계약금액을 반환합니다. '진행 중인 딜', '계약 얼마짜리' 질문에 쓰세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: "get_ad_performance",
+    description: "광고 성과(노출·클릭·비용·전환)를 캠페인별로 집계해 반환합니다. '광고비 얼마 썼어', '광고 효율' 질문에 쓰세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        from: { type: "string", description: "시작일 YYYY-MM-DD" },
+        to: { type: "string", description: "종료일 YYYY-MM-DD" },
+      },
+      required: ["from", "to"],
+    },
+  },
+  {
+    name: "list_cash_receipts",
+    description: "현금영수증 발행 내역(매출·매입)을 반환합니다. '현금영수증 발행했어?', '현금영수증 얼마' 질문에 쓰세요.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        from: { type: "string", description: "시작일 YYYY-MM-DD (선택)" },
+        to: { type: "string", description: "종료일 YYYY-MM-DD (선택)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "get_account_status",
+    description: "이 회사의 오너뷰 이용 상태를 반환합니다 — 요금제·구독 상태·좌석 수·결제주기·다음 결제일, 그리고 고객센터 문의 현황. '우리 요금제 뭐야', '언제 결제돼', '문의한 거 답변 왔어' 질문에 쓰세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
   },
   {
     name: "list_receivables",
@@ -795,9 +896,12 @@ async function executeReadTool(
       .lte("start_date", to).gte("end_date", from);
     const st = String(input.status ?? "").trim();
     if (st) q = q.eq("status", st);
-    const [{ data: leaves, error }, { data: emps }] = await Promise.all([
+    const [{ data: leaves, error }, { data: emps }, { data: bal }] = await Promise.all([
       q.order("start_date", { ascending: true }).limit(300),
       admin.from("employees").select("id, name, department").eq("company_id", companyId),
+      // 연차 부여·잔여는 신청 내역이 아니라 이 표에 있다 — "며칠 남았어" 는 여기서만 답할 수 있다.
+      admin.from("leave_balances").select("employee_id, year, total_days, used_days, remaining_days")
+        .eq("company_id", companyId).eq("year", Number(to.slice(0, 4))),
     ]);
     if (error) return { error: "휴가 조회에 실패했습니다." };
     const nameOf = new Map(((emps ?? []) as { id: string; name: string; department: string | null }[])
@@ -813,8 +917,23 @@ async function executeReadTool(
     }));
     const usedByEmp: Record<string, number> = {};
     for (const l of list) if (l.status === "approved") usedByEmp[l.name] = (usedByEmp[l.name] ?? 0) + l.days;
+    const balances = ((bal ?? []) as {
+      employee_id: string; year: number; total_days: number; used_days: number; remaining_days: number;
+    }[]).map((b) => ({
+      name: nameOf.get(b.employee_id)?.name ?? "(미상)",
+      department: nameOf.get(b.employee_id)?.department ?? null,
+      year: b.year,
+      granted_days: Number(b.total_days ?? 0),
+      used_days: Number(b.used_days ?? 0),
+      remaining_days: Number(b.remaining_days ?? 0),
+    })).sort((a, b) => b.remaining_days - a.remaining_days);
+
     return {
       period: { from, to },
+      balances,
+      balances_note: balances.length === 0
+        ? `${to.slice(0, 4)}년 연차 부여 기록이 없습니다. 구성원 > 휴가 탭에서 연차를 부여하면 생깁니다.`
+        : "granted_days=총 부여, used_days=사용, remaining_days=잔여 일수입니다. remaining_days 가 음수면 부여분보다 더 썼다는 뜻이니 그대로 알려 주세요.",
       leaves: list,
       totals: {
         count: list.length,
@@ -822,7 +941,7 @@ async function executeReadTool(
         pending: list.filter((l) => l.status !== "approved" && l.status !== "rejected").length,
       },
       approved_days_by_employee: usedByEmp,
-      note: "기간에 걸치는 휴가를 모두 포함합니다(시작일이 기간 이전이어도 이어지면 포함). days 는 신청 일수이고, 기간을 잘라 센 값이 아닙니다.",
+      note: "leaves 는 기간에 걸치는 휴가를 모두 포함합니다(시작일이 기간 이전이어도 이어지면 포함). days 는 신청 일수이고, 기간을 잘라 센 값이 아닙니다. 연차 잔여를 물으면 leaves 를 세지 말고 balances 를 쓰세요.",
     };
   }
 
@@ -958,6 +1077,299 @@ async function executeReadTool(
     const { count } = await admin.from("partners")
       .select("id", { count: "exact", head: true }).eq("company_id", companyId);
     return { partners: data ?? [], total_partner_count: count ?? null };
+  }
+
+  if (name === "get_tax_invoices") {
+    const from = String(input.from ?? ""), to = String(input.to ?? "");
+    if (!DATE_RE.test(from) || !DATE_RE.test(to)) return { error: "from·to 는 YYYY-MM-DD 형식이어야 합니다." };
+    if (from > to) return { error: "from 이 to 보다 늦습니다." };
+    const span = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+    if (span > 400) return { error: "기간은 최대 400일까지 조회할 수 있습니다." };
+    const ty = String(input.type ?? "both");
+    let q = admin.from("tax_invoices")
+      .select("type, counterparty_name, supply_amount, tax_amount, total_amount, issue_date, status, item_name, settled_amount, settlement_status")
+      .eq("company_id", companyId)
+      .gte("issue_date", from).lte("issue_date", to);
+    if (ty === "sales" || ty === "purchase") q = q.eq("type", ty);
+    const { data, error } = await q.order("issue_date", { ascending: false }).limit(3000);
+    if (error) return { error: "세금계산서 조회에 실패했습니다." };
+    const rows = (data ?? []) as {
+      type: string; counterparty_name: string | null; total_amount: number | null;
+      supply_amount: number | null; tax_amount: number | null; settled_amount: number | null;
+    }[];
+    const side = (want: string) => {
+      const list = rows.filter((r) => r.type === want);
+      const byCp: Record<string, { amount: number; count: number }> = {};
+      let total = 0, supply = 0, unsettled = 0;
+      for (const r of list) {
+        const amt = Number(r.total_amount ?? 0);
+        total += amt;
+        supply += Number(r.supply_amount ?? 0);
+        unsettled += amt - Number(r.settled_amount ?? 0);
+        const k = r.counterparty_name || "(거래처 미상)";
+        (byCp[k] || (byCp[k] = { amount: 0, count: 0 })).amount += amt;
+        byCp[k].count += 1;
+      }
+      return {
+        count: list.length, total_amount: total, supply_amount: supply, unsettled_amount: unsettled,
+        top_counterparties: Object.entries(byCp).sort((a, b) => b[1].amount - a[1].amount).slice(0, 15)
+          .map(([name, v]) => ({ name, amount: v.amount, count: v.count })),
+      };
+    };
+    return {
+      period: { from, to },
+      ...(ty !== "purchase" ? { sales: side("sales") } : {}),
+      ...(ty !== "sales" ? { purchase: side("purchase") } : {}),
+      truncated: rows.length >= 3000,
+      note: "total_amount 는 공급가+세액입니다. unsettled_amount 는 아직 정산되지 않은 금액(미수/미지급)입니다. 발행일(issue_date) 기준으로 집계했습니다.",
+    };
+  }
+
+  if (name === "get_documents") {
+    const kind = String(input.kind ?? "signature");
+    const st = String(input.status ?? "").trim();
+    if (kind === "document") {
+      let q = admin.from("documents")
+        .select("name, status, counterparty, amount, contract_start_date, contract_end_date, issued_at, created_at")
+        .eq("company_id", companyId);
+      if (st) q = q.eq("status", st);
+      const { data, error } = await q.order("created_at", { ascending: false }).limit(100);
+      if (error) return { error: "문서 조회에 실패했습니다." };
+      return { documents: data ?? [], count: (data ?? []).length };
+    }
+    let q = admin.from("signature_requests")
+      .select("title, status, signer_name, signer_email, sent_at, viewed_at, signed_at, expires_at, our_signed_at")
+      .eq("company_id", companyId);
+    if (st) q = q.eq("status", st);
+    const { data, error } = await q.order("created_at", { ascending: false }).limit(200);
+    if (error) return { error: "서명 요청 조회에 실패했습니다." };
+    const rows = (data ?? []) as { status: string | null }[];
+    const by: Record<string, number> = {};
+    for (const r of rows) by[r.status || "(상태 없음)"] = (by[r.status || "(상태 없음)"] ?? 0) + 1;
+    return {
+      signatures: data ?? [], count: rows.length, by_status: by,
+      note: "sent=발송함, viewed=상대가 열어봄, signed=서명 완료, expired=기한 지남. 최근 200건까지입니다.",
+    };
+  }
+
+  if (name === "get_accounting") {
+    const m = Number(input.months ?? 12);
+    const months = Number.isFinite(m) ? Math.max(1, Math.min(36, Math.trunc(m))) : 12;
+    const [{ data: fin, error }, { data: closing }] = await Promise.all([
+      admin.from("monthly_financials")
+        .select("month, bank_balance, total_income, total_expense, fixed_cost, variable_cost, net_cashflow, revenue")
+        .eq("company_id", companyId).order("month", { ascending: false }).limit(months),
+      admin.from("accounting_closing").select("closing_date, note, updated_at").eq("company_id", companyId).maybeSingle(),
+    ]);
+    if (error) return { error: "재무 요약 조회에 실패했습니다." };
+    return {
+      monthly: fin ?? [],
+      closing: closing ?? null,
+      note: "monthly 는 최신 달이 먼저입니다. closing.closing_date 이전 기간은 마감된 것으로, 그 뒤 기간만 아직 정리 중입니다.",
+    };
+  }
+
+  if (name === "list_cards") {
+    const { data, error } = await admin.from("corporate_cards")
+      .select("card_name, card_company, holder_name, monthly_limit, is_active, payment_day, card_type")
+      .eq("company_id", companyId).order("is_active", { ascending: false }).limit(50);
+    if (error) return { error: "카드 조회에 실패했습니다." };
+    const rows = (data ?? []) as { is_active: boolean | null }[];
+    return {
+      cards: data ?? [],
+      count: rows.length,
+      active_count: rows.filter((r) => r.is_active).length,
+      note: "카드번호는 보안상 제공하지 않습니다. 사용 금액은 get_spending 으로 조회하세요.",
+    };
+  }
+
+  if (name === "get_schedule") {
+    const from = String(input.from ?? ""), to = String(input.to ?? "");
+    if (!DATE_RE.test(from) || !DATE_RE.test(to)) return { error: "from·to 는 YYYY-MM-DD 형식이어야 합니다." };
+    if (from > to) return { error: "from 이 to 보다 늦습니다." };
+    // start_at 은 timestamptz — KST 하루를 온전히 담으려면 경계를 +09:00 으로 준다.
+    const [{ data: events }, { data: todos }] = await Promise.all([
+      admin.from("schedule_events")
+        .select("title, description, start_at, end_at, all_day, is_shared, completed")
+        .eq("company_id", companyId)
+        .gte("start_at", `${from}T00:00:00+09:00`).lte("start_at", `${to}T23:59:59+09:00`)
+        .order("start_at", { ascending: true }).limit(200),
+      admin.from("schedule_todos")
+        .select("title, done, priority, due_date")
+        .eq("company_id", companyId)
+        .or(`due_date.is.null,and(due_date.gte.${from},due_date.lte.${to})`)
+        .order("due_date", { ascending: true }).limit(200),
+    ]);
+    const td = (todos ?? []) as { done: boolean | null }[];
+    return {
+      period: { from, to },
+      events: events ?? [],
+      todos: todos ?? [],
+      totals: { events: (events ?? []).length, todos: td.length, todos_open: td.filter((t) => !t.done).length },
+    };
+  }
+
+  if (name === "list_board_posts") {
+    const { data, error } = await admin.from("board_posts")
+      .select("title, author_name, pinned, event_date, poll_question, created_at")
+      .eq("company_id", companyId)
+      .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(50);
+    if (error) return { error: "게시글 조회에 실패했습니다." };
+    return { posts: data ?? [], count: (data ?? []).length, note: "본문은 길어서 제외했습니다 — 제목·작성자·작성일만입니다." };
+  }
+
+  if (name === "list_projects") {
+    const [{ data: boards, error }, { data: items }, { data: emps }] = await Promise.all([
+      admin.from("project_boards").select("id, name, created_at, archived_at").eq("company_id", companyId).limit(100),
+      admin.from("workflow_items").select("title, status, assignee_id, linked_project_id, archived_at, created_at")
+        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(200),
+      admin.from("employees").select("id, name").eq("company_id", companyId),
+    ]);
+    if (error) return { error: "프로젝트 조회에 실패했습니다." };
+    const nameOf = new Map(((emps ?? []) as { id: string; name: string }[]).map((e) => [e.id, e.name]));
+    const boardName = new Map(((boards ?? []) as { id: string; name: string }[]).map((b) => [b.id, b.name]));
+    const rows = ((items ?? []) as {
+      title: string; status: string | null; assignee_id: string | null;
+      linked_project_id: string | null; archived_at: string | null;
+    }[]).filter((i) => !i.archived_at).map((i) => ({
+      title: i.title, status: i.status,
+      assignee: i.assignee_id ? (nameOf.get(i.assignee_id) ?? "(미상)") : null,
+      board: i.linked_project_id ? (boardName.get(i.linked_project_id) ?? null) : null,
+    }));
+    return {
+      boards: ((boards ?? []) as { name: string; archived_at: string | null }[])
+        .filter((b) => !b.archived_at).map((b) => b.name),
+      items: rows,
+      totals: { boards: (boards ?? []).length, open_items: rows.length },
+    };
+  }
+
+  if (name === "list_hr_requests") {
+    const [{ data: ot }, { data: edits }, { data: exp }, { data: emps }, { data: users }] = await Promise.all([
+      admin.from("overtime_requests").select("employee_id, requested_date, requested_end_time, reason, status, created_at")
+        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(100),
+      admin.from("attendance_edit_requests").select("requested_by, requested_changes, reason, status, created_at")
+        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(100),
+      admin.from("expense_requests").select("title, amount, category, status, request_date, employee_id, created_at")
+        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(100),
+      admin.from("employees").select("id, name").eq("company_id", companyId),
+      admin.from("users").select("id, name").eq("company_id", companyId),
+    ]);
+    const empName = new Map(((emps ?? []) as { id: string; name: string }[]).map((e) => [e.id, e.name]));
+    const userName = new Map(((users ?? []) as { id: string; name: string }[]).map((u) => [u.id, u.name]));
+    return {
+      overtime_requests: ((ot ?? []) as { employee_id: string }[]).map((r) => ({
+        ...r, employee_id: undefined, name: empName.get(r.employee_id) ?? "(미상)",
+      })),
+      attendance_edit_requests: ((edits ?? []) as { requested_by: string }[]).map((r) => ({
+        ...r, requested_by: undefined, name: userName.get(r.requested_by) ?? empName.get(r.requested_by) ?? "(미상)",
+      })),
+      expense_requests: ((exp ?? []) as { employee_id: string | null }[]).map((r) => ({
+        ...r, employee_id: undefined, name: r.employee_id ? (empName.get(r.employee_id) ?? "(미상)") : null,
+      })),
+      note: "status 가 pending 이면 아직 결재 대기입니다.",
+    };
+  }
+
+  if (name === "list_deals") {
+    const [{ data, error }, { data: partners }] = await Promise.all([
+      admin.from("deals")
+        .select("name, deal_number, contract_total, status, stage, start_date, end_date, partner_id, is_dormant, last_activity_at, archived_at")
+        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(100),
+      admin.from("partners").select("id, name").eq("company_id", companyId),
+    ]);
+    if (error) return { error: "딜 조회에 실패했습니다." };
+    const pname = new Map(((partners ?? []) as { id: string; name: string }[]).map((p) => [p.id, p.name]));
+    const rows = ((data ?? []) as {
+      name: string; contract_total: number | null; partner_id: string | null; archived_at: string | null;
+    }[]).filter((d) => !d.archived_at).map((d) => ({
+      ...d, archived_at: undefined, partner_id: undefined,
+      partner: d.partner_id ? (pname.get(d.partner_id) ?? null) : null,
+      contract_total: d.contract_total === null ? null : Number(d.contract_total),
+    }));
+    return {
+      deals: rows,
+      totals: { count: rows.length, contract_total_sum: rows.reduce((s, d) => s + Number(d.contract_total ?? 0), 0) },
+    };
+  }
+
+  if (name === "get_ad_performance") {
+    const from = String(input.from ?? ""), to = String(input.to ?? "");
+    if (!DATE_RE.test(from) || !DATE_RE.test(to)) return { error: "from·to 는 YYYY-MM-DD 형식이어야 합니다." };
+    if (from > to) return { error: "from 이 to 보다 늦습니다." };
+    const { data, error } = await admin.from("ad_metrics_daily")
+      .select("platform, campaign_name, stat_date, impressions, clicks, cost, conversions, conv_value")
+      .eq("company_id", companyId)
+      .gte("stat_date", from).lte("stat_date", to).limit(2000);
+    if (error) return { error: "광고 성과 조회에 실패했습니다." };
+    const rows = (data ?? []) as {
+      platform: string | null; campaign_name: string | null;
+      impressions: number | null; clicks: number | null; cost: number | null;
+      conversions: number | null; conv_value: number | null;
+    }[];
+    const by: Record<string, { impressions: number; clicks: number; cost: number; conversions: number; conv_value: number }> = {};
+    let cost = 0, conv = 0, convValue = 0;
+    for (const r of rows) {
+      const k = `${r.platform ?? "-"} / ${r.campaign_name ?? "(캠페인 미상)"}`;
+      const b = by[k] || (by[k] = { impressions: 0, clicks: 0, cost: 0, conversions: 0, conv_value: 0 });
+      b.impressions += Number(r.impressions ?? 0);
+      b.clicks += Number(r.clicks ?? 0);
+      b.cost += Number(r.cost ?? 0);
+      b.conversions += Number(r.conversions ?? 0);
+      b.conv_value += Number(r.conv_value ?? 0);
+      cost += Number(r.cost ?? 0);
+      conv += Number(r.conversions ?? 0);
+      convValue += Number(r.conv_value ?? 0);
+    }
+    return {
+      period: { from, to },
+      campaigns: Object.entries(by).sort((a, b2) => b2[1].cost - a[1].cost)
+        .slice(0, 20).map(([name, v]) => ({ name, ...v })),
+      totals: { cost, conversions: conv, conv_value: convValue, roas: cost > 0 ? convValue / cost : null },
+      note: "cost 는 광고비, conv_value 는 전환 매출입니다. roas 는 conv_value ÷ cost 이며 광고비가 0이면 null 입니다.",
+    };
+  }
+
+  if (name === "list_cash_receipts") {
+    let q = admin.from("cash_receipts")
+      .select("type, amount, supply_amount, tax_amount, counterparty_name, issue_date, status, purpose, approval_number")
+      .eq("company_id", companyId);
+    const from = String(input.from ?? "").trim(), to = String(input.to ?? "").trim();
+    if (DATE_RE.test(from)) q = q.gte("issue_date", from);
+    if (DATE_RE.test(to)) q = q.lte("issue_date", to);
+    const { data, error } = await q.order("issue_date", { ascending: false }).limit(200);
+    if (error) return { error: "현금영수증 조회에 실패했습니다." };
+    const rows = (data ?? []) as { type: string; amount: number | null }[];
+    const sum = (t: string) => rows.filter((r) => r.type === t).reduce((s, r) => s + Number(r.amount ?? 0), 0);
+    return {
+      receipts: data ?? [],
+      totals: {
+        count: rows.length,
+        income_amount: sum("income"), expense_amount: sum("expense"),
+      },
+    };
+  }
+
+  if (name === "get_account_status") {
+    const [{ data: sub }, { data: tickets }] = await Promise.all([
+      admin.from("subscriptions")
+        .select("plan_slug, status, seat_count, billing_cycle, current_period_start, current_period_end, trial_ends_at, cancel_at_period_end, payment_provider, last_payment_error")
+        .eq("company_id", companyId).maybeSingle(),
+      admin.from("support_tickets")
+        .select("category, subject, status, answered_at, created_at")
+        .eq("company_id", companyId).order("created_at", { ascending: false }).limit(30),
+    ]);
+    const tk = (tickets ?? []) as { status: string | null }[];
+    return {
+      subscription: sub ?? null,
+      support_tickets: tickets ?? [],
+      support_totals: {
+        count: tk.length,
+        answered: tk.filter((t) => t.status === "answered").length,
+        waiting: tk.filter((t) => t.status !== "answered" && t.status !== "closed").length,
+      },
+      note: "subscription 이 null 이면 아직 유료 요금제를 시작하지 않은 것입니다. cancel_at_period_end 가 true 면 이번 기간까지만 이용하고 해지됩니다.",
+    };
   }
 
   if (name === "list_contract_templates") {
