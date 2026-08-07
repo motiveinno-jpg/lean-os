@@ -26,6 +26,8 @@ const DIM = "var(--text-dim)";
 /** 축 글자 — 개수만큼 칸을 나누면 글자가 잘린다. 대여섯 개만 골라 양끝에 맞춰 놓는다 */
 function axisLabels(labels: string[]) {
   if (labels.length === 0) return null;
+  //   여덟 개까지는 다 보여 준다 — 이름 하나하나가 뜻인 경우(사람·캠페인)가 많다
+  if (labels.length <= 8) return labels.map((l, i) => <em key={`${l}-${i}`}>{l}</em>);
   const want = Math.min(labels.length, 6);
   const step = (labels.length - 1) / Math.max(1, want - 1);
   const idx = Array.from({ length: want }, (_, i) => Math.round(i * step));

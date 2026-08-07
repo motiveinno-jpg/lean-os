@@ -125,9 +125,10 @@ function MiniBar({ pct, color, label }: { pct: number; color: string; label?: st
   const clamped = Math.max(0, Math.min(100, Math.round(pct)));
   return (
     <div className="flow-mini-bar">
-      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--bg-surface)]">
+      {/*   값이 붙는 쪽만 둥글게 — 양끝을 다 둥글리면 막대가 축에서 떠 보인다 (2026-08-07 키트 규칙) */}
+      <div className="h-1.5 overflow-hidden rounded-md bg-[var(--bg-surface)]">
         <div
-          className="h-full rounded-full transition-[width] duration-500 ease-out"
+          className="h-full rounded-r-md transition-[width] duration-500 ease-out"
           style={{ width: `${clamped}%`, background: color }}
         />
       </div>

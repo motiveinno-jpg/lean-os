@@ -1,7 +1,14 @@
 "use client";
 
-/* 인원별 급여 막대.
-   reports/pnl/pnl-chart.tsx 의 막대/그리드 패턴 재사용 (인원 축으로 변형). */
+/* 인원별 급여 — 차트 키트의 가로 막대로 그린다 (2026-08-07 키트 확산).
+ *
+ *   예전엔 이 파일이 SVG 축·격자·막대를 직접 그렸다. 그래서 눈금 모양·값 표시 방식이
+ *   다른 화면과 조금씩 달랐고, 이름이 길면 x축에서 잘렸다(5글자에서 '…').
+ *   사람 이름은 가로로 읽는 게 자연스럽고 순위 비교도 쉬워 가로 막대로 바꿨다 —
+ *   키트가 눈금·간격·색을 맡으므로 이 파일은 '무엇을 보여줄지'만 정한다.
+ */
+
+import { BarChart } from "@/components/charts/kit";
 
 interface Row { [person: string]: number }
 interface ByPersonChartProps {
@@ -9,110 +16,30 @@ interface ByPersonChartProps {
   payByPerson: Row;
 }
 
-const H = 280, PT = 24, PB = 56, PL = 64, PR = 16, W = 600;
-const DRAW_W = W - PL - PR;
-const DRAW_H = H - PT - PB;
-const GRID_COUNT = 5;
-const BAR_GAP = 8;
+/** 한 화면에 들어오는 만큼만 — 나머지는 아래 표에서 본다 */
 const MAX_BARS = 12;
 
-function fmtAxis(v: number): string {
-  const a = Math.abs(v);
-  if (a >= 1e8) return `${(v / 1e8).toFixed(1)}억`;
-  if (a >= 1e4) return `${Math.round(v / 1e4)}만`;
-  return v.toLocaleString("ko-KR");
-}
-
-function shortName(s: string): string {
-  return s.length > 5 ? s.slice(0, 5) + "…" : s;
-}
-
 export default function ByPersonChart({ people, payByPerson }: ByPersonChartProps) {
-  // 급여 기준 상위 MAX_BARS 명만 (나머지는 표에서 확인)
   const ranked = [...people]
-    .map((p) => ({ p, total: payByPerson[p] || 0 }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, MAX_BARS)
-    .map((x) => x.p);
+    .map((p) => ({ label: p, value: payByPerson[p] || 0 }))
+    .filter((x) => x.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, MAX_BARS);
 
-  const pay = ranked.map((p) => payByPerson[p] || 0);
-  const yMax = Math.max(...pay, 1) * 1.12;
-  const toY = (v: number) => PT + DRAW_H * (1 - v / yMax);
-  const n = ranked.length || 1;
-
-  const groupAt = (i: number) => {
-    const gw = DRAW_W / n;
-    const gx = PL + i * gw;
-    return { gx, gw, cx: gx + gw / 2 };
-  };
-
-  const gridVals = Array.from({ length: GRID_COUNT }, (_, i) => (yMax * (i + 1)) / (GRID_COUNT + 1));
+  if (ranked.length === 0) {
+    return <p className="py-8 text-center text-xs text-[var(--text-dim)]">급여 자료가 없어요.</p>;
+  }
 
   return (
-    <div className="by-person-chart-card glass-card">
-      <div className="by-person-chart-header">
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <div className="mb-3">
         <h3 className="text-sm font-bold text-[var(--text)]">인원별 급여</h3>
-        <p className="text-[10px] text-[var(--text-dim)] mt-0.5">상위 {MAX_BARS}명 · 연 급여 합계</p>
+        <p className="mt-0.5 text-[10px] text-[var(--text-dim)]">
+          많이 받는 순 상위 {Math.min(MAX_BARS, ranked.length)}명 · 연 급여 합계
+        </p>
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" className="by-person-chart-svg">
-        <defs>
-          <linearGradient id="bpPayGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--viz-2)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="var(--viz-2)" stopOpacity="0.6" />
-          </linearGradient>
-          <linearGradient id="bpCardGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--viz-1)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="var(--viz-1)" stopOpacity="0.6" />
-          </linearGradient>
-        </defs>
-
-        {gridVals.map((v, i) => {
-          const y = toY(v);
-          return (
-            <g key={i}>
-              <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="var(--border)" strokeDasharray="3 3" strokeWidth={0.5} opacity={0.5} />
-              <text x={PL - 8} y={y + 4} textAnchor="end" fontSize={11} fill="var(--text-dim)">{fmtAxis(Math.round(v))}</text>
-            </g>
-          );
-        })}
-        <line x1={PL} y1={toY(0)} x2={W - PR} y2={toY(0)} stroke="var(--text-muted)" strokeWidth={0.6} opacity={0.5} />
-
-        {ranked.map((_, i) => {
-          const { gx, gw } = groupAt(i);
-          const bw = Math.max(gw - BAR_GAP * 2, 4);
-          const bx = gx + BAR_GAP;
-          const baseY = toY(0);
-          const payTop = toY(pay[i]);
-          return (
-            <g key={i}>
-              <rect x={bx} y={payTop} width={bw} height={Math.max(baseY - payTop, 0)} rx={4} fill="url(#bpPayGrad)" />
-            </g>
-          );
-        })}
-
-        {ranked.map((p, i) => {
-          const { cx } = groupAt(i);
-          return (
-            <text
-              key={p}
-              x={cx}
-              y={H - 30}
-              textAnchor="end"
-              fontSize={11}
-              fill="var(--text-muted)"
-              fontWeight={500}
-              transform={`rotate(-40 ${cx} ${H - 30})`}
-            >
-              {shortName(p)}
-            </text>
-          );
-        })}
-      </svg>
-      <div className="by-person-chart-legend">
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--viz-2)]/30 bg-[var(--bg-surface)] text-[var(--text-muted)]">
-          <span className="w-2 h-2 rounded-full bg-[var(--viz-2)]" />급여
-        </span>
-      </div>
+      {/*   급여는 '경고'가 아니라 '얼마'다 — 한 계열이므로 색 하나로 두고 이름은 왼쪽에서 읽는다 */}
+      <BarChart data={ranked.map((r) => ({ ...r, color: "var(--viz-2)" }))} unit="원" />
     </div>
   );
 }
