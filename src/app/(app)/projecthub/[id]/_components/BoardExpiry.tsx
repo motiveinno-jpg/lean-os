@@ -70,9 +70,12 @@ export function BoardExpiry({ items, cols, partnerName, onOpen, onAdvance, onCon
               {d != null && d >= 0 && d <= 30 ? " · 갱신 결정 필요" : ""}
             </span>
             <button type="button" className="pbx-name" onClick={() => onOpen(it.id)}>{it.name || "(계약 이름 없음)"}</button>
-            <span className="pbx-meta">
+<span className="pbx-meta">
               {partnerCol && partnerName(it) ? `${partnerName(it)} · ` : ""}
-              {String(it.values?.[endCol.id] || "").slice(0, 10) || "만기 미입력"} 만기
+              {/*  날짜가 없으면 '만기 미입력 만기' 처럼 두 번 적히지 않게 문구를 갈라 쓴다 */}
+              {String(it.values?.[endCol.id] || "").slice(0, 10)
+                ? `${String(it.values?.[endCol.id]).slice(0, 10)} 만기`
+                : "만기일을 표에서 채워 주세요"}
               {cur ? ` · ${cur.label}` : ""}
             </span>
             {moneyCol && <b className="pbx-amt">{won(Number(it.values?.[moneyCol.id]) || 0)}원</b>}

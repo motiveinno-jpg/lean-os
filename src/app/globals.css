@@ -6251,7 +6251,9 @@ th:hover .pb-colmenu-btn { @apply opacity-100; }
 .pb-views-sep { @apply self-stretch w-px mx-1 bg-[var(--border)]; }
 .pb-viewpick { @apply inline-flex rounded-lg border border-[var(--border)] overflow-hidden; }
 .pb-viewbtn { @apply h-7 px-2.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-card)] hover:text-[var(--text)]; }
-.pb-viewbtn-on { @apply bg-[var(--primary)] text-white hover:!text-white; }
+/* ⚠️ 고른 단추 위에 마우스를 올리면 .pb-viewbtn 의 hover 배경(흰 카드색)이 이겨
+   흰 글씨가 흰 배경에 얹혀 **글자가 사라졌다**(2026-08-07 실측). 배경도 같이 잠근다. */
+.pb-viewbtn-on { @apply bg-[var(--primary)] text-white hover:!bg-[var(--primary)] hover:!text-white; }
 .pb-kanban { @apply flex gap-3 overflow-x-auto pb-2 items-start; }
 .pb-kcol { @apply shrink-0 w-[264px] flex flex-col gap-2 p-2 rounded-2xl bg-[var(--bg-surface)] border border-transparent transition; }
 .pb-kcol-over { @apply border-[var(--primary)] bg-[var(--primary)]/5; }
