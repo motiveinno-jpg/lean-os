@@ -182,6 +182,57 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     groups: [{ name: "일정", color: C.indigo }],
   },
   {
+    //   회의 · 결정 — 지금까지는 '할 일' 표에 억지로 적고 있었다 (2026-08-07 신설).
+    //   한 줄이 **안건 하나**다. 회의 회차는 그룹으로 나눈다(＋ 그룹 추가 → '8/7 주간회의').
+    //   결정만 적고 끝내지 않게 담당·기한을 같은 줄에 둔다 — 후속조치가 곧 다음 할 일이다.
+    key: "meeting",
+    name: "회의 · 결정",
+    desc: "정한 것과 다음에 할 일을 한 줄에",
+    uses: "주간회의 · 킥오프 · 고객 미팅 · 이사회 · 현장 점검 회의",
+    //   회의가 끝나고 여러 줄을 이어 적는 일이라 표가 빠르다
+    input: "grid",
+    columns: [
+      { name: "상태", type: "status", settings: FLOW([
+        { id: "open", label: "논의 중", color: C.gray },
+        { id: "decided", label: "결정", color: C.indigo },
+        { id: "hold", label: "보류", color: C.red },
+        { id: "done", label: "완료", color: C.green },
+      ]) },
+      { name: "회의일", type: "date" },
+      { name: "결정 내용", type: "text" },
+      { name: "담당", type: "person" },
+      { name: "기한", type: "date" },
+    ],
+    groups: [{ name: "이번 회의", color: C.indigo }],
+  },
+  {
+    //   계약 · 갱신 — 만기를 놓치는 게 이 일의 진짜 위험이다 (2026-08-07 신설).
+    //   '만기' 가 기한 칸이라 정리 탭이 '주별 만기'와 '기한 지난 건' 을 저절로 뽑아 준다.
+    //   ⚠️ 계약금액은 참고용이다 — 받을 돈은 '매출 흐름' 이 센다. 여기 금액을 또 더하면
+    //      같은 돈을 두 번 잡는다(그래서 이 표는 돈 집계에 넣지 않는다).
+    key: "contract",
+    name: "계약 · 갱신",
+    desc: "언제 끝나고 언제 다시 맺나",
+    uses: "임대차 · 유지보수 · 구독 · 용역 계약 · 라이선스 · 보험",
+    input: "grid",
+    columns: [
+      { name: "상태", type: "status", settings: FLOW([
+        { id: "review", label: "검토", color: C.gray },
+        { id: "signed", label: "체결", color: C.indigo },
+        { id: "running", label: "이행 중", color: C.blue },
+        { id: "renew", label: "갱신 예정", color: C.orange },
+        { id: "closed", label: "종료", color: C.green },
+      ]) },
+      { name: "거래처", type: "partner" },
+      { name: "계약금액", type: "number", settings: { unit: "원" } },
+      { name: "시작", type: "date" },
+      { name: "만기", type: "date" },
+      { name: "담당", type: "person" },
+      { name: "비고", type: "text" },
+    ],
+    groups: [{ name: "계약 목록", color: C.indigo }],
+  },
+  {
     //   마케팅 계정 관리 — 값은 사람이 아니라 매체 API 가 채운다(2026-08-06 사장님 지시).
     //   행 하나가 캠페인 하나. 회사 금고에 등록한 광고 계정을 이 프로젝트에 연결하면 채워진다.
     key: "ads",
@@ -290,6 +341,7 @@ export function findTemplate(key: string | null | undefined): BoardTemplate {
 /** 첫 컬럼(행 이름)은 표마다 이름이 다르다 — 템플릿별 라벨 */
 export const ITEM_LABEL: Record<string, string> = {
   todo: "작업", spend: "항목", revenue: "매출 건", review: "요청", schedule: "일정", blank: "이름",
+  meeting: "안건", contract: "계약",
   ads: "캠페인",
   custom: "이름",
   //   합치기 전 템플릿 — 목록에서는 사라졌지만 이미 만들어 쓰는 표가 있으므로 말은 그대로 둔다

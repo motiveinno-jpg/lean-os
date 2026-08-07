@@ -137,6 +137,8 @@ export function templateFigures(
   const pct = flow && term ? Math.round((doneCount / items.length) * 100) : null;
 
   switch (templateKey) {
+    //   회의 · 결정도 묻는 것이 같다 — 정한 것 중 무엇이 남았나 · 누가 · 언제까지
+    case "meeting":
     case "todo": {
       if (pct != null) {
         out.push({ id: "ring:progress", kind: "ring", title: "완료율", pct, center: `${pct}%`, note: `전체 ${items.length}건 중 ${doneCount}건 완료` });
@@ -186,6 +188,8 @@ export function templateFigures(
       }
       break;
     }
+    //   계약 · 갱신도 묻는 것이 같다 — 기간이 얼마나 지났나 · 만기가 지난 건 · 언제 몰렸나
+    case "contract":
     case "schedule": {
       const startCol = cols.find((c) => c.type === "date" && START_DATE_RE.test(c.name)) || null;
       const endCol = cols.find((c) => c.type === "date" && c !== startCol) || null;
