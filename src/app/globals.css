@@ -2765,6 +2765,14 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .leave-modal-close { @apply text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition; }
 .leave-modal-body { @apply p-5 overflow-y-auto; }
 .leave-modal-row { @apply flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/60 border border-[var(--border)]/50; }
+/* 이름 클릭 팝업 안에서 바로 휴가 등록 (2026-08-07) */
+.leave-quick-form { @apply mb-4 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/50; }
+.leave-quick-grid { @apply grid grid-cols-2 gap-2.5; }
+.leave-quick-field { @apply flex flex-col gap-1 min-w-0; }
+.leave-quick-wide { @apply col-span-2; }
+.leave-quick-label { @apply text-[11px] font-semibold text-[var(--text-muted)]; }
+.leave-quick-actions { @apply flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border)]; }
+.leave-quick-cancel { @apply px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50; }
 /* 직원 카드 — 남은 연차 직접 입력 */
 .leave-remaining-input { @apply w-14 px-1 py-0.5 text-lg font-bold text-center bg-[var(--bg)] border border-[var(--primary)]/50 rounded; }
 

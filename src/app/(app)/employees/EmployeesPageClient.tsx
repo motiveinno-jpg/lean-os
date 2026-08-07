@@ -2555,6 +2555,43 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast(friendlyError(err, "처리에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
   });
 
+  // 팝업(이름 클릭)에서 바로 등록 — 아래 전체 폼으로 내려보내면 화면이 멀어 안 보였다(2026-08-07 사장님).
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quick, setQuick] = useState({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am" as "am" | "pm", startDate: "", endDate: "", reason: "" });
+  const resetQuick = () => setQuick({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", reason: "" });
+  const quickDays = (() => {
+    if (quick.leaveUnit === "half_day") return 0.5;
+    if (quick.leaveUnit === "two_hours") return 0.25;
+    if (!quick.startDate) return 0;
+    const start = new Date(quick.startDate);
+    const end = new Date(quick.endDate || quick.startDate);
+    return Math.ceil(Math.abs(end.getTime() - start.getTime()) / 86400000) + 1;
+  })();
+  const createQuickLeave = useMutation({
+    mutationFn: () => createLeaveRequest({
+      companyId: companyId!,
+      employeeId: rosterEmp!.id,
+      leaveType: quick.leaveType,
+      startDate: quick.startDate,
+      endDate: quick.endDate || quick.startDate,
+      days: quickDays,
+      reason: quick.reason,
+      leaveUnit: quick.leaveUnit as any,
+      halfDayPeriod: quick.leaveUnit === "half_day" ? quick.halfDayPeriod : undefined,
+      approverIds: [],
+      ccUserIds: [],
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-requests-year"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
+      setQuickOpen(false);
+      resetQuick();
+      toast("휴가를 등록했습니다", "success");
+    },
+    onError: (err: any) => toast(friendlyError(err, "등록에 실패했습니다. 잠시 후 다시 시도해 주세요."), "error"),
+  });
+
   // Send promotion notice
   const sendPromotion = useMutation({
     mutationFn: (params: { employeeId: string; noticeType: "first" | "second"; unusedDays: number; email: string; employeeName: string }) =>
@@ -3886,20 +3923,69 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           <div className="leave-modal" onClick={(e) => e.stopPropagation()}>
             <div className="leave-modal-head">
               <h3 className="text-sm font-bold">{rosterEmp.name} · 연차 신청 내역</h3>
-              <button onClick={() => setRosterEmp(null)} className="leave-modal-close">✕</button>
+              <button onClick={() => { setRosterEmp(null); setQuickOpen(false); resetQuick(); }} className="leave-modal-close">✕</button>
             </div>
             <div className="leave-modal-body">
               {!isEmployee && (
-                <button
-                  onClick={() => {
-                    setForm((prev: any) => ({ ...prev, employeeId: rosterEmp.id }));
-                    setRosterEmp(null);
-                    setShowForm(true);
-                  }}
-                  className="btn-primary btn-sm mb-3"
-                >
-                  이 구성원 휴가 등록
-                </button>
+                quickOpen ? (
+                  <div className="leave-quick-form">
+                    <div className="text-xs font-bold mb-2">{rosterEmp.name} 휴가 등록</div>
+                    <div className="leave-quick-grid">
+                      <label className="leave-quick-field">
+                        <span className="leave-quick-label">유형</span>
+                        <select value={quick.leaveType} onChange={(e) => setQuick((q) => ({ ...q, leaveType: e.target.value }))} className="field-input">
+                          {companyLeaveTypes.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+                        </select>
+                      </label>
+                      <label className="leave-quick-field">
+                        <span className="leave-quick-label">단위</span>
+                        <select value={quick.leaveUnit} onChange={(e) => setQuick((q) => ({ ...q, leaveUnit: e.target.value }))} className="field-input">
+                          {LEAVE_UNITS.map((u) => (<option key={u.value} value={u.value}>{u.label}</option>))}
+                        </select>
+                      </label>
+                      {quick.leaveUnit === "half_day" && (
+                        <label className="leave-quick-field">
+                          <span className="leave-quick-label">오전/오후</span>
+                          <select value={quick.halfDayPeriod} onChange={(e) => setQuick((q) => ({ ...q, halfDayPeriod: e.target.value as "am" | "pm" }))} className="field-input">
+                            <option value="am">오전</option>
+                            <option value="pm">오후</option>
+                          </select>
+                        </label>
+                      )}
+                      <label className="leave-quick-field">
+                        <span className="leave-quick-label">시작일</span>
+                        <DateField value={quick.startDate} onChange={(e) => setQuick((q) => ({ ...q, startDate: e.target.value }))} className="field-input" />
+                      </label>
+                      {quick.leaveUnit === "full_day" && (
+                        <label className="leave-quick-field">
+                          <span className="leave-quick-label">종료일 <span className="text-[var(--text-dim)] font-normal">(하루면 비워두세요)</span></span>
+                          <DateField value={quick.endDate} onChange={(e) => setQuick((q) => ({ ...q, endDate: e.target.value }))} className="field-input" />
+                        </label>
+                      )}
+                      <label className="leave-quick-field leave-quick-wide">
+                        <span className="leave-quick-label">사유 <span className="text-[var(--text-dim)] font-normal">(선택)</span></span>
+                        <input value={quick.reason} onChange={(e) => setQuick((q) => ({ ...q, reason: e.target.value }))} placeholder="예: 개인 사정" className="field-input" />
+                      </label>
+                    </div>
+                    <div className="leave-quick-actions">
+                      <span className="text-[11px] text-[var(--text-dim)]">{quickDays > 0 ? `${quickDays}일 차감` : "시작일을 선택하세요"}</span>
+                      <div className="flex gap-2 ml-auto">
+                        <button onClick={() => { setQuickOpen(false); resetQuick(); }} disabled={createQuickLeave.isPending} className="leave-quick-cancel">취소</button>
+                        <button
+                          onClick={() => createQuickLeave.mutate()}
+                          disabled={!quick.startDate || createQuickLeave.isPending}
+                          className="btn-primary btn-sm disabled:opacity-40"
+                        >
+                          {createQuickLeave.isPending ? "등록 중..." : "등록"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setQuickOpen(true)} className="btn-primary btn-sm mb-3">
+                    이 구성원 휴가 등록
+                  </button>
+                )
               )}
               {rosterEmpRequests.length === 0 ? (
                 <div className="templates-empty">신청 내역이 없습니다.</div>
