@@ -11,6 +11,7 @@ import { logRead } from "@/lib/log-read";
 import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { EmptyState } from "@/components/empty-state";
+import { BarChart } from "@/components/charts/kit";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -204,6 +205,15 @@ export default function PartnerLedgerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, sq, sortBy, partnerMap, partnerCodeMap]);
 
+  //   어디에 돈이 묶여 있나 — 거래처 이름이 길고 순위를 보는 자리라 가로 막대가 맞다.
+  //   목록 정렬(이름순 등)과 무관하게 그래프는 늘 '많은 순'이다. 잔액 0 이하는 그리지 않는다.
+  const topPartners = useMemo(
+    () => shown.map((r) => ({ label: nameOf(r.partner_id), value: ledgerOut(r) }))
+      .filter((r) => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 8),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shown, partnerMap, voucherPartnerTypes],
+  );
+
   const selKey = selLedger ?? (shown[0] ? (shown[0].partner_id ?? "none") : null);
   const selRow = shown.find((r) => (r.partner_id ?? "none") === selKey) || null;
 
@@ -310,6 +320,21 @@ export default function PartnerLedgerPage() {
         </button>
       </div>
       <p className="text-[11px] text-[var(--text-dim)]">잔액 = 전기이월 + 당기 잔액 · 확정된 매칭(거래 매칭)만 정산으로 반영</p>
+
+      {/* 상위 거래처 — 합계만 보면 어디에 몰렸는지 모른다 (2026-08-07) */}
+      {topPartners.length >= 2 && (
+        <div className="ledger-top-chart glass-card">
+          <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+            <span className="text-[12px] font-bold text-[var(--text)]">
+              {ledgerType === "sales" ? "미수금이 큰 거래처" : "미지급금이 큰 거래처"}
+            </span>
+            <span className="text-[10px] text-[var(--text-dim)]">
+              많은 순 {topPartners.length}곳{shown.length > topPartners.length ? ` · 전체 ${shown.length}곳` : ""}
+            </span>
+          </div>
+          <BarChart unit="원" data={topPartners.map((r) => ({ ...r, color: pal.main }))} />
+        </div>
+      )}
 
       {/* 미수 경과(에이징) — 세금계산서 발행 기준. 회수 우선순위 판단용(오래 밀린 미수 강조). 매출처 뷰 전용. */}
       {ledgerType === "sales" && aging && aging.total > 0 && (

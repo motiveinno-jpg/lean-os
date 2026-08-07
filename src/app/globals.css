@@ -1807,6 +1807,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .bank-sync-pause { @apply inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition disabled:opacity-50; }
 .bank-summary-cards { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
 .bank-overview-panel { @apply grid grid-cols-1 lg:grid-cols-3 gap-4; }
+/* 계좌별 잔액 막대 — 개요 맨 위 한 줄 폭(카드 셋보다 먼저 읽힌다) */
+.bank-balance-chart { @apply lg:col-span-3 p-5; }
+.bank-balance-chart-head { @apply flex items-baseline gap-2 flex-wrap mb-3; }
+.bank-balance-chart-head b { @apply text-[15px] font-bold text-[var(--text)]; }
+.bank-balance-chart-head em { @apply not-italic text-[11px] text-[var(--text-dim)]; }
 .bank-accounts-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4; }
 .bank-account-card { @apply p-5 transition-all cursor-pointer; }
 .transaction-range-filter { @apply flex flex-wrap items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
@@ -2825,6 +2830,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .ledger-kpi-count { @apply p-5 flex flex-col gap-3; }
 .ledger-kpi-other { @apply p-5 flex flex-col gap-3 text-left hover:bg-[var(--bg-surface)]/60 transition col-span-2 lg:col-span-1; }
 .ledger-ar-aging { @apply p-4; }
+/* 상위 거래처 막대 — 합계 카드 바로 아래 */
+.ledger-top-chart { @apply p-4; }
 .ar-aging-bucket { @apply rounded-lg px-3 py-2.5; }
 .ledger-partner-list { @apply overflow-hidden; }
 .ledger-partner-list-header { @apply px-3 py-2.5 border-b border-[var(--border)] flex items-center justify-between gap-2; }
@@ -4694,6 +4701,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .upcoming-transfers-header { @apply flex items-center justify-between mb-3; }
 .upcoming-transfers-empty { @apply text-center py-5; }
 .upcoming-transfers-list { @apply space-y-2; }
+/* 주별 출금 예정 — 목록보다 먼저 '언제' 를 본다 */
+.upcoming-transfers-chart { @apply flex flex-col gap-1 mb-3; }
+.upcoming-transfers-more { @apply block pt-1 text-[11px] text-[var(--text-dim)] transition hover:text-[var(--primary)]; }
 .upcoming-transfer-row { @apply flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition; }
 .upcoming-transfer-date-box { @apply flex flex-col items-center justify-center w-14 py-1 rounded-md; }
 .upcoming-transfer-detail { @apply flex-1 min-w-0; }

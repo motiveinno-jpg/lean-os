@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { TileIcon } from "@/components/ui/icon-tile";
 import { getRecurringPayments } from "@/lib/approval-center";
 import { supabase } from "@/lib/supabase";
+import { ColumnChart } from "@/components/charts/kit";
 
 interface Props {
   companyId: string;
@@ -99,7 +100,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
     staleTime: 60_000,
   });
 
-  const items = useMemo<UpcomingItem[]>(() => {
+  const allItems = useMemo<UpcomingItem[]>(() => {
     const today = startOfDay(new Date());
     const horizon = new Date(today);
     horizon.setDate(horizon.getDate() + windowDays);
@@ -162,11 +163,35 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
     }
 
     list.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-    return list.slice(0, maxItems);
-  }, [rows, loans, windowDays, maxItems]);
+    return list;
+  }, [rows, loans, windowDays]);
+
+  //   목록은 코앞의 몇 건만 보여 준다 — 그래프는 창 전체를 센다(잘린 목록으로 그리면 뒤쪽 주가 비어 보인다)
+  const items = useMemo(() => allItems.slice(0, maxItems), [allItems, maxItems]);
+
+  //   언제 얼마가 나가나 — 날짜는 순서가 있고 값은 금액이라 세로 막대가 맞다.
+  //   날짜별로 그리면 대부분의 날이 0이라 듬성듬성해진다 → 주 단위로 모은다.
+  //   대출은 상환액을 모르므로(잔액만 안다) 막대에 넣지 않는다 — 금액을 지어내지 않는다.
+  const weekBars = useMemo(() => {
+    const today = startOfDay(new Date());
+    const mondayOffset = (today.getDay() + 6) % 7;              // 월요일 시작
+    const firstMon = new Date(today); firstMon.setDate(firstMon.getDate() - mondayOffset);
+    const weeks = Math.ceil((windowDays + mondayOffset) / 7);
+    const bars = Array.from({ length: weeks }, (_, i) => {
+      const from = new Date(firstMon); from.setDate(from.getDate() + i * 7);
+      return { label: i === 0 ? '이번 주' : `${from.getMonth() + 1}/${from.getDate()}`, value: 0 };
+    });
+    for (const it of allItems) {
+      if (it.kind === 'loan') continue;
+      const idx = Math.floor((startOfDay(it.dueDate).getTime() - firstMon.getTime()) / (7 * 86400000));
+      if (idx >= 0 && idx < bars.length) bars[idx].value += it.amount;
+    }
+    return bars;
+  }, [allItems, windowDays]);
 
   // 총 출금 예정 = 정기지출 금액만(대출은 상환액 미상 → 합산 제외).
-  const totalAmount = items.reduce((s, it) => s + (it.kind === 'loan' ? 0 : it.amount), 0);
+  //   목록이 아니라 **창 전체**를 센다 — 목록은 가까운 몇 건만 보여 주므로 그래프와 숫자가 어긋난다.
+  const totalAmount = allItems.reduce((s, it) => s + (it.kind === 'loan' ? 0 : it.amount), 0);
 
   return (
     <div className="upcoming-transfers-card glass-card">
@@ -175,7 +200,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
           <span className="kpi-icon warning"><TileIcon name="clock" className="w-5 h-5" /></span>
           <div>
             <h2 className="text-[15px] font-bold text-[var(--text)]">지출·상환 예정</h2>
-            <span className="caption">{windowDays}일 안 · {items.length}건 (고정비·대출)</span>
+            <span className="caption">{windowDays}일 안 · {allItems.length}건 (고정비·대출)</span>
           </div>
         </div>
         {items.length > 0 && (
@@ -185,6 +210,14 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
           </div>
         )}
       </div>
+
+      {/* 총액보다 '언제' 가 궁금하다 — 주마다 얼마가 빠지는지 먼저 보여 준다 */}
+      {weekBars.some((b) => b.value > 0) && (
+        <div className="upcoming-transfers-chart">
+          <ColumnChart height={132} unit="원" data={weekBars} />
+          <span className="caption">주별 출금 예정 · 대출 상환은 금액을 몰라 뺐습니다</span>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="upcoming-transfers-empty">
@@ -237,6 +270,11 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
               </div>
             </div>
           ))}
+          {allItems.length > items.length && (
+            <a href="/payments?tab=recurring" className="upcoming-transfers-more">
+              가까운 {items.length}건만 보여 드렸어요 — 남은 {allItems.length - items.length}건 보기
+            </a>
+          )}
         </div>
       )}
     </div>

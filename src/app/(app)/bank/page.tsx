@@ -9,6 +9,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { BarChart } from "@/components/charts/kit";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
@@ -471,6 +472,17 @@ export default function BankPage() {
   }
 
   const totalBalance = accounts.reduce((s, a) => s + Number(a.balance || 0), 0);
+  //   그래프에 올릴 계좌 — 잔액이 있는 것만 많은 순으로. 마이너스 통장은 길이로 비교가 안 돼 뺀다(뺀 개수는 적는다)
+  const accountLabelOf = (a: { alias?: string; bankName?: string; accountNo?: string }) => {
+    const no = a.accountNo || "";
+    return a.alias || (a.bankName ? `${a.bankName}${no.slice(-4) ? " " + no.slice(-4) : ""}` : no) || "계좌";
+  };
+  const positiveAccounts = accounts
+    .map((a) => ({ label: accountLabelOf(a), balance: Number(a.balance || 0) }))
+    .filter((a) => a.balance > 0)
+    .sort((a, b) => b.balance - a.balance)
+    .slice(0, 8);
+  const hiddenAccounts = accounts.length - positiveAccounts.length;
   const income = flow?.income ?? 0;
   const expense = flow?.expense ?? 0;
   const incomeDelta = (flow?.prevIncome ?? 0) > 0 ? ((income - (flow!.prevIncome)) / flow!.prevIncome) * 100 : null;
@@ -628,9 +640,21 @@ export default function BankPage() {
 
       {/* 연동 기간 선택기는 상단 툴바(통장 연동 버튼 왼쪽)로 이동 — 이 기간이 곧 CODEF 연동 대상 범위라 버튼과 한 묶음이 자연스러움. */}
 
-      {/* 개요 — 자동이체 예정·자동이체 내역·이번달 큰 지출 (실데이터 read-only 카드, 시안의 차트 영역은 데이터 부족으로 숨김) */}
+      {/* 개요 — 계좌별 잔액·자동이체 예정·자동이체 내역·이번달 큰 지출 */}
       {tab === "overview" && (
         <div className="bank-overview-panel">
+          {/*  돈이 어느 통장에 몰려 있나 — 총자산 카드는 합계만 말한다.
+               통장 이름이 길어(은행명 + 별칭) 세로 막대에선 잘리므로 가로 막대로 읽는다.
+               비중이 아니라 '어디에 얼마'가 궁금한 자리라 도넛이 아니다. (2026-08-07) */}
+          {positiveAccounts.length >= 2 && (
+            <section className="bank-balance-chart glass-card">
+              <header className="bank-balance-chart-head">
+                <b>계좌별 잔액</b>
+                <em>많은 순 · 합계 {fmtW(totalBalance)}{hiddenAccounts > 0 ? ` · 0원 이하 ${hiddenAccounts}개는 뺐어요` : ""}</em>
+              </header>
+              <BarChart unit="원" data={positiveAccounts.map((a) => ({ label: a.label, value: a.balance, color: "var(--viz-1)" }))} />
+            </section>
+          )}
           <UpcomingAutoTransfersCard companyId={companyId} />
           <AutoTransferHistoryCard companyId={companyId} />
           <TopExpensesThisMonth companyId={companyId} />
