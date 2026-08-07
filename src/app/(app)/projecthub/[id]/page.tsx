@@ -1431,7 +1431,7 @@ export default function ProjectHubDetailPage() {
               "이제 입력은 무조건 템플릿으로. 지금은 이전 로직이 같이 살아 있어 혼동을 준다").
               이미 들어온 항목은 마진 계산에 계속 쓰이므로 지우지 않고 보이기만 한다. */}
           <p className="pj-input-note">
-            새 매출·비용은 <b>&apos;매출 · 청구&apos;</b>·<b>&apos;비용 · 지출&apos;</b> 템플릿에서 입력해요.
+            새 매출·비용은 <b>&apos;매출 흐름&apos;</b>·<b>&apos;예산 · 지출&apos;</b> 템플릿에서 입력해요.
             <button type="button" onClick={() => goSection("boards")}>템플릿으로 →</button>
           </p>
           <SubDealsTab dealId={dealId} companyId={companyId} readOnly

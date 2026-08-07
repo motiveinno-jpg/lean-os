@@ -7,8 +7,9 @@
 //    그걸 회사 커스터마이징 양식으로 저장하고 다른 프로젝트에서 또 쓸 수 있게."
 //
 // 설계
-//   · 기본 양식을 고르면 **바로 만들지 않고** 그 칸들이 편집기에 실린다 — 여기서 ＋로 계속 붙인다.
-//     그대로 쓰려면 만들기 한 번만 더 누르면 된다(고르기 → 다듬기 → 만들기).
+//   · 기본 양식은 **누르면 바로 만든다**(2026-08-07 사장님 점검: 그대로 쓸 사람이 대부분인데
+//     늘 칸 편집 화면을 지나 스크롤 끝의 버튼을 눌러야 했다). 칸을 다듬고 싶으면 카드 안의
+//     '＋ 칸 추가' 를 눌러 편집기로 간다 — 다듬기는 선택이지 관문이 아니다.
 //   · 회사 양식(이미 다듬어 둔 구성)은 눌러서 바로 만들고, 거기서 더 붙이고 싶으면 '다듬기'.
 //   · 어디서 출발했는지(template_key)를 들고 다닌다 — 칸반·타임라인·행 이름 같은 그 양식의 성격이
 //     칸을 더 붙여도 그대로 따라온다.
@@ -120,7 +121,7 @@ export function BoardNewModal({ inline, busy, presets, onCustom, onUsePreset, on
       <span>
         {base
           ? <>필요한 칸을 <b>＋</b>로 계속 붙이세요 · 그대로 써도 됩니다</>
-          : <>부서가 아니라 <b>일의 형태</b>로 고릅니다 · 고른 뒤 칸을 더 붙일 수 있어요</>}
+          : <>부서가 아니라 <b>일의 형태</b>로 고릅니다 · 누르면 바로 만들어져요(칸을 먼저 다듬으려면 <b>＋칸</b>)</>}
       </span>
       {onClose && <button type="button" className="pb-pick-close" onClick={onClose}>닫기</button>}
     </div>
@@ -162,20 +163,28 @@ export function BoardNewModal({ inline, busy, presets, onCustom, onUsePreset, on
         <b className="pb-presets-h">기본 양식 <em>고르면 칸을 다듬는 화면으로 갑니다</em></b>
         <div className="pb-tpls">
           {BOARD_TEMPLATES.map((t) => (
-            <button key={t.key} type="button" className="pb-tpl" disabled={busy}
-              onClick={() => startFrom({ key: t.key, name: t.name }, t.columns)}>
-              <b>{t.name}</b>
-              <span>{t.desc}</span>
-              <em>{t.uses}</em>
-              {/* 무슨 칸이 생기는지 미리 보여준다 — 이름보다 이게 고르는 기준이다 */}
-              <span className="pb-tpl-cols">
-                {[ITEM_LABEL[t.key] || "이름", ...t.columns.map((c) => c.name)].slice(0, 6).map((n) => (
-                  <i key={n}>{n}</i>
-                ))}
-                {t.columns.length + 1 > 6 && <i className="pb-tpl-more">+{t.columns.length + 1 - 6}</i>}
-                <i className="pb-tpl-plus">＋ 칸 추가</i>
-              </span>
-            </button>
+            <div key={t.key} className="pb-tpl pb-tpl-pick">
+              {/*  누르면 바로 만든다 — 그대로 쓰는 게 대부분이다 */}
+              <button type="button" className="pb-tpl-main" disabled={busy}
+                onClick={() => onCustom(t.name, t.columns, false, t.key)}>
+                <b>{t.name}</b>
+                <span>{t.desc}</span>
+                <em>{t.uses}</em>
+                {/* 무슨 칸이 생기는지 미리 보여준다 — 이름보다 이게 고르는 기준이다 */}
+                <span className="pb-tpl-cols">
+                  {[ITEM_LABEL[t.key] || "이름", ...t.columns.map((c) => c.name)].slice(0, 6).map((n) => (
+                    <i key={n}>{n}</i>
+                  ))}
+                  {t.columns.length + 1 > 6 && <i className="pb-tpl-more">+{t.columns.length + 1 - 6}</i>}
+                </span>
+              </button>
+              {/*  다듬고 싶을 때만 편집기로 — 광고 표는 칸을 다듬어도 쓰이지 않으므로 아예 안 띄운다
+                   (값을 사람이 넣지 않고 매체에서 받아 온다) */}
+              {t.key !== "ads" && (
+                <button type="button" className="pb-tpl-edit" title="칸을 더 붙여서 만들기" disabled={busy}
+                  onClick={() => startFrom({ key: t.key, name: t.name }, t.columns)}>＋칸</button>
+              )}
+            </div>
           ))}
           <button type="button" className="pb-tpl pb-tpl-blank" disabled={busy} onClick={startBlank}>
             <b>직접 만들기</b>

@@ -221,6 +221,7 @@ export function templateFigures(
       if (endCol) covers.add(`date:${endCol.name}`);
       break;
     }
+    case "spend":
     case "cost":
     case "budget": {
       const [planCol, realCol] = wonCols;
@@ -268,8 +269,10 @@ export function templateFigures(
       }
       break;
     }
+    case "revenue":
     case "pipeline":
     case "billing": {
+      //   '매출 흐름' 은 금액(원)과 확률(%)이 함께 있다 — 원 단위 칸만 금액으로 본다
       const amtCol = wonCols[0] || null;
       if (flow && amtCol) {
         const options: any[] = (flow.settings?.options || []) as any[];

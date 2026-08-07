@@ -39,7 +39,7 @@ import {
   type SummaryLayout, type SummaryShape,
 } from "@/lib/summary-layout";
 import {
-  findTemplate, ITEM_LABEL, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
+  findTemplate, ITEM_LABEL, templateKind, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
   flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, isDoneRow, START_DATE_RE,
   COL_FORMATS, DEFAULT_STATUS_OPTIONS,
   type InputMode, type PayTermRow, type ColumnDef, type GroupDef, type StatusOption,
@@ -150,7 +150,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const boardId = activeId && boards.some((b) => b.id === activeId) ? activeId : (boards[0]?.id || "");
   const board = boards.find((b) => b.id === boardId);
   //   '매출 · 청구' 만 문서 체인을 쓴다 — 조회 조건에서도 보므로 여기서 먼저 정한다
-  const isBilling = board?.template_key === "billing";
+  //   견적서를 바로 만들 수 있는 표 — 합친 '매출 흐름' 과 합치기 전 '매출 · 청구' 둘 다 (2026-08-07)
+  const isBilling = templateKind(board?.template_key) === "revenue";
   //   '마케팅 계정 관리' 표 — 값을 사람이 아니라 매체 API 가 채운다(2026-08-06)
   const isAds = board?.template_key === "ads";
 
@@ -340,6 +341,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       if (gRes.error) throw new Error(gRes.error.message);
       setActiveId(bid);
       setPicking(false);
+      //   방금 만든 표는 채우러 온 것이다 — '정리'를 보던 중이었어도 입력 화면으로 되돌린다
+      //   (2026-08-07: 새 표를 만들었는데 빈 정리 화면이 떠서 '표'를 다시 눌러야 했다)
+      setShowSummary(false);
       qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
       toast(`'${tpl.name}' 템플릿을 만들었습니다.`, "success");
     } catch (e: any) {
@@ -1422,6 +1426,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                     </tr>
                   ))}
                   <QuickAddRow key={`qa-${g.id}`} nameLabel={nameLabel} slots={slots} users={users}
+                    partners={partners as any[]} companyId={companyId}
+                    onPartnerCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })}
                     extraCells={(ratioPair ? 1 : 0) + (isBilling ? 1 : 0)}
                     onAdd={(name, values) => addItem(g.id, values, name)} />
                   {rows.length > 0 && numberCols.length > 0 && (
@@ -1456,9 +1462,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 //   → 이름 + 첫 숫자 + 첫 날짜만 받던 것을 **표의 모든 칸을 그대로** 받도록 바꿨다.
 //     칸마다 자기 자리(td)에 입력기가 서므로 머리글과 세로로 맞는다.
 //   Enter 를 치면 저장하고 이름 칸으로 커서가 돌아온다 — 여러 건을 연달아 넣을 때가 많다.
-function QuickAddRow({ nameLabel, slots, users, extraCells, onAdd }: {
+function QuickAddRow({ nameLabel, slots, users, partners, companyId, onPartnerCreated, extraCells, onAdd }: {
   /** 머리와 같은 차례 — 첫 칸이 가운데로 끼어 있으면 입력 줄도 그 자리에 선다 */
   nameLabel: string; slots: Slot[]; users: { id: string; name: string }[];
+  /** 거래처도 이 줄에서 고른다 — 돈 표에서는 거래처가 핵심 칸이다(2026-08-07) */
+  partners: { id: string; name: string; business_number?: string | null }[];
+  companyId: string; onPartnerCreated: () => void;
   /** 비율·문서처럼 머리글에만 있는 칸 수 — 빈 칸으로 채워 자리를 맞춘다 */
   extraCells: number;
   onAdd: (name: string, values: Record<string, any>) => Promise<void> | void;
@@ -1488,7 +1497,9 @@ function QuickAddRow({ nameLabel, slots, users, extraCells, onAdd }: {
       <td className="pb-td-sel" />
       {slots.map((s) => (s.col ? (
         <td key={s.id} className={tdAlign(s.col.type)} onKeyDown={onKey}>
-          <QuickCell col={s.col} users={users} value={values[s.col.id] ?? ""} onChange={(v) => set(s.col!.id, v)} />
+          <QuickCell col={s.col} users={users} partners={partners} companyId={companyId}
+            onPartnerCreated={onPartnerCreated}
+            value={values[s.col.id] ?? ""} onChange={(v) => set(s.col!.id, v)} />
         </td>
       ) : (
         <td key={s.id} className="pb-td-name">
@@ -1506,10 +1517,12 @@ function QuickAddRow({ nameLabel, slots, users, extraCells, onAdd }: {
   );
 }
 
-/** 빠른 입력 줄의 칸 하나 — 아직 행이 없으므로 저장된 셀(Cell)과 달리 값을 들고만 있는다.
- *  거래처는 그 자리에서 새로 만드는 일이 있어 여기서는 받지 않는다(행을 만든 뒤 표에서 고른다). */
-function QuickCell({ col, users, value, onChange }: {
-  col: BoardColumn; users: { id: string; name: string }[]; value: any; onChange: (v: any) => void;
+/** 빠른 입력 줄의 칸 하나 — 아직 행이 없으므로 저장된 셀(Cell)과 달리 값을 들고만 있는다. */
+function QuickCell({ col, users, partners, companyId, onPartnerCreated, value, onChange }: {
+  col: BoardColumn; users: { id: string; name: string }[];
+  partners: { id: string; name: string; business_number?: string | null }[];
+  companyId: string; onPartnerCreated: () => void;
+  value: any; onChange: (v: any) => void;
 }) {
   if (col.type === "number") {
     return <input value={value} inputMode="numeric" placeholder={col.settings?.unit || "0"} className="pb-quick-in pb-quick-num"
@@ -1542,7 +1555,13 @@ function QuickCell({ col, users, value, onChange }: {
     );
   }
   if (col.type === "partner") {
-    return <span className="pb-quick-later" title="행을 만든 뒤 표에서 고르세요">표에서 고르기</span>;
+    //   예전엔 '행을 만든 뒤 표에서 고르세요' 였다 — 돈 표(매출 흐름·예산 지출)에서 거래처는
+    //   핵심 칸이라, 한 줄에서 끝내자는 이 줄의 취지가 거기서 끊겼다 (2026-08-07 사장님 점검).
+    //   저장된 셀과 같은 고르개를 쓴다 — 없는 거래처는 여기서 바로 등록된다.
+    return (
+      <PartnerCell value={value || ""} partners={partners} companyId={companyId}
+        onSave={(v) => onChange(v || "")} onCreated={onPartnerCreated} />
+    );
   }
   return <input value={value || ""} placeholder={col.name} className="pb-quick-in"
     onChange={(e) => onChange(e.target.value)} />;
@@ -1612,7 +1631,10 @@ function BoardTimeline({ items, span, flowCol, nameLabel, onAdd }: {
   if (dated.length === 0) {
     return (
       <p className="pj-sec-empty">
-        {span.start.name}·{span.end.name} 을 채우면 여기에 기간 막대로 그려져요.
+        {/*  날짜 칸이 하나뿐이면 시작·종료가 같은 칸이다 — 이름을 두 번 적으면 "예상일·예상일" 이 된다 */}
+        {span.start === span.end
+          ? <>{span.end.name} 을 채우면 여기에 기간 막대로 그려져요.</>
+          : <>{span.start.name}·{span.end.name} 을 채우면 여기에 기간 막대로 그려져요.</>}
         {onAdd && <button type="button" className="pb-kadd ml-2" onClick={onAdd}>＋ {nameLabel}</button>}
       </p>
     );

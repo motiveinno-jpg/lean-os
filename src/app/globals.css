@@ -6764,12 +6764,14 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-presets-h { @apply flex items-baseline gap-2 text-[11.5px] font-bold text-[var(--text-dim)]; }
 .pb-presets-h em { @apply not-italic font-normal text-[11px]; }
 .pb-tpl-preset { @apply relative p-0 overflow-hidden; }
+/* 기본 양식 카드 — 누르면 바로 만들고, 오른쪽 위 '＋칸' 으로만 다듬기로 간다 (2026-08-07) */
+.pb-tpl-pick { @apply relative p-0 overflow-hidden; }
+.pb-tpl-pick .pb-tpl-main { @apply pr-14; }
 .pb-tpl-main { @apply text-left flex flex-col gap-1 p-3.5 pr-[104px] w-full; }
 .pb-tpl-del { @apply absolute right-1.5 top-1.5 w-6 h-6 rounded-lg text-[11px] text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--danger)]; }
 /* 저장해 둔 양식에도 칸을 더 붙여서 만들 수 있다 */
 .pb-tpl-edit { @apply absolute right-9 top-1.5 h-6 px-2 rounded-lg text-[11px] font-bold text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
 /* 기본 양식 카드 — 칸이 고정이 아니라는 걸 칩으로 말해 준다 */
-.pb-tpl-plus { @apply !text-[var(--primary)] !bg-[var(--primary)]/10; }
 .pb-build-save { @apply inline-flex items-center gap-1.5 text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer; }
 .pb-build-save input { @apply w-4 h-4 accent-[var(--primary)]; }
 .pb-build-save em { @apply not-italic font-normal text-[11px] text-[var(--text-dim)]; }

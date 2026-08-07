@@ -762,7 +762,7 @@ export default function ProjectHubPage() {
               </div>
             </div>
             <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 만들기</button>
-            <p className="ph-onboard-note">템플릿은 부서가 아니라 &apos;일의 형태&apos;로 나눠요 — 마케팅 캠페인·전시회·지원사업이 같은 &apos;집행 · 성과&apos; 템플릿을 씁니다.</p>
+            <p className="ph-onboard-note">템플릿은 부서가 아니라 &apos;일의 형태&apos;로 나눠요 — 마케팅 캠페인·전시회·지원사업이 같은 &apos;예산 · 지출&apos; 템플릿을 씁니다.</p>
           </div>
         )
       ) : listView === "timeline" ? (

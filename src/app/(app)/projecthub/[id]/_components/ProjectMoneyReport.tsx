@@ -96,7 +96,7 @@ export function ProjectMoneyReport({ boards, cols, items }: {
           <span>
             {r.overlaps.slice(0, 3).map((o) => `${o.a} ↔ ${o.b} (${shortWon(o.amount)})`).join(" · ")}
             {r.overlaps.length > 3 ? ` 외 ${r.overlaps.length - 3}건` : ""}
-            {" — 합계 "}{won(overlapSum)}원. 총 지출은 <b>비용 · 지출</b> 표만 세고 있어요.
+            {" — 합계 "}{won(overlapSum)}원. 지출 표가 여럿이면 <b>모두 더해서</b> 셉니다 — 같은 건이면 한쪽을 지우세요.
           </span>
           <button type="button" onClick={() => setIgnoreOverlap(true)}>알겠어요</button>
         </div>
@@ -113,7 +113,7 @@ export function ProjectMoneyReport({ boards, cols, items }: {
         {r.budget && r.budget.planned > 0 && (
           <figure className="mr-fig">
             <figcaption>
-              예산 소진율<em>&apos;집행 · 성과&apos; 템플릿만 셈합니다 — 위 총 지출과 별개예요</em>
+              예산 소진율<em>&apos;예산&apos; 칸이 있는 지출 표 기준 — 위 총 지출과 같은 표에서 나옵니다</em>
             </figcaption>
             <div className="mr-meter">
               <span className="mr-meter-track">

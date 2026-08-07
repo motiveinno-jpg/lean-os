@@ -6,19 +6,18 @@
 // 답: **금액을 여러 개 나열하지 않고, 하나의 금액이 단계를 지나가게 한다.**
 //   돈은 상태가 하나가 아니라 단계를 밟는다. 그래서 숫자 4개가 아니라 막대 하나로 본다.
 //     계획(쓰기로 함) → 확정(전표·발주) → 증빙(계산서·영수증) → 지급(통장에서 나감)
-//   수입도 대칭이다: 견적 → 계약 → 발행 → 입금. '매출 · 청구' 템플릿의 단계와 같은 구조라
-//   화면 하나로 통일된다.
+//   수입도 대칭이다: 검토 → 제안 → 계약 → 발행 → 입금. '매출 흐름' 템플릿의 단계와 같은
+//   구조라 화면 하나로 통일된다.
 //
-// 이중 계상 방지(중요): '집행 · 성과' 와 '비용 · 지출' 은 역할이 다르다.
-//   · 비용 · 지출 = 실제 **지급 건** → 총 지출은 **여기만** 센다.
-//   · 집행 · 성과 = **예산 관리**(얼마 배정하고 얼마 썼나) → 소진율로만 쓴다.
-//   실측(2026-08-05 여름 시즌 마케팅): 두 표를 그냥 더하면 23,860,000 이지만 같은 지출이
-//   2건(5,580,000) 겹쳐 실제는 18,280,000 이었다. 30% 과대계상.
-//   그래서 겹칠 만한 것을 찾아 **말해 준다** — 몰래 더하지도, 몰래 빼지도 않는다.
+// 이중 계상(2026-08-07 정리): 예전엔 표가 넷이었다 — 매출·청구 / 수주·매출 / 비용·지출 / 집행·성과.
+//   수입 쪽 둘은 같은 축에 그냥 더해져 **경고도 없이** 두 번 잡혔고(수주에서 계약된 건을 청구 표로
+//   옮겨 적으면 그렇게 된다), 지출 쪽 둘은 경고로 막고 있었다. 표를 둘로 합쳐(매출 흐름 / 예산 · 지출)
+//   원인을 없앴다. 합치기 전 표도 같은 성격(templateKind)으로 읽으므로 셈은 달라지지 않는다.
+//   겹침 경고는 남긴다 — 지출 표를 여러 개 만들어 쓰는 경우가 있다.
 //
 // 절대규칙: 순수 함수. 조회는 화면이 하고 여기서는 계산만 한다.
 
-import { flowColumnOf, START_DATE_RE, type BoardColumn, type BoardItem } from "@/lib/project-boards";
+import { templateKind, flowColumnOf, START_DATE_RE, type BoardColumn, type BoardItem } from "@/lib/project-boards";
 import { addDaysStr, mondayOfStr, daysBetweenStr } from "@/lib/kst";
 
 /** 돈이 지나가는 단계 — 수입·지출이 같은 축을 쓴다 */
@@ -118,8 +117,8 @@ export function rollupMoney(
   let planned = 0, spent = 0;
   let hasBudget = false;
   const stuck: StuckItem[] = [];
-  const spendRows: { name: string; amount: number }[] = [];
-  const budgetRows: { name: string; amount: number }[] = [];
+  //   board 를 함께 담는다 — 같은 금액이 **다른 표**에 또 있으면 같은 지출을 두 번 적은 것이다
+  const spendRows: { board: string; name: string; amount: number }[] = [];
 
   for (const b of boards) {
     const bCols = cols.filter((c) => c.board_id === b.id);
@@ -141,64 +140,55 @@ export function rollupMoney(
       return daysBetweenStr(today, v.slice(0, 10));
     };
 
-    if (b.template_key === "billing") {
+    const kind = templateKind(b.template_key);
+
+    if (kind === "revenue") {
+      //   받을 돈 — 검토 → 제안 → 계약 → 발행 → 입금 한 줄 (2026-08-07 '매출 흐름' 으로 합침).
+      //   확률은 **계약 전에만** 쓴다. 계약부터는 액면가가 곧 받을 돈이라 가중하면 되레 줄여 읽는다.
+      //   합치기 전 표(매출·청구 / 수주·매출)도 같은 규칙으로 읽는다 — 확률 칸이 없으면 액면 그대로.
       const amt = amountColumnOf(bCols, /금액|청구/, /./);
-      if (!amt) continue;
-      for (const it of bItems) {
-        const v = num(it.values?.[amt.id]);
-        const st = stageOf(it);
-        addToAxis(income, st, v);
-        const d = daysPast(it);
-        if (v > 0 && st !== "paid" && d != null && d >= 7) stuck.push({ name: it.name || "이름 없음", amount: v, stage: st, days: d });
-      }
-    } else if (b.template_key === "pipeline") {
-      // 수주는 아직 안 들어온 돈 — 확률이 있으면 가중해서 '예상' 으로만 넣는다
-      const amt = amountColumnOf(bCols, /금액/, /./);
       const pct = bCols.find((c) => c.type === "number" && (c.settings?.unit || "") === "%");
       if (!amt) continue;
       for (const it of bItems) {
         const raw = num(it.values?.[amt.id]);
         if (raw <= 0) continue;
         const st = stageOf(it);
-        const p = pct ? num(it.values?.[pct.id]) : 100;
-        // 계약까지 간 건은 액면 그대로, 그 전이면 확률 가중
-        addToAxis(income, st === "plan" ? "plan" : st, st === "plan" && p > 0 ? Math.round(raw * (p / 100)) : raw);
+        const p = pct ? num(it.values?.[pct.id]) : 0;
+        const v = st === "plan" && p > 0 ? Math.round(raw * (p / 100)) : raw;
+        addToAxis(income, st, v);
+        const d = daysPast(it);
+        if (st !== "paid" && d != null && d >= 7) stuck.push({ name: it.name || "이름 없음", amount: v, stage: st, days: d });
       }
-    } else if (b.template_key === "cost") {
-      // 실제 지급 건 — **총 지출은 여기만 센다**
-      const fixedCol = bCols.filter(isWon).find((c) => /확정|실제|지급/.test(c.name));
-      const planCol = bCols.filter(isWon).find((c) => /예상|계획/.test(c.name));
+    } else if (kind === "spend") {
+      //   나갈 돈 — 예산을 잡고 실제로 쓴다 (2026-08-07 '예산 · 지출' 로 합침).
+      //   집행액이 있으면 그것이 실제 지출이고, 없으면 예산을 '계획' 으로만 센다.
+      //   예산 소진율도 같은 표에서 나온다 — 예전엔 표가 둘로 갈려 같은 지출이 두 번 잡혔다.
+      const realCol = bCols.filter(isWon).find((c) => /집행|확정|실제|지급|사용/.test(c.name));
+      const planCol = bCols.filter(isWon).find((c) => /예산|예상|계획/.test(c.name));
       for (const it of bItems) {
         const st = stageOf(it);
-        // 확정 금액이 있으면 그것, 없으면 예상액을 '계획' 으로
-        const fixedV = fixedCol ? num(it.values?.[fixedCol.id]) : 0;
+        const realV = realCol ? num(it.values?.[realCol.id]) : 0;
         const planV = planCol ? num(it.values?.[planCol.id]) : 0;
-        const v = fixedV > 0 ? fixedV : planV;
-        const useStage: MoneyStage = fixedV > 0 ? st : "plan";
+        const v = realV > 0 ? realV : planV;
+        const useStage: MoneyStage = realV > 0 ? st : "plan";
         addToAxis(spend, useStage, v);
-        if (v > 0) spendRows.push({ name: it.name || "", amount: v });
+        if (v > 0) spendRows.push({ board: b.id, name: it.name || "", amount: v });
+        if (planV > 0) { hasBudget = true; planned += planV; spent += realV; }
         const d = daysPast(it);
         if (v > 0 && useStage !== "paid" && d != null && d >= 7) stuck.push({ name: it.name || "이름 없음", amount: v, stage: useStage, days: d });
-      }
-    } else if (b.template_key === "budget") {
-      // 예산 관리 — 소진율로만 쓴다. 지출 합계에 넣으면 비용·지출과 이중 계상된다.
-      hasBudget = true;
-      const planCol = bCols.filter(isWon).find((c) => /예산|계획/.test(c.name));
-      const spentCol = bCols.filter(isWon).find((c) => /집행|사용|실적/.test(c.name));
-      for (const it of bItems) {
-        planned += planCol ? num(it.values?.[planCol.id]) : 0;
-        const s = spentCol ? num(it.values?.[spentCol.id]) : 0;
-        spent += s;
-        if (s > 0) budgetRows.push({ name: it.name || "", amount: s });
       }
     }
   }
 
-  // 겹침 — 금액이 똑같은 건이 지출표와 집행표에 함께 있으면 같은 지출일 가능성이 높다
+  // 겹침 — 금액이 똑같은 건이 **서로 다른 지출 표**에 있으면 같은 지출을 두 번 적었을 가능성이 높다.
+  //   '예산 · 지출' 하나만 쓰면 생기지 않는다(합치기 전 표를 함께 쓰는 경우를 위해 남긴다).
   const overlaps: MoneyRollup["overlaps"] = [];
   for (const s of spendRows) {
-    const hit = budgetRows.find((b) => b.amount === s.amount && !overlaps.some((o) => o.b === b.name));
-    if (hit) overlaps.push({ amount: s.amount, a: s.name, b: hit.name });
+    const hit = spendRows.find((o) => o.board !== s.board && o.amount === s.amount
+      && !overlaps.some((x) => x.b === o.name || x.a === o.name));
+    if (hit && !overlaps.some((x) => x.a === s.name || x.b === s.name)) {
+      overlaps.push({ amount: s.amount, a: s.name, b: hit.name });
+    }
   }
 
   const pick = (ax: Axis) => (basis === "cash" ? ax.byStage.paid : ax.total - ax.byStage.plan);
@@ -256,9 +246,10 @@ export function weeklyCashflow(
   const lastMon = addDaysStr(thisMon, (weeks - 1) * 7);
 
   for (const b of boards) {
-    const kind: "income" | "spend" | null =
-      b.template_key === "billing" ? "income" : b.template_key === "cost" ? "spend" : null;
-    if (!kind) continue;                       // 예산·수주는 예정 자금이 아니다
+    //   합친 뒤에는 '매출 흐름'·'예산 · 지출' 두 성격만 본다(합치기 전 표도 같은 성격으로 읽힌다)
+    const tk = templateKind(b.template_key);
+    const kind: "income" | "spend" | null = tk === "revenue" ? "income" : tk === "spend" ? "spend" : null;
+    if (!kind) continue;
     const bCols = cols.filter((c) => c.board_id === b.id);
     const flow = flowColumnOf(bCols);
     const options: any[] = (flow?.settings?.options || []) as any[];
@@ -266,9 +257,9 @@ export function weeklyCashflow(
     if (!dateCol) continue;
     const amtCol = kind === "income"
       ? bCols.filter(isWon).find((c) => /금액|청구/.test(c.name)) || bCols.filter(isWon)[0]
-      : bCols.filter(isWon).find((c) => /확정|실제|지급/.test(c.name)) || bCols.filter(isWon).find((c) => /예상|계획/.test(c.name));
+      : bCols.filter(isWon).find((c) => /집행|확정|실제|지급/.test(c.name)) || bCols.filter(isWon).find((c) => /예산|예상|계획/.test(c.name));
     if (!amtCol) continue;
-    const fallbackCol = kind === "spend" ? bCols.filter(isWon).find((c) => /예상|계획/.test(c.name)) : null;
+    const fallbackCol = kind === "spend" ? bCols.filter(isWon).find((c) => /예산|예상|계획/.test(c.name)) : null;
 
     for (const it of items.filter((i) => i.board_id === b.id)) {
       const opt = flow ? options.find((o) => o.id === it.values?.[flow.id]) : null;

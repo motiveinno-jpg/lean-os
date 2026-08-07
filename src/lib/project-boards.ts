@@ -90,89 +90,61 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     groups: [{ name: "할 일 목록", color: C.indigo }],
   },
   {
-    key: "budget",
-    name: "집행 · 성과",
-    desc: "예산을 쓰고 결과를 재는 일",
-    uses: "마케팅 캠페인 · 광고 집행 · 전시회 참가 · 교육/행사 · 정부지원사업 집행",
-    columns: [
-      { name: "구분", type: "status", settings: STATUS([
-        { id: "online", label: "온라인", color: C.indigo },
-        { id: "offline", label: "오프라인", color: C.purple },
-        { id: "etc", label: "기타", color: C.gray },
-      ]) },
-      { name: "담당", type: "person" },
-      { name: "시작", type: "date" },
-      { name: "종료", type: "date" },
-      { name: "예산", type: "number", settings: { unit: "원" } },
-      { name: "집행", type: "number", settings: { unit: "원" } },
-      { name: "성과", type: "number" },
-      { name: "상태", type: "status", settings: PROGRESS },
-    ],
-    // 목록형 — 상태는 컬럼이 맡는다. 월별·채널별로 나누고 싶으면 사용자가 그룹을 더 만든다
-    groups: [{ name: "집행 목록", color: C.indigo }],
-  },
-  {
-    key: "cost",
-    name: "비용 · 지출",
-    desc: "나갈 돈을 예상하고 확정",
-    uses: "외주비 · 구매 · 사무실 이전 · 사업비 정산 · 정기 지출",
+    //   예산 · 지출 — '비용 · 지출' 과 '집행 · 성과' 를 하나로 합쳤다 (2026-08-07 사장님 지시).
+    //   두 표는 칸 구조가 사실상 같았다(계획 금액 / 실제 금액 + 자동 비율 칸). 그래서 화면이
+    //   "같은 지출이 두 번 잡힌 것 같아요" 경고를 띄우고 있었다 — 경고가 필요하다는 건
+    //   설계가 겹친다는 신호다. 예산을 잡고 실제로 쓰는 일은 원래 한 흐름이다.
+    //   ('성과' 숫자 칸은 뺐다 — 단위가 없어 무엇을 재는지 알 수 없었다. 필요하면 칸을 붙인다.)
+    key: "spend",
+    name: "예산 · 지출",
+    desc: "쓸 돈을 잡고, 실제로 쓴 돈을 확정",
+    uses: "외주비 · 구매 · 사무실 이전 · 마케팅 집행 · 정부지원사업 정산 · 정기 지출",
     columns: [
       { name: "구분", type: "status", settings: STATUS([
         { id: "outsource", label: "외주", color: C.purple },
         { id: "buy", label: "구매", color: C.indigo },
+        { id: "ad", label: "광고", color: C.orange },
         { id: "fixed", label: "고정비", color: C.blue },
         { id: "etc", label: "기타", color: C.gray },
       ]) },
       { name: "거래처", type: "partner" },
-      { name: "예상", type: "number", settings: { unit: "원" } },
-      { name: "확정", type: "number", settings: { unit: "원" } },
+      { name: "예산", type: "number", settings: { unit: "원" } },
+      { name: "집행", type: "number", settings: { unit: "원" } },
       { name: "결제일", type: "date" },
+      { name: "담당", type: "person" },
       { name: "상태", type: "status", settings: PROGRESS },
     ],
     groups: [{ name: "지출 목록", color: C.indigo }],
   },
   {
-    key: "billing",
-    name: "매출 · 청구",
-    desc: "받을 돈을 견적 → 계약 → 발행 → 입금 으로",
-    uses: "프로젝트 매출 · 청구 · 수금 · 기성 청구",
-    //   회차 금액·예정일·거래처를 나란히 놓고 채우는 일이라 표가 빠르다(칸반은 단계 훑을 때)
+    //   매출 흐름 — '수주 · 매출' 과 '매출 · 청구' 를 하나로 합쳤다 (2026-08-07 사장님 지시).
+    //   두 표는 정리 탭의 **같은 '받을 돈' 축**에 합산됐다. 그래서 수주에서 계약된 건을 청구 표로
+    //   옮겨 적으면 같은 돈이 두 번 잡혔다(옮기는 동선조차 없어 손으로 다시 적어야 했다).
+    //   한 줄(검토 → 제안 → 계약 → 발행 → 입금)로 두니 옮겨 적을 일도 이중 계상도 사라진다.
+    //   확률은 계약 전(검토·제안)에만 쓴다 — 계약부터는 액면가가 곧 받을 돈이다.
+    key: "revenue",
+    name: "매출 흐름",
+    desc: "받을 돈을 검토 → 제안 → 계약 → 발행 → 입금 한 줄로",
+    uses: "영업 파이프라인 · 견적 · 수주 · 프로젝트 매출 · 청구 · 수금 · 기성",
+    //   금액·예정일·거래처를 나란히 놓고 채우는 일이라 표가 빠르다(단계 훑기는 칸반으로)
     input: "grid",
     columns: [
       { name: "단계", type: "status", settings: FLOW([
-        { id: "quote", label: "견적", color: C.gray },
-        { id: "contract", label: "계약", color: C.indigo },
+        { id: "review", label: "검토", color: C.gray },
+        { id: "proposal", label: "제안", color: C.indigo },
+        { id: "contract", label: "계약", color: C.blue },
         { id: "issued", label: "발행", color: C.purple },
         { id: "paid", label: "입금", color: C.green },
       ]) },
       { name: "거래처", type: "partner" },
       { name: "금액", type: "number", settings: { unit: "원" } },
+      { name: "확률", type: "number", settings: { unit: "%" } },
       { name: "예정일", type: "date" },
       { name: "담당", type: "person" },
       { name: "비고", type: "text" },
     ],
     // 이 템플릿의 행에서는 견적서를 바로 만들 수 있다(ProjectBoards 의 문서 셀).
-    groups: [{ name: "청구 목록", color: C.indigo }],
-  },
-  {
-    key: "pipeline",
-    name: "수주 · 매출",
-    desc: "들어올 돈을 단계로 관리",
-    uses: "영업 파이프라인 · 견적 · 입찰 · 재계약 · 제휴 제안",
-    input: "board",
-    columns: [
-      { name: "단계", type: "status", settings: FLOW([
-        { id: "review", label: "검토", color: C.gray },
-        { id: "proposal", label: "제안", color: C.indigo },
-        { id: "won", label: "계약", color: C.green },
-      ]) },
-      { name: "거래처", type: "partner" },
-      { name: "금액", type: "number", settings: { unit: "원" } },
-      { name: "확률", type: "number", settings: { unit: "%" } },
-      { name: "예상일", type: "date" },
-      { name: "담당", type: "person" },
-    ],
-    groups: [{ name: "수주 목록", color: C.indigo }],
+    groups: [{ name: "매출 목록", color: C.indigo }],
   },
   {
     key: "review",
@@ -317,10 +289,21 @@ export function findTemplate(key: string | null | undefined): BoardTemplate {
 
 /** 첫 컬럼(행 이름)은 표마다 이름이 다르다 — 템플릿별 라벨 */
 export const ITEM_LABEL: Record<string, string> = {
-  todo: "작업", budget: "항목", cost: "항목", billing: "청구 건", pipeline: "건명", review: "요청", schedule: "이름", blank: "이름",
+  todo: "작업", spend: "항목", revenue: "매출 건", review: "요청", schedule: "일정", blank: "이름",
   ads: "캠페인",
   custom: "이름",
+  //   합치기 전 템플릿 — 목록에서는 사라졌지만 이미 만들어 쓰는 표가 있으므로 말은 그대로 둔다
+  budget: "항목", cost: "항목", billing: "청구 건", pipeline: "건명",
 };
+
+/** 합치기 전 키 → 합친 뒤 키. 돈 집계·정리처럼 '성격'으로 갈라 보는 곳이 이걸 통해 읽는다.
+ *  (2026-08-07) 이미 만들어 쓰는 표를 강제로 바꾸지 않는다 — 같은 성격으로 읽어 주기만 한다. */
+const TEMPLATE_KIND: Record<string, string> = {
+  billing: "revenue", pipeline: "revenue", revenue: "revenue",
+  cost: "spend", budget: "spend", spend: "spend",
+};
+/** 이 표가 어떤 성격인지 — 합치기 전 키도 합친 뒤 이름으로 답한다 */
+export const templateKind = (key: string | null | undefined) => TEMPLATE_KIND[String(key || "")] || String(key || "");
 
 export type BoardColumn = { id: string; board_id: string; name: string; type: ColType; settings: any; position: number };
 export type BoardGroup = { id: string; board_id: string; name: string; color: string; position: number };
