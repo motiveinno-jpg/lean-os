@@ -350,6 +350,18 @@ function TemplateEditorModal({
   const [uploading, setUploading] = useState(false);
   const [starterId, setStarterId] = useState(duplicateFrom?.id || "");
   const [newVar, setNewVar] = useState("");
+  // '변수 추가'로 쌓아 둔 목록 (2026-08-07 사장님 시안) — 종전엔 입력하면 곧바로 본문에 꽂혀
+  //   "변수를 만든다"와 "본문에 넣는다"가 한 동작이라 헷갈렸다. 이제 추가는 목록에만 쌓고,
+  //   본문 작성 중 그 변수를 눌러 원하는 자리에 넣는다. 수정/복제 진입 시 기존 변수로 시작.
+  const [addedVars, setAddedVars] = useState<string[]>(
+    (editing?.variables || duplicateFrom?.variables || []) as string[],
+  );
+  const addVar = () => {
+    const v = newVar.trim().replace(/[{}]/g, "");
+    if (!v) return;
+    setAddedVars((prev) => (prev.includes(v) ? prev : [...prev, v]));
+    setNewVar("");
+  };
   const editorRef = useRef<RichEditorRef>(null);
 
   // 표준 계약서에서 시작 — 시스템 양식을 골라 본문을 채워넣고 직접 편집(신규 작성 시에만).
@@ -369,6 +381,11 @@ function TemplateEditorModal({
     if (fileType === "pdf") return [];
     return extractVariables(fileType === "markdown" ? bodyMarkdown : bodyHtml);
   }, [fileType, bodyHtml, bodyMarkdown]);
+  // 화면에 보여줄 변수 = 선언한 것 + 본문에서 감지된 것 (중복 제거, 선언 순서 우선)
+  const paletteVars = useMemo(
+    () => [...new Set([...addedVars, ...detectedVars])],
+    [addedVars, detectedVars],
+  );
 
   const createMut = useMutation({
     mutationFn: () => createContractTemplate({
@@ -481,9 +498,9 @@ function TemplateEditorModal({
             {/* 변수 (html/markdown) — 클릭 시 본문 삽입 */}
             {fileType !== "pdf" && (
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">변수 {fileType === "html" && <span className="text-[var(--text-dim)] font-normal">클릭 시 본문 삽입</span>}</label>
+                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">변수 {fileType === "html" && <span className="text-[var(--text-dim)] font-normal">— 클릭하면 본문 커서 위치에 삽입</span>}</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {detectedVars.map((v) => (
+                  {paletteVars.map((v) => (
                     fileType === "html" && !readonly ? (
                       <button key={v} type="button" onClick={() => editorRef.current?.insertText(`{{${v}}}`)} title="본문 커서 위치에 삽입"
                         className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono hover:bg-[var(--primary)]/20 transition">{`{{${v}}}`}</button>
@@ -491,19 +508,19 @@ function TemplateEditorModal({
                       <span key={v} className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono">{`{{${v}}}`}</span>
                     )
                   ))}
-                  {detectedVars.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">본문에 {"{변수명}"} 을 넣으면 자동 감지됩니다.</span>}
+                  {paletteVars.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">아래에서 변수를 추가하면 여기에 쌓입니다. 본문 작성 중 변수를 누르면 그 자리에 삽입됩니다.</span>}
                 </div>
                 {fileType === "html" && !readonly && (
                   <div className="flex gap-1.5">
                     <input value={newVar} onChange={(e) => setNewVar(e.target.value)}
                       placeholder="예: 갑사명"
-                      onKeyDown={(e) => { if (e.key === "Enter" && newVar.trim()) { e.preventDefault(); editorRef.current?.insertText(`{{${newVar.trim()}}}`); setNewVar(""); } }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVar(); } }}
                       className="flex-1 min-w-0 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded text-sm focus:outline-none focus:border-[var(--primary)]" />
-                    <button type="button" onClick={() => { if (newVar.trim()) { editorRef.current?.insertText(`{{${newVar.trim()}}}`); setNewVar(""); } }}
-                      className="px-3 py-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded text-xs font-semibold hover:bg-[var(--primary)]/20 transition shrink-0">삽입</button>
+                    <button type="button" onClick={addVar} disabled={!newVar.trim()}
+                      className="px-3 py-2 bg-[var(--primary)]/10 text-[var(--primary)] rounded text-xs font-semibold hover:bg-[var(--primary)]/20 transition shrink-0 disabled:opacity-40">변수 추가</button>
                   </div>
                 )}
-                <p className="mt-1.5 text-[10px] text-[var(--text-dim)]">발송 시 거래처별로 자동 치환됩니다.</p>
+                <p className="mt-1.5 text-[10px] text-[var(--text-dim)]">추가한 변수는 위 목록에 쌓입니다. 본문에 넣은 변수만 발송 시 거래처별로 치환됩니다.</p>
               </div>
             )}
 
