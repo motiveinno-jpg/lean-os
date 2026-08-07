@@ -2487,8 +2487,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .lp-bar-list { @apply space-y-2.5; }
 .lp-bar-row { @apply flex items-center gap-2.5; }
 .lp-bar-name { @apply text-sm text-[var(--text)] w-24 shrink-0 truncate; }
-.lp-bar-track { @apply flex-1 h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
-.lp-bar-fill { @apply h-full rounded-full; }
+/* 리포트 공통 막대 — 값이 붙는 쪽만 둥글게(4px). 양끝을 다 둥글리면 막대가 축에서 떠 보여
+   길이가 실제보다 짧게 읽힌다 (2026-08-07 차트 키트 규칙 확산) */
+.lp-bar-track { @apply flex-1 h-2.5 rounded-md bg-[var(--bg-surface)] overflow-hidden; }
+.lp-bar-fill { @apply h-full rounded-r-md; }
 .lp-bar-amt { @apply text-xs font-semibold text-[var(--text)] w-[76px] text-right shrink-0; }
 .lp-bar-share { @apply text-[11px] text-[var(--text-dim)] w-9 text-right shrink-0; }
 .lp-bar-foot { @apply text-[11px] text-[var(--text-dim)] mt-2.5 flex items-center justify-between; }

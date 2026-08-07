@@ -846,7 +846,7 @@ function BalanceSheetPageInner() {
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4, fontWeight: 500 }}>
               자산 {data.totalAssets > 0 ? `₩${Math.round(data.totalAssets).toLocaleString("ko-KR")}` : ""}
             </div>
-            <div style={{ display: "flex", height: 20, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
+            <div style={{ display: "flex", gap: 2, height: 20, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
               {data.totalAssets > 0 && (
                 <>
                   <div
@@ -908,7 +908,7 @@ function BalanceSheetPageInner() {
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginBottom: 4, fontWeight: 500 }}>
               부채 + 자본
             </div>
-            <div style={{ display: "flex", height: 20, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
+            <div style={{ display: "flex", gap: 2, height: 20, borderRadius: 6, overflow: "hidden", background: "var(--bg-surface)" }}>
               {(data.totalLiabilities + data.totalEquity) > 0 && (
                 <>
                   <div
@@ -1023,9 +1023,9 @@ function BalanceSheetPageInner() {
                     return (
                       <div key={p.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                         <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 140 }}>
-                          <div style={{ width: 18, height: assetH, background: "var(--viz-1)", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`자산: ₩${p.totalAssets.toLocaleString()}`} />
-                          <div style={{ width: 18, height: liabH, background: "var(--viz-2)", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`부채: ₩${p.totalLiabilities.toLocaleString()}`} />
-                          <div style={{ width: 18, height: eqH, background: "var(--viz-3)", borderRadius: "3px 3px 0 0", minHeight: 2 }} title={`자본: ₩${Math.max(p.totalEquity, 0).toLocaleString()}`} />
+                          <div style={{ width: 18, height: assetH, background: "var(--viz-1)", borderRadius: "4px 4px 0 0", minHeight: 2 }} title={`자산: ₩${p.totalAssets.toLocaleString()}`} />
+                          <div style={{ width: 18, height: liabH, background: "var(--viz-2)", borderRadius: "4px 4px 0 0", minHeight: 2 }} title={`부채: ₩${p.totalLiabilities.toLocaleString()}`} />
+                          <div style={{ width: 18, height: eqH, background: "var(--viz-3)", borderRadius: "4px 4px 0 0", minHeight: 2 }} title={`자본: ₩${Math.max(p.totalEquity, 0).toLocaleString()}`} />
                         </div>
                         <div style={{ fontSize: 10, color: "var(--text-dim)", whiteSpace: "nowrap" }}>{p.month}</div>
                       </div>

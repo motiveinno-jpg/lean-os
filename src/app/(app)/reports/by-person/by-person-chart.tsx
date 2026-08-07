@@ -85,7 +85,7 @@ export default function ByPersonChart({ people, payByPerson }: ByPersonChartProp
           const payTop = toY(pay[i]);
           return (
             <g key={i}>
-              <rect x={bx} y={payTop} width={bw} height={Math.max(baseY - payTop, 0)} rx={3} fill="url(#bpPayGrad)" />
+              <rect x={bx} y={payTop} width={bw} height={Math.max(baseY - payTop, 0)} rx={4} fill="url(#bpPayGrad)" />
             </g>
           );
         })}
