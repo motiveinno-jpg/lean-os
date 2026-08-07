@@ -99,10 +99,10 @@ export default function PricingView() {
                   {p.features.map((ft, i) => <li key={i} className="lp4-price-feat"><Check />{ft}</li>)}
                 </ul>
                 <Link
-                  href={p.name === "엔터프라이즈" ? "/#partner" : p.slug ? `/auth?plan=${p.slug}` : "/auth"}
+                  href={p.slug ? `/auth?plan=${p.slug}` : "/auth"}
                   className={`lp4-price-cta ${p.hl ? "lp4-price-cta-brand" : "lp4-price-cta-line"}`}
                 >
-                  {p.name === "엔터프라이즈" ? "도입 문의하기" : "14일 무료로 시작하기"}
+                  14일 무료로 시작하기
                 </Link>
               </div>
             ))}

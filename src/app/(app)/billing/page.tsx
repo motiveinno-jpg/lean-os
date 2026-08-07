@@ -29,9 +29,8 @@ type BillingCycle = "monthly" | "annual";
 const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommended?: boolean }> = {
   free: { icon: "🎁", features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판 무제한", "세금계산서+현금영수증 합산 월 5건", "전자계약 월 5건", "AI 참모 월 10만 토큰", "은행·카드 하루 2회 자동 동기화", "AI 브리핑은 기본형(요약 규칙)"] },
   standard: { icon: "⚡", recommended: true, features: ["기본 5명 포함 · 추가 1명 ₩5,000/월", "세금계산서+현금영수증 합산 월 100건", "전자계약 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집", "AI 대표 참모 월 100만 토큰", "AI 브리핑(매일 자동 분석)", "다 쓰면 충전해서 이어 쓰기"] },
-  basic: { icon: "🚀", features: ["(구 요금제) 직원 / 프로젝트 무제한", "은행·카드 자동 동기화", "전자결재 무제한"] },
-  ultra: { icon: "⚡", features: ["(구 요금제) 발행·전자계약 무제한", "은행·카드 동기화 무제한", "AI 브리핑"] },
-  enterprise: { icon: "🏢", features: ["(구 요금제) 전담 온보딩 · 맞춤 개발", "SLA 보장"] },
+  // 구 요금제(프로·울트라·엔터프라이즈)는 2026-08-07 판매 종료 — 목록은 is_active 로 걸러진다.
+  //   기존 구독자의 한도·권한은 subscription_plans 행이 남아 있어 그대로 유지된다.
 };
 
 function fmtW(n: number): string {
@@ -698,8 +697,12 @@ function BillingPageInner() {
         <div>
           {/* 사용량 카드 — 현재 플랜 한도 대비 */}
           {usage && (() => {
+            // ⚠️ standard(오너뷰)가 빠져 있어 유료 구독자도 무료 한도(직원 3명·서명 3건)로
+            //    표시되고 있었다 (2026-08-07). 9999 = 무제한 표기.
+            //    구 요금제(프로·울트라·엔터프라이즈)는 기존 구독자가 남아 있어 그대로 둔다.
             const limits: Record<string, { employees: number; aiCalls: number; signatures: number; partners: number }> = {
-              free:       { employees: 3,    aiCalls: 5,    signatures: 3,    partners: 5 },
+              free:       { employees: 5,    aiCalls: 9999, signatures: 5,    partners: 9999 },
+              standard:   { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
               basic:      { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
               ultra:      { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
               enterprise: { employees: 9999, aiCalls: 9999, signatures: 9999, partners: 9999 },
@@ -709,7 +712,6 @@ function BillingPageInner() {
             const codefLimit = subscription?.subscription_plans?.monthly_credits ?? 9999;
             const items: { label: string; used: number; limit: number }[] = [
               { label: "활성 직원", used: usage.employees, limit: lim.employees },
-              { label: "AI 분석 (이번 달)", used: usage.aiCalls, limit: lim.aiCalls },
               { label: "전자서명 (이번 달)", used: usage.signatures, limit: lim.signatures },
               { label: "거래처", used: usage.partners, limit: lim.partners },
               { label: "동기화 크레딧 (이번 달)", used: usage.codefUnits, limit: codefLimit },
