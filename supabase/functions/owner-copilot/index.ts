@@ -114,6 +114,7 @@ ${COMMON_RULES}
 - snapshot 은 집계 숫자만 담습니다. 특정 직원·거래처·건별 상세가 필요할 때만 조회 툴을 부르세요.
 - snapshot 만으로 답할 수 있으면 툴을 부르지 말고 곧바로 respond 로 마무리합니다.
 - 직원을 이름으로 지목한 질문은 find_employee 로 employee_id 를 먼저 확인한 뒤 get_attendance 를 부르세요.
+- 특정 직원을 지목하지 않은 근태 질문("지난달 지각한 사람", "결근 잦은 직원", "연장근무 많은 사람", "이번 달 근태 어때")은 get_attendance_summary 한 번으로 답하세요. 직원을 한 명씩 find_employee 로 훑지 말고, 데이터가 없다고 넘겨짚지도 마세요 — 이 툴이 회사 전원을 집계해 줍니다.
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
@@ -198,6 +199,18 @@ const MANAGER_READ_TOOLS = [
         to: { type: "string", description: "종료일 YYYY-MM-DD" },
       },
       required: ["employee_id", "from", "to"],
+    },
+  },
+  {
+    name: "get_attendance_summary",
+    description: "회사 전 직원의 기간별 근태를 직원별로 집계해 반환합니다(지각 일수·지각 시간·근무일수·연장근무). '지난달 지각한 사람 누구야', '결근 잦은 직원', '연장근무 많은 사람' 처럼 특정 직원을 지목하지 않은 근태 질문은 이 툴 하나로 답할 수 있습니다. 기간은 최대 92일.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        from: { type: "string", description: "시작일 YYYY-MM-DD" },
+        to: { type: "string", description: "종료일 YYYY-MM-DD" },
+      },
+      required: ["from", "to"],
     },
   },
   {
@@ -483,6 +496,86 @@ async function executeReadTool(
       .limit(62);
     if (error) return { error: "근태 조회에 실패했습니다." };
     return { records: data ?? [] };
+  }
+
+  if (name === "get_attendance_summary") {
+    const from = String(input.from ?? "");
+    const to = String(input.to ?? "");
+    if (!DATE_RE.test(from) || !DATE_RE.test(to)) return { error: "from·to 는 YYYY-MM-DD 형식이어야 합니다." };
+    if (from > to) return { error: "from 이 to 보다 늦습니다." };
+    const spanDays = Math.round(
+      (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000,
+    );
+    if (spanDays > 92) return { error: "기간은 최대 92일까지 조회할 수 있습니다. 기간을 나눠 조회하세요." };
+
+    const [{ data: rows, error }, { data: emps }] = await Promise.all([
+      admin
+        .from("attendance_records")
+        .select("employee_id, date, status, is_late, late_minutes, work_hours, overtime_minutes")
+        .eq("company_id", companyId)
+        .gte("date", from).lte("date", to)
+        .order("date", { ascending: true })
+        .limit(5000),
+      admin.from("employees").select("id, name, department, status").eq("company_id", companyId),
+    ]);
+    if (error) return { error: "근태 집계에 실패했습니다." };
+
+    const nameOf = new Map<string, { name: string; department: string | null; status: string | null }>();
+    for (const e of (emps ?? []) as { id: string; name: string; department: string | null; status: string | null }[]) {
+      nameOf.set(e.id, { name: e.name, department: e.department, status: e.status });
+    }
+
+    type Agg = {
+      employee_name: string; department: string | null; employment_status: string | null;
+      worked_days: number; late_days: number; late_minutes_total: number;
+      late_dates: { date: string; late_minutes: number }[];
+      overtime_minutes_total: number; work_hours_total: number;
+    };
+    const byEmp = new Map<string, Agg>();
+    for (const r of (rows ?? []) as {
+      employee_id: string; date: string; status: string | null; is_late: boolean | null;
+      late_minutes: number | null; work_hours: number | null; overtime_minutes: number | null;
+    }[]) {
+      const meta = nameOf.get(r.employee_id);
+      let a = byEmp.get(r.employee_id);
+      if (!a) {
+        a = {
+          employee_name: meta?.name ?? "(이름 미상)",
+          department: meta?.department ?? null,
+          employment_status: meta?.status ?? null,
+          worked_days: 0, late_days: 0, late_minutes_total: 0, late_dates: [],
+          overtime_minutes_total: 0, work_hours_total: 0,
+        };
+        byEmp.set(r.employee_id, a);
+      }
+      a.worked_days += 1;
+      a.overtime_minutes_total += Number(r.overtime_minutes ?? 0);
+      a.work_hours_total += Number(r.work_hours ?? 0);
+      // ⚠️ 지각은 is_late 플래그와 status='late' 중 하나만 찍힌 기록이 실제로 섞여 있다
+      //   (2026-08-07 운영 확인: 7월 한 달에만 status='late' 인데 is_late=false 인 건이 4건).
+      //   한쪽만 보면 지각자를 빠뜨리므로 둘 중 하나라도 해당하면 지각으로 센다.
+      if (r.is_late === true || r.status === "late") {
+        a.late_days += 1;
+        const m = Number(r.late_minutes ?? 0);
+        a.late_minutes_total += m;
+        if (a.late_dates.length < 40) a.late_dates.push({ date: r.date, late_minutes: m });
+      }
+    }
+
+    const list = [...byEmp.values()].sort(
+      (x, y) => y.late_days - x.late_days || y.late_minutes_total - x.late_minutes_total,
+    );
+    const latecomers = list.filter((x) => x.late_days > 0);
+    return {
+      period: { from, to },
+      employees: list.slice(0, 100).map((x) => ({ ...x, work_hours_total: Math.round(x.work_hours_total * 10) / 10 })),
+      totals: {
+        employees_with_records: list.length,
+        latecomer_count: latecomers.length,
+        late_day_total: latecomers.reduce((s, x) => s + x.late_days, 0),
+      },
+      note: "지각은 is_late 플래그 또는 status='late' 중 하나라도 해당하는 날을 셌습니다. 일부 지각 기록은 late_minutes 가 0으로 저장돼 있어, 지각 '시간' 합계는 실제보다 작을 수 있습니다(지각 '일수'는 정확합니다). 기간 중 출퇴근 기록이 하나도 없는 직원은 목록에 나오지 않습니다.",
+    };
   }
 
   if (name === "list_contract_templates") {

@@ -264,7 +264,7 @@ async function logUsage(opts: ClaudeCallOpts, r: {
   //   성공 호출만 과금한다(실패·차단은 제외). 실패해도 응답에는 영향을 주지 않는다.
   if (r.status === "ok" && opts.companyId) {
     try {
-      await opts.admin.rpc("consume_ai_tokens", {
+      await (opts.admin as any).rpc("consume_ai_tokens", {
         p_company_id: opts.companyId,
         p_tokens: (r.inTok || 0) + (r.outTok || 0),
       });
