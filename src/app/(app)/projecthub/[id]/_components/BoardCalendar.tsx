@@ -3,8 +3,11 @@
 // 캘린더 보기 — 날짜 칸을 달력에 얹는다 (2026-08-04 기획 4차).
 //
 //   타임라인은 '기간'을, 캘린더는 '언제'를 본다. 할 일·요청처럼 마감만 있는 일은
-//   막대보다 달력이 자연스럽다. 읽는 화면이므로 입력은 하지 않는다 —
-//   줄을 누르면 상세 서랍이 열려 거기서 고친다.
+//   막대보다 달력이 자연스럽다. 줄을 누르면 상세 서랍이 열려 거기서 고친다.
+//
+//   2026-08-07 — '일정 · 마일스톤' 의 **첫 화면**이 되면서 입력이 생겼다(사장님 지시).
+//   기간을 잡는 일인데 표에 날짜를 타이핑하고 있었다. 이제 **빈 칸을 끌면** 그 자리에
+//   일정이 생긴다(시작·종료 칸에 그대로 들어간다). onCreateRange 를 준 화면에서만 켜진다.
 
 import { useMemo, useState } from "react";
 import { todayKst } from "@/lib/kst";
@@ -12,11 +15,13 @@ import { START_DATE_RE, type BoardColumn, type BoardItem } from "@/lib/project-b
 
 const WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 
-export function BoardCalendar({ items, cols, flowCol, onOpen }: {
+export function BoardCalendar({ items, cols, flowCol, onOpen, onCreateRange }: {
   items: BoardItem[];
   cols: BoardColumn[];
   flowCol: BoardColumn | null;
   onOpen: (itemId: string) => void;
+  /** 빈 칸을 끌어 기간을 만든다 — 주면 입력 화면이 되고, 없으면 읽기 전용 그대로 */
+  onCreateRange?: (from: string, to: string, name: string) => void;
 }) {
   // 기준 날짜 — 마감 계열을 먼저 쓴다(시작일로 달력을 그리면 '언제까지'가 안 보인다)
   const dateCols = cols.filter((c) => c.type === "date");
@@ -24,6 +29,9 @@ export function BoardCalendar({ items, cols, flowCol, onOpen }: {
     (dateCols.find((c) => !START_DATE_RE.test(c.name)) || dateCols[0])?.id || "",
   );
   const [offset, setOffset] = useState(0);   // 달 이동
+  //   끌어서 만들기 — 누른 날부터 손을 뗀 날까지가 기간이다
+  const [drag, setDrag] = useState<{ a: string; b: string } | null>(null);
+  const [draft, setDraft] = useState<{ from: string; to: string; name: string } | null>(null);
 
   const today = todayKst();
   const base = useMemo(() => {
@@ -82,9 +90,47 @@ export function BoardCalendar({ items, cols, flowCol, onOpen }: {
       <div className="pb-cal-dow">
         {WEEK.map((w) => <span key={w}>{w}</span>)}
       </div>
-      <div className="pb-cal-grid">
-        {cells.map((c) => (
-          <div key={c.key} className={`pb-cal-cell ${c.date === today ? "pb-cal-today-cell" : ""} ${c.date ? "" : "pb-cal-pad"}`}>
+      {onCreateRange && !draft && (
+        <p className="pb-cal-hint"><i /> 빈 칸을 끌면 그 자리에 일정이 생깁니다 — 이름만 적으면 끝</p>
+      )}
+      {draft && (
+        <div className="pb-cal-draft">
+          <b>{draft.from}{draft.to !== draft.from ? ` ~ ${draft.to}` : ""}</b>
+          <input autoFocus value={draft.name} placeholder="무슨 일정인가요"
+            onChange={(e) => setDraft((d) => (d ? { ...d, name: e.target.value } : d))}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { setDraft(null); return; }
+              if (e.key === "Enter" && !e.nativeEvent.isComposing && draft.name.trim()) {
+                onCreateRange?.(draft.from, draft.to, draft.name.trim());
+                setDraft(null);
+              }
+            }} />
+          <button type="button" disabled={!draft.name.trim()}
+            onClick={() => { onCreateRange?.(draft.from, draft.to, draft.name.trim()); setDraft(null); }}>만들기</button>
+          <button type="button" className="pb-cal-draft-x" onClick={() => setDraft(null)}>취소</button>
+        </div>
+      )}
+      <div className="pb-cal-grid" onPointerLeave={() => setDrag(null)}>
+        {cells.map((c) => {
+          const inDrag = !!drag && !!c.date
+            && c.date >= (drag.a < drag.b ? drag.a : drag.b) && c.date <= (drag.a < drag.b ? drag.b : drag.a);
+          return (
+          <div key={c.key}
+            className={`pb-cal-cell ${c.date === today ? "pb-cal-today-cell" : ""} ${c.date ? "" : "pb-cal-pad"} ${inDrag ? "pb-cal-picking" : ""} ${onCreateRange && c.date ? "pb-cal-drawable" : ""}`}
+            onPointerDown={(e) => {
+              if (!onCreateRange || !c.date) return;
+              if ((e.target as HTMLElement).closest("button")) return;   // 일정 카드를 누른 것은 열기다
+              setDraft(null);
+              setDrag({ a: c.date, b: c.date });
+            }}
+            onPointerEnter={() => { if (drag && c.date) setDrag((d) => (d ? { ...d, b: c.date! } : d)); }}
+            onPointerUp={() => {
+              if (!drag || !onCreateRange) return;
+              const from = drag.a < drag.b ? drag.a : drag.b;
+              const to = drag.a < drag.b ? drag.b : drag.a;
+              setDrag(null);
+              setDraft({ from, to, name: "" });
+            }}>
             {c.day && <span className="pb-cal-day">{c.day}</span>}
             {(byDay[c.date || ""] || []).map((it) => (
               <button key={it.id} type="button" className="pb-cal-item" onClick={() => onOpen(it.id)}
@@ -94,7 +140,8 @@ export function BoardCalendar({ items, cols, flowCol, onOpen }: {
               </button>
             ))}
           </div>
-        ))}
+          );
+        })}
       </div>
       {undated.length > 0 && (
         <p className="pb-gantt-undated">날짜가 없어 안 나온 것 {undated.length}건 — 표 보기에서 채워 주세요.</p>

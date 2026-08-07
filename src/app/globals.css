@@ -6785,6 +6785,17 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-tpl-preset { @apply relative p-0 overflow-hidden; }
 /* 기본 양식 카드 — 누르면 바로 만들고, 오른쪽 위 '＋칸' 으로만 다듬기로 간다 (2026-08-07) */
 .pb-tpl-pick { @apply relative p-0 overflow-hidden; }
+/* 캘린더에서 끌어 기간 만들기 — '일정 · 마일스톤' 의 첫 화면 (2026-08-07) */
+.pb-cal-hint { @apply flex items-center gap-2 text-[11.5px] text-[var(--text-dim)] mb-1.5; }
+.pb-cal-hint i { @apply block w-16 h-4 rounded-md border border-dashed border-[var(--primary)] bg-[var(--primary)]/10; }
+.pb-cal-drawable { @apply cursor-crosshair select-none; }
+.pb-cal-picking { @apply !bg-[var(--primary)]/12 ring-1 ring-inset ring-[var(--primary)]/40; }
+.pb-cal-draft { @apply flex items-center gap-2 flex-wrap p-2.5 mb-2 rounded-xl border border-[var(--primary)] bg-[var(--primary-light)]; }
+.pb-cal-draft > b { @apply text-[11.5px] font-bold text-[var(--primary)]; font-variant-numeric: tabular-nums; }
+.pb-cal-draft input { @apply flex-1 min-w-[160px] px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[12.5px] text-[var(--text)] outline-none; }
+.pb-cal-draft button { @apply px-2.5 py-1.5 rounded-lg text-[11.5px] font-bold bg-[var(--primary)] text-white disabled:opacity-40; }
+.pb-cal-draft .pb-cal-draft-x { @apply bg-transparent text-[var(--text-muted)]; }
+
 /* 접수함 — '요청 · 검수' 의 첫 화면 (2026-08-07). 요청은 넣고 받는 일이라 목록 + 폼 하나다. */
 .pbi { @apply flex flex-col gap-2 p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
 .pbi-tabs { @apply flex items-center gap-1.5 flex-wrap mb-1; }

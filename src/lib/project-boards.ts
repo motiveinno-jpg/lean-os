@@ -189,8 +189,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "일정 · 마일스톤",
     desc: "기간이 있는 일",
     uses: "시공·설치 · 오픈 준비 · 행사 진행 · 개발 일정 · 계약 이행",
-    //   기간은 표에서 채우고, 타임라인은 채운 걸 보는 자리다
-    input: "grid",
+    //   기간을 잡는 일이다 — 달력에서 끌어 만든다(표는 보기 줄에 그대로 남는다, 2026-08-07)
+    input: "calendar",
     columns: [
       { name: "시작", type: "date" },
       { name: "종료", type: "date" },

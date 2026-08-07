@@ -39,6 +39,13 @@ export function BoardInbox({ items, cols, groups, users, userId, onAdd, onOpen, 
   const [draft, setDraft] = useState({ name: "", owner: "", due: "" });
   const today = todayKst();
   const nameOf = (id: any) => users.find((u) => u.id === String(id || ""))?.name || "";
+  //   조사 — 받침이 있으면 '으로'(작업 중**으로**), 없거나 ㄹ 받침이면 '로'(검수**로**)
+  const ro = (w: string) => {
+    const c = w.charCodeAt(w.length - 1);
+    if (Number.isNaN(c) || c < 0xac00 || c > 0xd7a3) return "로";
+    const jong = (c - 0xac00) % 28;
+    return jong === 0 || jong === 8 ? "로" : "으로";
+  };
 
   const isDone = (it: BoardItem) => !!flow && !!doneId && it.values?.[flow.id] === doneId;
   const lists = useMemo(() => {
@@ -119,7 +126,7 @@ export function BoardInbox({ items, cols, groups, users, userId, onAdd, onOpen, 
             {d && <span className={`pbi-due ${d.tone === "bad" ? "pbi-bad" : d.tone === "warn" ? "pbi-warn" : ""}`}>{d.text}</span>}
             {next && tab !== "done" && (
               <button type="button" className="pbi-act" onClick={() => onAdvance(it, next.id)}
-                title={`'${next.label}' 단계로 옮깁니다`}>{next.label}로</button>
+                title={`'${next.label}' 단계로 옮깁니다`}>{next.label}{ro(next.label)}</button>
             )}
           </div>
         );

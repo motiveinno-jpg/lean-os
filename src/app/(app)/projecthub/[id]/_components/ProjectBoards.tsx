@@ -1158,6 +1158,15 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           presets={summaryPresets} onSavePreset={saveSummaryPreset} onUpdatePreset={editSummaryPreset}
           onRemovePreset={dropSummaryPreset}
           onOpenItem={(bid, itemId) => { setActiveId(bid); setShowSummary(false); setOpenItemId(itemId); }} />
+      ) : view === "calendar" ? (
+        /* 캘린더 — '일정 · 마일스톤' 의 첫 화면. 빈 칸을 끌면 그 자리에 일정이 생긴다 (2026-08-07) */
+        <BoardCalendar items={shown} cols={cols} flowCol={flowCol} onOpen={setOpenItemId}
+          onCreateRange={(from, to, name) => {
+            const span = spanColumnsOf(cols);
+            const values: Record<string, any> = {};
+            if (span) { values[span.start.id] = from; values[span.end.id] = to; }
+            addItem(groups[0]?.id || "", values, name);
+          }} />
       ) : view === "inbox" ? (
         /* 접수함 — '요청 · 검수' 의 첫 화면 (2026-08-07) */
         <BoardInbox
