@@ -170,7 +170,10 @@ export function rollupMoney(
         const realV = realCol ? num(it.values?.[realCol.id]) : 0;
         const planV = planCol ? num(it.values?.[planCol.id]) : 0;
         const v = realV > 0 ? realV : planV;
-        const useStage: MoneyStage = realV > 0 ? st : "plan";
+        //   집행액을 적었으면 그건 이미 '쓰기로 확정한 돈' 이다 — 상태 칸을 안 골랐다고 계획으로
+        //   두면 확정 기준 마진에서 통째로 빠진다(2026-08-07 실사용 확인: 집행 450만을 적었는데
+        //   마진이 수입 그대로 1,200만으로 나왔다). 상태가 더 앞서 있으면 그 단계를 따른다.
+        const useStage: MoneyStage = realV > 0 ? (st === "plan" ? "fixed" : st) : "plan";
         addToAxis(spend, useStage, v);
         if (v > 0) spendRows.push({ board: b.id, name: it.name || "", amount: v });
         if (planV > 0) { hasBudget = true; planned += planV; spent += realV; }
