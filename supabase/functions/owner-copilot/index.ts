@@ -797,7 +797,14 @@ serve(withSentry("owner-copilot", async (req) => {
 
     // 월 제공량 + 충전 잔액을 합쳐 판정 (2026-08-07 충전 도입).
     const { data: allowance } = await admin.rpc("ai_token_allowance", { p_company_id: companyId });
-    const allow = (allowance || {}) as { unlimited?: boolean; allowed?: boolean; credits?: number };
+    const allow = (allowance || {}) as {
+      unlimited?: boolean; allowed?: boolean; credits?: number; used?: number; total_remaining?: number;
+    };
+    // 이번 달 사용량 — 아래 남은 토큰 계산에서 쓴다.
+    //   ⚠️ 종전에 ai_tokens_used_this_month 로 만들던 `used` 를 판정 교체 때 함께 지워버려
+    //      마지막 응답 조립에서 ReferenceError → 500('요청 처리 중 오류가 발생했습니다')이 났다.
+    //      (2026-08-07 사장님 제보로 확인) 여기서 반드시 다시 만든다.
+    const used = Number(allow.used ?? 0);
     if (!allow.unlimited && allow.allowed === false) {
       return json({
         error: "이번 달 AI 사용 한도를 모두 사용했습니다. 다음 달에 초기화되며, 요금제 > 충전에서 토큰을 충전하면 지금 바로 이어서 쓸 수 있습니다.",
@@ -1085,7 +1092,11 @@ serve(withSentry("owner-copilot", async (req) => {
       summary: "일시적으로 응답을 구조화하지 못했습니다. 잠시 후 다시 질문해 주세요.",
       actions: [], risks: [], opportunities: [], evidence: [],
     };
-    const remaining = Math.max(0, tokenLimit - used - (totalIn + totalOut));
+    // 남은 토큰 = (월 제공량 + 충전 잔액) - 이번 달 사용 - 이번 호출분
+    const remaining = Math.max(
+      0,
+      (allow.total_remaining ?? Math.max(0, tokenLimit - used)) - (totalIn + totalOut),
+    );
     return json({
       answer: finalAnswer,
       action: pendingAction,   // 화면이 실행(immediate) 또는 확인 후 실행(confirm)

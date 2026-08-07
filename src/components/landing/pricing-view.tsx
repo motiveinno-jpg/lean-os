@@ -16,7 +16,8 @@ const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColo
 // 플랜별 포함 여부 — 하단 기능 목록(보드형 비교표)
 // 플랜별 기능 비교 — 2026-08-07 현행 요금제(무료 + 오너뷰 25,000원) 기준.
 //   ⚠️ 숫자는 subscription_plans 의 실제 한도와 맞춰야 한다. 여기만 고치면 거짓 안내가 된다.
-//   free: 발행 합산 월 5건 / AI 10만 토큰,  standard: 발행 합산 월 100건 / AI 100만 토큰
+//   free: 발행 합산 월 5건 / AI 10만 토큰,  standard: 발행 합산 월 100건 / AI 50만 토큰
+//   ⚠️ 토큰 제공량은 월 AI 비용 상한($6)에 맞춰 산정한 값이다 — 실측 원가가 바뀌면 다시 계산할 것.
 const MATRIX = [
   {
     group: "기본",
@@ -56,7 +57,7 @@ const MATRIX = [
   {
     group: "AI",
     rows: [
-      { name: "AI 대표 참모(질문·업무 지시)", free: "월 10만 토큰", paid: "월 100만 토큰" },
+      { name: "AI 대표 참모(질문·업무 지시)", free: "월 10만 토큰", paid: "월 50만 토큰" },
       { name: "AI 브리핑", free: "기본형(요약 규칙)", paid: "매일 자동 분석" },
     ],
   },
