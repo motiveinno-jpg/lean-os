@@ -6785,6 +6785,32 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-tpl-preset { @apply relative p-0 overflow-hidden; }
 /* 기본 양식 카드 — 누르면 바로 만들고, 오른쪽 위 '＋칸' 으로만 다듬기로 간다 (2026-08-07) */
 .pb-tpl-pick { @apply relative p-0 overflow-hidden; }
+/* 접수함 — '요청 · 검수' 의 첫 화면 (2026-08-07). 요청은 넣고 받는 일이라 목록 + 폼 하나다. */
+.pbi { @apply flex flex-col gap-2 p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.pbi-tabs { @apply flex items-center gap-1.5 flex-wrap mb-1; }
+.pbi-tab { @apply px-2.5 py-1.5 rounded-lg text-[12px] font-bold text-[var(--text-muted)] bg-[var(--bg-surface)] transition hover:text-[var(--text)]; }
+.pbi-tab-on { @apply bg-[var(--primary)] text-white; }
+.pbi-note { @apply text-[11px] text-[var(--text-dim)]; }
+.pbi-row { @apply flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[var(--border)]; }
+.pbi-dot { @apply block w-2 h-2 rounded-full shrink-0 bg-[var(--text-dim)]; }
+.pbi-dot.pbi-warn { @apply bg-[var(--warning)]; }
+.pbi-dot.pbi-bad { @apply bg-[var(--danger)]; }
+.pbi-t { @apply flex-1 min-w-0 text-left; }
+.pbi-t b { @apply block text-[13px] font-bold text-[var(--text)] truncate transition; }
+.pbi-t:hover b { @apply text-[var(--primary)]; }
+.pbi-t span { @apply block text-[11.5px] text-[var(--text-dim)] truncate; }
+.pbi-due { @apply shrink-0 text-[11.5px] font-bold text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.pbi-due.pbi-warn { @apply text-[var(--warning)]; }
+.pbi-due.pbi-bad { @apply text-[var(--danger)]; }
+.pbi-act { @apply shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[var(--primary)] text-white transition hover:opacity-90; }
+.pbi-new { @apply mt-1 p-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]; }
+.pbi-new > b { @apply text-[12.5px] font-bold text-[var(--text)]; }
+.pbi-fields { @apply grid gap-2 mt-2; grid-template-columns: 1fr 1fr auto; }
+@media (max-width: 720px) { .pbi-fields { grid-template-columns: 1fr; } }
+.pbi-in { @apply px-2.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[12.5px] text-[var(--text)] outline-none focus:border-[var(--primary)]; }
+.pbi-in-full { @apply col-span-full; }
+.pbi-go { @apply px-3 py-2 rounded-lg text-[12px] font-bold bg-[var(--primary)] text-white disabled:opacity-40; }
+
 /* 회의록 — '회의 · 결정' 의 첫 화면 (2026-08-07 사장님 지시: 템플릿마다 그 일에 맞는 화면).
    격자가 아니라 문서로 읽히게: 회의 머리 아래로 안건이 이어지고, 결정 밑에 담당·기한이 붙는다. */
 .pbm { @apply grid gap-4 items-start; grid-template-columns: minmax(0,1fr) 210px; }

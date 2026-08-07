@@ -31,14 +31,14 @@ export type GroupDef = { name: string; color: string };
  *    · timeline·calendar = **읽는** 화면 — 정리한 결과를 보여줄 뿐 입력은 못 한다. 전환으로만 간다.
  *      (timeline = 기간을 본다 / calendar = 언제인지를 본다)
  *  "타임라인은 데이터를 정리해서 보여주는 거고 표가 입력화면이잖아? 입력화면이 기본값으로 나와야" */
-export type InputMode = "grid" | "board" | "timeline" | "calendar" | "minutes";
+export type InputMode = "grid" | "board" | "timeline" | "calendar" | "minutes" | "inbox";
 
 /** 입력이 되는 보기인가 — 기본값 검증과 보기 줄 묶음에 같이 쓴다 */
 export const INPUT_MODES: InputMode[] = ["grid", "board"];
 
 /** 보기 이름 — 툴바 단추에 쓴다 */
 export const MODE_LABEL: Record<InputMode, string> = {
-  grid: "표", board: "칸반", timeline: "타임라인", calendar: "캘린더", minutes: "회의록",
+  grid: "표", board: "칸반", timeline: "타임라인", calendar: "캘린더", minutes: "회의록", inbox: "접수함",
 };
 
 /** 이 템플릿이 쓸 수 있는 입력 화면들 — **그 일의 첫 화면**이 맨 앞이다 (2026-08-07 사장님 지시:
@@ -168,7 +168,8 @@ export const BOARD_TEMPLATES: BoardTemplate[] = [
     name: "요청 · 검수",
     desc: "누가 요청하고 누가 확인하는 흐름",
     uses: "디자인 시안 · 문서 검토 · 고객 요청 처리 · 하자·A/S · 인허가 서류",
-    input: "board",
+    //   요청은 넣고 받는 일이다 — 첫 화면은 접수함(칸반·표는 보기 줄에 그대로 남는다)
+    input: "inbox",
     columns: [
       { name: "상태", type: "status", settings: FLOW([
         { id: "req", label: "요청", color: C.gray },

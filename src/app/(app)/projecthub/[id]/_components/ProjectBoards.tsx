@@ -24,6 +24,7 @@ import { BoardTrash } from "./BoardTrash";
 import { BoardCalendar } from "./BoardCalendar";
 import { ProjectMoneyReport } from "./ProjectMoneyReport";
 import { BoardMinutes } from "./BoardMinutes";
+import { BoardInbox } from "./BoardInbox";
 import { hasMoneyData } from "@/lib/project-money-rollup";
 import { BoardFigure } from "./BoardFigures";
 import { AdDashboard } from "./AdDashboard";
@@ -849,6 +850,10 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       const dueSrc = cols.filter((c) => c.type === "date").find((c) => !/회의|일자/.test(c.name));
       const dueDst = tcols.filter((c) => c.type === "date")[0];
       if (dueSrc && dueDst && it.values?.[dueSrc.id]) values[dueDst.id] = it.values[dueSrc.id];
+      //   단계를 안 정하면 칸반의 '단계 미지정' 으로 떨어져 눈에 안 띈다 — 첫 단계에 세운다
+      const tflow = tcols.find((c) => c.type === "status" && c.settings?.flow) || tcols.find((c) => c.type === "status");
+      const firstOpt = ((tflow?.settings?.options || []) as any[])[0];
+      if (tflow && firstOpt) values[tflow.id] = firstOpt.id;
       const { error } = await db.from("project_board_items")
         .insert({ board_id: todoBoard.id, group_id: gid, name: it.name || "(안건)", position: 0, values });
       if (error) throw new Error(error.message);
@@ -1153,6 +1158,13 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           presets={summaryPresets} onSavePreset={saveSummaryPreset} onUpdatePreset={editSummaryPreset}
           onRemovePreset={dropSummaryPreset}
           onOpenItem={(bid, itemId) => { setActiveId(bid); setShowSummary(false); setOpenItemId(itemId); }} />
+      ) : view === "inbox" ? (
+        /* 접수함 — '요청 · 검수' 의 첫 화면 (2026-08-07) */
+        <BoardInbox
+          items={shown} cols={cols} groups={groups} users={users} userId={userId}
+          onAdd={(gid, name, values) => addItem(gid, values, name)}
+          onOpen={setOpenItemId}
+          onAdvance={(it, next) => { const f = flowColumnOf(cols); if (f) saveValue(it, f.id, next); }} />
       ) : view === "minutes" ? (
         /* 회의록 — '회의 · 결정' 의 첫 화면. 표는 '표' 로 언제든 돌아간다 (2026-08-07) */
         <BoardMinutes
