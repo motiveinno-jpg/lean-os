@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { BarList } from "@/components/charts";
+import { FunnelChart } from "@/components/charts/kit";
 import { STAGE_LABEL, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
 import { todayKst } from "@/lib/kst";
 
@@ -171,7 +172,9 @@ export function PortfolioCharts({ rows, pnlOf, outstandingOf, agingBuckets, user
     <div className="ph-charts">
       <div className="ph-chart glass-card">
         <div className="ph-chart-head"><b>단계별 파이프라인</b><span>계약금액 합계</span></div>
-        <BarList items={funnel} unit="원" emptyText="프로젝트가 없어요" />
+        {funnel.every((f) => f.value === 0)
+          ? <p className="ph-view-empty">프로젝트가 없어요</p>
+          : <FunnelChart data={funnel} unit="원" />}
         <p className="ph-chart-note">어느 단계에 돈이 묶여 있는지 봐요. 견적에만 쌓여 있으면 계약 전환이 막힌 거예요.</p>
       </div>
 

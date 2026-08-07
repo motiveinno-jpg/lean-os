@@ -1425,9 +1425,11 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
 
   const barData = sliced.map(m => ({
     label: m.label,
+    // 매출·비용은 '좋다/나쁘다'가 아니라 **서로 다른 것**이다 — 상태색(빨강)이 아니라
+    // 시리즈 색을 쓴다. 색약에서도 구분되도록 검증한 조합이다(2026-08-06 차트 키트).
     values: [
-      { value: m.revenue, color: 'var(--primary)', label: '매출' },
-      { value: m.expense, color: '#ef4444', label: '비용' },
+      { value: m.revenue, color: 'var(--viz-1)', label: '매출' },
+      { value: m.expense, color: 'var(--viz-2)', label: '비용' },
     ],
   }));
 
@@ -1533,9 +1535,9 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
           <div className="flex items-center justify-between mb-2">
             <span className="caption">매출(blue) vs 비용(red) · 순이익 추이(orange)</span>
             <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--primary)]" />매출</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[#ef4444]" />비용</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--warning)]" />순이익</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--viz-1)]" />매출</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--viz-2)]" />비용</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--viz-3)]" />순이익</span>
             </div>
           </div>
           <BarChart
@@ -1549,6 +1551,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               }
             }}
             trendLine={trendLine}
+            trendColor="var(--viz-3)"
           />
         </div>
       )}
@@ -1561,18 +1564,18 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               <span className="text-[11px] font-semibold text-[var(--text)]">월별 매출 추이</span>
               <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-0.5 bg-[var(--primary)]" />매출
+                  <span className="w-2 h-0.5 bg-[var(--viz-1)]" />매출
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-0.5 bg-[var(--warning)]" />순이익
+                  <span className="w-2 h-0.5 bg-[var(--viz-3)]" />순이익
                 </span>
               </div>
             </div>
             <LineChart
               labels={sliced.map(m => m.label)}
               series={[
-                { label: '매출', color: 'var(--primary)', values: sliced.map(m => m.revenue) },
-                { label: '순이익', color: 'var(--warning)', values: sliced.map(m => m.netIncome) },
+                { label: '매출', color: 'var(--viz-1)', values: sliced.map(m => m.revenue) },
+                { label: '순이익', color: 'var(--viz-3)', values: sliced.map(m => m.netIncome) },
               ]}
               height={200}
             />
@@ -1583,7 +1586,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               <span className="text-[11px] font-semibold text-[var(--text)]">현금흐름 (누적)</span>
               <div className="flex items-center gap-3 text-[9px] text-[var(--text-dim)]">
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-0.5 bg-[var(--success)]" />누적 순현금
+                  <span className="w-2 h-0.5 bg-[var(--viz-1)]" />누적 순현금
                 </span>
               </div>
             </div>
@@ -1592,7 +1595,7 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
               series={[
                 {
                   label: '누적 순현금',
-                  color: 'var(--success)',
+                  color: 'var(--viz-1)',
                   area: true,
                   values: sliced.reduce<number[]>((acc, m, i) => {
                     const prev = i === 0 ? 0 : acc[i - 1];
