@@ -3056,6 +3056,15 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .copilot2-thinking i { @apply w-1.5 h-1.5 rounded-full bg-[var(--primary)] inline-block; animation: copilot2-blink 1.2s infinite ease-in-out; }
 .copilot2-thinking i:nth-child(2){ animation-delay:.2s; } .copilot2-thinking i:nth-child(3){ animation-delay:.4s; }
 .copilot2-load-stage { @apply text-sm text-[var(--text-muted)]; }
+/* 자유 구성 섹션의 기본(list) 항목 */
+.copilot2-listitem { @apply flex items-start gap-2.5; }
+.copilot2-listdot { @apply w-1.5 h-1.5 rounded-full bg-[var(--primary)] mt-2 shrink-0; }
+.copilot2-load-meter { @apply flex items-baseline justify-between gap-3; }
+.copilot2-load-pct { @apply text-sm font-bold text-[var(--primary)] tabular-nums shrink-0; }
+.copilot2-load-bar { @apply w-full h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+/* 폭은 진행률에 따라 인라인 style 로 들어온다 — 여기서는 채움 모양과 전환만 담당 */
+.copilot2-load-bar-fill { @apply h-full rounded-full transition-[width] duration-200 ease-out; background:linear-gradient(90deg,var(--primary),var(--primary-soft)); }
+.copilot2-load-bar-fill::after { content:""; @apply block h-full w-full; background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent); animation: copilot2-shimmer 1.4s infinite; }
 .copilot2-skel { @apply h-3 rounded bg-[var(--bg-surface)] relative overflow-hidden; }
 .copilot2-skel::after { content:""; @apply absolute inset-0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent); animation: copilot2-shimmer 1.4s infinite; }
 .copilot2-skel-lg { @apply h-4 w-3/4; } .copilot2-skel-sm { @apply w-1/2; }
@@ -3117,8 +3126,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 @media (prefers-reduced-motion: reduce) {
   .copilot2-hero-content,.copilot2-msg-user,.copilot2-answer,.copilot2-empty { animation:none !important; }
   .copilot2-hero-orb,.copilot2-hero-spark,.copilot2-conn-dot,.copilot2-live-dot,.copilot2-thinking i,.copilot2-quick-card:hover .copilot2-quick-icon { animation:none !important; }
-  .copilot2-skel::after { animation:none !important; }
-  .copilot2-gauge-fill { transition:none !important; }
+  .copilot2-skel::after,.copilot2-load-bar-fill::after { animation:none !important; }
+  .copilot2-gauge-fill,.copilot2-load-bar-fill { transition:none !important; }
   .copilot2-quick-card:hover { transform:none !important; }
 }
 

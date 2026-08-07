@@ -61,15 +61,68 @@ const ALLOWED_HREFS = [
   "/partners/reconciliation/voucher-entry",
 ];
 
+// 답변에 남겨도 되는 링크인지 판정 (2026-08-07).
+//   ① 우리 화면 경로는 화이트리스트에 있는 것만.
+//   ② 외부 링크는 '이번 요청의 웹검색이 실제로 돌려준 주소' 와 같은 도메인일 때만 통과시킨다.
+//      모델이 기억으로 지어낸 URL 은 연결되지 않거나 엉뚱한 곳으로 가므로 통째로 막는다.
+//      (사장님 제보: 정부지원사업을 물었더니 바로가기가 /settings 로 갔다 — 외부 주소를 못 쓰니
+//       화이트리스트에서 아무거나 골라 붙인 것이었다.)
+function hostOf(u: string): string | null {
+  try {
+    const url = new URL(u);
+    return url.protocol === "https:" ? url.hostname.replace(/^www\./, "") : null;
+  } catch { return null; }
+}
+function isSafeHref(href: string, citedHosts: Set<string>): boolean {
+  const h = String(href || "").trim();
+  if (!h) return false;
+  if (h.startsWith("/")) {
+    return ALLOWED_HREFS.includes(h.split("?")[0].replace(/\/$/, ""));
+  }
+  const host = hostOf(h);
+  if (!host) return false;
+  // 정부·공공 도메인(go.kr)은 검색 인용에 없어도 허용한다. 아무나 가질 수 없는 도메인이라
+  //   엉뚱한 곳으로 갈 위험이 없고, 지원사업 안내는 대부분 여기로 간다
+  //   (실측: 답변이 smtech.go.kr 을 안내했는데 그 턴의 검색 인용에는 없어 링크가 잘렸다).
+  if (host === "go.kr" || host.endsWith(".go.kr")) return true;
+  return citedHosts.has(host);
+}
+
+// 검색 결과 블록에서 실제로 인용된 도메인만 모은다.
+// deno-lint-ignore no-explicit-any
+function collectCitedHosts(blocks: any[], into: Set<string>): void {
+  const walk = (v: unknown): void => {
+    if (typeof v === "string") {
+      if (/^https:\/\//.test(v)) { const h = hostOf(v); if (h) into.add(h); }
+      return;
+    }
+    if (Array.isArray(v)) { for (const x of v) walk(x); return; }
+    if (v && typeof v === "object") { for (const x of Object.values(v)) walk(x); }
+  };
+  for (const b of blocks) {
+    if (b?.type === "web_search_tool_result") walk(b);
+  }
+}
+
 const COMMON_RULES = `- 한국어. 금액은 억/만원으로 읽기 쉽게.
 - headline: 한 줄 결론(핵심 한 문장). summary: 2~3문장 요약.
-- actions(지금 해야 할 일): priority(high|medium|low), title(간결), detail(실무 지침), href(처리 화면 경로).
-- href 는 **아래 목록에 있는 경로만** 그대로 쓰세요. 목록에 없으면 href 를 생략합니다.
-  경로를 새로 만들거나 하위 경로를 붙이지 마세요(예: /attendance/leave 같은 주소는 존재하지 않습니다).
+- sections: 답변 본문. **질문에 맞는 제목을 직접 정해 필요한 만큼만** 만드세요. 정해진 제목 목록은 없습니다.
+  · 잔고·건수처럼 답이 한 줄이면 sections 를 아예 비우고 headline·summary 로 끝내도 됩니다.
+  · "지금 해야 할 일", "위험 신호", "근거 데이터" 를 질문과 상관없이 습관적으로 붙이지 마세요.
+    할 일이 실제로 있을 때만 그 묶음을 만들고, 위험이 없으면 위험 묶음을 만들지 않습니다.
+  · style 은 표시 형태입니다: list(제목+설명), metrics(수치 카드 — title 은 항목명, value 는 값),
+    actions(할 일 — level 이 우선순위), risks(위험 — level 이 심각도).
+  · metrics 의 title 은 반드시 사람이 읽는 한국어 이름("현금 잔액", "이번 달 매출")만 쓰고
+    원시 필드명(cash_balance, total_revenue 등)은 절대 노출하지 마세요. value 는 억/만원 표기.
+  · 예: 지각 질문이면 "지각 현황"(metrics) + "지각자 목록"(list),
+    지원사업 추천이면 "추천 지원사업"(list) 하나면 충분합니다.
+- href 규칙:
+  · 우리 서비스 화면으로 보낼 때는 **아래 목록에 있는 경로만** 그대로 쓰세요. 목록에 없으면 href 를 생략합니다.
+    경로를 새로 만들거나 하위 경로를 붙이지 마세요(예: /attendance/leave 같은 주소는 존재하지 않습니다).
 ${ALLOWED_HREFS.join(" ")}
-- risks(위험 신호): title, detail, severity(high|medium|low).
-- opportunities(기회): title, detail.
-- evidence(근거 데이터): label 은 반드시 사람이 읽는 한국어 이름(예: "현금 잔액", "이번 달 매출")만 쓰고, 원시 필드명(cash_balance, total_revenue 등)은 절대 노출하지 마세요. value 는 억/만원 등 읽기 쉬운 표기.
+  · 정부지원사업·공고·외부 제도처럼 **우리 화면에 없는 내용**은 위 경로를 억지로 붙이지 말고,
+    웹검색으로 실제 확인한 **원문 URL(https://…)** 을 href 에 그대로 넣으세요. 검색으로 확인한
+    주소가 없으면 href 를 생략합니다. URL 을 기억으로 지어내면 안 됩니다(연결되지 않는 주소가 됩니다).
 - 모든 텍스트에 마크다운·별표(**)·백틱(\`)·변수 토큰({{ }}, { }, \${ })·영문 필드명을 절대 쓰지 마세요. 순수 한국어 문장으로만 씁니다.
 - 근거 없는 값은 절대 만들지 마세요(추정 금지). 데이터가 없으면 해당 배열을 비웁니다.
 
@@ -145,35 +198,39 @@ const ANSWER_SCHEMA = {
   properties: {
     headline: { type: "string" },
     summary: { type: "string" },
-    actions: {
+    // 질문에 맞는 자유 구성 (2026-08-07 사장님 요청 — "지금 해야 할 일/위험 신호/근거 데이터"가
+    //   질문과 무관하게 늘 붙는 게 어색하다). 제목과 묶음 수를 모델이 정하고, style 로 표시 형태만 고른다.
+    sections: {
       type: "array",
+      description: "답변 본문. 질문에 맞는 제목으로 필요한 만큼만 만드세요.",
       items: {
         type: "object", additionalProperties: false,
         properties: {
-          priority: { type: "string", enum: ["high", "medium", "low"] },
-          title: { type: "string" }, detail: { type: "string" }, href: { type: "string" },
+          label: { type: "string", description: "이 묶음의 제목 — 질문에 맞게 직접 정하세요(예: '지각 현황', '추천 지원사업', '이번 달 지출 상위')" },
+          style: {
+            type: "string", enum: ["list", "metrics", "actions", "risks"],
+            description: "list=제목+설명 목록(기본), metrics=수치 카드(title=항목명, value=값), actions=할 일(level=우선순위), risks=위험(level=심각도)",
+          },
+          items: {
+            type: "array",
+            items: {
+              type: "object", additionalProperties: false,
+              properties: {
+                title: { type: "string", description: "항목 이름. metrics 면 사람이 읽는 한국어 항목명만(원시 필드명 금지)" },
+                detail: { type: "string" },
+                value: { type: "string", description: "metrics 에서 보여 줄 값" },
+                href: { type: "string", description: "관련 화면 경로 또는 검색으로 확인한 실제 외부 URL" },
+                level: { type: "string", enum: ["high", "medium", "low"] },
+              },
+              required: ["title"],
+            },
+          },
         },
-        required: ["priority", "title", "detail"],
+        required: ["label", "style", "items"],
       },
-    },
-    risks: {
-      type: "array",
-      items: {
-        type: "object", additionalProperties: false,
-        properties: { title: { type: "string" }, detail: { type: "string" }, severity: { type: "string", enum: ["high", "medium", "low"] } },
-        required: ["title", "detail", "severity"],
-      },
-    },
-    opportunities: {
-      type: "array",
-      items: { type: "object", additionalProperties: false, properties: { title: { type: "string" }, detail: { type: "string" } }, required: ["title", "detail"] },
-    },
-    evidence: {
-      type: "array",
-      items: { type: "object", additionalProperties: false, properties: { label: { type: "string" }, value: { type: "string" }, source: { type: "string" } }, required: ["label", "value"] },
     },
   },
-  required: ["headline", "summary", "actions", "risks", "opportunities", "evidence"],
+  required: ["headline", "summary", "sections"],
 };
 
 // ── 조회 툴 (읽기 전용) ─────────────────────────────────────────────────────
@@ -1746,12 +1803,15 @@ serve(withSentry("owner-copilot", async (req) => {
       ] : []),
     ].join("\n");
 
+    type AnswerItem = { title: string; detail?: string; value?: string; href?: string; level?: string };
     type Answer = {
       headline: string; summary: string;
-      actions: { priority: string; title: string; detail: string; href?: string }[];
-      risks: { title: string; detail: string; severity: string }[];
-      opportunities: { title: string; detail: string }[];
-      evidence: { label: string; value: string; source?: string }[];
+      sections?: { label: string; style: string; items: AnswerItem[] }[];
+      // 구버전 필드 — 지난 대화 기록 호환용으로만 남긴다(새 답변은 sections 를 쓴다).
+      actions?: { priority: string; title: string; detail: string; href?: string }[];
+      risks?: { title: string; detail: string; severity: string }[];
+      opportunities?: { title: string; detail: string }[];
+      evidence?: { label: string; value: string; source?: string }[];
     };
     type PendingAction = { tool: string; tier: string; label: string; args: Record<string, unknown> };
 
@@ -1791,6 +1851,7 @@ serve(withSentry("owner-copilot", async (req) => {
 
     let answer: Answer | undefined;
     let pendingAction: PendingAction | null = null;
+    const citedUrls = new Set<string>();   // 이번 요청의 웹검색이 실제로 인용한 도메인
     let totalIn = 0, totalOut = 0;
     let lastModel = "", lastRequestId = "";
     let requestBudgetExceeded = false;
@@ -1838,6 +1899,7 @@ serve(withSentry("owner-copilot", async (req) => {
       lastRequestId = result.requestId;
 
       const blocks: any[] = Array.isArray(result.content) ? result.content : [];
+      collectCitedHosts(blocks, citedUrls);   // 검색이 실제로 준 도메인만 링크 허용
       const toolUses = blocks.filter((b) => b?.type === "tool_use");
 
       // respond 가 있으면(다른 툴과 같이 와도) 그것이 최종 답변 — 종료.
@@ -1845,10 +1907,13 @@ serve(withSentry("owner-copilot", async (req) => {
       if (respondBlock?.input && typeof respondBlock.input === "object") {
         answer = respondBlock.input as Answer;
         // 프롬프트만으로는 새는 경우가 있어 최종 응답에서도 한 번 더 거른다 —
-        //   목록에 없는 주소는 안내하지 않고 링크만 뗀다(문구는 그대로 쓸모 있으므로 유지).
+        //   통과 못 한 주소는 링크만 떼고 문구는 남긴다(문구 자체는 쓸모 있으므로).
         for (const a of (answer.actions || [])) {
-          if (a.href && !ALLOWED_HREFS.includes(String(a.href).split("?")[0].replace(/\/$/, ""))) {
-            delete a.href;
+          if (a.href && !isSafeHref(a.href, citedUrls)) delete a.href;
+        }
+        for (const s of (answer.sections || [])) {
+          for (const it of (s.items || [])) {
+            if (it.href && !isSafeHref(it.href, citedUrls)) delete it.href;
           }
         }
         break;
@@ -1948,22 +2013,26 @@ serve(withSentry("owner-copilot", async (req) => {
         answer = {
           headline: "첨부문서를 바탕으로 계약서 초안을 준비했습니다",
           summary: `“${draftName}”의 조항을 첨부 원문에 맞춰 재구성했습니다. 아래 확인 카드를 검토한 뒤 저장해 주세요. 저장하면 전자계약 > 양식 관리에서 확인할 수 있고, 아직 저장이나 외부 발송은 하지 않았습니다.`,
-          actions: [{
-            priority: "high",
-            title: "계약서 초안 검토",
-            detail: "당사자·기간·대금과 [확인 필요] 항목을 원문과 대조한 뒤 저장 여부를 결정하세요.",
-          }],
-          risks: [{
-            title: "AI 초안 검토 필요",
-            detail: "법률효과와 누락 조항은 최종 사용 전에 담당자 또는 전문가가 확인해야 합니다.",
-            severity: "medium",
-          }],
-          opportunities: [],
-          evidence: [{
-            label: "근거 첨부",
-            value: attachments.map((attachment) => attachment.name).join(", "),
-            source: "사용자 첨부문서",
-          }],
+          sections: [
+            {
+              label: "저장 전에 확인할 것",
+              style: "actions",
+              items: [{
+                title: "계약서 초안 검토",
+                detail: "당사자·기간·대금과 [확인 필요] 항목을 원문과 대조한 뒤 저장 여부를 결정하세요.",
+                level: "high",
+              }, {
+                title: "법률효과·누락 조항 확인",
+                detail: "AI 초안이므로 최종 사용 전에 담당자 또는 전문가 확인이 필요합니다.",
+                level: "medium",
+              }],
+            },
+            {
+              label: "근거 첨부",
+              style: "list",
+              items: attachments.map((attachment) => ({ title: attachment.name })),
+            },
+          ],
         };
         break;
       }
@@ -1986,7 +2055,7 @@ serve(withSentry("owner-copilot", async (req) => {
     const finalAnswer: Answer = answer ?? {
       headline: "분석 결과를 정리하지 못했습니다",
       summary: "일시적으로 응답을 구조화하지 못했습니다. 잠시 후 다시 질문해 주세요.",
-      actions: [], risks: [], opportunities: [], evidence: [],
+      sections: [],
     };
     // 남은 토큰 = (월 제공량 + 충전 잔액) - 이번 달 사용 - 이번 호출분
     const remaining = Math.max(

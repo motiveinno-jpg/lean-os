@@ -30,7 +30,15 @@ type Action = { priority: "high" | "medium" | "low"; title: string; detail: stri
 type Risk = { title: string; detail: string; severity: "high" | "medium" | "low" };
 type Opp = { title: string; detail: string };
 type Evidence = { label: string; value: string; source?: string };
-type Answer = { headline: string; summary: string; actions: Action[]; risks: Risk[]; opportunities: Opp[]; evidence: Evidence[] };
+// 자유 구성 섹션 (2026-08-07) — 제목·묶음 수를 AI 가 질문에 맞게 정한다. style 은 표시 형태만.
+type SectionItem = { title: string; detail?: string; value?: string; href?: string; level?: "high" | "medium" | "low" };
+type Section = { label: string; style: "list" | "metrics" | "actions" | "risks"; items: SectionItem[] };
+// actions·risks·opportunities·evidence 는 구버전 답변(지난 대화 기록) 호환용으로만 남는다.
+type Answer = {
+  headline: string; summary: string;
+  sections?: Section[];
+  actions?: Action[]; risks?: Risk[]; opportunities?: Opp[]; evidence?: Evidence[];
+};
 
 // AI 답변 텍스트 정제 — 변수 토큰({{x}}·{x}·${x})·마크다운(**·`)이 그대로 노출돼 가독성이 떨어지던 문제 대응(2026-07-23).
 function clean(s?: string): string {
@@ -74,6 +82,17 @@ const QUICK = [
 ];
 
 const LOAD_STAGES = ["회사 데이터를 읽는 중…", "현금·미수·결재 데이터를 분석 중…", "실행 우선순위를 정리 중…"];
+
+// 진행 게이지 — 참모는 스트리밍이 아니라 답변을 통째로 받으므로 '진짜 진행률' 은 알 수 없다.
+//   그래서 경과 시간으로 추정하되, 다 됐다고 거짓말하지 않도록 95% 에서 멈추고
+//   실제 응답이 도착해야 100% 로 채운다.
+//   시상수는 실측값 기준 — ai_usage_log 최근 61건의 owner_copilot 응답시간
+//   중앙값 16.6초 / p90 38.5초. τ=16.6s 면 16.6초에 60%, 38초에 85%, 60초에 93% 가 된다.
+const LOAD_TAU_MS = 16_600;
+const LOAD_CEIL = 95;
+function loadPercent(elapsedMs: number): number {
+  return LOAD_CEIL * (1 - Math.exp(-elapsedMs / LOAD_TAU_MS));
+}
 const AVG_Q_TOKENS = 1400; // 예상 질문 수 근사(평균 질문당 토큰)
 
 function fmt(n: number) { return n.toLocaleString("ko-KR"); }
@@ -99,6 +118,7 @@ export default function CopilotPage() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [stage, setStage] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [planLocked, setPlanLocked] = useState(false);
   const [limitExceeded, setLimitExceeded] = useState(false);
   const [connErr, setConnErr] = useState(false);
@@ -159,10 +179,19 @@ export default function CopilotPage() {
     return () => { supabase.removeChannel(ch); if (poll) clearInterval(poll); };
   }, [companyId, refetchUsage]);
 
-  // 로딩 단계 순환
+  // 로딩 진행 게이지 + 단계 문구.
+  //   종전에는 단계 문구만 1.2초마다 순환해 "정리 중" 이 나온 뒤 다시 "읽는 중" 으로 되돌아갔다.
+  //   이제 경과 시간에서 진행률을 구하고 문구를 거기에 맞춰 한 방향으로만 넘긴다.
   useEffect(() => {
-    if (!loading) { setStage(0); return; }
-    const t = setInterval(() => setStage((s) => (s + 1) % LOAD_STAGES.length), 1200);
+    if (!loading) { setStage(0); setProgress(0); return; }
+    const startedAt = Date.now();
+    const tick = () => {
+      const p = loadPercent(Date.now() - startedAt);
+      setProgress(p);
+      setStage(p < 35 ? 0 : p < 70 ? 1 : 2);
+    };
+    tick();
+    const t = setInterval(tick, 200);
     return () => clearInterval(t);
   }, [loading]);
 
@@ -529,7 +558,7 @@ export default function CopilotPage() {
                   <AnswerCard key={i} msg={m} onRun={() => m.action && runAction(i, m.action)} onCancel={() => setActionState(i, "cancelled")} />
                 ),
               )}
-              {loading && <LoadingCard stage={stage} />}
+              {loading && <LoadingCard stage={stage} progress={progress} />}
             </div>
 
             {overLimit ? (
@@ -761,6 +790,27 @@ function ActionCard({ msg, onRun, onCancel }: {
   );
 }
 
+function levelLabel(level: string | undefined, kind: "action" | "risk"): string {
+  const l = level || "low";
+  if (kind === "risk") return l === "high" ? "위험" : l === "medium" ? "주의" : "참고";
+  return l === "high" ? "높음" : l === "medium" ? "보통" : "낮음";
+}
+
+// 섹션 항목 링크. 우리 화면이면 그대로, 외부(https)면 새 탭 + 도메인 표시.
+//   엣지가 이미 '검색이 실제로 인용한 도메인' 만 남겨 보내므로 여기서는 표시만 담당한다.
+function SecLink({ href }: { href?: string }) {
+  if (!href) return null;
+  const external = /^https:\/\//.test(href);
+  if (!external) return <a href={href} className="copilot2-action-link">바로가기 →</a>;
+  let host = "";
+  try { host = new URL(href).hostname.replace(/^www\./, ""); } catch { return null; }
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="copilot2-action-link">
+      {host} ↗
+    </a>
+  );
+}
+
 function AnswerCard({ msg, onRun, onCancel }: {
   msg: Extract<AiMsg, { role: "ai" }>;
   onRun?: () => void;
@@ -781,7 +831,54 @@ function AnswerCard({ msg, onRun, onCancel }: {
 
       {msg.action && <ActionCard msg={msg} onRun={onRun} onCancel={onCancel} />}
 
-      {a.actions?.length > 0 && (
+      {/* 새 답변 — 제목·구성이 질문마다 다르다 */}
+      {a.sections?.map((sec, si) => (
+        <div key={`s${si}`} className="copilot2-sec">
+          <div className="copilot2-sec-label">{clean(sec.label)}</div>
+          {sec.style === "metrics" ? (
+            <div className="copilot2-evidence-grid">
+              {sec.items.map((x, i) => (
+                <div key={i} className="copilot2-evidence">
+                  <div className="copilot2-evidence-label">{clean(x.title)}</div>
+                  <div className="copilot2-evidence-value">{clean(x.value ?? x.detail)}</div>
+                </div>
+              ))}
+            </div>
+          ) : sec.style === "actions" ? (
+            sec.items.map((x, i) => (
+              <div key={i} className="copilot2-action">
+                <span className={`copilot2-pri ${sevCls(x.level || "low")}`}>{levelLabel(x.level, "action")}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="copilot2-action-title">{clean(x.title)}<SecLink href={x.href} /></div>
+                  {x.detail && <div className="copilot2-action-detail">{clean(x.detail)}</div>}
+                </div>
+              </div>
+            ))
+          ) : sec.style === "risks" ? (
+            sec.items.map((x, i) => (
+              <div key={i} className="copilot2-risk">
+                <span className={`copilot2-badge ${sevCls(x.level || "low")}`}>{levelLabel(x.level, "risk")}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="copilot2-risk-title">{clean(x.title)}<SecLink href={x.href} /></div>
+                  {x.detail && <div className="copilot2-action-detail">{clean(x.detail)}</div>}
+                </div>
+              </div>
+            ))
+          ) : (
+            sec.items.map((x, i) => (
+              <div key={i} className="copilot2-listitem">
+                <span className="copilot2-listdot" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <div className="copilot2-risk-title">{clean(x.title)}<SecLink href={x.href} /></div>
+                  {(x.detail || x.value) && <div className="copilot2-action-detail">{clean(x.detail ?? x.value)}</div>}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      ))}
+
+      {a.actions && a.actions.length > 0 && (
         <div className="copilot2-sec">
           <div className="copilot2-sec-label">지금 해야 할 일</div>
           {a.actions.map((x, i) => (
@@ -796,7 +893,7 @@ function AnswerCard({ msg, onRun, onCancel }: {
         </div>
       )}
 
-      {a.risks?.length > 0 && (
+      {a.risks && a.risks.length > 0 && (
         <div className="copilot2-sec">
           <div className="copilot2-sec-label">위험 신호</div>
           {a.risks.map((x, i) => (
@@ -808,7 +905,7 @@ function AnswerCard({ msg, onRun, onCancel }: {
         </div>
       )}
 
-      {a.opportunities?.length > 0 && (
+      {a.opportunities && a.opportunities.length > 0 && (
         <div className="copilot2-sec">
           <div className="copilot2-sec-label">기회</div>
           {a.opportunities.map((x, i) => (
@@ -817,7 +914,7 @@ function AnswerCard({ msg, onRun, onCancel }: {
         </div>
       )}
 
-      {a.evidence?.length > 0 && (
+      {a.evidence && a.evidence.length > 0 && (
         <div className="copilot2-sec">
           <div className="copilot2-sec-label">근거 데이터</div>
           <div className="copilot2-evidence-grid">
@@ -832,7 +929,8 @@ function AnswerCard({ msg, onRun, onCancel }: {
   );
 }
 
-function LoadingCard({ stage }: { stage: number }) {
+function LoadingCard({ stage, progress }: { stage: number; progress: number }) {
+  const pct = Math.min(100, Math.max(0, Math.round(progress)));
   return (
     <div className="copilot2-answer copilot2-answer-loading">
       <div className="copilot2-answer-head">
@@ -840,7 +938,21 @@ function LoadingCard({ stage }: { stage: number }) {
         <span className="copilot2-answer-title">AI 분석 결과</span>
         <span className="copilot2-thinking" aria-hidden><i /><i /><i /></span>
       </div>
-      <div className="copilot2-load-stage">{LOAD_STAGES[stage]}</div>
+      <div className="copilot2-load-meter">
+        <div className="copilot2-load-stage">{LOAD_STAGES[stage]}</div>
+        <span className="copilot2-load-pct">{pct}%</span>
+      </div>
+      {/* 값이 계속 변하는 진행률이라 폭은 인라인 style — 정적 클래스로 뺄 수 없다 */}
+      <div
+        className="copilot2-load-bar"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="AI 답변 생성 진행률"
+      >
+        <div className="copilot2-load-bar-fill" style={{ width: `${pct}%` }} />
+      </div>
       <div className="copilot2-skel copilot2-skel-lg" />
       <div className="copilot2-skel" />
       <div className="copilot2-skel copilot2-skel-sm" />
