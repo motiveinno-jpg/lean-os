@@ -643,7 +643,7 @@ export default function CopilotPage() {
 
           {/* 우: 토큰 사용량 */}
           <aside className="copilot2-side">
-            <TokenCard usage={usage} pct={pct} gaugeTone={gaugeTone} estQuestions={estQuestions} model="Claude Sonnet" />
+            <TokenCard usage={usage} pct={pct} gaugeTone={gaugeTone} estQuestions={estQuestions} />
           </aside>
         </div>
       )}
@@ -1001,7 +1001,7 @@ function LoadingCard({ stage, progress }: { stage: number; progress: number }) {
   );
 }
 
-function TokenCard({ usage, pct, gaugeTone, estQuestions, model }: { usage: Usage | null | undefined; pct: number; gaugeTone: string; estQuestions: number; model: string }) {
+function TokenCard({ usage, pct, gaugeTone, estQuestions }: { usage: Usage | null | undefined; pct: number; gaugeTone: string; estQuestions: number }) {
   const R = 52, C = 2 * Math.PI * R;
   const clamped = Math.min(100, Math.max(0, pct));
   const off = C - (clamped / 100) * C;
@@ -1032,7 +1032,7 @@ function TokenCard({ usage, pct, gaugeTone, estQuestions, model }: { usage: Usag
 
       <div className="copilot2-token-rows">
         <div className="copilot2-token-row"><span>예상 질문 가능</span><b>약 {fmt(estQuestions)}회</b></div>
-        <div className="copilot2-token-row"><span>현재 모델</span><b>{model}</b></div>
+        {/* '현재 모델' 행 — 2026-08-10 사장님 지시로 미표기 */}
         <div className="copilot2-token-row"><span>초기화</span><b>{kstDay(usage?.reset_at)}</b></div>
         <div className="copilot2-token-row"><span>마지막 갱신</span><b>{usage?.as_of ? new Date(usage.as_of).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" }) : "—"}</b></div>
       </div>
