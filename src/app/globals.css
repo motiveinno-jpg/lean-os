@@ -2976,6 +2976,27 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .chat-person-on .chat-person-body b { @apply text-white; }
 .chat-person-on .chat-person-body i { @apply text-white/75; }
 .chat-person-off { @apply opacity-45 cursor-not-allowed hover:bg-transparent; }
+
+/* 메신저 안의 일정 · 할 일 (2026-08-10) — 저장은 '일정 / 할 일' 메뉴와 같은 자리로 간다 */
+.chat-sched { @apply flex-1 min-h-0 flex flex-col gap-2 px-2.5 pb-3; }
+.chat-sched-modes { @apply inline-flex w-full rounded-lg border border-[var(--border)] overflow-hidden; }
+.chat-sched-mode { @apply flex-1 h-7 text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
+.chat-sched-mode-on { @apply bg-[var(--primary)] text-white hover:!text-white; }
+.chat-sched-add { @apply flex flex-col gap-1.5 p-2 rounded-xl bg-[var(--bg-surface)]; }
+.chat-sched-input { @apply w-full h-8 px-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[12.5px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.chat-sched-add-row { @apply flex items-center gap-1.5; }
+.chat-sched-date { @apply flex-1 min-w-0 !h-8 text-[11.5px]; }
+.chat-sched-check { @apply inline-flex items-center gap-1 shrink-0 text-[11px] font-semibold text-[var(--text-muted)] cursor-pointer; }
+.chat-sched-go { @apply shrink-0 h-8 px-3 rounded-lg bg-[var(--primary)] text-[12px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
+.chat-sched-list { @apply flex-1 min-h-0 overflow-y-auto flex flex-col gap-0.5; }
+.chat-sched-empty { @apply py-6 text-center text-[11.5px] text-[var(--text-dim)]; }
+.chat-sched-row { @apply flex items-start gap-2 px-2 py-1.5 rounded-lg transition hover:bg-[var(--bg-surface)]; }
+.chat-sched-row-todo { @apply cursor-pointer; }
+.chat-sched-dot { @apply mt-1.5 w-2 h-2 rounded-full shrink-0; }
+.chat-sched-row-body { @apply flex-1 min-w-0 flex flex-col; }
+.chat-sched-row-body b { @apply truncate text-[12.5px] font-semibold text-[var(--text)]; }
+.chat-sched-row-body em { @apply not-italic truncate text-[10.5px] text-[var(--text-dim)]; }
+.chat-sched-more { @apply shrink-0 pt-1 text-center text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
 .chat-create-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
 .refund-nav { @apply sticky top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50; }
 .refund-main { @apply max-w-4xl mx-auto px-6 py-16; }

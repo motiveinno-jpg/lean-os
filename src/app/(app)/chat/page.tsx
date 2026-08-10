@@ -18,6 +18,7 @@ import { ChatBubble } from "@/components/chat-bubble";
 import { ChatInput } from "@/components/chat-input";
 import { ChatSearch } from "@/components/chat-search";
 import { ChatRoomView } from "@/components/chat-room-view";
+import { ChatSchedulePanel } from "@/components/chat-schedule-panel";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // ── Guest Chat View (previously chat/guest/[token]/client.tsx) ──
@@ -297,6 +298,10 @@ function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean;
   );
 }
 
+//   왼쪽 레일의 갈래 — 구성원 / 채팅방 / 일정·할 일
+type Rail = "people" | "rooms" | "schedule";
+const RAILS: Rail[] = ["people", "rooms", "schedule"];
+
 // ── 구성원 한 줄 — 누르면 그 사람과의 1:1 대화가 오른쪽에 열린다 (2026-08-10 사장님 지시) ──
 //   앱 계정이 없는 인사기록(userId 없음)은 대화를 걸 수 없으므로 흐리게 두고 이유를 적는다.
 function PersonRow({ p, active, unread, busy, isMe, onClick }: {
@@ -349,13 +354,13 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   //   새 창(?embed=1)으로 열리면 셸 헤더가 없다 — 104px 을 빼면 아래가 비어 보인다.
   //   창 높이를 다 쓰도록 임베드 여백(위아래 각 20px)만 뺀다 (2026-08-10 메신저 새 창).
   const [isEmbed] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1");
-  //   왼쪽 아이콘 레일 — 사람(부서 → 구성원) / 채팅방. 고른 것은 기억한다(2026-08-10 사장님 지시)
-  const [rail, setRail] = useState<"people" | "rooms">(selectedChannel ? "rooms" : "people");
+  //   왼쪽 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 / 일정·할 일. 고른 것은 기억한다(2026-08-10 사장님 지시)
+  const [rail, setRail] = useState<Rail>(selectedChannel ? "rooms" : "people");
   useEffect(() => {
     if (selectedChannel) return;                 // 채널로 들어왔으면 그 화면을 그대로 둔다
-    try { const v = localStorage.getItem("chat:rail"); if (v === "people" || v === "rooms") setRail(v); } catch { /* 무시 */ }
+    try { const v = localStorage.getItem("chat:rail"); if (RAILS.includes(v as Rail)) setRail(v as Rail); } catch { /* 무시 */ }
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
-  const pickRail = (v: "people" | "rooms") => {
+  const pickRail = (v: Rail) => {
     setRail(v);
     try { localStorage.setItem("chat:rail", v); } catch { /* 무시 */ }
   };
@@ -538,13 +543,19 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
           <em>채팅방</em>
           {totalUnread > 0 && <span className="chat-rail-badge">{totalUnread > 99 ? "99+" : totalUnread}</span>}
         </button>
+        {/*  일정 · 할 일 — 대화를 보다가 그 자리에서 잡는다. 저장은 '일정 / 할 일' 메뉴와 같은 자리 */}
+        <button type="button" onClick={() => pickRail("schedule")} aria-pressed={rail === "schedule"}
+          className={`chat-rail-btn ${rail === "schedule" ? "chat-rail-btn-on" : ""}`} title="일정 · 할 일 — 여기서 적으면 일정/할 일 메뉴에도 그대로 들어갑니다">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2" /><path d="M3 9.5h18M8 2.5v4M16 2.5v4" /><path d="M9 14.5l2 2 4-4" /></svg>
+          <em>일정</em>
+        </button>
       </nav>
 
       {/* ── 목록 패널 — 레일에서 고른 것에 따라 구성원 또는 채팅방 ── */}
       <aside className={`chat-sidebar chat-sidebar-railed ${selectedChannel ? "hidden md:flex" : "flex"}`}>
         <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{rail === "people" ? "구성원" : "채팅방"}</span>
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{rail === "people" ? "구성원" : rail === "schedule" ? "일정 · 할 일" : "채팅방"}</span>
             {rail === "rooms" && totalUnread > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-[var(--danger)] text-white rounded-full font-bold">{totalUnread}</span>}
           </div>
           {rail === "rooms" && (
@@ -552,13 +563,17 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
               className="w-7 h-7 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center text-base leading-none hover:opacity-90 transition">+</button>
           )}
         </div>
-        <div className="px-3 py-2 shrink-0">
-          <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder={rail === "people" ? "이름·부서·직책 검색" : "채널 검색"}
-            className="w-full px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
-        </div>
+        {rail !== "schedule" && (
+          <div className="px-3 py-2 shrink-0">
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder={rail === "people" ? "이름·부서·직책 검색" : "채널 검색"}
+              className="w-full px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
+          </div>
+        )}
 
-        {rail === "people" ? (
+        {rail === "schedule" ? (
+          <ChatSchedulePanel companyId={companyId} userId={userId} />
+        ) : rail === "people" ? (
           <div className="flex-1 overflow-y-auto px-2 pb-3">
             {byDept.length === 0 && <div className="px-2.5 py-4 text-[11px] text-[var(--text-dim)]">구성원이 없습니다.</div>}
             {byDept.map(({ dept, people }) => {
