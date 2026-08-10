@@ -3050,6 +3050,25 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .sched-cancel { @apply h-9 px-3 rounded-lg text-[12.5px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)]; }
 .sched-save { @apply h-9 px-4 rounded-lg bg-[var(--primary)] text-[12.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
 
+/* 일정 보기 — 내용이 본체, 수정·완료는 아래에 작게 (2026-08-10 사장님 지시) */
+.sched-view { @apply fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/35; }
+.sched-view-box { @apply w-full max-w-md max-h-[88vh] overflow-y-auto flex flex-col gap-2.5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl; }
+.sched-view-box > header { @apply flex items-start gap-2; }
+.sched-view-box > header b { @apply flex-1 min-w-0 text-[17px] font-extrabold leading-snug text-[var(--text)]; }
+.sched-view-box > header button { @apply shrink-0 w-7 h-7 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.sched-view-dot { @apply shrink-0 mt-1.5 w-2.5 h-2.5 rounded-full; }
+.sched-view-when { @apply flex items-center gap-2 text-[12.5px] font-semibold text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.sched-view-done { @apply px-1.5 py-0.5 rounded-md bg-[var(--success)]/10 text-[10.5px] font-bold text-[var(--success)]; }
+.sched-view-desc { @apply whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-[var(--text)]; }
+.sched-view-nodesc { @apply text-[12.5px] text-[var(--text-dim)]; }
+.sched-view-meta { @apply flex flex-col gap-1 pt-1 border-t border-[var(--border)]; }
+.sched-view-meta > div { @apply flex items-baseline gap-2 min-w-0; }
+.sched-view-meta dt { @apply w-16 shrink-0 text-[11.5px] font-semibold text-[var(--text-dim)]; }
+.sched-view-meta dd { @apply flex-1 min-w-0 text-[12.5px] text-[var(--text)]; }
+.sched-view-box > footer { @apply flex items-center gap-1 pt-1; }
+.sched-view-act { @apply h-8 px-2.5 rounded-lg text-[12px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)] disabled:opacity-40; }
+.sched-view-del { @apply h-8 px-2.5 rounded-lg text-[12px] font-semibold text-[var(--danger)]/80 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] disabled:opacity-40; }
+
 /* 일정 메뉴의 '목록' 탭 — 날짜 있는 것과 없는 것을 한 자리에서 */
 .sched-list-tab { @apply flex flex-col gap-4; }
 .sched-list-bar { @apply flex items-center gap-3; }

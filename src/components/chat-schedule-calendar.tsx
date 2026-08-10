@@ -9,12 +9,11 @@
 //   저장은 lib/schedule 의 upsertEvent — 일정/할 일 메뉴와 같은 자리로 간다.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "@/components/toast";
-import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
+import { useQuery } from "@tanstack/react-query";
+import { ScheduleItemDialog, type ScheduleDialogTarget } from "@/components/schedule-item-dialog";
 import { todayKst } from "@/lib/kst";
 import {
-  getMonthEvents, upsertEvent, deleteEvent, eventDateKeys, EVENT_COLOR_BG,
+  getMonthEvents, eventDateKeys, EVENT_COLOR_BG,
   type ScheduleEvent,
 } from "@/lib/schedule";
 
@@ -24,12 +23,10 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const keyOf = (y: number, m0: number, d: number) => `${y}-${pad(m0 + 1)}-${pad(d)}`;
 
 export function ChatScheduleCalendar({ companyId, userId }: { companyId: string | null; userId: string | null }) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
   const now = useMemo(() => new Date(), []);
   const [view, setView] = useState({ y: now.getFullYear(), m0: now.getMonth() });
   //   날짜를 누르면 그 날짜로 여는 입력 창. 여러 날에 걸치는 일이 흔해 **시작~종료**를 함께 잡는다.
-  const [draft, setDraft] = useState<ScheduleDraft | null>(null);
+  const [open, setOpen] = useState<ScheduleDialogTarget | null>(null);
   //   달력에서 **끌어서** 여러 날을 한 번에 고른다(누르고 옆으로 끌면 그 구간이 잡힌다)
   const dragRef = useRef<{ start: string } | null>(null);
   const [dragTo, setDragTo] = useState<string | null>(null);
@@ -46,7 +43,7 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
       const [a, b] = [d.start, to].sort();
       dragRef.current = null;
       setDragTo(null);
-      setDraft(draftFromEvent(null, { from: a, to: b }));
+      setOpen({ mode: "new", from: a, to: b });
     };
     window.addEventListener("mouseup", onUp);
     return () => window.removeEventListener("mouseup", onUp);
@@ -85,39 +82,6 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
     return { y: n.getFullYear(), m0: n.getMonth() };
   });
 
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["chat-cal-events"] });
-    qc.invalidateQueries({ queryKey: ["chat-schedule-events"] });
-    qc.invalidateQueries({ queryKey: ["schedule-events"] });   // 일정 메뉴도 같이
-    qc.invalidateQueries({ queryKey: ["schedule-items"] });
-  };
-
-  const save = useMutation({
-    //   ⚠️ 하루 종일 일정은 날짜 문자열 그대로 — toISOString() 을 쓰면 KST 자정이 UTC 로 밀려 하루 전이 된다.
-    //      날짜를 비우면 start_at = null (달력에 안 뜨고 목록에만 남는 항목).
-    mutationFn: () => {
-      const d = draft!;
-      const from = d.from, to = d.to || d.from;
-      const [a, b] = !from ? ["", ""] : (from <= to ? [from, to] : [to, from]);
-      return upsertEvent({
-        id: d.id, companyId: companyId!, userId: userId!,
-        title: d.title.trim(), description: d.description.trim() || undefined,
-        startAt: a ? `${a}T00:00:00` : null,
-        endAt: a && b > a ? `${b}T00:00:00` : null,
-        allDay: true, color: d.color,
-        visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
-      });
-    },
-    onSuccess: () => { setDraft(null); refresh(); toast("일정에 넣었습니다.", "success"); },
-    onError: (e: any) => toast(e?.message || "일정 저장 실패", "error"),
-  });
-
-  const remove = useMutation({
-    mutationFn: () => deleteEvent(draft!.id!),
-    onSuccess: () => { setDraft(null); refresh(); toast("지웠습니다.", "success"); },
-    onError: (e: any) => toast(e?.message || "삭제 실패", "error"),
-  });
-
 
   return (
     <div className="chat-cal">
@@ -152,15 +116,15 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  setDraft(draftFromEvent(null, { from: c.key, to: c.key }));
+                  setOpen({ mode: "new", from: c.key, to: c.key });
                 }
               }}
               title={`${c.key} — 누르면 그 날, 끌면 여러 날 일정`}>
               <span className={`chat-cal-daynum ${dow === 0 ? "chat-cal-sun" : dow === 6 ? "chat-cal-sat" : ""}`}>{c.d}</span>
               {list.slice(0, 3).map((e) => (
-                <span key={e.id} className={`chat-cal-ev ${EVENT_COLOR_BG[e.color] || ""}`} title={`${e.title} — 누르면 고칩니다`}
+                <span key={e.id} className={`chat-cal-ev ${EVENT_COLOR_BG[e.color] || ""}`} title={`${e.title} — 누르면 내용을 봅니다`}
                   onMouseDown={(ev) => { ev.stopPropagation(); }}
-                  onClick={(ev) => { ev.stopPropagation(); setDraft(draftFromEvent(e)); }}>{e.title}</span>
+                  onClick={(ev) => { ev.stopPropagation(); setOpen({ mode: "view", event: e }); }}>{e.title}</span>
               ))}
               {list.length > 3 && <span className="chat-cal-more">+{list.length - 3}</span>}
             </button>
@@ -168,15 +132,9 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
         })}
       </div>
 
-      {/* 날짜를 누르면 뜨는 입력 창 — 일정 메뉴와 **같은 부품**을 쓴다 */}
-      {draft && (
-        <ScheduleItemEditor
-          companyId={companyId} userId={userId}
-          draft={draft} onChange={setDraft}
-          onSave={() => save.mutate()}
-          onDelete={draft.id ? () => remove.mutate() : undefined}
-          onClose={() => setDraft(null)}
-          saving={save.isPending || remove.isPending} />
+      {/* 날짜를 누르면(또는 일정을 누르면) 뜨는 창 — 일정 메뉴와 **같은 부품** */}
+      {open && (
+        <ScheduleItemDialog companyId={companyId} userId={userId} target={open} onClose={() => setOpen(null)} />
       )}
     </div>
   );
