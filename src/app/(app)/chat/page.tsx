@@ -325,6 +325,9 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   const [form, setForm] = useState({ name: "", deal_id: "", type: "deal" });
   const [teamName, setTeamName] = useState("");
   const [dmUserId, setDmUserId] = useState("");
+  //   새 창(?embed=1)으로 열리면 셸 헤더가 없다 — 104px 을 빼면 아래가 비어 보인다.
+  //   창 높이를 다 쓰도록 임베드 여백(위아래 각 20px)만 뺀다 (2026-08-10 메신저 새 창).
+  const [isEmbed] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1");
 
   const { data: channels = [] } = useQuery({
     queryKey: ["chat-channels", companyId],
@@ -416,7 +419,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   ];
 
   return (
-    <div className="chat-workspace glass-card" style={{ height: "calc(100dvh - 104px)" }}>
+    <div className="chat-workspace glass-card" style={{ height: isEmbed ? "calc(100dvh - 40px)" : "calc(100dvh - 104px)" }}>
       {/* ── 좌측 채널 사이드바 ── */}
       <aside className={`chat-sidebar ${selectedChannel ? "hidden lg:flex" : "flex"}`}>
         <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">

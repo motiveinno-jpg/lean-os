@@ -4885,23 +4885,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .manual-attendance-nextday { @apply flex items-center gap-2 text-xs text-[var(--text-muted)] cursor-pointer select-none; }
 .edit-request-inbox { @apply p-4 mb-4; } /* glass-card (existing custom class) kept literal in JSX */
 .edit-request-row { @apply px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
-.channel-button { @apply w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition hover:bg-[var(--bg-surface)] text-[var(--text-muted)]; }
-.messenger-panel { @apply fixed z-50 w-[380px] h-[560px] max-h-[calc(100vh-7rem)] flex flex-col rounded-3xl border border-[var(--border)] overflow-hidden backdrop-blur-2xl text-[var(--text)]; }
-.messenger-header { @apply shrink-0 flex items-center gap-2 px-4 h-14 border-b border-[var(--border)]; }
-.messenger-back-btn { @apply w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0; }
-.messenger-title { @apply flex-1 truncate text-base font-bold text-[var(--text)]; }
-.messenger-fullscreen-btn { @apply w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0; }
-.messenger-close-btn { @apply w-7 h-7 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] flex items-center justify-center transition shrink-0; }
-.messenger-search-row { @apply shrink-0 p-2 border-b border-[var(--border)] space-y-2; }
-.messenger-search-input { @apply flex-1 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]; }
-.messenger-new-channel-btn { @apply shrink-0 w-8 h-8 rounded-full bg-[var(--primary)] hover:opacity-90 text-white flex items-center justify-center text-lg leading-none transition; }
-.messenger-create-row { @apply flex items-center gap-2; }
-.messenger-create-input { @apply flex-1 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] placeholder:text-[var(--text-dim)] focus:outline-none focus:border-[var(--primary)]; }
-.messenger-create-submit { @apply shrink-0 px-3 h-8 rounded-full bg-[var(--primary)] hover:opacity-90 text-white text-xs font-semibold transition disabled:opacity-40; }
-.messenger-channel-list { @apply flex-1 overflow-y-auto p-2 space-y-2; }
-.messenger-channel-group-label { @apply px-2 mb-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]; }
-.messenger-channel-group-items { @apply space-y-0.5; }
-.messenger-empty { @apply py-10 text-center text-xs text-[var(--text-dim)]; }
 .messenger-fab { @apply fixed z-50 w-14 h-14 rounded-full text-white flex items-center justify-center hover:opacity-90 transition active:scale-95 border border-white/15 touch-none cursor-grab active:cursor-grabbing; }
 .messenger-fab-badge { @apply absolute -top-0.5 -right-0.5 min-w-[20px] h-5 flex items-center justify-center text-[10px] font-bold rounded-full px-1 bg-red-500 text-white border-2 border-[var(--bg-card)]; }
 .owner-dashboard-section { @apply space-y-6 mb-8; }

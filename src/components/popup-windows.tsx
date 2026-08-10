@@ -19,7 +19,8 @@ type Ctx = {
   dragging: boolean;
   setDragging: (v: boolean) => void;
   open: (href: string, title: string) => void;
-  openDetached: (href: string, title: string) => void;
+  /** size — 창 크기를 정하고 싶을 때(메신저처럼 세로로 긴 창). 없으면 메뉴 팝업 기본 크기 */
+  openDetached: (href: string, title: string, size?: { w: number; h: number }) => void;
   close: (id: string) => void;
   focus: (id: string) => void;
   toggleMin: (id: string) => void;
@@ -63,15 +64,17 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
 
   // 사이드바 "팝업으로 열기" — 인앱 플로팅 창을 거치지 않고 바로 OS 새 창으로 (2026-07-28 사장님:
   //   "두번 안누르고 바로 새창으로"). 팝업 차단 시에만 기존 인앱 플로팅 창으로 폴백.
-  const openDetached = useCallback((href: string, title: string) => {
+  const openDetached = useCallback((href: string, title: string, size?: { w: number; h: number }) => {
     const vw = window.innerWidth, vh = window.innerHeight;
-    const width = Math.min(820, Math.round(vw * 0.62));
-    const height = Math.min(600, Math.round(vh * 0.7));
+    const width = size?.w ?? Math.min(820, Math.round(vw * 0.62));
+    const height = size?.h ?? Math.min(600, Math.round(vh * 0.7));
     const left = (window.screenX || 0) + Math.round((vw - width) / 2);
     const top = (window.screenY || 0) + 96;
     const feat = `popup=yes,noopener=no,width=${width},height=${height},left=${Math.max(0, left)},top=${Math.max(0, top)}`;
+    //   창 이름을 라우트로 고정 — 이미 열려 있으면 새로 열지 않고 그 창을 재사용한다
     const wref = window.open(`${href}?embed=1`, `ovpop-${href}`, feat);
-    if (!wref) open(href, title);
+    if (!wref) { open(href, title); return; }   // 팝업 차단 → 인앱 플로팅 창으로 폴백
+    try { wref.focus(); } catch { /* 창 포커스 실패는 치명적이지 않다 */ }
   }, [open]);
 
   const close = useCallback((id: string) => setWins((prev) => prev.filter((w) => w.id !== id)), []);
