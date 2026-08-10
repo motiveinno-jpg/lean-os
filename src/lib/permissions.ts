@@ -21,6 +21,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       // 대시보드 자체는 전원 기본 제공(필수 위젯: 출근·할일·캘린더) — 금액 위젯은 세부 권한
       { route: "/dashboard", label: "대시보드", always: true, tabs: [
         { key: "finance", label: "재무·경영 위젯 (현금펄스·매출·잔액 등 금액 정보)" },
+        { key: "briefing", label: "AI 브리핑 (아침 요약 문장 + 잔고·전망 핵심 숫자)" },
       ] },
       { route: "/copilot", label: "AI 참모" },
       { route: "/mypage", label: "마이페이지", always: true },

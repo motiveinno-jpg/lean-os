@@ -414,6 +414,8 @@ export default function DashboardPage() {
   //   재무·경영 위젯은 /dashboard:finance 권한 보유자(또는 마스터)만 추가·표시 가능.
   const { isMaster: dashMaster, hasPerm: dashPerm } = useMyPermissions();
   const canFinance = dashMaster || dashPerm("/dashboard:finance");
+  // AI 브리핑은 별도 세부 권한(2026-08-10 사장님) — 부여자에게만 보이고, 없으면 카드 자체가 안 뜬다
+  const canBriefing = dashMaster || dashPerm("/dashboard:briefing");
 
   // (2026-07-30 개편 P2) 직원 분기 삭제 — 파트너 외 전원 동일 대시보드(접근은 권한 가드가 판정).
 
@@ -526,8 +528,9 @@ export default function DashboardPage() {
       {companyId && (
         <div className="dashboard-owner-widgets-section">
           {/* (0) AI 브리핑 + 오늘의 액션 — 라운드7.1(컨셉 1안). 문장 요약은 MorningBrief(규칙 기반) 재사용,
-               버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0. */}
-          {canFinance && (<div>
+               버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0.
+               게이트: /dashboard:briefing 세부 권한(마스터 항상) — 없으면 카드 자체 미표시 (2026-08-10) */}
+          {canBriefing && (<div>
             <MorningBrief
               userName={userName}
               companyName={companyName}
