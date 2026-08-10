@@ -6411,7 +6411,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-note:hover > button { @apply opacity-100; }
 /* @멘션 목록이 이 줄 위로 뜬다 — 기준이 될 상자 (2026-08-06) */
 .pb-drawer-foot { @apply relative flex flex-col gap-2 px-4 py-3 border-t border-[var(--border)]; }
-.pb-drawer-foot textarea { @apply w-full rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 text-[13px] text-[var(--text)] resize-none focus:outline-none focus:border-[var(--primary)]; }
+/* 쓰는 만큼 늘어나고, 모서리를 끌어 더 늘릴 수도 있다 (2026-08-10 — 2줄 고정이라 글 쓰기가 불편했다) */
+.pb-drawer-foot textarea { @apply w-full rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-2 text-[13px] leading-relaxed text-[var(--text)] resize-y min-h-[68px] max-h-[520px] focus:outline-none focus:border-[var(--primary)]; }
 .pb-at-pop { @apply left-4; }
 .pb-at-on { @apply bg-[var(--bg-surface)]; }
 .pb-at-face { @apply w-6 h-6 shrink-0 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-[10px] font-bold text-[var(--primary)]; }
@@ -6422,6 +6423,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 눈에는 안 보이지만 클릭은 받는다 — display:none 이면 모바일에서 창이 안 열린다 */
 .pb-drawer-fileinput { @apply sr-only; }
 .pb-drawer-send { @apply ml-auto h-8 px-4 rounded-lg bg-[var(--primary)] text-[12.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
+/* 넓게 보기 — 긴 글을 쓸 때 서랍을 두 배로 (2026-08-10) */
+.pb-drawer-wide { @apply max-w-3xl; }
+/*  ⚠️ .pb-drawer-head > button 이 w-7 을 강제한다 — 글자 단추는 폭을 되돌려야 세로로 안 쪼개진다 */
+.pb-drawer-widebtn { @apply shrink-0 !w-auto h-7 px-2 rounded-lg whitespace-nowrap text-[11.5px] font-bold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
 
 /* 빠른 입력 · 집행률 (2026-08-04) */
 /* 칸마다 자기 자리에 입력기가 선다 — 머리글과 세로로 맞아야 어느 칸에 넣는지 보인다 (2026-08-05) */
@@ -7039,6 +7044,16 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pbm-past em { @apply not-italic text-[10.5px] text-[var(--text-dim)]; }
 .pbm-past-on { @apply bg-[var(--bg-card)] ring-1 ring-[var(--primary)]/30; }
 .pbm-newmeet { @apply mt-1 px-2.5 py-2 rounded-xl border border-dashed border-[var(--border)] text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)]; }
+
+/* 안건을 그 자리에서 펼쳐 적는다 (2026-08-10 — 서랍의 작은 칸에서 쓰던 것을 여기로) */
+.pbm-foldall { @apply px-2 py-1 rounded-lg text-[11px] font-bold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
+.pbm-item-open { @apply border-[var(--primary)]/25 bg-[var(--bg-surface)]/40; }
+.pbm-more { @apply shrink-0 px-2 py-1 rounded-lg text-[11px] font-semibold text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
+.pbm-caret { @apply shrink-0 w-6 h-6 rounded-lg text-[13px] font-bold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
+.pbm-peek { @apply w-full text-left text-[12.5px] text-[var(--text-muted)] truncate transition hover:text-[var(--primary)]; }
+.pbm-write { @apply flex flex-col gap-1; }
+.pbm-write > label { @apply text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pbm-write textarea { @apply w-full rounded-xl bg-[var(--bg-card)] border border-[var(--border)] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--text)] resize-y min-h-[76px] max-h-[520px] focus:outline-none focus:border-[var(--primary)]; }
 
 /* 템플릿 예시 화면 — 카드에 마우스를 올리면 옆에 뜬다 (2026-08-07 사장님 지시).
    모달 안에서 잘리지 않게 화면 좌표(fixed)로 띄우고, 손이 닿아도 사라지지 않게 클릭은 통과시킨다. */

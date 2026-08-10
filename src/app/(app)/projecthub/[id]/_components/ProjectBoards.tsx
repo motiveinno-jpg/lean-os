@@ -1290,6 +1290,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           onOpen={setOpenItemId}
           sending={sendingTodo}
           onSendToTodo={sendToTodo}
+          onSaveCell={(it, colId, v) => saveValue(it, colId, v)}
           renderCell={(c, it) => (
             <Cell col={c} item={it} users={users} partners={partners as any[]} companyId={companyId}
               onSave={(v) => saveValue(it, c.id, v)}

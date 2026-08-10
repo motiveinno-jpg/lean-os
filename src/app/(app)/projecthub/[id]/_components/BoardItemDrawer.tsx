@@ -6,16 +6,22 @@
 //   한 줄을 열면 모든 칸을 한 화면에서 채우고, 메모와 파일을 그 줄에 붙인다.
 //   칸 편집은 표·칸반과 **같은 Cell** 을 쓴다 — 편집 방식이 화면마다 갈리지 않게.
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+//   2026-08-10 (사장님 지시) — "메모 남기기가 작은 상태에서 글을 쓰다 보니 불편하다."
+//     · 입력칸이 **쓰는 만큼 저절로 늘어난다**(2줄 고정 → 최대 520px). 모서리를 끌어 더 늘릴 수도 있다.
+//     · 서랍이 좁아서(448px) 긴 글이 답답했다 → '넓게' 토글을 넣고 고른 값을 기억한다.
+
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { resolveSignedUrl } from "@/lib/file-storage";
 import type { BoardColumn, BoardItem } from "@/lib/project-boards";
+import { growTextarea } from "./BoardMinutes";
 
 const db = supabase as any;
 const BUCKET = "documents";
+const WIDE_KEY = "pb-drawer-wide";
 
 export type ItemNote = {
   id: string; user_id: string | null; body: string | null;
@@ -46,6 +52,14 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
   //   @멘션 — 이름을 고르면 본문에 '@이름'이 들어가고, 남기면 그 사람에게 알림이 간다
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const [at, setAt] = useState<{ q: string; idx: number } | null>(null);
+  //   넓게 보기 — 사람마다 다르게 쓰므로 고른 값을 기억한다(localStorage 는 마운트 뒤에 읽는다)
+  const [wide, setWide] = useState(false);
+  useEffect(() => { try { setWide(localStorage.getItem(WIDE_KEY) === "1"); } catch { /* 무시 */ } }, []);
+  const toggleWide = () => setWide((w) => {
+    const next = !w;
+    try { localStorage.setItem(WIDE_KEY, next ? "1" : "0"); } catch { /* 무시 */ }
+    return next;
+  });
   const atList = useMemo(() => {
     if (!at) return [];
     const q = at.q.trim().toLowerCase();
@@ -70,6 +84,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
   const AT_RE = /(?:^|\s)@([^\s@]{0,20})$/;
   const onTextChange = (el: HTMLTextAreaElement) => {
     setText(el.value);
+    growTextarea(el);
     const m = AT_RE.exec(el.value.slice(0, el.selectionStart ?? el.value.length));
     setAt(m ? { q: m[1], idx: 0 } : null);
   };
@@ -85,7 +100,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
     setAt(null);
     //   커서를 넣은 이름 뒤로 — 이어서 바로 칠 수 있게
     const pos = start + (u.name || "").length + 2;
-    window.requestAnimationFrame(() => { el.focus(); el.setSelectionRange(pos, pos); });
+    window.requestAnimationFrame(() => { el.focus(); el.setSelectionRange(pos, pos); growTextarea(el); });
   };
 
   const addNote = async () => {
@@ -98,6 +113,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
       if (error) throw new Error(error.message);
       setText("");
       setAt(null);
+      growTextarea(taRef.current);   // 비운 뒤 높이도 되돌린다(빈 칸이 커다랗게 남지 않게)
       refresh();
       //   멘션 알림 — 메모는 이미 남았으니 알림이 실패해도 되돌리지 않는다(게시판과 같은 규칙).
       //   type 은 notifications 의 enum 안에 있는 'chat' 을 쓴다(새 값 추가 X).
@@ -162,12 +178,15 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
   return (
     <>
       <div className="pb-drawer-veil" onClick={onClose} />
-      <aside className="pb-drawer" aria-label={`${nameLabel} 상세`}>
+      <aside className={`pb-drawer ${wide ? "pb-drawer-wide" : ""}`} aria-label={`${nameLabel} 상세`}>
         <header className="pb-drawer-head">
           <input defaultValue={item.name} placeholder={`${nameLabel} 입력`}
             onBlur={(e) => onSaveName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
             className="pb-drawer-name" />
+          {/*  긴 글을 쓸 때는 넓게 — 고른 값은 다음에도 그대로 열린다 */}
+          <button type="button" className="pb-drawer-widebtn" onClick={toggleWide} aria-pressed={wide}
+            title={wide ? "좁게 보기" : "넓게 보기 — 긴 글을 쓸 때"}>↔ {wide ? "좁게" : "넓게"}</button>
           <button type="button" onClick={onClose} title="닫기">✕</button>
         </header>
 
@@ -195,8 +214,8 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
         </section>
 
         <footer className="pb-drawer-foot">
-          <textarea ref={taRef} value={text} onChange={(e) => onTextChange(e.currentTarget)} rows={2}
-            placeholder="메모 남기기 — @ 로 사람을 부를 수 있어요"
+          <textarea ref={taRef} value={text} onChange={(e) => onTextChange(e.currentTarget)} rows={3}
+            placeholder="메모 남기기 — @ 로 사람을 부를 수 있어요 (Ctrl+Enter 로 남기기)"
             onKeyDown={(e) => {
               if (at && atList.length > 0) {
                 if (e.key === "ArrowDown") { e.preventDefault(); setAt({ ...at, idx: (at.idx + 1) % atList.length }); return; }
