@@ -3000,14 +3000,12 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .chat-sched-list { @apply flex-1 min-h-0 overflow-y-auto flex flex-col gap-0.5; }
 .chat-sched-empty { @apply py-6 text-center text-[11.5px] text-[var(--text-dim)]; }
 .chat-sched-row { @apply flex items-start gap-2 px-2 py-1.5 rounded-lg transition hover:bg-[var(--bg-surface)]; }
-.chat-sched-row-todo { @apply cursor-pointer; }
 .chat-sched-dot { @apply mt-1.5 w-2 h-2 rounded-full shrink-0; }
-.chat-sched-row-body { @apply flex-1 min-w-0 flex flex-col; }
+.chat-sched-row-body { @apply flex-1 min-w-0 flex flex-col items-start text-left; }
 .chat-sched-row-body b { @apply truncate text-[12.5px] font-semibold text-[var(--text)]; }
 .chat-sched-row-body em { @apply not-italic truncate text-[10.5px] text-[var(--text-dim)]; }
 .chat-sched-more { @apply shrink-0 pt-1 text-center text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
 .chat-sched-tip { @apply px-1 text-[11px] leading-relaxed text-[var(--text-dim)]; }
-.chat-sched-new { @apply shrink-0 h-8 rounded-lg bg-[var(--primary)] text-[12px] font-bold text-white transition hover:opacity-90; }
 .chat-sched-sub { @apply pt-2 px-1 text-[10.5px] font-bold text-[var(--text-dim)]; }
 
 /* 일정 입력 창 — 일정 메뉴와 메신저가 같이 쓴다 (2026-08-10 통합) */

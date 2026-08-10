@@ -98,7 +98,6 @@ export function ScheduleItemEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.visibility]);
 
-  const others = useMemo(() => (users as any[]).filter((u) => u.id !== userId), [users, userId]);
   const toggleUser = (id: string) => set({
     targetUserIds: draft.targetUserIds.includes(id)
       ? draft.targetUserIds.filter((x) => x !== id) : [...draft.targetUserIds, id],
@@ -159,7 +158,11 @@ export function ScheduleItemEditor({
           <TagPicker
             placeholder="이름으로 찾아 넣기"
             empty="고를 사람이 없습니다."
-            options={others.map((u: any) => ({ key: u.id, label: u.name || u.email }))}
+            //   ⚠️ 이름을 찾으려면 **나까지 포함한 전체 목록**을 줘야 한다 — 나를 빼고 주면
+            //      대상에 내가 들어 있던 일정에서 이름 대신 id 가 그대로 보인다(2026-08-10 발견).
+            //      나는 후보에서만 감춘다(내 일정은 어차피 나에게 보이므로 고를 이유가 없다).
+            options={(users as any[]).map((u: any) => ({ key: u.id, label: u.name || u.email }))}
+            hideFromSuggest={userId ? [userId] : []}
             selected={draft.targetUserIds}
             onToggle={toggleUser} />
         )}
@@ -198,12 +201,14 @@ export function ScheduleItemEditor({
 
 /** 태그로 고르기 — 구성원·부서가 많아지면 체크박스 목록은 다 훑어야 해서 못 쓴다
  *  (2026-08-10 사장님 지시). 고른 것은 위에 태그로 남고, 아래에서 찾아 눌러 넣는다. */
-function TagPicker({ placeholder, empty, options, selected, onToggle }: {
+function TagPicker({ placeholder, empty, options, selected, onToggle, hideFromSuggest = [] }: {
   placeholder: string;
   empty: string;
   options: { key: string; label: string; sub?: string }[];
   selected: string[];
   onToggle: (key: string) => void;
+  /** 후보 목록에서만 감출 것(이름은 태그에 그대로 나와야 하므로 options 에는 남겨 둔다) */
+  hideFromSuggest?: string[];
 }) {
   const [q, setQ] = useState("");
   const chosen = useMemo(
@@ -214,10 +219,10 @@ function TagPicker({ placeholder, empty, options, selected, onToggle }: {
   const matches = useMemo(() => {
     const t = q.trim().toLowerCase();
     return options
-      .filter((o) => !selected.includes(o.key))
+      .filter((o) => !selected.includes(o.key) && !hideFromSuggest.includes(o.key))
       .filter((o) => !t || `${o.label} ${o.sub || ""}`.toLowerCase().includes(t))
       .slice(0, 8);
-  }, [options, selected, q]);
+  }, [options, selected, q, hideFromSuggest]);
 
   return (
     <div className="sched-tagbox">

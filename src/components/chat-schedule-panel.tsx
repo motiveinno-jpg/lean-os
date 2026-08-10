@@ -72,26 +72,28 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
   const undated = list.filter((e) => !e.start_at);
 
   const row = (e: ScheduleEvent) => (
-    <label key={e.id} className="chat-sched-row chat-sched-row-todo">
-      <input type="checkbox" checked={e.completed}
-        onChange={(ev) => { ev.stopPropagation(); doneMut.mutate({ id: e.id, completed: ev.target.checked }); }} />
+    //   ⚠️ <label> 로 감싸면 제목을 눌러도 안의 체크박스가 켜져 **완료 처리되어 목록에서 사라진다**
+    //      (2026-08-10 사장님 제보). 줄은 <div>, 제목은 별도 단추로 둔다.
+    <div key={e.id} className="chat-sched-row">
+      <input type="checkbox" checked={e.completed} title={e.completed ? "완료 취소" : "완료"}
+        onChange={(ev) => doneMut.mutate({ id: e.id, completed: ev.target.checked })} />
       <i className={`chat-sched-dot ${DOT[e.color] || DOT.gray}`} />
-      <span className="chat-sched-row-body" onClick={() => setDraft(draftFromEvent(e))}>
+      <button type="button" className="chat-sched-row-body" title="눌러서 고치기"
+        onClick={() => setDraft(draftFromEvent(e))}>
         <b>{e.title}</b>
         <em>
           {e.start_at ? String(e.start_at).slice(0, 10) : "날짜 없음"}
           {e.end_at ? ` ~ ${String(e.end_at).slice(0, 10)}` : ""}
           {` · ${VISIBILITY_LABEL[e.visibility]}`}
         </em>
-      </span>
-    </label>
+      </button>
+    </div>
   );
 
   return (
     <div className="chat-sched">
-      <button type="button" className="chat-sched-new" onClick={() => setDraft(draftFromEvent(null))}>
-        ＋ 새로 만들기
-      </button>
+      {/*  '새로 만들기' 단추는 뺐다 — 옆 달력에서 날짜를 누르면 만들어지므로 겹치는 자리였다
+           (2026-08-10 사장님 지시) */}
       <p className="chat-sched-tip">오른쪽 달력에서 <b>날짜를 누르거나 끌면</b> 그 날짜로 넣습니다.</p>
 
       <div className="chat-sched-list">
