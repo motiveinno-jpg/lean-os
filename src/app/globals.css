@@ -2942,7 +2942,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 
 /*  ⚠️ .chat-sidebar 는 w-full 이라 옆에 레일이 생기자 좁은 창에서 레일을 화면 밖으로 밀어냈다.
     기존 정의는 그대로 두고, 레일과 나란히 설 때만 이 조합을 덧씌운다(뒤에 있어 폭 선언이 이긴다). */
-.chat-sidebar-railed { @apply w-auto flex-1 min-w-0 lg:flex-none lg:w-72; }
+/*  세 칸(아이콘 · 목록 · 대화)이 한 화면에 서는 기준을 md(768px)로 낮췄다 (2026-08-10) —
+    lg(1024px)면 메신저 창에서 방을 열 때마다 목록이 접혀 두 칸이 됐다. */
+.chat-sidebar-railed { @apply w-auto flex-1 min-w-0 md:flex-none md:w-64 lg:w-72; }
 
 /* 메신저 왼쪽 아이콘 레일 — 구성원 / 채팅방 (2026-08-10) */
 .chat-rail { @apply shrink-0 w-[60px] flex flex-col items-center gap-1 py-2 border-r border-[var(--border)] bg-[var(--bg-surface)]/70; }

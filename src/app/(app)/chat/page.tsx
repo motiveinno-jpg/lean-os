@@ -541,7 +541,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       </nav>
 
       {/* ── 목록 패널 — 레일에서 고른 것에 따라 구성원 또는 채팅방 ── */}
-      <aside className={`chat-sidebar chat-sidebar-railed ${selectedChannel ? "hidden lg:flex" : "flex"}`}>
+      <aside className={`chat-sidebar chat-sidebar-railed ${selectedChannel ? "hidden md:flex" : "flex"}`}>
         <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{rail === "people" ? "구성원" : "채팅방"}</span>
@@ -607,7 +607,7 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       </aside>
 
       {/* ── 우측 대화 패널 ── */}
-      <section className={`chat-conversation-panel ${selectedChannel ? "flex" : "hidden lg:flex"}`}>
+      <section className={`chat-conversation-panel ${selectedChannel ? "flex" : "hidden md:flex"}`}>
         {selectedChannel ? (
           <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3">
             {/*  뒤로 갈 때도 embed 를 달고 간다 — 빼면 새로고침 시 새 창 안에 셸이 통째로 뜬다 */}

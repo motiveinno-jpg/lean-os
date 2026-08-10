@@ -21,8 +21,9 @@ import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
 import { usePopups } from "@/components/popup-windows";
 
-//   메신저 창 크기 — 대화는 세로로 길수록 편하다(메뉴 팝업 기본값보다 좁고 높게)
-const WIN_W = 460;
+//   메신저 창 크기 — **아이콘 · 채팅방 목록 · 대화창 세 칸이 한 번에 보이게** 연다
+//   (2026-08-10 사장님 지시, Teams 화면 기준). 좁게 열면 방을 열 때 목록이 접혀 두 칸이 된다.
+const WIN_W = 1040;
 const WIN_H = 780;
 
 export function FloatingMessenger() {
@@ -40,7 +41,8 @@ export function FloatingMessenger() {
   });
 
   const openWindow = () => {
-    const w = Math.min(WIN_W, Math.max(360, window.innerWidth - 80));
+    //   화면이 작으면 화면에 맞춘다(창이 모니터 밖으로 나가지 않게)
+    const w = Math.min(WIN_W, Math.max(360, window.innerWidth - 60));
     const h = Math.min(WIN_H, Math.max(480, window.innerHeight - 40));
     popups?.openDetached("/chat", "메신저", { w, h });
   };
