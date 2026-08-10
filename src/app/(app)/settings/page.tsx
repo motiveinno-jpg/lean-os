@@ -29,6 +29,7 @@ import { DepartmentsTab } from "./_components/DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./_components/DealClassificationManager";
 import { DataResetTab } from "./_components/DataResetTab";
+import { CompanyDeleteTab } from "./_components/CompanyDeleteTab";
 import { CompanyInfoTab } from "./_components/CompanyInfoTab";
 import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 // 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
@@ -41,9 +42,9 @@ type LeafKey =
   | "bank" | "ads"                                // 연동·인증
   | "departments" | "attendance"                  // 인사·근태
   | "approval" | "deal" | "forms"                 // 업무 규칙
-  | "data";                                       // 시스템
+  | "data" | "delete-company";                    // 시스템 (회사 삭제는 마스터 전용)
 
-const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: LeafKey; label: string }[] }[] = [
+const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: LeafKey; label: string; masterOnly?: boolean }[] }[] = [
   { key: "basic", label: "회사 기본", icon: "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2", tabs: [
     { key: "company-info", label: "회사정보" },
     { key: "team", label: "팀·권한" },
@@ -69,6 +70,8 @@ const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: 
   ] },
   { key: "system", label: "시스템", icon: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m-1 0v14a1 1 0 01-1 1H9a1 1 0 01-1-1V6", tabs: [
     { key: "data", label: "데이터 관리" },
+    // 회사 자체를 지우는 탭 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
+    { key: "delete-company", label: "회사 삭제", masterOnly: true },
   ] },
 ];
 const ALL_LEAVES: LeafKey[] = SETTINGS_GROUPS.flatMap((g) => g.tabs.map((t) => t.key));
@@ -123,7 +126,7 @@ function SettingsPageInner() {
   // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/settings:leaf)만
   const { isMaster: permMaster, hasPerm: permHas } = useMyPermissions();
   const visibleGroups = SETTINGS_GROUPS
-    .map((g) => ({ ...g, tabs: g.tabs.filter((t) => permMaster || permHas(`/settings:${t.key}`)) }))
+    .map((g) => ({ ...g, tabs: g.tabs.filter((t) => t.masterOnly ? permMaster : (permMaster || permHas(`/settings:${t.key}`))) }))
     .filter((g) => g.tabs.length > 0);
   const firstAllowedLeaf = visibleGroups[0]?.tabs[0]?.key;
   useEffect(() => {
@@ -657,6 +660,8 @@ function SettingsPageInner() {
 
       {/* ═══ 시스템 — 데이터 관리 ═══ */}
       {tab === "data" && companyId && <DataResetTab companyId={companyId} />}
+
+      {tab === "delete-company" && companyId && permMaster && <CompanyDeleteTab companyId={companyId} />}
 
       {confirmElement}
     </div>
