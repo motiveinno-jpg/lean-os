@@ -161,8 +161,8 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     try { sessionStorage.setItem(SS_KEY, String(idx)); } catch { /* ignore */ }
   }, [idx]);
 
-  // 현재 스텝의 사이드바 항목 위치 계산
-  const measure = useCallback(() => {
+  // 현재 스텝의 사이드바 항목 위치 계산 — scrollIntoView 는 스텝 진입 때 한 번만(scroll=true)
+  const measure = useCallback((scroll = false) => {
     if (!step?.href) { setRect(null); return; }
     // 같은 href 가 여러 개다(예: 상단 로고도 /dashboard) — 메뉴 라벨 텍스트가 있는 쪽을 고르고,
     // 없으면 마지막 매치(사이드바 메뉴가 로고보다 뒤에 렌더된다). 첫 매치를 쓰면 로고가 잡힌다(2026-08-10 prod 확인).
@@ -170,17 +170,20 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     const label = step.title.split(" ")[0];
     const el = els.find((e) => e.textContent?.includes(label)) || els[els.length - 1] || null;
     if (!el) { setRect(null); return; }
-    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (scroll) el.scrollIntoView({ block: "center", behavior: "smooth" });
     const r = el.getBoundingClientRect();
     setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
   }, [step]);
 
   useEffect(() => {
-    // scrollIntoView 후 자리가 잡히도록 두 번 측정
-    measure();
-    const t = setTimeout(measure, 350);
-    window.addEventListener("resize", measure);
-    return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
+    measure(true);
+    // smooth 스크롤이 끝난 뒤 자리 확정 + 스크롤(사이드바 내부 포함, 캡처) 동안 하이라이트가 따라간다
+    //   — 스텝 표시 때 사이드바가 부드럽게 움직이는 중에 한 번만 측정하면 어긋난 자리에 그려진다(2026-08-10 prod 확인)
+    const t = setTimeout(() => measure(), 400);
+    const onMove = () => measure();
+    window.addEventListener("resize", onMove);
+    window.addEventListener("scroll", onMove, true);
+    return () => { clearTimeout(t); window.removeEventListener("resize", onMove); window.removeEventListener("scroll", onMove, true); };
   }, [idx, measure]);
 
   // 완료·건너뛰기 — 계정(user_preferences)에 기록하고 진행 스텝을 지운다
