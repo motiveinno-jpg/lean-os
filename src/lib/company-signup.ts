@@ -27,7 +27,16 @@ export const formatBizNo = (digits: string) =>
 export const isValidBizNo = (input: string) => bizNoDigits(input).length === 10;
 
 // 사업자번호 중복(기등록 회사) 확인 — 서버 API(service role) 경유 (RLS로 클라 직접 조회 불가)
+//   유효성 선검사 추가 (2026-08-10 사장님 제보): "123456789…" 같은 가짜 번호도
+//   '사용 가능한 사업자번호' 로 통과했다. 유효성은 최종 제출에서만 검사하고 있었기 때문 —
+//   중복 확인 단계에서 checksum + 국세청 상태(assertBizNoActive)를 먼저 거른다.
+//   auth 가입 폼·/company-setup 양쪽이 이 함수를 쓰므로 여기 한 곳으로 둘 다 잡힌다.
 export async function checkBusinessNumberRegistered(bizNo: string): Promise<{ registered: boolean; companyNameMasked?: string }> {
+  const active = await assertBizNoActive(bizNo);
+  if (!active.ok) {
+    logSignupIssue("사업자번호 유효성 실패", active.error || "유효하지 않은 번호", { biz: bizMask(bizNoDigits(bizNo)) });
+    throw new Error(active.error || "유효하지 않은 사업자등록번호입니다. 번호를 다시 확인해주세요.");
+  }
   const res = await fetch("/api/company/check-business-number", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
