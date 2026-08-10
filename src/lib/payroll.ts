@@ -200,7 +200,9 @@ export async function getMonthlyTotalSalary(companyId: string): Promise<number> 
     .from('employees')
     .select('salary')
     .eq('company_id', companyId)
-    .in('status', ['active', 'joined', 'invited']));
+    //   'invited' = 초대만 하고 아직 합류 안 한 사람 — 급여가 나가지 않는데 비용으로 잡히던 것을 뺐다
+    //   (2026-08-10). 손익계산서 급여도 같은 기준(active·joined)으로 맞췄다.
+    .in('status', ['active', 'joined']));
 
   return (employees || []).reduce((sum: number, e: any) => sum + Number(e.salary || 0), 0);
 }

@@ -34,8 +34,8 @@ function monthLabel(m: string): string {
 const YEAR_NOW = new Date().getFullYear();
 
 // 산출 기준 설명 — 팝업 상단 note (집계 함수와 동일 소스 명시)
-const FIXED_NOTE = "고정비 = 정기결제(활성) + 고정비 등록 항목 + 통장 거래 중 '고정비' 체크(전표처리·매핑에서 체크)된 지출의 합입니다. 같은 지출이 정기결제와 통장 체크 거래에 모두 있으면(이름·금액 매칭) 통장 거래는 자동 제외돼 중복 집계되지 않습니다.";
-const VARIABLE_NOTE = "변동비 = 법인카드 사용액 + 일회성 지출(결제 대기)의 합입니다.";
+const FIXED_NOTE = "고정비 = 급여(재직 직원) + 정기결제(활성) + 고정비 등록 항목 + 통장 거래 중 '고정비' 체크(전표처리·매핑에서 체크)된 지출의 합입니다. 같은 지출이 정기결제와 통장 체크 거래에 모두 있으면(이름·금액 매칭) 통장 거래는 자동 제외돼 중복 집계되지 않습니다. 대출 상환·미지급금 상환처럼 계정 성격이 비용이 아닌 거래는 고정비 체크가 돼 있어도 제외합니다.";
+const VARIABLE_NOTE = "변동비 = 법인카드 사용액 + 일회성 지출(결제 대기, 취소 건 제외)의 합입니다.";
 
 // 세부내역(카테고리) 행 클릭 → 산출 내역 팝업. getCostCategoryDetail 로 개별 레코드 조회 후 CellDetail 재사용.
 //   정기결제 항목(recurringId 보유)은 여기서 바로 '제거'(비활성화) 가능 — 예전 등록 건 정리 (사장님 QA 2026-07-10).
@@ -161,12 +161,22 @@ export default function CostsPage() {
       .finally(() => setIsLoading(false));
   }, [companyId, year, blocked, refreshKey]);
 
+  //   이 화면은 **지나간 달의 실적**을 본다 — 아직 오지 않은 달의 고정비 전망까지 더하면
+  //   아래 세부내역(경과월 기준)과 합계가 어긋난다 (2026-08-10 사장님 지적으로 드러남).
+  //   앞날 전망은 경영흐름이 맡는다.
+  const shownRows = useMemo(() => {
+    if (!rows) return null;
+    const now = new Date();
+    const elapsed = year < now.getFullYear() ? 12 : year > now.getFullYear() ? 0 : now.getMonth() + 1;
+    return rows.slice(0, elapsed);
+  }, [rows, year]);
+
   const totals = useMemo(() => {
-    if (!rows) return { fixed: 0, variable: 0, total: 0 };
-    const fixed = rows.reduce((s, r) => s + r.fixedCosts, 0);
-    const variable = rows.reduce((s, r) => s + r.variableCosts, 0);
+    if (!shownRows) return { fixed: 0, variable: 0, total: 0 };
+    const fixed = shownRows.reduce((s, r) => s + r.fixedCosts, 0);
+    const variable = shownRows.reduce((s, r) => s + r.variableCosts, 0);
     return { fixed, variable, total: fixed + variable };
-  }, [rows]);
+  }, [shownRows]);
 
   if (blocked) {
     return <AccessDenied detail="비용 리포트는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
@@ -208,13 +218,13 @@ export default function CostsPage() {
         </div>
       )}
 
-      {!isLoading && !error && rows && (
+      {!isLoading && !error && shownRows && (
         <>
           {/* Summary cards — 그라데이션 + 아이콘칩 (2026-06-30 손익계산서 카드와 일관) */}
           <div className="costs-summary-cards" style={{ marginBottom: 24 }}>
             {[
-              { label: `${year}년 고정비`, value: totals.fixed, tone: "warning", hint: "임대료·급여·4대보험 등", icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6" },
-              { label: `${year}년 변동비`, value: totals.variable, tone: "info", hint: "카드·일회성 지출 등", icon: "M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" },
+              { label: `${year}년 고정비`, value: totals.fixed, tone: "warning", hint: "급여·임대료·정기결제 등 (경과월 누계)", icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6" },
+              { label: `${year}년 변동비`, value: totals.variable, tone: "info", hint: "카드·일회성 지출 (경과월 누계)", icon: "M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" },
               { label: `${year}년 총비용`, value: totals.total, tone: "", hint: "고정비 + 변동비", icon: "M12 6v12m0-12c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2-3-.9-3-2" },
             ].map((c) => (
               <div key={c.label} className="costs-summary-card glass-card stat-fit">
@@ -240,10 +250,10 @@ export default function CostsPage() {
               <p className="text-[10px] text-[var(--text-dim)] mt-0.5">아래쪽이 고정비 · 쌓은 높이가 그 달의 총비용</p>
             </div>
             <StackedAreaChart height={220} unit="원"
-              labels={rows.map((r) => `${parseInt(r.month.split("-")[1], 10)}월`)}
+              labels={shownRows.map((r) => `${parseInt(r.month.split("-")[1], 10)}월`)}
               series={[
-                { name: "고정비", values: rows.map((r) => r.fixedCosts) },
-                { name: "변동비", values: rows.map((r) => r.variableCosts) },
+                { name: "고정비", values: shownRows.map((r) => r.fixedCosts) },
+                { name: "변동비", values: shownRows.map((r) => r.variableCosts) },
               ]} />
             <Legend items={[{ name: "고정비", color: vizColor(0) }, { name: "변동비", color: vizColor(1) }]} />
           </div>
@@ -261,7 +271,7 @@ export default function CostsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {shownRows.map((r) => {
                   const sum = r.fixedCosts + r.variableCosts;
                   const fixedPct = sum > 0 ? Math.round((r.fixedCosts / sum) * 100) : 0;
                   return (
@@ -406,9 +416,13 @@ export default function CostsPage() {
           >
             <strong style={{ color: "var(--text-muted)" }}>참고</strong>
             <br />
-            - 고정비는 등록된 고정비 항목·정기결제(임대료·급여·4대보험·구독 등)에 <strong style={{ color: "var(--text-muted)" }}>통장 거래에서 &lsquo;고정비&rsquo;로 체크한 지출</strong>을 더해 합산합니다.
+            - 고정비는 <strong style={{ color: "var(--text-muted)" }}>재직 직원 급여</strong>·정기결제·등록 고정비에 <strong style={{ color: "var(--text-muted)" }}>통장 거래에서 &lsquo;고정비&rsquo;로 체크한 지출</strong>을 더해 합산합니다.
             <br />
-            - 변동비는 법인카드 사용액과 일회성 지출(결제 대기 항목)을 합산합니다.
+            - 변동비는 법인카드 사용액과 일회성 지출(결제 대기, 취소 건 제외)을 합산합니다.
+            <br />
+            - <strong style={{ color: "var(--text-muted)" }}>계정 성격이 비용이 아닌 거래는 제외</strong>합니다 — 대출 원금 상환·미지급금 상환·보증금·이체는 돈이 나가도 비용이 아니라 재무상태표 항목입니다.
+            <br />
+            - 이 화면은 <strong style={{ color: "var(--text-muted)" }}>지나간 달의 실적</strong>만 봅니다(앞날 전망은 경영흐름). 손익계산서와는 기준이 다릅니다 — 여기는 <strong style={{ color: "var(--text-muted)" }}>돈이 나간 시점</strong>, 손익계산서는 세금계산서 발행 시점(발생주의)입니다.
             <br />
             - 금액을 클릭하면 어떤 내역으로 산출됐는지 팝업으로 확인할 수 있습니다.
             <br />

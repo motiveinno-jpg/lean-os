@@ -5,6 +5,8 @@ import { logRead } from "@/lib/log-read";
 //   파생행(수입/지출 총액·순이익·BEP 등)은 이미 로드된 값으로 FlowMatrix 에서 계산(여기 미포함).
 
 import { supabase } from "@/lib/supabase";
+import { getAccountMap, isCostAccount } from "./account-nature";
+import { getMonthlyTotalSalary } from "./payroll";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -66,14 +68,16 @@ export async function getBudgetCellDetail(
   }
 
   if (rowKey === "fixedCosts") {
-    // getMonthlyBudgetOverview 와 동일: recurring_payments(active) + fixed_costs(기간필터) + 통장 고정비 체크 거래(당월)
-    const [recRes, fcRes, btRes] = await Promise.all([
+    // getMonthlyBudgetOverview 와 동일: 급여 + recurring_payments(active) + fixed_costs(기간필터) + 통장 고정비 체크 거래(당월)
+    const [recRes, fcRes, btRes, accountMap, salaryMonthly] = await Promise.all([
       db.from("recurring_payments").select("*").eq("company_id", companyId).eq("is_active", true),
       db.from("fixed_costs").select("*").eq("company_id", companyId).eq("is_recurring", true),
       db.from("bank_transactions").select("id, counterparty, description, category, classification, transaction_date, amount")
         .eq("company_id", companyId).eq("type", "expense").eq("is_fixed_cost", true)
         .gte("transaction_date", start).lt("transaction_date", next)
         .order("transaction_date", { ascending: true }),
+      getAccountMap(companyId),
+      getMonthlyTotalSalary(companyId).catch(() => 0),
     ]);
     const items: BudgetDetailItem[] = (recRes.data ?? []).map((r: any) => ({
       label: pick(r, ["name", "memo", "description", "category"], "정기지출"),
@@ -88,9 +92,15 @@ export async function getBudgetCellDetail(
       if (fc.end_date && fc.end_date < `${year}-${mm}-01`) continue;
       items.push({ label: pick(fc, ["name", "memo", "description", "category"], "고정비"), sub: fc.category ?? undefined, amount: Number(fc.amount || 0), refType: "fixed_cost", refId: fc.id });
     }
+    //   급여 — 셀 값에 들어가므로 내역에도 세운다 (2026-08-10, 예전엔 셀에도 내역에도 없었다)
+    if (salaryMonthly > 0) {
+      items.push({ label: "급여 (재직 직원 합계)", sub: "인사관리 등록 급여", amount: Number(salaryMonthly) });
+    }
     // 통장 거래 중 '고정비' 체크(전표처리/매핑) — 당월 실적. 매핑한 분류(계정과목)를 함께 표시(직원 QA)
     for (const t of (btRes.data ?? [])) {
       const cat = t.category || t.classification || "";
+      //   대출 상환·미지급금 상환처럼 비용이 아닌 계정은 셀 값에서도 빠지므로 내역에서도 뺀다 (2026-08-10)
+      if (!isCostAccount(cat, accountMap)) continue;
       items.push({
         label: pick(t, ["counterparty", "description"], "통장 지출"),
         sub: `${t.transaction_date ?? ""}${cat ? ` · ${cat}` : ""} · 통장 고정비 체크`,
@@ -112,7 +122,8 @@ export async function getBudgetCellDetail(
     ]);
     const items: BudgetDetailItem[] = [];
     for (const p of (pqRes.data ?? [])) {
-      if (p.is_recurring) continue; // 비반복만 (변동비 정의)
+      if (p.is_recurring) continue;              // 비반복만 (변동비 정의)
+      if (p.status === "cancelled") continue;    // 취소된 지출은 비용이 아니다 (2026-08-10)
       items.push({ label: pick(p, ["description", "category"], "지급"), sub: (p.created_at ?? "").slice(0, 10) || undefined, amount: Number(p.amount || 0) });
     }
     for (const t of (ctRes.data ?? [])) {

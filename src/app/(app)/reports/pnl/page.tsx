@@ -9,7 +9,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
-import { getAccountMap, classifyAccount, NATURE_LABEL } from "@/lib/account-nature";
+import { getAccountMap, classifyAccount, accountById, NATURE_LABEL } from "@/lib/account-nature";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import PnlChart from "./pnl-chart";
@@ -31,6 +31,21 @@ const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
   education: "교육훈련비", other: "기타",
 };
 const expenseCategoryLabel = (key: string): string => EXPENSE_CATEGORY_LABELS[key] || key;
+
+// 카드 분류에 계정이 연결돼 있지 않을 때 쓰는 판관비 행 이름 — 뭉뚱그리되 정체는 밝힌다
+const CARD_UNMAPPED_LABEL = "카드 사용액 (계정 미지정)";
+
+//   카드 자동분류(classification)는 {"label":"통신비",…} 형태의 JSON 문자열로 들어온다 — 이름만 꺼낸다
+function cardLabelOf(raw: unknown): string {
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (!s) return "";
+  if (s.startsWith("{")) {
+    try { return String(JSON.parse(s)?.label || "").trim(); } catch { return ""; }
+  }
+  return s;
+}
+//   계정과목표에서 실제로 찾은 것만 받는다 — 이름 추정으로 카드 지출의 자리를 정하지는 않는다
+const pickKnown = (a: ReturnType<typeof classifyAccount>) => (a && a.known ? a : null);
 
 // 거래 category 가 비어있을 때만 사용하는 키워드 기반 fallback 라벨
 const FALLBACK_KEYWORDS: Array<[string, string[]]> = [
@@ -84,6 +99,7 @@ interface PnlData {
   uncategorizedAmount: number;  // 그 합계 금액
   //   비용이 아닌 계정(자산·부채·자본)으로 분류돼 손익에서 뺀 출금 — 어디로 갔는지 알려주려고 모은다
   nonPnlOut: { category: string; nature: string; count: number; amount: number }[];
+  cardUnmappedAmount: number;  // 계정이 연결 안 된 카드 사용액(판관비엔 들어가되 계정은 미상)
 }
 
 /* ------------------------------------------------------------------ */
@@ -190,7 +206,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
   const accountMap = await getAccountMap(companyId);
 
   // PostgREST max-rows 1000 우회 — range 페이지네이션
-  const [transactions, taxInvoices, empRes] = await Promise.all([
+  const [transactions, taxInvoices, empRes, cardTx, cardMapRes] = await Promise.all([
     fetchAllPaginated<any>((from, to) =>
       supabase
         .from("bank_transactions")
@@ -214,7 +230,23 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
       .from("employees")
       .select("salary, is_4_insurance, status")
       .eq("company_id", companyId ?? "")
-      .eq("status", "active"),
+      //   비용분석·대시보드와 같은 기준(재직 중인 사람) — 예전엔 여기만 'active' 라
+      //   같은 급여가 손익계산서 0원 · 비용분석 1.2억으로 갈렸다 (2026-08-10)
+      .in("status", ["active", "joined"]),
+    // 법인카드 사용액 — 손익계산서에 아예 없던 비용이다 (2026-08-10 사장님 지적으로 확인).
+    //   카드 분류→계정 매핑(card_account_mappings)이 있으면 그 계정으로, 없으면 '카드 사용액'으로 판관비에 넣는다.
+    fetchAllPaginated<any>((from, to) =>
+      supabase
+        .from("card_transactions")
+        .select("amount, transaction_date, category, classification")
+        .eq("company_id", companyId ?? "")
+        .gte("transaction_date", startDate)
+        .range(from, to)
+    ),
+    supabase
+      .from("card_account_mappings")
+      .select("category, account_id")
+      .eq("company_id", companyId ?? ""),
   ]);
 
   const employees = empRes.data || [];
@@ -255,7 +287,11 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     //   통장 출금은 '사용자가 명시 분류한 비용'만 인식. 미분류는 비용에서 제외해 허수 과대계상 차단
     //   (99% 미분류 출금이 손익을 −4억 허수로 만들던 문제).
     if (tx.type === "expense" || tx.type === "출금") {
-      if (!userCat) { uncategorizedCount++; uncategorizedAmount += amt; continue; } // 미분류 = 비용 누락
+      //   배너 숫자는 **표에 보이는 기간**만 센다 — allMonths 에는 전기 비교용 앞 기간이 섞여 있다
+      if (!userCat) {
+        if (months.includes(month)) { uncategorizedCount++; uncategorizedAmount += amt; }
+        continue;
+      }
       //   ⚠️ 분류 글자를 그냥 판관비로 더하면 안 된다 — '미지급금'(부채)까지 비용 자리에 앉는다.
       //      계정과목표의 성격·코드로 갈 자리를 정한다 (2026-08-10).
       const acct = classifyAccount(userCat, accountMap);
@@ -267,10 +303,12 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
       else {
         //   자산·부채·자본 계정(미지급금 상환·이체·보증금 등) + 방향이 안 맞는 수익 계정 = 손익 아님.
         //   현금은 나갔지만 손익이 아니라 재무상태표가 받는 거래다.
-        const key = acct.name;
-        const cur = nonPnlMap.get(key) || { category: key, nature: NATURE_LABEL[acct.nature], count: 0, amount: 0 };
-        cur.count++; cur.amount += amt;
-        nonPnlMap.set(key, cur);
+        if (months.includes(month)) {
+          const key = acct.name;
+          const cur = nonPnlMap.get(key) || { category: key, nature: NATURE_LABEL[acct.nature], count: 0, amount: 0 };
+          cur.count++; cur.amount += amt;
+          nonPnlMap.set(key, cur);
+        }
       }
       continue;
     }
@@ -280,6 +318,39 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     if (userCat) {
       const acct = classifyAccount(userCat, accountMap);
       if (acct?.section === "nonop_income") ensureIn(nonOpIncomeByCategory, acct.name)[month] += amt;
+    }
+  }
+  //   법인카드 사용액 — 통장 출금과 달리 '이체'일 수가 없으므로 **분류가 없어도 비용**으로 본다.
+  //   다만 어느 계정인지는 모르니 그때는 '카드 사용액(계정 미지정)' 이라는 제 이름으로 세운다.
+  //   카드대금이 통장에서 빠져나가는 출금은 부채(미지급금·카드대금) 계정이라 이미 손익에서 빠진다 → 이중계상 없음.
+  const cardAccountByCat = new Map<string, string>();
+  for (const m of (cardMapRes as any)?.data || []) {
+    if (m.category && m.account_id) cardAccountByCat.set(String(m.category), String(m.account_id));
+  }
+  let cardUnmappedAmount = 0;
+  for (const t of cardTx as any[]) {
+    const month = toMonth(t.transaction_date || "");
+    if (!allMonths.includes(month)) continue;
+    const amt = Number(t.amount || 0);   // 취소·환불은 음수로 들어와 그대로 상계된다
+    const cat = String(t.category || "").trim();
+    //   ① 회사가 정해 둔 분류→계정 매핑 → ② AI 자동분류가 붙인 이름(통신비·접대비…)이 계정과목표에 있으면 그 계정
+    const mapped = accountById(cardAccountByCat.get(cat), accountMap)
+      || pickKnown(classifyAccount(cardLabelOf(t.classification), accountMap))
+      || pickKnown(classifyAccount(cat, accountMap));
+    if (mapped?.known && mapped.section === "opex") ensureOpex(mapped.name)[month] += amt;
+    else if (mapped?.known && mapped.section === "cogs") purchaseCost[month] += amt;
+    else if (mapped?.known && mapped.section === "nonop_expense") ensureIn(nonOpExpenseByCategory, mapped.name)[month] += amt;
+    else if (mapped?.known && mapped.section === null) {
+      //   카드로 자산을 샀거나(비품 등) 부채를 갚은 것으로 지정해 뒀다면 손익이 아니다
+      if (months.includes(month)) {
+        const key = mapped.name;
+        const cur = nonPnlMap.get(key) || { category: key, nature: NATURE_LABEL[mapped.nature], count: 0, amount: 0 };
+        cur.count++; cur.amount += Math.abs(amt);
+        nonPnlMap.set(key, cur);
+      }
+    } else {
+      ensureOpex(CARD_UNMAPPED_LABEL)[month] += amt;
+      if (months.includes(month)) cardUnmappedAmount += amt;
     }
   }
   const nonPnlOut = Array.from(nonPnlMap.values()).sort((a, b) => b.amount - a.amount);
@@ -345,6 +416,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     uncategorizedCount,
     uncategorizedAmount,
     nonPnlOut,
+    cardUnmappedAmount,
   };
 }
 
@@ -752,6 +824,19 @@ function PnlPageInner() {
         </div>
       )}
 
+      {/* 카드 분류에 계정이 안 붙어 있으면 — 금액은 이미 판관비에 들어갔고, 계정만 못 정했다 */}
+      {data.cardUnmappedAmount > 0 && (
+        <div className="pnl-nonpnl-note kpi-callout">
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
+          <div className="leading-relaxed">
+            법인카드 사용액 <b>₩{Math.round(data.cardUnmappedAmount).toLocaleString()}</b>은 계정과목이 연결돼 있지 않아
+            <b> &lsquo;{CARD_UNMAPPED_LABEL}&rsquo;</b> 한 줄로 판관비에 넣었습니다.
+            <Link href="/cards" className="underline font-semibold">법인카드</Link>에서 전표처리할 때
+            <b> 이 분류의 기본 계정으로 기억</b>을 체크해 두면 다음부터 제 계정으로 나뉩니다.
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards — 대시보드 글래스카드 스타일 (2026-06-10 리디자인) */}
       <div className="pnl-summary-cards" style={{ marginBottom: 24 }}>
         {[
@@ -1025,8 +1110,8 @@ function PnlPageInner() {
         <div className="px-4 pb-4 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-[11.5px] leading-relaxed text-[var(--text-dim)] border-t border-[var(--border)] pt-3">
           <div>· <b className="text-[var(--text-muted)]">Ⅰ. 매출액</b> = 매출 세금계산서 공급가액(발생주의)</div>
           <div>· <b className="text-[var(--text-muted)]">Ⅱ. 매출원가</b> = <b className="text-[var(--text-muted)]">계정과목 미지정</b> 매입 세금계산서 공급가액 + 매출원가(451)·매입(501) 계정으로 분류한 출금 — 매입 계산서에 판관비 계정을 지정하면 그쪽으로 이동(Ⅱ 클릭 → 건별 지정 가능)</div>
-          <div>· <b className="text-[var(--text-muted)]">Ⅳ. 판매비와관리비</b> = ① 판관비 계정(코드 8xx)으로 분류된 통장 출금(AI 자동분류 포함) + ② 판관비 계정을 지정한 매입 세금계산서</div>
-          <div>· <b className="text-[var(--text-muted)]">급여</b> = 등록 직원 월급여 자동 반영, <b className="text-[var(--text-muted)]">4대보험</b> = 급여×약 10.55%(사업주 부담 추정) — 거래가 없어도 직원 등록만으로 자동 계상</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅳ. 판매비와관리비</b> = ① 판관비 계정(코드 8xx)으로 분류된 통장 출금(AI 자동분류 포함) + ② 판관비 계정을 지정한 매입 세금계산서 + ③ <b className="text-[var(--text-muted)]">법인카드 사용액</b>(분류→계정 매핑이 있으면 그 계정, 없으면 &lsquo;{CARD_UNMAPPED_LABEL}&rsquo; 한 줄). 카드 취소·환불은 음수로 상계되고, 카드대금 통장 출금은 부채 상환이라 빠지므로 이중계상되지 않습니다</div>
+          <div>· <b className="text-[var(--text-muted)]">급여</b> = 재직 중인 직원(재직·합류) 월급여 자동 반영 — 초대만 하고 합류 전인 사람은 제외. <b className="text-[var(--text-muted)]">4대보험</b> = 급여×약 10.55%(사업주 부담 추정) — 거래가 없어도 직원 등록만으로 자동 계상</div>
           <div>· <b className="text-[var(--text-muted)]">Ⅵ·Ⅶ·Ⅷ 영업외손익·법인세</b> = 영업외 계정(코드 9xx)으로 분류한 거래. 이자비용·기부금 등은 판관비에 섞지 않고 여기로 갑니다. 입금은 <b className="text-[var(--text-muted)]">영업외수익 계정</b>만 인식(매출 계정 입금은 세금계산서 매출과 중복이라 제외)</div>
           <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">계정 성격 기준</b> — 자리는 <Link href="/settings" className="underline">회사설정 → 계정과목</Link>의 성격(자산·부채·자본·수익·비용)과 코드로 정합니다. <b className="text-[var(--text-muted)]">자산·부채·자본 계정(미지급금 상환·이체·보증금 등)은 손익계산서가 아니라 재무상태표 항목</b>이라 제외되며, 미분류 출금도 제외됩니다</div>
         </div>

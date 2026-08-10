@@ -82,13 +82,13 @@ export type AccountMap = Map<string, AccountInfo>;
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, "");
 
-/** 회사 계정과목표를 이름·코드로 찾을 수 있게 편다 */
+/** 회사 계정과목표를 이름·코드·id 로 찾을 수 있게 편다 */
 export async function getAccountMap(companyId: string): Promise<AccountMap> {
   const map: AccountMap = new Map();
   if (!companyId) return map;
   const { data } = await supabase
     .from("chart_of_accounts")
-    .select("code, name, account_type")
+    .select("id, code, name, account_type")
     .eq("company_id", companyId);
   for (const a of (data as any[]) || []) {
     const nature = (a.account_type || "expense") as AccountNature;
@@ -98,8 +98,15 @@ export async function getAccountMap(companyId: string): Promise<AccountMap> {
     };
     map.set(norm(a.name), info);
     if (a.code) map.set(norm(String(a.code)), info);
+    //   id 는 이름과 섞이지 않게 접두사를 붙여 같은 표에 담는다 (카드 분류→계정 매핑이 id 로 온다)
+    if (a.id) map.set(`id:${a.id}`, info);
   }
   return map;
+}
+
+/** 계정 id 로 찾기 — card_account_mappings 처럼 id 로 연결된 곳에서 쓴다 */
+export function accountById(id: string | null | undefined, map: AccountMap): AccountInfo | null {
+  return id ? map.get(`id:${id}`) || null : null;
 }
 
 /** 분류 글자 하나를 계정으로 판정 — 계정과목표 먼저, 없으면 이름 키워드 */
@@ -111,3 +118,14 @@ export function classifyAccount(category: string | null | undefined, map: Accoun
 
 /** 손익계산서에 실리는가 (자산·부채·자본 계정이면 아니다) */
 export const isPnlAccount = (a: AccountInfo | null): boolean => !!a && a.section !== null;
+
+/**
+ * 이 분류를 **비용으로 세도 되는가**.
+ *   분류가 비어 있으면 true — 사람이 '고정비' 라고 직접 표시한 지출까지 통째로 지우지 않기 위해서다.
+ *   자산·부채·자본 계정(대출 상환·미지급금 상환·보증금·이체 등)만 걸러낸다.
+ */
+export function isCostAccount(category: string | null | undefined, map: AccountMap): boolean {
+  const acct = classifyAccount(category, map);
+  if (!acct) return true;             // 분류 없음 = 판단 보류(사람의 표시를 존중)
+  return acct.section !== null;
+}
