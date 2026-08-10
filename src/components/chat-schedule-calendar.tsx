@@ -91,7 +91,7 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
         <button type="button" onClick={() => move(1)} title="다음 달">›</button>
         <button type="button" className="chat-cal-today"
           onClick={() => setView({ y: now.getFullYear(), m0: now.getMonth() })}>오늘</button>
-        <span className="chat-cal-hint">날짜를 누르면 그 날 일정을 넣습니다</span>
+        <span className="chat-cal-hint">날짜를 누르거나 끌면 그 날짜로 일정을 넣습니다</span>
       </header>
 
       <div className="chat-cal-week">

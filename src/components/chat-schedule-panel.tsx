@@ -56,10 +56,8 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
 
   return (
     <div className="chat-sched">
-      {/*  '새로 만들기' 단추는 뺐다 — 옆 달력에서 날짜를 누르면 만들어지므로 겹치는 자리였다
-           (2026-08-10 사장님 지시) */}
-      <p className="chat-sched-tip">오른쪽 달력에서 <b>날짜를 누르거나 끌면</b> 그 날짜로 넣습니다.</p>
-
+      {/*  넣는 방법 안내는 **달력 위에만** 둔다 — 여기에도 적어 두면 같은 말이 두 번이다
+           (2026-08-10 사장님 지시). '새로 만들기' 단추도 같은 이유로 뺐다. */}
       <div className="chat-sched-list">
         {upcoming.length === 0 && undated.length === 0 && <p className="chat-sched-empty">일정이 없습니다.</p>}
         {/*  무슨 목록인지 머리에 적어 준다 (2026-08-10 사장님 지시) */}

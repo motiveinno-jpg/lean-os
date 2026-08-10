@@ -3015,7 +3015,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .chat-sched-row-body b { @apply truncate text-[12.5px] font-semibold text-[var(--text)]; }
 .chat-sched-row-body em { @apply not-italic truncate text-[10.5px] text-[var(--text-dim)]; }
 .chat-sched-more { @apply shrink-0 pt-1 text-center text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
-.chat-sched-tip { @apply px-1 text-[11px] leading-relaxed text-[var(--text-dim)]; }
 .chat-sched-sub { @apply pt-2 px-1 text-[10.5px] font-bold text-[var(--text-dim)]; }
 .chat-sched-sub-top { @apply !pt-0; }
 
@@ -3107,7 +3106,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .sched-list-meta { @apply shrink-0 flex items-center gap-1.5; }
 .sched-list-meta em { @apply not-italic text-[11.5px] text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
 .sched-list-vis { @apply px-1.5 py-0.5 rounded-md bg-[var(--bg-surface)] text-[10.5px] font-bold text-[var(--text-dim)]; }
-.chat-sched-tip b { @apply font-bold text-[var(--text-muted)]; }
 
 /* 대화창 자리에 서는 달력 (2026-08-10) — 날짜를 누르면 그 날 일정을 넣는다 */
 .chat-cal { @apply flex-1 min-h-0 flex flex-col p-3 gap-2; }
