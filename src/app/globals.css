@@ -2867,6 +2867,15 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .onboarding-footer { @apply px-6 sm:px-8 py-4 flex items-center justify-between; }
 .onboarding-skip-all { @apply mt-4 text-center; }
 
+/* 온보딩 3단계 — 화면 둘러보기(탭 투어 안내) (2026-08-10) */
+.onboarding-tour-step { @apply flex flex-col; }
+.onboarding-tour-list { @apply mt-5 space-y-2.5; }
+.onboarding-tour-item { @apply flex items-start gap-3 p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.onboarding-tour-item-num { @apply w-6 h-6 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5; }
+.onboarding-tour-item-title { @apply text-sm font-semibold text-[var(--text)]; }
+.onboarding-tour-item-desc { @apply text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed; }
+.onboarding-tour-footnote { @apply mt-4 text-[11px] text-[var(--text-dim)] leading-relaxed; }
+
 /* 온보딩 1단계 — 사업자등록증 첨부 (2026-08-10) */
 .onboarding-bizreg-row { @apply flex items-center gap-3 flex-wrap p-3 rounded-xl bg-[var(--bg)]/50 border border-dashed border-[var(--border)]; }
 .onboarding-bizreg-done { @apply flex items-center gap-2 flex-1 min-w-0; }
@@ -5268,6 +5277,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .mobile-nav-item-pin-btn { @apply p-2 rounded transition-all; }
 .sidebar-panel { @apply h-full rounded-[20px] border border-[var(--border)]/60 flex flex-col transition-all duration-200 overflow-hidden shadow-[var(--shadow-lg)]; }
 .sidebar-logo-block { @apply border-b border-[var(--border)]; }
+.sidebar-logo-row { @apply flex items-center gap-2; }
+.sidebar-attendance-btn { @apply shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition active:scale-[0.97] disabled:opacity-50; }
 .sidebar-brand-link { @apply flex items-center hover:opacity-80 transition; }
 .sidebar-role-badge { @apply inline-block px-1.5 py-0.5 rounded-full text-[8px] font-bold; }
 .sidebar-search-block { @apply pt-3 pb-1; }

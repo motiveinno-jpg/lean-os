@@ -18,6 +18,8 @@ import { CodefAccountRegister } from "@/app/(app)/settings/_components/BankInteg
 const STEPS = [
   { num: 1, label: "회사 정보", icon: "building" },
   { num: 2, label: "금융 연결", icon: "bank" },
+  // 3단계는 별도 입력 없이 탭 투어(AppTour)로 이어주는 안내 화면 — 진행바가 2개뿐이라 어색하던 것 보완 (2026-08-10 사장님)
+  { num: 3, label: "화면 둘러보기", icon: "compass" },
 ] as const;
 
 const TOTAL_STEPS = STEPS.length;
@@ -68,7 +70,7 @@ const db = supabase;
 
 // ── Types ──
 
-type StepNumber = 1 | 2;
+type StepNumber = 1 | 2 | 3;
 
 interface CompanyForm {
   name: string;
@@ -417,8 +419,9 @@ export default function OnboardingPage() {
               <Step1Company data={company} onChange={setCompany} isCompleted={companyDone} companyId={companyId} />
             )}
             {step === 2 && (
-              <Step2Finance companyId={companyId} onConnected={goDashboard} />
+              <Step2Finance companyId={companyId} onConnected={() => setStep(3)} />
             )}
+            {step === 3 && <Step3Tour />}
           </div>
 
           {/* Footer */}
@@ -451,11 +454,24 @@ export default function OnboardingPage() {
               )}
               {step === 2 && (
                 <button
-                  onClick={goDashboard}
+                  onClick={() => setStep(3)}
                   className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 >
                   나중에 연결하기
                 </button>
+              )}
+              {step === 3 && (
+                <>
+                  <button
+                    onClick={() => router.replace("/dashboard")}
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  >
+                    나중에 볼게요
+                  </button>
+                  <button onClick={goDashboard} className="btn-primary">
+                    둘러보기 시작 →
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -471,6 +487,51 @@ export default function OnboardingPage() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// Step 3: 화면 둘러보기 — 탭 투어(AppTour) 안내 (2026-08-10)
+// ═══════════════════════════════════════════
+
+const TOUR_PREVIEW_ITEMS = [
+  {
+    title: "자금 현황을 한눈에",
+    desc: "대시보드·통장·카드 — 회사 돈이 어디서 들어오고 나가는지 매일 자동으로 정리되는 곳을 안내해요.",
+  },
+  {
+    title: "손대지 않아도 채워지는 장부",
+    desc: "세금계산서 발행부터 거래 장부 자동 분류까지, 증빙 업무가 스스로 돌아가는 흐름을 보여드려요.",
+  },
+  {
+    title: "종이 없는 회사 운영",
+    desc: "직원 초대, 전자결재, 전자계약, 급여명세서 발송까지 — 어디서 처리하는지 짚어드려요.",
+  },
+];
+
+function Step3Tour() {
+  return (
+    <div className="onboarding-tour-step">
+      <StepHeader
+        icon="compass"
+        title="이제 오너뷰를 둘러볼 차례예요"
+        description="마지막 단계예요! 사이드바의 핵심 메뉴를 하나씩 짚어가며 어디서 무엇을 하는지 1분 만에 안내해 드릴게요."
+      />
+      <div className="onboarding-tour-list">
+        {TOUR_PREVIEW_ITEMS.map((it, i) => (
+          <div key={i} className="onboarding-tour-item">
+            <span className="onboarding-tour-item-num">{i + 1}</span>
+            <div>
+              <div className="onboarding-tour-item-title">{it.title}</div>
+              <p className="onboarding-tour-item-desc">{it.desc}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="onboarding-tour-footnote">
+        둘러보기 중에도 메뉴를 자유롭게 눌러볼 수 있고, 나중에 대시보드 주소 뒤에 <code>?tour=1</code> 을 붙이면 언제든 다시 볼 수 있어요.
+      </p>
     </div>
   );
 }
@@ -819,6 +880,13 @@ function StepIcon({ type, size = "lg" }: { type: string; size?: "sm" | "lg" }) {
           <svg {...props}>
             <path d="M3 21h18" /><path d="M3 10h18" /><path d="M12 3l9 7H3l9-7z" />
             <path d="M5 10v8" /><path d="M19 10v8" /><path d="M9 10v8" /><path d="M15 10v8" />
+          </svg>
+        );
+      case "compass":
+        return (
+          <svg {...props}>
+            <circle cx="12" cy="12" r="10" />
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
           </svg>
         );
       default:

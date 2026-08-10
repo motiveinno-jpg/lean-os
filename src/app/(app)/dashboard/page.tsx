@@ -518,7 +518,7 @@ export default function DashboardPage() {
 
       {/* ═══ [배너] 체크리스트 — 접힌 상태 기본 ═══ */}
       {!showOnboarding && companyId && (
-        <GettingStartedChecklist companyId={companyId} initialDealCount={dealCount ?? 0} />
+        <GettingStartedChecklist companyId={companyId} />
       )}
 
       {/* ═══ 시안 메인 (라운드6.5 레퍼런스 골격) — KPI 4카드 행 → 본문 2/3+1/3 그리드 → 하단 풀폭.
@@ -2200,11 +2200,10 @@ interface ChecklistStatus {
   company: boolean;
   bank: boolean;
   partner: boolean;
-  deal: boolean;
   employee: boolean;
 }
 
-function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: string; initialDealCount: number }) {
+function GettingStartedChecklist({ companyId }: { companyId: string }) {
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   // 완료 배너는 1회만 — 마운트 시점에 이미 본 적 있으면 숨김
@@ -2220,18 +2219,16 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     queryKey: ["getting-started", companyId],
     queryFn: async () => {
       const db = supabase;
-      const [company, bank, partner, deal, employee] = await Promise.all([
+      const [company, bank, partner, employee] = await Promise.all([
         db.from("companies").select("id, business_number").eq("id", companyId).maybeSingle(),
         db.from("bank_accounts").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
-        db.from("deals").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         db.from("employees").select("id", { count: "exact", head: true }).eq("company_id", companyId),
       ]);
       return {
         company: !!company.data?.business_number,
         bank: (bank.count ?? 0) > 0,
         partner: (partner.count ?? 0) > 0,
-        deal: (deal.count ?? initialDealCount) > 0,
         employee: (employee.count ?? 0) > 0,
       };
     },
@@ -2243,7 +2240,6 @@ function GettingStartedChecklist({ companyId, initialDealCount }: { companyId: s
     { key: "company" as const, href: "/settings", label: "회사 정보 등록", desc: "사업자등록번호와 회사 정보를 입력하세요", icon: "🏢" },
     { key: "bank" as const, href: "/settings", label: "법인통장 연결", desc: "메인 계좌를 등록하면 잔고가 자동 추적됩니다", icon: "🏦" },
     { key: "partner" as const, href: "/partners", label: "거래처 등록", desc: "최소 1개 이상의 매출처/매입처를 추가하세요", icon: "🤝" },
-    { key: "deal" as const, href: "/projects", label: "첫 프로젝트 생성", desc: "수주 한 건을 등록하면 매출/원가 추적이 시작됩니다", icon: "📋" },
     { key: "employee" as const, href: "/employees", label: "직원/팀원 추가", desc: "팀원을 초대하면 결재/급여를 사용할 수 있습니다", icon: "👥" },
   ];
 
