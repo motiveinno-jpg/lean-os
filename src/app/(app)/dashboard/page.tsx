@@ -83,10 +83,12 @@ const RISK_LABELS: Record<RiskLabel, { title: string; icon: string; color: strin
 // 대시보드 위젯 기본 배치(사장님 확정 배치 2026-07-15) — 저장된 개인 레이아웃이 없거나 '기본값' 리셋 시 이 배치로.
 //   오너/직원 공용. 직원 화면엔 재무·attendance·tax 위젯이 없어 해당 항목은 자동으로 미적용(그리드가 무시).
 //   목록에 없는 위젯(work-appr/proj/sign/ment 등 조건부 카드)은 표시될 때 그리드가 자동 배치.
+// 2026-08-10 숫자 스트립 문법 도입으로 카드 콘텐츠가 커짐 — 기본 높이를 실측 기준으로 상향
+//   (h3=156px 이던 자산·카드가 잘리던 것. 저장된 배치는 아래 layoutMigration 이 1회 끌어올린다)
 const DEFAULT_WIDGET_POS: Record<string, { x: number; y: number; w: number; h: number }> = {
   attendance: { x: 0, y: 0, w: 4, h: 5 }, calendar: { x: 0, y: 5, w: 4, h: 9 }, "work-tasks": { x: 0, y: 14, w: 4, h: 4 },
   projects: { x: 4, y: 0, w: 4, h: 5 }, revenue: { x: 4, y: 5, w: 4, h: 5 }, tax: { x: 4, y: 10, w: 4, h: 5 },
-  biz: { x: 8, y: 0, w: 4, h: 4 }, receivables: { x: 8, y: 4, w: 4, h: 5 }, assets: { x: 8, y: 9, w: 4, h: 3 }, cards: { x: 8, y: 12, w: 4, h: 3 },
+  biz: { x: 8, y: 0, w: 4, h: 5 }, receivables: { x: 8, y: 5, w: 4, h: 6 }, assets: { x: 8, y: 11, w: 4, h: 5 }, cards: { x: 8, y: 16, w: 4, h: 5 },
 };
 
 // ═══════════════════════════════════════════
@@ -607,11 +609,11 @@ export default function DashboardPage() {
               // ── 추가 가능(기본 비활성) ──
               { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금 내역", category: "자금", w: 4, h: 5, render: () => <BankRecentCard companyId={companyId} /> },
               { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", w: 4, h: 5, render: () => <RecentInvoices companyId={companyId} /> },
-              { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", w: 4, h: 4, render: () => <ApprovalsPendingCard companyId={companyId} /> },
+              { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", w: 4, h: 5, render: () => <ApprovalsPendingCard companyId={companyId} /> },
               { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", w: 4, h: 4, render: () => <EmployeesCard companyId={companyId} /> },
               { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", w: 4, h: 4, render: () => <PartnersCard companyId={companyId} /> },
               { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", w: 4, h: 4, render: () => <AnnouncementsCard /> },
-              { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 5, render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
+              { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 6, render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
             ];
             // (2026-07-30 사장님) 금액 위젯(경영·자금·프로젝트 계약액)은 재무 권한 보유자만 카탈로그에 노출.
             // (2026-08-04 사장님) ① 결재/구성원/거래처 위젯도 해당 메뉴 권한 보유자만 선택 가능하게 확장,
@@ -628,8 +630,9 @@ export default function DashboardPage() {
             if ((dashboard.sixPack.arOver30 ?? 0) > 0) recommended.push("receivables");
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
             return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed}
-              // 저장된 배치에 남아있는 옛 압축 높이(h=2)를 큰 출근 카드에 맞춰 한 번 끌어올린다.
-              layoutMigration={{ id: "attendance-full-20260731", minH: { attendance: 5 } }}
+              // 저장된 배치의 옛 높이를 콘텐츠에 맞춰 한 번 끌어올린다 — 숫자 스트립 문법으로
+              //   카드가 커진 위젯들(2026-08-10). 이전 attendance 마이그레이션 값 포함(누적).
+              layoutMigration={{ id: "statband-heights-20260810", minH: { attendance: 5, biz: 5, receivables: 6, assets: 5, cards: 5, revenue: 5, approvals: 5, todos: 6 } }}
               // 기본 전체 선택 전환(2026-08-04) — 기존 저장 선택에도 새 기본값을 1회 병합해 전 위젯이 켜진다.
               activeMigration="all-widgets-default-20260804" />;
           })()}
