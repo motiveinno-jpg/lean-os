@@ -22,15 +22,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { BoardColumn, BoardGroup, BoardItem } from "@/lib/project-boards";
 import { flowColumnOf, START_DATE_RE } from "@/lib/project-boards";
-
-/** 쓰는 만큼 늘어나는 입력칸 — 회의록·메모처럼 길이를 미리 알 수 없는 글에 쓴다 */
-const MAX_H = 520;
-export function growTextarea(el: HTMLTextAreaElement | null) {
-  if (!el) return;
-  el.style.height = "auto";
-  el.style.height = `${Math.min(el.scrollHeight + 2, MAX_H)}px`;
-  el.style.overflowY = el.scrollHeight + 2 > MAX_H ? "auto" : "hidden";
-}
+import { growTextarea } from "@/lib/textarea";
 
 export function BoardMinutes({
   items, cols, groups, users, activeGroupId, onPickGroup, onAddGroup,

@@ -4717,6 +4717,19 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 메시지 입력칸 안내문 — 좁은 창(메신저 새 창)에서 두 줄로 넘어가며 글자가 잘렸다 (2026-08-10).
    안내문만 작게 하고 한 줄로 고정한다(그래도 넘치면 … 로). 실제 입력 글자 크기는 그대로. */
 .chat-input-text::placeholder { @apply text-[11.5px]; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* 작성 상자 — 글 영역 아래(상자 안) 오른쪽에 첨부·보내기 (2026-08-10 사장님 지시: Teams 형태).
+   글 영역은 쓰는 만큼 늘어나고(최대 200px), 그 뒤로는 상자 안에서 스크롤한다. */
+.chat-composer { @apply flex-1 min-w-0 flex flex-col gap-1 px-3 pt-2.5 pb-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] transition cursor-text focus-within:border-[var(--primary)]; }
+.chat-composer-glass { @apply rounded-2xl; }
+.chat-composer-text { @apply w-full bg-transparent border-0 text-sm leading-relaxed text-[var(--text)] placeholder-[var(--text-dim)] resize-none focus:outline-none disabled:opacity-50; }
+/*  전역 포커스 링을 여기서만 끈다 — 상자(.chat-composer)가 이미 테두리로 포커스를 보여 줘서
+    안쪽에 링이 하나 더 그려지면 테두리가 두 겹으로 보인다. */
+.chat-composer-text:focus, .chat-composer-text:focus-visible { box-shadow: none; }
+.chat-composer-tools { @apply flex items-center justify-end gap-0.5; }
+.chat-composer-send { @apply p-2 rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary)]/10 disabled:opacity-30 disabled:hover:bg-transparent; }
+.chat-input-hint { @apply mt-1.5 text-right text-[11px] text-[var(--text-dim)]; }
+.chat-input-hint b { @apply font-bold text-[var(--text-muted)]; }
 .chat-messages-panel { @apply flex flex-col flex-1 min-h-0; }
 .chat-realtime-banner { @apply px-4 py-2 text-xs font-medium flex items-center justify-between rounded-t-2xl; }
 .chat-messages-scroll { @apply flex-1 overflow-y-auto; }

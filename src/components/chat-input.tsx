@@ -3,6 +3,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { FileUploadZone } from "./file-upload-zone";
 import { MentionDropdown, filterMentionUsers } from "./mention-dropdown";
+import { growTextarea } from "@/lib/textarea";
+
+//   입력칸 최대 높이 — 여기까지 늘어나고 그 뒤로는 상자 안에서 스크롤한다.
+const MAX_H = 200;
 
 interface MentionUser {
   id: string;
@@ -43,6 +47,9 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
   useEffect(() => {
     if (!disabled) inputRef.current?.focus();
   }, [disabled]);
+
+  //   쓰는 만큼 늘어난다 — 타이핑·멘션 삽입·전송 후 비우기까지 한 곳에서 처리(2026-08-10 사장님 지시)
+  useEffect(() => { growTextarea(inputRef.current, MAX_H); }, [text]);
 
   // 멘션 드롭다운 후보(드롭다운과 동일 필터 공유) + 키보드 화살표 선택용 인덱스
   const mentionCandidates = useMemo(
@@ -147,13 +154,9 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
         </div>
       )}
 
+      {/* 작성 상자 — 글 영역이 위, 단추는 상자 **안** 오른쪽 아래 (2026-08-10 사장님 지시: Teams 형태) */}
       <div className="chat-input-body">
         <div className="chat-input-row">
-          {/* File upload button */}
-          {onFileUpload && (
-            <FileUploadZone onFileSelect={onFileUpload} disabled={disabled} />
-          )}
-
           {/* Mention dropdown */}
           {mentionQuery !== null && users && (
             <MentionDropdown
@@ -166,29 +169,39 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
             />
           )}
 
-          <textarea
-            ref={inputRef}
-            value={text}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder || "메시지를 입력하세요... (@멘션 가능)"}
-            disabled={disabled}
-            rows={1}
-            className={`chat-input-text flex-1 px-4 py-2.5 text-sm resize-none focus:outline-none disabled:opacity-50 max-h-32 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-dim)] focus:border-[var(--primary)] ${
-              glass ? "rounded-full" : "rounded-xl"
-            }`}
-            style={{ minHeight: "42px" }}
-          />
-          <button
-            onClick={handleSubmit}
-            disabled={!text.trim() || disabled}
-            className={`px-4 py-2.5 bg-[var(--primary)] hover:opacity-90 text-white text-sm font-semibold transition disabled:opacity-30 shrink-0 ${
-              glass ? "rounded-full" : "rounded-xl"
-            }`}
-          >
-            전송
-          </button>
+          <div className={`chat-composer ${glass ? "chat-composer-glass" : ""}`}
+            onClick={() => inputRef.current?.focus()}>
+            <textarea
+              ref={inputRef}
+              value={text}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder || "메시지를 입력하세요... (@멘션 가능)"}
+              disabled={disabled}
+              rows={1}
+              className="chat-input-text chat-composer-text"
+              style={{ minHeight: "24px", maxHeight: `${MAX_H}px` }}
+            />
+            <div className="chat-composer-tools" onClick={(e) => e.stopPropagation()}>
+              {onFileUpload && (
+                <FileUploadZone onFileSelect={onFileUpload} disabled={disabled} />
+              )}
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!text.trim() || disabled}
+                aria-label="보내기"
+                title="보내기 (Enter)"
+                className="chat-composer-send"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
+        <p className="chat-input-hint"><b>Shift+Enter</b> 새 줄을 시작합니다.</p>
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { resolveSignedUrl } from "@/lib/file-storage";
 import type { BoardColumn, BoardItem } from "@/lib/project-boards";
-import { growTextarea } from "./BoardMinutes";
+import { growTextarea } from "@/lib/textarea";
 
 const db = supabase as any;
 const BUCKET = "documents";
