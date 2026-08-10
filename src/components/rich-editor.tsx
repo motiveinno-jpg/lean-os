@@ -9,7 +9,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { TextStyle, Color, FontSize, FontFamily } from "@tiptap/extension-text-style";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
-import { TableKit } from "@tiptap/extension-table";
+import { TableKit, TableRow } from "@tiptap/extension-table";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
@@ -355,6 +355,27 @@ const FONT_FAMILIES = [
   { label: "고딕", value: "'Noto Sans KR', sans-serif" },
 ];
 
+// 표 행 높이 (2026-08-10 사장님 요청 — "행 높이도 조절 가능하게") —
+//   prosemirror-tables 는 열 너비만 지원해서 행은 직접 구현한다.
+//   ① tr 에 rowheight 속성을 저장(HTML 로는 style height 로 나가 미리보기·PDF 에서도 유지)
+//   ② 드래그 상호작용은 RichEditor 의 DOM 핸들러(아래 useEffect)가 담당
+const ResizableTableRow = TableRow.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      rowheight: {
+        default: null,
+        parseHTML: (el: HTMLElement) => {
+          const n = parseInt(el.style?.height || "", 10);
+          return Number.isFinite(n) && n > 0 ? n : null;
+        },
+        renderHTML: (attrs: { rowheight?: number | null }) =>
+          attrs.rowheight ? { style: `height: ${attrs.rowheight}px` } : {},
+      },
+    };
+  },
+});
+
 export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function RichEditor(
   { content = "", onChange, placeholder = "내용을 입력하세요...", editable = true, onUploadImage, maxHeight, fillHeight, contentMaxWidth },
   ref
@@ -380,7 +401,8 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       FontFamily,
       Highlight.configure({ multicolor: true }),
       FlowImage.configure({ inline: false, allowBase64: true }),
-      TableKit.configure({ table: { resizable: true } }),
+      TableKit.configure({ table: { resizable: true }, tableRow: false }),
+      ResizableTableRow,
       PdfPage,
     ],
     content,
@@ -410,6 +432,75 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     contentSyncedRef.current = true;
     if (editor.isEmpty) editor.commands.setContent(incoming);
   }, [editor, content]);
+
+  // ── 표 행 높이 드래그 (2026-08-10) — 행 아래 경계 4px 안에서 잡아 끌면 높이가 바뀐다.
+  //   열 경계(오른쪽 8px)와 겹치면 열 조절(columnResizing)에 양보한다.
+  //   드래그 중에는 DOM style 로 미리 보여 주고, 놓는 순간 rowheight 속성 트랜잭션으로 확정
+  //   (DOM 만 바꾸면 PM 재렌더에 지워진다).
+  useEffect(() => {
+    if (!editor || !editable) return;
+    const dom = editor.view.dom as HTMLElement;
+    const EDGE = 4, COL_EDGE = 8, MIN_H = 22;
+    let drag: { tr: HTMLTableRowElement; startY: number; startH: number } | null = null;
+
+    const rowUnderPointer = (e: MouseEvent): HTMLTableRowElement | null => {
+      const cell = (e.target as HTMLElement | null)?.closest?.("td, th");
+      if (!cell || !dom.contains(cell)) return null;
+      const r = cell.getBoundingClientRect();
+      if (r.bottom - e.clientY > EDGE || e.clientY > r.bottom) return null;
+      if (r.right - e.clientX < COL_EDGE) return null;   // 열 조절 구역 — 양보
+      return cell.closest("tr");
+    };
+
+    const onMove = (e: MouseEvent) => {
+      if (drag) {
+        const h = Math.max(MIN_H, drag.startH + (e.clientY - drag.startY));
+        drag.tr.style.height = `${h}px`;
+        e.preventDefault();
+        return;
+      }
+      dom.classList.toggle("rich-editor-row-resize", !!rowUnderPointer(e));
+    };
+    const onDown = (e: MouseEvent) => {
+      const tr = rowUnderPointer(e);
+      if (!tr) return;
+      e.preventDefault();
+      e.stopPropagation();
+      drag = { tr, startY: e.clientY, startH: tr.getBoundingClientRect().height };
+    };
+    const onUp = () => {
+      if (!drag) return;
+      const { tr } = drag;
+      const finalH = Math.max(MIN_H, Math.round(tr.getBoundingClientRect().height));
+      drag = null;
+      // DOM 미리보기 → 문서 속성으로 확정
+      let rowPos = -1;
+      editor.state.doc.descendants((node, pos) => {
+        if (rowPos >= 0) return false;
+        if (node.type.name === "tableRow" && editor.view.nodeDOM(pos) === tr) { rowPos = pos; return false; }
+        return true;
+      });
+      if (rowPos >= 0) {
+        const node = editor.state.doc.nodeAt(rowPos);
+        if (node) {
+          editor.view.dispatch(
+            editor.state.tr.setNodeMarkup(rowPos, undefined, { ...node.attrs, rowheight: finalH }),
+          );
+        }
+      }
+    };
+
+    dom.addEventListener("mousemove", onMove);
+    dom.addEventListener("mousedown", onDown);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      dom.removeEventListener("mousemove", onMove);
+      dom.removeEventListener("mousedown", onDown);
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [editor, editable]);
 
   useImperativeHandle(ref, () => ({
     insertText(text: string) {

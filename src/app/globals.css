@@ -5432,6 +5432,9 @@ thead th { white-space: nowrap; word-break: keep-all; }
 }
 .contract-tpl-editor .rich-editor-body .resize-cursor,
 .contract-tpl-editor .rich-editor-body .resize-cursor * { cursor: col-resize; }
+/* 행 아래 경계에 마우스가 오면 행 높이 조절 커서 (rich-editor.tsx 의 행 드래그 핸들러가 클래스 토글) */
+.rich-editor-body .rich-editor-row-resize, .rich-editor-body .rich-editor-row-resize * ,
+.tiptap.rich-editor-row-resize, .tiptap.rich-editor-row-resize * { cursor: row-resize; }
 .tpl-editor-overlay { @apply fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4; }
 /* 2026-07-31 사장님: PDF 원본 등 긴 내용이면 취소/저장 버튼이 패널 스크롤 아래로 밀려나
    에디터·미리보기 내부 스크롤에 갇혀 버튼에 도달 불가("취소하고 닫기 계속 안돼").
