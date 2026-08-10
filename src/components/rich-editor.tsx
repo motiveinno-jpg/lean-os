@@ -409,6 +409,10 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
     content,
     editable,
     immediatelyRender: false,
+    // tiptap v3 는 선택(커서) 변경만으로는 리렌더하지 않는 게 기본값 — 표 안을 클릭해도
+    //   툴바의 표 버튼(+열·병합 등)과 활성 상태가 안 나타나던 원인 (2026-08-10 사장님:
+    //   "셀 클릭이 가능하게 해줘"). v2 처럼 트랜잭션마다 리렌더해 툴바가 커서를 따라온다.
+    shouldRerenderOnTransaction: true,
     onUpdate: ({ editor }) => {
       onChange?.(editor.getHTML());
     },
@@ -797,6 +801,9 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
               <button type="button" onClick={() => editor.chain().focus().deleteColumn().run()} className={btnCls(false)} title="열 삭제">-열</button>
               <button type="button" onClick={() => editor.chain().focus().addRowAfter().run()} className={btnCls(false)} title="행 추가">+행</button>
               <button type="button" onClick={() => editor.chain().focus().deleteRow().run()} className={btnCls(false)} title="행 삭제">-행</button>
+              {/* 셀 병합/나누기 (2026-08-10 사장님 — "모든 표에서 되게") — 병합은 셀을 끌어 여러 개 선택한 뒤 */}
+              <button type="button" onClick={() => editor.chain().focus().mergeCells().run()} className={btnCls(false)} title="선택한 셀 병합 — 셀을 끌어 여러 개 선택한 뒤 누르세요">병합</button>
+              <button type="button" onClick={() => editor.chain().focus().splitCell().run()} className={btnCls(false)} title="병합된 셀 나누기">나누기</button>
               <button type="button" onClick={() => editor.chain().focus().toggleHeaderRow().run()} className={btnCls(false)} title="머리행 토글">머리</button>
               <button type="button" onClick={() => editor.chain().focus().deleteTable().run()} className={btnCls(false)} title="표 삭제">표✕</button>
             </>

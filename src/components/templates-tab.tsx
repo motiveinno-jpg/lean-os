@@ -300,10 +300,11 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
                   </div>
                 </div>
               </aside>
-              {/* 우 — 문서 편집기 */}
+              {/* 우 — 문서 편집기. contract-tpl-editor: 표 편집 UX 스코프(고정 레이아웃·열/행/전체 크기
+                  드래그·셀 선택 하이라이트) — 기존 서식 안의 표도 셀 선택·크기 조절 가능 (2026-08-10 사장님) */}
               <main className="flex-1 min-w-0 flex flex-col p-4">
                 <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원</span></label>
-                <div className="flex-1 min-h-0">
+                <div className="flex-1 min-h-0 contract-tpl-editor">
                   <RichEditor ref={editorRef} content={html} onChange={setHtml} fillHeight
                     placeholder="근로계약서 내용을 입력하세요… 왼쪽 변수 버튼으로 {{직원명}}·{{연봉}} 등을 삽입할 수 있습니다." />
                 </div>
