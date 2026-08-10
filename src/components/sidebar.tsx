@@ -10,6 +10,7 @@ import { getCurrentUser, getUnreadCounts } from "@/lib/queries";
 import { openGlobalSearch } from "@/components/global-search";
 import { useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon, RollingBrandText } from "@/components/brand-logo";
+import { SidebarAttendanceButton } from "@/components/sidebar-attendance-button";
 import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
@@ -467,9 +468,9 @@ export function Sidebar() {
     <aside
       className={`sidebar-panel chrome-glass ${sidebarWidth}`}
     >
-      {/* Logo — U1: 로고 클릭 → /dashboard */}
-      <div className={`sidebar-logo-block ${collapsed ? "px-3 py-4" : "px-5 py-4"}`}>
-        <Link href="/dashboard" className={`sidebar-brand-link ${collapsed ? "justify-center" : "gap-2.5"}`} aria-label="대시보드로 이동">
+      {/* Logo — U1: 로고 클릭 → /dashboard. 오른쪽에 원클릭 출퇴근 버튼 (2026-08-10 사장님 요청) */}
+      <div className={`sidebar-logo-block ${collapsed ? "px-3 py-4" : "sidebar-logo-row px-5 py-4"}`}>
+        <Link href="/dashboard" className={`sidebar-brand-link ${collapsed ? "justify-center" : "gap-2.5 flex-1 min-w-0"}`} aria-label="대시보드로 이동">
           <OwnerViewIcon size={28} />
           {!collapsed && (
             <div className="flex-1 min-w-0">
@@ -485,6 +486,7 @@ export function Sidebar() {
             </div>
           )}
         </Link>
+        {!collapsed && <SidebarAttendanceButton />}
       </div>
 
       {/* Search */}
