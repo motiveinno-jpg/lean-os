@@ -7,9 +7,10 @@
 //   저장·완료·삭제와 캐시 갱신까지 여기서 끝내므로, 부르는 쪽은 무엇을 열지만 정하면 된다.
 
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { getCompanyUsers } from "@/lib/queries";
 import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
 import {
   upsertEvent, deleteEvent, toggleEventCompleted, formatEventRange,
@@ -27,15 +28,12 @@ export type ScheduleDialogTarget =
   | { mode: "new"; from?: string; to?: string };
 
 export function ScheduleItemDialog({
-  companyId, userId, target, onClose, users, departments,
+  companyId, userId, target, onClose,
 }: {
   companyId: string | null;
   userId: string | null;
   target: ScheduleDialogTarget;
   onClose: () => void;
-  /** 대상 이름을 보기 화면에 풀어 쓸 때 쓴다(없으면 개수만 보여 준다) */
-  users?: { id: string; name: string | null; email?: string }[];
-  departments?: { name: string }[];
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -101,7 +99,7 @@ export function ScheduleItemDialog({
 
   const e = (target as { mode: "view"; event: ScheduleEvent }).event;
   return <ScheduleItemView
-    event={e} users={users} departments={departments} busy={busy}
+    event={e} companyId={companyId} busy={busy}
     onEdit={() => setEditing(draftFromEvent(e))}
     onToggleDone={() => done.mutate({ id: e.id, completed: !e.completed })}
     onDelete={e.user_id === userId ? () => remove.mutate(e.id) : undefined}
@@ -110,11 +108,10 @@ export function ScheduleItemDialog({
 
 /** 보기 — 일정 내용이 본체다. 수정·완료·삭제는 아래에 작게 둔다. */
 function ScheduleItemView({
-  event, users, departments, busy, onEdit, onToggleDone, onDelete, onClose,
+  event, companyId, busy, onEdit, onToggleDone, onDelete, onClose,
 }: {
   event: ScheduleEvent;
-  users?: { id: string; name: string | null; email?: string }[];
-  departments?: { name: string }[];
+  companyId: string | null;
   busy?: boolean;
   onEdit: () => void;
   onToggleDone: () => void;
@@ -123,15 +120,28 @@ function ScheduleItemView({
 }) {
   useModalKeys(true, onClose, onEdit);
 
-  const names = (event.target_user_ids || []).map(
-    (id) => users?.find((u) => u.id === id)?.name || users?.find((u) => u.id === id)?.email || "이름 모름",
-  );
-  const depts = event.target_departments || [];
+  //   공유한 사람 이름을 보여 주려면 회사 사람 목록이 필요하다 — 입력 창과 **같은 캐시**를 쓴다.
+  //   (2026-08-10: 목록을 안 받아 오던 탓에 이름 대신 '이름 모름' 이 찍혔다)
+  const { data: users = [] } = useQuery({
+    queryKey: ["company-users", companyId],
+    queryFn: () => getCompanyUsers(companyId!),
+    enabled: !!companyId && event.visibility === "members",
+    staleTime: 5 * 60_000,
+  });
+
+  //   이름을 못 찾은 사람(회사를 떠났다 등)은 **빈칸으로 둔다** — '이름 모름' 을 늘어놓지 않는다
+  const names = (event.target_user_ids || [])
+    .map((id) => {
+      const u = (users as any[]).find((x) => x.id === id);
+      return (u?.name || u?.email || "").trim();
+    })
+    .filter(Boolean);
+  const depts = (event.target_departments || []).filter(Boolean);
   const who =
     event.visibility === "company" ? "회사 구성원 모두"
     : event.visibility === "private" ? "나만"
-    : event.visibility === "members" ? (names.length ? names.join(" · ") : `구성원 ${event.target_user_ids.length}명`)
-    : (depts.length ? depts.join(" · ") : `부서 ${event.target_departments.length}곳`);
+    : event.visibility === "members" ? names.join(" · ")
+    : depts.join(" · ");
 
   return (
     <div className="sched-view" onClick={onClose}>
@@ -153,7 +163,7 @@ function ScheduleItemView({
           : <p className="sched-view-nodesc">적어 둔 설명이 없습니다.</p>}
 
         <dl className="sched-view-meta">
-          <div><dt>공유 범위</dt><dd>{VISIBILITY_LABEL[event.visibility]} · {who}</dd></div>
+          <div><dt>공유 범위</dt><dd>{VISIBILITY_LABEL[event.visibility]}{who ? ` · ${who}` : ""}</dd></div>
         </dl>
 
         <footer>
