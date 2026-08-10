@@ -97,6 +97,7 @@ const DEFAULT_WIDGET_POS: Record<string, { x: number; y: number; w: number; h: n
 // ═══════════════════════════════════════════
 export default function DashboardPage() {
   const { role } = useUser();
+  const router = useRouter();
   const { collapsed: sidebarCollapsed } = useSidebar(); // 2026-07-24 sidebar collapsed 상태
   const { activeViewId, setActiveView, isWidgetVisible, editing, toggleEditing, toggleWidget, widgets, rolePreset, setRolePreset } = useBoard();
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -122,6 +123,17 @@ export default function DashboardPage() {
     async function loadUser() {
       const u = await getCurrentUser();
       if (u) {
+        // 온보딩을 못 거친 마스터(회사명 비어있음 — 온보딩 중 이탈·수기 생성 계정)는 온보딩으로 안내.
+        //   세션당 1회만 — 온보딩에서 건너뛰고 나온 사람을 다시 밀어넣는 트랩 방지 (2026-08-10)
+        if ((u as any).is_master && !(u.companies?.name || "").trim()) {
+          let nudged = false;
+          try { nudged = sessionStorage.getItem("ov-onboarding-nudged") === "1"; } catch { /* ignore */ }
+          if (!nudged) {
+            try { sessionStorage.setItem("ov-onboarding-nudged", "1"); } catch { /* ignore */ }
+            router.replace("/onboarding");
+            return;
+          }
+        }
         setCompanyId(u.company_id);
         setUserId(u.id);
         setUserName(u.name || u.email);
