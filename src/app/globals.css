@@ -6551,6 +6551,26 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-doc-send > button { @apply shrink-0 h-7 px-2.5 rounded-lg text-[11.5px] font-bold text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-40; }
 .pb-doc-sub { @apply h-9 px-3 rounded-lg border border-[var(--border)] text-[12.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)] disabled:opacity-40; }
 
+/* 문서 팝업 — '＋ 견적서 / ＋ 계약서' 첫 화면이 곧 입력화면 (2026-08-10) */
+.pb-doc-name { @apply flex items-center gap-2; }
+.pb-doc-name > span { @apply w-14 shrink-0 text-[11.5px] font-semibold text-[var(--text-dim)]; }
+.pb-doc-name > input { @apply flex-1 min-w-0 h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[13.5px] font-bold text-[var(--text)] focus:outline-none focus:border-[var(--primary)] disabled:opacity-60; }
+.pb-doc-form { @apply grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 pt-3 border-t border-[var(--border)]; }
+.pb-doc-field { @apply flex items-center gap-2 min-w-0; }
+.pb-doc-field > span { @apply w-14 shrink-0 text-[11.5px] font-semibold text-[var(--text-dim)]; }
+.pb-doc-field > *:not(span) { @apply flex-1 min-w-0; }
+.pb-doc-in { @apply h-8 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12.5px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)] disabled:opacity-60; }
+.pb-doc-items-head { @apply flex items-center gap-2; }
+.pb-doc-items-head b { @apply text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pb-doc-load { @apply ml-auto h-7 px-2.5 rounded-lg border border-[var(--primary)]/40 text-[11.5px] font-bold text-[var(--primary)] transition hover:bg-[var(--primary)]/10 disabled:opacity-40; }
+.pb-doc-clause { @apply flex flex-col gap-1.5 p-2.5 rounded-xl bg-[var(--bg-surface)]; }
+.pb-doc-clause-head { @apply flex items-center gap-2; }
+.pb-doc-clause-head input { @apply flex-1 min-w-0 h-8 px-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[12.5px] font-bold text-[var(--text)] focus:outline-none focus:border-[var(--primary)] disabled:opacity-60; }
+.pb-doc-clause-head button { @apply shrink-0 w-7 h-7 rounded-lg text-[var(--text-dim)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] disabled:opacity-40; }
+.pb-doc-clause textarea { @apply w-full px-2.5 py-2 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[12.5px] leading-relaxed text-[var(--text)] resize-y focus:outline-none focus:border-[var(--primary)] disabled:opacity-60; }
+.pb-doc-addclause { @apply h-8 px-3 rounded-lg border border-dashed border-[var(--border)] text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)] disabled:opacity-40; }
+.pb-doc-notes { @apply w-full px-2.5 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12.5px] leading-relaxed text-[var(--text)] resize-y focus:outline-none focus:border-[var(--primary)] disabled:opacity-60; }
+
 /* 디자인 시스템 갤러리 /design — 부품을 한 화면에 세워 두는 자리 (2026-08-05) */
 .ds-page { @apply flex flex-col gap-8 pb-16; }
 .ds-head { @apply flex flex-col gap-1; }

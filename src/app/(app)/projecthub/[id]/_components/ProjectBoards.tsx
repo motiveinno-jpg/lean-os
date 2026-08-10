@@ -599,13 +599,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   };
 
   //   편집기의 '저장' 이 부른다 — 이때 문서를 만들고 그 줄에 매단다
-  const createDocFromDraft = async (contentJson: any): Promise<boolean> => {
+  //   name — 팝업에서 문서명을 고쳤으면 그 이름으로 만든다(2026-08-10)
+  const createDocFromDraft = async (contentJson: any, name?: string): Promise<boolean> => {
     const d = docModal?.draft;
     const it = docModal ? items.find((i) => i.id === docModal.itemId) : null;
     if (!d || !it || !userId) return false;
     try {
       const doc = await insertDocument({
-        companyId, dealId, userId, name: d.name,
+        companyId, dealId, userId, name: name?.trim() || d.name,
         contentType: d.contentType, contentJson, sourceDocumentId: d.sourceDocumentId || null,
       });
       const key = d.contentType === "contract" ? CONTRACT_VALUE_KEY : DOC_VALUE_KEY;
@@ -942,6 +943,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     const linked = (docModalItem.values || {})[key] as { id?: string } | undefined;
     return (dealDocs as any[]).find((d) => d.id === linked?.id) || null;
   })();
+  //   계약서 팝업이 '견적서 불러오기' 로 당겨 올 견적 — 그 줄에 붙은 견적서 (2026-08-10)
+  const docModalQuote = (() => {
+    if (!docModalItem || docModal?.kind !== "contract") return null;
+    const linked = (docModalItem.values || {})[DOC_VALUE_KEY] as { id?: string } | undefined;
+    return (dealDocs as any[]).find((d) => d.id === linked?.id) || null;
+  })();
   const docModalAmount = (() => {
     if (!docModalItem) return 0;
     const c = cols.find((x) => x.type === "number" && (x.settings?.unit || "") === "원");
@@ -1154,6 +1161,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           partnerName={docModalPartner?.name || ""}
           partnerId={docModalPartner?.id || null}
           companyId={companyId} dealId={dealId} userId={userId}
+          quoteDoc={docModalQuote}
           onClose={() => setDocModal(null)}
           onSent={() => markStage(docModalItem, /견적/)}
           onApproved={() => markStage(docModalItem, /계약/)}
