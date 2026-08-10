@@ -1830,6 +1830,9 @@ a.morning-brief-stat { @apply transition-colors hover:border-[var(--primary)]/40
 .transaction-table-panel { @apply overflow-hidden; }
 .transaction-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] transition-colors; }
 .transaction-mapping-popover { @apply absolute z-50 mt-1 right-4 w-56 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl shadow-xl p-3 text-left; }
+/* 계정과목 고르는 자리에서 성격(자산·부채…)을 알려 준다 — 부채 계정을 비용처럼 고르던 일 (2026-08-10) */
+.tx-acct-nature { @apply rounded bg-[var(--bg-surface)] px-1 text-[10px] font-semibold text-[var(--text-dim)]; }
+.tx-acct-nature-hint { @apply mb-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 text-[10px] leading-relaxed text-amber-600; }
 .bank-bulk-post-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
 .loans-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
 .loans-summary-cards { @apply grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6; }
@@ -2475,6 +2478,11 @@ a.morning-brief-stat { @apply transition-colors hover:border-[var(--primary)]/40
 .pnl-legend { @apply flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-2 px-1 text-[11px] text-[var(--text-muted)]; }
 .pnl-chart-section { @apply mt-5; }
 .pnl-accuracy-banner { @apply mt-4 flex items-start gap-2.5; }
+/* 비용이 아닌 계정으로 분류돼 손익에서 뺀 출금 안내 (2026-08-10) */
+.pnl-nonpnl-note { @apply mb-4 flex items-start gap-2 text-[11.5px]; }
+.pnl-nonpnl-list { @apply mt-1.5 flex flex-wrap gap-1.5; }
+.pnl-nonpnl-chip { @apply inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-0.5 text-[11px] text-[var(--text-muted)]; }
+.pnl-nonpnl-chip i { @apply not-italic rounded bg-[var(--bg-card)] px-1 text-[10px] font-semibold text-[var(--text-dim)]; }
 .pnl-basis-details { @apply mt-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }
 .pnl-drill-modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
 .pnl-drill-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[82vh] flex flex-col shadow-xl; }

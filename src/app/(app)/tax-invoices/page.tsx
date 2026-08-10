@@ -1681,9 +1681,10 @@ function TaxInvoicesPageInner() {
           {tab === "purchase" && (
             <div className="flex items-center gap-1.5">
               <select value={bulkExpenseCat} onChange={(e) => setBulkExpenseCat(e.target.value)}
-                className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs" title="손익계산서 계정과목 — 지정하면 매출원가 대신 판관비로 집계">
+                className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs" title="손익계산서 계정과목 — 지정하면 매출원가 대신 그 비용 항목으로 집계">
                 <option value="">손익 계정과목 지정…</option>
-                {coaAccounts.map((a: any) => <option key={a.code} value={a.name}>{a.name} ({a.code})</option>)}
+                {/*  비용 계정만 — 부채·자산 계정(미지급금 등)을 여기서 고르면 손익계산서에 잘못 실린다 (2026-08-10) */}
+                {coaAccounts.filter((a: any) => a.account_type === "expense").map((a: any) => <option key={a.code} value={a.name}>{a.name} ({a.code})</option>)}
               </select>
               <button disabled={!bulkExpenseCat} onClick={applyBulkExpenseCat}
                 className="btn-primary btn-sm">적용</button>

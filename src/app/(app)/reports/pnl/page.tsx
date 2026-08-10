@@ -9,6 +9,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
+import { getAccountMap, classifyAccount, NATURE_LABEL } from "@/lib/account-nature";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import PnlChart from "./pnl-chart";
@@ -70,13 +71,19 @@ interface PnlData {
   otherRevenue: MonthlyRow;
   outsourcing: MonthlyRow;
   infrastructure: MonthlyRow;
-  // 판매관리비 — 사용자 category 동적 그룹 (key = 카테고리 이름)
+  // 판매관리비 — 사용자 category 동적 그룹 (key = 카테고리 이름). 8xx 판관비 계정만 들어온다.
   opexByCategory: Record<string, MonthlyRow>;
+  // 계정 성격에 따라 갈라 담는 나머지 손익 항목 (2026-08-10)
+  nonOpIncomeByCategory: Record<string, MonthlyRow>;   // 9xx 영업외수익
+  nonOpExpenseByCategory: Record<string, MonthlyRow>;  // 9xx 영업외비용 (이자비용·기부금 등)
+  taxByCategory: Record<string, MonthlyRow>;           // 998 법인세비용
   salesRevenue: MonthlyRow;
   purchaseCost: MonthlyRow;
   totalSalary: MonthlyRow;
   uncategorizedCount: number;   // 분류 안 돼 판관비에서 빠진 출금 건수
   uncategorizedAmount: number;  // 그 합계 금액
+  //   비용이 아닌 계정(자산·부채·자본)으로 분류돼 손익에서 뺀 출금 — 어디로 갔는지 알려주려고 모은다
+  nonPnlOut: { category: string; nature: string; count: number; amount: number }[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -179,6 +186,9 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
   const allMonths = [...prevMonthsList, ...months];
   const startDate = `${allMonths[0]}-01`;
 
+  //   계정과목표 = 계정 성격의 단일 기준. 손익 자리(판관비·영업외·법인세)도 여기서 갈린다.
+  const accountMap = await getAccountMap(companyId);
+
   // PostgREST max-rows 1000 우회 — range 페이지네이션
   const [transactions, taxInvoices, empRes] = await Promise.all([
     fetchAllPaginated<any>((from, to) =>
@@ -216,37 +226,63 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
   const outsourcing = emptyRow(allMonths);
   const infrastructure = emptyRow(allMonths);
   const opexByCategory: Record<string, MonthlyRow> = {};
+  const nonOpIncomeByCategory: Record<string, MonthlyRow> = {};
+  const nonOpExpenseByCategory: Record<string, MonthlyRow> = {};
+  const taxByCategory: Record<string, MonthlyRow> = {};
   const salesRevenue = emptyRow(allMonths);
   const purchaseCost = emptyRow(allMonths);
   const totalSalary = emptyRow(allMonths);
 
-  const ensureOpex = (cat: string): MonthlyRow => {
-    if (!opexByCategory[cat]) opexByCategory[cat] = emptyRow(allMonths);
-    return opexByCategory[cat];
+  const ensureIn = (bucket: Record<string, MonthlyRow>, cat: string): MonthlyRow => {
+    if (!bucket[cat]) bucket[cat] = emptyRow(allMonths);
+    return bucket[cat];
   };
+  const ensureOpex = (cat: string): MonthlyRow => ensureIn(opexByCategory, cat);
 
-  // 2026-06-10 발생주의 통일 — 비용에서 제외할 자금이동/비-비용 카테고리(이체·대출·카드대금·세금·인출 등)
-  const NON_EXPENSE_CAT = ["이체", "송금", "대출", "상환", "카드대금", "카드이용대금", "세금", "부가세", "인출", "충당", "보증금", "예치", "예금"];
-  const isNonExpenseCat = (c: string) => NON_EXPENSE_CAT.some((k) => c.includes(k));
-
-  // 미분류 출금 규모 — 판관비에서 빠진 금액(경고 배너용). 자금이동(이체/카드대금 등)은 원래 비용 아님이라 제외.
+  // 미분류 출금 규모 — 판관비에서 빠진 금액(경고 배너용).
   let uncategorizedCount = 0;
   let uncategorizedAmount = 0;
+  //   비용이 아닌 계정으로 분류된 출금 — 손익에서 빼되 "어디로 갔는지" 알려주려고 모은다
+  const nonPnlMap = new Map<string, { category: string; nature: string; count: number; amount: number }>();
+
   for (const tx of transactions as any[]) {
     const month = toMonth(tx.transaction_date);
     if (!allMonths.includes(month)) continue;
     const amt = Math.abs(tx.amount);
+    const userCat = (tx.category && String(tx.category).trim()) || "";
 
     // 매출=세금계산서(sales) 기준. 비용도 발생주의 통일 — 매출원가는 매입 세금계산서로 인식,
-    //   통장 출금은 '사용자가 명시 분류한 판관비'만 비용 인식. 미분류·자금이동(이체/대출/카드대금/세금/인출)은
-    //   비용에서 제외해 허수 과대계상 차단(99% 미분류 출금이 손익을 −4억 허수로 만들던 문제).
+    //   통장 출금은 '사용자가 명시 분류한 비용'만 인식. 미분류는 비용에서 제외해 허수 과대계상 차단
+    //   (99% 미분류 출금이 손익을 −4억 허수로 만들던 문제).
     if (tx.type === "expense" || tx.type === "출금") {
-      const userCat = (tx.category && String(tx.category).trim()) || "";
-      if (isNonExpenseCat(userCat)) continue;      // 자금이동 = 비용 아님(경고 대상도 아님)
-      if (!userCat) { uncategorizedCount++; uncategorizedAmount += amt; continue; } // 미분류 = 판관비 누락
-      ensureOpex(userCat)[month] += amt;
+      if (!userCat) { uncategorizedCount++; uncategorizedAmount += amt; continue; } // 미분류 = 비용 누락
+      //   ⚠️ 분류 글자를 그냥 판관비로 더하면 안 된다 — '미지급금'(부채)까지 비용 자리에 앉는다.
+      //      계정과목표의 성격·코드로 갈 자리를 정한다 (2026-08-10).
+      const acct = classifyAccount(userCat, accountMap);
+      if (!acct) continue;
+      if (acct.section === "opex") ensureOpex(acct.name)[month] += amt;
+      else if (acct.section === "cogs") purchaseCost[month] += amt;
+      else if (acct.section === "nonop_expense") ensureIn(nonOpExpenseByCategory, acct.name)[month] += amt;
+      else if (acct.section === "tax") ensureIn(taxByCategory, acct.name)[month] += amt;
+      else {
+        //   자산·부채·자본 계정(미지급금 상환·이체·보증금 등) + 방향이 안 맞는 수익 계정 = 손익 아님.
+        //   현금은 나갔지만 손익이 아니라 재무상태표가 받는 거래다.
+        const key = acct.name;
+        const cur = nonPnlMap.get(key) || { category: key, nature: NATURE_LABEL[acct.nature], count: 0, amount: 0 };
+        cur.count++; cur.amount += amt;
+        nonPnlMap.set(key, cur);
+      }
+      continue;
+    }
+
+    //   입금 중 **영업외수익 계정(9xx)** 으로 분류한 것만 인식한다.
+    //   매출 계정으로 분류한 입금은 세금계산서 매출과 겹치므로 손익에 넣지 않는다(이중계상 차단).
+    if (userCat) {
+      const acct = classifyAccount(userCat, accountMap);
+      if (acct?.section === "nonop_income") ensureIn(nonOpIncomeByCategory, acct.name)[month] += amt;
     }
   }
+  const nonPnlOut = Array.from(nonPnlMap.values()).sort((a, b) => b.amount - a.amount);
 
   for (const ti of taxInvoices) {
     const month = toMonth(ti.issue_date);
@@ -257,8 +293,13 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
       // 직원 QA 손익계산서 — 매입 세금계산서에 계정과목(expense_category)을 지정하면 그 판관비로,
       //   미지정이면 매출원가(COGS)로. "매입세금계산서라도 비용으로 빠질 건 빠지게".
       //   영문 키는 한글 라벨로 변환해 통장 분류(한글 카테고리)와 같은 행으로 합산.
+      //   지정한 계정도 성격을 본다 — 자산·부채 계정을 골라 놨으면 판관비가 아니라
+      //   미지정과 똑같이 매출원가로 둔다(매입은 어차피 원가다. 손익에서 통째로 사라지지 않게).
       const rawCat = (ti.expense_category && String(ti.expense_category).trim()) || "";
-      if (rawCat) ensureOpex(expenseCategoryLabel(rawCat))[month] += ti.supply_amount;
+      const acct = rawCat ? classifyAccount(expenseCategoryLabel(rawCat), accountMap) : null;
+      if (acct?.section === "opex") ensureOpex(acct.name)[month] += ti.supply_amount;
+      else if (acct?.section === "nonop_expense") ensureIn(nonOpExpenseByCategory, acct.name)[month] += ti.supply_amount;
+      else if (acct?.section === "tax") ensureIn(taxByCategory, acct.name)[month] += ti.supply_amount;
       else purchaseCost[month] += ti.supply_amount;
     }
   }
@@ -295,11 +336,15 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     outsourcing,
     infrastructure,
     opexByCategory,
+    nonOpIncomeByCategory,
+    nonOpExpenseByCategory,
+    taxByCategory,
     salesRevenue,
     purchaseCost,
     totalSalary,
     uncategorizedCount,
     uncategorizedAmount,
+    nonPnlOut,
   };
 }
 
@@ -362,20 +407,28 @@ function PnlPageInner() {
     const grossProfit = emptyRow(allM);
     const totalOpex = emptyRow(allM);
     const operatingIncome = emptyRow(allM);
+    const totalNonOpIncome = emptyRow(allM);
+    const totalNonOpExpense = emptyRow(allM);
+    const pretaxIncome = emptyRow(allM);
+    const totalTax = emptyRow(allM);
     const netIncome = emptyRow(allM);
+
+    const sumBucket = (bucket: Record<string, MonthlyRow>, m: string) =>
+      Object.values(bucket).reduce((s, row) => s + (row[m] || 0), 0);
 
     for (const m of allM) {
       totalRevenue[m] = (data.revenue[m] || 0) + (data.otherRevenue[m] || 0);
-      // 발생주의: 매출원가 = 매입 세금계산서 공급가액(통장 출금 아님). 매출(세금계산서)과 기준 일치.
+      // 발생주의: 매출원가 = 매입 세금계산서 공급가액(+ 매출원가 계정으로 분류한 출금).
       cogs[m] = (data.purchaseCost[m] || 0);
       grossProfit[m] = totalRevenue[m] - cogs[m];
-      let opexSum = 0;
-      for (const row of Object.values(data.opexByCategory)) {
-        opexSum += row[m] || 0;
-      }
-      totalOpex[m] = opexSum;
+      totalOpex[m] = sumBucket(data.opexByCategory, m);
       operatingIncome[m] = grossProfit[m] - totalOpex[m];
-      netIncome[m] = operatingIncome[m];
+      //   영업외손익·법인세를 계정 성격대로 따로 세운다 — 이자비용을 판관비에 섞지 않는다 (2026-08-10)
+      totalNonOpIncome[m] = sumBucket(data.nonOpIncomeByCategory, m);
+      totalNonOpExpense[m] = sumBucket(data.nonOpExpenseByCategory, m);
+      pretaxIncome[m] = operatingIncome[m] + totalNonOpIncome[m] - totalNonOpExpense[m];
+      totalTax[m] = sumBucket(data.taxByCategory, m);
+      netIncome[m] = pretaxIncome[m] - totalTax[m];
     }
 
     /* Previous period sums for comparison */
@@ -388,10 +441,18 @@ function PnlPageInner() {
       grossProfit: sumPrev(grossProfit),
       totalOpex: sumPrev(totalOpex),
       operatingIncome: sumPrev(operatingIncome),
+      totalNonOpIncome: sumPrev(totalNonOpIncome),
+      totalNonOpExpense: sumPrev(totalNonOpExpense),
+      pretaxIncome: sumPrev(pretaxIncome),
+      totalTax: sumPrev(totalTax),
       netIncome: sumPrev(netIncome),
     };
 
-    return { totalRevenue, cogs, grossProfit, totalOpex, operatingIncome, netIncome, prevTotals, sumPrev, sumCurr };
+    return {
+      totalRevenue, cogs, grossProfit, totalOpex, operatingIncome,
+      totalNonOpIncome, totalNonOpExpense, pretaxIncome, totalTax, netIncome,
+      prevTotals, sumPrev, sumCurr,
+    };
   }, [data]);
 
   const handleExportCsv = useCallback(() => {
@@ -418,6 +479,13 @@ function PnlPageInner() {
     addLine("판매관리비 합계", computed.totalOpex);
     lines.push("");
     addLine("영업이익", computed.operatingIncome);
+    lines.push("");
+    for (const [name, row] of Object.entries(data.nonOpIncomeByCategory)) addLine(`영업외수익 - ${name}`, row);
+    addLine("영업외수익 합계", computed.totalNonOpIncome);
+    for (const [name, row] of Object.entries(data.nonOpExpenseByCategory)) addLine(`영업외비용 - ${name}`, row);
+    addLine("영업외비용 합계", computed.totalNonOpExpense);
+    addLine("법인세비용", computed.totalTax);
+    lines.push("");
     addLine("당기순이익", computed.netIncome);
 
     const bom = "\uFEFF";
@@ -663,6 +731,27 @@ function PnlPageInner() {
         </div>
       )}
 
+      {/* 비용이 아닌 계정으로 분류된 출금 — 손익에서 빼되 어디로 갔는지 밝힌다 (2026-08-10 사장님 지적:
+          "판매비와관리비에 미지급금이 나온다"). 이건 오류가 아니라 자리를 옮긴 것이므로 경고가 아닌 안내 톤. */}
+      {data.nonPnlOut.length > 0 && (
+        <div className="pnl-nonpnl-note kpi-callout">
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
+          <div className="leading-relaxed">
+            <b>비용이 아닌 계정</b>으로 분류된 출금 {data.nonPnlOut.reduce((s, r) => s + r.count, 0).toLocaleString()}건
+            (₩{Math.round(data.nonPnlOut.reduce((s, r) => s + r.amount, 0)).toLocaleString()})은
+            손익계산서에서 <b>제외</b>했습니다 — 자산·부채·자본 계정은 <Link href="/reports/bs" className="underline font-semibold">재무상태표</Link> 항목입니다.
+            <div className="pnl-nonpnl-list">
+              {data.nonPnlOut.slice(0, 6).map((r) => (
+                <span key={r.category} className="pnl-nonpnl-chip">
+                  {r.category}<i>{r.nature}</i> ₩{Math.round(r.amount).toLocaleString()}
+                </span>
+              ))}
+              {data.nonPnlOut.length > 6 && <span className="pnl-nonpnl-chip">외 {data.nonPnlOut.length - 6}개</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards — 대시보드 글래스카드 스타일 (2026-06-10 리디자인) */}
       <div className="pnl-summary-cards" style={{ marginBottom: 24 }}>
         {[
@@ -719,8 +808,8 @@ function PnlPageInner() {
       {/* 표기 규칙 — 단 한 가지: 초록 배경 = 이익 소계 3줄. 나머지는 표준 양식의 위계(굵은 Ⅰ~Ⅵ / 들여쓴 세부). */}
       <div className="pnl-legend">
         <span className="font-semibold text-[var(--text)]">표기 규칙</span>
-        <span className="inline-flex items-center gap-1.5"><b className="text-[var(--text)]">굵은 Ⅰ~Ⅵ</b> = 주요 계정</span>
-        <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 h-3.5 rounded" style={{ background: "color-mix(in srgb, var(--success) 9%, var(--bg-card))", border: "1px solid var(--border)" }} />초록 배경 = 이익 소계(Ⅲ·Ⅴ·Ⅵ)</span>
+        <span className="inline-flex items-center gap-1.5"><b className="text-[var(--text)]">굵은 Ⅰ~Ⅸ</b> = 주요 계정</span>
+        <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3.5 h-3.5 rounded" style={{ background: "color-mix(in srgb, var(--success) 9%, var(--bg-card))", border: "1px solid var(--border)" }} />초록 배경 = 이익 소계(Ⅲ·Ⅴ·Ⅸ)</span>
         <span>들여쓴 항목 = 판관비 세부 내역 · 항목명 클릭 = 원천 내역</span>
       </div>
 
@@ -839,11 +928,40 @@ function PnlPageInner() {
               ] },
             })}
 
-            {renderRow("Ⅵ. 당기순이익", computed.netIncome, months, {
+            {/* Ⅵ~Ⅷ 영업외손익·법인세 — 이자비용·기부금 같은 9xx 계정을 판관비에 섞지 않고 제자리에 둔다.
+                금액이 없어도 줄은 남긴다(표준 손익계산서 형식 + 로마숫자가 흔들리지 않게). 2026-08-10 */}
+            {renderRow("Ⅵ. 영업외수익", computed.totalNonOpIncome, months, {
+              isBold: true,
+              prevTotal: isCompareMode ? computed.prevTotals.totalNonOpIncome : undefined,
+            })}
+            {Object.entries(data.nonOpIncomeByCategory)
+              .filter(([, row]) => months.reduce((s, m) => s + (row[m] || 0), 0) !== 0)
+              .map(([name, row]) => renderRow(name, row, months, { indent: true }))}
+
+            {renderRow("Ⅶ. 영업외비용", computed.totalNonOpExpense, months, {
+              isBold: true,
+              prevTotal: isCompareMode ? computed.prevTotals.totalNonOpExpense : undefined,
+            })}
+            {Object.entries(data.nonOpExpenseByCategory)
+              .filter(([, row]) => months.reduce((s, m) => s + (row[m] || 0), 0) !== 0)
+              .map(([name, row]) => renderRow(name, row, months, {
+                indent: true,
+                drill: { source: "opex", category: name },
+              }))}
+
+            {renderRow("Ⅷ. 법인세비용", computed.totalTax, months, {
+              isBold: true,
+              prevTotal: isCompareMode ? computed.prevTotals.totalTax : undefined,
+            })}
+
+            {renderRow("Ⅸ. 당기순이익 (Ⅴ+Ⅵ−Ⅶ−Ⅷ)", computed.netIncome, months, {
               profit: true, isBold: true, big: true, isTotal: true,
               prevTotal: isCompareMode ? computed.prevTotals.netIncome : undefined,
               drill: { source: "computed", breakdown: [
-                { label: "영업이익 (영업외손익·법인세 미반영)", amount: months.reduce((s, m) => s + (computed.operatingIncome[m] || 0), 0) },
+                { label: "영업이익", amount: months.reduce((s, m) => s + (computed.operatingIncome[m] || 0), 0) },
+                { label: "영업외수익", amount: months.reduce((s, m) => s + (computed.totalNonOpIncome[m] || 0), 0) },
+                { label: "영업외비용", amount: -months.reduce((s, m) => s + (computed.totalNonOpExpense[m] || 0), 0) },
+                { label: "법인세비용", amount: -months.reduce((s, m) => s + (computed.totalTax[m] || 0), 0) },
               ] },
             })}
           </tbody>
@@ -878,7 +996,8 @@ function PnlPageInner() {
           totalExpenses={(() => {
             const row: Record<string, number> = {};
             for (const m of months) {
-              row[m] = computed.cogs[m] + computed.totalOpex[m];
+              //   순이익과 어긋나지 않게 영업외비용·법인세까지 더한 '총 비용' (2026-08-10)
+              row[m] = computed.cogs[m] + computed.totalOpex[m] + computed.totalNonOpExpense[m] + computed.totalTax[m];
             }
             return row;
           })()}
@@ -890,7 +1009,7 @@ function PnlPageInner() {
       <div className="pnl-accuracy-banner kpi-callout">
         <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
         <p className="text-[11.5px] leading-relaxed">
-          <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 카테고리가 분류된 출금만</b> 반영됩니다 — 미분류 출금은 자금이동(이체·카드대금 등)과 섞여 허수를 만들기에 제외돼, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다. <Link href="/transactions" className="underline font-semibold">거래내역</Link>에서 비용을 분류할수록 정확해집니다.
+          <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 계정과목이 분류된 출금만</b> 반영됩니다 — 미분류 출금은 무엇인지 알 수 없어 제외되므로, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다. <Link href="/transactions" className="underline font-semibold">거래내역</Link>에서 비용을 분류할수록 정확해집니다.
         </p>
       </div>
 
@@ -905,10 +1024,11 @@ function PnlPageInner() {
         </summary>
         <div className="px-4 pb-4 grid sm:grid-cols-2 gap-x-6 gap-y-2 text-[11.5px] leading-relaxed text-[var(--text-dim)] border-t border-[var(--border)] pt-3">
           <div>· <b className="text-[var(--text-muted)]">Ⅰ. 매출액</b> = 매출 세금계산서 공급가액(발생주의)</div>
-          <div>· <b className="text-[var(--text-muted)]">Ⅱ. 매출원가</b> = <b className="text-[var(--text-muted)]">계정과목 미지정</b> 매입 세금계산서 공급가액 — 매입 계산서에 계정과목을 지정하면 그 항목의 판관비로 이동(Ⅱ 클릭 → 건별 지정 가능)</div>
-          <div>· <b className="text-[var(--text-muted)]">Ⅳ. 판매비와관리비</b> = ① 카테고리 분류된 통장 출금(AI 자동분류 포함 — 직접 선택 안 해도 자동 분류분이 반영됨) + ② 계정과목 지정한 매입 세금계산서</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅱ. 매출원가</b> = <b className="text-[var(--text-muted)]">계정과목 미지정</b> 매입 세금계산서 공급가액 + 매출원가(451)·매입(501) 계정으로 분류한 출금 — 매입 계산서에 판관비 계정을 지정하면 그쪽으로 이동(Ⅱ 클릭 → 건별 지정 가능)</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅳ. 판매비와관리비</b> = ① 판관비 계정(코드 8xx)으로 분류된 통장 출금(AI 자동분류 포함) + ② 판관비 계정을 지정한 매입 세금계산서</div>
           <div>· <b className="text-[var(--text-muted)]">급여</b> = 등록 직원 월급여 자동 반영, <b className="text-[var(--text-muted)]">4대보험</b> = 급여×약 10.55%(사업주 부담 추정) — 거래가 없어도 직원 등록만으로 자동 계상</div>
-          <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">Ⅵ. 당기순이익</b> = 영업이익 (영업외손익·법인세 미반영) · 자금이동(이체·대출·카드대금 등)과 미분류 출금은 비용에서 제외</div>
+          <div>· <b className="text-[var(--text-muted)]">Ⅵ·Ⅶ·Ⅷ 영업외손익·법인세</b> = 영업외 계정(코드 9xx)으로 분류한 거래. 이자비용·기부금 등은 판관비에 섞지 않고 여기로 갑니다. 입금은 <b className="text-[var(--text-muted)]">영업외수익 계정</b>만 인식(매출 계정 입금은 세금계산서 매출과 중복이라 제외)</div>
+          <div className="sm:col-span-2">· <b className="text-[var(--text-muted)]">계정 성격 기준</b> — 자리는 <Link href="/settings" className="underline">회사설정 → 계정과목</Link>의 성격(자산·부채·자본·수익·비용)과 코드로 정합니다. <b className="text-[var(--text-muted)]">자산·부채·자본 계정(미지급금 상환·이체·보증금 등)은 손익계산서가 아니라 재무상태표 항목</b>이라 제외되며, 미분류 출금도 제외됩니다</div>
         </div>
       </details>
 

@@ -24,6 +24,7 @@ import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers"
 import { EmptyState } from "@/components/empty-state";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { NATURE_LABEL } from "@/lib/account-nature";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { SortToolbar } from "@/components/sort-toolbar";
@@ -44,6 +45,9 @@ const MAPPING_META: Record<string, { label: string; bg: string; text: string }> 
 };
 
 // 인라인 매핑용 분류(카테고리) 목록
+//   계정 성격 라벨 — 계정과목표의 account_type 은 자유 문자열이라 안전하게 되짚는다
+const natureLabel = (t: string) => (NATURE_LABEL as Record<string, string>)[t] || t;
+
 const BANK_CATEGORIES = ["복리후생비", "소모품비", "통신비", "교통비", "광고선전비", "접대비", "보험료", "세금공과", "수수료", "임대료", "기타비용"];
 
 export default function BankPage() {
@@ -901,18 +905,41 @@ export default function BankPage() {
                                 <button type="button" onClick={() => { setMapCat(""); setMapAcctQuery(""); }}
                                   className={`w-full px-2 py-1 text-xs text-left hover:bg-[var(--bg-surface)] ${!mapCat ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>(분류 없음)</button>
                                 {(() => {
-                                  const opts = coaAccounts.length > 0 ? coaAccounts.map((a: any) => ({ code: String(a.code), name: a.name })) : BANK_CATEGORIES.map((c) => ({ code: c, name: c }));
+                                  //   계정 성격을 같이 보여 준다 — 부채인 '미지급금' 을 비용처럼 고르면
+                                  //   손익계산서 판관비에 잡히던 일이 있었다 (2026-08-10 사장님 지적).
+                                  //   비용 계정을 위로 올려 손이 먼저 닿게 한다.
+                                  const opts = coaAccounts.length > 0
+                                    ? coaAccounts.map((a: any) => ({ code: String(a.code), name: a.name, nature: a.account_type as string }))
+                                    : BANK_CATEGORIES.map((c) => ({ code: c, name: c, nature: "expense" }));
                                   const q = mapAcctQuery.trim().toLowerCase();
-                                  const filtered = opts.filter((o) => !q || o.name.toLowerCase().includes(q) || o.code.toLowerCase().includes(q)).slice(0, 60);
+                                  const filtered = opts
+                                    .filter((o) => !q || o.name.toLowerCase().includes(q) || o.code.toLowerCase().includes(q))
+                                    .sort((a, b) => Number(b.nature === "expense") - Number(a.nature === "expense"))
+                                    .slice(0, 60);
                                   if (filtered.length === 0) return <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>;
                                   return filtered.map((o) => (
                                     <button key={o.code} type="button" onClick={() => { setMapCat(o.name); setMapAcctQuery(""); }}
                                       className={`w-full flex justify-between gap-2 px-2 py-1 text-xs text-left hover:bg-[var(--bg-surface)] ${mapCat === o.name ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold" : "text-[var(--text)]"}`}>
-                                      <span className="truncate">{o.name}</span>{o.code !== o.name && <span className="text-[var(--text-dim)] mono-number shrink-0">{o.code}</span>}
+                                      <span className="truncate">{o.name}</span>
+                                      <span className="flex items-center gap-1.5 shrink-0">
+                                        {o.nature && o.nature !== "expense" && <span className="tx-acct-nature">{natureLabel(o.nature)}</span>}
+                                        {o.code !== o.name && <span className="text-[var(--text-dim)] mono-number">{o.code}</span>}
+                                      </span>
                                     </button>
                                   ));
                                 })()}
                               </div>
+                              {(() => {
+                                //   고른 계정이 비용이 아니면 손익계산서에 안 잡힌다는 걸 **고른 자리에서** 알린다
+                                const picked = (coaAccounts as any[]).find((a) => a.name === mapCat);
+                                if (!picked || picked.account_type === "expense") return null;
+                                return (
+                                  <p className="tx-acct-nature-hint">
+                                    {mapCat}은(는) <b>{natureLabel(picked.account_type)} 계정</b>입니다 —
+                                    손익계산서 비용이 아니라 재무상태표 항목으로 처리됩니다.
+                                  </p>
+                                );
+                              })()}
                               <label className="flex items-center gap-1.5 mb-2 text-[11px] text-[var(--text)] cursor-pointer" title="매월 반복되는 지출이면 체크 — 경영흐름·고정비 리포트에 고정비로 집계되고, 같은 거래처는 다음부터 자동 체크됩니다">
                                 <input type="checkbox" checked={mapFixed} onChange={(e) => setMapFixed(e.target.checked)} className="accent-[var(--warning)]" />
                                 고정비로 표시 <span className="text-[var(--text-dim)]">(매월 반복 지출)</span>
