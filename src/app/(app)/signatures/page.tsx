@@ -606,7 +606,8 @@ function SignaturesDashboardInner() {
           <span className={`signature-status-chip-label ${statusFilter === "all" ? "text-white/85" : "text-[var(--text-dim)]"}`}>전체</span>
           <span className={`signature-status-chip-count mono-number ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</span>
         </button>
-        {SIGNATURE_STATUS.map((s) => (
+        {/* 대기·거부는 실제로 도달 불가능한 상태(설정 코드 없음·prod 0건)라 카드에서 제외 (2026-08-10 사장님 확인) */}
+        {SIGNATURE_STATUS.filter((s) => s.value !== "pending" && s.value !== "rejected").map((s) => (
           <button
             key={s.value}
             onClick={() => setStatusFilter(s.value)}
