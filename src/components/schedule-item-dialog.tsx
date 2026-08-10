@@ -11,10 +11,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getCompanyUsers } from "@/lib/queries";
+import { resolveSignedUrl } from "@/lib/file-storage";
 import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
 import {
   upsertEvent, deleteEvent, toggleEventCompleted, formatEventRange,
-  VISIBILITY_LABEL, type EventColor, type ScheduleEvent,
+  VISIBILITY_LABEL, type EventColor, type ScheduleAttachment, type ScheduleEvent,
 } from "@/lib/schedule";
 
 const DOT: Record<EventColor, string> = {
@@ -65,6 +66,7 @@ export function ScheduleItemDialog({
         endAt: a && b > a ? `${b}T00:00:00` : null,
         allDay: true, color: d.color,
         visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
+        attachments: d.attachments,
       });
     },
     onSuccess: () => { refresh(); onClose(); toast("저장했습니다.", "success"); },
@@ -120,6 +122,15 @@ function ScheduleItemView({
 }) {
   useModalKeys(true, onClose, onEdit);
 
+  //   documents 버킷은 비공개 — 누를 때마다 잠깐 쓰는 주소를 새로 받는다
+  const openFile = async (f: ScheduleAttachment) => {
+    const url = await resolveSignedUrl(f.url, f.name);
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+
   //   공유한 사람 이름을 보여 주려면 회사 사람 목록이 필요하다 — 입력 창과 **같은 캐시**를 쓴다.
   //   (2026-08-10: 목록을 안 받아 오던 탓에 이름 대신 '이름 모름' 이 찍혔다)
   const { data: users = [] } = useQuery({
@@ -137,9 +148,10 @@ function ScheduleItemView({
     })
     .filter(Boolean);
   const depts = (event.target_departments || []).filter(Boolean);
+  //   '나만' 은 라벨이 이미 '나만' 이라 부연을 붙이면 '나만 · 나만' 이 된다 — 비워 둔다
   const who =
     event.visibility === "company" ? "회사 구성원 모두"
-    : event.visibility === "private" ? "나만"
+    : event.visibility === "private" ? ""
     : event.visibility === "members" ? names.join(" · ")
     : depts.join(" · ");
 
@@ -161,6 +173,14 @@ function ScheduleItemView({
         {event.description
           ? <p className="sched-view-desc">{event.description}</p>
           : <p className="sched-view-nodesc">적어 둔 설명이 없습니다.</p>}
+
+        {(event.attachments || []).length > 0 && (
+          <div className="sched-view-files">
+            {(event.attachments || []).map((f, i) => (
+              <button key={`${f.url}-${i}`} type="button" onClick={() => openFile(f)} title="열기">📎 {f.name}</button>
+            ))}
+          </div>
+        )}
 
         <dl className="sched-view-meta">
           <div><dt>공유 범위</dt><dd>{VISIBILITY_LABEL[event.visibility]}{who ? ` · ${who}` : ""}</dd></div>

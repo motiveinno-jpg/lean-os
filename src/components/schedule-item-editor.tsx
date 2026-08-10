@@ -8,14 +8,16 @@
 //     ⚠️ 못 볼 사람에게 안 보이게 막는 것은 RLS 다. 이 화면은 무엇으로 저장할지만 고른다.
 //   · 이름 옆에 '어떤 일정인지'(설명)를 적는다.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DateField } from "@/components/date-field";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { getCompanyUsers } from "@/lib/queries";
+import { ChatEmojiPicker } from "@/components/chat-emoji-picker";
+import { resolveSignedUrl } from "@/lib/file-storage";
 import {
-  getDepartments, VISIBILITY_LABEL,
-  type EventColor, type ScheduleEvent, type Visibility,
+  getDepartments, uploadScheduleFile, VISIBILITY_LABEL,
+  type EventColor, type ScheduleAttachment, type ScheduleEvent, type Visibility,
 } from "@/lib/schedule";
 
 const COLORS: [EventColor, string][] = [
@@ -44,6 +46,7 @@ export type ScheduleDraft = {
   visibility: Visibility;
   targetUserIds: string[];
   targetDepartments: string[];
+  attachments: ScheduleAttachment[];
 };
 
 /** 저장된 일정 → 편집용 초안. 새로 만들 때는 날짜만 넣어 부르면 된다. */
@@ -59,6 +62,7 @@ export function draftFromEvent(e?: Partial<ScheduleEvent> | null, fallback?: { f
     visibility: (e?.visibility as Visibility) || "private",
     targetUserIds: e?.target_user_ids || [],
     targetDepartments: e?.target_departments || [],
+    attachments: e?.attachments || [],
   };
 }
 
@@ -75,6 +79,41 @@ export function ScheduleItemEditor({
   saving?: boolean;
 }) {
   const set = (patch: Partial<ScheduleDraft>) => onChange({ ...draft, ...patch });
+  const descRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [picker, setPicker] = useState<null | "emoji">(null);
+  const [uploading, setUploading] = useState(false);
+
+  //   이모지는 커서 자리에 — 설명을 쓰다 중간에 넣을 수 있게
+  const insertEmoji = (em: string) => {
+    const el = descRef.current;
+    const start = el?.selectionStart ?? draft.description.length;
+    const end = el?.selectionEnd ?? start;
+    const next = draft.description.slice(0, start) + em + draft.description.slice(end);
+    set({ description: next });
+    const pos = start + em.length;
+    window.requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(pos, pos); });
+  };
+
+  const addFile = async (file: File) => {
+    if (!companyId || uploading) return;
+    setUploading(true);
+    try {
+      const att = await uploadScheduleFile(companyId, file);
+      set({ attachments: [...draft.attachments, att] });
+    } catch (e: any) {
+      alert(e?.message || "파일을 올리지 못했습니다");
+    } finally { setUploading(false); }
+  };
+
+  //   documents 버킷은 비공개다 — 누를 때마다 잠깐 쓰는 주소를 새로 받는다
+  const openFile = async (f: ScheduleAttachment) => {
+    const url = await resolveSignedUrl(f.url, f.name);
+    if (!url) return;
+    const a = document.createElement("a");
+    a.href = url; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+  };
   const canSave = !!draft.title.trim() && !!companyId && !!userId && !saving;
   useModalKeys(true, onClose, canSave ? onSave : undefined);
 
@@ -122,11 +161,50 @@ export function ScheduleItemEditor({
         </label>
 
         {/*  설명은 늘 펼쳐 둔다 (2026-08-10 사장님 지시) — 한 번 더 누르게 하지 않는다 */}
-        <label className="sched-field sched-field-top">
+        <div className="sched-field sched-field-top">
           <span>설명</span>
-          <textarea value={draft.description} rows={3} placeholder="어떤 일정인지 · 무엇을 준비해야 하는지"
-            onChange={(e) => set({ description: e.target.value })} className="sched-in sched-area" />
-        </label>
+          <div className="sched-desc-wrap">
+            <textarea ref={descRef} value={draft.description} rows={3} placeholder="어떤 일정인지 · 무엇을 준비해야 하는지"
+              onChange={(e) => set({ description: e.target.value })} className="sched-in sched-area" />
+            <div className="sched-desc-tools">
+              {/*  이모지는 **쓰던 자리**에 꽂는다 — 끝에 붙이지 않는다(메신저 작성 상자와 같은 규칙) */}
+              <button type="button" className="sched-tool" aria-label="이모지" title="이모지"
+                onClick={() => setPicker((p) => (p === "emoji" ? null : "emoji"))}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9" /><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0" /><path d="M9 9.5h.01M15 9.5h.01" />
+                </svg>
+              </button>
+              <button type="button" className="sched-tool" aria-label="파일 첨부" title="파일 첨부"
+                disabled={uploading} onClick={() => fileRef.current?.click()}>
+                {uploading ? <span className="sched-tool-txt">올리는 중…</span> : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                )}
+              </button>
+              <input ref={fileRef} type="file" className="sr-only" tabIndex={-1} aria-hidden="true"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) addFile(f); e.target.value = ""; }} />
+            </div>
+            {picker === "emoji" && (
+              <ChatEmojiPicker onClose={() => setPicker(null)} onPick={(em) => { insertEmoji(em); setPicker(null); }} />
+            )}
+          </div>
+        </div>
+
+        {draft.attachments.length > 0 && (
+          <div className="sched-field sched-field-top">
+            <span>첨부</span>
+            <div className="sched-files">
+              {draft.attachments.map((f, i) => (
+                <span key={`${f.url}-${i}`} className="sched-file">
+                  <button type="button" onClick={() => openFile(f)} title="열기">📎 {f.name}</button>
+                  <button type="button" className="sched-file-x" title="빼기"
+                    onClick={() => set({ attachments: draft.attachments.filter((_, x) => x !== i) })}>✕</button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="sched-field">
           <span>기간</span>

@@ -13,6 +13,9 @@ export const VISIBILITY_LABEL: Record<Visibility, string> = {
   private: "나만", members: "구성원", departments: "부서", company: "전체",
 };
 
+/** 일정에 붙인 파일 — documents 버킷의 schedule/ 아래에 올라간다 */
+export type ScheduleAttachment = { url: string; name: string; size?: number };
+
 /** 일정 한 건. **'할 일' 이라는 구분은 없다** — start_at 이 없으면 목록에만, 있으면 달력에도 뜬다. */
 export interface ScheduleEvent {
   id: string;
@@ -32,6 +35,7 @@ export interface ScheduleEvent {
   target_departments: string[];
   priority: 0 | 1 | 2;
   position: number;
+  attachments: ScheduleAttachment[];
   completed: boolean;
   completed_at: string | null;
   created_at: string;
@@ -112,6 +116,7 @@ export async function upsertEvent(input: {
   /** visibility === 'departments' 일 때 고른 부서 이름들(인사기록 기준) */
   targetDepartments?: string[];
   priority?: 0 | 1 | 2;
+  attachments?: ScheduleAttachment[];
 }): Promise<ScheduleEvent> {
   const visibility: Visibility = input.visibility ?? "private";
   const row: any = {
@@ -127,6 +132,7 @@ export async function upsertEvent(input: {
     target_user_ids: visibility === "members" ? (input.targetUserIds ?? []) : [],
     target_departments: visibility === "departments" ? (input.targetDepartments ?? []) : [],
     priority: input.priority ?? 1,
+    attachments: input.attachments ?? [],
     //   하위호환 — 옛 코드가 is_shared 를 읽는 곳이 남아 있어 같은 뜻으로 맞춰 둔다
     is_shared: visibility === "company",
   };
@@ -326,4 +332,17 @@ export async function getDepartments(companyId: string): Promise<{ name: string;
     m.set(d, (m.get(d) || 0) + 1);
   }
   return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// ── 일정 첨부 (2026-08-10) ─────────────────────────────────────────────
+//   파일은 documents 버킷(비공개)에 올리고, 일정에는 주소·이름만 담는다.
+//   ⚠️ 저장소 키에 한글을 쓰면 'Invalid key' 로 통째로 실패한다 — 다른 첨부(태스크·행 메모)와
+//      같은 규칙으로 키는 안전한 글자만 쓰고, **보이는 이름은 원본 그대로** 따로 담는다.
+export async function uploadScheduleFile(companyId: string, file: File): Promise<ScheduleAttachment> {
+  const safe = (file.name || "file").replace(/[^\w.\-]/g, "_").slice(-120) || "file";
+  const path = `schedule/${companyId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safe}`;
+  const { error } = await db.storage.from("documents").upload(path, file);
+  if (error) throw new Error(error.message);
+  const url = db.storage.from("documents").getPublicUrl(path).data.publicUrl;
+  return { url, name: file.name, size: file.size };
 }

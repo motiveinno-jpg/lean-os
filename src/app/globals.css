@@ -3068,6 +3068,21 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .sched-view-act { @apply h-8 px-2.5 rounded-lg text-[12px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)] disabled:opacity-40; }
 .sched-view-del { @apply h-8 px-2.5 rounded-lg text-[12px] font-semibold text-[var(--danger)]/80 transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] disabled:opacity-40; }
 
+/* 일정 첨부 · 이모지 (2026-08-10) */
+.sched-desc-wrap { @apply relative flex-1 min-w-0; }
+/*  이모지 목록은 메신저에서 쓰던 것(.chat-pick)을 그대로 쓰되, 여기서는 설명칸 **아래로** 편다 —
+    위로 펴면 창 밖으로 넘친다(2026-08-10 확인). */
+.sched-desc-wrap .chat-pick { @apply top-full bottom-auto mt-1 mb-0; }
+.sched-desc-tools { @apply absolute bottom-1.5 right-1.5 flex items-center gap-0.5; }
+.sched-tool { @apply p-1.5 rounded-lg text-[var(--text-dim)] bg-[var(--bg-card)]/80 transition hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 disabled:opacity-40; }
+.sched-tool-txt { @apply px-1 text-[10.5px] font-bold; }
+.sched-files { @apply flex flex-wrap gap-1; }
+.sched-file { @apply inline-flex items-center rounded-lg bg-[var(--bg-surface)] text-[11.5px] text-[var(--text)]; }
+.sched-file > button:first-child { @apply max-w-[220px] truncate px-2 py-1 rounded-l-lg transition hover:text-[var(--primary)]; }
+.sched-file-x { @apply px-1.5 py-1 rounded-r-lg text-[var(--text-dim)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]; }
+.sched-view-files { @apply flex flex-wrap gap-1; }
+.sched-view-files > button { @apply max-w-full truncate px-2 py-1 rounded-lg bg-[var(--bg-surface)] text-[12px] text-[var(--text)] transition hover:text-[var(--primary)]; }
+
 /* 일정 메뉴의 '목록' 탭 — 날짜 있는 것과 없는 것을 한 자리에서 */
 .sched-list-tab { @apply flex flex-col gap-4; }
 .sched-list-bar { @apply flex items-center gap-3; }
