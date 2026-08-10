@@ -117,11 +117,12 @@ export function OrgBulkWizard({
   const qc = useQueryClient();
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
   const effectiveOrder = localOrder ?? templateOrder;
-  type PickItem = { kind: "doc" | "tpl"; id: string; doc?: any; tpl?: any };
-  const docSection: PickItem[] = useMemo(() => sortTemplatesByOrder([
-    ...documents.map((d) => ({ kind: "doc" as const, id: d.id as string, doc: d })),
-    ...companyTpls.map((t: any) => ({ kind: "tpl" as const, id: t.id as string, tpl: t })),
-  ], effectiveOrder), [documents, companyTpls, effectiveOrder]);
+  type PickItem = { kind: "tpl"; id: string; tpl: any };
+  // 2026-08-10 사장님: 발송 목록에는 양식관리의 계약서 양식만 — documents 원본(프로젝트에서
+  //   생성된 계약서 등)은 목록에서 제외. documents 는 실체화 사본 재사용(중복 방지)에만 쓴다.
+  const docSection: PickItem[] = useMemo(() => sortTemplatesByOrder(
+    companyTpls.map((t: any) => ({ kind: "tpl" as const, id: t.id as string, tpl: t })),
+    effectiveOrder), [companyTpls, effectiveOrder]);
   const stdSection = useMemo(() => sortTemplatesByOrder(standardTpls as any[], effectiveOrder), [standardTpls, effectiveOrder]);
   // 양식 검색 (2026-08-10 사장님 요청) — 이름으로 문서·양식을 거른다.
   //   드래그 순서 저장(handleDrop)은 원본 docSection/stdSection 기준 그대로 두고 표시만 거른다.
@@ -129,7 +130,7 @@ export function OrgBulkWizard({
   const [docSearch, setDocSearch] = useState("");
   const docQ = docSearch.trim().toLowerCase();
   const docSectionShown = useMemo(
-    () => (docQ ? docSection.filter((it) => String((it.kind === "doc" ? it.doc?.name : it.tpl?.name) || "").toLowerCase().includes(docQ)) : docSection),
+    () => (docQ ? docSection.filter((it) => String(it.tpl?.name || "").toLowerCase().includes(docQ)) : docSection),
     [docSection, docQ],
   );
   const stdSectionShown = useMemo(
@@ -578,7 +579,7 @@ export function OrgBulkWizard({
           <div className="bulk-wizard-step-doc">
             <div className="text-sm font-semibold text-[var(--text)]">발송할 계약서를 선택하세요</div>
             <div className="text-xs text-[var(--text-muted)]">
-              기존 문서 또는 "양식 관리"에 등록된 양식 중에서 고르세요. 양식을 고르면 자동으로 문서로 만들어 발송합니다.
+              "양식 관리"에 등록된 계약서 양식 중에서 고르세요. 양식을 고르면 자동으로 문서로 만들어 발송합니다.
               <br />
               <span className="caption">
                 <Ico e="💡" /> 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
@@ -591,46 +592,19 @@ export function OrgBulkWizard({
               className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]"
             />
             <div className="bulk-wizard-doc-list">
-              {documents.length === 0 && bizTemplates.length === 0 ? (
-                <div className="p-6 text-center text-sm text-[var(--text-muted)]">작성된 문서·양식이 없습니다.</div>
+              {bizTemplates.length === 0 ? (
+                <div className="p-6 text-center text-sm text-[var(--text-muted)]">양식 관리에 등록된 계약서 양식이 없습니다. 양식 관리에서 먼저 추가하세요.</div>
               ) : (
                 <>
                   {docQ && docSectionShown.length === 0 && (stdSectionShown as any[]).length === 0 && (
                     <div className="p-6 text-center text-sm text-[var(--text-muted)]">"{docSearch.trim()}" 에 해당하는 계약서·양식이 없습니다.</div>
                   )}
                   {docSectionShown.length > 0 && (
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">문서 {!docQ && <span className="normal-case font-normal">— 드래그로 순서 변경(모든 구성원 공통)</span>}</div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 — 우리 회사 양식 {!docQ && <span className="normal-case font-normal">— 드래그로 순서 변경(모든 구성원 공통)</span>}</div>
                   )}
                   {docSectionShown.map((item) => {
                     const rowKey = `doc|${item.id}`;
                     const dropHl = dropKey === rowKey ? "ring-1 ring-[var(--primary)]" : "";
-                    if (item.kind === "doc") {
-                      const d = item.doc;
-                      return (
-                        <label
-                          key={d.id}
-                          {...(docQ ? {} : dragProps("doc", item.id))}
-                          className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
-                            docId === d.id ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
-                          } ${dropHl}`}
-                        >
-                          {!docQ && <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>}
-                          <input
-                            type="radio"
-                            name="docId"
-                            value={d.id}
-                            checked={docId === d.id}
-                            onChange={() => setDocId(d.id)}
-                          />
-                          <div className="flex-1">
-                            <div className="text-sm text-[var(--text)]">{d.name}</div>
-                            <div className="text-[10px] text-[var(--text-muted)]">
-                              {d.doc_templates?.name || d.doc_templates?.type || "—"} · 상태 {d.status}
-                            </div>
-                          </div>
-                        </label>
-                      );
-                    }
                     const t = item.tpl;
                     const materialized = allDocuments.find((d) => (d.content_json as any)?.source_template_id === t.id || d.name === t.name);
                     const checked = !!materialized && docId === materialized.id;
