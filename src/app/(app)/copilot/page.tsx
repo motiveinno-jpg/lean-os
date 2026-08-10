@@ -490,7 +490,9 @@ export default function CopilotPage() {
   const locked = planLocked || usage?.monthly_limit == null;
   const pct = usage?.usage_percent ?? 0;
   const overLimit = limitExceeded || (usage != null && usage.monthly_limit != null && usage.remaining_tokens <= 0);
-  const gaugeTone = pct >= 90 ? "copilot-gauge-danger" : pct >= 70 ? "copilot-gauge-warn" : "copilot-gauge-ok";
+  // copilot2- 프리픽스 — CSS 정의와 불일치(copilot-gauge-*)로 링에 stroke 색이 안 입혀져
+  //   게이지가 항상 빈 채로 보이던 버그 (2026-08-10 사장님 제보 "사용량 게이지로 차도록")
+  const gaugeTone = pct >= 90 ? "copilot2-gauge-danger" : pct >= 70 ? "copilot2-gauge-warn" : "copilot2-gauge-ok";
   const estQuestions = usage?.remaining_tokens != null ? Math.max(0, Math.floor(usage.remaining_tokens / AVG_Q_TOKENS)) : 0;
 
   return (

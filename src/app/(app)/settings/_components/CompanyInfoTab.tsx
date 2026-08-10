@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { appConfirm } from "@/components/global-confirm";
+import { verifyBusinessNumber } from "@/lib/business-verification";
 
 export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   const db = supabase;
@@ -100,6 +101,39 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     if (digits.length <= 3) return digits;
     if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
     return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+  };
+
+  // 사업자번호 국세청 자동확인 (2026-08-10 사장님 제보: 없는 번호로도 수정되던 것) — 거래처 추가와 동일 패턴.
+  //   10자리 입력 시 즉시 조회해 상태 표시, 저장 시 미등록·체크섬 오류는 차단(휴폐업은 확인 후 진행).
+  const [bizStatus, setBizStatus] = useState<{ status: string; loading: boolean } | null>(null);
+  const onBizNoChange = (val: string) => {
+    const formatted = formatBusinessNumber(val);
+    setForm((f) => ({ ...f, business_number: formatted }));
+    setBizStatus(null);
+    const raw = formatted.replace(/\D/g, "");
+    if (raw.length === 10) {
+      setBizStatus({ status: "조회중", loading: true });
+      verifyBusinessNumber(raw).then((r) =>
+        setBizStatus({ status: r.valid ? r.status : "체크섬오류", loading: false }));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!form.name) return;
+    const digits = form.business_number.replace(/\D/g, "");
+    const savedDigits = (company?.business_number || "").replace(/\D/g, "");
+    if (digits && digits !== savedDigits) {
+      if (digits.length !== 10) { toast("사업자번호는 10자리여야 합니다.", "error"); return; }
+      const r = await verifyBusinessNumber(digits);
+      if (!r.valid) { toast("올바르지 않은 사업자번호입니다 (검증 실패) — 다시 확인해 주세요.", "error"); return; }
+      if (r.status === "미등록") { toast("국세청에 등록되지 않은 사업자번호입니다 — 확인 후 다시 입력해 주세요.", "error"); return; }
+      if (r.status === "휴업자" || r.status === "폐업자") {
+        const ok = await appConfirm(`국세청 기준 ${r.status} 상태의 번호입니다. 이 번호로 저장할까요?`, { title: "사업자 상태 확인", confirmLabel: "저장" });
+        if (!ok) return;
+      }
+      // 확인불가(API 장애)는 저장 허용 — 장애로 사장님 발이 묶이지 않게 (fail-open)
+    }
+    saveMut.mutate();
   };
 
   const handleFileUpload = useCallback(async (file: File, type: "seal" | "logo") => {
@@ -284,11 +318,27 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
               <label className="field-label">사업자번호</label>
               <input
                 value={form.business_number}
-                onChange={(e) => setForm({ ...form, business_number: formatBusinessNumber(e.target.value) })}
+                onChange={(e) => onBizNoChange(e.target.value)}
                 placeholder="000-00-00000"
                 maxLength={12}
                 className="field-input"
               />
+              {bizStatus && (
+                <p className={`mt-1 text-[11px] font-semibold ${
+                  bizStatus.loading ? "text-[var(--text-dim)]"
+                    : bizStatus.status === "계속사업자" ? "text-[var(--success)]"
+                    : bizStatus.status === "휴업자" || bizStatus.status === "확인불가" ? "text-[var(--warning)]"
+                    : "text-[var(--danger)]"
+                }`}>
+                  {bizStatus.loading ? "국세청 조회중..."
+                    : bizStatus.status === "계속사업자" ? "✓ 정상 사업자"
+                    : bizStatus.status === "휴업자" ? "휴업 상태의 번호입니다"
+                    : bizStatus.status === "폐업자" ? "폐업된 번호입니다"
+                    : bizStatus.status === "미등록" ? "국세청에 등록되지 않은 번호입니다 — 저장할 수 없습니다"
+                    : bizStatus.status === "체크섬오류" ? "올바르지 않은 번호입니다 — 저장할 수 없습니다"
+                    : "국세청 확인 불가 (일시 장애)"}
+                </p>
+              )}
             </div>
             <div>
               <label className="field-label">대표자명</label>
@@ -348,7 +398,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
             />
           </div>
           <button
-            onClick={() => form.name && saveMut.mutate()}
+            onClick={() => { void handleSave(); }}
             disabled={!form.name || saveMut.isPending}
             className="btn-primary w-full"
           >
