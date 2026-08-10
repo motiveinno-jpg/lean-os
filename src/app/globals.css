@@ -1794,6 +1794,78 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .tax-check-report { @apply p-5 mb-6; } /* glass-card(기존)·no-print(기능)는 JSX 병기 */
 .tax-invoice-registration-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-[96vw] max-w-[1240px] max-h-[88vh] flex flex-col; }
 /* .tax-invoice-form-row — pure marker, no utility ever attached (className="tax-invoice-form-row" only). No CSS rule needed. */
+
+/* ── 세금계산서 쓰기 — 한 장 폼 (2026-08-10 사장님 지시로 개편) ── */
+.tax-form-single { @apply flex flex-col gap-4; }
+.tax-form-head { @apply grid gap-3; grid-template-columns: 190px 150px minmax(0, 1fr); }
+@media (max-width: 760px) { .tax-form-head { grid-template-columns: 1fr; } }
+.tax-form-field { @apply flex flex-col gap-1.5 min-w-0; }
+.tax-form-field > label { @apply text-[11px] font-bold tracking-wide text-[var(--text-dim)]; }
+.tax-form-field > label i { @apply not-italic text-[var(--primary)]; }
+.tax-form-partner-drop { @apply absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg; }
+
+/* 국세청 서식대로 좌 공급자 / 우 공급받는자 */
+.tax-party-grid { @apply grid gap-3; grid-template-columns: 1fr 1.15fr; }
+@media (max-width: 860px) { .tax-party-grid { grid-template-columns: 1fr; } }
+.tax-party { @apply rounded-xl border border-[var(--border)] overflow-hidden; }
+.tax-party-edit { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); }
+.tax-party-head { @apply flex items-baseline gap-2 flex-wrap px-3 py-2 bg-[var(--bg-surface)] border-b border-[var(--border)]; }
+.tax-party-head b { @apply text-xs font-bold text-[var(--text)]; }
+.tax-party-head span { @apply text-[10px] text-[var(--text-dim)]; }
+.tax-party-edit .tax-party-head { background: color-mix(in srgb, var(--primary) 9%, transparent); }
+.tax-party-edit .tax-party-head b { @apply text-[var(--primary)]; }
+.tax-party-row { @apply grid items-center gap-2 px-3 py-1.5 border-t border-[var(--border)]/50; grid-template-columns: 92px minmax(0, 1fr); }
+.tax-party-row:first-of-type { @apply border-t-0; }
+.tax-party-row > span { @apply text-[11px] font-bold text-[var(--text-dim)]; }
+.tax-party-row > span i { @apply not-italic text-[var(--primary)]; }
+.tax-party-row > em { @apply not-italic text-xs text-[var(--text-muted)] truncate; }
+.tax-party-input { @apply h-8 w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 text-xs text-[var(--text)] transition focus:outline-none focus:border-[var(--primary)]; }
+.tax-party-miss > span { @apply text-[var(--danger)]; }
+.tax-party-miss .tax-party-input { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); background: color-mix(in srgb, var(--danger) 6%, transparent); }
+.tax-party-save { @apply flex items-center gap-2 px-3 py-2 border-t border-[var(--border)] text-[11px] text-[var(--text-muted)] cursor-pointer; }
+.tax-party-save b { @apply text-[var(--text)]; }
+
+/* 발행 준비 상태 — 비어 있는 항목을 입력 단계에서 알린다 */
+.tax-form-ready { @apply flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-4 py-2.5 text-[11.5px]; border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border)); background: color-mix(in srgb, var(--warning) 8%, transparent); }
+.tax-form-ready b { @apply text-xs font-bold text-[var(--warning)]; }
+.tax-form-ready span { @apply text-[var(--text-muted)]; }
+
+/* 품목 줄 표 */
+.tax-items { @apply rounded-xl border border-[var(--border)] overflow-hidden; }
+.tax-items-scroll { @apply overflow-x-auto; }
+.tax-items-grid { @apply min-w-[640px]; }
+.tax-item-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 30px minmax(150px, 1.6fr) 96px 72px 116px 124px 30px; }
+.tax-item-row:first-child { @apply border-t-0; }
+.tax-item-head { @apply bg-[var(--bg-surface)]; }
+.tax-item-head > span { @apply px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }
+.tax-item-no { @apply px-0 text-center text-[11px] text-[var(--text-dim)]; }
+.tax-item-input { @apply h-8 w-full min-w-0 mx-1 my-1 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 text-xs text-[var(--text)] transition focus:outline-none focus:border-[var(--primary)]; }
+.tax-item-sum { @apply px-2 text-right text-xs font-bold text-[var(--primary)]; font-variant-numeric: tabular-nums; }
+.tax-item-del { @apply text-center text-[var(--text-dim)] transition hover:text-[var(--danger)]; }
+.tax-items-foot { @apply flex flex-wrap items-center gap-3 border-t border-dashed border-[var(--border)] px-2.5 py-2; }
+
+/* 합계 — 금액만 (품목 줄 수는 표에서 이미 보인다) */
+.tax-form-totals { @apply flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3; }
+.tax-form-totals > div { @apply flex flex-col; }
+.tax-form-totals small { @apply text-[10.5px] font-bold text-[var(--text-dim)]; }
+.tax-form-totals b { @apply text-[15px] font-bold tracking-tight text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.tax-form-totals-sp { @apply flex-1; }
+.tax-form-grand { @apply items-end; }
+.tax-form-grand b { @apply text-xl font-extrabold text-[var(--primary)]; }
+
+/* 자세히 — 기본값으로 둬도 되는 것들 */
+.tax-form-more { @apply rounded-xl border border-dashed border-[var(--border)]; }
+.tax-form-more > summary { @apply flex cursor-pointer select-none items-center justify-between gap-3 px-4 py-2.5 text-xs text-[var(--text-muted)]; }
+.tax-form-more > summary b { @apply text-[var(--text)]; }
+.tax-form-more-grid { @apply grid gap-3 border-t border-[var(--border)] px-4 py-3; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+/* 여러 장 한꺼번에 — 사업자번호·대표자까지만 */
+.tax-multi-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 30px 96px 128px minmax(130px, 1.2fr) 118px 90px minmax(120px, 1fr) 66px 110px 116px 30px; }
+.tax-multi-row:first-child { @apply border-t-0; }
+.tax-multi-head { @apply bg-[var(--bg-surface)]; }
+.tax-multi-head > span { @apply px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }
+.tax-multi-ro { @apply px-2 text-[11px] text-[var(--text-muted)] truncate; font-variant-numeric: tabular-nums; }
+.tax-multi-ro-miss { @apply text-[var(--danger)] font-semibold; }
 .tax-invoice-batch-actions-bar { @apply mb-3 flex items-center gap-2.5 px-4 py-2.5 bg-[var(--primary)]/[.06] border border-[var(--primary)]/20 rounded-xl; }
 .tax-invoice-list-card { @apply overflow-hidden; } /* glass-card(기존)는 JSX 병기 */
 .tax-invoice-list-table { @apply w-full text-xs border-collapse [&_td]:overflow-hidden [&_td]:text-ellipsis min-w-[980px] table-fixed; }

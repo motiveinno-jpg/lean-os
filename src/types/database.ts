@@ -11295,6 +11295,7 @@ export type Database = {
         Row: {
           auto_issued: boolean | null
           company_id: string
+          counterparty_address: string | null
           counterparty_bizno: string | null
           counterparty_business_item: string | null
           counterparty_business_type: string | null
@@ -11309,6 +11310,7 @@ export type Database = {
           id: string
           issue_date: string
           item_name: string | null
+          items: Json
           journal_entry_id: string | null
           label: string | null
           modification_date: string | null
@@ -11338,6 +11340,7 @@ export type Database = {
         Insert: {
           auto_issued?: boolean | null
           company_id: string
+          counterparty_address?: string | null
           counterparty_bizno?: string | null
           counterparty_business_item?: string | null
           counterparty_business_type?: string | null
@@ -11352,6 +11355,7 @@ export type Database = {
           id?: string
           issue_date: string
           item_name?: string | null
+          items?: Json
           journal_entry_id?: string | null
           label?: string | null
           modification_date?: string | null
@@ -11381,6 +11385,7 @@ export type Database = {
         Update: {
           auto_issued?: boolean | null
           company_id?: string
+          counterparty_address?: string | null
           counterparty_bizno?: string | null
           counterparty_business_item?: string | null
           counterparty_business_type?: string | null
@@ -11395,6 +11400,7 @@ export type Database = {
           id?: string
           issue_date?: string
           item_name?: string | null
+          items?: Json
           journal_entry_id?: string | null
           label?: string | null
           modification_date?: string | null

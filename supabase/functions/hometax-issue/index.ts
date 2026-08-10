@@ -119,6 +119,40 @@ const NTS_MODIFY_CODES: Record<string, string> = {
   duplicate: "6",        // 착오에 의한 이중발급 (부(-) 1장)
 };
 
+/** 품목 줄 만들기 — tax_invoices.items(줄 배열)를 CODEF detailList 로. 비어 있으면 한 줄로 폴백. */
+function buildDetailList(invoice: any, writeDate: string, supply: string, tax: string) {
+  const items = Array.isArray(invoice.items) ? invoice.items : [];
+  if (items.length > 0) {
+    return items.map((it: any, i: number) => {
+      const lineSupply = Math.round(Number(it.supplyAmount ?? (Number(it.qty || 1) * Number(it.unitCost || 0))) || 0);
+      //   줄 세액은 과세일 때만 — 영세율·면세 계산서는 합계 세액이 0 이라 줄도 0 이 된다
+      const lineTax = Number(tax) > 0 ? Math.round(lineSupply * 0.1) : 0;
+      return {
+        serialNum: String(i + 1),
+        purchaseDT: writeDate,
+        itemName: String(it.name || "").trim() || "용역",
+        spec: String(it.spec || ""),
+        qty: String(it.qty ?? 1),
+        unitCost: String(Math.round(Number(it.unitCost || 0))),
+        supplyCost: String(lineSupply),
+        tax: String(lineTax),
+        remark: String(it.remark || ""),
+      };
+    });
+  }
+  return [{
+    serialNum: "1",
+    purchaseDT: writeDate,
+    itemName: invoice.item_name || invoice.expense_category || "용역",
+    spec: "",
+    qty: "1",
+    unitCost: supply,
+    supplyCost: supply,
+    tax,
+    remark: "",
+  }];
+}
+
 // CODEF 발행 payload 구성 — 발행 API PDF 명세 기준 (한글 코드값).
 function buildIssuePayload(args: {
   invoice: any;
@@ -138,11 +172,14 @@ function buildIssuePayload(args: {
   // 거래처 정보: invoice 컬럼 우선 → partners fallback
   const buyerCorpNum = invoice.counterparty_bizno || partner?.business_number || "";
   const buyerCorpName = invoice.counterparty_name || partner?.company_name || partner?.name || "";
-  const buyerCEO = partner?.representative || "";
-  const buyerAddr = partner?.address || "";
+  // 2026-08-10 사장님 지적으로 발견 — 대표자·주소·이메일만 **등록된 거래처에서만** 읽고 있었다.
+  //   계산서 행에 적어 넣어도(발행 화면에서 채워도) 국세청에는 빈칸으로 나갔다.
+  //   업태·종목과 같은 규칙(계산서 값 우선 → 거래처 보조)으로 통일한다.
+  const buyerCEO = invoice.counterparty_representative || partner?.representative || "";
+  const buyerAddr = invoice.counterparty_address || partner?.address || "";
   const buyerBizType = invoice.counterparty_business_type || partner?.business_type || "";
   const buyerBizClass = invoice.counterparty_business_item || partner?.business_item || "";
-  const buyerEmail = partner?.contact_email || "";
+  const buyerEmail = invoice.counterparty_email || partner?.contact_email || "";
 
   // CODEF 발행 API(/a/tax-invoice/regist-invoicer-trustee) 명세는 한글 코드값을 받는다.
   //   issueType "정발행"/"위수탁", taxType "과세"/"영세"/"면세", purposeType "영수"/"청구",
@@ -197,20 +234,10 @@ function buildIssuePayload(args: {
     taxTotal: tax,
     totalAmount: total,
 
-    // 품목 (1줄)
-    detailList: [{
-      serialNum: "1",
-      purchaseDT: writeDate,
-      // 2026-07-16 QA: invoice.label 은 영수/청구 토글값("영수"/"청구")이지 품목명이 아님 —
-      //   item_name 미입력 건에서 품목명이 "청구"로 잘못 나가던 버그(purposeType 과 혼용).
-      itemName: invoice.item_name || invoice.expense_category || "용역",
-      spec: "",
-      qty: "1",
-      unitCost: supply,
-      supplyCost: supply,
-      tax,
-      remark: "",
-    }],
+    // 품목 — 계산서 한 장에 여러 줄이 올 수 있다 (2026-08-10). items 가 비면 예전처럼 한 줄로 보낸다.
+    //   2026-07-16 QA: invoice.label 은 영수/청구 토글값("영수"/"청구")이지 품목명이 아님 —
+    //   item_name 미입력 건에서 품목명이 "청구"로 잘못 나가던 버그(purposeType 과 혼용).
+    detailList: buildDetailList(invoice, writeDate, supply, tax),
 
     remark1: invoice.label || "",
   };

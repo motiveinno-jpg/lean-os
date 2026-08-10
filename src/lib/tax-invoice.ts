@@ -34,6 +34,28 @@ export function invoiceStatusMeta(status: string | null | undefined, type?: stri
 }
 
 // ── Create tax invoice ──
+/** 계산서 품목 한 줄 — 국세청 서식의 품목/규격/수량/단가/공급가액 (2026-08-10) */
+export interface TaxInvoiceItem {
+  name: string;
+  spec?: string;
+  qty: number;
+  unitCost: number;
+  supplyAmount: number;
+}
+
+/** 품목 줄 합계 — 줄이 없으면 0. 화면·저장 양쪽이 이 함수 하나만 쓴다. */
+export function sumItems(items: TaxInvoiceItem[] | null | undefined): number {
+  return (items || []).reduce((s, it) => s + Math.round(Number(it.supplyAmount) || 0), 0);
+}
+
+/** 목록에 쓰는 품목 요약 — "첫 품목 외 N건" */
+export function itemsLabel(items: TaxInvoiceItem[] | null | undefined, fallback?: string | null): string {
+  const list = (items || []).filter((it) => (it?.name || '').trim());
+  if (list.length === 0) return (fallback || '').trim();
+  if (list.length === 1) return list[0].name.trim();
+  return `${list[0].name.trim()} 외 ${list.length - 1}건`;
+}
+
 export async function createTaxInvoice(params: {
   companyId: string;
   dealId?: string;
@@ -55,6 +77,13 @@ export async function createTaxInvoice(params: {
   partnerId?: string;
   // 과세유형(직원 QA 그랜터) — taxable(과세)/zero_rated(영세율)/exempt(면세). 영세율·면세는 세액 0.
   taxKind?: 'taxable' | 'zero_rated' | 'exempt';
+  // 거래처 정보 — 계산서에 그대로 찍히고 국세청으로 나간다. 등록된 거래처가 아니어도 채울 수 있게
+  //   계산서 행에 저장한다 (2026-08-10: 발행 함수가 이 값을 먼저 읽도록 고쳤다).
+  counterpartyRepresentative?: string;
+  counterpartyAddress?: string;
+  counterpartyEmail?: string;
+  // 품목 줄 — 계산서 한 장에 여러 줄. 비면 itemName 한 줄로 취급한다.
+  items?: TaxInvoiceItem[];
 }): Promise<TaxInvoice | null> {
   const taxKind = params.taxKind || 'taxable';
   const taxAmount = taxKind === 'taxable' ? Math.round(params.supplyAmount * DEFAULT_VAT_RATE) : 0;
@@ -84,6 +113,11 @@ export async function createTaxInvoice(params: {
       partner_id: params.partnerId || null,
       counterparty_business_type: params.counterpartyBusinessType || null,
       counterparty_business_item: params.counterpartyBusinessItem || null,
+      counterparty_representative: params.counterpartyRepresentative || null,
+      counterparty_address: params.counterpartyAddress || null,
+      counterparty_email: params.counterpartyEmail || null,
+      //   jsonb 칸이라 생성 타입은 Json — 줄 배열을 그대로 넣는다
+      items: (params.items && params.items.length > 0 ? params.items : []) as unknown as never,
       tax_kind: taxKind,
       source: 'manual',
     })
