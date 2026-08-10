@@ -4,7 +4,7 @@
 //   "앞으로 동일한 메뉴로 본다"). 한쪽만 바뀌는 일이 없게 여기 하나로 모았다.
 //
 //   · '할 일' 이라는 구분이 없다 — 날짜를 비우면 목록에만 남고, 넣으면 달력에도 뜬다.
-//   · 공개 범위는 **기본이 '나만'** 이고, 구성원 · 부서 · 전체를 골라 넓힌다.
+//   · 공유 범위는 **기본이 '나만'** 이고, 구성원 · 부서 · 전체를 골라 넓힌다.
 //     ⚠️ 못 볼 사람에게 안 보이게 막는 것은 RLS 다. 이 화면은 무엇으로 저장할지만 고른다.
 //   · 이름 옆에 '어떤 일정인지'(설명)를 적는다.
 
@@ -144,7 +144,7 @@ export function ScheduleItemEditor({
         {!draft.from && <p className="sched-note">날짜를 비우면 달력에 안 뜨고 <b>목록에만</b> 남습니다.</p>}
 
         <div className="sched-field">
-          <span>누가 보나</span>
+          <span>공유 범위</span>
           <div className="sched-vis">
             {VIS.map((v) => (
               <button key={v} type="button" onClick={() => set({ visibility: v })} aria-pressed={draft.visibility === v}

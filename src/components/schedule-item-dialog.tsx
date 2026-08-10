@@ -153,7 +153,7 @@ function ScheduleItemView({
           : <p className="sched-view-nodesc">적어 둔 설명이 없습니다.</p>}
 
         <dl className="sched-view-meta">
-          <div><dt>누가 보나</dt><dd>{VISIBILITY_LABEL[event.visibility]} · {who}</dd></div>
+          <div><dt>공유 범위</dt><dd>{VISIBILITY_LABEL[event.visibility]} · {who}</dd></div>
         </dl>
 
         <footer>
