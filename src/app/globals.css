@@ -1321,14 +1321,18 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 아침 브리핑 (2026-08-10 리파인 3차) — 배경은 흰 카드(glass-card 기본) 그대로, 차분한 톤.
    전폭 여백은 오른쪽 핵심 숫자 패널(잔고·30일 전망·버티는 기간)이 채운다.
    (2차의 딥 인디고 다크 히어로는 사장님 피드백 "눈 아프고 AI 같다"로 회수) */
-.morning-brief-card { @apply mb-6 p-5 sm:p-7 md:p-8; }
-.morning-brief-inner { @apply grid gap-5 md:gap-8 md:grid-cols-[minmax(0,1fr)_400px] md:items-center; }
-.morning-brief-stats { @apply grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2 md:gap-2.5; }
-.morning-brief-stat { @apply rounded-2xl px-3.5 py-3 min-w-0 bg-[var(--bg-surface)] border border-[var(--border)] no-underline block; }
-a.morning-brief-stat { @apply transition-colors hover:border-[var(--primary)]/40; }
-.morning-brief-stat-label { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
-.morning-brief-stat-value { @apply text-[15px] sm:text-[19px] leading-tight font-extrabold mt-1 truncate text-[var(--text)]; } /* mono-number 는 JSX 병기(@apply 커스텀 클래스 함정) */
+/* 아침 브리핑 (2026-08-10 리파인 5차 — 레이아웃 전면 재구성, 사장님 "아예 완전히 바꿔봐"):
+   좌우 분할을 버리고 금융앱 문법의 세로 스택 — 날짜 → 숫자 스트립(6지표 한 밴드) →
+   헤드라인 한 문장 크게 → 보조 문장 → 액션 라인. 어느 폭에서도 남는 여백 없음. */
+.morning-brief-card { @apply mb-6 p-5 sm:p-6 md:p-7; }
+.morning-brief-statbar { @apply mt-3.5 mb-4 grid grid-cols-3 md:grid-cols-6 gap-x-4 gap-y-3 rounded-2xl bg-[var(--bg-surface)]/70 border border-[var(--border)]/70 px-4 py-3.5 sm:px-5; }
+.morning-brief-statbar-item { @apply min-w-0 no-underline block; }
+a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--primary); }
+.morning-brief-stat-label { @apply text-[11px] font-medium text-[var(--text-dim)] truncate; }
+.morning-brief-stat-value { @apply text-[14px] sm:text-[16px] leading-tight font-extrabold mt-0.5 truncate text-[var(--text)] transition-colors; } /* mono-number 는 JSX 병기(@apply 커스텀 클래스 함정) */
 .morning-brief-stat-sub { @apply text-[10.5px] mt-0.5 text-[var(--text-dim)] truncate; }
+.morning-brief-headline { @apply text-[17px] sm:text-[20px] font-bold text-[var(--text)] leading-snug tracking-[-0.01em] break-keep; }
+.morning-brief-body { @apply text-[13.5px] sm:text-[15px] text-[var(--text-muted)] leading-relaxed break-keep; }
 .cash-pulse-bar { @apply p-1 mb-4; }
 .pulse-balance-stat { @apply px-4 py-3; }
 .pulse-forecast-stat { @apply px-4 py-3; }

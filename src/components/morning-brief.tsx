@@ -348,14 +348,57 @@ export function MorningBrief({
 
   return (
     <section className="morning-brief-card glass-card">
-      <div className="morning-brief-inner">
-      <div className="min-w-0">
-      <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-2">
+      <p className="text-xs sm:text-sm text-[var(--text-dim)]">
         {today} · {companyName}
       </p>
 
-      {/* max-w: 넓은 화면에서 문장이 한 줄 70자 이상 늘어지지 않게(가독 폭) */}
-      <div className="max-w-[46rem] space-y-1.5 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.6] sm:leading-[1.85] tracking-[-0.01em] break-keep">
+      {/* 숫자 스트립 — 6지표를 상자 벽이 아니라 하나의 조용한 밴드로. 잔고·매출·미수금·세금은 클릭 이동 */}
+      <div className="morning-brief-statbar">
+        <Link href="/bank" className="morning-brief-statbar-item">
+          <div className="morning-brief-stat-label">통장 잔고</div>
+          <div className="morning-brief-stat-value mono-number">{formatKrwWords(balance)}</div>
+        </Link>
+        <div className="morning-brief-statbar-item">
+          <div className="morning-brief-stat-label">30일 뒤 전망</div>
+          <div className="morning-brief-stat-value mono-number">{formatKrwWords(forecast30)}</div>
+          {Math.abs(delta30ForStats) >= balance * 0.02 && (
+            <div className="morning-brief-stat-sub" style={{ color: delta30ForStats > 0 ? "var(--success)" : "var(--danger)" }}>
+              {delta30ForStats > 0 ? "▲ " : "▼ "}{formatKrwWords(Math.abs(delta30ForStats))}
+            </div>
+          )}
+        </div>
+        <div className="morning-brief-statbar-item">
+          <div className="morning-brief-stat-label">버틸 수 있는 기간</div>
+          <div className="morning-brief-stat-value mono-number" style={{ color: runwayColor }}>{runwayLabel}</div>
+        </div>
+        <Link href="/reports/revenue" className="morning-brief-statbar-item">
+          <div className="morning-brief-stat-label">이번 달 매출</div>
+          <div className="morning-brief-stat-value mono-number">{formatKrwWords(monthRevenue)}</div>
+          {monthTarget > 0 && <div className="morning-brief-stat-sub">목표의 {Math.round((monthRevenue / monthTarget) * 100)}%</div>}
+        </Link>
+        <Link href="/partners/ledger?type=sales" className="morning-brief-statbar-item">
+          <div className="morning-brief-stat-label">밀린 미수금</div>
+          <div className="morning-brief-stat-value mono-number" style={{ color: arOver30 > 0 ? "var(--danger)" : "var(--success)" }}>
+            {arOver30 > 0 ? formatKrwWords(arOver30) : "없음"}
+          </div>
+        </Link>
+        {nextTax ? (
+          <Link href={nextTax.href} className="morning-brief-statbar-item">
+            <div className="morning-brief-stat-label">다가오는 세금</div>
+            <div className="morning-brief-stat-value mono-number" style={{ color: nextTax.daysLeft <= 7 ? "var(--danger)" : "var(--warning)" }}>
+              {nextTax.daysLeft === 0 ? "D-Day" : `D-${nextTax.daysLeft}`}
+            </div>
+            <div className="morning-brief-stat-sub">{nextTax.title}</div>
+          </Link>
+        ) : (
+          <div className="morning-brief-statbar-item">
+            <div className="morning-brief-stat-label">다가오는 세금</div>
+            <div className="morning-brief-stat-value mono-number" style={{ color: "var(--success)" }}>없음</div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
         {briefPlan ? (
           /* ── AI 브리핑 2.0: 오늘의 액션 플랜 ── */
           <div className="brief-plan">
@@ -417,14 +460,12 @@ export function MorningBrief({
           </>
         ) : (
           <>
-            <p>{line1}</p>
-            <p>{line2}</p>
+            <p className="morning-brief-headline">{line1}</p>
+            <p className="morning-brief-body">{line2}</p>
             {/* 모바일: 데스크톱처럼 항상 펼치지 않고, 펼치기 버튼으로 열기 (카드 과점유 방지) */}
-            <div className={expanded ? "block" : "hidden sm:block"}>
-              {line3 && <p className="mb-1.5 sm:mb-0">{line3}</p>}
-              {progressLine && (
-                <p className="text-[var(--text-muted)]">{progressLine}</p>
-              )}
+            <div className={`space-y-2 ${expanded ? "block" : "hidden sm:block"}`}>
+              {line3 && <p className="morning-brief-body">{line3}</p>}
+              {progressLine && <p className="morning-brief-body">{progressLine}</p>}
             </div>
           </>
         )}
@@ -498,7 +539,7 @@ export function MorningBrief({
         {/* 규칙 브리핑일 때만 액션 라인 노출 — AI 브리핑은 본문에 이미 행동 제안을 포함 */}
         {!aiBrief && (
           <p
-            className="pt-3 mt-1 border-t"
+            className="morning-brief-body pt-3 mt-1 border-t"
             style={{
               borderColor: "var(--border)",
               color: actionParts.length > 0 ? "var(--text)" : "var(--text-muted)",
@@ -525,59 +566,6 @@ export function MorningBrief({
             {expanded ? "간단히 보기 ↑" : "자세히 보기 ↓"}
           </button>
         )}
-      </div>
-      </div>
-
-      {/* 우측 핵심 숫자 6타일 — 사장님이 매일 아침 찾는 숫자로 여백을 채운다(전부 기존 계산값, 신규 쿼리 0) */}
-      <div className="morning-brief-stats">
-        <Link href="/bank" className="morning-brief-stat">
-          <div className="morning-brief-stat-label">통장 잔고</div>
-          <div className="morning-brief-stat-value mono-number">{formatKrwWords(balance)}</div>
-        </Link>
-        <div className="morning-brief-stat">
-          <div className="morning-brief-stat-label">30일 뒤 전망</div>
-          <div className="morning-brief-stat-value mono-number">{formatKrwWords(forecast30)}</div>
-          {Math.abs(delta30ForStats) >= balance * 0.02 && (
-            <div className="morning-brief-stat-sub" style={{ color: delta30ForStats > 0 ? "var(--success)" : "var(--danger)" }}>
-              {delta30ForStats > 0 ? "▲ " : "▼ "}{formatKrwWords(Math.abs(delta30ForStats))}
-            </div>
-          )}
-        </div>
-        <div className="morning-brief-stat">
-          <div className="morning-brief-stat-label">버틸 수 있는 기간</div>
-          <div className="morning-brief-stat-value mono-number" style={{ color: runwayColor }}>{runwayLabel}</div>
-          <div className="morning-brief-stat-sub">현재 고정비 기준</div>
-        </div>
-        <Link href="/reports/revenue" className="morning-brief-stat">
-          <div className="morning-brief-stat-label">이번 달 매출</div>
-          <div className="morning-brief-stat-value mono-number">{formatKrwWords(monthRevenue)}</div>
-          {monthTarget > 0 && (
-            <div className="morning-brief-stat-sub">목표의 {Math.round((monthRevenue / monthTarget) * 100)}%</div>
-          )}
-        </Link>
-        <Link href="/partners/ledger?type=sales" className="morning-brief-stat">
-          <div className="morning-brief-stat-label">밀린 미수금</div>
-          <div className="morning-brief-stat-value mono-number" style={{ color: arOver30 > 0 ? "var(--danger)" : "var(--success)" }}>
-            {arOver30 > 0 ? formatKrwWords(arOver30) : "없음"}
-          </div>
-          <div className="morning-brief-stat-sub">30일 이상 미회수</div>
-        </Link>
-        {nextTax ? (
-          <Link href={nextTax.href} className="morning-brief-stat">
-            <div className="morning-brief-stat-label">다가오는 세금</div>
-            <div className="morning-brief-stat-value mono-number" style={{ color: nextTax.daysLeft <= 7 ? "var(--danger)" : "var(--warning)" }}>
-              {nextTax.daysLeft === 0 ? "D-Day" : `D-${nextTax.daysLeft}`}
-            </div>
-            <div className="morning-brief-stat-sub">{nextTax.title}</div>
-          </Link>
-        ) : (
-          <div className="morning-brief-stat">
-            <div className="morning-brief-stat-label">다가오는 세금</div>
-            <div className="morning-brief-stat-value mono-number" style={{ color: "var(--success)" }}>없음</div>
-            <div className="morning-brief-stat-sub">60일 내 낼 세금 없음</div>
-          </div>
-        )}
-      </div>
       </div>
     </section>
   );
