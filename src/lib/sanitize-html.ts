@@ -23,6 +23,7 @@ const ALLOWED_TAGS = [
 const ALLOWED_ATTR = [
   "href", "target", "rel", "src", "alt", "title", "width", "height",
   "colspan", "rowspan", "align", "valign", "style", "class",
+  "colwidth", // TipTap 표 열 너비 — 편집기 재파싱 시 조절한 너비 유지(표시용 width 는 저장 시 style 로 함께 굽는다)
   "data-field", "data-placeholder", // 서명/양식 필드 자리표시자 보존
 ];
 

@@ -362,6 +362,45 @@ function TemplateEditorModal({
     setAddedVars((prev) => (prev.includes(v) ? prev : [...prev, v]));
     setNewVar("");
   };
+  // 변수 삭제 (2026-08-10 사장님 요청) — 본문에 이미 넣은 변수면 본문 토큰까지 함께 지운다.
+  const removeVar = async (v: string) => {
+    const token = `{{${v}}}`;
+    const body = fileType === "markdown" ? bodyMarkdown : bodyHtml;
+    const usedCount = body.split(token).length - 1;
+    if (usedCount > 0) {
+      const ok = await appConfirm(`{{${v}}} 변수가 본문 ${usedCount}곳에 들어 있습니다. 본문에서도 함께 지울까요?`, { danger: true, confirmLabel: "함께 삭제" });
+      if (!ok) return;
+      if (fileType === "markdown") {
+        setBodyMarkdown(body.split(token).join(""));
+      } else {
+        const next = body.split(token).join("");
+        setBodyHtml(next);
+        editorRef.current?.setContent(next);
+      }
+    } else if (detectedVars.includes(v)) {
+      // 본문에 있긴 한데 서식 태그로 토큰이 쪼개져 통째로 못 지우는 경우 — 목록에서만 지우면
+      //   감지 목록으로 다시 나타나므로 정직하게 안내한다.
+      toast("본문에 서식이 섞인 채 들어간 변수입니다. 본문에서 직접 지워주세요.", "info");
+      return;
+    }
+    setAddedVars((prev) => (prev.filter((x) => x !== v)));
+  };
+  // 표 열 너비를 본문 HTML 에 굽는다 (2026-08-10) — 편집기 밖(미리보기·발송 스냅샷·PDF)은
+  //   TipTap 의 colwidth 속성을 모르므로, 저장 시 style width 로 변환해야 조절한 너비가 유지된다.
+  const bakeTableColWidths = (html: string): string => {
+    if (typeof window === "undefined" || !html.includes("colwidth")) return html;
+    try {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      doc.querySelectorAll("td[colwidth], th[colwidth]").forEach((el) => {
+        const w = (el.getAttribute("colwidth") || "").split(",").reduce((a, b) => a + (parseInt(b, 10) || 0), 0);
+        if (w > 0) (el as HTMLElement).style.width = `${w}px`;
+      });
+      doc.querySelectorAll("table").forEach((t) => {
+        if (t.querySelector("td[colwidth], th[colwidth]")) (t as HTMLElement).style.tableLayout = "fixed";
+      });
+      return doc.body.innerHTML;
+    } catch { return html; }
+  };
   const editorRef = useRef<RichEditorRef>(null);
 
   // 표준 계약서에서 시작 — 시스템 양식을 골라 본문을 채워넣고 직접 편집(신규 작성 시에만).
@@ -391,7 +430,7 @@ function TemplateEditorModal({
     mutationFn: () => createContractTemplate({
       companyId,
       name,
-      bodyHtml: fileType === "html" ? bodyHtml : null,
+      bodyHtml: fileType === "html" ? bakeTableColWidths(bodyHtml) : null,
       bodyMarkdown: fileType === "markdown" ? bodyMarkdown : null,
       fileUrl: fileType === "pdf" ? fileUrl : null,
       fileType,
@@ -404,7 +443,7 @@ function TemplateEditorModal({
   const updateMut = useMutation({
     mutationFn: () => updateContractTemplate(editing!.id, {
       name,
-      bodyHtml: fileType === "html" ? bodyHtml : null,
+      bodyHtml: fileType === "html" ? bakeTableColWidths(bodyHtml) : null,
       bodyMarkdown: fileType === "markdown" ? bodyMarkdown : null,
       fileUrl: fileType === "pdf" ? fileUrl : null,
       fileType,
@@ -502,8 +541,12 @@ function TemplateEditorModal({
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {paletteVars.map((v) => (
                     fileType === "html" && !readonly ? (
-                      <button key={v} type="button" onClick={() => editorRef.current?.insertText(`{{${v}}}`)} title="본문 커서 위치에 삽입"
-                        className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono hover:bg-[var(--primary)]/20 transition">{`{{${v}}}`}</button>
+                      <span key={v} className="inline-flex items-center rounded bg-[var(--primary)]/10 overflow-hidden">
+                        <button type="button" onClick={() => editorRef.current?.insertText(`{{${v}}}`)} title="본문 커서 위치에 삽입"
+                          className="text-[10px] pl-2 pr-1 py-0.5 text-[var(--primary)] font-mono hover:bg-[var(--primary)]/20 transition">{`{{${v}}}`}</button>
+                        <button type="button" onClick={() => void removeVar(v)} title="변수 삭제"
+                          className="text-[10px] px-1 py-0.5 text-[var(--primary)]/60 hover:text-red-500 hover:bg-red-500/10 transition" aria-label={`${v} 변수 삭제`}>×</button>
+                      </span>
                     ) : (
                       <span key={v} className="text-[10px] px-2 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-mono">{`{{${v}}}`}</span>
                     )
@@ -554,7 +597,7 @@ function TemplateEditorModal({
               ) : (
                 <>
                   <label className="block text-xs text-[var(--text-muted)] mb-1.5 shrink-0">본문 <span className="text-[var(--text-dim)] font-normal">표·굵기·정렬·색·이미지 지원 · 변수는 {"{변수명}"} 형식</span></label>
-                  <div className="flex-1 min-h-0">
+                  <div className="flex-1 min-h-0 contract-tpl-editor">
                     <RichEditor ref={editorRef} content={bodyHtml} onChange={setBodyHtml} fillHeight
                       placeholder="계약서 내용을 입력하세요… 왼쪽 변수 버튼으로 {갑사명}·{을사명} 등을 삽입할 수 있습니다." />
                   </div>
