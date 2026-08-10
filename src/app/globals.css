@@ -3059,6 +3059,14 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 자유 구성 섹션의 기본(list) 항목 */
 .copilot2-listitem { @apply flex items-start gap-2.5; }
 .copilot2-listdot { @apply w-1.5 h-1.5 rounded-full bg-[var(--primary)] mt-2 shrink-0; }
+/* chart 섹션 — 가로 막대그래프 (막대 폭은 값 비례라 인라인 style) */
+.copilot2-chart { @apply space-y-1.5; }
+.copilot2-chart-row { @apply flex items-center gap-2; }
+.copilot2-chart-label { @apply text-[11px] text-[var(--text-muted)] w-16 shrink-0 truncate text-right; }
+.copilot2-chart-track { @apply flex-1 h-4 rounded bg-[var(--bg-surface)] overflow-hidden flex items-center; }
+.copilot2-chart-fill { @apply block h-full rounded transition-[width] duration-500 ease-out; background:linear-gradient(90deg,var(--primary),var(--primary-soft)); }
+.copilot2-chart-fill-neg { background:var(--danger); }
+.copilot2-chart-value { @apply text-[11px] font-bold text-[var(--text)] tabular-nums w-20 shrink-0; }
 .copilot2-load-meter { @apply flex items-baseline justify-between gap-3; }
 .copilot2-load-pct { @apply text-sm font-bold text-[var(--primary)] tabular-nums shrink-0; }
 .copilot2-load-bar { @apply w-full h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }

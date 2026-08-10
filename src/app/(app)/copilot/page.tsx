@@ -32,7 +32,7 @@ type Opp = { title: string; detail: string };
 type Evidence = { label: string; value: string; source?: string };
 // 자유 구성 섹션 (2026-08-07) — 제목·묶음 수를 AI 가 질문에 맞게 정한다. style 은 표시 형태만.
 type SectionItem = { title: string; detail?: string; value?: string; href?: string; level?: "high" | "medium" | "low" };
-type Section = { label: string; style: "list" | "metrics" | "actions" | "risks"; items: SectionItem[] };
+type Section = { label: string; style: "list" | "metrics" | "actions" | "risks" | "chart"; items: SectionItem[] };
 // actions·risks·opportunities·evidence 는 구버전 답변(지난 대화 기록) 호환용으로만 남는다.
 type Answer = {
   headline: string; summary: string;
@@ -790,6 +790,43 @@ function ActionCard({ msg, onRun, onCancel }: {
   );
 }
 
+// chart 섹션 값 표기 — 엣지가 value 에 단위 없는 숫자만 넣으라고 지시한다.
+function wonLabel(n: number): string {
+  const abs = Math.abs(Math.round(n));
+  const sign = n < 0 ? "-" : "";
+  const eok = Math.floor(abs / 1e8);
+  const man = Math.floor((abs % 1e8) / 1e4);
+  if (eok > 0) return `${sign}${eok}억${man > 0 ? ` ${man.toLocaleString("ko-KR")}만` : ""}`;
+  if (man > 0) return `${sign}${man.toLocaleString("ko-KR")}만`;
+  return `${sign}${abs.toLocaleString("ko-KR")}`;
+}
+
+// 가로 막대그래프 — 외부 라이브러리 없이 div 폭으로 그린다.
+function ChartSection({ items }: { items: SectionItem[] }) {
+  const rows = items
+    .map((x) => ({ title: x.title, detail: x.detail, num: Number(String(x.value ?? "").replace(/[^\d.-]/g, "")) }))
+    .filter((r) => Number.isFinite(r.num));
+  if (rows.length === 0) return null;
+  const max = Math.max(...rows.map((r) => Math.abs(r.num)), 1);
+  return (
+    <div className="copilot2-chart">
+      {rows.map((r, i) => (
+        <div key={i} className="copilot2-chart-row">
+          <span className="copilot2-chart-label">{clean(r.title)}</span>
+          <span className="copilot2-chart-track">
+            {/* 폭은 값 비례 — 정적 클래스로 뺄 수 없는 동적 값 */}
+            <span
+              className={`copilot2-chart-fill ${r.num < 0 ? "copilot2-chart-fill-neg" : ""}`}
+              style={{ width: `${Math.max(2, Math.round((Math.abs(r.num) / max) * 100))}%` }}
+            />
+          </span>
+          <span className="copilot2-chart-value">{wonLabel(r.num)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function levelLabel(level: string | undefined, kind: "action" | "risk"): string {
   const l = level || "low";
   if (kind === "risk") return l === "high" ? "위험" : l === "medium" ? "주의" : "참고";
@@ -835,7 +872,9 @@ function AnswerCard({ msg, onRun, onCancel }: {
       {a.sections?.map((sec, si) => (
         <div key={`s${si}`} className="copilot2-sec">
           <div className="copilot2-sec-label">{clean(sec.label)}</div>
-          {sec.style === "metrics" ? (
+          {sec.style === "chart" ? (
+            <ChartSection items={sec.items} />
+          ) : sec.style === "metrics" ? (
             <div className="copilot2-evidence-grid">
               {sec.items.map((x, i) => (
                 <div key={i} className="copilot2-evidence">

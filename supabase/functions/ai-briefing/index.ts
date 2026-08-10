@@ -1,5 +1,6 @@
 import { withSentry } from "../_shared/sentry.ts";
 import { callClaude } from "../_shared/claude.ts";
+import { collectDataHealth } from "../_shared/data-health.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -107,6 +108,16 @@ async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId
     if (data && data.length) {
       out.push("최근 7일 대형 지출:\n" + (data as any[])
         .map((r) => `- ${r.counterparty || r.description || "미상"}: ${won(Math.abs(Number(r.amount || 0)))} (${r.transaction_date})`).join("\n"));
+    }
+  } catch { /* skip */ }
+  // 5) 데이터 건강 점검 (2026-08-10 사장님: "브리핑에 넣으면 돼") — AI 참모의 get_data_health 와
+  //    같은 공용 모듈. 급여 미입력·연차 초과·비정상 지각·서명 방치 같은 문제를 아침에 먼저 알린다.
+  try {
+    const health = await collectDataHealth(admin as unknown as Parameters<typeof collectDataHealth>[0], companyId);
+    if (health.findings.length) {
+      const sev = { high: "심각", medium: "확인 필요", low: "참고" } as const;
+      out.push("데이터 점검에서 발견된 문제(자동 점검, 심각한 것부터):\n" +
+        health.findings.map((f) => `- [${sev[f.severity]}] ${f.title} — ${f.detail}`).join("\n"));
     }
   } catch { /* skip */ }
   return out.join("\n\n");

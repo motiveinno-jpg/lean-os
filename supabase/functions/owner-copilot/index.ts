@@ -21,6 +21,7 @@ import { withSentry } from "../_shared/sentry.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { callClaude } from "../_shared/claude.ts";
+import { collectDataHealth } from "../_shared/data-health.ts";
 import {
   isAttachmentContractDraftRequest,
   remainingOwnerCopilotCallTimeout,
@@ -121,7 +122,11 @@ const COMMON_RULES = `- 한국어. 금액은 억/만원으로 읽기 쉽게.
   · "지금 해야 할 일", "위험 신호", "근거 데이터" 를 질문과 상관없이 습관적으로 붙이지 마세요.
     할 일이 실제로 있을 때만 그 묶음을 만들고, 위험이 없으면 위험 묶음을 만들지 않습니다.
   · style 은 표시 형태입니다: list(제목+설명), metrics(수치 카드 — title 은 항목명, value 는 값),
-    actions(할 일 — level 이 우선순위), risks(위험 — level 이 심각도).
+    actions(할 일 — level 이 우선순위), risks(위험 — level 이 심각도),
+    chart(가로 막대그래프 — 월별 추이나 항목별 비교처럼 수치를 나란히 견줄 때).
+  · chart 의 title 은 축 라벨("2026-07", "마케팅팀"), value 는 **콤마·단위 없는 숫자만**
+    씁니다(예: "162351887"). 화면이 알아서 억/만원으로 표기합니다. 음수도 그대로 씁니다.
+    매출 추이·지출 추이·부서별 비교 질문에는 표보다 chart 를 우선하세요.
   · metrics 의 title 은 반드시 사람이 읽는 한국어 이름("현금 잔액", "이번 달 매출")만 쓰고
     원시 필드명(cash_balance, total_revenue 등)은 절대 노출하지 마세요. value 는 억/만원 표기.
   · 예: 지각 질문이면 "지각 현황"(metrics) + "지각자 목록"(list),
@@ -219,8 +224,8 @@ const ANSWER_SCHEMA = {
         properties: {
           label: { type: "string", description: "이 묶음의 제목 — 질문에 맞게 직접 정하세요(예: '지각 현황', '추천 지원사업', '이번 달 지출 상위')" },
           style: {
-            type: "string", enum: ["list", "metrics", "actions", "risks"],
-            description: "list=제목+설명 목록(기본), metrics=수치 카드(title=항목명, value=값), actions=할 일(level=우선순위), risks=위험(level=심각도)",
+            type: "string", enum: ["list", "metrics", "actions", "risks", "chart"],
+            description: "list=제목+설명 목록(기본), metrics=수치 카드(title=항목명, value=값), actions=할 일(level=우선순위), risks=위험(level=심각도), chart=가로 막대그래프(월별 추이·항목 비교 — title=축 라벨, value=숫자만)",
           },
           items: {
             type: "array",
@@ -451,6 +456,11 @@ const MANAGER_READ_TOOLS = [
       },
       required: [],
     },
+  },
+  {
+    name: "get_data_health",
+    description: "회사 데이터를 규칙 기반으로 전수 점검해 문제 목록을 반환합니다 — 급여 미입력·연차 초과 사용·비정상 지각·퇴근 미기록·서명 방치·결재 장기 대기·오래된 미정산 매출·급여명세서 미발급. '데이터 이상한 거 없어?', '점검해줘', '우리 회사 뭐 놓친 거 있어?' 질문에 쓰세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
   },
   {
     name: "get_account_status",
@@ -1427,6 +1437,10 @@ async function executeReadTool(
     };
   }
 
+  if (name === "get_data_health") {
+    return await collectDataHealth(admin, companyId);
+  }
+
   if (name === "get_account_status") {
     const [{ data: sub }, { data: tickets }] = await Promise.all([
       admin.from("subscriptions")
@@ -1802,7 +1816,39 @@ serve(withSentry("owner-copilot", async (req) => {
       context = await buildEmployeeContext(admin, companyId, myEmployeeId, todayKst);
     }
 
+    // 최근 대화 맥락 (2026-08-10 사장님 승인) — 종전엔 매 질문이 독립이라
+    //   "그럼 걔 이번 달은?" 같은 후속 질문에서 '걔'를 해석하지 못했다.
+    //   본인(user_id)의 최근 턴만, headline·summary 로 압축해 전달한다(토큰 절약).
+    //   첨부 모드는 단일 턴 계약서 재구성이라 맥락이 필요 없어 뺀다.
+    let historyBlock: string[] = [];
+    if (attachments.length === 0) {
+      try {
+        const { data: hist } = await admin
+          .from("ai_copilot_history")
+          .select("query, answer")
+          .eq("company_id", companyId)
+          .eq("user_id", profile.id)
+          .order("created_at", { ascending: false })
+          .limit(6);
+        const turns = ((hist ?? []) as { query: string; answer: { headline?: string; summary?: string } | null }[])
+          .reverse()
+          .map((h) => {
+            const a = h.answer ?? {};
+            const ans = [a.headline, a.summary].filter(Boolean).join(" ").slice(0, 400);
+            return `Q: ${String(h.query).slice(0, 300)}\nA: ${ans || "(답변 없음)"}`;
+          });
+        if (turns.length > 0) {
+          historyBlock = [
+            "이전 대화(오래된 것부터 — '걔', '그중에', '아까 그거' 같은 후속 질문의 맥락 해석에만 쓰세요. 과거 답변 속 수치는 오래됐을 수 있으니 근거로 재사용하지 말고 필요하면 툴로 다시 확인하세요):",
+            ...turns,
+            "",
+          ];
+        }
+      } catch { /* 맥락 로드 실패 — 질문 자체는 그대로 처리 */ }
+    }
+
     const userContent = [
+      ...historyBlock,
       question ? `사용자 질문: ${question}` : "요청: 오늘 챙겨야 할 것 중심으로 상태를 브리핑해줘.",
       "",
       mode === "manager"
