@@ -123,6 +123,19 @@ export function OrgBulkWizard({
     ...companyTpls.map((t: any) => ({ kind: "tpl" as const, id: t.id as string, tpl: t })),
   ], effectiveOrder), [documents, companyTpls, effectiveOrder]);
   const stdSection = useMemo(() => sortTemplatesByOrder(standardTpls as any[], effectiveOrder), [standardTpls, effectiveOrder]);
+  // 양식 검색 (2026-08-10 사장님 요청) — 이름으로 문서·양식을 거른다.
+  //   드래그 순서 저장(handleDrop)은 원본 docSection/stdSection 기준 그대로 두고 표시만 거른다.
+  //   검색 중에는 일부만 보여 순서를 바꾸면 헷갈리므로 드래그를 잠근다.
+  const [docSearch, setDocSearch] = useState("");
+  const docQ = docSearch.trim().toLowerCase();
+  const docSectionShown = useMemo(
+    () => (docQ ? docSection.filter((it) => String((it.kind === "doc" ? it.doc?.name : it.tpl?.name) || "").toLowerCase().includes(docQ)) : docSection),
+    [docSection, docQ],
+  );
+  const stdSectionShown = useMemo(
+    () => (docQ ? (stdSection as any[]).filter((t: any) => String(t.name || "").toLowerCase().includes(docQ)) : stdSection),
+    [stdSection, docQ],
+  );
   const [dragKey, setDragKey] = useState<string | null>(null);   // "구역|id"
   const [dropKey, setDropKey] = useState<string | null>(null);
   const handleDrop = (section: "doc" | "std", targetId: string) => {
@@ -571,15 +584,24 @@ export function OrgBulkWizard({
                 <Ico e="💡" /> 변수 토큰 <code className="text-[var(--primary)]">{`{{을_회사명}}`}</code> / <code className="text-[var(--primary)]">{`{{을_사업자번호}}`}</code> / <code className="text-[var(--primary)]">{`{{을_대표자}}`}</code> / <code className="text-[var(--primary)]">{`{{을_주소}}`}</code> 는 거래처별 자동 치환됩니다. <code className="text-[var(--primary)]">{`{{갑_*}}`}</code> 는 회사 공통값.
               </span>
             </div>
+            <input
+              value={docSearch}
+              onChange={(e) => setDocSearch(e.target.value)}
+              placeholder="계약서·양식 이름 검색"
+              className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]"
+            />
             <div className="bulk-wizard-doc-list">
               {documents.length === 0 && bizTemplates.length === 0 ? (
                 <div className="p-6 text-center text-sm text-[var(--text-muted)]">작성된 문서·양식이 없습니다.</div>
               ) : (
                 <>
-                  {docSection.length > 0 && (
-                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">문서 <span className="normal-case font-normal">— 드래그로 순서 변경(모든 구성원 공통)</span></div>
+                  {docQ && docSectionShown.length === 0 && (stdSectionShown as any[]).length === 0 && (
+                    <div className="p-6 text-center text-sm text-[var(--text-muted)]">"{docSearch.trim()}" 에 해당하는 계약서·양식이 없습니다.</div>
                   )}
-                  {docSection.map((item) => {
+                  {docSectionShown.length > 0 && (
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">문서 {!docQ && <span className="normal-case font-normal">— 드래그로 순서 변경(모든 구성원 공통)</span>}</div>
+                  )}
+                  {docSectionShown.map((item) => {
                     const rowKey = `doc|${item.id}`;
                     const dropHl = dropKey === rowKey ? "ring-1 ring-[var(--primary)]" : "";
                     if (item.kind === "doc") {
@@ -587,12 +609,12 @@ export function OrgBulkWizard({
                       return (
                         <label
                           key={d.id}
-                          {...dragProps("doc", item.id)}
+                          {...(docQ ? {} : dragProps("doc", item.id))}
                           className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
                             docId === d.id ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
                           } ${dropHl}`}
                         >
-                          <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>
+                          {!docQ && <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>}
                           <input
                             type="radio"
                             name="docId"
@@ -615,12 +637,12 @@ export function OrgBulkWizard({
                     return (
                       <label
                         key={t.id}
-                        {...dragProps("doc", item.id)}
+                        {...(docQ ? {} : dragProps("doc", item.id))}
                         className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
                           checked ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
                         } ${materializing ? "opacity-60 pointer-events-none" : ""} ${dropHl}`}
                       >
-                        <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>
+                        {!docQ && <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>}
                         <input
                           type="radio"
                           name="docId"
@@ -634,10 +656,10 @@ export function OrgBulkWizard({
                       </label>
                     );
                   })}
-                  {stdSection.length > 0 && (
+                  {(stdSectionShown as any[]).length > 0 && (
                     <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] uppercase bg-[var(--bg-surface)]/60 sticky top-0">양식 관리 — 표준 양식</div>
                   )}
-                  {stdSection.map((t: any) => {
+                  {(stdSectionShown as any[]).map((t: any) => {
                     const rowKey = `std|${t.id}`;
                     const dropHl = dropKey === rowKey ? "ring-1 ring-[var(--primary)]" : "";
                     const materialized = allDocuments.find((d) => (d.content_json as any)?.source_template_id === t.id || d.name === t.name);
@@ -645,12 +667,12 @@ export function OrgBulkWizard({
                     return (
                       <label
                         key={t.id}
-                        {...dragProps("std", t.id)}
+                        {...(docQ ? {} : dragProps("std", t.id))}
                         className={`flex items-center gap-3 p-3 cursor-pointer border-b border-[var(--border)] last:border-b-0 ${
                           checked ? "bg-[var(--primary)]/10" : "hover:bg-[var(--bg-surface)]"
                         } ${materializing ? "opacity-60 pointer-events-none" : ""} ${dropHl}`}
                       >
-                        <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>
+                        {!docQ && <span className="bulk-wizard-drag-handle" title="드래그로 순서 변경">⠿</span>}
                         <input
                           type="radio"
                           name="docId"
