@@ -39,10 +39,29 @@ interface ChatBubbleProps {
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥', '👀'];
 
 // Parse @mentions and **bold** in content; return JSX with highlighted mentions
+//   본문에서 살려 낼 것 — 오너뷰 링크 `[제목](/경로)` 와 @멘션.
+//   ⚠️ 경로는 '/'로 시작하는 **앱 안 주소만** 받는다 — 남이 보낸 글로 바깥 사이트를 열어 주지 않는다.
+const CONTENT_RE = /(\[[^\]\n]+\]\(\/[^)\s]*\)|@[\w가-힣.\-_]+)/g;
+const APP_LINK_RE = /^\[([^\]\n]+)\]\((\/[^)\s]*)\)$/;
+
 function renderContent(text: string, isOwn: boolean, glass?: boolean) {
   if (!text) return null;
-  const parts = text.split(/(@[\w가-힣.\-_]+)/g);
+  const parts = text.split(CONTENT_RE);
   return parts.map((part, i) => {
+    const link = APP_LINK_RE.exec(part || "");
+    if (link) {
+      //   새 탭으로 연다 — 메신저가 새 창일 때 그 창이 다른 화면으로 바뀌어 버리지 않게
+      return (
+        <a key={i} href={link[2]} target="_blank" rel="noopener noreferrer"
+          className={`chat-bubble-applink ${isOwn ? "chat-bubble-applink-own" : ""}`}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+            <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+          </svg>
+          {link[1]}
+        </a>
+      );
+    }
     if (part.startsWith('@')) {
       return (
         <span

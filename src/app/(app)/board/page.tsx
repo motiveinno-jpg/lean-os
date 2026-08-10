@@ -117,6 +117,14 @@ export default function BoardPage() {
   const [editing, setEditing] = useState<Post | null>(null);
   const [form, setForm] = useState({ title: "", content: "" });
   const [openId, setOpenId] = useState<string | null>(null);
+  //   ?post=<id> 로 들어오면 그 글을 바로 펼친다 — 메신저에서 붙인 게시판 링크가 여기로 온다
+  //   (2026-08-10). useSearchParams 대신 주소를 직접 읽는다 — 이 페이지엔 Suspense 경계가 없다.
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get("post");
+      if (p) setOpenId(p);
+    } catch { /* 무시 */ }
+  }, []);
   // 플렉스/슬랙식 2단 — 좌측 필터/검색
   const [filter, setFilter] = useState<"all" | "pinned" | "event" | "poll" | "file" | "mine">("all");
   const [search, setSearch] = useState("");

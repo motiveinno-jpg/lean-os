@@ -4730,6 +4730,30 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .chat-composer-text:focus, .chat-composer-text:focus-visible { box-shadow: none; }
 .chat-composer-tools { @apply flex items-center justify-end gap-0.5; }
 .chat-composer-send { @apply p-2 rounded-lg text-[var(--primary)] transition hover:bg-[var(--primary)]/10 disabled:opacity-30 disabled:hover:bg-transparent; }
+/* 작성 상자 도구 — 이모지 · 오너뷰 링크 (2026-08-10). 첨부(file-upload-zone-btn)와 같은 크기·색 */
+.chat-composer-tool { @apply p-2 rounded-lg text-[var(--text-dim)] transition hover:text-[var(--primary)] hover:bg-[var(--primary)]/5 disabled:opacity-30; }
+.chat-composer-tool-on { @apply text-[var(--primary)] bg-[var(--primary)]/10; }
+
+/* 고르기 팝오버 — 작성 상자 위에 뜬다 */
+.chat-pick { @apply absolute bottom-full right-0 mb-2 z-30 w-[280px] max-h-[320px] flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl overflow-hidden; }
+.chat-pick-wide { @apply w-[340px] max-h-[380px]; }
+.chat-pick-body { @apply flex-1 overflow-y-auto p-2.5 flex flex-col gap-2.5; }
+.chat-pick-empty { @apply py-6 text-center text-[11.5px] text-[var(--text-dim)]; }
+.chat-pick-tabs { @apply flex gap-1 p-2 pb-0; }
+.chat-pick-tab { @apply flex-1 h-7 rounded-lg text-[11.5px] font-bold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)]; }
+.chat-pick-tab-on { @apply bg-[var(--primary)] text-white hover:!bg-[var(--primary)]; }
+.chat-pick-search { @apply mx-2 mt-2 h-8 px-2.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.chat-pick-row { @apply w-full flex flex-col items-start gap-0.5 px-2.5 py-2 rounded-xl text-left transition hover:bg-[var(--bg-surface)]; }
+.chat-pick-row b { @apply w-full truncate text-[12.5px] font-semibold text-[var(--text)]; }
+.chat-pick-row i { @apply not-italic w-full truncate text-[10.5px] text-[var(--text-dim)]; }
+.chat-emoji-group { @apply flex flex-col gap-1; }
+.chat-emoji-group > b { @apply text-[10.5px] font-bold text-[var(--text-dim)]; }
+.chat-emoji-grid { @apply grid grid-cols-8 gap-0.5; }
+.chat-emoji-btn { @apply w-7 h-7 rounded-lg text-[16px] leading-none transition hover:bg-[var(--bg-surface)]; }
+
+/* 말풍선 안의 오너뷰 링크 — 눌러서 그 화면으로 (새 탭) */
+.chat-bubble-applink { @apply inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded-md bg-[var(--primary)]/10 text-[var(--primary)] font-semibold underline decoration-transparent transition hover:decoration-current; }
+.chat-bubble-applink-own { @apply bg-white/20 text-white; }
 .chat-input-hint { @apply mt-1.5 text-right text-[11px] text-[var(--text-dim)]; }
 .chat-input-hint b { @apply font-bold text-[var(--text-muted)]; }
 .chat-messages-panel { @apply flex flex-col flex-1 min-h-0; }

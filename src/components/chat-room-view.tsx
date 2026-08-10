@@ -939,6 +939,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
               onFileUpload={(file) => fileMut.mutate(file)}
               disabled={sendMut.isPending || fileMut.isPending || !userId}
               users={companyUsers}
+              companyId={companyId}
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}
             />

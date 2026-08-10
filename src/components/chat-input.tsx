@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { FileUploadZone } from "./file-upload-zone";
 import { MentionDropdown, filterMentionUsers } from "./mention-dropdown";
+import { ChatEmojiPicker } from "./chat-emoji-picker";
+import { ChatLinkPicker } from "./chat-link-picker";
 import { growTextarea } from "@/lib/textarea";
 
 //   입력칸 최대 높이 — 여기까지 늘어나고 그 뒤로는 상자 안에서 스크롤한다.
@@ -29,13 +31,16 @@ interface ChatInputProps {
   replyTo?: ReplyInfo | null;
   onCancelReply?: () => void;
   glass?: boolean; // 플로팅 메신저 팝업의 글래스모피즘 변형 (기본 false → /chat 풀페이지 무영향)
+  /** 오너뷰 링크 붙이기(프로젝트·게시판·전자계약)에 필요 — 없으면 그 단추를 감춘다 */
+  companyId?: string | null;
 }
 
-export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, replyTo, onCancelReply, glass }: ChatInputProps) {
+export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, replyTo, onCancelReply, glass, companyId }: ChatInputProps) {
   const [text, setText] = useState("");
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [picker, setPicker] = useState<null | "emoji" | "link">(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -50,6 +55,16 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
 
   //   쓰는 만큼 늘어난다 — 타이핑·멘션 삽입·전송 후 비우기까지 한 곳에서 처리(2026-08-10 사장님 지시)
   useEffect(() => { growTextarea(inputRef.current, MAX_H); }, [text]);
+
+  //   커서 자리에 끼워 넣기 — 이모지·오너뷰 링크가 같이 쓴다. 끝이 아니라 **쓰던 자리**에 들어간다.
+  const insertAtCaret = (snippet: string) => {
+    const el = inputRef.current;
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? start;
+    setText(text.slice(0, start) + snippet + text.slice(end));
+    const pos = start + snippet.length;
+    window.requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(pos, pos); });
+  };
 
   // 멘션 드롭다운 후보(드롭다운과 동일 필터 공유) + 키보드 화살표 선택용 인덱스
   const mentionCandidates = useMemo(
@@ -169,6 +184,16 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
             />
           )}
 
+          {/* 이모지 · 오너뷰 링크 고르기 — 작성 상자 위에 뜬다 */}
+          {picker === "emoji" && (
+            <ChatEmojiPicker onClose={() => setPicker(null)}
+              onPick={(e) => { insertAtCaret(e); setPicker(null); }} />
+          )}
+          {picker === "link" && (
+            <ChatLinkPicker companyId={companyId ?? null} onClose={() => setPicker(null)}
+              onPick={({ label, href }) => { insertAtCaret(`[${label}](${href}) `); setPicker(null); }} />
+          )}
+
           <div className={`chat-composer ${glass ? "chat-composer-glass" : ""}`}
             onClick={() => inputRef.current?.focus()}>
             <textarea
@@ -185,6 +210,35 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
             <div className="chat-composer-tools" onClick={(e) => e.stopPropagation()}>
               {onFileUpload && (
                 <FileUploadZone onFileSelect={onFileUpload} disabled={disabled} />
+              )}
+              {/* 이모지 — 고르면 쓰던 자리에 그대로 들어간다 */}
+              <button
+                type="button"
+                onClick={() => setPicker((p) => (p === "emoji" ? null : "emoji"))}
+                disabled={disabled}
+                aria-label="이모지"
+                title="이모지"
+                className={`chat-composer-tool ${picker === "emoji" ? "chat-composer-tool-on" : ""}`}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9" /><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0" /><path d="M9 9.5h.01M15 9.5h.01" />
+                </svg>
+              </button>
+              {/* 오너뷰 링크 — 프로젝트 · 게시판 글 · 전자계약으로 가는 링크를 붙인다 */}
+              {companyId && (
+                <button
+                  type="button"
+                  onClick={() => setPicker((p) => (p === "link" ? null : "link"))}
+                  disabled={disabled}
+                  aria-label="오너뷰 링크 붙이기"
+                  title="오너뷰 링크 — 프로젝트 · 게시판 글 · 전자계약"
+                  className={`chat-composer-tool ${picker === "link" ? "chat-composer-tool-on" : ""}`}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+                    <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+                  </svg>
+                </button>
               )}
               <button
                 type="button"
