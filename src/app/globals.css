@@ -3041,6 +3041,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .chat-sched-more { @apply shrink-0 pt-1 text-center text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
 .chat-sched-tip { @apply px-1 text-[11px] leading-relaxed text-[var(--text-dim)]; }
 .chat-sched-sub { @apply pt-2 px-1 text-[10.5px] font-bold text-[var(--text-dim)]; }
+.chat-sched-sub-top { @apply !pt-0; }
 
 /* 일정 입력 창 — 일정 메뉴와 메신저가 같이 쓴다 (2026-08-10 통합) */
 .sched-editor { @apply fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/35; }

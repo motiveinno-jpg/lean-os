@@ -7,12 +7,12 @@
 //   줄을 누르면 **일정 내용부터** 보이고 거기서 고친다 — 창은 ScheduleItemDialog 하나를
 //   일정 메뉴(달력·목록)와 메신저(달력·목록)가 함께 쓴다.
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ScheduleItemDialog, type ScheduleDialogTarget } from "@/components/schedule-item-dialog";
 import { todayKst } from "@/lib/kst";
 import {
-  getScheduleItems, toggleEventCompleted,
+  getScheduleItems,
   VISIBILITY_LABEL, type ScheduleEvent, type EventColor,
 } from "@/lib/schedule";
 
@@ -22,7 +22,6 @@ const DOT: Record<EventColor, string> = {
 };
 
 export function ChatSchedulePanel({ companyId, userId }: { companyId: string | null; userId: string | null }) {
-  const qc = useQueryClient();
   const [open, setOpen] = useState<ScheduleDialogTarget | null>(null);
 
   const { data: items = [] } = useQuery({
@@ -31,16 +30,6 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
     enabled: !!companyId,
   });
 
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["schedule-items"] });
-    qc.invalidateQueries({ queryKey: ["chat-cal-events"] });
-    qc.invalidateQueries({ queryKey: ["schedule-events"] });   // 일정 메뉴도 같이
-  };
-
-  const doneMut = useMutation({
-    mutationFn: ({ id, completed }: { id: string; completed: boolean }) => toggleEventCompleted(id, completed),
-    onSuccess: refresh,
-  });
 
   const today = todayKst();
   const list = items as ScheduleEvent[];
@@ -49,11 +38,9 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
   const undated = list.filter((e) => !e.start_at);
 
   const row = (e: ScheduleEvent) => (
-    //   ⚠️ <label> 로 감싸면 제목을 눌러도 안의 체크박스가 켜져 **완료 처리되어 목록에서 사라진다**
-    //      (2026-08-10 사장님 제보). 줄은 <div>, 제목은 별도 단추로 둔다.
+    //   목록에 체크박스를 두지 않는다 (2026-08-10 사장님 지시) — 지나가다 잘못 눌러 완료되는 일이
+    //   실제로 있었다. 완료는 일정을 **열어서** 처리한다.
     <div key={e.id} className="chat-sched-row">
-      <input type="checkbox" checked={e.completed} title={e.completed ? "완료 취소" : "완료"}
-        onChange={(ev) => doneMut.mutate({ id: e.id, completed: ev.target.checked })} />
       <i className={`chat-sched-dot ${DOT[e.color] || DOT.gray}`} />
       <button type="button" className="chat-sched-row-body" title="눌러서 내용 보기"
         onClick={() => setOpen({ mode: "view", event: e })}>
@@ -75,6 +62,8 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
 
       <div className="chat-sched-list">
         {upcoming.length === 0 && undated.length === 0 && <p className="chat-sched-empty">일정이 없습니다.</p>}
+        {/*  무슨 목록인지 머리에 적어 준다 (2026-08-10 사장님 지시) */}
+        {upcoming.length > 0 && <p className="chat-sched-sub chat-sched-sub-top">다가오는 일정 {upcoming.length}</p>}
         {upcoming.map(row)}
         {undated.length > 0 && (
           <p className="chat-sched-sub">날짜 없는 것 {undated.length}</p>
