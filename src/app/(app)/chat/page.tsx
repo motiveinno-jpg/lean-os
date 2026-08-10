@@ -19,6 +19,7 @@ import { ChatInput } from "@/components/chat-input";
 import { ChatSearch } from "@/components/chat-search";
 import { ChatRoomView } from "@/components/chat-room-view";
 import { ChatSchedulePanel } from "@/components/chat-schedule-panel";
+import { ChatScheduleCalendar } from "@/components/chat-schedule-calendar";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // ── Guest Chat View (previously chat/guest/[token]/client.tsx) ──
@@ -622,8 +623,11 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
       </aside>
 
       {/* ── 우측 대화 패널 ── */}
-      <section className={`chat-conversation-panel ${selectedChannel ? "flex" : "hidden md:flex"}`}>
-        {selectedChannel ? (
+      <section className={`chat-conversation-panel ${selectedChannel || rail === "schedule" ? "flex" : "hidden md:flex"}`}>
+        {/*  '일정' 갈래에서는 대화창 자리에 달력이 선다 — 날짜를 눌러 그 날 일정을 넣는다(2026-08-10) */}
+        {rail === "schedule" ? (
+          <ChatScheduleCalendar companyId={companyId} userId={userId} />
+        ) : selectedChannel ? (
           <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3">
             {/*  뒤로 갈 때도 embed 를 달고 간다 — 빼면 새로고침 시 새 창 안에 셸이 통째로 뜬다 */}
             <ChatRoomView channelId={selectedChannel} embedded onOpenChannel={open}

@@ -2997,6 +2997,41 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .chat-sched-row-body b { @apply truncate text-[12.5px] font-semibold text-[var(--text)]; }
 .chat-sched-row-body em { @apply not-italic truncate text-[10.5px] text-[var(--text-dim)]; }
 .chat-sched-more { @apply shrink-0 pt-1 text-center text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
+.chat-sched-tip { @apply px-1 text-[11px] leading-relaxed text-[var(--text-dim)]; }
+.chat-sched-tip b { @apply font-bold text-[var(--text-muted)]; }
+
+/* 대화창 자리에 서는 달력 (2026-08-10) — 날짜를 누르면 그 날 일정을 넣는다 */
+.chat-cal { @apply flex-1 min-h-0 flex flex-col p-3 gap-2; }
+.chat-cal-head { @apply flex items-center gap-1.5 shrink-0; }
+.chat-cal-head > b { @apply text-[14px] font-extrabold text-[var(--text)]; }
+.chat-cal-head > button { @apply w-7 h-7 rounded-lg text-[15px] font-bold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.chat-cal-today { @apply !w-auto px-2 !text-[11.5px] font-bold; }
+.chat-cal-hint { @apply ml-auto text-[11px] text-[var(--text-dim)]; }
+.chat-cal-week { @apply grid grid-cols-7 shrink-0; }
+.chat-cal-week > span { @apply py-1 text-center text-[11px] font-bold text-[var(--text-dim)]; }
+.chat-cal-sun { @apply !text-red-400; }
+.chat-cal-sat { @apply !text-blue-400; }
+.chat-cal-grid { @apply flex-1 min-h-0 grid grid-cols-7 auto-rows-fr gap-px rounded-xl overflow-hidden bg-[var(--border)]; }
+.chat-cal-day { @apply flex flex-col items-stretch gap-0.5 p-1 bg-[var(--bg-card)] text-left overflow-hidden transition hover:bg-[var(--bg-surface)]; }
+.chat-cal-day-out { @apply bg-[var(--bg-surface)]/50 pointer-events-none; }
+.chat-cal-day-today { @apply ring-1 ring-inset ring-[var(--primary)]; }
+.chat-cal-daynum { @apply text-[11px] font-bold text-[var(--text-muted)]; }
+.chat-cal-ev { @apply truncate px-1 py-0.5 rounded text-[10px] font-semibold border; }
+.chat-cal-more { @apply px-1 text-[10px] text-[var(--text-dim)]; }
+.chat-cal-modal { @apply fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/35; }
+.chat-cal-box { @apply w-full max-w-sm flex flex-col gap-3 p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl; }
+.chat-cal-box > header { @apply flex items-center gap-2; }
+.chat-cal-box > header b { @apply text-[14px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.chat-cal-box > header span { @apply text-[11.5px] text-[var(--text-dim)]; }
+.chat-cal-box > header button { @apply ml-auto w-7 h-7 rounded-lg text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.chat-cal-input { @apply w-full h-9 px-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.chat-cal-colors { @apply flex items-center gap-1.5; }
+.chat-cal-color { @apply w-6 h-6 rounded-full border-2 border-transparent transition; }
+.chat-cal-color-on { @apply !border-[var(--text)] scale-110; }
+.chat-cal-check { @apply flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] cursor-pointer; }
+.chat-cal-foot { @apply flex items-center justify-end gap-2 pt-1; }
+.chat-cal-cancel { @apply h-9 px-3 rounded-lg text-[12.5px] font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)]; }
+.chat-cal-save { @apply h-9 px-4 rounded-lg bg-[var(--primary)] text-[12.5px] font-bold text-white transition hover:opacity-90 disabled:opacity-40; }
 .chat-create-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
 .refund-nav { @apply sticky top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50; }
 .refund-main { @apply max-w-4xl mx-auto px-6 py-16; }

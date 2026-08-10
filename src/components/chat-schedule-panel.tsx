@@ -12,7 +12,7 @@ import { DateField } from "@/components/date-field";
 import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
 import {
-  getMonthEvents, upsertEvent, getTodos, upsertTodo, toggleTodoDone,
+  getMonthEvents, getTodos, upsertTodo, toggleTodoDone,
   type ScheduleEvent, type ScheduleTodo, type EventColor,
 } from "@/lib/schedule";
 
@@ -35,9 +35,6 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
   const qc = useQueryClient();
   const { toast } = useToast();
   const [mode, setMode] = useState<Mode>("event");
-  const [evTitle, setEvTitle] = useState("");
-  const [evDate, setEvDate] = useState(todayKst());
-  const [evShared, setEvShared] = useState(true);
   const [tdTitle, setTdTitle] = useState("");
   const [tdDue, setTdDue] = useState("");
 
@@ -72,17 +69,6 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
     qc.invalidateQueries({ queryKey: ["schedule-todos"] });
   };
 
-  const addEvent = useMutation({
-    //   ⚠️ 하루 종일 일정은 **그 날짜 문자열 그대로** 넣는다(일정 화면과 같은 규칙).
-    //      toISOString() 을 쓰면 KST 자정이 UTC 로 밀려 하루 전 날짜로 저장된다.
-    mutationFn: () => upsertEvent({
-      companyId: companyId!, userId: userId!, title: evTitle.trim(),
-      startAt: `${evDate}T00:00:00`, allDay: true, isShared: evShared,
-    }),
-    onSuccess: () => { setEvTitle(""); refresh(); toast("일정에 넣었습니다.", "success"); },
-    onError: (e: any) => toast(e?.message || "일정 저장 실패", "error"),
-  });
-
   const addTodo = useMutation({
     mutationFn: () => upsertTodo({
       companyId: companyId!, userId: userId!, title: tdTitle.trim(), dueDate: tdDue || null,
@@ -109,20 +95,8 @@ export function ChatSchedulePanel({ companyId, userId }: { companyId: string | n
 
       {mode === "event" ? (
         <>
-          <div className="chat-sched-add">
-            <input value={evTitle} onChange={(e) => setEvTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && evTitle.trim() && canWrite && !addEvent.isPending) addEvent.mutate(); }}
-              placeholder="무슨 일정인가요" className="chat-sched-input" />
-            <div className="chat-sched-add-row">
-              <DateField value={evDate} onChange={(e) => setEvDate(e.target.value)} className="chat-sched-date" />
-              <label className="chat-sched-check">
-                <input type="checkbox" checked={evShared} onChange={(e) => setEvShared(e.target.checked)} />
-                전체 공유
-              </label>
-              <button type="button" className="chat-sched-go" disabled={!evTitle.trim() || !canWrite || addEvent.isPending}
-                onClick={() => addEvent.mutate()}>{addEvent.isPending ? "…" : "추가"}</button>
-            </div>
-          </div>
+          {/*  일정 넣기는 오른쪽 달력에서 한다 — 제목부터 치게 하지 않는다(2026-08-10 사장님 지시) */}
+          <p className="chat-sched-tip">오른쪽 달력에서 <b>날짜를 누르면</b> 그 날 일정을 넣습니다.</p>
           <div className="chat-sched-list">
             {events.length === 0 && <p className="chat-sched-empty">다가오는 일정이 없습니다.</p>}
             {events.map((e) => (
