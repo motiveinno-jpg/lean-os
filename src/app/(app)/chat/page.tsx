@@ -10,7 +10,7 @@ import {
   getCurrentUser, getChannels, getDeals, getUnreadCounts, getChannel, getMessages, getMessagesPaginated, getParticipants, getChannelEvents,
   searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles, getCompanyUsers,
 } from "@/lib/queries";
-import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
+import { createChannel, sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, createTeamChannel, createDMChannel, getOrCreateDMChannel, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage } from "@/lib/chat";
 import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -451,14 +451,14 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
 
   const open = (id: string) => router.push(`/chat?channel=${id}${isEmbed ? "&embed=1" : ""}`);
 
-  //   구성원을 누르면 그 사람과의 1:1 대화를 연다 — 이미 있으면 그 방, 없으면 그때 만든다.
+  //   구성원을 누르면 그 사람과의 1:1 대화를 연다 — 이미 있으면 그 방, 없을 때만 만든다.
+  //   ⚠️ 화면에 받아 둔 채널 목록으로 판단하지 않는다(아직 안 왔으면 방이 하나 더 생긴다).
+  //      getOrCreateDMChannel 이 누른 그 순간 DB 를 보고 정한다.
   const openDm = async (p: { name: string; userId: string | null }) => {
-    if (!p.userId || p.userId === userId || !companyId || dmBusy) return;
-    const ex = dmByUser.get(p.userId);
-    if (ex) { open(ex.id); return; }
+    if (!p.userId || p.userId === userId || !companyId || !userId || dmBusy) return;
     setDmBusy(p.userId);
     try {
-      const ch: any = await createDMChannel({ companyId, participantIds: [userId!, p.userId] });
+      const ch = await getOrCreateDMChannel({ companyId, meId: userId, otherId: p.userId });
       await queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
       if (ch?.id) open(ch.id);
     } catch (err: any) {
@@ -611,7 +611,8 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
         {selectedChannel ? (
           <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3">
             {/*  뒤로 갈 때도 embed 를 달고 간다 — 빼면 새로고침 시 새 창 안에 셸이 통째로 뜬다 */}
-            <ChatRoomView channelId={selectedChannel} embedded onBack={() => router.push(isEmbed ? "/chat?embed=1" : "/chat")} />
+            <ChatRoomView channelId={selectedChannel} embedded onOpenChannel={open}
+              onBack={() => router.push(isEmbed ? "/chat?embed=1" : "/chat")} />
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-center p-8">

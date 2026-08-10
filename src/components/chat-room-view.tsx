@@ -8,11 +8,12 @@ import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import {
-  getCurrentUser, getChannel, getMessagesPaginated, getParticipants, getChannelEvents,
+  getCurrentUser, getChannel, getMessagesPaginated, getParticipants,
   searchChannelMessages, getBatchReactions, getActionCards, getChannelFiles, getCompanyUsers,
 } from "@/lib/queries";
-import { sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage, leaveChannel } from "@/lib/chat";
+import { sendMessage, togglePin, markAsRead, uploadChatFile, sendMessageWithMentions, addReaction, removeReaction, editMessage, deleteMessage, inviteParticipant, getOrCreateInviteToken, getChatInviteUrl, sendSystemMessage, leaveChannel, getOrCreateDMChannel } from "@/lib/chat";
 import { friendlyError } from "@/lib/friendly-error";
 import { subscribeToMessages, subscribeToMessageUpdates, subscribeToReactions, unsubscribe, type RealtimeStatus } from "@/lib/realtime";
 import { useToast } from "@/components/toast";
@@ -384,14 +385,20 @@ function EditInline({ content, onSave, onCancel }: { content: string; onSave: (c
 
 // ── Chat Room View (previously chat/[channelId]/client.tsx) ──
 //   embedded=true: 슬랙식 2단 레이아웃의 우측 대화 패널로 렌더 (전체화면 대신 부모 높이 채움).
-export function ChatRoomView({ channelId, onBack, embedded, compact }: { channelId: string; onBack: () => void; embedded?: boolean; compact?: boolean }) {
+export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChannel }: {
+  channelId: string; onBack: () => void; embedded?: boolean; compact?: boolean;
+  /** 참가자를 눌러 1:1 대화로 넘어갈 때 — 부모가 주소(embed 여부 등)를 안다 */
+  onOpenChannel?: (channelId: string) => void;
+}) {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [myName, setMyName] = useState<string>("");
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
-  const [tab, setTab] = useState<"chat" | "participants" | "events" | "files">("chat");
+  const [dmBusy, setDmBusy] = useState<string | null>(null);
+  const [tab, setTab] = useState<"chat" | "participants" | "files">("chat");
   const [showSearch, setShowSearch] = useState(false);
   const [showPinnedAll, setShowPinnedAll] = useState(false);
   const [replyTo, setReplyTo] = useState<{ messageId: string; senderName: string; content: string } | null>(null);
@@ -474,12 +481,6 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
   const { data: participants = [] } = useQuery({
     queryKey: ["chat-participants", channelId],
     queryFn: () => getParticipants(channelId),
-    enabled: !!channelId,
-  });
-
-  const { data: events = [] } = useQuery({
-    queryKey: ["chat-events", channelId],
-    queryFn: () => getChannelEvents(channelId),
     enabled: !!channelId,
   });
 
@@ -714,17 +715,21 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
 
-  const EVENT_LABELS: Record<string, string> = {
-    channel_created: "채널 생성",
-    user_joined: "멤버 참가",
-    user_left: "멤버 퇴장",
-    contract_executed: "계약 체결",
-    payment_received: "입금 확인",
-    milestone_completed: "마일스톤 완료",
-    assignment_changed: "담당자 변경",
-    document_approved: "문서 승인",
-    document_locked: "문서 잠금",
-    deal_status_changed: "프로젝트 상태 변경",
+  // ── 참가자를 누르면 그 사람과의 1:1 대화 (2026-08-10 사장님: "구성원을 눌러도 반응이 없다") ──
+  //   이미 있으면 그 방, 없을 때만 새로 — 판단은 getOrCreateDMChannel 이 그 순간 DB 를 보고 한다.
+  const openDmWith = async (p: any) => {
+    const targetId = p?.user_id;
+    const name = p?.users?.name || p?.users?.email || "상대";
+    if (!targetId || !companyId || !userId || dmBusy) return;
+    if (targetId === userId) return;
+    setDmBusy(targetId);
+    try {
+      const ch = await getOrCreateDMChannel({ companyId, meId: userId, otherId: targetId });
+      await queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
+      if (ch?.id) (onOpenChannel ? onOpenChannel(ch.id) : router.push(`/chat?channel=${ch.id}`));
+    } catch (err: any) {
+      toast(friendlyError(err, `${name} 님과 대화를 열지 못했습니다`), "error");
+    } finally { setDmBusy(null); }
   };
 
   const pinnedMessages = messages.filter((m: any) => m.pinned);
@@ -834,7 +839,6 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
           { key: "chat" as const, label: `채팅 (${messages.length})` },
           { key: "participants" as const, label: `참가자 (${participants.length})` },
           { key: "files" as const, label: `파일` },
-          { key: "events" as const, label: `이벤트 (${events.length})` },
         ]).map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`seg-item flex-1 ${tab === t.key ? "seg-item-active" : ""}`}>
@@ -962,16 +966,26 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
             <div className="p-12 text-center text-sm text-[var(--text-muted)]">참가자가 없습니다</div>
           ) : (
             <div className="divide-y divide-[var(--border)]/50">
-              {participants.map((p: any) => (
-                <div key={p.id} className="chat-participant-row">
+              {participants.map((p: any) => {
+                const isMe = p.user_id === userId;
+                const canDm = !!p.user_id && !isMe;
+                return (
+                <div key={p.id} role={canDm ? "button" : undefined} tabIndex={canDm ? 0 : undefined}
+                  onClick={() => canDm && openDmWith(p)}
+                  onKeyDown={(e) => { if (canDm && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openDmWith(p); } }}
+                  title={isMe ? "나입니다" : canDm ? `${p.users?.name || "이 사람"} 님과 1:1 대화` : "앱 계정이 없어 대화를 걸 수 없어요"}
+                  className={`chat-participant-row ${canDm ? "chat-participant-row-go" : ""}`}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-xs font-bold text-[var(--primary)]">
                       {(p.users?.name || p.users?.email || "?")[0].toUpperCase()}
                     </div>
                     <div>
-                      <div className="text-sm font-medium">{p.users?.name || p.users?.email || "—"}</div>
+                      <div className="text-sm font-medium">
+                        {p.users?.name || p.users?.email || "—"}
+                        {isMe && <span className="chat-participant-me">나</span>}
+                      </div>
                       <div className="caption">
-                        {p.invited_at ? kstDateStr(new Date(p.invited_at)) : ""} 참가
+                        {dmBusy === p.user_id ? "대화 여는 중…" : canDm ? "눌러서 1:1 대화" : `${p.invited_at ? kstDateStr(new Date(p.invited_at)) : ""} 참가`}
                       </div>
                     </div>
                   </div>
@@ -986,7 +1000,8 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
                     {p.role === 'OWNER' ? '오너' : p.role === 'INTERNAL_MANAGER' ? '담당자' : p.role === 'CLIENT' ? '클라이언트' : p.role === 'VENDOR' ? '외주사' : p.role === 'GUEST' ? '게스트' : '멤버'}
                   </span>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -1164,34 +1179,6 @@ export function ChatRoomView({ channelId, onBack, embedded, compact }: { channel
 
       {tab === "files" && (
         <FilesGalleryView files={files} />
-      )}
-
-      {tab === "events" && (
-        <div className="chat-events-panel glass-card">
-          {events.length === 0 ? (
-            <div className="p-12 text-center text-sm text-[var(--text-muted)]">이벤트가 없습니다</div>
-          ) : (
-            <div className="divide-y divide-[var(--border)]/50">
-              {events.map((ev: any) => (
-                <div key={ev.id} className="chat-event-row">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">
-                      {EVENT_LABELS[ev.event_type] || ev.event_type}
-                    </span>
-                    {ev.data_json && (
-                      <span className="caption">
-                        {JSON.stringify(ev.data_json).slice(0, 60)}
-                      </span>
-                    )}
-                  </div>
-                  <span className="caption">
-                    {ev.created_at ? new Date(ev.created_at).toLocaleString("ko") : "—"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       )}
     </div>
   );

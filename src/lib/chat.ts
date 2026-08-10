@@ -507,6 +507,35 @@ export async function createDMChannel(params: {
   return data;
 }
 
+/** 두 사람의 1:1 대화를 연다 — **이미 있으면 그 방**, 없을 때만 만든다 (2026-08-10).
+ *
+ *  구성원 목록·참가자 목록 어디서 눌러도 이 함수를 거친다. 화면에 이미 받아 둔 채널 목록으로
+ *  판단하면 목록이 아직 안 왔을 때 같은 상대와 방이 하나 더 생긴다 — 그래서 **누른 그 순간
+ *  DB 를 보고** 정한다. createDMChannel 은 무조건 새로 만드는 함수라 그대로 두고 여기서 감싼다. */
+export async function getOrCreateDMChannel(params: {
+  companyId: string; meId: string; otherId: string;
+}): Promise<{ id: string }> {
+  const db = supabase;
+  const mine = logRead('lib/chat:dmMine', await db
+    .from('chat_participants').select('channel_id').eq('user_id', params.meId));
+  const myIds = (mine || []).map((r: any) => r.channel_id).filter(Boolean);
+  if (myIds.length > 0) {
+    const both = logRead('lib/chat:dmBoth', await db
+      .from('chat_participants').select('channel_id').eq('user_id', params.otherId).in('channel_id', myIds));
+    const shared = (both || []).map((r: any) => r.channel_id).filter(Boolean);
+    if (shared.length > 0) {
+      //   둘이 함께 있는 방 중 **1:1 방**만 — 팀·프로젝트 채널에 둘 다 있는 경우를 걸러낸다
+      const dms = logRead('lib/chat:dmRooms', await db
+        .from('chat_channels').select('id, created_at')
+        .eq('company_id', params.companyId).eq('is_dm', true).eq('is_archived', false)
+        .in('id', shared).order('created_at', { ascending: true }));
+      if (dms && dms.length > 0) return { id: (dms[0] as any).id };
+    }
+  }
+  const created = await createDMChannel({ companyId: params.companyId, participantIds: [params.meId, params.otherId] });
+  return { id: (created as any).id };
+}
+
 // Get channels by type
 export async function getChannelsByType(companyId: string, type: 'deal' | 'team' | 'dm') {
   const db = supabase;
