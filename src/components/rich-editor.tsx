@@ -10,6 +10,7 @@ import { TextStyle, Color, FontSize, FontFamily } from "@tiptap/extension-text-s
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import { TableKit, TableRow } from "@tiptap/extension-table";
+import { TableMap } from "@tiptap/pm/tables";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
@@ -437,11 +438,39 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
   //   열 경계(오른쪽 8px)와 겹치면 열 조절(columnResizing)에 양보한다.
   //   드래그 중에는 DOM style 로 미리 보여 주고, 놓는 순간 rowheight 속성 트랜잭션으로 확정
   //   (DOM 만 바꾸면 PM 재렌더에 지워진다).
+  // ── 표 전체 크기 드래그 (2026-08-10 사장님 — "표 전체 크기도 변경가능하게") —
+  //   표 우하단 모서리 10px 안을 잡아 끌면 표 전체가 커지고 작아진다.
+  //   확정 시 가로는 모든 열 너비(colwidth)를 비율대로, 세로는 모든 행 높이(rowheight)를
+  //   비율대로 한 트랜잭션에 저장 — colwidth 는 tiptap 이 colgroup 으로 HTML 에 내보내
+  //   미리보기·발송 스냅샷·PDF 에서도 유지된다.
   useEffect(() => {
     if (!editor || !editable) return;
     const dom = editor.view.dom as HTMLElement;
-    const EDGE = 4, COL_EDGE = 8, MIN_H = 22;
-    let drag: { tr: HTMLTableRowElement; startY: number; startH: number } | null = null;
+    const EDGE = 4, COL_EDGE = 8, CORNER = 10, MIN_H = 22, MIN_W = 80, MIN_COL = 30;
+    // 커밋 값은 DOM 재측정이 아니라 lastH/lastW/lastRowH 로 추적 — PM 이 mousemove 마다
+    //   DOM 프리뷰를 모델대로 되돌리기 때문에(관찰: 같은 이벤트의 두 리스너 사이에 tr 교체)
+    //   mouseup 시점 DOM 측정은 되돌려진 값을 읽을 수 있다.
+    let drag:
+      | { kind: "row"; tr: HTMLTableRowElement; table: HTMLTableElement; rowIndex: number; startY: number; startH: number; lastH?: number }
+      | { kind: "table"; table: HTMLTableElement; startX: number; startY: number; startW: number; startH: number;
+          rows: { el: HTMLTableRowElement; h0: number }[]; cols: number[]; lastW?: number; lastH?: number; lastRowH?: number[] }
+      | null = null;
+
+    // 표 노드 위치 — nodeDOM 이 tableWrapper 를 돌려주므로 contains 로 대조.
+    //   tr 엘리먼트는 PM 이 드래그 중 교체하므로 직접 대조하지 않는다(표 엘리먼트는 nodeview 라 유지됨).
+    const findTablePos = (tableEl: HTMLTableElement): number => {
+      let tablePos = -1;
+      editor.state.doc.descendants((node, pos) => {
+        if (tablePos >= 0) return false;
+        if (node.type.name === "table") {
+          const nd = editor.view.nodeDOM(pos) as HTMLElement | null;
+          if (nd && (nd === tableEl || nd.contains(tableEl))) { tablePos = pos; }
+          return false; // 표 내부까지 볼 필요 없음
+        }
+        return true;
+      });
+      return tablePos;
+    };
 
     const rowUnderPointer = (e: MouseEvent): HTMLTableRowElement | null => {
       const cell = (e.target as HTMLElement | null)?.closest?.("td, th");
@@ -452,51 +481,146 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       return cell.closest("tr");
     };
 
+    // 표 우하단 모서리 — 행/열 경계보다 우선한다 (모서리는 표 전체 조절 전용)
+    const tableCornerUnderPointer = (e: MouseEvent): HTMLTableElement | null => {
+      const table = (e.target as HTMLElement | null)?.closest?.("table");
+      if (!table || !dom.contains(table)) return null;
+      const r = table.getBoundingClientRect();
+      if (Math.abs(r.right - e.clientX) > CORNER || Math.abs(r.bottom - e.clientY) > CORNER) return null;
+      return table as HTMLTableElement;
+    };
+
     const onMove = (e: MouseEvent) => {
-      if (drag) {
-        const h = Math.max(MIN_H, drag.startH + (e.clientY - drag.startY));
-        drag.tr.style.height = `${h}px`;
+      if (drag?.kind === "table") {
+        const w = Math.max(MIN_W, drag.startW + (e.clientX - drag.startX));
+        const h = Math.max(drag.rows.length * MIN_H, drag.startH + (e.clientY - drag.startY));
+        const ratioY = h / drag.startH;
+        const rowHs = drag.rows.map((r) => Math.max(MIN_H, Math.round(r.h0 * ratioY)));
+        drag.lastW = w;
+        drag.lastH = h;
+        drag.lastRowH = rowHs;
+        // 프리뷰 — PM 이 되돌려도 다음 이벤트마다 재적용 (행 DOM 이 교체됐을 수 있어 현재 표에서 다시 찾음)
+        if (drag.table.isConnected) {
+          drag.table.style.width = `${w}px`;
+          Array.from(drag.table.rows).forEach((el, i) => { el.style.height = `${rowHs[i] ?? MIN_H}px`; });
+        }
         e.preventDefault();
         return;
       }
-      dom.classList.toggle("rich-editor-row-resize", !!rowUnderPointer(e));
+      if (drag?.kind === "row") {
+        const h = Math.max(MIN_H, drag.startH + (e.clientY - drag.startY));
+        drag.lastH = h;
+        if (drag.tr.isConnected) drag.tr.style.height = `${h}px`;
+        e.preventDefault();
+        return;
+      }
+      const corner = tableCornerUnderPointer(e);
+      dom.classList.toggle("rich-editor-table-corner", !!corner);
+      dom.classList.toggle("rich-editor-row-resize", !corner && !!rowUnderPointer(e));
     };
     const onDown = (e: MouseEvent) => {
+      const table = tableCornerUnderPointer(e);
+      if (table) {
+        e.preventDefault();
+        e.stopPropagation();
+        const r = table.getBoundingClientRect();
+        const rowsEls = Array.from(table.rows);
+        // 열 기준 너비 — 셀이 가장 많은 행(병합 없는 행)에서 측정
+        const refRow = rowsEls.reduce((a, b) => (b.cells.length > a.cells.length ? b : a), rowsEls[0]);
+        drag = {
+          kind: "table", table, startX: e.clientX, startY: e.clientY, startW: r.width, startH: r.height,
+          rows: rowsEls.map((el) => ({ el, h0: el.getBoundingClientRect().height })),
+          cols: refRow ? Array.from(refRow.cells).map((c) => c.getBoundingClientRect().width) : [],
+        };
+        return;
+      }
       const tr = rowUnderPointer(e);
       if (!tr) return;
+      const rowTable = tr.closest("table");
+      if (!rowTable) return;
       e.preventDefault();
       e.stopPropagation();
-      drag = { tr, startY: e.clientY, startH: tr.getBoundingClientRect().height };
+      drag = { kind: "row", tr, table: rowTable as HTMLTableElement, rowIndex: tr.rowIndex, startY: e.clientY, startH: tr.getBoundingClientRect().height };
     };
-    const onUp = () => {
-      if (!drag) return;
-      const { tr } = drag;
-      const finalH = Math.max(MIN_H, Math.round(tr.getBoundingClientRect().height));
-      drag = null;
-      // DOM 미리보기 → 문서 속성으로 확정
-      let rowPos = -1;
-      editor.state.doc.descendants((node, pos) => {
-        if (rowPos >= 0) return false;
-        if (node.type.name === "tableRow" && editor.view.nodeDOM(pos) === tr) { rowPos = pos; return false; }
-        return true;
+
+    const commitRow = (d: Extract<NonNullable<typeof drag>, { kind: "row" }>) => {
+      if (d.lastH == null) return; // 이동 없는 클릭 — 커밋할 것 없음
+      const finalH = Math.max(MIN_H, Math.round(d.lastH));
+      const tablePos = findTablePos(d.table);
+      if (tablePos < 0) return;
+      const tableNode = editor.state.doc.nodeAt(tablePos);
+      if (!tableNode) return;
+      let i = 0;
+      let trx: typeof editor.state.tr | null = null;
+      tableNode.forEach((rowNode, offset) => {
+        if (trx || rowNode.type.name !== "tableRow") return;
+        if (i++ === d.rowIndex) {
+          trx = editor.state.tr.setNodeMarkup(tablePos + 1 + offset, undefined, { ...rowNode.attrs, rowheight: finalH });
+        }
       });
-      if (rowPos >= 0) {
-        const node = editor.state.doc.nodeAt(rowPos);
-        if (node) {
-          editor.view.dispatch(
-            editor.state.tr.setNodeMarkup(rowPos, undefined, { ...node.attrs, rowheight: finalH }),
-          );
+      if (trx) editor.view.dispatch(trx);
+    };
+
+    const commitTable = (d: Extract<NonNullable<typeof drag>, { kind: "table" }>) => {
+      if (d.lastW == null || d.lastH == null) return; // 이동 없는 클릭
+      const finalW = d.lastW;
+      const tablePos = findTablePos(d.table);
+      if (tablePos < 0) return;
+      const tableNode = editor.state.doc.nodeAt(tablePos);
+      if (!tableNode) return;
+      const map = TableMap.get(tableNode);
+      let trx = editor.state.tr;
+
+      // 가로 — 열 너비를 비율대로 (측정 못 한 병합 표는 균등 분배)
+      if (Math.abs(finalW - d.startW) >= 2) {
+        const ratioX = finalW / d.startW;
+        const targetCols = d.cols.length === map.width
+          ? d.cols.map((w) => Math.max(MIN_COL, Math.round(w * ratioX)))
+          : Array.from({ length: map.width }, () => Math.max(MIN_COL, Math.round(finalW / map.width)));
+        const seen = new Set<number>();
+        for (let row = 0; row < map.height; row++) {
+          for (let col = 0; col < map.width; col++) {
+            const rel = map.map[row * map.width + col];
+            if (seen.has(rel)) continue;
+            seen.add(rel);
+            const cellPos = tablePos + 1 + rel;
+            const cellNode = editor.state.doc.nodeAt(cellPos);
+            if (!cellNode) continue;
+            const span = Number(cellNode.attrs.colspan) || 1;
+            trx = trx.setNodeMarkup(cellPos, undefined, { ...cellNode.attrs, colwidth: targetCols.slice(col, col + span) });
+          }
         }
       }
+
+      // 세로 — 각 행의 추적 높이를 rowheight 로 확정 (가로만 끌었으면 건드리지 않음)
+      if (Math.abs(d.lastH - d.startH) >= 2 && d.lastRowH) {
+        let i = 0;
+        tableNode.forEach((rowNode, offset) => {
+          if (rowNode.type.name !== "tableRow") return;
+          const h = d.lastRowH![i++];
+          if (h == null) return;
+          trx = trx.setNodeMarkup(tablePos + 1 + offset, undefined, { ...rowNode.attrs, rowheight: h });
+        });
+      }
+
+      if (trx.steps.length) editor.view.dispatch(trx);
+    };
+
+    const onUp = () => {
+      if (!drag) return;
+      const d = drag;
+      drag = null;
+      if (d.kind === "row") commitRow(d);
+      else commitTable(d);
     };
 
     dom.addEventListener("mousemove", onMove);
-    dom.addEventListener("mousedown", onDown);
+    dom.addEventListener("mousedown", onDown, true); // capture — 모서리에서 열 조절(columnResizing)보다 먼저
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
     return () => {
       dom.removeEventListener("mousemove", onMove);
-      dom.removeEventListener("mousedown", onDown);
+      dom.removeEventListener("mousedown", onDown, true);
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
     };
