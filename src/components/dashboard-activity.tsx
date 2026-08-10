@@ -24,8 +24,12 @@ function md(d?: string | null): string {
 const soft = (c: string, p = 12) => `color-mix(in srgb, ${c} ${p}%, transparent)`;
 
 // ── 공용 카드 셸 ──
-export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, children, count }: {
-  title: string; href: string; hrefLabel?: string; empty?: boolean; count?: number; children: React.ReactNode;
+//   2026-08-10 리파인: 링크는 조용한 회색(호버 시 착색) 통일, 빈 상태는 한 줄 안내 +
+//   "어떻게 채우는지" 링크(emptyText/emptyAction) — 빈 위젯이 다음 행동을 알려준다.
+export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, emptyText = "표시할 내용이 없습니다.", emptyAction, children, count }: {
+  title: string; href: string; hrefLabel?: string; empty?: boolean;
+  emptyText?: string; emptyAction?: { label: string; href: string };
+  count?: number; children: React.ReactNode;
 }) {
   return (
     <div className="activity-card glass-card">
@@ -34,11 +38,14 @@ export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, c
           <h3 className="text-[13px] font-bold text-[var(--text)] truncate">{title}</h3>
           {count != null && count > 0 && <span className="text-[11px] font-semibold text-[var(--text-dim)] mono-number">{count}</span>}
         </div>
-        <Link href={href} className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">{hrefLabel} →</Link>
+        <Link href={href} className="widget-more-link">{hrefLabel} →</Link>
       </div>
-      {empty
-        ? <div className="activity-card-empty">표시할 내용이 없습니다.</div>
-        : <div className="activity-card-rows">{children}</div>}
+      {empty ? (
+        <div className="widget-empty">
+          <span className="widget-empty-text">{emptyText}</span>
+          {emptyAction && <Link href={emptyAction.href} className="widget-empty-action">{emptyAction.label} →</Link>}
+        </div>
+      ) : <div className="activity-card-rows">{children}</div>}
     </div>
   );
 }
@@ -73,7 +80,8 @@ export function RecentProjects({ companyId }: { companyId: string }) {
     },
   });
   return (
-    <ActivityCard title="최근 프로젝트" href="/projecthub" empty={data.length === 0}>
+    <ActivityCard title="최근 프로젝트" href="/projecthub" empty={data.length === 0}
+      emptyText="진행 중인 프로젝트가 없습니다." emptyAction={{ label: "첫 프로젝트 만들기", href: "/projecthub" }}>
       {data.map((p) => {
         const st = STAGE[p.stage] || { l: p.stage || "-", c: "var(--text-dim)" };
         return (
@@ -105,7 +113,8 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
     },
   });
   return (
-    <ActivityCard title="이번 달 매출" href="/reports/revenue" hrefLabel="매출 현황" empty={!data || data.count === 0}>
+    <ActivityCard title="이번 달 매출" href="/reports/revenue" hrefLabel="매출 현황" empty={!data || data.count === 0}
+      emptyText="이번 달 발행된 매출 세금계산서가 없습니다." emptyAction={{ label: "세금계산서 발행하기", href: "/tax-invoices" }}>
       {data && (
         <>
           <div className="revenue-total-row">
@@ -139,7 +148,8 @@ export function RecentInvoices({ companyId }: { companyId: string }) {
     },
   });
   return (
-    <ActivityCard title="최근 세금계산서" href="/tax-invoices" empty={data.length === 0}>
+    <ActivityCard title="최근 세금계산서" href="/tax-invoices" empty={data.length === 0}
+      emptyText="수집된 세금계산서가 없습니다." emptyAction={{ label: "홈택스 연결하고 자동 수집하기", href: "/settings?tab=bank" }}>
       {data.map((inv) => {
         const isSales = inv.type === "sales";
         return (

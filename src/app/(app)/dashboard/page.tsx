@@ -537,10 +537,48 @@ export default function DashboardPage() {
             />
           </div>)}
 
-          {/* 데이터 신선도 + 미분류 정리 — 재무 권한 보유자만 */}
+          {/* 데이터 유틸리티 행 — 신선도 + 동기화·업로드 도구를 한 줄로(2026-08-10 리파인:
+              그리드 아래에 고아처럼 떨어져 있던 도구 버튼을 데이터 위젯들 바로 위로) */}
           {canFinance && companyId && (
-            <div className="flex items-center justify-end">
+            <div className="dash-utility-row">
               <SyncFreshness companyId={companyId} />
+              {/* ml-auto: 신선도 표시가 아직 없을 때도 버튼은 오른쪽 정렬 유지 */}
+              <div className="ml-auto flex items-center gap-1.5">
+                <button onClick={handleDataSync} disabled={syncing} className="dash-tool-btn">
+                  {syncing ? "동기화 중..." : "지금 동기화"}
+                </button>
+                <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
+                <button onClick={() => fileRef.current?.click()} disabled={uploading} className="dash-tool-btn">
+                  {uploading ? "올리는 중..." : "엑셀 업로드"}
+                </button>
+                {!hasData && (
+                  <button onClick={handleSampleData} disabled={generating} className="dash-tool-btn">
+                    {generating ? "..." : "샘플 데이터"}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          {/* 동기화·엑셀 결과 토스트 — 버튼 곁에서 바로 보이게 */}
+          {canFinance && parseResult && (
+            <div className={`dashboard-parse-toast ${
+              parseResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
+                : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
+            }`}>
+              {parseResult.message}
+              <button onClick={() => setParseResult(null)} className="ml-2 opacity-60 hover:opacity-100">✕</button>
+            </div>
+          )}
+          {canFinance && syncResult && (
+            <div className={`dashboard-sync-toast ${
+              syncResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
+                : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
+            }`}>
+              <span>{syncResult.message}</span>
+              <span className="flex items-center gap-2">
+                <span className="opacity-60">{syncResult.time}</span>
+                <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100">✕</button>
+              </span>
             </div>
           )}
           {canFinance && companyId && <UnclassifiedPrompt companyId={companyId} />}
@@ -602,67 +640,10 @@ export default function DashboardPage() {
            2026-07-15 하단 단독 '상세 분석·추이 보기' 링크는 경영 요약(biz) 위젯 안으로 이동. ═══ */}
 
       {/* ═══ 경영 종합 — CEO 커맨드 센터(액션·펄스·목표·리스크). owner 전용, 상시 노출. ═══ */}
-      {canFinance && (<>
-      <div className="dashboard-toolbar">
-        {/* 상단: 브리핑 + 액션 버튼 — 모바일은 세로, 데스크톱은 가로 */}
-        <div className="mb-3">
-          {/* 라운드7.1 — MorningBrief 는 대시보드 최상단(시안 메인)으로 이동. 여기엔 도구 버튼만 유지 */}
-          <div className="dashboard-toolbar-actions">
-            {(
-              <button onClick={handleDataSync} disabled={syncing}
-                className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition disabled:opacity-50 ${
-                  syncing
-                    ? 'bg-[var(--primary)]/20 text-[var(--primary)]'
-                    : 'bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20'
-                }`}>
-                {syncing ? '동기화 중...' : '동기화'}
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
-            <button onClick={() => fileRef.current?.click()} disabled={uploading}
-              className="px-2.5 py-1.5 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] text-[10px] font-semibold hover:bg-[var(--primary)]/20 transition disabled:opacity-50">
-              {uploading ? '...' : '업로드'}
-            </button>
-            {!hasData && (
-              <button onClick={handleSampleData} disabled={generating}
-                className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] text-[10px] font-semibold hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
-                {generating ? '...' : '샘플'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Toast 영역 (파싱/동기화 결과) */}
-        {parseResult && (
-          <div className={`dashboard-parse-toast ${
-            parseResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
-              : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
-          }`}>
-            {parseResult.message}
-            <button onClick={() => setParseResult(null)} className="ml-2 opacity-60 hover:opacity-100">✕</button>
-          </div>
-        )}
-        {syncResult && (
-          <div className={`dashboard-sync-toast ${
-            syncResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
-              : 'bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]'
-          }`}>
-            <span>{syncResult.message}</span>
-            <span className="flex items-center gap-2">
-              <span className="opacity-60">{syncResult.time}</span>
-              <button onClick={() => setSyncResult(null)} className="opacity-60 hover:opacity-100">✕</button>
-            </span>
-          </div>
-        )}
-
-      </div>
-
       {/* ═══ 경영 종합(CEO 커맨드 센터·프로젝트 경영 종합·월결산)은 마스터 전용 화면(/master)으로
            이동 (2026-08-10 사장님: "대시보드에는 owner-command-center 위에 것들만"). ═══ */}
-
       {/* 데이터 없음 CTA 도 마스터 화면으로 이동 (2026-08-10 사장님 2차 지시) */}
-
-      </>)}
+      {/* 동기화·업로드 버튼과 결과 토스트는 위젯 그리드 위 유틸리티 행으로 이동 (2026-08-10 리파인) */}
     </div>
   );
 }
@@ -674,16 +655,16 @@ function TaxScheduleWidget({ items }: { items: ReturnType<typeof getUpcomingTaxD
   if (items.length === 0) {
     return (
       <div className="dashboard-tax-schedule-empty glass-card">
-        <span className="text-[11px] font-bold uppercase tracking-wider mb-2 text-[var(--warning)]">세금 일정</span>
-        <div className="flex-1 flex items-center justify-center text-[11px] text-[var(--text-dim)]">다가오는 세금 일정이 없습니다.</div>
+        <span className="text-[13px] font-bold mb-2 text-[var(--text)]">세금 일정</span>
+        <div className="widget-empty"><span className="widget-empty-text">다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없어요.</span></div>
       </div>
     );
   }
   return (
     <Link href={items[0].href} className="dashboard-tax-schedule-link glass-card">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--warning)]">세금 일정</span>
-        <span className="text-[11px] font-semibold text-[var(--primary)]">이동 →</span>
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <span className="text-[13px] font-bold text-[var(--text)]">세금 일정</span>
+        <span className="widget-more-link">전체보기 →</span>
       </div>
       <div className="flex flex-col divide-y divide-[var(--border)]/60">
         {items.slice(0, 4).map((t) => (
@@ -894,27 +875,18 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   return (
     // 루트가 glass-card(흰 박스) — 제목·목록 모두 박스 안. h-full 로 셀 높이를 꽉 채움(다른 위젯과 통일).
     <div className="dashboard-todos-widget glass-card">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="dot-primary" />
-          <h2 className="eyebrow">내 할일 · 일정</h2>
-          {items.length > 0 && (
-            <span className="min-w-5 h-5 flex items-center justify-center rounded-full bg-[var(--primary)]/15 text-[var(--primary)] text-[10px] font-bold px-1.5">
-              {items.length}
-            </span>
-          )}
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          <h2 className="text-[13px] font-bold text-[var(--text)] truncate">내 할일 · 일정</h2>
+          {items.length > 0 && <span className="text-[11px] font-semibold text-[var(--text-dim)] mono-number">{items.length}</span>}
         </div>
-        <Link href="/schedule" className="text-[10px] text-[var(--text-muted)] hover:text-[var(--primary)] transition">
-          전체 보기 →
-        </Link>
+        <Link href="/schedule" className="widget-more-link">전체보기 →</Link>
       </div>
       <div className="flex-1">
       {items.length === 0 ? (
-        <div className="text-center py-4">
-          <p className="text-xs text-[var(--text-muted)] mb-2">등록된 할일·일정이 없습니다.</p>
-          <Link href="/schedule" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 text-[var(--primary)] transition">
-            + 추가
-          </Link>
+        <div className="widget-empty">
+          <span className="widget-empty-text">등록된 할일·일정이 없습니다.</span>
+          <Link href="/schedule" className="widget-empty-action">할 일 추가하기 →</Link>
         </div>
       ) : (
         <div className="space-y-1.5">

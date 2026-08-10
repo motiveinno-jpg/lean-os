@@ -117,7 +117,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     <div className="dashboard-calendar glass-card">
       <div className="dashboard-calendar-header">
         <h3 className="text-[13px] font-bold text-[var(--text)]">{year}년 {month + 1}월 <span className="text-[var(--text-dim)] font-normal">일정 · 할 일 · 휴가</span></h3>
-        <Link href="/schedule" className="text-[11px] font-semibold text-[var(--primary)] hover:underline no-underline">전체 보기 →</Link>
+        <Link href="/schedule" className="widget-more-link">전체보기 →</Link>
       </div>
 
       <div className="dashboard-calendar-weekdays">

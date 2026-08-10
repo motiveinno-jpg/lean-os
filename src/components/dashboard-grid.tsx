@@ -276,15 +276,15 @@ export function DashboardGrid({
         {edit && isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">모바일에서는 위젯 추가/삭제만 가능합니다. 배치 편집은 데스크톱에서 하세요.</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0 relative">
-        {edit && <button onClick={() => setPicking((v) => !v)} className="btn-secondary btn-sm no-drag">{picking ? "닫기" : `＋ 위젯 추가${addable.length ? ` (${addable.length})` : ""}`}</button>}
+        {edit && <button onClick={() => setPicking((v) => !v)} className="btn-secondary btn-sm no-drag">{picking ? "닫기" : `위젯 추가${addable.length ? ` (${addable.length})` : ""}`}</button>}
         {edit && <button onClick={copyLayout} className="btn-secondary btn-sm no-drag">{copied ? "복사됨!" : "배치 복사"}</button>}
         {edit && <button onClick={reset} className="btn-secondary btn-sm no-drag">기본값</button>}
-        <button onClick={() => { setEdit((v) => !v); setPicking(false); }} className={`btn-sm no-drag ${edit ? "btn-primary" : "btn-secondary"}`}>{edit ? "✓ 편집 완료" : "⠿ 위젯 편집"}</button>
+        <button onClick={() => { setEdit((v) => !v); setPicking(false); }} className={`btn-sm no-drag ${edit ? "btn-primary" : "btn-secondary"}`}>{edit ? "편집 완료" : "위젯 편집"}</button>
         {edit && picking && (
           <div className="widget-picker">
             {addable.length === 0 ? <div className="text-[12px] text-[var(--text-dim)] text-center py-6">추가할 수 있는 위젯이 없습니다.<br />모든 위젯이 이미 표시 중입니다.</div> : pickerList.map((c) => (
               <button key={c.id} onClick={() => addWidget(c.id)} className="w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--bg-surface)] transition">
-                <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[14px] shrink-0">{c.icon || "🧩"}</span>
+                <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-[14px] shrink-0"><Ico e={c.icon || "🧩"} /></span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className="text-[12px] font-bold text-[var(--text)] truncate">{c.name}</span>

@@ -82,11 +82,11 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
     <div className="receivables-preview glass-card">
       <div className="receivables-preview-header">
         <div className="min-w-0 flex items-baseline gap-2">
-          <span className="text-[11px] font-bold uppercase tracking-wider shrink-0 text-[var(--danger)]">미수금</span>
+          <span className="text-[13px] font-bold shrink-0 text-[var(--text)]">미수금</span>
           <span className="text-[17px] leading-none font-extrabold mono-number text-[var(--danger)]">{won(data.total)}</span>
-          <span className="text-[10px] text-[var(--text-dim)] truncate">거래처 {data.list.length}곳</span>
+          <span className="text-[11px] text-[var(--text-dim)] truncate">거래처 {data.list.length}곳</span>
         </div>
-        <Link href="/partners/ledger?type=sales" className="text-[11px] font-semibold text-[var(--primary)] hover:underline shrink-0 no-underline">이동 →</Link>
+        <Link href="/partners/ledger?type=sales" className="widget-more-link">전체보기 →</Link>
       </div>
       <div className="receivables-preview-list">
         {top.map((g) => (

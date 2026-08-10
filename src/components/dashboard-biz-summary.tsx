@@ -28,8 +28,8 @@ const col = (t: string) => (t === "success" ? "var(--success)" : t === "warning"
 function Signal({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[10px] text-[var(--text-dim)] mb-0.5 truncate">{label}</div>
-      <div className="text-[14px] leading-tight font-extrabold mono-number truncate" style={{ color: col(tone) }}>{value}</div>
+      <div className="text-[11px] text-[var(--text-dim)] mb-0.5 truncate">{label}</div>
+      <div className="text-[15px] leading-tight font-extrabold mono-number truncate" style={{ color: col(tone) }}>{value}</div>
     </div>
   );
 }
@@ -39,8 +39,8 @@ export function DashboardBizSummary({ monthRevenue, expense, balance, runwayMont
   return (
     <Link href="/reports/summary" className="dashboard-biz-summary glass-card">
       <div className="dashboard-biz-summary-header">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--primary)]">경영 요약</span>
-        <span className="text-[11px] font-semibold text-[var(--primary)]">자세히 →</span>
+        <span className="text-[13px] font-bold text-[var(--text)]">경영 요약</span>
+        <span className="widget-more-link">자세히 →</span>
       </div>
       {/* 건강 신호 3 */}
       <div className="dashboard-biz-summary-signals">

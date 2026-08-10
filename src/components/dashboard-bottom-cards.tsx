@@ -199,7 +199,7 @@ export function CardsSummaryCard({ companyId }: { companyId: string }) {
   });
   return (
     <CompactAssetCard title="카드" color={A.red} total={cards?.total ?? 0} totalLabel="이번 달 사용"
-      rows={(cards?.list || []).slice(0, 3)} count={cards?.count ?? 0} href="/cards" empty="이번 달 카드 사용 없음" />
+      rows={(cards?.list || []).slice(0, 3)} count={cards?.count ?? 0} href="/cards" empty="이번 달 카드 사용이 없습니다 — 카드를 연결하면 사용액이 자동 집계됩니다." />
   );
 }
 
@@ -217,7 +217,7 @@ export function AssetsSummaryCard({ companyId }: { companyId: string }) {
   });
   return (
     <CompactAssetCard title="자산" color={A.green} total={assets?.total ?? 0} totalLabel="총 자산"
-      rows={(assets?.list || []).slice(0, 3)} count={assets?.count ?? 0} href="/bank" empty="등록된 계좌 없음" />
+      rows={(assets?.list || []).slice(0, 3)} count={assets?.count ?? 0} href="/bank" empty="등록된 계좌가 없습니다 — 통장을 연결하면 잔액이 자동으로 모입니다." />
   );
 }
 
@@ -231,13 +231,13 @@ function CompactAssetCard({ title, color, total, totalLabel, rows, count, href, 
       <div className="compact-asset-header">
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-          <span className="text-[12px] font-semibold text-[var(--text-muted)]">{title}</span>
-          <span className="text-[10px] text-[var(--text-dim)] truncate">· {totalLabel}</span>
+          <span className="text-[13px] font-bold text-[var(--text)]">{title}</span>
+          <span className="text-[11px] text-[var(--text-dim)] truncate">· {totalLabel}</span>
         </div>
         <span className="text-[17px] leading-none font-extrabold tabular-nums shrink-0" style={{ color }}>{fmtW(total)}</span>
       </div>
       {rows.length === 0 ? (
-        <div className="text-[11px] text-[var(--text-dim)] mt-2">{empty}</div>
+        <div className="widget-empty"><span className="widget-empty-text">{empty}</span></div>
       ) : (
         <div className="compact-asset-rows">
           {rows.map((r) => (
@@ -248,7 +248,7 @@ function CompactAssetCard({ title, color, total, totalLabel, rows, count, href, 
           ))}
         </div>
       )}
-      <div className="mt-2 text-[11px] font-semibold text-[var(--primary)]">{count}개 전체보기 →</div>
+      <div className="widget-more-link mt-2">{count}개 전체보기 →</div>
     </Link>
   );
 }

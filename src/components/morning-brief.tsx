@@ -346,7 +346,8 @@ export function MorningBrief({
         {today} · {companyName}
       </p>
 
-      <div className="space-y-1.5 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.6] sm:leading-[1.85] tracking-[-0.01em] break-keep">
+      {/* max-w: 넓은 화면에서 문장이 한 줄 70자 이상 늘어지지 않게(가독 폭) — 카드 폭은 유지 */}
+      <div className="max-w-[46rem] space-y-1.5 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.6] sm:leading-[1.85] tracking-[-0.01em] break-keep">
         {briefPlan ? (
           /* ── AI 브리핑 2.0: 오늘의 액션 플랜 ── */
           <div className="brief-plan">

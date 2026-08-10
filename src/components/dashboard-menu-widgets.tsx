@@ -51,7 +51,8 @@ export function BankRecentCard({ companyId }: { companyId: string }) {
     },
   });
   return (
-    <ActivityCard title="통장 거래" href="/bank" empty={data.length === 0}>
+    <ActivityCard title="통장 거래" href="/bank" empty={data.length === 0}
+      emptyText="아직 거래 내역이 없습니다." emptyAction={{ label: "통장 연결하고 자동 수집하기", href: "/settings?tab=bank" }}>
       {data.map((t) => {
         const isIn = t.type === "in" || t.type === "deposit" || Number(t.amount) > 0;
         return (
@@ -99,7 +100,8 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
   ].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 6);
 
   return (
-    <ActivityCard title="결재 대기" href="/approvals" count={data?.total} empty={(data?.total ?? 0) === 0}>
+    <ActivityCard title="결재 대기" href="/approvals" count={data?.total} empty={(data?.total ?? 0) === 0}
+      emptyText="대기 중인 결재가 없습니다 — 모두 처리했어요.">
       {items.map((it) => (
         <Link key={`${it.kind}-${it.id}`} href={it.href} className="dash-approval-row">
           <Badge label={it.badge} tone="var(--warning)" />
@@ -128,7 +130,8 @@ export function EmployeesCard({ companyId }: { companyId: string }) {
   });
   const list = data?.list || [];
   return (
-    <ActivityCard title="구성원" href="/employees" count={data?.count} empty={list.length === 0}>
+    <ActivityCard title="구성원" href="/employees" count={data?.count} empty={list.length === 0}
+      emptyText="등록된 구성원이 없습니다." emptyAction={{ label: "직원 초대하기", href: "/employees" }}>
       {list.map((e) => (
         <Link key={e.id} href="/employees" className="dash-employee-row">
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{e.name || "-"}</span>
@@ -153,7 +156,8 @@ export function PartnersCard({ companyId }: { companyId: string }) {
   });
   const list = data?.list || [];
   return (
-    <ActivityCard title="거래처" href="/partners" count={data?.count} empty={list.length === 0}>
+    <ActivityCard title="거래처" href="/partners" count={data?.count} empty={list.length === 0}
+      emptyText="등록된 거래처가 없습니다." emptyAction={{ label: "거래처 등록하기", href: "/partners" }}>
       {list.map((p) => (
         <Link key={p.id} href="/partners" className="dash-partner-row">
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{p.name || "-"}</span>
@@ -175,7 +179,8 @@ export function AnnouncementsCard() {
     },
   });
   return (
-    <ActivityCard title="공지사항" href="/announcements" empty={data.length === 0}>
+    <ActivityCard title="공지사항" href="/announcements" empty={data.length === 0}
+      emptyText="아직 등록된 공지가 없습니다." emptyAction={{ label: "첫 공지 쓰기", href: "/announcements" }}>
       {data.map((a) => (
         <Link key={a.id} href="/announcements" className="dash-announcement-row">
           {a.pinned && <span className="text-[11px] shrink-0"><Ico e="📌" /></span>}
@@ -200,7 +205,8 @@ export function MyTasksCard({ userId }: { userId: string }) {
     },
   });
   return (
-    <ActivityCard title="내 담당 업무" href="/projecthub" count={data.length} empty={data.length === 0}>
+    <ActivityCard title="내 담당 업무" href="/projecthub" count={data.length} empty={data.length === 0}
+      emptyText="배정된 담당 업무가 없습니다.">
       {data.map((t) => {
         const d = dday(t.due_date);
         const overdue = d != null && d < 0;

@@ -2173,8 +2173,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* 마스터 전용 화면 (2026-08-10) — 대시보드 하단 경영 종합 3종 이동 */
 .master-page { @apply pb-20 md:pb-0; }
 .dashboard-owner-widgets-section { @apply space-y-4 mb-6; }
-.dashboard-toolbar { @apply mb-4; }
-.dashboard-toolbar-actions { @apply flex items-center gap-1.5 justify-end mb-2; }
+/* .dashboard-toolbar(-actions) — 2026-08-10 리파인으로 제거: 동기화·업로드는 dash-utility-row 로 이동 */
 .dashboard-parse-toast { @apply mb-3 p-2.5 rounded-lg text-xs whitespace-pre-line; }
 .dashboard-sync-toast { @apply mb-3 p-2.5 rounded-lg text-xs flex items-center justify-between; }
 .dashboard-empty-state-cta { @apply mb-4 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border)]; }
@@ -4672,6 +4671,22 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .unclassified-prompt { @apply mb-4 flex items-center gap-3 px-4 py-2.5 rounded-xl border; }
 .prompt-text { @apply min-w-0 flex-1; }
 
+/* ── 대시보드 위젯 공통 언어 (2026-08-10 대시보드 리파인) ──
+   모든 위젯이 같은 문법을 쓴다: 13px 굵은 제목(본문색) + 오른쪽 조용한 '전체보기' 링크(호버 시 착색).
+   빈 상태는 한 줄 안내 + 채우는 방법 링크 — "표시할 내용이 없습니다"만 덩그러니 두지 않는다. */
+.widget-more-link { @apply text-[11px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)] transition-colors shrink-0 no-underline; }
+.widget-empty { @apply flex-1 flex flex-col items-center justify-center gap-1 py-5 text-center min-h-[72px]; }
+.widget-empty-text { @apply text-[12px] text-[var(--text-dim)] leading-relaxed break-keep max-w-[260px]; }
+.widget-empty-action { @apply text-[11px] font-semibold text-[var(--primary)] hover:underline underline-offset-2 no-underline; }
+.dash-tool-btn { @apply px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[11px] font-semibold text-[var(--text-muted)] hover:border-[var(--primary)]/40 hover:text-[var(--text)] transition disabled:opacity-50; }
+.dash-utility-row { @apply mb-2 flex items-center justify-between gap-2 flex-wrap; }
+/* 위젯 타일 호버 — 클릭 가능한 카드(<a>)만 보더 착색·그림자 상승. 편집 모드는 제외 */
+.dashboard-widget-tile .glass-card { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+.dashboard-grid:not(.rgl-editing) .dashboard-widget-tile a.glass-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--glass-border));
+  box-shadow: var(--shadow-lg);
+}
+
 /* dashboard-biz-summary.tsx */
 .dashboard-biz-summary { @apply px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition; }
 .dashboard-biz-summary-header { @apply flex items-center justify-between mb-2; }
@@ -4805,8 +4820,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .doc-edit-modal-actions { @apply flex justify-end gap-2 pt-2 border-t border-[var(--border)]; }
 
 /* dashboard-activity.tsx */
-.activity-card { @apply px-4 py-3 flex flex-col; }
-.activity-card-header { @apply flex items-center justify-between mb-2; }
+.activity-card { @apply p-4 flex flex-col; }
+.activity-card-header { @apply flex items-center justify-between gap-2 mb-2.5; }
 .activity-card-empty { @apply text-[11px] text-[var(--text-dim)] py-2 text-center; }
 .activity-card-rows { @apply flex flex-col divide-y divide-[var(--border)]/60; }
 .project-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
