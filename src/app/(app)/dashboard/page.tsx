@@ -26,7 +26,7 @@ import { FunnelChart, type FunnelStage } from "@/components/funnel-chart";
 import { UpcomingScheduleCard } from "@/components/upcoming-schedule";
 import { DrillDownTable } from "@/components/drill-down-table";
 import { OnboardingWizard, shouldShowOnboarding } from "@/components/onboarding";
-import { AppTour, shouldStartTour } from "@/components/app-tour";
+import { isTourActive } from "@/components/app-tour";
 import { supabase } from "@/lib/supabase";
 import { subscribeToBankAccounts } from "@/lib/realtime";
 import { checkIn as hrCheckIn, checkOut as hrCheckOut, cancelCheckOut as hrCancelCheckOut } from "@/lib/hr";
@@ -108,12 +108,7 @@ export default function DashboardPage() {
   const [parseResult, setParseResult] = useState<{ success: boolean; message: string } | null>(null);
   const [generating, setGenerating] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  // 첫 가입 탭 투어 — 온보딩이 ?tour=1 로 보낸다. 투어 중에는 온보딩 체크리스트 팝업을 띄우지 않는다 (2026-08-10).
-  const [showTour, setShowTour] = useState(false);
-  useEffect(() => {
-    const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    if (shouldStartTour(sp)) setShowTour(true);
-  }, []);
+  // 첫 가입 탭 투어는 앱 셸(AppTourHost)이 띄운다 — 여기서는 투어 중일 때 온보딩 체크리스트 팝업만 억제 (2026-08-10).
   const [dealCount, setDealCount] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string; time: string } | null>(null);
@@ -141,7 +136,7 @@ export default function DashboardPage() {
           .eq("company_id", u.company_id);
         const dc = count ?? 0;
         setDealCount(dc);
-        const tourRequested = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tour") === "1";
+        const tourRequested = (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tour") === "1") || isTourActive();
         if (shouldShowOnboarding(dc) && !tourRequested) {
           setShowOnboarding(true);
         }
@@ -491,9 +486,6 @@ export default function DashboardPage() {
 
       {/* (2026-07-30 개편 P2) 마스터 안내 — 권한 미부여 구성원은 기본 메뉴만 보임 */}
       <MasterPermissionNotice />
-
-      {/* ═══ 첫 가입 탭 투어 — 사이드바 메뉴를 하나씩 짚어준다 (2026-08-10) ═══ */}
-      {showTour && <AppTour companyId={companyId} onClose={() => setShowTour(false)} />}
 
       {/* ═══ 온보딩 위저드 (신규 가입 시) ═══ */}
       {showOnboarding && companyId && (

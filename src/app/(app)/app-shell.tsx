@@ -21,6 +21,7 @@ import { OwnerViewIcon } from "@/components/brand-logo";
 import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
+import { AppTourHost } from "@/components/app-tour";
 import { PopupProvider, PopupWindowsHost } from "@/components/popup-windows";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { AccessDenied } from "@/components/access-denied";
@@ -384,6 +385,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <FloatingMessenger />
       {/* 메뉴 팝업 창 — 사이드바에서 팝업으로 연 메뉴들(드래그·최소/최대/닫기). 셸 상주로 페이지 이동에도 유지. */}
       <PopupWindowsHost />
+      {/* 첫 가입 탭 투어 — 셸 상주라 투어 중 다른 화면으로 가도 유지, 새로고침도 sessionStorage 로 이어감 (2026-08-10) */}
+      <AppTourHost companyId={companyId} />
       {/* 글로벌 Mutation 에러 토스트 */}
       {mutationError && (
         <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-red-500/95 text-white text-xs font-medium shadow-lg max-w-sm text-center animate-[slide-in_0.3s_ease]">

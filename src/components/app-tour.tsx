@@ -2,16 +2,22 @@
 
 // 첫 가입 탭 투어 (2026-08-10 사장님 — 온보딩 개편).
 //   온보딩을 마치고 대시보드에 처음 도착하면(?tour=1) 사이드바의 각 탭을 하나씩
-//   하이라이트하며 사용 방법을 설명한다. 완료·건너뛰기는 계정별(user_preferences)로
-//   기억해 다시 보여주지 않는다(기기별 localStorage 는 보조).
+//   하이라이트하며 사용 방법을 설명한다. 완료·건너뛰기는 계정별(user_preferences)에 기록.
+//
+//   투어는 앱 셸(AppTourHost)에 상주한다 — 투어 중 사이드바로 다른 화면에 가도 유지되고,
+//   진행 스텝은 sessionStorage 에 남겨 새로고침해도 그 자리에서 이어간다. (2026-08-10 사장님 제보:
+//   대시보드 안에만 마운트돼 있어 다른 탭을 누르면 사라지고 다시 안 나타나던 것 수정)
+//   ?tour=1 은 명시적 요청이므로 완료 기록과 무관하게 항상 시작한다 — 기기 localStorage 게이트는
+//   같은 브라우저의 다른 계정(QA 등)까지 막아서 제거했다.
 //
 //   사이드바 항목을 못 찾는 화면(모바일·접힘)에서는 하이라이트 없이 카드만 가운데에 띄운다.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-const LS_KEY = "ov-app-tour-done";
+// 진행 중 스텝 번호 — 있으면 "투어 진행 중"이라는 뜻. 탭이 닫히면 자연 소멸(sessionStorage).
+const SS_KEY = "ov-app-tour-step";
 
 type TourStep = {
   href: string | null;
@@ -112,38 +118,48 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 export function shouldStartTour(searchParams: URLSearchParams | null): boolean {
-  if (!searchParams || searchParams.get("tour") !== "1") return false;
-  if (typeof window !== "undefined" && localStorage.getItem(LS_KEY)) return false;
-  return true;
+  return !!searchParams && searchParams.get("tour") === "1";
+}
+
+/** 투어가 진행 중인가 — 다른 화면(대시보드 온보딩 팝업 등)이 투어와 겹치지 않게 확인용 */
+export function isTourActive(): boolean {
+  if (typeof window === "undefined") return false;
+  try { return sessionStorage.getItem(SS_KEY) !== null; } catch { return false; }
+}
+
+/** 앱 셸 상주 호스트 — ?tour=1(시작) 또는 진행 중 스텝(새로고침 재개)을 감지해 투어를 띄운다 */
+export function AppTourHost({ companyId }: { companyId: string | null }) {
+  const pathname = usePathname();
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (show) return;
+    // 온보딩 완료가 router.replace("/dashboard?tour=1") 로 보내면 pathname 변경으로 여기 걸린다
+    const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    if (shouldStartTour(sp) || isTourActive()) setShow(true);
+  }, [pathname, show]);
+  if (!show) return null;
+  return <AppTour companyId={companyId} onClose={() => setShow(false)} />;
 }
 
 export function AppTour({ companyId, onClose }: { companyId: string | null; onClose: () => void }) {
   const router = useRouter();
-  const [idx, setIdx] = useState(0);
+  // 진행 스텝 복원 — 새로고침·재로그인해도 보던 자리에서 이어간다
+  const [idx, setIdx] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    try {
+      const saved = Number(sessionStorage.getItem(SS_KEY));
+      return Number.isInteger(saved) && saved > 0 && saved < TOUR_STEPS.length ? saved : 0;
+    } catch { return 0; }
+  });
   const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-  const [ready, setReady] = useState(false);
   const closedRef = useRef(false);
 
   const step = TOUR_STEPS[idx];
 
-  // 계정에 이미 완료 기록이 있으면 바로 닫는다 (URL 재방문·다른 기기 대비)
+  // 스텝 저장 — 마운트 직후 0부터 기록해 isTourActive() 가 곧바로 참이 되게
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) { setReady(true); return; }
-        const { data } = await (supabase as any)
-          .from("user_preferences").select("app_tour_done_at")
-          .eq("user_id", session.user.id).maybeSingle();
-        if (!alive) return;
-        if (data?.app_tour_done_at) { finish(false); return; }
-        setReady(true);
-      } catch { if (alive) setReady(true); }
-    })();
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    try { sessionStorage.setItem(SS_KEY, String(idx)); } catch { /* ignore */ }
+  }, [idx]);
 
   // 현재 스텝의 사이드바 항목 위치 계산
   const measure = useCallback(() => {
@@ -160,19 +176,18 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   }, [step]);
 
   useEffect(() => {
-    if (!ready) return;
     // scrollIntoView 후 자리가 잡히도록 두 번 측정
     measure();
     const t = setTimeout(measure, 350);
     window.addEventListener("resize", measure);
     return () => { clearTimeout(t); window.removeEventListener("resize", measure); };
-  }, [ready, idx, measure]);
+  }, [idx, measure]);
 
-  // 완료·건너뛰기 — 계정(user_preferences) + 기기(localStorage) 양쪽에 기록
+  // 완료·건너뛰기 — 계정(user_preferences)에 기록하고 진행 스텝을 지운다
   const finish = useCallback(async (persist = true) => {
     if (closedRef.current) return;
     closedRef.current = true;
-    try { localStorage.setItem(LS_KEY, "1"); } catch { /* ignore */ }
+    try { sessionStorage.removeItem(SS_KEY); } catch { /* ignore */ }
     if (persist) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -185,12 +200,17 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
         }
       } catch { /* 기록 실패해도 투어 종료는 진행 */ }
     }
-    // URL 의 ?tour=1 제거 — 새로고침 시 재시작 방지
-    router.replace("/dashboard");
+    // URL 에 ?tour=1 이 남아 있으면 떼어낸다 — 새로고침 시 재시작 방지 (지금 있는 화면은 유지)
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.has("tour")) {
+        sp.delete("tour");
+        const qs = sp.toString();
+        router.replace(window.location.pathname + (qs ? `?${qs}` : ""));
+      }
+    } catch { /* ignore */ }
     onClose();
   }, [companyId, onClose, router]);
-
-  if (!ready) return null;
 
   const isLast = idx === TOUR_STEPS.length - 1;
   // 말풍선 위치 — 하이라이트 오른쪽(사이드바 옆). 못 찾으면 화면 가운데.

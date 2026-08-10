@@ -2875,11 +2875,13 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .onboarding-bizreg-empty { @apply flex-1 text-xs text-[var(--text-dim)]; }
 .onboarding-bizreg-upload-btn { @apply shrink-0 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition; }
 
-/* 첫 가입 탭 투어 (2026-08-10) — 사이드바 항목 하이라이트 + 설명 말풍선 */
-.app-tour-root { @apply fixed inset-0 z-[120]; }
+/* 첫 가입 탭 투어 (2026-08-10) — 사이드바 항목 하이라이트 + 설명 말풍선.
+   루트는 클릭을 통과시킨다(pointer-events-none) — 투어 중에도 사이드바를 눌러 화면을 옮길 수 있고,
+   투어는 셸 상주라 따라간다. 말풍선만 클릭을 받는다. */
+.app-tour-root { @apply fixed inset-0 z-[120] pointer-events-none; }
 .app-tour-backdrop { @apply absolute inset-0 bg-black/55; }
 .app-tour-highlight { @apply fixed rounded-xl border-2 border-[var(--primary)] transition-all duration-300 pointer-events-none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); }
-.app-tour-tip { @apply w-[320px] max-w-[calc(100vw-32px)] p-4 shadow-2xl; }
+.app-tour-tip { @apply w-[320px] max-w-[calc(100vw-32px)] p-4 shadow-2xl pointer-events-auto; }
 .app-tour-tip-step { @apply text-[10px] font-bold text-[var(--primary)] mb-1; }
 .app-tour-tip-title { @apply text-sm font-bold text-[var(--text)]; }
 .app-tour-tip-desc { @apply text-xs text-[var(--text-muted)] leading-relaxed mt-1.5; }
