@@ -552,7 +552,7 @@ const WORKFLOWS: Workflow[] = [
     description: '회원가입 후 첫 설정을 완료하는 과정입니다. 10분이면 시작할 수 있습니다.',
     steps: [
       { title: '회원가입', description: '이메일로 가입하고 사업자등록번호를 입력하면 국세청에서 실시간으로 확인합니다. 이미 등록된 회사라면 마스터에게 합류 요청을 보낼 수 있습니다.' },
-      { title: '온보딩 마법사', description: '가입 직후 온보딩에서 회사 정보 → 계좌 → 첫 직원 → 첫 프로젝트를 차례로 등록합니다. 건너뛴 항목은 나중에 설정에서 언제든 완료할 수 있습니다.', route: '/onboarding' },
+      { title: '온보딩 마법사', description: '가입 직후 온보딩에서 회사 정보(사업자등록증 첨부)와 인증서 연동(통장·카드·홈택스 자동 수집)을 마치면 대시보드로 이동하며 화면 사용법 투어가 시작됩니다.', route: '/onboarding' },
       { title: '회사 정보 확인', description: '설정 → 회사정보에서 사업자등록번호, 대표자명, 주소를 확인·보완합니다. 세금계산서와 계약서 등 공식 문서에 사용됩니다.', route: '/settings?tab=company-info' },
       { title: '통장 등록', description: '설정 → 자금·통장에서 법인 계좌를 등록하고 용도(운영/세금/급여/예비)를 지정합니다.', route: '/settings?tab=cash' },
       { title: '거래처 등록', description: '거래처 메뉴에서 첫 번째 고객사 또는 공급사를 추가합니다. 사업자등록번호는 국세청에서 자동 검증됩니다.', route: '/partners' },

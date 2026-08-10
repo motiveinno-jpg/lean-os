@@ -2866,6 +2866,25 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .onboarding-wizard-step-card { @apply overflow-hidden; }
 .onboarding-footer { @apply px-6 sm:px-8 py-4 flex items-center justify-between; }
 .onboarding-skip-all { @apply mt-4 text-center; }
+
+/* 온보딩 1단계 — 사업자등록증 첨부 (2026-08-10) */
+.onboarding-bizreg-row { @apply flex items-center gap-3 flex-wrap p-3 rounded-xl bg-[var(--bg)]/50 border border-dashed border-[var(--border)]; }
+.onboarding-bizreg-done { @apply flex items-center gap-2 flex-1 min-w-0; }
+.onboarding-bizreg-filename { @apply text-xs font-semibold text-[var(--text)] truncate; }
+.onboarding-bizreg-view { @apply text-[11px] font-semibold text-[var(--primary)] hover:underline underline-offset-2 shrink-0; }
+.onboarding-bizreg-empty { @apply flex-1 text-xs text-[var(--text-dim)]; }
+.onboarding-bizreg-upload-btn { @apply shrink-0 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition; }
+
+/* 첫 가입 탭 투어 (2026-08-10) — 사이드바 항목 하이라이트 + 설명 말풍선 */
+.app-tour-root { @apply fixed inset-0 z-[120]; }
+.app-tour-backdrop { @apply absolute inset-0 bg-black/55; }
+.app-tour-highlight { @apply fixed rounded-xl border-2 border-[var(--primary)] transition-all duration-300 pointer-events-none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); }
+.app-tour-tip { @apply w-[320px] max-w-[calc(100vw-32px)] p-4 shadow-2xl; }
+.app-tour-tip-step { @apply text-[10px] font-bold text-[var(--primary)] mb-1; }
+.app-tour-tip-title { @apply text-sm font-bold text-[var(--text)]; }
+.app-tour-tip-desc { @apply text-xs text-[var(--text-muted)] leading-relaxed mt-1.5; }
+.app-tour-tip-actions { @apply flex items-center justify-between gap-2 mt-3.5 pt-3 border-t border-[var(--border)]; }
+.app-tour-skip { @apply text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2; }
 .onboarding-company-step { @apply space-y-5; }
 .onboarding-bank-step { @apply space-y-5; }
 .onboarding-employee-step { @apply space-y-5; }
@@ -3597,6 +3616,15 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .notification-slack-card { @apply p-5; }
 .notification-channel-card { @apply p-6; }
 .data-reset-warning-banner { @apply bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-md; }
+/* 회사 삭제 탭 (마스터 전용, 2026-08-10) */
+.company-delete-banner { @apply bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-md; }
+.company-delete-banner-icon { @apply w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg shrink-0; }
+.company-delete-open-btn { @apply px-4 py-2.5 rounded-xl text-sm font-semibold border border-red-500/40 text-red-500 hover:bg-red-500/10 transition; }
+.company-delete-confirm-card { @apply bg-[var(--bg-card)] border border-red-500/30 rounded-2xl p-6 space-y-4 shadow-md; }
+.company-delete-confirm-input { @apply w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-sm text-[var(--text)] focus:outline-none focus:border-red-500/60; }
+.company-delete-agree-row { @apply flex items-start gap-2 text-xs text-[var(--text-muted)] cursor-pointer; }
+.company-delete-execute-btn { @apply px-4 py-2.5 rounded-xl text-sm font-bold bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed; }
+.company-delete-done { @apply text-sm text-[var(--text-muted)] bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 text-center; }
 .data-reset-panel { @apply bg-[var(--bg-card)] rounded-2xl border border-red-500/20 p-6; }
 .data-reset-delete-list { @apply bg-[var(--bg-surface)] rounded-xl p-4 mb-5; }
 .data-reset-keep-list { @apply mt-3 pt-3 border-t border-[var(--border)]; }

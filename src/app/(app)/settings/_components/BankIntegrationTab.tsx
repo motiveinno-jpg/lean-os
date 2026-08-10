@@ -35,7 +35,8 @@ const CODEF_PUBLIC: Record<string, string> = {
   "0001": "국세청 홈택스",
 };
 
-function CodefAccountRegister({ companyId, onRegistered }: { companyId: string | null; onRegistered: () => void }) {
+// 온보딩 '금융 연결' 단계가 같은 등록 폼을 그대로 쓴다 (2026-08-10) — export 만 추가, 동작 무변경.
+export function CodefAccountRegister({ companyId, onRegistered }: { companyId: string | null; onRegistered: () => void }) {
   const { toast } = useToast();
   const [accountType, setAccountType] = useState<"bank" | "card" | "hometax">("bank");
   const [clientType, setClientType] = useState<"P" | "B">("B");

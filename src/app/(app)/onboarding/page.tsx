@@ -1,47 +1,26 @@
 "use client";
-import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
-import { Ico, icoColor } from "@/components/ui-icon";
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
-import { DateField } from "@/components/date-field";
+// 설정 > 연동·인증의 금융기관 등록 폼을 그대로 재사용 — 온보딩과 설정이 같은 코드를 본다 (2026-08-10)
+import { CodefAccountRegister } from "@/app/(app)/settings/_components/BankIntegrationTab";
 
 // ── Constants ──
+// 2026-08-10 개편(사장님): 첫 직원·첫 프로젝트·완료 단계 제거 — 회사 정보(+사업자등록증 첨부) →
+//   인증서 등록(통장·카드·홈택스 자동 수집) 2단계로 압축. 등록을 마치면 대시보드로 이동해
+//   첫 가입자에게 탭 투어(AppTour)를 보여준다.
 
 const STEPS = [
   { num: 1, label: "회사 정보", icon: "building" },
   { num: 2, label: "금융 연결", icon: "bank" },
-  { num: 3, label: "첫 직원", icon: "people" },
-  { num: 4, label: "첫 프로젝트", icon: "sparkles" },
-  { num: 5, label: "완료", icon: "check" },
 ] as const;
 
 const TOTAL_STEPS = STEPS.length;
-
-const KOREAN_BANKS = [
-  "KB 국민은행",
-  "신한은행",
-  "하나은행",
-  "우리은행",
-  "IBK 기업은행",
-  "NH 농협은행",
-  "KDB 산업은행",
-  "SC 제일은행",
-  "카카오뱅크",
-  "토스뱅크",
-  "케이뱅크",
-  "대구은행",
-  "부산은행",
-  "광주은행",
-  "수협은행",
-  "전북은행",
-  "경남은행",
-  "제주은행",
-];
 
 const INDUSTRIES = [
   "IT/소프트웨어",
@@ -57,8 +36,6 @@ const INDUSTRIES = [
 ];
 
 const BUSINESS_NUMBER_REGEX = /^\d{3}-\d{2}-\d{5}$/;
-
-const DEPARTMENTS = ["경영지원", "개발", "디자인", "마케팅", "영업", "인사", "재무", "기획", "기타"];
 
 // ── 인트로 단계 (2026-07-20 도입 — 역할 → 페인포인트 → 맞춤 가치제안 3화면 후 기존 위저드 진입).
 //    선택 결과는 companies.automation_settings.onboarding_profile 에 저장 (스키마 무변경).
@@ -91,7 +68,7 @@ const db = supabase;
 
 // ── Types ──
 
-type StepNumber = 1 | 2 | 3 | 4 | 5;
+type StepNumber = 1 | 2;
 
 interface CompanyForm {
   name: string;
@@ -100,36 +77,6 @@ interface CompanyForm {
   address: string;
   representative: string;
   phone: string;
-}
-
-interface BankForm {
-  bankName: string;
-  accountNumber: string;
-  accountAlias: string;
-  role: string;
-}
-
-interface EmployeeForm {
-  name: string;
-  position: string;
-  department: string;
-  email: string;
-  startDate: string;
-}
-
-interface DealForm {
-  name: string;
-  clientName: string;
-  expectedAmount: string;
-  expectedCloseDate: string;
-  type: "REVENUE" | "EXPENSE";
-}
-
-interface CompletionStatus {
-  companyInfo: boolean;
-  bankAccount: boolean;
-  employee: boolean;
-  deal: boolean;
 }
 
 // ── Main Component ──
@@ -152,13 +99,7 @@ export default function OnboardingPage() {
 
   const companyId = user?.company_id ?? null;
 
-  // Completion tracking
-  const [status, setStatus] = useState<CompletionStatus>({
-    companyInfo: false,
-    bankAccount: false,
-    employee: false,
-    deal: false,
-  });
+  const [companyDone, setCompanyDone] = useState(false);
 
   // Step 1: Company
   const [company, setCompany] = useState<CompanyForm>({
@@ -168,32 +109,6 @@ export default function OnboardingPage() {
     address: "",
     representative: "",
     phone: "",
-  });
-
-  // Step 2: Bank
-  const [bank, setBank] = useState<BankForm>({
-    bankName: "",
-    accountNumber: "",
-    accountAlias: "",
-    role: "OPERATING",
-  });
-
-  // Step 3: Employee
-  const [employee, setEmployee] = useState<EmployeeForm>({
-    name: "",
-    position: "",
-    department: "",
-    email: "",
-    startDate: todayKst(),
-  });
-
-  // Step 4: Deal
-  const [deal, setDeal] = useState<DealForm>({
-    name: "",
-    clientName: "",
-    expectedAmount: "",
-    expectedCloseDate: "",
-    type: "REVENUE",
   });
 
   // ── Validation ──
@@ -210,20 +125,10 @@ export default function OnboardingPage() {
     return errors;
   }, [company]);
 
-  const employeeValidation = useCallback(() => {
-    const errors: string[] = [];
-    if (!employee.name.trim()) errors.push("직원 이름을 입력해주세요");
-    if (employee.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(employee.email)) {
-      errors.push("이메일 형식이 올바르지 않습니다");
-    }
-    return errors;
-  }, [employee]);
-
-  const dealValidation = useCallback(() => {
-    const errors: string[] = [];
-    if (!deal.name.trim()) errors.push("프로젝트명을 입력해주세요");
-    return errors;
-  }, [deal]);
+  // 온보딩을 마치면(또는 건너뛰면) 대시보드로 — 첫 가입자라 탭 투어를 함께 시작한다.
+  const goDashboard = useCallback(() => {
+    router.replace("/dashboard?tour=1");
+  }, [router]);
 
   // ── Initialize: check existing data ──
 
@@ -255,51 +160,27 @@ export default function OnboardingPage() {
             phone: comp.phone || "",
           });
         }
+        setCompanyDone(hasCompany);
 
-        const { count: bankCount } = await db
-          .from("bank_accounts")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId ?? "");
-        const hasBank = (bankCount ?? 0) > 0;
-
-        const { count: empCount } = await db
-          .from("employees")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId ?? "");
-        const hasEmployee = (empCount ?? 0) > 0;
-
-        const { count: dealCount } = await db
-          .from("deals")
-          .select("id", { count: "exact", head: true })
-          .eq("company_id", companyId ?? "");
-        const hasDeal = (dealCount ?? 0) > 0;
-
-        const newStatus = {
-          companyInfo: hasCompany,
-          bankAccount: hasBank,
-          employee: hasEmployee,
-          deal: hasDeal,
-        };
-        setStatus(newStatus);
+        // 이미 금융 연결까지 끝난 회사가 다시 들어오면 온보딩은 볼 게 없다 → 대시보드
+        const { data: cs } = await db
+          .from("company_settings")
+          .select("codef_connected_id")
+          .eq("company_id", companyId ?? "")
+          .maybeSingle();
+        if (hasCompany && cs?.codef_connected_id) {
+          router.replace("/dashboard");
+          return;
+        }
 
         // 인트로는 아직 안 본 신규에게만 — onboarding_profile 저장 이후엔 다시 안 보임
         const aset = (comp?.automation_settings as Record<string, unknown> | null) || {};
         automationSettingsRef.current = aset;
-        const allDone = hasCompany && hasBank && hasEmployee && hasDeal;
-        if (!aset.onboarding_profile && !allDone) {
+        if (!aset.onboarding_profile && !hasCompany) {
           setIntro("role");
         }
 
-        // Auto-advance to first incomplete step
-        if (hasCompany && hasBank && hasEmployee && hasDeal) {
-          setStep(5);
-        } else if (hasCompany && hasBank && hasEmployee) {
-          setStep(4);
-        } else if (hasCompany && hasBank) {
-          setStep(3);
-        } else if (hasCompany) {
-          setStep(2);
-        }
+        if (hasCompany) setStep(2);
       } catch (err) {
         console.error("Status check error:", err);
       }
@@ -330,7 +211,7 @@ export default function OnboardingPage() {
       }).eq("id", companyId ?? "");
 
       if (e) throw e;
-      setStatus((prev) => ({ ...prev, companyInfo: true }));
+      setCompanyDone(true);
       toast("회사 정보가 저장되었습니다", "success");
       setStep(2);
       return true;
@@ -343,137 +224,9 @@ export default function OnboardingPage() {
     }
   }
 
-  async function saveBankInfo() {
-    if (!bank.bankName || !bank.accountNumber.trim()) {
-      // Allow skip
-      setStep(3);
-      return true;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const { error: e } = await db.from("bank_accounts").insert({
-        company_id: companyId as string,
-        bank_name: bank.bankName,
-        account_number: bank.accountNumber.replace(/[^0-9]/g, ""),
-        alias: bank.accountAlias || bank.bankName,
-        role: bank.role,
-        balance: 0,
-        is_primary: true,
-      });
-
-      if (e) throw e;
-      setStatus((prev) => ({ ...prev, bankAccount: true }));
-      toast("계좌가 등록되었습니다", "success");
-      setStep(3);
-      return true;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "저장 실패";
-      setError(message);
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveEmployee() {
-    const errors = employeeValidation();
-    if (errors.length > 0) {
-      setError(errors[0]);
-      return false;
-    }
-    if (!employee.name.trim()) {
-      setStep(4);
-      return true;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const { error: e } = await db.from("employees").insert({
-        company_id: companyId as string,
-        name: employee.name.trim(),
-        position: employee.position || null,
-        department: employee.department || null,
-        email: employee.email || null,
-        hire_date: employee.startDate || todayKst(),
-        status: "active",
-      });
-
-      if (e) throw e;
-      setStatus((prev) => ({ ...prev, employee: true }));
-      toast("직원이 등록되었습니다", "success");
-      setStep(4);
-      return true;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "저장 실패";
-      setError(message);
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveDeal() {
-    const errors = dealValidation();
-    if (errors.length > 0) {
-      setError(errors[0]);
-      return false;
-    }
-    if (!deal.name.trim()) {
-      setStep(5);
-      return true;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const amount = parseInt(deal.expectedAmount.replace(/[^0-9]/g, ""), 10) || 0;
-      // deals 실제 스키마: contract_total/counterparty/end_date/classification (amount/partner_name/
-      //   expected_close_date/type/stage:'lead' 는 존재하지 않음 — 구 스키마 오류로 insert 실패하던 것 수정).
-      //   stage 는 미설정 → DB default('estimate'). NewProjectModal 과 동일 컬럼 사용.
-      const { error: e } = await db.from("deals").insert({
-        company_id: companyId as string,
-        name: deal.name.trim(),
-        classification: "B2B",
-        contract_total: amount,
-        counterparty: deal.clientName || null,
-        end_date: deal.expectedCloseDate || null,
-        status: "active",
-      });
-
-      if (e) throw e;
-      setStatus((prev) => ({ ...prev, deal: true }));
-      toast("프로젝트가 등록되었습니다", "success");
-      setStep(5);
-      return true;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "저장 실패";
-      setError(message);
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function handleNext() {
-    setError("");
-    if (step === 1) saveCompanyInfo();
-    else if (step === 2) saveBankInfo();
-    else if (step === 3) saveEmployee();
-    else if (step === 4) saveDeal();
-  }
-
-  function handleSkip() {
-    setError("");
-    if (step < 5) setStep((step + 1) as StepNumber);
-  }
-
   function handleBack() {
     setError("");
     if (step > 1) setStep((step - 1) as StepNumber);
-  }
-
-  function handleComplete() {
-    router.replace("/dashboard");
   }
 
   // 인트로 완료 — 선택 결과 저장(실패해도 진행은 막지 않음) 후 위저드 진입
@@ -491,13 +244,14 @@ export default function OnboardingPage() {
     }
   }
 
-  // ── Keyboard: Enter to submit ──
+  // ── Keyboard: Enter to submit (1단계만 — 2단계는 인증서 폼이 자체 입력을 갖는다) ──
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (step === 1 && e.key === "Enter" && !e.shiftKey) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "TEXTAREA" || tag === "SELECT" || tag === "BUTTON") return;
       e.preventDefault();
-      if (step < 5) handleNext();
-      else handleComplete();
+      saveCompanyInfo();
     }
   }
 
@@ -528,15 +282,14 @@ export default function OnboardingPage() {
                 onClick={() => setIntroRole(r.key)}
                 className={introRole === r.key ? "onboarding-intro-option onboarding-intro-option-active" : "onboarding-intro-option"}
               >
-                <span>
-                  <span className="onboarding-intro-option-label">{r.label}</span>
-                  <span className="onboarding-intro-option-desc">{r.desc}</span>
-                </span>
+                <span className="onboarding-intro-option-label">{r.label}</span>
+                <span className="onboarding-intro-option-desc">{r.desc}</span>
               </button>
             ))}
           </div>
-          <div className="onboarding-intro-footer">
-            <button className="btn-primary" disabled={!introRole} onClick={() => setIntro("pain")}>다음으로</button>
+          <div className="onboarding-intro-actions">
+            <button className="onboarding-intro-skip" onClick={finishIntro}>건너뛰기</button>
+            <button className="btn-primary" disabled={!introRole} onClick={() => setIntro("pain")}>다음</button>
           </div>
         </div>
       </div>
@@ -546,53 +299,40 @@ export default function OnboardingPage() {
     return (
       <div className="onboarding-page">
         <div className="onboarding-intro-panel">
-          <h1 className="onboarding-intro-heading">회사 운영에서 가장 신경 쓰이거나<br />불편한 점은 무엇인가요?</h1>
-          <p className="onboarding-intro-sub">가장 가까운 하나를 골라주세요. 그 고민부터 해결해 드릴게요.</p>
+          <h1 className="onboarding-intro-heading">요즘 가장 골치 아픈 일이 무엇인가요?</h1>
+          <p className="onboarding-intro-sub">가장 가까운 하나를 골라주세요. 맞는 해결책부터 보여드릴게요.</p>
           <div className="onboarding-intro-options">
-            {INTRO_PAINS.map((p, i) => (
+            {INTRO_PAINS.map((p) => (
               <button
                 key={p.key}
                 onClick={() => setIntroPain(p.key)}
                 className={introPain === p.key ? "onboarding-intro-option onboarding-intro-option-active" : "onboarding-intro-option"}
               >
-                <span className="onboarding-intro-option-num">{i + 1}</span>
                 <span className="onboarding-intro-option-label">{p.label}</span>
               </button>
             ))}
           </div>
-          <div className="onboarding-intro-footer">
+          <div className="onboarding-intro-actions">
             <button className="onboarding-intro-back" onClick={() => setIntro("role")}>이전</button>
-            <button className="btn-primary" disabled={!introPain} onClick={() => setIntro("value")}>다음으로</button>
+            <button className="btn-primary" disabled={!introPain} onClick={() => setIntro("value")}>다음</button>
           </div>
         </div>
       </div>
     );
   }
   if (intro === "value") {
-    const solution = INTRO_SOLUTIONS[introPain] || INTRO_SOLUTIONS.blind;
-    const extras = INTRO_PAINS.filter((p) => p.key !== introPain).map((p) => INTRO_SOLUTIONS[p.key]);
+    const sol = INTRO_SOLUTIONS[introPain] || INTRO_SOLUTIONS.blind;
     return (
       <div className="onboarding-page">
         <div className="onboarding-intro-panel">
-          <h1 className="onboarding-intro-heading">그 고민, 오너뷰가<br />이렇게 해결해 드릴게요</h1>
-          <p className="onboarding-intro-sub">기본 설정만 마치면 바로 시작됩니다.</p>
-          <div className="onboarding-intro-value-card">
-            <div className="onboarding-intro-value-title">
-              {solution.title}
-              <span className="onboarding-intro-badge">{solution.badge}</span>
-            </div>
-            <p className="onboarding-intro-value-desc">{solution.desc}</p>
+          <h1 className="onboarding-intro-heading">그 고민, 오너뷰가 이렇게 해결해요</h1>
+          <div className="onboarding-intro-solution">
+            <span className="onboarding-intro-solution-badge">{sol.badge}</span>
+            <div className="onboarding-intro-solution-title">{sol.title}</div>
+            <p className="onboarding-intro-solution-desc">{sol.desc}</p>
           </div>
-          <div className="onboarding-intro-extra-title">이 외 제공되는 기능</div>
-          <div className="onboarding-intro-extra-list">
-            {extras.map((f) => (
-              <div key={f.title} className="onboarding-intro-extra-item">
-                <span className="onboarding-intro-extra-name">{f.title}</span>
-                <span className="onboarding-intro-extra-desc">{f.desc}</span>
-              </div>
-            ))}
-          </div>
-          <div className="onboarding-intro-footer">
+          <p className="onboarding-intro-sub">회사 정보와 인증서만 등록하면 바로 시작됩니다.</p>
+          <div className="onboarding-intro-actions">
             <button className="onboarding-intro-back" onClick={() => setIntro("pain")}>이전</button>
             <button className="btn-primary" onClick={finishIntro}>지금 시작하기 →</button>
           </div>
@@ -600,9 +340,6 @@ export default function OnboardingPage() {
       </div>
     );
   }
-
-  const completedCount = [status.companyInfo, status.bankAccount, status.employee, status.deal].filter(Boolean).length;
-  const progressPercent = ((step - 1) / (TOTAL_STEPS - 1)) * 100;
 
   return (
     <div className="onboarding-page" onKeyDown={handleKeyDown}>
@@ -612,7 +349,7 @@ export default function OnboardingPage() {
           <div className="flex items-center justify-between mb-2">
             {STEPS.map((s, i) => {
               const isActive = step === s.num;
-              const isDone = step > s.num || (s.num === 1 && status.companyInfo) || (s.num === 2 && status.bankAccount) || (s.num === 3 && status.employee) || (s.num === 4 && status.deal);
+              const isDone = step > s.num || (s.num === 1 && companyDone);
               return (
                 <div key={s.num} className="flex items-center flex-1">
                   <button
@@ -663,10 +400,7 @@ export default function OnboardingPage() {
 
         {/* Error banner */}
         {error && (
-          <div
-            className="onboarding-error-banner"
-            role="alert"
-          >
+          <div className="onboarding-error-banner" role="alert">
             <svg className="w-4 h-4 text-[var(--danger)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" />
               <line x1="15" y1="9" x2="9" y2="15" />
@@ -680,19 +414,10 @@ export default function OnboardingPage() {
         <div className="onboarding-wizard-step-card glass-card">
           <div className="p-6 sm:p-8 min-h-[380px] sm:min-h-[360px]">
             {step === 1 && (
-              <Step1Company data={company} onChange={setCompany} isCompleted={status.companyInfo} />
+              <Step1Company data={company} onChange={setCompany} isCompleted={companyDone} companyId={companyId} />
             )}
             {step === 2 && (
-              <Step2Bank data={bank} onChange={setBank} isCompleted={status.bankAccount} />
-            )}
-            {step === 3 && (
-              <Step3Employee data={employee} onChange={setEmployee} isCompleted={status.employee} />
-            )}
-            {step === 4 && (
-              <Step4Deal data={deal} onChange={setDeal} isCompleted={status.deal} />
-            )}
-            {step === 5 && (
-              <Step5Complete status={status} />
+              <Step2Finance companyId={companyId} onConnected={goDashboard} />
             )}
           </div>
 
@@ -702,7 +427,7 @@ export default function OnboardingPage() {
             style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}
           >
             <div>
-              {step > 1 && step < 5 && (
+              {step > 1 && (
                 <button
                   onClick={handleBack}
                   className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-card)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
@@ -712,36 +437,24 @@ export default function OnboardingPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {step >= 2 && step <= 4 && (
-                <button
-                  onClick={handleSkip}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                >
-                  건너뛰기
-                </button>
-              )}
-              {step < 5 && (
-                <button
-                  onClick={handleNext}
-                  disabled={saving}
-                  className="btn-primary"
-                >
+              {step === 1 && (
+                <button onClick={saveCompanyInfo} disabled={saving} className="btn-primary">
                   {saving ? (
                     <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       저장 중...
                     </span>
                   ) : (
-                    step === 1 ? "저장하고 다음" : "다음"
+                    "저장하고 다음"
                   )}
                 </button>
               )}
-              {step === 5 && (
+              {step === 2 && (
                 <button
-                  onClick={handleComplete}
-                  className="btn-primary"
+                  onClick={goDashboard}
+                  className="px-4 py-2.5 rounded-xl text-sm font-semibold text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                 >
-                  대시보드로 시작하기
+                  나중에 연결하기
                 </button>
               )}
             </div>
@@ -749,33 +462,33 @@ export default function OnboardingPage() {
         </div>
 
         {/* Skip all link */}
-        {step < 5 && (
-          <div className="onboarding-skip-all">
-            <button
-              onClick={() => router.replace("/dashboard")}
-              className="text-xs text-[var(--text-dim)] hover:text-[var(--text-muted)] transition underline underline-offset-2"
-            >
-              나중에 설정하기
-            </button>
-          </div>
-        )}
+        <div className="onboarding-skip-all">
+          <button
+            onClick={goDashboard}
+            className="text-xs text-[var(--text-dim)] hover:text-[var(--text-muted)] transition underline underline-offset-2"
+          >
+            나중에 설정하기
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════
-// Step 1: Company Info (회사 정보)
+// Step 1: Company Info (회사 정보 + 사업자등록증 첨부)
 // ═══════════════════════════════════════════
 
 function Step1Company({
   data,
   onChange,
   isCompleted,
+  companyId,
 }: {
   data: CompanyForm;
   onChange: (d: CompanyForm) => void;
   isCompleted: boolean;
+  companyId: string | null;
 }) {
   function formatBusinessNumber(value: string) {
     const digits = value.replace(/[^0-9]/g, "").slice(0, 10);
@@ -842,442 +555,130 @@ function Step1Company({
           onChange={(v) => onChange({ ...data, address: v })}
           placeholder="서울특별시 강남구 테헤란로 123"
         />
+
+        {/* 사업자등록증 첨부 (2026-08-10 사장님) — 설정 > 회사 정보의 회사 문서와 같은 저장 경로를 쓴다.
+            여기서 올리면 설정 화면에도 그대로 보이고, 계약서 발송·증명서 발급이 같은 파일을 참조한다. */}
+        <BizRegUpload companyId={companyId} />
       </div>
     </div>
   );
 }
 
+// 사업자등록증 업로드 — documents 버킷 company-docs/{companyId}/business_reg_{ts}.{ext}
+function BizRegUpload({ companyId }: { companyId: string | null }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const { data: files = [] } = useQuery({
+    queryKey: ["company-docs", companyId],
+    queryFn: async () => {
+      if (!companyId) return [] as { name: string }[];
+      const { data } = await supabase.storage.from("documents").list(`company-docs/${companyId}`, {
+        limit: 100, sortBy: { column: "created_at", order: "desc" },
+      });
+      return (data || []) as { name: string }[];
+    },
+    enabled: !!companyId,
+  });
+  const bizFiles = files.filter((f) => f.name.startsWith("business_reg_"));
+  const current = bizFiles[0];
+  const pathOf = (name: string) => `company-docs/${companyId}/${name}`;
+
+  const doUpload = async (file: File) => {
+    if (!companyId) return;
+    setBusy(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `company-docs/${companyId}/business_reg_${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("documents").upload(path, file, { upsert: true });
+      if (error) throw error;
+      // 업로드 성공 후 기존 파일 정리 → 교체
+      const old = bizFiles.map((f) => pathOf(f.name));
+      if (old.length) await supabase.storage.from("documents").remove(old);
+      toast("사업자등록증이 업로드되었습니다", "success");
+      qc.invalidateQueries({ queryKey: ["company-docs", companyId] });
+    } catch (err: any) {
+      toast("업로드 실패: " + (err?.message || ""), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doView = async () => {
+    if (!current) return;
+    const { data, error } = await supabase.storage.from("documents").createSignedUrl(pathOf(current.name), 3600);
+    if (error || !data?.signedUrl) { toast("파일을 열 수 없습니다", "error"); return; }
+    window.open(data.signedUrl, "_blank", "noopener");
+  };
+
+  return (
+    <div>
+      <label className="field-label">사업자등록증 첨부 <span className="caption">(사진·PDF, 선택)</span></label>
+      <div className="onboarding-bizreg-row">
+        {current ? (
+          <div className="onboarding-bizreg-done">
+            <svg className="w-4 h-4 shrink-0" style={{ color: "var(--success)" }} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+            <span className="onboarding-bizreg-filename">등록됨 — 사업자등록증</span>
+            <button type="button" onClick={doView} className="onboarding-bizreg-view">보기</button>
+          </div>
+        ) : (
+          <p className="onboarding-bizreg-empty">아직 첨부된 파일이 없습니다.</p>
+        )}
+        <label className={`onboarding-bizreg-upload-btn ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+          {busy ? "업로드 중..." : current ? "다시 올리기" : "사진 첨부"}
+          <input
+            type="file"
+            accept="image/*,.pdf"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) doUpload(f); e.target.value = ""; }}
+          />
+        </label>
+      </div>
+      <p className="text-[10px] text-[var(--text-dim)] mt-1">
+        올려두면 설정 &gt; 회사 정보의 회사 문서에도 함께 보이며, 계약서 발송·증명서 발급에 활용됩니다.
+      </p>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════
-// Step 2: Bank/Card Setup (금융 연결)
+// Step 2: 인증서 등록 (금융 연결)
 // ═══════════════════════════════════════════
 
-function Step2Bank({
-  data,
-  onChange,
-  isCompleted,
-}: {
-  data: BankForm;
-  onChange: (d: BankForm) => void;
-  isCompleted: boolean;
-}) {
-  const ROLES = [
-    { value: "OPERATING", label: "운영 계좌" },
-    { value: "TAX", label: "세금 계좌" },
-    { value: "SALARY", label: "급여 계좌" },
-    { value: "RESERVE", label: "예비 계좌" },
-  ];
-
+function Step2Finance({ companyId, onConnected }: { companyId: string | null; onConnected: () => void }) {
+  const { toast } = useToast();
   return (
     <div className="onboarding-bank-step">
       <StepHeader
         icon="bank"
-        title="법인 계좌 등록"
-        description="회사 통장을 등록하면 자금 현황을 한눈에 파악할 수 있습니다."
+        title="인증서 등록"
+        description="인증서를 등록하여 통장, 카드, 홈택스를 불러오세요."
       />
-      {isCompleted && (
-        <CompletedBadge message="계좌가 이미 등록되어 있습니다. 추가 등록하거나 다음으로 넘어가세요." />
-      )}
-
-      <div className="p-4 rounded-xl bg-[var(--bg)]/50 border border-[var(--border)] space-y-1.5">
+      <div className="p-4 rounded-xl bg-[var(--bg)]/50 border border-[var(--border)] mb-4">
         <div className="flex items-start gap-2">
           <svg className="w-4 h-4 text-[var(--primary)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            통장을 등록하면 대시보드에서 잔액과 자금 흐름을 바로 볼 수 있습니다.
-            여기서는 계좌 정보만 적어두는 것이고, 나중에 <b>설정 &gt; 인증서</b>에서 공동인증서를 등록하면
-            은행 거래내역·카드 승인·홈택스 세금계산서까지 자동으로 수집됩니다.
-            이 단계는 건너뛸 수 있으며 <b>설정 &gt; 자금·통장</b>에서 언제든 추가할 수 있습니다.
+            공동인증서 한 번 등록으로 <b>통장 거래내역·카드 승인내역·홈택스 세금계산서</b>가 자동으로
+            모입니다. 등록을 마치면 대시보드로 이동해요. 나중에 <b>설정 &gt; 연동·인증</b>에서도 언제든 등록할 수 있습니다.
           </p>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <FormSelect
-          label="은행 선택"
-          value={data.bankName}
-          onChange={(v) => onChange({ ...data, bankName: v })}
-          placeholder="은행을 선택하세요"
-          options={KOREAN_BANKS}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            label="계좌번호"
-            value={data.accountNumber}
-            onChange={(v) => onChange({ ...data, accountNumber: v.replace(/[^0-9-]/g, "") })}
-            placeholder="- 없이 숫자만 입력"
-          />
-          <FormField
-            label="계좌 별칭"
-            value={data.accountAlias}
-            onChange={(v) => onChange({ ...data, accountAlias: v })}
-            placeholder="메인 운영통장"
-          />
-        </div>
-        <div>
-          <label className="field-label">계좌 용도</label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {ROLES.map((role) => (
-              <button
-                key={role.value}
-                type="button"
-                onClick={() => onChange({ ...data, role: role.value })}
-                className="px-3 py-2.5 rounded-xl text-xs font-semibold text-center transition border focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                style={{
-                  background: data.role === role.value ? "var(--primary)" : "var(--bg)",
-                  color: data.role === role.value ? "#fff" : "var(--text)",
-                  borderColor: data.role === role.value ? "var(--primary)" : "var(--border)",
-                }}
-              >
-                {role.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════
-// Step 3: First Employee (첫 직원 등록)
-// ═══════════════════════════════════════════
-
-function Step3Employee({
-  data,
-  onChange,
-  isCompleted,
-}: {
-  data: EmployeeForm;
-  onChange: (d: EmployeeForm) => void;
-  isCompleted: boolean;
-}) {
-  return (
-    <div className="onboarding-employee-step">
-      <StepHeader
-        icon="people"
-        title="첫 직원 등록"
-        description="팀원을 등록하면 근태, 급여, 경비 관리를 바로 시작할 수 있습니다."
+      <CodefAccountRegister
+        companyId={companyId}
+        onRegistered={() => {
+          toast("금융기관 연결 완료! 대시보드로 이동합니다", "success");
+          setTimeout(onConnected, 800);
+        }}
       />
-      {isCompleted && (
-        <CompletedBadge message="직원이 이미 등록되어 있습니다. 추가하거나 다음으로 넘어가세요." />
-      )}
-
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            label="이름"
-            required
-            value={data.name}
-            onChange={(v) => onChange({ ...data, name: v })}
-            placeholder="홍길동"
-          />
-          <FormField
-            label="직급/직책"
-            value={data.position}
-            onChange={(v) => onChange({ ...data, position: v })}
-            placeholder="사원/대리/과장..."
-          />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormSelect
-            label="부서"
-            value={data.department}
-            onChange={(v) => onChange({ ...data, department: v })}
-            placeholder="부서를 선택하세요"
-            options={DEPARTMENTS}
-          />
-          <FormField
-            label="이메일"
-            value={data.email}
-            onChange={(v) => onChange({ ...data, email: v })}
-            placeholder="name@company.com"
-            type="email"
-          />
-        </div>
-        <FormField
-          label="입사일"
-          value={data.startDate}
-          onChange={(v) => onChange({ ...data, startDate: v })}
-          type="date"
-        />
-      </div>
-
-      <div className="p-4 rounded-xl bg-[var(--bg)]/50 border border-[var(--border)]">
-        <div className="flex items-start gap-2">
-          <svg className="w-4 h-4 text-[var(--primary)] mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-          <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-            등록 후 <b>구성원</b> 화면에서 이메일로 초대하면 직원이 직접 로그인해 출퇴근을 찍고
-            급여명세서를 받아볼 수 있습니다. 연차는 법정 기준으로 매달 자동 부여되고,
-            근로계약서도 전자서명으로 체결할 수 있습니다. 급여·4대보험·근태 설정도 구성원 화면에서 이어집니다.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
-
-// ═══════════════════════════════════════════
-// Step 4: First Deal (첫 프로젝트 등록)
-// ═══════════════════════════════════════════
-
-function Step4Deal({
-  data,
-  onChange,
-  isCompleted,
-}: {
-  data: DealForm;
-  onChange: (d: DealForm) => void;
-  isCompleted: boolean;
-}) {
-  function formatCurrency(value: string) {
-    const digits = value.replace(/[^0-9]/g, "");
-    if (!digits) return "";
-    return parseInt(digits, 10).toLocaleString("ko-KR");
-  }
-
-  return (
-    <div className="onboarding-deal-step">
-      <StepHeader
-        icon="sparkles"
-        title="첫 프로젝트(거래) 등록"
-        description="첫 거래를 등록하면 프로젝트 화면에서 목표 → 계약 → 발행 → 입금 → 마진 흐름을 추적할 수 있습니다."
-      />
-      {isCompleted && (
-        <CompletedBadge message="프로젝트가 이미 등록되어 있습니다. 추가하거나 완료로 넘어가세요." />
-      )}
-
-      <div className="space-y-4">
-        {/* Deal type toggle */}
-        <div>
-          <label className="block text-xs font-semibold text-[var(--text-muted)] mb-2">거래 유형</label>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { value: "REVENUE" as const, label: "매출 (수익)", desc: "고객으로부터의 수입", color: "var(--success)" },
-              { value: "EXPENSE" as const, label: "비용 (지출)", desc: "업체에 지불하는 비용", color: "var(--warning)" },
-            ].map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => onChange({ ...data, type: opt.value })}
-                className="p-4 rounded-xl text-left transition border focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-                style={{
-                  background: data.type === opt.value ? "var(--primary)" : "var(--bg)",
-                  color: data.type === opt.value ? "#fff" : "var(--text)",
-                  borderColor: data.type === opt.value ? "var(--primary)" : "var(--border)",
-                }}
-              >
-                <div className="text-sm font-bold">{opt.label}</div>
-                <div className="text-[11px] mt-0.5" style={{ opacity: 0.7 }}>{opt.desc}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <FormField
-          label="프로젝트명"
-          required
-          value={data.name}
-          onChange={(v) => onChange({ ...data, name: v })}
-          placeholder="예: A사 웹사이트 개발 프로젝트"
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            label="거래처"
-            value={data.clientName}
-            onChange={(v) => onChange({ ...data, clientName: v })}
-            placeholder="거래 상대방 이름"
-          />
-          <FormField
-            label="예상 금액 (원)"
-            value={data.expectedAmount}
-            onChange={(v) => onChange({ ...data, expectedAmount: formatCurrency(v) })}
-            placeholder="10,000,000"
-          />
-        </div>
-        <FormField
-          label="예상 마감일"
-          value={data.expectedCloseDate}
-          onChange={(v) => onChange({ ...data, expectedCloseDate: v })}
-          type="date"
-        />
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════
-// Step 5: Complete (완료)
-// ═══════════════════════════════════════════
-
-function Step5Complete({ status }: { status: CompletionStatus }) {
-  const items = [
-    { label: "회사 정보", done: status.companyInfo },
-    { label: "계좌 등록", done: status.bankAccount },
-    { label: "직원 등록", done: status.employee },
-    { label: "첫 프로젝트 등록", done: status.deal },
-  ];
-  const doneCount = items.filter((i) => i.done).length;
-  const isAllDone = doneCount === items.length;
-
-  // Confetti particles
-  const particles = useRef(
-    Array.from({ length: 30 }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      delay: Math.random() * 2,
-      duration: 2 + Math.random() * 2,
-      size: 4 + Math.random() * 6,
-      color: ["var(--primary)", "var(--success)", "var(--warning)", "#a855f7", "#ec4899"][Math.floor(Math.random() * 5)],
-    }))
-  ).current;
-
-  return (
-    <div className="onboarding-complete-step">
-      {/* Confetti animation */}
-      {isAllDone && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-          {particles.map((p) => (
-            <div
-              key={p.id}
-              className="absolute rounded-full animate-confetti"
-              style={{
-                left: `${p.left}%`,
-                top: "-10px",
-                width: `${p.size}px`,
-                height: `${p.size}px`,
-                background: p.color,
-                animationDelay: `${p.delay}s`,
-                animationDuration: `${p.duration}s`,
-              }}
-            />
-          ))}
-          <style>{`
-            @keyframes confetti {
-              0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-              100% { transform: translateY(500px) rotate(720deg); opacity: 0; }
-            }
-            .animate-confetti {
-              animation-name: confetti;
-              animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-              animation-fill-mode: forwards;
-            }
-          `}</style>
-        </div>
-      )}
-
-      {/* Icon */}
-      <div
-        className="w-20 h-20 rounded-full flex items-center justify-center mb-5 relative z-10"
-        style={{ background: isAllDone ? "var(--primary)" : "var(--bg-surface)", border: isAllDone ? "none" : "2px solid var(--border)" }}
-      >
-        {isAllDone ? (
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
-          </svg>
-        ) : (
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-        )}
-      </div>
-
-      {/* Title */}
-      <h2 className="text-xl font-bold text-[var(--text)] mb-2 relative z-10">
-        {isAllDone ? "모든 설정이 완료되었습니다!" : "초기 설정 진행 중"}
-      </h2>
-      <p className="text-sm text-[var(--text-muted)] mb-6 relative z-10">
-        {isAllDone
-          ? "OwnerView가 준비되었습니다. 대시보드에서 경영의 모든 것을 관리하세요."
-          : `${doneCount}/${items.length}단계를 완료했습니다. 나머지는 나중에 설정할 수 있습니다.`}
-      </p>
-
-      {/* Checklist */}
-      <div className="w-full space-y-2 relative z-10">
-        {items.map((item) => (
-          <div
-            key={item.label}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl border"
-            style={{
-              background: "var(--bg)",
-              borderColor: "var(--border)",
-            }}
-          >
-            {item.done ? (
-              <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--success)" }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-            ) : (
-              <div
-                className="w-6 h-6 rounded-full border-2 shrink-0"
-                style={{ borderColor: "var(--border)" }}
-              />
-            )}
-            <span className="flex-1 text-sm font-medium text-left" style={{ color: item.done ? "var(--text)" : "var(--text-dim)" }}>
-              {item.label}
-            </span>
-            {item.done ? (
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--success)]/15 text-[var(--success)]">
-                완료
-              </span>
-            ) : (
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: "var(--bg-surface)", color: "var(--text-dim)" }}>
-                건너뜀
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {!isAllDone && (
-        <p className="mt-4 text-xs text-[var(--text-dim)] relative z-10">
-          건너뛴 항목은 설정 페이지에서 언제든 완료할 수 있습니다.
-        </p>
-      )}
-
-      {/* 주요 기능 둘러보기 — 설정 완료 여부와 무관하게 처음 온 분께 오너뷰 전체 그림을 보여준다 */}
-      <div className="onboarding-feature-tour">
-        <div className="onboarding-feature-tour-title">오너뷰로 이런 것들을 할 수 있어요</div>
-        <div className="onboarding-feature-tour-sub">카드를 누르면 해당 화면으로 바로 이동합니다.</div>
-        <div className="onboarding-feature-grid">
-          {FEATURE_TOUR.map((f) => (
-            <a key={f.href} href={f.href} className="onboarding-feature-card">
-              <span className="onboarding-feature-card-emoji" aria-hidden="true" style={{ background: `${icoColor(f.emoji)}1a` }}>
-                <Ico e={f.emoji} tone="color" />
-              </span>
-              <span>
-                <span className="onboarding-feature-card-name">{f.name}</span>
-                <span className="onboarding-feature-card-desc block">{f.desc}</span>
-              </span>
-            </a>
-          ))}
-        </div>
-        <div className="onboarding-feature-tour-guide-link">
-          <a href="/guide" className="text-xs font-semibold text-[var(--primary)] hover:underline underline-offset-2">
-            전체 사용 가이드 자세히 보기 →
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// 완료 화면 기능 둘러보기 — 현재 사이드바 메뉴 기준 (2026-08-03 최신화. 메뉴가 바뀌면 여기도 갱신)
-const FEATURE_TOUR: Array<{ emoji: string; name: string; desc: string; href: string }> = [
-  { emoji: "📊", name: "대시보드", desc: "현금·매출 현황부터 오늘 할 일, 출근 체크까지 한 화면에서 시작해요.", href: "/dashboard" },
-  { emoji: "🤖", name: "AI 참모", desc: "회사 데이터를 아는 AI에게 자금·매출·인사 현황을 바로 물어보세요.", href: "/copilot" },
-  { emoji: "🧾", name: "세금·증빙", desc: "공동인증서를 등록하면 홈택스 세금계산서·증빙이 자동으로 모여요.", href: "/tax-invoices" },
-  { emoji: "🏦", name: "통장·거래 장부", desc: "은행·카드 거래가 자동 수집되고 계정과목까지 자동 분류돼요.", href: "/bank" },
-  { emoji: "✅", name: "결재 허브", desc: "지출결의·휴가 같은 결재를 양식으로 올리고 승인부터 PDF 보관까지.", href: "/approvals" },
-  { emoji: "👥", name: "근태·급여", desc: "출퇴근 기록, 연차 자동 부여, 급여명세서와 4대보험까지 한곳에서.", href: "/attendance" },
-  { emoji: "✍️", name: "전자계약", desc: "계약서를 링크로 보내 법적 효력 있는 전자서명을 바로 받아요.", href: "/signatures" },
-  { emoji: "📁", name: "프로젝트", desc: "목표 → 계약 → 발행 → 입금 → 마진, 프로젝트 손익 흐름을 추적해요.", href: "/projecthub" },
-];
 
 // ═══════════════════════════════════════════
 // Shared UI Components
@@ -1340,22 +741,14 @@ function FormField({
         {label}
         {required && <span className="text-[var(--danger)] ml-0.5">*</span>}
       </label>
-      {type === "date" ? (
-        <DateField
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30"
-        />
-      ) : (
-        <input
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          maxLength={maxLength}
-          className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-dim)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30"
-        />
-      )}
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none transition bg-[var(--bg)] border border-[var(--border)] text-[var(--text)] placeholder:text-[var(--text-dim)] focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30"
+      />
       {hint && <p className="text-[10px] text-[var(--text-dim)] mt-1">{hint}</p>}
     </div>
   );
@@ -1428,26 +821,6 @@ function StepIcon({ type, size = "lg" }: { type: string; size?: "sm" | "lg" }) {
             <path d="M5 10v8" /><path d="M19 10v8" /><path d="M9 10v8" /><path d="M15 10v8" />
           </svg>
         );
-      case "people":
-        return (
-          <svg {...props}>
-            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" />
-            <path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" />
-          </svg>
-        );
-      case "sparkles":
-        return (
-          <svg {...props}>
-            <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
-            <path d="M5 3l.5 1.5L7 5l-1.5.5L5 7l-.5-1.5L3 5l1.5-.5L5 3z" />
-          </svg>
-        );
-      case "check":
-        return (
-          <svg {...props}>
-            <path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-        );
       default:
         return null;
     }
@@ -1459,4 +832,3 @@ function StepIcon({ type, size = "lg" }: { type: string; size?: "sm" | "lg" }) {
     </div>
   );
 }
-
