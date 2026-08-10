@@ -340,13 +340,20 @@ export function MorningBrief({
 
   const hasExtra = Boolean(line3 || progressLine || hasTx);
 
+  // 우측 핵심 숫자 패널 — 브리핑 문장과 같은 소스(cashPulse)라 신규 쿼리 0.
+  const runwayLabel = !isFinite(runwayMonths) || runwayMonths >= 99 ? "충분" : runwayMonths <= 0 ? "위험" : `${runwayMonths >= 12 ? Math.floor(runwayMonths) : runwayMonths.toFixed(1)}개월`;
+  const runwayColor = !isFinite(runwayMonths) || runwayMonths >= 6 ? "var(--success)" : runwayMonths >= 3 ? "var(--warning)" : "var(--danger)";
+  const delta30ForStats = forecast30 - balance;
+
   return (
-    <section className="morning-brief-card mb-6 glass-card p-4 sm:p-6 md:p-8">
+    <section className="morning-brief-card glass-card">
+      <div className="morning-brief-inner">
+      <div className="min-w-0">
       <p className="text-xs sm:text-sm text-[var(--text-dim)] mb-2">
         {today} · {companyName}
       </p>
 
-      {/* max-w: 넓은 화면에서 문장이 한 줄 70자 이상 늘어지지 않게(가독 폭) — 카드 폭은 유지 */}
+      {/* max-w: 넓은 화면에서 문장이 한 줄 70자 이상 늘어지지 않게(가독 폭) */}
       <div className="max-w-[46rem] space-y-1.5 sm:space-y-3 text-sm sm:text-base md:text-[17px] text-[var(--text)] leading-[1.6] sm:leading-[1.85] tracking-[-0.01em] break-keep">
         {briefPlan ? (
           /* ── AI 브리핑 2.0: 오늘의 액션 플랜 ── */
@@ -517,6 +524,30 @@ export function MorningBrief({
             {expanded ? "간단히 보기 ↑" : "자세히 보기 ↓"}
           </button>
         )}
+      </div>
+      </div>
+
+      {/* 우측 핵심 숫자 — 사장님이 매일 아침 가장 먼저 찾는 세 숫자를 문장과 나란히 */}
+      <div className="morning-brief-stats">
+        <div className="morning-brief-stat">
+          <div className="morning-brief-stat-label">통장 잔고</div>
+          <div className="morning-brief-stat-value mono-number">{formatKrwWords(balance)}</div>
+        </div>
+        <div className="morning-brief-stat">
+          <div className="morning-brief-stat-label">30일 뒤 전망</div>
+          <div className="morning-brief-stat-value mono-number">{formatKrwWords(forecast30)}</div>
+          {Math.abs(delta30ForStats) >= balance * 0.02 && (
+            <div className="morning-brief-stat-sub" style={{ color: delta30ForStats > 0 ? "var(--success)" : "var(--danger)" }}>
+              {delta30ForStats > 0 ? "▲ " : "▼ "}{formatKrwWords(Math.abs(delta30ForStats))}
+            </div>
+          )}
+        </div>
+        <div className="morning-brief-stat">
+          <div className="morning-brief-stat-label">버틸 수 있는 기간</div>
+          <div className="morning-brief-stat-value mono-number" style={{ color: runwayColor }}>{runwayLabel}</div>
+          <div className="morning-brief-stat-sub">현재 고정비 기준</div>
+        </div>
+      </div>
       </div>
     </section>
   );

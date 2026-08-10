@@ -1318,7 +1318,40 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .risk-item-card-hot { border-color: rgba(239,68,68,0.28); }
 .today-action-critical { background: color-mix(in srgb, var(--danger) 4%, var(--glass-bg)); }
 .today-action-high { background: color-mix(in srgb, var(--warning) 4%, var(--glass-bg)); }
-.morning-brief-card { @apply mb-6 p-6 md:p-8; }
+/* 아침 브리핑 히어로 (2026-08-10 리파인 2차) — 흰 카드가 전폭 여백만 크던 것을 딥 인디고
+   브랜드 히어로로: 왼쪽 브리핑 문장 + 오른쪽 핵심 숫자 패널(잔고·30일 전망·버티는 기간).
+   카드 안에서 색 토큰을 다크 값으로 재정의 → 강조색·칩·어제 거래 타일 등 자식 전부가 자동 적응. */
+.morning-brief-card, .morning-brief-onboarding {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 180% at 100% 0%, rgba(129, 140, 248, 0.38) 0%, rgba(79, 70, 229, 0) 46%),
+    linear-gradient(135deg, #1E1B4B 0%, #312E81 58%, #3730A3 100%);
+  border: 1px solid rgba(165, 180, 252, 0.28);
+  box-shadow: 0 18px 44px -18px rgba(49, 46, 129, 0.5), 0 4px 14px -6px rgba(49, 46, 129, 0.35);
+  --text: #F6F7FF;
+  --text-muted: #C7D2FE;
+  --text-dim: #A5B4FC;
+  --bg-surface: rgba(255, 255, 255, 0.08);
+  --bg-card: rgba(255, 255, 255, 0.06);
+  --bg-elevated: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.16);
+  --primary: #C7D2FE;
+  --primary-light: rgba(255, 255, 255, 0.14);
+  --success: #6EE7B7;
+  --danger: #FCA5A5;
+  --warning: #FCD34D;
+  --success-dim: rgba(110, 231, 183, 0.18);
+  --danger-dim: rgba(252, 165, 165, 0.18);
+  --warning-dim: rgba(252, 211, 77, 0.18);
+}
+.morning-brief-card { @apply mb-6 p-5 sm:p-7 md:p-8; }
+.morning-brief-inner { @apply grid gap-5 md:gap-8 md:grid-cols-[minmax(0,1fr)_264px] md:items-center; }
+.morning-brief-stats { @apply grid grid-cols-3 md:grid-cols-1 gap-2 md:gap-3; }
+.morning-brief-stat { @apply rounded-2xl px-3.5 py-3 min-w-0; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.13); }
+.morning-brief-stat-label { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
+.morning-brief-stat-value { @apply text-[15px] sm:text-[19px] leading-tight font-extrabold mt-1 truncate text-[var(--text)]; } /* mono-number 는 JSX 병기(@apply 커스텀 클래스 함정) */
+.morning-brief-stat-sub { @apply text-[10.5px] mt-0.5 text-[var(--text-dim)] truncate; }
 .cash-pulse-bar { @apply p-1 mb-4; }
 .pulse-balance-stat { @apply px-4 py-3; }
 .pulse-forecast-stat { @apply px-4 py-3; }
@@ -5422,7 +5455,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .sidebar-mobile-theme-btn { @apply w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition text-left; }
 .sidebar-mobile-footer-block { @apply p-3 border-t border-[var(--border)]; }
 .sidebar-mobile-logout-btn { @apply w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-[13px] min-h-[44px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition text-left; }
-.morning-brief-onboarding { @apply mb-4 p-4 sm:p-5; }
+.morning-brief-onboarding { @apply mb-4 p-4 sm:p-5; } /* 배경·토큰은 위 .morning-brief-card 공동 정의 참조 */
 .brief-action-list { @apply mt-3 space-y-2; }
 .brief-action-item { @apply flex items-start gap-2.5 rounded-xl bg-[var(--bg-surface)]/60 border border-[var(--border)]/60 px-3 py-2.5; }
 .brief-yesterday-tx { @apply mt-4 pt-4 border-t border-[var(--border)]; }
