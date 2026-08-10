@@ -660,30 +660,7 @@ export default function DashboardPage() {
       {/* ═══ 경영 종합(CEO 커맨드 센터·프로젝트 경영 종합·월결산)은 마스터 전용 화면(/master)으로
            이동 (2026-08-10 사장님: "대시보드에는 owner-command-center 위에 것들만"). ═══ */}
 
-      {/* ═══ 데이터 없음 — 시작 CTA ═══ */}
-      {!hasData && (
-        <div className="dashboard-empty-state-cta">
-          <div className="text-sm font-bold text-[var(--text)] mb-1">아직 재무 데이터가 없습니다</div>
-          <p className="text-xs text-[var(--text-muted)] mb-4">아래 방법 중 하나를 선택해 시작하세요.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button onClick={handleSampleData} disabled={generating}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-[var(--primary)] bg-[var(--primary)]/5 hover:bg-[var(--primary)]/10 transition disabled:opacity-50">
-              <span className="text-sm font-bold text-[var(--primary)]">{generating ? '생성 중...' : '샘플 데이터 생성'}</span>
-              <span className="text-[10px] text-[var(--text-muted)]">추천 — 즉시 체험</span>
-            </button>
-            <button onClick={() => fileRef.current?.click()} disabled={uploading}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition disabled:opacity-50">
-              <span className="text-sm font-bold text-[var(--text)]">{uploading ? '업로드 중...' : '엑셀 업로드'}</span>
-              <span className="text-[10px] text-[var(--text-muted)]">실제 데이터로 시작</span>
-            </button>
-            <Link href="/guide"
-              className="flex flex-col items-center gap-2 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] transition">
-              <span className="text-sm font-bold text-[var(--text)]">시작 가이드 보기</span>
-              <span className="text-[10px] text-[var(--text-muted)]">사용법 안내</span>
-            </Link>
-          </div>
-        </div>
-      )}
+      {/* 데이터 없음 CTA 도 마스터 화면으로 이동 (2026-08-10 사장님 2차 지시) */}
 
       </>)}
     </div>
