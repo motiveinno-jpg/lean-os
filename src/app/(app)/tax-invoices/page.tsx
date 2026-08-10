@@ -1187,7 +1187,8 @@ function TaxInvoicesPageInner() {
             )}
           </ToolbarPopover>
 
-          <button onClick={() => setShowForm(true)} className="btn-primary text-xs h-8" title="세금계산서를 등록합니다">
+          {/*  btn-sm = 32px — 옆 가져오기·기간 칩과 같은 높이 (btn-primary 기본 40px 이라 따로 맞춘다) */}
+          <button onClick={() => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 등록합니다">
             + 등록
           </button>
         </div>

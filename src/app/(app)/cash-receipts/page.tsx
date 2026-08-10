@@ -686,7 +686,7 @@ export default function CashReceiptsPage() {
             onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
             disabled={issuanceLimitReached}
             title={issuanceLimitReached ? `이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다. 세금계산서와 현금영수증을 합산해 계산합니다.` : "CODEF 연동으로 현금영수증을 국세청에 실제 발행합니다"}
-            className="cashbill-issue-open btn-primary text-xs h-8"
+            className="cashbill-issue-open btn-primary btn-sm"
           >
             {issuanceLimitReached ? "발행 한도 소진" : "+ 발행"}
           </button>
