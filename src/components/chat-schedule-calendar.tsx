@@ -8,8 +8,9 @@
 //
 //   저장은 lib/schedule 의 upsertEvent — 일정/할 일 메뉴와 같은 자리로 간다.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { DateField } from "@/components/date-field";
 import { useToast } from "@/components/toast";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { todayKst } from "@/lib/kst";
@@ -31,8 +32,29 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
   const { toast } = useToast();
   const now = useMemo(() => new Date(), []);
   const [view, setView] = useState({ y: now.getFullYear(), m0: now.getMonth() });
-  //   날짜를 누르면 그 날짜로 여는 입력 창
-  const [draft, setDraft] = useState<null | { date: string; title: string; shared: boolean; color: EventColor }>(null);
+  //   날짜를 누르면 그 날짜로 여는 입력 창. 여러 날에 걸치는 일이 흔해 **시작~종료**를 함께 잡는다.
+  const [draft, setDraft] = useState<null | { from: string; to: string; title: string; shared: boolean; color: EventColor }>(null);
+  //   달력에서 **끌어서** 여러 날을 한 번에 고른다(누르고 옆으로 끌면 그 구간이 잡힌다)
+  const dragRef = useRef<{ start: string } | null>(null);
+  const [dragTo, setDragTo] = useState<string | null>(null);
+  const dragRange = dragRef.current && dragTo
+    ? [dragRef.current.start, dragTo].sort() as [string, string]
+    : null;
+
+  //   손을 떼면 잡힌 구간으로 입력 창을 연다 — 달력 밖에서 떼도 확실히 닫히게 window 에 건다
+  useEffect(() => {
+    const onUp = () => {
+      const d = dragRef.current;
+      if (!d) return;
+      const to = dragTo || d.start;
+      const [a, b] = [d.start, to].sort();
+      dragRef.current = null;
+      setDragTo(null);
+      setDraft({ from: a, to: b, title: "", shared: true, color: "blue" });
+    };
+    window.addEventListener("mouseup", onUp);
+    return () => window.removeEventListener("mouseup", onUp);
+  }, [dragTo]);
 
   const { data: events = [] } = useQuery({
     queryKey: ["chat-cal-events", companyId, userId, view.y, view.m0],
@@ -68,11 +90,18 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
   });
 
   const add = useMutation({
-    //   ⚠️ 하루 종일 일정은 날짜 문자열 그대로 — toISOString() 을 쓰면 KST 자정이 UTC 로 밀려 하루 전이 된다
-    mutationFn: () => upsertEvent({
-      companyId: companyId!, userId: userId!, title: draft!.title.trim(),
-      startAt: `${draft!.date}T00:00:00`, allDay: true, color: draft!.color, isShared: draft!.shared,
-    }),
+    //   ⚠️ 하루 종일 일정은 날짜 문자열 그대로 — toISOString() 을 쓰면 KST 자정이 UTC 로 밀려 하루 전이 된다.
+    //      기간이면 end_at 을 넣는다(종료일 포함). 하루짜리는 end_at 을 비워 예전과 같게 둔다.
+    mutationFn: () => {
+      const from = draft!.from, to = draft!.to;
+      const [a, b] = from <= to ? [from, to] : [to, from];
+      return upsertEvent({
+        companyId: companyId!, userId: userId!, title: draft!.title.trim(),
+        startAt: `${a}T00:00:00`,
+        endAt: b > a ? `${b}T00:00:00` : undefined,
+        allDay: true, color: draft!.color, isShared: draft!.shared,
+      });
+    },
     onSuccess: () => {
       setDraft(null);
       qc.invalidateQueries({ queryKey: ["chat-cal-events"] });
@@ -108,10 +137,21 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
           if (!c) return <div key={`e${i}`} className="chat-cal-day chat-cal-day-out" />;
           const list = byDay.get(c.key) || [];
           const dow = i % 7;
+          const inDrag = !!dragRange && c.key >= dragRange[0] && c.key <= dragRange[1];
           return (
-            <button key={c.key} type="button" className={`chat-cal-day ${c.key === today ? "chat-cal-day-today" : ""}`}
-              onClick={() => setDraft({ date: c.key, title: "", shared: true, color: "blue" })}
-              title={`${c.key} 에 일정 넣기`}>
+            <button key={c.key} type="button"
+              className={`chat-cal-day ${c.key === today ? "chat-cal-day-today" : ""} ${inDrag ? "chat-cal-day-pick" : ""}`}
+              //   눌러서 끌면 여러 날 — 손을 떼는 순간(window mouseup) 입력 창이 열린다
+              onMouseDown={() => { dragRef.current = { start: c.key }; setDragTo(c.key); }}
+              onMouseEnter={() => { if (dragRef.current) setDragTo(c.key); }}
+              //   키보드로도 열 수 있게 — Enter/Space 는 하루짜리로 연다
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setDraft({ from: c.key, to: c.key, title: "", shared: true, color: "blue" });
+                }
+              }}
+              title={`${c.key} — 누르면 그 날, 끌면 여러 날 일정`}>
               <span className={`chat-cal-daynum ${dow === 0 ? "chat-cal-sun" : dow === 6 ? "chat-cal-sat" : ""}`}>{c.d}</span>
               {list.slice(0, 3).map((e) => (
                 <span key={e.id} className={`chat-cal-ev ${EVENT_COLOR_BG[e.color] || ""}`} title={e.title}>{e.title}</span>
@@ -127,13 +167,25 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
         <div className="chat-cal-modal" onClick={() => setDraft(null)}>
           <div className="chat-cal-box" onClick={(e) => e.stopPropagation()}>
             <header>
-              <b>{draft.date}</b>
+              <b>{draft.from === draft.to ? draft.from : `${draft.from} ~ ${draft.to}`}</b>
               <span>일정 넣기</span>
               <button type="button" onClick={() => setDraft(null)} title="닫기">✕</button>
             </header>
             <input autoFocus value={draft.title} placeholder="일정 이름"
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
               className="chat-cal-input" />
+            {/*  여러 날에 걸치는 일이 흔하다 — 시작·종료를 여기서 바로 고친다(달력에서 끌어도 잡힌다) */}
+            <div className="chat-cal-range">
+              <label><span>시작</span>
+                <DateField value={draft.from} onChange={(e) => {
+                  const from = e.target.value || draft.from;
+                  setDraft({ ...draft, from, to: draft.to < from ? from : draft.to });
+                }} />
+              </label>
+              <label><span>종료</span>
+                <DateField value={draft.to} min={draft.from} onChange={(e) => setDraft({ ...draft, to: e.target.value || draft.from })} />
+              </label>
+            </div>
             <div className="chat-cal-colors">
               {COLORS.map(([c, label]) => (
                 <button key={c} type="button" title={label} aria-pressed={draft.color === c}

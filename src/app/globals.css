@@ -3015,6 +3015,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .chat-cal-day { @apply flex flex-col items-stretch gap-0.5 p-1 bg-[var(--bg-card)] text-left overflow-hidden transition hover:bg-[var(--bg-surface)]; }
 .chat-cal-day-out { @apply bg-[var(--bg-surface)]/50 pointer-events-none; }
 .chat-cal-day-today { @apply ring-1 ring-inset ring-[var(--primary)]; }
+.chat-cal-day-pick { @apply !bg-[var(--primary)]/12; }
+.chat-cal-range { @apply grid grid-cols-2 gap-2; }
+.chat-cal-range label { @apply flex items-center gap-1.5 min-w-0; }
+.chat-cal-range label > span { @apply shrink-0 text-[11px] font-semibold text-[var(--text-dim)]; }
+.chat-cal-range label > *:not(span) { @apply flex-1 min-w-0; }
 .chat-cal-daynum { @apply text-[11px] font-bold text-[var(--text-muted)]; }
 .chat-cal-ev { @apply truncate px-1 py-0.5 rounded text-[10px] font-semibold border; }
 .chat-cal-more { @apply px-1 text-[10px] text-[var(--text-dim)]; }
