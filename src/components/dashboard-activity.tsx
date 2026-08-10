@@ -117,9 +117,12 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
       emptyText="이번 달 발행된 매출 세금계산서가 없습니다." emptyAction={{ label: "세금계산서 발행하기", href: "/tax-invoices" }}>
       {data && (
         <>
-          <div className="revenue-total-row">
-            <span className="text-[11px] text-[var(--text-dim)]">이번 달 합계 ({data.count}건)</span>
-            <span className="text-[15px] leading-none font-extrabold mono-number" style={{ color: "var(--success)" }}>{won(data.total)}</span>
+          {/* 브리핑 숫자 스트립과 동일 문법 (2026-08-10 통일) */}
+          <div className="widget-statband widget-statband-1">
+            <div className="widget-stat">
+              <div className="widget-stat-label">이번 달 합계 · {data.count}건</div>
+              <div className="widget-stat-value mono-number" style={{ color: "var(--success)" }}>{won(data.total)}</div>
+            </div>
           </div>
           {data.rows.map((r) => (
             <Link key={r.id} href="/tax-invoices" className="revenue-row">

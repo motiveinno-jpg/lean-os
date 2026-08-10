@@ -25,11 +25,12 @@ function runwayTone(m: number): string {
 }
 const col = (t: string) => (t === "success" ? "var(--success)" : t === "warning" ? "var(--warning)" : t === "danger" ? "var(--danger)" : t === "primary" ? "var(--primary)" : "var(--text)");
 
+// 브리핑 숫자 스트립과 동일 문법(위젯 통일, 2026-08-10 사장님 확정)
 function Signal({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <div className="min-w-0">
-      <div className="text-[11px] text-[var(--text-dim)] mb-0.5 truncate">{label}</div>
-      <div className="text-[15px] leading-tight font-extrabold mono-number truncate" style={{ color: col(tone) }}>{value}</div>
+    <div className="widget-stat">
+      <div className="widget-stat-label">{label}</div>
+      <div className="widget-stat-value mono-number" style={{ color: col(tone) }}>{value}</div>
     </div>
   );
 }
@@ -42,14 +43,11 @@ export function DashboardBizSummary({ monthRevenue, expense, balance, runwayMont
         <span className="text-[13px] font-bold text-[var(--text)]">경영 요약</span>
         <span className="widget-more-link">자세히 →</span>
       </div>
-      {/* 건강 신호 3 */}
-      <div className="dashboard-biz-summary-signals">
+      {/* 건강 신호 5 — 브리핑 스트립과 같은 서피스 밴드 하나로(3+2 줄바꿈) */}
+      <div className="widget-statband widget-statband-3">
         <Signal label="이번 달 손익" value={`${profit >= 0 ? "+" : ""}${won(profit)}`} tone={profit >= 0 ? "success" : "danger"} />
         <Signal label="통장 잔액" value={won(balance)} tone="primary" />
         <Signal label="버티는 기간" value={runwayText(runwayMonths)} tone={runwayTone(runwayMonths)} />
-      </div>
-      {/* 매출·비용 breakdown */}
-      <div className="dashboard-biz-summary-breakdown">
         <Signal label="이번 달 매출" value={won(monthRevenue)} tone="success" />
         <Signal label="이번 달 비용" value={won(expense)} tone="warning" />
       </div>

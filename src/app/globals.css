@@ -4712,6 +4712,16 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
    모든 위젯이 같은 문법을 쓴다: 13px 굵은 제목(본문색) + 오른쪽 조용한 '전체보기' 링크(호버 시 착색).
    빈 상태는 한 줄 안내 + 채우는 방법 링크 — "표시할 내용이 없습니다"만 덩그러니 두지 않는다. */
 .widget-more-link { @apply text-[11px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)] transition-colors shrink-0 no-underline; }
+/* 위젯 숫자 문법 — 브리핑 숫자 스트립과 동일(2026-08-10 사장님 확정): 라벨 위 + 굵은 숫자 아래,
+   상자 벽 대신 하나의 조용한 서피스 밴드. 값 색은 의미색(위험 빨강/안전 초록)만. */
+.widget-statband { @apply grid gap-x-4 gap-y-3 rounded-2xl bg-[var(--bg-surface)]/70 border border-[var(--border)]/70 px-3.5 py-3 mb-3; }
+.widget-statband-1 { @apply grid-cols-1; }
+.widget-statband-2 { @apply grid-cols-2; }
+.widget-statband-3 { @apply grid-cols-3; }
+.widget-stat { @apply min-w-0; }
+.widget-stat-label { @apply text-[11px] font-medium text-[var(--text-dim)] truncate; }
+.widget-stat-value { @apply text-[15px] leading-tight font-extrabold mt-0.5 truncate text-[var(--text)]; } /* mono-number 는 JSX 병기 */
+.widget-stat-sub { @apply text-[10.5px] mt-0.5 text-[var(--text-dim)] truncate; }
 .widget-empty { @apply flex-1 flex flex-col items-center justify-center gap-1 py-5 text-center min-h-[72px]; }
 .widget-empty-text { @apply text-[12px] text-[var(--text-dim)] leading-relaxed break-keep max-w-[260px]; }
 .widget-empty-action { @apply text-[11px] font-semibold text-[var(--primary)] hover:underline underline-offset-2 no-underline; }
@@ -4727,8 +4737,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 /* dashboard-biz-summary.tsx */
 .dashboard-biz-summary { @apply px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition; }
 .dashboard-biz-summary-header { @apply flex items-center justify-between mb-2; }
-.dashboard-biz-summary-signals { @apply grid grid-cols-3 gap-2; }
-.dashboard-biz-summary-breakdown { @apply grid grid-cols-2 gap-2 mt-2.5 pt-2.5 border-t border-[var(--border)]; }
+/* -signals/-breakdown — 2026-08-10 위젯 숫자 문법 통일로 widget-statband 로 대체·제거 */
 .dashboard-biz-summary-cta { @apply flex-1 flex items-center justify-center pt-3; }
 
 /* siyan/siyan-pill-tabs.tsx */
@@ -4862,7 +4871,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .activity-card-empty { @apply text-[11px] text-[var(--text-dim)] py-2 text-center; }
 .activity-card-rows { @apply flex flex-col divide-y divide-[var(--border)]/60; }
 .project-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
-.revenue-total-row { @apply flex items-center justify-between py-2; }
+/* .revenue-total-row — 2026-08-10 위젯 숫자 문법 통일로 widget-statband 로 대체·제거 */
 .revenue-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 .invoice-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 
@@ -5323,7 +5332,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .revenue-trend-header { @apply flex items-center justify-between gap-2 flex-wrap mb-4; }
 .revenue-trend-empty { @apply flex justify-between items-center p-3 rounded-xl bg-[var(--bg-surface)]; }
 .compact-asset-card { @apply px-4 py-3 flex flex-col no-underline hover:border-[var(--primary)] transition; } /* glass-card(기존)는 JSX 병기 */
-.compact-asset-header { @apply flex items-center justify-between gap-2; }
+.compact-asset-header { @apply flex items-center justify-between gap-2 mb-2.5; }
 .compact-asset-rows { @apply flex flex-col gap-0.5 mt-2; }
 .compact-asset-row { @apply flex justify-between items-center text-[11px]; }
 

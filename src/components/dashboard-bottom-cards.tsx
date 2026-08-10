@@ -232,9 +232,15 @@ function CompactAssetCard({ title, color, total, totalLabel, rows, count, href, 
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
           <span className="text-[13px] font-bold text-[var(--text)]">{title}</span>
-          <span className="text-[11px] text-[var(--text-dim)] truncate">· {totalLabel}</span>
         </div>
-        <span className="text-[17px] leading-none font-extrabold tabular-nums shrink-0" style={{ color }}>{fmtW(total)}</span>
+        <span className="widget-more-link">{count}개 전체보기 →</span>
+      </div>
+      {/* 브리핑 숫자 스트립과 동일 문법 — 라벨 위 + 굵은 값 아래, 서피스 밴드 (2026-08-10 통일) */}
+      <div className="widget-statband widget-statband-1">
+        <div className="widget-stat">
+          <div className="widget-stat-label">{totalLabel}</div>
+          <div className="widget-stat-value mono-number" style={{ color }}>{fmtW(total)}</div>
+        </div>
       </div>
       {rows.length === 0 ? (
         <div className="widget-empty"><span className="widget-empty-text">{empty}</span></div>
@@ -248,7 +254,6 @@ function CompactAssetCard({ title, color, total, totalLabel, rows, count, href, 
           ))}
         </div>
       )}
-      <div className="widget-more-link mt-2">{count}개 전체보기 →</div>
     </Link>
   );
 }

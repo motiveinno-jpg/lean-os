@@ -81,12 +81,16 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
   return (
     <div className="receivables-preview glass-card">
       <div className="receivables-preview-header">
-        <div className="min-w-0 flex items-baseline gap-2">
-          <span className="text-[13px] font-bold shrink-0 text-[var(--text)]">미수금</span>
-          <span className="text-[17px] leading-none font-extrabold mono-number text-[var(--danger)]">{won(data.total)}</span>
-          <span className="text-[11px] text-[var(--text-dim)] truncate">거래처 {data.list.length}곳</span>
-        </div>
+        <span className="text-[13px] font-bold shrink-0 text-[var(--text)]">미수금</span>
         <Link href="/partners/ledger?type=sales" className="widget-more-link">전체보기 →</Link>
+      </div>
+      {/* 브리핑 숫자 스트립과 동일 문법 (2026-08-10 통일) */}
+      <div className="widget-statband widget-statband-1">
+        <div className="widget-stat">
+          <div className="widget-stat-label">미회수 합계 · 거래처 {data.list.length}곳</div>
+          {/* 색은 inline style — 커스텀 클래스가 유틸리티를 이기는 v4 캐스케이드 함정 회피 */}
+          <div className="widget-stat-value mono-number" style={{ color: "var(--danger)" }}>{won(data.total)}</div>
+        </div>
       </div>
       <div className="receivables-preview-list">
         {top.map((g) => (
