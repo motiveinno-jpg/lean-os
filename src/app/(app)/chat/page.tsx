@@ -2,7 +2,7 @@
 import { logRead } from "@/lib/log-read";
 import { Ico } from "@/components/ui-icon";
 
-import { useEffect, useState, useRef, useCallback, Suspense } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback, Suspense } from "react";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -297,6 +297,27 @@ function ChannelRow({ ch, active, unread, onClick }: { ch: any; active: boolean;
   );
 }
 
+// ── 구성원 한 줄 — 누르면 그 사람과의 1:1 대화가 오른쪽에 열린다 (2026-08-10 사장님 지시) ──
+//   앱 계정이 없는 인사기록(userId 없음)은 대화를 걸 수 없으므로 흐리게 두고 이유를 적는다.
+function PersonRow({ p, active, unread, busy, isMe, onClick }: {
+  p: { name: string; position: string; userId: string | null };
+  active: boolean; unread: number; busy: boolean; isMe: boolean; onClick: () => void;
+}) {
+  const disabled = isMe || !p.userId || busy;
+  return (
+    <button type="button" disabled={disabled} onClick={onClick}
+      title={isMe ? "나입니다" : p.userId ? `${p.name} 님과 1:1 대화` : "앱 계정이 없어 대화를 걸 수 없어요"}
+      className={`chat-person ${active ? "chat-person-on" : ""} ${disabled ? "chat-person-off" : ""}`}>
+      <span className="chat-person-face">{(p.name || "?").slice(0, 1)}</span>
+      <span className="chat-person-body">
+        <b>{p.name}{isMe && <em>나</em>}</b>
+        {p.position && <i>{p.position}</i>}
+      </span>
+      {unread > 0 && <span className="chat-person-badge">{unread > 99 ? "99+" : unread}</span>}
+    </button>
+  );
+}
+
 // 사이드바 섹션 (접기/펼치기 + 추가 버튼)
 function SidebarSection({ title, count, onAdd, children }: { title: string; count: number; onAdd: () => void; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
@@ -328,6 +349,18 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   //   새 창(?embed=1)으로 열리면 셸 헤더가 없다 — 104px 을 빼면 아래가 비어 보인다.
   //   창 높이를 다 쓰도록 임베드 여백(위아래 각 20px)만 뺀다 (2026-08-10 메신저 새 창).
   const [isEmbed] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1");
+  //   왼쪽 아이콘 레일 — 사람(부서 → 구성원) / 채팅방. 고른 것은 기억한다(2026-08-10 사장님 지시)
+  const [rail, setRail] = useState<"people" | "rooms">(selectedChannel ? "rooms" : "people");
+  useEffect(() => {
+    if (selectedChannel) return;                 // 채널로 들어왔으면 그 화면을 그대로 둔다
+    try { const v = localStorage.getItem("chat:rail"); if (v === "people" || v === "rooms") setRail(v); } catch { /* 무시 */ }
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  const pickRail = (v: "people" | "rooms") => {
+    setRail(v);
+    try { localStorage.setItem("chat:rail", v); } catch { /* 무시 */ }
+  };
+  const [openDepts, setOpenDepts] = useState<Set<string>>(() => new Set());
+  const [dmBusy, setDmBusy] = useState<string | null>(null);
 
   const { data: channels = [] } = useQuery({
     queryKey: ["chat-channels", companyId],
@@ -350,8 +383,65 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     enabled: !!companyId && !!userId,
     refetchInterval: 15000,
   });
+  //   구성원 디렉토리 — 부서·직책이 여기에 있다(급여 등 민감 컬럼은 RPC 가 아예 안 준다).
+  //   users 테이블엔 부서가 없어 이메일로 두 목록을 잇는다.
+  const { data: directory = [] } = useQuery({
+    queryKey: ["chat-directory", companyId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_company_directory");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+    enabled: !!companyId,
+  });
 
   const totalUnread = unreadMap ? Array.from(unreadMap.values()).reduce((s: number, v: number) => s + v, 0) : 0;
+
+  //   이미 있는 1:1 대화 — 사람을 누를 때 새로 만들지 않고 이 방을 연다(중복 방 방지)
+  const dmByUser = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const ch of channels as any[]) if (ch.is_dm && ch.dm_user_id) m.set(ch.dm_user_id, ch);
+    return m;
+  }, [channels]);
+
+  //   부서 → 구성원. 재직자만 보여 주고, 인사기록이 없는 앱 계정도 '미배정' 으로 함께 담는다.
+  const byDept = useMemo(() => {
+    const usersByEmail = new Map<string, any>();
+    for (const u of companyUsers as any[]) if (u.email) usersByEmail.set(String(u.email).toLowerCase(), u);
+    const seen = new Set<string>();
+    const list: { key: string; name: string; dept: string; position: string; userId: string | null }[] = [];
+    for (const e of directory as any[]) {
+      if (e.status !== "active" && e.status !== "joined") continue;
+      const u = e.email ? usersByEmail.get(String(e.email).toLowerCase()) : null;
+      if (u) seen.add(u.id);
+      list.push({
+        key: `d-${e.id}`, name: e.name || u?.name || e.email || "이름 없음",
+        dept: e.department || "미배정", position: e.position || "", userId: u?.id || null,
+      });
+    }
+    for (const u of companyUsers as any[]) {
+      if (seen.has(u.id)) continue;
+      list.push({ key: `u-${u.id}`, name: u.name || u.email || "이름 없음", dept: "미배정", position: "", userId: u.id });
+    }
+    const t = search.trim().toLowerCase();
+    const shown = t ? list.filter((p) => `${p.name} ${p.dept} ${p.position}`.toLowerCase().includes(t)) : list;
+    const groups = new Map<string, typeof list>();
+    for (const p of shown) {
+      const arr = groups.get(p.dept) || [];
+      arr.push(p);
+      groups.set(p.dept, arr);
+    }
+    //   '미배정' 은 늘 맨 아래
+    return [...groups.entries()]
+      .map(([dept, people]) => ({ dept, people: people.sort((a, b) => a.name.localeCompare(b.name)) }))
+      .sort((a, b) => (a.dept === "미배정" ? 1 : b.dept === "미배정" ? -1 : a.dept.localeCompare(b.dept)));
+  }, [directory, companyUsers, search]);
+
+  const toggleDept = (d: string) => setOpenDepts((prev) => {
+    const next = new Set(prev);
+    if (next.has(d)) next.delete(d); else next.add(d);
+    return next;
+  });
 
   const q = search.trim().toLowerCase();
   const match = (ch: any) => !q || (ch.name || "").toLowerCase().includes(q);
@@ -359,7 +449,22 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   const teamChannels = channels.filter((ch: any) => !ch.deal_id && !ch.is_dm && match(ch));
   const dmChannels = channels.filter((ch: any) => ch.is_dm && match(ch));
 
-  const open = (id: string) => router.push(`/chat?channel=${id}`);
+  const open = (id: string) => router.push(`/chat?channel=${id}${isEmbed ? "&embed=1" : ""}`);
+
+  //   구성원을 누르면 그 사람과의 1:1 대화를 연다 — 이미 있으면 그 방, 없으면 그때 만든다.
+  const openDm = async (p: { name: string; userId: string | null }) => {
+    if (!p.userId || p.userId === userId || !companyId || dmBusy) return;
+    const ex = dmByUser.get(p.userId);
+    if (ex) { open(ex.id); return; }
+    setDmBusy(p.userId);
+    try {
+      const ch: any = await createDMChannel({ companyId, participantIds: [userId!, p.userId] });
+      await queryClient.invalidateQueries({ queryKey: ["chat-channels"] });
+      if (ch?.id) open(ch.id);
+    } catch (err: any) {
+      toast(friendlyError(err, `${p.name} 님과 대화를 열지 못했습니다`), "error");
+    } finally { setDmBusy(null); }
+  };
 
   const createMut = useMutation({
     mutationFn: () => {
@@ -420,47 +525,103 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
 
   return (
     <div className="chat-workspace glass-card" style={{ height: isEmbed ? "calc(100dvh - 40px)" : "calc(100dvh - 104px)" }}>
-      {/* ── 좌측 채널 사이드바 ── */}
-      <aside className={`chat-sidebar ${selectedChannel ? "hidden lg:flex" : "flex"}`}>
+      {/* ── 좌측 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 (2026-08-10 사장님 지시) ── */}
+      <nav className="chat-rail" aria-label="메신저 보기 전환">
+        <button type="button" onClick={() => pickRail("people")} aria-pressed={rail === "people"}
+          className={`chat-rail-btn ${rail === "people" ? "chat-rail-btn-on" : ""}`} title="구성원 — 부서에서 사람을 골라 1:1 대화">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.4" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16.5 6.2a3.2 3.2 0 0 1 0 6" /><path d="M18 14.4a5.6 5.6 0 0 1 3.5 5.2" /></svg>
+          <em>구성원</em>
+        </button>
+        <button type="button" onClick={() => pickRail("rooms")} aria-pressed={rail === "rooms"}
+          className={`chat-rail-btn ${rail === "rooms" ? "chat-rail-btn-on" : ""}`} title="채팅방 — 팀 · 프로젝트 · 1:1 목록">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+          <em>채팅방</em>
+          {totalUnread > 0 && <span className="chat-rail-badge">{totalUnread > 99 ? "99+" : totalUnread}</span>}
+        </button>
+      </nav>
+
+      {/* ── 목록 패널 — 레일에서 고른 것에 따라 구성원 또는 채팅방 ── */}
+      <aside className={`chat-sidebar chat-sidebar-railed ${selectedChannel ? "hidden lg:flex" : "flex"}`}>
         <div className="px-3 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">채널</span>
-            {totalUnread > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-[var(--danger)] text-white rounded-full font-bold">{totalUnread}</span>}
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-dim)]">{rail === "people" ? "구성원" : "채팅방"}</span>
+            {rail === "rooms" && totalUnread > 0 && <span className="text-[10px] px-1.5 py-0.5 bg-[var(--danger)] text-white rounded-full font-bold">{totalUnread}</span>}
           </div>
-          <button onClick={() => { setCreating("team"); }} title="새로 만들기"
-            className="w-7 h-7 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center text-base leading-none hover:opacity-90 transition">+</button>
+          {rail === "rooms" && (
+            <button onClick={() => { setCreating("team"); }} title="새로 만들기"
+              className="w-7 h-7 rounded-lg bg-[var(--primary)] text-white flex items-center justify-center text-base leading-none hover:opacity-90 transition">+</button>
+          )}
         </div>
         <div className="px-3 py-2 shrink-0">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="채널·멤버 검색"
+          <input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder={rail === "people" ? "이름·부서·직책 검색" : "채널 검색"}
             className="w-full px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]" />
         </div>
-        <div className="flex-1 overflow-y-auto px-2 pb-3">
-          {sections.map((sec) => (
-            <SidebarSection key={sec.key} title={sec.title} count={sec.list.length} onAdd={() => setCreating(sec.key)}>
-              {sec.list.length === 0 ? (
-                <div className="px-2.5 py-1 text-[11px] text-[var(--text-dim)]">{sec.empty}</div>
-              ) : (
-                sec.list.map((ch: any) => (
-                  <ChannelRow key={ch.id} ch={ch} active={selectedChannel === ch.id} unread={unreadMap?.get(ch.id) || 0} onClick={() => open(ch.id)} />
-                ))
-              )}
-            </SidebarSection>
-          ))}
-        </div>
+
+        {rail === "people" ? (
+          <div className="flex-1 overflow-y-auto px-2 pb-3">
+            {byDept.length === 0 && <div className="px-2.5 py-4 text-[11px] text-[var(--text-dim)]">구성원이 없습니다.</div>}
+            {byDept.map(({ dept, people }) => {
+              //   검색 중에는 찾은 부서를 자동으로 펼쳐 준다(한 번 더 누르게 하지 않는다)
+              const expanded = openDepts.has(dept) || !!search.trim();
+              return (
+                <div key={dept} className="chat-dept">
+                  <button type="button" onClick={() => toggleDept(dept)} className="chat-dept-head" aria-expanded={expanded}>
+                    <svg className={expanded ? "chat-dept-caret chat-dept-caret-on" : "chat-dept-caret"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><polyline points="9 6 15 12 9 18" /></svg>
+                    <span>{dept}</span>
+                    <em>{people.length}</em>
+                  </button>
+                  {expanded && (
+                    <div className="chat-dept-people">
+                      {people.map((p) => {
+                        const dm = p.userId ? dmByUser.get(p.userId) : null;
+                        return (
+                          <PersonRow key={p.key} p={p} isMe={p.userId === userId}
+                            active={!!dm && selectedChannel === dm.id}
+                            unread={dm ? (unreadMap?.get(dm.id) || 0) : 0}
+                            busy={dmBusy === p.userId}
+                            onClick={() => openDm(p)} />
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-2 pb-3">
+            {sections.map((sec) => (
+              <SidebarSection key={sec.key} title={sec.title} count={sec.list.length} onAdd={() => setCreating(sec.key)}>
+                {sec.list.length === 0 ? (
+                  <div className="px-2.5 py-1 text-[11px] text-[var(--text-dim)]">{sec.empty}</div>
+                ) : (
+                  sec.list.map((ch: any) => (
+                    <ChannelRow key={ch.id} ch={ch} active={selectedChannel === ch.id} unread={unreadMap?.get(ch.id) || 0} onClick={() => open(ch.id)} />
+                  ))
+                )}
+              </SidebarSection>
+            ))}
+          </div>
+        )}
       </aside>
 
       {/* ── 우측 대화 패널 ── */}
       <section className={`chat-conversation-panel ${selectedChannel ? "flex" : "hidden lg:flex"}`}>
         {selectedChannel ? (
           <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-3">
-            <ChatRoomView channelId={selectedChannel} embedded onBack={() => router.push("/chat")} />
+            {/*  뒤로 갈 때도 embed 를 달고 간다 — 빼면 새로고침 시 새 창 안에 셸이 통째로 뜬다 */}
+            <ChatRoomView channelId={selectedChannel} embedded onBack={() => router.push(isEmbed ? "/chat?embed=1" : "/chat")} />
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-center p-8">
             <div>
               <div className="text-5xl mb-4"><Ico e="💬" /></div>
-              <div className="text-sm font-semibold text-[var(--text)]">채널을 선택하세요</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1.5">왼쪽에서 대화를 선택하거나 새 채널을 만드세요</div>
+              <div className="text-sm font-semibold text-[var(--text)]">대화를 골라 주세요</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5">
+                왼쪽 <b className="text-[var(--text)]">구성원</b>에서 부서를 펼쳐 사람을 누르면 1:1 대화가,
+                <b className="text-[var(--text)]"> 채팅방</b>에서 방을 누르면 그 방이 여기 열립니다.
+              </div>
             </div>
           </div>
         )}

@@ -1103,6 +1103,8 @@ export async function getChannels(companyId: string, userId?: string) {
       const others = (byChannel.get(ch.id) || []).filter((p: any) => p.user_id !== userId);
       const o = others[0] || (byChannel.get(ch.id) || [])[0];
       ch.dm_name = o?.users?.name || o?.users?.email || null;
+      //   상대 user_id — 구성원 목록에서 사람을 누를 때 '이미 있는 DM' 을 찾는 데 쓴다(중복 생성 방지)
+      ch.dm_user_id = o?.user_id || null;
     }
   }
   return visible;

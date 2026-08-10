@@ -2939,6 +2939,39 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .chat-workspace { @apply flex overflow-hidden; }
 .chat-sidebar { @apply flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40; }
 .chat-conversation-panel { @apply flex-1 min-w-0 flex-col; }
+
+/*  ⚠️ .chat-sidebar 는 w-full 이라 옆에 레일이 생기자 좁은 창에서 레일을 화면 밖으로 밀어냈다.
+    기존 정의는 그대로 두고, 레일과 나란히 설 때만 이 조합을 덧씌운다(뒤에 있어 폭 선언이 이긴다). */
+.chat-sidebar-railed { @apply w-auto flex-1 min-w-0 lg:flex-none lg:w-72; }
+
+/* 메신저 왼쪽 아이콘 레일 — 구성원 / 채팅방 (2026-08-10) */
+.chat-rail { @apply shrink-0 w-[60px] flex flex-col items-center gap-1 py-2 border-r border-[var(--border)] bg-[var(--bg-surface)]/70; }
+.chat-rail-btn { @apply relative w-[52px] py-2 rounded-xl flex flex-col items-center gap-1 text-[var(--text-dim)] transition hover:bg-[var(--bg-card)] hover:text-[var(--text)]; }
+.chat-rail-btn svg { @apply w-5 h-5; }
+.chat-rail-btn em { @apply not-italic text-[10px] font-bold; }
+.chat-rail-btn-on { @apply bg-[var(--primary)]/12 text-[var(--primary)] hover:!text-[var(--primary)]; }
+.chat-rail-badge { @apply absolute top-1 right-1.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-[var(--danger)] text-[9px] font-bold text-white; }
+
+/* 부서 → 구성원 트리 */
+.chat-dept { @apply mb-1; }
+.chat-dept-head { @apply w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left transition hover:bg-[var(--bg-surface)]; }
+.chat-dept-head > span { @apply flex-1 min-w-0 truncate text-[11.5px] font-bold text-[var(--text-muted)]; }
+.chat-dept-head > em { @apply not-italic shrink-0 text-[10.5px] text-[var(--text-dim)]; }
+.chat-dept-caret { @apply w-3 h-3 shrink-0 text-[var(--text-dim)] transition-transform; }
+.chat-dept-caret-on { @apply rotate-90; }
+.chat-dept-people { @apply flex flex-col gap-0.5 pl-1.5 pb-1; }
+.chat-person { @apply w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition hover:bg-[var(--bg-surface)]; }
+.chat-person-face { @apply shrink-0 w-6 h-6 rounded-full grid place-items-center text-[10.5px] font-extrabold bg-[var(--primary-light)] text-[var(--primary)]; }
+.chat-person-body { @apply flex-1 min-w-0 flex flex-col; }
+.chat-person-body b { @apply flex items-center gap-1 truncate text-[12.5px] font-semibold text-[var(--text)]; }
+.chat-person-body b em { @apply not-italic shrink-0 px-1 rounded bg-[var(--bg-surface)] text-[9.5px] font-bold text-[var(--text-dim)]; }
+.chat-person-body i { @apply not-italic truncate text-[10.5px] text-[var(--text-dim)]; }
+.chat-person-badge { @apply shrink-0 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-[var(--danger)] text-[10px] font-bold text-white; }
+.chat-person-on { @apply bg-[var(--primary)] hover:!bg-[var(--primary)]; }
+.chat-person-on .chat-person-face { @apply bg-white/25 text-white; }
+.chat-person-on .chat-person-body b { @apply text-white; }
+.chat-person-on .chat-person-body i { @apply text-white/75; }
+.chat-person-off { @apply opacity-45 cursor-not-allowed hover:bg-transparent; }
 .chat-create-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
 .refund-nav { @apply sticky top-0 w-full bg-[#0A0E1A]/80 backdrop-blur-xl border-b border-white/5 z-50; }
 .refund-main { @apply max-w-4xl mx-auto px-6 py-16; }
