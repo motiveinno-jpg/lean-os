@@ -174,7 +174,7 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
             placeholder={placeholder || "메시지를 입력하세요... (@멘션 가능)"}
             disabled={disabled}
             rows={1}
-            className={`flex-1 px-4 py-2.5 text-sm resize-none focus:outline-none disabled:opacity-50 max-h-32 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-dim)] focus:border-[var(--primary)] ${
+            className={`chat-input-text flex-1 px-4 py-2.5 text-sm resize-none focus:outline-none disabled:opacity-50 max-h-32 bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-dim)] focus:border-[var(--primary)] ${
               glass ? "rounded-full" : "rounded-xl"
             }`}
             style={{ minHeight: "42px" }}
