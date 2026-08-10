@@ -27,6 +27,7 @@ import type { CashReceipt } from "@/lib/cash-receipts";
 import { getCashReceiptIssuanceStatus } from "@/lib/billing";
 import * as XLSX from "xlsx";
 import { QueryErrorBanner } from "@/components/query-status";
+import { ToolbarPopover, ToolbarPopoverItem } from "@/components/toolbar-popover";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -55,7 +56,8 @@ export default function CashReceiptsPage() {
   const { confirm: confirmDialog, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("expense");
+  //   세금계산서 화면과 같이 매출부터 연다 — 탭 순서도 매출·매입으로 맞췄다 (2026-08-10)
+  const [tab, setTab] = useState<Tab>("income");
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -568,28 +570,24 @@ export default function CashReceiptsPage() {
 
   return (
     <div className="space-y-6 mx-auto">
-      {/* ─── 툴바 — 조회기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) ─── */}
-      <div className="cash-receipt-toolbar page-sticky-header">
-        {/* 조회기간 — 목록·요약·홈택스 동기화 공통 기준 (기준 하나로 통일) */}
-        <div className="cash-receipt-period-filter">
-          <span className="text-[11px] font-semibold text-[var(--text-muted)]">조회기간</span>
-          <DateField
-            value={startDate}
-            max={endDate || undefined}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="px-2 py-1 text-xs bg-transparent border-0 rounded-lg text-[var(--text)] focus:outline-none"
-            aria-label="조회 시작일"
-          />
-          <span className="text-[var(--text-dim)] text-xs">~</span>
-          <DateField
-            value={endDate}
-            min={startDate || undefined}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="px-2 py-1 text-xs bg-transparent border-0 rounded-lg text-[var(--text)] focus:outline-none"
-            aria-label="조회 종료일"
-          />
+      {/* 한 줄짜리 머리 — [탭] ·········· [기간 ▾] [가져오기 ▾] [+ 발행]
+          세금계산서 화면과 **같은 뼈대·같은 자리**로 맞췄다 (2026-08-10 사장님 지시).
+          예전엔 이쪽만 탭이 목록 카드 안에 있고, 매입·매출 순서도 반대고, 파란 버튼이 셋이었다. */}
+      <div className="tax-invoice-tabs">
+        <div className="seg-bar flex-wrap">
+          {(
+            [
+              ["income", "매출 (발행)"],
+              ["expense", "매입 (수취)"],
+            ] as [Tab, string][]
+          ).map(([t, label]) => (
+            <button key={t} onClick={() => setTab(t)} className={`seg-item ${tab === t ? "seg-item-active" : ""}`}>
+              {label}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+
+        <div className="ml-auto flex items-center gap-1.5 flex-wrap">
           {issuanceStatus && issuanceStatus.limit !== null && (
             <span
               className="cash-receipt-issuance-badge"
@@ -598,141 +596,117 @@ export default function CashReceiptsPage() {
                 borderColor: issuanceLimitReached ? "#ef4444" : "var(--border)",
                 color: issuanceLimitReached ? "#ef4444" : "var(--text-muted)",
               }}
-              title={`${issuanceStatus.planName || "현재 요금제"} — 세금계산서·현금영수증 합산 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}건 사용)`}
+              title={`${issuanceStatus.planName || "현재 요금제"} — 세금계산서·현금영수증 합산 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}건 사용 · 세금계산서+현금영수증 ${issuanceStatus.used}/${issuanceStatus.limit})`}
             >
-              {/* 남은 횟수를 앞에 세운다 (2026-08-06 사장님) */}
               발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음
-              <span className="opacity-60"> · 세금계산서+현금영수증 {issuanceStatus.used}/{issuanceStatus.limit}</span>
             </span>
           )}
+
+          {/* 조회기간 — 눌렀을 때만 열린다. 빠른기간은 그 안에 작은 글씨로 (2026-08-10 사장님) */}
+          <ToolbarPopover label={<span className="mono-number">{startDate} ~ {endDate}</span>} title="조회기간" width={252}>
+            {() => (
+              <>
+                <div className="period-pop-fields">
+                  <DateField
+                    value={startDate}
+                    max={endDate || undefined}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="flex-1 px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
+                    aria-label="조회 시작일"
+                  />
+                  <span className="text-xs text-[var(--text-muted)]">~</span>
+                  <DateField
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="flex-1 px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
+                    aria-label="조회 종료일"
+                  />
+                </div>
+                <div className="period-pop-quick">
+                  {([["1개월", 1], ["3개월", 3], ["6개월", 6], ["1년", 12]] as const).map(([l, back]) => {
+                    const today = todayKst();
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - back);
+                    const from = kstDateStr(d);
+                    const on = startDate === from && endDate === today;
+                    return (
+                      <button key={l} type="button" className={on ? "on" : ""}
+                        onClick={() => { setStartDate(from); setEndDate(today); }}>
+                        {l}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </ToolbarPopover>
+
+          {/* 가져오기 — 홈택스 매출·매입과 엑셀 업로드를 한 곳에 */}
+          <ToolbarPopover label="가져오기" title="가져오기" width={230}>
+            {(close) => (
+              <>
+                <ToolbarPopoverItem
+                  onClick={() => { close(); startSync(); }}
+                  disabled={syncStarting || !!activeJobId}
+                  hint="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기">
+                  <span aria-live="polite">
+                    {syncStarting ? "시작 중…"
+                      : activeJobId
+                        ? `가져오는 중 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0}`
+                        : "홈택스 매출 가져오기"}
+                  </span>
+                </ToolbarPopoverItem>
+                <ToolbarPopoverItem
+                  onClick={() => { close(); startPurchaseSync(); }}
+                  disabled={purchaseSyncing}
+                  hint="조회기간 범위로 홈택스에서 현금영수증 매입(수취) 내역 가져오기 — 등록된 공동인증서로 조회합니다 (최근 37개월)">
+                  {purchaseSyncing ? "매입 조회 중…" : "홈택스 매입 가져오기"}
+                </ToolbarPopoverItem>
+                <label className="toolbar-pop-item cursor-pointer">
+                  {uploading ? "업로드 중…" : "엑셀 업로드"}
+                  <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
+                    onChange={(e) => { close(); handleExcelUpload(e); }} disabled={uploading} />
+                </label>
+                {activeJobId && (
+                  <>
+                    <div className="toolbar-pop-sep" />
+                    <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
+                      hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다">
+                      동기화 취소
+                    </ToolbarPopoverItem>
+                  </>
+                )}
+              </>
+            )}
+          </ToolbarPopover>
+
           <button
             type="button"
             onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
             disabled={issuanceLimitReached}
             title={issuanceLimitReached ? `이번 달 발행 한도(${issuanceStatus?.limit}건)를 모두 사용했습니다. 세금계산서와 현금영수증을 합산해 계산합니다.` : "CODEF 연동으로 현금영수증을 국세청에 실제 발행합니다"}
-            className="cashbill-issue-open btn-primary"
+            className="cashbill-issue-open btn-primary text-xs h-8"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {issuanceLimitReached ? "발행 한도 소진" : "국세청 발행"}
+            {issuanceLimitReached ? "발행 한도 소진" : "+ 발행"}
           </button>
-          <button
-              onClick={startSync}
-              disabled={syncStarting || !!activeJobId}
-              aria-busy={syncStarting || !!activeJobId}
-              className="btn-primary text-xs disabled:cursor-not-allowed"
-              title="조회기간 범위로 홈택스에서 현금영수증 매출(발행) 내역 가져오기"
-            >
-              <svg className={`w-3.5 h-3.5 ${(syncStarting || activeJobId) ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span aria-live="polite">
-                {syncStarting ? "시작 중..."
-                  : activeJobId
-                    ? `백그라운드 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0} (${(activeJob?.current_progress as any)?.label || ""})`
-                    : "홈택스 매출 가져오기"}
-              </span>
-            </button>
-            {activeJobId && (
-              <button type="button" onClick={() => forceClearStuckJob(activeJobId)}
-                title="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다"
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 rounded-lg text-xs font-semibold transition">
-                동기화 취소
-              </button>
-            )}
-            <button
-              onClick={startPurchaseSync}
-              disabled={purchaseSyncing}
-              aria-busy={purchaseSyncing}
-              className="btn-primary text-xs disabled:cursor-not-allowed"
-              title="조회기간 범위로 홈택스에서 현금영수증 매입(수취) 내역 가져오기 — 등록된 공동인증서로 조회합니다 (최근 37개월)"
-            >
-              <svg className={`w-3.5 h-3.5 ${purchaseSyncing ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              <span aria-live="polite">{purchaseSyncing ? "매입 조회 중..." : "홈택스 매입 가져오기"}</span>
-            </button>
-            <label className="btn-secondary text-xs inline-flex items-center gap-1.5 cursor-pointer">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              {uploading ? "업로드 중..." : "엑셀 업로드"}
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                onChange={handleExcelUpload}
-                disabled={uploading}
-              />
-            </label>
         </div>
       </div>
 
-      {/* ─── KPI 스탯 ─── */}
+      {/* 요약 — 카드 4장을 한 줄 스트립으로. '합계'는 앞 두 칸을 더한 값이라 뺐다 (2026-08-10) */}
       {summary && (
-        <div className="cash-receipt-summary-stats">
-          <div className="glass-card p-5 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">매출 발행</span>
-              <span className="kpi-icon success">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </span>
-            </div>
-            <div className="stat-fit flex items-end gap-2">
-              <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{summary.incomeCount}건</span>
-            </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number">
-              ₩{summary.incomeTotal.toLocaleString()}
-            </div>
+        <div className="doc-summary-strip">
+          <div className="doc-summary-cell">
+            <span>매출 발행 {summary.incomeCount.toLocaleString()}건</span>
+            <b>₩{summary.incomeTotal.toLocaleString()}</b>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">매입 수취</span>
-              <span className="kpi-icon info">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4m0 0l6-6m-6 6l6 6" />
-                </svg>
-              </span>
-            </div>
-            <div className="stat-fit flex items-end gap-2">
-              <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{summary.expenseCount}건</span>
-            </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number">
-              ₩{summary.expenseTotal.toLocaleString()}
-            </div>
+          <div className="doc-summary-cell">
+            <span>매입 수취 {summary.expenseCount.toLocaleString()}건</span>
+            <b>₩{summary.expenseTotal.toLocaleString()}</b>
           </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">매입세액 공제</span>
-              <span className="kpi-icon">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </span>
-            </div>
-            <div className="stat-fit flex items-end gap-2">
-              <span className="stat-fit-value font-extrabold mono-number text-[var(--primary)]">₩{summary.expenseTax.toLocaleString()}</span>
-            </div>
-            <div className="text-xs text-[var(--text-muted)]">부가세 신고 시 공제</div>
-          </div>
-          <div className="glass-card p-5 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">합계</span>
-              <span className="kpi-icon">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </span>
-            </div>
-            <div className="stat-fit flex items-end gap-2">
-              <span className="stat-fit-value font-extrabold mono-number text-[var(--text)]">{summary.incomeCount + summary.expenseCount}건</span>
-            </div>
-            <div className="text-xs text-[var(--text-muted)] mono-number">
-              ₩{(summary.incomeTotal + summary.expenseTotal).toLocaleString()}
-            </div>
+          <div className="doc-summary-cell doc-summary-cell-link" title="부가세 신고 시 공제되는 매입세액입니다">
+            <span>매입세액 공제</span>
+            <b>₩{summary.expenseTax.toLocaleString()}</b>
           </div>
         </div>
       )}
@@ -759,24 +733,12 @@ export default function CashReceiptsPage() {
       {/* ─── 세그먼트 탭 + 리스트/등록 패널 ─── */}
       <div className="glass-card overflow-hidden">
         <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3 flex-wrap">
-          <div className="seg-bar w-fit">
-            {/* A3: '등록' 탭은 직원 요청으로 메뉴 제거. 백엔드 코드/엔드포인트는
-                보존 (CODEF 자동 sync BLOCKED 해제 시 즉시 재노출 가능). */}
-            {(
-              [
-                ["expense", "매입 (수취)"],
-                ["income", "매출 (발행)"],
-              ] as [Tab, string][]
-            ).map(([t, label]) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`seg-item ${tab === t ? "seg-item-active" : ""}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* 탭은 화면 머리로 올렸다 (2026-08-10) — 여기엔 목록에 딸린 정렬만 남는다.
+              '등록' 탭은 직원 요청으로 메뉴에서 뺀 상태이고 백엔드는 보존돼 있다. */}
+          <span className="text-[13px] font-bold text-[var(--text)]">
+            {tab === "income" ? "매출 (발행)" : "매입 (수취)"}
+            {receipts.length > 0 && <span className="ml-1.5 text-xs font-medium text-[var(--text-dim)]">{receipts.length.toLocaleString()}건</span>}
+          </span>
           {tab !== "register" && receipts.length > 0 && (
             <SortToolbar
               options={[
