@@ -1,144 +1,119 @@
 "use client";
 
-// 메신저 안의 '일정 · 할 일' (2026-08-10 사장님 지시) — 왼쪽 레일 세 번째 아이콘이 연다.
+// 메신저 안의 '일정' 목록 (2026-08-10 사장님 지시로 통합).
 //
-//   대화를 보다가 곧바로 일정을 잡거나 할 일을 적는 자리다. 저장은 **일정 / 할 일 메뉴와 같은
-//   테이블·같은 함수**(lib/schedule)를 쓴다 — 여기서 적으면 /schedule 에도 그대로 있다.
-//   따로 저장하는 곳을 만들지 않는다(두 곳이 갈리면 어느 쪽이 맞는지 알 수 없다).
+//   '할 일' 이라는 구분은 없앴다 — 날짜를 안 넣은 일정일 뿐이다. 그래서 이 패널은
+//   **다가오는 일정**과 **날짜 없는 것**을 한 자리에서 보여 준다.
+//   넣고 고치는 것은 오른쪽 달력(날짜 클릭)과 같은 부품(ScheduleItemEditor)이 맡는다 —
+//   일정 메뉴와 메신저가 같은 화면을 쓴다는 원칙.
 
-import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DateField } from "@/components/date-field";
+import { useState } from "react";
 import { useToast } from "@/components/toast";
+import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
 import { todayKst } from "@/lib/kst";
 import {
-  getMonthEvents, getTodos, upsertTodo, toggleTodoDone,
-  type ScheduleEvent, type ScheduleTodo, type EventColor,
+  getScheduleItems, upsertEvent, deleteEvent, toggleEventCompleted,
+  VISIBILITY_LABEL, type ScheduleEvent, type EventColor,
 } from "@/lib/schedule";
 
-type Mode = "event" | "todo";
-
-//   목록 앞 점 — 일정 화면의 색 뜻을 그대로 쓰되, 점은 옅으면 안 보여 진한 색으로 찍는다
 const DOT: Record<EventColor, string> = {
   blue: "bg-blue-500", green: "bg-green-500", red: "bg-red-500",
   amber: "bg-amber-500", violet: "bg-violet-500", gray: "bg-gray-400",
 };
 
-/** 이번 달 + 다음 달을 한 번에 — 달을 넘기는 일정도 '다가오는' 목록에 들어오게 */
-function monthPair(base = new Date()) {
-  const y = base.getFullYear(), m = base.getMonth();
-  const next = new Date(y, m + 1, 1);
-  return [{ y, m }, { y: next.getFullYear(), m: next.getMonth() }];
-}
-
 export function ChatSchedulePanel({ companyId, userId }: { companyId: string | null; userId: string | null }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [mode, setMode] = useState<Mode>("event");
-  const [tdTitle, setTdTitle] = useState("");
-  const [tdDue, setTdDue] = useState("");
+  const [draft, setDraft] = useState<ScheduleDraft | null>(null);
 
-  const months = useMemo(() => monthPair(), []);
-  const { data: events = [] } = useQuery({
-    queryKey: ["chat-schedule-events", companyId, userId],
-    queryFn: async () => {
-      const lists = await Promise.all(months.map((mm) =>
-        getMonthEvents(companyId!, mm.y, mm.m, { scope: "both", userId: userId || undefined })));
-      const today = todayKst();
-      return (lists.flat() as ScheduleEvent[])
-        //   지난 일정은 굳이 안 보여 준다 — '다가오는 것' 만 본다
-        .filter((e) => String(e.end_at || e.start_at).slice(0, 10) >= today)
-        .sort((a, b) => String(a.start_at).localeCompare(String(b.start_at)))
-        .slice(0, 40);
-    },
+  const { data: items = [] } = useQuery({
+    queryKey: ["schedule-items", companyId, userId, false, false],
+    queryFn: () => getScheduleItems(companyId!, { userId: userId ?? undefined }),
     enabled: !!companyId,
   });
 
-  const { data: todos = [] } = useQuery({
-    queryKey: ["chat-schedule-todos", userId],
-    queryFn: () => getTodos(userId!),
-    enabled: !!userId,
-  });
-
-  //   저장 뒤에는 **일정/할 일 메뉴의 캐시까지** 무효화한다 — 같은 창에서 그 화면을 열어 두었을 때
-  //   방금 적은 것이 안 보이면 저장이 안 된 줄 안다.
   const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["chat-schedule-events"] });
-    qc.invalidateQueries({ queryKey: ["chat-schedule-todos"] });
-    qc.invalidateQueries({ queryKey: ["schedule-events"] });
-    qc.invalidateQueries({ queryKey: ["schedule-todos"] });
+    qc.invalidateQueries({ queryKey: ["schedule-items"] });
+    qc.invalidateQueries({ queryKey: ["chat-cal-events"] });
+    qc.invalidateQueries({ queryKey: ["schedule-events"] });   // 일정 메뉴도 같이
   };
 
-  const addTodo = useMutation({
-    mutationFn: () => upsertTodo({
-      companyId: companyId!, userId: userId!, title: tdTitle.trim(), dueDate: tdDue || null,
-    }),
-    onSuccess: () => { setTdTitle(""); setTdDue(""); refresh(); toast("할 일에 넣었습니다.", "success"); },
-    onError: (e: any) => toast(e?.message || "할 일 저장 실패", "error"),
+  const save = useMutation({
+    mutationFn: () => {
+      const d = draft!;
+      const from = d.from, to = d.to || d.from;
+      const [a, b] = !from ? ["", ""] : (from <= to ? [from, to] : [to, from]);
+      return upsertEvent({
+        id: d.id, companyId: companyId!, userId: userId!,
+        title: d.title.trim(), description: d.description.trim() || undefined,
+        startAt: a ? `${a}T00:00:00` : null,
+        endAt: a && b > a ? `${b}T00:00:00` : null,
+        allDay: true, color: d.color,
+        visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
+      });
+    },
+    onSuccess: () => { setDraft(null); refresh(); toast("저장했습니다.", "success"); },
+    onError: (e: any) => toast(e?.message || "저장 실패", "error"),
   });
-
+  const remove = useMutation({
+    mutationFn: () => deleteEvent(draft!.id!),
+    onSuccess: () => { setDraft(null); refresh(); toast("지웠습니다.", "success"); },
+  });
   const doneMut = useMutation({
-    mutationFn: ({ id, done }: { id: string; done: boolean }) => toggleTodoDone(id, done),
+    mutationFn: ({ id, completed }: { id: string; completed: boolean }) => toggleEventCompleted(id, completed),
     onSuccess: refresh,
   });
 
-  const canWrite = !!companyId && !!userId;
+  const today = todayKst();
+  const list = items as ScheduleEvent[];
+  //   지난 일정은 굳이 안 보여 준다 — '앞으로 할 것' 만 본다
+  const upcoming = list.filter((e) => e.start_at && String(e.end_at || e.start_at).slice(0, 10) >= today);
+  const undated = list.filter((e) => !e.start_at);
+
+  const row = (e: ScheduleEvent) => (
+    <label key={e.id} className="chat-sched-row chat-sched-row-todo">
+      <input type="checkbox" checked={e.completed}
+        onChange={(ev) => { ev.stopPropagation(); doneMut.mutate({ id: e.id, completed: ev.target.checked }); }} />
+      <i className={`chat-sched-dot ${DOT[e.color] || DOT.gray}`} />
+      <span className="chat-sched-row-body" onClick={() => setDraft(draftFromEvent(e))}>
+        <b>{e.title}</b>
+        <em>
+          {e.start_at ? String(e.start_at).slice(0, 10) : "날짜 없음"}
+          {e.end_at ? ` ~ ${String(e.end_at).slice(0, 10)}` : ""}
+          {` · ${VISIBILITY_LABEL[e.visibility]}`}
+        </em>
+      </span>
+    </label>
+  );
 
   return (
     <div className="chat-sched">
-      <div className="chat-sched-modes">
-        {([["event", "일정"], ["todo", "할 일"]] as [Mode, string][]).map(([k, label]) => (
-          <button key={k} type="button" onClick={() => setMode(k)}
-            className={`chat-sched-mode ${mode === k ? "chat-sched-mode-on" : ""}`}>{label}</button>
-        ))}
+      <button type="button" className="chat-sched-new" onClick={() => setDraft(draftFromEvent(null))}>
+        ＋ 새로 만들기
+      </button>
+      <p className="chat-sched-tip">오른쪽 달력에서 <b>날짜를 누르거나 끌면</b> 그 날짜로 넣습니다.</p>
+
+      <div className="chat-sched-list">
+        {upcoming.length === 0 && undated.length === 0 && <p className="chat-sched-empty">일정이 없습니다.</p>}
+        {upcoming.map(row)}
+        {undated.length > 0 && (
+          <p className="chat-sched-sub">날짜 없는 것 {undated.length}</p>
+        )}
+        {undated.map(row)}
       </div>
 
-      {mode === "event" ? (
-        <>
-          {/*  일정 넣기는 오른쪽 달력에서 한다 — 제목부터 치게 하지 않는다(2026-08-10 사장님 지시) */}
-          <p className="chat-sched-tip">오른쪽 달력에서 <b>날짜를 누르면</b> 그 날 일정을 넣습니다.</p>
-          <div className="chat-sched-list">
-            {events.length === 0 && <p className="chat-sched-empty">다가오는 일정이 없습니다.</p>}
-            {events.map((e) => (
-              <div key={e.id} className="chat-sched-row">
-                <i className={`chat-sched-dot ${DOT[e.color] || DOT.gray}`} />
-                <span className="chat-sched-row-body">
-                  <b>{e.title}</b>
-                  <em>{String(e.start_at).slice(0, 10)}{e.end_at ? ` ~ ${String(e.end_at).slice(0, 10)}` : ""}{e.is_shared ? " · 전체" : ""}</em>
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="chat-sched-add">
-            <input value={tdTitle} onChange={(e) => setTdTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && tdTitle.trim() && canWrite && !addTodo.isPending) addTodo.mutate(); }}
-              placeholder="무엇을 해야 하나요" className="chat-sched-input" />
-            <div className="chat-sched-add-row">
-              <DateField value={tdDue} onChange={(e) => setTdDue(e.target.value)} placeholder="기한(선택)" className="chat-sched-date" />
-              <button type="button" className="chat-sched-go" disabled={!tdTitle.trim() || !canWrite || addTodo.isPending}
-                onClick={() => addTodo.mutate()}>{addTodo.isPending ? "…" : "추가"}</button>
-            </div>
-          </div>
-          <div className="chat-sched-list">
-            {todos.length === 0 && <p className="chat-sched-empty">할 일이 없습니다.</p>}
-            {(todos as ScheduleTodo[]).map((t) => (
-              <label key={t.id} className="chat-sched-row chat-sched-row-todo">
-                <input type="checkbox" checked={t.done}
-                  onChange={(e) => doneMut.mutate({ id: t.id, done: e.target.checked })} />
-                <span className="chat-sched-row-body">
-                  <b>{t.title}</b>
-                  {t.due_date && <em>기한 {String(t.due_date).slice(0, 10)}</em>}
-                </span>
-              </label>
-            ))}
-          </div>
-        </>
-      )}
+      <a href="/schedule" target="_blank" rel="noopener noreferrer" className="chat-sched-more">일정 화면 열기 ↗</a>
 
-      <a href="/schedule" target="_blank" rel="noopener noreferrer" className="chat-sched-more">일정 / 할 일 화면 열기 ↗</a>
+      {draft && (
+        <ScheduleItemEditor
+          companyId={companyId} userId={userId}
+          draft={draft} onChange={setDraft}
+          onSave={() => save.mutate()}
+          onDelete={draft.id ? () => remove.mutate() : undefined}
+          onClose={() => setDraft(null)}
+          saving={save.isPending || remove.isPending} />
+      )}
     </div>
   );
 }

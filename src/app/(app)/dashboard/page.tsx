@@ -34,7 +34,7 @@ import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { syncCodefData } from "@/lib/data-sync";
 import { getCEOPendingActions, getApprovalSummary, approveAction, bulkApproveActions, getRecurringPayments, sendApprovalNotificationEmail, type PendingAction, type PendingActionType } from "@/lib/approval-center";
 import { getMonthlyTotalSalary } from "@/lib/payroll";
-import { getTodos, toggleTodoDone, PRIORITY_LABEL, getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
+import { getScheduleItems, toggleEventCompleted, PRIORITY_LABEL, getMonthEvents, type ScheduleEvent } from "@/lib/schedule";
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
@@ -885,12 +885,12 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   const { toast } = useToast();
   const [toggling, setToggling] = useState<string | null>(null);
 
-  // /schedule TodoTab 과 '동일 쿼리키'로 단일 캐시 공유 → 한쪽에서 추가/완료 시 대시보드도 즉시 동기화.
-  //   (이전엔 키가 달라 /schedule 엔 보여도 대시보드는 빈 채로 남았음)
+  //   '할 일' 은 일정으로 합쳐졌다(2026-08-10) — 여기서는 **날짜를 아직 안 정한 내 것**만 본다.
+  //   날짜가 있는 것은 아래 '다가오는 일정' 으로 이미 들어오므로 두 번 뜨지 않는다.
   const { data: todos = [] } = useQuery({
-    queryKey: ["schedule-todos", userId, false],
-    queryFn: () => getTodos(userId, { includeDone: false }),
-    enabled: !!userId,
+    queryKey: ["schedule-items", companyId, userId, false, true],
+    queryFn: async () => (await getScheduleItems(companyId!, { mineOnly: true, userId })).filter((i) => !i.start_at),
+    enabled: !!companyId && !!userId,
     refetchInterval: 60_000,
   });
 
@@ -907,16 +907,16 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   const now = new Date();
   const { data: events = [] } = useQuery({
     queryKey: ["schedule-events", companyId, now.getFullYear(), now.getMonth(), "both", userId],
-    queryFn: () => getMonthEvents(companyId!, now.getFullYear(), now.getMonth(), { scope: "both", userId }),
+    queryFn: () => getMonthEvents(companyId!, now.getFullYear(), now.getMonth(), { scope: "all", userId }),
     enabled: !!companyId && !!userId,
     staleTime: 60_000,
   });
 
-  const handleToggle = async (t: ScheduleTodo) => {
+  const handleToggle = async (t: ScheduleEvent) => {
     setToggling(t.id);
     try {
-      await toggleTodoDone(t.id, true);
-      queryClient.invalidateQueries({ queryKey: ["schedule-todos"] });
+      await toggleEventCompleted(t.id, true);
+      queryClient.invalidateQueries({ queryKey: ["schedule-items"] });
       toast("할일 완료 처리", "success");
     } catch (err: any) {
       toast(friendlyError(err, "처리에 실패했습니다"), "error");
@@ -930,7 +930,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
   const upcomingEvents = (events as any[]).filter((e) => !e.completed && (e.end_at ?? e.start_at) >= startOfTodayIso);
   // 할일 + 프로젝트 업무 + 일정 통합 목록(날짜순)
   const items: { kind: "todo" | "event" | "task"; id: string; title: string; date: string | null; raw: any }[] = [
-    ...todos.map((t) => ({ kind: "todo" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
+    ...todos.map((t) => ({ kind: "todo" as const, id: t.id, title: t.title, date: null, raw: t })),
     ...(myTasks as any[]).map((t) => ({ kind: "task" as const, id: t.id, title: t.title, date: t.due_date, raw: t })),
     ...upcomingEvents.map((e) => ({ kind: "event" as const, id: e.id, title: e.title, date: e.start_at, raw: e })),
   ].sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
@@ -991,7 +991,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
                 </Link>
               );
             }
-            const pr = PRIORITY_LABEL[(it.raw as ScheduleTodo).priority];
+            const pr = PRIORITY_LABEL[(it.raw as ScheduleEvent).priority];
             return (
               <div key={`td-${it.id}`} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)]">
                 <button onClick={() => handleToggle(it.raw)} disabled={toggling === it.id}

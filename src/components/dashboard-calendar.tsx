@@ -7,7 +7,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getTodos, getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
+import { getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
 import { getLeaveRequests, LEAVE_TYPES } from "@/lib/hr";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 
@@ -36,14 +36,10 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
   const todayStr = ymd(year, month, now.getDate());
   const [selected, setSelected] = useState<string>(todayStr);
 
-  const { data: todos = [] } = useQuery({
-    queryKey: ["schedule-todos", userId, false],
-    queryFn: () => getTodos(userId, { includeDone: false }),
-    enabled: !!userId, staleTime: 60_000,
-  });
+  //   '할 일' 은 일정으로 합쳐졌다(2026-08-10) — 날짜가 있으면 아래 events 로 이미 들어온다.
   const { data: events = [] } = useQuery({
     queryKey: ["schedule-events", companyId, year, month, "both", userId],
-    queryFn: () => getMonthEvents(companyId, year, month, { scope: "both", userId }),
+    queryFn: () => getMonthEvents(companyId, year, month, { scope: "all", userId }),
     enabled: !!companyId && !!userId, staleTime: 60_000,
   });
 
@@ -96,7 +92,6 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     if (!k) return;
     (byDate[k] || (byDate[k] = { todo: 0, event: 0, leave: 0 }))[kind]++;
   };
-  (todos as ScheduleTodo[]).forEach((t) => bump(t.due_date, "todo"));
   (events as any[]).forEach((e) => { if (!e.completed) bump(e.start_at, "event"); });
   Object.entries(leaveByDate).forEach(([k, list]) => {
     (byDate[k] || (byDate[k] = { todo: 0, event: 0, leave: 0 })).leave = list.length;
@@ -111,7 +106,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
 
   // 선택일 항목
   const selEvents = (events as any[]).filter((e) => kstDay(e.start_at) === selected && !e.completed);
-  const selTodos = (todos as ScheduleTodo[]).filter((t) => kstDay(t.due_date) === selected);
+  const selTodos: ScheduleTodo[] = [];   // 합쳐진 뒤로는 비어 있다(위 주석 참고)
   const selItems = [
     ...selEvents.map((e) => ({ id: `e${e.id}`, title: e.title as string, kind: "event" as const })),
     ...selTodos.map((t) => ({ id: `t${t.id}`, title: t.title, kind: "todo" as const })),

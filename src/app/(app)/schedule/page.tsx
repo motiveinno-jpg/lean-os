@@ -8,24 +8,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import {
   getMonthEvents,
+  getScheduleItems,
   upsertEvent,
   deleteEvent,
   toggleEventCompleted,
-  getTodos,
-  upsertTodo,
-  toggleTodoDone,
-  deleteTodo,
   EVENT_COLOR_BG,
-  PRIORITY_LABEL,
+  VISIBILITY_LABEL,
   eventDateKeys,
   isMultiDayEvent,
   segmentRole,
   formatEventRange,
   type ScheduleEvent,
-  type ScheduleTodo,
-  type EventColor,
   type ScheduleScope,
 } from "@/lib/schedule";
+import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -34,7 +30,7 @@ import { supabase } from "@/lib/supabase";
 import { getDeals } from "@/lib/queries";
 import { getMyProjectTasks } from "@/lib/my-project-tasks";
 
-type Tab = "calendar" | "todo";
+type Tab = "calendar" | "list";
 
 export default function SchedulePage() {
   const { toast } = useToast();
@@ -53,7 +49,7 @@ export default function SchedulePage() {
       {/* Tabs — 라운드6.5: 타이틀 제거, 필형 탭만 스티키 툴바로 */}
       <div className="schedule-tabbar page-sticky-header">
         <div className="seg-bar">
-          {([["calendar", "캘린더"], ["todo", "✓ 할 일"]] as [Tab, string][]).map(([k, label]) => (
+          {([["calendar", "달력"], ["list", "목록"]] as [Tab, string][]).map(([k, label]) => (
             <button
               key={k}
               onClick={() => setTab(k)}
@@ -68,8 +64,8 @@ export default function SchedulePage() {
       {tab === "calendar" && companyId && userId && (
         <CalendarTab companyId={companyId} userId={userId} toast={toast} />
       )}
-      {tab === "todo" && companyId && userId && (
-        <TodoTab companyId={companyId} userId={userId} toast={toast} />
+      {tab === "list" && companyId && userId && (
+        <ScheduleListTab companyId={companyId} userId={userId} toast={toast} />
       )}
     </div>
   );
@@ -82,8 +78,8 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
   const { confirm, confirmElement } = useConfirm();
   const today = new Date();
   const [view, setView] = useState({ year: today.getFullYear(), monthIdx0: today.getMonth() });
-  const [scope, setScope] = useState<ScheduleScope>("shared");
-  const [editingEvent, setEditingEvent] = useState<Partial<ScheduleEvent> | null>(null);
+  const [scope, setScope] = useState<ScheduleScope>("all");
+  const [editingEvent, setEditingEvent] = useState<ScheduleDraft | null>(null);
   // R5: 일정 클릭 시 즉시 완료 토글 ❌ → 수정/완료 선택 팝업
   const [actionEvent, setActionEvent] = useState<ScheduleEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -113,39 +109,22 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
     return map;
   }, [events]);
 
-  // 날짜 지정한 할 일도 캘린더에 표시 (할 일 탭/대시보드와 동일 쿼리키 — 추가 시 자동 반영)
-  const { data: calTodos = [] } = useQuery({
-    queryKey: ["schedule-todos", userId, false],
-    queryFn: () => getTodos(userId, { includeDone: false }),
-    enabled: !!userId,
-  });
-  const todosByDate = useMemo(() => {
-    const map = new Map<string, typeof calTodos>();
-    for (const t of calTodos) {
-      if (!t.due_date) continue;
-      if (!map.has(t.due_date)) map.set(t.due_date, []);
-      map.get(t.due_date)!.push(t);
-    }
-    return map;
-  }, [calTodos]);
-
   const saveMut = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (d: ScheduleDraft) => {
+      const from = d.from, to = d.to || d.from;
+      const [a, b] = !from ? ["", ""] : (from <= to ? [from, to] : [to, from]);
       return upsertEvent({
-        id: payload.id,
-        companyId,
-        userId,
-        title: payload.title,
-        description: payload.description,
-        startAt: payload.startAt,
-        endAt: payload.endAt,
-        allDay: payload.allDay,
-        color: payload.color,
-        isShared: payload.isShared,
+        id: d.id, companyId, userId,
+        title: d.title.trim(), description: d.description.trim() || undefined,
+        startAt: a ? `${a}T00:00:00` : null,
+        endAt: a && b > a ? `${b}T00:00:00` : null,
+        allDay: true, color: d.color,
+        visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule-events"] });
+      queryClient.invalidateQueries({ queryKey: ["schedule-items"] });
       setEditingEvent(null);
       toast("일정이 저장되었습니다", "success");
     },
@@ -180,16 +159,8 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
 
   const openAdd = (dateStr: string) => {
     setSelectedDate(dateStr);
-    setEditingEvent({
-      title: "",
-      description: "",
-      start_at: `${dateStr}T09:00`,
-      end_at: null,
-      all_day: true,
-      color: "blue",
-      // 현재 보고 있는 탭 기준으로 기본 공유범위 결정 (전체공유 탭 → 공유, 개인 탭 → 개인)
-      is_shared: scope === "shared",
-    });
+    //   공개 범위는 기본이 '나만' — 넓히는 것은 사람이 고른다(2026-08-10 사장님 결정)
+    setEditingEvent(draftFromEvent(null, { from: dateStr, to: dateStr }));
   };
 
   return (
@@ -205,25 +176,14 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
           <button onClick={goToday} className="btn-ghost btn-sm ml-1">오늘</button>
         </div>
         <div className="flex items-center gap-2">
-          {/* 전체공유 / 개인 보기 전환 */}
+          {/* 보기 전환 — 무엇이 보이는지는 공개 범위(RLS)가 정한다. 여기서는 내 것만 좁혀 볼 뿐 */}
           <div className="seg-bar">
-            {/* v4 S1: 3 모드 — 전체공유 / 개인 / 통합(both) */}
-            {([
-              ["shared", "전체공유"],
-              ["personal", "개인"],
-              ["both", "통합"],
-            ] as [ScheduleScope, string][]).map(([k, label]) => (
+            {([["all", "전체"], ["mine", "내 것만"]] as [ScheduleScope, string][]).map(([k, label]) => (
               <button
                 key={k}
                 onClick={() => setScope(k)}
                 className={`seg-item ${scope === k ? "seg-item-active" : ""}`}
-                title={
-                  k === "shared"
-                    ? "회사 전 구성원이 함께 보는 일정"
-                    : k === "personal"
-                      ? "나만 보이는 개인 일정"
-                      : "전체공유 + 본인 개인 일정 함께 보기"
-                }
+                title={k === "all" ? "내가 볼 수 있는 일정 전부" : "내가 만든 일정만"}
               >
                 {label}
               </button>
@@ -238,11 +198,9 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
 
       {/* 현재 보기 안내 */}
       <p className="caption">
-        {scope === "shared"
-          ? "전체공유 일정 — 회사 모든 구성원에게 보입니다."
-          : scope === "personal"
-            ? "개인 일정 — 본인에게만 보입니다 (다른 직원에게 노출되지 않음)."
-            : "통합 보기 — 🏢 전체공유와 🙋 본인 개인 일정을 함께 표시합니다 (이벤트 좌측 아이콘으로 구분)."}
+        {scope === "all"
+          ? "내가 볼 수 있는 일정 전부 — 나만 보는 일정, 나에게 공유된 일정, 전체 공개 일정."
+          : "내가 만든 일정만."}
       </p>
 
       {/* Calendar Grid */}
@@ -305,10 +263,10 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                       >
                         {showLabel ? (
                           <span className={`flex-1 truncate ${e.completed ? "line-through" : ""}`}>
-                            {/* v4 S1: 통합 모드일 때 공유/개인 구분 아이콘 prefix */}
-                            {scope === "both" && (
-                              <span className="mr-0.5 opacity-70">{e.is_shared ? "🏢" : "🙋"}</span>
-                            )}
+                            {/*  누가 보는 일정인지 한 글자로 — 나만(🙋) / 좁게 공유(👥) / 전체(🏢) */}
+                            <span className="mr-0.5 opacity-70">
+                              {e.visibility === "company" ? "🏢" : e.visibility === "private" ? "🙋" : "👥"}
+                            </span>
                             {e.title}
                             {multi && (
                               <span className="ml-1 opacity-70 font-normal">{formatEventRange(e)}</span>
@@ -320,7 +278,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                         )}
                         {showLabel && (
                           <button
-                            onClick={(ev) => { ev.stopPropagation(); setEditingEvent(e); }}
+                            onClick={(ev) => { ev.stopPropagation(); setEditingEvent(draftFromEvent(e)); }}
                             className="opacity-0 group-hover/ev:opacity-100 shrink-0 px-0.5 text-[var(--text-dim)] hover:text-[var(--text)] transition"
                             title="수정"
                           >
@@ -333,18 +291,6 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
                   {cellEvents.length > 3 && (
                     <div className="text-[9px] text-[var(--text-dim)] px-1.5">+{cellEvents.length - 3}</div>
                   )}
-                  {/* 날짜 지정 할 일 — 캘린더에 표시 */}
-                  {(todosByDate.get(dateStr) || []).slice(0, 2).map((t) => (
-                    <div key={`todo-${t.id}`}
-                      onClick={(ev) => ev.stopPropagation()}
-                      className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-dashed border-[var(--primary)]/40 bg-[var(--primary)]/5 text-[var(--primary)] truncate"
-                      title={`할 일: ${t.title}`}>
-                      <span className="shrink-0">✓</span><span className="flex-1 truncate">{t.title}</span>
-                    </div>
-                  ))}
-                  {(todosByDate.get(dateStr) || []).length > 2 && (
-                    <div className="text-[9px] text-[var(--primary)]/70 px-1.5">할일 +{(todosByDate.get(dateStr) || []).length - 2}</div>
-                  )}
                 </div>
               </button>
             );
@@ -355,14 +301,16 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
       {isLoading && <div className="text-xs text-[var(--text-dim)]">불러오는 중...</div>}
 
       {editingEvent && (
-        <EventModal
-          event={editingEvent}
-          onClose={() => setEditingEvent(null)}
-          onSave={(payload) => saveMut.mutate(payload)}
+        <ScheduleItemEditor
+          companyId={companyId} userId={userId}
+          draft={editingEvent}
+          onChange={setEditingEvent}
+          onSave={() => saveMut.mutate(editingEvent)}
           onDelete={editingEvent.id ? async () => {
             const { ok } = await confirm({ title: "일정 삭제", desc: "일정을 삭제하시겠습니까?", danger: true });
             if (ok) deleteMut.mutate(editingEvent.id!);
           } : undefined}
+          onClose={() => setEditingEvent(null)}
           saving={saveMut.isPending}
         />
       )}
@@ -381,7 +329,7 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
             <div className="text-[11px] text-[var(--text-muted)] mb-4">{formatEventRange(actionEvent)}</div>
             <div className="flex flex-col gap-2">
               <button
-                onClick={() => { const ev = actionEvent; setActionEvent(null); setEditingEvent(ev); }}
+                onClick={() => { const ev = actionEvent; setActionEvent(null); setEditingEvent(draftFromEvent(ev)); }}
                 className="w-full px-4 py-2.5 rounded-xl text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition"
               >
                 <Ico e="✎" /> 수정
@@ -408,562 +356,121 @@ function CalendarTab({ companyId, userId, toast }: { companyId: string; userId: 
   );
 }
 
-function EventModal({
-  event, onClose, onSave, onDelete, saving,
-}: {
-  event: Partial<ScheduleEvent>;
-  onClose: () => void;
-  onSave: (payload: any) => void;
-  onDelete?: () => void;
-  saving: boolean;
-}) {
-  const [form, setForm] = useState({
-    id: event.id || "",
-    title: event.title || "",
-    description: event.description || "",
-    startAt: (event.start_at || "").slice(0, 16),
-    endAt: event.end_at ? event.end_at.slice(0, 16) : "",
-    allDay: event.all_day ?? true,
-    color: (event.color || "blue") as EventColor,
-    isShared: event.is_shared ?? false,
-  });
+// ─── 목록 — 날짜 있는 것과 없는 것을 한 자리에서 (2026-08-10 통합) ──────────
+//   예전 '할 일' 탭 자리다. '할 일' 이라는 구분은 없앴다 — 날짜를 안 넣은 일정일 뿐이다.
 
-  // 종료가 시작보다 빠르면 막는다 (기간 일정 오입력 방지). 종료 비우면 단일 일정.
-  const dateError = (() => {
-    if (!form.endAt) return null;
-    const s = form.startAt.slice(0, 16);
-    const e = form.endAt.slice(0, 16);
-    if (!s || !e) return null;
-    return e < s ? "종료가 시작보다 빠릅니다" : null;
-  })();
-
-  // 라이브 미리보기: "5/12~5/13" 또는 단일 "5/12"
-  const rangePreview = (() => {
-    if (!form.startAt) return "";
-    const fmt = (k: string) => {
-      const [, m, d] = k.split("-");
-      return m && d ? `${Number(m)}/${Number(d)}` : "";
-    };
-    const sKey = form.startAt.slice(0, 10);
-    if (!form.endAt) return fmt(sKey);
-    const eKey = form.endAt.slice(0, 10);
-    if (eKey <= sKey) return fmt(sKey);
-    return `${fmt(sKey)}~${fmt(eKey)}`;
-  })();
-
-  const submit = () => {
-    if (!form.title.trim() || dateError) return;
-    onSave({
-      id: form.id || undefined,
-      title: form.title.trim(),
-      description: form.description || undefined,
-      startAt: form.allDay ? `${form.startAt.slice(0, 10)}T00:00:00` : new Date(form.startAt).toISOString(),
-      endAt: form.endAt ? new Date(form.endAt).toISOString() : undefined,
-      allDay: form.allDay,
-      color: form.color,
-      isShared: form.isShared,
-    });
-  };
-
-  // ESC 닫기 · Enter 확인(저장 — 제목 비었거나 날짜 오류·저장 중이면 비활성)
-  useModalKeys(true, onClose, !form.title.trim() || !!dateError || saving ? undefined : submit);
-
-  const colorOptions: EventColor[] = ["blue", "green", "red", "amber", "violet", "gray"];
-
-  return (
-    <div className="schedule-event-modal fixed inset-0">
-      <div className="glass-card w-full max-w-md my-8 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-          <h3 className="text-sm font-bold">{form.id ? "일정 수정" : "일정 추가"}</h3>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)]" aria-label="닫기">✕</button>
-        </div>
-        <div className="p-5 space-y-3">
-          <div>
-            <label className="field-label">제목 *</label>
-            <input
-              autoFocus
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="예: 미팅, 마감, 출장"
-              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-          <div>
-            <label className="field-label">설명</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={2}
-              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-          <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" checked={form.allDay} onChange={(e) => setForm({ ...form, allDay: e.target.checked })} className="accent-[var(--primary)]" />
-            <span className="text-[var(--text-muted)]">하루 종일</span>
-          </label>
-          <div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="field-label">시작일</label>
-                <input
-                  type={form.allDay ? "date" : "datetime-local"}
-                  value={form.allDay ? form.startAt.slice(0, 10) : form.startAt}
-                  onChange={(e) => setForm({ ...form, startAt: e.target.value + (form.allDay ? "T00:00" : "") })}
-                  className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
-                />
-              </div>
-              <div>
-                <label className="field-label">종료일 (기간일정만)</label>
-                <input
-                  type={form.allDay ? "date" : "datetime-local"}
-                  min={form.allDay ? form.startAt.slice(0, 10) : form.startAt}
-                  value={form.endAt ? (form.allDay ? form.endAt.slice(0, 10) : form.endAt) : ""}
-                  onChange={(e) => setForm({ ...form, endAt: e.target.value + (form.allDay && e.target.value ? "T23:59" : "") })}
-                  className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between mt-1.5">
-              <p className="text-[9px] text-[var(--text-dim)]">
-                여러 날 일정은 종료일을 지정하세요 (예: 12~13일 예비군). 비우면 하루 일정.
-              </p>
-              {form.endAt && (
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, endAt: "" })}
-                  className="text-[9px] text-[var(--text-muted)] hover:text-[var(--text)] shrink-0 ml-2"
-                >
-                  종료일 지우기
-                </button>
-              )}
-            </div>
-            {dateError ? (
-              <p className="text-[10px] text-red-400 mt-1"><Ico e="⚠" /> {dateError}</p>
-            ) : rangePreview ? (
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                일정 기간: <span className="font-semibold text-[var(--text)]">{rangePreview}</span>
-                {form.endAt && form.endAt.slice(0, 10) > form.startAt.slice(0, 10) ? " (기간 일정)" : " (하루 일정)"}
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <label className="field-label">색상</label>
-            <div className="flex gap-1.5">
-              {colorOptions.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setForm({ ...form, color: c })}
-                  className={`w-7 h-7 rounded-lg border-2 ${EVENT_COLOR_BG[c]} ${form.color === c ? "ring-2 ring-offset-1 ring-[var(--primary)]" : "opacity-60 hover:opacity-100"}`}
-                  aria-label={c}
-                />
-              ))}
-            </div>
-          </div>
-          <label className="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" checked={form.isShared} onChange={(e) => setForm({ ...form, isShared: e.target.checked })} className="accent-[var(--primary)]" />
-            <span className="text-[var(--text-muted)]">회사 전체 공유 (다른 직원도 이 일정 봄)</span>
-          </label>
-        </div>
-        <div className="px-5 py-4 border-t border-[var(--border)] flex justify-between gap-2">
-          {onDelete ? (
-            <button onClick={onDelete} className="btn-danger">삭제</button>
-          ) : <div />}
-          <div className="flex gap-2">
-            <button onClick={onClose} className="btn-secondary">취소</button>
-            <button onClick={submit} disabled={!form.title.trim() || !!dateError || saving} className="btn-primary">
-              {saving ? "저장 중..." : (form.id ? "수정" : "추가")}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Todos ───────────────────────────────────────────────────────────────
-
-function TodoTab({ companyId, userId, toast }: { companyId: string; userId: string; toast: any }) {
+function ScheduleListTab({ companyId, userId, toast }: { companyId: string; userId: string; toast: any }) {
   const queryClient = useQueryClient();
   const { confirm, confirmElement } = useConfirm();
   const [showDone, setShowDone] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newPriority, setNewPriority] = useState<0 | 1 | 2>(1);
-  const [newDueDate, setNewDueDate] = useState("");
-  const [editing, setEditing] = useState<ScheduleTodo | null>(null);
+  const [mineOnly, setMineOnly] = useState(false);
+  const [draft, setDraft] = useState<ScheduleDraft | null>(null);
 
-  const { data: todos = [] } = useQuery({
-    queryKey: ["schedule-todos", userId, showDone],
-    queryFn: () => getTodos(userId, { includeDone: showDone }),
-    enabled: !!userId,
-  });
-
-  // 내가 담당인 프로젝트 업무 — 여기서 같이 본다(2026-08-03). 완료·수정은 프로젝트에서 한다.
-  const { data: myTasks = [] } = useQuery({
-    queryKey: ["my-project-tasks", companyId, userId],
-    queryFn: () => getMyProjectTasks(companyId, userId),
-    enabled: !!companyId && !!userId,
-  });
-  // 개인 할 일을 프로젝트로 올릴 때 고를 목록 — 이 탭을 열어야 조회한다.
-  const { data: deals = [] } = useQuery({
-    queryKey: ["schedule-promote-deals", companyId],
-    queryFn: () => getDeals(companyId),
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ["schedule-items", companyId, userId, showDone, mineOnly],
+    queryFn: () => getScheduleItems(companyId, { includeDone: showDone, mineOnly, userId }),
     enabled: !!companyId,
-    staleTime: 60_000,
   });
-  const [promoting, setPromoting] = useState<ScheduleTodo | null>(null);
 
-  const addMut = useMutation({
-    mutationFn: () => upsertTodo({
-      companyId,
-      userId,
-      title: newTitle.trim(),
-      priority: newPriority,
-      dueDate: newDueDate || null,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedule-todos"] });
-      setNewTitle("");
-      setNewDueDate("");
-      setNewPriority(1);
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["schedule-items"] });
+    queryClient.invalidateQueries({ queryKey: ["schedule-events"] });
+    queryClient.invalidateQueries({ queryKey: ["chat-cal-events"] });
+    queryClient.invalidateQueries({ queryKey: ["chat-schedule-events"] });
+  };
+
+  const saveMut = useMutation({
+    mutationFn: () => {
+      const d = draft!;
+      const from = d.from, to = d.to || d.from;
+      const [a, b] = !from ? ["", ""] : (from <= to ? [from, to] : [to, from]);
+      return upsertEvent({
+        id: d.id, companyId, userId,
+        title: d.title.trim(), description: d.description.trim() || undefined,
+        startAt: a ? `${a}T00:00:00` : null,
+        endAt: a && b > a ? `${b}T00:00:00` : null,
+        allDay: true, color: d.color,
+        visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
+      });
     },
-    onError: (e: any) => toast(`추가 실패: ${e.message}`, "error"),
+    onSuccess: () => { setDraft(null); refresh(); toast("저장되었습니다", "success"); },
+    onError: (e: any) => toast(`저장 실패: ${e.message}`, "error"),
   });
 
-  const toggleMut = useMutation({
-    mutationFn: ({ id, done }: { id: string; done: boolean }) => toggleTodoDone(id, done),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["schedule-todos"] }),
+  const doneMut = useMutation({
+    mutationFn: ({ id, completed }: { id: string; completed: boolean }) => toggleEventCompleted(id, completed),
+    onSuccess: refresh,
   });
 
-  const editMut = useMutation({
-    mutationFn: (payload: any) => upsertTodo({
-      id: payload.id,
-      companyId,
-      userId,
-      title: payload.title,
-      priority: payload.priority,
-      dueDate: payload.dueDate,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["schedule-todos"] });
-      setEditing(null);
-      toast("할 일이 수정되었습니다", "success");
-    },
-    onError: (e: any) => toast(`수정 실패: ${e.message}`, "error"),
+  const delMut = useMutation({
+    mutationFn: (id: string) => deleteEvent(id),
+    onSuccess: () => { setDraft(null); refresh(); toast("삭제되었습니다", "success"); },
+    onError: (e: any) => toast(`삭제 실패: ${e.message}`, "error"),
   });
 
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => deleteTodo(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["schedule-todos"] }),
-  });
+  const dated = items.filter((i) => !!i.start_at);
+  const undated = items.filter((i) => !i.start_at);
 
-  const undoneCount = todos.filter((t) => !t.done).length;
-  const today = todayKst();
+  const row = (e: ScheduleEvent) => (
+    <div key={e.id} className="sched-list-row">
+      <input type="checkbox" checked={e.completed}
+        onChange={(ev) => doneMut.mutate({ id: e.id, completed: ev.target.checked })}
+        title={e.completed ? "완료 취소" : "완료"} />
+      <button type="button" className="sched-list-main" onClick={() => setDraft(draftFromEvent(e))}>
+        <b className={e.completed ? "line-through opacity-60" : ""}>{e.title}</b>
+        {e.description && <i>{e.description}</i>}
+      </button>
+      <span className="sched-list-meta">
+        {e.start_at && <em>{formatEventRange(e)}</em>}
+        <span className="sched-list-vis">{VISIBILITY_LABEL[e.visibility]}</span>
+      </span>
+    </div>
+  );
 
   return (
-    <div className="schedule-todo-tab">
-      {/* Stats */}
-      <div className="schedule-todo-stats">
-        <div className="stat-tile">
-          <div className="flex items-center justify-between">
-            <span className="stat-tile-label">할 일</span>
-            <span className="kpi-icon"><Ico e="📝" /></span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="stat-tile-value mono-number">{undoneCount}건</span>
-          </div>
-        </div>
-        <div className="stat-tile">
-          <div className="flex items-center justify-between">
-            <span className="stat-tile-label">오늘 마감</span>
-            <span className="kpi-icon warning">⏰</span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="stat-tile-value mono-number text-[var(--warning)]">
-              {todos.filter((t) => !t.done && t.due_date === today).length}건
-            </span>
-          </div>
-        </div>
-        <div className="stat-tile">
-          <div className="flex items-center justify-between">
-            <span className="stat-tile-label">지연</span>
-            <span className="kpi-icon danger"><Ico e="⚠" /></span>
-          </div>
-          <div className="flex items-end gap-2">
-            <span className="stat-tile-value mono-number text-[var(--danger)]">
-              {todos.filter((t) => !t.done && t.due_date && t.due_date < today).length}건
-            </span>
-          </div>
-        </div>
+    <div className="sched-list-tab">
+      <div className="sched-list-bar">
+        <button type="button" className="btn-primary"
+          onClick={() => setDraft(draftFromEvent(null))}>+ 새로 만들기</button>
+        <span className="sched-spacer" />
+        <label className="sched-list-check">
+          <input type="checkbox" checked={mineOnly} onChange={(e) => setMineOnly(e.target.checked)} /> 내 것만
+        </label>
+        <label className="sched-list-check">
+          <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} /> 완료 포함
+        </label>
       </div>
 
-      {/* Add form */}
-      <div className="schedule-todo-add-form glass-card">
-        <div className="flex gap-2 flex-wrap items-end">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-[10px] text-[var(--text-muted)] mb-1">새 할 일</label>
-            <input
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && newTitle.trim()) addMut.mutate(); }}
-              placeholder="예: 세금계산서 발행"
-              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] text-[var(--text-muted)] mb-1">우선순위</label>
-            <select value={newPriority} onChange={(e) => setNewPriority(Number(e.target.value) as 0 | 1 | 2)} className="px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
-              <option value={0}>낮음</option>
-              <option value={1}>보통</option>
-              <option value={2}>높음</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-[10px] text-[var(--text-muted)] mb-1">마감일</label>
-            <DateField value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
-          </div>
-          <button onClick={() => newTitle.trim() && addMut.mutate()} disabled={!newTitle.trim() || addMut.isPending} className="btn-primary">
-            추가
-          </button>
-        </div>
-      </div>
+      {isLoading && <p className="caption">불러오는 중…</p>}
 
-      {/* Filter */}
-      <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
-        <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} className="accent-[var(--primary)]" />
-        <span className="text-[var(--text-muted)]">완료된 항목 포함</span>
-      </label>
+      <section className="sched-list-group">
+        <b>날짜 있는 일정 <em>{dated.length}</em></b>
+        {dated.length === 0 ? <p className="caption">없습니다.</p> : dated.map(row)}
+      </section>
 
-      {/* List */}
-      <div className="schedule-todo-list glass-card">
-        {todos.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="text-3xl mb-3">✓</div>
-            <div className="text-sm font-bold mb-1">할 일이 없습니다</div>
-            <div className="text-xs text-[var(--text-muted)]">위에서 새 할 일을 추가하세요</div>
-          </div>
-        ) : (
-          <div className="divide-y divide-[var(--border)]/50">
-            {todos.map((t) => {
-              const overdue = !t.done && t.due_date && t.due_date < today;
-              const pri = PRIORITY_LABEL[t.priority];
-              return (
-                <div key={t.id} className={`schedule-todo-row ${t.done ? "opacity-50" : ""}`}>
-                  <input
-                    type="checkbox"
-                    checked={t.done}
-                    onChange={(e) => toggleMut.mutate({ id: t.id, done: e.target.checked })}
-                    className="mt-1 accent-[var(--primary)] cursor-pointer w-4 h-4"
-                  />
-                  <div className="flex-1 min-w-0" onClick={() => setEditing(t)}>
-                    <div className={`text-sm font-medium ${t.done ? "line-through" : ""} cursor-pointer`}>{t.title}</div>
-                    <div className="flex items-center gap-2 mt-0.5 text-[10px]">
-                      <span className={`px-1.5 py-0.5 rounded font-semibold ${pri.color} bg-[var(--bg-surface)]`}>{pri.label}</span>
-                      {t.due_date && (
-                        <span className={overdue ? "text-red-400 font-semibold" : "text-[var(--text-dim)]"}>
-                          {overdue ? "⚠ " : ""}{t.due_date}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {/* 프로젝트로 올리기 — 혼자 적어둔 일이 팀이 보는 업무가 된다 */}
-                  {!t.done && (
-                    <button onClick={() => setPromoting(t)} className="todo-promote-btn" title="이 할 일을 프로젝트 업무로 옮깁니다">
-                      프로젝트로
-                    </button>
-                  )}
-                  <button
-                    onClick={async () => {
-                      const { ok } = await confirm({ title: "할 일 삭제", desc: "이 할 일을 삭제하시겠습니까?", danger: true });
-                      if (ok) deleteMut.mutate(t.id);
-                    }}
-                    className="text-xs text-[var(--text-dim)] hover:text-red-400 transition px-2 py-1"
-                    aria-label="삭제"
-                  >✕</button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <section className="sched-list-group">
+        <b>날짜 없는 것 <em>{undated.length}</em></b>
+        <p className="caption">언제 할지 아직 안 정한 일입니다. 날짜를 넣으면 달력에도 뜹니다.</p>
+        {undated.map(row)}
+      </section>
 
-      {/* 내가 담당인 프로젝트 업무 — 없으면 구획 자체를 만들지 않는다 */}
-      {(myTasks as any[]).length > 0 && (
-        <div className="schedule-todo-list glass-card">
-          <div className="mytask-head">
-            <b>프로젝트에서 내가 맡은 업무</b>
-            <span>{(myTasks as any[]).length}건 · 완료·수정은 프로젝트에서 해요</span>
-          </div>
-          <div className="divide-y divide-[var(--border)]/50">
-            {(myTasks as any[]).map((t) => {
-              const late = t.due_date && t.due_date < today;
-              return (
-                <Link key={t.id} href={`/projecthub/${t.deal_id}?tab=work`} className="mytask-row">
-                  <span className="flex-1 min-w-0">
-                    <span className="mytask-title">{t.title}</span>
-                    <span className="mytask-sub">{t.dealName}{t.due_date ? ` · ${late ? "⚠ " : ""}${t.due_date}` : ""}</span>
-                  </span>
-                  <span className="mytask-go">열기 →</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {editing && (
-        <TodoEditModal
-          todo={editing}
-          onClose={() => setEditing(null)}
-          onSave={(payload) => editMut.mutate(payload)}
-          saving={editMut.isPending}
-        />
-      )}
-      {promoting && (
-        <PromoteTodoModal
-          todo={promoting}
-          deals={deals as any[]}
-          companyId={companyId}
-          userId={userId}
-          toast={toast}
-          onClose={() => setPromoting(null)}
-          onDone={() => {
-            setPromoting(null);
-            queryClient.invalidateQueries({ queryKey: ["schedule-todos"] });
-            queryClient.invalidateQueries({ queryKey: ["my-project-tasks"] });
-          }}
-        />
+      {draft && (
+        <ScheduleItemEditor
+          companyId={companyId} userId={userId}
+          draft={draft} onChange={setDraft}
+          onSave={() => saveMut.mutate()}
+          onDelete={draft.id ? async () => {
+            const { ok } = await confirm({ title: "삭제", desc: "이 항목을 삭제하시겠습니까?", danger: true });
+            if (ok) delMut.mutate(draft.id!);
+          } : undefined}
+          onClose={() => setDraft(null)}
+          saving={saveMut.isPending || delMut.isPending} />
       )}
       {confirmElement}
     </div>
   );
 }
 
-// 개인 할 일 → 프로젝트 업무. 옮기면 담당은 나로 두고, 개인 목록에서는 사라진다.
-//   (실측 2026-08-03: 프로젝트 업무 62건이 단 2개 프로젝트에 몰려 있고 개인 할 일은 6건 —
-//    두 곳을 잇는 길이 없어서 "할 일부터 쓰는 사람"이 프로젝트로 못 들어왔다)
-function PromoteTodoModal({ todo, deals, companyId, userId, toast, onClose, onDone }: {
-  todo: ScheduleTodo; deals: any[]; companyId: string; userId: string;
-  toast: any; onClose: () => void; onDone: () => void;
-}) {
-  const [q, setQ] = useState("");
-  const [dealId, setDealId] = useState("");
-  const [saving, setSaving] = useState(false);
-  const list = deals
-    .filter((d) => !d.parent_deal_id && d.stage !== "completed")
-    .filter((d) => !q.trim() || String(d.name || "").toLowerCase().includes(q.trim().toLowerCase()))
-    .slice(0, 30);
-
-  const submit = async () => {
-    if (!dealId || saving) return;
-    setSaving(true);
-    try {
-      const { count } = await supabase.from("project_tasks")
-        .select("id", { count: "exact", head: true }).eq("deal_id", dealId).is("archived_at", null);
-      const { error } = await supabase.from("project_tasks").insert({
-        company_id: companyId, deal_id: dealId, title: todo.title, description: todo.description || null,
-        status: "todo", assignee_id: userId, assignee_ids: [userId],
-        due_date: todo.due_date || null, progress: 0, position: (count || 0) + 1, created_by: userId,
-      });
-      if (error) throw new Error(error.message);
-      await deleteTodo(todo.id);
-      toast(`'${deals.find((d) => d.id === dealId)?.name || "프로젝트"}' 의 업무로 옮겼습니다.`, "success");
-      onDone();
-    } catch (e: any) {
-      toast(e?.message || "옮기기 실패", "error");
-      setSaving(false);
-    }
-  };
-
-  useModalKeys(true, onClose, !dealId || saving ? undefined : submit);
-
-  return (
-    <div className="schedule-todo-edit-modal fixed inset-0" onClick={onClose}>
-      <div className="promote-modal-body" onClick={(e) => e.stopPropagation()}>
-        <div className="promote-modal-head">
-          <b>어느 프로젝트의 업무인가요?</b>
-          <span>{todo.title}</span>
-        </div>
-        <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="프로젝트 검색" className="promote-modal-search" />
-        <div className="promote-modal-list">
-          {list.length === 0 ? (
-            <p className="promote-modal-empty">고를 프로젝트가 없어요. 프로젝트를 먼저 만들어 주세요.</p>
-          ) : list.map((d) => (
-            <button key={d.id} type="button" onClick={() => setDealId(d.id)}
-              className={`promote-modal-item ${dealId === d.id ? "promote-modal-item-on" : ""}`}>
-              {d.name}
-            </button>
-          ))}
-        </div>
-        <div className="promote-modal-actions">
-          <button type="button" onClick={onClose} className="btn-secondary btn-sm">취소</button>
-          <button type="button" onClick={submit} disabled={!dealId || saving} className="btn-primary btn-sm">
-            {saving ? "옮기는 중…" : "프로젝트로 옮기기"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TodoEditModal({
-  todo, onClose, onSave, saving,
-}: {
-  todo: ScheduleTodo;
-  onClose: () => void;
-  onSave: (payload: any) => void;
-  saving: boolean;
-}) {
-  const [form, setForm] = useState({
-    title: todo.title,
-    priority: todo.priority,
-    dueDate: todo.due_date || "",
-  });
-
-  const submitEdit = () => {
-    if (!form.title.trim()) return;
-    onSave({ id: todo.id, title: form.title.trim(), priority: form.priority, dueDate: form.dueDate || null });
-  };
-
-  // ESC 닫기 · Enter 확인(저장 — 제목 비었거나 저장 중이면 비활성)
-  useModalKeys(true, onClose, !form.title.trim() || saving ? undefined : submitEdit);
-
-  return (
-    <div className="schedule-todo-edit-modal fixed inset-0">
-      <div className="glass-card w-full max-w-md shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
-          <h3 className="text-sm font-bold">할 일 수정</h3>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)]">✕</button>
-        </div>
-        <div className="p-5 space-y-3">
-          <div>
-            <label className="block text-[10px] text-[var(--text-muted)] mb-1">제목</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-[10px] text-[var(--text-muted)] mb-1">우선순위</label>
-              <select value={form.priority} onChange={(e) => setForm({ ...form, priority: Number(e.target.value) as 0 | 1 | 2 })} className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
-                <option value={0}>낮음</option>
-                <option value={1}>보통</option>
-                <option value={2}>높음</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-muted)] mb-1">마감일</label>
-              <DateField value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} className="w-full px-2 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs" />
-            </div>
-          </div>
-        </div>
-        <div className="px-5 py-4 border-t border-[var(--border)] flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-[var(--text-muted)] hover:bg-[var(--bg-surface)] rounded-lg">취소</button>
-          <button onClick={submitEdit} disabled={!form.title.trim() || saving} className="btn-primary btn-sm">
-            {saving ? "저장 중..." : "저장"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 

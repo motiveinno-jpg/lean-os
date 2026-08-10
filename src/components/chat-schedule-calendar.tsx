@@ -10,19 +10,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DateField } from "@/components/date-field";
 import { useToast } from "@/components/toast";
-import { useModalKeys } from "@/hooks/use-modal-keys";
+import { ScheduleItemEditor, draftFromEvent, type ScheduleDraft } from "@/components/schedule-item-editor";
 import { todayKst } from "@/lib/kst";
 import {
-  getMonthEvents, upsertEvent, eventDateKeys, EVENT_COLOR_BG,
-  type ScheduleEvent, type EventColor,
+  getMonthEvents, upsertEvent, deleteEvent, eventDateKeys, EVENT_COLOR_BG,
+  type ScheduleEvent,
 } from "@/lib/schedule";
 
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
-const COLORS: [EventColor, string][] = [
-  ["blue", "파랑"], ["green", "초록"], ["red", "빨강"], ["amber", "노랑"], ["violet", "보라"], ["gray", "회색"],
-];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const keyOf = (y: number, m0: number, d: number) => `${y}-${pad(m0 + 1)}-${pad(d)}`;
@@ -33,7 +29,7 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
   const now = useMemo(() => new Date(), []);
   const [view, setView] = useState({ y: now.getFullYear(), m0: now.getMonth() });
   //   날짜를 누르면 그 날짜로 여는 입력 창. 여러 날에 걸치는 일이 흔해 **시작~종료**를 함께 잡는다.
-  const [draft, setDraft] = useState<null | { from: string; to: string; title: string; shared: boolean; color: EventColor }>(null);
+  const [draft, setDraft] = useState<ScheduleDraft | null>(null);
   //   달력에서 **끌어서** 여러 날을 한 번에 고른다(누르고 옆으로 끌면 그 구간이 잡힌다)
   const dragRef = useRef<{ start: string } | null>(null);
   const [dragTo, setDragTo] = useState<string | null>(null);
@@ -50,7 +46,7 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
       const [a, b] = [d.start, to].sort();
       dragRef.current = null;
       setDragTo(null);
-      setDraft({ from: a, to: b, title: "", shared: true, color: "blue" });
+      setDraft(draftFromEvent(null, { from: a, to: b }));
     };
     window.addEventListener("mouseup", onUp);
     return () => window.removeEventListener("mouseup", onUp);
@@ -58,7 +54,7 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
 
   const { data: events = [] } = useQuery({
     queryKey: ["chat-cal-events", companyId, userId, view.y, view.m0],
-    queryFn: () => getMonthEvents(companyId!, view.y, view.m0, { scope: "both", userId: userId || undefined }),
+    queryFn: () => getMonthEvents(companyId!, view.y, view.m0, { scope: "all", userId: userId || undefined }),
     enabled: !!companyId,
   });
 
@@ -89,31 +85,39 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
     return { y: n.getFullYear(), m0: n.getMonth() };
   });
 
-  const add = useMutation({
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["chat-cal-events"] });
+    qc.invalidateQueries({ queryKey: ["chat-schedule-events"] });
+    qc.invalidateQueries({ queryKey: ["schedule-events"] });   // 일정 메뉴도 같이
+    qc.invalidateQueries({ queryKey: ["schedule-items"] });
+  };
+
+  const save = useMutation({
     //   ⚠️ 하루 종일 일정은 날짜 문자열 그대로 — toISOString() 을 쓰면 KST 자정이 UTC 로 밀려 하루 전이 된다.
-    //      기간이면 end_at 을 넣는다(종료일 포함). 하루짜리는 end_at 을 비워 예전과 같게 둔다.
+    //      날짜를 비우면 start_at = null (달력에 안 뜨고 목록에만 남는 항목).
     mutationFn: () => {
-      const from = draft!.from, to = draft!.to;
-      const [a, b] = from <= to ? [from, to] : [to, from];
+      const d = draft!;
+      const from = d.from, to = d.to || d.from;
+      const [a, b] = !from ? ["", ""] : (from <= to ? [from, to] : [to, from]);
       return upsertEvent({
-        companyId: companyId!, userId: userId!, title: draft!.title.trim(),
-        startAt: `${a}T00:00:00`,
-        endAt: b > a ? `${b}T00:00:00` : undefined,
-        allDay: true, color: draft!.color, isShared: draft!.shared,
+        id: d.id, companyId: companyId!, userId: userId!,
+        title: d.title.trim(), description: d.description.trim() || undefined,
+        startAt: a ? `${a}T00:00:00` : null,
+        endAt: a && b > a ? `${b}T00:00:00` : null,
+        allDay: true, color: d.color,
+        visibility: d.visibility, targetUserIds: d.targetUserIds, targetDepartments: d.targetDepartments,
       });
     },
-    onSuccess: () => {
-      setDraft(null);
-      qc.invalidateQueries({ queryKey: ["chat-cal-events"] });
-      qc.invalidateQueries({ queryKey: ["chat-schedule-events"] });
-      qc.invalidateQueries({ queryKey: ["schedule-events"] });   // 일정/할 일 메뉴도 같이
-      toast("일정에 넣었습니다.", "success");
-    },
+    onSuccess: () => { setDraft(null); refresh(); toast("일정에 넣었습니다.", "success"); },
     onError: (e: any) => toast(e?.message || "일정 저장 실패", "error"),
   });
 
-  const canSave = !!draft?.title.trim() && !!companyId && !!userId && !add.isPending;
-  useModalKeys(!!draft, () => setDraft(null), canSave ? () => add.mutate() : undefined);
+  const remove = useMutation({
+    mutationFn: () => deleteEvent(draft!.id!),
+    onSuccess: () => { setDraft(null); refresh(); toast("지웠습니다.", "success"); },
+    onError: (e: any) => toast(e?.message || "삭제 실패", "error"),
+  });
+
 
   return (
     <div className="chat-cal">
@@ -148,13 +152,15 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  setDraft({ from: c.key, to: c.key, title: "", shared: true, color: "blue" });
+                  setDraft(draftFromEvent(null, { from: c.key, to: c.key }));
                 }
               }}
               title={`${c.key} — 누르면 그 날, 끌면 여러 날 일정`}>
               <span className={`chat-cal-daynum ${dow === 0 ? "chat-cal-sun" : dow === 6 ? "chat-cal-sat" : ""}`}>{c.d}</span>
               {list.slice(0, 3).map((e) => (
-                <span key={e.id} className={`chat-cal-ev ${EVENT_COLOR_BG[e.color] || ""}`} title={e.title}>{e.title}</span>
+                <span key={e.id} className={`chat-cal-ev ${EVENT_COLOR_BG[e.color] || ""}`} title={`${e.title} — 누르면 고칩니다`}
+                  onMouseDown={(ev) => { ev.stopPropagation(); }}
+                  onClick={(ev) => { ev.stopPropagation(); setDraft(draftFromEvent(e)); }}>{e.title}</span>
               ))}
               {list.length > 3 && <span className="chat-cal-more">+{list.length - 3}</span>}
             </button>
@@ -162,57 +168,17 @@ export function ChatScheduleCalendar({ companyId, userId }: { companyId: string 
         })}
       </div>
 
-      {/* 날짜를 누르면 뜨는 입력 창 — 제목만 적으면 끝난다 */}
+      {/* 날짜를 누르면 뜨는 입력 창 — 일정 메뉴와 **같은 부품**을 쓴다 */}
       {draft && (
-        <div className="chat-cal-modal" onClick={() => setDraft(null)}>
-          <div className="chat-cal-box" onClick={(e) => e.stopPropagation()}>
-            <header>
-              <b>{draft.from === draft.to ? draft.from : `${draft.from} ~ ${draft.to}`}</b>
-              <span>일정 넣기</span>
-              <button type="button" onClick={() => setDraft(null)} title="닫기">✕</button>
-            </header>
-            <input autoFocus value={draft.title} placeholder="일정 이름"
-              onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              className="chat-cal-input" />
-            {/*  여러 날에 걸치는 일이 흔하다 — 시작·종료를 여기서 바로 고친다(달력에서 끌어도 잡힌다) */}
-            <div className="chat-cal-range">
-              <label><span>시작</span>
-                <DateField value={draft.from} onChange={(e) => {
-                  const from = e.target.value || draft.from;
-                  setDraft({ ...draft, from, to: draft.to < from ? from : draft.to });
-                }} />
-              </label>
-              <label><span>종료</span>
-                <DateField value={draft.to} min={draft.from} onChange={(e) => setDraft({ ...draft, to: e.target.value || draft.from })} />
-              </label>
-            </div>
-            <div className="chat-cal-colors">
-              {COLORS.map(([c, label]) => (
-                <button key={c} type="button" title={label} aria-pressed={draft.color === c}
-                  onClick={() => setDraft({ ...draft, color: c })}
-                  className={`chat-cal-color ${DOT[c]} ${draft.color === c ? "chat-cal-color-on" : ""}`} />
-              ))}
-            </div>
-            <label className="chat-cal-check">
-              <input type="checkbox" checked={draft.shared}
-                onChange={(e) => setDraft({ ...draft, shared: e.target.checked })} />
-              전체 공유 — 회사 구성원 모두에게 보입니다
-            </label>
-            <div className="chat-cal-foot">
-              <button type="button" className="chat-cal-cancel" onClick={() => setDraft(null)}>취소</button>
-              <button type="button" className="chat-cal-save" disabled={!canSave} onClick={() => add.mutate()}>
-                {add.isPending ? "넣는 중…" : "넣기"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ScheduleItemEditor
+          companyId={companyId} userId={userId}
+          draft={draft} onChange={setDraft}
+          onSave={() => save.mutate()}
+          onDelete={draft.id ? () => remove.mutate() : undefined}
+          onClose={() => setDraft(null)}
+          saving={save.isPending || remove.isPending} />
       )}
     </div>
   );
 }
 
-//   색 고르기용 진한 점 — EVENT_COLOR_BG 는 옅은 배경이라 단추로는 잘 안 보인다
-const DOT: Record<EventColor, string> = {
-  blue: "bg-blue-500", green: "bg-green-500", red: "bg-red-500",
-  amber: "bg-amber-500", violet: "bg-violet-500", gray: "bg-gray-400",
-};
