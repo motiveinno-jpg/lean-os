@@ -13,7 +13,7 @@
 //   사이드바 항목을 못 찾는 화면(모바일·접힘)에서는 하이라이트 없이 카드만 가운데에 띄운다.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 // 진행 중 스텝 번호 — 있으면 "투어 진행 중"이라는 뜻. 탭이 닫히면 자연 소멸(sessionStorage).
@@ -142,7 +142,6 @@ export function AppTourHost({ companyId }: { companyId: string | null }) {
 }
 
 export function AppTour({ companyId, onClose }: { companyId: string | null; onClose: () => void }) {
-  const router = useRouter();
   // 진행 스텝 복원 — 새로고침·재로그인해도 보던 자리에서 이어간다
   const [idx, setIdx] = useState(() => {
     if (typeof window === "undefined") return 0;
@@ -203,17 +202,19 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
         }
       } catch { /* 기록 실패해도 투어 종료는 진행 */ }
     }
-    // URL 에 ?tour=1 이 남아 있으면 떼어낸다 — 새로고침 시 재시작 방지 (지금 있는 화면은 유지)
+    // URL 에 ?tour=1 이 남아 있으면 떼어낸다 — 새로고침 시 재시작 방지 (지금 있는 화면은 유지).
+    //   router.replace 는 비동기라 onClose 직후 호스트가 아직 ?tour=1 인 주소를 읽고 곧장 재시작한다 —
+    //   네이티브 replaceState 로 주소를 즉시 바꾼다 (Next 14+ 셸로우 URL 갱신 공식 지원).
     try {
       const sp = new URLSearchParams(window.location.search);
       if (sp.has("tour")) {
         sp.delete("tour");
         const qs = sp.toString();
-        router.replace(window.location.pathname + (qs ? `?${qs}` : ""));
+        window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
       }
     } catch { /* ignore */ }
     onClose();
-  }, [companyId, onClose, router]);
+  }, [companyId, onClose]);
 
   const isLast = idx === TOUR_STEPS.length - 1;
   // 말풍선 위치 — 하이라이트 오른쪽(사이드바 옆). 못 찾으면 화면 가운데.
