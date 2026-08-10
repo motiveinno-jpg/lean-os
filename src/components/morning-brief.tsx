@@ -340,10 +340,11 @@ export function MorningBrief({
 
   const hasExtra = Boolean(line3 || progressLine || hasTx);
 
-  // 우측 핵심 숫자 패널 — 브리핑 문장과 같은 소스(cashPulse)라 신규 쿼리 0.
+  // 우측 핵심 숫자 패널 — 브리핑 문장과 같은 소스(cashPulse·dashboard)라 신규 쿼리 0.
   const runwayLabel = !isFinite(runwayMonths) || runwayMonths >= 99 ? "충분" : runwayMonths <= 0 ? "위험" : `${runwayMonths >= 12 ? Math.floor(runwayMonths) : runwayMonths.toFixed(1)}개월`;
   const runwayColor = !isFinite(runwayMonths) || runwayMonths >= 6 ? "var(--success)" : runwayMonths >= 3 ? "var(--warning)" : "var(--danger)";
   const delta30ForStats = forecast30 - balance;
+  const nextTax = getUpcomingTaxDeadlines(60)[0] ?? null;
 
   return (
     <section className="morning-brief-card glass-card">
@@ -527,12 +528,12 @@ export function MorningBrief({
       </div>
       </div>
 
-      {/* 우측 핵심 숫자 — 사장님이 매일 아침 가장 먼저 찾는 세 숫자를 문장과 나란히 */}
+      {/* 우측 핵심 숫자 6타일 — 사장님이 매일 아침 찾는 숫자로 여백을 채운다(전부 기존 계산값, 신규 쿼리 0) */}
       <div className="morning-brief-stats">
-        <div className="morning-brief-stat">
+        <Link href="/bank" className="morning-brief-stat">
           <div className="morning-brief-stat-label">통장 잔고</div>
           <div className="morning-brief-stat-value mono-number">{formatKrwWords(balance)}</div>
-        </div>
+        </Link>
         <div className="morning-brief-stat">
           <div className="morning-brief-stat-label">30일 뒤 전망</div>
           <div className="morning-brief-stat-value mono-number">{formatKrwWords(forecast30)}</div>
@@ -547,6 +548,35 @@ export function MorningBrief({
           <div className="morning-brief-stat-value mono-number" style={{ color: runwayColor }}>{runwayLabel}</div>
           <div className="morning-brief-stat-sub">현재 고정비 기준</div>
         </div>
+        <Link href="/reports/revenue" className="morning-brief-stat">
+          <div className="morning-brief-stat-label">이번 달 매출</div>
+          <div className="morning-brief-stat-value mono-number">{formatKrwWords(monthRevenue)}</div>
+          {monthTarget > 0 && (
+            <div className="morning-brief-stat-sub">목표의 {Math.round((monthRevenue / monthTarget) * 100)}%</div>
+          )}
+        </Link>
+        <Link href="/partners/ledger?type=sales" className="morning-brief-stat">
+          <div className="morning-brief-stat-label">밀린 미수금</div>
+          <div className="morning-brief-stat-value mono-number" style={{ color: arOver30 > 0 ? "var(--danger)" : "var(--success)" }}>
+            {arOver30 > 0 ? formatKrwWords(arOver30) : "없음"}
+          </div>
+          <div className="morning-brief-stat-sub">30일 이상 미회수</div>
+        </Link>
+        {nextTax ? (
+          <Link href={nextTax.href} className="morning-brief-stat">
+            <div className="morning-brief-stat-label">다가오는 세금</div>
+            <div className="morning-brief-stat-value mono-number" style={{ color: nextTax.daysLeft <= 7 ? "var(--danger)" : "var(--warning)" }}>
+              {nextTax.daysLeft === 0 ? "D-Day" : `D-${nextTax.daysLeft}`}
+            </div>
+            <div className="morning-brief-stat-sub">{nextTax.title}</div>
+          </Link>
+        ) : (
+          <div className="morning-brief-stat">
+            <div className="morning-brief-stat-label">다가오는 세금</div>
+            <div className="morning-brief-stat-value mono-number" style={{ color: "var(--success)" }}>없음</div>
+            <div className="morning-brief-stat-sub">60일 내 낼 세금 없음</div>
+          </div>
+        )}
       </div>
       </div>
     </section>

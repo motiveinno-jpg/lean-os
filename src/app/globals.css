@@ -1322,9 +1322,10 @@ thead th { white-space: nowrap; word-break: keep-all; }
    전폭 여백은 오른쪽 핵심 숫자 패널(잔고·30일 전망·버티는 기간)이 채운다.
    (2차의 딥 인디고 다크 히어로는 사장님 피드백 "눈 아프고 AI 같다"로 회수) */
 .morning-brief-card { @apply mb-6 p-5 sm:p-7 md:p-8; }
-.morning-brief-inner { @apply grid gap-5 md:gap-8 md:grid-cols-[minmax(0,1fr)_264px] md:items-center; }
-.morning-brief-stats { @apply grid grid-cols-3 md:grid-cols-1 gap-2 md:gap-3; }
-.morning-brief-stat { @apply rounded-2xl px-3.5 py-3 min-w-0 bg-[var(--bg-surface)] border border-[var(--border)]; }
+.morning-brief-inner { @apply grid gap-5 md:gap-8 md:grid-cols-[minmax(0,1fr)_400px] md:items-center; }
+.morning-brief-stats { @apply grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2 md:gap-2.5; }
+.morning-brief-stat { @apply rounded-2xl px-3.5 py-3 min-w-0 bg-[var(--bg-surface)] border border-[var(--border)] no-underline block; }
+a.morning-brief-stat { @apply transition-colors hover:border-[var(--primary)]/40; }
 .morning-brief-stat-label { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
 .morning-brief-stat-value { @apply text-[15px] sm:text-[19px] leading-tight font-extrabold mt-1 truncate text-[var(--text)]; } /* mono-number 는 JSX 병기(@apply 커스텀 클래스 함정) */
 .morning-brief-stat-sub { @apply text-[10.5px] mt-0.5 text-[var(--text-dim)] truncate; }
