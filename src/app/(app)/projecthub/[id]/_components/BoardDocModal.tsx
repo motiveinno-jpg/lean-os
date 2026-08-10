@@ -29,6 +29,7 @@
 //   문서 편집기로 넘어가는 일: PDF·전자서명 이력·버전 비교(드물어서 링크만 남긴다).
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +44,7 @@ import { saveRevision, submitForReview, approveDocument, insertDocument } from "
 import { createSignatureRequest, sendSignatureEmail } from "@/lib/signatures";
 import { createDocumentShare } from "@/lib/document-sharing";
 import { payTermsOf } from "@/lib/project-boards";
+import { buildQuoteBlobFromDoc, buildContractBlobFromDoc } from "@/lib/quote-pdf";
 
 const db = supabase as any;
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
@@ -137,6 +139,11 @@ export function BoardDocModal({
   const [clauses, setClauses] = useState<Clause[]>([]);      // 계약 조항 본문
   const [issueTerm, setIssueTerm] = useState("");            // 발행할 회차(라벨). 빈 값 = 전액
   const [showDiff, setShowDiff] = useState(false);           // 견적 ↔ 계약 비교 보기
+  // 미리보기 — **저장 안 해도** 지금 화면 내용 그대로 실제 인쇄될 PDF 를 만들어 보여준다
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const taxRate = rateOf(taxType);
 
@@ -309,13 +316,11 @@ export function BoardDocModal({
     });
   };
 
-  // ── 저장 — 문서함과 **같은 saveRevision** 을 쓴다(이력도 똑같이 남는다) ──
-  const save = async (silent = false) => {
-    if (!userId) return false;
-    const schedule = buildSchedule();
+  //   지금 화면 그대로의 저장본 — 저장과 미리보기가 **같은 내용**을 쓴다(보이는 것과 인쇄물이 같게)
+  const buildContent = (schedule = buildSchedule()) => {
     const withSchedule = kind === "contract" || existing.length > 0 || payMode !== "full";
     const termsText = schedule.map((s) => `${s.label} ${s.ratio}% (${s.condition || "협의"})`).join(", ");
-    const next = {
+    return {
       ...cj,
       items,
       validUntil,
@@ -330,6 +335,13 @@ export function BoardDocModal({
       ...(kind === "contract" ? { contractStart: periodStart, contractEnd: periodEnd } : {}),
       ...(withSchedule ? { paymentSchedule: schedule, paymentTerms: termsText } : {}),
     };
+  };
+
+  // ── 저장 — 문서함과 **같은 saveRevision** 을 쓴다(이력도 똑같이 남는다) ──
+  const save = async (silent = false) => {
+    if (!userId) return false;
+    const schedule = buildSchedule();
+    const next = buildContent(schedule);
     //   아직 없는 문서면 이때 만든다 — '만들기' 는 편집기를 열 뿐이고 저장이 실제 생성이다
     if (!doc?.id) {
       if (!onCreate) return false;
@@ -382,6 +394,47 @@ export function BoardDocModal({
     try { await fn(); }
     catch (e: any) { toast(e?.message || "처리 실패", "error"); }
     finally { setBusy(false); }
+  };
+
+  // ── 미리보기 — 실제 인쇄될 PDF 를 그대로 띄운다. 저장 전 초안도 된다(화면 내용으로 만든다) ──
+  //   회사에 올린 양식(PDF·텍스트변환)이 있으면 그 양식으로, 없으면 기본 서식으로 나온다.
+  const previewName = docName.trim() || rowName || DOC_LABEL[kind];
+  const openPreview = () => guard(async () => {
+    setShowPreview(true);
+    setPreviewLoading(true);
+    setPreviewUrl((u) => { if (u) URL.revokeObjectURL(u); return null; });
+    setPreviewBlob(null);
+    try {
+      const synthetic = { ...(doc || {}), name: previewName, document_number: doc?.document_number || null, content_json: buildContent() };
+      const blob = kind === "contract"
+        ? await buildContractBlobFromDoc(synthetic, companyId, userId)
+        : await buildQuoteBlobFromDoc(synthetic, companyId, userId);
+      setPreviewBlob(blob);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } finally {
+      setPreviewLoading(false);
+    }
+  });
+  const closePreview = () => {
+    setShowPreview(false);
+    setPreviewUrl((u) => { if (u) URL.revokeObjectURL(u); return null; });
+    setPreviewBlob(null);
+  };
+  //   팝업이 닫힐 때 만들어 둔 blob URL 을 반드시 놓아 준다(안 놓으면 메모리에 남는다)
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+  const printPreview = () => {
+    const f = document.getElementById("pb-doc-preview-iframe") as HTMLIFrameElement | null;
+    f?.contentWindow?.focus();
+    f?.contentWindow?.print();
+  };
+  const downloadPreview = () => {
+    if (!previewBlob) return;
+    const a = document.createElement("a");
+    const u = URL.createObjectURL(previewBlob);
+    a.href = u;
+    a.download = `${previewName.replace(/[\\/:*?"<>|]/g, "_")}.pdf`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(u), 1000);
   };
 
   //   이미 보낸 견적은 고치지 않고 **개정본을 새로 만든다** — 거래처가 받은 문서는 그대로 남는다
@@ -516,8 +569,9 @@ export function BoardDocModal({
   //   편집기에서 서식(HTML 본문)으로 작성한 계약서는 조항 편집을 숨긴다 — 여기서 고치면 서식이 깨진다
   const richBody = kind === "contract" && !!cj.body;
 
-  useModalKeys(true, showDiff ? () => setShowDiff(false) : onClose,
-    busy || showDiff ? undefined : kind === "issue" ? makeInvoice : () => save());
+  useModalKeys(true,
+    showPreview ? closePreview : showDiff ? () => setShowDiff(false) : onClose,
+    busy ? undefined : showPreview ? printPreview : showDiff ? undefined : kind === "issue" ? makeInvoice : () => save());
 
   const field = (label: string, node: React.ReactNode) => (
     <label className="pb-doc-field"><span>{label}</span>{node}</label>
@@ -755,6 +809,8 @@ export function BoardDocModal({
           <span className="pb-doc-spacer" />
           {kind !== "issue" && (<>
             <button type="button" className="pb-doc-sub" disabled={busy || !canEdit} onClick={() => save()}>저장</button>
+            <button type="button" className="pb-doc-sub" disabled={busy} onClick={openPreview}
+              title="실제 인쇄될 PDF 를 그대로 봅니다 — 저장 전에도 됩니다">미리보기</button>
             {status === "draft" && <button type="button" className="pb-doc-sub" disabled={busy || !doc?.id}
               title={doc?.id ? undefined : "먼저 저장하세요"} onClick={submit}>검토 요청</button>}
             {status === "review" && <button type="button" className="pb-doc-sub" disabled={busy} onClick={approve}>승인</button>}
@@ -773,6 +829,39 @@ export function BoardDocModal({
           )}
         </footer>
       </div>
+
+      {/* 미리보기 — 실제 인쇄될 PDF. 문서함 미리보기와 같은 껍데기를 쓴다(화면이 달라 보이지 않게).
+          body 포털이라 이 팝업 위(z-100)에 뜬다.
+          ⚠️ 포털이라도 React 이벤트는 부모(팝업)로 올라간다 — 배경 클릭을 안 막으면 문서 팝업까지 닫힌다 */}
+      {showPreview && typeof document !== "undefined" && createPortal(
+        <div className="quote-preview-modal" onClick={(e) => { e.stopPropagation(); closePreview(); }}>
+          <div className="quote-preview-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] shrink-0">
+              <h2 className="text-base font-bold text-[var(--text)]">
+                {previewName} <span className="text-xs font-normal text-[var(--text-dim)]">미리보기{dirty ? " · 저장 안 된 내용 그대로" : ""}</span>
+              </h2>
+              <button type="button" onClick={closePreview} className="text-[var(--text-muted)] hover:text-[var(--text)] text-xl">×</button>
+            </div>
+            <div className="quote-preview-body">
+              {previewLoading ? (
+                <div className="h-full flex items-center justify-center text-sm text-[var(--text-muted)]">{DOC_LABEL[kind]} 만드는 중…</div>
+              ) : previewUrl ? (
+                <iframe id="pb-doc-preview-iframe" src={previewUrl} title={`${DOC_LABEL[kind]} 미리보기`} className="w-full h-full border-0" />
+              ) : (
+                <div className="h-full flex items-center justify-center text-sm text-[var(--text-muted)]">미리보기를 불러오지 못했습니다.</div>
+              )}
+            </div>
+            <div className="quote-preview-footer">
+              <button type="button" onClick={closePreview}
+                className="px-4 py-2 text-sm text-[var(--text-muted)] rounded-lg hover:bg-[var(--bg-surface)]">닫기</button>
+              <button type="button" disabled={!previewBlob} onClick={downloadPreview}
+                className="px-4 py-2 text-sm font-semibold rounded-lg border border-[var(--border)] text-[var(--text)] hover:bg-[var(--bg-surface)] disabled:opacity-50">PDF 저장</button>
+              <button type="button" disabled={!previewUrl} onClick={printPreview} className="btn-primary">인쇄</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* 견적 ↔ 계약 비교 — 어디가 달라졌는지 보고, 견적을 어떻게 할지 정한다 */}
       {showDiff && diff && (
