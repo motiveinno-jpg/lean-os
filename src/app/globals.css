@@ -2885,6 +2885,11 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .app-tour-tip-desc { @apply text-xs text-[var(--text-muted)] leading-relaxed mt-1.5; }
 .app-tour-tip-actions { @apply flex items-center justify-between gap-2 mt-3.5 pt-3 border-t border-[var(--border)]; }
 .app-tour-skip { @apply text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2; }
+/* 등록·인증 안내 블록 — 인증이 필요한 탭의 스텝에 단계별 방법 표기 (2026-08-10) */
+.app-tour-howto { @apply mt-2.5 p-2.5 rounded-lg bg-[var(--primary)]/[0.06] border border-[var(--primary)]/15 max-h-[220px] overflow-y-auto; }
+.app-tour-howto-label { @apply text-[11px] font-bold text-[var(--primary)] mb-1.5; }
+.app-tour-howto-list { @apply list-decimal pl-4 space-y-1 text-[11px] text-[var(--text-muted)] leading-relaxed; }
+.app-tour-howto-link { @apply inline-block mt-2 text-[11px] font-semibold text-[var(--primary)] hover:underline underline-offset-2; }
 .onboarding-company-step { @apply space-y-5; }
 .onboarding-bank-step { @apply space-y-5; }
 .onboarding-employee-step { @apply space-y-5; }
