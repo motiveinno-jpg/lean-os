@@ -2223,6 +2223,18 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .dashboard-page-root { @apply pb-20 md:pb-0; }
 /* 마스터 전용 화면 (2026-08-10) — 대시보드 하단 경영 종합 3종 이동 */
 .master-page { @apply pb-20 md:pb-0; }
+
+/* e-invoices/page.tsx — 전자계산서(면세) 탭 (2026-08-10) */
+.einvoices-page { @apply space-y-4 pb-20 md:pb-0; }
+.einvoices-toolbar { @apply p-4 flex flex-wrap items-center gap-3; }
+.einvoices-toolbar-controls { @apply flex items-center gap-2 flex-wrap; }
+.einvoices-date-input { @apply px-2 py-1.5 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-[var(--text)]; }
+.einvoices-summary-row { @apply flex gap-2 flex-wrap; }
+.einvoices-summary-chip { @apply flex flex-col items-start gap-0.5 px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:border-[var(--primary)]; }
+.einvoices-chip-active { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--text)]; }
+.einvoices-table { @apply w-full text-xs text-[var(--text-muted)]; }
+.einvoices-table th { @apply px-3 py-2.5 text-left text-[10px] font-semibold uppercase text-[var(--text-dim)] bg-[var(--bg-surface)]/60 whitespace-nowrap; }
+.einvoices-table td { @apply px-3 py-2.5 border-t border-[var(--border)]/60; }
 .dashboard-owner-widgets-section { @apply space-y-4 mb-6; }
 /* .dashboard-toolbar(-actions) — 2026-08-10 리파인으로 제거: 동기화·업로드는 dash-utility-row 로 이동 */
 .dashboard-parse-toast { @apply mb-3 p-2.5 rounded-lg text-xs whitespace-pre-line; }

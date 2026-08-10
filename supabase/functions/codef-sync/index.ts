@@ -1095,6 +1095,12 @@ async function syncHometaxInvoices(
   directions: ("매출" | "매입")[] = ["매출", "매입"],
   // 이어받기 — 앞 step 이 시간 예산 때문에 못 끝낸 페이지부터 시작한다.
   startPage = 1,
+  // 문서 종류 (2026-08-10 사장님 — "전자계산서도 불러와줘") —
+  //   tax = 전자세금계산서(searchType 01, 기존), exempt = 전자계산서(면세, searchType 02).
+  //   같은 통합 API·같은 인증서로 조회하며 tax_invoices.doc_kind 로 구분 저장.
+  //   searchType 값이 예상과 달라 같은 세금계산서가 다시 와도, 승인번호(nts_confirm_no)가
+  //   이미 있는 행은 insert 를 건너뛰므로 데이터가 오염되지 않는다(신규 0건으로 끝남).
+  docKind: "tax" | "exempt" = "tax",
 ) {
   const errors: SyncError[] = [];
   const debug: string[] = [];   // 응답 구조 진단용 — totalSynced=0 인데 진짜 0건인지 parsing 누락인지 구분
@@ -1135,7 +1141,7 @@ async function syncHometaxInvoices(
       ...htCert.auth,
       certPassword: encryptedCertPw,
       inquiryType: "01",
-      searchType: "01",
+      searchType: docKind === "exempt" ? "02" : "01",   // 01=전자세금계산서, 02=전자계산서(면세)
       startDate: cappedStart,
       endDate: cappedEnd,
       sortby: "1",
@@ -1314,6 +1320,10 @@ async function syncHometaxInvoices(
         nts_confirm_no: ntsConfirmNo,
         issue_date: formattedDate,
         type: isSales ? "sales" : "purchase",
+        doc_kind: docKind,   // tax=세금계산서 / exempt=전자계산서(면세) — 수집 경로 구분
+        // 면세 계산서는 과세유형도 exempt 로 — 발행 경로의 tax_kind('taxable'|'zero_rated'|'exempt')와 정합.
+        //   세금계산서(tax) 수집은 종전대로 tax_kind 를 건드리지 않는다(DB 기본값 유지).
+        ...(docKind === "exempt" ? { tax_kind: "exempt" } : {}),
         status: "issued",
         source: "codef_hometax",
         counterparty_name: counterpartyName,
@@ -1969,7 +1979,8 @@ serve(withSentry("codef-sync", async (req) => {
             ? await syncHometaxCashReceipts(supabase, token, job.company_id, monthStart, monthEnd)
             : await syncHometaxInvoices(supabase, token, job.company_id, "", monthStart, monthEnd,
                 targetDirection ? [targetDirection] : ["매출", "매입"],
-                Number(prevEntry?.nextPage) > 1 ? Number(prevEntry.nextPage) : 1);
+                Number(prevEntry?.nextPage) > 1 ? Number(prevEntry.nextPage) : 1,
+                job.job_type === "exempt_invoice" ? "exempt" : "tax");
           r = { synced: r0.synced || 0, responseCount: r0.responseCount || 0, errors: r0.errors || [],
                 nextPage: (r0 as any).nextCursor?.page || null };
         } catch (err: any) {
@@ -2136,7 +2147,9 @@ serve(withSentry("codef-sync", async (req) => {
     // --- Action: hometax-sync-async (Background sync — job 만들고 즉시 응답 + 백그라운드 처리) ---
     if (action === "hometax-sync-async") {
       const { startDate: aStart, endDate: aEnd, jobType: rawJobType } = body;
-      const jobType = rawJobType === "cash_receipt" ? "cash_receipt" : "tax_invoice";
+      const jobType = rawJobType === "cash_receipt" ? "cash_receipt"
+        : rawJobType === "exempt_invoice" ? "exempt_invoice"   // 전자계산서(면세) — 2026-08-10
+        : "tax_invoice";
       if (!aStart || !aEnd) {
         return new Response(JSON.stringify({ error: "startDate, endDate 필수 (YYYY-MM-DD)" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -2152,11 +2165,13 @@ serve(withSentry("codef-sync", async (req) => {
 
       // 같은 회사 + 같은 job_type 활성 차단 (CODEF 동시 호출 거부 방지)
       // 다른 job_type (세금계산서 vs 현금영수증) 은 다른 endpoint 라 동시 진행 허용.
+      // 단 세금계산서·전자계산서는 **같은 통합 API·같은 인증서**라 서로도 차단 (CF-00016 방지).
+      const conflictTypes = jobType === "cash_receipt" ? ["cash_receipt"] : ["tax_invoice", "exempt_invoice"];
       const { data: activeJobs } = await supabase
         .from("hometax_sync_jobs")
         .select("id, status, current_progress, created_at")
         .eq("company_id", companyId)
-        .eq("job_type", jobType)
+        .in("job_type", conflictTypes)
         .in("status", ["pending", "running"])
         .gt("updated_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
         .limit(1);

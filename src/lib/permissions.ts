@@ -41,6 +41,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "queue", label: "발행 대기" },
         { key: "sync", label: "홈택스 동기화" },
       ] },
+      { route: "/e-invoices", label: "전자계산서" },
       { route: "/cash-receipts", label: "현금영수증" },
       { route: "/transactions", label: "거래 장부" },
       { route: "/partners/reconciliation/voucher-entry", label: "전표입력" },

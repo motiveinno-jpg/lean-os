@@ -41,7 +41,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "파이낸스",
     items: [
       { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
-      { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts"] },
+      { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
       { href: "/transactions", label: "거래 장부", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
       // 전표입력은 별도 유지(2026-07-23 Q2). 경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 단독 활성.
       { href: "/partners/reconciliation/voucher-entry", label: "전표입력", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"] },

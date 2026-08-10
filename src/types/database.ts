@@ -11303,6 +11303,7 @@ export type Database = {
           counterparty_representative: string | null
           created_at: string | null
           deal_id: string | null
+          doc_kind: string
           expense_category: string | null
           hometax_synced_at: string | null
           id: string
@@ -11345,6 +11346,7 @@ export type Database = {
           counterparty_representative?: string | null
           created_at?: string | null
           deal_id?: string | null
+          doc_kind?: string
           expense_category?: string | null
           hometax_synced_at?: string | null
           id?: string
@@ -11387,6 +11389,7 @@ export type Database = {
           counterparty_representative?: string | null
           created_at?: string | null
           deal_id?: string | null
+          doc_kind?: string
           expense_category?: string | null
           hometax_synced_at?: string | null
           id?: string

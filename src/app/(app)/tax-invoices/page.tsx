@@ -520,6 +520,8 @@ function TaxInvoicesPageInner() {
         .from("tax_invoices")
         .select("*, deals(name), label, revenue_schedule_id, partners(business_type, business_item, representative, contact_email, address)")
         .eq("company_id", companyId!)
+        // 전자계산서(면세, doc_kind='exempt')는 전용 탭(/e-invoices)에서 — 이 화면은 세금계산서만 (2026-08-10)
+        .eq("doc_kind", "tax")
         .gte("issue_date", startDate)
         .lte("issue_date", endDate)
         .order("issue_date", { ascending: false })

@@ -22,6 +22,7 @@ const HUBS: Hub[] = [
     key: "tax",
     subs: [
       { href: "/tax-invoices", label: "세금계산서", desc: "매출·매입 세금계산서 내역과 부가세를 관리합니다." },
+      { href: "/e-invoices", label: "전자계산서", desc: "면세 거래의 전자계산서(계산서) 내역을 관리합니다." },
       { href: "/cash-receipts", label: "현금영수증", desc: "현금영수증 발행 내역을 관리합니다." },
     ],
   },
