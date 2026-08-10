@@ -23,9 +23,18 @@ export default function VerifyEmailPage() {
     let timer: ReturnType<typeof setInterval>;
     let completed = false;
 
-    function markSuccess() {
+    function markSuccess(user?: { created_at?: string }) {
       if (completed) return;
       completed = true;
+      // 간편로그인(카카오/구글)은 로그인 때마다 이 페이지를 거친다. 기존 회원 재로그인에도
+      //   "가입이 완료되었습니다 · 3초 후 이동" 축하 화면이 매번 떠서(2026-08-10 사장님 제보)
+      //   계정을 방금 만든 경우(10분 이내)에만 축하 화면을 보여 주고, 그 외에는 바로 이동한다.
+      const createdAt = user?.created_at ? Date.parse(user.created_at) : NaN;
+      const isNewSignup = Number.isFinite(createdAt) && Date.now() - createdAt < 10 * 60 * 1000;
+      if (!isNewSignup) {
+        router.replace("/dashboard");
+        return;
+      }
       setState("success");
       let count = 3;
       setCountdown(count);
@@ -122,7 +131,7 @@ export default function VerifyEmailPage() {
           } = await supabase.auth.getSession();
           if (session?.user) {
             if (await setupCompany(session.user)) return;
-            markSuccess();
+            markSuccess(session.user);
             return;
           }
           markError("인증 코드가 없습니다. 이메일의 인증 링크를 다시 클릭해주세요.");
@@ -139,7 +148,7 @@ export default function VerifyEmailPage() {
           } = await supabase.auth.getSession();
           if (existingSession?.user) {
             if (await setupCompany(existingSession.user)) return;
-            markSuccess();
+            markSuccess(existingSession.user);
             return;
           }
           // Supabase는 리다이렉트 전에 이메일을 이미 확인 완료함 → 로그인만 하면 됨
@@ -149,7 +158,7 @@ export default function VerifyEmailPage() {
 
         if (data.session?.user) {
           if (await setupCompany(data.session.user)) return;
-          markSuccess();
+          markSuccess(data.session.user);
           return;
         }
 
@@ -160,7 +169,7 @@ export default function VerifyEmailPage() {
 
         if (retrySession?.user) {
           if (await setupCompany(retrySession.user)) return;
-          markSuccess();
+          markSuccess(retrySession.user);
         } else {
           markError("인증 처리에 실패했습니다. 다시 시도해주세요.");
         }
