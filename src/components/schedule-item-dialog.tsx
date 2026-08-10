@@ -148,10 +148,12 @@ function ScheduleItemView({
     })
     .filter(Boolean);
   const depts = (event.target_departments || []).filter(Boolean);
-  //   '나만' 은 라벨이 이미 '나만' 이라 부연을 붙이면 '나만 · 나만' 이 된다 — 비워 둔다
+  //   갈래 이름('구성원'·'부서')은 다시 적지 않는다 — **누구에게 공유했는지만** 적는다
+  //   (2026-08-10 사장님 지시). 구성원=사람 이름, 부서=부서명, 전체="전체", 나만="나만".
+  //   이름을 하나도 못 찾으면 그때만 갈래 이름으로 되돌린다(빈칸으로 두지 않게).
   const who =
-    event.visibility === "company" ? "회사 구성원 모두"
-    : event.visibility === "private" ? ""
+    event.visibility === "company" ? "전체"
+    : event.visibility === "private" ? "나만"
     : event.visibility === "members" ? names.join(" · ")
     : depts.join(" · ");
 
@@ -183,7 +185,7 @@ function ScheduleItemView({
         )}
 
         <dl className="sched-view-meta">
-          <div><dt>공유 범위</dt><dd>{VISIBILITY_LABEL[event.visibility]}{who ? ` · ${who}` : ""}</dd></div>
+          <div><dt>공유 범위</dt><dd>{who || VISIBILITY_LABEL[event.visibility]}</dd></div>
         </dl>
 
         <footer>
