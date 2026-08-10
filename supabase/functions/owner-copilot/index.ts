@@ -105,6 +105,16 @@ function collectCitedHosts(blocks: any[], into: Set<string>): void {
 }
 
 const COMMON_RULES = `- 한국어. 금액은 억/만원으로 읽기 쉽게.
+
+범용 비서 역할(중요 — 2026-08-10 사장님 지시):
+- 당신은 회사 데이터 전용 챗봇이 아니라 범용 AI 비서이기도 합니다. 회사와 무관한 질문
+  (날씨·점심 메뉴·맛집·상식·용어 설명·글쓰기·번역·계산·아이디어 등)도 거절하지 말고
+  성실하게 답하세요. "회사 업무 관련 질문만 도와드린다"는 식의 회피는 금지입니다.
+- 날씨·뉴스·시세·영업시간처럼 지금 시점의 바깥 정보가 필요하면 web_search 로 확인해 답하세요.
+  위치가 필요한데 사용자가 말하지 않았으면 스냅샷의 회사 주소를 기준으로 하고, 그 기준을 답에 밝히세요.
+- 일반 지식(개념 설명·요리법·글쓰기·번역 등)은 검색 없이 아는 대로 답해도 됩니다.
+  단, 최신 여부가 중요한 사실은 검색으로 확인하세요.
+- 일반 질문의 답은 sections 없이 headline·summary 만으로, 대화하듯 자연스럽게 써도 됩니다.
 - headline: 한 줄 결론(핵심 한 문장). summary: 2~3문장 요약.
 - sections: 답변 본문. **질문에 맞는 제목을 직접 정해 필요한 만큼만** 만드세요. 정해진 제목 목록은 없습니다.
   · 잔고·건수처럼 답이 한 줄이면 sections 를 아예 비우고 headline·summary 로 끝내도 됩니다.
@@ -127,9 +137,10 @@ ${ALLOWED_HREFS.join(" ")}
 - 근거 없는 값은 절대 만들지 마세요(추정 금지). 데이터가 없으면 해당 배열을 비웁니다.
 
 사실 확인 규칙 — 이걸 어기면 답변은 실패한 것입니다:
-- 숫자·금액·건수·날짜·이름은 **snapshot 이나 조회 툴 결과에 실제로 있는 값만** 씁니다.
+- **회사에 관한** 숫자·금액·건수·날짜·이름은 **snapshot 이나 조회 툴 결과에 실제로 있는 값만** 씁니다.
   기억이나 짐작으로 쓰지 마세요. 비슷한 값을 반올림해 만들어내는 것도 금지입니다.
-- 물어본 것을 데이터로 확인할 수 없으면, 아는 척하지 말고 "지금 데이터로는 확인되지 않습니다"라고
+- **바깥 정보의** 수치(기온·시세·지원금 규모 등)는 web_search 가 실제로 돌려준 값만 씁니다.
+- 회사 데이터로 확인해야 할 것을 확인할 수 없으면, 아는 척하지 말고 "지금 데이터로는 확인되지 않습니다"라고
   말하고 무엇을 보면 알 수 있는지 알려주세요. 모른다고 말하는 편이 틀린 답보다 낫습니다.
 - 조회 툴이 빈 결과를 주면 "없음"이지 "0에 가까움"이 아닙니다. 빈 결과를 채워 넣지 마세요.
 - 회사 데이터로 답할 수 없는 바깥 정보(정부지원사업·정책·법·시세·경쟁사 등)는
@@ -1636,7 +1647,12 @@ async function buildEmployeeContext(
   employeeId: string | null,
   todayKst: string,
 ): Promise<Record<string, unknown>> {
-  if (!employeeId) return { as_of_kst: todayKst, note: "직원 정보 미연결" };
+  // 회사 이름·주소 — 날씨·근처 맛집 같은 위치 기반 일반 질문의 기준 (2026-08-10).
+  //   직원 모드에도 이 두 값은 민감하지 않다(사내 누구나 아는 정보).
+  const { data: co } = await admin
+    .from("companies").select("name, address").eq("id", companyId).maybeSingle();
+  const company = { name: co?.name ?? null, address: co?.address ?? null };
+  if (!employeeId) return { as_of_kst: todayKst, company, note: "직원 정보 미연결" };
   const { data: today } = await admin
     .from("attendance_records").select(ATT_COLS)
     .eq("company_id", companyId).eq("employee_id", employeeId).eq("date", todayKst).maybeSingle();
@@ -1648,6 +1664,7 @@ async function buildEmployeeContext(
   const rows = (month ?? []) as { is_late?: boolean; overtime_minutes?: number }[];
   return {
     as_of_kst: todayKst,
+    company,
     today_attendance: today ?? null,
     this_month: {
       worked_days: rows.length,
@@ -1789,8 +1806,8 @@ serve(withSentry("owner-copilot", async (req) => {
       question ? `사용자 질문: ${question}` : "요청: 오늘 챙겨야 할 것 중심으로 상태를 브리핑해줘.",
       "",
       mode === "manager"
-        ? "현재 회사 스냅샷(JSON, 이 수치만 근거로 사용):"
-        : "본인 근태 요약(JSON, 이 수치만 근거로 사용):",
+        ? "현재 회사 스냅샷(JSON — 회사에 관한 수치는 이 값과 조회 툴 결과만 근거로 사용, 회사 밖 일반 질문은 이 스냅샷에 얽매이지 말 것):"
+        : "본인 근태 요약(JSON — 근태 수치는 이 값만 근거로 사용, 회사 밖 일반 질문은 이 요약에 얽매이지 말 것):",
       "```json",
       JSON.stringify(context),
       "```",
@@ -1876,9 +1893,12 @@ serve(withSentry("owner-copilot", async (req) => {
         maxTokens: attachments.length > 0 ? 8000 : 4000,
         tools: TOOLS,
         // 회사 데이터로 답할 수 없는 질문에서 지어내는 대신 찾아보게 한다 (2026-08-07).
-        //   단순 조회에는 붙이지 않는다 — 검색 1회당 별도 비용이 든다.
-        webSearch: isHeavy,
-        webSearchMaxUses: 5,
+        //   2026-08-10 확대(사장님: "날씨·점심 같은 일반 질문도 다 답해야 한다") —
+        //   "오늘 날씨" 는 HEAVY_HINTS 에 안 걸려 검색이 꺼진 채 확인 불가로 답하고 있었다.
+        //   첨부 모드만 빼고 항상 켠다. 검색은 모델이 필요할 때만 실제로 쓰므로
+        //   잔고·건수 같은 사내 조회 질문에서는 비용이 늘지 않는다. 상한만 질문 무게로 차등.
+        webSearch: !attachmentContractMode && attachments.length === 0,
+        webSearchMaxUses: isHeavy ? 5 : 3,
         toolChoice: attachmentContractMode
           ? { type: "tool", name: "create_contract_draft_from_attachment" }
           : forceRespond ? { type: "tool", name: "respond" } : { type: "any" },
