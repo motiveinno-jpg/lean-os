@@ -126,7 +126,6 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "approval", label: "승인·결재" },
         { key: "deal", label: "딜 분류" },
         { key: "forms", label: "회사 양식" },
-        { key: "data", label: "데이터 관리" },
       ] },
       { route: "/billing", label: "요금제·결제" },
       // 공지는 전원 열람만. 작성·수정·삭제는 서비스 운영자 페이지(/platform/announcements)에서만 하고

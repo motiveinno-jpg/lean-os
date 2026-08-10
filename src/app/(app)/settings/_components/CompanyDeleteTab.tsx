@@ -1,8 +1,8 @@
 "use client";
 
 // 회사 완전 삭제 (2026-08-10 사장님 요청) — 마스터 전용 탭.
-//   DataResetTab(데이터 초기화 — 회사·구성원 보존)과 다르다: companies 행까지 지워
-//   회사가 오너뷰에서 완전히 사라진다. 구성원 auth 계정은 남아 재로그인 시 회사 설정부터.
+//   companies 행까지 지워 회사가 오너뷰에서 완전히 사라진다. 구성원 auth 계정은 남아
+//   재로그인 시 회사 설정부터. (부분 초기화였던 '데이터 관리' 는 같은 날 지시로 제거됨)
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -76,7 +76,6 @@ export function CompanyDeleteTab({ companyId }: { companyId: string }) {
             </p>
             <p className="text-xs text-[var(--text-muted)] mt-1">
               구성원의 로그인 계정 자체는 남지만 회사 소속이 사라져, 다시 로그인하면 새 회사 만들기부터 시작하게 됩니다.
-              데이터만 비우고 회사는 유지하려면 <b>시스템 &gt; 데이터 관리</b>를 사용하세요.
             </p>
           </div>
         </div>

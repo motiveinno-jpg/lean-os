@@ -28,7 +28,6 @@ import { TeamManagement } from "./_components/TeamManagement";
 import { DepartmentsTab } from "./_components/DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./_components/DealClassificationManager";
-import { DataResetTab } from "./_components/DataResetTab";
 import { CompanyDeleteTab } from "./_components/CompanyDeleteTab";
 import { CompanyInfoTab } from "./_components/CompanyInfoTab";
 import { AccountingClosingTab } from "./_components/AccountingClosingTab";
@@ -42,7 +41,7 @@ type LeafKey =
   | "bank" | "ads"                                // 연동·인증
   | "departments" | "attendance"                  // 인사·근태
   | "approval" | "deal" | "forms"                 // 업무 규칙
-  | "data" | "delete-company";                    // 시스템 (회사 삭제는 마스터 전용)
+  | "delete-company";                             // 시스템 (회사 삭제 — 마스터 전용)
 
 const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: LeafKey; label: string; masterOnly?: boolean }[] }[] = [
   { key: "basic", label: "회사 기본", icon: "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2", tabs: [
@@ -69,8 +68,8 @@ const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: 
     { key: "forms", label: "회사 양식" },
   ] },
   { key: "system", label: "시스템", icon: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m-1 0v14a1 1 0 01-1 1H9a1 1 0 01-1-1V6", tabs: [
-    { key: "data", label: "데이터 관리" },
     // 회사 자체를 지우는 탭 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
+    //   '데이터 관리(초기화)' 는 2026-08-10 사장님 지시로 제거 — 회사 삭제만 남긴다.
     { key: "delete-company", label: "회사 삭제", masterOnly: true },
   ] },
 ];
@@ -80,7 +79,7 @@ const TAB_COMPAT: Record<string, LeafKey | "mypage"> = {
   general: "team",          // 합류요청 알림이 팀관리(승인 UI)로 연결되던 링크
   account: "mypage", notifications: "mypage",
   company: "company-info", approval: "approval", bank: "bank", tax: "tax",
-  certificate: "bank", hr_attendance: "attendance", danger: "data",
+  certificate: "bank", hr_attendance: "attendance", danger: "delete-company", data: "delete-company",
 };
 function groupOfLeaf(leaf: LeafKey): string {
   return SETTINGS_GROUPS.find((g) => g.tabs.some((t) => t.key === leaf))?.key || "basic";
@@ -657,9 +656,6 @@ function SettingsPageInner() {
 
       {/* ═══ 업무 규칙 — 회사 양식 PDF ═══ */}
       {tab === "forms" && <FormTemplateManager companyId={companyId} />}
-
-      {/* ═══ 시스템 — 데이터 관리 ═══ */}
-      {tab === "data" && companyId && <DataResetTab companyId={companyId} />}
 
       {tab === "delete-company" && companyId && permMaster && <CompanyDeleteTab companyId={companyId} />}
 

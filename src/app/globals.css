@@ -3615,7 +3615,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .notification-daily-report-card { @apply p-5; }
 .notification-slack-card { @apply p-5; }
 .notification-channel-card { @apply p-6; }
-.data-reset-warning-banner { @apply bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-md; }
 /* 회사 삭제 탭 (마스터 전용, 2026-08-10) */
 .company-delete-banner { @apply bg-red-500/5 border border-red-500/20 rounded-2xl p-6 shadow-md; }
 .company-delete-banner-icon { @apply w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-lg shrink-0; }
@@ -3625,12 +3624,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .company-delete-agree-row { @apply flex items-start gap-2 text-xs text-[var(--text-muted)] cursor-pointer; }
 .company-delete-execute-btn { @apply px-4 py-2.5 rounded-xl text-sm font-bold bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed; }
 .company-delete-done { @apply text-sm text-[var(--text-muted)] bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 text-center; }
-.data-reset-panel { @apply bg-[var(--bg-card)] rounded-2xl border border-red-500/20 p-6; }
-.data-reset-delete-list { @apply bg-[var(--bg-surface)] rounded-xl p-4 mb-5; }
-.data-reset-keep-list { @apply mt-3 pt-3 border-t border-[var(--border)]; }
-.data-reset-confirm-form { @apply space-y-4; }
-.data-reset-progress { @apply space-y-4; }
-.data-reset-done-summary { @apply space-y-4; }
 .settings-deal-classification { @apply p-6; }
 .deal-classification-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-3; }
 .deal-classification-list { @apply space-y-2; }
