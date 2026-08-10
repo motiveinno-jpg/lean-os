@@ -16,7 +16,7 @@ import { useUser, type UserRole } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
 import { usePopups } from "@/components/popup-windows";
 
-type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; match?: string[]; children?: NavItem[] };
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; children?: NavItem[] };
 type NavGroup = { label: string; items: NavItem[] };
 
 // ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
@@ -27,6 +27,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "홈",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
+      // 마스터 전용 — 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동 (2026-08-10 사장님)
+      { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
       { href: "/copilot", label: "AI 참모", icon: "sparkles", roles: ["owner", "admin"] },
       { href: "/mypage", label: "마이페이지", icon: "user" },
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
@@ -113,6 +115,7 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
   //   나머지(마스터·멤버)는 권한 기반 — 마스터는 전 메뉴, 멤버는 부여받은 메뉴 + 기본 제공만 노출.
   const ok = (i: NavItem) => {
     if (i.operatorOnly && !isOperator) return false;
+    if (i.masterOnly && !isMaster) return false; // 마스터 전용 — 메뉴 권한 부여로도 안 열림
     if (role === "partner") return !i.roles || i.roles.includes(role);
     if (isMaster) return true;
     return hasMenu(i.href);
@@ -138,7 +141,7 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
 //   활성 메뉴(색 배경 + text-white)는 흰색 유지 — 아래 NavIcon 에서 text-white 면 색을 안 입힌다.
 const NAV_ITEM_COLOR: Record<string, string> = {
   // 홈 — 블루
-  "/dashboard": "#3b82f6", "/copilot": "#6366f1", "/mypage": "#60a5fa", "/notifications": "#818cf8",
+  "/dashboard": "#3b82f6", "/master": "#2563eb", "/copilot": "#6366f1", "/mypage": "#60a5fa", "/notifications": "#818cf8",
   // 파이낸스 — 그린
   "/partners": "#10b981", "/tax-invoices": "#059669", "/transactions": "#14b8a6",
   "/partners/reconciliation/voucher-entry": "#34d399", "/reports": "#22c55e",

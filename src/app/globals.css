@@ -2170,6 +2170,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 /* ═══ 클래스명 가독성 정리 재작업 — 배치5(ops-core) 마커 스타일 (2026-07-16) ═══ */
 /* dashboard/page.tsx — marker+utility 병기 분리 (batch5 groupA) */
 .dashboard-page-root { @apply pb-20 md:pb-0; }
+/* 마스터 전용 화면 (2026-08-10) — 대시보드 하단 경영 종합 3종 이동 */
+.master-page { @apply pb-20 md:pb-0; }
 .dashboard-owner-widgets-section { @apply space-y-4 mb-6; }
 .dashboard-toolbar { @apply mb-4; }
 .dashboard-toolbar-actions { @apply flex items-center gap-1.5 justify-end mb-2; }
