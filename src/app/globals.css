@@ -3023,7 +3023,6 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .sched-field > *:not(span) { @apply flex-1 min-w-0; }
 .sched-in { @apply w-full h-9 px-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
 .sched-area { @apply h-auto py-2 leading-relaxed resize-y; }
-.sched-adddesc { @apply self-start ml-[4.5rem] text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)]; }
 .sched-range { @apply flex items-center gap-1.5; }
 .sched-range > i { @apply not-italic shrink-0 text-[12px] text-[var(--text-dim)]; }
 .sched-range > *:not(i) { @apply flex-1 min-w-0; }
@@ -3032,10 +3031,17 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .sched-vis { @apply inline-flex rounded-lg border border-[var(--border)] overflow-hidden; }
 .sched-vis-btn { @apply flex-1 h-8 px-2 text-[12px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]; }
 .sched-vis-on { @apply bg-[var(--primary)] text-white hover:!text-white; }
-.sched-picklist { @apply ml-[4.5rem] max-h-40 overflow-y-auto flex flex-col gap-0.5 p-2 rounded-xl bg-[var(--bg-surface)]; }
-.sched-pick { @apply flex items-center gap-2 px-1 py-1 rounded-lg text-[12.5px] text-[var(--text)] cursor-pointer hover:bg-[var(--bg-card)]; }
-.sched-pick > span { @apply flex-1 min-w-0 truncate; }
-.sched-pick > em { @apply not-italic shrink-0 text-[10.5px] text-[var(--text-dim)]; }
+/*  태그로 고르기 — 인원·부서가 많아지면 체크박스 목록은 다 훑어야 한다(2026-08-10) */
+.sched-tagbox { @apply ml-[4.5rem] flex flex-col gap-1.5 p-2 rounded-xl bg-[var(--bg-surface)]; }
+.sched-tags { @apply flex flex-wrap gap-1; }
+.sched-tag { @apply inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full bg-[var(--primary)]/12 text-[11.5px] font-semibold text-[var(--primary)]; }
+.sched-tag > button { @apply w-4 h-4 rounded-full text-[10px] leading-none transition hover:bg-[var(--primary)] hover:text-white; }
+.sched-tagsearch { @apply h-8 px-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[12.5px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.sched-tagopts { @apply max-h-36 overflow-y-auto flex flex-col gap-0.5; }
+.sched-tagopt { @apply flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition hover:bg-[var(--bg-card)]; }
+.sched-tagopt > span { @apply flex-1 min-w-0 truncate text-[12.5px] text-[var(--text)]; }
+.sched-tagopt > em { @apply not-italic shrink-0 text-[10.5px] text-[var(--text-dim)]; }
+.sched-note-flat { @apply !ml-0; }
 .sched-colors { @apply flex items-center gap-1.5; }
 .sched-color { @apply w-6 h-6 rounded-full border-2 border-transparent transition; }
 .sched-color-on { @apply !border-[var(--text)] scale-110; }

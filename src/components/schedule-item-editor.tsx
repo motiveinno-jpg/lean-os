@@ -108,8 +108,6 @@ export function ScheduleItemEditor({
       ? draft.targetDepartments.filter((x) => x !== name) : [...draft.targetDepartments, name],
   });
 
-  const [showDesc, setShowDesc] = useState(!!draft.description);
-
   return (
     <div className="sched-editor" onClick={onClose}>
       <div className="sched-editor-box" onClick={(e) => e.stopPropagation()}>
@@ -124,15 +122,12 @@ export function ScheduleItemEditor({
             onChange={(e) => set({ title: e.target.value })} className="sched-in" />
         </label>
 
-        {showDesc ? (
-          <label className="sched-field sched-field-top">
-            <span>설명</span>
-            <textarea value={draft.description} rows={3} placeholder="어떤 일정인지 · 무엇을 준비해야 하는지"
-              onChange={(e) => set({ description: e.target.value })} className="sched-in sched-area" />
-          </label>
-        ) : (
-          <button type="button" className="sched-adddesc" onClick={() => setShowDesc(true)}>＋ 설명 적기</button>
-        )}
+        {/*  설명은 늘 펼쳐 둔다 (2026-08-10 사장님 지시) — 한 번 더 누르게 하지 않는다 */}
+        <label className="sched-field sched-field-top">
+          <span>설명</span>
+          <textarea value={draft.description} rows={3} placeholder="어떤 일정인지 · 무엇을 준비해야 하는지"
+            onChange={(e) => set({ description: e.target.value })} className="sched-in sched-area" />
+        </label>
 
         <div className="sched-field">
           <span>기간</span>
@@ -161,26 +156,20 @@ export function ScheduleItemEditor({
         <p className="sched-note">{VIS_HINT[draft.visibility]}</p>
 
         {draft.visibility === "members" && (
-          <div className="sched-picklist">
-            {others.length === 0 && <p className="sched-note">고를 사람이 없습니다.</p>}
-            {others.map((u: any) => (
-              <label key={u.id} className="sched-pick">
-                <input type="checkbox" checked={draft.targetUserIds.includes(u.id)} onChange={() => toggleUser(u.id)} />
-                <span>{u.name || u.email}</span>
-              </label>
-            ))}
-          </div>
+          <TagPicker
+            placeholder="이름으로 찾아 넣기"
+            empty="고를 사람이 없습니다."
+            options={others.map((u: any) => ({ key: u.id, label: u.name || u.email }))}
+            selected={draft.targetUserIds}
+            onToggle={toggleUser} />
         )}
         {draft.visibility === "departments" && (
-          <div className="sched-picklist">
-            {depts.length === 0 && <p className="sched-note">인사기록에 부서가 적힌 구성원이 없습니다.</p>}
-            {depts.map((d) => (
-              <label key={d.name} className="sched-pick">
-                <input type="checkbox" checked={draft.targetDepartments.includes(d.name)} onChange={() => toggleDept(d.name)} />
-                <span>{d.name}</span><em>{d.count}명</em>
-              </label>
-            ))}
-          </div>
+          <TagPicker
+            placeholder="부서 이름으로 찾아 넣기"
+            empty="인사기록에 부서가 적힌 구성원이 없습니다."
+            options={depts.map((d) => ({ key: d.name, label: d.name, sub: `${d.count}명` }))}
+            selected={draft.targetDepartments}
+            onToggle={toggleDept} />
         )}
 
         <div className="sched-field">
@@ -203,6 +192,69 @@ export function ScheduleItemEditor({
           </button>
         </footer>
       </div>
+    </div>
+  );
+}
+
+/** 태그로 고르기 — 구성원·부서가 많아지면 체크박스 목록은 다 훑어야 해서 못 쓴다
+ *  (2026-08-10 사장님 지시). 고른 것은 위에 태그로 남고, 아래에서 찾아 눌러 넣는다. */
+function TagPicker({ placeholder, empty, options, selected, onToggle }: {
+  placeholder: string;
+  empty: string;
+  options: { key: string; label: string; sub?: string }[];
+  selected: string[];
+  onToggle: (key: string) => void;
+}) {
+  const [q, setQ] = useState("");
+  const chosen = useMemo(
+    () => selected.map((k) => options.find((o) => o.key === k) || { key: k, label: k }),
+    [selected, options],
+  );
+  //   이미 고른 것은 아래 목록에서 뺀다 — 두 번 누를 일이 없게
+  const matches = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return options
+      .filter((o) => !selected.includes(o.key))
+      .filter((o) => !t || `${o.label} ${o.sub || ""}`.toLowerCase().includes(t))
+      .slice(0, 8);
+  }, [options, selected, q]);
+
+  return (
+    <div className="sched-tagbox">
+      {chosen.length > 0 && (
+        <div className="sched-tags">
+          {chosen.map((o) => (
+            <span key={o.key} className="sched-tag">
+              {o.label}
+              <button type="button" onClick={() => onToggle(o.key)} title="빼기">✕</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={placeholder}
+        //   Enter 로 첫 후보를 바로 넣는다 — 마우스 없이 이어서 여러 명을 고를 수 있게
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing && matches[0]) {
+            e.preventDefault();
+            onToggle(matches[0].key);
+            setQ("");
+          }
+        }}
+        className="sched-tagsearch" />
+      {options.length === 0 ? (
+        <p className="sched-note sched-note-flat">{empty}</p>
+      ) : matches.length === 0 ? (
+        <p className="sched-note sched-note-flat">{q.trim() ? "찾는 것이 없습니다." : "모두 골랐습니다."}</p>
+      ) : (
+        <div className="sched-tagopts">
+          {matches.map((o) => (
+            <button key={o.key} type="button" className="sched-tagopt" onClick={() => { onToggle(o.key); setQ(""); }}>
+              <span>{o.label}</span>
+              {o.sub && <em>{o.sub}</em>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
