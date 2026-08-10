@@ -6579,6 +6579,33 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-doc-addclause { @apply h-8 px-3 rounded-lg border border-dashed border-[var(--border)] text-[11.5px] font-bold text-[var(--text-muted)] transition hover:text-[var(--primary)] hover:border-[var(--primary)] disabled:opacity-40; }
 .pb-doc-notes { @apply w-full px-2.5 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[12.5px] leading-relaxed text-[var(--text)] resize-y focus:outline-none focus:border-[var(--primary)] disabled:opacity-60; }
 
+/* 발행 회차 고르기 · 견적↔계약 비교 (2026-08-10) */
+.pb-doc-picks { @apply grid grid-cols-1 sm:grid-cols-3 gap-2; }
+.pb-doc-pick { @apply flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-left transition hover:border-[var(--primary)]; }
+.pb-doc-pick > span { @apply text-[12px] font-semibold text-[var(--text-muted)]; }
+.pb-doc-pick > b { @apply ml-auto text-[12.5px] font-extrabold text-[var(--text)]; }
+.pb-doc-pick > i { @apply not-italic shrink-0 px-1.5 py-0.5 rounded-md bg-[var(--success)]/10 text-[10px] font-bold text-[var(--success)]; }
+.pb-doc-pick-on { @apply !border-[var(--primary)] bg-[var(--primary)]/10; }
+.pb-doc-pick-on > span { @apply text-[var(--primary)]; }
+.pb-doc-pick-done { @apply opacity-70; }
+.pb-doc-warn { @apply flex items-center gap-2 w-full px-3 py-2 rounded-xl bg-[var(--warning)]/10 border border-[var(--warning)]/30 text-left transition hover:bg-[var(--warning)]/15; }
+.pb-doc-warn > b { @apply shrink-0 text-[12px] font-extrabold text-[var(--warning)]; }
+.pb-doc-warn > span { @apply min-w-0 flex-1 truncate text-[11.5px] text-[var(--text-muted)]; }
+.pb-doc-warn > em { @apply not-italic shrink-0 text-[11.5px] font-bold text-[var(--warning)]; }
+.pb-doc-diff { @apply fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40; }
+.pb-doc-diff-box { @apply w-full max-w-2xl max-h-[88vh] overflow-y-auto flex flex-col rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl; }
+.pb-doc-diff-body { @apply flex flex-col gap-4 px-4 py-4; }
+.pb-doc-diff-grid { @apply grid grid-cols-[5rem_1fr_1fr] gap-x-3 gap-y-2 items-baseline; }
+.pb-doc-diff-grid > span { @apply text-[11.5px] font-semibold text-[var(--text-dim)]; }
+.pb-doc-diff-grid > b { @apply text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pb-doc-diff-grid > em { @apply not-italic text-[12.5px] font-semibold text-[var(--text)]; }
+.pb-doc-diff-hit { @apply !text-[var(--warning)]; }
+.pb-doc-diff-items { @apply grid grid-cols-1 sm:grid-cols-2 gap-3; }
+.pb-doc-diff-items > div { @apply flex flex-col gap-1 p-2.5 rounded-xl bg-[var(--bg-surface)]; }
+.pb-doc-diff-items b { @apply text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wide; }
+.pb-doc-diff-items p { @apply flex items-baseline gap-2 text-[12px] text-[var(--text)]; }
+.pb-doc-diff-items p span { @apply ml-auto shrink-0 text-[11.5px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+
 /* 디자인 시스템 갤러리 /design — 부품을 한 화면에 세워 두는 자리 (2026-08-05) */
 .ds-page { @apply flex flex-col gap-8 pb-16; }
 .ds-head { @apply flex flex-col gap-1; }

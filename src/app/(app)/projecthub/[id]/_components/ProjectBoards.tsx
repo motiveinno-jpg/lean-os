@@ -959,6 +959,36 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     const pid = docModalItem.values?.[partnerColId];
     return (partners as any[]).find((x) => x.id === pid) || null;
   })();
+  //   ① 표 행 금액은 문서를 따라간다 (2026-08-10 사장님 결정) — 매출 집계·잔금이 보는 값이
+  //      문서와 갈리면 어느 쪽이 맞는지 알 길이 없다. 계약 > 견적 우선은 팝업이 판단해 부른다.
+  //      ⚠️ values 는 **DB 에서 다시 읽어** 합친다 — 직전에 문서 링크를 쓴 것이 캐시엔 아직 없다.
+  const syncRowAmount = async (supply: number) => {
+    const it = docModalItem;
+    const c = cols.find((x) => x.type === "number" && (x.settings?.unit || "") === "원");
+    if (!it || !c) return;
+    const cur = Number(it.values?.[c.id]) || 0;
+    const next = Math.round(supply);
+    if (cur === next) return;
+    const fresh = logRead("ProjectBoards:rowValues", await db.from("project_board_items")
+      .select("values").eq("id", it.id).maybeSingle());
+    const { error } = await db.from("project_board_items")
+      .update({ values: { ...((fresh?.values as any) || it.values || {}), [c.id]: next }, updated_at: new Date().toISOString() })
+      .eq("id", it.id);
+    if (error) { toast(error.message, "error"); return; }
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+    toast(`행 금액도 ${won(cur)} → ${won(next)} 으로 맞췄습니다.`, "success");
+  };
+  //   개정 견적서를 만들면 그 줄의 견적 연결을 새 문서로 옮긴다(원본은 문서함에 그대로 남는다)
+  const relinkQuote = async (q: { id: string; no: string }) => {
+    const it = docModalItem;
+    if (!it) return;
+    const fresh = logRead("ProjectBoards:rowValues", await db.from("project_board_items")
+      .select("values").eq("id", it.id).maybeSingle());
+    await db.from("project_board_items")
+      .update({ values: { ...((fresh?.values as any) || it.values || {}), [DOC_VALUE_KEY]: q }, updated_at: new Date().toISOString() })
+      .eq("id", it.id);
+    qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+  };
   // 계획 대비 실적 — 같은 단위 숫자 컬럼이 둘이면 그 비율을 행에 바로 보여준다
   //   (예산 대비 집행, 예상 대비 확정). 정리 탭의 '차이' 카드와 같은 두 컬럼을 쓴다.
   const ratioPair = (() => {
@@ -1160,8 +1190,12 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           amount={docModalAmount}
           partnerName={docModalPartner?.name || ""}
           partnerId={docModalPartner?.id || null}
+          partnerBizno={docModalPartner?.business_number || null}
           companyId={companyId} dealId={dealId} userId={userId}
           quoteDoc={docModalQuote}
+          hasContract={!!((docModalItem.values || {})[CONTRACT_VALUE_KEY] as any)?.id}
+          onAmountChange={syncRowAmount}
+          onQuoteReplaced={relinkQuote}
           onClose={() => setDocModal(null)}
           onSent={() => markStage(docModalItem, /견적/)}
           onApproved={() => markStage(docModalItem, /계약/)}

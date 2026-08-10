@@ -15,6 +15,16 @@
 //     · 계약서: 계약일 · 계약기간 · 계약 내역(품목) · 결제조건 · **계약 조항 본문**을 여기서 고친다.
 //       연결된 견적서가 있으면 만들 때 자동으로 물려받고, '견적서 불러오기' 로 언제든 다시 당겨온다.
 //
+//   2026-08-10 (2차) — 숫자가 세 군데(표 행 금액 · 견적 · 계약)에 따로 살던 것을 정리했다.
+//     ① **표 행 금액은 문서를 저장할 때 자동으로 맞춘다** (계약 > 견적 우선). 매출 집계·잔금이
+//        보는 값이 문서와 갈리면 어느 쪽이 맞는지 알 길이 없다.
+//     ② **견적↔계약이 달라지면**: 아직 안 보낸 견적이면 저장할 때 "견적서도 맞출까요?" 를 묻고,
+//        이미 보낸 견적이면 **절대 덮어쓰지 않는다** — '견적과 다름' 배지 + 비교 보기 +
+//        '개정 견적서 만들기'(새 문서, 원본은 그대로). 보낸 견적을 사후에 바꾸면 거래처가 받은
+//        문서와 기록이 달라져 분쟁 때 근거가 무너진다.
+//     ③ **＋ 발행은 계약을 승계한다** — 선금/중도금/잔금 회차를 골라 그 금액으로, 품목명·
+//        과세유형(면세·영세면 세액 0)·사업자번호까지 넘긴다. 이미 발행한 회차는 표시한다.
+//
 //   여기서 끝내는 일: 문서 작성 · 저장 · 검토 요청/승인 · 거래처 발송(메일) · 공유 링크 · 계산서 만들기.
 //   문서 편집기로 넘어가는 일: PDF·전자서명 이력·버전 비교(드물어서 링크만 남긴다).
 
@@ -29,9 +39,10 @@ import { todayKst, kstDateStr } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { QuoteItemsTable } from "@/app/(app)/documents/_components/QuoteItemsTable";
-import { saveRevision, submitForReview, approveDocument } from "@/lib/documents";
+import { saveRevision, submitForReview, approveDocument, insertDocument } from "@/lib/documents";
 import { createSignatureRequest, sendSignatureEmail } from "@/lib/signatures";
 import { createDocumentShare } from "@/lib/document-sharing";
+import { payTermsOf } from "@/lib/project-boards";
 
 const db = supabase as any;
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
@@ -46,7 +57,12 @@ const STATUS_LABEL: Record<string, string> = {
   draft: "초안", review: "검토중", approved: "승인", executed: "체결", locked: "잠금",
 };
 const TAX_LABEL: [TaxType, string][] = [["taxable", "과세 (10%)"], ["exempt", "면세"], ["zero", "영세율"]];
+//   세금계산서의 과세유형 — 면세·영세는 세액 0 으로 발행된다(문서의 거래유형을 그대로 잇는다)
+const TAX_KIND: Record<TaxType, "taxable" | "exempt" | "zero_rated"> = {
+  taxable: "taxable", exempt: "exempt", zero: "zero_rated",
+};
 const rateOf = (t: TaxType) => (t === "taxable" ? 0.1 : 0);
+const isFilled = (r: any) => !!r && (r.name || r.quantity || r.unitPrice);
 
 /** 세율이 바뀌면 이미 넣어 둔 줄의 공급가·세액도 같이 바뀐다 — 품목표와 같은 계산식 */
 function recalc(row: any, taxRate: number) {
@@ -57,9 +73,14 @@ function recalc(row: any, taxRate: number) {
   return { ...row, supplyAmount: supply, taxAmount: tax, totalAmount: supply + tax, unitPriceVat: Math.round(u * (1 + taxRate)) };
 }
 
+/** 두 문서가 같은 내용인지 볼 때 쓰는 지문 — 품목명·수량·단가만 본다(적요·비고는 무시) */
+const itemsKey = (rows: any[]) => rows.filter(isFilled)
+  .map((r) => `${String(r.name || "").trim()}/${Number(r.quantity) || 0}/${Number(r.unitPrice) || 0}`).join("|");
+const termsKey = (rows: { label: string; ratio?: number }[]) => rows.map((t) => `${t.label}:${t.ratio ?? ""}`).join("|");
+
 export function BoardDocModal({
-  kind, rowName, doc, draft, onCreate, amount, partnerName, partnerId, companyId, dealId, userId,
-  quoteDoc, onClose, onIssued, onSent, onApproved,
+  kind, rowName, doc, draft, onCreate, amount, partnerName, partnerId, partnerBizno, companyId, dealId, userId,
+  quoteDoc, hasContract, onAmountChange, onQuoteReplaced, onClose, onIssued, onSent, onApproved,
 }: {
   kind: DocKind;
   rowName: string;
@@ -73,11 +94,19 @@ export function BoardDocModal({
   amount: number;
   partnerName: string;
   partnerId: string | null;
+  /** 사업자번호 — 세금계산서에 그대로 실린다(홈택스 발행에 필요) */
+  partnerBizno?: string | null;
   companyId: string;
   dealId: string;
   userId?: string;
-  /** 이 줄에 붙은 견적서 — 계약서에서 '견적서 불러오기' 로 품목·결제조건을 당겨온다 */
+  /** 이 줄에 붙은 견적서 — 계약서에서 '견적서 불러오기'·차이 비교에 쓴다 */
   quoteDoc?: any | null;
+  /** 이 줄에 계약서가 이미 있나 — 있으면 견적을 저장해도 행 금액은 안 건드린다(계약 우선) */
+  hasContract?: boolean;
+  /** 저장 성공 시 그 줄의 금액 칸을 문서 합계로 맞춘다 */
+  onAmountChange?: (supply: number) => void;
+  /** 개정 견적서를 만들면 그 줄의 견적 연결을 새 문서로 바꾼다 */
+  onQuoteReplaced?: (doc: { id: string; no: string }) => void;
   onClose: () => void;
   /** 계산서를 만들면 행을 '발행' 단계로 */
   onIssued: () => void;
@@ -106,6 +135,8 @@ export function BoardDocModal({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [clauses, setClauses] = useState<Clause[]>([]);      // 계약 조항 본문
+  const [issueTerm, setIssueTerm] = useState("");            // 발행할 회차(라벨). 빈 값 = 전액
+  const [showDiff, setShowDiff] = useState(false);           // 견적 ↔ 계약 비교 보기
 
   const taxRate = rateOf(taxType);
 
@@ -164,6 +195,28 @@ export function BoardDocModal({
     enabled: !!doc?.id,
   });
 
+  //   견적서를 이미 거래처에 보냈나 — 보냈으면 계약과 달라져도 **덮어쓰지 않는다**
+  const { data: quoteSent } = useQuery({
+    queryKey: ["pb-quote-sent", quoteDoc?.id],
+    queryFn: async () => {
+      const data = logRead("BoardDocModal:quoteSent", await db.from("signature_requests")
+        .select("id").eq("document_id", quoteDoc.id).limit(1));
+      return (data || []).length > 0;
+    },
+    enabled: kind === "contract" && !!quoteDoc?.id,
+  });
+
+  //   이 줄에서 이미 만든 계산서 — 회차를 두 번 발행하지 않게 표시한다
+  const { data: madeInvoices = [] } = useQuery({
+    queryKey: ["pb-doc-invoices", dealId],
+    queryFn: async () => {
+      const data = logRead("BoardDocModal:invoices", await db.from("tax_invoices")
+        .select("id, label, supply_amount, status, issue_date").eq("deal_id", dealId).eq("type", "sales"));
+      return (data || []) as any[];
+    },
+    enabled: kind === "issue" && !!dealId,
+  });
+
   const terms = useMemo(() => {
     const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n || 0)));
     if (payMode === "full") return [{ label: "전액", ratio: 100, condition: "" }];
@@ -178,6 +231,56 @@ export function BoardDocModal({
             { label: "잔금", ratio: Math.max(0, 100 - a - m), condition: "납품 완료 후 14일 이내" }];
   }, [payMode, adv, mid]);
   const termAmount = (ratio: number) => Math.round((supply * ratio) / 100);
+
+  // ── 발행(세금계산서) — 계약서의 회차를 그대로 잇는다 ──
+  //   회차 금액은 비율로 다시 계산한다(계약 금액이 바뀌었어도 합계가 공급가와 맞게).
+  const issueTerms = useMemo(() => {
+    if (kind !== "issue") return [];
+    const list = payTermsOf(doc);
+    if (list.length === 0) return [];
+    let allocated = 0;
+    return list.map((t, i) => {
+      const amt = i === list.length - 1
+        ? supply - allocated
+        : (t.ratio ? Math.round((supply * t.ratio) / 100) : Number(t.amount) || 0);
+      allocated += amt;
+      return { label: t.label, ratio: t.ratio, condition: t.condition, amount: amt };
+    });
+  }, [kind, doc, supply]);
+  //   계산서 이름 — 회차까지 적어 두면 세금계산서 화면에서도 어느 회차인지 바로 보인다
+  const invLabel = (t: string) => (!t || t === "전액" ? (rowName || "청구") : `${rowName || "청구"} ${t}`);
+  const issuedOf = (t: string) => (madeInvoices as any[]).find((v) => v.label === invLabel(t)) || null;
+  const issueSupply = issueTerm ? (issueTerms.find((t) => t.label === issueTerm)?.amount || 0) : supply;
+  const issueVat = TAX_KIND[taxType] === "taxable" ? Math.round(issueSupply * 0.1) : 0;
+  const alreadyIssued = issueTerms.length > 0 ? issuedOf(issueTerm) : issuedOf("");
+  //   품목명 — 홈택스에 나가는 이름이다(비우면 "용역" 으로 나간다)
+  const itemName = (() => {
+    const filled = items.filter(isFilled);
+    if (filled.length === 0) return rowName || "";
+    const first = String(filled[0].name || rowName || "").trim();
+    return filled.length > 1 ? `${first} 외 ${filled.length - 1}건` : first;
+  })();
+
+  //   발행할 회차는 '아직 안 만든 첫 회차' 를 기본으로 고른다
+  useEffect(() => {
+    if (kind !== "issue" || issueTerms.length === 0) return;
+    const next = issueTerms.find((t) => !issuedOf(t.label)) || issueTerms[0];
+    setIssueTerm(next.label);
+  }, [kind, doc?.id, issueTerms.length, (madeInvoices as any[]).length]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── 견적 ↔ 계약 차이 — 계약을 고쳐서 견적과 달라졌는지 ──
+  const quoteCj = (quoteDoc?.content_json as any) || {};
+  const quoteItems: any[] = Array.isArray(quoteCj.items) ? quoteCj.items : [];
+  const quoteSupply = quoteItems.reduce((s, i) => s + (Number(i.supplyAmount) || 0), 0);
+  const quoteTerms: any[] = Array.isArray(quoteCj.paymentSchedule) ? quoteCj.paymentSchedule : [];
+  const diff = useMemo(() => {
+    if (kind !== "contract" || !quoteDoc?.id) return null;
+    const amountDiff = supply - quoteSupply;
+    const itemsDiff = itemsKey(quoteItems) !== itemsKey(items);
+    const termsDiff = termsKey(quoteTerms as any) !== termsKey(terms);
+    if (!amountDiff && !itemsDiff && !termsDiff) return null;
+    return { amountDiff, itemsDiff, termsDiff };
+  }, [kind, quoteDoc?.id, supply, quoteSupply, items, quoteItems, terms, quoteTerms]);
 
   const refreshDoc = () => {
     qc.invalidateQueries({ queryKey: ["pb-docs", dealId] });
@@ -196,15 +299,20 @@ export function BoardDocModal({
     setDirty(true);
   };
 
-  // ── 저장 — 문서함과 **같은 saveRevision** 을 쓴다(이력도 똑같이 남는다) ──
-  const save = async (silent = false) => {
-    if (!userId) return false;
+  //   결제조건을 회차 배열로 — 저장본·견적 맞춤·비교 보기가 모두 이걸 쓴다
+  const buildSchedule = () => {
     let allocated = 0;
-    const schedule = terms.map((t, i) => {
+    return terms.map((t, i) => {
       const amt = i === terms.length - 1 ? supply - allocated : termAmount(t.ratio);
       allocated += amt;
       return { label: t.label, ratio: t.ratio, amount: amt, condition: t.condition };
     });
+  };
+
+  // ── 저장 — 문서함과 **같은 saveRevision** 을 쓴다(이력도 똑같이 남는다) ──
+  const save = async (silent = false) => {
+    if (!userId) return false;
+    const schedule = buildSchedule();
     const withSchedule = kind === "contract" || existing.length > 0 || payMode !== "full";
     const termsText = schedule.map((s) => `${s.label} ${s.ratio}% (${s.condition || "협의"})`).join(", ");
     const next = {
@@ -228,17 +336,44 @@ export function BoardDocModal({
       const ok = await onCreate(next, docName.trim() || undefined);
       if (!ok) return false;
       setDirty(false);
-      if (!silent) toast("저장했습니다.", "success");
-      return true;
+    } else {
+      await saveRevision({ documentId: doc.id, authorId: userId, contentJson: next as any });
+      //   문서명은 본문이 아니라 documents.name — 바뀐 때만 따로 고친다
+      const nm = docName.trim();
+      if (nm && nm !== doc.name) await db.from("documents").update({ name: nm }).eq("id", doc.id);
+      setDirty(false);
+      refreshDoc();
     }
-    await saveRevision({ documentId: doc.id, authorId: userId, contentJson: next as any });
-    //   문서명은 본문이 아니라 documents.name — 바뀐 때만 따로 고친다
-    const nm = docName.trim();
-    if (nm && nm !== doc.name) await db.from("documents").update({ name: nm }).eq("id", doc.id);
-    setDirty(false);
-    refreshDoc();
+    //   ① 표 행 금액은 문서를 따라간다 (계약 > 견적 — 계약이 있으면 견적을 고쳐도 안 건드린다)
+    //      ↓ 아래 두 가지는 **처음 만들 때도 똑같이** 걸린다(초안 생성에서 빠지면 반쪽이 된다)
+    if (supply > 0 && (kind === "contract" || !hasContract)) onAmountChange?.(supply);
+    //   ② 아직 안 보낸 견적이면 같이 맞출지 묻는다. 보낸 견적은 여기서 절대 안 건드린다.
+    if (!silent && diff && quoteDoc?.id && quoteSent === false) {
+      const no = quoteDoc.document_number ? `견적 ${quoteDoc.document_number}` : "견적서";
+      if (window.confirm(`${no} 도 이 계약 내용으로 맞출까요?\n아직 거래처에 보내지 않은 견적입니다.`)) {
+        await syncQuote(schedule);
+      }
+    }
     if (!silent) toast("저장했습니다.", "success");
     return true;
+  };
+
+  //   견적서를 계약 내용으로 맞춘다 — **미발송 견적에만** 쓴다
+  const syncQuote = async (schedule?: any[]) => {
+    if (!quoteDoc?.id || !userId) return;
+    const base = (quoteDoc.content_json as any) || {};
+    const sched = schedule || buildSchedule();
+    await saveRevision({
+      documentId: quoteDoc.id, authorId: userId,
+      contentJson: {
+        ...base, items,
+        header: { ...(base.header || {}), partnerId, partnerName, taxType },
+        paymentSchedule: sched,
+        paymentTerms: sched.map((s: any) => `${s.label} ${s.ratio}% (${s.condition || "협의"})`).join(", "),
+      } as any,
+    });
+    qc.invalidateQueries({ queryKey: ["pb-docs", dealId] });
+    toast("견적서도 계약 내용으로 맞췄습니다.", "success");
   };
 
   const guard = async (fn: () => Promise<void>) => {
@@ -249,24 +384,31 @@ export function BoardDocModal({
     finally { setBusy(false); }
   };
 
-  // ── 견적서 → 계약서로 내용 당겨오기 (2026-08-10 사장님 지시) ──
-  //   만들 때 자동으로 물려받지만, 견적을 나중에 고친 경우가 있어 언제든 다시 부를 수 있게 한다.
-  const loadFromQuote = () => {
-    const q = (quoteDoc?.content_json as any) || {};
-    const qi = Array.isArray(q.items) ? q.items.filter((r: any) => r && (r.name || r.quantity || r.unitPrice)) : [];
-    if (qi.length === 0) { toast("견적서에 품목이 없습니다. 견적서를 먼저 작성하세요.", "error"); return; }
-    const hasRows = items.some((r) => r && (r.name || r.quantity || r.unitPrice));
-    if (hasRows && !window.confirm("지금 계약 내역을 견적서 품목으로 바꿉니다. 계속할까요?")) return;
-    const qh = (q.header as any) || {};
-    const tt: TaxType = qh.taxType === "exempt" || qh.taxType === "zero" ? qh.taxType : "taxable";
-    setTaxType(tt);
-    setItems(qi.map((r: any) => recalc(r, rateOf(tt))));
-    const sched: any[] = Array.isArray(q.paymentSchedule) ? q.paymentSchedule : [];
-    if (sched.length >= 3) { setPayMode("three"); setAdv(Number(sched[0]?.ratio) || 30); setMid(Number(sched[1]?.ratio) || 40); }
-    else if (sched.length === 2) { setPayMode("two"); setAdv(Number(sched[0]?.ratio) || 30); }
-    setDirty(true);
-    toast("견적서 내용을 불러왔습니다. 필요하면 고친 뒤 저장하세요.", "success");
-  };
+  //   이미 보낸 견적은 고치지 않고 **개정본을 새로 만든다** — 거래처가 받은 문서는 그대로 남는다
+  const makeRevisedQuote = () => guard(async () => {
+    if (!quoteDoc?.id || !userId) return;
+    if (dirty) await save(true);
+    const base = (quoteDoc.content_json as any) || {};
+    const sched = buildSchedule();
+    const created = await insertDocument({
+      companyId, dealId, userId,
+      name: `${quoteDoc.name || `${rowName || "프로젝트"} 견적서`} (개정)`,
+      contentType: "invoice",
+      contentJson: {
+        ...base, items, notes, validUntil,
+        header: { ...(base.header || {}), partnerId, partnerName, taxType },
+        paymentSchedule: sched,
+        paymentTerms: sched.map((s) => `${s.label} ${s.ratio}% (${s.condition || "협의"})`).join(", "),
+      },
+      sourceDocumentId: quoteDoc.id,
+    });
+    //   이 계약의 근거를 개정 견적으로 옮긴다(원본 견적은 개정본의 source 로 계속 이어진다)
+    if (doc?.id) await db.from("documents").update({ source_document_id: created.id }).eq("id", doc.id);
+    onQuoteReplaced?.({ id: created.id, no: created.document_number || "견적서" });
+    qc.invalidateQueries({ queryKey: ["pb-docs", dealId] });
+    setShowDiff(false);
+    toast("개정 견적서를 만들었습니다. 견적 칸에서 열어 거래처에 다시 보내세요.", "success");
+  });
 
   // ── 거래처에 메일로 보내기 — 문서함의 '거래처에게 발송' 과 같은 경로 ──
   const sendToPartner = () => guard(async () => {
@@ -330,17 +472,40 @@ export function BoardDocModal({
     toast("승인했습니다.", "success");
   });
 
+  // ── 견적서 → 계약서로 내용 당겨오기 (2026-08-10 사장님 지시) ──
+  //   만들 때 자동으로 물려받지만, 견적을 나중에 고친 경우가 있어 언제든 다시 부를 수 있게 한다.
+  const loadFromQuote = () => {
+    const qi = quoteItems.filter(isFilled);
+    if (qi.length === 0) { toast("견적서에 품목이 없습니다. 견적서를 먼저 작성하세요.", "error"); return; }
+    const hasRows = items.some(isFilled);
+    if (hasRows && !window.confirm("지금 계약 내역을 견적서 품목으로 바꿉니다. 계속할까요?")) return;
+    const qh = (quoteCj.header as any) || {};
+    const tt: TaxType = qh.taxType === "exempt" || qh.taxType === "zero" ? qh.taxType : "taxable";
+    setTaxType(tt);
+    setItems(qi.map((r: any) => recalc(r, rateOf(tt))));
+    if (quoteTerms.length >= 3) { setPayMode("three"); setAdv(Number(quoteTerms[0]?.ratio) || 30); setMid(Number(quoteTerms[1]?.ratio) || 40); }
+    else if (quoteTerms.length === 2) { setPayMode("two"); setAdv(Number(quoteTerms[0]?.ratio) || 30); }
+    setDirty(true);
+    setShowDiff(false);
+    toast("견적서 내용을 불러왔습니다. 필요하면 고친 뒤 저장하세요.", "success");
+  };
+
   // 계산서는 **발행 대기(초안)** 로만 만든다 — 국세청 발행은 세금계산서 화면에서 사람이 누른다.
+  //   계약의 회차·품목명·과세유형·사업자번호를 그대로 잇는다(2026-08-10).
   const makeInvoice = () => guard(async () => {
     if (!partnerName) throw new Error("거래처를 먼저 지정하세요");
-    if (supply <= 0) throw new Error("금액을 먼저 입력하세요");
+    if (issueSupply <= 0) throw new Error("금액을 먼저 입력하세요");
+    if (alreadyIssued) throw new Error(`'${invLabel(issueTerm)}' 는 이미 만들었습니다`);
     await createTaxInvoice({
       companyId, dealId, type: "sales",
       counterpartyName: partnerName, partnerId: partnerId || undefined,
-      supplyAmount: supply, issueDate, label: rowName || "청구", status: "draft",
+      counterpartyBizno: partnerBizno || undefined,
+      supplyAmount: issueSupply, issueDate, label: invLabel(issueTerm), status: "draft",
+      itemName: itemName || undefined, taxKind: TAX_KIND[taxType],
     });
     qc.invalidateQueries({ queryKey: ["tax-invoices"] });
-    toast("세금계산서를 발행 대기로 만들었습니다. 세금계산서 화면에서 발행하세요.", "success");
+    qc.invalidateQueries({ queryKey: ["pb-doc-invoices", dealId] });
+    toast(`${invLabel(issueTerm)} ${won(issueSupply)}원을 발행 대기로 만들었습니다. 세금계산서 화면에서 발행하세요.`, "success");
     onIssued();
     onClose();
   });
@@ -351,7 +516,8 @@ export function BoardDocModal({
   //   편집기에서 서식(HTML 본문)으로 작성한 계약서는 조항 편집을 숨긴다 — 여기서 고치면 서식이 깨진다
   const richBody = kind === "contract" && !!cj.body;
 
-  useModalKeys(true, onClose, busy ? undefined : kind === "issue" ? makeInvoice : () => save());
+  useModalKeys(true, showDiff ? () => setShowDiff(false) : onClose,
+    busy || showDiff ? undefined : kind === "issue" ? makeInvoice : () => save());
 
   const field = (label: string, node: React.ReactNode) => (
     <label className="pb-doc-field"><span>{label}</span>{node}</label>
@@ -372,6 +538,21 @@ export function BoardDocModal({
         </header>
 
         <div className="pb-doc-body">
+          {/* 견적과 달라졌다 — 어디가 다른지 보고, 견적을 어떻게 할지 여기서 정한다 */}
+          {diff && (
+            <button type="button" className="pb-doc-warn" onClick={() => setShowDiff(true)}>
+              <b>견적과 다름</b>
+              <span>
+                {diff.amountDiff !== 0 && `금액 ${diff.amountDiff > 0 ? "+" : "−"}${won(Math.abs(diff.amountDiff))}원`}
+                {diff.amountDiff !== 0 && (diff.itemsDiff || diff.termsDiff) && " · "}
+                {diff.itemsDiff && "품목"}
+                {diff.itemsDiff && diff.termsDiff && " · "}
+                {diff.termsDiff && "결제조건"}
+              </span>
+              <em>비교 보기 →</em>
+            </button>
+          )}
+
           {/* 문서명 — 거래처가 받아 보는 제목이다(PDF 표지에도 그대로 쓰인다) */}
           {kind !== "issue" && (
             <label className="pb-doc-name">
@@ -384,9 +565,47 @@ export function BoardDocModal({
           <dl className="pb-doc-facts">
             <div><dt>거래처</dt><dd>{partnerName || <em>미지정 — 표에서 거래처를 고르세요</em>}</dd></div>
             {kind === "issue" && <div><dt>발행일</dt><dd><DateField value={issueDate} onChange={(e) => setIssueDate(e.target.value)} /></dd></div>}
-            <div><dt>공급가</dt><dd className="pb-doc-num">{won(supply)}원</dd></div>
-            <div><dt>합계</dt><dd className="pb-doc-num pb-doc-total">{won(supply + vat)}원 <em>(부가세 {won(vat)})</em></dd></div>
+            <div><dt>공급가</dt><dd className="pb-doc-num">{won(kind === "issue" ? issueSupply : supply)}원</dd></div>
+            <div><dt>합계</dt><dd className="pb-doc-num pb-doc-total">
+              {won(kind === "issue" ? issueSupply + issueVat : supply + vat)}원{" "}
+              <em>(부가세 {won(kind === "issue" ? issueVat : vat)})</em></dd></div>
           </dl>
+
+          {/* 발행 — 계약서의 품목·과세유형·회차를 그대로 잇는다 */}
+          {kind === "issue" && (
+            <section className="pb-doc-terms">
+              <b>계약에서 가져온 내용</b>
+              <dl className="pb-doc-facts">
+                <div><dt>품목</dt><dd>{itemName || <em>계약에 품목이 없습니다</em>}</dd></div>
+                <div><dt>과세유형</dt><dd>{TAX_LABEL.find(([v]) => v === taxType)?.[1]}</dd></div>
+                <div><dt>사업자번호</dt><dd>{partnerBizno || <em>거래처에 없음</em>}</dd></div>
+                <div><dt>계약 금액</dt><dd className="pb-doc-num">{won(supply)}원</dd></div>
+              </dl>
+              {issueTerms.length > 0 ? (<>
+                <b>어느 회차를 발행할까요</b>
+                <div className="pb-doc-picks">
+                  {issueTerms.map((t) => {
+                    const made = issuedOf(t.label);
+                    return (
+                      <button key={t.label} type="button" aria-pressed={issueTerm === t.label}
+                        className={`pb-doc-pick ${issueTerm === t.label ? "pb-doc-pick-on" : ""} ${made ? "pb-doc-pick-done" : ""}`}
+                        onClick={() => setIssueTerm(t.label)}
+                        title={made ? "이미 만든 회차입니다" : t.condition || undefined}>
+                        <span>{t.label}{t.ratio ? ` ${t.ratio}%` : ""}</span>
+                        <b className="pb-doc-num">{won(t.amount)}원</b>
+                        {made && <i>만듦</i>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>) : (
+                <p className="pb-doc-hint">계약서에 결제 회차가 없어 <b>전액</b>으로 만듭니다. 회차로 나누려면 계약서에서 결제조건을 먼저 정하세요.</p>
+              )}
+              <p className="pb-doc-hint">
+                <b>발행 대기</b>로만 만듭니다. 국세청 실제 발행은 세금계산서 화면에서 확인하고 누르세요.
+              </p>
+            </section>
+          )}
 
           {/* 문서 기본 정보 — 견적서·계약서가 서로 다른 칸을 쓴다 */}
           {kind === "quote" && (
@@ -470,7 +689,7 @@ export function BoardDocModal({
                 ))}
               </ul>
               {kind === "contract" && (
-                <p className="pb-doc-hint">저장하면 표 위에서 이 회차대로 <b>청구 줄을 만들 수 있어요</b>.</p>
+                <p className="pb-doc-hint">저장하면 표 위에서 이 회차대로 <b>청구 줄을 만들 수 있어요</b>. ‘＋ 발행’ 은 이 회차를 그대로 씁니다.</p>
               )}
             </section>
           )}
@@ -528,12 +747,6 @@ export function BoardDocModal({
               ))}
             </section>
           )}
-
-          {kind === "issue" && (
-            <p className="pb-doc-hint">
-              <b>발행 대기</b>로만 만듭니다. 국세청 실제 발행은 세금계산서 화면에서 확인하고 누르세요.
-            </p>
-          )}
         </div>
 
         <footer className="pb-doc-foot">
@@ -553,10 +766,86 @@ export function BoardDocModal({
             </button>
           </>)}
           {kind === "issue" && (
-            <button type="button" className="pb-doc-go" disabled={busy} onClick={makeInvoice}>{busy ? "만드는 중…" : "발행 대기로 만들기"}</button>
+            <button type="button" className="pb-doc-go" disabled={busy || !!alreadyIssued} onClick={makeInvoice}
+              title={alreadyIssued ? "이미 만든 회차입니다" : undefined}>
+              {busy ? "만드는 중…" : alreadyIssued ? "이미 만든 회차" : "발행 대기로 만들기"}
+            </button>
           )}
         </footer>
       </div>
+
+      {/* 견적 ↔ 계약 비교 — 어디가 달라졌는지 보고, 견적을 어떻게 할지 정한다 */}
+      {showDiff && diff && (
+        <div className="pb-doc-diff" onClick={(e) => { e.stopPropagation(); setShowDiff(false); }}>
+          <div className="pb-doc-diff-box" onClick={(e) => e.stopPropagation()}>
+            <header className="pb-doc-head">
+              <div>
+                <b>견적 ↔ 계약 비교</b>
+                <span>{quoteDoc?.document_number ? `견적 ${quoteDoc.document_number}` : "견적서"} · {rowName || "청구 건"}</span>
+              </div>
+              <button type="button" onClick={() => setShowDiff(false)} title="닫기">✕</button>
+            </header>
+            <div className="pb-doc-diff-body">
+              <div className="pb-doc-diff-grid">
+                <span />
+                <b>견적서</b>
+                <b>계약서 (지금)</b>
+
+                <span>공급가</span>
+                <em className="pb-doc-num">{won(quoteSupply)}원</em>
+                <em className={`pb-doc-num ${diff.amountDiff ? "pb-doc-diff-hit" : ""}`}>{won(supply)}원</em>
+
+                <span>품목</span>
+                <em>{quoteItems.filter(isFilled).length}건</em>
+                <em className={diff.itemsDiff ? "pb-doc-diff-hit" : ""}>{items.filter(isFilled).length}건</em>
+
+                <span>결제조건</span>
+                <em>{quoteTerms.length ? quoteTerms.map((t: any) => `${t.label} ${t.ratio}%`).join(" · ") : "전액"}</em>
+                <em className={diff.termsDiff ? "pb-doc-diff-hit" : ""}>{terms.map((t) => `${t.label} ${t.ratio}%`).join(" · ")}</em>
+              </div>
+
+              {diff.itemsDiff && (
+                <div className="pb-doc-diff-items">
+                  <div>
+                    <b>견적 품목</b>
+                    {quoteItems.filter(isFilled).map((r: any, i: number) => (
+                      <p key={i}>{r.name || "(이름 없음)"} <span>{Number(r.quantity) || 0} × {won(Number(r.unitPrice) || 0)}</span></p>
+                    ))}
+                    {quoteItems.filter(isFilled).length === 0 && <p><span>품목 없음</span></p>}
+                  </div>
+                  <div>
+                    <b>계약 내역</b>
+                    {items.filter(isFilled).map((r: any, i: number) => (
+                      <p key={i}>{r.name || "(이름 없음)"} <span>{Number(r.quantity) || 0} × {won(Number(r.unitPrice) || 0)}</span></p>
+                    ))}
+                    {items.filter(isFilled).length === 0 && <p><span>품목 없음</span></p>}
+                  </div>
+                </div>
+              )}
+
+              <p className="pb-doc-hint">
+                {quoteSent
+                  ? <>이 견적서는 <b>이미 거래처에 보냈습니다</b>. 보낸 문서를 사후에 바꾸면 거래처가 가진 견적서와 기록이 달라져요 — 대신 <b>개정 견적서</b>를 새로 만들어 다시 보내세요. 원본 견적은 그대로 남습니다.</>
+                  : <>이 견적서는 <b>아직 보내지 않았습니다</b>. 계약 내용으로 맞춰도 안전해요.</>}
+              </p>
+            </div>
+            <footer className="pb-doc-foot">
+              <button type="button" className="pb-doc-sub" onClick={loadFromQuote} disabled={busy || !canEdit}
+                title="계약 내역을 견적서 내용으로 되돌립니다">계약을 견적대로 되돌리기</button>
+              <span className="pb-doc-spacer" />
+              {quoteSent
+                ? <button type="button" className="pb-doc-go" disabled={busy} onClick={makeRevisedQuote}>
+                    {busy ? "만드는 중…" : "개정 견적서 만들기"}
+                  </button>
+                : <button type="button" className="pb-doc-go" disabled={busy || !doc?.id}
+                    title={doc?.id ? undefined : "계약서를 먼저 저장하세요"}
+                    onClick={() => guard(async () => { await syncQuote(); setShowDiff(false); })}>
+                    {busy ? "맞추는 중…" : "견적서도 이 내용으로 맞추기"}
+                  </button>}
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
