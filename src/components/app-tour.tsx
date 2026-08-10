@@ -68,7 +68,11 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   // 현재 스텝의 사이드바 항목 위치 계산
   const measure = useCallback(() => {
     if (!step?.href) { setRect(null); return; }
-    const el = document.querySelector(`a[href="${step.href}"], a[href="${step.href}/"]`) as HTMLElement | null;
+    // 같은 href 가 여러 개다(예: 상단 로고도 /dashboard) — 메뉴 라벨 텍스트가 있는 쪽을 고르고,
+    // 없으면 마지막 매치(사이드바 메뉴가 로고보다 뒤에 렌더된다). 첫 매치를 쓰면 로고가 잡힌다(2026-08-10 prod 확인).
+    const els = Array.from(document.querySelectorAll(`a[href="${step.href}"], a[href="${step.href}/"]`)) as HTMLElement[];
+    const label = step.title.split(" ")[0];
+    const el = els.find((e) => e.textContent?.includes(label)) || els[els.length - 1] || null;
     if (!el) { setRect(null); return; }
     el.scrollIntoView({ block: "center", behavior: "smooth" });
     const r = el.getBoundingClientRect();
