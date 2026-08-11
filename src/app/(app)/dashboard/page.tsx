@@ -1900,6 +1900,8 @@ interface ChecklistStatus {
 }
 
 function GettingStartedChecklist({ companyId }: { companyId: string }) {
+  // 세무사 열람 세션은 회사 온보딩 대상이 아니다 — 체크리스트 미노출 (2026-08-11, 투어와 동일 원칙)
+  const { role: viewerRole } = useUser();
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   // 완료 배너는 1회만 — 마운트 시점에 이미 본 적 있으면 숨김
@@ -1955,6 +1957,7 @@ function GettingStartedChecklist({ companyId }: { companyId: string }) {
     if (allDone) { try { localStorage.setItem(CHECKLIST_DONE_SEEN_KEY, "1"); } catch {} }
   }, [allDone]);
 
+  if (viewerRole === "advisor") return null;
   if (dismissed) return null;
   if (allDone && doneSeenAtMount) return null;
 

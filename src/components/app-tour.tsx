@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useMyPermissions } from "@/lib/permissions";
+import { useUser } from "@/components/user-context";
 
 // 진행 중 스텝 번호 — 있으면 "투어 진행 중"이라는 뜻. 탭이 닫히면 자연 소멸(sessionStorage).
 const SS_KEY = "ov-app-tour-step";
@@ -133,10 +134,15 @@ export function isTourActive(): boolean {
  *  user_preferences.app_tour_done_at 이 없는 계정은 자동 시작(완료·건너뛰기 시 기록돼 다시 안 뜸). */
 export function AppTourHost({ companyId }: { companyId: string | null }) {
   const pathname = usePathname();
+  const { role } = useUser();
   const [show, setShow] = useState(false);
   const autoCheckedRef = useRef(false);
+  // 세무사 열람 세션은 투어 제외 (2026-08-11 사장님: 무한 반복 제보) — users 행이 없어
+  //   user_preferences 완료 기록이 저장되지 않고(쓰기 전면 차단) 매번 다시 떴다.
+  //   세무사는 회사 온보딩 대상이 아니므로 표시하지 않는 게 맞다.
+  const isAdvisor = role === "advisor";
   useEffect(() => {
-    if (show) return;
+    if (show || isAdvisor) return;
     // 온보딩 완료가 router.replace("/dashboard?tour=1") 로 보내면 pathname 변경으로 여기 걸린다
     const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     if (shouldStartTour(sp) || isTourActive()) { setShow(true); return; }
@@ -158,8 +164,8 @@ export function AppTourHost({ companyId }: { companyId: string | null }) {
         if (!data?.app_tour_done_at) setShow(true);
       } catch { /* 조회 실패 시 자동 노출 생략 — 다음 로그인에 다시 시도 */ }
     })();
-  }, [pathname, show, companyId]);
-  if (!show) return null;
+  }, [pathname, show, companyId, isAdvisor]);
+  if (!show || isAdvisor) return null;
   return <AppTour companyId={companyId} onClose={() => setShow(false)} />;
 }
 
