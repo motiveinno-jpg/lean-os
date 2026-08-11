@@ -61,7 +61,7 @@ vi.mock("@/lib/payment-queue", () => ({ createQueueEntry: vi.fn() }));
 vi.mock("@/lib/routing", () => ({ resolveBank: vi.fn() }));
 vi.mock("@/lib/notifications", () => ({ createNotification: vi.fn() }));
 
-import { createApprovalRequest } from "@/lib/approval-workflow";
+import { createApprovalRequest, pickPolicyForRequester, policyTargets } from "@/lib/approval-workflow";
 import { createNotification } from "@/lib/notifications";
 
 const mockNotify = vi.mocked(createNotification);
@@ -175,5 +175,34 @@ describe("createApprovalRequest — 정책 폴백·승인자 해석", () => {
     st.policies = [{ id: "p", auto_approve_below: 0, stages: [{ stage: 1, name: "지정 승인", approver_id: "u-pick", required_count: 1 }] }];
     await createApprovalRequest({ ...base, requestType: "expense", amount: 10_000 });
     expect(steps()).toEqual([expect.objectContaining({ approver_id: "u-pick", stage_name: "지정 승인" })]);
+  });
+});
+
+// 정책 적용 대상 매칭 (2026-08-11) — 직원 복수(requester_ids)·팀(requester_department) 확장.
+//   우선순위: 직원 지정 > 부서 > 회사 공통. requester_id(단일)는 하위호환으로 합집합 처리.
+describe("pickPolicyForRequester — 대상 매칭 우선순위", () => {
+  const all = { id: "all", requester_id: null, requester_ids: null, requester_department: null };
+  const dept = { id: "dept", requester_id: null, requester_ids: null, requester_department: "디자인" };
+  const users = { id: "users", requester_id: null, requester_ids: ["u1", "u2"], requester_department: null };
+  const legacy = { id: "legacy", requester_id: "u3", requester_ids: null, requester_department: null };
+  const cands = [all, dept, users, legacy];
+
+  it("직원 지정이 부서·공통보다 우선", () => {
+    expect(pickPolicyForRequester(cands, "u1", "디자인")?.id).toBe("users");
+  });
+  it("레거시 requester_id 단일 지정도 직원 지정으로 매칭", () => {
+    expect(pickPolicyForRequester(cands, "u3", null)?.id).toBe("legacy");
+  });
+  it("직원 미지정이면 부서 일치 정책", () => {
+    expect(pickPolicyForRequester(cands, "u9", "디자인")?.id).toBe("dept");
+  });
+  it("직원·부서 다 불일치면 회사 공통", () => {
+    expect(pickPolicyForRequester(cands, "u9", "개발")?.id).toBe("all");
+  });
+  it("대상 지정 정책만 있고 불일치면 null (남의 전용 정책을 쓰지 않는다)", () => {
+    expect(pickPolicyForRequester([dept, users], "u9", "개발")).toBeNull();
+  });
+  it("policyTargets — requester_ids 와 requester_id 합집합", () => {
+    expect(policyTargets({ requester_id: "u3", requester_ids: ["u1"], requester_department: null }).userIds).toEqual(["u1", "u3"]);
   });
 });
