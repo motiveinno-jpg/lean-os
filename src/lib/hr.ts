@@ -11,6 +11,7 @@ import {
   calcDailyAttendance,
   calcLegacyWorkHours,
   calcOvertimePay,
+  classifyLeaveForLate,
   type AttendanceCompanySettings,
   type DailyResult,
   type MonthlyPayResult,
@@ -574,34 +575,44 @@ export async function recomputeAttendance(params: {
     return settingsByEmployee.get(employeeId)!;
   };
 
-  // 휴가 행 (on_leave 판단)
+  // 휴가 행 (on_leave 판단) — 2026-08-11: 반차·시간차는 종일 휴가와 분리.
+  //   종전엔 승인 휴가 전부를 on_leave=true 로 뭉개 반차도 work=0 이 됐고,
+  //   지각 판정도 휴가를 몰라 오전 반차 후 출근이 지각으로 남았다.
+  //   이제 종일만 on_leave, 부분 휴가는 지각 기준시각 보정(exempt)으로 넘긴다.
   const leaves = logRead('lib/hr:leaves', await db
     .from('leave_requests')
-    .select('employee_id, start_date, end_date, status')
+    .select('employee_id, start_date, end_date, status, leave_unit, start_time, end_time, days')
     .eq('company_id', params.companyId)
     .eq('status', 'approved')
     .lte('start_date', params.to)
     .gte('end_date', params.from));
-  const leaveByEmpDate = new Set<string>();
+  const leaveRowsByEmpDate = new Map<string, any[]>();
   (leaves || []).forEach((l: any) => {
     const s = new Date(l.start_date);
     const e = new Date(l.end_date);
     for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-      leaveByEmpDate.add(`${l.employee_id}|${d.toISOString().slice(0, 10)}`);
+      const key = `${l.employee_id}|${d.toISOString().slice(0, 10)}`;
+      const arr = leaveRowsByEmpDate.get(key) || [];
+      arr.push(l);
+      leaveRowsByEmpDate.set(key, arr);
     }
   });
+  const leaveExemptFor = (employeeId: string, date: string) =>
+    classifyLeaveForLate(leaveRowsByEmpDate.get(`${employeeId}|${date}`) || []);
 
   let updated = 0;
   const total = (rows || []).length;
   const touchedEmpMonths = new Set<string>(); // 'empId|YYYY-MM'
   for (const r of rows || []) {
+    const leaveExempt = leaveExemptFor(r.employee_id, r.date);
     const result = calcDailyAttendance({
       check_in: r.check_in,
       check_out: r.check_out,
       date: r.date,
       settings: settingsFor(r.employee_id),
       holidays: holidaySet,
-      on_leave: leaveByEmpDate.has(`${r.employee_id}|${r.date}`),
+      on_leave: leaveExempt.full,
+      leave_exempt_until: leaveExempt.exempt_until,
       attendance_type: (r.attendance_type as any) || 'normal',
     });
 
@@ -792,14 +803,16 @@ export async function reviewAttendanceEditRequest(params: {
         // 버그픽스 2026-07-20: 직원 개인 출퇴근시간 override 반영 — 대상 레코드의 employee_id 로 조회.
         const rec = logRead('lib/hr:rec', await db
           .from('attendance_records')
-          .select('employee_id')
+          .select('employee_id, date')
           .eq('id', req.attendance_record_id)
           .maybeSingle());
         const policy = await getAttendancePolicy(companyId, rec?.employee_id || undefined);
         const kst = new Date(ciDate.getTime() + 9 * 3600 * 1000); // UTC → KST
         const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-        nextIsLate = isLate(kstMin, policy);
-        nextLateMin = nextIsLate ? Math.max(0, kstMin - parseHhmmToMinutes(policy.workStartTime)) : 0;
+        // 승인된 휴가 반영 (2026-08-11) — 오전 반차 후 출근을 지각으로 되돌리지 않게
+        const lateRes = await lateWithLeave(rec?.employee_id, rec?.date || '', kstMin, policy);
+        nextIsLate = lateRes.isLate;
+        nextLateMin = lateRes.lateMinutes;
         if (!nextStatus) nextStatus = nextIsLate ? 'late' : 'present';
       }
     }
@@ -862,6 +875,38 @@ function parseHhmmToMinutes(hhmm: string): number {
 export function isLate(currentKstMin: number, policy: AttendancePolicy): boolean {
   const start = parseHhmmToMinutes(policy.workStartTime);
   return currentKstMin > start + policy.lateThresholdMinutes;
+}
+
+/** 승인된 휴가를 반영한 지각 판정 (2026-08-11 사장님: 오전 반차 후 출근이 지각으로 찍힘).
+ *  관리자 수기 경로(수정요청 승인·직접 수정·직접 생성) 공용 —
+ *  종일 휴가면 지각 없음, 오전 반차·시간차면 휴가 종료시각부터 지각 계산.
+ *  휴가 조회 실패 시 기존(휴가 미반영) 판정으로 폴백. */
+async function lateWithLeave(
+  employeeId: string | null | undefined,
+  date: string,
+  kstMin: number,
+  policy: AttendancePolicy,
+): Promise<{ isLate: boolean; lateMinutes: number }> {
+  let exempt = { full: false, exempt_until: null as string | null };
+  if (employeeId && date) {
+    try {
+      const rows = logRead('lib/hr:leave-exempt', await db
+        .from('leave_requests')
+        .select('leave_unit, start_time, end_time, days')
+        .eq('employee_id', employeeId)
+        .eq('status', 'approved')
+        .lte('start_date', date)
+        .gte('end_date', date));
+      exempt = classifyLeaveForLate((rows || []) as any[]);
+    } catch { /* 조회 실패 → 휴가 미반영 판정 유지 */ }
+  }
+  if (exempt.full) return { isLate: false, lateMinutes: 0 };
+  const base = Math.max(
+    parseHhmmToMinutes(policy.workStartTime),
+    exempt.exempt_until ? parseHhmmToMinutes(exempt.exempt_until) : 0,
+  );
+  const late = kstMin > base + policy.lateThresholdMinutes;
+  return { isLate: late, lateMinutes: late ? Math.max(0, kstMin - base) : 0 };
 }
 
 // ── Attendance: Check In ──
@@ -951,8 +996,18 @@ export async function checkIn(companyId: string, employeeId: string, status: str
         .eq('company_id', companyId)
         .eq('date', targetDate));
       const holidaySet = new Set<string>((holidays || []).map((h: { date: string }) => h.date));
+      // 승인된 휴가 보정 (2026-08-11 사장님: 오전 반차 후 출근이 지각으로 찍힘) —
+      //   종일 휴가면 지각 없음, 오전 반차·시간차면 휴가 종료시각부터 지각 계산.
+      const leaveRows = logRead('lib/hr:leave-exempt', await db
+        .from('leave_requests')
+        .select('leave_unit, start_time, end_time, days')
+        .eq('employee_id', employeeId)
+        .eq('status', 'approved')
+        .lte('start_date', targetDate)
+        .gte('end_date', targetDate));
       const { calcLateOnCheckIn } = await import('./attendance-calc');
-      const lateResult = calcLateOnCheckIn(row.check_in, row.date || targetDate, settings, holidaySet);
+      const leaveExempt = classifyLeaveForLate((leaveRows || []) as any[]);
+      const lateResult = calcLateOnCheckIn(row.check_in, row.date || targetDate, settings, holidaySet, leaveExempt);
       // 회귀픽스: attendance_records UPDATE RLS 가 admin only → employee 컨텍스트에서
       //   42501 거부. SECURITY DEFINER RPC 로 본인 행 late 컬럼만 UPDATE.
       const { error: rpcErr } = await db.rpc('mark_attendance_late', {
@@ -1047,13 +1102,15 @@ export async function correctAttendanceRecord(recordId: string, updates: {
   if (updates.check_in) {
     const ciDate = new Date(updates.check_in);
     if (!isNaN(ciDate.getTime())) {
-      const rec = logRead('lib/hr:rec', await db.from('attendance_records').select('company_id').eq('id', recordId).maybeSingle());
+      const rec = logRead('lib/hr:rec', await db.from('attendance_records').select('company_id, employee_id, date').eq('id', recordId).maybeSingle());
       if (rec?.company_id) {
-        const policy = await getAttendancePolicy(rec.company_id);
+        const policy = await getAttendancePolicy(rec.company_id, rec.employee_id || undefined);
         const kst = new Date(ciDate.getTime() + 9 * 3600 * 1000);
         const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-        nextIsLate = isLate(kstMin, policy);
-        nextLateMin = nextIsLate ? Math.max(0, kstMin - parseHhmmToMinutes(policy.workStartTime)) : 0;
+        // 승인된 휴가 반영 (2026-08-11)
+        const lateRes = await lateWithLeave(rec.employee_id, rec.date || '', kstMin, policy);
+        nextIsLate = lateRes.isLate;
+        nextLateMin = lateRes.lateMinutes;
         if (!nextStatus) nextStatus = nextIsLate ? 'late' : 'present';
       }
     }
@@ -1123,14 +1180,16 @@ export async function upsertAttendanceRecordAsAdmin(params: {
     if (!isNaN(ci.getTime())) {
       const kst = new Date(ci.getTime() + 9 * 3600 * 1000);
       const kstMin = kst.getUTCHours() * 60 + kst.getUTCMinutes();
-      const late = isLate(kstMin, policy);
+      // 승인된 휴가 반영 (2026-08-11) — 오전 반차·종일 휴가일은 지각으로 만들지 않는다
+      const lateRes = await lateWithLeave(employeeId, date, kstMin, policy);
+      const late = lateRes.isLate;
       // 관리자가 상태를 명시했으면 그 값을 존중하고, 없을 때만 지각 여부로 자동 판정.
       if (!params.status) row.status = late ? 'late' : 'present';
       // is_late 는 status 가 아니라 실제 출근시각으로 정한다 (2026-08-07).
       //   status='remote' 처럼 관리자가 근무 형태를 지정한 날도 지각은 지각이고,
       //   반대로 status 만 'late' 로 찍혀 있다고 지각이 되지는 않는다.
       row.is_late = late && row.status !== 'absent';
-      row.late_minutes = row.is_late ? Math.max(0, kstMin - parseHhmmToMinutes(policy.workStartTime)) : 0;
+      row.late_minutes = row.is_late ? lateRes.lateMinutes : 0;
     }
   }
 

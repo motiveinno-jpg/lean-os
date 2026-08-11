@@ -145,9 +145,35 @@ serve(withSentry("attendance-checkin", async (req) => {
       const chosen = typeof status === "string" && status && !["auto", "present", "late"].includes(status)
         ? status
         : null;
-      const isLateFlag = !isHoliday && chosen !== "absent" && ciKstMin > workStartMin + graceMin;
-      const lateMinutes = isLateFlag ? Math.max(0, ciKstMin - workStartMin) : 0;
-      const rowStatus = chosen ?? (isLateFlag ? "late" : "present");
+
+      // 승인된 휴가 반영 (2026-08-11 사장님: 오전 반차 결재 후 출근이 지각으로 기록됨).
+      //   src/lib/attendance-calc.ts classifyLeaveForLate 와 동일 규칙 — 엣지는 Deno 라 인라인 복제.
+      //   · 종일 휴가(unit=full_day, 또는 시각 없는 부분 휴가 구 데이터) → 지각 없음
+      //   · 부분 휴가(반차·시간차) 시작 < 13:00 (오전 커버) → 지각 기준시각 = 휴가 종료시각
+      //   · 오후 반차·오후 시간차 → 아침 출근 의무 그대로
+      const { data: leaveRows } = await admin.from("leave_requests")
+        .select("leave_unit, start_time, end_time, days")
+        .eq("employee_id", employeeId)
+        .eq("status", "approved")
+        .lte("start_date", today)
+        .gte("end_date", today);
+      let leaveFull = false;
+      let hasHalfDay = false;
+      let exemptUntilMin = 0;
+      for (const l of (leaveRows || []) as Record<string, unknown>[]) {
+        const unit = String(l.leave_unit || "");
+        const st = String(l.start_time || "").slice(0, 5);
+        const en = String(l.end_time || "").slice(0, 5);
+        const isPartial = unit === "half_day" || unit === "two_hours" || Number(l.days) === 0.5;
+        if (!isPartial || !st || !en) { leaveFull = true; continue; }
+        if (unit === "half_day" || Number(l.days) === 0.5) hasHalfDay = true;
+        if (st < "13:00") exemptUntilMin = Math.max(exemptUntilMin, parseHhmm(en, 0));
+      }
+      const lateBase = Math.max(workStartMin, exemptUntilMin);
+      const isLateFlag = !isHoliday && !leaveFull && chosen !== "absent" && ciKstMin > lateBase + graceMin;
+      const lateMinutes = isLateFlag ? Math.max(0, ciKstMin - lateBase) : 0;
+      // 반차 승인일의 자동 status 는 'half_day' — 데이터탭이 status 라벨을 보므로 '반차'로 표시 (2026-08-11)
+      const rowStatus = chosen ?? (hasHalfDay ? "half_day" : isLateFlag ? "late" : "present");
 
       // QA 2026-07-14 (사장님): check_in 은 실제로 찍은 시각 그대로 저장·표시한다(더 이상
       //   지정 출근시간으로 고정하지 않음). "이른 출근이 연장근무로 잡히면 안 된다"는 요구는

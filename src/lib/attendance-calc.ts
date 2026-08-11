@@ -33,9 +33,45 @@ export type DailyInput = {
   date: string;                     // 'YYYY-MM-DD' (KST)
   settings: AttendanceCompanySettings;
   holidays?: Set<string> | string[]; // 'YYYY-MM-DD' 의 set/array — 휴일 매칭
-  on_leave?: boolean;                // 그 날 휴가면 true → work=0
+  on_leave?: boolean;                // 그 날 "종일" 휴가면 true → work=0 (반차·시간차는 아래 exempt 사용)
+  leave_exempt_until?: string | null; // 'HH:MM' — 승인된 오전 반차·시간차 종료시각. 지각 기준시각이 이 시각으로 밀린다 (2026-08-11)
   attendance_type?: 'normal' | 'field_work' | 'on_duty' | 'remote' | 'business_trip';
 };
+
+// ── 승인된 휴가 → 지각 판정 보정 (2026-08-11 사장님: 오전 반차인데 워크보드·데이터탭에 지각으로 표시) ──
+//   결재(leave_requests)에 기록된 시각이 사실의 원본 — 회사 반차 슬롯 설정보다 우선.
+//   규칙:
+//     · 종일(unit=full_day, 또는 부분 단위인데 시각 정보가 없는 구 데이터) → 지각 개념 없음 (full)
+//     · 부분(half_day·two_hours)이고 시작 < 13:00 (오전 커버 — 캘린더 '오전 반차' 표기와 동일 기준)
+//       → 지각 기준시각 = 휴가 종료시각 (exempt_until). 여러 건이면 가장 늦은 종료.
+//     · 오후 반차·오후 시간차 → 아침 출근 의무 그대로 (보정 없음)
+export type ApprovedLeaveRow = {
+  leave_unit?: string | null;   // 'full_day' | 'half_day' | 'two_hours' | null(구 데이터)
+  start_time?: string | null;   // 'HH:MM[:SS]'
+  end_time?: string | null;
+  days?: number | null;
+};
+export type LeaveLateExemption = { full: boolean; exempt_until: string | null };
+
+export function classifyLeaveForLate(leaves: ApprovedLeaveRow[]): LeaveLateExemption {
+  let full = false;
+  let exemptUntil: string | null = null;
+  for (const l of leaves || []) {
+    const unit = String(l.leave_unit || '');
+    const st = String(l.start_time || '').slice(0, 5);
+    const en = String(l.end_time || '').slice(0, 5);
+    const isPartialUnit = unit === 'half_day' || unit === 'two_hours' || Number(l.days) === 0.5;
+    if (!isPartialUnit || !st || !en) {
+      // 종일 휴가, 또는 시각 없는 부분 휴가(판정 불가) — 직원에게 유리하게 지각 면제
+      full = true;
+      continue;
+    }
+    if (st < '13:00') {
+      if (!exemptUntil || en > exemptUntil) exemptUntil = en;
+    }
+  }
+  return { full, exempt_until: exemptUntil };
+}
 
 export type DailyResult = {
   is_late: boolean;
@@ -199,12 +235,14 @@ export function calcDailyAttendance(input: DailyInput): DailyResult {
   const ciMin = toKstAbsMinutes(input.check_in, date);
   const coMin = toKstAbsMinutes(input.check_out, date);
   const workStartTarget = parseHhmm(settings.work_start_time, 9 * 60);
-  const lateThreshold = workStartTarget + Math.max(0, settings.late_grace_minutes || 0);
+  // 승인된 오전 반차·시간차가 있으면 그 종료시각까지는 출근 의무가 없다 — 지각 기준시각을 민다 (2026-08-11)
+  const lateBase = Math.max(workStartTarget, input.leave_exempt_until ? parseHhmm(input.leave_exempt_until, 0) : 0);
+  const lateThreshold = lateBase + Math.max(0, settings.late_grace_minutes || 0);
 
   // 지각 판정 — 같은 날 출근만 (다음날 출근이면 비정상)
   const ciDayMin = ciMin - Math.floor(ciMin / 1440) * 1440;
   const is_late = !is_holiday && ciDayMin > lateThreshold;
-  const late_minutes = is_late ? ciDayMin - workStartTarget : 0;
+  const late_minutes = is_late ? ciDayMin - lateBase : 0;
 
   // 이른 출근(지정 출근시간 전)은 근무·연장으로 계산하지 않음 — 계산용으로만 유효 출근시각을
   //   지정 출근시간으로 clamp(표시되는 check_in 원본은 attendance-checkin 엣지가 실제 시각
@@ -356,23 +394,30 @@ export function calcOvertimePay(input: MonthlyPayInput): MonthlyPayResult {
 //   - date: 'YYYY-MM-DD' (KST 기준일)
 //   - settings: AttendanceCompanySettings (work_start_time / late_grace_minutes / workdays_mask)
 //   - holidays?: 휴일 set/array — 휴일이면 is_late=false (지각 개념 없음)
+//   - leave?: 승인된 휴가 보정 (classifyLeaveForLate 결과) — 종일이면 지각 없음,
+//     오전 반차·시간차면 휴가 종료시각부터 지각 계산 (2026-08-11)
 export function calcLateOnCheckIn(
   checkInIso: Date | string,
   date: string,
   settings: Pick<AttendanceCompanySettings, 'work_start_time' | 'late_grace_minutes' | 'workdays_mask'>,
   holidays?: Set<string> | string[],
+  leave?: LeaveLateExemption | null,
 ): { is_late: boolean; late_minutes: number; is_holiday: boolean } {
   const holidaySet = holidays instanceof Set ? holidays : new Set(holidays || []);
   const is_holiday = holidaySet.has(date) || !isWorkday(date, settings.workdays_mask);
   if (is_holiday) {
     return { is_late: false, late_minutes: 0, is_holiday: true };
   }
+  if (leave?.full) {
+    return { is_late: false, late_minutes: 0, is_holiday: false };
+  }
   const ciMin = toKstAbsMinutes(checkInIso, date);
   const workStartTarget = parseHhmm(settings.work_start_time, 9 * 60);
-  const lateThreshold = workStartTarget + Math.max(0, settings.late_grace_minutes || 0);
+  const lateBase = Math.max(workStartTarget, leave?.exempt_until ? parseHhmm(leave.exempt_until, 0) : 0);
+  const lateThreshold = lateBase + Math.max(0, settings.late_grace_minutes || 0);
   const ciDayMin = ciMin - Math.floor(ciMin / 1440) * 1440;
   const is_late = ciDayMin > lateThreshold;
-  const late_minutes = is_late ? ciDayMin - workStartTarget : 0;
+  const late_minutes = is_late ? ciDayMin - lateBase : 0;
   return { is_late, late_minutes, is_holiday: false };
 }
 
