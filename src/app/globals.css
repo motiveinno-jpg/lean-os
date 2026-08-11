@@ -2492,6 +2492,10 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .approval-document-preview { @apply p-5; }
 .approval-policy-preview { @apply p-5 sticky top-4; }
 .approval-policy-form { @apply p-6 mb-6; }
+/* 정책 적용 대상 — 직원 복수선택 칩 목록 (2026-08-11) */
+.policy-target-people { @apply flex flex-wrap gap-1.5 mt-2 max-h-36 overflow-y-auto p-2 rounded-xl border border-[var(--border)] bg-[var(--bg)]; }
+.policy-target-chip { @apply px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] cursor-pointer transition hover:border-[var(--primary)]; }
+.policy-target-chip-on { @apply bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]; }
 .approval-stage-row { @apply flex items-center gap-3 bg-[var(--bg)] rounded-xl p-3 border border-[var(--border)]; }
 .approval-policy-list { @apply grid gap-4 md:grid-cols-2; }
 .approval-policy-card { @apply p-5; }
@@ -3032,6 +3036,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .app-tour-tip-desc { @apply text-xs text-[var(--text-muted)] leading-relaxed mt-1.5; }
 .app-tour-tip-actions { @apply flex items-center justify-between gap-2 mt-3.5 pt-3 border-t border-[var(--border)]; }
 .app-tour-skip { @apply text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2; }
+.app-tour-never { @apply flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] cursor-pointer select-none whitespace-nowrap; }
 /* 등록·인증 안내 블록 — 인증이 필요한 탭의 스텝에 단계별 방법 표기 (2026-08-10) */
 .app-tour-howto { @apply mt-2.5 p-2.5 rounded-lg bg-[var(--primary)]/[0.06] border border-[var(--primary)]/15 max-h-[220px] overflow-y-auto; }
 .app-tour-howto-label { @apply text-[11px] font-bold text-[var(--primary)] mb-1.5; }

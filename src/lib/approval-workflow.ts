@@ -42,7 +42,9 @@ export interface ApprovalPolicy {
   label?: string;                // 양식 표시 이름(새 요청 유형 선택에 노출)
   description_template?: string; // 양식 선택 시 설명란 자동 입력 템플릿
   allow_line_edit?: boolean;     // 요청자가 새 요청에서 승인라인(승인자)을 바꿀 수 있는지(기본 true)
-  requester_id?: string | null;  // 특정 요청자 전용 정책(null=회사 공통)
+  requester_id?: string | null;  // 특정 요청자 전용 정책(null=회사 공통) — 하위호환, 매칭은 requester_ids ∪ {requester_id}
+  requester_ids?: string[] | null;       // 2026-08-11 적용 대상 직원 복수선택
+  requester_department?: string | null;  // 2026-08-11 팀(부서) 단위 적용 — employees.department 와 문자열 일치
   fields?: ApprovalFormField[];  // 2026-07-16 기본 유형용 커스텀 입력 필드(approval_forms.fields 와 동일 구조)
   reference_user_ids?: string[]; // 2026-07-16 기본 유형용 참조(CC) 인원 — approval_forms 와 동일 개념
   created_at?: string;
@@ -137,11 +139,36 @@ export async function getApprovalPolicies(companyId: string): Promise<ApprovalPo
     description_template: (row.description_template as string) || undefined,
     allow_line_edit: row.allow_line_edit !== false,
     requester_id: (row.requester_id as string) ?? null,
+    requester_ids: (row.requester_ids as string[]) ?? null,
+    requester_department: (row.requester_department as string) ?? null,
     fields: (row.fields as ApprovalFormField[]) || [],
     reference_user_ids: (row.reference_user_ids as string[]) || [],
     created_at: row.created_at as string | undefined,
     updated_at: row.updated_at as string | undefined,
   })) as ApprovalPolicy[];
+}
+
+/** 정책의 적용 대상 — requester_ids ∪ {requester_id(하위호환)} + 부서. (2026-08-11) */
+export function policyTargets(p: Pick<ApprovalPolicy, 'requester_id' | 'requester_ids' | 'requester_department'>): { userIds: string[]; department: string | null } {
+  const userIds = [...(p.requester_ids || [])];
+  if (p.requester_id && !userIds.includes(p.requester_id)) userIds.push(p.requester_id);
+  const department = (p.requester_department || '').trim() || null;
+  return { userIds, department };
+}
+
+/** 같은 문서 유형 후보들 중 요청자에게 적용될 정책 선택 (2026-08-11).
+ *  우선순위: ① 직원 지정 정책(요청자 포함) ② 팀(부서) 정책(요청자 부서 일치) ③ 회사 공통(대상 미지정). */
+export function pickPolicyForRequester<T extends Pick<ApprovalPolicy, 'requester_id' | 'requester_ids' | 'requester_department'>>(
+  candidates: T[],
+  userId?: string | null,
+  department?: string | null,
+): T | null {
+  const byUser = userId ? candidates.find((p) => policyTargets(p).userIds.includes(userId)) : undefined;
+  if (byUser) return byUser;
+  const dept = (department || '').trim();
+  const byDept = dept ? candidates.find((p) => policyTargets(p).department === dept) : undefined;
+  if (byDept) return byDept;
+  return candidates.find((p) => { const t = policyTargets(p); return t.userIds.length === 0 && !t.department; }) || null;
 }
 
 /**
@@ -173,12 +200,14 @@ export async function upsertApprovalPolicy(
     description_template: policy.description_template ?? null,
     allow_line_edit: policy.allow_line_edit ?? true,
     requester_id: policy.requester_id ?? null,
+    requester_ids: policy.requester_ids?.length ? policy.requester_ids : null,
+    requester_department: (policy.requester_department || '').trim() || null,
     fields: policy.fields ?? [],
     reference_user_ids: policy.reference_user_ids ?? [],
   };
 
   let { data, error } = await db.from('approval_policies').upsert(fullRow as never).select().single();
-  if (error && /label|description_template|allow_line_edit|requester_id|fields|reference_user_ids|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
+  if (error && /label|description_template|allow_line_edit|requester_id|requester_department|fields|reference_user_ids|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
     ({ data, error } = await db.from('approval_policies').upsert(baseRow as never).select().single());
   }
   if (error) throw error;
@@ -195,6 +224,8 @@ export async function upsertApprovalPolicy(
     description_template: (d.description_template as string) || undefined,
     allow_line_edit: d.allow_line_edit !== false,
     requester_id: (d.requester_id as string) ?? null,
+    requester_ids: (d.requester_ids as string[]) ?? null,
+    requester_department: (d.requester_department as string) ?? null,
     fields: (d.fields as ApprovalFormField[]) || [],
     reference_user_ids: (d.reference_user_ids as string[]) || [],
     created_at: d.created_at as string | undefined,
@@ -248,28 +279,50 @@ export async function createApprovalRequest(params: {
 }): Promise<ApprovalRequest> {
   const amount = params.amount ?? 0;
 
-  // Find matching active policy for this request type
+  // Find matching active policy for this request type.
+  //   2026-08-11: 적용 대상(직원 복수·팀 단위) 정책이 생기면서 limit(1) 임의 선택 →
+  //   pickPolicyForRequester (직원 지정 > 부서 > 회사 공통) 로 교체. 클라이언트 프리뷰와 동일 규칙.
   const policies = logRead('lib/approval-workflow:policies', await db
     .from('approval_policies')
     .select('*')
     .eq('company_id', params.companyId)
     .eq('entity_type', params.requestType)
-    .eq('is_active', true)
-    .limit(1));
+    .eq('is_active', true));
 
-  const policy = policies?.[0] as ApprovalPolicy | undefined;
+  // 요청자 부서 — 부서 대상 정책이 하나라도 있을 때만 조회 (없으면 쿼리 생략)
+  const needsDept = (rows?: any[] | null) => (rows || []).some((p) => (p.requester_department || '').trim());
+  let requesterDept: string | null = null;
+  const deptOf = async () => {
+    if (requesterDept !== null) return requesterDept;
+    const emp = logRead('lib/approval-workflow:requester-emp', await db
+      .from('employees')
+      .select('department')
+      .eq('company_id', params.companyId)
+      .eq('user_id', params.requesterId)
+      .maybeSingle());
+    requesterDept = String(emp?.department || '').trim();
+    return requesterDept;
+  };
+
+  let matchedPolicy = pickPolicyForRequester(
+    (policies || []) as any[],
+    params.requesterId,
+    needsDept(policies) ? await deptOf() : null,
+  ) as ApprovalPolicy | undefined | null;
 
   // If no policy found, try a "default" fallback
-  let matchedPolicy = policy;
   if (!matchedPolicy) {
     const defaultPolicies = logRead('lib/approval-workflow:defaultPolicies', await db
       .from('approval_policies')
       .select('*')
       .eq('company_id', params.companyId)
       .eq('entity_type', 'default')
-      .eq('is_active', true)
-      .limit(1));
-    matchedPolicy = defaultPolicies?.[0] as ApprovalPolicy | undefined;
+      .eq('is_active', true));
+    matchedPolicy = pickPolicyForRequester(
+      (defaultPolicies || []) as any[],
+      params.requesterId,
+      needsDept(defaultPolicies) ? await deptOf() : null,
+    ) as ApprovalPolicy | undefined | null;
   }
 
   const stages: ApprovalStageConfig[] = matchedPolicy?.stages || [

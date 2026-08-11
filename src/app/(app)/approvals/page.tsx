@@ -17,6 +17,8 @@ import {
   getApprovalPolicies,
   upsertApprovalPolicy,
   deleteApprovalPolicy,
+  pickPolicyForRequester,
+  policyTargets,
   createApprovalRequest,
   updateApprovalRequest,
   approveStep,
@@ -2784,16 +2786,15 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     enabled: !!companyId,
   });
 
-  // Find matching policy for preview — 요청자 전용 정책 우선, 없으면 회사 공통(requester_id null).
+  // Find matching policy for preview — 직원 지정(복수) > 팀(부서) > 회사 공통 (2026-08-11 확장).
+  //   createApprovalRequest 서버 매칭(pickPolicyForRequester)과 동일 규칙.
   const matchedPolicy = useMemo(() => {
     const active = policies.filter((p: ApprovalPolicy) => p.is_active);
-    const pick = (docType: string) => {
-      const cands = active.filter((p: ApprovalPolicy) => p.document_type === docType);
-      return (userId ? cands.find((p: ApprovalPolicy) => p.requester_id === userId) : undefined)
-        || cands.find((p: ApprovalPolicy) => !p.requester_id) || null;
-    };
+    const dept = (currentEmployee as any)?.department || null;
+    const pick = (docType: string) =>
+      pickPolicyForRequester(active.filter((p: ApprovalPolicy) => p.document_type === docType), userId, dept);
     return pick(form.requestType) || pick("default");
-  }, [policies, form.requestType, userId]);
+  }, [policies, form.requestType, userId, currentEmployee]);
   // 승인라인 변경 허용 여부 — 정책이 불허면 요청자는 승인자 지정 불가.
   const canEditLine = matchedPolicy?.allow_line_edit !== false;
 
@@ -3699,7 +3700,10 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     descriptionTemplate: "",
     autoApproveBelow: "",
     allowLineEdit: true,
-    requesterId: "",
+    // 적용 대상 (2026-08-11 사장님: 직원 복수선택·팀단위) — all=회사 전체, users=특정 직원(복수), department=팀
+    targetMode: "all" as "all" | "users" | "department",
+    requesterIds: [] as string[],
+    requesterDepartment: "",
     stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }] as ApprovalStageConfig[],
   });
 
@@ -3719,6 +3723,16 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     enabled: !!companyId,
   });
 
+  // 팀(부서) 단위 적용 대상 선택지 — employees.department 고유값 (2026-08-11)
+  const { data: departments = [] } = useQuery({
+    queryKey: ["policy-departments", companyId],
+    queryFn: async () => {
+      const data = logRead('approvals/page:departments', await db.from("employees").select("department").eq("company_id", companyId).not("department", "is", null));
+      return [...new Set((data || []).map((r: { department: string | null }) => String(r.department || "").trim()).filter(Boolean))].sort() as string[];
+    },
+    enabled: !!companyId,
+  });
+
   const upsertMut = useMutation({
     mutationFn: () =>
       upsertApprovalPolicy({
@@ -3731,7 +3745,10 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         stages: form.stages,
         auto_approve_below: Number(form.autoApproveBelow) || 0,
         allow_line_edit: form.allowLineEdit,
-        requester_id: form.requesterId || null,
+        // 하위호환: 직원 1명이면 requester_id 에도 채워 구버전 매칭이 계속 동작 (2026-08-11)
+        requester_id: form.targetMode === "users" && form.requesterIds.length === 1 ? form.requesterIds[0] : null,
+        requester_ids: form.targetMode === "users" && form.requesterIds.length > 0 ? form.requesterIds : null,
+        requester_department: form.targetMode === "department" ? form.requesterDepartment.trim() || null : null,
         is_active: true,
       }),
     onSuccess: () => {
@@ -3758,7 +3775,9 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       descriptionTemplate: "",
       autoApproveBelow: "",
       allowLineEdit: true,
-      requesterId: "",
+      targetMode: "all",
+      requesterIds: [],
+      requesterDepartment: "",
       stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }],
     });
   }
@@ -3774,7 +3793,12 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       descriptionTemplate: policy.description_template || "",
       autoApproveBelow: policy.auto_approve_below ? String(policy.auto_approve_below) : "",
       allowLineEdit: policy.allow_line_edit !== false,
-      requesterId: policy.requester_id || "",
+      ...(() => {
+        const t = policyTargets(policy);
+        if (t.department) return { targetMode: "department" as const, requesterIds: [], requesterDepartment: t.department };
+        if (t.userIds.length) return { targetMode: "users" as const, requesterIds: t.userIds, requesterDepartment: "" };
+        return { targetMode: "all" as const, requesterIds: [], requesterDepartment: "" };
+      })(),
       stages: policy.stages as ApprovalStageConfig[],
     });
     setShowForm(true);
@@ -3897,14 +3921,60 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             </div>
             {/* 요청자별 정책 + 승인라인 변경 허용 (2026-07-10) */}
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">적용 대상 요청자 (선택)</label>
-              <select value={form.requesterId} onChange={(e) => setForm({ ...form, requesterId: e.target.value })} className="field-input">
-                <option value="">회사 전체 (기본)</option>
-                {orgUsers.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                ))}
+              <label className="block text-xs text-[var(--text-muted)] mb-1">적용 대상 (선택)</label>
+              {/* 직원 복수선택·팀 단위 (2026-08-11 사장님) — 전체 / 특정 직원(여러 명) / 팀(부서) */}
+              <select
+                value={form.targetMode}
+                onChange={(e) => setForm({ ...form, targetMode: e.target.value as "all" | "users" | "department" })}
+                className="field-input"
+              >
+                <option value="all">회사 전체 (기본)</option>
+                <option value="users">특정 직원 (복수 선택)</option>
+                <option value="department">팀 (부서 단위)</option>
               </select>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">특정 요청자를 고르면 그 사람 요청에만 이 정책이 우선 적용됩니다.</p>
+              {form.targetMode === "users" && (
+                <div className="policy-target-people">
+                  {orgUsers.map((u) => {
+                    const on = form.requesterIds.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => setForm((s) => ({
+                          ...s,
+                          requesterIds: s.requesterIds.includes(u.id) ? s.requesterIds.filter((id) => id !== u.id) : [...s.requesterIds, u.id],
+                        }))}
+                        className={`policy-target-chip ${on ? "policy-target-chip-on" : ""}`}
+                      >
+                        {u.name || u.email}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {form.targetMode === "department" && (
+                departments.length > 0 ? (
+                  <select
+                    value={form.requesterDepartment}
+                    onChange={(e) => setForm({ ...form, requesterDepartment: e.target.value })}
+                    className="field-input mt-2"
+                  >
+                    <option value="">부서 선택</option>
+                    {departments.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-[10px] text-[var(--warning)] mt-1.5">등록된 부서가 없습니다 — 구성원 화면에서 직원의 부서를 먼저 입력하세요.</p>
+                )
+              )}
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">
+                {form.targetMode === "users"
+                  ? `선택한 직원의 요청에만 이 정책이 우선 적용됩니다.${form.requesterIds.length ? ` (${form.requesterIds.length}명 선택됨)` : ""}`
+                  : form.targetMode === "department"
+                    ? "해당 부서 직원의 요청에 이 정책이 적용됩니다. 직원 지정 정책이 있으면 그쪽이 우선합니다."
+                    : "대상을 고르면 그 직원·팀 요청에만 이 정책이 우선 적용됩니다."}
+              </p>
             </div>
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">승인라인 변경</label>
@@ -4038,6 +4108,15 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                     <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
                       {REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type} · {stages.length}단계
                       {policy.auto_approve_below > 0 && ` · ${formatAmount(policy.auto_approve_below)} 미만 자동승인`}
+                      {(() => {
+                        // 적용 대상 표시 (2026-08-11) — 부서 또는 지정 직원 이름(2명까지 + 외 N명)
+                        const t = policyTargets(policy);
+                        if (t.department) return ` · ${t.department} 팀 전용`;
+                        if (!t.userIds.length) return null;
+                        const names = t.userIds.map((id) => { const u = orgUsers.find((x) => x.id === id); return u?.name || u?.email || "?"; });
+                        const head = names.slice(0, 2).join("·");
+                        return ` · ${head}${names.length > 2 ? ` 외 ${names.length - 2}명` : ""} 전용`;
+                      })()}
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
