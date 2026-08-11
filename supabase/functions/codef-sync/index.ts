@@ -1140,11 +1140,11 @@ async function syncHometaxInvoices(
       loginType: "0",
       ...htCert.auth,
       certPassword: encryptedCertPw,
-      // ⚠️ 파라미터 실측 이력(2026-08-11) — CODEF 문서 비공개라 실호출로 판별:
-      //   · searchType 02 → 같은 세금계산서를 발행일 기준으로 반환 (조회 기준 스위치)
-      //   · type 1 → 응답 변화 없음(전 행 부가세>0 세금계산서)
-      //   · inquiryType 02 → 계산서(면세) 목록 후보 — 현재 시도. 결과는 스텝 debug 로 확인.
-      inquiryType: docKind === "exempt" ? "02" : "01",
+      // 공식 문서 확정(2026-08-11, developer.codef.io SPA 렌더로 확보):
+      //   inquiryType(조회구분) "01" 전자세금계산서 / "02" 위수탁 세금계산서 / "03" 전자계산서 / "04" 위수탁 계산서
+      //   searchType(조회 기간 구분) "01" 작성일자 / "02" 발급일자 / "03" 전송일자
+      //   type "0" 기존 조회 / "1" 엑셀다운로드
+      inquiryType: docKind === "exempt" ? "03" : "01",
       searchType: "01",
       startDate: cappedStart,
       endDate: cappedEnd,
