@@ -594,28 +594,32 @@ export default function DashboardPage() {
             const taxItems = getUpcomingTaxDeadlines(60);
             const P = DEFAULT_WIDGET_POS;
             const uid = userId || "";
+            // 마스터 확정 좌표(P)는 재무 위젯까지 전부 보이는 계정에서만 의미가 있다.
+            //   권한 필터로 위젯이 줄어든 직원 계정이 그대로 상속하면 지정 위젯이 왼쪽 열에 몰리고
+            //   나머지가 흩어진다(2026-08-11 사장님) — 비재무 계정은 크기만 받고 좌표는 자동 균형 배치.
+            const pos = (k: keyof typeof DEFAULT_WIDGET_POS) => (canFinance ? P[k] : { w: P[k].w, h: P[k].h });
             // 카탈로그 — 앞쪽 10개는 기본 활성(확정 배치), 뒤쪽은 추가 가능(기본 비활성).
             const catalog: CatalogWidget[] = [
-              { id: "biz", name: "경영 요약", icon: "📊", desc: "손익·잔액·런웨이 + 매출·비용", category: "경영", ...P.biz,
+              { id: "biz", name: "경영 요약", icon: "📊", desc: "손익·잔액·런웨이 + 매출·비용", category: "경영", ...pos("biz"),
                 render: () => <DashboardBizSummary monthRevenue={dashboard.growth.monthRevenue} expense={(realBurnData ?? 0) + (realVariableData ?? 0)} balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0} runwayMonths={dashboard.sixPack.runwayMonths} /> },
-              { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", ...P.revenue, render: () => <RecentRevenue companyId={companyId} /> },
-              { id: "receivables", name: "미수금", icon: "💸", desc: "미수금·연체 현황", category: "경영", ...P.receivables, render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
-              { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", ...P.projects, render: () => <RecentProjects companyId={companyId} /> },
-              { id: "tax", name: "세금 일정", icon: "🧾", desc: "다가오는 세금 마감", category: "경영", ...P.tax, render: () => <TaxScheduleWidget items={taxItems} /> },
-              { id: "cards", name: "카드", icon: "💳", desc: "이번 달 카드 사용액", category: "자금", ...P.cards, render: () => <CardsSummaryCard companyId={companyId} /> },
-              { id: "assets", name: "자산", icon: "🏦", desc: "계좌별 잔액·총자산", category: "자금", ...P.assets, render: () => <AssetsSummaryCard companyId={companyId} /> },
-              { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", ...P.calendar, render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
+              { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", ...pos("revenue"), render: () => <RecentRevenue companyId={companyId} /> },
+              { id: "receivables", name: "미수금", icon: "💸", desc: "미수금·연체 현황", category: "경영", ...pos("receivables"), render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
+              { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", ...pos("projects"), render: () => <RecentProjects companyId={companyId} /> },
+              { id: "tax", name: "세금 일정", icon: "🧾", desc: "다가오는 세금 마감", category: "경영", ...pos("tax"), render: () => <TaxScheduleWidget items={taxItems} /> },
+              { id: "cards", name: "카드", icon: "💳", desc: "이번 달 카드 사용액", category: "자금", ...pos("cards"), render: () => <CardsSummaryCard companyId={companyId} /> },
+              { id: "assets", name: "자산", icon: "🏦", desc: "계좌별 잔액·총자산", category: "자금", ...pos("assets"), render: () => <AssetsSummaryCard companyId={companyId} /> },
+              { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", ...pos("calendar"), render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
               // 2026-07-31 사장님: 한 줄짜리 압축 카드 말고 큰 출근 카드로. (compact 제거 = 출근/퇴근 시각·
               //   지각/연장 배지·재택/반차 선택 + 큰 '출근하기' 버튼)
-              { id: "attendance", name: "출퇴근", icon: "🕘", desc: "출근/퇴근 기록 + 오늘 근무 상태", category: "개인", ...P.attendance, render: () => <MyAttendanceCard companyId={companyId} userId={uid} /> },
-              { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", ...P["work-tasks"], render: () => <MyTasksCard userId={uid} /> },
+              { id: "attendance", name: "출퇴근", icon: "🕘", desc: "출근/퇴근 기록 + 오늘 근무 상태", category: "개인", ...pos("attendance"), render: () => <MyAttendanceCard companyId={companyId} userId={uid} /> },
+              { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", ...pos("work-tasks"), render: () => <MyTasksCard userId={uid} /> },
               // ── 추가 가능(기본 비활성) ──
               { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금 내역", category: "자금", w: 4, h: 5, render: () => <BankRecentCard companyId={companyId} /> },
               { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", w: 4, h: 5, render: () => <RecentInvoices companyId={companyId} /> },
               { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", w: 4, h: 5, render: () => <ApprovalsPendingCard companyId={companyId} /> },
-              { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", w: 4, h: 4, render: () => <EmployeesCard companyId={companyId} /> },
-              { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", w: 4, h: 4, render: () => <PartnersCard companyId={companyId} /> },
-              { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", w: 4, h: 4, render: () => <AnnouncementsCard /> },
+              { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", w: 4, h: 5, render: () => <EmployeesCard companyId={companyId} /> },
+              { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", w: 4, h: 5, render: () => <PartnersCard companyId={companyId} /> },
+              { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", w: 4, h: 5, render: () => <AnnouncementsCard /> },
               { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 6, render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
             ];
             // (2026-07-30 사장님) 금액 위젯(경영·자금·프로젝트 계약액)은 재무 권한 보유자만 카탈로그에 노출.
@@ -635,7 +639,7 @@ export default function DashboardPage() {
             return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed}
               // 저장된 배치의 옛 높이를 콘텐츠에 맞춰 한 번 끌어올린다 — 숫자 스트립 문법으로
               //   카드가 커진 위젯들(2026-08-10). 이전 attendance 마이그레이션 값 포함(누적).
-              layoutMigration={{ id: "statband-heights-20260810", minH: { attendance: 5, biz: 5, receivables: 6, assets: 5, cards: 5, revenue: 5, approvals: 5, todos: 6 } }}
+              layoutMigration={{ id: "widget-heights-20260811", minH: { attendance: 5, biz: 5, receivables: 6, assets: 5, cards: 5, revenue: 5, approvals: 5, todos: 6, employees: 5, partners: 5, announcements: 5 } }}
               // 기본 전체 선택 전환(2026-08-04) — 기존 저장 선택에도 새 기본값을 1회 병합해 전 위젯이 켜진다.
               activeMigration="all-widgets-default-20260804" />;
           })()}

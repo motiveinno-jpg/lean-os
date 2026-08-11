@@ -31,12 +31,25 @@ export type CatalogWidget = {
 };
 
 function buildDefault(cat: CatalogWidget[]): Layout[] {
-  return cat.map((w, i) => ({
-    i: w.id,
-    x: w.x ?? (i % 3) * 4,
-    y: w.y ?? 1000,
-    w: w.w || 4, h: w.h || 4, minW: 3, minH: 2,
-  }));
+  // 좌표 미지정 위젯은 세 열 중 가장 낮은 열에 순서대로 — 예전 (i%3)*4·y=1000 방식은
+  //   지정 위젯이 왼쪽 열에 몰린 계정(권한 필터로 위젯이 줄어든 직원)에서 배치가 기울었다 (2026-08-11 사장님).
+  const colH = [0, 0, 0];
+  // 지정 좌표 위젯이 이미 차지한 높이를 열별로 반영
+  for (const w of cat) {
+    if (w.x != null && w.y != null) {
+      const c = Math.max(0, Math.min(2, Math.floor((w.x ?? 0) / 4)));
+      colH[c] = Math.max(colH[c], (w.y ?? 0) + (w.h || 4));
+    }
+  }
+  return cat.map((w) => {
+    if (w.x != null && w.y != null) {
+      return { i: w.id, x: w.x, y: w.y, w: w.w || 4, h: w.h || 4, minW: 3, minH: 2 };
+    }
+    const c = colH.indexOf(Math.min(...colH));
+    const item = { i: w.id, x: c * 4, y: colH[c], w: w.w || 4, h: w.h || 4, minW: 3, minH: 2 };
+    colH[c] += (w.h || 4);
+    return item;
+  });
 }
 
 // 컨테이너 너비를 ResizeObserver로 직접 측정하는 훅.
