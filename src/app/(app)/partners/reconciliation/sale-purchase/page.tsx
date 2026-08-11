@@ -12,7 +12,7 @@
 //   ★ 조회는 **기간**으로 본다(달력 위젯, 월 단위). 부가세는 분기로 신고해서
 //     한 달만 보면 신고 단위와 어긋난다 — 손익계산서·세금계산서와 같은 위젯이다.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { DateRangeField } from "@/components/date-range-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -23,9 +23,19 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { friendlyError } from "@/lib/friendly-error";
 import {
-  VAT_TYPES, SETTLE_LABEL, buildVoucherLines, vatOf, vatType, suggestVatType, normalizeSides,
+  VAT_TYPES, SETTLE_LABEL, STD, buildVoucherLines, vatOf, vatType, suggestVatType, normalizeSides,
   type SettleType,
 } from "@/lib/vat-voucher";
+
+//   저장된 전표에서 '상대 계정'을 알아보는 코드들 — 이걸로 분개유형(현금/외상/카드)을 되짚는다.
+//   DB 에 분개유형 칸이 따로 없어서(유형이 만들어 낸 값이라) 계정으로 역추론한다.
+const COUNTER_CODES: string[] = [STD.bank, STD.payable, STD.ar, STD.ap];
+const settleOfCode = (code?: string | null): SettleType =>
+  code === STD.bank ? "cash" : code === STD.payable ? "card"
+    : (code === STD.ar || code === STD.ap) ? "credit" : "mixed";
+
+//   제목줄 정렬 — 어느 칸을 기준으로 볼지
+type SortKey = "date" | "code" | "partner" | "biz" | "type" | "item" | "supply" | "tax" | "total";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 //   거래처 코드는 회사에 따라 숫자로 저장돼 있기도 하다 — 화면에서는 항상 문자열로 다룬다
@@ -149,6 +159,9 @@ function SalePurchaseInner() {
   //   좁은 화면 기본값은 '읽기' — 14칸 격자를 폰에서 치는 일은 없다. 그래도 쳐야 하면 이 토글로 편다.
   const [phoneGrid, setPhoneGrid] = useState(false);
   const [pulled, setPulled] = useState(0);
+  //   저장분을 눌러 고치는 중인 줄. 새로 치는 줄(rows)과 같은 편집기를 쓰되 저장은 update RPC 로 간다.
+  const [edit, setEdit] = useState<Row | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -190,7 +203,7 @@ function SalePurchaseInner() {
       const to = monthAfter(toM);
       const data = logRead("sale-purchase:saved", await (supabase as any)
         .from("journal_entries")
-        .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
+        .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, reference_type, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
         .eq("company_id", companyId!).eq("entry_kind", "sale_purchase")
         .gte("entry_date", `${fromM}-01`).lt("entry_date", to)
         .order("entry_date").order("voucher_no"));
@@ -199,19 +212,71 @@ function SalePurchaseInner() {
     enabled: !!companyId,
   });
 
+  /** 저장된 전표의 분개를 뜯어 본 결과 — 수정 화면을 열 때 계정을 그대로 되살리는 데 쓴다 */
+  type SavedInfo = { settle: SettleType; main: Acct | null; counter: Acct | null; vatAcct: Acct | null };
+  const savedInfo = useMemo(() => {
+    const m = new Map<string, SavedInfo>();
+    const acctOf = (l: any): Acct | null => l?.chart_of_accounts
+      ? { id: l.chart_of_accounts.id, code: String(l.chart_of_accounts.code), name: l.chart_of_accounts.name, account_type: l.chart_of_accounts.account_type }
+      : null;
+    for (const e of (saved as any[])) {
+      const isSale = vatType(e.vat_type)?.side === "sale";
+      const ls = (e.journal_lines || []) as any[];
+      //   상대 계정은 표준 코드로 먼저 찾는다. 회사가 다른 계정을 썼으면 방향(매출=차변/매입=대변)으로 찾는다.
+      let counter = ls.find((l) => COUNTER_CODES.includes(String(l.chart_of_accounts?.code)));
+      if (!counter) counter = ls.find((l) => (isSale ? Number(l.debit || 0) > 0 : Number(l.credit || 0) > 0));
+      const rest = ls.filter((l) => l !== counter);
+      const vatL = rest.find((l) => ([STD.vatIn, STD.vatOut] as string[]).includes(String(l.chart_of_accounts?.code)));
+      const mainL = rest.find((l) => l !== vatL);
+      m.set(e.id, {
+        settle: settleOfCode(counter?.chart_of_accounts?.code),
+        main: acctOf(mainL), counter: acctOf(counter), vatAcct: acctOf(vatL),
+      });
+    }
+    return m;
+  }, [saved]);
+
   const savedRows: Row[] = saved.map((e: any) => {
     const p = (e.journal_lines || []).map((l: any) => l.partners).find(Boolean) || null;
     const [y, m, d] = String(e.entry_date || "").split("-");
+    const info = savedInfo.get(e.id);
     return {
       key: -1, y, m: String(Number(m || 0)), d: String(Number(d || 0)),
       partner: p, partnerText: p?.name || "",
       vatCode: e.vat_type || "11",
       item: e.description || "",
       supply: won(e.supply_amount), vat: won(e.vat_amount),
-      electronic: false, settle: "credit" as SettleType, mainAccount: null,
+      //   전자세금계산서에서 불러와 친 전표는 '전자입력' — 사람이 켜는 값이 아니라 출처가 정하는 값이다
+      electronic: e.reference_type === "tax_invoice",
+      settle: info?.settle ?? ("credit" as SettleType), mainAccount: info?.main ?? null,
       savedId: e.id, voucherNo: e.voucher_no,
+      refType: (e.reference_type || undefined) as RefKind | undefined,
     };
   }).filter((r: Row) => group === "all" || GROUPS.find((g) => g.key === group)!.codes.includes(r.vatCode));
+
+  //   제목줄 정렬 — 안 고르면 예전 그대로(일자·전표번호 순)
+  const sortedSaved = useMemo(() => {
+    if (!sort) return savedRows;
+    const val = (r: Row): string | number => {
+      switch (sort.key) {
+        case "date": return `${r.y}-${String(r.m).padStart(2, "0")}-${String(r.d).padStart(2, "0")}`;
+        case "code": return String(r.partner?.code ?? "");
+        case "partner": return r.partner?.name ?? "";
+        case "biz": return String(r.partner?.business_number ?? "");
+        case "type": return r.vatCode;
+        case "item": return r.item;
+        case "supply": return numOf(r.supply);
+        case "tax": return numOf(r.vat);
+        default: return numOf(r.supply) + numOf(r.vat);
+      }
+    };
+    return [...savedRows].sort((a, b) => {
+      const x = val(a), y = val(b);
+      const c = typeof x === "number" ? x - (y as number) : String(x).localeCompare(String(y), "ko");
+      return c * sort.dir;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved, group, sort]);
 
   // ── 아직 전표가 안 만들어진 증빙 — 세 화면에 흩어져 있던 입구를 여기 하나로 모은다 ──
   const { data: pending = [] } = useQuery({
@@ -294,8 +359,11 @@ function SalePurchaseInner() {
     setPulled((n) => n + 1);
   };
 
-  // ── 지금 줄의 분개 ──
-  const row = rows[cur] || rows[0];
+  // ── 지금 줄의 분개 — 수정 중이면 그 전표의 줄이 기준이다 ──
+  //   EDIT_IDX(-1) = 수정 중인 저장분. 입력 줄은 0,1,2… 이라 겹치지 않는다.
+  const EDIT_IDX = -1;
+  const selIdx = edit ? EDIT_IDX : cur;
+  const row = edit ?? rows[cur] ?? rows[0];
   const t = vatType(row?.vatCode || "11")!;
   const supplyNum = numOf(row?.supply || "");
   const vatNum = numOf(row?.vat || "");
@@ -320,26 +388,70 @@ function SalePurchaseInner() {
   const canSave = balanced && jeLines.every((l) => !!l.account) && !!row?.partner && !!row?.m && !!row?.d && !saving;
   const isMinus = supplyNum < 0;
 
-  const patch = (i: number, p: Partial<Row>) => setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...p } : r)));
+  //   i < 0 이면 수정 중인 저장분, 아니면 입력 줄. 아래 세 함수가 그 갈림을 한 곳에서 흡수한다.
+  const patch = (i: number, p: Partial<Row>) => {
+    if (i < 0) { setEdit((r) => (r ? { ...r, ...p } : r)); return; }
+    setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...p } : r)));
+  };
 
   //   유형을 바꾸면 세액을 다시 계산하고 결제 방법을 그 유형의 기본으로 맞춘다
-  const setVat = (i: number, code: string) => {
+  const vatPatch = (r: Row, code: string): Partial<Row> | null => {
     const nt = vatType(code);
-    if (!nt) return;
-    setRows((rs) => rs.map((r, k) => {
-      if (k !== i) return r;
-      const keepAcct = r.mainAccount && r.mainAccount.account_type === (nt.side === "sale" ? "revenue" : "expense");
-      return { ...r, vatCode: code, settle: nt.defaultSettle, vat: won(vatOf(code, numOf(r.supply))), mainAccount: keepAcct ? r.mainAccount : null };
-    }));
+    if (!nt) return null;
+    const keepAcct = r.mainAccount && r.mainAccount.account_type === (nt.side === "sale" ? "revenue" : "expense");
+    return { vatCode: code, settle: nt.defaultSettle, vat: won(vatOf(code, numOf(r.supply))), mainAccount: keepAcct ? r.mainAccount : null };
   };
-  const setSupply = (i: number, v: string) =>
-    setRows((rs) => rs.map((r, k) => (k === i ? { ...r, supply: comma(v), vat: won(vatOf(r.vatCode, numOf(v))) } : r)));
+  const setVat = (i: number, code: string) => {
+    const cur0 = i < 0 ? edit : rows[i];
+    if (!cur0) return;
+    const p = vatPatch(cur0, code);
+    if (p) patch(i, p);
+  };
+  const setSupply = (i: number, v: string) => {
+    const cur0 = i < 0 ? edit : rows[i];
+    if (!cur0) return;
+    patch(i, { supply: comma(v), vat: won(vatOf(cur0.vatCode, numOf(v))) });
+  };
+
+  /** 저장분을 눌러 수정 시작 — 저장된 계정을 분개 칸에 그대로 되살린다.
+   *  분개 줄은 유형이 다시 만들되(금액을 고치면 따라 움직여야 하니), 계정은 저장된 것을 덮어 씌운다.
+   *  어느 줄이 무엇인지는 **만들어진 줄에서** 읽는다 — locked=부가세, 상대편 방향=상대계정, 나머지=주계정.
+   *  (규칙을 여기서 다시 쓰지 않으므로 buildVoucherLines 가 바뀌어도 어긋나지 않는다) */
+  const startEdit = (r: Row) => {
+    if (!r.savedId) return;
+    const info = savedInfo.get(r.savedId);
+    const key = K++;
+    const isSale = vatType(r.vatCode)?.side === "sale";
+    const counterSide = isSale ? "debit" : "credit";
+    const d = buildVoucherLines({
+      vatCode: r.vatCode, settle: r.settle, supply: numOf(r.supply), vat: numOf(r.vat),
+      mainCode: r.mainAccount?.code ?? null, mainName: r.mainAccount?.name ?? null,
+    });
+    const ov: Record<string, Acct | null> = {};
+    d.forEach((line, i) => {
+      ov[`${key}:${i}`] = line.locked ? (info?.vatAcct ?? null)
+        : line.side === counterSide ? (info?.counter ?? null)
+          : (info?.main ?? null);
+    });
+    setOverrides((o) => ({ ...o, ...ov }));
+    setEdit({ ...r, key });
+    setDrop(null);
+    setAcctPick(null);
+  };
+  const cancelEdit = () => { setEdit(null); setAcctPick(null); setDrop(null); };
+
+  const toggleSort = (key: SortKey) =>
+    setSort((s0) => (s0?.key === key ? (s0.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }));
+  const sortMark = (key: SortKey) => (sort?.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : "");
 
   const isEmptyRow = (r: Row) => !r.m && !r.d && !r.partner && !r.item && !r.supply;
 
   /** 윗줄 — 첫 줄이면 그 위(저장분)의 마지막 전표가 윗줄이다 */
   const aboveOf = (i: number): Row | null =>
-    i > 0 ? rows[i - 1] : (savedRows.length > 0 ? savedRows[savedRows.length - 1] : null);
+    //   수정 중인 저장분(-1)은 '이어 치는' 줄이 아니라 윗줄이 없다
+    i < 0 ? null
+      : i > 0 ? rows[i - 1]
+        : (sortedSaved.length > 0 ? sortedSaved[sortedSaved.length - 1] : null);
 
   /** ★ Enter — **그 칸 하나만** 윗줄에서 내린다 (2026-08-11 사장님 지시).
    *  '빈 칸일 때만 내린다'로 하면 유형·분개처럼 늘 값이 있는 칸은 영영 못 내린다 — 눌러도
@@ -376,14 +488,17 @@ function SalePurchaseInner() {
     pullCell(i, key);
     const at = CELLS.indexOf(key);
     if (at < CELLS.length - 1) { focusCell(i, CELLS[at + 1]); return; }
+    if (i < 0) return;                                   // 수정 줄 — 끝 칸에서 멈춘다
     if (i === rows.length - 1) setRows((rs) => [...rs, blankRow()]);
     setCur(i + 1);
     focusCell(i + 1, "y");
   };
 
   const addRow = () => setRows((rs) => [...rs, blankRow()]);
-  const removeRow = (i: number) =>
+  const removeRow = (i: number) => {
+    if (i < 0) { cancelEdit(); return; }
     setRows((rs) => (rs.length > 1 ? rs.filter((_, k) => k !== i) : [blankRow()]));
+  };
 
   const save = async () => {
     if (!canSave) return;
@@ -400,6 +515,21 @@ function SalePurchaseInner() {
         memo: row.item || "",
         partner_id: row.partner?.id || null,
       }));
+      //   ★ 저장분을 고치는 중이면 update 로 간다 — 새 전표를 하나 더 만들면 안 된다
+      if (edit?.savedId) {
+        const { error } = await (supabase.rpc as any)("update_sale_purchase_voucher", {
+          p_entry_id: edit.savedId, p_entry_date: date, p_vat_type: row.vatCode,
+          p_supply_amount: supplyNum, p_vat_amount: vatNum,
+          p_description: row.item || `${t.label} ${row.partner?.name || ""}`.trim(),
+          p_lines: payload,
+        });
+        if (error) throw error;
+        toast(`전표 #${edit.voucherNo ?? ""} 를 고쳤습니다`, "success");
+        qc.invalidateQueries({ queryKey: ["sp-saved"] });
+        setEdit(null);
+        setOverrides({});
+        return;
+      }
       const { error } = await (supabase.rpc as any)("save_sale_purchase_voucher", {
         p_entry_date: date, p_vat_type: row.vatCode,
         p_supply_amount: supplyNum, p_vat_amount: vatNum,
@@ -426,6 +556,8 @@ function SalePurchaseInner() {
         m.includes("PERIOD_LOCKED") ? "마감된 달이라 전표를 저장할 수 없습니다."
         : m.includes("FORBIDDEN") ? "전표를 저장할 권한이 없습니다."
         : m.includes("ALREADY_POSTED") ? "이 증빙은 이미 전표로 만들어져 있습니다."
+        : m.includes("NOT_SALE_PURCHASE") ? "이 전표는 매입매출전표가 아닙니다 — 일반전표에서 고쳐 주세요."
+        : m.includes("NOT_FOUND") ? "전표를 찾지 못했습니다 — 새로고침 후 다시 시도해 주세요."
         : m.includes("UNBALANCED") ? "차변과 대변이 맞지 않습니다."
         : `저장 실패: ${friendlyError(e, "알 수 없는 오류")}`, "error",
       );
@@ -440,6 +572,76 @@ function SalePurchaseInner() {
       (!side || a.account_type === (side === "sale" ? "revenue" : "expense"))
       && (!q || a.name.toLowerCase().includes(q.toLowerCase()) || String(a.code).includes(q))).slice(0, 40);
 
+  /** 격자 한 줄 편집기 — 새로 치는 줄(idx>=0)과 저장분 수정 줄(idx=-1)이 **같은 화면**을 쓴다.
+   *  하나로 합쳐 둬야 "치는 곳과 고치는 곳이 다르게 생겼다"는 일이 안 생긴다. */
+  const gridRow = (r: Row, i: number) => {
+    const isEdit = i < 0;
+    //   전자세금계산서에서 온 줄은 사람이 켜고 끄는 값이 아니다 — 출처가 정한다
+    const fromTaxInvoice = r.refType === "tax_invoice" || (isEdit && r.electronic);
+    return (
+      <div key={isEdit ? `edit-${r.key}` : r.key}
+        className={`spv-row ${selIdx === i ? "spv-cur" : ""} ${isEdit ? "spv-editing" : ""}`.trim()}
+        onClick={() => { if (!isEdit) { setEdit(null); setCur(i); } }}>
+        <input className="spv-in tc" data-cell={`y-${i}`} value={r.y} onChange={(e) => patch(i, { y: e.target.value })}
+          onKeyDown={(e) => onCellKey(e, i, "y")} onFocus={() => { if (!isEdit) setCur(i); }} inputMode="numeric" maxLength={4} />
+        <input className="spv-in tc" data-cell={`m-${i}`} value={r.m} onChange={(e) => patch(i, { m: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+          onKeyDown={(e) => onCellKey(e, i, "m")} onFocus={() => { if (!isEdit) setCur(i); }} inputMode="numeric" placeholder="월" />
+        <input className="spv-in tc" data-cell={`d-${i}`} value={r.d} onChange={(e) => patch(i, { d: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+          onKeyDown={(e) => onCellKey(e, i, "d")} onFocus={() => { if (!isEdit) setCur(i); }} inputMode="numeric" placeholder="일" />
+        <span className="spv-in-ro tc">{r.partner?.code || ""}</span>
+        <div className="relative">
+          <input className="spv-in" data-cell={`partner-${i}`} value={r.partner?.name || r.partnerText}
+            onChange={(e) => { patch(i, { partner: null, partnerText: e.target.value }); setDrop({ row: i, q: e.target.value }); }}
+            onFocus={() => { if (!isEdit) setCur(i); setDrop({ row: i, q: r.partnerText }); }}
+            onBlur={() => setTimeout(() => setDrop((d) => (d?.row === i ? null : d)), 200)}
+            onKeyDown={(e) => onCellKey(e, i, "partner")} placeholder="거래처" />
+          {drop?.row === i && filteredPartners(drop.q).length > 0 && (
+            <div className="spv-drop">
+              {filteredPartners(drop.q).map((pt) => (
+                <button key={pt.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => { patch(i, { partner: pt, partnerText: pt.name }); setDrop(null); }}>
+                  <span className="spv-drop-code">{pt.code || "—"}</span>
+                  <span className="spv-drop-name">{pt.name}</span>
+                  <span className="spv-drop-biz">{pt.business_number || ""}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <span className="spv-in-ro tc">{r.partner?.business_number || ""}</span>
+        <select className="spv-in spv-sel" data-cell={`vatCode-${i}`} value={r.vatCode} onChange={(e) => setVat(i, e.target.value)}
+          onKeyDown={(e) => onCellKey(e, i, "vatCode")} onFocus={() => { if (!isEdit) setCur(i); }}>
+          {/* 수정 줄은 갈래 탭에 안 걸린 유형일 수도 있다 — 그 유형이 목록에서 빠지면 값이 튄다 */}
+          {(isEdit ? VAT_TYPES : typeOptions).map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
+        </select>
+        <input className="spv-in" data-cell={`item-${i}`} value={r.item} onChange={(e) => patch(i, { item: e.target.value })}
+          onKeyDown={(e) => onCellKey(e, i, "item")} onFocus={() => { if (!isEdit) setCur(i); }} placeholder="품명" />
+        <input className={numOf(r.supply) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} data-cell={`supply-${i}`} value={r.supply}
+          onChange={(e) => setSupply(i, e.target.value)} onKeyDown={(e) => onCellKey(e, i, "supply")}
+          onFocus={() => { if (!isEdit) setCur(i); }} placeholder="0" title="취소·수정분은 앞에 - 를 붙입니다" />
+        <input className={numOf(r.vat) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} data-cell={`vat-${i}`} value={r.vat}
+          onChange={(e) => patch(i, { vat: comma(e.target.value) })}
+          onKeyDown={(e) => onCellKey(e, i, "vat")} onFocus={() => { if (!isEdit) setCur(i); }} placeholder="0" />
+        <span className={numOf(r.supply) + numOf(r.vat) < 0 ? "spv-in-ro tr spv-total spv-minus" : "spv-in-ro tr spv-total"}>
+          {won(numOf(r.supply) + numOf(r.vat))}
+        </span>
+        {fromTaxInvoice ? (
+          <span className="tc"><em className="spv-eltag" title="전자세금계산서를 불러와 만든 전표입니다">전자입력</em></span>
+        ) : (
+          <button type="button" className="spv-chk" data-cell={`electronic-${i}`} onClick={() => patch(i, { electronic: !r.electronic })}
+            onKeyDown={(e) => onCellKey(e, i, "electronic")} onFocus={() => { if (!isEdit) setCur(i); }}
+            title="전자 발행분이면 켭니다 (Enter 는 윗값 내리기 · Space 로 켜고 끕니다)">{r.electronic ? "전자" : "—"}</button>
+        )}
+        <select className="spv-in spv-sel" data-cell={`settle-${i}`} value={r.settle} onChange={(e) => patch(i, { settle: e.target.value as SettleType })}
+          onKeyDown={(e) => onCellKey(e, i, "settle")} onFocus={() => { if (!isEdit) setCur(i); }}>
+          {(Object.keys(SETTLE_LABEL) as SettleType[]).map((st) => <option key={st} value={st}>{SETTLE_LABEL[st]}</option>)}
+        </select>
+        <button type="button" className="spv-del" onClick={() => removeRow(i)}
+          title={isEdit ? "수정 취소" : "이 줄 지우기"}>✕</button>
+      </div>
+    );
+  };
+
   const groupCodes = GROUPS.find((g) => g.key === group)!.codes;
   const typeOptions = groupCodes.length > 0 ? VAT_TYPES.filter((v) => groupCodes.includes(v.code)) : VAT_TYPES;
 
@@ -447,7 +649,7 @@ function SalePurchaseInner() {
   //   엑셀이 한글을 깨뜨리지 않게 BOM 을 앞에 붙인다 (거래처원장 내보내기와 같은 방법).
   const downloadCsv = () => {
     const head = ["일자", "전표번호", "구분", "유형", "거래처코드", "거래처", "사업자등록번호", "품명", "공급가액", "부가세", "합계"];
-    const body = savedRows.map((r) => {
+    const body = sortedSaved.map((r) => {
       const vt = vatType(r.vatCode);
       const sup = numOf(r.supply), v = numOf(r.vat);
       return [
@@ -460,8 +662,8 @@ function SalePurchaseInner() {
         String(sup), String(v), String(sup + v),
       ];
     });
-    const sup = savedRows.reduce((n, r) => n + numOf(r.supply), 0);
-    const vat = savedRows.reduce((n, r) => n + numOf(r.vat), 0);
+    const sup = sortedSaved.reduce((n, r) => n + numOf(r.supply), 0);
+    const vat = sortedSaved.reduce((n, r) => n + numOf(r.vat), 0);
     const rowsOut = [head, ...body, ["", "", "", "합계", "", "", "", "", String(sup), String(vat), String(sup + vat)]];
     const csv = "﻿" + rowsOut.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const a = document.createElement("a");
@@ -501,9 +703,12 @@ function SalePurchaseInner() {
           <span className={phoneGrid ? "spv-input-only spv-grid-forced" : "spv-input-only"}>
             <button type="button" onClick={() => { setPulled(0); setPullOpen(true); }} className="btn-secondary btn-sm">증빙에서 불러오기</button>
             <button type="button" onClick={addRow} className="btn-secondary btn-sm">+ 줄 추가</button>
+            {edit && (
+              <button type="button" onClick={cancelEdit} className="btn-secondary btn-sm">수정 취소</button>
+            )}
             <button type="button" onClick={save} disabled={!canSave}
               className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-              {saving ? "저장 중…" : "저장"}
+              {saving ? "저장 중…" : edit ? `#${edit.voucherNo ?? ""} 수정 저장` : "저장"}
             </button>
           </span>
         </div>
@@ -543,88 +748,49 @@ function SalePurchaseInner() {
       <div className={phoneGrid ? "spv-grid-wrap glass-card spv-grid-forced" : "spv-grid-wrap glass-card"} ref={gridRef}>
         <div className="spv-scroll">
           <div className="spv-grid">
+            {/* 제목줄 — 누르면 저장분이 그 칸 기준으로 정렬된다(한 번 더 누르면 거꾸로, 세 번째는 해제).
+                입력 줄은 정렬을 안 탄다 — 치던 자리가 움직이면 안 되기 때문이다 (2026-08-11) */}
             <div className="spv-row spv-head">
-              <span>년</span><span>월</span><span>일</span><span>코드</span><span>거래처</span>
-              <span>사업자등록번호</span><span>유형</span><span>품명</span>
-              <span className="tr">공급가액</span><span className="tr">부가세</span><span className="tr">합계</span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>년{sortMark("date")}</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>월</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>일</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("code")}>코드{sortMark("code")}</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("partner")}>거래처{sortMark("partner")}</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("biz")}>사업자등록번호{sortMark("biz")}</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("type")}>유형{sortMark("type")}</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("item")}>품명{sortMark("item")}</button></span>
+              <span className="tr"><button type="button" className="spv-sort" onClick={() => toggleSort("supply")}>공급가액{sortMark("supply")}</button></span>
+              <span className="tr"><button type="button" className="spv-sort" onClick={() => toggleSort("tax")}>부가세{sortMark("tax")}</button></span>
+              <span className="tr"><button type="button" className="spv-sort" onClick={() => toggleSort("total")}>합계{sortMark("total")}</button></span>
               <span>전자</span><span>분개</span><span />
             </div>
 
-            {/* 저장된 전표 — 읽기 전용 */}
-            {savedRows.map((r, i) => (
-              <div key={`s${i}`} className="spv-row spv-saved">
-                <span className="tc">{r.y}</span><span className="tc">{r.m}</span><span className="tc">{r.d}</span>
-                <span className="tc spv-dim">{r.partner?.code || "—"}</span>
-                <span className="spv-ell">{r.partner?.name || "—"}</span>
-                <span className="tc spv-dim">{r.partner?.business_number || "—"}</span>
-                <span className="tc"><em className={vatType(r.vatCode)?.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{vatType(r.vatCode)?.label.split(". ")[1] || r.vatCode}</em></span>
-                <span className="spv-ell">{r.item}</span>
-                <span className="tr">{r.supply}</span><span className="tr">{r.vat}</span>
-                <span className="tr spv-total">{won(numOf(r.supply) + numOf(r.vat))}</span>
-                <span className="tc spv-dim">—</span>
-                <span className="tc spv-dim">{SETTLE_LABEL[r.settle].split(". ")[1]}</span>
-                <span className="tc spv-dim">#{r.voucherNo}</span>
-              </div>
+            {/* 저장된 전표 — 누르면 그 자리에서 고친다 (2026-08-11 사장님 지시).
+                예전엔 읽기 전용이라 한 번 저장하면 화면에서 고칠 길이 없었다. */}
+            {sortedSaved.map((r) => (
+              edit?.savedId === r.savedId ? (
+                <Fragment key={`e${r.savedId}`}>{gridRow(edit!, EDIT_IDX)}</Fragment>
+              ) : (
+                <div key={`s${r.savedId}`} className="spv-row spv-saved" onClick={() => startEdit(r)}
+                  title="누르면 이 전표를 고칩니다">
+                  <span className="tc">{r.y}</span><span className="tc">{r.m}</span><span className="tc">{r.d}</span>
+                  <span className="tc spv-dim">{r.partner?.code || "—"}</span>
+                  <span className="spv-ell">{r.partner?.name || "—"}</span>
+                  <span className="tc spv-dim">{r.partner?.business_number || "—"}</span>
+                  <span className="tc"><em className={vatType(r.vatCode)?.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{vatType(r.vatCode)?.label.split(". ")[1] || r.vatCode}</em></span>
+                  <span className="spv-ell">{r.item}</span>
+                  <span className="tr">{r.supply}</span><span className="tr">{r.vat}</span>
+                  <span className="tr spv-total">{won(numOf(r.supply) + numOf(r.vat))}</span>
+                  {/* 전자세금계산서에서 불러와 친 전표 */}
+                  <span className="tc">{r.electronic ? <em className="spv-eltag">전자입력</em> : <span className="spv-dim">—</span>}</span>
+                  <span className="tc spv-dim">{SETTLE_LABEL[r.settle].split(". ")[1]}</span>
+                  <span className="tc spv-dim">#{r.voucherNo}</span>
+                </div>
+              )
             ))}
 
             {/* 입력 줄 */}
-            {rows.map((r, i) => {
-              const rt = vatType(r.vatCode)!;
-              return (
-                <div key={r.key} className={i === cur ? "spv-row spv-cur" : "spv-row"} onClick={() => setCur(i)}>
-                  <input className="spv-in tc" data-cell={`y-${i}`} value={r.y} onChange={(e) => patch(i, { y: e.target.value })}
-                    onKeyDown={(e) => onCellKey(e, i, "y")} onFocus={() => setCur(i)} inputMode="numeric" maxLength={4} />
-                  <input className="spv-in tc" data-cell={`m-${i}`} value={r.m} onChange={(e) => patch(i, { m: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                    onKeyDown={(e) => onCellKey(e, i, "m")} onFocus={() => setCur(i)} inputMode="numeric" placeholder="월" />
-                  <input className="spv-in tc" data-cell={`d-${i}`} value={r.d} onChange={(e) => patch(i, { d: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                    onKeyDown={(e) => onCellKey(e, i, "d")} onFocus={() => setCur(i)} inputMode="numeric" placeholder="일" />
-                  <span className="spv-in-ro tc">{r.partner?.code || ""}</span>
-                  <div className="relative">
-                    <input className="spv-in" data-cell={`partner-${i}`} value={r.partner?.name || r.partnerText}
-                      onChange={(e) => { patch(i, { partner: null, partnerText: e.target.value }); setDrop({ row: i, q: e.target.value }); }}
-                      onFocus={() => { setCur(i); setDrop({ row: i, q: r.partnerText }); }}
-                      onBlur={() => setTimeout(() => setDrop((d) => (d?.row === i ? null : d)), 200)}
-                      onKeyDown={(e) => onCellKey(e, i, "partner")} placeholder="거래처" />
-                    {drop?.row === i && filteredPartners(drop.q).length > 0 && (
-                      <div className="spv-drop">
-                        {filteredPartners(drop.q).map((p) => (
-                          <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => { patch(i, { partner: p, partnerText: p.name }); setDrop(null); }}>
-                            <span className="spv-drop-code">{p.code || "—"}</span>
-                            <span className="spv-drop-name">{p.name}</span>
-                            <span className="spv-drop-biz">{p.business_number || ""}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <span className="spv-in-ro tc">{r.partner?.business_number || ""}</span>
-                  <select className="spv-in spv-sel" data-cell={`vatCode-${i}`} value={r.vatCode} onChange={(e) => setVat(i, e.target.value)}
-                    onKeyDown={(e) => onCellKey(e, i, "vatCode")} onFocus={() => setCur(i)}>
-                    {typeOptions.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
-                  </select>
-                  <input className="spv-in" data-cell={`item-${i}`} value={r.item} onChange={(e) => patch(i, { item: e.target.value })}
-                    onKeyDown={(e) => onCellKey(e, i, "item")} onFocus={() => setCur(i)} placeholder="품명" />
-                  <input className={numOf(r.supply) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} data-cell={`supply-${i}`} value={r.supply}
-                    onChange={(e) => setSupply(i, e.target.value)} onKeyDown={(e) => onCellKey(e, i, "supply")}
-                    onFocus={() => setCur(i)} placeholder="0" title="취소·수정분은 앞에 - 를 붙입니다" />
-                  <input className={numOf(r.vat) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} data-cell={`vat-${i}`} value={r.vat}
-                    onChange={(e) => patch(i, { vat: comma(e.target.value) })}
-                    onKeyDown={(e) => onCellKey(e, i, "vat")} onFocus={() => setCur(i)} placeholder="0" />
-                  <span className={numOf(r.supply) + numOf(r.vat) < 0 ? "spv-in-ro tr spv-total spv-minus" : "spv-in-ro tr spv-total"}>
-                    {won(numOf(r.supply) + numOf(r.vat))}
-                  </span>
-                  <button type="button" className="spv-chk" data-cell={`electronic-${i}`} onClick={() => patch(i, { electronic: !r.electronic })}
-                    onKeyDown={(e) => onCellKey(e, i, "electronic")} onFocus={() => setCur(i)}
-                    title="전자 발행분이면 켭니다 (Enter 는 윗값 내리기 · Space 로 켜고 끕니다)">{r.electronic ? "전자" : "—"}</button>
-                  <select className="spv-in spv-sel" data-cell={`settle-${i}`} value={r.settle} onChange={(e) => patch(i, { settle: e.target.value as SettleType })}
-                    onKeyDown={(e) => onCellKey(e, i, "settle")} onFocus={() => setCur(i)}>
-                    {(Object.keys(SETTLE_LABEL) as SettleType[]).map((s) => <option key={s} value={s}>{SETTLE_LABEL[s]}</option>)}
-                  </select>
-                  <button type="button" className="spv-del" onClick={() => removeRow(i)} title="이 줄 지우기">✕</button>
-                </div>
-              );
-            })}
+            {rows.map((r, i) => gridRow(r, i))}
           </div>
         </div>
         <div className="spv-subtotal">
@@ -639,6 +805,7 @@ function SalePurchaseInner() {
       <div className={phoneGrid ? "spv-je glass-card spv-grid-forced" : "spv-je glass-card"}>
         <div className="spv-je-head">
           <b>분개</b>
+          {edit && <em className="spv-je-editing">저장된 전표 #{edit.voucherNo ?? ""} 를 고치는 중</em>}
           <span>{t.label} · {SETTLE_LABEL[row?.settle || "credit"]} — 유형이 만든 줄입니다 · 계정을 눌러 바꿉니다</span>
           {isMinus && (
             <span className="spv-minus-note">
