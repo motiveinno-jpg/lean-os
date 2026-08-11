@@ -36,7 +36,7 @@ const ACTION_META: Record<string, { icon: string; label: string; href: string }>
   approval: { icon: "✅", label: "결재", href: "/approvals" },
 };
 
-export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, riskCounts, cashPulse, closingSlot }: {
+export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, riskCounts, cashPulse }: {
   companyId: string;
   userId: string | null;
   sixPack: { cashBalance: number; netCashflow: number; runwayMonths: number; arTotal: number; arOver30: number; pendingApprovals: number; monthlyBurn: number };
@@ -44,8 +44,6 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   risks: { label: string; name: string; detail: string }[];
   riskCounts: Record<string, number>;
   cashPulse: { currentBalance: number; forecast30d: number; forecast90d: number; pulseScore: number; hasData?: boolean } | null | undefined;
-  /** 1행 3번째 칸(월 마감 링 카드) — 마스터 페이지가 ClosingChecklistWidget 을 꽂는다 (2026-08-11 시각화 개편) */
-  closingSlot?: React.ReactNode;
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -132,210 +130,27 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
   const RING_C = 2 * Math.PI * RING_R;
   const ringOff = RING_C * (1 - (pulseReady ? Math.max(0, Math.min(100, score)) : 0) / 100);
 
-  return (
-    <div className="owner-command-center">
-      {/* ═══ 1행 — 비주얼 3카드: 현금 펄스(도넛) · 매출 목표(게이지) · 월 마감(링, 슬롯) ═══ */}
-      <div className="master-hero-grid">
-        {/* 현금 펄스 — 대형 도넛 + 핵심 지표 + 인사이트 스트립 */}
-        <div className="master-pulse-card glass-card">
-          <div className="master-card-head">
-            <h3 className="master-card-title">현금 펄스</h3>
-            <Link href="/reports/flow" className="widget-more-link">경영 흐름 →</Link>
-          </div>
-          <div className="master-pulse-body">
-            <div className="master-pulse-ring">
-              <svg viewBox="0 0 120 120" className="w-full h-full">
-                <circle cx="60" cy="60" r={RING_R} className="master-ring-track" />
-                <circle cx="60" cy="60" r={RING_R} fill="none" stroke={scoreColor} strokeWidth="9" strokeLinecap="round"
-                  strokeDasharray={RING_C} strokeDashoffset={ringOff} transform="rotate(-90 60 60)" className="master-ring-fill" />
-              </svg>
-              <div className="master-pulse-ring-center">
-                <span className="master-pulse-score mono-number" style={{ color: scoreColor }}>{pulseReady ? score : "—"}</span>
-                <span className="master-pulse-score-sub">/100</span>
-                <span className="master-pulse-state" style={{ color: scoreColor, background: `color-mix(in srgb, ${scoreColor} 12%, transparent)` }}>{pulseLabel}</span>
-              </div>
-            </div>
-            <div className="master-pulse-rows">
-              {[
-                { l: "통장 잔고", v: won(balance), c: balance <= 0 ? "var(--danger)" : "var(--text)" },
-                { l: "D+30 전망", v: won(f30), c: f30 < 0 ? "var(--danger)" : "var(--text-muted)" },
-                { l: "D+90 전망", v: won(f90), c: f90 < 0 ? "var(--danger)" : "var(--text-muted)" },
-                { l: "런웨이", v: runway > 0 ? `${runway.toFixed(1)}개월` : "—", c: runway > 0 && runway < 3 ? "var(--danger)" : "var(--text-muted)" },
-              ].map((r) => (
-                <div key={r.l} className="master-pulse-row">
-                  <span className="text-[var(--text-dim)]">{r.l}</span>
-                  <span className="font-bold mono-number" style={{ color: r.c }}>{r.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="master-insight-strip">{pulseInsight}</div>
-        </div>
-
-        {/* 매출 목표 — 게이지 바 + 달성률 점수 */}
-        <RevenueTargetCard companyId={companyId} growth={growth} monthPct={monthPct} quarterPct={quarterPct} yearPct={yearPct} />
-
-        {/* 월 마감 — 완료 링 카드 (마스터 페이지가 꽂는 슬롯) */}
-        {closingSlot}
-      </div>
-
-      {/* ═══ 2행 — 오늘 처리할 일(넓게) + 리스크 ═══ */}
-      <div className="master-mid-grid">
-      <div className="today-action-center glass-card">
-        <div className="today-action-center-header">
-          <div>
-            <div className="text-[15px] font-bold text-[var(--text)]">오늘 처리할 일</div>
-            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">결재 · 입금 확인 · 미수금 — 여기서 바로 끝내세요</div>
-          </div>
-          <span className="text-2xl font-black mono-number ml-1" style={{ color: totalTodo > 0 ? "var(--warning)" : "var(--success)" }}>{totalTodo}</span>
-          {processed > 0 && (
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[var(--success)]/12 text-[var(--success)]">✓ {processed}건 처리됨</span>
-          )}
-          <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-            {queueCount > 0 && (
-              <Link href="/partners/reconciliation" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20">
-                매칭 확인 {queueCount}건 →
-              </Link>
-            )}
-            {sixPack.arOver30 > 0 && (
-              <Link href="/partners/ledger" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20">
-                미수금 30일+ {fmtW(sixPack.arOver30)} →
-              </Link>
-            )}
-            {riskTotal > 0 && (
-              <Link href="/projects" className="px-3 py-1.5 rounded-lg text-[11px] font-bold transition bg-[var(--warning)]/10 text-[var(--warning)] hover:bg-[var(--warning)]/20">
-                위험 프로젝트 {riskTotal} →
-              </Link>
-            )}
-            <Link href="/approvals" className="btn-secondary rounded-lg text-[11px] font-bold">
-              결재함 열기
-            </Link>
-          </div>
-        </div>
-
-        {/* 결재 리스트 */}
-        <div className="pending-approval-list">
-          {topActions.length === 0 ? (
-            <div className="pending-approval-empty">
-              <span className="text-2xl"><Ico e="🎉" /></span>
-              <div>
-                <div className="text-sm font-bold text-[var(--text)]">대기 중인 결재가 없습니다</div>
-                <div className="text-[11px] text-[var(--text-dim)]">새 결재가 올라오면 여기에 바로 표시됩니다</div>
-              </div>
-            </div>
-          ) : (
-            <>
-              {topActions.map((a) => {
-                const meta = ACTION_META[a.type] || ACTION_META.approval;
-                return (
-                  <div key={`${a.type}-${a.id}`} className="pending-approval-row">
-                    <span className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0 bg-[var(--bg-surface)]"><Ico e={meta.icon} /></span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold text-[var(--text)] truncate">{a.title}</span>
-                        {a.urgency === "high" && <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 font-bold">긴급</span>}
-                      </div>
-                      <div className="text-[10px] text-[var(--text-dim)] truncate">
-                        {meta.label}{a.requester ? ` · ${a.requester}` : ""}{a.dealName ? ` · ${a.dealName}` : ""}
-                      </div>
-                    </div>
-                    {a.amount !== undefined && a.amount > 0 && (
-                      <span className="shrink-0 text-[13px] font-bold mono-number text-[var(--text)]">{won(a.amount)}</span>
-                    )}
-                    <div className="shrink-0 flex items-center gap-1.5">
-                      <button
-                        onClick={() => approveMut.mutate(a)}
-                        disabled={busyId === a.id}
-                        className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white bg-emerald-500 hover:opacity-90 transition disabled:opacity-50">
-                        {busyId === a.id ? "..." : "승인"}
-                      </button>
-                      {canRejectAction(a.type) && (
-                        <button
-                          onClick={() => handleReject(a)}
-                          disabled={busyId === a.id}
-                          className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[var(--danger)]/30 text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50">
-                          반려
-                        </button>
-                      )}
-                      <Link href={meta.href} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition">
-                        상세
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-              {actions.length > topActions.length && (
-                <div className="px-5 py-2.5 text-center text-[11px] text-[var(--text-dim)]">
-                  외 {actions.length - topActions.length}건 더 있음 — 각 항목의 "상세"로 이동해 처리하세요
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-        {/* 리스크 */}
-        <div className="risk-summary-card glass-card">
-          <div className="master-card-head">
-            <h3 className="master-card-title">리스크</h3>
-            <Link href="/projects" className="widget-more-link">프로젝트 →</Link>
-          </div>
-          {riskTotal === 0 ? (
-            <div className="risk-summary-empty">
-              <div className="text-2xl mb-1.5">🛡️</div>
-              <div className="text-[12px] font-semibold text-emerald-500">감지된 리스크 없음</div>
-              <div className="text-[10px] text-[var(--text-dim)] mt-0.5">마진·마감·미수금·외주비 자동 감시 중</div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {risks.slice(0, 5).map((r, i) => (
-                <div key={i} className="px-3 py-2 rounded-lg bg-red-500/[.06] border border-red-500/15">
-                  <div className="text-[11px] font-bold text-[var(--text)] truncate">{r.name}</div>
-                  <div className="text-[10px] text-red-500/90 truncate">{r.detail}</div>
-                </div>
-              ))}
-              {risks.length > 5 && <div className="text-[10px] text-[var(--text-dim)] text-center">외 {risks.length - 5}건</div>}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── 매출 목표 카드 — 카드 안에서 바로 목표 설정 (2026-08-11 사장님: "그 카드에서 설정 가능하게") ──
-//   growth_targets upsert(onConflict company_id,period) — period 형식은 queries.ts 와 동일
-//   (월 YYYY-MM · 분기 YYYY-Q# · 연 YYYY). 저장 후 founder-data 무효화로 달성률 즉시 갱신.
-function RevenueTargetCard({ companyId, growth, monthPct, quarterPct, yearPct }: {
-  companyId: string;
-  growth: { monthRevenue: number; quarterRevenue: number; yearRevenue: number; monthTarget: number; quarterTarget: number; yearTarget: number };
-  monthPct: number | null; quarterPct: number | null; yearPct: number | null;
-}) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const [editing, setEditing] = useState(false);
-  const [vals, setVals] = useState({ month: "", quarter: "", year: "" });
-
+  // 목표 인라인 설정 (2026-08-11 유지 — 경영 상태 카드 안으로 이동)
+  const [editTargets, setEditTargets] = useState(false);
+  const [targetVals, setTargetVals] = useState({ month: "", quarter: "", year: "" });
   const now = new Date();
-  const PERIODS = {
+  const TARGET_PERIODS = {
     month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
     quarter: `${now.getFullYear()}-Q${Math.ceil((now.getMonth() + 1) / 3)}`,
     year: String(now.getFullYear()),
   };
-
-  const startEdit = () => {
-    setVals({
+  const startTargetEdit = () => {
+    setTargetVals({
       month: growth.monthTarget > 0 ? String(growth.monthTarget) : "",
       quarter: growth.quarterTarget > 0 ? String(growth.quarterTarget) : "",
       year: growth.yearTarget > 0 ? String(growth.yearTarget) : "",
     });
-    setEditing(true);
+    setEditTargets(true);
   };
-
-  const saveMut = useMutation({
+  const saveTargetsMut = useMutation({
     mutationFn: async () => {
-      const rows = ([["month", vals.month], ["quarter", vals.quarter], ["year", vals.year]] as const)
-        .map(([k, v]) => ({ period: PERIODS[k], target_revenue: Number(String(v).replace(/[^0-9]/g, "")) || 0 }));
+      const rows = ([["month", targetVals.month], ["quarter", targetVals.quarter], ["year", targetVals.year]] as const)
+        .map(([k, v]) => ({ period: TARGET_PERIODS[k], target_revenue: Number(String(v).replace(/[^0-9]/g, "")) || 0 }));
       for (const r of rows) {
         const { error } = await db.from("growth_targets").upsert(
           { company_id: companyId, period: r.period, target_revenue: r.target_revenue },
@@ -345,92 +160,172 @@ function RevenueTargetCard({ companyId, growth, monthPct, quarterPct, yearPct }:
     },
     onSuccess: () => {
       toast("매출 목표가 저장되었습니다", "success");
-      setEditing(false);
+      setEditTargets(false);
       qc.invalidateQueries({ queryKey: ["founder-data"] });
     },
     onError: (e: any) => toast(e?.message || "목표 저장 실패", "error"),
   });
-
-  const fmtInput = (v: string) => { const d = v.replace(/[^0-9]/g, ""); return d ? Number(d).toLocaleString() : ""; };
-
-  const rows = [
-    { key: "month" as const, l: "이번 달", cur: growth.monthRevenue, tgt: growth.monthTarget, pct: monthPct },
-    { key: "quarter" as const, l: "분기", cur: growth.quarterRevenue, tgt: growth.quarterTarget, pct: quarterPct },
-    { key: "year" as const, l: "연간", cur: growth.yearRevenue, tgt: growth.yearTarget, pct: yearPct },
-  ];
+  const fmtTargetInput = (v: string) => { const d = v.replace(/[^0-9]/g, ""); return d ? Number(d).toLocaleString() : ""; };
 
   return (
-    <div className="master-target-card glass-card">
-      <div className="master-card-head">
-        <h3 className="master-card-title">매출 목표</h3>
-        <div className="flex items-center gap-2.5">
-          {!editing && <button type="button" onClick={startEdit} className="widget-more-link">목표 설정</button>}
-          <Link href="/reports/pnl" className="widget-more-link">손익 →</Link>
-        </div>
-      </div>
-      {editing ? (
-        <div className="master-target-rows">
-          {rows.map((g) => (
-            <div key={g.key} className="master-target-row">
-              <div className="flex items-center justify-between gap-2 text-[11px] mb-1">
-                <span className="text-[var(--text-dim)] shrink-0">{g.l} 목표</span>
-                <span className="text-[10px] text-[var(--text-dim)]">현재 매출 ₩{fmtW(g.cur)}</span>
-              </div>
-              <div className="master-target-input-wrap">
-                <span className="text-[12px] text-[var(--text-dim)]">₩</span>
-                <input
-                  inputMode="numeric"
-                  value={fmtInput(vals[g.key])}
-                  onChange={(e) => setVals((v) => ({ ...v, [g.key]: e.target.value.replace(/[^0-9]/g, "") }))}
-                  placeholder="예: 50,000,000"
-                  className="master-target-input mono-number"
-                />
-              </div>
-            </div>
-          ))}
-          <div className="flex items-center gap-2 pt-1">
-            <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending} className="btn-primary btn-sm flex-1">
-              {saveMut.isPending ? "저장 중..." : "목표 저장"}
+    <div className="owner-command-center">
+      {/* ═══ ① 경영 상태 — 작은 도넛 + 숫자 스트립 + 인사이트 (2026-08-11 심플 개편) ═══ */}
+      <div className="master-state-card glass-card">
+        <div className="master-card-head">
+          <h3 className="master-card-title">경영 상태</h3>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => (editTargets ? setEditTargets(false) : startTargetEdit())} className="widget-more-link">
+              {editTargets ? "닫기" : "목표 설정"}
             </button>
-            <button type="button" onClick={() => setEditing(false)} disabled={saveMut.isPending} className="btn-secondary btn-sm">취소</button>
+            <Link href="/reports/flow" className="widget-more-link">경영 흐름 →</Link>
           </div>
         </div>
-      ) : (
-        <div className="master-target-rows">
-          {rows.map((g) => (
-            <div key={g.key} className="master-target-row">
-              <div className="flex items-center justify-between text-[11px] mb-1.5">
-                <span className="text-[var(--text-dim)]">{g.l}</span>
-                <span className="font-bold mono-number text-[var(--text)]">
-                  ₩{fmtW(g.cur)}
-                  {g.tgt > 0 && <span className="text-[var(--text-dim)] font-semibold"> / {fmtW(g.tgt)}</span>}
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(100, g.pct ?? 0)}%`, background: (g.pct ?? 0) >= 100 ? "var(--success)" : "var(--primary)" }} />
-                </div>
-                <span className="master-target-score mono-number" style={{ color: g.pct == null ? "var(--text-dim)" : g.pct >= 100 ? "var(--success)" : "var(--primary)" }}>
-                  {g.pct !== null ? `${g.pct}%` : "—"}
-                </span>
-              </div>
-              {g.tgt === 0 && (
-                <button type="button" onClick={startEdit} className="text-[10px] text-[var(--primary)] font-semibold mt-1 hover:underline">
-                  목표 미설정 — 여기서 바로 설정하기
-                </button>
-              )}
+        <div className="master-state-body">
+          <div className="master-state-ring">
+            <svg viewBox="0 0 120 120" className="w-full h-full">
+              <circle cx="60" cy="60" r={RING_R} className="master-ring-track" />
+              <circle cx="60" cy="60" r={RING_R} fill="none" stroke={scoreColor} strokeWidth="9" strokeLinecap="round"
+                strokeDasharray={RING_C} strokeDashoffset={ringOff} transform="rotate(-90 60 60)" className="master-ring-fill" />
+            </svg>
+            <div className="master-pulse-ring-center">
+              <span className="master-state-score mono-number" style={{ color: scoreColor }}>{pulseReady ? score : "—"}</span>
+              <span className="master-pulse-score-sub">{pulseReady ? pulseLabel : "데이터 없음"}</span>
             </div>
-          ))}
+          </div>
+          <div className="master-state-stats">
+            <div className="widget-stat">
+              <div className="widget-stat-label">통장 잔고</div>
+              <div className="widget-stat-value mono-number" style={balance <= 0 ? { color: "var(--danger)" } : undefined}>{fmtW(balance) === "0" ? "0원" : `₩${fmtW(balance)}`}</div>
+            </div>
+            <div className="widget-stat">
+              <div className="widget-stat-label">30일 뒤 전망</div>
+              <div className="widget-stat-value mono-number" style={f30 < 0 ? { color: "var(--danger)" } : undefined}>₩{fmtW(f30)}</div>
+            </div>
+            <div className="widget-stat">
+              <div className="widget-stat-label">버틸 수 있는 기간</div>
+              <div className="widget-stat-value mono-number" style={{ color: runway > 0 && runway < 3 ? "var(--danger)" : runway >= 6 ? "var(--success)" : "var(--text)" }}>
+                {runway > 0 ? (runway >= 99 ? "충분" : `${runway.toFixed(1)}개월`) : "—"}
+              </div>
+            </div>
+            <div className="widget-stat">
+              <div className="widget-stat-label">이번 달 매출</div>
+              <div className="widget-stat-value mono-number">₩{fmtW(growth.monthRevenue)}</div>
+              <div className="widget-stat-sub">
+                {monthPct !== null
+                  ? <span style={{ color: monthPct >= 100 ? "var(--success)" : "var(--primary)" }}>목표의 {monthPct}%</span>
+                  : "목표 미설정"}
+              </div>
+            </div>
+            <div className="widget-stat">
+              <div className="widget-stat-label">밀린 미수금</div>
+              <div className="widget-stat-value mono-number" style={{ color: sixPack.arOver30 > 0 ? "var(--danger)" : "var(--success)" }}>
+                {sixPack.arOver30 > 0 ? `₩${fmtW(sixPack.arOver30)}` : "없음"}
+              </div>
+              <div className="widget-stat-sub">30일 이상</div>
+            </div>
+          </div>
         </div>
-      )}
-      {!editing && (
-        <div className="master-insight-strip">
-          {monthPct !== null
-            ? monthPct >= 100
-              ? `이번 달 목표를 이미 ${monthPct}% 달성했습니다 — 훌륭해요.`
-              : `이번 달 목표까지 ${Math.max(0, 100 - monthPct)}% 남았습니다.`
-            : "월 목표를 설정하면 달성률을 추적해 드립니다."}
+        {editTargets && (
+          <div className="master-target-editor">
+            {([["month", "이번 달"], ["quarter", "분기"], ["year", "연간"]] as const).map(([k, l]) => (
+              <div key={k} className="min-w-0">
+                <div className="widget-stat-label mb-1">{l} 목표</div>
+                <div className="master-target-input-wrap">
+                  <span className="text-[12px] text-[var(--text-dim)]">₩</span>
+                  <input
+                    inputMode="numeric"
+                    value={fmtTargetInput(targetVals[k])}
+                    onChange={(e) => setTargetVals((v) => ({ ...v, [k]: e.target.value.replace(/[^0-9]/g, "") }))}
+                    placeholder="예: 50,000,000"
+                    className="master-target-input mono-number"
+                  />
+                </div>
+              </div>
+            ))}
+            <div className="flex items-end gap-2">
+              <button type="button" onClick={() => saveTargetsMut.mutate()} disabled={saveTargetsMut.isPending} className="btn-primary btn-sm">
+                {saveTargetsMut.isPending ? "저장 중..." : "저장"}
+              </button>
+              <button type="button" onClick={() => setEditTargets(false)} disabled={saveTargetsMut.isPending} className="btn-secondary btn-sm">취소</button>
+            </div>
+          </div>
+        )}
+        <div className="master-insight-strip">{pulseInsight}</div>
+      </div>
+
+      {/* ═══ ② 오늘 처리할 일 — 심플 리스트: 제목·금액·승인 하나, 반려·상세는 호버 ═══ */}
+      <div className="master-todo-card glass-card">
+        <div className="master-card-head">
+          <h3 className="master-card-title">
+            오늘 처리할 일
+            {totalTodo > 0 && <span className="master-count mono-number">{totalTodo}</span>}
+            {processed > 0 && <span className="master-done-note">✓ {processed}건 처리</span>}
+          </h3>
+          <div className="flex items-center gap-3 flex-wrap">
+            {queueCount > 0 && <Link href="/partners/reconciliation" className="widget-more-link">매칭 확인 {queueCount}건</Link>}
+            {sixPack.arOver30 > 0 && <Link href="/partners/ledger" className="widget-more-link" style={{ color: "var(--danger)" }}>미수금 30일+ →</Link>}
+            <Link href="/approvals" className="widget-more-link">결재함 →</Link>
+          </div>
+        </div>
+        {topActions.length === 0 ? (
+          <div className="master-todo-empty">오늘은 처리할 일이 없습니다.</div>
+        ) : (
+          <div className="master-todo-list">
+            {topActions.map((a) => {
+              const meta = ACTION_META[a.type] || ACTION_META.approval;
+              return (
+                <div key={`${a.type}-${a.id}`} className="master-todo-row group">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[13px] font-semibold text-[var(--text)] truncate">{a.title}</span>
+                      {a.urgency === "high" && <span className="master-urgent-pill">긴급</span>}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-dim)] truncate mt-0.5">
+                      {meta.label}{a.requester ? ` · ${a.requester}` : ""}{a.dealName ? ` · ${a.dealName}` : ""}
+                    </div>
+                  </div>
+                  {a.amount !== undefined && a.amount > 0 && (
+                    <span className="shrink-0 text-[13px] font-bold mono-number text-[var(--text)]">{won(a.amount)}</span>
+                  )}
+                  <div className="master-todo-actions">
+                    {canRejectAction(a.type) && (
+                      <button onClick={() => handleReject(a)} disabled={busyId === a.id} className="master-todo-ghost-btn">
+                        반려
+                      </button>
+                    )}
+                    <Link href={meta.href} className="master-todo-ghost-btn">상세</Link>
+                    <button onClick={() => approveMut.mutate(a)} disabled={busyId === a.id} className="btn-primary btn-sm">
+                      {busyId === a.id ? "..." : "승인"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {actions.length > topActions.length && (
+              <div className="py-2.5 text-center text-[11px] text-[var(--text-dim)]">
+                외 {actions.length - topActions.length}건 — 각 항목의 "상세"에서 처리하세요
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ═══ ③ 리스크 — 감지된 것이 있을 때만 (없으면 화면에서 생략) ═══ */}
+      {riskTotal > 0 && (
+        <div className="master-risk-card glass-card">
+          <div className="master-card-head">
+            <h3 className="master-card-title">리스크 <span className="master-count master-count-danger mono-number">{riskTotal}</span></h3>
+            <Link href="/projects" className="widget-more-link">프로젝트 →</Link>
+          </div>
+          <div className="space-y-2">
+            {risks.slice(0, 4).map((r, i) => (
+              <div key={i} className="master-risk-row">
+                <div className="text-[12px] font-semibold text-[var(--text)] truncate">{r.name}</div>
+                <div className="text-[11px] text-[var(--danger)] truncate">{r.detail}</div>
+              </div>
+            ))}
+            {risks.length > 4 && <div className="text-[10px] text-[var(--text-dim)] text-center">외 {risks.length - 4}건</div>}
+          </div>
         </div>
       )}
     </div>

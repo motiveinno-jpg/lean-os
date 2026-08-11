@@ -176,7 +176,6 @@ export default function MasterPage() {
           risks={dashboard.risks}
           riskCounts={dashboard.riskCounts}
           cashPulse={cashPulse}
-          closingSlot={<ClosingChecklistWidget companyId={companyId} userId={userId} />}
         />
       )}
 
@@ -215,8 +214,10 @@ export default function MasterPage() {
         </div>
       )}
 
-      {/* ═══ ② 프로젝트 경영 종합 — 분기 KPI 밴드·단계분포·완료 보고서 ═══
-           (월결산은 1행 3번째 카드(closingSlot)로 이동 — 2026-08-11 시각화 개편) */}
+      {/* ═══ ② 월 마감 — 한 줄 진행바(펼치면 체크리스트) ═══ */}
+      {companyId && <ClosingChecklistWidget companyId={companyId} userId={userId} />}
+
+      {/* ═══ ③ 프로젝트 경영 종합 — 분기 KPI 밴드·단계 밴드·완료 보고서 ═══ */}
       <OwnerDashboardSection />
     </div>
   );

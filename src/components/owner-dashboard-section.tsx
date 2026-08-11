@@ -158,28 +158,30 @@ function StageDistributionSection({ data }: { data: StageDist[] }) {
   const STAGES: ProjectStage[] = ["estimate", "contract", "in_progress", "completed", "settlement"];
   const map = new Map(data.map((d) => [d.stage, d]));
 
+  // 단계 5카드 → 분기 KPI 와 같은 밴드 문법으로 통일 (2026-08-11 심플 개편). 클릭 이동 유지.
   return (
     <div className="stage-distribution-section">
-      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">프로젝트 현황</h2>
-      <div className="stage-card-grid">
-        {STAGES.map((s) => {
-          const d = map.get(s);
-          const c = STAGE_COLOR[s];
-          return (
-            <Link
-              key={s}
-              href={`/projects?stage=${s}`}
-              className={`stage-card glass-card`}
-            >
-              <div className="flex items-center gap-1.5 mb-2">
-                <span className={`w-2 h-2 rounded-full ${c.dot}`} />
-                <span className={`text-xs font-bold ${c.text}`}>{STAGE_LABEL[s]}</span>
-              </div>
-              <div className="text-2xl font-extrabold text-[var(--text)]">{d?.count ?? 0}건</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-1">{fmtW(d?.contract_sum)}</div>
-            </Link>
-          );
-        })}
+      <div className="master-kpi-band glass-card">
+        <div className="master-kpi-band-title">
+          <div className="text-[14px] font-bold text-[var(--text)]">프로젝트 현황</div>
+          <div className="text-[10.5px] text-[var(--text-dim)] mt-0.5">단계를 누르면 해당 목록으로 이동</div>
+        </div>
+        <div className="master-kpi-band-stats">
+          {STAGES.map((s) => {
+            const d = map.get(s);
+            const c = STAGE_COLOR[s];
+            return (
+              <Link key={s} href={`/projects?stage=${s}`} className="widget-stat no-underline group">
+                <div className="widget-stat-label flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.dot}`} />
+                  <span className="group-hover:text-[var(--primary)] transition-colors">{STAGE_LABEL[s]}</span>
+                </div>
+                <div className="widget-stat-value mono-number">{d?.count ?? 0}건</div>
+                <div className="widget-stat-sub">{fmtW(d?.contract_sum)}</div>
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -419,7 +421,7 @@ function CompletedReportsSection({ data }: { data: DoneReport[] }) {
 
   return (
     <div className="completed-reports-section">
-      <h2 className="text-lg font-extrabold text-[var(--text)] mb-3">완료 보고서 보관함</h2>
+      <h2 className="text-[15px] font-bold text-[var(--text)] mb-3">완료 보고서 보관함</h2>
       {groups.length === 0 ? (
         <div className="completed-reports-empty glass-card">
           완료된 프로젝트 보고서가 아직 없습니다

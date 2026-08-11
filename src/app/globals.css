@@ -5728,44 +5728,50 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .risk-summary-card { @apply p-5 flex flex-col; }
 .risk-summary-empty { @apply flex-1 flex flex-col items-center justify-center py-6 text-center; }
 
-/* ── 마스터 화면 시각화 개편 (2026-08-11 사장님 — 레퍼런스: 도넛·게이지·링 3카드 + 리스트 + 요약 밴드) ── */
+/* ── 마스터 화면 (2026-08-11 심플 개편 — 조용한 풀폭 스택: 상태 카드 · 처리할 일 · 월마감 바 · 밴드) ── */
 .master-header { @apply mb-5; }
 .master-header-greeting { @apply text-[20px] md:text-[22px] font-extrabold text-[var(--text)] tracking-[-0.01em]; }
 .master-header-sub { @apply text-[12px] text-[var(--text-muted)] mt-1; }
-.master-hero-grid { @apply grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch; }
-.master-mid-grid { @apply grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-4 items-start; }
 .master-card-head { @apply flex items-center justify-between gap-2 mb-3.5; }
-.master-card-title { @apply text-[13px] font-bold text-[var(--text)]; }
-.master-insight-strip { @apply mt-auto pt-3; }
-.master-insight-strip { border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
-.master-insight-strip { @apply text-[11.5px] leading-relaxed text-[var(--text-muted)] break-keep; }
-.master-ring-track { fill: none; stroke: var(--bg-surface); }
+.master-card-title { @apply text-[13px] font-bold text-[var(--text)] flex items-center gap-2; }
+.master-count { @apply text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)]; }
+.master-count-danger { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }
+.master-done-note { @apply text-[10.5px] font-semibold text-[var(--success)]; }
+.master-insight-strip { @apply mt-4 pt-3 text-[11.5px] leading-relaxed text-[var(--text-muted)] break-keep; border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.master-ring-track { fill: none; stroke: var(--bg-surface); stroke-width: 9; }
 .master-ring-fill { transition: stroke-dashoffset .8s cubic-bezier(.4,0,.2,1), stroke .3s; }
-/* 현금 펄스 카드 */
-.master-pulse-card { @apply p-5 flex flex-col; }
-.master-pulse-body { @apply flex items-center gap-5 mb-4; }
-.master-pulse-ring { @apply relative shrink-0 w-[128px] h-[128px]; }
-.master-pulse-ring svg .master-ring-track { stroke-width: 9; }
+/* ① 경영 상태 카드 */
+.master-state-card { @apply p-5; }
+.master-state-body { @apply flex items-center gap-6 flex-wrap sm:flex-nowrap; }
+.master-state-ring { @apply relative shrink-0 w-[104px] h-[104px]; }
 .master-pulse-ring-center { @apply absolute inset-0 flex flex-col items-center justify-center; }
-.master-pulse-score { @apply text-[30px] leading-none font-black; }
-.master-pulse-score-sub { @apply text-[10px] text-[var(--text-dim)] mt-0.5; }
-.master-pulse-state { @apply text-[10px] font-bold px-2 py-0.5 rounded-full mt-1.5; }
-.master-pulse-rows { @apply min-w-0 flex-1 space-y-2; }
-.master-pulse-row { @apply flex items-center justify-between text-[11.5px]; }
-/* 매출 목표 카드 */
-.master-target-card { @apply p-5 flex flex-col; }
-.master-target-rows { @apply space-y-4 mb-4; }
-.master-target-score { @apply text-[13px] font-extrabold shrink-0 w-11 text-right; }
+.master-state-score { @apply text-[26px] leading-none font-black; }
+.master-pulse-score-sub { @apply text-[10px] text-[var(--text-dim)] mt-1; }
+.master-state-stats { @apply flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-5 gap-y-3; }
+.master-target-editor { @apply mt-4 pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end; border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
 .master-target-input-wrap { @apply flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg)] border border-[var(--border)] focus-within:border-[var(--primary)] transition; }
 .master-target-input { @apply flex-1 min-w-0 bg-transparent text-[13px] font-bold text-[var(--text)] outline-none; }
-/* 월 마감 링 카드 */
-.master-closing-card { @apply p-5 flex flex-col; }
-.master-closing-ring { @apply relative shrink-0 w-[116px] h-[116px] mx-auto mb-3; }
-.master-closing-ring-center { @apply absolute inset-0 flex flex-col items-center justify-center; }
-.master-closing-ring-count { @apply text-[19px] leading-none font-black text-[var(--text)]; }
-.master-closing-ring-sub { @apply text-[10px] text-[var(--text-dim)] mt-1; }
-.master-closing-body { @apply flex-1 flex flex-col min-h-0; }
-.master-closing-items { @apply space-y-1 max-h-[168px] overflow-y-auto pr-1; }
+/* ② 오늘 처리할 일 */
+.master-todo-card { @apply p-5; }
+.master-todo-empty { @apply py-8 text-center text-[12px] text-[var(--text-dim)]; }
+.master-todo-list { @apply -mx-2; }
+.master-todo-row { @apply flex items-center gap-4 px-2 py-3 rounded-xl hover:bg-[var(--bg-surface)]/60 transition; }
+.master-todo-row + .master-todo-row { border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+.master-todo-actions { @apply shrink-0 flex items-center gap-1.5; }
+.master-todo-ghost-btn { @apply px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 disabled:opacity-50 no-underline; }
+.master-urgent-pill { @apply shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--danger)]/10 text-[var(--danger)] font-bold; }
+/* ③ 리스크 (있을 때만) */
+.master-risk-card { @apply p-5; }
+.master-risk-row { @apply px-3 py-2 rounded-lg bg-[var(--danger)]/[.05] border border-[var(--danger)]/15; }
+/* 월 마감 — 접힌 진행바 */
+.master-closing-card { @apply p-4 sm:px-5; }
+.master-closing-summary { @apply flex items-center gap-3; }
+.master-closing-toggle { @apply flex items-center gap-3 flex-1 min-w-0 text-left; }
+.master-closing-toggle .master-card-title { @apply shrink-0; }
+.master-closing-bar { @apply flex-1 min-w-[80px] h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
+.master-closing-bar-fill { @apply h-full rounded-full transition-all duration-500; }
+.master-closing-body { @apply mt-4 pt-4; border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+.master-closing-items { @apply space-y-1 max-h-[280px] overflow-y-auto pr-1; }
 .master-closing-item-link { @apply shrink-0 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)] transition-colors no-underline mt-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100; }
 /* 분기 KPI 풀폭 밴드 */
 .master-kpi-band { @apply p-5 flex flex-col md:flex-row md:items-center gap-4 md:gap-8; }
