@@ -16,7 +16,9 @@ import { useUser, type UserRole } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
 import { usePopups } from "@/components/popup-windows";
 
-type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; children?: NavItem[] };
+//   permKey — 권한을 확인할 때 쓸 라우트. 한 권한(예: /reports) 아래 여러 메뉴를 펼 때 쓴다.
+//   없으면 href 를 쓴다(대부분).
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; permKey?: string; children?: NavItem[] };
 type NavGroup = { label: string; items: NavItem[] };
 
 // ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
@@ -40,17 +42,33 @@ const NAV_GROUPS: NavGroup[] = [
     //   라우트·페이지는 그대로. match 로 허브 활성 범위를 지정(예: 거래 장부는 /partners/reconciliation 포함).
     label: "파이낸스",
     items: [
-      { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
-      //   흩어져 있던 다섯 화면의 수집 버튼을 모은 입구 (2026-08-11). 2단계에서 조회·전표 탭이 여기 붙는다.
+      //   흩어져 있던 다섯 화면의 수집을 모은 입구 (2026-08-11). 자료를 받아 전표까지 여기서 끝낸다.
+      //   → 이제 파이낸스의 첫 자리다. 일의 순서가 수집 → 전표 → 조회이기 때문.
       { href: "/collect", label: "수집·전표", icon: "download", roles: ["owner", "admin"], match: ["/collect"] },
       { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
+      { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
+      //   거래 매칭 — 다대일(카드 묶음 청구)·차액 계정 변경이 아직 여기에만 있어 남겨 둔다.
+      //   그 둘을 수집·전표 통장 탭으로 옮기면 이 메뉴는 지운다 (2026-08-11).
       { href: "/transactions", label: "거래 장부", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
       // 전표는 두 갈래로 나눠 각각 메뉴로 둔다 (2026-08-11 사장님 지시 — 탭 말고 메뉴).
       //   일반전표 = 통장·대체·결산 / 매입매출전표 = 세금계산서·카드·현금영수증(부가세 유형이 붙는 거래).
       //   경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 각각 단독 활성.
       { href: "/partners/reconciliation/voucher-entry", label: "일반전표", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"] },
       { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
-      { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
+    ],
+  },
+  {
+    //   분석 — 화면 안 4갈래 탭을 사이드바로 폈다 (2026-08-11 사장님 지시).
+    //   ★ 5개까지만 편다. 하위(매출·비용·월별표 / 예정지출·운영시나리오)는 화면 안 세그먼트로 남긴다
+    //     — 8개를 다 펴면 사이드바가 길어져 오히려 못 찾는다.
+    //   거래처 원장도 여기로 옮겼다 — 판단용 장부라 '보는 곳'이 맞다(거래처 화면의 링크는 그대로 둔다).
+    label: "분석",
+    items: [
+      { href: "/reports/summary", permKey: "/reports", label: "경영 요약", icon: "bar-chart", roles: ["owner", "admin"], match: ["/reports", "/reports/summary"] },
+      { href: "/reports/revenue", permKey: "/reports", label: "손익 현황", icon: "trending-up", roles: ["owner", "admin"], match: ["/reports/revenue", "/reports/expense", "/reports/monthly"] },
+      { href: "/reports/upcoming", permKey: "/reports", label: "자금 전망", icon: "clock", roles: ["owner", "admin"], match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
+      { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", roles: ["owner", "admin"], match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
+      { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"], match: ["/partners/ledger"] },
     ],
   },
   {
@@ -78,7 +96,9 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "자산관리",
+    //   '자산관리' → '자금' (2026-08-11). 거래 내역 처리는 수집·전표로 갔고
+    //   여기 남은 건 **그릇 관리**(잔액·계좌·카드·정기지출)라 이름을 실제 내용에 맞췄다.
+    label: "자금",
     items: [
       { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
@@ -123,7 +143,7 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
     if (i.masterOnly && !isMaster) return false; // 마스터 전용 — 메뉴 권한 부여로도 안 열림
     if (role === "partner") return !i.roles || i.roles.includes(role);
     if (isMaster) return true;
-    return hasMenu(i.href);
+    return hasMenu(i.permKey || i.href);
   };
   return NAV_GROUPS
     .map((group) => ({

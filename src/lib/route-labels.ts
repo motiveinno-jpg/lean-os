@@ -14,8 +14,24 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   // 브레드크럼 title = 좌측 사이드바 허브 라벨과 일치(거래처 / 세금·증빙 / 거래 장부 / 전표입력 / 분석).
   //   세부 화면(거래처 관리·원장, 손익계산서 등)은 FinanceTabs·ReportsTabs 하위 탭이 표시 → 헤더 중복 방지.
   //   /reports/* 는 별도 항목 없이 이 "/reports" 를 상속해 모두 "분석" 으로 표기.
-  "/reports": { group: "파이낸스", title: "분석" },
-  "/partners/ledger": { group: "파이낸스", title: "거래처", desc: "거래처별 매출·매입 원장과 잔액을 봅니다." },
+  //   2026-08-11 — 분석이 사이드바 그룹으로 승격, 거래처 원장도 그리로 옮겼다.
+  //   머리말은 **사이드바에서 고른 갈래 이름**과 같아야 한다("분석 › 분석"이면 아무것도 안 알려 준다).
+  //   최장 prefix 우선이라 아래 갈래별 항목이 "/reports" 보다 먼저 잡힌다.
+  "/reports": { group: "분석", title: "분석" },
+  "/reports/summary": { group: "분석", title: "경영 요약" },
+  "/reports/revenue": { group: "분석", title: "손익 현황" },
+  "/reports/expense": { group: "분석", title: "손익 현황" },
+  "/reports/monthly": { group: "분석", title: "손익 현황" },
+  "/reports/upcoming": { group: "분석", title: "자금 전망" },
+  "/reports/outlook": { group: "분석", title: "자금 전망" },
+  "/reports/flow": { group: "분석", title: "자금 전망" },
+  "/reports/statements": { group: "분석", title: "회계 자료" },
+  "/reports/pnl": { group: "분석", title: "회계 자료" },
+  "/reports/bs": { group: "분석", title: "회계 자료" },
+  "/reports/costs": { group: "분석", title: "회계 자료" },
+  "/reports/by-person": { group: "분석", title: "회계 자료" },
+  "/reports/three-way-match": { group: "분석", title: "회계 자료" },
+  "/partners/ledger": { group: "분석", title: "거래처 원장", desc: "거래처별 매출·매입 원장과 잔액을 봅니다." },
   "/partners/reconciliation/voucher-entry": { group: "파이낸스", title: "일반전표", desc: "통장·대체·결산 거래를 차변·대변으로 직접 입력합니다." },
   "/partners/reconciliation/sale-purchase": { group: "파이낸스", title: "매입매출전표", desc: "세금계산서·카드·현금영수증을 부가세 유형과 함께 입력합니다." },
   "/collect": { group: "파이낸스", title: "수집·전표", desc: "세금계산서·계산서·현금영수증·카드·통장을 한 곳에서 받아오고 전표로 만듭니다." },

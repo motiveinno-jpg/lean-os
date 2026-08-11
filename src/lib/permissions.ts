@@ -31,9 +31,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
   {
     group: "파이낸스",
     menus: [
-      { route: "/partners", label: "거래처" },
-      { route: "/partners/ledger", label: "거래처 원장" },
       { route: "/collect", label: "수집·전표" },
+      { route: "/partners", label: "거래처" },
       { route: "/tax-invoices", label: "세금계산서", tabs: [
         { key: "sales", label: "매출" },
         { key: "purchase", label: "매입" },
@@ -47,7 +46,15 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/transactions", label: "거래 장부" },
       { route: "/partners/reconciliation/voucher-entry", label: "일반전표" },
       { route: "/partners/reconciliation/sale-purchase", label: "매입매출전표" },
+    ],
+  },
+  {
+    //   분석 — 사이드바 그룹으로 승격 (2026-08-11). 거래처 원장도 여기로 옮겼다.
+    //   라우트는 그대로라 기존 권한(/reports, /partners/ledger)이 그대로 먹는다.
+    group: "분석",
+    menus: [
       { route: "/reports", label: "분석·리포트" },
+      { route: "/partners/ledger", label: "거래처 원장" },
     ],
   },
   {
@@ -101,7 +108,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
-    group: "자산관리",
+    //   '자산관리' → '자금' (2026-08-11) — 사이드바와 같은 이름. 라우트는 그대로라 권한은 유지된다.
+    group: "자금",
     menus: [
       { route: "/bank", label: "통장", tabs: [
         { key: "overview", label: "개요" },

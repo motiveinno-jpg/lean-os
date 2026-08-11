@@ -1,6 +1,12 @@
 "use client";
 
-// 분석 상단 내비 — "질문 기반" 4그룹 + 그룹 내 하위 토글 (2026-07-22 재편).
+// 분석 상단 내비 — 그룹 내 하위 토글 + 설명 (2026-08-11 개편).
+//   4갈래 그룹은 **사이드바로 폈다**(수집·전표 개편 5단계). 여기서 또 보여 주면 같은 줄이 두 번 나온다.
+//   그래서 1단 그룹 탭은 걷어내고, **그 그룹의 하위 토글과 설명만** 남긴다.
+//   GROUPS 는 그대로 둔다 — 지금 어느 그룹에 있는지 알아야 하위 토글과 설명을 고를 수 있다.
+//
+// (아래는 2026-07-22 재편 당시 메모)
+// 분석 상단 내비 — "질문 기반" 4그룹 + 그룹 내 하위 토글.
 //   기존 7탭이 얇게 갈라져 이동 피로가 컸던 문제를, 대표의 질문 단위 4그룹으로 묶어 해소.
 //     · 경영 요약   — 지금 괜찮아?
 //     · 손익 현황   — 얼마 벌고 얼마 썼어? (매출·비용·월별 표를 그룹 내 토글로)
@@ -61,29 +67,9 @@ export function ReportsTabs() {
 
   return (
     <div className="reports-tabs reports-header">
-      {/* 1단 — 질문 기반 4그룹 */}
-      <div className="reports-tabs-list no-print">
-        {GROUPS.map((g) => {
-          const active = g === activeGroup;
-          return (
-            <Link
-              key={g.href}
-              href={g.href}
-              className={`reports-tab-link ${
-                active
-                  ? "bg-[var(--primary)] text-white shadow-sm"
-                  : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]"
-              }`}
-            >
-              {g.label}
-            </Link>
-          );
-        })}
-      </div>
-
-      {/* 2단 — 활성 그룹의 하위 토글(있을 때만) */}
+      {/* 갈래(경영요약·손익현황·자금전망·회계자료)는 사이드바가 맡는다 — 여기선 하위 토글만 */}
       {activeGroup.subs && (
-        <div className="seg-bar no-print mt-3">
+        <div className="seg-bar no-print">
           {activeGroup.subs.map((l) => {
             const active = matchesPath(pathname, leafPaths(l));
             return (
