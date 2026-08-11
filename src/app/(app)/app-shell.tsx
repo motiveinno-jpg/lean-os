@@ -22,6 +22,8 @@ import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
 import { AppTourHost } from "@/components/app-tour";
+import { SingleSessionGuard } from "@/components/single-session-guard";
+import { IpGate } from "@/components/ip-gate";
 import { PopupProvider, PopupWindowsHost } from "@/components/popup-windows";
 import { SubscriptionGate } from "@/components/subscription-gate";
 import { AccessDenied } from "@/components/access-denied";
@@ -387,6 +389,10 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <PopupWindowsHost />
       {/* 첫 가입 탭 투어 — 셸 상주라 투어 중 다른 화면으로 가도 유지, 새로고침도 sessionStorage 로 이어감 (2026-08-10) */}
       <AppTourHost companyId={companyId} />
+      {/* 중복 로그인 방지 — 다른 기기 로그인 시 이 기기 즉시 로그아웃 (2026-08-11) */}
+      <SingleSessionGuard />
+      {/* 회사별 접속 허용 IP 제한 — 설정을 켠 회사만 (2026-08-11) */}
+      <IpGate />
       {/* 글로벌 Mutation 에러 토스트 */}
       {mutationError && (
         <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-red-500/95 text-white text-xs font-medium shadow-lg max-w-sm text-center animate-[slide-in_0.3s_ease]">

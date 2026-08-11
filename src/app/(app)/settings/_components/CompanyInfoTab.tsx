@@ -602,6 +602,105 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
       {/* 회사 문서 (법인 서류) — 계약 발송·현황에서 이관(2026-07-23). 업로드 상태·보기·교체·삭제 지원 */}
       <CompanyDocsSection companyId={companyId} />
+
+      {/* 보안 — 접속 허용 IP (옵션, 2026-08-11 사장님: 쓰는 회사만) */}
+      <IpRestrictionSection companyId={companyId} />
+    </div>
+  );
+}
+
+/* ── 보안: 접속 허용 IP — company_settings.settings.ip_restriction { enabled, ips[] } ──
+   켠 회사만 적용(IpGate 가 앱 전역에서 판정). 켤 때 현재 IP 를 자동 포함해 스스로 잠기는 사고를 막는다. */
+function IpRestrictionSection({ companyId }: { companyId: string | null }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [ipsText, setIpsText] = useState("");
+  const [enabled, setEnabled] = useState(false);
+  const [myIp, setMyIp] = useState("");
+  const [loaded, setLoaded] = useState(false);
+
+  const { data: row } = useQuery({
+    queryKey: ["company-settings-security", companyId],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("company_settings").select("id, settings").eq("company_id", companyId!).maybeSingle();
+      return data as { id: string; settings: Record<string, unknown> | null } | null;
+    },
+    enabled: !!companyId,
+  });
+
+  useEffect(() => {
+    fetch("/api/my-ip").then((r) => r.json()).then((d) => setMyIp(d.ip || "")).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!row || loaded) return;
+    const conf = (row.settings as any)?.ip_restriction || {};
+    setEnabled(!!conf.enabled);
+    setIpsText(Array.isArray(conf.ips) ? conf.ips.join("\n") : "");
+    setLoaded(true);
+  }, [row, loaded]);
+
+  const saveMut = useMutation({
+    mutationFn: async ({ nextEnabled, nextIps }: { nextEnabled: boolean; nextIps: string[] }) => {
+      if (!row?.id) throw new Error("회사 설정 행이 없습니다 — 연동·인증 탭을 먼저 한 번 열어주세요");
+      const nextSettings = { ...(row.settings || {}), ip_restriction: { enabled: nextEnabled, ips: nextIps } };
+      const { error } = await (supabase as any).from("company_settings").update({ settings: nextSettings }).eq("id", row.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast("접속 허용 IP 설정이 저장되었습니다.", "success");
+      queryClient.invalidateQueries({ queryKey: ["company-settings-security", companyId] });
+    },
+    onError: (e: any) => toast(`저장 실패: ${friendlyError(e, "알 수 없는 오류")}`, "error"),
+  });
+
+  const parseIps = () => ipsText.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
+
+  const handleSave = async () => {
+    let ips = parseIps();
+    if (enabled) {
+      if (ips.length === 0) { toast("허용할 IP를 1개 이상 입력하세요.", "error"); return; }
+      // 잠금 사고 방지 — 켜는 순간 현재 접속 IP 가 목록에 없으면 자동 포함
+      if (myIp && !ips.includes(myIp)) {
+        if (await appConfirm(`현재 접속 중인 IP(${myIp})가 목록에 없습니다. 저장하면 이 기기도 차단됩니다.\n현재 IP를 목록에 추가하고 저장할까요?`, { title: "현재 IP 자동 추가", confirmLabel: "추가하고 저장" })) {
+          ips = [...ips, myIp];
+          setIpsText(ips.join("\n"));
+        }
+      }
+    }
+    saveMut.mutate({ nextEnabled: enabled, nextIps: ips });
+  };
+
+  return (
+    <div className="company-ip-restriction-panel glass-card">
+      <h2 className="section-title">보안 — 접속 허용 IP</h2>
+      <p className="text-[11.5px] text-[var(--text-muted)] leading-relaxed mb-3 break-keep">
+        켜면 아래에 등록한 IP(사무실 인터넷 등)에서만 오너뷰에 접속할 수 있습니다. 끄면 어디서든 접속됩니다.
+        {myIp && <> 현재 이 기기의 IP: <b className="mono-number text-[var(--text)]">{myIp}</b></>}
+      </p>
+      <label className="flex items-center gap-2 mb-3 cursor-pointer">
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="rounded" />
+        <span className="text-[12.5px] font-semibold text-[var(--text)]">허용된 IP에서만 접속 가능</span>
+      </label>
+      <textarea
+        value={ipsText}
+        onChange={(e) => setIpsText(e.target.value)}
+        placeholder={"한 줄에 하나씩 입력\n예)\n211.234.56.78\n121.140.11.22"}
+        rows={4}
+        className="field-input font-mono text-[12px] leading-relaxed"
+        style={{ height: "auto" }}
+      />
+      <div className="mt-3 flex items-center gap-2">
+        {myIp && (
+          <button type="button" className="btn-secondary btn-sm"
+            onClick={() => { const ips = parseIps(); if (!ips.includes(myIp)) setIpsText([...ips, myIp].join("\n")); }}>
+            현재 IP 추가
+          </button>
+        )}
+        <button type="button" onClick={() => { void handleSave(); }} disabled={saveMut.isPending} className="btn-primary btn-sm ml-auto">
+          {saveMut.isPending ? "저장 중..." : "보안 설정 저장"}
+        </button>
+      </div>
     </div>
   );
 }

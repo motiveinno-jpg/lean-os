@@ -75,6 +75,14 @@ export default function AuthPage() {
       naver_user_failed: "계정 생성에 실패했습니다. 고객센터로 문의해주세요.",
       naver_session_failed: "로그인 세션을 만들지 못했습니다. 다시 시도해주세요.",
     };
+    // 중복 로그인으로 밀려난 경우 — 왜 로그아웃됐는지 안내 (2026-08-11)
+    if (sp.get("reason") === "duplicate") {
+      setError("다른 기기에서 같은 계정으로 로그인되어 이 기기는 로그아웃되었습니다. 계속 쓰시려면 다시 로그인하세요.");
+      sp.delete("reason");
+      const qs0 = sp.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qs0 ? `?${qs0}` : ""));
+      return;
+    }
     const naverError = NAVER_ERRORS[sp.get("error") || ""];
     if (naverError) {
       setError(naverError);
