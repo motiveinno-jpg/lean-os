@@ -64,7 +64,7 @@ function BillingPageInner() {
   const [cancelReason, setCancelReason] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
-  // 영업사원 영업코드 — 입력 시 무료체험 14일 + 보너스(기본 30일) = 44일 (2026-07-27 가격정책).
+  // 영업사원 영업코드 — 무료체험 폐지(2026-08-11) 후 영업 실적 추적용 기록만 남는다.
   //   유효성은 서버(/api/stripe/checkout)가 판정한다 — 클라에서 코드 목록을 조회할 수 없다.
   const [salesCode, setSalesCode] = useState("");
   // 연간 결제 "중도해지 시 환불 불가" 동의 — 약관규제법상 고객에게 불리한 중요 조항은
@@ -352,7 +352,7 @@ function BillingPageInner() {
           seatCount: usage?.employees || 1,
           // 결제주기 — 화면 토글값. 연간은 1년치를 한 번에 청구(체험 종료 후).
           billingCycle: cycle,
-          // 영업코드(선택) — 서버가 유효성 검증 후 무료체험을 늘린다. 잘못된 코드면 400.
+          // 영업코드(선택) — 서버가 유효성 검증 후 결제 메타데이터에 기록(추적용). 잘못된 코드면 400.
           salesCode: salesCode.trim() || undefined,
           successUrl: `${window.location.origin}/billing?payment=success`,
           cancelUrl: `${window.location.origin}/billing?payment=cancel`,
@@ -523,7 +523,7 @@ function BillingPageInner() {
               월 <b>39,000원</b>(VAT 별도)이면 세금계산서 월 100건·현금영수증 월 100건, 전자계약 무제한,
               <b> 은행·카드 전 계좌 하루 2회 자동 동기화</b>까지 열립니다. 기본 5명 포함, 추가 1명당 5,000원.
             </div>
-            {/* 영업코드 — 입력하면 체험이 44일로 늘어난다. 코드가 없으면 비워두면 된다. */}
+            {/* 영업코드 — 영업 실적 추적용 기록(무료체험 폐지, 2026-08-11). 코드가 없으면 비워두면 된다. */}
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <input
                 value={salesCode}
@@ -533,8 +533,8 @@ function BillingPageInner() {
               />
               <span className="text-[11px] text-[var(--text-dim)]">
                 {salesCode.trim()
-                  ? "코드가 확인되면 무료체험이 44일로 늘어납니다"
-                  : "할인 코드가 있다면 입력하세요 (체험 44일)"}
+                  ? "결제 시 영업코드가 함께 기록됩니다"
+                  : "영업 담당자에게 받은 코드가 있다면 입력하세요"}
               </span>
             </div>
           </div>
@@ -902,7 +902,7 @@ function BillingPageInner() {
                       ) : plan.base_price === 0 ? (
                         <>
                           <div className="text-3xl font-extrabold text-[var(--text)]">무료</div>
-                          <div className="text-xs text-[var(--text-muted)] mt-1">14일 무료 체험</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-1">카드 등록 없이 계속 무료</div>
                         </>
                       ) : (
                         <>
@@ -1086,7 +1086,7 @@ function BillingPageInner() {
             <div className="space-y-2 text-sm text-[var(--text-muted)]">
               <div className="flex items-start gap-2"><span>•</span> Stripe를 통해 안전하게 결제됩니다 (PCI DSS Level 1)</div>
               <div className="flex items-start gap-2"><span>•</span> 월간 결제: 매월 동일일에 자동 결제</div>
-              <div className="flex items-start gap-2"><span>•</span> 14일 무료 체험 후 프로 요금제로 전환됩니다</div>
+              <div className="flex items-start gap-2"><span>•</span> 결제 즉시 오너뷰 기능이 열립니다 (무료체험 없음)</div>
               <div className="flex items-start gap-2"><span>•</span> 부가세(VAT) 10%는 별도 청구됩니다</div>
               <div className="flex items-start gap-2"><span>•</span> 결제 실패 시 3일 후 재시도, 3회 실패 시 Free 전환</div>
             </div>
@@ -1238,10 +1238,10 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 );
               })()}
             </div>
-            {/* 지금 청구되는 게 아님을 명시 — 실결제 테스트 때 "바로 결제된 거냐" 오해 (2026-07-28 사장님) */}
+            {/* 무료체험 폐지 (2026-08-11 사장님) — 즉시 청구를 명시 */}
             {showUpgradeModal !== "free" && !(hasStripeSubscription && currentSlug !== "free") && (
               <p className="text-[11px] text-[var(--text-dim)] mb-4">
-                지금은 카드만 등록되며 <b>청구되지 않습니다.</b> 무료체험이 끝나는 날 위 금액이 자동 결제되고, 체험 중 해지하면 청구가 없습니다.
+                결제 완료 <b>즉시 위 금액이 청구</b>되고 오너뷰 기능이 열립니다. {cycle === "annual" ? "연간은 1년치가 한 번에 청구됩니다." : "이후 매월 같은 날 자동 결제됩니다."}
               </p>
             )}
             {/* 할인코드 적용 표시 — 배너에서 입력한 코드가 결제에 실린다는 걸 결제 직전에 보여준다 (2026-07-28) */}
@@ -1249,7 +1249,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-[var(--primary)]/10 border border-[var(--primary)]/30">
                 <span className="text-sm">🎟️</span>
                 <span className="text-xs font-semibold text-[var(--primary)]">
-                  할인 코드 {salesCode.trim()} 적용 — 유효한 코드면 무료체험이 44일로 늘어납니다
+                  영업코드 {salesCode.trim()} 적용 — 결제에 함께 기록됩니다
                 </span>
               </div>
             )}
@@ -1268,7 +1268,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 {isPaymentLoading ? "로딩 중..."
                   : showUpgradeModal === "free" ? "다운그레이드"
                   : hasStripeSubscription && currentSlug !== "free" ? "구독 관리에서 변경"
-                  : "카드 등록하고 체험 시작"}
+                  : "지금 결제하기"}
               </button>
             </div>
           </div>

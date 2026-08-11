@@ -9,8 +9,8 @@ function getStripe() {
   });
 }
 
-// 기본 무료체험 14일. 영업코드를 입력하면 코드에 설정된 보너스일(기본 30일)이 더해져 44일.
-export const BASE_TRIAL_DAYS = 14;
+// 무료체험 폐지 (2026-08-11 사장님: "무료는 무료요금제뿐, 오너뷰는 즉시 결제") —
+//   결제 완료 즉시 청구·이용 개시. 영업코드는 추적용으로만 기록(체험 연장 혜택 소멸).
 
 type BillingCycle = 'monthly' | 'annual';
 
@@ -100,11 +100,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 영업코드: 서버에서 검증(클라 값 신뢰 안 함). 유효하면 보너스 체험일을 더한다.
-    //   sales_code_bonus_days 는 코드를 아는 경우에만 확인되는 SECURITY DEFINER RPC —
-    //   목록 열람은 불가하므로 코드 수집에 쓰일 수 없다.
+    // 영업코드: 서버에서 검증(클라 값 신뢰 안 함) — 무료체험 폐지 후에는 영업 실적 추적용으로만
+    //   메타데이터에 기록한다. sales_code_bonus_days 는 코드를 아는 경우에만 확인되는 RPC.
     let normalizedSalesCode: string | null = null;
-    let bonusTrialDays = 0;
     if (typeof salesCode === 'string' && salesCode.trim()) {
       normalizedSalesCode = salesCode.trim().toUpperCase();
       const { data: bonus, error: codeErr } = await supabase.rpc('sales_code_bonus_days', {
@@ -116,9 +114,7 @@ export async function POST(request: NextRequest) {
           { status: 400 },
         );
       }
-      bonusTrialDays = Math.max(0, Number(bonus) || 0);
     }
-    const trialDays = BASE_TRIAL_DAYS + bonusTrialDays;
 
     // 좌석 수는 서버에서 재계산 — 클라 값 그대로 신뢰하지 않음. 추가좌석 = max(0, 좌석 - 기본좌석 - 무료쿠폰좌석).
     //   무료쿠폰좌석: 연간 결제 혜택 쿠폰(추가인원 12명 무료)을 사용(redeemed)한 회사는 그만큼 과금 제외
@@ -151,16 +147,11 @@ export async function POST(request: NextRequest) {
       planSlug,
       seatCount: String(requestedSeats),
       billingCycle: cycle,
-      trialDays: String(trialDays),
       ...(normalizedSalesCode ? { salesCode: normalizedSalesCode } : {}),
     };
 
-    // 카드 등록 즉시(0원 인증) + 트라이얼(기본 14일, 영업코드 시 44일) + 종료 후 자동 청구.
-    //   연간도 동일하게 트라이얼을 주고, 종료 시 1년치를 한 번에 청구한다(사장님 결정 2026-07-27).
-    //   결제수단 없으면 트라이얼 종료 시 구독 취소.
+    // 무료체험 없이 즉시 청구 (2026-08-11) — 월간은 첫 달, 연간은 1년치가 결제 완료 즉시 청구된다.
     const subscriptionData = {
-      trial_period_days: trialDays,
-      trial_settings: { end_behavior: { missing_payment_method: 'cancel' as const } },
       metadata: sharedMetadata,
       // 부가세 10% 별도 청구 — 구독 전체에 기본 세율 적용(설정 시). 미설정이면 세금 없이 진행.
       ...(process.env.STRIPE_TAX_RATE_VAT ? { default_tax_rates: [process.env.STRIPE_TAX_RATE_VAT] } : {}),
