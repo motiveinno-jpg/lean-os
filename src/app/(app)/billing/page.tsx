@@ -1185,25 +1185,58 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 ? "Free 플랜으로 다운그레이드하시겠습니까? 현재 결제 기간이 끝나면 기능이 제한됩니다."
                 : `${(plans || []).find((pl: any) => pl.slug === showUpgradeModal)?.name || showUpgradeModal} 플랜으로 업그레이드합니다.`}
             </p>
+            {/* 금액 내역 — 기본요금 + 인원 추가를 항목으로 풀어서 (2026-08-11 사장님:
+                "39,000원 눌렀는데 74,000원이라고 나오면 오해한다"). 좌석 기준은 실제 결제와
+                동일한 활성 직원 수(구독행 seat_count 레거시 값 금지 — 514,000원 오표시 사고). */}
             <div className="bg-[var(--bg-surface)] rounded-xl p-4 mb-4">
               <div className="text-xs text-[var(--text-muted)] mb-1">변경 후 예상 금액</div>
-              <div className="text-xl font-extrabold text-[var(--text)]">
-                {showUpgradeModal === "free" ? "무료" : (() => {
-                  const p = (plans || []).find((pl: any) => pl.slug === showUpgradeModal);
-                  if (!p) return "-";
-                  // 기본 좌석 초과분만 좌석당 과금(VAT 별도) — 사용된 무료좌석 쿠폰(연간 혜택) 제외.
-                  //   ⚠️ 좌석 기준은 실제 결제(checkout)와 동일하게 **활성 직원 수** — 종전엔 구독행의
-                  //   seat_count(구 요금제 레거시 값, 예: 100)를 읽어 514,000원처럼 뻥튀기 표시됐다
-                  //   (2026-08-11 사장님 제보). 실청구는 원래 직원 수 기준이라 표시만 틀렸던 것.
-                  const extra = Math.max(0, (usage?.employees || 1) - ((p as any).included_seats || 0) - redeemedFreeSeats);
-                  const monthlyTotal = p.base_price + p.per_seat_price * extra;
-                  if (cycle === "annual") {
-                    const discounted = Math.round(monthlyTotal * (1 - ANNUAL_DISCOUNT_DISPLAY));
-                    return `₩${discounted.toLocaleString()}/월 — 연 ₩${(discounted * 12).toLocaleString()} 일시 청구 (10% 할인·VAT 별도)`;
-                  }
-                  return `₩${monthlyTotal.toLocaleString()}/월 (VAT 별도)`;
-                })()}
-              </div>
+              {showUpgradeModal === "free" ? (
+                <div className="text-xl font-extrabold text-[var(--text)]">무료</div>
+              ) : (() => {
+                const p = (plans || []).find((pl: any) => pl.slug === showUpgradeModal);
+                if (!p) return <div className="text-xl font-extrabold text-[var(--text)]">-</div>;
+                const included = (p as any).included_seats || 0;
+                const members = usage?.employees || 1;
+                const extra = Math.max(0, members - included - redeemedFreeSeats);
+                const monthlyTotal = p.base_price + p.per_seat_price * extra;
+                const discounted = Math.round(monthlyTotal * (1 - ANNUAL_DISCOUNT_DISPLAY));
+                return (
+                  <>
+                    <div className="space-y-1 text-sm text-[var(--text-muted)]">
+                      <div className="flex justify-between">
+                        <span>기본 요금제 (구성원 {included}명 포함)</span>
+                        <b className="text-[var(--text)] mono-number">₩{Number(p.base_price).toLocaleString()}</b>
+                      </div>
+                      {extra > 0 && (
+                        <div className="flex justify-between">
+                          <span>추가 구성원 {extra}명 × ₩{Number(p.per_seat_price).toLocaleString()}</span>
+                          <b className="text-[var(--text)] mono-number">₩{(p.per_seat_price * extra).toLocaleString()}</b>
+                        </div>
+                      )}
+                      {redeemedFreeSeats > 0 && (
+                        <div className="flex justify-between text-[var(--success)]">
+                          <span>연간 혜택 무료 좌석 {redeemedFreeSeats}명</span>
+                          <b>₩0</b>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-2 pt-2 border-t border-[var(--border)] flex justify-between items-baseline">
+                      <span className="text-xs text-[var(--text-muted)]">합계</span>
+                      <div className="text-xl font-extrabold text-[var(--text)]">
+                        {cycle === "annual"
+                          ? <>₩{discounted.toLocaleString()}<span className="text-xs font-normal text-[var(--text-muted)]">/월 (VAT 별도)</span></>
+                          : <>₩{monthlyTotal.toLocaleString()}<span className="text-xs font-normal text-[var(--text-muted)]">/월 (VAT 별도)</span></>}
+                      </div>
+                    </div>
+                    {cycle === "annual" && (
+                      <div className="text-[11px] text-[var(--text-muted)] mt-1 text-right">연 ₩{(discounted * 12).toLocaleString()} 일시 청구 · 10% 할인 적용</div>
+                    )}
+                    <p className="text-[11px] text-[var(--text-dim)] mt-2">
+                      현재 활성 구성원이 {members}명이라 기본 {included}명을 넘는 인원만큼 추가 요금이 붙습니다. 구성원을 줄이면 다음 결제부터 자동 반영됩니다.
+                    </p>
+                  </>
+                );
+              })()}
             </div>
             {/* 지금 청구되는 게 아님을 명시 — 실결제 테스트 때 "바로 결제된 거냐" 오해 (2026-07-28 사장님) */}
             {showUpgradeModal !== "free" && !(hasStripeSubscription && currentSlug !== "free") && (
