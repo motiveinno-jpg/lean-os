@@ -173,46 +173,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
         </div>
 
         {/* 매출 목표 — 게이지 바 + 달성률 점수 */}
-        <div className="master-target-card glass-card">
-          <div className="master-card-head">
-            <h3 className="master-card-title">매출 목표</h3>
-            <Link href="/reports/pnl" className="widget-more-link">손익 →</Link>
-          </div>
-          <div className="master-target-rows">
-            {[
-              { l: "이번 달", cur: growth.monthRevenue, tgt: growth.monthTarget, pct: monthPct },
-              { l: "분기", cur: growth.quarterRevenue, tgt: growth.quarterTarget, pct: quarterPct },
-              { l: "연간", cur: growth.yearRevenue, tgt: growth.yearTarget, pct: yearPct },
-            ].map((g) => (
-              <div key={g.l} className="master-target-row">
-                <div className="flex items-center justify-between text-[11px] mb-1.5">
-                  <span className="text-[var(--text-dim)]">{g.l}</span>
-                  <span className="font-bold mono-number text-[var(--text)]">
-                    ₩{fmtW(g.cur)}
-                    {g.tgt > 0 && <span className="text-[var(--text-dim)] font-semibold"> / {fmtW(g.tgt)}</span>}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                    <div className="h-full rounded-full transition-all"
-                      style={{ width: `${Math.min(100, g.pct ?? 0)}%`, background: (g.pct ?? 0) >= 100 ? "var(--success)" : "var(--primary)" }} />
-                  </div>
-                  <span className="master-target-score mono-number" style={{ color: g.pct == null ? "var(--text-dim)" : g.pct >= 100 ? "var(--success)" : "var(--primary)" }}>
-                    {g.pct !== null ? `${g.pct}%` : "—"}
-                  </span>
-                </div>
-                {g.tgt === 0 && <div className="text-[10px] text-[var(--text-dim)] mt-1">목표 미설정 — 설정에서 등록하세요</div>}
-              </div>
-            ))}
-          </div>
-          <div className="master-insight-strip">
-            {monthPct !== null
-              ? monthPct >= 100
-                ? `이번 달 목표를 이미 ${monthPct}% 달성했습니다 — 훌륭해요.`
-                : `이번 달 목표까지 ${Math.max(0, 100 - monthPct)}% 남았습니다.`
-              : "월 목표를 설정하면 달성률을 추적해 드립니다."}
-          </div>
-        </div>
+        <RevenueTargetCard companyId={companyId} growth={growth} monthPct={monthPct} quarterPct={quarterPct} yearPct={yearPct} />
 
         {/* 월 마감 — 완료 링 카드 (마스터 페이지가 꽂는 슬롯) */}
         {closingSlot}
@@ -338,6 +299,140 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── 매출 목표 카드 — 카드 안에서 바로 목표 설정 (2026-08-11 사장님: "그 카드에서 설정 가능하게") ──
+//   growth_targets upsert(onConflict company_id,period) — period 형식은 queries.ts 와 동일
+//   (월 YYYY-MM · 분기 YYYY-Q# · 연 YYYY). 저장 후 founder-data 무효화로 달성률 즉시 갱신.
+function RevenueTargetCard({ companyId, growth, monthPct, quarterPct, yearPct }: {
+  companyId: string;
+  growth: { monthRevenue: number; quarterRevenue: number; yearRevenue: number; monthTarget: number; quarterTarget: number; yearTarget: number };
+  monthPct: number | null; quarterPct: number | null; yearPct: number | null;
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [vals, setVals] = useState({ month: "", quarter: "", year: "" });
+
+  const now = new Date();
+  const PERIODS = {
+    month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+    quarter: `${now.getFullYear()}-Q${Math.ceil((now.getMonth() + 1) / 3)}`,
+    year: String(now.getFullYear()),
+  };
+
+  const startEdit = () => {
+    setVals({
+      month: growth.monthTarget > 0 ? String(growth.monthTarget) : "",
+      quarter: growth.quarterTarget > 0 ? String(growth.quarterTarget) : "",
+      year: growth.yearTarget > 0 ? String(growth.yearTarget) : "",
+    });
+    setEditing(true);
+  };
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const rows = ([["month", vals.month], ["quarter", vals.quarter], ["year", vals.year]] as const)
+        .map(([k, v]) => ({ period: PERIODS[k], target_revenue: Number(String(v).replace(/[^0-9]/g, "")) || 0 }));
+      for (const r of rows) {
+        const { error } = await db.from("growth_targets").upsert(
+          { company_id: companyId, period: r.period, target_revenue: r.target_revenue },
+          { onConflict: "company_id,period" });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast("매출 목표가 저장되었습니다", "success");
+      setEditing(false);
+      qc.invalidateQueries({ queryKey: ["founder-data"] });
+    },
+    onError: (e: any) => toast(e?.message || "목표 저장 실패", "error"),
+  });
+
+  const fmtInput = (v: string) => { const d = v.replace(/[^0-9]/g, ""); return d ? Number(d).toLocaleString() : ""; };
+
+  const rows = [
+    { key: "month" as const, l: "이번 달", cur: growth.monthRevenue, tgt: growth.monthTarget, pct: monthPct },
+    { key: "quarter" as const, l: "분기", cur: growth.quarterRevenue, tgt: growth.quarterTarget, pct: quarterPct },
+    { key: "year" as const, l: "연간", cur: growth.yearRevenue, tgt: growth.yearTarget, pct: yearPct },
+  ];
+
+  return (
+    <div className="master-target-card glass-card">
+      <div className="master-card-head">
+        <h3 className="master-card-title">매출 목표</h3>
+        <div className="flex items-center gap-2.5">
+          {!editing && <button type="button" onClick={startEdit} className="widget-more-link">목표 설정</button>}
+          <Link href="/reports/pnl" className="widget-more-link">손익 →</Link>
+        </div>
+      </div>
+      {editing ? (
+        <div className="master-target-rows">
+          {rows.map((g) => (
+            <div key={g.key} className="master-target-row">
+              <div className="flex items-center justify-between gap-2 text-[11px] mb-1">
+                <span className="text-[var(--text-dim)] shrink-0">{g.l} 목표</span>
+                <span className="text-[10px] text-[var(--text-dim)]">현재 매출 ₩{fmtW(g.cur)}</span>
+              </div>
+              <div className="master-target-input-wrap">
+                <span className="text-[12px] text-[var(--text-dim)]">₩</span>
+                <input
+                  inputMode="numeric"
+                  value={fmtInput(vals[g.key])}
+                  onChange={(e) => setVals((v) => ({ ...v, [g.key]: e.target.value.replace(/[^0-9]/g, "") }))}
+                  placeholder="예: 50,000,000"
+                  className="master-target-input mono-number"
+                />
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-1">
+            <button type="button" onClick={() => saveMut.mutate()} disabled={saveMut.isPending} className="btn-primary btn-sm flex-1">
+              {saveMut.isPending ? "저장 중..." : "목표 저장"}
+            </button>
+            <button type="button" onClick={() => setEditing(false)} disabled={saveMut.isPending} className="btn-secondary btn-sm">취소</button>
+          </div>
+        </div>
+      ) : (
+        <div className="master-target-rows">
+          {rows.map((g) => (
+            <div key={g.key} className="master-target-row">
+              <div className="flex items-center justify-between text-[11px] mb-1.5">
+                <span className="text-[var(--text-dim)]">{g.l}</span>
+                <span className="font-bold mono-number text-[var(--text)]">
+                  ₩{fmtW(g.cur)}
+                  {g.tgt > 0 && <span className="text-[var(--text-dim)] font-semibold"> / {fmtW(g.tgt)}</span>}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="flex-1 h-2 rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                  <div className="h-full rounded-full transition-all"
+                    style={{ width: `${Math.min(100, g.pct ?? 0)}%`, background: (g.pct ?? 0) >= 100 ? "var(--success)" : "var(--primary)" }} />
+                </div>
+                <span className="master-target-score mono-number" style={{ color: g.pct == null ? "var(--text-dim)" : g.pct >= 100 ? "var(--success)" : "var(--primary)" }}>
+                  {g.pct !== null ? `${g.pct}%` : "—"}
+                </span>
+              </div>
+              {g.tgt === 0 && (
+                <button type="button" onClick={startEdit} className="text-[10px] text-[var(--primary)] font-semibold mt-1 hover:underline">
+                  목표 미설정 — 여기서 바로 설정하기
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {!editing && (
+        <div className="master-insight-strip">
+          {monthPct !== null
+            ? monthPct >= 100
+              ? `이번 달 목표를 이미 ${monthPct}% 달성했습니다 — 훌륭해요.`
+              : `이번 달 목표까지 ${Math.max(0, 100 - monthPct)}% 남았습니다.`
+            : "월 목표를 설정하면 달성률을 추적해 드립니다."}
+        </div>
+      )}
     </div>
   );
 }

@@ -12,6 +12,24 @@ import { useToast } from "@/components/toast";
 
 // 월 마감 체크리스트 — 대시보드 하단에 있던 것을 마스터 화면으로 이동하며 분리 (2026-08-10 사장님).
 //   로직·마크업은 dashboard/page.tsx 의 ClosingChecklistWidget 그대로.
+
+import Link from "next/link";
+
+// 항목별 처리 화면 바로가기 (2026-08-11 사장님: "어디서 체크하는지 바로 연동") —
+//   closing.ts DEFAULT_ITEMS 의 제목 키워드로 매칭(제목이 바뀌어도 부분일치로 살아남게).
+const ITEM_LINKS: { match: RegExp; href: string; label: string }[] = [
+  { match: /은행 거래내역/, href: "/bank", label: "통장 보기" },
+  { match: /법인카드/, href: "/cards", label: "카드 보기" },
+  { match: /미매핑|분류/, href: "/transactions", label: "거래 분류" },
+  { match: /세금계산서/, href: "/tax-invoices", label: "계산서 대사" },
+  { match: /미수금|미지급금/, href: "/partners/ledger", label: "원장 보기" },
+  { match: /고정비/, href: "/payments", label: "정기 지출" },
+  { match: /프로젝트/, href: "/projecthub", label: "프로젝트" },
+  { match: /부가세/, href: "/tax-invoices?tab=vat", label: "부가세" },
+  { match: /증빙/, href: "/transactions", label: "거래 장부" },
+  { match: /손익 리포트/, href: "/reports/pnl", label: "손익 보기" },
+];
+const itemLink = (title: string) => ITEM_LINKS.find((l) => l.match.test(title)) || null;
 export function ClosingChecklistWidget({ companyId, userId }: { companyId: string | null; userId: string | null }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -199,32 +217,43 @@ export function ClosingChecklistWidget({ companyId, userId }: { companyId: strin
         ) : (
           <>
             <div className="master-closing-items">
-              {items.map((item: any) => (
-                <label key={item.id} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer transition">
-                  <input
-                    type="checkbox"
-                    checked={item.is_completed}
-                    onChange={(e) => toggleMut.mutate({ itemId: item.id, completed: e.target.checked })}
-                    className="rounded mt-0.5"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-xs ${item.is_completed ? 'text-[var(--text-dim)] line-through' : 'text-[var(--text)]'}`}>
-                        {item.title}
-                      </span>
-                      {item.is_required && <span className="text-[var(--danger)] text-[10px]">*</span>}
-                      {item.auto_verified && (
-                        <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] shrink-0">자동</span>
-                      )}
-                    </div>
-                    {item.verified_reason && (
-                      <div className={`text-[10px] ${item.is_completed ? 'text-[var(--text-dim)]' : 'text-[var(--danger)]'}`}>
-                        {item.verified_reason}
+              {items.map((item: any) => {
+                const link = itemLink(item.title || "");
+                return (
+                  <div key={item.id} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] transition group">
+                    <label className="flex items-start gap-2 flex-1 min-w-0 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={item.is_completed}
+                        onChange={(e) => toggleMut.mutate({ itemId: item.id, completed: e.target.checked })}
+                        className="rounded mt-0.5"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-xs ${item.is_completed ? 'text-[var(--text-dim)] line-through' : 'text-[var(--text)]'}`}>
+                            {item.title}
+                          </span>
+                          {item.is_required && <span className="text-[var(--danger)] text-[10px]">*</span>}
+                          {item.auto_verified && (
+                            <span className="text-[9px] px-1 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] shrink-0">자동</span>
+                          )}
+                        </div>
+                        {item.verified_reason && (
+                          <div className={`text-[10px] ${item.is_completed ? 'text-[var(--text-dim)]' : 'text-[var(--danger)]'}`}>
+                            {item.verified_reason}
+                          </div>
+                        )}
                       </div>
+                    </label>
+                    {/* 처리 화면 바로가기 — 체크박스 라벨 밖(형제)이라 클릭해도 토글되지 않음 */}
+                    {link && (
+                      <Link href={link.href} className="master-closing-item-link" title={`${link.label}로 이동`}>
+                        {link.label} →
+                      </Link>
                     )}
                   </div>
-                </label>
-              ))}
+                );
+              })}
             </div>
 
             <div className="mt-3 flex gap-2">

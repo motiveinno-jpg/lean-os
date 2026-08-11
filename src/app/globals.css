@@ -5765,6 +5765,8 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .master-target-card { @apply p-5 flex flex-col; }
 .master-target-rows { @apply space-y-4 mb-4; }
 .master-target-score { @apply text-[13px] font-extrabold shrink-0 w-11 text-right; }
+.master-target-input-wrap { @apply flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg)] border border-[var(--border)] focus-within:border-[var(--primary)] transition; }
+.master-target-input { @apply flex-1 min-w-0 bg-transparent text-[13px] font-bold text-[var(--text)] outline-none; }
 /* 월 마감 링 카드 */
 .master-closing-card { @apply p-5 flex flex-col; }
 .master-closing-ring { @apply relative shrink-0 w-[116px] h-[116px] mx-auto mb-3; }
@@ -5773,6 +5775,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .master-closing-ring-sub { @apply text-[10px] text-[var(--text-dim)] mt-1; }
 .master-closing-body { @apply flex-1 flex flex-col min-h-0; }
 .master-closing-items { @apply space-y-1 max-h-[168px] overflow-y-auto pr-1; }
+.master-closing-item-link { @apply shrink-0 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--primary)] transition-colors no-underline mt-0.5 opacity-0 group-hover:opacity-100 focus:opacity-100; }
 /* 분기 KPI 풀폭 밴드 */
 .master-kpi-band { @apply p-5 flex flex-col md:flex-row md:items-center gap-4 md:gap-8; }
 .master-kpi-band-title { @apply shrink-0 md:w-40; }
