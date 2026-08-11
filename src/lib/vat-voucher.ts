@@ -46,7 +46,11 @@ export const VAT_TYPES: VatType[] = [
 export const vatType = (code: string | null | undefined): VatType | null =>
   VAT_TYPES.find((t) => t.code === String(code || "")) || null;
 
-/** 유형별 세액 — 영세·면세는 0. 불공제(54)는 세액이 있지만 공제를 못 받을 뿐이다. */
+/**
+ * 유형별 세액 — 영세·면세는 0. 불공제(54)는 세액이 있지만 공제를 못 받을 뿐이다.
+ *   공급가액이 **음수**면 세액도 음수다 — 수정세금계산서·환입·카드 취소가 그렇다.
+ *   부호만 다를 뿐 유형은 그대로다(국세청 신고서도 같은 유형에 음수로 합산한다).
+ */
 export function vatOf(code: string, supply: number): number {
   const t = vatType(code);
   if (!t || !t.taxed) return 0;
@@ -96,11 +100,16 @@ export interface BuildInput {
  *   매출: 차) 상대계정(합계)            / 대) 매출(공급가) + 부가세예수금(세액)
  *   매입: 차) 비용(공급가) + 부가세대급금 / 대) 상대계정(합계)
  *   불공제(54): 세액을 **비용에 얹고** 부가세대급금 줄을 만들지 않는다.
+ *
+ *   금액이 음수면 줄도 음수로 나온다. 화면은 그대로 보여 주고(원 증빙과 눈으로 대조되게),
+ *   **저장할 때만** 차/대를 뒤집어 절대값으로 넣는다 — journal_lines 에 debit·credit >= 0 체크가 있다.
+ *   일반전표(voucher-entry)가 쓰는 규칙과 같다.
  */
 export function buildVoucherLines(input: BuildInput): DraftLine[] {
   const t = vatType(input.vatCode);
   const supply = Math.round(Number(input.supply) || 0);
-  if (!t || supply <= 0) return [];
+  //   0 만 아니면 만든다 — 음수(수정세금계산서·환입·카드 취소)도 전표가 필요하다 (2026-08-11)
+  if (!t || supply === 0) return [];
   const vat = input.vat != null ? Math.round(input.vat) : vatOf(t.code, supply);
   const total = supply + vat;
 
@@ -121,7 +130,8 @@ export function buildVoucherLines(input: BuildInput): DraftLine[] {
   if (t.side === "sale") {
     const lines: DraftLine[] = [counter()];
     lines.push({ side: "credit", code: input.mainCode ?? STD.sales, name: input.mainName || "제품매출", amount: supply });
-    if (vat > 0) lines.push({ side: "credit", code: STD.vatOut, name: "부가세예수금", amount: vat, locked: true });
+    //   0 만 아니면 만든다 — 취소·수정분은 세액도 음수다 (vat > 0 로 두면 음수 전표에서 줄이 빠져 차대가 깨진다)
+    if (vat !== 0) lines.push({ side: "credit", code: STD.vatOut, name: "부가세예수금", amount: vat, locked: true });
     return lines;
   }
 
@@ -130,11 +140,24 @@ export function buildVoucherLines(input: BuildInput): DraftLine[] {
   const lines: DraftLine[] = [
     { side: "debit", code: input.mainCode ?? null, name: input.mainName || "비용 계정을 고르세요", amount: costAmount },
   ];
-  if (vat > 0 && t.deductible) {
+  if (vat !== 0 && t.deductible) {
     lines.push({ side: "debit", code: STD.vatIn, name: "부가세대급금", amount: vat, locked: true });
   }
   lines.push(counter());
   return lines;
+}
+
+/**
+ * 저장용 정규화 — 음수 차변은 대변으로, 음수 대변은 차변으로 (일반전표와 같은 규칙).
+ *   journal_lines 의 debit·credit >= 0 체크를 지키면서 취소 전표를 표현하는 방법이다.
+ *   결과적으로 정상 전표의 **반대 분개**가 된다.
+ */
+export function normalizeSides(lines: { side: "debit" | "credit"; amount: number }[]) {
+  return lines.map((l) => {
+    const neg = l.amount < 0;
+    const side: "debit" | "credit" = neg ? (l.side === "debit" ? "credit" : "debit") : l.side;
+    return { side, amount: Math.abs(l.amount) };
+  });
 }
 
 /* ------------------------------------------------------------------ */

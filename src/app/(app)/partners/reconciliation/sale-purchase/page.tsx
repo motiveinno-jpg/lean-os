@@ -18,7 +18,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { friendlyError } from "@/lib/friendly-error";
 import {
-  VAT_TYPES, SETTLE_LABEL, buildVoucherLines, vatOf, vatType, suggestVatType,
+  VAT_TYPES, SETTLE_LABEL, buildVoucherLines, vatOf, vatType, suggestVatType, normalizeSides,
   type SettleType,
 } from "@/lib/vat-voucher";
 
@@ -59,6 +59,8 @@ type EvidenceRow = {
   key: string; kind: "tax_invoice" | "card" | "cash_receipt";
   date: string; who: string; what: string;
   supply: number; vat: number; partnerId: string | null; suggested: string;
+  //   금액이 음수이거나 가맹점명이 '[취소]' 로 시작하는 건 — 그대로 치면 안 되는 줄이라 눈에 띄게 표시한다
+  cancelled?: boolean;
 };
 const EVIDENCE_LABEL: Record<EvidenceRow["kind"], string> = {
   tax_invoice: "세금계산서", card: "카드", cash_receipt: "현금영수증",
@@ -72,8 +74,18 @@ function cardLabelOf(raw: unknown): string {
 }
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
-const numOf = (s: string) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
-const comma = (s: string) => { const n = numOf(s); return n ? n.toLocaleString("ko-KR") : ""; };
+//   음수 허용(맨 앞 '-' 하나만) — 수정세금계산서·환입·카드 취소를 치려면 필요하다 (2026-08-11).
+//   일반전표(voucher-entry)가 쓰는 것과 같은 규칙이다.
+const numOf = (s: string) => {
+  const n = Number(String(s).replace(/[^0-9-]/g, "").replace(/(?!^)-/g, ""));
+  return Number.isFinite(n) ? n : 0;
+};
+const comma = (s: string) => {
+  const neg = String(s).trim().startsWith("-");
+  const n = Math.abs(numOf(s));
+  if (!n) return neg ? "-" : "";      // '-' 만 친 중간 상태를 지우지 않는다
+  return (neg ? "-" : "") + n.toLocaleString("ko-KR");
+};
 let K = 1;
 
 const blankRow = (base?: Partial<Row>): Row => ({
@@ -203,19 +215,21 @@ function SalePurchaseInner() {
         out.push({
           key: "ti:" + r.id, kind: "tax_invoice", date: r.issue_date, who: r.counterparty_name || "—",
           what: r.item_name || "—", supply: Number(r.supply_amount || 0), vat: Number(r.tax_amount || 0),
-          partnerId: r.partner_id || null,
+          partnerId: r.partner_id || null, cancelled: Number(r.supply_amount || 0) < 0,
           suggested: suggestVatType({ kind: "tax_invoice", direction: dir, taxKind: r.tax_kind, memo: (r.item_name || "") + " " + (r.expense_category || "") }),
         });
       }
       for (const r of ((card.data as any[]) || [])) {
         const amt = Number(r.amount || 0);
-        if (amt <= 0) continue;                                            // 취소·환불(음수)
-        if (String(r.merchant_name || "").trim().startsWith("[취소]")) continue;   // 승인 취소분
+        if (amt === 0) continue;
+        //   취소분(음수·[취소] 표기)도 이제 전표로 칠 수 있다 — 부호 그대로 내려보낸다 (2026-08-11).
+        //   원본 승인 건과 자동으로 짝짓지는 않는다 — 금액·가맹점이 같아도 다른 건일 수 있어서다.
         const label = cardLabelOf(r.classification) || r.category || "";
         const sup = Math.round(amt / 1.1);
         out.push({
           key: "card:" + r.id, kind: "card", date: r.transaction_date, who: r.merchant_name || "—",
           what: label || "카드 사용", supply: sup, vat: amt - sup, partnerId: null,
+          cancelled: amt < 0 || String(r.merchant_name || "").trim().startsWith("[취소]"),
           suggested: suggestVatType({ kind: "card", direction: "purchase", memo: (r.merchant_name || "") + " " + label }),
         });
       }
@@ -225,11 +239,12 @@ function SalePurchaseInner() {
         out.push({
           key: "cash:" + r.id, kind: "cash_receipt", date: r.issue_date, who: r.counterparty_name || "—",
           what: "현금영수증", supply: sup, vat: Number(r.tax_amount || 0) || (Number(r.amount || 0) - sup),
-          partnerId: null, suggested: suggestVatType({ kind: "cash_receipt", direction: dir }),
+          partnerId: null, cancelled: sup < 0,
+          suggested: suggestVatType({ kind: "cash_receipt", direction: dir }),
         });
       }
-      //   마이너스 증빙(수정세금계산서 등)은 이 격자가 부호를 표현하지 못한다 — 일반전표에서 친다
-      return out.filter((r) => r.supply > 0).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+      //   0 원 건만 뺀다. 음수(수정세금계산서·환입·카드 취소)는 그대로 둔다 — 격자가 부호를 받는다.
+      return out.filter((r) => r.supply !== 0).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     },
     enabled: !!companyId && pullOpen,
   });
@@ -275,8 +290,10 @@ function SalePurchaseInner() {
   }));
   const debitSum = jeLines.filter((l) => l.side === "debit").reduce((s, l) => s + l.amount, 0);
   const creditSum = jeLines.filter((l) => l.side === "credit").reduce((s, l) => s + l.amount, 0);
-  const balanced = debitSum > 0 && debitSum === creditSum;
+  //   음수 전표(취소분)도 차·대는 맞아야 한다 — 0 만 아니면 된다
+  const balanced = debitSum !== 0 && debitSum === creditSum;
   const canSave = balanced && jeLines.every((l) => !!l.account) && !!row?.partner && !!row?.m && !!row?.d && !saving;
+  const isMinus = supplyNum < 0;
 
   const patch = (i: number, p: Partial<Row>) => setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...p } : r)));
 
@@ -340,10 +357,13 @@ function SalePurchaseInner() {
     setSaving(true);
     try {
       const date = `${row.y}-${String(Number(row.m)).padStart(2, "0")}-${String(Number(row.d)).padStart(2, "0")}`;
-      const payload = jeLines.map((l) => ({
+      //   음수 줄은 차/대를 뒤집어 절대값으로 넣는다 — journal_lines 는 음수를 받지 않는다.
+      //   결과적으로 정상 전표의 반대 분개가 되어 회계적으로도 맞다.
+      const normalized = normalizeSides(jeLines.map((l) => ({ side: l.side, amount: l.amount })));
+      const payload = jeLines.map((l, i) => ({
         account_id: l.account!.id,
-        debit: l.side === "debit" ? l.amount : 0,
-        credit: l.side === "credit" ? l.amount : 0,
+        debit: normalized[i].side === "debit" ? normalized[i].amount : 0,
+        credit: normalized[i].side === "credit" ? normalized[i].amount : 0,
         memo: row.item || "",
         partner_id: row.partner?.id || null,
       }));
@@ -479,12 +499,15 @@ function SalePurchaseInner() {
                   </select>
                   <input className="spv-in" value={r.item} onChange={(e) => patch(i, { item: e.target.value })}
                     onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} placeholder="품명" />
-                  <input className="spv-in tr" data-cell={`supply-${i}`} value={r.supply}
+                  <input className={numOf(r.supply) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} data-cell={`supply-${i}`} value={r.supply}
                     onChange={(e) => setSupply(i, e.target.value)} onKeyDown={(e) => onCellKey(e, i)}
-                    onFocus={() => setCur(i)} inputMode="numeric" placeholder="0" />
-                  <input className="spv-in tr" value={r.vat} onChange={(e) => patch(i, { vat: comma(e.target.value) })}
-                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} inputMode="numeric" placeholder="0" />
-                  <span className="spv-in-ro tr spv-total">{won(numOf(r.supply) + numOf(r.vat))}</span>
+                    onFocus={() => setCur(i)} placeholder="0" title="취소·수정분은 앞에 - 를 붙입니다" />
+                  <input className={numOf(r.vat) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} value={r.vat}
+                    onChange={(e) => patch(i, { vat: comma(e.target.value) })}
+                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} placeholder="0" />
+                  <span className={numOf(r.supply) + numOf(r.vat) < 0 ? "spv-in-ro tr spv-total spv-minus" : "spv-in-ro tr spv-total"}>
+                    {won(numOf(r.supply) + numOf(r.vat))}
+                  </span>
                   <button type="button" className="spv-chk" onClick={() => patch(i, { electronic: !r.electronic })}
                     title="전자 발행분이면 켭니다">{r.electronic ? "전자" : "—"}</button>
                   <select className="spv-in spv-sel" value={r.settle} onChange={(e) => patch(i, { settle: e.target.value as SettleType })} onFocus={() => setCur(i)}>
@@ -509,6 +532,11 @@ function SalePurchaseInner() {
         <div className="spv-je-head">
           <b>분개</b>
           <span>{t.label} · {SETTLE_LABEL[row?.settle || "credit"]} — 유형이 만든 줄입니다 · 계정을 눌러 바꿉니다</span>
+          {isMinus && (
+            <span className="spv-minus-note">
+              취소·수정분(음수) — 저장할 때 <b>차·대가 뒤집혀 반대 분개</b>로 들어갑니다
+            </span>
+          )}
         </div>
         <div className="spv-scroll">
           <div className="spv-je-grid">
@@ -517,7 +545,7 @@ function SalePurchaseInner() {
               <span className="tr">차변(출금)</span><span className="tr">대변(입금)</span>
               <span>거래처</span><span>적요</span>
             </div>
-            {supplyNum <= 0 ? (
+            {supplyNum === 0 ? (
               <div className="spv-je-empty">위 격자에 금액을 입력하면 분개가 만들어집니다.</div>
             ) : jeLines.map((l) => (
               <div key={l.i} className="spv-je-row">
@@ -595,8 +623,11 @@ function SalePurchaseInner() {
                         <td className="mono-number">{r.date}</td>
                         <td>{EVIDENCE_LABEL[r.kind]}</td>
                         <td className="truncate max-w-[150px]">{r.who}</td>
-                        <td className="truncate max-w-[150px]">{r.what}</td>
-                        <td className="tr mono-number">{won(r.supply)}</td>
+                        <td className="truncate max-w-[150px]">
+                          {(r.supply < 0 || r.cancelled) && <em className="spv-minus-badge">취소·수정</em>}
+                          {r.what}
+                        </td>
+                        <td className={r.supply < 0 ? "tr mono-number spv-minus" : "tr mono-number"}>{won(r.supply)}</td>
                         <td><em className={vatType(r.suggested)?.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{vatType(r.suggested)?.label}</em></td>
                         <td className="tr"><button type="button" onClick={() => pullOne(r)} className="btn-secondary btn-sm">얹기</button></td>
                       </tr>
@@ -607,7 +638,8 @@ function SalePurchaseInner() {
             )}
             <div className="spv-pull-foot">
               추천 유형은 규칙으로 붙습니다 — <b>접대·유흥·골프·상품권은 54 불공제</b>, 매입 계산서는 51, 카드는 57.
-              얹은 뒤 격자에서 바꿔도 됩니다. 취소분과 <b>마이너스 증빙(수정세금계산서 등)</b>은 나오지 않습니다 — 일반전표에서 칩니다.
+              얹은 뒤 격자에서 바꿔도 됩니다. <b>취소·수정분(음수)</b>도 그대로 나옵니다 —
+              저장할 때 차·대가 뒤집혀 <b>반대 분개</b>로 들어갑니다. 원본 승인 건과 자동으로 짝짓지는 않습니다.
             </div>
           </div>
         </div>
@@ -616,6 +648,8 @@ function SalePurchaseInner() {
       <p className="spv-note">
         ※ 매입매출전표는 <b>부가세가 붙는 거래</b>(세금계산서·카드·현금영수증)를 칩니다 —
         통장 이체·대체·결산 분개는 <b>일반전표</b>에서 칩니다. 여기 친 유형이 부가세 신고 집계의 기준이 됩니다.
+        <br />※ <b>수정세금계산서·환입·카드 취소</b>는 금액 앞에 <b>-</b> 를 붙여 같은 유형으로 칩니다 —
+        부가세 집계에서 그만큼 차감됩니다.
       </p>
     </div>
   );
