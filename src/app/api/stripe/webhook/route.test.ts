@@ -102,7 +102,8 @@ describe("서명 게이트", () => {
     const res = await POST(makeRequest());
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("INVALID_SIGNATURE");
-    expect(st.inserted).toHaveLength(0);
+    // 서명 실패는 이제 error_logs 에 기록한다(운영 추적) — 빌링 테이블 insert 만 없으면 미실행이다.
+    expect(st.inserted.filter((i) => i.table !== "error_logs")).toHaveLength(0);
   });
 });
 
@@ -193,7 +194,9 @@ describe("invoice.paid — 멱등성·인보이스 번호", () => {
 describe("invoice.payment_failed — dunning", () => {
   it("구독 past_due 전환 + payment_failed 이벤트 기록", async () => {
     st.subByStripeId = { id: "sub-row-1", company_id: "co-1" };
-    arm("invoice.payment_failed", { id: "in_2", subscription: "sub_1", amount_due: 5_500_000, attempt_count: 2 });
+    // KRW 는 zero-decimal — Stripe amount_due 가 곧 원화 금액이다(stripeAmountToWon 도입 후 /100 안 함).
+    //   구 mock 5_500_000 은 "/100 해서 55,000원" 가정의 잔재라 원 단위 55_000 으로 정정.
+    arm("invoice.payment_failed", { id: "in_2", subscription: "sub_1", amount_due: 55_000, attempt_count: 2 });
     const res = await POST(makeRequest());
     expect(res.status).toBe(200);
     const up = st.updated.find((u) => u.table === "subscriptions");

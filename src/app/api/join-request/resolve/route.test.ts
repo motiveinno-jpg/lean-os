@@ -6,6 +6,7 @@ const h = vi.hoisted(() => {
   const state = {
     authUser: null as any,
     callerRow: null as any,   // users by auth_id
+    permOk: true,             // requirePerm('/settings:team') 결과 — 역할 폐지(818f098) 후 인가는 마스터+부여 권한
     rpcResult: null as any,   // resolve_company_join_request 반환
     rpcError: null as any,
     rpcArgs: null as any,     // RPC 에 전달된 파라미터 캡처
@@ -23,6 +24,10 @@ const h = vi.hoisted(() => {
 vi.mock("@/lib/supabase-server", () => ({
   createSupabaseServerClient: async () => ({ auth: { getUser: async () => ({ data: { user: h.state.authUser } }) } }),
 }));
+vi.mock("@/lib/api-authz", () => ({
+  requirePerm: async () =>
+    h.state.permOk ? { ok: true } : { ok: false, status: 403, error: "권한이 없습니다." },
+}));
 vi.mock("@/lib/supabase-admin", () => ({
   createSupabaseAdminClient: () => ({
     from: () => h.chain(),
@@ -39,6 +44,7 @@ const makeReq = (body: any = {}) =>
 beforeEach(() => {
   st.authUser = { id: "auth-1" };
   st.callerRow = { id: "u-owner", company_id: "co-1", role: "owner" };
+  st.permOk = true;
   st.rpcResult = { ok: true, status: "approved", granted_role: "employee", requester_auth_id: "req-1" };
   st.rpcError = null;
 });
@@ -49,8 +55,9 @@ describe("승인/거절 권한·매핑", () => {
     expect((await POST(makeReq({ requestId: "r1", action: "approve" }))).status).toBe(401);
   });
 
-  it("owner/admin 아니면 403", async () => {
-    st.callerRow = { id: "u-emp", company_id: "co-1", role: "employee" };
+  // 역할 폐지(818f098): owner/admin 검사 → requirePerm('/settings:team') 게이트로 교체.
+  it("팀 관리 권한(/settings:team) 없으면 403", async () => {
+    st.permOk = false;
     expect((await POST(makeReq({ requestId: "r1", action: "approve" }))).status).toBe(403);
   });
 

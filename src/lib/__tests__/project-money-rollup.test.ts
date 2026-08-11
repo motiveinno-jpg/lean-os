@@ -96,14 +96,20 @@ describe("rollupMoney — 지출은 '비용 · 지출' 만 센다(이중 계상 
   ];
   const r = rollupMoney(boards, cols, items, { today: TODAY });
 
-  it("총 지출에 예산표(집행)를 더하지 않는다", () => {
-    // 지급 4,820,000 + 760,000, 계획 3,000,000 = 8,580,000
-    expect(r.spend.total).toBe(8_580_000);
+  // 규칙 변경(9092c0e, 2026-08-07): 집행액을 적으면 그건 '쓰기로 확정한 돈' — 지출 축에
+  //   최소 '확정' 단계로 계상한다(집행 450만을 적어도 마진에서 안 빠지던 실사용 버그 픽스).
+  //   같은 지출이 두 표에 있으면 합계에서 빼는 게 아니라 overlaps 겹침 경고로 알린다.
+  it("집행액도 지출로 계상한다 — 비용표 지급 + 집행표 확정 + 계획", () => {
+    // 비용표 지급 5,580,000 + 집행표(확정) 5,580,000 + 계획 3,000,000 = 14,160,000
+    expect(r.spend.total).toBe(14_160_000);
     expect(r.spend.byStage.paid).toBe(5_580_000);
+    expect(r.spend.byStage.fixed).toBe(5_580_000);
     expect(r.spend.byStage.plan).toBe(3_000_000);
   });
-  it("예산은 소진율로만 따로 낸다", () => {
-    expect(r.budget).toEqual({ planned: 5_800_000, spent: 5_580_000, rate: 96 });
+  it("소진율은 예산·예상(planned) 대비 집행·확정(spent) — 비용표의 예상/확정 쌍도 포함", () => {
+    // planned = 집행표 예산 5,800,000 + 비용표 예상 8,800,000 = 14,600,000
+    // spent   = 집행표 집행 5,580,000 + 비용표 확정 5,580,000 = 11,160,000 → 76%
+    expect(r.budget).toEqual({ planned: 14_600_000, spent: 11_160_000, rate: 76 });
   });
   it("같은 금액이 두 표에 있으면 겹침으로 알려 준다", () => {
     expect(r.overlaps.map((o) => o.amount).sort((a, b) => a - b)).toEqual([760_000, 4_820_000]);
@@ -143,11 +149,12 @@ describe("weeklyCashflow — 언제 자금이 비나", () => {
   const w = weeklyCashflow(boards, cols, items, TODAY, 8);
   const byKey = (k: string) => w.find((x) => x.key === k)!;
 
-  it("이번 주는 들어올 1,000만 · 나갈 1,200만 → 순액 마이너스", () => {
+  // 규칙 변경(9092c0e): 집행 표의 집행액도 예정 지출이다 — 이번 주 지출에 예산 건 800만이 들어간다.
+  it("이번 주는 들어올 1,000만 · 나갈 2,000만(비용 1,200만 + 집행 800만) → 순액 마이너스", () => {
     const t = byKey("2026-08-03");
     expect(t.income).toBe(10_000_000);
-    expect(t.spend).toBe(12_000_000);
-    expect(t.net).toBe(-2_000_000);
+    expect(t.spend).toBe(20_000_000);
+    expect(t.net).toBe(-10_000_000);
   });
   it("이미 오간 돈(입금 완료)은 앞날 계획에 안 넣는다", () => {
     expect(w.reduce((s, x) => s + x.income, 0)).toBe(18_000_000);   // 10 + 5 + 지난 3
@@ -155,11 +162,13 @@ describe("weeklyCashflow — 언제 자금이 비나", () => {
   it("기한 지난 미완료 건은 '지남' 칸에 모은다", () => {
     expect(byKey("past").income).toBe(3_000_000);
   });
-  it("예산 표는 예정 자금이 아니다", () => {
-    expect(w.every((x) => x.spend !== 8_000_000)).toBe(true);
+  it("집행 표의 집행액도 주간 예정 지출에 들어간다 (9092c0e 이후)", () => {
+    // 예산 건 8,000,000(종료 08-07)이 이번 주 지출에 포함 → 12,000,000 + 8,000,000
+    expect(byKey("2026-08-03").spend).toBe(20_000_000);
   });
   it("8주 밖은 안 그린다", () => {
-    expect(w.reduce((s, x) => s + x.spend, 0)).toBe(12_000_000);
+    // 이번 주 20,000,000 뿐 — '먼 미래'(2027-01) 1,000,000 은 제외
+    expect(w.reduce((s, x) => s + x.spend, 0)).toBe(20_000_000);
   });
 });
 
