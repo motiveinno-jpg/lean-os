@@ -1191,10 +1191,17 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 {showUpgradeModal === "free" ? "무료" : (() => {
                   const p = (plans || []).find((pl: any) => pl.slug === showUpgradeModal);
                   if (!p) return "-";
-                  // 기본 좌석 초과분만 좌석당 과금(월간, VAT 별도) — 사용된 무료좌석 쿠폰(연간 혜택) 제외
-                  const extra = Math.max(0, (subscription?.seat_count || 1) - ((p as any).included_seats || 0) - redeemedFreeSeats);
-                  const total = p.base_price + p.per_seat_price * extra;
-                  return `₩${total.toLocaleString()}/월 (VAT 별도)`;
+                  // 기본 좌석 초과분만 좌석당 과금(VAT 별도) — 사용된 무료좌석 쿠폰(연간 혜택) 제외.
+                  //   ⚠️ 좌석 기준은 실제 결제(checkout)와 동일하게 **활성 직원 수** — 종전엔 구독행의
+                  //   seat_count(구 요금제 레거시 값, 예: 100)를 읽어 514,000원처럼 뻥튀기 표시됐다
+                  //   (2026-08-11 사장님 제보). 실청구는 원래 직원 수 기준이라 표시만 틀렸던 것.
+                  const extra = Math.max(0, (usage?.employees || 1) - ((p as any).included_seats || 0) - redeemedFreeSeats);
+                  const monthlyTotal = p.base_price + p.per_seat_price * extra;
+                  if (cycle === "annual") {
+                    const discounted = Math.round(monthlyTotal * (1 - ANNUAL_DISCOUNT_DISPLAY));
+                    return `₩${discounted.toLocaleString()}/월 — 연 ₩${(discounted * 12).toLocaleString()} 일시 청구 (10% 할인·VAT 별도)`;
+                  }
+                  return `₩${monthlyTotal.toLocaleString()}/월 (VAT 별도)`;
                 })()}
               </div>
             </div>
