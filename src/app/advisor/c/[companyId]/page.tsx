@@ -12,6 +12,21 @@ import { supabase } from "@/lib/supabase";
 const won = (n: number | null | undefined) => `${Math.round(Number(n) || 0).toLocaleString("ko-KR")}원`;
 const d10 = (s: string | null | undefined) => String(s || "").slice(0, 10);
 
+// CSV 다운로드 (2026-08-11 사장님: 세무사가 세무 프로그램에 넣을 자료) — UTF-8 BOM 으로 엑셀 한글 안전.
+function downloadCsv(filename: string, rows: Record<string, string | number | null | undefined>[]) {
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const esc = (v: unknown) => {
+    const s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = "﻿" + [headers.join(","), ...rows.map((r) => headers.map((h) => esc(r[h])).join(","))].join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 type Overview = {
   company: { id: string; name: string; industry: string | null; business_number: string | null;
     representative: string | null; business_type: string | null; business_category: string | null; address: string | null };
@@ -218,6 +233,15 @@ function InvoicesTab({ companyId }: { companyId: string }) {
         {[[null, "전체"], ["sales", "매출"], ["purchase", "매입"]].map(([v, label]) => (
           <button key={String(v)} className={`adv-chip ${type === v ? "adv-chip-on" : ""}`} onClick={() => setType(v as string | null)}>{label}</button>
         ))}
+        <button className="adv-chip ml-auto" disabled={rows.length === 0}
+          onClick={() => downloadCsv(`세금계산서_${d10(new Date().toISOString())}.csv`, rows.map((r) => ({
+            발행일: d10(r.issue_date), 구분: r.inv_type === "sales" ? "매출" : "매입",
+            거래처: r.counterparty_name || "", 품목: r.item_name || "",
+            공급가액: Number(r.supply_amount) || 0, 세액: Number(r.tax_amount) || 0, 합계: Number(r.total_amount) || 0,
+            상태: r.status || "",
+          })))}>
+          ⬇ 엑셀(CSV)
+        </button>
       </div>
       {isLoading ? <div className="adv-loading">불러오는 중…</div> : rows.length === 0 ? (
         <div className="adv-row-empty">세금계산서가 없습니다.</div>
@@ -263,6 +287,18 @@ function BankTab({ companyId }: { companyId: string }) {
   return isLoading ? <div className="adv-loading">불러오는 중…</div> : rows.length === 0 ? (
     <div className="adv-row-empty">통장 거래가 없습니다.</div>
   ) : (
+    <>
+    <div className="adv-filter-row">
+      <button className="adv-chip ml-auto"
+        onClick={() => downloadCsv(`통장거래_${d10(new Date().toISOString())}.csv`, rows.map((r) => ({
+          거래일: d10(r.transaction_date), 은행: r.bank_name || "",
+          구분: String(r.tx_type) === "income" ? "입금" : "출금",
+          적요: r.counterparty || r.description || "",
+          금액: Number(r.amount) || 0, 잔액: r.balance_after != null ? Number(r.balance_after) : "",
+        })))}>
+        ⬇ 엑셀(CSV)
+      </button>
+    </div>
     <div className="adv-scroll">
       <table className="adv-table">
         <thead><tr>
@@ -285,6 +321,7 @@ function BankTab({ companyId }: { companyId: string }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
@@ -304,15 +341,27 @@ function PayrollTab({ companyId, lastMonth }: { companyId: string; lastMonth: st
   const months = [...new Set(rows.map((r) => r.period_month))];
   return (
     <div>
-      {month !== null && (
-        <div className="adv-filter-row">
-          <select className="adv-select" value={month || ""} onChange={(e) => setMonth(e.target.value || null)}>
-            {lastMonth && !months.includes(lastMonth) && <option value={lastMonth}>{lastMonth}</option>}
-            {months.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <button className="adv-chip" onClick={() => setMonth(null)}>전체 월 보기</button>
-        </div>
-      )}
+      <div className="adv-filter-row">
+        {month !== null && (
+          <>
+            <select className="adv-select" value={month || ""} onChange={(e) => setMonth(e.target.value || null)}>
+              {lastMonth && !months.includes(lastMonth) && <option value={lastMonth}>{lastMonth}</option>}
+              {months.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <button className="adv-chip" onClick={() => setMonth(null)}>전체 월 보기</button>
+          </>
+        )}
+        <button className="adv-chip ml-auto" disabled={rows.length === 0}
+          onClick={() => downloadCsv(`인건비_${month || "전체"}.csv`, rows.map((r) => ({
+            귀속월: r.period_month, 직원: r.employee_name || "",
+            기본급: Number(r.base_salary) || 0, 국민연금: Number(r.national_pension) || 0,
+            건강보험: Number(r.health_insurance) || 0, 고용보험: Number(r.employment_insurance) || 0,
+            소득세: Number(r.income_tax) || 0, 지방소득세: Number(r.local_income_tax) || 0,
+            공제계: Number(r.deductions_total) || 0, 실지급: Number(r.net_pay) || 0,
+          })))}>
+          ⬇ 엑셀(CSV)
+        </button>
+      </div>
       {isLoading ? <div className="adv-loading">불러오는 중…</div> : rows.length === 0 ? (
         <div className="adv-row-empty">급여 기록이 없습니다.</div>
       ) : (

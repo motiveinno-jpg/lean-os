@@ -621,6 +621,18 @@ function TaxAdvisorSection() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [permOpenFor, setPermOpenFor] = useState<string | null>(null); // link_id
+  const [logsOpen, setLogsOpen] = useState(false);
+
+  // 열람 감사 로그 (2026-08-11) — 세무사가 우리 회사를 본앱으로 열람한 기록
+  const { data: accessLogs = [] } = useQuery({
+    queryKey: ["company-advisor-access-logs"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("company_advisor_access_logs", { p_limit: 20 });
+      if (error) throw error;
+      return (data || []) as { accessed_at: string; advisor_name: string; office_name: string | null }[];
+    },
+    enabled: logsOpen,
+  });
 
   const { data: myAdvisors = [] } = useQuery({
     queryKey: ["company-my-advisors"],
@@ -706,6 +718,27 @@ function TaxAdvisorSection() {
               {permOpenFor === a.link_id && <AdvisorPermissionPanel linkId={a.link_id} advisorName={a.name} />}
             </div>
           ))}
+          {/* 열람 이력 — 세무사가 언제 우리 회사에 들어와서 봤는지 (감사 추적) */}
+          <button className="company-advisor-logs-toggle" onClick={() => setLogsOpen((v) => !v)}>
+            {logsOpen ? "열람 이력 닫기" : "열람 이력 보기"}
+          </button>
+          {logsOpen && (
+            accessLogs.length === 0 ? (
+              <div className="text-[11px] text-[var(--text-dim)] px-1 py-2">아직 열람 기록이 없습니다.</div>
+            ) : (
+              <div className="company-advisor-log-list">
+                {accessLogs.map((l, i) => (
+                  <div key={i} className="company-advisor-log-row">
+                    <span className="font-semibold">{l.advisor_name}</span>
+                    {l.office_name && <span className="text-[var(--text-dim)]">{l.office_name}</span>}
+                    <span className="ml-auto text-[var(--text-dim)]">
+                      {new Date(l.accessed_at).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })} 열람
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
         </div>
       )}
 

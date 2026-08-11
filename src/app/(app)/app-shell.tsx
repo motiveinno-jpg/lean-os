@@ -160,6 +160,45 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/* 세무사 열람 배너 — 회사 전환 드롭다운 포함 (2026-08-11 잔손질: 포털을 거치지 않고 앱 안에서 전환) */
+function AdvisorViewingBanner({ companyName }: { companyName: string }) {
+  const [companies, setCompanies] = useState<{ company_id: string; company_name: string }[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await (supabase as any).rpc("advisor_my_companies");
+        setCompanies(((data || []) as any[]).map((c) => ({ company_id: c.company_id, company_name: c.company_name })));
+      } catch { /* 목록 실패 시 전환 없이 배너만 */ }
+    })();
+  }, []);
+  const switchCompany = async (companyId: string) => {
+    const { error } = await (supabase as any).rpc("advisor_enter_company", { p_company_id: companyId });
+    if (!error) {
+      const { clearCurrentUserCache } = await import("@/lib/queries");
+      clearCurrentUserCache();
+      window.location.href = "/dashboard";
+    }
+  };
+  return (
+    <div className="advisor-viewing-banner">
+      <span className="advisor-viewing-dot" />
+      {companies.length > 1 ? (
+        <select
+          className="advisor-viewing-select"
+          value={companies.find((c) => c.company_name === companyName)?.company_id || ""}
+          onChange={(e) => e.target.value && switchCompany(e.target.value)}
+        >
+          {companies.map((c) => <option key={c.company_id} value={c.company_id}>{c.company_name}</option>)}
+        </select>
+      ) : (
+        <span className="font-bold">{companyName}</span>
+      )}
+      <span> 열람 모드 — 세무사 파트너 계정은 읽기 전용입니다.</span>
+      <a href="/advisor/dashboard" className="advisor-viewing-back">← 파트너 포털로</a>
+    </div>
+  );
+}
+
 function AppContent({ children }: { children: React.ReactNode }) {
   const { collapsed, setMobileOpen } = useSidebar();
   const { open: guideOpen } = useGuide();
@@ -373,14 +412,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
           {/* 페이지 제목·설명은 상단 크롬 헤더바(브레드크럼)에서 표시 — 본문 중복 제목 없음. */}
           {/* 세무사 열람 모드 (2026-08-11): 파트너 세무사가 포털에서 회사를 골라 들어온 세션.
               DB 가 전면 쓰기차단(advisor_ro_*)이므로 저장·수정 버튼은 동작하지 않는다는 안내. */}
-          {role === "advisor" && (
-            <div className="advisor-viewing-banner">
-              <span className="advisor-viewing-dot" />
-              <span className="font-bold">{(user as any)?.companies?.name || "고객사"}</span>
-              <span> 열람 모드 — 세무사 파트너 계정은 읽기 전용입니다.</span>
-              <a href="/advisor/dashboard" className="advisor-viewing-back">← 파트너 포털로</a>
-            </div>
-          )}
+          {role === "advisor" && <AdvisorViewingBanner companyName={(user as any)?.companies?.name || "고객사"} />}
           {/* 파이낸스 허브(거래처/세금·증빙/거래 장부) 하위 탭 — 해당 라우트에서만 렌더(그 외 null) */}
           <FinanceTabs />
           {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}

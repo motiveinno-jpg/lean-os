@@ -8463,3 +8463,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-eltag { @apply inline-block px-1.5 py-0.5 rounded text-[10px] font-bold not-italic bg-sky-500/12 text-sky-600; }
 .spv-editing { @apply bg-amber-500/[0.07] ring-1 ring-inset ring-amber-500/30; }
 .spv-je-editing { @apply px-2 py-0.5 rounded-full text-[11px] font-bold not-italic bg-amber-500/12 text-amber-600; }
+
+/* 세무 파트너 열람 이력 (2026-08-11) */
+.company-advisor-logs-toggle { @apply mt-2 text-[11px] font-bold text-[var(--text-muted)] hover:text-[var(--text)] underline underline-offset-2 transition; }
+.company-advisor-log-list { @apply mt-1.5 space-y-1; }
+.company-advisor-log-row { @apply flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11.5px] bg-[var(--bg-surface)]/50; }
+.advisor-viewing-select { @apply font-bold text-[12.5px] rounded-md px-1.5 py-0.5 outline-none cursor-pointer; background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.25); }

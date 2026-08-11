@@ -513,7 +513,7 @@ export function Sidebar() {
                 <span className={`sidebar-role-badge ${
                   isMaster ? "bg-[var(--primary-light)] text-[var(--primary)]" : role === "partner" ? "bg-violet-500/12 text-violet-600" : "bg-emerald-500/12 text-emerald-600"
                 }`}>
-                  {isMaster ? "마스터" : role === "partner" ? "파트너" : "멤버"}
+                  {isMaster ? "마스터" : role === "partner" ? "파트너" : role === "advisor" ? "세무 파트너" : "멤버"}
                 </span>
               </div>
             </div>
@@ -731,7 +731,7 @@ export function Sidebar() {
                     <span className={`sidebar-mobile-role-badge ${
                       isMaster ? "bg-[#2563EB]" : role === "partner" ? "bg-[#7C3AED]" : "bg-[#059669]"
                     }`}>
-                          {isMaster ? "마스터" : role === "partner" ? "파트너" : "멤버"}
+                          {isMaster ? "마스터" : role === "partner" ? "파트너" : role === "advisor" ? "세무 파트너" : "멤버"}
                     </span>
                   </div>
                 </div>

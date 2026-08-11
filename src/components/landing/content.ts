@@ -712,6 +712,7 @@ export const TOUR_HREF = "/features";
 export const NAV_LINKS = [
   { href: TOUR_HREF, label: "오너뷰 알아보기" },
   { href: "/pricing", label: "가격" },
+  { href: "/tax-partners", label: "세무사 제휴" },
   { href: "#faq", label: "FAQ" },
 ];
 
