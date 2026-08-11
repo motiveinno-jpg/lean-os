@@ -167,9 +167,45 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   // 권한별 스텝 필터 (2026-08-11 사장님) — 일반 직원은 부여받은 메뉴의 스텝만 본다.
   //   마스터는 전체, 멤버는 hasMenu(기본 제공 포함) 기준. 마지막 안내(href null)는 항상 표시.
   const { isMaster, hasMenu, loading: permLoading } = useMyPermissions();
-  const steps = permLoading
+
+  // 스텝별 '다시 보지 않기' (2026-08-11 사장님 — "건마다 누르면 그 건만 안 나오게") —
+  //   숨긴 스텝 href 를 user_preferences.app_tour_hidden_steps(jsonb 배열)에 계정별로 기록.
+  const [hiddenSteps, setHiddenSteps] = useState<string[] | null>(null); // null = 로딩 중
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session || !companyId) { if (alive) setHiddenSteps([]); return; }
+        const { data } = await (supabase as any)
+          .from("user_preferences")
+          .select("app_tour_hidden_steps")
+          .eq("user_id", session.user.id)
+          .eq("company_id", companyId)
+          .maybeSingle();
+        if (alive) setHiddenSteps(Array.isArray(data?.app_tour_hidden_steps) ? data.app_tour_hidden_steps : []);
+      } catch { if (alive) setHiddenSteps([]); }
+    })();
+    return () => { alive = false; };
+  }, [companyId]);
+
+  const hideCurrentStep = useCallback(async (href: string) => {
+    const next = [...(hiddenSteps || []), href];
+    setHiddenSteps(next);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && companyId) {
+        await (supabase as any).from("user_preferences").upsert(
+          { user_id: session.user.id, company_id: companyId, app_tour_hidden_steps: next, updated_at: new Date().toISOString() },
+          { onConflict: "user_id,company_id" },
+        );
+      }
+    } catch { /* 기록 실패해도 이번 세션에선 숨김 유지 */ }
+  }, [hiddenSteps, companyId]);
+
+  const steps = permLoading || hiddenSteps === null
     ? TOUR_STEPS
-    : TOUR_STEPS.filter((s) => !s.href || isMaster || hasMenu(s.href));
+    : TOUR_STEPS.filter((s) => !s.href || ((isMaster || hasMenu(s.href)) && !hiddenSteps.includes(s.href)));
 
   // 진행 스텝 복원 — 새로고침·재로그인해도 보던 자리에서 이어간다
   const [idx, setIdx] = useState(() => {
@@ -180,11 +216,23 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     } catch { return 0; }
   });
   const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  // '다시 보지 않기' 체크박스 (2026-08-11 사장님) — 체크한 상태로 닫으면(건너뛰기·시작하기 모두) 영구 미노출
+  const [neverShow, setNeverShow] = useState(false);
   const closedRef = useRef(false);
 
   // 필터로 스텝 수가 줄었을 때 저장된 진행 위치가 범위를 넘지 않게
   const safeIdx = Math.min(idx, steps.length - 1);
   const step = steps[safeIdx];
+  const loadingPrefs = permLoading || hiddenSteps === null;
+  // 안내할 스텝이 하나도 안 남았으면(전부 개별 숨김) 자동 노출을 조용히 접는다
+  const noContent = !loadingPrefs && steps.every((st) => !st.href);
+  useEffect(() => {
+    if (noContent && !closedRef.current) {
+      closedRef.current = true;
+      try { sessionStorage.removeItem(SS_KEY); } catch { /* ignore */ }
+      onClose();
+    }
+  }, [noContent, onClose]);
 
   // 스텝 저장 — 마운트 직후 0부터 기록해 isTourActive() 가 곧바로 참이 되게
   useEffect(() => {
@@ -216,8 +264,8 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     return () => { clearTimeout(t); window.removeEventListener("resize", onMove); window.removeEventListener("scroll", onMove, true); };
   }, [idx, measure]);
 
-  // 종료 — persist=true('다시 보지 않기')일 때만 계정(user_preferences)에 기록해 영구 미노출.
-  //   완료(시작하기)·이탈은 기록하지 않아 다음 로그인에 다시 뜬다 (2026-08-11 사장님).
+  // 종료 — persist=true('다시 보지 않기' 체크)일 때만 계정(user_preferences)에 기록해 영구 미노출.
+  //   체크 없이 닫으면(건너뛰기·시작하기 모두) 다음 로그인에 다시 뜬다 (2026-08-11 사장님).
   const finish = useCallback(async (persist = true) => {
     if (closedRef.current) return;
     closedRef.current = true;
@@ -258,6 +306,8 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
       }
     : { position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)" };
 
+  if (loadingPrefs || noContent) return null;
+
   return (
     <div className="app-tour-root" role="dialog" aria-label="사용 안내 투어">
       {/* 어두운 배경 — 하이라이트가 있으면 구멍(박스섀도 트릭), 없으면 전체 덮개 */}
@@ -291,13 +341,32 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
           </div>
         )}
         <div className="app-tour-tip-actions">
-          {/* '다시 보지 않기'만 영구 미노출 기록 — 그냥 완료(시작하기)나 이탈은 다음 로그인에 다시 뜬다 (2026-08-11 사장님) */}
-          <button onClick={() => finish(true)} className="app-tour-skip">다시 보지 않기</button>
-          <div className="flex gap-2">
+          {/* 스텝마다: '이 안내 다시 보지 않기' → 그 스텝만 다음부터 제외.
+              마지막(완료) 옆 체크박스 → 투어 전체 영구 미노출 (2026-08-11 사장님). */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button onClick={() => finish(false)} className="app-tour-skip shrink-0">건너뛰기</button>
+            {!isLast && step.href && (
+              <button
+                onClick={() => hideCurrentStep(step.href!)}
+                className="app-tour-skip shrink-0"
+                title="이 안내만 다음 투어에서 표시하지 않습니다"
+              >
+                이 안내 다시 보지 않기
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2.5">
+            {isLast && (
+              <label className="app-tour-never" title="체크하면 투어 전체가 다시 나오지 않습니다">
+                <input type="checkbox" checked={neverShow} onChange={(e) => setNeverShow(e.target.checked)}
+                  className="w-3.5 h-3.5 rounded accent-[var(--primary)] cursor-pointer" />
+                다시 보지 않기
+              </label>
+            )}
             {safeIdx > 0 && (
               <button onClick={() => setIdx(safeIdx - 1)} className="btn-secondary btn-sm">이전</button>
             )}
-            <button onClick={() => (isLast ? finish(false) : setIdx(safeIdx + 1))} className="btn-primary btn-sm">
+            <button onClick={() => (isLast ? finish(neverShow) : setIdx(safeIdx + 1))} className="btn-primary btn-sm">
               {isLast ? "시작하기" : "다음"}
             </button>
           </div>
