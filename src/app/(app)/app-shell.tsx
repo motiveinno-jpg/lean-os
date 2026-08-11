@@ -371,6 +371,16 @@ function AppContent({ children }: { children: React.ReactNode }) {
             폼·문서 등 자체 --content-max 페이지는 그 안에서 추가 제한되므로 영향 없음. */}
         <div className="app-content-scale w-full max-w-[1400px]">
           {/* 페이지 제목·설명은 상단 크롬 헤더바(브레드크럼)에서 표시 — 본문 중복 제목 없음. */}
+          {/* 세무사 열람 모드 (2026-08-11): 파트너 세무사가 포털에서 회사를 골라 들어온 세션.
+              DB 가 전면 쓰기차단(advisor_ro_*)이므로 저장·수정 버튼은 동작하지 않는다는 안내. */}
+          {role === "advisor" && (
+            <div className="advisor-viewing-banner">
+              <span className="advisor-viewing-dot" />
+              <span className="font-bold">{(user as any)?.companies?.name || "고객사"}</span>
+              <span> 열람 모드 — 세무사 파트너 계정은 읽기 전용입니다.</span>
+              <a href="/advisor/dashboard" className="advisor-viewing-back">← 파트너 포털로</a>
+            </div>
+          )}
           {/* 파이낸스 허브(거래처/세금·증빙/거래 장부) 하위 탭 — 해당 라우트에서만 렌더(그 외 null) */}
           <FinanceTabs />
           {/* 유료 출시 게이트(2026-06-11): trial D-N 배너 + 만료/해지 페이월. 운영자·레거시(구독행 없음) 비차단. */}
@@ -416,7 +426,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       //   회사가 이미 있으면 스스로 /dashboard 로 돌려보내므로 루프 없음.
       const { getCurrentUser } = await import("@/lib/queries");
       const u = await getCurrentUser().catch(() => null);
-      if (!u) { router.replace("/company-setup"); return; }
+      if (!u) {
+        // 세무사 계정(users 행 없음)이 회사 미선택/연결 해제 상태로 앱에 오면
+        //   회사 개설이 아니라 파트너 포털로 보낸다 (2026-08-11).
+        const { data: adv } = await (supabase as any)
+          .from("tax_advisors").select("id").eq("auth_id", data.session.user.id).maybeSingle();
+        router.replace(adv ? "/advisor" : "/company-setup");
+        return;
+      }
       setReady(true);
     });
 

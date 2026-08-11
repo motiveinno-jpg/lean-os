@@ -172,6 +172,11 @@ async function teardown() {
 
       delete from attendance_records where company_id = cid;
       delete from leave_requests where company_id = cid;
+      delete from bank_transactions where company_id = cid;
+      delete from card_transactions where company_id = cid;
+      delete from tax_invoices where company_id = cid;
+      delete from cash_receipts where company_id = cid;
+      delete from bank_accounts where company_id = cid;
       delete from approval_steps where request_id in (select id from approval_requests where company_id = cid);
       delete from approval_requests where company_id = cid;
       delete from approval_policies where company_id = cid;

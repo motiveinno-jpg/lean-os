@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { getCurrentUser, clearCurrentUserCache, type CurrentUser } from "@/lib/queries";
 
-export type UserRole = "owner" | "admin" | "employee" | "partner";
+export type UserRole = "owner" | "admin" | "employee" | "partner" | "advisor";
 
 interface UserContextType {
   user: CurrentUser | null;

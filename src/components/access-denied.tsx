@@ -32,6 +32,11 @@ const RECOMMEND_BY_ROLE: Record<UserRole, RecMenu[]> = {
     { href: "/projects", label: "프로젝트", emoji: "📋" },
     { href: "/documents", label: "문서/계약", emoji: "📄" },
   ],
+  advisor: [
+    { href: "/dashboard", label: "대시보드", emoji: "🏠" },
+    { href: "/tax-invoices", label: "세금계산서", emoji: "🧾" },
+    { href: "/advisor/dashboard", label: "파트너 포털", emoji: "📒" },
+  ],
 };
 
 // (2026-08-03 역할 폐지 반영) 관리자·직원 구분 표기 제거 — 멤버로 통일 (마스터는 아래 is_master 로 판정).
@@ -40,6 +45,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   admin: "멤버",
   employee: "멤버",
   partner: "파트너",
+  advisor: "세무 파트너",
 };
 
 export function AccessDenied({

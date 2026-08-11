@@ -189,6 +189,9 @@ export function useMyPermissions(): {
 } {
   const { user, loading: userLoading } = useUser();
   const isMaster = !!(user as any)?.is_master;
+  // 세무사 열람 세션 (2026-08-11): 회사의 모든 메뉴·탭을 볼 수 있다(사장님: "모든 정보").
+  //   쓰기는 DB RESTRICTIVE 정책(advisor_ro_*)이 전면 차단하므로 화면 권한은 열람 전용으로 안전.
+  const isAdvisor = (user as any)?.role === "advisor";
   const { data: perms, isLoading } = useQuery({
     queryKey: ["my-permissions", user?.id],
     queryFn: async () => {
@@ -198,7 +201,7 @@ export function useMyPermissions(): {
         .eq("user_id", user!.id);
       return new Set<string>((data || []).map((r: any) => r.perm_key));
     },
-    enabled: !!user?.id && !isMaster,
+    enabled: !!user?.id && !isMaster && !isAdvisor,
     // 마스터가 권한을 부여하면 직원 화면이 새로고침 없이 따라오도록 주기 갱신
     //   (2026-07-31 사장님: 템플릿 부여 직후 '권한 없음'으로 보이던 캐시 문제)
     staleTime: 20_000,
@@ -208,10 +211,10 @@ export function useMyPermissions(): {
   const set = perms || new Set<string>();
   // ⚠️ 기본 제공(always) 단축은 메뉴 키에만 — 세부탭 키(:포함)는 반드시 명시 부여 필요
   //   (예: /dashboard 는 전원 기본이지만 /dashboard:finance 재무 위젯은 부여자만).
-  const hasPerm = (key: string) => isMaster || (!key.includes(":") && ALWAYS_ALLOWED_ROUTES.has(key)) || set.has(key);
+  const hasPerm = (key: string) => isMaster || isAdvisor || (!key.includes(":") && ALWAYS_ALLOWED_ROUTES.has(key)) || set.has(key);
   return {
     isMaster,
-    loading: userLoading || (!isMaster && isLoading),
+    loading: userLoading || (!isMaster && !isAdvisor && isLoading),
     hasPerm,
     hasMenu: (route: string) => hasPerm(route),
   };

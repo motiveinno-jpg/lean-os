@@ -8425,3 +8425,21 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 재무제표 — '전표만 반영' 안내 배너 (2026-08-11) */
 .pnl-unposted-banner { @apply mb-3; }
 .bs-unposted-banner { @apply mb-3; }
+
+/* 세무사 열람 모드 배너 (본앱 상단, 2026-08-11) */
+.advisor-viewing-banner { @apply flex items-center gap-1.5 flex-wrap mb-4 px-4 py-2.5 rounded-xl text-[12.5px]; background: #17233f; color: #e8ebf2; }
+.advisor-viewing-dot { @apply w-2 h-2 rounded-full shrink-0; background: #c2a15c; }
+.advisor-viewing-back { @apply ml-auto font-bold underline underline-offset-2; color: #d9c493; }
+
+/* 포털 → 오너뷰 본앱 진입 버튼 */
+.adv-enter-app-btn { @apply w-full mt-3 py-2 rounded-lg text-[12.5px] font-bold text-center transition; border: 1.5px solid var(--adv-ink); color: var(--adv-ink); background: transparent; }
+.adv-enter-app-btn:hover { background: var(--adv-ink); color: #fff; }
+.adv-enter-app-btn-head { @apply w-auto mt-0 ml-auto px-4; }
+
+/* 회사설정 — 세무 파트너 섹션 (2026-08-11) */
+.company-advisor-section { @apply p-6 mt-6; }
+.company-advisor-head { @apply flex items-start justify-between gap-3 flex-wrap; }
+.company-advisor-list { @apply mt-4 space-y-2; }
+.company-advisor-row { @apply flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[var(--bg-surface)]/70 border border-[var(--border)]/60; }
+.company-advisor-link-btn { @apply shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold bg-[var(--primary)] text-white hover:opacity-90 transition disabled:opacity-50; }
+.company-advisor-unlink-btn { @apply shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-[var(--danger)] border border-[var(--danger)]/40 hover:bg-[var(--danger-dim)] transition disabled:opacity-50; }

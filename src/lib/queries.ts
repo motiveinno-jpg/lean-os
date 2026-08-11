@@ -63,6 +63,28 @@ async function _fetchCurrentUser(): Promise<CurrentUser | null> {
       .maybeSingle());
     if (fallback?.company_id) return fallback as unknown as CurrentUser;
 
+    // 세무사 열람 세션 (2026-08-11): users 행이 없는 제휴 세무사가 포털에서 회사를
+    //   선택(advisor_enter_company)했으면, 그 회사 스코프의 가상 사용자로 본앱을 연다.
+    //   DB 는 get_my_company_id() 폴백 + 전면 쓰기차단(advisor_ro_*)으로 읽기 전용 강제.
+    const advisor = logRead('_fetchCurrentUser:advisor', await (supabase as any)
+      .from('tax_advisors').select('id, name, email, status').eq('auth_id', user.id).maybeSingle());
+    if (advisor?.status === 'active') {
+      const active = logRead('_fetchCurrentUser:advisor-active', await (supabase as any)
+        .from('advisor_active_company').select('company_id').eq('auth_id', user.id).maybeSingle());
+      if (active?.company_id) {
+        const company = logRead('_fetchCurrentUser:advisor-company', await supabase
+          .from('companies').select('id, name, industry, created_at').eq('id', active.company_id).maybeSingle());
+        if (company) {
+          return {
+            id: user.id, auth_id: user.id, company_id: active.company_id,
+            email: advisor.email || user.email || '', name: advisor.name,
+            role: 'advisor', avatar_url: null, created_at: null,
+            companies: company,
+          } as unknown as CurrentUser;
+        }
+      }
+    }
+
     // 인증은 됐지만 users 레코드가 없는 경우 — 회사 개설/합류는 auth 플로우
     // (provisionCompanyForUser → /company-setup)가 전담한다. 과거의 자동 생성 폴백
     // (autoSetupUser)은 RLS에 막혀 콘솔 에러만 내는 데드 코드라 제거 (2026-07-20 P0).

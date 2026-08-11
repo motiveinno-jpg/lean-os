@@ -605,6 +605,126 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
 
       {/* 보안 — 접속 허용 IP (옵션, 2026-08-11 사장님: 쓰는 회사만) */}
       <IpRestrictionSection companyId={companyId} />
+
+      {/* 세무 파트너 — 제휴 세무사 연결/해제 (2026-08-11 사장님 ①②) */}
+      <TaxAdvisorSection />
+    </div>
+  );
+}
+
+/* ── 세무 파트너: 제휴 세무사 목록에서 골라 연결, 연결된 세무사 표시·해제 ──
+   연결된 세무사는 /advisor 포털과 오너뷰 열람 모드(읽기 전용)로 이 회사를 볼 수 있다.
+   목록·연결·해제는 전부 SECURITY DEFINER RPC(company_*_advisor*) — 관리자(마스터 포함)만. */
+function TaxAdvisorSection() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: myAdvisors = [] } = useQuery({
+    queryKey: ["company-my-advisors"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("company_my_advisors");
+      if (error) throw error;
+      return (data || []) as { link_id: string; advisor_id: string; name: string; office_name: string | null; specialty: string | null; email: string; phone: string | null; linked_at: string }[];
+    },
+  });
+  const { data: catalog = [], error: catalogError } = useQuery({
+    queryKey: ["company-advisor-catalog"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("company_list_advisors");
+      if (error) throw error;
+      return (data || []) as { id: string; name: string; office_name: string | null; specialty: string | null; linked: boolean }[];
+    },
+    retry: false, // 관리자 아니면 forbidden — 조용히 숨김
+  });
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["company-my-advisors"] });
+    queryClient.invalidateQueries({ queryKey: ["company-advisor-catalog"] });
+  };
+  const linkMut = useMutation({
+    mutationFn: async (advisorId: string) => {
+      const { error } = await (supabase as any).rpc("company_link_advisor", { p_advisor_id: advisorId });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast("세무사가 연결되었습니다.", "success"); invalidate(); },
+    onError: () => toast("연결에 실패했습니다.", "error"),
+  });
+  const unlinkMut = useMutation({
+    mutationFn: async (linkId: string) => {
+      const { error } = await (supabase as any).rpc("company_unlink_advisor", { p_link_id: linkId });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast("연결을 해제했습니다. 해당 세무사의 열람이 즉시 차단됩니다.", "success"); invalidate(); },
+    onError: () => toast("해제에 실패했습니다.", "error"),
+  });
+
+  // 관리자가 아니어서 카탈로그 자체가 forbidden 이면 섹션 미노출 (연결된 세무사가 있으면 표시는 유지)
+  if (catalogError && myAdvisors.length === 0) return null;
+  const unlinked = catalog.filter((a) => !a.linked);
+
+  return (
+    <div className="company-advisor-section glass-card">
+      <div className="company-advisor-head">
+        <div>
+          <h3 className="text-[15px] font-bold">세무 파트너</h3>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+            오너뷰 제휴 세무사를 연결하면 자료 요청 없이 우리 회사 장부를 열람(읽기 전용)하며 기장·신고를 도와줍니다. 추가 좌석 비용은 없습니다.
+          </p>
+        </div>
+      </div>
+
+      {myAdvisors.length > 0 && (
+        <div className="company-advisor-list">
+          {myAdvisors.map((a) => (
+            <div key={a.link_id} className="company-advisor-row">
+              <div className="min-w-0">
+                <span className="font-bold text-sm">{a.name}</span>
+                {a.office_name && <span className="text-xs text-[var(--text-muted)] ml-1.5">{a.office_name}</span>}
+                <div className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate">
+                  {a.email}{a.phone ? ` · ${a.phone}` : ""}{a.specialty ? ` · ${a.specialty}` : ""} · {String(a.linked_at).slice(0, 10)} 연결
+                </div>
+              </div>
+              <button
+                className="company-advisor-unlink-btn"
+                disabled={unlinkMut.isPending}
+                onClick={async () => {
+                  if (await appConfirm(`${a.name} 세무사와의 연결을 해제하시겠습니까?\n해제 즉시 우리 회사 데이터 열람이 차단됩니다.`, { danger: true, confirmLabel: "해제" }))
+                    unlinkMut.mutate(a.link_id);
+                }}
+              >연결 해제</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!catalogError && (
+        myAdvisors.length === 0 && unlinked.length === 0 ? (
+          <p className="text-xs text-[var(--text-dim)] mt-3">아직 등록된 제휴 세무사가 없습니다. 준비되는 대로 이곳에서 선택할 수 있습니다.</p>
+        ) : unlinked.length > 0 && (
+          <div className="mt-4">
+            <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">제휴 세무사 목록</div>
+            <div className="company-advisor-list">
+              {unlinked.map((a) => (
+                <div key={a.id} className="company-advisor-row">
+                  <div className="min-w-0">
+                    <span className="font-bold text-sm">{a.name}</span>
+                    {a.office_name && <span className="text-xs text-[var(--text-muted)] ml-1.5">{a.office_name}</span>}
+                    {a.specialty && <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{a.specialty}</div>}
+                  </div>
+                  <button
+                    className="company-advisor-link-btn"
+                    disabled={linkMut.isPending}
+                    onClick={async () => {
+                      if (await appConfirm(`${a.name} 세무사를 연결하시겠습니까?\n연결하면 우리 회사의 재무·인사 데이터를 열람(읽기 전용)할 수 있습니다.`, { confirmLabel: "연결" }))
+                        linkMut.mutate(a.id);
+                    }}
+                  >연결</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      )}
     </div>
   );
 }

@@ -87,6 +87,16 @@ export default function AdvisorCompanyPage({ params }: { params: Promise<{ compa
                 {ov.company.business_type ? ` · ${ov.company.business_type}` : ""}
                 {ov.company.business_category ? `/${ov.company.business_category}` : ""}
               </span>
+              {/* 오너뷰 본앱 진입 (2026-08-11 사장님) — 읽기 전용 세션으로 이 회사의 실제 오너뷰를 연다 */}
+              <button
+                className="adv-enter-app-btn adv-enter-app-btn-head"
+                onClick={async () => {
+                  const { error: err } = await (supabase as any).rpc("advisor_enter_company", { p_company_id: companyId });
+                  if (!err) window.location.href = "/dashboard";
+                }}
+              >
+                오너뷰로 열람 →
+              </button>
             </div>
 
             <div className="adv-statband">

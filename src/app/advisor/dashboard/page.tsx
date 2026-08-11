@@ -82,7 +82,9 @@ export default function AdvisorDashboardPage() {
             {clients.map((c) => {
               const maxAmt = Math.max(Number(c.month_sales) || 0, Number(c.month_purchase) || 0, 1);
               return (
-                <button key={c.link_id} className="adv-client-card" onClick={() => router.push(`/advisor/c/${c.company_id}`)}>
+                <div key={c.link_id} role="button" tabIndex={0} className="adv-client-card"
+                  onClick={() => router.push(`/advisor/c/${c.company_id}`)}
+                  onKeyDown={(e) => e.key === "Enter" && router.push(`/advisor/c/${c.company_id}`)}>
                   <div className="adv-client-cover">
                     <div className="adv-client-name">{c.company_name}</div>
                     <div className="adv-client-bizno">
@@ -102,8 +104,19 @@ export default function AdvisorDashboardPage() {
                     </dl>
                     <div className="adv-mini-bar-track"><div className="adv-mini-bar-out" style={{ width: `${(Number(c.month_purchase) / maxAmt) * 100}%` }} /></div>
                     <dl className="adv-client-row"><dt>재직 인원</dt><dd>{c.employee_count}명</dd></dl>
+                    {/* 오너뷰 본앱 진입 (2026-08-11 사장님): 회사 선택 등록 후 실제 앱으로 — 읽기 전용 세션 */}
+                    <button
+                      className="adv-enter-app-btn"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const { error: err } = await (supabase as any).rpc("advisor_enter_company", { p_company_id: c.company_id });
+                        if (!err) window.location.href = "/dashboard";
+                      }}
+                    >
+                      오너뷰로 열람 →
+                    </button>
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>
