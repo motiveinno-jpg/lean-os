@@ -65,3 +65,13 @@ tail -80 ~/motive-brain/lessons.md       # 최근 교훈 (인시던트·회귀·
 - 사용자는 "# [핸드오프·도메인·에이전트]" 형식으로 작업 던짐
 - STEP 1 진단 → STEP 2 픽스 → STEP 3 라이브 스모크 패턴
 - "절대 준수" 섹션은 글자 그대로 따르기 (회귀 0, 데이터 무변경 등)
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { appConfirm } from "@/components/global-confirm";
 import { verifyBusinessNumber } from "@/lib/business-verification";
+import { PermissionTree } from "../../employees/_components/PermissionTree";
 
 export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   const db = supabase;
@@ -612,12 +613,14 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   );
 }
 
-/* ── 세무 파트너: 제휴 세무사 목록에서 골라 연결, 연결된 세무사 표시·해제 ──
-   연결된 세무사는 /advisor 포털과 오너뷰 열람 모드(읽기 전용)로 이 회사를 볼 수 있다.
-   목록·연결·해제는 전부 SECURITY DEFINER RPC(company_*_advisor*) — 관리자(마스터 포함)만. */
+/* ── 세무 파트너: 제휴 세무사 목록에서 골라 연결, 연결된 세무사 표시·해제·권한 부여 ──
+   연결된 세무사는 /advisor 포털과 오너뷰 열람 모드(읽기 전용)로 이 회사를 볼 수 있다 —
+   단, 여기서 부여한 메뉴 권한만 보인다(일반 구성원과 동일 모델, 연결 시 세무 기본 패키지 자동 부여).
+   목록·연결·해제·권한은 전부 SECURITY DEFINER RPC — 관리자(마스터 포함)만. */
 function TaxAdvisorSection() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [permOpenFor, setPermOpenFor] = useState<string | null>(null); // link_id
 
   const { data: myAdvisors = [] } = useQuery({
     queryKey: ["company-my-advisors"],
@@ -676,22 +679,31 @@ function TaxAdvisorSection() {
       {myAdvisors.length > 0 && (
         <div className="company-advisor-list">
           {myAdvisors.map((a) => (
-            <div key={a.link_id} className="company-advisor-row">
-              <div className="min-w-0">
-                <span className="font-bold text-sm">{a.name}</span>
-                {a.office_name && <span className="text-xs text-[var(--text-muted)] ml-1.5">{a.office_name}</span>}
-                <div className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate">
-                  {a.email}{a.phone ? ` · ${a.phone}` : ""}{a.specialty ? ` · ${a.specialty}` : ""} · {String(a.linked_at).slice(0, 10)} 연결
+            <div key={a.link_id}>
+              <div className="company-advisor-row">
+                <div className="min-w-0">
+                  <span className="font-bold text-sm">{a.name}</span>
+                  {a.office_name && <span className="text-xs text-[var(--text-muted)] ml-1.5">{a.office_name}</span>}
+                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate">
+                    {a.email}{a.phone ? ` · ${a.phone}` : ""}{a.specialty ? ` · ${a.specialty}` : ""} · {String(a.linked_at).slice(0, 10)} 연결
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    className="company-advisor-perm-btn"
+                    onClick={() => setPermOpenFor(permOpenFor === a.link_id ? null : a.link_id)}
+                  >{permOpenFor === a.link_id ? "권한 닫기" : "권한 설정"}</button>
+                  <button
+                    className="company-advisor-unlink-btn"
+                    disabled={unlinkMut.isPending}
+                    onClick={async () => {
+                      if (await appConfirm(`${a.name} 세무사와의 연결을 해제하시겠습니까?\n해제 즉시 우리 회사 데이터 열람이 차단됩니다.`, { danger: true, confirmLabel: "해제" }))
+                        unlinkMut.mutate(a.link_id);
+                    }}
+                  >연결 해제</button>
                 </div>
               </div>
-              <button
-                className="company-advisor-unlink-btn"
-                disabled={unlinkMut.isPending}
-                onClick={async () => {
-                  if (await appConfirm(`${a.name} 세무사와의 연결을 해제하시겠습니까?\n해제 즉시 우리 회사 데이터 열람이 차단됩니다.`, { danger: true, confirmLabel: "해제" }))
-                    unlinkMut.mutate(a.link_id);
-                }}
-              >연결 해제</button>
+              {permOpenFor === a.link_id && <AdvisorPermissionPanel linkId={a.link_id} advisorName={a.name} />}
             </div>
           ))}
         </div>
@@ -949,6 +961,65 @@ function CompanyDocsSection({ companyId }: { companyId: string | null }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* ── 세무사 권한 부여 패널 — 구성원 권한(PermissionTree)과 동일 카탈로그, 저장은 링크 단위 RPC ── */
+function AdvisorPermissionPanel({ linkId, advisorName }: { linkId: string; advisorName: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [dirty, setDirty] = useState(false);
+
+  const { data: saved, isLoading } = useQuery({
+    queryKey: ["advisor-permissions", linkId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("advisor_permissions").select("perm_key").eq("link_id", linkId);
+      return new Set<string>((data || []).map((r: any) => r.perm_key));
+    },
+  });
+  useEffect(() => { if (saved && !dirty) setChecked(new Set(saved)); }, [saved, dirty]);
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).rpc("set_advisor_permissions", {
+        p_link_id: linkId, p_perm_keys: Array.from(checked),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast(`${advisorName} 세무사의 열람 권한이 저장되었습니다`, "success");
+      setDirty(false);
+      queryClient.invalidateQueries({ queryKey: ["advisor-permissions", linkId] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "권한 저장 실패"), "error"),
+  });
+
+  const toggle = (keys: string[], on: boolean) => {
+    setChecked((cur) => {
+      const next = new Set(cur);
+      for (const k of keys) { if (on) next.add(k); else next.delete(k); }
+      return next;
+    });
+    setDirty(true);
+  };
+
+  if (isLoading) return <div className="text-xs text-[var(--text-dim)] py-3 pl-1">권한 불러오는 중…</div>;
+
+  return (
+    <div className="company-advisor-perm-panel">
+      <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+        <div className="text-[11px] text-[var(--text-muted)]">
+          체크된 메뉴만 {advisorName} 세무사에게 보입니다(전부 읽기 전용). 연결 시 세무 업무 기본 세트가 자동 부여되어 있습니다.
+        </div>
+        <button onClick={() => saveMut.mutate()} disabled={!dirty || saveMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
+          {saveMut.isPending ? "저장 중…" : "저장"}
+        </button>
+      </div>
+      <PermissionTree checked={checked} onToggle={toggle} viewerIsMaster={false} />
+      {dirty && <div className="text-[11px] text-[var(--warning)] mt-2">변경사항이 있습니다 — 저장을 눌러야 반영됩니다.</div>}
     </div>
   );
 }

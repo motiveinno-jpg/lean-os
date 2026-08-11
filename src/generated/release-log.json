@@ -1,925 +1,965 @@
 {
-  "generated_at": "2026-07-30T08:27:34.209Z",
+  "generated_at": "2026-08-11T09:02:15.700Z",
   "entries": [
     {
-      "hash": "816f995",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "권한 부여 위임 — 마스터가 지정한 구성원도 권한을 줄 수 있게"
-    },
-    {
-      "hash": "62c1367",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "dashboard",
-      "title": "대외비(금액) 위젯 권한 분리 — 기본은 필수 위젯만"
-    },
-    {
-      "hash": "379317a",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "개편 P4 — RLS 권한 기반 전환 + 초대 개편 + 구 권한 UI 제거"
-    },
-    {
-      "hash": "ab2face",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "개편 P3-6 — 앱셸 레이아웃 통일·온보딩 마스터 전용·잔여 분기 정리"
-    },
-    {
-      "hash": "5c92b54",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "개편 P3-5 — 잔여 role 검사 전환 (컴포넌트류)"
-    },
-    {
-      "hash": "36cda9a",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "개편 P3-4 — 직원 하드블록 해제·관리 뷰 통일·역할 라벨 개편"
-    },
-    {
-      "hash": "d7f38ff",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "개편 P3-3 — 근태 권한 게이트 + 구성원/근태 관리 판정 perm 전환"
-    },
-    {
-      "hash": "c1b158a",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "개편 P3-2 — 설정·통장·세금계산서 세부탭 권한 게이트"
-    },
-    {
-      "hash": "c0b7fd8",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "auth",
-      "title": "개편 P3-1 — 결재 허브·구성원 페이지 세부탭 권한 게이트"
-    },
-    {
-      "hash": "b702cd5",
-      "date": "2026-07-30",
+      "hash": "02e69dd",
+      "date": "2026-08-11",
       "type": "fix",
       "label": "수정",
-      "scope": "landing",
-      "title": "데모 부품을 앱 표준(seg-bar·stat-tile·표)에 맞추고 제품 이미지 56장 전부 재캡처"
+      "scope": "advisor",
+      "title": "기존 이메일로 가입 시 \"메일 보냈다\" 오안내 — 로그인 유도로 교정"
     },
     {
-      "hash": "9eecf59",
-      "date": "2026-07-30",
+      "hash": "1a3ceb5",
+      "date": "2026-08-11",
       "type": "feat",
       "label": "기능",
-      "scope": "auth",
-      "title": "개편 P2 — 화면 한 벌 통합 (사이드바·라우트 가드·대시보드 단일화)"
+      "scope": "전표",
+      "title": "일반전표도 조회기간·년월일 3칸·Enter 칸단위 (매입매출전표와 통일)"
     },
     {
-      "hash": "c95d69c",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "둘러보기·AI 화면 이미지 전부 재캡처 + 데모 통장 패널을 실제 화면 구조로"
-    },
-    {
-      "hash": "5d66850",
-      "date": "2026-07-30",
+      "hash": "bc9b392",
+      "date": "2026-08-11",
       "type": "feat",
       "label": "기능",
-      "scope": "auth",
-      "title": "마스터·권한 기반 개편 P1 — DB 기반 + 권한 카탈로그 + 마스터 부여 화면"
+      "scope": "advisor",
+      "title": "세무사가 오너뷰 본앱으로 진입 + 회사설정 세무 파트너 연결/해제"
     },
     {
-      "hash": "16d7c49",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "hr",
-      "title": "휴가 캘린더 하루 밀림 + 결재허브 휴가 중복 표기 수정"
-    },
-    {
-      "hash": "9711e61",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
-      "scope": "local-env",
-      "title": "로컬 Supabase 테스트 서버 부트스트랩 — 마이그레이션 391개 빈 DB 재생 가능하게"
-    },
-    {
-      "hash": "78dcca6",
-      "date": "2026-07-30",
+      "hash": "015dd4c",
+      "date": "2026-08-11",
       "type": "feat",
       "label": "기능",
-      "scope": "landing",
-      "title": "주요 기능·둘러보기 모바일 통일 + 폰 목업 상단 뚫림 수정 + 가격 FAQ 정리"
+      "scope": "전표",
+      "title": "매입매출전표 조회를 기간(달력)으로 · Enter 는 칸 하나만 내리게"
     },
     {
-      "hash": "1d0ed39",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
-      "scope": "billing",
-      "title": "연간 결제 실검증 라우트 제거 — 검증 완료"
-    },
-    {
-      "hash": "5bae2a5",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
-      "scope": "billing",
-      "title": "연간 결제 경로 실검증 일회성 라우트 — 세션 생성·금액 확인 후 즉시 만료 (청구 없음, 사용 후 삭제)"
-    },
-    {
-      "hash": "c11fd46",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
-      "scope": "billing",
-      "title": "연간가 복구·검증 라우트 제거 — 4개 가격 검증 완료 + env 교체 완료"
-    },
-    {
-      "hash": "67abb43",
-      "date": "2026-07-30",
-      "type": "hotfix",
-      "label": "긴급수정",
-      "scope": "billing",
-      "title": "쿠폰 카드 CSS 빌드 실패 수정 — @apply 에 커스텀 클래스(glass-card) 사용 불가"
-    },
-    {
-      "hash": "afa001a",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "billing",
-      "title": "연간 기본가 재활성화 라우트 — 아카이브 스윕이 같은 product 의 기본가까지 비활성화한 사고 복구 (reset 라우트 제거)"
-    },
-    {
-      "hash": "7f451b2",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "히어로 자동 롤링·문구 3건·폰 목업 프레임 이탈 버그·폰 합쳐지는 시점"
-    },
-    {
-      "hash": "f699787",
-      "date": "2026-07-30",
+      "hash": "768c166",
+      "date": "2026-08-11",
       "type": "feat",
       "label": "기능",
-      "scope": "billing",
-      "title": "연간 결제 혜택 — 추가인원 12명 무료 등록 쿠폰"
+      "scope": "reports",
+      "title": "손익계산서·재무상태표를 전표 기준으로 — 불러오기만 한 자료는 빼다"
     },
     {
-      "hash": "b8020c2",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
-      "scope": "billing",
-      "title": "연간 좌석가 무할인(120,000원)으로 정정 + 비대상 연간 price 전체 아카이브"
+      "hash": "52e67f0",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "advisor",
+      "title": "세무사 파트너 포털 — 구독사·제휴 세무사 연결 (사장님 신규 기획)"
     },
     {
-      "hash": "84e7fba",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
-      "scope": "billing",
-      "title": "연간가 10% 할인 재설정용 일회성 라우트 (사용 후 즉시 제거)"
+      "hash": "ef294a4",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "collect",
+      "title": "자동 분류를 통장 탭으로 흡수 — 비목 동시 지정·추천 분리·링크 정리·메뉴 정리"
     },
     {
-      "hash": "a6fe1ca",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
-      "scope": "billing",
-      "title": "스트라이프 모드 점검 라우트 제거 — 라이브 확인 완료 (rk_live, livemode:true)"
+      "hash": "12ad773",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "ui",
+      "title": "A그룹 기간 입력을 달력 위젯으로 — 통장·카드·현금영수증·거래처 원장"
     },
     {
-      "hash": "d74c69d",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
-      "scope": "billing",
-      "title": "스트라이프 키 라이브 모드 일회성 점검 라우트 (확인 후 즉시 제거)"
+      "hash": "dfcd554",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "gate",
+      "title": "CI·로컬 DB 게이트 복구 — RLS 인라인 서브쿼리 제거 + entitlement 기대값 현행화"
     },
     {
-      "hash": "a6bc84b",
-      "date": "2026-07-30",
+      "hash": "e3a5a34",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "ui",
+      "title": "조회기간에 '월 단위' 모드 — 세금·증빙·전자계산서·손익에 적용"
+    },
+    {
+      "hash": "d77b34d",
+      "date": "2026-08-11",
       "type": "feat",
       "label": "기능",
       "scope": "ai",
-      "title": "회사별 월 AI 비용 상한($10) 강제 + 운영자 AI 비용 현황 카드"
+      "title": "AI 참모 골든 질문 평가 하네스 — npm run qa:copilot-eval"
     },
     {
-      "hash": "bca5762",
-      "date": "2026-07-30",
+      "hash": "f6be373",
+      "date": "2026-08-11",
       "type": "feat",
       "label": "기능",
-      "scope": "landing",
-      "title": "흩어짐→모임을 \"창 12개 → 오너뷰 한 화면\"으로, 폰 목업을 폰답게"
+      "scope": "collect",
+      "title": "조회월 → 조회기간 — 타이핑 + 두 달 달력 (당일·1주일 포함)"
     },
     {
-      "hash": "b0160dc",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "billing",
-      "title": "연간 결제 오픈 — 연간 추가좌석 price 등록 완료 + 설정 라우트 제거"
-    },
-    {
-      "hash": "50b28ef",
-      "date": "2026-07-30",
+      "hash": "a4146a2",
+      "date": "2026-08-11",
       "type": "chore",
       "label": "정비",
-      "scope": "billing",
-      "title": "연간 추가좌석 price 생성용 일회성 설정 라우트 (사용 후 즉시 제거 예정)"
+      "scope": "qa",
+      "title": "QA 시드 회사 생성/정리 스크립트 — npm run qa:seed / qa:teardown"
     },
     {
-      "hash": "ff74ff1",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "ai",
-      "title": "AI 브리핑을 공용 호출기로 이관 — 비용 실측 기록, 퀄리티 조건 동일 (v14)"
-    },
-    {
-      "hash": "44f1c60",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "notifications",
-      "title": "백그라운드 푸시 브라우저별 편차 해소 — 권한 허용 브라우저 자동 구독"
-    },
-    {
-      "hash": "be48ef0",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "platform",
-      "title": "작업일지 얕은 클론 대응 — 기존 목록과 해시 병합"
-    },
-    {
-      "hash": "66e9d73",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "platform",
-      "title": "작업일지가 배포에서 갱신 안 되던 원인 — 생성기를 next.config 로 이동"
-    },
-    {
-      "hash": "ab64b99",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "attendance",
-      "title": "워크보드에 결근 요약 칩 + 클릭 시 결근자 명단"
-    },
-    {
-      "hash": "fdcdbc0",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "attendance",
-      "title": "오늘 통계 카드(출근/지각/결근/자리비움) 클릭 시 인원 명단 표시"
-    },
-    {
-      "hash": "063a2ce",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "projects",
-      "title": "프로젝트 카드 수정·삭제 메뉴가 클릭에 반응하지 않던 버그"
-    },
-    {
-      "hash": "8441f83",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "approvals",
-      "title": "팝업 바깥 클릭 '취소하고 닫기'가 실제로 안 닫히던 버그"
-    },
-    {
-      "hash": "99297dc",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "tax",
-      "title": "홈택스 연동 정지 버튼 — 통장 연동 정지와 동일 UX"
-    },
-    {
-      "hash": "91e5c3e",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "copilot",
-      "title": "AI 참모가 결재 양식을 직접 수정·생성 — upsert_approval_form 액션 (v11)"
-    },
-    {
-      "hash": "dbd11ca",
-      "date": "2026-07-30",
-      "type": "chore",
-      "label": "정비",
+      "hash": "c768af6",
+      "date": "2026-08-11",
+      "type": "test",
+      "label": "테스트",
       "scope": null,
-      "title": "워킹트리 잔류 작업분 정리 커밋"
+      "title": "main 에서 실패하던 9건 정리 — 코드 개편을 못 따라간 옛 사양 테스트 갱신"
     },
     {
-      "hash": "b79537c",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "폰에서 \"하루\"·\"자리에 없어도\" 를 스와이프 카드로 (사장님 지시)"
-    },
-    {
-      "hash": "b581dd7",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "approvals",
-      "title": "직원도 본인 요청 건에 댓글 + 사진·파일 첨부"
-    },
-    {
-      "hash": "08f2cb1",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "copilot",
-      "title": "검증 강제 + \"없다\" 단정 방지 — v10 배포"
-    },
-    {
-      "hash": "ea36fea",
-      "date": "2026-07-30",
+      "hash": "dde5ade",
+      "date": "2026-08-11",
       "type": "fix",
       "label": "수정",
-      "scope": "approvals",
-      "title": "참조함 휴가 카드 신청자명 '구성원/알 수 없음' 교정"
+      "scope": "documents",
+      "title": "파일보관함 — 파일명 클릭 경로도 서명 URL 로 (앞 커밋 9ec52d8 보완)"
     },
     {
-      "hash": "222b49c",
-      "date": "2026-07-30",
+      "hash": "9ec52d8",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "documents",
+      "title": "파일보관함 파일이 안 열리던 문제 — 비공개 버킷에 공개 주소로 열고 있었다"
+    },
+    {
+      "hash": "b06a101",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "collect",
+      "title": "통장 탭이 거래 매칭을 마저 흡수 — 수동 연결·되돌리기·AI 매칭"
+    },
+    {
+      "hash": "a3216b3",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "attendance",
+      "title": "워크보드 반차 게이지 — 오전 왼쪽 반·오후 오른쪽 반 (사장님 요청)"
+    },
+    {
+      "hash": "40c3b29",
+      "date": "2026-08-11",
+      "type": "test",
+      "label": "테스트",
+      "scope": "hr·approvals",
+      "title": "오늘 인시던트 검증 로직을 상시 회귀 테스트로 승격"
+    },
+    {
+      "hash": "98ab0a6",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "collect",
+      "title": "다대일 이관 · RPC 중복 제거 · 서버측 요금제 강제 · demo/랜딩 표기 통일"
+    },
+    {
+      "hash": "4d0a9cd",
+      "date": "2026-08-11",
       "type": "refactor",
       "label": "개선",
-      "scope": "landing",
-      "title": "AI 데모 카드 순서 — 강한 4장을 앞으로 (사장님 지시)"
+      "scope": "nav",
+      "title": "5단계 — 분석을 사이드바 그룹으로, 자산관리를 '자금'으로"
     },
     {
-      "hash": "fe23371",
-      "date": "2026-07-30",
+      "hash": "32da769",
+      "date": "2026-08-11",
       "type": "feat",
       "label": "기능",
-      "scope": "landing",
-      "title": "AI 데모 카드 9장 — 자동화 목록 3가지도 카드로, 3-Way 대조 모션 보강"
+      "scope": "collect",
+      "title": "4단계 — 자동분개 학습을 규칙표로 올린다"
     },
     {
-      "hash": "fefa056",
-      "date": "2026-07-30",
+      "hash": "0661d23",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "collect",
+      "title": "3단계 — 통장 탭이 거래 매칭을 흡수한다"
+    },
+    {
+      "hash": "b5d8620",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "tour",
+      "title": "'건너뛰기' 버튼 제거 — 스텝별/전체 '다시 보지 않기'만 (사장님 지시)"
+    },
+    {
+      "hash": "2952fb6",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "tour",
+      "title": "스텝별 '이 안내 다시 보지 않기' + 완료 옆 전체 체크박스 (사장님 지시)"
+    },
+    {
+      "hash": "8458ee9",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "approvals",
+      "title": "정책 적용 대상 — 직원 복수선택·팀(부서) 단위 (사장님 요청)"
+    },
+    {
+      "hash": "b7ced8c",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "collect",
+      "title": "2단계 — 자료별 조회 + 전표 만들기 (화면을 옮기지 않는다)"
+    },
+    {
+      "hash": "e4feefe",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "tour",
+      "title": "'건너뛰기' → '다시 보지 않기' — 그 버튼을 눌렀을 때만 영구 미노출 (사장님 지시)"
+    },
+    {
+      "hash": "27c2f1b",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "tour",
+      "title": "탭 투어를 기존 사용자 전원에게 1회 자동 노출 + 권한별 스텝 필터 (사장님 지시)"
+    },
+    {
+      "hash": "b37a4d1",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "attendance",
+      "title": "승인된 휴가·반차를 지각 판정에 반영 — 오전 반차 후 출근이 지각으로 찍히던 것"
+    },
+    {
+      "hash": "e8c68c2",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "collect",
+      "title": "수집·전표 메뉴 신설 — 흩어진 다섯 화면의 수집을 한 판으로"
+    },
+    {
+      "hash": "93ebe7b",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "billing",
+      "title": "무료 요금제 통장·카드 합산 3개 연결 제한 강제 (사장님 확정)"
+    },
+    {
+      "hash": "a0939fe",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "landing·billing",
+      "title": "랜딩 '14일 무료' 잔재 제거 + 동기화 문구 유료 차별화 (사장님 지시)"
+    },
+    {
+      "hash": "9e9087d",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "sync",
+      "title": "무료는 수동 수집 불가 — '하루 2회'는 자동 수집이었다"
+    },
+    {
+      "hash": "b22fcc6",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "sync",
+      "title": "현금영수증 수집 0건 원인 제거 + 요금제별 수집 횟수 (무료 하루 2회)"
+    },
+    {
+      "hash": "6843866",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "dashboard",
+      "title": "직원 계정 위젯 기본 배치 기울어짐 + 거래처 등 잘림 재수정"
+    },
+    {
+      "hash": "abc26c8",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "auth",
+      "title": "로컬 개발 서버 로그인이 운영 세션을 중복 로그인으로 쫓아내던 것 (사장님 제보)"
+    },
+    {
+      "hash": "f825e35",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "billing",
+      "title": "무료체험 폐지 — 오너뷰는 결제 즉시 청구·이용 개시 (사장님 확정)"
+    },
+    {
+      "hash": "a0122a9",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "leave",
+      "title": "직원 캘린더에 휴가자 '이름'이 안 나오던 것 — 캘린더 전용 RPC 로 교체"
+    },
+    {
+      "hash": "7ba5f30",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "billing",
+      "title": "업그레이드 모달 금액을 내역으로 명시 (사장님 요청)"
+    },
+    {
+      "hash": "391affc",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "voucher",
+      "title": "매입매출전표 — 증빙 연결(원장 이중계상 차단)·엑셀·좁은 화면"
+    },
+    {
+      "hash": "c079f0e",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "leave",
+      "title": "캘린더 전사 휴가 공유 · 반차 라벨 · 반차 시간 회사 설정"
+    },
+    {
+      "hash": "8e64a74",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "billing",
+      "title": "업그레이드 모달 예상 금액이 514,000원으로 뻥튀기되던 것 (사장님 제보)"
+    },
+    {
+      "hash": "539c2d0",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "auth",
+      "title": "중복 로그인 방지 + 회사별 접속 허용 IP 제한(옵션)"
+    },
+    {
+      "hash": "919109f",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "voucher",
+      "title": "매입매출전표에 음수 증빙 — 수정세금계산서·환입·카드 취소"
+    },
+    {
+      "hash": "0945ff1",
+      "date": "2026-08-11",
+      "type": "docs",
+      "label": "문서",
+      "scope": null,
+      "title": "이카운트 ERP 기획문서식 추론을 개발 규칙으로 (사장님 지시)"
+    },
+    {
+      "hash": "23f87a7",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "voucher",
+      "title": "매입매출전표를 회계 프로그램식 격자로 — Enter 로 윗줄 복사"
+    },
+    {
+      "hash": "ebe9f39",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "billing",
+      "title": "환불 정책 페이지 가격 39,000원 반영 누락분 + 구 정책 주석 정리"
+    },
+    {
+      "hash": "6e5df02",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "billing",
+      "title": "오너뷰 39,000원(VAT 별도) + 발행 한도 세금계산서·현금영수증 각 100건 분리 (사장님 확정)"
+    },
+    {
+      "hash": "81f7f18",
+      "date": "2026-08-11",
+      "type": "design",
+      "label": "기타",
+      "scope": "master",
+      "title": "심플 재설계 — 조용한 풀폭 스택 (기능 무변경)"
+    },
+    {
+      "hash": "7002b88",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "usage",
+      "title": "무제한 플랜에서도 사용량 칩 항상 표시 (사장님 제보)"
+    },
+    {
+      "hash": "98fc5c3",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "tax·billing",
+      "title": "전자계산서 화면을 세금계산서 디자인으로 통일 + 요금제에 발행 사용량 (사장님 요청)"
+    },
+    {
+      "hash": "52997f2",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "payments 외",
+      "title": "화면에 노출되던 내부 ID 조각 일괄 정리 ([승인#23ace4f3] 류)"
+    },
+    {
+      "hash": "d63add8",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "tax",
+      "title": "전자계산서 탭이 세금계산서 잡 진행률을 넘겨받아 '동기화 중'으로 보이던 혼동"
+    },
+    {
+      "hash": "4bdcb21",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "tax",
+      "title": "전자계산서 조회구분 확정 — inquiryType 03 (공식 문서 확보)"
+    },
+    {
+      "hash": "13dee21",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "tax",
+      "title": "전자계산서 문서종류 후보를 inquiryType=02 로 — type=1 실측 무효 확인"
+    },
+    {
+      "hash": "bb89781",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "master",
+      "title": "매출 목표를 카드에서 바로 설정 + 월 마감 항목별 처리 화면 바로가기"
+    },
+    {
+      "hash": "21deb13",
+      "date": "2026-08-11",
+      "type": "debug",
+      "label": "기타",
+      "scope": "tax",
+      "title": "전자계산서 0건 원인 추적 — 스텝 기록에 응답 필드·스킵 사유 보존"
+    },
+    {
+      "hash": "6f65b84",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "voucher",
+      "title": "증빙 전표처리에 부가세 유형 · 부가세대급금 계정 오류 수정"
+    },
+    {
+      "hash": "ea4c715",
+      "date": "2026-08-11",
+      "type": "fix",
+      "label": "수정",
+      "scope": "tax",
+      "title": "전자계산서 동기화 20분 멈춤 — 파라미터 교정 + 재시도 루프 버그 (사장님 제보)"
+    },
+    {
+      "hash": "ba04b8c",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "voucher",
+      "title": "매입매출전표에 ‘증빙에서 불러오기’"
+    },
+    {
+      "hash": "3a9f844",
+      "date": "2026-08-11",
+      "type": "design",
+      "label": "기타",
+      "scope": "master",
+      "title": "마스터 화면 시각화 전면 개편 — 도넛·게이지·링 3카드 레이아웃 (기능 무변경)"
+    },
+    {
+      "hash": "fa79960",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "voucher",
+      "title": "전표를 일반전표 · 매입매출전표 두 메뉴로 가른다"
+    },
+    {
+      "hash": "67ee3c4",
+      "date": "2026-08-11",
+      "type": "feat",
+      "label": "기능",
+      "scope": "hr",
+      "title": "승인된 휴가도 사유 입력 후 취소 — 내역 보존 + 신청과 동일 알림 (사장님 요청)"
+    },
+    {
+      "hash": "4a43a4d",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "tax",
+      "title": "계산서 쓰기 개편 — 품목 여러 줄 · 거래처 정보 서식대로"
+    },
+    {
+      "hash": "f49c8bf",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "tax",
+      "title": "전자계산서(면세) 홈택스 수집 + 세금·증빙 '전자계산서' 탭 신설 (사장님 요청)"
+    },
+    {
+      "hash": "da5d2c9",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "signatures",
+      "title": "상태 카드에서 '대기·거부' 칩 제거 — 도달 불가능한 죽은 상태"
+    },
+    {
+      "hash": "f5b4e54",
+      "date": "2026-08-10",
       "type": "fix",
       "label": "수정",
       "scope": "copilot",
-      "title": "AI 참모 오답의 뿌리 — 스냅샷 데이터 소스 5곳 교정 + 엣지 v8 배포"
+      "title": "토큰 카드에서 '현재 모델' 행 제거 (사장님 지시 — 모델명 미표기)"
     },
     {
-      "hash": "530144d",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "approvals",
-      "title": "새 요청 블록 전체 드래그 이동 + 상세내용 기본 위치를 맨 아래로"
-    },
-    {
-      "hash": "c030acb",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "approvals",
-      "title": "휴가(네이티브) 참조 알림이 직원 계정에서 '새 요청' 탭으로 떨어지던 버그"
-    },
-    {
-      "hash": "dd7dee1",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": null,
-      "title": "증명서 용도·제출처 전 경로 적용 + 결재 양식 '기간' 필드 타입"
-    },
-    {
-      "hash": "3ecf22a",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "attendance",
-      "title": "워크보드에 결재허브 휴가 미표시 + 무단결근 공백 — 2건 수정"
-    },
-    {
-      "hash": "e80a5f0",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "\"애매한 건\" → \"결정이 필요한 건\" (사장님 지시) + 데모 카드 잘림 수정"
-    },
-    {
-      "hash": "d53a12e",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "hr",
-      "title": "휴가 탭 — 연차 미설정 직원을 잔여 카드 그리드에 점선 카드로 직접 노출"
-    },
-    {
-      "hash": "3f5715f",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "AI 구간을 기능별 미니 데모 6장 1열 캐러셀로 교체"
-    },
-    {
-      "hash": "4401c19",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "hr",
-      "title": "휴가 탭 연차 미설정 직원이 직접입력 모드에서 안 보이던 버그"
-    },
-    {
-      "hash": "4f24f93",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "approvals",
-      "title": "새 요청·양식 등록 입력 필드 자유 재배치"
-    },
-    {
-      "hash": "7abe1b6",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "hr",
-      "title": "디렉토리 프로필 바로가기 개편 — 계약서→상세보기(정보 탭), 근태와 위치 교환"
-    },
-    {
-      "hash": "e2d5ecd",
-      "date": "2026-07-30",
-      "type": "fix",
-      "label": "수정",
-      "scope": "rls",
-      "title": "users.id=auth.uid() 오매핑 정책 27개 일괄 교정 — 레거시 계정 403 류"
-    },
-    {
-      "hash": "42b13cf",
-      "date": "2026-07-30",
-      "type": "feat",
-      "label": "기능",
-      "scope": "hr",
-      "title": "구성원 페이지에 휴가 탭 복원 — 관리자/대표 전용"
-    },
-    {
-      "hash": "3a8cce3",
-      "date": "2026-07-29",
+      "hash": "2682b7c",
+      "date": "2026-08-10",
       "type": "fix",
       "label": "수정",
       "scope": "tax",
-      "title": "현금영수증 발급사업자 자동 등록 실패를 더 이상 무음 처리하지 않음"
+      "title": "등록·발행 버튼 높이를 옆 버튼과 맞춤"
     },
     {
-      "hash": "bace78d",
-      "date": "2026-07-29",
+      "hash": "ab5237b",
+      "date": "2026-08-10",
       "type": "fix",
       "label": "수정",
-      "scope": "platform",
-      "title": "오늘 가입사가 분석 표에 0으로 나오던 시간대 결함 — naive timestamp 류 전수 전환"
+      "scope": "settings·copilot",
+      "title": "사업자번호 국세청 검증 + AI 사용량 게이지 안 차던 버그"
     },
     {
-      "hash": "307b71b",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "AI 구간 압축·문장 단위 줄바꿈·가격 문구 완화 + 결재 화면 실캡처 교체"
-    },
-    {
-      "hash": "9f1afb6",
-      "date": "2026-07-29",
-      "type": "chore",
-      "label": "정비",
+      "hash": "b815560",
+      "date": "2026-08-10",
+      "type": "refactor",
+      "label": "개선",
       "scope": "tax",
-      "title": "현금영수증 발행 창에 가맹 자동 처리 안내 문구"
+      "title": "세금·증빙 화면 정리 — 줄 두 개를 없애고 목록을 첫 화면으로"
     },
     {
-      "hash": "d11379c",
-      "date": "2026-07-29",
+      "hash": "eb2978b",
+      "date": "2026-08-10",
       "type": "feat",
       "label": "기능",
-      "scope": "tax",
-      "title": "현금영수증 국세청 승인번호 자동 채움"
+      "scope": "dashboard",
+      "title": "AI 브리핑을 별도 세부 권한으로 — 부여자에게만 표시"
     },
     {
-      "hash": "ec4af1d",
-      "date": "2026-07-29",
-      "type": "feat",
-      "label": "기능",
-      "scope": "editor",
-      "title": "서식 PDF 업로드를 워드/한글식 흐름 문서로 전환 (조각 영역 방식 폐기)"
-    },
-    {
-      "hash": "e761965",
-      "date": "2026-07-29",
-      "type": "chore",
-      "label": "정비",
-      "scope": "tax",
-      "title": "현금영수증 '베타' 표기 전면 제거 — 정식 전환 (사장님 지시)"
-    },
-    {
-      "hash": "e7b88a1",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "ops+hr",
-      "title": "24h 오류 5건 근본원인 수정 + 대시보드/시스템상태 카운트 통일"
-    },
-    {
-      "hash": "154df1f",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "폰 스와이프 전환 + 뭉친 칩·겹친 폰 화면 수정, 가격·사례 문구 정정"
-    },
-    {
-      "hash": "c469162",
-      "date": "2026-07-29",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "주요 기능 9장 배치 교체 — 2열 4줄 → 축마다 한 줄(지그재그)"
-    },
-    {
-      "hash": "c7924c0",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "문구 전면 점검 — 기승전결 순서 교정, 겹치는 말·톤 어긋난 곳 정리"
-    },
-    {
-      "hash": "f45a92e",
-      "date": "2026-07-29",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "경쟁사 비교 반영한 랜딩 구조 개편 — 캐러셀→그리드, 공감·사례·가격 신설"
-    },
-    {
-      "hash": "31eca74",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "이미지 전량 재캡처(이중 라운드 제거) + 전수 감사 + 모바일도 웹과 같은 연출"
-    },
-    {
-      "hash": "de97195",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "하루 섹션 — 시간대 넘김을 휠 2칸으로 균일하게"
-    },
-    {
-      "hash": "3f64527",
-      "date": "2026-07-29",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "레일을 네이티브 스크롤+스냅으로(애플 벤치) · AI 카드 통일 · 히어로 화질 · 모임 연출 지연"
-    },
-    {
-      "hash": "84357a8",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "editor",
-      "title": "PDF 글자 행간(세로)도 밀어내기 — 높이 변화량만큼 아래 줄 이동"
-    },
-    {
-      "hash": "040ea38",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "AI 카드 — 흰 UI 가 어두운 여백에 떠 있던 배치 교정"
-    },
-    {
-      "hash": "f8f18b1",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "editor",
-      "title": "PDF 글자 조각이 옆 조각을 침범하던 겹침 — 같은 줄 조각 밀어내기"
-    },
-    {
-      "hash": "b2c87cc",
-      "date": "2026-07-29",
-      "type": "feat",
-      "label": "기능",
-      "scope": "editor",
-      "title": "굵게·색상도 PDF 글자에 적용 — pdfActive 라우팅 확장"
-    },
-    {
-      "hash": "b441a26",
-      "date": "2026-07-29",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "히어로 마름모 — 옆 카드를 누르면 가운데로 온다 + 통합 재생 시점 교정"
-    },
-    {
-      "hash": "843c95c",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "하루 섹션 화면 2건이 설명과 어긋나 있었다 + 전/후 → 비포/애프터"
-    },
-    {
-      "hash": "c6ca653",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "editor",
-      "title": "PDF 서식 편집 3종 — 원크기 렌더·글자크기 적용·변수 커서삽입"
-    },
-    {
-      "hash": "9145e22",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "통합 장면을 \"들어오면 한 번 재생\"으로 + 모바일 섹션 스와이프·앞뒤 이동"
-    },
-    {
-      "hash": "1182392",
-      "date": "2026-07-29",
-      "type": "chore",
-      "label": "정비",
-      "scope": "ops",
-      "title": "방문자 타일 라벨 명확화 — 전체/포함 관계 표기"
-    },
-    {
-      "hash": "025da0e",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "platform",
-      "title": "시스템 상태 오류 카운트가 처리완료 건까지 세던 것 — 3개 RPC 수정"
-    },
-    {
-      "hash": "358b9ae",
-      "date": "2026-07-29",
-      "type": "chore",
-      "label": "정비",
-      "scope": null,
-      "title": "소스 내 타사 서비스 언급 전량 중립화 — 상업 출시 대비"
-    },
-    {
-      "hash": "8ea6e14",
-      "date": "2026-07-29",
+      "hash": "67e0f9c",
+      "date": "2026-08-10",
       "type": "fix",
       "label": "수정",
       "scope": "dashboard",
-      "title": "위젯 그리드가 1열 세로로 짜부돼 영구 고정되던 사고 — 3중 수정"
+      "title": "위젯 기본 크기를 콘텐츠 실측에 맞춰 상향 — 기본값에서 잘리지 않게"
     },
     {
-      "hash": "2f3721d",
-      "date": "2026-07-29",
-      "type": "feat",
-      "label": "기능",
-      "scope": "tax",
-      "title": "세금계산서 엑셀 일괄발행 — 위하고/그렌터식 벤치마킹"
-    },
-    {
-      "hash": "1e9dbc6",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "build",
-      "title": "누락된 ui-icon 컴포넌트 추가 — 아이콘 교체 커밋들이 참조하나 미커밋 상태였음"
-    },
-    {
-      "hash": "d779c35",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "hr",
-      "title": "PDF 업로드 글자 겹침·깨짐 수정 — 오버레이 좌표를 반응형 비율로"
-    },
-    {
-      "hash": "007fd78",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "qa",
-      "title": "무음 실패 결함류 2건 — 운영자 콘솔 저장 실패 배너 + 서명 완료 메일 실패 로깅"
-    },
-    {
-      "hash": "132ba19",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "build",
-      "title": "\"use client\" 위에 삽입된 ui-icon import 3곳 — 빌드 전면 실패 복구"
-    },
-    {
-      "hash": "2ec73a6",
-      "date": "2026-07-29",
-      "type": "copy",
-      "label": "문구",
-      "scope": "landing",
-      "title": "모바일 섹션 설명 — \"이동 중에도 결정이 밀리지 않아요.\""
-    },
-    {
-      "hash": "9e55327",
-      "date": "2026-07-29",
-      "type": "feat",
-      "label": "기능",
-      "scope": "landing",
-      "title": "레일 스와이프 + 모바일에서 하루·통합 핀 유지, 하루·모바일 문구"
-    },
-    {
-      "hash": "33923ee",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "qa",
-      "title": "같은 화면 캐시 비동기화 결함류 전수 소탕 — 3건 추가 수정"
-    },
-    {
-      "hash": "64d3c56",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
+      "hash": "3bd6f08",
+      "date": "2026-08-10",
+      "type": "design",
+      "label": "기타",
       "scope": "dashboard",
-      "title": "직원 대시보드 기본 배치가 왼쪽 1/3에 몰리던 문제 — 3열 꽉 채움"
+      "title": "위젯 카드 숫자를 브리핑 스트립 문법으로 통일 (사장님 확정)"
     },
     {
-      "hash": "a010e66",
-      "date": "2026-07-29",
+      "hash": "631f597",
+      "date": "2026-08-10",
       "type": "fix",
       "label": "수정",
-      "scope": "attendance",
-      "title": "출근 후 대시보드 두 카드가 새로고침 없이 즉시 동기화"
+      "scope": "reports",
+      "title": "비용분석 — 같은 화면에서 안 맞던 숫자 · 계정 성격 · 카드 반영"
     },
     {
-      "hash": "bdeb1a6",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "bank",
-      "title": "통장거래 예금주명 간간이 빈칸 — 원인 확인 + 복구 가능한 건 백필"
-    },
-    {
-      "hash": "1f4a0f3",
-      "date": "2026-07-29",
+      "hash": "c5662e2",
+      "date": "2026-08-10",
       "type": "feat",
       "label": "기능",
-      "scope": "landing",
-      "title": "AI 카드를 손그림 → 실제 제품 화면(DOM 조각) + 어두운 무대"
+      "scope": "editor",
+      "title": "표 편집 UX 를 모든 탭의 에디터로 확대 (사장님 요청)"
     },
     {
-      "hash": "77cef03",
-      "date": "2026-07-29",
+      "hash": "ae6152b",
+      "date": "2026-08-10",
       "type": "design",
       "label": "기타",
-      "scope": null,
-      "title": "이모지 아이콘 정리 2차 — 잔여 렌더 경로 전환 + 매핑 31종 추가"
+      "scope": "dashboard",
+      "title": "AI 브리핑 레이아웃 전면 재구성 — 세로 스택(숫자 스트립 → 헤드라인)"
     },
     {
-      "hash": "121876e",
-      "date": "2026-07-29",
-      "type": "design",
-      "label": "기타",
-      "scope": null,
-      "title": "앱 전반 이모지 아이콘 → 선형 SVG 아이콘 통일 (1차 300+곳)"
-    },
-    {
-      "hash": "6265d79",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "코어 카드 이미지를 DOM 조각 캡처로 — 좌표 크롭을 완전히 버린다"
-    },
-    {
-      "hash": "5bc81cc",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "스크롤 연출이 뚝뚝 끊기던 문제 — 재생 헤드에 관성, 칩·화면 크로스페이드"
-    },
-    {
-      "hash": "f0c6c83",
-      "date": "2026-07-29",
+      "hash": "ab35c2d",
+      "date": "2026-08-10",
       "type": "feat",
       "label": "기능",
-      "scope": "landing",
-      "title": "AI 섹션을 설명 일러스트 + 화살표 내비로 재구성"
+      "scope": "editor",
+      "title": "표 셀 병합·나누기 + 표 클릭 시 툴바 반응 + 인사 서식 표 편집 (사장님 요청)"
     },
     {
-      "hash": "aca0ed5",
-      "date": "2026-07-29",
+      "hash": "75646ab",
+      "date": "2026-08-10",
       "type": "fix",
       "label": "수정",
-      "scope": "errors",
-      "title": "운영자 에러로그 잔여 미해결 전수 소탕 — 근본원인 2건 코드 수정"
+      "scope": "reports",
+      "title": "손익계산서를 계정 성격대로 — 미지급금(부채)이 판관비에 앉던 것"
     },
     {
-      "hash": "07c6363",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "ops",
-      "title": "유입경로 '(직접 유입)' 이중 카운트 제거"
+      "hash": "2e426aa",
+      "date": "2026-08-10",
+      "type": "design",
+      "label": "기타",
+      "scope": "dashboard",
+      "title": "브리핑 우측 여백을 핵심 숫자 6타일로 확장"
     },
     {
-      "hash": "dfa5ba3",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "요금제별 기능을 실제 DB 한도와 일치시킴 + 누락 기능 추가"
-    },
-    {
-      "hash": "84bb793",
-      "date": "2026-07-29",
+      "hash": "6ebeb60",
+      "date": "2026-08-10",
       "type": "chore",
       "label": "정비",
       "scope": null,
-      "title": "고아 파일 27개 삭제 본체 (직전 커밋 4df5d5c 에서 autostash 로 누락된 삭제분)"
+      "title": "@ refactor(chat): 일정 넣는 방법 안내를 달력 위 한 곳으로"
     },
     {
-      "hash": "9c01fa5",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "landing",
-      "title": "히어로 부채꼴 카드에 외곽선 — 흰 카드가 옅은 배경에 묻히던 문제"
+      "hash": "1940dfc",
+      "date": "2026-08-10",
+      "type": "design",
+      "label": "기타",
+      "scope": "dashboard",
+      "title": "브리핑 카드를 흰 배경·차분한 톤으로 회수 (사장님 피드백)"
     },
     {
-      "hash": "4df5d5c",
-      "date": "2026-07-29",
+      "hash": "88a6590",
+      "date": "2026-08-10",
       "type": "chore",
       "label": "정비",
       "scope": null,
-      "title": "고아 파일 27개 삭제 + 죽은 엣지 2종 410 봉인"
+      "title": "@ refactor(chat): 일정 목록에서 체크박스 빼고 머리에 \"다가오는 일정\" 적기"
     },
     {
-      "hash": "8fff5bc",
-      "date": "2026-07-29",
-      "type": "fix",
-      "label": "수정",
-      "scope": "qa",
-      "title": "스키마 드리프트 전수 스윕 — 코드가 참조하는 컬럼·키·RPC 전체를 DB와 대조"
+      "hash": "52ca248",
+      "date": "2026-08-10",
+      "type": "design",
+      "label": "기타",
+      "scope": "dashboard",
+      "title": "아침 브리핑을 딥 인디고 히어로로 — 전폭 여백을 핵심 숫자 패널로"
     },
     {
-      "hash": "a38e1e0",
-      "date": "2026-07-29",
+      "hash": "0c4cdf5",
+      "date": "2026-08-10",
+      "type": "chore",
+      "label": "정비",
+      "scope": null,
+      "title": "@ refactor(schedule): 공유 범위에 갈래 이름 빼고 공유 대상만 적기"
+    },
+    {
+      "hash": "d1b017c",
+      "date": "2026-08-10",
       "type": "feat",
       "label": "기능",
-      "scope": "ops",
-      "title": "성장 분석에 비로그인 방문자 지표 타일·차트 추가"
+      "scope": "schedule",
+      "title": "일정에 파일 첨부 · 이모지"
     },
     {
-      "hash": "fbd360e",
-      "date": "2026-07-29",
+      "hash": "c92757b",
+      "date": "2026-08-10",
+      "type": "design",
+      "label": "기타",
+      "scope": "dashboard",
+      "title": "위젯 언어 통일 — 헤더·빈 상태·도구 배치 리파인 (기능 무변경)"
+    },
+    {
+      "hash": "0034532",
+      "date": "2026-08-10",
       "type": "feat",
       "label": "기능",
-      "scope": "design",
-      "title": "사이드바·상단바도 흰색으로 + 앱 배경 2차로 더 옅게, 이미지 27장 재캡처"
+      "scope": "hr-templates",
+      "title": "서식 편집기에서 기존 서식의 표도 조절 가능하게 (사장님 요청)"
     },
     {
-      "hash": "eb587ef",
-      "date": "2026-07-29",
+      "hash": "7065d9c",
+      "date": "2026-08-10",
       "type": "fix",
       "label": "수정",
-      "scope": "ops",
-      "title": "페이지뷰 — 실제 사람 조회만 카운팅"
+      "scope": "schedule",
+      "title": "공유 범위에 '이름 모름' 대신 실제 이름 · 못 찾으면 빈칸"
+    },
+    {
+      "hash": "17bcfe2",
+      "date": "2026-08-10",
+      "type": "chore",
+      "label": "정비",
+      "scope": null,
+      "title": "@ refactor(schedule): 일정 항목 이름을 \"누가 보나\" → \"공유 범위\""
+    },
+    {
+      "hash": "5c63bd1",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "schedule",
+      "title": "일정을 누르면 **내용부터** — 수정 · 완료는 아래에 작게"
+    },
+    {
+      "hash": "942acd4",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "master",
+      "title": "데이터 없음 시작 CTA 도 마스터 화면으로 이동 (사장님 2차 지시)"
+    },
+    {
+      "hash": "b0c7e25",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "dashboard",
+      "title": "경영 종합 3종을 마스터 전용 화면(/master)으로 분리 (사장님 요청)"
+    },
+    {
+      "hash": "b66a221",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "schedule",
+      "title": "메신저 목록에서 일정을 누르면 완료 처리되어 사라지던 것 · '새로 만들기' 제거"
+    },
+    {
+      "hash": "045e456",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "schedule",
+      "title": "설명은 늘 펼침 · 구성원/부서를 태그로 골라 넣기"
+    },
+    {
+      "hash": "6736330",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "schedule",
+      "title": "일정·할 일 통합 + 공개 범위(나만·구성원·부서·전체) + 공용 입력 창"
+    },
+    {
+      "hash": "7cd3cf9",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "signatures",
+      "title": "새 계약 요청 목록 — 양식관리 양식만 노출 (사장님 요청)"
+    },
+    {
+      "hash": "5379f75",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "sidebar",
+      "title": "출퇴근 버튼 — 퇴근 후 '퇴근취소' 버튼 유지 (사장님 제보)"
+    },
+    {
+      "hash": "1836bd1",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "signatures",
+      "title": "표 전체 크기 드래그 + 셀 선택 정렬 (사장님 요청)"
+    },
+    {
+      "hash": "3a5691a",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "sidebar",
+      "title": "로고 오른쪽 원클릭 출퇴근 버튼 (사장님 요청)"
+    },
+    {
+      "hash": "58e1e15",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "onboarding",
+      "title": "진행바 3단계 '화면 둘러보기' 추가 · 체크리스트 '첫 프로젝트 생성' 제거"
+    },
+    {
+      "hash": "e488036",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "chat",
+      "title": "달력에서 여러 날에 걸친 일정 — 끌어서 고르고 시작·종료로 고친다"
+    },
+    {
+      "hash": "050d7ba",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "onboarding",
+      "title": "온보딩을 못 거친 마스터는 로그인 후 온보딩으로 안내"
+    },
+    {
+      "hash": "ef4f42d",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "chat",
+      "title": "'일정' 을 누르면 대화창 자리에 달력 — 날짜를 눌러 넣는다"
+    },
+    {
+      "hash": "4de5247",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "onboarding",
+      "title": "투어 건너뛰기·완료가 안 닫히고 곧장 재시작되던 것"
+    },
+    {
+      "hash": "23b28de",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "chat",
+      "title": "메신저 레일에 '일정 · 할 일' — 여기서 적으면 일정/할 일 메뉴에도 그대로"
+    },
+    {
+      "hash": "9065c39",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "onboarding",
+      "title": "투어 하이라이트가 사이드바 스크롤 중 어긋난 자리에 그려지던 것"
+    },
+    {
+      "hash": "5335248",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "onboarding",
+      "title": "탭 투어가 다른 화면으로 가면 사라지고 다시 안 나타나던 것"
+    },
+    {
+      "hash": "749756a",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "chat",
+      "title": "작성 상자에 이모지 · 오너뷰 링크 붙이기"
+    },
+    {
+      "hash": "b903004",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "signatures",
+      "title": "표 행 높이 드래그 조절 — 열 너비에 이어 (사장님 요청)"
+    },
+    {
+      "hash": "ff76770",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "chat",
+      "title": "메신저 새 창을 아이콘 · 채팅방 목록 · 대화창 세 칸으로"
+    },
+    {
+      "hash": "3c03a9a",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "chat",
+      "title": "메시지 입력칸을 Teams 형태로 — 쓰는 만큼 커지는 작성 상자"
+    },
+    {
+      "hash": "9e634fd",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "chat",
+      "title": "메시지 입력칸 안내문이 두 줄로 넘어가며 잘리던 것"
+    },
+    {
+      "hash": "827b9e2",
+      "date": "2026-08-10",
+      "type": "fix",
+      "label": "수정",
+      "scope": "chat",
+      "title": "채팅방 참가자를 눌러 1:1 대화 · '이벤트' 탭 제거"
+    },
+    {
+      "hash": "dfd1efa",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "signatures",
+      "title": "양식 편집기 표 열 너비 직접 조절 + 변수 삭제"
+    },
+    {
+      "hash": "18ae39e",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "chat",
+      "title": "메신저에 구성원(부서 → 사람) 레일 — 눌러서 1:1 대화"
+    },
+    {
+      "hash": "c76a517",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "signatures",
+      "title": "새 계약 요청 1단계에 계약서·양식 이름 검색"
+    },
+    {
+      "hash": "6c76a66",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "tour",
+      "title": "인증·등록이 필요한 탭에 단계별 등록 방법 안내 추가"
+    },
+    {
+      "hash": "c156ad8",
+      "date": "2026-08-10",
+      "type": "refactor",
+      "label": "개선",
+      "scope": "settings",
+      "title": "'데이터 관리(초기화)' 제거 — 회사 삭제만 남긴다"
+    },
+    {
+      "hash": "ab256c5",
+      "date": "2026-08-10",
+      "type": "feat",
+      "label": "기능",
+      "scope": "chat",
+      "title": "메신저를 진짜 새 창으로 — 최소화 · 최대화 · 창 밖 이동"
     }
   ]
 }

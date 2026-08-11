@@ -189,19 +189,25 @@ export function useMyPermissions(): {
 } {
   const { user, loading: userLoading } = useUser();
   const isMaster = !!(user as any)?.is_master;
-  // 세무사 열람 세션 (2026-08-11): 회사의 모든 메뉴·탭을 볼 수 있다(사장님: "모든 정보").
-  //   쓰기는 DB RESTRICTIVE 정책(advisor_ro_*)이 전면 차단하므로 화면 권한은 열람 전용으로 안전.
+  // 세무사 열람 세션 (2026-08-11): 회사가 부여한 권한만 — 일반 구성원과 동일 모델
+  //   (사장님: "회사에서 파트너 권한을 주고, 없으면 직원처럼 안 보이게"). 연결 시 세무 기본
+  //   패키지가 자동 부여되고, 회사설정 > 세무 파트너 > 권한 설정에서 가감한다.
+  //   쓰기는 DB RESTRICTIVE 정책(advisor_ro_*)이 전면 차단 — 화면 권한은 열람 범위만 결정.
   const isAdvisor = (user as any)?.role === "advisor";
   const { data: perms, isLoading } = useQuery({
-    queryKey: ["my-permissions", user?.id],
+    queryKey: ["my-permissions", user?.id, isAdvisor ? user?.company_id : null],
     queryFn: async () => {
+      if (isAdvisor) {
+        const { data } = await (supabase as any).rpc("advisor_my_permissions");
+        return new Set<string>(((data || []) as any[]).map((r: any) => (typeof r === "string" ? r : r.advisor_my_permissions)));
+      }
       const { data } = await (supabase as any)
         .from("member_permissions")
         .select("perm_key")
         .eq("user_id", user!.id);
       return new Set<string>((data || []).map((r: any) => r.perm_key));
     },
-    enabled: !!user?.id && !isMaster && !isAdvisor,
+    enabled: !!user?.id && !isMaster,
     // 마스터가 권한을 부여하면 직원 화면이 새로고침 없이 따라오도록 주기 갱신
     //   (2026-07-31 사장님: 템플릿 부여 직후 '권한 없음'으로 보이던 캐시 문제)
     staleTime: 20_000,
@@ -211,10 +217,15 @@ export function useMyPermissions(): {
   const set = perms || new Set<string>();
   // ⚠️ 기본 제공(always) 단축은 메뉴 키에만 — 세부탭 키(:포함)는 반드시 명시 부여 필요
   //   (예: /dashboard 는 전원 기본이지만 /dashboard:finance 재무 위젯은 부여자만).
-  const hasPerm = (key: string) => isMaster || isAdvisor || (!key.includes(":") && ALWAYS_ALLOWED_ROUTES.has(key)) || set.has(key);
+  //   세무사는 always 단축도 안 탄다 — 일정·게시판·메신저 같은 사내 협업 메뉴는 부여해야만 보인다.
+  const hasPerm = (key: string) =>
+    isMaster
+    || (isAdvisor
+      ? set.has(key)
+      : (!key.includes(":") && ALWAYS_ALLOWED_ROUTES.has(key)) || set.has(key));
   return {
     isMaster,
-    loading: userLoading || (!isMaster && !isAdvisor && isLoading),
+    loading: userLoading || (!isMaster && isLoading),
     hasPerm,
     hasMenu: (route: string) => hasPerm(route),
   };
