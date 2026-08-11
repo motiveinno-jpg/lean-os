@@ -216,7 +216,8 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     return () => { clearTimeout(t); window.removeEventListener("resize", onMove); window.removeEventListener("scroll", onMove, true); };
   }, [idx, measure]);
 
-  // 완료·건너뛰기 — 계정(user_preferences)에 기록하고 진행 스텝을 지운다
+  // 종료 — persist=true('다시 보지 않기')일 때만 계정(user_preferences)에 기록해 영구 미노출.
+  //   완료(시작하기)·이탈은 기록하지 않아 다음 로그인에 다시 뜬다 (2026-08-11 사장님).
   const finish = useCallback(async (persist = true) => {
     if (closedRef.current) return;
     closedRef.current = true;
@@ -290,12 +291,13 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
           </div>
         )}
         <div className="app-tour-tip-actions">
-          <button onClick={() => finish()} className="app-tour-skip">건너뛰기</button>
+          {/* '다시 보지 않기'만 영구 미노출 기록 — 그냥 완료(시작하기)나 이탈은 다음 로그인에 다시 뜬다 (2026-08-11 사장님) */}
+          <button onClick={() => finish(true)} className="app-tour-skip">다시 보지 않기</button>
           <div className="flex gap-2">
             {safeIdx > 0 && (
               <button onClick={() => setIdx(safeIdx - 1)} className="btn-secondary btn-sm">이전</button>
             )}
-            <button onClick={() => (isLast ? finish() : setIdx(safeIdx + 1))} className="btn-primary btn-sm">
+            <button onClick={() => (isLast ? finish(false) : setIdx(safeIdx + 1))} className="btn-primary btn-sm">
               {isLast ? "시작하기" : "다음"}
             </button>
           </div>
