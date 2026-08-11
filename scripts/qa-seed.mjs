@@ -193,8 +193,11 @@ async function teardown() {
       delete from company_settings where company_id = cid;
       delete from subscriptions where company_id = cid;
       delete from users where company_id = cid;
-      delete from companies where id = cid;
+      delete from companies where id = cid;  -- advisor_company_links 는 FK cascade 로 함께 삭제
       delete from auth.users where id = any(aids);
+      -- 세무사 포털 테스트 계정(qa-seed-advisor 등) — tax_advisors + auth 정리 (2026-08-11)
+      delete from tax_advisors where email like 'qa-seed-%@mo-tive.com';
+      delete from auth.users where email like 'qa-seed-%@mo-tive.com';
     end $$;`);
 
   const left = await sql(`

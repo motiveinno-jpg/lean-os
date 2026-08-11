@@ -3556,6 +3556,16 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .platform-audit-row { @apply border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 transition; }
 .platform-feedback-list { @apply overflow-hidden; }
 
+/* 제휴 세무사 관리 (2026-08-11) */
+.platform-advisors-empty { @apply text-sm text-[var(--text-muted)] text-center py-16 rounded-2xl border border-dashed border-[var(--border)]; }
+.platform-advisor-card { @apply p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
+.platform-advisor-links { @apply mt-4 pt-4 border-t border-[var(--border)]/70; }
+.platform-advisor-link-row { @apply flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-surface)]/70; }
+.platform-advisor-company-select { @apply flex-1 max-w-sm px-2.5 py-2 rounded-lg text-xs bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.platform-advisor-btn-primary { @apply px-3 py-1.5 rounded-lg text-xs font-bold bg-[var(--primary)] text-white hover:opacity-90 transition disabled:opacity-50; }
+.platform-advisor-btn-ghost { @apply px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] transition disabled:opacity-50; }
+.platform-advisor-btn-danger { @apply px-2.5 py-1 rounded-lg text-[11px] font-bold text-[var(--danger)] hover:bg-[var(--danger-dim)] transition disabled:opacity-50; }
+
 /* 도입·제휴 문의함 (2026-07-27) */
 .platform-partnership-header { @apply flex flex-wrap items-end justify-between gap-4; }
 .platform-partnership-filters { @apply flex flex-wrap gap-2; }
@@ -8290,3 +8300,126 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .drf-mon.drf-today { @apply ring-1 ring-inset ring-[var(--primary)]; }
 .drf-mon.drf-edge.drf-today { @apply ring-0; }
 .drf-empty { @apply px-1 text-[12px] font-semibold text-[var(--text-dim)]; }
+
+/* ═══════════ 세무사 파트너 포털 /advisor (2026-08-11) ═══════════
+   독립 디자인 월드 — "통장(passbook) 인쇄": 네이비 잉크 표지 + 종이 지면의 인쇄 괘선,
+   입금은 초록 잉크·출금은 적색 잉크, 숫자는 tabular. 앱 테마(다크모드) 무관하게 고정 팔레트. */
+.adv-root {
+  --adv-ink: #17233f; --adv-ink-deep: #0f1830; --adv-ink-soft: #33415e;
+  --adv-gold: #c2a15c; --adv-gold-soft: #d9c493;
+  --adv-paper: #f7f5f0; --adv-card: #fffdf9; --adv-line: #ddd8cc; --adv-line-soft: #e9e5da;
+  --adv-text: #212836; --adv-dim: #6b7280; --adv-faint: #9aa1ad;
+  --adv-in: #176e44; --adv-out: #bb3a31;
+  min-height: 100dvh; background: var(--adv-paper); color: var(--adv-text);
+  font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+.adv-topbar { background: var(--adv-ink); color: #f4f1e9; }
+.adv-topbar-inner { @apply max-w-6xl mx-auto px-5 h-14 flex items-center gap-3; }
+.adv-brand { @apply flex items-baseline gap-2 select-none; }
+.adv-brand-mark { @apply text-[15px] font-extrabold tracking-tight; color: #fff; }
+.adv-brand-sub { @apply text-[11px] font-semibold tracking-widest uppercase; color: var(--adv-gold-soft); }
+.adv-topbar-user { @apply ml-auto flex items-center gap-3 text-[12.5px]; color: #cfd6e4; }
+.adv-topbar-btn { @apply text-[12px] px-2.5 py-1 rounded-md transition; color: #aeb8cc; border: 1px solid rgba(255,255,255,.18); }
+.adv-topbar-btn:hover { color: #fff; border-color: rgba(255,255,255,.4); }
+.adv-shell { @apply max-w-6xl mx-auto px-5 py-8; }
+
+/* ── 랜딩(로그인) — 표지/속지 스플릿 ── */
+.adv-hero { @apply min-h-dvh grid lg:grid-cols-[1.1fr_1fr]; }
+.adv-cover {
+  background:
+    repeating-linear-gradient(-38deg, rgba(255,255,255,.025) 0 1px, transparent 1px 9px),
+    linear-gradient(160deg, var(--adv-ink) 0%, var(--adv-ink-deep) 100%);
+  @apply relative flex flex-col justify-between p-10 lg:p-14 text-white overflow-hidden;
+}
+.adv-cover-label { @apply text-[11px] font-bold tracking-[0.28em] uppercase; color: var(--adv-gold-soft); }
+.adv-cover-title { @apply mt-4 text-[clamp(26px,3.4vw,40px)] font-extrabold leading-[1.22] tracking-tight; }
+.adv-cover-desc { @apply mt-4 text-[14.5px] leading-relaxed max-w-md; color: #b9c2d4; }
+.adv-cover-rule { height: 1px; background: linear-gradient(90deg, var(--adv-gold) 0 56px, rgba(255,255,255,.14) 56px 100%); @apply my-7 max-w-md; }
+.adv-cover-points { @apply space-y-3 max-w-md; }
+.adv-cover-point { @apply flex gap-3 items-start text-[13.5px] leading-snug; color: #d7dde9; }
+.adv-cover-point-no { @apply shrink-0 w-6 text-[12px] font-bold; color: var(--adv-gold-soft); font-variant-numeric: tabular-nums; }
+.adv-cover-foot { @apply text-[11.5px]; color: #8d97ab; }
+.adv-auth-side { @apply flex items-center justify-center p-6 lg:p-12; }
+.adv-auth-card { @apply w-full max-w-sm rounded-2xl p-8; background: var(--adv-card); border: 1px solid var(--adv-line); box-shadow: 0 24px 60px -36px rgba(15,24,48,.35); }
+.adv-auth-title { @apply text-[19px] font-extrabold tracking-tight; }
+.adv-auth-desc { @apply mt-1 text-[13px]; color: var(--adv-dim); }
+.adv-field { @apply block mt-4; }
+.adv-field-label { @apply block text-[12px] font-bold mb-1.5; color: var(--adv-ink-soft); }
+.adv-input { @apply w-full px-3.5 py-2.5 rounded-lg text-[14px] outline-none transition; background: #fff; border: 1px solid var(--adv-line); color: var(--adv-text); }
+.adv-input:focus { border-color: var(--adv-ink); box-shadow: 0 0 0 3px rgba(23,35,63,.08); }
+.adv-btn-primary { @apply w-full mt-6 py-2.5 rounded-lg text-[14px] font-bold text-white transition; background: var(--adv-ink); }
+.adv-btn-primary:hover { background: var(--adv-ink-deep); }
+.adv-btn-primary:disabled { opacity: .5; }
+.adv-auth-switch { @apply mt-5 text-center text-[12.5px]; color: var(--adv-dim); }
+.adv-auth-switch button { @apply font-bold underline underline-offset-2; color: var(--adv-ink); }
+.adv-form-error { @apply mt-4 px-3 py-2.5 rounded-lg text-[12.5px] font-semibold; background: rgba(187,58,49,.08); color: var(--adv-out); }
+.adv-form-note { @apply mt-4 px-3 py-2.5 rounded-lg text-[12.5px] leading-relaxed; background: rgba(23,110,68,.07); color: var(--adv-in); }
+
+/* 승인 대기/안내 패널 */
+.adv-notice { @apply w-full max-w-md mx-auto mt-20 rounded-2xl p-9 text-center; background: var(--adv-card); border: 1px solid var(--adv-line); }
+.adv-notice-stamp {
+  @apply inline-flex items-center justify-center px-4 py-2 rounded-md text-[12px] font-extrabold tracking-[0.18em] uppercase mb-5;
+  border: 2px solid var(--adv-gold); color: var(--adv-gold); transform: rotate(-3deg);
+}
+.adv-notice-title { @apply text-[18px] font-extrabold; }
+.adv-notice-desc { @apply mt-2 text-[13.5px] leading-relaxed; color: var(--adv-dim); }
+
+/* ── 대시보드: 고객사 카드(통장 표지 미니) ── */
+.adv-page-title { @apply text-[22px] font-extrabold tracking-tight; }
+.adv-page-desc { @apply mt-1 text-[13px]; color: var(--adv-dim); }
+.adv-client-grid { @apply mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-3; }
+.adv-client-card { @apply rounded-2xl overflow-hidden text-left transition cursor-pointer; background: var(--adv-card); border: 1px solid var(--adv-line); }
+.adv-client-card:hover { transform: translateY(-2px); box-shadow: 0 18px 44px -28px rgba(15,24,48,.4); border-color: var(--adv-ink-soft); }
+.adv-client-cover { background: linear-gradient(150deg, var(--adv-ink) 0%, var(--adv-ink-deep) 100%); @apply px-5 py-4 text-white; }
+.adv-client-name { @apply text-[16px] font-extrabold tracking-tight truncate; }
+.adv-client-bizno { @apply mt-0.5 text-[11.5px]; color: #a8b2c6; font-variant-numeric: tabular-nums; }
+.adv-client-body { @apply px-5 py-4 space-y-2.5; }
+.adv-client-row { @apply flex items-baseline justify-between text-[13px]; }
+.adv-client-row dt { color: var(--adv-dim); @apply text-[12px] font-semibold; }
+.adv-client-row dd { @apply font-bold; font-variant-numeric: tabular-nums; }
+.adv-mini-compare { @apply mt-1 space-y-1.5; }
+.adv-mini-bar-track { height: 5px; border-radius: 99px; background: var(--adv-line-soft); overflow: hidden; }
+.adv-mini-bar-in { height: 100%; border-radius: 99px; background: var(--adv-in); }
+.adv-mini-bar-out { height: 100%; border-radius: 99px; background: var(--adv-out); }
+.adv-empty { @apply mt-16 text-center rounded-2xl py-20 px-6; border: 1.5px dashed var(--adv-line); color: var(--adv-dim); }
+
+/* ── 회사 상세 ── */
+.adv-company-head { @apply flex flex-wrap items-end gap-x-4 gap-y-1; }
+.adv-company-name { @apply text-[24px] font-extrabold tracking-tight; }
+.adv-company-meta { @apply text-[12.5px] pb-1; color: var(--adv-dim); }
+.adv-back { @apply inline-flex items-center gap-1 text-[12.5px] font-bold mb-3 transition; color: var(--adv-ink-soft); }
+.adv-back:hover { color: var(--adv-ink); }
+.adv-statband {
+  background: linear-gradient(150deg, var(--adv-ink) 0%, var(--adv-ink-deep) 100%);
+  @apply mt-5 rounded-2xl px-6 py-5 grid gap-x-8 gap-y-4 text-white;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.adv-stat-label { @apply text-[11px] font-bold tracking-wider; color: #9aa6bd; }
+.adv-stat-value { @apply mt-1 text-[19px] font-extrabold tracking-tight whitespace-nowrap; font-variant-numeric: tabular-nums; }
+.adv-stat-sub { @apply mt-0.5 text-[11px]; color: #8d97ab; font-variant-numeric: tabular-nums; }
+.adv-tabs { @apply mt-7 flex gap-1 border-b; border-color: var(--adv-line); }
+.adv-tab { @apply px-4 py-2.5 text-[13.5px] font-bold rounded-t-lg transition -mb-px; color: var(--adv-dim); border: 1px solid transparent; }
+.adv-tab:hover { color: var(--adv-text); }
+.adv-tab-on { color: var(--adv-ink); background: var(--adv-card); border-color: var(--adv-line); border-bottom-color: var(--adv-card); }
+.adv-panel { @apply rounded-b-2xl rounded-tr-2xl p-6; background: var(--adv-card); border: 1px solid var(--adv-line); border-top: none; }
+
+/* 통장 인쇄 표 — 괘선 + 줄무늬 + tabular */
+.adv-scroll { @apply overflow-x-auto; }
+.adv-table { @apply w-full text-[13px]; border-collapse: collapse; }
+.adv-table th { @apply text-left text-[11.5px] font-bold tracking-wide px-3 py-2 whitespace-nowrap; color: var(--adv-ink-soft); border-bottom: 2px solid var(--adv-ink); }
+.adv-table td { @apply px-3 py-2 whitespace-nowrap align-baseline; border-bottom: 1px solid var(--adv-line-soft); font-variant-numeric: tabular-nums; }
+.adv-table tbody tr:nth-child(even) { background: rgba(23,35,63,.025); }
+.adv-num { @apply text-right font-semibold; }
+.adv-amt-in { color: var(--adv-in); @apply text-right font-bold; }
+.adv-amt-out { color: var(--adv-out); @apply text-right font-bold; }
+.adv-cell-dim { color: var(--adv-dim); }
+.adv-row-empty { @apply text-center py-10 text-[13px]; color: var(--adv-faint); }
+.adv-filter-row { @apply flex flex-wrap items-center gap-2 mb-4; }
+.adv-chip { @apply px-3 py-1.5 rounded-full text-[12px] font-bold transition cursor-pointer; background: var(--adv-paper); color: var(--adv-dim); border: 1px solid var(--adv-line); }
+.adv-chip-on { background: var(--adv-ink); color: #fff; border-color: var(--adv-ink); }
+.adv-select { @apply px-3 py-1.5 rounded-lg text-[12.5px] font-semibold outline-none; background: #fff; border: 1px solid var(--adv-line); color: var(--adv-text); }
+.adv-section-title { @apply text-[13px] font-extrabold mb-3 flex items-center gap-2; color: var(--adv-ink-soft); }
+.adv-section-title::after { content: ""; height: 1px; flex: 1; background: var(--adv-line-soft); }
+.adv-acct-list { @apply grid gap-2.5 sm:grid-cols-2; }
+.adv-acct { @apply flex items-baseline justify-between px-4 py-3 rounded-xl text-[13px]; background: var(--adv-paper); border: 1px solid var(--adv-line-soft); }
+.adv-loading { @apply py-20 text-center text-[13px]; color: var(--adv-faint); }

@@ -40,6 +40,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/platform/support", label: "고객센터", icon: "headset" },
       { href: "/platform/partnership", label: "도입문의", icon: "inbox" },
+      { href: "/platform/advisors", label: "제휴 세무사", icon: "users" },
       { href: "/platform/announcements", label: "공지사항", icon: "message" },
     ],
   },

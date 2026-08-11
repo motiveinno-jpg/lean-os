@@ -43,6 +43,7 @@ const PUBLIC_ROUTES = [
   '/sign',
   '/share',
   '/guide',
+  '/advisor',  // 세무사 파트너 포털 랜딩(로그인/가입) — 하위 라우트는 세션 필요 (2026-08-11)
   '/platform',
   '/demo',
   '/pricing',   // 랜딩에서 분리한 요금제 페이지 — 비로그인 노출이 목적 (2026-07-27)
