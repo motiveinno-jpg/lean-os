@@ -53,7 +53,7 @@ const VTYPES: { id: VType; label: string; desc: string }[] = [
 ];
 type PLine = { key: number; gubun: Gubun; account: Acct | null; partner: Pt | null; memo: string; debit: string; credit: string };
 type SavedLine = { account: Acct | null; partner: Pt | null; memo: string; debit: number; credit: number };
-type SavedEntry = { id: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; lines: SavedLine[] };
+type SavedEntry = { id: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; entry_kind: string | null; lines: SavedLine[] };
 
 let K = 1;
 const AR_AP_CODES = new Set(["108", "251"]);
@@ -122,11 +122,11 @@ export default function VoucherEntryPage() {
     queryKey: ["vouchers-of-day", companyId, entryDate],
     queryFn: async () => {
       const data = logRead('voucher-entry/page:data', await db.from("journal_entries")
-        .select("id, voucher_no, voucher_type, description, source, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
+        .select("id, voucher_no, voucher_type, description, source, entry_kind, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
         .eq("company_id", companyId ?? "").eq("entry_date", entryDate).eq("status", "confirmed")
         .order("voucher_no", { ascending: true }));
       return ((data || []) as any[]).map((e) => ({
-        id: e.id, voucher_no: e.voucher_no, voucher_type: e.voucher_type, description: e.description || "", source: e.source,
+        id: e.id, voucher_no: e.voucher_no, voucher_type: e.voucher_type, description: e.description || "", source: e.source, entry_kind: e.entry_kind || null,
         lines: (e.journal_lines || [])
           .sort((a: any, b: any) => Number(b.debit || 0) - Number(a.debit || 0))
           .map((l: any) => ({
@@ -169,6 +169,11 @@ export default function VoucherEntryPage() {
     setEdits((es) => ({ ...es, [entryId]: { ...es[entryId], lines: es[entryId].lines.map((l) => (l.key === key ? { ...l, ...patch } : l)) } }));
   const enterEdit = (e: SavedEntry) => {
     if (edits[e.id]) return;
+    //   매입매출전표는 유형·공급가액·부가세를 함께 들고 있다 — 일반전표 편집으로 저장하면 그게 지워진다
+    if (e.entry_kind === "sale_purchase") {
+      toast("매입매출전표는 '매입매출전표 입력' 메뉴에서 고쳐 주세요.", "info");
+      return;
+    }
     setEdits((es) => ({
       ...es,
       [e.id]: {
@@ -487,6 +492,9 @@ export default function VoucherEntryPage() {
 
   let listNo = 0;
   const sourceBadge = (s: string) => (s !== "manual" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-500 font-semibold align-middle">AI</span> : null);
+  //   하루치 전표를 다 보여 주는 목록이라 매입매출전표도 섞여 온다 — 어느 메뉴에서 친 전표인지 보이게 하고,
+  //   여기서 고치면 유형·공급가액이 날아가므로 편집은 그쪽 메뉴로 보낸다 (2026-08-11)
+  const kindBadge = (k: string | null) => (k === "sale_purchase" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-600 font-semibold align-middle">매입매출</span> : null);
 
   return (
     <div className="space-y-6">
@@ -726,7 +734,7 @@ export default function VoucherEntryPage() {
                           title="전표 단위 선택 (분개 균형 유지를 위해 전표째 삭제)" />
                       </td>
                       <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{listNo}</td>
-                      <td className={`${TD} text-[11px] font-semibold text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{GUBUN_LABEL[savedGubun(e.voucher_type, l.debit)]}{i === 0 && sourceBadge(e.source)}</td>
+                      <td className={`${TD} text-[11px] font-semibold text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{GUBUN_LABEL[savedGubun(e.voucher_type, l.debit)]}{i === 0 && sourceBadge(e.source)}{i === 0 && kindBadge(e.entry_kind)}</td>
                       <td className={`${TD} mono-number text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{l.account?.code || "—"}</td>
                       <td className={`${TD} text-[var(--text)] cursor-text`} onClick={() => enterEdit(e)}>{l.account?.name || "?"}</td>
                       <td className={`${TD} mono-number text-[var(--text-dim)] cursor-text`} onClick={() => enterEdit(e)}>{l.partner?.business_number || "—"}</td>

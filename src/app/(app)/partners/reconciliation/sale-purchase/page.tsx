@@ -41,7 +41,11 @@ type Row = {
   mainAccount: Acct | null;     // 매출/비용 계정
   savedId?: string;             // 저장된 전표 id (저장분은 회색으로 잠근다)
   voucherNo?: number;
+  //   불러온 증빙 — 저장할 때 전표에 되붙여서 ① 두 번 치는 것 ② 원장 이중계상을 막는다 (2026-08-11)
+  refType?: RefKind;
+  refId?: string;
 };
+type RefKind = "tax_invoice" | "card_transaction" | "cash_receipt";
 
 //   상단 갈래 — 유형을 묶어 보는 필터 겸, 새 줄의 기본 유형
 const GROUPS: { key: string; label: string; codes: string[] }[] = [
@@ -64,6 +68,9 @@ type EvidenceRow = {
 };
 const EVIDENCE_LABEL: Record<EvidenceRow["kind"], string> = {
   tax_invoice: "세금계산서", card: "카드", cash_receipt: "현금영수증",
+};
+const EVIDENCE_REF: Record<EvidenceRow["kind"], RefKind> = {
+  tax_invoice: "tax_invoice", card: "card_transaction", cash_receipt: "cash_receipt",
 };
 //   카드 자동분류는 {"label":"통신비",…} JSON 문자열이라 이름만 꺼낸다 (세금계산서 화면과 같은 규칙)
 function cardLabelOf(raw: unknown): string {
@@ -122,6 +129,8 @@ function SalePurchaseInner() {
   const [overrides, setOverrides] = useState<Record<string, Acct | null>>({});
   const [acctPick, setAcctPick] = useState<{ line: number; q: string } | null>(null);
   const [pullOpen, setPullOpen] = useState(false);
+  //   좁은 화면 기본값은 '읽기' — 14칸 격자를 폰에서 치는 일은 없다. 그래도 쳐야 하면 이 토글로 편다.
+  const [phoneGrid, setPhoneGrid] = useState(false);
   const [pulled, setPulled] = useState(0);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -260,6 +269,7 @@ function SalePurchaseInner() {
       target.partner = p; target.partnerText = p?.name || r.who;
       target.vatCode = r.suggested; target.settle = vatType(r.suggested)?.defaultSettle || "credit";
       target.item = r.what; target.supply = won(r.supply); target.vat = won(r.vat);
+      target.refType = EVIDENCE_REF[r.kind]; target.refId = r.key.split(":")[1];
       //   맨 끝 빈 줄이 있으면 그 자리에 채우고, 없으면 뒤에 붙인다
       const last = next[next.length - 1];
       if (last && isEmptyRow(last)) next[next.length - 1] = target;
@@ -321,6 +331,7 @@ function SalePurchaseInner() {
       electronic: above.electronic, settle: above.settle,
       mainAccount: above.mainAccount,
       supply: "", vat: "",                 // 금액만 비운다
+      refType: undefined, refId: undefined, // 증빙 꼬리표는 따라 내려오지 않는다 — 다른 건이다
     });
     return true;
   };
@@ -372,10 +383,14 @@ function SalePurchaseInner() {
         p_supply_amount: supplyNum, p_vat_amount: vatNum,
         p_description: row.item || `${t.label} ${row.partner?.name || ""}`.trim(),
         p_lines: payload,
+        //   불러온 증빙이면 꼬리표를 같이 보낸다 — 증빙에 전표가 되붙어 다시 불러올 수 없게 된다
+        p_reference_type: row.refType || null,
+        p_reference_id: row.refId || null,
       });
       if (error) throw error;
       toast(`전표를 저장했습니다 (${t.label} · ${won(supplyNum + vatNum)}원)`, "success");
       qc.invalidateQueries({ queryKey: ["sp-saved"] });
+      qc.invalidateQueries({ queryKey: ["sp-pending"] });
       //   저장한 줄은 지우고 그 내용을 물려받은 빈 줄을 남긴다 — 다음 건을 바로 이어 친다
       setRows((rs) => {
         const next = rs.filter((_, k) => k !== cur);
@@ -388,6 +403,7 @@ function SalePurchaseInner() {
       toast(
         m.includes("PERIOD_LOCKED") ? "마감된 달이라 전표를 저장할 수 없습니다."
         : m.includes("FORBIDDEN") ? "전표를 저장할 권한이 없습니다."
+        : m.includes("ALREADY_POSTED") ? "이 증빙은 이미 전표로 만들어져 있습니다."
         : m.includes("UNBALANCED") ? "차변과 대변이 맞지 않습니다."
         : `저장 실패: ${friendlyError(e, "알 수 없는 오류")}`, "error",
       );
@@ -404,6 +420,34 @@ function SalePurchaseInner() {
 
   const groupCodes = GROUPS.find((g) => g.key === group)!.codes;
   const typeOptions = groupCodes.length > 0 ? VAT_TYPES.filter((v) => groupCodes.includes(v.code)) : VAT_TYPES;
+
+  //   부가세 신고·세무대리인 전달용 — 지금 보고 있는 달·갈래를 그대로 뽑는다.
+  //   엑셀이 한글을 깨뜨리지 않게 BOM 을 앞에 붙인다 (거래처원장 내보내기와 같은 방법).
+  const downloadCsv = () => {
+    const head = ["일자", "전표번호", "구분", "유형", "거래처코드", "거래처", "사업자등록번호", "품명", "공급가액", "부가세", "합계"];
+    const body = savedRows.map((r) => {
+      const vt = vatType(r.vatCode);
+      const sup = numOf(r.supply), v = numOf(r.vat);
+      return [
+        `${r.y}-${String(Number(r.m)).padStart(2, "0")}-${String(Number(r.d)).padStart(2, "0")}`,
+        r.voucherNo ? String(r.voucherNo) : "",
+        vt?.side === "sale" ? "매출" : "매입",
+        vt?.label || r.vatCode,
+        String(r.partner?.code || ""), r.partner?.name || "",
+        String(r.partner?.business_number || ""), r.item,
+        String(sup), String(v), String(sup + v),
+      ];
+    });
+    const sup = savedRows.reduce((n, r) => n + numOf(r.supply), 0);
+    const vat = savedRows.reduce((n, r) => n + numOf(r.vat), 0);
+    const rowsOut = [head, ...body, ["", "", "", "합계", "", "", "", "", String(sup), String(vat), String(sup + vat)]];
+    const csv = "﻿" + rowsOut.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `매입매출전표_${month}${group === "all" ? "" : "_" + GROUPS.find((g) => g.key === group)!.label}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   //   격자 아래 소계 — 저장분 + 지금 치고 있는 줄
   const sumSupply = savedRows.reduce((s, r) => s + numOf(r.supply), 0) + rows.reduce((s, r) => s + numOf(r.supply), 0);
@@ -425,17 +469,55 @@ function SalePurchaseInner() {
         <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="spv-month" />
         <span className="spv-toolbar-hint"><b>Enter</b> 를 치면 윗줄이 금액만 빼고 그대로 내려옵니다</span>
         <div className="ml-auto flex items-center gap-2">
-          <button type="button" onClick={() => { setPulled(0); setPullOpen(true); }} className="btn-secondary btn-sm">증빙에서 불러오기</button>
-          <button type="button" onClick={addRow} className="btn-secondary btn-sm">+ 줄 추가</button>
-          <button type="button" onClick={save} disabled={!canSave}
-            className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-            {saving ? "저장 중…" : "저장"}
+          <button type="button" onClick={() => setPhoneGrid((v) => !v)} className="spv-phone-toggle btn-secondary btn-sm">
+            {phoneGrid ? "카드로 보기" : "격자로 입력"}
           </button>
+          <button type="button" onClick={downloadCsv} disabled={savedRows.length === 0}
+            className="btn-secondary btn-sm disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
+          {/* 아래 셋은 입력용 — 좁은 화면에서 격자를 접어 두면 같이 숨는다 */}
+          <span className={phoneGrid ? "spv-input-only spv-grid-forced" : "spv-input-only"}>
+            <button type="button" onClick={() => { setPulled(0); setPullOpen(true); }} className="btn-secondary btn-sm">증빙에서 불러오기</button>
+            <button type="button" onClick={addRow} className="btn-secondary btn-sm">+ 줄 추가</button>
+            <button type="button" onClick={save} disabled={!canSave}
+              className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              {saving ? "저장 중…" : "저장"}
+            </button>
+          </span>
+        </div>
+      </div>
+
+      {/* ── 좁은 화면: 저장분을 카드로 읽는다. 격자 입력은 접어 두고 필요할 때만 편다 ── */}
+      <div className={phoneGrid ? "spv-narrow spv-narrow-off" : "spv-narrow"}>
+        <div className="spv-narrow-head"><b>{month} 저장분 {savedRows.length}건</b></div>
+        {savedRows.length === 0 ? (
+          <div className="spv-je-empty">이 달에 저장된 매입매출전표가 없습니다.</div>
+        ) : savedRows.map((r, i) => (
+          <div key={`n${i}`} className="spv-narrow-card glass-card">
+            <div className="spv-narrow-top">
+              <span className="mono-number">{r.m}/{r.d}</span>
+              <em className={vatType(r.vatCode)?.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>
+                {vatType(r.vatCode)?.label.split(". ")[1] || r.vatCode}
+              </em>
+              <b className="spv-ell">{r.partner?.name || "—"}</b>
+              <span className="spv-narrow-no">#{r.voucherNo}</span>
+            </div>
+            <div className="spv-narrow-item">{r.item || "—"}</div>
+            <div className="spv-narrow-amt">
+              <span>공급가액 <b>{r.supply}</b></span>
+              <span>부가세 <b>{r.vat}</b></span>
+              <span className="spv-total">합계 {won(numOf(r.supply) + numOf(r.vat))}</span>
+            </div>
+          </div>
+        ))}
+        <div className="spv-narrow-sum">
+          <span>합계</span>
+          <b>공급가액 {won(sumSupply)}</b>
+          <b>부가세 {won(sumVat)}</b>
         </div>
       </div>
 
       {/* ── 위 격자: 전표 목록 + 입력 ── */}
-      <div className="spv-grid-wrap glass-card" ref={gridRef}>
+      <div className={phoneGrid ? "spv-grid-wrap glass-card spv-grid-forced" : "spv-grid-wrap glass-card"} ref={gridRef}>
         <div className="spv-scroll">
           <div className="spv-grid">
             <div className="spv-row spv-head">
@@ -528,7 +610,7 @@ function SalePurchaseInner() {
       </div>
 
       {/* ── 아래 격자: 분개 ── */}
-      <div className="spv-je glass-card">
+      <div className={phoneGrid ? "spv-je glass-card spv-grid-forced" : "spv-je glass-card"}>
         <div className="spv-je-head">
           <b>분개</b>
           <span>{t.label} · {SETTLE_LABEL[row?.settle || "credit"]} — 유형이 만든 줄입니다 · 계정을 눌러 바꿉니다</span>

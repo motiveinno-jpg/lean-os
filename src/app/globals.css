@@ -8039,6 +8039,37 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-bal-ok { @apply text-[var(--success)]; }
 .spv-note { @apply px-1 text-[11.5px] leading-relaxed text-[var(--text-dim)]; }
 .spv-note b { @apply text-[var(--text-muted)]; }
+/* 좁은 화면(폰) — 14칸 격자는 접고 저장분을 카드로 읽는다. '격자로 입력'을 누르면 편다 (2026-08-11) */
+.spv-narrow { @apply hidden; }
+.spv-narrow-head { @apply flex items-center justify-between gap-2 px-1; }
+.spv-phone-toggle { @apply hidden; }
+.spv-input-only { @apply flex items-center gap-2; }
+.spv-narrow-head b { @apply text-[12.5px] font-bold text-[var(--text)]; }
+.spv-narrow-card { @apply flex flex-col gap-1.5 p-3; }
+.spv-narrow-top { @apply flex items-center gap-2 text-[12px] text-[var(--text)]; }
+.spv-narrow-top b { @apply min-w-0 flex-1 font-semibold; }
+.spv-narrow-no { @apply shrink-0 text-[11px] text-[var(--text-dim)]; }
+.spv-narrow-item { @apply truncate text-[12px] text-[var(--text-muted)]; }
+.spv-narrow-amt { @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+.spv-narrow-amt b { @apply font-semibold text-[var(--text)]; }
+.spv-narrow-sum { @apply flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-[var(--bg-surface)] px-3 py-2.5 text-[12px] font-bold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+@media (max-width: 899px) {
+  .spv-narrow { @apply flex flex-col gap-2; }
+  .spv-narrow-off { @apply hidden; }
+  .spv-grid-wrap, .spv-je { @apply hidden; }
+  .spv-grid-wrap.spv-grid-forced { @apply block; }
+  .spv-je.spv-grid-forced { @apply block; }
+  .spv-toolbar-hint { @apply hidden; }
+  .spv-phone-toggle { @apply inline-flex; }
+  .spv-input-only { @apply hidden; }
+  .spv-input-only.spv-grid-forced { @apply flex; }
+  /* 버튼 글자와 합계줄이 세로로 쪼개지지 않게 — 좁은 화면에서만 */
+  .spv-toolbar button { @apply whitespace-nowrap; }
+  .spv-toolbar > div, .spv-input-only { @apply flex-wrap justify-end; }
+  .spv-subtotal, .spv-je-foot { @apply text-[11.5px]; grid-template-columns: auto 1fr 1fr 1fr; }
+  .spv-subtotal > span, .spv-je-foot > span { @apply whitespace-nowrap px-1; }
+}
+
 /* 증빙에서 불러오기 팝업 — 격자 판 (2026-08-11) */
 .spv-pull-overlay { @apply fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4; }
 .spv-pull-box { @apply flex max-h-[82vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }

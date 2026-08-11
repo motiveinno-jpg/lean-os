@@ -199,12 +199,15 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     queryKey: ["ledger-manual-vouchers", companyId, partnerId, yStart, yEnd],
     queryFn: async () => {
       const data = logRead('ledger/shared:data', await db.from("journal_entries")
-        .select("id, entry_date, description, voucher_no, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
+        .select("id, entry_date, description, voucher_no, reference_type, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
         .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
         .gte("entry_date", yStart).lte("entry_date", yEnd)
         .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
       return ((data || []) as any[]).filter((e) =>
-        (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
+        //   세금계산서로 만든 매입매출전표는 뺀다 — 그 계산서가 이미 위에서 한 줄로 잡히기 때문에
+        //   같이 세면 잔액이 두 배가 된다 (2026-08-11)
+        e.reference_type !== "tax_invoice"
+        && (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
       );
     },
     enabled: !!companyId && !!partnerId,

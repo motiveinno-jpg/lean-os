@@ -50,12 +50,14 @@ async function fetchLedgerEntries(companyId: string, partnerId: string | null, t
 
   // 수동 전표 — 이 거래처 라인을 포함한 manual·confirmed 전표 (AR/AP 라인 전부 반영)
   const mv = logRead('ledger/export:mv', await db.from("journal_entries")
-    .select("id, entry_date, description, voucher_no, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
+    .select("id, entry_date, description, voucher_no, reference_type, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
     .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
     .gte("entry_date", yStart).lte("entry_date", yEnd)
     .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
+  //   세금계산서로 만든 매입매출전표는 뺀다 — 계산서가 이미 한 줄로 잡혀 있어 이중계상이 된다 (화면과 같은 규칙)
   const manualVouchers = ((mv || []) as any[]).filter((e) =>
-    (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
+    e.reference_type !== "tax_invoice"
+    && (e.journal_lines || []).some((l: any) => l.partner_id === partnerId),
   );
 
   const arApCode = isSales ? "108" : "251";
