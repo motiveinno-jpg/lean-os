@@ -152,6 +152,10 @@ export default function VoucherEntryPage() {
       const data = logRead('voucher-entry/page:data', await db.from("journal_entries")
         .select("id, entry_date, voucher_no, voucher_type, description, source, entry_kind, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
         .eq("company_id", companyId ?? "").eq("status", "confirmed")
+        //   ★ 매입매출전표는 뺀다 (2026-08-11 사장님 지적) — 여기서 못 고치는 전표라(유형·공급가액이
+        //     날아가서) 눌러 봐야 "저쪽 메뉴에서 고치세요"만 뜨는 **막다른 골목**이었다.
+        //     ⚠️ neq 만 쓰면 entry_kind 가 NULL 인 옛 전표까지 빠진다 — is.null 을 함께 건다.
+        .or("entry_kind.is.null,entry_kind.neq.sale_purchase")
         .gte("entry_date", `${fromM}-01`).lt("entry_date", monthAfter(toM))
         .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
       return ((data || []) as any[]).map((e) => ({
@@ -164,6 +168,19 @@ export default function VoucherEntryPage() {
             memo: l.description || "", debit: Number(l.debit || 0), credit: Number(l.credit || 0),
           })),
       }));
+    },
+    enabled: !!companyId && dbReady,
+  });
+
+  //   목록에서 뺀 매입매출전표가 몇 건인지 — 안 보이면 "내 전표 어디 갔지?" 가 되므로 화면이 말해 준다.
+  //   건수는 count 로 센다(행을 받아 세면 1,000행에서 잘린다).
+  const { data: spCount = 0 } = useQuery<number>({
+    queryKey: ["vouchers-of-day-sp", companyId, fromM, toM],
+    queryFn: async () => {
+      const { count } = await db.from("journal_entries").select("id", { count: "exact", head: true })
+        .eq("company_id", companyId ?? "").eq("status", "confirmed").eq("entry_kind", "sale_purchase")
+        .gte("entry_date", `${fromM}-01`).lt("entry_date", monthAfter(toM));
+      return Number(count || 0);
     },
     enabled: !!companyId && dbReady,
   });
@@ -201,6 +218,8 @@ export default function VoucherEntryPage() {
   const enterEdit = (e: SavedEntry) => {
     if (edits[e.id]) return;
     //   매입매출전표는 유형·공급가액·부가세를 함께 들고 있다 — 일반전표 편집으로 저장하면 그게 지워진다
+    //   목록에서 이미 걸러지므로 여기까진 오지 않는다 — 나중에 목록 조건이 바뀌어도
+    //   유형·공급가액이 조용히 날아가지 않게 남겨 두는 그물이다
     if (e.entry_kind === "sale_purchase") {
       toast("매입매출전표는 '매입매출전표 입력' 메뉴에서 고쳐 주세요.", "info");
       return;
@@ -585,9 +604,6 @@ export default function VoucherEntryPage() {
 
   let listNo = 0;
   const sourceBadge = (s: string) => (s !== "manual" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-500 font-semibold align-middle">AI</span> : null);
-  //   하루치 전표를 다 보여 주는 목록이라 매입매출전표도 섞여 온다 — 어느 메뉴에서 친 전표인지 보이게 하고,
-  //   여기서 고치면 유형·공급가액이 날아가므로 편집은 그쪽 메뉴로 보낸다 (2026-08-11)
-  const kindBadge = (k: string | null) => (k === "sale_purchase" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-600 font-semibold align-middle">매입매출</span> : null);
 
   return (
     <div className="space-y-6">
@@ -746,6 +762,11 @@ export default function VoucherEntryPage() {
           <DateRangeField unit="month" from={fromM} to={toM}
             onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }} />
           <span className="px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-bold mono-number">{entries.length}건</span>
+          {spCount > 0 && (
+            <Link href="/partners/reconciliation/sale-purchase" className="ve-sp-note">
+              매입매출전표 {spCount}건은 <b>매입매출전표</b> 메뉴에 →
+            </Link>
+          )}
           <span className="hidden md:inline text-[11px] text-[var(--text-dim)]">셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span>
           <button onClick={deleteSelected} disabled={busy || selected.size === 0}
             className="ml-auto btn-danger btn-sm">
@@ -843,7 +864,7 @@ export default function VoucherEntryPage() {
                       </td>
                       <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{listNo}</td>
                       <td className={`${TD} mono-number text-[var(--text-dim)] cursor-text`} onClick={() => enterEdit(e)}>{i === 0 ? e.entry_date : ""}</td>
-                      <td className={`${TD} text-[11px] font-semibold text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{GUBUN_LABEL[savedGubun(e.voucher_type, l.debit)]}{i === 0 && sourceBadge(e.source)}{i === 0 && kindBadge(e.entry_kind)}</td>
+                      <td className={`${TD} text-[11px] font-semibold text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{GUBUN_LABEL[savedGubun(e.voucher_type, l.debit)]}{i === 0 && sourceBadge(e.source)}</td>
                       <td className={`${TD} mono-number text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{l.account?.code || "—"}</td>
                       <td className={`${TD} text-[var(--text)] cursor-text`} onClick={() => enterEdit(e)}>{l.account?.name || "?"}</td>
                       <td className={`${TD} mono-number text-[var(--text-dim)] cursor-text`} onClick={() => enterEdit(e)}>{l.partner?.business_number || "—"}</td>
