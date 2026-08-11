@@ -33,6 +33,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     menus: [
       { route: "/partners", label: "거래처" },
       { route: "/partners/ledger", label: "거래처 원장" },
+      { route: "/collect", label: "수집·전표" },
       { route: "/tax-invoices", label: "세금계산서", tabs: [
         { key: "sales", label: "매출" },
         { key: "purchase", label: "매입" },

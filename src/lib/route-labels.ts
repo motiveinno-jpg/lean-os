@@ -18,6 +18,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/partners/ledger": { group: "파이낸스", title: "거래처", desc: "거래처별 매출·매입 원장과 잔액을 봅니다." },
   "/partners/reconciliation/voucher-entry": { group: "파이낸스", title: "일반전표", desc: "통장·대체·결산 거래를 차변·대변으로 직접 입력합니다." },
   "/partners/reconciliation/sale-purchase": { group: "파이낸스", title: "매입매출전표", desc: "세금계산서·카드·현금영수증을 부가세 유형과 함께 입력합니다." },
+  "/collect": { group: "파이낸스", title: "수집·전표", desc: "세금계산서·계산서·현금영수증·카드·통장을 한 곳에서 받아오고 전표로 만듭니다." },
   "/partners/reconciliation": { group: "파이낸스", title: "거래 장부", desc: "통장·카드 거래를 전표·계산서와 맞춰 봅니다." },
   "/partners": { group: "파이낸스", title: "거래처", desc: "거래처 정보와 잔액을 관리합니다." },
   "/tax-invoices": { group: "파이낸스", title: "세금·증빙", desc: "발행·수취한 세금계산서를 관리합니다." },

@@ -41,6 +41,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "파이낸스",
     items: [
       { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
+      //   흩어져 있던 다섯 화면의 수집 버튼을 모은 입구 (2026-08-11). 2단계에서 조회·전표 탭이 여기 붙는다.
+      { href: "/collect", label: "수집·전표", icon: "download", roles: ["owner", "admin"], match: ["/collect"] },
       { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
       { href: "/transactions", label: "거래 장부", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
       // 전표는 두 갈래로 나눠 각각 메뉴로 둔다 (2026-08-11 사장님 지시 — 탭 말고 메뉴).
@@ -201,6 +203,7 @@ function NavIcon({ name, href, className = "" }: { name: string; href?: string; 
     case "book": return <svg {...props}><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
     case "clock": return <svg {...props}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>;
     case "umbrella": return <svg {...props}><path d="M12 2a9 9 0 019 9H3a9 9 0 019-9z"/><path d="M12 11v8a2.5 2.5 0 005 0"/></svg>;
+    case "download": return <svg {...props}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
   }
 }
