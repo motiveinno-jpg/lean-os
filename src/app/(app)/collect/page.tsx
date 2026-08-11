@@ -9,7 +9,6 @@
 //   실행 경로는 lib/collect 가 기존 화면들의 호출을 그대로 재사용한다 — 여기서 새로 만들지 않는다.
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
@@ -21,6 +20,7 @@ import {
   runCollect, type SourceKey, type RunState,
 } from "@/lib/collect";
 import { EvidenceTab } from "./_components/EvidenceTab";
+import { BankTab } from "./_components/BankTab";
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const fmtWhen = (iso: string | null) =>
@@ -148,15 +148,13 @@ function CollectInner() {
       <div className="collect-tabs">
         <button type="button" onClick={() => setTab("status")}
           className={tab === "status" ? "collect-tab collect-tab-on" : "collect-tab"}>수집 현황</button>
-        {SOURCES.filter((s) => s.key !== "bank").map((s) => (
+        {SOURCES.map((s) => (
           <button key={s.key} type="button" onClick={() => setTab(s.key)}
             className={tab === s.key ? "collect-tab collect-tab-on" : "collect-tab"}>
             {s.label}
             <span className="collect-tab-cnt">{won(status?.[s.key]?.pending ?? 0)}</span>
           </button>
         ))}
-        {/*   통장은 3단계에서 거래 매칭을 흡수해 여기 붙는다 — 그때까지는 원래 화면으로 보낸다 */}
-        <Link href="/transactions" className="collect-tab no-underline">통장 <span className="collect-tab-cnt">{won(status?.bank?.pending ?? 0)}</span></Link>
       </div>
 
       {/* ── 툴바 ── */}
@@ -174,9 +172,11 @@ function CollectInner() {
         </div>
       </div>
 
-      {/* ── 자료별 목록 (2단계) ── */}
+      {/* ── 자료별 목록 (2단계) · 통장은 매칭까지 흡수한 3단계 화면 ── */}
       {tab !== "status" && companyId && (
-        <EvidenceTab companyId={companyId} month={month} kind={tab} />
+        tab === "bank"
+          ? <BankTab companyId={companyId} month={month} />
+          : <EvidenceTab companyId={companyId} month={month} kind={tab} />
       )}
 
       {/* ── 자료 카드 ── */}
@@ -191,7 +191,7 @@ function CollectInner() {
             const broken = !!st?.brokenNote;
             return (
               <button key={s.key} type="button"
-                onClick={() => (s.key === "bank" ? (window.location.href = s.href) : setTab(s.key))}
+                onClick={() => setTab(s.key)}
                 className={broken ? "collect-src collect-src-bad text-left" : "collect-src text-left"}>
                 <div className="collect-src-top">
                   <span className="collect-src-ico">{s.icon}</span>

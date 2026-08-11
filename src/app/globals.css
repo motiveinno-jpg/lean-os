@@ -8192,3 +8192,12 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ev-st { @apply text-[11px] font-bold; }
 .ev-st-todo { @apply text-[var(--warning)]; }
 .ev-st-done { @apply text-[var(--success)]; }
+
+/* ── 수집·전표 3단계: 통장 탭 (거래 매칭 흡수) 2026-08-11 ── */
+.bk-table { min-width: 1060px; }
+.bk-in { @apply font-bold text-[#2563EB]; }
+.bk-out { @apply font-bold text-[#B45309]; }
+.bk-sug { @apply flex flex-wrap items-center gap-1.5; }
+.bk-amt { @apply h-6 w-[104px] rounded border border-[var(--border)] bg-[var(--bg)] px-1.5 text-right text-[11.5px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
+.bk-part { @apply not-italic text-[10.5px] text-[var(--warning)]; }
+.bk-link { @apply font-bold text-[var(--primary)] underline; }
