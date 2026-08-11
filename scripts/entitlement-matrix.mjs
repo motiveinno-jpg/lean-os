@@ -56,17 +56,20 @@ rollback;`;
 }
 
 // [이름, 입력, 기대] — 10개 상태 매트릭스.
+//   2026-08-11 기대값 갱신: 무료 티어 개편(611afe3 — 종료 시점에만 Free 전환) 이후
+//   만료·체험만료·해지는 잠금(entitled:false)이 아니라 free 플랜 전환(entitled:true, display 'free')이 정답.
+//   entitled:false 는 타회사 접근('none') 뿐 — get_company_entitlement 현행 정의로 확인.
 const CASES = [
   ["active 정상",            { status: "active", cape: false },                                 { slug: "ultra", entitled: true,  cape: false, display: "active" }],
   ["해지 예약(cancel_at_period_end)", { status: "active", cape: true },                          { slug: "ultra", entitled: true,  cape: true,  display: "cancel_scheduled" }],
   ["해지 예약 복원(cape=false)", { status: "active", cape: false },                              { slug: "ultra", entitled: true,  cape: false, display: "active" }],
-  ["기간 만료(유예 초과)",   { status: "active", period: "now()-interval '5 days'" },            { slug: "free",  entitled: false, cape: false, display: "expired" }],
+  ["기간 만료(유예 초과 → free 전환)", { status: "active", period: "now()-interval '5 days'" },  { slug: "free",  entitled: true,  cape: false, display: "free" }],
   ["기간 만료 유예 내(1일 초과)", { status: "active", period: "now()-interval '1 day'" },        { slug: "ultra", entitled: true,  cape: false, display: "active" }],
   ["수동 유료(active) 기간 유효", { status: "active", plan_id: PLAN_BASIC },                     { slug: "basic", entitled: true,  cape: false, display: "active" }],
   ["체험 유효",              { status: "trialing", trial: "now()+interval '7 days'", period: "null" }, { slug: "ultra", entitled: true, cape: false, display: "trialing" }],
-  ["체험 만료",              { status: "trialing", trial: "now()-interval '1 day'", period: "null" }, { slug: "free", entitled: false, cape: false, display: "trial_expired" }],
+  ["체험 만료(→ free 전환)", { status: "trialing", trial: "now()-interval '1 day'", period: "null" }, { slug: "free", entitled: true, cape: false, display: "free" }],
   ["past_due 기간 유효",     { status: "past_due" },                                             { slug: "ultra", entitled: true,  cape: false, display: "past_due" }],
-  ["해지 완료(canceled)",    { status: "canceled" },                                             { slug: "free",  entitled: false, cape: false, display: "canceled" }],
+  ["해지 완료(canceled → free 전환)", { status: "canceled" },                                    { slug: "free",  entitled: true,  cape: false, display: "free" }],
   ["Ultra AI 유지(해지 예약중)", { status: "active", cape: true },                               { slug: "ultra", entitled: true,  cape: true,  display: "cancel_scheduled" }],
 ];
 
