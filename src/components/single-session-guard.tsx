@@ -24,6 +24,11 @@ export function SingleSessionGuard() {
   const router = useRouter();
 
   useEffect(() => {
+    // 로컬 개발 서버(localhost)는 운영과 같은 prod DB를 봐서, 로컬 로그인이 세션을 등록하면
+    //   운영 브라우저가 중복 로그인으로 쫓겨난다(2026-08-11 사장님 제보 — 로컬 결제 테스트 중 발생).
+    //   로컬에서는 등록·감시 모두 건너뛴다: 운영을 안 쫓아내고, 로컬도 안 쫓겨난다.
+    if (typeof location !== "undefined" &&
+        (location.hostname === "localhost" || location.hostname === "127.0.0.1")) return;
     let mySession: string | null = null;
     let alive = true;
     let channel: ReturnType<typeof supabase.channel> | null = null;
