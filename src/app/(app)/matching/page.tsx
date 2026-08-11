@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 export default function MatchingRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace("/partners/reconciliation");
+    router.replace("/collect?tab=bank");
   }, [router]);
   return <div className="p-12 text-center text-sm text-[var(--text-muted)]">이동 중…</div>;
 }

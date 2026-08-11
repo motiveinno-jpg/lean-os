@@ -30,7 +30,7 @@ const HUBS: Hub[] = [
     key: "ledger",
     subs: [
       { href: "/transactions", label: "자동 분류", desc: "은행 거래를 계정과목으로 자동 분류합니다." },
-      { href: "/partners/reconciliation", label: "입금 매칭", desc: "입금과 세금계산서를 매칭해 수금을 확정합니다." },
+      { href: "/collect?tab=bank", label: "통장 처리", desc: "통장 거래를 수금 매칭·전표·계좌이동으로 처리합니다." },
     ],
   },
 ];

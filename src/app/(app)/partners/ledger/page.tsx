@@ -269,7 +269,7 @@ export default function PartnerLedgerPage() {
             className="btn-secondary text-xs"
             title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
             {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
-          <Link href="/partners/reconciliation"
+          <Link href="/collect?tab=bank"
             className="btn-primary text-xs"
             title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
             <Ico e="⚙" tone="mono" /> 거래 매칭 →
@@ -450,7 +450,7 @@ export default function PartnerLedgerPage() {
       )}
 
       <p className="text-[11px] text-[var(--text-dim)]">
-        ※ 미확정 입금 매칭은 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 매칭</Link>에서 확정해야 잔액에 반영됩니다 · <span className="text-[var(--danger)]">빨간색</span>은 마이너스 잔액·장기 미정산에만 사용됩니다
+        ※ 미확정 입금 매칭은 <Link href="/collect?tab=bank" className="text-[var(--primary)] hover:underline">수집·전표 › 통장</Link>에서 확정해야 잔액에 반영됩니다 · <span className="text-[var(--danger)]">빨간색</span>은 마이너스 잔액·장기 미정산에만 사용됩니다
       </p>
     </div>
   );

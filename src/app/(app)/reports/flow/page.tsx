@@ -403,7 +403,7 @@ export default function BusinessFlowPage() {
           )}
           {monthGap > 0 && (
             <Link
-              href="/partners/reconciliation"
+              href="/collect?tab=bank"
               className="flow-alert-gap"
               style={{
                 background: "color-mix(in srgb, var(--warning) 8%, transparent)",

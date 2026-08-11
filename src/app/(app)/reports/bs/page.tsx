@@ -981,7 +981,7 @@ function BalanceSheetPageInner() {
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <p className="text-[11.5px] leading-relaxed">
             매출채권 {data.receivableDetails.length}건 · 미지급금 {data.payableDetails.length}건이 <b>미매칭 세금계산서 기준</b>으로 집계 중입니다.
-            이미 입금·지급된 건이 있다면 <Link href="/partners/reconciliation" className="underline font-semibold">거래 매칭</Link>에서 확정할수록 이 수치가 정확해집니다.
+            이미 입금·지급된 건이 있다면 <Link href="/collect?tab=bank" className="underline font-semibold">수집·전표 › 통장</Link>에서 처리할수록 이 수치가 정확해집니다.
           </p>
         </div>
       )}

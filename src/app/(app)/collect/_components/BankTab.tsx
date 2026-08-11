@@ -56,6 +56,25 @@ type Row = {
   sug: Sug | null;                 // 엔진이 만든 제안
 };
 
+//   classify-transactions 가 돌려주는 코드 → 사람이 읽는 이름 (자동 분류 화면과 같은 표).
+//   이 이름과 **같은 이름의 계정과목**을 찾아 계정 칸에 미리 채운다.
+const AI_CATEGORY_LABEL: Record<string, string> = {
+  revenue: "매출", other_revenue: "기타수익", outsourcing: "외주비", infrastructure: "인프라/서버",
+  salary: "급여/인건비", rent: "임대료/관리비", software: "소프트웨어/SaaS", professional: "전문서비스",
+  welfare: "복리후생", insurance: "4대보험", marketing: "마케팅/광고", supplies: "소모품/사무용품",
+  travel: "출장/교통비", communication: "통신비", tax: "세금/공과금", depreciation: "감가상각비",
+  interest: "이자비용", other_expense: "기타 운영비",
+};
+//   AI 코드 → 계정과목을 찾을 때 쓸 낱말. 계정과목표 이름이 회사마다 조금씩 달라 넉넉히 잡는다.
+const AI_ACCOUNT_HINT: Record<string, string[]> = {
+  outsourcing: ["외주"], infrastructure: ["지급수수료", "통신"], salary: ["급여"], rent: ["임차", "임대"],
+  software: ["지급수수료", "소모품"], professional: ["지급수수료"], welfare: ["복리후생"],
+  insurance: ["보험"], marketing: ["광고", "판매촉진"], supplies: ["소모품", "사무용품"],
+  travel: ["여비", "교통"], communication: ["통신"], tax: ["세금과공과", "공과"],
+  depreciation: ["감가상각"], interest: ["이자"], other_expense: ["잡비", "기타"],
+  revenue: ["매출"], other_revenue: ["잡이익", "기타"],
+};
+
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 /** 통장 줄의 방향 — type 이 단일 기준, 비어 있을 때만 부호를 본다 (RPC post_bank_voucher 와 같은 규칙) */
 function bankIsIn(type: string, amount: number): boolean {
@@ -79,6 +98,9 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
   //   ① 인데 제안이 없는 줄 — 계산서를 직접 찾아 붙인다 (거래 매칭의 '수동 매칭'을 옮겨 왔다)
   const [invPick, setInvPick] = useState<{ txId: string; q: string; inv: { id: string; label: string; remain: number } | null } | null>(null);
   const [aiBusy, setAiBusy] = useState(false);
+  //   비목 AI 가 추천한 계정 — 사람이 고른 것 다음, 학습 규칙보다 뒤에 쓴다
+  const [aiAcct, setAiAcct] = useState<Record<string, Acct>>({});
+  const [aiAcctBusy, setAiAcctBusy] = useState(false);
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["collect-accounts", companyId],
@@ -194,10 +216,12 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
 
   const keyOf = (r: Row) => ruleKeyOf("bank", { name: r.who, fallback: r.desc });
   /** 이 줄에 붙일 계정 — 사람이 고른 것 > 학습된 규칙 */
-  const acctOf = (r: Row): { a: Acct | null; via: "고름" | "지난번" | "학습" | null } => {
+  const acctOf = (r: Row): { a: Acct | null; via: "고름" | "지난번" | "학습" | "AI" | null } => {
     if (acct[r.id]) return { a: acct[r.id], via: "고름" };
     const hit = rules?.get(keyOf(r).key);
     if (hit?.account) return { a: hit.account as Acct, via: ruleTag(hit.hit_count) };
+    //   학습이 없을 때만 AI 추천을 쓴다 — 사람이 쌓은 규칙이 늘 이긴다
+    if (aiAcct[r.id]) return { a: aiAcct[r.id], via: "AI" };
     return { a: null, via: null };
   };
 
@@ -354,7 +378,44 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     } finally { setBusy(false); }
   };
 
-  /** AI 전체 매칭 — 제안을 새로 만든다. 거래 매칭 화면이 하던 것과 같은 엣지 함수를 쓴다. */
+  /** 계정 추천 — 증빙 없는 지출에 **비목**을 AI로 추천받아 같은 이름의 계정과목으로 바꿔 채운다.
+   *  '자동 분류' 화면의 'AI 추천 받기'와 같은 엣지 함수(classify-transactions)를 쓴다.
+   *  ★ 수금 매칭 추천과는 **다른 일**이다 — 이건 계정·비목, 저건 세금계산서 짝짓기. 이름을 갈라 둔다. */
+  const runAcctSuggest = async () => {
+    if (aiAcctBusy || !companyId) return;
+    const targets = shown.filter((r) => !doneOf(r) && !r.isIn && !acctOf(r).a).slice(0, 20);
+    if (targets.length === 0) { toast("추천할 미처리 지출이 없습니다", "info"); return; }
+    setAiAcctBusy(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("로그인이 필요합니다");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/classify-transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ transaction_ids: targets.map((r) => r.id), suggest: true }),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "계정 추천 실패");
+      const next: Record<string, Acct> = {};
+      let miss = 0;
+      for (const rr of (result.results || [])) {
+        const label = AI_CATEGORY_LABEL[rr.category] || "";
+        const hints = [label, ...(AI_ACCOUNT_HINT[rr.category] || [])].filter(Boolean);
+        //   추천 이름과 가장 가까운 **비용 계정**을 찾는다. 못 찾으면 사람이 직접 고르게 둔다.
+        const found = accounts.find((a) => a.account_type === "expense" && hints.some((h) => a.name.includes(h)));
+        if (found) next[rr.id] = found; else miss += 1;
+      }
+      setAiAcct((prev) => ({ ...prev, ...next }));
+      const n = Object.keys(next).length;
+      toast(n > 0
+        ? `계정 추천 ${n}건${miss > 0 ? ` · ${miss}건은 맞는 계정과목이 없어 직접 골라야 합니다` : ""} — 확인 후 확정하세요`
+        : "맞는 계정과목을 찾지 못했습니다 — 직접 고르세요", n > 0 ? "success" : "info");
+    } catch (e: any) {
+      toast(friendlyError(e, "계정 추천 실패"), "error");
+    } finally { setAiAcctBusy(false); }
+  };
+
+  /** 수금 매칭 추천 — 입금과 세금계산서를 짝지어 제안을 만든다. */
   const runAiMatch = async () => {
     if (aiBusy) return;
     setAiBusy(true);
@@ -401,10 +462,15 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
         </span>
         <div className="ml-auto flex items-center gap-2">
           {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 처리 방법·계정이 필요합니다</span>}
-          {/*   제안을 새로 만든다 — 거래 매칭 화면의 'AI 전체 매칭'을 옮겨 왔다 */}
+          {/*   추천 두 가지 — 하는 일이 다르므로 이름을 갈라 둔다 (2026-08-11).
+                계정 추천 = 무슨 비용인가(비목·계정) · 수금 매칭 추천 = 어느 계산서의 입금인가 */}
+          <button type="button" onClick={runAcctSuggest} disabled={aiAcctBusy}
+            className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            {aiAcctBusy ? "추천 중…" : "계정 추천"}
+          </button>
           <button type="button" onClick={runAiMatch} disabled={aiBusy}
             className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-            {aiBusy ? "매칭 중…" : "AI 매칭 돌리기"}
+            {aiBusy ? "매칭 중…" : "수금 매칭 추천"}
           </button>
           <button type="button" onClick={confirmAll} disabled={selRows.length === 0 || busy}
             className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
@@ -615,6 +681,7 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
         수수료 등으로 몇 원 어긋난 <b>차액은 잡손익으로 자동 마감</b>됩니다.
         <b>③ 계좌 이동</b>은 전표를 만들지 않습니다 — 두 통장에 같은 돈이 두 번 찍히기 때문입니다.
         <b>②</b>에서 고른 계정은 <b>입금자·적요로 기억</b>해 다음에 미리 채웁니다(<b>지난번</b> → 3번 이상이면 <b>학습</b>).
+        전표를 만들면 그 계정 이름이 <b>비용 항목(비목)으로도 함께</b> 남아 비용 분석에 잡힙니다 — 따로 분류할 필요가 없습니다.
         <b>④ 카드대금 청구</b>는 카드 승인 여러 건을 이 한 줄에 묶습니다 — 전표는 만들지 않습니다
         (승인 건 각각이 매입매출전표로 미지급금을 세우고, 이 줄은 그 결제일 뿐입니다).
         <b>제안이 없으면</b> 거래처명으로 계산서를 찾아 직접 붙입니다. 잘못 처리했으면 <b>되돌리기</b>로 미처리로 돌립니다.

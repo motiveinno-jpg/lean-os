@@ -47,11 +47,13 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/collect", label: "수집·전표", icon: "download", roles: ["owner", "admin"], match: ["/collect"] },
       { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
       { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
-      //   2026-08-11 — 통장 줄 처리(제안 확정·수동 연결·전표·계좌이동·카드 다대일·되돌리기·AI 매칭)는
-      //   전부 '수집·전표'의 통장 탭으로 옮겼다. 차액 계정 변경은 원래부터 거래처 원장에 있다.
-      //   여기 남은 고유 기능은 **비목 자동 분류**(계정과목이 아니라 비용 항목 분류)뿐이라 이름을 그렇게 바꿨다.
-      //   /partners/reconciliation(거래 매칭)은 라우트로 남겨 둔다 — 익숙한 사람이 쓰던 길을 갑자기 끊지 않는다.
-      { href: "/transactions", label: "자동 분류", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
+      //   2026-08-11 — '자동 분류'를 메뉴에서 내렸다(사장님 지시).
+      //     · 통장 줄 처리(수금 매칭·전표·계좌이동·카드 다대일·되돌리기·추천)는 전부 수집·전표 통장 탭으로 갔고,
+      //     · 마지막 남았던 **비목**도 이제 전표를 만들 때 함께 붙는다(post_bank_voucher 가 category 를 채운다).
+      //     · 그래서 이 화면에는 새로 할 일이 남지 않았다.
+      //   ★ **라우트는 살려 둔다** — /transactions 와 /partners/reconciliation 은 주소로 들어가면 그대로 열린다.
+      //     즐겨찾기·옛 링크가 막히지 않게, 되돌릴 땐 이 줄만 다시 넣으면 된다.
+      //   { href: "/transactions", label: "자동 분류", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
       // 전표는 두 갈래로 나눠 각각 메뉴로 둔다 (2026-08-11 사장님 지시 — 탭 말고 메뉴).
       //   일반전표 = 통장·대체·결산 / 매입매출전표 = 세금계산서·카드·현금영수증(부가세 유형이 붙는 거래).
       //   경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 각각 단독 활성.

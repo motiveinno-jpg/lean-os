@@ -262,7 +262,7 @@ export function OwnerCommandCenter({ companyId, userId, sixPack, growth, risks, 
             {processed > 0 && <span className="master-done-note">✓ {processed}건 처리</span>}
           </h3>
           <div className="flex items-center gap-3 flex-wrap">
-            {queueCount > 0 && <Link href="/partners/reconciliation" className="widget-more-link">매칭 확인 {queueCount}건</Link>}
+            {queueCount > 0 && <Link href="/collect?tab=bank" className="widget-more-link">매칭 확인 {queueCount}건</Link>}
             {sixPack.arOver30 > 0 && <Link href="/partners/ledger" className="widget-more-link" style={{ color: "var(--danger)" }}>미수금 30일+ →</Link>}
             <Link href="/approvals" className="widget-more-link">결재함 →</Link>
           </div>

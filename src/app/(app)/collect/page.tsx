@@ -52,7 +52,12 @@ function CollectInner() {
   const [range, setRange] = useState(() => ({ from: `${todayKst().slice(0, 7)}-01`, to: todayKst() }));
   const { from, to } = range;
   //   탭 — 'status' 는 현황판, 나머지는 그 자료의 목록 (2단계)
-  const [tab, setTab] = useState<"status" | SourceKey>("status");
+  //   ?tab=bank 같은 주소로 바로 그 탭을 연다 — 다른 화면들이 "여기서 처리하세요"로 보낼 때 쓴다
+  const [tab, setTab] = useState<"status" | SourceKey>(() => {
+    if (typeof window === "undefined") return "status";
+    const t = new URLSearchParams(window.location.search).get("tab");
+    return (t && (t === "status" || SOURCES.some((s) => s.key === t)) ? t : "status") as "status" | SourceKey;
+  });
   const [rulesOpen, setRulesOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<SourceKey[]>(SOURCES.map((s) => s.key));

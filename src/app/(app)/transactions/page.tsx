@@ -1224,7 +1224,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
           <span className="text-[12px] text-[var(--text)]">
             <Ico e="💡" /> <b>입금 {(bankTx as any[]).filter((t) => t.type === 'income').length}건</b>은 여기서 분류하기보다 <b>거래 매칭</b>에서 세금계산서와 정산하면 미수금 차감·회계 전표가 자동 처리됩니다.
           </span>
-          <a href="/partners/reconciliation" className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[var(--info)] text-white hover:opacity-90 transition whitespace-nowrap">거래 매칭에서 정산 →</a>
+          <a href="/collect?tab=bank" className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[var(--info)] text-white hover:opacity-90 transition whitespace-nowrap">수집·전표에서 처리 →</a>
         </div>
       )}
 
