@@ -41,6 +41,7 @@ import * as XLSX from "xlsx";
 import { TaxInvoiceBulkIssueModal } from "@/components/tax-invoice-bulk-issue";
 import { QueryErrorBanner } from "@/components/query-status";
 import { ToolbarPopover, ToolbarPopoverItem } from "@/components/toolbar-popover";
+import { summarizeByVatType } from "@/lib/vat-voucher";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -2027,7 +2028,10 @@ function TaxInvoicesPageInner() {
 
       {/* VAT Preview Tab */}
       {tab === "vat" && (
-        <VATPreviewTab vatPreview={vatPreview} cardDeductions={cardDeductions} />
+        <>
+          <VatByVoucherType companyId={companyId} year={currentYear} />
+          <VATPreviewTab vatPreview={vatPreview} cardDeductions={cardDeductions} />
+        </>
       )}
 
       {/* 일괄 전표처리 모달 — 선택된 세금계산서를 계정 1개로 일괄 기장(매출/매입 방향 자동) */}
@@ -2527,6 +2531,75 @@ function SummaryTab({ periodSummary, periodType, setPeriodType, cardDeductions, 
             </table></div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── 전표 기준 부가세 집계 (2026-08-11) ──
+//   위 VAT 미리보기는 세금계산서 합계 + 카드 공제 '추정' 이다. 이건 **실제로 친 매입매출전표**를
+//   유형별로 모은 것이라 신고서 줄과 같은 모양이 된다. 둘을 나란히 두면 어긋난 만큼이 곧 미기장분이다.
+function VatByVoucherType({ companyId, year }: { companyId: string | null; year: number }) {
+  const { data: rows = [] } = useQuery({
+    queryKey: ["vat-by-voucher-type", companyId, year],
+    queryFn: async () => {
+      const data = logRead("tax-invoices:vatVouchers", await (supabase as any)
+        .from("journal_entries")
+        .select("vat_type, supply_amount, vat_amount")
+        .eq("company_id", companyId!)
+        .eq("entry_kind", "sale_purchase")
+        .gte("entry_date", `${year}-01-01`)
+        .lte("entry_date", `${year}-12-31`));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+
+  const sum = summarizeByVatType(rows);
+  const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
+
+  return (
+    <div className="vat-voucher-card glass-card">
+      <div className="vat-voucher-head">
+        <div>
+          <b>전표 기준 집계</b>
+          <span>매입매출전표에 친 유형 그대로 · {year}년</span>
+        </div>
+        <Link href="/partners/reconciliation/sale-purchase" className="btn-secondary btn-sm">매입매출전표 →</Link>
+      </div>
+      {rows.length === 0 ? (
+        <div className="vat-voucher-empty">
+          아직 매입매출전표가 없습니다 — 세금계산서·카드·현금영수증을 전표로 처리하면 여기에 유형별로 쌓입니다.
+        </div>
+      ) : (
+        <>
+          <div className="vat-voucher-grid">
+            {[{ title: "매출", list: sum.sale }, { title: "매입", list: sum.purchase }].map((g) => (
+              <div key={g.title} className="vat-voucher-col">
+                <div className="vat-voucher-col-head">{g.title}</div>
+                {g.list.length === 0 ? <div className="vat-voucher-none">없음</div> : g.list.map((b) => (
+                  <div key={b.code} className="vat-voucher-row">
+                    <span className="vat-voucher-pill">{b.label}</span>
+                    <span className="vat-voucher-cnt">{b.count}건</span>
+                    <span className="vat-voucher-num">{won(b.supply)}</span>
+                    <span className="vat-voucher-num vat-voucher-tax">{won(b.vat)}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="vat-voucher-foot">
+            <div><small>매출세액</small><b>{won(sum.salesVat)}</b></div>
+            <div><small>공제 매입세액</small><b>{won(sum.purchaseVat)}</b></div>
+            <div className="vat-voucher-payable">
+              <small>{sum.payable >= 0 ? "납부 예상" : "환급 예상"}</small>
+              <b>{won(Math.abs(sum.payable))}</b>
+            </div>
+          </div>
+          <p className="vat-voucher-note">
+            ※ <b>불공제(54)</b>는 낸 세액이지만 공제받지 못해 납부액 계산에서 뺍니다 · 영세(12)·면세(13/53)는 세액이 없습니다.
+          </p>
+        </>
       )}
     </div>
   );

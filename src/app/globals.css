@@ -8006,3 +8006,26 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .sp-pull-scroll { @apply flex-1 overflow-auto; }
 .sp-pull-foot { @apply shrink-0 border-t border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3 text-[11px] leading-relaxed text-[var(--text-dim)]; }
 .sp-pull-foot b { @apply text-[var(--text-muted)]; }
+/* 전표 기준 부가세 집계 (2026-08-11) */
+.vat-voucher-card { @apply mb-6 overflow-hidden; }
+.vat-voucher-head { @apply flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3; }
+.vat-voucher-head b { @apply text-sm font-bold text-[var(--text)]; }
+.vat-voucher-head span { @apply ml-2 text-[11px] text-[var(--text-dim)]; }
+.vat-voucher-empty { @apply px-5 py-8 text-center text-[12.5px] text-[var(--text-dim)]; }
+.vat-voucher-grid { @apply grid gap-x-6 gap-y-4 px-5 py-4 md:grid-cols-2; }
+.vat-voucher-col { @apply flex flex-col gap-1; }
+.vat-voucher-col-head { @apply mb-1 text-[11px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }
+.vat-voucher-none { @apply py-2 text-[12px] text-[var(--text-dim)]; }
+.vat-voucher-row { @apply grid items-center gap-2 border-b border-[var(--border)]/40 py-1.5; grid-template-columns: minmax(110px,1fr) 46px 1fr 1fr; }
+.vat-voucher-pill { @apply truncate rounded px-1.5 py-0.5 text-[11px] font-bold; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.vat-voucher-cnt { @apply text-[11px] text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+.vat-voucher-num { @apply text-right text-[12px] text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
+.vat-voucher-tax { @apply font-bold text-[var(--text)]; }
+.vat-voucher-foot { @apply flex flex-wrap items-center gap-x-8 gap-y-2 border-t border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3; }
+.vat-voucher-foot > div { @apply flex items-baseline gap-2; }
+.vat-voucher-foot small { @apply text-[10.5px] font-bold text-[var(--text-dim)]; }
+.vat-voucher-foot b { @apply text-[14px] font-bold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.vat-voucher-payable { @apply ml-auto; }
+.vat-voucher-payable b { @apply text-[19px] font-extrabold text-[var(--primary)]; }
+.vat-voucher-note { @apply px-5 pb-4 text-[11px] leading-relaxed text-[var(--text-dim)]; }
+.vat-voucher-note b { @apply text-[var(--text-muted)]; }
