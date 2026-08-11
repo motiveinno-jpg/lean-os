@@ -24,7 +24,8 @@ const MATRIX = [
     rows: [
       { name: "사용 인원", free: "5명", paid: "기본 5명 + 추가 1명 ₩5,000/월" },
       { name: "은행·카드 실계좌 연동", free: "하루 2회 자동", paid: "계좌 수 제한 없이 하루 2회 자동" },
-      { name: "즉시 동기화 버튼", free: "횟수 제한 없음(30분 간격)", paid: "횟수 제한 없음(30분 간격)" },
+      { name: "통장·카드 연결", free: "3개까지", paid: "무제한" },
+      { name: "즉시 동기화 버튼", free: "—", paid: "언제든 (30분 간격)" },
       { name: "경영 대시보드 · 리포트", free: "✓", paid: "✓" },
     ],
   },
@@ -104,7 +105,7 @@ export default function PricingView() {
                   href={p.slug ? `/auth?plan=${p.slug}` : "/auth"}
                   className={`lp4-price-cta ${p.hl ? "lp4-price-cta-brand" : "lp4-price-cta-line"}`}
                 >
-                  14일 무료로 시작하기
+                  {p.slug === "standard" ? "오너뷰 시작하기" : "무료로 시작하기"}
                 </Link>
               </div>
             ))}
@@ -198,7 +199,7 @@ export default function PricingView() {
       <section className="lp4-section lp4-bg-tint" id="ask">
         <div className="lp4-narrow lp4-sec-head-c">
           <h2 className="lp4-h2">가격이 궁금하면 물어보세요</h2>
-          <p className="lp4-sub">회사 상황에 따라 무엇이 필요한지 같이 정리해 드려요. 먼저 14일 써보셔도 돼요.</p>
+          <p className="lp4-sub">회사 상황에 따라 무엇이 필요한지 같이 정리해 드려요. 무료 요금제로 먼저 써보셔도 돼요.</p>
           <div className="lp4-feat-cta">
             <Link href="/#partner" className="lp4-btn lp4-btn-brand">도입 상담하기</Link>
             <Link href="/auth" className="lp4-btn lp4-btn-line">무료로 시작하기</Link>

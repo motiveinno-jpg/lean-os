@@ -171,8 +171,8 @@ export async function createCompanyWithOwner(
 
   await db.from("cash_snapshot").insert({ company_id: companyId, current_balance: 0, monthly_fixed_cost: 0 });
   // 2026-07-23 가격정책: 가입 즉시 트라이얼 DB행을 만들지 않는다. 카드 등록(Stripe Checkout)
-  //   완료 → webhook(checkout.session.completed) 확인 시에만 trialing 구독을 생성한다.
-  //   그 전까지 회사는 무료 티어(유료 권한 없음) — billing 화면에서 '무료체험 시작(카드 등록)' 유도.
+  //   완료 → webhook(checkout.session.completed) 확인 시에만 구독을 생성한다(무료체험 폐지 — 즉시 결제).
+  //   그 전까지 회사는 무료 요금제(영구 무료) — billing 화면에서 오너뷰 결제 유도.
   return { ok: true };
 }
 

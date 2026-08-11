@@ -9,7 +9,7 @@ import { FAQS, PLANS, FOOTER } from "@/components/landing/content";
 const SITE = "https://www.owner-view.com";
 const TITLE = "중소기업 대표를 위한 AI 올인원 운영 플랫폼 | 오너뷰";
 const DESC =
-  "현금·프로젝트·세무·급여·전자결재까지, 회사 운영의 모든 것을 하나로. AI 자동화 엔진 4개가 대표가 하던 반복 업무를 대신 처리합니다. 14일 무료.";
+  "현금·프로젝트·세무·급여·전자결재까지, 회사 운영의 모든 것을 하나로. AI 자동화 엔진 4개가 대표가 하던 반복 업무를 대신 처리합니다. 무료로 시작하세요.";
 // 카카오톡·페북·슬랙 공유 카드용 — 기존 512x512 로고는 잘리거나 썸네일로 축소됐다.
 const OG_IMAGE = { url: "/og-image.png", width: 1200, height: 630, alt: "오너뷰 — 중소기업 대표를 위한 올인원 운영 플랫폼" };
 

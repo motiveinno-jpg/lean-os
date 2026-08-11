@@ -299,7 +299,7 @@ export default function AuthPage() {
     if (created) router.push("/onboarding");
   }
 
-  // 회사 개설(+owner·스냅샷·14일 트라이얼) — company-signup 공용 함수 사용 (company-setup 페이지와 단일 구현)
+  // 회사 개설(+owner·스냅샷) — 무료 요금제로 시작. company-signup 공용 함수 사용 (company-setup 페이지와 단일 구현)
   async function createCompanyAndUser(authId: string, userEmail: string, name: string, bizDigits: string): Promise<boolean> {
     const r = await createCompanyWithOwner(authId, userEmail, name, userEmail.split("@")[0], bizDigits, phone);
     if (r.ok) return true;
