@@ -247,3 +247,27 @@ export async function setCompanyLeaveTypes(companyId: string, types: CompanyLeav
     .upsert({ company_id: companyId, settings: nextSettings }, { onConflict: 'company_id' });
   if (error) throw error;
 }
+
+// ── 반차 시간 회사 설정 (2026-08-11 사장님) — company_settings.settings.half_day_slots ──
+//   설정이 있으면 반차 신청 시각(computeHalfDaySlot)이 이 값을 쓰고, 없으면 근무시간 절반 자동 산정.
+export type HalfDaySlots = { am?: { start: string; end: string }; pm?: { start: string; end: string } };
+
+export async function getHalfDaySlots(companyId: string): Promise<HalfDaySlots> {
+  const row = logRead('lib/leave-grants:half-day-slots', await db
+    .from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
+  const v = (row?.settings as any)?.half_day_slots;
+  return v && typeof v === 'object' ? (v as HalfDaySlots) : {};
+}
+
+export async function setHalfDaySlots(companyId: string, slots: HalfDaySlots): Promise<void> {
+  const existing = logRead('lib/leave-grants:half-day-slots-existing', await db
+    .from('company_settings').select('settings').eq('company_id', companyId).maybeSingle());
+  const nextSettings = {
+    ...((existing?.settings as Record<string, unknown> | null) || {}),
+    half_day_slots: slots,
+  };
+  const { error } = await db
+    .from('company_settings')
+    .upsert({ company_id: companyId, settings: nextSettings }, { onConflict: 'company_id' });
+  if (error) throw error;
+}

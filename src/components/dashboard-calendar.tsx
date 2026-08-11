@@ -58,6 +58,17 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     companyLeaveTypes.find((x) => x.value === v)?.label
     || LEAVE_TYPES.find((t) => t.value === v)?.label
     || v;
+  // 단위 우선 표기 (2026-08-11 사장님: 반차가 '연차'로 나옴) — 반차·시간차는 leave_type(annual 등)이
+  //   아니라 leave_unit 으로 저장되므로, 단위가 있으면 그걸로 표기한다. 오전/오후는 시작시각 기준.
+  const displayLabel = (l: any) => {
+    if (l.leave_unit === "half_day") {
+      const st = String(l.start_time || "").slice(0, 5);
+      return st && st < "13:00" ? "오전 반차" : st ? "오후 반차" : "반차";
+    }
+    if (l.leave_unit === "two_hours") return "시간차";
+    if (Number(l.days) === 0.5) return "반차"; // 구 데이터 방어 — unit 없이 0.5일로만 기록된 건
+    return leaveLabel(String(l.leave_type || ""));
+  };
 
   // 휴가는 기간(start_date~end_date)이라 날짜별로 펼쳐 둔다.
   //   날짜 문자열끼리만 더해 나가므로 타임존 변환이 끼어들지 않는다
@@ -74,7 +85,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
       const to = String(l.end_date || from).slice(0, 10);
       if (!from) continue;
       const name = l.employees?.name || "";
-      const label = leaveLabel(String(l.leave_type || ""));
+      const label = displayLabel(l);
       let cur = from;
       // 방어: 잘못 입력된 기간(끝<시작)이나 비정상적으로 긴 기간에서 무한 루프 방지
       for (let i = 0; i < 366 && cur <= to; i++) {

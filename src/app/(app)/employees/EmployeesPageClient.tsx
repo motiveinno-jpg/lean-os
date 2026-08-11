@@ -31,6 +31,7 @@ import {
 } from "@/lib/hr";
 import {
   getMonthlyAccrualSettings, setMonthlyAccrualSettings, syncLeaveAccruals, setRemainingLeaveDays,
+  getHalfDaySlots, setHalfDaySlots,
   ACCRUAL_BASIS_LABELS, type MonthlyAccrualBasis,
   getCompanyLeaveTypes, setCompanyLeaveTypes, defaultCompanyLeaveTypes, type CompanyLeaveType,
 } from "@/lib/leave-grants";
@@ -3603,6 +3604,9 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           )}
         </div>
 
+        {/* 반차 시간 — 회사별 설정 (2026-08-11 사장님). 비워두면 근무시간 절반으로 자동 산정 */}
+        {!isEmployee && companyId && <HalfDaySlotSettings companyId={companyId} />}
+
         {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성.
             2026-08-06 사장님: 공간을 너무 먹어 접힌 요약이 기본. '변경'으로 펼쳐 고른 뒤 저장. */}
         {!isEmployee && (
@@ -4511,3 +4515,79 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
     </div>
   );
 }
+
+// ── 반차 시간 회사 설정 (2026-08-11 사장님 — 구성원 > 휴가 > 설정) ──
+//   오전/오후 반차의 시간 구간을 회사 규정대로 지정. 비워두면 기존처럼 근무시간 절반 자동 산정.
+//   저장처: company_settings.settings.half_day_slots — 이후 반차 "신청"부터 적용(기존 신청 시간 불변).
+function HalfDaySlotSettings({ companyId }: { companyId: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [editing, setEditing] = useState(false);
+  const [vals, setVals] = useState({ amStart: "", amEnd: "", pmStart: "", pmEnd: "" });
+
+  const { data: slots = {} } = useQuery({
+    queryKey: ["half-day-slots", companyId],
+    queryFn: () => getHalfDaySlots(companyId),
+    enabled: !!companyId,
+    staleTime: 300_000,
+  });
+
+  const startEdit = () => {
+    setVals({
+      amStart: (slots as any)?.am?.start || "",
+      amEnd: (slots as any)?.am?.end || "",
+      pmStart: (slots as any)?.pm?.start || "",
+      pmEnd: (slots as any)?.pm?.end || "",
+    });
+    setEditing(true);
+  };
+
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      const pair = (st: string, en: string) => (st && en ? (st < en ? { start: st, end: en } : (() => { throw new Error("시작 시각이 끝 시각보다 빨라야 합니다"); })()) : undefined);
+      await setHalfDaySlots(companyId, { am: pair(vals.amStart, vals.amEnd), pm: pair(vals.pmStart, vals.pmEnd) });
+    },
+    onSuccess: () => {
+      toast("반차 시간이 저장되었습니다. 이후 반차 신청부터 적용됩니다.", "success");
+      setEditing(false);
+      queryClient.invalidateQueries({ queryKey: ["half-day-slots", companyId] });
+    },
+    onError: (e: any) => toast(e?.message || "저장 실패", "error"),
+  });
+
+  const fmt = (v?: { start: string; end: string }) => (v?.start && v?.end ? `${v.start}~${v.end}` : "자동(근무시간 절반)");
+
+  return (
+    <div className="leave-halfday-panel glass-card">
+      {!editing ? (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs text-[var(--text-muted)]">
+            <b className="text-[var(--text)]">반차 시간</b>
+            <span className="ml-2">오전 {fmt((slots as any)?.am)} · 오후 {fmt((slots as any)?.pm)}</span>
+          </div>
+          <button onClick={startEdit} className="btn-secondary btn-sm">변경</button>
+        </div>
+      ) : (
+        <div>
+          <div className="text-xs font-bold text-[var(--text)] mb-1">반차 시간 설정</div>
+          <p className="text-[11px] text-[var(--text-dim)] mb-3">회사 규정의 반차 시간대를 지정하세요. 비워두면 근무시간의 절반으로 자동 계산됩니다. 이미 승인된 반차의 시간은 바뀌지 않습니다.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {([["am", "오전 반차", "amStart", "amEnd"], ["pm", "오후 반차", "pmStart", "pmEnd"]] as const).map(([, label, ks, ke]) => (
+              <div key={ks} className="flex items-center gap-2">
+                <span className="text-[11px] text-[var(--text-dim)] w-14 shrink-0">{label}</span>
+                <input type="time" value={vals[ks]} onChange={(e) => setVals((v) => ({ ...v, [ks]: e.target.value }))} className="field-input flex-1" />
+                <span className="text-[var(--text-dim)]">~</span>
+                <input type="time" value={vals[ke]} onChange={(e) => setVals((v) => ({ ...v, [ke]: e.target.value }))} className="field-input flex-1" />
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2 justify-end">
+            <button onClick={() => setEditing(false)} disabled={saveMut.isPending} className="btn-secondary btn-sm">취소</button>
+            <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending} className="btn-primary btn-sm">{saveMut.isPending ? "저장 중..." : "저장"}</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

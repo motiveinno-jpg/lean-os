@@ -1349,6 +1349,13 @@ async function computeHalfDaySlot(
   const DEFAULT = period === 'am'
     ? { start: '09:00', end: '13:00' }
     : { start: '14:00', end: '18:00' };
+  // 회사가 반차 시간을 직접 설정했으면 그 값을 최우선으로 (2026-08-11 사장님 — 구성원>휴가>설정)
+  try {
+    const { getHalfDaySlots } = await import('./leave-grants');
+    const slots = await getHalfDaySlots(companyId);
+    const cfg = slots?.[period];
+    if (cfg?.start && cfg?.end && cfg.start < cfg.end) return { start: cfg.start, end: cfg.end };
+  } catch { /* 설정 조회 실패 시 자동 산정으로 */ }
   try {
     const s = await getAttendanceCompanySettings(companyId);
     const startMin = parseHhmmToMinutes(s.work_start_time);
