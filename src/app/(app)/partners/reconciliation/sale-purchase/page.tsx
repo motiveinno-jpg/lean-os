@@ -5,10 +5,15 @@
 //   위 격자에 한 줄 = 전표 한 장. 년·월·일·거래처·유형·품명·공급가액·부가세를 옆으로 친다.
 //   아래 격자는 그 줄의 **분개** — 유형이 만들고 사람이 계정만 고친다.
 //
-//   ★ Enter = 윗줄 복사(금액 제외). 같은 거래처로 여러 건을 이어 칠 때
-//     년·월·일·거래처·유형·품명·전자·분개까지 그대로 내려오고 금액만 비운다 — 손이 제일 덜 간다.
+//   ★ Enter = **그 칸만** 윗줄에서 내리고 다음 칸으로 넘어간다 (2026-08-11 사장님 지시).
+//     처음엔 한 줄이 통째로 내려왔는데, 한 칸만 다른 건을 칠 때 내려온 값을 도로 지워야 했다.
+//     칸 단위로 내리면 같은 값은 Enter 로 한 번, 다른 값은 그냥 치면 된다 — 지우는 일이 없다.
+//
+//   ★ 조회는 **기간**으로 본다(달력 위젯, 월 단위). 부가세는 분기로 신고해서
+//     한 달만 보면 신고 단위와 어긋난다 — 손익계산서·세금계산서와 같은 위젯이다.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DateRangeField } from "@/components/date-range-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -95,17 +100,26 @@ const comma = (s: string) => {
 };
 let K = 1;
 
-const blankRow = (base?: Partial<Row>): Row => ({
+//   새 줄은 **백지**다. 예전엔 윗줄을 물려받았는데, 그러면 칸마다 Enter 로 내릴 것이 남지 않는다
+//   (이미 다 차 있으니). 내리는 건 Enter 로 사람이 고른다 (2026-08-11).
+const blankRow = (): Row => ({
   key: K++,
-  y: base?.y || String(new Date().getFullYear()),
-  m: base?.m || "", d: base?.d || "",
-  partner: base?.partner ?? null, partnerText: base?.partnerText || "",
-  vatCode: base?.vatCode || "11", item: base?.item || "",
+  y: String(new Date().getFullYear()), m: "", d: "",
+  partner: null, partnerText: "",
+  vatCode: "11", item: "",
   supply: "", vat: "",
-  electronic: base?.electronic ?? false,
-  settle: base?.settle || "credit",
-  mainAccount: base?.mainAccount ?? null,
+  electronic: false, settle: "credit", mainAccount: null,
 });
+
+//   Enter 가 훑는 칸 순서 — 화면에 보이는 왼→오 그대로다(코드·사업자번호·합계는 자동이라 건너뛴다)
+const CELLS = ["y", "m", "d", "partner", "vatCode", "item", "supply", "vat", "electronic", "settle"] as const;
+type CellKey = (typeof CELLS)[number];
+
+/** 그 달의 다음 달 1일 — 조회 상한(`lt`)으로 쓴다. 말일이 28·30·31 로 갈리지 않는다. */
+const monthAfter = (ym: string) => {
+  const [y, m] = ym.split("-").map(Number);
+  return `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
+};
 
 export default function SalePurchaseVoucherPage() {
   const { role } = useUser();
@@ -121,7 +135,10 @@ function SalePurchaseInner() {
   const qc = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [group, setGroup] = useState("all");
-  const [month, setMonth] = useState(todayKst().slice(0, 7));
+  //   조회기간 — 월 단위(YYYY-MM). 처음엔 이번 달 한 달만 걸어 예전과 같게 보인다.
+  const [fromM, setFromM] = useState(todayKst().slice(0, 7));
+  const [toM, setToM] = useState(todayKst().slice(0, 7));
+  const periodLabel = fromM === toM ? fromM : `${fromM} ~ ${toM}`;
   const [rows, setRows] = useState<Row[]>([blankRow()]);
   const [cur, setCur] = useState(0);                 // 지금 고른 줄
   const [drop, setDrop] = useState<{ row: number; q: string } | null>(null);
@@ -168,15 +185,14 @@ function SalePurchaseInner() {
 
   // ── 그 달에 저장된 전표를 격자 위쪽에 그대로 올린다 (회계 프로그램처럼) ──
   const { data: saved = [] } = useQuery({
-    queryKey: ["sp-saved", companyId, month],
+    queryKey: ["sp-saved", companyId, fromM, toM],
     queryFn: async () => {
-      const [y, mm] = month.split("-").map(Number);
-      const to = `${mm === 12 ? y + 1 : y}-${String(mm === 12 ? 1 : mm + 1).padStart(2, "0")}-01`;
+      const to = monthAfter(toM);
       const data = logRead("sale-purchase:saved", await (supabase as any)
         .from("journal_entries")
         .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
         .eq("company_id", companyId!).eq("entry_kind", "sale_purchase")
-        .gte("entry_date", `${month}-01`).lt("entry_date", to)
+        .gte("entry_date", `${fromM}-01`).lt("entry_date", to)
         .order("entry_date").order("voucher_no"));
       return (data || []) as any[];
     },
@@ -199,11 +215,10 @@ function SalePurchaseInner() {
 
   // ── 아직 전표가 안 만들어진 증빙 — 세 화면에 흩어져 있던 입구를 여기 하나로 모은다 ──
   const { data: pending = [] } = useQuery({
-    queryKey: ["sp-pending", companyId, month],
+    queryKey: ["sp-pending", companyId, fromM, toM],
     queryFn: async () => {
-      const from = month + "-01";
-      const [y, mm] = month.split("-").map(Number);
-      const to = (mm === 12 ? y + 1 : y) + "-" + String(mm === 12 ? 1 : mm + 1).padStart(2, "0") + "-01";
+      const from = fromM + "-01";
+      const to = monthAfter(toM);
       const [ti, card, cash] = await Promise.all([
         supabase.from("tax_invoices")
           .select("id, type, issue_date, counterparty_name, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
@@ -320,46 +335,53 @@ function SalePurchaseInner() {
   const setSupply = (i: number, v: string) =>
     setRows((rs) => rs.map((r, k) => (k === i ? { ...r, supply: comma(v), vat: won(vatOf(r.vatCode, numOf(v))) } : r)));
 
-  /** ★ 빈 줄에서 Enter — 윗줄을 금액만 빼고 그대로 내린다 */
-  const copyFromAbove = (i: number) => {
-    const above = i > 0 ? rows[i - 1] : (savedRows.length > 0 ? savedRows[savedRows.length - 1] : null);
-    if (!above) return false;
-    patch(i, {
-      y: above.y, m: above.m, d: above.d,
-      partner: above.partner, partnerText: above.partner?.name || above.partnerText,
-      vatCode: above.vatCode, item: above.item,
-      electronic: above.electronic, settle: above.settle,
-      mainAccount: above.mainAccount,
-      supply: "", vat: "",                 // 금액만 비운다
-      refType: undefined, refId: undefined, // 증빙 꼬리표는 따라 내려오지 않는다 — 다른 건이다
-    });
-    return true;
-  };
   const isEmptyRow = (r: Row) => !r.m && !r.d && !r.partner && !r.item && !r.supply;
 
-  const focusSupply = (i: number) => requestAnimationFrame(() => {
-    const el = gridRef.current?.querySelector<HTMLInputElement>(`[data-cell="supply-${i}"]`);
-    el?.focus(); el?.select();
-  });
+  /** 윗줄 — 첫 줄이면 그 위(저장분)의 마지막 전표가 윗줄이다 */
+  const aboveOf = (i: number): Row | null =>
+    i > 0 ? rows[i - 1] : (savedRows.length > 0 ? savedRows[savedRows.length - 1] : null);
 
-  //   Enter 두 갈래 — 둘 다 결과는 같다: **윗줄이 금액만 빼고 내려온다**
-  //     ① 다 친 줄에서 Enter → 새 줄을 만들며 복사 (이어서 다음 건을 친다)
-  //     ② 빈 줄에서 Enter    → 그 줄에 복사
-  const onCellKey = (e: React.KeyboardEvent, i: number) => {
-    if (e.key !== "Enter") return;
-    if (isEmptyRow(rows[i])) {
-      if (copyFromAbove(i)) { e.preventDefault(); focusSupply(i); }
-      return;
-    }
-    if (i === rows.length - 1) {
-      e.preventDefault();
-      setRows((rs) => [...rs, blankRow(rs[i])]);   // blankRow 가 금액을 비운다
-      setCur(i + 1);
-      focusSupply(i + 1);
+  /** ★ Enter — **그 칸 하나만** 윗줄에서 내린다 (2026-08-11 사장님 지시).
+   *  '빈 칸일 때만 내린다'로 하면 유형·분개처럼 늘 값이 있는 칸은 영영 못 내린다 — 눌러도
+   *  아무 일이 안 나 고장난 것처럼 보인다. 그래서 **누른 칸은 항상 내린다**(사람이 그 칸을 골라 눌렀다). */
+  const pullCell = (i: number, key: CellKey) => {
+    const a = aboveOf(i);
+    if (!a) return;
+    switch (key) {
+      case "y": patch(i, { y: a.y }); break;
+      case "m": patch(i, { m: a.m }); break;
+      case "d": patch(i, { d: a.d }); break;
+      //   증빙 꼬리표(refType·refId)는 따라오지 않는다 — 거래처만 같을 뿐 다른 건이다
+      case "partner": patch(i, { partner: a.partner, partnerText: a.partner?.name || a.partnerText }); setDrop(null); break;
+      case "vatCode": setVat(i, a.vatCode); break;    // 유형이 세액·결제방법·분개까지 다시 만든다
+      case "item": patch(i, { item: a.item }); break;
+      case "supply": setSupply(i, a.supply); break;   // 공급가액을 내리면 부가세도 따라 붙는다
+      case "vat": patch(i, { vat: comma(a.vat) }); break;
+      case "electronic": patch(i, { electronic: a.electronic }); break;
+      case "settle": patch(i, { settle: a.settle }); break;
     }
   };
 
-  const addRow = () => setRows((rs) => [...rs, blankRow(rs[rs.length - 1])]);
+  const focusCell = (i: number, key: CellKey) => requestAnimationFrame(() => {
+    const el = gridRef.current?.querySelector<HTMLElement>(`[data-cell="${key}-${i}"]`);
+    el?.focus();
+    if (el instanceof HTMLInputElement) el.select();
+  });
+
+  //   Enter = 이 칸에 윗값을 내리고 **다음 칸으로**. 끝 칸이면 아래 줄 첫 칸으로(없으면 빈 줄을 만든다).
+  //   같은 값은 Enter 로 훑고 다른 값은 그냥 친다 — 내려온 것을 지울 일이 없다.
+  const onCellKey = (e: React.KeyboardEvent, i: number, key: CellKey) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    pullCell(i, key);
+    const at = CELLS.indexOf(key);
+    if (at < CELLS.length - 1) { focusCell(i, CELLS[at + 1]); return; }
+    if (i === rows.length - 1) setRows((rs) => [...rs, blankRow()]);
+    setCur(i + 1);
+    focusCell(i + 1, "y");
+  };
+
+  const addRow = () => setRows((rs) => [...rs, blankRow()]);
   const removeRow = (i: number) =>
     setRows((rs) => (rs.length > 1 ? rs.filter((_, k) => k !== i) : [blankRow()]));
 
@@ -394,7 +416,7 @@ function SalePurchaseInner() {
       //   저장한 줄은 지우고 그 내용을 물려받은 빈 줄을 남긴다 — 다음 건을 바로 이어 친다
       setRows((rs) => {
         const next = rs.filter((_, k) => k !== cur);
-        return (next.length > 0 ? next : [blankRow(row)]);
+        return (next.length > 0 ? next : [blankRow()]);
       });
       setCur(0);
       setOverrides({});
@@ -444,7 +466,7 @@ function SalePurchaseInner() {
     const csv = "﻿" + rowsOut.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    a.download = `매입매출전표_${month}${group === "all" ? "" : "_" + GROUPS.find((g) => g.key === group)!.label}.csv`;
+    a.download = `매입매출전표_${fromM === toM ? fromM : fromM + "~" + toM}${group === "all" ? "" : "_" + GROUPS.find((g) => g.key === group)!.label}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
@@ -465,9 +487,10 @@ function SalePurchaseInner() {
 
       {/* 기간 + 액션 */}
       <div className="spv-toolbar">
-        <label className="spv-toolbar-label">조회월</label>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="spv-month" />
-        <span className="spv-toolbar-hint"><b>Enter</b> 를 치면 윗줄이 금액만 빼고 그대로 내려옵니다</span>
+        {/* 조회기간 — 손익계산서·세금계산서와 같은 위젯(월 단위). 부가세는 분기로 신고해서
+            한 달만 보면 신고 단위와 어긋난다 (2026-08-11) */}
+        <DateRangeField unit="month" from={fromM} to={toM} onChange={(f, t) => { setFromM(f); setToM(t); }} />
+        <span className="spv-toolbar-hint"><b>Enter</b> 를 치면 그 칸에 윗줄 값이 내려오고 다음 칸으로 넘어갑니다</span>
         <div className="ml-auto flex items-center gap-2">
           <button type="button" onClick={() => setPhoneGrid((v) => !v)} className="spv-phone-toggle btn-secondary btn-sm">
             {phoneGrid ? "카드로 보기" : "격자로 입력"}
@@ -488,9 +511,9 @@ function SalePurchaseInner() {
 
       {/* ── 좁은 화면: 저장분을 카드로 읽는다. 격자 입력은 접어 두고 필요할 때만 편다 ── */}
       <div className={phoneGrid ? "spv-narrow spv-narrow-off" : "spv-narrow"}>
-        <div className="spv-narrow-head"><b>{month} 저장분 {savedRows.length}건</b></div>
+        <div className="spv-narrow-head"><b>{periodLabel} 저장분 {savedRows.length}건</b></div>
         {savedRows.length === 0 ? (
-          <div className="spv-je-empty">이 달에 저장된 매입매출전표가 없습니다.</div>
+          <div className="spv-je-empty">이 기간에 저장된 매입매출전표가 없습니다.</div>
         ) : savedRows.map((r, i) => (
           <div key={`n${i}`} className="spv-narrow-card glass-card">
             <div className="spv-narrow-top">
@@ -549,19 +572,19 @@ function SalePurchaseInner() {
               const rt = vatType(r.vatCode)!;
               return (
                 <div key={r.key} className={i === cur ? "spv-row spv-cur" : "spv-row"} onClick={() => setCur(i)}>
-                  <input className="spv-in tc" value={r.y} onChange={(e) => patch(i, { y: e.target.value })}
-                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} inputMode="numeric" maxLength={4} />
-                  <input className="spv-in tc" value={r.m} onChange={(e) => patch(i, { m: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} inputMode="numeric" placeholder="월" />
-                  <input className="spv-in tc" value={r.d} onChange={(e) => patch(i, { d: e.target.value.replace(/\D/g, "").slice(0, 2) })}
-                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} inputMode="numeric" placeholder="일" />
+                  <input className="spv-in tc" data-cell={`y-${i}`} value={r.y} onChange={(e) => patch(i, { y: e.target.value })}
+                    onKeyDown={(e) => onCellKey(e, i, "y")} onFocus={() => setCur(i)} inputMode="numeric" maxLength={4} />
+                  <input className="spv-in tc" data-cell={`m-${i}`} value={r.m} onChange={(e) => patch(i, { m: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+                    onKeyDown={(e) => onCellKey(e, i, "m")} onFocus={() => setCur(i)} inputMode="numeric" placeholder="월" />
+                  <input className="spv-in tc" data-cell={`d-${i}`} value={r.d} onChange={(e) => patch(i, { d: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+                    onKeyDown={(e) => onCellKey(e, i, "d")} onFocus={() => setCur(i)} inputMode="numeric" placeholder="일" />
                   <span className="spv-in-ro tc">{r.partner?.code || ""}</span>
                   <div className="relative">
-                    <input className="spv-in" value={r.partner?.name || r.partnerText}
+                    <input className="spv-in" data-cell={`partner-${i}`} value={r.partner?.name || r.partnerText}
                       onChange={(e) => { patch(i, { partner: null, partnerText: e.target.value }); setDrop({ row: i, q: e.target.value }); }}
                       onFocus={() => { setCur(i); setDrop({ row: i, q: r.partnerText }); }}
                       onBlur={() => setTimeout(() => setDrop((d) => (d?.row === i ? null : d)), 200)}
-                      onKeyDown={(e) => onCellKey(e, i)} placeholder="거래처" />
+                      onKeyDown={(e) => onCellKey(e, i, "partner")} placeholder="거래처" />
                     {drop?.row === i && filteredPartners(drop.q).length > 0 && (
                       <div className="spv-drop">
                         {filteredPartners(drop.q).map((p) => (
@@ -576,23 +599,26 @@ function SalePurchaseInner() {
                     )}
                   </div>
                   <span className="spv-in-ro tc">{r.partner?.business_number || ""}</span>
-                  <select className="spv-in spv-sel" value={r.vatCode} onChange={(e) => setVat(i, e.target.value)} onFocus={() => setCur(i)}>
+                  <select className="spv-in spv-sel" data-cell={`vatCode-${i}`} value={r.vatCode} onChange={(e) => setVat(i, e.target.value)}
+                    onKeyDown={(e) => onCellKey(e, i, "vatCode")} onFocus={() => setCur(i)}>
                     {typeOptions.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
                   </select>
-                  <input className="spv-in" value={r.item} onChange={(e) => patch(i, { item: e.target.value })}
-                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} placeholder="품명" />
+                  <input className="spv-in" data-cell={`item-${i}`} value={r.item} onChange={(e) => patch(i, { item: e.target.value })}
+                    onKeyDown={(e) => onCellKey(e, i, "item")} onFocus={() => setCur(i)} placeholder="품명" />
                   <input className={numOf(r.supply) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} data-cell={`supply-${i}`} value={r.supply}
-                    onChange={(e) => setSupply(i, e.target.value)} onKeyDown={(e) => onCellKey(e, i)}
+                    onChange={(e) => setSupply(i, e.target.value)} onKeyDown={(e) => onCellKey(e, i, "supply")}
                     onFocus={() => setCur(i)} placeholder="0" title="취소·수정분은 앞에 - 를 붙입니다" />
-                  <input className={numOf(r.vat) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} value={r.vat}
+                  <input className={numOf(r.vat) < 0 ? "spv-in tr spv-minus" : "spv-in tr"} data-cell={`vat-${i}`} value={r.vat}
                     onChange={(e) => patch(i, { vat: comma(e.target.value) })}
-                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} placeholder="0" />
+                    onKeyDown={(e) => onCellKey(e, i, "vat")} onFocus={() => setCur(i)} placeholder="0" />
                   <span className={numOf(r.supply) + numOf(r.vat) < 0 ? "spv-in-ro tr spv-total spv-minus" : "spv-in-ro tr spv-total"}>
                     {won(numOf(r.supply) + numOf(r.vat))}
                   </span>
-                  <button type="button" className="spv-chk" onClick={() => patch(i, { electronic: !r.electronic })}
-                    title="전자 발행분이면 켭니다">{r.electronic ? "전자" : "—"}</button>
-                  <select className="spv-in spv-sel" value={r.settle} onChange={(e) => patch(i, { settle: e.target.value as SettleType })} onFocus={() => setCur(i)}>
+                  <button type="button" className="spv-chk" data-cell={`electronic-${i}`} onClick={() => patch(i, { electronic: !r.electronic })}
+                    onKeyDown={(e) => onCellKey(e, i, "electronic")} onFocus={() => setCur(i)}
+                    title="전자 발행분이면 켭니다 (Enter 는 윗값 내리기 · Space 로 켜고 끕니다)">{r.electronic ? "전자" : "—"}</button>
+                  <select className="spv-in spv-sel" data-cell={`settle-${i}`} value={r.settle} onChange={(e) => patch(i, { settle: e.target.value as SettleType })}
+                    onKeyDown={(e) => onCellKey(e, i, "settle")} onFocus={() => setCur(i)}>
                     {(Object.keys(SETTLE_LABEL) as SettleType[]).map((s) => <option key={s} value={s}>{SETTLE_LABEL[s]}</option>)}
                   </select>
                   <button type="button" className="spv-del" onClick={() => removeRow(i)} title="이 줄 지우기">✕</button>
@@ -602,7 +628,7 @@ function SalePurchaseInner() {
           </div>
         </div>
         <div className="spv-subtotal">
-          <span>{month} 소계</span>
+          <span>{periodLabel} 소계</span>
           <span className="tr">{won(sumSupply)}</span>
           <span className="tr">{won(sumVat)}</span>
           <span className="tr spv-total">{won(sumSupply + sumVat)}</span>
@@ -684,7 +710,7 @@ function SalePurchaseInner() {
             <div className="spv-pull-head">
               <div>
                 <b>증빙에서 불러오기</b>
-                <span>전표가 안 만들어진 것만 · {month}</span>
+                <span>전표가 안 만들어진 것만 · {periodLabel}</span>
               </div>
               <div className="flex items-center gap-3">
                 {pulled > 0 && <span className="spv-pull-count">{pulled}건 얹음</span>}
@@ -692,7 +718,7 @@ function SalePurchaseInner() {
               </div>
             </div>
             {pending.length === 0 ? (
-              <div className="spv-je-empty">이 달에 전표가 필요한 증빙이 없습니다.</div>
+              <div className="spv-je-empty">이 기간에 전표가 필요한 증빙이 없습니다.</div>
             ) : (
               <div className="spv-pull-scroll">
                 <table className="spv-pull-table">
