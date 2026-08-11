@@ -60,15 +60,27 @@ function monthCells(y: number, m: number) {
 
 type Seg = "fy" | "fm" | "fd" | "ty" | "tm" | "td";
 const SEG_ORDER: Seg[] = ["fy", "fm", "fd", "ty", "tm", "td"];
+//   월 단위에서는 '일' 칸이 없다 — 부가세·손익은 월이 최소 단위라 반달을 고를 일이 없다
+const SEG_ORDER_M: Seg[] = ["fy", "fm", "ty", "tm"];
+const QUARTER_START = (m: number) => m - ((m - 1) % 3);
 
+/**
+ * @param unit "day" = YYYY-MM-DD 주고받음(기본) · "month" = **YYYY-MM** 주고받음.
+ *   월 단위는 부가세·손익처럼 **월이 최소 단위**인 화면에 쓴다. 반달 손익은 회계적으로 의미가 흐리고,
+ *   반달만 신고하는 실수도 막는다. 생김새·조작법은 같고 고르는 알갱이만 달라진다.
+ */
 export function DateRangeField({
-  from, to, onChange, label = "조회기간",
+  from, to, onChange, label = "조회기간", unit = "day",
 }: {
   from: string; to: string;
   onChange: (from: string, to: string) => void;
   label?: string;
+  unit?: "day" | "month";
 }) {
+  const isM = unit === "month";
+  const order = isM ? SEG_ORDER_M : SEG_ORDER;
   const today = todayKst();
+  const nowYM = today.slice(0, 7);
   const [open, setOpen] = useState(false);
   //   달력 왼쪽 달 (오른쪽은 그 다음 달)
   const [view, setView] = useState(() => { const p = parse(from); return { y: p.y, m: p.m }; });
@@ -103,6 +115,9 @@ export function DateRangeField({
   }, [focusNext, from, to]);
 
   const f = parse(from), t = parse(to);
+  //   월 단위는 '그 달 1일 ~ 그 달 말일'로 펼쳐 달력·일수 계산에 쓴다
+  const fFull = isM ? ymd(f.y, f.m, 1) : from;
+  const tFull = isM ? ymd(t.y, t.m, lastDay(t.y, t.m)) : to;
   const segValue = (s: Seg): string => {
     if (draft[s] != null) return draft[s]!;
     switch (s) {
@@ -125,6 +140,13 @@ export function DateRangeField({
     const get = (s: Seg) => (next[s] != null ? next[s]! : segValue(s));
     const fy = normalize("fy", get("fy")), fm = normalize("fm", get("fm"));
     const ty = normalize("ty", get("ty")), tm = normalize("tm", get("tm"));
+    if (isM) {
+      let a = `${pad(fy, 4)}-${pad(fm)}`, b = `${pad(ty, 4)}-${pad(tm)}`;
+      if (a > b) [a, b] = [b, a];
+      setDraft({});
+      onChange(a, b);
+      return;
+    }
     const fd = Math.min(normalize("fd", get("fd")), lastDay(fy, fm));
     const td = Math.min(normalize("td", get("td")), lastDay(ty, tm));
     let a = ymd(fy, fm, fd), b = ymd(ty, tm, td);
@@ -139,37 +161,68 @@ export function DateRangeField({
     setDraft(next);
     //   다 채우면 저절로 다음 칸으로 — 년4·월2·일2 고정
     if (digits.length === (s.endsWith("y") ? 4 : 2)) {
-      const i = SEG_ORDER.indexOf(s);
-      const nx = SEG_ORDER[i + 1];
+      const i = order.indexOf(s);
+      const nx = order[i + 1];
       if (nx) setFocusNext(nx);
       else commit(next);
     }
+  };
+
+  /** 다 골랐으면 확정하고 닫는다 — 화면마다 열린 채로 남거나 닫히거나 하면 헷갈린다.
+   *  값이 정해진 뒤엔 칩에 그대로 보이므로 굳이 열어 둘 이유가 없다. */
+  const settle = (a: string, b: string) => {
+    setHalf(null);
+    onChange(a, b);
+    setOpen(false);
+  };
+
+  /** 월 단위 — 월 칸을 눌러 시작·종료 월을 잡는다 */
+  const pickMonth = (ym: string) => {
+    if (!half) { setHalf(ym); return; }
+    let a = half, b = ym;
+    if (a > b) [a, b] = [b, a];
+    settle(a, b);
   };
 
   const pickDay = (date: string) => {
     if (!half) { setHalf(date); return; }
     let a = half, b = date;
     if (a > b) [a, b] = [b, a];
-    setHalf(null);
-    onChange(a, b);
+    settle(a, b);
   };
 
   //   자주 쓰는 기간 — 사장님이 당일·1주일을 제일 많이 쓴다 하여 맨 앞에 둔다 (2026-08-11).
   //   당일은 하루, 1주일은 **오늘 포함 최근 7일**. 나머지는 '그 달 전 같은 날부터 오늘'.
-  const QUICKS: { label: string; start: () => string }[] = [
-    { label: "당일", start: () => today },
-    { label: "1주일", start: () => minusDays(today, 6) },
-    { label: "1개월", start: () => minusMonths(today, 1) },
-    { label: "3개월", start: () => minusMonths(today, 3) },
-    { label: "6개월", start: () => minusMonths(today, 6) },
-    { label: "1년", start: () => minusMonths(today, 12) },
-  ];
+  const QUICKS: { label: string; start: () => string }[] = isM
+    //   월 단위 빠른 선택은 **신고 주기**에 맞춘다 — 이번 달·지난 달·분기·반기·올해
+    ? [
+        { label: "이번 달", start: () => nowYM },
+        { label: "지난 달", start: () => minusMonths(today, 1).slice(0, 7) },
+        { label: "이번 분기", start: () => `${today.slice(0, 4)}-${pad(QUARTER_START(Number(today.slice(5, 7))))}` },
+        { label: "반기", start: () => `${today.slice(0, 4)}-${Number(today.slice(5, 7)) <= 6 ? "01" : "07"}` },
+        { label: "올해", start: () => `${today.slice(0, 4)}-01` },
+      ]
+    : [
+        { label: "당일", start: () => today },
+        { label: "1주일", start: () => minusDays(today, 6) },
+        { label: "1개월", start: () => minusMonths(today, 1) },
+        { label: "3개월", start: () => minusMonths(today, 3) },
+        { label: "6개월", start: () => minusMonths(today, 6) },
+        { label: "1년", start: () => minusMonths(today, 12) },
+      ];
+  //   월 단위에서 '끝'은 오늘이 아니라 **이번 달**이다
+  const quickEnd = isM ? nowYM : today;
   const [activeQuick, setActiveQuick] = useState<string | null>(null);
   useEffect(() => { setActiveQuick(null); }, [from, to]);
 
   const right = addMonth(view.y, view.m, 1);
-  const days = useMemo(() => Math.max(1, Math.round(
-    (new Date(t.y, t.m - 1, t.d).getTime() - new Date(f.y, f.m - 1, f.d).getTime()) / 86400000) + 1), [from, to]);
+  const days = useMemo(() => {
+    const a = parse(fFull), b = parse(tFull);
+    return Math.max(1, Math.round(
+      (new Date(b.y, b.m - 1, b.d).getTime() - new Date(a.y, a.m - 1, a.d).getTime()) / 86400000) + 1);
+  }, [fFull, tFull]);
+  //   월 단위에서는 '몇 개월'이 더 읽기 쉽다
+  const months = useMemo(() => (t.y * 12 + t.m) - (f.y * 12 + f.m) + 1, [from, to]);
 
   const cellClass = (c: { date: string; out: boolean; dow: number }) => {
     const lo = half ?? from, hi = half ?? to;
@@ -188,6 +241,33 @@ export function DateRangeField({
     if (c.date === today) cls.push("drf-today");
     void lo; void hi;
     return cls.join(" ");
+  };
+
+  /** 한 해의 12개월 칸 */
+  const YearCal = ({ y }: { y: number }) => {
+    const a = half ? (half < to ? half : to) : from;
+    const b = half ? (half < to ? to : half) : to;
+    return (
+      <div className="drf-cal drf-cal-y">
+        <div className="drf-cal-title">{y}년</div>
+        <div className="drf-months">
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+            const ym = `${pad(y, 4)}-${pad(m)}`;
+            const cls = ["drf-mon"];
+            if (ym > a && ym < b) cls.push("drf-in");
+            if (ym === a) cls.push("drf-edge", "drf-edge-s");
+            if (ym === b && b !== a) cls.push("drf-edge", "drf-edge-e");
+            if (ym === a && b === a) cls.push("drf-edge", "drf-edge-one");
+            if (ym === nowYM) cls.push("drf-today");
+            return (
+              <button key={ym} type="button" className={cls.join(" ")} onClick={() => pickMonth(ym)}>
+                {m}월
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   const Cal = ({ y, m }: { y: number; m: number }) => (
@@ -212,7 +292,7 @@ export function DateRangeField({
       onKeyDown={(e) => {
         if (e.key === "Enter") { commit(draft); (e.target as HTMLInputElement).blur(); }
         if (e.key === "Backspace" && !segValue(s)) {
-          const i = SEG_ORDER.indexOf(s); const pv = SEG_ORDER[i - 1];
+          const i = order.indexOf(s); const pv = order[i - 1];
           if (pv) inputs.current[pv]?.focus();
         }
       }}
@@ -225,9 +305,11 @@ export function DateRangeField({
     <div className="drf" ref={boxRef}>
       <span className="drf-label">{label}</span>
       <div className={open ? "drf-chip drf-chip-open" : "drf-chip"}>
-        {seg("fy", "drf-y", "시작 연도")}<i>-</i>{seg("fm", "drf-md", "시작 월")}<i>-</i>{seg("fd", "drf-md", "시작 일")}
+        {seg("fy", "drf-y", "시작 연도")}<i>-</i>{seg("fm", "drf-md", "시작 월")}
+        {!isM && <><i>-</i>{seg("fd", "drf-md", "시작 일")}</>}
         <i className="drf-tilde">~</i>
-        {seg("ty", "drf-y", "종료 연도")}<i>-</i>{seg("tm", "drf-md", "종료 월")}<i>-</i>{seg("td", "drf-md", "종료 일")}
+        {seg("ty", "drf-y", "종료 연도")}<i>-</i>{seg("tm", "drf-md", "종료 월")}
+        {!isM && <><i>-</i>{seg("td", "drf-md", "종료 일")}</>}
         <button type="button" onClick={() => setOpen((v) => !v)} className="drf-cal-btn" aria-label="달력 열기">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"
             strokeLinecap="round" strokeLinejoin="round">
@@ -241,32 +323,48 @@ export function DateRangeField({
           <div className="drf-pop-head">
             <b>조회기간</b>
             {half
-              ? <span className="drf-half">시작 {half} · <b>종료일을 고르세요</b></span>
-              : <span className="drf-range mono-number">{from} ~ {to} · {days}일</span>}
+              ? <span className="drf-half">시작 {half} · <b>{isM ? "종료 월을" : "종료일을"} 고르세요</b></span>
+              : <span className="drf-range mono-number">{from} ~ {to} · {isM ? `${months}개월` : `${days}일`}</span>}
             <span className="drf-nav">
-              <button type="button" onClick={() => setView(addMonth(view.y, view.m, -1))} aria-label="이전 달">‹</button>
-              <button type="button" onClick={() => setView(addMonth(view.y, view.m, 1))} aria-label="다음 달">›</button>
+              <button type="button" onClick={() => setView(isM ? { y: view.y - 1, m: view.m } : addMonth(view.y, view.m, -1))}
+                aria-label={isM ? "이전 해" : "이전 달"}>‹</button>
+              <button type="button" onClick={() => setView(isM ? { y: view.y + 1, m: view.m } : addMonth(view.y, view.m, 1))}
+                aria-label={isM ? "다음 해" : "다음 달"}>›</button>
             </span>
           </div>
 
           <div className="drf-cals">
-            <Cal y={view.y} m={view.m} />
-            <Cal y={right.y} m={right.m} />
+            {isM ? (
+              <>
+                {/*   시작 연도와 그 다음 해 — 해를 걸치는 기간(2025-09~2026-08)이 흔해서
+                      시작 해만 보이면 종료 월을 못 찍는다 */}
+                <YearCal y={view.y} />
+                <YearCal y={view.y + 1} />
+              </>
+            ) : (
+              <>
+                <Cal y={view.y} m={view.m} />
+                <Cal y={right.y} m={right.m} />
+              </>
+            )}
           </div>
 
           <div className="drf-quick">
             <em>빠른 선택</em>
             {QUICKS.map((q) => (
               <button key={q.label} type="button"
-                onClick={() => { onChange(q.start(), today); setActiveQuick(q.label); setHalf(null); }}
-                className={activeQuick === q.label || (from === q.start() && to === today) ? "on" : ""}>
+                onClick={() => { setActiveQuick(q.label); settle(q.start(), quickEnd); }}
+                className={activeQuick === q.label || (from === q.start() && to === quickEnd) ? "on" : ""}>
                 {q.label}
               </button>
             ))}
           </div>
 
           <div className="drf-foot">
-            <span>년 <b>9999</b> · 월·일 <b>99</b> 를 치면 오늘 기준으로 채워집니다 · 오늘 <b className="mono-number">{today}</b></span>
+            <span>
+              년 <b>9999</b> · {isM ? "월" : "월·일"} <b>99</b> 를 치면 오늘 기준으로 채워집니다 ·
+              {isM ? " 이번 달 " : " 오늘 "}<b className="mono-number">{isM ? nowYM : today}</b>
+            </span>
             <button type="button" onClick={() => { setOpen(false); setHalf(null); }} className="btn-secondary btn-sm">닫기</button>
           </div>
         </div>

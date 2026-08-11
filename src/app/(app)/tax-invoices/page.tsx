@@ -8,6 +8,7 @@ import { logRead } from "@/lib/log-read";
 
 import Link from "next/link";
 import { MonthField } from "@/components/month-field";
+import { DateRangeField } from "@/components/date-range-field";
 import { DateField } from "@/components/date-field";
 import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
@@ -1213,53 +1214,16 @@ function TaxInvoicesPageInner() {
             </span>
           )}
 
-          {/* 조회기간 — 눌렀을 때만 열린다. 빠른기간은 그 안에 작은 글씨로 (2026-08-10 사장님) */}
+          {/* 조회기간 — 두 해 × 12개월 달력 + 타이핑 (2026-08-11 사장님: "B는 월 단위로").
+              수집·전표와 **같은 위젯**을 쓰되 알갱이만 월이다 — 화면마다 다른 피커를 쓰면 배우기 어렵다.
+              부가세 신고가 월·분기로 돌기 때문에 일 단위로 열지 않는다(반달만 신고하는 실수 방지). */}
           {(tab === "sales" || tab === "purchase") && (
-            <ToolbarPopover label={<span className="mono-number">{viewFromMonth} ~ {viewToMonth}</span>} title="조회기간" width={244}>
-              {() => (
-                <>
-                  <div className="period-pop-fields">
-                    <MonthField
-                      value={viewFromMonth}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (!v) return;
-                        setViewFromMonth(v);
-                        if (v > viewToMonth) setViewToMonth(v);  // from > to 면 to 도 맞춤
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
-                      aria-label="조회 시작 월"
-                    />
-                    <span className="text-xs text-[var(--text-muted)]">~</span>
-                    <MonthField
-                      value={viewToMonth}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (!v) return;
-                        setViewToMonth(v);
-                        if (v < viewFromMonth) setViewFromMonth(v);
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
-                      aria-label="조회 종료 월"
-                    />
-                  </div>
-                  <div className="period-pop-quick">
-                    {([["1개월", 0], ["3개월", 2], ["6개월", 5], ["1년", 11]] as const).map(([l, back]) => {
-                      const d = new Date();
-                      d.setMonth(d.getMonth() - back);
-                      const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                      const on = viewFromMonth === from && viewToMonth === getCurrentMonth();
-                      return (
-                        <button key={l} type="button" className={on ? "on" : ""}
-                          onClick={() => { setViewFromMonth(from); setViewToMonth(getCurrentMonth()); }}>
-                          {l}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </ToolbarPopover>
+            <DateRangeField
+              unit="month"
+              from={viewFromMonth}
+              to={viewToMonth}
+              onChange={(f, t) => { setViewFromMonth(f); setViewToMonth(t); }}
+            />
           )}
 
           {/* 가져오기·내보내기 — 가끔 쓰는 일들을 한 곳에 모았다 */}

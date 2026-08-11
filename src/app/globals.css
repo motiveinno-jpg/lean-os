@@ -8280,3 +8280,12 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
   .drf-cal { @apply w-full; }
 }
 .ev-cut { @apply font-bold text-[var(--warning)]; }
+/* 조회기간 — 월 단위 모드 (두 해 × 12개월) */
+.drf-cal-y { @apply w-[188px]; }
+.drf-months { @apply grid grid-cols-3 gap-1; }
+.drf-mon { @apply grid h-8 place-items-center rounded-lg text-[12px] font-semibold text-[var(--text)] transition; }
+.drf-mon:hover { @apply bg-[var(--bg-surface)]; }
+.drf-mon.drf-in { @apply bg-[var(--primary-light)]; }
+.drf-mon.drf-edge { @apply bg-[var(--primary)] text-white; }
+.drf-mon.drf-today { @apply ring-1 ring-inset ring-[var(--primary)]; }
+.drf-mon.drf-edge.drf-today { @apply ring-0; }

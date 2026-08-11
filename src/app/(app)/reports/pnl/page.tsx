@@ -4,7 +4,7 @@ import { WaterfallChart } from "@/components/charts/kit";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Ico } from "@/components/ui-icon";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { MonthField } from "@/components/month-field";
+import { DateRangeField } from "@/components/date-range-field";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -733,13 +733,14 @@ function PnlPageInner() {
       <StatementsTabs />
       {/* 툴바 — 기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
       <div className="pnl-toolbar page-sticky-header no-print-sticky">
-        {/* 조회 기간 — 월 범위. 다른 페이지 달력과 동일한 단일 컨트롤 스타일(h-9·rounded-lg). 2026-06-30 테두리 중첩 제거 */}
+        {/* 조회 기간 — 세금계산서·계산서와 같은 위젯(월 단위). 손익계산서는 **월이 최소 단위**라
+            일 단위로 열지 않는다 — 반달 손익은 회계적으로 의미가 흐리다 (2026-08-11). */}
         <div className="pnl-period-picker">
-          <MonthField value={customStart} max={customEnd} onChange={(e) => setCustomStart(e.target.value)} title="시작 월"
-            className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
-          <span className="text-[var(--text-dim)] text-xs">~</span>
-          <MonthField value={customEnd} min={customStart} onChange={(e) => setCustomEnd(e.target.value)} title="종료 월"
-            className="h-9 px-3 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)] hover:border-[var(--primary)] transition" />
+          <DateRangeField
+            unit="month" label="조회 기간"
+            from={customStart} to={customEnd}
+            onChange={(f, t) => { setCustomStart(f); setCustomEnd(t); }}
+          />
         </div>
         <div className="pnl-toolbar-actions">
           <button

@@ -11,7 +11,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MonthField } from "@/components/month-field";
+import { DateRangeField } from "@/components/date-range-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
@@ -228,52 +228,13 @@ export default function EInvoicesPage() {
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-          {/* 조회기간 — 눌렀을 때만 열린다. 빠른기간은 그 안에 작은 글씨로 (세금계산서와 동일) */}
-          <ToolbarPopover label={<span className="mono-number">{viewFromMonth} ~ {viewToMonth}</span>} title="조회기간" width={244}>
-            {() => (
-              <>
-                <div className="period-pop-fields">
-                  <MonthField
-                    value={viewFromMonth}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (!v) return;
-                      setViewFromMonth(v);
-                      if (v > viewToMonth) setViewToMonth(v);
-                    }}
-                    className="flex-1 px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
-                    aria-label="조회 시작 월"
-                  />
-                  <span className="text-xs text-[var(--text-muted)]">~</span>
-                  <MonthField
-                    value={viewToMonth}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (!v) return;
-                      setViewToMonth(v);
-                      if (v < viewFromMonth) setViewFromMonth(v);
-                    }}
-                    className="flex-1 px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
-                    aria-label="조회 종료 월"
-                  />
-                </div>
-                <div className="period-pop-quick">
-                  {([["1개월", 0], ["3개월", 2], ["6개월", 5], ["1년", 11]] as const).map(([l, back]) => {
-                    const d = new Date();
-                    d.setMonth(d.getMonth() - back);
-                    const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                    const on = viewFromMonth === from && viewToMonth === getCurrentMonth();
-                    return (
-                      <button key={l} type="button" className={on ? "on" : ""}
-                        onClick={() => { setViewFromMonth(from); setViewToMonth(getCurrentMonth()); }}>
-                        {l}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </ToolbarPopover>
+          {/* 조회기간 — 세금계산서와 같은 위젯(월 단위). 두 화면이 짝이라 같이 움직인다 (2026-08-11) */}
+          <DateRangeField
+            unit="month"
+            from={viewFromMonth}
+            to={viewToMonth}
+            onChange={(f, t) => { setViewFromMonth(f); setViewToMonth(t); }}
+          />
 
           {/* 가져오기 — 세금계산서 화면과 동일한 접힌 메뉴 */}
           <ToolbarPopover label="가져오기" title="가져오기" width={232}>
