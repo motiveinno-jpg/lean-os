@@ -50,7 +50,10 @@ type Row = {
   settledAmount: number;
   transfer: boolean;       // 계좌 이동으로 표시됨
   voucherNo: number | null;
-  sug: Sug | null;         // 엔진이 만든 제안
+  entryId: string | null;          // 되돌릴 때 지울 전표
+  settleIds: { id: string; type: string }[];  // 되돌릴 때 되돌릴 정산 행
+  cardsLinked: number;             // 이 줄에 묶인 카드 승인 수
+  sug: Sug | null;                 // 엔진이 만든 제안
 };
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
@@ -77,6 +80,9 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
   const [busy, setBusy] = useState(false);
   //   ④ 다대일 — 어느 통장 줄에 어느 카드 승인들을 묶을지 (거래 매칭 화면에서 옮겨 왔다)
   const [cardPick, setCardPick] = useState<{ txId: string; ids: Set<string> } | null>(null);
+  //   ① 인데 제안이 없는 줄 — 계산서를 직접 찾아 붙인다 (거래 매칭의 '수동 매칭'을 옮겨 왔다)
+  const [invPick, setInvPick] = useState<{ txId: string; q: string; inv: { id: string; label: string; remain: number } | null } | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["collect-accounts", companyId],
@@ -110,14 +116,32 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     enabled: !!cardPick,
   });
 
-  const { data: rows = [], isLoading } = useQuery<Row[]>({
+  //   아직 다 수금 안 된 세금계산서 — ① 에서 직접 붙일 때만 읽는다
+  const { data: invCands = [] } = useQuery({
+    queryKey: ["bank-inv-cands", companyId, invPick?.q],
+    queryFn: async () => {
+      let q = supabase.from("tax_invoices")
+        .select("id, issue_date, counterparty_name, item_name, total_amount, settled_amount, type")
+        .eq("company_id", companyId).neq("status", "void")
+        .order("issue_date", { ascending: false }).limit(60);
+      const term = (invPick?.q || "").trim();
+      if (term) q = q.ilike("counterparty_name", `%${term}%`);
+      const data = logRead("bank:invcands", await q);
+      return ((data as any[]) || [])
+        .map((r) => ({ ...r, remain: Number(r.total_amount || 0) - Number(r.settled_amount || 0) }))
+        .filter((r) => r.remain > 0);
+    },
+    enabled: !!invPick,
+  });
+
+  const { data: rows = [], isLoading, error: rowsError } = useQuery<Row[]>({
     queryKey: ["bank-rows", companyId, month],
     queryFn: async () => {
       const from = `${month}-01`;
       const to = monthEnd(month);
       const [tx, queue] = await Promise.all([
         supabase.from("bank_transactions")
-          .select("id, transaction_date, amount, type, counterparty, description, partner_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer")
+          .select("id, transaction_date, amount, type, counterparty, description, partner_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
           .eq("company_id", companyId)
           .gte("transaction_date", from).lt("transaction_date", to)
           .order("transaction_date").limit(400),
@@ -137,6 +161,9 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
           confidence: Number(q.confidence || 0),
         });
       }
+      //   ★ 읽기 실패를 빈 목록으로 넘기지 않는다 — '처리할 거래가 없습니다'로 보여 다 끝낸 줄 안다.
+      //     (실제로 관계 모호(PGRST201)로 조용히 0건이 뜬 적이 있다)
+      if (tx.error) throw new Error(tx.error.message);
       const src = ((tx.data as any[]) || []);
       const entryIds = [...new Set(src.map((r) => r.journal_entry_id).filter(Boolean))] as string[];
       const noBy = new Map<string, number | null>();
@@ -160,6 +187,11 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
           settledAmount: Number(r.settled_amount || 0),
           transfer: !!r.is_auto_transfer,
           voucherNo: r.journal_entry_id ? (noBy.get(r.journal_entry_id) ?? null) : null,
+          entryId: r.journal_entry_id ?? null,
+          settleIds: ((r.invoice_settlements || []) as any[])
+            .filter((m) => m.status === "confirmed")
+            .map((m) => ({ id: m.id, type: String(m.match_type || "") })),
+          cardsLinked: ((r.card_transactions || []) as any[]).length,
           sug: sugBy.get(r.id) ?? null,
         } as Row;
       });
@@ -186,7 +218,7 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
   //   확정할 수 있는 줄인가 — ①은 제안, ②는 계정, ③은 그냥 가능
   const ready = (r: Row) => {
     const d = dealOf(r);
-    if (d === "match") return !!r.sug;
+    if (d === "match") return !!r.sug || (invPick?.txId === r.id && !!invPick.inv);
     if (d === "voucher") return !!acctOf(r).a;
     if (d === "transfer") return true;
     if (d === "card") return cardPick?.txId === r.id && cardPick.ids.size > 0;
@@ -202,14 +234,36 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     for (const r of selRows) {
       const d = dealOf(r);
       try {
-        if (d === "match" && r.sug) {
+        if (d === "match" && (r.sug || (invPick?.txId === r.id && invPick.inv))) {
           //   부분수금 — 사람이 금액을 줄여 놨으면 그 금액으로 확정한다.
           //   나머지는 트리거가 알아서: 미수금 차감·수금 전표·차액 마감.
           const typed = Number(String(partAmt[r.id] ?? "").replace(/[^0-9-]/g, ""));
-          const amount = typed > 0 ? typed : r.sug.amount;
-          const { error } = await supabase.from("invoice_settlements")
-            .update({ status: "confirmed", amount }).eq("id", r.sug.settlementId);
-          if (error) throw error;
+          if (r.sug) {
+            const amount = typed > 0 ? typed : r.sug.amount;
+            const { error } = await supabase.from("invoice_settlements")
+              .update({ status: "confirmed", amount }).eq("id", r.sug.settlementId);
+            if (error) throw error;
+          } else {
+            //   제안이 없어 사람이 직접 고른 계산서에 붙인다 (거래 매칭의 '수동 연결'과 같은 규칙).
+            //   같은 (거래, 계산서) 쌍에 이력이 있으면 새로 넣지 않고 그 행을 확정으로 올린다.
+            const inv = invPick!.inv!;
+            const amount = typed > 0 ? typed : Math.min(Math.abs(r.amount), inv.remain);
+            const existing = logRead("bank:existing-settle", await supabase.from("invoice_settlements")
+              .select("id").eq("bank_transaction_id", r.id).eq("tax_invoice_id", inv.id).maybeSingle());
+            if (existing) {
+              const { error } = await supabase.from("invoice_settlements")
+                .update({ amount, match_type: "manual", match_source: "manual", status: "confirmed", confidence: 1, reason: "수동 연결" })
+                .eq("id", (existing as any).id);
+              if (error) throw error;
+            } else {
+              const { error } = await supabase.from("invoice_settlements").insert({
+                company_id: companyId, bank_transaction_id: r.id, tax_invoice_id: inv.id,
+                amount, match_type: "manual", match_source: "manual", status: "confirmed", confidence: 1, reason: "수동 연결",
+              });
+              if (error) throw error;
+            }
+            setInvPick(null);
+          }
         } else if (d === "voucher") {
           const a = acctOf(r).a;
           if (!a) throw new Error("계정을 먼저 고르세요");
@@ -267,6 +321,66 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     else toast(`처리하지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
 
+  /** 처리한 줄 되돌리기 — 무엇으로 처리했느냐에 따라 길이 다르다 */
+  const undo = async (r: Row) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (r.posted) {
+        //   전표를 지우면 FK(ON DELETE SET NULL)가 통장 줄을 미처리로 되돌린다
+        const { error } = await supabase.from("journal_entries").delete().eq("id", r.entryId!);
+        if (error) throw error;
+      } else if (r.transfer) {
+        const { error } = await supabase.from("bank_transactions").update({ is_auto_transfer: false }).eq("id", r.id);
+        if (error) throw error;
+      } else if (r.cardsLinked > 0) {
+        const { error: e1 } = await supabase.from("card_transactions").update({ bank_transaction_id: null }).eq("bank_transaction_id", r.id);
+        if (e1) throw e1;
+        const { error: e2 } = await supabase.from("bank_transactions")
+          .update({ settlement_status: "open", settled_amount: 0 }).eq("id", r.id);
+        if (e2) throw e2;
+      } else if (r.settleIds.length > 0) {
+        //   status 를 되돌리면 trg_recalc_settlement 가 미수금·전표를 원복한다.
+        //   차액 마감(adjustment)은 통장 거래가 없어 확인 큐로 못 돌아가므로 'rejected' 로 종결한다
+        //   — 거래 매칭 화면이 쓰던 규칙 그대로다.
+        for (const m of r.settleIds) {
+          const { error } = await supabase.from("invoice_settlements")
+            .update({ status: m.type === "adjustment" ? "rejected" : "suggested" }).eq("id", m.id);
+          if (error) throw error;
+        }
+      } else {
+        toast("되돌릴 처리가 없습니다", "info"); setBusy(false); return;
+      }
+      qc.invalidateQueries({ queryKey: ["bank-rows"] });
+      qc.invalidateQueries({ queryKey: ["collect-status"] });
+      qc.invalidateQueries({ queryKey: ["bank-card-cands"] });
+      toast("되돌렸습니다 — 미처리로 돌아왔습니다", "info");
+    } catch (e: any) {
+      toast(`되돌리지 못했습니다 — ${friendlyError(e, String(e?.message || ""))}`, "error");
+    } finally { setBusy(false); }
+  };
+
+  /** AI 전체 매칭 — 제안을 새로 만든다. 거래 매칭 화면이 하던 것과 같은 엣지 함수를 쓴다. */
+  const runAiMatch = async () => {
+    if (aiBusy) return;
+    setAiBusy(true);
+    try {
+      let processed = 0, suggested = 0;
+      for (let round = 0; round < 100; round++) {   // 안전 상한 (거래 매칭 화면과 같은 값)
+        const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 50 } });
+        if (error) throw new Error(error.message);
+        if ((data as any)?.error) throw new Error((data as any).error);
+        const rr = data as { processed: number; suggested: number };
+        processed += rr.processed || 0; suggested += rr.suggested || 0;
+        if ((rr.processed || 0) === 0) break;
+      }
+      qc.invalidateQueries({ queryKey: ["bank-rows"] });
+      toast(`AI 매칭 완료 — ${processed}건 분석 · 제안 ${suggested}건`, "success");
+    } catch (e: any) {
+      toast(e?.message || "AI 매칭 실패", "error");
+    } finally { setAiBusy(false); }
+  };
+
   const toggle = (id: string) =>
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allOn = shown.length > 0 && shown.filter((r) => !doneOf(r)).every((r) => sel.has(r.id));
@@ -292,6 +406,11 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
         </span>
         <div className="ml-auto flex items-center gap-2">
           {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 처리 방법·계정이 필요합니다</span>}
+          {/*   제안을 새로 만든다 — 거래 매칭 화면의 'AI 전체 매칭'을 옮겨 왔다 */}
+          <button type="button" onClick={runAiMatch} disabled={aiBusy}
+            className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            {aiBusy ? "매칭 중…" : "AI 매칭 돌리기"}
+          </button>
           <button type="button" onClick={confirmAll} disabled={selRows.length === 0 || busy}
             className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {busy ? "처리 중…" : `확정${selRows.length > 0 ? ` (${selRows.length})` : ""}`}
@@ -299,7 +418,11 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
         </div>
       </div>
 
-      {isLoading ? (
+      {rowsError ? (
+        <div className="collect-empty collect-empty-err">
+          통장 거래를 읽지 못했습니다 — {String((rowsError as any)?.message || "알 수 없는 오류")}
+        </div>
+      ) : isLoading ? (
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
         <div className="collect-empty">
@@ -400,6 +523,39 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
                             </span>
                           )}
                         </span>
+                      ) : d === "match" && !r.sug ? (
+                        <span className="bk-cards">
+                          {invPick?.txId === r.id && invPick.inv ? (
+                            <span className="bk-cards-head">
+                              {invPick.inv.label}
+                              <em className="bk-cards-sum mono-number">남은 {won(invPick.inv.remain)} / 입금 {won(Math.abs(r.amount))}</em>
+                              <button type="button" className="bk-clear" onClick={() => setInvPick({ txId: r.id, q: "", inv: null })}>바꾸기</button>
+                            </span>
+                          ) : (
+                            <>
+                              <input className="bk-search" placeholder="거래처명으로 계산서 찾기"
+                                value={invPick?.txId === r.id ? invPick.q : ""}
+                                onFocus={() => setInvPick({ txId: r.id, q: "", inv: null })}
+                                onChange={(e) => setInvPick({ txId: r.id, q: e.target.value, inv: null })} />
+                              {invPick?.txId === r.id && (
+                                <span className="bk-cards-list">
+                                  {invCands.length === 0 ? (
+                                    <em className="ev-dim">남은 금액이 있는 계산서가 없습니다</em>
+                                  ) : invCands.slice(0, 30).map((c: any) => (
+                                    <button key={c.id} type="button" className="bk-card-chip"
+                                      onClick={() => setInvPick({
+                                        txId: r.id, q: invPick.q,
+                                        inv: { id: c.id, label: `${c.counterparty_name || "—"} ${String(c.issue_date).slice(5)}`, remain: c.remain },
+                                      })}>
+                                      {String(c.issue_date).slice(5)} {c.counterparty_name || "—"}
+                                      <b className="mono-number">{won(c.remain)}</b>
+                                    </button>
+                                  ))}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </span>
                       ) : d === "card" ? (
                         <span className="bk-cards">
                           <span className="bk-cards-head">
@@ -440,11 +596,15 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
                       )}
                     </td>
                     <td>
-                      {done
-                        ? <span className="ev-st ev-st-done">
+                      {done ? (
+                        <span className="bk-done">
+                          <span className="ev-st ev-st-done">
                             {r.transfer ? "이동 표시" : r.voucherNo != null ? `#${r.voucherNo} 확정` : "확정"}
                           </span>
-                        : <span className="ev-st ev-st-todo">미처리</span>}
+                          {/*   잘못 처리한 걸 되돌릴 수 있어야 한다 — 거래 매칭의 '확정 취소'를 옮겨 왔다 */}
+                          <button type="button" onClick={() => undo(r)} disabled={busy} className="rules-del">되돌리기</button>
+                        </span>
+                      ) : <span className="ev-st ev-st-todo">미처리</span>}
                     </td>
                   </tr>
                 );
@@ -462,8 +622,9 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
         <b>②</b>에서 고른 계정은 <b>입금자·적요로 기억</b>해 다음에 미리 채웁니다(<b>지난번</b> → 3번 이상이면 <b>학습</b>).
         <b>④ 카드대금 청구</b>는 카드 승인 여러 건을 이 한 줄에 묶습니다 — 전표는 만들지 않습니다
         (승인 건 각각이 매입매출전표로 미지급금을 세우고, 이 줄은 그 결제일 뿐입니다).
-        차액을 <b>이자·수수료 등 다른 계정으로 바꾸는 것</b>만 아직{" "}
-        <Link href="/partners/reconciliation" className="bk-link">거래 매칭</Link> 화면에 있습니다.
+        <b>제안이 없으면</b> 거래처명으로 계산서를 찾아 직접 붙입니다. 잘못 처리했으면 <b>되돌리기</b>로 미처리로 돌립니다.
+        차액을 이자·수수료 등 <b>다른 계정으로 바꾸는 것</b>은{" "}
+        <Link href="/partners/ledger" className="bk-link">거래처 원장</Link>에서 그 전표를 눌러 고칩니다.
       </p>
     </div>
   );

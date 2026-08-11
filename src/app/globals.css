@@ -8218,3 +8218,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .bk-cards-list { @apply flex max-h-24 flex-wrap gap-1 overflow-y-auto; }
 .bk-card-chip { @apply flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-0.5 text-[10.5px] text-[var(--text-muted)] transition hover:border-[var(--primary)]; }
 .bk-card-chip-on { @apply border-[var(--primary)] bg-[var(--primary-light)] text-[var(--primary)] font-bold; }
+.bk-search { @apply h-7 w-[200px] rounded border border-[var(--border)] bg-[var(--bg)] px-2 text-[11.5px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
+.bk-clear { @apply ml-1.5 rounded border border-[var(--border)] px-1.5 text-[10px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--text)]; }
+.bk-done { @apply flex items-center gap-1.5; }
+.collect-empty-err { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); @apply text-[var(--danger)]; }

@@ -40,7 +40,8 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/tax-invoices": { group: "파이낸스", title: "세금·증빙", desc: "발행·수취한 세금계산서를 관리합니다." },
   "/cash-receipts": { group: "파이낸스", title: "세금·증빙", desc: "현금영수증 발행·수취 내역을 관리합니다." },
   "/matching": { group: "파이낸스", title: "거래 매칭", desc: "통장·카드 거래를 자동 매칭합니다." },
-  "/transactions": { group: "파이낸스", title: "거래 장부", desc: "미분류 지출을 계정과목으로 정리·자동화합니다. (입금 정산은 거래 매칭)" },
+  //   2026-08-11 — 통장 줄 처리는 '수집·전표'의 통장 탭으로 옮겼다. 여기 남은 건 비목 자동 분류다.
+  "/transactions": { group: "파이낸스", title: "자동 분류", desc: "미분류 지출을 비용 항목으로 정리·자동화합니다. (전표·수금 처리는 수집·전표의 통장 탭)" },
 
   "/schedule": { group: "워크스페이스", title: "일정 / 할 일", desc: "일정과 할 일을 관리합니다." },
   "/projecthub/quotes": { group: "워크스페이스", title: "견적 수취함", desc: "협력사에서 받은 견적을 모아 봅니다." },

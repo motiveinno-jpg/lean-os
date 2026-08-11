@@ -43,7 +43,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       ] },
       { route: "/e-invoices", label: "전자계산서" },
       { route: "/cash-receipts", label: "현금영수증" },
-      { route: "/transactions", label: "거래 장부" },
+      { route: "/transactions", label: "자동 분류" },
       { route: "/partners/reconciliation/voucher-entry", label: "일반전표" },
       { route: "/partners/reconciliation/sale-purchase", label: "매입매출전표" },
     ],
