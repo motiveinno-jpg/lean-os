@@ -348,14 +348,23 @@ async function syncBankBalanceOnly(
       } else {
         const aliasGuess = bankAcct.resAccountNickName || bankAcct.resAccountName ||
           `${BANK_CODES[org] || org} ${(bankAcct.resAccountDisplay || accountNo).slice(-4)}`;
-        await supabase.from("bank_accounts").insert({
+        const { error: insErr } = await supabase.from("bank_accounts").insert({
           company_id: companyId,
           bank_name: BANK_CODES[org] || org,
           account_number: accountNo,
           alias: aliasGuess,
           balance,
         });
-        updated++;
+        if (insErr) {
+          // 무료 요금제 통장·카드 3개 제한 트리거(2026-08-11) — 초과 계좌는 연결하지 않고 안내만
+          if (String(insErr.message || "").includes("무료 요금제") &&
+              !errors.some((e: any) => e.code === "FREE_ACCOUNT_LIMIT")) {
+            errors.push({ accountNo: "", organization: org, code: "FREE_ACCOUNT_LIMIT",
+              message: insErr.message, hint: "요금제 화면에서 오너뷰로 업그레이드하면 나머지 계좌도 연결됩니다." });
+          }
+        } else {
+          updated++;
+        }
       }
     }
     debug.push(`bank ${org}: ${demandDeposits.length} accts balance updated`);
@@ -470,13 +479,19 @@ async function syncBankTransactions(
           bank_name: BANK_CODES[org] || org,
         }).eq("id", existing.data.id);
       } else {
-        await supabase.from("bank_accounts").insert({
+        const { error: insErr } = await supabase.from("bank_accounts").insert({
           company_id: companyId,
           bank_name: BANK_CODES[org] || org,
           account_number: accountNo,
           alias: aliasGuess,
           balance,
         });
+        // 무료 요금제 통장·카드 3개 제한 트리거(2026-08-11) — 초과 계좌는 연결하지 않고 안내만
+        if (insErr && String(insErr.message || "").includes("무료 요금제") &&
+            !errors.some((e: any) => e.code === "FREE_ACCOUNT_LIMIT")) {
+          errors.push({ accountNo: "", organization: org, code: "FREE_ACCOUNT_LIMIT",
+            message: insErr.message, hint: "요금제 화면에서 오너뷰로 업그레이드하면 나머지 계좌도 연결됩니다." });
+        }
       }
     }
 
