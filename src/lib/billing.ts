@@ -755,32 +755,41 @@ export interface IssuanceLimitStatus {
   planName: string | null;
 }
 
-/** 세금계산서 + 현금영수증 발행 합산 한도 (2026-08-06 개편 — 한 주머니에서 쓴다).
- *  사용량은 get_monthly_issue_usage RPC 단일 소스 — 클라이언트·엣지가 같은 값을 본다. */
-export async function getIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus & { taxUsed: number; cashUsed: number }> {
-  const { limit, planName } = await getEffectivePlanLimit(companyId, 'monthly_issue_limit');
-  const { data } = await (db as any).rpc('get_monthly_issue_usage', { p_company_id: companyId });
-  const row = Array.isArray(data) ? data[0] : data;
+/** 발행 한도 — 2026-08-11 요금제 개편: 합산 한 주머니 → 세금계산서·현금영수증 **각각**
+ *  (오너뷰 기준 각 월 100건, 무료 각 5건). 사용량은 get_monthly_issue_usage RPC 단일 소스,
+ *  서버 강제는 issue_allowance(p_kind) — 클라이언트·엣지가 같은 값을 본다. */
+export async function getIssuanceStatus(companyId: string): Promise<{
+  planName: string | null;
+  taxLimit: number | null; taxUsed: number; taxRemaining: number | null;
+  cashLimit: number | null; cashUsed: number; cashRemaining: number | null;
+}> {
+  const [tax, cash, usage] = await Promise.all([
+    getEffectivePlanLimit(companyId, 'monthly_tax_invoice_limit'),
+    getEffectivePlanLimit(companyId, 'monthly_cashbill_limit'),
+    (db as any).rpc('get_monthly_issue_usage', { p_company_id: companyId }),
+  ]);
+  const row = Array.isArray(usage.data) ? usage.data[0] : usage.data;
   const taxUsed = Number(row?.tax_count ?? 0);
   const cashUsed = Number(row?.cash_count ?? 0);
-  const used = Number(row?.total_count ?? taxUsed + cashUsed);
   return {
-    limit,
-    used,
-    remaining: limit === null ? null : Math.max(0, limit - used),
-    planName,
+    planName: tax.planName,
+    taxLimit: tax.limit,
     taxUsed,
+    taxRemaining: tax.limit === null ? null : Math.max(0, tax.limit - taxUsed),
+    cashLimit: cash.limit,
     cashUsed,
+    cashRemaining: cash.limit === null ? null : Math.max(0, cash.limit - cashUsed),
   };
 }
 
-// 기존 호출부 호환 — 둘 다 같은 합산 한도를 본다.
 export async function getTaxInvoiceIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  return getIssuanceStatus(companyId);
+  const s = await getIssuanceStatus(companyId);
+  return { limit: s.taxLimit, used: s.taxUsed, remaining: s.taxRemaining, planName: s.planName };
 }
 
 export async function getCashReceiptIssuanceStatus(companyId: string): Promise<IssuanceLimitStatus> {
-  return getIssuanceStatus(companyId);
+  const s = await getIssuanceStatus(companyId);
+  return { limit: s.cashLimit, used: s.cashUsed, remaining: s.cashRemaining, planName: s.planName };
 }
 
 // 전자계약(서명 요청) 월 발송 한도 — 프로 20건, 울트라/엔터 무제한(NULL). 서버 강제는 signature_requests

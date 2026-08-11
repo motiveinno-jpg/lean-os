@@ -26,10 +26,10 @@ const db = supabase;
 type Tab = "plan" | "credits" | "payment" | "invoices";
 type BillingCycle = "monthly" | "annual";
 
-// 2026-08-06 요금제 개편 — 무료(영구) + 오너뷰 25,000원 단일 유료. 구 티어는 기존 구독자 표시용으로만 남긴다.
+// 2026-08-06 요금제 개편 — 무료(영구) + 오너뷰 단일 유료(2026-08-11 39,000원·VAT 별도). 구 티어는 기존 구독자 표시용으로만 남긴다.
 const PLAN_FEATURES: Record<string, { icon: string; features: string[]; recommended?: boolean }> = {
-  free: { icon: "🎁", features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판 무제한", "세금계산서+현금영수증 합산 월 5건", "전자계약 월 5건", "AI 참모 월 10만 토큰", "은행·카드 하루 2회 자동 동기화", "AI 브리핑은 기본형(요약 규칙)"] },
-  standard: { icon: "⚡", recommended: true, features: ["기본 5명 포함 · 추가 1명 ₩5,000/월", "세금계산서+현금영수증 합산 월 100건", "전자계약 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집", "AI 대표 참모 월 50만 토큰", "AI 브리핑(매일 자동 분석)"] },
+  free: { icon: "🎁", features: ["구성원 5명", "전자결재·근태·급여·프로젝트·게시판 무제한", "세금계산서 발행 월 5건 · 현금영수증 발행 월 5건", "전자계약 월 5건", "AI 참모 월 10만 토큰", "은행·카드 하루 2회 자동 동기화", "AI 브리핑은 기본형(요약 규칙)"] },
+  standard: { icon: "⚡", recommended: true, features: ["기본 5명 포함 · 추가 1명 ₩5,000/월", "세금계산서 발행 월 100건 · 현금영수증 발행 월 100건", "전자계약 무제한", "은행·카드 계좌 수 제한 없이 하루 2회 자동 동기화", "홈택스 자동 수집", "AI 대표 참모 월 50만 토큰", "AI 브리핑(매일 자동 분석)"] },
   // 구 요금제(프로·울트라·엔터프라이즈)는 2026-08-07 판매 종료 — 목록은 is_active 로 걸러진다.
   //   기존 구독자의 한도·권한은 subscription_plans 행이 남아 있어 그대로 유지된다.
 };
@@ -520,7 +520,7 @@ function BillingPageInner() {
           <div>
             <div className="font-bold text-sm text-[var(--text)]">지금은 무료 플랜입니다</div>
             <div className="text-xs text-[var(--text-muted)] mt-0.5">
-              월 <b>25,000원</b>(VAT 별도)이면 세금계산서·현금영수증 합산 월 100건, 전자계약 무제한,
+              월 <b>39,000원</b>(VAT 별도)이면 세금계산서 월 100건·현금영수증 월 100건, 전자계약 무제한,
               <b> 은행·카드 전 계좌 하루 2회 자동 동기화</b>까지 열립니다. 기본 5명 포함, 추가 1명당 5,000원.
             </div>
             {/* 영업코드 — 입력하면 체험이 44일로 늘어난다. 코드가 없으면 비워두면 된다. */}
@@ -725,8 +725,9 @@ function BillingPageInner() {
               { label: "전자서명 (이번 달)", used: usage.signatures, limit: lim.signatures },
               { label: "거래처", used: usage.partners, limit: lim.partners },
               { label: "동기화 크레딧 (이번 달)", used: usage.codefUnits, limit: codefLimit },
-              // 발행 한도 — 세금계산서·현금영수증 합산(monthly_issue_limit). 각 화면 칩과 동일 산식 (2026-08-11)
-              { label: "발행 · 세금계산서+현금영수증 (이번 달)", used: issuance?.used ?? 0, limit: issuance?.limit ?? 9999 },
+              // 발행 한도 — 2026-08-11 개편: 세금계산서·현금영수증 각각. 각 화면 칩과 동일 산식(getIssuanceStatus)
+              { label: "세금계산서 발행 (이번 달)", used: issuance?.taxUsed ?? 0, limit: issuance?.taxLimit ?? 9999 },
+              { label: "현금영수증 발행 (이번 달)", used: issuance?.cashUsed ?? 0, limit: issuance?.cashLimit ?? 9999 },
             ];
             return (
               <div className="billing-usage-card glass-card">

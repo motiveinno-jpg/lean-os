@@ -1204,11 +1204,11 @@ function TaxInvoicesPageInner() {
                 color: issuanceStatus.remaining === 0 ? "#ef4444" : "var(--text-muted)",
               }}
               title={issuanceStatus.limit !== null
-                ? `${issuanceStatus.planName || "현재 요금제"} — 세금계산서·현금영수증 합산 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}건 사용 · 세금계산서+현금영수증 ${issuanceStatus.used}/${issuanceStatus.limit})`
-                : `${issuanceStatus.planName || "현재 요금제"} — 발행 무제한 (이번 달 세금계산서+현금영수증 ${issuanceStatus.used}건 발행)`}
+                ? `${issuanceStatus.planName || "현재 요금제"} — 세금계산서는 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}/${issuanceStatus.limit}건 · 현금영수증 한도는 별도)`
+                : `${issuanceStatus.planName || "현재 요금제"} — 세금계산서 발행 무제한 (이번 달 ${issuanceStatus.used}건 발행)`}
             >
               {issuanceStatus.limit !== null
-                ? <>발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
+                ? <>세금계산서 발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
                 : <>이번 달 발행 <b className="mono-number">{issuanceStatus.used}건</b></>}
             </span>
           )}

@@ -14,9 +14,9 @@ import { PLANS, COMPETITORS, FEATURES, FOOTER } from "@/components/landing/conte
 const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.6" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>);
 
 // 플랜별 포함 여부 — 하단 기능 목록(보드형 비교표)
-// 플랜별 기능 비교 — 2026-08-07 현행 요금제(무료 + 오너뷰 25,000원) 기준.
+// 플랜별 기능 비교 — 현행 요금제(무료 + 오너뷰 39,000원·VAT 별도, 2026-08-11) 기준.
 //   ⚠️ 숫자는 subscription_plans 의 실제 한도와 맞춰야 한다. 여기만 고치면 거짓 안내가 된다.
-//   free: 발행 합산 월 5건 / AI 10만 토큰,  standard: 발행 합산 월 100건 / AI 50만 토큰
+//   free: 발행 각 월 5건 / AI 10만 토큰,  standard: 발행 각 월 100건(세금계산서·현금영수증 각각) / AI 50만 토큰
 //   ⚠️ 토큰 제공량은 월 AI 비용 상한($6)에 맞춰 산정한 값이다 — 실측 원가가 바뀌면 다시 계산할 것.
 const MATRIX = [
   {
@@ -49,7 +49,8 @@ const MATRIX = [
     group: "회계 · 세무",
     rows: [
       { name: "AI 거래 분류", free: "✓", paid: "✓" },
-      { name: "세금계산서 · 현금영수증 발행", free: "합산 월 5건", paid: "합산 월 100건" },
+      { name: "세금계산서 발행", free: "월 5건", paid: "월 100건" },
+      { name: "현금영수증 발행", free: "월 5건", paid: "월 100건" },
       { name: "홈택스 자동 수집", free: "—", paid: "✓" },
       { name: "월 제공량을 다 썼을 때", free: "다음 달까지 대기", paid: "추가 구매 가능 (발행 300원/건 · 토큰 50만개 10,000원)" },
     ],
@@ -67,7 +68,7 @@ export default function PricingView() {
   const [team, setTeam] = useState(8);
   const won = (n: number) => "₩" + n.toLocaleString("ko-KR");
   const compTotal = COMPETITORS.reduce((s, c) => s + (c.perSeat ? c.price * team : c.price), 0);
-  const owvTotal = 25000 + Math.max(0, team - 5) * 5000;
+  const owvTotal = 39000 + Math.max(0, team - 5) * 5000;
   const savePct = Math.round(((compTotal - owvTotal) / compTotal) * 100);
 
   return (
@@ -79,7 +80,7 @@ export default function PricingView() {
           <div className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">Pricing</div>
             <h1 className="lp4-h2">무료로 시작하세요</h1>
-            <p className="lp4-sub">카드 등록 없이 계속 무료로 쓰고, 필요해지면 월 25,000원 하나만 결제하세요.</p>
+            <p className="lp4-sub">카드 등록 없이 계속 무료로 쓰고, 필요해지면 월 39,000원(VAT 별도) 하나만 결제하세요.</p>
           </div>
 
           <div className="lp4-price-grid">
@@ -173,7 +174,7 @@ export default function PricingView() {
             <div className="lp4-cmp lp4-card lp4-cmp-hl">
               <div className="lp4-cmp-title">오너뷰 하나로</div>
               <div className="lp4-cmp-rows">
-                <div className="lp4-cmp-row"><span className="lp4-cmp-name">오너뷰 (기본 5명 포함)</span><span className="lp4-cmp-price">₩25,000</span></div>
+                <div className="lp4-cmp-row"><span className="lp4-cmp-name">오너뷰 (기본 5명 포함)</span><span className="lp4-cmp-price">₩39,000</span></div>
                 <div className="lp4-cmp-row"><span className="lp4-cmp-name">추가 {Math.max(0, team - 5)}명 × ₩5,000</span><span className="lp4-cmp-price">{won(Math.max(0, team - 5) * 5000)}</span></div>
                 <div className="lp4-cmp-row"><span className="lp4-cmp-name">전 기능 포함 · VAT 별도</span><span className="lp4-cmp-price lp4-cmp-inc">포함</span></div>
               </div>

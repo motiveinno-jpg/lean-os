@@ -464,21 +464,22 @@ serve(withSentry("hometax-issue", async (req) => {
     const planSlug = (entRow as any)?.effective_plan_slug || "free";
     const { data: planRow } = await supabase
       .from("subscription_plans")
-      .select("name, monthly_issue_limit")
+      .select("name, monthly_tax_invoice_limit")
       .eq("slug", planSlug)
       .maybeSingle();
-    const planLimit = planRow?.monthly_issue_limit;
+    const planLimit = planRow?.monthly_tax_invoice_limit;
     // 월 제공량 + 충전 잔액을 합쳐 판정한다 (2026-08-07 충전 도입).
-    //   issue_allowance 가 단일 소스 — 제공량이 남았는지, 충전이 남았는지까지 알려준다.
+    //   2026-08-11 요금제 개편: 한도가 합산 → 세금계산서·현금영수증 각각으로 분리 —
+    //   issue_allowance(p_kind) 가 단일 소스. 충전 잔액은 종류 공용 주머니.
     const { data: allowance } = await supabase
-      .rpc("issue_allowance", { p_company_id: invoice.company_id });
+      .rpc("issue_allowance", { p_company_id: invoice.company_id, p_kind: "tax" });
     const allow = (allowance || {}) as {
       unlimited?: boolean; allowed?: boolean; plan_remaining?: number; credits?: number;
     };
     if (!allow.unlimited && allow.allowed === false) {
       return new Response(JSON.stringify({
-        error: `이번 달 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
-        hint: `${planRow?.name || "현재 요금제"}는 세금계산서·현금영수증 합산 월 ${planLimit}건까지 발행할 수 있습니다. 요금제 > 충전에서 발행 건수를 충전하면 이어서 발행할 수 있습니다.`,
+        error: `이번 달 세금계산서 발행 한도(${planLimit}건)를 모두 사용했습니다.`,
+        hint: `${planRow?.name || "현재 요금제"}는 세금계산서를 월 ${planLimit}건까지 발행할 수 있습니다. 요금제 > 충전에서 발행 건수를 충전하면 이어서 발행할 수 있습니다.`,
         code: "PLAN_LIMIT_EXCEEDED",
       }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
