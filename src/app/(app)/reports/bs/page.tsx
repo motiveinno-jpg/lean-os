@@ -5,6 +5,7 @@ import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { useEffect, useState, useCallback } from "react";
 import { DateField } from "@/components/date-field";
+import { fetchJournalLines, countUnposted, bsAmount } from "@/lib/journal-reports";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -59,6 +60,8 @@ interface BsData {
   payableDetails: { name: string; amount: number; date?: string | null }[];
   /* 미지급금 드릴다운: 거래처별 그룹 + 세부 인보이스 */
   payableByVendor: PayableVendor[];
+  //   아직 전표로 만들지 않은 자료 — 표가 비어 보이는 이유를 화면이 말하게 한다
+  unposted: { taxInvoice: number; card: number; bank: number; total: number };
 }
 
 // 통합 세부 모달용 행 (날짜/거래처/금액)
@@ -87,171 +90,79 @@ function formatKrw(value: number): string {
 /* ------------------------------------------------------------------ */
 /* Fetch B/S data for a specific cutoff date (or current if not provided) */
 async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsData> {
-  // 2026-07-08 직원 QA #5 — AR/AP 집계 시작일을 해당연도 1월1일 고정(회계연도 누적).
-  //   시작일 = 기준일이 속한 해의 1/1, 종료 = 기준일. 기준일만 사용자 선택.
+  //   ★ 2026-08-11 사장님 지시 — 재무상태표도 **전표로 처리된 것만** 반영한다.
+  //     예전엔 통장 잔액·세금계산서 미수미지급·대출·자산 원본을 직접 모았다. 그러면 장부와 따로 논다.
+  //     이제 확정 전표의 자산·부채·자본 계정 잔액을 그대로 쓴다(회계연도 1/1 ~ 기준일 누적).
+  //     ⚠️ 통장 잔액과 장부(101 보통예금) 잔액이 다를 수 있는데, 그 차이가 곧 **아직 안 친 전표**다.
   const cutoff = cutoffDate || todayKst();
   const fromDate = `${cutoff.slice(0, 4)}-01-01`;
-  // 큰 테이블(tax_invoices) 은 페이지네이션 — PostgREST 1000건 제약 회피
-  const [bankRes, loanRes, invoices, vaultRes, companyRes, settlements] = await Promise.all([
-    supabase
-      .from("bank_accounts")
-      .select("bank_name, alias, balance")
-      .eq("company_id", companyId),
-    supabase
-      .from("loans")
-      .select("lender, name, remaining_balance, status, maturity_date, start_date")
-      .eq("company_id", companyId)
-      .neq("status", "completed"),
-    // 매출(sales)·매입(purchase) 세금계산서. status NOT IN ('void','matched') = 미입금·미지급분.
-    //   'matched' = 통장 입출금 연결 → 현금에 반영(이중계상 방지), 'void' = 무효 제외.
-    //   + 기간 하한(fromDate) — 최근 N개월만 outstanding 으로 간주(스테일 송장 부풀림 차단).
-    fetchAllPaginated<any>((from, to) => {
-      const q = supabase
-        .from("tax_invoices")
-        .select("id, counterparty_name, counterparty_bizno, total_amount, type, status, issue_date, item_name, nts_confirm_no")
-        .eq("company_id", companyId)
-        .not("status", "in", '("void","matched")')
-        .gte("issue_date", fromDate)
-        .lte("issue_date", cutoff);
-      return q.range(from, to);
-    }),
-    supabase
-      .from("vault_assets")
-      .select("name, value, type, status, purchase_date, created_at, useful_life_months")
-      .eq("company_id", companyId)
-      .neq("status", "disposed"),
-    // 자본금 — companies.tax_settings(jsonb).capital (회사설정에서 입력)
+
+  const [lines, unposted, companyRes] = await Promise.all([
+    fetchJournalLines(companyId, fromDate, cutoff),
+    countUnposted(companyId, fromDate, cutoff),
     supabase.from("companies").select("tax_settings").eq("id", companyId).maybeSingle(),
-    // 정산 원장 — 확정(confirmed) 정산액을 송장별로 차감해 미수금·미지급금을 정밀 산출.
-    fetchAllPaginated<any>((from, to) =>
-      supabase
-        .from("invoice_settlements")
-        .select("tax_invoice_id, amount, status")
-        .eq("company_id", companyId)
-        .eq("status", "confirmed")
-        .range(from, to)),
   ]);
 
-  const bankAccounts = bankRes.data || [];
-  const loans = loanRes.data || [];
-  // database.ts 수기 타입에 useful_life_months 미반영 — any 캐스트로 우회 (DB 컬럼은 PR1 에서 추가됨).
-  const vaultAssets = (vaultRes.data || []) as any[];
-
-  // 송장별 확정 정산액 합계 — 미수금/미지급금에서 차감(부분정산 정확 반영).
-  const settledByInvoice = new Map<string, number>();
-  for (const s of (settlements as any[]) || []) {
-    if (!s.tax_invoice_id) continue;
-    settledByInvoice.set(s.tax_invoice_id, (settledByInvoice.get(s.tax_invoice_id) || 0) + Number(s.amount || 0));
+  //   계정별 잔액 — 자산은 차변이 +, 부채·자본은 대변이 +
+  type Bal = { name: string; code: string | null; nature: string; amount: number };
+  const byAccount = new Map<string, Bal>();
+  let pnlNet = 0;                                   // 당기순이익(수익 − 비용) → 이익잉여금
+  for (const l of lines) {
+    if (l.nature === "revenue" || l.nature === "expense") {
+      pnlNet += l.nature === "revenue" ? (l.credit - l.debit) : -(l.debit - l.credit);
+      continue;
+    }
+    const cur = byAccount.get(l.accountId) || { name: l.name, code: l.code, nature: l.nature, amount: 0 };
+    cur.amount += bsAmount(l);
+    byAccount.set(l.accountId, cur);
   }
-  const outstandingOf = (inv: any) => Math.max(0, Number(inv.total_amount || 0) - (settledByInvoice.get(inv.id) || 0));
+  const all = [...byAccount.values()].filter((b) => Math.round(b.amount) !== 0);
+  const codeNum = (c: string | null) => parseInt(String(c || "").replace(/\D/g, ""), 10);
+  const detail = (b: Bal) => ({ name: `${b.code ? b.code + " " : ""}${b.name}`, amount: Math.round(b.amount) });
 
-  // 세금계산서 매출/매입 분리 (status NOT IN void,matched — 미입금·미지급분만)
-  const salesInvoices = (invoices as any[]).filter((inv) => inv.type === "sales");
-  const purchaseInvoices = (invoices as any[]).filter((inv) => inv.type === "purchase");
+  const assets = all.filter((b) => b.nature === "asset");
+  const liabilities = all.filter((b) => b.nature === "liability");
+  const equities = all.filter((b) => b.nature === "equity");
 
-  /* --- Assets: Current --- */
-  // 2026-06-10 현금·예금 = 통장 잔액 합(라이브 단일 소스). cash_snapshot 가산 제거 —
-  //   스테일(갱신 멈춤) + 통장 잔액과 이중계상 위험이라 통장만 사용.
-  const cashAndDeposits = bankAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-
-  // 매출채권 = 미입금(미매칭) 매출 세금계산서. 매칭(matched)된 건은 통장 입금 확인 → 현금에 반영됨.
-  const receivableDetails = salesInvoices
-    .map((inv: any) => ({
-      name: inv.counterparty_name || "거래처 미상",
-      amount: outstandingOf(inv),
-      date: inv.issue_date || null,
-    }))
-    .filter((r) => r.amount > 0);
-  const accountsReceivable = receivableDetails.reduce((sum, r) => sum + r.amount, 0);
-  const currentAssets = cashAndDeposits + accountsReceivable;
-
-  /* --- Assets: Fixed (vault_assets) --- */
-  const ASSET_TYPE_LABELS: Record<string, string> = {
-    equipment: "장비", vehicle: "차량", furniture: "가구", it_equipment: "IT장비",
-    software: "소프트웨어", real_estate: "부동산", other: "기타",
-  };
-  // 2026-05-22 고정자산은 감가상각 장부가로 표시 (정액법) — vault 자산 화면과 정합.
-  //   내용연수(useful_life_months)·취득일 없으면 취득가 유지.
-  const bookValueOf = (value: number, purchaseDate: string | null | undefined, usefulLifeMonths: number | null | undefined): number => {
-    const v = Number(value || 0);
-    if (!usefulLifeMonths || usefulLifeMonths <= 0 || !purchaseDate) return v;
-    const start = new Date(purchaseDate).getTime();
-    if (isNaN(start)) return v;
-    const monthsElapsed = Math.max(0, (Date.now() - start) / (1000 * 60 * 60 * 24 * 30.44));
-    const ratio = Math.min(monthsElapsed / usefulLifeMonths, 1);
-    return Math.max(Math.round(v * (1 - ratio)), 0);
-  };
-  const fixedAssetDetails = (vaultAssets as any[])
-    .map((a: any) => ({
-      name: a.name || "unnamed asset",
-      value: bookValueOf(a.value, a.purchase_date, a.useful_life_months),  // 장부가
-      type: ASSET_TYPE_LABELS[a.type] || a.type,
-      date: a.purchase_date || a.created_at?.slice(0, 10) || null,
-    }))
-    .filter((a) => a.value > 0);
-  const fixedAssets = fixedAssetDetails.reduce((sum, a) => sum + a.value, 0);
+  //   유동/비유동 — 계정과목 코드 체계(1xx 유동자산 · 2xx 비유동자산)를 따른다
+  const cashAndDeposits = assets.filter((b) => [101, 102, 103].includes(codeNum(b.code)))
+    .reduce((s, b) => s + b.amount, 0);
+  const accountsReceivable = assets.filter((b) => [108, 110, 120].includes(codeNum(b.code)))
+    .reduce((s, b) => s + b.amount, 0);
+  const currentAssets = assets.filter((b) => { const n = codeNum(b.code); return !Number.isFinite(n) || n < 200; })
+    .reduce((s, b) => s + b.amount, 0);
+  const fixedAssets = assets.filter((b) => codeNum(b.code) >= 200).reduce((s, b) => s + b.amount, 0);
   const totalAssets = currentAssets + fixedAssets;
 
-  /* --- Liabilities --- */
-  const loanDetails = (loans as any[]).map((l: any) => ({
-    name: `${l.lender || ""} ${l.name || ""}`.trim() || "unnamed loan",
-    remainingAmount: l.remaining_balance || 0,
-    date: l.maturity_date || l.start_date || null,
-  }));
-  const borrowings = loanDetails.reduce((sum, l) => sum + l.remainingAmount, 0);
+  const borrowings = liabilities.filter((b) => { const n = codeNum(b.code); return n === 260 || n === 293 || n === 294; })
+    .reduce((s, b) => s + b.amount, 0);
+  const accountsPayable = liabilities.filter((b) => [251, 253, 254, 255, 261].includes(codeNum(b.code)))
+    .reduce((s, b) => s + b.amount, 0);
+  const totalLiabilities = liabilities.reduce((s, b) => s + b.amount, 0);
 
-  // 미지급금 = 미지급(미매칭) 매입 세금계산서. 매칭(matched)된 건은 통장 출금 확인 → 현금에서 차감됨.
-  const payableDetails = purchaseInvoices
-    .map((inv: any) => ({
-      name: inv.counterparty_name || "unnamed",
-      amount: outstandingOf(inv),
-      date: inv.issue_date || null,
-    }))
-    .filter((p) => p.amount > 0);
-  const accountsPayable = payableDetails.reduce((sum, p) => sum + p.amount, 0);
-  const totalLiabilities = borrowings + accountsPayable;
+  //   ★ 자본금도 **전표에서만** 가져온다. 회사설정 값을 섞어 넣었더니 대차가 깨졌다 —
+  //     모든 전표는 차변=대변이라 전표만 쓰면 자산 = 부채 + 자본이 저절로 맞는다.
+  //     설정값(회사설정의 자본금)은 전표로 안 친 값이므로 여기 넣으면 그 금액만큼 어긋난다.
+  //     자본금 전표가 없으면 0으로 두고 아래 안내로 알린다.
+  const capital = equities.filter((b) => codeNum(b.code) === 331).reduce((s, b) => s + b.amount, 0);
+  const settingsCapital = Number(((companyRes.data as any)?.tax_settings || {})?.capital || 0);
+  const isCapitalDefault = capital === 0;
+  void settingsCapital;   // 안내 문구에서만 쓸 수 있게 남겨 둔다(집계에는 넣지 않는다)
+  //   이익잉여금 = 전표의 잉여금 계정 + 이번 기간 당기순이익
+  const retainedFromJournal = equities.filter((b) => codeNum(b.code) >= 350).reduce((s, b) => s + b.amount, 0);
+  const retainedEarnings = retainedFromJournal + pnlNet;
+  const totalEquity = capital + retainedEarnings;
 
-  /* 미지급금 드릴다운: 거래처별 그룹 + 세부 인보이스 */
-  const vendorMap = new Map<string, PayableVendor>();
-  for (const inv of purchaseInvoices as any[]) {
-    const outstanding = outstandingOf(inv);
-    if (outstanding <= 0) continue; // 정산 완료분 제외
-    const vendor = (inv.counterparty_name || "(거래처 미상)").trim() || "(거래처 미상)";
-    const key = `${vendor}|${inv.counterparty_bizno || ""}`;
-    const cur = vendorMap.get(key) || {
-      vendor,
-      bizno: inv.counterparty_bizno || null,
-      totalAmount: 0, invoiceCount: 0, invoices: [] as PayableInvoice[],
-    };
-    cur.totalAmount += outstanding;
-    cur.invoiceCount++;
-    cur.invoices.push({
-      id: inv.id,
-      issueDate: inv.issue_date || '',
-      amount: outstanding,
-      itemName: inv.item_name || null,
-      status: inv.status || 'unknown',
-      ntsConfirmNo: inv.nts_confirm_no || null,
-    });
-    vendorMap.set(key, cur);
-  }
-  const payableByVendor = Array.from(vendorMap.values())
-    .map((v) => ({ ...v, invoices: v.invoices.sort((a, b) => b.issueDate.localeCompare(a.issueDate)) }))
-    .sort((a, b) => b.totalAmount - a.totalAmount);
-
-  /* --- Equity --- */
-  // 자본금 = companies.tax_settings.capital (회사설정 입력값). 미입력 시 기본값 + 안내 플래그.
-  //   자본금이 실제값이면 이익잉여금(= 순자산 − 납입자본금)도 자동으로 의미를 가짐(역산이 곧 정의).
-  const capitalRaw = (companyRes as any)?.data?.tax_settings?.capital;
-  const isCapitalDefault = capitalRaw == null || Number(capitalRaw) <= 0;
-  const capital = isCapitalDefault ? DEFAULT_CAPITAL : Number(capitalRaw);
-  const totalEquity = totalAssets - totalLiabilities;     // 순자산(자산−부채) — 항상 정합
-  const retainedEarnings = totalEquity - capital;          // 이익잉여금 등 = 순자산 − 납입자본금
-
-  const bankAccountDetails = bankAccounts.map((a) => ({
-    name: `${a.bank_name || ""} ${a.alias || ""}`.trim() || "unnamed account",
-    balance: a.balance || 0,
-  }));
+  const fixedAssetDetails = assets.filter((b) => codeNum(b.code) >= 200)
+    .map((b) => ({ name: detail(b).name, value: detail(b).amount, type: "장부" }));
+  const bankAccountDetails = assets.filter((b) => [101, 102, 103].includes(codeNum(b.code)))
+    .map((b) => ({ name: detail(b).name, balance: detail(b).amount }));
+  const loanDetails = liabilities.filter((b) => { const n = codeNum(b.code); return n === 260 || n === 293 || n === 294; })
+    .map((b) => ({ name: detail(b).name, remainingAmount: detail(b).amount }));
+  const receivableDetails = assets.filter((b) => [108, 110, 120].includes(codeNum(b.code))).map(detail);
+  const payableDetails = liabilities.filter((b) => [251, 253, 254, 255, 261].includes(codeNum(b.code))).map(detail);
+  //   거래처별 미지급 드릴다운은 세금계산서 원본을 봐야 하는데, 전표 기준에서는 원천이 다르다 → 비운다
+  const payableByVendor: PayableVendor[] = [];
 
   return {
     cashAndDeposits,
@@ -272,6 +183,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     receivableDetails,
     payableDetails,
     payableByVendor,
+    unposted,
   };
 }
 
@@ -660,7 +572,7 @@ function BalanceSheetPageInner() {
           <div className="h-5 w-px bg-[var(--border)] hidden sm:block" />
           <div className="flex items-center gap-2 flex-wrap">
             <label className="text-xs font-semibold text-[var(--text-dim)]">채권·채무</label>
-            <span className="text-[11px] text-[var(--text-dim)]">해당연도 <b className="text-[var(--text-muted)]">1/1 ~ 기준일</b> 누적 미매칭 세금계산서 집계</span>
+            <span className="text-[11px] text-[var(--text-dim)]">해당연도 <b className="text-[var(--text-muted)]">1/1 ~ 기준일</b> 확정 전표 누적</span>
           </div>
         </div>
         <div className="no-print flex items-center gap-1.5 flex-wrap">
@@ -975,13 +887,33 @@ function BalanceSheetPageInner() {
         </div>
       )}
 
-      {/* 정확도 개선 유도 — 매출채권/미지급금은 미매칭 계산서 기준이라 매칭할수록 정확해짐 (2026-07-06) */}
+      {/*   ★ 전표만 반영한다 — 비어 보이는 이유를 화면이 스스로 말한다 (2026-08-11 사장님 지시) */}
+      {data.unposted.total > 0 && (
+        <div className="bs-unposted-banner kpi-callout warning">
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.2 16a2 2 0 001.73 3z" /></svg>
+          <p className="text-[11.5px] leading-relaxed">
+            이 표는 <b>전표로 처리된 것만</b> 보여 줍니다. 아직 전표로 만들지 않은 자료가{" "}
+            <b>{data.unposted.total.toLocaleString()}건</b> 있습니다
+            {" ("}
+            {[
+              data.unposted.taxInvoice > 0 ? `세금계산서 ${data.unposted.taxInvoice.toLocaleString()}` : null,
+              data.unposted.card > 0 ? `카드 ${data.unposted.card.toLocaleString()}` : null,
+              data.unposted.bank > 0 ? `통장 ${data.unposted.bank.toLocaleString()}` : null,
+            ].filter(Boolean).join(" · ")}
+            {") — 그만큼 이 표에 빠져 있습니다. "}
+            <Link href="/collect" className="underline font-semibold">수집·전표</Link>에서 전표를 만들면 바로 반영됩니다.
+          </p>
+        </div>
+      )}
+
+      {/* 통장 실제 잔액과 장부(101 보통예금) 잔액이 다르면 그 차이가 곧 '아직 안 친 전표'다 */}
       {(data.receivableDetails.length > 0 || data.payableDetails.length > 0) && (
         <div className="bs-accuracy-callout kpi-callout">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <p className="text-[11.5px] leading-relaxed">
-            매출채권 {data.receivableDetails.length}건 · 미지급금 {data.payableDetails.length}건이 <b>미매칭 세금계산서 기준</b>으로 집계 중입니다.
-            이미 입금·지급된 건이 있다면 <Link href="/collect?tab=bank" className="underline font-semibold">수집·전표 › 통장</Link>에서 처리할수록 이 수치가 정확해집니다.
+            매출채권 {data.receivableDetails.length}건 · 미지급금 {data.payableDetails.length}건은 <b>확정 전표의 계정 잔액</b>입니다.
+            통장 실제 잔액과 다르면 그 차이가 <b>아직 전표로 만들지 않은 거래</b>입니다 —
+            <Link href="/collect?tab=bank" className="underline font-semibold"> 수집·전표 › 통장</Link>에서 처리하면 맞아집니다.
           </p>
         </div>
       )}

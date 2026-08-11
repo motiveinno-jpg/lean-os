@@ -8423,3 +8423,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .adv-acct-list { @apply grid gap-2.5 sm:grid-cols-2; }
 .adv-acct { @apply flex items-baseline justify-between px-4 py-3 rounded-xl text-[13px]; background: var(--adv-paper); border: 1px solid var(--adv-line-soft); }
 .adv-loading { @apply py-20 text-center text-[13px]; color: var(--adv-faint); }
+
+/* 재무제표 — '전표만 반영' 안내 배너 (2026-08-11) */
+.pnl-unposted-banner { @apply mb-3; }
+.bs-unposted-banner { @apply mb-3; }

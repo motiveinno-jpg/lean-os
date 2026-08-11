@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { Ico } from "@/components/ui-icon";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { DateRangeField } from "@/components/date-range-field";
+import { fetchJournalLines, countUnposted, pnlAmount } from "@/lib/journal-reports";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -100,6 +101,8 @@ interface PnlData {
   //   비용이 아닌 계정(자산·부채·자본)으로 분류돼 손익에서 뺀 출금 — 어디로 갔는지 알려주려고 모은다
   nonPnlOut: { category: string; nature: string; count: number; amount: number }[];
   cardUnmappedAmount: number;  // 계정이 연결 안 된 카드 사용액(판관비엔 들어가되 계정은 미상)
+  //   아직 전표로 만들지 않은 자료 — 재무제표가 비어 보이는 이유를 화면이 말하게 한다
+  unposted: { taxInvoice: number; card: number; bank: number; total: number };
 }
 
 /* ------------------------------------------------------------------ */
@@ -202,56 +205,18 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
   const allMonths = [...prevMonthsList, ...months];
   const startDate = `${allMonths[0]}-01`;
 
-  //   계정과목표 = 계정 성격의 단일 기준. 손익 자리(판관비·영업외·법인세)도 여기서 갈린다.
-  const accountMap = await getAccountMap(companyId);
-
-  // PostgREST max-rows 1000 우회 — range 페이지네이션
-  const [transactions, taxInvoices, empRes, cardTx, cardMapRes] = await Promise.all([
-    fetchAllPaginated<any>((from, to) =>
-      supabase
-        .from("bank_transactions")
-        .select("amount, type, transaction_date, counterparty, description, category")
-        .eq("company_id", companyId ?? "")
-        .gte("transaction_date", startDate)
-        .order("transaction_date", { ascending: true })
-        .range(from, to)
-    ),
-    fetchAllPaginated<any>((from, to) =>
-      supabase
-        .from("tax_invoices")
-        .select("type, supply_amount, tax_amount, total_amount, issue_date, status, expense_category")
-        .eq("company_id", companyId ?? "")
-        .gte("issue_date", startDate)
-        // 2026-05-22 무효(void) 세금계산서는 매출/매입에서 제외 (발생주의 — matched 등 나머지는 모두 인식)
-        .neq("status", "void")
-        .range(from, to)
-    ),
-    supabase
-      .from("employees")
-      .select("salary, is_4_insurance, status")
-      .eq("company_id", companyId ?? "")
-      //   비용분석·대시보드와 같은 기준(재직 중인 사람) — 예전엔 여기만 'active' 라
-      //   같은 급여가 손익계산서 0원 · 비용분석 1.2억으로 갈렸다 (2026-08-10)
-      .in("status", ["active", "joined"]),
-    // 법인카드 사용액 — 손익계산서에 아예 없던 비용이다 (2026-08-10 사장님 지적으로 확인).
-    //   카드 분류→계정 매핑(card_account_mappings)이 있으면 그 계정으로, 없으면 '카드 사용액'으로 판관비에 넣는다.
-    fetchAllPaginated<any>((from, to) =>
-      supabase
-        .from("card_transactions")
-        .select("amount, transaction_date, category, classification")
-        .eq("company_id", companyId ?? "")
-        .gte("transaction_date", startDate)
-        .range(from, to)
-    ),
-    supabase
-      .from("card_account_mappings")
-      .select("category, account_id")
-      .eq("company_id", companyId ?? ""),
-  ]);
-
-  const employees = empRes.data || [];
-
+  //   ★ 2026-08-11 사장님 지시 — 손익계산서는 **전표로 처리된 것만** 반영한다.
+  //     예전엔 통장·세금계산서·카드·직원급여 원본을 직접 집계했다. 그러면 '아직 장부에 안 올린 것'과
+  //     '올린 것'이 섞여 재무제표가 장부와 따로 논다. 이제 확정 전표(일반전표·매입매출전표)만 읽는다.
+  //     그래서 전표를 안 만든 자료는 여기 안 나온다 — 화면이 '미기장 N건'을 배너로 알려 준다.
   const prevMonths = prevMonthsList;
+  const lastMonth = allMonths[allMonths.length - 1];
+  const [ly, lm] = lastMonth.split("-").map(Number);
+  const endDate = `${lastMonth}-${String(new Date(ly, lm, 0).getDate()).padStart(2, "0")}`;
+  const [lines, unposted] = await Promise.all([
+    fetchJournalLines(companyId, startDate, endDate),
+    countUnposted(companyId, `${months[0]}-01`, endDate),
+  ]);
 
   const revenue = emptyRow(allMonths);
   const otherRevenue = emptyRow(allMonths);
@@ -269,135 +234,44 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     if (!bucket[cat]) bucket[cat] = emptyRow(allMonths);
     return bucket[cat];
   };
-  const ensureOpex = (cat: string): MonthlyRow => ensureIn(opexByCategory, cat);
 
-  // 미분류 출금 규모 — 판관비에서 빠진 금액(경고 배너용).
-  let uncategorizedCount = 0;
-  let uncategorizedAmount = 0;
-  //   비용이 아닌 계정으로 분류된 출금 — 손익에서 빼되 "어디로 갔는지" 알려주려고 모은다
-  const nonPnlMap = new Map<string, { category: string; nature: string; count: number; amount: number }>();
-
-  for (const tx of transactions as any[]) {
-    const month = toMonth(tx.transaction_date);
-    if (!allMonths.includes(month)) continue;
-    const amt = Math.abs(tx.amount);
-    const userCat = (tx.category && String(tx.category).trim()) || "";
-
-    // 매출=세금계산서(sales) 기준. 비용도 발생주의 통일 — 매출원가는 매입 세금계산서로 인식,
-    //   통장 출금은 '사용자가 명시 분류한 비용'만 인식. 미분류는 비용에서 제외해 허수 과대계상 차단
-    //   (99% 미분류 출금이 손익을 −4억 허수로 만들던 문제).
-    if (tx.type === "expense" || tx.type === "출금") {
-      //   배너 숫자는 **표에 보이는 기간**만 센다 — allMonths 에는 전기 비교용 앞 기간이 섞여 있다
-      if (!userCat) {
-        if (months.includes(month)) { uncategorizedCount++; uncategorizedAmount += amt; }
-        continue;
-      }
-      //   ⚠️ 분류 글자를 그냥 판관비로 더하면 안 된다 — '미지급금'(부채)까지 비용 자리에 앉는다.
-      //      계정과목표의 성격·코드로 갈 자리를 정한다 (2026-08-10).
-      const acct = classifyAccount(userCat, accountMap);
-      if (!acct) continue;
-      if (acct.section === "opex") ensureOpex(acct.name)[month] += amt;
-      else if (acct.section === "cogs") purchaseCost[month] += amt;
-      else if (acct.section === "nonop_expense") ensureIn(nonOpExpenseByCategory, acct.name)[month] += amt;
-      else if (acct.section === "tax") ensureIn(taxByCategory, acct.name)[month] += amt;
-      else {
-        //   자산·부채·자본 계정(미지급금 상환·이체·보증금 등) + 방향이 안 맞는 수익 계정 = 손익 아님.
-        //   현금은 나갔지만 손익이 아니라 재무상태표가 받는 거래다.
-        if (months.includes(month)) {
-          const key = acct.name;
-          const cur = nonPnlMap.get(key) || { category: key, nature: NATURE_LABEL[acct.nature], count: 0, amount: 0 };
-          cur.count++; cur.amount += amt;
-          nonPnlMap.set(key, cur);
-        }
-      }
-      continue;
-    }
-
-    //   입금 중 **영업외수익 계정(9xx)** 으로 분류한 것만 인식한다.
-    //   매출 계정으로 분류한 입금은 세금계산서 매출과 겹치므로 손익에 넣지 않는다(이중계상 차단).
-    if (userCat) {
-      const acct = classifyAccount(userCat, accountMap);
-      if (acct?.section === "nonop_income") ensureIn(nonOpIncomeByCategory, acct.name)[month] += amt;
-    }
-  }
-  //   법인카드 사용액 — 통장 출금과 달리 '이체'일 수가 없으므로 **분류가 없어도 비용**으로 본다.
-  //   다만 어느 계정인지는 모르니 그때는 '카드 사용액(계정 미지정)' 이라는 제 이름으로 세운다.
-  //   카드대금이 통장에서 빠져나가는 출금은 부채(미지급금·카드대금) 계정이라 이미 손익에서 빠진다 → 이중계상 없음.
-  const cardAccountByCat = new Map<string, string>();
-  for (const m of (cardMapRes as any)?.data || []) {
-    if (m.category && m.account_id) cardAccountByCat.set(String(m.category), String(m.account_id));
-  }
-  let cardUnmappedAmount = 0;
-  for (const t of cardTx as any[]) {
-    const month = toMonth(t.transaction_date || "");
-    if (!allMonths.includes(month)) continue;
-    const amt = Number(t.amount || 0);   // 취소·환불은 음수로 들어와 그대로 상계된다
-    const cat = String(t.category || "").trim();
-    //   ① 회사가 정해 둔 분류→계정 매핑 → ② AI 자동분류가 붙인 이름(통신비·접대비…)이 계정과목표에 있으면 그 계정
-    const mapped = accountById(cardAccountByCat.get(cat), accountMap)
-      || pickKnown(classifyAccount(cardLabelOf(t.classification), accountMap))
-      || pickKnown(classifyAccount(cat, accountMap));
-    if (mapped?.known && mapped.section === "opex") ensureOpex(mapped.name)[month] += amt;
-    else if (mapped?.known && mapped.section === "cogs") purchaseCost[month] += amt;
-    else if (mapped?.known && mapped.section === "nonop_expense") ensureIn(nonOpExpenseByCategory, mapped.name)[month] += amt;
-    else if (mapped?.known && mapped.section === null) {
-      //   카드로 자산을 샀거나(비품 등) 부채를 갚은 것으로 지정해 뒀다면 손익이 아니다
-      if (months.includes(month)) {
-        const key = mapped.name;
-        const cur = nonPnlMap.get(key) || { category: key, nature: NATURE_LABEL[mapped.nature], count: 0, amount: 0 };
-        cur.count++; cur.amount += Math.abs(amt);
-        nonPnlMap.set(key, cur);
-      }
-    } else {
-      ensureOpex(CARD_UNMAPPED_LABEL)[month] += amt;
-      if (months.includes(month)) cardUnmappedAmount += amt;
-    }
-  }
-  const nonPnlOut = Array.from(nonPnlMap.values()).sort((a, b) => b.amount - a.amount);
-
-  for (const ti of taxInvoices) {
-    const month = toMonth(ti.issue_date);
-    if (!allMonths.includes(month)) continue;
-    if (ti.type === "sales" || ti.type === "매출") {
-      salesRevenue[month] += ti.supply_amount;
-    } else if (ti.type === "purchase" || ti.type === "매입") {
-      // 직원 QA 손익계산서 — 매입 세금계산서에 계정과목(expense_category)을 지정하면 그 판관비로,
-      //   미지정이면 매출원가(COGS)로. "매입세금계산서라도 비용으로 빠질 건 빠지게".
-      //   영문 키는 한글 라벨로 변환해 통장 분류(한글 카테고리)와 같은 행으로 합산.
-      //   지정한 계정도 성격을 본다 — 자산·부채 계정을 골라 놨으면 판관비가 아니라
-      //   미지정과 똑같이 매출원가로 둔다(매입은 어차피 원가다. 손익에서 통째로 사라지지 않게).
-      const rawCat = (ti.expense_category && String(ti.expense_category).trim()) || "";
-      const acct = rawCat ? classifyAccount(expenseCategoryLabel(rawCat), accountMap) : null;
-      if (acct?.section === "opex") ensureOpex(acct.name)[month] += ti.supply_amount;
-      else if (acct?.section === "nonop_expense") ensureIn(nonOpExpenseByCategory, acct.name)[month] += ti.supply_amount;
-      else if (acct?.section === "tax") ensureIn(taxByCategory, acct.name)[month] += ti.supply_amount;
-      else purchaseCost[month] += ti.supply_amount;
+  for (const l of lines) {
+    const m = l.month;
+    if (!(m in revenue)) continue;              // 조회 기간 밖
+    const amt = pnlAmount(l);
+    if (amt === 0) continue;
+    switch (l.section) {
+      case "revenue":
+        salesRevenue[m] += amt; break;
+      case "nonop_income":
+        otherRevenue[m] += amt; ensureIn(nonOpIncomeByCategory, l.name)[m] += amt; break;
+      case "cogs":
+        //   매출원가 안에서 외주비는 따로 보여 준다(계정 이름 기준 — 회사마다 계정명이 다르다)
+        if (l.name.includes("외주")) outsourcing[m] += amt;
+        else infrastructure[m] += amt;
+        purchaseCost[m] += amt;
+        break;
+      case "opex":
+        ensureIn(opexByCategory, l.name)[m] += amt;
+        if (l.name.includes("급여") || l.name.includes("임금")) totalSalary[m] += amt;
+        break;
+      case "nonop_expense":
+        ensureIn(nonOpExpenseByCategory, l.name)[m] += amt; break;
+      case "tax":
+        ensureIn(taxByCategory, l.name)[m] += amt; break;
+      default:
+        break;                                  // 자산·부채·자본 줄은 손익이 아니다
     }
   }
 
-  const monthlySalaryTotal = employees.reduce((sum, e) => sum + (e.salary || 0), 0);
-  /* 사업주 부담 4대보험 요율 합계: 국민연금 4.5% + 건강보험 3.545% + 장기요양 0.459% + 고용보험 1.35% + 산재보험 0.7% = 10.554% */
-  const EMPLOYER_INSURANCE_RATE = 0.1055;
-  const monthlyInsurance = employees.reduce(
-    (sum, e) => sum + (e.is_4_insurance && e.salary ? e.salary * EMPLOYER_INSURANCE_RATE : 0),
-    0,
-  );
+  for (const m of allMonths) revenue[m] = salesRevenue[m];
 
-  // 직원 등록 기반 급여·4대보험 — 거래에 같은 금액 없을 때 보강
-  const salaryRow = ensureOpex("급여");
-  const insuranceRow = ensureOpex("4대보험");
-  for (const m of allMonths) {
-    totalSalary[m] = monthlySalaryTotal;
-    if (monthlySalaryTotal > (salaryRow[m] || 0)) salaryRow[m] = monthlySalaryTotal;
-    if (monthlyInsurance > (insuranceRow[m] || 0)) insuranceRow[m] = monthlyInsurance;
-  }
-
-  // 2026-05-22 손익계산서 매출 = 세금계산서(sales) 공급가액 기준 (사장님 요청).
-  //   기존 cross-reference(세금계산서 초과분 → 기타수익) 제거. revenue = salesRevenue.
-  //   otherRevenue 는 0 유지(영업외수익 별도 소스 없음).
-  for (const m of allMonths) {
-    revenue[m] = salesRevenue[m];
-  }
+  //   전표 기준에서는 '미분류 출금' 개념이 없다 — 전표가 있으면 계정이 반드시 정해져 있다.
+  //   대신 **아직 전표로 만들지 않은 자료 건수**를 알려 준다(비어 보이는 이유).
+  const uncategorizedCount = 0;
+  const uncategorizedAmount = 0;
+  const nonPnlOut: { category: string; nature: string; count: number; amount: number }[] = [];
+  const cardUnmappedAmount = 0;
 
   return {
     months,
@@ -417,6 +291,7 @@ async function fetchPnlData(companyId: string, monthsToShow: number = 6, customS
     uncategorizedAmount,
     nonPnlOut,
     cardUnmappedAmount,
+    unposted,
   };
 }
 
@@ -791,6 +666,28 @@ function PnlPageInner() {
           </button>
         </div>
       </div>
+
+      {/*   ★ 전표만 반영한다 — 비어 보이는 이유를 화면이 스스로 말한다 (2026-08-11 사장님 지시).
+            "손익계산서와 재무상태표에는 전표로 처리된 내역만 반영되게. 불러오기만 한 건 반영되지 않게." */}
+      {data.unposted.total > 0 && (
+        <div className="pnl-unposted-banner kpi-callout warning">
+          <span className="text-base leading-none mt-0.5"><Ico e="⚠" /></span>
+          <div className="leading-relaxed">
+            이 표는 <b>전표로 처리된 것만</b> 보여 줍니다. 아직 전표로 만들지 않은 자료가{" "}
+            <b>{data.unposted.total.toLocaleString()}건</b> 있습니다
+            {" ("}
+            {[
+              data.unposted.taxInvoice > 0 ? `세금계산서 ${data.unposted.taxInvoice.toLocaleString()}` : null,
+              data.unposted.card > 0 ? `카드 ${data.unposted.card.toLocaleString()}` : null,
+              data.unposted.bank > 0 ? `통장 ${data.unposted.bank.toLocaleString()}` : null,
+            ].filter(Boolean).join(" · ")}
+            {") — 그만큼 이 표에 빠져 있습니다."}
+            <span className="text-[var(--text-muted)]">
+              {" "}<Link href="/collect" className="underline font-semibold">수집·전표</Link>에서 전표를 만들면 바로 반영됩니다.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* 미분류 출금 경고 — 판관비 과소계상(영업이익 과대) 오해 방지 */}
       {data.uncategorizedCount > 0 && (
