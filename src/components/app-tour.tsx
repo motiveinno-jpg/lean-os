@@ -342,9 +342,8 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
         )}
         <div className="app-tour-tip-actions">
           {/* 스텝마다: '이 안내 다시 보지 않기' → 그 스텝만 다음부터 제외.
-              마지막(완료) 옆 체크박스 → 투어 전체 영구 미노출 (2026-08-11 사장님). */}
+              마지막(완료) 옆 체크박스 → 투어 전체 영구 미노출. 건너뛰기 버튼은 제거 (2026-08-11 사장님). */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <button onClick={() => finish(false)} className="app-tour-skip shrink-0">건너뛰기</button>
             {!isLast && step.href && (
               <button
                 onClick={() => hideCurrentStep(step.href!)}
