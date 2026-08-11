@@ -58,8 +58,14 @@ export default function AdvisorLandingPage() {
           options: { emailRedirectTo: `${location.origin}/advisor` },
         });
         if (err) throw new Error(err.message.includes("already") ? "이미 가입된 이메일입니다. 로그인해 주세요." : err.message);
+        // 이미 존재하는 이메일이면 Supabase 가 (계정 존재 노출 방지로) 메일 없이 성공한 척한다 —
+        //   identities 빈 배열이 그 신호. "메일 보냈다"고 안내하면 영영 기다리게 된다 (2026-08-11 사장님 제보).
         if (data.session) { await resolvePhase(); }
-        else setNote("확인 메일을 보냈습니다. 메일의 링크를 누른 뒤 이 페이지에서 로그인해 주세요.");
+        else if (data.user && (data.user.identities || []).length === 0) {
+          setMode("login");
+          throw new Error("이미 이 이메일로 오너뷰 계정이 있습니다. 그 비밀번호로 로그인하면 세무사 등록으로 이어집니다. 비밀번호를 모르면 오너뷰 로그인 화면의 '비밀번호 재설정'을 이용하세요.");
+        }
+        else setNote("확인 메일을 보냈습니다. 메일함(스팸함 포함)의 링크를 누른 뒤 이 페이지에서 로그인해 주세요.");
       }
     } catch (e: any) {
       setError(e.message || "요청에 실패했습니다.");
