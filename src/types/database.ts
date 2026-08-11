@@ -6848,6 +6848,7 @@ export type Database = {
           deal_id: string | null
           description: string
           entry_date: string
+          entry_kind: string
           id: string
           is_approved: boolean
           linked_bank_tx_id: string | null
@@ -6863,6 +6864,9 @@ export type Database = {
           sub_deal_id: string | null
           updated_at: string
           voucher_no: number | null
+          supply_amount: number | null
+          vat_amount: number | null
+          vat_type: string | null
           voucher_type: string | null
         }
         Insert: {
@@ -6874,6 +6878,7 @@ export type Database = {
           deal_id?: string | null
           description?: string
           entry_date: string
+          entry_kind?: string
           id?: string
           is_approved?: boolean
           linked_bank_tx_id?: string | null
@@ -6889,6 +6894,9 @@ export type Database = {
           sub_deal_id?: string | null
           updated_at?: string
           voucher_no?: number | null
+          supply_amount?: number | null
+          vat_amount?: number | null
+          vat_type?: string | null
           voucher_type?: string | null
         }
         Update: {
@@ -6900,6 +6908,7 @@ export type Database = {
           deal_id?: string | null
           description?: string
           entry_date?: string
+          entry_kind?: string
           id?: string
           is_approved?: boolean
           linked_bank_tx_id?: string | null
@@ -6915,6 +6924,9 @@ export type Database = {
           sub_deal_id?: string | null
           updated_at?: string
           voucher_no?: number | null
+          supply_amount?: number | null
+          vat_amount?: number | null
+          vat_type?: string | null
           voucher_type?: string | null
         }
         Relationships: [

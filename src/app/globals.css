@@ -7896,3 +7896,66 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 비용 구성 — 도넛(비중)과 목록(정확한 금액)을 함께 둔다 (2026-08-07) */
 .lp-donut-wrap { @apply flex flex-col items-center gap-2 mb-4; }
 .lp-dot { @apply inline-block w-2 h-2 rounded-sm mr-1.5 align-middle; }
+
+/* ═══ 매입매출전표입력 (2026-08-11 신설) ═══════════════════════════════════ */
+.sp-voucher-page { @apply flex flex-col gap-4 pb-10; }
+.sp-toolbar { @apply flex flex-wrap items-center gap-2; }
+.sp-card { @apply overflow-hidden; }
+.sp-card-head { @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 border-b border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3; }
+.sp-card-head b { @apply text-[14px] font-bold text-[var(--text)]; }
+.sp-card-head span { @apply text-[11.5px] text-[var(--text-dim)]; }
+.sp-card-head-je { background: color-mix(in srgb, var(--success) 8%, transparent); }
+.sp-card-head-je b { @apply text-[var(--success)]; }
+
+.sp-head-grid { @apply grid gap-3 px-5 py-4; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.sp-field { @apply flex flex-col gap-1.5 min-w-0; }
+.sp-field > label { @apply text-[11px] font-bold tracking-wide text-[var(--text-dim)]; }
+.sp-field > label i { @apply not-italic text-[var(--primary)]; }
+.sp-hint { @apply text-[10.5px] text-[var(--text-dim)]; }
+.sp-drop { @apply absolute z-50 left-0 right-0 top-full mt-1 max-h-52 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-lg; }
+.sp-drop-wide { @apply w-[280px] right-auto max-h-none overflow-visible; }
+
+.sp-items { @apply mx-5 mb-5 rounded-xl border border-[var(--border)] overflow-hidden; }
+.sp-items-scroll { @apply overflow-x-auto; }
+.sp-items-grid { @apply min-w-[620px]; }
+.sp-item-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 30px minmax(150px,1.6fr) 92px 70px 116px 118px 30px; }
+.sp-item-row:first-child { @apply border-t-0; }
+.sp-item-head { @apply bg-[var(--bg-surface)]; }
+.sp-item-head > span { @apply px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]; }
+.sp-item-no { @apply text-center text-[11px] text-[var(--text-dim)]; }
+.sp-item-input { @apply mx-1 my-1 h-8 w-full min-w-0 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 text-xs text-[var(--text)] transition focus:outline-none focus:border-[var(--primary)]; }
+.sp-item-sum { @apply px-2 text-right text-xs font-bold text-[var(--primary)]; font-variant-numeric: tabular-nums; }
+.sp-item-del { @apply text-center text-[var(--text-dim)] transition hover:text-[var(--danger)]; }
+.sp-items-foot { @apply flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-dashed border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5; }
+.sp-totals { @apply ml-auto flex flex-wrap items-center gap-x-6 gap-y-1; }
+.sp-totals > div { @apply flex items-baseline gap-2; }
+.sp-totals small { @apply text-[10.5px] font-bold text-[var(--text-dim)]; }
+.sp-totals b { @apply text-[13.5px] font-bold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.sp-totals b em { @apply not-italic text-[10.5px] font-medium text-[var(--text-dim)]; }
+.sp-total-grand b { @apply text-[17px] font-extrabold text-[var(--primary)]; }
+
+.sp-je-grid { @apply min-w-[560px]; }
+.sp-je-row { @apply grid items-center border-t border-[var(--border)]/60; grid-template-columns: 66px minmax(200px,1fr) 140px 140px; }
+.sp-je-row:first-child { @apply border-t-0; }
+.sp-je-row > span.sp-dc { @apply px-2 py-2 text-center text-[11px] font-extrabold; }
+.sp-dc-d { color: #2563eb; }
+.sp-dc-c { color: #d97706; }
+.sp-acct-btn { @apply m-1 flex h-8 w-full items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2 text-left text-xs font-medium text-[var(--text)] transition hover:border-[var(--primary)]/50; }
+.sp-acct-empty { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); @apply text-[var(--danger)]; }
+.sp-lock { @apply ml-auto rounded bg-[var(--bg-surface)] px-1.5 text-[9.5px] font-bold text-[var(--text-dim)]; }
+.sp-amt { @apply px-3 text-right text-xs font-semibold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.sp-je-foot { @apply flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3; }
+.sp-je-foot > div { @apply flex items-baseline gap-2; }
+.sp-je-foot small { @apply text-[10.5px] font-bold text-[var(--text-dim)]; }
+.sp-je-foot b { @apply text-[14px] font-bold text-[var(--text)]; font-variant-numeric: tabular-nums; }
+.sp-balance { @apply ml-auto text-[11.5px] font-bold text-[var(--danger)]; }
+.sp-balance-ok { @apply text-[var(--success)]; }
+.sp-warn { @apply border-t border-[var(--border)] px-5 py-2.5 text-[11.5px] text-[var(--danger)]; }
+.sp-empty { @apply px-5 py-10 text-center text-[13px] text-[var(--text-dim)]; }
+
+.sp-saved-table { @apply w-full text-xs; }
+.sp-saved-table th { @apply border-b border-[var(--border)] px-4 py-2 text-left text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-dim)] whitespace-nowrap; }
+.sp-saved-table td { @apply border-b border-[var(--border)]/40 px-4 py-2.5 text-[var(--text-muted)]; }
+.sp-type-pill { @apply rounded px-1.5 py-0.5 text-[10.5px] font-bold; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+.sp-note { @apply px-1 text-[11.5px] leading-relaxed text-[var(--text-dim)]; }
+.sp-note b { @apply text-[var(--text-muted)]; }

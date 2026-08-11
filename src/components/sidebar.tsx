@@ -43,8 +43,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
       { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
       { href: "/transactions", label: "거래 장부", icon: "book", roles: ["owner", "admin"], match: ["/transactions", "/partners/reconciliation"] },
-      // 전표입력은 별도 유지(2026-07-23 Q2). 경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 단독 활성.
-      { href: "/partners/reconciliation/voucher-entry", label: "전표입력", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"] },
+      // 전표는 두 갈래로 나눠 각각 메뉴로 둔다 (2026-08-11 사장님 지시 — 탭 말고 메뉴).
+      //   일반전표 = 통장·대체·결산 / 매입매출전표 = 세금계산서·카드·현금영수증(부가세 유형이 붙는 거래).
+      //   경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 각각 단독 활성.
+      { href: "/partners/reconciliation/voucher-entry", label: "일반전표", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"] },
+      { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
       { href: "/reports", label: "분석", icon: "bar-chart", roles: ["owner", "admin"] },
     ],
   },
@@ -144,7 +147,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/dashboard": "#3b82f6", "/master": "#2563eb", "/copilot": "#6366f1", "/mypage": "#60a5fa", "/notifications": "#818cf8",
   // 파이낸스 — 그린
   "/partners": "#10b981", "/tax-invoices": "#059669", "/transactions": "#14b8a6",
-  "/partners/reconciliation/voucher-entry": "#34d399", "/reports": "#22c55e",
+  "/partners/reconciliation/voucher-entry": "#34d399", "/partners/reconciliation/sale-purchase": "#38bdf8", "/reports": "#22c55e",
   // 워크스페이스 — 바이올렛
   "/schedule": "#8b5cf6", "/projecthub": "#7c3aed", "/approvals": "#a855f7",
   "/board": "#a78bfa", "/chat": "#c084fc", "/signatures": "#9333ea", "/my-contracts": "#c4b5fd",

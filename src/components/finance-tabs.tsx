@@ -35,9 +35,13 @@ const HUBS: Hub[] = [
   },
 ];
 
-// 전표입력은 별도 메뉴로 유지(2026-07-23 Q2) — 허브 탭에 넣지 않고 독립 화면. FinanceTabs를 그리지 않는다.
-//   (경로가 /partners/reconciliation 하위라 입금 매칭에 잘못 매치되지 않도록 명시적으로 제외)
-const STANDALONE = ["/partners/reconciliation/voucher-entry"];
+// 전표는 별도 메뉴로 유지(2026-07-23 Q2, 2026-08-11 둘로 분리) — 허브 탭에 넣지 않고 독립 화면.
+//   FinanceTabs를 그리지 않는다. (경로가 /partners/reconciliation 하위라 '입금 매칭'에 잘못 매치되지
+//   않도록 명시적으로 제외 — 빠뜨리면 매입매출전표 위에 거래 매칭 탭이 얹힌다)
+const STANDALONE = [
+  "/partners/reconciliation/voucher-entry",
+  "/partners/reconciliation/sale-purchase",
+];
 
 const matchLen = (pathname: string, href: string) =>
   pathname === href || pathname.startsWith(href + "/") ? href.length : -1;
