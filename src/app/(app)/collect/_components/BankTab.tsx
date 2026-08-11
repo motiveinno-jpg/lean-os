@@ -6,6 +6,7 @@
 //     ① 이미 낸 증빙의 수금·지급 → 매칭 (수금 전표가 자동으로 생긴다)
 //     ② 증빙 없는 수입·지출      → 일반전표
 //     ③ 내 계좌 간 이동          → 전표 없음(두 통장에 같은 돈이 두 번 찍힌다). 표시만.
+//     ④ 카드대금 청구            → 카드 승인 여러 건을 이 한 줄에 묶는다(다대일)
 //
 //   ★ 기존 정산 기계(invoice_settlements + 트리거 7개)를 **다시 배선하지 않는다**.
 //     확정 = status='confirmed' 한 줄이면 트리거가 미수금 차감·전표 생성·차액 마감까지 한다.
@@ -25,7 +26,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
-type Deal = "match" | "voucher" | "transfer" | null;
+type Deal = "match" | "voucher" | "transfer" | "card" | null;
 
 type Sug = {
   settlementId: string;
@@ -53,7 +54,7 @@ type Row = {
 };
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
-/** 통장 줄의 방향 — type 이 단일 기준, 비어 있을 때만 부호를 본다 (RPC post_bank_line_voucher 와 같은 규칙) */
+/** 통장 줄의 방향 — type 이 단일 기준, 비어 있을 때만 부호를 본다 (RPC post_bank_voucher 와 같은 규칙) */
 function bankIsIn(type: string, amount: number): boolean {
   if (["income", "deposit", "입금", "in"].includes(type)) return true;
   if (["expense", "withdrawal", "출금", "out"].includes(type)) return false;
@@ -74,6 +75,8 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
   const [partAmt, setPartAmt] = useState<Record<string, string>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  //   ④ 다대일 — 어느 통장 줄에 어느 카드 승인들을 묶을지 (거래 매칭 화면에서 옮겨 왔다)
+  const [cardPick, setCardPick] = useState<{ txId: string; ids: Set<string> } | null>(null);
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["collect-accounts", companyId],
@@ -92,6 +95,19 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     queryKey: ["voucher-rules", companyId, "bank"],
     queryFn: () => fetchRuleMap(companyId, "bank"),
     staleTime: 60_000,
+  });
+
+  //   아직 통장에 안 묶인 카드 승인 — ④ 를 고른 줄에서만 읽는다
+  const { data: cardCands = [] } = useQuery({
+    queryKey: ["bank-card-cands", companyId, cardPick?.txId],
+    queryFn: async () => {
+      const data = logRead("bank:cardcands", await supabase.from("card_transactions")
+        .select("id, transaction_date, merchant_name, amount")
+        .eq("company_id", companyId).is("bank_transaction_id", null)
+        .order("transaction_date", { ascending: false }).limit(300));
+      return ((data as any[]) || []);
+    },
+    enabled: !!cardPick,
   });
 
   const { data: rows = [], isLoading } = useQuery<Row[]>({
@@ -173,6 +189,7 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     if (d === "match") return !!r.sug;
     if (d === "voucher") return !!acctOf(r).a;
     if (d === "transfer") return true;
+    if (d === "card") return cardPick?.txId === r.id && cardPick.ids.size > 0;
     return false;
   };
   const notReady = selRows.filter((r) => !ready(r));
@@ -196,13 +213,28 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
         } else if (d === "voucher") {
           const a = acctOf(r).a;
           if (!a) throw new Error("계정을 먼저 고르세요");
-          const { error } = await (supabase.rpc as any)("post_bank_line_voucher", {
-            p_bank_tx_id: r.id, p_account_id: a.id, p_memo: r.desc || r.who,
+          //   거래 매칭 화면이 쓰던 것과 **같은 RPC**를 쓴다 — 3단계에서 잠깐 중복 함수를
+          //   만들었다가 하나로 합쳤다(같은 일을 하는 함수가 둘이면 한쪽만 고쳐지는 사고가 난다).
+          const { error } = await (supabase.rpc as any)("post_bank_voucher", {
+            p_bank_tx_id: r.id, p_account_id: a.id, p_remember: false, p_memo: r.desc || r.who,
           });
           if (error) throw error;
           //   사람이 고른 것을 배운다 — 같은 입금자·적요가 또 나오면 미리 채운다
           const k = keyOf(r);
           await learnAccount({ kind: "bank", key: k.key, label: k.label, accountId: a.id });
+        } else if (d === "card") {
+          //   카드 승인 여러 건을 이 통장 줄에 묶는다. 전표는 만들지 않는다 —
+          //   승인 건 각각이 매입매출전표로 미지급금을 세우고, 이 줄은 그 청구(결제)일 뿐이다.
+          //   거래 매칭 화면이 하던 것과 **같은 동작**을 자리만 옮겼다.
+          const ids = [...(cardPick?.ids ?? [])];
+          if (ids.length === 0) throw new Error("묶을 카드 승인을 고르세요");
+          const { error: e1 } = await supabase.from("card_transactions")
+            .update({ bank_transaction_id: r.id }).in("id", ids);
+          if (e1) throw e1;
+          const { error: e2 } = await supabase.from("bank_transactions")
+            .update({ settlement_status: "settled", settled_amount: Math.abs(r.amount) }).eq("id", r.id);
+          if (e2) throw e2;
+          setCardPick(null);
         } else if (d === "transfer") {
           //   계좌 이동은 전표를 만들지 않는다 — 두 통장에 같은 돈이 두 번 찍히기 때문이다.
           //   '처리했음'만 남겨 미처리 목록에서 빠지게 한다.
@@ -228,6 +260,7 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     qc.invalidateQueries({ queryKey: ["bank-rows"] });
     qc.invalidateQueries({ queryKey: ["collect-status"] });
     qc.invalidateQueries({ queryKey: ["voucher-rules"] });
+    qc.invalidateQueries({ queryKey: ["bank-card-cands"] });
     setBusy(false);
     if (ok > 0 && fails.length === 0) toast(`${ok}건을 처리했습니다`, "success");
     else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
@@ -310,14 +343,20 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
                     </td>
                     <td>
                       {done ? (
-                        <span className="ev-dim">{r.transfer ? "계좌 이동" : r.settled ? "증빙 수금" : "일반전표"}</span>
+                        <span className="ev-dim">{r.transfer ? "계좌 이동" : r.posted ? "일반전표" : "증빙 수금·카드대금"}</span>
                       ) : (
                         <select className="ev-sel" value={d ?? ""}
-                          onChange={(e) => setDeal((o) => ({ ...o, [r.id]: (e.target.value || null) as Deal }))}>
+                          onChange={(e) => {
+                            const v = (e.target.value || null) as Deal;
+                            setDeal((o) => ({ ...o, [r.id]: v }));
+                            //   ④ 를 고르면 이 줄에 묶을 카드 고르는 자리를 연다 (한 번에 한 줄만)
+                            setCardPick(v === "card" ? { txId: r.id, ids: new Set() } : null);
+                          }}>
                           <option value="">— 고르세요</option>
                           <option value="match" disabled={!r.sug}>① 증빙 수금{r.sug ? "" : " (제안 없음)"}</option>
                           <option value="voucher">② 일반전표</option>
                           <option value="transfer">③ 계좌 이동</option>
+                          <option value="card" disabled={r.isIn}>④ 카드대금 청구{r.isIn ? " (출금만)" : ""}</option>
                         </select>
                       )}
                     </td>
@@ -361,6 +400,39 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
                             </span>
                           )}
                         </span>
+                      ) : d === "card" ? (
+                        <span className="bk-cards">
+                          <span className="bk-cards-head">
+                            묶을 카드 승인 <b className="mono-number">{cardPick?.txId === r.id ? cardPick.ids.size : 0}</b>건
+                            {cardPick?.txId === r.id && cardPick.ids.size > 0 && (
+                              <em className="bk-cards-sum mono-number">
+                                합계 {won(cardCands.filter((c: any) => cardPick.ids.has(c.id))
+                                  .reduce((n: number, c: any) => n + Math.abs(Number(c.amount || 0)), 0))}
+                                {" / 출금 "}{won(Math.abs(r.amount))}
+                              </em>
+                            )}
+                          </span>
+                          <span className="bk-cards-list">
+                            {cardCands.length === 0 ? (
+                              <em className="ev-dim">아직 통장에 안 묶인 카드 승인이 없습니다</em>
+                            ) : cardCands.slice(0, 40).map((c: any) => {
+                              const on = cardPick?.txId === r.id && cardPick.ids.has(c.id);
+                              return (
+                                <button key={c.id} type="button"
+                                  className={on ? "bk-card-chip bk-card-chip-on" : "bk-card-chip"}
+                                  onClick={() => setCardPick((p) => {
+                                    if (!p || p.txId !== r.id) return { txId: r.id, ids: new Set([c.id]) };
+                                    const ids = new Set(p.ids);
+                                    if (ids.has(c.id)) ids.delete(c.id); else ids.add(c.id);
+                                    return { txId: r.id, ids };
+                                  })}>
+                                  {String(c.transaction_date).slice(5)} {c.merchant_name || "—"}
+                                  <b className="mono-number">{won(Math.abs(Number(c.amount || 0)))}</b>
+                                </button>
+                              );
+                            })}
+                          </span>
+                        </span>
                       ) : d === "transfer" ? (
                         <span className="ev-dim">전표를 만들지 않습니다 — 손익과 무관</span>
                       ) : (
@@ -388,8 +460,10 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
         수수료 등으로 몇 원 어긋난 <b>차액은 잡손익으로 자동 마감</b>됩니다.
         <b>③ 계좌 이동</b>은 전표를 만들지 않습니다 — 두 통장에 같은 돈이 두 번 찍히기 때문입니다.
         <b>②</b>에서 고른 계정은 <b>입금자·적요로 기억</b>해 다음에 미리 채웁니다(<b>지난번</b> → 3번 이상이면 <b>학습</b>).
-        차액을 <b>이자·수수료 등 다른 계정으로 바꾸거나</b>, <b>카드 여러 건이 한 번에 청구된 건(다대일)</b>은
-        아직 <Link href="/partners/reconciliation" className="bk-link">거래 매칭</Link> 화면에서 처리합니다.
+        <b>④ 카드대금 청구</b>는 카드 승인 여러 건을 이 한 줄에 묶습니다 — 전표는 만들지 않습니다
+        (승인 건 각각이 매입매출전표로 미지급금을 세우고, 이 줄은 그 결제일 뿐입니다).
+        차액을 <b>이자·수수료 등 다른 계정으로 바꾸는 것</b>만 아직{" "}
+        <Link href="/partners/reconciliation" className="bk-link">거래 매칭</Link> 화면에 있습니다.
       </p>
     </div>
   );

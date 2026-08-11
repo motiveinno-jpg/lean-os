@@ -8206,3 +8206,11 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .rules-box { @apply max-w-3xl; }
 .rules-table { min-width: 620px; }
 .rules-del { @apply rounded-lg border border-[var(--border)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-dim)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]; }
+
+/* ── 통장 탭 ④ 카드대금 다대일 (2026-08-11) ── */
+.bk-cards { @apply flex flex-col gap-1; }
+.bk-cards-head { @apply text-[11px] font-bold text-[var(--text)]; }
+.bk-cards-sum { @apply not-italic ml-1.5 font-semibold text-[var(--warning)]; }
+.bk-cards-list { @apply flex max-h-24 flex-wrap gap-1 overflow-y-auto; }
+.bk-card-chip { @apply flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 py-0.5 text-[10.5px] text-[var(--text-muted)] transition hover:border-[var(--primary)]; }
+.bk-card-chip-on { @apply border-[var(--primary)] bg-[var(--primary-light)] text-[var(--primary)] font-bold; }

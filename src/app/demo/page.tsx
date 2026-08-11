@@ -103,8 +103,11 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: string; view?: 
     { label: "거래처", icon: "users", view: "partners" },
     { label: "세금·증빙", icon: "receipt", view: "tax" },
     { label: "거래 장부", icon: "book", view: "ledger" },
-    { label: "전표입력", icon: "pen", view: "voucher" },
-    { label: "분석", icon: "chart", view: "flow" },
+    { label: "일반전표", icon: "pen", view: "voucher" },
+  ] },
+  //   2026-08-11 — 앱 사이드바가 '분석' 그룹으로 갈라져 시연 화면도 같이 맞췄다.
+  { label: "분석", items: [
+    { label: "경영 요약", icon: "chart", view: "flow" },
   ] },
   { label: "워크스페이스", items: [
     { label: "일정 / 할 일", icon: "calendar", view: "schedule" },
@@ -120,7 +123,8 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: string; view?: 
     { label: "근로계약·서식", icon: "file", view: "templates" },
     { label: "파일보관함", icon: "folder", view: "documents" },
   ] },
-  { label: "자산관리", items: [
+  //   '자산관리' → '자금' (앱과 같은 이름)
+  { label: "자금", items: [
     { label: "통장", icon: "swap", view: "bank" },
     { label: "카드", icon: "wallet", view: "cards" },
     { label: "정기 지출", icon: "repeat", view: "payments" },
@@ -134,8 +138,8 @@ const VIEW_META: Record<string, { crumb: string; title: string }> = {
   partners: { crumb: "파이낸스", title: "거래처" },
   tax: { crumb: "파이낸스", title: "세금·증빙" },
   ledger: { crumb: "파이낸스", title: "거래 장부" },
-  voucher: { crumb: "파이낸스", title: "전표입력" },
-  flow: { crumb: "파이낸스", title: "분석" },
+  voucher: { crumb: "파이낸스", title: "일반전표" },
+  flow: { crumb: "분석", title: "경영 요약" },
   schedule: { crumb: "워크스페이스", title: "일정 / 할 일" },
   projects: { crumb: "워크스페이스", title: "프로젝트" },
   approvals: { crumb: "워크스페이스", title: "결재 허브" },
@@ -146,9 +150,9 @@ const VIEW_META: Record<string, { crumb: string; title: string }> = {
   leave: { crumb: "인사관리", title: "근태 관리" },
   templates: { crumb: "인사관리", title: "근로계약·서식" },
   documents: { crumb: "인사관리", title: "파일보관함" },
-  bank: { crumb: "자산관리", title: "통장" },
-  cards: { crumb: "자산관리", title: "카드" },
-  payments: { crumb: "자산관리", title: "정기 지출" },
+  bank: { crumb: "자금", title: "통장" },
+  cards: { crumb: "자금", title: "카드" },
+  payments: { crumb: "자금", title: "정기 지출" },
 };
 
 // ── Glyphs ──

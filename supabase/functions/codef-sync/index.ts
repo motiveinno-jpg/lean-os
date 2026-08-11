@@ -1661,6 +1661,26 @@ serve(withSentry("codef-sync", async (req) => {
       }
     }
 
+    // ── 수동 수집 요금제 검사 (2026-08-11) ─────────────────────────────────
+    //   지금까지 요금제 검사가 **화면에만** 있어 엣지를 직접 부르면 무료 계정도 수동 수집이 됐다.
+    //   CODEF 는 계좌당 월 600원이 실제로 나가는 유일한 변동비라 여기서 한 번 더 막는다.
+    //   · cron/서비스롤(isInternalAuth) 은 검사하지 않는다 — 자동 수집은 요금제가 이미 정한 일이다.
+    //   · **요금제만** 본다. 30분 쿨타임은 화면에 남긴다 — '한 번에 수집'이 홈택스 3종을 차례로
+    //     부르는데 셋 다 sync_type='hometax' 라 여기서 쿨타임을 걸면 두 번째부터 스스로 막힌다.
+    //   · 조회 자체가 실패하면 막지 않는다(fail-open) — 검사 장애가 수집을 멈추면 안 된다.
+    if (!isInternalAuth && companyId) {
+      try {
+        const { data: allowed, error: planErr } = await supabase
+          .rpc("is_manual_sync_allowed", { p_company: companyId });
+        if (!planErr && allowed === false) {
+          return new Response(JSON.stringify({
+            error: "무료 요금제는 수동 수집을 쓸 수 없습니다 — 자동 수집(하루 2회)은 그대로 됩니다.",
+            code: "MANUAL_NOT_ALLOWED",
+          }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      } catch { /* 검사 장애로 수집을 멈추지 않는다 */ }
+    }
+
     // cron-tick 은 companyId 없이 글로벌 처리. 그 외 action 은 companyId 필수.
     //   (bank-cron-tick 도 글로벌 — companyId 없이 회사 enumerate 후 fan-out)
     if (!companyId && action !== "hometax-cron-tick" && action !== "bank-cron-tick" && action !== "card-cron-tick") {
