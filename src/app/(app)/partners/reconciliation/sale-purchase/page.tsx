@@ -203,7 +203,7 @@ function SalePurchaseInner() {
       const to = monthAfter(toM);
       const data = logRead("sale-purchase:saved", await (supabase as any)
         .from("journal_entries")
-        .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, reference_type, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
+        .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, reference_type, is_electronic, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
         .eq("company_id", companyId!).eq("entry_kind", "sale_purchase")
         .gte("entry_date", `${fromM}-01`).lt("entry_date", to)
         .order("entry_date").order("voucher_no"));
@@ -246,8 +246,8 @@ function SalePurchaseInner() {
       vatCode: e.vat_type || "11",
       item: e.description || "",
       supply: won(e.supply_amount), vat: won(e.vat_amount),
-      //   전자세금계산서에서 불러와 친 전표는 '전자입력' — 사람이 켜는 값이 아니라 출처가 정하는 값이다
-      electronic: e.reference_type === "tax_invoice",
+      //   이제 저장되는 값이다. 증빙에서 온 건은 서버가 참으로 고정하고, 손으로 친 건은 사람이 정한다.
+      electronic: !!e.is_electronic,
       settle: info?.settle ?? ("credit" as SettleType), mainAccount: info?.main ?? null,
       savedId: e.id, voucherNo: e.voucher_no,
       refType: (e.reference_type || undefined) as RefKind | undefined,
@@ -522,6 +522,7 @@ function SalePurchaseInner() {
           p_supply_amount: supplyNum, p_vat_amount: vatNum,
           p_description: row.item || `${t.label} ${row.partner?.name || ""}`.trim(),
           p_lines: payload,
+          p_electronic: !!row.electronic,
         });
         if (error) throw error;
         toast(`전표 #${edit.voucherNo ?? ""} 를 고쳤습니다`, "success");
@@ -538,6 +539,8 @@ function SalePurchaseInner() {
         //   불러온 증빙이면 꼬리표를 같이 보낸다 — 증빙에 전표가 되붙어 다시 불러올 수 없게 된다
         p_reference_type: row.refType || null,
         p_reference_id: row.refId || null,
+        //   손으로 켠 '전자'도 이제 저장된다 (증빙에서 온 건은 서버가 참으로 고정한다)
+        p_electronic: !!row.electronic,
       });
       if (error) throw error;
       toast(`전표를 저장했습니다 (${t.label} · ${won(supplyNum + vatNum)}원)`, "success");
@@ -576,8 +579,9 @@ function SalePurchaseInner() {
    *  하나로 합쳐 둬야 "치는 곳과 고치는 곳이 다르게 생겼다"는 일이 안 생긴다. */
   const gridRow = (r: Row, i: number) => {
     const isEdit = i < 0;
-    //   전자세금계산서에서 온 줄은 사람이 켜고 끄는 값이 아니다 — 출처가 정한다
-    const fromTaxInvoice = r.refType === "tax_invoice" || (isEdit && r.electronic);
+    //   전자세금계산서에서 온 줄만 못 끈다 — 출처가 정하는 사실이라서다.
+    //   손으로 켠 '전자'는 이제 저장되므로, 수정할 때도 사람이 다시 끌 수 있어야 한다.
+    const fromTaxInvoice = r.refType === "tax_invoice";
     return (
       <div key={isEdit ? `edit-${r.key}` : r.key}
         className={`spv-row ${selIdx === i ? "spv-cur" : ""} ${isEdit ? "spv-editing" : ""}`.trim()}
@@ -630,7 +634,7 @@ function SalePurchaseInner() {
         ) : (
           <button type="button" className="spv-chk" data-cell={`electronic-${i}`} onClick={() => patch(i, { electronic: !r.electronic })}
             onKeyDown={(e) => onCellKey(e, i, "electronic")} onFocus={() => { if (!isEdit) setCur(i); }}
-            title="전자 발행분이면 켭니다 (Enter 는 윗값 내리기 · Space 로 켜고 끕니다)">{r.electronic ? "전자" : "—"}</button>
+            title="전자(세금)계산서 발행·수취분이면 켭니다 — 저장됩니다 (Enter 는 윗값 내리기 · Space 로 켜고 끕니다)">{r.electronic ? "전자입력" : "—"}</button>
         )}
         <select className="spv-in spv-sel" data-cell={`settle-${i}`} value={r.settle} onChange={(e) => patch(i, { settle: e.target.value as SettleType })}
           onKeyDown={(e) => onCellKey(e, i, "settle")} onFocus={() => { if (!isEdit) setCur(i); }}>
@@ -648,7 +652,7 @@ function SalePurchaseInner() {
   //   부가세 신고·세무대리인 전달용 — 지금 보고 있는 달·갈래를 그대로 뽑는다.
   //   엑셀이 한글을 깨뜨리지 않게 BOM 을 앞에 붙인다 (거래처원장 내보내기와 같은 방법).
   const downloadCsv = () => {
-    const head = ["일자", "전표번호", "구분", "유형", "거래처코드", "거래처", "사업자등록번호", "품명", "공급가액", "부가세", "합계"];
+    const head = ["일자", "전표번호", "구분", "유형", "거래처코드", "거래처", "사업자등록번호", "품명", "공급가액", "부가세", "합계", "전자"];
     const body = sortedSaved.map((r) => {
       const vt = vatType(r.vatCode);
       const sup = numOf(r.supply), v = numOf(r.vat);
@@ -659,12 +663,12 @@ function SalePurchaseInner() {
         vt?.label || r.vatCode,
         String(r.partner?.code || ""), r.partner?.name || "",
         String(r.partner?.business_number || ""), r.item,
-        String(sup), String(v), String(sup + v),
+        String(sup), String(v), String(sup + v), r.electronic ? "전자입력" : "",
       ];
     });
     const sup = sortedSaved.reduce((n, r) => n + numOf(r.supply), 0);
     const vat = sortedSaved.reduce((n, r) => n + numOf(r.vat), 0);
-    const rowsOut = [head, ...body, ["", "", "", "합계", "", "", "", "", String(sup), String(vat), String(sup + vat)]];
+    const rowsOut = [head, ...body, ["", "", "", "합계", "", "", "", "", String(sup), String(vat), String(sup + vat), ""]];
     const csv = "﻿" + rowsOut.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
