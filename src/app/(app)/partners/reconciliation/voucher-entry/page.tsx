@@ -15,9 +15,17 @@ import { logRead } from "@/lib/log-read";
 //     "전표 N번 저장됨" 토스트. 실패 시 입력값 유지. 일자는 입력·목록이 같은 일자를 공유해 불일치 없음.
 //   차대일치는 DB(save/update_manual_voucher RPC)에서도 재검증(이중). 수정은 journal_entry_audits 이력 보존.
 //   삭제 = voucher_reject(행 보존). 마감(잠금) 월은 서버가 저장·수정·삭제 차단.
+//
+//   ★ 2026-08-11 (사장님 지시, 매입매출전표와 같은 손놀림으로) — 한 칸이 겸하던 일을 둘로 갈랐다.
+//     · 예전: 일자 한 칸이 ①입력할 전표의 날짜 ②아래 목록 필터를 **동시에** 맡았다(그래서 하루치만 보였다).
+//     · 지금: 위 **일자 = 년·월·일 3칸**(칠 전표의 날짜) / 아래 목록은 **조회기간**(월 단위 달력).
+//     ⚠️ 이렇게 가르면 목록에 **여러 날짜**가 섞인다 — 그래서 ①목록에 일자 칸을 넣고
+//       ②인라인 수정 저장은 반드시 **그 전표 자기 날짜**를 넘긴다. 입력칸 날짜를 넘기면
+//       다른 날 전표를 고칠 때 날짜가 오늘로 끌려온다(예전엔 하루치만 보여 그럴 일이 없었다).
+//     ★ Enter = **누른 칸 하나만** 윗줄에서 내리고 다음 칸으로 (매입매출전표와 같은 규칙).
 
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
-import { DateField } from "@/components/date-field";
+import { DateRangeField } from "@/components/date-range-field";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -53,11 +61,21 @@ const VTYPES: { id: VType; label: string; desc: string }[] = [
 ];
 type PLine = { key: number; gubun: Gubun; account: Acct | null; partner: Pt | null; memo: string; debit: string; credit: string };
 type SavedLine = { account: Acct | null; partner: Pt | null; memo: string; debit: number; credit: number };
-type SavedEntry = { id: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; entry_kind: string | null; lines: SavedLine[] };
+//   entry_date 는 반드시 들고 다닌다 — 목록이 여러 날이라 수정 저장에 그 전표 자기 날짜가 필요하다
+type SavedEntry = { id: string; entry_date: string; voucher_no: number | null; voucher_type: string | null; description: string; source: string; entry_kind: string | null; lines: SavedLine[] };
 
 let K = 1;
 const AR_AP_CODES = new Set(["108", "251"]);
 const MEMO_KEY = "voucher-recent-memos";
+
+//   Enter 가 훑는 입력칸 — 화면 왼→오 순서. 일자 3칸이 앞, 그 뒤가 분개 행의 칸들이다.
+type VCell = "y" | "m" | "d" | "gubun" | "account" | "partner" | "memo" | "debit" | "credit";
+/** 그 달의 다음 달 1일 — 조회 상한(`lt`)으로 쓴다 */
+const monthAfter = (ym: string) => {
+  const [y, m] = ym.split("-").map(Number);
+  return `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
+};
+const pad2 = (s: string) => String(Number(s) || 0).padStart(2, "0");
 
 // 저장 라인의 §3-3-A 구분 표기 — 출금/입금 전표는 회계 프로그램처럼 1.출금/2.입금
 const savedGubun = (vt: string | null, debit: number): Gubun =>
@@ -69,7 +87,15 @@ export default function VoucherEntryPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const [entryDate, setEntryDate] = useState(todayKst());
+  //   ① 칠 전표의 날짜 — 매입매출전표와 같은 년·월·일 3칸
+  const [entryY, setEntryY] = useState(todayKst().slice(0, 4));
+  const [entryM, setEntryM] = useState(String(Number(todayKst().slice(5, 7))));
+  const [entryD, setEntryD] = useState(String(Number(todayKst().slice(8, 10))));
+  const entryDate = `${entryY}-${pad2(entryM)}-${pad2(entryD)}`;
+  const entryDateOk = entryY.length === 4 && Number(entryM) >= 1 && Number(entryM) <= 12 && Number(entryD) >= 1 && Number(entryD) <= 31;
+  //   ② 아래 목록이 보여 줄 기간 — 월 단위. 처음엔 이번 달만 걸어 예전과 비슷하게 보인다.
+  const [fromM, setFromM] = useState(todayKst().slice(0, 7));
+  const [toM, setToM] = useState(todayKst().slice(0, 7));
   const [vtype, setVtype] = useState<VType>("transfer");
   const [pend, setPend] = useState<PLine[]>([]);               // 상단 입력 영역 행
   const [edits, setEdits] = useState<Record<string, { desc: string; lines: PLine[] }>>({}); // 하단 인라인 편집 버퍼
@@ -117,16 +143,19 @@ export default function VoucherEntryPage() {
     enabled: !!companyId, staleTime: 300_000,
   });
 
-  // ── 하단 목록: 해당 일자 확정 전표 ──
+  // ── 하단 목록: 조회기간 안의 확정 전표 ──
+  //   ⚠️ queryKey 앞머리는 "vouchers-of-day" 그대로 둔다 — 거래처원장(ledger/shared.tsx)이 이 이름으로
+  //     세 군데에서 무효화한다. 이름을 바꾸면 그쪽이 조용히 안 먹는다(화면은 멀쩡해 보인다).
   const { data: entries = [] } = useQuery<SavedEntry[]>({
-    queryKey: ["vouchers-of-day", companyId, entryDate],
+    queryKey: ["vouchers-of-day", companyId, fromM, toM],
     queryFn: async () => {
       const data = logRead('voucher-entry/page:data', await db.from("journal_entries")
-        .select("id, voucher_no, voucher_type, description, source, entry_kind, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
-        .eq("company_id", companyId ?? "").eq("entry_date", entryDate).eq("status", "confirmed")
-        .order("voucher_no", { ascending: true }));
+        .select("id, entry_date, voucher_no, voucher_type, description, source, entry_kind, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
+        .eq("company_id", companyId ?? "").eq("status", "confirmed")
+        .gte("entry_date", `${fromM}-01`).lt("entry_date", monthAfter(toM))
+        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
       return ((data || []) as any[]).map((e) => ({
-        id: e.id, voucher_no: e.voucher_no, voucher_type: e.voucher_type, description: e.description || "", source: e.source, entry_kind: e.entry_kind || null,
+        id: e.id, entry_date: String(e.entry_date), voucher_no: e.voucher_no, voucher_type: e.voucher_type, description: e.description || "", source: e.source, entry_kind: e.entry_kind || null,
         lines: (e.journal_lines || [])
           .sort((a: any, b: any) => Number(b.debit || 0) - Number(a.debit || 0))
           .map((l: any) => ({
@@ -159,7 +188,9 @@ export default function VoucherEntryPage() {
   };
   const editIds = Object.keys(edits);
   const editsOk = editIds.every((id) => editStat(edits[id]).ok);
-  const canSave = dbReady && !busy && ((pendFilled.length > 0 && pendOk) || editIds.length > 0) && editsOk && (pendFilled.length === 0 || pendOk);
+  //   일자를 3칸으로 나누면서 '월을 지운 중간 상태'가 생긴다 — 그대로 저장하면 2026-00-00 이 날아간다.
+  //   새 전표를 칠 때만 막는다(수정만 저장하는 경우는 그 전표 자기 날짜를 쓴다)
+  const canSave = dbReady && !busy && ((pendFilled.length > 0 && pendOk && entryDateOk) || editIds.length > 0) && editsOk && (pendFilled.length === 0 || (pendOk && entryDateOk));
 
   // ── 행 조작 ──
   const rowGubun = (): Gubun => (vtype === "cash_out" ? "1" : vtype === "cash_in" ? "2" : "3");
@@ -210,12 +241,58 @@ export default function VoucherEntryPage() {
     return p;
   };
 
-  // 키보드(상단): Enter = 다음 칸, 마지막 칸이면 새 행 (마우스 없이 연속 입력)
+  /** ★ Enter — **누른 칸 하나만** 윗줄에서 내린다 (2026-08-11, 매입매출전표와 같은 규칙).
+   *  첫 행의 '위'는 아래 목록의 **마지막 전표**다(그 전표 날짜 · 첫 분개 줄) — 방금 친 것을 이어 치는 흐름.
+   *  '빈 칸일 때만' 으로 하지 않는다: 구분처럼 늘 값이 있는 칸은 영영 못 내려 고장난 것처럼 보인다. */
+  const pullCell = (cell: VCell, rowIdx: number) => {
+    const last = entries.length > 0 ? entries[entries.length - 1] : null;
+    if (cell === "y" || cell === "m" || cell === "d") {
+      if (!last) return;
+      const [yy, mm, dd] = last.entry_date.split("-");
+      if (cell === "y") setEntryY(yy);
+      if (cell === "m") setEntryM(String(Number(mm)));
+      if (cell === "d") setEntryD(String(Number(dd)));
+      return;
+    }
+    const cur = pend[rowIdx];
+    if (!cur) return;
+    const up = rowIdx > 0 ? pend[rowIdx - 1] : null;
+    //   윗 행이 없으면 마지막 저장 전표의 첫 줄에서 내린다 (금액은 그 줄의 숫자를 글자로)
+    const src: Partial<PLine> | null = up
+      ? up
+      : last?.lines[0]
+        ? {
+          gubun: savedGubun(last.voucher_type, last.lines[0].debit),
+          account: last.lines[0].account, partner: last.lines[0].partner, memo: last.lines[0].memo,
+          debit: last.lines[0].debit ? last.lines[0].debit.toLocaleString() : "",
+          credit: last.lines[0].credit ? last.lines[0].credit.toLocaleString() : "",
+        }
+        : null;
+    if (!src) return;
+    switch (cell) {
+      //   구분은 대체 전표에서만 사람이 고른다 — 출금·입금은 전표 종류가 정하므로 내리지 않는다
+      case "gubun": if (vtype === "transfer" && src.gubun) setPendLine(cur.key, { gubun: src.gubun }); break;
+      case "account": setPendLine(cur.key, { account: src.account ?? null }); break;
+      case "partner": setPendLine(cur.key, { partner: src.partner ?? null }); break;
+      case "memo": setPendLine(cur.key, { memo: src.memo ?? "" }); break;
+      //   금액은 한 행 한쪽만 — amountPatch 가 반대쪽을 비우고 구분까지 맞춰 준다
+      case "debit": if (vtype !== "cash_in") setPendLine(cur.key, amountPatch(cur, "debit", src.debit ?? "")); break;
+      case "credit": if (vtype !== "cash_out") setPendLine(cur.key, amountPatch(cur, "credit", src.credit ?? "")); break;
+    }
+  };
+
+  // 키보드(상단): Enter = 그 칸에 윗값을 내리고 다음 칸, 마지막 칸이면 새 행 (마우스 없이 연속 입력)
   const onTopKey = (e: React.KeyboardEvent) => {
     if (e.key !== "Enter") return;
     const t = e.target as HTMLElement;
     if (!/^(INPUT|SELECT)$/.test(t.tagName)) return;
     e.preventDefault();
+    //   data-vcell="필드-행번호" 가 붙은 칸만 내린다 (계정·거래처 자동완성 목록에서 고르는 중이면 그쪽이 먼저 먹는다)
+    const mark = t.getAttribute("data-vcell");
+    if (mark) {
+      const at = mark.lastIndexOf("-");
+      pullCell(mark.slice(0, at) as VCell, Number(mark.slice(at + 1)));
+    }
     const els = Array.from(topRef.current?.querySelectorAll<HTMLElement>("input:not([readonly]), select") || []);
     const i = els.indexOf(t);
     if (i >= 0 && i < els.length - 1) els[i + 1].focus();
@@ -244,8 +321,11 @@ export default function VoucherEntryPage() {
       for (const id of editIds) {
         const b = edits[id];
         // p_entry_date 는 기본값 없는 필수 인자 — 누락 시 PGRST202(함수 못찾음)로 수정 저장이 항상 실패했음.
-        //   편집 대상은 전부 entryDate 필터로 로드된 전표라 같은 날짜를 넘기면 날짜 불변.
-        const { error } = await db.rpc("update_manual_voucher", { p_entry_id: id, p_entry_date: entryDate, p_description: b.desc, p_lines: linePayload(b.lines) });
+        //   ★ 반드시 **그 전표 자기 날짜**를 넘긴다. 목록이 기간이 되면서 여러 날이 섞이므로,
+        //     예전처럼 입력칸 날짜(entryDate)를 넘기면 다른 날 전표를 고칠 때 날짜가 끌려온다.
+        const own = entries.find((x) => x.id === id)?.entry_date;
+        if (!own) throw new Error("수정할 전표를 목록에서 찾지 못했습니다 — 새로고침 후 다시 시도해 주세요");
+        const { error } = await db.rpc("update_manual_voucher", { p_entry_id: id, p_entry_date: own, p_description: b.desc, p_lines: linePayload(b.lines) });
         if (error) throw new Error(errMsg(String(error.message)));
       }
       let newId: string | null = null;
@@ -360,8 +440,10 @@ export default function VoucherEntryPage() {
   const TD = "px-2 py-1 whitespace-nowrap";
   const IN = "w-full bg-transparent text-xs text-[var(--text)] focus:outline-none focus:bg-[var(--primary)]/5 px-1 py-1";
 
+  //   vrow = 상단 입력 영역의 행 번호. 있으면 Enter 가 '윗값 내리기'(onTopKey)로 넘어갈 수 있다.
+  //   하단 편집 버퍼는 vrow 를 주지 않아 예전 그대로 동작한다.
   // 계정과목 자동완성 셀 (상단·하단 편집 공용)
-  const acctCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void, withName: boolean) => (
+  const acctCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void, withName: boolean, vrow?: number) => (
     <td className={`${TD} p-0 ${withName ? "w-[72px]" : ""}`}>
       <div className="relative">
       <input value={picker?.kind === "acct" && picker.rowId === rowId ? picker.q : (withName ? (l.account?.code || "") : (l.account ? `${l.account.name} (${l.account.code})` : ""))}
@@ -374,9 +456,15 @@ export default function VoucherEntryPage() {
           const list = acctMatches(picker.q);
           if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
           else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
-          else if (e.key === "Enter") { const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ account: sel }); setPicker(null); } }
+          //   아무것도 안 친 상태의 Enter 는 목록 첫 줄을 고르는 게 아니라 **윗값 내리기**로 보낸다
+          //   (뭘 골랐는지 모르는 채 엉뚱한 계정이 박히는 것보다 낫다)
+          else if (e.key === "Enter") {
+            if (vrow != null && !picker.q.trim()) return;
+            const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ account: sel }); setPicker(null); }
+          }
           else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
         }}
+        data-vcell={vrow != null ? `account-${vrow}` : undefined}
         placeholder={withName ? "코드" : "103 / 보통예금..."} className={`${IN} ${withName ? "mono-number" : ""}`} />
       {picker?.kind === "acct" && picker.rowId === rowId && (
         <CellDropdown anchor={picker.anchor} width={240} maxHeight={196}>
@@ -397,7 +485,7 @@ export default function VoucherEntryPage() {
   );
 
   // 거래처 자동완성 셀
-  const ptCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void) => {
+  const ptCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void, vrow?: number) => {
     const arApWarn = l.account && AR_AP_CODES.has(l.account.code) && !l.partner;
     // relative 는 td 가 아닌 내부 div 에 — border-collapse 표에서 td position:relative 가
     // 무시되어 드롭다운이 뷰포트 기준 top:100% 로 떨어지는 버그 회피
@@ -414,9 +502,13 @@ export default function VoucherEntryPage() {
               const list = ptMatches(picker.q);
               if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.min((p.idx ?? 0) + 1, Math.max(list.length - 1, 0)) } : p); }
               else if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); setPicker((p) => p ? { ...p, idx: Math.max((p.idx ?? 0) - 1, 0) } : p); }
-              else if (e.key === "Enter") { const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ partner: sel }); setPicker(null); } }
+              else if (e.key === "Enter") {
+                if (vrow != null && !picker.q.trim()) return;   // 계정과목 칸과 같은 규칙
+                const sel = list[picker.idx ?? 0]; if (sel) { e.preventDefault(); e.stopPropagation(); update({ partner: sel }); setPicker(null); }
+              }
               else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setPicker(null); }
             }}
+            data-vcell={vrow != null ? `partner-${vrow}` : undefined}
             placeholder="—" className={IN} />
           {arApWarn && <span className="pr-1 text-amber-500 text-[10px] font-bold shrink-0" title="채권/채무 계정은 거래처 지정을 권장합니다"><Ico e="⚠" /></span>}
         </div>
@@ -446,11 +538,12 @@ export default function VoucherEntryPage() {
   };
 
   // 적요 셀(+자주 쓰는 적요)
-  const memoCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void) => (
+  const memoCell = (l: PLine, rowId: string, update: (p: Partial<PLine>) => void, vrow?: number) => (
     <td className={`${TD} p-0`}>
       <div className="relative">
       <div className="flex items-center">
-        <input value={l.memo} onChange={(e) => update({ memo: e.target.value })} placeholder="적요" className={IN} />
+        <input value={l.memo} onChange={(e) => update({ memo: e.target.value })} placeholder="적요"
+          data-vcell={vrow != null ? `memo-${vrow}` : undefined} className={IN} />
         {recentMemos.length > 0 && (
           <button onClick={(e) => setPicker({ kind: "memo", rowId, q: "", anchor: anchorOf(e.currentTarget) })} tabIndex={-1}
             className="pr-1 text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] shrink-0" title="자주 쓰는 적요">▾</button>
@@ -471,18 +564,18 @@ export default function VoucherEntryPage() {
   );
 
   // 차/대 금액 셀
-  const amtCells = (l: PLine, update: (p: Partial<PLine>) => void) => {
+  const amtCells = (l: PLine, update: (p: Partial<PLine>) => void, vrow?: number) => {
     const debitOff = l.gubun === "4" || l.gubun === "2";
     const creditOff = l.gubun === "3" || l.gubun === "1";
     return (
       <>
         <td className={`${TD} p-0 w-[110px]`}>
-          <input inputMode="numeric" value={l.debit} readOnly={debitOff}
+          <input inputMode="numeric" value={l.debit} readOnly={debitOff} data-vcell={vrow != null ? `debit-${vrow}` : undefined}
             onChange={(e) => update(amountPatch(l, "debit", e.target.value))}
             placeholder={debitOff ? "" : "0"} className={`${IN} text-right mono-number ${debitOff ? "opacity-30 cursor-default" : ""}`} />
         </td>
         <td className={`${TD} p-0 w-[110px]`}>
-          <input inputMode="numeric" value={l.credit} readOnly={creditOff}
+          <input inputMode="numeric" value={l.credit} readOnly={creditOff} data-vcell={vrow != null ? `credit-${vrow}` : undefined}
             onChange={(e) => update(amountPatch(l, "credit", e.target.value))}
             placeholder={creditOff ? "" : "0"} className={`${IN} text-right mono-number ${creditOff ? "opacity-30 cursor-default" : ""}`} />
         </td>
@@ -501,12 +594,6 @@ export default function VoucherEntryPage() {
       {/* ══ 툴바 — 일자·구분 (좌) + 액션 (우), 타이틀은 공통 헤더바가 담당 ══ */}
       <div className="voucher-entry-toolbar flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 pl-2.5 pr-1 py-0.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-            <span className="text-[11px] font-semibold text-[var(--text-dim)]">일자</span>
-            <DateField value={entryDate}
-              onChange={(e) => { if (!e.target.value) return; setEntryDate(e.target.value); setEdits({}); setSelected(new Set()); }}
-              className="px-1.5 py-1.5 rounded-lg bg-transparent text-xs font-semibold text-[var(--text)]" />
-          </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-semibold text-[var(--text-dim)]">구분</span>
             <div className="seg-bar">
@@ -541,6 +628,21 @@ export default function VoucherEntryPage() {
           <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
             <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-[var(--primary)]" />분개 입력
           </span>
+          {/* 칠 전표의 날짜 — 년·월·일 3칸(매입매출전표와 같은 형식). **입력 카드 안**에 둔다:
+              ① 이 날짜로 이 분개를 저장한다는 뜻이 눈에 보이고 ② Enter(onTopKey)가 날짜 칸까지 훑는다.
+              아래 목록의 조회기간과는 별개다 (2026-08-11) */}
+          <div className="ve-date-chip">
+            <span className="ve-date-label">일자</span>
+            <input value={entryY} onChange={(e) => setEntryY(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              data-vcell="y-0" inputMode="numeric" maxLength={4} aria-label="년" className="ve-date-y" />
+            <span className="ve-date-sep">-</span>
+            <input value={entryM} onChange={(e) => setEntryM(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              data-vcell="m-0" inputMode="numeric" placeholder="월" aria-label="월" className="ve-date-md" />
+            <span className="ve-date-sep">-</span>
+            <input value={entryD} onChange={(e) => setEntryD(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              data-vcell="d-0" inputMode="numeric" placeholder="일" aria-label="일" className="ve-date-md" />
+          </div>
+          {!entryDateOk && <span className="ve-date-warn">일자를 확인해 주세요</span>}
           <span className="hidden sm:inline text-[11px] text-[var(--text-dim)]">{VTYPES.find((t) => t.id === vtype)?.desc}</span>
           <span className="ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-dim)]">전표번호: 자동(일자별 순번)</span>
         </div>
@@ -568,7 +670,7 @@ export default function VoucherEntryPage() {
                   <td className={`${TD} w-[68px]`}>
                     {vtype === "transfer" ? (
                       <div className="relative">
-                        <select value={l.gubun} onChange={(e) => setPendLine(l.key, { gubun: e.target.value as Gubun })} className={`${IN} cursor-pointer appearance-none pl-1.5 pr-4 py-1`}>
+                        <select value={l.gubun} onChange={(e) => setPendLine(l.key, { gubun: e.target.value as Gubun })} data-vcell={`gubun-${i}`} className={`${IN} cursor-pointer appearance-none pl-1.5 pr-4 py-1`}>
                           <option value="3">차변</option><option value="4">대변</option>
                         </select>
                         <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-[var(--text-dim)]">▾</span>
@@ -577,10 +679,10 @@ export default function VoucherEntryPage() {
                       <span className="text-[11px] font-semibold text-[var(--text-muted)]">{GUBUN_SHORT[l.gubun]}</span>
                     )}
                   </td>
-                  {acctCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p), false)}
-                  {ptCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p))}
-                  {memoCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p))}
-                  {amtCells(l, (p) => setPendLine(l.key, p))}
+                  {acctCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p), false, i)}
+                  {ptCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p), i)}
+                  {memoCell(l, `p:${l.key}`, (p) => setPendLine(l.key, p), i)}
+                  {amtCells(l, (p) => setPendLine(l.key, p), i)}
                   <td className="text-center px-1">
                     <button onClick={() => setPend((ls) => (ls.length <= 1 ? [newLine(vtype === "transfer" ? "3" : (vtype === "cash_out" ? "1" : "2"))] : ls.filter((x) => x.key !== l.key)))}
                       className="w-6 h-6 rounded-md flex items-center justify-center text-red-400 hover:text-white hover:bg-red-500 transition text-xs mx-auto" title="이 행 삭제" tabIndex={-1}>✕</button>
@@ -637,8 +739,12 @@ export default function VoucherEntryPage() {
       <div className="voucher-entry-list-card glass-card overflow-visible">
         <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
-            <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-emerald-500" />{entryDate} 전표목록
+            <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-emerald-500" />전표목록
           </span>
+          {/* 조회기간은 **목록 카드**에 둔다 — 이 값이 무엇을 정하는지(위 입력 날짜가 아니라 아래 목록)
+              자리로 말해 준다. 기간을 바꾸면 편집·선택은 초기화한다 (2026-08-11) */}
+          <DateRangeField unit="month" from={fromM} to={toM}
+            onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }} />
           <span className="px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-bold mono-number">{entries.length}건</span>
           <span className="hidden md:inline text-[11px] text-[var(--text-dim)]">셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span>
           <button onClick={deleteSelected} disabled={busy || selected.size === 0}
@@ -648,7 +754,7 @@ export default function VoucherEntryPage() {
         {/* 전표목록 — 데스크톱은 폭에 맞춤(overflow-visible, 드롭다운 잘림 방지),
             모바일은 min-width + 가로 스크롤(컬럼 짓눌림·글자당 줄바꿈 방지). */}
         <div className="overflow-x-auto sm:overflow-visible">
-          <table className="w-full min-w-[640px] sm:min-w-0 text-xs border-collapse table-fixed">
+          <table className="w-full min-w-[720px] sm:min-w-0 text-xs border-collapse table-fixed">
             <thead>
               <tr className="border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-8 text-center font-semibold">
@@ -657,6 +763,7 @@ export default function VoucherEntryPage() {
                     onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => `s:${x.id}`)) : new Set())} />
                 </th>
                 <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
+                <th className="px-2 py-2.5 w-[84px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">일자</th>
                 <th className="px-2 py-2.5 w-[76px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
                 <th className="px-2 py-2.5 w-[72px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정코드</th>
                 <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정명</th>
@@ -683,6 +790,7 @@ export default function VoucherEntryPage() {
                             onContextMenu={(ev) => { ev.preventDefault(); setCtx({ x: ev.clientX, y: ev.clientY, rowId }); }}>
                             <td className="px-2 py-1" />
                             <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{listNo}</td>
+                            <td className={`${TD} mono-number text-[var(--text-dim)]`}>{i === 0 ? e.entry_date : ""}</td>
                             <td className={`${TD} w-[64px]`}>
                               {l.gubun === "1" || l.gubun === "2" ? (
                                 <span className="text-[11px] font-semibold text-[var(--text-muted)]">{GUBUN_LABEL[l.gubun]}</span>
@@ -708,7 +816,7 @@ export default function VoucherEntryPage() {
                         );
                       })}
                       <tr className="bg-amber-500/5">
-                        <td colSpan={11} className="px-3 py-1 text-[10px] font-semibold">
+                        <td colSpan={12} className="px-3 py-1 text-[10px] font-semibold">
                           <span className={st.ok ? "text-emerald-500" : "text-amber-500"}>
                             {st.ok ? `✅ 전표 #${e.voucher_no ?? "—"} 수정 중 — 차대일치, 상단 [저장]으로 반영` : `⚠️ 전표 #${e.voucher_no ?? "—"} 수정 중 — ${st.d !== st.c ? `차액 ${won(Math.abs(st.d - st.c))}` : "계정 미지정"} (차대일치해야 저장)`}
                           </span>
@@ -734,6 +842,7 @@ export default function VoucherEntryPage() {
                           title="전표 단위 선택 (분개 균형 유지를 위해 전표째 삭제)" />
                       </td>
                       <td className="px-2 py-1 text-center text-[var(--text-dim)] mono-number">{listNo}</td>
+                      <td className={`${TD} mono-number text-[var(--text-dim)] cursor-text`} onClick={() => enterEdit(e)}>{i === 0 ? e.entry_date : ""}</td>
                       <td className={`${TD} text-[11px] font-semibold text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{GUBUN_LABEL[savedGubun(e.voucher_type, l.debit)]}{i === 0 && sourceBadge(e.source)}{i === 0 && kindBadge(e.entry_kind)}</td>
                       <td className={`${TD} mono-number text-[var(--text-muted)] cursor-text`} onClick={() => enterEdit(e)}>{l.account?.code || "—"}</td>
                       <td className={`${TD} text-[var(--text)] cursor-text`} onClick={() => enterEdit(e)}>{l.account?.name || "?"}</td>
@@ -751,8 +860,8 @@ export default function VoucherEntryPage() {
               <tr className="bg-[var(--bg-surface)]/30 cursor-pointer hover:bg-[var(--bg-surface)]/60" onClick={focusTop} title="클릭하면 상단 입력 영역에서 새 전표를 입력합니다">
                 <td className="px-2 py-2" />
                 <td className="px-2 py-2 text-center text-[var(--text-dim)] mono-number">{listNo + 1}</td>
-                <td colSpan={9} className={`${TD} text-[var(--text-dim)] text-[11px]`}>
-                  {entries.length === 0 ? "이 일자에 저장된 전표가 없습니다 — " : ""}빈 행 — 클릭하면 위 입력 영역에서 이어서 입력
+                <td colSpan={10} className={`${TD} text-[var(--text-dim)] text-[11px]`}>
+                  {entries.length === 0 ? "이 기간에 저장된 전표가 없습니다 — " : ""}빈 행 — 클릭하면 위 입력 영역에서 이어서 입력
                 </td>
               </tr>
             </tbody>
