@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 type Deal = "match" | "voucher" | "transfer" | null;
@@ -85,6 +86,14 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     staleTime: 300_000,
   });
 
+  //   학습된 규칙 — 입금자명/적요를 열쇠로 계정을 미리 채운다.
+  //   통장은 미처리가 제일 많은 곳이라(2,541건) 학습이 가장 크게 먹힌다.
+  const { data: rules } = useQuery({
+    queryKey: ["voucher-rules", companyId, "bank"],
+    queryFn: () => fetchRuleMap(companyId, "bank"),
+    staleTime: 60_000,
+  });
+
   const { data: rows = [], isLoading } = useQuery<Row[]>({
     queryKey: ["bank-rows", companyId, month],
     queryFn: async () => {
@@ -141,8 +150,17 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     },
   });
 
-  //   처리 기본값 — 제안이 있으면 ①, 없으면 사람이 고른다
-  const dealOf = (r: Row): Deal => deal[r.id] ?? (r.sug ? "match" : null);
+  const keyOf = (r: Row) => ruleKeyOf("bank", { name: r.who, fallback: r.desc });
+  /** 이 줄에 붙일 계정 — 사람이 고른 것 > 학습된 규칙 */
+  const acctOf = (r: Row): { a: Acct | null; via: "고름" | "지난번" | "학습" | null } => {
+    if (acct[r.id]) return { a: acct[r.id], via: "고름" };
+    const hit = rules?.get(keyOf(r).key);
+    if (hit?.account) return { a: hit.account as Acct, via: ruleTag(hit.hit_count) };
+    return { a: null, via: null };
+  };
+
+  //   처리 기본값 — ① 제안이 있으면 매칭, 없는데 학습된 계정이 있으면 ② 일반전표
+  const dealOf = (r: Row): Deal => deal[r.id] ?? (r.sug ? "match" : (acctOf(r).a ? "voucher" : null));
   const doneOf = (r: Row) => r.posted || r.settled || r.transfer;
 
   const shown = rows.filter((r) => (onlyTodo ? !doneOf(r) : true));
@@ -153,7 +171,7 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
   const ready = (r: Row) => {
     const d = dealOf(r);
     if (d === "match") return !!r.sug;
-    if (d === "voucher") return !!acct[r.id];
+    if (d === "voucher") return !!acctOf(r).a;
     if (d === "transfer") return true;
     return false;
   };
@@ -176,12 +194,15 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
             .update({ status: "confirmed", amount }).eq("id", r.sug.settlementId);
           if (error) throw error;
         } else if (d === "voucher") {
-          const a = acct[r.id];
+          const a = acctOf(r).a;
           if (!a) throw new Error("계정을 먼저 고르세요");
           const { error } = await (supabase.rpc as any)("post_bank_line_voucher", {
             p_bank_tx_id: r.id, p_account_id: a.id, p_memo: r.desc || r.who,
           });
           if (error) throw error;
+          //   사람이 고른 것을 배운다 — 같은 입금자·적요가 또 나오면 미리 채운다
+          const k = keyOf(r);
+          await learnAccount({ kind: "bank", key: k.key, label: k.label, accountId: a.id });
         } else if (d === "transfer") {
           //   계좌 이동은 전표를 만들지 않는다 — 두 통장에 같은 돈이 두 번 찍히기 때문이다.
           //   '처리했음'만 남겨 미처리 목록에서 빠지게 한다.
@@ -206,6 +227,7 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
     setSel(new Set());
     qc.invalidateQueries({ queryKey: ["bank-rows"] });
     qc.invalidateQueries({ queryKey: ["collect-status"] });
+    qc.invalidateQueries({ queryKey: ["voucher-rules"] });
     setBusy(false);
     if (ok > 0 && fails.length === 0) toast(`${ok}건을 처리했습니다`, "success");
     else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
@@ -319,8 +341,9 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
                       ) : d === "voucher" ? (
                         <span className="relative inline-block">
                           <button type="button" onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
-                            className={acct[r.id] ? "ev-acct" : "ev-acct ev-acct-empty"}>
-                            {acct[r.id] ? `${acct[r.id].code} ${acct[r.id].name}` : (r.isIn ? "수익 계정 고르기" : "비용 계정 고르기")}
+                            className={acctOf(r).a ? "ev-acct" : "ev-acct ev-acct-empty"}>
+                            {acctOf(r).a ? `${acctOf(r).a!.code} ${acctOf(r).a!.name}` : (r.isIn ? "수익 계정 고르기" : "비용 계정 고르기")}
+                            {acctOf(r).via && acctOf(r).via !== "고름" && <em className="ev-via">{acctOf(r).via}</em>}
                           </button>
                           {pick?.id === r.id && (
                             <span className="spv-drop spv-drop-acct">
@@ -364,6 +387,7 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
         금액 칸에 적게 적으면 <b>부분 수금</b>으로 처리되고 잔액이 남습니다.
         수수료 등으로 몇 원 어긋난 <b>차액은 잡손익으로 자동 마감</b>됩니다.
         <b>③ 계좌 이동</b>은 전표를 만들지 않습니다 — 두 통장에 같은 돈이 두 번 찍히기 때문입니다.
+        <b>②</b>에서 고른 계정은 <b>입금자·적요로 기억</b>해 다음에 미리 채웁니다(<b>지난번</b> → 3번 이상이면 <b>학습</b>).
         차액을 <b>이자·수수료 등 다른 계정으로 바꾸거나</b>, <b>카드 여러 건이 한 번에 청구된 건(다대일)</b>은
         아직 <Link href="/partners/reconciliation" className="bk-link">거래 매칭</Link> 화면에서 처리합니다.
       </p>

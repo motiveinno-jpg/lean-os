@@ -22,6 +22,7 @@ import {
   type SettleType,
 } from "@/lib/vat-voucher";
 import type { SourceKey } from "@/lib/collect";
+import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag, type RuleKind } from "@/lib/voucher-rules";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 type Row = {
@@ -92,26 +93,12 @@ export function EvidenceTab({ companyId, month, kind }: { companyId: string; mon
     queryFn: () => fetchRows(companyId, month, kind),
   });
 
-  //   거래처별 '지난번에 쓴 계정' — 이미 만든 매입매출전표에서 되읽는다
-  const { data: memory = {} } = useQuery<Record<string, Acct>>({
-    queryKey: ["collect-acct-memory", companyId],
-    queryFn: async () => {
-      const data = logRead("collect:memory", await supabase
-        .from("journal_entries")
-        .select("entry_date, journal_lines(partner_id, chart_of_accounts(id, code, name, account_type))")
-        .eq("company_id", companyId).eq("entry_kind", "sale_purchase")
-        .order("entry_date", { ascending: false }).limit(300));
-      const out: Record<string, Acct> = {};
-      for (const e of ((data as any[]) || [])) {
-        for (const l of (e.journal_lines || [])) {
-          const a = l.chart_of_accounts;
-          if (!a || !l.partner_id || STD_CODES.has(String(a.code))) continue;
-          if (!out[l.partner_id]) out[l.partner_id] = a as Acct;   // 최근 것이 이긴다(정렬이 최신순)
-        }
-      }
-      return out;
-    },
-    staleTime: 120_000,
+  //   학습된 규칙 — 2단계에서 전표를 되읽던 방식을 표로 올렸다(4단계).
+  //   거래처가 없는 자료(카드 가맹점·현금영수증 상호)도 이제 배운다.
+  const { data: rules } = useQuery({
+    queryKey: ["voucher-rules", companyId, kind],
+    queryFn: () => fetchRuleMap(companyId, kind as RuleKind),
+    staleTime: 60_000,
   });
 
   //   카드 비목 → 계정 매핑(회사설정에서 만든 것) — 가맹점 이름이 아니라 **분류(category)** 기준이다
@@ -132,11 +119,16 @@ export function EvidenceTab({ companyId, month, kind }: { companyId: string; mon
     staleTime: 300_000,
   });
 
+  /** 이 줄의 학습 열쇠 — 자료마다 다르다(세금계산서는 거래처, 카드는 가맹점명 …) */
+  const keyOf = (r: Row) => ruleKeyOf(kind as RuleKind, { partnerId: r.partnerId, name: r.partnerName, fallback: r.item });
+
   /** 이 줄에 붙일 매출·비용 계정과 그 근거 */
-  const acctOf = (r: Row): { acct: Acct | null; via: "고름" | "지난번" | "규칙" | null } => {
+  const acctOf = (r: Row): { acct: Acct | null; via: "고름" | "지난번" | "학습" | "규칙" | null } => {
     const o = override[r.id]?.acct;
     if (o) return { acct: o, via: "고름" };
-    if (r.partnerId && memory[r.partnerId]) return { acct: memory[r.partnerId], via: "지난번" };
+    const hit = rules?.get(keyOf(r).key);
+    if (hit?.account) return { acct: hit.account as Acct, via: ruleTag(hit.hit_count) };
+    //   카드는 회사설정의 '비목 → 계정' 표도 본다 (학습보다 뒤 — 사람이 고른 게 우선)
     if (kind === "card" && r.cardCategory && cardMap[r.cardCategory]) {
       return { acct: cardMap[r.cardCategory], via: "규칙" };
     }
@@ -201,12 +193,20 @@ export function EvidenceTab({ companyId, month, kind }: { companyId: string; mon
           : m.includes("ALREADY_POSTED") ? "이미 전표가 있음"
           : m.includes("UNBALANCED") ? "차·대 불일치"
           : friendlyError(error, "저장 실패")}`);
-      } else ok += 1;
+      } else {
+        ok += 1;
+        //   사람이 고른 것을 배운다 — 다음에 같은 상대가 나오면 미리 채운다
+        const main = acctOf(r).acct;
+        if (main) {
+          const k = keyOf(r);
+          await learnAccount({ kind: kind as RuleKind, key: k.key, label: k.label, accountId: main.id, vatType: vatCodeOf(r) });
+        }
+      }
     }
     setSel(new Set());
     qc.invalidateQueries({ queryKey: ["collect-rows"] });
     qc.invalidateQueries({ queryKey: ["collect-status"] });
-    qc.invalidateQueries({ queryKey: ["collect-acct-memory"] });
+    qc.invalidateQueries({ queryKey: ["voucher-rules"] });
     setSaving(false);
     if (ok > 0 && fails.length === 0) toast(`전표 ${ok}건을 만들었습니다`, "success");
     else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
@@ -376,7 +376,9 @@ export function EvidenceTab({ companyId, month, kind }: { companyId: string; mon
       )}
 
       <p className="collect-note">
-        ※ 계정은 <b>같은 거래처로 지난번에 고른 것</b>을 먼저 붙입니다(<b>지난번</b> 꼬리표).
+        ※ 계정은 <b>전에 고른 것</b>을 배워 두었다가 미리 붙입니다 —
+        1~2번은 <b>지난번</b>, 3번 이상이면 <b>학습</b> 꼬리표가 붙습니다.
+        다른 계정을 고르면 그쪽 횟수가 올라 <b>결국 뒤집힙니다</b>.
         <b>제안은 자동, 확정은 사람</b> — 전표는 <b>전표 만들기</b>를 눌러야 생깁니다.
         만든 전표는 <b>매입매출전표</b> 메뉴에서 그대로 보이고, 지우면 이 목록으로 되돌아옵니다.
       </p>

@@ -21,6 +21,7 @@ import {
 } from "@/lib/collect";
 import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
+import { RulesDialog } from "./_components/RulesDialog";
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const fmtWhen = (iso: string | null) =>
@@ -49,6 +50,7 @@ function CollectInner() {
   const [month, setMonth] = useState(todayKst().slice(0, 7));
   //   탭 — 'status' 는 현황판, 나머지는 그 자료의 목록 (2단계)
   const [tab, setTab] = useState<"status" | SourceKey>("status");
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<SourceKey[]>(SOURCES.map((s) => s.key));
   const [mode, setMode] = useState<"new" | "range">("new");
@@ -165,6 +167,8 @@ function CollectInner() {
           자료를 누르면 그 목록으로 갑니다 · 처리할 것 <b>{won(totalPending)}</b>건
         </span>
         <div className="ml-auto flex items-center gap-2">
+          {/*   배운 규칙을 볼 수 있어야 한다 — 안 보이는 자동화는 틀렸을 때 고칠 방법이 없다 */}
+          <button type="button" onClick={() => setRulesOpen(true)} className="btn-secondary btn-sm">배운 규칙</button>
           <button type="button" onClick={() => setOpen(true)} disabled={running}
             className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {running ? "수집 중…" : "수집하기"}
@@ -244,6 +248,8 @@ function CollectInner() {
         홈택스는 같은 계정으로 동시 접속이 안 되어 <b>세금계산서·계산서·현금영수증은 차례대로</b> 돌고,
         <b>통장·카드는 그와 동시에</b> 돕니다.
       </p>)}
+
+      {rulesOpen && companyId && <RulesDialog companyId={companyId} onClose={() => setRulesOpen(false)} />}
 
       {/* ── 수집 창 ── */}
       {open && (

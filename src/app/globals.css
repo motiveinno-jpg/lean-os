@@ -8201,3 +8201,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .bk-amt { @apply h-6 w-[104px] rounded border border-[var(--border)] bg-[var(--bg)] px-1.5 text-right text-[11.5px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
 .bk-part { @apply not-italic text-[10.5px] text-[var(--warning)]; }
 .bk-link { @apply font-bold text-[var(--primary)] underline; }
+
+/* ── 수집·전표 4단계: 배운 규칙 창 (2026-08-11) ── */
+.rules-box { @apply max-w-3xl; }
+.rules-table { min-width: 620px; }
+.rules-del { @apply rounded-lg border border-[var(--border)] px-2 py-0.5 text-[11px] font-semibold text-[var(--text-dim)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]; }
