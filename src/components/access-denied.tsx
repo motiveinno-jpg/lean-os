@@ -74,15 +74,11 @@ export function AccessDenied({
         <p className="text-sm text-[var(--text-muted)] mb-1">
           현재 <strong>{roleLabel}</strong> 권한으로는 이 화면을 열 수 없습니다.
         </p>
-        <button
-          onClick={() => qc.invalidateQueries({ queryKey: ["my-permissions"] })}
-          className="mt-1 mb-2 text-xs text-[var(--primary)] underline underline-offset-2"
-        >
-          방금 권한을 받았다면 여기를 눌러 다시 확인
-        </button>
+        {/* "여기를 눌러 다시 확인" 버튼 제거 (2026-08-11 사장님: 반응이 없어 보여 헷갈림) —
+            아래 10초 자동 재확인이 이미 돌고 있어 버튼 없이도 권한 부여가 곧 반영된다. */}
         {detail && <p className="text-xs text-[var(--text-dim)] mb-2">{detail}</p>}
         <p className="text-xs text-[var(--text-dim)] mb-5">
-          권한이 필요하면 대표/관리자에게 요청하세요.
+          권한이 필요하면 대표/관리자에게 요청하세요. 부여되면 몇 초 안에 자동으로 열립니다.
         </p>
 
         <Link
