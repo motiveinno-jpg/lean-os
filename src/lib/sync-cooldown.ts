@@ -2,10 +2,13 @@
 //   sync_cooldowns(company_id, sync_type, last_run_at) 를 읽어 남은 시간을 계산.
 //   서버 지속(브라우저 무관) — 다른 기기/팀원도 동일하게 비활성화.
 //
-// 2026-08-11 — 요금제별 수집 횟수 추가 (사장님 지시)
-//   · 무료 = 하루 2회, **회사 단위**. 종류별로 2회씩 주면 5종 x 2 = 10회라 사실상 무제한이 된다.
-//   · 유료 = 횟수 무제한, 대신 30분 쿨타임(종류별). 통장을 받았다고 세금계산서까지 막히면
-//     '골라 받기'가 무의미해지므로 쿨타임은 종류별로 유지한다.
+// 2026-08-11 — 요금제 기준 추가 (사장님 확인)
+//   · 무료 = **수동 수집 불가**. 자동 수집(하루 2회)만 그대로 돈다.
+//     ('하루 2회'는 원래부터 자동 수집 이야기지 수동 한도가 아니다.)
+//   · 유료 = 횟수 제한 없음, 대신 30분 쿨타임(**종류별**). 통장을 받았다고 세금계산서까지
+//     막히면 '골라 받기'가 무의미해지므로 쿨타임은 종류별로 유지한다.
+//   · daily_sync_count 의 뜻 = 하루에 **수동으로** 부를 수 있는 횟수.
+//     0 = 수동 불가(무료) / null = 무제한(유료) / N = 하루 N회(요금제를 늘릴 때를 위해 남겨 둔 길).
 //   · 검사·기록은 consume_sync_run RPC 하나에서 원자적으로 한다 — 두 검사를 클라이언트가
 //     따로 하면 두 탭에서 동시에 눌렀을 때 한도를 넘길 수 있다.
 
@@ -51,9 +54,10 @@ export async function consumeSyncRun(type: SyncType): Promise<SyncQuota | null> 
 
 export type SyncQuota = {
   plan: string;
-  daily_limit: number | null;   // null = 무제한(유료)
+  daily_limit: number | null;    // 0 = 수동 불가(무료) / null = 무제한(유료) / N = 하루 N회
   used_today: number;
-  remaining: number | null;     // null = 무제한
+  remaining: number | null;      // null = 무제한
+  manual_allowed: boolean;       // false = 무료 — 수동 수집 자체가 없다
 };
 
 async function fetchQuota(): Promise<SyncQuota | null> {
@@ -65,6 +69,7 @@ async function fetchQuota(): Promise<SyncQuota | null> {
 /** 서버 예외 메시지를 사람 말로. 못 알아보면 null(= 막을 이유가 아님). */
 function blockMessage(message: string): string | null {
   const m = String(message || "");
+  if (m.includes("MANUAL_NOT_ALLOWED")) return "무료 요금제는 수동 수집 불가";
   const cool = m.match(/COOLDOWN:(\d+)/);
   if (cool) return fmtRemain(Number(cool[1]) * 1000);
   const quota = m.match(/QUOTA:(\d+)/);
@@ -85,11 +90,13 @@ export interface SyncCooldown {
   remainingMs: number;
   label: string | null;   // "27분 후 가능" / "오늘 2회 다 썼습니다" (막혔을 때만)
   /** 왜 막혔나 — 툴팁 문구를 갈라 쓰기 위해 */
-  reason: "cooldown" | "quota" | null;
+  reason: "plan" | "cooldown" | "quota" | null;
   /** 버튼 title 에 그대로 쓸 안내. 안 막혔으면 null */
   hint: string | null;
-  /** 무료 플랜의 남은 횟수. 유료(무제한)면 null */
+  /** 하루 한도가 있는 플랜의 남은 횟수. 무제한이면 null */
   remainingToday: number | null;
+  /** 무료 = false — 수동 수집 자체가 막혀 있다 */
+  manualAllowed: boolean;
   /** 요금제·사용량 원본 (없으면 아직 조회 전) */
   quota: SyncQuota | null;
   /** 원래 핸들러를 감싸 실행: 막혀 있으면 실행하지 않고 사유를 돌려준다 */
@@ -128,9 +135,11 @@ export function useSyncCooldown(companyId: string | null | undefined, type: Sync
 
   const [now, setNow] = useState(() => Date.now());
   const remainingMs = Math.max(0, until - now);
+  //   무료는 한도를 다 쓴 게 아니라 애초에 수동이 없는 것 — 문구가 달라야 해서 따로 본다
+  const manualAllowed = quota ? quota.manual_allowed !== false : true;
   const remainingToday = quota?.daily_limit == null ? null : (quota.remaining ?? 0);
-  const outOfQuota = remainingToday !== null && remainingToday <= 0;
-  const disabled = remainingMs > 0 || outOfQuota;
+  const outOfQuota = manualAllowed && remainingToday !== null && remainingToday <= 0;
+  const disabled = !manualAllowed || remainingMs > 0 || outOfQuota;
 
   // 쿨타임 중에만 1초 틱 (재활성화 카운트다운 갱신)
   useEffect(() => {
@@ -159,13 +168,15 @@ export function useSyncCooldown(companyId: string | null | undefined, type: Sync
     await fn();
   };
 
-  const label = outOfQuota
-    ? `오늘 ${quota?.daily_limit}회 다 썼습니다`
-    : remainingMs > 0 ? fmtRemain(remainingMs) : null;
-  const reason: "cooldown" | "quota" | null = outOfQuota ? "quota" : remainingMs > 0 ? "cooldown" : null;
-  const hint = reason === "quota"
-    ? `무료 요금제는 수집이 하루 ${quota?.daily_limit}회까지입니다 — 내일 0시에 다시 채워집니다`
+  const reason: "plan" | "cooldown" | "quota" | null =
+    !manualAllowed ? "plan" : outOfQuota ? "quota" : remainingMs > 0 ? "cooldown" : null;
+  const label = reason === "plan" ? "유료 요금제 기능"
+    : reason === "quota" ? `오늘 ${quota?.daily_limit}회 다 썼습니다`
+    : reason === "cooldown" ? fmtRemain(remainingMs) : null;
+  const hint = reason === "plan"
+    ? "무료 요금제는 수동 수집을 쓸 수 없습니다 — 자동 수집(하루 2회)은 그대로 됩니다"
+    : reason === "quota" ? `수집이 하루 ${quota?.daily_limit}회까지입니다 — 내일 0시에 다시 채워집니다`
     : reason === "cooldown" ? `30분 쿨타임 — ${label}` : null;
 
-  return { disabled, remainingMs, label, reason, hint, remainingToday, quota, run };
+  return { disabled, remainingMs, label, reason, hint, remainingToday, manualAllowed, quota, run };
 }
