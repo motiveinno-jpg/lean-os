@@ -2296,6 +2296,10 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 /* 마스터 전용 화면 (2026-08-10) — 대시보드 하단 경영 종합 3종 이동 */
 .master-page { @apply pb-20 md:pb-0; }
 
+/* 휴가 취소 사유 모달 (2026-08-11) — EmployeesPageClient 휴가 탭 */
+.leave-cancel-overlay { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
+.leave-cancel-panel { @apply bg-[var(--bg-card)] rounded-xl border border-[var(--border)] max-w-md w-full p-5 shadow-xl; }
+
 /* e-invoices/page.tsx — 전자계산서(면세) 탭 (2026-08-10) */
 .einvoices-page { @apply space-y-4 pb-20 md:pb-0; }
 .einvoices-toolbar { @apply p-4 flex flex-wrap items-center gap-3; }

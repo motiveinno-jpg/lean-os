@@ -1750,7 +1750,11 @@ export async function rejectLeaveRequest(id: string, approverId: string) {
 
 // ── Leave: Cancel (취소) ──
 // 승인된(used_days 반영된) 휴가를 취소하면 잔여일을 되돌린다.
-export async function cancelLeaveRequest(id: string) {
+export async function cancelLeaveRequest(id: string, opts?: {
+  reason?: string;               // 취소 사유 — 승인된 건은 UI 에서 필수 입력 (2026-08-11 사장님)
+  cancelledBy?: string | null;   // 취소한 사용자 users.id — 내역 보존용
+  allowStarted?: boolean;        // 관리자: 이미 시작된(과거) 휴가도 취소 허용
+}) {
   const request = logRead('lib/hr:request', await db
     .from('leave_requests')
     .select('*, employees(name, user_id)')
@@ -1759,10 +1763,10 @@ export async function cancelLeaveRequest(id: string) {
   if (!request) throw new Error('휴가 신청을 찾을 수 없습니다');
   if (request.status === 'cancelled') return;
 
-  // v4 H2: 이미 시작된 휴가(start_date <= today) 는 취소 불가.
-  //   start_date 가 미래(>today KST) 인 휴가만 취소 가능.
+  // v4 H2: 이미 시작된 휴가(start_date <= today) 는 취소 불가 — 직원 본인 취소 경로.
+  //   관리자(allowStarted)는 승인 실수 정정 등을 위해 과거 건도 취소 가능 (2026-08-11 사장님).
   const todayKst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()); // 'YYYY-MM-DD'
-  if (request.start_date <= todayKst) {
+  if (!opts?.allowStarted && request.start_date <= todayKst) {
     throw new Error('이미 시작된(또는 오늘) 휴가는 취소할 수 없습니다. 시작 전 휴가만 취소 가능합니다.');
   }
 
@@ -1770,7 +1774,13 @@ export async function cancelLeaveRequest(id: string) {
 
   const { error } = await db
     .from('leave_requests')
-    .update({ status: 'cancelled' })
+    .update({
+      status: 'cancelled',
+      // 취소 내역 보존 — 누가·언제·왜 (마이그레이션 leave_request_cancel_audit)
+      cancel_reason: opts?.reason?.trim() || null,
+      cancelled_by: opts?.cancelledBy || null,
+      cancelled_at: new Date().toISOString(),
+    })
     .eq('id', id);
   if (error) throw error;
 
@@ -1789,39 +1799,48 @@ export async function cancelLeaveRequest(id: string) {
     }
   }
 
-  // 신청자에게 취소 알림
+  // 취소 알림 — 신청할 때와 동일한 대상에게 (2026-08-11 사장님: "신청할때와 똑같이 알림이 가게").
+  //   대상: 신청자 + 승인 체인의 모든 승인자(체인 없으면 (구)1·2차 지정자, 그것도 없으면 owner/admin 전원)
+  //         + 참조자(cc) 전원. 취소를 실행한 본인은 제외.
   try {
     const requesterUserId = request?.employees?.user_id;
-    if (requesterUserId) {
-      const leaveLabel = LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label || request.leave_type;
-      const period = request.start_date === request.end_date
-        ? request.start_date
-        : `${request.start_date} ~ ${request.end_date}`;
-      const rows: Record<string, unknown>[] = [{
-        company_id: request.company_id,
-        user_id: requesterUserId,
-        type: 'approval',
-        title: `휴가 취소 — ${leaveLabel} (${Number(request.days)}일)`,
-        message: `${period} 휴가가 취소되었습니다.${wasApproved ? ' 연차 잔여가 복구되었습니다.' : ''}`,
-        entity_type: 'leave_request',
-        entity_id: request.id,
-        is_read: false,
-      }];
-      // v4 H2: 승인했던 관리자에게도 통지
-      if (wasApproved && request.approved_by && request.approved_by !== requesterUserId) {
-        rows.push({
-          company_id: request.company_id,
-          user_id: request.approved_by,
-          type: 'approval',
-          title: `휴가 취소 — ${request.employees?.name || '직원'} (${Number(request.days)}일)`,
-          message: `${period} 휴가가 신청자에 의해 취소되었습니다.`,
-          entity_type: 'leave_request',
-          entity_id: request.id,
-          is_read: false,
-        });
-      }
-      await db.from('notifications').insert(rows as never);
+    const empName = request.employees?.name || '직원';
+    const leaveLabel = LEAVE_TYPES.find((t) => t.value === request.leave_type)?.label || request.leave_type;
+    const period = request.start_date === request.end_date
+      ? request.start_date
+      : `${request.start_date} ~ ${request.end_date}`;
+    const reasonSuffix = opts?.reason?.trim() ? ` · 취소 사유: ${opts.reason.trim()}` : '';
+
+    // 승인자 집합 — createLeaveRequest 와 같은 규칙 (체인 → 구 지정자 → owner/admin 전원)
+    const approverIds = new Set<string>();
+    for (const s of parseSteps(request.approval_steps)) approverIds.add(s.approver_id);
+    if (request.requested_approver_id) approverIds.add(request.requested_approver_id);
+    if (request.second_approver_id) approverIds.add(request.second_approver_id);
+    if (request.approved_by) approverIds.add(request.approved_by);
+    if (approverIds.size === 0) {
+      const { data: admins } = await db
+        .from('users').select('id').eq('company_id', request.company_id).in('role', ['owner', 'admin']);
+      (admins || []).forEach((a: { id: string }) => approverIds.add(a.id));
     }
+
+    const targets = new Set<string>(approverIds);
+    if (requesterUserId) targets.add(requesterUserId);
+    for (const cc of ((request.cc_user_ids || []) as string[])) if (cc) targets.add(cc);
+    if (opts?.cancelledBy) targets.delete(opts.cancelledBy); // 취소한 본인 제외
+
+    const rows: Record<string, unknown>[] = Array.from(targets).map((uid) => ({
+      company_id: request.company_id,
+      user_id: uid,
+      type: 'approval',
+      title: `${empName} - ${leaveLabel} 취소 (${Number(request.days)}일)`,
+      message: uid === requesterUserId
+        ? `${period} 휴가가 취소되었습니다.${wasApproved ? ' 연차 잔여가 복구되었습니다.' : ''}${reasonSuffix}`
+        : `${period}${wasApproved ? ' · 승인된 휴가 취소' : ''}${reasonSuffix}`,
+      entity_type: 'leave_request',
+      entity_id: request.id,
+      is_read: false,
+    }));
+    if (rows.length > 0) await db.from('notifications').insert(rows as never);
   } catch (e) {
     console.error('[cancelLeaveRequest] 알림 실패:', e);
   }

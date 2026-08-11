@@ -2624,16 +2624,24 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast("휴가 반려 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // Cancel mutation — 승인된 휴가 취소 시 잔여 복구
+  // Cancel mutation — 승인된 휴가 취소 시 잔여 복구.
+  //   2026-08-11 사장님: 승인된 건도 사유 입력 후 취소 가능(관리자는 시작된 휴가도),
+  //   사유·취소자·시각 보존 + 신청 때와 동일 대상(승인자·참조자·신청자)에게 알림.
   const cancelMut = useMutation({
-    mutationFn: (id: string) => cancelLeaveRequest(id),
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      cancelLeaveRequest(id, { reason, cancelledBy: userId, allowStarted: !isEmployee }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
       queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
-      toast("휴가가 취소되었습니다 (잔여 복구됨).", "success");
+      setCancelTarget(null);
+      setCancelReason("");
+      toast("휴가가 취소되었습니다 (승인 건은 잔여 복구됨).", "success");
     },
     onError: (err: any) => toast("휴가 취소 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
+  // 취소 사유 입력 모달 상태 — 대상 행과 입력값
+  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
 
   // 남은 연차 직접 입력 (사장님 지시 2026-07-30) — 입력값은 '지금 남은 연차'다.
   //   내부적으로 총부여 = 남은 + 사용 을 'base' 발생으로 기록한다. leave_balances 를 직접 쓰면
@@ -3352,7 +3360,18 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                         </span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{r.reason || "—"}</td>
+                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
+                      {r.reason || "—"}
+                      {/* 취소 내역 보존 표시 (2026-08-11) — 사유·취소자·시각 */}
+                      {r.status === "cancelled" && (r.cancel_reason || r.cancelled_at) && (
+                        <div
+                          className="mt-0.5 text-[10px] text-[var(--danger)]"
+                          title={`취소자: ${memberById[r.cancelled_by]?.name || "-"} · ${r.cancelled_at ? new Date(r.cancelled_at).toLocaleString("ko-KR") : "-"}`}
+                        >
+                          취소{r.cancel_reason ? `: ${r.cancel_reason}` : "됨"}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
                       <div className="flex flex-col gap-0.5">
                         {(() => {
@@ -3411,22 +3430,23 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                             </>
                           );
                         })()}
-                        {/* 취소 — 대기/1차승인/승인 상태 + 시작일 미래일 때만. v4 H2: 본인 직원도 취소 가능. */}
+                        {/* 취소 — 대기/1차승인/승인 상태. v4 H2: 본인 직원도 취소 가능(시작 전만).
+                            2026-08-11 사장님: 관리자는 승인된 건·이미 시작된 건도 사유 입력 후 취소 가능. */}
                         {(r.status === "pending" || r.status === "first_approved" || r.status === "approved") && (() => {
                           const todayKst = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
                           const isFuture = r.start_date > todayKst;
                           const isMine = (employees as any[])?.find((emp: any) => emp.id === r.employee_id)?.user_id === userId;
                           if (isEmployee && !isMine) return null;
+                          const canCancel = !isEmployee || isFuture; // 관리자는 언제나, 직원 본인은 시작 전만
                           return (
                             <button
-                              onClick={async () => {
-                                if (!isFuture) return;
-                                if (await appConfirm(r.status === "approved" ? "승인된 휴가를 취소하시겠습니까? 연차 잔여가 복구됩니다." : "이 휴가 신청을 취소하시겠습니까?")) {
-                                  cancelMut.mutate(r.id);
-                                }
+                              onClick={() => {
+                                if (!canCancel) return;
+                                setCancelReason("");
+                                setCancelTarget(r);
                               }}
-                              disabled={cancelMut.isPending || !isFuture}
-                              title={isFuture ? "휴가 취소" : "이미 시작된(또는 오늘) 휴가는 취소 불가"}
+                              disabled={cancelMut.isPending || !canCancel}
+                              title={canCancel ? "휴가 취소 (사유 입력)" : "이미 시작된(또는 오늘) 휴가는 취소 불가"}
                               className="text-[10px] px-2 py-1 rounded bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-elevated)] disabled:opacity-30 disabled:cursor-not-allowed"
                             >
                               취소
@@ -3445,6 +3465,48 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
         </div>
       </>)}
+
+      {/* 휴가 취소 사유 모달 (2026-08-11 사장님) — 승인 건은 사유 필수, 내역 보존 + 신청과 동일 알림 */}
+      {cancelTarget && (
+        <div className="leave-cancel-overlay" onClick={() => !cancelMut.isPending && setCancelTarget(null)}>
+          <div className="leave-cancel-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="text-sm font-bold text-[var(--text)] mb-1">휴가 취소</div>
+            <p className="text-xs text-[var(--text-muted)] mb-3">
+              {cancelTarget.employees?.name || "직원"} · {cancelTarget.start_date === cancelTarget.end_date
+                ? cancelTarget.start_date
+                : `${cancelTarget.start_date} ~ ${cancelTarget.end_date}`} ({Number(cancelTarget.days)}일)
+              {cancelTarget.status === "approved" && (
+                <span className="block mt-1 text-[var(--warning)]">승인된 휴가입니다 — 취소하면 연차 잔여가 복구되고, 신청 때와 동일하게 승인자·참조자에게 알림이 갑니다.</span>
+              )}
+            </p>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder={cancelTarget.status === "approved" ? "취소 사유 (필수)" : "취소 사유 (선택)"}
+              rows={3}
+              autoFocus
+              className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] resize-none"
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={() => setCancelTarget(null)} disabled={cancelMut.isPending}
+                className="px-3 py-1.5 text-xs text-[var(--text-muted)]">닫기</button>
+              <button
+                onClick={() => {
+                  if (cancelTarget.status === "approved" && !cancelReason.trim()) {
+                    toast("승인된 휴가를 취소하려면 사유를 입력하세요", "error");
+                    return;
+                  }
+                  cancelMut.mutate({ id: cancelTarget.id, reason: cancelReason.trim() || undefined });
+                }}
+                disabled={cancelMut.isPending}
+                className="px-3 py-1.5 rounded-lg bg-[var(--danger)] text-white text-xs font-semibold hover:bg-[var(--danger)]/90 disabled:opacity-50"
+              >
+                {cancelMut.isPending ? "취소 중..." : "휴가 취소 확정"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {leaveView === "settings" && (<>
         {/* 휴가 유형 — 작은 칩으로 한 줄 (2026-08-06 사장님: 공간 차지 줄이기).

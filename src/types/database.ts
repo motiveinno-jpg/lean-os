@@ -7305,6 +7305,9 @@ export type Database = {
           approval_steps: Json
           approved_at: string | null
           approved_by: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           cc_user_ids: string[]
           company_id: string
           created_at: string | null
@@ -7328,6 +7331,9 @@ export type Database = {
           approval_steps?: Json
           approved_at?: string | null
           approved_by?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           cc_user_ids?: string[]
           company_id: string
           created_at?: string | null
@@ -7351,6 +7357,9 @@ export type Database = {
           approval_steps?: Json
           approved_at?: string | null
           approved_by?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           cc_user_ids?: string[]
           company_id?: string
           created_at?: string | null
