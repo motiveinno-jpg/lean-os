@@ -1140,17 +1140,18 @@ async function syncHometaxInvoices(
       loginType: "0",
       ...htCert.auth,
       certPassword: encryptedCertPw,
-      inquiryType: "01",
-      // ⚠️ 2026-08-11 실측: searchType 은 문서종류가 아니라 조회 기준 — 02 로 바꿨더니 같은
-      //   세금계산서가 발행일 기준으로 왔고, 작성일이 조회 월 밖인 건들이 date 필터에서 전부
-      //   떨어져 synced=0 partial 루프가 됐다. 문서종류는 type(0=전자세금계산서, 1=전자계산서).
+      // ⚠️ 파라미터 실측 이력(2026-08-11) — CODEF 문서 비공개라 실호출로 판별:
+      //   · searchType 02 → 같은 세금계산서를 발행일 기준으로 반환 (조회 기준 스위치)
+      //   · type 1 → 응답 변화 없음(전 행 부가세>0 세금계산서)
+      //   · inquiryType 02 → 계산서(면세) 목록 후보 — 현재 시도. 결과는 스텝 debug 로 확인.
+      inquiryType: docKind === "exempt" ? "02" : "01",
       searchType: "01",
       startDate: cappedStart,
       endDate: cappedEnd,
       sortby: "1",
       orderBy: "0",
       transeType: direction === "매출" ? "01" : "02",
-      type: docKind === "exempt" ? "1" : "0",   // 0=전자세금계산서 / 1=전자계산서(면세)
+      type: "0",
       startPageNo: String(startPageNo),
       pageCount: "1",
     }, timeoutMs).then((result) => ({ direction, result, chunkStart: cappedStart, chunkEnd: cappedEnd }));
