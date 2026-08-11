@@ -576,7 +576,7 @@ export default function CardsPage() {
           // 무료는 disabled 로 막지 않는다 — 눌렀을 때 안내가 떠야 한다(통장 화면과 동일)
           disabled={syncing || !companyId || cardCd.disabled}
           className={`btn-primary ${cardCd.disabled || (cardSync && !cardSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
-          title={cardSync && !cardSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : cardCd.disabled ? `30분 쿨타임 — ${cardCd.label}` : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
+          title={cardSync && !cardSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : cardCd.hint ? cardCd.hint : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
         >
           {syncing ? (
             <>

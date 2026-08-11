@@ -593,7 +593,7 @@ export default function BankPage() {
             //   disabled 면 클릭 이벤트 자체가 안 온다. 흐릿하게만 표시하고 안내는 onClick 에서.
             disabled={syncing || !companyId || bankCd.disabled || isSyncPaused}
             className={`btn-primary ${bankCd.disabled || isSyncPaused || (bankSync && !bankSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={bankSync && !bankSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
+            title={bankSync && !bankSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.hint ? bankCd.hint : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
           >
             {syncing ? (
               <>

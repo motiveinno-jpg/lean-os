@@ -549,7 +549,7 @@ export default function ReconciliationPage() {
             {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
           <button onClick={() => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); })} disabled={aiMut.isPending || matchCd.disabled}
             className={`btn-primary text-xs ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={matchCd.disabled ? `30분 쿨타임 — ${matchCd.label}` : "규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다."}>
+            title={matchCd.hint ? matchCd.hint : "규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다."}>
             {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : matchCd.disabled ? matchCd.label : "AI 전체 매칭"}</button>
         </div>
       </div>

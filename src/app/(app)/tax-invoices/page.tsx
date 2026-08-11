@@ -1274,8 +1274,8 @@ function TaxInvoicesPageInner() {
                   <ToolbarPopoverItem
                     onClick={() => { close(); hometaxCd.run(() => runHometaxSyncBackground(viewFromMonth, viewToMonth)); }}
                     disabled={!!activeJobId || hometaxCd.disabled}
-                    hint={hometaxCd.disabled
-                      ? `30분 쿨타임 — ${hometaxCd.label}`
+                    hint={hometaxCd.hint
+                      ? hometaxCd.hint
                       : `조회기간(${viewFromMonth} ~ ${viewToMonth}) 범위로 홈택스에 이미 발행된 세금계산서를 가져옵니다${lastSyncData ? ` · 마지막 업데이트 ${new Date(lastSyncData).toLocaleString("ko", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}`}>
                     <span aria-live="polite">
                       {activeJobId

@@ -1027,7 +1027,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
               })}
               disabled={bankFetching || codefSyncing || !companyId || bankCd.disabled}
               className={`btn-secondary rounded-lg text-xs whitespace-nowrap ${bankCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-              title={bankCd.disabled ? `30분 쿨타임 — ${bankCd.label}` : "CODEF 은행 연동으로 최근 거래를 불러오고 통장 잔액을 즉시 반영합니다"}
+              title={bankCd.hint ? bankCd.hint : "CODEF 은행 연동으로 최근 거래를 불러오고 통장 잔액을 즉시 반영합니다"}
             >
               {bankFetching ? (
                 <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> 불러오는 중...</>
