@@ -127,13 +127,17 @@ async function seed() {
       insert into employees (company_id, user_id, name, status, hire_date, position, department)
         values (cid, '${memberId}', '이직원', 'active', '2026-01-05', '사원', 'QA');
       insert into partners (company_id, name) values (cid, 'QA시드상사'), (cid, 'QA시드물산');
+      -- 유료 기능(AI 참모 등) QA 를 위해 활성 구독(standard) 부여 — teardown 이 subscriptions 도 지운다.
+      insert into subscriptions (company_id, plan_id, plan_slug, status, current_period_start, current_period_end)
+        select cid, id, slug, 'active', now(), now() + interval '30 days'
+        from subscription_plans where slug = 'standard';
     end $$;`);
 
   const made = await status();
   console.log("✅ QA 시드 생성 완료:");
   for (const r of made) console.log(`   ${r.email} → ${r.company} (${r.company_id})`);
   console.log(`   비밀번호: ${PASSWORD}`);
-  console.log("   구성: 마스터 김시드 · 직원 이직원(부서 QA, 09:00~18:00 유예 5분) · 거래처 2");
+  console.log("   구성: 마스터 김시드 · 직원 이직원(부서 QA, 09:00~18:00 유예 5분) · 거래처 2 · standard 구독(활성)");
 }
 
 async function teardown() {
@@ -180,6 +184,8 @@ async function teardown() {
       delete from employees where company_id = cid;
       delete from active_sessions where auth_id = any(aids);
       delete from user_consents where auth_id = any(aids);
+      delete from ai_copilot_history where company_id = cid;
+      delete from ai_usage_log where company_id = cid;
       delete from notifications where company_id = cid;
       delete from announcements where company_id = cid;
       delete from schedule_events where company_id = cid;

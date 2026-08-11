@@ -16,6 +16,7 @@
     "test": "vitest run",
     "qa:seed": "node scripts/qa-seed.mjs seed",
     "qa:teardown": "node scripts/qa-seed.mjs teardown",
+    "qa:copilot-eval": "node scripts/copilot-eval.mjs",
     "smoke:db-guards": "node scripts/db-guards-smoke.mjs",
     "smoke:entitlement": "node scripts/entitlement-matrix.mjs"
   },
