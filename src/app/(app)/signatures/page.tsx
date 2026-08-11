@@ -536,13 +536,18 @@ function SignaturesDashboardInner() {
         </div>
         {subTab === "requests" && (
           <div className="signature-toolbar-actions">
-            {contractStatus && contractStatus.limit !== null && (
+            {/* 무제한 플랜도 사용량은 보이게 — 한도 없으면 '이번 달 발송 N건' (2026-08-11 사장님) */}
+            {contractStatus && (
               <span
                 className="contract-usage-chip"
                 data-reached={contractLimitReached ? "1" : undefined}
-                title={`${contractStatus.planName || "현재 요금제"} — 전자계약(계약 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`}
+                title={contractStatus.limit !== null
+                  ? `${contractStatus.planName || "현재 요금제"} — 전자계약(계약 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`
+                  : `${contractStatus.planName || "현재 요금제"} — 전자계약 발송 무제한`}
               >
-                이번 달 발송 {contractStatus.used}/{contractStatus.limit}건
+                {contractStatus.limit !== null
+                  ? `이번 달 발송 ${contractStatus.used}/${contractStatus.limit}건`
+                  : `이번 달 발송 ${contractStatus.used}건`}
               </span>
             )}
             {/* 2026-08-05 사장님: '새 계약 요청'을 단체 일괄 발송 마법사로 통합 — 별도 '단체 일괄 발송' 버튼 제거.

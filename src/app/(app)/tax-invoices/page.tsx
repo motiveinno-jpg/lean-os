@@ -1194,7 +1194,8 @@ function TaxInvoicesPageInner() {
         </div>
 
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-          {issuanceStatus && issuanceStatus.limit !== null && (
+          {/* 무제한 플랜도 사용량은 보이게 — 한도 없으면 '이번 달 발행 N건' (2026-08-11 사장님) */}
+          {issuanceStatus && (
             <span
               className="tax-invoice-issuance-badge"
               style={{
@@ -1202,9 +1203,13 @@ function TaxInvoicesPageInner() {
                 borderColor: issuanceStatus.remaining === 0 ? "#ef4444" : "var(--border)",
                 color: issuanceStatus.remaining === 0 ? "#ef4444" : "var(--text-muted)",
               }}
-              title={`${issuanceStatus.planName || "현재 요금제"} — 세금계산서·현금영수증 합산 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}건 사용 · 세금계산서+현금영수증 ${issuanceStatus.used}/${issuanceStatus.limit})`}
+              title={issuanceStatus.limit !== null
+                ? `${issuanceStatus.planName || "현재 요금제"} — 세금계산서·현금영수증 합산 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}건 사용 · 세금계산서+현금영수증 ${issuanceStatus.used}/${issuanceStatus.limit})`
+                : `${issuanceStatus.planName || "현재 요금제"} — 발행 무제한 (이번 달 세금계산서+현금영수증 ${issuanceStatus.used}건 발행)`}
             >
-              발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음
+              {issuanceStatus.limit !== null
+                ? <>발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
+                : <>이번 달 발행 <b className="mono-number">{issuanceStatus.used}건</b></>}
             </span>
           )}
 
