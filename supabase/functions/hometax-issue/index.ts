@@ -456,7 +456,7 @@ serve(withSentry("hometax-issue", async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // 3.5) 요금제 발행 한도 — 세금계산서+현금영수증 합산 (2026-08-06 개편, NULL=무제한).
+    // 3.5) 요금제 발행 한도 — 세금계산서 종류별 한도 (2026-08-11 분리, NULL=무제한).
     //   체험 만료는 더 이상 차단 사유가 아니다(무료 플랜으로 강등되어 무료 한도가 적용됨).
     const { data: entRow } = await supabase
       .rpc("get_company_entitlement", { p_company_id: invoice.company_id })

@@ -21,7 +21,7 @@ type BillingCycle = 'monthly' | 'annual';
 //     기존 구독자는 subscriptions 에 남은 plan_id 로 계속 유지되고 한도도 그대로 적용된다.
 //     여기서 빠지면 '새로 결제'만 막힌다(알 수 없는 플랜은 아래에서 400).
 const SEAT_PRICE_MAP: Record<string, Record<BillingCycle, { base?: string; extraSeat?: string }> & { includedSeats: number }> = {
-  // 2026-08-06 요금제 개편 — 단일 유료 플랜(월 25,000원 + 추가좌석 5,000원, VAT 별도).
+  // 요금제 — 단일 유료 플랜(2026-08-11부터 월 39,000원 + 추가좌석 5,000원, VAT 별도).
   //   Stripe 대시보드에서 price 를 만든 뒤 Vercel env 에 아래 4개를 등록해야 결제가 열린다.
   //   env 가 비어 있으면 checkout 이 400 으로 막히므로 잘못 결제될 위험은 없다.
   standard: {

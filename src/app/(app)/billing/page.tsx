@@ -170,7 +170,7 @@ function BillingPageInner() {
     enabled: !!companyId,
   });
 
-  // 발행(세금계산서+현금영수증 합산) 사용량 — 각 화면 칩과 같은 산식(getIssuanceStatus).
+  // 발행 사용량(세금계산서·현금영수증 각각, 2026-08-11 분리) — 각 화면 칩과 같은 산식(getIssuanceStatus).
   //   요금제 화면에서도 발행 한도를 한눈에 (2026-08-11 사장님).
   const { data: issuance } = useQuery({
     queryKey: ["issuance-status-billing", companyId],
