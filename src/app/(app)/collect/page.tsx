@@ -20,6 +20,7 @@ import {
   SOURCES, HOMETAX_SOURCES, fetchCollectStatus,
   runCollect, type SourceKey, type RunState,
 } from "@/lib/collect";
+import { EvidenceTab } from "./_components/EvidenceTab";
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const fmtWhen = (iso: string | null) =>
@@ -46,6 +47,8 @@ function CollectInner() {
   const companyId = user?.company_id ?? null;
 
   const [month, setMonth] = useState(todayKst().slice(0, 7));
+  //   탭 — 'status' 는 현황판, 나머지는 그 자료의 목록 (2단계)
+  const [tab, setTab] = useState<"status" | SourceKey>("status");
   const [open, setOpen] = useState(false);
   const [picked, setPicked] = useState<SourceKey[]>(SOURCES.map((s) => s.key));
   const [mode, setMode] = useState<"new" | "range">("new");
@@ -141,6 +144,21 @@ function CollectInner() {
 
   return (
     <div className="collect-page">
+      {/* ── 갈래 탭 — 현황판 + 자료별 목록 ── */}
+      <div className="collect-tabs">
+        <button type="button" onClick={() => setTab("status")}
+          className={tab === "status" ? "collect-tab collect-tab-on" : "collect-tab"}>수집 현황</button>
+        {SOURCES.filter((s) => s.key !== "bank").map((s) => (
+          <button key={s.key} type="button" onClick={() => setTab(s.key)}
+            className={tab === s.key ? "collect-tab collect-tab-on" : "collect-tab"}>
+            {s.label}
+            <span className="collect-tab-cnt">{won(status?.[s.key]?.pending ?? 0)}</span>
+          </button>
+        ))}
+        {/*   통장은 3단계에서 거래 매칭을 흡수해 여기 붙는다 — 그때까지는 원래 화면으로 보낸다 */}
+        <Link href="/transactions" className="collect-tab no-underline">통장 <span className="collect-tab-cnt">{won(status?.bank?.pending ?? 0)}</span></Link>
+      </div>
+
       {/* ── 툴바 ── */}
       <div className="collect-toolbar">
         <label className="collect-toolbar-label">조회월</label>
@@ -156,8 +174,13 @@ function CollectInner() {
         </div>
       </div>
 
+      {/* ── 자료별 목록 (2단계) ── */}
+      {tab !== "status" && companyId && (
+        <EvidenceTab companyId={companyId} month={month} kind={tab} />
+      )}
+
       {/* ── 자료 카드 ── */}
-      {isLoading ? (
+      {tab === "status" && (isLoading ? (
         <div className="collect-empty">현황을 읽는 중…</div>
       ) : (
         <div className="collect-grid">
@@ -167,8 +190,9 @@ function CollectInner() {
             const run = state[s.key];
             const broken = !!st?.brokenNote;
             return (
-              <Link key={s.key} href={s.href}
-                className={broken ? "collect-src collect-src-bad no-underline" : "collect-src no-underline"}>
+              <button key={s.key} type="button"
+                onClick={() => (s.key === "bank" ? (window.location.href = s.href) : setTab(s.key))}
+                className={broken ? "collect-src collect-src-bad text-left" : "collect-src text-left"}>
                 <div className="collect-src-top">
                   <span className="collect-src-ico">{s.icon}</span>
                   <span className="collect-src-name">{s.label}</span>
@@ -208,17 +232,18 @@ function CollectInner() {
                       : s.key === "bank" ? "처리하기 →" : "전표 만들기 →"}
                   </span>
                 </div>
-              </Link>
+              </button>
             );
           })}
         </div>
-      )}
+      ))}
 
+      {tab === "status" && (
       <p className="collect-note">
         ※ 수집은 <b>회사 전체가 함께</b> 씁니다 — 팀원이 방금 받았으면 30분 동안 다시 받을 수 없습니다.
         홈택스는 같은 계정으로 동시 접속이 안 되어 <b>세금계산서·계산서·현금영수증은 차례대로</b> 돌고,
         <b>통장·카드는 그와 동시에</b> 돕니다.
-      </p>
+      </p>)}
 
       {/* ── 수집 창 ── */}
       {open && (

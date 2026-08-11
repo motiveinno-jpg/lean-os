@@ -8157,3 +8157,33 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .collect-sum-big { @apply text-[14px] font-extrabold tracking-tight text-[var(--text)]; }
 .collect-block-note { @apply text-[11px] leading-relaxed text-[var(--text-dim)]; }
 .collect-pill-none { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+
+/* ── 수집·전표 2단계: 갈래 탭 + 자료별 목록 (2026-08-11) ── */
+.collect-tabs { @apply flex flex-wrap items-center gap-1 border-b border-[var(--border)] pb-0; }
+.collect-tab { @apply rounded-t-lg border border-transparent px-3.5 py-2 text-[12.5px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--text)]; }
+.collect-tab-on { @apply border-[var(--border)] border-b-[var(--bg-card)] bg-[var(--bg-card)] text-[var(--primary)]; margin-bottom: -1px; }
+.collect-tab-cnt { @apply ml-1.5 text-[10.5px] font-bold text-[var(--text-dim)]; }
+.collect-tab-on .collect-tab-cnt { @apply text-[var(--primary)]; }
+
+.ev-wrap { @apply flex flex-col gap-3; }
+.ev-filter { @apply h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-[11.5px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--text)]; }
+.ev-filter-on { @apply border-[var(--warning)] text-[var(--warning)]; }
+.ev-warn { @apply rounded-full bg-[var(--warning-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--warning)]; }
+.ev-scroll { @apply overflow-x-auto; }
+.ev-table { @apply w-full border-collapse text-[12px]; min-width: 1120px; }
+.ev-table thead th { @apply whitespace-nowrap border-b border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-left text-[10.5px] font-bold text-[var(--text-dim)]; }
+.ev-table tbody td { @apply whitespace-nowrap border-b border-[var(--border)]/50 px-2.5 py-1.5 text-[var(--text)]; }
+.ev-table tbody tr:last-child td { @apply border-b-0; }
+.ev-on { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+.ev-posted { @apply bg-[var(--bg-surface)]/50 text-[var(--text-dim)]; }
+.ev-ell { @apply max-w-[190px] truncate; }
+.ev-dim { @apply text-[11.5px] text-[var(--text-dim)]; }
+.ev-total { @apply font-bold text-[var(--primary)]; }
+.ev-minus { @apply font-bold text-[var(--danger)]; }
+.ev-sel { @apply h-7 w-full min-w-0 rounded border border-transparent bg-transparent px-1 text-[11.5px] text-[var(--text)] transition focus:border-[var(--primary)] focus:bg-[var(--bg)] focus:outline-none; }
+.ev-acct { @apply flex h-7 items-center gap-1.5 rounded border border-[var(--border)] bg-[var(--bg)] px-2 text-[11.5px] text-[var(--text)] transition hover:border-[var(--primary)]/60; }
+.ev-acct-empty { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); @apply text-[var(--danger)]; }
+.ev-via { @apply not-italic ml-1 rounded bg-[var(--success-dim)] px-1 text-[9.5px] font-bold text-[var(--success)]; }
+.ev-st { @apply text-[11px] font-bold; }
+.ev-st-todo { @apply text-[var(--warning)]; }
+.ev-st-done { @apply text-[var(--success)]; }

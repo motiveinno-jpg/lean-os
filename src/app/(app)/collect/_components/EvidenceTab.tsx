@@ -1,0 +1,478 @@
+"use client";
+
+// 수집·전표 2단계 — 자료별 조회 + 전표 만들기 (2026-08-11)
+//
+//   화면을 옮기지 않고 여기서 끝낸다. 목록에 **차변·대변 계정이 미리 채워져** 있고,
+//   고른 줄을 그대로 전표로 만든다.
+//
+//   ★ 격자·분개는 새로 만들지 않는다 — 매입매출전표가 쓰는 lib/vat-voucher(유형 10종·분개 생성·
+//     음수 처리)와 save_sale_purchase_voucher RPC 를 그대로 쓴다. 두 화면의 결과가 달라지면 안 된다.
+//
+//   계정 추천 = **같은 거래처로 지난번에 쓴 계정**. 4단계(자동분개 학습)의 뿌리다.
+//   지금은 규칙을 따로 저장하지 않고 이미 만든 전표를 되읽는다 — 사람이 고른 것이 곧 근거다.
+
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { logRead } from "@/lib/log-read";
+import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
+import {
+  VAT_TYPES, STD, buildVoucherLines, vatType, suggestVatType, normalizeSides,
+  type SettleType,
+} from "@/lib/vat-voucher";
+import type { SourceKey } from "@/lib/collect";
+
+type Acct = { id: string; code: string; name: string; account_type: string };
+type Row = {
+  id: string;
+  date: string;
+  partnerId: string | null;
+  partnerName: string;
+  bizno: string;
+  item: string;
+  supply: number;
+  vat: number;
+  vatCode: string;
+  settle: SettleType;
+  posted: boolean;
+  voucherNo: number | null;
+  /** 카드 비목 — 회사설정의 '카드 비목 → 계정' 매핑을 찾는 열쇠 */
+  cardCategory?: string | null;
+};
+
+const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
+const monthEnd = (month: string) => {
+  const [y, m] = month.split("-").map(Number);
+  return `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
+};
+//   카드 자동분류는 {"label":"통신비",…} JSON 문자열이라 이름만 꺼낸다 (다른 화면과 같은 규칙)
+function cardLabelOf(raw: unknown): string {
+  const v = typeof raw === "string" ? raw.trim() : "";
+  if (!v) return "";
+  if (v.startsWith("{")) { try { return String(JSON.parse(v)?.label || "").trim(); } catch { return ""; } }
+  return v;
+}
+
+/** 표준 계정(상대·부가세)은 추천 대상이 아니다 — 사람이 고르는 건 매출·비용 계정이다 */
+const STD_CODES = new Set<string>([STD.bank, STD.ar, STD.vatIn, STD.ap, STD.payable, STD.vatOut]);
+
+const SETTLE_BY_KIND: Record<string, SettleType> = {
+  tax_invoice: "credit", exempt_invoice: "credit", cash_receipt: "cash", card: "card",
+};
+
+export function EvidenceTab({ companyId, month, kind }: { companyId: string; month: string; kind: SourceKey }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [onlyTodo, setOnlyTodo] = useState(true);
+  const [dir, setDir] = useState<"all" | "sale" | "purchase">("all");
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [override, setOverride] = useState<Record<string, { vatCode?: string; acct?: Acct }>>({});
+  const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["collect-accounts", companyId],
+    queryFn: async () => {
+      const data = logRead("collect:accounts", await supabase
+        .from("chart_of_accounts").select("id, code, name, account_type")
+        .eq("company_id", companyId).order("code"));
+      return (data || []) as Acct[];
+    },
+    staleTime: 300_000,
+  });
+  const acctByCode = useMemo(() => {
+    const m = new Map<string, Acct>();
+    for (const a of accounts) m.set(String(a.code), a);
+    return m;
+  }, [accounts]);
+
+  const { data: rows = [], isLoading } = useQuery<Row[]>({
+    queryKey: ["collect-rows", companyId, month, kind],
+    queryFn: () => fetchRows(companyId, month, kind),
+  });
+
+  //   거래처별 '지난번에 쓴 계정' — 이미 만든 매입매출전표에서 되읽는다
+  const { data: memory = {} } = useQuery<Record<string, Acct>>({
+    queryKey: ["collect-acct-memory", companyId],
+    queryFn: async () => {
+      const data = logRead("collect:memory", await supabase
+        .from("journal_entries")
+        .select("entry_date, journal_lines(partner_id, chart_of_accounts(id, code, name, account_type))")
+        .eq("company_id", companyId).eq("entry_kind", "sale_purchase")
+        .order("entry_date", { ascending: false }).limit(300));
+      const out: Record<string, Acct> = {};
+      for (const e of ((data as any[]) || [])) {
+        for (const l of (e.journal_lines || [])) {
+          const a = l.chart_of_accounts;
+          if (!a || !l.partner_id || STD_CODES.has(String(a.code))) continue;
+          if (!out[l.partner_id]) out[l.partner_id] = a as Acct;   // 최근 것이 이긴다(정렬이 최신순)
+        }
+      }
+      return out;
+    },
+    staleTime: 120_000,
+  });
+
+  //   카드 비목 → 계정 매핑(회사설정에서 만든 것) — 가맹점 이름이 아니라 **분류(category)** 기준이다
+  const { data: cardMap = {} } = useQuery<Record<string, Acct>>({
+    queryKey: ["collect-card-map", companyId],
+    queryFn: async () => {
+      const data = logRead("collect:cardmap", await supabase
+        .from("card_account_mappings")
+        .select("category, chart_of_accounts(id, code, name, account_type)")
+        .eq("company_id", companyId));
+      const out: Record<string, Acct> = {};
+      for (const r of ((data as any[]) || [])) {
+        if (r.category && r.chart_of_accounts) out[String(r.category)] = r.chart_of_accounts as Acct;
+      }
+      return out;
+    },
+    enabled: kind === "card",
+    staleTime: 300_000,
+  });
+
+  /** 이 줄에 붙일 매출·비용 계정과 그 근거 */
+  const acctOf = (r: Row): { acct: Acct | null; via: "고름" | "지난번" | "규칙" | null } => {
+    const o = override[r.id]?.acct;
+    if (o) return { acct: o, via: "고름" };
+    if (r.partnerId && memory[r.partnerId]) return { acct: memory[r.partnerId], via: "지난번" };
+    if (kind === "card" && r.cardCategory && cardMap[r.cardCategory]) {
+      return { acct: cardMap[r.cardCategory], via: "규칙" };
+    }
+    return { acct: null, via: null };
+  };
+  const vatCodeOf = (r: Row) => override[r.id]?.vatCode ?? r.vatCode;
+
+  const shown = rows.filter((r) => {
+    if (onlyTodo && r.posted) return false;
+    if (dir !== "all" && vatType(vatCodeOf(r))?.side !== dir) return false;
+    return true;
+  });
+  const selRows = shown.filter((r) => sel.has(r.id));
+  const sumSupply = shown.reduce((n, r) => n + r.supply, 0);
+  const sumVat = shown.reduce((n, r) => n + r.vat, 0);
+
+  const linesFor = (r: Row) => {
+    const { acct } = acctOf(r);
+    return buildVoucherLines({
+      vatCode: vatCodeOf(r), settle: r.settle, supply: r.supply, vat: r.vat,
+      mainCode: acct?.code ?? null, mainName: acct?.name ?? null,
+    });
+  };
+
+  //   계정이 안 정해진 줄은 전표를 못 만든다 — 몇 건인지 먼저 알려 준다
+  const notReady = selRows.filter((r) => linesFor(r).some((l) => !l.code || !acctByCode.get(l.code)));
+
+  const makeVouchers = async () => {
+    if (selRows.length === 0 || saving) return;
+    setSaving(true);
+    let ok = 0;
+    const fails: string[] = [];
+    for (const r of selRows) {
+      const lines = linesFor(r);
+      const resolved = lines.map((l) => (l.code ? acctByCode.get(l.code) ?? null : null));
+      if (lines.length < 2 || resolved.some((a) => !a)) {
+        fails.push(`${r.partnerName}: 계정을 먼저 고르세요`);
+        continue;
+      }
+      const norm = normalizeSides(lines.map((l) => ({ side: l.side, amount: l.amount })));
+      const payload = lines.map((l, i) => ({
+        account_id: resolved[i]!.id,
+        debit: norm[i].side === "debit" ? norm[i].amount : 0,
+        credit: norm[i].side === "credit" ? norm[i].amount : 0,
+        memo: r.item || "",
+        partner_id: r.partnerId,
+      }));
+      const { error } = await (supabase.rpc as any)("save_sale_purchase_voucher", {
+        p_entry_date: r.date,
+        p_vat_type: vatCodeOf(r),
+        p_supply_amount: r.supply,
+        p_vat_amount: r.vat,
+        p_description: r.item || r.partnerName,
+        p_lines: payload,
+        p_reference_type: REF_TYPE[kind],
+        p_reference_id: r.id,
+      });
+      if (error) {
+        const m = String(error.message || "");
+        fails.push(`${r.partnerName}: ${
+          m.includes("PERIOD_LOCKED") ? "마감된 달"
+          : m.includes("ALREADY_POSTED") ? "이미 전표가 있음"
+          : m.includes("UNBALANCED") ? "차·대 불일치"
+          : friendlyError(error, "저장 실패")}`);
+      } else ok += 1;
+    }
+    setSel(new Set());
+    qc.invalidateQueries({ queryKey: ["collect-rows"] });
+    qc.invalidateQueries({ queryKey: ["collect-status"] });
+    qc.invalidateQueries({ queryKey: ["collect-acct-memory"] });
+    setSaving(false);
+    if (ok > 0 && fails.length === 0) toast(`전표 ${ok}건을 만들었습니다`, "success");
+    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
+    else toast(`전표를 만들지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
+  };
+
+  const toggle = (id: string) =>
+    setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allOn = shown.length > 0 && shown.every((r) => sel.has(r.id) || r.posted);
+
+  const filterAccts = (q: string, side: "sale" | "purchase") =>
+    accounts.filter((a) =>
+      a.account_type === (side === "sale" ? "revenue" : "expense")
+      && (!q || a.name.toLowerCase().includes(q.toLowerCase()) || String(a.code).includes(q))).slice(0, 40);
+
+  return (
+    <div className="ev-wrap">
+      {/* 필터 */}
+      <div className="collect-toolbar">
+        <div className="collect-seg">
+          {(["all", "sale", "purchase"] as const).map((d) => (
+            <button key={d} type="button" onClick={() => setDir(d)} className={dir === d ? "collect-seg-on" : ""}>
+              {d === "all" ? "전체" : d === "sale" ? "매출" : "매입"}
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={() => setOnlyTodo((v) => !v)}
+          className={onlyTodo ? "ev-filter ev-filter-on" : "ev-filter"}>
+          {onlyTodo ? "전표 미처리만" : "전체 보기"}
+        </button>
+        <span className="collect-toolbar-hint">
+          {shown.length}건 · 공급가액 <b className="mono-number">{won(sumSupply)}</b> · 부가세 <b className="mono-number">{won(sumVat)}</b>
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
+          <button type="button" onClick={makeVouchers} disabled={selRows.length === 0 || saving}
+            className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            {saving ? "만드는 중…" : `전표 만들기${selRows.length > 0 ? ` (${selRows.length})` : ""}`}
+          </button>
+        </div>
+      </div>
+
+      {/* 목록 */}
+      {isLoading ? (
+        <div className="collect-empty">읽는 중…</div>
+      ) : shown.length === 0 ? (
+        <div className="collect-empty">
+          {onlyTodo ? "전표를 만들 자료가 없습니다 — 이 달치는 다 처리했습니다." : "이 달에 받아온 자료가 없습니다."}
+        </div>
+      ) : (
+        <div className="ev-scroll glass-card">
+          <table className="ev-table">
+            <thead>
+              <tr>
+                <th style={{ width: 34 }}>
+                  <button type="button" aria-label="전체 선택"
+                    onClick={() => setSel(allOn ? new Set() : new Set(shown.filter((r) => !r.posted).map((r) => r.id)))}
+                    className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
+                </th>
+                <th>일자</th><th>거래처</th><th>사업자등록번호</th><th>유형</th><th>품명</th>
+                <th className="tr">공급가액</th><th className="tr">부가세</th><th className="tr">합계</th>
+                <th>차변계정</th><th>대변계정</th><th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r) => {
+                const t = vatType(vatCodeOf(r))!;
+                const { acct, via } = acctOf(r);
+                const lines = linesFor(r);
+                const debit = lines.filter((l) => l.side === "debit");
+                const credit = lines.filter((l) => l.side === "credit");
+                const main = t.side === "sale" ? credit[0] : debit[0];
+                const counter = t.side === "sale" ? debit[0] : credit[credit.length - 1];
+                const on = sel.has(r.id);
+                return (
+                  <tr key={r.id} className={r.posted ? "ev-posted" : on ? "ev-on" : ""}>
+                    <td>
+                      {!r.posted && (
+                        <button type="button" onClick={() => toggle(r.id)} aria-label="선택"
+                          className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
+                      )}
+                    </td>
+                    <td className="mono-number">{r.date.slice(5)}</td>
+                    <td className="ev-ell">{r.partnerName}</td>
+                    <td className="mono-number ev-dim">{r.bizno || "—"}</td>
+                    <td>
+                      {r.posted ? (
+                        <em className={t.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{t.label.split(". ")[1]}</em>
+                      ) : (
+                        <select className="ev-sel" value={vatCodeOf(r)}
+                          onChange={(e) => setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], vatCode: e.target.value } }))}>
+                          {VAT_TYPES.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
+                        </select>
+                      )}
+                    </td>
+                    <td className="ev-ell">{r.item}</td>
+                    <td className={r.supply < 0 ? "tr mono-number ev-minus" : "tr mono-number"}>{won(r.supply)}</td>
+                    <td className="tr mono-number">{won(r.vat)}</td>
+                    <td className="tr mono-number ev-total">{won(r.supply + r.vat)}</td>
+                    <td>
+                      {t.side === "purchase" && !r.posted ? (
+                        <span className="relative inline-block">
+                          <button type="button" onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
+                            className={acct ? "ev-acct" : "ev-acct ev-acct-empty"}>
+                            {acct ? `${acct.code} ${acct.name}` : "비용 계정 고르기"}
+                            {via && via !== "고름" && <em className="ev-via">{via}</em>}
+                          </button>
+                          {pick?.id === r.id && (
+                            <span className="spv-drop spv-drop-acct">
+                              <input autoFocus value={pick.q} onChange={(e) => setPick({ id: r.id, q: e.target.value })}
+                                placeholder="계정과목 검색 (이름·코드)" className="spv-drop-search" />
+                              <span className="spv-drop-list">
+                                {filterAccts(pick.q, "purchase").map((a) => (
+                                  <button key={a.id} type="button"
+                                    onClick={() => { setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], acct: a } })); setPick(null); }}>
+                                    <span className="spv-drop-code">{a.code}</span>
+                                    <span className="spv-drop-name">{a.name}</span>
+                                  </button>
+                                ))}
+                              </span>
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="ev-dim">{debit[0]?.code ? `${debit[0].code} ${debit[0].name}` : "—"}</span>
+                      )}
+                    </td>
+                    <td>
+                      {t.side === "sale" && !r.posted ? (
+                        <span className="relative inline-block">
+                          <button type="button" onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
+                            className={acct ? "ev-acct" : "ev-acct"}>
+                            {main?.code ? `${main.code} ${main.name}` : "매출 계정"}
+                            {via && via !== "고름" && <em className="ev-via">{via}</em>}
+                          </button>
+                          {pick?.id === r.id && (
+                            <span className="spv-drop spv-drop-acct">
+                              <input autoFocus value={pick.q} onChange={(e) => setPick({ id: r.id, q: e.target.value })}
+                                placeholder="계정과목 검색 (이름·코드)" className="spv-drop-search" />
+                              <span className="spv-drop-list">
+                                {filterAccts(pick.q, "sale").map((a) => (
+                                  <button key={a.id} type="button"
+                                    onClick={() => { setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], acct: a } })); setPick(null); }}>
+                                    <span className="spv-drop-code">{a.code}</span>
+                                    <span className="spv-drop-name">{a.name}</span>
+                                  </button>
+                                ))}
+                              </span>
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="ev-dim">{counter?.code ? `${counter.code} ${counter.name}` : "—"}</span>
+                      )}
+                    </td>
+                    <td>
+                      {r.posted
+                        ? <span className="ev-st ev-st-done">#{r.voucherNo ?? "—"} 확정</span>
+                        : <span className="ev-st ev-st-todo">미처리</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p className="collect-note">
+        ※ 계정은 <b>같은 거래처로 지난번에 고른 것</b>을 먼저 붙입니다(<b>지난번</b> 꼬리표).
+        <b>제안은 자동, 확정은 사람</b> — 전표는 <b>전표 만들기</b>를 눌러야 생깁니다.
+        만든 전표는 <b>매입매출전표</b> 메뉴에서 그대로 보이고, 지우면 이 목록으로 되돌아옵니다.
+      </p>
+    </div>
+  );
+}
+
+const REF_TYPE: Record<string, string> = {
+  tax_invoice: "tax_invoice", exempt_invoice: "tax_invoice",
+  cash_receipt: "cash_receipt", card: "card_transaction",
+};
+
+/** 이미 전표가 된 줄에 전표번호를 붙인다 — '#3 확정'처럼 어느 전표인지 보여야 찾아갈 수 있다 */
+async function attachVoucherNo(rows: Row[], entryIds: (string | null)[]): Promise<Row[]> {
+  const ids = [...new Set(entryIds.filter(Boolean) as string[])];
+  if (ids.length === 0) return rows;
+  const data = logRead("collect:voucherno", await supabase
+    .from("journal_entries").select("id, voucher_no").in("id", ids));
+  const byId = new Map(((data as any[]) || []).map((e) => [e.id, e.voucher_no as number | null]));
+  return rows.map((r, i) => {
+    const eid = entryIds[i];
+    return eid ? { ...r, voucherNo: byId.get(eid) ?? null } : r;
+  });
+}
+
+// ── 자료별 읽기 ───────────────────────────────────────────────────────────
+async function fetchRows(companyId: string, month: string, kind: SourceKey): Promise<Row[]> {
+  const from = `${month}-01`;
+  const to = monthEnd(month);
+  const settle = SETTLE_BY_KIND[kind] ?? "credit";
+
+  if (kind === "card") {
+    const data = logRead("collect:rows-card", await supabase.from("card_transactions")
+      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id")
+      .eq("company_id", companyId)
+      .gte("transaction_date", from).lt("transaction_date", to)
+      .order("transaction_date").limit(500));
+    const src = ((data as any[]) || []).filter((r) => Number(r.amount || 0) !== 0);
+    const built = src.map((r) => {
+      const amt = Number(r.amount || 0);
+      const label = cardLabelOf(r.classification) || r.category || "";
+      const supply = Math.round(amt / 1.1);
+      return {
+        id: r.id, date: String(r.transaction_date),
+        partnerId: null, partnerName: r.merchant_name || "—", bizno: "",
+        item: label || "카드 사용", supply, vat: amt - supply,
+        vatCode: suggestVatType({ kind: "card", direction: "purchase", memo: `${r.merchant_name || ""} ${label}` }),
+        settle, posted: !!r.journal_entry_id, voucherNo: null, cardCategory: r.category || null,
+      } as Row;
+    });
+    return attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null));
+  }
+
+  if (kind === "cash_receipt") {
+    const data = logRead("collect:rows-cash", await supabase.from("cash_receipts")
+      .select("id, type, issue_date, counterparty_name, counterparty_bizno, supply_amount, tax_amount, amount, journal_entry_id")
+      .eq("company_id", companyId)
+      .gte("issue_date", from).lt("issue_date", to)
+      .order("issue_date").limit(500));
+    const src = ((data as any[]) || []);
+    const built = src.map((r) => {
+      const supply = Number(r.supply_amount || 0) || Math.round(Number(r.amount || 0) / 1.1);
+      const direction = r.type === "income" ? "sale" : "purchase";
+      return {
+        id: r.id, date: String(r.issue_date),
+        partnerId: null, partnerName: r.counterparty_name || "—", bizno: r.counterparty_bizno || "",
+        item: "현금영수증", supply,
+        vat: Number(r.tax_amount || 0) || (Number(r.amount || 0) - supply),
+        vatCode: suggestVatType({ kind: "cash_receipt", direction }),
+        settle, posted: !!r.journal_entry_id, voucherNo: null,
+      } as Row;
+    });
+    return attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null));
+  }
+
+  //   세금계산서 / 전자계산서 — 같은 표(tax_invoices)에 tax_kind 로 갈린다
+  const q = supabase.from("tax_invoices")
+    .select("id, type, issue_date, counterparty_name, counterparty_bizno, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
+    .eq("company_id", companyId).neq("status", "void")
+    .gte("issue_date", from).lt("issue_date", to)
+    .order("issue_date").limit(500);
+  const data = logRead("collect:rows-ti", await (kind === "exempt_invoice" ? q.eq("tax_kind", "exempt") : q.neq("tax_kind", "exempt")));
+  const src = ((data as any[]) || []);
+  const built = src.map((r) => {
+    const direction = (r.type === "sales" || r.type === "매출") ? "sale" : "purchase";
+    return {
+      id: r.id, date: String(r.issue_date),
+      partnerId: r.partner_id || null, partnerName: r.counterparty_name || "—", bizno: r.counterparty_bizno || "",
+      item: r.item_name || "—",
+      supply: Number(r.supply_amount || 0), vat: Number(r.tax_amount || 0),
+      vatCode: suggestVatType({
+        kind: "tax_invoice", direction, taxKind: r.tax_kind,
+        memo: `${r.item_name || ""} ${r.expense_category || ""}`,
+      }),
+      settle, posted: !!r.journal_entry_id, voucherNo: null,
+    } as Row;
+  });
+  return attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null));
+}
