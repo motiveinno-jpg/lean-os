@@ -1,34 +1,60 @@
 "use client";
 
-// 매입매출전표입력 — 증빙에서 시작하는 전표 (2026-08-11 사장님 지시로 신설).
+// 매입매출전표입력 — 회계 프로그램 그대로의 격자 입력 (2026-08-11 사장님 지시, WEHAGO 화면 기준).
 //
-//   일반전표(voucher-entry)는 차·대를 직접 치는 화면이다. 그런데 회사가 실제로 치는 전표의
-//   대부분은 세금계산서·카드·현금영수증에서 시작하고, 그건 **유형(과세/영세/면세/불공제)에 따라
-//   분개도 부가세 신고서도 이미 정해져 있다**. 그래서 화면을 갈랐다.
+//   위 격자에 한 줄 = 전표 한 장. 년·월·일·거래처·유형·품명·공급가액·부가세를 옆으로 친다.
+//   아래 격자는 그 줄의 **분개** — 유형이 만들고 사람이 계정만 고친다.
 //
-//   손으로 치는 건 위 한 줄(유형·거래처·금액)뿐이고, 아래 분개는 lib/vat-voucher 의 규칙이 만든다.
-//   만들어진 줄은 고칠 수 있다 — 계정만 회사 사정에 맞게(예: 제품매출 → 용역매출).
+//   ★ Enter = 윗줄 복사(금액 제외). 같은 거래처로 여러 건을 이어 칠 때
+//     년·월·일·거래처·유형·품명·전자·분개까지 그대로 내려오고 금액만 비운다 — 손이 제일 덜 간다.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { todayKst } from "@/lib/kst";
-import { DateField } from "@/components/date-field";
-import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { friendlyError } from "@/lib/friendly-error";
 import {
   VAT_TYPES, SETTLE_LABEL, buildVoucherLines, vatOf, vatType, suggestVatType,
-  type SettleType, type DraftLine,
+  type SettleType,
 } from "@/lib/vat-voucher";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
-type Pt = { id: string; name: string; business_number: string | null };
-type ItemLine = { key: number; name: string; spec: string; qty: string; unitCost: string };
-type JLine = { key: number; side: "debit" | "credit"; account: Acct | null; amount: string; locked?: boolean };
+//   거래처 코드는 회사에 따라 숫자로 저장돼 있기도 하다 — 화면에서는 항상 문자열로 다룬다
+type Pt = { id: string; code: string | number | null; name: string; business_number: string | null };
+
+/** 격자 한 줄 = 전표 한 장. 금액은 문자열로 두고 저장할 때 숫자로 바꾼다. */
+type Row = {
+  key: number;
+  y: string; m: string; d: string;
+  partner: Pt | null;
+  partnerText: string;          // 검색 중 글자
+  vatCode: string;
+  item: string;
+  supply: string;
+  vat: string;
+  electronic: boolean;
+  settle: SettleType;
+  mainAccount: Acct | null;     // 매출/비용 계정
+  savedId?: string;             // 저장된 전표 id (저장분은 회색으로 잠근다)
+  voucherNo?: number;
+};
+
+//   상단 갈래 — 유형을 묶어 보는 필터 겸, 새 줄의 기본 유형
+const GROUPS: { key: string; label: string; codes: string[] }[] = [
+  { key: "all", label: "전체", codes: [] },
+  { key: "sale_tax", label: "매출세금", codes: ["11", "12"] },
+  { key: "buy_tax", label: "매입세금", codes: ["51"] },
+  { key: "buy_bill", label: "매입계산", codes: ["53"] },
+  { key: "sale_card", label: "매출카드", codes: ["17"] },
+  { key: "buy_card", label: "매입카드", codes: ["57"] },
+  { key: "buy_cash", label: "매입현금", codes: ["61"] },
+  { key: "nondeduct", label: "불공", codes: ["54"] },
+];
+
 type EvidenceRow = {
   key: string; kind: "tax_invoice" | "card" | "cash_receipt";
   date: string; who: string; what: string;
@@ -47,7 +73,20 @@ function cardLabelOf(raw: unknown): string {
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const numOf = (s: string) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
+const comma = (s: string) => { const n = numOf(s); return n ? n.toLocaleString("ko-KR") : ""; };
 let K = 1;
+
+const blankRow = (base?: Partial<Row>): Row => ({
+  key: K++,
+  y: base?.y || String(new Date().getFullYear()),
+  m: base?.m || "", d: base?.d || "",
+  partner: base?.partner ?? null, partnerText: base?.partnerText || "",
+  vatCode: base?.vatCode || "11", item: base?.item || "",
+  supply: "", vat: "",
+  electronic: base?.electronic ?? false,
+  settle: base?.settle || "credit",
+  mainAccount: base?.mainAccount ?? null,
+});
 
 export default function SalePurchaseVoucherPage() {
   const { role } = useUser();
@@ -62,25 +101,17 @@ function SalePurchaseInner() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [entryDate, setEntryDate] = useState(todayKst());
-
-  // ── 매입매출 정보 ──
-  const [vatCode, setVatCode] = useState("11");
-  const [settle, setSettle] = useState<SettleType>("credit");
-  const [partner, setPartner] = useState<Pt | null>(null);
-  const [partnerQuery, setPartnerQuery] = useState("");
-  const [partnerOpen, setPartnerOpen] = useState(false);
-  const [items, setItems] = useState<ItemLine[]>([{ key: K++, name: "", spec: "", qty: "1", unitCost: "" }]);
-  //   비용/매출 계정 — 유형이 정하지 못하는 유일한 칸이라 사람이 고른다
-  const [mainAccount, setMainAccount] = useState<Acct | null>(null);
-  const [mainQuery, setMainQuery] = useState("");
-  const [mainOpen, setMainOpen] = useState(false);
+  const [group, setGroup] = useState("all");
+  const [month, setMonth] = useState(todayKst().slice(0, 7));
+  const [rows, setRows] = useState<Row[]>([blankRow()]);
+  const [cur, setCur] = useState(0);                 // 지금 고른 줄
+  const [drop, setDrop] = useState<{ row: number; q: string } | null>(null);
   const [saving, setSaving] = useState(false);
-  const [pickerFor, setPickerFor] = useState<number | null>(null);
-  const [pickerQuery, setPickerQuery] = useState("");
+  const [overrides, setOverrides] = useState<Record<string, Acct | null>>({});
+  const [acctPick, setAcctPick] = useState<{ line: number; q: string } | null>(null);
   const [pullOpen, setPullOpen] = useState(false);
-
-  const t = vatType(vatCode)!;
+  const [pulled, setPulled] = useState(0);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -90,131 +121,68 @@ function SalePurchaseInner() {
     });
   }, []);
 
-  //   유형을 바꾸면 그 유형에서 가장 흔한 결제 방법으로 맞춰 준다 (바꾸고 싶으면 바꾸면 된다).
-  //   매출↔매입이 뒤집히면 골라 둔 계정도 비운다 — 매출 계정이 비용 자리에 남으면 분개가 거짓말이 된다.
-  useEffect(() => {
-    const next = vatType(vatCode);
-    if (!next) return;
-    setSettle(next.defaultSettle);
-    setMainAccount((prev) => {
-      if (!prev) return prev;
-      const want = next.side === "sale" ? "revenue" : "expense";
-      return prev.account_type === want ? prev : null;
-    });
-  }, [vatCode]);
-
   const { data: accounts = [] } = useQuery({
-    queryKey: ["sp-voucher-accounts", companyId],
+    queryKey: ["sp-accounts", companyId],
     queryFn: async () => {
       const data = logRead("sale-purchase:accounts", await supabase
-        .from("chart_of_accounts").select("id, code, name, account_type")
-        .eq("company_id", companyId!).order("code"));
+        .from("chart_of_accounts").select("id, code, name, account_type").eq("company_id", companyId!).order("code"));
       return (data || []) as Acct[];
     },
     enabled: !!companyId, staleTime: 300_000,
   });
-
   const { data: partners = [] } = useQuery({
-    queryKey: ["sp-voucher-partners", companyId],
+    queryKey: ["sp-partners", companyId],
     queryFn: async () => {
       const data = logRead("sale-purchase:partners", await supabase
-        .from("partners").select("id, name, business_number")
-        .eq("company_id", companyId!).eq("is_active", true).order("name"));
+        .from("partners").select("id, code, name, business_number").eq("company_id", companyId!).eq("is_active", true).order("name"));
       return (data || []) as Pt[];
     },
     enabled: !!companyId, staleTime: 300_000,
   });
-
   const acctByCode = useMemo(() => {
     const m = new Map<string, Acct>();
     for (const a of accounts) m.set(String(a.code), a);
     return m;
   }, [accounts]);
 
-  const supply = items.reduce((s, it) => s + Math.round((Number(it.qty) || 1) * numOf(it.unitCost)), 0);
-  const vat = vatOf(vatCode, supply);
-  const total = supply + vat;
-
-  //   규칙이 만든 분개 → 화면 줄. 사람이 계정을 바꾸면 그 줄만 덮어쓴다.
-  const [overrides, setOverrides] = useState<Record<number, Acct | null>>({});
-  const draft: DraftLine[] = useMemo(
-    () => buildVoucherLines({
-      vatCode, settle, supply,
-      mainCode: mainAccount?.code ?? null,
-      mainName: mainAccount?.name ?? null,
-    }),
-    [vatCode, settle, supply, mainAccount],
-  );
-  const lines: JLine[] = draft.map((d, i) => ({
-    key: i,
-    side: d.side,
-    account: overrides[i] !== undefined ? overrides[i] : (d.code ? acctByCode.get(d.code) || null : null),
-    amount: won(d.amount),
-    locked: d.locked,
-  }));
-  //   유형·금액이 바뀌면 손으로 고친 계정은 지운다(엉뚱한 줄에 남지 않게)
-  useEffect(() => { setOverrides({}); }, [vatCode, settle]);
-
-  const debitSum = lines.filter((l) => l.side === "debit").reduce((s, l) => s + numOf(l.amount), 0);
-  const creditSum = lines.filter((l) => l.side === "credit").reduce((s, l) => s + numOf(l.amount), 0);
-  const balanced = debitSum > 0 && debitSum === creditSum;
-  const allAccounts = lines.every((l) => !!l.account);
-  const canSave = balanced && allAccounts && !!partner && supply > 0 && !saving;
-
-  const patchItem = (key: number, patch: Partial<ItemLine>) =>
-    setItems((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  const addItem = () => setItems((rs) => [...rs, { key: K++, name: "", spec: "", qty: "1", unitCost: "" }]);
-  const removeItem = (key: number) =>
-    setItems((rs) => (rs.length > 1 ? rs.filter((r) => r.key !== key) : [{ key: K++, name: "", spec: "", qty: "1", unitCost: "" }]));
-
-  const reset = () => {
-    setItems([{ key: K++, name: "", spec: "", qty: "1", unitCost: "" }]);
-    setPartner(null); setPartnerQuery(""); setMainAccount(null); setMainQuery(""); setOverrides({});
-  };
-
-  const save = async () => {
-    if (!canSave) return;
-    setSaving(true);
-    try {
-      const payload = lines.map((l) => ({
-        account_id: l.account!.id,
-        debit: l.side === "debit" ? numOf(l.amount) : 0,
-        credit: l.side === "credit" ? numOf(l.amount) : 0,
-        memo: items.map((it) => it.name).filter(Boolean).join(" · ").slice(0, 200),
-        partner_id: partner?.id || null,
-      }));
-      const { error } = await (supabase.rpc as any)("save_sale_purchase_voucher", {
-        p_entry_date: entryDate,
-        p_vat_type: vatCode,
-        p_supply_amount: supply,
-        p_vat_amount: vat,
-        p_description: `${t.label} ${partner?.name || ""}`.trim(),
-        p_lines: payload,
-      });
-      if (error) throw error;
-      toast(`매입매출전표를 저장했습니다 (${t.label} · ${won(total)}원)`, "success");
-      qc.invalidateQueries({ queryKey: ["sp-voucher-list"] });
-      reset();
-    } catch (e: any) {
-      const m = String(e?.message || "");
-      toast(
-        m.includes("PERIOD_LOCKED") ? "마감된 달이라 전표를 저장할 수 없습니다."
-        : m.includes("FORBIDDEN") ? "전표를 저장할 권한이 없습니다."
-        : m.includes("UNBALANCED") ? "차변과 대변이 맞지 않습니다."
-        : `저장 실패: ${friendlyError(e, "알 수 없는 오류")}`,
-        "error",
-      );
-    } finally { setSaving(false); }
-  };
-
-  // ── 아직 전표가 안 만들어진 증빙 — 세 화면에 흩어져 있던 입구를 여기 하나로 모은다 (2026-08-11) ──
-  const { data: pending = [] } = useQuery({
-    queryKey: ["sp-pending-evidence", companyId, entryDate.slice(0, 7)],
+  // ── 그 달에 저장된 전표를 격자 위쪽에 그대로 올린다 (회계 프로그램처럼) ──
+  const { data: saved = [] } = useQuery({
+    queryKey: ["sp-saved", companyId, month],
     queryFn: async () => {
-      const month = entryDate.slice(0, 7);
+      const [y, mm] = month.split("-").map(Number);
+      const to = `${mm === 12 ? y + 1 : y}-${String(mm === 12 ? 1 : mm + 1).padStart(2, "0")}-01`;
+      const data = logRead("sale-purchase:saved", await (supabase as any)
+        .from("journal_entries")
+        .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
+        .eq("company_id", companyId!).eq("entry_kind", "sale_purchase")
+        .gte("entry_date", `${month}-01`).lt("entry_date", to)
+        .order("entry_date").order("voucher_no"));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+  });
+
+  const savedRows: Row[] = saved.map((e: any) => {
+    const p = (e.journal_lines || []).map((l: any) => l.partners).find(Boolean) || null;
+    const [y, m, d] = String(e.entry_date || "").split("-");
+    return {
+      key: -1, y, m: String(Number(m || 0)), d: String(Number(d || 0)),
+      partner: p, partnerText: p?.name || "",
+      vatCode: e.vat_type || "11",
+      item: e.description || "",
+      supply: won(e.supply_amount), vat: won(e.vat_amount),
+      electronic: false, settle: "credit" as SettleType, mainAccount: null,
+      savedId: e.id, voucherNo: e.voucher_no,
+    };
+  }).filter((r: Row) => group === "all" || GROUPS.find((g) => g.key === group)!.codes.includes(r.vatCode));
+
+  // ── 아직 전표가 안 만들어진 증빙 — 세 화면에 흩어져 있던 입구를 여기 하나로 모은다 ──
+  const { data: pending = [] } = useQuery({
+    queryKey: ["sp-pending", companyId, month],
+    queryFn: async () => {
       const from = month + "-01";
-      const [y, m] = month.split("-").map(Number);
-      const to = (m === 12 ? y + 1 : y) + "-" + String(m === 12 ? 1 : m + 1).padStart(2, "0") + "-01";
+      const [y, mm] = month.split("-").map(Number);
+      const to = (mm === 12 ? y + 1 : y) + "-" + String(mm === 12 ? 1 : mm + 1).padStart(2, "0") + "-01";
       const [ti, card, cash] = await Promise.all([
         supabase.from("tax_invoices")
           .select("id, type, issue_date, counterparty_name, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
@@ -229,10 +197,10 @@ function SalePurchaseInner() {
           .eq("company_id", companyId!).is("journal_entry_id", null)
           .gte("issue_date", from).lt("issue_date", to).order("issue_date").limit(200),
       ]);
-      const rows: EvidenceRow[] = [];
+      const out: EvidenceRow[] = [];
       for (const r of ((ti.data as any[]) || [])) {
         const dir = (r.type === "sales" || r.type === "매출") ? "sale" : "purchase";
-        rows.push({
+        out.push({
           key: "ti:" + r.id, kind: "tax_invoice", date: r.issue_date, who: r.counterparty_name || "—",
           what: r.item_name || "—", supply: Number(r.supply_amount || 0), vat: Number(r.tax_amount || 0),
           partnerId: r.partner_id || null,
@@ -241,12 +209,11 @@ function SalePurchaseInner() {
       }
       for (const r of ((card.data as any[]) || [])) {
         const amt = Number(r.amount || 0);
-        if (amt <= 0) continue;                       // 취소·환불(음수)은 전표 대상이 아니다
-        //   가맹점명이 '[취소]' 로 시작하는 건도 뺀다 — 승인 취소분이라 전표를 만들면 안 된다
-        if (String(r.merchant_name || "").trim().startsWith("[취소]")) continue;
+        if (amt <= 0) continue;                                            // 취소·환불(음수)
+        if (String(r.merchant_name || "").trim().startsWith("[취소]")) continue;   // 승인 취소분
         const label = cardLabelOf(r.classification) || r.category || "";
         const sup = Math.round(amt / 1.1);
-        rows.push({
+        out.push({
           key: "card:" + r.id, kind: "card", date: r.transaction_date, who: r.merchant_name || "—",
           what: label || "카드 사용", supply: sup, vat: amt - sup, partnerId: null,
           suggested: suggestVatType({ kind: "card", direction: "purchase", memo: (r.merchant_name || "") + " " + label }),
@@ -255,323 +222,398 @@ function SalePurchaseInner() {
       for (const r of ((cash.data as any[]) || [])) {
         const dir = r.type === "income" ? "sale" : "purchase";
         const sup = Number(r.supply_amount || 0) || Math.round(Number(r.amount || 0) / 1.1);
-        rows.push({
+        out.push({
           key: "cash:" + r.id, kind: "cash_receipt", date: r.issue_date, who: r.counterparty_name || "—",
-          what: "현금영수증", supply: sup,
-          vat: Number(r.tax_amount || 0) || (Number(r.amount || 0) - sup), partnerId: null,
-          suggested: suggestVatType({ kind: "cash_receipt", direction: dir }),
+          what: "현금영수증", supply: sup, vat: Number(r.tax_amount || 0) || (Number(r.amount || 0) - sup),
+          partnerId: null, suggested: suggestVatType({ kind: "cash_receipt", direction: dir }),
         });
       }
-      //   마이너스 증빙(수정세금계산서 등)은 이 화면이 표현하지 못한다 — 일반전표에서 친다.
-      //     여기서 억지로 불러오면 부호가 사라져 반대 전표가 만들어진다.
-      return rows.filter((r) => r.supply > 0).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+      //   마이너스 증빙(수정세금계산서 등)은 이 격자가 부호를 표현하지 못한다 — 일반전표에서 친다
+      return out.filter((r) => r.supply > 0).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     },
     enabled: !!companyId && pullOpen,
   });
 
-  //   불러오면 위 입력칸이 그 증빙으로 채워진다 — 유형은 추천값으로, 바꾸고 싶으면 바꾸면 된다
-  const pullOne = (row: EvidenceRow) => {
-    setVatCode(row.suggested);
-    const p = partners.find((x) => (row.partnerId ? x.id === row.partnerId : x.name === row.who));
-    if (p) { setPartner(p); setPartnerQuery(p.name); }
-    else { setPartner(null); setPartnerQuery(row.who); }
-    setItems([{ key: K++, name: row.what, spec: "", qty: "1", unitCost: String(row.supply) }]);
-    setOverrides({});
-    setPullOpen(false);
+  //   불러오면 격자 줄로 얹힌다 — 여러 건을 이어 눌러 한 번에 쌓을 수 있다
+  const pullOne = (r: EvidenceRow) => {
+    const [yy, mm, dd] = String(r.date || "").split("-");
+    const p = partners.find((x) => (r.partnerId ? x.id === r.partnerId : x.name === r.who)) || null;
+    setRows((rs) => {
+      const next = [...rs];
+      const target = blankRow();
+      target.y = yy || target.y; target.m = String(Number(mm || 0)) || ""; target.d = String(Number(dd || 0)) || "";
+      target.partner = p; target.partnerText = p?.name || r.who;
+      target.vatCode = r.suggested; target.settle = vatType(r.suggested)?.defaultSettle || "credit";
+      target.item = r.what; target.supply = won(r.supply); target.vat = won(r.vat);
+      //   맨 끝 빈 줄이 있으면 그 자리에 채우고, 없으면 뒤에 붙인다
+      const last = next[next.length - 1];
+      if (last && isEmptyRow(last)) next[next.length - 1] = target;
+      else next.push(target);
+      return next;
+    });
+    setPulled((n) => n + 1);
   };
 
-  // ── 오늘 저장된 매입매출전표 ──
-  const { data: saved = [] } = useQuery({
-    queryKey: ["sp-voucher-list", companyId, entryDate],
-    queryFn: async () => {
-      const data = logRead("sale-purchase:list", await supabase
-        .from("journal_entries")
-        .select("id, voucher_no, vat_type, supply_amount, vat_amount, description, journal_lines(debit, credit, chart_of_accounts(code, name))")
-        .eq("company_id", companyId!).eq("entry_date", entryDate).eq("entry_kind" as never, "sale_purchase")
-        .order("voucher_no"));
-      return (data || []) as any[];
-    },
-    enabled: !!companyId,
+  // ── 지금 줄의 분개 ──
+  const row = rows[cur] || rows[0];
+  const t = vatType(row?.vatCode || "11")!;
+  const supplyNum = numOf(row?.supply || "");
+  const vatNum = numOf(row?.vat || "");
+  const draft = useMemo(
+    () => buildVoucherLines({
+      vatCode: row?.vatCode || "11", settle: row?.settle || "credit", supply: supplyNum, vat: vatNum,
+      mainCode: row?.mainAccount?.code ?? null, mainName: row?.mainAccount?.name ?? null,
+    }),
+    [row?.vatCode, row?.settle, supplyNum, vatNum, row?.mainAccount],
+  );
+  const jeLines = draft.map((d, i) => ({
+    i, side: d.side, locked: d.locked,
+    account: overrides[`${row?.key}:${i}`] !== undefined
+      ? overrides[`${row?.key}:${i}`]
+      : (d.code ? acctByCode.get(d.code) || null : row?.mainAccount || null),
+    amount: d.amount,
+  }));
+  const debitSum = jeLines.filter((l) => l.side === "debit").reduce((s, l) => s + l.amount, 0);
+  const creditSum = jeLines.filter((l) => l.side === "credit").reduce((s, l) => s + l.amount, 0);
+  const balanced = debitSum > 0 && debitSum === creditSum;
+  const canSave = balanced && jeLines.every((l) => !!l.account) && !!row?.partner && !!row?.m && !!row?.d && !saving;
+
+  const patch = (i: number, p: Partial<Row>) => setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...p } : r)));
+
+  //   유형을 바꾸면 세액을 다시 계산하고 결제 방법을 그 유형의 기본으로 맞춘다
+  const setVat = (i: number, code: string) => {
+    const nt = vatType(code);
+    if (!nt) return;
+    setRows((rs) => rs.map((r, k) => {
+      if (k !== i) return r;
+      const keepAcct = r.mainAccount && r.mainAccount.account_type === (nt.side === "sale" ? "revenue" : "expense");
+      return { ...r, vatCode: code, settle: nt.defaultSettle, vat: won(vatOf(code, numOf(r.supply))), mainAccount: keepAcct ? r.mainAccount : null };
+    }));
+  };
+  const setSupply = (i: number, v: string) =>
+    setRows((rs) => rs.map((r, k) => (k === i ? { ...r, supply: comma(v), vat: won(vatOf(r.vatCode, numOf(v))) } : r)));
+
+  /** ★ 빈 줄에서 Enter — 윗줄을 금액만 빼고 그대로 내린다 */
+  const copyFromAbove = (i: number) => {
+    const above = i > 0 ? rows[i - 1] : (savedRows.length > 0 ? savedRows[savedRows.length - 1] : null);
+    if (!above) return false;
+    patch(i, {
+      y: above.y, m: above.m, d: above.d,
+      partner: above.partner, partnerText: above.partner?.name || above.partnerText,
+      vatCode: above.vatCode, item: above.item,
+      electronic: above.electronic, settle: above.settle,
+      mainAccount: above.mainAccount,
+      supply: "", vat: "",                 // 금액만 비운다
+    });
+    return true;
+  };
+  const isEmptyRow = (r: Row) => !r.m && !r.d && !r.partner && !r.item && !r.supply;
+
+  const focusSupply = (i: number) => requestAnimationFrame(() => {
+    const el = gridRef.current?.querySelector<HTMLInputElement>(`[data-cell="supply-${i}"]`);
+    el?.focus(); el?.select();
   });
 
-  const filteredPartners = partners.filter((p) =>
-    !partnerQuery || p.name.toLowerCase().includes(partnerQuery.toLowerCase()) || (p.business_number || "").includes(partnerQuery));
-  const filterAccts = (q: string, onlyExpense?: boolean) => accounts.filter((a) =>
-    (!onlyExpense || a.account_type === (t.side === "sale" ? "revenue" : "expense"))
-    && (!q || a.name.toLowerCase().includes(q.toLowerCase()) || String(a.code).includes(q))).slice(0, 40);
+  //   Enter 두 갈래 — 둘 다 결과는 같다: **윗줄이 금액만 빼고 내려온다**
+  //     ① 다 친 줄에서 Enter → 새 줄을 만들며 복사 (이어서 다음 건을 친다)
+  //     ② 빈 줄에서 Enter    → 그 줄에 복사
+  const onCellKey = (e: React.KeyboardEvent, i: number) => {
+    if (e.key !== "Enter") return;
+    if (isEmptyRow(rows[i])) {
+      if (copyFromAbove(i)) { e.preventDefault(); focusSupply(i); }
+      return;
+    }
+    if (i === rows.length - 1) {
+      e.preventDefault();
+      setRows((rs) => [...rs, blankRow(rs[i])]);   // blankRow 가 금액을 비운다
+      setCur(i + 1);
+      focusSupply(i + 1);
+    }
+  };
+
+  const addRow = () => setRows((rs) => [...rs, blankRow(rs[rs.length - 1])]);
+  const removeRow = (i: number) =>
+    setRows((rs) => (rs.length > 1 ? rs.filter((_, k) => k !== i) : [blankRow()]));
+
+  const save = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      const date = `${row.y}-${String(Number(row.m)).padStart(2, "0")}-${String(Number(row.d)).padStart(2, "0")}`;
+      const payload = jeLines.map((l) => ({
+        account_id: l.account!.id,
+        debit: l.side === "debit" ? l.amount : 0,
+        credit: l.side === "credit" ? l.amount : 0,
+        memo: row.item || "",
+        partner_id: row.partner?.id || null,
+      }));
+      const { error } = await (supabase.rpc as any)("save_sale_purchase_voucher", {
+        p_entry_date: date, p_vat_type: row.vatCode,
+        p_supply_amount: supplyNum, p_vat_amount: vatNum,
+        p_description: row.item || `${t.label} ${row.partner?.name || ""}`.trim(),
+        p_lines: payload,
+      });
+      if (error) throw error;
+      toast(`전표를 저장했습니다 (${t.label} · ${won(supplyNum + vatNum)}원)`, "success");
+      qc.invalidateQueries({ queryKey: ["sp-saved"] });
+      //   저장한 줄은 지우고 그 내용을 물려받은 빈 줄을 남긴다 — 다음 건을 바로 이어 친다
+      setRows((rs) => {
+        const next = rs.filter((_, k) => k !== cur);
+        return (next.length > 0 ? next : [blankRow(row)]);
+      });
+      setCur(0);
+      setOverrides({});
+    } catch (e: any) {
+      const m = String(e?.message || "");
+      toast(
+        m.includes("PERIOD_LOCKED") ? "마감된 달이라 전표를 저장할 수 없습니다."
+        : m.includes("FORBIDDEN") ? "전표를 저장할 권한이 없습니다."
+        : m.includes("UNBALANCED") ? "차변과 대변이 맞지 않습니다."
+        : `저장 실패: ${friendlyError(e, "알 수 없는 오류")}`, "error",
+      );
+    } finally { setSaving(false); }
+  };
+
+  const filteredPartners = (q: string) =>
+    partners.filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase())
+      || String(p.business_number || "").includes(q) || String(p.code || "").includes(q)).slice(0, 12);
+  const filterAccts = (q: string, side?: "sale" | "purchase") =>
+    accounts.filter((a) =>
+      (!side || a.account_type === (side === "sale" ? "revenue" : "expense"))
+      && (!q || a.name.toLowerCase().includes(q.toLowerCase()) || String(a.code).includes(q))).slice(0, 40);
+
+  const groupCodes = GROUPS.find((g) => g.key === group)!.codes;
+  const typeOptions = groupCodes.length > 0 ? VAT_TYPES.filter((v) => groupCodes.includes(v.code)) : VAT_TYPES;
+
+  //   격자 아래 소계 — 저장분 + 지금 치고 있는 줄
+  const sumSupply = savedRows.reduce((s, r) => s + numOf(r.supply), 0) + rows.reduce((s, r) => s + numOf(r.supply), 0);
+  const sumVat = savedRows.reduce((s, r) => s + numOf(r.vat), 0) + rows.reduce((s, r) => s + numOf(r.vat), 0);
 
   return (
-    <div className="sp-voucher-page">
-      {/* 머리 — 일자 · 저장 */}
-      <div className="sp-toolbar page-sticky-header">
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-semibold text-[var(--text-dim)]">일자</label>
-          <DateField value={entryDate} onChange={(e) => setEntryDate(e.target.value)}
-            className="field-input px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)]" />
-        </div>
+    <div className="spv-page">
+      {/* 갈래 탭 */}
+      <div className="spv-tabs">
+        {GROUPS.map((g) => (
+          <button key={g.key} type="button" onClick={() => setGroup(g.key)}
+            className={group === g.key ? "spv-tab spv-tab-on" : "spv-tab"}>{g.label}</button>
+        ))}
+      </div>
+
+      {/* 기간 + 액션 */}
+      <div className="spv-toolbar">
+        <label className="spv-toolbar-label">조회월</label>
+        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="spv-month" />
+        <span className="spv-toolbar-hint"><b>Enter</b> 를 치면 윗줄이 금액만 빼고 그대로 내려옵니다</span>
         <div className="ml-auto flex items-center gap-2">
-          <button type="button" onClick={() => setPullOpen(true)} className="btn-secondary btn-sm">증빙에서 불러오기</button>
-          <button type="button" onClick={reset} className="btn-secondary btn-sm">새 전표</button>
-          <button type="button" onClick={save} disabled={!canSave} className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          <button type="button" onClick={() => { setPulled(0); setPullOpen(true); }} className="btn-secondary btn-sm">증빙에서 불러오기</button>
+          <button type="button" onClick={addRow} className="btn-secondary btn-sm">+ 줄 추가</button>
+          <button type="button" onClick={save} disabled={!canSave}
+            className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {saving ? "저장 중…" : "저장"}
           </button>
         </div>
       </div>
 
-      {/* ① 매입매출 정보 */}
-      <section className="sp-card glass-card">
-        <div className="sp-card-head">
-          <b>① 매입매출 정보</b>
-          <span>세금계산서·카드·현금영수증에 적힌 그대로</span>
-        </div>
-
-        <div className="sp-head-grid">
-          <div className="sp-field">
-            <label>유형</label>
-            <select value={vatCode} onChange={(e) => setVatCode(e.target.value)}
-              className="field-input w-full px-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs">
-              <optgroup label="매출">
-                {VAT_TYPES.filter((v) => v.side === "sale").map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
-              </optgroup>
-              <optgroup label="매입">
-                {VAT_TYPES.filter((v) => v.side === "purchase").map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
-              </optgroup>
-            </select>
-            <span className="sp-hint">{t.hint}</span>
-          </div>
-
-          <div className="sp-field relative">
-            <label>거래처 <i>*</i></label>
-            <input value={partner?.name || partnerQuery}
-              onChange={(e) => { setPartner(null); setPartnerQuery(e.target.value); setPartnerOpen(true); }}
-              onFocus={() => setPartnerOpen(true)}
-              onBlur={() => setTimeout(() => setPartnerOpen(false), 200)}
-              placeholder="상호 · 사업자번호로 검색"
-              className="field-input w-full px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs" />
-            {partnerOpen && filteredPartners.length > 0 && (
-              <div className="sp-drop">
-                {filteredPartners.slice(0, 10).map((p) => (
-                  <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => { setPartner(p); setPartnerQuery(p.name); setPartnerOpen(false); }}
-                    className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium truncate">{p.name}</span>
-                      {p.business_number && <span className="caption shrink-0">{p.business_number}</span>}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="sp-field">
-            <label>분개유형</label>
-            <select value={settle} onChange={(e) => setSettle(e.target.value as SettleType)}
-              className="field-input w-full px-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs">
-              {(Object.keys(SETTLE_LABEL) as SettleType[]).map((s) => <option key={s} value={s}>{SETTLE_LABEL[s]}</option>)}
-            </select>
-            <span className="sp-hint">상대 계정(돈이 오간 쪽)을 정합니다</span>
-          </div>
-
-          <div className="sp-field relative">
-            <label>{t.side === "sale" ? "매출 계정" : "비용 계정"} <i>*</i></label>
-            <input value={mainAccount ? `${mainAccount.code} ${mainAccount.name}` : mainQuery}
-              onChange={(e) => { setMainAccount(null); setMainQuery(e.target.value); setMainOpen(true); }}
-              onFocus={() => setMainOpen(true)}
-              onBlur={() => setTimeout(() => setMainOpen(false), 200)}
-              placeholder={t.side === "sale" ? "예: 404 제품매출" : "예: 830 소모품비"}
-              className="field-input w-full px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs" />
-            {mainOpen && (
-              <div className="sp-drop">
-                {filterAccts(mainQuery, true).map((a) => (
-                  <button key={a.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => { setMainAccount(a); setMainQuery(""); setMainOpen(false); }}
-                    className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-xs">
-                    <span className="mono-number text-[var(--text-dim)] mr-2">{a.code}</span>{a.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 품목 줄 */}
-        <div className="sp-items">
-          <div className="sp-items-scroll">
-            <div className="sp-items-grid">
-              <div className="sp-item-row sp-item-head">
-                <span /><span>품목</span><span>규격</span>
-                <span className="text-right">수량</span><span className="text-right">단가</span><span className="text-right">공급가액</span><span />
-              </div>
-              {items.map((it, i) => (
-                <div key={it.key} className="sp-item-row">
-                  <span className="sp-item-no">{i + 1}</span>
-                  <input value={it.name} onChange={(e) => patchItem(it.key, { name: e.target.value })}
-                    placeholder="품목" className="sp-item-input" />
-                  <input value={it.spec} onChange={(e) => patchItem(it.key, { spec: e.target.value })}
-                    placeholder="규격" className="sp-item-input" />
-                  <input value={it.qty} onChange={(e) => patchItem(it.key, { qty: e.target.value })}
-                    inputMode="decimal" placeholder="1" className="sp-item-input text-right" />
-                  <CurrencyInput value={it.unitCost} onValueChange={(raw: string) => patchItem(it.key, { unitCost: raw })}
-                    placeholder="0" className="sp-item-input text-right" />
-                  <span className="sp-item-sum">{won((Number(it.qty) || 1) * numOf(it.unitCost))}</span>
-                  <button type="button" onClick={() => removeItem(it.key)} className="sp-item-del" title="이 줄 지우기">✕</button>
-                </div>
-              ))}
+      {/* ── 위 격자: 전표 목록 + 입력 ── */}
+      <div className="spv-grid-wrap glass-card" ref={gridRef}>
+        <div className="spv-scroll">
+          <div className="spv-grid">
+            <div className="spv-row spv-head">
+              <span>년</span><span>월</span><span>일</span><span>코드</span><span>거래처</span>
+              <span>사업자등록번호</span><span>유형</span><span>품명</span>
+              <span className="tr">공급가액</span><span className="tr">부가세</span><span className="tr">합계</span>
+              <span>전자</span><span>분개</span><span />
             </div>
-          </div>
-          <div className="sp-items-foot">
-            <button type="button" onClick={addItem} className="btn-secondary btn-sm">+ 품목 줄</button>
-            <div className="sp-totals">
-              <div><small>공급가액</small><b>{won(supply)}</b></div>
-              <div><small>부가세</small><b>{won(vat)}{!t.taxed && <em> (세액 없음)</em>}</b></div>
-              <div className="sp-total-grand"><small>합계</small><b>{won(total)}</b></div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* ② 분개 */}
-      <section className="sp-card glass-card">
-        <div className="sp-card-head sp-card-head-je">
-          <b>② 분개</b>
-          <span>{t.label} · {SETTLE_LABEL[settle]} → 규칙이 만든 줄입니다 · 계정을 눌러 바꿀 수 있습니다</span>
-        </div>
+            {/* 저장된 전표 — 읽기 전용 */}
+            {savedRows.map((r, i) => (
+              <div key={`s${i}`} className="spv-row spv-saved">
+                <span className="tc">{r.y}</span><span className="tc">{r.m}</span><span className="tc">{r.d}</span>
+                <span className="tc spv-dim">{r.partner?.code || "—"}</span>
+                <span className="spv-ell">{r.partner?.name || "—"}</span>
+                <span className="tc spv-dim">{r.partner?.business_number || "—"}</span>
+                <span className="tc"><em className={vatType(r.vatCode)?.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{vatType(r.vatCode)?.label.split(". ")[1] || r.vatCode}</em></span>
+                <span className="spv-ell">{r.item}</span>
+                <span className="tr">{r.supply}</span><span className="tr">{r.vat}</span>
+                <span className="tr spv-total">{won(numOf(r.supply) + numOf(r.vat))}</span>
+                <span className="tc spv-dim">—</span>
+                <span className="tc spv-dim">{SETTLE_LABEL[r.settle].split(". ")[1]}</span>
+                <span className="tc spv-dim">#{r.voucherNo}</span>
+              </div>
+            ))}
 
-        {lines.length === 0 ? (
-          <div className="sp-empty">품목 금액을 입력하면 분개가 만들어집니다.</div>
-        ) : (
-          <>
-            <div className="sp-items-scroll">
-              <div className="sp-je-grid">
-                <div className="sp-je-row sp-item-head">
-                  <span>구분</span><span>계정과목</span><span className="text-right">차변</span><span className="text-right">대변</span>
-                </div>
-                {lines.map((l, i) => (
-                  <div key={l.key} className="sp-je-row">
-                    <span className={l.side === "debit" ? "sp-dc sp-dc-d" : "sp-dc sp-dc-c"}>
-                      {l.side === "debit" ? "차변" : "대변"}
-                    </span>
-                    <div className="relative">
-                      <button type="button" onClick={() => { setPickerFor(pickerFor === i ? null : i); setPickerQuery(""); }}
-                        className={l.account ? "sp-acct-btn" : "sp-acct-btn sp-acct-empty"}
-                        title={l.locked ? "부가세 줄 — 유형이 정한 계정입니다" : "눌러서 계정 바꾸기"}>
-                        {l.account
-                          ? <><span className="mono-number text-[var(--text-dim)] mr-1.5">{l.account.code}</span>{l.account.name}</>
-                          : (draft[i]?.name || "계정을 고르세요")}
-                        {l.locked && <span className="sp-lock" title="유형이 정한 줄">자동</span>}
-                      </button>
-                      {pickerFor === i && (
-                        <div className="sp-drop sp-drop-wide">
-                          <input autoFocus value={pickerQuery} onChange={(e) => setPickerQuery(e.target.value)}
-                            placeholder="계정과목 검색 (이름·코드)"
-                            className="w-full px-2.5 py-2 text-xs bg-[var(--bg-surface)] border-b border-[var(--border)] focus:outline-none" />
-                          <div className="max-h-52 overflow-y-auto">
-                            {filterAccts(pickerQuery).map((a) => (
-                              <button key={a.id} type="button"
-                                onClick={() => { setOverrides((o) => ({ ...o, [i]: a })); setPickerFor(null); }}
-                                className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-xs">
-                                <span className="mono-number text-[var(--text-dim)] mr-2">{a.code}</span>{a.name}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <span className="sp-amt">{l.side === "debit" ? l.amount : ""}</span>
-                    <span className="sp-amt">{l.side === "credit" ? l.amount : ""}</span>
+            {/* 입력 줄 */}
+            {rows.map((r, i) => {
+              const rt = vatType(r.vatCode)!;
+              return (
+                <div key={r.key} className={i === cur ? "spv-row spv-cur" : "spv-row"} onClick={() => setCur(i)}>
+                  <input className="spv-in tc" value={r.y} onChange={(e) => patch(i, { y: e.target.value })}
+                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} inputMode="numeric" maxLength={4} />
+                  <input className="spv-in tc" value={r.m} onChange={(e) => patch(i, { m: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} inputMode="numeric" placeholder="월" />
+                  <input className="spv-in tc" value={r.d} onChange={(e) => patch(i, { d: e.target.value.replace(/\D/g, "").slice(0, 2) })}
+                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} inputMode="numeric" placeholder="일" />
+                  <span className="spv-in-ro tc">{r.partner?.code || ""}</span>
+                  <div className="relative">
+                    <input className="spv-in" value={r.partner?.name || r.partnerText}
+                      onChange={(e) => { patch(i, { partner: null, partnerText: e.target.value }); setDrop({ row: i, q: e.target.value }); }}
+                      onFocus={() => { setCur(i); setDrop({ row: i, q: r.partnerText }); }}
+                      onBlur={() => setTimeout(() => setDrop((d) => (d?.row === i ? null : d)), 200)}
+                      onKeyDown={(e) => onCellKey(e, i)} placeholder="거래처" />
+                    {drop?.row === i && filteredPartners(drop.q).length > 0 && (
+                      <div className="spv-drop">
+                        {filteredPartners(drop.q).map((p) => (
+                          <button key={p.id} type="button" onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => { patch(i, { partner: p, partnerText: p.name }); setDrop(null); }}>
+                            <span className="spv-drop-code">{p.code || "—"}</span>
+                            <span className="spv-drop-name">{p.name}</span>
+                            <span className="spv-drop-biz">{p.business_number || ""}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-            <div className="sp-je-foot">
-              <div><small>차변합</small><b>{won(debitSum)}</b></div>
-              <div><small>대변합</small><b>{won(creditSum)}</b></div>
-              <span className={balanced ? "sp-balance sp-balance-ok" : "sp-balance"}>
-                {balanced ? "✓ 차·대 일치" : "차·대가 맞지 않습니다"}
-              </span>
-            </div>
-            {!allAccounts && (
-              <div className="sp-warn">계정이 비어 있는 줄이 있습니다 — 계정을 고르면 저장할 수 있습니다.</div>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* 오늘 저장분 */}
-      <section className="sp-card glass-card">
-        <div className="sp-card-head">
-          <b>{entryDate} 매입매출전표</b>
-          <span>{saved.length}건</span>
-        </div>
-        {saved.length === 0 ? (
-          <div className="sp-empty">이 일자에 저장된 매입매출전표가 없습니다.</div>
-        ) : (
-          <div className="sp-items-scroll">
-            <table className="sp-saved-table">
-              <thead>
-                <tr><th>NO</th><th>유형</th><th>적요</th><th className="text-right">공급가액</th><th className="text-right">부가세</th><th className="text-right">합계</th></tr>
-              </thead>
-              <tbody>
-                {saved.map((e: any) => (
-                  <tr key={e.id}>
-                    <td className="mono-number">{e.voucher_no}</td>
-                    <td><span className="sp-type-pill">{vatType(e.vat_type)?.label || e.vat_type}</span></td>
-                    <td className="truncate max-w-[260px]">{e.description || "—"}</td>
-                    <td className="text-right mono-number">{won(e.supply_amount)}</td>
-                    <td className="text-right mono-number">{won(e.vat_amount)}</td>
-                    <td className="text-right mono-number font-bold text-[var(--primary)]">{won(Number(e.supply_amount || 0) + Number(e.vat_amount || 0))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  <span className="spv-in-ro tc">{r.partner?.business_number || ""}</span>
+                  <select className="spv-in spv-sel" value={r.vatCode} onChange={(e) => setVat(i, e.target.value)} onFocus={() => setCur(i)}>
+                    {typeOptions.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
+                  </select>
+                  <input className="spv-in" value={r.item} onChange={(e) => patch(i, { item: e.target.value })}
+                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} placeholder="품명" />
+                  <input className="spv-in tr" data-cell={`supply-${i}`} value={r.supply}
+                    onChange={(e) => setSupply(i, e.target.value)} onKeyDown={(e) => onCellKey(e, i)}
+                    onFocus={() => setCur(i)} inputMode="numeric" placeholder="0" />
+                  <input className="spv-in tr" value={r.vat} onChange={(e) => patch(i, { vat: comma(e.target.value) })}
+                    onKeyDown={(e) => onCellKey(e, i)} onFocus={() => setCur(i)} inputMode="numeric" placeholder="0" />
+                  <span className="spv-in-ro tr spv-total">{won(numOf(r.supply) + numOf(r.vat))}</span>
+                  <button type="button" className="spv-chk" onClick={() => patch(i, { electronic: !r.electronic })}
+                    title="전자 발행분이면 켭니다">{r.electronic ? "전자" : "—"}</button>
+                  <select className="spv-in spv-sel" value={r.settle} onChange={(e) => patch(i, { settle: e.target.value as SettleType })} onFocus={() => setCur(i)}>
+                    {(Object.keys(SETTLE_LABEL) as SettleType[]).map((s) => <option key={s} value={s}>{SETTLE_LABEL[s]}</option>)}
+                  </select>
+                  <button type="button" className="spv-del" onClick={() => removeRow(i)} title="이 줄 지우기">✕</button>
+                </div>
+              );
+            })}
           </div>
-        )}
-      </section>
+        </div>
+        <div className="spv-subtotal">
+          <span>{month} 소계</span>
+          <span className="tr">{won(sumSupply)}</span>
+          <span className="tr">{won(sumVat)}</span>
+          <span className="tr spv-total">{won(sumSupply + sumVat)}</span>
+        </div>
+      </div>
+
+      {/* ── 아래 격자: 분개 ── */}
+      <div className="spv-je glass-card">
+        <div className="spv-je-head">
+          <b>분개</b>
+          <span>{t.label} · {SETTLE_LABEL[row?.settle || "credit"]} — 유형이 만든 줄입니다 · 계정을 눌러 바꿉니다</span>
+        </div>
+        <div className="spv-scroll">
+          <div className="spv-je-grid">
+            <div className="spv-je-row spv-head">
+              <span>구분</span><span>코드</span><span>계정과목</span>
+              <span className="tr">차변(출금)</span><span className="tr">대변(입금)</span>
+              <span>거래처</span><span>적요</span>
+            </div>
+            {supplyNum <= 0 ? (
+              <div className="spv-je-empty">위 격자에 금액을 입력하면 분개가 만들어집니다.</div>
+            ) : jeLines.map((l) => (
+              <div key={l.i} className="spv-je-row">
+                <span className={l.side === "debit" ? "tc spv-dc spv-dc-d" : "tc spv-dc spv-dc-c"}>
+                  {l.side === "debit" ? "차변" : "대변"}
+                </span>
+                <span className="tc spv-dim">{l.account?.code || "—"}</span>
+                <div className="relative">
+                  <button type="button" className={l.account ? "spv-acct" : "spv-acct spv-acct-empty"}
+                    onClick={() => setAcctPick(acctPick?.line === l.i ? null : { line: l.i, q: "" })}>
+                    {l.account?.name || draft[l.i]?.name || "계정을 고르세요"}
+                    {l.locked && <em className="spv-auto">자동</em>}
+                  </button>
+                  {acctPick?.line === l.i && (
+                    <div className="spv-drop spv-drop-acct">
+                      <input autoFocus value={acctPick.q} onChange={(e) => setAcctPick({ line: l.i, q: e.target.value })}
+                        placeholder="계정과목 검색 (이름·코드)" className="spv-drop-search" />
+                      <div className="spv-drop-list">
+                        {filterAccts(acctPick.q).map((a) => (
+                          <button key={a.id} type="button"
+                            onClick={() => {
+                              //   첫 줄(매출/비용 계정)을 고르면 그 줄 값으로도 기억해 다음 전표에 물려준다
+                              if (l.i === (t.side === "sale" ? 1 : 0)) patch(cur, { mainAccount: a });
+                              else setOverrides((o) => ({ ...o, [`${row.key}:${l.i}`]: a }));
+                              setAcctPick(null);
+                            }}>
+                            <span className="spv-drop-code">{a.code}</span>
+                            <span className="spv-drop-name">{a.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <span className="tr spv-amt">{l.side === "debit" ? won(l.amount) : ""}</span>
+                <span className="tr spv-amt">{l.side === "credit" ? won(l.amount) : ""}</span>
+                <span className="spv-ell spv-dim">{row?.partner?.name || "—"}</span>
+                <span className="spv-ell spv-dim">{row?.item || "—"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="spv-je-foot">
+          <span>전표건별 소계</span>
+          <span className="tr">{won(debitSum)}</span>
+          <span className="tr">{won(creditSum)}</span>
+          <span className={balanced ? "spv-bal spv-bal-ok" : "spv-bal"}>{balanced ? "✓ 차·대 일치" : "차·대 불일치"}</span>
+        </div>
+      </div>
 
       {pullOpen && (
-        <div className="sp-pull-overlay" onClick={() => setPullOpen(false)}>
-          <div className="sp-pull-box" onClick={(e) => e.stopPropagation()}>
-            <div className="sp-pull-head">
+        <div className="spv-pull-overlay" onClick={() => setPullOpen(false)}>
+          <div className="spv-pull-box" onClick={(e) => e.stopPropagation()}>
+            <div className="spv-pull-head">
               <div>
                 <b>증빙에서 불러오기</b>
-                <span>전표가 안 만들어진 것만 · {entryDate.slice(0, 7)}</span>
+                <span>전표가 안 만들어진 것만 · {month}</span>
               </div>
-              <button type="button" onClick={() => setPullOpen(false)} aria-label="닫기">✕</button>
+              <div className="flex items-center gap-3">
+                {pulled > 0 && <span className="spv-pull-count">{pulled}건 얹음</span>}
+                <button type="button" onClick={() => setPullOpen(false)} aria-label="닫기">✕</button>
+              </div>
             </div>
             {pending.length === 0 ? (
-              <div className="sp-empty">이 달에 전표가 필요한 증빙이 없습니다.</div>
+              <div className="spv-je-empty">이 달에 전표가 필요한 증빙이 없습니다.</div>
             ) : (
-              <div className="sp-pull-scroll">
-                <table className="sp-saved-table">
+              <div className="spv-pull-scroll">
+                <table className="spv-pull-table">
                   <thead>
-                    <tr><th>일자</th><th>증빙</th><th>거래처</th><th>품목</th><th className="text-right">공급가액</th><th>추천 유형</th><th /></tr>
+                    <tr><th>일자</th><th>증빙</th><th>거래처</th><th>품명</th><th className="tr">공급가액</th><th>추천 유형</th><th /></tr>
                   </thead>
                   <tbody>
                     {pending.map((r) => (
                       <tr key={r.key}>
-                        <td className="mono-number whitespace-nowrap">{r.date}</td>
-                        <td className="whitespace-nowrap">{EVIDENCE_LABEL[r.kind]}</td>
-                        <td className="truncate max-w-[160px]">{r.who}</td>
-                        <td className="truncate max-w-[160px]">{r.what}</td>
-                        <td className="text-right mono-number">{won(r.supply)}</td>
-                        <td><span className="sp-type-pill">{vatType(r.suggested)?.label || r.suggested}</span></td>
-                        <td className="text-right"><button type="button" onClick={() => pullOne(r)} className="btn-secondary btn-sm">불러오기</button></td>
+                        <td className="mono-number">{r.date}</td>
+                        <td>{EVIDENCE_LABEL[r.kind]}</td>
+                        <td className="truncate max-w-[150px]">{r.who}</td>
+                        <td className="truncate max-w-[150px]">{r.what}</td>
+                        <td className="tr mono-number">{won(r.supply)}</td>
+                        <td><em className={vatType(r.suggested)?.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{vatType(r.suggested)?.label}</em></td>
+                        <td className="tr"><button type="button" onClick={() => pullOne(r)} className="btn-secondary btn-sm">얹기</button></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
-            <div className="sp-pull-foot">
+            <div className="spv-pull-foot">
               추천 유형은 규칙으로 붙습니다 — <b>접대·유흥·골프·상품권은 54 불공제</b>, 매입 계산서는 51, 카드는 57.
-              불러온 뒤 유형을 바꿔도 됩니다. 취소분과 <b>마이너스 증빙(수정세금계산서 등)</b>은 여기 나오지 않습니다 — 일반전표에서 칩니다.
+              얹은 뒤 격자에서 바꿔도 됩니다. 취소분과 <b>마이너스 증빙(수정세금계산서 등)</b>은 나오지 않습니다 — 일반전표에서 칩니다.
             </div>
           </div>
         </div>
       )}
 
-      <p className="sp-note">
+      <p className="spv-note">
         ※ 매입매출전표는 <b>부가세가 붙는 거래</b>(세금계산서·카드·현금영수증)를 칩니다 —
         통장 이체·대체·결산 분개는 <b>일반전표</b>에서 칩니다. 여기 친 유형이 부가세 신고 집계의 기준이 됩니다.
       </p>
