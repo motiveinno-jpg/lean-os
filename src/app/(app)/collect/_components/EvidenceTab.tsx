@@ -43,10 +43,6 @@ type Row = {
 };
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
-const monthEnd = (month: string) => {
-  const [y, m] = month.split("-").map(Number);
-  return `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
-};
 //   카드 자동분류는 {"label":"통신비",…} JSON 문자열이라 이름만 꺼낸다 (다른 화면과 같은 규칙)
 function cardLabelOf(raw: unknown): string {
   const v = typeof raw === "string" ? raw.trim() : "";
@@ -62,7 +58,7 @@ const SETTLE_BY_KIND: Record<string, SettleType> = {
   tax_invoice: "credit", exempt_invoice: "credit", cash_receipt: "cash", card: "card",
 };
 
-export function EvidenceTab({ companyId, month, kind }: { companyId: string; month: string; kind: SourceKey }) {
+export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; from: string; to: string; kind: SourceKey }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [onlyTodo, setOnlyTodo] = useState(true);
@@ -89,8 +85,8 @@ export function EvidenceTab({ companyId, month, kind }: { companyId: string; mon
   }, [accounts]);
 
   const { data: rows = [], isLoading } = useQuery<Row[]>({
-    queryKey: ["collect-rows", companyId, month, kind],
-    queryFn: () => fetchRows(companyId, month, kind),
+    queryKey: ["collect-rows", companyId, from, to, kind],
+    queryFn: () => fetchRows(companyId, from, to, kind),
   });
 
   //   학습된 규칙 — 2단계에서 전표를 되읽던 방식을 표로 올렸다(4단계).
@@ -239,6 +235,8 @@ export function EvidenceTab({ companyId, month, kind }: { companyId: string; mon
         </button>
         <span className="collect-toolbar-hint">
           {shown.length}건 · 공급가액 <b className="mono-number">{won(sumSupply)}</b> · 부가세 <b className="mono-number">{won(sumVat)}</b>
+          {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
+          {rows.length >= 500 && <b className="ev-cut"> · 최근 500건만 표시 (기간을 좁혀 주세요)</b>}
         </span>
         <div className="ml-auto flex items-center gap-2">
           {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
@@ -405,16 +403,14 @@ async function attachVoucherNo(rows: Row[], entryIds: (string | null)[]): Promis
 }
 
 // ── 자료별 읽기 ───────────────────────────────────────────────────────────
-async function fetchRows(companyId: string, month: string, kind: SourceKey): Promise<Row[]> {
-  const from = `${month}-01`;
-  const to = monthEnd(month);
+async function fetchRows(companyId: string, from: string, to: string, kind: SourceKey): Promise<Row[]> {
   const settle = SETTLE_BY_KIND[kind] ?? "credit";
 
   if (kind === "card") {
     const data = logRead("collect:rows-card", await supabase.from("card_transactions")
       .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id")
       .eq("company_id", companyId)
-      .gte("transaction_date", from).lt("transaction_date", to)
+      .gte("transaction_date", from).lte("transaction_date", to)
       .order("transaction_date").limit(500));
     const src = ((data as any[]) || []).filter((r) => Number(r.amount || 0) !== 0);
     const built = src.map((r) => {
@@ -436,7 +432,7 @@ async function fetchRows(companyId: string, month: string, kind: SourceKey): Pro
     const data = logRead("collect:rows-cash", await supabase.from("cash_receipts")
       .select("id, type, issue_date, counterparty_name, counterparty_bizno, supply_amount, tax_amount, amount, journal_entry_id")
       .eq("company_id", companyId)
-      .gte("issue_date", from).lt("issue_date", to)
+      .gte("issue_date", from).lte("issue_date", to)
       .order("issue_date").limit(500));
     const src = ((data as any[]) || []);
     const built = src.map((r) => {
@@ -458,7 +454,7 @@ async function fetchRows(companyId: string, month: string, kind: SourceKey): Pro
   const q = supabase.from("tax_invoices")
     .select("id, type, issue_date, counterparty_name, counterparty_bizno, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
     .eq("company_id", companyId).neq("status", "void")
-    .gte("issue_date", from).lt("issue_date", to)
+    .gte("issue_date", from).lte("issue_date", to)
     .order("issue_date").limit(500);
   const data = logRead("collect:rows-ti", await (kind === "exempt_invoice" ? q.eq("tax_kind", "exempt") : q.neq("tax_kind", "exempt")));
   const src = ((data as any[]) || []);

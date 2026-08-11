@@ -22,6 +22,7 @@ import {
 import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
 import { RulesDialog } from "./_components/RulesDialog";
+import { DateRangeField } from "@/components/date-range-field";
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const fmtWhen = (iso: string | null) =>
@@ -47,7 +48,9 @@ function CollectInner() {
   const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
 
-  const [month, setMonth] = useState(todayKst().slice(0, 7));
+  //   조회기간 — 기본은 이번 달 1일 ~ 오늘(예전 '조회월'과 가장 가깝다). 고른 기간은 기억한다.
+  const [range, setRange] = useState(() => ({ from: `${todayKst().slice(0, 7)}-01`, to: todayKst() }));
+  const { from, to } = range;
   //   탭 — 'status' 는 현황판, 나머지는 그 자료의 목록 (2단계)
   const [tab, setTab] = useState<"status" | SourceKey>("status");
   const [rulesOpen, setRulesOpen] = useState(false);
@@ -67,11 +70,26 @@ function CollectInner() {
     HOMETAX_SOURCES.includes(key) ? cdHometax : key === "bank" ? cdBank : cdCard;
 
   const { data: status, isLoading } = useQuery({
-    queryKey: ["collect-status", companyId, month],
-    queryFn: () => fetchCollectStatus(companyId!, month),
+    queryKey: ["collect-status", companyId, from, to],
+    queryFn: () => fetchCollectStatus(companyId!, from, to),
     enabled: !!companyId,
     staleTime: 30_000,
   });
+
+  //   조회기간도 기억한다 — 새로고침하거나 다른 화면을 다녀와도 보던 기간 그대로
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("collect-range");
+      if (saved) {
+        const r = JSON.parse(saved);
+        if (r?.from && r?.to) setRange({ from: r.from, to: r.to });
+      }
+    } catch { /* 저장값이 깨졌으면 기본값 */ }
+  }, []);
+  const applyRange = (f: string, t: string) => {
+    setRange({ from: f, to: t });
+    try { localStorage.setItem("collect-range", JSON.stringify({ from: f, to: t })); } catch { /* ignore */ }
+  };
 
   //   마지막에 고른 대로 다시 열린다 — 매번 통장만 받는 사람이 매번 체크를 다시 할 이유가 없다
   useEffect(() => {
@@ -90,14 +108,14 @@ function CollectInner() {
 
   //   '새로 들어온 것만' = 고른 자료 중 가장 오래된 마지막 수집일부터. 기록이 없으면 이번 달 1일부터.
   const autoFrom = useMemo(() => {
-    if (!status) return `${month}-01`;
+    if (!status) return from;
     const days = picked
       .map((k) => status[k]?.lastSyncAt)
       .filter(Boolean)
       .map((iso) => String(iso).slice(0, 10));
-    if (days.length === 0) return `${month}-01`;
+    if (days.length === 0) return from;
     return days.sort()[0];
-  }, [status, picked, month]);
+  }, [status, picked, from]);
 
   const start = mode === "new" ? autoFrom : rangeFrom;
   const end = mode === "new" ? todayKst() : rangeTo;
@@ -161,8 +179,7 @@ function CollectInner() {
 
       {/* ── 툴바 ── */}
       <div className="collect-toolbar">
-        <label className="collect-toolbar-label">조회월</label>
-        <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="collect-month" />
+        <DateRangeField from={from} to={to} onChange={applyRange} />
         <span className="collect-toolbar-hint">
           자료를 누르면 그 목록으로 갑니다 · 처리할 것 <b>{won(totalPending)}</b>건
         </span>
@@ -179,8 +196,8 @@ function CollectInner() {
       {/* ── 자료별 목록 (2단계) · 통장은 매칭까지 흡수한 3단계 화면 ── */}
       {tab !== "status" && companyId && (
         tab === "bank"
-          ? <BankTab companyId={companyId} month={month} />
-          : <EvidenceTab companyId={companyId} month={month} kind={tab} />
+          ? <BankTab companyId={companyId} from={from} to={to} />
+          : <EvidenceTab companyId={companyId} from={from} to={to} kind={tab} />
       )}
 
       {/* ── 자료 카드 ── */}

@@ -55,37 +55,68 @@ export type SourceStatus = {
   brokenNote: string | null;
 };
 
-const monthEnd = (month: string) => {
-  const [y, m] = month.split("-").map(Number);
-  return `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
-};
+/** 조회 기간 안의 자료별 현황. 화면 하나가 다섯 자료를 한 번에 읽는다.
+ *  2026-08-11 — 조회 단위가 '월'에서 **기간(시작일~종료일)** 으로 바뀌었다.
+ *  끝날은 그 날까지 포함해야 하므로 lte 로 건다(예전엔 다음 달 1일 미만이었다). */
+export async function fetchCollectStatus(companyId: string, from: string, to: string): Promise<Record<SourceKey, SourceStatus>> {
 
-/** 조회 기간(월) 안의 자료별 현황. 화면 하나가 다섯 자료를 한 번에 읽는다. */
-export async function fetchCollectStatus(companyId: string, month: string): Promise<Record<SourceKey, SourceStatus>> {
-  const from = `${month}-01`;
-  const to = monthEnd(month);
+  //   ★ 건수는 **행을 세어서** 얻는다(count exact + head). 행을 다 받아 JS 로 세면
+  //     Supabase 기본 상한 1,000행에 잘려 **건수가 틀린다** — 조회 단위가 '월'에서 '기간'으로
+  //     바뀌자마자 1년치에서 실제로 '1,000건'으로 잘리는 걸 확인했다(2026-08-11).
+  //   ★ select() 는 **한 번만** 부를 수 있으므로 컬럼·옵션을 인자로 받아 그때 만든다.
+  //     (두 번 부르면 필터가 날아가 0건이 된다 — 실제로 겪었다)
+  const dateCol = (k: SourceKey) => (k === "card" || k === "bank" ? "transaction_date" : "issue_date");
+  const q = (k: SourceKey, sel: string, opts?: { count: "exact"; head: true }) => {
+    switch (k) {
+      case "tax_invoice":
+        //   면세(전자계산서)를 빼되 tax_kind 가 비어 있는 건 남긴다 —
+        //   neq 만 쓰면 NULL 행이 통째로 사라진다(대부분이 NULL 이다).
+        return supabase.from("tax_invoices").select(sel, opts as any)
+          .eq("company_id", companyId).neq("status", "void")
+          .or("tax_kind.is.null,tax_kind.neq.exempt")
+          .gte("issue_date", from).lte("issue_date", to);
+      case "exempt_invoice":
+        return supabase.from("tax_invoices").select(sel, opts as any)
+          .eq("company_id", companyId).neq("status", "void").eq("tax_kind", "exempt")
+          .gte("issue_date", from).lte("issue_date", to);
+      case "cash_receipt":
+        return supabase.from("cash_receipts").select(sel, opts as any)
+          .eq("company_id", companyId)
+          .gte("issue_date", from).lte("issue_date", to);
+      case "card":
+        return supabase.from("card_transactions").select(sel, opts as any)
+          .eq("company_id", companyId)
+          .gte("transaction_date", from).lte("transaction_date", to);
+      default:
+        return supabase.from("bank_transactions").select(sel, opts as any)
+          .eq("company_id", companyId)
+          .gte("transaction_date", from).lte("transaction_date", to);
+    }
+  };
+  const COUNT = { count: "exact", head: true } as const;
 
-  const [ti, ei, cr, card, bank, cooldowns, jobs] = await Promise.all([
-    supabase.from("tax_invoices")
-      .select("issue_date, journal_entry_id, tax_kind", { count: "exact" })
-      .eq("company_id", companyId).neq("status", "void")
-      .gte("issue_date", from).lt("issue_date", to),
-    supabase.from("tax_invoices")
-      .select("issue_date, journal_entry_id", { count: "exact" })
-      .eq("company_id", companyId).eq("tax_kind", "exempt").neq("status", "void")
-      .gte("issue_date", from).lt("issue_date", to),
-    supabase.from("cash_receipts")
-      .select("issue_date, journal_entry_id", { count: "exact" })
-      .eq("company_id", companyId)
-      .gte("issue_date", from).lt("issue_date", to),
-    supabase.from("card_transactions")
-      .select("transaction_date, journal_entry_id", { count: "exact" })
-      .eq("company_id", companyId)
-      .gte("transaction_date", from).lt("transaction_date", to),
-    supabase.from("bank_transactions")
-      .select("transaction_date, journal_entry_id, settlement_status", { count: "exact" })
-      .eq("company_id", companyId)
-      .gte("transaction_date", from).lt("transaction_date", to),
+  //   자료마다 세 가지를 묻는다: 전체 건수 · 미처리 건수 · 가진 자료 중 가장 최근 일자
+  const perSource = await Promise.all(SOURCES.map(async (sdef) => {
+    const k = sdef.key;
+    const col = dateCol(k);
+    const [total, pending, latest] = await Promise.all([
+      q(k, "id", COUNT),
+      //   통장은 '전표가 없다'가 아니라 '아직 처리 안 했다'가 기준 — 매칭도 처리에 들어간다
+      k === "bank"
+        ? (q(k, "id", COUNT) as any).is("journal_entry_id", null).eq("settlement_status", "open")
+        : (q(k, "id", COUNT) as any).is("journal_entry_id", null),
+      q(k, col).order(col, { ascending: false }).limit(1),
+    ]);
+    return {
+      key: k,
+      total: Number((total as any).count || 0),
+      pending: Number((pending as any).count || 0),
+      latestDate: (((latest as any).data as any[]) || [])[0]?.[col] ?? null,
+    };
+  }));
+  const statOf = new Map(perSource.map((r) => [r.key, r]));
+
+  const [cooldowns, jobs] = await Promise.all([
     supabase.from("sync_cooldowns")
       .select("sync_type, last_run_at, last_duration_sec")
       .eq("company_id", companyId),
@@ -118,10 +149,6 @@ export async function fetchCollectStatus(companyId: string, month: string): Prom
     }
   }
 
-  const rowsOf = (res: any) => ((res.data as any[]) || []);
-  const latestOf = (rows: any[], field: string) =>
-    rows.reduce<string | null>((max, r) => (!max || String(r[field]) > max ? String(r[field]) : max), null);
-
   const brokenOf = (key: SourceKey, total: number): string | null => {
     const j = jobLast.get(key);
     if (!j) return null;
@@ -130,38 +157,28 @@ export async function fetchCollectStatus(companyId: string, month: string): Prom
     return null;
   };
 
-  const mk = (
-    key: SourceKey, rows: any[], dateField: string, syncType: SourceDef["syncType"],
-    pendingFn: (r: any) => boolean,
-  ): SourceStatus => {
+  const mk = (key: SourceKey, syncType: SourceDef["syncType"]): SourceStatus => {
     const job = jobLast.get(key);
     const cool = cd.get(syncType);
-    const total = rows.length;
+    const st = statOf.get(key)!;
     return {
       key,
-      total,
-      pending: rows.filter(pendingFn).length,
-      latestDate: latestOf(rows, dateField),
+      total: st.total,
+      pending: st.pending,
+      latestDate: st.latestDate,
       //   홈택스 3종은 job 기록이 자료별로 정확하다. 통장·카드는 쿨타임 기록을 쓴다.
       lastSyncAt: (HOMETAX_SOURCES.includes(key) ? job?.at : cool?.at) ?? null,
       lastSeconds: (HOMETAX_SOURCES.includes(key) ? job?.sec : cool?.sec) ?? null,
-      brokenNote: brokenOf(key, total),
+      brokenNote: brokenOf(key, st.total),
     };
   };
 
-  const noVoucher = (r: any) => !r.journal_entry_id;
-  //   전자계산서(면세)는 tax_invoices 안에 tax_kind='exempt' 로 들어 있다 —
-  //   세금계산서 카드에서 그만큼을 빼야 같은 건이 두 번 세어지지 않는다.
-  const tiRows = rowsOf(ti).filter((r) => r.tax_kind !== "exempt");
-
   return {
-    tax_invoice:    mk("tax_invoice",    tiRows,                    "issue_date",       "hometax", noVoucher),
-    exempt_invoice: mk("exempt_invoice", rowsOf(ei),                "issue_date",       "hometax", noVoucher),
-    cash_receipt:   mk("cash_receipt",   rowsOf(cr),                "issue_date",       "hometax", noVoucher),
-    card:           mk("card",           rowsOf(card),              "transaction_date", "card",    noVoucher),
-    //   통장은 '전표가 없다'가 아니라 '아직 처리 안 했다'가 기준 — 매칭도 처리에 들어간다
-    bank:           mk("bank",           rowsOf(bank),              "transaction_date", "bank",
-      (r) => !r.journal_entry_id && (r.settlement_status ?? "open") === "open"),
+    tax_invoice:    mk("tax_invoice",    "hometax"),
+    exempt_invoice: mk("exempt_invoice", "hometax"),
+    cash_receipt:   mk("cash_receipt",   "hometax"),
+    card:           mk("card",           "card"),
+    bank:           mk("bank",           "bank"),
   };
 }
 

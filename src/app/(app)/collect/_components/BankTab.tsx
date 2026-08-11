@@ -63,12 +63,8 @@ function bankIsIn(type: string, amount: number): boolean {
   if (["expense", "withdrawal", "출금", "out"].includes(type)) return false;
   return amount > 0;
 }
-const monthEnd = (month: string) => {
-  const [y, m] = month.split("-").map(Number);
-  return `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
-};
 
-export function BankTab({ companyId, month }: { companyId: string; month: string }) {
+export function BankTab({ companyId, from, to }: { companyId: string; from: string; to: string }) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [onlyTodo, setOnlyTodo] = useState(true);
@@ -135,15 +131,13 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
   });
 
   const { data: rows = [], isLoading, error: rowsError } = useQuery<Row[]>({
-    queryKey: ["bank-rows", companyId, month],
+    queryKey: ["bank-rows", companyId, from, to],
     queryFn: async () => {
-      const from = `${month}-01`;
-      const to = monthEnd(month);
       const [tx, queue] = await Promise.all([
         supabase.from("bank_transactions")
           .select("id, transaction_date, amount, type, counterparty, description, partner_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
           .eq("company_id", companyId)
-          .gte("transaction_date", from).lt("transaction_date", to)
+          .gte("transaction_date", from).lte("transaction_date", to)
           .order("transaction_date").limit(400),
         //   엔진이 이미 만들어 둔 제안 — 별도 화면이 아니라 줄의 기본값으로 쓴다
         supabase.from("v_settlement_review_queue")
@@ -403,6 +397,7 @@ export function BankTab({ companyId, month }: { companyId: string; month: string
         <span className="collect-toolbar-hint">
           {shown.length}건 · 입금 <b className="mono-number">{won(sumIn)}</b> · 출금 <b className="mono-number">{won(sumOut)}</b>
           {sugCount > 0 && <> · 제안 있음 <b className="mono-number">{won(sugCount)}</b></>}
+          {rows.length >= 400 && <b className="ev-cut"> · 최근 400건만 표시 (기간을 좁혀 주세요)</b>}
         </span>
         <div className="ml-auto flex items-center gap-2">
           {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 처리 방법·계정이 필요합니다</span>}

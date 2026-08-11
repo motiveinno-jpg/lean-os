@@ -8222,3 +8222,61 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .bk-clear { @apply ml-1.5 rounded border border-[var(--border)] px-1.5 text-[10px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--text)]; }
 .bk-done { @apply flex items-center gap-1.5; }
 .collect-empty-err { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); @apply text-[var(--danger)]; }
+
+/* ══ 조회기간 — 타이핑 + 두 달 달력 (2026-08-11) ══ */
+.drf { @apply relative flex items-center gap-2; }
+.drf-label { @apply text-xs font-semibold text-[var(--text-dim)]; }
+.drf-chip { @apply flex h-8 items-center gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 text-[12px] font-semibold text-[var(--text)]; }
+.drf-chip-open { @apply border-[var(--primary)] text-[var(--primary)]; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent); }
+.drf-chip > i { @apply not-italic px-px text-[var(--text-dim)]; }
+.drf-tilde { @apply px-1.5; }
+.drf-seg { @apply h-6 rounded border border-transparent bg-transparent px-0.5 text-center text-[12px] font-semibold text-[var(--text)] transition focus:border-[var(--primary)] focus:bg-[var(--bg)] focus:outline-none; font-variant-numeric: tabular-nums; }
+.drf-y { @apply w-[42px]; }
+.drf-md { @apply w-[26px]; }
+.drf-cal-btn { @apply ml-1 grid h-6 w-6 shrink-0 place-items-center rounded border border-[var(--border)] text-[var(--text-dim)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
+
+.drf-pop { @apply absolute left-0 top-full z-[60] mt-2 w-max max-w-[92vw] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }
+.drf-pop-head { @apply flex items-center gap-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] px-3.5 py-2.5; }
+.drf-pop-head > b { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
+.drf-range { @apply text-[12px] font-bold text-[var(--primary)]; }
+.drf-half { @apply text-[11.5px] text-[var(--warning)]; }
+.drf-half b { @apply font-extrabold; }
+.drf-nav { @apply ml-auto flex gap-1; }
+.drf-nav button { @apply grid h-6 w-6 place-items-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[11px] text-[var(--text-muted)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
+
+.drf-cals { @apply flex gap-5 px-4 py-3.5; }
+.drf-cal { @apply w-[224px]; }
+.drf-cal-title { @apply mb-2 text-center text-[12.5px] font-extrabold text-[var(--text)]; }
+.drf-dow { @apply grid grid-cols-7; }
+.drf-dow span { @apply pb-1 text-center text-[10px] font-bold text-[var(--text-dim)]; }
+.drf-dow span:first-child { @apply text-[var(--danger)]; }
+.drf-dow span:last-child { color: #2563EB; }
+.drf-days { @apply grid grid-cols-7; }
+.drf-day { @apply relative grid h-7 place-items-center text-[11.5px] font-semibold text-[var(--text)] transition; font-variant-numeric: tabular-nums; }
+.drf-day:hover { @apply bg-[var(--bg-surface)]; }
+.drf-out { @apply text-[var(--text-dim)] opacity-45; }
+.drf-sun { @apply text-[var(--danger)]; }
+.drf-sat { color: #2563EB; }
+.drf-in { @apply bg-[var(--primary-light)]; }
+.drf-edge { @apply z-10 bg-[var(--primary)] text-white; }
+.drf-edge-s { @apply rounded-l-lg; }
+.drf-edge-e { @apply rounded-r-lg; }
+.drf-edge-one { @apply rounded-lg; }
+.drf-today::after { content: ""; @apply absolute bottom-0.5 h-1 w-1 rounded-full bg-[var(--primary)]; }
+.drf-edge.drf-today::after { @apply bg-white; }
+
+.drf-quick { @apply flex items-center gap-1.5 px-4 pb-3; }
+.drf-quick em { @apply not-italic mr-0.5 text-[10.5px] text-[var(--text-dim)]; }
+.drf-quick button { @apply rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--text-muted)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
+.drf-quick button.on { @apply border-[var(--primary)] bg-[var(--primary-light)] text-[var(--primary)]; }
+
+.drf-foot { @apply flex items-center gap-3 border-t border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5; }
+.drf-foot > span { @apply text-[11px] text-[var(--text-dim)]; }
+.drf-foot > span b { @apply text-[var(--text-muted)]; }
+.drf-foot button { @apply ml-auto; }
+
+@media (max-width: 720px) {
+  .drf-cals { @apply flex-col gap-3.5; }
+  .drf-cal { @apply w-full; }
+}
+.ev-cut { @apply font-bold text-[var(--warning)]; }
