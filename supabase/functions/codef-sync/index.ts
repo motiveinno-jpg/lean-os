@@ -1265,6 +1265,8 @@ async function syncHometaxInvoices(
       if (docKind === "exempt") {
         const zeroVat = invoices.filter((i: any) => Number(i.resTaxAmt || 0) === 0).length;
         debug.push(`${direction} exempt 검증: 부가세0원 ${zeroVat}/${invoices.length}건`);
+        // 응답 필드명 — 계산서 응답이 세금계산서와 필드 구조가 다르면 여기서 드러난다 (값은 미기록)
+        debug.push(`${direction} keys=${Object.keys(invoices[0] || {}).slice(0, 30).join(",")}`);
         console.log(`[EXEMPT-CHECK] ${direction} zeroVat=${zeroVat}/${invoices.length}`);
       }
     }
@@ -1273,6 +1275,8 @@ async function syncHometaxInvoices(
     let upsertErrors = 0;
     let firstUpsertError: any = null;
     const rowsToUpsert: any[] = [];   // batch upsert 용 — N row × DB round trip 1번
+    // 스킵 사유 카운터 (2026-08-11 진단) — synced=0 이 어느 필터 때문인지 구분
+    let skipNoConfirm = 0, skipDateRange = 0, skipTaxAmt = 0;
 
     for (const inv of invoices) {
       // CODEF 통합 API 응답: resApprovalNo = 국세청 승인번호 (= nts_confirm_no 에 저장)
@@ -1280,7 +1284,7 @@ async function syncHometaxInvoices(
       //   24자리 무하이픈 — 형식이 달라 같은 계산서가 upsert 키 불일치로 중복 저장됐다.
       //   저장 전 항상 영숫자만 남겨 정규화(발행 경로·기존 데이터 정규화와 동일 기준).
       const ntsConfirmNo = String(inv.resApprovalNo || "").trim().replace(/[^0-9A-Za-z]/g, "");
-      if (!ntsConfirmNo) continue;
+      if (!ntsConfirmNo) { skipNoConfirm++; continue; }
 
       // ⚠️ 작성일자(공급일자) vs 발행일자 구분:
       //   resReportingDate = 작성일자/공급일자 (예: 20260228) — 한국 세무 관행상 거래 월 기준
@@ -1290,12 +1294,14 @@ async function syncHometaxInvoices(
       // CODEF 매입 응답이 검색 기간 외(특히 그 이후) 작성일자도 섞어 보내는 케이스 방어.
       // 작성일자가 이 chunk 기간 밖이면 skip — 다른 chunk 호출에서 정확히 잡힘.
       if (reportingDate.length !== 8 || reportingDate < chunkStart || reportingDate > chunkEnd) {
+        skipDateRange++;
         continue;
       }
 
       // 전자계산서(면세) 모드 가드 — 계산서는 부가세가 항상 0원. 파라미터가 어긋나
       //   세금계산서가 섞여 와도 doc_kind='exempt' 로 오염 저장되지 않게 여기서 차단 (2026-08-11).
       if (docKind === "exempt" && Number(inv.resTaxAmt || 0) !== 0) {
+        skipTaxAmt++;
         continue;
       }
       const formattedDate = `${reportingDate.slice(0,4)}-${reportingDate.slice(4,6)}-${reportingDate.slice(6,8)}`;
@@ -1418,6 +1424,9 @@ async function syncHometaxInvoices(
     }
     if (upsertErrors > 0) {
       debug.push(`${direction} upsertErrors=${upsertErrors}, first=${JSON.stringify(firstUpsertError)}`);
+    }
+    if (skipNoConfirm || skipDateRange || skipTaxAmt) {
+      debug.push(`${direction} skip: 승인번호없음=${skipNoConfirm} 기간밖=${skipDateRange} 부가세있음=${skipTaxAmt}`);
     }
   }
 
@@ -1997,9 +2006,13 @@ serve(withSentry("codef-sync", async (req) => {
                 Number(prevEntry?.nextPage) > 1 ? Number(prevEntry.nextPage) : 1,
                 job.job_type === "exempt_invoice" ? "exempt" : "tax");
           r = { synced: r0.synced || 0, responseCount: r0.responseCount || 0, errors: r0.errors || [],
-                nextPage: (r0 as any).nextCursor?.page || null };
+                nextPage: (r0 as any).nextCursor?.page || null,
+                // 전자계산서 진단(2026-08-11) — 응답 필드명·매핑 스킵 사유를 스텝 기록에 남긴다.
+                //   console.log 는 MCP/외부에서 못 읽어 result_per_month(jsonb)로 보존. 파라미터
+                //   확정 후에도 가볍고(8줄) 문제 재발 시 바로 원인을 보게 유지한다.
+                debug: job.job_type === "exempt_invoice" ? ((r0 as any).debug || []).slice(0, 8) : undefined };
         } catch (err: any) {
-          r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }], nextPage: null };
+          r = { synced: 0, responseCount: 0, errors: [{ code: "STEP_ERR", message: err.message || String(err) }], nextPage: null, debug: undefined };
         }
 
         // 남은 페이지가 있으면 아직 완료가 아니다 — partial 로 두어 다음 step 이 이어받게 한다.
@@ -2036,7 +2049,7 @@ serve(withSentry("codef-sync", async (req) => {
             (m.month === targetMonth && (m.direction ?? null) === targetDirection) ? {
               month: targetMonth, direction: targetDirection, synced: r.synced, responseCount: r.responseCount,
               status: monthStatus, errorMsg: r.errors[0]?.message, retryCount: newRetryCount,
-              nextPage: (r as any).nextPage || null,
+              nextPage: (r as any).nextPage || null, debug: (r as any).debug,
             } : m,
           );
         } else {
@@ -2045,7 +2058,7 @@ serve(withSentry("codef-sync", async (req) => {
           newPerMonth = [...perMonth, {
             month: targetMonth, direction: targetDirection, synced: r.synced, responseCount: r.responseCount,
             status: monthStatus, errorMsg: r.errors[0]?.message, retryCount: 0,
-            nextPage: (r as any).nextPage || null,
+            nextPage: (r as any).nextPage || null, debug: (r as any).debug,
           }];
         }
 
