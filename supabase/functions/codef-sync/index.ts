@@ -1141,13 +1141,16 @@ async function syncHometaxInvoices(
       ...htCert.auth,
       certPassword: encryptedCertPw,
       inquiryType: "01",
-      searchType: docKind === "exempt" ? "02" : "01",   // 01=전자세금계산서, 02=전자계산서(면세)
+      // ⚠️ 2026-08-11 실측: searchType 은 문서종류가 아니라 조회 기준 — 02 로 바꿨더니 같은
+      //   세금계산서가 발행일 기준으로 왔고, 작성일이 조회 월 밖인 건들이 date 필터에서 전부
+      //   떨어져 synced=0 partial 루프가 됐다. 문서종류는 type(0=전자세금계산서, 1=전자계산서).
+      searchType: "01",
       startDate: cappedStart,
       endDate: cappedEnd,
       sortby: "1",
       orderBy: "0",
       transeType: direction === "매출" ? "01" : "02",
-      type: "0",
+      type: docKind === "exempt" ? "1" : "0",   // 0=전자세금계산서 / 1=전자계산서(면세)
       startPageNo: String(startPageNo),
       pageCount: "1",
     }, timeoutMs).then((result) => ({ direction, result, chunkStart: cappedStart, chunkEnd: cappedEnd }));
@@ -1258,6 +1261,12 @@ async function syncHometaxInvoices(
       console.log(`[HOMETAX-FIELDS] ${direction} keys=${keys.join(",")}`);
       const interesting = keys.filter((k) => /addr|email|mail|tel|phone|zip|post/i.test(k));
       console.log(`[HOMETAX-FIELDS] ${direction} addr/email 후보=${interesting.join(",") || "없음"}`);
+      // 전자계산서(면세) 검증 진단 — 계산서면 전 행이 부가세 0원이어야 한다 (2026-08-11)
+      if (docKind === "exempt") {
+        const zeroVat = invoices.filter((i: any) => Number(i.resTaxAmt || 0) === 0).length;
+        debug.push(`${direction} exempt 검증: 부가세0원 ${zeroVat}/${invoices.length}건`);
+        console.log(`[EXEMPT-CHECK] ${direction} zeroVat=${zeroVat}/${invoices.length}`);
+      }
     }
 
     const isSales = direction === "매출";
@@ -1281,6 +1290,12 @@ async function syncHometaxInvoices(
       // CODEF 매입 응답이 검색 기간 외(특히 그 이후) 작성일자도 섞어 보내는 케이스 방어.
       // 작성일자가 이 chunk 기간 밖이면 skip — 다른 chunk 호출에서 정확히 잡힘.
       if (reportingDate.length !== 8 || reportingDate < chunkStart || reportingDate > chunkEnd) {
+        continue;
+      }
+
+      // 전자계산서(면세) 모드 가드 — 계산서는 부가세가 항상 0원. 파라미터가 어긋나
+      //   세금계산서가 섞여 와도 doc_kind='exempt' 로 오염 저장되지 않게 여기서 차단 (2026-08-11).
+      if (docKind === "exempt" && Number(inv.resTaxAmt || 0) !== 0) {
         continue;
       }
       const formattedDate = `${reportingDate.slice(0,4)}-${reportingDate.slice(4,6)}-${reportingDate.slice(6,8)}`;
@@ -1989,10 +2004,13 @@ serve(withSentry("codef-sync", async (req) => {
 
         // 남은 페이지가 있으면 아직 완료가 아니다 — partial 로 두어 다음 step 이 이어받게 한다.
         const hasMorePages = !!(r as any).nextPage;
-        // 호출을 한 번도 못 한 step(예산 부족으로 즉시 양보)도 완료가 아니다.
+        // ⚠️ 2026-08-11: 종전엔 responseCount > synced 도 partial 로 쳐서 재시도를 3회씩 돌렸다.
+        //   하지만 그 차이는 손실이 아니라 정상 스킵이다 — 이미 저장된 건(중복), 작성일이 이
+        //   chunk 기간 밖인 건(다른 chunk 담당). 저장 실패는 r.errors 로 이미 잡힌다.
+        //   전자계산서 첫 동기화가 이 오판 때문에 스텝마다 재시도 루프를 돌아 20분+ 걸렸다.
         const monthStatus: "ok" | "partial" | "error" =
           r.errors.length && r.synced === 0 ? "error"
-          : (r.errors.length || (r.responseCount > r.synced) || hasMorePages) ? "partial"
+          : (r.errors.length || hasMorePages) ? "partial"
           : "ok";
 
         // ─── result_per_month 업데이트 ───
