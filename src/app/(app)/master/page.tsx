@@ -31,10 +31,12 @@ export default function MasterPage() {
   const [generating, setGenerating] = useState(false);
   const [parseResult, setParseResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  const [userName, setUserName] = useState("");
   useEffect(() => {
     getCurrentUser().then((u) => {
       setCompanyId(u?.company_id ?? null);
       setUserId(u?.id ?? null);
+      setUserName(u?.name || "");
     });
   }, []);
 
@@ -148,14 +150,23 @@ export default function MasterPage() {
 
   if (permLoading || !isMaster) return null;
 
+  // 인사말 — 시간대별 (2026-08-11 시각화 개편: 레퍼런스의 "Good morning" 헤더)
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? "늦은 시간까지 수고 많으십니다" : hour < 12 ? "좋은 아침입니다" : hour < 18 ? "좋은 오후입니다" : "오늘도 수고 많으셨습니다";
+  const todayLabel = (() => {
+    const d = new Date();
+    const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 ${wd}요일`;
+  })();
+
   return (
     <div className="master-page">
-      <header className="mb-4">
-        <h1 className="text-lg font-bold text-[var(--text)]">마스터</h1>
-        <p className="text-xs text-[var(--text-muted)]">경영 종합 — 커맨드 센터 · 프로젝트 경영 · 월결산 (마스터 전용)</p>
+      <header className="master-header">
+        <h1 className="master-header-greeting">{greeting}{userName ? `, ${userName}님` : ""}</h1>
+        <p className="master-header-sub">{todayLabel} · 오늘의 경영 현황입니다</p>
       </header>
 
-      {/* ═══ ① CEO 커맨드 센터 — 액션(결재 즉시승인·매칭·미수금·위험) + 펄스/목표/리스크 ═══ */}
+      {/* ═══ ① CEO 커맨드 센터 — 1행 비주얼 3카드(펄스 도넛·목표 게이지·월마감 링) + 2행 액션·리스크 ═══ */}
       {companyId && (
         <OwnerCommandCenter
           companyId={companyId}
@@ -165,6 +176,7 @@ export default function MasterPage() {
           risks={dashboard.risks}
           riskCounts={dashboard.riskCounts}
           cashPulse={cashPulse}
+          closingSlot={<ClosingChecklistWidget companyId={companyId} userId={userId} />}
         />
       )}
 
@@ -203,13 +215,9 @@ export default function MasterPage() {
         </div>
       )}
 
-      {/* ═══ ② 프로젝트 경영 종합 — 분기 KPI·단계분포·TOP 거래처/담당자·추이 ═══ */}
+      {/* ═══ ② 프로젝트 경영 종합 — 분기 KPI 밴드·단계분포·완료 보고서 ═══
+           (월결산은 1행 3번째 카드(closingSlot)로 이동 — 2026-08-11 시각화 개편) */}
       <OwnerDashboardSection />
-
-      {/* ═══ ③ 월결산 ═══ */}
-      <div className="mt-4">
-        <ClosingChecklistWidget companyId={companyId} userId={userId} />
-      </div>
     </div>
   );
 }

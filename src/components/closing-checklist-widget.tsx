@@ -143,24 +143,31 @@ export function ClosingChecklistWidget({ companyId, userId }: { companyId: strin
   const reportUrl = (checklist as any).report_url as string | null;
   const autoClosed = (checklist as any).auto_closed as boolean | undefined;
 
+  // 링 색 — 완료 링 카드 (2026-08-11 마스터 시각화 개편)
+  const ringColor = pct === 100 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const RING_R = 40, RING_C = 2 * Math.PI * RING_R;
+
   return (
-    <div className="dashboard-closing-checklist-widget">
-      <div className="flex items-center gap-2 mb-3">
-        <div className={`w-2 h-2 rounded-full ${checklist.status === 'completed' ? 'bg-[var(--success)]' : 'bg-[var(--warning)]'}`} />
-        <h2 className="eyebrow">월 마감 체크리스트</h2>
-        <span className="caption">{month} · {done}/{total} ({pct}%)</span>
-        {autoClosed && <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)]">자동마감</span>}
+    <div className="master-closing-card glass-card">
+      <div className="master-card-head">
+        <h3 className="master-card-title">월 마감</h3>
+        <span className="text-[11px] text-[var(--text-dim)]">{month}{autoClosed ? " · 자동마감" : ""}</span>
       </div>
 
-      <div className="glass-card p-4">
-        {/* Progress bar */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-[var(--success)]' : pct >= 60 ? 'bg-[var(--warning)]' : 'bg-[var(--danger)]'}`} style={{ width: `${pct}%` }} />
-          </div>
-          <span className="text-[10px] text-[var(--text-dim)] mono-number">{pct}%</span>
+      {/* 완료 링 — 체크 항목 진행률 */}
+      <div className="master-closing-ring">
+        <svg viewBox="0 0 100 100" className="w-full h-full">
+          <circle cx="50" cy="50" r={RING_R} className="master-ring-track" strokeWidth="8" />
+          <circle cx="50" cy="50" r={RING_R} fill="none" stroke={ringColor} strokeWidth="8" strokeLinecap="round"
+            strokeDasharray={RING_C} strokeDashoffset={RING_C * (1 - pct / 100)} transform="rotate(-90 50 50)" className="master-ring-fill" />
+        </svg>
+        <div className="master-closing-ring-center">
+          <span className="master-closing-ring-count mono-number">{done}/{total}</span>
+          <span className="master-closing-ring-sub">{checklist.status === 'completed' ? '마감 완료' : checklist.status === 'locked' ? '잠금됨' : '완료'}</span>
         </div>
+      </div>
 
+      <div className="master-closing-body">
         {/* 저장된 리포트 다운로드 */}
         {reportUrl && (
           <a href={reportUrl} target="_blank" rel="noopener noreferrer"
@@ -191,7 +198,7 @@ export function ClosingChecklistWidget({ companyId, userId }: { companyId: strin
           </div>
         ) : (
           <>
-            <div className="space-y-1">
+            <div className="master-closing-items">
               {items.map((item: any) => (
                 <label key={item.id} className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] cursor-pointer transition">
                   <input
@@ -234,7 +241,7 @@ export function ClosingChecklistWidget({ companyId, userId }: { companyId: strin
                 className="flex-1 py-2 bg-[var(--accent)] text-black rounded-lg text-xs font-semibold hover:bg-[var(--accent)]/90 transition disabled:opacity-50"
                 title="자동 검증 + 필수 통과 시 자동 마감 + PDF 리포트 저장"
               >
-                {autoCloseMut.isPending ? '처리 중...' : '⚡ 자동 마감 + 리포트'}
+                {autoCloseMut.isPending ? '처리 중...' : '자동 마감 + 리포트'}
               </button>
             </div>
 

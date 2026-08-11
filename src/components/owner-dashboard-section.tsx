@@ -122,20 +122,21 @@ function KpiSection({ data }: { data: Summary }) {
   const profD = deltaLabel(Number(kpi.profit_q), Number(kpi.profit_pq));
   const doneD = deltaLabel(Number(kpi.done_count_q), Number(kpi.done_count_pq));
 
+  // 풀폭 요약 밴드 — 한 카드 안에 분기 라벨 + KPI 5개 (2026-08-11 마스터 시각화 개편, 대시보드 숫자 문법)
   return (
     <div className="kpi-section">
-      <div className="flex items-end justify-between mb-3 gap-2 flex-wrap">
-        <div>
-          <h2 className="text-lg font-extrabold text-[var(--text)]">{quarter.label} 한눈에</h2>
-          <p className="text-xs text-[var(--text-dim)]">{quarter.from} ~ {quarter.to} · 직전 {quarter.prev_label} 대비</p>
+      <div className="master-kpi-band glass-card">
+        <div className="master-kpi-band-title">
+          <div className="text-[14px] font-bold text-[var(--text)]">{quarter.label} 한눈에</div>
+          <div className="text-[10.5px] text-[var(--text-dim)] mt-0.5">{quarter.from} ~ {quarter.to} · 직전 {quarter.prev_label} 대비</div>
         </div>
-      </div>
-      <div className="kpi-card-grid">
-        <KpiCard label="진행 중 프로젝트" value={`${kpi.active_count}건`} sub="견적·계약·진행" />
-        <KpiCard label="이번 분기 완료" value={`${kpi.done_count_q}건`} sub={doneD.text} subColor={doneD.color} />
-        <KpiCard label="이번 분기 매출" value={fmtW(kpi.revenue_q)} sub={revD.text} subColor={revD.color} />
-        <KpiCard label="이번 분기 이윤" value={fmtW(kpi.profit_q)} sub={profD.text} subColor={profD.color} />
-        <KpiCard label="이윤율" value={`${kpi.profit_pct_q}%`} sub="이윤 ÷ 매출" />
+        <div className="master-kpi-band-stats">
+          <KpiCard label="진행 중 프로젝트" value={`${kpi.active_count}건`} sub="견적·계약·진행" />
+          <KpiCard label="이번 분기 완료" value={`${kpi.done_count_q}건`} sub={doneD.text} subColor={doneD.color} />
+          <KpiCard label="이번 분기 매출" value={fmtW(kpi.revenue_q)} sub={revD.text} subColor={revD.color} />
+          <KpiCard label="이번 분기 이윤" value={fmtW(kpi.profit_q)} sub={profD.text} subColor={profD.color} />
+          <KpiCard label="이윤율" value={`${kpi.profit_pct_q}%`} sub="이윤 ÷ 매출" />
+        </div>
       </div>
     </div>
   );
@@ -143,10 +144,10 @@ function KpiSection({ data }: { data: Summary }) {
 
 function KpiCard({ label, value, sub, subColor }: { label: string; value: string; sub: string; subColor?: string }) {
   return (
-    <div className="stat-tile">
-      <span className="stat-tile-label">{label}</span>
-      <span className="stat-tile-value mono-number">{value}</span>
-      <span className={`text-[11px] mt-0.5 ${subColor || "text-[var(--text-dim)]"}`}>{sub}</span>
+    <div className="widget-stat">
+      <div className="widget-stat-label">{label}</div>
+      <div className="widget-stat-value mono-number">{value}</div>
+      <div className={`widget-stat-sub ${subColor || ""}`}>{sub}</div>
     </div>
   );
 }
