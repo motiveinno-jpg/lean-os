@@ -177,8 +177,10 @@ export default function EInvoicesPage() {
       });
       const result = await res.json();
       if (res.status === 409 && result.activeJobId) {
-        setActiveJobId(result.activeJobId);
-        toast(`이미 진행 중인 홈택스 동기화가 있습니다 (${result.progress?.label || "진행 중"}) — 세금계산서와 전자계산서는 같은 인증서라 동시에 못 돌립니다.`, "info");
+        // 같은 종류(전자계산서) 잡만 진행표시를 넘겨받는다 — 세금계산서 잡을 넘겨받으면
+        //   이 탭이 남의 진행률을 "전자계산서 동기화 중"처럼 보여줘 혼동 (2026-08-11 사장님).
+        if (result.activeJobType === "exempt_invoice") setActiveJobId(result.activeJobId);
+        toast(result.error || `이미 진행 중인 홈택스 동기화가 있습니다 (${result.progress?.label || "진행 중"})`, "info");
         return;
       }
       if (!res.ok || !result.jobId) { toast(`동기화 시작 실패: ${result.error || "응답 없음"}`, "error"); return; }

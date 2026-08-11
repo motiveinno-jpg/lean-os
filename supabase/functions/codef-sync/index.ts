@@ -2201,7 +2201,7 @@ serve(withSentry("codef-sync", async (req) => {
       const conflictTypes = jobType === "cash_receipt" ? ["cash_receipt"] : ["tax_invoice", "exempt_invoice"];
       const { data: activeJobs } = await supabase
         .from("hometax_sync_jobs")
-        .select("id, status, current_progress, created_at")
+        .select("id, status, current_progress, created_at, job_type")
         .eq("company_id", companyId)
         .in("job_type", conflictTypes)
         .in("status", ["pending", "running"])
@@ -2209,8 +2209,11 @@ serve(withSentry("codef-sync", async (req) => {
         .limit(1);
       if (activeJobs && activeJobs.length > 0) {
         return new Response(JSON.stringify({
-          error: "이미 진행 중인 백그라운드 동기화가 있습니다. 완료 후 다시 시도하세요.",
+          error: activeJobs[0].job_type !== jobType
+            ? "세금계산서·전자계산서는 같은 인증서를 써서 동시에 못 돌립니다. 진행 중인 동기화가 끝난 뒤 다시 시도하세요."
+            : "이미 진행 중인 백그라운드 동기화가 있습니다. 완료 후 다시 시도하세요.",
           activeJobId: activeJobs[0].id,
+          activeJobType: activeJobs[0].job_type,   // FE: 다른 종류 잡이면 진행표시를 넘겨받지 않게 (2026-08-11)
           progress: activeJobs[0].current_progress,
         }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
