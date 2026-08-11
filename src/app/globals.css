@@ -7996,3 +7996,13 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .sp-type-pill { @apply rounded px-1.5 py-0.5 text-[10.5px] font-bold; background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
 .sp-note { @apply px-1 text-[11.5px] leading-relaxed text-[var(--text-dim)]; }
 .sp-note b { @apply text-[var(--text-muted)]; }
+/* 증빙에서 불러오기 팝업 (2026-08-11) */
+.sp-pull-overlay { @apply fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4; }
+.sp-pull-box { @apply flex max-h-[82vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }
+.sp-pull-head { @apply flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-4; }
+.sp-pull-head b { @apply text-sm font-bold text-[var(--text)]; }
+.sp-pull-head span { @apply ml-2 text-[11px] text-[var(--text-dim)]; }
+.sp-pull-head button { @apply text-xl leading-none text-[var(--text-dim)] transition hover:text-[var(--text)]; }
+.sp-pull-scroll { @apply flex-1 overflow-auto; }
+.sp-pull-foot { @apply shrink-0 border-t border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3 text-[11px] leading-relaxed text-[var(--text-dim)]; }
+.sp-pull-foot b { @apply text-[var(--text-muted)]; }

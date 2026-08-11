@@ -21,7 +21,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { friendlyError } from "@/lib/friendly-error";
 import {
-  VAT_TYPES, SETTLE_LABEL, buildVoucherLines, vatOf, vatType,
+  VAT_TYPES, SETTLE_LABEL, buildVoucherLines, vatOf, vatType, suggestVatType,
   type SettleType, type DraftLine,
 } from "@/lib/vat-voucher";
 
@@ -29,6 +29,21 @@ type Acct = { id: string; code: string; name: string; account_type: string };
 type Pt = { id: string; name: string; business_number: string | null };
 type ItemLine = { key: number; name: string; spec: string; qty: string; unitCost: string };
 type JLine = { key: number; side: "debit" | "credit"; account: Acct | null; amount: string; locked?: boolean };
+type EvidenceRow = {
+  key: string; kind: "tax_invoice" | "card" | "cash_receipt";
+  date: string; who: string; what: string;
+  supply: number; vat: number; partnerId: string | null; suggested: string;
+};
+const EVIDENCE_LABEL: Record<EvidenceRow["kind"], string> = {
+  tax_invoice: "세금계산서", card: "카드", cash_receipt: "현금영수증",
+};
+//   카드 자동분류는 {"label":"통신비",…} JSON 문자열이라 이름만 꺼낸다 (세금계산서 화면과 같은 규칙)
+function cardLabelOf(raw: unknown): string {
+  const v = typeof raw === "string" ? raw.trim() : "";
+  if (!v) return "";
+  if (v.startsWith("{")) { try { return String(JSON.parse(v)?.label || "").trim(); } catch { return ""; } }
+  return v;
+}
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const numOf = (s: string) => Number(String(s).replace(/[^0-9]/g, "")) || 0;
@@ -63,6 +78,7 @@ function SalePurchaseInner() {
   const [saving, setSaving] = useState(false);
   const [pickerFor, setPickerFor] = useState<number | null>(null);
   const [pickerQuery, setPickerQuery] = useState("");
+  const [pullOpen, setPullOpen] = useState(false);
 
   const t = vatType(vatCode)!;
 
@@ -191,6 +207,79 @@ function SalePurchaseInner() {
     } finally { setSaving(false); }
   };
 
+  // ── 아직 전표가 안 만들어진 증빙 — 세 화면에 흩어져 있던 입구를 여기 하나로 모은다 (2026-08-11) ──
+  const { data: pending = [] } = useQuery({
+    queryKey: ["sp-pending-evidence", companyId, entryDate.slice(0, 7)],
+    queryFn: async () => {
+      const month = entryDate.slice(0, 7);
+      const from = month + "-01";
+      const [y, m] = month.split("-").map(Number);
+      const to = (m === 12 ? y + 1 : y) + "-" + String(m === 12 ? 1 : m + 1).padStart(2, "0") + "-01";
+      const [ti, card, cash] = await Promise.all([
+        supabase.from("tax_invoices")
+          .select("id, type, issue_date, counterparty_name, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
+          .eq("company_id", companyId!).is("journal_entry_id", null).neq("status", "void")
+          .gte("issue_date", from).lt("issue_date", to).order("issue_date").limit(200),
+        supabase.from("card_transactions")
+          .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id")
+          .eq("company_id", companyId!).is("journal_entry_id", null)
+          .gte("transaction_date", from).lt("transaction_date", to).order("transaction_date").limit(200),
+        supabase.from("cash_receipts")
+          .select("id, type, issue_date, counterparty_name, supply_amount, tax_amount, amount, journal_entry_id")
+          .eq("company_id", companyId!).is("journal_entry_id", null)
+          .gte("issue_date", from).lt("issue_date", to).order("issue_date").limit(200),
+      ]);
+      const rows: EvidenceRow[] = [];
+      for (const r of ((ti.data as any[]) || [])) {
+        const dir = (r.type === "sales" || r.type === "매출") ? "sale" : "purchase";
+        rows.push({
+          key: "ti:" + r.id, kind: "tax_invoice", date: r.issue_date, who: r.counterparty_name || "—",
+          what: r.item_name || "—", supply: Number(r.supply_amount || 0), vat: Number(r.tax_amount || 0),
+          partnerId: r.partner_id || null,
+          suggested: suggestVatType({ kind: "tax_invoice", direction: dir, taxKind: r.tax_kind, memo: (r.item_name || "") + " " + (r.expense_category || "") }),
+        });
+      }
+      for (const r of ((card.data as any[]) || [])) {
+        const amt = Number(r.amount || 0);
+        if (amt <= 0) continue;                       // 취소·환불(음수)은 전표 대상이 아니다
+        //   가맹점명이 '[취소]' 로 시작하는 건도 뺀다 — 승인 취소분이라 전표를 만들면 안 된다
+        if (String(r.merchant_name || "").trim().startsWith("[취소]")) continue;
+        const label = cardLabelOf(r.classification) || r.category || "";
+        const sup = Math.round(amt / 1.1);
+        rows.push({
+          key: "card:" + r.id, kind: "card", date: r.transaction_date, who: r.merchant_name || "—",
+          what: label || "카드 사용", supply: sup, vat: amt - sup, partnerId: null,
+          suggested: suggestVatType({ kind: "card", direction: "purchase", memo: (r.merchant_name || "") + " " + label }),
+        });
+      }
+      for (const r of ((cash.data as any[]) || [])) {
+        const dir = r.type === "income" ? "sale" : "purchase";
+        const sup = Number(r.supply_amount || 0) || Math.round(Number(r.amount || 0) / 1.1);
+        rows.push({
+          key: "cash:" + r.id, kind: "cash_receipt", date: r.issue_date, who: r.counterparty_name || "—",
+          what: "현금영수증", supply: sup,
+          vat: Number(r.tax_amount || 0) || (Number(r.amount || 0) - sup), partnerId: null,
+          suggested: suggestVatType({ kind: "cash_receipt", direction: dir }),
+        });
+      }
+      //   마이너스 증빙(수정세금계산서 등)은 이 화면이 표현하지 못한다 — 일반전표에서 친다.
+      //     여기서 억지로 불러오면 부호가 사라져 반대 전표가 만들어진다.
+      return rows.filter((r) => r.supply > 0).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+    },
+    enabled: !!companyId && pullOpen,
+  });
+
+  //   불러오면 위 입력칸이 그 증빙으로 채워진다 — 유형은 추천값으로, 바꾸고 싶으면 바꾸면 된다
+  const pullOne = (row: EvidenceRow) => {
+    setVatCode(row.suggested);
+    const p = partners.find((x) => (row.partnerId ? x.id === row.partnerId : x.name === row.who));
+    if (p) { setPartner(p); setPartnerQuery(p.name); }
+    else { setPartner(null); setPartnerQuery(row.who); }
+    setItems([{ key: K++, name: row.what, spec: "", qty: "1", unitCost: String(row.supply) }]);
+    setOverrides({});
+    setPullOpen(false);
+  };
+
   // ── 오늘 저장된 매입매출전표 ──
   const { data: saved = [] } = useQuery({
     queryKey: ["sp-voucher-list", companyId, entryDate],
@@ -221,6 +310,7 @@ function SalePurchaseInner() {
             className="field-input px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text)]" />
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <button type="button" onClick={() => setPullOpen(true)} className="btn-secondary btn-sm">증빙에서 불러오기</button>
           <button type="button" onClick={reset} className="btn-secondary btn-sm">새 전표</button>
           <button type="button" onClick={save} disabled={!canSave} className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {saving ? "저장 중…" : "저장"}
@@ -438,6 +528,48 @@ function SalePurchaseInner() {
           </div>
         )}
       </section>
+
+      {pullOpen && (
+        <div className="sp-pull-overlay" onClick={() => setPullOpen(false)}>
+          <div className="sp-pull-box" onClick={(e) => e.stopPropagation()}>
+            <div className="sp-pull-head">
+              <div>
+                <b>증빙에서 불러오기</b>
+                <span>전표가 안 만들어진 것만 · {entryDate.slice(0, 7)}</span>
+              </div>
+              <button type="button" onClick={() => setPullOpen(false)} aria-label="닫기">✕</button>
+            </div>
+            {pending.length === 0 ? (
+              <div className="sp-empty">이 달에 전표가 필요한 증빙이 없습니다.</div>
+            ) : (
+              <div className="sp-pull-scroll">
+                <table className="sp-saved-table">
+                  <thead>
+                    <tr><th>일자</th><th>증빙</th><th>거래처</th><th>품목</th><th className="text-right">공급가액</th><th>추천 유형</th><th /></tr>
+                  </thead>
+                  <tbody>
+                    {pending.map((r) => (
+                      <tr key={r.key}>
+                        <td className="mono-number whitespace-nowrap">{r.date}</td>
+                        <td className="whitespace-nowrap">{EVIDENCE_LABEL[r.kind]}</td>
+                        <td className="truncate max-w-[160px]">{r.who}</td>
+                        <td className="truncate max-w-[160px]">{r.what}</td>
+                        <td className="text-right mono-number">{won(r.supply)}</td>
+                        <td><span className="sp-type-pill">{vatType(r.suggested)?.label || r.suggested}</span></td>
+                        <td className="text-right"><button type="button" onClick={() => pullOne(r)} className="btn-secondary btn-sm">불러오기</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="sp-pull-foot">
+              추천 유형은 규칙으로 붙습니다 — <b>접대·유흥·골프·상품권은 54 불공제</b>, 매입 계산서는 51, 카드는 57.
+              불러온 뒤 유형을 바꿔도 됩니다. 취소분과 <b>마이너스 증빙(수정세금계산서 등)</b>은 여기 나오지 않습니다 — 일반전표에서 칩니다.
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="sp-note">
         ※ 매입매출전표는 <b>부가세가 붙는 거래</b>(세금계산서·카드·현금영수증)를 칩니다 —
