@@ -267,11 +267,14 @@ export function FileList({
                 {/* File info */}
                 <div className="file-row-info">
                   <div className="flex items-center gap-2">
+                    {/* 파일명 클릭 = 열기 — 저장된 public URL 은 비공개 버킷에서 400 이라
+                        href 직행 대신 클릭 시점 서명 URL 로 연다 (사장님 제보 2026-08-11) */}
                     <a
-                      href={file.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-[var(--text)] hover:text-[var(--primary)] truncate transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => void openStoredFile(file.file_url)}
+                      onKeyDown={(e) => { if (e.key === "Enter") void openStoredFile(file.file_url); }}
+                      className="text-xs font-medium text-[var(--text)] hover:text-[var(--primary)] truncate transition-colors cursor-pointer"
                       title={file.file_name}
                     >
                       {file.file_name}
@@ -418,11 +421,13 @@ export function FileList({
                 </div>
 
                 {/* File name */}
+                {/* 파일명 클릭 = 열기 — 리스트 뷰와 동일하게 클릭 시점 서명 URL (2026-08-11) */}
                 <a
-                  href={file.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] font-medium text-[var(--text)] hover:text-[var(--primary)] text-center truncate w-full transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => void openStoredFile(file.file_url)}
+                  onKeyDown={(e) => { if (e.key === "Enter") void openStoredFile(file.file_url); }}
+                  className="text-[11px] font-medium text-[var(--text)] hover:text-[var(--primary)] text-center truncate w-full transition-colors cursor-pointer"
                   title={file.file_name}
                 >
                   {file.file_name}
