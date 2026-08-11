@@ -8,7 +8,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getMonthEvents, type ScheduleTodo } from "@/lib/schedule";
-import { getLeaveRequests, LEAVE_TYPES } from "@/lib/hr";
+import { LEAVE_TYPES } from "@/lib/hr";
+import { supabase } from "@/lib/supabase";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 
 const WD = ["일", "월", "화", "수", "목", "금", "토"];
@@ -43,10 +44,17 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
     enabled: !!companyId && !!userId, staleTime: 60_000,
   });
 
-  // 승인된 휴가 — 전자결재로 올라온 휴가까지 합쳐서 준다(getLeaveRequests 가 병합).
+  // 승인된 휴가 — leave_calendar RPC(SECURITY DEFINER) 사용 (2026-08-11).
+  //   왜: 이름은 employees 조인인데 급여 등 민감 컬럼 때문에 일반 직원 RLS 로 막혀
+  //   "누가" 휴가인지 빈 값으로 내려왔다. RPC 는 이름·기간·단위만 최소 반환.
+  //   (승인된 전자결재 휴가는 native leave_requests 에도 기록되므로 이 경로로 전부 커버)
   const { data: leaves = [] } = useQuery({
     queryKey: ["dash-cal-leaves", companyId],
-    queryFn: () => getLeaveRequests(companyId, "approved"),
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("leave_calendar");
+      if (error) throw error;
+      return (data || []) as any[];
+    },
     enabled: !!companyId, staleTime: 60_000,
   });
   const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
@@ -84,7 +92,7 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
       const from = String(l.start_date || "").slice(0, 10);
       const to = String(l.end_date || from).slice(0, 10);
       if (!from) continue;
-      const name = l.employees?.name || "";
+      const name = l.employee_name || l.employees?.name || "";
       const label = displayLabel(l);
       let cur = from;
       // 방어: 잘못 입력된 기간(끝<시작)이나 비정상적으로 긴 기간에서 무한 루프 방지
