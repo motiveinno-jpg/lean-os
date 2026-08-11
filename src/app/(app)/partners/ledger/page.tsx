@@ -10,6 +10,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useMemo, useState } from "react";
 import { DateField } from "@/components/date-field";
+import { DateRangeField } from "@/components/date-range-field";
 import { EmptyState } from "@/components/empty-state";
 import { BarChart } from "@/components/charts/kit";
 import Link from "next/link";
@@ -40,17 +41,17 @@ export default function PartnerLedgerPage() {
   const db = supabase;
 
   const [ledgerType, setLedgerTypeRaw] = useState<ArApType>(initialType);
-  const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear()); // 회계기간(연도)
-  const [yearInput, setYearInput] = useState(String(new Date().getFullYear())); // 연도 직접 입력 버퍼(드롭다운과 동기화)
-  useEffect(() => { setYearInput(String(ledgerYear)); }, [ledgerYear]);
-  // 회계기간 직접 선택 — 연도 대신 임의 기간(부터~까지)으로 원장 조회
-  const [periodMode, setPeriodMode] = useState<"year" | "custom">("year");
+  //   2026-08-11 — 회계기간이 '연도 드롭다운 / 연도 직접입력 / 기간 직접선택' 세 갈래로 갈려 있었다.
+  //   값의 출처를 **기간 하나(customFrom~customTo)** 로 합치고, 연도 프리셋은 그 값을 채우는 지름길로 둔다.
   const [customFrom, setCustomFrom] = useState(`${new Date().getFullYear()}-01-01`);
   const [customTo, setCustomTo] = useState(`${new Date().getFullYear()}-12-31`);
-  const periodStart = periodMode === "custom" ? customFrom : `${ledgerYear}-01-01`;
-  const periodEnd = periodMode === "custom" ? customTo : `${ledgerYear}-12-31`;
-  const rpcYear = periodMode === "custom" ? (Number(customFrom.slice(0, 4)) || ledgerYear) : ledgerYear; // 좌측 목록 RPC는 연도 기준 → 시작일의 연도 사용
-  const periodLabel = periodMode === "custom" ? `${customFrom} ~ ${customTo}` : `${ledgerYear}년`;
+  const periodStart = customFrom;
+  const periodEnd = customTo;
+  //   좌측 목록 RPC 는 연도 기준이라 시작일의 연도를 쓴다
+  const rpcYear = Number(customFrom.slice(0, 4)) || new Date().getFullYear();
+  //   그 해 전체(1/1~12/31)면 '2026년'으로, 아니면 날짜 그대로 보여 준다
+  const isWholeYear = customFrom.endsWith("-01-01") && customTo === `${customFrom.slice(0, 4)}-12-31`;
+  const periodLabel = isWholeYear ? `${customFrom.slice(0, 4)}년` : `${customFrom} ~ ${customTo}`;
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [sortBy, setSortBy] = useState<"outstanding" | "name" | "code">("outstanding"); // 기본: 잔액 큰 순 (관리 우선순위)
   const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
@@ -234,48 +235,24 @@ export default function PartnerLedgerPage() {
             })}
           </div>
           <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-            <span className="font-semibold">회계기간</span>
-            <select value={periodMode === "custom" ? "custom" : String(ledgerYear)}
+            {/*   연도 프리셋 — 고르면 그 해 1/1~12/31 을 기간에 채운다(지름길). 값은 늘 기간 하나가 진실. */}
+            <select value={isWholeYear ? customFrom.slice(0, 4) : "custom"}
               onChange={(e) => {
-                if (e.target.value === "custom") setPeriodMode("custom");
-                else { setPeriodMode("year"); setLedgerYear(Number(e.target.value)); }
+                const v = e.target.value;
+                if (v === "custom") return;      // 달력으로 직접 고르라는 뜻 — 값은 그대로 둔다
+                setCustomFrom(`${v}-01-01`); setCustomTo(`${v}-12-31`);
               }}
               className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
-              {[...new Set([...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i), ledgerYear])]
+              {[...new Set([...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i), rpcYear])]
                 .sort((a, b) => b - a)
                 .map((y) => (
-                  <option key={y} value={String(y)}>{y}-01-01 ~ {y}-12-31</option>
+                  <option key={y} value={String(y)}>{y}년 (1/1~12/31)</option>
                 ))}
-              <option value="custom">기간 직접 선택</option>
+              {!isWholeYear && <option value="custom">기간 직접 선택</option>}
             </select>
-            {periodMode === "year" ? (
-              <>
-                {/* 연도 직접 입력 — 드롭다운 밖 연도도 타이핑(Enter/포커스 아웃 적용) */}
-                <input
-                  type="number" inputMode="numeric" min={2000} max={2100}
-                  value={yearInput}
-                  onChange={(e) => setYearInput(e.target.value)}
-                  onBlur={() => { const y = Number(yearInput); if (y >= 2000 && y <= 2100) setLedgerYear(y); else setYearInput(String(ledgerYear)); }}
-                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                  title="연도 직접 입력 (Enter)"
-                  className="w-[68px] px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number"
-                />
-                <span className="text-[var(--text-dim)]">년</span>
-              </>
-            ) : (
-              <span className="inline-flex items-center gap-1">
-                {/* 기간 직접 선택 — 부터~까지 임의 지정 */}
-                <DateField value={customFrom} max={customTo}
-                  onChange={(e) => e.target.value && setCustomFrom(e.target.value)}
-                  title="시작일"
-                  className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-                <span className="text-[var(--text-dim)]">~</span>
-                <DateField value={customTo} min={customFrom}
-                  onChange={(e) => e.target.value && setCustomTo(e.target.value)}
-                  title="종료일"
-                  className="px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-              </span>
-            )}
+            {/*   기간 — 다른 화면과 같은 달력 위젯 */}
+            <DateRangeField label="회계기간" from={customFrom} to={customTo}
+              onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
           </div>
           <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
             className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36 focus:border-[var(--primary)]/60 focus:outline-none transition" />

@@ -70,20 +70,28 @@ const QUARTER_START = (m: number) => m - ((m - 1) % 3);
  *   반달만 신고하는 실수도 막는다. 생김새·조작법은 같고 고르는 알갱이만 달라진다.
  */
 export function DateRangeField({
-  from, to, onChange, label = "조회기간", unit = "day",
+  from, to, onChange, label = "조회기간", unit = "day", onClear,
 }: {
   from: string; to: string;
   onChange: (from: string, to: string) => void;
   label?: string;
   unit?: "day" | "month";
+  /** 주면 '기간 해제'가 생긴다 — 통장·카드처럼 **기간을 안 걸 수도 있는** 화면용.
+   *  from/to 가 빈 문자열이면 칩에 '전체 기간'으로 보인다. */
+  onClear?: () => void;
 }) {
   const isM = unit === "month";
+  //   빈 값 = 기간을 안 건 상태. 달력은 오늘 기준으로 열되, 고르기 전까지는 필터가 없다.
+  const empty = !from || !to;
   const order = isM ? SEG_ORDER_M : SEG_ORDER;
   const today = todayKst();
   const nowYM = today.slice(0, 7);
   const [open, setOpen] = useState(false);
   //   달력 왼쪽 달 (오른쪽은 그 다음 달)
-  const [view, setView] = useState(() => { const p = parse(from); return { y: p.y, m: p.m }; });
+  const [view, setView] = useState(() => {
+    const p = parse(from || todayKst());
+    return { y: p.y, m: p.m };
+  });
   //   시작일만 찍은 중간 상태 — 이때는 목록을 바꾸지 않는다
   const [half, setHalf] = useState<string | null>(null);
   //   타이핑 중인 글자 (확정 전) — 다 치면 그때 onChange 로 올린다
@@ -105,7 +113,7 @@ export function DateRangeField({
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  useEffect(() => { const p = parse(from); setView({ y: p.y, m: p.m }); }, [from]);
+  useEffect(() => { const p = parse(from || todayKst()); setView({ y: p.y, m: p.m }); }, [from]);
 
   useEffect(() => {
     if (!focusNext) return;
@@ -226,8 +234,9 @@ export function DateRangeField({
 
   const cellClass = (c: { date: string; out: boolean; dow: number }) => {
     const lo = half ?? from, hi = half ?? to;
-    const a = half ? (half < to ? half : to) : from;
-    const b = half ? (half < to ? to : half) : to;
+    //   기간을 안 건 상태에서는 칠하지 않는다 — 시작만 찍으면 그 하나만 표시한다
+    const a = half ?? (empty ? "" : from);
+    const b = half ? (empty ? half : (half < to ? to : half)) : (empty ? "" : to);
     const isEdge = c.date === (half ?? from) || c.date === (half ? (half < to ? to : half) : to);
     const inRange = c.date > a && c.date < b;
     const cls = ["drf-day"];
@@ -305,11 +314,15 @@ export function DateRangeField({
     <div className="drf" ref={boxRef}>
       <span className="drf-label">{label}</span>
       <div className={open ? "drf-chip drf-chip-open" : "drf-chip"}>
+        {empty ? (
+          <button type="button" onClick={() => setOpen((v) => !v)} className="drf-empty">전체 기간</button>
+        ) : (<>
         {seg("fy", "drf-y", "시작 연도")}<i>-</i>{seg("fm", "drf-md", "시작 월")}
         {!isM && <><i>-</i>{seg("fd", "drf-md", "시작 일")}</>}
         <i className="drf-tilde">~</i>
         {seg("ty", "drf-y", "종료 연도")}<i>-</i>{seg("tm", "drf-md", "종료 월")}
         {!isM && <><i>-</i>{seg("td", "drf-md", "종료 일")}</>}
+        </>)}
         <button type="button" onClick={() => setOpen((v) => !v)} className="drf-cal-btn" aria-label="달력 열기">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"
             strokeLinecap="round" strokeLinejoin="round">
@@ -324,7 +337,9 @@ export function DateRangeField({
             <b>조회기간</b>
             {half
               ? <span className="drf-half">시작 {half} · <b>{isM ? "종료 월을" : "종료일을"} 고르세요</b></span>
-              : <span className="drf-range mono-number">{from} ~ {to} · {isM ? `${months}개월` : `${days}일`}</span>}
+              : empty
+                ? <span className="drf-range">전체 기간 — 아직 기간을 걸지 않았습니다</span>
+                : <span className="drf-range mono-number">{from} ~ {to} · {isM ? `${months}개월` : `${days}일`}</span>}
             <span className="drf-nav">
               <button type="button" onClick={() => setView(isM ? { y: view.y - 1, m: view.m } : addMonth(view.y, view.m, -1))}
                 aria-label={isM ? "이전 해" : "이전 달"}>‹</button>
@@ -365,6 +380,10 @@ export function DateRangeField({
               년 <b>9999</b> · {isM ? "월" : "월·일"} <b>99</b> 를 치면 오늘 기준으로 채워집니다 ·
               {isM ? " 이번 달 " : " 오늘 "}<b className="mono-number">{isM ? nowYM : today}</b>
             </span>
+            {onClear && !empty && (
+              <button type="button" onClick={() => { onClear(); setHalf(null); setOpen(false); }}
+                className="btn-secondary btn-sm">기간 해제</button>
+            )}
             <button type="button" onClick={() => { setOpen(false); setHalf(null); }} className="btn-secondary btn-sm">닫기</button>
           </div>
         </div>

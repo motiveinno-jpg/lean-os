@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { DateField } from "@/components/date-field";
+import { DateRangeField } from "@/components/date-range-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1203,25 +1204,16 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       {/* 기간설정 — 미분류 정리(inbox)에선 제거(분류 확정엔 불필요). 전체/카드에서만. */}
       {(tab === 'all' || tab === 'cards') && (
         <div className="tx-period-filter-bar no-print">
-          <span className="text-xs font-semibold text-[var(--text-muted)]">기간</span>
+          {/*   기간 — 탭에 맞는 것 하나만 보인다. 은행용·카드용 칸이 나란히 있어 헷갈리던 것을
+                한 위젯으로 줄였다 (2026-08-11). 값은 탭별로 따로 기억한다. */}
           {tab === 'cards' ? (
-            <>
-              <DateField value={cardDateFrom} onChange={e => setCardDateFrom(e.target.value)} aria-label="시작일"
-                className="px-2 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)]" />
-              <span className="text-xs text-[var(--text-dim)]">~</span>
-              <DateField value={cardDateTo} onChange={e => setCardDateTo(e.target.value)} aria-label="종료일"
-                className="px-2 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)]" />
-              {(cardDateFrom || cardDateTo) && <button onClick={() => { setCardDateFrom(''); setCardDateTo(''); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
-            </>
+            <DateRangeField label="기간" from={cardDateFrom} to={cardDateTo}
+              onChange={(f, t) => { setCardDateFrom(f); setCardDateTo(t); }}
+              onClear={() => { setCardDateFrom(''); setCardDateTo(''); }} />
           ) : (
-            <>
-              <DateField value={bankDateFrom} onChange={e => setBankDateFrom(e.target.value)} aria-label="시작일"
-                className="px-2 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)]" />
-              <span className="text-xs text-[var(--text-dim)]">~</span>
-              <DateField value={bankDateTo} onChange={e => setBankDateTo(e.target.value)} aria-label="종료일"
-                className="px-2 py-1.5 text-xs bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-[var(--text)]" />
-              {(bankDateFrom || bankDateTo) && <button onClick={() => { setBankDateFrom(''); setBankDateTo(''); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
-            </>
+            <DateRangeField label="기간" from={bankDateFrom} to={bankDateTo}
+              onChange={(f, t) => { setBankDateFrom(f); setBankDateTo(t); }}
+              onClear={() => { setBankDateFrom(''); setBankDateTo(''); }} />
           )}
         </div>
       )}

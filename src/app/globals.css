@@ -8289,3 +8289,4 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .drf-mon.drf-edge { @apply bg-[var(--primary)] text-white; }
 .drf-mon.drf-today { @apply ring-1 ring-inset ring-[var(--primary)]; }
 .drf-mon.drf-edge.drf-today { @apply ring-0; }
+.drf-empty { @apply px-1 text-[12px] font-semibold text-[var(--text-dim)]; }

@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import { DateField } from "@/components/date-field";
+import { DateRangeField } from "@/components/date-range-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -607,45 +608,10 @@ export default function CashReceiptsPage() {
             </span>
           )}
 
-          {/* 조회기간 — 눌렀을 때만 열린다. 빠른기간은 그 안에 작은 글씨로 (2026-08-10 사장님) */}
-          <ToolbarPopover label={<span className="mono-number">{startDate} ~ {endDate}</span>} title="조회기간" width={252}>
-            {() => (
-              <>
-                <div className="period-pop-fields">
-                  <DateField
-                    value={startDate}
-                    max={endDate || undefined}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="flex-1 px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
-                    aria-label="조회 시작일"
-                  />
-                  <span className="text-xs text-[var(--text-muted)]">~</span>
-                  <DateField
-                    value={endDate}
-                    min={startDate || undefined}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="flex-1 px-2 py-1 text-xs bg-[var(--bg-surface)] border border-[var(--border)] rounded text-[var(--text)]"
-                    aria-label="조회 종료일"
-                  />
-                </div>
-                <div className="period-pop-quick">
-                  {([["1개월", 1], ["3개월", 3], ["6개월", 6], ["1년", 12]] as const).map(([l, back]) => {
-                    const today = todayKst();
-                    const d = new Date();
-                    d.setMonth(d.getMonth() - back);
-                    const from = kstDateStr(d);
-                    const on = startDate === from && endDate === today;
-                    return (
-                      <button key={l} type="button" className={on ? "on" : ""}
-                        onClick={() => { setStartDate(from); setEndDate(today); }}>
-                        {l}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </ToolbarPopover>
+          {/* 조회기간 — 다른 화면과 같은 달력 위젯 (2026-08-11).
+              이 기간이 곧 홈택스 수집 기간이기도 하다(한 기준으로 통일해 둔 상태). */}
+          <DateRangeField from={startDate} to={endDate}
+            onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
 
           {/* 가져오기 — 홈택스 매출·매입과 엑셀 업로드를 한 곳에 */}
           <ToolbarPopover label="가져오기" title="가져오기" width={230}>

@@ -19,6 +19,7 @@ import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getSyncPausedUntil, setSyncPause, clearSyncPause } from "@/lib/data-sync";
 import { getBankSyncAccess } from "@/lib/billing";
 import { DateField } from "@/components/date-field";
+import { DateRangeField } from "@/components/date-range-field";
 import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { EmptyState } from "@/components/empty-state";
@@ -547,15 +548,13 @@ export default function BankPage() {
         </div>
         {/* 우측 — [연동 기간] + [통장 연동] 한 묶음. 이 기간이 곧 CODEF 연동 대상 범위라 버튼 옆에 배치. */}
         <div className="flex flex-wrap items-center gap-2">
+          {/*   거래기간 — 다른 화면과 같은 달력 위젯 (2026-08-11). 목록 필터이자 CODEF 연동 기간이라
+                '기간 해제'(전체 기간)를 그대로 남긴다. */}
           {tab === "accounts" && (
             <div className="bank-sync-range-filter no-print">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)] whitespace-nowrap">거래기간</span>
-              <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="연동 시작일"
-                className="px-2 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-              <span className="text-[var(--text-dim)] text-xs">~</span>
-              <DateField value={bankTxTo} min={bankTxFrom || undefined} onChange={(e) => setBankTxTo(e.target.value)} title="연동 종료일"
-                className="px-2 py-1 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-              {(bankTxFrom || bankTxTo) && <button onClick={() => { setBankTxFrom(""); setBankTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1" title="기간 해제">해제</button>}
+              <DateRangeField label="거래기간" from={bankTxFrom} to={bankTxTo}
+                onChange={(f, t) => { setBankTxFrom(f); setBankTxTo(t); }}
+                onClear={() => { setBankTxFrom(""); setBankTxTo(""); }} />
             </div>
           )}
           {/* 연동 일시정지 — 은행에 직접 로그인할 때 우리 앱 동기화가 겹쳐 강제 로그아웃(W98010) 되는 것 방지 */}
