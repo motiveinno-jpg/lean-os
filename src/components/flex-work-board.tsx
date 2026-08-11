@@ -102,12 +102,12 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
     staleTime: 30_000,
   });
 
-  // 승인 휴가 (주간과 겹치는 건)
-  const { data: leaves = [] } = useQuery<{ employee_id: string; start_date: string; end_date: string; leave_type: string }[]>({
+  // 승인 휴가 (주간과 겹치는 건) — 반차 오전/오후 판정을 위해 단위·시각까지 읽는다 (2026-08-11 사장님)
+  const { data: leaves = [] } = useQuery<{ employee_id: string; start_date: string; end_date: string; leave_type: string; leave_unit: string | null; start_time: string | null; end_time: string | null; days: number | null }[]>({
     queryKey: ["flex-work-leaves", companyId, startStr],
     queryFn: async () => {
       const data = logRead('components/flex-work-board:data', await db.from("leave_requests")
-        .select("employee_id, start_date, end_date, leave_type")
+        .select("employee_id, start_date, end_date, leave_type, leave_unit, start_time, end_time, days")
         .eq("company_id", companyId).eq("status", "approved")
         .lte("start_date", endStr).gte("end_date", startStr));
       return (data || []) as any[];
@@ -121,12 +121,28 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
     for (const a of atts) m.set(`${a.employee_id}|${a.date}`, a);
     return m;
   }, [atts]);
+  // 날짜별 휴가 정보 — 종일이면 "휴가", 반차·시간차는 오전(am)/오후(pm)로 갈라 게이지 반쪽만 채운다.
+  //   오전/오후 판정은 캘린더와 동일 기준: 시작 시각이 12:00 이전이면 오전 (2026-08-11 사장님).
+  //   시각이 없는 구 데이터 반차는 방향 미상(half) — 채움 없이 라벨만.
+  //   같은 날 오전+오후 반차가 겹치면 사실상 종일이므로 full 로 승격.
   const leaveByEmpDate = useMemo(() => {
-    const m = new Set<string>();
+    const m = new Map<string, { kind: "full" | "am" | "pm" | "half"; tip: string }>();
     for (const l of leaves) {
+      const unit = String(l.leave_unit || "");
+      const partial = unit === "half_day" || unit === "two_hours" || Number(l.days) === 0.5;
+      const st = String(l.start_time || "").slice(0, 5);
+      const en = String(l.end_time || "").slice(0, 5);
+      const kind: "full" | "am" | "pm" | "half" = !partial ? "full" : st ? (Number(st.slice(0, 2)) < 12 ? "am" : "pm") : "half";
+      const word = unit === "two_hours" ? "시간차" : "반차";
+      const tip = kind === "full" ? "휴가" : `${kind === "am" ? "오전 " : kind === "pm" ? "오후 " : ""}${word}${st && en ? ` ${st}~${en}` : ""}`;
       for (const d of days) {
         const s = ymd(d);
-        if (l.start_date <= s && s <= l.end_date) m.add(`${l.employee_id}|${s}`);
+        if (!(l.start_date <= s && s <= l.end_date)) continue;
+        const key = `${l.employee_id}|${s}`;
+        const prev = m.get(key);
+        if (!prev) { m.set(key, { kind, tip }); continue; }
+        if (prev.kind === "full" || kind === "full") { m.set(key, { kind: "full", tip: "휴가" }); continue; }
+        if (prev.kind !== kind) m.set(key, { kind: "full", tip: "휴가" }); // 오전+오후 겹침 = 종일
       }
     }
     return m;
@@ -290,12 +306,20 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
                   {days.map((d, i) => {
                     const key = `${emp.id}|${ymd(d)}`;
                     const a = attByEmpDate.get(key);
-                    const onLeave = leaveByEmpDate.has(key);
+                    const lv = leaveByEmpDate.get(key);
                     const weekend = i >= 5;
-                    if (onLeave) {
+                    if (lv) {
                       return (
-                        <td key={i} className="px-1 py-2 text-center align-middle">
-                          <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">휴가</span>
+                        <td key={i} className="px-1 py-2 text-center align-middle" title={lv.tip}>
+                          {lv.kind === "full" ? (
+                            <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">휴가</span>
+                          ) : (
+                            // 반차 게이지 — 오전은 왼쪽 절반, 오후는 오른쪽 절반만 채운다 (2026-08-11 사장님)
+                            <span className="flex-halfday-pill">
+                              {lv.kind !== "half" && <span className={`flex-halfday-fill ${lv.kind === "am" ? "left-0" : "right-0"}`} />}
+                              <span className="flex-halfday-label">{lv.kind === "am" ? "오전 반차" : lv.kind === "pm" ? "오후 반차" : "반차"}</span>
+                            </span>
+                          )}
                         </td>
                       );
                     }
@@ -346,7 +370,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
           </table>
         </div>
         <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
-          타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가 <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
+          타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가(반쪽 채움 = 반차 · 왼쪽 오전/오른쪽 오후) <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
         </div>
       </div>
     </div>

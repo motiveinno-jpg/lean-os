@@ -50,6 +50,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useAvatarMap } from "@/hooks/use-avatar-map";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
+import { computeHalfDaySlot } from "@/lib/hr";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
@@ -2635,6 +2636,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const [leaveForm, setLeaveForm] = useState({
     leaveType: "annual",
     leaveUnit: "full_day",
+    halfDayPeriod: "am" as "am" | "pm", // 반차 오전/오후 — 미저장 시 워크보드·지각 보정이 방향을 몰랐다 (2026-08-11)
     startDate: "",
     endDate: "",
     startTime: "",
@@ -2673,7 +2675,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           // tiptap 은 마운트 후 content prop 을 안 따라감 — 임시저장 복원분을 에디터에 직접 주입
           if (draft.form.description) descEditorRef.current?.setContent(plainToHtml(draft.form.description));
         }
-        if (draft.leaveForm) setLeaveForm(draft.leaveForm);
+        if (draft.leaveForm) setLeaveForm({ halfDayPeriod: "am", ...draft.leaveForm }); // 구 임시저장엔 halfDayPeriod 가 없다
       } catch { /* ignore corrupt draft */ }
     }
     setDraftLoaded(true);
@@ -2752,7 +2754,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     if (leaveForm.leaveUnit === "full_day") {
       lines += `- 휴가 기간: ${startStr} ~ ${endStr} (${leaveDays}일)\n`;
     } else if (leaveForm.leaveUnit === "half_day") {
-      lines += `- 휴가 일자: ${startStr} (반차)\n`;
+      lines += `- 휴가 일자: ${startStr} (${leaveForm.halfDayPeriod === "pm" ? "오후" : "오전"} 반차)\n`;
     } else {
       lines += `- 휴가 일자: ${startStr}\n`;
       if (leaveForm.startTime && leaveForm.endTime) {
@@ -2962,6 +2964,15 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         const fieldHtml = activeFields.map((fd) => `<p>${escapeHtmlText(`${fd.label}: ${customFieldValues[fd.key] || ""}`)}</p>`).join("");
         finalDesc = fieldHtml + descHtml;
       }
+      // 반차 오전/오후 → 시간 산정 (직원탭 신청과 동일 규칙 computeHalfDaySlot) —
+      //   시간이 leave_requests 에 저장돼야 워크보드 반차 게이지·지각 보정이 방향을 안다 (2026-08-11)
+      let leaveTimes: { start_time?: string; end_time?: string } = {};
+      if (isLeave && leaveForm.leaveUnit === "half_day") {
+        const slot = await computeHalfDaySlot(companyId, leaveForm.halfDayPeriod);
+        leaveTimes = { start_time: slot.start, end_time: slot.end };
+      } else if (isLeave && leaveForm.leaveUnit === "two_hours" && leaveForm.startTime && leaveForm.endTime) {
+        leaveTimes = { start_time: leaveForm.startTime, end_time: leaveForm.endTime };
+      }
       return createApprovalRequest({
         companyId,
         requestType: selectedForm ? selectedForm.name : form.requestType,
@@ -2977,7 +2988,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         customFields: activeFields.length > 0
           ? customFieldValues
           : isLeave
-            ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays } }
+            ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays, ...leaveTimes } }
             : undefined,
         // 참조: 요청자가 화면에서 지정한 인원(양식·정책 기본값이 프리필돼 있고 가감 가능)
         referenceUserIds: selectedReferences.length > 0 ? selectedReferences.map((r) => r.userId) : undefined,
@@ -2987,7 +2998,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       invalidate();
       setForm({ requestType: "", title: "", amount: "", description: "" }); // 제출 후에도 유형 선택 화면으로
       descEditorRef.current?.setContent("");
-      setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
+      setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
       setSelectedApprovers([]); setCustomFieldValues({});
       setSelectedReferences([]); setReferencesInited("");
@@ -3189,6 +3200,30 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                               </div>
                             )}
                           </div>
+                          {leaveForm.leaveUnit === "half_day" && (
+                            <div>
+                              <label className="block text-xs text-[var(--text-muted)] mb-1">반차 시간대</label>
+                              <div className="flex gap-1">
+                                {([
+                                  { v: "am" as const, label: "오전 반차" },
+                                  { v: "pm" as const, label: "오후 반차" },
+                                ]).map((opt) => (
+                                  <button
+                                    key={opt.v}
+                                    type="button"
+                                    onClick={() => setLeaveForm({ ...leaveForm, halfDayPeriod: opt.v })}
+                                    className={`flex-1 px-2 py-2.5 rounded-xl text-xs font-semibold border transition ${
+                                      leaveForm.halfDayPeriod === opt.v
+                                        ? "border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
+                                        : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           {leaveForm.leaveUnit === "two_hours" && (
                             <div className="grid grid-cols-2 gap-3">
                               <div>
@@ -3532,7 +3567,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 // 초기화하면 유형 선택 전 상태로 되돌린다 (경비 청구로 되돌아가지 않음)
                 setForm({ requestType: "", title: "", amount: "", description: "" });
                 setDescriptionInited("");
-                setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
+                setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
                 setFiles([]);
                 setSelectedApprovers([]);
                 setSelectedReferences([]); setReferencesInited("");

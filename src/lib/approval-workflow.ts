@@ -585,6 +585,9 @@ async function applyLeaveDeduction(request: any): Promise<void> {
       leave_unit: leave?.leave_unit || 'full_day',
       start_date: startDate,
       end_date: endDate,
+      // 반차·시간차 시각 — 이게 없으면 워크보드 반차 게이지(오전/오후)와 지각 보정이 방향을 모른다 (2026-08-11)
+      start_time: leave?.start_time || null,
+      end_time: leave?.end_time || null,
       days,
       reason: request.title || '전자결재 휴가',
       status: 'approved',

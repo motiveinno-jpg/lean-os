@@ -1401,7 +1401,8 @@ export async function getLeaveRequests(companyId: string, status?: string) {
 // 반차 오전/오후 시간대 산정. 회사 근무시간 있으면 절반 기준, 없으면 기본.
 //   오전: 근무시작 ~ (근무시작+근무시간/2 + 점심포함 중간), 오후: 그 이후 ~ 근무종료.
 //   단순화: 근무시간 총분의 중간을 경계로 잡되, 점심시간만큼 오후 시작을 늦춤.
-async function computeHalfDaySlot(
+// export — 결재허브 휴가 양식도 반차 오전/오후 → 시간 산정에 같은 규칙을 쓴다 (2026-08-11)
+export async function computeHalfDaySlot(
   companyId: string,
   period: 'am' | 'pm',
 ): Promise<{ start: string; end: string }> {

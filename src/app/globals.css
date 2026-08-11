@@ -5735,6 +5735,10 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 
 .company-ip-restriction-panel { @apply p-5; }
 .leave-halfday-panel { @apply p-4 mb-4; }
+/* 워크보드 반차 게이지 — 오전은 왼쪽 절반, 오후는 오른쪽 절반만 채운다 (2026-08-11 사장님) */
+.flex-halfday-pill { @apply relative inline-block w-full py-1.5 rounded-md text-[10px] font-semibold overflow-hidden bg-[var(--bg-surface)] text-[var(--success)]; }
+.flex-halfday-fill { @apply absolute inset-y-0 w-1/2 bg-[var(--success-dim)]; }
+.flex-halfday-label { @apply relative; }
 /* IP 접속 제한 차단 화면 (2026-08-11) */
 .ip-gate-overlay { @apply fixed inset-0 z-[200] flex items-center justify-center p-4; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); }
 .ip-gate-card { @apply w-full max-w-sm p-6; }
