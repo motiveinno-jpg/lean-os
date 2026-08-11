@@ -498,12 +498,12 @@ export function OrgBulkWizard({
       const partnerNameMap = new Map(selectedPartners.map((p) => [p.id, p.name]));
       const reasonLines: string[] = [];
       for (const e of (r.errors || []).slice(0, 2)) {
-        const n = partnerNameMap.get(e.partnerId) || e.partnerId.slice(0, 8);
+        const n = partnerNameMap.get(e.partnerId) || "(거래처명 확인 불가)";
         reasonLines.push(`• ${n}: ${e.reason}`);
       }
       for (const s of (r.skipped || []).slice(0, 2 - reasonLines.length)) {
         if (reasonLines.length >= 2) break;
-        const n = partnerNameMap.get(s.partnerId) || s.partnerId.slice(0, 8);
+        const n = partnerNameMap.get(s.partnerId) || "(거래처명 확인 불가)";
         reasonLines.push(`• ${n}: ${s.reason} (스킵)`);
       }
       const totalIssues = (r.errors?.length || 0) + (r.skipped?.length || 0);

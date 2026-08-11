@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useTabParam } from "@/lib/use-tab-param";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import {
   getCurrentUser,
   getVaultSummary,
@@ -123,6 +124,17 @@ function VaultPageInner() {
     queryKey: ["deals", companyId],
     queryFn: () => getDeals(companyId!),
     enabled: !!companyId,
+  });
+
+  // 접근 로그의 사용자 ID → 이름 표시용 (2026-08-11 사장님 제보: ID 조각 노출 정리)
+  const { data: memberNames = {} } = useQuery<Record<string, string>>({
+    queryKey: ["vault-member-names", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("users").select("id, name").eq("company_id", companyId!);
+      return Object.fromEntries((data || []).map((u: any) => [u.id, u.name || ""]));
+    },
+    enabled: !!companyId,
+    staleTime: 300_000,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["vault-summary"] });
@@ -1289,7 +1301,7 @@ function VaultPageInner() {
                     {opens.map((o, i) => (
                       <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[var(--bg-surface)] text-xs">
                         <span className="font-mono text-[var(--text-muted)]">{new Date(o.at).toLocaleString("ko")}</span>
-                        <span className="caption">{o.by ? `사용자 ${o.by.slice(0, 8)}` : "—"}</span>
+                        <span className="caption">{o.by ? (memberNames[o.by] || "탈퇴한 구성원") : "—"}</span>
                       </div>
                     ))}
                   </div>

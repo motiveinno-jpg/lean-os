@@ -13,6 +13,11 @@ import { approveLeaveRequest, rejectLeaveRequest } from './hr';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
 
+/** 사용자 표시용 문자열에서 내부 추적 태그 제거 — [승인#a1b2c3d4]·[결재#…]·[#…] 류 (2026-08-11 사장님 제보).
+ *  레거시 결재 연동이 description 에 박아 넣던 ID 조각이라 화면에 그대로 노출되면 지저분하다. */
+export const stripInternalTag = (s?: string | null) =>
+  (s || '').replace(/\[(?:승인|결재)?#[0-9a-fA-F]{6,10}\]\s*/g, '').trim();
+
 // ── Types ──
 
 export type PendingActionType = 'payment' | 'expense' | 'document' | 'leave' | 'signature' | 'cost' | 'approval';
@@ -104,7 +109,7 @@ export async function getCEOPendingActions(companyId: string, userId?: string): 
   ]);
 
   // 결재 연동 시 자동 생성된 description 의 [승인#xxxxxxxx] 추적 태그 제거(대표 화면엔 지저분).
-  const cleanTitle = (s?: string | null) => (s || '').replace(/^\[승인#[0-9a-fA-F]{6,8}\]\s*/, '').trim();
+  const cleanTitle = stripInternalTag;
   // Map payments
   (payments.data || []).forEach((p: any) => {
     actions.push({

@@ -10,7 +10,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getPaymentQueue, getBankAccounts } from "@/lib/queries";
 import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPaymentQueueStats } from "@/lib/payment-queue";
-import { getRecurringPayments, upsertRecurringPayment, deleteRecurringPayment, getPaymentBatches, refreshRecurringAmounts, type RefreshResult } from "@/lib/approval-center";
+import { getRecurringPayments, upsertRecurringPayment, deleteRecurringPayment, getPaymentBatches, refreshRecurringAmounts, stripInternalTag, type RefreshResult } from "@/lib/approval-center";
 import { createFixedCostBatch, approveBatch, triggerBatchExecution, getBatchWithItems, type BatchSummary } from "@/lib/payment-batch";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
 import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
@@ -210,7 +210,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         action: 'update',
         entity_type: 'payment',
         entity_id: refundItem.id,
-        metadata: { action: 'refund', reason: refundReason.trim(), amount: refundItem.amount, entity_name: refundItem.description || '결제' },
+        metadata: { action: 'refund', reason: refundReason.trim(), amount: refundItem.amount, entity_name: stripInternalTag(refundItem.description) || '결제' },
         created_at: new Date().toISOString(),
       });
       queueToast(`₩${Number(refundItem.amount).toLocaleString()} 환불 처리되었습니다`, 'success');
@@ -466,7 +466,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                         className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         title={selectable ? '선택' : '벌크 액션 불가 (실행/거부 완료)'} />
                     </td>
-                    <td className="px-5 py-3 text-sm max-w-[240px]"><span className="block truncate" title={item.description || undefined}>{item.description || "—"}</span></td>
+                    <td className="px-5 py-3 text-sm max-w-[240px]"><span className="block truncate" title={stripInternalTag(item.description) || undefined}>{stripInternalTag(item.description) || "—"}</span></td>
                     <td className="px-5 py-3 text-sm text-right font-medium">₩{Number(item.amount).toLocaleString()}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{item.bank_accounts?.alias || item.bank_accounts?.bank_name || "미지정"}</td>
                     <td className="px-5 py-3 text-center">
@@ -523,7 +523,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
               </div>
               <div className="border-t border-b border-[var(--border)] py-4 space-y-2">
                 <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">결제일</span><span>{receiptItem.executed_at ? new Date(receiptItem.executed_at).toLocaleString('ko-KR') : (receiptItem.created_at ? new Date(receiptItem.created_at).toLocaleString('ko-KR') : '—')}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">설명</span><span className="text-right max-w-[60%]">{receiptItem.description || '—'}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">설명</span><span className="text-right max-w-[60%]">{stripInternalTag(receiptItem.description) || '—'}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">통장</span><span>{receiptItem.bank_accounts?.alias || receiptItem.bank_accounts?.bank_name || '—'}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-[var(--text-dim)]">상태</span><span className={receiptItem.status === 'refunded' ? 'text-orange-400 font-semibold' : 'text-green-400 font-semibold'}>{receiptItem.status === 'refunded' ? '환불완료' : '실행완료'}</span></div>
                 {receiptItem.status === 'refunded' && receiptItem.refund_reason && (
@@ -558,7 +558,7 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
               </p>
               <div className="bg-[var(--bg-surface)] rounded-xl p-3 mb-4">
                 <div className="text-xs text-[var(--text-dim)] mb-1">대상</div>
-                <div className="text-sm font-semibold">{refundItem.description || '—'}</div>
+                <div className="text-sm font-semibold">{stripInternalTag(refundItem.description) || '—'}</div>
                 <div className="text-lg font-extrabold text-orange-400 mt-1">₩{Number(refundItem.amount).toLocaleString()}</div>
               </div>
               {refundStep === 1 ? (
@@ -809,7 +809,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
                   {items.map((it) => (
                     <div key={it.id} className="px-4 py-3 grid grid-cols-12 gap-2 items-center text-xs">
                       <div className="col-span-5">
-                        <div className="font-medium text-sm">{it.description || '(설명 없음)'}</div>
+                        <div className="font-medium text-sm">{stripInternalTag(it.description) || '(설명 없음)'}</div>
                         {it.recipient_name && (
                           <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                             {it.recipient_name}
