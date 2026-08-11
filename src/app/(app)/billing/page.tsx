@@ -8,6 +8,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { logError } from "@/lib/error-logger";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
+import { getIssuanceStatus } from "@/lib/billing";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { recordConsent } from "@/lib/legal";
@@ -167,6 +168,15 @@ function BillingPageInner() {
       };
     },
     enabled: !!companyId,
+  });
+
+  // 발행(세금계산서+현금영수증 합산) 사용량 — 각 화면 칩과 같은 산식(getIssuanceStatus).
+  //   요금제 화면에서도 발행 한도를 한눈에 (2026-08-11 사장님).
+  const { data: issuance } = useQuery({
+    queryKey: ["issuance-status-billing", companyId],
+    queryFn: () => getIssuanceStatus(companyId!),
+    enabled: !!companyId,
+    staleTime: 60_000,
   });
 
   // 요금제 목록
@@ -715,6 +725,8 @@ function BillingPageInner() {
               { label: "전자서명 (이번 달)", used: usage.signatures, limit: lim.signatures },
               { label: "거래처", used: usage.partners, limit: lim.partners },
               { label: "동기화 크레딧 (이번 달)", used: usage.codefUnits, limit: codefLimit },
+              // 발행 한도 — 세금계산서·현금영수증 합산(monthly_issue_limit). 각 화면 칩과 동일 산식 (2026-08-11)
+              { label: "발행 · 세금계산서+현금영수증 (이번 달)", used: issuance?.used ?? 0, limit: issuance?.limit ?? 9999 },
             ];
             return (
               <div className="billing-usage-card glass-card">
