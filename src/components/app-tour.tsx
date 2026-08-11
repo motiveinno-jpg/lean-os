@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useMyPermissions } from "@/lib/permissions";
 
 // 진행 중 스텝 번호 — 있으면 "투어 진행 중"이라는 뜻. 탭이 닫히면 자연 소멸(sessionStorage).
 const SS_KEY = "ov-app-tour-step";
@@ -127,21 +128,49 @@ export function isTourActive(): boolean {
   try { return sessionStorage.getItem(SS_KEY) !== null; } catch { return false; }
 }
 
-/** 앱 셸 상주 호스트 — ?tour=1(시작) 또는 진행 중 스텝(새로고침 재개)을 감지해 투어를 띄운다 */
+/** 앱 셸 상주 호스트 — ?tour=1(시작) 또는 진행 중 스텝(새로고침 재개)을 감지해 투어를 띄운다.
+ *  2026-08-11 사장님: 신기능이니 **기존 사용자 포함 전원**에게 로그인 후 1회 자동 표시 —
+ *  user_preferences.app_tour_done_at 이 없는 계정은 자동 시작(완료·건너뛰기 시 기록돼 다시 안 뜸). */
 export function AppTourHost({ companyId }: { companyId: string | null }) {
   const pathname = usePathname();
   const [show, setShow] = useState(false);
+  const autoCheckedRef = useRef(false);
   useEffect(() => {
     if (show) return;
     // 온보딩 완료가 router.replace("/dashboard?tour=1") 로 보내면 pathname 변경으로 여기 걸린다
     const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    if (shouldStartTour(sp) || isTourActive()) setShow(true);
-  }, [pathname, show]);
+    if (shouldStartTour(sp) || isTourActive()) { setShow(true); return; }
+
+    // 자동 1회 노출 — 신규 가입 온보딩(/onboarding)과 겹치지 않게 그 화면에서는 시작하지 않는다.
+    //   온보딩을 마치면 ?tour=1 로 오므로 위 분기가 잡고, 여기는 기존 계정의 첫 로그인용.
+    if (autoCheckedRef.current || !companyId || pathname?.startsWith("/onboarding")) return;
+    autoCheckedRef.current = true;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data } = await (supabase as any)
+          .from("user_preferences")
+          .select("app_tour_done_at")
+          .eq("user_id", session.user.id)
+          .eq("company_id", companyId)
+          .maybeSingle();
+        if (!data?.app_tour_done_at) setShow(true);
+      } catch { /* 조회 실패 시 자동 노출 생략 — 다음 로그인에 다시 시도 */ }
+    })();
+  }, [pathname, show, companyId]);
   if (!show) return null;
   return <AppTour companyId={companyId} onClose={() => setShow(false)} />;
 }
 
 export function AppTour({ companyId, onClose }: { companyId: string | null; onClose: () => void }) {
+  // 권한별 스텝 필터 (2026-08-11 사장님) — 일반 직원은 부여받은 메뉴의 스텝만 본다.
+  //   마스터는 전체, 멤버는 hasMenu(기본 제공 포함) 기준. 마지막 안내(href null)는 항상 표시.
+  const { isMaster, hasMenu, loading: permLoading } = useMyPermissions();
+  const steps = permLoading
+    ? TOUR_STEPS
+    : TOUR_STEPS.filter((s) => !s.href || isMaster || hasMenu(s.href));
+
   // 진행 스텝 복원 — 새로고침·재로그인해도 보던 자리에서 이어간다
   const [idx, setIdx] = useState(() => {
     if (typeof window === "undefined") return 0;
@@ -153,12 +182,14 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   const [rect, setRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const closedRef = useRef(false);
 
-  const step = TOUR_STEPS[idx];
+  // 필터로 스텝 수가 줄었을 때 저장된 진행 위치가 범위를 넘지 않게
+  const safeIdx = Math.min(idx, steps.length - 1);
+  const step = steps[safeIdx];
 
   // 스텝 저장 — 마운트 직후 0부터 기록해 isTourActive() 가 곧바로 참이 되게
   useEffect(() => {
-    try { sessionStorage.setItem(SS_KEY, String(idx)); } catch { /* ignore */ }
-  }, [idx]);
+    try { sessionStorage.setItem(SS_KEY, String(safeIdx)); } catch { /* ignore */ }
+  }, [safeIdx]);
 
   // 현재 스텝의 사이드바 항목 위치 계산 — scrollIntoView 는 스텝 진입 때 한 번만(scroll=true)
   const measure = useCallback((scroll = false) => {
@@ -216,7 +247,7 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
     onClose();
   }, [companyId, onClose]);
 
-  const isLast = idx === TOUR_STEPS.length - 1;
+  const isLast = safeIdx === steps.length - 1;
   // 말풍선 위치 — 하이라이트 오른쪽(사이드바 옆). 못 찾으면 화면 가운데.
   const tipStyle: React.CSSProperties = rect
     ? {
@@ -239,7 +270,7 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
       )}
 
       <div className="app-tour-tip glass-card" style={tipStyle}>
-        <div className="app-tour-tip-step">{idx + 1} / {TOUR_STEPS.length}</div>
+        <div className="app-tour-tip-step">{safeIdx + 1} / {steps.length}</div>
         <div className="app-tour-tip-title">{step.title}</div>
         <p className="app-tour-tip-desc">{step.desc}</p>
         {step.howTo && (
@@ -261,10 +292,10 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
         <div className="app-tour-tip-actions">
           <button onClick={() => finish()} className="app-tour-skip">건너뛰기</button>
           <div className="flex gap-2">
-            {idx > 0 && (
-              <button onClick={() => setIdx(idx - 1)} className="btn-secondary btn-sm">이전</button>
+            {safeIdx > 0 && (
+              <button onClick={() => setIdx(safeIdx - 1)} className="btn-secondary btn-sm">이전</button>
             )}
-            <button onClick={() => (isLast ? finish() : setIdx(idx + 1))} className="btn-primary btn-sm">
+            <button onClick={() => (isLast ? finish() : setIdx(safeIdx + 1))} className="btn-primary btn-sm">
               {isLast ? "시작하기" : "다음"}
             </button>
           </div>
