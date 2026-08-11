@@ -27,7 +27,7 @@ import { forceApproveDocument } from "@/lib/deal-pipeline";
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
-import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles } from "@/lib/file-storage";
+import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile } from "@/lib/file-storage";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
@@ -2968,7 +2968,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               uploaded_by: f.uploaded_by,
             }))}
             onDelete={handleDeleteFile}
-            onDownload={(file) => window.open(file.file_url, "_blank")}
+            // 비공개 버킷(document-files, 2026-06-05 전환)은 저장된 public URL 이 400 —
+            //   클릭 시점에 서명 URL 재발급 + 원본 파일명 프록시 다운로드 (사장님 제보 2026-08-11)
+            onDownload={(file) => void downloadStoredFile(file.file_url, file.file_name)}
             maxHeight="calc(100vh - 320px)"
           />
         </div>
