@@ -29,6 +29,7 @@ import { NATURE_LABEL } from "@/lib/account-nature";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { SortToolbar } from "@/components/sort-toolbar";
+import { SortableTh } from "@/components/sortable-th";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -842,13 +843,13 @@ export default function BankPage() {
                       className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                     />
                   </th>
-                  <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">예금주명{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("description")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">거래내용{sortKey === "description" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <SortableTh label="예금주명" sortKey="counterparty" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                  <SortableTh label="거래내용" sortKey="description" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                  <SortableTh label="분류" sortKey="classification" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                  <SortableTh label="금액" sortKey="amount" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
                   <th className="text-right px-3 py-2.5 font-semibold select-none">잔액</th>
-                  <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("type")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">상태{sortKey === "type" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                  <SortableTh label="상태" sortKey="type" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
                 </tr>
               </thead>
               <tbody>

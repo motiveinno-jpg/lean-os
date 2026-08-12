@@ -23,6 +23,7 @@ import { CardBillingSummary } from "@/components/card-billing-summary";
 import { getBankSyncAccess } from "@/lib/billing";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
 import { SortToolbar } from "@/components/sort-toolbar";
+import { SortableTh } from "@/components/sortable-th";
 import { EmptyState } from "@/components/empty-state";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { NATURE_LABEL } from "@/lib/account-nature";
@@ -841,11 +842,11 @@ export default function CardsPage() {
                         className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                       />
                     </th>
-                    <th onDoubleClick={() => onSortTx("merchant_name")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">가맹점{sortKey === "merchant_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("card_name")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">카드{sortKey === "card_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <SortableTh label="가맹점" sortKey="merchant_name" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                    <SortableTh label="분류" sortKey="classification" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                    <SortableTh label="카드" sortKey="card_name" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                    <SortableTh label="금액" sortKey="amount" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                    <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
                   </tr>
                 </thead>
                 <tbody>

@@ -1,4 +1,5 @@
 "use client";
+import { SortableTh } from "@/components/sortable-th";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
@@ -207,13 +208,10 @@ export default function CashReceiptsPage() {
     if (k === crSortKey) setCrSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setCrSortKey(k); setCrSortDir(k === "issue_date" ? "desc" : "asc"); }
   };
-  const crSortTh = (k: CrSortKey, label: string, cls: string) => (
-    <th className={`${cls} px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)] cursor-pointer select-none hover:text-[var(--text)] transition`} onClick={() => toggleCrSort(k)}>
-      <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
-        {label}
-        <span className={`text-[9px] ${crSortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{crSortKey === k ? (crSortDir === "asc" ? "▲" : "▼") : "↕"}</span>
-      </span>
-    </th>
+  //   머리단 정렬 — 앱 전체가 같은 모양을 쓰도록 공용 컴포넌트에 맡긴다 (2026-08-12 사장님 지시).
+  //   cls(정렬 클래스)는 더 이상 쓰지 않는다 — 머리단은 언제나 가운데다.
+  const crSortTh = (k: CrSortKey, label: string, _cls?: string) => (
+    <SortableTh label={label} sortKey={k} sort={{ key: crSortKey, dir: crSortDir }} onSort={toggleCrSort} />
   );
   const displayReceipts = useMemo(() => {
     const arr = [...(receipts as any[])];

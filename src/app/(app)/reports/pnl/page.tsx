@@ -1155,13 +1155,13 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-[var(--bg-surface)] text-[var(--text-muted)]">
                 <tr>
-                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">일자</th>
-                  <th className="text-left px-3 py-2 font-semibold">적요</th>
-                  <th className="text-left px-3 py-2 font-semibold">거래처</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">차변</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">대변</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">잔액</th>
-                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">전표번호</th>
+                  <th className="text-center px-3 py-2 font-semibold whitespace-nowrap">일자</th>
+                  <th className="text-center px-3 py-2 font-semibold">적요</th>
+                  <th className="text-center px-3 py-2 font-semibold">거래처</th>
+                  <th className="text-center px-3 py-2 font-semibold whitespace-nowrap">차변</th>
+                  <th className="text-center px-3 py-2 font-semibold whitespace-nowrap">대변</th>
+                  <th className="text-center px-3 py-2 font-semibold whitespace-nowrap">잔액</th>
+                  <th className="text-center px-3 py-2 font-semibold whitespace-nowrap">전표번호</th>
                 </tr>
               </thead>
               <tbody>

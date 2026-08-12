@@ -17,6 +17,7 @@
 
 import { useMemo, useState } from "react";
 import { PickList } from "@/components/pick-list";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -26,6 +27,9 @@ import { friendlyError } from "@/lib/friendly-error";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
+
+/** 표 머리단 정렬 열쇠 — 칸 하나에 하나씩 (2026-08-12) */
+type SortKey = "date" | "io" | "who" | "desc" | "amount" | "state";
 type Pt = { id: string; name: string };
 
 type Row = {
@@ -86,6 +90,9 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
   //   적요 — 회사 내부 확인용으로 사람이 직접 쓴다. 비우면 서버가 통장 적요를 넣는다.
   const [memo, setMemo] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  //   머리단 정렬 — 기본은 일자 오름차순(통장은 날짜 순으로 본다)
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
+  const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
   //   비목 AI 가 추천한 계정 — 사람이 고른 것 다음, 학습 규칙보다 뒤에 쓴다
   const [aiAcct, setAiAcct] = useState<Record<string, Acct>>({});
   const [aiAcctBusy, setAiAcctBusy] = useState(false);
@@ -184,7 +191,27 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
 
   const doneOf = (r: Row) => r.posted || r.settled || r.transfer;
 
-  const shown = rows.filter((r) => (onlyTodo ? !doneOf(r) : true));
+  const shownUnsorted = rows.filter((r) => (onlyTodo ? !doneOf(r) : true));
+  //   정렬 — 고른 칸으로 세우고, 같으면 늘 일자로 갈라 순서가 흔들리지 않게 한다
+  const shown = useMemo(() => {
+    const val = (r: Row): unknown => {
+      switch (sort.key) {
+        case "io":     return r.isIn ? "입금" : "출금";
+        case "who":    return r.who;
+        case "desc":   return r.desc;
+        case "amount": return Math.abs(r.amount) * (r.isIn ? 1 : -1);
+        case "state":  return doneOf(r) ? 1 : 0;
+        default:       return r.date;
+      }
+    };
+    const arr = [...shownUnsorted];
+    arr.sort((a, b) => {
+      const c = cmp(val(a), val(b));
+      return (sort.dir === "asc" ? c : -c) || a.date.localeCompare(b.date);
+    });
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownUnsorted, sort]);
   const selRows = shown.filter((r) => sel.has(r.id));
 
   //   확정할 수 있는 줄인가 — 상대 계정 하나면 된다(거래처·적요는 없어도 전표가 선다)
@@ -372,9 +399,14 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
                     onClick={() => setSel(allOn ? new Set() : new Set(shown.filter((r) => !doneOf(r)).map((r) => r.id)))}
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
-                <th>일자</th><th>입/출</th><th>거래처(입금자)</th><th>통장 적요</th>
-                <th className="tr">금액</th>
-                <th>차변</th><th>대변</th><th style={{ width: 150 }}>적요</th><th>상태</th>
+                <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} />
+                <SortableTh label="입/출" sortKey="io" sort={sort} onSort={onSort} />
+                <SortableTh label="거래처(입금자)" sortKey="who" sort={sort} onSort={onSort} />
+                <SortableTh label="통장 적요" sortKey="desc" sort={sort} onSort={onSort} />
+                <SortableTh label="금액" sortKey="amount" sort={sort} onSort={onSort} />
+                <SortableTh label="차변" /><SortableTh label="대변" />
+                <SortableTh label="적요" style={{ width: 150 }} />
+                <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
               </tr>
             </thead>
             <tbody>
