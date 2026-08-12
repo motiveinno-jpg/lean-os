@@ -20,6 +20,9 @@ const won = (n: number) => `${Math.round(Number(n) || 0).toLocaleString("ko-KR")
 export default function AdvisorDashboardPage() {
   const router = useRouter();
   const [advisorName, setAdvisorName] = useState<string>("");
+  // 세무사 확인이 끝나야만 RPC 발화 — 비세무사 URL 접속 시 not_advisor 거절 로그가
+  //   운영자 오류 목록에 쌓이던 것 (2026-08-12 사장님: 게이트 넣어 안 쌓이게)
+  const [advisorReady, setAdvisorReady] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -29,6 +32,7 @@ export default function AdvisorDashboardPage() {
         .from("tax_advisors").select("name, office_name, status").eq("auth_id", session.user.id).maybeSingle();
       if (!data || data.status !== "active") { router.replace("/advisor"); return; }
       setAdvisorName(data.office_name ? `${data.name} · ${data.office_name}` : data.name);
+      setAdvisorReady(true);
     })();
   }, [router]);
 
@@ -40,6 +44,7 @@ export default function AdvisorDashboardPage() {
       return (data || []) as ClientCompany[];
     },
     staleTime: 60_000,
+    enabled: advisorReady,
   });
 
   const logout = async () => {

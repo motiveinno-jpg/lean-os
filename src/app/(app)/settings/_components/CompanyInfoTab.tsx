@@ -10,6 +10,7 @@ import { useToast } from "@/components/toast";
 import { appConfirm } from "@/components/global-confirm";
 import { verifyBusinessNumber } from "@/lib/business-verification";
 import { PermissionTree } from "../../employees/_components/PermissionTree";
+import { useMyPermissions } from "@/lib/permissions";
 
 export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
   const db = supabase;
@@ -642,6 +643,9 @@ function TaxAdvisorSection() {
       return (data || []) as { link_id: string; advisor_id: string; name: string; office_name: string | null; specialty: string | null; email: string; phone: string | null; linked_at: string }[];
     },
   });
+  // 마스터 전용 RPC — 비마스터는 호출 자체를 안 한다 (forbidden 거절이 운영자
+  //   오류 목록에 쌓이던 것, 2026-08-12 사장님: 게이트 넣어 안 쌓이게)
+  const { isMaster } = useMyPermissions();
   const { data: catalog = [], error: catalogError } = useQuery({
     queryKey: ["company-advisor-catalog"],
     queryFn: async () => {
@@ -650,6 +654,7 @@ function TaxAdvisorSection() {
       return (data || []) as { id: string; name: string; office_name: string | null; specialty: string | null; linked: boolean }[];
     },
     retry: false, // 관리자 아니면 forbidden — 조용히 숨김
+    enabled: isMaster,
   });
 
   const invalidate = () => {

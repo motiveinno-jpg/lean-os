@@ -4,7 +4,7 @@
 //   개요(계좌·매출입·부가세·인건비 요약) / 세금계산서 / 통장 거래 / 인건비 탭.
 //   데이터는 전부 advisor_* SECURITY DEFINER RPC — 연결이 해제되면 즉시 차단된다.
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -51,6 +51,19 @@ export default function AdvisorCompanyPage({ params }: { params: Promise<{ compa
   const { companyId } = use(params);
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("overview");
+  // 세무사 확인 후에만 RPC 발화 — 대시보드와 같은 게이트. 이 페이지는 확인 없이
+  //   overview 를 바로 불러 비세무사 접속마다 not_advisor 로그가 쌓였다 (2026-08-12)
+  const [advisorReady, setAdvisorReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.replace("/advisor"); return; }
+      const { data } = await (supabase as any)
+        .from("tax_advisors").select("status").eq("auth_id", session.user.id).maybeSingle();
+      if (!data || data.status !== "active") { router.replace("/advisor"); return; }
+      setAdvisorReady(true);
+    })();
+  }, [router]);
 
   const { data: ov, isLoading, error } = useQuery<Overview>({
     queryKey: ["advisor-overview", companyId],
@@ -61,6 +74,7 @@ export default function AdvisorCompanyPage({ params }: { params: Promise<{ compa
     },
     staleTime: 60_000,
     retry: false,
+    enabled: advisorReady,
   });
 
   const logout = async () => {
