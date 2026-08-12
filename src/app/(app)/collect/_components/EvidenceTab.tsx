@@ -13,6 +13,7 @@
 
 import { useMemo, useState } from "react";
 import { PickList } from "@/components/pick-list";
+import { fetchMerchantKinds, fillMerchantKinds, type MerchantKind } from "@/lib/merchant-tax-type";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -229,6 +230,33 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
     return VAT_TYPES;   // 세금계산서·계산서는 전부
   }, [kind]);
 
+  //   가맹점 과세유형(구분) — 이미 조회해 둔 것을 그린다
+  const { data: merchantKinds = {} } = useQuery<Record<string, MerchantKind>>({
+    queryKey: ["merchant-kinds", companyId],
+    queryFn: () => fetchMerchantKinds(companyId),
+    enabled: !!companyId, staleTime: 300_000,
+  });
+  const [filling, setFilling] = useState(false);
+  //   아직 구분을 모르는 가맹점 수 — 버튼에 그대로 보여 준다(몇 개를 물어볼 건지 알고 누르게)
+  const unknownBiznos = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      const d = r.bizno.replace(/[^0-9]/g, "");
+      if (d.length === 10 && !merchantKinds[d]) set.add(d);
+    }
+    return [...set];
+  }, [rows, merchantKinds]);
+  const fillKinds = async () => {
+    setFilling(true);
+    try {
+      const n = await fillMerchantKinds(companyId, unknownBiznos);
+      await qc.invalidateQueries({ queryKey: ["merchant-kinds", companyId] });
+      toast(n > 0 ? `가맹점 구분 ${n}곳을 채웠습니다` : "새로 알아낸 구분이 없습니다 (국세청에 없는 번호일 수 있습니다)", n > 0 ? "success" : "info");
+    } catch (e: any) {
+      toast(`구분 조회 실패: ${e?.message || "알 수 없는 오류"}`, "error");
+    } finally { setFilling(false); }
+  };
+
   const filterAccts = (q: string, side: "sale" | "purchase") =>
     accounts.filter((a) =>
       a.account_type === (side === "sale" ? "revenue" : "expense")
@@ -256,6 +284,15 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
         </span>
         <div className="ml-auto flex items-center gap-2">
           {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
+          {/*   구분(법인·일반·간이·면세)은 카드 원자료에 없다 — 국세청에 물어 채운다.
+                아직 모르는 **가맹점 수**만 물어보므로 거래 건수와 무관하다 (2026-08-12) */}
+          {kind === "card" && unknownBiznos.length > 0 && (
+            <button type="button" onClick={fillKinds} disabled={filling}
+              className="btn-secondary btn-sm disabled:opacity-50"
+              title="가맹점 사업자번호로 국세청에 과세유형을 물어 '구분' 칸을 채웁니다">
+              {filling ? "구분 조회 중…" : `구분 채우기 (${unknownBiznos.length}곳)`}
+            </button>
+          )}
           <button type="button" onClick={makeVouchers} disabled={selRows.length === 0 || saving}
             className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {saving ? "만드는 중…" : `전표 만들기${selRows.length > 0 ? ` (${selRows.length})` : ""}`}
@@ -280,7 +317,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                     onClick={() => setSel(allOn ? new Set() : new Set(shown.filter((r) => !r.posted).map((r) => r.id)))}
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
-                <th>일자</th><th>거래처</th><th>사업자등록번호</th><th>유형</th><th>품명</th>
+                <th>일자</th><th>거래처</th><th>사업자등록번호</th><th>구분</th><th>유형</th><th>품명</th>
                 <th className="tr">공급가액</th><th className="tr">부가세</th><th className="tr">합계</th>
                 <th>차변계정</th><th>대변계정</th><th>상태</th>
               </tr>
@@ -306,6 +343,12 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                     <td className="mono-number">{r.date.slice(5)}</td>
                     <td className="ev-ell">{r.partnerName}</td>
                     <td className="mono-number ev-dim">{r.bizno || "—"}</td>
+                    {/*   구분 — 법인·일반·간이·면세. 카드 원자료엔 없어 국세청 조회로 채운다 (2026-08-12) */}
+                    <td className="tc">
+                      {merchantKinds[r.bizno.replace(/[^0-9]/g, "")]
+                        ? <em className="ev-kind">{merchantKinds[r.bizno.replace(/[^0-9]/g, "")]}</em>
+                        : <span className="ev-dim">—</span>}
+                    </td>
                     <td>
                       {r.posted ? (
                         <em className={t.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{t.label.split(". ")[1]}</em>
@@ -404,7 +447,7 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
 
   if (kind === "card") {
     const data = logRead("collect:rows-card", await supabase.from("card_transactions")
-      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id")
+      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id, raw_data")
       .eq("company_id", companyId)
       .gte("transaction_date", from).lte("transaction_date", to)
       .order("transaction_date").limit(500));
@@ -415,7 +458,8 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
       const supply = Math.round(amt / 1.1);
       return {
         id: r.id, date: String(r.transaction_date),
-        partnerId: null, partnerName: r.merchant_name || "—", bizno: "",
+        //   카드 원자료의 가맹점 사업자번호 — 과세유형(구분)을 국세청에서 찾을 열쇠다 (2026-08-12)
+        partnerId: null, partnerName: r.merchant_name || "—", bizno: String(r.raw_data?.merchantBusinessNo || ""),
         item: label || "카드 사용", supply, vat: amt - supply,
         vatCode: suggestVatType({ kind: "card", direction: "purchase", memo: `${r.merchant_name || ""} ${label}` }),
         settle, posted: !!r.journal_entry_id, voucherNo: null, cardCategory: r.category || null,
