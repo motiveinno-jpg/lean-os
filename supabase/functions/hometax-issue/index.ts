@@ -598,6 +598,43 @@ serve(withSentry("hometax-issue", async (req) => {
         console.error("[credit] consume_issue_credit failed:", (e as Error)?.message);
       }
 
+      // 발행 알림 메일 (2026-08-13 사장님) — 설정 > 은행연동 > 홈택스의 알림 주소(선택)가
+      //   있을 때만. best-effort: 실패해도 발행 결과에는 영향 없음.
+      try {
+        const notifyEmail = String((company.tax_settings as any)?.invoice_notify_email || "").trim();
+        const resendKey = Deno.env.get("RESEND_API_KEY");
+        if (notifyEmail && resendKey) {
+          const won = (n: unknown) => `${Math.round(Number(n) || 0).toLocaleString("ko-KR")}원`;
+          const issueDate = invoice.issue_date || new Date().toISOString().split("T")[0];
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+              to: [notifyEmail],
+              subject: `[오너뷰] 세금계산서 발행 완료 — ${partner?.name || "거래처"} · ${won(invoice.total_amount)}`,
+              html: [
+                `<div style="font-family:Apple SD Gothic Neo,Malgun Gothic,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1c2030">`,
+                `<h2 style="font-size:17px;margin:0 0 4px">세금계산서가 발행되었습니다</h2>`,
+                `<p style="font-size:13px;color:#6b7080;margin:0 0 18px">${company.name || ""} · ${issueDate}</p>`,
+                `<table style="width:100%;font-size:13.5px;border-collapse:collapse">`,
+                `<tr><td style="padding:7px 0;color:#6b7080">공급받는자</td><td style="text-align:right;font-weight:700">${partner?.name || "-"}</td></tr>`,
+                `<tr><td style="padding:7px 0;color:#6b7080">공급가액</td><td style="text-align:right">${won(invoice.supply_amount)}</td></tr>`,
+                `<tr><td style="padding:7px 0;color:#6b7080">세액</td><td style="text-align:right">${won(invoice.tax_amount)}</td></tr>`,
+                `<tr><td style="padding:7px 0;color:#6b7080;border-top:1px solid #e5e7ee">합계</td><td style="text-align:right;font-weight:800;border-top:1px solid #e5e7ee">${won(invoice.total_amount)}</td></tr>`,
+                ntsConfirmNum ? `<tr><td style="padding:7px 0;color:#6b7080">국세청 승인번호</td><td style="text-align:right;font-family:monospace;font-size:12px">${ntsConfirmNum}</td></tr>` : "",
+                `</table>`,
+                `<a href="https://www.owner-view.com/tax-invoices" style="display:inline-block;margin-top:20px;padding:10px 18px;background:#4f46e5;color:#fff;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none">오너뷰에서 확인</a>`,
+                `<p style="font-size:11px;color:#9aa0b0;margin-top:18px">이 알림은 설정 &gt; 은행연동 &gt; 홈택스의 발행 알림 주소로 발송되었습니다.</p>`,
+                `</div>`,
+              ].join(""),
+            }),
+          });
+        }
+      } catch (e) {
+        console.error("[notify] 발행 알림 메일 실패:", (e as Error)?.message);
+      }
+
       return new Response(JSON.stringify({
         success: true,
         nts_confirm_no: ntsConfirmNum,

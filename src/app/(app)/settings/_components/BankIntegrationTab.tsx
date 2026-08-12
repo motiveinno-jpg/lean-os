@@ -57,6 +57,33 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
   const [certFileName, setCertFileName] = useState("");
   // Hometax 전용 — 대표자 주민번호 앞 7자리 (선택)
   const [hometaxIdentity, setHometaxIdentity] = useState("");
+  // 발행 알림 메일 (선택, 2026-08-13 사장님) — companies.tax_settings.invoice_notify_email.
+  //   세금계산서 발행 성공 시 hometax-issue 가 이 주소로 알림을 보낸다. 비우면 발송 안 함.
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifySaved, setNotifySaved] = useState(false);
+  const { data: taxSettingsRow } = useQuery({
+    queryKey: ["tax-settings", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("companies").select("tax_settings").eq("id", companyId!).maybeSingle();
+      return ((data as any)?.tax_settings || {}) as Record<string, any>;
+    },
+    enabled: !!companyId,
+  });
+  useEffect(() => {
+    if (taxSettingsRow?.invoice_notify_email != null) setNotifyEmail(String(taxSettingsRow.invoice_notify_email));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taxSettingsRow]);
+  const saveNotifyEmail = async () => {
+    if (!companyId) return;
+    const v = notifyEmail.trim();
+    if (v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { toast("메일 주소 형식을 확인하세요", "error"); return; }
+    // 다른 tax_settings 키 보존 병합
+    const merged = { ...(taxSettingsRow || {}), invoice_notify_email: v || null };
+    const { error } = await supabase.from("companies").update({ tax_settings: merged } as any).eq("id", companyId);
+    if (error) { toast("저장 실패: " + error.message, "error"); return; }
+    setNotifySaved(true); setTimeout(() => setNotifySaved(false), 2000);
+    toast(v ? "발행 알림 주소를 저장했습니다" : "발행 알림을 끕니다 (주소 비움)", "success");
+  };
   // Common
   const [registering, setRegistering] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -406,6 +433,26 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
                 개인사업자: 본인 주민번호 앞 7자리 / 법인: 대표자 주민번호 앞 7자리.
                 안전한 보관을 위해 바로 CODEF 호출 후 즉시 폐기됩니다 (DB 저장 X).
               </p>
+
+              {/* 발행 알림 메일 (선택) — 세금계산서 발행 성공 시 이 주소로 알림 (2026-08-13 사장님) */}
+              <div className="mt-4">
+                <label className="field-label">발행 알림 메일 <span className="caption">(선택)</span></label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={notifyEmail}
+                    onChange={(e) => setNotifyEmail(e.target.value)}
+                    placeholder="예: ceo@company.com — 비우면 발송 안 함"
+                    className="field-input flex-1"
+                  />
+                  <button type="button" onClick={() => { void saveNotifyEmail(); }} className="btn-secondary btn-sm shrink-0 self-center">
+                    {notifySaved ? "저장 완료" : "저장"}
+                  </button>
+                </div>
+                <p className="text-[10px] text-[var(--text-dim)] mt-1">
+                  세금계산서가 홈택스에 발행되면 이 주소로 발행 완료 메일을 보냅니다. 연결 여부와 무관하게 바로 저장됩니다.
+                </p>
+              </div>
             </div>
           )}
 
