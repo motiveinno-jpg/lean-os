@@ -189,6 +189,7 @@ ${COMMON_RULES}
 - 조회 툴이 있는 주제는 "확인할 수 없다"·"시스템에서 모른다"고 넘기지 말고 먼저 툴을 부르세요. 툴을 부른 뒤에도 값이 비어 있을 때만 없다고 답하고, 그때도 "데이터가 없다"가 아니라 어느 화면에서 입력하면 되는지 알려 주세요.
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
 - 연결된 세무사·회계사("우리 세무사 누구야", "세무사가 언제 봤어")는 get_tax_advisors 로 답하세요. 스냅샷에는 없습니다.
+- 재무·세금 집계(외상매출금·외상매입금·미수·미지급·세금계산서 합계 등)의 기본 기간은 당해 연도(올해 1월 1일~오늘)입니다. 지난해 자료는 이미 재무제표·부가세 신고로 결산이 끝난 것이므로 기본 답변에 섞지 말고, 사용자가 "작년"·"전체 기간"을 명시할 때만 기간을 넓히세요. 답변에는 어느 기간 기준인지 한 줄로 밝히세요. 외상매출금은 list_receivables(type=sales), 외상매입금은 list_receivables(type=purchase)로 답하세요.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
 - 첨부문서를 바탕으로 계약서를 만들어 달라는 요청은 create_contract_draft_from_attachment 액션으로 처리합니다. 원문의 당사자·목적·기간·대금·업무·비밀유지·해지·손해배상·관할 등 실제 내용을 빠뜨리지 말고 HTML 계약서로 재구성하세요. 원문에 없는 사실·금액·날짜·법률효과를 만들지 말고 필요한 곳에 [확인 필요: 항목]을 표시하세요. 반복 사용 값은 {{회사명}}, {{직원명}}, {{계약일}} 같은 변수로 바꾸되 원문의 고정 당사자명이 핵심인 일반 거래계약이면 함부로 바꾸지 마세요. 원문 성격에 맞는 document_type을 고르세요. AI 초안은 외부 발송 없이 전자계약 > 양식 관리에 회사 양식으로 저장됩니다.
@@ -475,10 +476,14 @@ const MANAGER_READ_TOOLS = [
   },
   {
     name: "list_receivables",
-    description: "미수(발행됐지만 아직 정산되지 않은 매출 세금계산서)를 금액 큰 순으로 반환합니다. snapshot 의 미수 총액을 거래처별로 쪼개 볼 때 사용.",
+    description: "정산되지 않은 세금계산서를 금액 큰 순으로 반환합니다. type=sales 는 외상매출금(미수), type=purchase 는 외상매입금(미지급). 기본 기간은 당해 연도(올해 1/1~오늘) — 지난해 이미 결산·신고된 건은 사용자가 '작년'·'전체 기간'을 명시할 때만 from 으로 넓히세요.",
     input_schema: {
       type: "object", additionalProperties: false,
-      properties: { limit: { type: "integer", description: "가져올 건수(기본 10, 최대 30)" } },
+      properties: {
+        limit: { type: "integer", description: "가져올 건수(기본 10, 최대 30)" },
+        type: { type: "string", enum: ["sales", "purchase"], description: "sales=외상매출(미수, 기본), purchase=외상매입(미지급)" },
+        from: { type: "string", description: "발행일 시작(YYYY-MM-DD). 생략 시 올해 1월 1일 — 과년도 포함 요청일 때만 지정" },
+      },
     },
   },
   {
@@ -1513,16 +1518,25 @@ async function executeReadTool(
   }
 
   if (name === "list_receivables") {
+    // 기본 기간 = 당해 연도 (2026-08-13 사장님: 이미 결산·신고 끝난 작년 건은 기본에서 제외).
+    //   과년도가 필요하면 모델이 from 을 명시해 넓힌다.
+    const kstYear = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 4);
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(String(input.from ?? "")) ? String(input.from) : `${kstYear}-01-01`;
+    const invType = input.type === "purchase" ? "purchase" : "sales";
     const { data, error } = await admin
       .from("tax_invoices")
       .select("counterparty_name, total_amount, issue_date, status")
       .eq("company_id", companyId)
-      .eq("type", "sales")
+      .eq("type", invType)
+      .gte("issue_date", from)
       .in("status", ["issued", "unmatched", "modified"])
       .order("total_amount", { ascending: false })
       .limit(clampLimit(input.limit));
-    if (error) return { error: "미수 조회에 실패했습니다." };
-    return { receivables: data ?? [] };
+    if (error) return { error: invType === "purchase" ? "미지급 조회에 실패했습니다." : "미수 조회에 실패했습니다." };
+    return {
+      receivables: data ?? [],
+      basis: `${from} 이후 발행분 (${invType === "purchase" ? "외상매입금" : "외상매출금"}) — 지난 결산 연도 제외가 기본`,
+    };
   }
 
   if (name === "list_pending_payments") {
