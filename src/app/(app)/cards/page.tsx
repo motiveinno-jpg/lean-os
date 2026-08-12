@@ -1,5 +1,6 @@
 "use client";
 import { DonutChart, Legend, vizColor } from "@/components/charts/kit";
+import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { logRead } from "@/lib/log-read";
 import { Ico } from "@/components/ui-icon";
 
@@ -401,6 +402,22 @@ export default function CardsPage() {
   }, [cardTx, cardTxSearch, cardSortKey, cardSortDir, empNameById]);
 
   // 거래내역 검색 클라이언트 필터
+  //   엑셀 — 통장과 같은 함수를 쓴다(한글 깨짐·쉼표 밀림을 한 곳에서만 막는다)
+  const exportCardCsv = () => {
+    downloadCsv(
+      `카드거래내역_${rangeSuffix(cardTxFrom, cardTxTo)}`,
+      ["승인일", "가맹점", "금액", "비목", "카드", "전표"],
+      (sortedTx as any[]).map((tx) => [
+        String(tx.transaction_date || "").slice(0, 10),
+        tx.merchant_name || "",
+        Number(tx.amount || 0),
+        tx.category || "",
+        tx.card_name || tx.card_number || "",
+        tx.journal_entry_id ? "처리됨" : "",
+      ]),
+    );
+  };
+
   const filteredTx = recentTx.filter((tx: any) => {
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
@@ -600,6 +617,8 @@ export default function CardsPage() {
       {/* 기간설정 — 제일 상단(툴바 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용 */}
       <div className="card-tx-period-filter no-print">
         {/*   통장 화면과 같은 위젯 — 두 화면이 같은 일을 하므로 다르게 생길 이유가 없다 (2026-08-11) */}
+        <button type="button" onClick={exportCardCsv} disabled={sortedTx.length === 0}
+          className="btn-secondary btn-sm order-last disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
         <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
           onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }}
           onClear={() => { setCardTxFrom(""); setCardTxTo(""); }} />

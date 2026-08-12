@@ -1,5 +1,6 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { DateRangeField } from "@/components/date-range-field";
 import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
@@ -714,18 +715,14 @@ function SignaturesDashboardInner() {
             {managerOptions.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.count}건)</option>)}
           </select>
         </span>
-        <span className="signature-period-group">
-          <span className="signature-period-label">요청일</span>
-          <input type="date" value={reqFrom} onChange={(e) => setReqFrom(e.target.value)} className="signature-period-input" aria-label="요청일 시작" />
-          <span className="text-[var(--text-dim)]">~</span>
-          <input type="date" value={reqTo} onChange={(e) => setReqTo(e.target.value)} className="signature-period-input" aria-label="요청일 끝" />
-        </span>
-        <span className="signature-period-group">
-          <span className="signature-period-label">서명완료일</span>
-          <input type="date" value={expFrom} onChange={(e) => setExpFrom(e.target.value)} className="signature-period-input" aria-label="서명완료일 시작" />
-          <span className="text-[var(--text-dim)]">~</span>
-          <input type="date" value={expTo} onChange={(e) => setExpTo(e.target.value)} className="signature-period-input" aria-label="서명완료일 끝" />
-        </span>
+        {/* 조회기간 — 다른 화면과 같은 달력 위젯 (2026-08-12 UI 정리 2차수).
+            둘 다 '안 걸 수도 있는' 기간이라 onClear(전체 기간)를 준다. */}
+        <DateRangeField label="요청일" from={reqFrom} to={reqTo}
+          onChange={(f, t) => { setReqFrom(f); setReqTo(t); }}
+          onClear={() => { setReqFrom(""); setReqTo(""); }} />
+        <DateRangeField label="서명완료일" from={expFrom} to={expTo}
+          onChange={(f, t) => { setExpFrom(f); setExpTo(t); }}
+          onClear={() => { setExpFrom(""); setExpTo(""); }} />
         {(reqFrom || reqTo || expFrom || expTo || batchFilter || managerFilter) && (
           <button
             onClick={() => { setReqFrom(""); setReqTo(""); setExpFrom(""); setExpTo(""); setBatchFilter(""); setManagerFilter(""); }}

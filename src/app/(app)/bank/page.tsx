@@ -1,5 +1,6 @@
 "use client";
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
@@ -18,7 +19,6 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getSyncPausedUntil, setSyncPause, clearSyncPause } from "@/lib/data-sync";
 import { getBankSyncAccess } from "@/lib/billing";
-import { DateField } from "@/components/date-field";
 import { DateRangeField } from "@/components/date-range-field";
 import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
@@ -425,6 +425,28 @@ export default function BankPage() {
   // 정렬 적용 — 원본 쿼리 캐시 불변(복제 정렬). null/빈값은 항상 뒤로.
   // 대량 거래 렌더 상한 — 최대 2000건 일괄 DOM 렌더 방지 (더 보기로 증분 표시)
   const [visibleTx, setVisibleTx] = useState(300);
+
+  //   엑셀 — 지금 화면에 걸린 조건·정렬 그대로 뽑는다(보이는 것과 파일이 달라지면 안 된다).
+  //   '더 보기'로 접혀 있어도 **거른 전부**를 내보낸다 — 파일은 화면 스크롤과 다른 물건이다.
+  const exportBankCsv = () => {
+    downloadCsv(
+      `통장거래내역_${rangeSuffix(bankTxFrom, bankTxTo)}`,
+      //   ⚠️ 칸 이름은 DB 를 보고 맞췄다 — 잔액은 balance_after 이고, 계좌번호 칸은 아예 없다
+      //     (bank_account_id 만 있다). 처음에 짐작으로 balance·account_number 를 넣었더니
+      //     엑셀에 빈 칸 두 개가 그대로 나갔다. 없는 것은 내보내지 않는다.
+      ["거래일", "구분", "적요", "거래처", "금액", "거래후잔액", "비목", "전표"],
+      (sortedTx as any[]).map((tx) => [
+        String(tx.transaction_date || "").slice(0, 10),
+        tx.type === "income" ? "입금" : "출금",
+        tx.description || "",
+        tx.counterparty || "",
+        Number(tx.amount || 0),
+        tx.balance_after != null ? Number(tx.balance_after) : "",
+        tx.category || tx.classification || "",
+        tx.journal_entry_id ? "처리됨" : "",
+      ]),
+    );
+  };
   const sortedTx = useMemo(() => {
     if (!sortKey) return recentTx;
     const dir = sortDir === "asc" ? 1 : -1;
@@ -740,16 +762,16 @@ export default function BankPage() {
       {/* 거래내역 — 시안 표 (거래/분류/금액/날짜/상태) 최근 50건. selectedAccountNo 있으면 그 통장만. */}
       {tab === "transactions" && (
         <>
-          {/* 직원 QA #2 — 거래내역 탭에서 조회기간 직접 설정 (표 필터). 통장 탭의 sync 범위와 동일 상태 공유 */}
+          {/* 조회기간 — 다른 화면과 **같은 달력 위젯**으로 통일 (2026-08-12 UI 정리 2차수).
+              예전엔 날짜 칸 두 개 + '기간 해제' 링크라, 타이핑·빠른선택(이번 달·분기·올해)이
+              여기서만 안 됐다. 통장 탭의 sync 범위와 같은 상태를 그대로 쓴다. */}
           <div className="transaction-range-filter no-print">
-            <span className="text-xs font-semibold text-[var(--text-muted)]">조회기간</span>
-            <DateField value={bankTxFrom} max={bankTxTo || undefined} onChange={(e) => setBankTxFrom(e.target.value)} title="시작일"
-              className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-            <span className="text-[var(--text-dim)] text-xs">~</span>
-            <DateField value={bankTxTo} min={bankTxFrom || undefined} onChange={(e) => setBankTxTo(e.target.value)} title="종료일"
-              className="px-2 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text)] mono-number" />
-            {(bankTxFrom || bankTxTo) && <button onClick={() => { setBankTxFrom(""); setBankTxTo(""); }} className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] px-1">기간 해제</button>}
-            <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">미설정 시 최근 50건</span>
+            <DateRangeField from={bankTxFrom} to={bankTxTo}
+              onChange={(f, t) => { setBankTxFrom(f); setBankTxTo(t); }}
+              onClear={() => { setBankTxFrom(""); setBankTxTo(""); }} />
+            <button type="button" onClick={exportBankCsv} disabled={sortedTx.length === 0}
+              className="btn-secondary btn-sm ml-auto disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
+            <span className="text-[10px] text-[var(--text-dim)] hidden lg:block">미설정 시 최근 50건</span>
           </div>
           {selectedAccountNo && (
             <div className="transaction-account-filter-banner">
