@@ -13,6 +13,7 @@
 
 import { useMemo, useState } from "react";
 import { appConfirm } from "@/components/global-confirm";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { PickList } from "@/components/pick-list";
 import { fetchMerchantKinds, fillMerchantKinds, type MerchantInfo } from "@/lib/merchant-tax-type";
 import { UNCLASSIFIED_CATEGORY } from "@/lib/card-vat-classification";
@@ -67,6 +68,10 @@ const STD_CODES = new Set<string>([STD.bank, STD.ar, STD.vatIn, STD.ap, STD.paya
 //   국세청 부가세 유형(11·51·57…)과 겹치지 않는 값이라 섞일 일이 없다 (2026-08-12).
 const GENERAL_CODE = "3";
 
+/** 표 머리단 정렬 열쇠 — 칸 하나에 하나씩 (2026-08-12) */
+type SortKey = "date" | "partner" | "bizno" | "kind" | "vat" | "item"
+  | "supply" | "tax" | "total" | "debit" | "state";
+
 const SETTLE_BY_KIND: Record<string, SettleType> = {
   tax_invoice: "credit", exempt_invoice: "credit", cash_receipt: "cash", card: "card",
 };
@@ -80,6 +85,9 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
   const [override, setOverride] = useState<Record<string, { vatCode?: string; acct?: Acct }>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  //   머리단 정렬 — 기본은 일자 오름차순(장부는 날짜 순으로 본다) (2026-08-12)
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
+  const onSort = (k: SortKey) => setSort((c) => nextSort(c, k, k === "date" ? "asc" : "asc"));
 
   const { data: accounts = [] } = useQuery({
     queryKey: ["collect-accounts", companyId],
@@ -185,11 +193,36 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
     return { supply: r.supply, vat: r.vat };
   };
 
-  const shown = rows.filter((r) => {
+  const shownUnsorted = rows.filter((r) => {
     if (onlyTodo && r.posted) return false;
     if (dir !== "all" && vatType(vatCodeOf(r))?.side !== dir) return false;
     return true;
   });
+  //   정렬 — 고른 칸으로 세우고, 같으면 늘 일자로 갈라 순서가 흔들리지 않게 한다
+  const shown = useMemo(() => {
+    const val = (r: Row): unknown => {
+      switch (sort.key) {
+        case "partner": return r.partnerName;
+        case "bizno": return r.bizno;
+        case "kind": return merchantOf(r)?.kind ?? "";
+        case "vat": return vatType(vatCodeOf(r))?.label ?? "";
+        case "item": return r.item;
+        case "supply": return amountsOf(r).supply;
+        case "tax": return amountsOf(r).vat;
+        case "total": return amountsOf(r).supply + amountsOf(r).vat;
+        case "debit": return acctOf(r).acct?.code ?? "";
+        case "state": return r.posted ? 1 : 0;
+        default: return r.date;
+      }
+    };
+    const arr = [...shownUnsorted];
+    arr.sort((a, b) => {
+      const c = cmp(val(a), val(b));
+      return (sort.dir === "asc" ? c : -c) || a.date.localeCompare(b.date);
+    });
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap]);
   const selRows = shown.filter((r) => sel.has(r.id));
   const sumSupply = shown.reduce((n, r) => n + amountsOf(r).supply, 0);
   const sumVat = shown.reduce((n, r) => n + amountsOf(r).vat, 0);
@@ -446,9 +479,18 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                     onClick={() => setSel(allOn ? new Set() : new Set(shown.filter((r) => !r.posted).map((r) => r.id)))}
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
-                <th>일자</th><th>거래처</th><th>사업자등록번호</th><th>구분</th><th>유형</th><th>품명</th>
-                <th className="tr">공급가액</th><th className="tr">부가세</th><th className="tr">합계</th>
-                <th>차변계정</th><th>대변계정</th><th>상태</th>
+                <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} />
+                <SortableTh label="거래처" sortKey="partner" sort={sort} onSort={onSort} />
+                <SortableTh label="사업자등록번호" sortKey="bizno" sort={sort} onSort={onSort} />
+                <SortableTh label="구분" sortKey="kind" sort={sort} onSort={onSort} />
+                <SortableTh label="유형" sortKey="vat" sort={sort} onSort={onSort} />
+                <SortableTh label="품명" sortKey="item" sort={sort} onSort={onSort} />
+                <SortableTh label="공급가액" sortKey="supply" sort={sort} onSort={onSort} />
+                <SortableTh label="부가세" sortKey="tax" sort={sort} onSort={onSort} />
+                <SortableTh label="합계" sortKey="total" sort={sort} onSort={onSort} />
+                <SortableTh label="차변계정" sortKey="debit" sort={sort} onSort={onSort} />
+                <SortableTh label="대변계정" />
+                <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
               </tr>
             </thead>
             <tbody>
