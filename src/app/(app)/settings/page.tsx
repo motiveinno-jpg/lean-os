@@ -18,7 +18,6 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
 import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
-import { TaxAutomationTab } from "./_components/TaxAutomationTab";
 import { BankIntegrationTab } from "./_components/BankIntegrationTab";
 import { AdAccountsTab } from "./_components/AdAccountsTab";
 import { TeamManagement } from "./_components/TeamManagement";
@@ -30,80 +29,58 @@ import { CompanyInfoTab } from "./_components/CompanyInfoTab";
 import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 // 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
 
-// ── 2026-08-12 회사 설정 리디자인(사장님: 중복 제거 + 최신 레이아웃) ──
-//    · 2단 가로 탭 → 좌측 세로 네비(데스크톱) / 가로 스크롤 필(모바일)
-//    · '승인·결재' 탭 제거 — 결재 허브 > 정책 관리와 같은 approval_policies 를 다루는
-//      구버전 중복이었다(참조·팀 지정 없음). 옛 딥링크는 결재 허브로 보낸다.
-//    · 탭마다 제목+설명 헤더를 셸에서 일관 렌더.
+// ── 2026-08-13 회사 설정 2차 개편(사장님: 좌측 네비도 별로, 내용·기능까지 다 바꿔라) ──
+//    · 네비: 상단 언더라인 탭 한 줄(가로 스크롤). 그룹 계층 제거 — 13탭을 9+1로 통합해
+//      계층 없이도 읽히게 했다. 회사 삭제는 오른쪽 끝에 붉은 톤으로 격리.
+//    · 통합: 부서→구성원·초대, 딜 분류→계정과목·분류, 세무자동화→회계마감.
+//      세무자동화의 토글 9개 중 코드가 실제로 읽는 건 매칭 허용오차 1개뿐이라
+//      (grep: tax-invoice.ts 만 소비) 죽은 토글 8개는 화면에서 제거했다.
+//    · 내부 디자인: .stg-main 스코프 CSS 로 기존 glass-card·section-title 을 일괄 재스킨.
 type LeafKey =
-  | "company-info" | "team"                       // 회사 기본
-  | "cash" | "chart" | "closing" | "tax"          // 회계·세무
-  | "bank" | "ads"                                // 연동·인증
-  | "departments" | "attendance"                  // 인사·근태
-  | "deal" | "forms"                              // 업무 규칙
-  | "delete-company";                             // 시스템 (회사 삭제 — 마스터 전용)
+  | "company-info" | "team" | "cash" | "chart" | "closing"
+  | "bank" | "ads" | "attendance" | "forms"
+  | "delete-company";
 
-const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: LeafKey; label: string; masterOnly?: boolean }[] }[] = [
-  { key: "basic", label: "회사 기본", icon: "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2", tabs: [
-    { key: "company-info", label: "회사정보" },
-    { key: "team", label: "팀·권한" },
-  ] },
-  { key: "accounting", label: "회계·세무", icon: "M9 7h6m-6 4h6m-6 4h4M5 3h14a1 1 0 011 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z", tabs: [
-    { key: "cash", label: "자금·통장" },
-    { key: "chart", label: "계정과목" },
-    { key: "closing", label: "회계마감" },
-    { key: "tax", label: "세무자동화" },
-  ] },
-  { key: "integration", label: "연동·인증", icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5", tabs: [
-    { key: "bank", label: "은행연동" },
-    { key: "ads", label: "광고 계정" },
-  ] },
-  { key: "hr", label: "인사·근태", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z", tabs: [
-    { key: "departments", label: "부서" },
-    { key: "attendance", label: "근태·가산수당" },
-  ] },
-  { key: "rules", label: "업무 규칙", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", tabs: [
-    { key: "deal", label: "딜 분류" },
-    { key: "forms", label: "회사 양식" },
-  ] },
-  { key: "system", label: "시스템", icon: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m-1 0v14a1 1 0 01-1 1H9a1 1 0 01-1-1V6", tabs: [
-    // 회사 자체를 지우는 탭 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
-    //   '데이터 관리(초기화)' 는 2026-08-10 사장님 지시로 제거 — 회사 삭제만 남긴다.
-    { key: "delete-company", label: "회사 삭제", masterOnly: true },
-  ] },
+// perms: 이 탭을 보여주는 부여 키들(구 키 포함 OR) — 이미 부여된 옛 세부탭 권한을 계속 존중한다.
+const SETTINGS_TABS: { key: LeafKey; label: string; perms: string[]; masterOnly?: boolean; danger?: boolean }[] = [
+  { key: "company-info", label: "회사정보", perms: ["company-info"] },
+  { key: "team", label: "구성원·초대", perms: ["team", "departments"] },
+  { key: "cash", label: "자금·통장", perms: ["cash"] },
+  { key: "chart", label: "계정과목·분류", perms: ["chart", "deal"] },
+  { key: "closing", label: "회계마감", perms: ["closing", "tax"] },
+  { key: "bank", label: "은행연동", perms: ["bank"] },
+  { key: "ads", label: "광고 계정", perms: ["ads"] },
+  { key: "attendance", label: "근태·가산수당", perms: ["attendance"] },
+  { key: "forms", label: "회사 양식", perms: ["forms"] },
+  // 회사 자체를 지우는 탭 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
+  { key: "delete-company", label: "회사 삭제", perms: [], masterOnly: true, danger: true },
 ];
-const ALL_LEAVES: LeafKey[] = SETTINGS_GROUPS.flatMap((g) => g.tabs.map((t) => t.key));
+const ALL_LEAVES: LeafKey[] = SETTINGS_TABS.map((t) => t.key);
 
-// 콘텐츠 헤더 — 탭마다 무엇을 하는 곳인지 한 줄로. danger 는 붉은 톤.
+// 콘텐츠 헤더 — 탭마다 무엇을 하는 곳인지 한 줄로.
 const LEAF_META: Record<LeafKey, { title: string; desc: string; danger?: boolean }> = {
-  "company-info": { title: "회사정보", desc: "사업자 정보와 대표 연락처, 세무 파트너 연결을 관리합니다." },
-  team: { title: "팀·권한", desc: "구성원 초대와 합류 요청 승인, 메뉴·세부탭 권한을 관리합니다." },
+  "company-info": { title: "회사정보", desc: "사업자 정보와 직인·로고, 회사 문서, 세무 파트너 연결을 관리합니다." },
+  team: { title: "구성원·초대", desc: "구성원 초대·합류 요청 승인과 부서를 관리합니다. 메뉴 권한 부여는 구성원 화면에서 합니다." },
   cash: { title: "자금·통장", desc: "가용 현금 집계와 미연동 통장, 비용 유형별 지급 통장을 설정합니다." },
-  chart: { title: "계정과목", desc: "장부 분류에 쓰는 계정과목 체계를 관리합니다." },
-  closing: { title: "회계마감", desc: "회계 마감시점과 계정별 기초잔액을 관리합니다." },
-  tax: { title: "세무자동화", desc: "세금계산서 자동발행과 거래처 자동 전송을 설정합니다." },
+  chart: { title: "계정과목·분류", desc: "장부의 계정과목 체계와 거래 장부의 딜 분류를 관리합니다." },
+  closing: { title: "회계마감", desc: "회계 마감시점·기초잔액과 장부 매칭 규칙을 관리합니다." },
   bank: { title: "은행연동", desc: "공동인증서로 은행·카드·홈택스 자동 수집을 연결합니다." },
   ads: { title: "광고 계정", desc: "광고 매체 API 키를 한 곳에 등록하고 프로젝트에서 골라 씁니다." },
-  departments: { title: "부서", desc: "조직 부서를 만들고 구성원을 배치합니다." },
   attendance: { title: "근태·가산수당", desc: "출퇴근 기준 시각과 유예, 가산수당 규칙을 정합니다." },
-  deal: { title: "딜 분류", desc: "거래 장부에 쓰는 딜 분류 체계를 관리합니다." },
   forms: { title: "회사 양식", desc: "회사 공용 PDF 양식을 등록하고 관리합니다." },
   "delete-company": { title: "회사 삭제", desc: "회사와 모든 데이터를 영구 삭제합니다. 되돌릴 수 없습니다.", danger: true },
 };
 
 // 옛 ?tab= 딥링크 호환 — 재편 전 키를 새 leaf 로 매핑. 다른 화면으로 이관된 키는 그 주소로 보낸다.
 const TAB_COMPAT: Record<string, LeafKey> = {
-  general: "team",          // 합류요청 알림이 팀관리(승인 UI)로 연결되던 링크
-  company: "company-info", bank: "bank", tax: "tax",
-  certificate: "bank", hr_attendance: "attendance", danger: "delete-company", data: "delete-company",
+  general: "team", company: "company-info", certificate: "bank",
+  hr_attendance: "attendance", danger: "delete-company", data: "delete-company",
+  departments: "team", deal: "chart", tax: "closing",   // 2026-08-13 탭 통합
 };
 const TAB_MOVED: Record<string, string> = {
   account: "/mypage", notifications: "/mypage",          // 개인 설정 — 마이페이지로 이관(2026-07-08)
   approval: "/approvals?tab=policies",                    // 결재 정책 — 결재 허브로 일원화(2026-08-12)
 };
-function groupOfLeaf(leaf: LeafKey): string {
-  return SETTINGS_GROUPS.find((g) => g.tabs.some((t) => t.key === leaf))?.key || "basic";
-}
 
 export default function SettingsPage() {
   const { role } = useUser();
@@ -141,17 +118,17 @@ function SettingsPageInner() {
       window.history.replaceState(null, "", url.toString());
     }
   };
-  // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/settings:leaf)만
+  // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/settings:leaf)만.
+  //   통합 탭은 구성 키 중 하나라도 부여돼 있으면 노출 (옛 부여 존중).
   const { isMaster: permMaster, hasPerm: permHas } = useMyPermissions();
-  const visibleGroups = SETTINGS_GROUPS
-    .map((g) => ({ ...g, tabs: g.tabs.filter((t) => t.masterOnly ? permMaster : (permMaster || permHas(`/settings:${t.key}`))) }))
-    .filter((g) => g.tabs.length > 0);
-  const firstAllowedLeaf = visibleGroups[0]?.tabs[0]?.key;
+  const visibleTabs = SETTINGS_TABS.filter((t) =>
+    t.masterOnly ? permMaster : (permMaster || t.perms.some((p) => permHas(`/settings:${p}`))));
+  const firstAllowedLeaf = visibleTabs[0]?.key;
   useEffect(() => {
-    const allowed = visibleGroups.some((g) => g.tabs.some((t) => t.key === tab));
+    const allowed = visibleTabs.some((t) => t.key === tab);
     if (!allowed && firstAllowedLeaf) setTabState(firstAllowedLeaf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, permMaster, firstAllowedLeaf, visibleGroups.map((g) => g.tabs.map((t) => t.key).join()).join()]);
+  }, [tab, permMaster, firstAllowedLeaf, visibleTabs.map((t) => t.key).join()]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [balance, setBalance] = useState("");
   const [fixedCost, setFixedCost] = useState("");
@@ -277,59 +254,29 @@ function SettingsPageInner() {
   }
 
   const meta = LEAF_META[tab];
+  const dangerIdx = visibleTabs.findIndex((t) => t.danger);
 
   return (
-    <div className="stg-shell">
-      {/* ── 좌측 세로 네비 (데스크톱) ── */}
-      <nav className="stg-nav">
-        {visibleGroups.map((g) => (
-          <div key={g.key}>
-            <div className="stg-nav-group-label">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d={g.icon} /></svg>
-              {g.label}
-            </div>
-            <div className="space-y-0.5">
-              {g.tabs.map((t) => {
-                const active = tab === t.key;
-                const danger = !!LEAF_META[t.key].danger;
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => setTab(t.key)}
-                    className={`stg-nav-item ${danger ? (active ? "stg-nav-item-danger-on" : "stg-nav-item-danger") : active ? "stg-nav-item-on" : ""}`}
-                  >
-                    {t.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+    <div>
+      {/* ── 상단 언더라인 탭 — 한 줄, 가로 스크롤. 회사 삭제는 오른쪽 끝 붉은 톤 ── */}
+      <nav className="stg-tabs" role="tablist" aria-label="회사 설정">
+        {visibleTabs.map((t, i) => {
+          const active = tab === t.key;
+          return (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={active}
+              ref={(el) => { if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" }); }}
+              onClick={() => setTab(t.key)}
+              className={`stg-tab ${t.danger ? "stg-tab-danger" : ""} ${active ? "stg-tab-on" : ""} ${i === dangerIdx && i > 0 ? "stg-tab-push" : ""}`}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* ── 모바일 네비 — 가로 스크롤, 그룹 경계는 세퍼레이터 ── */}
-      <div className="stg-nav-m">
-        {visibleGroups.map((g, gi) => (
-          <React.Fragment key={g.key}>
-            {gi > 0 && <span className="stg-nav-m-sep" aria-hidden />}
-            {g.tabs.map((t) => {
-              const active = tab === t.key;
-              return (
-                <button
-                  key={t.key}
-                  ref={(el) => { if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }); }}
-                  onClick={() => setTab(t.key)}
-                  className={`stg-nav-m-item ${active ? (LEAF_META[t.key].danger ? "stg-nav-m-item-danger-on" : "stg-nav-m-item-on") : ""}`}
-                >
-                  {t.label}
-                </button>
-              );
-            })}
-          </React.Fragment>
-        ))}
-      </div>
-
-      {/* ── 콘텐츠 ── */}
       <div className="stg-main">
         <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
@@ -615,26 +562,42 @@ function SettingsPageInner() {
           </div>
         )}
 
-        {/* ═══ 회사 기본 ═══ */}
+        {/* ═══ 회사정보 ═══ */}
         {tab === "company-info" && <CompanyInfoTab companyId={companyId} />}
-        {tab === "team" && <TeamManagement companyId={companyId} />}
 
-        {/* ═══ 회계·세무 ═══ */}
-        {tab === "chart" && companyId && <ChartOfAccountsManager companyId={companyId} />}
-        {tab === "closing" && <AccountingClosingTab companyId={companyId} />}
-        {tab === "tax" && <TaxAutomationTab companyId={companyId} />}
+        {/* ═══ 구성원·초대 — 초대·합류 승인 + 부서 (2026-08-13 통합) ═══ */}
+        {tab === "team" && (
+          <div className="space-y-5">
+            <TeamManagement companyId={companyId} />
+            <DepartmentsTab companyId={companyId} />
+          </div>
+        )}
+
+        {/* ═══ 계정과목·분류 — 계정과목 + 딜 분류 (2026-08-13 통합) ═══ */}
+        {tab === "chart" && companyId && (
+          <div className="space-y-5">
+            <ChartOfAccountsManager companyId={companyId} />
+            <DealClassificationManager companyId={companyId} />
+          </div>
+        )}
+
+        {/* ═══ 회계마감 + 장부 매칭 규칙 (구 세무자동화에서 실사용 필드만 이식) ═══ */}
+        {tab === "closing" && (
+          <div className="space-y-5">
+            <AccountingClosingTab companyId={companyId} />
+            <MatchingRuleCard companyId={companyId} />
+          </div>
+        )}
 
         {/* ═══ 연동·인증 ═══ */}
         {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
         {/* 광고 계정 — 키는 여기 한 번, 프로젝트에서는 골라 쓴다 (2026-08-06) */}
         {tab === "ads" && companyId && <AdAccountsTab companyId={companyId} />}
 
-        {/* ═══ 인사·근태 ═══ */}
-        {tab === "departments" && <DepartmentsTab companyId={companyId} />}
+        {/* ═══ 근태·가산수당 ═══ */}
         {tab === "attendance" && companyId && <HrAttendanceSettingsPanel companyId={companyId} />}
 
-        {/* ═══ 업무 규칙 ═══ */}
-        {tab === "deal" && <DealClassificationManager companyId={companyId} />}
+        {/* ═══ 회사 양식 ═══ */}
         {tab === "forms" && <FormTemplateManager companyId={companyId} />}
 
         {tab === "delete-company" && companyId && permMaster && <CompanyDeleteTab companyId={companyId} />}
@@ -642,5 +605,57 @@ function SettingsPageInner() {
 
       {confirmElement}
     </div>
+  );
+}
+
+// ── 장부 매칭 규칙 — 구 세무자동화 탭에서 코드가 실제로 읽는 유일한 설정(matching_tolerance,
+//    tax-invoice.ts 3-way 매칭)만 남긴 카드. 죽은 토글 8개(자동발행·취소규칙·발행주기·선금비율·
+//    부가세집계)는 소비처 0 확인 후 화면에서 제거 — tax_settings 의 다른 키는 건드리지 않는다.
+function MatchingRuleCard({ companyId }: { companyId: string | null }) {
+  const qc = useQueryClient();
+  const [tolerance, setTolerance] = useState<string>("1");
+  const [saved, setSaved] = useState(false);
+  const { data: taxSettings } = useQuery({
+    queryKey: ["tax-settings", companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      const data = logRead('settings/MatchingRuleCard:data', await supabase
+        .from("companies").select("tax_settings").eq("id", companyId).maybeSingle());
+      return ((data as any)?.tax_settings || {}) as Record<string, any>;
+    },
+    enabled: !!companyId,
+  });
+  useEffect(() => {
+    if (taxSettings?.matching_tolerance != null) setTolerance(String(taxSettings.matching_tolerance));
+  }, [taxSettings]);
+  async function saveTolerance() {
+    if (!companyId) return;
+    const merged = { ...(taxSettings || {}), matching_tolerance: Math.min(100, Math.max(0, Number(tolerance) || 1)) };
+    await supabase.from("companies").update({ tax_settings: merged }).eq("id", companyId);
+    qc.invalidateQueries({ queryKey: ["tax-settings"] });
+    setSaved(true); setTimeout(() => setSaved(false), 2000);
+  }
+  if (!companyId) return null;
+  return (
+    <section className="stg-card">
+      <div className="stg-card-head">
+        <div>
+          <h3 className="stg-card-title">장부 매칭 허용오차</h3>
+          <p className="stg-card-desc">계약↔세금계산서↔입금을 자동으로 맞춰볼 때 허용할 금액 차이 비율입니다.</p>
+        </div>
+      </div>
+      <div className="flex items-end gap-3 max-w-xs">
+        <div className="flex-1">
+          <label className="field-label">허용오차 (%)</label>
+          <input
+            type="number" min={0} max={10} step={0.1}
+            value={tolerance}
+            onChange={(e) => setTolerance(e.target.value)}
+            className="field-input"
+          />
+        </div>
+        <button onClick={saveTolerance} className="btn-primary shrink-0">{saved ? "저장 완료" : "저장"}</button>
+      </div>
+    </section>
   );
 }

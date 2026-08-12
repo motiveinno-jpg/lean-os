@@ -8650,23 +8650,24 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ev-kind-novat { @apply bg-[var(--danger)]/10 text-[var(--danger)] whitespace-nowrap; }
 .gd-wf-count { @apply shrink-0 mt-1.5 text-[11px] font-semibold text-[var(--text-dim)]; }
 
-/* ── 회사 설정 리디자인 (2026-08-12 사장님: 중복 제거 + 최신 레이아웃) — stg- 네임스페이스 ── */
-/* 셸: 데스크톱 = 좌측 세로 네비 224px + 콘텐츠, 모바일 = 상단 가로 스크롤 필 */
-.stg-shell { @apply lg:grid lg:grid-cols-[224px_minmax(0,1fr)] lg:gap-10 lg:items-start; }
-.stg-nav { @apply hidden lg:block sticky top-4 space-y-5 pb-8; }
-.stg-nav-group-label { @apply px-2.5 mb-1.5 text-[11px] font-semibold text-[var(--text-dim)] flex items-center gap-1.5; }
-.stg-nav-item { @apply block w-full text-left px-2.5 py-[7px] rounded-lg text-[13px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)] hover:bg-[var(--bg-surface)]; }
-.stg-nav-item-on { @apply bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/10 hover:text-[var(--primary)]; }
-.stg-nav-item-danger { @apply text-[var(--danger)]/70 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10; }
-.stg-nav-item-danger-on { @apply bg-[var(--danger)]/10 text-[var(--danger)] font-semibold; }
-.stg-nav-m { @apply lg:hidden flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-.stg-nav-m::-webkit-scrollbar { display: none; }
-.stg-nav-m-item { @apply shrink-0 px-3 py-1.5 rounded-full text-[12.5px] font-medium bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] transition-colors; }
-.stg-nav-m-item-on { @apply bg-[var(--primary)] border-[var(--primary)] text-white font-semibold; }
-.stg-nav-m-item-danger-on { @apply bg-[var(--danger)] border-[var(--danger)] text-white font-semibold; }
-.stg-nav-m-sep { @apply shrink-0 self-center w-px h-4 bg-[var(--border)] mx-0.5; }
+/* ── 회사 설정 리디자인 (2026-08-13 2차 — 사장님: 좌측 네비 별로, 내용까지 다 바꿔라) — stg- ── */
+/* 상단 언더라인 탭 한 줄 — 가로 스크롤, 회사 삭제는 오른쪽 끝 붉은 톤 */
+.stg-tabs { @apply flex items-center gap-0.5 border-b border-[var(--border)] mb-6 overflow-x-auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.stg-tabs::-webkit-scrollbar { display: none; }
+.stg-tab { @apply relative shrink-0 px-3.5 py-2.5 text-[13.5px] font-medium text-[var(--text-muted)] whitespace-nowrap transition-colors hover:text-[var(--text)]; }
+.stg-tab-on { @apply text-[var(--text)] font-semibold; }
+.stg-tab-on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--primary); }
+.stg-tab-danger { @apply text-[var(--danger)]/60 hover:text-[var(--danger)]; }
+.stg-tab-danger.stg-tab-on { @apply text-[var(--danger)]; }
+.stg-tab-danger.stg-tab-on::after { background: var(--danger); }
+.stg-tab-push { @apply ml-auto; }
 /* 콘텐츠 헤더 — 탭 제목 + 한 줄 설명, 얇은 밑줄로 본문과 분리 */
 .stg-main { @apply min-w-0 space-y-0; }
+/* 기존 탭 컴포넌트 일괄 재스킨 — 셸 스코프에서 glass-card/section-title 을 새 카드 문법으로.
+   (12개 탭 내부를 파일마다 고치는 대신 한 곳에서 — 로직·마크업 무변경) */
+.stg-main .glass-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 1rem; box-shadow: none; @apply p-5 sm:p-6; }
+.stg-main .glass-card + .glass-card { @apply mt-5; }
+.stg-main .section-title { @apply text-sm font-bold mb-4 tracking-tight; }
 .stg-head { @apply mb-5 pb-4 border-b border-[var(--border)]; }
 .stg-head-title { @apply text-lg font-bold tracking-tight; }
 .stg-head-desc { @apply text-[13px] text-[var(--text-muted)] mt-1; }

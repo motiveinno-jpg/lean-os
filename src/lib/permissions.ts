@@ -123,19 +123,18 @@ export const PERMISSION_CATALOG: PermGroup[] = [
   {
     group: "설정·관리",
     menus: [
+      // 2026-08-13 설정 탭 통합: departments→team, deal→chart, tax→closing 에 흡수.
+      //   (certificate·approval 은 2026-08-12 제거) 옛 키로 이미 부여된 권한은 설정 화면이
+      //   OR 매핑으로 계속 존중한다 — 여기서는 새 부여 항목만 노출.
       { route: "/settings", label: "회사 설정", tabs: [
         { key: "company-info", label: "회사정보" },
-        { key: "team", label: "팀·권한" },
+        { key: "team", label: "구성원·초대" },
         { key: "cash", label: "자금·통장" },
-        { key: "chart", label: "계정과목" },
+        { key: "chart", label: "계정과목·분류" },
         { key: "closing", label: "회계마감" },
-        { key: "tax", label: "세무자동화" },
         { key: "bank", label: "은행연동" },
         { key: "ads", label: "광고 계정" },
-        // "certificate"(은행연동에 흡수)·"approval"(결재 허브 정책 관리로 일원화, 2026-08-12) 키 제거
-        { key: "departments", label: "부서" },
         { key: "attendance", label: "근태·가산수당" },
-        { key: "deal", label: "딜 분류" },
         { key: "forms", label: "회사 양식" },
       ] },
       { route: "/billing", label: "요금제·결제" },
