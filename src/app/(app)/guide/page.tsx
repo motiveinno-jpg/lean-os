@@ -525,17 +525,7 @@ export default function GuidePage() {
 
   const isAllExpanded = filteredFeatures.length > 0 && filteredFeatures.every((f) => expandedIds.has(f.id));
 
-  // 스크롤 리빌 — data-gd 요소가 화면에 들어오면 순차 fade-up (2026-08-12)
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-gd]:not(.gd-in)"));
-    const io = new IntersectionObserver(
-      (es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("gd-in"); io.unobserve(e.target); } }),
-      { threshold: 0.15 },
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [filteredFeatures]);
+  // 등장 애니메이션은 CSS 키프레임(gd-rise)이 담당 — JS 리빌 제거 (2026-08-12 카드 미표시 사고)
 
   return (
     <div className="gd-root">

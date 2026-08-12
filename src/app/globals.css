@@ -8556,10 +8556,15 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 
 /* ═══ 사용 가이드 리디자인 (2026-08-12) — gd- 네임스페이스 ═══ */
 .gd-root { @apply max-w-5xl space-y-6; }
-/* 리빌 — data-gd 요소가 화면에 들어오면 fade-up (reduced-motion 은 JS 에서 미적용) */
+/* 등장 애니메이션 — 마운트 시 1회 fade-up (2026-08-12: IO 리빌은 관찰자 사망 레이스로
+   카드가 영영 opacity 0 에 갇히는 사고가 나서 CSS 키프레임으로 교체 — JS 무의존) */
 @media (prefers-reduced-motion: no-preference) {
-  .gd-root [data-gd] { opacity: 0; transform: translateY(16px); transition: opacity .55s cubic-bezier(.22,.61,.2,1), transform .55s cubic-bezier(.22,.61,.2,1); }
-  .gd-root [data-gd].gd-in { opacity: 1; transform: none; }
+  .gd-root [data-gd] { animation: gd-rise .5s cubic-bezier(.22,.61,.2,1) both; }
+  @keyframes gd-rise { from { opacity: 0; transform: translateY(14px); } }
+  .gd-grid .gd-card:nth-child(2) { animation-delay: .06s; }
+  .gd-grid .gd-card:nth-child(3) { animation-delay: .12s; }
+  .gd-grid .gd-card:nth-child(4) { animation-delay: .18s; }
+  .gd-grid .gd-card { animation: gd-rise .5s cubic-bezier(.22,.61,.2,1) both; }
 }
 .gd-hero { @apply rounded-2xl px-7 py-8 border border-[var(--border)]; background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-card) 55%); }
 .gd-hero-top { @apply flex items-start justify-between gap-4 flex-wrap mb-6; }
