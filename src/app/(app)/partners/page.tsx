@@ -192,6 +192,8 @@ export default function PartnersPage() {
   const [kindKey, setKindKey] = useState<KindKey>("all");
   //   '처리할 것' 띠에서 고른 것 (사업자번호 없음 / 담당자 없음)
   const [todoFilter, setTodoFilter] = useState<"" | "biz" | "owner">("");
+  //   요약 띠에서 고른 렌즈 — 이번 달 거래 발생 / 이번 달 신규
+  const [lensFilter, setLensFilter] = useState<"" | "traded" | "fresh">("");
   type SortKey = "code" | "name" | "type" | "business_number" | "contact" | "phone" | "tag" | "status";
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -316,7 +318,8 @@ export default function PartnersPage() {
   //   예전 4칸은 전체·활성·표시 중이 719 로 같은 값이라 사실상 한 칸이었다.
   //   ⚠️ '미수금 있는 곳'을 넣으려다 뺐다 — 세금계산서 2,443건 중 수금이 잡힌 건 8건뿐이라
   //     501곳(거의 전부)으로 나온다. 경보가 아니라 소음이 된다. 수금 매칭이 쌓이면 그때 넣는다.
-  const { data: activity = { traded: 0, fresh: 0 } } = useQuery<{ traded: number; fresh: number }>({
+  const { data: activity = { traded: 0, fresh: 0, tradedIds: new Set<string>(), freshIds: new Set<string>() } } =
+    useQuery<{ traded: number; fresh: number; tradedIds: Set<string>; freshIds: Set<string> }>({
     queryKey: ["partner-activity", companyId],
     queryFn: async () => {
       const month = todayKst().slice(0, 7);
@@ -327,11 +330,13 @@ export default function PartnersPage() {
         supabase.from("tax_invoices").select("partner_id")
           .eq("company_id", companyId!).neq("status", "void").not("partner_id", "is", null)
           .gte("issue_date", from).lt("issue_date", to),
-        supabase.from("partners").select("id", { count: "exact", head: true })
+        supabase.from("partners").select("id")
           .eq("company_id", companyId!).gte("created_at", from).lt("created_at", to),
       ]);
       const ids = new Set(((inv.data as any[]) || []).map((r) => r.partner_id));
-      return { traded: ids.size, fresh: Number(np.count || 0) };
+      //   건수만 세면 눌러도 갈 곳이 없다 — 어느 거래처인지 id 까지 들고 온다
+      const freshIds = new Set(((np.data as any[]) || []).map((r) => r.id));
+      return { traded: ids.size, fresh: freshIds.size, tradedIds: ids, freshIds };
     },
     enabled: !!companyId, staleTime: 60_000,
   });
@@ -341,6 +346,7 @@ export default function PartnersPage() {
   const applyKind = (k: KindKey) => {
     setKindKey(k);
     setTodoFilter("");
+    setLensFilter("");
     setPage(1);
     if (k === "all") { setTypeFilter(""); setActiveFilter(undefined); return; }
     if (k === "inactive") { setTypeFilter(""); setActiveFilter(false); return; }
@@ -395,6 +401,9 @@ export default function PartnersPage() {
     //   '처리할 것' 띠에서 고른 것 — 그 목록만 남긴다
     if (todoFilter === "biz" && String(p.business_number || "").trim()) return false;
     if (todoFilter === "owner" && String(p.contact_name || "").trim()) return false;
+    //   요약 띠에서 고른 렌즈 — 그 집합에 든 거래처만 남긴다
+    if (lensFilter === "traded" && !activity.tradedIds?.has(p.id)) return false;
+    if (lensFilter === "fresh" && !activity.freshIds?.has(p.id)) return false;
     return true;
   });
 
@@ -782,30 +791,37 @@ export default function PartnersPage() {
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* 요약 3칸 — **서로 다른 것만** 말한다 (2026-08-12).
-          예전 4칸은 전체·활성·표시 중이 719 로 같은 값이라 한 칸이나 마찬가지였고,
-          휴면은 아래 갈래 탭이 건수를 들고 있어 중복이었다. */}
-      <div className="partner-kpi-cards partner-kpi-cards-3">
-        {(() => {
-          const all = rawPartners as any[];
-          const cards: { variant: string; icon: string; label: string; value: string }[] = [
-            { variant: "", icon: "building", label: "거래처", value: `${all.length.toLocaleString()}곳` },
-            { variant: "success", icon: "check", label: "이번 달 거래 발생", value: `${activity.traded.toLocaleString()}곳` },
-            { variant: "info", icon: "card", label: "이번 달 신규", value: `${activity.fresh.toLocaleString()}곳` },
-          ];
-          return cards.map((s) => (
-            <div key={s.label} className="stat-tile">
-              <div className="flex items-center justify-between">
-                <span className="stat-tile-label">{s.label}</span>
-                <span className={`kpi-icon ${s.variant}`}><TileIcon name={s.icon} className="w-5 h-5" /></span>
-              </div>
-              <div className="flex items-end gap-2">
-                <span className="stat-tile-value mono-number">{s.value}</span>
-              </div>
-            </div>
-          ));
-        })()}
+      {/* 요약 — **한 줄 띠**(세금·증빙과 같은 것). 예전엔 111.8px 짜리 큰 타일 3장이
+          목록을 화면 아래로 밀어냈다. 담는 정보는 같고 높이만 70px 로 준다 (2026-08-12 사장님 지시).
+          ★ 뒤 두 칸은 **눌러서 그 목록만** 본다 — 숫자만 보여 주고 끝나면 갈 곳이 없다. */}
+      <div className="doc-summary-strip">
+        <div className="doc-summary-cell">
+          <span>거래처</span>
+          <b>{(rawPartners as any[]).length.toLocaleString()}곳</b>
+        </div>
+        <div className={activity.traded > 0 ? "doc-summary-cell doc-summary-cell-link" : "doc-summary-cell"}
+          role={activity.traded > 0 ? "button" : undefined} tabIndex={activity.traded > 0 ? 0 : undefined}
+          onClick={() => activity.traded > 0 && setLensFilter(lensFilter === "traded" ? "" : "traded")}
+          onKeyDown={(e) => { if (activity.traded > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setLensFilter(lensFilter === "traded" ? "" : "traded"); } }}
+          title="누르면 이번 달 거래가 있었던 곳만 봅니다">
+          <span>이번 달 거래 발생{lensFilter === "traded" ? " · 보는 중" : ""}</span>
+          <b>{activity.traded.toLocaleString()}곳</b>
+        </div>
+        <div className={activity.fresh > 0 ? "doc-summary-cell doc-summary-cell-link" : "doc-summary-cell"}
+          role={activity.fresh > 0 ? "button" : undefined} tabIndex={activity.fresh > 0 ? 0 : undefined}
+          onClick={() => activity.fresh > 0 && setLensFilter(lensFilter === "fresh" ? "" : "fresh")}
+          onKeyDown={(e) => { if (activity.fresh > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setLensFilter(lensFilter === "fresh" ? "" : "fresh"); } }}
+          title="누르면 이번 달 새로 등록된 곳만 봅니다">
+          <span>이번 달 신규{lensFilter === "fresh" ? " · 보는 중" : ""}</span>
+          <b>{activity.fresh.toLocaleString()}곳</b>
+        </div>
       </div>
+      {lensFilter && (
+        <div className="partner-lens-note">
+          <b>{lensFilter === "traded" ? "이번 달 거래 발생" : "이번 달 신규"}</b> 만 보는 중
+          <button type="button" onClick={() => setLensFilter("")}>전체 보기</button>
+        </div>
+      )}
 
       {/* ── 툴바 한 줄 (2026-08-12 UI 정리) ──
           예전엔 세 줄이었다: (1)구분·활성만·검색·버튼4 (2)산업/지역/거래규모 (3)태그.

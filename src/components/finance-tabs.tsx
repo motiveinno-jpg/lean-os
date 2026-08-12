@@ -11,13 +11,10 @@ type Sub = { href: string; label: string; desc: string };
 type Hub = { key: string; subs: Sub[] };
 
 const HUBS: Hub[] = [
-  {
-    key: "partners",
-    subs: [
-      { href: "/partners", label: "거래처 관리", desc: "매출처·매입처 마스터 정보와 담당자를 관리합니다." },
-      { href: "/partners/ledger", label: "거래처 원장", desc: "거래처별 매출·매입 잔액과 미수·미지급을 조회합니다." },
-    ],
-  },
+  //   ⚠️ 'partners' 허브는 없앴다 (2026-08-12 사장님 지시) —
+  //     거래처 원장이 사이드바 **분석** 그룹으로 옮겨가서, 여기 탭에 또 두면 같은 곳이 두 군데가 된다.
+  //     남는 하위가 '거래처 관리' 하나뿐이라 탭 바 자체가 뜻이 없어져 허브째 뺐다.
+  //     (/partners/ledger 는 그대로 살아 있다 — 사이드바로 간다)
   {
     key: "tax",
     subs: [
