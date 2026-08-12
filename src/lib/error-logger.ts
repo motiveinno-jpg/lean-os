@@ -93,6 +93,46 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
       ],
     };
   }
+  if (/invalid input syntax for type date|22007|22008/.test(hay)) {
+    return {
+      type: "postgres_22007_date", severity: "high",
+      title: "잘못된 날짜 형식",
+      detail: "date 컬럼에 '2026-08' 같은 불완전한 날짜나 날짜가 아닌 값이 전달됐습니다. 조회 기간 파라미터를 만드는 코드의 결함입니다.",
+      hint: "date 파라미터가 YYYY-MM-DD 꼴이 아님",
+      fix: [
+        "메시지의 값(예: \"2026-08\")이 어느 쿼리 파라미터인지 확인",
+        "기간 필터라면 월 값을 시작일·종료일(YYYY-MM-DD)로 변환해 전달",
+        "같은 시각에 몰려 있으면 이후 배포에서 이미 고쳐졌는지 커밋 시각과 대조",
+      ],
+    };
+  }
+  if (/structure of query does not match|42804/.test(hay)) {
+    return {
+      type: "postgres_42804_rpc", severity: "high",
+      title: "DB 함수 반환 타입 불일치",
+      detail: "RPC 함수의 RETURNS 선언과 실제 SELECT 결과의 컬럼 타입이 다릅니다 (예: date 를 timestamptz 로 선언). 함수 재정의가 필요한 개발 결함입니다.",
+      hint: "함수 선언 타입 ≠ 쿼리 결과 타입",
+      fix: [
+        "메시지의 함수명으로 RETURNS TABLE 선언과 SELECT 컬럼 타입 대조",
+        "불일치 컬럼을 실제 테이블 타입에 맞춰 함수 재정의",
+      ],
+    };
+  }
+  // 앱이 설계대로 거절한 것 — 결함이 아니라 권한 경계가 동작한 기록.
+  //   (2026-08-12: 세무사 아닌 계정의 /advisor 접속, 마스터 아닌 구성원의 세무 파트너 조회가
+  //    '미확인'으로 쌓여 진짜 결함을 묻던 것)
+  if (/not_advisor|not_linked|not_master|app_denied/.test(hay)) {
+    return {
+      type: "app_denied", severity: "low",
+      title: "권한 없음 — 정상 거절",
+      detail: "권한이 없는 계정의 요청을 앱이 설계대로 거절했습니다 (예: 세무사가 아닌 계정의 세무사 화면 접속, 마스터 전용 조회). 보안이 동작한 기록이지 결함이 아닙니다.",
+      hint: "권한 경계 정상 동작",
+      fix: [
+        "같은 사용자가 반복하면 링크 공유·안내 오류가 없는지 확인",
+        "빈발하면 권한 없는 화면에서 호출 자체를 막아 로그 노이즈 제거",
+      ],
+    };
+  }
   if (/42501|permission denied|violates row-level security|\brls\b/.test(hay)) {
     return {
       type: "postgres_rls", severity: "high",
@@ -222,6 +262,42 @@ export function explainError(rawMessage: string, context?: Record<string, unknow
         "사용자에게 새로고침(Ctrl+F5) 안내",
         "반복되면 CDN/서비스워커 캐시 무효화 검토",
       ],
+    };
+  }
+  // 아래 JS 오류들도 componentStack 오염을 피해 메시지(lower)만 본다.
+  if (/is not defined|before initialization|referenceerror|js_reference/.test(lower)) {
+    return {
+      type: "js_reference", severity: "high",
+      title: "코드 참조 오류 (정의 안 된 변수)",
+      detail: "정의되지 않았거나 선언 전인 변수를 참조해 화면이 죽었습니다. 빌드는 통과하지만 실행 시 터지는 코드 결함으로, 배포·개발 중간 상태에서 주로 발생합니다.",
+      hint: "변수/상수 참조가 임포트·선언과 어긋남",
+      fix: [
+        "메시지의 식별자를 코드에서 grep — 임포트 누락 또는 선언 순서 확인",
+        "URL 이 localhost 면 개발 중 잔재 — 커밋 완료 후 재발 없는지 확인",
+        "프로덕션이면 즉시 수정 배포 (해당 화면 전체가 안 뜨는 상태)",
+      ],
+    };
+  }
+  if (/cannot read propert|cannot destructure|js_null_access/.test(lower)) {
+    return {
+      type: "js_null_access", severity: "high",
+      title: "빈 값 접근 오류 (null/undefined)",
+      detail: "아직 없거나 비어 있는 데이터의 속성을 읽다 화면이 죽었습니다. 로딩 전 접근이나 예외 데이터(옵셔널 누락)일 때 발생합니다.",
+      hint: "null/undefined 에 속성 접근",
+      fix: [
+        "메시지의 reading '...' 속성으로 해당 코드 위치 확인",
+        "옵셔널 체이닝(?.) 또는 로딩/빈 상태 가드 추가",
+        "특정 사용자에게 몰리면 그 계정의 데이터 상태(누락 레코드) 확인",
+      ],
+    };
+  }
+  if (/최대 \d+\s*개까지|input_limit/.test(lower)) {
+    return {
+      type: "input_limit", severity: "low",
+      title: "입력 한도 안내 (결함 아님)",
+      detail: "사용자 입력이 허용 한도를 넘어 안내 문구가 표시된 것입니다. 검증이 정상 동작한 기록입니다.",
+      hint: "입력 검증 정상 동작",
+      fix: ["빈발하면 화면에서 한도를 미리 보여줘 시도 자체를 줄이기"],
     };
   }
   if (/minified react error/.test(lower)) {
