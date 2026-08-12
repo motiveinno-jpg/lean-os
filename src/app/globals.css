@@ -8550,3 +8550,6 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-drop-list > button.pick-on { @apply bg-[var(--primary)]/10; }
 .pick-enter { @apply ml-auto text-[10px] font-bold text-[var(--primary)]; }
 .pick-empty { @apply px-2 py-2 text-[11px] text-[var(--text-dim)]; }
+
+/* 재무상태표 — 마이너스가 왜 났는지 설명하는 줄 (2026-08-12) */
+.bs-flipped-note { @apply mb-3; }

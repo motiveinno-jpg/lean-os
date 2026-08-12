@@ -62,6 +62,8 @@ interface BsData {
   payableByVendor: PayableVendor[];
   //   아직 전표로 만들지 않은 자료 — 표가 비어 보이는 이유를 화면이 말하게 한다
   unposted: { taxInvoice: number; card: number; bank: number; total: number };
+  //   부호가 뒤집힌 계정 — 마이너스가 왜 났는지 설명하는 데 쓴다
+  flipped: { name: string; code: string | null; nature: string; amount: number }[];
 }
 
 // 통합 세부 모달용 행 (날짜/거래처/금액)
@@ -119,6 +121,16 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   const all = [...byAccount.values()].filter((b) => Math.round(b.amount) !== 0);
   const codeNum = (c: string | null) => parseInt(String(c || "").replace(/\D/g, ""), 10);
   const detail = (b: Bal) => ({ name: `${b.code ? b.code + " " : ""}${b.name}`, amount: Math.round(b.amount) });
+
+  //   ★ 부호가 뒤집힌 계정 — 왜 마이너스인지 화면이 말할 근거 (2026-08-12 사장님 문의)
+  //     자산인데 음수 = 그 자산이 **줄어드는 전표만** 쌓였다는 뜻이다.
+  //     예: 매출 전표(차변 외상매출금) 없이 **수금 전표(대변 외상매출금)만** 만들면 외상매출금이 음수가 된다.
+  //     숫자가 틀린 것이 아니라 **장부가 반쪽**이라는 신호다 — 그 사실을 그대로 적어 준다.
+  const flipped = all
+    .filter((b) => b.amount < 0 && (b.nature === "asset" || b.nature === "liability"))
+    .sort((a2, b2) => a2.amount - b2.amount)
+    .slice(0, 4)
+    .map((b) => ({ name: b.name, code: b.code, nature: b.nature, amount: b.amount }));
 
   const assets = all.filter((b) => b.nature === "asset");
   const liabilities = all.filter((b) => b.nature === "liability");
@@ -184,6 +196,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
     payableDetails,
     payableByVendor,
     unposted,
+    flipped,
   };
 }
 
@@ -883,6 +896,20 @@ function BalanceSheetPageInner() {
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.3 3.86l-8.1 14A1 1 0 003 19.5h18a1 1 0 00.87-1.5l-8.1-14a1 1 0 00-1.74 0z" /></svg>
           <p className="text-[11.5px] leading-relaxed">
             <b>자본금이 미등록 상태입니다.</b> 기본값 {DEFAULT_CAPITAL.toLocaleString("ko-KR")}원으로 표시 중이라 자본·이익잉여금이 부정확합니다. <Link href="/settings?tab=company" className="underline font-semibold">회사 설정 → 회사정보</Link>에서 자본금을 입력하면 정확해집니다.
+          </p>
+        </div>
+      )}
+
+      {/*   ★ 마이너스가 왜 났는지 — 숫자는 맞는데 장부가 반쪽일 때 (2026-08-12 사장님 문의) */}
+      {data.flipped.length > 0 && (
+        <div className="bs-flipped-note kpi-callout warning">
+          <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3L13.74 4a2 2 0 00-3.48 0L3.2 16a2 2 0 001.73 3z" /></svg>
+          <p className="text-[11.5px] leading-relaxed">
+            <b>마이너스로 보이는 이유</b> — 아래 계정은 <b>줄어드는 전표만</b> 쌓여 있습니다.{" "}
+            {data.flipped.map((f) => `${f.code ? f.code + " " : ""}${f.name} ${Math.round(f.amount).toLocaleString()}`).join(" · ")}
+            <br />
+            예를 들어 <b>외상매출금</b>이 음수라면, 매출을 전표로 올리지 않은 채 <b>수금(입금) 전표만</b> 만든 것입니다.
+            숫자가 틀린 게 아니라 <b>장부가 아직 반쪽</b>이라는 뜻이라, 빠진 매출·매입 전표를 채우면 제자리로 돌아옵니다.
           </p>
         </div>
       )}

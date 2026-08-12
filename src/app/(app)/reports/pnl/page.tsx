@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { Ico } from "@/components/ui-icon";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { DateRangeField } from "@/components/date-range-field";
-import { fetchJournalLines, countUnposted, pnlAmount } from "@/lib/journal-reports";
+import { fetchJournalLines, countUnposted, pnlAmount, type JournalLine } from "@/lib/journal-reports";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -1054,47 +1054,27 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
 
   useEffect(() => {
     if (source === "computed") return;
+    //   ★ 2026-08-12 — **전표에서 읽는다** (사장님 제보).
+    //     표는 2026-08-11 부터 확정 전표만 집계하는데 이 상세 창은 세금계산서·통장 **원본**을 읽고 있었다.
+    //     그래서 표는 1,024원인데 열어 보면 703,612,329원 — 한 화면에 서로 다른 두 값이 있었다.
+    //     판관비는 옛 '비목(category)' 으로 찾아 아무것도 안 나왔다(표는 계정 **이름**으로 묶는다).
+    //     이제 표와 상세가 **같은 원천**을 본다 — 숫자가 어긋날 수 없다.
     const startDate = `${start}-01`;
     const [ey, em] = end.split("-").map(Number);
-    const endExclusive = em === 12 ? `${ey + 1}-01-01` : `${ey}-${String(em + 1).padStart(2, "0")}-01`;
+    const lastDay = new Date(ey, em, 0).getDate();
+    const endDate = `${ey}-${String(em).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
     (async () => {
       try {
-        if (source === "opex") {
-          // ① 그 카테고리로 분류된 통장 출금 + ② 그 계정과목을 지정한 매입 세금계산서 (같은 행에 합산되므로 둘 다 표시)
-          const catKeys = Object.entries(EXPENSE_CATEGORY_LABELS).filter(([, l]) => l === category).map(([k]) => k);
-          const [txRes, tiRes] = await Promise.all([
-            (supabase)
-              .from("bank_transactions")
-              .select("transaction_date, counterparty, description, amount, category")
-              .eq("company_id", companyId ?? "").in("type", ["expense", "출금"]).eq("category", category ?? "")
-              .gte("transaction_date", startDate).lt("transaction_date", endExclusive)
-              .order("transaction_date", { ascending: true }).limit(2000),
-            (supabase)
-              .from("tax_invoices")
-              .select("issue_date, counterparty_name, supply_amount, expense_category, status")
-              .eq("company_id", companyId ?? "").in("type", ["purchase", "매입"]).neq("status", "void")
-              .in("expense_category", [...catKeys, category ?? ""])
-              .gte("issue_date", startDate).lt("issue_date", endExclusive)
-              .order("issue_date", { ascending: true }).limit(2000),
-          ]);
-          if (txRes.error) throw txRes.error;
-          const txRows = (txRes.data || []).map((r: any) => ({ date: r.transaction_date, name: r.counterparty || r.description || "—", amount: Math.abs(Number(r.amount || 0)) }));
-          const tiRows = (tiRes.data || []).map((r: any) => ({ date: r.issue_date, name: `${r.counterparty_name || "—"} (매입계산서)`, amount: Number(r.supply_amount || 0) }));
-          setRows([...txRows, ...tiRows].sort((a, b) => a.date.localeCompare(b.date)));
-        } else {
-          const types = source === "sales" ? ["sales", "매출"] : ["purchase", "매입"];
-          let q = (supabase)
-            .from("tax_invoices")
-            .select("id, issue_date, counterparty_name, supply_amount, type, status, expense_category")
-            .eq("company_id", companyId ?? "").in("type", types).neq("status", "void")
-            .gte("issue_date", startDate).lt("issue_date", endExclusive)
-            .order("issue_date", { ascending: true }).limit(2000);
-          // 매출원가 드릴 = 계정과목 미지정 매입 계산서만 (Ⅱ와 동일 기준)
-          if (source === "purchase") q = q.is("expense_category", null);
-          const { data, error } = await q;
-          if (error) throw error;
-          setRows((data || []).map((r: any) => ({ id: r.id, date: r.issue_date, name: r.counterparty_name || "—", amount: Number(r.supply_amount || 0), expenseCategory: r.expense_category || "" })));
-        }
+        const lines = await fetchJournalLines(companyId, startDate, endDate);
+        const want = (l: JournalLine) =>
+          source === "sales" ? l.section === "revenue"
+            : source === "purchase" ? l.section === "cogs"
+              : l.section === "opex" && l.name === category;
+        const picked = lines.filter(want)
+          .map((l) => ({ date: l.date, name: l.name, amount: pnlAmount(l) }))
+          .filter((r) => r.amount !== 0)
+          .sort((a, b) => a.date.localeCompare(b.date));
+        setRows(picked);
       } catch (e: any) { setErr(e?.message || "불러오기 실패"); }
     })();
   }, [companyId, source, category, start, end, reloadKey]);
@@ -1109,7 +1089,8 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
 
   const bd = breakdown || [];
   const total = source === "computed" ? bd.reduce((s, b) => s + b.amount, 0) : (rows || []).reduce((s, r) => s + r.amount, 0);
-  const srcLabel = source === "computed" ? "산출 구성" : source === "opex" ? "분류된 거래내역" : source === "sales" ? "매출 세금계산서" : "매입 세금계산서";
+  //   이제 전부 확정 전표를 본다 — 표와 같은 원천이라는 것을 창이 직접 말한다
+  const srcLabel = source === "computed" ? "산출 구성" : "확정 전표";
 
   return (
     <div className="pnl-drill-modal-overlay fixed inset-0" onClick={onClose}>
