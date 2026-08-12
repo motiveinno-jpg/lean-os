@@ -39,7 +39,10 @@ export const VAT_TYPES: VatType[] = [
   { code: "51", label: "51. 과세매입", side: "purchase", taxed: true, deductible: true, hint: "매입 세금계산서", defaultSettle: "credit" },
   { code: "53", label: "53. 면세매입", side: "purchase", taxed: false, deductible: false, hint: "계산서(면세) 수취", defaultSettle: "credit" },
   { code: "54", label: "54. 불공제매입", side: "purchase", taxed: true, deductible: false, hint: "접대비·비영업용 차량 등", defaultSettle: "credit" },
-  { code: "57", label: "57. 카드과세매입", side: "purchase", taxed: true, deductible: true, hint: "법인카드 사용", defaultSettle: "card" },
+  { code: "57", label: "57. 카과", side: "purchase", taxed: true, deductible: true, hint: "카드 과세매입 — 법인카드 사용", defaultSettle: "card" },
+  //   카드 매입은 과세만 있는 게 아니다 — 면세(도서·농축수산물 등)·영세(수출) 가맹점도 있다 (2026-08-12 사장님 지시)
+  { code: "58", label: "58. 카면", side: "purchase", taxed: false, deductible: false, hint: "카드 면세매입 — 면세 가맹점", defaultSettle: "card" },
+  { code: "59", label: "59. 카영", side: "purchase", taxed: false, deductible: false, hint: "카드 영세매입 — 영세율 가맹점", defaultSettle: "card" },
   { code: "61", label: "61. 현금과세매입", side: "purchase", taxed: true, deductible: true, hint: "현금영수증 수취", defaultSettle: "cash" },
 ];
 

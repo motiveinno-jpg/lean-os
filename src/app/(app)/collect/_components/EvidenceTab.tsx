@@ -219,6 +219,16 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
   const acctsOf = (side: "sale" | "purchase") =>
     accounts.filter((a) => a.account_type === (side === "sale" ? "revenue" : "expense"));
 
+  //   자료 종류에 맞는 유형만 고르게 한다 (2026-08-12 사장님 지시).
+  //     카드 매입에 '11. 과세매출'·'51. 과세매입'(세금계산서용)이 섞여 나와, 열 개 중 아홉이 쓸 일 없는 것이었다.
+  //     카드는 **57 카과 · 58 카면 · 59 카영** 셋이면 되고, 부가세와 무관한 일반경비는
+  //     매입매출전표가 아니라 **일반전표**로 보내야 한다(아래 '3. 일반').
+  const typeOptions = useMemo(() => {
+    if (kind === "card") return VAT_TYPES.filter((v) => ["57", "58", "59"].includes(v.code));
+    if (kind === "cash_receipt") return VAT_TYPES.filter((v) => ["22", "61"].includes(v.code));
+    return VAT_TYPES;   // 세금계산서·계산서는 전부
+  }, [kind]);
+
   const filterAccts = (q: string, side: "sale" | "purchase") =>
     accounts.filter((a) =>
       a.account_type === (side === "sale" ? "revenue" : "expense")
@@ -302,7 +312,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                       ) : (
                         <select className="ev-sel" value={vatCodeOf(r)}
                           onChange={(e) => setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], vatCode: e.target.value } }))}>
-                          {VAT_TYPES.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
+                          {typeOptions.map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
                         </select>
                       )}
                     </td>
