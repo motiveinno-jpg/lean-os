@@ -8579,6 +8579,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .gd-search input:focus { @apply border-[var(--primary)]; box-shadow: 0 0 0 4px var(--primary-light); }
 .gd-search-clear { @apply absolute right-3 w-6 h-6 rounded-full text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition; }
 .gd-toolbar { @apply flex items-center justify-between gap-3 flex-wrap; }
+/* 탭이 줄 왼쪽에 뭉쳐 보이던 것(2026-08-13 사장님 제보) — 바가 남는 폭을 채우고 탭을 균등 분배 */
+.gd-toolbar .seg-bar { @apply flex-1 min-w-0 flex; }
+.gd-toolbar .seg-item { @apply shrink-0 justify-center md:grow md:basis-0; }
 .gd-toolbar-right { @apply flex items-center gap-3 shrink-0; }
 .gd-count { @apply text-xs text-[var(--text-dim)]; }
 .gd-expand-btn { @apply text-xs font-bold text-[var(--primary)] hover:underline underline-offset-2; }
