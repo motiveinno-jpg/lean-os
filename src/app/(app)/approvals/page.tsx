@@ -50,7 +50,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useAvatarMap } from "@/hooks/use-avatar-map";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
-import { computeHalfDaySlot } from "@/lib/hr";
+import { computeHalfDaySlot, LEAVE_TYPES } from "@/lib/hr";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
@@ -258,6 +258,27 @@ function FormFieldRows({ fields }: { fields: { label: string; type: string; valu
  * 기존엔 앞쪽만 봐서 기본 유형은 필드가 항상 빈 배열이었고(→ 화면·PDF 에서 표 대신 평문),
  * 삭제된 양식도 못 찾아 같은 증상이 났다. 편집 경로(getEditFieldDefs)와 동일 규칙으로 통일.
  */
+/** 휴가 구조화 데이터(custom_fields.leave) → 필드 행 (2026-08-12 사장님: 승인자 화면에
+ *  평문이 아니라 신청 필드폼처럼 보이게). 종류·단위·기간·시간·일수를 라벨+값으로 푼다. */
+function leaveFieldRows(customFields?: Record<string, unknown>): { label: string; type: string; value: string }[] {
+  const lv = customFields?.leave as Record<string, unknown> | undefined;
+  if (!lv || typeof lv !== "object") return [];
+  const typeLabel = LEAVE_TYPES.find((t) => t.value === lv.leave_type)?.label || String(lv.leave_type || "-");
+  const unitLabel = lv.leave_unit === "half_day" ? "반차" : lv.leave_unit === "two_hours" ? "시간차" : "종일";
+  const start = String(lv.start_date || "");
+  const end = String(lv.end_date || "");
+  const rows = [
+    { label: "휴가 종류", type: "select", value: typeLabel },
+    { label: "단위", type: "select", value: unitLabel },
+    { label: "기간", type: "date", value: start ? (end && end !== start ? `${start} ~ ${end}` : start) : "-" },
+  ];
+  if (lv.start_time || lv.end_time) {
+    rows.push({ label: "시간", type: "text", value: `${String(lv.start_time || "").slice(0, 5)} ~ ${String(lv.end_time || "").slice(0, 5)}` });
+  }
+  if (lv.days != null && lv.days !== "") rows.push({ label: "사용 일수", type: "number", value: `${lv.days}일` });
+  return rows;
+}
+
 function resolveFormFields(
   formId: string | null | undefined,
   customFields: Record<string, unknown> | undefined,
@@ -265,19 +286,24 @@ function resolveFormFields(
   policies?: ApprovalPolicy[],
   requestType?: string
 ): { label: string; type: string; value: string }[] {
+  // 휴가는 구조화 데이터가 원본 — 필드 정의 유무와 무관하게 항상 폼 행으로 먼저 푼다.
+  const leaveRows = leaveFieldRows(customFields);
   const defs = formId
     ? formsById.get(formId)?.fields
     : (policies || []).find((p) => p.document_type === requestType)?.fields;
-  if (!defs || defs.length === 0) return [];
+  if (!defs || defs.length === 0) return leaveRows;
   // 값이 빈 필드도 포함한다 — 양식에 있는 항목이면 표에 있어야 하고, 빼버리면 본문에
   // 병합돼 있던 "라벨: " 줄이 제거되지 않아 표 밖으로 새어 나온다
   // (2026-07-27 사장님 제보: 관련프로젝트가 표 밖에 찍힘).
   // 빈 값은 "-" 로 표시해 빈 칸이 비어 보이지 않게 한다(사장님 요청). 본문 병합줄
   // 제거는 라벨로만 매칭하므로 이 치환에 영향받지 않는다.
-  return defs.map((fd) => {
-    const raw = String(customFields?.[fd.key] ?? "").trim();
-    return { label: fd.label, type: fd.type, value: raw || "-" };
-  });
+  return [
+    ...leaveRows,
+    ...defs.map((fd) => {
+      const raw = String(customFields?.[fd.key] ?? "").trim();
+      return { label: fd.label, type: fd.type, value: raw || "-" };
+    }),
+  ];
 }
 
 /**
@@ -391,6 +417,21 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
       rest = rest.slice(m[0].length);
     }
     return rest;
+  }
+
+  // 휴가 신청 (2026-08-12 사장님: 승인자 화면에 평문이 아니라 필드폼처럼) — 구조화 행으로
+  //   옮겨진 자동 생성 줄들("[휴가 신청서]"·"- 라벨: 값")을 본문에서 걷어내고 사유만 남긴다.
+  //   잔여 연차처럼 행에 없는 정보 줄은 그대로 둔다. 레거시(구조화 데이터 없는 옛 요청)는
+  //   leave 행이 없으므로 이 분기를 타지 않는다.
+  if (formFields.some((f) => f.label === "휴가 종류")) {
+    const STRIP = ["신청자", "휴가 유형", "휴가 종류", "휴가 단위", "휴가 기간", "휴가 일자", "시간"];
+    const kept = description.split("\n").filter((line) => {
+      const t = line.trim();
+      if (t === "[휴가 신청서]") return false;
+      const m = /^-\s*([^:]+):/.exec(t);
+      return !(m && STRIP.includes(m[1].trim()));
+    });
+    return kept.join("\n").replace(/^\n+/, "").replace(/\n{3,}/g, "\n\n");
   }
 
   const lines = description.split("\n");
