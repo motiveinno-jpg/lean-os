@@ -551,7 +551,10 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                     <td className={amt.supply < 0 ? "tr mono-number ev-minus" : "tr mono-number"}>{won(amt.supply)}</td>
                     <td className="tr mono-number">{won(amt.vat)}</td>
                     <td className="tr mono-number ev-total">{won(amt.supply + amt.vat)}</td>
-                    <td>
+                    {/*   ★ 칩·라벨 칸은 본문도 가운데 — 제목만 가운데면 왼쪽에 붙은 내용보다
+                          오른쪽으로 떠 보인다 (2026-08-12 사장님 제보).
+                          숫자 칸은 자릿수 비교 때문에 오른쪽을 지킨다(회계 표 관행). */}
+                    <td className="tc">
                       {t.side === "purchase" && !r.posted ? (
                         <span className="relative inline-block">
                           <button type="button" onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
@@ -569,7 +572,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                         <span className="ev-dim">{debit[0]?.code ? `${debit[0].code} ${debit[0].name}` : "—"}</span>
                       )}
                     </td>
-                    <td>
+                    <td className="tc">
                       {t.side === "sale" && !r.posted ? (
                         <span className="relative inline-block">
                           <button type="button" onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
@@ -587,7 +590,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                         <span className="ev-dim">{counter?.code ? `${counter.code} ${counter.name}` : "—"}</span>
                       )}
                     </td>
-                    <td>
+                    <td className="tc">
                       {r.posted ? (
                         <span className="ev-st-cell">
                           <span className="ev-st ev-st-done">#{r.voucherNo ?? "—"} 확정</span>
