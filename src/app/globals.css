@@ -8267,8 +8267,11 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .drf-chip > i { @apply not-italic text-[var(--text-dim)]; }
 .drf-tilde { @apply px-1; }
 .drf-seg { @apply h-6 rounded border border-transparent bg-transparent px-0.5 text-center text-[12px] font-semibold text-[var(--text)] transition focus:border-[var(--primary)] focus:bg-[var(--bg)] focus:outline-none; font-variant-numeric: tabular-nums; }
-.drf-y { @apply w-[34px]; }   /* 4자리에 맞춘 최소폭 (2026-08-12) */
-.drf-md { @apply w-[21px]; }  /* 2자리에 맞춘 최소폭 */
+/*   ⚠️ 숫자가 실제로 차지하는 폭을 재서 정한다 — 34px 로 줄였더니 '2026' 의 6이 잘렸다.
+     12px/600 tabular-nums 기준 '9999' 가 30.4px + 좌우 여백 4 + 테두리 2 = 36.4px 필요.
+     글꼴이 조금 달라져도 안 잘리게 40px 로 둔다 (2026-08-12 사장님 제보). */
+.drf-y { @apply w-[40px]; }
+.drf-md { @apply w-[24px]; }  /* 같은 계산: 15.2 + 6 = 21.2px 필요 → 여유 포함 24px */
 .drf-cal-btn { @apply ml-1 grid h-6 w-6 shrink-0 place-items-center rounded border border-[var(--border)] text-[var(--text-dim)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
 
 .drf-pop { @apply absolute left-0 top-full z-[60] mt-2 w-max max-w-[92vw] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }
