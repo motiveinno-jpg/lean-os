@@ -24,6 +24,14 @@ export type JournalLine = {
   section: PnlSection;    // revenue | cogs | opex | nonop_income | nonop_expense | tax | null
   debit: number;
   credit: number;
+  //   ── 원장(드릴다운)이 쓰는 것 — 2026-08-12 사장님 지시로 추가 ──
+  //   그전엔 계정 정보만 실어 와서, 상세 창의 '거래처' 칸에 **계정 이름**이 들어가 있었다
+  //   (지급수수료 13줄이 전부 "지급수수료"). 어느 전표인지도 알 수 없었다.
+  entryId: string;
+  voucherNo: number | null;
+  /** 줄 적요가 있으면 그것, 없으면 전표 적요 */
+  memo: string;
+  partnerName: string | null;
 };
 
 /** 확정 전표의 모든 줄. 재무제표 두 화면이 이것만 본다. */
@@ -36,7 +44,7 @@ export async function fetchJournalLines(
   for (let page = 0; ; page += 1) {
     const data = logRead("journal-reports:lines", await supabase
       .from("journal_entries")
-      .select("entry_date, journal_lines(account_id, debit, credit)")
+      .select("id, entry_date, voucher_no, description, journal_lines(account_id, debit, credit, description, partners(name))")
       .eq("company_id", companyId)
       .eq("status", "confirmed")          // ★ 확정된 전표만 — 반려·임시분은 장부가 아니다
       .gte("entry_date", fromDate).lte("entry_date", toDate)
@@ -53,6 +61,11 @@ export async function fetchJournalLines(
           accountId: l.account_id, code: info.code, name: info.name,
           nature: info.nature, section: info.section ?? null,
           debit: Number(l.debit || 0), credit: Number(l.credit || 0),
+          entryId: String(e.id),
+          voucherNo: e.voucher_no ?? null,
+          //   줄 적요가 비면 전표 적요로 — 둘 다 비면 빈 칸(억지로 계정 이름을 넣지 않는다)
+          memo: String(l.description || e.description || "").trim(),
+          partnerName: (l.partners as any)?.name ?? null,
         });
       }
     }

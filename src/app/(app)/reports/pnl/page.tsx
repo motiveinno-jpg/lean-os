@@ -1,13 +1,12 @@
 "use client";
 import { WaterfallChart } from "@/components/charts/kit";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { Fragment, useEffect, useState, useMemo, useCallback } from "react";
 import { Ico } from "@/components/ui-icon";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { DateRangeField } from "@/components/date-range-field";
 import { fetchJournalLines, countUnposted, pnlAmount, type JournalLine } from "@/lib/journal-reports";
 import Link from "next/link";
-import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
 import { getAccountMap, classifyAccount, accountById, NATURE_LABEL } from "@/lib/account-nature";
@@ -1025,16 +1024,27 @@ function PnlPageInner() {
           start={months[0]}
           end={months[months.length - 1]}
           onClose={() => setDrill(null)}
-          onChanged={() => setRefreshKey((k) => k + 1)}
         />
       )}
     </div>
   );
 }
 
-// 손익 항목 드릴다운 모달 — 클릭한 줄의 원천 내역(매출/매입 세금계산서 · 판관비 분류 거래)을 기간으로 조회.
-//   매출원가(purchase) 드릴다운에선 건별로 계정과목을 바로 지정 가능 — 지정하면 그 판관비로 이동(손익 즉시 반영).
-function PnlDrillModal({ companyId, source, category, label, start, end, breakdown, onClose, onChanged }: {
+/** 원장 한 줄 — 위하고 '원장조회'와 같은 칸 구성 (2026-08-12 사장님이 그 화면을 기준으로 주셨다) */
+type DrillRow = {
+  date: string; memo: string; partner: string | null;
+  debit: number; credit: number; voucherNo: number | null;
+};
+
+/**
+ * 손익 항목 드릴다운 — 그 계정의 **원장**을 보여 준다.
+ *   ★ 2026-08-12 사장님 지시: "비용계정 눌렀을 때 **그날의 전표로 보여주고 월계 나눠주세요**".
+ *     참고로 준 위하고 원장조회를 그대로 따른다 — 일자·적요·거래처·차변·대변·잔액·전표번호,
+ *     달이 바뀌는 자리에 **[월 계]** 와 **[누 계]**.
+ *   ★ 그전엔 일자·거래처·금액 세 칸이었는데 '거래처' 칸에 **계정 이름**이 들어가 있었다
+ *     (지급수수료 13줄이 전부 "지급수수료"). 이제 진짜 거래처와 적요가 들어간다.
+ */
+function PnlDrillModal({ companyId, source, category, label, start, end, breakdown, onClose }: {
   companyId: string;
   source: "sales" | "purchase" | "opex" | "computed";
   category?: string;
@@ -1043,11 +1053,9 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
   end: string;
   breakdown?: { label: string; amount: number }[];
   onClose: () => void;
-  onChanged?: () => void;
 }) {
-  const [rows, setRows] = useState<{ id?: string; date: string; name: string; amount: number; expenseCategory?: string }[] | null>(null);
+  const [rows, setRows] = useState<DrillRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
   // 읽기 전용 드릴다운 팝업 — ESC로만 닫기
   useModalKeys(true, onClose);
@@ -1070,25 +1078,48 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
           source === "sales" ? l.section === "revenue"
             : source === "purchase" ? l.section === "cogs"
               : l.section === "opex" && l.name === category;
-        const picked = lines.filter(want)
-          .map((l) => ({ date: l.date, name: l.name, amount: pnlAmount(l) }))
-          .filter((r) => r.amount !== 0)
-          .sort((a, b) => a.date.localeCompare(b.date));
+        const picked: DrillRow[] = lines.filter(want)
+          .filter((l) => l.debit !== 0 || l.credit !== 0)
+          .map((l) => ({
+            date: l.date, memo: l.memo, partner: l.partnerName,
+            debit: l.debit, credit: l.credit, voucherNo: l.voucherNo,
+          }))
+          //   같은 날은 전표번호 순 — 위하고 원장과 같은 차례
+          .sort((a, b) => a.date.localeCompare(b.date) || (a.voucherNo ?? 0) - (b.voucherNo ?? 0));
         setRows(picked);
       } catch (e: any) { setErr(e?.message || "불러오기 실패"); }
     })();
-  }, [companyId, source, category, start, end, reloadKey]);
+  }, [companyId, source, category, start, end]);
 
-  // 매입 계산서 건별 계정과목 지정 → 매출원가에서 그 판관비로 이동 (손익 재계산은 onChanged)
-  const assignCategory = async (invoiceId: string, key: string) => {
-    const { error } = await (supabase).from("tax_invoices").update({ expense_category: key || null }).eq("id", invoiceId);
-    if (error) { setErr(error.message); return; }
-    setReloadKey((k) => k + 1);
-    onChanged?.();
-  };
+  //   ⚠️ 여기 있던 '계정과목 지정' 칸은 지웠다 — 2026-08-12 원천을 전표로 바꾸면서
+  //     행에 tax_invoices.id 가 안 실려 **눌러도 아무 일도 안 일어나는 상태**였다.
+  //     매출원가 건의 계정 변경은 수집·전표(전표 취소 → 계정 다시 고르기)에서 한다.
+
+  /** 이 계정에서 이 줄이 늘어난 금액인가 — 수익은 대변이 +, 비용은 차변이 + */
+  const signed = (r: DrillRow) => (source === "sales" ? r.credit - r.debit : r.debit - r.credit);
 
   const bd = breakdown || [];
-  const total = source === "computed" ? bd.reduce((s, b) => s + b.amount, 0) : (rows || []).reduce((s, r) => s + r.amount, 0);
+  const total = source === "computed" ? bd.reduce((s, b) => s + b.amount, 0) : (rows || []).reduce((s, r) => s + signed(r), 0);
+
+  /**
+   * 월별로 끊고 [월 계]·[누 계] 를 끼운다. 잔액은 줄마다 누적(위하고 원장과 같다).
+   *   조회 기간 안에서만 누적한다 — 기간 밖 잔액은 이 창이 읽지 않는다.
+   */
+  const ledger = useMemo(() => {
+    const out: ({ kind: "row"; r: DrillRow; balance: number }
+      | { kind: "sum"; month: string; monthly: number; running: number })[] = [];
+    let running = 0, monthly = 0, cur = "";
+    for (const r of rows || []) {
+      const m = r.date.slice(0, 7);
+      if (cur && m !== cur) { out.push({ kind: "sum", month: cur, monthly, running }); monthly = 0; }
+      cur = m;
+      const v = signed(r);
+      running += v; monthly += v;
+      out.push({ kind: "row", r, balance: running });
+    }
+    if (cur) out.push({ kind: "sum", month: cur, monthly, running });
+    return out;
+  }, [rows, source]);
   //   이제 전부 확정 전표를 본다 — 표와 같은 원천이라는 것을 창이 직접 말한다
   const srcLabel = source === "computed" ? "산출 구성" : "확정 전표";
 
@@ -1124,33 +1155,41 @@ function PnlDrillModal({ companyId, source, category, label, start, end, breakdo
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-[var(--bg-surface)] text-[var(--text-muted)]">
                 <tr>
-                  <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">일자</th>
-                  <th className="text-left px-4 py-2 font-semibold">{source === "opex" ? "거래처 / 적요" : "거래처"}</th>
-                  <th className="text-right px-4 py-2 font-semibold whitespace-nowrap">금액</th>
-                  {source === "purchase" && <th className="text-left px-4 py-2 font-semibold whitespace-nowrap">계정과목 지정</th>}
+                  <th className="text-left px-3 py-2 font-semibold whitespace-nowrap">일자</th>
+                  <th className="text-left px-3 py-2 font-semibold">적요</th>
+                  <th className="text-left px-3 py-2 font-semibold">거래처</th>
+                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">차변</th>
+                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">대변</th>
+                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">잔액</th>
+                  <th className="text-right px-3 py-2 font-semibold whitespace-nowrap">전표번호</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
-                  <tr key={r.id || i} className="border-t border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
-                    <td className="px-4 py-2 text-[var(--text-muted)] mono-number whitespace-nowrap align-top">{r.date}</td>
-                    <td className="px-4 py-2 text-[var(--text)]">{r.name}</td>
-                    <td className="px-4 py-2 text-right mono-number text-[var(--text)] whitespace-nowrap align-top">{formatKrw(r.amount)}</td>
-                    {source === "purchase" && (
-                      <td className="px-4 py-1.5 align-top" onClick={(e) => e.stopPropagation()}>
-                        <select
-                          value={r.expenseCategory || ""}
-                          onChange={(e) => r.id && assignCategory(r.id, e.target.value)}
-                          className="w-full max-w-[150px] px-2 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text)]"
-                          title="계정과목을 지정하면 매출원가에서 빠져 그 판관비 항목으로 이동합니다"
-                        >
-                          <option value="">매출원가 (미지정)</option>
-                          {Object.entries(EXPENSE_CATEGORY_LABELS).map(([k, l]) => (
-                            <option key={k} value={k}>{l}</option>
-                          ))}
-                        </select>
-                      </td>
-                    )}
+                {ledger.map((x, i) => x.kind === "sum" ? (
+                  //   달이 끝나는 자리 — [월 계]·[누 계] 두 줄 (위하고 원장과 같은 모양)
+                  <Fragment key={`s${i}`}>
+                    <tr className="pnl-ledger-sum">
+                      <td className="px-3 py-1.5 mono-number whitespace-nowrap">{x.month}</td>
+                      <td className="px-3 py-1.5 font-bold" colSpan={2}>[ 월 계 ]</td>
+                      <td className="px-3 py-1.5 text-right mono-number font-bold whitespace-nowrap" colSpan={3}>{formatKrw(x.monthly)}</td>
+                      <td />
+                    </tr>
+                    <tr className="pnl-ledger-sum">
+                      <td />
+                      <td className="px-3 py-1.5 font-bold" colSpan={2}>[ 누 계 ]</td>
+                      <td className="px-3 py-1.5 text-right mono-number font-bold whitespace-nowrap" colSpan={3}>{formatKrw(x.running)}</td>
+                      <td />
+                    </tr>
+                  </Fragment>
+                ) : (
+                  <tr key={`r${i}`} className="border-t border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50">
+                    <td className="px-3 py-2 text-[var(--text-muted)] mono-number whitespace-nowrap align-top">{x.r.date.slice(5)}</td>
+                    <td className="px-3 py-2 text-[var(--text)]">{x.r.memo || <span className="text-[var(--text-dim)]">—</span>}</td>
+                    <td className="px-3 py-2 text-[var(--text-muted)]">{x.r.partner || <span className="text-[var(--text-dim)]">—</span>}</td>
+                    <td className="px-3 py-2 text-right mono-number whitespace-nowrap align-top">{x.r.debit ? formatKrw(x.r.debit) : ""}</td>
+                    <td className="px-3 py-2 text-right mono-number whitespace-nowrap align-top">{x.r.credit ? formatKrw(x.r.credit) : ""}</td>
+                    <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] whitespace-nowrap align-top">{formatKrw(x.balance)}</td>
+                    <td className="px-3 py-2 text-right mono-number text-[var(--text-dim)] whitespace-nowrap align-top">{x.r.voucherNo ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

@@ -2610,7 +2610,10 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .pnl-nonpnl-chip i { @apply not-italic rounded bg-[var(--bg-card)] px-1 text-[10px] font-semibold text-[var(--text-dim)]; }
 .pnl-basis-details { @apply mt-4 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }
 .pnl-drill-modal-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
-.pnl-drill-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-2xl max-h-[82vh] flex flex-col shadow-xl; }
+/*   원장 7칸(일자·적요·거래처·차변·대변·잔액·전표번호)이 들어가 4xl 로 넓혔다 (2026-08-12) */
+.pnl-drill-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-4xl max-h-[82vh] flex flex-col shadow-xl; }
+/*   [월 계]·[누 계] 줄 — 위하고 원장처럼 옅은 색면으로 끊어 준다 */
+.pnl-ledger-sum { @apply border-t border-[var(--border)] bg-[var(--success-dim)] text-[var(--text)]; }
 .flow-step-card { @apply relative flex flex-col overflow-hidden p-5 transition-shadow hover:shadow-lg hover:shadow-black/5; }
 .flow-metric-row { @apply flex items-center justify-between py-[5px]; }
 .flow-mini-bar { @apply mt-1.5 mb-0.5; }
