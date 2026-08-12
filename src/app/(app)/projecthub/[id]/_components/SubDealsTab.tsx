@@ -181,10 +181,10 @@ export function SubDealsTab({ dealId, companyId, direction, campaignInherit, rea
         <table className="w-full text-sm border-collapse min-w-[720px]">
           <thead>
             <tr className="text-xs text-[var(--text-dim)]">
-              <th className="px-3 py-2.5 text-left text-[11px] font-semibold border-b border-[var(--border)]">항목명</th>
-              <th className="px-3 py-2.5 text-left text-[11px] font-semibold border-b border-[var(--border)] w-[180px]">거래처</th>
-              <th className="px-3 py-2.5 text-right text-[11px] font-semibold border-b border-[var(--border)] w-[160px]">금액 (±)</th>
-              <th className="px-3 py-2.5 text-right text-[11px] font-semibold border-b border-[var(--border)] w-[110px]">실적원가</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)]">항목명</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[180px]">거래처</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[160px]">금액 (±)</th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[110px]">실적원가</th>
               <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[90px]">상태</th>
               <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[110px]">관리</th>
             </tr>

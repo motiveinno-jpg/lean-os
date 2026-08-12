@@ -1479,7 +1479,7 @@ export default function ProjectHubDetailPage() {
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)]">
                     {cols.map((c) => (
-                      <th key={c.key} className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] ${c.align === "r" ? "text-right" : c.align === "c" ? "text-center" : "text-left"}`}>{c.label}</th>
+                      <th key={c.key} className={`px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] ${c.align === "r" ? "text-center" : c.align === "c" ? "text-center" : "text-center"}`}>{c.label}</th>
                     ))}
                     <th className="px-3 py-2.5 text-[12px] font-bold whitespace-nowrap border-b border-[var(--border)] text-center">관리</th>
                   </tr>
@@ -1666,11 +1666,11 @@ export default function ProjectHubDetailPage() {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)]">
-                    <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)]">이름</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)]">이름</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[80px]">단계</th>
-                    <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[120px]">매출</th>
-                    <th className="px-3 py-2.5 text-[12px] font-bold text-right border-b border-[var(--border)] w-[120px]">마진</th>
-                    <th className="px-3 py-2.5 text-[12px] font-bold text-left border-b border-[var(--border)] w-[170px]">기간</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[120px]">매출</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[120px]">마진</th>
+                    <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[170px]">기간</th>
                     <th className="px-3 py-2.5 text-[12px] font-bold text-center border-b border-[var(--border)] w-[110px]">관리</th>
                   </tr>
                 </thead>

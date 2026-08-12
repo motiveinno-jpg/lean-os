@@ -135,7 +135,7 @@ export function QuoteItemsTable({
             <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
               <th className="px-2 py-2 w-8 text-center">#</th>
               {cols.map((c) => (
-                <th key={c.key} className={`px-3 py-2 font-medium whitespace-nowrap ${c.type === "text" ? "text-left" : "text-right"} ${colWidth(c)}`}>{c.label}</th>
+                <th key={c.key} className={`px-3 py-2 font-medium whitespace-nowrap ${c.type === "text" ? "text-center" : "text-center"} ${colWidth(c)}`}>{c.label}</th>
               ))}
               {editable && <th className="w-8" />}
             </tr>

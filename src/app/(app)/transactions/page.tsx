@@ -1363,9 +1363,9 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
               <div className="overflow-x-auto">
                 <table className="manual-entry-history-table">
                   <thead className="sticky-bar"><tr className="table-head-row">
-                    <th className="text-left px-2 py-2">날짜</th><th className="text-left px-2 py-2">구분</th>
-                    <th className="text-right px-2 py-2">금액</th><th className="text-left px-2 py-2">거래처</th>
-                    <th className="text-left px-2 py-2">적요</th><th className="text-left px-2 py-2">카테고리</th>
+                    <th className="text-center px-2 py-2">날짜</th><th className="text-center px-2 py-2">구분</th>
+                    <th className="text-center px-2 py-2">금액</th><th className="text-center px-2 py-2">거래처</th>
+                    <th className="text-center px-2 py-2">적요</th><th className="text-center px-2 py-2">카테고리</th>
                   </tr></thead>
                   <tbody>
                     {manualEntries.map((tx: any) => (

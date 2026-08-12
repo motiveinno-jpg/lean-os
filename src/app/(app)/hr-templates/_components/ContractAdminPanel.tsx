@@ -612,10 +612,10 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
           <div className="contract-history-table glass-card overflow-hidden">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead className="sticky-bar"><tr className="table-head-row">
-                <th className="th-cell text-left">구성원</th>
-                <th className="th-cell text-left">계약유형</th>
-                <th className="th-cell text-left">기간</th>
-                <th className="th-cell text-right">급여</th>
+                <th className="th-cell text-center">구성원</th>
+                <th className="th-cell text-center">계약유형</th>
+                <th className="th-cell text-center">기간</th>
+                <th className="th-cell text-center">급여</th>
                 <th className="th-cell text-center">상태</th>
               </tr></thead>
               <tbody>

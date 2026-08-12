@@ -536,9 +536,9 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="text-xs text-[var(--text-dim)]">
-                  <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)]">KPI</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-right border-b border-[var(--border)] w-[130px]">목표</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-right border-b border-[var(--border)] w-[130px]">실적</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)]">KPI</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)] w-[130px]">목표</th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)] w-[130px]">실적</th>
                   <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)] w-[90px]">달성률</th>
                   <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)] w-[110px]">관리</th>
                 </tr>
@@ -624,11 +624,11 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)]">
-                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)] w-[110px]">날짜</th>
-                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)]">KPI</th>
-                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)] w-[110px]">부서</th>
-                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-right border-b border-[var(--border)] w-[140px]">실적값</th>
-                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-left border-b border-[var(--border)]">메모</th>
+                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)] w-[110px]">날짜</th>
+                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)]">KPI</th>
+                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)] w-[110px]">부서</th>
+                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)] w-[140px]">실적값</th>
+                    <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)]">메모</th>
                     <th className="px-3 py-2.5 text-[11px] font-semibold tracking-wide text-center border-b border-[var(--border)] w-[110px]">관리</th>
                   </tr>
                 </thead>

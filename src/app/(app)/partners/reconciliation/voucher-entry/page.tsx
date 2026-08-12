@@ -727,12 +727,12 @@ export default function VoucherEntryPage() {
             <thead>
               <tr className="border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
-                <th className="px-2 py-2.5 w-[68px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정과목</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요</th>
-                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">차변</th>
-                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">대변</th>
+                <th className="px-2 py-2.5 w-[68px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
+                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정과목</th>
+                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처</th>
+                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요</th>
+                <th className="px-2 py-2.5 w-[110px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">차변</th>
+                <th className="px-2 py-2.5 w-[110px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">대변</th>
                 <th className="px-2 py-2.5 w-8" />
               </tr>
             </thead>
@@ -847,21 +847,21 @@ export default function VoucherEntryPage() {
                     ⚠️ 전표는 **장 단위**로 옮긴다 — 한 전표의 분개 줄이 흩어지면 차·대를 못 읽는다. */}
                 <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
                   <button type="button" className="spv-sort" onClick={() => toggleSort("no")}>No{sortMark("no")}</button></th>
-                <th className="px-2 py-2.5 w-[84px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                <th className="px-2 py-2.5 w-[84px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
                   <button type="button" className="spv-sort" onClick={() => toggleSort("date")}>일자{sortMark("date")}</button></th>
-                <th className="px-2 py-2.5 w-[76px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
-                <th className="px-2 py-2.5 w-[72px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                <th className="px-2 py-2.5 w-[76px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
+                <th className="px-2 py-2.5 w-[72px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정코드</th>
+                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
                   <button type="button" className="spv-sort" onClick={() => toggleSort("account")}>계정명{sortMark("account")}</button></th>
-                <th className="px-2 py-2.5 w-[100px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                <th className="px-2 py-2.5 w-[100px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처코드</th>
+                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
                   <button type="button" className="spv-sort" onClick={() => toggleSort("partner")}>거래처명{sortMark("partner")}</button></th>
-                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                <th className="px-2 py-2.5 w-[110px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
                   <button type="button" className="spv-sort" onClick={() => toggleSort("debit")}>차변{sortMark("debit")}</button></th>
-                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                <th className="px-2 py-2.5 w-[110px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
                   <button type="button" className="spv-sort" onClick={() => toggleSort("credit")}>대변{sortMark("credit")}</button></th>
                 <th className="px-2 py-2.5 w-[64px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
                   <button type="button" className="spv-sort" onClick={() => toggleSort("memo")}>적요{sortMark("memo")}</button></th>
               </tr>
             </thead>

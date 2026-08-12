@@ -5,6 +5,7 @@
 //   doc-summary-strip 요약, 홈택스식 결과 요약 바 + tax-invoice-list-table 격자 그리드.
 //   발행·매칭·전표는 세금계산서 전용 기능이라 없음(계산서는 조회·수집 전용).
 //   수집: 같은 홈택스 통합 API, inquiryType 03(전자계산서) — tax_invoices(doc_kind='exempt').
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
@@ -36,6 +37,9 @@ function monthEndDate(month: string): string {
   const today = todayKst();
   return end > today ? today : end;
 }
+
+/** 전자세금계산서 목록 정렬 열쇠 — 칸 하나에 하나씩 (2026-08-12) */
+type EiSortKey = "issue_date" | "counterparty_name" | "item_name" | "supply_amount" | "tax_amount" | "total" | "status";
 
 export default function EInvoicesPage() {
   const { toast } = useToast();
@@ -81,7 +85,30 @@ export default function EInvoicesPage() {
 
   const salesInvoices = useMemo(() => (invoices as any[]).filter((i) => i.type === "sales"), [invoices]);
   const purchaseInvoices = useMemo(() => (invoices as any[]).filter((i) => i.type === "purchase"), [invoices]);
-  const currentList = tab === "sales" ? salesInvoices : purchaseInvoices;
+  const listBase = tab === "sales" ? salesInvoices : purchaseInvoices;
+  //   머리단 정렬 — 앱 전 메뉴 같은 규칙 (2026-08-12 사장님 지시). 기본은 작성일자 내림차순.
+  const [sort, setSort] = useState<SortState<EiSortKey>>({ key: "issue_date", dir: "desc" });
+  const onSort = (k: EiSortKey) => setSort((c) => nextSort(c, k, k === "issue_date" ? "desc" : "asc"));
+  const currentList = useMemo(() => {
+    const val = (r: any) => {
+      switch (sort.key) {
+        case "counterparty_name": return r.counterparty_name ?? "";
+        case "item_name":         return r.item_name ?? "";
+        case "supply_amount":     return Number(r.supply_amount || 0);
+        case "tax_amount":        return Number(r.tax_amount || 0);
+        case "total":             return Number(r.supply_amount || 0) + Number(r.tax_amount || 0);
+        case "status":            return r.status ?? "";
+        default:                  return r.issue_date ?? "";
+      }
+    };
+    const arr = [...(listBase as any[])];
+    arr.sort((a, b) => {
+      const c = cmp(val(a), val(b));
+      //   같은 값이면 늘 작성일자로 갈라 순서가 흔들리지 않게 한다
+      return (sort.dir === "asc" ? c : -c) || String(a.issue_date ?? "").localeCompare(String(b.issue_date ?? ""));
+    });
+    return arr;
+  }, [listBase, sort]);
   const totalSales = salesInvoices.reduce((s, i) => s + Number(i.supply_amount || 0), 0);
   const totalPurchase = purchaseInvoices.reduce((s, i) => s + Number(i.supply_amount || 0), 0);
 
@@ -309,13 +336,13 @@ export default function EInvoicesPage() {
               <table className="tax-invoice-list-table">
                 <thead className="sticky top-0 z-10">
                   <tr className="text-xs text-[var(--text-dim)] bg-[var(--bg-card)] border-b border-[var(--border)]">
-                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap">작성일자</th>
-                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50">상호(거래처)</th>
-                    <th className="px-3 py-2.5 text-left font-semibold whitespace-nowrap border-l border-[var(--border)]/50">품목</th>
-                    <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap border-l border-[var(--border)]/50">공급가액</th>
-                    <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap border-l border-[var(--border)]/50">세액</th>
-                    <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap border-l border-[var(--border)]/50">합계금액</th>
-                    <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50">상태</th>
+                    <SortableTh label="작성일자" sortKey="issue_date" sort={sort} onSort={onSort} />
+                    <SortableTh label="상호(거래처)" sortKey="counterparty_name" sort={sort} onSort={onSort} />
+                    <SortableTh label="품목" sortKey="item_name" sort={sort} onSort={onSort} />
+                    <SortableTh label="공급가액" sortKey="supply_amount" sort={sort} onSort={onSort} />
+                    <SortableTh label="세액" sortKey="tax_amount" sort={sort} onSort={onSort} />
+                    <SortableTh label="합계금액" sortKey="total" sort={sort} onSort={onSort} />
+                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} />
                   </tr>
                 </thead>
                 <tbody>

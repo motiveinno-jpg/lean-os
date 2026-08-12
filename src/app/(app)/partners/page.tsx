@@ -1350,10 +1350,10 @@ export default function PartnersPage() {
                       <table className="w-full">
                         <thead>
                           <tr className="table-head-row">
-                            <th className="text-left px-4 py-2 font-medium">프로젝트명</th>
+                            <th className="text-center px-4 py-2 font-medium">프로젝트명</th>
                             <th className="text-center px-4 py-2 font-medium">상태</th>
-                            <th className="text-right px-4 py-2 font-medium">금액</th>
-                            <th className="text-right px-4 py-2 font-medium">생성일</th>
+                            <th className="text-center px-4 py-2 font-medium">금액</th>
+                            <th className="text-center px-4 py-2 font-medium">생성일</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1392,10 +1392,10 @@ export default function PartnersPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="table-head-row">
-                          <th className="text-left px-4 py-2 font-medium">라벨</th>
-                          <th className="text-right px-4 py-2 font-medium">금액</th>
+                          <th className="text-center px-4 py-2 font-medium">라벨</th>
+                          <th className="text-center px-4 py-2 font-medium">금액</th>
                           <th className="text-center px-4 py-2 font-medium">상태</th>
-                          <th className="text-right px-4 py-2 font-medium">예정일</th>
+                          <th className="text-center px-4 py-2 font-medium">예정일</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1432,9 +1432,9 @@ export default function PartnersPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="table-head-row">
-                          <th className="text-left px-4 py-2 font-medium">문서명</th>
+                          <th className="text-center px-4 py-2 font-medium">문서명</th>
                           <th className="text-center px-4 py-2 font-medium">상태</th>
-                          <th className="text-right px-4 py-2 font-medium">생성일</th>
+                          <th className="text-center px-4 py-2 font-medium">생성일</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1596,9 +1596,9 @@ export default function PartnersPage() {
                     <table className="w-full text-[11px]">
                       <thead className="bg-[var(--bg-surface)]/50 sticky top-0">
                         <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
-                          <th className="text-left px-3 py-1.5">행</th>
-                          <th className="text-left px-3 py-1.5">이름</th>
-                          <th className="text-left px-3 py-1.5">사유</th>
+                          <th className="text-center px-3 py-1.5">행</th>
+                          <th className="text-center px-3 py-1.5">이름</th>
+                          <th className="text-center px-3 py-1.5">사유</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1645,12 +1645,12 @@ export default function PartnersPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className="text-left px-2 py-2 font-medium">이름</th>
-                      <th className="text-left px-2 py-2 font-medium">구분</th>
-                      <th className="text-left px-2 py-2 font-medium">사업자번호</th>
-                      <th className="text-left px-2 py-2 font-medium">담당자</th>
-                      <th className="text-left px-2 py-2 font-medium">이메일</th>
-                      <th className="text-left px-2 py-2 font-medium">태그</th>
+                      <th className="text-center px-2 py-2 font-medium">이름</th>
+                      <th className="text-center px-2 py-2 font-medium">구분</th>
+                      <th className="text-center px-2 py-2 font-medium">사업자번호</th>
+                      <th className="text-center px-2 py-2 font-medium">담당자</th>
+                      <th className="text-center px-2 py-2 font-medium">이메일</th>
+                      <th className="text-center px-2 py-2 font-medium">태그</th>
                     </tr>
                   </thead>
                   <tbody>

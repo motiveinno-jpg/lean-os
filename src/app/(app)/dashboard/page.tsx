@@ -1637,9 +1637,9 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left py-1.5">카테고리</th>
-                  <th className="text-right py-1.5">건수</th>
-                  <th className="text-right py-1.5">금액</th>
+                  <th className="text-center py-1.5">카테고리</th>
+                  <th className="text-center py-1.5">건수</th>
+                  <th className="text-center py-1.5">금액</th>
                 </tr>
               </thead>
               <tbody>
@@ -1670,9 +1670,9 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left py-1.5">거래처</th>
-                  <th className="text-right py-1.5">건수</th>
-                  <th className="text-right py-1.5">금액</th>
+                  <th className="text-center py-1.5">거래처</th>
+                  <th className="text-center py-1.5">건수</th>
+                  <th className="text-center py-1.5">금액</th>
                 </tr>
               </thead>
               <tbody>
@@ -1703,11 +1703,11 @@ function FinancialOverview({ companyId }: { companyId: string | null }) {
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left py-1.5">날짜</th>
-                  <th className="text-left py-1.5">설명</th>
-                  <th className="text-left py-1.5">유형</th>
-                  <th className="text-left py-1.5">프로젝트</th>
-                  <th className="text-right py-1.5">금액</th>
+                  <th className="text-center py-1.5">날짜</th>
+                  <th className="text-center py-1.5">설명</th>
+                  <th className="text-center py-1.5">유형</th>
+                  <th className="text-center py-1.5">프로젝트</th>
+                  <th className="text-center py-1.5">금액</th>
                 </tr>
               </thead>
               <tbody>

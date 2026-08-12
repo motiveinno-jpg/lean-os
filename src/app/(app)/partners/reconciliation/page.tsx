@@ -767,12 +767,12 @@ export default function ReconciliationPage() {
                 <table className="w-full min-w-[680px] text-xs border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className={`${GRID_TH} uppercase text-left w-[92px]`}>거래일자</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[92px]`}>거래일자</th>
                       <th className={`${GRID_TH} uppercase text-center w-[52px]`}>구분</th>
-                      <th className={`${GRID_TH} uppercase text-left`}>거래처(입금자)</th>
-                      <th className={`${GRID_TH} uppercase text-right w-[120px]`}>거래금액</th>
-                      <th className={`${GRID_TH} uppercase text-right w-[120px]`}>기정산</th>
-                      <th className={`${GRID_TH} uppercase text-right w-[120px]`}>잔여</th>
+                      <th className={`${GRID_TH} uppercase text-center`}>거래처(입금자)</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[120px]`}>거래금액</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[120px]`}>기정산</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[120px]`}>잔여</th>
                       <th className={`${GRID_TH} uppercase text-center w-[130px]`}>처리</th>
                     </tr>
                   </thead>
@@ -963,14 +963,14 @@ export default function ReconciliationPage() {
                 <table className="w-full min-w-[1020px] text-xs border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className={`${GRID_TH} uppercase text-left w-[88px]`}>거래일자</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[88px]`}>거래일자</th>
                       <th className={`${GRID_TH} uppercase text-center w-[64px]`}>구분</th>
-                      <th className={`${GRID_TH} uppercase text-left`}>입금자/사유</th>
-                      <th className={`${GRID_TH} uppercase text-right w-[110px]`}>거래금액</th>
-                      <th className={`${GRID_TH} uppercase text-left w-[88px]`}>발행일자</th>
-                      <th className={`${GRID_TH} uppercase text-left`}>계산서 거래처</th>
-                      <th className={`${GRID_TH} uppercase text-right w-[110px]`}>계산서 금액</th>
-                      <th className={`${GRID_TH} uppercase text-right w-[110px]`}>정산액</th>
+                      <th className={`${GRID_TH} uppercase text-center`}>입금자/사유</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[110px]`}>거래금액</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[88px]`}>발행일자</th>
+                      <th className={`${GRID_TH} uppercase text-center`}>계산서 거래처</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[110px]`}>계산서 금액</th>
+                      <th className={`${GRID_TH} uppercase text-center w-[110px]`}>정산액</th>
                       <th className={`${GRID_TH} uppercase text-center w-[80px]`}>유형</th>
                       <th className={`${GRID_TH} uppercase text-center w-[96px]`}>처리</th>
                     </tr>

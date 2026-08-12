@@ -161,9 +161,9 @@ export function IssuesTab({ dealId, companyId, users }: { dealId: string; compan
           <table className="w-full text-sm border-collapse min-w-[720px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
-                <th className="px-3 py-2.5 text-left text-[11px] font-semibold border-b border-[var(--border)]">이슈</th>
+                <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)]">이슈</th>
                 <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[70px]">심각도</th>
-                <th className="px-3 py-2.5 text-left text-[11px] font-semibold border-b border-[var(--border)] w-[110px]">담당</th>
+                <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[110px]">담당</th>
                 <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[110px]">기한</th>
                 <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[150px]">상태</th>
                 <th className="px-3 py-2.5 text-center text-[11px] font-semibold border-b border-[var(--border)] w-[150px]">관리</th>

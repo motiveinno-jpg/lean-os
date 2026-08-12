@@ -594,11 +594,11 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
           ) : (
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead className="sticky-bar"><tr className="table-head-row">
-                <th className="th-cell text-left">적용일</th>
-                <th className="th-cell text-right">급여</th>
-                <th className="th-cell text-right">이전 급여</th>
-                <th className="th-cell text-left">사유</th>
-                <th className="th-cell text-left">승인자</th>
+                <th className="th-cell text-center">적용일</th>
+                <th className="th-cell text-center">급여</th>
+                <th className="th-cell text-center">이전 급여</th>
+                <th className="th-cell text-center">사유</th>
+                <th className="th-cell text-center">승인자</th>
               </tr></thead>
               <tbody>
                 {salaryHistory.map((s: any) => (
@@ -783,10 +783,10 @@ function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: an
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead className="sticky-bar"><tr className="table-head-row">
-              <th className="th-cell text-left">제목</th>
-              <th className="th-cell text-left">청구자</th>
-              <th className="th-cell text-left">분류</th>
-              <th className="th-cell text-right">금액</th>
+              <th className="th-cell text-center">제목</th>
+              <th className="th-cell text-center">청구자</th>
+              <th className="th-cell text-center">분류</th>
+              <th className="th-cell text-center">금액</th>
               <th className="th-cell text-center">상태</th>
               <th className="th-cell text-center">액션</th>
             </tr></thead>
@@ -1381,12 +1381,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead className="sticky-bar">
                 <tr className="table-head-row">
-                  <th className="th-cell text-left">직원</th>
-                  <th className="th-cell text-left">날짜</th>
-                  <th className="th-cell text-left">출근</th>
-                  <th className="th-cell text-left">퇴근</th>
-                  <th className="th-cell text-right">근무시간</th>
-                  <th className="th-cell text-right">연장</th>
+                  <th className="th-cell text-center">직원</th>
+                  <th className="th-cell text-center">날짜</th>
+                  <th className="th-cell text-center">출근</th>
+                  <th className="th-cell text-center">퇴근</th>
+                  <th className="th-cell text-center">근무시간</th>
+                  <th className="th-cell text-center">연장</th>
                   <th className="th-cell text-center">상태</th>
                   {showActionCol && <th className="th-cell text-center">관리</th>}
                 </tr>
@@ -1798,10 +1798,10 @@ function MissingCheckOutModal({
             <table className="w-full text-xs">
               <thead className="bg-[var(--bg-surface)]/50 sticky top-0">
                 <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="text-left px-4 py-2 font-medium">직원</th>
-                  <th className="text-left px-4 py-2 font-medium">날짜</th>
-                  <th className="text-left px-4 py-2 font-medium">출근(KST)</th>
-                  <th className="text-left px-4 py-2 font-medium">퇴근 시각</th>
+                  <th className="text-center px-4 py-2 font-medium">직원</th>
+                  <th className="text-center px-4 py-2 font-medium">날짜</th>
+                  <th className="text-center px-4 py-2 font-medium">출근(KST)</th>
+                  <th className="text-center px-4 py-2 font-medium">퇴근 시각</th>
                   <th className="text-center px-4 py-2 font-medium">저장</th>
                 </tr>
               </thead>
@@ -2250,18 +2250,18 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
           <div className="payroll-detail-table glass-card">
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
               <thead className="sticky-bar"><tr className="table-head-row">
-                <th className="text-left px-4 py-3 font-medium">직원</th>
-                <th className="text-right px-4 py-3 font-medium" title="과세 대상 기본급">기본급(과세)</th>
-                <th className="text-right px-4 py-3 font-medium" title="식대 · 자가운전 등 비과세 합계">비과세</th>
-                <th className="text-right px-4 py-3 font-medium" title="기본급(과세) + 비과세">지급합계</th>
-                <th className="text-right px-4 py-3 font-medium">국민연금</th>
-                <th className="text-right px-4 py-3 font-medium">건강보험</th>
-                <th className="text-right px-4 py-3 font-medium">장기요양</th>
-                <th className="text-right px-4 py-3 font-medium">고용보험</th>
-                <th className="text-right px-4 py-3 font-medium">소득세</th>
-                <th className="text-right px-4 py-3 font-medium">지방소득세</th>
-                <th className="text-right px-4 py-3 font-medium">공제합계</th>
-                <th className="text-right px-4 py-3 font-medium">실수령</th>
+                <th className="text-center px-4 py-3 font-medium">직원</th>
+                <th className="text-center px-4 py-3 font-medium" title="과세 대상 기본급">기본급(과세)</th>
+                <th className="text-center px-4 py-3 font-medium" title="식대 · 자가운전 등 비과세 합계">비과세</th>
+                <th className="text-center px-4 py-3 font-medium" title="기본급(과세) + 비과세">지급합계</th>
+                <th className="text-center px-4 py-3 font-medium">국민연금</th>
+                <th className="text-center px-4 py-3 font-medium">건강보험</th>
+                <th className="text-center px-4 py-3 font-medium">장기요양</th>
+                <th className="text-center px-4 py-3 font-medium">고용보험</th>
+                <th className="text-center px-4 py-3 font-medium">소득세</th>
+                <th className="text-center px-4 py-3 font-medium">지방소득세</th>
+                <th className="text-center px-4 py-3 font-medium">공제합계</th>
+                <th className="text-center px-4 py-3 font-medium">실수령</th>
                 <th className="text-center px-4 py-3 font-medium">발송</th>
               </tr></thead>
               <tbody>
@@ -3321,12 +3321,12 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
             <thead>
               <tr className="table-head-row">
-                <th className="th-cell text-left">직원</th>
-                <th className="th-cell text-left">유형</th>
-                <th className="th-cell text-left">기간</th>
+                <th className="th-cell text-center">직원</th>
+                <th className="th-cell text-center">유형</th>
+                <th className="th-cell text-center">기간</th>
                 <th className="th-cell text-center">일수</th>
-                <th className="th-cell text-left">사유</th>
-                <th className="th-cell text-left">승인자</th>
+                <th className="th-cell text-center">사유</th>
+                <th className="th-cell text-center">승인자</th>
                 <th className="th-cell text-center">상태</th>
                 <th className="th-cell text-center">액션</th>
               </tr>
@@ -3909,8 +3909,8 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                       </div>
                       <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
                         <thead className="sticky-bar"><tr className="table-head-row">
-                          <th className="text-left px-5 py-2 font-medium">직원</th>
-                          <th className="text-left px-5 py-2 font-medium">부서</th>
+                          <th className="text-center px-5 py-2 font-medium">직원</th>
+                          <th className="text-center px-5 py-2 font-medium">부서</th>
                           <th className="text-center px-5 py-2 font-medium">총 연차</th>
                           <th className="text-center px-5 py-2 font-medium">사용</th>
                           <th className="text-center px-5 py-2 font-medium">미사용</th>
@@ -3963,11 +3963,11 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                       </div>
                       <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
                         <thead className="sticky-bar"><tr className="table-head-row">
-                          <th className="text-left px-5 py-2 font-medium">직원</th>
+                          <th className="text-center px-5 py-2 font-medium">직원</th>
                           <th className="text-center px-5 py-2 font-medium">차수</th>
                           <th className="text-center px-5 py-2 font-medium">미사용</th>
-                          <th className="text-left px-5 py-2 font-medium">발송일</th>
-                          <th className="text-left px-5 py-2 font-medium">기한</th>
+                          <th className="text-center px-5 py-2 font-medium">발송일</th>
+                          <th className="text-center px-5 py-2 font-medium">기한</th>
                         </tr></thead>
                         <tbody>
                           {promotionNotices.map((n: any) => (
@@ -4304,13 +4304,13 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead>
               <tr className="table-head-row">
-                <th className="th-cell text-left">증명서번호</th>
-                <th className="th-cell text-left">유형</th>
-                <th className="th-cell text-left">직원</th>
-                <th className="th-cell text-left">소속/직위</th>
-                <th className="th-cell text-left">용도</th>
-                <th className="th-cell text-left">발급자</th>
-                <th className="th-cell text-left">발급일</th>
+                <th className="th-cell text-center">증명서번호</th>
+                <th className="th-cell text-center">유형</th>
+                <th className="th-cell text-center">직원</th>
+                <th className="th-cell text-center">소속/직위</th>
+                <th className="th-cell text-center">용도</th>
+                <th className="th-cell text-center">발급자</th>
+                <th className="th-cell text-center">발급일</th>
               </tr>
             </thead>
             <tbody>
@@ -4460,10 +4460,10 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
           <table className="w-full min-w-[600px]">
             <thead>
               <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-3 py-2 font-medium">직원</th>
-                <th className="text-left px-3 py-2 font-medium">이메일</th>
+                <th className="text-center px-3 py-2 font-medium">직원</th>
+                <th className="text-center px-3 py-2 font-medium">이메일</th>
                 <th className="text-center px-3 py-2 font-medium">상태</th>
-                <th className="text-right px-3 py-2 font-medium">상태 변경</th>
+                <th className="text-center px-3 py-2 font-medium">상태 변경</th>
               </tr>
             </thead>
             <tbody>

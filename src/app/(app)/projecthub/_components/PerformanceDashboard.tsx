@@ -319,9 +319,9 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
         <table className="w-full text-sm border-collapse min-w-[420px]">
           <thead>
             <tr className="text-xs text-[var(--text-dim)]">
-              <th className="px-3 py-2 text-left border-b border-[var(--border)]">{title.replace("별", "")}</th>
+              <th className="px-3 py-2 text-center border-b border-[var(--border)]">{title.replace("별", "")}</th>
               <th className="px-3 py-2 text-center border-b border-[var(--border)] w-[60px]">건수</th>
-              <th className="px-3 py-2 text-right border-b border-[var(--border)] w-[140px]">매출</th>
+              <th className="px-3 py-2 text-center border-b border-[var(--border)] w-[140px]">매출</th>
               <th className="px-3 py-2 text-center border-b border-[var(--border)] w-[100px]">평균달성</th>
             </tr>
           </thead>
@@ -365,11 +365,11 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           <table className="w-full text-sm border-collapse min-w-[820px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
-                <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">프로젝트</th>
-                <th className="px-3 py-2.5 text-left border-b border-[var(--border)] w-[110px]">담당</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)]">프로젝트</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">담당</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[60px]">상태</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">평균달성</th>
-                <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">최근 성과 / 이슈</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)]">최근 성과 / 이슈</th>
               </tr>
             </thead>
             <tbody>
@@ -411,8 +411,8 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           <table className="w-full text-sm border-collapse min-w-[640px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
-                <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">구성원</th>
-                <th className="px-3 py-2.5 text-left border-b border-[var(--border)] w-[100px]">팀</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)]">구성원</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[100px]">팀</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">담당 프로젝트</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">이번주 제출</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[120px]">책임 KPI 평균</th>
@@ -445,7 +445,7 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           <table className="w-full text-sm border-collapse min-w-[480px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
-                <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">팀</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)]">팀</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[100px]">인원</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[140px]">평균 달성률</th>
               </tr>
@@ -469,10 +469,10 @@ export function PerformanceDashboard({ companyId, onClose }: { companyId: string
           <table className="w-full text-sm border-collapse min-w-[480px]">
             <thead>
               <tr className="text-xs text-[var(--text-dim)]">
-                <th className="px-3 py-2.5 text-left border-b border-[var(--border)]">부서</th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)]">부서</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">입력 건수</th>
                 <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[110px]">참여 인원</th>
-                <th className="px-3 py-2.5 text-right border-b border-[var(--border)] w-[150px]">입력 합계 <span className="font-normal text-[var(--text-dim)]">(단위혼합)</span></th>
+                <th className="px-3 py-2.5 text-center border-b border-[var(--border)] w-[150px]">입력 합계 <span className="font-normal text-[var(--text-dim)]">(단위혼합)</span></th>
               </tr>
             </thead>
             <tbody>

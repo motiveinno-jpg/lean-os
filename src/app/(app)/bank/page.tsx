@@ -847,7 +847,7 @@ export default function BankPage() {
                   <SortableTh label="거래내용" sortKey="description" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
                   <SortableTh label="분류" sortKey="classification" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
                   <SortableTh label="금액" sortKey="amount" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                  <th className="text-right px-3 py-2.5 font-semibold select-none">잔액</th>
+                  <th className="text-center px-3 py-2.5 font-semibold select-none">잔액</th>
                   <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
                   <SortableTh label="상태" sortKey="type" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
                 </tr>

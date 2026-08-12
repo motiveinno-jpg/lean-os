@@ -47,10 +47,10 @@ export function MonthlyCompareCard({ title, rows, onRowClick, accent = "var(--pr
         <table className="monthly-compare-table" style={{ minWidth: 420 }}>
           <thead>
             <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-              <th className="text-left py-1.5 px-2 font-semibold">월</th>
-              <th className="text-right py-1.5 px-2 font-semibold">올해</th>
-              <th className="text-right py-1.5 px-2 font-semibold">작년 동월</th>
-              <th className="text-right py-1.5 px-2 font-semibold">증감</th>
+              <th className="text-center py-1.5 px-2 font-semibold">월</th>
+              <th className="text-center py-1.5 px-2 font-semibold">올해</th>
+              <th className="text-center py-1.5 px-2 font-semibold">작년 동월</th>
+              <th className="text-center py-1.5 px-2 font-semibold">증감</th>
               <th style={{ width: "26%" }}></th>
             </tr>
           </thead>

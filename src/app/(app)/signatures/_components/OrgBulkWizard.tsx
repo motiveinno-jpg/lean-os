@@ -918,9 +918,9 @@ export function OrgBulkWizard({
                         <table className="bulk-wizard-override-table">
                           <thead className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
                             <tr>
-                              <th className="p-2 text-left">단체</th>
+                              <th className="p-2 text-center">단체</th>
                               {tokens.filter((t) => !variableMap[t]).map((t) => (
-                                <th key={t} className="p-2 text-left font-mono">{`{{${t}}}`}</th>
+                                <th key={t} className="p-2 text-center font-mono">{`{{${t}}}`}</th>
                               ))}
                             </tr>
                           </thead>
@@ -1080,8 +1080,8 @@ export function OrgBulkWizard({
                       <table className="w-full text-xs">
                         <thead className="bg-[var(--bg-surface)] text-[var(--text-muted)]">
                           <tr>
-                            <th className="p-2 text-left">변수</th>
-                            <th className="p-2 text-left">치환값</th>
+                            <th className="p-2 text-center">변수</th>
+                            <th className="p-2 text-center">치환값</th>
                           </tr>
                         </thead>
                         <tbody>

@@ -1129,12 +1129,12 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                   <table className="w-full text-xs border-collapse mb-3 text-[#333]">
                     <thead>
                       <tr className="bg-[#f3f4f6] border-y border-[#ddd]">
-                        <th className="px-2 py-1.5 text-left">품목</th>
-                        <th className="px-2 py-1.5 text-right w-16">수량</th>
-                        <th className="px-2 py-1.5 text-right w-24">단가</th>
-                        <th className="px-2 py-1.5 text-right w-28">공급가액</th>
-                        <th className="px-2 py-1.5 text-right w-24">부가세</th>
-                        <th className="px-2 py-1.5 text-right w-28">합계</th>
+                        <th className="px-2 py-1.5 text-center">품목</th>
+                        <th className="px-2 py-1.5 text-center w-16">수량</th>
+                        <th className="px-2 py-1.5 text-center w-24">단가</th>
+                        <th className="px-2 py-1.5 text-center w-28">공급가액</th>
+                        <th className="px-2 py-1.5 text-center w-24">부가세</th>
+                        <th className="px-2 py-1.5 text-center w-28">합계</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1186,10 +1186,10 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className="text-left px-4 py-2 font-medium w-28">구분</th>
-                      <th className="text-right px-4 py-2 font-medium w-24">비율(%)</th>
-                      <th className="text-right px-4 py-2 font-medium w-32">금액</th>
-                      <th className="text-left px-4 py-2 font-medium">지급조건</th>
+                      <th className="text-center px-4 py-2 font-medium w-28">구분</th>
+                      <th className="text-center px-4 py-2 font-medium w-24">비율(%)</th>
+                      <th className="text-center px-4 py-2 font-medium w-32">금액</th>
+                      <th className="text-center px-4 py-2 font-medium">지급조건</th>
                       {canEdit && <th className="w-10" />}
                     </tr>
                   </thead>
@@ -1947,12 +1947,12 @@ function DocumentsPageInner() {
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
               <thead>
                 <tr className="table-head-row">
-                  <th className="th-cell text-left">문서명</th>
-                  <th className="th-cell text-left">유형</th>
-                  <th className="th-cell text-left">AI 분류</th>
-                  <th className="th-cell text-left">연결 프로젝트</th>
+                  <th className="th-cell text-center">문서명</th>
+                  <th className="th-cell text-center">유형</th>
+                  <th className="th-cell text-center">AI 분류</th>
+                  <th className="th-cell text-center">연결 프로젝트</th>
                   <th className="th-cell text-center">상태</th>
-                  <th className="th-cell text-left">생성일</th>
+                  <th className="th-cell text-center">생성일</th>
                 </tr>
               </thead>
               <tbody>
@@ -2031,11 +2031,11 @@ function DocumentsPageInner() {
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
                   <tr className="table-head-row">
-                    <th className="th-cell text-left">계약서명</th>
-                    <th className="th-cell text-left">거래처</th>
-                    <th className="th-cell text-left">시작일</th>
-                    <th className="th-cell text-left">종료일</th>
-                    <th className="th-cell text-right">계약금액</th>
+                    <th className="th-cell text-center">계약서명</th>
+                    <th className="th-cell text-center">거래처</th>
+                    <th className="th-cell text-center">시작일</th>
+                    <th className="th-cell text-center">종료일</th>
+                    <th className="th-cell text-center">계약금액</th>
                     <th className="th-cell text-center">상태</th>
                   </tr>
                 </thead>
@@ -2222,11 +2222,11 @@ function DocumentsPageInner() {
               <div className="contract-archive-table"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
                   <tr className="table-head-row">
-                    <th className="th-cell text-left">계약서명</th>
-                    <th className="th-cell text-left">유형</th>
-                    <th className="th-cell text-left">상대방</th>
-                    <th className="th-cell text-left">기간</th>
-                    <th className="th-cell text-right">금액</th>
+                    <th className="th-cell text-center">계약서명</th>
+                    <th className="th-cell text-center">유형</th>
+                    <th className="th-cell text-center">상대방</th>
+                    <th className="th-cell text-center">기간</th>
+                    <th className="th-cell text-center">금액</th>
                     <th className="th-cell text-center">상태</th>
                     <th className="th-cell text-center">파일</th>
                   </tr>
@@ -2283,14 +2283,14 @@ function DocumentsPageInner() {
             <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
               <thead>
                 <tr className="table-head-row">
-                  <th className="th-cell text-left">거래처</th>
+                  <th className="th-cell text-center">거래처</th>
                   <th className="th-cell text-center">유형</th>
-                  <th className="th-cell text-right">공급가액</th>
-                  <th className="th-cell text-right">부가세</th>
-                  <th className="th-cell text-right">합계</th>
-                  <th className="th-cell text-left">프로젝트</th>
+                  <th className="th-cell text-center">공급가액</th>
+                  <th className="th-cell text-center">부가세</th>
+                  <th className="th-cell text-center">합계</th>
+                  <th className="th-cell text-center">프로젝트</th>
                   <th className="th-cell text-center">상태</th>
-                  <th className="th-cell text-left">발행일</th>
+                  <th className="th-cell text-center">발행일</th>
                   <th className="th-cell text-center"></th>
                 </tr>
               </thead>
@@ -2440,13 +2440,13 @@ function DocumentsPageInner() {
               <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px] sticky-head">
                 <thead>
                   <tr className="text-[11px] uppercase tracking-wide text-[var(--text-dim)]">
-                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">문서</th>
-                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">서명자</th>
-                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">이메일</th>
+                    <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">문서</th>
+                    <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">서명자</th>
+                    <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">이메일</th>
                     <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">상태</th>
-                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">발송일</th>
-                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">서명일</th>
-                    <th className="text-left px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">만료일</th>
+                    <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">발송일</th>
+                    <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">서명일</th>
+                    <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)]">만료일</th>
                     <th className="text-center px-5 py-3 font-semibold whitespace-nowrap sticky top-0 z-10 bg-[var(--bg-card)] border-b border-[var(--border)] min-w-[150px]">액션</th>
                   </tr>
                 </thead>

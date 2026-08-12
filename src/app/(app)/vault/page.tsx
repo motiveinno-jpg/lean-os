@@ -922,8 +922,8 @@ function VaultPageInner() {
             <table className="vault-accounts-table">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">서비스</th>
-                  <th className="text-right p-4 text-xs text-[var(--text-dim)] font-medium">월 비용</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">서비스</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">월 비용</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">사용 좌석</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">마지막 사용</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">갱신일</th>
@@ -1094,10 +1094,10 @@ function VaultPageInner() {
             <table className="vault-assets-table">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">자산명</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">자산명</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">유형</th>
-                  <th className="text-right p-4 text-xs text-[var(--text-dim)] font-medium">취득가</th>
-                  <th className="text-right p-4 text-xs text-[var(--text-dim)] font-medium">장부가</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">취득가</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">장부가</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">취득일</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">상태</th>
                 </tr>
@@ -1163,7 +1163,7 @@ function VaultPageInner() {
             <table className="vault-docs-table">
               <thead>
                 <tr className="border-b border-[var(--border)]">
-                  <th className="text-left p-4 text-xs text-[var(--text-dim)] font-medium">문서명</th>
+                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">문서명</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">카테고리</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">연결 프로젝트</th>
                   <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">만료일</th>

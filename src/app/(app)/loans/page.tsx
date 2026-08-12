@@ -557,11 +557,11 @@ export default function LoansPage() {
                   <table className="w-full min-w-[500px]">
                     <thead>
                       <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                        <th className="text-left px-3 py-2 font-medium">월</th>
-                        <th className="text-right px-3 py-2 font-medium">예상 원금</th>
-                        <th className="text-right px-3 py-2 font-medium">예상 이자</th>
-                        <th className="text-right px-3 py-2 font-medium">합계</th>
-                        <th className="text-right px-3 py-2 font-medium">잔금</th>
+                        <th className="text-center px-3 py-2 font-medium">월</th>
+                        <th className="text-center px-3 py-2 font-medium">예상 원금</th>
+                        <th className="text-center px-3 py-2 font-medium">예상 이자</th>
+                        <th className="text-center px-3 py-2 font-medium">합계</th>
+                        <th className="text-center px-3 py-2 font-medium">잔금</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -671,12 +671,12 @@ export default function LoansPage() {
                 <table className="w-full min-w-[600px]">
                   <thead>
                     <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className="text-left px-4 py-3 font-medium">#</th>
-                      <th className="text-left px-4 py-3 font-medium">대출</th>
-                      <th className="text-left px-4 py-3 font-medium">납부일</th>
-                      <th className="text-right px-4 py-3 font-medium">원금</th>
-                      <th className="text-right px-4 py-3 font-medium">이자</th>
-                      <th className="text-right px-4 py-3 font-medium">합계</th>
+                      <th className="text-center px-4 py-3 font-medium">#</th>
+                      <th className="text-center px-4 py-3 font-medium">대출</th>
+                      <th className="text-center px-4 py-3 font-medium">납부일</th>
+                      <th className="text-center px-4 py-3 font-medium">원금</th>
+                      <th className="text-center px-4 py-3 font-medium">이자</th>
+                      <th className="text-center px-4 py-3 font-medium">합계</th>
                       <th className="text-center px-4 py-3 font-medium">거래연결</th>
                     </tr>
                   </thead>

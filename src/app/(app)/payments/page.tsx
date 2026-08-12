@@ -470,11 +470,11 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                     className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer disabled:opacity-30"
                     title="선택 가능 항목 전체 선택" />
                 </th>
-                <th className="th-cell text-left">설명</th>
-                <th className="th-cell text-right">금액</th>
-                <th className="th-cell text-left">통장</th>
+                <th className="th-cell text-center">설명</th>
+                <th className="th-cell text-center">금액</th>
+                <th className="th-cell text-center">통장</th>
                 <th className="th-cell text-center">상태</th>
-                <th className="th-cell text-left">등록일</th>
+                <th className="th-cell text-center">등록일</th>
                 <th className="th-cell text-center">액션</th>
               </tr>
             </thead>
@@ -700,8 +700,8 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
             <thead>
               <tr className="table-head-row">
-                <th className="th-cell text-left">배치명</th>
-                <th className="th-cell text-right">총액</th>
+                <th className="th-cell text-center">배치명</th>
+                <th className="th-cell text-center">총액</th>
                 <th className="th-cell text-center">건수</th>
                 <th className="th-cell text-center">상태</th>
                 <th className="th-cell text-center">액션</th>
@@ -1298,12 +1298,12 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
             <thead>
               <tr className="table-head-row">
-                <th className="th-cell text-left">명칭</th>
-                <th className="th-cell text-left">카테고리</th>
-                <th className="th-cell text-right">금액</th>
-                <th className="th-cell text-left">수취인</th>
+                <th className="th-cell text-center">명칭</th>
+                <th className="th-cell text-center">카테고리</th>
+                <th className="th-cell text-center">금액</th>
+                <th className="th-cell text-center">수취인</th>
                 <th className="th-cell text-center">이체일</th>
-                <th className="th-cell text-left">자동이체</th>
+                <th className="th-cell text-center">자동이체</th>
                 <th className="th-cell text-center">상태</th>
                 <th className="th-cell text-center">관리</th>
               </tr>
@@ -2014,12 +2014,12 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
             <thead>
               <tr className="table-head-row">
-                <th className="th-cell text-left">유형</th>
-                <th className="th-cell text-left">제목</th>
-                <th className="th-cell text-left">카테고리</th>
-                <th className="th-cell text-right">금액</th>
-                <th className="th-cell text-left">요청자</th>
-                <th className="th-cell text-left">프로젝트</th>
+                <th className="th-cell text-center">유형</th>
+                <th className="th-cell text-center">제목</th>
+                <th className="th-cell text-center">카테고리</th>
+                <th className="th-cell text-center">금액</th>
+                <th className="th-cell text-center">요청자</th>
+                <th className="th-cell text-center">프로젝트</th>
                 <th className="th-cell text-center">상태</th>
                 <th className="th-cell text-center">액션</th>
               </tr>

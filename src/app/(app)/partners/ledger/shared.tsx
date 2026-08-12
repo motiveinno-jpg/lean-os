@@ -344,11 +344,11 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
         <table className="w-full min-w-[640px] text-xs border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-left w-[92px]">일자</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-left">적요</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-right w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-right w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-right w-[130px]">잔액</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[92px]">일자</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center">적요</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[130px]">잔액</th>
             </tr>
           </thead>
           <tbody>
@@ -783,11 +783,11 @@ export function VoucherEditModal({ entryId, companyId, onClose, onSaved, newFor 
               <table className="w-full text-xs border-collapse min-w-[560px]">
                 <thead>
                   <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left min-w-[150px]">계정과목</th>
-                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left min-w-[110px]">거래처·통장/카드</th>
-                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-left">적요</th>
-                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[110px]">차변</th>
-                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right w-[110px]">대변</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center min-w-[150px]">계정과목</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center min-w-[110px]">거래처·통장/카드</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center">적요</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center w-[110px]">차변</th>
+                    <th className="px-2 py-2.5 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center w-[110px]">대변</th>
                     <th className="w-7" />
                   </tr>
                 </thead>

@@ -1077,7 +1077,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center">금액</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
           </tr>
@@ -1328,7 +1328,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">내 결재</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
+            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center">금액</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
             <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">내 처리일</th>
@@ -2319,7 +2319,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-right">금액</th>
+              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center">금액</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
               <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">승인일</th>

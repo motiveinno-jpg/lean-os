@@ -75,12 +75,12 @@ export default function QuotesPage() {
             <table className="w-full text-xs border-collapse" style={{ minWidth: 760 }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[var(--bg-card)] text-xs font-semibold text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="px-3 py-2.5 text-left font-semibold w-[130px]">견적No.</th>
-                  <th className="px-3 py-2.5 text-left font-semibold">견적서명</th>
-                  <th className="px-3 py-2.5 text-left font-semibold w-[180px]">프로젝트</th>
-                  <th className="px-3 py-2.5 text-right font-semibold w-[120px]">금액</th>
+                  <th className="px-3 py-2.5 text-center font-semibold w-[130px]">견적No.</th>
+                  <th className="px-3 py-2.5 text-center font-semibold">견적서명</th>
+                  <th className="px-3 py-2.5 text-center font-semibold w-[180px]">프로젝트</th>
+                  <th className="px-3 py-2.5 text-center font-semibold w-[120px]">금액</th>
                   <th className="px-3 py-2.5 text-center font-semibold w-[90px]">상태</th>
-                  <th className="px-3 py-2.5 text-left font-semibold w-[110px]">작성일</th>
+                  <th className="px-3 py-2.5 text-center font-semibold w-[110px]">작성일</th>
                   <th className="px-3 py-2.5 text-center font-semibold w-[90px]">관리</th>
                 </tr>
               </thead>
