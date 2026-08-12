@@ -327,6 +327,17 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
       )}
 
       <div className="app-tour-tip glass-card" style={tipStyle}>
+        {/* 모바일 전용 닫기 (2026-08-12 사장님) — 모바일에선 '다음'만 11번 눌러야 끝나던 것.
+            체크 없이 닫는 것과 동일(persist=false) — 다음 로그인에 다시 뜬다. 데스크톱은
+            건너뛰기 제거(2026-08-11 지시) 유지라 sm 이상에선 숨김. */}
+        <button
+          type="button"
+          className="app-tour-close-m"
+          aria-label="투어 닫기"
+          onClick={() => finish(false)}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path strokeLinecap="round" d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
         <div className="app-tour-tip-step">{safeIdx + 1} / {steps.length}</div>
         <div className="app-tour-tip-title">{step.title}</div>
         <p className="app-tour-tip-desc">{step.desc}</p>

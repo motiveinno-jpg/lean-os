@@ -3056,7 +3056,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .app-tour-root { @apply fixed inset-0 z-[120] pointer-events-none; }
 .app-tour-backdrop { @apply absolute inset-0 bg-black/55; }
 .app-tour-highlight { @apply fixed rounded-xl border-2 border-[var(--primary)] transition-all duration-300 pointer-events-none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); }
-.app-tour-tip { @apply w-[320px] max-w-[calc(100vw-32px)] p-4 shadow-2xl pointer-events-auto; }
+.app-tour-tip { @apply relative w-[320px] max-w-[calc(100vw-32px)] p-4 shadow-2xl pointer-events-auto; }
 .app-tour-tip-step { @apply text-[10px] font-bold text-[var(--primary)] mb-1; }
 .app-tour-tip-title { @apply text-sm font-bold text-[var(--text)]; }
 .app-tour-tip-desc { @apply text-xs text-[var(--text-muted)] leading-relaxed mt-1.5; }
@@ -8517,3 +8517,6 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .payment-risky-details > summary { @apply cursor-pointer text-[10.5px] font-semibold text-[var(--text-dim)] select-none; }
 .payment-risky-details > summary em { @apply ml-1 not-italic font-bold text-[var(--danger)]; }
 .payment-risky-label { @apply mt-2 flex items-start gap-1.5 text-[10px] text-[var(--text-muted)] cursor-pointer select-none; }
+
+/* 앱 투어 — 모바일 전용 닫기 X (2026-08-12 사장님: 모바일에서 닫기 없이 11번 '다음'만 있던 것) */
+.app-tour-close-m { @apply absolute top-3 right-3 p-1.5 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] sm:hidden; }
