@@ -4,6 +4,14 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Ico, icoColor } from "@/components/ui-icon";
 import Link from 'next/link';
 import { resetOnboardingDismiss } from '@/components/onboarding';
+import { useMyPermissions, matchCatalogRoute } from '@/lib/permissions';
+
+// 접근 판정 — 앱 게이트와 같은 기준 (2026-08-12 사장님: 직원은 권한에 맞게).
+//   쿼리를 떼고 카탈로그 최장 접두 매치; 카탈로그 밖 경로(/onboarding·/mypage 등)는 게이트 비대상 → 통과.
+const canReach = (route: string, hasMenu: (r: string) => boolean) => {
+  const key = matchCatalogRoute(route.split('?')[0]);
+  return !key || hasMenu(key);
+};
 
 // ── Types ──
 type CategoryTab = '전체' | '재무' | '영업' | 'HR' | '운영';
@@ -285,14 +293,6 @@ const CATEGORY_TAB_ICONS: Record<CategoryTab, string> = {
   '운영': '⚙️',
 };
 
-const CATEGORY_TAB_COUNTS: Record<CategoryTab, number> = FEATURES.reduce(
-  (acc, f) => {
-    acc[f.category] = (acc[f.category] || 0) + 1;
-    return acc;
-  },
-  { '전체': FEATURES.length, '재무': 0, '영업': 0, 'HR': 0, '운영': 0 } as Record<CategoryTab, number>,
-);
-
 
 // ── 기능 카드 (2026-08-12 리디자인 — 사장님: "조잡하고 레이아웃 안 맞음") ──
 //   인라인 스타일 → gd- 시맨틱 클래스, 세로 나열 → 2열 그리드, 펼침은 grid-rows 트랜지션.
@@ -428,12 +428,23 @@ const WORKFLOWS: Workflow[] = [
 // ── 워크플로 가이드 — 번호 원 + 세로 연결선 타임라인 (2026-08-12 리디자인) ──
 function WorkflowGuides() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // 권한 필터 (2026-08-12) — 멤버는 접근 가능한 스텝만 남기고, 남은 스텝이 2개 미만인
+  //   워크플로(사실상 관리자용)는 통째로 숨긴다. 마스터는 전체.
+  const { isMaster, hasMenu, loading } = useMyPermissions();
+  const workflows = useMemo(() => {
+    if (isMaster) return WORKFLOWS;
+    if (loading) return [];
+    return WORKFLOWS
+      .map((wf) => ({ ...wf, steps: wf.steps.filter((s) => !s.route || canReach(s.route, hasMenu)) }))
+      .filter((wf) => wf.steps.length >= 2);
+  }, [isMaster, loading, hasMenu]);
+  if (workflows.length === 0) return null;
   return (
     <section className="gd-wf-sect" data-gd>
       <h2 className="gd-h2">업무 흐름 따라하기</h2>
       <p className="gd-h2-sub">처음 하는 업무는 이 순서대로 — 눌러서 단계별 안내를 펼쳐 보세요.</p>
       <div className="gd-wf-grid">
-        {WORKFLOWS.map((wf) => {
+        {workflows.map((wf) => {
           const isOpen = expandedId === wf.id;
           return (
             <div key={wf.id} className={`gd-card ${isOpen ? "gd-card-open" : ""}`}>
@@ -503,8 +514,22 @@ export default function GuidePage() {
     setExpandedIds(new Set());
   }, []);
 
+  // 권한 필터 (2026-08-12 사장님) — 마스터는 전체, 멤버·세무사는 부여된 메뉴의 가이드만.
+  //   사이드바와 같은 기준(hasMenu: 기본 제공 + 부여 키). 로딩 중엔 잠깐 비워 깜빡임 방지.
+  const { isMaster, hasMenu, loading: permsLoading } = useMyPermissions();
+  const visibleFeatures = useMemo(() => {
+    if (isMaster) return FEATURES;
+    if (permsLoading) return [];
+    return FEATURES.filter((f) => canReach(f.route, hasMenu));
+  }, [isMaster, permsLoading, hasMenu]);
+  const visibleTabCounts = useMemo(() => {
+    const counts = { '전체': visibleFeatures.length, '재무': 0, '영업': 0, 'HR': 0, '운영': 0 } as Record<CategoryTab, number>;
+    visibleFeatures.forEach((f) => { counts[f.category] += 1; });
+    return counts;
+  }, [visibleFeatures]);
+
   const filteredFeatures = useMemo(() => {
-    let result = FEATURES;
+    let result = visibleFeatures;
 
     if (activeTab !== '전체') {
       result = result.filter((f) => f.category === activeTab);
@@ -521,7 +546,7 @@ export default function GuidePage() {
     }
 
     return result;
-  }, [activeTab, searchQuery]);
+  }, [visibleFeatures, activeTab, searchQuery]);
 
   const isAllExpanded = filteredFeatures.length > 0 && filteredFeatures.every((f) => expandedIds.has(f.id));
 
@@ -536,13 +561,16 @@ export default function GuidePage() {
             <h1 className="gd-hero-title">사용 가이드</h1>
             <p className="gd-hero-sub">오너뷰의 모든 기능을 한 곳에서 — 검색하거나, 업무 흐름을 따라가 보세요.</p>
           </div>
-          <button
-            onClick={() => { resetOnboardingDismiss(); window.location.href = "/dashboard"; }}
-            className="gd-onboard-btn"
-            title="회사 정보·통장·카드·직원 등 초기 설정을 다시 시작합니다"
-          >
-            초기 설정 다시 하기
-          </button>
+          {/* 초기 설정은 회사 단위 관리자 작업 — 마스터에게만 (2026-08-12 권한 맞춤) */}
+          {isMaster && (
+            <button
+              onClick={() => { resetOnboardingDismiss(); window.location.href = "/dashboard"; }}
+              className="gd-onboard-btn"
+              title="회사 정보·통장·카드·직원 등 초기 설정을 다시 시작합니다"
+            >
+              초기 설정 다시 하기
+            </button>
+          )}
         </div>
         <div className="gd-search">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
@@ -569,7 +597,7 @@ export default function GuidePage() {
                 className={`seg-item flex items-center gap-1.5 ${isActive ? "seg-item-active" : ""}`}>
                 <span className="text-[14px]">{CATEGORY_TAB_ICONS[tab]}</span>
                 {tab}
-                <span className={`gd-tab-count ${isActive ? "gd-tab-count-on" : ""}`}>{CATEGORY_TAB_COUNTS[tab]}</span>
+                <span className={`gd-tab-count ${isActive ? "gd-tab-count-on" : ""}`}>{visibleTabCounts[tab]}</span>
               </button>
             );
           })}
@@ -603,7 +631,7 @@ export default function GuidePage() {
       <section className="gd-quick" data-gd>
         <h3 className="gd-h3">바로가기</h3>
         <div className="gd-quick-grid">
-          {FEATURES.map((f) => (
+          {visibleFeatures.map((f) => (
             <Link key={f.id} href={f.route} className="gd-quick-link">
               <Ico e={f.icon} tone="color" />
               {f.title}
