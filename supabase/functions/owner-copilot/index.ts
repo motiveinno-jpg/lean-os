@@ -189,6 +189,7 @@ ${COMMON_RULES}
 - 조회 툴이 있는 주제는 "확인할 수 없다"·"시스템에서 모른다"고 넘기지 말고 먼저 툴을 부르세요. 툴을 부른 뒤에도 값이 비어 있을 때만 없다고 답하고, 그때도 "데이터가 없다"가 아니라 어느 화면에서 입력하면 되는지 알려 주세요.
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
 - 연결된 세무사·회계사("우리 세무사 누구야", "세무사가 언제 봤어")는 get_tax_advisors 로 답하세요. 스냅샷에는 없습니다.
+- 계정과목별 비용·수익("복리후생비 얼마 썼어", "계정별 비용", "어디에 돈 많이 썼어")은 get_expense_by_account 로 답하세요. "회계 모듈에 없다"고 답하지 마세요 — 확정 전표(장부) 기준으로 집계됩니다. 결과가 0이면 전표 미처리 자료가 있다는 뜻이니 수집·전표 화면 안내를 곁들이세요.
 - 재무·세금 집계(외상매출금·외상매입금·미수·미지급·세금계산서 합계 등)의 기본 기간은 당해 연도(올해 1월 1일~오늘)입니다. 지난해 자료는 이미 재무제표·부가세 신고로 결산이 끝난 것이므로 기본 답변에 섞지 말고, 사용자가 "작년"·"전체 기간"을 명시할 때만 기간을 넓히세요. 답변에는 어느 기간 기준인지 한 줄로 밝히세요. 외상매출금은 list_receivables(type=sales), 외상매입금은 list_receivables(type=purchase)로 답하세요.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
@@ -473,6 +474,18 @@ const MANAGER_READ_TOOLS = [
     name: "get_tax_advisors",
     description: "이 회사에 연결된 세무 파트너(세무사·회계사)와 최근 열람 이력을 반환합니다. '우리 세무사 누구야', '세무사 연결돼 있어?', '세무사가 언제 봤어' 질문에 쓰세요. 연결·해제는 회사 설정 > 세무 파트너에서 합니다.",
     input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: "get_expense_by_account",
+    description: "확정 전표(장부) 기준으로 계정과목별 금액을 집계합니다. '복리후생비 얼마 썼어', '계정별 비용', '수도광열비·보험료·급여 각각 얼마', '어디에 돈 많이 썼어' 질문에 쓰세요. nature=expense 는 비용, revenue 는 수익 계정. 기본 기간은 당해 연도. 전표로 확정된 내역만 집계됩니다(원본 통장·카드만 있고 전표 미생성이면 0으로 나옴 — 그때는 수집·전표에서 전표 처리하라고 안내).",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        from: { type: "string", description: "시작일 YYYY-MM-DD (생략 시 올해 1월 1일)" },
+        to: { type: "string", description: "종료일 YYYY-MM-DD (생략 시 오늘)" },
+        nature: { type: "string", enum: ["expense", "revenue"], description: "expense=비용(기본), revenue=수익" },
+      },
+    },
   },
   {
     name: "list_receivables",
@@ -1515,6 +1528,48 @@ async function executeReadTool(
       .order("name");
     if (error) return { error: "서식 조회에 실패했습니다." };
     return { templates: data ?? [] };
+  }
+
+  if (name === "get_expense_by_account") {
+    // 계정과목별 집계 — 재무제표와 같은 소스(확정 전표만). 2026-08-13 로그 스윕:
+    //   "복리후생비 얼마" 질문에 '회계 모듈에 없다'고 답하던 것 — 전표 체계가 생겨 이제 가능.
+    const kstNow = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(String(input.from ?? "")) ? String(input.from) : `${kstNow.slice(0, 4)}-01-01`;
+    const to = /^\d{4}-\d{2}-\d{2}$/.test(String(input.to ?? "")) ? String(input.to) : kstNow;
+    const nature = input.nature === "revenue" ? "revenue" : "expense";
+    const [{ data: entries, error: e1 }, { data: accounts, error: e2 }] = await Promise.all([
+      admin.from("journal_entries")
+        .select("journal_lines(account_id, debit, credit)")
+        .eq("company_id", companyId).eq("status", "confirmed")
+        .gte("entry_date", from).lte("entry_date", to).limit(2000),
+      admin.from("chart_of_accounts")
+        .select("id, code, name, account_type")
+        .eq("company_id", companyId).eq("account_type", nature),
+    ]);
+    if (e1 || e2) return { error: "계정과목별 집계에 실패했습니다." };
+    const accById = new Map((accounts ?? []).map((a: any) => [a.id, a]));
+    const sums = new Map<string, number>();
+    for (const en of (entries ?? []) as any[]) {
+      for (const l of (en.journal_lines || [])) {
+        const acc = accById.get(l.account_id);
+        if (!acc) continue;
+        const amt = nature === "revenue"
+          ? Number(l.credit || 0) - Number(l.debit || 0)
+          : Number(l.debit || 0) - Number(l.credit || 0);
+        sums.set(l.account_id, (sums.get(l.account_id) || 0) + amt);
+      }
+    }
+    const rows = Array.from(sums.entries())
+      .map(([id, amount]) => ({ code: accById.get(id)?.code ?? null, name: accById.get(id)?.name ?? "?", amount: Math.round(amount) }))
+      .filter((r) => r.amount !== 0)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 30);
+    return {
+      basis: `${from} ~ ${to} 확정 전표 기준 (${nature === "revenue" ? "수익" : "비용"} 계정)`,
+      accounts: rows,
+      total: rows.reduce((s, r) => s + r.amount, 0),
+      note: rows.length === 0 ? "이 기간에 확정 전표가 없습니다. 통장·카드 원본만 있고 전표 처리를 안 했으면 수집·전표 화면에서 전표로 만들어야 장부 집계에 잡힙니다." : undefined,
+    };
   }
 
   if (name === "list_receivables") {
