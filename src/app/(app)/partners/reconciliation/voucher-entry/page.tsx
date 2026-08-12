@@ -26,6 +26,8 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { DateRangeField } from "@/components/date-range-field";
+import { PickList } from "@/components/pick-list";
+import { downloadCsv } from "@/lib/csv-export";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -70,6 +72,8 @@ const MEMO_KEY = "voucher-recent-memos";
 
 //   Enter 가 훑는 입력칸 — 화면 왼→오 순서. 일자 3칸이 앞, 그 뒤가 분개 행의 칸들이다.
 type VCell = "y" | "m" | "d" | "gubun" | "account" | "partner" | "memo" | "debit" | "credit";
+//   전표목록 제목줄 정렬 기준 (매입매출전표와 같은 목록)
+type VSortKey = "date" | "no" | "account" | "partner" | "debit" | "credit" | "memo";
 /** 그 달의 다음 달 1일 — 조회 상한(`lt`)으로 쓴다 */
 const monthAfter = (ym: string) => {
   const [y, m] = ym.split("-").map(Number);
@@ -93,6 +97,12 @@ export default function VoucherEntryPage() {
   const [entryD, setEntryD] = useState(String(Number(todayKst().slice(8, 10))));
   const entryDate = `${entryY}-${pad2(entryM)}-${pad2(entryD)}`;
   const entryDateOk = entryY.length === 4 && Number(entryM) >= 1 && Number(entryM) <= 12 && Number(entryD) >= 1 && Number(entryD) <= 31;
+  //   제목줄 정렬 — 매입매출전표와 같은 방식(누르면 오름차순, 다시 내림차순, 세 번째 해제)
+  const [sort, setSort] = useState<{ key: VSortKey; dir: 1 | -1 } | null>(null);
+  const toggleSort = (key: VSortKey) =>
+    setSort((s0) => (s0?.key === key ? (s0.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }));
+  const sortMark = (key: VSortKey) => (sort?.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : "");
+
   //   ② 아래 목록이 보여 줄 기간 — 월 단위. 처음엔 이번 달만 걸어 예전과 비슷하게 보인다.
   const [fromM, setFromM] = useState(todayKst().slice(0, 7));
   const [toM, setToM] = useState(todayKst().slice(0, 7));
@@ -184,6 +194,51 @@ export default function VoucherEntryPage() {
     },
     enabled: !!companyId && dbReady,
   });
+
+  //   제목줄 정렬 — 안 고르면 예전 그대로(일자·전표번호 순). 전표는 **줄이 아니라 장 단위**로 옮긴다
+  //   (한 전표의 분개 줄들이 흩어지면 차·대가 안 읽힌다 — 매입매출전표와 다른 점이다).
+  const sortedEntries = useMemo(() => {
+    if (!sort) return entries;
+    const val = (e: SavedEntry): string | number => {
+      const first = e.lines[0];
+      switch (sort.key) {
+        case "date": return e.entry_date;
+        case "no": return e.voucher_no ?? 0;
+        case "account": return first?.account?.name ?? "";
+        case "partner": return first?.partner?.name ?? "";
+        case "debit": return e.lines.reduce((n, l) => n + Number(l.debit || 0), 0);
+        case "credit": return e.lines.reduce((n, l) => n + Number(l.credit || 0), 0);
+        default: return e.description ?? "";
+      }
+    };
+    return [...entries].sort((a, b) => {
+      const x = val(a), y = val(b);
+      const c = typeof x === "number" ? x - (y as number) : String(x).localeCompare(String(y), "ko");
+      return c * sort.dir;
+    });
+  }, [entries, sort]);
+
+  //   엑셀 — 통장·카드·매입매출전표와 같은 공통 함수를 쓴다(한글 깨짐·칸 밀림을 한 곳에서만 막는다)
+  const exportCsv = () => {
+    const rows: (string | number)[][] = [];
+    for (const e of sortedEntries) {
+      for (const l of e.lines) {
+        rows.push([
+          e.entry_date, e.voucher_no ?? "",
+          GUBUN_LABEL[savedGubun(e.voucher_type, l.debit)],
+          l.account?.code ?? "", l.account?.name ?? "",
+          l.partner?.business_number ?? "", l.partner?.name ?? "",
+          Number(l.debit || 0), Number(l.credit || 0),
+          l.memo || e.description || "",
+        ]);
+      }
+    }
+    downloadCsv(
+      `일반전표_${fromM === toM ? fromM : `${fromM}~${toM}`}`,
+      ["일자", "전표번호", "구분", "계정코드", "계정명", "거래처번호", "거래처명", "차변", "대변", "적요"],
+      rows,
+    );
+  };
 
   // ── 상단 입력 파생값 (출금/입금은 자동 현금 라인 포함해 균형 계산) ──
   const pendFilled = pend.filter((l) => num(l.debit) !== 0 || num(l.credit) !== 0);
@@ -440,7 +495,9 @@ export default function VoucherEntryPage() {
 
   const acctMatches = (q: string) => {
     const t = q.trim().toLowerCase();
-    return (t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts).slice(0, 12);
+    //   ⚠️ 자르지 않는다 — 12개로 잘라 두면 **그 12개 안에서만** 검색된다(매입매출전표에서 같은 버그를
+    //     잡았다: '여비교통비'가 안 나왔다). 목록은 스크롤되므로 다 넘겨도 된다 (2026-08-12).
+    return t ? accounts.filter((a) => a.code.includes(t) || a.name.toLowerCase().includes(t)) : accounts;
   };
   const ptMatches = (q: string) => {
     const raw = q.trim().toLowerCase();
@@ -453,7 +510,7 @@ export default function VoucherEntryPage() {
       const nameNS = name.replace(/\s/g, "");
       const bn = (p.business_number || "").replace(/-/g, "");
       return nameNS.includes(tn) || tokens.every((tk) => name.includes(tk)) || (bn && bn.includes(tn));
-    }).slice(0, 200);
+    });   //   거래처도 자르지 않는다 — 200개 뒤의 거래처가 검색에서 빠졌다 (2026-08-12)
   };
 
   const TD = "px-2 py-1 whitespace-nowrap";
@@ -768,8 +825,10 @@ export default function VoucherEntryPage() {
             </Link>
           )}
           <span className="hidden md:inline text-[11px] text-[var(--text-dim)]">셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span>
+          <button type="button" onClick={exportCsv} disabled={entries.length === 0}
+            className="ml-auto btn-secondary btn-sm disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
           <button onClick={deleteSelected} disabled={busy || selected.size === 0}
-            className="ml-auto btn-danger btn-sm">
+            className="btn-danger btn-sm">
             선택 삭제{selected.size ? ` (${selected.size})` : ""}</button>
         </div>
         {/* 전표목록 — 데스크톱은 폭에 맞춤(overflow-visible, 드롭다운 잘림 방지),
@@ -783,21 +842,30 @@ export default function VoucherEntryPage() {
                     checked={entries.length > 0 && selected.size >= entries.length}
                     onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => `s:${x.id}`)) : new Set())} />
                 </th>
-                <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
-                <th className="px-2 py-2.5 w-[84px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">일자</th>
+                {/* 제목줄 정렬 — 매입매출전표와 같은 조작(누르면 ▲, 다시 ▼, 세 번째 해제) (2026-08-12).
+                    ⚠️ 전표는 **장 단위**로 옮긴다 — 한 전표의 분개 줄이 흩어지면 차·대를 못 읽는다. */}
+                <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                  <button type="button" className="spv-sort" onClick={() => toggleSort("no")}>No{sortMark("no")}</button></th>
+                <th className="px-2 py-2.5 w-[84px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                  <button type="button" className="spv-sort" onClick={() => toggleSort("date")}>일자{sortMark("date")}</button></th>
                 <th className="px-2 py-2.5 w-[76px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
                 <th className="px-2 py-2.5 w-[72px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정명</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                  <button type="button" className="spv-sort" onClick={() => toggleSort("account")}>계정명{sortMark("account")}</button></th>
                 <th className="px-2 py-2.5 w-[100px] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처명</th>
-                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">차변</th>
-                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">대변</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                  <button type="button" className="spv-sort" onClick={() => toggleSort("partner")}>거래처명{sortMark("partner")}</button></th>
+                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                  <button type="button" className="spv-sort" onClick={() => toggleSort("debit")}>차변{sortMark("debit")}</button></th>
+                <th className="px-2 py-2.5 w-[110px] text-right text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                  <button type="button" className="spv-sort" onClick={() => toggleSort("credit")}>대변{sortMark("credit")}</button></th>
                 <th className="px-2 py-2.5 w-[64px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요코드</th>
-                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요</th>
+                <th className="px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
+                  <button type="button" className="spv-sort" onClick={() => toggleSort("memo")}>적요{sortMark("memo")}</button></th>
               </tr>
             </thead>
             <tbody>
-              {entries.map((e) => {
+              {sortedEntries.map((e) => {
                 const buf = edits[e.id];
                 if (buf) {
                   const st = editStat(buf);
