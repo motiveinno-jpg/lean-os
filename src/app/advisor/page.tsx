@@ -81,6 +81,8 @@ export default function AdvisorLandingPage() {
         p_phone: phone.trim() || null, p_specialty: specialty.trim() || null,
       });
       if (err) throw err;
+      // 운영자에게 가입 알림 메일 — 베스트에포트 (실패해도 가입은 완료)
+      supabase.functions.invoke("advisor-notify", { body: { event: "registered" } }).catch(() => {});
       setPhase("pending");
     } catch (e: any) {
       setError(e?.message || "등록에 실패했습니다.");

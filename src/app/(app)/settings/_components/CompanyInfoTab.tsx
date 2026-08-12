@@ -660,14 +660,17 @@ function TaxAdvisorSection() {
     mutationFn: async (advisorId: string) => {
       const { error } = await (supabase as any).rpc("company_link_advisor", { p_advisor_id: advisorId });
       if (error) throw error;
+      // 세무사에게 연결 안내 메일 — 베스트에포트 (2026-08-12)
+      supabase.functions.invoke("advisor-notify", { body: { event: "linked", advisor_id: advisorId } }).catch(() => {});
     },
     onSuccess: () => { toast("세무사가 연결되었습니다.", "success"); invalidate(); },
     onError: () => toast("연결에 실패했습니다.", "error"),
   });
   const unlinkMut = useMutation({
-    mutationFn: async (linkId: string) => {
+    mutationFn: async ({ linkId, advisorId }: { linkId: string; advisorId: string }) => {
       const { error } = await (supabase as any).rpc("company_unlink_advisor", { p_link_id: linkId });
       if (error) throw error;
+      supabase.functions.invoke("advisor-notify", { body: { event: "unlinked", advisor_id: advisorId } }).catch(() => {});
     },
     onSuccess: () => { toast("연결을 해제했습니다. 해당 세무사의 열람이 즉시 차단됩니다.", "success"); invalidate(); },
     onError: () => toast("해제에 실패했습니다.", "error"),
@@ -710,7 +713,7 @@ function TaxAdvisorSection() {
                     disabled={unlinkMut.isPending}
                     onClick={async () => {
                       if (await appConfirm(`${a.name} 세무사와의 연결을 해제하시겠습니까?\n해제 즉시 우리 회사 데이터 열람이 차단됩니다.`, { danger: true, confirmLabel: "해제" }))
-                        unlinkMut.mutate(a.link_id);
+                        unlinkMut.mutate({ linkId: a.link_id, advisorId: a.advisor_id });
                     }}
                   >연결 해제</button>
                 </div>

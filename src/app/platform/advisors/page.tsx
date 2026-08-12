@@ -69,6 +69,8 @@ export default function PlatformAdvisorsPage() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await (db as any).rpc("operator_set_advisor_status", { p_advisor_id: id, p_status: status });
       if (error) throw error;
+      // 승인 시 세무사에게 안내 메일 — 베스트에포트
+      if (status === "active") db.functions.invoke("advisor-notify", { body: { event: "approved", advisor_id: id } }).catch(() => {});
     },
     onSuccess: invalidate,
   });
@@ -78,6 +80,7 @@ export default function PlatformAdvisorsPage() {
     mutationFn: async ({ advisorId, companyId }: { advisorId: string; companyId: string }) => {
       const { error } = await (db as any).rpc("operator_link_advisor", { p_advisor_id: advisorId, p_company_id: companyId });
       if (error) throw error;
+      db.functions.invoke("advisor-notify", { body: { event: "linked", advisor_id: advisorId } }).catch(() => {});
     },
     onSuccess: () => { setLinkCompanyId(""); invalidate(); },
   });
