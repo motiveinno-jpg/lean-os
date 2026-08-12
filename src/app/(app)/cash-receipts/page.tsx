@@ -23,6 +23,7 @@ import {
   syncPurchaseCashReceipts,
   STATUS_LABELS,
   PURPOSE_LABELS,
+  cashReceiptSign,
 } from "@/lib/cash-receipts";
 import type { CashReceipt } from "@/lib/cash-receipts";
 import { getCashReceiptIssuanceStatus } from "@/lib/billing";
@@ -966,6 +967,12 @@ export default function CashReceiptsPage() {
                 <tbody>
                   {displayReceipts.map((r: any) => {
                     const st = STATUS_LABELS[r.status] || STATUS_LABELS.issued;
+                    //   홈택스 취소거래는 원본을 깎는 **마이너스 건**이라 부호를 뒤집어 보여 준다.
+                    //   우리가 취소·무효 처리한 건은 원 금액 그대로 보여 주되(발행 원장이므로)
+                    //   아래 합계에서만 뺀다 — 상태 배지가 이미 '취소'/'무효'라고 말한다. (2026-08-12)
+                    const neg = cashReceiptSign(r) === -1;
+                    const amtCls = neg ? " text-[var(--danger)]" : "";
+                    const show = (v: unknown) => (neg ? -Number(v || 0) : Number(v || 0)).toLocaleString();
                     const posted = !!r.journal_entry_id;
                     const selectable = !isPosted(r);
                     const checked = selectedIds.has(r.id);
@@ -997,14 +1004,14 @@ export default function CashReceiptsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-sm text-right font-semibold mono-number">
-                          ₩{Number(r.amount).toLocaleString()}
+                        <td className={`px-5 py-3 text-sm text-right font-semibold mono-number${amtCls}`}>
+                          ₩{show(r.amount)}
                         </td>
-                        <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)] mono-number">
-                          ₩{Number(r.supply_amount || 0).toLocaleString()}
+                        <td className={`px-5 py-3 text-xs text-right mono-number${amtCls || " text-[var(--text-muted)]"}`}>
+                          ₩{show(r.supply_amount)}
                         </td>
-                        <td className="px-5 py-3 text-xs text-right text-[var(--text-muted)] mono-number">
-                          ₩{Number(r.tax_amount || 0).toLocaleString()}
+                        <td className={`px-5 py-3 text-xs text-right mono-number${amtCls || " text-[var(--text-muted)]"}`}>
+                          ₩{show(r.tax_amount)}
                         </td>
                         <td className="px-5 py-3 text-center">
                           <span className="inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-surface)] border border-[var(--border)]/60 text-[var(--text-muted)] whitespace-nowrap">
@@ -1064,11 +1071,13 @@ export default function CashReceiptsPage() {
                     >
                       합계 ({receipts.length}건)
                     </td>
+                    {/*   취소거래는 빼는 게 아니라 **마이너스로 더한다** — 빼면 원본 발행 건만 남아
+                          매출이 부풀어 오른다. 우리가 취소·무효한 건은 0 이라 안 셈. (2026-08-12) */}
                     <td className="px-5 py-3 text-sm text-right font-bold mono-number">
                       ₩
                       {receipts
                         .reduce(
-                          (s, r) => s + Number(r.amount || 0),
+                          (s, r) => s + cashReceiptSign(r) * Number(r.amount || 0),
                           0,
                         )
                         .toLocaleString()}
@@ -1077,7 +1086,7 @@ export default function CashReceiptsPage() {
                       ₩
                       {receipts
                         .reduce(
-                          (s, r) => s + Number(r.supply_amount || 0),
+                          (s, r) => s + cashReceiptSign(r) * Number(r.supply_amount || 0),
                           0,
                         )
                         .toLocaleString()}
@@ -1086,7 +1095,7 @@ export default function CashReceiptsPage() {
                       ₩
                       {receipts
                         .reduce(
-                          (s, r) => s + Number(r.tax_amount || 0),
+                          (s, r) => s + cashReceiptSign(r) * Number(r.tax_amount || 0),
                           0,
                         )
                         .toLocaleString()}

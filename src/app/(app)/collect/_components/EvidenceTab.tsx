@@ -14,6 +14,7 @@
 import { useMemo, useState } from "react";
 import { PickList } from "@/components/pick-list";
 import { fetchMerchantKinds, fillMerchantKinds, type MerchantKind } from "@/lib/merchant-tax-type";
+import { cashReceiptSign } from "@/lib/cash-receipts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -513,19 +514,23 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
 
   if (kind === "cash_receipt") {
     const data = logRead("collect:rows-cash", await supabase.from("cash_receipts")
-      .select("id, type, issue_date, counterparty_name, counterparty_bizno, supply_amount, tax_amount, amount, journal_entry_id")
+      .select("id, type, issue_date, counterparty_name, counterparty_bizno, supply_amount, tax_amount, amount, status, source, journal_entry_id")
       .eq("company_id", companyId)
       .gte("issue_date", from).lte("issue_date", to)
       .order("issue_date").limit(500));
-    const src = ((data as any[]) || []);
+    //   ★ 취소거래는 **마이너스 한 줄**로 남긴다 — 빼 버리면 원본 발행 건만 남아 매출이 부풀어 오른다.
+    //     유형(현과)·계정은 그대로 두고 부호만 뒤집는다(위하고와 같은 모양, 사장님 기준). (2026-08-12)
+    //     우리가 취소한 원본(manual·codef)은 없던 일이라 아예 안 보여 준다 — cashReceiptSign 참조.
+    const src = ((data as any[]) || []).filter((r) => cashReceiptSign(r) !== 0);
     const built = src.map((r) => {
-      const supply = Number(r.supply_amount || 0) || Math.round(Number(r.amount || 0) / 1.1);
+      const sign = cashReceiptSign(r);
+      const supply = (Number(r.supply_amount || 0) || Math.round(Number(r.amount || 0) / 1.1)) * sign;
       const direction = r.type === "income" ? "sale" : "purchase";
       return {
         id: r.id, date: String(r.issue_date),
         partnerId: null, partnerName: r.counterparty_name || "—", bizno: r.counterparty_bizno || "",
-        item: "현금영수증", supply,
-        vat: Number(r.tax_amount || 0) || (Number(r.amount || 0) - supply),
+        item: sign < 0 ? "현금영수증 (취소거래)" : "현금영수증", supply,
+        vat: (Number(r.tax_amount || 0) || (Number(r.amount || 0) - Math.abs(supply))) * sign,
         vatCode: suggestVatType({ kind: "cash_receipt", direction }),
         settle, posted: !!r.journal_entry_id, voucherNo: null,
       } as Row;

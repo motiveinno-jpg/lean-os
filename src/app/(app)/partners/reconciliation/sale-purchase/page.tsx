@@ -24,6 +24,7 @@ import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { friendlyError } from "@/lib/friendly-error";
+import { cashReceiptSign } from "@/lib/cash-receipts";
 import {
   VAT_TYPES, SETTLE_LABEL, STD, buildVoucherLines, vatOf, vatType, suggestVatType, normalizeSides,
   type SettleType,
@@ -298,7 +299,7 @@ function SalePurchaseInner() {
           .eq("company_id", companyId!).is("journal_entry_id", null)
           .gte("transaction_date", from).lt("transaction_date", to).order("transaction_date").limit(200),
         supabase.from("cash_receipts")
-          .select("id, type, issue_date, counterparty_name, supply_amount, tax_amount, amount, journal_entry_id")
+          .select("id, type, issue_date, counterparty_name, supply_amount, tax_amount, amount, status, source, journal_entry_id")
           .eq("company_id", companyId!).is("journal_entry_id", null)
           .gte("issue_date", from).lt("issue_date", to).order("issue_date").limit(200),
       ]);
@@ -327,11 +328,17 @@ function SalePurchaseInner() {
         });
       }
       for (const r of ((cash.data as any[]) || [])) {
+        //   취소거래는 카드와 같은 규칙 — 부호 그대로(마이너스) 내려보낸다. 원본 발행 건을 깎는 줄이라
+        //   빼 버리면 매출이 부풀어 오른다. 우리가 취소한 원본은 0 이라 건너뛴다. (2026-08-12)
+        const sign = cashReceiptSign(r);
+        if (sign === 0) continue;
         const dir = r.type === "income" ? "sale" : "purchase";
-        const sup = Number(r.supply_amount || 0) || Math.round(Number(r.amount || 0) / 1.1);
+        const base = Number(r.supply_amount || 0) || Math.round(Number(r.amount || 0) / 1.1);
+        const sup = base * sign;
         out.push({
           key: "cash:" + r.id, kind: "cash_receipt", date: r.issue_date, who: r.counterparty_name || "—",
-          what: "현금영수증", supply: sup, vat: Number(r.tax_amount || 0) || (Number(r.amount || 0) - sup),
+          what: sign < 0 ? "현금영수증 (취소거래)" : "현금영수증", supply: sup,
+          vat: (Number(r.tax_amount || 0) || (Number(r.amount || 0) - base)) * sign,
           partnerId: null, cancelled: sup < 0,
           suggested: suggestVatType({ kind: "cash_receipt", direction: dir }),
         });

@@ -43,6 +43,27 @@ export const STATUS_LABELS: Record<string, { label: string; bg: string; text: st
   void: { label: '무효', bg: 'bg-red-500/10', text: 'text-red-400' },
 };
 
+/**
+ * 현금영수증 한 건이 **합계에 얼마로 들어가는가** — +1 / -1(취소거래) / 0(안 셈). (2026-08-12)
+ *
+ *   ★ `status='cancelled'` 은 뜻이 두 가지다. 이걸 안 가르면 매출이 틀린다.
+ *     ① **홈택스가 준 취소거래 행**(source='hometax_sync') — 원본 발행 건은 그대로 남아 있고
+ *        이 행이 그것을 깎는 **마이너스 매출**이다. 승인번호도 원본과 다른 별개 건이다.
+ *        (실제: 07-24 승인 +11,111 · 07-29 승인 +11,111 · 08-03 취소 · 08-04 취소 → 홈택스 총매출 0원)
+ *        **빼 버리면 승인 2건만 남아 매출이 22,222원으로 부풀어 오른다** — 그래서 빼지 않고 음수로 센다.
+ *     ② **우리가 발행했다가 취소한 원본 행**(manual·codef) — 없던 일이 된 것이라 0으로 안 센다.
+ *        (이 건도 홈택스를 수집하면 ①의 취소거래 행이 따로 들어와 상계된다)
+ *   `void`(무효)는 애초에 없던 것이라 언제나 0.
+ *
+ *   위하고도 취소거래를 같은 유형(현과)의 **마이너스 전표**로 보여 준다 — 사장님이 준 기준.
+ */
+export function cashReceiptSign(r: { status?: string | null; source?: string | null }): 1 | -1 | 0 {
+  const status = String(r.status || 'issued');
+  if (status === 'void') return 0;
+  if (status !== 'cancelled') return 1;
+  return r.source === 'hometax_sync' ? -1 : 0;
+}
+
 const VAT_RATE = 0.1;
 
 // ── CRUD ──
@@ -206,7 +227,7 @@ export async function getCashReceiptSummary(
   endDate: string,
 ): Promise<CashReceiptSummary> {
   const data = logRead('lib/cash-receipts:data', await db.from('cash_receipts')
-    .select('type, amount, tax_amount, status')
+    .select('type, amount, tax_amount, status, source')
     .eq('company_id', companyId)
     .gte('issue_date', startDate)
     .lte('issue_date', endDate)
@@ -218,14 +239,17 @@ export async function getCashReceiptSummary(
   };
 
   for (const r of (data || [])) {
+    //   취소거래는 마이너스로 상계한다 — 안 그러면 취소한 매출이 그대로 남는다 (2026-08-12)
+    const sign = cashReceiptSign(r);
+    if (sign === 0) continue;
     if (r.type === 'income') {
       result.incomeCount++;
-      result.incomeTotal += Number(r.amount || 0);
-      result.incomeTax += Number(r.tax_amount || 0);
+      result.incomeTotal += sign * Number(r.amount || 0);
+      result.incomeTax += sign * Number(r.tax_amount || 0);
     } else {
       result.expenseCount++;
-      result.expenseTotal += Number(r.amount || 0);
-      result.expenseTax += Number(r.tax_amount || 0);
+      result.expenseTotal += sign * Number(r.amount || 0);
+      result.expenseTax += sign * Number(r.tax_amount || 0);
     }
   }
 
