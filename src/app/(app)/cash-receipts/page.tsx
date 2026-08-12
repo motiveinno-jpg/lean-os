@@ -242,7 +242,10 @@ export default function CashReceiptsPage() {
   // 탭·기간 변경 시 선택 초기화
   useEffect(() => { setSelectedIds(new Set()); }, [tab, startDate, endDate]);
 
-  const isPosted = (r: any) => !!r.journal_entry_id || r.status === "cancelled" || r.status === "void";
+  //   고를 수 없는 건 = 이미 전표가 있거나, **없던 일이 된 건**(우리가 취소·무효 처리 → sign 0).
+  //   홈택스 취소거래는 원본을 깎는 **마이너스 전표**가 필요하므로 고를 수 있다. (2026-08-12)
+  //   post_cash_voucher 도 같은 기준으로 판정한다(sign 0 이면 CANCELLED_RECEIPT).
+  const isPosted = (r: any) => !!r.journal_entry_id || cashReceiptSign(r) === 0;
   const selectableReceipts = displayReceipts.filter((r: any) => !isPosted(r));
   const selectedReceipts = selectableReceipts.filter((r: any) => selectedIds.has(r.id));
   const allSelected = selectableReceipts.length > 0 && selectableReceipts.every((r: any) => selectedIds.has(r.id));
@@ -1215,6 +1218,12 @@ export default function CashReceiptsPage() {
                 </select>
               </div>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 각 건 전표가 생성됩니다. 현금영수증 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
+              {/*   취소거래를 같이 골랐으면 무슨 일이 일어나는지 미리 말해 준다 (2026-08-12) */}
+              {selectedReceipts.some((r: any) => cashReceiptSign(r) === -1) && (
+                <p className="text-[10px] text-[var(--warning)] leading-relaxed">
+                  취소거래 {selectedReceipts.filter((r: any) => cashReceiptSign(r) === -1).length}건은 <b>반대 분개</b>(마이너스 전표)로 만들어져 원래 발행 건을 깎습니다.
+                </p>
+              )}
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2">
               <button onClick={() => setShowBulkPost(false)} className="btn-ghost text-xs">취소</button>
