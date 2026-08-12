@@ -1,0 +1,20 @@
+# 두 PC 가 같은 파일을 동시에 고칠 때의 병합 규칙 (2026-08-12 사장님 지시)
+#
+#   사장님: "globals.css 충돌 — 무조건 우리 배포를 우선으로 해라."
+#
+#   globals.css 는 두 PC 가 **각자 파일 끝에 새 규칙을 덧붙이는** 방식이라 충돌이 잦다.
+#   실제로 2026-08-12 하루에만 네 번 났고, 네 번 모두 서로 다른 새 클래스였다.
+#   union 병합은 그런 구간에서 **양쪽 줄을 다 남긴다** — 우리 것이 지워지는 일이 절대 없고,
+#   상대의 새 규칙도 살아 그쪽 화면이 스타일 없이 뜨는 사고도 막는다.
+#   → 결과적으로 globals.css 는 이제 **충돌로 멈추지 않는다.**
+#
+#   ⚠️ 딱 하나 주의: 같은 클래스 이름을 양쪽이 **다르게 고치면** 두 줄이 다 남아
+#     나중 줄이 이긴다. 그래서 CLAUDE.md 규칙 그대로 **기존 클래스 정의는 고치지 말고
+#     새 이름만 추가**한다. 그 규칙을 지키는 한 union 은 항상 정확하다.
+src/app/globals.css   merge=union
+src/app/landing.css   merge=union
+src/app/landing-v5.css merge=union
+src/app/landing-v6.css merge=union
+
+# 생성물 — 두 PC 가 각자 갱신해 충돌만 낸다. 우리 것을 그대로 쓴다.
+src/generated/release-log.json merge=ours
