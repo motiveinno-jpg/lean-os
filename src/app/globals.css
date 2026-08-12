@@ -8643,3 +8643,41 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /*   간이·면세 가맹점 — 카드매출전표로 부가세를 공제받을 수 없다. 눈에 걸리게 (2026-08-12) */
 .ev-kind-novat { @apply bg-[var(--danger)]/10 text-[var(--danger)] whitespace-nowrap; }
 .gd-wf-count { @apply shrink-0 mt-1.5 text-[11px] font-semibold text-[var(--text-dim)]; }
+
+/* ── 회사 설정 리디자인 (2026-08-12 사장님: 중복 제거 + 최신 레이아웃) — stg- 네임스페이스 ── */
+/* 셸: 데스크톱 = 좌측 세로 네비 224px + 콘텐츠, 모바일 = 상단 가로 스크롤 필 */
+.stg-shell { @apply lg:grid lg:grid-cols-[224px_minmax(0,1fr)] lg:gap-10 lg:items-start; }
+.stg-nav { @apply hidden lg:block sticky top-4 space-y-5 pb-8; }
+.stg-nav-group-label { @apply px-2.5 mb-1.5 text-[11px] font-semibold text-[var(--text-dim)] flex items-center gap-1.5; }
+.stg-nav-item { @apply block w-full text-left px-2.5 py-[7px] rounded-lg text-[13px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)] hover:bg-[var(--bg-surface)]; }
+.stg-nav-item-on { @apply bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/10 hover:text-[var(--primary)]; }
+.stg-nav-item-danger { @apply text-[var(--danger)]/70 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10; }
+.stg-nav-item-danger-on { @apply bg-[var(--danger)]/10 text-[var(--danger)] font-semibold; }
+.stg-nav-m { @apply lg:hidden flex gap-1.5 overflow-x-auto pb-2 mb-4 -mx-1 px-1; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.stg-nav-m::-webkit-scrollbar { display: none; }
+.stg-nav-m-item { @apply shrink-0 px-3 py-1.5 rounded-full text-[12.5px] font-medium bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] transition-colors; }
+.stg-nav-m-item-on { @apply bg-[var(--primary)] border-[var(--primary)] text-white font-semibold; }
+.stg-nav-m-item-danger-on { @apply bg-[var(--danger)] border-[var(--danger)] text-white font-semibold; }
+.stg-nav-m-sep { @apply shrink-0 self-center w-px h-4 bg-[var(--border)] mx-0.5; }
+/* 콘텐츠 헤더 — 탭 제목 + 한 줄 설명, 얇은 밑줄로 본문과 분리 */
+.stg-main { @apply min-w-0 space-y-0; }
+.stg-head { @apply mb-5 pb-4 border-b border-[var(--border)]; }
+.stg-head-title { @apply text-lg font-bold tracking-tight; }
+.stg-head-desc { @apply text-[13px] text-[var(--text-muted)] mt-1; }
+/* 자금·통장 — 요약 밴드(헤어라인 분할 그리드) + 카드 */
+.stg-statband { @apply grid grid-cols-2 sm:grid-cols-4 gap-px rounded-2xl overflow-hidden border border-[var(--border)] bg-[var(--border)]; }
+.stg-stat { @apply bg-[var(--bg-card)] px-4 py-3.5 min-w-0; }
+.stg-stat-label { @apply text-[11px] font-medium text-[var(--text-dim)]; }
+.stg-stat-value { @apply text-lg font-bold mt-1 truncate; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.stg-stat-sub { @apply text-[10.5px] text-[var(--text-dim)] mt-0.5 truncate; }
+.stg-card { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 sm:p-6; }
+.stg-card-head { @apply flex items-start justify-between gap-3 mb-4; }
+.stg-card-title { @apply text-sm font-bold; }
+.stg-card-desc { @apply text-xs text-[var(--text-dim)] mt-0.5; }
+.stg-form-grid { @apply grid grid-cols-1 sm:grid-cols-2 gap-3; }
+.stg-field-help { @apply text-[10.5px] text-[var(--text-dim)] mt-1 leading-relaxed; }
+.stg-inline-form { @apply mb-4 p-4 rounded-xl border border-[var(--primary)]/25 bg-[var(--primary)]/5 space-y-3; }
+.stg-list-row { @apply flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]; }
+.stg-empty { @apply text-center py-10; }
+.stg-empty-t { @apply text-sm font-semibold text-[var(--text-muted)]; }
+.stg-empty-d { @apply text-xs text-[var(--text-dim)] mt-1; }

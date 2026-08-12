@@ -132,10 +132,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "tax", label: "세무자동화" },
         { key: "bank", label: "은행연동" },
         { key: "ads", label: "광고 계정" },
-        { key: "certificate", label: "인증서" },
+        // "certificate"(은행연동에 흡수)·"approval"(결재 허브 정책 관리로 일원화, 2026-08-12) 키 제거
         { key: "departments", label: "부서" },
         { key: "attendance", label: "근태·가산수당" },
-        { key: "approval", label: "승인·결재" },
         { key: "deal", label: "딜 분류" },
         { key: "forms", label: "회사 양식" },
       ] },

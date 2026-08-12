@@ -3,17 +3,15 @@ import { logRead } from "@/lib/log-read";
 import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { friendlyError } from "@/lib/friendly-error";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { encryptCredential, decryptJsonCredentials } from "@/lib/crypto";
-import { getCurrentUser, getBankAccounts, upsertBankAccount, deleteBankAccount, getRoutingRules, upsertRoutingRule, getDealClassifications, upsertDealClassification, deleteDealClassification } from "@/lib/queries";
+import { getCurrentUser, getBankAccounts, upsertBankAccount, deleteBankAccount, getRoutingRules, upsertRoutingRule } from "@/lib/queries";
 import { COST_TYPES, BANK_ROLES } from "@/lib/routing";
 import { ChartOfAccountsManager } from "@/components/chart-of-accounts-manager";
 import type { BankAccount } from "@/types/models";
-import { createEmployeeInvitation, createPartnerInvitation, getEmployeeInvitations, getPartnerInvitations, getInviteUrl, cancelEmployeeInvitation, cancelPartnerInvitation, sendInviteEmail } from "@/lib/invitations";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -23,7 +21,6 @@ import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
 import { TaxAutomationTab } from "./_components/TaxAutomationTab";
 import { BankIntegrationTab } from "./_components/BankIntegrationTab";
 import { AdAccountsTab } from "./_components/AdAccountsTab";
-import { ApprovalPolicyTab } from "./_components/ApprovalPolicyTab";
 import { TeamManagement } from "./_components/TeamManagement";
 import { DepartmentsTab } from "./_components/DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
@@ -33,14 +30,17 @@ import { CompanyInfoTab } from "./_components/CompanyInfoTab";
 import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 // 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
 
-// ── 2026-07-08 회사 설정 IA 재편 — 6개 그룹 × 세부탭(2단 네비). 잡동사니였던 "일반 설정" 해체,
-//    계정과목·회계마감을 회계 그룹으로 노출, 개인(계정·알림)은 마이페이지로 분리. ──
+// ── 2026-08-12 회사 설정 리디자인(사장님: 중복 제거 + 최신 레이아웃) ──
+//    · 2단 가로 탭 → 좌측 세로 네비(데스크톱) / 가로 스크롤 필(모바일)
+//    · '승인·결재' 탭 제거 — 결재 허브 > 정책 관리와 같은 approval_policies 를 다루는
+//      구버전 중복이었다(참조·팀 지정 없음). 옛 딥링크는 결재 허브로 보낸다.
+//    · 탭마다 제목+설명 헤더를 셸에서 일관 렌더.
 type LeafKey =
   | "company-info" | "team"                       // 회사 기본
   | "cash" | "chart" | "closing" | "tax"          // 회계·세무
   | "bank" | "ads"                                // 연동·인증
   | "departments" | "attendance"                  // 인사·근태
-  | "approval" | "deal" | "forms"                 // 업무 규칙
+  | "deal" | "forms"                              // 업무 규칙
   | "delete-company";                             // 시스템 (회사 삭제 — 마스터 전용)
 
 const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: LeafKey; label: string; masterOnly?: boolean }[] }[] = [
@@ -63,7 +63,6 @@ const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: 
     { key: "attendance", label: "근태·가산수당" },
   ] },
   { key: "rules", label: "업무 규칙", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", tabs: [
-    { key: "approval", label: "승인·결재" },
     { key: "deal", label: "딜 분류" },
     { key: "forms", label: "회사 양식" },
   ] },
@@ -74,12 +73,33 @@ const SETTINGS_GROUPS: { key: string; label: string; icon: string; tabs: { key: 
   ] },
 ];
 const ALL_LEAVES: LeafKey[] = SETTINGS_GROUPS.flatMap((g) => g.tabs.map((t) => t.key));
-// 옛 ?tab= 딥링크 호환 — 재편 전 키를 새 leaf 로 매핑("mypage"=마이페이지로 이관돼 리다이렉트).
-const TAB_COMPAT: Record<string, LeafKey | "mypage"> = {
+
+// 콘텐츠 헤더 — 탭마다 무엇을 하는 곳인지 한 줄로. danger 는 붉은 톤.
+const LEAF_META: Record<LeafKey, { title: string; desc: string; danger?: boolean }> = {
+  "company-info": { title: "회사정보", desc: "사업자 정보와 대표 연락처, 세무 파트너 연결을 관리합니다." },
+  team: { title: "팀·권한", desc: "구성원 초대와 합류 요청 승인, 메뉴·세부탭 권한을 관리합니다." },
+  cash: { title: "자금·통장", desc: "가용 현금 집계와 미연동 통장, 비용 유형별 지급 통장을 설정합니다." },
+  chart: { title: "계정과목", desc: "장부 분류에 쓰는 계정과목 체계를 관리합니다." },
+  closing: { title: "회계마감", desc: "회계 마감시점과 계정별 기초잔액을 관리합니다." },
+  tax: { title: "세무자동화", desc: "세금계산서 자동발행과 거래처 자동 전송을 설정합니다." },
+  bank: { title: "은행연동", desc: "공동인증서로 은행·카드·홈택스 자동 수집을 연결합니다." },
+  ads: { title: "광고 계정", desc: "광고 매체 API 키를 한 곳에 등록하고 프로젝트에서 골라 씁니다." },
+  departments: { title: "부서", desc: "조직 부서를 만들고 구성원을 배치합니다." },
+  attendance: { title: "근태·가산수당", desc: "출퇴근 기준 시각과 유예, 가산수당 규칙을 정합니다." },
+  deal: { title: "딜 분류", desc: "거래 장부에 쓰는 딜 분류 체계를 관리합니다." },
+  forms: { title: "회사 양식", desc: "회사 공용 PDF 양식을 등록하고 관리합니다." },
+  "delete-company": { title: "회사 삭제", desc: "회사와 모든 데이터를 영구 삭제합니다. 되돌릴 수 없습니다.", danger: true },
+};
+
+// 옛 ?tab= 딥링크 호환 — 재편 전 키를 새 leaf 로 매핑. 다른 화면으로 이관된 키는 그 주소로 보낸다.
+const TAB_COMPAT: Record<string, LeafKey> = {
   general: "team",          // 합류요청 알림이 팀관리(승인 UI)로 연결되던 링크
-  account: "mypage", notifications: "mypage",
-  company: "company-info", approval: "approval", bank: "bank", tax: "tax",
+  company: "company-info", bank: "bank", tax: "tax",
   certificate: "bank", hr_attendance: "attendance", danger: "delete-company", data: "delete-company",
+};
+const TAB_MOVED: Record<string, string> = {
+  account: "/mypage", notifications: "/mypage",          // 개인 설정 — 마이페이지로 이관(2026-07-08)
+  approval: "/approvals?tab=policies",                    // 결재 정책 — 결재 허브로 일원화(2026-08-12)
 };
 function groupOfLeaf(leaf: LeafKey): string {
   return SETTINGS_GROUPS.find((g) => g.tabs.some((t) => t.key === leaf))?.key || "basic";
@@ -101,14 +121,14 @@ function SettingsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const rawTab = searchParams?.get("tab") || "";
-  // 옛 키가 마이페이지로 이관된 경우(계정·알림) → 마이페이지로 리다이렉트
+  // 다른 화면으로 이관된 옛 키(계정·알림·결재정책) → 그 주소로 리다이렉트
   useEffect(() => {
-    if (rawTab && TAB_COMPAT[rawTab] === "mypage") router.replace("/mypage");
+    if (rawTab && TAB_MOVED[rawTab]) router.replace(TAB_MOVED[rawTab]);
   }, [rawTab, router]);
   const initialTab: LeafKey = (() => {
     if (ALL_LEAVES.includes(rawTab as LeafKey)) return rawTab as LeafKey;
     const mapped = TAB_COMPAT[rawTab];
-    if (mapped && mapped !== "mypage") return mapped;
+    if (mapped) return mapped;
     return "company-info";
   })();
   const [tab, setTabState] = useState<LeafKey>(initialTab);
@@ -121,7 +141,6 @@ function SettingsPageInner() {
       window.history.replaceState(null, "", url.toString());
     }
   };
-  const activeGroup = groupOfLeaf(tab);
   // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/settings:leaf)만
   const { isMaster: permMaster, hasPerm: permHas } = useMyPermissions();
   const visibleGroups = SETTINGS_GROUPS
@@ -243,6 +262,8 @@ function SettingsPageInner() {
   }
 
   const totalBankBalance = bankAccounts.reduce((s: number, a: BankAccount) => s + Number(a.balance || 0), 0);
+  const totalCash = totalBankBalance + (Number(balance) || 0);
+  const runwayMonths = totalCash > 0 && Number(fixedCost) > 0 ? totalCash / Number(fixedCost) : null;
 
   if (pageLoading) {
     return (
@@ -255,409 +276,369 @@ function SettingsPageInner() {
     );
   }
 
-  const currentGroup = visibleGroups.find((g) => g.key === activeGroup) || visibleGroups[0] || { key: "none", label: "", icon: "", tabs: [] };
+  const meta = LEAF_META[tab];
 
   return (
-    <div className="space-y-6">
-      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
+    <div className="stg-shell">
+      {/* ── 좌측 세로 네비 (데스크톱) ── */}
+      <nav className="stg-nav">
+        {visibleGroups.map((g) => (
+          <div key={g.key}>
+            <div className="stg-nav-group-label">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d={g.icon} /></svg>
+              {g.label}
+            </div>
+            <div className="space-y-0.5">
+              {g.tabs.map((t) => {
+                const active = tab === t.key;
+                const danger = !!LEAF_META[t.key].danger;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setTab(t.key)}
+                    className={`stg-nav-item ${danger ? (active ? "stg-nav-item-danger-on" : "stg-nav-item-danger") : active ? "stg-nav-item-on" : ""}`}
+                  >
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
 
-      {/* 상단 그룹 탭(1단) — 아이콘 + 라벨. 클릭 시 해당 그룹 첫 세부탭으로 이동 */}
-      <div className="settings-group-tabs page-sticky-header">
-        <div className="seg-bar flex w-full overflow-x-auto scrollbar-hide" style={{ WebkitOverflowScrolling: "touch" }}>
-          {visibleGroups.map((g) => {
-            const active = activeGroup === g.key;
-            const danger = g.key === "system";
-            return (
-              <button
-                key={g.key}
-                ref={(el) => { if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }); }}
-                onClick={() => setTab(g.tabs[0].key)}
-                className={`seg-item group inline-flex items-center justify-center gap-1.5 shrink-0 md:grow md:basis-0 min-h-[44px] ${
-                  active ? `seg-item-active ${danger ? "!bg-[var(--danger)]" : ""}` : danger ? "hover:!text-[var(--danger)]" : ""
-                }`}
-              >
-                <svg
-                  className={`w-4 h-4 shrink-0 transition-colors ${active ? "text-white" : "text-[var(--text-dim)] group-hover:text-[var(--text-muted)]"}`}
-                  fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"
+      {/* ── 모바일 네비 — 가로 스크롤, 그룹 경계는 세퍼레이터 ── */}
+      <div className="stg-nav-m">
+        {visibleGroups.map((g, gi) => (
+          <React.Fragment key={g.key}>
+            {gi > 0 && <span className="stg-nav-m-sep" aria-hidden />}
+            {g.tabs.map((t) => {
+              const active = tab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  ref={(el) => { if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }); }}
+                  onClick={() => setTab(t.key)}
+                  className={`stg-nav-m-item ${active ? (LEAF_META[t.key].danger ? "stg-nav-m-item-danger-on" : "stg-nav-m-item-on") : ""}`}
                 >
-                  <path d={g.icon} />
-                </svg>
-                <span>{g.label}</span>
-              </button>
-            );
-          })}
-        </div>
+                  {t.label}
+                </button>
+              );
+            })}
+          </React.Fragment>
+        ))}
       </div>
 
-      {/* 하위 세부 탭(2단) — 현재 그룹의 탭들. 그룹에 탭이 2개 이상일 때만 표시 */}
-      {currentGroup.tabs.length > 1 && (
-        <div className="settings-subtab-bar">
-          {currentGroup.tabs.map((t) => {
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition ${
-                  active
-                    ? "bg-[var(--primary)] text-white shadow-sm"
-                    : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)]"
-                }`}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* ── 콘텐츠 ── */}
+      <div className="stg-main">
+        <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
-      {/* ═══ 자금·통장 (구 일반설정: 현금현황 + 법인통장 + 비용라우팅) ═══ */}
-      {tab === "cash" && (
-        <>
-          {/* Cash Snapshot */}
-          <div className="cash-snapshot-card glass-card">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold">현금 현황</h3>
+        {meta && (
+          <header className="stg-head">
+            <h2 className={`stg-head-title ${meta.danger ? "text-[var(--danger)]" : ""}`}>{meta.title}</h2>
+            <p className="stg-head-desc">{meta.desc}</p>
+          </header>
+        )}
+
+        {/* ═══ 자금·통장 — 가용 현금 집계 + 미연동 통장 + 비용 라우팅 ═══ */}
+        {tab === "cash" && (
+          <div className="space-y-5">
+            {/* 요약 밴드 — 대시보드 숫자 문법(라벨 위·값 아래) */}
+            <div className="stg-statband">
+              <div className="stg-stat">
+                <div className="stg-stat-label">연동 통장 합산</div>
+                <div className="stg-stat-value">₩{totalBankBalance.toLocaleString()}</div>
+                <div className="stg-stat-sub">{bankAccounts.length}개 계좌</div>
+              </div>
+              <div className="stg-stat">
+                <div className="stg-stat-label">추가 현금</div>
+                <div className="stg-stat-value">₩{(Number(balance) || 0).toLocaleString()}</div>
+                <div className="stg-stat-sub">시재금·미연동 계좌</div>
+              </div>
+              <div className="stg-stat">
+                <div className="stg-stat-label">총 가용 현금</div>
+                <div className="stg-stat-value" style={{ color: "var(--primary)" }}>₩{totalCash.toLocaleString()}</div>
+                <div className="stg-stat-sub">대시보드 반영</div>
+              </div>
+              <div className="stg-stat">
+                <div className="stg-stat-label">예상 생존 개월수</div>
+                <div className="stg-stat-value" style={runwayMonths != null ? { color: runwayMonths < 3 ? "var(--danger)" : "var(--success)" } : undefined}>
+                  {runwayMonths != null ? `${runwayMonths.toFixed(1)}개월` : "—"}
+                </div>
+                <div className="stg-stat-sub">총 가용 현금 ÷ 월 고정비</div>
+              </div>
             </div>
-            <div className="space-y-4">
-              {/* 연동 통장 합산 (자동, read-only) */}
-              <div className="p-4 rounded-xl bg-[var(--primary)]/5 border border-[var(--primary)]/20 shadow-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-[11px] font-semibold text-[var(--primary)] uppercase tracking-wider"><Ico e="🔗" /> 연동 통장 합산</div>
-                    <div className="text-xs text-[var(--text-dim)] mt-0.5">통장관리에서 동기화한 모든 계좌 잔액 합산</div>
-                  </div>
-                  <div className="text-xl font-black mono-number">₩{totalBankBalance.toLocaleString()}</div>
-                </div>
-                <div className="text-[10px] text-[var(--text-dim)] mt-2">{bankAccounts.length}개 계좌</div>
-              </div>
 
-              <div>
-                <label className="field-label">추가 현금 — 시재금 / 미연동 계좌 (원)</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={balance ? Number(balance).toLocaleString() : ""}
-                  onChange={(e) => setBalance(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="0"
-                  className="field-input"
-                />
-                <p className="text-[10px] text-[var(--text-dim)] mt-1">연동되지 않은 통장이나 시재금이 있을 때만 입력. 0이면 무시.</p>
-              </div>
-
-              {/* 총 가용 현금 합계 */}
-              <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-[var(--text-muted)]"><Ico e="💰" /> 총 가용 현금 (대시보드 반영)</div>
-                  <div className="text-lg sm:text-2xl font-black mono-number text-[var(--primary)]">
-                    ₩{(totalBankBalance + (Number(balance) || 0)).toLocaleString()}
-                  </div>
+            {/* 수기 보정 입력 */}
+            <section className="stg-card">
+              <div className="stg-card-head">
+                <div>
+                  <h3 className="stg-card-title">현금 현황 보정</h3>
+                  <p className="stg-card-desc">연동 밖의 현금과 추가 고정비를 더해 대시보드 수치를 실제에 맞춥니다.</p>
                 </div>
               </div>
+              <div className="stg-form-grid">
+                <div>
+                  <label className="field-label">추가 현금 — 시재금 / 미연동 계좌 (원)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={balance ? Number(balance).toLocaleString() : ""}
+                    onChange={(e) => setBalance(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="0"
+                    className="field-input"
+                  />
+                  <p className="stg-field-help">연동되지 않은 통장이나 시재금이 있을 때만 입력합니다.</p>
+                </div>
+                <div>
+                  <label className="field-label">추가 월 고정비 (원)</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={fixedCost ? Number(fixedCost).toLocaleString() : ""}
+                    onChange={(e) => setFixedCost(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="0"
+                    className="field-input"
+                  />
+                  <p className="stg-field-help">대시보드 월 고정비 = 반복결제 합 + 직원급여 합 + 이 값. 임대료·보험 등 추가분만 입력합니다.</p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <button onClick={save} className="btn-primary">{saved ? "저장 완료" : "저장"}</button>
+              </div>
+            </section>
 
-              <div>
-                <label className="field-label">추가 월 고정비 (원)</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={fixedCost ? Number(fixedCost).toLocaleString() : ""}
-                  onChange={(e) => setFixedCost(e.target.value.replace(/[^0-9]/g, ""))}
-                  placeholder="0"
-                  className="field-input"
-                />
-                <p className="text-[10px] text-[var(--text-dim)] mt-1">
-                  대시보드 월 고정비 = <b>반복결제 합 + 직원급여 합 + 이 값</b>. 이미 등록된 반복결제/급여 외에 추가로 잡아둘 임대료/보험/기타 비용을 입력하세요.
-                </p>
+            {/* 미연동 통장 (수기) */}
+            <section className="stg-card">
+              <div className="stg-card-head">
+                <div>
+                  <h3 className="stg-card-title">미연동 통장</h3>
+                  <p className="stg-card-desc">은행연동 밖의 계좌를 수기로 올려 잔고에 합산합니다 · 총 ₩{totalBankBalance.toLocaleString()}</p>
+                </div>
+                <button onClick={() => setShowBankForm(!showBankForm)} className="btn-secondary btn-sm shrink-0">+ 통장 추가</button>
               </div>
 
-              {(totalBankBalance + (Number(balance) || 0)) > 0 && Number(fixedCost) > 0 && (
-                <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                  <div className="text-xs text-[var(--text-dim)]">예상 생존 개월수</div>
-                  <div className={`text-2xl font-extrabold mt-1 ${
-                    (totalBankBalance + Number(balance)) / Number(fixedCost) < 3 ? "text-[var(--danger)]" : "text-[var(--success)]"
-                  }`}>
-                    {((totalBankBalance + Number(balance)) / Number(fixedCost)).toFixed(1)}개월
+              {showBankForm && (
+                <div className="stg-inline-form">
+                  <div className="stg-form-grid">
+                    <div>
+                      <label className="field-label">은행명 *</label>
+                      <input
+                        value={bankForm.bank_name}
+                        onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
+                        placeholder="국민은행"
+                        className="field-input-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label">계좌번호 *</label>
+                      <input
+                        value={bankForm.account_number}
+                        onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })}
+                        placeholder="123-456-789012"
+                        className="field-input-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label">별칭</label>
+                      <input
+                        value={bankForm.alias}
+                        onChange={(e) => setBankForm({ ...bankForm, alias: e.target.value })}
+                        placeholder="메인 운영통장"
+                        className="field-input-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label">용도</label>
+                      <select
+                        value={bankForm.role}
+                        onChange={(e) => setBankForm({ ...bankForm, role: e.target.value })}
+                        className="field-input-sm"
+                      >
+                        {BANK_ROLES.map((r) => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="field-label">잔고 (원)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={bankForm.balance ? Number(bankForm.balance).toLocaleString() : ""}
+                        onChange={(e) => setBankForm({ ...bankForm, balance: e.target.value.replace(/[^0-9]/g, "") })}
+                        placeholder="0"
+                        className="field-input-sm"
+                      />
+                    </div>
+                    <div className="flex items-end pb-1">
+                      <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                        <input
+                          type="checkbox"
+                          checked={bankForm.is_primary}
+                          onChange={(e) => setBankForm({ ...bankForm, is_primary: e.target.checked })}
+                          className="rounded"
+                        />
+                        주 통장
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => bankForm.bank_name.trim() && bankForm.account_number.trim() && addBankMut.mutate()}
+                      disabled={!bankForm.bank_name.trim() || !bankForm.account_number.trim() || addBankMut.isPending}
+                      className="btn-primary"
+                    >
+                      추가
+                    </button>
+                    <button onClick={() => setShowBankForm(false)} className="btn-ghost">취소</button>
                   </div>
                 </div>
               )}
-              <button
-                onClick={save}
-                className="btn-primary w-full"
-              >
-                {saved ? "저장 완료" : "저장"}
-              </button>
-            </div>
-          </div>
 
-          {/* Bank Accounts */}
-          <div className="bank-account-list-card glass-card">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-sm font-bold">법인 통장 관리</h3>
-                <p className="text-xs text-[var(--text-dim)] mt-0.5">
-                  총 잔고: ₩{totalBankBalance.toLocaleString()}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowBankForm(!showBankForm)}
-                className="btn-secondary btn-sm"
-              >
-                + 통장 추가
-              </button>
-            </div>
-
-            {showBankForm && (
-              <div className="bank-account-add-form">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="field-label">은행명 *</label>
-                    <input
-                      value={bankForm.bank_name}
-                      onChange={(e) => setBankForm({ ...bankForm, bank_name: e.target.value })}
-                      placeholder="국민은행"
-                      className="field-input-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label">계좌번호 *</label>
-                    <input
-                      value={bankForm.account_number}
-                      onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })}
-                      placeholder="123-456-789012"
-                      className="field-input-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label">별칭</label>
-                    <input
-                      value={bankForm.alias}
-                      onChange={(e) => setBankForm({ ...bankForm, alias: e.target.value })}
-                      placeholder="메인 운영통장"
-                      className="field-input-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="field-label">용도</label>
-                    <select
-                      value={bankForm.role}
-                      onChange={(e) => setBankForm({ ...bankForm, role: e.target.value })}
-                      className="field-input-sm"
-                    >
-                      {BANK_ROLES.map((r) => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="field-label">잔고 (원)</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={bankForm.balance ? Number(bankForm.balance).toLocaleString() : ""}
-                      onChange={(e) => setBankForm({ ...bankForm, balance: e.target.value.replace(/[^0-9]/g, "") })}
-                      placeholder="0"
-                      className="field-input-sm"
-                    />
-                  </div>
-                  <div className="flex items-end pb-1">
-                    <label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                      <input
-                        type="checkbox"
-                        checked={bankForm.is_primary}
-                        onChange={(e) => setBankForm({ ...bankForm, is_primary: e.target.checked })}
-                        className="rounded"
-                      />
-                      주 통장
-                    </label>
-                  </div>
+              {bankAccounts.length === 0 ? (
+                <div className="stg-empty">
+                  <div className="text-3xl mb-3"><Ico e="🏦" /></div>
+                  <div className="stg-empty-t">등록된 통장이 없습니다</div>
+                  <div className="stg-empty-d">자동 수집 계좌는 은행연동에서, 그 외 계좌는 &quot;+ 통장 추가&quot;로 올립니다.</div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => bankForm.bank_name.trim() && bankForm.account_number.trim() && addBankMut.mutate()}
-                    disabled={!bankForm.bank_name.trim() || !bankForm.account_number.trim() || addBankMut.isPending}
-                    className="btn-primary"
-                  >
-                    추가
-                  </button>
-                  <button onClick={() => setShowBankForm(false)} className="btn-ghost">
-                    취소
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {bankAccounts.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-3xl mb-3"><Ico e="🏦" /></div>
-                <div className="text-sm font-semibold text-[var(--text-muted)]">등록된 통장이 없습니다</div>
-                <div className="text-xs text-[var(--text-dim)] mt-1">우측 상단 &quot;+ 통장 추가&quot;로 첫 계좌를 등록하세요.</div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {bankAccounts.map((acc: BankAccount) => (
-                  <div
-                    key={acc.id}
-                    className="bank-account-row"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{acc.alias || acc.bank_name}</span>
-                        {acc.is_primary && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">주</span>
-                        )}
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">
-                          {BANK_ROLES.find(r => r.value === acc.role)?.label || acc.role}
-                        </span>
+              ) : (
+                <div className="space-y-2">
+                  {bankAccounts.map((acc: BankAccount) => (
+                    <div key={acc.id} className="stg-list-row">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{acc.alias || acc.bank_name}</span>
+                          {acc.is_primary && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">주</span>
+                          )}
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">
+                            {BANK_ROLES.find(r => r.value === acc.role)?.label || acc.role}
+                          </span>
+                        </div>
+                        <div className="text-xs text-[var(--text-dim)] mt-0.5">
+                          {acc.bank_name} {acc.account_number}
+                        </div>
                       </div>
-                      <div className="text-xs text-[var(--text-dim)] mt-0.5">
-                        {acc.bank_name} {acc.account_number}
+                      <div className="text-right flex items-center gap-3">
+                        <span className="text-sm font-bold mono-number">₩{Number(acc.balance || 0).toLocaleString()}</span>
+                        <button
+                          onClick={async () => {
+                            const { ok } = await confirm({ title: "통장 연결 삭제", desc: "기존 거래내역은 유지됩니다.", danger: true });
+                            if (ok) deleteBankMut.mutate(acc.id);
+                          }}
+                          className="text-xs text-red-400/60 hover:text-red-400 transition"
+                        >
+                          삭제
+                        </button>
                       </div>
                     </div>
-                    <div className="text-right flex items-center gap-3">
-                      <span className="text-sm font-bold">₩{Number(acc.balance || 0).toLocaleString()}</span>
-                      <button
-                        onClick={async () => {
-                          const { ok } = await confirm({ title: "통장 연결 삭제", desc: "기존 거래내역은 유지됩니다.", danger: true });
-                          if (ok) deleteBankMut.mutate(acc.id);
-                        }}
-                        className="text-xs text-red-400/60 hover:text-red-400 transition"
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* 비용 라우팅 — 지출결의 승인 시 지급 통장 자동 결정 */}
+            <section className="stg-card">
+              <div className="stg-card-head">
+                <div>
+                  <h3 className="stg-card-title">비용 라우팅 규칙</h3>
+                  <p className="stg-card-desc">지출결의가 승인되면 비용 유형에 맞는 통장에서 지급되도록 정합니다.</p>
+                </div>
+                <button onClick={() => setShowRuleForm(!showRuleForm)} className="btn-secondary btn-sm shrink-0">+ 규칙 추가</button>
+              </div>
+
+              {showRuleForm && bankAccounts.length > 0 && (
+                <div className="stg-inline-form">
+                  <div className="stg-form-grid">
+                    <div>
+                      <label className="field-label">비용 유형</label>
+                      <select
+                        value={ruleForm.cost_type}
+                        onChange={(e) => setRuleForm({ ...ruleForm, cost_type: e.target.value })}
+                        className="field-input-sm"
                       >
-                        삭제
-                      </button>
+                        {COST_TYPES.map((t) => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="field-label">지급 통장</label>
+                      <select
+                        value={ruleForm.bank_account_id}
+                        onChange={(e) => setRuleForm({ ...ruleForm, bank_account_id: e.target.value })}
+                        className="field-input-sm"
+                      >
+                        <option value="">선택</option>
+                        {bankAccounts.map((acc: BankAccount) => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.alias || acc.bank_name} ({acc.account_number})
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Routing Rules */}
-          <div className="routing-rule-list-card glass-card">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-sm font-bold">비용 라우팅 규칙</h3>
-                <p className="text-xs text-[var(--text-dim)] mt-0.5">비용 유형별 지급 통장 자동 매칭</p>
-              </div>
-              <button
-                onClick={() => setShowRuleForm(!showRuleForm)}
-                className="btn-secondary btn-sm"
-              >
-                + 규칙 추가
-              </button>
-            </div>
-
-            {showRuleForm && bankAccounts.length > 0 && (
-              <div className="routing-rule-add-form">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="field-label">비용 유형</label>
-                    <select
-                      value={ruleForm.cost_type}
-                      onChange={(e) => setRuleForm({ ...ruleForm, cost_type: e.target.value })}
-                      className="field-input-sm"
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => ruleForm.bank_account_id && addRuleMut.mutate()}
+                      disabled={!ruleForm.bank_account_id || addRuleMut.isPending}
+                      className="btn-primary"
                     >
-                      {COST_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>{t.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="field-label">지급 통장</label>
-                    <select
-                      value={ruleForm.bank_account_id}
-                      onChange={(e) => setRuleForm({ ...ruleForm, bank_account_id: e.target.value })}
-                      className="field-input-sm"
-                    >
-                      <option value="">선택</option>
-                      {bankAccounts.map((acc: BankAccount) => (
-                        <option key={acc.id} value={acc.id}>
-                          {acc.alias || acc.bank_name} ({acc.account_number})
-                        </option>
-                      ))}
-                    </select>
+                      추가
+                    </button>
+                    <button onClick={() => setShowRuleForm(false)} className="btn-ghost">취소</button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => ruleForm.bank_account_id && addRuleMut.mutate()}
-                    disabled={!ruleForm.bank_account_id || addRuleMut.isPending}
-                    className="btn-primary"
-                  >
-                    추가
-                  </button>
-                  <button onClick={() => setShowRuleForm(false)} className="btn-ghost">
-                    취소
-                  </button>
+              )}
+
+              {routingRules.length === 0 ? (
+                <div className="stg-empty">
+                  <div className="stg-empty-t">라우팅 규칙이 없습니다 — 기본 통장으로 지급됩니다</div>
+                  <div className="stg-empty-d">&quot;+ 규칙 추가&quot;로 비용 유형별 지급 통장을 지정할 수 있습니다.</div>
                 </div>
-              </div>
-            )}
-
-            {routingRules.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-3xl mb-3">🧭</div>
-                <div className="text-sm font-semibold text-[var(--text-muted)]">라우팅 규칙이 없습니다. 기본 통장으로 지급됩니다.</div>
-                <div className="text-xs text-[var(--text-dim)] mt-1">우측 상단 &quot;+ 규칙 추가&quot;로 비용 유형별 지급 통장을 지정할 수 있습니다.</div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {routingRules.map((rule: any) => (
-                  <div
-                    key={rule.id}
-                    className="routing-rule-row"
-                  >
-                    <span className="text-sm font-medium">
-                      {COST_TYPES.find(t => t.value === rule.cost_type)?.label || rule.cost_type}
-                    </span>
-                    <span className="text-xs text-[var(--text-muted)]">
-                      → {rule.bank_accounts?.alias || rule.bank_accounts?.bank_name || "미지정"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+              ) : (
+                <div className="space-y-2">
+                  {routingRules.map((rule: any) => (
+                    <div key={rule.id} className="stg-list-row">
+                      <span className="text-sm font-medium">
+                        {COST_TYPES.find(t => t.value === rule.cost_type)?.label || rule.cost_type}
+                      </span>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        → {rule.bank_accounts?.alias || rule.bank_accounts?.bank_name || "미지정"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
-        </>
-      )}
+        )}
 
-      {/* ═══ 회사 기본 — 회사정보 ═══ */}
-      {tab === "company-info" && <CompanyInfoTab companyId={companyId} />}
+        {/* ═══ 회사 기본 ═══ */}
+        {tab === "company-info" && <CompanyInfoTab companyId={companyId} />}
+        {tab === "team" && <TeamManagement companyId={companyId} />}
 
-      {/* ═══ 회사 기본 — 팀·권한 ═══ */}
-      {tab === "team" && <TeamManagement companyId={companyId} />}
+        {/* ═══ 회계·세무 ═══ */}
+        {tab === "chart" && companyId && <ChartOfAccountsManager companyId={companyId} />}
+        {tab === "closing" && <AccountingClosingTab companyId={companyId} />}
+        {tab === "tax" && <TaxAutomationTab companyId={companyId} />}
 
-      {/* ═══ 회계·세무 — 계정과목 ═══ */}
-      {tab === "chart" && companyId && <ChartOfAccountsManager companyId={companyId} />}
+        {/* ═══ 연동·인증 ═══ */}
+        {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
+        {/* 광고 계정 — 키는 여기 한 번, 프로젝트에서는 골라 쓴다 (2026-08-06) */}
+        {tab === "ads" && companyId && <AdAccountsTab companyId={companyId} />}
 
-      {/* ═══ 회계·세무 — 회계마감 ═══ */}
-      {tab === "closing" && <AccountingClosingTab companyId={companyId} />}
+        {/* ═══ 인사·근태 ═══ */}
+        {tab === "departments" && <DepartmentsTab companyId={companyId} />}
+        {tab === "attendance" && companyId && <HrAttendanceSettingsPanel companyId={companyId} />}
 
-      {/* ═══ 회계·세무 — 세무자동화 ═══ */}
-      {tab === "tax" && <TaxAutomationTab companyId={companyId} />}
+        {/* ═══ 업무 규칙 ═══ */}
+        {tab === "deal" && <DealClassificationManager companyId={companyId} />}
+        {tab === "forms" && <FormTemplateManager companyId={companyId} />}
 
-      {/* ═══ 연동·인증 — 은행연동 ═══ */}
-      {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
-
-      {/* 광고 계정 — 키는 여기 한 번, 프로젝트에서는 골라 쓴다 (2026-08-06) */}
-      {tab === "ads" && companyId && <AdAccountsTab companyId={companyId} />}
-
-      {/* ═══ 연동·인증 — 인증서 ═══ */}
-
-      {/* ═══ 인사·근태 — 부서 ═══ */}
-      {tab === "departments" && <DepartmentsTab companyId={companyId} />}
-
-      {/* ═══ 인사·근태 — 근태·가산수당 ═══ */}
-      {tab === "attendance" && companyId && <HrAttendanceSettingsPanel companyId={companyId} />}
-
-      {/* ═══ 업무 규칙 — 승인·결재 정책 ═══ */}
-      {tab === "approval" && <ApprovalPolicyTab companyId={companyId} />}
-
-      {/* ═══ 업무 규칙 — 딜 분류 ═══ */}
-      {tab === "deal" && <DealClassificationManager companyId={companyId} />}
-
-      {/* ═══ 업무 규칙 — 회사 양식 PDF ═══ */}
-      {tab === "forms" && <FormTemplateManager companyId={companyId} />}
-
-      {tab === "delete-company" && companyId && permMaster && <CompanyDeleteTab companyId={companyId} />}
+        {tab === "delete-company" && companyId && permMaster && <CompanyDeleteTab companyId={companyId} />}
+      </div>
 
       {confirmElement}
     </div>
