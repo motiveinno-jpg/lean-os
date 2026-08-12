@@ -8678,17 +8678,21 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .stg-band-sub { @apply text-[12.5px] mt-0.5 truncate; color: #8d97c4; }
 .stg-band-alert { @apply shrink-0 text-[11.5px] font-bold px-3 py-1.5 rounded-full transition-colors; color: #ffd9a8; background: #ffffff14; }
 .stg-band-alert:hover { background: #ffffff22; }
-.stg-band-nav { @apply flex items-center gap-1 overflow-x-auto pb-2 -mx-1 px-1; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+/* 탭 줄 — 모바일은 가로 스크롤, 데스크톱(sm+)은 줄바꿈으로 전부 보이게(잘림 방지, 2026-08-13 사장님) */
+.stg-band-nav { @apply flex items-center gap-1 overflow-x-auto pb-2 -mx-1 px-1 sm:flex-wrap sm:overflow-visible sm:gap-y-1.5; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .stg-band-nav::-webkit-scrollbar { display: none; }
-.stg-band-item { @apply shrink-0 flex items-center gap-1.5 px-3 py-[7px] rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors; color: #c9cfe8; }
+.stg-band-item { @apply shrink-0 flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors; color: #c9cfe8; }
 .stg-band-item:hover { background: #ffffff10; color: #fff; }
 .stg-band-item small { @apply text-[10.5px] font-semibold; color: #7d87b5; font-variant-numeric: tabular-nums; }
-.stg-band-item-on { @apply font-bold; background: #ffffff; color: #151c33; }
+.stg-band-item-on { @apply font-bold; background: #ffffff; color: #151c33; box-shadow: 0 2px 10px -2px rgba(0,0,0,.45); }
 .stg-band-item-on:hover { background: #ffffff; color: #151c33; }
 .stg-band-item-on small { color: #6c76a5; }
 .stg-band-item-warn { color: #f4b26a !important; }
 .stg-band-sep { @apply shrink-0 self-center w-px h-4 mx-1; background: #ffffff1f; }
 .stg-band-item-danger { color: #e58a8a; }
+/* 회사 삭제 — 데스크톱에선 오른쪽 끝으로 격리 (앞 세퍼레이터는 그때 숨김) */
+.stg-band-item-danger { @apply sm:ml-auto; }
+.stg-band-sep:has(+ .stg-band-item-danger) { @apply sm:hidden; }
 .stg-band-item-danger:hover { background: #ff5c5c1a; color: #ff9d9d; }
 .stg-band-item-danger.stg-band-item-on { background: #ffe9e9; color: #a02c2c; }
 /* 콘텐츠 헤더 — 크럼 + 탭 제목 + 한 줄 설명, 얇은 밑줄로 본문과 분리 */
