@@ -2797,9 +2797,35 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .expense-request-form-card { @apply p-6 mb-6; }
 .expense-requests-table { @apply overflow-hidden; }
 .partner-kpi-cards { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
-.partner-filter-bar { @apply space-y-3 mb-6; }
-.partner-advanced-filter-bar { @apply flex flex-wrap items-center gap-2; }
-.partner-tag-filter-chips { @apply flex flex-wrap items-center gap-2; }
+
+/* 거래처 — 툴바 한 줄 (2026-08-12 UI 정리). 예전의 3줄 필터바를 대신한다. */
+.partner-kpi-cards-3 { @apply lg:grid-cols-3; }
+.partner-toolbar { @apply flex flex-wrap items-center gap-2 mb-3; }
+.partner-kind-tabs { @apply flex items-center gap-1 flex-wrap; }
+.partner-kind-tab { @apply px-3 py-1.5 rounded-xl text-[13px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:text-[var(--text)] whitespace-nowrap; }
+.partner-kind-tab-on { @apply bg-[var(--primary)] border-[var(--primary)] text-white; }
+.partner-kind-count { @apply ml-0.5 text-[11px] font-bold opacity-70 tabular-nums; }
+.partner-toolbar-right { @apply ml-auto flex items-center gap-1.5 flex-wrap justify-end; }
+.partner-search-input { @apply w-[220px] max-w-full px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[13px] focus:outline-none focus:border-[var(--primary)]; }
+.partner-count-note { @apply text-xs text-[var(--text-dim)] tabular-nums; }
+
+/* 필터 팝오버 안쪽 */
+.partner-filter-pop { @apply flex flex-col gap-2.5; }
+.partner-filter-pop-row { @apply flex items-center gap-2 text-xs text-[var(--text-dim)]; }
+.partner-filter-pop-row > span { @apply w-14 shrink-0 font-semibold; }
+.partner-filter-pop-row select { @apply flex-1 px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-xs text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.partner-filter-pop-tags { @apply flex gap-2 text-xs text-[var(--text-dim)]; }
+.partner-filter-pop-tags > span { @apply w-14 shrink-0 font-semibold pt-1; }
+.partner-filter-pop-tags > div { @apply flex flex-wrap gap-1; }
+.partner-tag-chip { @apply text-[11px] px-2 py-0.5 rounded-full border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:border-[var(--text-dim)]; }
+.partner-tag-chip-on { @apply bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--primary)] font-semibold; }
+.partner-filter-pop-reset { @apply text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] underline text-left; }
+
+/* 처리할 것 띠 — 지금 손댈 것을 화면이 먼저 말한다 */
+.partner-todo-band { @apply flex flex-wrap items-center gap-2 mb-4 px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-[12.5px] text-amber-600; }
+.partner-todo-chip { @apply px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold border border-amber-500/40 bg-[var(--bg-card)] text-amber-600 transition hover:bg-amber-500/10; }
+.partner-todo-chip-on { @apply bg-amber-500 border-amber-500 text-white; }
+.partner-todo-clear { @apply ml-auto text-[11.5px] underline text-[var(--text-dim)] hover:text-[var(--text)]; }
 .partner-list-table { @apply overflow-hidden; }
 .partner-bulk-action-bar { @apply flex items-center gap-3 px-4 py-2 mb-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .partner-pagination-bar { @apply flex items-center justify-between px-4 py-3 border-t border-[var(--border)] text-xs flex-wrap gap-2; }

@@ -3,7 +3,8 @@ import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { ToolbarPopover } from "@/components/toolbar-popover";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { friendlyError } from "@/lib/friendly-error";
@@ -128,6 +129,19 @@ function calcRelationshipScore(opts: { dealCount: number; contractTotal: number;
   return { score, tier, ...palette[tier] };
 }
 
+//   갈래 탭 — 예전의 '구분 select + 활성만 버튼' 을 대신한다. 탭이 건수를 들고 있어
+//   누르기 전에 어디에 뭐가 있는지 보인다 (2026-08-12).
+//   ⚠️ DB 에 저장된 값은 client / vendor 다 (customer / supplier 가 아니다).
+//     처음에 짐작으로 customer·supplier 를 썼다가 탭 건수가 전부 0 으로 떠서 화면에서 잡았다.
+const KIND_TABS = [
+  { key: "all", label: "전체" },
+  { key: "client", label: "고객사" },
+  { key: "vendor", label: "공급업체" },
+  { key: "dormant", label: "휴면" },
+  { key: "inactive", label: "비활성" },
+] as const;
+type KindKey = (typeof KIND_TABS)[number]["key"];
+
 export default function PartnersPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -174,6 +188,10 @@ export default function PartnersPage() {
   const [showCommForm, setShowCommForm] = useState(false);
   const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
   const [tagFilter, setTagFilter] = useState<string>("");
+  //   갈래 탭 — typeFilter/activeFilter 를 사람이 읽는 한 덩어리로 묶은 것
+  const [kindKey, setKindKey] = useState<KindKey>("all");
+  //   '처리할 것' 띠에서 고른 것 (사업자번호 없음 / 담당자 없음)
+  const [todoFilter, setTodoFilter] = useState<"" | "biz" | "owner">("");
   type SortKey = "code" | "name" | "type" | "business_number" | "contact" | "phone" | "tag" | "status";
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -294,6 +312,73 @@ export default function PartnersPage() {
     staleTime: 60_000,
   });
 
+  //   요약 카드가 **서로 다른 것**을 말하게 하려고 붙인 두 숫자 (2026-08-12 UI 정리).
+  //   예전 4칸은 전체·활성·표시 중이 719 로 같은 값이라 사실상 한 칸이었다.
+  //   ⚠️ '미수금 있는 곳'을 넣으려다 뺐다 — 세금계산서 2,443건 중 수금이 잡힌 건 8건뿐이라
+  //     501곳(거의 전부)으로 나온다. 경보가 아니라 소음이 된다. 수금 매칭이 쌓이면 그때 넣는다.
+  const { data: activity = { traded: 0, fresh: 0 } } = useQuery<{ traded: number; fresh: number }>({
+    queryKey: ["partner-activity", companyId],
+    queryFn: async () => {
+      const month = todayKst().slice(0, 7);
+      const from = `${month}-01`;
+      const [y, m] = month.split("-").map(Number);
+      const to = `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01`;
+      const [inv, np] = await Promise.all([
+        supabase.from("tax_invoices").select("partner_id")
+          .eq("company_id", companyId!).neq("status", "void").not("partner_id", "is", null)
+          .gte("issue_date", from).lt("issue_date", to),
+        supabase.from("partners").select("id", { count: "exact", head: true })
+          .eq("company_id", companyId!).gte("created_at", from).lt("created_at", to),
+      ]);
+      const ids = new Set(((inv.data as any[]) || []).map((r) => r.partner_id));
+      return { traded: ids.size, fresh: Number(np.count || 0) };
+    },
+    enabled: !!companyId, staleTime: 60_000,
+  });
+
+  //   갈래를 누르면 기존 두 상태(typeFilter·activeFilter)로 번역해 준다 — 조회 조건은 그대로 두고
+  //   사람이 읽는 이름만 바꾼 것이라 서버 쿼리는 예전과 같다.
+  const applyKind = (k: KindKey) => {
+    setKindKey(k);
+    setTodoFilter("");
+    setPage(1);
+    if (k === "all") { setTypeFilter(""); setActiveFilter(undefined); return; }
+    if (k === "inactive") { setTypeFilter(""); setActiveFilter(false); return; }
+    if (k === "dormant") { setTypeFilter(""); setActiveFilter(undefined); return; }
+    setTypeFilter(k);          // "client" | "vendor" — DB 값 그대로
+    setActiveFilter(true);
+  };
+
+  //   탭 건수 — 회사 전체 기준이라 지금 걸린 필터와 무관하게 늘 같은 수를 보여 준다
+  const { data: kindCounts = {} as Record<KindKey, number> } = useQuery<Record<KindKey, number>>({
+    queryKey: ["partner-kind-counts", companyId],
+    queryFn: async () => {
+      const data = logRead("partners/page:kinds", await supabase
+        .from("partners").select("type, is_active, is_dormant, business_number, contact_name")
+        .eq("company_id", companyId!));
+      const rows = (data as any[]) || [];
+      return {
+        all: rows.length,
+        client: rows.filter((r) => r.type === "client" && r.is_active).length,
+        vendor: rows.filter((r) => r.type === "vendor" && r.is_active).length,
+        dormant: rows.filter((r) => r.is_dormant).length,
+        inactive: rows.filter((r) => !r.is_active).length,
+      } as Record<KindKey, number>;
+    },
+    enabled: !!companyId, staleTime: 60_000,
+  });
+
+  //   처리할 것 — 사람이 채워야만 채워지는 두 칸. 자동으로 못 푸는 것이라 화면에 적는다.
+  const todo = useMemo(() => {
+    const rows = rawPartners as any[];
+    return {
+      noBiz: rows.filter((r) => r.is_active && !String(r.business_number || "").trim()).length,
+      noOwner: rows.filter((r) => r.is_active && !String(r.contact_name || "").trim()).length,
+    };
+  }, [rawPartners]);
+
+  const advCount = [classFilter, regionFilter, sizeFilter, tagFilter].filter(Boolean).length;
+
   // 클라이언트측 필터: 산업/지역/거래규모
   const filteredPartners = (rawPartners as any[]).filter((p: any) => {
     if (classFilter && (p.classification || "").trim() !== classFilter) return false;
@@ -305,6 +390,11 @@ export default function PartnersPage() {
       if (sizeFilter === "1k_10k" && !(total >= 10_000_000 && total < 100_000_000)) return false;
       if (sizeFilter === "gte10k" && !(total >= 100_000_000)) return false;
     }
+    //   갈래 '휴면' 은 서버 조건이 아니라 이 칸으로만 갈린다
+    if (kindKey === "dormant" && !p.is_dormant) return false;
+    //   '처리할 것' 띠에서 고른 것 — 그 목록만 남긴다
+    if (todoFilter === "biz" && String(p.business_number || "").trim()) return false;
+    if (todoFilter === "owner" && String(p.contact_name || "").trim()) return false;
     return true;
   });
 
@@ -692,17 +782,16 @@ export default function PartnersPage() {
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* KPI 카드 4 (거래처) — stat-tile 표준 */}
-      <div className="partner-kpi-cards">
+      {/* 요약 3칸 — **서로 다른 것만** 말한다 (2026-08-12).
+          예전 4칸은 전체·활성·표시 중이 719 로 같은 값이라 한 칸이나 마찬가지였고,
+          휴면은 아래 갈래 탭이 건수를 들고 있어 중복이었다. */}
+      <div className="partner-kpi-cards partner-kpi-cards-3">
         {(() => {
           const all = rawPartners as any[];
-          const active = all.filter((p) => p.is_active).length;
-          const dormant = all.filter((p) => p.is_dormant).length;
           const cards: { variant: string; icon: string; label: string; value: string }[] = [
-            { variant: "", icon: "building", label: "전체 거래처", value: `${all.length.toLocaleString()}곳` },
-            { variant: "success", icon: "check", label: "활성", value: `${active.toLocaleString()}곳` },
-            { variant: "warning", icon: "clock", label: "휴면", value: `${dormant.toLocaleString()}곳` },
-            { variant: "info", icon: "card", label: "표시 중", value: `${partners.length.toLocaleString()}곳` },
+            { variant: "", icon: "building", label: "거래처", value: `${all.length.toLocaleString()}곳` },
+            { variant: "success", icon: "check", label: "이번 달 거래 발생", value: `${activity.traded.toLocaleString()}곳` },
+            { variant: "info", icon: "card", label: "이번 달 신규", value: `${activity.fresh.toLocaleString()}곳` },
           ];
           return cards.map((s) => (
             <div key={s.label} className="stat-tile">
@@ -718,32 +807,68 @@ export default function PartnersPage() {
         })()}
       </div>
 
-      {/* Filter Bar */}
-      <div className="partner-filter-bar">
-      <div className="flex flex-wrap items-center gap-3">
-        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
-          {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <button onClick={() => setActiveFilter(activeFilter === true ? undefined : true)}
-          className={`px-3 py-2 rounded-xl text-sm font-medium border transition ${
-            activeFilter === true
-              ? "bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--primary)]"
-              : "bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)]"
-          }`}>
-          {activeFilter === true ? "활성만" : "전체"}
-        </button>
-        <input type="text" placeholder="이름, 담당자, 사업자번호 검색..." value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 min-w-[200px] px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
-        {/* 액션 버튼 — 리스트 바로 위 우측 정렬(작게). 자주 쓰는 것만 표시, 나머지는 더보기(2026-07-14) */}
-        <div className="ml-auto flex items-center gap-1.5 flex-wrap justify-end">
-          <Link href="/partners/ledger" className="btn-secondary btn-sm whitespace-nowrap" title="거래처별 미수금/미지급금 원장 (채권·채무 대사)">거래처 원장</Link>
-          <button onClick={runDormancyDetect} disabled={detecting} className="btn-secondary btn-sm whitespace-nowrap disabled:opacity-50"
-            title="6개월 이상 거래·연락 없는 거래처를 휴면으로 표시하고 담당자에게 리마인더 알림 발송">
-            {detecting ? "감지 중..." : "휴면 감지"}
-          </button>
+      {/* ── 툴바 한 줄 (2026-08-12 UI 정리) ──
+          예전엔 세 줄이었다: (1)구분·활성만·검색·버튼4 (2)산업/지역/거래규모 (3)태그.
+          갈래는 **탭이 건수를 들고**, 가끔 쓰는 필터 넷은 **필터 팝오버** 하나로 접었다.
+          '거래처 원장' 버튼은 위 탭에 같은 것이 있어 뺐다(중복). */}
+      <div className="partner-toolbar">
+        <div className="partner-kind-tabs">
+          {KIND_TABS.map((k) => (
+            <button key={k.key} type="button" onClick={() => applyKind(k.key)}
+              className={kindKey === k.key ? "partner-kind-tab partner-kind-tab-on" : "partner-kind-tab"}>
+              {k.label} <span className="partner-kind-count">{(kindCounts[k.key] ?? 0).toLocaleString()}</span>
+            </button>
+          ))}
+        </div>
+        <div className="partner-toolbar-right">
+          <input type="text" placeholder="이름·담당자·사업자번호 검색…" value={search}
+            onChange={(e) => setSearch(e.target.value)} className="partner-search-input" />
+          <ToolbarPopover label={advCount > 0 ? `필터 ${advCount}` : "필터"} title="산업 · 지역 · 거래규모 · 태그" width={252}>
+            {() => (
+              <div className="partner-filter-pop">
+                <label className="partner-filter-pop-row"><span>산업</span>
+                  <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+                    <option value="">전체</option>
+                    {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </label>
+                <label className="partner-filter-pop-row"><span>지역</span>
+                  <select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
+                    <option value="">전체</option>
+                    {regionOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </label>
+                <label className="partner-filter-pop-row"><span>거래규모</span>
+                  <select value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}>
+                    <option value="">전체</option>
+                    <option value="gte10k">1억 이상 (VIP)</option>
+                    <option value="1k_10k">1천만~1억</option>
+                    <option value="lt1000">~1천만</option>
+                    <option value="none">거래 없음</option>
+                  </select>
+                </label>
+                {allTags.length > 0 && (
+                  <div className="partner-filter-pop-tags">
+                    <span>태그</span>
+                    <div>
+                      {allTags.map((tag) => (
+                        <button key={tag} type="button" onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
+                          className={tagFilter === tag ? "partner-tag-chip partner-tag-chip-on" : "partner-tag-chip"}>{tag}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {advCount > 0 && (
+                  <button type="button" onClick={() => { setClassFilter(""); setRegionFilter(""); setSizeFilter(""); setTagFilter(""); }}
+                    className="partner-filter-pop-reset">필터 초기화</button>
+                )}
+              </div>
+            )}
+          </ToolbarPopover>
           <MoreMenu>
+            <button onClick={runDormancyDetect} disabled={detecting} className={MORE_ITEM_CLS} role="menuitem">
+              <Ico e="💤" /> {detecting ? "감지 중…" : "휴면 감지"}
+            </button>
             <button onClick={downloadCSVTemplate} className={MORE_ITEM_CLS} role="menuitem"><Ico e="📄" /> CSV 템플릿</button>
             <label className={MORE_ITEM_CLS}><Ico e="📥" /> CSV 임포트
               <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden"
@@ -752,60 +877,29 @@ export default function PartnersPage() {
             <button onClick={handleExport} className={MORE_ITEM_CLS} role="menuitem"><Ico e="📤" /> Excel 내보내기</button>
           </MoreMenu>
           <button onClick={openCreate} className="btn-primary btn-sm whitespace-nowrap">+ 새 거래처</button>
+          <span className="partner-count-note">{partners.length}건</span>
         </div>
-        <span className="text-xs text-[var(--text-dim)]">{partners.length}건{partners.length !== (rawPartners as any[]).length && `/${(rawPartners as any[]).length}`}</span>
       </div>
 
-      {/* 정렬 + 고급 필터 바 — 산업/지역/거래규모 */}
-      <div className="partner-advanced-filter-bar">
-        <span className="text-xs text-[var(--text-dim)]">필터:</span>
-        <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}
-          className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
-          <option value="">산업 전체</option>
-          {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}
-          className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
-          <option value="">지역 전체</option>
-          {regionOptions.map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <select value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}
-          className="px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]">
-          <option value="">거래규모 전체</option>
-          <option value="gte10k">1억 이상 (VIP)</option>
-          <option value="1k_10k">1천만~1억</option>
-          <option value="lt1000">~1천만</option>
-          <option value="none">거래 없음</option>
-        </select>
-        {(classFilter || regionFilter || sizeFilter) && (
-          <button onClick={() => { setClassFilter(""); setRegionFilter(""); setSizeFilter(""); }}
-            className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition underline">필터 초기화</button>
-        )}
-      </div>
-
-      {/* Tag Filter Chips */}
-      {allTags.length > 0 && (
-        <div className="partner-tag-filter-chips">
-          <span className="text-xs text-[var(--text-dim)]">태그:</span>
-          {allTags.map((tag) => (
-            <button key={tag} onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
-              className={`text-xs px-2.5 py-1 rounded-full border transition ${
-                tagFilter === tag
-                  ? "bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--primary)]"
-                  : "bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--text-dim)]"
-              }`}>
-              {tag}
-            </button>
-          ))}
-          {tagFilter && (
-            <button onClick={() => setTagFilter("")}
-              className="text-xs text-[var(--text-dim)] hover:text-[var(--text)] transition underline">
-              전체 보기
+      {/* 처리할 것 — 화면이 먼저 말한다. 누르면 그 목록만 남는다 (2026-08-12) */}
+      {(todo.noBiz > 0 || todo.noOwner > 0) && (
+        <div className="partner-todo-band">
+          <b>처리할 것 {(todo.noBiz + todo.noOwner).toLocaleString()}건</b>
+          {todo.noBiz > 0 && (
+            <button type="button" onClick={() => setTodoFilter(todoFilter === "biz" ? "" : "biz")}
+              className={todoFilter === "biz" ? "partner-todo-chip partner-todo-chip-on" : "partner-todo-chip"}>
+              사업자번호 없음 {todo.noBiz}
             </button>
           )}
+          {todo.noOwner > 0 && (
+            <button type="button" onClick={() => setTodoFilter(todoFilter === "owner" ? "" : "owner")}
+              className={todoFilter === "owner" ? "partner-todo-chip partner-todo-chip-on" : "partner-todo-chip"}>
+              담당자 없음 {todo.noOwner}
+            </button>
+          )}
+          {todoFilter && <button type="button" onClick={() => setTodoFilter("")} className="partner-todo-clear">전체 보기</button>}
         </div>
       )}
-      </div>
 
       {/* Table */}
       <div className="partner-list-table glass-card">
