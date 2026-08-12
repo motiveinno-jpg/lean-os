@@ -13,6 +13,7 @@
 //     한 달만 보면 신고 단위와 어긋난다 — 손익계산서·세금계산서와 같은 위젯이다.
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { PickList } from "@/components/pick-list";
 import { downloadCsv as writeCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -163,6 +164,8 @@ function SalePurchaseInner() {
   //   저장분을 눌러 고치는 중인 줄. 새로 치는 줄(rows)과 같은 편집기를 쓰되 저장은 update RPC 로 간다.
   const [edit, setEdit] = useState<Row | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
+  //   native select 를 눌러 목록을 펼친 상태 — 그동안은 Enter 를 우리가 가로채지 않는다
+  const [selectOpen, setSelectOpen] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -485,6 +488,13 @@ function SalePurchaseInner() {
   //   같은 값은 Enter 로 훑고 다른 값은 그냥 친다 — 내려온 것을 지울 일이 없다.
   const onCellKey = (e: React.KeyboardEvent, i: number, key: CellKey) => {
     if (e.key !== "Enter") return;
+    //   유형·분개는 native select 다 — 목록을 펼쳐 놓고 Enter 로 고르는 중일 수 있다.
+    //   그때 우리가 Enter 를 가로채면 **고를 수가 없다**. 펼쳐져 있으면 native 에 넘긴다.
+    //   (aria-expanded 가 없으니 '방금 목록을 열었나'를 상태로 들고 판단한다)
+    if ((key === "vatCode" || key === "settle") && selectOpen === `${key}-${i}`) {
+      setSelectOpen(null);
+      return;
+    }
     e.preventDefault();
     pullCell(i, key);
     const at = CELLS.indexOf(key);
@@ -598,23 +608,24 @@ function SalePurchaseInner() {
           <input className="spv-in" data-cell={`partner-${i}`} value={r.partner?.name || r.partnerText}
             onChange={(e) => { patch(i, { partner: null, partnerText: e.target.value }); setDrop({ row: i, q: e.target.value }); }}
             onFocus={() => { if (!isEdit) setCur(i); setDrop({ row: i, q: r.partnerText }); }}
-            onBlur={() => setTimeout(() => setDrop((d) => (d?.row === i ? null : d)), 200)}
             onKeyDown={(e) => onCellKey(e, i, "partner")} placeholder="거래처" />
-          {drop?.row === i && filteredPartners(drop.q).length > 0 && (
-            <div className="spv-drop">
-              {filteredPartners(drop.q).map((pt) => (
-                <button key={pt.id} type="button" onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => { patch(i, { partner: pt, partnerText: pt.name }); setDrop(null); }}>
-                  <span className="spv-drop-code">{pt.code || "—"}</span>
-                  <span className="spv-drop-name">{pt.name}</span>
-                  <span className="spv-drop-biz">{pt.business_number || ""}</span>
-                </button>
-              ))}
-            </div>
+          {drop?.row === i && (
+            //   거래처도 계정과 **같은 방식**으로 고른다 — ↑↓ 이동, Enter 고르기 (2026-08-12 사장님 지시)
+            <PickList
+              items={partners.map((pt) => ({ id: pt.id, code: pt.code != null ? String(pt.code) : "", name: pt.name }))}
+              placeholder="거래처 검색 (이름·코드·사업자번호)"
+              onPick={(sel) => {
+                const pt = partners.find((x) => x.id === sel.id);
+                if (pt) patch(i, { partner: pt, partnerText: pt.name });
+                setDrop(null);
+              }}
+              onClose={() => setDrop(null)} />
           )}
         </div>
         <span className="spv-in-ro tc">{r.partner?.business_number || ""}</span>
-        <select className="spv-in spv-sel" data-cell={`vatCode-${i}`} value={r.vatCode} onChange={(e) => setVat(i, e.target.value)}
+        <select className="spv-in spv-sel" data-cell={`vatCode-${i}`} value={r.vatCode}
+          onChange={(e) => { setVat(i, e.target.value); setSelectOpen(null); }}
+          onMouseDown={() => setSelectOpen(`vatCode-${i}`)} onBlur={() => setSelectOpen(null)}
           onKeyDown={(e) => onCellKey(e, i, "vatCode")} onFocus={() => { if (!isEdit) setCur(i); }}>
           {/* 수정 줄은 갈래 탭에 안 걸린 유형일 수도 있다 — 그 유형이 목록에서 빠지면 값이 튄다 */}
           {(isEdit ? VAT_TYPES : typeOptions).map((v) => <option key={v.code} value={v.code}>{v.label}</option>)}
@@ -637,7 +648,9 @@ function SalePurchaseInner() {
             onKeyDown={(e) => onCellKey(e, i, "electronic")} onFocus={() => { if (!isEdit) setCur(i); }}
             title="전자(세금)계산서 발행·수취분이면 켭니다 — 저장됩니다 (Enter 는 윗값 내리기 · Space 로 켜고 끕니다)">{r.electronic ? "전자입력" : "—"}</button>
         )}
-        <select className="spv-in spv-sel" data-cell={`settle-${i}`} value={r.settle} onChange={(e) => patch(i, { settle: e.target.value as SettleType })}
+        <select className="spv-in spv-sel" data-cell={`settle-${i}`} value={r.settle}
+          onChange={(e) => { patch(i, { settle: e.target.value as SettleType }); setSelectOpen(null); }}
+          onMouseDown={() => setSelectOpen(`settle-${i}`)} onBlur={() => setSelectOpen(null)}
           onKeyDown={(e) => onCellKey(e, i, "settle")} onFocus={() => { if (!isEdit) setCur(i); }}>
           {(Object.keys(SETTLE_LABEL) as SettleType[]).map((st) => <option key={st} value={st}>{SETTLE_LABEL[st]}</option>)}
         </select>
@@ -839,24 +852,17 @@ function SalePurchaseInner() {
                     {l.locked && <em className="spv-auto">자동</em>}
                   </button>
                   {acctPick?.line === l.i && (
-                    <div className="spv-drop spv-drop-acct">
-                      <input autoFocus value={acctPick.q} onChange={(e) => setAcctPick({ line: l.i, q: e.target.value })}
-                        placeholder="계정과목 검색 (이름·코드)" className="spv-drop-search" />
-                      <div className="spv-drop-list">
-                        {filterAccts(acctPick.q).map((a) => (
-                          <button key={a.id} type="button"
-                            onClick={() => {
-                              //   첫 줄(매출/비용 계정)을 고르면 그 줄 값으로도 기억해 다음 전표에 물려준다
-                              if (l.i === (t.side === "sale" ? 1 : 0)) patch(cur, { mainAccount: a });
-                              else setOverrides((o) => ({ ...o, [`${row.key}:${l.i}`]: a }));
-                              setAcctPick(null);
-                            }}>
-                            <span className="spv-drop-code">{a.code}</span>
-                            <span className="spv-drop-name">{a.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <PickList items={accounts} placeholder="계정과목 검색 (이름·코드)"
+                      onPick={(a) => {
+                        //   ⚠️ 화면에 그려지는 값은 **override 가 우선**이다. 수정 모드에서는 저장된 계정이
+                        //     override 로 깔려 있어, mainAccount 만 바꾸면 고른 게 안 보인다(실제로 그랬다).
+                        //     그래서 override 를 항상 같이 쓴다.
+                        setOverrides((o) => ({ ...o, [`${row.key}:${l.i}`]: a }));
+                        //   주계정(매출/비용) 줄이면 줄 값으로도 기억해 다음 전표에 물려준다
+                        if (l.i === (t.side === "sale" ? 1 : 0)) patch(selIdx, { mainAccount: a });
+                        setAcctPick(null);
+                      }}
+                      onClose={() => setAcctPick(null)} />
                   )}
                 </div>
                 <span className="tr spv-amt">{l.side === "debit" ? won(l.amount) : ""}</span>

@@ -17,6 +17,7 @@
 //   **다대일(카드 여러 건이 한 번에 청구)** 은 아직 거래 매칭 화면에 남아 있다.
 
 import { useMemo, useState } from "react";
+import { PickList } from "@/components/pick-list";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -440,6 +441,10 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allOn = shown.length > 0 && shown.filter((r) => !doneOf(r)).every((r) => sel.has(r.id));
 
+  //   PickList 는 **자르지 않은** 목록을 받아야 한다 — 검색은 그 안에서 한다
+  const acctsOf = (isIn: boolean) =>
+    accounts.filter((a) => a.account_type === (isIn ? "revenue" : "expense"));
+
   const filterAccts = (q: string, isIn: boolean) =>
     accounts.filter((a) =>
       a.account_type === (isIn ? "revenue" : "expense")
@@ -569,19 +574,9 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
                             {acctOf(r).via && acctOf(r).via !== "고름" && <em className="ev-via">{acctOf(r).via}</em>}
                           </button>
                           {pick?.id === r.id && (
-                            <span className="spv-drop spv-drop-acct">
-                              <input autoFocus value={pick.q} onChange={(e) => setPick({ id: r.id, q: e.target.value })}
-                                placeholder="계정과목 검색 (이름·코드)" className="spv-drop-search" />
-                              <span className="spv-drop-list">
-                                {filterAccts(pick.q, r.isIn).map((a) => (
-                                  <button key={a.id} type="button"
-                                    onClick={() => { setAcct((o) => ({ ...o, [r.id]: a })); setPick(null); }}>
-                                    <span className="spv-drop-code">{a.code}</span>
-                                    <span className="spv-drop-name">{a.name}</span>
-                                  </button>
-                                ))}
-                              </span>
-                            </span>
+                            <PickList items={acctsOf(r.isIn)} placeholder="계정과목 검색 (이름·코드)"
+                              onPick={(a) => { setAcct((o) => ({ ...o, [r.id]: a })); setPick(null); }}
+                              onClose={() => setPick(null)} />
                           )}
                         </span>
                       ) : d === "match" && !r.sug ? (

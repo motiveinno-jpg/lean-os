@@ -12,6 +12,7 @@
 //   지금은 규칙을 따로 저장하지 않고 이미 만든 전표를 되읽는다 — 사람이 고른 것이 곧 근거다.
 
 import { useMemo, useState } from "react";
+import { PickList } from "@/components/pick-list";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -213,6 +214,11 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allOn = shown.length > 0 && shown.every((r) => sel.has(r.id) || r.posted);
 
+  //   PickList 에 넘길 **자르지 않은** 목록 — 검색은 PickList 안에서 한다.
+  //   (filterAccts 는 40개로 잘라서, 그걸 넘기면 앞 40개 안에서만 검색된다 — 실제로 그렇게 만들었다가 잡았다)
+  const acctsOf = (side: "sale" | "purchase") =>
+    accounts.filter((a) => a.account_type === (side === "sale" ? "revenue" : "expense"));
+
   const filterAccts = (q: string, side: "sale" | "purchase") =>
     accounts.filter((a) =>
       a.account_type === (side === "sale" ? "revenue" : "expense")
@@ -313,19 +319,9 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                             {via && via !== "고름" && <em className="ev-via">{via}</em>}
                           </button>
                           {pick?.id === r.id && (
-                            <span className="spv-drop spv-drop-acct">
-                              <input autoFocus value={pick.q} onChange={(e) => setPick({ id: r.id, q: e.target.value })}
-                                placeholder="계정과목 검색 (이름·코드)" className="spv-drop-search" />
-                              <span className="spv-drop-list">
-                                {filterAccts(pick.q, "purchase").map((a) => (
-                                  <button key={a.id} type="button"
-                                    onClick={() => { setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], acct: a } })); setPick(null); }}>
-                                    <span className="spv-drop-code">{a.code}</span>
-                                    <span className="spv-drop-name">{a.name}</span>
-                                  </button>
-                                ))}
-                              </span>
-                            </span>
+                            <PickList items={acctsOf("purchase")} placeholder="계정과목 검색 (이름·코드)"
+                              onPick={(a) => { setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], acct: a } })); setPick(null); }}
+                              onClose={() => setPick(null)} />
                           )}
                         </span>
                       ) : (
@@ -341,19 +337,9 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                             {via && via !== "고름" && <em className="ev-via">{via}</em>}
                           </button>
                           {pick?.id === r.id && (
-                            <span className="spv-drop spv-drop-acct">
-                              <input autoFocus value={pick.q} onChange={(e) => setPick({ id: r.id, q: e.target.value })}
-                                placeholder="계정과목 검색 (이름·코드)" className="spv-drop-search" />
-                              <span className="spv-drop-list">
-                                {filterAccts(pick.q, "sale").map((a) => (
-                                  <button key={a.id} type="button"
-                                    onClick={() => { setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], acct: a } })); setPick(null); }}>
-                                    <span className="spv-drop-code">{a.code}</span>
-                                    <span className="spv-drop-name">{a.name}</span>
-                                  </button>
-                                ))}
-                              </span>
-                            </span>
+                            <PickList items={acctsOf("sale")} placeholder="계정과목 검색 (이름·코드)"
+                              onPick={(a) => { setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], acct: a } })); setPick(null); }}
+                              onClose={() => setPick(null)} />
                           )}
                         </span>
                       ) : (

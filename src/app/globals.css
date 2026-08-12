@@ -8545,3 +8545,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .partner-lens-note { @apply flex flex-wrap items-center gap-2 mb-3 px-3.5 py-1.5 rounded-lg text-[12px] bg-[var(--primary)]/[0.07] text-[var(--text-muted)]; }
 .partner-lens-note b { @apply text-[var(--primary)] font-bold; }
 .partner-lens-note button { @apply ml-auto text-[11.5px] underline text-[var(--text-dim)] hover:text-[var(--text)]; }
+
+/* 검색 드롭다운 — 키보드로 고른 줄 표시 (2026-08-12) */
+.spv-drop-list > button.pick-on { @apply bg-[var(--primary)]/10; }
+.pick-enter { @apply ml-auto text-[10px] font-bold text-[var(--primary)]; }
+.pick-empty { @apply px-2 py-2 text-[11px] text-[var(--text-dim)]; }
