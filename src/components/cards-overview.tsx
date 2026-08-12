@@ -6,6 +6,7 @@
 //   - 카드 클릭 → onSelectCard(cardId | `codef:cardName`) 로 부모의 기존 상세 흐름 연결
 
 import { useMemo, useState } from "react";
+import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { DateField } from "@/components/date-field";
 import { useQuery } from "@tanstack/react-query";
 import { TileIcon } from "@/components/ui/icon-tile";
@@ -175,22 +176,20 @@ export function CardsOverview({ companyId, onSelectCard }: Props) {
 
   const total = data?.total ?? 0;
 
+  //   통장 개요와 같은 함수를 쓴다 — 카드사명에 쉼표가 있어도 칸이 안 밀린다 (2026-08-12)
   const handleDownload = () => {
-    const rows: string[] = ["카드사,카드명,끝4자리,종류,사용액,건수"];
-    for (const g of groups) {
-      for (const c of g.cards) {
-        rows.push(
-          [g.company, `"${c.displayName.replace(/"/g, "'")}"`, c.last4 || "", TYPE_LABEL[c.cardType || ""] || "", Math.round(c.spend), c.count].join(","),
-        );
-      }
-    }
-    const blob = new Blob(["﻿" + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cards_${fromStr}_${toStr}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      `카드사용액_${rangeSuffix(fromStr, toStr)}`,
+      ["카드사", "카드명", "끝4자리", "종류", "사용액", "건수"],
+      groups.flatMap((g) => g.cards.map((c) => [
+        g.company,
+        c.displayName,
+        c.last4 || "",
+        TYPE_LABEL[c.cardType || ""] || "",
+        Math.round(c.spend),
+        c.count,
+      ])),
+    );
   };
 
   const cardClickPayload = (c: CardSpendCard) => (c.cardId ? c.cardId : `codef:${c.cardName}`);

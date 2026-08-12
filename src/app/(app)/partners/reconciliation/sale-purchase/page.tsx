@@ -13,6 +13,7 @@
 //     한 달만 보면 신고 단위와 어긋난다 — 손익계산서·세금계산서와 같은 위젯이다.
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { downloadCsv as writeCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -669,12 +670,11 @@ function SalePurchaseInner() {
     const sup = sortedSaved.reduce((n, r) => n + numOf(r.supply), 0);
     const vat = sortedSaved.reduce((n, r) => n + numOf(r.vat), 0);
     const rowsOut = [head, ...body, ["", "", "", "합계", "", "", "", "", String(sup), String(vat), String(sup + vat), ""]];
-    const csv = "﻿" + rowsOut.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    a.download = `매입매출전표_${fromM === toM ? fromM : fromM + "~" + toM}${group === "all" ? "" : "_" + GROUPS.find((g) => g.key === group)!.label}.csv`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    //   BOM·따옴표 규칙은 공통 함수가 책임진다 (2026-08-12) — 화면마다 다시 쓰지 않는다
+    writeCsv(
+      `매입매출전표_${fromM === toM ? fromM : fromM + "~" + toM}${group === "all" ? "" : "_" + GROUPS.find((g) => g.key === group)!.label}`,
+      rowsOut[0], rowsOut.slice(1),
+    );
   };
 
   //   격자 아래 소계 — 저장분 + 지금 치고 있는 줄

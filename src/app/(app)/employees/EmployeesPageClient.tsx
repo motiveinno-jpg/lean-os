@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { downloadCsv } from "@/lib/csv-export";
 import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr, kstDateTimeLocal, kstLocalToIso } from "@/lib/kst";
@@ -1179,24 +1180,20 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             <button
               type="button"
               onClick={() => {
-                const header = ["직원", "출근일", "지각횟수", "지각합계(분)", "연장(분)", "야간(분)", "휴일(분)", "결근", "재택", "반차", "총근무(h)"];
-                const rows = (summary as any[]).map((s) => [
-                  s.name, String(s.totalDays), String(s.lateDays), String(Math.round(s.lateMinutesSum || 0)),
-                  String(Math.round(s.overtimeMinutesSum || 0)), String(Math.round(s.nightMinutesSum || 0)), String(Math.round(s.holidayMinutesSum || 0)),
-                  String(s.absentDays), String(s.remoteDays), String(s.halfDays), s.totalHours.toFixed(1),
-                ]);
-                const csv = [header, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-                const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `근태_월간요약_${selectedMonth}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
+                //   다른 화면과 같은 공통 함수로 (2026-08-12) — 숫자는 서식 없이 넘겨 엑셀이 숫자로 읽게 한다
+                downloadCsv(
+                  `근태_월간요약_${selectedMonth}`,
+                  ["직원", "출근일", "지각횟수", "지각합계(분)", "연장(분)", "야간(분)", "휴일(분)", "결근", "재택", "반차", "총근무(h)"],
+                  (summary as any[]).map((s) => [
+                    s.name, s.totalDays, s.lateDays, Math.round(s.lateMinutesSum || 0),
+                    Math.round(s.overtimeMinutesSum || 0), Math.round(s.nightMinutesSum || 0), Math.round(s.holidayMinutesSum || 0),
+                    s.absentDays, s.remoteDays, s.halfDays, Number(s.totalHours.toFixed(1)),
+                  ]),
+                );
               }}
               className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] rounded-xl text-xs font-semibold hover:bg-[var(--bg-surface)] transition"
             >
-              CSV Export
+              엑셀
             </button>
           )}
         </div>

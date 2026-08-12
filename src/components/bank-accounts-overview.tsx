@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 
 // granter 계좌 화면 스타일 통장 개요 (2026-05-27): 전체 잔액 + 기간 증감 + 은행별 그룹 + 3열 그리드.
 //   - 담당자/인물 이미지 없음 (사장님 명시 제외) · 카드(/cards) 재설계와 디자인 통일
@@ -276,20 +277,20 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
     return arr.sort((a, b) => b.total - a.total);
   }, [accounts, search, sortBy]);
 
+  //   ⚠️ 예전엔 계좌명만 따옴표로 감쌌다 — **은행명에 쉼표가 있으면 칸이 통째로 밀린다**.
+  //     이제 공통 함수가 모든 칸을 감싸고 BOM 도 붙인다 (2026-08-12).
   const handleDownload = () => {
-    const rows = ["은행,계좌명,끝4자리,잔액,기간증감"];
-    for (const g of groups) {
-      for (const a of g.items) {
-        rows.push([g.label, `"${(a.alias || a.accountNo).replace(/"/g, "'")}"`, a.accountNo.slice(-4), Math.round(a.balance || 0), Math.round(changeByAcct[a.accountNo] || 0)].join(","));
-      }
-    }
-    const blob = new Blob(["﻿" + rows.join("\n")], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `accounts_${fromStr}_${toStr}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(
+      `통장잔액_${rangeSuffix(fromStr, toStr)}`,
+      ["은행", "계좌명", "끝4자리", "잔액", "기간증감"],
+      groups.flatMap((g) => g.items.map((a) => [
+        g.label,
+        a.alias || a.accountNo,
+        a.accountNo.slice(-4),
+        Math.round(a.balance || 0),
+        Math.round(changeByAcct[a.accountNo] || 0),
+      ])),
+    );
   };
 
   return (
