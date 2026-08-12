@@ -57,10 +57,18 @@
 3. **DB 작업 시 경고 안내 필수** — 마이그레이션·엣지 배포·prod DB 변경 전에 "⚠️ 지금 prod DB 를 변경합니다 — 다른 PC에서 DB 작업 하지 마세요" 를 띄운 뒤 진행한다. **prod DB 변경은 반드시 한 PC에서만.**
 
 **커밋/푸시/배포 규율:**
-4. 커밋 직전 `git fetch → git rebase origin/main` → 충돌 시 `git rebase --abort` 후 상대에게 파일 확인(억지로 풀지 말 것) → 깨끗하면 **지체 없이 바로** `git push origin main`. push rejected면 fetch+rebase 재실행.
+4. 커밋 직전 `git fetch → git rebase origin/main` → 깨끗하면 **지체 없이 바로** `git push origin main`. push rejected면 fetch+rebase 재실행.
+   - **CSS 파일(`globals.css`·`landing*.css`)은 충돌로 멈추지 않는다** — `.gitattributes` 가 `merge=union` 이라
+     양쪽 규칙을 다 남기고 저절로 풀린다. **우리 줄이 뒤에 오므로 같은 이름이 겹쳐도 우리가 이긴다.**
+     (2026-08-12 사장님 지시: "globals.css 충돌 — 무조건 우리 배포를 우선으로 해라")
+   - **그 밖의 파일에서 충돌**나면 예전 그대로 — `git rebase --abort` 후 상대에게 확인(억지로 풀지 말 것).
 5. **파일 분담이 rebase보다 중요** — 같은 파일을 동시에 안 건드리는 게 충돌 원천 차단. 전역 파일은 한 번에 한 PC만.
 6. **배포 간격** — 한 PC가 push하면 Vercel 빌드 green 확인까지(2~3분) 다른 PC는 push 대기(연속 push 겹치면 Vercel thrash로 아무것도 배포 안 됨).
 7. **`git add -A` 금지** — 변경 파일 경로만 명시 add(상대 PC worktree 잡파일 오염 방지).
+8. **새 PC·새 클론이면 `bash scripts/setup-git-merge.sh` 를 한 번 실행한다.** `.gitattributes` 는 저장소에
+   따라오지만 ①`merge=ours` 드라이버 ②**충돌 마커 커밋 차단 훅**은 로컬 설정이라 PC 마다 깔아야 한다.
+   ⚠️ 2026-08-12 실제 사고: 충돌 마커가 `globals.css` 에 그대로 커밋돼 origin 에 올라갔다.
+   **CSS 가 깨지면 앱 전 화면이 500 이고 tsc·lint 는 못 잡는다.**
 
 ---
 
