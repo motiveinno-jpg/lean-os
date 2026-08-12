@@ -28,6 +28,8 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
   const qc = useQueryClient();
   const [newAcct, setNewAcct] = useState<NewAcct | null>(null);
   const [busy, setBusy] = useState(false);
+  //   표준이 474개로 늘어난 2026-08-12 부터는 검색 없이 못 찾는다 (그전엔 ~90개라 눈으로 훑었다)
+  const [q, setQ] = useState("");
 
   const { data: accounts = [] } = useQuery<Acct[]>({
     queryKey: ["coa-manage", companyId],
@@ -73,7 +75,12 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
     catch (e: any) { toast("삭제 실패: " + (e?.message || ""), "error"); }
   };
 
-  const grouped = TYPES.map((t) => ({ ...t, items: (accounts as Acct[]).filter((a) => a.account_type === t.v) }));
+  //   코드·계정명 아무 쪽으로나 찾는다 ("831" 도 "수수료" 도)
+  const needle = q.trim().toLowerCase();
+  const hits = needle
+    ? (accounts as Acct[]).filter((a) => a.code.includes(needle) || a.name.toLowerCase().includes(needle))
+    : (accounts as Acct[]);
+  const grouped = TYPES.map((t) => ({ ...t, items: hits.filter((a) => a.account_type === t.v) }));
 
   return (
     <div className="coa-manager glass-card">
@@ -84,7 +91,15 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
           <button onClick={() => setNewAcct({ code: "", name: "", type: "asset" })} className="btn-primary">+ 계정과목 추가</button>
         </div>
       </div>
-      <p className="text-xs text-[var(--text-muted)] mb-4">회사 회계의 계정과목 마스터입니다. 기본 계정은 읽기전용, 회사 자체 계정만 추가·삭제할 수 있습니다. “표준 계정과목 채우기”로 일반기업회계 기준 ~90개 계정을 한 번에 등록할 수 있습니다. (거래매칭 직접입력·전표 처리에서 사용)</p>
+      <p className="text-xs text-[var(--text-muted)] mb-4">회사 회계의 계정과목 마스터입니다. 기본 계정은 읽기전용, 회사 자체 계정만 추가·삭제할 수 있습니다. “표준 계정과목 채우기”로 한국 표준 계정과목 {STANDARD_ACCOUNTS.length}개를 한 번에 등록할 수 있습니다. (거래매칭 직접입력·전표 처리에서 사용)</p>
+
+      {/*   찾기 — 474개를 위에서부터 훑을 수는 없다 (2026-08-12) */}
+      <div className="coa-search-row">
+        <input value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="계정과목 찾기 — 코드나 이름 (예: 831, 지급수수료)"
+          className="coa-search-input" />
+        {needle && <span className="text-[11px] text-[var(--text-dim)] shrink-0">{hits.length}개</span>}
+      </div>
 
       {newAcct && (
         <div className="coa-new-row">

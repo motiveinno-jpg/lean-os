@@ -64,7 +64,10 @@ export function vatOf(code: string, supply: number): number {
 /*  표준 계정 코드 — 회사 계정과목표에서 코드로 찾는다                    */
 /* ------------------------------------------------------------------ */
 export const STD = {
-  bank: "101",        // 보통예금
+  //   ⚠️ 표준 계정과목표에서 **101 은 현금, 보통예금은 103** 이다 (2026-08-12 사장님 엑셀 기준).
+  //     예전엔 101 을 보통예금으로 쓰고 있었다 — 표준으로 옮기면서 여기도 같이 바꿨다.
+  //     DB 쪽 post_bank/card/cash/settlement_voucher · generate_voucher_drafts 도 함께 103 이다.
+  bank: "103",        // 보통예금
   ar: "108",          // 외상매출금
   vatIn: "135",       // 부가세대급금
   ap: "251",          // 외상매입금

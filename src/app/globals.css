@@ -5033,6 +5033,8 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .coa-manager { @apply p-5; }
 .coa-header { @apply flex items-center justify-between mb-1 gap-2 flex-wrap; }
 .coa-new-row { @apply flex flex-wrap items-center gap-1.5 mb-4 bg-[var(--bg-surface)] rounded-lg p-2.5; }
+.coa-search-row { @apply flex items-center gap-2 mb-3; }
+.coa-search-input { @apply flex-1 h-8 px-2.5 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]; }
 .coa-groups { @apply space-y-4; }
 .coa-account-row { @apply flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
 

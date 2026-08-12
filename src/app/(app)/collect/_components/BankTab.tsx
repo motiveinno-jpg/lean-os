@@ -325,7 +325,7 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
         fails.push(`${r.who}: ${
           m.includes("PERIOD_LOCKED") ? "마감된 달"
           : m.includes("ALREADY_POSTED") ? "이미 전표가 있음"
-          : m.includes("NO_BANK_ACCOUNT") ? "계정과목에 101 보통예금이 없습니다"
+          : m.includes("NO_BANK_ACCOUNT") ? "계정과목에 103 보통예금이 없습니다"
           : friendlyError(e, m || "실패")}`);
       }
     }

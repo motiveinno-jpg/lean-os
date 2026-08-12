@@ -95,7 +95,7 @@ async function fetchBsData(companyId: string, cutoffDate?: string): Promise<BsDa
   //   ★ 2026-08-11 사장님 지시 — 재무상태표도 **전표로 처리된 것만** 반영한다.
   //     예전엔 통장 잔액·세금계산서 미수미지급·대출·자산 원본을 직접 모았다. 그러면 장부와 따로 논다.
   //     이제 확정 전표의 자산·부채·자본 계정 잔액을 그대로 쓴다(회계연도 1/1 ~ 기준일 누적).
-  //     ⚠️ 통장 잔액과 장부(101 보통예금) 잔액이 다를 수 있는데, 그 차이가 곧 **아직 안 친 전표**다.
+  //     ⚠️ 통장 잔액과 장부(103 보통예금) 잔액이 다를 수 있는데, 그 차이가 곧 **아직 안 친 전표**다.
   const cutoff = cutoffDate || todayKst();
   const fromDate = `${cutoff.slice(0, 4)}-01-01`;
 
@@ -933,7 +933,7 @@ function BalanceSheetPageInner() {
         </div>
       )}
 
-      {/* 통장 실제 잔액과 장부(101 보통예금) 잔액이 다르면 그 차이가 곧 '아직 안 친 전표'다 */}
+      {/* 통장 실제 잔액과 장부(103 보통예금) 잔액이 다르면 그 차이가 곧 '아직 안 친 전표'다 */}
       {(data.receivableDetails.length > 0 || data.payableDetails.length > 0) && (
         <div className="bs-accuracy-callout kpi-callout">
           <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>

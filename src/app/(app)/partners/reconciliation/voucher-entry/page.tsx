@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
 
 // 전표입력 — 2단 구조 (2026-06-12 핸드오프 v2 확정본 §3-3).
 //   [상단] 입력 영역: 일자 + 구분(대체/출금/입금 — 헤더 단위) + 분개 행(No/구분/계정과목/거래처/적요/차변/대변)
-//     출금 = 대변 보통예금(101) 자동행 / 입금 = 차변 자동 / 대체 = 양쪽 직접. 차대일치 상시 표시 + 저장 차단.
+//     출금 = 대변 보통예금(103) 자동행 / 입금 = 차변 자동 / 대체 = 양쪽 직접. 차대일치 상시 표시 + 저장 차단.
 //   [하단] 전표목록 그리드(§3-3-A 사용자 지정 스펙, 순서 고정):
 //     ☑ | No | 구분(1.출금/2.입금/3.차변/4.대변) | 계정코드 | 계정명 | 거래처코드 | 거래처명 | 차변 | 대변 | 적요코드 | 적요
 //     셀 클릭 = 인라인 수정(전표 단위 버퍼, 차대 재검증) · 행 우클릭 = 삽입/복사/삭제 · 체크박스 = 선택 삭제
@@ -141,7 +141,8 @@ export default function VoucherEntryPage() {
     },
     enabled: !!companyId, staleTime: 300_000,
   });
-  const cashAcct = useMemo(() => accounts.find((a) => a.code === "101") || null, [accounts]);
+  //   보통예금은 표준 계정과목표에서 **103** 이다 (101 은 현금). 2026-08-12 표준 채택.
+  const cashAcct = useMemo(() => accounts.find((a) => a.code === "103") || null, [accounts]);
   const dbReady = accounts.length > 0;
 
   const { data: partners = [] } = useQuery<Pt[]>({
