@@ -41,21 +41,30 @@ type LeafKey =
   | "bank" | "ads" | "attendance" | "forms"
   | "delete-company";
 
-// perms: 이 탭을 보여주는 부여 키들(구 키 포함 OR) — 이미 부여된 옛 세부탭 권한을 계속 존중한다.
-const SETTINGS_TABS: { key: LeafKey; label: string; perms: string[]; masterOnly?: boolean; danger?: boolean }[] = [
-  { key: "company-info", label: "회사정보", perms: ["company-info"] },
-  { key: "team", label: "구성원·초대", perms: ["team", "departments"] },
-  { key: "cash", label: "자금·통장", perms: ["cash"] },
-  { key: "chart", label: "계정과목·분류", perms: ["chart", "deal"] },
-  { key: "closing", label: "회계마감", perms: ["closing", "tax"] },
-  { key: "bank", label: "은행연동", perms: ["bank"] },
-  { key: "ads", label: "광고 계정", perms: ["ads"] },
-  { key: "attendance", label: "근태·가산수당", perms: ["attendance"] },
-  { key: "forms", label: "회사 양식", perms: ["forms"] },
-  // 회사 자체를 지우는 탭 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
-  { key: "delete-company", label: "회사 삭제", perms: [], masterOnly: true, danger: true },
+// perms: 이 항목을 보여주는 부여 키들(구 키 포함 OR) — 이미 부여된 옛 세부탭 권한을 계속 존중한다.
+// icon: 허브 행 아이콘(stroke path).
+const SETTINGS_TABS: { key: LeafKey; label: string; perms: string[]; icon: string; masterOnly?: boolean; danger?: boolean }[] = [
+  { key: "company-info", label: "회사정보", perms: ["company-info"], icon: "M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16M9 7h2M9 11h2M9 15h2M13 7h2M13 11h2M13 15h2" },
+  { key: "team", label: "구성원·초대", perms: ["team", "departments"], icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
+  { key: "cash", label: "자금·통장", perms: ["cash"], icon: "M2 9h20M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2zM6 14h4" },
+  { key: "chart", label: "계정과목·분류", perms: ["chart", "deal"], icon: "M9 7h6m-6 4h6m-6 4h4M5 3h14a1 1 0 011 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z" },
+  { key: "closing", label: "회계마감", perms: ["closing", "tax"], icon: "M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" },
+  { key: "bank", label: "은행연동", perms: ["bank"], icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" },
+  { key: "ads", label: "광고 계정", perms: ["ads"], icon: "M3 3v18h18M8 17V9m4 8V5m4 12v-6" },
+  { key: "attendance", label: "근태·가산수당", perms: ["attendance"], icon: "M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { key: "forms", label: "회사 양식", perms: ["forms"], icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h6" },
+  // 회사 자체를 지우는 항목 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
+  { key: "delete-company", label: "회사 삭제", perms: [], masterOnly: true, danger: true, icon: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m-1 0v14a1 1 0 01-1 1H9a1 1 0 01-1-1V6" },
 ];
 const ALL_LEAVES: LeafKey[] = SETTINGS_TABS.map((t) => t.key);
+// 허브 그룹 — 항목을 성격별 패널로 묶는다.
+const HUB_GROUPS: { key: string; label: string; leaves: LeafKey[] }[] = [
+  { key: "company", label: "회사", leaves: ["company-info", "team"] },
+  { key: "finance", label: "회계·자금", leaves: ["cash", "chart", "closing"] },
+  { key: "integration", label: "연동", leaves: ["bank", "ads"] },
+  { key: "workplace", label: "근무·문서", leaves: ["attendance", "forms"] },
+  { key: "system", label: "시스템", leaves: ["delete-company"] },
+];
 
 // 콘텐츠 헤더 — 탭마다 무엇을 하는 곳인지 한 줄로.
 const LEAF_META: Record<LeafKey, { title: string; desc: string; danger?: boolean }> = {
@@ -102,33 +111,42 @@ function SettingsPageInner() {
   useEffect(() => {
     if (rawTab && TAB_MOVED[rawTab]) router.replace(TAB_MOVED[rawTab]);
   }, [rawTab, router]);
-  const initialTab: LeafKey = (() => {
+  // ?tab= 없으면 설정 홈(허브), 있으면 그 항목 상세 (2026-08-13 3차 — 허브·상세 구조)
+  const initialTab: LeafKey | null = (() => {
     if (ALL_LEAVES.includes(rawTab as LeafKey)) return rawTab as LeafKey;
     const mapped = TAB_COMPAT[rawTab];
     if (mapped) return mapped;
-    return "company-info";
+    return null;
   })();
-  const [tab, setTabState] = useState<LeafKey>(initialTab);
-  // 탭 변경 시 URL ?tab= 동기화(북마크·뒤로가기 유지, 페이지 리로드 없음)
-  const setTab = (next: LeafKey) => {
+  const [tab, setTabState] = useState<LeafKey | null>(initialTab);
+  // 허브↔상세 이동은 pushState — 브라우저 뒤로가기가 설정 홈으로 자연스럽게 돌아온다.
+  const setTab = (next: LeafKey | null) => {
     setTabState(next);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.searchParams.set("tab", next);
-      window.history.replaceState(null, "", url.toString());
+      if (next) url.searchParams.set("tab", next);
+      else url.searchParams.delete("tab");
+      window.history.pushState(null, "", url.toString());
     }
   };
+  useEffect(() => {
+    const onPop = () => {
+      const t = new URLSearchParams(window.location.search).get("tab") || "";
+      setTabState(ALL_LEAVES.includes(t as LeafKey) ? (t as LeafKey) : (TAB_COMPAT[t] ?? null));
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/settings:leaf)만.
   //   통합 탭은 구성 키 중 하나라도 부여돼 있으면 노출 (옛 부여 존중).
   const { isMaster: permMaster, hasPerm: permHas } = useMyPermissions();
   const visibleTabs = SETTINGS_TABS.filter((t) =>
     t.masterOnly ? permMaster : (permMaster || t.perms.some((p) => permHas(`/settings:${p}`))));
-  const firstAllowedLeaf = visibleTabs[0]?.key;
   useEffect(() => {
-    const allowed = visibleTabs.some((t) => t.key === tab);
-    if (!allowed && firstAllowedLeaf) setTabState(firstAllowedLeaf);
+    // 권한 없는 항목으로 딥링크 진입 → 설정 홈으로
+    if (tab && !visibleTabs.some((t) => t.key === tab)) setTabState(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, permMaster, firstAllowedLeaf, visibleTabs.map((t) => t.key).join()]);
+  }, [tab, permMaster, visibleTabs.map((t) => t.key).join()]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [balance, setBalance] = useState("");
   const [fixedCost, setFixedCost] = useState("");
@@ -160,6 +178,26 @@ function SettingsPageInner() {
   const { data: bankAccounts = [], error: mainError, refetch: mainRefetch } = useQuery({
     queryKey: ["bank-accounts", companyId],
     queryFn: () => getBankAccounts(companyId!),
+    enabled: !!companyId,
+  });
+
+  // 허브 상태줄 — 실데이터 요약. 실패해도 조용히 생략(fail-soft).
+  const { data: hubCompany } = useQuery({
+    queryKey: ["settings-hub-company", companyId],
+    queryFn: async () => {
+      const data = logRead('settings/hub:company', await supabase
+        .from("companies").select("name, business_number, representative").eq("id", companyId!).maybeSingle());
+      return (data as { name: string; business_number: string | null; representative: string | null } | null) ?? null;
+    },
+    enabled: !!companyId,
+  });
+  const { data: hubMemberCount } = useQuery({
+    queryKey: ["settings-hub-members", companyId],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("users").select("id", { count: "exact", head: true }).eq("company_id", companyId!);
+      return count ?? null;
+    },
     enabled: !!companyId,
   });
 
@@ -253,32 +291,82 @@ function SettingsPageInner() {
     );
   }
 
-  const meta = LEAF_META[tab];
-  const dangerIdx = visibleTabs.findIndex((t) => t.danger);
+  const meta = tab ? LEAF_META[tab] : null;
+
+  // 허브 행 상태줄 — 실데이터 요약. 값이 없으면 조용히 생략.
+  const hubStatus: Partial<Record<LeafKey, { text: string; warn?: boolean }>> = {
+    "company-info": hubCompany
+      ? hubCompany.business_number
+        ? { text: `사업자번호 ${hubCompany.business_number}` }
+        : { text: "사업자번호 미입력", warn: true }
+      : undefined,
+    team: hubMemberCount != null ? { text: `구성원 ${hubMemberCount}명` } : undefined,
+    cash: { text: `총 가용 ₩${totalCash.toLocaleString()}` },
+    bank: bankAccounts.length > 0 ? { text: `계좌 ${bankAccounts.length}개` } : undefined,
+    "delete-company": { text: "되돌릴 수 없음" },
+  };
+
+  // ── 설정 홈(허브) — 항목을 고르면 상세로 ──
+  if (!tab) {
+    return (
+      <div>
+        <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
+
+        {/* 회사 아이덴티티 스트립 */}
+        <div className="stg-hub-co">
+          <div className="min-w-0">
+            <div className="stg-hub-co-name">{hubCompany?.name || "회사 설정"}</div>
+            <div className="stg-hub-co-sub">
+              {hubCompany?.representative ? `대표 ${hubCompany.representative}` : "회사 운영에 필요한 것들을 여기서 정합니다"}
+              {hubCompany?.business_number ? ` · ${hubCompany.business_number}` : ""}
+            </div>
+          </div>
+        </div>
+
+        <div className="stg-hub">
+          {HUB_GROUPS.map((g) => {
+            const rows = g.leaves
+              .map((leaf) => visibleTabs.find((t) => t.key === leaf))
+              .filter(Boolean) as typeof SETTINGS_TABS;
+            if (rows.length === 0) return null;
+            return (
+              <section key={g.key} className={`stg-hub-group ${g.key === "system" ? "stg-hub-group-danger" : ""}`}>
+                <h3 className="stg-hub-group-label">{g.label}</h3>
+                {rows.map((t) => {
+                  const st = hubStatus[t.key];
+                  return (
+                    <button key={t.key} onClick={() => setTab(t.key)} className="stg-hub-row">
+                      <span className={`stg-hub-ico ${t.danger ? "stg-hub-ico-danger" : ""}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg>
+                      </span>
+                      <span className="min-w-0">
+                        <span className={`stg-hub-name ${t.danger ? "text-[var(--danger)]" : ""}`}>{t.label}</span>
+                        <span className="stg-hub-desc">{LEAF_META[t.key].desc}</span>
+                      </span>
+                      {st && <span className={`stg-hub-status ${st.warn ? "stg-hub-status-warn" : ""}`}>{st.text}</span>}
+                      <svg className="stg-hub-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                    </button>
+                  );
+                })}
+              </section>
+            );
+          })}
+        </div>
+
+        {confirmElement}
+      </div>
+    );
+  }
 
   return (
     <div>
-      {/* ── 상단 언더라인 탭 — 한 줄, 가로 스크롤. 회사 삭제는 오른쪽 끝 붉은 톤 ── */}
-      <nav className="stg-tabs" role="tablist" aria-label="회사 설정">
-        {visibleTabs.map((t, i) => {
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={active}
-              ref={(el) => { if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" }); }}
-              onClick={() => setTab(t.key)}
-              className={`stg-tab ${t.danger ? "stg-tab-danger" : ""} ${active ? "stg-tab-on" : ""} ${i === dangerIdx && i > 0 ? "stg-tab-push" : ""}`}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </nav>
-
       <div className="stg-main">
         <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
+
+        <button onClick={() => setTab(null)} className="stg-back">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          설정 홈
+        </button>
 
         {meta && (
           <header className="stg-head">

@@ -8650,17 +8650,28 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ev-kind-novat { @apply bg-[var(--danger)]/10 text-[var(--danger)] whitespace-nowrap; }
 .gd-wf-count { @apply shrink-0 mt-1.5 text-[11px] font-semibold text-[var(--text-dim)]; }
 
-/* ── 회사 설정 리디자인 (2026-08-13 2차 — 사장님: 좌측 네비 별로, 내용까지 다 바꿔라) — stg- ── */
-/* 상단 언더라인 탭 한 줄 — 가로 스크롤, 회사 삭제는 오른쪽 끝 붉은 톤 */
-.stg-tabs { @apply flex items-center gap-0.5 border-b border-[var(--border)] mb-6 overflow-x-auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-.stg-tabs::-webkit-scrollbar { display: none; }
-.stg-tab { @apply relative shrink-0 px-3.5 py-2.5 text-[13.5px] font-medium text-[var(--text-muted)] whitespace-nowrap transition-colors hover:text-[var(--text)]; }
-.stg-tab-on { @apply text-[var(--text)] font-semibold; }
-.stg-tab-on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--primary); }
-.stg-tab-danger { @apply text-[var(--danger)]/60 hover:text-[var(--danger)]; }
-.stg-tab-danger.stg-tab-on { @apply text-[var(--danger)]; }
-.stg-tab-danger.stg-tab-on::after { background: var(--danger); }
-.stg-tab-push { @apply ml-auto; }
+/* ── 회사 설정 리디자인 (2026-08-13 3차 — 허브·상세 구조. 사장님: 아예 다른 느낌으로) — stg- ── */
+/* 설정 홈: 회사 스트립 + 그룹 패널(항목 행 = 아이콘·이름·설명·상태·화살표) */
+.stg-hub-co { @apply mb-5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-6 py-5; }
+.stg-hub-co-name { @apply text-xl font-bold tracking-tight truncate; }
+.stg-hub-co-sub { @apply text-[13px] text-[var(--text-muted)] mt-1 truncate; }
+.stg-hub { @apply grid grid-cols-1 md:grid-cols-2 gap-5 items-start; }
+.stg-hub-group { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden pb-1.5; }
+.stg-hub-group-danger { @apply border-[var(--danger)]/25; }
+.stg-hub-group-label { @apply px-5 pt-4 pb-1.5 text-[11.5px] font-semibold text-[var(--text-dim)]; }
+.stg-hub-row { @apply w-full flex items-center gap-3.5 px-5 py-3 text-left transition-colors hover:bg-[var(--bg-surface)]; }
+.stg-hub-ico { @apply w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-[var(--primary)]/10 text-[var(--primary)]; }
+.stg-hub-ico-danger { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }
+.stg-hub-name { @apply block text-sm font-semibold; }
+.stg-hub-desc { @apply block text-[11.5px] text-[var(--text-dim)] mt-0.5 truncate; }
+.stg-hub-status { @apply ml-auto text-[11.5px] text-[var(--text-dim)] shrink-0 max-w-[40%] truncate; }
+.stg-hub-status-warn { @apply text-amber-600 font-medium; }
+.stg-hub-chev { @apply shrink-0 text-[var(--text-dim)]; }
+.stg-hub-status + .stg-hub-chev { margin-left: 0; }
+.stg-hub-row .stg-hub-chev:last-child { margin-left: auto; }
+.stg-hub-row .stg-hub-status + .stg-hub-chev { margin-left: 0; }
+/* 상세: 뒤로가기 + 콘텐츠 헤더 */
+.stg-back { @apply inline-flex items-center gap-1 mb-4 text-[13px] font-medium text-[var(--text-muted)] transition-colors hover:text-[var(--text)]; }
 /* 콘텐츠 헤더 — 탭 제목 + 한 줄 설명, 얇은 밑줄로 본문과 분리 */
 .stg-main { @apply min-w-0 space-y-0; }
 /* 기존 탭 컴포넌트 일괄 재스킨 — 셸 스코프에서 glass-card/section-title 을 새 카드 문법으로.
