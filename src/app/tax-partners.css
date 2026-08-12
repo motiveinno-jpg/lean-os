@@ -235,3 +235,9 @@
   .tpx-ba-arrow { transform: rotate(90deg); padding: 4px 0; }
   .tpx-band-grid { grid-template-columns: 1fr; gap: 40px; }
 }
+
+/* 모바일 히어로 — 완료 라벨이 버블과 겹치지 않게 위로 (2026-08-12 모바일 점검) */
+@media (max-width: 640px) {
+  .tpx-chat-done { top: -30px; }
+  .tpx-scene { margin-top: 34px; }
+}
