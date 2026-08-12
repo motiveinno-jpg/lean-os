@@ -987,7 +987,7 @@ export default function PartnersPage() {
                         />
                       </td>
                       <td className="px-3 py-3 text-center text-xs text-[var(--text-dim)] mono-number">{p.code != null ? String(p.code).padStart(4, "0") : "—"}</td>
-                      <td className="px-5 py-3 text-sm font-medium">
+                      <td className="px-5 py-3 text-sm font-medium whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">
                           {p.name}
                           {p.is_dormant && (

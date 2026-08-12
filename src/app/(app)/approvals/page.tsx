@@ -3739,6 +3739,9 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     targetMode: "all" as "all" | "users" | "department",
     requesterIds: [] as string[],
     requesterDepartment: "",
+    // 참조(CC) 기본값 (2026-08-12 사장님: "원래 있었던 것 같은데 사라졌어") — 이 정책으로 만든
+    //   요청의 참조란에 프리필된다. ⚠️ 종전엔 저장 시 미전달 → upsert 기본 [] 로 기존 참조가 지워졌다.
+    referenceIds: [] as string[],
     stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }] as ApprovalStageConfig[],
   });
 
@@ -3784,6 +3787,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         requester_id: form.targetMode === "users" && form.requesterIds.length === 1 ? form.requesterIds[0] : null,
         requester_ids: form.targetMode === "users" && form.requesterIds.length > 0 ? form.requesterIds : null,
         requester_department: form.targetMode === "department" ? form.requesterDepartment.trim() || null : null,
+        reference_user_ids: form.referenceIds,
         is_active: true,
       }),
     onSuccess: () => {
@@ -3813,6 +3817,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       targetMode: "all",
       requesterIds: [],
       requesterDepartment: "",
+      referenceIds: [],
       stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }],
     });
   }
@@ -3834,6 +3839,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         if (t.userIds.length) return { targetMode: "users" as const, requesterIds: t.userIds, requesterDepartment: "" };
         return { targetMode: "all" as const, requesterIds: [], requesterDepartment: "" };
       })(),
+      referenceIds: Array.isArray(policy.reference_user_ids) ? policy.reference_user_ids : [],
       stages: policy.stages as ApprovalStageConfig[],
     });
     setShowForm(true);
@@ -3942,7 +3948,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                 className="field-input"
               />
             </div>
-            <div className="col-span-2">
+            {/* sm:col-span-2 — 모바일 1열 그리드에서 col-span-2 는 4px 암시적 컬럼을 만들어 폼 전체가 깨졌다 (2026-08-12 모바일 점검) */}
+            <div className="sm:col-span-2">
               <label className="block text-xs text-[var(--text-muted)] mb-1">설명 템플릿 (선택) — 표·서식 사용 가능</label>
               {/* 2026-07-29 사장님: 기본형식 입력에도 표·서식 — textarea → RichEditor.
                   저장은 HTML, 기존 평문 템플릿은 plainToHtml 로 초기 표시(HTML 이면 그대로). */}
@@ -4018,6 +4025,32 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                 <span className="text-sm text-[var(--text)]">요청자가 승인자(승인라인)를 바꿀 수 있음</span>
               </label>
               <p className="text-[10px] text-[var(--text-dim)] mt-1">해제 시 요청자는 정책의 승인라인을 그대로 사용해야 합니다.</p>
+            </div>
+            {/* 참조(CC) 기본값 (2026-08-12 복원) — 이 정책으로 결재를 올리면 참조란에 미리 채워진다 */}
+            <div className="col-span-full">
+              <label className="block text-xs text-[var(--text-muted)] mb-1">참조 (선택)</label>
+              <div className="policy-target-people">
+                {orgUsers.map((u) => {
+                  const on = form.referenceIds.includes(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => setForm((s) => ({
+                        ...s,
+                        referenceIds: s.referenceIds.includes(u.id) ? s.referenceIds.filter((id) => id !== u.id) : [...s.referenceIds, u.id],
+                      }))}
+                      className={`policy-target-chip ${on ? "policy-target-chip-on" : ""}`}
+                    >
+                      {u.name || u.email}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">
+                선택한 인원은 이 정책으로 올라온 결재의 참조란에 자동으로 들어갑니다(요청자가 가감 가능).
+                {form.referenceIds.length ? ` (${form.referenceIds.length}명 선택됨)` : ""}
+              </p>
             </div>
           </div>
 
