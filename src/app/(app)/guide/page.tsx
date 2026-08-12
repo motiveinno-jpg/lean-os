@@ -447,8 +447,9 @@ function WorkflowGuides() {
                   </span>
                   <span className="gd-card-desc gd-clamp2">{wf.description}</span>
                 </span>
-                {/* 단계 수는 칩이 아니라 우측에 조용히 — 카테고리처럼 보인다는 제보 (2026-08-12) */}
-                <span className="gd-wf-count">{wf.steps.length}단계</span>
+                {/* "총 N단계" — 'N단계'만 쓰면 순번(1단계, 2단계…)으로 읽혀 "1~3단계는 어디 갔냐"는
+                    오해가 생겼다 (2026-08-12 사장님). 구성 개수임을 명시. */}
+                <span className="gd-wf-count">총 {wf.steps.length}단계</span>
                 <svg className={`gd-caret ${isOpen ? "gd-caret-open" : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
               </button>
               <div className="gd-card-body">
