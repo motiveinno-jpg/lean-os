@@ -8672,29 +8672,26 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* ── 회사 설정 리디자인 (2026-08-13 4차 — 사장님 시안 B '잉크 투톤' 선택) — stg- ──
    좌측 패널은 앱 사이드바와 이중이라(사장님 지적) 네이비 밴드를 상단에 눕혔다.
    밴드 = 회사 아이덴티티 + 항목 네비(+상태), 아래 = 밝은 작업면. */
-.stg-band { @apply mb-6 rounded-2xl px-5 sm:px-6 pt-5 pb-3 text-[#eef0fa]; background: linear-gradient(160deg, #1a2240 0%, #141a33 55%, #101527 100%); }
+/* 색은 앱 토큰으로 — 네이비 밴드가 앱의 밝은 톤과 동떨어진다는 지적(2026-08-13 사장님) */
+.stg-band { @apply mb-6 rounded-2xl px-5 sm:px-6 pt-5 pb-3 border border-[var(--border)] bg-[var(--bg-card)]; }
 .stg-band-top { @apply flex items-start justify-between gap-3 mb-4; }
-.stg-band-name { @apply text-lg sm:text-xl font-bold tracking-tight truncate; }
-.stg-band-sub { @apply text-[12.5px] mt-0.5 truncate; color: #8d97c4; }
-.stg-band-alert { @apply shrink-0 text-[11.5px] font-bold px-3 py-1.5 rounded-full transition-colors; color: #ffd9a8; background: #ffffff14; }
-.stg-band-alert:hover { background: #ffffff22; }
+.stg-band-name { @apply text-lg sm:text-xl font-bold tracking-tight truncate text-[var(--text)]; }
+.stg-band-sub { @apply text-[12.5px] mt-0.5 truncate text-[var(--text-muted)]; }
+.stg-band-alert { @apply shrink-0 text-[11.5px] font-bold px-3 py-1.5 rounded-full transition-colors bg-amber-500/10 text-amber-600 hover:bg-amber-500/20; }
 /* 탭 줄 — 모바일은 가로 스크롤, 데스크톱(sm+)은 줄바꿈으로 전부 보이게(잘림 방지, 2026-08-13 사장님) */
 .stg-band-nav { @apply flex items-center gap-1 overflow-x-auto pb-2 -mx-1 px-1 sm:flex-wrap sm:overflow-visible sm:gap-y-1.5; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .stg-band-nav::-webkit-scrollbar { display: none; }
-.stg-band-item { @apply shrink-0 flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors; color: #c9cfe8; }
-.stg-band-item:hover { background: #ffffff10; color: #fff; }
-.stg-band-item small { @apply text-[10.5px] font-semibold; color: #7d87b5; font-variant-numeric: tabular-nums; }
-.stg-band-item-on { @apply font-bold; background: #ffffff; color: #151c33; box-shadow: 0 2px 10px -2px rgba(0,0,0,.45); }
-.stg-band-item-on:hover { background: #ffffff; color: #151c33; }
-.stg-band-item-on small { color: #6c76a5; }
-.stg-band-item-warn { color: #f4b26a !important; }
-.stg-band-sep { @apply shrink-0 self-center w-px h-4 mx-1; background: #ffffff1f; }
-.stg-band-item-danger { color: #e58a8a; }
+.stg-band-item { @apply shrink-0 flex items-center gap-1.5 px-3.5 py-[7px] rounded-lg text-[13px] font-medium whitespace-nowrap transition-colors text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]; }
+.stg-band-item small { @apply text-[10.5px] font-semibold text-[var(--text-dim)]; font-variant-numeric: tabular-nums; }
+.stg-band-item-on { @apply font-bold bg-[var(--primary)] !text-white shadow-sm hover:bg-[var(--primary)]; }
+.stg-band-item-on small { @apply !text-white/75; }
+.stg-band-item-warn { @apply !text-amber-600; }
+.stg-band-item-on .stg-band-item-warn { @apply !text-amber-200; }
+.stg-band-sep { @apply shrink-0 self-center w-px h-4 mx-1 bg-[var(--border)]; }
 /* 회사 삭제 — 데스크톱에선 오른쪽 끝으로 격리 (앞 세퍼레이터는 그때 숨김) */
-.stg-band-item-danger { @apply sm:ml-auto; }
+.stg-band-item-danger { @apply sm:ml-auto text-[var(--danger)]/70 hover:text-[var(--danger)] hover:bg-[var(--danger)]/10; }
 .stg-band-sep:has(+ .stg-band-item-danger) { @apply sm:hidden; }
-.stg-band-item-danger:hover { background: #ff5c5c1a; color: #ff9d9d; }
-.stg-band-item-danger.stg-band-item-on { background: #ffe9e9; color: #a02c2c; }
+.stg-band-item-danger.stg-band-item-on { @apply bg-[var(--danger)] !text-white; }
 /* 콘텐츠 헤더 — 크럼 + 탭 제목 + 한 줄 설명, 얇은 밑줄로 본문과 분리 */
 .stg-head-crumb { @apply text-[11.5px] font-medium text-[var(--text-dim)] mb-1; }
 .stg-main { @apply min-w-0 space-y-0; }
