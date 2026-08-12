@@ -115,6 +115,11 @@ const CASES = [
     expect: [/출근|기록/], reject: [/지각/],
     why: "본인 근태 툴 — 기록 없음을 지각으로 지어내면 안 됨",
   },
+  {
+    who: "owner", q: "우리 회사에 연결된 세무사 있어?",
+    expect: [/세무/], reject: [/박세무/],
+    why: "get_tax_advisors 툴 (2026-08-12 제보로 추가) — 시드엔 연결 없음: '없다'가 정답, 이름을 지어내면 안 됨",
+  },
 ];
 
 const anon = await anonKey();

@@ -188,6 +188,7 @@ ${COMMON_RULES}
 - 연차 부여·잔여("연차 며칠 남았어", "총 부여 연차")는 get_leave_status 의 balances 로 답하세요. 휴가 신청 내역을 세서 계산하지 마세요. 이 툴은 직원 이름을 함께 돌려주므로 특정 직원의 연차를 물어도 find_employee 를 먼저 부를 필요가 없습니다(get_payroll·get_attendance_summary·list_hr_requests 도 같습니다 — 이름이 들어 있습니다).
 - 조회 툴이 있는 주제는 "확인할 수 없다"·"시스템에서 모른다"고 넘기지 말고 먼저 툴을 부르세요. 툴을 부른 뒤에도 값이 비어 있을 때만 없다고 답하고, 그때도 "데이터가 없다"가 아니라 어느 화면에서 입력하면 되는지 알려 주세요.
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
+- 연결된 세무사·회계사("우리 세무사 누구야", "세무사가 언제 봤어")는 get_tax_advisors 로 답하세요. 스냅샷에는 없습니다.
 - 결재 양식(신청서·품의서 등 서식)의 존재·목록은 list_approval_forms, 특정 양식의 현재 항목 구성은 get_approval_form 으로 확인하세요.
 - 양식을 고치거나 새로 만들어 달라는 요청은 upsert_approval_form 액션으로 처리합니다(사용자 확인 후 저장). 순서: ① get_approval_form 으로 현재 구성 확인(수정인 경우) ② 한국 기업 실무 관행을 반영한 개선 항목 구성 ③ upsert_approval_form 호출. 예: 예비군/민방위 휴가 양식이면 소집통지서 첨부 안내, 훈련 구분(동원/동미참/향방작계 등), 훈련 기간, 유급 처리 문구 같은 실무 항목을 반영하세요.
 - 첨부문서를 바탕으로 계약서를 만들어 달라는 요청은 create_contract_draft_from_attachment 액션으로 처리합니다. 원문의 당사자·목적·기간·대금·업무·비밀유지·해지·손해배상·관할 등 실제 내용을 빠뜨리지 말고 HTML 계약서로 재구성하세요. 원문에 없는 사실·금액·날짜·법률효과를 만들지 말고 필요한 곳에 [확인 필요: 항목]을 표시하세요. 반복 사용 값은 {{회사명}}, {{직원명}}, {{계약일}} 같은 변수로 바꾸되 원문의 고정 당사자명이 핵심인 일반 거래계약이면 함부로 바꾸지 마세요. 원문 성격에 맞는 document_type을 고르세요. AI 초안은 외부 발송 없이 전자계약 > 양식 관리에 회사 양식으로 저장됩니다.
@@ -465,6 +466,11 @@ const MANAGER_READ_TOOLS = [
   {
     name: "get_account_status",
     description: "이 회사의 오너뷰 이용 상태를 반환합니다 — 요금제·구독 상태·좌석 수·결제주기·다음 결제일, 그리고 고객센터 문의 현황. '우리 요금제 뭐야', '언제 결제돼', '문의한 거 답변 왔어' 질문에 쓰세요.",
+    input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: "get_tax_advisors",
+    description: "이 회사에 연결된 세무 파트너(세무사·회계사)와 최근 열람 이력을 반환합니다. '우리 세무사 누구야', '세무사 연결돼 있어?', '세무사가 언제 봤어' 질문에 쓰세요. 연결·해제는 회사 설정 > 세무 파트너에서 합니다.",
     input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
   },
   {
@@ -1460,6 +1466,36 @@ async function executeReadTool(
         waiting: tk.filter((t) => t.status !== "answered" && t.status !== "closed").length,
       },
       note: "subscription 이 null 이면 아직 유료 요금제를 시작하지 않은 것입니다. cancel_at_period_end 가 true 면 이번 기간까지만 이용하고 해지됩니다.",
+    };
+  }
+
+  if (name === "get_tax_advisors") {
+    // 연결된 세무 파트너 (2026-08-12 사장님: 참모가 "그런 정보 없다"고 답함 — 툴 부재였다)
+    const { data: links } = await admin
+      .from("advisor_company_links")
+      .select("status, created_at, revoked_at, tax_advisors(name, office_name, email, phone, specialty, status)")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false });
+    const { data: logs } = await admin
+      .from("advisor_access_logs")
+      .select("accessed_at, tax_advisors(name)")
+      .eq("company_id", companyId)
+      .order("accessed_at", { ascending: false })
+      .limit(10);
+    type LinkRow = { status: string; created_at: string; revoked_at: string | null; tax_advisors: { name: string; office_name: string | null; email: string; phone: string | null; specialty: string | null; status: string } | null };
+    const rows = (links ?? []) as LinkRow[];
+    return {
+      advisors: rows.map((l) => ({
+        name: l.tax_advisors?.name, office: l.tax_advisors?.office_name,
+        email: l.tax_advisors?.email, phone: l.tax_advisors?.phone,
+        specialty: l.tax_advisors?.specialty,
+        link_status: l.status === "active" ? "연결됨" : "해제됨",
+        linked_at: l.created_at, revoked_at: l.revoked_at,
+      })),
+      recent_access: (logs ?? []).map((g: { accessed_at: string; tax_advisors: { name: string } | null }) => ({
+        advisor: g.tax_advisors?.name, at: g.accessed_at,
+      })),
+      note: "advisors 가 비어 있으면 아직 연결된 세무 파트너가 없는 것입니다. 연결은 회사 설정 > 세무 파트너에서 제휴 세무사를 선택하면 됩니다.",
     };
   }
 
