@@ -8553,3 +8553,81 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 
 /* 재무상태표 — 마이너스가 왜 났는지 설명하는 줄 (2026-08-12) */
 .bs-flipped-note { @apply mb-3; }
+
+/* ═══ 사용 가이드 리디자인 (2026-08-12) — gd- 네임스페이스 ═══ */
+.gd-root { @apply max-w-5xl space-y-6; }
+/* 리빌 — data-gd 요소가 화면에 들어오면 fade-up (reduced-motion 은 JS 에서 미적용) */
+@media (prefers-reduced-motion: no-preference) {
+  .gd-root [data-gd] { opacity: 0; transform: translateY(16px); transition: opacity .55s cubic-bezier(.22,.61,.2,1), transform .55s cubic-bezier(.22,.61,.2,1); }
+  .gd-root [data-gd].gd-in { opacity: 1; transform: none; }
+}
+.gd-hero { @apply rounded-2xl px-7 py-8 border border-[var(--border)]; background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-card) 55%); }
+.gd-hero-top { @apply flex items-start justify-between gap-4 flex-wrap mb-6; }
+.gd-hero-title { @apply text-[24px] font-extrabold tracking-tight text-[var(--text)]; }
+.gd-hero-sub { @apply mt-1.5 text-[13.5px] text-[var(--text-muted)]; }
+.gd-onboard-btn { @apply shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold text-[var(--text-muted)] bg-[var(--bg-card)] border border-[var(--border)] hover:text-[var(--text)] hover:border-[var(--primary)] transition; }
+.gd-search { @apply relative flex items-center; }
+.gd-search svg { @apply absolute left-4 text-[var(--text-dim)] pointer-events-none; }
+.gd-search input { @apply w-full pl-11 pr-10 py-3.5 rounded-2xl text-[14.5px] bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] outline-none transition shadow-sm; }
+.gd-search input:focus { @apply border-[var(--primary)]; box-shadow: 0 0 0 4px var(--primary-light); }
+.gd-search-clear { @apply absolute right-3 w-6 h-6 rounded-full text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition; }
+.gd-toolbar { @apply flex items-center justify-between gap-3 flex-wrap; }
+.gd-toolbar-right { @apply flex items-center gap-3 shrink-0; }
+.gd-count { @apply text-xs text-[var(--text-dim)]; }
+.gd-expand-btn { @apply text-xs font-bold text-[var(--primary)] hover:underline underline-offset-2; }
+.gd-tab-count { @apply text-[11px] font-semibold px-1.5 py-px rounded-full bg-[var(--bg)] text-[var(--text-muted)]; }
+.gd-tab-count-on { @apply bg-white/20 text-white; }
+
+/* 카드 — 2열 그리드, 펼치면 전체 폭 + grid-rows 트랜지션 */
+.gd-grid { @apply grid gap-3.5 md:grid-cols-2; }
+.gd-card { @apply rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden transition-all duration-300; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+.gd-card:hover { @apply border-[var(--primary)]/50; transform: translateY(-1px); box-shadow: 0 10px 28px -18px rgba(0,0,0,.25); }
+.gd-card-open { @apply border-[var(--primary)] md:col-span-2; box-shadow: 0 16px 44px -24px rgba(0,0,0,.28); }
+.gd-card-open:hover { transform: none; }
+.gd-card-head { @apply w-full flex items-start gap-3.5 px-5 py-4 text-left text-[var(--text)] cursor-pointer; }
+.gd-card-ico { @apply w-11 h-11 rounded-xl flex items-center justify-center text-[21px] shrink-0 mt-0.5 transition-transform duration-300; }
+.gd-card-open .gd-card-ico { transform: scale(1.08); }
+.gd-card-titles { @apply flex-1 min-w-0 flex flex-col gap-1; }
+.gd-card-title-row { @apply flex items-center gap-2; }
+.gd-card-title { @apply text-[15px] font-bold; }
+.gd-card-chip { @apply text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]; }
+.gd-card-desc { @apply text-[12.5px] leading-relaxed text-[var(--text-muted)]; }
+.gd-clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gd-caret { @apply shrink-0 mt-1 text-[var(--text-dim)] transition-transform duration-300; }
+.gd-caret-open { transform: rotate(180deg); @apply text-[var(--primary)]; }
+.gd-card-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .35s cubic-bezier(.22,.61,.2,1); }
+.gd-card-open .gd-card-body { grid-template-rows: 1fr; }
+.gd-card-body-inner { @apply overflow-hidden px-5 mx-0; }
+.gd-card-open .gd-card-body-inner { @apply pb-5 pl-[76px] pr-6; }
+.gd-sec-label { @apply text-[11px] font-extrabold tracking-widest text-[var(--text-dim)] uppercase mb-2.5; }
+.gd-kf-grid { @apply grid gap-x-6 gap-y-2 md:grid-cols-2 list-none p-0 m-0; }
+.gd-kf { @apply flex items-start gap-2 text-[13px] leading-relaxed text-[var(--text)]; }
+.gd-kf svg { @apply shrink-0 mt-1; }
+.gd-tip { @apply flex items-start gap-2.5 mt-4 px-3.5 py-2.5 rounded-xl text-[12.5px] leading-relaxed bg-[var(--warning)]/8 text-[var(--text)]; }
+.gd-tip-badge { @apply shrink-0 text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-[var(--warning)]/15 text-[var(--warning)] mt-0.5; }
+.gd-go { @apply inline-flex items-center gap-1.5 mt-4 px-4 py-2 rounded-xl text-[13px] font-bold text-white bg-[var(--primary)] hover:opacity-90 transition no-underline; }
+
+/* 워크플로 타임라인 */
+.gd-wf-sect { @apply pt-4; }
+.gd-h2 { @apply text-[18px] font-extrabold text-[var(--text)]; }
+.gd-h2-sub { @apply mt-1 mb-4 text-[13px] text-[var(--text-muted)]; }
+.gd-wf-grid { @apply grid gap-3.5 md:grid-cols-2; }
+.gd-steps { @apply list-none p-0 m-0 relative; }
+.gd-step { @apply relative flex gap-3.5 pb-5 last:pb-0; }
+.gd-step::before { content: ""; @apply absolute left-[13px] top-7 bottom-0 w-px bg-[var(--border)]; }
+.gd-step:last-child::before { display: none; }
+.gd-step-no { @apply relative z-10 w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[12px] font-extrabold bg-[var(--primary-light)] text-[var(--primary)] border-2 border-[var(--bg-card)]; }
+.gd-step-body { @apply min-w-0 pt-0.5; }
+.gd-step-t { @apply text-[13.5px] font-bold text-[var(--text)]; }
+.gd-step-d { @apply mt-1 text-[12.5px] leading-relaxed text-[var(--text-muted)]; }
+.gd-step-link { @apply inline-block mt-1.5 text-[12px] font-bold text-[var(--primary)] hover:underline underline-offset-2; }
+
+/* 빈 상태·바로가기 */
+.gd-empty { @apply text-center py-16 rounded-2xl border border-dashed border-[var(--border)]; }
+.gd-empty-ico { @apply text-[30px] mb-2.5; }
+.gd-empty-t { @apply text-sm font-bold text-[var(--text-muted)]; }
+.gd-empty-d { @apply mt-1 text-xs text-[var(--text-dim)]; }
+.gd-quick { @apply rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] p-5; }
+.gd-h3 { @apply text-sm font-bold text-[var(--text)] mb-3; }
+.gd-quick-grid { @apply flex flex-wrap gap-2; }
+.gd-quick-link { @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-semibold text-[var(--text)] bg-[var(--bg-surface)]/70 border border-[var(--border)] no-underline transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }

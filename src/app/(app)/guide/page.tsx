@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Ico, icoColor } from "@/components/ui-icon";
 import Link from 'next/link';
 import { resetOnboardingDismiss } from '@/components/onboarding';
@@ -293,7 +293,10 @@ const CATEGORY_TAB_COUNTS: Record<CategoryTab, number> = FEATURES.reduce(
   { '전체': FEATURES.length, '재무': 0, '영업': 0, 'HR': 0, '운영': 0 } as Record<CategoryTab, number>,
 );
 
-// ── Accordion Card Component ──
+
+// ── 기능 카드 (2026-08-12 리디자인 — 사장님: "조잡하고 레이아웃 안 맞음") ──
+//   인라인 스타일 → gd- 시맨틱 클래스, 세로 나열 → 2열 그리드, 펼침은 grid-rows 트랜지션.
+//   확장 시 카드가 그리드 전체 폭으로 커지며 핵심 기능이 2열로 배치된다.
 function FeatureCard({
   feature,
   isExpanded,
@@ -304,231 +307,41 @@ function FeatureCard({
   onToggle: () => void;
 }) {
   return (
-    <div
-      style={{
-        backgroundColor: 'var(--bg-card)',
-        border: `1px solid ${isExpanded ? 'var(--primary)' : 'var(--border)'}`,
-        borderRadius: '12px',
-        overflow: 'hidden',
-        transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-        boxShadow: isExpanded ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 3px rgba(0,0,0,0.04)',
-      }}
-    >
-      {/* Header — always visible */}
-      <button
-        onClick={onToggle}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: '12px',
-          padding: '16px 20px',
-          textAlign: 'left',
-          cursor: 'pointer',
-          background: 'none',
-          border: 'none',
-          color: 'var(--text)',
-        }}
-        aria-expanded={isExpanded}
-      >
-        <span
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: `${icoColor(feature.icon)}1a`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '20px',
-            lineHeight: '1.2',
-            flexShrink: 0,
-            marginTop: '2px',
-          }}
-        >
+    <div className={`gd-card ${isExpanded ? "gd-card-open" : ""}`} data-gd>
+      <button onClick={onToggle} aria-expanded={isExpanded} className="gd-card-head">
+        <span className="gd-card-ico" style={{ background: `${icoColor(feature.icon)}1a` }}>
           <Ico e={feature.icon} tone="color" />
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <h3
-              style={{
-                fontSize: '15px',
-                fontWeight: 700,
-                color: 'var(--text)',
-                margin: 0,
-              }}
-            >
-              {feature.title}
-            </h3>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 500,
-                padding: '2px 8px',
-                borderRadius: '9999px',
-                backgroundColor: 'var(--primary-light)',
-                color: 'var(--primary)',
-              }}
-            >
-              {feature.category}
-            </span>
-          </div>
-          <p
-            style={{
-              fontSize: '13px',
-              color: 'var(--text-muted)',
-              margin: 0,
-              lineHeight: 1.6,
-              display: isExpanded ? 'block' : '-webkit-box',
-              WebkitLineClamp: isExpanded ? undefined : 2,
-              WebkitBoxOrient: isExpanded ? undefined : 'vertical',
-              overflow: isExpanded ? 'visible' : 'hidden',
-            }}
-          >
-            {feature.description}
-          </p>
-        </div>
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--text-muted)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{
-            flexShrink: 0,
-            marginTop: '4px',
-            transition: 'transform 0.2s ease',
-            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-          }}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+        <span className="gd-card-titles">
+          <span className="gd-card-title-row">
+            <span className="gd-card-title">{feature.title}</span>
+            <span className="gd-card-chip">{feature.category}</span>
+          </span>
+          <span className={`gd-card-desc ${isExpanded ? "" : "gd-clamp2"}`}>{feature.description}</span>
+        </span>
+        <svg className={`gd-caret ${isExpanded ? "gd-caret-open" : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
       </button>
 
-      {/* Expandable content */}
-      <div
-        style={{
-          maxHeight: isExpanded ? '600px' : '0px',
-          overflow: 'hidden',
-          transition: 'max-height 0.3s ease',
-        }}
-      >
-        <div
-          style={{
-            padding: '0 20px 20px 72px',
-          }}
-        >
-          {/* Key Features */}
-          <div style={{ marginBottom: '16px' }}>
-            <h4
-              style={{
-                fontSize: '12px',
-                fontWeight: 700,
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                marginBottom: '10px',
-              }}
-            >
-              핵심 기능
-            </h4>
-            <ul
-              style={{
-                listStyle: 'none',
-                padding: 0,
-                margin: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-              }}
-            >
-              {feature.keyFeatures.map((kf, i) => (
-                <li
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '8px',
-                    fontSize: '13px',
-                    color: 'var(--text)',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--primary)"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ flexShrink: 0, marginTop: '2px' }}
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <span>{kf}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Tip */}
+      <div className="gd-card-body">
+        <div className="gd-card-body-inner">
+          <div className="gd-sec-label">핵심 기능</div>
+          <ul className="gd-kf-grid">
+            {feature.keyFeatures.map((kf, i) => (
+              <li key={i} className="gd-kf">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+                <span>{kf}</span>
+              </li>
+            ))}
+          </ul>
           {feature.tips && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                backgroundColor: 'var(--primary-light)',
-                marginBottom: '16px',
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--primary)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ flexShrink: 0, marginTop: '1px' }}
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-              <p style={{ fontSize: '12px', color: 'var(--primary)', margin: 0, lineHeight: 1.5 }}>
-                {feature.tips}
-              </p>
+            <div className="gd-tip">
+              <span className="gd-tip-badge">TIP</span>
+              <span>{feature.tips}</span>
             </div>
           )}
-
-          {/* Action Link */}
-          <Link
-            href={feature.route}
-            className="btn-primary hover:bg-[var(--primary-hover)]"
-          >
-            {feature.title} 시작하기
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M5 12h14" />
-              <path d="M12 5l7 7-7 7" />
-            </svg>
+          <Link href={feature.route} className="gd-go">
+            바로 가보기
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
           </Link>
         </div>
       </div>
@@ -612,128 +425,57 @@ const WORKFLOWS: Workflow[] = [
   },
 ];
 
+// ── 워크플로 가이드 — 번호 원 + 세로 연결선 타임라인 (2026-08-12 리디자인) ──
 function WorkflowGuides() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
   return (
-    <div style={{ marginTop: '40px', marginBottom: '12px' }}>
-      <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text)', margin: '0 0 4px' }}>
-        단계별 워크플로우 가이드
-      </h2>
-      <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 16px' }}>
-        주요 업무 흐름을 단계별로 안내합니다. 클릭하여 상세 과정을 확인하세요.
-      </p>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <section className="gd-wf-sect" data-gd>
+      <h2 className="gd-h2">업무 흐름 따라하기</h2>
+      <p className="gd-h2-sub">처음 하는 업무는 이 순서대로 — 눌러서 단계별 안내를 펼쳐 보세요.</p>
+      <div className="gd-wf-grid">
         {WORKFLOWS.map((wf) => {
           const isOpen = expandedId === wf.id;
           return (
-            <div
-              key={wf.id}
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                border: `1px solid ${isOpen ? 'var(--primary)' : 'var(--border)'}`,
-                borderRadius: '12px',
-                overflow: 'hidden',
-                transition: 'border-color 0.2s ease',
-              }}
-            >
-              <button
-                onClick={() => setExpandedId(isOpen ? null : wf.id)}
-                aria-expanded={isOpen}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '14px 20px',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--text)',
-                }}
-              >
-                <span
-                  style={{
-                    width: '38px', height: '38px', borderRadius: '10px',
-                    background: `${icoColor(wf.icon)}1a`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '19px', flexShrink: 0,
-                  }}
-                >
+            <div key={wf.id} className={`gd-card ${isOpen ? "gd-card-open" : ""}`}>
+              <button onClick={() => setExpandedId(isOpen ? null : wf.id)} aria-expanded={isOpen} className="gd-card-head">
+                <span className="gd-card-ico" style={{ background: `${icoColor(wf.icon)}1a` }}>
                   <Ico e={wf.icon} tone="color" />
                 </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{wf.title}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{wf.description}</div>
-                </div>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--primary)', flexShrink: 0 }}>
-                  {wf.steps.length}단계
+                <span className="gd-card-titles">
+                  <span className="gd-card-title-row">
+                    <span className="gd-card-title">{wf.title}</span>
+                    <span className="gd-card-chip">{wf.steps.length}단계</span>
+                  </span>
+                  <span className="gd-card-desc gd-clamp2">{wf.description}</span>
                 </span>
-                <svg
-                  width="18" height="18" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ flexShrink: 0, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0)' }}
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+                <svg className={`gd-caret ${isOpen ? "gd-caret-open" : ""}`} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
               </button>
-
-              <div style={{ maxHeight: isOpen ? '2000px' : '0', overflow: 'hidden', transition: 'max-height 0.3s ease' }}>
-                <div style={{ padding: '0 20px 20px 20px' }}>
-                  <div style={{ position: 'relative', paddingLeft: '28px' }}>
-                    <div style={{ position: 'absolute', left: '11px', top: '4px', bottom: '4px', width: '2px', backgroundColor: 'var(--border)', borderRadius: '1px' }} />
+              <div className="gd-card-body">
+                <div className="gd-card-body-inner">
+                  <ol className="gd-steps">
                     {wf.steps.map((step, idx) => (
-                      <div key={idx} style={{ position: 'relative', paddingBottom: idx < wf.steps.length - 1 ? '20px' : '0' }}>
-                        <div style={{
-                          position: 'absolute', left: '-22px', top: '2px',
-                          width: '20px', height: '20px', borderRadius: '50%',
-                          backgroundColor: 'var(--primary)', color: '#fff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '10px', fontWeight: 700, zIndex: 1,
-                        }}>
-                          {idx + 1}
-                        </div>
-                        <div style={{ marginLeft: '8px' }}>
-                          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
-                            {step.title}
-                          </div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                            {step.description}
-                          </div>
+                      <li key={idx} className="gd-step">
+                        <span className="gd-step-no">{idx + 1}</span>
+                        <div className="gd-step-body">
+                          <div className="gd-step-t">{step.title}</div>
+                          <div className="gd-step-d">{step.description}</div>
                           {step.route && (
-                            <Link
-                              href={step.route}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                marginTop: '6px', fontSize: '11px', fontWeight: 600,
-                                color: 'var(--primary)', textDecoration: 'none',
-                              }}
-                            >
-                              바로가기
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M5 12h14"/><path d="M12 5l7 7-7 7"/>
-                              </svg>
-                            </Link>
+                            <Link href={step.route} className="gd-step-link">해당 화면으로 →</Link>
                           )}
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ol>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
-// ═══════════════════════════════════════════
-// Main Component
-// ═══════════════════════════════════════════
 export default function GuidePage() {
   const [activeTab, setActiveTab] = useState<CategoryTab>('전체');
   const [searchQuery, setSearchQuery] = useState('');
@@ -781,257 +523,103 @@ export default function GuidePage() {
 
   const isAllExpanded = filteredFeatures.length > 0 && filteredFeatures.every((f) => expandedIds.has(f.id));
 
+  // 스크롤 리빌 — data-gd 요소가 화면에 들어오면 순차 fade-up (2026-08-12)
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-gd]:not(.gd-in)"));
+    const io = new IntersectionObserver(
+      (es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("gd-in"); io.unobserve(e.target); } }),
+      { threshold: 0.15 },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [filteredFeatures]);
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '860px',
-          margin: '0 auto',
-          padding: '32px 16px 64px',
-        }}
-      >
-        {/* ── Onboarding Reset ── */}
-        <div
-          style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '12px',
-            padding: '16px 20px',
-            marginBottom: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            flexWrap: 'wrap',
-          }}
-        >
+    <div className="gd-root">
+      {/* ── 헤더 — 큰 검색이 주인공 ── */}
+      <div className="gd-hero" data-gd>
+        <div className="gd-hero-top">
           <div>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', margin: '0 0 2px' }}>
-              초기 설정 다시 하기
-            </h3>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-              회사 정보, 통장, 카드, 직원 등 초기 설정을 다시 시작합니다.
-            </p>
+            <h1 className="gd-hero-title">사용 가이드</h1>
+            <p className="gd-hero-sub">오너뷰의 모든 기능을 한 곳에서 — 검색하거나, 업무 흐름을 따라가 보세요.</p>
           </div>
           <button
-            onClick={() => {
-              resetOnboardingDismiss();
-              window.location.href = '/dashboard';
-            }}
-            className="btn-primary whitespace-nowrap shrink-0"
+            onClick={() => { resetOnboardingDismiss(); window.location.href = "/dashboard"; }}
+            className="gd-onboard-btn"
+            title="회사 정보·통장·카드·직원 등 초기 설정을 다시 시작합니다"
           >
-            온보딩 다시 시작
+            초기 설정 다시 하기
           </button>
         </div>
-
-        {/* ── Search ── */}
-        <div style={{ position: 'relative', marginBottom: '16px' }}>
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="var(--text-muted)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              pointerEvents: 'none',
-            }}
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
-          </svg>
+        <div className="gd-search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
           <input
             type="text"
-            placeholder="기능명, 설명, 핵심 기능 키워드로 검색..."
+            placeholder="어떤 기능을 찾으세요? (예: 세금계산서, 연차, 결재)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="기능 검색"
-            style={{
-              width: '100%',
-              paddingLeft: '38px',
-              paddingRight: '16px',
-              paddingTop: '10px',
-              paddingBottom: '10px',
-              fontSize: '13px',
-              border: '1px solid var(--border)',
-              borderRadius: '10px',
-              backgroundColor: 'var(--bg-card)',
-              color: 'var(--text)',
-              outline: 'none',
-              boxSizing: 'border-box',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--primary)';
-              e.currentTarget.style.boxShadow = '0 0 0 3px var(--primary-light)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
           />
+          {searchQuery && (
+            <button className="gd-search-clear" onClick={() => setSearchQuery("")} aria-label="검색어 지우기">✕</button>
+          )}
         </div>
+      </div>
 
-        {/* ── Category Tabs ── */}
-        <div
-          className="seg-bar mb-4 max-w-full overflow-x-auto"
-          role="tablist"
-          aria-label="기능 카테고리"
-        >
+      {/* ── 카테고리 + 펼침 컨트롤 ── */}
+      <div className="gd-toolbar" data-gd>
+        <div className="seg-bar max-w-full overflow-x-auto" role="tablist" aria-label="기능 카테고리">
           {CATEGORY_TABS.map((tab) => {
             const isActive = activeTab === tab;
             return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                role="tab"
-                aria-selected={isActive}
-                className={`seg-item flex items-center gap-1.5 ${isActive ? 'seg-item-active' : ''}`}
-              >
-                <span style={{ fontSize: '14px' }}>{CATEGORY_TAB_ICONS[tab]}</span>
+              <button key={tab} onClick={() => setActiveTab(tab)} role="tab" aria-selected={isActive}
+                className={`seg-item flex items-center gap-1.5 ${isActive ? "seg-item-active" : ""}`}>
+                <span className="text-[14px]">{CATEGORY_TAB_ICONS[tab]}</span>
                 {tab}
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    padding: '1px 6px',
-                    borderRadius: '9999px',
-                    backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'var(--bg)',
-                    color: isActive ? '#FFFFFF' : 'var(--text-muted)',
-                  }}
-                >
-                  {CATEGORY_TAB_COUNTS[tab]}
-                </span>
+                <span className={`gd-tab-count ${isActive ? "gd-tab-count-on" : ""}`}>{CATEGORY_TAB_COUNTS[tab]}</span>
               </button>
             );
           })}
         </div>
-
-        {/* ── Expand/Collapse Controls ── */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '12px',
-          }}
-        >
-          <p
-            style={{
-              fontSize: '12px',
-              color: 'var(--text-muted)',
-              margin: 0,
-            }}
-          >
-            {filteredFeatures.length}개 기능
-          </p>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={isAllExpanded ? collapseAll : expandAll}
-              style={{
-                fontSize: '12px',
-                fontWeight: 500,
-                color: 'var(--primary)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: '4px 8px',
-                borderRadius: '6px',
-              }}
-            >
-              {isAllExpanded ? '모두 접기' : '모두 펼치기'}
-            </button>
-          </div>
-        </div>
-
-        {/* ── Feature Cards ── */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-          }}
-        >
-          {filteredFeatures.map((feature) => (
-            <FeatureCard
-              key={feature.id}
-              feature={feature}
-              isExpanded={expandedIds.has(feature.id)}
-              onToggle={() => toggleExpand(feature.id)}
-            />
-          ))}
-        </div>
-
-        {/* ── Empty State ── */}
-        {filteredFeatures.length === 0 && (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '64px 16px',
-            }}
-          >
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}><Ico e="🔍" tone="color" /></div>
-            <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-muted)', margin: '0 0 4px' }}>
-              검색 결과가 없습니다
-            </p>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-              다른 키워드로 검색하거나 카테고리 탭을 변경해 보세요.
-            </p>
-          </div>
-        )}
-
-        {/* ── Step-by-Step Workflow Guides ── */}
-        <WorkflowGuides />
-
-        {/* ── Quick Links Footer ── */}
-        <div
-          style={{
-            marginTop: '40px',
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border)',
-            borderRadius: '12px',
-            padding: '20px',
-          }}
-        >
-          <h3
-            style={{
-              fontSize: '14px',
-              fontWeight: 700,
-              color: 'var(--text)',
-              margin: '0 0 12px',
-            }}
-          >
-            바로가기
-          </h3>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-              gap: '8px',
-            }}
-          >
-            {FEATURES.map((f) => (
-              <Link
-                key={f.id}
-                href={f.route}
-                className="flex items-center gap-2 px-3 py-2 text-[13px] font-medium text-[var(--text)] rounded-lg border border-[var(--border)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-light)]"
-              >
-                <span style={{ fontSize: '16px' }}><Ico e={f.icon} tone="color" /></span>
-                {f.title}
-              </Link>
-            ))}
-          </div>
+        <div className="gd-toolbar-right">
+          <span className="gd-count">{filteredFeatures.length}개 기능</span>
+          <button onClick={isAllExpanded ? collapseAll : expandAll} className="gd-expand-btn">
+            {isAllExpanded ? "모두 접기" : "모두 펼치기"}
+          </button>
         </div>
       </div>
+
+      {/* ── 기능 카드 그리드 ── */}
+      <div className="gd-grid">
+        {filteredFeatures.map((feature) => (
+          <FeatureCard key={feature.id} feature={feature} isExpanded={expandedIds.has(feature.id)} onToggle={() => toggleExpand(feature.id)} />
+        ))}
+      </div>
+
+      {filteredFeatures.length === 0 && (
+        <div className="gd-empty" data-gd>
+          <div className="gd-empty-ico"><Ico e="🔍" tone="color" /></div>
+          <p className="gd-empty-t">검색 결과가 없습니다</p>
+          <p className="gd-empty-d">다른 키워드로 검색하거나 카테고리를 바꿔 보세요.</p>
+        </div>
+      )}
+
+      <WorkflowGuides />
+
+      {/* ── 바로가기 ── */}
+      <section className="gd-quick" data-gd>
+        <h3 className="gd-h3">바로가기</h3>
+        <div className="gd-quick-grid">
+          {FEATURES.map((f) => (
+            <Link key={f.id} href={f.route} className="gd-quick-link">
+              <Ico e={f.icon} tone="color" />
+              {f.title}
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
+
