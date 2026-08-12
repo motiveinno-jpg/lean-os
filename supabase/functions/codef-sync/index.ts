@@ -606,10 +606,14 @@ function merchantBizno(v: unknown): string | null {
   return d.length === 10 ? d : null;
 }
 
+//   biznoOnly: 청구내역을 받아 **사업자번호만 얹고 행은 만들지도 고치지도 않는다** (2026-08-12).
+//     과거분 번호를 채우려고 그냥 재수집하면 upsert 가 mapping_status 를 unmapped 로 되돌려
+//     사람이 해 둔 분류가 날아간다. 사장님 분류를 지키면서 번호만 채우려는 용도.
 async function syncCardBilling(
   supabase: any, token: string, companyId: string, connectedId: string,
-  startDate: string, endDate: string
+  startDate: string, endDate: string, opts?: { biznoOnly?: boolean }
 ) {
+  const biznoOnly = opts?.biznoOnly === true;
   const errors: SyncError[] = [];
   const debug: string[] = [];
 
@@ -638,8 +642,8 @@ async function syncCardBilling(
   let debuggedChargeKeys = false;
   let debuggedInsertErr = false;
   //   가맹점 사업자번호가 실제로 몇 건이나 오는지 — 카드사가 안 주는 것과 우리가 안 뽑는 것을
-  //   다음 사람이 구분할 수 있게 남긴다. (2026-08-12: 롯데 0311 은 0건, BC 는 대부분 옴)
-  let biznoSeen = 0, biznoTotal = 0;
+  //   다음 사람이 구분할 수 있게 남긴다. (2026-08-12)
+  let biznoSeen = 0, biznoTotal = 0, biznoFilled = 0;
 
   // 카드 청구 내역은 YYYYMM 6자리 날짜
   const billingStart = startDate.slice(0, 6);
@@ -699,28 +703,30 @@ async function syncCardBilling(
           ? `${usedDate.slice(0,4)}-${usedDate.slice(4,6)}-${usedDate.slice(6,8)}`
           : new Date().toISOString().split("T")[0];
 
-        const { error } = await supabase.from("card_transactions").upsert({
-          company_id: companyId,
-          external_id: externalId,
-          amount: Number(usedAmount),
-          merchant_name: storeName,
-          transaction_date: formattedDate,
-          approval_number: approvalNo || null,
-          card_name: charge.resCardName || CARD_CODES[org] || null,
-          //   못 받은 회차엔 아예 안 보낸다 — 한 번 채워 둔 번호를 빈 응답이 지우지 않게. (2026-08-12)
-          ...(bizno ? { merchant_bizno: bizno } : {}),
-          source: "codef_card",
-          mapping_status: "unmapped",
-          raw_data: { cardNo, organization: org, usedDate, usedTime: charge.resUsedTime || "", charge },
-        }, { onConflict: "external_id" });
+        if (!biznoOnly) {
+          const { error } = await supabase.from("card_transactions").upsert({
+            company_id: companyId,
+            external_id: externalId,
+            amount: Number(usedAmount),
+            merchant_name: storeName,
+            transaction_date: formattedDate,
+            approval_number: approvalNo || null,
+            card_name: charge.resCardName || CARD_CODES[org] || null,
+            //   못 받은 회차엔 아예 안 보낸다 — 한 번 채워 둔 번호를 빈 응답이 지우지 않게. (2026-08-12)
+            ...(bizno ? { merchant_bizno: bizno } : {}),
+            source: "codef_card",
+            mapping_status: "unmapped",
+            raw_data: { cardNo, organization: org, usedDate, usedTime: charge.resUsedTime || "", charge },
+          }, { onConflict: "external_id" });
 
-        if (error) {
-          if (!debuggedInsertErr) {
-            debug.push(`card ${org} insert error: ${error.message} | code: ${error.code}`);
-            debuggedInsertErr = true;
+          if (error) {
+            if (!debuggedInsertErr) {
+              debug.push(`card ${org} insert error: ${error.message} | code: ${error.code}`);
+              debuggedInsertErr = true;
+            }
+          } else {
+            totalSynced++;
           }
-        } else {
-          totalSynced++;
         }
 
         //   ★ 같은 결제가 승인내역으로 먼저 들어와 있으면 위 upsert 는 **조용히 버려진다**.
@@ -728,20 +734,37 @@ async function syncCardBilling(
         //     BEFORE INSERT 트리거 card_tx_prevent_dup 이 내용 중복이라 판단해 return null 하기 때문.
         //     그래서 사업자번호를 **청구내역만** 주는 카드사(롯데)는 번호가 통째로 버려졌다.
         //     버려졌든 아니든, 아직 번호가 없는 그 결제 건에 번호만 얹는다. (2026-08-12)
-        if (bizno && approvalNo) {
-          await supabase.from("card_transactions")
+        //   찾는 순서: ①승인번호 ②승인번호가 없던 옛 행을 위해 (일자·금액·가맹점명)
+        //     — ②는 트리거 card_tx_prevent_dup 이 "같은 결제"를 가리는 바로 그 기준이다.
+        if (bizno) {
+          if (approvalNo) {
+            const { data: hit } = await supabase.from("card_transactions")
+              .update({ merchant_bizno: bizno })
+              .eq("company_id", companyId)
+              .eq("transaction_date", formattedDate)
+              .eq("approval_number", approvalNo)
+              .is("merchant_bizno", null)
+              .select("id");
+            biznoFilled += (hit as any[] | null)?.length ?? 0;
+          }
+          const { data: hit2 } = await supabase.from("card_transactions")
             .update({ merchant_bizno: bizno })
             .eq("company_id", companyId)
             .eq("transaction_date", formattedDate)
-            .eq("approval_number", approvalNo)
-            .is("merchant_bizno", null);
+            .eq("amount", Number(usedAmount))
+            .eq("merchant_name", storeName)
+            .is("merchant_bizno", null)
+            .select("id");
+          biznoFilled += (hit2 as any[] | null)?.length ?? 0;
         }
       }
     }
   }
 
-  if (biznoTotal > 0) debug.push(`card 가맹점 사업자번호: ${biznoSeen}/${biznoTotal}건`);
-  return { synced: totalSynced, errors, debug };
+  if (biznoTotal > 0) {
+    debug.push(`card 가맹점 사업자번호: 응답 ${biznoSeen}/${biznoTotal}건${biznoOnly ? " (번호만 채우기 모드)" : ""} · 새로 채운 행 ${biznoFilled}`);
+  }
+  return { synced: totalSynced, biznoFilled, errors, debug };
 }
 
 // 카드 승인내역(실시간) sync — 청구서 마감 전에도 결제 즉시 거래 반영.
@@ -783,7 +806,7 @@ async function syncCardApprovals(
 
   let totalSynced = 0;
   let debuggedKeys = false;
-  let biznoSeen = 0, biznoTotal = 0;   // 청구내역과 같은 이유 — 카드사별 제공 여부를 눈에 보이게
+  let biznoSeen = 0, biznoTotal = 0, biznoFilled = 0;   // 청구내역과 같은 이유 — 카드사별 제공 여부를 눈에 보이게
 
   for (const { org, isPersonal } of cardAccounts) {
     const path = isPersonal
@@ -867,14 +890,30 @@ async function syncCardApprovals(
       } else {
         totalSynced++;
       }
+
+      //   위 upsert 는 ignoreDuplicates 라 **이미 있는 행은 절대 안 건드린다**(사용자 매핑 보호).
+      //   그래서 사업자번호를 받기 전에 들어온 옛 행은 영영 비어 있다 — 번호만 얹어 준다.
+      //   청구내역과 같은 방식이고, 채워진 행만 바꾸므로 매핑·전표는 그대로다. (2026-08-12)
+      if (bizno) {
+        const { data: hit } = await supabase.from("card_transactions")
+          .update({ merchant_bizno: bizno })
+          .eq("company_id", companyId)
+          .eq("transaction_date", formattedDate)
+          .eq("approval_number", approvalNo)
+          .is("merchant_bizno", null)
+          .select("id");
+        biznoFilled += (hit as any[] | null)?.length ?? 0;
+      }
     }
     if (skipNoApproval > 0 || skipRejected > 0) {
       debug.push(`card ${org} skipped: noApprovalNo=${skipNoApproval}, rejected=${skipRejected}`);
     }
   }
 
-  if (biznoTotal > 0) debug.push(`approval 가맹점 사업자번호: ${biznoSeen}/${biznoTotal}건`);
-  return { synced: totalSynced, errors, debug };
+  if (biznoTotal > 0) {
+    debug.push(`approval 가맹점 사업자번호: 응답 ${biznoSeen}/${biznoTotal}건 · 새로 채운 행 ${biznoFilled}`);
+  }
+  return { synced: totalSynced, biznoFilled, errors, debug };
 }
 
 // RSA encrypt password with CODEF public key (PKCS1v1.5 padding required by CODEF)
@@ -1696,7 +1735,7 @@ serve(withSentry("codef-sync", async (req) => {
       if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
       // internal 호출은 cron-tick / job-step (background sync chain) 만 허용
-      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one", "card-cron-tick", "card-cron-one", "card-approval-cron-one"]);
+      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one", "card-cron-tick", "card-cron-one", "card-approval-cron-one", "card-bizno-backfill"]);
       if (!allowedInternalActions.has(action)) {
         return new Response(JSON.stringify({ error: "internal auth 는 cron-tick/job-step 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -1927,6 +1966,25 @@ serve(withSentry("codef-sync", async (req) => {
         });
       } catch { /* sync_logs 실패는 동기화 자체를 막지 않음 */ }
       return new Response(JSON.stringify({ ok: true, synced: cardRes?.synced ?? 0, errors: cardRes?.errors ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // --- Action: card-bizno-backfill (과거 청구내역에서 가맹점 사업자번호만 채우기, 1회성) ---
+    //   2026-08-12 사장님 승인. 그냥 재수집하면 upsert 가 mapping_status 를 unmapped 로 되돌려
+    //   사람이 해 둔 분류가 날아간다. 그래서 biznoOnly — 행은 만들지도 고치지도 않고 번호만 얹는다.
+    //   한 번에 **한 청구월**만 (호출자가 달을 돌린다) — 엣지 150초 안에 끝나게.
+    if (action === "card-bizno-backfill") {
+      const month = String(body.month || "").replace(/[^0-9]/g, "").slice(0, 6);
+      if (!cid) return new Response(JSON.stringify({ ok: true, skipped: "no connectedId" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (month.length !== 6) return new Response(JSON.stringify({ ok: false, error: "month(YYYYMM) 가 필요합니다" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      let res: any = null;
+      try {
+        res = await syncCardBilling(supabase, token, companyId, cid, `${month}01`, `${month}28`, { biznoOnly: true });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ ok: false, month, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ ok: true, month, biznoFilled: res?.biznoFilled ?? 0, errors: res?.errors ?? [], debug: res?.debug ?? [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
