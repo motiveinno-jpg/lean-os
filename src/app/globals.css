@@ -8508,3 +8508,12 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .doc-dup-band { @apply flex flex-wrap items-center gap-2 mb-3 px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-[12.5px] text-amber-600; }
 .doc-dup-names { @apply text-[11.5px] opacity-80; }
 .doc-upload-zone { @apply mt-3; }
+
+/* 정기 지출 — 처리할 것 띠 · 위험 작업 접기 (2026-08-12 UI 정리) */
+.payments-todo-band { @apply w-full flex flex-wrap items-center gap-2 mb-4 px-3.5 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-[12.5px] text-amber-600 text-left transition hover:bg-amber-500/[0.12]; }
+.payments-todo-band > span { @apply text-[var(--text-muted)]; }
+.payments-todo-go { @apply ml-auto font-bold !text-amber-600; }
+.payment-risky-details { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]/60 px-2.5 py-1.5; }
+.payment-risky-details > summary { @apply cursor-pointer text-[10.5px] font-semibold text-[var(--text-dim)] select-none; }
+.payment-risky-details > summary em { @apply ml-1 not-italic font-bold text-[var(--danger)]; }
+.payment-risky-label { @apply mt-2 flex items-start gap-1.5 text-[10px] text-[var(--text-muted)] cursor-pointer select-none; }

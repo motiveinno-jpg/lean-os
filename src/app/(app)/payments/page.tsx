@@ -52,11 +52,14 @@ export default function PaymentsPage() {
 function PaymentsPageInner() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  //   ★ 첫 화면은 **메뉴 이름과 같은 것**(정기결제 목록)이다 (2026-08-12 UI 정리).
+  //     예전 기본은 '자동 추천'이라, '정기 지출'을 누르면 정기 지출이 아니라 자동화 도구가 떴다.
+  //     자동 추천은 없애지 않고 탭 맨 뒤 + 처리할 것 띠로 옮겼다.
   const [tab, setTab] = useState<Tab>(() => {
-    if (typeof window === 'undefined') return 'recommend';
+    if (typeof window === 'undefined') return 'recurring';
     const t = new URLSearchParams(window.location.search).get('tab');
     const valid: Tab[] = ['recommend', 'recurring', 'subscriptions', 'fixed', 'queue'];
-    return (valid as string[]).includes(t || '') ? (t as Tab) : 'recommend';
+    return (valid as string[]).includes(t || '') ? (t as Tab) : 'recurring';
   });
   const [filter, setFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(false);
@@ -89,12 +92,22 @@ function PaymentsPageInner() {
     queryClient.invalidateQueries({ queryKey: ["detected-recurring"] });
   };
 
+  //   본체(정기결제·구독·고정비·결제 내역)가 앞, 도구(자동 추천)가 뒤 (2026-08-12)
+  //   띠에 쓸 건수 — 아직 등록 안 된 반복 지출만 센다. (자동 추천 패널이 쓰는 것과 같은 쿼리키라
+  //   한 번만 받아 두 곳이 나눠 쓴다)
+  const { data: detectedAll = [] } = useQuery({
+    queryKey: ["detected-recurring", companyId],
+    queryFn: () => detectRecurringFromBankTx(companyId!),
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const detectedCount = (detectedAll as any[]).filter((d: any) => !d.alreadyRegistered).length;
+
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'recommend', label: '자동 추천' },
     { key: 'recurring', label: '정기결제' },
     { key: 'subscriptions', label: '구독' },
     { key: 'fixed', label: '고정비' },
     { key: 'queue', label: '결제 내역' },
+    { key: 'recommend', label: '자동 추천' },
   ];
 
   if (isInitLoading) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
@@ -118,7 +131,19 @@ function PaymentsPageInner() {
         </div>
       </div>
 
-      {/* 자동 추천 (핵심) — 통장·카드에서 2개월↑ 반복거래(동일 거래처·금액) 감지 → 정기결제 등록 추천 */}
+      {/* 처리할 것 — 통장에서 새로 잡힌 반복 지출이 있으면 본체 화면 위에서 알려 주고,
+          누르면 자동 추천 탭으로 보낸다. 예전엔 이게 첫 화면 자체였다 (2026-08-12) */}
+      {/* ⚠️ 정기결제 탭에는 이미 같은 내용의 파란 배너(전체 자동등록 버튼 포함)가 있다 —
+          거기서는 띠를 빼야 같은 말이 두 번 안 나온다. 화면에서 보고 잡았다. */}
+      {tab !== 'recommend' && tab !== 'recurring' && detectedCount > 0 && (
+        <button type="button" onClick={() => setTab('recommend')} className="payments-todo-band">
+          <b>처리할 것 {detectedCount.toLocaleString()}건</b>
+          <span>통장에서 새로 잡힌 반복 지출 — 한 번에 검토</span>
+          <span className="payments-todo-go">보러 가기 →</span>
+        </button>
+      )}
+
+      {/* 자동 추천 (도구) — 통장·카드에서 2개월↑ 반복거래(동일 거래처·금액) 감지 → 정기결제 등록 추천 */}
       {tab === 'recommend' && companyId && (
         <SmartSetupBanner companyId={companyId} invalidate={invalidate} onRegistered={() => setTab('recurring')} />
       )}
@@ -1480,17 +1505,21 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
             {running ? '실행 중...' : '자동화 실행'}
           </button>
         </div>
-        {/* 무엇을 하는지 투명하게 안내 + 위험 작업 옵트인 */}
+        {/* 무엇을 하는지 투명하게 안내. 위험 작업은 **접어 둔다** — 켤 일이 드문데 늘 펼쳐져 있으면
+            무서운 문구만 상시 노출되고, 실수로 눌릴 자리도 넓어진다 (2026-08-12) */}
         <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
           기본 실행: 거래 자동분류·매칭, 결제큐 정리, 지출결의 드래프트 생성 (데이터 정리만, 돈/세무 변경 없음).
         </p>
-        <label className="flex items-start gap-1.5 text-[10px] text-[var(--text-muted)] cursor-pointer select-none">
-          <input type="checkbox" checked={includeRisky} onChange={(e) => setIncludeRisky(e.target.checked)} className="mt-0.5 accent-[var(--danger)]" />
-          <span>
-            <span className="font-semibold text-[var(--danger)]">위험 작업 포함</span> — 소액 자동승인 · 결제→세금계산서 자동발행 · 환불→세금계산서 취소.
-            실제 승인·세무 레코드를 자동 생성합니다. 내용을 이해한 경우에만 체크하세요.
-          </span>
-        </label>
+        <details className="payment-risky-details" open={includeRisky}>
+          <summary>고급 — 위험 작업 {includeRisky && <em>켜짐</em>}</summary>
+          <label className="payment-risky-label">
+            <input type="checkbox" checked={includeRisky} onChange={(e) => setIncludeRisky(e.target.checked)} className="mt-0.5 accent-[var(--danger)]" />
+            <span>
+              <span className="font-semibold text-[var(--danger)]">위험 작업 포함</span> — 소액 자동승인 · 결제→세금계산서 자동발행 · 환불→세금계산서 취소.
+              실제 승인·세무 레코드를 자동 생성합니다. 내용을 이해한 경우에만 체크하세요.
+            </span>
+          </label>
+        </details>
       </div>
 
       {/* Automation result */}
