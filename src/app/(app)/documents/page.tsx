@@ -2700,6 +2700,23 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   const [showNewFolderForm, setShowNewFolderForm] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  //   정렬 — 이 화면의 주 동작은 '찾기'라 목록이 정렬돼야 한다 (2026-08-12 UI 정리)
+  const [fileSort, setFileSort] = useState<"new" | "name" | "size">("new");
+  const uploadZoneRef = useRef<HTMLDivElement>(null);
+
+  //   ⚠️ uploaded_by 에는 **사용자 id(UUID)** 가 들어 있어 화면에 그대로 찍히고 있었다.
+  //     사람에게 아무 뜻 없는 값이라 이름으로 바꿔서 넘긴다.
+  const { data: userNames = {} } = useQuery<Record<string, string>>({
+    queryKey: ["document-user-names", companyId],
+    queryFn: async () => {
+      const data = logRead("documents:users", await supabase
+        .from("users").select("id, name").eq("company_id", companyId));
+      const m: Record<string, string> = {};
+      for (const u of ((data as any[]) || [])) m[u.id] = u.name || "";
+      return m;
+    },
+    enabled: !!companyId, staleTime: 300_000,
+  });
 
   // Folders query
   const { data: folders = [] } = useQuery({
@@ -2733,11 +2750,36 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     enabled: !!companyId,
   });
 
+  //   종류 탭이 건수를 들고 있게 — 누르기 전에 어디에 뭐가 있는지 보인다
+  const catCounts = useMemo(() => {
+    const m: Record<string, number> = { all: (files as any[]).length };
+    for (const f of (files as any[])) {
+      const k = f.category || "other";
+      m[k] = (m[k] || 0) + 1;
+    }
+    return m;
+  }, [files]);
+
+  //   같은 이름이 두 번 올라간 것 — 화면이 짚어 준다(지우는 건 사람이 한다)
+  const dupNames = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const f of (files as any[])) seen.set(f.file_name, (seen.get(f.file_name) || 0) + 1);
+    return [...seen.entries()].filter(([, n]) => n > 1);
+  }, [files]);
+
   // Filtered files by category
   const filteredFiles = useMemo(() => {
     if (categoryFilter === "all") return files;
     return files.filter((f: any) => f.category === categoryFilter);
   }, [files, categoryFilter]);
+
+  //   고른 정렬대로 다시 늘어놓는다 (기본은 예전과 같은 최근 올린 순)
+  const sortedFiles = useMemo(() => {
+    const rows = [...(filteredFiles as any[])];
+    if (fileSort === "name") rows.sort((a, b) => String(a.file_name).localeCompare(String(b.file_name), "ko"));
+    else if (fileSort === "size") rows.sort((a, b) => Number(b.file_size || 0) - Number(a.file_size || 0));
+    return rows;
+  }, [filteredFiles, fileSort]);
 
   // Create folder mutation
   const createFolderMut = useMutation({
@@ -2922,42 +2964,50 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
 
       {/* Right: File list + Upload */}
       <div className="vault-file-panel">
-        {/* Search + Category filter */}
-        <div className="vault-filter-bar">
-          <div className="flex-1 relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              value={fileSearchTerm}
-              onChange={(e) => setFileSearchTerm(e.target.value)}
-              placeholder="파일명으로 검색..."
-              className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] transition"
-            />
-          </div>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] min-w-[140px]"
-          >
-            {FILE_CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>{c.label}</option>
+        {/* ── 툴바 한 줄 (2026-08-12 UI 정리) ──
+            이 화면의 주 동작은 **찾기**다. 예전엔 업로드 상자가 목록 위를 크게 차지해,
+            104개를 뒤지러 온 사람에게 '올리세요'가 먼저 보였다. 올리기는 버튼 하나로 줄이고
+            드롭존은 목록 아래로 내렸다(끌어다 놓기는 그대로 된다). */}
+        <div className="doc-toolbar">
+          <div className="doc-cat-tabs">
+            {/* ⚠️ 건수가 0 인 갈래는 안 보인다 — 지금 이 회사 파일 104건은 **분류가 전부 비어 있어**
+                탭을 다 그리면 5개 중 4개가 영원히 0 인 빈 껍데기가 된다. 분류가 붙기 시작하면
+                그 갈래가 저절로 나타난다 (2026-08-12). */}
+            {FILE_CATEGORIES.filter((c) => c.value === "all" || (catCounts[c.value] ?? 0) > 0).map((c) => (
+              <button key={c.value} type="button" onClick={() => setCategoryFilter(c.value)}
+                className={categoryFilter === c.value ? "doc-cat-tab doc-cat-tab-on" : "doc-cat-tab"}>
+                {c.label} <span className="doc-cat-count">{(catCounts[c.value] ?? 0).toLocaleString()}</span>
+              </button>
             ))}
-          </select>
+          </div>
+          <div className="doc-toolbar-right">
+            <input value={fileSearchTerm} onChange={(e) => setFileSearchTerm(e.target.value)}
+              placeholder="파일명 검색…" className="doc-search-input" />
+            <select value={fileSort} onChange={(e) => setFileSort(e.target.value as typeof fileSort)}
+              className="doc-sort-select" aria-label="정렬">
+              <option value="new">최근 올린 순</option>
+              <option value="name">이름순</option>
+              <option value="size">큰 파일순</option>
+            </select>
+            <button type="button" className="btn-primary btn-sm whitespace-nowrap"
+              onClick={() => uploadZoneRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.click()}>
+              ＋ 올리기
+            </button>
+          </div>
         </div>
 
-        {/* Upload zone */}
-        <FileUploadMulti
-          onFilesSelect={handleFilesSelected}
-          maxFiles={10}
-          maxSize={50}
-          label="파일을 드래그하거나 클릭하여 업로드"
-        />
+        {/* 같은 이름이 두 번 올라간 것 — 화면이 짚어 준다 (지우는 건 사람이) */}
+        {dupNames.length > 0 && (
+          <div className="doc-dup-band">
+            같은 이름의 파일이 <b>{dupNames.length}종</b> 두 번 이상 올라와 있습니다
+            <span className="doc-dup-names">{dupNames.slice(0, 3).map(([n, c]) => `${n} (${c})`).join(" · ")}{dupNames.length > 3 ? " …" : ""}</span>
+          </div>
+        )}
 
         {/* File list */}
         <div className="vault-file-list glass-card">
           <FileList
-            files={filteredFiles.map((f: any) => ({
+            files={sortedFiles.map((f: any) => ({
               id: f.id,
               file_name: f.file_name,
               file_url: f.file_url,
@@ -2965,13 +3015,24 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               mime_type: f.mime_type || "application/octet-stream",
               version: f.version || 1,
               created_at: f.created_at,
-              uploaded_by: f.uploaded_by,
+              //   id 가 아니라 **이름**을 넘긴다 — 예전엔 UUID 가 그대로 찍혔다
+              uploaded_by: userNames[f.uploaded_by] || "",
             }))}
             onDelete={handleDeleteFile}
             // 비공개 버킷(document-files, 2026-06-05 전환)은 저장된 public URL 이 400 —
             //   클릭 시점에 서명 URL 재발급 + 원본 파일명 프록시 다운로드 (사장님 제보 2026-08-11)
             onDownload={(file) => void downloadStoredFile(file.file_url, file.file_name)}
-            maxHeight="calc(100vh - 320px)"
+            maxHeight="calc(100vh - 360px)"
+          />
+        </div>
+
+        {/* 업로드 — 목록 아래. 끌어다 놓기는 화면 어디서나 그대로 동작한다. */}
+        <div ref={uploadZoneRef} className="doc-upload-zone">
+          <FileUploadMulti
+            onFilesSelect={handleFilesSelected}
+            maxFiles={10}
+            maxSize={50}
+            label="여기로 끌어다 놓아도 올라갑니다"
           />
         </div>
       </div>

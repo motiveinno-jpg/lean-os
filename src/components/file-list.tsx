@@ -76,6 +76,8 @@ function getFileIcon(mimeType: string): {
 }
 
 // ── Format file size ──
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -295,7 +297,9 @@ export function FileList({
                     <span className="text-[10px] text-[var(--text-muted)]">
                       {formatDate(file.created_at)}
                     </span>
-                    {file.uploaded_by && (
+                    {/* uploaded_by 는 **보여 줄 이름**이다. id(UUID)를 그대로 넘긴 화면이 있어
+                        사람에게 아무 뜻 없는 값이 찍혔다 — 그물로 막는다 (2026-08-12) */}
+                    {file.uploaded_by && !UUID_RE.test(file.uploaded_by) && (
                       <>
                         <span className="text-[10px] text-[var(--text-muted)] opacity-40">
                           |
