@@ -8790,7 +8790,25 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .qk-more-btn-on { @apply border-[var(--primary)] text-[var(--text)]; }
 .qk-more-badge { @apply not-italic inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[10px] font-bold text-white; }
 .qk-caret { @apply text-[9px] opacity-60; }
-.qk-more-pop { @apply absolute right-0 top-9 z-30 flex w-[300px] flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 shadow-xl; }
+.qk-more-pop { @apply absolute right-0 top-9 z-30 w-[340px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 shadow-xl; }
+
+/* 조건 더보기 속 검색칸들 */
+.qk-form { @apply flex flex-col gap-2.5; }
+.qk-frow { @apply flex flex-col gap-1; }
+.qk-frow-label { @apply flex items-baseline gap-1.5 text-[11px] font-bold text-[var(--text-dim)]; }
+.qk-frow-hint { @apply not-italic text-[10.5px] font-normal text-[var(--text-dim)] opacity-70; }
+.qk-frow-body { @apply flex items-center gap-1.5; }
+.qk-input-wrap { @apply relative flex-1; }
+.qk-input { @apply h-8 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-[12px] text-[var(--text)] placeholder:text-[var(--text-dim)]; }
+.qk-input:focus { @apply border-[var(--primary)] outline-none; }
+.qk-input-sel { @apply px-2; }
+.qk-input-x { @apply absolute right-1.5 top-1/2 -translate-y-1/2 rounded px-1 text-[10px] text-[var(--text-dim)] hover:text-[var(--text)]; }
+.qk-amt { @apply flex flex-1 items-center gap-1; }
+.qk-amt-in { @apply min-w-0 flex-1 text-right tabular-nums; }
+.qk-amt i { @apply not-italic shrink-0 text-[11px] text-[var(--text-dim)]; }
+.qk-amt em { @apply not-italic shrink-0 text-[11px] text-[var(--text-dim)]; }
+.qk-form-foot { @apply mt-0.5 flex items-center gap-2 border-t border-[var(--border)] pt-2 text-[10.5px] text-[var(--text-dim)]; }
+.qk-form-reset { @apply ml-auto shrink-0 rounded-lg border border-[var(--border)] px-2 py-1 text-[11px] font-semibold text-[var(--text-dim)] transition-colors hover:border-[var(--primary)] hover:text-[var(--text)] disabled:opacity-40; }
 
 /* 2줄 — 결과 요약 (배경에 잠기게) */
 .qk-strip { @apply flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 py-0.5; }

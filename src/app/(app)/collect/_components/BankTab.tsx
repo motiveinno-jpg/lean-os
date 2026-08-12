@@ -20,6 +20,7 @@ import { PickList } from "@/components/pick-list";
 import {
   QueryBar, QueryDivider, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat,
   HelperMenu, SelectionBar, Pager, usePager, SavedQueryMenu, type HelperItem,
+  MoreFilters, FilterForm, FilterRow, TextFilter, AmountRange, SelectFilter, textHit, amountHit,
 } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import Link from "next/link";
@@ -44,6 +45,7 @@ type Row = {
   who: string;
   desc: string;
   partnerId: string | null;
+  bankId: string | null;   // 어느 계좌의 거래인가 (조건 더보기의 '계좌')
   posted: boolean;         // 전표가 있다
   settled: boolean;        // 매칭이 확정됐다
   settledAmount: number;
@@ -84,6 +86,23 @@ function bankIsIn(type: string, amount: number): boolean {
 const STATE_CHIPS = [
   { value: "todo", label: "미처리" }, { value: "all", label: "전체" },
 ] as const;
+const IO_CHIPS = [
+  { value: "all", label: "전체" }, { value: "in", label: "입금" }, { value: "out", label: "출금" },
+] as const;
+
+/**
+ * 조건 더보기에 담기는 검색값 (2026-08-13 사장님 지시 — 이카운트 공통 조회 형식 참고).
+ *   통장에서 제일 자주 찾는 건 "이 계좌에서 30만 원쯤 나간 게 뭐였지" 다 — 계좌·금액을 넣는다.
+ */
+type More = {
+  who: string;      // 거래처(입금자)
+  desc: string;     // 통장 적요
+  acct: string;     // 붙은 계정과목 — 이름 또는 코드
+  bank: string;     // 계좌 (bank_account_id)
+  min: string; max: string;   // 금액 범위
+};
+const EMPTY_MORE: More = { who: "", desc: "", acct: "", bank: "", min: "", max: "" };
+const moreCount = (m: More) => Object.values(m).filter((v) => String(v).trim() !== "").length;
 
 export function BankTab({
   companyId, from, to, rangeField, onRange, syncButton, rulesHelper,
@@ -96,6 +115,10 @@ export function BankTab({
   const { toast } = useToast();
   const qc = useQueryClient();
   const [onlyTodo, setOnlyTodo] = useState(true);
+  const [io, setIo] = useState<"all" | "in" | "out">("all");
+  //   거래처·계좌·금액 … 자주 안 쓰는 조건은 '조건 더보기'에 접어 둔다 (2026-08-13 사장님 지시)
+  const [more, setMore] = useState<More>(EMPTY_MORE);
+  const setM = (k: keyof More) => (v: string) => setMore((m) => ({ ...m, [k]: v }));
   //   한 페이지 50줄이 기본 (2026-08-13 사장님 지시)
   const [size, setSize] = useState(50);
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -144,11 +167,27 @@ export function BankTab({
     staleTime: 300_000,
   });
 
+  //   계좌 목록 — '조건 더보기'의 계좌 고르기용. 별명이 있으면 별명이 먼저다(사람이 부르는 이름).
+  const { data: bankAccounts = [] } = useQuery<{ id: string; label: string }[]>({
+    queryKey: ["bank-accounts-pick", companyId],
+    queryFn: async () => {
+      const data = logRead("bank:accounts-pick", await supabase
+        .from("bank_accounts").select("id, alias, bank_name, account_number")
+        .eq("company_id", companyId).order("bank_name"));
+      return ((data as any[]) || []).map((a) => ({
+        id: a.id,
+        label: [a.alias || a.bank_name, a.account_number ? String(a.account_number).slice(-4) : ""]
+          .filter(Boolean).join(" ···"),
+      }));
+    },
+    staleTime: 300_000,
+  });
+
   const { data: rows = [], isLoading, error: rowsError } = useQuery<Row[]>({
     queryKey: ["bank-rows", companyId, from, to],
     queryFn: async () => {
       const tx = await (async () => supabase.from("bank_transactions"))().then((q) => q
-          .select("id, transaction_date, amount, type, counterparty, description, partner_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
+          .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
           .eq("company_id", companyId)
           .gte("transaction_date", from).lte("transaction_date", to)
           .order("transaction_date").limit(400));
@@ -173,6 +212,7 @@ export function BankTab({
           isIn: bankIsIn(String(r.type || ""), amount),
           who: r.counterparty || "—", desc: r.description || "",
           partnerId: r.partner_id || null,
+          bankId: r.bank_account_id || null,
           posted: !!r.journal_entry_id,
           settled: ["settled", "partial"].includes(String(r.settlement_status || "")),
           settledAmount: Number(r.settled_amount || 0),
@@ -208,7 +248,20 @@ export function BankTab({
 
   const doneOf = (r: Row) => r.posted || r.settled || r.transfer;
 
-  const shownUnsorted = rows.filter((r) => (onlyTodo ? !doneOf(r) : true));
+  const shownUnsorted = rows.filter((r) => {
+    if (onlyTodo && doneOf(r)) return false;
+    if (io !== "all" && r.isIn !== (io === "in")) return false;
+    //   조건 더보기 — 빈 칸은 안 건 것과 같다 (2026-08-13 사장님 지시)
+    if (!textHit(more.who, r.who, ptOf(r)?.name)) return false;
+    if (!textHit(more.desc, r.desc)) return false;
+    if (more.acct) {
+      const a = acctOf(r).a;
+      if (!textHit(more.acct, a?.name, a?.code)) return false;
+    }
+    if (more.bank && r.bankId !== more.bank) return false;
+    if (!amountHit(r.amount, more.min, more.max)) return false;
+    return true;
+  });
   //   정렬 — 고른 칸으로 세우고, 같으면 늘 일자로 갈라 순서가 흔들리지 않게 한다
   const shown = useMemo(() => {
     const val = (r: Row): unknown => {
@@ -230,7 +283,7 @@ export function BankTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 (2026-08-13 사장님 지시)
-  const pager = usePager(shown, size, `${from}|${to}|${onlyTodo}`);
+  const pager = usePager(shown, size, `${from}|${to}|${onlyTodo}|${io}|${JSON.stringify(more)}`);
   //   선택은 쪽을 넘겨도 남는다
   const selRows = shown.filter((r) => sel.has(r.id));
 
@@ -399,17 +452,42 @@ export function BankTab({
     <div className="ev-wrap">
       {/* ── 1줄 · 조회 조건 ── */}
       <QueryBar right={<>
+        <MoreFilters count={moreCount(more)}>
+          <FilterForm activeCount={moreCount(more)} onReset={() => setMore(EMPTY_MORE)}>
+            <FilterRow label="거래처(입금자)" hint="일부만 적어도 됩니다">
+              <TextFilter value={more.who} onChange={setM("who")} placeholder="예: 모티브" />
+            </FilterRow>
+            <FilterRow label="통장 적요">
+              <TextFilter value={more.desc} onChange={setM("desc")} placeholder="예: 부가세" />
+            </FilterRow>
+            <FilterRow label="계좌">
+              <SelectFilter value={more.bank} onChange={setM("bank")}
+                options={[{ value: "", label: "전체 계좌" }, ...bankAccounts.map((b) => ({ value: b.id, label: b.label }))]} />
+            </FilterRow>
+            <FilterRow label="계정과목" hint="이름 또는 코드">
+              <TextFilter value={more.acct} onChange={setM("acct")} placeholder="예: 소모품비  ·  830" />
+            </FilterRow>
+            <FilterRow label="금액" hint="입·출금 부호는 보지 않습니다">
+              <AmountRange min={more.min} max={more.max} onMin={setM("min")} onMax={setM("max")} />
+            </FilterRow>
+          </FilterForm>
+        </MoreFilters>
         <SavedQueryMenu screen="collect:bank" companyId={companyId}
-          params={{ from, to, onlyTodo, size }}
+          params={{ from, to, onlyTodo, io, size, more }}
           onApply={(p) => {
             if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
             if (typeof p.onlyTodo === "boolean") setOnlyTodo(p.onlyTodo);
+            if (p.io === "all" || p.io === "in" || p.io === "out") setIo(p.io);
             if (typeof p.size === "number") setSize(p.size);
+            setMore({ ...EMPTY_MORE, ...(p.more as Partial<More> | undefined) });
           }} />
         {syncButton}
       </>}>
         {rangeField}
         <QueryDivider />
+        <QueryField label="입/출">
+          <ChipGroup value={io} onChange={setIo} options={IO_CHIPS} />
+        </QueryField>
         <QueryField label="상태">
           <ChipGroup value={onlyTodo ? "todo" : "all"}
             onChange={(v) => setOnlyTodo(v === "todo")} options={STATE_CHIPS} />

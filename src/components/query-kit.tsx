@@ -100,6 +100,95 @@ export function MoreFilters({ count = 0, children }: { count?: number; children:
   );
 }
 
+// ── 조건 더보기 안에 들어가는 검색칸들 ────────────────────────────────────
+//
+//   이카운트 공통 조회 형식처럼 거래처·계좌·금액 …을 여러 칸으로 지정한다 (2026-08-13 사장님 지시).
+//   ★ 다만 그 칸들을 조회 줄에 다 늘어놓지는 않는다 — 늘 쓰는 건 기간·상태 둘뿐이고
+//     나머지는 찾을 때만 쓴다. 접어 두되 **켜져 있는 개수를 배지로** 내걸어 숨기지는 않는다.
+
+/** 조건 더보기 속 폼 — 라벨 한 줄 + 칸 한 줄. 맨 아래 '조건 지우기'. */
+export function FilterForm({ children, onReset, activeCount = 0 }: {
+  children: ReactNode; onReset: () => void; activeCount?: number;
+}) {
+  return (
+    <div className="qk-form">
+      {children}
+      <div className="qk-form-foot">
+        <span>{activeCount > 0 ? `${activeCount}개 조건이 켜져 있습니다` : "조건을 지정하면 목록이 좁혀집니다"}</span>
+        <button type="button" onClick={onReset} disabled={activeCount === 0} className="qk-form-reset">조건 지우기</button>
+      </div>
+    </div>
+  );
+}
+
+export function FilterRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="qk-frow">
+      <span className="qk-frow-label">{label}{hint && <em className="qk-frow-hint">{hint}</em>}</span>
+      <div className="qk-frow-body">{children}</div>
+    </div>
+  );
+}
+
+export function TextFilter({ value, onChange, placeholder }: {
+  value: string; onChange: (v: string) => void; placeholder?: string;
+}) {
+  return (
+    <span className="qk-input-wrap">
+      <input className="qk-input" value={value} placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)} />
+      {value && (
+        <button type="button" className="qk-input-x" onClick={() => onChange("")} aria-label="지우기">✕</button>
+      )}
+    </span>
+  );
+}
+
+/** 금액 범위 — 한쪽만 채워도 된다(이상만·이하만). 숫자만 남기고 쉼표로 보여 준다. */
+export function AmountRange({ min, max, onMin, onMax }: {
+  min: string; max: string; onMin: (v: string) => void; onMax: (v: string) => void;
+}) {
+  const fmt = (v: string) => (v ? Number(v).toLocaleString("ko-KR") : "");
+  const take = (v: string) => v.replace(/[^0-9]/g, "").slice(0, 13);
+  return (
+    <span className="qk-amt">
+      <input className="qk-input qk-amt-in" inputMode="numeric" placeholder="최소"
+        value={fmt(min)} onChange={(e) => onMin(take(e.target.value))} aria-label="최소 금액" />
+      <i>~</i>
+      <input className="qk-input qk-amt-in" inputMode="numeric" placeholder="최대"
+        value={fmt(max)} onChange={(e) => onMax(take(e.target.value))} aria-label="최대 금액" />
+      <em>원</em>
+    </span>
+  );
+}
+
+/** 목록에서 하나 고르기 — 값이 몇 개 안 될 때(계좌·카드·구분). 첫 항목이 '전체'다. */
+export function SelectFilter({ value, onChange, options }: {
+  value: string; onChange: (v: string) => void; options: { value: string; label: string }[];
+}) {
+  return (
+    <select className="qk-input qk-input-sel" value={value} onChange={(e) => onChange(e.target.value)}>
+      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+
+/** 부분일치 — 공백으로 나눈 낱말이 **전부** 들어 있어야 맞는다("모티브 부가세") */
+export function textHit(q: string, ...fields: (string | null | undefined)[]): boolean {
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const hay = fields.filter(Boolean).join(" ").toLowerCase();
+  return words.every((w) => hay.includes(w));
+}
+
+/** 금액 범위 맞춤 — 부호는 보지 않는다(출금 -165,000 도 165,000 으로 찾는다) */
+export function amountHit(n: number, min: string, max: string): boolean {
+  const v = Math.abs(Number(n) || 0);
+  if (min && v < Number(min)) return false;
+  if (max && v > Number(max)) return false;
+  return true;
+}
+
 /** 한 페이지에 몇 줄 — 기본 50줄, 더 봐야 하면 여기서 늘린다 (사장님 지시) */
 export const PAGE_SIZES = [50, 100, 200, 500] as const;
 export function RowsPerPage({ value, onChange }: { value: number; onChange: (n: number) => void }) {

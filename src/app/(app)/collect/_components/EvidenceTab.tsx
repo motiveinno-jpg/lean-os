@@ -16,6 +16,7 @@ import { appConfirm } from "@/components/global-confirm";
 import {
   QueryBar, QueryDivider, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat,
   HelperMenu, SelectionBar, Pager, usePager, SavedQueryMenu, type HelperItem,
+  MoreFilters, FilterForm, FilterRow, TextFilter, AmountRange, SelectFilter, textHit, amountHit,
 } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { PickList } from "@/components/pick-list";
@@ -83,6 +84,23 @@ const STATE_CHIPS = [
   { value: "todo", label: "전표 미처리" }, { value: "all", label: "전체" },
 ] as const;
 
+/**
+ * 조건 더보기에 담기는 검색값 (2026-08-13 사장님 지시 — 이카운트 공통 조회 형식 참고).
+ *   비어 있으면 안 거는 것과 같다. 몇 개가 켜졌는지 세어 배지로 내건다.
+ */
+type More = {
+  partner: string;   // 거래처 — 이름 또는 사업자등록번호
+  item: string;      // 품명
+  acct: string;      // 계정과목 — 이름 또는 코드
+  card: string;      // 카드 (카드 탭만)
+  kind: string;      // 구분 — 법인·일반·간이·면세
+  min: string; max: string;   // 합계 금액 범위
+};
+const EMPTY_MORE: More = { partner: "", item: "", acct: "", card: "", kind: "", min: "", max: "" };
+//   구분 — merchantKindOf 가 돌려주는 값 그대로 (lib/merchant-tax-type)
+const KIND_OPTS = ["법인", "일반", "간이", "면세"] as const;
+const moreCount = (m: More) => Object.values(m).filter((v) => String(v).trim() !== "").length;
+
 const SETTLE_BY_KIND: Record<string, SettleType> = {
   tax_invoice: "credit", exempt_invoice: "credit", cash_receipt: "cash", card: "card",
 };
@@ -99,6 +117,9 @@ export function EvidenceTab({
   const qc = useQueryClient();
   const [onlyTodo, setOnlyTodo] = useState(true);
   const [dir, setDir] = useState<"all" | "sale" | "purchase">("all");
+  //   거래처·품명·계정·금액 … 자주 안 쓰는 조건은 '조건 더보기'에 접어 둔다 (2026-08-13 사장님 지시)
+  const [more, setMore] = useState<More>(EMPTY_MORE);
+  const setM = (k: keyof More) => (v: string) => setMore((m) => ({ ...m, [k]: v }));
   //   한 페이지 50줄이 기본 (2026-08-13 사장님 지시: "아래로 데이터가 계속 길어짐")
   const [size, setSize] = useState(50);
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -216,6 +237,16 @@ export function EvidenceTab({
   const shownUnsorted = rows.filter((r) => {
     if (onlyTodo && r.posted) return false;
     if (dir !== "all" && vatType(vatCodeOf(r))?.side !== dir) return false;
+    //   조건 더보기 — 빈 칸은 안 건 것과 같다 (2026-08-13 사장님 지시)
+    if (!textHit(more.partner, r.partnerName, r.bizno)) return false;
+    if (!textHit(more.item, r.item)) return false;
+    if (more.acct) {
+      const a = acctOf(r).acct;
+      if (!textHit(more.acct, a?.name, a?.code)) return false;
+    }
+    if (more.card && (r.cardName || "") !== more.card) return false;
+    if (more.kind && (merchantOf(r)?.kind ?? "") !== more.kind) return false;
+    if (!amountHit(amountsOf(r).supply + amountsOf(r).vat, more.min, more.max)) return false;
     return true;
   });
   //   정렬 — 고른 칸으로 세우고, 같으면 늘 일자로 갈라 순서가 흔들리지 않게 한다
@@ -242,9 +273,9 @@ export function EvidenceTab({
     });
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap]);
+  }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap, more]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다 (2026-08-13 사장님 지시)
-  const pager = usePager(shown, size, `${from}|${to}|${kind}|${dir}|${onlyTodo}`);
+  const pager = usePager(shown, size, `${from}|${to}|${kind}|${dir}|${onlyTodo}|${JSON.stringify(more)}`);
   //   선택은 **쪽을 넘겨도 남는다** — 2쪽까지 골라 한 번에 전표로 만들 수 있어야 한다
   const selRows = shown.filter((r) => sel.has(r.id));
   const sumSupply = shown.reduce((n, r) => n + amountsOf(r).supply, 0);
@@ -468,17 +499,50 @@ export function EvidenceTab({
     } as HelperItem] : []),
   ];
 
+  //   카드 이름 목록 — 이 기간에 실제로 나온 카드만 고르게 한다(안 쓰는 카드가 목록에 서면 헷갈린다)
+  const cardNames = useMemo(
+    () => [...new Set(rows.map((r) => r.cardName).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "ko")),
+    [rows]);
+
   return (
     <div className="ev-wrap">
       {/* ── 1줄 · 조회 조건 — 여기 있는 것만 목록을 바꾼다 ── */}
       <QueryBar right={<>
+        <MoreFilters count={moreCount(more)}>
+          <FilterForm activeCount={moreCount(more)} onReset={() => setMore(EMPTY_MORE)}>
+            <FilterRow label="거래처" hint="이름 또는 사업자등록번호">
+              <TextFilter value={more.partner} onChange={setM("partner")} placeholder="예: 모티브  ·  1234567890" />
+            </FilterRow>
+            <FilterRow label="품명" hint="일부만 적어도 됩니다">
+              <TextFilter value={more.item} onChange={setM("item")} placeholder="예: 광고비" />
+            </FilterRow>
+            <FilterRow label="계정과목" hint="이름 또는 코드">
+              <TextFilter value={more.acct} onChange={setM("acct")} placeholder="예: 지급수수료  ·  831" />
+            </FilterRow>
+            <FilterRow label="합계 금액" hint="한쪽만 적어도 됩니다">
+              <AmountRange min={more.min} max={more.max} onMin={setM("min")} onMax={setM("max")} />
+            </FilterRow>
+            {kind === "card" && (<>
+              <FilterRow label="카드">
+                <SelectFilter value={more.card} onChange={setM("card")}
+                  options={[{ value: "", label: "전체 카드" }, ...cardNames.map((c) => ({ value: c, label: c }))]} />
+              </FilterRow>
+              {/*   간이·면세만 모아 보는 일이 잦다 — 부가세를 공제받지 못하는 건들이다 */}
+              <FilterRow label="구분" hint="간이·면세는 부가세 불공제">
+                <SelectFilter value={more.kind} onChange={setM("kind")}
+                  options={[{ value: "", label: "전체" }, ...KIND_OPTS.map((k) => ({ value: k, label: k }))]} />
+              </FilterRow>
+            </>)}
+          </FilterForm>
+        </MoreFilters>
         <SavedQueryMenu screen={`collect:${kind}`} companyId={companyId}
-          params={{ from, to, dir, onlyTodo, size }}
+          params={{ from, to, dir, onlyTodo, size, more }}
           onApply={(p) => {
             if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
             if (p.dir === "all" || p.dir === "sale" || p.dir === "purchase") setDir(p.dir);
             if (typeof p.onlyTodo === "boolean") setOnlyTodo(p.onlyTodo);
             if (typeof p.size === "number") setSize(p.size);
+            setMore({ ...EMPTY_MORE, ...(p.more as Partial<More> | undefined) });
           }} />
         {syncButton}
       </>}>
