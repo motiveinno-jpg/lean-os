@@ -11,8 +11,12 @@
 //   계정 추천 = **같은 거래처로 지난번에 쓴 계정**. 4단계(자동분개 학습)의 뿌리다.
 //   지금은 규칙을 따로 저장하지 않고 이미 만든 전표를 되읽는다 — 사람이 고른 것이 곧 근거다.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { appConfirm } from "@/components/global-confirm";
+import {
+  QueryBar, QueryDivider, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat,
+  HelperMenu, SelectionBar, Pager, usePager, SavedQueryMenu, type HelperItem,
+} from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { PickList } from "@/components/pick-list";
 import { fetchMerchantKinds, fillMerchantKinds, type MerchantInfo } from "@/lib/merchant-tax-type";
@@ -72,15 +76,31 @@ const GENERAL_CODE = "3";
 type SortKey = "date" | "partner" | "bizno" | "kind" | "vat" | "item"
   | "supply" | "tax" | "total" | "debit" | "state";
 
+const DIR_CHIPS = [
+  { value: "all", label: "전체" }, { value: "sale", label: "매출" }, { value: "purchase", label: "매입" },
+] as const;
+const STATE_CHIPS = [
+  { value: "todo", label: "전표 미처리" }, { value: "all", label: "전체" },
+] as const;
+
 const SETTLE_BY_KIND: Record<string, SettleType> = {
   tax_invoice: "credit", exempt_invoice: "credit", cash_receipt: "cash", card: "card",
 };
 
-export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; from: string; to: string; kind: SourceKey }) {
+export function EvidenceTab({
+  companyId, from, to, kind, rangeField, onRange, syncButton, rulesHelper,
+}: {
+  companyId: string; from: string; to: string; kind: SourceKey;
+  /** 조회 줄 공통 조각 — 화면(page.tsx)이 만들어 내려보낸다 */
+  rangeField: ReactNode; onRange: (from: string, to: string) => void;
+  syncButton: ReactNode; rulesHelper: HelperItem;
+}) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [onlyTodo, setOnlyTodo] = useState(true);
   const [dir, setDir] = useState<"all" | "sale" | "purchase">("all");
+  //   한 페이지 50줄이 기본 (2026-08-13 사장님 지시: "아래로 데이터가 계속 길어짐")
+  const [size, setSize] = useState(50);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState<Record<string, { vatCode?: string; acct?: Acct }>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
@@ -223,9 +243,13 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap]);
+  //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다 (2026-08-13 사장님 지시)
+  const pager = usePager(shown, size, `${from}|${to}|${kind}|${dir}|${onlyTodo}`);
+  //   선택은 **쪽을 넘겨도 남는다** — 2쪽까지 골라 한 번에 전표로 만들 수 있어야 한다
   const selRows = shown.filter((r) => sel.has(r.id));
   const sumSupply = shown.reduce((n, r) => n + amountsOf(r).supply, 0);
   const sumVat = shown.reduce((n, r) => n + amountsOf(r).vat, 0);
+  const selTotal = selRows.reduce((n, r) => n + amountsOf(r).supply + amountsOf(r).vat, 0);
 
   const linesFor = (r: Row) => {
     const { acct } = acctOf(r);
@@ -375,7 +399,14 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
 
   const toggle = (id: string) =>
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const allOn = shown.length > 0 && shown.every((r) => sel.has(r.id) || r.posted);
+  //   머리단 전체 선택은 **보이는 쪽만** 고른다 — 안 보이는 3쪽까지 딸려 오면 무엇을 만드는지 모른다
+  const pickable = pager.view.filter((r) => !r.posted);
+  const allOn = pickable.length > 0 && pickable.every((r) => sel.has(r.id));
+  const toggleAll = () => setSel((s) => {
+    const n = new Set(s);
+    for (const r of pickable) { if (allOn) n.delete(r.id); else n.add(r.id); }
+    return n;
+  });
 
   //   PickList 에 넘길 **자르지 않은** 목록 — 검색은 PickList 안에서 한다.
   //   (filterAccts 는 40개로 잘라서, 그걸 넘기면 앞 40개 안에서만 검색된다 — 실제로 그렇게 만들었다가 잡았다)
@@ -424,43 +455,55 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
       a.account_type === (side === "sale" ? "revenue" : "expense")
       && (!q || a.name.toLowerCase().includes(q.toLowerCase()) || String(a.code).includes(q))).slice(0, 40);
 
+  //   '도움' — 조회 조건도 아니고 확정도 아닌 것들을 여기 모은다 (2026-08-13 사장님 지시).
+  //   숨기지는 않는다: 할 일이 있으면 버튼에 숫자가 떠서 열어 보게 된다.
+  const helpers: HelperItem[] = [
+    rulesHelper,
+    //   구분(법인·일반·간이·면세)은 카드 원자료에 없다 — 국세청에 물어 채운다.
+    //   아직 모르는 **가맹점 수**만 물어보므로 거래 건수와 무관하다 (2026-08-12)
+    ...(kind === "card" && unknownBiznos.length > 0 ? [{
+      label: filling ? "구분 조회 중…" : "가맹점 구분 채우기",
+      hint: "국세청에 과세유형을 물어 '구분' 칸을 채웁니다 — 간이·면세는 부가세를 공제받지 못합니다",
+      badge: unknownBiznos.length, disabled: filling, onClick: fillKinds,
+    } as HelperItem] : []),
+  ];
+
   return (
     <div className="ev-wrap">
-      {/* 필터 */}
-      <div className="collect-toolbar">
-        <div className="collect-seg">
-          {(["all", "sale", "purchase"] as const).map((d) => (
-            <button key={d} type="button" onClick={() => setDir(d)} className={dir === d ? "collect-seg-on" : ""}>
-              {d === "all" ? "전체" : d === "sale" ? "매출" : "매입"}
-            </button>
-          ))}
-        </div>
-        <button type="button" onClick={() => setOnlyTodo((v) => !v)}
-          className={onlyTodo ? "ev-filter ev-filter-on" : "ev-filter"}>
-          {onlyTodo ? "전표 미처리만" : "전체 보기"}
-        </button>
-        <span className="collect-toolbar-hint">
-          {shown.length}건 · 공급가액 <b className="mono-number">{won(sumSupply)}</b> · 부가세 <b className="mono-number">{won(sumVat)}</b>
-          {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
-          {rows.length >= 500 && <b className="ev-cut"> · 최근 500건만 표시 (기간을 좁혀 주세요)</b>}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
-          {/*   구분(법인·일반·간이·면세)은 카드 원자료에 없다 — 국세청에 물어 채운다.
-                아직 모르는 **가맹점 수**만 물어보므로 거래 건수와 무관하다 (2026-08-12) */}
-          {kind === "card" && unknownBiznos.length > 0 && (
-            <button type="button" onClick={fillKinds} disabled={filling}
-              className="btn-secondary btn-sm disabled:opacity-50"
-              title="가맹점 사업자번호로 국세청에 과세유형을 물어 '구분' 칸을 채웁니다">
-              {filling ? "구분 조회 중…" : `구분 채우기 (${unknownBiznos.length}곳)`}
-            </button>
-          )}
-          <button type="button" onClick={makeVouchers} disabled={selRows.length === 0 || saving}
-            className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-            {saving ? "만드는 중…" : `전표 만들기${selRows.length > 0 ? ` (${selRows.length})` : ""}`}
-          </button>
-        </div>
-      </div>
+      {/* ── 1줄 · 조회 조건 — 여기 있는 것만 목록을 바꾼다 ── */}
+      <QueryBar right={<>
+        <SavedQueryMenu screen={`collect:${kind}`} companyId={companyId}
+          params={{ from, to, dir, onlyTodo, size }}
+          onApply={(p) => {
+            if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
+            if (p.dir === "all" || p.dir === "sale" || p.dir === "purchase") setDir(p.dir);
+            if (typeof p.onlyTodo === "boolean") setOnlyTodo(p.onlyTodo);
+            if (typeof p.size === "number") setSize(p.size);
+          }} />
+        {syncButton}
+      </>}>
+        {rangeField}
+        <QueryDivider />
+        <QueryField label="구분">
+          <ChipGroup value={dir} onChange={setDir} options={DIR_CHIPS} />
+        </QueryField>
+        <QueryField label="상태">
+          <ChipGroup value={onlyTodo ? "todo" : "all"}
+            onChange={(v) => setOnlyTodo(v === "todo")} options={STATE_CHIPS} />
+        </QueryField>
+        <QueryDivider />
+        <RowsPerPage value={size} onChange={setSize} />
+      </QueryBar>
+
+      {/* ── 2줄 · 결과 요약 — 목록을 바꾸지 않는 것들만 ── */}
+      <ResultStrip right={<HelperMenu items={helpers} />}>
+        <Stat label="건수" value={`${won(shown.length)}건`} />
+        <Stat label="공급가액" value={won(sumSupply)} />
+        <Stat label="부가세" value={won(sumVat)} />
+        {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
+        {rows.length >= 500 && <b className="ev-cut">최근 500건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+        {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
+      </ResultStrip>
 
       {/* 목록 */}
       {isLoading ? (
@@ -475,8 +518,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
             <thead>
               <tr>
                 <th style={{ width: 34 }}>
-                  <button type="button" aria-label="전체 선택"
-                    onClick={() => setSel(allOn ? new Set() : new Set(shown.filter((r) => !r.posted).map((r) => r.id)))}
+                  <button type="button" aria-label="이 쪽 전체 선택" onClick={toggleAll}
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
                 <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} />
@@ -494,7 +536,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
               </tr>
             </thead>
             <tbody>
-              {shown.map((r) => {
+              {pager.view.map((r) => {
                 //   ★ '3. 일반'은 VAT_TYPES 에 없어 vatType() 이 null 이다 — `!` 로 단정하면
                 //     아래에서 t.side 를 읽다 화면이 통째로 죽는다(실제로 그랬다).
                 //     매입(purchase) 쪽으로 취급한다 — 카드 사용은 언제나 우리가 쓴 돈이다. (2026-08-12)
@@ -609,6 +651,19 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
           </table>
         </div>
       )}
+
+      {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
+      <Pager page={pager.page} pages={pager.pages} total={shown.length}
+        from={pager.from} to={pager.to} onPage={pager.setPage} />
+
+      {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 화면을 통틀어 여기 하나뿐 ── */}
+      <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
+        summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}</>}>
+        <button type="button" onClick={makeVouchers} disabled={saving}
+          className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          {saving ? "만드는 중…" : `전표 만들기 (${selRows.length})`}
+        </button>
+      </SelectionBar>
 
       <p className="collect-note">
         ※ 계정은 <b>전에 고른 것</b>을 배워 두었다가 미리 붙입니다 —

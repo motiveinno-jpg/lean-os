@@ -10288,6 +10288,47 @@ export type Database = {
           },
         ]
       }
+      saved_queries: {
+        Row: {
+          auth_id: string
+          company_id: string
+          created_at: string
+          id: string
+          name: string
+          params: Json
+          screen: string
+          updated_at: string
+        }
+        Insert: {
+          auth_id?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          name: string
+          params?: Json
+          screen: string
+          updated_at?: string
+        }
+        Update: {
+          auth_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          params?: Json
+          screen?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_queries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       schedule_events: {
         Row: {
           all_day: boolean

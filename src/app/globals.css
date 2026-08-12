@@ -8762,3 +8762,90 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .stg-badge { @apply inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
 .stg-badge-ok { @apply bg-emerald-500/10 text-emerald-600; }
 .stg-badge-warn { @apply bg-amber-500/10 text-amber-600; }
+
+/* ══ 공용 조회 컴포넌트 (query-kit) — 2026-08-13 사장님 지시 ══════════════
+   성격별로 줄을 나눈다: 1줄 조회 조건 / 2줄 결과 요약 / 3줄 선택 실행.
+   조건 줄만 흰 카드로 도드라지고, 결과 줄은 배경에 잠겨 시선을 안 뺏는다. */
+
+/* 1줄 — 조회 조건 */
+.qk-bar { @apply flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2.5; }
+.qk-bar-left { @apply flex flex-1 flex-wrap items-center gap-x-3 gap-y-2; }
+.qk-bar-right { @apply flex flex-wrap items-center gap-2; }
+.qk-field { @apply inline-flex items-center gap-1.5; }
+.qk-field-label { @apply shrink-0 text-[11px] font-bold text-[var(--text-dim)]; }
+.qk-field-body { @apply inline-flex items-center gap-1.5; }
+.qk-divider { @apply hidden h-5 w-px shrink-0 bg-[var(--border)] sm:block; }
+.qk-select { @apply h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 text-[12px] text-[var(--text)]; }
+
+/* 값 고르기 칩 — 좁은 native select 는 글자가 잘려 안 보인다 */
+.qk-chips { @apply inline-flex items-center gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-0.5; }
+.qk-chip { @apply rounded-md px-2.5 py-1 text-[12px] font-semibold text-[var(--text-dim)] transition-colors; }
+.qk-chip:hover { @apply text-[var(--text)]; }
+.qk-chip-on { @apply bg-[var(--bg-card)] text-[var(--text)] shadow-sm; }
+
+/* 조건 더보기 */
+.qk-more { @apply relative; }
+.qk-more-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-[12px] font-semibold text-[var(--text-dim)] transition-colors; }
+.qk-more-btn:hover { @apply border-[var(--primary)] text-[var(--text)]; }
+.qk-more-btn-on { @apply border-[var(--primary)] text-[var(--text)]; }
+.qk-more-badge { @apply not-italic inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[10px] font-bold text-white; }
+.qk-caret { @apply text-[9px] opacity-60; }
+.qk-more-pop { @apply absolute right-0 top-9 z-30 flex w-[300px] flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 shadow-xl; }
+
+/* 2줄 — 결과 요약 (배경에 잠기게) */
+.qk-strip { @apply flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 py-0.5; }
+.qk-strip-left { @apply flex flex-1 flex-wrap items-center gap-x-3 gap-y-1; }
+.qk-strip-right { @apply flex flex-wrap items-center gap-2; }
+.qk-stat { @apply inline-flex items-baseline gap-1 text-[11.5px] text-[var(--text-dim)]; }
+.qk-stat-label { @apply text-[11px]; }
+.qk-stat-v { @apply font-bold tabular-nums text-[var(--text)]; }
+.qk-stat-plus { @apply text-emerald-600; }
+.qk-stat-minus { @apply text-rose-600; }
+
+/* 도움 — 오너뷰만의 보조 기능 모음 */
+.qk-help { @apply relative; }
+.qk-help-btn { @apply inline-flex h-7 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-[11.5px] font-semibold text-[var(--text-dim)] transition-colors; }
+.qk-help-btn:hover { @apply border-[var(--primary)] text-[var(--text)]; }
+.qk-help-btn-on { @apply border-amber-400 text-amber-600; }
+.qk-help-badge { @apply not-italic inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white; }
+.qk-help-pop { @apply absolute right-0 top-8 z-30 flex w-[276px] flex-col rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-1 shadow-xl; }
+.qk-help-item { @apply flex flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-[var(--bg-surface)] disabled:opacity-40; }
+.qk-help-item-top { @apply flex items-center gap-2 text-[12.5px] font-semibold text-[var(--text)]; }
+.qk-help-item-badge { @apply not-italic ml-auto inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white; }
+.qk-help-item-hint { @apply text-[11px] leading-snug text-[var(--text-dim)]; }
+
+/* 3줄 — 고른 줄로 하는 일 (고른 순간에만 뜬다)
+   표 아래에 두되 화면 바닥에 붙여 둔다 — 50줄을 보다 체크하면 확정 버튼이 화면 밖으로
+   밀려나 매번 끝까지 스크롤해야 한다. 위에 두면 체크할 때마다 표가 아래로 튄다. */
+/*   오른쪽 여백은 떠 있는 메신저 단추(messenger-fab, fixed bottom-6 right-6 · 56px) 자리다 —
+     안 비우면 확정 버튼 위에 단추가 겹쳐 앉는다 */
+.qk-selbar { @apply sticky bottom-2 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--primary)]/35 px-3.5 py-2 shadow-lg md:pr-[4.75rem]; background: color-mix(in srgb, var(--primary) 7%, var(--bg-card)); }
+.qk-selbar-n { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
+.qk-selbar-sum { @apply text-[11.5px] tabular-nums text-[var(--text-dim)]; }
+.qk-selbar-right { @apply ml-auto flex flex-wrap items-center gap-2; }
+.qk-selbar-clear { @apply rounded-lg px-2 py-1 text-[11.5px] font-semibold text-[var(--text-dim)] underline-offset-2 hover:underline; }
+
+/* 페이지 넘김 */
+.qk-pager { @apply flex flex-wrap items-center justify-between gap-2 px-1 py-2; }
+.qk-pager-info { @apply text-[11.5px] text-[var(--text-dim)]; }
+.qk-pager-nav { @apply inline-flex items-center gap-1; }
+.qk-page { @apply inline-flex h-7 min-w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-1.5 text-[11.5px] font-semibold tabular-nums text-[var(--text-dim)] transition-colors; }
+.qk-page:hover:not(:disabled) { @apply border-[var(--primary)] text-[var(--text)]; }
+.qk-page:disabled { @apply cursor-not-allowed opacity-35; }
+.qk-page-on { @apply border-[var(--primary)] bg-[var(--primary)] text-white; }
+.qk-page-gap { @apply px-0.5 text-[11px] text-[var(--text-dim)]; }
+
+/* 내 조건 */
+.qk-saved { @apply relative; }
+.qk-saved-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-[12px] font-semibold text-[var(--text-dim)] transition-colors; }
+.qk-saved-btn:hover { @apply border-[var(--primary)] text-[var(--text)]; }
+.qk-saved-n { @apply not-italic inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--bg-surface)] px-1 text-[10px] font-bold text-[var(--text-dim)]; }
+.qk-saved-pop { @apply absolute right-0 top-9 z-30 flex w-[248px] flex-col gap-0.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-1.5 shadow-xl; }
+.qk-saved-empty { @apply px-2 py-3 text-center text-[11.5px] leading-relaxed text-[var(--text-dim)]; }
+.qk-saved-row { @apply flex items-center gap-1; }
+.qk-saved-apply { @apply flex-1 truncate rounded-lg px-2.5 py-1.5 text-left text-[12.5px] font-semibold text-[var(--text)] transition-colors hover:bg-[var(--bg-surface)]; }
+.qk-saved-del { @apply shrink-0 rounded-lg px-1.5 py-1 text-[11px] text-[var(--text-dim)] transition-colors hover:bg-rose-500/10 hover:text-rose-600; }
+.qk-saved-save { @apply mt-1 rounded-lg border border-dashed border-[var(--border)] px-2.5 py-1.5 text-[11.5px] font-semibold text-[var(--text-dim)] transition-colors hover:border-[var(--primary)] hover:text-[var(--text)]; }
+.qk-saved-name { @apply mt-1 flex items-center gap-1; }
+.qk-saved-input { @apply h-7 min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2 text-[12px] text-[var(--text)]; }
+.qk-saved-ok { @apply h-7 shrink-0 rounded-lg bg-[var(--primary)] px-2.5 text-[11.5px] font-bold text-white disabled:opacity-40; }

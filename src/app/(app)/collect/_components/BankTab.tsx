@@ -15,8 +15,12 @@
 //     ①③④ 가 하던 일은 **거래 매칭 화면(/partners/reconciliation)에 그대로 있다** — 지운 게 아니라
 //     이 화면에서 뺀 것이다. 세금계산서 수금은 여기서 계정을 '외상매출금'으로 골라도 같은 결과다.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { PickList } from "@/components/pick-list";
+import {
+  QueryBar, QueryDivider, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat,
+  HelperMenu, SelectionBar, Pager, usePager, SavedQueryMenu, type HelperItem,
+} from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -77,10 +81,23 @@ function bankIsIn(type: string, amount: number): boolean {
   return amount > 0;
 }
 
-export function BankTab({ companyId, from, to }: { companyId: string; from: string; to: string }) {
+const STATE_CHIPS = [
+  { value: "todo", label: "미처리" }, { value: "all", label: "전체" },
+] as const;
+
+export function BankTab({
+  companyId, from, to, rangeField, onRange, syncButton, rulesHelper,
+}: {
+  companyId: string; from: string; to: string;
+  /** 조회 줄 공통 조각 — 화면(page.tsx)이 만들어 내려보낸다 */
+  rangeField: ReactNode; onRange: (from: string, to: string) => void;
+  syncButton: ReactNode; rulesHelper: HelperItem;
+}) {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [onlyTodo, setOnlyTodo] = useState(true);
+  //   한 페이지 50줄이 기본 (2026-08-13 사장님 지시)
+  const [size, setSize] = useState(50);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [acct, setAcct] = useState<Record<string, Acct>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
@@ -212,6 +229,9 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort]);
+  //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 (2026-08-13 사장님 지시)
+  const pager = usePager(shown, size, `${from}|${to}|${onlyTodo}`);
+  //   선택은 쪽을 넘겨도 남는다
   const selRows = shown.filter((r) => sel.has(r.id));
 
   //   확정할 수 있는 줄인가 — 상대 계정 하나면 된다(거래처·적요는 없어도 전표가 선다)
@@ -339,7 +359,14 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
 
   const toggle = (id: string) =>
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const allOn = shown.length > 0 && shown.filter((r) => !doneOf(r)).every((r) => sel.has(r.id));
+  //   머리단 전체 선택은 **보이는 쪽만** 고른다 — 안 보이는 쪽까지 딸려 오면 무엇을 만드는지 모른다
+  const pickable = pager.view.filter((r) => !doneOf(r));
+  const allOn = pickable.length > 0 && pickable.every((r) => sel.has(r.id));
+  const toggleAll = () => setSel((s) => {
+    const n = new Set(s);
+    for (const r of pickable) { if (allOn) n.delete(r.id); else n.add(r.id); }
+    return n;
+  });
 
   //   PickList 는 **자르지 않은** 목록을 받아야 한다 — 검색은 그 안에서 한다
   const acctsOf = (isIn: boolean) =>
@@ -353,31 +380,52 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
   const sumIn = useMemo(() => shown.filter((r) => r.isIn).reduce((n, r) => n + Math.abs(r.amount), 0), [shown]);
   const sumOut = useMemo(() => shown.filter((r) => !r.isIn).reduce((n, r) => n + Math.abs(r.amount), 0), [shown]);
 
+  const selTotal = selRows.reduce((n, r) => n + Math.abs(r.amount), 0);
+
+  //   '도움' — 조회 조건도 아니고 확정도 아닌 것들 (2026-08-13 사장님 지시).
+  //   ★ 추천 두 가지는 하는 일이 다르므로 이름을 갈라 둔다 (2026-08-11):
+  //     계정 추천 = 무슨 비용인가(비목·계정) · 수금 매칭 추천 = 어느 계산서의 입금인가
+  const suggestable = shown.filter((r) => !doneOf(r) && !r.isIn && !acctOf(r).a).length;
+  const helpers: HelperItem[] = [
+    rulesHelper,
+    {
+      label: aiAcctBusy ? "추천 중…" : "계정 추천 받기",
+      hint: "증빙 없는 지출의 비목을 AI가 추천해 계정 칸을 미리 채웁니다 (한 번에 20건)",
+      badge: suggestable, disabled: aiAcctBusy, onClick: runAcctSuggest,
+    },
+  ];
+
   return (
     <div className="ev-wrap">
-      <div className="collect-toolbar">
-        <button type="button" onClick={() => setOnlyTodo((v) => !v)}
-          className={onlyTodo ? "ev-filter ev-filter-on" : "ev-filter"}>
-          {onlyTodo ? "미처리만" : "전체 보기"}
-        </button>
-        <span className="collect-toolbar-hint">
-          {shown.length}건 · 입금 <b className="mono-number">{won(sumIn)}</b> · 출금 <b className="mono-number">{won(sumOut)}</b>
-          {rows.length >= 400 && <b className="ev-cut"> · 최근 400건만 표시 (기간을 좁혀 주세요)</b>}
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
-          {/*   추천 두 가지 — 하는 일이 다르므로 이름을 갈라 둔다 (2026-08-11).
-                계정 추천 = 무슨 비용인가(비목·계정) · 수금 매칭 추천 = 어느 계산서의 입금인가 */}
-          <button type="button" onClick={runAcctSuggest} disabled={aiAcctBusy}
-            className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-            {aiAcctBusy ? "추천 중…" : "계정 추천"}
-          </button>
-          <button type="button" onClick={confirmAll} disabled={selRows.length === 0 || busy}
-            className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-            {busy ? "만드는 중…" : `일반전표 만들기${selRows.length > 0 ? ` (${selRows.length})` : ""}`}
-          </button>
-        </div>
-      </div>
+      {/* ── 1줄 · 조회 조건 ── */}
+      <QueryBar right={<>
+        <SavedQueryMenu screen="collect:bank" companyId={companyId}
+          params={{ from, to, onlyTodo, size }}
+          onApply={(p) => {
+            if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
+            if (typeof p.onlyTodo === "boolean") setOnlyTodo(p.onlyTodo);
+            if (typeof p.size === "number") setSize(p.size);
+          }} />
+        {syncButton}
+      </>}>
+        {rangeField}
+        <QueryDivider />
+        <QueryField label="상태">
+          <ChipGroup value={onlyTodo ? "todo" : "all"}
+            onChange={(v) => setOnlyTodo(v === "todo")} options={STATE_CHIPS} />
+        </QueryField>
+        <QueryDivider />
+        <RowsPerPage value={size} onChange={setSize} />
+      </QueryBar>
+
+      {/* ── 2줄 · 결과 요약 ── */}
+      <ResultStrip right={<HelperMenu items={helpers} />}>
+        <Stat label="건수" value={`${won(shown.length)}건`} />
+        <Stat label="입금" value={won(sumIn)} tone="plus" />
+        <Stat label="출금" value={won(sumOut)} tone="minus" />
+        {rows.length >= 400 && <b className="ev-cut">최근 400건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+        {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
+      </ResultStrip>
 
       {rowsError ? (
         <div className="collect-empty collect-empty-err">
@@ -395,8 +443,7 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
             <thead>
               <tr>
                 <th style={{ width: 34 }}>
-                  <button type="button" aria-label="전체 선택"
-                    onClick={() => setSel(allOn ? new Set() : new Set(shown.filter((r) => !doneOf(r)).map((r) => r.id)))}
+                  <button type="button" aria-label="이 쪽 전체 선택" onClick={toggleAll}
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
                 <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} />
@@ -410,7 +457,7 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
               </tr>
             </thead>
             <tbody>
-              {shown.map((r) => {
+              {pager.view.map((r) => {
                 const done = doneOf(r);
                 const on = sel.has(r.id);
                 return (
@@ -499,6 +546,19 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
           </table>
         </div>
       )}
+
+      {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
+      <Pager page={pager.page} pages={pager.pages} total={shown.length}
+        from={pager.from} to={pager.to} onPage={pager.setPage} />
+
+      {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 여기 하나뿐 ── */}
+      <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
+        summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}</>}>
+        <button type="button" onClick={confirmAll} disabled={busy}
+          className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          {busy ? "만드는 중…" : `일반전표 만들기 (${selRows.length})`}
+        </button>
+      </SelectionBar>
 
       <p className="collect-note">
         ※ 통장 한 줄이 <b>일반전표 한 장</b>이 됩니다 — <b>입금</b>은 차) 보통예금[통장] / 대) 고른 계정[고른 거래처],

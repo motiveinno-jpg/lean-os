@@ -23,6 +23,7 @@ import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
 import { RulesDialog } from "./_components/RulesDialog";
 import { DateRangeField } from "@/components/date-range-field";
+import { QueryBar, ResultStrip, HelperMenu, type HelperItem } from "@/components/query-kit";
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const fmtWhen = (iso: string | null) =>
@@ -81,20 +82,11 @@ function CollectInner() {
     staleTime: 30_000,
   });
 
-  //   조회기간도 기억한다 — 새로고침하거나 다른 화면을 다녀와도 보던 기간 그대로
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("collect-range");
-      if (saved) {
-        const r = JSON.parse(saved);
-        if (r?.from && r?.to) setRange({ from: r.from, to: r.to });
-      }
-    } catch { /* 저장값이 깨졌으면 기본값 */ }
-  }, []);
-  const applyRange = (f: string, t: string) => {
-    setRange({ from: f, to: t });
-    try { localStorage.setItem("collect-range", JSON.stringify({ from: f, to: t })); } catch { /* ignore */ }
-  };
+  //   ★ 조회기간은 **기억하지 않는다** (2026-08-13 사장님 지시).
+  //     예전엔 localStorage 에 마지막 기간을 남겨 다녀와도 그대로 떴다. 두 가지가 나빴다 —
+  //     ① 지금 보고 있는 게 무슨 조건인지 모른 채 목록만 본다  ② PC 를 바꾸면 안 따라온다.
+  //     화면 안에 머무는 동안만 유지하고(그냥 상태다), 자주 쓰는 조건은 '내 조건'에 이름을 붙인다.
+  const applyRange = (f: string, t: string) => setRange({ from: f, to: t });
 
   //   마지막에 고른 대로 다시 열린다 — 매번 통장만 받는 사람이 매번 체크를 다시 할 이유가 없다
   useEffect(() => {
@@ -167,6 +159,25 @@ function CollectInner() {
 
   const totalPending = SOURCES.reduce((n, s) => n + (status?.[s.key]?.pending ?? 0), 0);
 
+  //   조회 줄의 공통 조각 — 현황판이 직접 쓰고, 목록 탭에는 통째로 내려보낸다.
+  //   탭마다 조건(매출·매입, 미처리만 …)이 달라서 **조회 줄은 탭이 완성**한다.
+  //   기간과 '수집하기'까지 탭 안에 다시 만들면 두 벌이 되어 언젠가 어긋난다.
+  //   DateRangeField 는 '조회기간' 라벨을 스스로 붙인다 — QueryField 로 또 감싸면 라벨이 두 번 나온다
+  const rangeField = <DateRangeField from={from} to={to} onChange={applyRange} />;
+  const syncButton = (
+    <button type="button" onClick={() => setOpen(true)} disabled={running}
+      className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+      {running ? "수집 중…" : "수집하기"}
+    </button>
+  );
+  //   배운 규칙을 볼 수 있어야 한다 — 안 보이는 자동화는 틀렸을 때 고칠 방법이 없다.
+  //   조회 조건이 아니므로 조회 줄이 아니라 '도움' 안에 둔다.
+  const rulesHelper: HelperItem = {
+    label: "배운 규칙 보기",
+    hint: "전에 고른 계정을 어떻게 기억해 뒀는지 보고 고칩니다",
+    onClick: () => setRulesOpen(true),
+  };
+
   return (
     <div className="collect-page">
       {/* ── 갈래 탭 — 현황판 + 자료별 목록 ── */}
@@ -182,27 +193,25 @@ function CollectInner() {
         ))}
       </div>
 
-      {/* ── 툴바 ── */}
-      <div className="collect-toolbar">
-        <DateRangeField from={from} to={to} onChange={applyRange} />
-        <span className="collect-toolbar-hint">
-          자료를 누르면 그 목록으로 갑니다 · 처리할 것 <b>{won(totalPending)}</b>건
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          {/*   배운 규칙을 볼 수 있어야 한다 — 안 보이는 자동화는 틀렸을 때 고칠 방법이 없다 */}
-          <button type="button" onClick={() => setRulesOpen(true)} className="btn-secondary btn-sm">배운 규칙</button>
-          <button type="button" onClick={() => setOpen(true)} disabled={running}
-            className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-            {running ? "수집 중…" : "수집하기"}
-          </button>
-        </div>
-      </div>
+      {/* ── 현황판 조회 줄 — 목록 탭은 제 조건까지 얹어 스스로 그린다 ── */}
+      {tab === "status" && (
+        <>
+          <QueryBar right={syncButton}>{rangeField}</QueryBar>
+          <ResultStrip right={<HelperMenu items={[rulesHelper]} />}>
+            <span className="collect-toolbar-hint">
+              자료를 누르면 그 목록으로 갑니다 · 처리할 것 <b>{won(totalPending)}</b>건
+            </span>
+          </ResultStrip>
+        </>
+      )}
 
       {/* ── 자료별 목록 (2단계) · 통장은 매칭까지 흡수한 3단계 화면 ── */}
       {tab !== "status" && companyId && (
         tab === "bank"
-          ? <BankTab companyId={companyId} from={from} to={to} />
-          : <EvidenceTab companyId={companyId} from={from} to={to} kind={tab} />
+          ? <BankTab companyId={companyId} from={from} to={to}
+              rangeField={rangeField} onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
+          : <EvidenceTab companyId={companyId} from={from} to={to} kind={tab}
+              rangeField={rangeField} onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
       )}
 
       {/* ── 자료 카드 ── */}
