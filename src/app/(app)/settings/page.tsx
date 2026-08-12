@@ -112,41 +112,35 @@ function SettingsPageInner() {
     if (rawTab && TAB_MOVED[rawTab]) router.replace(TAB_MOVED[rawTab]);
   }, [rawTab, router]);
   // ?tab= 없으면 설정 홈(허브), 있으면 그 항목 상세 (2026-08-13 3차 — 허브·상세 구조)
-  const initialTab: LeafKey | null = (() => {
+  // 2026-08-13 4차(사장님 시안 B 선택 — 잉크 투톤): 좌측 패널이면 앱 사이드바와 이중이라
+  //   네이비 밴드를 상단에 눕혔다. 밴드 안에 회사명·상태·항목 네비, 아래는 밝은 작업면.
+  const initialTab: LeafKey = (() => {
     if (ALL_LEAVES.includes(rawTab as LeafKey)) return rawTab as LeafKey;
     const mapped = TAB_COMPAT[rawTab];
     if (mapped) return mapped;
-    return null;
+    return "company-info";
   })();
-  const [tab, setTabState] = useState<LeafKey | null>(initialTab);
-  // 허브↔상세 이동은 pushState — 브라우저 뒤로가기가 설정 홈으로 자연스럽게 돌아온다.
-  const setTab = (next: LeafKey | null) => {
+  const [tab, setTabState] = useState<LeafKey>(initialTab);
+  // 탭 변경 시 URL ?tab= 동기화(북마크·뒤로가기 유지, 페이지 리로드 없음)
+  const setTab = (next: LeafKey) => {
     setTabState(next);
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      if (next) url.searchParams.set("tab", next);
-      else url.searchParams.delete("tab");
-      window.history.pushState(null, "", url.toString());
+      url.searchParams.set("tab", next);
+      window.history.replaceState(null, "", url.toString());
     }
   };
-  useEffect(() => {
-    const onPop = () => {
-      const t = new URLSearchParams(window.location.search).get("tab") || "";
-      setTabState(ALL_LEAVES.includes(t as LeafKey) ? (t as LeafKey) : (TAB_COMPAT[t] ?? null));
-    };
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
   // (2026-07-30 개편 P3) 설정 세부탭 권한 게이트 — 마스터=전체, 멤버=부여(/settings:leaf)만.
   //   통합 탭은 구성 키 중 하나라도 부여돼 있으면 노출 (옛 부여 존중).
   const { isMaster: permMaster, hasPerm: permHas } = useMyPermissions();
   const visibleTabs = SETTINGS_TABS.filter((t) =>
     t.masterOnly ? permMaster : (permMaster || t.perms.some((p) => permHas(`/settings:${p}`))));
+  const firstAllowedLeaf = visibleTabs[0]?.key;
   useEffect(() => {
-    // 권한 없는 항목으로 딥링크 진입 → 설정 홈으로
-    if (tab && !visibleTabs.some((t) => t.key === tab)) setTabState(null);
+    const allowed = visibleTabs.some((t) => t.key === tab);
+    if (!allowed && firstAllowedLeaf) setTabState(firstAllowedLeaf);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, permMaster, visibleTabs.map((t) => t.key).join()]);
+  }, [tab, permMaster, firstAllowedLeaf, visibleTabs.map((t) => t.key).join()]);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [balance, setBalance] = useState("");
   const [fixedCost, setFixedCost] = useState("");
@@ -291,85 +285,66 @@ function SettingsPageInner() {
     );
   }
 
-  const meta = tab ? LEAF_META[tab] : null;
+  const meta = LEAF_META[tab];
 
-  // 허브 행 상태줄 — 실데이터 요약. 값이 없으면 조용히 생략.
-  const hubStatus: Partial<Record<LeafKey, { text: string; warn?: boolean }>> = {
-    "company-info": hubCompany
-      ? hubCompany.business_number
-        ? { text: `사업자번호 ${hubCompany.business_number}` }
-        : { text: "사업자번호 미입력", warn: true }
-      : undefined,
-    team: hubMemberCount != null ? { text: `구성원 ${hubMemberCount}명` } : undefined,
-    cash: { text: `총 가용 ₩${totalCash.toLocaleString()}` },
-    bank: bankAccounts.length > 0 ? { text: `계좌 ${bankAccounts.length}개` } : undefined,
-    "delete-company": { text: "되돌릴 수 없음" },
+  // 밴드 네비 상태줄 — 짧게. 금액은 축약(만/억).
+  const compactWon = (v: number) =>
+    v >= 100_000_000 ? `${(v / 100_000_000).toFixed(1)}억` : v >= 10_000 ? `${Math.round(v / 10_000).toLocaleString()}만` : `${v.toLocaleString()}`;
+  const bandStatus: Partial<Record<LeafKey, { text: string; warn?: boolean }>> = {
+    "company-info": hubCompany && !hubCompany.business_number ? { text: "번호 미입력", warn: true } : undefined,
+    team: hubMemberCount != null ? { text: `${hubMemberCount}명` } : undefined,
+    cash: totalCash > 0 ? { text: `₩${compactWon(totalCash)}` } : undefined,
+    bank: bankAccounts.length > 0 ? { text: `${bankAccounts.length}계좌` } : undefined,
   };
-
-  // ── 설정 홈(허브) — 항목을 고르면 상세로 ──
-  if (!tab) {
-    return (
-      <div>
-        <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-
-        {/* 회사 아이덴티티 스트립 */}
-        <div className="stg-hub-co">
-          <div className="min-w-0">
-            <div className="stg-hub-co-name">{hubCompany?.name || "회사 설정"}</div>
-            <div className="stg-hub-co-sub">
-              {hubCompany?.representative ? `대표 ${hubCompany.representative}` : "회사 운영에 필요한 것들을 여기서 정합니다"}
-              {hubCompany?.business_number ? ` · ${hubCompany.business_number}` : ""}
-            </div>
-          </div>
-        </div>
-
-        <div className="stg-hub">
-          {HUB_GROUPS.map((g) => {
-            const rows = g.leaves
-              .map((leaf) => visibleTabs.find((t) => t.key === leaf))
-              .filter(Boolean) as typeof SETTINGS_TABS;
-            if (rows.length === 0) return null;
-            return (
-              <section key={g.key} className={`stg-hub-group ${g.key === "system" ? "stg-hub-group-danger" : ""}`}>
-                <h3 className="stg-hub-group-label">{g.label}</h3>
-                {rows.map((t) => {
-                  const st = hubStatus[t.key];
-                  return (
-                    <button key={t.key} onClick={() => setTab(t.key)} className="stg-hub-row">
-                      <span className={`stg-hub-ico ${t.danger ? "stg-hub-ico-danger" : ""}`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d={t.icon} /></svg>
-                      </span>
-                      <span className="min-w-0">
-                        <span className={`stg-hub-name ${t.danger ? "text-[var(--danger)]" : ""}`}>{t.label}</span>
-                        <span className="stg-hub-desc">{LEAF_META[t.key].desc}</span>
-                      </span>
-                      {st && <span className={`stg-hub-status ${st.warn ? "stg-hub-status-warn" : ""}`}>{st.text}</span>}
-                      <svg className="stg-hub-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                    </button>
-                  );
-                })}
-              </section>
-            );
-          })}
-        </div>
-
-        {confirmElement}
-      </div>
-    );
-  }
+  const groupOf = (leaf: LeafKey) => HUB_GROUPS.find((g) => g.leaves.includes(leaf));
 
   return (
     <div>
+      {/* ── 잉크 밴드 (시안 B) — 회사 아이덴티티 + 항목 네비를 네이비 한 판에 ── */}
+      <div className="stg-band">
+        <div className="stg-band-top">
+          <div className="min-w-0">
+            <div className="stg-band-name">{hubCompany?.name || "회사 설정"}</div>
+            <div className="stg-band-sub">
+              {hubCompany?.representative ? `대표 ${hubCompany.representative}` : "회사 운영의 기준을 여기서 정합니다"}
+              {hubCompany?.business_number ? ` · ${hubCompany.business_number}` : ""}
+            </div>
+          </div>
+          {hubCompany && !hubCompany.business_number && (
+            <button onClick={() => setTab("company-info")} className="stg-band-alert">사업자번호 미입력</button>
+          )}
+        </div>
+        <nav className="stg-band-nav" role="tablist" aria-label="회사 설정">
+          {visibleTabs.map((t, i) => {
+            const active = tab === t.key;
+            const st = bandStatus[t.key];
+            const prev = visibleTabs[i - 1];
+            const newGroup = prev && groupOf(prev.key)?.key !== groupOf(t.key)?.key;
+            return (
+              <React.Fragment key={t.key}>
+                {newGroup && <span className="stg-band-sep" aria-hidden />}
+                <button
+                  role="tab"
+                  aria-selected={active}
+                  ref={(el) => { if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" }); }}
+                  onClick={() => setTab(t.key)}
+                  className={`stg-band-item ${t.danger ? "stg-band-item-danger" : ""} ${active ? "stg-band-item-on" : ""}`}
+                >
+                  {t.label}
+                  {st && <small className={st.warn ? "stg-band-item-warn" : ""}>{st.text}</small>}
+                </button>
+              </React.Fragment>
+            );
+          })}
+        </nav>
+      </div>
+
       <div className="stg-main">
         <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
-        <button onClick={() => setTab(null)} className="stg-back">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-          설정 홈
-        </button>
-
         {meta && (
           <header className="stg-head">
+            <div className="stg-head-crumb">설정 / {groupOf(tab)?.label || "회사"}</div>
             <h2 className={`stg-head-title ${meta.danger ? "text-[var(--danger)]" : ""}`}>{meta.title}</h2>
             <p className="stg-head-desc">{meta.desc}</p>
           </header>
