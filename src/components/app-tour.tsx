@@ -20,6 +20,10 @@ import { useUser } from "@/components/user-context";
 
 // 진행 중 스텝 번호 — 있으면 "투어 진행 중"이라는 뜻. 탭이 닫히면 자연 소멸(sessionStorage).
 const SS_KEY = "ov-app-tour-step";
+// 이 세션에서 투어를 닫은 시각 (2026-08-12 제보 픽스) — ① 체크 없이 닫아도 "다음 로그인"이
+//   아니라 새로고침마다 auto 재노출되던 것 억제 ② 완료 직후 ?tour=1 이 라우터 내부에 남아
+//   부활해도 10분 내에는 무시. 탭이 닫히면 소멸해 다음 세션(로그인)엔 설계대로 다시 안내.
+const DISMISSED_KEY = "ov-app-tour-dismissed-at";
 
 type TourStep = {
   href: string | null;
@@ -143,13 +147,20 @@ export function AppTourHost({ companyId }: { companyId: string | null }) {
   const isAdvisor = role === "advisor";
   useEffect(() => {
     if (show || isAdvisor) return;
+    // 이 세션에서 이미 닫았으면(완료·건너뛰기·X 모두) 재노출 억제 — 2026-08-12 제보:
+    //   마지막에 '다시 보지 않기'를 체크하고 끝냈는데 새로고침하면 또 나온다.
+    //   ?tour=1 부활(라우터 내부 쿼리 잔존)과 미기록 닫기 재노출 둘 다 이 게이트가 막는다.
+    const dismissedAt = (() => { try { return Number(sessionStorage.getItem(DISMISSED_KEY)) || 0; } catch { return 0; } })();
     // 온보딩 완료가 router.replace("/dashboard?tour=1") 로 보내면 pathname 변경으로 여기 걸린다
     const sp = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    if (shouldStartTour(sp) || isTourActive()) { setShow(true); return; }
+    if (shouldStartTour(sp)) {
+      // 명시 요청(?tour=1)도 닫은 직후 10분간은 부활로 간주해 무시 — 그 뒤엔 수동 재실행 허용
+      if (Date.now() - dismissedAt > 10 * 60 * 1000) { setShow(true); return; }
+    } else if (isTourActive()) { setShow(true); return; }
 
     // 자동 1회 노출 — 신규 가입 온보딩(/onboarding)과 겹치지 않게 그 화면에서는 시작하지 않는다.
     //   온보딩을 마치면 ?tour=1 로 오므로 위 분기가 잡고, 여기는 기존 계정의 첫 로그인용.
-    if (autoCheckedRef.current || !companyId || pathname?.startsWith("/onboarding")) return;
+    if (dismissedAt || autoCheckedRef.current || !companyId || pathname?.startsWith("/onboarding")) return;
     autoCheckedRef.current = true;
     (async () => {
       try {
@@ -275,7 +286,10 @@ export function AppTour({ companyId, onClose }: { companyId: string | null; onCl
   const finish = useCallback(async (persist = true) => {
     if (closedRef.current) return;
     closedRef.current = true;
-    try { sessionStorage.removeItem(SS_KEY); } catch { /* ignore */ }
+    try {
+      sessionStorage.removeItem(SS_KEY);
+      sessionStorage.setItem(DISMISSED_KEY, String(Date.now())); // 세션 내 재노출 억제 (2026-08-12)
+    } catch { /* ignore */ }
     if (persist) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
