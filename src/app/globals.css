@@ -8233,6 +8233,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ev-st { @apply text-[11px] font-bold; }
 .ev-st-todo { @apply text-[var(--warning)]; }
 .ev-st-done { @apply text-[var(--success)]; }
+/*   확정 옆의 '취소' — 만든 전표를 되돌린다 (2026-08-12) */
+.ev-st-cell { @apply inline-flex items-center gap-1.5 whitespace-nowrap; }
+.ev-undo { @apply text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--danger)] hover:text-[var(--danger)] disabled:opacity-40; }
 
 /* ── 수집·전표 3단계: 통장 탭 (거래 매칭 흡수) 2026-08-11 ── */
 .bk-table { min-width: 1060px; }

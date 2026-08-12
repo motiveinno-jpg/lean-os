@@ -12,6 +12,7 @@
 //   지금은 규칙을 따로 저장하지 않고 이미 만든 전표를 되읽는다 — 사람이 고른 것이 곧 근거다.
 
 import { useMemo, useState } from "react";
+import { appConfirm } from "@/components/global-confirm";
 import { PickList } from "@/components/pick-list";
 import { fetchMerchantKinds, fillMerchantKinds, type MerchantInfo } from "@/lib/merchant-tax-type";
 import { UNCLASSIFIED_CATEGORY } from "@/lib/card-vat-classification";
@@ -42,6 +43,8 @@ type Row = {
   settle: SettleType;
   posted: boolean;
   voucherNo: number | null;
+  /** 이 줄이 만든 전표 — 취소(되돌리기)할 때 쓴다 */
+  entryId?: string | null;
   /** 카드 비목 — 회사설정의 '카드 비목 → 계정' 매핑을 찾는 열쇠 */
   cardCategory?: string | null;
   /** 카드 이름 — 미지급금 줄에 걸 **카드사 거래처**를 찾는 열쇠 (거래처원장에서 카드대금 대조) */
@@ -310,6 +313,33 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
     else toast(`전표를 만들지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
 
+  /**
+   * 전표 취소 — 만든 전표를 되돌려 이 목록으로 가져온다. (2026-08-12 사장님 지시)
+   *   전표는 **지우지 않고 반려**한다. 재무제표는 확정 전표만 읽으니 합계에서 빠지고,
+   *   "만들었다 취소했다"는 사실은 남는다. 마감된 달은 서버가 막는다(PERIOD_LOCKED).
+   */
+  const unpost = async (r: Row) => {
+    if (!r.entryId || saving) return;
+    const label = `${r.date.slice(5)} ${r.partnerName} ${won(amountsOf(r).supply + amountsOf(r).vat)}원`;
+    if (!(await appConfirm(
+      `${label}\n전표 #${r.voucherNo ?? "—"} 을(를) 취소할까요?\n\n· 전표는 반려로 남고 재무제표에서 빠집니다\n· 이 자료는 다시 '미처리'가 되어 목록으로 돌아옵니다`,
+      //   기본 라벨이 '삭제'라 뜻이 어긋난다 — 여기서 하는 일은 '되돌리기'다
+      { danger: true, title: "전표 취소", confirmLabel: "전표 취소" }))) return;
+    setSaving(true);
+    try {
+      const { error } = await (supabase.rpc as any)("unpost_evidence_voucher", { p_entry_id: r.entryId });
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["collect-rows"] });
+      qc.invalidateQueries({ queryKey: ["collect-status"] });
+      toast(`전표 #${r.voucherNo ?? ""} 을(를) 취소했습니다 — 목록으로 되돌렸습니다`, "info");
+    } catch (e: any) {
+      const m = String(e?.message || "");
+      toast(m.includes("PERIOD_LOCKED") ? "마감된 달의 전표는 취소할 수 없습니다"
+        : m.includes("FORBIDDEN") ? "전표를 취소할 권한이 없습니다"
+        : friendlyError(e, "전표 취소 실패"), "error");
+    } finally { setSaving(false); }
+  };
+
   const toggle = (id: string) =>
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allOn = shown.length > 0 && shown.every((r) => sel.has(r.id) || r.posted);
@@ -516,9 +546,16 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                       )}
                     </td>
                     <td>
-                      {r.posted
-                        ? <span className="ev-st ev-st-done">#{r.voucherNo ?? "—"} 확정</span>
-                        : <span className="ev-st ev-st-todo">미처리</span>}
+                      {r.posted ? (
+                        <span className="ev-st-cell">
+                          <span className="ev-st ev-st-done">#{r.voucherNo ?? "—"} 확정</span>
+                          {/*   만든 전표를 여기서 바로 되돌린다 (2026-08-12 사장님 지시) */}
+                          {r.entryId && (
+                            <button type="button" className="ev-undo" disabled={saving}
+                              onClick={() => unpost(r)}>취소</button>
+                          )}
+                        </span>
+                      ) : <span className="ev-st ev-st-todo">미처리</span>}
                     </td>
                   </tr>
                 );
@@ -533,7 +570,8 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
         1~2번은 <b>지난번</b>, 3번 이상이면 <b>학습</b> 꼬리표가 붙습니다.
         다른 계정을 고르면 그쪽 횟수가 올라 <b>결국 뒤집힙니다</b>.
         <b>제안은 자동, 확정은 사람</b> — 전표는 <b>전표 만들기</b>를 눌러야 생깁니다.
-        만든 전표는 <b>매입매출전표</b> 메뉴에서 그대로 보이고, 지우면 이 목록으로 되돌아옵니다.
+        만든 전표는 <b>매입매출전표</b> 메뉴에서 그대로 보이고, 상태의 <b>취소</b>를 누르면 이 목록으로 되돌아옵니다
+        (전표는 지워지지 않고 <b>반려</b>로 남아 재무제표에서만 빠집니다).
       </p>
     </div>
   );
@@ -553,7 +591,7 @@ async function attachVoucherNo(rows: Row[], entryIds: (string | null)[]): Promis
   const byId = new Map(((data as any[]) || []).map((e) => [e.id, e.voucher_no as number | null]));
   return rows.map((r, i) => {
     const eid = entryIds[i];
-    return eid ? { ...r, voucherNo: byId.get(eid) ?? null } : r;
+    return eid ? { ...r, voucherNo: byId.get(eid) ?? null, entryId: eid } : r;
   });
 }
 
