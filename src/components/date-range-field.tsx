@@ -171,8 +171,11 @@ export function DateRangeField({
     if (digits.length === (s.endsWith("y") ? 4 : 2)) {
       const i = order.indexOf(s);
       const nx = order[i + 1];
+      //   ★ 다음 칸으로 넘어가더라도 **그 자리에서 바로 확정**한다 (2026-08-12 사장님 지적).
+      //     예전엔 마지막 칸에서만 확정해서, 년에 9999 를 치고 탭으로 넘어가면 9999 가 그대로 남았다가
+      //     한참 뒤 다른 곳을 눌러야(blur) 2026 으로 바뀌었다 — 잘못 친 줄 알게 된다.
+      commit(next);
       if (nx) setFocusNext(nx);
-      else commit(next);
     }
   };
 
