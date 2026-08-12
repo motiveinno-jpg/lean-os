@@ -26,14 +26,58 @@ export function kindOfTaxType(taxType?: string | null): MerchantKind | null {
 
 const digits = (s?: string | null) => String(s || "").replace(/[^0-9]/g, "");
 
+/**
+ * ★ 법인은 **사업자등록번호 가운데 두 자리**로 안다 (2026-08-12 사장님 제보).
+ *   국세청 상태조회의 tax_type 은 "부가가치세 일반과세자/간이과세자/면세사업자" 만 주고
+ *   **법인·개인은 알려주지 않는다**. 그래서 법인이 전부 '일반'으로 표시됐다
+ *   (실제: 조회한 198곳 중 82곳이 법인인데 전부 '일반'. 위하고와 어긋난 자리다).
+ *   81~85 법인격(비영리·국가지자체·외국법인 포함) · 86~88 영리법인 → 법인으로 본다.
+ *   89 는 법인격 없는 종교단체, 90~99 는 개인 면세사업자라 법인이 아니다.
+ */
+const CORP_MIDDLE = new Set(["81", "82", "83", "84", "85", "86", "87", "88"]);
+export function isCorporateBizno(bizno?: string | null): boolean {
+  const d = digits(bizno);
+  return d.length === 10 && CORP_MIDDLE.has(d.slice(3, 5));
+}
+
+/** 번호와 국세청 원문을 함께 보고 구분을 정한다 — **번호 없이 tax_type 만으로는 법인을 못 가린다** */
+export function merchantKindOf(bizno?: string | null, taxType?: string | null): MerchantKind | null {
+  const t = String(taxType || "");
+  //   간이·면세는 개인만 가능하니 법인 판정보다 앞이다
+  if (t.includes("간이")) return "간이";
+  if (t.includes("면세")) return "면세";
+  if (isCorporateBizno(bizno)) return "법인";
+  return kindOfTaxType(t);
+}
+
+/**
+ * 이 가맹점에서 받은 **카드매출전표로 매입세액을 공제받을 수 있는가**.
+ *   · 면세 → 못 받는다(애초에 부가세가 없다)
+ *   · 간이 → 원칙적으로 못 받는다. **단 '세금계산서 발급사업자' 간이과세자는 받을 수 있다**
+ *     (직전연도 공급대가 4,800만원 이상. 국세청이 tax_type 에 그렇게 적어 준다)
+ *   · 그 밖(법인·일반) → 받을 수 있다
+ */
+export function isVatDeductibleMerchant(kind: MerchantKind | null, taxType?: string | null): boolean {
+  if (kind === "면세") return false;
+  if (kind === "간이") return String(taxType || "").includes("세금계산서");
+  return true;
+}
+
+/** 화면이 알아야 할 가맹점 한 곳의 정보 */
+export type MerchantInfo = { kind: MerchantKind | null; taxType: string | null; deductible: boolean };
+
 /** 이미 조회해 둔 것 — 화면이 바로 그린다 */
-export async function fetchMerchantKinds(companyId: string): Promise<Record<string, MerchantKind>> {
+export async function fetchMerchantKinds(companyId: string): Promise<Record<string, MerchantInfo>> {
   //   ⚠️ 새로 만든 표라 생성 타입(src/types/database.ts)에 아직 없다 — 저장소가 쓰는 방식대로 캐스팅한다.
   //     타입을 다시 뽑을 때 이 캐스팅을 걷어내면 된다.
   const data = logRead("merchant-tax-type:cache", await (supabase as any)
-    .from("merchant_tax_types").select("bizno, kind").eq("company_id", companyId));
-  const m: Record<string, MerchantKind> = {};
-  for (const r of ((data as any[]) || [])) if (r.kind) m[r.bizno] = r.kind as MerchantKind;
+    .from("merchant_tax_types").select("bizno, kind, tax_type").eq("company_id", companyId));
+  const m: Record<string, MerchantInfo> = {};
+  for (const r of ((data as any[]) || [])) {
+    //   저장된 kind 를 그대로 믿지 않고 번호로 한 번 더 본다 — 옛 행은 법인 판정 전에 저장된 것이다
+    const kind = merchantKindOf(r.bizno, r.tax_type) ?? (r.kind as MerchantKind | null);
+    m[r.bizno] = { kind, taxType: r.tax_type ?? null, deductible: isVatDeductibleMerchant(kind, r.tax_type) };
+  }
   return m;
 }
 
@@ -73,7 +117,8 @@ export async function fillMerchantKinds(
         company_id: companyId,
         bizno: digits(r.b_no),
         tax_type: r.tax_type ?? null,
-        kind: kindOfTaxType(r.tax_type),
+        //   번호까지 보고 정한다 — tax_type 만으로는 법인을 못 가린다
+        kind: merchantKindOf(digits(r.b_no), r.tax_type),
         status: r.b_stt || null,
         checked_at: new Date().toISOString(),
       })).filter((r) => r.bizno.length === 10);

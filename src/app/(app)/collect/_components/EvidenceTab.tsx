@@ -13,7 +13,8 @@
 
 import { useMemo, useState } from "react";
 import { PickList } from "@/components/pick-list";
-import { fetchMerchantKinds, fillMerchantKinds, type MerchantKind } from "@/lib/merchant-tax-type";
+import { fetchMerchantKinds, fillMerchantKinds, type MerchantInfo } from "@/lib/merchant-tax-type";
+import { UNCLASSIFIED_CATEGORY } from "@/lib/card-vat-classification";
 import { cashReceiptSign } from "@/lib/cash-receipts";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -43,6 +44,8 @@ type Row = {
   voucherNo: number | null;
   /** 카드 비목 — 회사설정의 '카드 비목 → 계정' 매핑을 찾는 열쇠 */
   cardCategory?: string | null;
+  /** 카드 이름 — 미지급금 줄에 걸 **카드사 거래처**를 찾는 열쇠 (거래처원장에서 카드대금 대조) */
+  cardName?: string | null;
 };
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
@@ -122,22 +125,62 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
     staleTime: 300_000,
   });
 
+  //   가맹점 과세유형(구분) — 이미 조회해 둔 것을 그린다
+  const { data: merchantKinds = {} } = useQuery<Record<string, MerchantInfo>>({
+    queryKey: ["merchant-kinds", companyId],
+    queryFn: () => fetchMerchantKinds(companyId),
+    enabled: !!companyId, staleTime: 300_000,
+  });
+
   /** 이 줄의 학습 열쇠 — 자료마다 다르다(세금계산서는 거래처, 카드는 가맹점명 …) */
   const keyOf = (r: Row) => ruleKeyOf(kind as RuleKind, { partnerId: r.partnerId, name: r.partnerName, fallback: r.item });
 
   /** 이 줄에 붙일 매출·비용 계정과 그 근거 */
-  const acctOf = (r: Row): { acct: Acct | null; via: "고름" | "지난번" | "학습" | "규칙" | null } => {
+  const acctOf = (r: Row): { acct: Acct | null; via: "고름" | "지난번" | "학습" | "비목" | null } => {
     const o = override[r.id]?.acct;
     if (o) return { acct: o, via: "고름" };
     const hit = rules?.get(keyOf(r).key);
     if (hit?.account) return { acct: hit.account as Acct, via: ruleTag(hit.hit_count) };
-    //   카드는 회사설정의 '비목 → 계정' 표도 본다 (학습보다 뒤 — 사람이 고른 게 우선)
-    if (kind === "card" && r.cardCategory && cardMap[r.cardCategory]) {
-      return { acct: cardMap[r.cardCategory], via: "규칙" };
+    //   카드는 회사설정의 '비목 → 계정' 표도 본다 (학습보다 뒤 — 사람이 고른 게 우선).
+    //   ★ 꼬리표는 '비목' 이다. 예전엔 '규칙' 이라 적어 **배운 규칙과 헷갈렸다** — 배운 규칙이
+    //     0개인데 화면엔 '규칙'이 붙어 있었다(2026-08-12 사장님 제보).
+    //   ★ '미분류'(UNCLASSIFIED_CATEGORY)는 **자동 분류에 실패했다는 뜻**이다. 그걸 계정으로
+    //     확정해 버리면 "모른다"가 "복리후생비"로 둔갑한다 — 카드 2,771건 중 2,290건이 그랬다.
+    //     사람이 고르게 비워 둔다.
+    if (kind === "card" && r.cardCategory && r.cardCategory !== UNCLASSIFIED_CATEGORY && cardMap[r.cardCategory]) {
+      return { acct: cardMap[r.cardCategory], via: "비목" };
     }
     return { acct: null, via: null };
   };
-  const vatCodeOf = (r: Row) => override[r.id]?.vatCode ?? r.vatCode;
+
+  /** 이 줄 가맹점의 과세유형 — 숫자만 남긴 사업자번호로 찾는다 */
+  const merchantOf = (r: Row) => merchantKinds[r.bizno.replace(/[^0-9]/g, "")] ?? null;
+
+  /**
+   * 부가세 유형 — 사람이 고른 게 있으면 그것, 없으면 자동.
+   *   ★ 카드는 **간이·면세 가맹점이면 매입세액을 공제받지 못한다**(2026-08-12 사장님 지시).
+   *     기본 제안을 '58. 카면'(불공제)으로 내린다. 확정은 사람이 한다 — 화면에 이유를 적어 둔다.
+   *     예외: 간이과세자 중 '세금계산서 발급사업자'는 공제 대상이라 그대로 둔다.
+   */
+  const vatCodeOf = (r: Row) => {
+    const o = override[r.id]?.vatCode;
+    if (o) return o;
+    if (kind === "card" && r.vatCode === "57" && merchantOf(r)?.deductible === false) return "58";
+    return r.vatCode;
+  };
+
+  /**
+   * 고른 유형에 맞춘 공급가액·부가세.
+   *   ★ **비과세 유형(카면 58·카영 59·면세 53 …)으로 바꾸면 부가세가 0 이어야 한다.**
+   *     안 그러면 차변(공급가액)과 대변(합계)이 어긋나 저장이 UNBALANCED 로 막힌다 —
+   *     간이·면세를 자동으로 58 로 내리면서 실제로 그랬다 (2026-08-12).
+   *     합계(=실제 결제금액)는 그대로 두고 부가세만 공급가액으로 옮긴다.
+   */
+  const amountsOf = (r: Row) => {
+    const t = vatType(vatCodeOf(r));
+    if (t && !t.taxed) return { supply: r.supply + r.vat, vat: 0 };
+    return { supply: r.supply, vat: r.vat };
+  };
 
   const shown = rows.filter((r) => {
     if (onlyTodo && r.posted) return false;
@@ -145,8 +188,8 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
     return true;
   });
   const selRows = shown.filter((r) => sel.has(r.id));
-  const sumSupply = shown.reduce((n, r) => n + r.supply, 0);
-  const sumVat = shown.reduce((n, r) => n + r.vat, 0);
+  const sumSupply = shown.reduce((n, r) => n + amountsOf(r).supply, 0);
+  const sumVat = shown.reduce((n, r) => n + amountsOf(r).vat, 0);
 
   const linesFor = (r: Row) => {
     const { acct } = acctOf(r);
@@ -161,14 +204,34 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
         { side: "credit" as const, code: pay?.code ?? STD.payable, name: pay?.name || "미지급금", amount: total },
       ];
     }
+    const amt = amountsOf(r);
     return buildVoucherLines({
-      vatCode: vatCodeOf(r), settle: r.settle, supply: r.supply, vat: r.vat,
+      vatCode: vatCodeOf(r), settle: r.settle, supply: amt.supply, vat: amt.vat,
       mainCode: acct?.code ?? null, mainName: acct?.name ?? null,
     });
   };
 
   //   계정이 안 정해진 줄은 전표를 못 만든다 — 몇 건인지 먼저 알려 준다
   const notReady = selRows.filter((r) => linesFor(r).some((l) => !l.code || !acctByCode.get(l.code)));
+
+  /**
+   * 카드 미지급금에 걸 **카드사 거래처** — 카드 이름 하나당 한 번만 물어본다. (2026-08-12 사장님 지시)
+   *   "같은 카드끼리 카드대금이 빠져나가는지 거래처원장에서 확인해야 한다."
+   *   카드 화면(post_card_voucher)은 이미 이렇게 하고 있었는데 수집·전표만 빠져 있었다.
+   */
+  const cardPartnerMemo = new Map<string, string | null>();
+  const cardPartnerOf = async (cardName?: string | null): Promise<string | null> => {
+    const nm = (cardName || "").trim();
+    if (!nm) return null;
+    if (cardPartnerMemo.has(nm)) return cardPartnerMemo.get(nm) ?? null;
+    let id: string | null = null;
+    try {
+      const { data } = await (supabase.rpc as any)("resolve_card_partner", { p_card_name: nm });
+      id = (data as string) ?? null;
+    } catch { /* 거래처를 못 걸어도 전표는 만든다 — 없는 것보다 낫다 */ }
+    cardPartnerMemo.set(nm, id);
+    return id;
+  };
 
   const makeVouchers = async () => {
     if (selRows.length === 0 || saving) return;
@@ -183,12 +246,16 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
         continue;
       }
       const norm = normalizeSides(lines.map((l) => ({ side: l.side, amount: l.amount })));
+      //   ★ 카드는 **차변(비용)은 가맹점, 대변(미지급금)은 카드사** — 상대가 서로 다르다.
+      //     상대계정 줄은 매출이면 첫 줄, 매입이면 마지막 줄이다(buildVoucherLines 가 그렇게 만든다).
+      const cardPid = kind === "card" ? await cardPartnerOf(r.cardName) : null;
+      const counterIdx = vatType(vatCodeOf(r))?.side === "sale" ? 0 : lines.length - 1;
       const payload = lines.map((l, i) => ({
         account_id: resolved[i]!.id,
         debit: norm[i].side === "debit" ? norm[i].amount : 0,
         credit: norm[i].side === "credit" ? norm[i].amount : 0,
         memo: r.item || "",
-        partner_id: r.partnerId,
+        partner_id: i === counterIdx && cardPid ? cardPid : r.partnerId,
       }));
       //   ★ '3. 일반'은 부가세 전표가 아니다 — **일반전표**로 보낸다.
       //     부가세를 안 떼므로 금액은 합계 그대로 가고, 분개는 차) 비용 / 대) 미지급금 두 줄이다.
@@ -196,7 +263,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
         const total = r.supply + r.vat;
         const g = [
           { account_id: resolved[0]!.id, debit: total, credit: 0, memo: r.item || "", partner_id: r.partnerId },
-          { account_id: (acctByCode.get(STD.payable) ?? resolved[resolved.length - 1]!)!.id, debit: 0, credit: total, memo: r.item || "", partner_id: null },
+          { account_id: (acctByCode.get(STD.payable) ?? resolved[resolved.length - 1]!)!.id, debit: 0, credit: total, memo: r.item || "", partner_id: cardPid },
         ];
         const { error: ge } = await (supabase.rpc as any)("save_manual_voucher", {
           p_entry_date: r.date, p_voucher_type: "cash_out",
@@ -209,8 +276,8 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
       const { error } = await (supabase.rpc as any)("save_sale_purchase_voucher", {
         p_entry_date: r.date,
         p_vat_type: vatCodeOf(r),
-        p_supply_amount: r.supply,
-        p_vat_amount: r.vat,
+        p_supply_amount: amountsOf(r).supply,
+        p_vat_amount: amountsOf(r).vat,
         p_description: r.item || r.partnerName,
         p_lines: payload,
         p_reference_type: REF_TYPE[kind],
@@ -268,12 +335,6 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
     return VAT_TYPES;   // 세금계산서·계산서는 전부
   }, [kind]);
 
-  //   가맹점 과세유형(구분) — 이미 조회해 둔 것을 그린다
-  const { data: merchantKinds = {} } = useQuery<Record<string, MerchantKind>>({
-    queryKey: ["merchant-kinds", companyId],
-    queryFn: () => fetchMerchantKinds(companyId),
-    enabled: !!companyId, staleTime: 300_000,
-  });
   const [filling, setFilling] = useState(false);
   //   아직 구분을 모르는 가맹점 수 — 버튼에 그대로 보여 준다(몇 개를 물어볼 건지 알고 누르게)
   const unknownBiznos = useMemo(() => {
@@ -369,6 +430,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                 const isGeneral = vatCodeOf(r) === GENERAL_CODE;
                 const t = vt ?? { code: GENERAL_CODE, label: "3. 일반", side: "purchase" as const, taxed: false, deductible: false, hint: "", defaultSettle: "card" as const };
                 const { acct, via } = acctOf(r);
+                const amt = amountsOf(r);
                 const lines = linesFor(r);
                 const debit = lines.filter((l) => l.side === "debit");
                 const credit = lines.filter((l) => l.side === "credit");
@@ -386,11 +448,21 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                     <td className="mono-number">{r.date.slice(5)}</td>
                     <td className="ev-ell">{r.partnerName}</td>
                     <td className="mono-number ev-dim">{r.bizno || "—"}</td>
-                    {/*   구분 — 법인·일반·간이·면세. 카드 원자료엔 없어 국세청 조회로 채운다 (2026-08-12) */}
+                    {/*   구분 — 법인·일반·간이·면세. 카드 원자료엔 없어 국세청 조회로 채운다 (2026-08-12)
+                          ★ 간이·면세는 **매입세액을 못 받는다** — 붉게 띄우고 이유를 달아 준다.
+                            (간이과세자 중 '세금계산서 발급사업자'는 공제되므로 그대로 둔다) */}
                     <td className="tc">
-                      {merchantKinds[r.bizno.replace(/[^0-9]/g, "")]
-                        ? <em className="ev-kind">{merchantKinds[r.bizno.replace(/[^0-9]/g, "")]}</em>
-                        : <span className="ev-dim">—</span>}
+                      {(() => {
+                        const mi = merchantOf(r);
+                        if (!mi?.kind) return <span className="ev-dim">—</span>;
+                        const noVat = mi.deductible === false;
+                        return (
+                          <em className={noVat ? "ev-kind ev-kind-novat" : "ev-kind"}
+                            title={noVat ? `${mi.kind} 과세사업자 — 카드매출전표로 부가세를 공제받을 수 없습니다 (${mi.taxType || ""})` : (mi.taxType || "")}>
+                            {mi.kind}{noVat ? " · 불공제" : ""}
+                          </em>
+                        );
+                      })()}
                     </td>
                     <td>
                       {r.posted ? (
@@ -403,9 +475,10 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                       )}
                     </td>
                     <td className="ev-ell">{r.item}</td>
-                    <td className={r.supply < 0 ? "tr mono-number ev-minus" : "tr mono-number"}>{won(r.supply)}</td>
-                    <td className="tr mono-number">{won(r.vat)}</td>
-                    <td className="tr mono-number ev-total">{won(r.supply + r.vat)}</td>
+                    {/*   고른 유형에 맞춘 금액 — 비과세(카면·카영)로 내리면 부가세가 0 이 된다 */}
+                    <td className={amt.supply < 0 ? "tr mono-number ev-minus" : "tr mono-number"}>{won(amt.supply)}</td>
+                    <td className="tr mono-number">{won(amt.vat)}</td>
+                    <td className="tr mono-number ev-total">{won(amt.supply + amt.vat)}</td>
                     <td>
                       {t.side === "purchase" && !r.posted ? (
                         <span className="relative inline-block">
@@ -490,7 +563,7 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
 
   if (kind === "card") {
     const data = logRead("collect:rows-card", await supabase.from("card_transactions")
-      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id, merchant_bizno")
+      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id, merchant_bizno, card_name")
       .eq("company_id", companyId)
       .gte("transaction_date", from).lte("transaction_date", to)
       .order("transaction_date").limit(500));
@@ -506,7 +579,8 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
         partnerId: null, partnerName: r.merchant_name || "—", bizno: r.merchant_bizno || "",
         item: label || "카드 사용", supply, vat: amt - supply,
         vatCode: suggestVatType({ kind: "card", direction: "purchase", memo: `${r.merchant_name || ""} ${label}` }),
-        settle, posted: !!r.journal_entry_id, voucherNo: null, cardCategory: r.category || null,
+        settle, posted: !!r.journal_entry_id, voucherNo: null,
+        cardCategory: r.category || null, cardName: r.card_name || null,
       } as Row;
     });
     return attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null));

@@ -8640,4 +8640,6 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .gd-quick-link { @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-semibold text-[var(--text)] bg-[var(--bg-surface)]/70 border border-[var(--border)] no-underline transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
 /* 수집 — 가맹점 구분(법인·일반·간이·면세) 표시 (2026-08-12) */
 .ev-kind { @apply inline-block px-1.5 py-0.5 rounded text-[10px] font-bold not-italic bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+/*   간이·면세 가맹점 — 카드매출전표로 부가세를 공제받을 수 없다. 눈에 걸리게 (2026-08-12) */
+.ev-kind-novat { @apply bg-[var(--danger)]/10 text-[var(--danger)] whitespace-nowrap; }
 .gd-wf-count { @apply shrink-0 mt-1.5 text-[11px] font-semibold text-[var(--text-dim)]; }

@@ -27,6 +27,14 @@ export const DEDUCTIBLE_CATEGORIES = [
   { code: 'general_expense', label: '일반 사업경비', keywords: [] },
 ] as const;
 
+/**
+ * ★ '분류하지 못했다'는 뜻의 비목. 아래 classify 가 마지막에 붙이는 값이다.
+ *   이걸 계정과 미리 이어 두면 **"모른다"가 특정 계정으로 확정돼 버린다** —
+ *   실제로 회사설정에 general_expense → 복리후생비 한 줄이 있어 카드 2,290건이
+ *   전부 복리후생비로 채워졌다(2026-08-12 사장님 제보). 화면은 이 비목을 자동으로 채우지 않는다.
+ */
+export const UNCLASSIFIED_CATEGORY = 'general_expense';
+
 // ── 불공제 업종/카테고리 (VAT Non-Deductible Categories) ──
 
 export const NON_DEDUCTIBLE_CATEGORIES = [
