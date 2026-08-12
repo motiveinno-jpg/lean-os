@@ -56,6 +56,10 @@ function cardLabelOf(raw: unknown): string {
 /** 표준 계정(상대·부가세)은 추천 대상이 아니다 — 사람이 고르는 건 매출·비용 계정이다 */
 const STD_CODES = new Set<string>([STD.bank, STD.ar, STD.vatIn, STD.ap, STD.payable, STD.vatOut]);
 
+//   '3. 일반' — 부가세 유형 코드가 아니라 **일반전표로 보내라**는 표시다.
+//   국세청 부가세 유형(11·51·57…)과 겹치지 않는 값이라 섞일 일이 없다 (2026-08-12).
+const GENERAL_CODE = "3";
+
 const SETTLE_BY_KIND: Record<string, SettleType> = {
   tax_invoice: "credit", exempt_invoice: "credit", cash_receipt: "cash", card: "card",
 };
@@ -145,6 +149,17 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
 
   const linesFor = (r: Row) => {
     const { acct } = acctOf(r);
+    //   ★ '3. 일반'은 부가세 유형이 아니라 buildVoucherLines 가 만들 줄이 없다(빈 배열이 나온다).
+    //     그러면 화면이 분개를 못 그려 터진다 — 실제로 그랬다. 여기서 두 줄을 직접 만든다:
+    //     차) 비용 전액 / 대) 미지급금 전액. 부가세를 안 떼므로 합계 그대로다. (2026-08-12)
+    if (vatCodeOf(r) === GENERAL_CODE) {
+      const total = r.supply + r.vat;
+      const pay = acctByCode.get(STD.payable);
+      return [
+        { side: "debit" as const, code: acct?.code ?? null, name: acct?.name || "비용 계정을 고르세요", amount: total },
+        { side: "credit" as const, code: pay?.code ?? STD.payable, name: pay?.name || "미지급금", amount: total },
+      ];
+    }
     return buildVoucherLines({
       vatCode: vatCodeOf(r), settle: r.settle, supply: r.supply, vat: r.vat,
       mainCode: acct?.code ?? null, mainName: acct?.name ?? null,
@@ -174,6 +189,22 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
         memo: r.item || "",
         partner_id: r.partnerId,
       }));
+      //   ★ '3. 일반'은 부가세 전표가 아니다 — **일반전표**로 보낸다.
+      //     부가세를 안 떼므로 금액은 합계 그대로 가고, 분개는 차) 비용 / 대) 미지급금 두 줄이다.
+      if (vatCodeOf(r) === GENERAL_CODE) {
+        const total = r.supply + r.vat;
+        const g = [
+          { account_id: resolved[0]!.id, debit: total, credit: 0, memo: r.item || "", partner_id: r.partnerId },
+          { account_id: (acctByCode.get(STD.payable) ?? resolved[resolved.length - 1]!)!.id, debit: 0, credit: total, memo: r.item || "", partner_id: null },
+        ];
+        const { error: ge } = await (supabase.rpc as any)("save_manual_voucher", {
+          p_entry_date: r.date, p_voucher_type: "cash_out",
+          p_description: r.item || r.partnerName, p_lines: g,
+        });
+        if (ge) { fails.push(`${r.partnerName}: ${friendlyError(ge, "일반전표 저장 실패")}`); }
+        else ok += 1;
+        continue;
+      }
       const { error } = await (supabase.rpc as any)("save_sale_purchase_voucher", {
         p_entry_date: r.date,
         p_vat_type: vatCodeOf(r),
@@ -225,7 +256,13 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
   //     카드는 **57 카과 · 58 카면 · 59 카영** 셋이면 되고, 부가세와 무관한 일반경비는
   //     매입매출전표가 아니라 **일반전표**로 보내야 한다(아래 '3. 일반').
   const typeOptions = useMemo(() => {
-    if (kind === "card") return VAT_TYPES.filter((v) => ["57", "58", "59"].includes(v.code));
+    if (kind === "card") return [
+      //   ★ '3. 일반' 은 부가세 유형이 아니라 **보낼 곳**이다 (2026-08-12 사장님 지시).
+      //     부가세 신고와 무관한 카드 사용(불공제도 아니고 매입세액도 없는 일반경비)은
+      //     매입매출전표가 아니라 **일반전표**로 가야 한다 — 매입매출전표에 넣으면 신고 집계에 섞인다.
+      { code: GENERAL_CODE, label: "3. 일반 (일반전표로)" } as (typeof VAT_TYPES)[number],
+      ...VAT_TYPES.filter((v) => ["57", "58", "59"].includes(v.code)),
+    ];
     if (kind === "cash_receipt") return VAT_TYPES.filter((v) => ["22", "61"].includes(v.code));
     return VAT_TYPES;   // 세금계산서·계산서는 전부
   }, [kind]);
@@ -324,7 +361,12 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
             </thead>
             <tbody>
               {shown.map((r) => {
-                const t = vatType(vatCodeOf(r))!;
+                //   ★ '3. 일반'은 VAT_TYPES 에 없어 vatType() 이 null 이다 — `!` 로 단정하면
+                //     아래에서 t.side 를 읽다 화면이 통째로 죽는다(실제로 그랬다).
+                //     매입(purchase) 쪽으로 취급한다 — 카드 사용은 언제나 우리가 쓴 돈이다. (2026-08-12)
+                const vt = vatType(vatCodeOf(r));
+                const isGeneral = vatCodeOf(r) === GENERAL_CODE;
+                const t = vt ?? { code: GENERAL_CODE, label: "3. 일반", side: "purchase" as const, taxed: false, deductible: false, hint: "", defaultSettle: "card" as const };
                 const { acct, via } = acctOf(r);
                 const lines = linesFor(r);
                 const debit = lines.filter((l) => l.side === "debit");
@@ -351,7 +393,7 @@ export function EvidenceTab({ companyId, from, to, kind }: { companyId: string; 
                     </td>
                     <td>
                       {r.posted ? (
-                        <em className={t.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{t.label.split(". ")[1]}</em>
+                        <em className={t.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{isGeneral ? "일반" : t.label.split(". ")[1]}</em>
                       ) : (
                         <select className="ev-sel" value={vatCodeOf(r)}
                           onChange={(e) => setOverride((o) => ({ ...o, [r.id]: { ...o[r.id], vatCode: e.target.value } }))}>
