@@ -813,10 +813,12 @@ export default function PartnersPage() {
           '거래처 원장' 버튼은 위 탭에 같은 것이 있어 뺐다(중복). */}
       <div className="partner-toolbar">
         <div className="partner-kind-tabs">
-          {KIND_TABS.map((k) => (
+          {/* 건수 0 인 갈래는 안 그린다 — 파일보관함과 같은 규칙 (2026-08-12 사장님 지적:
+              화면마다 다르게 동작하면 안 된다) */}
+          {KIND_TABS.filter((k) => k.key === "all" || (kindCounts[k.key] ?? 0) > 0).map((k) => (
             <button key={k.key} type="button" onClick={() => applyKind(k.key)}
-              className={kindKey === k.key ? "partner-kind-tab partner-kind-tab-on" : "partner-kind-tab"}>
-              {k.label} <span className="partner-kind-count">{(kindCounts[k.key] ?? 0).toLocaleString()}</span>
+              className={kindKey === k.key ? "list-tab list-tab-on" : "list-tab"}>
+              {k.label} <span className="list-tab-count">{(kindCounts[k.key] ?? 0).toLocaleString()}</span>
             </button>
           ))}
         </div>
@@ -877,7 +879,6 @@ export default function PartnersPage() {
             <button onClick={handleExport} className={MORE_ITEM_CLS} role="menuitem"><Ico e="📤" /> Excel 내보내기</button>
           </MoreMenu>
           <button onClick={openCreate} className="btn-primary btn-sm whitespace-nowrap">+ 새 거래처</button>
-          <span className="partner-count-note">{partners.length}건</span>
         </div>
       </div>
 
@@ -937,10 +938,11 @@ export default function PartnersPage() {
             </div>
           )}
           <div className="overflow-auto max-h-[60vh]">
-            <table className="w-full min-w-[600px]">
+            {/* 공용 표준 — 어느 메뉴에서든 같은 밀도로 읽히게 (2026-08-12) */}
+            <table className="data-table w-full min-w-[600px]">
               <thead className="bg-[var(--bg-card)] sticky top-0 z-10">
                 <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)] whitespace-nowrap">
-                  <th className="text-center px-3 py-3 w-10">
+                  <th className="text-center w-10">
                     <input
                       type="checkbox"
                       aria-label="현재 페이지 전체 선택"
@@ -974,7 +976,7 @@ export default function PartnersPage() {
                   return (
                     <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); setShowCommForm(false); }}
                       className={`border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 cursor-pointer transition ${selectedIds.has(p.id) ? 'bg-[var(--primary)]/5' : ''}`}>
-                      <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="text-center" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           aria-label={`${p.name} 선택`}
@@ -986,8 +988,8 @@ export default function PartnersPage() {
                           }}
                         />
                       </td>
-                      <td className="px-3 py-3 text-center text-xs text-[var(--text-dim)] mono-number">{p.code != null ? String(p.code).padStart(4, "0") : "—"}</td>
-                      <td className="px-5 py-3 text-sm font-medium whitespace-nowrap">
+                      <td className="text-center text-[var(--text-dim)] mono-number">{p.code != null ? String(p.code).padStart(4, "0") : "—"}</td>
+                      <td className="font-medium whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">
                           {p.name}
                           {p.is_dormant && (
@@ -995,10 +997,10 @@ export default function PartnersPage() {
                           )}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="text-center">
                         <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>{badge.label}</span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
+                      <td className="text-[var(--text-muted)]">
                         <div className="flex items-center gap-1.5">
                           <span>{fmtBizNo(p.business_number) || "—"}</span>
                           {p.business_number && (() => {
@@ -1022,9 +1024,9 @@ export default function PartnersPage() {
                           })()}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm">{p.contact_name || "—"}</td>
-                      <td className="px-4 py-3 text-sm text-[var(--text-muted)]">{p.contact_phone || p.contact_email || "—"}</td>
-                      <td className="px-4 py-3">
+                      <td className="">{p.contact_name || "—"}</td>
+                      <td className="text-[var(--text-muted)]">{p.contact_phone || p.contact_email || "—"}</td>
+                      <td className="">
                         {(p.tags || []).length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {(p.tags as string[]).slice(0, 3).map((tag: string) => (
@@ -1036,7 +1038,7 @@ export default function PartnersPage() {
                           </div>
                         ) : <span className="text-sm text-[var(--text-dim)]">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="text-center">
                         <button onClick={(e) => { e.stopPropagation(); toggleActiveMutation.mutate(p); }}
                           className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
                             p.is_active ? "bg-[var(--success-dim)] text-[var(--success)] hover:opacity-80" : "bg-[var(--bg-surface)] text-[var(--text-dim)] hover:opacity-80"

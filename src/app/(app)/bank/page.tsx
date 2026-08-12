@@ -828,10 +828,11 @@ export default function BankPage() {
         </div>
         <div className="transaction-table-panel glass-card">
           <div className="overflow-auto max-h-[640px]">
-            <table className="w-full">
+            {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12) */}
+            <table className="data-table w-full">
               <thead className="sticky-bar">
                 <tr className="table-head-row">
-                  <th className="w-10 px-4 py-4">
+                  <th className="w-10">
                     <input
                       type="checkbox"
                       checked={allTxSelected}
@@ -841,19 +842,19 @@ export default function BankPage() {
                       className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                     />
                   </th>
-                  <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">예금주명{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("description")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">거래내용{sortKey === "description" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th className="text-right px-6 py-3.5 font-semibold select-none">잔액</th>
-                  <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                  <th onDoubleClick={() => onSortTx("type")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">상태{sortKey === "type" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("counterparty")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">예금주명{sortKey === "counterparty" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("description")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">거래내용{sortKey === "description" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th className="text-right px-3 py-2.5 font-semibold select-none">잔액</th>
+                  <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                  <th onDoubleClick={() => onSortTx("type")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">상태{sortKey === "type" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedTx.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-4">
+                    <td colSpan={8} className="px-3 py-2.5">
                       <EmptyState
                         icon="📄"
                         title={hasTxRange ? "이 기간에 거래내역이 없습니다" : "최근 거래내역이 없습니다"}
@@ -868,7 +869,7 @@ export default function BankPage() {
                   const checked = selectedTxIds.has(tx.id);
                   return (
                     <tr key={tx.id} className={`transaction-row ${checked ? "bg-[var(--primary)]/5" : ""}`}>
-                      <td className="w-10 px-4 py-4">
+                      <td className="w-10">
                         <input
                           type="checkbox"
                           checked={checked}
@@ -880,9 +881,9 @@ export default function BankPage() {
                           className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
                         />
                       </td>
-                      <td className="px-6 py-3.5">
+                      <td className="px-3 py-2.5">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isIncome ? "bg-[var(--success-dim)]" : "bg-[var(--danger-dim)]"}`}>
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isIncome ? "bg-[var(--success-dim)]" : "bg-[var(--danger-dim)]"}`}>
                             <svg className={`w-5 h-5 ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? "M7 17l9-9m0 0H9m7 0v7" : "M17 7l-9 9m0 0h7m-7 0V9"} />
                             </svg>
@@ -899,14 +900,14 @@ export default function BankPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={displayMemo(tx) || undefined}>{displayMemo(tx) || "—"}</span></td>
-                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{tx.classification || tx.category || "—"}</td>
-                      <td className={`px-6 py-3.5 font-semibold mono-number text-right ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
+                      <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] max-w-[240px]"><span className="block truncate" title={displayMemo(tx) || undefined}>{displayMemo(tx) || "—"}</span></td>
+                      <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)]">{tx.classification || tx.category || "—"}</td>
+                      <td className={`px-3 py-2.5 font-semibold mono-number text-right ${isIncome ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
                         {isIncome ? "+" : "-"}{fmtW(Math.abs(Number(tx.amount || 0)))}
                       </td>
-                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number text-right whitespace-nowrap">{tx.balance_after != null ? fmtW(Number(tx.balance_after)) : "—"}</td>
-                      <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
-                      <td className="px-6 py-3.5 relative">
+                      <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number text-right whitespace-nowrap">{tx.balance_after != null ? fmtW(Number(tx.balance_after)) : "—"}</td>
+                      <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number">{tx.transaction_date}</td>
+                      <td className="px-3 py-2.5 relative">
                         <button
                           type="button"
                           onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); setMapFixed(!!tx.is_fixed_cost); setMapAcctQuery(""); setMapMemo(tx.memo || ""); setMapTags((tx.tags || []).join(", ")); setMapEmployee(tx.used_by_employee_id || ""); }}

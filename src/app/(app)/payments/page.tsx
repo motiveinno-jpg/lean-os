@@ -1285,7 +1285,14 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
             <div className="text-5xl mb-4"><Ico e="🔄" /></div>
             <div className="text-base font-bold mb-1.5">반복결제가 없습니다</div>
             <div className="text-sm text-[var(--text-muted)] mb-5">임대료, 보험, 구독 등 매월 고정 지출을 등록하세요</div>
-            <button onClick={() => setShowForm(true)} className="btn-secondary">+ 반복결제 추가</button>
+            {/* 위 배너에서 이미 N건을 감지해 놓고 여기서는 "없습니다" 만 말하면 서로 따로 논다 —
+                빈 화면이 **다음 할 일**을 가리키게 한다 (2026-08-12 사장님 지적) */}
+            {newDetected.length > 0 && (
+              <div className="text-[13px] text-[var(--text)] mb-3">
+                통장에서 <b>{newDetected.length}건</b>이 감지돼 있습니다 — 위에서 <b>전체 자동등록</b>을 누르면 한 번에 채워집니다
+              </div>
+            )}
+            <button onClick={() => setShowForm(true)} className="btn-secondary btn-sm">+ 반복결제 추가</button>
           </div>
         ) : (
           <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">

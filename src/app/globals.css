@@ -2802,11 +2802,8 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .partner-kpi-cards-3 { @apply lg:grid-cols-3; }
 .partner-toolbar { @apply flex flex-wrap items-center gap-2 mb-3; }
 .partner-kind-tabs { @apply flex items-center gap-1 flex-wrap; }
-.partner-kind-tab { @apply px-3 py-1.5 rounded-xl text-[13px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:text-[var(--text)] whitespace-nowrap; }
-.partner-kind-tab-on { @apply bg-[var(--primary)] border-[var(--primary)] text-white; }
-.partner-kind-count { @apply ml-0.5 text-[11px] font-bold opacity-70 tabular-nums; }
 .partner-toolbar-right { @apply ml-auto flex items-center gap-1.5 flex-wrap justify-end; }
-.partner-search-input { @apply w-[220px] max-w-full px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[13px] focus:outline-none focus:border-[var(--primary)]; }
+.partner-search-input { @apply w-[220px] max-w-full h-8 px-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]; }
 .partner-count-note { @apply text-xs text-[var(--text-dim)] tabular-nums; }
 
 /* 필터 팝오버 안쪽 */
@@ -8499,12 +8496,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 파일보관함 — 툴바 한 줄 · 종류 탭 · 업로드는 목록 아래 (2026-08-12 UI 정리) */
 .doc-toolbar { @apply flex flex-wrap items-center gap-2 mb-3; }
 .doc-cat-tabs { @apply flex items-center gap-1 flex-wrap; }
-.doc-cat-tab { @apply px-3 py-1.5 rounded-xl text-[13px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:text-[var(--text)] whitespace-nowrap; }
-.doc-cat-tab-on { @apply bg-[var(--primary)] border-[var(--primary)] text-white; }
-.doc-cat-count { @apply ml-0.5 text-[11px] font-bold opacity-70 tabular-nums; }
 .doc-toolbar-right { @apply ml-auto flex items-center gap-1.5 flex-wrap justify-end; }
-.doc-search-input { @apply w-[190px] max-w-full px-3 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[13px] focus:outline-none focus:border-[var(--primary)]; }
-.doc-sort-select { @apply px-2.5 py-1.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-[12.5px] text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
+.doc-search-input { @apply w-[190px] max-w-full h-8 px-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]; }
+.doc-sort-select { @apply h-8 px-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
 .doc-dup-band { @apply flex flex-wrap items-center gap-2 mb-3 px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-[12.5px] text-amber-600; }
 .doc-dup-names { @apply text-[11.5px] opacity-80; }
 .doc-upload-zone { @apply mt-3; }
@@ -8520,3 +8514,21 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 
 /* 앱 투어 — 모바일 전용 닫기 X (2026-08-12 사장님: 모바일에서 닫기 없이 11번 '다음'만 있던 것) */
 .app-tour-close-m { @apply absolute top-3 right-3 p-1.5 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] sm:hidden; }
+
+/* ══════════ 목록 화면 공용 표준 (2026-08-12 사장님 지시: "메뉴별로 크기가 제각각") ══════════
+   기준은 세금·증빙 화면을 실제로 재서 잡았다 —
+     갈래 탭 h30 / 12px / 600   ·   버튼 h32(btn-sm)   ·   표 글자 12.5px / 행 ~42px
+   예전엔 화면마다 제 값을 썼다: 거래처 탭 h33.5·13px, 카드 표 행 h69·16px, 카드 주 버튼 h40·14px.
+   앞으로 목록 화면은 이 세 벌만 쓴다. */
+
+/* 갈래 탭 — seg-item 과 같은 치수(h30·12px·padding 0.875rem)로 맞춘다 */
+.list-tab { @apply shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:text-[var(--text)] whitespace-nowrap; }
+.list-tab-on { @apply bg-[var(--primary)] border-[var(--primary)] text-white; }
+.list-tab-count { @apply ml-0.5 text-[11px] font-bold opacity-70 tabular-nums; }
+/* 갈래가 하나뿐이라 고를 것이 없을 때 — 탭이 아니라 건수 표시 */
+.list-count-badge { @apply inline-flex items-center h-[30px] px-3 rounded-lg text-xs font-bold bg-[var(--primary)]/10 text-[var(--primary)] tabular-nums; }
+
+/* 데이터 표 — 어느 메뉴에서든 같은 밀도로 읽히게 */
+.data-table { @apply w-full border-collapse; }
+.data-table thead th { @apply px-3 py-2.5 text-[11.5px] font-bold text-[var(--text-dim)] whitespace-nowrap; }
+.data-table tbody td { @apply px-3 py-2.5 text-[12.5px] align-middle; }

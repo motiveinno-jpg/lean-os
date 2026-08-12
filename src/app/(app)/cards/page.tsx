@@ -593,7 +593,7 @@ export default function CardsPage() {
           }}
           // 무료는 disabled 로 막지 않는다 — 눌렀을 때 안내가 떠야 한다(통장 화면과 동일)
           disabled={syncing || !companyId || cardCd.disabled}
-          className={`btn-primary ${cardCd.disabled || (cardSync && !cardSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
+          className={`btn-primary btn-sm ${cardCd.disabled || (cardSync && !cardSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
           title={cardSync && !cardSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : cardCd.hint ? cardCd.hint : "카드 거래 기간을 설정한 뒤 CODEF 카드 연동으로 그 기간의 카드 거래를 불러옵니다"}
         >
           {syncing ? (
@@ -827,10 +827,11 @@ export default function CardsPage() {
 
           <div className="card-tx-table glass-card">
             <div className="overflow-auto max-h-[640px]">
-              <table className="w-full">
+              {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12) */}
+              <table className="data-table w-full">
                 <thead className="sticky-bar">
                   <tr className="table-head-row">
-                    <th className="w-10 px-4 py-4">
+                    <th className="w-10">
                       <input
                         type="checkbox"
                         checked={allTxSelected}
@@ -840,17 +841,17 @@ export default function CardsPage() {
                         className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                       />
                     </th>
-                    <th onDoubleClick={() => onSortTx("merchant_name")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">가맹점{sortKey === "merchant_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("card_name")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">카드{sortKey === "card_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right px-6 py-3.5 font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
-                    <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left px-6 py-3.5 font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("merchant_name")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">가맹점{sortKey === "merchant_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("classification")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">분류{sortKey === "classification" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("card_name")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">카드{sortKey === "card_name" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("amount")} title="더블클릭하면 정렬" className="text-right font-semibold select-none cursor-pointer">금액{sortKey === "amount" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
+                    <th onDoubleClick={() => onSortTx("transaction_date")} title="더블클릭하면 정렬" className="text-left font-semibold select-none cursor-pointer">날짜{sortKey === "transaction_date" ? (sortDir === "asc" ? " ▲" : " ▼") : ""}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedTx.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-4">
+                      <td colSpan={6} className="px-3 py-2.5">
                         <EmptyState icon="💳" title="최근 카드 거래가 없습니다" desc="상단의 카드 연동으로 거래를 불러올 수 있습니다" />
                       </td>
                     </tr>
@@ -860,7 +861,7 @@ export default function CardsPage() {
                     const cat = classificationLabel(tx.classification) || tx.category || "미분류";
                     return (
                       <tr key={tx.id} className={`card-tx-table-row ${checked ? "bg-[var(--primary)]/5" : ""}`}>
-                        <td className="w-10 px-4 py-4">
+                        <td className="w-10">
                           <input
                             type="checkbox"
                             checked={checked}
@@ -872,18 +873,18 @@ export default function CardsPage() {
                             className="h-4 w-4 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
                           />
                         </td>
-                        <td className="px-6 py-3.5">
+                        <td className="px-3 py-2.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-[13px] shrink-0">
                               <Ico e={categoryEmoji(classificationLabel(tx.classification) || tx.category)} />
                             </div>
                             <span className="font-medium text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{cat}</td>
-                        <td className="px-6 py-3.5 text-sm text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
-                        <td className={`px-6 py-3.5 font-semibold mono-number text-right ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
-                        <td className="px-6 py-3.5 text-sm text-[var(--text-muted)] mono-number">
+                        <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)]">{cat}</td>
+                        <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
+                        <td className={`px-3 py-2.5 font-semibold mono-number text-right ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
+                        <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number">
                           {tx.transaction_date}
                           {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}
                         </td>

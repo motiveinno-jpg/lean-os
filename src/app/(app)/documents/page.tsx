@@ -1481,6 +1481,17 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
 // ── Documents List ──
 
+//   파일 종류 — 값이 고정이라 모듈 상수다. 컴포넌트 안에 있으면 위쪽(useMemo)에서 못 쓴다
+//   (선언 전 참조 → "Cannot access 'FILE_CATEGORIES' before initialization" 으로 화면이 통째로 죽는다).
+const FILE_CATEGORIES = [
+  { value: "all", label: "전체" },
+  { value: "contract", label: "계약서" },
+  { value: "invoice", label: "세금계산서" },
+  { value: "report", label: "보고서" },
+  { value: "certificate", label: "인증서" },
+  { value: "general", label: "일반" },
+];
+
 function DocumentsPageInner() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -2767,6 +2778,11 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     return [...seen.entries()].filter(([, n]) => n > 1);
   }, [files]);
 
+  const shownCats = useMemo(
+    () => FILE_CATEGORIES.filter((c) => c.value === "all" || (catCounts[c.value] ?? 0) > 0),
+    [catCounts],
+  );
+
   // Filtered files by category
   const filteredFiles = useMemo(() => {
     if (categoryFilter === "all") return files;
@@ -2891,14 +2907,6 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     );
   };
 
-  const FILE_CATEGORIES = [
-    { value: "all", label: "전체" },
-    { value: "contract", label: "계약서" },
-    { value: "invoice", label: "세금계산서" },
-    { value: "report", label: "보고서" },
-    { value: "certificate", label: "인증서" },
-    { value: "general", label: "일반" },
-  ];
 
   return (
     <div className="vault-layout">
@@ -2973,10 +2981,14 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             {/* ⚠️ 건수가 0 인 갈래는 안 보인다 — 지금 이 회사 파일 104건은 **분류가 전부 비어 있어**
                 탭을 다 그리면 5개 중 4개가 영원히 0 인 빈 껍데기가 된다. 분류가 붙기 시작하면
                 그 갈래가 저절로 나타난다 (2026-08-12). */}
-            {FILE_CATEGORIES.filter((c) => c.value === "all" || (catCounts[c.value] ?? 0) > 0).map((c) => (
+            {/* 갈래가 '전체' 하나뿐이면 탭이 아니라 **건수 표시**다 — 고를 것이 없는데 탭 모양이면
+                누를 수 있는 것처럼 보인다 (2026-08-12 사장님 지적) */}
+            {shownCats.length <= 1 ? (
+              <span className="list-count-badge">전체 {(catCounts.all ?? 0).toLocaleString()}건</span>
+            ) : shownCats.map((c) => (
               <button key={c.value} type="button" onClick={() => setCategoryFilter(c.value)}
-                className={categoryFilter === c.value ? "doc-cat-tab doc-cat-tab-on" : "doc-cat-tab"}>
-                {c.label} <span className="doc-cat-count">{(catCounts[c.value] ?? 0).toLocaleString()}</span>
+                className={categoryFilter === c.value ? "list-tab list-tab-on" : "list-tab"}>
+                {c.label} <span className="list-tab-count">{(catCounts[c.value] ?? 0).toLocaleString()}</span>
               </button>
             ))}
           </div>
