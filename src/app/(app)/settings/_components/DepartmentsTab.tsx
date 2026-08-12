@@ -75,9 +75,13 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
   if (!companyId) return null;
 
   return (
-    <div className="departments-tab glass-card">
-      <h2 className="text-base font-bold text-[var(--text)] mb-1">부서 관리</h2>
-      <p className="text-xs text-[var(--text-muted)] mb-4">목표형 프로젝트 성과 입력 시 선택하는 부서 목록입니다. 보관하면 새 입력 선택지에서 빠지고, 기존 기록은 유지됩니다.</p>
+    <div className="departments-tab stg-sec">
+      <div className="stg-sec-head mb-1">
+        <div>
+          <h2 className="stg-sec-title">부서</h2>
+          <p className="stg-sec-desc">성과 입력·일정 공유에서 선택하는 부서 목록 — 보관하면 새 선택지에서 빠지고 기존 기록은 유지됩니다.</p>
+        </div>
+      </div>
 
       <div className="departments-add-form">
         <input value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing && newName.trim()) addMut.mutate(newName); }}

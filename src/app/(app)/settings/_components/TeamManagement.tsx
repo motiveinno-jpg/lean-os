@@ -243,15 +243,15 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   return (
-    <div className="settings-team-management glass-card">
-      <div className="flex items-center justify-between mb-4">
+    <div className="settings-team-management stg-sec">
+      <div className="stg-sec-head mb-4">
         <div>
-          <h2 className="text-sm font-bold">팀 관리</h2>
-          <p className="text-xs text-[var(--text-dim)] mt-0.5">멤버 {members.length}명</p>
+          <h2 className="stg-sec-title">구성원</h2>
+          <p className="stg-sec-desc">멤버 {members.length}명 — 초대·합류 요청 승인. 권한 부여는 구성원 상세의 탭 권한에서.</p>
         </div>
         <button
           onClick={() => setShowInviteForm(!showInviteForm)}
-          className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition"
+          className="btn-secondary btn-sm shrink-0"
         >
           + 초대하기
         </button>

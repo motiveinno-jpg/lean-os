@@ -212,19 +212,22 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
   };
 
   return (
-    <div className="closing-panel glass-card">
-      <div>
-        <h2 className="text-sm font-bold">회계 마감시점 · 계정별 기초잔액</h2>
-        <p className="text-xs text-[var(--text-dim)] mt-0.5">
-          결산을 끝낸 시점을 지정하면 그 이전의 세금계산서·통장·카드 자료를 다시 불러오지 않습니다. 오래된 자료 수집을 막아 화면이 가벼워집니다.
-        </p>
+    <div className="closing-panel stg-sec">
+      <div className="stg-sec-head">
+        <div>
+          <h2 className="stg-sec-title">회계 마감시점 · 계정별 기초잔액</h2>
+          <p className="stg-sec-desc">
+            결산을 끝낸 시점을 지정하면 그 이전의 세금계산서·통장·카드 자료를 다시 불러오지 않습니다.
+          </p>
+        </div>
       </div>
 
-      <div className="closing-date-field">
-        <label className="field-label">회계 마감일 (이 날짜까지 결산 완료)</label>
-        <DateField value={closingDate} onChange={(e) => setClosingDate(e.target.value)}
-          className="field-input" />
-        <p className="text-[10px] text-[var(--text-dim)] mt-1">비워두면 마감일 없음 — 이 경우 최대 <b>2년 전</b>까지만 수집합니다.</p>
+      <div className="stg-frow">
+        <div className="stg-frow-label"><b>회계 마감일</b><small>이 날짜까지 결산 완료 · 비우면 최대 2년 전까지 수집</small></div>
+        <div className="stg-frow-body">
+          <DateField value={closingDate} onChange={(e) => setClosingDate(e.target.value)}
+            className="field-input" />
+        </div>
       </div>
 
       {/* PDF 자동 채우기 — 수동입력과 투트랙. 마감 자료 PDF를 올리면 계정별 금액을 읽어 아래 폼을 채움 */}

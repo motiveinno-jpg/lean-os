@@ -45,15 +45,15 @@ export function DealClassificationManager({ companyId }: { companyId: string | n
   if (!companyId) return null;
 
   return (
-    <div className="settings-deal-classification glass-card">
-      <div className="flex items-center justify-between mb-4">
+    <div className="settings-deal-classification stg-sec">
+      <div className="stg-sec-head mb-4">
         <div>
-          <h2 className="text-sm font-bold">프로젝트 분류 관리</h2>
-          <p className="text-xs text-[var(--text-dim)] mt-0.5">B2B/B2C/B2G + 커스텀 카테고리</p>
+          <h2 className="stg-sec-title">딜 분류</h2>
+          <p className="stg-sec-desc">거래 장부·프로젝트에서 쓰는 분류 — B2B/B2C/B2G + 커스텀 카테고리.</p>
         </div>
         <button
           onClick={() => { setShowForm(!showForm); setEditId(null); setForm({ name: '', color: '#3b82f6' }); }}
-          className="text-xs text-[var(--primary)] hover:text-[var(--text)] font-semibold transition"
+          className="btn-secondary btn-sm shrink-0"
         >
           + 분류 추가
         </button>

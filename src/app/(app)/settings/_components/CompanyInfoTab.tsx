@@ -302,96 +302,102 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         </div>
       )}
 
-      {/* Company Basic Info */}
-      <div className="company-info-basic-form glass-card">
-        <h2 className="section-title">기본 정보</h2>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="field-label">회사명 *</label>
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="(주)모티브이노베이션"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="field-label">사업자번호</label>
-              <input
-                value={form.business_number}
-                onChange={(e) => onBizNoChange(e.target.value)}
-                placeholder="000-00-00000"
-                maxLength={12}
-                className="field-input"
-              />
-              {bizStatus && (
-                <p className={`mt-1 text-[11px] font-semibold ${
-                  bizStatus.loading ? "text-[var(--text-dim)]"
-                    : bizStatus.status === "계속사업자" ? "text-[var(--success)]"
-                    : bizStatus.status === "휴업자" || bizStatus.status === "확인불가" ? "text-[var(--warning)]"
-                    : "text-[var(--danger)]"
-                }`}>
-                  {bizStatus.loading ? "국세청 조회중..."
-                    : bizStatus.status === "계속사업자" ? "✓ 정상 사업자"
-                    : bizStatus.status === "휴업자" ? "휴업 상태의 번호입니다"
-                    : bizStatus.status === "폐업자" ? "폐업된 번호입니다"
-                    : bizStatus.status === "미등록" ? "국세청에 등록되지 않은 번호입니다 — 저장할 수 없습니다"
-                    : bizStatus.status === "체크섬오류" ? "올바르지 않은 번호입니다 — 저장할 수 없습니다"
-                    : "국세청 확인 불가 (일시 장애)"}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="field-label">대표자명</label>
-              <input
-                value={form.representative}
-                onChange={(e) => setForm({ ...form, representative: e.target.value })}
-                placeholder="홍길동"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="field-label">전화번호</label>
-              <input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="02-1234-5678"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="field-label">업태</label>
-              <input
-                value={form.business_type}
-                onChange={(e) => setForm({ ...form, business_type: e.target.value })}
-                placeholder="서비스업"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="field-label">업종</label>
-              <input
-                value={form.business_category}
-                onChange={(e) => setForm({ ...form, business_category: e.target.value })}
-                placeholder="소프트웨어 개발"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="field-label">자본금 (원)</label>
-              <input
-                inputMode="numeric"
-                value={form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : ""}
-                onChange={(e) => setForm({ ...form, capital: e.target.value.replace(/[^0-9]/g, "") })}
-                placeholder="예: 10,000,000"
-                className="field-input text-right mono-number"
-              />
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">재무상태표 자본 항목에 사용됩니다. (등기부상 자본금)</p>
-            </div>
-          </div>
+      {/* Company Basic Info — 정의형 행(좌 라벨 | 우 입력) 문법 (2026-08-13 시안 B 작업면) */}
+      <div className="company-info-basic-form stg-sec">
+        <div className="stg-sec-head">
           <div>
-            <label className="field-label">주소</label>
+            <h2 className="stg-sec-title">기본 정보</h2>
+            <p className="stg-sec-desc">견적서·세금계산서·계약서 등 공식 문서에 그대로 찍히는 값입니다.</p>
+          </div>
+        </div>
+        <div className="stg-frow">
+          <div className="stg-frow-label"><b>회사명 *</b></div>
+          <div className="stg-frow-body">
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="(주)모티브이노베이션"
+              className="field-input"
+            />
+          </div>
+        </div>
+        <div className="stg-frow">
+          <div className="stg-frow-label"><b>사업자번호</b><small>국세청에서 실시간 검증합니다</small></div>
+          <div className="stg-frow-body">
+            <input
+              value={form.business_number}
+              onChange={(e) => onBizNoChange(e.target.value)}
+              placeholder="000-00-00000"
+              maxLength={12}
+              className="field-input"
+            />
+            {bizStatus && (
+              <p className={`stg-frow-hint font-semibold ${
+                bizStatus.loading ? "text-[var(--text-dim)]"
+                  : bizStatus.status === "계속사업자" ? "text-[var(--success)]"
+                  : bizStatus.status === "휴업자" || bizStatus.status === "확인불가" ? "text-[var(--warning)]"
+                  : "text-[var(--danger)]"
+              }`}>
+                {bizStatus.loading ? "국세청 조회중..."
+                  : bizStatus.status === "계속사업자" ? "✓ 정상 사업자"
+                  : bizStatus.status === "휴업자" ? "휴업 상태의 번호입니다"
+                  : bizStatus.status === "폐업자" ? "폐업된 번호입니다"
+                  : bizStatus.status === "미등록" ? "국세청에 등록되지 않은 번호입니다 — 저장할 수 없습니다"
+                  : bizStatus.status === "체크섬오류" ? "올바르지 않은 번호입니다 — 저장할 수 없습니다"
+                  : "국세청 확인 불가 (일시 장애)"}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="stg-frow">
+          <div className="stg-frow-label"><b>대표자 · 전화번호</b></div>
+          <div className="stg-frow-body flex flex-col sm:flex-row gap-2.5">
+            <input
+              value={form.representative}
+              onChange={(e) => setForm({ ...form, representative: e.target.value })}
+              placeholder="홍길동"
+              className="field-input sm:!max-w-[180px]"
+            />
+            <input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="02-1234-5678"
+              className="field-input sm:!max-w-[220px]"
+            />
+          </div>
+        </div>
+        <div className="stg-frow">
+          <div className="stg-frow-label"><b>업태 · 업종</b></div>
+          <div className="stg-frow-body flex flex-col sm:flex-row gap-2.5">
+            <input
+              value={form.business_type}
+              onChange={(e) => setForm({ ...form, business_type: e.target.value })}
+              placeholder="서비스업"
+              className="field-input sm:!max-w-[180px]"
+            />
+            <input
+              value={form.business_category}
+              onChange={(e) => setForm({ ...form, business_category: e.target.value })}
+              placeholder="소프트웨어 개발"
+              className="field-input sm:!max-w-[220px]"
+            />
+          </div>
+        </div>
+        <div className="stg-frow">
+          <div className="stg-frow-label"><b>자본금 (원)</b><small>재무상태표 자본 항목 · 등기부상 자본금</small></div>
+          <div className="stg-frow-body">
+            <input
+              inputMode="numeric"
+              value={form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : ""}
+              onChange={(e) => setForm({ ...form, capital: e.target.value.replace(/[^0-9]/g, "") })}
+              placeholder="예: 10,000,000"
+              className="field-input text-right mono-number sm:!max-w-[220px]"
+            />
+          </div>
+        </div>
+        <div className="stg-frow stg-frow-wide">
+          <div className="stg-frow-label"><b>주소</b></div>
+          <div className="stg-frow-body">
             <input
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -399,10 +405,12 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
               className="field-input"
             />
           </div>
+        </div>
+        <div className="stg-sec-actions">
           <button
             onClick={() => { void handleSave(); }}
             disabled={!form.name || saveMut.isPending}
-            className="btn-primary w-full"
+            className="btn-primary"
           >
             {saveMut.isPending ? "저장 중..." : saved ? "저장 완료" : "회사 정보 저장"}
           </button>
@@ -410,8 +418,13 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       </div>
 
       {/* Seal & Logo Upload */}
-      <div className="company-seal-logo-panel glass-card">
-        <h2 className="section-title">직인 및 로고</h2>
+      <div className="company-seal-logo-panel stg-sec">
+        <div className="stg-sec-head mb-5">
+          <div>
+            <h2 className="stg-sec-title">직인 및 로고</h2>
+            <p className="stg-sec-desc">전자계약 서명과 견적서·명세서 머리에 사용됩니다.</p>
+          </div>
+        </div>
         {uploadError && (
           <div className="p-3 rounded-xl bg-red-500/10 text-red-400 text-xs mb-4">{uploadError}</div>
         )}
@@ -686,11 +699,11 @@ function TaxAdvisorSection() {
   const unlinked = catalog.filter((a) => !a.linked);
 
   return (
-    <div className="company-advisor-section glass-card">
-      <div className="company-advisor-head">
+    <div className="company-advisor-section stg-sec">
+      <div className="stg-sec-head mb-4">
         <div>
-          <h3 className="text-[15px] font-bold">세무 파트너</h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
+          <h3 className="stg-sec-title">세무 파트너</h3>
+          <p className="stg-sec-desc">
             오너뷰 제휴 세무사를 연결하면 자료 요청 없이 우리 회사 장부를 열람(읽기 전용)하며 기장·신고를 도와줍니다. 추가 좌석 비용은 없습니다.
           </p>
         </div>
@@ -845,32 +858,44 @@ function IpRestrictionSection({ companyId }: { companyId: string | null }) {
   };
 
   return (
-    <div className="company-ip-restriction-panel glass-card">
-      <h2 className="section-title">보안 — 접속 허용 IP</h2>
-      <p className="text-[11.5px] text-[var(--text-muted)] leading-relaxed mb-3 break-keep">
-        켜면 아래에 등록한 IP(사무실 인터넷 등)에서만 오너뷰에 접속할 수 있습니다. 끄면 어디서든 접속됩니다.
-        {myIp && <> 현재 이 기기의 IP: <b className="mono-number text-[var(--text)]">{myIp}</b></>}
-      </p>
-      <label className="flex items-center gap-2 mb-3 cursor-pointer">
-        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="rounded" />
-        <span className="text-[12.5px] font-semibold text-[var(--text)]">허용된 IP에서만 접속 가능</span>
+    <div className="company-ip-restriction-panel stg-sec">
+      <div className="stg-sec-head">
+        <div>
+          <h2 className="stg-sec-title">보안 — 접속 허용 IP</h2>
+          <p className="stg-sec-desc">
+            켜면 등록한 IP(사무실 인터넷 등)에서만 접속할 수 있습니다.
+            {myIp && <> 현재 이 기기의 IP: <b className="mono-number text-[var(--text)]">{myIp}</b></>}
+          </p>
+        </div>
+      </div>
+      <label className="stg-trow">
+        <span>
+          <span className="stg-trow-t">허용된 IP에서만 접속 가능</span>
+          <span className="stg-trow-s block">끄면 어디서든 접속됩니다</span>
+        </span>
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="w-5 h-5 rounded accent-[var(--primary)]" />
       </label>
-      <textarea
-        value={ipsText}
-        onChange={(e) => setIpsText(e.target.value)}
-        placeholder={"한 줄에 하나씩 입력\n예)\n211.234.56.78\n121.140.11.22"}
-        rows={4}
-        className="field-input font-mono text-[12px] leading-relaxed"
-        style={{ height: "auto" }}
-      />
-      <div className="mt-3 flex items-center gap-2">
+      <div className="stg-frow stg-frow-wide">
+        <div className="stg-frow-label"><b>허용 IP 목록</b><small>한 줄에 하나씩</small></div>
+        <div className="stg-frow-body">
+          <textarea
+            value={ipsText}
+            onChange={(e) => setIpsText(e.target.value)}
+            placeholder={"예)\n211.234.56.78\n121.140.11.22"}
+            rows={4}
+            className="field-input font-mono text-[12px] leading-relaxed"
+            style={{ height: "auto" }}
+          />
+        </div>
+      </div>
+      <div className="stg-sec-actions">
         {myIp && (
-          <button type="button" className="btn-secondary btn-sm"
+          <button type="button" className="btn-secondary btn-sm mr-auto"
             onClick={() => { const ips = parseIps(); if (!ips.includes(myIp)) setIpsText([...ips, myIp].join("\n")); }}>
             현재 IP 추가
           </button>
         )}
-        <button type="button" onClick={() => { void handleSave(); }} disabled={saveMut.isPending} className="btn-primary btn-sm ml-auto">
+        <button type="button" onClick={() => { void handleSave(); }} disabled={saveMut.isPending} className="btn-primary btn-sm">
           {saveMut.isPending ? "저장 중..." : "보안 설정 저장"}
         </button>
       </div>
@@ -957,51 +982,43 @@ function CompanyDocsSection({ companyId }: { companyId: string | null }) {
   };
 
   return (
-    <div>
-      <h2 className="section-title">회사 문서</h2>
-      <p className="caption mb-4">사업자등록증·법인등기부등본 등 법인 서류입니다. 업로드된 문서는 계약서 발송·증명서 발급에 활용됩니다.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {COMPANY_DOCS.map((doc) => {
-          const cur = latestFor(doc.key);
-          const busy = busyKey === doc.key;
-          return (
-            <div key={doc.key} className="glass-card p-4">
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-[var(--text)] truncate">{doc.label}</div>
-                  <div className="caption">{cur ? "업로드됨" : doc.desc}</div>
-                </div>
-                {cur && (
-                  <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--success)] bg-[var(--success)]/10 px-2 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />완료
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {cur ? (
-                  <>
-                    <button onClick={() => doView(cur.name)} disabled={busy}
-                      className="text-xs px-2.5 py-1 rounded-lg text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 transition disabled:opacity-50">보기</button>
-                    <label className={`text-xs px-2.5 py-1 rounded-lg text-[var(--text-muted)] bg-[var(--bg-surface)] border border-[var(--border)] cursor-pointer hover:text-[var(--text)] transition ${busy ? "opacity-50 pointer-events-none" : ""}`}>
-                      교체
-                      <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" disabled={busy}
-                        onChange={(ev) => { const f = ev.target.files?.[0]; if (f) doUpload(doc.key, f); ev.target.value = ""; }} />
-                    </label>
-                    <button onClick={() => doRemove(doc.key, doc.label)} disabled={busy}
-                      className="text-xs px-2.5 py-1 rounded-lg text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50">삭제</button>
-                  </>
-                ) : (
-                  <label className={`text-xs px-2.5 py-1 rounded-lg text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 cursor-pointer transition font-semibold ${busy ? "opacity-50 pointer-events-none" : ""}`}>
-                    {busy ? "업로드 중…" : "업로드"}
-                    <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" disabled={busy}
-                      onChange={(ev) => { const f = ev.target.files?.[0]; if (f) doUpload(doc.key, f); ev.target.value = ""; }} />
-                  </label>
-                )}
-              </div>
-            </div>
-          );
-        })}
+    <div className="stg-sec">
+      <div className="stg-sec-head mb-1">
+        <div>
+          <h2 className="stg-sec-title">회사 문서</h2>
+          <p className="stg-sec-desc">사업자등록증·법인등기부등본 등 법인 서류 — 계약서 발송·증명서 발급에 활용됩니다.</p>
+        </div>
       </div>
+      {COMPANY_DOCS.map((doc) => {
+        const cur = latestFor(doc.key);
+        const busy = busyKey === doc.key;
+        return (
+          <div key={doc.key} className="stg-drow">
+            <div className="stg-drow-main">
+              <div className="stg-drow-t">{doc.label}</div>
+              <div className="stg-drow-s">{doc.desc}</div>
+            </div>
+            <span className={`stg-badge ${cur ? "stg-badge-ok" : ""}`}>{cur ? "업로드됨" : "미등록"}</span>
+            {cur ? (
+              <>
+                <button onClick={() => doView(cur.name)} disabled={busy} className="stg-drow-act disabled:opacity-50">보기</button>
+                <label className={`stg-drow-act cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+                  교체
+                  <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" disabled={busy}
+                    onChange={(ev) => { const f = ev.target.files?.[0]; if (f) doUpload(doc.key, f); ev.target.value = ""; }} />
+                </label>
+                <button onClick={() => doRemove(doc.key, doc.label)} disabled={busy} className="stg-drow-act stg-drow-act-danger disabled:opacity-50">삭제</button>
+              </>
+            ) : (
+              <label className={`stg-drow-act !text-[var(--primary)] font-semibold cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+                {busy ? "업로드 중…" : "업로드"}
+                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" disabled={busy}
+                  onChange={(ev) => { const f = ev.target.files?.[0]; if (f) doUpload(doc.key, f); ev.target.value = ""; }} />
+              </label>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

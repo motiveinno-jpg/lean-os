@@ -8689,9 +8689,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .stg-main { @apply min-w-0 space-y-0; }
 /* 기존 탭 컴포넌트 일괄 재스킨 — 셸 스코프에서 glass-card/section-title 을 새 카드 문법으로.
    (12개 탭 내부를 파일마다 고치는 대신 한 곳에서 — 로직·마크업 무변경) */
-.stg-main .glass-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 1rem; box-shadow: none; @apply p-5 sm:p-6; }
+.stg-main .glass-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 1rem; box-shadow: none; @apply px-5 sm:px-7 py-5 sm:py-6; }
 .stg-main .glass-card + .glass-card { @apply mt-5; }
-.stg-main .section-title { @apply text-sm font-bold mb-4 tracking-tight; }
+.stg-main .section-title { @apply text-[15px] font-bold mb-4 tracking-tight; }
 .stg-head { @apply mb-5 pb-4 border-b border-[var(--border)]; }
 .stg-head-title { @apply text-lg font-bold tracking-tight; }
 .stg-head-desc { @apply text-[13px] text-[var(--text-muted)] mt-1; }
@@ -8712,3 +8712,42 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .stg-empty { @apply text-center py-10; }
 .stg-empty-t { @apply text-sm font-semibold text-[var(--text-muted)]; }
 .stg-empty-d { @apply text-xs text-[var(--text-dim)] mt-1; }
+
+/* ── 설정 세부탭 내부 문법 (2026-08-13 5차 — 사장님: 세부탭 "안" 디자인을 바꿔라) ──
+   시안 B 작업면 그대로: 정의형 필드 행(좌 라벨 | 우 컨트롤) + 헤어라인. 카드 속 카드 금지. */
+.stg-sec { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-5 sm:px-7 py-5 sm:py-6; }
+.stg-sec + .stg-sec { @apply mt-5; }
+.stg-sec-head { @apply flex items-start justify-between gap-3 pb-4 border-b border-[var(--border)]; }
+.stg-sec-title { @apply text-[15px] font-bold tracking-tight; }
+.stg-sec-desc { @apply text-xs text-[var(--text-dim)] mt-0.5; }
+/* 정의형 필드 행 — 데스크톱: 라벨 180px | 컨트롤, 모바일: 세로 스택 */
+.stg-frow { @apply grid grid-cols-1 sm:grid-cols-[180px_minmax(0,1fr)] gap-1.5 sm:gap-6 items-start py-4 border-b border-[var(--border)]; }
+.stg-frow:last-of-type { @apply border-b-0 pb-1; }
+.stg-frow-label { @apply text-[13px] font-medium text-[var(--text-muted)] sm:pt-2; }
+.stg-frow-label b { @apply block text-[var(--text)] font-semibold; }
+.stg-frow-label small { @apply block text-[11px] text-[var(--text-dim)] mt-0.5 leading-relaxed font-normal; }
+.stg-frow-body { @apply min-w-0; }
+.stg-frow-body .field-input, .stg-frow-body .field-input-sm, .stg-frow-body select, .stg-frow-body textarea { @apply max-w-md; }
+.stg-frow-wide .stg-frow-body .field-input, .stg-frow-wide .stg-frow-body textarea { @apply max-w-none; }
+.stg-frow-hint { @apply text-[11px] text-[var(--text-dim)] mt-1.5 leading-relaxed; }
+/* 섹션 하단 액션 줄 */
+.stg-sec-actions { @apply flex justify-end gap-2 pt-4; }
+/* 데이터 행 (목록: 통장·부서·문서·세무사 등) — 헤어라인 리스트 */
+.stg-drow { @apply flex items-center gap-3 py-3 border-b border-[var(--border)]; }
+.stg-drow:last-child { @apply border-b-0; }
+.stg-drow-main { @apply flex-1 min-w-0; }
+.stg-drow-t { @apply text-sm font-semibold truncate; }
+.stg-drow-s { @apply text-xs text-[var(--text-dim)] mt-0.5 truncate; }
+.stg-drow-val { @apply text-sm font-bold shrink-0; font-variant-numeric: tabular-nums; }
+.stg-drow-act { @apply shrink-0 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text)] transition-colors; }
+.stg-drow-act-danger { @apply text-[var(--danger)]/70 hover:text-[var(--danger)]; }
+/* 토글 행 */
+.stg-trow { @apply flex items-center justify-between gap-4 py-3.5 border-b border-[var(--border)] cursor-pointer; }
+.stg-trow:last-of-type { @apply border-b-0; }
+.stg-trow-t { @apply text-sm font-semibold; }
+.stg-trow-s { @apply text-xs text-[var(--text-dim)] mt-0.5; }
+/* 업로드 타일(직인·로고·문서) */
+.stg-upload { @apply rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface)] p-5 text-center transition-colors hover:border-[var(--primary)]/50; }
+.stg-badge { @apply inline-flex items-center px-2 py-0.5 rounded-md text-[10.5px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.stg-badge-ok { @apply bg-emerald-500/10 text-emerald-600; }
+.stg-badge-warn { @apply bg-amber-500/10 text-amber-600; }

@@ -111,7 +111,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
   const picked = PLATFORMS.find((p) => p.key === form.platform)!;
 
   return (
-    <div className="ad-acc-wrap">
+    <div className="ad-acc-wrap stg-sec">
       <div className="ad-acc-head">
         <div>
           <h3 className="ad-acc-title">광고 계정</h3>

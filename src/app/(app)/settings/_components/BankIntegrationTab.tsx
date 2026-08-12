@@ -306,9 +306,13 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
   const isReady = authMethod === "cert" ? isCertReady : isIdPwReady;
 
   return (
-    <div className="bank-integration-register-form glass-card">
-      <h2 className="text-sm font-bold mb-1">금융기관 연결</h2>
-      <p className="text-xs text-[var(--text-dim)] mb-4">공동인증서 또는 인터넷뱅킹 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
+    <div className="bank-integration-register-form stg-sec">
+      <div className="stg-sec-head mb-4">
+        <div>
+          <h2 className="stg-sec-title">금융기관 연결</h2>
+          <p className="stg-sec-desc">공동인증서 또는 인터넷뱅킹 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
+        </div>
+      </div>
 
       {/* 데모 체험 */}
       <button
@@ -810,10 +814,10 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
   return (
     <div className="bank-integration-tab">
       {/* 금융 연결 상태 */}
-      <div className="bank-integration-status-card glass-card">
+      <div className="bank-integration-status-card stg-sec">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold">금융 데이터 연동</h2>
+            <h2 className="stg-sec-title">금융 데이터 연동</h2>
             {isConnected ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-500">연결됨</span>
             ) : (
@@ -1037,8 +1041,8 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       <CodefAccountRegister companyId={companyId} onRegistered={() => { refetchConnection(); }} />
 
       {/* 수동 등록 계좌 */}
-      <div className="bank-integration-manual-accounts glass-card">
-        <h2 className="section-title">수동 등록 계좌</h2>
+      <div className="bank-integration-manual-accounts stg-sec">
+        <h2 className="stg-sec-title mb-4">수동 등록 계좌</h2>
         {bankAccounts.length === 0 ? (
           <div className="text-center py-6 text-sm text-[var(--text-muted)]">등록된 계좌가 없습니다. 일반 설정에서 통장을 추가하세요.</div>
         ) : (
