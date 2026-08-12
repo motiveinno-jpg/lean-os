@@ -1,20 +1,19 @@
 "use client";
 
-// 수집·전표 3단계 — 통장 탭이 '거래 매칭'을 흡수한다 (2026-08-11)
+// 수집·전표 3단계 — 통장 줄을 **일반전표 한 장**으로 (2026-08-12 사장님 지시로 다시 짬)
 //
-//   통장 줄에 대한 질문은 하나다: **"이 돈은 무엇인가?"** 답이 셋뿐이라 '처리' 칸 하나로 끝난다.
-//     ① 이미 낸 증빙의 수금·지급 → 매칭 (수금 전표가 자동으로 생긴다)
-//     ② 증빙 없는 수입·지출      → 일반전표
-//     ③ 내 계좌 간 이동          → 전표 없음(두 통장에 같은 돈이 두 번 찍힌다). 표시만.
-//     ④ 카드대금 청구            → 카드 승인 여러 건을 이 한 줄에 묶는다(다대일)
+//   지시: "처리는 필요없고 전체 일반전표로 전송되게 / 건별로 차·대변 계정과목 설정가능하도록 /
+//         차·대변 거래처 다르게 설정(보통예금부분은 자동) / 적요칸 만들어서 직접 입력"
 //
-//   ★ 기존 정산 기계(invoice_settlements + 트리거 7개)를 **다시 배선하지 않는다**.
-//     확정 = status='confirmed' 한 줄이면 트리거가 미수금 차감·전표 생성·차액 마감까지 한다.
-//     이미 잘 도는 것을 갈아엎을 이유가 없다 — 그 위에 화면만 올린다.
+//   그래서 한 줄이 곧 한 전표다. 보통예금 쪽은 **서버가 붙인다**(post_bank_manual_voucher):
+//     입금 → 차) 보통예금[통장]      / 대) 고른 계정[고른 거래처]
+//     출금 → 차) 고른 계정[고른 거래처] / 대) 보통예금[통장]
+//   사람이 채우는 건 **상대 계정 · 상대 거래처 · 적요** 셋뿐이다.
 //
-//   차액 마감은 **트리거가 자동으로** 한다 — 확정하면 차) 보통예금 / 대) 외상매출금 + 잡이익(차액)
-//   까지 한 번에 만들어진다(운영 데이터로 확인). 다만 차액을 잡손익이 아닌 이자·수수료로 **바꾸는 것**과
-//   **다대일(카드 여러 건이 한 번에 청구)** 은 아직 거래 매칭 화면에 남아 있다.
+//   ★ 2026-08-11 에 있던 '처리' 칸(①증빙 수금 매칭 ②일반전표 ③계좌 이동 ④카드대금 묶기)과
+//     그 짝인 '붙는 곳' 칸은 **없앴다**(사장님: "처리는 필요없고", "붙는곳은 필요없는 기능").
+//     ①③④ 가 하던 일은 **거래 매칭 화면(/partners/reconciliation)에 그대로 있다** — 지운 게 아니라
+//     이 화면에서 뺀 것이다. 세금계산서 수금은 여기서 계정을 '외상매출금'으로 골라도 같은 결과다.
 
 import { useMemo, useState } from "react";
 import { PickList } from "@/components/pick-list";
@@ -27,16 +26,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
-type Deal = "match" | "voucher" | "transfer" | "card" | null;
-
-type Sug = {
-  settlementId: string;
-  invoiceId: string;
-  invoiceNo: string;
-  invoiceAmount: number;
-  amount: number;
-  confidence: number;
-};
+type Pt = { id: string; name: string };
 
 type Row = {
   id: string;
@@ -53,8 +43,7 @@ type Row = {
   voucherNo: number | null;
   entryId: string | null;          // 되돌릴 때 지울 전표
   settleIds: { id: string; type: string }[];  // 되돌릴 때 되돌릴 정산 행
-  cardsLinked: number;             // 이 줄에 묶인 카드 승인 수
-  sug: Sug | null;                 // 엔진이 만든 제안
+  cardsLinked: number;             // 이 줄에 묶인 카드 승인 수 (되돌리기에서만 쓴다)
 };
 
 //   classify-transactions 가 돌려주는 코드 → 사람이 읽는 이름 (자동 분류 화면과 같은 표).
@@ -89,16 +78,14 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
   const qc = useQueryClient();
   const [onlyTodo, setOnlyTodo] = useState(true);
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [deal, setDeal] = useState<Record<string, Deal>>({});
   const [acct, setAcct] = useState<Record<string, Acct>>({});
-  const [partAmt, setPartAmt] = useState<Record<string, string>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
+  //   상대 거래처 — 보통예금 쪽은 서버가 붙이므로 여기서 고르는 건 **반대편 하나**뿐이다
+  const [pt, setPt] = useState<Record<string, Pt>>({});
+  const [ptPick, setPtPick] = useState<{ id: string; q: string } | null>(null);
+  //   적요 — 회사 내부 확인용으로 사람이 직접 쓴다. 비우면 서버가 통장 적요를 넣는다.
+  const [memo, setMemo] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  //   ④ 다대일 — 어느 통장 줄에 어느 카드 승인들을 묶을지 (거래 매칭 화면에서 옮겨 왔다)
-  const [cardPick, setCardPick] = useState<{ txId: string; ids: Set<string> } | null>(null);
-  //   ① 인데 제안이 없는 줄 — 계산서를 직접 찾아 붙인다 (거래 매칭의 '수동 매칭'을 옮겨 왔다)
-  const [invPick, setInvPick] = useState<{ txId: string; q: string; inv: { id: string; label: string; remain: number } | null } | null>(null);
-  const [aiBusy, setAiBusy] = useState(false);
   //   비목 AI 가 추천한 계정 — 사람이 고른 것 다음, 학습 규칙보다 뒤에 쓴다
   const [aiAcct, setAiAcct] = useState<Record<string, Acct>>({});
   const [aiAcctBusy, setAiAcctBusy] = useState(false);
@@ -122,62 +109,25 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     staleTime: 60_000,
   });
 
-  //   아직 통장에 안 묶인 카드 승인 — ④ 를 고른 줄에서만 읽는다
-  const { data: cardCands = [] } = useQuery({
-    queryKey: ["bank-card-cands", companyId, cardPick?.txId],
+  //   거래처 — 상대 계정 줄에 걸 거래처를 고른다 (보통예금 줄은 서버가 통장 거래처를 붙인다)
+  const { data: partners = [] } = useQuery<Pt[]>({
+    queryKey: ["bank-partners", companyId],
     queryFn: async () => {
-      const data = logRead("bank:cardcands", await supabase.from("card_transactions")
-        .select("id, transaction_date, merchant_name, amount")
-        .eq("company_id", companyId).is("bank_transaction_id", null)
-        .order("transaction_date", { ascending: false }).limit(300));
-      return ((data as any[]) || []);
+      const data = logRead("bank:partners", await supabase
+        .from("partners").select("id, name").eq("company_id", companyId).order("name").limit(2000));
+      return (data || []) as Pt[];
     },
-    enabled: !!cardPick,
-  });
-
-  //   아직 다 수금 안 된 세금계산서 — ① 에서 직접 붙일 때만 읽는다
-  const { data: invCands = [] } = useQuery({
-    queryKey: ["bank-inv-cands", companyId, invPick?.q],
-    queryFn: async () => {
-      let q = supabase.from("tax_invoices")
-        .select("id, issue_date, counterparty_name, item_name, total_amount, settled_amount, type")
-        .eq("company_id", companyId).neq("status", "void")
-        .order("issue_date", { ascending: false }).limit(60);
-      const term = (invPick?.q || "").trim();
-      if (term) q = q.ilike("counterparty_name", `%${term}%`);
-      const data = logRead("bank:invcands", await q);
-      return ((data as any[]) || [])
-        .map((r) => ({ ...r, remain: Number(r.total_amount || 0) - Number(r.settled_amount || 0) }))
-        .filter((r) => r.remain > 0);
-    },
-    enabled: !!invPick,
+    staleTime: 300_000,
   });
 
   const { data: rows = [], isLoading, error: rowsError } = useQuery<Row[]>({
     queryKey: ["bank-rows", companyId, from, to],
     queryFn: async () => {
-      const [tx, queue] = await Promise.all([
-        supabase.from("bank_transactions")
+      const tx = await (async () => supabase.from("bank_transactions"))().then((q) => q
           .select("id, transaction_date, amount, type, counterparty, description, partner_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
           .eq("company_id", companyId)
           .gte("transaction_date", from).lte("transaction_date", to)
-          .order("transaction_date").limit(400),
-        //   엔진이 이미 만들어 둔 제안 — 별도 화면이 아니라 줄의 기본값으로 쓴다
-        supabase.from("v_settlement_review_queue")
-          .select("id, bank_transaction_id, tax_invoice_id, amount, confidence, invoice_amount, counterparty_name, issue_date")
-          .eq("company_id", companyId),
-      ]);
-      const sugBy = new Map<string, Sug>();
-      for (const q of ((queue.data as any[]) || [])) {
-        if (!q.bank_transaction_id || sugBy.has(q.bank_transaction_id)) continue;
-        sugBy.set(q.bank_transaction_id, {
-          settlementId: q.id, invoiceId: q.tax_invoice_id,
-          invoiceNo: `${q.counterparty_name || ""} ${String(q.issue_date || "").slice(5)}`.trim(),
-          invoiceAmount: Number(q.invoice_amount || 0),
-          amount: Number(q.amount || 0),
-          confidence: Number(q.confidence || 0),
-        });
-      }
+          .order("transaction_date").limit(400));
       //   ★ 읽기 실패를 빈 목록으로 넘기지 않는다 — '처리할 거래가 없습니다'로 보여 다 끝낸 줄 안다.
       //     (실제로 관계 모호(PGRST201)로 조용히 0건이 뜬 적이 있다)
       if (tx.error) throw new Error(tx.error.message);
@@ -209,7 +159,6 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
             .filter((m) => m.status === "confirmed")
             .map((m) => ({ id: m.id, type: String(m.match_type || "") })),
           cardsLinked: ((r.card_transactions || []) as any[]).length,
-          sug: sugBy.get(r.id) ?? null,
         } as Row;
       });
     },
@@ -226,23 +175,20 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     return { a: null, via: null };
   };
 
-  //   처리 기본값 — ① 제안이 있으면 매칭, 없는데 학습된 계정이 있으면 ② 일반전표
-  const dealOf = (r: Row): Deal => deal[r.id] ?? (r.sug ? "match" : (acctOf(r).a ? "voucher" : null));
+  /** 이 줄에 걸 상대 거래처 — 사람이 고른 것 > 통장 줄에 이미 이어진 거래처 */
+  const ptOf = (r: Row): Pt | null =>
+    pt[r.id] ?? (r.partnerId ? (partners.find((x) => x.id === r.partnerId) ?? null) : null);
+  /** 적요 — 사람이 쓴 것 > 통장 적요 > 입금자 (서버도 같은 순서로 채운다) */
+  const memoOf = (r: Row) => memo[r.id] ?? "";
+  const memoPlaceholder = (r: Row) => r.desc || r.who || "적요";
+
   const doneOf = (r: Row) => r.posted || r.settled || r.transfer;
 
   const shown = rows.filter((r) => (onlyTodo ? !doneOf(r) : true));
   const selRows = shown.filter((r) => sel.has(r.id));
-  const sugCount = shown.filter((r) => r.sug).length;
 
-  //   확정할 수 있는 줄인가 — ①은 제안, ②는 계정, ③은 그냥 가능
-  const ready = (r: Row) => {
-    const d = dealOf(r);
-    if (d === "match") return !!r.sug || (invPick?.txId === r.id && !!invPick.inv);
-    if (d === "voucher") return !!acctOf(r).a;
-    if (d === "transfer") return true;
-    if (d === "card") return cardPick?.txId === r.id && cardPick.ids.size > 0;
-    return false;
-  };
+  //   확정할 수 있는 줄인가 — 상대 계정 하나면 된다(거래처·적요는 없어도 전표가 선다)
+  const ready = (r: Row) => !!acctOf(r).a;
   const notReady = selRows.filter((r) => !ready(r));
 
   const confirmAll = async () => {
@@ -251,74 +197,21 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     let ok = 0;
     const fails: string[] = [];
     for (const r of selRows) {
-      const d = dealOf(r);
       try {
-        if (d === "match" && (r.sug || (invPick?.txId === r.id && invPick.inv))) {
-          //   부분수금 — 사람이 금액을 줄여 놨으면 그 금액으로 확정한다.
-          //   나머지는 트리거가 알아서: 미수금 차감·수금 전표·차액 마감.
-          const typed = Number(String(partAmt[r.id] ?? "").replace(/[^0-9-]/g, ""));
-          if (r.sug) {
-            const amount = typed > 0 ? typed : r.sug.amount;
-            const { error } = await supabase.from("invoice_settlements")
-              .update({ status: "confirmed", amount }).eq("id", r.sug.settlementId);
-            if (error) throw error;
-          } else {
-            //   제안이 없어 사람이 직접 고른 계산서에 붙인다 (거래 매칭의 '수동 연결'과 같은 규칙).
-            //   같은 (거래, 계산서) 쌍에 이력이 있으면 새로 넣지 않고 그 행을 확정으로 올린다.
-            const inv = invPick!.inv!;
-            const amount = typed > 0 ? typed : Math.min(Math.abs(r.amount), inv.remain);
-            const existing = logRead("bank:existing-settle", await supabase.from("invoice_settlements")
-              .select("id").eq("bank_transaction_id", r.id).eq("tax_invoice_id", inv.id).maybeSingle());
-            if (existing) {
-              const { error } = await supabase.from("invoice_settlements")
-                .update({ amount, match_type: "manual", match_source: "manual", status: "confirmed", confidence: 1, reason: "수동 연결" })
-                .eq("id", (existing as any).id);
-              if (error) throw error;
-            } else {
-              const { error } = await supabase.from("invoice_settlements").insert({
-                company_id: companyId, bank_transaction_id: r.id, tax_invoice_id: inv.id,
-                amount, match_type: "manual", match_source: "manual", status: "confirmed", confidence: 1, reason: "수동 연결",
-              });
-              if (error) throw error;
-            }
-            setInvPick(null);
-          }
-        } else if (d === "voucher") {
-          const a = acctOf(r).a;
-          if (!a) throw new Error("계정을 먼저 고르세요");
-          //   거래 매칭 화면이 쓰던 것과 **같은 RPC**를 쓴다 — 3단계에서 잠깐 중복 함수를
-          //   만들었다가 하나로 합쳤다(같은 일을 하는 함수가 둘이면 한쪽만 고쳐지는 사고가 난다).
-          const { error } = await (supabase.rpc as any)("post_bank_voucher", {
-            p_bank_tx_id: r.id, p_account_id: a.id, p_remember: false, p_memo: r.desc || r.who,
-          });
-          if (error) throw error;
-          //   사람이 고른 것을 배운다 — 같은 입금자·적요가 또 나오면 미리 채운다
-          const k = keyOf(r);
-          await learnAccount({ kind: "bank", key: k.key, label: k.label, accountId: a.id });
-        } else if (d === "card") {
-          //   카드 승인 여러 건을 이 통장 줄에 묶는다. 전표는 만들지 않는다 —
-          //   승인 건 각각이 매입매출전표로 미지급금을 세우고, 이 줄은 그 청구(결제)일 뿐이다.
-          //   거래 매칭 화면이 하던 것과 **같은 동작**을 자리만 옮겼다.
-          const ids = [...(cardPick?.ids ?? [])];
-          if (ids.length === 0) throw new Error("묶을 카드 승인을 고르세요");
-          const { error: e1 } = await supabase.from("card_transactions")
-            .update({ bank_transaction_id: r.id }).in("id", ids);
-          if (e1) throw e1;
-          const { error: e2 } = await supabase.from("bank_transactions")
-            .update({ settlement_status: "settled", settled_amount: Math.abs(r.amount) }).eq("id", r.id);
-          if (e2) throw e2;
-          setCardPick(null);
-        } else if (d === "transfer") {
-          //   계좌 이동은 전표를 만들지 않는다 — 두 통장에 같은 돈이 두 번 찍히기 때문이다.
-          //   '처리했음'만 남겨 미처리 목록에서 빠지게 한다.
-          //   is_auto_transfer 만 세운다. mapping_status(비목 분류 상태)는 /bank 화면 배지가 쓰는
-          //   다른 칸이라 손대지 않는다 — 칸의 주인을 침범하면 거짓 신호가 된다.
-          const { error } = await supabase.from("bank_transactions")
-            .update({ is_auto_transfer: true }).eq("id", r.id);
-          if (error) throw error;
-        } else {
-          throw new Error("처리 방법을 고르세요");
-        }
+        const acc = acctOf(r).a;
+        if (!acc) throw new Error("계정을 먼저 고르세요");
+        //   ★ 보통예금 쪽(계정·통장 거래처·계좌 연결)과 차·대 방향은 **서버가 붙인다**.
+        //     화면은 상대 계정·상대 거래처·적요만 보낸다 — "자동 입력"을 화면 신뢰에 맡기지 않는다.
+        const { error } = await (supabase.rpc as any)("post_bank_manual_voucher", {
+          p_bank_tx_id: r.id,
+          p_account_id: acc.id,
+          p_partner_id: ptOf(r)?.id ?? null,
+          p_memo: memoOf(r).trim() || null,
+        });
+        if (error) throw error;
+        //   사람이 고른 계정을 배운다 — 같은 입금자·적요가 또 나오면 미리 채운다
+        const k = keyOf(r);
+        await learnAccount({ kind: "bank", key: k.key, label: k.label, accountId: acc.id });
         ok += 1;
       } catch (e: any) {
         const m = String(e?.message || "");
@@ -333,9 +226,9 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     qc.invalidateQueries({ queryKey: ["bank-rows"] });
     qc.invalidateQueries({ queryKey: ["collect-status"] });
     qc.invalidateQueries({ queryKey: ["voucher-rules"] });
-    qc.invalidateQueries({ queryKey: ["bank-card-cands"] });
+    qc.invalidateQueries({ queryKey: ["bank-partners"] });
     setBusy(false);
-    if (ok > 0 && fails.length === 0) toast(`${ok}건을 처리했습니다`, "success");
+    if (ok > 0 && fails.length === 0) toast(`일반전표 ${ok}건을 만들었습니다`, "success");
     else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
     else toast(`처리하지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
@@ -346,8 +239,9 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     setBusy(true);
     try {
       if (r.posted) {
-        //   전표를 지우면 FK(ON DELETE SET NULL)가 통장 줄을 미처리로 되돌린다
-        const { error } = await supabase.from("journal_entries").delete().eq("id", r.entryId!);
+        //   전표는 **지우지 않고 반려**한다 — 재무제표에서 빠지고 이력은 남는다.
+        //   수집·전표의 다른 탭('취소')과 같은 길을 쓴다 (2026-08-12).
+        const { error } = await (supabase.rpc as any)("unpost_evidence_voucher", { p_entry_id: r.entryId });
         if (error) throw error;
       } else if (r.transfer) {
         const { error } = await supabase.from("bank_transactions").update({ is_auto_transfer: false }).eq("id", r.id);
@@ -416,27 +310,6 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
     } finally { setAiAcctBusy(false); }
   };
 
-  /** 수금 매칭 추천 — 입금과 세금계산서를 짝지어 제안을 만든다. */
-  const runAiMatch = async () => {
-    if (aiBusy) return;
-    setAiBusy(true);
-    try {
-      let processed = 0, suggested = 0;
-      for (let round = 0; round < 100; round++) {   // 안전 상한 (거래 매칭 화면과 같은 값)
-        const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 50 } });
-        if (error) throw new Error(error.message);
-        if ((data as any)?.error) throw new Error((data as any).error);
-        const rr = data as { processed: number; suggested: number };
-        processed += rr.processed || 0; suggested += rr.suggested || 0;
-        if ((rr.processed || 0) === 0) break;
-      }
-      qc.invalidateQueries({ queryKey: ["bank-rows"] });
-      toast(`AI 매칭 완료 — ${processed}건 분석 · 제안 ${suggested}건`, "success");
-    } catch (e: any) {
-      toast(e?.message || "AI 매칭 실패", "error");
-    } finally { setAiBusy(false); }
-  };
-
   const toggle = (id: string) =>
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const allOn = shown.length > 0 && shown.filter((r) => !doneOf(r)).every((r) => sel.has(r.id));
@@ -462,24 +335,19 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
         </button>
         <span className="collect-toolbar-hint">
           {shown.length}건 · 입금 <b className="mono-number">{won(sumIn)}</b> · 출금 <b className="mono-number">{won(sumOut)}</b>
-          {sugCount > 0 && <> · 제안 있음 <b className="mono-number">{won(sugCount)}</b></>}
           {rows.length >= 400 && <b className="ev-cut"> · 최근 400건만 표시 (기간을 좁혀 주세요)</b>}
         </span>
         <div className="ml-auto flex items-center gap-2">
-          {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 처리 방법·계정이 필요합니다</span>}
+          {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
           {/*   추천 두 가지 — 하는 일이 다르므로 이름을 갈라 둔다 (2026-08-11).
                 계정 추천 = 무슨 비용인가(비목·계정) · 수금 매칭 추천 = 어느 계산서의 입금인가 */}
           <button type="button" onClick={runAcctSuggest} disabled={aiAcctBusy}
             className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
             {aiAcctBusy ? "추천 중…" : "계정 추천"}
           </button>
-          <button type="button" onClick={runAiMatch} disabled={aiBusy}
-            className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-            {aiBusy ? "매칭 중…" : "수금 매칭 추천"}
-          </button>
           <button type="button" onClick={confirmAll} disabled={selRows.length === 0 || busy}
             className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-            {busy ? "처리 중…" : `확정${selRows.length > 0 ? ` (${selRows.length})` : ""}`}
+            {busy ? "만드는 중…" : `일반전표 만들기${selRows.length > 0 ? ` (${selRows.length})` : ""}`}
           </button>
         </div>
       </div>
@@ -504,14 +372,14 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
                     onClick={() => setSel(allOn ? new Set() : new Set(shown.filter((r) => !doneOf(r)).map((r) => r.id)))}
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
-                <th>일자</th><th>입/출</th><th>거래처(입금자)</th><th>적요</th>
-                <th className="tr">금액</th><th style={{ width: 178 }}>처리</th><th>붙는 곳</th><th>상태</th>
+                <th>일자</th><th>입/출</th><th>거래처(입금자)</th><th>통장 적요</th>
+                <th className="tr">금액</th>
+                <th>차변</th><th>대변</th><th style={{ width: 150 }}>적요</th><th>상태</th>
               </tr>
             </thead>
             <tbody>
               {shown.map((r) => {
                 const done = doneOf(r);
-                const d = dealOf(r);
                 const on = sel.has(r.id);
                 return (
                   <tr key={r.id} className={done ? "ev-posted" : on ? "ev-on" : ""}>
@@ -530,127 +398,57 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
                     <td className={r.isIn ? "tr mono-number bk-in" : "tr mono-number bk-out"}>
                       {r.isIn ? "" : "-"}{won(Math.abs(r.amount))}
                     </td>
-                    <td>
-                      {done ? (
-                        <span className="ev-dim">{r.transfer ? "계좌 이동" : r.posted ? "일반전표" : "증빙 수금·카드대금"}</span>
-                      ) : (
-                        <select className="ev-sel" value={d ?? ""}
-                          onChange={(e) => {
-                            const v = (e.target.value || null) as Deal;
-                            setDeal((o) => ({ ...o, [r.id]: v }));
-                            //   ④ 를 고르면 이 줄에 묶을 카드 고르는 자리를 연다 (한 번에 한 줄만)
-                            setCardPick(v === "card" ? { txId: r.id, ids: new Set() } : null);
-                          }}>
-                          <option value="">— 고르세요</option>
-                          <option value="match" disabled={!r.sug}>① 증빙 수금{r.sug ? "" : " (제안 없음)"}</option>
-                          <option value="voucher">② 일반전표</option>
-                          <option value="transfer">③ 계좌 이동</option>
-                          <option value="card" disabled={r.isIn}>④ 카드대금 청구{r.isIn ? " (출금만)" : ""}</option>
-                        </select>
-                      )}
-                    </td>
-                    <td>
-                      {done ? (
-                        <span className="ev-dim">
-                          {r.settled ? `수금 ${won(r.settledAmount)}` : r.transfer ? "손익 무관" : "—"}
-                        </span>
-                      ) : d === "match" && r.sug ? (
-                        <span className="bk-sug">
-                          <span className="ev-ell">{r.sug.invoiceNo}</span>
-                          <em className="ev-via">제안 {Math.round(r.sug.confidence * 100)}%</em>
-                          {/*   부분수금 — 계산서보다 적게 들어왔으면 금액을 줄여 확정한다. 잔액은 트리거가 남긴다 */}
-                          <input className="bk-amt mono-number" placeholder={won(r.sug.amount)}
-                            value={partAmt[r.id] ?? ""}
-                            onChange={(e) => setPartAmt((o) => ({ ...o, [r.id]: e.target.value }))} />
-                          {r.sug.invoiceAmount > 0 && r.sug.amount < r.sug.invoiceAmount && (
-                            <em className="bk-part">계산서 {won(r.sug.invoiceAmount)} 중</em>
-                          )}
-                        </span>
-                      ) : d === "voucher" ? (
-                        <span className="relative inline-block">
-                          <button type="button" onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
-                            className={acctOf(r).a ? "ev-acct" : "ev-acct ev-acct-empty"}>
-                            {acctOf(r).a ? `${acctOf(r).a!.code} ${acctOf(r).a!.name}` : (r.isIn ? "수익 계정 고르기" : "비용 계정 고르기")}
-                            {acctOf(r).via && acctOf(r).via !== "고름" && <em className="ev-via">{acctOf(r).via}</em>}
-                          </button>
-                          {pick?.id === r.id && (
-                            <PickList items={acctsOf(r.isIn)} placeholder="계정과목 검색 (이름·코드)"
-                              onPick={(a) => { setAcct((o) => ({ ...o, [r.id]: a })); setPick(null); }}
-                              onClose={() => setPick(null)} />
-                          )}
-                        </span>
-                      ) : d === "match" && !r.sug ? (
-                        <span className="bk-cards">
-                          {invPick?.txId === r.id && invPick.inv ? (
-                            <span className="bk-cards-head">
-                              {invPick.inv.label}
-                              <em className="bk-cards-sum mono-number">남은 {won(invPick.inv.remain)} / 입금 {won(Math.abs(r.amount))}</em>
-                              <button type="button" className="bk-clear" onClick={() => setInvPick({ txId: r.id, q: "", inv: null })}>바꾸기</button>
-                            </span>
-                          ) : (
-                            <>
-                              <input className="bk-search" placeholder="거래처명으로 계산서 찾기"
-                                value={invPick?.txId === r.id ? invPick.q : ""}
-                                onFocus={() => setInvPick({ txId: r.id, q: "", inv: null })}
-                                onChange={(e) => setInvPick({ txId: r.id, q: e.target.value, inv: null })} />
-                              {invPick?.txId === r.id && (
-                                <span className="bk-cards-list">
-                                  {invCands.length === 0 ? (
-                                    <em className="ev-dim">남은 금액이 있는 계산서가 없습니다</em>
-                                  ) : invCands.slice(0, 30).map((c: any) => (
-                                    <button key={c.id} type="button" className="bk-card-chip"
-                                      onClick={() => setInvPick({
-                                        txId: r.id, q: invPick.q,
-                                        inv: { id: c.id, label: `${c.counterparty_name || "—"} ${String(c.issue_date).slice(5)}`, remain: c.remain },
-                                      })}>
-                                      {String(c.issue_date).slice(5)} {c.counterparty_name || "—"}
-                                      <b className="mono-number">{won(c.remain)}</b>
-                                    </button>
-                                  ))}
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </span>
-                      ) : d === "card" ? (
-                        <span className="bk-cards">
-                          <span className="bk-cards-head">
-                            묶을 카드 승인 <b className="mono-number">{cardPick?.txId === r.id ? cardPick.ids.size : 0}</b>건
-                            {cardPick?.txId === r.id && cardPick.ids.size > 0 && (
-                              <em className="bk-cards-sum mono-number">
-                                합계 {won(cardCands.filter((c: any) => cardPick.ids.has(c.id))
-                                  .reduce((n: number, c: any) => n + Math.abs(Number(c.amount || 0)), 0))}
-                                {" / 출금 "}{won(Math.abs(r.amount))}
-                              </em>
+                    {/*   차변·대변 — 한쪽은 보통예금(자동), 반대쪽만 사람이 고른다.
+                          입금 → 차) 보통예금 / 대) 고른 계정 · 출금 → 차) 고른 계정 / 대) 보통예금 */}
+                    {(() => {
+                      const sidePicker = (
+                        <span className="bk-side">
+                          <span className="relative inline-block">
+                            <button type="button" disabled={done}
+                              onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
+                              className={acctOf(r).a ? "ev-acct" : "ev-acct ev-acct-empty"}>
+                              {acctOf(r).a ? `${acctOf(r).a!.code} ${acctOf(r).a!.name}` : (r.isIn ? "수익 계정" : "비용 계정")}
+                              {acctOf(r).via && acctOf(r).via !== "고름" && <em className="ev-via">{acctOf(r).via}</em>}
+                            </button>
+                            {pick?.id === r.id && (
+                              <PickList items={acctsOf(r.isIn)} placeholder="계정과목 검색 (이름·코드)"
+                                onPick={(a2) => { setAcct((o) => ({ ...o, [r.id]: a2 })); setPick(null); }}
+                                onClose={() => setPick(null)} />
                             )}
                           </span>
-                          <span className="bk-cards-list">
-                            {cardCands.length === 0 ? (
-                              <em className="ev-dim">아직 통장에 안 묶인 카드 승인이 없습니다</em>
-                            ) : cardCands.slice(0, 40).map((c: any) => {
-                              const on = cardPick?.txId === r.id && cardPick.ids.has(c.id);
-                              return (
-                                <button key={c.id} type="button"
-                                  className={on ? "bk-card-chip bk-card-chip-on" : "bk-card-chip"}
-                                  onClick={() => setCardPick((p) => {
-                                    if (!p || p.txId !== r.id) return { txId: r.id, ids: new Set([c.id]) };
-                                    const ids = new Set(p.ids);
-                                    if (ids.has(c.id)) ids.delete(c.id); else ids.add(c.id);
-                                    return { txId: r.id, ids };
-                                  })}>
-                                  {String(c.transaction_date).slice(5)} {c.merchant_name || "—"}
-                                  <b className="mono-number">{won(Math.abs(Number(c.amount || 0)))}</b>
-                                </button>
-                              );
-                            })}
+                          <span className="relative inline-block">
+                            <button type="button" disabled={done}
+                              onClick={() => setPtPick(ptPick?.id === r.id ? null : { id: r.id, q: "" })}
+                              className={ptOf(r) ? "bk-pt" : "bk-pt bk-pt-empty"}>
+                              {ptOf(r)?.name ?? "거래처"}
+                            </button>
+                            {ptPick?.id === r.id && (
+                              <PickList items={partners} placeholder="거래처 검색"
+                                onPick={(x) => { setPt((o) => ({ ...o, [r.id]: x })); setPtPick(null); }}
+                                onClose={() => setPtPick(null)} />
+                            )}
                           </span>
                         </span>
-                      ) : d === "transfer" ? (
-                        <span className="ev-dim">전표를 만들지 않습니다 — 손익과 무관</span>
-                      ) : (
-                        <span className="ev-dim">제안 없음 — 직접 고릅니다</span>
-                      )}
-                    </td>
+                      );
+                      //   보통예금 쪽은 서버가 붙인다 — 화면은 무엇이 설지 미리 보여만 준다
+                      const bankSide = (
+                        <span className="bk-side bk-side-fixed" title="보통예금과 통장 거래처는 자동으로 들어갑니다">
+                          <span className="ev-acct ev-acct-lock">103 보통예금</span>
+                          <span className="bk-pt bk-pt-lock">통장</span>
+                        </span>
+                      );
+                      return (
+                        <>
+                          <td>{r.isIn ? bankSide : sidePicker}</td>
+                          <td>{r.isIn ? sidePicker : bankSide}</td>
+                          <td>
+                            <input className="bk-memo" disabled={done}
+                              placeholder={memoPlaceholder(r)} value={memoOf(r)}
+                              onChange={(e) => setMemo((o) => ({ ...o, [r.id]: e.target.value }))} />
+                          </td>
+                        </>
+                      );
+                    })()}
                     <td>
                       {done ? (
                         <span className="bk-done">
@@ -671,17 +469,14 @@ export function BankTab({ companyId, from, to }: { companyId: string; from: stri
       )}
 
       <p className="collect-note">
-        ※ <b>① 증빙 수금</b>을 확정하면 미수금이 줄고 <b>수금 전표가 자동으로</b> 생깁니다(기존 매칭과 같은 길).
-        금액 칸에 적게 적으면 <b>부분 수금</b>으로 처리되고 잔액이 남습니다.
-        수수료 등으로 몇 원 어긋난 <b>차액은 잡손익으로 자동 마감</b>됩니다.
-        <b>③ 계좌 이동</b>은 전표를 만들지 않습니다 — 두 통장에 같은 돈이 두 번 찍히기 때문입니다.
-        <b>②</b>에서 고른 계정은 <b>입금자·적요로 기억</b>해 다음에 미리 채웁니다(<b>지난번</b> → 3번 이상이면 <b>학습</b>).
-        전표를 만들면 그 계정 이름이 <b>비용 항목(비목)으로도 함께</b> 남아 비용 분석에 잡힙니다 — 따로 분류할 필요가 없습니다.
-        <b>④ 카드대금 청구</b>는 카드 승인 여러 건을 이 한 줄에 묶습니다 — 전표는 만들지 않습니다
-        (승인 건 각각이 매입매출전표로 미지급금을 세우고, 이 줄은 그 결제일 뿐입니다).
-        <b>제안이 없으면</b> 거래처명으로 계산서를 찾아 직접 붙입니다. 잘못 처리했으면 <b>되돌리기</b>로 미처리로 돌립니다.
-        차액을 이자·수수료 등 <b>다른 계정으로 바꾸는 것</b>은{" "}
-        <Link href="/partners/ledger" className="bk-link">거래처 원장</Link>에서 그 전표를 눌러 고칩니다.
+        ※ 통장 한 줄이 <b>일반전표 한 장</b>이 됩니다 — <b>입금</b>은 차) 보통예금[통장] / 대) 고른 계정[고른 거래처],
+        <b>출금</b>은 그 반대입니다. <b>보통예금 쪽 계정·통장 거래처는 자동</b>으로 들어갑니다.
+        <b>적요</b>는 비워 두면 통장 적요가 그대로 들어갑니다 — 회사 내부 확인용 문구는 직접 적으세요.
+        고른 계정은 <b>입금자·적요로 기억</b>해 다음에 미리 채웁니다(<b>지난번</b> → 3번 이상이면 <b>학습</b>).
+        잘못 만들었으면 <b>되돌리기</b>로 미처리로 돌립니다.
+        세금계산서 <b>수금 매칭</b>·계좌 이동 표시·<b>카드대금 묶기</b>는{" "}
+        <Link href="/partners/reconciliation" className="bk-link">거래 매칭</Link>에 그대로 있습니다
+        (수금은 여기서 계정을 <b>외상매출금</b>으로 골라도 같은 결과입니다).
       </p>
     </div>
   );
