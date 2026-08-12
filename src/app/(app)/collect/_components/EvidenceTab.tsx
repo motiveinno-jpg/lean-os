@@ -489,7 +489,7 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
 
   if (kind === "card") {
     const data = logRead("collect:rows-card", await supabase.from("card_transactions")
-      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id, raw_data")
+      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id, merchant_bizno")
       .eq("company_id", companyId)
       .gte("transaction_date", from).lte("transaction_date", to)
       .order("transaction_date").limit(500));
@@ -500,8 +500,9 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
       const supply = Math.round(amt / 1.1);
       return {
         id: r.id, date: String(r.transaction_date),
-        //   카드 원자료의 가맹점 사업자번호 — 과세유형(구분)을 국세청에서 찾을 열쇠다 (2026-08-12)
-        partnerId: null, partnerName: r.merchant_name || "—", bizno: String(r.raw_data?.merchantBusinessNo || ""),
+        //   가맹점 사업자번호 — 과세유형(구분)을 국세청에서 찾을 열쇠다.
+        //   채널마다 원자료 키가 달라(charge/approval/옛 top) merchant_bizno 칸으로 모아 뒀다 (2026-08-12)
+        partnerId: null, partnerName: r.merchant_name || "—", bizno: r.merchant_bizno || "",
         item: label || "카드 사용", supply, vat: amt - supply,
         vatCode: suggestVatType({ kind: "card", direction: "purchase", memo: `${r.merchant_name || ""} ${label}` }),
         settle, posted: !!r.journal_entry_id, voucherNo: null, cardCategory: r.category || null,

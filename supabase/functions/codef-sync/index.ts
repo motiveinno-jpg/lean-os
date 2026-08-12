@@ -598,6 +598,14 @@ async function syncBankTransactions(
   return { synced: totalSynced, errors, debug };
 }
 
+// 가맹점 사업자번호 — 숫자 10자리일 때만 인정한다 (2026-08-12).
+//   카드사는 같은 자리에 '가맹점번호'(카드사 자체 번호, 예: 9955572506)를 넣어 주기도 한다.
+//   그걸 사업자번호로 착각해 저장하면 국세청 과세유형 조회가 통째로 헛돈다.
+function merchantBizno(v: unknown): string | null {
+  const d = String(v ?? "").replace(/[^0-9]/g, "");
+  return d.length === 10 ? d : null;
+}
+
 async function syncCardBilling(
   supabase: any, token: string, companyId: string, connectedId: string,
   startDate: string, endDate: string
@@ -629,14 +637,20 @@ async function syncCardBilling(
   let totalSynced = 0;
   let debuggedChargeKeys = false;
   let debuggedInsertErr = false;
+  //   가맹점 사업자번호가 실제로 몇 건이나 오는지 — 카드사가 안 주는 것과 우리가 안 뽑는 것을
+  //   다음 사람이 구분할 수 있게 남긴다. (2026-08-12: 롯데 0311 은 0건, BC 는 대부분 옴)
+  let biznoSeen = 0, biznoTotal = 0;
 
   // 카드 청구 내역은 YYYYMM 6자리 날짜
   const billingStart = startDate.slice(0, 6);
   const billingEnd = endDate.slice(0, 6);
 
   for (const org of cardOrgs) {
+    //   memberStoreInfoType "1"(가맹점 포함) — 안 넣으면 default "0" 이라 CODEF 가
+    //   가맹점 사업자번호(resMemberStoreCorpNo)·업종·전화번호를 아예 빼고 준다. (2026-08-12)
     const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
       connectedId, organization: org, startDate: billingStart, endDate: billingEnd, orderBy: "0", inquiryType: "1",
+      memberStoreInfoType: "1",
     });
 
     if (result.result?.code !== "CF-00000") {
@@ -677,6 +691,8 @@ async function syncCardBilling(
         const usedDate = charge.resUsedDate || charge.resDate || "";
         const usedAmount = charge.resUsedAmount || charge.resAmount || charge.resMemberStoreAmt || 0;
         const storeName = charge.resStoreName || charge.resMemberStoreName || charge.resUsedStore || "";
+        const bizno = merchantBizno(charge.resMemberStoreCorpNo);
+        biznoTotal++; if (bizno) biznoSeen++;
         const approvalNo = charge.resCardApprovalNo || charge.resApprovalNo || "";
         const externalId = `codef_card_${org}_${usedDate}_${charge.resUsedTime || ""}_${approvalNo || totalSynced}`;
         const formattedDate = usedDate.length >= 8
@@ -691,6 +707,8 @@ async function syncCardBilling(
           transaction_date: formattedDate,
           approval_number: approvalNo || null,
           card_name: charge.resCardName || CARD_CODES[org] || null,
+          //   못 받은 회차엔 아예 안 보낸다 — 한 번 채워 둔 번호를 빈 응답이 지우지 않게. (2026-08-12)
+          ...(bizno ? { merchant_bizno: bizno } : {}),
           source: "codef_card",
           mapping_status: "unmapped",
           raw_data: { cardNo, organization: org, usedDate, usedTime: charge.resUsedTime || "", charge },
@@ -704,10 +722,25 @@ async function syncCardBilling(
         } else {
           totalSynced++;
         }
+
+        //   ★ 같은 결제가 승인내역으로 먼저 들어와 있으면 위 upsert 는 **조용히 버려진다**.
+        //     external_id 가 서로 다르고(승인은 사용시각 포함, 청구는 없음) ON CONFLICT 가 안 걸리는데
+        //     BEFORE INSERT 트리거 card_tx_prevent_dup 이 내용 중복이라 판단해 return null 하기 때문.
+        //     그래서 사업자번호를 **청구내역만** 주는 카드사(롯데)는 번호가 통째로 버려졌다.
+        //     버려졌든 아니든, 아직 번호가 없는 그 결제 건에 번호만 얹는다. (2026-08-12)
+        if (bizno && approvalNo) {
+          await supabase.from("card_transactions")
+            .update({ merchant_bizno: bizno })
+            .eq("company_id", companyId)
+            .eq("transaction_date", formattedDate)
+            .eq("approval_number", approvalNo)
+            .is("merchant_bizno", null);
+        }
       }
     }
   }
 
+  if (biznoTotal > 0) debug.push(`card 가맹점 사업자번호: ${biznoSeen}/${biznoTotal}건`);
   return { synced: totalSynced, errors, debug };
 }
 
@@ -750,6 +783,7 @@ async function syncCardApprovals(
 
   let totalSynced = 0;
   let debuggedKeys = false;
+  let biznoSeen = 0, biznoTotal = 0;   // 청구내역과 같은 이유 — 카드사별 제공 여부를 눈에 보이게
 
   for (const { org, isPersonal } of cardAccounts) {
     const path = isPersonal
@@ -758,7 +792,10 @@ async function syncCardApprovals(
     const reqBody: Record<string, any> = {
       connectedId, organization: org,
       startDate: apprStart, endDate: apprEnd,
-      orderBy: "0", inquiryType: "1", memberStoreInfoType: "0",
+      //   "0"(미포함) 이면 resMemberStoreCorpNo 가 통째로 빈칸으로 온다 — 실제로 승인 479건 전부 빈칸이었다.
+      //   "1"(가맹점 포함) 이라야 사업자번호·업종·주소·전화가 붙는다. (2026-08-12)
+      //   "3"(가맹점+부가세)도 있지만 BC·현대는 그때 다른 조회화면(출력양식=회계)을 타므로 안 건드린다.
+      orderBy: "0", inquiryType: "1", memberStoreInfoType: "1",
     };
     if (!isPersonal) reqBody.applicationType = "0"; // 법인: 전체(취소 포함)
 
@@ -803,6 +840,8 @@ async function syncCardApprovals(
 
       const installments = Number(String(a.resInstallmentMonth || "0").replace(/,/g, "")) || null;
       const storeName = a.resMemberStoreName || "";
+      const bizno = merchantBizno(a.resMemberStoreCorpNo);
+      biznoTotal++; if (bizno) biznoSeen++;
       const cancelTag = cancelYN === "1" ? "[취소] " : cancelYN === "2" ? "[부분취소] " : "";
 
       // billing-list 와 동일 포맷 → 같은 승인건 자동 dedup.
@@ -817,6 +856,7 @@ async function syncCardApprovals(
         approval_number: approvalNo,
         card_name: a.resCardName || CARD_CODES[org] || null,
         installments,
+        merchant_bizno: bizno,
         source: "codef_card",
         mapping_status: "unmapped",
         raw_data: { channel: "codef_card_approval", organization: org, clientType: isPersonal ? "P" : "B", usedDate, usedTime, cancelYN, approval: a },
@@ -833,6 +873,7 @@ async function syncCardApprovals(
     }
   }
 
+  if (biznoTotal > 0) debug.push(`approval 가맹점 사업자번호: ${biznoSeen}/${biznoTotal}건`);
   return { synced: totalSynced, errors, debug };
 }
 

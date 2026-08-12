@@ -2171,6 +2171,7 @@ export type Database = {
           mapped_by: string | null
           mapping_status: string | null
           memo: string | null
+          merchant_bizno: string | null
           merchant_category: string | null
           merchant_name: string | null
           raw_data: Json | null
@@ -2203,6 +2204,7 @@ export type Database = {
           mapped_by?: string | null
           mapping_status?: string | null
           memo?: string | null
+          merchant_bizno?: string | null
           merchant_category?: string | null
           merchant_name?: string | null
           raw_data?: Json | null
@@ -2235,6 +2237,7 @@ export type Database = {
           mapped_by?: string | null
           mapping_status?: string | null
           memo?: string | null
+          merchant_bizno?: string | null
           merchant_category?: string | null
           merchant_name?: string | null
           raw_data?: Json | null

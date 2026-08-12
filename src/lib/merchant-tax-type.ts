@@ -40,7 +40,8 @@ export async function fetchMerchantKinds(companyId: string): Promise<Record<stri
 /**
  * 아직 모르는 번호만 국세청에 물어 채운다.
  *   · 이미 있는 번호는 건너뛴다(같은 가맹점을 다시 두드리지 않는다)
- *   · 국세청 함수가 한 번에 여러 개를 받으므로 100개씩 끊어 보낸다
+ *   · **10개씩** 끊어 보낸다 — verify-business-number 가 11개부터 400 으로 막는다
+ *     (2026-08-12: 100개씩 보내다 전량 400. 그동안 카드 사업자번호가 하나도 없어 안 드러났다)
  *   · 못 알아본 것도 **기록은 남긴다** — 안 그러면 다음에 또 같은 번호를 두드린다
  */
 export async function fillMerchantKinds(
@@ -58,9 +59,10 @@ export async function fillMerchantKinds(
   }
   if (todo.length === 0) return 0;
 
+  const BATCH = 10;   // verify-business-number 의 상한 (넘기면 400)
   let filled = 0;
-  for (let i = 0; i < todo.length; i += 100) {
-    const batch = todo.slice(i, i + 100);
+  for (let i = 0; i < todo.length; i += BATCH) {
+    const batch = todo.slice(i, i + BATCH);
     try {
       const { data, error } = await supabase.functions.invoke("verify-business-number", {
         body: { businessNumbers: batch },
@@ -82,7 +84,7 @@ export async function fillMerchantKinds(
     } catch {
       //   한 묶음이 실패해도 나머지는 계속한다 — 전부 실패해야 0 이다
     }
-    onProgress?.(Math.min(i + 100, todo.length), todo.length);
+    onProgress?.(Math.min(i + BATCH, todo.length), todo.length);
   }
   return filled;
 }
