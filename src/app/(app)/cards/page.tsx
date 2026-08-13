@@ -24,6 +24,7 @@ import { getBankSyncAccess } from "@/lib/billing";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
 import { SortToolbar } from "@/components/sort-toolbar";
 import { SortableTh } from "@/components/sortable-th";
+import { BankLogo } from "@/components/bank-logo";
 import { EmptyState } from "@/components/empty-state";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { NATURE_LABEL } from "@/lib/account-nature";
@@ -1132,6 +1133,8 @@ function MiniCard({
           />
         ) : (
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            {/* 카드사 브랜드 로고 (2026-08-13 사장님: 실제 카드사 로고) — 발급사(card_company) 우선, 없으면 카드명으로 추정 */}
+            <BankLogo name={card.card_company || card.card_name} size={24} />
             <p className="text-sm font-semibold text-[var(--text)] truncate">{card.card_name}</p>
             {canEditName && (
               <button

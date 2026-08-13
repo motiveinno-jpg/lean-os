@@ -30,6 +30,7 @@ import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { SortToolbar } from "@/components/sort-toolbar";
 import { SortableTh } from "@/components/sortable-th";
+import { BankLogo } from "@/components/bank-logo";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -722,7 +723,11 @@ export default function BankPage() {
                 className="bank-account-card glass-card card-hover group"
               >
                 <div className="flex items-start justify-between mb-2 gap-2">
-                  <h3 className="text-sm font-semibold text-[var(--text)] truncate flex-1 min-w-0">{name}</h3>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {/* 은행 브랜드 로고 (2026-08-13 사장님: 실제 은행 로고) */}
+                    <BankLogo name={a.bankName || name} size={26} />
+                    <h3 className="text-sm font-semibold text-[var(--text)] truncate min-w-0">{name}</h3>
+                  </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {/* 통장 이름 편집(연필) — 카드 클릭과 분리(stopPropagation) */}
                     <button

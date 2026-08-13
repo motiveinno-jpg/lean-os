@@ -8964,3 +8964,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 엑셀 — 내려받기·올리기 한 버튼 (2026-08-13 사장님 지시) */
 .qk-xls-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/5 px-2.5 text-[12px] font-bold text-emerald-700 transition-colors hover:border-emerald-500 hover:bg-emerald-500/10; }
 .qk-xls-n { @apply not-italic ml-auto shrink-0 rounded-md bg-[var(--bg-surface)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[var(--text-dim)]; }
+
+/* ── 은행·카드사 브랜드 로고 배지 (2026-08-13 사장님: 실제 은행 로고) ── */
+.bank-logo { @apply inline-flex items-center justify-center rounded-full overflow-hidden shrink-0 bg-white border border-[var(--border)]; }
+.bank-logo img { @apply w-full h-full object-contain; }
+.bank-logo-mono { @apply font-extrabold leading-none border-0; }
