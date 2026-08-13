@@ -15,11 +15,12 @@ export async function resolveBank(
 ): Promise<BankAccount | null> {
   // Priority 1: Deal-level bank account override
   if (dealBankAccountId) {
+    // maybeSingle — 삭제된 계좌 id 면 행 0개, .single() 은 406 을 던져 오류 로그를 남긴다 (2026-08-13)
     const data = logRead('lib/routing:data', await supabase
       .from('bank_accounts')
       .select('*')
       .eq('id', dealBankAccountId)
-      .single());
+      .maybeSingle());
     if (data) return data;
   }
 
@@ -52,13 +53,15 @@ export async function resolveBank(
   }
 
   // Priority 4: Primary bank account
+  // maybeSingle — 주 통장을 지정하지 않은 회사면 행 0개인데 .single() 이 406 으로
+  //   오류 로그를 채웠다 (2026-08-13 사장님 결재 처리 중 실발생). 없으면 조용히 null.
   const primary = logRead('lib/routing:primary', await supabase
     .from('bank_accounts')
     .select('*')
     .eq('company_id', companyId)
     .eq('is_primary', true)
     .limit(1)
-    .single());
+    .maybeSingle());
 
   return primary || null;
 }
