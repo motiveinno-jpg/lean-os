@@ -2348,6 +2348,9 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .approval-form-field-rows { @apply py-1; }
 .approval-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .approval-tab-item { @apply inline-flex items-center gap-1.5; }
+/* 모바일에서 탭 7개가 화면을 밀어내던 것(2026-08-13 전수 QA) — 바 안에서 가로 스크롤 */
+.approval-tab-bar { @apply flex w-full max-w-full overflow-x-auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.approval-tab-bar::-webkit-scrollbar { display: none; }
 .approval-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
 /* 2026-07-21 QA: 결재관리 유형 필터 셀렉트 — 화살표는 전역 select 규칙(파일 하단)이 처리 */
 .approval-type-select {
@@ -2782,9 +2785,14 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 
 /* ═══ 클래스명 가독성 정리 재작업 — 배치7(growth) 마커 스타일 (2026-07-16) ═══ */
 .payments-tab-bar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
+/* 모바일에서 탭 바가 화면을 밀어내지 않게 — 바 안에서 가로 스크롤 (2026-08-13 전수 QA) */
+.payments-tab-bar .seg-bar { @apply flex max-w-full overflow-x-auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.payments-tab-bar .seg-bar::-webkit-scrollbar { display: none; }
 .payment-stats-grid { @apply grid grid-cols-2 md:grid-cols-4 gap-4 mb-6; }
 .payment-manual-form-card { @apply p-6 mb-6; }
-.payment-filter-bar { @apply mb-4; }
+/* 모바일 가로 넘침 방지(2026-08-13 전수 QA) — 탭이 많으면 바 안에서 스크롤 */
+.payment-filter-bar { @apply mb-4 flex w-full max-w-full overflow-x-auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.payment-filter-bar::-webkit-scrollbar { display: none; }
 .payment-bulk-action-bar { @apply sticky top-0 z-10 mb-3 bg-[var(--primary)]/10 border border-[var(--primary)]/30 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3; }
 .payment-queue-table { @apply overflow-hidden; }
 .payment-receipt-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }
@@ -3011,7 +3019,8 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .close-balance-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
 .ledger-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .ledger-period-picker { @apply flex items-center gap-2 flex-wrap; }
-.ledger-toolbar-actions { @apply flex items-center gap-2 flex-wrap shrink-0; }
+/* shrink-0 이 컨테이너를 콘텐츠 폭으로 고정해 모바일에서 줄바꿈이 안 걸리던 것 (2026-08-13 전수 QA) */
+.ledger-toolbar-actions { @apply flex items-center gap-2 flex-wrap max-w-full; }
 .ledger-kpi-row { @apply grid grid-cols-2 lg:grid-cols-3 gap-4; }
 .ledger-kpi-total { @apply p-5 flex flex-col gap-3; }
 .ledger-kpi-count { @apply p-5 flex flex-col gap-3; }

@@ -234,7 +234,8 @@ export default function PartnerLedgerPage() {
               );
             })}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+          {/* 모바일에서 연도+회계기간이 한 줄 강제로 넘치던 것 — 줄바꿈 허용 (2026-08-13 전수 QA) */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
             {/*   연도 프리셋 — 고르면 그 해 1/1~12/31 을 기간에 채운다(지름길). 값은 늘 기간 하나가 진실. */}
             <select value={isWholeYear ? customFrom.slice(0, 4) : "custom"}
               onChange={(e) => {
