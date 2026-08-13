@@ -49,6 +49,40 @@ export function TossCardSection({ companyId, isMaster }: { companyId: string | n
     enabled: !!companyId && tossEnabled,
   });
 
+  // Stripe 로 결제 중인 구독 — 등록된 국내카드가 있으면 '국내카드로 전환'을 보여준다 (2026-08-14)
+  const { data: subRow } = useQuery({
+    queryKey: ["toss-switch-sub", companyId],
+    queryFn: async () => {
+      // payment_provider 는 생성 타입(database.ts)에 아직 없어 any 캐스팅.
+      const { data } = await (supabase as any)
+        .from("subscriptions")
+        .select("payment_provider, status, stripe_subscription_id")
+        .eq("company_id", companyId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as { payment_provider: string | null; status: string | null; stripe_subscription_id: string | null } | null;
+    },
+    enabled: !!companyId && tossEnabled,
+  });
+
+  const switchMut = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/billing/switch-to-toss", { method: "POST" });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error?.message || "전환 실패");
+      return j.data as { nextChargeAt: string | null };
+    },
+    onSuccess: (d) => {
+      const when = d?.nextChargeAt ? new Date(d.nextChargeAt).toLocaleDateString("ko-KR") : "만기일";
+      toast(`국내카드로 전환했습니다. 다음 결제(${when})부터 이 카드로 청구됩니다.`, "success");
+      qc.invalidateQueries({ queryKey: ["toss-switch-sub", companyId] });
+      qc.invalidateQueries({ queryKey: ["subscription"] });
+      qc.invalidateQueries({ queryKey: ["entitlement"] });
+    },
+    onError: (e: any) => toast(friendlyError(e, "국내카드 전환에 실패했습니다"), "error"),
+  });
+
   const removeMut = useMutation({
     mutationFn: () => callBillingFn("remove"),
     onSuccess: () => {
@@ -60,6 +94,9 @@ export function TossCardSection({ companyId, isMaster }: { companyId: string | n
 
   const startRegister = async () => {
     if (!clientKey) { toast("토스 클라이언트 키가 설정되지 않았습니다 (NEXT_PUBLIC_TOSS_CLIENT_KEY)", "error"); return; }
+    // 순수 카드 등록 의도 — 결제하기에서 남았을 수 있는 결제 예약을 버린다.
+    //   안 지우면 등록 완료 콜백이 묵은 예약을 주워 예고 없이 결제된다 (보안 리뷰 H-2).
+    sessionStorage.removeItem("toss-pending-start");
     setOpening(true);
     try {
       const { customerKey } = await callBillingFn("prepare");
@@ -111,6 +148,21 @@ export function TossCardSection({ companyId, isMaster }: { companyId: string | n
           </div>
           {isMaster && (
             <div className="flex gap-2">
+              {subRow && ["active", "past_due"].includes(subRow.status || "") && subRow.payment_provider !== "toss" && !!subRow.stripe_subscription_id && (
+                <button
+                  onClick={async () => {
+                    if (!(await confirmDialog({
+                      title: "국내카드로 전환",
+                      desc: "해외카드(Stripe) 자동 결제를 중단하고, 남은 이용 기간이 끝나는 날부터 이 국내카드로 청구합니다.",
+                    }))) return;
+                    switchMut.mutate();
+                  }}
+                  disabled={switchMut.isPending}
+                  className="btn-primary btn-sm disabled:opacity-50"
+                >
+                  {switchMut.isPending ? "전환 중..." : "국내카드로 전환"}
+                </button>
+              )}
               <button onClick={startRegister} disabled={opening} className="btn-secondary btn-sm disabled:opacity-50">
                 {opening ? "여는 중..." : "카드 변경"}
               </button>

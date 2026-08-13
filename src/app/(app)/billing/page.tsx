@@ -19,6 +19,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useMyPermissions } from "@/lib/permissions";
+import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { TossCardSection } from "./_components/TossCardSection";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
@@ -61,6 +62,8 @@ function BillingPageInner() {
   const { isMaster: billingIsMaster } = useMyPermissions();
   const [tab, setTab] = useState<Tab>("plan");
   const [cycle, setCycle] = useState<BillingCycle>("monthly"); // 2026-07-22 연간 토글 복원 (연간 10% 할인)
+  // 결제수단 — 국내카드(토스) 기본, 해외카드(Stripe) 선택 (2026-08-14)
+  const [payMethod, setPayMethod] = useState<"toss" | "stripe">("toss");
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [showUpgradeModal, setShowUpgradeModal] = useState<string | null>(null);
@@ -281,6 +284,12 @@ function BillingPageInner() {
   const currentPlan = subscription?.subscription_plans as any;
   const currentSlug = currentPlan?.slug || "free";
   const hasStripeSubscription = !!subscription?.stripe_customer_id;
+  // 국내카드(토스) 구독 — 청구 주체가 토스면 Stripe 잔재(stripe_customer_id)가 남아 있어도 토스로 판정.
+  //   payment_provider 는 생성 타입(database.ts)에 아직 없어 any 캐스팅.
+  const hasTossSubscription = (subscription as any)?.payment_provider === "toss"
+    && ["active", "past_due"].includes(subscription?.status || "");
+  // 국내카드 결제는 토스 클라이언트 키가 배선된 환경에서만 노출.
+  const tossEnabled = !!process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
 
   // entitlement 기반 표시: 해지 예약 중이면 기존 플랜 유지 노출, 실효(만료/해지 완료) 시 Free.
   const cancelScheduled = entitlement?.display_status === "cancel_scheduled";
@@ -321,26 +330,31 @@ function BillingPageInner() {
     ? kstDateStr(new Date(entitlement.effective_until))
     : null;
 
+  /** 연간 결제 동의 확인·기록 — 미동의면 false (국내카드·해외카드 공통) */
+  async function ensureAnnualConsent(planSlug: string): Promise<boolean> {
+    if (cycle !== "annual") return true;
+    // 연간은 환불 불가 고지에 동의해야만 진행 — 동의 없이는 결제를 만들지 않는다.
+    if (!annualRefundAck) {
+      toast("연간 결제는 환불 불가 안내에 동의해야 진행할 수 있습니다.", "error");
+      return false;
+    }
+    // 연간 동의는 결제 건마다 남긴다(가입 동의와 달리 1회성이 아님).
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (authUser) {
+      await recordConsent({
+        authId: authUser.id,
+        consentType: "annual_billing_no_refund",
+        companyId,
+        context: { planSlug, billingCycle: cycle, seatCount: usage?.employees || 1 },
+      });
+    }
+    return true;
+  }
+
   /** Stripe Checkout */
   async function handleStripeCheckout(planSlug: string) {
     if (!companyId) return;
-    // 연간은 환불 불가 고지에 동의해야만 진행 — 동의 없이는 결제 세션을 만들지 않는다.
-    if (cycle === "annual" && !annualRefundAck) {
-      toast("연간 결제는 환불 불가 안내에 동의해야 진행할 수 있습니다.", "error");
-      return;
-    }
-    // 연간 동의는 결제 건마다 남긴다(가입 동의와 달리 1회성이 아님).
-    if (cycle === "annual") {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        await recordConsent({
-          authId: authUser.id,
-          consentType: "annual_billing_no_refund",
-          companyId,
-          context: { planSlug, billingCycle: cycle, seatCount: usage?.employees || 1 },
-        });
-      }
-    }
+    if (!(await ensureAnnualConsent(planSlug))) return;
     setIsPaymentLoading(true);
     track("checkout_start", { plan: planSlug, cycle }); // 계측 — 결제 페이지로 넘어가기 직전
     try {
@@ -382,6 +396,66 @@ function BillingPageInner() {
       window.location.href = result.data.url;
     } catch (err: any) {
       toast(friendlyError(err, "결제 처리 중 오류가 발생했습니다."), "error");
+      setIsPaymentLoading(false);
+    }
+  }
+
+  /** 국내카드(토스) 결제 시작 — 카드가 없으면 등록창부터, 있으면 즉시 청구 (2026-08-14) */
+  async function handleTossStart(planSlug: string) {
+    if (!companyId) return;
+    if (!(await ensureAnnualConsent(planSlug))) return;
+    setIsPaymentLoading(true);
+    track("checkout_start", { plan: planSlug, cycle, method: "toss" });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("로그인이 필요합니다");
+
+      const { data: cardInfo } = await (db as any).rpc("get_toss_card_info", { p_company_id: companyId });
+      const card = Array.isArray(cardInfo) ? cardInfo[0] : cardInfo;
+      if (!card?.registered_at) {
+        // 카드가 없다 — 등록창을 띄우고, 등록 콜백 화면이 아래 저장값으로 결제까지 잇는다.
+        //   authId·ts 를 함께 묶는다 — 다른 사용자 세션이나 한참 뒤 등록이 이 예약을
+        //   주워 예고 없이 결제되는 것을 콜백이 걸러낸다 (2026-08-14 보안 리뷰 H-2).
+        sessionStorage.setItem("toss-pending-start", JSON.stringify({
+          planSlug, billingCycle: cycle, authId: session.user.id, ts: Date.now(),
+        }));
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/toss-billing-key`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: "prepare" }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(j?.error || "카드 등록 준비에 실패했습니다");
+        const tossPayments = await loadTossPayments(process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY!);
+        const payment = tossPayments.payment({ customerKey: j.customerKey });
+        await payment.requestBillingAuth({
+          method: "CARD",
+          successUrl: `${window.location.origin}/billing/toss-callback/`,
+          failUrl: `${window.location.origin}/billing/toss-callback/`,
+        });
+        return; // 등록창으로 이동 — 이후는 콜백 화면 몫
+      }
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/toss-charge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ mode: "start", planSlug, billingCycle: cycle }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.ok) throw new Error(j?.error || "결제에 실패했습니다");
+      qc.invalidateQueries({ queryKey: ["subscription"] });
+      qc.invalidateQueries({ queryKey: ["entitlement"] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      toast(
+        j.chargedNow
+          ? "국내카드 결제가 완료되었습니다! 플랜이 열렸습니다."
+          : "남은 이용 기간 종료 후 국내카드로 자동 결제됩니다.",
+        "success",
+      );
+    } catch (e: any) {
+      // 사용자가 등록창을 닫은 건 오류가 아니다.
+      if (e?.code !== "USER_CANCEL") toast(friendlyError(e, "국내카드 결제에 실패했습니다."), "error");
+    } finally {
       setIsPaymentLoading(false);
     }
   }
@@ -431,7 +505,8 @@ function BillingPageInner() {
     if (showUpgradeModal === "free") {
       setShowUpgradeModal(null);
       // Stripe 구독자는 portal에서 정식 해지 → 결제기간 종료시 free 전환 (직접 DB조작 금지)
-      if (hasStripeSubscription) {
+      //   토스 구독자는 포털이 아니라 아래 자체 해지 API 로 — Stripe 에 구독이 없다.
+      if (hasStripeSubscription && !hasTossSubscription) {
         await handleOpenPortal();
         return;
       }
@@ -455,8 +530,13 @@ function BillingPageInner() {
     const slug = showUpgradeModal;
     setShowUpgradeModal(null);
     // 이미 Stripe 구독자이면 portal에서 플랜 변경 (중복 구독 방지)
-    if (hasStripeSubscription && currentSlug !== 'free') {
+    if (hasStripeSubscription && !hasTossSubscription && currentSlug !== 'free') {
       await handleOpenPortal();
+      return;
+    }
+    // 결제수단 분기 — 국내카드는 토스 빌링, 해외카드는 Stripe 체크아웃.
+    if (tossEnabled && payMethod === "toss") {
+      await handleTossStart(slug);
       return;
     }
     await handleStripeCheckout(slug);
@@ -594,7 +674,7 @@ function BillingPageInner() {
               <div className="stat-tile-value">
                 {subscription?.current_period_end ? kstDateStr(new Date(subscription.current_period_end)) : "—"}
               </div>
-              <div className="text-xs text-[var(--text-dim)]">{hasStripeSubscription ? "자동 결제 예정" : "결제 수단 미등록"}</div>
+              <div className="text-xs text-[var(--text-dim)]">{hasTossSubscription ? "국내카드 자동 결제 예정" : hasStripeSubscription ? "자동 결제 예정" : "결제 수단 미등록"}</div>
             </>
           )}
         </div>
@@ -979,14 +1059,14 @@ function BillingPageInner() {
                   </div>
                 </div>
                 {/* 해지는 자체 모달로 통일(2026-08-05 사장님) — 포털은 해지 예약 후 '구독 관리'에만 사용 */}
-                {hasStripeSubscription && !cancelScheduled ? (
+                {(hasStripeSubscription || hasTossSubscription) && !cancelScheduled ? (
                   <button
                     onClick={() => setShowCancelModal(true)}
                     className="px-4 py-2 rounded-xl text-sm font-semibold text-[var(--danger)] border border-[var(--danger)]/40 hover:bg-[var(--danger-dim)] transition"
                   >
                     구독 해지
                   </button>
-                ) : hasStripeSubscription && cancelScheduled ? (
+                ) : hasStripeSubscription && !hasTossSubscription && cancelScheduled ? (
                   <button
                     onClick={handleOpenPortal}
                     disabled={isPaymentLoading}
@@ -1072,7 +1152,7 @@ function BillingPageInner() {
               <div className="text-center py-12">
                 <div className="text-4xl mb-3"><Ico e="💳" /></div>
                 <p className="text-sm font-semibold text-[var(--text-muted)] mb-1">등록된 결제 수단이 없습니다</p>
-                <p className="text-xs text-[var(--text-dim)]">유료 플랜 결제 시 Stripe를 통해 카드가 등록됩니다</p>
+                <p className="text-xs text-[var(--text-dim)]">해외카드(Stripe)로 결제하면 여기에 카드가 등록됩니다 · 국내카드는 아래에서 등록하세요</p>
                 <button onClick={() => setTab("plan")} className="btn-secondary btn-sm mt-4">플랜 선택하고 등록하기</button>
               </div>
             )}
@@ -1086,7 +1166,7 @@ function BillingPageInner() {
               <h3 className="text-sm font-bold text-[var(--text)]">결제 안내</h3>
             </div>
             <div className="space-y-2 text-sm text-[var(--text-muted)]">
-              <div className="flex items-start gap-2"><span>•</span> Stripe를 통해 안전하게 결제됩니다 (PCI DSS Level 1)</div>
+              <div className="flex items-start gap-2"><span>•</span> 국내카드는 토스페이먼츠, 해외카드는 Stripe를 통해 안전하게 결제됩니다 (PCI DSS Level 1)</div>
               <div className="flex items-start gap-2"><span>•</span> 월간 결제: 매월 동일일에 자동 결제</div>
               <div className="flex items-start gap-2"><span>•</span> 결제 즉시 오너뷰 기능이 열립니다 (무료체험 없음)</div>
               <div className="flex items-start gap-2"><span>•</span> 부가세(VAT) 10%는 별도 청구됩니다</div>
@@ -1240,8 +1320,29 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
                 );
               })()}
             </div>
+            {/* 결제수단 선택 — 국내카드(토스) 기본 / 해외카드(Stripe) (2026-08-14) */}
+            {showUpgradeModal !== "free" && !(hasStripeSubscription && !hasTossSubscription && currentSlug !== "free") && tossEnabled && (
+              <div className="billing-method-choice">
+                <button
+                  type="button"
+                  onClick={() => setPayMethod("toss")}
+                  className={`billing-method-option ${payMethod === "toss" ? "billing-method-option-active" : ""}`}
+                >
+                  <span className="billing-method-name">국내카드</span>
+                  <span className="billing-method-desc">국내 발급 카드 · 토스페이먼츠</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayMethod("stripe")}
+                  className={`billing-method-option ${payMethod === "stripe" ? "billing-method-option-active" : ""}`}
+                >
+                  <span className="billing-method-name">해외카드</span>
+                  <span className="billing-method-desc">Visa·Master 등 · Stripe</span>
+                </button>
+              </div>
+            )}
             {/* 무료체험 폐지 (2026-08-11 사장님) — 즉시 청구를 명시 */}
-            {showUpgradeModal !== "free" && !(hasStripeSubscription && currentSlug !== "free") && (
+            {showUpgradeModal !== "free" && !(hasStripeSubscription && !hasTossSubscription && currentSlug !== "free") && (
               <p className="text-[11px] text-[var(--text-dim)] mb-4">
                 결제 완료 <b>즉시 위 금액이 청구</b>되고 오너뷰 기능이 열립니다. {cycle === "annual" ? "연간은 1년치가 한 번에 청구됩니다." : "이후 매월 같은 날 자동 결제됩니다."}
               </p>
@@ -1269,7 +1370,7 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
               >
                 {isPaymentLoading ? "로딩 중..."
                   : showUpgradeModal === "free" ? "다운그레이드"
-                  : hasStripeSubscription && currentSlug !== "free" ? "구독 관리에서 변경"
+                  : hasStripeSubscription && !hasTossSubscription && currentSlug !== "free" ? "구독 관리에서 변경"
                   : "지금 결제하기"}
               </button>
             </div>

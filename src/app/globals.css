@@ -3570,6 +3570,12 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 /* 국내카드(토스) 자동결제 등록 (2026-08-06) */
 .billing-toss-card { @apply p-6; }
 .toss-callback-panel { @apply max-w-md mx-auto mt-16 p-8 text-center; }
+/* 결제수단 선택 — 국내카드(토스) / 해외카드(Stripe) (2026-08-14) */
+.billing-method-choice { @apply grid grid-cols-2 gap-2 mb-4; }
+.billing-method-option { @apply flex flex-col items-start gap-0.5 px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] text-left transition hover:border-[var(--primary)]/50; }
+.billing-method-option-active { @apply border-[var(--primary)] bg-[var(--primary)]/10; }
+.billing-method-name { @apply text-sm font-bold text-[var(--text)]; }
+.billing-method-desc { @apply text-[11px] text-[var(--text-muted)]; }
 .billing-invoices-card { @apply overflow-hidden; }
 .billing-upgrade-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
 .billing-cancel-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4; }
