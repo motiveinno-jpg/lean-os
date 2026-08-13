@@ -57,19 +57,18 @@ export async function sendApprovalMails(params: {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.owner-view.com';
     const link = `${origin}/approvals?request=${params.requestId}`;
 
-    let ok = 0;
-    for (const r of recipients) {
+    const sendOne = async (email: string, name: string, authId?: string, kindLabel?: string) => {
       try {
         const res = await fetch(`${supabaseUrl}/functions/v1/send-approval-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({
-            email: r.email,
-            // 수신 거부·수신 주소 재정의는 서버가 이 uid 로 판정한다
-            recipientAuthId: r.auth_id || undefined,
-            recipientName: r.name || '',
+            email,
+            // 수신 거부·수신 주소 재정의는 서버가 이 uid 로 판정한다 (없으면 무조건 발송)
+            recipientAuthId: authId || undefined,
+            recipientName: name,
             kind: params.kind,
-            kindLabel: KIND_SUBJECT[params.kind],
+            kindLabel: kindLabel || KIND_SUBJECT[params.kind],
             actionTitle: params.title,
             actionType: params.requestType || 'approval',
             requesterName: params.requesterName || '',
@@ -79,9 +78,32 @@ export async function sendApprovalMails(params: {
             dashboardUrl: link,
           }),
         });
-        if (res.ok) ok++;
+        return res.ok;
       } catch {
-        // 개별 수신자 실패는 나머지 발송을 막지 않는다
+        return false; // 개별 수신자 실패는 나머지 발송을 막지 않는다
+      }
+    };
+
+    let ok = 0;
+    for (const r of recipients) {
+      if (await sendOne(r.email!, r.name || '', r.auth_id || undefined)) ok++;
+    }
+
+    // 총괄 알림 (2026-08-13 사장님) — 상신(requested)일 때만, 회사설정 > 회사정보의
+    //   '결재 상신 알림 — 총책임자' 주소로 1통 추가. 승인자에게 이미 간 주소면 중복 발송 안 함.
+    if (params.kind === 'requested') {
+      try {
+        const { data: me } = await db.from('users').select('company_id').eq('auth_id', session.user.id).maybeSingle();
+        if (me?.company_id) {
+          const { data: cs } = await db.from('company_settings').select('settings').eq('company_id', me.company_id).maybeSingle();
+          const chief = String((cs?.settings as any)?.approval_notify_email || '').trim();
+          const alreadySent = new Set(recipients.map((r) => (r.email || '').toLowerCase()));
+          if (chief.includes('@') && !alreadySent.has(chief.toLowerCase())) {
+            if (await sendOne(chief, '', undefined, '결재 상신 통보')) ok++;
+          }
+        }
+      } catch {
+        // 총괄 알림 실패도 결재 흐름·승인자 발송에 영향 없음
       }
     }
     return ok;
