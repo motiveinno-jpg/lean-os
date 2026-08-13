@@ -167,6 +167,9 @@ function CollectInner() {
   };
 
   const totalPending = SOURCES.reduce((n, s) => n + (status?.[s.key]?.pending ?? 0), 0);
+  //   진행 카운트 — 창을 닫아도 겉 버튼에 몇 개째인지 보인다
+  const totalCount = Object.keys(state).length;
+  const doneCount = Object.values(state).filter((r) => r.phase === "done" || r.phase === "error" || r.phase === "skip").length;
 
   //   조회 줄의 공통 조각 — 현황판이 직접 쓰고, 목록 탭에는 통째로 내려보낸다.
   //   탭마다 조건(매출·매입, 미처리만 …)이 달라서 **조회 줄은 탭이 완성**한다.
@@ -174,10 +177,13 @@ function CollectInner() {
   //   ★ 현황판에는 검색조건 패널이 없으므로 여기서만 달력(parts="all")을 쓴다.
   //     목록 탭은 숫자 칸만 두고 달력을 검색조건 안으로 넣는다 (탭이 직접 그린다).
   const rangeField = <DateRangeField from={from} to={to} onChange={applyRange} />;
+  //   ★ 도는 중에도 **누를 수 있다** — 창을 닫았다가 진행 상황을 다시 열어 보는 길이다
+  //     (2026-08-13 사장님 지시: "닫기 눌렀을 때 창 닫히고 백그라운드에서 돌고").
+  //     막아 두면 닫는 순간 진행 상황을 볼 방법이 사라진다.
   const syncButton = (
-    <button type="button" onClick={() => setOpen(true)} disabled={running}
-      className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-      {running ? "수집 중…" : "수집하기"}
+    <button type="button" onClick={() => setOpen(true)}
+      className={running ? "btn-secondary btn-sm collect-running" : "btn-primary btn-sm"}>
+      {running ? `수집 중 ${doneCount}/${totalCount} · 보기` : "수집하기"}
     </button>
   );
   //   배운 규칙을 볼 수 있어야 한다 — 안 보이는 자동화는 틀렸을 때 고칠 방법이 없다.
@@ -350,11 +356,11 @@ function CollectInner() {
 
       {/* ── 수집 창 ── */}
       {open && (
-        <div className="collect-overlay" onClick={() => !running && setOpen(false)}>
+        <div className="collect-overlay" onClick={() => setOpen(false)}>
           <div className="collect-box" onClick={(e) => e.stopPropagation()}>
             <div className="collect-box-head">
               <b>자료 수집</b>
-              <button type="button" onClick={() => !running && setOpen(false)} aria-label="닫기">✕</button>
+              <button type="button" onClick={() => setOpen(false)} aria-label="닫기">✕</button>
             </div>
 
             <div className="collect-box-body">
@@ -417,6 +423,12 @@ function CollectInner() {
               </div>
 
               {running && (
+                <p className="collect-bg-note">
+                  창을 닫아도 <b>수집은 계속됩니다</b> — 다른 화면에서 일하셔도 됩니다.
+                  진행 상황은 <b>수집 중 · 보기</b> 를 눌러 다시 열 수 있습니다.
+                </p>
+              )}
+              {running && (
                 <div className="collect-steps">
                   {picked.map((k) => {
                     const s = SOURCES.find((x) => x.key === k)!;
@@ -448,8 +460,10 @@ function CollectInner() {
                   {blocked.length > 0 && <span className="collect-pick-block"> · {blocked.length}종은 지금 못 받습니다</span>}
                 </span>
                 <span className="ml-auto flex items-center gap-2">
-                  <button type="button" onClick={() => setOpen(false)} disabled={running} className="btn-secondary btn-sm">
-                    {running ? "뒤에서 계속됩니다" : "취소"}
+                  {/*   ★ 예전엔 '뒤에서 계속됩니다' 라고 적어 놓고 **못 누르게** 해 뒀다 —
+                        되는 척하는 UI 는 없느니만 못하다. 이제 정말 닫히고 수집은 계속된다. */}
+                  <button type="button" onClick={() => setOpen(false)} className="btn-secondary btn-sm">
+                    {running ? "닫고 계속 받기" : "취소"}
                   </button>
                   <button type="button" onClick={go} disabled={running || runnable.length === 0}
                     className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
