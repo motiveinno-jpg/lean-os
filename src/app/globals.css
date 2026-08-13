@@ -8970,3 +8970,34 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .bank-logo { @apply inline-flex items-center justify-center rounded-full overflow-hidden shrink-0 bg-white border border-[var(--border)]; }
 .bank-logo img { @apply w-full h-full object-contain; }
 .bank-logo-mono { @apply font-extrabold leading-none border-0; }
+
+/* ══ 한 화면에 딱 맞추고 표만 안에서 스크롤 — 2026-08-13 사장님 지시 ═══════════
+   지시: "아래 끝쪽도 왼쪽 사이드바에 맞춰서 박스크기가 고정 … 설명 마지막 줄이 사이드바 끝선과
+          일치하게. 가로로 넓어지면 가로 스크롤도."
+
+   왜: 페이지째 스크롤하면 조회 줄·쪽 넘김이 위로 사라져, 무슨 조건으로 보고 있는지 잊은 채
+   숫자만 훑게 된다. 화면을 고정하고 **표만** 움직이면 조건과 결과가 늘 같이 보인다.
+
+   자릿수: main 이 위 88px(헤더바) · 아래 12px(pb-3) 을 잡는다 → 본문 높이 = 100vh − 100px.
+   사이드바도 아래 12px 을 남기므로 **끝선이 정확히 맞는다**(실측 sidebar bottom 988 / vh 1000).
+   ⚠️ 이 값은 app-shell 의 `pt-[88px]` · `md:pb-3` 과 짝이다 — 거기가 바뀌면 여기도 바꿔야 한다.
+
+   손대는 화면(md 이상)에서만 켠다. 폰에서는 손가락으로 페이지째 미는 게 자연스럽다. */
+@media (min-width: 768px) {
+  .collect-page { height: calc(100vh - 100px); min-height: 0; padding-bottom: 0; }
+  /* 상자와 그 부모는 남는 높이를 다 먹고, 안에서 줄어들 수 있어야 한다(min-height:0 필수) */
+  .collect-page > .ev-wrap { @apply min-h-0 flex-1; }
+  .collect-page > .qk-screen,
+  .ev-wrap > .qk-screen { @apply min-h-0 flex-1; }
+  .qk-screen { @apply flex min-h-0 flex-col; }
+  /* 실제로 스크롤되는 곳 — 표(가로·세로 둘 다) · 현황판 카드 격자 */
+  .qk-screen > .ev-scroll,
+  .qk-screen > .collect-grid { @apply min-h-0 flex-1; overflow: auto; }
+  .qk-screen > .collect-empty { @apply min-h-0 flex-1 content-center; }
+  /* 설명 줄은 마지막에 붙어 사이드바 끝선에서 끝난다 */
+  .collect-page > .collect-note,
+  .ev-wrap > .collect-note { @apply shrink-0; }
+}
+/* 표 머리단은 스크롤 안에서 붙어 있는다 — 아래로 내려가도 어느 칸인지 안 잊는다.
+   (thead th 에 배경이 있어야 밑줄이 비쳐 보이지 않는다 — .ev-table thead th 가 이미 칠한다) */
+.ev-scroll thead th { position: sticky; top: 0; z-index: 3; }
