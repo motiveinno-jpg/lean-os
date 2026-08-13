@@ -158,7 +158,10 @@ export function DateRangeField({
   const normalize = (s: Seg, raw: string): number => {
     const now = parse(today);
     const n = Number(raw);
-    if (s === "fy" || s === "ty") return raw === "9999" ? now.y : Math.min(2999, Math.max(1900, n || now.y));
+    //   ★ 올해보다 큰 연도는 **무조건 올해로** (2026-08-13 사장님 지시).
+    //     조회기간은 전부 '이미 있는 자료를 본다'는 뜻이라 내년·후년을 칠 이유가 없다 —
+    //     2222 를 치면 조용히 남아 0건이 뜨고, 사람은 자료가 없는 줄 안다.
+    if (s === "fy" || s === "ty") return Math.min(now.y, Math.max(1900, n || now.y));
     if (s === "fm" || s === "tm") return raw === "99" ? now.m : Math.min(12, Math.max(1, n || now.m));
     if (raw === "99") return now.d;
     return Math.max(1, n || now.d);   // 말일 보정은 아래에서 (그 달을 알아야 한다)
@@ -217,7 +220,12 @@ export function DateRangeField({
     //   ★ 옮기되 **친 글자는 그대로 둔다.** 값이 맞자마자 칸을 되돌리면 `12`월을 칠 때
     //     `1` 에서 1월로 튀고 칸이 `01` 로 바뀌어, 뒤이은 `2` 가 `012`→`01` 이 된다.
     //     실제로 12월을 못 고르는 버그였다 (2026-08-13). 되돌리기는 칸을 떠날 때(blur) 한다.
-    if (k === "y" && v.length === 4 && n >= 1900 && n <= 2999) setPanel(side, n, cur.m);
+    if (k === "y" && v.length === 4) {
+      //   올해보다 크면 올해로 끌어내리고, **칸에 보이는 글자도** 같이 바로잡는다
+      const y = Math.min(new Date(`${today}T00:00:00`).getFullYear(), Math.max(1900, n));
+      setPanel(side, y, cur.m);
+      if (y !== n) setJumpDraft((d) => ({ ...d, [`${side}y`]: pad(y, 4) }));
+    }
     if (k === "m" && n >= 1 && n <= 12) setPanel(side, cur.y, n);
   };
   /** 칸을 떠나면 친 글자를 버리고 지금 보고 있는 달로 되돌린다 (반쯤 친 `20` 이 남지 않게) */
@@ -259,7 +267,11 @@ export function DateRangeField({
             const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
             setJumpDraft((d) => ({ ...d, [`${side}y`]: v }));
             const n = Number(v);
-            if (v.length === 4 && n >= 1900 && n <= 2999) setView({ y: side === 0 ? n : n - 1, m: view.m });
+            if (v.length === 4) {
+              const y = Math.min(new Date(`${today}T00:00:00`).getFullYear(), Math.max(1900, n));
+              setView({ y: side === 0 ? y : y - 1, m: view.m });
+              if (y !== n) setJumpDraft((d) => ({ ...d, [`${side}y`]: pad(y, 4) }));
+            }
           }} />
         <em>년</em>
       </span>
@@ -493,8 +505,7 @@ export function DateRangeField({
 
           <div className="drf-foot">
             <span>
-              년 <b>9999</b> · {isM ? "월" : "월·일"} <b>99</b> 를 치면 오늘 기준으로 채워집니다 ·
-              {isM ? " 이번 달 " : " 오늘 "}<b className="mono-number">{isM ? nowYM : today}</b>
+              {isM ? "이번 달 " : "오늘 "}<b className="mono-number">{isM ? nowYM : today}</b>
             </span>
             {onClear && !empty && (
               <button type="button" onClick={() => { onClear(); setHalf(null); setOpen(false); }}
