@@ -155,6 +155,7 @@ async function teardown() {
       cid uuid;
       aids uuid[];
       stranger int;
+      r record;
     begin
       select company_id into cid from users where email = '${OWNER_EMAIL}' limit 1;
       if cid is null then
@@ -200,6 +201,18 @@ async function teardown() {
       delete from company_settings where company_id = cid;
       delete from subscriptions where company_id = cid;
       delete from users where company_id = cid;
+      -- 위 나열에 없는 신규 테이블이 회사를 참조해도 안 깨지게 — 잔여 참조 일괄 삭제 (2026-08-13,
+      --   doc_templates·closing_checklists 가 잇달아 teardown 을 막은 뒤 근본 보강)
+      for r in
+        select distinct tc.table_name as t, kcu.column_name as c
+        from information_schema.table_constraints tc
+        join information_schema.key_column_usage kcu on kcu.constraint_name = tc.constraint_name and kcu.table_schema = 'public'
+        join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name and ccu.table_schema = 'public'
+        where tc.constraint_type = 'FOREIGN KEY' and ccu.table_name = 'companies' and tc.table_schema = 'public'
+          and tc.table_name <> 'users'
+      loop
+        execute format('delete from %I where %I = $1', r.t, r.c) using cid;
+      end loop;
       delete from companies where id = cid;  -- advisor_company_links 는 FK cascade 로 함께 삭제
       delete from auth.users where id = any(aids);
       -- 세무사 포털 테스트 계정(qa-seed-advisor 등) — tax_advisors + auth 정리 (2026-08-11)
