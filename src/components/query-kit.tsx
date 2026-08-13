@@ -70,11 +70,16 @@ export function periodQuicks(): { key: string; label: string; from: string; to: 
 // ── 1줄: 조회 조건 ────────────────────────────────────────────────────────
 
 /**
- * 조회 머리 — **탭 · 조회 줄 · 걸린 조건 · 결과 요약을 한 상자에** 담는다 (2026-08-13 사장님 지시).
- *   낱장으로 흩어져 있으면 어디까지가 '조회하는 곳'인지 눈으로 안 갈린다.
- *   상자 하나로 묶으면 그 아래(표)부터가 결과라는 게 저절로 읽힌다.
- *   ⚠️ 안에 검색조건 패널이 떠 있으므로 **overflow 를 자르면 안 된다.**
+ * 조회 화면 상자 — **탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김을 통째로 한 상자**에.
+ *   (2026-08-13 사장님 지시 — 목업 그대로. 처음엔 조회부와 표를 따로 뒀는데 그게 틀렸다.)
+ *   낱장으로 흩어져 있으면 "이 표가 저 조건의 결과"라는 게 눈으로 안 이어진다.
+ *   ⚠️ 안에서 검색조건 패널·달력이 떠오르므로 **overflow 를 자르면 안 된다.**
  */
+export function QueryScreen({ children }: { children: ReactNode }) {
+  return <div className="qk-screen">{children}</div>;
+}
+
+/** 상자 윗부분 — 탭 · 조회 줄 · 걸린 조건 · 결과 요약 (아래 표와 선 하나로 갈린다) */
 export function QueryHead({ children }: { children: ReactNode }) {
   return <div className="qk-head">{children}</div>;
 }
@@ -472,6 +477,53 @@ export function HelperMenu({ items }: { items: HelperItem[] }) {
                 <span>{it.label}</span>
                 {it.source && <em className="qk-help-src">{it.source}</em>}
                 {it.badge != null && it.badge > 0 && <em className="qk-help-item-badge">{it.badge}</em>}
+              </span>
+              {it.hint && <small className="qk-help-item-hint">{it.hint}</small>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export type ExcelItem = {
+  label: string;
+  onClick: () => void;
+  hint?: string;
+  /** 몇 건이 대상인지 — 내려받기 전에 알고 누르게 */
+  count?: number;
+  disabled?: boolean;
+};
+
+/**
+ * 엑셀 — 내려받기·올리기를 한 버튼 안에 (2026-08-13 사장님 지시).
+ *   ★ **되는 것만 넣는다.** 되는 척하는 메뉴는 없느니만 못하다 — 눌러 보고 아무 일도 안 일어나면
+ *     그 다음부터 메뉴 전체를 안 믿는다.
+ */
+export function ExcelMenu({ items }: { items: ExcelItem[] }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", away);
+    return () => document.removeEventListener("mousedown", away);
+  }, [open]);
+  if (items.length === 0) return null;
+  return (
+    <div className="qk-help" ref={box}>
+      <button type="button" onClick={() => setOpen((v) => !v)} className="qk-xls-btn">
+        엑셀<span className="qk-caret">▾</span>
+      </button>
+      {open && (
+        <div className="qk-help-pop">
+          {items.map((it) => (
+            <button key={it.label} type="button" disabled={it.disabled}
+              onClick={() => { setOpen(false); it.onClick(); }} className="qk-help-item">
+              <span className="qk-help-item-top">
+                <span>{it.label}</span>
+                {it.count != null && <em className="qk-xls-n">{it.count.toLocaleString("ko-KR")}건</em>}
               </span>
               {it.hint && <small className="qk-help-item-hint">{it.hint}</small>}
             </button>

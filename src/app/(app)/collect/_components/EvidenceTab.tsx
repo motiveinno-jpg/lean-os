@@ -14,7 +14,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { appConfirm } from "@/components/global-confirm";
 import {
-  QueryHead, QueryBar, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
+  QueryScreen, QueryHead, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
+  ExcelMenu, type ExcelItem,
   Pager, usePager, ConditionPanel, ConditionRow, TokenField, AmountRange, AppliedChips,
   QuickSearch, quickSearchHit, quickTerms, amountHit, periodQuicks,
   useSavedQueries, SavedTabs, type HelperItem, type AppliedChip,
@@ -36,6 +37,8 @@ import {
 } from "@/lib/vat-voucher";
 import type { SourceKey } from "@/lib/collect";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag, type RuleKind } from "@/lib/voucher-rules";
+import { fetchAllPages } from "@/lib/fetch-all";
+import { exportToExcel } from "@/lib/excel-export";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 type Row = {
@@ -90,15 +93,17 @@ type Cond = {
   card: string[];      // 카드 이름 (카드 탭만)
   kind: string;        // 구분 — 법인·일반·간이·면세 (카드 탭만)
   dir: "all" | "sale" | "purchase";
+  todo: "todo" | "all"; // 전표 미처리만 볼지 — 검색조건 안으로 옮겼다(2026-08-13 사장님 지시)
   item: string;        // 품명
   min: string; max: string;   // 합계 금액 범위
   size: number;        // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
 };
-const EMPTY: Cond = { partner: [], acct: [], card: [], kind: "", dir: "all", item: "", min: "", max: "", size: 50 };
+const EMPTY: Cond = { partner: [], acct: [], card: [], kind: "", dir: "all", todo: "todo", item: "", min: "", max: "", size: 50 };
 /** 배지에 셀 것 — 줄 수는 '좁히는 조건'이 아니라 보기 방식이라 안 센다 */
 const condCount = (c: Cond) =>
   c.partner.length + c.acct.length + c.card.length
-  + (c.kind ? 1 : 0) + (c.dir !== "all" ? 1 : 0) + (c.item ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
+  + (c.kind ? 1 : 0) + (c.dir !== "all" ? 1 : 0) + (c.todo !== "todo" ? 1 : 0)
+  + (c.item ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
 
 const DIR_CHIPS = [
   { value: "all", label: "전체" }, { value: "sale", label: "매출" }, { value: "purchase", label: "매입" },
@@ -128,7 +133,6 @@ export function EvidenceTab({
   const { toast } = useToast();
   const qc = useQueryClient();
   //   조회 줄에 있는 것은 **즉시** 반영된다 (기간은 page.tsx 가 쥐고 있다)
-  const [onlyTodo, setOnlyTodo] = useState(true);
   const [q, setQ] = useState("");
   //   검색조건 패널 — draft 는 고르는 중, live 는 '조회'를 눌러 확정된 것
   const [panelOpen, setPanelOpen] = useState(false);
@@ -159,10 +163,13 @@ export function EvidenceTab({
     return m;
   }, [accounts]);
 
-  const { data: rows = [], isLoading } = useQuery<Row[]>({
+  const { data: fetched, isLoading } = useQuery({
     queryKey: ["collect-rows", companyId, from, to, kind],
     queryFn: () => fetchRows(companyId, from, to, kind),
   });
+  const rows = fetched?.rows ?? [];
+  //   자를 수밖에 없었을 때만 뜬다 — 조용히 자르면 '이게 전부'로 읽힌다
+  const capped = fetched?.capped ?? false;
 
   //   학습된 규칙 — 2단계에서 전표를 되읽던 방식을 표로 올렸다(4단계).
   //   거래처가 없는 자료(카드 가맹점·현금영수증 상호)도 이제 배운다.
@@ -248,7 +255,7 @@ export function EvidenceTab({
   };
 
   const shownUnsorted = rows.filter((r) => {
-    if (onlyTodo && r.posted) return false;
+    if (live.todo === "todo" && r.posted) return false;
     const acct = acctOf(r).acct;
     const total = amountsOf(r).supply + amountsOf(r).vat;
     //   빠른검색 — 글자 하나로 거래처·계정·카드·품명·금액을 한꺼번에 (쉼표=또는)
@@ -289,7 +296,7 @@ export function EvidenceTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap, live, q]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다 (2026-08-13 사장님 지시)
-  const pager = usePager(shown, live.size, `${from}|${to}|${kind}|${onlyTodo}|${q}|${JSON.stringify(live)}`);
+  const pager = usePager(shown, live.size, `${from}|${to}|${kind}|${q}|${JSON.stringify(live)}`);
   //   선택은 **쪽을 넘겨도 남는다** — 2쪽까지 골라 한 번에 전표로 만들 수 있어야 한다
   const selRows = shown.filter((r) => sel.has(r.id));
   const sumSupply = shown.reduce((n, r) => n + amountsOf(r).supply, 0);
@@ -533,7 +540,6 @@ export function EvidenceTab({
   const saved = useSavedQueries(`collect:${kind}`, companyId);
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
-    if (typeof p.onlyTodo === "boolean") setOnlyTodo(p.onlyTodo);
     if (typeof p.q === "string") setQ(p.q);
     const c = { ...EMPTY, ...(p.cond as Partial<Cond> | undefined) };
     setDraft(c); setLive(c);
@@ -555,7 +561,7 @@ export function EvidenceTab({
     for (const r of rows) {
       const a2 = acctOf(r).acct;
       const total = amountsOf(r).supply + amountsOf(r).vat;
-      if (onlyTodo && r.posted) continue;
+      if (draft.todo === "todo" && r.posted) continue;
       if (!quickSearchHit(q, [r.partnerName, r.bizno, r.item, r.cardName, a2?.name, a2?.code], [total])) continue;
       if (draft.dir !== "all" && vatType(vatCodeOf(r))?.side !== draft.dir) continue;
       if (draft.partner.length && !draft.partner.includes(r.partnerName)) continue;
@@ -568,7 +574,43 @@ export function EvidenceTab({
     }
     return n;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, draft, q, onlyTodo, override, rules, cardMap, merchantKinds]);
+  }, [rows, draft, q, override, rules, cardMap, merchantKinds]);
+
+  //   엑셀 — 지금 조건 그대로, 표에 보이는 칸 그대로 내려받는다 (2026-08-13 사장님 지시).
+  //   ★ **되는 것만 넣는다.** 눌러도 아무 일 없는 메뉴가 하나라도 있으면 그 뒤로 메뉴를 안 믿는다.
+  const xlsRows = (list: Row[]) => list.map((r) => {
+    const a = acctOf(r).acct;
+    const amt = amountsOf(r);
+    const t = vatType(vatCodeOf(r));
+    const lines = linesFor(r);
+    const counter = t?.side === "sale" ? lines[0] : lines[lines.length - 1];
+    return {
+      "일자": r.date,
+      "거래처": r.partnerName,
+      "사업자등록번호": r.bizno || "",
+      "구분": merchantOf(r)?.kind ?? "",
+      "유형": vatCodeOf(r) === GENERAL_CODE ? "3. 일반" : (t?.label ?? ""),
+      "품명": r.item,
+      "공급가액": amt.supply,
+      "부가세": amt.vat,
+      "합계": amt.supply + amt.vat,
+      "계정과목": a ? `${a.code} ${a.name}` : "",
+      "상대계정": counter?.code ? `${counter.code} ${counter.name}` : "",
+      "상태": r.posted ? `확정 #${r.voucherNo ?? ""}` : "미처리",
+    };
+  });
+  const KIND_LABEL: Record<string, string> = {
+    tax_invoice: "전자세금계산서", exempt_invoice: "전자계산서", cash_receipt: "현금영수증", card: "신용카드",
+  };
+  const download = (list: Row[], tag: string) =>
+    exportToExcel(xlsRows(list), KIND_LABEL[kind] ?? "수집자료",
+      `${KIND_LABEL[kind] ?? "수집자료"}_${from}~${to}${tag}`);
+  const excelItems: ExcelItem[] = [
+    { label: "조회 결과 전부 내려받기", count: shown.length,
+      hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로", onClick: () => download(shown, "") },
+    { label: "지금 쪽만 내려받기", count: pager.view.length,
+      hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => download(pager.view, `_${pager.page}쪽`) },
+  ];
 
   //   걸린 조건 — 조회 줄에 칩으로 남는다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다.
   const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
@@ -582,6 +624,7 @@ export function EvidenceTab({
     ...live.card.map((v) => ({ group: "카드", label: v, onRemove: () => drop({ card: live.card.filter((x) => x !== v) }) })),
     ...(live.kind ? [{ group: "구분", label: live.kind, onRemove: () => drop({ kind: "" }) }] : []),
     ...(live.dir !== "all" ? [{ group: "매출·매입", label: live.dir === "sale" ? "매출" : "매입", onRemove: () => drop({ dir: "all" as const }) }] : []),
+    ...(live.todo !== "todo" ? [{ group: "상태", label: "전체", onRemove: () => drop({ todo: "todo" as const }) }] : []),
     ...(live.item ? [{ group: "품명", label: live.item, onRemove: () => drop({ item: "" }) }] : []),
     ...((live.min || live.max) ? [{
       group: "금액", label: `${won(Number(live.min || 0))} ~ ${live.max ? won(Number(live.max)) : "제한없음"}`,
@@ -592,7 +635,8 @@ export function EvidenceTab({
 
   return (
     <div className="ev-wrap">
-      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약은 **한 상자**에 (2026-08-13 사장님 지시) */}
+      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **통째로 한 상자**에 (2026-08-13 사장님 지시) */}
+      <QueryScreen>
       <QueryHead>
       {tabsNode}
       {/* ── 1줄 · 조회 조건 — 기간·빠른검색·상태는 즉시, 검색조건은 '조회'를 눌러 ── */}
@@ -606,7 +650,7 @@ export function EvidenceTab({
           trailing={
             <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={nLive} anchorSel=".drf"
               tabs={<SavedTabs list={saved.list} onApply={(s) => { applySaved(s.params || {}); setPanelOpen(false); }}
-                onSave={(name) => saved.save(name, { from, to, onlyTodo, q, cond: draft })}
+                onSave={(name) => saved.save(name, { from, to, q, cond: draft })}
                 onRemove={saved.remove} onSetDefault={saved.setDefault} />}
               foot={<>
                 <button type="button" className="btn-secondary btn-sm" disabled={nDraft === 0}
@@ -652,6 +696,10 @@ export function EvidenceTab({
                 <ChipGroup value={draft.dir} onChange={setD("dir")} options={DIR_CHIPS} />
               </ConditionRow>
 
+              <ConditionRow label="상태">
+                <ChipGroup value={draft.todo} onChange={setD("todo")} options={STATE_CHIPS} />
+              </ConditionRow>
+
               <ConditionRow label="품명">
                 <input className="qk-input w-full" value={draft.item} placeholder="예: 광고비"
                   onChange={(e) => setD("item")(e.target.value)} />
@@ -666,10 +714,7 @@ export function EvidenceTab({
         <QuickSearch value={q} onApply={setQ}
           placeholder="거래처 · 계정과목 · 품명 · 금액 — 쉼표로 여러 개, Enter" />
 
-        <QueryField label="상태">
-          <ChipGroup value={onlyTodo ? "todo" : "all"}
-            onChange={(v) => setOnlyTodo(v === "todo")} options={STATE_CHIPS} />
-        </QueryField>
+        <ExcelMenu items={excelItems} />
       </QueryBar>
 
       <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -680,7 +725,7 @@ export function EvidenceTab({
         <Stat label="공급가액" value={won(sumSupply)} />
         <Stat label="부가세" value={won(sumVat)} />
         {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
-        {rows.length >= 500 && <b className="ev-cut">최근 500건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+        {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
         {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
       </ResultStrip>
       </QueryHead>
@@ -690,10 +735,10 @@ export function EvidenceTab({
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
         <div className="collect-empty">
-          {onlyTodo ? "전표를 만들 자료가 없습니다 — 이 달치는 다 처리했습니다." : "이 달에 받아온 자료가 없습니다."}
+          {live.todo === "todo" ? "전표를 만들 자료가 없습니다 — 이 기간은 다 처리했습니다." : "이 기간에 받아온 자료가 없습니다."}
         </div>
       ) : (
-        <div className="ev-scroll glass-card">
+        <div className="ev-scroll">
           <table className="ev-table">
             <thead>
               <tr>
@@ -835,6 +880,7 @@ export function EvidenceTab({
       {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
       <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
         from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
 
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 화면을 통틀어 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
@@ -866,9 +912,14 @@ const REF_TYPE: Record<string, string> = {
 async function attachVoucherNo(rows: Row[], entryIds: (string | null)[]): Promise<Row[]> {
   const ids = [...new Set(entryIds.filter(Boolean) as string[])];
   if (ids.length === 0) return rows;
-  const data = logRead("collect:voucherno", await supabase
-    .from("journal_entries").select("id, voucher_no").in("id", ids));
-  const byId = new Map(((data as any[]) || []).map((e) => [e.id, e.voucher_no as number | null]));
+  //   ★ 400건 상한을 없애면서 id 가 수천 개가 될 수 있다 — 한 번에 물으면 URL 이 길어 터진다.
+  //     200개씩 나눠 묻는다 (2026-08-13).
+  const byId = new Map<string, number | null>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const data = logRead("collect:voucherno", await supabase
+      .from("journal_entries").select("id, voucher_no").in("id", ids.slice(i, i + 200)));
+    for (const e of ((data as any[]) || [])) byId.set(e.id, e.voucher_no as number | null);
+  }
   return rows.map((r, i) => {
     const eid = entryIds[i];
     return eid ? { ...r, voucherNo: byId.get(eid) ?? null, entryId: eid } : r;
@@ -876,16 +927,16 @@ async function attachVoucherNo(rows: Row[], entryIds: (string | null)[]): Promis
 }
 
 // ── 자료별 읽기 ───────────────────────────────────────────────────────────
-async function fetchRows(companyId: string, from: string, to: string, kind: SourceKey): Promise<Row[]> {
+async function fetchRows(companyId: string, from: string, to: string, kind: SourceKey): Promise<{ rows: Row[]; capped: boolean }> {
   const settle = SETTLE_BY_KIND[kind] ?? "credit";
 
   if (kind === "card") {
-    const data = logRead("collect:rows-card", await supabase.from("card_transactions")
+    const got = await fetchAllPages<any>((a, b) => supabase.from("card_transactions")
       .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id, merchant_bizno, card_name")
       .eq("company_id", companyId)
       .gte("transaction_date", from).lte("transaction_date", to)
-      .order("transaction_date").limit(500));
-    const src = ((data as any[]) || []).filter((r) => Number(r.amount || 0) !== 0);
+      .order("transaction_date").range(a, b));
+    const src = got.rows.filter((r) => Number(r.amount || 0) !== 0);
     const built = src.map((r) => {
       const amt = Number(r.amount || 0);
       const label = cardLabelOf(r.classification) || r.category || "";
@@ -901,19 +952,19 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
         cardCategory: r.category || null, cardName: r.card_name || null,
       } as Row;
     });
-    return attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null));
+    return { rows: await attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null)), capped: got.capped };
   }
 
   if (kind === "cash_receipt") {
-    const data = logRead("collect:rows-cash", await supabase.from("cash_receipts")
+    const got = await fetchAllPages<any>((a, b) => supabase.from("cash_receipts")
       .select("id, type, issue_date, counterparty_name, counterparty_bizno, supply_amount, tax_amount, amount, status, source, journal_entry_id")
       .eq("company_id", companyId)
       .gte("issue_date", from).lte("issue_date", to)
-      .order("issue_date").limit(500));
+      .order("issue_date").range(a, b));
     //   ★ 취소거래는 **마이너스 한 줄**로 남긴다 — 빼 버리면 원본 발행 건만 남아 매출이 부풀어 오른다.
     //     유형(현과)·계정은 그대로 두고 부호만 뒤집는다(위하고와 같은 모양, 사장님 기준). (2026-08-12)
     //     우리가 취소한 원본(manual·codef)은 없던 일이라 아예 안 보여 준다 — cashReceiptSign 참조.
-    const src = ((data as any[]) || []).filter((r) => cashReceiptSign(r) !== 0);
+    const src = got.rows.filter((r) => cashReceiptSign(r) !== 0);
     const built = src.map((r) => {
       const sign = cashReceiptSign(r);
       const supply = (Number(r.supply_amount || 0) || Math.round(Number(r.amount || 0) / 1.1)) * sign;
@@ -927,17 +978,19 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
         settle, posted: !!r.journal_entry_id, voucherNo: null,
       } as Row;
     });
-    return attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null));
+    return { rows: await attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null)), capped: got.capped };
   }
 
   //   세금계산서 / 전자계산서 — 같은 표(tax_invoices)에 tax_kind 로 갈린다
-  const q = supabase.from("tax_invoices")
-    .select("id, type, issue_date, counterparty_name, counterparty_bizno, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
-    .eq("company_id", companyId).neq("status", "void")
-    .gte("issue_date", from).lte("issue_date", to)
-    .order("issue_date").limit(500);
-  const data = logRead("collect:rows-ti", await (kind === "exempt_invoice" ? q.eq("tax_kind", "exempt") : q.neq("tax_kind", "exempt")));
-  const src = ((data as any[]) || []);
+  const got = await fetchAllPages<any>((a, b) => {
+    const q = supabase.from("tax_invoices")
+      .select("id, type, issue_date, counterparty_name, counterparty_bizno, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
+      .eq("company_id", companyId).neq("status", "void")
+      .gte("issue_date", from).lte("issue_date", to)
+      .order("issue_date").range(a, b);
+    return kind === "exempt_invoice" ? q.eq("tax_kind", "exempt") : q.neq("tax_kind", "exempt");
+  });
+  const src = got.rows;
   const built = src.map((r) => {
     const direction = (r.type === "sales" || r.type === "매출") ? "sale" : "purchase";
     return {
@@ -952,5 +1005,5 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
       settle, posted: !!r.journal_entry_id, voucherNo: null,
     } as Row;
   });
-  return attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null));
+  return { rows: await attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null)), capped: got.capped };
 }

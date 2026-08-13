@@ -18,7 +18,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PickList } from "@/components/pick-list";
 import {
-  QueryHead, QueryBar, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
+  QueryScreen, QueryHead, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
+  ExcelMenu, type ExcelItem,
   Pager, usePager, ConditionPanel, ConditionRow, TokenField, AmountRange, AppliedChips,
   QuickSearch, quickSearchHit, quickTerms, amountHit, periodQuicks,
   useSavedQueries, SavedTabs, type HelperItem, type AppliedChip,
@@ -32,6 +33,8 @@ import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
+import { fetchAllPages } from "@/lib/fetch-all";
+import { exportToExcel } from "@/lib/excel-export";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 
@@ -102,15 +105,16 @@ type Cond = {
   bank: string[];   // 계좌
   acct: string[];   // 붙은 계정과목 코드
   io: "all" | "in" | "out";
+  todo: "todo" | "all"; // 미처리만 볼지 — 검색조건 안으로 옮겼다(2026-08-13 사장님 지시)
   desc: string;     // 통장 적요
   min: string; max: string;
   size: number;     // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
 };
-const EMPTY: Cond = { who: [], bank: [], acct: [], io: "all", desc: "", min: "", max: "", size: 50 };
+const EMPTY: Cond = { who: [], bank: [], acct: [], io: "all", todo: "todo", desc: "", min: "", max: "", size: 50 };
 /** 배지에 셀 것 — 줄 수는 '좁히는 조건'이 아니라 보기 방식이라 안 센다 */
 const condCount = (c: Cond) =>
   c.who.length + c.bank.length + c.acct.length
-  + (c.io !== "all" ? 1 : 0) + (c.desc ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
+  + (c.io !== "all" ? 1 : 0) + (c.todo !== "todo" ? 1 : 0) + (c.desc ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
 
 export function BankTab({
   companyId, from, to, tabsNode, onRange, syncButton, rulesHelper,
@@ -124,7 +128,6 @@ export function BankTab({
   const { toast } = useToast();
   const qc = useQueryClient();
   //   조회 줄에 있는 것은 **즉시** 반영된다 (기간은 page.tsx 가 쥐고 있다)
-  const [onlyTodo, setOnlyTodo] = useState(true);
   const [q, setQ] = useState("");
   //   검색조건 패널 — draft 는 고르는 중, live 는 '조회'를 눌러 확정된 것
   const [panelOpen, setPanelOpen] = useState(false);
@@ -193,26 +196,27 @@ export function BankTab({
     staleTime: 300_000,
   });
 
-  const { data: rows = [], isLoading, error: rowsError } = useQuery<Row[]>({
+  const { data: fetched, isLoading, error: rowsError } = useQuery({
     queryKey: ["bank-rows", companyId, from, to],
     queryFn: async () => {
-      const tx = await (async () => supabase.from("bank_transactions"))().then((q) => q
-          .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
-          .eq("company_id", companyId)
-          .gte("transaction_date", from).lte("transaction_date", to)
-          .order("transaction_date").limit(400));
-      //   ★ 읽기 실패를 빈 목록으로 넘기지 않는다 — '처리할 거래가 없습니다'로 보여 다 끝낸 줄 안다.
-      //     (실제로 관계 모호(PGRST201)로 조용히 0건이 뜬 적이 있다)
-      if (tx.error) throw new Error(tx.error.message);
-      const src = ((tx.data as any[]) || []);
+      //   ★ 자르지 않고 전부 받는다 (2026-08-13 사장님 지시) — 1개월이 852건인데 400건에서
+      //     잘려 기간을 넓히는 의미가 없었다. 읽기 실패는 fetchAllPages 가 던진다
+      //     ('처리할 거래가 없습니다'로 보여 다 끝낸 줄 알면 안 된다 — PGRST201 로 실제로 그랬다).
+      const got = await fetchAllPages<any>((a, b) => supabase.from("bank_transactions")
+        .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
+        .eq("company_id", companyId)
+        .gte("transaction_date", from).lte("transaction_date", to)
+        .order("transaction_date").range(a, b));
+      const src = got.rows;
       const entryIds = [...new Set(src.map((r) => r.journal_entry_id).filter(Boolean))] as string[];
+      //   id 가 수천 개면 한 번에 물을 때 URL 이 터진다 — 200개씩 나눈다
       const noBy = new Map<string, number | null>();
-      if (entryIds.length > 0) {
+      for (let i = 0; i < entryIds.length; i += 200) {
         const je = logRead("bank:voucherno", await supabase
-          .from("journal_entries").select("id, voucher_no").in("id", entryIds));
+          .from("journal_entries").select("id, voucher_no").in("id", entryIds.slice(i, i + 200)));
         for (const e of ((je as any[]) || [])) noBy.set(e.id, e.voucher_no);
       }
-      return src.map((r) => {
+      const built = src.map((r) => {
         const amount = Number(r.amount || 0);
         return {
           id: r.id, date: String(r.transaction_date), amount,
@@ -235,8 +239,12 @@ export function BankTab({
           cardsLinked: ((r.card_transactions || []) as any[]).length,
         } as Row;
       });
+      return { rows: built, capped: got.capped };
     },
   });
+  const rows = fetched?.rows ?? [];
+  //   자를 수밖에 없었을 때만 뜬다 — 조용히 자르면 '이게 전부'로 읽힌다
+  const capped = fetched?.capped ?? false;
 
   const keyOf = (r: Row) => ruleKeyOf("bank", { name: r.who, fallback: r.desc });
   /** 이 줄에 붙일 계정 — 사람이 고른 것 > 학습된 규칙 */
@@ -260,7 +268,7 @@ export function BankTab({
 
   const bankLabelOf = (r: Row) => bankAccounts.find((b) => b.id === r.bankId)?.label ?? "";
   const shownUnsorted = rows.filter((r) => {
-    if (onlyTodo && doneOf(r)) return false;
+    if (live.todo === "todo" && doneOf(r)) return false;
     const a = acctOf(r).a;
     //   빠른검색 — 글자 하나로 거래처·적요·계좌·계정·금액을 한꺼번에 (쉼표=또는)
     if (!quickSearchHit(q, [r.who, ptOf(r)?.name, r.desc, bankLabelOf(r), a?.name, a?.code], [r.amount])) return false;
@@ -294,7 +302,7 @@ export function BankTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 (2026-08-13 사장님 지시)
-  const pager = usePager(shown, live.size, `${from}|${to}|${onlyTodo}|${q}|${JSON.stringify(live)}`);
+  const pager = usePager(shown, live.size, `${from}|${to}|${q}|${JSON.stringify(live)}`);
   //   선택은 쪽을 넘겨도 남는다
   const selRows = shown.filter((r) => sel.has(r.id));
 
@@ -479,7 +487,6 @@ export function BankTab({
   const saved = useSavedQueries("collect:bank", companyId);
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
-    if (typeof p.onlyTodo === "boolean") setOnlyTodo(p.onlyTodo);
     if (typeof p.q === "string") setQ(p.q);
     const c = { ...EMPTY, ...(p.cond as Partial<Cond> | undefined) };
     setDraft(c); setLive(c);
@@ -499,7 +506,7 @@ export function BankTab({
     let n = 0;
     for (const r of rows) {
       const a2 = acctOf(r).a;
-      if (onlyTodo && doneOf(r)) continue;
+      if (draft.todo === "todo" && doneOf(r)) continue;
       if (!quickSearchHit(q, [r.who, ptOf(r)?.name, r.desc, bankLabelOf(r), a2?.name, a2?.code], [r.amount])) continue;
       if (draft.io !== "all" && r.isIn !== (draft.io === "in")) continue;
       if (draft.who.length && !draft.who.includes(r.who)) continue;
@@ -511,7 +518,34 @@ export function BankTab({
     }
     return n;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, draft, q, onlyTodo, acct, aiAcct, rules, pt, bankAccounts]);
+  }, [rows, draft, q, acct, aiAcct, rules, pt, bankAccounts]);
+
+  //   엑셀 — 지금 조건 그대로, 표에 보이는 칸 그대로 내려받는다 (2026-08-13 사장님 지시)
+  const xlsRows = (list: Row[]) => list.map((r) => {
+    const a = acctOf(r).a;
+    const other = a ? `${a.code} ${a.name}` : "";
+    return {
+      "일자": r.date,
+      "입/출": r.isIn ? "입금" : "출금",
+      "거래처(입금자)": r.who,
+      "통장 적요": r.desc,
+      "금액": (r.isIn ? 1 : -1) * Math.abs(r.amount),
+      "계좌": bankLabelOf(r),
+      "차변": r.isIn ? "103 보통예금" : other,
+      "대변": r.isIn ? other : "103 보통예금",
+      "상대 거래처": ptOf(r)?.name ?? "",
+      "적요": memoOf(r) || r.desc || r.who,
+      "상태": r.posted ? `확정 #${r.voucherNo ?? ""}` : doneOf(r) ? "처리됨" : "미처리",
+    };
+  });
+  const download = (list: Row[], tag: string) =>
+    exportToExcel(xlsRows(list), "통장", `통장_${from}~${to}${tag}`);
+  const excelItems: ExcelItem[] = [
+    { label: "조회 결과 전부 내려받기", count: shown.length,
+      hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로", onClick: () => download(shown, "") },
+    { label: "지금 쪽만 내려받기", count: pager.view.length,
+      hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => download(pager.view, `_${pager.page}쪽`) },
+  ];
 
   //   걸린 조건 — 조회 줄에 칩으로 남는다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다.
   const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
@@ -524,6 +558,7 @@ export function BankTab({
     ...live.bank.map((v) => ({ group: "계좌", label: bankAccounts.find((b) => b.id === v)?.label ?? v, onRemove: () => drop({ bank: live.bank.filter((x) => x !== v) }) })),
     ...live.acct.map((v) => ({ group: "계정", label: accounts.find((a2) => a2.code === v)?.name ?? v, onRemove: () => drop({ acct: live.acct.filter((x) => x !== v) }) })),
     ...(live.io !== "all" ? [{ group: "입/출", label: live.io === "in" ? "입금" : "출금", onRemove: () => drop({ io: "all" as const }) }] : []),
+    ...(live.todo !== "todo" ? [{ group: "상태", label: "전체", onRemove: () => drop({ todo: "todo" as const }) }] : []),
     ...(live.desc ? [{ group: "적요", label: live.desc, onRemove: () => drop({ desc: "" }) }] : []),
     ...((live.min || live.max) ? [{
       group: "금액", label: `${won(Number(live.min || 0))} ~ ${live.max ? won(Number(live.max)) : "제한없음"}`,
@@ -534,7 +569,8 @@ export function BankTab({
 
   return (
     <div className="ev-wrap">
-      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약은 **한 상자**에 (2026-08-13 사장님 지시) */}
+      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **통째로 한 상자**에 (2026-08-13 사장님 지시) */}
+      <QueryScreen>
       <QueryHead>
       {tabsNode}
       {/* ── 1줄 · 조회 조건 — 기간·빠른검색·상태는 즉시, 검색조건은 '조회'를 눌러 ── */}
@@ -547,7 +583,7 @@ export function BankTab({
           trailing={
             <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={nLive} anchorSel=".drf"
               tabs={<SavedTabs list={saved.list} onApply={(s) => { applySaved(s.params || {}); setPanelOpen(false); }}
-                onSave={(name) => saved.save(name, { from, to, onlyTodo, q, cond: draft })}
+                onSave={(name) => saved.save(name, { from, to, q, cond: draft })}
                 onRemove={saved.remove} onSetDefault={saved.setDefault} />}
               foot={<>
                 <button type="button" className="btn-secondary btn-sm" disabled={nDraft === 0}
@@ -587,6 +623,10 @@ export function BankTab({
                 <ChipGroup value={draft.io} onChange={setD("io")} options={IO_CHIPS} />
               </ConditionRow>
 
+              <ConditionRow label="상태">
+                <ChipGroup value={draft.todo} onChange={setD("todo")} options={STATE_CHIPS} />
+              </ConditionRow>
+
               <ConditionRow label="통장 적요">
                 <input className="qk-input w-full" value={draft.desc} placeholder="예: 부가세"
                   onChange={(e) => setD("desc")(e.target.value)} />
@@ -601,10 +641,7 @@ export function BankTab({
         <QuickSearch value={q} onApply={setQ}
           placeholder="거래처 · 계좌 · 계정과목 · 적요 · 금액 — 쉼표로 여러 개, Enter" />
 
-        <QueryField label="상태">
-          <ChipGroup value={onlyTodo ? "todo" : "all"}
-            onChange={(v) => setOnlyTodo(v === "todo")} options={STATE_CHIPS} />
-        </QueryField>
+        <ExcelMenu items={excelItems} />
       </QueryBar>
 
       <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -614,7 +651,7 @@ export function BankTab({
         <Stat label="건수" value={`${won(shown.length)}건`} />
         <Stat label="입금" value={won(sumIn)} tone="plus" />
         <Stat label="출금" value={won(sumOut)} tone="minus" />
-        {rows.length >= 400 && <b className="ev-cut">최근 400건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+        {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
         {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
       </ResultStrip>
       </QueryHead>
@@ -627,10 +664,10 @@ export function BankTab({
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
         <div className="collect-empty">
-          {onlyTodo ? "처리할 통장 거래가 없습니다 — 이 달치는 다 끝냈습니다." : "이 달에 통장 거래가 없습니다."}
+          {live.todo === "todo" ? "처리할 통장 거래가 없습니다 — 이 기간은 다 끝냈습니다." : "이 기간에 통장 거래가 없습니다."}
         </div>
       ) : (
-        <div className="ev-scroll glass-card">
+        <div className="ev-scroll">
           <table className="ev-table bk-table">
             <thead>
               <tr>
@@ -742,6 +779,7 @@ export function BankTab({
       {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
       <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
         from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
 
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
