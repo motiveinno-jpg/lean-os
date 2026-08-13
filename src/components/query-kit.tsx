@@ -8,7 +8,7 @@
 //   산만함의 원인은 **버튼 개수가 아니라** 성격이 다른 것이 한 줄에 섞인 것이었다.
 //   조건(누르면 목록이 바뀜) · 결과(안 바뀜) · 도우미(안 바뀜) · 확정(되돌리기 어려움)을 줄로 가른다.
 //
-//     1줄 QueryBar        [날짜 직접입력 ⎸ 검색조건 ▾] · 빠른검색 · 상태 ‖ AI 도움 · 주 실행
+//     1줄 QueryBar        [날짜 직접입력 ⎸ 검색조건 ▾] · 빠른검색 · 상태 ‖ AI 제안 · 주 실행
 //        └ ConditionPanel  표를 밀지 않고 **떠서** 열린다. 기간칩·달력 / 다중 선택 / 금액 → 조회
 //        └ AppliedChips    켜진 조건을 ✕ 로 하나씩 뺀다 (열지 않고도 보인다)
 //     2줄 ResultStrip     건수·합계
@@ -459,9 +459,12 @@ export type HelperItem = {
 };
 
 /**
- * AI 도움 — 보조 기능 모음 (2026-08-13 사장님이 이름 확정).
- *   ★ 이름은 'AI 도움'이지만 **줄마다 출처를 적는다.** 배운 규칙은 사람이 고른 것이고
- *     구분 채우기는 국세청 조회다. 전부 AI 라고 하면 틀렸을 때 원인을 엉뚱한 데서 찾는다.
+ * AI 제안 — 보조 기능 모음 (2026-08-13 사장님 확정).
+ *   ★ **'제안'** 인 이유: 여기 있는 것들은 **채워만 주고 확정은 사람이 한다**
+ *     (이 저장소의 원칙 '제안은 자동, 확정은 사람'). '처리'·'자동'이라 이름 붙이면
+ *     "누르면 알아서 끝난다"로 읽혀 이름이 거짓말을 한다.
+ *   ★ 줄마다 **출처를 적는다.** 배운 규칙은 사람이 고른 것이고 구분 채우기는 국세청 조회다.
+ *     전부 AI 라고 뭉뚱그리면 틀렸을 때 원인을 엉뚱한 데서 찾는다.
  */
 export function HelperMenu({ items }: { items: HelperItem[] }) {
   const [open, setOpen] = useState(false);
@@ -478,7 +481,7 @@ export function HelperMenu({ items }: { items: HelperItem[] }) {
     <div className="qk-help" ref={box}>
       <button type="button" onClick={() => setOpen((v) => !v)}
         className={total > 0 ? "qk-help-btn qk-help-btn-on" : "qk-help-btn"}>
-        AI 도움
+        AI 제안
         {total > 0 && <em className="qk-help-badge">{total}</em>}
         <span className="qk-caret">▾</span>
       </button>

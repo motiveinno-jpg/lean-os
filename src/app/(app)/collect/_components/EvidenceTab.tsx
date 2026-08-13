@@ -532,7 +532,7 @@ export function EvidenceTab({
       a.account_type === (side === "sale" ? "revenue" : "expense")
       && (!q || a.name.toLowerCase().includes(q.toLowerCase()) || String(a.code).includes(q))).slice(0, 40);
 
-  //   'AI 도움' — 조회 조건도 아니고 확정도 아닌 것들 (2026-08-13 사장님이 이름 확정).
+  //   'AI 제안' — 조회 조건도 아니고 확정도 아닌 것들 (2026-08-13 사장님 확정).
   //   ★ 줄마다 **출처를 적는다** — 전부 AI 라고 하면 틀렸을 때 원인을 엉뚱한 데서 찾는다.
   const helpers: HelperItem[] = [
     rulesHelper,

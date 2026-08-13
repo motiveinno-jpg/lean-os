@@ -8914,7 +8914,7 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .qk-stat-plus { @apply text-emerald-600; }
 .qk-stat-minus { @apply text-rose-600; }
 
-/* AI 도움 */
+/* AI 제안 */
 .qk-help { @apply relative; }
 .qk-help-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-[12px] font-bold text-[var(--text-dim)] transition-colors; }
 .qk-help-btn:hover { @apply border-[var(--primary)] text-[var(--text)]; }
