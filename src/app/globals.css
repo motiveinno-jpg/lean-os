@@ -9171,3 +9171,11 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .mkt-bar-n { @apply w-14 text-right text-xs font-bold text-[var(--text)]; }
 .mkt-empty { @apply text-sm text-[var(--text-muted)] text-center py-6; }
 .mkt-footnote { @apply text-[11px] text-[var(--text-dim)]; }
+
+/* 발행 화면 조회 줄 보조 — 결과 요약의 경고 · 발행 한도 배지 (2026-08-13) */
+.ti-strip-bad { @apply inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--warning)]; }
+.ti-strip-bad b { @apply font-bold; }
+.ti-strip-go { @apply underline font-bold text-[var(--primary)]; }
+.ti-quota { @apply inline-flex items-center h-[31px] px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[11.5px] font-semibold whitespace-nowrap text-[var(--text-muted)]; }
+.ti-quota b { @apply mx-0.5 font-bold text-[var(--text)]; }
+.ti-quota-out { @apply border-[var(--danger)] text-[var(--danger)]; background: color-mix(in srgb, var(--danger) 12%, transparent); }
