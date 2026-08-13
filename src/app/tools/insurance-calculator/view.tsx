@@ -11,10 +11,11 @@
 
 import "@/app/landing.css";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
+import { track } from "@/lib/analytics";
 
 // ── 2026년 요율 상수 — 개정 시 여기만 수정 ──
 const RATES = {
@@ -68,6 +69,13 @@ export default function InsuranceCalculatorView() {
     { name: "고용안정·직능개발 (0.25%)", worker: null, biz: r.empBiz },
     ...(r.accident > 0 ? [{ name: `산재보험 (${accidentRate}%)`, worker: null, biz: r.accident }] : []),
   ] : [];
+
+
+  // 계측 — 이 세션에서 처음 결과를 봤을 때 1회 (2026-08-13)
+  const tracked = useRef(false);
+  useEffect(() => {
+    if (r && !tracked.current) { tracked.current = true; track("tool_calculate", { tool: "insurance" }); }
+  }, [r]);
 
   return (
     <div className="lp4-root">

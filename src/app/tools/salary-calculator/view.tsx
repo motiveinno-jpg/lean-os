@@ -9,10 +9,11 @@
 
 import "@/app/landing.css";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
+import { track } from "@/lib/analytics";
 import TABLE from "./ganyi-2026.json";
 
 // ── 2026년 4대보험 요율 (원본: tools/insurance-calculator RATES — 개정 시 함께 수정) ──
@@ -73,6 +74,13 @@ export default function SalaryCalculatorView() {
     const total = pension + health + care + emp + tax + localTax;
     return { gross, free, base, pension, health, care, emp, tax, localTax, total, net: gross - total };
   }, [salary, taxFree, family, children]);
+
+
+  // 계측 — 이 세션에서 처음 결과를 봤을 때 1회 (2026-08-13)
+  const tracked = useRef(false);
+  useEffect(() => {
+    if (r && !tracked.current) { tracked.current = true; track("tool_calculate", { tool: "salary" }); }
+  }, [r]);
 
   return (
     <div className="lp4-root">

@@ -9,10 +9,11 @@
 
 import "@/app/landing.css";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
+import { track } from "@/lib/analytics";
 
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
 // 콤마 입력 필드 — 숫자만 남기고 천단위 콤마로 표시
@@ -63,6 +64,13 @@ export default function SeveranceCalculatorView() {
       threeMonthTotal, avgDaily, severance,
     };
   }, [hire, leave, salary, bonus, leavePay]);
+
+
+  // 계측 — 이 세션에서 처음 결과를 봤을 때 1회 (2026-08-13)
+  const tracked = useRef(false);
+  useEffect(() => {
+    if (result && !tracked.current) { tracked.current = true; track("tool_calculate", { tool: "severance" }); }
+  }, [result]);
 
   return (
     <div className="lp4-root">

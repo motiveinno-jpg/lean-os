@@ -9,10 +9,11 @@
 
 import "@/app/landing.css";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
+import { track } from "@/lib/analytics";
 
 // 만 개월 수 — from 에서 to 까지 "같은 날짜"가 돌아온 횟수 (예: 3/15 입사, 8/13 기준 → 4개월)
 function fullMonthsBetween(from: Date, to: Date): number {
@@ -83,6 +84,13 @@ export default function LeaveCalculatorView() {
       nextLabel: `${annualDays(ny)}일로 증가`,
     };
   }, [hire, base]);
+
+
+  // 계측 — 이 세션에서 처음 결과를 봤을 때 1회 (2026-08-13)
+  const tracked = useRef(false);
+  useEffect(() => {
+    if (result && !tracked.current) { tracked.current = true; track("tool_calculate", { tool: "leave" }); }
+  }, [result]);
 
   return (
     <div className="lp4-root">

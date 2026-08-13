@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { Analytics } from "@/components/analytics";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -50,6 +51,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <body className="app-root" suppressHydrationWarning>
+        {/* GA4 — NEXT_PUBLIC_GA_ID 있을 때만 로드 (2026-08-13 계측 1단계) */}
+        <Analytics />
         <Providers>{children}</Providers>
       </body>
     </html>
