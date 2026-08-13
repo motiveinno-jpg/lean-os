@@ -140,6 +140,15 @@ export default function MyPage() {
     queryKey: ["my-employee-info", companyId, userId],
     queryFn: async () => {
       if (!userInfo?.email) return null;
+      // 계정 연결(user_id) 우선, 이메일은 폴백 — 서버 current_employee_id() 와 같은 순서 (2026-08-13).
+      //   종전엔 이메일 완전일치뿐이라, 인사기록 이메일이 계정 이메일과 다르면 연결이 걸려 있어도
+      //   마이페이지(근태·계약·급여명세)가 통째로 비었다.
+      if (userId) {
+        const byLink = logRead('mypage/page:byLink', await supabase
+          .from("employees").select("*")
+          .eq("company_id", companyId!).eq("user_id", userId).maybeSingle());
+        if (byLink) return byLink;
+      }
       const data = logRead('mypage/page:data', await supabase
         .from("employees")
         .select("*")
