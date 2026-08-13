@@ -9200,3 +9200,6 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .ti-dup-row { @apply flex flex-wrap items-center gap-3 border-t border-[var(--border)]/60 py-2 text-[12px]; }
 .ti-dup-who { @apply font-semibold text-[var(--text)]; }
 .ti-dup-acts { @apply ml-auto flex items-center gap-1.5; }
+
+/* 발행 대기 줄의 출처 — 매입매출전표가 만든 초안 표시 (2026-08-13) */
+.ti-src-pill { @apply mr-1.5 inline-flex items-center rounded-full border border-[var(--primary)]/35 px-1.5 py-px text-[10px] font-bold text-[var(--primary)]; }

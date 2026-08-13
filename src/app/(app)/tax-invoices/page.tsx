@@ -1822,6 +1822,12 @@ function TaxInvoicesPageInner() {
                             const full = ((inv.items as any[]) || []).map((it: any) => it?.name).filter(Boolean).join(" · ") || one;
                             return (
                               <td className="px-3 py-2 text-[var(--text-muted)] border-l border-[var(--border)]/40 whitespace-nowrap overflow-hidden text-ellipsis max-w-[180px]" title={full}>
+                                {/*   출처 — 매입매출전표가 만든 초안은 표시해 준다 (2026-08-13).
+                                      세금·증빙에서 전표처리를 없앤 지금, manual 초안에 전표가
+                                      걸려 있다 = 매입매출전표에서 태어났다는 뜻이다. */}
+                                {tab === "wait" && inv.journal_entry_id && (
+                                  <span className="ti-src-pill">매입매출전표</span>
+                                )}
                                 {label}
                               </td>
                             );
