@@ -67,6 +67,32 @@ export function periodQuicks(): { key: string; label: string; from: string; to: 
   ];
 }
 
+/**
+ * 월 단위 화면(세금계산서·전자계산서 …)의 기본 기간 — **지난달 ~ 이번 달**.
+ *   부가세 자료는 월이 최소 단위다(DateRangeField unit="month").
+ *   '이번 달'만 두면 매달 1~2일에 열었을 때 거의 비어 보인다 — 날짜 단위의 '최근 1개월'과 같은 뜻.
+ */
+export function defaultRangeMonth(): { from: string; to: string } {
+  const t = todayKst();
+  return { from: minusMonths(t, 1).slice(0, 7), to: t.slice(0, 7) };
+}
+
+/** 월 단위 빠른 기간 — 신고 주기에 맞춘다 */
+export function periodQuicksMonth(): { key: string; label: string; from: string; to: string }[] {
+  const t = todayKst();
+  const ym = t.slice(0, 7);
+  const last = minusMonths(t, 1).slice(0, 7);
+  const q = `${t.slice(0, 4)}-${pad(Number(t.slice(5, 7)) - ((Number(t.slice(5, 7)) - 1) % 3))}`;
+  return [
+    { key: "tmon", label: "이번 달", from: ym, to: ym },
+    { key: "lmon", label: "지난 달", from: last, to: last },
+    { key: "m2", label: "지난달~이번달", from: last, to: ym },
+    { key: "quarter", label: "이번 분기", from: q, to: ym },
+    { key: "half", label: "반기", from: `${t.slice(0, 4)}-${Number(t.slice(5, 7)) <= 6 ? "01" : "07"}`, to: ym },
+    { key: "year", label: "올해", from: `${t.slice(0, 4)}-01`, to: ym },
+  ];
+}
+
 // ── 1줄: 조회 조건 ────────────────────────────────────────────────────────
 
 /**

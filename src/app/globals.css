@@ -9002,9 +9002,19 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 
    손대는 화면(md 이상)에서만 켠다. 폰에서는 손가락으로 페이지째 미는 게 자연스럽다. */
 @media (min-width: 768px) {
-  .collect-page { height: calc(100vh - 100px); min-height: 0; padding-bottom: 0; }
+  /*   ★ .qk-page 가 공용 이름이다 — 확산하는 화면은 뿌리에 이 클래스만 붙이면 된다.
+       .collect-page 는 먼저 만든 이름이라 같이 둔다(둘이 같은 규칙). */
+  .qk-page, .collect-page { height: calc(100vh - 100px); min-height: 0; padding-bottom: 0; }
+  .qk-page { @apply flex flex-col gap-3; }
+  /*   ★ 화면 위에 **허브 탭(FinanceTabs)** 이 붙는 화면이 있다(세금·증빙 등).
+       그만큼 아래로 밀리면 상자가 사이드바 끝선을 넘어간다 — 실제로 87px 넘쳤다.
+       본문 칸을 세로 기둥으로 만들고 .qk-page 가 **남는 높이만** 먹게 한다.
+       그러면 위에 뭐가 붙든(배너·탭) 끝선이 저절로 맞는다. */
+  .app-content-scale:has(> .qk-page) { height: calc(100vh - 100px); @apply flex min-h-0 flex-col; }
+  .app-content-scale:has(> .qk-page) > .qk-page { height: auto; @apply min-h-0 flex-1; }
   /* 상자와 그 부모는 남는 높이를 다 먹고, 안에서 줄어들 수 있어야 한다(min-height:0 필수) */
   .collect-page > .ev-wrap { @apply min-h-0 flex-1; }
+  .qk-page > .qk-screen,
   .collect-page > .qk-screen,
   .ev-wrap > .qk-screen { @apply min-h-0 flex-1; }
   .qk-screen { @apply flex min-h-0 flex-col; }
@@ -9015,6 +9025,8 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
   /* 설명 줄은 마지막에 붙어 사이드바 끝선에서 끝난다 */
   .collect-page > .collect-note,
   .ev-wrap > .collect-note { @apply shrink-0; }
+  /* 표 머리단은 어느 화면에서든 스크롤 안에서 붙어 있는다 */
+  .qk-body > .ev-scroll thead th { position: sticky; top: 0; z-index: 3; }
 }
 /* 표 머리단은 스크롤 안에서 붙어 있는다 — 아래로 내려가도 어느 칸인지 안 잊는다.
    (thead th 에 배경이 있어야 밑줄이 비쳐 보이지 않는다 — .ev-table thead th 가 이미 칠한다) */
@@ -9089,3 +9101,6 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 /* 증빙 표의 계정 칸 — 계정 칩 옆에 카드 이름 (통장 탭의 .bk-side 와 같은 모양) */
 .ev-side { @apply inline-flex flex-row items-center gap-1 whitespace-nowrap; }
 .ev-side > * { @apply shrink-0; }
+
+/* 전자계산서 표 — 칸이 적어 최소폭을 낮춘다(가로 스크롤은 상자 안에서) */
+.ei-table { min-width: 860px; }
