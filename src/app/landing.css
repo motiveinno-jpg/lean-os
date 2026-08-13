@@ -1133,3 +1133,4 @@
 .lp4-freetool-table th, .lp4-freetool-table td { padding:11px 16px; border-bottom:1px solid var(--line); text-align:left; }
 .lp4-freetool-table tr:last-child td { border-bottom:none; }
 .lp4-freetool-faqwrap { margin-top:64px; }
+.lp4-freetool-crosslink { color: var(--brand); font-weight:800; text-decoration:underline; text-underline-offset:3px; }

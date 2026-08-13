@@ -172,6 +172,10 @@ export default function LeaveCalculatorView() {
               </div>
             ))}
           </div>
+
+          <p className="lp4-freetool-note">
+            다른 무료 도구: <Link href="/tools/severance-calculator" className="lp4-freetool-crosslink">퇴직금 계산기</Link>
+          </p>
         </div>
       </section>
 
