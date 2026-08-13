@@ -16,7 +16,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { todayKst } from "@/lib/kst";
 import {
-  SOURCES, HOMETAX_SOURCES, fetchCollectStatus,
+  SOURCES, HOMETAX_SOURCES, fetchCollectStatus, fetchSyncHistory,
   runCollect, type SourceKey, type RunState,
 } from "@/lib/collect";
 import { EvidenceTab } from "./_components/EvidenceTab";
@@ -80,6 +80,14 @@ function CollectInner() {
     queryKey: ["collect-status", companyId, from, to],
     queryFn: () => fetchCollectStatus(companyId!, from, to),
     enabled: !!companyId,
+    staleTime: 30_000,
+  });
+
+  //   최근 수집 이력 — '받았는데 0건'인지 '못 받은' 것인지 여기서 갈린다 (2026-08-13 C안)
+  const { data: history = [] } = useQuery({
+    queryKey: ["collect-history", companyId],
+    queryFn: () => fetchSyncHistory(companyId!, 30),
+    enabled: !!companyId && tab === "status",
     staleTime: 30_000,
   });
 
@@ -212,8 +220,10 @@ function CollectInner() {
               onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
       )}
 
-      {/* ── 현황판 — 탭·조회 줄·자료 카드를 **한 상자**에 (2026-08-13 사장님 지적).
-             여기만 위아래로 갈라져 있어 다른 탭과 통일성이 깨졌다. ── */}
+      {/* ── 현황판 — 탭·조회 줄·자료 표·수집 이력을 **한 상자**에 (2026-08-13 사장님 C안 승인).
+             카드 격자였는데, 상자에 높이를 주자 격자가 남는 높이를 행에 나눠 줘 카드가
+             351px 로 늘어나고 아래가 텅 비었다. 그리고 이 화면이 하는 일은 다섯 자료를
+             **비교**하는 것이라 세로로 줄 세우는 표가 맞다(다른 탭도 전부 표다). ── */}
       {tab === "status" && (
         <QueryScreen>
           <QueryHead>
@@ -230,72 +240,112 @@ function CollectInner() {
           </QueryHead>
 
           {isLoading ? (
-        <div className="collect-empty">현황을 읽는 중…</div>
-      ) : (
-        <div className="collect-grid">
-          {SOURCES.map((s) => {
-            const st = status?.[s.key];
-            const cd = cdOf(s.key);
-            const run = state[s.key];
-            const broken = !!st?.brokenNote;
-            return (
-              <button key={s.key} type="button"
-                onClick={() => setTab(s.key)}
-                className={broken ? "collect-src collect-src-bad text-left" : "collect-src text-left"}>
-                <div className="collect-src-top">
-                  <span className="collect-src-ico">{s.icon}</span>
-                  <span className="collect-src-name">{s.label}</span>
-                  <span className="collect-src-n mono-number">
-                    {won(st?.total ?? 0)}<small>건</small>
-                  </span>
+            <div className="collect-empty">현황을 읽는 중…</div>
+          ) : (
+            <div className="cs-split">
+              {/* 자료별 현황 — 다섯 줄 */}
+              <div className="cs-top">
+                <table className="ev-table cs-table">
+                  <thead>
+                    <tr>
+                      <th className="th-c cs-name-th">자료</th>
+                      <th className="th-c">가진 자료</th>
+                      <th className="th-c">처리할 것</th>
+                      <th className="th-c">가진 자료 최근</th>
+                      <th className="th-c">마지막 수집</th>
+                      <th className="th-c">지난번</th>
+                      <th className="th-c">다음 수집</th>
+                      <th className="th-c" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SOURCES.map((s) => {
+                      const st = status?.[s.key];
+                      const cd = cdOf(s.key);
+                      const run = state[s.key];
+                      const broken = !!st?.brokenNote;
+                      return (
+                        <tr key={s.key} onClick={() => setTab(s.key)}
+                          className={broken ? "cs-row cs-row-bad" : "cs-row"}>
+                          <td>
+                            <span className="cs-name">
+                              <i className="cs-ico">{s.icon}</i>{s.label}
+                            </span>
+                          </td>
+                          <td className="tr mono-number cs-total">{won(st?.total ?? 0)}</td>
+                          <td className="tc">
+                            {broken ? (
+                              <span className="collect-pill collect-pill-err">{st!.brokenNote}</span>
+                            ) : (st?.pending ?? 0) > 0 ? (
+                              <span className="collect-pill collect-pill-todo">{won(st!.pending)}</span>
+                            ) : (st?.total ?? 0) === 0 ? (
+                              //   0건을 '처리 완료'라고 하면 다 해놓은 것처럼 읽힌다 — 받아온 게 없는 것뿐이다
+                              <span className="collect-pill collect-pill-none">자료 없음</span>
+                            ) : (
+                              <span className="collect-pill collect-pill-done">완료</span>
+                            )}
+                          </td>
+                          <td className="tc mono-number cs-dim">{st?.latestDate ?? "—"}</td>
+                          <td className="tc cs-dim">{fmtWhen(st?.lastSyncAt ?? null)}</td>
+                          <td className="tc cs-dim">{fmtSec(st?.lastSeconds ?? null) ?? "—"}</td>
+                          <td className="tc cs-dim">{cd.disabled ? cd.label : "지금 가능"}</td>
+                          <td className="tc">
+                            <span className="cs-go">
+                              {run?.phase === "running" ? `수집 중… ${run.message ?? ""}`
+                                : run?.phase === "done" ? `${won(run.synced ?? 0)}건 받음`
+                                : run?.phase === "error" ? run.message
+                                //   고장난 자료는 목록을 열어 봐야 볼 게 없다 — 알아야 할 건 '왜 0건인가'다
+                                : broken ? "원인 보기 →"
+                                : (st?.total ?? 0) === 0 ? "받아오기 →"
+                                : s.key === "bank" ? "처리하기 →" : "전표 만들기 →"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td>합계</td>
+                      <td className="tr mono-number">{won(SOURCES.reduce((n, s) => n + (status?.[s.key]?.total ?? 0), 0))}</td>
+                      <td className="tc mono-number">{won(totalPending)}</td>
+                      <td colSpan={5} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* 최근 수집 이력 — '받았는데 0건'인지 '못 받은' 것인지 여기서 갈린다 */}
+              <div className="cs-btm">
+                <div className="cs-hist-h">
+                  최근 수집 이력
+                  <span>· 언제 누가 무엇을 받았나 (실패도 남습니다)</span>
                 </div>
-                <div className="collect-src-meta">
-                  <span>마지막 수집 {fmtWhen(st?.lastSyncAt ?? null)}
-                    {st?.lastSeconds != null && <span className="collect-dim"> · 지난번 {fmtSec(st.lastSeconds)}</span>}
-                  </span>
-                  <span className="mono-number">
-                    {st?.latestDate ? `가진 자료 최근 ${st.latestDate}` : "이 달에 받아온 자료가 없습니다"}
-                  </span>
-                </div>
-                <div className="collect-src-foot">
-                  {broken ? (
-                    <span className="collect-pill collect-pill-err">{st!.brokenNote}</span>
-                  ) : (st?.pending ?? 0) > 0 ? (
-                    <span className="collect-pill collect-pill-todo">
-                      {s.key === "bank" ? "미처리" : "전표 미처리"} {won(st!.pending)}
-                    </span>
-                  ) : (st?.total ?? 0) === 0 ? (
-                    //   0건을 '처리 완료'라고 하면 다 해놓은 것처럼 읽힌다 — 받아온 게 없는 것뿐이다
-                    <span className="collect-pill collect-pill-none">받아온 자료 없음</span>
-                  ) : (
-                    <span className="collect-pill collect-pill-done">처리 완료</span>
-                  )}
-                  {cd.disabled && <span className="collect-lock">{cd.label}</span>}
-                  <span className="collect-mini">
-                    {run?.phase === "running" ? `수집 중… ${run.message ?? ""}`
-                      : run?.phase === "done" ? `${won(run.synced ?? 0)}건 받음`
-                      : run?.phase === "error" ? run.message
-                      //   고장난 자료는 목록을 열어 봐야 볼 게 없다 — 알아야 할 건 '왜 0건인가'다
-                      : broken ? "원인 보기 →"
-                      : (st?.total ?? 0) === 0 ? "받아오기 →"
-                      : s.key === "bank" ? "처리하기 →" : "전표 만들기 →"}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
+                {history.length === 0 ? (
+                  <p className="cs-hist-empty">아직 수집 기록이 없습니다.</p>
+                ) : (
+                  <table className="ev-table cs-hist">
+                    <tbody>
+                      {history.map((h) => (
+                        <tr key={h.id}>
+                          <td className="mono-number cs-dim cs-hist-when">{fmtWhen(h.at)}</td>
+                          <td className="cs-hist-who">{h.auto ? <em className="cs-auto">자동</em> : (h.by ?? "—")}</td>
+                          <td>
+                            <span className={h.status === "success" ? "cs-dot" : h.status === "partial" ? "cs-dot cs-dot-warn" : "cs-dot cs-dot-bad"} />
+                            {h.what}
+                          </td>
+                          <td className="tr mono-number cs-hist-n">{h.count != null ? `${won(h.count)}건` : "—"}</td>
+                          <td className="cs-hist-note">{h.note ?? ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
         </QueryScreen>
       )}
-
-      {tab === "status" && (
-      <p className="collect-note">
-        ※ 수집은 <b>회사 전체가 함께</b> 씁니다 — 팀원이 방금 받았으면 30분 동안 다시 받을 수 없습니다.
-        홈택스는 같은 계정으로 동시 접속이 안 되어 <b>세금계산서·계산서·현금영수증은 차례대로</b> 돌고,
-        <b>통장·카드는 그와 동시에</b> 돕니다.
-      </p>)}
-
       {rulesOpen && companyId && <RulesDialog companyId={companyId} onClose={() => setRulesOpen(false)} />}
 
       {/* ── 수집 창 ── */}

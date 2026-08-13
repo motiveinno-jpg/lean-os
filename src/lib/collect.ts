@@ -302,3 +302,96 @@ export async function runCollect(opts: CollectOptions): Promise<void> {
 
   await Promise.all([hometaxChain, ...otherRuns]);
 }
+
+// ── 최근 수집 이력 ─────────────────────────────────────────────────────────
+//
+//   왜 보여 주나 (2026-08-13 사장님 C안 승인): 지금은 "받았는데 0건"인지 "못 받은" 것인지
+//   화면에서 알 수가 없다. sync_logs 에 **언제·누가·무엇·결과**가 이미 쌓이고 있는데
+//   보여 주지 않았을 뿐이다. 실패도 기록으로 남아야 원인을 그 자리에서 짚는다.
+
+export type SyncHistoryRow = {
+  id: string;
+  /** 언제 */
+  at: string;
+  /** 사람이 눌렀으면 이름, 자동(cron)이면 null */
+  by: string | null;
+  auto: boolean;
+  /** 무엇을 받았나 — '통장 · 신용카드' 처럼 */
+  what: string;
+  /** 받은 건수 (채널별 synced 합). 셀 수 없으면 null */
+  count: number | null;
+  status: "success" | "partial" | "error";
+  /** 실패·부분 성공일 때 첫 사유 한 줄 */
+  note: string | null;
+};
+
+//   details 안의 채널 이름 → 사람이 읽는 이름
+const CH_LABEL: Record<string, string> = {
+  bank: "통장", card: "신용카드", cardApproval: "카드 승인",
+  hometax: "홈택스", taxInvoice: "전자세금계산서", cashReceipt: "현금영수증",
+};
+//   sync_type → 사람이 읽는 이름 (details 로 못 알아낼 때의 대비책)
+const TYPE_LABEL: Record<string, string> = {
+  codef_bank: "통장", codef_card: "신용카드", codef_card_approval: "카드 승인",
+  codef_hometax: "홈택스", codef_all: "전체", codef_bank_card: "통장 · 신용카드",
+};
+//   잔액 새로고침·인증서 등록은 '자료를 받은' 것이 아니라 목록에 섞이면 시끄럽다
+const SKIP_TYPES = ["bank-balance", "register_"];
+
+/** 최근 수집 이력 — 자료를 실제로 받아 온 기록만 (잔액 새로고침 등은 뺀다) */
+export async function fetchSyncHistory(companyId: string, limit = 30): Promise<SyncHistoryRow[]> {
+  const data = logRead("collect:sync-history", await supabase
+    .from("sync_logs")
+    .select("id, sync_type, status, details, created_at, synced_by")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(limit * 3));            // 걸러낼 것이 있어 넉넉히 받아 자른다
+  const rows = ((data as any[]) || []);
+
+  //   ★ sync_logs.synced_by 에는 **users.id 도 auth_id 도** 들어 있다(옛 기록 섞임).
+  //     외래키가 없어 조인(users:synced_by(name))은 400 이 난다 — 이름은 따로 찾아 둘 다로 맞춘다.
+  const ids = [...new Set(rows.map((r) => r.synced_by).filter(Boolean))] as string[];
+  const nameBy = new Map<string, string>();
+  if (ids.length > 0) {
+    const list = ids.join(",");
+    const us = logRead("collect:sync-history-users", await supabase
+      .from("users").select("id, auth_id, name").or(`id.in.(${list}),auth_id.in.(${list})`));
+    for (const u of ((us as any[]) || [])) {
+      if (u.id) nameBy.set(u.id, u.name);
+      if (u.auth_id) nameBy.set(u.auth_id, u.name);
+    }
+  }
+
+  const out: SyncHistoryRow[] = [];
+  for (const r of rows) {
+    const type = String(r.sync_type || "");
+    if (SKIP_TYPES.some((t) => type.includes(t))) continue;
+
+    const d = (r.details || {}) as Record<string, any>;
+    //   채널별로 { synced, errors } 가 들어 있다 — 있는 것만 모은다
+    const chans = Object.entries(d).filter(([, v]) => v && typeof v === "object" && "synced" in v);
+    const what = chans.length
+      ? chans.map(([k]) => CH_LABEL[k] ?? k).join(" · ")
+      : (TYPE_LABEL[type.replace(/_cron$/, "")] ?? type.replace(/^codef_/, ""));
+    const count = chans.length
+      ? chans.reduce((n, [, v]) => n + (Number(v.synced) || 0), 0)
+      : null;
+    //   실패 사유 — 채널 errors 가 먼저, 없으면 위쪽 errors
+    const firstErr = chans.flatMap(([, v]) => (Array.isArray(v.errors) ? v.errors : []))[0]
+      ?? (Array.isArray(d.errors) ? d.errors[0] : null);
+
+    out.push({
+      id: r.id,
+      at: r.created_at,
+      by: nameBy.get(r.synced_by) ?? null,
+      //   cron 이 돌린 것은 사람이 없다. details.cron 또는 이름 뒤 _cron 으로 가른다.
+      auto: !!d.cron || /_cron$/.test(type) || !r.synced_by,
+      what,
+      count,
+      status: (r.status === "error" || r.status === "partial") ? r.status : "success",
+      note: firstErr ? String(typeof firstErr === "string" ? firstErr : firstErr?.message ?? firstErr).slice(0, 120) : null,
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}

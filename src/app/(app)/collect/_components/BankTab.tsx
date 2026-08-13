@@ -18,7 +18,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PickList } from "@/components/pick-list";
 import {
-  QueryScreen, QueryHead, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
+  QueryScreen, QueryHead, QueryBody, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
   ExcelMenu, type ExcelItem,
   Pager, usePager, ConditionPanel, ConditionRow, TokenField, AmountRange, AppliedChips,
   QuickSearch, quickSearchHit, quickTerms, amountHit, periodQuicks,
@@ -698,10 +698,11 @@ export function BankTab({
         <Stat label="입금" value={won(sumIn)} tone="plus" />
         <Stat label="출금" value={won(sumOut)} tone="minus" />
         {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
-        {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
       </ResultStrip>
       </QueryHead>
 
+      {/* 목록 — 선택 바가 이 위로 떠오른다 (표 크기는 안 줄어들게) */}
+      <QueryBody>
       {rowsError ? (
         <div className="collect-empty collect-empty-err">
           통장 거래를 읽지 못했습니다 — {String((rowsError as any)?.message || "알 수 없는 오류")}
@@ -822,11 +823,6 @@ export function BankTab({
         </div>
       )}
 
-      {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
-      <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
-        from={pager.from} to={pager.to} onPage={pager.setPage} />
-      </QueryScreen>
-
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
         summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}</>}>
@@ -835,17 +831,14 @@ export function BankTab({
           {busy ? "만드는 중…" : `일반전표 만들기 (${selRows.length})`}
         </button>
       </SelectionBar>
+      </QueryBody>
 
-      <p className="collect-note">
-        ※ 통장 한 줄이 <b>일반전표 한 장</b>이 됩니다 — <b>입금</b>은 차) 보통예금[통장] / 대) 고른 계정[고른 거래처],
-        <b>출금</b>은 그 반대입니다. <b>보통예금 쪽 계정·통장 거래처는 자동</b>으로 들어갑니다.
-        <b>적요</b>는 비워 두면 통장 적요가 그대로 들어갑니다 — 회사 내부 확인용 문구는 직접 적으세요.
-        고른 계정은 <b>입금자·적요로 기억</b>해 다음에 미리 채웁니다(<b>지난번</b> → 3번 이상이면 <b>학습</b>).
-        잘못 만들었으면 <b>되돌리기</b>로 미처리로 돌립니다.
-        세금계산서 <b>수금 매칭</b>·계좌 이동 표시·<b>카드대금 묶기</b>는{" "}
-        <Link href="/partners/reconciliation" className="bk-link">거래 매칭</Link>에 그대로 있습니다
-        (수금은 여기서 계정을 <b>외상매출금</b>으로 골라도 같은 결과입니다).
-      </p>
+      {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
+      <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
+        from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
+
+
     </div>
   );
 }

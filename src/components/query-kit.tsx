@@ -84,6 +84,15 @@ export function QueryHead({ children }: { children: ReactNode }) {
   return <div className="qk-head">{children}</div>;
 }
 
+/**
+ * 표가 들어가는 자리 — **선택 바가 여기 위로 떠오른다** (2026-08-13 사장님 지시).
+ *   예전엔 선택 바가 흐름에 끼어 있어, 줄을 고르는 순간 표가 그만큼 줄어들었다.
+ *   고를 때마다 표가 들썩이면 고르던 자리를 놓친다. 표 크기는 그대로 두고 위에 띄운다.
+ */
+export function QueryBody({ children }: { children: ReactNode }) {
+  return <div className="qk-body">{children}</div>;
+}
+
 export function QueryBar({ children, right }: { children?: ReactNode; right?: ReactNode }) {
   return (
     <div className="qk-bar">

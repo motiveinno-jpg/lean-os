@@ -8913,7 +8913,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
    표 아래에 두되 화면 바닥에 붙여 둔다 — 50줄을 보다 체크하면 확정 버튼이 화면 밖으로
    밀려나 매번 끝까지 스크롤해야 한다. 위에 두면 체크할 때마다 표가 아래로 튄다.
    오른쪽 여백은 떠 있는 메신저 단추(messenger-fab, fixed bottom-6 right-6 · 56px) 자리다. */
-.qk-selbar { @apply sticky bottom-2 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-[var(--primary)]/35 px-3.5 py-2 shadow-lg md:pr-[4.75rem]; background: color-mix(in srgb, var(--primary) 7%, var(--bg-card)); }
+/*   선택 바 규칙은 아래 '수집 현황' 묶음에서 새로 정의한다 (표 위로 떠오르게) */
 .qk-selbar-n { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
 .qk-selbar-sum { @apply text-[11.5px] tabular-nums text-[var(--text-dim)]; }
 .qk-selbar-right { @apply ml-auto flex flex-wrap items-center gap-2; }
@@ -8991,8 +8991,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
   .ev-wrap > .qk-screen { @apply min-h-0 flex-1; }
   .qk-screen { @apply flex min-h-0 flex-col; }
   /* 실제로 스크롤되는 곳 — 표(가로·세로 둘 다) · 현황판 카드 격자 */
-  .qk-screen > .ev-scroll,
-  .qk-screen > .collect-grid { @apply min-h-0 flex-1; overflow: auto; }
+  .qk-screen > .qk-body,
+  .qk-screen > .cs-split { @apply min-h-0 flex-1; }
   .qk-screen > .collect-empty { @apply min-h-0 flex-1 content-center; }
   /* 설명 줄은 마지막에 붙어 사이드바 끝선에서 끝난다 */
   .collect-page > .collect-note,
@@ -9001,3 +9001,60 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 표 머리단은 스크롤 안에서 붙어 있는다 — 아래로 내려가도 어느 칸인지 안 잊는다.
    (thead th 에 배경이 있어야 밑줄이 비쳐 보이지 않는다 — .ev-table thead th 가 이미 칠한다) */
 .ev-scroll thead th { position: sticky; top: 0; z-index: 3; }
+
+/* ══ 수집 현황 — 카드 격자 → 표 + 최근 수집 이력 (2026-08-13 사장님 C안 승인) ═══
+   카드였을 때: 상자에 높이를 주자 격자가 남는 높이를 **행에 나눠 줘** 카드가 351px 로
+   늘어나고 내용 아래가 200px 넘게 비었다. 그리고 이 화면이 하는 일은 다섯 자료를
+   **비교**하는 것이라 세로로 줄 세우는 표가 맞다 — 다른 탭도 전부 표다(통일성).
+   남는 공간은 '최근 수집 이력' 이 의미 있게 채운다. */
+.cs-split { @apply flex min-h-0 flex-1 flex-col; }
+.cs-top { @apply shrink-0 overflow-x-auto; }
+.cs-btm { @apply min-h-0 flex-1 overflow-auto border-t border-[var(--border)]; }
+
+.cs-table { min-width: 880px; }
+.cs-name-th { @apply text-left; padding-left: 14px; }
+.cs-row { @apply cursor-pointer transition-colors; }
+.cs-row:hover { @apply bg-[var(--bg-surface)]; }
+.cs-row-bad { background: color-mix(in srgb, var(--danger) 4%, transparent); }
+.cs-row > td { @apply py-2.5; }
+.cs-row > td:first-child { padding-left: 14px; }
+.cs-name { @apply inline-flex items-center gap-2.5 text-[12.5px] font-bold text-[var(--text)]; }
+.cs-ico { @apply not-italic grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-[var(--bg-surface)] text-[12px]; }
+.cs-total { @apply text-[14px] font-extrabold; }
+.cs-dim { @apply text-[var(--text-dim)]; }
+.cs-go { @apply text-[11.5px] font-bold text-[var(--primary)]; }
+.cs-table tfoot td { @apply border-t border-[var(--border)] bg-[var(--bg-surface)] py-2 text-[12px] font-extrabold text-[var(--text)]; }
+.cs-table tfoot td:first-child { padding-left: 14px; }
+
+/* 최근 수집 이력 */
+.cs-hist-h { @apply flex items-center gap-1.5 px-3.5 pb-1.5 pt-2.5 text-[11.5px] font-extrabold text-[var(--text-dim)]; }
+.cs-hist-h span { @apply font-semibold text-[var(--text-dim)] opacity-70; }
+.cs-hist-empty { @apply px-3.5 py-6 text-center text-[12px] text-[var(--text-dim)]; }
+.cs-hist { min-width: 720px; }
+.cs-hist td { @apply py-1.5 text-[11.5px]; }
+.cs-hist td:first-child { padding-left: 14px; }
+.cs-hist-when { @apply w-[128px]; }
+.cs-hist-who { @apply w-[86px] text-[var(--text-dim)]; }
+.cs-hist-n { @apply w-[80px]; }
+.cs-hist-note { @apply max-w-0 truncate text-[11px] text-[var(--danger)]; }
+.cs-auto { @apply not-italic rounded-md bg-[var(--bg-surface)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--text-dim)]; }
+.cs-dot { @apply mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 align-middle; }
+.cs-dot-warn { @apply bg-amber-500; }
+.cs-dot-bad { @apply bg-rose-500; }
+
+/* ══ 선택 바 — 표를 밀지 않고 **표 위로 떠오른다** (2026-08-13 사장님 지시) ═════
+   예전엔 흐름에 끼어 있어 줄을 고르는 순간 표가 그만큼 줄어들었다. 고를 때마다 표가
+   들썩이면 고르던 자리를 놓친다. 상자 안 **바닥에 띄우고**, 대신 스크롤 안쪽에
+   그만큼 여백을 줘 마지막 줄이 가려진 채 끝나지 않게 한다. */
+/* 표가 들어가는 자리 — 여기가 위치 기준이라 선택 바가 표 위로 뜬다 */
+.qk-body { @apply relative min-h-0 flex-1; }
+.qk-body > .ev-scroll { @apply absolute inset-0; overflow: auto; }
+.qk-body > .collect-empty { @apply absolute inset-0 grid place-items-center; }
+.qk-selbar {
+  @apply absolute inset-x-3 bottom-3 z-25 flex flex-wrap items-center gap-x-3 gap-y-2
+         rounded-xl border border-[var(--primary)]/35 px-3.5 py-2 shadow-xl;
+  background: color-mix(in srgb, var(--primary) 8%, var(--bg-card));
+  backdrop-filter: blur(6px);
+}
+/* 선택 바가 떠 있는 동안 마지막 줄이 그 밑에 깔린 채 끝나지 않게 — 상자 크기는 그대로다 */
+.qk-body:has(.qk-selbar) > .ev-scroll { padding-bottom: 60px; }

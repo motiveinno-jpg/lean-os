@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { appConfirm } from "@/components/global-confirm";
 import {
-  QueryScreen, QueryHead, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
+  QueryScreen, QueryHead, QueryBody, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
   ExcelMenu, type ExcelItem,
   Pager, usePager, ConditionPanel, ConditionRow, TokenField, AmountRange, AppliedChips,
   QuickSearch, quickSearchHit, quickTerms, amountHit, periodQuicks,
@@ -770,11 +770,11 @@ export function EvidenceTab({
         <Stat label="부가세" value={won(sumVat)} />
         {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
         {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
-        {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
       </ResultStrip>
       </QueryHead>
 
-      {/* 목록 */}
+      {/* 목록 — 선택 바가 이 위로 떠오른다 (표 크기는 안 줄어들게) */}
+      <QueryBody>
       {isLoading ? (
         <div className="collect-empty">읽는 중…</div>
       ) : shown.length === 0 ? (
@@ -921,11 +921,6 @@ export function EvidenceTab({
         </div>
       )}
 
-      {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
-      <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
-        from={pager.from} to={pager.to} onPage={pager.setPage} />
-      </QueryScreen>
-
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 화면을 통틀어 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
         summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}</>}>
@@ -934,15 +929,14 @@ export function EvidenceTab({
           {saving ? "만드는 중…" : `전표 만들기 (${selRows.length})`}
         </button>
       </SelectionBar>
+      </QueryBody>
 
-      <p className="collect-note">
-        ※ 계정은 <b>전에 고른 것</b>을 배워 두었다가 미리 붙입니다 —
-        1~2번은 <b>지난번</b>, 3번 이상이면 <b>학습</b> 꼬리표가 붙습니다.
-        다른 계정을 고르면 그쪽 횟수가 올라 <b>결국 뒤집힙니다</b>.
-        <b>제안은 자동, 확정은 사람</b> — 전표는 <b>전표 만들기</b>를 눌러야 생깁니다.
-        만든 전표는 <b>매입매출전표</b> 메뉴에서 그대로 보이고, 상태의 <b>취소</b>를 누르면 이 목록으로 되돌아옵니다
-        (전표는 지워지지 않고 <b>반려</b>로 남아 재무제표에서만 빠집니다).
-      </p>
+      {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
+      <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
+        from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
+
+
     </div>
   );
 }
