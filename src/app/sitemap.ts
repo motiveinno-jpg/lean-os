@@ -7,7 +7,16 @@ const BASE = "https://www.owner-view.com";
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     { url: `${BASE}/`, changeFrequency: "weekly", priority: 1 },
+    // 랜딩에서 분리된 공개 페이지들 — 사이트맵 누락으로 색인이 안 되고 있었다 (2026-08-13 SEO 정비)
+    { url: `${BASE}/pricing`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${BASE}/features`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${BASE}/ai`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/demo`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}/guide`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE}/tax-partners`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE}/advisor`, changeFrequency: "monthly", priority: 0.6 },
+    // 무료 도구 — 검색 유입용 공개 계산기 (2026-08-13 사장님 지시)
+    { url: `${BASE}/tools/leave-calculator`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/auth`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.3 },

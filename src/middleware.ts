@@ -52,6 +52,7 @@ const PUBLIC_ROUTES = [
   '/ai',        // AI 자동화 페이지 — 동일 (2026-07-27)
   '/maintenance',
   '/status',
+  '/tools/leave-calculator', // 무료 연차 계산기 — 검색 유입용 공개 도구 (2026-08-13)
 ];
 
 function isPublicRoute(pathname: string): boolean {

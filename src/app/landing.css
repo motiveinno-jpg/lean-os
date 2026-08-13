@@ -1106,3 +1106,30 @@
 @media (prefers-reduced-motion: reduce){
   .lp4-ai-card:hover, .lp4-eng4-card:hover, .lp4-tool:hover, .lp4-mcol-in:hover { transform:none; }
 }
+
+/* ── 무료 도구: 연차 계산기 (/tools/leave-calculator, 2026-08-13) ─────────────
+   검색 유입용 공개 계산기. lp4-tool(랜딩 도구 소개 카드)과 별개 네임스페이스(lp4-freetool). */
+.lp4-freetool-card { background:#fff; border:1px solid var(--line); border-radius:22px; padding:30px;
+  box-shadow: 0 18px 40px -30px rgba(27,26,46,.25); }
+.lp4-freetool-fields { display:grid; grid-template-columns:1fr; gap:14px; }
+@media (min-width: 640px){ .lp4-freetool-fields { grid-template-columns:1fr 1fr; } }
+.lp4-freetool-field { display:flex; flex-direction:column; gap:7px; }
+.lp4-freetool-label { font-size:13px; font-weight:800; color: var(--ink2); }
+.lp4-freetool-empty { margin-top:22px; padding:26px 16px; border-radius:14px; background: var(--canvas2);
+  text-align:center; font-size:14px; color: var(--ink3); }
+.lp4-freetool-result { margin-top:22px; padding:24px 22px; border-radius:16px;
+  background: linear-gradient(150deg, rgba(91,84,232,.08), rgba(91,84,232,.03)); border:1px solid rgba(91,84,232,.22); }
+.lp4-freetool-result-main { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.lp4-freetool-result-num { font-size:42px; font-weight:900; letter-spacing:-.03em; color: var(--brand); }
+.lp4-freetool-result-cap { font-size:14px; font-weight:700; color: var(--ink2); }
+.lp4-freetool-result-rows { margin-top:12px; display:flex; flex-direction:column; gap:6px; }
+.lp4-freetool-result-row { font-size:13.5px; color: var(--ink2); line-height:1.7; }
+.lp4-freetool-note { margin-top:14px; font-size:12.5px; color: var(--ink3); line-height:1.7; }
+.lp4-freetool-h3 { font-size:20px; font-weight:850; letter-spacing:-.02em; color: var(--ink); margin-bottom:16px; }
+.lp4-freetool-tablewrap { margin-top:64px; }
+.lp4-freetool-table { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line);
+  border-radius:14px; overflow:hidden; font-size:14px; }
+.lp4-freetool-table th { background: var(--canvas2); font-weight:800; color: var(--ink2); }
+.lp4-freetool-table th, .lp4-freetool-table td { padding:11px 16px; border-bottom:1px solid var(--line); text-align:left; }
+.lp4-freetool-table tr:last-child td { border-bottom:none; }
+.lp4-freetool-faqwrap { margin-top:64px; }
