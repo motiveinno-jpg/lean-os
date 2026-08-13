@@ -9203,3 +9203,24 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 
 /* 발행 대기 줄의 출처 — 매입매출전표가 만든 초안 표시 (2026-08-13) */
 .ti-src-pill { @apply mr-1.5 inline-flex items-center rounded-full border border-[var(--primary)]/35 px-1.5 py-px text-[10px] font-bold text-[var(--primary)]; }
+
+/* 전송 전 확인 창 — 빠진 받는 쪽 정보를 채우고 보낸다 (2026-08-13, 4단계) */
+.ti-cfm-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+.ti-cfm { @apply flex max-h-[86vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }
+.ti-cfm-head { @apply border-b border-[var(--border)] px-5 py-4; }
+.ti-cfm-head b { @apply block text-sm font-bold text-[var(--text)]; }
+.ti-cfm-head span { @apply mt-0.5 block text-[11.5px] text-[var(--text-dim)]; }
+.ti-cfm-body { @apply min-h-0 flex-1 space-y-2.5 overflow-y-auto p-4; }
+.ti-cfm-row { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/60 p-3; }
+.ti-cfm-row-blocked { @apply border-[var(--danger)]/40; }
+.ti-cfm-row-head { @apply flex flex-wrap items-center gap-2.5 text-[12.5px]; }
+.ti-cfm-row-head b { @apply font-bold text-[var(--text)]; }
+.ti-cfm-ok { @apply text-[11px] font-semibold text-emerald-600; }
+.ti-cfm-warn { @apply text-[11px] font-semibold text-[var(--warning)]; }
+.ti-cfm-block { @apply text-[11px] font-semibold text-[var(--danger)]; }
+.ti-cfm-fields { @apply mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-2; }
+.ti-cfm-field { @apply flex items-center gap-2 text-[11.5px]; }
+.ti-cfm-field > span { @apply w-14 shrink-0 text-right font-semibold text-[var(--text-muted)]; }
+.ti-cfm-field .qk-input { @apply w-full; }
+.ti-cfm-foot { @apply flex flex-wrap items-center gap-2 border-t border-[var(--border)] px-4 py-3; }
+.ti-cfm-save { @apply flex cursor-pointer items-center gap-1.5 text-[11.5px] text-[var(--text-muted)]; }

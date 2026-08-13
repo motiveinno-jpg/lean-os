@@ -6,7 +6,7 @@ import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 import {
-  vatBusinessTypeOf, canIssueTaxKind, taxKindBlockedReason, type TaxKind,
+  vatBusinessTypeOf, canIssueTaxKind, taxKindBlockedReason, type TaxKind, type VatBusinessType,
 } from "@/lib/vat-business-type";
 //   조회 화면 표준 공용 부품 — 새 툴바를 만들지 말고 반드시 이걸 쓴다 (CLAUDE.md)
 import {
@@ -493,6 +493,8 @@ function TaxInvoicesPageInner() {
   const [dismissedDups, setDismissedDups] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchIssuing, setBatchIssuing] = useState(false);
+  //   전송 전 확인 창 — 여기 담긴 건들이 확인을 거쳐 국세청으로 나간다 (2026-08-13, 4단계)
+  const [issueConfirm, setIssueConfirm] = useState<any[] | null>(null);
   // 일괄 전표처리 (post_invoice_voucher) — 매출/매입 방향은 RPC 가 자동 분기.
   const [showBulkVoucher, setShowBulkVoucher] = useState(false);
   const [bulkVoucherAccountId, setBulkVoucherAccountId] = useState("");
@@ -1389,33 +1391,8 @@ function TaxInvoicesPageInner() {
     });
   }
 
-  async function handleBatchIssue() {
-    if (selectedIssuable.length === 0) {
-      toast("발행할 미발행 매출 세금계산서를 선택하세요", "error");
-      return;
-    }
-    setBatchIssuing(true);
-    let successCount = 0;
-    let failCount = 0;
-    let firstHint = "";
-    for (const inv of selectedIssuable) {
-      try {
-        await issueTaxInvoice(inv.id);
-        successCount++;
-      } catch (err: any) {
-        failCount++;
-        if (!firstHint && err?.hint) firstHint = err.hint;
-      }
-    }
-    setBatchIssuing(false);
-    setSelectedIds(new Set());
-    queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
-    if (failCount === 0) {
-      toast(`${successCount}건 일괄 발행 완료 (홈택스)`, "success");
-    } else {
-      toast(`${successCount}건 발행, ${failCount}건 실패${firstHint ? ' — ' + firstHint : ''}`, "error");
-    }
-  }
+  //   전송은 이제 확인 창(IssueConfirmModal)을 거친다 — 바로 쏘는 길을 없앴다 (2026-08-13, 4단계).
+  //   받는 쪽 정보(이메일·업태·종목)가 빠진 채 나가는 것을 전송 직전에 잡기 위해서다.
 
   // 선택 일괄 삭제 — 미발행(홈택스 승인번호 없음) 건만 대상. 파괴적이라 확인 후 진행.
   async function handleBatchDelete() {
@@ -1453,17 +1430,6 @@ function TaxInvoicesPageInner() {
       setShowBulkVoucher(false); setBulkVoucherAccountId(""); setSelectedIds(new Set());
       queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
     } finally { setBulkVoucherPosting(false); }
-  }
-
-  async function handleSingleIssue(id: string) {
-    try {
-      await issueTaxInvoice(id);
-      queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
-      toast("홈택스 발행 완료 (승인번호 저장됨)", "success");
-    } catch (err: any) {
-      const hint = err?.hint ? `\n→ ${err.hint}` : "";
-      toast(`발행 실패: ${err.message || err}${hint}`, "error");
-    }
   }
 
   if (isLoading && invoices.length === 0) {
@@ -1723,8 +1689,8 @@ function TaxInvoicesPageInner() {
             </button>
           )}
           {selectedIssuable.length > 0 && (
-            <button onClick={handleBatchIssue} disabled={batchIssuing} className="btn-primary btn-sm">
-              {batchIssuing ? "보내는 중…" : `홈택스로 전송 (${selectedIssuable.length})`}
+            <button onClick={() => setIssueConfirm(selectedIssuable)} disabled={batchIssuing} className="btn-primary btn-sm">
+              홈택스로 전송 ({selectedIssuable.length})
             </button>
           )}
         </SelectionBar>
@@ -1875,7 +1841,7 @@ function TaxInvoicesPageInner() {
                             <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap">
                               {canIssue && (
                                 <button
-                                  onClick={() => kindBlocked ? toast(kindBlocked, "error") : handleSingleIssue(inv.id)}
+                                  onClick={() => kindBlocked ? toast(kindBlocked, "error") : setIssueConfirm([inv])}
                                   className={kindBlocked
                                     ? "px-2.5 py-1 rounded text-[11px] font-bold transition bg-[var(--bg-surface)] text-[var(--text-dim)]"
                                     : "px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110 bg-[var(--primary)]"}
@@ -2467,6 +2433,17 @@ function TaxInvoicesPageInner() {
           </div>
         </div>
         </div>
+      )}
+
+      {/* 전송 전 확인 — 빠진 받는 쪽 정보를 채우고 보낸다 (2026-08-13, 4단계) */}
+      {issueConfirm && (
+        <IssueConfirmModal invoices={issueConfirm} partners={partners as any[]} vatBiz={vatBiz}
+          onClose={() => setIssueConfirm(null)}
+          onDone={() => {
+            setIssueConfirm(null);
+            setSelectedIds(new Set());
+            queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+          }} />
       )}
 
       {/* 일괄 전표처리 모달 — 선택된 세금계산서를 계정 1개로 일괄 기장(매출/매입 방향 자동) */}
@@ -3676,6 +3653,156 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
               취소
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 전송 전 확인 — 받는 쪽 정보가 빠진 채 국세청으로 나가는 것을 여기서 막는다 (2026-08-13, 4단계).
+ *
+ *   왜 필요한가: 거래처 727곳 중 이메일 466(64%) · 업태·종목 8곳(1%). 사업자번호만 있으면
+ *   전송 자체는 되지만 **이메일이 없으면 상대가 계산서를 못 받는다.** 그래서 전송 버튼이
+ *   바로 쏘지 않고 이 창을 거친다 — 빠진 칸은 그 자리에서 채우고 보낸다.
+ *
+ *   칸의 출처는 발행 엣지와 같은 규칙(계산서 값 우선 → 거래처 폴백)으로 판정한다.
+ *   여기서 채운 값은 계산서 행(counterparty_*)에 저장되고, 체크를 켜 두면 거래처에도
+ *   저장돼 다음 발행부터 자동으로 채워진다 — 발행 폼의 savePartnerInfo 와 같은 패턴.
+ */
+function IssueConfirmModal({ invoices, partners, vatBiz, onDone, onClose }: {
+  invoices: any[]; partners: any[]; vatBiz: VatBusinessType;
+  onDone: () => void; onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const [sending, setSending] = useState(false);
+  const [savePartner, setSavePartner] = useState(true);
+  //   빠진 칸에 쳐 넣은 값 — { 계산서 id: { 칸: 값 } }
+  const [edits, setEdits] = useState<Record<string, Record<string, string>>>({});
+  const setEdit = (id: string, k: string, v: string) =>
+    setEdits((e) => ({ ...e, [id]: { ...e[id], [k]: v } }));
+
+  //   칸 정의 — 계산서 컬럼 / 거래처 컬럼 / 없을 때 무슨 일이 나는지
+  const FIELDS = [
+    { k: "bizno", label: "등록번호", invCol: "counterparty_bizno", pCol: "business_number", why: "없으면 전송할 수 없습니다", must: true },
+    { k: "email", label: "이메일", invCol: "counterparty_email", pCol: "contact_email", why: "없으면 상대가 계산서를 못 받습니다", must: false },
+    { k: "rep", label: "대표자", invCol: "counterparty_representative", pCol: "representative", why: "", must: false },
+    { k: "btype", label: "업태", invCol: "counterparty_business_type", pCol: "business_type", why: "", must: false },
+    { k: "bitem", label: "종목", invCol: "counterparty_business_item", pCol: "business_item", why: "", must: false },
+    { k: "addr", label: "주소", invCol: "counterparty_address", pCol: "address", why: "", must: false },
+  ] as const;
+
+  const rows = invoices.map((inv) => {
+    const p = partners.find((x: any) => x.id === inv.partner_id);
+    const eff: Record<string, string> = {};
+    for (const f of FIELDS) eff[f.k] = edits[inv.id]?.[f.k] ?? (inv[f.invCol] || p?.[f.pCol] || "");
+    const missing = FIELDS.filter((f) => !String(eff[f.k]).trim());
+    const kindBlocked = taxKindBlockedReason(vatBiz, (inv.tax_kind || "taxable") as TaxKind);
+    return { inv, p, eff, missing, kindBlocked, canSend: !kindBlocked && !!String(eff.bizno).trim() };
+  });
+  const sendable = rows.filter((r) => r.canSend);
+
+  const send = async () => {
+    if (sending || sendable.length === 0) return;
+    setSending(true);
+    let ok = 0, fail = 0, firstHint = "";
+    try {
+      for (const r of rows) {
+        if (!r.canSend) continue;
+        //   ① 채워 넣은 칸을 계산서 행에 저장 — 발행 엣지가 이 값을 먼저 읽는다
+        const patch: Record<string, string> = {};
+        for (const f of FIELDS) {
+          const v = String(edits[r.inv.id]?.[f.k] ?? "").trim();
+          if (v && v !== String(r.inv[f.invCol] || "")) patch[f.invCol] = v;
+        }
+        if (Object.keys(patch).length > 0) {
+          await supabase.from("tax_invoices").update(patch as never).eq("id", r.inv.id);
+        }
+        //   ② 거래처에도 저장(선택) — 다음 발행부터 자동으로 채워진다
+        if (savePartner && r.inv.partner_id) {
+          const pPatch: Record<string, string> = {};
+          for (const f of FIELDS) {
+            const v = String(edits[r.inv.id]?.[f.k] ?? "").trim();
+            if (v && !String(r.p?.[f.pCol] || "").trim()) pPatch[f.pCol] = v;
+          }
+          if (Object.keys(pPatch).length > 0) {
+            await supabase.from("partners").update(pPatch as never).eq("id", r.inv.partner_id);
+          }
+        }
+        //   ③ 전송 — 한 건 실패해도 나머지는 계속 보낸다
+        try {
+          await issueTaxInvoice(r.inv.id);
+          ok++;
+        } catch (err: any) {
+          fail++;
+          if (!firstHint && err?.hint) firstHint = err.hint;
+        }
+      }
+    } finally {
+      setSending(false);
+    }
+    toast(
+      fail === 0 ? `${ok}건을 홈택스로 보냈습니다`
+        : `${ok}건 전송, ${fail}건 실패${firstHint ? " — " + firstHint : ""}`,
+      fail === 0 ? "success" : "error",
+    );
+    onDone();
+  };
+
+  const fmtWon = (n: unknown) => `₩${Math.round(Number(n) || 0).toLocaleString("ko")}`;
+  return (
+    <div className="ti-cfm-overlay" onClick={onClose}>
+      <div className="ti-cfm" onClick={(e) => e.stopPropagation()}>
+        <div className="ti-cfm-head">
+          <b>홈택스로 전송 — 보내기 전에 확인</b>
+          <span>국세청에 실제 발행됩니다 · 보낸 뒤에는 수정세금계산서로만 고칠 수 있습니다</span>
+        </div>
+        <div className="ti-cfm-body">
+          {rows.map((r) => (
+            <div key={r.inv.id} className={r.canSend ? "ti-cfm-row" : "ti-cfm-row ti-cfm-row-blocked"}>
+              <div className="ti-cfm-row-head">
+                <b>{r.eff.bizno && r.inv.counterparty_name ? r.inv.counterparty_name : (r.inv.counterparty_name || "거래처 없음")}</b>
+                <span className="mono-number">{fmtWon(r.inv.total_amount)}</span>
+                <span className="ev-dim">{r.inv.issue_date}</span>
+                {r.kindBlocked ? (
+                  <span className="ti-cfm-block">{r.kindBlocked}</span>
+                ) : r.missing.length === 0 ? (
+                  <span className="ti-cfm-ok">✓ 받는 쪽 정보 갖춰짐</span>
+                ) : !r.canSend ? (
+                  <span className="ti-cfm-block">등록번호가 없어 보낼 수 없습니다 — 아래에 채워 주세요</span>
+                ) : (
+                  <span className="ti-cfm-warn">빠진 칸 {r.missing.length}개 — 채우지 않아도 보내지긴 합니다</span>
+                )}
+              </div>
+              {r.missing.length > 0 && !r.kindBlocked && (
+                <div className="ti-cfm-fields">
+                  {r.missing.map((f) => (
+                    <label key={f.k} className="ti-cfm-field">
+                      <span>{f.label}{f.must && " *"}</span>
+                      <input
+                        className="qk-input"
+                        value={edits[r.inv.id]?.[f.k] ?? ""}
+                        placeholder={f.why || f.label}
+                        onChange={(e) => setEdit(r.inv.id, f.k, e.target.value)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="ti-cfm-foot">
+          <label className="ti-cfm-save">
+            <input type="checkbox" checked={savePartner} onChange={(e) => setSavePartner(e.target.checked)} />
+            채운 값을 거래처 정보에도 저장 (다음 발행부터 자동으로 채워집니다)
+          </label>
+          <span className="flex-1" />
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose} disabled={sending}>닫기</button>
+          <button type="button" className="btn-primary btn-sm" onClick={send}
+            disabled={sending || sendable.length === 0}>
+            {sending ? "보내는 중…" : `홈택스로 전송 (${sendable.length})`}
+          </button>
         </div>
       </div>
     </div>
