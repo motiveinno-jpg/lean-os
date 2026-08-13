@@ -10,6 +10,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { markConnectedOnce } from "@/lib/analytics";
 import { subscribeToBankTransactions, subscribeToCardTransactions } from "@/lib/realtime";
 import { getCurrentUser, getBankTransactions, getBankTransactionStats, getMonthlyIncomeExpense, mapBankTransaction, ignoreBankTransaction, getDeals, getDealClassifications, getClassificationRules, upsertClassificationRule, deleteClassificationRule, getDistinctBankAccountNos } from "@/lib/queries";
 import type { MonthlyIncomeExpense } from "@/lib/queries";
@@ -996,7 +997,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                     toast(result.error || '통장 거래 불러오기 실패', 'error');
                     return;
                   }
-                  try { localStorage.setItem(`codef-connected-${companyId}`, '1'); } catch { /* ignore */ }
+                  markConnectedOnce(companyId, "transactions");
                   const synced = result.bankSynced ?? 0;
                   // 2) sync 완료 후 bank_accounts.balance 재계산 (잔액 즉시 반영)
                   const balResult = await syncBankBalances(companyId);
@@ -1052,7 +1053,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                 const result = await syncCodefData(companyId!, syncType);
                 if (result.success) {
                   // 수동 동기화 성공 → 이후 자동 동기화 활성화 플래그
-                  try { localStorage.setItem(`codef-connected-${companyId}`, '1'); } catch { /* ignore */ }
+                  markConnectedOnce(companyId, "transactions");
                   // 카드 탭이면 승인내역(실시간)도 별도 호출 (billing 과 묶으면 Edge 150s 초과). 청구 마감 전 결제 즉시 반영.
                   let approvalSynced = 0;
                   if (syncType === 'card') {

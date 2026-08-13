@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { track } from "@/lib/analytics";
 import { logError } from "@/lib/error-logger";
 import { markConsentPending } from "@/lib/legal";
 import { useRouter } from "next/navigation";
@@ -279,6 +280,9 @@ export default function AuthPage() {
       setMode("login");
       return;
     }
+
+    // 계측 — 신규 가입 접수 성공 (이메일 인증 전이어도 퍼널상 가입 시도 성공 시점)
+    track("sign_up", { method: "email" });
 
     // 이메일 인증이 필요한 경우 (세션 없음) — 인증 후 첫 로그인 때 provisionCompanyForUser 가
     //   metadata(business_number / join_business_number)로 회사 개설·합류 요청을 이어서 처리

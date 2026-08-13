@@ -12,3 +12,13 @@ export function track(event: string, params?: Record<string, string | number | b
   if (typeof gtag !== "function") return;
   try { gtag("event", event, params || {}); } catch { /* 계측 실패는 무해 */ }
 }
+
+/** 첫 데이터 연동(북극성 지표) — 기존 codef-connected 마커를 그대로 쓰되,
+ *  마커가 없던 최초 1회만 bank_connect 를 보낸다. 마커 세팅까지 이 함수가 책임진다. */
+export function markConnectedOnce(companyId: string, source: "bank" | "card" | "transactions") {
+  try {
+    const key = `codef-connected-${companyId}`;
+    if (!localStorage.getItem(key)) track("bank_connect", { source });
+    localStorage.setItem(key, "1");
+  } catch { /* localStorage 불가 환경 — 계측만 포기 */ }
+}

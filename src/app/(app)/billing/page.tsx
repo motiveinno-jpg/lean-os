@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { getIssuanceStatus } from "@/lib/billing";
 import { supabase } from "@/lib/supabase";
+import { track } from "@/lib/analytics";
 import { useToast } from "@/components/toast";
 import { recordConsent } from "@/lib/legal";
 import { useUser } from "@/components/user-context";
@@ -341,6 +342,7 @@ function BillingPageInner() {
       }
     }
     setIsPaymentLoading(true);
+    track("checkout_start", { plan: planSlug, cycle }); // 계측 — 결제 페이지로 넘어가기 직전
     try {
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',

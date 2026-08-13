@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BarChart } from "@/components/charts/kit";
 import { supabase } from "@/lib/supabase";
+import { markConnectedOnce } from "@/lib/analytics";
 import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
 import { useToast } from "@/components/toast";
@@ -213,7 +214,7 @@ export default function BankPage() {
         toast(result.error || "통장 연동 실패", "error");
         return;
       }
-      try { localStorage.setItem(`codef-connected-${companyId}`, "1"); } catch { /* ignore */ }
+      markConnectedOnce(companyId, "bank");
       const synced = result.bankSynced ?? 0;
       // 예금주명 백필 — 은행이 desc1에 채널명만 주고 이름을 안 준 거래를
       //   상대계좌번호·거래처명 매칭으로 채운다 (실패해도 동기화 결과엔 영향 없음)

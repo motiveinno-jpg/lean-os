@@ -15,6 +15,7 @@ import { DateField } from "@/components/date-field";
 import { DateRangeField } from "@/components/date-range-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { markConnectedOnce } from "@/lib/analytics";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
@@ -487,7 +488,7 @@ export default function CardsPage() {
         toast(result.error || "카드 연동 실패", "error");
         return;
       }
-      try { localStorage.setItem(`codef-connected-${companyId}`, "1"); } catch { /* ignore */ }
+      markConnectedOnce(companyId, "card");
       // 승인내역(실시간) — 별도 호출 (billing 과 묶으면 Edge 150s 초과 HTTP 546). 청구 마감 전 결제 즉시 반영.
       const approvalRes = await syncCodefData(companyId, "card_approval", cardTxFrom ? cardTxFrom.replace(/-/g, "") : undefined, cardTxTo ? cardTxTo.replace(/-/g, "") : undefined).catch(() => null);
       const synced = (result.cardSynced ?? 0) + ((approvalRes as any)?.cardSynced ?? 0);
