@@ -9104,3 +9104,42 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 
 /* 전자계산서 표 — 칸이 적어 최소폭을 낮춘다(가로 스크롤은 상자 안에서) */
 .ei-table { min-width: 860px; }
+
+/* ── 세금·증빙 = 발행하는 곳 (2026-08-13 사장님 지시 재편) ─────────────────────
+   발행 현황(이카운트 「매출(세금)계산서요약」 형태)과 거래처 발행정보 두 탭의 표.
+   ★ 이름 충돌 확인 완료 — .ti-* 접두는 이 블록에서 처음 쓴다. */
+.vat-report-page { @apply space-y-4; }
+
+.ti-sum { @apply overflow-hidden p-0; }
+.ti-sum-table { @apply w-full; }
+.ti-sum-table td { @apply py-2 px-3 text-[12.5px] border-b border-[var(--border)]/50; }
+.ti-sum-table tfoot td { @apply py-2.5 font-bold border-t border-[var(--border)] bg-[var(--bg-surface)]; }
+.ti-sum-kind { @apply w-[110px] whitespace-nowrap font-semibold text-[var(--text-muted)]; }
+.ti-sum-item { @apply pl-5; }
+.ti-sum-bad { @apply text-[var(--danger)] font-semibold; }
+.ti-sum-sub td { @apply font-bold bg-[var(--bg-surface)]; }
+.ti-sum-nil td { @apply text-[var(--text-dim)]; }
+.ti-sum-go { @apply cursor-pointer; }
+.ti-sum-go:hover { @apply bg-[var(--bg-surface)]; }
+.ti-sum-link { @apply text-[11.5px] font-bold text-[var(--primary)] whitespace-nowrap; }
+.ti-sum-note { @apply px-4 py-3 text-[11.5px] leading-relaxed text-[var(--text-dim)] border-t border-[var(--border)]; }
+.ti-sum-note b { @apply font-semibold text-[var(--text-muted)]; }
+
+.ti-pinfo { @apply overflow-hidden p-0; }
+.ti-pinfo-head { @apply flex items-center gap-2 px-4 py-3 text-[12.5px] border-b border-[var(--border)]; }
+.ti-pinfo-head b { @apply font-bold text-[var(--text)]; }
+.ti-pinfo-warn { @apply text-[var(--warning)] font-semibold; }
+.ti-pinfo-scroll { @apply overflow-auto max-h-[62vh]; }
+.ti-pinfo-table td { @apply py-2 px-3 text-[12.5px] border-b border-[var(--border)]/50; }
+.ti-pinfo-has { @apply text-[var(--text-dim)]; }
+.ti-pinfo-miss { @apply text-[var(--warning)] font-semibold; }
+.ti-pinfo-empty { @apply py-14 text-[var(--text-dim)]; }
+
+/* 홈택스 전송 진행상황 배지 — 세금·증빙 발행 목록 (2026-08-13).
+   '미발행' 한 글자로 뭉개져 있던 것을 전송 전/중/완료/에러로 가른다. */
+.ti-send { @apply text-[10px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap; }
+.ti-send-draft { @apply bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]; }
+.ti-send-wait { @apply bg-blue-500/12 text-blue-500; }
+.ti-send-ok { @apply bg-emerald-500/12 text-emerald-600; }
+.ti-send-bad { @apply bg-red-500/12 text-red-500; }
+.ti-send-why { @apply block mt-1 text-[10.5px] leading-snug text-[var(--danger)] text-left; }

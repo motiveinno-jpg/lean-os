@@ -33,13 +33,14 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     menus: [
       { route: "/collect", label: "수집·전표" },
       { route: "/partners", label: "거래처" },
-      { route: "/tax-invoices", label: "세금계산서", tabs: [
-        { key: "sales", label: "매출" },
-        { key: "purchase", label: "매입" },
-        { key: "vat", label: "부가세" },
-        { key: "summary", label: "요약" },
-        { key: "queue", label: "발행 대기" },
-        { key: "sync", label: "홈택스 동기화" },
+      //   세금·증빙 = 오너뷰가 **발행하는** 곳으로 재편 (2026-08-13 사장님 지시).
+      //   옛 탭(sales·purchase·vat·summary·queue·sync)은 사라졌다 — 목록은 수집·전표,
+      //   부가세·요약은 분석(/reports/vat)으로 갔다. 옛 키에 걸어 둔 권한은 이제 아무것도 안 연다.
+      { route: "/tax-invoices", label: "세금·증빙 (발행)", tabs: [
+        { key: "issue-status", label: "발행 현황" },
+        { key: "wait", label: "발행 대기" },
+        { key: "done", label: "발행 내역" },
+        { key: "partner-info", label: "거래처 발행정보" },
       ] },
       { route: "/e-invoices", label: "전자계산서" },
       { route: "/cash-receipts", label: "현금영수증" },

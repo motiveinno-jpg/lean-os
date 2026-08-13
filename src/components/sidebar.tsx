@@ -72,6 +72,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/reports/revenue", permKey: "/reports", label: "손익 현황", icon: "trending-up", roles: ["owner", "admin"], match: ["/reports/revenue", "/reports/expense", "/reports/monthly"] },
       { href: "/reports/upcoming", permKey: "/reports", label: "자금 전망", icon: "clock", roles: ["owner", "admin"], match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
       { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", roles: ["owner", "admin"], match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
+      //   부가세 — 세금계산서 화면의 탭이었는데 분석으로 옮겼다 (2026-08-13 사장님 지시).
+      //   세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞아졌다.
+      //   ★ 위 '5개까지만 편다'를 하나 넘긴다 — 부가세는 원래 최상위 탭이었고 신고철마다 찾는 화면이라
+      //     하위로 접으면 못 찾는다. 더 늘릴 거면 그때 묶는다.
+      { href: "/reports/vat", permKey: "/reports", label: "부가세", icon: "receipt", roles: ["owner", "admin"], match: ["/reports/vat"] },
       { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"], match: ["/partners/ledger"] },
     ],
   },
