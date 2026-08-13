@@ -8878,10 +8878,24 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .qk-tab-star { @apply px-1 text-[10px] text-[var(--warning)]; }
 .qk-tab-name { @apply max-w-[120px] truncate py-1 pr-1 text-[11px] font-bold text-[var(--text)]; }
 .qk-tab-x { @apply rounded-full px-1.5 py-1 text-[9.5px] text-[var(--text-dim)] transition-colors hover:text-[var(--danger)]; }
-.qk-tab-add { @apply rounded-full border border-dashed border-[var(--border)] px-2.5 py-1 text-[11px] font-bold text-[var(--text-dim)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]; }
-.qk-tab-new { @apply inline-flex items-center gap-1; }
-.qk-tab-new input { @apply h-7 w-[124px] rounded-full border border-[var(--primary)] bg-[var(--bg-card)] px-2.5 text-[11.5px] text-[var(--text)] outline-none; }
-.qk-tab-new button { @apply h-7 rounded-full bg-[var(--primary)] px-2.5 text-[11px] font-bold text-white disabled:opacity-40; }
+/*   지금 걸린 조건이 파랗게 켜진다 — '기본' 도 하나의 탭이다 */
+.qk-tab-on { @apply border-[var(--primary)] bg-[var(--primary)] text-white; }
+.qk-tab-on .qk-tab-name, .qk-tab-on .qk-tab-x { @apply text-white; }
+.qk-tab-on .qk-tab-star { @apply text-white; }
+button.qk-tab { @apply px-2.5 py-1 text-[11px] font-bold text-[var(--text-dim)]; }
+button.qk-tab:hover { @apply border-[var(--primary)] text-[var(--primary)]; }
+button.qk-tab.qk-tab-on:hover { @apply text-white; }
+/*   저장해 둔 것과도 기본과도 다르면 '임시 조건' — 지금 보는 게 뭔지 헷갈리지 않게 */
+.qk-tab-dirty { @apply text-[10.5px] font-bold text-[var(--warning)]; }
+
+/*   이름 붙이는 줄 — 발 바로 위에 열린다 (조건을 다 고른 뒤) */
+.qk-panel-foot { @apply relative; }
+.qk-savebar { @apply absolute inset-x-0 bottom-full flex flex-wrap items-center gap-2 border-t border-[var(--border)] px-3.5 py-2.5; background: color-mix(in srgb, var(--primary) 6%, var(--bg-card)); }
+.qk-savebar-lbl { @apply shrink-0 text-[11.5px] font-bold text-[var(--text-dim)]; }
+.qk-savebar input[type="text"], .qk-savebar > input { @apply h-8 w-[200px] rounded-lg border border-[var(--primary)]/50 bg-[var(--bg-card)] px-2.5 text-[12.5px] text-[var(--text)] outline-none focus:border-[var(--primary)]; }
+.qk-savebar-def { @apply inline-flex shrink-0 cursor-pointer items-center gap-1.5 text-[11.5px] font-bold text-[var(--text-dim)]; }
+.qk-savebar-def input { @apply h-3.5 w-3.5 accent-[var(--primary)]; }
+.qk-savebar-grow { @apply flex-1; }
 
 /* 걸린 조건 칩 */
 .qk-applied { @apply flex flex-wrap items-center gap-1.5 px-1 pt-2; }

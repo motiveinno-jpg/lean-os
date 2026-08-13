@@ -294,15 +294,17 @@ export function TokenField({
   const list = all.slice(0, TOKEN_CAP);
   const cut = all.length - list.length;
 
+  //   ★ 담고 나면 글자를 지우므로 목록이 **저절로 닫힌다** (2026-08-13 사장님 지적).
+  //     예전엔 담은 뒤에도 목록이 남아 다음 칸을 덮었고, 다른 데를 한 번 눌러야 넘어갔다.
   const add = (it?: TokenItem) => {
     if (!it) return;
     if (!value.includes(it.value)) onChange([...value, it.value]);
-    setQ(""); setCur(-1); input.current?.focus();
+    setQ(""); setCur(-1); setOpen(false); input.current?.focus();
   };
 
   return (
     <div className="qk-tok" ref={box}>
-      <div className="qk-tok-box" onClick={() => { input.current?.focus(); setOpen(true); }}>
+      <div className="qk-tok-box" onClick={() => input.current?.focus()}>
         {value.map((v) => (
           <span key={v} className="qk-tok-chip">
             <span>{items.find((i) => i.value === v)?.label ?? v}</span>
@@ -310,12 +312,15 @@ export function TokenField({
               onClick={(e) => { e.stopPropagation(); onChange(value.filter((x) => x !== v)); }}>✕</button>
           </span>
         ))}
+        {/*   ★ 커서만 갔다고 목록을 열지 않는다 (2026-08-13 사장님 지적) —
+              열려 있으면 아래 칸을 덮어, 다음 조건으로 가려면 딴 데를 한 번 눌러야 했다.
+              **글자를 쳐야** 후보가 뜬다. 다 보고 싶으면 ↓ 를 누른다. */}
         <input ref={input} value={q} placeholder={value.length ? "" : placeholder}
-          onChange={(e) => { setQ(e.target.value); setOpen(true); setCur(-1); }}
-          onFocus={() => setOpen(true)}
+          onChange={(e) => { setQ(e.target.value); setOpen(e.target.value.trim().length > 0); setCur(-1); }}
           onKeyDown={(e) => {
             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
               e.preventDefault();
+              if (!open) { setOpen(true); return; }   // ↓ 로 전체 목록을 펼친다
               if (list.length === 0) return;
               setCur((c) => e.key === "ArrowDown" ? Math.min(c + 1, list.length - 1) : Math.max(c - 1, 0));
             } else if (e.key === "Enter") {
@@ -635,15 +640,21 @@ export function useSavedQueries(screen: string, companyId: string | null) {
     },
   });
 
-  const save = async (name: string, params: Record<string, unknown>) => {
+  const save = async (name: string, params: Record<string, unknown>, asDefault = false) => {
     if (!companyId || !name.trim()) return;
+    //   ★ 기본으로 삼으려면 나머지를 먼저 끈다 — 화면마다 하나뿐이다(DB 에도 유일 인덱스)
+    if (asDefault) {
+      await supabase.from("saved_queries").update({ is_default: false })
+        .eq("screen", screen).eq("company_id", companyId);
+    }
     const { error } = await supabase.from("saved_queries")
       //   같은 이름이면 덮어쓴다 — 사람은 조건을 다듬어 가며 같은 이름으로 다시 누른다
-      .upsert({ company_id: companyId, screen, name: name.trim(), params, updated_at: new Date().toISOString() } as any,
+      .upsert({ company_id: companyId, screen, name: name.trim(), params,
+        is_default: asDefault, updated_at: new Date().toISOString() } as any,
         { onConflict: "auth_id,screen,name" });
     if (error) { toast(`조건을 저장하지 못했습니다 — ${error.message}`, "error"); return; }
     qc.invalidateQueries({ queryKey: key });
-    toast(`'${name.trim()}' 조건을 저장했습니다`, "success");
+    toast(`'${name.trim()}' 조건을 저장했습니다${asDefault ? " — 화면을 열 때 이 조건으로 걸립니다" : ""}`, "success");
   };
 
   const remove = async (s: SavedQuery) => {
@@ -671,44 +682,91 @@ export function useSavedQueries(screen: string, companyId: string | null) {
   return { list, isFetched, save, remove, setDefault, def: list.find((s) => s.is_default) ?? null };
 }
 
-/** 패널 머리의 '내 조건' 탭 — ★ 로 기본을 정하고, ✕ 로 지운다 */
+/**
+ * 패널 머리의 '내 조건' 목록 — **불러오기 전용** (2026-08-13 사장님 지적).
+ *   예전엔 여기 '＋ 내 조건' 이 있어 이름만 치면 바로 저장됐다. 사람은 위→아래로 읽으니
+ *   **아래 조건을 고르기도 전에** 저장해 버린다. 저장은 발(ConditionSave)로 내렸다.
+ *   맨 앞의 **기본** 은 처음 상태 — ★ 조건을 정해 둬도 한 번 눌러 돌아온다.
+ */
 export function SavedTabs({
-  list, onApply, onSave, onRemove, onSetDefault,
+  list, current, basic, onApply, onBasic, onRemove, onSetDefault,
 }: {
   list: SavedQuery[];
+  /** 지금 걸린 조건 — 어느 것이 켜졌는지 표시하려고 견준다 */
+  current: Record<string, unknown>;
+  /** '기본' 이 뜻하는 조건 */
+  basic: Record<string, unknown>;
   onApply: (s: SavedQuery) => void;
-  onSave: (name: string) => void;
+  onBasic: () => void;
   onRemove: (s: SavedQuery) => void;
   onSetDefault: (s: SavedQuery) => void;
 }) {
-  const [naming, setNaming] = useState(false);
-  const [draft, setDraft] = useState("");
+  //   ★ 그냥 JSON.stringify 로 견주면 **늘 다르게** 나온다 — Postgres jsonb 가 키 순서를 제 맘대로
+  //     바꿔 저장하기 때문이다(실제로 저장한 조건을 불러와도 '임시 조건'으로 떴다).
+  //     키를 정렬하고 배열(거래처·계좌 묶음)도 정렬해 **내용만** 견준다.
+  const canon = (v: unknown): unknown =>
+    Array.isArray(v) ? [...v.map(canon)].sort((x, y) => String(x).localeCompare(String(y)))
+      : v && typeof v === "object"
+        ? Object.fromEntries(Object.keys(v as Record<string, unknown>).sort()
+            .map((k) => [k, canon((v as Record<string, unknown>)[k])]))
+        : v;
+  const same = (a: unknown, b: unknown) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+  const hit = list.find((s) => same(s.params, current));
+  const isBasic = same(current, basic);
   return (
     <span className="qk-tabs">
+      <button type="button" title="처음 상태로 — 기본 기간, 조건 없음"
+        className={isBasic ? "qk-tab qk-tab-on" : "qk-tab"} onClick={onBasic}>기본</button>
       {list.map((s) => (
-        <span key={s.id} className={s.is_default ? "qk-tab qk-tab-def" : "qk-tab"}>
-          <button type="button" className="qk-tab-star" title={s.is_default ? "기본 해제" : "화면을 열 때 이 조건으로"}
-            onClick={() => onSetDefault(s)}>{s.is_default ? "★" : "☆"}</button>
+        <span key={s.id} className={`qk-tab${hit?.id === s.id ? " qk-tab-on" : ""}${s.is_default ? " qk-tab-def" : ""}`}>
+          <button type="button" className="qk-tab-star" onClick={() => onSetDefault(s)}
+            title={s.is_default ? "기본으로 열기 해제" : "화면을 열 때 이 조건으로"}>{s.is_default ? "★" : "☆"}</button>
           <button type="button" className="qk-tab-name" onClick={() => onApply(s)}>{s.name}</button>
           <button type="button" className="qk-tab-x" aria-label={`${s.name} 삭제`} onClick={() => onRemove(s)}>✕</button>
         </span>
       ))}
-      {naming ? (
-        <form className="qk-tab-new" onSubmit={(e) => {
-          e.preventDefault();
-          if (!draft.trim()) return;
-          onSave(draft.trim()); setDraft(""); setNaming(false);
-        }}>
-          <input autoFocus value={draft} maxLength={30} placeholder="조건 이름"
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Escape") { setNaming(false); setDraft(""); } }} />
-          <button type="submit" disabled={!draft.trim()}>저장</button>
-        </form>
-      ) : (
-        <button type="button" className="qk-tab-add" onClick={() => { setNaming(true); setDraft(""); }}>
-          ＋ 내 조건
-        </button>
-      )}
+      {/*   저장해 둔 것과도 기본과도 다르면 지금 보는 게 뭔지 헷갈린다 — 그렇다고 적어 준다 */}
+      {!isBasic && !hit && <span className="qk-tab-dirty">· 임시 조건</span>}
     </span>
+  );
+}
+
+/**
+ * 패널 발의 '내 조건으로 저장' — **조건을 다 고른 뒤** 이름을 붙인다.
+ *   누르면 발 바로 위에 이름 줄이 열린다. 이름은 고른 조건으로 미리 지어 준다 —
+ *   매번 뭐라고 쓸지 고민하게 두지 않는다.
+ */
+export function ConditionSave({
+  suggest, onSave,
+}: { suggest: () => string; onSave: (name: string, asDefault: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [asDefault, setAsDefault] = useState(false);
+  //   ★ 이름은 30자까지 (DB check). 지어 준 이름이 그걸 넘으면 **저장이 400 으로 튕긴다** —
+  //     실제로 `보조금_홍보지원 ···4017 · (주)모티브이노베이션 · 미처리`(38자)로 겪었다.
+  //     사람이 친 것은 maxLength 가 막지만 **지어 준 값은 안 막힌다**. 여기서 자른다.
+  const clip = (v: string) => v.slice(0, 30).trim();
+  const start = () => { setName(clip(suggest())); setAsDefault(false); setOpen(true); };
+  const done = () => { const n = clip(name); if (!n) return; onSave(n, asDefault); setOpen(false); };
+  return (
+    <>
+      {open && (
+        <div className="qk-savebar">
+          <span className="qk-savebar-lbl">조건 이름</span>
+          <input autoFocus value={name} maxLength={30} placeholder="예: 운영계좌 미처리"
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); done(); }
+                                if (e.key === "Escape") setOpen(false); }} />
+          <label className="qk-savebar-def">
+            <input type="checkbox" checked={asDefault} onChange={(e) => setAsDefault(e.target.checked)} />
+            화면 열 때 이 조건으로
+          </label>
+          <span className="qk-savebar-grow" />
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setOpen(false)}>취소</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!name.trim()} onClick={done}>저장</button>
+        </div>
+      )}
+      <button type="button" className="btn-secondary btn-sm" onClick={start}>＋ 내 조건으로 저장</button>
+    </>
   );
 }

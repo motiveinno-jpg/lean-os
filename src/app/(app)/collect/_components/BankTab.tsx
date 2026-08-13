@@ -22,7 +22,7 @@ import {
   ExcelMenu, type ExcelItem,
   Pager, usePager, ConditionPanel, ConditionRow, TokenField, AmountRange, AppliedChips,
   QuickSearch, quickSearchHit, quickTerms, amountHit, periodQuicks,
-  useSavedQueries, SavedTabs, type HelperItem, type AppliedChip,
+  useSavedQueries, SavedTabs, ConditionSave, defaultRange, type HelperItem, type AppliedChip,
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
@@ -486,6 +486,21 @@ export function BankTab({
 
   //   내 조건 — ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
   const saved = useSavedQueries("collect:bank", companyId);
+  //   지금 걸린 조건 / '기본' 이 뜻하는 조건 — 목록에서 어느 것이 켜졌는지 견주는 데 쓴다
+  const paramsNow = { from, to, q, cond: live };
+  const paramsBasic = { ...defaultRange(), q: "", cond: EMPTY };
+  /** 고른 조건으로 이름을 지어 준다 */
+  const suggestName = () => {
+    const p: string[] = [];
+    if (draft.bank.length) p.push(bankAccounts.find((b) => b.id === draft.bank[0])?.label ?? "계좌");
+    if (draft.who.length) p.push(draft.who[0] + (draft.who.length > 1 ? ` 외 ${draft.who.length - 1}` : ""));
+    if (draft.acct.length) p.push(accounts.find((a2) => a2.code === draft.acct[0])?.name ?? draft.acct[0]);
+    if (draft.io !== "all") p.push(draft.io === "in" ? "입금" : "출금");
+    if (draft.desc) p.push(draft.desc);
+    if (draft.min || draft.max) p.push("금액");
+    if (draft.todo === "todo") p.push("미처리");
+    return p.slice(0, 3).join(" · ") || "내 조건";
+  };
   const applySaved = (p: Record<string, unknown>) => {
     if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
     if (typeof p.q === "string") setQ(p.q);
@@ -628,12 +643,21 @@ export function BankTab({
         <DateRangeField from={from} to={to} onChange={onRange} label={null} parts="segments"
           trailing={
             <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={nLive} anchorSel=".drf"
-              tabs={<SavedTabs list={saved.list} onApply={(s) => { applySaved(s.params || {}); setPanelOpen(false); }}
-                onSave={(name) => saved.save(name, { from, to, q, cond: draft })}
+              tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                onApply={(s) => { applySaved(s.params || {}); setPanelOpen(false); }}
+                onBasic={() => { onRange(paramsBasic.from, paramsBasic.to); setQ(""); setDraft(EMPTY); setLive(EMPTY); }}
                 onRemove={saved.remove} onSetDefault={saved.setDefault} />}
               foot={<>
                 <button type="button" className="btn-secondary btn-sm" disabled={nDraft === 0}
                   onClick={() => setDraft({ ...EMPTY, size: draft.size })}>조건 지우기</button>
+                {/*   ★ 저장은 **여기** — 조건을 다 고른 뒤에 이름을 붙인다 (2026-08-13 사장님 지적) */}
+                <ConditionSave suggest={suggestName}
+                  onSave={(name, asDefault) => {
+                    //   ★ 저장하면 **그 조건으로 바로 본다** — 저장만 되고 화면이 그대로면
+                    //     "저장이 된 건가" 싶어 조회를 한 번 더 누르게 된다.
+                    saved.save(name, { from, to, q, cond: draft }, asDefault);
+                    setLive(draft); setPanelOpen(false);
+                  }} />
                 <span className="ml-auto text-[11px] text-[var(--text-dim)]">{won(previewCount)}건</span>
                 <RowsPerPage value={draft.size} onChange={setD("size")} />
                 <button type="button" className="btn-primary btn-sm"
