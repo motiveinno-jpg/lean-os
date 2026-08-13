@@ -10,7 +10,7 @@ import {
 } from "@/lib/vat-business-type";
 //   조회 화면 표준 공용 부품 — 새 툴바를 만들지 말고 반드시 이걸 쓴다 (CLAUDE.md)
 import {
-  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu,
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, HelperMenu,
   SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField, AmountRange, ChipGroup,
   AppliedChips, QuickSearch, quickSearchHit, quickTerms, amountHit, RowsPerPage,
   Pager, usePager, useSavedQueries, SelectionBar, defaultRangeMonth, periodQuicksMonth,
@@ -337,7 +337,7 @@ function TaxInvoicesPageInner() {
    *   화면 진입 자체는 위쪽 `useCanAccessTab("/tax-invoices")` 가 이미 막고 있으므로,
    *   탭 권한은 '더 좁히는' 용도다 — 안 정했으면 좁힐 이유가 없다.
    */
-  const taxTabKeys = ["issue-status", "wait", "done", "partner-info"] as const;
+  const taxTabKeys = ["wait", "done", "issue-status"] as const;
   const anyTaxTabGranted = taxTabKeys.some((k) => taxTabPerm(`/tax-invoices:${k}`));
   const taxTabAllowed = (k: string) =>
     taxTabMaster || !anyTaxTabGranted || taxTabPerm(`/tax-invoices:${k}`);
@@ -365,18 +365,19 @@ function TaxInvoicesPageInner() {
    *    신고용이지 발행용이 아니다. 옛 딥링크(?tab=vat)는 그리로 넘긴다.
    *    `sales`·`purchase`·`queue` 는 탭 줄에서 내렸다 — 목록은 수집·전표, 자동발행은 '출처' 칸으로 녹였다.
    */
-  type TaxTab = "issue-status" | "wait" | "done" | "partner-info";
+  //   순서: 발행 대기(할 일) → 발행 내역 → 발행 현황 (2026-08-13 사장님 — 할 일이 맨앞).
+  //   '거래처 발행정보' 탭은 뺐다 — 빠진 정보는 전송 전 확인 창이 그 자리에서 채우게 한다.
+  type TaxTab = "wait" | "done" | "issue-status";
   const TAX_TABS: { key: TaxTab; label: string }[] = [
-    { key: "issue-status", label: "발행 현황" },
     { key: "wait", label: "발행 대기" },
     { key: "done", label: "발행 내역" },
-    { key: "partner-info", label: "거래처 발행정보" },
+    { key: "issue-status", label: "발행 현황" },
   ];
   const isTaxTab = (t: unknown): t is TaxTab => TAX_TABS.some((x) => x.key === t);
   const router = useRouter();
   const [tab, setTab] = useState<TaxTab>(() => {
     const t = searchParams?.get("tab");
-    return isTaxTab(t) ? t : "issue-status";
+    return isTaxTab(t) ? t : "wait";
   });
   //   옛 딥링크 정리 — 부가세·기간별 집계는 분석으로 갔다. 대시보드의 '부가세 납부' 링크가
   //   여기로 오면 빈 화면이 되므로 그리로 넘긴다(주소를 고치는 것보다 이쪽이 안전하다).
@@ -1151,28 +1152,8 @@ function TaxInvoicesPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoices]);
 
-  /*   ── 거래처 발행정보 — 이메일·업태·종목이 빠져 전송이 죽는 걸 미리 막는다 ──
-   *   실측(2026-08-13): 727곳 중 사업자번호 719(99%) · 이메일 466(64%) · 업태·종목 8(1%).
-   *   사업자번호만 있으면 **전송 자체는 된다**(국세청 필수 기재사항). 다만 이메일이 없으면
-   *   상대가 계산서를 못 받는다 — 그래서 '불가'와 '보낼 순 있음'을 갈라 적는다.
-   */
-  const partnerInfoRows = useMemo(() => (partners as any[]).map((p) => {
-    const biz = String(p.business_number || "").replace(/\D/g, "");
-    const miss = [
-      !p.contact_email && "이메일", !p.representative && "대표자",
-      !p.address && "주소", !p.business_type && "업태", !p.business_item && "종목",
-    ].filter(Boolean) as string[];
-    return {
-      ...p,
-      bizOk: biz.length === 10,
-      missing: miss,
-      //   보낼 수 있나 = 사업자번호가 있나. 나머지는 '보내지긴 하는데 아쉬운 것'이다.
-      level: biz.length !== 10 ? "blocked" : miss.length ? "warn" : "ok",
-    };
-  }), [partners]);
-  const partnerInfoGaps = partnerInfoRows.filter((p) => p.level !== "ok").length;
-  const [partnerGapOnly, setPartnerGapOnly] = useState(true);
-  const shownPartnerInfo = partnerGapOnly ? partnerInfoRows.filter((p) => p.level !== "ok") : partnerInfoRows;
+  //   '거래처 발행정보' 탭은 뺐다 (2026-08-13 사장님) — 빠진 받는 쪽 정보는
+  //   전송 전 확인 창(IssueConfirmModal)이 건별로 잡아서 그 자리에서 채우게 한다.
 
 
   // 헤더 클릭 정렬 (표시용) — 합계/선택/내보내기는 currentList(원본) 사용, 렌더만 정렬
@@ -1343,6 +1324,15 @@ function TaxInvoicesPageInner() {
     "거절 사유": r.nts_error_message || "",
   }));
   const tiExcelItems: ExcelItem[] = [
+    //   가져오기 메뉴를 없애며 엑셀 관련 두 가지를 여기로 옮겼다 (2026-08-13)
+    { label: "엑셀 일괄발행 (양식 업로드)",
+      hint: "엑셀 양식으로 여러 건을 한 번에 국세청 전자발행합니다", onClick: () => setShowBulkIssue(true) },
+    { label: "더존 양식으로 내려받기", count: currentList.length,
+      hint: "회계사무소 전달용 — 현재 탭 목록을 더존 양식으로",
+      onClick: async () => {
+        const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
+        exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+      } },
     { label: "조회 결과 전부 내려받기", count: tiFiltered.length,
       hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로",
       onClick: () => exportSheet(tiXlsRows(tiFiltered), "세금계산서", `발행_${viewFromMonth}~${viewToMonth}`) },
@@ -1455,7 +1445,6 @@ function TaxInvoicesPageInner() {
             {TAX_TABS.filter((t) => taxTabAllowed(t.key)).map((t) => {
               const count = t.key === "wait" ? waitInvoices.length
                 : t.key === "done" ? doneInvoices.length
-                : t.key === "partner-info" ? partnerInfoGaps
                 : null;
               return (
                 <button key={t.key} type="button" onClick={() => setTab(t.key)}
@@ -1479,61 +1468,19 @@ function TaxInvoicesPageInner() {
                   : <>이번 달 <b className="mono-number">{issuanceStatus.used}건</b></>}
               </span>
             )}
-            {isListTab && <ExcelMenu items={tiExcelItems} />}
-    {/* 가져오기·내보내기 — 가끔 쓰는 일들을 한 곳에 모았다 */}
-              <ToolbarPopover label="가져오기" title="가져오기 · 내보내기" width={232}>
-                {(close) => (
-                  <>
-                    {!isHometaxConnected ? (
-                      <Link href="/settings?tab=bank" className="toolbar-pop-item" onClick={close}>
-                        홈택스 연결 필요 (설정 &gt; 은행연동)
-                      </Link>
-                    ) : (
-                      <ToolbarPopoverItem
-                        onClick={() => { close(); hometaxCd.run(() => runHometaxSyncBackground(viewFromMonth, viewToMonth)); }}
-                        disabled={!!activeJobId || hometaxCd.disabled}
-                        hint={hometaxCd.hint
-                          ? hometaxCd.hint
-                          : `조회기간(${viewFromMonth} ~ ${viewToMonth}) 범위로 홈택스에 이미 발행된 세금계산서를 가져옵니다${lastSyncData ? ` · 마지막 업데이트 ${new Date(lastSyncData).toLocaleString("ko", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}`}>
-                        <span aria-live="polite">
-                          {activeJobId
-                            ? `가져오는 중 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0}`
-                            : hometaxCd.disabled ? `홈택스에서 가져오기 (${hometaxCd.label})`
-                            : "홈택스에서 가져오기"}
-                        </span>
-                      </ToolbarPopoverItem>
-                    )}
-                    <ToolbarPopoverItem onClick={() => { close(); setShowBulkIssue(true); }}
-                      hint="엑셀 양식으로 여러 건을 한 번에 국세청 전자발행합니다">
-                      엑셀 일괄발행
-                    </ToolbarPopoverItem>
-                    {isListTab && currentList.length > 0 && (
-                      <ToolbarPopoverItem
-                        onClick={async () => {
-                          close();
-                          const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
-                          exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
-                        }}
-                        hint="현재 목록을 엑셀로 내보내기">
-                        엑셀 내보내기
-                      </ToolbarPopoverItem>
-                    )}
-                    <div className="toolbar-pop-sep" />
-                    <ToolbarPopoverItem onClick={() => { close(); hometaxPauseMut.mutate(); }} disabled={hometaxPauseMut.isPending}
-                      hint="홈택스 연동 잠시 멈추기 (30분) — 홈택스 사이트에 직접 로그인할 때 우리 앱의 동기화 로그인이 겹치는 것을 막습니다">
-                      {isHometaxPaused
-                        ? `연동 정지 해제 (${new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)`
-                        : "홈택스 연동 정지"}
-                    </ToolbarPopoverItem>
-                    {activeJobId && (
-                      <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
-                        hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다">
-                        동기화 취소
-                      </ToolbarPopoverItem>
-                    )}
-                  </>
-                )}
-              </ToolbarPopover>
+            <ExcelMenu items={tiExcelItems} />
+            {/*   AI 제안 — 보조 기능 모음(조회 표준 이름). 줄마다 출처를 적는다. */}
+            <HelperMenu items={[{
+              label: "세금계산서 ↔ 입금 ↔ 프로젝트 대조",
+              source: "장부 대조",
+              hint: "발행 완료된 계산서가 통장 입금·프로젝트와 맞는지 3방향으로 맞춰 봅니다",
+              onClick: () => router.push("/reports/three-way-match"),
+            }, {
+              label: "통장 입금에 바로 연결",
+              source: "장부 대조",
+              hint: "발행 내역 줄의 '연결'을 누르면 금액·거래처가 맞는 입금을 골라 붙입니다",
+              onClick: () => setTab("done"),
+            }]} />
             {/*   주 실행 — 파란 채움은 조회 줄에 이거 하나. 확정(전송)은 아래 SelectionBar 가 맡는다 */}
             <button onClick={() => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 씁니다">
               + 발행
@@ -1621,7 +1568,7 @@ function TaxInvoicesPageInner() {
               <Stat label="합계" value={fmt(tiFiltered.reduce((s: number, r: any) => s + Number(r.total_amount || 0), 0))} />
               {tab === "wait" && tiFiltered.some((r: any) => sendStateOf(r) === "failed") && (
                 <span className="ti-strip-bad">
-                  에러 <b>{tiFiltered.filter((r: any) => sendStateOf(r) === "failed").length}건</b> — 사유가 줄 아래에 적혀 있습니다
+                  에러 <b>{tiFiltered.filter((r: any) => sendStateOf(r) === "failed").length}건</b> — 표의 '에러'를 누르면 사유가 보입니다
                 </span>
               )}
               {/*   기간 밖에 남아 있는 미발행 — 조건을 몰래 바꾸지 않고 알려만 준다 */}
@@ -1721,14 +1668,8 @@ function TaxInvoicesPageInner() {
             </div>
           ) : (
             <div>
-              {/* 홈택스식 결과 요약 바 — 총 N건 · 공급가액/세액/합계 합산 */}
-              <div className="px-4 py-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
-                <span className="font-bold text-[var(--text)]">총 {currentList.length}건</span>
-                <span className="text-[var(--text-muted)]">공급가액 <b className="text-[var(--text)] mono-number">₩{tiFiltered.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}</b></span>
-                <span className="text-[var(--text-muted)]">세액 <b className="text-[var(--text)] mono-number">₩{tiFiltered.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0).toLocaleString("ko")}</b></span>
-                <span className="text-[var(--text-muted)]">합계금액 <b className="mono-number text-[var(--primary)]">₩{tiFiltered.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}</b></span>
-                <span className="ml-auto text-[10px] text-[var(--text-dim)]">행을 클릭하면 상세를 확인합니다</span>
-              </div>
+              {/*   옛 홈택스식 요약 바는 뺐다 (2026-08-13) — 조회 표준 ResultStrip 이
+                    같은 숫자를 이미 보여 준다. 같은 숫자 두 번은 어디를 믿을지 모르게 한다. */}
               {/* 홈택스식 격자 그리드 */}
               <div className="overflow-auto max-h-[600px]">
                 <table ref={listTableRef} className="tax-invoice-list-table">
@@ -1801,41 +1742,40 @@ function TaxInvoicesPageInner() {
                           <td className="px-3 py-2 text-right mono-number text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.supply_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number text-[var(--text-muted)] border-l border-[var(--border)]/40">{Number(inv.tax_amount).toLocaleString("ko")}</td>
                           <td className="px-3 py-2 text-right mono-number font-semibold text-[var(--text)] border-l border-[var(--border)]/40">{Number(inv.total_amount).toLocaleString("ko")}</td>
-                          {/*   상태 = **홈택스 전송 진행상황** (2026-08-13 사장님 지시로 교체).
-                                예전엔 업무 상태(draft/matched/…)만 있고 전송 상태는 '미발행' 한 글자였다.
-                                ★ 지금 발행은 sendToNtsYn="N" 이라 팝빌 등록 후 **다음 영업일**에 국세청으로 간다 —
-                                  하루 넘게 '전송 중'인 구간이 실제로 있는데 그걸 '미발행'이라 적어
-                                  실패한 것처럼 읽혔다. 거절 사유도 DB에만 있고 화면엔 없었다. */}
-                          <td className="px-3 py-2 text-center border-l border-[var(--border)]/40">
-                            <span className="inline-flex items-center justify-center gap-1 flex-wrap">
-                              {(() => {
-                                const st = inv.nts_issue_status || "draft";
-                                if (isSent(inv)) return (
-                                  <span className="ti-send ti-send-ok"
-                                    title={inv.nts_issued_at ? `국세청 승인 ${String(inv.nts_issued_at).slice(0, 10)}${inv.nts_confirm_no ? ` · 승인번호 ${inv.nts_confirm_no}` : ""}` : "국세청 승인 완료"}>
-                                    전송 완료
-                                  </span>
-                                );
-                                if (st === "pending") return (
-                                  <span className="ti-send ti-send-wait"
-                                    title="팝빌에 등록됐습니다. 국세청 전송은 다음 영업일에 이뤄지고, 승인번호는 그 뒤에 붙습니다.">
-                                    전송 중
-                                  </span>
-                                );
-                                if (st === "failed") return (
-                                  <span className="ti-send ti-send-bad" title={inv.nts_error_message || "국세청이 거절했습니다"}>
-                                    에러
-                                  </span>
-                                );
-                                return <span className="ti-send ti-send-draft" title="아직 국세청에 보내지 않았습니다">미발행</span>;
-                              })()}
-                              {/*   업무 상태(작성중·매칭완료 등)는 보조로 남긴다 — 통장 연결 여부를 여기서 본다 */}
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap ${sc.bg} ${sc.text}`}>{sc.label}</span>
-                            </span>
-                            {/*   거절 사유는 DB(nts_error_message)에 이미 쌓이고 있었는데 어디에도 안 나왔다 */}
-                            {inv.nts_issue_status === "failed" && inv.nts_error_message && (
-                              <span className="ti-send-why">{inv.nts_error_message}</span>
-                            )}
+                          {/*   상태 = **홈택스 전송 진행상황** 필 하나 (2026-08-13 사장님 — 줄 간격 정리).
+                                예전엔 전송 필 + 업무 상태 필 + 에러 사유 문장이 한 칸에 쌓여
+                                줄 높이가 들쑥날쑥했다. 업무 상태(매칭완료 등)는 관리 칸의
+                                '✓ 연결됨'이 이미 말해 주고, 에러 사유는 **'에러'를 눌러야** 보인다. */}
+                          <td className="px-3 py-2 text-center whitespace-nowrap border-l border-[var(--border)]/40">
+                            {(() => {
+                              const st = inv.nts_issue_status || "draft";
+                              if (isSent(inv)) return (
+                                <span className="ti-send ti-send-ok"
+                                  title={inv.nts_issued_at ? `국세청 승인 ${String(inv.nts_issued_at).slice(0, 10)}${inv.nts_confirm_no ? ` · 승인번호 ${inv.nts_confirm_no}` : ""}` : "국세청 승인 완료"}>
+                                  전송 완료
+                                </span>
+                              );
+                              if (st === "pending") return (
+                                <span className="ti-send ti-send-wait"
+                                  title="팝빌에 등록됐습니다. 국세청 전송은 다음 영업일에 이뤄지고, 승인번호는 그 뒤에 붙습니다.">
+                                  전송 중
+                                </span>
+                              );
+                              if (st === "failed") return (
+                                <button type="button" className="ti-send ti-send-bad" title="누르면 거절 사유가 보입니다"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    confirmDialog({
+                                      title: "국세청 거절 사유",
+                                      desc: inv.nts_error_message || "사유가 기록되지 않았습니다.",
+                                      confirmLabel: "확인",
+                                    });
+                                  }}>
+                                  에러 ▾
+                                </button>
+                              );
+                              return <span className="ti-send ti-send-draft" title="아직 국세청에 보내지 않았습니다">미발행</span>;
+                            })()}
                           </td>
                           <td className="px-3 py-2 text-center border-l border-[var(--border)]/40" onClick={(e) => e.stopPropagation()}>
                             <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap">
@@ -2024,64 +1964,6 @@ function TaxInvoicesPageInner() {
         </div>
       </>)}
 
-      {/* ── 거래처 발행정보 — 보내기 전에 빠진 칸을 채우는 곳 (2026-08-13) ── */}
-      {tab === "partner-info" && (
-        <div className="ti-pinfo qk-colfill">
-          <div className="ti-pinfo-head">
-            <span>
-              거래처 <b className="mono-number">{partnerInfoRows.length.toLocaleString("ko")}</b>곳 ·
-              사업자번호 <b className="mono-number">{partnerInfoRows.filter((p) => p.bizOk).length.toLocaleString("ko")}</b> ·
-              <span className="ti-pinfo-warn"> 채울 곳 <b className="mono-number">{partnerInfoGaps.toLocaleString("ko")}</b></span>
-            </span>
-            <button type="button" className="btn-secondary btn-sm ml-auto"
-              onClick={() => setPartnerGapOnly((v) => !v)}>
-              {partnerGapOnly ? "전체 보기" : "빠진 곳만"}
-            </button>
-          </div>
-          <div className="ev-scroll ti-pinfo-scroll">
-            <table className="ev-table ti-pinfo-table">
-              <thead>
-                <tr>
-                  <th className="th-l">거래처</th><th className="th-c">사업자번호</th>
-                  <th className="th-c">대표자</th><th className="th-c">이메일</th><th className="th-c">주소</th>
-                  <th className="th-c">업태</th><th className="th-c">종목</th><th className="th-c">발행</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shownPartnerInfo.length === 0 ? (
-                  <tr><td colSpan={8} className="tc ti-pinfo-empty">빠진 칸이 없습니다 — 모든 거래처에 발행 정보가 갖춰져 있습니다.</td></tr>
-                ) : shownPartnerInfo.slice(0, 300).map((p) => {
-                  const cell = (v: unknown, label: string) => v
-                    ? <td className="tc ti-pinfo-has">있음</td>
-                    : <td className="tc ti-pinfo-miss" title={`${label} 없음`}>없음</td>;
-                  return (
-                    <tr key={p.id}>
-                      <td className="ev-ell">{p.name}</td>
-                      <td className="tc mono-number ev-dim">{p.business_number || <span className="ti-pinfo-miss">없음</span>}</td>
-                      {cell(p.representative, "대표자")}
-                      {cell(p.contact_email, "이메일")}
-                      {cell(p.address, "주소")}
-                      {cell(p.business_type, "업태")}
-                      {cell(p.business_item, "종목")}
-                      <td className="tc">
-                        {p.level === "blocked" ? <span className="collect-pill collect-pill-err">불가</span>
-                          : p.level === "warn" ? <span className="collect-pill collect-pill-todo">보낼 순 있음</span>
-                          : <span className="collect-pill collect-pill-done">가능</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="ti-sum-note">
-            <b>사업자등록번호</b>만 있으면 국세청 전송 자체는 됩니다(필수 기재사항).
-            다만 <b>이메일</b>이 없으면 상대가 계산서를 받지 못하고, 업태·종목은 빈칸으로 나갑니다.
-            값은 <b>거래처</b> 메뉴에서 고치거나, 발행할 때 계산서에 직접 적어 넣을 수 있습니다.
-            {shownPartnerInfo.length > 300 && <> · 앞 300곳만 보여 줍니다 ({shownPartnerInfo.length.toLocaleString("ko")}곳 중).</>}
-          </p>
-        </div>
-      )}
         </QueryBody>
 
         {/*   기본 50줄 — 줄 수는 검색조건 안에서 고른다 (조회 화면 표준) */}
@@ -2434,6 +2316,66 @@ function TaxInvoicesPageInner() {
         </div>
         </div>
       )}
+
+      {/*   가져오기(홈택스 수집·연동 정지)는 UI에서 내렸다 (2026-08-13 사장님 — 우측은
+            수집·전표처럼 엑셀·AI 제안·발행 3버튼). 수집은 수집·전표 소관이다.
+            코드는 되돌릴 수 있게 보존 — 다시 켜려면 이 블록을 조회 줄로 옮기면 된다. */}
+      {false && (<div>
+    {/* 가져오기·내보내기 — 가끔 쓰는 일들을 한 곳에 모았다 */}
+              <ToolbarPopover label="가져오기" title="가져오기 · 내보내기" width={232}>
+                {(close) => (
+                  <>
+                    {!isHometaxConnected ? (
+                      <Link href="/settings?tab=bank" className="toolbar-pop-item" onClick={close}>
+                        홈택스 연결 필요 (설정 &gt; 은행연동)
+                      </Link>
+                    ) : (
+                      <ToolbarPopoverItem
+                        onClick={() => { close(); hometaxCd.run(() => runHometaxSyncBackground(viewFromMonth, viewToMonth)); }}
+                        disabled={!!activeJobId || hometaxCd.disabled}
+                        hint={hometaxCd.hint
+                          ? hometaxCd.hint
+                          : `조회기간(${viewFromMonth} ~ ${viewToMonth}) 범위로 홈택스에 이미 발행된 세금계산서를 가져옵니다${lastSyncData ? ` · 마지막 업데이트 ${new Date(lastSyncData).toLocaleString("ko", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}` : ""}`}>
+                        <span aria-live="polite">
+                          {activeJobId
+                            ? `가져오는 중 ${(activeJob?.current_progress as any)?.done || 0}/${(activeJob?.current_progress as any)?.total || 0}`
+                            : hometaxCd.disabled ? `홈택스에서 가져오기 (${hometaxCd.label})`
+                            : "홈택스에서 가져오기"}
+                        </span>
+                      </ToolbarPopoverItem>
+                    )}
+                    <ToolbarPopoverItem onClick={() => { close(); setShowBulkIssue(true); }}
+                      hint="엑셀 양식으로 여러 건을 한 번에 국세청 전자발행합니다">
+                      엑셀 일괄발행
+                    </ToolbarPopoverItem>
+                    {isListTab && currentList.length > 0 && (
+                      <ToolbarPopoverItem
+                        onClick={async () => {
+                          close();
+                          const { exportTaxInvoicesDouzone } = await import("@/lib/export-douzone");
+                          exportTaxInvoicesDouzone(currentList as any, `${viewFromMonth}_${viewToMonth}`);
+                        }}
+                        hint="현재 목록을 엑셀로 내보내기">
+                        엑셀 내보내기
+                      </ToolbarPopoverItem>
+                    )}
+                    <div className="toolbar-pop-sep" />
+                    <ToolbarPopoverItem onClick={() => { close(); hometaxPauseMut.mutate(); }} disabled={hometaxPauseMut.isPending}
+                      hint="홈택스 연동 잠시 멈추기 (30분) — 홈택스 사이트에 직접 로그인할 때 우리 앱의 동기화 로그인이 겹치는 것을 막습니다">
+                      {isHometaxPaused
+                        ? `연동 정지 해제 (${new Date(hometaxPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)`
+                        : "홈택스 연동 정지"}
+                    </ToolbarPopoverItem>
+                    {activeJobId && (
+                      <ToolbarPopoverItem danger onClick={() => { close(); forceClearStuckJob(activeJobId); }}
+                        hint="백그라운드 동기화가 멈췄을 때 눌러 초기화 — 다시 시도할 수 있습니다">
+                        동기화 취소
+                      </ToolbarPopoverItem>
+                    )}
+                  </>
+                )}
+              </ToolbarPopover>
+      </div>)}
 
       {/* 전송 전 확인 — 빠진 받는 쪽 정보를 채우고 보낸다 (2026-08-13, 4단계) */}
       {issueConfirm && (

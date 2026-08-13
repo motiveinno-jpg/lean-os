@@ -9145,8 +9145,8 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .ti-send-draft { @apply bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]; }
 .ti-send-wait { @apply bg-blue-500/12 text-blue-500; }
 .ti-send-ok { @apply bg-emerald-500/12 text-emerald-600; }
-.ti-send-bad { @apply bg-red-500/12 text-red-500; }
-.ti-send-why { @apply block mt-1 text-[10.5px] leading-snug text-[var(--danger)] text-left; }
+.ti-send-bad { @apply bg-red-500/12 text-red-500 cursor-pointer; }
+/* .ti-send-why 는 없앴다 (2026-08-13) — 에러 사유는 필을 눌러 창으로 본다 */
 /* ── 운영자 마케팅 지표 (/platform/marketing, 2026-08-13) ── */
 .mkt-range-toggle { @apply flex gap-1 p-1 rounded-xl bg-[var(--bg-surface)]; }
 .mkt-range-btn { @apply px-3 py-1.5 rounded-lg text-xs font-semibold text-[var(--text-muted)] transition; }
