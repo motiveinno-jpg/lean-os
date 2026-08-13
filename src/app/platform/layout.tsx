@@ -32,6 +32,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "매출",
     items: [
       { href: "/platform/revenue", label: "수익", icon: "dollar" },
+      { href: "/platform/marketing", label: "마케팅 지표", icon: "trending" }, // GA4 병행 자체 퍼널 (2026-08-13)
       { href: "/platform/sales-codes", label: "영업코드", icon: "link" },
     ],
   },
