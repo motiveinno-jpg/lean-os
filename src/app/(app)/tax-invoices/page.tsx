@@ -484,6 +484,8 @@ function TaxInvoicesPageInner() {
 
   // matchFilter state 는 3-way 매칭 페이지(/reports/three-way-match)로 이전됨 (2026-05-21).
   const [matchDealPopup, setMatchDealPopup] = useState<any>(null);
+  //   프로젝트(딜) 제안 팝업 — 발행 완료 건에 어느 프로젝트 매출인지 붙인다 (2026-08-13 사장님)
+  const [dealSuggest, setDealSuggest] = useState<any>(null);
   // 거래매칭 — 목록에서 통장 입출금 거래를 바로 연결 (인라인 팝업)
   const [linkInvoice, setLinkInvoice] = useState<any>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -735,7 +737,7 @@ function TaxInvoicesPageInner() {
     queryFn: async () => {
       const data = logRead('tax-invoices/page:data', await supabase
         .from("deals")
-        .select("id, name, contract_total")
+        .select("id, name, contract_total, partner_id")
         .eq("company_id", companyId!)
         .neq("status", "archived")
         .order("name"));
@@ -1085,6 +1087,11 @@ function TaxInvoicesPageInner() {
     () => invoices.filter((inv: any) => isOurs(inv) && !isSent(inv)), [invoices]);
   const doneInvoices = useMemo(
     () => invoices.filter((inv: any) => isOurs(inv) && isSent(inv)), [invoices]);
+  //   짝 없는 발행 건 — 입금(status!=='matched') 또는 프로젝트(deal_id 없음)가 안 붙은 것.
+  //   AI 제안 배지가 이 수를 보여 준다. 확정은 줄에서 사람이 한다.
+  const pairGaps = useMemo(
+    () => doneInvoices.filter((inv: any) => inv.status !== "matched" || !inv.deal_id).length,
+    [doneInvoices]);
   const isListTab = tab === "wait" || tab === "done";
   const currentList = tab === "wait" ? waitInvoices : tab === "done" ? doneInvoices : [];
 
@@ -1471,15 +1478,16 @@ function TaxInvoicesPageInner() {
             <ExcelMenu items={tiExcelItems} />
             {/*   AI 제안 — 보조 기능 모음(조회 표준 이름). 줄마다 출처를 적는다. */}
             <HelperMenu items={[{
+              label: "짝 없는 발행 건 보기",
+              source: "장부 대조",
+              badge: pairGaps,
+              hint: "발행 완료됐는데 입금 또는 프로젝트가 안 붙은 건입니다 — 줄의 '연결'·'프로젝트'로 붙입니다",
+              onClick: () => setTab("done"),
+            }, {
               label: "세금계산서 ↔ 입금 ↔ 프로젝트 대조",
               source: "장부 대조",
               hint: "발행 완료된 계산서가 통장 입금·프로젝트와 맞는지 3방향으로 맞춰 봅니다",
               onClick: () => router.push("/reports/three-way-match"),
-            }, {
-              label: "통장 입금에 바로 연결",
-              source: "장부 대조",
-              hint: "발행 내역 줄의 '연결'을 누르면 금액·거래처가 맞는 입금을 골라 붙입니다",
-              onClick: () => setTab("done"),
             }]} />
             {/*   주 실행 — 파란 채움은 조회 줄에 이거 하나. 확정(전송)은 아래 SelectionBar 가 맡는다 */}
             <button onClick={() => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 씁니다">
@@ -1808,6 +1816,25 @@ function TaxInvoicesPageInner() {
                                   연결
                                 </button>
                               )}
+                              {/*   프로젝트 짝 — 발행 완료 건에 어느 프로젝트 매출인지 붙인다 (2026-08-13 사장님).
+                                    예전엔 상세 모달 깊숙한 셀렉트뿐이라 아무도 안 붙였다 — 줄에서 바로 제안한다. */}
+                              {tab === "done" && (inv.deal_id ? (
+                                <button
+                                  onClick={() => setDealSuggest(inv)}
+                                  className="inline-flex items-center gap-0.5 px-2 py-1 rounded text-[11px] font-semibold bg-green-500/12 text-green-600 hover:bg-green-500/20 transition"
+                                  title={`프로젝트 연결됨: ${(inv as any).deals?.name || ""} — 클릭해 확인/해제`}
+                                >
+                                  ✓ 프로젝트
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setDealSuggest(inv)}
+                                  className="px-2 py-1 rounded text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition"
+                                  title="어느 프로젝트 매출인지 제안을 보고 붙입니다"
+                                >
+                                  프로젝트
+                                </button>
+                              ))}
                             </div>
                           </td>
                         </tr>
@@ -2376,6 +2403,16 @@ function TaxInvoicesPageInner() {
                 )}
               </ToolbarPopover>
       </div>)}
+
+      {/* 프로젝트 짝 제안 — 발행 완료 건 ↔ 딜 (2026-08-13). 제안은 자동, 확정은 사람 */}
+      {dealSuggest && (
+        <DealSuggestPopup invoice={dealSuggest} deals={dealsForLink as any[]}
+          onClose={() => setDealSuggest(null)}
+          onDone={() => {
+            setDealSuggest(null);
+            queryClient.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+          }} />
+      )}
 
       {/* 전송 전 확인 — 빠진 받는 쪽 정보를 채우고 보낸다 (2026-08-13, 4단계) */}
       {issueConfirm && (
@@ -3595,6 +3632,106 @@ function ModificationModal({ invoice, reason, setReason, modifyAmount, setModify
               취소
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 프로젝트(딜) 짝 제안 — 발행 완료된 계산서에 어느 프로젝트 매출인지 붙인다 (2026-08-13 사장님).
+ *
+ *   왜: 발행만 하고 끝나면 "이 매출이 어느 프로젝트 것인지"가 안 붙는다. 예전엔 상세 모달
+ *   깊숙한 셀렉트뿐이라 아무도 안 붙였다(딜 미연결이 전체 건수와 맞먹었다).
+ *
+ *   제안 점수 — 근거를 줄마다 적는다(뭉뚱그리면 틀렸을 때 원인을 못 찾는다):
+ *     같은 거래처(partner_id 일치) +3 · 딜 이름에 거래처명 +2 · 계약금액 ±10% +1.
+ *   ★ 자동 확정은 안 한다 — 같은 거래처에 딜이 여럿(월 구독 등)이면 엉뚱한 딜에 붙는다.
+ *     후보가 없거나 틀리면 아래 검색으로 전체 목록에서 찾는다.
+ */
+function DealSuggestPopup({ invoice, deals, onClose, onDone }: {
+  invoice: any; deals: any[]; onClose: () => void; onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState("");
+
+  const name = String(invoice.counterparty_name || "").trim();
+  const supply = Number(invoice.supply_amount || 0);
+  const scored = deals.map((d) => {
+    const why: string[] = [];
+    let score = 0;
+    if (invoice.partner_id && d.partner_id && d.partner_id === invoice.partner_id) { score += 3; why.push("같은 거래처"); }
+    if (name.length >= 2 && String(d.name || "").includes(name)) { score += 2; why.push("이름에 거래처"); }
+    const ct = Number(d.contract_total || 0);
+    if (ct > 0 && supply > 0 && Math.abs(ct - supply) / ct <= 0.1) { score += 1; why.push("계약금액 근접"); }
+    return { d, score, why };
+  });
+  const suggested = scored.filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 8);
+  const searched = q.trim()
+    ? deals.filter((d) => String(d.name || "").toLowerCase().includes(q.trim().toLowerCase())).slice(0, 20)
+    : [];
+  const current = invoice.deal_id ? deals.find((d) => d.id === invoice.deal_id) : null;
+
+  const link = async (dealId: string | null) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { error } = await (supabase).from("tax_invoices").update({ deal_id: dealId } as never).eq("id", invoice.id);
+      if (error) throw error;
+      toast(dealId ? "프로젝트에 연결했습니다" : "프로젝트 연결을 해제했습니다", "success");
+      onDone();
+    } catch (e: any) {
+      toast(friendlyError(e, "연결 실패"), "error");
+      setBusy(false);
+    }
+  };
+
+  const row = (d: any, why: string[]) => (
+    <div key={d.id} className="ti-deal-row">
+      <span className="ti-deal-name">{d.name}</span>
+      {Number(d.contract_total || 0) > 0 && (
+        <span className="mono-number ev-dim">계약 ₩{Number(d.contract_total).toLocaleString("ko")}</span>
+      )}
+      {why.map((w) => <span key={w} className="ti-deal-why">{w}</span>)}
+      <button type="button" className="btn-primary btn-sm ml-auto" disabled={busy} onClick={() => link(d.id)}>연결</button>
+    </div>
+  );
+
+  return (
+    <div className="ti-cfm-overlay" onClick={onClose}>
+      <div className="ti-cfm ti-deal" onClick={(e) => e.stopPropagation()}>
+        <div className="ti-cfm-head">
+          <b>프로젝트 짝 찾기 — {name || "거래처 없음"} · ₩{Number(invoice.total_amount || 0).toLocaleString("ko")}</b>
+          <span>제안은 근거와 함께 보여만 줍니다 — 붙일지는 여기서 직접 정합니다</span>
+        </div>
+        <div className="ti-cfm-body">
+          {current && (
+            <div className="ti-deal-current">
+              지금 연결: <b>{current.name}</b>
+              <button type="button" className="btn-secondary btn-sm ml-auto" disabled={busy} onClick={() => link(null)}>해제</button>
+            </div>
+          )}
+          {suggested.length > 0 ? (
+            <>
+              <div className="ti-deal-sect">제안 <i>장부 대조</i></div>
+              {suggested.map((x) => row(x.d, x.why))}
+            </>
+          ) : (
+            <div className="ti-deal-none">
+              제안할 프로젝트가 없습니다 — 거래처·이름·금액이 맞는 딜을 찾지 못했습니다.
+              아래 검색으로 직접 찾아 연결할 수 있습니다.
+            </div>
+          )}
+          <div className="ti-deal-sect">직접 찾기</div>
+          <input className="qk-input w-full" value={q} placeholder="프로젝트 이름 일부"
+            onChange={(e) => setQ(e.target.value)} />
+          {searched.map((d) => row(d, []))}
+          {q.trim() && searched.length === 0 && <div className="ti-deal-none">이름에 &quot;{q.trim()}&quot; 이 들어간 프로젝트가 없습니다.</div>}
+        </div>
+        <div className="ti-cfm-foot">
+          <span className="flex-1" />
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
         </div>
       </div>
     </div>

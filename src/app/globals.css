@@ -9224,3 +9224,14 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .ti-cfm-field .qk-input { @apply w-full; }
 .ti-cfm-foot { @apply flex flex-wrap items-center gap-2 border-t border-[var(--border)] px-4 py-3; }
 .ti-cfm-save { @apply flex cursor-pointer items-center gap-1.5 text-[11.5px] text-[var(--text-muted)]; }
+
+/* 프로젝트 짝 제안 팝업 (2026-08-13) — 확인 창(.ti-cfm) 뼈대를 쓰고 줄만 다르다 */
+.ti-deal { @apply max-w-xl; }
+.ti-deal-current { @apply flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/8 px-3 py-2 text-[12.5px]; }
+.ti-deal-current b { @apply font-bold text-[var(--text)]; }
+.ti-deal-sect { @apply pt-1 text-[11px] font-bold text-[var(--text-dim)]; }
+.ti-deal-sect i { @apply ml-1.5 rounded-full border border-[var(--border)] px-1.5 py-px not-italic text-[10px] font-bold text-[var(--text-dim)]; }
+.ti-deal-row { @apply flex flex-wrap items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/60 px-3 py-2 text-[12px]; }
+.ti-deal-name { @apply font-semibold text-[var(--text)]; }
+.ti-deal-why { @apply rounded-full px-1.5 py-px text-[10px] font-bold text-[var(--primary)]; background: color-mix(in srgb, var(--primary) 10%, transparent); }
+.ti-deal-none { @apply rounded-xl border border-dashed border-[var(--border)] px-3 py-3 text-[11.5px] text-[var(--text-dim)]; }
