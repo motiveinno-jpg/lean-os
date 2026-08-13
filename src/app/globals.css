@@ -8311,13 +8311,20 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .drf-cal-btn { @apply ml-1 grid h-6 w-6 shrink-0 place-items-center rounded border border-[var(--border)] text-[var(--text-dim)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
 
 .drf-pop { @apply absolute left-0 top-full z-[60] mt-2 w-max max-w-[92vw] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }
-.drf-pop-head { @apply flex items-center gap-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] px-3.5 py-2.5; }
+.drf-pop-head { @apply flex flex-wrap items-center gap-2.5 border-b border-[var(--border)] bg-[var(--bg-surface)] px-3.5 py-2.5; }
 .drf-pop-head > b { @apply text-[12.5px] font-extrabold text-[var(--text)]; }
 .drf-range { @apply text-[12px] font-bold text-[var(--primary)]; }
 .drf-half { @apply text-[11.5px] text-[var(--warning)]; }
 .drf-half b { @apply font-extrabold; }
 .drf-nav { @apply ml-auto flex gap-1; }
 .drf-nav button { @apply grid h-6 w-6 place-items-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[11px] text-[var(--text-muted)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
+/* 달력 년·월 — 직접 쳐서 옮긴다 (화살표만 두면 먼 달로 가려고 스무 번을 눌러야 한다) */
+.drf-jump { @apply ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-1.5; }
+.drf-jump-arw { @apply grid h-6 w-5 place-items-center rounded text-[12px] text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
+.drf-jump em { @apply not-italic mr-1 text-[10.5px] text-[var(--text-dim)]; }
+.drf-jy, .drf-jm { @apply h-6 rounded border border-transparent bg-transparent px-0.5 text-center text-[12px] font-bold text-[var(--text)] transition focus:border-[var(--primary)] focus:bg-[var(--bg)] focus:outline-none; font-variant-numeric: tabular-nums; }
+.drf-jy { @apply w-[38px]; }
+.drf-jm { @apply w-[24px]; }
 
 .drf-cals { @apply flex gap-5 px-4 py-3.5; }
 .drf-cal { @apply w-[224px]; }
@@ -8345,10 +8352,13 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .drf-quick button { @apply rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--text-muted)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
 .drf-quick button.on { @apply border-[var(--primary)] bg-[var(--primary-light)] text-[var(--primary)]; }
 
-.drf-foot { @apply flex items-center gap-3 border-t border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5; }
-.drf-foot > span { @apply text-[11px] text-[var(--text-dim)]; }
+.drf-foot { @apply flex items-center gap-2 border-t border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5; }
+/*   ★ 안내 글이 남는 공간을 다 먹고, 버튼들은 오른쪽에 **붙어** 선다 (2026-08-13 사장님 지적).
+     예전엔 버튼마다 ml-auto 라 남는 공간을 버튼 수만큼 나눠 먹어 닫기와 확인이 멀찍이 갈라졌다.
+     둘은 같이 쓰는 형제 버튼이라 붙어 있어야 한다. */
+.drf-foot > span { @apply flex-1 text-[11px] text-[var(--text-dim)]; }
 .drf-foot > span b { @apply text-[var(--text-muted)]; }
-.drf-foot button { @apply ml-auto; }
+.drf-foot button { @apply shrink-0; }
 
 @media (max-width: 720px) {
   .drf-cals { @apply flex-col gap-3.5; }
