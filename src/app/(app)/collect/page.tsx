@@ -23,7 +23,7 @@ import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
 import { RulesDialog } from "./_components/RulesDialog";
 import { DateRangeField } from "@/components/date-range-field";
-import { QueryHead, QueryBar, ResultStrip, HelperMenu, defaultRange, type HelperItem } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBar, ResultStrip, HelperMenu, defaultRange, type HelperItem } from "@/components/query-kit";
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const fmtWhen = (iso: string | null) =>
@@ -203,22 +203,6 @@ function CollectInner() {
 
   return (
     <div className="collect-page">
-      {/* ── 현황판 조회 머리 — 목록 탭은 제 조건까지 얹어 스스로 그린다 ── */}
-      {tab === "status" && (
-        <QueryHead>
-          {tabsNode}
-          <QueryBar right={<>
-            <HelperMenu items={[rulesHelper]} />
-            {syncButton}
-          </>}>{rangeField}</QueryBar>
-          <ResultStrip>
-            <span className="collect-toolbar-hint">
-              자료를 누르면 그 목록으로 갑니다 · 처리할 것 <b>{won(totalPending)}</b>건
-            </span>
-          </ResultStrip>
-        </QueryHead>
-      )}
-
       {/* ── 자료별 목록 (2단계) · 통장은 매칭까지 흡수한 3단계 화면 ── */}
       {tab !== "status" && companyId && (
         tab === "bank"
@@ -228,8 +212,24 @@ function CollectInner() {
               onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
       )}
 
-      {/* ── 자료 카드 ── */}
-      {tab === "status" && (isLoading ? (
+      {/* ── 현황판 — 탭·조회 줄·자료 카드를 **한 상자**에 (2026-08-13 사장님 지적).
+             여기만 위아래로 갈라져 있어 다른 탭과 통일성이 깨졌다. ── */}
+      {tab === "status" && (
+        <QueryScreen>
+          <QueryHead>
+            {tabsNode}
+            <QueryBar right={<>
+              <HelperMenu items={[rulesHelper]} />
+              {syncButton}
+            </>}>{rangeField}</QueryBar>
+            <ResultStrip>
+              <span className="collect-toolbar-hint">
+                자료를 누르면 그 목록으로 갑니다 · 처리할 것 <b>{won(totalPending)}</b>건
+              </span>
+            </ResultStrip>
+          </QueryHead>
+
+          {isLoading ? (
         <div className="collect-empty">현황을 읽는 중…</div>
       ) : (
         <div className="collect-grid">
@@ -285,7 +285,9 @@ function CollectInner() {
             );
           })}
         </div>
-      ))}
+      )}
+        </QueryScreen>
+      )}
 
       {tab === "status" && (
       <p className="collect-note">

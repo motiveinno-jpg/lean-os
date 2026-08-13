@@ -8926,6 +8926,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .qk-screen .ev-scroll { @apply rounded-none border-0 bg-transparent shadow-none backdrop-blur-none; }
 .qk-screen .qk-pager { @apply border-t border-[var(--border)] px-3.5; }
 .qk-screen .collect-empty { @apply rounded-none border-0 bg-transparent; }
+/*   현황판의 자료 카드도 같은 상자 안에 (2026-08-13 사장님 지적 — 여기만 위아래로 갈라져 있었다) */
+.qk-screen .collect-grid { @apply p-3.5; }
 
 .qk-head { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
 .qk-head .collect-tabs { @apply border-b border-[var(--border)] px-3 pt-2.5; }
