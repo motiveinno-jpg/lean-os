@@ -10,7 +10,7 @@
 //   ★ **머리단은 언제나 가운데**, 몸통 칸은 제 정렬을 지킨다(금액은 오른쪽, 이름은 왼쪽).
 //     머리를 값에 맞춰 좌우로 흩으면 훑을 때 눈이 걸린다 — 사장님이 짚은 부분이다.
 
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type SortDir = "asc" | "desc";
 export type SortState<K extends string> = { key: K; dir: SortDir };
@@ -31,8 +31,131 @@ export function cmp(a: unknown, b: unknown): number {
   return String(a).localeCompare(String(b), "ko");
 }
 
+/** 열 너비 기억 — 화면별 storageKey 로 localStorage 에 저장 (원장 화면과 같은 방식) */
+export function useColWidths(storageKey: string, defaults: Record<string, number>) {
+  const [w, setW] = useState<Record<string, number>>(() => {
+    if (typeof window === "undefined") return defaults;
+    try { return { ...defaults, ...JSON.parse(localStorage.getItem(storageKey) || "{}") }; } catch { return defaults; }
+  });
+  const set = (k: string, px: number) => setW((prev) => {
+    const next = { ...prev, [k]: Math.round(px) };
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* noop */ }
+    return next;
+  });
+  return [w, set] as const;
+}
+
+/** 열 너비 조절 묶음 — SortableTh 의 resize prop 으로 넘긴다 */
+export type ThResize = {
+  k: string;
+  colIndex: number;
+  widths: Record<string, number>;
+  onResize: (k: string, px: number) => void;
+  tableRef: React.RefObject<HTMLTableElement | null>;
+};
+
+/**
+ * 엑셀식 머리단 필터 — 값 목록에서 골라 거른다 (2026-08-13 사장님: "엑셀과 아예 동일하게").
+ *   values   이 칸에 실제로 있는 값들(표시 문자열 그대로)
+ *   selected 걸린 필터. **null = 전체(필터 없음)** — 전부 고르면 null 로 돌린다
+ */
+export type ThFilterSpec = {
+  values: string[];
+  selected: Set<string> | null;
+  onApply: (sel: Set<string> | null) => void;
+};
+
+export function ThFilter({ spec }: { spec: ThFilterSpec }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [draft, setDraft] = useState<Set<string>>(new Set());
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+  const uniq = useMemo(() => [...new Set(spec.values)], [spec.values]);
+  const shown = q.trim() ? uniq.filter((v) => v.toLowerCase().includes(q.trim().toLowerCase())) : uniq;
+  const allShownOn = shown.length > 0 && shown.every((v) => draft.has(v));
+
+  const openPop = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    setDraft(new Set(spec.selected ?? uniq));
+    setQ("");
+    const r = btnRef.current!.getBoundingClientRect();
+    //   화면 오른끝에서 잘리지 않게 — 팝업 폭 232px 기준으로 왼쪽으로 민다
+    setPos({ top: r.bottom + 4, left: Math.min(r.left, window.innerWidth - 244) });
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => {
+      if (!popRef.current?.contains(e.target as Node) && !btnRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+
+  const apply = () => {
+    //   전부 골랐으면 '필터 없음'과 같다 — null 로 돌려 깔때기 표시를 끈다
+    spec.onApply(draft.size >= uniq.length ? null : new Set(draft));
+    setOpen(false);
+  };
+  const active = spec.selected !== null;
+
+  return (
+    <>
+      <button type="button" ref={btnRef} onClick={openPop}
+        className={active ? "th-filter th-filter-on" : "th-filter"}
+        title={active ? `필터 걸림 (${spec.selected!.size}개 선택)` : "필터"}>
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" aria-hidden>
+          <path d="M0 0h10L6 5v4L4 8V5L0 0z" />
+        </svg>
+      </button>
+      {open && (
+        <div ref={popRef} className="thf-pop" style={{ top: pos.top, left: pos.left }}
+          onClick={(e) => e.stopPropagation()}>
+          <input className="thf-search" value={q} placeholder="검색"
+            autoFocus onChange={(e) => setQ(e.target.value)} />
+          <div className="thf-list">
+            <label className="thf-item thf-all">
+              <input type="checkbox" checked={allShownOn}
+                onChange={() => setDraft((d) => {
+                  const n = new Set(d);
+                  if (allShownOn) shown.forEach((v) => n.delete(v));
+                  else shown.forEach((v) => n.add(v));
+                  return n;
+                })} />
+              (모두 선택{q.trim() ? " — 검색 결과" : ""})
+            </label>
+            {shown.map((v) => (
+              <label key={v} className="thf-item">
+                <input type="checkbox" checked={draft.has(v)}
+                  onChange={() => setDraft((d) => {
+                    const n = new Set(d);
+                    if (n.has(v)) n.delete(v); else n.add(v);
+                    return n;
+                  })} />
+                <span className="thf-v">{v === "" ? "(빈 칸)" : v}</span>
+              </label>
+            ))}
+            {shown.length === 0 && <div className="thf-none">검색 결과가 없습니다</div>}
+          </div>
+          <div className="thf-foot">
+            <button type="button" className="thf-clear" onClick={() => { spec.onApply(null); setOpen(false); }}>필터 지우기</button>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setOpen(false)}>취소</button>
+            <button type="button" className="btn-primary btn-sm" disabled={draft.size === 0} onClick={apply}>확인</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function SortableTh<K extends string>({
-  label, sortKey, sort, onSort, style, title,
+  label, sortKey, sort, onSort, style, title, filter, resize,
 }: {
   label: ReactNode;
   /** 이 칸의 정렬 열쇠. 없으면 정렬 못 하는 칸(선택칸 등) */
@@ -41,15 +164,53 @@ export function SortableTh<K extends string>({
   onSort?: (key: K) => void;
   style?: React.CSSProperties;
   title?: string;
+  /** 엑셀식 값 필터 — 주면 깔때기가 붙는다 */
+  filter?: ThFilterSpec;
+  /** 열 너비 조절 — 주면 드래그 손잡이가 붙는다 (더블클릭 = 내용에 맞춤) */
+  resize?: ThResize;
 }) {
   const on = !!sortKey && sort?.key === sortKey;
-  if (!sortKey || !onSort) return <th style={style} className="th-c">{label}</th>;
+  const width = resize ? { width: resize.widths[resize.k], position: "relative" as const } : undefined;
+  const handle = resize ? (
+    <span
+      onMouseDown={(e) => {
+        e.preventDefault(); e.stopPropagation();
+        const startX = e.clientX;
+        const startW = resize.widths[resize.k] || 100;
+        const move = (ev: MouseEvent) => resize.onResize(resize.k, Math.max(44, startW + (ev.clientX - startX)));
+        const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); document.body.style.cursor = ""; };
+        document.body.style.cursor = "col-resize";
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", up);
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        const table = resize.tableRef.current;
+        if (!table) return;
+        let max = 44;
+        table.querySelectorAll("tr").forEach((tr) => {
+          const cell = tr.children[resize.colIndex] as HTMLElement | undefined;
+          if (cell) max = Math.max(max, cell.scrollWidth);
+        });
+        resize.onResize(resize.k, Math.min(640, max + 14));
+      }}
+      onClick={(e) => e.stopPropagation()}
+      className="th-grip"
+      title="드래그: 너비 조절 · 더블클릭: 내용에 맞춤"
+    />
+  ) : null;
+
+  if (!sortKey || !onSort) {
+    return <th style={{ ...style, ...width }} className="th-c">{label}{filter && <ThFilter spec={filter} />}{handle}</th>;
+  }
   return (
-    <th style={style} className="th-c th-sort" onClick={() => onSort(sortKey)} title={title ?? "눌러서 정렬"}>
+    <th style={{ ...style, ...width }} className="th-c th-sort" onClick={() => onSort(sortKey)} title={title ?? "눌러서 정렬"}>
       <span className="th-sort-in">
         {label}
         <em className={on ? "th-mark th-mark-on" : "th-mark"}>{on ? (sort!.dir === "asc" ? "▲" : "▼") : "↕"}</em>
+        {filter && <ThFilter spec={filter} />}
       </span>
+      {handle}
     </th>
   );
 }

@@ -5,6 +5,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { ThFilter, type ThFilterSpec } from "@/components/sortable-th";
 import {
   vatBusinessTypeOf, canIssueTaxKind, taxKindBlockedReason, type TaxKind, type VatBusinessType,
 } from "@/lib/vat-business-type";
@@ -1204,6 +1205,8 @@ function TaxInvoicesPageInner() {
       <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
         {label}
         <span className={`text-[9px] ${invSortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{invSortKey === k ? (invSortDir === "asc" ? "▲" : "▼") : "↕"}</span>
+        {/*   엑셀식 값 필터 — 수집·전표와 같은 부품 (2026-08-13) */}
+        <ThFilter spec={tiThFilter(k)} />
       </span>
       <ColHandle k={k} colIndex={colIndex} />
     </th>
@@ -1255,6 +1258,35 @@ function TaxInvoicesPageInner() {
     isSent(r) ? "issued" : r.nts_issue_status === "pending" ? "pending"
       : r.nts_issue_status === "failed" ? "failed" : "draft";
 
+  /*   ── 엑셀식 머리단 필터 (2026-08-13 사장님: "엑셀과 아예 동일하게") ──
+   *   colVal 이 칸의 표시값을 뽑는 단 하나의 기준 — 필터 목록과 거르기가 같은 값을 본다. */
+  const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
+  const tiColVal = (r: any, k: string): string => {
+    switch (k) {
+      case "issue_date": return String(r.issue_date || "");
+      case "counterparty_name": return r.counterparty_name || "";
+      case "label": {
+        const one = (r.item_name ? String(r.item_name).replace(/\+/g, " ") : "") || stripPurposeToken(r.label) || r.deals?.name || "";
+        return itemsLabel(r.items, one) || "";
+      }
+      case "supply_amount": return Number(r.supply_amount || 0).toLocaleString("ko");
+      case "tax_amount": return Number(r.tax_amount || 0).toLocaleString("ko");
+      case "total_amount": return Number(r.total_amount || 0).toLocaleString("ko");
+      case "status": return isSent(r) ? "전송 완료" : r.nts_issue_status === "pending" ? "전송 중"
+        : r.nts_issue_status === "failed" ? "에러" : "미발행";
+      default: return "";
+    }
+  };
+  const tiColHit = (r: any): boolean =>
+    Object.entries(colF).every(([k, set]) => !set || set.has(tiColVal(r, k)));
+  const tiThFilter = (k: string): ThFilterSpec => ({
+    values: (currentList as any[])
+      .filter((r) => Object.entries(colF).every(([kk, set]) => kk === k || !set || set.has(tiColVal(r, kk))))
+      .map((r) => tiColVal(r, k)),
+    selected: colF[k] ?? null,
+    onApply: (sel) => setColF((f) => ({ ...f, [k]: sel })),
+  });
+
   const matchCond = (r: any, c: TiCond) => {
     const total = Number(r.total_amount || r.supply_amount || 0);
     if (!quickSearchHit(q, [r.counterparty_name, r.counterparty_bizno, r.item_name, r.nts_confirm_no], [total])) return false;
@@ -1264,10 +1296,10 @@ function TaxInvoicesPageInner() {
     if (!amountHit(total, c.min, c.max)) return false;
     return true;
   };
-  const tiFiltered = useMemo(() => (displayList as any[]).filter((r) => matchCond(r, live)),
+  const tiFiltered = useMemo(() => (displayList as any[]).filter((r) => matchCond(r, live) && tiColHit(r)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [displayList, q, live]);
-  const tiPager = usePager(tiFiltered, live.size, `${tab}|${viewFromMonth}|${viewToMonth}|${q}|${JSON.stringify(live)}`);
+    [displayList, q, live, colF]);
+  const tiPager = usePager(tiFiltered, live.size, `${tab}|${viewFromMonth}|${viewToMonth}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   const tiPreview = useMemo(() => (displayList as any[]).filter((r) => matchCond(r, draft)).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, draft]);

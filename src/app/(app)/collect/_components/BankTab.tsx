@@ -25,7 +25,7 @@ import {
   useSavedQueries, SavedTabs, ConditionSave, defaultRange, type HelperItem, type AppliedChip,
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
-import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { SortableTh, nextSort, cmp, useColWidths, type SortState, type ThFilterSpec } from "@/components/sortable-th";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -146,6 +146,36 @@ export function BankTab({
   const [busy, setBusy] = useState(false);
   //   머리단 정렬 — 기본은 일자 오름차순(통장은 날짜 순으로 본다)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
+  /*   ── 엑셀식 머리단 필터 + 열 너비 (2026-08-13 사장님) — 증빙 탭과 같은 방식 ── */
+  const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("collect-bk-colw", {
+    date: 60, io: 56, who: 160, desc: 170, amount: 100, debit: 150, credit: 150, memo: 150, state: 80,
+  });
+  const colVal = (r: Row, k: string): string => {
+    switch (k) {
+      case "date": return r.date.slice(5);
+      case "io": return r.isIn ? "입금" : "출금";
+      case "who": return r.who || "";
+      case "desc": return r.desc || "";
+      case "amount": return Math.abs(r.amount).toLocaleString("ko");
+      case "debit": { const a = acctOf(r).a; return r.isIn ? "103 보통예금" : (a ? `${a.code} ${a.name}` : ""); }
+      case "credit": { const a = acctOf(r).a; return r.isIn ? (a ? `${a.code} ${a.name}` : "") : "103 보통예금"; }
+      case "state": return doneOf(r) ? "전표됨" : "미처리";
+      default: return "";
+    }
+  };
+  const colHit = (r: Row): boolean =>
+    Object.entries(colF).every(([k, set]) => !set || set.has(colVal(r, k)));
+  const thFilter = (k: string, base: Row[]): ThFilterSpec => ({
+    values: base
+      .filter((r) => Object.entries(colF).every(([kk, set]) => kk === k || !set || set.has(colVal(r, kk))))
+      .map((r) => colVal(r, k)),
+    selected: colF[k] ?? null,
+    onApply: (sel) => setColF((f) => ({ ...f, [k]: sel })),
+  });
+  const thResize = (k: string, colIndex: number) =>
+    ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
   //   비목 AI 가 추천한 계정 — 사람이 고른 것 다음, 학습 규칙보다 뒤에 쓴다
   const [aiAcct, setAiAcct] = useState<Record<string, Acct>>({});
@@ -280,6 +310,7 @@ export function BankTab({
     if (live.acct.length && !(a && live.acct.includes(a.code))) return false;
     if (live.desc && !r.desc.toLowerCase().includes(live.desc.toLowerCase())) return false;
     if (!amountHit(r.amount, live.min, live.max)) return false;
+    if (!colHit(r)) return false;   // 엑셀식 머리단 필터
     return true;
   });
   //   정렬 — 고른 칸으로 세우고, 같으면 늘 일자로 갈라 순서가 흔들리지 않게 한다
@@ -303,7 +334,7 @@ export function BankTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 (2026-08-13 사장님 지시)
-  const pager = usePager(shown, live.size, `${from}|${to}|${q}|${JSON.stringify(live)}`);
+  const pager = usePager(shown, live.size, `${from}|${to}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   //   선택은 쪽을 넘겨도 남는다
   const selRows = shown.filter((r) => sel.has(r.id));
 
@@ -740,21 +771,22 @@ export function BankTab({
         </div>
       ) : (
         <div className="ev-scroll">
-          <table className="ev-table bk-table">
+          <table ref={tableRef} className="ev-table bk-table ev-lined">
             <thead>
               <tr>
                 <th style={{ width: 34 }}>
                   <button type="button" aria-label="이 쪽 전체 선택" onClick={toggleAll}
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
-                <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} />
-                <SortableTh label="입/출" sortKey="io" sort={sort} onSort={onSort} />
-                <SortableTh label="거래처(입금자)" sortKey="who" sort={sort} onSort={onSort} />
-                <SortableTh label="통장 적요" sortKey="desc" sort={sort} onSort={onSort} />
-                <SortableTh label="금액" sortKey="amount" sort={sort} onSort={onSort} />
-                <SortableTh label="차변" /><SortableTh label="대변" />
-                <SortableTh label="적요" style={{ width: 150 }} />
-                <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
+                <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} filter={thFilter("date", rows)} resize={thResize("date", 1)} />
+                <SortableTh label="입/출" sortKey="io" sort={sort} onSort={onSort} filter={thFilter("io", rows)} resize={thResize("io", 2)} />
+                <SortableTh label="거래처(입금자)" sortKey="who" sort={sort} onSort={onSort} filter={thFilter("who", rows)} resize={thResize("who", 3)} />
+                <SortableTh label="통장 적요" sortKey="desc" sort={sort} onSort={onSort} filter={thFilter("desc", rows)} resize={thResize("desc", 4)} />
+                <SortableTh label="금액" sortKey="amount" sort={sort} onSort={onSort} filter={thFilter("amount", rows)} resize={thResize("amount", 5)} />
+                <SortableTh label="차변" filter={thFilter("debit", rows)} resize={thResize("debit", 6)} />
+                <SortableTh label="대변" filter={thFilter("credit", rows)} resize={thResize("credit", 7)} />
+                <SortableTh label="적요" resize={thResize("memo", 8)} />
+                <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} filter={thFilter("state", rows)} resize={thResize("state", 9)} />
               </tr>
             </thead>
             <tbody>

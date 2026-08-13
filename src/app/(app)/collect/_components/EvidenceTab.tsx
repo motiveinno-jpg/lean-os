@@ -21,7 +21,7 @@ import {
   useSavedQueries, SavedTabs, ConditionSave, defaultRange, type HelperItem, type AppliedChip,
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
-import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { SortableTh, nextSort, cmp, useColWidths, type SortState, type ThFilterSpec } from "@/components/sortable-th";
 import { PickList } from "@/components/pick-list";
 import { fetchMerchantKinds, fillMerchantKinds, type MerchantInfo } from "@/lib/merchant-tax-type";
 import { UNCLASSIFIED_CATEGORY } from "@/lib/card-vat-classification";
@@ -146,6 +146,42 @@ export function EvidenceTab({
   const [saving, setSaving] = useState(false);
   //   머리단 정렬 — 기본은 일자 오름차순(장부는 날짜 순으로 본다) (2026-08-12)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
+  /*   ── 엑셀식 머리단 필터 + 열 너비 (2026-08-13 사장님: "엑셀과 아예 동일하게") ──
+   *   colVal 이 칸의 표시값을 뽑는 단 하나의 기준 — 필터 목록과 거르기가 같은 값을 본다. */
+  const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths(`collect-ev-colw-${kind}`, {
+    date: 64, partner: 150, bizno: 110, kind: 72, vat: 130, item: 150,
+    supply: 92, tax: 84, total: 96, debit: 130, credit: 130, state: 84,
+  });
+  const colVal = (r: Row, k: string): string => {
+    switch (k) {
+      case "date": return r.date.slice(5);
+      case "partner": return r.partnerName || "";
+      case "bizno": return r.bizno || "";
+      case "kind": return merchantOf(r)?.kind ?? "";
+      case "vat": return vatType(vatCodeOf(r))?.label ?? "";
+      case "item": return r.item || "";
+      case "supply": return amountsOf(r).supply.toLocaleString("ko");
+      case "tax": return amountsOf(r).vat.toLocaleString("ko");
+      case "total": return (amountsOf(r).supply + amountsOf(r).vat).toLocaleString("ko");
+      case "debit": { const a = acctOf(r).acct; return a ? `${a.code} ${a.name}` : ""; }
+      case "state": return r.posted ? "전표됨" : "미처리";
+      default: return "";
+    }
+  };
+  const colHit = (r: Row): boolean =>
+    Object.entries(colF).every(([k, set]) => !set || set.has(colVal(r, k)));
+  /** 머리단 필터 명세 — 목록은 다른 칸 필터·검색을 거친 뒤 기준(엑셀과 같은 좁혀 들어가기) */
+  const thFilter = (k: string, base: Row[]): ThFilterSpec => ({
+    values: base
+      .filter((r) => Object.entries(colF).every(([kk, set]) => kk === k || !set || set.has(colVal(r, kk))))
+      .map((r) => colVal(r, k)),
+    selected: colF[k] ?? null,
+    onApply: (sel) => setColF((f) => ({ ...f, [k]: sel })),
+  });
+  const thResize = (k: string, colIndex: number) =>
+    ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k, k === "date" ? "asc" : "asc"));
 
   const { data: accounts = [] } = useQuery({
@@ -269,6 +305,7 @@ export function EvidenceTab({
     if (live.kind && (merchantOf(r)?.kind ?? "") !== live.kind) return false;
     if (live.item && !r.item.toLowerCase().includes(live.item.toLowerCase())) return false;
     if (!amountHit(total, live.min, live.max)) return false;
+    if (!colHit(r)) return false;   // 엑셀식 머리단 필터
     return true;
   });
   //   정렬 — 고른 칸으로 세우고, 같으면 늘 일자로 갈라 순서가 흔들리지 않게 한다
@@ -297,7 +334,7 @@ export function EvidenceTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap, live, q]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다 (2026-08-13 사장님 지시)
-  const pager = usePager(shown, live.size, `${from}|${to}|${kind}|${q}|${JSON.stringify(live)}`);
+  const pager = usePager(shown, live.size, `${from}|${to}|${kind}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   //   선택은 **쪽을 넘겨도 남는다** — 2쪽까지 골라 한 번에 전표로 만들 수 있어야 한다
   const selRows = shown.filter((r) => sel.has(r.id));
   const sumSupply = shown.reduce((n, r) => n + amountsOf(r).supply, 0);
@@ -836,25 +873,25 @@ export function EvidenceTab({
         </div>
       ) : (
         <div className="ev-scroll">
-          <table className="ev-table">
+          <table ref={tableRef} className="ev-table ev-lined">
             <thead>
               <tr>
                 <th style={{ width: 34 }}>
                   <button type="button" aria-label="이 쪽 전체 선택" onClick={toggleAll}
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
-                <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} />
-                <SortableTh label="거래처" sortKey="partner" sort={sort} onSort={onSort} />
-                <SortableTh label="사업자등록번호" sortKey="bizno" sort={sort} onSort={onSort} />
-                <SortableTh label="구분" sortKey="kind" sort={sort} onSort={onSort} />
-                <SortableTh label="유형" sortKey="vat" sort={sort} onSort={onSort} />
-                <SortableTh label="품명" sortKey="item" sort={sort} onSort={onSort} />
-                <SortableTh label="공급가액" sortKey="supply" sort={sort} onSort={onSort} />
-                <SortableTh label="부가세" sortKey="tax" sort={sort} onSort={onSort} />
-                <SortableTh label="합계" sortKey="total" sort={sort} onSort={onSort} />
-                <SortableTh label="차변계정" sortKey="debit" sort={sort} onSort={onSort} />
-                <SortableTh label="대변계정" />
-                <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
+                <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} filter={thFilter("date", rows)} resize={thResize("date", 1)} />
+                <SortableTh label="거래처" sortKey="partner" sort={sort} onSort={onSort} filter={thFilter("partner", rows)} resize={thResize("partner", 2)} />
+                <SortableTh label="사업자등록번호" sortKey="bizno" sort={sort} onSort={onSort} filter={thFilter("bizno", rows)} resize={thResize("bizno", 3)} />
+                <SortableTh label="구분" sortKey="kind" sort={sort} onSort={onSort} filter={thFilter("kind", rows)} resize={thResize("kind", 4)} />
+                <SortableTh label="유형" sortKey="vat" sort={sort} onSort={onSort} filter={thFilter("vat", rows)} resize={thResize("vat", 5)} />
+                <SortableTh label="품명" sortKey="item" sort={sort} onSort={onSort} filter={thFilter("item", rows)} resize={thResize("item", 6)} />
+                <SortableTh label="공급가액" sortKey="supply" sort={sort} onSort={onSort} filter={thFilter("supply", rows)} resize={thResize("supply", 7)} />
+                <SortableTh label="부가세" sortKey="tax" sort={sort} onSort={onSort} filter={thFilter("tax", rows)} resize={thResize("tax", 8)} />
+                <SortableTh label="합계" sortKey="total" sort={sort} onSort={onSort} filter={thFilter("total", rows)} resize={thResize("total", 9)} />
+                <SortableTh label="차변계정" sortKey="debit" sort={sort} onSort={onSort} filter={thFilter("debit", rows)} resize={thResize("debit", 10)} />
+                <SortableTh label="대변계정" resize={thResize("credit", 11)} />
+                <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} filter={thFilter("state", rows)} resize={thResize("state", 12)} />
               </tr>
             </thead>
             <tbody>

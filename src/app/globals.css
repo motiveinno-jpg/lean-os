@@ -9238,3 +9238,26 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .ti-deal-name { @apply font-semibold text-[var(--text)]; }
 .ti-deal-why { @apply rounded-full px-1.5 py-px text-[10px] font-bold text-[var(--primary)]; background: color-mix(in srgb, var(--primary) 10%, transparent); }
 .ti-deal-none { @apply rounded-xl border border-dashed border-[var(--border)] px-3 py-3 text-[11.5px] text-[var(--text-dim)]; }
+
+/* 엑셀식 머리단 필터 + 열 너비 손잡이 (2026-08-13 사장님: "엑셀과 아예 동일하게") */
+.th-filter { @apply ml-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--text-dim)]/50 transition-colors; }
+.th-filter:hover { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
+.th-filter-on { @apply bg-[var(--primary)] text-white; }
+.th-filter-on:hover { @apply bg-[var(--primary)] text-white; }
+.thf-pop { @apply fixed z-[70] flex max-h-[340px] w-[232px] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }
+.thf-search { @apply m-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] px-2.5 py-1.5 text-[12px] focus:border-[var(--primary)] focus:outline-none; }
+.thf-list { @apply min-h-0 flex-1 overflow-y-auto px-1 pb-1; }
+.thf-item { @apply flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-[12px] text-[var(--text)]; }
+.thf-item:hover { @apply bg-[var(--bg-surface)]; }
+.thf-item input { @apply h-3.5 w-3.5 shrink-0 accent-[var(--primary)]; }
+.thf-all { @apply border-b border-[var(--border)]/60 pb-1.5 mb-1 font-semibold; }
+.thf-v { @apply truncate; }
+.thf-none { @apply px-2 py-3 text-center text-[11.5px] text-[var(--text-dim)]; }
+.thf-foot { @apply flex items-center gap-1.5 border-t border-[var(--border)] px-2 py-2; }
+.thf-clear { @apply mr-auto text-[11px] font-semibold text-[var(--text-dim)] underline hover:text-[var(--danger)]; }
+.th-grip { @apply absolute top-0 -right-[3px] z-[1] h-full w-[7px] cursor-col-resize select-none rounded; }
+.th-grip:hover { background: color-mix(in srgb, var(--primary) 35%, transparent); }
+.th-grip:active { background: color-mix(in srgb, var(--primary) 55%, transparent); }
+
+/* 칸 세로선 — 발행 내역 표와 같은 모양을 수집·전표에도 (2026-08-13 사장님) */
+.ev-lined th + th, .ev-lined td + td { border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
