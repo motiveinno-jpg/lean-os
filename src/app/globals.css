@@ -9259,5 +9259,8 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .th-grip:hover { background: color-mix(in srgb, var(--primary) 35%, transparent); }
 .th-grip:active { background: color-mix(in srgb, var(--primary) 55%, transparent); }
 
-/* 칸 세로선 — 발행 내역 표와 같은 모양을 수집·전표에도 (2026-08-13 사장님) */
-.ev-lined th + th, .ev-lined td + td { border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+/* 칸 세로선 — **머리단에만** (2026-08-13 사장님: "데이터까지 넣으니 답답해 보여").
+   처음엔 데이터 칸에도 넣었다가 걷었다 — 머리단 선이 칸 경계를 알려 주면 충분하다. */
+.ev-lined th + th { border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+/* 세금·증빙 발행 표도 같은 규칙 — 원래 데이터 칸까지 border-l 유틸이 붙어 있던 것을 끈다 */
+.tax-invoice-list-table tbody td, .tax-invoice-list-table tfoot td { border-left-width: 0; }
