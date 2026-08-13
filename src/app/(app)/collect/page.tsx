@@ -23,7 +23,7 @@ import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
 import { RulesDialog } from "./_components/RulesDialog";
 import { DateRangeField } from "@/components/date-range-field";
-import { QueryBar, ResultStrip, HelperMenu, type HelperItem } from "@/components/query-kit";
+import { QueryBar, ResultStrip, HelperMenu, defaultRange, type HelperItem } from "@/components/query-kit";
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const fmtWhen = (iso: string | null) =>
@@ -49,8 +49,9 @@ function CollectInner() {
   const qc = useQueryClient();
   const companyId = user?.company_id ?? null;
 
-  //   조회기간 — 기본은 이번 달 1일 ~ 오늘(예전 '조회월'과 가장 가깝다). 고른 기간은 기억한다.
-  const [range, setRange] = useState(() => ({ from: `${todayKst().slice(0, 7)}-01`, to: todayKst() }));
+  //   조회기간 — 기본은 **최근 1개월** (2026-08-13 사장님 확정).
+  //   이번 달 1일 기준이면 매달 1~2일에 열었을 때 하루이틀치만 보여 '자료 없음'으로 읽힌다.
+  const [range, setRange] = useState(defaultRange);
   const { from, to } = range;
   //   탭 — 'status' 는 현황판, 나머지는 그 자료의 목록 (2단계)
   //   ?tab=bank 같은 주소로 바로 그 탭을 연다 — 다른 화면들이 "여기서 처리하세요"로 보낼 때 쓴다
@@ -162,7 +163,8 @@ function CollectInner() {
   //   조회 줄의 공통 조각 — 현황판이 직접 쓰고, 목록 탭에는 통째로 내려보낸다.
   //   탭마다 조건(매출·매입, 미처리만 …)이 달라서 **조회 줄은 탭이 완성**한다.
   //   기간과 '수집하기'까지 탭 안에 다시 만들면 두 벌이 되어 언젠가 어긋난다.
-  //   DateRangeField 는 '조회기간' 라벨을 스스로 붙인다 — QueryField 로 또 감싸면 라벨이 두 번 나온다
+  //   ★ 현황판에는 검색조건 패널이 없으므로 여기서만 달력(parts="all")을 쓴다.
+  //     목록 탭은 숫자 칸만 두고 달력을 검색조건 안으로 넣는다 (탭이 직접 그린다).
   const rangeField = <DateRangeField from={from} to={to} onChange={applyRange} />;
   const syncButton = (
     <button type="button" onClick={() => setOpen(true)} disabled={running}
@@ -172,8 +174,11 @@ function CollectInner() {
   );
   //   배운 규칙을 볼 수 있어야 한다 — 안 보이는 자동화는 틀렸을 때 고칠 방법이 없다.
   //   조회 조건이 아니므로 조회 줄이 아니라 '도움' 안에 둔다.
+  //   ★ 출처를 적는다 — 이건 AI 가 아니라 **사람이 고른 것을 기억해 둔 것**이다.
+  //     'AI 도움' 안에 있다고 전부 AI 라고 하면 틀렸을 때 원인을 엉뚱한 데서 찾는다.
   const rulesHelper: HelperItem = {
     label: "배운 규칙 보기",
+    source: "내가 배운 규칙",
     hint: "전에 고른 계정을 어떻게 기억해 뒀는지 보고 고칩니다",
     onClick: () => setRulesOpen(true),
   };
@@ -209,9 +214,9 @@ function CollectInner() {
       {tab !== "status" && companyId && (
         tab === "bank"
           ? <BankTab companyId={companyId} from={from} to={to}
-              rangeField={rangeField} onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
+              onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
           : <EvidenceTab companyId={companyId} from={from} to={to} kind={tab}
-              rangeField={rangeField} onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
+              onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
       )}
 
       {/* ── 자료 카드 ── */}

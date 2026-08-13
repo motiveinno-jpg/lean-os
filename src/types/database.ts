@@ -10294,6 +10294,7 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          is_default: boolean
           name: string
           params: Json
           screen: string
@@ -10304,6 +10305,7 @@ export type Database = {
           company_id: string
           created_at?: string
           id?: string
+          is_default?: boolean
           name: string
           params?: Json
           screen: string
@@ -10314,6 +10316,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           id?: string
+          is_default?: boolean
           name?: string
           params?: Json
           screen?: string

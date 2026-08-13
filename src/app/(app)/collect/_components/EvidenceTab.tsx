@@ -11,13 +11,15 @@
 //   계정 추천 = **같은 거래처로 지난번에 쓴 계정**. 4단계(자동분개 학습)의 뿌리다.
 //   지금은 규칙을 따로 저장하지 않고 이미 만든 전표를 되읽는다 — 사람이 고른 것이 곧 근거다.
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { appConfirm } from "@/components/global-confirm";
 import {
-  QueryBar, QueryDivider, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat,
-  HelperMenu, SelectionBar, Pager, usePager, SavedQueryMenu, type HelperItem,
-  MoreFilters, FilterForm, FilterRow, TextFilter, AmountRange, SelectFilter, textHit, amountHit,
+  QueryBar, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
+  Pager, usePager, ConditionPanel, ConditionRow, TokenField, AmountRange, AppliedChips,
+  QuickSearch, quickSearchHit, quickTerms, amountHit, periodQuicks,
+  useSavedQueries, SavedTabs, type HelperItem, type AppliedChip,
 } from "@/components/query-kit";
+import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { PickList } from "@/components/pick-list";
 import { fetchMerchantKinds, fillMerchantKinds, type MerchantInfo } from "@/lib/merchant-tax-type";
@@ -77,51 +79,62 @@ const GENERAL_CODE = "3";
 type SortKey = "date" | "partner" | "bizno" | "kind" | "vat" | "item"
   | "supply" | "tax" | "total" | "debit" | "state";
 
+/**
+ * 검색조건 — 갖춰서 찾는 값들 (2026-08-13 조회 화면 표준).
+ *   ★ 여기 있는 것은 **'조회'를 눌러야** 반영된다. 기간·빠른검색·상태는 조회 줄에 있어 즉시다.
+ *   거래처·계정과목·카드는 **여러 개**를 고를 수 있다(하나라도 맞으면 나온다).
+ */
+type Cond = {
+  partner: string[];   // 거래처 이름
+  acct: string[];      // 계정과목 코드
+  card: string[];      // 카드 이름 (카드 탭만)
+  kind: string;        // 구분 — 법인·일반·간이·면세 (카드 탭만)
+  dir: "all" | "sale" | "purchase";
+  item: string;        // 품명
+  min: string; max: string;   // 합계 금액 범위
+  size: number;        // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
+};
+const EMPTY: Cond = { partner: [], acct: [], card: [], kind: "", dir: "all", item: "", min: "", max: "", size: 50 };
+/** 배지에 셀 것 — 줄 수는 '좁히는 조건'이 아니라 보기 방식이라 안 센다 */
+const condCount = (c: Cond) =>
+  c.partner.length + c.acct.length + c.card.length
+  + (c.kind ? 1 : 0) + (c.dir !== "all" ? 1 : 0) + (c.item ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
+
 const DIR_CHIPS = [
   { value: "all", label: "전체" }, { value: "sale", label: "매출" }, { value: "purchase", label: "매입" },
 ] as const;
 const STATE_CHIPS = [
   { value: "todo", label: "전표 미처리" }, { value: "all", label: "전체" },
 ] as const;
-
-/**
- * 조건 더보기에 담기는 검색값 (2026-08-13 사장님 지시 — 이카운트 공통 조회 형식 참고).
- *   비어 있으면 안 거는 것과 같다. 몇 개가 켜졌는지 세어 배지로 내건다.
- */
-type More = {
-  partner: string;   // 거래처 — 이름 또는 사업자등록번호
-  item: string;      // 품명
-  acct: string;      // 계정과목 — 이름 또는 코드
-  card: string;      // 카드 (카드 탭만)
-  kind: string;      // 구분 — 법인·일반·간이·면세
-  min: string; max: string;   // 합계 금액 범위
-};
-const EMPTY_MORE: More = { partner: "", item: "", acct: "", card: "", kind: "", min: "", max: "" };
 //   구분 — merchantKindOf 가 돌려주는 값 그대로 (lib/merchant-tax-type)
-const KIND_OPTS = ["법인", "일반", "간이", "면세"] as const;
-const moreCount = (m: More) => Object.values(m).filter((v) => String(v).trim() !== "").length;
+const KIND_CHIPS = [
+  { value: "", label: "전체" }, { value: "법인", label: "법인" }, { value: "일반", label: "일반" },
+  { value: "간이", label: "간이" }, { value: "면세", label: "면세" },
+] as const;
 
 const SETTLE_BY_KIND: Record<string, SettleType> = {
   tax_invoice: "credit", exempt_invoice: "credit", cash_receipt: "cash", card: "card",
 };
 
 export function EvidenceTab({
-  companyId, from, to, kind, rangeField, onRange, syncButton, rulesHelper,
+  companyId, from, to, kind, onRange, syncButton, rulesHelper,
 }: {
   companyId: string; from: string; to: string; kind: SourceKey;
-  /** 조회 줄 공통 조각 — 화면(page.tsx)이 만들어 내려보낸다 */
-  rangeField: ReactNode; onRange: (from: string, to: string) => void;
+  /** 조회 줄 공통 조각 — 화면(page.tsx)이 만들어 내려보낸다.
+   *  기간 칸은 검색조건과 한 덩어리라 **탭이 직접 그린다** — 값과 바꾸는 함수만 받는다. */
+  onRange: (from: string, to: string) => void;
   syncButton: ReactNode; rulesHelper: HelperItem;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  //   조회 줄에 있는 것은 **즉시** 반영된다 (기간은 page.tsx 가 쥐고 있다)
   const [onlyTodo, setOnlyTodo] = useState(true);
-  const [dir, setDir] = useState<"all" | "sale" | "purchase">("all");
-  //   거래처·품명·계정·금액 … 자주 안 쓰는 조건은 '조건 더보기'에 접어 둔다 (2026-08-13 사장님 지시)
-  const [more, setMore] = useState<More>(EMPTY_MORE);
-  const setM = (k: keyof More) => (v: string) => setMore((m) => ({ ...m, [k]: v }));
-  //   한 페이지 50줄이 기본 (2026-08-13 사장님 지시: "아래로 데이터가 계속 길어짐")
-  const [size, setSize] = useState(50);
+  const [q, setQ] = useState("");
+  //   검색조건 패널 — draft 는 고르는 중, live 는 '조회'를 눌러 확정된 것
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(EMPTY);
+  const [live, setLive] = useState<Cond>(EMPTY);
+  const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState<Record<string, { vatCode?: string; acct?: Acct }>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
@@ -236,17 +249,18 @@ export function EvidenceTab({
 
   const shownUnsorted = rows.filter((r) => {
     if (onlyTodo && r.posted) return false;
-    if (dir !== "all" && vatType(vatCodeOf(r))?.side !== dir) return false;
-    //   조건 더보기 — 빈 칸은 안 건 것과 같다 (2026-08-13 사장님 지시)
-    if (!textHit(more.partner, r.partnerName, r.bizno)) return false;
-    if (!textHit(more.item, r.item)) return false;
-    if (more.acct) {
-      const a = acctOf(r).acct;
-      if (!textHit(more.acct, a?.name, a?.code)) return false;
-    }
-    if (more.card && (r.cardName || "") !== more.card) return false;
-    if (more.kind && (merchantOf(r)?.kind ?? "") !== more.kind) return false;
-    if (!amountHit(amountsOf(r).supply + amountsOf(r).vat, more.min, more.max)) return false;
+    const acct = acctOf(r).acct;
+    const total = amountsOf(r).supply + amountsOf(r).vat;
+    //   빠른검색 — 글자 하나로 거래처·계정·카드·품명·금액을 한꺼번에 (쉼표=또는)
+    if (!quickSearchHit(q, [r.partnerName, r.bizno, r.item, r.cardName, acct?.name, acct?.code], [total])) return false;
+    //   검색조건 — 빈 칸은 안 건 것과 같다. 여러 개 고른 것은 **하나라도** 맞으면 통과.
+    if (live.dir !== "all" && vatType(vatCodeOf(r))?.side !== live.dir) return false;
+    if (live.partner.length && !live.partner.includes(r.partnerName)) return false;
+    if (live.acct.length && !(acct && live.acct.includes(acct.code))) return false;
+    if (live.card.length && !live.card.includes(r.cardName || "")) return false;
+    if (live.kind && (merchantOf(r)?.kind ?? "") !== live.kind) return false;
+    if (live.item && !r.item.toLowerCase().includes(live.item.toLowerCase())) return false;
+    if (!amountHit(total, live.min, live.max)) return false;
     return true;
   });
   //   정렬 — 고른 칸으로 세우고, 같으면 늘 일자로 갈라 순서가 흔들리지 않게 한다
@@ -273,9 +287,9 @@ export function EvidenceTab({
     });
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap, more]);
+  }, [shownUnsorted, sort, override, merchantKinds, rules, cardMap, live, q]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 돌아간다 (2026-08-13 사장님 지시)
-  const pager = usePager(shown, size, `${from}|${to}|${kind}|${dir}|${onlyTodo}|${JSON.stringify(more)}`);
+  const pager = usePager(shown, live.size, `${from}|${to}|${kind}|${onlyTodo}|${q}|${JSON.stringify(live)}`);
   //   선택은 **쪽을 넘겨도 남는다** — 2쪽까지 골라 한 번에 전표로 만들 수 있어야 한다
   const selRows = shown.filter((r) => sel.has(r.id));
   const sumSupply = shown.reduce((n, r) => n + amountsOf(r).supply, 0);
@@ -486,81 +500,179 @@ export function EvidenceTab({
       a.account_type === (side === "sale" ? "revenue" : "expense")
       && (!q || a.name.toLowerCase().includes(q.toLowerCase()) || String(a.code).includes(q))).slice(0, 40);
 
-  //   '도움' — 조회 조건도 아니고 확정도 아닌 것들을 여기 모은다 (2026-08-13 사장님 지시).
-  //   숨기지는 않는다: 할 일이 있으면 버튼에 숫자가 떠서 열어 보게 된다.
+  //   'AI 도움' — 조회 조건도 아니고 확정도 아닌 것들 (2026-08-13 사장님이 이름 확정).
+  //   ★ 줄마다 **출처를 적는다** — 전부 AI 라고 하면 틀렸을 때 원인을 엉뚱한 데서 찾는다.
   const helpers: HelperItem[] = [
     rulesHelper,
     //   구분(법인·일반·간이·면세)은 카드 원자료에 없다 — 국세청에 물어 채운다.
     //   아직 모르는 **가맹점 수**만 물어보므로 거래 건수와 무관하다 (2026-08-12)
     ...(kind === "card" && unknownBiznos.length > 0 ? [{
       label: filling ? "구분 조회 중…" : "가맹점 구분 채우기",
-      hint: "국세청에 과세유형을 물어 '구분' 칸을 채웁니다 — 간이·면세는 부가세를 공제받지 못합니다",
+      source: "국세청 조회",
+      hint: "사업자번호로 과세유형을 물어 '구분' 칸을 채웁니다 — 간이·면세는 부가세를 공제받지 못합니다",
       badge: unknownBiznos.length, disabled: filling, onClick: fillKinds,
     } as HelperItem] : []),
   ];
 
-  //   카드 이름 목록 — 이 기간에 실제로 나온 카드만 고르게 한다(안 쓰는 카드가 목록에 서면 헷갈린다)
-  const cardNames = useMemo(
-    () => [...new Set(rows.map((r) => r.cardName).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, "ko")),
+  //   고를 수 있는 값들 — **이 기간에 실제로 나온 것만** 세운다.
+  //   안 쓰는 카드·안 나온 거래처가 목록에 서면 고르고도 0건이 나와 헷갈린다.
+  const partnerOpts = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const r of rows) if (r.partnerName && !m.has(r.partnerName)) m.set(r.partnerName, r.bizno || "");
+    return [...m].sort((x, y) => x[0].localeCompare(y[0], "ko")).map(([v, sub]) => ({ value: v, label: v, sub }));
+  }, [rows]);
+  const cardOpts = useMemo(
+    () => [...new Set(rows.map((r) => r.cardName).filter(Boolean) as string[])]
+      .sort((a2, b2) => a2.localeCompare(b2, "ko")).map((c) => ({ value: c, label: c })),
     [rows]);
+  const acctOpts = useMemo(
+    () => accounts.map((a2) => ({ value: a2.code, label: a2.name, sub: a2.code })),
+    [accounts]);
+
+  //   내 조건 — ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
+  const saved = useSavedQueries(`collect:${kind}`, companyId);
+  const applySaved = (p: Record<string, unknown>) => {
+    if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
+    if (typeof p.onlyTodo === "boolean") setOnlyTodo(p.onlyTodo);
+    if (typeof p.q === "string") setQ(p.q);
+    const c = { ...EMPTY, ...(p.cond as Partial<Cond> | undefined) };
+    setDraft(c); setLive(c);
+  };
+  //   ★ 기본 조건이 있으면 화면을 열 때 한 번만 건다. 없으면 최근 1개월 그대로.
+  //     '지난번 검색값'을 몰래 기억하는 것과 다르다 — **사람이 ★ 를 단 값**이라 늘 같다.
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved.isFetched) return;
+    setDefDone(true);
+    if (saved.def) applySaved(saved.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isFetched, saved.def, defDone]);
+
+  const nDraft = condCount(draft), nLive = condCount(live);
+  //   '조회'를 누르기 전에 **몇 건 나올지**만 미리 알려 준다 (표는 안 흔든다)
+  const previewCount = useMemo(() => {
+    let n = 0;
+    for (const r of rows) {
+      const a2 = acctOf(r).acct;
+      const total = amountsOf(r).supply + amountsOf(r).vat;
+      if (onlyTodo && r.posted) continue;
+      if (!quickSearchHit(q, [r.partnerName, r.bizno, r.item, r.cardName, a2?.name, a2?.code], [total])) continue;
+      if (draft.dir !== "all" && vatType(vatCodeOf(r))?.side !== draft.dir) continue;
+      if (draft.partner.length && !draft.partner.includes(r.partnerName)) continue;
+      if (draft.acct.length && !(a2 && draft.acct.includes(a2.code))) continue;
+      if (draft.card.length && !draft.card.includes(r.cardName || "")) continue;
+      if (draft.kind && (merchantOf(r)?.kind ?? "") !== draft.kind) continue;
+      if (draft.item && !r.item.toLowerCase().includes(draft.item.toLowerCase())) continue;
+      if (!amountHit(total, draft.min, draft.max)) continue;
+      n += 1;
+    }
+    return n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, draft, q, onlyTodo, override, rules, cardMap, merchantKinds]);
+
+  //   걸린 조건 — 조회 줄에 칩으로 남는다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다.
+  const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({
+      group: "빠른검색", label: t,
+      onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")),
+    })),
+    ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove: () => drop({ partner: live.partner.filter((x) => x !== v) }) })),
+    ...live.acct.map((v) => ({ group: "계정", label: accounts.find((a2) => a2.code === v)?.name ?? v, onRemove: () => drop({ acct: live.acct.filter((x) => x !== v) }) })),
+    ...live.card.map((v) => ({ group: "카드", label: v, onRemove: () => drop({ card: live.card.filter((x) => x !== v) }) })),
+    ...(live.kind ? [{ group: "구분", label: live.kind, onRemove: () => drop({ kind: "" }) }] : []),
+    ...(live.dir !== "all" ? [{ group: "매출·매입", label: live.dir === "sale" ? "매출" : "매입", onRemove: () => drop({ dir: "all" as const }) }] : []),
+    ...(live.item ? [{ group: "품명", label: live.item, onRemove: () => drop({ item: "" }) }] : []),
+    ...((live.min || live.max) ? [{
+      group: "금액", label: `${won(Number(live.min || 0))} ~ ${live.max ? won(Number(live.max)) : "제한없음"}`,
+      onRemove: () => drop({ min: "", max: "" }),
+    }] : []),
+  ];
+  const clearAll = () => { setQ(""); setLive(EMPTY); setDraft(EMPTY); };
 
   return (
     <div className="ev-wrap">
-      {/* ── 1줄 · 조회 조건 — 여기 있는 것만 목록을 바꾼다 ── */}
+      {/* ── 1줄 · 조회 조건 — 기간·빠른검색·상태는 즉시, 검색조건은 '조회'를 눌러 ── */}
       <QueryBar right={<>
-        <MoreFilters count={moreCount(more)}>
-          <FilterForm activeCount={moreCount(more)} onReset={() => setMore(EMPTY_MORE)}>
-            <FilterRow label="거래처" hint="이름 또는 사업자등록번호">
-              <TextFilter value={more.partner} onChange={setM("partner")} placeholder="예: 모티브  ·  1234567890" />
-            </FilterRow>
-            <FilterRow label="품명" hint="일부만 적어도 됩니다">
-              <TextFilter value={more.item} onChange={setM("item")} placeholder="예: 광고비" />
-            </FilterRow>
-            <FilterRow label="계정과목" hint="이름 또는 코드">
-              <TextFilter value={more.acct} onChange={setM("acct")} placeholder="예: 지급수수료  ·  831" />
-            </FilterRow>
-            <FilterRow label="합계 금액" hint="한쪽만 적어도 됩니다">
-              <AmountRange min={more.min} max={more.max} onMin={setM("min")} onMax={setM("max")} />
-            </FilterRow>
-            {kind === "card" && (<>
-              <FilterRow label="카드">
-                <SelectFilter value={more.card} onChange={setM("card")}
-                  options={[{ value: "", label: "전체 카드" }, ...cardNames.map((c) => ({ value: c, label: c }))]} />
-              </FilterRow>
-              {/*   간이·면세만 모아 보는 일이 잦다 — 부가세를 공제받지 못하는 건들이다 */}
-              <FilterRow label="구분" hint="간이·면세는 부가세 불공제">
-                <SelectFilter value={more.kind} onChange={setM("kind")}
-                  options={[{ value: "", label: "전체" }, ...KIND_OPTS.map((k) => ({ value: k, label: k }))]} />
-              </FilterRow>
-            </>)}
-          </FilterForm>
-        </MoreFilters>
-        <SavedQueryMenu screen={`collect:${kind}`} companyId={companyId}
-          params={{ from, to, dir, onlyTodo, size, more }}
-          onApply={(p) => {
-            if (typeof p.from === "string" && typeof p.to === "string") onRange(p.from, p.to);
-            if (p.dir === "all" || p.dir === "sale" || p.dir === "purchase") setDir(p.dir);
-            if (typeof p.onlyTodo === "boolean") setOnlyTodo(p.onlyTodo);
-            if (typeof p.size === "number") setSize(p.size);
-            setMore({ ...EMPTY_MORE, ...(p.more as Partial<More> | undefined) });
-          }} />
+        <HelperMenu items={helpers} />
         {syncButton}
       </>}>
-        {rangeField}
-        <QueryDivider />
-        <QueryField label="구분">
-          <ChipGroup value={dir} onChange={setDir} options={DIR_CHIPS} />
-        </QueryField>
+        {/*   ★ 기간을 **치는 칸은 화면에 하나뿐**이다. 달력은 검색조건 안에 있다.
+              오른쪽 끝에 '검색조건'이 붙어 한 덩어리로 보인다 (2026-08-13 사장님 지시). */}
+        <DateRangeField from={from} to={to} onChange={onRange} label={null} parts="segments"
+          trailing={
+            <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={nLive} anchorSel=".drf"
+              tabs={<SavedTabs list={saved.list} onApply={(s) => { applySaved(s.params || {}); setPanelOpen(false); }}
+                onSave={(name) => saved.save(name, { from, to, onlyTodo, q, cond: draft })}
+                onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+              foot={<>
+                <button type="button" className="btn-secondary btn-sm" disabled={nDraft === 0}
+                  onClick={() => setDraft({ ...EMPTY, size: draft.size })}>조건 지우기</button>
+                <span className="ml-auto text-[11px] text-[var(--text-dim)]">{won(previewCount)}건</span>
+                <RowsPerPage value={draft.size} onChange={setD("size")} />
+                <button type="button" className="btn-primary btn-sm"
+                  onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+              </>}>
+              <ConditionRow label="조회기간" hint="기본 1개월">
+                <span className="qk-range-txt">{from} ~ {to}</span>
+                <DateRangeField from={from} to={to} onChange={onRange} label={null} parts="calendar" />
+                <span className="qk-quicks">
+                  {periodQuicks().map((p) => (
+                    <button key={p.key} type="button" onClick={() => onRange(p.from, p.to)}
+                      className={from === p.from && to === p.to ? "qk-quick qk-quick-on" : "qk-quick"}>{p.label}</button>
+                  ))}
+                </span>
+              </ConditionRow>
+
+              <ConditionRow label="거래처" hint="여러 곳">
+                <TokenField items={partnerOpts} value={draft.partner} onChange={setD("partner")}
+                  placeholder="거래처 이름 일부 (예: 모티)" />
+              </ConditionRow>
+
+              <ConditionRow label="계정과목" hint="여러 개">
+                <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")}
+                  placeholder="계정과목 이름 또는 코드 (예: 831)" />
+              </ConditionRow>
+
+              {kind === "card" && (<>
+                <ConditionRow label="카드" hint="여러 개">
+                  <TokenField items={cardOpts} value={draft.card} onChange={setD("card")}
+                    placeholder="카드 이름 (예: 롯데)" />
+                </ConditionRow>
+                {/*   간이·면세만 모아 보는 일이 잦다 — 부가세를 공제받지 못하는 건들이다 */}
+                <ConditionRow label="구분" hint="간이·면세는 불공제">
+                  <ChipGroup value={draft.kind} onChange={setD("kind")} options={KIND_CHIPS} />
+                </ConditionRow>
+              </>)}
+
+              <ConditionRow label="매출·매입">
+                <ChipGroup value={draft.dir} onChange={setD("dir")} options={DIR_CHIPS} />
+              </ConditionRow>
+
+              <ConditionRow label="품명">
+                <input className="qk-input w-full" value={draft.item} placeholder="예: 광고비"
+                  onChange={(e) => setD("item")(e.target.value)} />
+              </ConditionRow>
+
+              <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다">
+                <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
+              </ConditionRow>
+            </ConditionPanel>
+          } />
+
+        <QuickSearch value={q} onApply={setQ}
+          placeholder="거래처 · 계정과목 · 품명 · 금액 — 쉼표로 여러 개, Enter" />
+
         <QueryField label="상태">
           <ChipGroup value={onlyTodo ? "todo" : "all"}
             onChange={(v) => setOnlyTodo(v === "todo")} options={STATE_CHIPS} />
         </QueryField>
-        <QueryDivider />
-        <RowsPerPage value={size} onChange={setSize} />
       </QueryBar>
 
+      <AppliedChips chips={chips} onClearAll={clearAll} />
+
       {/* ── 2줄 · 결과 요약 — 목록을 바꾸지 않는 것들만 ── */}
-      <ResultStrip right={<HelperMenu items={helpers} />}>
+      <ResultStrip>
         <Stat label="건수" value={`${won(shown.length)}건`} />
         <Stat label="공급가액" value={won(sumSupply)} />
         <Stat label="부가세" value={won(sumVat)} />
@@ -717,7 +829,7 @@ export function EvidenceTab({
       )}
 
       {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
-      <Pager page={pager.page} pages={pager.pages} total={shown.length}
+      <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
         from={pager.from} to={pager.to} onPage={pager.setPage} />
 
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 화면을 통틀어 여기 하나뿐 ── */}

@@ -10,7 +10,7 @@
 //   ⚠️ 날짜는 **문자열(YYYY-MM-DD)로만** 다룬다. toISOString() 을 쓰면 KST 자정이 UTC 로 밀려
 //     하루 전으로 저장되는 사고가 이 저장소에서 실제로 있었다.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { todayKst } from "@/lib/kst";
 
 const pad = (n: number, w = 2) => String(n).padStart(w, "0");
@@ -71,14 +71,28 @@ const QUARTER_START = (m: number) => m - ((m - 1) % 3);
  */
 export function DateRangeField({
   from, to, onChange, label = "조회기간", unit = "day", onClear,
+  parts = "all", trailing, calLabel,
 }: {
   from: string; to: string;
   onChange: (from: string, to: string) => void;
-  label?: string;
+  /** null 이면 라벨을 안 붙인다 — 조회 줄에서 칸 자체가 '조회기간'임이 뻔할 때 */
+  label?: string | null;
   unit?: "day" | "month";
   /** 주면 '기간 해제'가 생긴다 — 통장·카드처럼 **기간을 안 걸 수도 있는** 화면용.
    *  from/to 가 빈 문자열이면 칩에 '전체 기간'으로 보인다. */
   onClear?: () => void;
+  /**
+   * 어느 조각을 그릴지 (2026-08-13 조회 화면 표준).
+   *   "all"      — 예전 그대로: 숫자 칸 + 📅 + 달력
+   *   "segments" — **숫자 칸만**. 조회 줄에 놓고, 달력은 검색조건 패널이 맡는다
+   *   "calendar" — **달력 여는 버튼만**. 검색조건 패널 안에 놓는다
+   *   ★ 숫자로 치는 칸은 화면에 **하나뿐**이어야 한다 — 두 군데면 어디를 고쳐야 할지 모른다.
+   */
+  parts?: "all" | "segments" | "calendar";
+  /** 숫자 칸 오른쪽 끝에 붙일 것 — '검색조건 ▾' 버튼이 여기 들어간다 */
+  trailing?: ReactNode;
+  /** parts="calendar" 일 때 버튼 글자 */
+  calLabel?: string;
 }) {
   const isM = unit === "month";
   //   빈 값 = 기간을 안 건 상태. 달력은 오늘 기준으로 열되, 고르기 전까지는 필터가 없다.
@@ -313,26 +327,40 @@ export function DateRangeField({
     />
   );
 
+  const calIcon = (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
+  );
+
   return (
     <div className="drf" ref={boxRef}>
-      <span className="drf-label">{label}</span>
-      <div className={open ? "drf-chip drf-chip-open" : "drf-chip"}>
-        {empty ? (
-          <button type="button" onClick={() => setOpen((v) => !v)} className="drf-empty">전체 기간</button>
-        ) : (<>
-        {seg("fy", "drf-y", "시작 연도")}<i>-</i>{seg("fm", "drf-md", "시작 월")}
-        {!isM && <><i>-</i>{seg("fd", "drf-md", "시작 일")}</>}
-        <i className="drf-tilde">~</i>
-        {seg("ty", "drf-y", "종료 연도")}<i>-</i>{seg("tm", "drf-md", "종료 월")}
-        {!isM && <><i>-</i>{seg("td", "drf-md", "종료 일")}</>}
-        </>)}
-        <button type="button" onClick={() => setOpen((v) => !v)} className="drf-cal-btn" aria-label="달력 열기">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2"
-            strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
-          </svg>
+      {label !== null && parts !== "calendar" && <span className="drf-label">{label}</span>}
+      {parts !== "calendar" && (
+        <div className={`drf-chip${open ? " drf-chip-open" : ""}${trailing ? " drf-chip-cond" : ""}`}>
+          {empty ? (
+            <button type="button" onClick={() => setOpen((v) => !v)} className="drf-empty">전체 기간</button>
+          ) : (<>
+          {seg("fy", "drf-y", "시작 연도")}<i>-</i>{seg("fm", "drf-md", "시작 월")}
+          {!isM && <><i>-</i>{seg("fd", "drf-md", "시작 일")}</>}
+          <i className="drf-tilde">~</i>
+          {seg("ty", "drf-y", "종료 연도")}<i>-</i>{seg("tm", "drf-md", "종료 월")}
+          {!isM && <><i>-</i>{seg("td", "drf-md", "종료 일")}</>}
+          </>)}
+          {parts === "all" && (
+            <button type="button" onClick={() => setOpen((v) => !v)} className="drf-cal-btn" aria-label="달력 열기">
+              {calIcon}
+            </button>
+          )}
+          {trailing}
+        </div>
+      )}
+      {parts === "calendar" && (
+        <button type="button" onClick={() => setOpen((v) => !v)} className="drf-calopen">
+          {calIcon}{calLabel ?? "달력에서 고르기"}
         </button>
-      </div>
+      )}
 
       {open && (
         <div className="drf-pop">
@@ -367,6 +395,9 @@ export function DateRangeField({
             )}
           </div>
 
+          {/*   검색조건 패널 안(parts="calendar")에서는 빠른 기간 칩이 **패널에 이미 펼쳐져 있다** —
+                여기 또 두면 같은 것이 두 벌이 되고, 두 벌은 언젠가 서로 달라진다 (2026-08-13) */}
+          {parts !== "calendar" && (
           <div className="drf-quick">
             <em>빠른 선택</em>
             {QUICKS.map((q) => (
@@ -376,7 +407,7 @@ export function DateRangeField({
                 {q.label}
               </button>
             ))}
-          </div>
+          </div>)}
 
           <div className="drf-foot">
             <span>
