@@ -189,6 +189,8 @@ async function teardown() {
       delete from employees where company_id = cid;
       delete from active_sessions where auth_id = any(aids);
       delete from user_consents where auth_id = any(aids);
+      -- 결재 상신 E2E 가 남기는 감사 로그 — users FK 라 유저 삭제 전에 (2026-08-13 실패 사례)
+      delete from audit_logs where user_id in (select id from users where company_id = cid);
       delete from ai_copilot_history where company_id = cid;
       delete from ai_usage_log where company_id = cid;
       delete from notifications where company_id = cid;
