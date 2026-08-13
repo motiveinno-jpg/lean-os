@@ -8319,7 +8319,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .drf-nav { @apply ml-auto flex gap-1; }
 .drf-nav button { @apply grid h-6 w-6 place-items-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[11px] text-[var(--text-muted)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]; }
 /* 달력 년·월 — 직접 쳐서 옮긴다 (화살표만 두면 먼 달로 가려고 스무 번을 눌러야 한다) */
-.drf-jump { @apply ml-auto flex shrink-0 items-center gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-1.5; }
+.drf-cal-nav { @apply mb-2 flex items-center justify-between gap-1; }
+.drf-jump { @apply flex shrink-0 items-center gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-1.5; }
 .drf-jump-arw { @apply grid h-6 w-5 place-items-center rounded text-[12px] text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--primary)]; }
 .drf-jump em { @apply not-italic mr-1 text-[10.5px] text-[var(--text-dim)]; }
 .drf-jy, .drf-jm { @apply h-6 rounded border border-transparent bg-transparent px-0.5 text-center text-[12px] font-bold text-[var(--text)] transition focus:border-[var(--primary)] focus:bg-[var(--bg)] focus:outline-none; font-variant-numeric: tabular-nums; }

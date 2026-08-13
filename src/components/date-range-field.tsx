@@ -200,26 +200,73 @@ export function DateRangeField({
   };
 
   /**
-   * 달력을 옮길 년·월 — **직접 친다** (2026-08-13 사장님 지적).
-   *   화살표만 두면 2024년으로 가려고 스무 번을 눌러야 한다. 치는 중에는 글자를 그대로 두고
-   *   (`2` → `20` → `202` 를 막지 않는다), 말이 되는 값이 되면 그때 달력을 옮긴다.
+   * 달력을 옮기는 길 — **달마다 양옆에 화살표, 가운데에 년·월 직접 입력** (2026-08-13 사장님 지시).
+   *   화살표만 두면 2024년으로 가려고 스무 번을 눌러야 한다. 두 달을 나란히 보여 주므로
+   *   **각 달이 제 머리에서 바로 옮겨지는 게** 맞다 — 오른쪽 달을 보다 왼쪽 머리로 손이 가지 않게.
+   *   왼쪽 칸(side=0)은 view 그대로, 오른쪽 칸(side=1)은 view+1 이라 고른 달의 **한 달 전**을 view 로 둔다.
    */
-  const [jumpDraft, setJumpDraft] = useState<{ y?: string; m?: string }>({});
-  const jump = { y: jumpDraft.y ?? pad(view.y, 4), m: jumpDraft.m ?? pad(view.m) };
-  const jumpTo = (k: "y" | "m", raw: string) => {
-    const v = raw.replace(/\D/g, "").slice(0, k === "y" ? 4 : 2);
-    setJumpDraft((d) => ({ ...d, [k]: v }));
+  const [jumpDraft, setJumpDraft] = useState<Record<string, string | undefined>>({});
+  const setPanel = (side: 0 | 1, y: number, m: number) =>
+    setView(side === 0 ? { y, m } : addMonth(y, m, -1));
+  const jumpVal = (side: 0 | 1, k: "y" | "m", cur: { y: number; m: number }) =>
+    jumpDraft[`${side}${k}`] ?? (k === "y" ? pad(cur.y, 4) : pad(cur.m));
+  const jumpTo = (side: 0 | 1, k: "y" | "m", raw: string, cur: { y: number; m: number }) => {
+    const v = raw.replace(/[^0-9]/g, "").slice(0, k === "y" ? 4 : 2);
+    setJumpDraft((d) => ({ ...d, [`${side}${k}`]: v }));
     const n = Number(v);
     //   ★ 옮기되 **친 글자는 그대로 둔다.** 값이 맞자마자 칸을 되돌리면 `12`월을 칠 때
     //     `1` 에서 1월로 튀고 칸이 `01` 로 바뀌어, 뒤이은 `2` 가 `012`→`01` 이 된다.
     //     실제로 12월을 못 고르는 버그였다 (2026-08-13). 되돌리기는 칸을 떠날 때(blur) 한다.
-    if (k === "y" && v.length === 4 && n >= 1900 && n <= 2999) setView({ y: n, m: view.m });
-    if (k === "m" && n >= 1 && n <= 12) setView({ y: view.y, m: n });
+    if (k === "y" && v.length === 4 && n >= 1900 && n <= 2999) setPanel(side, n, cur.m);
+    if (k === "m" && n >= 1 && n <= 12) setPanel(side, cur.y, n);
   };
   /** 칸을 떠나면 친 글자를 버리고 지금 보고 있는 달로 되돌린다 (반쯤 친 `20` 이 남지 않게) */
-  const jumpBlur = (k: "y" | "m") => setJumpDraft((d) => ({ ...d, [k]: undefined }));
+  const jumpBlur = (side: 0 | 1, k: "y" | "m") => setJumpDraft((d) => ({ ...d, [`${side}${k}`]: undefined }));
   //   달력을 닫으면 치다 만 글자는 버린다 — 다시 열 때 엉뚱한 값이 남아 있으면 안 된다
   useEffect(() => { if (!open) setJumpDraft({}); }, [open]);
+
+  /** 달력 칸 머리 — `‹  [2026]년 [07]월  ›`. 화살표가 늘 양 끝에 있어 눈이 안 헤맨다.
+   *  ★ **컴포넌트가 아니라 함수다.** 중첩 컴포넌트로 두면 부모가 그려질 때마다 타입이 새로 생겨
+   *    통째로 다시 마운트되고, 안의 입력칸은 한 글자 칠 때마다 포커스를 잃는다 (2026-08-13 실제 사고). */
+  const calNav = (side: 0 | 1, y: number, m: number) => (
+    <div className="drf-cal-nav">
+      <button type="button" className="drf-jump-arw" onClick={() => setView(addMonth(view.y, view.m, -1))}
+        aria-label="이전 달">&lsaquo;</button>
+      <span className="drf-jump">
+        <input className="drf-jy" value={jumpVal(side, "y", { y, m })} inputMode="numeric" aria-label="연도"
+          onFocus={(e) => e.currentTarget.select()} onBlur={() => jumpBlur(side, "y")}
+          onChange={(e) => jumpTo(side, "y", e.target.value, { y, m })} />
+        <em>년</em>
+        <input className="drf-jm" value={jumpVal(side, "m", { y, m })} inputMode="numeric" aria-label="월"
+          onFocus={(e) => e.currentTarget.select()} onBlur={() => jumpBlur(side, "m")}
+          onChange={(e) => jumpTo(side, "m", e.target.value, { y, m })} />
+        <em>월</em>
+      </span>
+      <button type="button" className="drf-jump-arw" onClick={() => setView(addMonth(view.y, view.m, 1))}
+        aria-label="다음 달">&rsaquo;</button>
+    </div>
+  );
+
+  /** 해 단위 달력 머리 — 월이 없으니 연도만 (위와 같은 이유로 함수다) */
+  const yearNav = (side: 0 | 1, y: number) => (
+    <div className="drf-cal-nav">
+      <button type="button" className="drf-jump-arw" onClick={() => setView({ y: view.y - 1, m: view.m })}
+        aria-label="이전 해">&lsaquo;</button>
+      <span className="drf-jump">
+        <input className="drf-jy" value={jumpVal(side, "y", { y, m: view.m })} inputMode="numeric" aria-label="연도"
+          onFocus={(e) => e.currentTarget.select()} onBlur={() => jumpBlur(side, "y")}
+          onChange={(e) => {
+            const v = e.target.value.replace(/[^0-9]/g, "").slice(0, 4);
+            setJumpDraft((d) => ({ ...d, [`${side}y`]: v }));
+            const n = Number(v);
+            if (v.length === 4 && n >= 1900 && n <= 2999) setView({ y: side === 0 ? n : n - 1, m: view.m });
+          }} />
+        <em>년</em>
+      </span>
+      <button type="button" className="drf-jump-arw" onClick={() => setView({ y: view.y + 1, m: view.m })}
+        aria-label="다음 해">&rsaquo;</button>
+    </div>
+  );
 
   //   confirm 모드에서 **찍어만 두고 아직 안 올린** 기간. 확인을 눌러야 올라간다.
   const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
@@ -309,12 +356,12 @@ export function DateRangeField({
   };
 
   /** 한 해의 12개월 칸 */
-  const YearCal = ({ y }: { y: number }) => {
+  const yearCal = (y: number, side: 0 | 1) => {
     const a = half ? (half < shownTo ? half : shownTo) : shownFrom;
     const b = half ? (half < shownTo ? shownTo : half) : shownTo;
     return (
       <div className="drf-cal drf-cal-y">
-        <div className="drf-cal-title">{y}년</div>
+        {yearNav(side, y)}
         <div className="drf-months">
           {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
             const ym = `${pad(y, 4)}-${pad(m)}`;
@@ -335,9 +382,9 @@ export function DateRangeField({
     );
   };
 
-  const Cal = ({ y, m }: { y: number; m: number }) => (
+  const cal = (y: number, m: number, side: 0 | 1) => (
     <div className="drf-cal">
-      <div className="drf-cal-title">{y}년 {m}월</div>
+      {calNav(side, y, m)}
       <div className="drf-dow">{["일", "월", "화", "수", "목", "금", "토"].map((d) => <span key={d}>{d}</span>)}</div>
       <div className="drf-days">
         {monthCells(y, m).map((c) => (
@@ -412,26 +459,6 @@ export function DateRangeField({
                 : <span className="drf-range mono-number">
                     {shownFrom} ~ {shownTo}{pending ? " · 확인을 눌러야 반영됩니다" : ` · ${isM ? `${months}개월` : `${days}일`}`}
                   </span>}
-            {/*   ★ 년·월을 **직접 쳐서** 옮긴다 (2026-08-13 사장님 지적).
-                  화살표만 있으면 2024년으로 가려고 스무 번을 눌러야 한다. 화살표는 옆칸 이동용으로 남긴다. */}
-            <span className="drf-jump">
-              <button type="button" className="drf-jump-arw"
-                onClick={() => setView(isM ? { y: view.y - 1, m: view.m } : addMonth(view.y, view.m, -1))}
-                aria-label={isM ? "이전 해" : "이전 달"}>‹</button>
-              <input className="drf-jy" value={jump.y} inputMode="numeric" aria-label="달력 연도"
-                onFocus={(e) => e.currentTarget.select()} onBlur={() => jumpBlur("y")}
-                onChange={(e) => jumpTo("y", e.target.value)} />
-              <em>년</em>
-              {!isM && (<>
-                <input className="drf-jm" value={jump.m} inputMode="numeric" aria-label="달력 월"
-                  onFocus={(e) => e.currentTarget.select()} onBlur={() => jumpBlur("m")}
-                  onChange={(e) => jumpTo("m", e.target.value)} />
-                <em>월</em>
-              </>)}
-              <button type="button" className="drf-jump-arw"
-                onClick={() => setView(isM ? { y: view.y + 1, m: view.m } : addMonth(view.y, view.m, 1))}
-                aria-label={isM ? "다음 해" : "다음 달"}>›</button>
-            </span>
           </div>
 
           <div className="drf-cals">
@@ -439,13 +466,13 @@ export function DateRangeField({
               <>
                 {/*   시작 연도와 그 다음 해 — 해를 걸치는 기간(2025-09~2026-08)이 흔해서
                       시작 해만 보이면 종료 월을 못 찍는다 */}
-                <YearCal y={view.y} />
-                <YearCal y={view.y + 1} />
+                {yearCal(view.y, 0)}
+                {yearCal(view.y + 1, 1)}
               </>
             ) : (
               <>
-                <Cal y={view.y} m={view.m} />
-                <Cal y={right.y} m={right.m} />
+                {cal(view.y, view.m, 0)}
+                {cal(right.y, right.m, 1)}
               </>
             )}
           </div>
