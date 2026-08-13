@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import "@/app/landing-v6.css";
-import { CATALOG, AI_AUTOMATION, NAV_LINKS, TOUR_HREF } from "@/components/landing/content";
+import { CATALOG, AI_AUTOMATION, NAV_LINKS, TOUR_HREF, TOOLS_HREF, FREE_TOOLS } from "@/components/landing/content";
 
 const NAV_AI = 99;   // 드롭다운에서 AI 자동화를 가리키는 값
 
@@ -30,6 +30,7 @@ export function LandingNav({ solid = false }: { solid?: boolean }) {
   const [on, setOn] = useState(solid);
   const [menuOpen, setMenuOpen] = useState(false);
   const [drop, setDrop] = useState(false);
+  const [toolsDrop, setToolsDrop] = useState(false); // 무료 도구 드롭다운 (2026-08-13)
   const [navG, setNavG] = useState(0);
 
   useEffect(() => {
@@ -42,18 +43,18 @@ export function LandingNav({ solid = false }: { solid?: boolean }) {
 
   // 바깥을 누르거나 ESC 를 누르면 닫는다
   useEffect(() => {
-    if (!drop) return;
+    if (!drop && !toolsDrop) return;
     const onDown = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement)?.closest?.(".lp4-navdrop")) setDrop(false);
+      if (!(e.target as HTMLElement)?.closest?.(".lp4-navdrop")) { setDrop(false); setToolsDrop(false); }
     };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrop(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setDrop(false); setToolsDrop(false); } };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [drop]);
+  }, [drop, toolsDrop]);
 
   const href = (h: string) => (h.startsWith("#") ? (solid ? `/${h}` : h) : h);
 
@@ -139,6 +140,27 @@ export function LandingNav({ solid = false }: { solid?: boolean }) {
                   </div>
                 </div>
               </div>
+            ) : l.href === TOOLS_HREF ? (
+              // 무료 도구 — 계산기 4종 드롭다운 (2026-08-13 사장님)
+              <div
+                key={l.href}
+                className={`lp4-navdrop ${toolsDrop ? "lp4-navdrop-open" : ""}`}
+                onMouseEnter={() => setToolsDrop(true)}
+                onMouseLeave={() => setToolsDrop(false)}
+              >
+                <button type="button" className="lp4-navdrop-t" aria-expanded={toolsDrop} onClick={() => setToolsDrop((v) => !v)}>
+                  {l.label}
+                  <svg className="lp4-navdrop-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" /></svg>
+                </button>
+                <div className="lp4-tooldrop">
+                  {FREE_TOOLS.map((t) => (
+                    <Link key={t.href} className="lp4-tooldrop-m" href={t.href} onClick={() => setToolsDrop(false)}>
+                      <span className="lp4-tooldrop-m-n">{t.name}</span>
+                      <span className="lp4-tooldrop-m-d">{t.desc}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ) : (
               <Link key={l.href} href={href(l.href)}>{l.label}</Link>
             )
@@ -176,6 +198,15 @@ export function LandingNav({ solid = false }: { solid?: boolean }) {
               <div className="lp4-mob-subs">
                 {CATALOG.map((g) => (
                   <Link key={g.key} className="lp4-mob-sub" href={`/features?g=${g.key}`} onClick={() => setMenuOpen(false)}>{g.group}</Link>
+                ))}
+              </div>
+            </div>
+          ) : l.href === TOOLS_HREF ? (
+            <div key={l.href} className="lp4-mob-group">
+              <span className="lp4-mob-group-label">{l.label}</span>
+              <div className="lp4-mob-subs">
+                {FREE_TOOLS.map((t) => (
+                  <Link key={t.href} className="lp4-mob-sub" href={t.href} onClick={() => setMenuOpen(false)}>{t.name}</Link>
                 ))}
               </div>
             </div>

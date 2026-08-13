@@ -709,9 +709,18 @@ export const AI_AUTOMATION = [
 export const TOUR_HREF = "/features";
 // ⚠️ "AI 자동화"를 뺐다 — 메인 랜딩에 AI 섹션이 들어가 메뉴와 내용이 중복됐다(2026-07-29).
 //    /ai 페이지는 그대로 두고, 메인 AI 섹션 끝의 "자동화 전체 보기" 링크로 연결한다.
+// TOOLS_HREF 항목도 드롭다운(무료 계산기 4종)으로 렌더한다 (2026-08-13 사장님).
+export const TOOLS_HREF = "/tools";
+export const FREE_TOOLS = [
+  { href: "/tools/leave-calculator", name: "연차 계산기", desc: "입사일만 넣으면 발생 연차 자동 계산" },
+  { href: "/tools/severance-calculator", name: "퇴직금 계산기", desc: "고용노동부 방식 예상 퇴직금" },
+  { href: "/tools/insurance-calculator", name: "4대보험 계산기", desc: "직원 공제액 · 회사 부담 총액 (2026 요율)" },
+  { href: "/tools/salary-calculator", name: "실수령액 계산기", desc: "간이세액표 기준 월급 실수령액" },
+];
 export const NAV_LINKS = [
   { href: TOUR_HREF, label: "오너뷰 알아보기" },
   { href: "/pricing", label: "가격" },
+  { href: TOOLS_HREF, label: "무료 도구" },
   { href: "/tax-partners", label: "세무사 제휴" },
   { href: "#faq", label: "FAQ" },
 ];
