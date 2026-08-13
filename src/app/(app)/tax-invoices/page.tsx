@@ -5,6 +5,9 @@ import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import {
+  vatBusinessTypeOf, canIssueTaxKind, taxKindBlockedReason, type TaxKind,
+} from "@/lib/vat-business-type";
 
 import Link from "next/link";
 import { MonthField } from "@/components/month-field";
@@ -235,6 +238,13 @@ const EXPENSE_CATEGORIES = [
   { value: "travel", label: "여비교통비" },
   { value: "education", label: "교육훈련비" },
   { value: "other", label: "기타" },
+];
+
+/** 과세형태 — 회사 과세유형에 따라 고를 수 있는 것만 남는다 (2026-08-13) */
+const TAX_KIND_OPTIONS: { value: TaxKind; label: string }[] = [
+  { value: "taxable", label: "과세" },
+  { value: "zero_rated", label: "영세율" },
+  { value: "exempt", label: "면세 (전자계산서)" },
 ];
 
 // ── 수정세금계산서 준비 상태 ──
@@ -715,7 +725,8 @@ function TaxInvoicesPageInner() {
       // 공급자 이메일 — companies 에 email 컬럼이 없어 상세 화면에서 항상 '-' 로 나오던 문제(2026-08-05 사장님 제보).
       //   실제 계산서에 찍히는 발행자 이메일과 같은 출처를 쓴다: automation_settings.invoicer_email → 없으면 대표 계정 이메일
       //   (hometax-issue 엣지 함수의 발행자 이메일 결정 순서와 동일).
-      const data = logRead('tax-invoices/page:data', await (supabase).from('companies').select('name, business_number, representative, address, business_type, business_category, automation_settings').eq('id', companyId!).maybeSingle());
+      //   tax_settings 도 같이 — 과세유형(vat_type)이 여기 있고, 무엇을 발행할 수 있는지를 그 값이 정한다 (2026-08-13)
+      const data = logRead('tax-invoices/page:data', await (supabase).from('companies').select('name, business_number, representative, address, business_type, business_category, automation_settings, tax_settings').eq('id', companyId!).maybeSingle());
       if (!data) return data;
       let email = (data as any)?.automation_settings?.invoicer_email || '';
       if (!email) {
@@ -728,6 +739,23 @@ function TaxInvoicesPageInner() {
     },
     enabled: !!companyId,
   });
+
+  //   회사 과세유형 — 고를 수 있는 과세형태를 이 값이 정한다 (2026-08-13 사장님 지시).
+  //   ★ 과세사업자는 계산서(면세)를 낼 수 없다. 예전엔 칸이 늘 셋이라 광고대행 회사에서도
+  //     '면세'를 골라 전자계산서를 만들 수 있었다 — 발행하면 안 되는 문서다.
+  const vatBiz = vatBusinessTypeOf((companyInfo as any)?.tax_settings);
+  const taxKindOptions = TAX_KIND_OPTIONS.filter((o) => canIssueTaxKind(vatBiz, o.value));
+  //   빈 줄의 기본값 'taxable' 은 **면세사업자에게는 못 쓰는 값**이다. 회사 정보가 도착하면
+  //   못 쓰는 값을 들고 있는 줄을 고를 수 있는 첫 값으로 옮긴다(면세사업자면 '면세').
+  useEffect(() => {
+    if (!companyInfo) return;
+    const fallback = taxKindOptions[0]?.value;
+    if (!fallback) return;
+    setRows((rs) => (rs.some((r) => !canIssueTaxKind(vatBiz, r.taxKind))
+      ? rs.map((r) => (canIssueTaxKind(vatBiz, r.taxKind) ? r : { ...r, taxKind: fallback }))
+      : rs));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyInfo, vatBiz]);
 
   // 요금제별 세금계산서 국세청 발행 월간 한도 (프로=10건, 울트라=무제한)
   const { data: issuanceStatus } = useQuery({
@@ -1630,9 +1658,11 @@ function TaxInvoicesPageInner() {
                     <div className="tax-form-more-grid">
                       <div className="tax-form-field">
                         <label>과세유형</label>
+                        {/*   고를 수 있는 것만 남긴다 — 과세사업자에게 '면세'를 보여 주면
+                              누를 수 있다는 뜻이 되고, 실제로 발행하면 안 되는 문서가 만들어진다 */}
                         <select value={row.taxKind} onChange={(e) => patchRow(row.key, { taxKind: e.target.value as FormRow["taxKind"] })}
                           className="field-input w-full px-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs">
-                          <option value="taxable">과세</option><option value="zero_rated">영세율</option><option value="exempt">면세</option>
+                          {taxKindOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </div>
                       <div className="tax-form-field">
@@ -1879,6 +1909,8 @@ function TaxInvoicesPageInner() {
                       const posted = !!inv.journal_entry_id;
                       const canSelect = isUnissued(inv) || isVoucherable(inv);
                       const canIssue = inv.type === 'sales' && isUnissued(inv);
+                      //   과세유형이 회사와 안 맞는 옛 초안 — 누르면 서버가 거절하므로 이유를 미리 적어 준다
+                      const kindBlocked = taxKindBlockedReason(vatBiz, (inv.tax_kind || "taxable") as TaxKind);
                       const notIssued = inv.type === 'sales' && inv.status !== 'draft' && !inv.nts_confirm_no;
                       return (
                         <tr key={inv.id} onClick={() => setSelectedInvoice(inv)}
@@ -1928,9 +1960,11 @@ function TaxInvoicesPageInner() {
                             <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap">
                               {canIssue && (
                                 <button
-                                  onClick={() => handleSingleIssue(inv.id)}
-                                  className="px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110 bg-[var(--primary)]"
-                                  title="홈택스 전자발행"
+                                  onClick={() => kindBlocked ? toast(kindBlocked, "error") : handleSingleIssue(inv.id)}
+                                  className={kindBlocked
+                                    ? "px-2.5 py-1 rounded text-[11px] font-bold transition bg-[var(--bg-surface)] text-[var(--text-dim)]"
+                                    : "px-2.5 py-1 rounded text-[11px] font-bold text-white transition hover:brightness-110 bg-[var(--primary)]"}
+                                  title={kindBlocked || "홈택스 전자발행"}
                                 >
                                   발행
                                 </button>

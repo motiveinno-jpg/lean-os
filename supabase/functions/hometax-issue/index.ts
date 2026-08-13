@@ -198,7 +198,12 @@ function buildIssuePayload(args: {
     ...(modification
       ? { modifyCode: modification.reasonCode, orgNTSConfirmNum: modification.originalConfirmNo }
       : {}),
-    taxType: "과세",            // 영세/면세는 추후 invoice 유형 컬럼 연동
+    //   과세형태 — 계산서 자신이 들고 있는 tax_kind 를 그대로 따른다 (2026-08-13).
+    //   ★ 예전엔 "과세" 하드코딩이었다. 발행 폼에는 과세/영세율/면세 칸이 있었으므로
+    //     **'면세'로 골라 만든 건이 국세청에는 과세 세금계산서로 나가고 있었다.**
+    //     화면은 「전자계산서」라고 그려 주는데(상세 팝업 baseTitle) 실제 발행물이 달랐다.
+    //     면세 = 전자계산서, 영세 = 영세율 전자세금계산서. 줄 세액은 buildDetailList 가 0 으로 맞춘다.
+    taxType: invoice.tax_kind === "exempt" ? "면세" : invoice.tax_kind === "zero_rated" ? "영세" : "과세",
     purposeType,                // "영수"(결제완료) / "청구"
     sendToNtsYn: "N",           // 2026-07-22 CODEF(헥토데이터) 공식 안내: Y(즉시전송) 시 Codef 로직 버그로 CF-05001 반환.
                                 //   N 이면 팝빌 정상 등록 후 다음 영업일 국세청 전송(승인번호는 전송 후 부여). CODEF "Y" 버그 수정 안내 오면 원복.
@@ -499,6 +504,22 @@ serve(withSentry("hometax-issue", async (req) => {
     if (!company.business_number) {
       return new Response(JSON.stringify({
         error: "회사 사업자등록번호가 등록되어 있지 않습니다. 설정 → 회사 정보에서 입력하세요.",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    //   과세유형 게이트 — **화면만 막으면 안 된다** (2026-08-13 사장님 지시).
+    //   화면의 과세유형 칸은 회사 설정에 따라 줄어들지만, 예전에 '면세'로 만들어 둔 초안이
+    //   그대로 남아 있을 수 있고 API 는 직접도 부를 수 있다. 실제로 국세청에 나가기 직전인
+    //   여기서 한 번 더 본다. (같은 판정을 src/lib/vat-business-type.ts 가 화면에서 쓴다)
+    const vatBiz = (() => {
+      const v = company.tax_settings?.vat_type;
+      return v === "exempt" || v === "both" ? v : "taxable";
+    })();
+    const docKind = invoice.tax_kind === "exempt" ? "exempt" : "taxable-side";
+    if (vatBiz !== "both" && ((docKind === "exempt") !== (vatBiz === "exempt"))) {
+      return new Response(JSON.stringify({
+        error: docKind === "exempt"
+          ? "면세 계산서는 면세사업자(또는 겸영)만 발행할 수 있습니다 — 회사설정 › 회사정보에서 과세유형을 확인해 주세요."
+          : "면세사업자는 세금계산서를 발행할 수 없습니다 — 회사설정 › 회사정보에서 과세유형을 확인해 주세요.",
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const connectedId = settings?.codef_connected_id;

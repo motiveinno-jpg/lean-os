@@ -9,6 +9,9 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { appConfirm } from "@/components/global-confirm";
 import { verifyBusinessNumber } from "@/lib/business-verification";
+import {
+  VAT_BUSINESS_TYPES, vatBusinessTypeOf, guessVatBusinessType, type VatBusinessType,
+} from "@/lib/vat-business-type";
 import { PermissionTree } from "../../employees/_components/PermissionTree";
 import { useMyPermissions } from "@/lib/permissions";
 
@@ -26,7 +29,11 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     business_type: "",
     business_category: "",
     capital: "",
+    //   과세유형 — 무엇을 발행할 수 있는지가 여기서 갈린다 (2026-08-13). 기본은 과세.
+    vat_type: "taxable" as VatBusinessType,
   });
+  //   국세청 조회로 알아낸 과세유형 — 저장된 값과 다르면 "이렇게 바꿀까요"만 권한다(자동으로 안 바꾼다)
+  const [vatHint, setVatHint] = useState<VatBusinessType | null>(null);
   const [sealUrl, setSealUrl] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState<"seal" | "logo" | null>(null);
@@ -62,6 +69,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
         business_type: company.business_type || "",
         business_category: company.business_category || "",
         capital: (company.tax_settings as any)?.capital != null ? String((company.tax_settings as any).capital) : "",
+        vat_type: vatBusinessTypeOf(company.tax_settings),
       });
       setSealUrl(company.seal_url || null);
       setLogoUrl(company.logo_url || null);
@@ -82,7 +90,12 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
           business_type: form.business_type || null,
           business_category: form.business_category || null,
           // 자본금 — 전용 컬럼이 없어 tax_settings(jsonb)에 저장. 재무상태표(자본금)가 읽음.
-          tax_settings: { ...((company?.tax_settings as Record<string, unknown> | null) || {}), capital: form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")) : null },
+          tax_settings: {
+            ...((company?.tax_settings as Record<string, unknown> | null) || {}),
+            capital: form.capital ? Number(String(form.capital).replace(/[^0-9]/g, "")) : null,
+            //   과세유형 — 세금계산서/계산서 발행 가능 여부를 이 값이 정한다 (발행 엣지도 같은 값을 본다)
+            vat_type: form.vat_type,
+          },
         })
         .eq("id", companyId);
       if (error) throw error;
@@ -112,11 +125,15 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
     const formatted = formatBusinessNumber(val);
     setForm((f) => ({ ...f, business_number: formatted }));
     setBizStatus(null);
+    setVatHint(null);
     const raw = formatted.replace(/\D/g, "");
     if (raw.length === 10) {
       setBizStatus({ status: "조회중", loading: true });
-      verifyBusinessNumber(raw).then((r) =>
-        setBizStatus({ status: r.valid ? r.status : "체크섬오류", loading: false }));
+      verifyBusinessNumber(raw).then((r) => {
+        setBizStatus({ status: r.valid ? r.status : "체크섬오류", loading: false });
+        //   국세청이 알려 준 과세유형은 **제안까지만** — 겸영은 조회로 알 수 없어 사람이 정해야 한다
+        setVatHint(guessVatBusinessType(r.taxType));
+      });
     }
   };
 
@@ -381,6 +398,37 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
               placeholder="소프트웨어 개발"
               className="field-input sm:!max-w-[220px]"
             />
+          </div>
+        </div>
+        {/* 과세유형 — 무엇을 발행할 수 있는지가 여기서 갈린다 (2026-08-13 사장님 지시).
+            예전엔 발행 폼에만 과세/영세율/면세 칸이 있고 회사가 무슨 사업자인지는 아무도 안 봐서,
+            광고대행(전부 과세)인 회사에서도 '면세'를 골라 전자계산서를 낼 수 있었다. */}
+        <div className="stg-frow">
+          <div className="stg-frow-label">
+            <b>과세유형</b>
+            <small>{VAT_BUSINESS_TYPES.find((v) => v.value === form.vat_type)?.desc}</small>
+          </div>
+          <div className="stg-frow-body">
+            <select
+              value={form.vat_type}
+              onChange={(e) => setForm({ ...form, vat_type: e.target.value as VatBusinessType })}
+              className="field-input"
+            >
+              {VAT_BUSINESS_TYPES.map((v) => (
+                <option key={v.value} value={v.value}>{v.label}</option>
+              ))}
+            </select>
+            {/*   국세청이 알려 준 값은 **권하기만** 한다 — 겸영은 조회로 알 수 없어 사람이 정해야 한다 */}
+            {vatHint && vatHint !== form.vat_type && (
+              <p className="stg-frow-hint">
+                국세청 조회로는 <b className="text-[var(--text)]">{VAT_BUSINESS_TYPES.find((v) => v.value === vatHint)?.label}</b> 입니다.
+                <button type="button" className="ml-1.5 underline font-semibold text-[var(--primary)]"
+                  onClick={() => setForm((f) => ({ ...f, vat_type: vatHint }))}>
+                  이걸로 바꾸기
+                </button>
+                <br />면세 품목을 함께 파는 겸영이면 <b className="text-[var(--text)]">과세 + 면세 겸영</b>으로 두세요.
+              </p>
+            )}
           </div>
         </div>
         <div className="stg-frow">
