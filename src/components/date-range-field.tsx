@@ -71,7 +71,7 @@ const QUARTER_START = (m: number) => m - ((m - 1) % 3);
  */
 export function DateRangeField({
   from, to, onChange, label = "조회기간", unit = "day", onClear,
-  parts = "all", trailing, calLabel,
+  parts = "all", trailing, calLabel, confirm = false,
 }: {
   from: string; to: string;
   onChange: (from: string, to: string) => void;
@@ -93,6 +93,12 @@ export function DateRangeField({
   trailing?: ReactNode;
   /** parts="calendar" 일 때 버튼 글자 */
   calLabel?: string;
+  /**
+   * 날짜를 찍어도 **바로 반영하지 않고 '확인'을 눌러야** 적용한다 (2026-08-13 사장님 지시).
+   *   검색조건 패널의 달력이 그렇다 — 다른 조건을 갖추는 중인데 날짜를 찍는 순간 목록이 바뀌면
+   *   "지금 뭐가 걸린 거지"가 된다. 찍어 놓고 보다가 확인을 누른다. 닫기는 버리고 나간다.
+   */
+  confirm?: boolean;
 }) {
   const isM = unit === "month";
   //   빈 값 = 기간을 안 건 상태. 달력은 오늘 기준으로 열되, 고르기 전까지는 필터가 없다.
@@ -193,10 +199,20 @@ export function DateRangeField({
     }
   };
 
+  //   confirm 모드에서 **찍어만 두고 아직 안 올린** 기간. 확인을 눌러야 올라간다.
+  const [pending, setPending] = useState<{ from: string; to: string } | null>(null);
+  //   달력을 닫으면 찍어 둔 것은 버린다 — 열어 둔 채로만 유효한 임시값이다
+  useEffect(() => { if (!open) setPending(null); }, [open]);
+  //   보여 줄 기간 — 확인 전이면 찍어 둔 값을 그린다
+  const shownFrom = pending?.from ?? from;
+  const shownTo = pending?.to ?? to;
+
   /** 다 골랐으면 확정하고 닫는다 — 화면마다 열린 채로 남거나 닫히거나 하면 헷갈린다.
-   *  값이 정해진 뒤엔 칩에 그대로 보이므로 굳이 열어 둘 이유가 없다. */
+   *  값이 정해진 뒤엔 칩에 그대로 보이므로 굳이 열어 둘 이유가 없다.
+   *  ★ confirm 모드는 여기서 올리지 않고 **'확인'을 기다린다** (2026-08-13 사장님 지시). */
   const settle = (a: string, b: string) => {
     setHalf(null);
+    if (confirm) { setPending({ from: a, to: b }); return; }
     onChange(a, b);
     setOpen(false);
   };
@@ -250,11 +266,12 @@ export function DateRangeField({
   const months = useMemo(() => (t.y * 12 + t.m) - (f.y * 12 + f.m) + 1, [from, to]);
 
   const cellClass = (c: { date: string; out: boolean; dow: number }) => {
-    const lo = half ?? from, hi = half ?? to;
+    //   ★ shownFrom/shownTo — confirm 모드에서 **아직 안 올린** 기간까지 칠해 준다
+    const lo = half ?? shownFrom, hi = half ?? shownTo;
     //   기간을 안 건 상태에서는 칠하지 않는다 — 시작만 찍으면 그 하나만 표시한다
-    const a = half ?? (empty ? "" : from);
-    const b = half ? (empty ? half : (half < to ? to : half)) : (empty ? "" : to);
-    const isEdge = c.date === (half ?? from) || c.date === (half ? (half < to ? to : half) : to);
+    const a = half ?? (empty ? "" : shownFrom);
+    const b = half ? (empty ? half : (half < shownTo ? shownTo : half)) : (empty ? "" : shownTo);
+    const isEdge = c.date === (half ?? shownFrom) || c.date === (half ? (half < shownTo ? shownTo : half) : shownTo);
     const inRange = c.date > a && c.date < b;
     const cls = ["drf-day"];
     if (c.out) cls.push("drf-out");
@@ -271,8 +288,8 @@ export function DateRangeField({
 
   /** 한 해의 12개월 칸 */
   const YearCal = ({ y }: { y: number }) => {
-    const a = half ? (half < to ? half : to) : from;
-    const b = half ? (half < to ? to : half) : to;
+    const a = half ? (half < shownTo ? half : shownTo) : shownFrom;
+    const b = half ? (half < shownTo ? shownTo : half) : shownTo;
     return (
       <div className="drf-cal drf-cal-y">
         <div className="drf-cal-title">{y}년</div>
@@ -370,7 +387,9 @@ export function DateRangeField({
               ? <span className="drf-half">시작 {half} · <b>{isM ? "종료 월을" : "종료일을"} 고르세요</b></span>
               : empty
                 ? <span className="drf-range">전체 기간 — 아직 기간을 걸지 않았습니다</span>
-                : <span className="drf-range mono-number">{from} ~ {to} · {isM ? `${months}개월` : `${days}일`}</span>}
+                : <span className="drf-range mono-number">
+                    {shownFrom} ~ {shownTo}{pending ? " · 확인을 눌러야 반영됩니다" : ` · ${isM ? `${months}개월` : `${days}일`}`}
+                  </span>}
             <span className="drf-nav">
               <button type="button" onClick={() => setView(isM ? { y: view.y - 1, m: view.m } : addMonth(view.y, view.m, -1))}
                 aria-label={isM ? "이전 해" : "이전 달"}>‹</button>
@@ -419,6 +438,14 @@ export function DateRangeField({
                 className="btn-secondary btn-sm">기간 해제</button>
             )}
             <button type="button" onClick={() => { setOpen(false); setHalf(null); }} className="btn-secondary btn-sm">닫기</button>
+            {/*   ★ confirm 모드 — 찍어 둔 기간은 **확인을 눌러야** 올라간다 (2026-08-13 사장님 지시).
+                  닫기로 나가면 버려진다(pending 은 달력이 닫힐 때 지워진다). */}
+            {confirm && (
+              <button type="button" disabled={!pending} className="btn-primary btn-sm disabled:opacity-40"
+                onClick={() => { if (pending) onChange(pending.from, pending.to); setPending(null); setHalf(null); setOpen(false); }}>
+                확인
+              </button>
+            )}
           </div>
         </div>
       )}

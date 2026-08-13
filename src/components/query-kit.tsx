@@ -69,6 +69,16 @@ export function periodQuicks(): { key: string; label: string; from: string; to: 
 
 // ── 1줄: 조회 조건 ────────────────────────────────────────────────────────
 
+/**
+ * 조회 머리 — **탭 · 조회 줄 · 걸린 조건 · 결과 요약을 한 상자에** 담는다 (2026-08-13 사장님 지시).
+ *   낱장으로 흩어져 있으면 어디까지가 '조회하는 곳'인지 눈으로 안 갈린다.
+ *   상자 하나로 묶으면 그 아래(표)부터가 결과라는 게 저절로 읽힌다.
+ *   ⚠️ 안에 검색조건 패널이 떠 있으므로 **overflow 를 자르면 안 된다.**
+ */
+export function QueryHead({ children }: { children: ReactNode }) {
+  return <div className="qk-head">{children}</div>;
+}
+
 export function QueryBar({ children, right }: { children?: ReactNode; right?: ReactNode }) {
   return (
     <div className="qk-bar">

@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { appConfirm } from "@/components/global-confirm";
 import {
-  QueryBar, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
+  QueryHead, QueryBar, QueryField, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
   Pager, usePager, ConditionPanel, ConditionRow, TokenField, AmountRange, AppliedChips,
   QuickSearch, quickSearchHit, quickTerms, amountHit, periodQuicks,
   useSavedQueries, SavedTabs, type HelperItem, type AppliedChip,
@@ -117,13 +117,13 @@ const SETTLE_BY_KIND: Record<string, SettleType> = {
 };
 
 export function EvidenceTab({
-  companyId, from, to, kind, onRange, syncButton, rulesHelper,
+  companyId, from, to, kind, tabsNode, onRange, syncButton, rulesHelper,
 }: {
   companyId: string; from: string; to: string; kind: SourceKey;
   /** 조회 줄 공통 조각 — 화면(page.tsx)이 만들어 내려보낸다.
    *  기간 칸은 검색조건과 한 덩어리라 **탭이 직접 그린다** — 값과 바꾸는 함수만 받는다. */
   onRange: (from: string, to: string) => void;
-  syncButton: ReactNode; rulesHelper: HelperItem;
+  tabsNode: ReactNode; syncButton: ReactNode; rulesHelper: HelperItem;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -592,6 +592,9 @@ export function EvidenceTab({
 
   return (
     <div className="ev-wrap">
+      {/*   ★ 탭·조회 줄·걸린 조건·결과 요약은 **한 상자**에 (2026-08-13 사장님 지시) */}
+      <QueryHead>
+      {tabsNode}
       {/* ── 1줄 · 조회 조건 — 기간·빠른검색·상태는 즉시, 검색조건은 '조회'를 눌러 ── */}
       <QueryBar right={<>
         <HelperMenu items={helpers} />
@@ -615,7 +618,7 @@ export function EvidenceTab({
               </>}>
               <ConditionRow label="조회기간" hint="기본 1개월">
                 <span className="qk-range-txt">{from} ~ {to}</span>
-                <DateRangeField from={from} to={to} onChange={onRange} label={null} parts="calendar" />
+                <DateRangeField from={from} to={to} onChange={onRange} label={null} parts="calendar" confirm />
                 <span className="qk-quicks">
                   {periodQuicks().map((p) => (
                     <button key={p.key} type="button" onClick={() => onRange(p.from, p.to)}
@@ -680,6 +683,7 @@ export function EvidenceTab({
         {rows.length >= 500 && <b className="ev-cut">최근 500건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
         {notReady.length > 0 && <span className="ev-warn">{notReady.length}건은 계정을 골라야 합니다</span>}
       </ResultStrip>
+      </QueryHead>
 
       {/* 목록 */}
       {isLoading ? (

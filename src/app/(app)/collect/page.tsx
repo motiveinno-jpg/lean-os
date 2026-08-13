@@ -23,7 +23,7 @@ import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
 import { RulesDialog } from "./_components/RulesDialog";
 import { DateRangeField } from "@/components/date-range-field";
-import { QueryBar, ResultStrip, HelperMenu, defaultRange, type HelperItem } from "@/components/query-kit";
+import { QueryHead, QueryBar, ResultStrip, HelperMenu, defaultRange, type HelperItem } from "@/components/query-kit";
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
 const fmtWhen = (iso: string | null) =>
@@ -183,39 +183,48 @@ function CollectInner() {
     onClick: () => setRulesOpen(true),
   };
 
+  //   ── 갈래 탭 — 현황판 + 자료별 목록.
+  //   ★ 탭도 **조회 상자 안에** 들어간다 (2026-08-13 사장님 지시) — 탭·조회 줄·결과 요약이
+  //     낱장으로 흩어져 있으면 어디까지가 '조회하는 곳'인지 눈으로 안 갈린다.
+  //     그래서 탭을 여기서 만들어 목록 탭에도 내려보낸다(조회 줄은 탭이 완성하므로).
+  const tabsNode = (
+    <div className="collect-tabs">
+      <button type="button" onClick={() => setTab("status")}
+        className={tab === "status" ? "collect-tab collect-tab-on" : "collect-tab"}>수집 현황</button>
+      {SOURCES.map((s) => (
+        <button key={s.key} type="button" onClick={() => setTab(s.key)}
+          className={tab === s.key ? "collect-tab collect-tab-on" : "collect-tab"}>
+          {s.label}
+          <span className="collect-tab-cnt">{won(status?.[s.key]?.pending ?? 0)}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="collect-page">
-      {/* ── 갈래 탭 — 현황판 + 자료별 목록 ── */}
-      <div className="collect-tabs">
-        <button type="button" onClick={() => setTab("status")}
-          className={tab === "status" ? "collect-tab collect-tab-on" : "collect-tab"}>수집 현황</button>
-        {SOURCES.map((s) => (
-          <button key={s.key} type="button" onClick={() => setTab(s.key)}
-            className={tab === s.key ? "collect-tab collect-tab-on" : "collect-tab"}>
-            {s.label}
-            <span className="collect-tab-cnt">{won(status?.[s.key]?.pending ?? 0)}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── 현황판 조회 줄 — 목록 탭은 제 조건까지 얹어 스스로 그린다 ── */}
+      {/* ── 현황판 조회 머리 — 목록 탭은 제 조건까지 얹어 스스로 그린다 ── */}
       {tab === "status" && (
-        <>
-          <QueryBar right={syncButton}>{rangeField}</QueryBar>
-          <ResultStrip right={<HelperMenu items={[rulesHelper]} />}>
+        <QueryHead>
+          {tabsNode}
+          <QueryBar right={<>
+            <HelperMenu items={[rulesHelper]} />
+            {syncButton}
+          </>}>{rangeField}</QueryBar>
+          <ResultStrip>
             <span className="collect-toolbar-hint">
               자료를 누르면 그 목록으로 갑니다 · 처리할 것 <b>{won(totalPending)}</b>건
             </span>
           </ResultStrip>
-        </>
+        </QueryHead>
       )}
 
       {/* ── 자료별 목록 (2단계) · 통장은 매칭까지 흡수한 3단계 화면 ── */}
       {tab !== "status" && companyId && (
         tab === "bank"
-          ? <BankTab companyId={companyId} from={from} to={to}
+          ? <BankTab companyId={companyId} from={from} to={to} tabsNode={tabsNode}
               onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
-          : <EvidenceTab companyId={companyId} from={from} to={to} kind={tab}
+          : <EvidenceTab companyId={companyId} from={from} to={to} kind={tab} tabsNode={tabsNode}
               onRange={applyRange} syncButton={syncButton} rulesHelper={rulesHelper} />
       )}
 

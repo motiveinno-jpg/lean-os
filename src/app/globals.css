@@ -8914,3 +8914,15 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .drf-chip.drf-chip-cond { @apply pr-0; }
 /* 검색조건 패널 안의 '달력에서 고르기' */
 .drf-calopen { @apply inline-flex h-7 items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-[11.5px] font-bold text-[var(--text-dim)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)]; }
+
+/* 조회 머리 — 탭·조회 줄·걸린 조건·결과 요약을 한 상자에 (2026-08-13 사장님 지시).
+   낱장으로 흩어져 있으면 어디까지가 '조회하는 곳'인지 눈으로 안 갈린다.
+   ⚠️ 검색조건 패널이 안에서 떠오르므로 overflow 를 자르지 않는다. */
+.qk-head { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.qk-head .collect-tabs { @apply border-b border-[var(--border)] px-3 pt-2.5; }
+/* 탭이 상자 안으로 들어오면서 '카드 위로 튀어나온 탭' 모양이 필요 없어졌다 —
+   고른 탭만 옅게 칠하고 밑줄로 표시한다(상자 테두리와 겹쳐 보이지 않게). */
+.qk-head .collect-tab-on { @apply rounded-b-none border-transparent border-b-[var(--primary)] bg-transparent; margin-bottom: -1px; border-bottom-width: 2px; }
+.qk-head .qk-bar { @apply rounded-none border-0 bg-transparent px-3.5 py-2.5; }
+.qk-head .qk-applied { @apply px-3.5 pb-1 pt-0; }
+.qk-head .qk-strip { @apply px-3.5 pb-2.5 pt-0; }
