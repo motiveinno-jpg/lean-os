@@ -9183,3 +9183,20 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .ti-quota { @apply inline-flex items-center h-[31px] px-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[11.5px] font-semibold whitespace-nowrap text-[var(--text-muted)]; }
 .ti-quota b { @apply mx-0.5 font-bold text-[var(--text)]; }
 .ti-quota-out { @apply border-[var(--danger)] text-[var(--danger)]; background: color-mix(in srgb, var(--danger) 12%, transparent); }
+
+/* 발행 현황 · 거래처 발행정보 — 상자 안에서 스크롤되게 (2026-08-13 사장님 제보: 표가 상자를 뚫었다) */
+.qk-colfill { @apply flex h-full min-h-0 flex-col; }
+.qk-colfill > .ti-pinfo-scroll { @apply relative min-h-0 flex-1; position: relative !important; }
+/* .ev-scroll 이 absolute inset-0 기본이라, 세로 기둥 안에서는 자기 칸만 채우게 되돌린다 */
+.qk-colfill > .ev-scroll { position: relative; inset: auto; }
+
+/* 중복 의심 상세 — 옛 doc-check-bar 를 조회 표준 결과 줄 + 이 패널로 재편 (2026-08-13) */
+.ti-dups { @apply space-y-2.5 border-b border-[var(--border)] p-3.5; }
+.ti-dup { @apply rounded-xl border border-[var(--warning)]/30 p-3; background: color-mix(in srgb, var(--warning) 5%, transparent); }
+.ti-dup-head { @apply flex flex-wrap items-center gap-2 pb-2 text-[12.5px] font-bold text-[var(--text)]; }
+.ti-dup-n { @apply rounded-full px-2 py-0.5 text-[10.5px] font-bold text-[var(--warning)]; background: color-mix(in srgb, var(--warning) 12%, transparent); }
+.ti-dup-ok { @apply ml-auto rounded-lg px-2.5 py-1 text-[11px] font-bold text-emerald-600 transition; background: color-mix(in srgb, #10b981 10%, transparent); }
+.ti-dup-ok:hover { background: color-mix(in srgb, #10b981 18%, transparent); }
+.ti-dup-row { @apply flex flex-wrap items-center gap-3 border-t border-[var(--border)]/60 py-2 text-[12px]; }
+.ti-dup-who { @apply font-semibold text-[var(--text)]; }
+.ti-dup-acts { @apply ml-auto flex items-center gap-1.5; }

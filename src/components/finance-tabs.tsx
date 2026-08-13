@@ -79,7 +79,8 @@ export function FinanceTabs() {
           );
         })}
       </div>
-      <p className="reports-tab-desc">{active.desc}</p>
+      {/*   설명 줄은 뺐다 (2026-08-13 사장님) — 메뉴 사용법은 우측 상단 ? 로 간다.
+            조회 상자(qk-shell) 화면에서는 상자 위에 낱장 문구가 떠 있어 구조가 흐트러졌다. */}
     </div>
   );
 }

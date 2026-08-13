@@ -773,7 +773,7 @@ function TaxInvoicesPageInner() {
         .or(`issue_date.lt.${from},issue_date.gte.${to}`);
       return count || 0;
     },
-    enabled: !!companyId && tab === "wait",
+    enabled: !!companyId && (tab === "wait" || tab === "issue-status"),
   });
 
   // Company info for PDF/display
@@ -1065,6 +1065,10 @@ function TaxInvoicesPageInner() {
 
   // Duplicate detection
   const duplicateInvoices = useMemo(() => detectDuplicateInvoices(invoices), [invoices]);
+  //   '중복 아님' 처리한 그룹을 뺀 실제 알림 대상 — 결과 줄과 상세 패널이 같은 목록을 본다
+  const liveDups = useMemo(
+    () => duplicateInvoices.filter((d) => !dismissedDups.has(d.key)),
+    [duplicateInvoices, dismissedDups]);
 
   /*   목록 두 탭이 보는 것 — **오너뷰가 만든 것(source='manual')만**. (2026-08-13 재편)
    *     발행 대기 = 국세청에 아직 안 간 것(미발행·전송중·에러). 에러를 여기 두는 이유는
@@ -1666,6 +1670,34 @@ function TaxInvoicesPageInner() {
               )}
             </ResultStrip>
           )}
+
+          {/*   발행 현황의 결과 줄 — 표(요약)를 바꾸지 않는 알림만 둔다.
+                '처리할 것' 주황 바(doc-check-bar)를 이 줄로 녹였다 (2026-08-13 사장님 지적).
+                옛 바의 작성 중·홈택스 미발행은 이제 **발행 대기 탭과 요약표의 미전송 줄**이 그
+                자리다 — 같은 숫자를 세 군데 두면 어디를 믿어야 할지 모른다. 남는 건 **중복 의심**뿐. */}
+          {tab === "issue-status" && (
+            <ResultStrip>
+              <Stat label="보낼 것" value={`${issueSummary.unsent.total.n.toLocaleString("ko")}건`} />
+              <Stat label="전송 완료" value={`${issueSummary.sent.total.n.toLocaleString("ko")}건`} />
+              {waitOutside > 0 && (
+                <span className="ti-strip-bad">
+                  이 기간 밖에 <b>{waitOutside.toLocaleString("ko")}건</b>이 더 안 보내진 채 있습니다
+                  <button type="button" className="ti-strip-go"
+                    onClick={() => { setViewFromMonth(`${todayKst().slice(0, 4)}-01`); setViewToMonth(todayKst().slice(0, 7)); }}>
+                    올해 전체로 넓히기
+                  </button>
+                </span>
+              )}
+              {liveDups.length > 0 && (
+                <span className="ti-strip-bad">
+                  중복 의심 <b>{liveDups.length}건</b>
+                  <button type="button" className="ti-strip-go" onClick={() => setCheckOpen((v) => !v)}>
+                    {checkOpen ? "접기" : "확인하기"}
+                  </button>
+                </span>
+              )}
+            </ResultStrip>
+          )}
         </QueryHead>
 
         <QueryBody>
@@ -1891,107 +1923,54 @@ function TaxInvoicesPageInner() {
       {/* ── 발행 현황 — 이카운트 「매출(세금)계산서요약」 형태 (2026-08-13 사장님 지시) ──
              줄을 누르면 그 목록으로 간다. 수집·전표의 '수집 현황'과 같은 자리·같은 규칙. */}
       {tab === "issue-status" && (<>
-        {/*   점검 리포트 — **중복 의심** 검사기가 여기 붙어 있어 같이 옮겨 왔다 (2026-08-13).
-              같은 거래처·금액·일자를 두 번 끊는 사고는 발행 화면에서 봐야 의미가 있다.
-              '딜 미연결'은 수집분 성격이라 머리 숫자에서는 이미 빠져 있다. */}
-      {/* 점검 리포트 — 중복의심·딜 미연결·작성중·홈택스 미발행을 한 카드로 통합(2026-07-13, 3블록 압축).
-          예상 부가세는 위 KPI 카드에 이미 있어 제외(중복 방지). */}
-      {(() => {
-        const dups = duplicateInvoices.filter((d) => !dismissedDups.has(d.key));
-        const draftCount = invoices.filter((i: any) => i.status === "draft").length;
-        const unissued = invoices.filter((i: any) => i.type === "sales" && i.status !== "draft" && !i.nts_confirm_no).length;
-        const items = [
-          { key: "dup", label: "중복 의심", count: dups.length, tone: "warning" as const, hint: "동일 거래처·금액·일자", expandable: true },
-          { key: "unmatched", label: "딜 미연결", count: unmatched, tone: "danger" as const, hint: "거래/입금 매칭 필요" },
-          { key: "draft", label: "작성 중 (미발행)", count: draftCount, tone: "warning" as const, hint: "홈택스 발행 권장" },
-          { key: "unissued", label: "홈택스 미발행", count: unissued, tone: "warning" as const, hint: "국세청 승인번호 없음" },
-        ].filter((it) => it.count > 0);
-        //   손댈 것 = 중복 의심 · 작성 중 · 홈택스 미발행. '딜 미연결'은 대개 전체 건수와 맞먹는
-        //   기본 상태라 머리 숫자에서 뺐다 — 늘 켜져 있는 경고는 아무것도 경고하지 못한다 (2026-08-10).
-        const todo = items.filter((it) => it.key !== "unmatched").reduce((s, it) => s + it.count, 0);
-        //   처리할 것이 없으면 **줄 자체를 감춘다**
-        if (todo === 0) return null;
-        return (
-          <div className="doc-check-bar no-print">
-            <button type="button" className="doc-check-head" onClick={() => setCheckOpen((v) => !v)} aria-expanded={checkOpen}>
-              <b>처리할 것 {todo}건</b>
-              <span>{items.filter((it) => it.key !== "unmatched").map((it) => `${it.label} ${it.count}`).join(" · ")}</span>
-              <i>{checkOpen ? "접기 ▴" : "펼치기 ▾"}</i>
-            </button>
-            {checkOpen && (
-              <div className="doc-check-body divide-y divide-[var(--border)]">
-                {items.map((it) => (
-                  <div key={it.key}>
-                    <div className="flex items-center gap-3 py-2.5">
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${it.tone === "danger" ? "bg-[var(--danger)]" : "bg-[var(--warning)]"}`} />
-                      <div className="min-w-0 flex-1">
-                        <span className="text-sm font-semibold text-[var(--text)]">{it.label}</span>
-                        <span className="text-xs text-[var(--text-dim)] ml-2">{it.hint}</span>
-                      </div>
-                      <span className={`text-sm font-bold mono-number ${it.tone === "danger" ? "text-[var(--danger)]" : "text-[var(--warning)]"}`}>{it.count}건</span>
-                      {it.expandable && (
-                        <button type="button" onClick={() => setExpandedDupKey(expandedDupKey ? null : (dups[0]?.key ?? null))}
-                          className="text-[11px] px-2 py-1 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text)] transition shrink-0">
-                          {expandedDupKey ? "접기" : "펼치기"}
-                        </button>
-                      )}
-                    </div>
-                    {/* 중복 의심 상세 — 그룹별 계산서 리스트 + 상세/삭제/중복아님 */}
-                    {it.key === "dup" && expandedDupKey && dups.length > 0 && (
-                      <div className="pb-3 pl-4 space-y-3">
-                        {dups.map((dup) => {
-                          const dupInvs = invoices.filter((inv: any) => dup.ids.includes(inv.id));
-                          return (
-                            <div key={dup.key} className="rounded-lg border border-[var(--warning)]/25 bg-[var(--warning)]/5 p-3">
-                              <div className="text-xs font-semibold text-[var(--text)] mb-2">
-                                {dup.counterpartyName} — {fmt(dup.amount)} — {dup.date} <span className="text-[var(--warning)]">({dup.count}건 동일)</span>
-                              </div>
-                              <div className="space-y-2">
-                                {dupInvs.map((inv: any) => (
-                                  <div key={inv.id} className="flex items-center gap-3 bg-[var(--bg-card)] rounded-lg px-3 py-2 border border-[var(--border)]">
-                                    <div className="flex-1 text-xs min-w-0">
-                                      <span className="font-medium">{inv.counterparty_name}</span>
-                                      <span className="text-[var(--text-muted)] mx-2">|</span>
-                                      <span className="font-mono">₩{Number(inv.supply_amount).toLocaleString("ko-KR")}</span>
-                                      <span className="text-[var(--text-dim)] ml-2">{inv.issue_date}</span>
-                                      <span className="text-[var(--text-dim)] ml-2">({invoiceStatusMeta(inv.status, inv.type).label})</span>
-                                    </div>
-                                    <button type="button" onClick={() => setSelectedInvoice(inv)}
-                                      className="text-[10px] px-2 py-1 rounded bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition shrink-0">상세</button>
-                                    <button type="button" onClick={async () => {
-                                      const { ok: rowOk } = await confirmDialog({ title: "세금계산서 삭제", desc: `${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`, danger: true });
-                                      if (!rowOk) return;
-                                      await supabase.from("tax_invoices").delete().eq("id", inv.id);
-                                      invalidate();
-                                      toast("세금계산서가 삭제되었습니다", "success");
-                                    }}
-                                      className="text-[10px] px-2 py-1 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 transition shrink-0">삭제</button>
-                                  </div>
-                                ))}
-                              </div>
-                              <button type="button" onClick={() => {
-                                setDismissedDups((prev) => {
-                                  const next = new Set([...prev, dup.key]);
-                                  try { localStorage.setItem(`tax-dup-dismissed-${companyId}`, JSON.stringify([...next])); } catch { /* noop */ }
-                                  return next;
-                                });
-                                setExpandedDupKey(null);
-                              }}
-                                className="mt-2 text-[10px] px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition font-semibold">
-                                ✓ 중복 아님 (이 그룹 숨기기)
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+        <div className="ev-scroll">
+        {/*   중복 의심 상세 — 결과 줄의 '확인하기'로 연다. 같은 거래처·금액·일자를 두 번 끊는
+              사고는 발행 화면에서 봐야 의미가 있어 여기 둔다. 옛 '처리할 것' 주황 바는
+              결과 줄로 녹였다(2026-08-13 사장님 지적 — 낡은 구조가 상자 위에 떠 있었다).
+              작성 중·홈택스 미발행 항목은 뺐다: 발행 대기 탭과 아래 미전송 줄이 그 자리다. */}
+        {checkOpen && liveDups.length > 0 && (
+          <div className="ti-dups no-print">
+            {liveDups.map((dup) => {
+              const dupInvs = invoices.filter((inv: any) => dup.ids.includes(inv.id));
+              return (
+                <div key={dup.key} className="ti-dup">
+                  <div className="ti-dup-head">
+                    {dup.counterpartyName} · {fmt(dup.amount)} · {dup.date}
+                    <span className="ti-dup-n">{dup.count}건 동일</span>
+                    <button type="button" className="ti-dup-ok"
+                      onClick={() => {
+                        setDismissedDups((prev) => {
+                          const next = new Set([...prev, dup.key]);
+                          try { localStorage.setItem(`tax-dup-dismissed-${companyId}`, JSON.stringify([...next])); } catch { /* noop */ }
+                          return next;
+                        });
+                      }}>
+                      ✓ 중복 아님
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
+                  {dupInvs.map((inv: any) => (
+                    <div key={inv.id} className="ti-dup-row">
+                      <span className="ti-dup-who">{inv.counterparty_name}</span>
+                      <span className="mono-number">{fmt(Number(inv.supply_amount))}</span>
+                      <span className="ev-dim">{inv.issue_date}</span>
+                      <span className="ev-dim">{invoiceStatusMeta(inv.status, inv.type).label}</span>
+                      <span className="ti-dup-acts">
+                        <button type="button" className="btn-secondary btn-sm" onClick={() => setSelectedInvoice(inv)}>상세</button>
+                        <button type="button" className="btn-danger-solid btn-sm" onClick={async () => {
+                          const { ok: rowOk } = await confirmDialog({ title: "세금계산서 삭제", desc: `${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`, danger: true });
+                          if (!rowOk) return;
+                          await supabase.from("tax_invoices").delete().eq("id", inv.id);
+                          invalidate();
+                          toast("세금계산서가 삭제되었습니다", "success");
+                        }}>삭제</button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
-        );
-      })()}
+        )}
         <div className="ti-sum">
           <table className="ev-table ti-sum-table">
             <thead>
@@ -2070,11 +2049,12 @@ function TaxInvoicesPageInner() {
             <b>타발행</b>은 홈택스에서 직접 낸 것으로, 목록은 수집·전표에서 봅니다(합계를 맞추려고 여기 함께 적습니다).
           </p>
         </div>
+        </div>
       </>)}
 
       {/* ── 거래처 발행정보 — 보내기 전에 빠진 칸을 채우는 곳 (2026-08-13) ── */}
       {tab === "partner-info" && (
-        <div className="ti-pinfo">
+        <div className="ti-pinfo qk-colfill">
           <div className="ti-pinfo-head">
             <span>
               거래처 <b className="mono-number">{partnerInfoRows.length.toLocaleString("ko")}</b>곳 ·
@@ -2086,7 +2066,7 @@ function TaxInvoicesPageInner() {
               {partnerGapOnly ? "전체 보기" : "빠진 곳만"}
             </button>
           </div>
-          <div className="ti-pinfo-scroll">
+          <div className="ev-scroll ti-pinfo-scroll">
             <table className="ev-table ti-pinfo-table">
               <thead>
                 <tr>
