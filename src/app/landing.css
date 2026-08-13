@@ -1144,3 +1144,7 @@
 .lp4-freetool-duo-sub { font-size:12.5px; color: var(--ink3); margin-top:4px; }
 .lp4-freetool-table-tight { margin-top:16px; font-size:13.5px; }
 .lp4-freetool-dim { color: var(--ink3); font-weight:400; font-size:12px; }
+/* 푸터 무료 도구 링크 줄 (2026-08-13) */
+.lp4-footer-tools { display:flex; flex-wrap:wrap; align-items:center; gap:16px 20px;
+  padding:18px 0; border-bottom:1px solid var(--line2); }
+.lp4-footer-tools-label { font-size:13px; font-weight:800; color: var(--ink3); letter-spacing:.02em; }
