@@ -8261,11 +8261,15 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 
 /* ── 수집·전표 3단계: 통장 탭 (거래 매칭 흡수) 2026-08-11 ── */
 /*   차변·대변·적요 세 칸이 늘어 표가 넓어졌다 (2026-08-12 통장 탭 재구성) */
-.bk-table { min-width: 1340px; }
+/*   한 줄로 펴면서 가로가 길어졌다 — 표 안에서 가로 스크롤한다(상자 크기는 그대로) */
+.bk-table { min-width: 1660px; }
 /*   한 쪽(차변 또는 대변) — 계정과 거래처를 위아래로 */
-.bk-side { @apply inline-flex flex-col gap-1 items-stretch min-w-[150px]; }
+/*   차·대변은 **한 줄** — 계정 칩과 거래처 칩을 나란히 (2026-08-13 사장님 지시).
+     두 줄이면 한 화면에 보이는 줄 수가 반으로 준다. 가로로 길어지는 건 표 안에서 스크롤한다. */
+.bk-side { @apply inline-flex flex-row items-center gap-1 whitespace-nowrap; }
+.bk-side > * { @apply shrink-0; }
 .bk-side-fixed { @apply opacity-70; }
-.bk-pt { @apply flex h-6 items-center rounded border border-dashed border-[var(--border)] bg-[var(--bg)] px-2 text-[11px] text-[var(--text-muted)] transition hover:border-[var(--primary)]/60; }
+.bk-pt { @apply flex h-7 max-w-[168px] items-center truncate rounded border border-dashed border-[var(--border)] bg-[var(--bg)] px-2 text-[11px] text-[var(--text-muted)] transition hover:border-[var(--primary)]/60; }
 .bk-pt-empty { @apply text-[var(--text-dim)]; }
 /*   자동으로 채워지는 자리 — 누를 수 없다는 것이 보여야 한다 */
 .ev-acct-lock, .bk-pt-lock { @apply cursor-default border-solid bg-[var(--bg-surface)] text-[var(--text-muted)] hover:border-[var(--border)]; }

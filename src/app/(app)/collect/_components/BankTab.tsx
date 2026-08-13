@@ -785,11 +785,15 @@ export function BankTab({
                           </span>
                         </span>
                       );
-                      //   보통예금 쪽은 서버가 붙인다 — 화면은 무엇이 설지 미리 보여만 준다
+                      //   보통예금 쪽은 서버가 붙인다 — 화면은 무엇이 설지 미리 보여만 준다.
+                      //   ★ 거래처 자리에 그냥 '통장' 이라고만 찍혀 **어느 통장인지 알 수 없었다**
+                      //     (2026-08-13 사장님 지적). 계좌 별명·뒷자리를 그대로 보여 준다.
+                      //     계좌를 모르는 줄(bank_account_id 없음)만 '통장' 으로 남는다.
                       const bankSide = (
-                        <span className="bk-side bk-side-fixed" title="보통예금과 통장 거래처는 자동으로 들어갑니다">
+                        <span className="bk-side bk-side-fixed"
+                          title={`보통예금과 통장 거래처는 자동으로 들어갑니다${bankLabelOf(r) ? ` — ${bankLabelOf(r)}` : ""}`}>
                           <span className="ev-acct ev-acct-lock">103 보통예금</span>
-                          <span className="bk-pt bk-pt-lock">통장</span>
+                          <span className="bk-pt bk-pt-lock">{bankLabelOf(r) || "통장"}</span>
                         </span>
                       );
                       return (
