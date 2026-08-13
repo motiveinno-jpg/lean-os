@@ -989,6 +989,9 @@ export async function sendSignatureReminder(signatureRequestId: string): Promise
   try {
     await db.from('signature_requests').update({
       reminder_count: ((req as any).reminder_count || 0) + 1,
+      // 리마인드를 보내면 요청일(created_at)을 그 날로 갱신 (2026-08-13 사장님) —
+      //   목록의 '요청일'이 마지막으로 요청(리마인드 포함)한 시점을 보여준다. 실발송 성공 시에만.
+      ...(r.success ? { created_at: new Date().toISOString() } : {}),
     }).eq('id', signatureRequestId);
   } catch { /* best-effort — 카운터 실패해도 발송 흐름 유지 */ }
 
