@@ -353,7 +353,7 @@ export default function EInvoicesPage() {
   }
 
   return (
-    <div className="qk-page" data-print-area>
+    <div className="qk-shell" data-print-area>
       <QueryErrorBanner error={mainError as Error | null} onRetry={() => mainRefetch()} />
 
       {/* ── 조회 화면 표준 — 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 한 상자에 ── */}

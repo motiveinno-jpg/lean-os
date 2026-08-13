@@ -1471,7 +1471,7 @@ function TaxInvoicesPageInner() {
   }
 
   return (
-    <div className="qk-page" data-print-area>
+    <div className="qk-shell" data-print-area>
       {confirmElement}
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 

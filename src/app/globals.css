@@ -9002,19 +9002,23 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 
    손대는 화면(md 이상)에서만 켠다. 폰에서는 손가락으로 페이지째 미는 게 자연스럽다. */
 @media (min-width: 768px) {
-  /*   ★ .qk-page 가 공용 이름이다 — 확산하는 화면은 뿌리에 이 클래스만 붙이면 된다.
-       .collect-page 는 먼저 만든 이름이라 같이 둔다(둘이 같은 규칙). */
-  .qk-page, .collect-page { height: calc(100vh - 100px); min-height: 0; padding-bottom: 0; }
-  .qk-page { @apply flex flex-col gap-3; }
+  /*   ★ .qk-shell 이 공용 이름이다 — 확산하는 화면은 뿌리에 이 클래스만 붙이면 된다.
+       .collect-page 는 먼저 만든 이름이라 같이 둔다(둘이 같은 규칙).
+       ⚠️ 2026-08-13 사고: 처음엔 이 이름을 `.qk-page` 로 지었는데 그건 **쪽 번호 버튼**의
+          이름이었다(query-kit `Pager`). 버튼이 `height: calc(100vh - 100px)` 를 먹어
+          900px 짜리 기둥이 되고, 그만큼 자리를 뺏긴 표가 통째로 안 보였다.
+          CLAUDE.md 규칙대로 **새 마커 이름은 붙이기 전에 globals.css 를 grep** 할 것. */
+  .qk-shell, .collect-page { height: calc(100vh - 100px); min-height: 0; padding-bottom: 0; }
+  .qk-shell { @apply flex flex-col gap-3; }
   /*   ★ 화면 위에 **허브 탭(FinanceTabs)** 이 붙는 화면이 있다(세금·증빙 등).
        그만큼 아래로 밀리면 상자가 사이드바 끝선을 넘어간다 — 실제로 87px 넘쳤다.
-       본문 칸을 세로 기둥으로 만들고 .qk-page 가 **남는 높이만** 먹게 한다.
+       본문 칸을 세로 기둥으로 만들고 .qk-shell 이 **남는 높이만** 먹게 한다.
        그러면 위에 뭐가 붙든(배너·탭) 끝선이 저절로 맞는다. */
-  .app-content-scale:has(> .qk-page) { height: calc(100vh - 100px); @apply flex min-h-0 flex-col; }
-  .app-content-scale:has(> .qk-page) > .qk-page { height: auto; @apply min-h-0 flex-1; }
+  .app-content-scale:has(> .qk-shell) { height: calc(100vh - 100px); @apply flex min-h-0 flex-col; }
+  .app-content-scale:has(> .qk-shell) > .qk-shell { height: auto; @apply min-h-0 flex-1; }
   /* 상자와 그 부모는 남는 높이를 다 먹고, 안에서 줄어들 수 있어야 한다(min-height:0 필수) */
   .collect-page > .ev-wrap { @apply min-h-0 flex-1; }
-  .qk-page > .qk-screen,
+  .qk-shell > .qk-screen,
   .collect-page > .qk-screen,
   .ev-wrap > .qk-screen { @apply min-h-0 flex-1; }
   .qk-screen { @apply flex min-h-0 flex-col; }
