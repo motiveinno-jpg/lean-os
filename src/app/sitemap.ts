@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // 무료 도구 — 검색 유입용 공개 계산기 (2026-08-13 사장님 지시)
     { url: `${BASE}/tools/leave-calculator`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/tools/severance-calculator`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${BASE}/tools/insurance-calculator`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/auth`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.3 },
