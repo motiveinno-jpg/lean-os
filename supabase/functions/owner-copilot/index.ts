@@ -187,6 +187,7 @@ ${COMMON_RULES}
 - 급여·연봉·인건비 질문("월급 얼마야", "누가 제일 많이 받아", "인건비 총액", "○○ 연봉")은 get_payroll 로 답하세요. 스냅샷에는 급여가 들어 있지 않으니 "급여 데이터에 접근할 수 없다"고 답하지 말고 반드시 이 툴을 부르세요.
 - 연차 부여·잔여("연차 며칠 남았어", "총 부여 연차")는 get_leave_status 의 balances 로 답하세요. 휴가 신청 내역을 세서 계산하지 마세요. 이 툴은 직원 이름을 함께 돌려주므로 특정 직원의 연차를 물어도 find_employee 를 먼저 부를 필요가 없습니다(get_payroll·get_attendance_summary·list_hr_requests 도 같습니다 — 이름이 들어 있습니다).
 - 조회 툴이 있는 주제는 "확인할 수 없다"·"시스템에서 모른다"고 넘기지 말고 먼저 툴을 부르세요. 툴을 부른 뒤에도 값이 비어 있을 때만 없다고 답하고, 그때도 "데이터가 없다"가 아니라 어느 화면에서 입력하면 되는지 알려 주세요.
+- 전용 툴이 없는 질문도 "확인 불가"로 끝내지 마세요. query_table 로 관련 테이블을 직접 조회해 행을 받아 스스로 세고 합산해 추론하세요(여러 번 불러도 됩니다). 그래도 알 수 없으면 가진 데이터로 가능한 범위까지 답하고 무엇이 부족한지 명시하세요 — 금지는 오직 하나, 조회되지 않은 값을 지어내는 것입니다.
 - 지난달 등 과거 월 수치, 또는 스냅샷 수치 교차 확인은 get_month_summary 를 부르세요.
 - 연결된 세무사·회계사("우리 세무사 누구야", "세무사가 언제 봤어")는 get_tax_advisors 로 답하세요. 스냅샷에는 없습니다.
 - 계정과목별 비용·수익("복리후생비 얼마 썼어", "계정별 비용", "어디에 돈 많이 썼어")은 get_expense_by_account 로 답하세요. "회계 모듈에 없다"고 답하지 마세요 — 확정 전표(장부) 기준으로 집계됩니다. 결과가 0이면 전표 미처리 자료가 있다는 뜻이니 수집·전표 화면 안내를 곁들이세요.
@@ -476,6 +477,32 @@ const MANAGER_READ_TOOLS = [
     input_schema: { type: "object", additionalProperties: false, properties: {}, required: [] },
   },
   {
+    name: "query_table",
+    description: "전용 툴이 없는 질문에 쓰는 범용 조회 — 회사 원장 테이블을 직접 읽어 스스로 추론·집계하세요. 예: '이번 달 새로 등록한 거래처', '8월에 반려된 결재', '특정 기간 카드 승인 건수'. 반환 행을 받아 직접 세고 합산하면 됩니다. 조회 가능한 테이블: partners(거래처), tax_invoices(세금계산서), cash_receipts(현금영수증), bank_transactions(통장 거래), card_transactions(카드 승인), bank_accounts(계좌), employees(직원), attendance(근태), deals(프로젝트/딜), approval_requests(결재), schedule_events(일정), journal_entries(전표), chart_of_accounts(계정과목), payment_queue(지급대기). 회사 범위는 서버가 강제합니다.",
+    input_schema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        table: { type: "string", enum: ["partners","tax_invoices","cash_receipts","bank_transactions","card_transactions","bank_accounts","employees","attendance","deals","approval_requests","schedule_events","journal_entries","chart_of_accounts","payment_queue"], description: "조회할 테이블" },
+        select: { type: "string", description: "가져올 컬럼(쉼표 구분, 생략 시 *). 관계 임베드 가능: 예 \"id,entry_date,journal_lines(debit,credit)\"" },
+        filters: {
+          type: "array", description: "AND 조건 목록",
+          items: {
+            type: "object", additionalProperties: false,
+            properties: {
+              column: { type: "string", description: "컬럼명" },
+              op: { type: "string", enum: ["eq","neq","gt","gte","lt","lte","ilike","in","is"], description: "연산자. ilike 값엔 %패턴%, in 값은 배열" },
+              value: { description: "비교 값" },
+            },
+            required: ["column","op","value"],
+          },
+        },
+        order: { type: "object", additionalProperties: false, properties: { column: { type: "string" }, desc: { type: "boolean" } }, required: ["column"] },
+        limit: { type: "integer", description: "최대 행 수(기본 50, 최대 200)" },
+      },
+      required: ["table"],
+    },
+  },
+  {
     name: "get_expense_by_account",
     description: "확정 전표(장부) 기준으로 계정과목별 금액을 집계합니다. '복리후생비 얼마 썼어', '계정별 비용', '수도광열비·보험료·급여 각각 얼마', '어디에 돈 많이 썼어' 질문에 쓰세요. nature=expense 는 비용, revenue 는 수익 계정. 기본 기간은 당해 연도. 전표로 확정된 내역만 집계됩니다(원본 통장·카드만 있고 전표 미생성이면 0으로 나옴 — 그때는 수집·전표에서 전표 처리하라고 안내).",
     input_schema: {
@@ -735,7 +762,49 @@ async function executeReadTool(
   admin: { from: (t: string) => any },
   companyId: string,
   myEmployeeId: string | null,
+  // 범용 조회(query_table)용 — 사용자 JWT 클라이언트(RLS 적용). 매니저 모드에서만 전달된다.
+  userClient?: { from: (t: string) => any } | null,
 ): Promise<unknown> {
+  if (name === "query_table") {
+    // 범용 원장 조회 (2026-08-13 사장님: 전용 툴 없어도 '확인 불가' 대신 스스로 추론) —
+    //   ① 테이블 화이트리스트 ② 회사 스코프 서버 강제 ③ 사용자 JWT(RLS) 실행 ④ 읽기 전용.
+    const ALLOWED = new Set(["partners","tax_invoices","cash_receipts","bank_transactions","card_transactions","bank_accounts","employees","attendance","deals","approval_requests","schedule_events","journal_entries","chart_of_accounts","payment_queue"]);
+    const table = String(input.table ?? "");
+    if (!ALLOWED.has(table)) return { error: `이 테이블은 조회할 수 없습니다: ${table}` };
+    if (!userClient) return { error: "범용 조회는 대표·관리자만 사용할 수 있습니다." };
+    const select = String(input.select ?? "*");
+    if (!/^[a-zA-Z0-9_,()\s*.:>!-]+$/.test(select)) return { error: "select 형식이 올바르지 않습니다." };
+    const limit = Math.min(200, Math.max(1, Number(input.limit) || 50));
+    let q = userClient.from(table).select(select).eq("company_id", companyId).limit(limit);
+    const filters = Array.isArray(input.filters) ? input.filters.slice(0, 8) : [];
+    for (const f of filters as { column?: unknown; op?: unknown; value?: unknown }[]) {
+      const col = String(f.column ?? "");
+      if (!/^[a-zA-Z0-9_.]+$/.test(col) || col === "company_id") continue; // 회사 스코프는 서버 것만
+      const op = String(f.op ?? "eq");
+      const v = f.value as never;
+      if (op === "eq") q = q.eq(col, v);
+      else if (op === "neq") q = q.neq(col, v);
+      else if (op === "gt") q = q.gt(col, v);
+      else if (op === "gte") q = q.gte(col, v);
+      else if (op === "lt") q = q.lt(col, v);
+      else if (op === "lte") q = q.lte(col, v);
+      else if (op === "ilike") q = q.ilike(col, String(v));
+      else if (op === "in") q = q.in(col, Array.isArray(v) ? (v as unknown[]).slice(0, 50) : [v]);
+      else if (op === "is") q = q.is(col, v);
+    }
+    const ord = input.order as { column?: unknown; desc?: unknown } | undefined;
+    if (ord?.column && /^[a-zA-Z0-9_.]+$/.test(String(ord.column))) {
+      q = q.order(String(ord.column), { ascending: !ord.desc });
+    }
+    const { data, error } = await q;
+    if (error) return { error: `조회 실패: ${String((error as { message?: string }).message || "").slice(0, 160)}` };
+    const rows = (data ?? []) as unknown[];
+    return {
+      rows,
+      row_count: rows.length,
+      note: rows.length >= limit ? `최대 ${limit}행까지만 가져왔습니다 — 합계·건수가 더 있을 수 있으니 기간을 좁히거나 필터를 더 거세요.` : undefined,
+    };
+  }
   if (name === "find_employee") {
     const q = String(input.name ?? "").trim().slice(0, 40);
     if (!q) return { error: "이름을 지정하세요." };
@@ -2163,6 +2232,10 @@ serve(withSentry("owner-copilot", async (req) => {
               admin,
               companyId,   // 서버가 결정한 회사 스코프 — 모델 입력 아님
               myEmployeeId,
+              // query_table 용 사용자 JWT 클라이언트 — 매니저 모드에서만 (RLS 로 권한 강제)
+              mode === "manager"
+                ? createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader } } })
+                : null,
             );
           } catch (_e) {
             payload = { error: "조회 중 오류가 발생했습니다." };
