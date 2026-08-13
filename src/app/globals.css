@@ -8921,7 +8921,11 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .qk-screen { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
 /*   ★ 상자 안 머리는 **배경을 칠하지 않는다** — 각진 흰 배경이 상자의 둥근 위 모서리를 덮어
      위만 직각으로 보였다(사장님 지적). 위 모서리도 상자와 같은 값으로 맞춰 둔다. */
-.qk-screen .qk-head { @apply rounded-t-2xl border-0 border-b border-[var(--border)] bg-transparent; }
+/*   ★ 아래 모서리는 **직각**이어야 한다 (2026-08-13 사장님 지적).
+     `.qk-head` 기본 규칙의 rounded-2xl 이 네 모서리를 다 둥글게 두는데 rounded-t-2xl 은
+     위 두 개만 덮어써서, 아래 테두리가 양끝에서 위로 말려 올라갔다 — 상자를 가르는 선은
+     끝에서 끝까지 곧아야 한다. rounded-b-none 으로 아래를 명시적으로 편다. */
+.qk-screen .qk-head { @apply rounded-t-2xl rounded-b-none border-0 border-b border-[var(--border)] bg-transparent; }
 .qk-screen .qk-head .collect-tabs { @apply rounded-t-2xl; }
 .qk-screen .ev-scroll { @apply rounded-none border-0 bg-transparent shadow-none backdrop-blur-none; }
 .qk-screen .qk-pager { @apply border-t border-[var(--border)] px-3.5; }
