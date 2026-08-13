@@ -15,7 +15,7 @@
 //     ①③④ 가 하던 일은 **거래 매칭 화면(/partners/reconciliation)에 그대로 있다** — 지운 게 아니라
 //     이 화면에서 뺀 것이다. 세금계산서 수금은 여기서 계정을 '외상매출금'으로 골라도 같은 결과다.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PickList } from "@/components/pick-list";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
@@ -26,6 +26,7 @@ import {
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, useColWidths, type SortState, type ThFilterSpec } from "@/components/sortable-th";
+import { confirmThreeWayMatch } from "@/lib/three-way-match";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -53,6 +54,7 @@ type Row = {
   partnerId: string | null;
   bankId: string | null;   // 어느 계좌의 거래인가 (조건 더보기의 '계좌')
   posted: boolean;         // 전표가 있다
+  taxLinked: boolean;      // 세금계산서와 매칭됐다 (AI 매칭 — bank_transactions.tax_invoice_id)
   settled: boolean;        // 매칭이 확정됐다
   settledAmount: number;
   transfer: boolean;       // 계좌 이동으로 표시됨
@@ -179,6 +181,68 @@ export function BankTab({
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
   //   비목 AI 가 추천한 계정 — 사람이 고른 것 다음, 학습 규칙보다 뒤에 쓴다
   const [aiAcct, setAiAcct] = useState<Record<string, Acct>>({});
+  /*   ── AI 매칭 (2026-08-13 기획) — 입금(사실)에서 계산서(주장)를 붙인다. 최종 확정은 통장.
+   *   그릇(AI 제안) 안에서는 '매칭 제안'이라 부르고, 표 안 스트립은 'AI 매칭 제안'이다.
+   *   제안은 자동, 확정은 사람 — [이 계산서로 매칭]을 누르기 전에는 아무것도 안 바뀐다. */
+  const [matchMode, setMatchMode] = useState(false);
+  const [matchOpen, setMatchOpen] = useState<string | null>(null);   // '다른 계산서 찾기' 펼친 줄
+  const [matchBusy, setMatchBusy] = useState<string | null>(null);
+  //   미매칭 매출 계산서 — 상태가 matched 가 아닌 발행분(최근 1년). 켰을 때만 읽는다.
+  const { data: openInvoices = [] } = useQuery({
+    queryKey: ["bank-open-invoices", companyId],
+    queryFn: async () => {
+      const since = new Date(); since.setFullYear(since.getFullYear() - 1);
+      const { data, error } = await supabase.from("tax_invoices")
+        .select("id, issue_date, counterparty_name, total_amount, deal_id, deals(name), partner_id, status")
+        .eq("company_id", companyId).eq("type", "sales")
+        .neq("status", "void").neq("status", "matched")
+        .gte("issue_date", since.toISOString().slice(0, 10))
+        .order("issue_date", { ascending: false }).limit(500);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!companyId && matchMode,
+  });
+  /** 이 입금의 계산서 후보 — 금액 ±10% 는 문턱, 이름 겹침은 가산. 근거를 함께 돌려준다. */
+  const matchCandsOf = (r: Row): { inv: any; why: string[] }[] => {
+    if (!r.isIn) return [];
+    const amt = Math.abs(r.amount);
+    const names = `${r.who} ${r.desc}`.toLowerCase();
+    const out: { inv: any; why: string[]; score: number }[] = [];
+    for (const inv of openInvoices as any[]) {
+      const total = Number(inv.total_amount || 0);
+      if (total <= 0) continue;
+      const diff = Math.abs(total - amt) / total;
+      if (diff > 0.1) continue;                       // 금액이 문턱 — 엉뚱한 후보로 어지럽히지 않는다
+      const why: string[] = [diff === 0 ? "금액 일치" : "금액 근접(±10%)"];
+      let score = diff === 0 ? 3 : 1;
+      const nm = String(inv.counterparty_name || "").trim().toLowerCase();
+      if (nm.length >= 2 && names.includes(nm.slice(0, Math.min(nm.length, 4)))) { score += 2; why.push("거래처 일치"); }
+      out.push({ inv, why, score });
+    }
+    return out.sort((a, b) => b.score - a.score).slice(0, 5);
+  };
+  /** [이 계산서로 매칭] — 입금↔계산서 연결 + 계산서의 거래처·계정(외상매출금)이 따라온다 */
+  const confirmMatch = async (r: Row, inv: any) => {
+    if (matchBusy) return;
+    setMatchBusy(r.id);
+    try {
+      await confirmThreeWayMatch(r.id, inv.id);
+      //   따라오는 기입 — 계산서의 거래처를 통장 줄에, 수금이므로 계정은 외상매출금(108)
+      if (inv.partner_id) {
+        await supabase.from("bank_transactions").update({ partner_id: inv.partner_id } as never).eq("id", r.id);
+      }
+      const ar = accounts.find((a) => String(a.code) === "108");
+      if (ar) setAcct((prev) => ({ ...prev, [r.id]: ar }));
+      toast(`매칭했습니다 — ${inv.counterparty_name || "계산서"}${(inv as any).deals?.name ? ` · 프로젝트 ${(inv as any).deals.name}` : ""}`, "success");
+      setMatchOpen(null);
+      qc.invalidateQueries({ queryKey: ["bank-rows"] });
+      qc.invalidateQueries({ queryKey: ["bank-open-invoices"] });
+      qc.invalidateQueries({ queryKey: ["tax-invoices-full"] });
+    } catch (e: any) {
+      toast(friendlyError(e, "매칭 실패"), "error");
+    } finally { setMatchBusy(null); }
+  };
   const [aiAcctBusy, setAiAcctBusy] = useState(false);
 
   const { data: accounts = [] } = useQuery({
@@ -234,7 +298,7 @@ export function BankTab({
       //     잘려 기간을 넓히는 의미가 없었다. 읽기 실패는 fetchAllPages 가 던진다
       //     ('처리할 거래가 없습니다'로 보여 다 끝낸 줄 알면 안 된다 — PGRST201 로 실제로 그랬다).
       const got = await fetchAllPages<any>((a, b) => supabase.from("bank_transactions")
-        .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
+        .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, tax_invoice_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
         .eq("company_id", companyId)
         .gte("transaction_date", from).lte("transaction_date", to)
         .order("transaction_date").range(a, b));
@@ -260,6 +324,7 @@ export function BankTab({
           bankId: r.bank_account_id || null,
           posted: !!r.journal_entry_id,
           settled: ["settled", "partial"].includes(String(r.settlement_status || "")),
+          taxLinked: !!r.tax_invoice_id,
           settledAmount: Number(r.settled_amount || 0),
           transfer: !!r.is_auto_transfer,
           voucherNo: r.journal_entry_id ? (noBy.get(r.journal_entry_id) ?? null) : null,
@@ -333,6 +398,11 @@ export function BankTab({
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort]);
+  //   매칭 제안 대상 — 미매칭 입금(전표·수금·계좌이동·계산서 연결이 없는 것)
+  const matchTargets = useMemo(
+    () => shown.filter((r) => r.isIn && !doneOf(r) && !r.taxLinked),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shown]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 (2026-08-13 사장님 지시)
   const pager = usePager(shown, live.size, `${from}|${to}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   //   선택은 쪽을 넘겨도 남는다
@@ -492,6 +562,14 @@ export function BankTab({
   //   ★ 줄마다 **출처를 적는다** — 배운 규칙은 AI 가 아니라 사람이 고른 것을 기억해 둔 것이다.
   const suggestable = shown.filter((r) => !doneOf(r) && !r.isIn && !acctOf(r).a).length;
   const helpers: HelperItem[] = [
+    {
+      //   그릇(AI 제안)에 AI 가 이미 적혀 있으니 안에서는 뺀다 — '매칭 제안' (2026-08-13 사장님 확정)
+      label: matchMode ? "매칭 제안 끄기" : "매칭 제안 켜기",
+      source: "장부 대조",
+      badge: matchTargets.length,
+      hint: "미매칭 입금 아래에 계산서 제안이 붙습니다 — 입금 ↔ 계산서 ↔ 프로젝트. 확정은 줄에서 직접 합니다",
+      onClick: () => setMatchMode((v) => !v),
+    },
     rulesHelper,
     {
       label: aiAcctBusy ? "추천 중…" : "계정 추천 받기",
@@ -793,8 +871,11 @@ export function BankTab({
               {pager.view.map((r) => {
                 const done = doneOf(r);
                 const on = sel.has(r.id);
+                //   AI 매칭 제안 — 켜져 있을 때, 미매칭 입금 줄 아래에만 스트립을 붙인다
+                const sug = matchMode && r.isIn && !done && !r.taxLinked ? matchCandsOf(r) : null;
                 return (
-                  <tr key={r.id} className={done ? "ev-posted" : on ? "ev-on" : ""}>
+                  <React.Fragment key={r.id}>
+                  <tr className={done ? "ev-posted" : on ? "ev-on" : ""}>
                     <td>
                       {!done && (
                         <button type="button" onClick={() => toggle(r.id)} aria-label="선택"
@@ -877,6 +958,43 @@ export function BankTab({
                       ) : <span className="ev-st ev-st-todo">미처리</span>}
                     </td>
                   </tr>
+                  {sug !== null && (
+                    <tr className="bk-sug">
+                      <td colSpan={10}>
+                        {sug.length === 0 ? (
+                          <div className="bk-sug-in">
+                            <span className="bk-sug-tag">AI 매칭 제안</span>
+                            <span className="ev-dim">맞는 계산서가 없습니다 — 계산서 없는 매출(현금영수증·단순 입금)일 수 있습니다. 그냥 전표만 만들어도 됩니다.</span>
+                          </div>
+                        ) : (
+                          <div className="bk-sug-in">
+                            <span className="bk-sug-tag">AI 매칭 제안</span>
+                            {(matchOpen === r.id ? sug : sug.slice(0, 1)).map(({ inv, why }) => (
+                              <span key={inv.id} className="bk-sug-row">
+                                <b>세금계산서 · {inv.counterparty_name || "거래처 없음"} · ₩{Number(inv.total_amount).toLocaleString("ko")}</b>
+                                <i className="ev-dim">({inv.issue_date} 발행)</i>
+                                {why.map((w) => <em key={w} className="bk-sug-why">{w}</em>)}
+                                {(inv as any).deals?.name && (
+                                  <i className="ev-dim">→ 프로젝트 <b>{(inv as any).deals.name}</b> 이(가) 따라옵니다</i>
+                                )}
+                                <button type="button" className="btn-primary btn-sm" disabled={matchBusy === r.id}
+                                  onClick={() => confirmMatch(r, inv)}>
+                                  {matchBusy === r.id ? "매칭 중…" : "이 계산서로 매칭"}
+                                </button>
+                              </span>
+                            ))}
+                            {sug.length > 1 && (
+                              <button type="button" className="btn-secondary btn-sm"
+                                onClick={() => setMatchOpen(matchOpen === r.id ? null : r.id)}>
+                                {matchOpen === r.id ? "접기" : `다른 계산서 ${sug.length - 1}개 더`}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </tbody>

@@ -9270,3 +9270,19 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .ev-lined th + th { border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
 /* 세금·증빙 발행 표도 같은 규칙 — 원래 데이터 칸까지 border-l 유틸이 붙어 있던 것을 끈다 */
 .tax-invoice-list-table tbody td, .tax-invoice-list-table tfoot td { border-left-width: 0; }
+
+/* 매칭 사슬 칩 — 발행 내역 줄의 입금·프로젝트 상태 (2026-08-13 AI 매칭) */
+.ti-pair { @apply inline-flex items-center overflow-hidden rounded-full border border-[var(--border)] text-[10.5px] font-bold; }
+.ti-pair i { @apply px-2 py-0.5 not-italic; }
+.ti-pair i + i { @apply border-l border-[var(--border)]; }
+.ti-pair-ok { @apply bg-emerald-500/10 text-emerald-600; }
+.ti-pair-no { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+
+/* AI 매칭 제안 스트립 — 통장 탭, 미매칭 입금 줄 아래 (2026-08-13 기획 ②) */
+.bk-sug td { @apply border-b border-[var(--border)] py-2 px-3; background: color-mix(in srgb, var(--primary) 4%, transparent); }
+.bk-sug-in { @apply flex flex-wrap items-center gap-2 text-[12px]; }
+.bk-sug-tag { @apply inline-flex items-center rounded-full bg-[var(--primary)] px-2 py-0.5 text-[10.5px] font-bold text-white; }
+.bk-sug-row { @apply inline-flex flex-wrap items-center gap-2; }
+.bk-sug-row b { @apply font-bold text-[var(--text)]; }
+.bk-sug-row i { @apply not-italic; }
+.bk-sug-why { @apply inline-flex rounded-full px-1.5 py-px text-[10px] font-bold not-italic text-[var(--primary)]; background: color-mix(in srgb, var(--primary) 10%, transparent); }

@@ -1093,6 +1093,8 @@ function TaxInvoicesPageInner() {
   const pairGaps = useMemo(
     () => doneInvoices.filter((inv: any) => inv.status !== "matched" || !inv.deal_id).length,
     [doneInvoices]);
+  //   '미매칭만' 보기 — AI 제안에서 켠다. 메뉴 이동 없이 이 화면에서 거른다 (2026-08-13 사장님).
+  const [gapOnly, setGapOnly] = useState(false);
   const isListTab = tab === "wait" || tab === "done";
   const currentList = tab === "wait" ? waitInvoices : tab === "done" ? doneInvoices : [];
 
@@ -1296,10 +1298,13 @@ function TaxInvoicesPageInner() {
     if (!amountHit(total, c.min, c.max)) return false;
     return true;
   };
-  const tiFiltered = useMemo(() => (displayList as any[]).filter((r) => matchCond(r, live) && tiColHit(r)),
+  const tiFiltered = useMemo(() => (displayList as any[]).filter((r) =>
+    matchCond(r, live) && tiColHit(r)
+    //   '미매칭만' — 발행 내역에서만 뜻이 있다(발행 전 건은 아직 매칭 대상이 아니다)
+    && !(gapOnly && tab === "done" && r.status === "matched" && r.deal_id)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [displayList, q, live, colF]);
-  const tiPager = usePager(tiFiltered, live.size, `${tab}|${viewFromMonth}|${viewToMonth}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
+    [displayList, q, live, colF, gapOnly, tab]);
+  const tiPager = usePager(tiFiltered, live.size, `${tab}|${gapOnly}|${viewFromMonth}|${viewToMonth}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   const tiPreview = useMemo(() => (displayList as any[]).filter((r) => matchCond(r, draft)).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [displayList, q, draft]);
@@ -1333,6 +1338,7 @@ function TaxInvoicesPageInner() {
   //   걸린 조건 — 열지 않고도 보이고, ✕ 로 하나씩 뺀다
   const tiDrop = (patch: Partial<TiCond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const tiChips: AppliedChip[] = [
+    ...(gapOnly && tab === "done" ? [{ group: "매칭", label: "미매칭만", onRemove: () => setGapOnly(false) }] : []),
     ...quickTerms(q).map((t, i) => ({
       group: "빠른검색", label: t,
       onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")),
@@ -1509,17 +1515,14 @@ function TaxInvoicesPageInner() {
             )}
             <ExcelMenu items={tiExcelItems} />
             {/*   AI 제안 — 보조 기능 모음(조회 표준 이름). 줄마다 출처를 적는다. */}
+            {/*   메뉴 안에서는 AI 를 뺀다 — 그릇(AI 제안)에 이미 적혀 있다 (2026-08-13 사장님 확정).
+                  회계자료(3방향 대조표)로 넘어가던 링크는 없앴다 — 처리는 메뉴 이동 없이 여기서. */}
             <HelperMenu items={[{
-              label: "짝 없는 발행 건 보기",
+              label: "미매칭 발행 건 보기",
               source: "장부 대조",
               badge: pairGaps,
-              hint: "발행 완료됐는데 입금 또는 프로젝트가 안 붙은 건입니다 — 줄의 '연결'·'프로젝트'로 붙입니다",
-              onClick: () => setTab("done"),
-            }, {
-              label: "세금계산서 ↔ 입금 ↔ 프로젝트 대조",
-              source: "장부 대조",
-              hint: "발행 완료된 계산서가 통장 입금·프로젝트와 맞는지 3방향으로 맞춰 봅니다",
-              onClick: () => router.push("/reports/three-way-match"),
+              hint: "발행 완료됐는데 입금 또는 프로젝트가 안 매칭된 건만 걸러 봅니다 — 줄의 '연결'·'프로젝트'로 매칭합니다",
+              onClick: () => { setTab("done"); setGapOnly(true); },
             }]} />
             {/*   주 실행 — 파란 채움은 조회 줄에 이거 하나. 확정(전송)은 아래 SelectionBar 가 맡는다 */}
             <button onClick={() => setShowForm(true)} className="btn-primary btn-sm" title="세금계산서를 씁니다">
@@ -1730,7 +1733,9 @@ function TaxInvoicesPageInner() {
                       {invSortTh("tax_amount", "세액", "text-right", 5)}
                       {invSortTh("total_amount", "합계금액", "text-right", 6)}
                       {invSortTh("status", "상태", "text-center", 7)}
-                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50" style={{ width: colW.act, position: "relative" }}>관리<ColHandle k="act" colIndex={8} /></th>
+                      {/*   매칭 사슬 — 발행 내역에서만. 발행 전 건은 아직 매칭 대상이 아니다 (2026-08-13) */}
+                      {tab === "done" && <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50">매칭</th>}
+                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50" style={{ width: colW.act, position: "relative" }}>관리<ColHandle k="act" colIndex={tab === "done" ? 9 : 8} /></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1817,6 +1822,20 @@ function TaxInvoicesPageInner() {
                               return <span className="ti-send ti-send-draft" title="아직 국세청에 보내지 않았습니다">미발행</span>;
                             })()}
                           </td>
+                          {/*   매칭 사슬 칩 — 입금·프로젝트가 붙었는지 한눈에 (2026-08-13 AI 매칭 기획 ①).
+                                입금은 '연결' 버튼과, 프로젝트는 '프로젝트' 버튼과 같은 사실을 본다. */}
+                          {tab === "done" && (
+                            <td className="px-3 py-2 text-center whitespace-nowrap border-l border-[var(--border)]/40">
+                              <span className="ti-pair">
+                                <i className={inv.status === "matched" ? "ti-pair-ok" : "ti-pair-no"}>
+                                  {inv.status === "matched" ? "입금 ✓" : "입금 —"}
+                                </i>
+                                <i className={inv.deal_id ? "ti-pair-ok" : "ti-pair-no"}>
+                                  {inv.deal_id ? "프로젝트 ✓" : "프로젝트 —"}
+                                </i>
+                              </span>
+                            </td>
+                          )}
                           <td className="px-3 py-2 text-center border-l border-[var(--border)]/40" onClick={(e) => e.stopPropagation()}>
                             <div className="flex flex-nowrap items-center justify-center gap-1 whitespace-nowrap">
                               {canIssue && (
@@ -1881,7 +1900,7 @@ function TaxInvoicesPageInner() {
                       <td className="px-3 py-2.5 text-right mono-number border-l border-[var(--border)]/40">{currentList.reduce((s: number, inv: any) => s + Number(inv.supply_amount || 0), 0).toLocaleString("ko")}</td>
                       <td className="px-3 py-2.5 text-right mono-number border-l border-[var(--border)]/40">{currentList.reduce((s: number, inv: any) => s + Number(inv.tax_amount || 0), 0).toLocaleString("ko")}</td>
                       <td className="px-3 py-2.5 text-right mono-number border-l border-[var(--border)]/40 text-[var(--primary)]">{currentList.reduce((s: number, inv: any) => s + Number(inv.total_amount || 0), 0).toLocaleString("ko")}</td>
-                      <td colSpan={2} className="border-l border-[var(--border)]/40" />
+                      <td colSpan={tab === "done" ? 3 : 2} className="border-l border-[var(--border)]/40" />
                     </tr>
                   </tfoot>
                 </table>
