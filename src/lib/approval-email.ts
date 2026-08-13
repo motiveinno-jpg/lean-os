@@ -57,7 +57,7 @@ export async function sendApprovalMails(params: {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.owner-view.com';
     const link = `${origin}/approvals?request=${params.requestId}`;
 
-    const sendOne = async (email: string, name: string, authId?: string, kindLabel?: string) => {
+    const sendOne = async (email: string, name: string, authId?: string, kindLabel?: string, kindOverride?: string) => {
       try {
         const res = await fetch(`${supabaseUrl}/functions/v1/send-approval-email`, {
           method: 'POST',
@@ -67,7 +67,7 @@ export async function sendApprovalMails(params: {
             // 수신 거부·수신 주소 재정의는 서버가 이 uid 로 판정한다 (없으면 무조건 발송)
             recipientAuthId: authId || undefined,
             recipientName: name,
-            kind: params.kind,
+            kind: kindOverride || params.kind,
             kindLabel: kindLabel || KIND_SUBJECT[params.kind],
             actionTitle: params.title,
             actionType: params.requestType || 'approval',
@@ -99,7 +99,8 @@ export async function sendApprovalMails(params: {
           const chief = String((cs?.settings as any)?.approval_notify_email || '').trim();
           const alreadySent = new Set(recipients.map((r) => (r.email || '').toLowerCase()));
           if (chief.includes('@') && !alreadySent.has(chief.toLowerCase())) {
-            if (await sendOne(chief, '', undefined, '결재 상신 통보')) ok++;
+            // kind='chief_notice' — 수신자가 결재자가 아니므로 메일 문구·버튼이 '확인하러 가기'로 감
+            if (await sendOne(chief, '', undefined, '결재 상신 통보', 'chief_notice')) ok++;
           }
         }
       } catch {

@@ -141,6 +141,8 @@ const KIND_HEADLINE: Record<string, string> = {
   stage_advanced: '결재하실 차례입니다',
   reassigned: '승인자로 지정되었습니다',
   reference: '참조로 공유된 결재 건입니다',
+  // 총괄 통보 (2026-08-13 사장님) — 수신자가 결재자가 아니므로 '결재하러' 가 아니라 확인 안내
+  chief_notice: '회사에 새 결재가 상신되어 알려드립니다',
 };
 
 // 결재 요청 도착 메일 — 결과 메일과 톤을 맞추되, 행동을 요구하는 문구로.
@@ -159,7 +161,8 @@ function buildRequestEmailHtml(p: ApprovalPayload): string {
     ? `<div style="font-size:12px;color:#6b7280;margin-top:4px">단계: ${p.stage}/${p.totalStages}</div>`
     : '';
   const isReference = p.kind === 'reference';
-  const cta = isReference ? '내용 확인하기' : '결재하러 가기';
+  const isChief = p.kind === 'chief_notice';
+  const cta = isChief ? '확인하러 가기' : isReference ? '내용 확인하기' : '결재하러 가기';
 
   return `<!DOCTYPE html>
 <html lang="ko">
@@ -189,7 +192,9 @@ function buildRequestEmailHtml(p: ApprovalPayload): string {
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
         <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5">
           본 이메일은 OwnerView에서 자동 발송되었습니다.<br>
-          받고 싶지 않으시면 설정 &gt; 알림에서 '${isReference ? '결재 참조' : '결재 요청'}' 이메일을 끄실 수 있습니다.
+          ${isChief
+            ? "이 알림은 회사 설정 &gt; 회사정보 &gt; '결재 상신 알림 — 총책임자' 주소로 발송되었습니다. 주소를 비우면 더 이상 발송되지 않습니다."
+            : `받고 싶지 않으시면 설정 &gt; 알림에서 '${isReference ? '결재 참조' : '결재 요청'}' 이메일을 끄실 수 있습니다.`}
         </p>
       </td></tr>
     </table>
