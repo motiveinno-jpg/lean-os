@@ -8817,10 +8817,13 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 
 /* 조회기간 칸 오른쪽 끝에 붙는 '검색조건' — 한 덩어리로 보이게 */
 .qk-cond { @apply relative; }
-.qk-cond-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-r-lg border-l border-[var(--border)] bg-[var(--bg-surface)] px-2.5 text-[11.5px] font-bold text-[var(--text-dim)] transition-colors; }
-.qk-cond-btn:hover { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
-.qk-cond-btn-on { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
-.qk-cond-n { @apply not-italic inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[10px] font-bold text-white; }
+/*   검색조건 버튼 — 수집하기(주 실행)와 같은 파란 채움 (2026-08-13 사장님: "잘 안 보인다는 평").
+     회색 바탕이라 날짜 칸의 일부처럼 읽혀 눌러 볼 생각을 못 했다. 걸린 조건 수 배지는
+     파란 바탕 위라 흰 배지 + 파란 글자로 뒤집는다. */
+.qk-cond-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-r-lg border-l border-[var(--primary)] bg-[var(--primary)] px-2.5 text-[11.5px] font-bold text-white transition-all; }
+.qk-cond-btn:hover { @apply brightness-110; }
+.qk-cond-btn-on { @apply brightness-95; }
+.qk-cond-n { @apply not-italic inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-[var(--primary)]; }
 
 /* 검색조건 패널 — 표를 밀지 않고 떠서 열린다 */
 .qk-panel { @apply absolute left-0 top-10 z-40 w-[min(600px,calc(100vw-3rem))] rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl; }

@@ -674,6 +674,11 @@ export function BankTab({
                 </span>
               </ConditionRow>
 
+              {/*   줄 순서: 조회기간 → 입/출 → 거래처 → 나머지 (2026-08-13 사장님 지시와 같은 규칙) */}
+              <ConditionRow label="입/출">
+                <ChipGroup value={draft.io} onChange={setD("io")} options={IO_CHIPS} />
+              </ConditionRow>
+
               <ConditionRow label="거래처" hint="입금자, 여러 곳">
                 <TokenField items={whoOpts} value={draft.who} onChange={setD("who")}
                   placeholder="입금자 이름 일부 (예: 모티)" />
@@ -687,10 +692,6 @@ export function BankTab({
               <ConditionRow label="계정과목" hint="여러 개">
                 <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")}
                   placeholder="계정과목 이름 또는 코드 (예: 830)" />
-              </ConditionRow>
-
-              <ConditionRow label="입/출">
-                <ChipGroup value={draft.io} onChange={setD("io")} options={IO_CHIPS} />
               </ConditionRow>
 
               <ConditionRow label="상태">

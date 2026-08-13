@@ -764,6 +764,18 @@ export function EvidenceTab({
                 </span>
               </ConditionRow>
 
+              {/*   줄 순서: 조회기간 → 매출·매입 → 구분 → 거래처 → 나머지 (2026-08-13 사장님 지시) */}
+              <ConditionRow label="매출·매입">
+                <ChipGroup value={draft.dir} onChange={setD("dir")} options={DIR_CHIPS} />
+              </ConditionRow>
+
+              {/*   간이·면세만 모아 보는 일이 잦다 — 부가세를 공제받지 못하는 건들이다 */}
+              {kind === "card" && (
+                <ConditionRow label="구분" hint="간이·면세는 불공제">
+                  <ChipGroup value={draft.kind} onChange={setD("kind")} options={KIND_CHIPS} />
+                </ConditionRow>
+              )}
+
               <ConditionRow label="거래처" hint="여러 곳">
                 <TokenField items={partnerOpts} value={draft.partner} onChange={setD("partner")}
                   placeholder="거래처 이름 일부 (예: 모티)" />
@@ -774,20 +786,12 @@ export function EvidenceTab({
                   placeholder="계정과목 이름 또는 코드 (예: 831)" />
               </ConditionRow>
 
-              {kind === "card" && (<>
+              {kind === "card" && (
                 <ConditionRow label="카드" hint="여러 개">
                   <TokenField items={cardOpts} value={draft.card} onChange={setD("card")}
                     placeholder="카드 이름 (예: 롯데)" />
                 </ConditionRow>
-                {/*   간이·면세만 모아 보는 일이 잦다 — 부가세를 공제받지 못하는 건들이다 */}
-                <ConditionRow label="구분" hint="간이·면세는 불공제">
-                  <ChipGroup value={draft.kind} onChange={setD("kind")} options={KIND_CHIPS} />
-                </ConditionRow>
-              </>)}
-
-              <ConditionRow label="매출·매입">
-                <ChipGroup value={draft.dir} onChange={setD("dir")} options={DIR_CHIPS} />
-              </ConditionRow>
+              )}
 
               <ConditionRow label="상태">
                 <ChipGroup value={draft.todo} onChange={setD("todo")} options={STATE_CHIPS} />
