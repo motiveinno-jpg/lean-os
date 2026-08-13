@@ -8919,7 +8919,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
    (2026-08-13 사장님 지시, 목업 그대로). 낱장으로 흩어지면 "이 표가 저 조건의 결과"가 안 이어진다.
    ⚠️ 검색조건 패널·달력이 안에서 떠오르므로 overflow 를 자르지 않는다. */
 .qk-screen { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
-.qk-screen .qk-head { @apply rounded-none border-0 border-b border-[var(--border)]; }
+/*   ★ 상자 안 머리는 **배경을 칠하지 않는다** — 각진 흰 배경이 상자의 둥근 위 모서리를 덮어
+     위만 직각으로 보였다(사장님 지적). 위 모서리도 상자와 같은 값으로 맞춰 둔다. */
+.qk-screen .qk-head { @apply rounded-t-2xl border-0 border-b border-[var(--border)] bg-transparent; }
+.qk-screen .qk-head .collect-tabs { @apply rounded-t-2xl; }
 .qk-screen .ev-scroll { @apply rounded-none border-0 bg-transparent shadow-none backdrop-blur-none; }
 .qk-screen .qk-pager { @apply border-t border-[var(--border)] px-3.5; }
 .qk-screen .collect-empty { @apply rounded-none border-0 bg-transparent; }

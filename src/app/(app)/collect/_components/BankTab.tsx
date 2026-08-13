@@ -15,7 +15,7 @@
 //     ①③④ 가 하던 일은 **거래 매칭 화면(/partners/reconciliation)에 그대로 있다** — 지운 게 아니라
 //     이 화면에서 뺀 것이다. 세금계산서 수금은 여기서 계정을 '외상매출금'으로 골라도 같은 결과다.
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PickList } from "@/components/pick-list";
 import {
   QueryScreen, QueryHead, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
@@ -35,6 +35,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
 import { fetchAllPages } from "@/lib/fetch-all";
 import { exportToExcel } from "@/lib/excel-export";
+import { downloadAccountFillSheet, parseAccountFill } from "@/lib/account-fill-excel";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 
@@ -540,11 +541,53 @@ export function BankTab({
   });
   const download = (list: Row[], tag: string) =>
     exportToExcel(xlsRows(list), "통장", `통장_${from}~${to}${tag}`);
+  //   계정 일괄 지정 — 계정이 아직 없는 줄만 내려받아 엑셀에서 채우고 되올린다 (2026-08-13 사장님 승인).
+  //   ★ 되올려도 **전표는 안 생긴다** — 화면 계정 칸이 채워질 뿐이고 확정은 '일반전표 만들기'다.
+  const needAcct = shown.filter((r) => !doneOf(r) && !acctOf(r).a);
+  const fillRef = useRef<HTMLInputElement>(null);
+  const onFillFile = async (f: File) => {
+    try {
+      const { picks, fails, blank } = await parseAccountFill(f, accounts);
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const byCode = new Map(accounts.map((a) => [String(a.code), a]));
+      const next: Record<string, Acct> = {};
+      const miss: string[] = [];
+      for (const pk of picks) {
+        const row = byId.get(pk.id);
+        //   기간을 바꾼 뒤 옛 파일을 올리면 여기 걸린다 — 조용히 넘기지 않는다
+        if (!row) { miss.push(`이 조회에 없는 줄 (${pk.id.slice(0, 8)}…)`); continue; }
+        if (doneOf(row)) { miss.push(`${row.date} ${row.who} — 이미 처리된 줄`); continue; }
+        const a = byCode.get(pk.code);
+        if (a) next[pk.id] = a;
+      }
+      setAcct((prev) => ({ ...prev, ...next }));
+      const n = Object.keys(next).length;
+      const bad = [...fails, ...miss];
+      toast(
+        n > 0
+          ? `계정 ${n}건을 채웠습니다${bad.length ? ` · ${bad.length}건 실패 — ${bad[0]}` : ""} — 확인 후 전표를 만드세요`
+          : bad.length ? `채우지 못했습니다 — ${bad[0]}` : `채울 것이 없습니다 (빈 칸 ${blank}줄)`,
+        n > 0 ? "success" : bad.length ? "error" : "info");
+    } catch (e: any) {
+      toast(`엑셀을 읽지 못했습니다 — ${e?.message || "형식을 확인해 주세요"}`, "error");
+    }
+  };
+
   const excelItems: ExcelItem[] = [
     { label: "조회 결과 전부 내려받기", count: shown.length,
       hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로", onClick: () => download(shown, "") },
     { label: "지금 쪽만 내려받기", count: pager.view.length,
       hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => download(pager.view, `_${pager.page}쪽`) },
+    { label: "계정 채우기 양식 내려받기", count: needAcct.length, disabled: needAcct.length === 0,
+      hint: "계정이 아직 없는 줄만 · 둘째 장 '붙여넣기용' 칸을 복사해 채우세요 (같은 이름이 여럿이라 코드가 필요합니다)",
+      onClick: () => downloadAccountFillSheet(
+        needAcct.map((r) => ({
+          id: r.id, date: r.date, who: r.who, memo: r.desc,
+          amount: (r.isIn ? 1 : -1) * Math.abs(r.amount),
+        })), accounts, `통장_계정채우기_${from}~${to}`) },
+    { label: "채운 엑셀 올리기",
+      hint: "계정과목 칸만 채워 올리면 화면에 붙습니다 — 전표는 확인 후 직접 만듭니다",
+      onClick: () => fillRef.current?.click() },
   ];
 
   //   걸린 조건 — 조회 줄에 칩으로 남는다. 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다.
@@ -569,6 +612,9 @@ export function BankTab({
 
   return (
     <div className="ev-wrap">
+      {/*   엑셀 '채운 파일 올리기' 가 누르는 숨은 입력 — 같은 파일을 다시 골라도 열리도록 value 를 비운다 */}
+      <input ref={fillRef} type="file" accept=".xlsx,.xls" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void onFillFile(f); }} />
       {/*   ★ 탭·조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **통째로 한 상자**에 (2026-08-13 사장님 지시) */}
       <QueryScreen>
       <QueryHead>
