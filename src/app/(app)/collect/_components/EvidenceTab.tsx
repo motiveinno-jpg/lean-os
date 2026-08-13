@@ -332,6 +332,27 @@ export function EvidenceTab({
    *   "같은 카드끼리 카드대금이 빠져나가는지 거래처원장에서 확인해야 한다."
    *   카드 화면(post_card_voucher)은 이미 이렇게 하고 있었는데 수집·전표만 빠져 있었다.
    */
+  /**
+   * 가맹점 거래처 — **차변(비용) 줄에 걸 거래처** (2026-08-13 사장님 제보).
+   *   예전엔 차변 거래처를 비워 뒀고, 화면이 대변의 카드사(BC카드)를 대신 보여 줘
+   *   "차변이 BC카드로 분개된다"로 읽혔다. 실제로 들어가야 할 것은 **가맹점**이다.
+   *   가맹점은 수백 곳이라 미리 다 만들지 않는다 — 전표를 만드는 순간에만 등록한다.
+   */
+  const merchantMemo = new Map<string, string | null>();
+  const merchantPartnerOf = async (name?: string | null, bizno?: string | null): Promise<string | null> => {
+    const nm = (name || "").trim();
+    if (!nm) return null;
+    const key = `${nm}|${(bizno || "").replace(/[^0-9]/g, "")}`;
+    if (merchantMemo.has(key)) return merchantMemo.get(key) ?? null;
+    let id: string | null = null;
+    try {
+      const { data } = await (supabase.rpc as any)("resolve_merchant_partner", { p_name: nm, p_bizno: bizno || null });
+      id = (data as string) ?? null;
+    } catch { /* 거래처를 못 걸어도 전표는 만든다 — 없는 것보다 낫다 */ }
+    merchantMemo.set(key, id);
+    return id;
+  };
+
   const cardPartnerMemo = new Map<string, string | null>();
   const cardPartnerOf = async (cardName?: string | null): Promise<string | null> => {
     const nm = (cardName || "").trim();
@@ -362,20 +383,23 @@ export function EvidenceTab({
       //   ★ 카드는 **차변(비용)은 가맹점, 대변(미지급금)은 카드사** — 상대가 서로 다르다.
       //     상대계정 줄은 매출이면 첫 줄, 매입이면 마지막 줄이다(buildVoucherLines 가 그렇게 만든다).
       const cardPid = kind === "card" ? await cardPartnerOf(r.cardName) : null;
+      //   ★ 카드는 **비용 줄 = 가맹점**, 미지급금 줄 = 카드사. 둘이 다르다 (2026-08-13 사장님 제보).
+      //     예전엔 비용 줄 거래처가 비어 있었다(카드 원자료엔 partner_id 가 없다).
+      const mainPid = kind === "card" ? await merchantPartnerOf(r.partnerName, r.bizno) : r.partnerId;
       const counterIdx = vatType(vatCodeOf(r))?.side === "sale" ? 0 : lines.length - 1;
       const payload = lines.map((l, i) => ({
         account_id: resolved[i]!.id,
         debit: norm[i].side === "debit" ? norm[i].amount : 0,
         credit: norm[i].side === "credit" ? norm[i].amount : 0,
         memo: r.item || "",
-        partner_id: i === counterIdx && cardPid ? cardPid : r.partnerId,
+        partner_id: i === counterIdx && cardPid ? cardPid : mainPid,
       }));
       //   ★ '3. 일반'은 부가세 전표가 아니다 — **일반전표**로 보낸다.
       //     부가세를 안 떼므로 금액은 합계 그대로 가고, 분개는 차) 비용 / 대) 미지급금 두 줄이다.
       if (vatCodeOf(r) === GENERAL_CODE) {
         const total = r.supply + r.vat;
         const g = [
-          { account_id: resolved[0]!.id, debit: total, credit: 0, memo: r.item || "", partner_id: r.partnerId },
+          { account_id: resolved[0]!.id, debit: total, credit: 0, memo: r.item || "", partner_id: mainPid },
           { account_id: (acctByCode.get(STD.payable) ?? resolved[resolved.length - 1]!)!.id, debit: 0, credit: total, memo: r.item || "", partner_id: cardPid },
         ];
         const { error: ge } = await (supabase.rpc as any)("save_manual_voucher", {
@@ -923,7 +947,12 @@ export function EvidenceTab({
                           )}
                         </span>
                       ) : (
-                        <span className="ev-dim">{counter?.code ? `${counter.code} ${counter.name}` : "—"}</span>
+                        //   ★ 어느 카드로 긁었는지 여기서 보여 준다 (2026-08-13 사장님 지시, 통장 탭과 같은 모양).
+                        //     미지급금은 **카드사별로** 갚으므로 카드가 안 보이면 거래처원장 대조를 못 한다.
+                        <span className="ev-side">
+                          <span className="ev-dim">{counter?.code ? `${counter.code} ${counter.name}` : "—"}</span>
+                          {kind === "card" && r.cardName && <span className="bk-pt bk-pt-lock">{r.cardName}</span>}
+                        </span>
                       )}
                     </td>
                     <td className="tc">

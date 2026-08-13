@@ -349,10 +349,13 @@ export function DateRangeField({
   const cellClass = (c: { date: string; out: boolean; dow: number }) => {
     //   ★ shownFrom/shownTo — confirm 모드에서 **아직 안 올린** 기간까지 칠해 준다
     const lo = half ?? shownFrom, hi = half ?? shownTo;
-    //   기간을 안 건 상태에서는 칠하지 않는다 — 시작만 찍으면 그 하나만 표시한다
+    //   ★ 한 날을 찍으면 **그 하루만** 칠한다 (2026-08-13 사장님 지적).
+    //     예전엔 찍은 날부터 **옛 종료일까지** 칠해서, 옛 시작일보다 앞선 날을 찍으면
+    //     범위가 엉뚱하게 튀어 "선택이 풀린다"로 보였다.
+    //     하루만 남겨 두면 다음 한 번으로 앞뒤 아무 쪽이나 고를 수 있다(종료일을 먼저 찍어도 된다).
     const a = half ?? (empty ? "" : shownFrom);
-    const b = half ? (empty ? half : (half < shownTo ? shownTo : half)) : (empty ? "" : shownTo);
-    const isEdge = c.date === (half ?? shownFrom) || c.date === (half ? (half < shownTo ? shownTo : half) : shownTo);
+    const b = half ?? (empty ? "" : shownTo);
+    const isEdge = c.date === a || c.date === b;
     const inRange = c.date > a && c.date < b;
     const cls = ["drf-day"];
     if (c.out) cls.push("drf-out");
@@ -465,7 +468,7 @@ export function DateRangeField({
           <div className="drf-pop-head">
             <b>조회기간</b>
             {half
-              ? <span className="drf-half">시작 {half} · <b>{isM ? "종료 월을" : "종료일을"} 고르세요</b></span>
+              ? <span className="drf-half">{half} · <b>{isM ? "나머지 한 달" : "나머지 한 날"}을 고르세요</b> (앞뒤 상관없습니다)</span>
               : empty
                 ? <span className="drf-range">전체 기간 — 아직 기간을 걸지 않았습니다</span>
                 : <span className="drf-range mono-number">

@@ -8231,7 +8231,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ev-filter-on { @apply border-[var(--warning)] text-[var(--warning)]; }
 .ev-warn { @apply rounded-full bg-[var(--warning-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--warning)]; }
 .ev-scroll { @apply overflow-x-auto; }
-.ev-table { @apply w-full border-collapse text-[12px]; min-width: 1120px; }
+.ev-table { @apply w-full border-collapse text-[12px]; min-width: 1260px; }
 /*   머리단은 가운데 — 몸통 칸은 제 정렬을 지킨다 (2026-08-12 사장님 지시) */
 .ev-table thead th { @apply whitespace-nowrap border-b border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-center text-[10.5px] font-bold text-[var(--text-dim)]; }
 /*   ── 표 머리단 정렬 (components/sortable-th.tsx) — 모든 표가 같은 모양 ── */
@@ -9085,3 +9085,7 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 /* 닫아도 되는 이유를 적어 준다 — 안 적으면 끝날 때까지 지켜보게 된다 */
 .collect-bg-note { @apply rounded-xl border border-[var(--primary)]/30 bg-[var(--primary-light)] px-3 py-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
 .collect-bg-note b { @apply font-bold text-[var(--text)]; }
+
+/* 증빙 표의 계정 칸 — 계정 칩 옆에 카드 이름 (통장 탭의 .bk-side 와 같은 모양) */
+.ev-side { @apply inline-flex flex-row items-center gap-1 whitespace-nowrap; }
+.ev-side > * { @apply shrink-0; }
