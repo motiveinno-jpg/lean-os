@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import "@/app/landing-v6.css";
 import { CATALOG, AI_AUTOMATION, NAV_LINKS, TOUR_HREF, TOOLS_HREF, FREE_TOOLS } from "@/components/landing/content";
+import { useLandingLightTheme } from "@/components/theme-context";
 
 const NAV_AI = 99;   // 드롭다운에서 AI 자동화를 가리키는 값
 
@@ -27,6 +28,9 @@ const Arrow = () => (<svg width="16" height="16" fill="none" stroke="currentColo
 
 /** solid: 홈은 스크롤에 따라 배경이 생기고, 나머지 페이지는 항상 배경을 깐다. */
 export function LandingNav({ solid = false }: { solid?: boolean }) {
+  //   랜딩 계열은 밝은 화면 하나로만 그려져 있다 — 머무는 동안 다크를 걸지 않는다.
+  //   (겹쳐 뜨는 부품이 body 로 나가 밝은 페이지 위에 검게 뜨던 문제. 자세한 사정은 theme-context)
+  useLandingLightTheme();
   const [on, setOn] = useState(solid);
   const [menuOpen, setMenuOpen] = useState(false);
   const [drop, setDrop] = useState(false);
