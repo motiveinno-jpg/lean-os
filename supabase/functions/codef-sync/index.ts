@@ -1788,7 +1788,7 @@ serve(withSentry("codef-sync", async (req) => {
       if (!user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     } else {
       // internal 호출은 cron-tick / job-step (background sync chain) 만 허용
-      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one", "card-cron-tick", "card-cron-one", "card-approval-cron-one", "card-bizno-backfill"]);
+      const allowedInternalActions = new Set(["hometax-cron-tick", "hometax-job-step", "bank-cron-tick", "bank-cron-one", "card-cron-tick", "card-cron-one", "card-approval-cron-one", "card-approval-peek", "card-bizno-backfill"]);
       if (!allowedInternalActions.has(action)) {
         return new Response(JSON.stringify({ error: "internal auth 는 cron-tick/job-step 만 허용" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -2040,6 +2040,84 @@ serve(withSentry("codef-sync", async (req) => {
       return new Response(JSON.stringify({ ok: true, month, biznoFilled: res?.biznoFilled ?? 0, errors: res?.errors ?? [], debug: res?.debug ?? [] }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // --- Action: card-approval-peek (읽기 전용 진단 — 기간 지정 승인내역 원본 조회, DB 기록 없음) ---
+    //   2026-08-14: 중복 의심 결제를 승인시각까지 눈으로 대조하기 위한 운영 진단.
+    //   cron 윈도우(14일) 밖 과거 날짜도 조회 가능. internal auth 전용. 적재·수정 없음.
+    if (action === "card-approval-peek") {
+      if (!cid) {
+        return new Response(JSON.stringify({ ok: false, error: "no connectedId" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const peekStart = String(startDate || "").replace(/-/g, "");
+      const peekEnd = String(endDate || "").replace(/-/g, "");
+      if (peekStart.length !== 8 || peekEnd.length !== 8) {
+        return new Response(JSON.stringify({ ok: false, error: "startDate/endDate (YYYYMMDD) 필수" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const orgFilter = String(body.organization || "").trim();
+      const accounts = await getAccountList(token, cid, "card");
+      const peekCards: Array<{ org: string; isPersonal: boolean }> = [];
+      const peekSeen = new Set<string>();
+      for (const acct of accounts) {
+        const org = acct.organization;
+        if (!org) continue;
+        if (!(acct.businessType === "CD" || CARD_CODES[org])) continue;
+        if (peekSeen.has(org)) continue;
+        peekSeen.add(org);
+        peekCards.push({ org, isPersonal: acct.clientType === "P" });
+      }
+      const peekChannel = String(body.channel || "approval").trim(); // approval | billing
+      const peek: any[] = [];
+      for (const { org, isPersonal } of peekCards) {
+        if (orgFilter && org !== orgFilter) continue;
+        if (peekChannel === "billing") {
+          // 청구내역(월 명세) — 승인내역 조회기간(CF-13001) 밖의 과거 결제 대조용. YYYYMM.
+          const result = await codefRequest(token, "/v1/kr/card/b/account/billing-list", {
+            connectedId: cid, organization: org,
+            startDate: peekStart.slice(0, 6), endDate: peekEnd.slice(0, 6),
+            orderBy: "0", inquiryType: "1", memberStoreInfoType: "1",
+          });
+          const rawBillings = result.data?.resBillingList ?? result.data;
+          const billings = Array.isArray(rawBillings) ? rawBillings : rawBillings ? [rawBillings] : [];
+          const entries: any[] = [];
+          for (const bill of billings) {
+            for (const c of (bill.resChargeHistoryList || [])) {
+              entries.push({
+                dueDate: bill.resPaymentDueDate || "", date: c.resUsedDate || c.resDate || "",
+                time: c.resUsedTime || "",
+                approvalNo: c.resCardApprovalNo || c.resApprovalNo || "",
+                amount: c.resUsedAmount || c.resAmount || c.resMemberStoreAmt || 0,
+                store: c.resStoreName || c.resMemberStoreName || c.resUsedStore || "",
+                bizno: c.resMemberStoreCorpNo || "",
+              });
+            }
+          }
+          peek.push({ org, channel: "billing", code: result.result?.code, message: result.result?.message || "", entries });
+          continue;
+        }
+        const path = isPersonal ? "/v1/kr/card/p/account/approval-list" : "/v1/kr/card/b/account/approval-list";
+        const reqBody: Record<string, any> = {
+          connectedId: cid, organization: org,
+          startDate: peekStart, endDate: peekEnd,
+          orderBy: "0", inquiryType: "1", memberStoreInfoType: "1",
+        };
+        if (!isPersonal) reqBody.applicationType = "0";
+        const result = await codefRequest(token, path, reqBody);
+        let raw: any = result.data;
+        if (raw && !Array.isArray(raw) && typeof raw === "object") {
+          for (const k of ["resApprovalList", "resCardApprovalList", "resList", "list"]) {
+            if (Array.isArray(raw[k])) { raw = raw[k]; break; }
+          }
+        }
+        const entries = (Array.isArray(raw) ? raw : (raw && raw.resApprovalNo) ? [raw] : []).map((a: any) => ({
+          date: a.resUsedDate, time: a.resUsedTime,
+          approvalNo: a.resCardApprovalNo || a.resApprovalNo || "",
+          amount: a.resUsedAmount, cancelYN: a.resCancelYN,
+          store: a.resMemberStoreName, bizno: a.resMemberStoreCorpNo || "",
+        }));
+        peek.push({ org, clientType: isPersonal ? "P" : "B", channel: "approval", code: result.result?.code, message: result.result?.message || "", entries });
+      }
+      return new Response(JSON.stringify({ ok: true, peek }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // --- Action: card-approval-cron-one (회사별 카드 승인내역 자동 동기화 — card-cron-tick 가 호출) ---
