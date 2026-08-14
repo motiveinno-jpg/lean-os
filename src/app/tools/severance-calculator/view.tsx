@@ -11,6 +11,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
+import { DateField } from "@/components/date-field";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
 import { track } from "@/lib/analytics";
@@ -86,13 +87,15 @@ export default function SeveranceCalculatorView() {
 
           <div className="lp4-freetool-card">
             <div className="lp4-freetool-fields">
+              {/*   달력은 오너뷰 안에서 쓰는 것과 같은 부품(DateField) — 연차 계산기와 같은 이유
+                    (2026-08-14 사장님). onChange 가 input 호환이라 계산 로직은 그대로다. */}
               <label className="lp4-freetool-field">
                 <span className="lp4-freetool-label">입사일</span>
-                <input type="date" className="lp4-input" value={hire} max={leave || undefined} onChange={(e) => setHire(e.target.value)} />
+                <DateField className="lp4-input" value={hire} max={leave || undefined} onChange={(e) => setHire(e.target.value)} />
               </label>
               <label className="lp4-freetool-field">
                 <span className="lp4-freetool-label">퇴직일 (마지막 근무일)</span>
-                <input type="date" className="lp4-input" value={leave} min={hire || undefined} onChange={(e) => setLeave(e.target.value)} />
+                <DateField className="lp4-input" value={leave} min={hire || undefined} onChange={(e) => setLeave(e.target.value)} />
               </label>
               <label className="lp4-freetool-field">
                 <span className="lp4-freetool-label">월급 (세전 기본급+고정수당)</span>

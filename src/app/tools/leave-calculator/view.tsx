@@ -11,6 +11,7 @@ import "@/app/landing.css";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
+import { DateField } from "@/components/date-field";
 import { FOOTER } from "@/components/landing/content";
 import { FAQS } from "./faqs";
 import { track } from "@/lib/analytics";
@@ -106,13 +107,16 @@ export default function LeaveCalculatorView() {
 
           <div className="lp4-freetool-card">
             <div className="lp4-freetool-fields">
+              {/*   달력은 오너뷰 안에서 쓰는 것과 같은 부품(DateField) — 브라우저·OS 마다 다르게
+                    생기는 <input type="date"> 대신, 열리는 달력까지 우리 디자인으로 통일한다
+                    (2026-08-14 사장님). onChange 가 input 호환이라 계산 로직은 그대로다. */}
               <label className="lp4-freetool-field">
                 <span className="lp4-freetool-label">입사일</span>
-                <input type="date" className="lp4-input" value={hire} max={base} onChange={(e) => setHire(e.target.value)} />
+                <DateField className="lp4-input" value={hire} max={base} onChange={(e) => setHire(e.target.value)} />
               </label>
               <label className="lp4-freetool-field">
                 <span className="lp4-freetool-label">기준일 (오늘)</span>
-                <input type="date" className="lp4-input" value={base} onChange={(e) => setBase(e.target.value)} />
+                <DateField className="lp4-input" value={base} onChange={(e) => setBase(e.target.value)} />
               </label>
             </div>
 
@@ -137,7 +141,14 @@ export default function LeaveCalculatorView() {
                 </div>
               </div>
             ) : (
-              <div className="lp4-freetool-empty">입사일을 선택하면 바로 계산됩니다</div>
+              //   달력에 '지우기'가 생겨 기준일도 비울 수 있게 됐다 — 무엇이 비었는지 그대로 적는다
+              //   ("입사일을 선택하세요"만 띄우면 입사일을 넣은 사람은 왜 안 되는지 모른다)
+              <div className="lp4-freetool-empty">
+                {!hire && !base ? "입사일과 기준일을 선택하면 바로 계산됩니다"
+                  : !hire ? "입사일을 선택하면 바로 계산됩니다"
+                  : !base ? "기준일을 선택하면 바로 계산됩니다"
+                  : "기준일은 입사일보다 뒤여야 합니다"}
+              </div>
             )}
           </div>
 
