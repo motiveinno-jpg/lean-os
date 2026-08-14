@@ -13,7 +13,6 @@ import { supabase } from "@/lib/supabase";
 import { ToastProvider, useToast } from "@/components/toast";
 import { logAuditTrail } from "@/lib/audit-trail";
 import { generatePackageHash, storeDocumentHash } from "@/lib/document-integrity";
-import { injectContractInlineStyles } from "@/lib/signatures";
 import { parseSiyanFields, validateInputs, isFieldActive, applySignerInputsToHtml, type SignerField } from "@/lib/signature-fields";
 import { buildPartnerReplacements, applyTokenReplacements } from "@/lib/signer-replacements";
 import { usePrintIsolation } from "@/lib/use-print-isolation";
@@ -100,7 +99,10 @@ function renderSignerBody(
   signerInputs: Record<string, string>,
   setSignerInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>,
 ): React.ReactNode {
-  const styled = injectContractInlineStyles(rawHtml);
+  //   2026-08-14 사장님: 서명 화면이 근로계약·서식탭 미리보기와 "아예 똑같이" 보여야 한다.
+  //   표 폭을 강제로 바꾸던 injectContractInlineStyles 를 화면 경로에서 제거 — 원본(에디터가 저장한
+  //   colgroup/width)을 그대로 두고 .doc-preview-page 가 서식탭과 동일하게 그린다. (PDF 경로는 별개)
+  const styled = rawHtml;
 
   const replaceTokensInText = (text: string): React.ReactNode[] => {
     type M = { idx: number; len: number; type: "radio" | "text"; inner: string };
@@ -1045,7 +1047,8 @@ function SignContent() {
                 })}
                 {(!Array.isArray(cj?.sections) || cj.sections.length === 0) && cj?.body && (
                   /^\s*</.test(String(cj.body)) ? (
-                    <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(cj.body)), signerInputs))) }} />
+                    // 서식탭 미리보기와 동일 문서 타이포(.doc-preview-page) — 카드 안이라 페이지 장식만 끔 (2026-08-14)
+                    <div className="doc-preview-page doc-page-in-card overflow-x-auto" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(applySignerInputsToHtml(stripSignatureBlock(String(cj.body)), signerInputs)) }} />
                   ) : (
                     <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                       {stripSignatureBlock(String(cj.body))}
@@ -1204,7 +1207,8 @@ function SignContent() {
             {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
               /^\s*</.test(String(content.body)) ? (
                 // 서명 완료 상태 — 저장된 signer_inputs 로 ☑/☐ 정적 합성(편집 불가).
-                <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(injectContractInlineStyles(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs))) }} />
+                // 서식탭 미리보기와 동일 문서 타이포(.doc-preview-page) — 카드 안이라 페이지 장식만 끔 (2026-08-14)
+                <div className="doc-preview-page doc-page-in-card overflow-x-auto" dangerouslySetInnerHTML={{ __html: sanitizeDocumentHtml(applySignerInputsToHtml(stripSignatureBlock(String(content.body)), signerInputs)) }} />
               ) : (
                 <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                   {stripSignatureBlock(String(content.body))}
@@ -1227,7 +1231,20 @@ function SignContent() {
           </div>
         ) : (
           <>
-            {/* Document body */}
+            {/* Document body — HTML 서식(근로계약서 등)은 근로계약·서식탭 미리보기와
+                동일한 문서 페이지(.doc-preview-page)로 그린다 (2026-08-14 사장님: "아예 똑같이").
+                섹션형·일반 텍스트 문서는 기존 카드 렌더 유지. */}
+            {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && /^\s*</.test(String(content.body)) ? (
+              <div className="sign-doc-page-wrap">
+                <div className="doc-preview-page">
+                  {/* 본문에 제목(h1)이 이미 있으면 중복 제목을 얹지 않는다 */}
+                  {content?.title && !/<h1[\s>]/i.test(String(content.body)) && <h1>{content.title}</h1>}
+                  {/* 라이브 서명 화면 — html-react-parser 로 본문을 React tree 로 변환.
+                      토큰({{?라디오:...}}/{{?텍스트:...}}) 자리에 RadioInline/TextInline 직접 mount. */}
+                  {renderSignerBody(stripSignatureBlock(String(content.body)), signerInputs, setSignerInputs)}
+                </div>
+              </div>
+            ) : (
             <div className="sign-doc-body-card">
               {content?.title && (
                 <h2 className="text-xl font-bold text-center text-gray-900 mb-6 pb-4 border-b border-gray-100">
@@ -1247,18 +1264,9 @@ function SignContent() {
               {/* Built-in 템플릿은 sections 가 아닌 단일 body 텍스트 — fallback 렌더.
                   2026-05-21: sections:[] (빈 배열, truthy) 회귀 fix — Array.length 명시 검사. */}
               {(!Array.isArray(content?.sections) || content.sections.length === 0) && content?.body && (
-                /^\s*</.test(String(content.body)) ? (
-                  // 라이브 서명 화면 — html-react-parser 로 본문을 React tree 로 변환.
-                  // 토큰({{?라디오:...}}/{{?텍스트:...}}) 자리에 RadioInline/TextInline 직접 mount.
-                  // 토큰 없는 일반 서식도 parse() 결과는 동일(라이브러리 자동 재구성).
-                  <div className="text-sm sm:text-[15px] text-gray-700 leading-relaxed prose prose-sm sm:prose-base max-w-none overflow-x-auto">
-                    {renderSignerBody(stripSignatureBlock(String(content.body)), signerInputs, setSignerInputs)}
-                  </div>
-                ) : (
                   <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {stripSignatureBlock(String(content.body))}
                   </div>
-                )
               )}
               {(!Array.isArray(content?.sections) || content.sections.length === 0) && !content?.body && (
                 <div className="text-center text-gray-400 text-sm py-8">
@@ -1266,6 +1274,7 @@ function SignContent() {
                 </div>
               )}
             </div>
+            )}
 
             {/* 2026-05-28 서명자 입력 — 본문 토큰 자리에 인라인 렌더(html-react-parser).
                 별도 입력 카드 제거. 미입력 항목만 작은 알림 바로 표시(서명 완료 가드). */}
