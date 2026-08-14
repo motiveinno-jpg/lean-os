@@ -231,7 +231,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(500);
@@ -365,7 +365,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-recent-tx", companyId, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(2000);
@@ -458,7 +458,7 @@ export default function CardsPage() {
     const dir = sortDir === "asc" ? 1 : -1;
     const get = (tx: any) => {
       switch (sortKey) {
-        case "transaction_date": return tx.transaction_date || "";
+        case "transaction_date": return `${tx.transaction_date || ""} ${tx.transaction_time || ""}`; // 같은 날짜는 승인 시각순
         case "amount": return Math.abs(Number(tx.amount || 0));
         case "merchant_name": return tx.merchant_name || "";
         case "classification": return classificationLabel(tx.classification) || tx.category || "";
@@ -893,7 +893,7 @@ export default function CardsPage() {
                         <p className={`text-sm sm:text-base font-bold mono-number ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>
                           {Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
                         </p>
-                        <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}</span>
+                        <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}{tx.transaction_time ? ` ${String(tx.transaction_time).slice(0, 5)}` : ""}</span>
                         {tx.journal_entry_id ? (
                           <span className="text-[10px] px-2 py-1 rounded-lg bg-[var(--success-dim)] text-[var(--success)] font-semibold shrink-0">전표처리됨</span>
                         ) : (
@@ -1049,6 +1049,8 @@ export default function CardsPage() {
                         <td className={`px-3 py-2.5 font-semibold mono-number text-right ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
                         <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number">
                           {tx.transaction_date}
+                          {/* 승인 시각 — 승인내역이 준 건만 있다. 청구내역만 있는 건(옛 데이터·일부 카드사)은 날짜만. */}
+                          {tx.transaction_time && <span className="ml-1.5 text-[11px] text-[var(--text-dim)]">{String(tx.transaction_time).slice(0, 5)}</span>}
                           {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}
                         </td>
                       </tr>

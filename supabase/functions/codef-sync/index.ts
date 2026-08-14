@@ -728,12 +728,15 @@ async function syncCardBilling(
             dupRow = (dupHits as typeof dupRow[] | null)?.[0] ?? null;
           }
 
+          // 청구내역은 대부분 시각이 없다(있는 카드사만 저장) — 없으면 null, 승인내역 sync 가 나중에 채운다.
+          const chargeTime = String(charge.resUsedTime || "");
           const upsertRow: Record<string, any> = {
             company_id: companyId,
             external_id: externalId,
             amount: Number(usedAmount),
             merchant_name: storeName,
             transaction_date: formattedDate,
+            ...(chargeTime.length === 6 ? { transaction_time: `${chargeTime.slice(0, 2)}:${chargeTime.slice(2, 4)}:${chargeTime.slice(4, 6)}` } : {}),
             approval_number: approvalNo || null,
             card_name: charge.resCardName || CARD_CODES[org] || null,
             //   못 받은 회차엔 아예 안 보낸다 — 한 번 채워 둔 번호를 빈 응답이 지우지 않게. (2026-08-12)
@@ -1032,6 +1035,11 @@ async function syncCardApprovals(
         dupExists = ((dupHits as unknown[] | null)?.length ?? 0) > 0;
       }
 
+      // 결제 승인 시각 (HHMMSS → HH:MM:SS). 승인내역에만 있다 — 청구내역 건은 null 유지.
+      const txTime = usedTime.length === 6
+        ? `${usedTime.slice(0, 2)}:${usedTime.slice(2, 4)}:${usedTime.slice(4, 6)}`
+        : null;
+
       if (!dupExists) {
       const { error } = await supabase.from("card_transactions").upsert({
         company_id: companyId,
@@ -1039,6 +1047,7 @@ async function syncCardApprovals(
         amount,
         merchant_name: cancelTag ? `${cancelTag}${storeName}` : storeName,
         transaction_date: formattedDate,
+        transaction_time: txTime,
         approval_number: approvalNo,
         card_name: a.resCardName || CARD_CODES[org] || null,
         installments,
@@ -1053,6 +1062,17 @@ async function syncCardApprovals(
       } else {
         totalSynced++;
       }
+      }
+
+      //   결제 시각도 같은 방식으로 얹는다 — 청구내역으로 먼저 들어온 행(시각 없음)에
+      //   승인내역이 아는 시각만 채운다. 값이 이미 있으면 안 건드린다. (2026-08-14)
+      if (txTime) {
+        await supabase.from("card_transactions")
+          .update({ transaction_time: txTime })
+          .eq("company_id", companyId)
+          .eq("transaction_date", formattedDate)
+          .eq("approval_number", approvalNo)
+          .is("transaction_time", null);
       }
 
       //   위 upsert 는 ignoreDuplicates 라 **이미 있는 행은 절대 안 건드린다**(사용자 매핑 보호).

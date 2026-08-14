@@ -2180,6 +2180,7 @@ export type Database = {
           tags: string[] | null
           tax_invoice_id: string | null
           transaction_date: string
+          transaction_time: string | null
           used_by_employee_id: string | null
         }
         Insert: {
@@ -2213,6 +2214,7 @@ export type Database = {
           tags?: string[] | null
           tax_invoice_id?: string | null
           transaction_date: string
+          transaction_time?: string | null
           used_by_employee_id?: string | null
         }
         Update: {
@@ -2246,6 +2248,7 @@ export type Database = {
           tags?: string[] | null
           tax_invoice_id?: string | null
           transaction_date?: string
+          transaction_time?: string | null
           used_by_employee_id?: string | null
         }
         Relationships: [
