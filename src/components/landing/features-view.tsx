@@ -14,6 +14,7 @@ import "@/app/landing-v6.css";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { SwipeDeck } from "@/components/landing/swipe-deck";
 import { useNarrow } from "@/components/landing/scene";
@@ -61,17 +62,21 @@ export default function FeaturesView() {
     window.history.replaceState(null, "", `?g=${CATALOG[c].key}${m ? `&m=${m}` : ""}`);
   };
 
-  // 메인 메가메뉴에서 ?g=워크스페이스&m=2 로 넘어오면 그 그룹·메뉴를 열어 둔다
+  // 메인 메가메뉴에서 ?g=워크스페이스&m=2 로 넘어오면 그 그룹·메뉴를 연다.
+  //   ⚠️ 이미 /features 에 있는 상태에서 메가메뉴의 다른 세부탭을 누르면 주소(query)만 바뀌고
+  //   컴포넌트는 다시 마운트되지 않는다 — 첫 마운트에만 읽던 탓에 화면이 안 넘어갔다(2026-08-15 사장님 제보).
+  //   useSearchParams 로 주소 변화를 계속 반영한다. m 이 없거나 범위를 벗어나면 0(전체/첫 메뉴)으로 —
+  //   그룹만 바꿀 때 이전 그룹의 메뉴 번호가 남아 범위를 벗어나는 것도 함께 막는다.
+  const sp = useSearchParams();
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search);
-    if (q.get("g") === "ai") { window.location.replace("/ai"); return; }
-    const g = CATALOG.findIndex((c) => c.key === q.get("g"));
+    if (sp.get("g") === "ai") { window.location.replace("/ai"); return; }
+    const g = CATALOG.findIndex((c) => c.key === sp.get("g"));
     if (g >= 0) {
       setCat(g);
-      const m = Number(q.get("m"));
-      if (Number.isInteger(m) && m >= 0 && m < CATALOG[g].menus.length) setMenu(m);
+      const m = Number(sp.get("m"));
+      setMenu(Number.isInteger(m) && m >= 0 && m < CATALOG[g].menus.length ? m : 0);
     }
-  }, []);
+  }, [sp]);
 
   return (
     <div className="lp4-root">
