@@ -704,6 +704,38 @@ async function syncCardBilling(
           : new Date().toISOString().split("T")[0];
 
         if (!biznoOnly) {
+          //   ★ 해외 결제는 같은 결제가 승인·청구 두 채널로 들어오는데 금액(환율 확정)과
+          //     가맹점명(SUPABASE PTE LTD ↔ SUPABASE(USD))이 서로 달라 external_id 도,
+          //     내용 대조 트리거(card_tx_prevent_dup)도 못 잡고 두 줄이 쌓였다. (2026-08-14)
+          //     같은 카드사·같은 일자·같은 승인번호면 같은 결제다 — 이미 있으면 새로 안 쌓는다.
+          //     취소·환불(음수 금액, [취소] 표시)은 별 사건이므로 대조 대상에서 뺀다.
+          let dupRow: { id: string; amount: number; mapping_status: string; journal_entry_id: string | null; raw_data: Record<string, unknown> | null } | null = null;
+          if (approvalNo && Number(usedAmount) > 0) {
+            const { data: dupHits } = await supabase.from("card_transactions")
+              .select("id, amount, mapping_status, journal_entry_id, raw_data")
+              .eq("company_id", companyId)
+              .eq("transaction_date", formattedDate)
+              .eq("approval_number", approvalNo)
+              .neq("external_id", externalId)
+              .like("external_id", `codef_card_${org}_%`)
+              .gt("amount", 0)
+              .not("merchant_name", "like", "[%")
+              .limit(1);
+            dupRow = (dupHits as typeof dupRow[] | null)?.[0] ?? null;
+          }
+
+          if (dupRow) {
+            //   승인내역으로 먼저 들어온 행이 있다 — 새 행 대신, 아직 안 쓰인 행이면
+            //   승인 시점 환산액을 청구 확정액으로 바로잡는다 (매핑·전표 붙은 행은 안 건드림).
+            if (dupRow.mapping_status === "unmapped" && !dupRow.journal_entry_id && Number(dupRow.amount) !== Number(usedAmount)) {
+              await supabase.from("card_transactions")
+                .update({
+                  amount: Number(usedAmount),
+                  raw_data: { ...(dupRow.raw_data || {}), chargeConfirm: { usedDate, usedTime: charge.resUsedTime || "", charge } },
+                })
+                .eq("id", dupRow.id);
+            }
+          } else {
           const { error } = await supabase.from("card_transactions").upsert({
             company_id: companyId,
             external_id: externalId,
@@ -726,6 +758,7 @@ async function syncCardBilling(
             }
           } else {
             totalSynced++;
+          }
           }
         }
 
@@ -870,6 +903,25 @@ async function syncCardApprovals(
       // billing-list 와 동일 포맷 → 같은 승인건 자동 dedup.
       const externalId = `codef_card_${org}_${usedDate}_${usedTime}_${approvalNo}`;
 
+      //   ★ 청구내역이 먼저 들어온 해외 결제는 external_id(사용시각 없음)·금액(환율)·가맹점명이
+      //     서로 달라 여기서 두 줄이 됐다 — 같은 카드사·일자·승인번호가 이미 있으면 안 쌓는다. (2026-08-14)
+      //     취소([취소] 표시, 음수)는 별 사건이라 대조하지 않는다. 사업자번호 얹기는 그대로 지나간다.
+      let dupExists = false;
+      if (cancelYN !== "1" && cancelYN !== "2" && amount > 0) {
+        const { data: dupHits } = await supabase.from("card_transactions")
+          .select("id")
+          .eq("company_id", companyId)
+          .eq("transaction_date", formattedDate)
+          .eq("approval_number", approvalNo)
+          .neq("external_id", externalId)
+          .like("external_id", `codef_card_${org}_%`)
+          .gt("amount", 0)
+          .not("merchant_name", "like", "[%")
+          .limit(1);
+        dupExists = ((dupHits as unknown[] | null)?.length ?? 0) > 0;
+      }
+
+      if (!dupExists) {
       const { error } = await supabase.from("card_transactions").upsert({
         company_id: companyId,
         external_id: externalId,
@@ -889,6 +941,7 @@ async function syncCardApprovals(
         debug.push(`card ${org} approval insert error: ${error.message}`);
       } else {
         totalSynced++;
+      }
       }
 
       //   위 upsert 는 ignoreDuplicates 라 **이미 있는 행은 절대 안 건드린다**(사용자 매핑 보호).
