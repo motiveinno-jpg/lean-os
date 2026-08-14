@@ -641,6 +641,10 @@ async function syncCardBilling(
   let totalSynced = 0;
   let debuggedChargeKeys = false;
   let debuggedInsertErr = false;
+  //   수집 후 검증용 — 명세에서 받은 모든 건을 기억해 두고, 끝에서 DB에 실제로 있는지 대조한다.
+  //   upsert 가 "성공" 응답이어도 BEFORE INSERT 트리거가 조용히 버릴 수 있어(2026-08-12 사업자번호
+  //   유실 사건과 같은 뿌리) 응답만 믿으면 안 된다. (2026-08-14)
+  const fetchedForRecon: Array<{ row: Record<string, any>; date: string; approvalNo: string; amount: number; store: string }> = [];
   //   가맹점 사업자번호가 실제로 몇 건이나 오는지 — 카드사가 안 주는 것과 우리가 안 뽑는 것을
   //   다음 사람이 구분할 수 있게 남긴다. (2026-08-12)
   let biznoSeen = 0, biznoTotal = 0, biznoFilled = 0;
@@ -724,19 +728,7 @@ async function syncCardBilling(
             dupRow = (dupHits as typeof dupRow[] | null)?.[0] ?? null;
           }
 
-          if (dupRow) {
-            //   승인내역으로 먼저 들어온 행이 있다 — 새 행 대신, 아직 안 쓰인 행이면
-            //   승인 시점 환산액을 청구 확정액으로 바로잡는다 (매핑·전표 붙은 행은 안 건드림).
-            if (dupRow.mapping_status === "unmapped" && !dupRow.journal_entry_id && Number(dupRow.amount) !== Number(usedAmount)) {
-              await supabase.from("card_transactions")
-                .update({
-                  amount: Number(usedAmount),
-                  raw_data: { ...(dupRow.raw_data || {}), chargeConfirm: { usedDate, usedTime: charge.resUsedTime || "", charge } },
-                })
-                .eq("id", dupRow.id);
-            }
-          } else {
-          const { error } = await supabase.from("card_transactions").upsert({
+          const upsertRow: Record<string, any> = {
             company_id: companyId,
             external_id: externalId,
             amount: Number(usedAmount),
@@ -749,7 +741,22 @@ async function syncCardBilling(
             source: "codef_card",
             mapping_status: "unmapped",
             raw_data: { cardNo, organization: org, usedDate, usedTime: charge.resUsedTime || "", charge },
-          }, { onConflict: "external_id" });
+          };
+          fetchedForRecon.push({ row: upsertRow, date: formattedDate, approvalNo: String(approvalNo || ""), amount: Number(usedAmount), store: storeName });
+
+          if (dupRow) {
+            //   승인내역으로 먼저 들어온 행이 있다 — 새 행 대신, 아직 안 쓰인 행이면
+            //   승인 시점 환산액을 청구 확정액으로 바로잡는다 (매핑·전표 붙은 행은 안 건드림).
+            if (dupRow.mapping_status === "unmapped" && !dupRow.journal_entry_id && Number(dupRow.amount) !== Number(usedAmount)) {
+              await supabase.from("card_transactions")
+                .update({
+                  amount: Number(usedAmount),
+                  raw_data: { ...(dupRow.raw_data || {}), chargeConfirm: { usedDate, usedTime: charge.resUsedTime || "", charge } },
+                })
+                .eq("id", dupRow.id);
+            }
+          } else {
+          const { error } = await supabase.from("card_transactions").upsert(upsertRow, { onConflict: "external_id" });
 
           if (error) {
             if (!debuggedInsertErr) {
@@ -797,7 +804,111 @@ async function syncCardBilling(
   if (biznoTotal > 0) {
     debug.push(`card 가맹점 사업자번호: 응답 ${biznoSeen}/${biznoTotal}건${biznoOnly ? " (번호만 채우기 모드)" : ""} · 새로 채운 행 ${biznoFilled}`);
   }
-  return { synced: totalSynced, biznoFilled, errors, debug };
+
+  //   ── 수집 후 검증 ──  명세에서 받은 건이 DB에 실제로 있는지 전수 대조. (2026-08-14)
+  //   "같은 결제"의 다른 표현(승인·청구, 상호 표기차)이 이미 있으면 있는 것으로 친다 —
+  //   승인번호 일치 또는 (일자·금액·상호) 일치. 그래도 없으면 한 번 더 적재하고,
+  //   그마저 안 들어가면 errors 로 격상해 sync_logs 에서 바로 보이게 한다.
+  if (!biznoOnly && fetchedForRecon.length > 0) {
+    try {
+      const dates = [...new Set(fetchedForRecon.map((f) => f.date))];
+      const { data: dbRows } = await supabase.from("card_transactions")
+        .select("transaction_date, approval_number, amount, merchant_name")
+        .eq("company_id", companyId)
+        .in("transaction_date", dates);
+      const byApproval = new Set<string>();
+      const byContent = new Set<string>();
+      for (const r of (dbRows || [])) {
+        if (r.approval_number) byApproval.add(`${r.transaction_date}|${r.approval_number}`);
+        byContent.add(`${r.transaction_date}|${Number(r.amount)}|${r.merchant_name || ""}`);
+      }
+      const isPresent = (f: typeof fetchedForRecon[number]) =>
+        (f.approvalNo && byApproval.has(`${f.date}|${f.approvalNo}`)) ||
+        byContent.has(`${f.date}|${f.amount}|${f.store}`);
+
+      const missing = fetchedForRecon.filter((f) => !isPresent(f));
+      if (missing.length > 0) {
+        for (const f of missing) {
+          await supabase.from("card_transactions").upsert(f.row, { onConflict: "external_id" });
+        }
+        // 재적재 후 실존 재확인
+        const { data: recheck } = await supabase.from("card_transactions")
+          .select("transaction_date, approval_number, amount, merchant_name")
+          .eq("company_id", companyId)
+          .in("transaction_date", [...new Set(missing.map((f) => f.date))]);
+        const byApproval2 = new Set<string>();
+        const byContent2 = new Set<string>();
+        for (const r of (recheck || [])) {
+          if (r.approval_number) byApproval2.add(`${r.transaction_date}|${r.approval_number}`);
+          byContent2.add(`${r.transaction_date}|${Number(r.amount)}|${r.merchant_name || ""}`);
+        }
+        const stillMissing = missing.filter((f) =>
+          !(f.approvalNo && byApproval2.has(`${f.date}|${f.approvalNo}`)) &&
+          !byContent2.has(`${f.date}|${f.amount}|${f.store}`));
+        debug.push(`검증: 명세 ${fetchedForRecon.length}건 중 누락 ${missing.length}건 재적재 → 미해결 ${stillMissing.length}건`);
+        for (const f of stillMissing.slice(0, 10)) {
+          errors.push({
+            accountNo: "", organization: "",
+            code: "RECON_MISSING",
+            message: `명세 건이 DB에 안 들어감: ${f.date} ${f.store} ${f.amount.toLocaleString()}원 (승인 ${f.approvalNo || "없음"})`,
+            hint: "card_tx_prevent_dup 트리거/제약과의 충돌 여부를 확인하세요.",
+          });
+        }
+      } else {
+        debug.push(`검증: 명세 ${fetchedForRecon.length}건 전부 DB 반영 확인`);
+      }
+    } catch (e: any) {
+      debug.push(`검증 실패(수집 자체는 정상): ${e?.message || e}`);
+    }
+  }
+
+  return { synced: totalSynced, biznoFilled, errors, debug, orgs: [...cardOrgs] };
+}
+
+// 카드사 유실 감시 — 최근까지 수집되던 카드사가 CODEF 계정 목록에서 사라지면 크게 알린다.
+//   2026-08-05 실사고: 재등록 폴백이 BC카드 계정을 지운 채 실패했는데 크론은 남은 카드사만
+//   조용히 돌아서 9일간 아무도 몰랐다. "오류 없음"과 "전부 수집됨"은 다르다 — 여기서 대조한다.
+async function alertMissingCardOrgs(
+  supabase: any, companyId: string, seenOrgs: string[],
+): Promise<string[]> {
+  const missing: string[] = [];
+  try {
+    const seen = new Set(seenOrgs);
+    for (const org of Object.keys(CARD_CODES)) {
+      if (seen.has(org)) continue;
+      // 최근 45일 내 이 카드사 거래가 적재된 적이 있나 (있는데 목록에 없으면 유실)
+      const { data: recent } = await supabase.from("card_transactions")
+        .select("id").eq("company_id", companyId)
+        .like("external_id", `codef_card_${org}_%`)
+        .gte("created_at", new Date(Date.now() - 45 * 86400000).toISOString())
+        .limit(1);
+      if (!recent || recent.length === 0) continue;
+      missing.push(org);
+
+      // 인앱 알림 — 마스터에게. 크론이 2시간마다 돌므로 24시간 내 같은 알림은 다시 안 보낸다.
+      //   type 은 notifications CHECK 허용 목록에 있는 'system' 만 통과한다 ('sync'는 무음 실패 — 2026-08-14 실측).
+      const title = `카드 수집 중단: ${CARD_CODES[org]}`;
+      const { data: dup } = await supabase.from("notifications")
+        .select("id").eq("company_id", companyId).eq("title", title)
+        .gte("created_at", new Date(Date.now() - 24 * 3600000).toISOString())
+        .limit(1);
+      if (dup && dup.length > 0) continue;
+      const { data: masters } = await supabase.from("users")
+        .select("id").eq("company_id", companyId).eq("is_master", true);
+      const rows = (masters || []).map((m: { id: string }) => ({
+        company_id: companyId,
+        user_id: m.id,
+        type: "system",
+        title,
+        message: `${CARD_CODES[org]} 계정이 연결 목록에서 사라져 거래 수집이 멈췄습니다. 설정 > API 연동에서 ${CARD_CODES[org]}를 다시 등록해 주세요.`,
+        link: "/settings",
+      }));
+      if (rows.length) await supabase.from("notifications").insert(rows);
+    }
+  } catch (e) {
+    console.error("alertMissingCardOrgs failed", e); // 감시 실패가 수집을 막지 않게
+  }
+  return missing;
 }
 
 // 카드 승인내역(실시간) sync — 청구서 마감 전에도 결제 즉시 거래 반영.
@@ -1074,6 +1185,22 @@ async function registerAccount(
     if (delRes.result?.code === "CF-00000") {
       path = "/v1/account/add";
       result = await codefRequest(token, path, body);
+      //   ⚠️ 2026-08-05 실사고: delete 성공 직후 add 가 CF-04009(중복)로 거부됨 — CODEF 측
+      //     삭제 반영 지연. 여기서 포기하면 계정은 이미 지워진 채 남아 BC카드 수집이
+      //     9일간 소리 없이 끊겼다. 지연 흡수를 위해 잠시 기다렸다 재시도한다.
+      for (let retry = 0; retry < 3 && result.result?.code === "CF-04009"; retry++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        console.log(`[CODEF] add after delete got CF-04009 — retry ${retry + 1}/3 (deletion propagation)`);
+        result = await codefRequest(token, path, body);
+      }
+      if (result.result?.code !== "CF-00000") {
+        //   재시도로도 복구 실패 = 기존 계정은 지워졌고 새 계정은 안 붙었다.
+        //   "등록 실패"로만 보이면 이전 연결이 살아있는 줄 알게 되므로 상태를 명시한다.
+        result.result = {
+          ...result.result,
+          message: `${result.result?.message || "등록 실패"} — ⚠️ 기존 ${organization} 계정은 삭제된 상태입니다. 이 카드/은행의 자동 수집이 멈춰 있으니 반드시 다시 등록해 주세요.`,
+        };
+      }
     } else {
       console.error(`[CODEF] delete fallback failed (${delRes.result?.code})`);
     }
@@ -2001,11 +2128,26 @@ serve(withSentry("codef-sync", async (req) => {
       if (!cid) {
         return new Response(JSON.stringify({ ok: true, skipped: "no connectedId" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      const endC = new Date().toISOString().split("T")[0].replace(/-/g, "");
-      const startC = (() => { const d = new Date(); d.setDate(d.getDate() - 35); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      //   기간 지정 재수집 (2026-08-14): 과거 어느 달이든 카드사 명세 기준으로 다시 채울 수 있게
+      //   internal 호출에 한해 startDate/endDate(YYYYMMDD) 를 받는다. 미지정이면 기존 35일 윈도우.
+      const ovrEnd = String(endDate || "").replace(/-/g, "");
+      const ovrStart = String(startDate || "").replace(/-/g, "");
+      const endC = ovrEnd.length === 8 ? ovrEnd : new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const startC = ovrStart.length === 8 ? ovrStart : (() => { const d = new Date(); d.setDate(d.getDate() - 35); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
       let cardRes: any = null;
       try {
         cardRes = await syncCardBilling(supabase, token, companyId, cid, startC, endC);
+        //   수집이 "성공"해도 카드사 자체가 목록에서 빠져 있으면 그 카드는 0건으로 조용히 새는
+        //   상태다 — 최근까지 적재되던 카드사가 사라졌으면 오류로 격상 + 마스터에게 인앱 알림.
+        const missingOrgs = await alertMissingCardOrgs(supabase, companyId, cardRes?.orgs || []);
+        for (const org of missingOrgs) {
+          cardRes.errors = cardRes.errors || [];
+          cardRes.errors.push({
+            accountNo: "", organization: org, code: "ORG_MISSING",
+            message: `${CARD_CODES[org]} 계정이 CODEF 연결 목록에서 사라짐 — 수집 중단 상태`,
+            hint: "설정 > API 연동에서 해당 카드사를 다시 등록하세요.",
+          });
+        }
       } catch (e: any) {
         return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -2067,6 +2209,11 @@ serve(withSentry("codef-sync", async (req) => {
         peekCards.push({ org, isPersonal: acct.clientType === "P" });
       }
       const peekChannel = String(body.channel || "approval").trim(); // approval | billing
+      // 계정 목록 원본 요약 — 카드사가 목록에서 소리 없이 빠졌을 때(BC 2026-08-05) 원인 추적용.
+      const accountsRaw = accounts.map((a: any) => ({
+        organization: a.organization, businessType: a.businessType, clientType: a.clientType,
+        loginType: a.loginType, accountName: a.accountName || "", lastStatus: a.lastResultCode || a.resultCode || "",
+      }));
       const peek: any[] = [];
       for (const { org, isPersonal } of peekCards) {
         if (orgFilter && org !== orgFilter) continue;
@@ -2117,7 +2264,7 @@ serve(withSentry("codef-sync", async (req) => {
         }));
         peek.push({ org, clientType: isPersonal ? "P" : "B", channel: "approval", code: result.result?.code, message: result.result?.message || "", entries });
       }
-      return new Response(JSON.stringify({ ok: true, peek }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ ok: true, accounts: accountsRaw, peek }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // --- Action: card-approval-cron-one (회사별 카드 승인내역 자동 동기화 — card-cron-tick 가 호출) ---
@@ -2128,8 +2275,11 @@ serve(withSentry("codef-sync", async (req) => {
       if (!cid) {
         return new Response(JSON.stringify({ ok: true, skipped: "no connectedId" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      const endC = new Date().toISOString().split("T")[0].replace(/-/g, "");
-      const startC = (() => { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      //   기간 지정 재수집 — card-cron-one 과 동일 (카드사 승인내역 조회 허용 기간 안에서만 유효).
+      const ovrEndA = String(endDate || "").replace(/-/g, "");
+      const ovrStartA = String(startDate || "").replace(/-/g, "");
+      const endC = ovrEndA.length === 8 ? ovrEndA : new Date().toISOString().split("T")[0].replace(/-/g, "");
+      const startC = ovrStartA.length === 8 ? ovrStartA : (() => { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
       let apprRes: any = null;
       try {
         apprRes = await syncCardApprovals(supabase, token, companyId, cid, startC, endC);
