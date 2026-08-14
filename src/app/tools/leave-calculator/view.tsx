@@ -39,6 +39,36 @@ function annualDays(years: number): number {
   return Math.min(25, 15 + Math.floor((years - 1) / 2));
 }
 
+/**
+ * 입사일부터 기준일까지 **법으로 생긴** 연차를 시점별로 모은다 (2026-08-14 사장님: "누적도 확인").
+ *
+ *   ★ 여기서 세는 것은 **생긴 연차(발생)** 다. 쓴 날·소멸분·수당으로 정산한 분은 빼지 않는다 —
+ *     그건 회사의 사용 기록이 있어야 알 수 있고, 계산기는 그 기록을 모른다.
+ *     합계만 크게 띄우면 "지금 쓸 수 있는 날"로 읽히므로 화면에 반드시 그 구분을 적는다.
+ *   ★ 1년 미만의 월 1일(최대 11일)은 1년차 15일에서 **차감하지 않는다** (2020-03-31 개정) —
+ *     그래서 만 1년이면 11 + 15 = 26일이 된다.
+ *   ★ 같은 일수가 이어지는 해는 한 줄로 묶는다. 안 묶으면 20년 근속이 20줄이 되어 못 읽는다.
+ */
+function accrualRows(months: number, years: number): { label: string; detail: string; days: number }[] {
+  const rows: { label: string; detail: string; days: number }[] = [];
+  const firstYear = years >= 1 ? 11 : Math.min(11, months);
+  if (firstYear > 0) rows.push({ label: "1년 미만", detail: `${firstYear}개월 개근 × 1일`, days: firstYear });
+  let y = 1;
+  while (y <= years) {
+    const d = annualDays(y);
+    let end = y;
+    while (end + 1 <= years && annualDays(end + 1) === d) end += 1;
+    const times = end - y + 1;
+    rows.push({
+      label: y === end ? `만 ${y}년` : `만 ${y}~${end}년`,
+      detail: `${d}일 × ${times}회`,
+      days: d * times,
+    });
+    y = end + 1;
+  }
+  return rows;
+}
+
 const todayStr = () => {
   const t = new Date();
   return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
@@ -57,6 +87,9 @@ export default function LeaveCalculatorView() {
 
     const months = fullMonthsBetween(h, b);
     const years = Math.floor(months / 12);
+    //   지금까지 생긴 연차(누적) — 시점별 내역과 합계. 두 갈래가 같이 쓴다.
+    const acc = accrualRows(months, years);
+    const accTotal = acc.reduce((n, r) => n + r.days, 0);
 
     if (years < 1) {
       // 1년 미만 — 개근 가정 월 1일, 최대 11일
@@ -67,6 +100,7 @@ export default function LeaveCalculatorView() {
         kind: "under1" as const,
         years, months,
         days,
+        acc, accTotal,
         nextDate: months < 11 ? next : addYears(h, 1),
         nextDays: months < 11 ? days + 1 : 15,
         nextLabel: months < 11 ? "다음 1일 추가" : "15일 발생(1년 차)",
@@ -74,12 +108,17 @@ export default function LeaveCalculatorView() {
     }
     const days = annualDays(years);
     // 다음 증가 시점 — 연차 일수가 지금보다 커지는 첫 입사기념일
+    //   ★ 25일은 법정 상한이라 **더 늘지 않는다.** 그런데도 다음 기념일을 찾아 "25일로 증가"라고
+    //     적고 있었다(2026-08-14 25년 근속으로 확인 — 2029년에 25일로 증가한다고 나왔다).
+    //     늘지 않는데 늘어난다고 적으면 그 줄 전체를 못 믿게 된다. 상한이면 상한이라고 말한다.
+    const capped = days >= 25;
     let ny = years + 1;
     while (annualDays(ny) === days && ny - years < 3) ny++;
     return {
       kind: "over1" as const,
       years, months: months % 12,
-      days,
+      days, capped,
+      acc, accTotal,
       nextDate: addYears(h, ny),
       nextDays: annualDays(ny),
       nextLabel: `${annualDays(ny)}일로 증가`,
@@ -124,8 +163,12 @@ export default function LeaveCalculatorView() {
               <div className="lp4-freetool-result" aria-live="polite">
                 <div className="lp4-freetool-result-main">
                   <span className="lp4-freetool-result-num">{result.days}일</span>
+                  {/*   큰 숫자가 무엇인지 분명히 적는다 — 그냥 '현재 발생 연차'라고만 하면
+                        "지금까지 쌓인 전부"로 읽힌다(2026-08-14 사장님이 실제로 그렇게 읽으셨다).
+                        연차는 1년 단위로 부여되므로 이 숫자는 **이번 1년치**다. */}
                   <span className="lp4-freetool-result-cap">
-                    근속 {result.years >= 1 ? `만 ${result.years}년 ${result.months}개월` : `${result.months}개월`} — 현재 발생 연차
+                    근속 {result.years >= 1 ? `만 ${result.years}년 ${result.months}개월` : `${result.months}개월`}
+                    {result.kind === "over1" ? " — 이번 1년치 연차" : " — 지금까지 생긴 연차"}
                   </span>
                 </div>
                 <div className="lp4-freetool-result-rows">
@@ -136,8 +179,41 @@ export default function LeaveCalculatorView() {
                     <div className="lp4-freetool-result-row">1년 이상은 <b>15일 + 2년마다 1일 가산</b> (최대 25일), 전년 출근율 80% 이상 기준</div>
                   )}
                   <div className="lp4-freetool-result-row">
-                    {fmtDate(result.nextDate)}에 <b>{result.nextLabel}</b>
+                    {result.kind === "over1" && result.capped
+                      ? <>연차는 <b>25일이 최대</b>라 근속이 더 늘어도 이 일수는 그대로입니다</>
+                      : <>{fmtDate(result.nextDate)}에 <b>{result.nextLabel}</b></>}
                   </div>
+
+                  {/*   누적 — 입사일부터 지금까지 **생긴** 연차의 합계와 그 내역 (2026-08-14 사장님).
+                        합계만 두면 "지금 쓸 수 있는 날"로 읽히므로, 내역을 같이 펼쳐 어떻게 그
+                        숫자가 되는지 보이게 하고 · 쓴 날은 빼지 않았다는 걸 바로 아래 적는다.
+                        1년 미만은 위 큰 숫자가 이미 누적과 같은 값이라 이 칸을 만들지 않는다. */}
+                  {result.kind === "over1" && (
+                    <div className="lp4-freetool-duo-col">
+                      <div className="lp4-freetool-duo-cap">
+                        지금까지 생긴 연차 — 모두 <b>{result.accTotal}일</b>
+                      </div>
+                      <table className="lp4-freetool-table lp4-freetool-table-tight">
+                        <thead>
+                          <tr><th>생긴 때</th><th>계산</th><th>일수</th></tr>
+                        </thead>
+                        <tbody>
+                          {result.acc.map((r) => (
+                            <tr key={r.label}>
+                              <td>{r.label}</td>
+                              <td className="lp4-freetool-dim">{r.detail}</td>
+                              <td>{r.days}일</td>
+                            </tr>
+                          ))}
+                          <tr><td><b>합계</b></td><td className="lp4-freetool-dim">근속 {result.years}년 {result.months}개월</td><td><b>{result.accTotal}일</b></td></tr>
+                        </tbody>
+                      </table>
+                      <div className="lp4-freetool-duo-sub">
+                        <b>쓴 날·소멸분·수당으로 정산한 분은 빼지 않은</b> 발생 기준입니다 — 지금 쓸 수 있는 잔여 연차와는 다릅니다.
+                        연차는 생긴 날부터 1년 안에 쓰는 것이 원칙이라, 안 쓴 날은 수당으로 정산되거나 촉진제도에 따라 소멸합니다.
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
