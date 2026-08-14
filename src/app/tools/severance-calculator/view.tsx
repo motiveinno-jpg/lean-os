@@ -61,7 +61,13 @@ export default function SeveranceCalculatorView() {
       under1: false as const,
       serviceDays, years,
       months: Math.floor((serviceDays % 365) / 30),
+      hireDate: h,
       periodFrom: from, periodTo: l, periodDays,
+      //   계산 내역용 조각 — 합계만 보여 주면 "왜 이 금액인지" 확인할 방법이 없다 (2026-08-14 사장님)
+      pay, yearBonus, yearLeavePay,
+      payX3: pay * 3,
+      bonusPart: (yearBonus * 3) / 12,
+      leavePart: (yearLeavePay * 3) / 12,
       threeMonthTotal, avgDaily, severance,
     };
   }, [hire, leave, salary, bonus, leavePay]);
@@ -123,11 +129,62 @@ export default function SeveranceCalculatorView() {
                     <span className="lp4-freetool-result-cap">근속 {result.years}년 {result.months}개월 — 예상 퇴직금 (세전)</span>
                   </div>
                   <div className="lp4-freetool-result-rows">
-                    <div className="lp4-freetool-result-row">
-                      평균임금 산정기간: {fmtDate(result.periodFrom)} ~ {fmtDate(result.periodTo)} ({result.periodDays}일) · 임금총액 {won(result.threeMonthTotal)}원
-                    </div>
-                    <div className="lp4-freetool-result-row">
-                      1일 평균임금 <b>{won(result.avgDaily)}원</b> × 30일 × (재직 {won(result.serviceDays)}일 ÷ 365)
+                    {/*   이 금액이 어떻게 나왔는지 — 단계별로 적는다 (2026-08-14 사장님, 연차 계산기와 같은 방식).
+                          예전에는 같은 내용을 두 줄의 글로 적어 뒀는데, 글로 이어 붙이면 어느 숫자가
+                          어디서 왔는지 눈으로 따라가기 어렵고 검산이 안 된다. 표로 세워 한 줄씩 짚는다.
+                          (그래서 그 두 줄은 이 표로 흡수했다 — 같은 말을 두 곳에 두지 않는다) */}
+                    <div className="lp4-freetool-duo-col">
+                      <div className="lp4-freetool-duo-cap">이 금액이 나온 계산</div>
+                      <table className="lp4-freetool-table lp4-freetool-table-tight">
+                        <thead>
+                          <tr><th>단계</th><th>계산</th><th>결과</th></tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td>재직일수</td>
+                            <td className="lp4-freetool-dim">{fmtDate(result.hireDate)} ~ {fmtDate(result.periodTo)} (양 끝 포함)</td>
+                            <td>{won(result.serviceDays)}일</td>
+                          </tr>
+                          <tr>
+                            <td>월급 × 3개월</td>
+                            <td className="lp4-freetool-dim">{won(result.pay)} × 3</td>
+                            <td>{won(result.payX3)}원</td>
+                          </tr>
+                          {/*   안 넣은 항목은 줄을 만들지 않는다 — 0원짜리 줄이 늘어서면 표가 시끄럽다 */}
+                          {result.yearBonus > 0 && (
+                            <tr>
+                              <td>연간 상여금</td>
+                              <td className="lp4-freetool-dim">{won(result.yearBonus)} × 3/12</td>
+                              <td>{won(result.bonusPart)}원</td>
+                            </tr>
+                          )}
+                          {result.yearLeavePay > 0 && (
+                            <tr>
+                              <td>연차휴가 미사용수당</td>
+                              <td className="lp4-freetool-dim">{won(result.yearLeavePay)} × 3/12</td>
+                              <td>{won(result.leavePart)}원</td>
+                            </tr>
+                          )}
+                          <tr>
+                            <td>3개월 임금총액</td>
+                            <td className="lp4-freetool-dim">{fmtDate(result.periodFrom)} ~ {fmtDate(result.periodTo)} · {result.periodDays}일</td>
+                            <td>{won(result.threeMonthTotal)}원</td>
+                          </tr>
+                          <tr>
+                            <td>1일 평균임금</td>
+                            <td className="lp4-freetool-dim">{won(result.threeMonthTotal)} ÷ {result.periodDays}일</td>
+                            <td>{won(result.avgDaily)}원</td>
+                          </tr>
+                          <tr>
+                            <td><b>퇴직금</b></td>
+                            <td className="lp4-freetool-dim">{won(result.avgDaily)} × 30일 × ({won(result.serviceDays)} ÷ 365)</td>
+                            <td><b>약 {won(result.severance)}원</b></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      <div className="lp4-freetool-duo-sub">
+                        표시 금액은 원 단위로 반올림한 것이라, 위 숫자를 그대로 곱하면 끝자리가 조금 다를 수 있습니다(계산은 반올림 전 값으로 합니다).
+                      </div>
                     </div>
                     <div className="lp4-freetool-result-row">
                       평균임금이 통상임금보다 적으면 <b>통상임금 기준</b>으로 계산해야 합니다 · 퇴직소득세는 별도 원천징수
