@@ -26,6 +26,12 @@ import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } f
 import { SortToolbar } from "@/components/sort-toolbar";
 import { SortableTh, useColWidths, type ThFilterSpec } from "@/components/sortable-th";
 import { BankLogo } from "@/components/bank-logo";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat as QStat,
+  SelectionBar, ExcelMenu, type ExcelItem, QuickSearch, quickSearchHit, quickTerms, Pager, usePager,
+  ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, type AppliedChip,
+  defaultRange, periodQuicks, useSavedQueries, SavedTabs, ConditionSave,
+} from "@/components/query-kit";
 import { EmptyState } from "@/components/empty-state";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { NATURE_LABEL } from "@/lib/account-nature";
@@ -98,6 +104,24 @@ const cardTypeLabel = (t?: string | null) => t === "credit" ? "신용" : t === "
 
 type Tab = "cards" | "transactions" | "analysis";
 
+/*  ── 조회 화면 표준 (2026-08-13 확정) — 수집·전표·통장과 같은 검색조건/줄수/내 조건 구성 ──
+    ★ 여기 있는 것은 **'조회'를 눌러야** 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다. */
+const CARD_STATE_CHIPS = [
+  { value: "all", label: "전체" }, { value: "todo", label: "미처리" }, { value: "posted", label: "전표됨" },
+] as const;
+type CardCond = {
+  cards: string[];  // 카드 (id, id 없는 옛 데이터는 카드명)
+  merch: string[];  // 가맹점
+  cls: string[];    // 분류(계정과목 이름)
+  state: (typeof CARD_STATE_CHIPS)[number]["value"];
+  min: string; max: string;
+  size: number;     // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
+};
+const CARD_EMPTY: CardCond = { cards: [], merch: [], cls: [], state: "all", min: "", max: "", size: 50 };
+/** 배지에 셀 것 — 줄 수는 '좁히는 조건'이 아니라 보기 방식이라 안 센다 */
+const cardCondCount = (c: CardCond) =>
+  c.cards.length + c.merch.length + c.cls.length + (c.state !== "all" ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
+
 export default function CardsPage() {
   const { user } = useUser();
   const { toast } = useToast();
@@ -114,8 +138,13 @@ export default function CardsPage() {
   const [tab, setTab] = useState<Tab>("cards");
   const [selectedCardIdx, setSelectedCardIdx] = useState(0);
   const [showBalance, setShowBalance] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterCardId, setFilterCardId] = useState<string>("");
+  //   조회 줄 — 빠른검색(즉시) + 검색조건 패널(조회를 눌러야). 수집·전표·통장과 같은 draft/live 구도.
+  //   예전의 검색 input + 카드 select 낱장은 이 표준으로 흡수했다.
+  const [txQ, setTxQ] = useState("");
+  const [txPanelOpen, setTxPanelOpen] = useState(false);
+  const [txDraft, setTxDraft] = useState<CardCond>(CARD_EMPTY);
+  const [txLive, setTxLive] = useState<CardCond>(CARD_EMPTY);
+  const setTxD = <K extends keyof CardCond>(k: K) => (v: CardCond[K]) => setTxDraft((c) => ({ ...c, [k]: v }));
   // 거래내역 탭 표 — 헤더 더블클릭 정렬 + 행 체크박스 다중선택 (UI 전용, DB 변경 없음)
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -140,9 +169,10 @@ export default function CardsPage() {
   //   등록 카드: corporate_cards.id 로 필터 / CODEF 미식별 묶음: card_name 으로 필터
   const [selectedCardId, setSelectedCardId] = useState<string>("");
   const [selectedCardName, setSelectedCardName] = useState<string>("");
-  // 선택 카드 거래내역 기간 필터
-  const [cardTxFrom, setCardTxFrom] = useState<string>("");
-  const [cardTxTo, setCardTxTo] = useState<string>("");
+  // 선택 카드 거래내역 기간 필터 + 거래내역 탭 조회기간 + CODEF 연동 범위 (공통)
+  //   ★ 기본값은 최근 1개월 (조회 화면 표준) — 예전 '미설정=최근 N건' 방식을 버렸다.
+  const [cardTxFrom, setCardTxFrom] = useState<string>(() => defaultRange().from);
+  const [cardTxTo, setCardTxTo] = useState<string>(() => defaultRange().to);
   // 전표처리 (카드 → 수동 전표)
   const [postCard, setPostCard] = useState<any | null>(null);
   const [postAccountId, setPostAccountId] = useState<string>("");
@@ -329,16 +359,18 @@ export default function CardsPage() {
   // 일괄 전표처리 모달 — ESC 닫기 · Enter 확인(계정과목 미선택/처리중이면 비활성)
   useModalKeys(showBulkPost, () => setShowBulkPost(false), bulkPosting || !bulkAccountId ? undefined : doBulkPost);
 
-  // 거래내역 탭 — 최근 100건. 탭 진입 시에만 fetch.
+  // 거래내역 탭 — 조회기간(기본 최근 1개월) 전체, 상한 2000. 탭 진입 시에만 fetch.
+  //   카드 필터는 client-side (검색조건의 '카드' 칩 — id 없는 옛 데이터는 카드명으로 거른다).
   const { data: recentTx = [] } = useQuery({
-    queryKey: ["cards-page-recent-tx", companyId, filterCardId],
+    queryKey: ["cards-page-recent-tx", companyId, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
         .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
-        .limit(300);
-      if (filterCardId) q = q.eq("card_id", filterCardId);
+        .limit(2000);
+      if (cardTxFrom) q = q.gte("transaction_date", cardTxFrom);
+      if (cardTxTo) q = q.lte("transaction_date", cardTxTo);
       const data = logRead('cards/page:tx', await q);
       return (data || []) as any[];
     },
@@ -404,13 +436,12 @@ export default function CardsPage() {
     return list;
   }, [cardTx, cardTxSearch, cardSortKey, cardSortDir, empNameById]);
 
-  // 거래내역 검색 클라이언트 필터
   //   엑셀 — 통장과 같은 함수를 쓴다(한글 깨짐·쉼표 밀림을 한 곳에서만 막는다)
-  const exportCardCsv = () => {
+  const exportCardCsv = (list: any[], tag = "") => {
     downloadCsv(
-      `카드거래내역_${rangeSuffix(cardTxFrom, cardTxTo)}`,
+      `카드거래내역_${rangeSuffix(cardTxFrom, cardTxTo)}${tag}`,
       ["승인일", "가맹점", "금액", "비목", "카드", "전표"],
-      shownTx.map((tx) => [
+      list.map((tx) => [
         String(tx.transaction_date || "").slice(0, 10),
         tx.merchant_name || "",
         Number(tx.amount || 0),
@@ -421,17 +452,9 @@ export default function CardsPage() {
     );
   };
 
-  const filteredTx = recentTx.filter((tx: any) => {
-    if (!search.trim()) return true;
-    const q = search.trim().toLowerCase();
-    return (tx.merchant_name || "").toLowerCase().includes(q)
-      || (tx.card_name || "").toLowerCase().includes(q)
-      || (classificationLabel(tx.classification) || tx.category || "").toLowerCase().includes(q);
-  });
-
   // 정렬 적용 — 원본 불변 복제 정렬. null/빈값은 항상 뒤로.
   const sortedTx = useMemo(() => {
-    if (!sortKey) return filteredTx;
+    if (!sortKey) return recentTx;
     const dir = sortDir === "asc" ? 1 : -1;
     const get = (tx: any) => {
       switch (sortKey) {
@@ -444,7 +467,7 @@ export default function CardsPage() {
       }
     };
     const isEmpty = (v: any) => v === "" || v === null || v === undefined;
-    return [...filteredTx].sort((a: any, b: any) => {
+    return [...recentTx].sort((a: any, b: any) => {
       const va = get(a), vb = get(b);
       if (isEmpty(va) && isEmpty(vb)) return 0;
       if (isEmpty(va)) return 1;
@@ -453,7 +476,7 @@ export default function CardsPage() {
       return String(va).localeCompare(String(vb), "ko") * dir;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredTx, sortKey, sortDir]);
+  }, [recentTx, sortKey, sortDir]);
 
   /*  ── 엑셀식 머리단 필터 + 열 너비 — 수집·전표 표와 같은 방식 (sortable-th 공용 부품) ── */
   const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
@@ -483,11 +506,46 @@ export default function CardsPage() {
   });
   const thResize = (k: string, colIndex: number) =>
     ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
-  //   화면·엑셀·전체선택이 모두 이 목록을 본다 — 보이는 것과 파일·선택이 달라지면 안 된다
-  const shownTx = (sortedTx as any[]).filter(colHit);
+  /*  ── 검색조건·빠른검색 맞춤 — 빈 칸은 안 건 것과 같다. 여러 개 고른 것은 하나라도 맞으면 통과. ── */
+  const txCondHit = (tx: any, c: CardCond, qq: string): boolean => {
+    const cls = classificationLabel(tx.classification) || tx.category || "미분류";
+    if (!quickSearchHit(qq, [tx.merchant_name, tx.card_name, cls, tx.memo, (tx.tags || []).join(" ")], [tx.amount])) return false;
+    if (c.cards.length && !(c.cards.includes(tx.card_id || "") || c.cards.includes(tx.card_name || ""))) return false;
+    if (c.merch.length && !c.merch.includes(tx.merchant_name || "")) return false;
+    if (c.cls.length && !c.cls.includes(cls)) return false;
+    if (c.state === "posted" && !tx.journal_entry_id) return false;
+    if (c.state === "todo" && tx.journal_entry_id) return false;
+    if (!amountHit(Number(tx.amount || 0), c.min, c.max)) return false;
+    return true;
+  };
+  //   화면·엑셀·전체선택·쪽 넘김이 모두 이 목록을 본다 — 보이는 것과 파일·선택이 달라지면 안 된다
+  const shownTx = (sortedTx as any[]).filter((tx) => txCondHit(tx, txLive, txQ) && colHit(tx));
+  //   '조회'를 누르기 전에 몇 건 나올지만 미리 알려 준다 (표는 안 흔든다)
+  const previewCount = (sortedTx as any[]).filter((tx) => txCondHit(tx, txDraft, txQ)).length;
+  //   쪽 넘김 — 기본 50줄. 조건·머리단 필터가 바뀌면 1쪽으로 (거른 목록 밖 쪽 번호가 남지 않게)
+  const pager = usePager(shownTx, txLive.size,
+    `${cardTxFrom}|${cardTxTo}|${txQ}|${JSON.stringify(txLive)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
 
-  // 탭·카드 필터 변경 시 선택 초기화
-  useEffect(() => { setSelectedTxIds(new Set()); }, [tab, filterCardId]);
+  //   내 조건 — ★ 하나가 이 화면의 기본값이 된다 (DB 라 PC 를 바꿔도 따라온다)
+  const savedTx = useSavedQueries("cards-tx", companyId);
+  const txParamsNow = { from: cardTxFrom, to: cardTxTo, q: txQ, cond: txLive };
+  const txParamsBasic = { ...defaultRange(), q: "", cond: CARD_EMPTY };
+  const applySavedTx = (p: Record<string, unknown>) => {
+    if (typeof p.from === "string" && typeof p.to === "string") { setCardTxFrom(p.from); setCardTxTo(p.to); }
+    if (typeof p.q === "string") setTxQ(p.q);
+    const c = { ...CARD_EMPTY, ...(p.cond as Partial<CardCond> | undefined) };
+    setTxDraft(c); setTxLive(c);
+  };
+  const [txDefDone, setTxDefDone] = useState(false);
+  useEffect(() => {
+    if (txDefDone || !savedTx.isFetched) return;
+    setTxDefDone(true);
+    if (savedTx.def) applySavedTx(savedTx.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedTx.isFetched, savedTx.def, txDefDone]);
+
+  // 탭·조건·기간 변경 시 선택 초기화
+  useEffect(() => { setSelectedTxIds(new Set()); }, [tab, cardTxFrom, cardTxTo, txQ, txLive]);
 
   const toggleTx = (id: string) => {
     setSelectedTxIds((prev) => {
@@ -594,8 +652,62 @@ export default function CardsPage() {
     ? (cards.find((c: any) => c.id === selectedCardId)?.card_name || "선택 카드")
     : selectedCardName || "";
 
+  /*  ── 조회 화면 표준 — 조회 줄에 쓰는 값들 (2026-08-14) ── */
+  //   카드는 회사 전체 목록(등록 카드 + 거래에만 있는 이름). 가맹점·분류는 이 기간에 실제로 나온 것만.
+  const cardOptMap = new Map<string, string>();
+  for (const c of cards as any[]) cardOptMap.set(String(c.id || c.card_name), String(c.card_name || "카드"));
+  for (const t of recentTx as any[]) if (!t.card_id && t.card_name && !cardOptMap.has(t.card_name)) cardOptMap.set(t.card_name, t.card_name);
+  const cardOpts = [...cardOptMap.entries()].map(([value, label]) => ({ value, label }));
+  const cardLabelOf = (v: string) => cardOptMap.get(v) ?? v;
+  const merchOpts = [...new Set((recentTx as any[]).map((t) => t.merchant_name).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((m) => ({ value: String(m), label: String(m) }));
+  const clsOpts = [...new Set((recentTx as any[]).map((t) => classificationLabel(t.classification) || t.category || "미분류"))]
+    .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((c) => ({ value: String(c), label: String(c) }));
+  //   걸린 조건 칩 — 패널을 열지 않고도 알고, ✕ 로 하나씩 뺀다
+  const dropTx = (patch: Partial<CardCond>) => { const c = { ...txLive, ...patch }; setTxLive(c); setTxDraft(c); };
+  const txChips: AppliedChip[] = [
+    ...quickTerms(txQ).map((t, i) => ({
+      group: "빠른검색", label: t,
+      onRemove: () => setTxQ(quickTerms(txQ).filter((_, j) => j !== i).join(", ")),
+    })),
+    ...txLive.cards.map((v) => ({ group: "카드", label: cardLabelOf(v), onRemove: () => dropTx({ cards: txLive.cards.filter((x) => x !== v) }) })),
+    ...txLive.merch.map((v) => ({ group: "가맹점", label: v, onRemove: () => dropTx({ merch: txLive.merch.filter((x) => x !== v) }) })),
+    ...txLive.cls.map((v) => ({ group: "분류", label: v, onRemove: () => dropTx({ cls: txLive.cls.filter((x) => x !== v) }) })),
+    ...(txLive.state !== "all" ? [{
+      group: "상태", label: CARD_STATE_CHIPS.find((s) => s.value === txLive.state)?.label ?? txLive.state,
+      onRemove: () => dropTx({ state: "all" as const }),
+    }] : []),
+    ...((txLive.min || txLive.max) ? [{
+      group: "금액",
+      label: `${Number(txLive.min || 0).toLocaleString("ko-KR")} ~ ${txLive.max ? Number(txLive.max).toLocaleString("ko-KR") : "제한없음"}`,
+      onRemove: () => dropTx({ min: "", max: "" }),
+    }] : []),
+  ];
+  //   카드는 음수 = 취소/환불 — 사용과 취소를 섞어 합치면 숫자가 거짓말을 한다. 갈라 센다.
+  const sumUse = shownTx.filter((t) => Number(t.amount || 0) >= 0).reduce((s, t) => s + Number(t.amount || 0), 0);
+  const sumRefund = shownTx.filter((t) => Number(t.amount || 0) < 0).reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+  const selSumTx = shownTx.filter((t) => selectedTxIds.has(t.id)).reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+  /** 고른 조건으로 이름을 지어 준다 ('내 조건' 저장) */
+  const suggestTxName = () => {
+    const p: string[] = [];
+    if (txDraft.cards.length) p.push(cardLabelOf(txDraft.cards[0]) + (txDraft.cards.length > 1 ? ` 외 ${txDraft.cards.length - 1}` : ""));
+    if (txDraft.merch.length) p.push(txDraft.merch[0]);
+    if (txDraft.cls.length) p.push(txDraft.cls[0]);
+    if (txDraft.state !== "all") p.push(CARD_STATE_CHIPS.find((s) => s.value === txDraft.state)?.label ?? "");
+    if (txDraft.min || txDraft.max) p.push("금액");
+    return p.filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
+  };
+  const txExcelItems: ExcelItem[] = [
+    { label: "조회 결과 전부 내려받기", count: shownTx.length,
+      hint: "지금 걸린 조건 그대로 · 표에 보이는 칸 그대로", onClick: () => exportCardCsv(shownTx) },
+    { label: "지금 쪽만 내려받기", count: pager.view.length,
+      hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => exportCardCsv(pager.view, `_${pager.page}쪽`) },
+  ];
+
   return (
-    <div>
+    /*  거래내역(조회 화면) 탭은 qk-shell 세로 기둥 — qk-body 가 남는 높이를 받아 표가 그 안에서
+        스크롤된다 (세금·증빙·통장과 같은 방식). 다른 탭은 예전처럼 문서 흐름 그대로. */
+    <div className={tab === "transactions" ? "qk-shell" : undefined}>
       {/* 컴팩트 툴바 — 탭(좌) + 카드 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
       <div className="cards-page-toolbar page-sticky-header">
         <div className="seg-bar">
@@ -648,16 +760,16 @@ export default function CardsPage() {
         </button>
       </div>
 
-      {/* 기간설정 — 제일 상단(툴바 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용 */}
+      {/* 기간설정 — 제일 상단(툴바 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용.
+          ★ 거래내역 탭에서는 숨긴다 — 조회 줄에 기간 칸이 있고, 기간을 치는 칸은 화면에 하나뿐이어야 한다. */}
+      {tab !== "transactions" && (
       <div className="card-tx-period-filter no-print">
         {/*   통장 화면과 같은 위젯 — 두 화면이 같은 일을 하므로 다르게 생길 이유가 없다 (2026-08-11) */}
-        <button type="button" onClick={exportCardCsv} disabled={shownTx.length === 0}
-          className="btn-secondary btn-sm order-last disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
         <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
-          onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }}
-          onClear={() => { setCardTxFrom(""); setCardTxTo(""); }} />
+          onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
         <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">카드를 선택하면 해당 카드 거래에 적용됩니다</span>
       </div>
+      )}
 
       {/* ========== 카드 탭 ========== */}
       {tab === "cards" && (
@@ -797,70 +909,86 @@ export default function CardsPage() {
         )
       )}
 
-      {/* ========== 거래내역 탭 ========== */}
+      {/* ========== 거래내역 탭 — 조회 화면 표준 (2026-08-14 사장님: "수집·전표탭의 디자인처럼").
+          조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **한 상자**에. 예전의 검색 input + 카드 select +
+          정렬 툴바 + 선택 액션바 낱장 구성을 버렸다 — 카드 필터는 검색조건의 '카드' 칩으로,
+          정렬은 머리단으로, 선택은 바닥 SelectionBar 로. ========== */}
       {tab === "transactions" && (
-        <div className="card-tx-tab-panel">
-          <div className="card-tx-filter-bar">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="가맹점·카드·카테고리 검색..."
-              className="flex-1 px-4 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40 focus:border-transparent"
-            />
-            <select
-              value={filterCardId}
-              onChange={(e) => setFilterCardId(e.target.value)}
-              className="px-4 py-3 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] text-sm text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40"
-            >
-              <option value="">모든 카드</option>
-              {cards.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.card_name}</option>
-              ))}
-            </select>
-          </div>
+        <QueryScreen>
+        <QueryHead>
+        {/* ── 1줄 · 조회 조건 — 기간·빠른검색은 즉시, 검색조건은 '조회'를 눌러 ── */}
+        <QueryBar right={<ExcelMenu items={txExcelItems} />}>
+          {/*   ★ 기간을 치는 칸은 화면에 하나뿐이다. 달력은 검색조건 안에 있다. */}
+          <DateRangeField from={cardTxFrom} to={cardTxTo} label={null} parts="segments"
+            onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }}
+            trailing={
+              <ConditionPanel open={txPanelOpen} onOpenChange={setTxPanelOpen} activeCount={cardCondCount(txLive)} anchorSel=".drf"
+                tabs={<SavedTabs list={savedTx.list} current={txParamsNow} basic={txParamsBasic}
+                  onApply={(s) => { applySavedTx(s.params || {}); setTxPanelOpen(false); }}
+                  onBasic={() => { const r = defaultRange(); setCardTxFrom(r.from); setCardTxTo(r.to); setTxQ(""); setTxDraft(CARD_EMPTY); setTxLive(CARD_EMPTY); }}
+                  onRemove={savedTx.remove} onSetDefault={savedTx.setDefault} />}
+                foot={<>
+                  <button type="button" className="btn-secondary btn-sm" disabled={cardCondCount(txDraft) === 0}
+                    onClick={() => setTxDraft({ ...CARD_EMPTY, size: txDraft.size })}>조건 지우기</button>
+                  <ConditionSave suggest={suggestTxName}
+                    onSave={(name, asDefault) => {
+                      savedTx.save(name, { from: cardTxFrom, to: cardTxTo, q: txQ, cond: txDraft }, asDefault);
+                      setTxLive(txDraft); setTxPanelOpen(false);
+                    }} />
+                  <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko-KR")}건</span>
+                  <RowsPerPage value={txDraft.size} onChange={setTxD("size")} />
+                  <button type="button" className="btn-primary btn-sm"
+                    onClick={() => { setTxLive(txDraft); setTxPanelOpen(false); }}>조회</button>
+                </>}>
+                <ConditionRow label="조회기간" hint="기본 1개월">
+                  <span className="qk-range-txt">{cardTxFrom} ~ {cardTxTo}</span>
+                  <DateRangeField from={cardTxFrom} to={cardTxTo} label={null} parts="calendar" confirm
+                    onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
+                  <span className="qk-quicks">
+                    {periodQuicks().map((p) => (
+                      <button key={p.key} type="button" onClick={() => { setCardTxFrom(p.from); setCardTxTo(p.to); }}
+                        className={cardTxFrom === p.from && cardTxTo === p.to ? "qk-quick qk-quick-on" : "qk-quick"}>{p.label}</button>
+                    ))}
+                  </span>
+                </ConditionRow>
+                <ConditionRow label="카드" hint="여러 장">
+                  <TokenField items={cardOpts} value={txDraft.cards} onChange={setTxD("cards")}
+                    placeholder="카드 이름 일부 (예: 법인)" />
+                </ConditionRow>
+                <ConditionRow label="가맹점" hint="여러 곳">
+                  <TokenField items={merchOpts} value={txDraft.merch} onChange={setTxD("merch")}
+                    placeholder="가맹점 이름 일부 (예: 카카오)" />
+                </ConditionRow>
+                <ConditionRow label="분류" hint="여러 개">
+                  <TokenField items={clsOpts} value={txDraft.cls} onChange={setTxD("cls")}
+                    placeholder="분류(계정과목) 이름 일부" />
+                </ConditionRow>
+                <ConditionRow label="상태">
+                  <ChipGroup value={txDraft.state} onChange={setTxD("state")} options={CARD_STATE_CHIPS} />
+                </ConditionRow>
+                <ConditionRow label="금액" hint="취소(음수)도 절대값으로 봅니다">
+                  <AmountRange min={txDraft.min} max={txDraft.max} onMin={setTxD("min")} onMax={setTxD("max")} />
+                </ConditionRow>
+              </ConditionPanel>
+            } />
+          <QuickSearch value={txQ} onApply={setTxQ}
+            placeholder="가맹점 · 카드 · 분류 · 금액 — 쉼표로 여러 개, Enter" />
+        </QueryBar>
 
-          {/* 선택 액션바 — 1건 이상 선택 시 sticky 노출. 전표처리는 자리표시(준비중) */}
-          {selectedTxIds.size > 0 && (
-            <div className="card-tx-bulk-action-bar">
-              <span className="text-sm font-semibold text-[var(--text)]">
-                <b className="text-[var(--primary)]">{selectedTxIds.size}건</b> 선택됨
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
-                  className="btn-primary btn-sm"
-                >
-                  전표처리({selectedTxIds.size})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTxIds(new Set())}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--primary)] transition"
-                >
-                  선택 해제
-                </button>
-              </div>
-            </div>
-          )}
+        <AppliedChips chips={txChips} onClearAll={() => { setTxQ(""); setTxLive(CARD_EMPTY); setTxDraft(CARD_EMPTY); }} />
 
-          {/* 정렬 버튼 툴바 — 헤더 더블클릭 정렬과 동일 sortKey/sortDir 공유 */}
-          <SortToolbar
-            options={[
-              { key: "transaction_date", label: "날짜" },
-              { key: "merchant_name", label: "가맹점" },
-              { key: "card_name", label: "카드" },
-              { key: "amount", label: "금액" },
-              { key: "classification", label: "분류" },
-            ]}
-            sortKey={sortKey}
-            sortDir={sortDir}
-            onSort={onSortTx}
-          />
+        {/* ── 2줄 · 결과 요약 — 목록을 바꾸지 않는 것만 ── */}
+        <ResultStrip>
+          <QStat label="건수" value={`${shownTx.length.toLocaleString("ko-KR")}건`} />
+          <QStat label="사용" value={fmtW(sumUse)} tone="minus" />
+          {sumRefund > 0 && <QStat label="취소·환불" value={fmtW(sumRefund)} tone="plus" />}
+          {recentTx.length >= 2000 && <b className="ev-cut">너무 많아 앞 2,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+        </ResultStrip>
+        </QueryHead>
 
-          <div className="card-tx-table glass-card">
-            <div className="overflow-auto max-h-[640px]">
+        {/* 목록 — 선택 바가 이 위로 떠오른다 (표 크기는 안 줄어들게) */}
+        <QueryBody>
+        <div className="ev-scroll">
               {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12).
                   깔때기·너비 손잡이·머리단 세로선(.ev-lined)은 수집·전표 표와 같은 부품 (2026-08-14 사장님) */}
               <table ref={tableRef} className="data-table w-full ev-lined">
@@ -887,10 +1015,10 @@ export default function CardsPage() {
                   {shownTx.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-3 py-2.5">
-                        <EmptyState icon="💳" title="최근 카드 거래가 없습니다" desc="상단의 카드 연동으로 거래를 불러올 수 있습니다" />
+                        <EmptyState icon="💳" title={txChips.length > 0 ? "걸린 조건에 맞는 거래가 없습니다" : "이 기간에 카드 거래가 없습니다"} desc="상단의 카드 연동으로 거래를 불러올 수 있습니다" />
                       </td>
                     </tr>
-                  ) : shownTx.map((tx: any) => {
+                  ) : pager.view.map((tx: any) => {
                     const checked = selectedTxIds.has(tx.id);
                     const posted = !!tx.journal_entry_id;
                     const cat = classificationLabel(tx.classification) || tx.category || "미분류";
@@ -928,9 +1056,20 @@ export default function CardsPage() {
                   })}
                 </tbody>
               </table>
-            </div>
-          </div>
         </div>
+
+        {/* ── 3줄 · 고른 줄로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
+        <SelectionBar count={selectedTxIds.size} onClear={() => setSelectedTxIds(new Set())}
+          summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 이미 처리된 건은 건너뜁니다</>}>
+          <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
+            className="btn-primary btn-sm">전표처리({selectedTxIds.size})</button>
+        </SelectionBar>
+        </QueryBody>
+
+        {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 검색조건의 '조회 줄 수'를 올린다 ── */}
+        <Pager page={pager.page} pages={pager.pages} total={shownTx.length} size={txLive.size}
+          from={pager.from} to={pager.to} onPage={pager.setPage} />
+        </QueryScreen>
       )}
 
       {/* ========== 분석 탭 ========== */}
