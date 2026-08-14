@@ -8,7 +8,7 @@ import { logRead } from "@/lib/log-read";
 //   기존 BankAccountsOverview / TransactionsView 미사용 (그쪽은 /transactions 에서 그대로).
 //   표시 전용 — 새 mutation·RPC 0. read-only 쿼리만.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BarChart } from "@/components/charts/kit";
 import { supabase } from "@/lib/supabase";
@@ -30,7 +30,7 @@ import { NATURE_LABEL } from "@/lib/account-nature";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { SortToolbar } from "@/components/sort-toolbar";
-import { SortableTh } from "@/components/sortable-th";
+import { SortableTh, useColWidths, type ThFilterSpec } from "@/components/sortable-th";
 import { BankLogo } from "@/components/bank-logo";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -438,7 +438,7 @@ export default function BankPage() {
       //     (bank_account_id 만 있다). 처음에 짐작으로 balance·account_number 를 넣었더니
       //     엑셀에 빈 칸 두 개가 그대로 나갔다. 없는 것은 내보내지 않는다.
       ["거래일", "구분", "적요", "거래처", "금액", "거래후잔액", "비목", "전표"],
-      (sortedTx as any[]).map((tx) => [
+      shownTx.map((tx) => [
         String(tx.transaction_date || "").slice(0, 10),
         tx.type === "income" ? "입금" : "출금",
         tx.description || "",
@@ -476,6 +476,38 @@ export default function BankPage() {
     });
   }, [recentTx, sortKey, sortDir]);
 
+  /*  ── 엑셀식 머리단 필터 + 열 너비 — 수집·전표 표와 같은 방식 (sortable-th 공용 부품) ── */
+  const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("bank-tx-colw", {
+    counterparty: 200, description: 220, classification: 110, amount: 120, balance: 120, date: 100, state: 140,
+  });
+  const colVal = (tx: any, k: string): string => {
+    switch (k) {
+      case "counterparty": return tx.counterparty || "";
+      case "description": return displayMemo(tx);
+      case "classification": return tx.classification || tx.category || "";
+      case "amount": return `${tx.type === "income" ? "+" : "-"}${Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}`;
+      case "date": return String(tx.transaction_date || "");
+      case "state": return (MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped).label;
+      default: return "";
+    }
+  };
+  const colHit = (tx: any): boolean =>
+    Object.entries(colF).every(([k, set]) => !set || set.has(colVal(tx, k)));
+  //   값 목록은 **다른 칸 필터를 거친 뒤** 기준 — 엑셀의 좁혀 들어가기와 동일
+  const thFilter = (k: string): ThFilterSpec => ({
+    values: (sortedTx as any[])
+      .filter((tx) => Object.entries(colF).every(([kk, set]) => kk === k || !set || set.has(colVal(tx, kk))))
+      .map((tx) => colVal(tx, k)),
+    selected: colF[k] ?? null,
+    onApply: (sel) => setColF((f) => ({ ...f, [k]: sel })),
+  });
+  const thResize = (k: string, colIndex: number) =>
+    ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
+  //   화면·엑셀·전체선택이 모두 이 목록을 본다 — 보이는 것과 파일·선택이 달라지면 안 된다
+  const shownTx = (sortedTx as any[]).filter(colHit);
+
   // 탭·계좌·기간 필터 변경 시 선택 초기화 (다른 목록의 선택이 남지 않게)
   useEffect(() => { setSelectedTxIds(new Set()); }, [tab, selectedAccountNo, bankTxFrom, bankTxTo]);
 
@@ -487,7 +519,7 @@ export default function BankPage() {
     });
   };
   // 전체선택/일괄은 미처리(journal_entry_id 없음) 건만 대상.
-  const selectableTx = sortedTx.filter((tx) => !tx.journal_entry_id);
+  const selectableTx = shownTx.filter((tx) => !tx.journal_entry_id);
   const allTxSelected = selectableTx.length > 0 && selectableTx.every((tx) => selectedTxIds.has(tx.id));
   const someTxSelected = selectableTx.some((tx) => selectedTxIds.has(tx.id)) && !allTxSelected;
   const toggleAllTx = () => {
@@ -776,7 +808,7 @@ export default function BankPage() {
             <DateRangeField from={bankTxFrom} to={bankTxTo}
               onChange={(f, t) => { setBankTxFrom(f); setBankTxTo(t); }}
               onClear={() => { setBankTxFrom(""); setBankTxTo(""); }} />
-            <button type="button" onClick={exportBankCsv} disabled={sortedTx.length === 0}
+            <button type="button" onClick={exportBankCsv} disabled={shownTx.length === 0}
               className="btn-secondary btn-sm ml-auto disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
             <span className="text-[10px] text-[var(--text-dim)] hidden lg:block">미설정 시 최근 50건</span>
           </div>
@@ -835,8 +867,9 @@ export default function BankPage() {
         </div>
         <div className="transaction-table-panel glass-card">
           <div className="overflow-auto max-h-[640px]">
-            {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12) */}
-            <table className="data-table w-full">
+            {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12).
+                깔때기·너비 손잡이·머리단 세로선(.ev-lined)은 수집·전표 표와 같은 부품 (2026-08-14 사장님) */}
+            <table ref={tableRef} className="data-table w-full ev-lined">
               <thead className="sticky-bar">
                 <tr className="table-head-row">
                   <th className="w-10">
@@ -849,17 +882,18 @@ export default function BankPage() {
                       className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                     />
                   </th>
-                  <SortableTh label="예금주명" sortKey="counterparty" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                  <SortableTh label="거래내용" sortKey="description" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                  <SortableTh label="분류" sortKey="classification" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                  <SortableTh label="금액" sortKey="amount" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                  <th className="text-center px-3 py-2.5 font-semibold select-none">잔액</th>
-                  <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                  <SortableTh label="상태" sortKey="type" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                  <SortableTh label="예금주명" sortKey="counterparty" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("counterparty")} resize={thResize("counterparty", 1)} />
+                  <SortableTh label="거래내용" sortKey="description" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("description")} resize={thResize("description", 2)} />
+                  <SortableTh label="분류" sortKey="classification" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("classification")} resize={thResize("classification", 3)} />
+                  <SortableTh label="금액" sortKey="amount" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("amount")} resize={thResize("amount", 4)} />
+                  {/* 잔액은 줄마다 다 달라 깔때기가 의미 없다 — 너비 손잡이만 */}
+                  <SortableTh label="잔액" resize={thResize("balance", 5)} />
+                  <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("date")} resize={thResize("date", 6)} />
+                  <SortableTh label="상태" sortKey="type" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("state")} resize={thResize("state", 7)} />
                 </tr>
               </thead>
               <tbody>
-                {sortedTx.length === 0 ? (
+                {shownTx.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-3 py-2.5">
                       <EmptyState
@@ -869,7 +903,7 @@ export default function BankPage() {
                       />
                     </td>
                   </tr>
-                ) : sortedTx.slice(0, visibleTx).map((tx) => {
+                ) : shownTx.slice(0, visibleTx).map((tx) => {
                   const isIncome = tx.type === "income";
                   const m = MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped;
                   const posted = !!tx.journal_entry_id;
@@ -997,10 +1031,10 @@ export default function BankPage() {
                 })}
               </tbody>
             </table>
-            {sortedTx.length > visibleTx && (
+            {shownTx.length > visibleTx && (
               <div className="p-3 text-center border-t border-[var(--border)]">
                 <button type="button" className="btn-secondary btn-sm" onClick={() => setVisibleTx((v) => v + 500)}>
-                  더 보기 ({Math.min(visibleTx, sortedTx.length).toLocaleString()} / {sortedTx.length.toLocaleString()}건 표시 중)
+                  더 보기 ({Math.min(visibleTx, shownTx.length).toLocaleString()} / {shownTx.length.toLocaleString()}건 표시 중)
                 </button>
               </div>
             )}

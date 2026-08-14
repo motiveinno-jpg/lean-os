@@ -10,7 +10,7 @@ import { Ico } from "@/components/ui-icon";
 //   기능 보존: 큰 카드 디스플레이 + 사용현황 + 미니그리드 + 거래내역 검색/필터 + 분석 stat·차트.
 //   가짜 데이터 금지: 카드번호 끝4 only, credit_limit/리워드 없으면 영역 hide, 실 카테고리.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/date-field";
 import { DateRangeField } from "@/components/date-range-field";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,7 +24,7 @@ import { CardBillingSummary } from "@/components/card-billing-summary";
 import { getBankSyncAccess } from "@/lib/billing";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
 import { SortToolbar } from "@/components/sort-toolbar";
-import { SortableTh } from "@/components/sortable-th";
+import { SortableTh, useColWidths, type ThFilterSpec } from "@/components/sortable-th";
 import { BankLogo } from "@/components/bank-logo";
 import { EmptyState } from "@/components/empty-state";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -410,7 +410,7 @@ export default function CardsPage() {
     downloadCsv(
       `카드거래내역_${rangeSuffix(cardTxFrom, cardTxTo)}`,
       ["승인일", "가맹점", "금액", "비목", "카드", "전표"],
-      (sortedTx as any[]).map((tx) => [
+      shownTx.map((tx) => [
         String(tx.transaction_date || "").slice(0, 10),
         tx.merchant_name || "",
         Number(tx.amount || 0),
@@ -455,6 +455,37 @@ export default function CardsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredTx, sortKey, sortDir]);
 
+  /*  ── 엑셀식 머리단 필터 + 열 너비 — 수집·전표 표와 같은 방식 (sortable-th 공용 부품) ── */
+  const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("cards-tx-colw", {
+    merchant: 220, classification: 130, card: 140, amount: 120, date: 150,
+  });
+  const colVal = (tx: any, k: string): string => {
+    switch (k) {
+      case "merchant": return tx.merchant_name || "";
+      case "classification": return classificationLabel(tx.classification) || tx.category || "미분류";
+      case "card": return tx.card_name || "카드";
+      case "amount": return `${Number(tx.amount || 0) < 0 ? "+" : "-"}${Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}`;
+      case "date": return String(tx.transaction_date || "");
+      default: return "";
+    }
+  };
+  const colHit = (tx: any): boolean =>
+    Object.entries(colF).every(([k, set]) => !set || set.has(colVal(tx, k)));
+  //   값 목록은 **다른 칸 필터를 거친 뒤** 기준 — 엑셀의 좁혀 들어가기와 동일
+  const thFilter = (k: string): ThFilterSpec => ({
+    values: (sortedTx as any[])
+      .filter((tx) => Object.entries(colF).every(([kk, set]) => kk === k || !set || set.has(colVal(tx, kk))))
+      .map((tx) => colVal(tx, k)),
+    selected: colF[k] ?? null,
+    onApply: (sel) => setColF((f) => ({ ...f, [k]: sel })),
+  });
+  const thResize = (k: string, colIndex: number) =>
+    ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
+  //   화면·엑셀·전체선택이 모두 이 목록을 본다 — 보이는 것과 파일·선택이 달라지면 안 된다
+  const shownTx = (sortedTx as any[]).filter(colHit);
+
   // 탭·카드 필터 변경 시 선택 초기화
   useEffect(() => { setSelectedTxIds(new Set()); }, [tab, filterCardId]);
 
@@ -466,7 +497,7 @@ export default function CardsPage() {
     });
   };
   // 전체선택/일괄은 미처리(journal_entry_id 없음) 건만 대상.
-  const selectableTx = sortedTx.filter((tx: any) => !tx.journal_entry_id);
+  const selectableTx = shownTx.filter((tx: any) => !tx.journal_entry_id);
   const allTxSelected = selectableTx.length > 0 && selectableTx.every((tx: any) => selectedTxIds.has(tx.id));
   const someTxSelected = selectableTx.some((tx: any) => selectedTxIds.has(tx.id)) && !allTxSelected;
   const toggleAllTx = () => {
@@ -620,7 +651,7 @@ export default function CardsPage() {
       {/* 기간설정 — 제일 상단(툴바 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용 */}
       <div className="card-tx-period-filter no-print">
         {/*   통장 화면과 같은 위젯 — 두 화면이 같은 일을 하므로 다르게 생길 이유가 없다 (2026-08-11) */}
-        <button type="button" onClick={exportCardCsv} disabled={sortedTx.length === 0}
+        <button type="button" onClick={exportCardCsv} disabled={shownTx.length === 0}
           className="btn-secondary btn-sm order-last disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
         <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
           onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }}
@@ -830,8 +861,9 @@ export default function CardsPage() {
 
           <div className="card-tx-table glass-card">
             <div className="overflow-auto max-h-[640px]">
-              {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12) */}
-              <table className="data-table w-full">
+              {/* 공용 표준 — 메뉴마다 다르던 표 밀도를 하나로 (2026-08-12).
+                  깔때기·너비 손잡이·머리단 세로선(.ev-lined)은 수집·전표 표와 같은 부품 (2026-08-14 사장님) */}
+              <table ref={tableRef} className="data-table w-full ev-lined">
                 <thead className="sticky-bar">
                   <tr className="table-head-row">
                     <th className="w-10">
@@ -844,21 +876,21 @@ export default function CardsPage() {
                         className="h-4 w-4 cursor-pointer accent-[var(--primary)]"
                       />
                     </th>
-                    <SortableTh label="가맹점" sortKey="merchant_name" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                    <SortableTh label="분류" sortKey="classification" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                    <SortableTh label="카드" sortKey="card_name" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                    <SortableTh label="금액" sortKey="amount" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
-                    <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} />
+                    <SortableTh label="가맹점" sortKey="merchant_name" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("merchant")} resize={thResize("merchant", 1)} />
+                    <SortableTh label="분류" sortKey="classification" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("classification")} resize={thResize("classification", 2)} />
+                    <SortableTh label="카드" sortKey="card_name" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("card")} resize={thResize("card", 3)} />
+                    <SortableTh label="금액" sortKey="amount" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("amount")} resize={thResize("amount", 4)} />
+                    <SortableTh label="날짜" sortKey="transaction_date" sort={{ key: sortKey ?? "", dir: sortDir }} onSort={onSortTx} filter={thFilter("date")} resize={thResize("date", 5)} />
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedTx.length === 0 ? (
+                  {shownTx.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-3 py-2.5">
                         <EmptyState icon="💳" title="최근 카드 거래가 없습니다" desc="상단의 카드 연동으로 거래를 불러올 수 있습니다" />
                       </td>
                     </tr>
-                  ) : sortedTx.map((tx: any) => {
+                  ) : shownTx.map((tx: any) => {
                     const checked = selectedTxIds.has(tx.id);
                     const posted = !!tx.journal_entry_id;
                     const cat = classificationLabel(tx.classification) || tx.category || "미분류";
