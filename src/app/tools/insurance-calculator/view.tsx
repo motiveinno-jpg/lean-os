@@ -30,6 +30,8 @@ const RATES = {
 };
 
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
+/** 요율을 화면 글자로 — 0.0475 → "4.75%". 요율을 글자로 또 적어 두면 RATES 만 고쳤을 때 어긋난다. */
+const pct = (f: number) => `${+(f * 100).toFixed(4)}%`;
 const digits = (s: string) => s.replace(/[^0-9.]/g, "");
 const comma = (s: string) => (s ? Number(s.replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : "");
 
@@ -53,21 +55,29 @@ export default function InsuranceCalculatorView() {
     const workerTotal = pensionEach + healthEach + careEach + empEach;
     const bizTotal = pensionEach + healthEach + careEach + empEach + empBiz + accident;
     return {
-      pay, pensionEach, healthEach, careEach, empEach, empBiz, accident,
+      pay, pensionBase, pensionEach, healthEach, careEach, empEach, empBiz, accident,
       workerTotal, bizTotal,
       afterDeduct: pay - workerTotal,
       totalCost: pay + bizTotal,
       capped: pay > RATES.pensionCapHigh,
+      //   하한도 알려 준다 — 월급이 41만 원보다 적어도 보험료는 41만 원 기준으로 붙는다.
+      //   "왜 월급보다 보험료 비율이 높지?" 의 답이 여기 있다.
+      floored: pay < RATES.pensionCapLow,
     };
   }, [salary, accidentRate]);
 
+  //   ★ '계산' 칸을 함께 적는다 (2026-08-14 사장님) — 금액만 있으면 **무엇에 요율을 곱했는지**
+  //     알 수 없다. 특히 국민연금은 월급이 아니라 기준소득월액(상·하한으로 자른 값)에 붙는다.
+  //     요율 글자는 RATES 에서 뽑는다 — 손으로 또 적으면 요율 개정 때 한쪽만 고쳐진다.
   const rows = r ? [
-    { name: "국민연금 (각 4.75%)", worker: r.pensionEach, biz: r.pensionEach },
-    { name: "건강보험 (각 3.595%)", worker: r.healthEach, biz: r.healthEach },
-    { name: "장기요양 (각 0.4724%)", worker: r.careEach, biz: r.careEach },
-    { name: "고용보험 (각 0.9%)", worker: r.empEach, biz: r.empEach },
-    { name: "고용안정·직능개발 (0.25%)", worker: null, biz: r.empBiz },
-    ...(r.accident > 0 ? [{ name: `산재보험 (${accidentRate}%)`, worker: null, biz: r.accident }] : []),
+    { name: "국민연금",
+      calc: `${won(r.pensionBase)}${r.capped ? " (상한)" : r.floored ? " (하한)" : ""} × ${pct(RATES.pensionRate / 2)}`,
+      worker: r.pensionEach, biz: r.pensionEach },
+    { name: "건강보험", calc: `${won(r.pay)} × ${pct(RATES.healthRate / 2)}`, worker: r.healthEach, biz: r.healthEach },
+    { name: "장기요양", calc: `${won(r.pay)} × ${pct(RATES.careRate / 2)}`, worker: r.careEach, biz: r.careEach },
+    { name: "고용보험", calc: `${won(r.pay)} × ${pct(RATES.empRate / 2)}`, worker: r.empEach, biz: r.empEach },
+    { name: "고용안정·직능개발", calc: `${won(r.pay)} × ${pct(RATES.empBizExtra)} · 회사만`, worker: null, biz: r.empBiz },
+    ...(r.accident > 0 ? [{ name: "산재보험", calc: `${won(r.pay)} × ${accidentRate}% · 회사만`, worker: null, biz: r.accident }] : []),
   ] : [];
 
 
@@ -117,26 +127,32 @@ export default function InsuranceCalculatorView() {
                 </div>
                 <table className="lp4-freetool-table lp4-freetool-table-tight">
                   <thead>
-                    <tr><th>항목</th><th>직원 부담</th><th>회사 부담</th></tr>
+                    <tr><th>항목</th><th>계산</th><th>직원 부담</th><th>회사 부담</th></tr>
                   </thead>
                   <tbody>
                     {rows.map((row) => (
                       <tr key={row.name}>
                         <td>{row.name}</td>
+                        <td className="lp4-freetool-dim">{row.calc}</td>
                         <td>{row.worker === null ? "—" : `${won(row.worker)}원`}</td>
                         <td>{won(row.biz)}원</td>
                       </tr>
                     ))}
                     <tr>
                       <td><b>합계</b></td>
+                      <td className="lp4-freetool-dim">월급 {won(r.pay)}원 기준</td>
                       <td><b>{won(r.workerTotal)}원</b></td>
                       <td><b>{won(r.bizTotal)}원</b></td>
                     </tr>
                   </tbody>
                 </table>
-                {r.capped && (
+                {(r.capped || r.floored) && (
                   <div className="lp4-freetool-result-rows">
-                    <div className="lp4-freetool-result-row">국민연금은 기준소득월액 상한({won(RATES.pensionCapHigh)}원)까지만 부과됩니다</div>
+                    <div className="lp4-freetool-result-row">
+                      {r.capped
+                        ? <>국민연금은 기준소득월액 <b>상한({won(RATES.pensionCapHigh)}원)</b>까지만 부과됩니다 — 월급이 더 많아도 연금 보험료는 그대로입니다</>
+                        : <>국민연금은 기준소득월액 <b>하한({won(RATES.pensionCapLow)}원)</b>부터 부과됩니다 — 월급이 더 적어도 하한 기준으로 붙습니다</>}
+                    </div>
                   </div>
                 )}
               </div>

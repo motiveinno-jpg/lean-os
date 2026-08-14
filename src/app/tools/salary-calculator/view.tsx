@@ -23,6 +23,8 @@ const RATES = {
 };
 
 const won = (n: number) => Math.round(n).toLocaleString("ko-KR");
+/** 요율을 화면 글자로 — 0.0475 → "4.75%". 손으로 또 적으면 RATES 만 고쳤을 때 어긋난다. */
+const pct = (f: number) => `${+(f * 100).toFixed(4)}%`;
 const comma = (s: string) => (s ? Number(s.replace(/[^0-9]/g, "")).toLocaleString("ko-KR") : "");
 
 /** 간이세액표 조회 — 과세대상 월급여(원), 공제대상 가족수(본인 포함), 8~20세 자녀수 */
@@ -72,7 +74,13 @@ export default function SalaryCalculatorView() {
     const tax = incomeTax(base, family, children);
     const localTax = Math.floor(tax * 0.1);
     const total = pension + health + care + emp + tax + localTax;
-    return { gross, free, base, pension, health, care, emp, tax, localTax, total, net: gross - total };
+    return {
+      gross, free, base, pension, health, care, emp, tax, localTax, total, net: gross - total,
+      //   국민연금이 붙는 기준(기준소득월액)과 그게 잘렸는지 — 화면에 그대로 적기 위한 값
+      pensionBase,
+      capped: base > RATES.pensionCapHigh,
+      floored: base < RATES.pensionCapLow,
+    };
   }, [salary, taxFree, family, children]);
 
 
@@ -124,20 +132,36 @@ export default function SalaryCalculatorView() {
                   <span className="lp4-freetool-result-num">{won(r.net)}원</span>
                   <span className="lp4-freetool-result-cap">예상 월 실수령액 — 공제 합계 −{won(r.total)}원</span>
                 </div>
+                {/*   세전 → 과세대상 → 공제 → 실수령액까지 **한 사다리**로 (2026-08-14 사장님).
+                      금액만 있으면 무엇에 요율을 곱했는지 알 수 없고, 표 어디에도 실수령액이 안 나와
+                      위 큰 숫자와 이어지지 않았다. 마지막 줄에서 고리를 닫는다.
+                      ⚠️ 국민연금 비고는 월급과 무관하게 늘 "(상한 적용)"이라고 적혀 있었다 —
+                         300만 원에도 상한이 걸린 것처럼 읽힌다. 실제로 잘렸을 때만 적는다. */}
                 <table className="lp4-freetool-table lp4-freetool-table-tight">
                   <thead>
-                    <tr><th>공제 항목</th><th>금액</th><th>비고</th></tr>
+                    <tr><th>항목</th><th>금액</th><th>계산</th></tr>
                   </thead>
                   <tbody>
-                    <tr><td>국민연금</td><td>{won(r.pension)}원</td><td>4.75% (상한 적용)</td></tr>
-                    <tr><td>건강보험</td><td>{won(r.health)}원</td><td>3.595%</td></tr>
-                    <tr><td>장기요양보험</td><td>{won(r.care)}원</td><td>0.4724%</td></tr>
-                    <tr><td>고용보험</td><td>{won(r.emp)}원</td><td>0.9%</td></tr>
-                    <tr><td>근로소득세</td><td>{won(r.tax)}원</td><td>간이세액표 · 가족 {family}명{children > 0 ? ` · 자녀 ${children}명` : ""}</td></tr>
-                    <tr><td>지방소득세</td><td>{won(r.localTax)}원</td><td>소득세의 10%</td></tr>
-                    <tr><td><b>공제 합계</b></td><td><b>{won(r.total)}원</b></td><td>과세대상 {won(r.base)}원 기준</td></tr>
+                    <tr><td>과세대상</td><td>{won(r.base)}원</td><td className="lp4-freetool-dim">세전 {won(r.gross)} − 비과세 {won(r.free)}</td></tr>
+                    <tr><td>국민연금</td><td>−{won(r.pension)}원</td><td className="lp4-freetool-dim">{won(r.pensionBase)}{r.capped ? " (상한)" : r.floored ? " (하한)" : ""} × {pct(RATES.pensionRate / 2)}</td></tr>
+                    <tr><td>건강보험</td><td>−{won(r.health)}원</td><td className="lp4-freetool-dim">{won(r.base)} × {pct(RATES.healthRate / 2)}</td></tr>
+                    <tr><td>장기요양보험</td><td>−{won(r.care)}원</td><td className="lp4-freetool-dim">{won(r.base)} × {pct(RATES.careRate / 2)}</td></tr>
+                    <tr><td>고용보험</td><td>−{won(r.emp)}원</td><td className="lp4-freetool-dim">{won(r.base)} × {pct(RATES.empRate / 2)}</td></tr>
+                    <tr><td>근로소득세</td><td>−{won(r.tax)}원</td><td className="lp4-freetool-dim">간이세액표 · 가족 {family}명{children > 0 ? ` · 자녀 ${children}명` : ""}</td></tr>
+                    <tr><td>지방소득세</td><td>−{won(r.localTax)}원</td><td className="lp4-freetool-dim">소득세 {won(r.tax)} × 10%</td></tr>
+                    <tr><td><b>공제 합계</b></td><td><b>−{won(r.total)}원</b></td><td className="lp4-freetool-dim">4대보험 + 소득세</td></tr>
+                    <tr><td><b>실수령액</b></td><td><b>{won(r.net)}원</b></td><td className="lp4-freetool-dim">세전 {won(r.gross)} − 공제 {won(r.total)}</td></tr>
                   </tbody>
                 </table>
+                {(r.capped || r.floored) && (
+                  <div className="lp4-freetool-result-rows">
+                    <div className="lp4-freetool-result-row">
+                      {r.capped
+                        ? <>국민연금은 기준소득월액 <b>상한({won(RATES.pensionCapHigh)}원)</b>까지만 부과됩니다 — 월급이 더 많아도 연금 공제액은 그대로입니다</>
+                        : <>국민연금은 기준소득월액 <b>하한({won(RATES.pensionCapLow)}원)</b>부터 부과됩니다 — 과세대상이 더 적어도 하한 기준으로 붙습니다</>}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="lp4-freetool-empty">세전 월급을 넣으면 바로 계산됩니다</div>
