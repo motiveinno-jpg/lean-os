@@ -721,10 +721,10 @@ export const NAV_LINKS = [
   { href: TOUR_HREF, label: "오너뷰 알아보기" },
   { href: "/pricing", label: "가격" },
   { href: "/tax-partners", label: "세무사 제휴" },
-  //   무료 도구는 FAQ 옆(끝쪽) — 제품 메뉴(알아보기·가격·제휴) 가운데 끼어 있으면
-  //   제품의 일부처럼 읽힌다. 보조 메뉴는 끝에 몰아 둔다 (2026-08-14 사장님).
-  { href: TOOLS_HREF, label: "무료 도구" },
   { href: "#faq", label: "FAQ" },
+  //   무료 도구는 FAQ 오른쪽 맨 끝 — 제품 메뉴(알아보기·가격·제휴) 가운데 끼어 있으면
+  //   제품의 일부처럼 읽힌다 (2026-08-14 사장님: "faq 오른쪽으로 배치해").
+  { href: TOOLS_HREF, label: "무료 도구" },
 ];
 
 export const FOOTER = {
