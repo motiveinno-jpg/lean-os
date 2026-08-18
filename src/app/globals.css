@@ -2073,11 +2073,13 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .member-role-empty { @apply bg-[var(--bg-card)] rounded-xl p-8 text-center border border-[var(--border)]; }
 .member-role-row { @apply bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex flex-wrap items-center gap-3; }
 /* .hr-templates-page — 순수 마커(뿌리는 .qk-shell 이 세로 간격을 맡는다, 2026-08-18) */
-.schedule-page { @apply space-y-6 mx-auto; }
-.schedule-tabbar { @apply flex flex-wrap items-center justify-between gap-2; }
-.schedule-calendar-tab { @apply space-y-4; }
-.schedule-calendar-header { @apply flex items-center justify-between flex-wrap gap-3; }
-.schedule-calendar-grid { @apply overflow-hidden; }
+.schedule-calendar-grid { @apply overflow-hidden; } /* 2026-08-18 상자 안 격자 — glass-card 껍데기 없음 */
+/* .schedule-page — 순수 마커 (뿌리는 .qk-shell) */
+table.sched-table { min-width: 900px; }
+.sched-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
+.sched-table td.truncate { max-width: 0; }
+.sched-table tbody tr.sched-row { @apply cursor-pointer; }
+.sched-table tbody tr.sched-row:hover td { background: var(--bg-surface); }
 .schedule-weekday-header { @apply grid grid-cols-7 border-b border-[var(--border)] bg-[var(--bg-surface)]; }
 .schedule-cells-grid { @apply grid grid-cols-7; }
 .schedule-day-cell { @apply min-h-[88px] p-1.5 border-r border-b border-[var(--border)]/50 text-left transition hover:bg-[var(--bg-surface)]; }
@@ -3185,18 +3187,6 @@ table.board-table { min-width: 900px; }
 .sched-view-files > button { @apply max-w-full truncate px-2 py-1 rounded-lg bg-[var(--bg-surface)] text-[12px] text-[var(--text)] transition hover:text-[var(--primary)]; }
 
 /* 일정 메뉴의 '목록' 탭 — 날짜 있는 것과 없는 것을 한 자리에서 */
-.sched-list-tab { @apply flex flex-col gap-4; }
-.sched-list-bar { @apply flex items-center gap-3; }
-.sched-list-check { @apply inline-flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] cursor-pointer; }
-.sched-list-group { @apply flex flex-col gap-1 p-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
-.sched-list-group > b { @apply mb-1 text-[12px] font-bold text-[var(--text-dim)]; }
-.sched-list-group > b em { @apply not-italic ml-1 text-[var(--text-muted)]; }
-.sched-list-row { @apply flex items-center gap-2.5 px-2 py-2 rounded-xl transition hover:bg-[var(--bg-surface)]; }
-.sched-list-main { @apply flex-1 min-w-0 flex flex-col items-start text-left; }
-.sched-list-main b { @apply w-full truncate text-[13px] font-semibold text-[var(--text)]; }
-.sched-list-main i { @apply not-italic w-full truncate text-[11px] text-[var(--text-dim)]; }
-.sched-list-meta { @apply shrink-0 flex items-center gap-1.5; }
-.sched-list-meta em { @apply not-italic text-[11.5px] text-[var(--text-muted)]; font-variant-numeric: tabular-nums; }
 .sched-list-vis { @apply px-1.5 py-0.5 rounded-md bg-[var(--bg-surface)] text-[10.5px] font-bold text-[var(--text-dim)]; }
 
 /* 대화창 자리에 서는 달력 (2026-08-10) — 날짜를 누르면 그 날 일정을 넣는다 */
