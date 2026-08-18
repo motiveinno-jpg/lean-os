@@ -70,3 +70,7 @@
 대체: collect-tabs(목록/담당별) · QueryBar(검색조건[담당·거래처·템플릿] + 빠른검색 + 내 담당/전체 ChipGroup + 상태 칩(qk-chip)) · ResultStrip · ev-table+SortableTh · Pager · 내 조건('projecthub')
 ### 견적 (`/projecthub/quotes`)
 - 자체 툴바·표·빈 상태 → QueryScreen(QueryBar[빠른검색·상태 ChipGroup] · ResultStrip · ev-table+SortableTh · Pager). `globals.css`: `.quotes-toolbar` `.quotes-table-wrap` `.quotes-empty-state` `.quotes-table-scroll`
+### 전자계약 (`/signatures`)
+- 자체 툴바(seg-bar 탭·한도 칩·새 계약 요청), 상태 카운트 카드 7장, 검색바+일괄 액션(전체선택·PDF·리마인더·삭제), 기간·그룹·담당자 바(select 2 + 기간 2), 자체 정렬 머리(▲▼↕), 페이지네이션 바(10/25/50), 발송 실패 큰 배너, **user_preferences.signature_list_prefs 자동 기억**(조회값 자동 기억 금지 → 내 조건으로)
+- `globals.css`: `.signature-dashboard-toolbar` `.signature-toolbar-actions` `.signature-templates-panel` `.signature-failure-alert` `.signature-status-cards` `.signature-status-chip*` `.signature-search-bar` `.signature-search-input-wrap` `.signature-request-list` `.signature-period-*` `.signature-table-wrap` `.signature-table-scroll` `.signature-table thead th` `.signature-table-sort*` `.signature-empty-state` `.signature-pagination-bar`
+대체: collect-tabs(계약 요청 N/양식 관리) · QueryBar(요청일 segments[전체 기간 가능] + 검색조건[요청일 달력·서명완료일·그룹·담당자] + 빠른검색 + 상태 칩) · ResultStrip(건수·서명완료 + 서명완료 고르기·발송 실패 칩·발송 한도) · ev-table+SortableTh · Pager · SelectionBar(리마인더·삭제·PDF 저장[파란]) · 내 조건('signatures')

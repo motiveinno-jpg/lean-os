@@ -14,6 +14,13 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { SortableTh, nextSort } from "@/components/sortable-th";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, SavedTabs, ConditionSave,
+  ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
+  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, periodQuicks,
+  type AppliedChip,
+} from "@/components/query-kit";
 import { useSearchParams } from "next/navigation";
 import { friendlyError } from "@/lib/friendly-error";
 // 단체일괄 행에서 계약서 상세/PDF 진입용 router (2026-05-21 PR-B)
@@ -64,7 +71,6 @@ function SignaturesDashboardInner() {
   const [userId, setUserId] = useState<string | null>(null);
   // user_preferences.user_id 는 auth.users(id) 를 참조한다 — users.id 와 다른 계정이 있어
   //   users.id 로 쓰면 조회·저장이 조용히 어긋난다(사이드바 고정핀에서 이미 겪은 함정).
-  const [authUid, setAuthUid] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [subTab, setSubTab] = useState<"requests" | "templates">("requests");
   const [statusFilter, setStatusFilter] = useState<"all" | SignatureStatusValue>("all");
@@ -74,19 +80,22 @@ function SignaturesDashboardInner() {
   const searchParams = useSearchParams();
   useEffect(() => { if (searchParams.get("bulk") === "1") setShowOrgBulkWizard(true); }, [searchParams]);
   // U4 페이지네이션 — 한 페이지 10/25/50건. 필터/검색 변경 시 1페이지 리셋.
-  const [pageSize, setPageSize] = useState<number>(10);
-  const [page, setPage] = useState<number>(1);
+  //   ── 조회 화면 표준 (2026-08-18 Wave 3) — 쪽은 usePager(기본 50). 검색조건은 '조회'를 눌러야 반영 ──
+  const [rowsPer, setRowsPer] = useState(50);
+  const [panelOpen, setPanelOpen] = useState(false);
   // 표 정렬·기간 설정 (2026-08-05 사장님 시안) — 마지막 값은 계정별로 서버에 기억한다.
   type SortKey = "docNo" | "status" | "batch" | "title" | "signer" | "manager" | "created" | "signed";
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "created", dir: "desc" });
-  const [reqFrom, setReqFrom] = useState("");   // 요청일 시작 (YYYY-MM-DD)
+  const [reqFrom, setReqFrom] = useState("");   // 요청일 시작 (YYYY-MM-DD) — 조회 줄, 즉시. 빈 값 = 전체 기간
   const [reqTo, setReqTo] = useState("");       // 요청일 끝
-  const [expFrom, setExpFrom] = useState("");   // 만료일 시작
-  const [expTo, setExpTo] = useState("");       // 만료일 끝
+  const [expFrom, setExpFrom] = useState("");   // 서명완료일 시작 — 검색조건 안
+  const [expTo, setExpTo] = useState("");       // 서명완료일 끝
+  //   검색조건 초안(draft) — 서명완료일·그룹·담당자는 '조회'를 눌러야 반영된다
+  const [dExpFrom, setDExpFrom] = useState(""); const [dExpTo, setDExpTo] = useState("");
+  const [dBatch, setDBatch] = useState<string[]>([]); const [dManager, setDManager] = useState<string[]>([]);
   // 그룹(묶음)·담당자 필터 — 그 값만 골라 보기 (2026-08-05 사장님 요청)
-  const [batchFilter, setBatchFilter] = useState("");   // "" 전체 / "none" 묶음 없음 / batch_id
-  const [managerFilter, setManagerFilter] = useState(""); // "" 전체 / created_by(uuid)
-  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [batchFilter, setBatchFilter] = useState("");   // "" 전체 / "none" 묶음 없음 / batch_id  (표 안 묶음 칩으로도 건다)
+  const [managerFilter, setManagerFilter] = useState(""); // "" 전체 / created_by(uuid)   (표 안 담당자 이름으로도 건다)
   // PR-3: signed 행 서명본 보기 모달 (signature_data jsonb 이미지)
   // 2026-05-28 signer_inputs(라디오/조건부 텍스트 응답) 표시 추가
   const [viewSignedRow, setViewSignedRow] = useState<{ id: string; signer_name: string; signed_at: string | null; signature_data: { type?: string; data?: string } | null; title: string; signer_inputs?: Record<string, string> | null } | null>(null);
@@ -99,58 +108,14 @@ function SignaturesDashboardInner() {
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null);
   const isManager = true; // (P3) 전자계약 권한 보유자 전원 관리 뷰 (진입 자체가 권한 게이트)
-  useEffect(() => { setPage(1); }, [statusFilter, search, pageSize, reqFrom, reqTo, expFrom, expTo, sort]);
-
-  // 목록 보기 설정을 계정에 기억 — 다른 PC 로 로그인해도 같은 정렬·기간·페이지 크기.
-  useEffect(() => {
-    if (!authUid) return;
-    let alive = true;
-    (async () => {
-      const { data } = await (supabase as any)
-        .from("user_preferences").select("signature_list_prefs").eq("user_id", authUid).maybeSingle();
-      const p = data?.signature_list_prefs;
-      if (alive && p) {
-        if (p.sort?.key) setSort({ key: p.sort.key, dir: p.sort.dir === "asc" ? "asc" : "desc" });
-        if (typeof p.pageSize === "number") setPageSize(p.pageSize);
-        if (typeof p.statusFilter === "string") setStatusFilter(p.statusFilter);
-        setReqFrom(p.reqFrom || ""); setReqTo(p.reqTo || "");
-        setExpFrom(p.expFrom || ""); setExpTo(p.expTo || "");
-        setBatchFilter(p.batchFilter || ""); setManagerFilter(p.managerFilter || "");
-      }
-      if (alive) setPrefsLoaded(true);
-    })();
-    return () => { alive = false; };
-  }, [authUid]);
-
-  useEffect(() => {
-    if (!authUid || !companyId || !prefsLoaded) return; // 로드 전에 기본값으로 덮어쓰지 않게
-    const t = setTimeout(() => {
-      // 유니크 제약은 (user_id, company_id) 다. onConflict 를 user_id 로만 주면
-      //   42P10 으로 매번 실패하는데 void 로 삼켜서 무증상이었다 — 그래서 설정이
-      //   한 번도 저장되지 않았다(운영 15행 중 signature_list_prefs 0건, 2026-08-06).
-      void (supabase as any).from("user_preferences").upsert(
-        {
-          user_id: authUid,
-          company_id: companyId,
-          signature_list_prefs: { sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo, batchFilter, managerFilter },
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,company_id" },
-      ).then(({ error }: { error: { message: string } | null }) => {
-        if (error) console.error("전자계약 목록 설정 저장 실패:", error.message);
-      });
-    }, 600);
-    return () => clearTimeout(t);
-  }, [authUid, companyId, prefsLoaded, sort, pageSize, statusFilter, reqFrom, reqTo, expFrom, expTo, batchFilter, managerFilter]);
-
-  const toggleSort = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  //   목록 보기 설정을 계정(user_preferences.signature_list_prefs)에 기억하던 것은 뺐다 (2026-08-18 조회 화면 표준:
+  //   조회값 자동 기억 금지 — 나갔다 오면 기본값). 편의는 '내 조건'(★ 기본, saved_queries)이 맡는다.
+  const toggleSort = (key: SortKey) => setSort((c) => nextSort(c, key, key === "created" || key === "signed" ? "desc" : "asc"));
 
   useEffect(() => {
     getCurrentUser().then((u) => {
       if (u) {
         setUserId(u.id);
-        setAuthUid((u as any).auth_id || u.id);
         setCompanyId(u.company_id);
       }
     });
@@ -265,11 +230,7 @@ function SignaturesDashboardInner() {
   const filtered = useMemo(() => {
     const rows = (requests as any[]).filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        const hay = `${r.title || ""} ${r.signer_name || ""} ${r.signer_email || ""} ${memberNames[r.created_by] || ""}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
+      if (!quickSearchHit(search, [r.title, r.signer_name, r.signer_email, memberNames[r.created_by], String(docNoById.get(r.id) ?? "")])) return false;
       // 그룹(묶음)·담당자 — 고른 값만 보기
       if (batchFilter === "none" && r.batch_id) return false;
       if (batchFilter && batchFilter !== "none" && r.batch_id !== batchFilter) return false;
@@ -425,6 +386,47 @@ function SignaturesDashboardInner() {
     return map;
   }, [requests]);
 
+  //   쪽 넘김 — 기본 50줄. 조건이 바뀌면 1쪽으로
+  const pager = usePager(filtered as any[], rowsPer, `${statusFilter}|${search}|${reqFrom}|${reqTo}|${expFrom}|${expTo}|${batchFilter}|${managerFilter}|${sort.key}${sort.dir}`);
+  const condCountLive = (expFrom || expTo ? 1 : 0) + (batchFilter ? 1 : 0) + (managerFilter ? 1 : 0);
+  const condCountDraft = (dExpFrom || dExpTo ? 1 : 0) + dBatch.length + dManager.length;
+  const applyDraft = () => {
+    setExpFrom(dExpFrom); setExpTo(dExpTo);
+    setBatchFilter(dBatch[0] || ""); setManagerFilter(dManager[0] || "");
+  };
+  const syncDraft = () => { setDExpFrom(expFrom); setDExpTo(expTo); setDBatch(batchFilter ? [batchFilter] : []); setDManager(managerFilter ? [managerFilter] : []); };
+  useEffect(() => { syncDraft(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expFrom, expTo, batchFilter, managerFilter]);
+  //   내 조건 — ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다 — 예전 user_preferences 가 하던 일)
+  const saved = useSavedQueries("signatures", companyId);
+  const paramsNow = { status: statusFilter, q: search, reqFrom, reqTo, expFrom, expTo, batch: batchFilter, manager: managerFilter, sort, rows: rowsPer };
+  const paramsBasic = { status: "all", q: "", reqFrom: "", reqTo: "", expFrom: "", expTo: "", batch: "", manager: "", sort: { key: "created", dir: "desc" }, rows: 50 };
+  const applySaved = (p: Record<string, unknown>) => {
+    if (typeof p.status === "string") setStatusFilter(p.status as any);
+    if (typeof p.q === "string") setSearch(p.q);
+    setReqFrom(String(p.reqFrom || "")); setReqTo(String(p.reqTo || ""));
+    setExpFrom(String(p.expFrom || "")); setExpTo(String(p.expTo || ""));
+    setBatchFilter(String(p.batch || "")); setManagerFilter(String(p.manager || ""));
+    const so = p.sort as { key?: SortKey; dir?: "asc" | "desc" } | undefined;
+    if (so?.key) setSort({ key: so.key, dir: so.dir === "asc" ? "asc" : "desc" });
+    if (typeof p.rows === "number") setRowsPer(p.rows);
+  };
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved.isFetched) return;
+    setDefDone(true);
+    if (saved.def) applySaved(saved.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isFetched, saved.def, defDone]);
+  const suggestName = () => [statusFilter !== "all" ? (SIGNATURE_STATUS.find((x) => x.value === statusFilter)?.label || "") : "", dManager[0] ? memberNames[dManager[0]] : "", dBatch[0] ? (dBatch[0] === "none" ? "묶음 없음" : batchOptions.find((b) => b.id === dBatch[0])?.label || "") : ""].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
+  const chips: AppliedChip[] = [
+    ...quickTerms(search).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setSearch(quickTerms(search).filter((_, j) => j !== i).join(", ")) })),
+    ...((expFrom || expTo) ? [{ group: "서명완료일", label: `${expFrom || "…"} ~ ${expTo || "…"}`, onRemove: () => { setExpFrom(""); setExpTo(""); } }] : []),
+    ...(batchFilter ? [{ group: "그룹", label: batchFilter === "none" ? "묶음 없음" : (batchOptions.find((b) => b.id === batchFilter)?.label || "묶음"), onRemove: () => setBatchFilter("") }] : []),
+    ...(managerFilter ? [{ group: "담당자", label: memberNames[managerFilter] || "담당자", onRemove: () => setManagerFilter("") }] : []),
+  ];
+  const clearAll = () => { setSearch(""); setExpFrom(""); setExpTo(""); setBatchFilter(""); setManagerFilter(""); };
+
   // 최근 7일 발송 실패 요약 — 대표/관리자만, 1분마다 폴링.
   const { data: failureSummary = [] } = useQuery({
     queryKey: ["signature-failure-summary", companyId],
@@ -518,278 +520,151 @@ function SignaturesDashboardInner() {
   if (error) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
-    <div className="space-y-6">
-      {/* 툴바 — 탭 토글(서명 요청 / 양식 관리) + 액션 */}
-      <header className="signature-dashboard-toolbar page-sticky-header">
-        <div className="signature-tab-toggle seg-bar">
-          <button
-            onClick={() => setSubTab("requests")}
-            className={`seg-item ${subTab === "requests" ? "seg-item-active" : ""}`}
-          >
-            계약 요청
-          </button>
-          <button
-            onClick={() => setSubTab("templates")}
-            className={`seg-item ${subTab === "templates" ? "seg-item-active" : ""}`}
-          >
-            양식 관리
-          </button>
-        </div>
-        {subTab === "requests" && (
-          <div className="signature-toolbar-actions">
-            {/* 무제한 플랜도 사용량은 보이게 — 한도 없으면 '이번 달 발송 N건' (2026-08-11 사장님) */}
-            {contractStatus && (
-              <span
-                className="contract-usage-chip"
-                data-reached={contractLimitReached ? "1" : undefined}
-                title={contractStatus.limit !== null
-                  ? `${contractStatus.planName || "현재 요금제"} — 전자계약(계약 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`
-                  : `${contractStatus.planName || "현재 요금제"} — 전자계약 발송 무제한`}
-              >
-                {contractStatus.limit !== null
-                  ? `이번 달 발송 ${contractStatus.used}/${contractStatus.limit}건`
-                  : `이번 달 발송 ${contractStatus.used}건`}
-              </span>
-            )}
-            {/* 2026-08-05 사장님: '새 계약 요청'을 단체 일괄 발송 마법사로 통합 — 별도 '단체 일괄 발송' 버튼 제거.
-                한 곳에서 1건이든 여러 거래처든 같은 흐름으로 보낸다. */}
-            <button
-              onClick={() => setShowOrgBulkWizard(true)}
-              disabled={contractLimitReached}
-              className="btn-primary"
-              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다.` : "계약서를 골라 거래처에 발송 — 여러 곳에 변수만 바꿔 한 번에 보낼 수도 있습니다"}
-            >
+    <div className="qk-shell">
+      {/* ── 조회 화면 표준 — 탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김 · 확정 줄 (2026-08-18 Wave 3) ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print">
+            {([["requests", "계약 요청", requests.length], ["templates", "양식 관리", null]] as const).map(([k, label, n]) => (
+              <button key={k} type="button" onClick={() => setSubTab(k)}
+                className={subTab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
+                {label}{n != null && <span className="collect-tab-cnt">{n.toLocaleString()}</span>}
+              </button>
+            ))}
+          </div>
+
+          {subTab === "requests" && (<>
+          <QueryBar right={<>
+            {/* 2026-08-05 사장님: '새 계약 요청'을 단체 일괄 발송 마법사로 통합 — 한 곳에서 1건이든 여러 거래처든 같은 흐름 */}
+            <button type="button" onClick={() => setShowOrgBulkWizard(true)} disabled={contractLimitReached}
+              className="btn-primary btn-sm"
+              title={contractLimitReached ? `${contractStatus?.planName || "현재 요금제"}의 이번 달 전자계약 발송 한도(${contractStatus?.limit}건)를 모두 사용했습니다. 오너뷰 요금제로 올리면 무제한으로 보낼 수 있습니다.` : "계약서를 골라 거래처에 발송 — 여러 곳에 변수만 바꿔 한 번에 보낼 수도 있습니다"}>
               {contractLimitReached ? "이번 달 발송 한도 소진" : "+ 새 계약 요청"}
             </button>
-          </div>
-        )}
-      </header>
-
-      {subTab === "templates" && companyId && userId && (
-        <div className="signature-templates-panel">
-          {/* 온라인홍보사업 계약서·포기신청서 등 — "새 계약 요청"에서 실제 사용되는
-              문서(documents 테이블) 원본을 여기서 바로 보고 수정. OrgBulkWizard 가 같은
-              데이터(getDocuments)를 그대로 읽으므로 여기서 수정하면 발송 시 바로 반영됨. */}
-          {/* 계약 양식 단일 시스템 — 우리 회사가 만든 계약 양식만 노출(2026-07-23). 표준 계약서는 '양식 추가 › 직접 작성'에서 시작점으로 선택. */}
-          <ContractTemplatesManager companyId={companyId} />
-        </div>
-      )}
-
-      {subTab === "requests" && (
-        <>
-
-      {/* 최근 7일 발송 실패 (대표/관리자만, 실패가 있을 때만 노출) */}
-      {isManager && totalFailures > 0 && (
-        <button
-          onClick={() => setShowFailurePanel(true)}
-          className="signature-failure-alert"
-          title="최근 7일간 이메일 발송에 실패한 건을 확인하고 재발송하세요"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="shrink-0 w-9 h-9 rounded-lg bg-red-500/20 flex items-center justify-center text-lg text-red-500"><Ico e="⚠" tone="mono" /></span>
-            <div className="min-w-0">
-              <div className="text-xs font-semibold">최근 7일 발송 실패</div>
-              <div className="text-[11px] opacity-80 truncate">
-                {failureSummary.length}가지 사유 · 클릭해서 사유별 상세 보기
-              </div>
-            </div>
-          </div>
-          <span className="shrink-0 px-2.5 py-1 rounded-full bg-red-500/20 text-xs font-bold tabular-nums">{totalFailures}건</span>
-        </button>
-      )}
-
-      {/* 상태 카운트 카드 */}
-      <div className="signature-status-cards">
-        {/* 라벨+숫자를 한 줄로, 높이를 절반으로 (2026-08-06 사장님 스케치) */}
-        <button
-          onClick={() => setStatusFilter("all")}
-          className={`signature-status-chip ${
-            statusFilter === "all"
-              ? "bg-[var(--primary)] text-white shadow-md"
-              : "glass-card card-hover"
-          }`}
-        >
-          <span className={`signature-status-chip-label ${statusFilter === "all" ? "text-white/85" : "text-[var(--text-dim)]"}`}>전체</span>
-          <span className={`signature-status-chip-count mono-number ${statusFilter === "all" ? "text-white" : "text-[var(--text)]"}`}>{counts.all || 0}</span>
-        </button>
-        {/* 대기·거부는 실제로 도달 불가능한 상태(설정 코드 없음·prod 0건)라 카드에서 제외 (2026-08-10 사장님 확인) */}
-        {SIGNATURE_STATUS.filter((s) => s.value !== "pending" && s.value !== "rejected").map((s) => (
-          <button
-            key={s.value}
-            onClick={() => setStatusFilter(s.value)}
-            className={`signature-status-chip ${
-              statusFilter === s.value
-                ? `${s.bg} ${s.text} ring-2 ring-current/30`
-                : "glass-card card-hover"
-            }`}
-          >
-            <span className={`signature-status-chip-label ${s.text}`}>
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.dot}`} />
-              {s.label}
+          </>}>
+            {/* 요청일 — 안 걸 수도 있는 기간(onClear = 전체 기간). 서명완료일·그룹·담당자는 검색조건 안 */}
+            <DateRangeField label={null} parts="segments" from={reqFrom} to={reqTo}
+              onChange={(f, t) => { setReqFrom(f); setReqTo(t); }} onClear={() => { setReqFrom(""); setReqTo(""); }}
+              trailing={
+                <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) syncDraft(); setPanelOpen(v); }} activeCount={condCountLive} anchorSel=".drf"
+                  tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                    onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                    onBasic={() => { setStatusFilter("all"); setReqFrom(""); setReqTo(""); clearAll(); setSort({ key: "created", dir: "desc" }); setRowsPer(50); }}
+                    onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+                  foot={<>
+                    <button type="button" className="btn-secondary btn-sm" disabled={condCountDraft === 0} onClick={() => { setDExpFrom(""); setDExpTo(""); setDBatch([]); setDManager([]); }}>조건 지우기</button>
+                    <ConditionSave suggest={suggestName}
+                      onSave={(name, asDefault) => { saved.save(name, { ...paramsNow, expFrom: dExpFrom, expTo: dExpTo, batch: dBatch[0] || "", manager: dManager[0] || "" }, asDefault); applyDraft(); setPanelOpen(false); }} />
+                    <RowsPerPage value={rowsPer} onChange={setRowsPer} />
+                    <button type="button" className="btn-primary btn-sm" onClick={() => { applyDraft(); setPanelOpen(false); }}>조회</button>
+                  </>}>
+                  <ConditionRow label="요청일" hint="비우면 전체 기간">
+                    <span className="qk-range-txt">{reqFrom || reqTo ? `${reqFrom || "…"} ~ ${reqTo || "…"}` : "전체 기간"}</span>
+                    <DateRangeField label={null} parts="calendar" confirm from={reqFrom} to={reqTo}
+                      onChange={(f, t) => { setReqFrom(f); setReqTo(t); }} />
+                    <span className="qk-quicks">
+                      {periodQuicks().map((pq) => (
+                        <button key={pq.key} type="button" onClick={() => { setReqFrom(pq.from); setReqTo(pq.to); }}
+                          className={reqFrom === pq.from && reqTo === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
+                      ))}
+                      <button type="button" onClick={() => { setReqFrom(""); setReqTo(""); }} className={!reqFrom && !reqTo ? "qk-quick qk-quick-on" : "qk-quick"}>전체 기간</button>
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="서명완료일" hint="비우면 제한 없음">
+                    <DateRangeField label={null} from={dExpFrom} to={dExpTo} onChange={(f, t) => { setDExpFrom(f); setDExpTo(t); }} onClear={() => { setDExpFrom(""); setDExpTo(""); }} />
+                  </ConditionRow>
+                  <ConditionRow label="그룹" hint="묶음 발송 단위">
+                    <TokenField items={[{ value: "none", label: "묶음 없음" }, ...batchOptions.map((b) => ({ value: b.id, label: `${b.label} (${b.count}건)` }))]}
+                      value={dBatch} onChange={(v) => setDBatch(v.slice(-1))} placeholder="묶음 번호 (예: 12)" />
+                  </ConditionRow>
+                  <ConditionRow label="담당자">
+                    <TokenField items={managerOptions.map((m) => ({ value: m.id, label: `${m.name} (${m.count}건)` }))}
+                      value={dManager} onChange={(v) => setDManager(v.slice(-1))} placeholder="이름 일부" />
+                  </ConditionRow>
+                </ConditionPanel>
+              } />
+            <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 서명자 · 이메일 · 담당자 · 문서번호 — 쉼표로 여러 개, Enter" />
+            {/* 상태 칩 — 대기·거부는 실제로 도달 불가능한 상태라 뺐다 (2026-08-10 사장님 확인) */}
+            <span className="qk-chips">
+              <button type="button" onClick={() => setStatusFilter("all")} className={statusFilter === "all" ? "qk-chip qk-chip-on" : "qk-chip"}>전체 <em className="not-italic font-extrabold">{counts.all || 0}</em></button>
+              {SIGNATURE_STATUS.filter((x) => x.value !== "pending" && x.value !== "rejected").map((x) => (
+                <button key={x.value} type="button" onClick={() => setStatusFilter(x.value)}
+                  className={statusFilter === x.value ? "qk-chip qk-chip-on" : "qk-chip"}>
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${x.dot}`} />{x.label} <em className="not-italic font-extrabold">{counts[x.value] || 0}</em>
+                </button>
+              ))}
             </span>
-            <span className="signature-status-chip-count mono-number text-[var(--text)]">{counts[s.value] || 0}</span>
-          </button>
-        ))}
-      </div>
+          </QueryBar>
 
-      {/* 검색 / 일괄 액션 */}
-      <div className="signature-search-bar">
-        <div className="signature-search-input-wrap">
-          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-dim)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" strokeWidth={2} /><path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.3-4.3" /></svg>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="제목·서명자 검색..."
-            className="field-input pl-10"
-          />
-        </div>
-        {signedFiltered.length > 0 && (
-          <>
-            <button
-              onClick={toggleSelectAllSigned}
-              disabled={exporting}
-              className="btn-secondary btn-sm whitespace-nowrap"
-              title="현재 목록의 서명완료 계약서를 모두 선택/해제"
-            >
-              {allSignedSelected ? "☑ 서명완료 전체해제" : "☐ 서명완료 전체선택"}
-            </button>
-            <button
-              onClick={handleBulkExport}
-              disabled={exporting || selectedSignedTargets.length === 0}
-              className="btn-secondary btn-sm whitespace-nowrap"
-              title="체크한 서명완료 계약서를 단건 인쇄와 동일한 품질의 PDF 로 저장 (파일명: 소상공인 개별계약서_업체명)"
-            >
-              {exporting
-                ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}`
-                : `선택한 ${selectedSignedTargets.length}건 PDF 저장`}
-            </button>
-          </>
-        )}
-        {selectedIds.size > 0 && (
-          <>
-            <span className="text-xs text-[var(--text-muted)]">{selectedIds.size}건 선택됨</span>
-            <button
-              onClick={() => bulkRemindMut.mutate(remindableSelected)}
-              disabled={remindableSelected.length === 0 || bulkRemindMut.isPending}
-              className="btn-secondary btn-sm whitespace-nowrap"
-            >
-              일괄 리마인더 ({remindableSelected.length})
-            </button>
-            {/* 체크한 건 일괄 삭제 — 되돌릴 수 없어 건수를 확인 문구에 박아 둔다 */}
-            <button
-              onClick={async () => {
-                const ids = Array.from(selectedIds);
-                if (await appConfirm(`선택한 ${ids.length}건을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.`, { danger: true, confirmLabel: `${ids.length}건 삭제` })) {
-                  bulkDeleteMut.mutate(ids);
-                }
-              }}
-              disabled={bulkDeleteMut.isPending}
-              className="btn-danger btn-sm whitespace-nowrap disabled:opacity-50"
-            >
-              {bulkDeleteMut.isPending ? "삭제 중..." : `선택 삭제 (${selectedIds.size})`}
-            </button>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="btn-ghost btn-sm"
-            >
-              선택 해제
-            </button>
-          </>
-        )}
-      </div>
+          <AppliedChips chips={chips} onClearAll={clearAll} />
 
-      {/* 기간 설정 + 그룹·담당자 필터 (2026-08-05 사장님 시안·요청) */}
-      <div className="signature-period-bar">
-        <span className="signature-period-group">
-          <span className="signature-period-label">그룹</span>
-          <select value={batchFilter} onChange={(e) => setBatchFilter(e.target.value)} className="signature-period-input" aria-label="그룹(묶음) 필터">
-            <option value="">전체</option>
-            <option value="none">묶음 없음</option>
-            {batchOptions.map((b) => <option key={b.id} value={b.id}>{b.label} ({b.count}건)</option>)}
-          </select>
-        </span>
-        <span className="signature-period-group">
-          <span className="signature-period-label">담당자</span>
-          <select value={managerFilter} onChange={(e) => setManagerFilter(e.target.value)} className="signature-period-input" aria-label="담당자 필터">
-            <option value="">전체</option>
-            {managerOptions.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.count}건)</option>)}
-          </select>
-        </span>
-        {/* 조회기간 — 다른 화면과 같은 달력 위젯 (2026-08-12 UI 정리 2차수).
-            둘 다 '안 걸 수도 있는' 기간이라 onClear(전체 기간)를 준다. */}
-        <DateRangeField label="요청일" from={reqFrom} to={reqTo}
-          onChange={(f, t) => { setReqFrom(f); setReqTo(t); }}
-          onClear={() => { setReqFrom(""); setReqTo(""); }} />
-        <DateRangeField label="서명완료일" from={expFrom} to={expTo}
-          onChange={(f, t) => { setExpFrom(f); setExpTo(t); }}
-          onClear={() => { setExpFrom(""); setExpTo(""); }} />
-        {(reqFrom || reqTo || expFrom || expTo || batchFilter || managerFilter) && (
-          <button
-            onClick={() => { setReqFrom(""); setReqTo(""); setExpFrom(""); setExpTo(""); setBatchFilter(""); setManagerFilter(""); }}
-            className="btn-ghost btn-sm"
-          >
-            필터 초기화
-          </button>
-        )}
-        <span className="ml-auto text-[11px] text-[var(--text-dim)]">정렬·필터·페이지 크기는 계정에 저장됩니다</span>
-      </div>
-
-      {/* 계약 목록 표 (2026-08-05 사장님 시안) — 열 머리 클릭 정렬, 본문만 스크롤 */}
-      <div className="signature-request-list">
-        {isLoading ? (
-          <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-        ) : filtered.length === 0 ? (
-          <div className="signature-empty-state glass-card">
-            <div className="text-5xl mb-4"><Ico e="✍" /></div>
-            <div className="text-base font-bold text-[var(--text)]">문서에 서명을 요청해보세요</div>
-            <div className="text-xs text-[var(--text-muted)] mt-1.5">계약서, NDA 등 문서에 전자서명을 받을 수 있습니다</div>
-            <button onClick={() => setShowOrgBulkWizard(true)} className="btn-primary mt-5">+ 새 계약 요청</button>
-          </div>
-        ) : (() => {
-          const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
-          const allPageSelected = pageRows.length > 0 && pageRows.every((r: any) => selectedIds.has(r.id));
-          const SortHead = ({ k, label, className }: { k: SortKey; label: string; className?: string }) => (
-            <th className={className}>
-              <button type="button" onClick={() => toggleSort(k)} className="signature-table-sort" title={`${label} 기준 정렬`}>
-                {label}
-                <span className={`signature-table-sort-mark ${sort.key === k ? "is-active" : ""}`}>
-                  {sort.key === k ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
-                </span>
+          <ResultStrip right={<>
+            {signedFiltered.length > 0 && (
+              <button type="button" onClick={toggleSelectAllSigned} disabled={exporting} className="btn-secondary btn-sm whitespace-nowrap"
+                title="현재 목록의 서명완료 계약서를 모두 선택/해제 — 고르면 아래 줄에서 PDF 로 저장">
+                {allSignedSelected ? "서명완료 전체 해제" : `서명완료 ${signedFiltered.length}건 고르기`}
               </button>
-            </th>
-          );
-          return (
-            <div className="signature-table-wrap glass-card">
-              <div className="signature-table-scroll">
-                <table className="signature-table">
+            )}
+            {isManager && totalFailures > 0 && (
+              <button type="button" onClick={() => setShowFailurePanel(true)} className="sig-fail-chip"
+                title="최근 7일간 이메일 발송에 실패한 건을 확인하고 재발송하세요">
+                ⚠ 발송 실패 <b className="mono-number">{totalFailures}건</b> · {failureSummary.length}가지 사유
+              </button>
+            )}
+            {contractStatus && (
+              <span className="contract-usage-chip" data-reached={contractLimitReached ? "1" : undefined}
+                title={contractStatus.limit !== null
+                  ? `${contractStatus.planName || "현재 요금제"} — 전자계약(계약 요청)은 월 ${contractStatus.limit}건까지 발송 가능합니다`
+                  : `${contractStatus.planName || "현재 요금제"} — 전자계약 발송 무제한`}>
+                {contractStatus.limit !== null ? `이번 달 발송 ${contractStatus.used}/${contractStatus.limit}건` : `이번 달 발송 ${contractStatus.used}건`}
+              </span>
+            )}
+          </>}>
+            <Stat label="건수" value={`${filtered.length.toLocaleString("ko")}건`} />
+            <Stat label="서명완료" value={`${signedFiltered.length.toLocaleString("ko")}건`} tone={signedFiltered.length > 0 ? "plus" : undefined} />
+          </ResultStrip>
+          </>)}
+        </QueryHead>
+
+        <QueryBody>
+          {subTab === "templates" && companyId && userId && (
+            <div className="sig-scroll">
+              {/* 계약 양식 단일 시스템 — 우리 회사가 만든 계약 양식만 노출(2026-07-23). OrgBulkWizard 가 같은 데이터를 읽는다 */}
+              <ContractTemplatesManager companyId={companyId} />
+            </div>
+          )}
+          {subTab === "requests" && (
+            isLoading ? (
+              <div className="collect-empty">불러오는 중…</div>
+            ) : (requests as any[]).length === 0 ? (
+              <div className="collect-empty">문서에 서명을 요청해 보세요 — 계약서·NDA 등에 전자서명을 받을 수 있습니다. 오른쪽 위 [+ 새 계약 요청]</div>
+            ) : filtered.length === 0 ? (
+              <div className="collect-empty">이 조건에 맞는 계약 요청이 없습니다 — 검색조건을 풀어 보세요</div>
+            ) : (
+              <div className="ev-scroll">
+                <table className="ev-table ev-lined signature-table">
                   <thead>
                     <tr>
                       <th className="signature-table-check">
-                        <input
-                          type="checkbox"
-                          checked={allPageSelected}
-                          onChange={(e) => setSelectedIds((prev) => {
-                            const next = new Set(prev);
-                            for (const r of pageRows as any[]) { if (e.target.checked) next.add(r.id); else next.delete(r.id); }
-                            return next;
-                          })}
-                          className="accent-[var(--primary)]"
-                          aria-label="이 페이지 전체 선택"
-                        />
+                        <button type="button" aria-label="이 쪽 전체 선택"
+                          onClick={() => setSelectedIds((prev) => { const next = new Set(prev); const all = (pager.view as any[]).every((r) => next.has(r.id)); for (const r of pager.view as any[]) { if (all) next.delete(r.id); else next.add(r.id); } return next; })}
+                          className={pager.view.length > 0 && (pager.view as any[]).every((r) => selectedIds.has(r.id)) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                          {pager.view.length > 0 && (pager.view as any[]).every((r) => selectedIds.has(r.id)) ? "✓" : ""}
+                        </button>
                       </th>
-                      <SortHead k="docNo" label="문서번호" className="signature-table-no" />
-                      <SortHead k="status" label="상태" className="signature-table-status" />
-                      <SortHead k="batch" label="그룹" className="signature-table-group" />
-                      <SortHead k="title" label="제목" />
-                      <SortHead k="signer" label="대표자" className="signature-table-signer" />
-                      <SortHead k="manager" label="담당자" className="signature-table-manager" />
-                      <SortHead k="created" label="요청일" className="signature-table-date" />
-                      <SortHead k="signed" label="서명완료일" className="signature-table-date" />
-                      <th className="signature-table-actions-head">관리</th>
+                      <SortableTh label="문서번호" sortKey="docNo" sort={sort} onSort={toggleSort} style={{ width: 84 }} />
+                      <SortableTh label="상태" sortKey="status" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
+                      <SortableTh label="그룹" sortKey="batch" sort={sort} onSort={toggleSort} style={{ width: 84 }} />
+                      <SortableTh label="제목" sortKey="title" sort={sort} onSort={toggleSort} />
+                      <SortableTh label="대표자" sortKey="signer" sort={sort} onSort={toggleSort} style={{ width: 208 }} />
+                      <SortableTh label="담당자" sortKey="manager" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
+                      <SortableTh label="요청일" sortKey="created" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
+                      <SortableTh label="서명완료일" sortKey="signed" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
+                      <SortableTh label="관리" style={{ width: 190 }} />
                     </tr>
                   </thead>
                   <tbody>
-                    {pageRows.map((r: any) => {
+                    {(pager.view as any[]).map((r: any) => {
                       const info = getSignatureStatusInfo(r.status);
                       const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
                       const delivery = ({
@@ -799,9 +674,10 @@ function SignaturesDashboardInner() {
                         delayed: { t: "전달지연", c: "bg-amber-500/10 text-amber-500" },
                       } as any)[r.delivery_status];
                       return (
-                        <tr key={r.id} className={selectedIds.has(r.id) ? "is-selected" : undefined}>
+                        <tr key={r.id} className={selectedIds.has(r.id) ? "ev-on" : undefined}>
                           <td className="signature-table-check">
-                            <input type="checkbox" checked={selectedIds.has(r.id)} onChange={() => toggleSel(r.id)} className="accent-[var(--primary)]" aria-label="선택" />
+                            <button type="button" onClick={() => toggleSel(r.id)} aria-label="선택"
+                              className={selectedIds.has(r.id) ? "collect-chk collect-chk-on" : "collect-chk"}>{selectedIds.has(r.id) ? "✓" : ""}</button>
                           </td>
                           <td className="signature-table-no mono-number">{docNoById.get(r.id) ?? "—"}</td>
                           <td className="signature-table-status">
@@ -879,40 +755,36 @@ function SignaturesDashboardInner() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          );
-        })()}
+            )
+          )}
 
-        {/* 페이지네이션 */}
-        {filtered.length > 0 && (() => {
-          const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-          const curPage = Math.min(page, totalPages);
-          return (
-            <div className="signature-pagination-bar glass-card">
-              <div className="text-[var(--text-muted)]">
-                전체 {filtered.length}건 중 {(curPage - 1) * pageSize + 1}–{Math.min(curPage * pageSize, filtered.length)}
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 text-[var(--text-muted)]">
-                  페이지당
-                  <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="px-2 py-1 rounded bg-[var(--bg-surface)] border border-[var(--border)] focus:outline-none focus:border-[var(--primary)]">
-                    <option value={10}>10</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                  </select>
-                </label>
-                <div className="flex items-center gap-1">
-                  <button disabled={curPage === 1} onClick={() => setPage(curPage - 1)} className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">←</button>
-                  <span className="px-2 font-semibold">{curPage} / {totalPages}</span>
-                  <button disabled={curPage === totalPages} onClick={() => setPage(curPage + 1)} className="px-2 py-1 rounded bg-[var(--bg-surface)] disabled:opacity-30 hover:bg-[var(--border)]">→</button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-      </div>
-        </>
-      )}
+          {/* ── 3줄 · 고른 건으로 하는 일 — 파란 버튼은 PDF 저장 하나. 삭제는 되돌릴 수 없어 확인창을 거친다 ── */}
+          {subTab === "requests" && (
+            <SelectionBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}
+              summary={selectedSignedTargets.length > 0 ? <>서명완료 <b>{selectedSignedTargets.length}건</b> 포함</> : undefined}>
+              <button type="button" onClick={() => bulkRemindMut.mutate(remindableSelected)} disabled={remindableSelected.length === 0 || bulkRemindMut.isPending}
+                className="btn-secondary btn-sm whitespace-nowrap disabled:opacity-50">일괄 리마인더 ({remindableSelected.length})</button>
+              <button type="button" disabled={bulkDeleteMut.isPending}
+                onClick={async () => {
+                  const ids = Array.from(selectedIds);
+                  if (await appConfirm(`선택한 ${ids.length}건을 영구 삭제할까요?\n삭제하면 복구할 수 없습니다.`, { danger: true, confirmLabel: `${ids.length}건 삭제` })) bulkDeleteMut.mutate(ids);
+                }}
+                className="btn-secondary btn-sm text-[var(--danger)] whitespace-nowrap disabled:opacity-50">
+                {bulkDeleteMut.isPending ? "삭제 중…" : `선택 삭제 (${selectedIds.size})`}
+              </button>
+              <button type="button" onClick={handleBulkExport} disabled={exporting || selectedSignedTargets.length === 0}
+                className="btn-primary btn-sm whitespace-nowrap disabled:opacity-50"
+                title="체크한 서명완료 계약서를 단건 인쇄와 동일한 품질의 PDF 로 저장 (파일명: 소상공인 개별계약서_업체명)">
+                {exporting ? `PDF 생성 중… ${exportProgress?.done ?? 0}/${exportProgress?.total ?? 0}` : `서명완료 ${selectedSignedTargets.length}건 PDF 저장`}
+              </button>
+            </SelectionBar>
+          )}
+        </QueryBody>
+
+        {subTab === "requests" && (
+          <Pager page={pager.page} pages={pager.pages} total={filtered.length} size={rowsPer} from={pager.from} to={pager.to} onPage={pager.setPage} />
+        )}
+      </QueryScreen>
 
       {showOrgBulkWizard && companyId && userId && (
         <OrgBulkWizard

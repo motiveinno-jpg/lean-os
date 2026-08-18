@@ -2168,44 +2168,16 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .signature-canvas-wrapper { @apply relative border-2 border-gray-200 rounded-xl overflow-hidden mb-3 bg-white; }
 .signature-canvas { @apply w-full h-[180px] cursor-crosshair touch-none select-none; }
 .sign-page-footer { @apply border-t border-gray-200 bg-white mt-8; }
-.signature-dashboard-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
-.signature-toolbar-actions { @apply flex items-center gap-2; }
 /* 전자계약 월 발송 사용량 칩 (2026-07-22) — 한도 도달 시 빨강 */
 .contract-usage-chip { @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)] whitespace-nowrap; }
 .contract-usage-chip[data-reached="1"] { @apply text-[var(--danger)] border-[var(--danger)]; background: color-mix(in srgb, var(--danger) 10%, transparent); }
-.signature-templates-panel { @apply space-y-6; }
-.signature-failure-alert { @apply w-full flex items-center justify-between gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 hover:bg-red-500/15 transition text-left; }
-.signature-status-cards { @apply grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2; }
 /* 상태 칩 — 라벨과 숫자를 한 줄로, 카드 높이를 절반으로 (2026-08-06 사장님 스케치) */
-.signature-status-chip { @apply flex items-center justify-between gap-2 px-3 py-2 rounded-xl transition; }
-.signature-status-chip-label { @apply flex items-center gap-1.5 text-[11px] font-semibold truncate; }
 /* mono-number 는 커스텀 클래스라 @apply 에 넣으면 규칙이 통째로 무효가 된다 — JSX 에 병기한다 */
-.signature-status-chip-count { @apply text-sm font-black shrink-0; }
-.signature-search-bar { @apply flex items-center gap-2 flex-wrap; }
-.signature-search-input-wrap { @apply relative flex-1 min-w-[200px]; }
-.signature-request-list { @apply space-y-1.5; }
 /* ── 계약 목록 표 (2026-08-05 사장님 시안) — 머리 고정 + 본문만 스크롤 ── */
-.signature-period-bar { @apply flex items-center gap-3 flex-wrap text-xs; }
-.signature-period-group { @apply inline-flex items-center gap-1.5; }
-.signature-period-label { @apply font-semibold text-[var(--text-muted)]; }
-.signature-period-input {
-  @apply px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)];
-}
-.signature-period-input:focus { @apply outline-none border-[var(--primary)]; }
-.signature-table-wrap { @apply overflow-hidden p-0; }
 /* 표 본문만 움직이고 머리·툴바는 제자리 — 화면 자리를 적게 쓰기 위해 높이 제한 */
-.signature-table-scroll { @apply overflow-auto max-h-[min(60vh,560px)]; }
-.signature-table { @apply w-full text-xs border-collapse; min-width: 1040px; }
-.signature-table thead th {
-  @apply sticky top-0 z-10 bg-[var(--bg-surface)] text-[var(--text-muted)] font-semibold text-[11px]
-         px-2.5 py-2 text-left border-b border-[var(--border)] whitespace-nowrap;
-}
+.signature-table { min-width: 1120px; }
 .signature-table tbody td { @apply px-2.5 py-1.5 border-b border-[var(--border)]/60 align-middle; }
 .signature-table tbody tr:hover { background: var(--bg-surface); }
-.signature-table tbody tr.is-selected { background: color-mix(in srgb, var(--primary) 7%, transparent); }
-.signature-table-sort { @apply inline-flex items-center gap-1 hover:text-[var(--primary)] transition; }
-.signature-table-sort-mark { @apply text-[9px] text-[var(--text-dim)] opacity-60; }
-.signature-table-sort-mark.is-active { @apply text-[var(--primary)] opacity-100; }
 .signature-table-check { @apply w-9 text-center; }
 .signature-table-no { @apply w-20 text-center text-[var(--text-muted)]; }
 .signature-table-status { @apply w-24; }
@@ -2224,7 +2196,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .signature-table-actions-head { @apply w-[190px] text-right; }
 .signature-table-actions { @apply w-[190px]; }
 .signature-table-actions .signature-request-actions { @apply justify-end; }
-.signature-empty-state { @apply py-16 px-6 text-center; }
 /* 계약건 한 줄 — 한 화면에 더 많이 보이도록 압축(2026-08-05 사장님 요청). 정보는 그대로 두고 여백·아이콘만 축소. */
 .signature-request-row { @apply px-3.5 py-2 flex items-center gap-2.5; }
 .signature-request-actions { @apply flex items-center gap-0.5 shrink-0; }
@@ -2236,7 +2207,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 }
 .signature-request-signer { @apply inline-flex items-center gap-1.5 min-w-0 max-w-[240px]; }
 .signature-request-avatar { @apply w-5 h-5 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-[9px] font-semibold shrink-0; }
-.signature-pagination-bar { @apply flex items-center justify-between px-4 py-3 text-xs; }
 .signature-proof-modal { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4; }
 .vault-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
 .vault-alerts-panel { @apply mb-6 space-y-3; }
@@ -4724,6 +4694,9 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .goal-hero-summary-count { @apply px-4 py-3; }
 .quotes-page { @apply flex flex-col gap-3; }
 .quotes-table { min-width: 860px; }
+/* 전자계약 — 조회 표준 (2026-08-18 Wave 3): 양식 관리 탭 스크롤 상자 · 발송 실패 칩 */
+.qk-body > .sig-scroll { @apply absolute inset-0 overflow-auto p-3; }
+.sig-fail-chip { @apply inline-flex items-center gap-1 rounded-full border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-2.5 py-1 text-[11px] font-semibold text-[var(--danger)]; }
 .quotes-row { @apply border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50; }
 .quote-create-modal-overlay { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
 .quote-create-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6; }
