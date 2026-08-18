@@ -735,7 +735,9 @@ export default function VoucherEntryPage() {
       )}
 
       {/* ══ 상단: 입력 영역 (§3-3) ══ */}
-      <div ref={topRef} onKeyDown={onTopKey} className="voucher-entry-input-card glass-card overflow-visible">
+      {/* ── 한 상자: [구분 탭] → 분개 입력 → (선) → 전표목록 조회 줄·표·쪽 넘김·안내 (2026-08-18 사장님: 상자 하나, 섹션은 선으로) ── */}
+      <QueryScreen>
+      <div ref={topRef} onKeyDown={onTopKey} className="qk-head ve-input-section overflow-visible">
         {/* 구분 탭 — 수집·전표처럼 상자 **안** 맨 위, 파란 밑줄 (2026-08-18 사장님). 오른쪽은 새 전표·저장 */}
         <div className="collect-tabs ve-kind-tabs no-print">
           {VTYPES.map((t) => (
@@ -864,7 +866,6 @@ export default function VoucherEntryPage() {
       </div>
 
       {/* ══ 하단: 전표목록 — 조회 화면 표준(B형: 목록부만) (2026-08-18 Wave 1). 셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제 ══ */}
-      <QueryScreen>
         <QueryHead>
           <QueryBar right={<ExcelMenu items={excelItems} />}>
             <DateRangeField unit="month" label={null} parts="segments" from={fromM} to={toM}

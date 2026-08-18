@@ -4268,7 +4268,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .qk-body > .ph-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
 .qk-chip.ph-stchip-late.qk-chip-on { @apply border-[var(--danger)] bg-[var(--danger)]/10 text-[var(--danger)]; }
 .qk-chip.ph-stchip-warn.qk-chip-on { @apply border-[var(--warning)] bg-[var(--warning)]/10 text-[var(--warning)]; }
-.ph-scroll > .ph-table-wrap { @apply shrink-0; }
+.ev-scroll > .ph-table-wrap { @apply rounded-none border-0 bg-transparent; }
 .type-filter-chips { @apply flex flex-wrap gap-1.5; }
 /* 프로젝트 상세 — 탭 폐지, 한 페이지 + 목차(2026-07-30).
    자리 순서는 프로젝트가 달라도 고정된다. 목차는 데스크톱에서 좌측 고정, 모바일에선 가로 스크롤. */
@@ -6513,9 +6513,13 @@ td .rounded-full { white-space: nowrap; }
 /* 히어로 AI 브리핑 — 잘된 점 / 문제 / 다음 할 일을 칩으로. 밴드 위라 흰 계열만 쓴다 */
 
 /* ── 프로젝트 표(보드) — 새 구조 1단계(2026-08-03 기획 v2) ── */
-.pb { @apply flex flex-col gap-4; }
+.pb { @apply flex flex-col gap-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
+/*   상세 화면도 조회 표준 상자 모양으로 (2026-08-18 사장님: "생성된 프로젝트 눌러서 들어가면 UI 적용 안 됨").
+     ① 템플릿 탭 = 상자 안 맨 위 파란 밑줄 ② 보기 줄 = 조회 줄 자리(선 아래) ③ 본문은 안쪽 여백 */
+.pb > :not(.pb-bar1):not(.pb-bar2):not(.pb-menu-veil):not(.pb-rename) { margin: 12px 12px 0; }
+.pb > :last-child:not(.pb-bar1):not(.pb-bar2) { margin-bottom: 12px; }
 /* 표 탭 — ＋ 로 같은 프로젝트에 표를 더 붙인다 */
-.pb-tab { @apply text-[12.5px] font-bold px-3 py-2 text-[var(--text-muted)] border-b-2 border-transparent transition hover:text-[var(--text)]; }
+.pb-tab { @apply text-[12.5px] font-semibold px-3.5 py-2 text-[var(--text-dim)] border-b-2 border-transparent transition hover:text-[var(--text)]; }
 .pb-tab-on { @apply text-[var(--primary)] border-b-[var(--primary)]; }
 .pb-tab-add { @apply text-[15px] text-[var(--text-dim)] px-2.5 hover:text-[var(--primary)]; }
 .pb-addcol { @apply inline-flex items-center gap-1 text-[11.5px] text-[var(--text-dim)]; }
@@ -6934,8 +6938,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-doc-go { @apply h-9 px-4 rounded-lg bg-[var(--primary)] text-[13px] font-bold text-white transition hover:opacity-90 disabled:opacity-45; }
 
 /* 툴바 3층 — 템플릿 / 보기 / 그룹 (2026-08-04 사장님 지시: 성격이 다른 동작을 한 줄에 섞지 않는다) */
-.pb-bar1 { @apply flex flex-wrap items-center gap-1 pb-2 border-b border-[var(--border)]; }
-.pb-bar2 { @apply flex flex-wrap items-center gap-4 py-2.5; }
+.pb-bar1 { @apply flex flex-wrap items-center gap-1 border-b border-[var(--border)] px-3 pt-2.5; }
+.pb-bar1 .pb-tab { margin-bottom: -1px; }
+.pb-bar2 { @apply flex flex-wrap items-center gap-4 border-b border-[var(--border)] px-3.5 py-2.5; }
 .pb-tplmenu { @apply relative inline-flex ml-auto; }
 .pb-gmenu { @apply relative inline-flex ml-1; }
 .pb-dots { @apply w-7 h-7 rounded-lg text-[15px] leading-none text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
@@ -7960,9 +7965,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-head > span + span { border-left: 1px solid color-mix(in srgb, var(--text-dim) 45%, transparent); }
 .spv-page > .qk-bar { @apply mt-1; }
 /*   상자 안 본문 — 격자(스크롤)·분개 미리보기·안내를 세로로. QueryBody 가 남는 높이를 주고 이 상자가 스크롤한다 */
-.qk-body > .spv-body { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
-.spv-body > .spv-grid-wrap { @apply shrink-0 rounded-xl border border-[var(--border)]; }
-.spv-body > .spv-je { @apply shrink-0 rounded-xl border border-[var(--border)]; }
+.qk-body > .spv-body { @apply absolute inset-0 flex flex-col overflow-auto; }
+/*   상자 안에 또 상자를 두지 않는다 — 격자는 상자에 꽉 차게, 분개 미리보기는 선 하나로 가른다 (2026-08-18 사장님) */
+.spv-body > .spv-grid-wrap { @apply shrink-0 rounded-none border-0 bg-transparent shadow-none backdrop-blur-none; }
+.spv-body > .spv-je { @apply shrink-0 rounded-none border-0 border-t border-[var(--border)] bg-transparent shadow-none backdrop-blur-none; }
 /*   매입매출전표도 상자 끝선을 사이드바에 맞춘다 — 격자가 남는 높이만 먹고 안에서 스크롤 (2026-08-18 사장님) */
 @media (min-width: 768px) {
   .qk-shell.spv-page { padding-bottom: 0; }
@@ -8213,7 +8219,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 일반전표 목록 — 조회 표준(B형) (2026-08-18 Wave 1). 셀 안 입력칸이 있어 table-fixed 유지 */
 .ve-list-table { min-width: 1120px; table-layout: fixed; }
 /* 일반전표 입력 카드 위 구분 탭 — 상자 안 파란 밑줄 탭 + 오른쪽 실행 버튼 (2026-08-18) */
-.ve-kind-tabs { @apply rounded-t-2xl px-2 pt-1; }
+.ve-kind-tabs { @apply rounded-t-2xl; }
+/*   입력 섹션 — 상자 안 첫 칸. 아래 조회 줄과는 선 하나로 갈린다 */
+.qk-screen > .ve-input-section { @apply shrink-0 border-b border-[var(--border)]; }
+.qk-screen > .ve-input-section + .qk-head { @apply rounded-t-none; }
 .ve-kind-actions { @apply ml-auto mb-1 flex items-center gap-1.5 pr-1; }
 /* 현금영수증 — 조회 표준 표 (2026-08-18 Wave 1) */
 .cr-table { min-width: 1080px; }

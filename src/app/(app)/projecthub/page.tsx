@@ -53,6 +53,7 @@ const NUDGE_OPEN_KEY = "ov.projecthub.nudgeOpen";
 type Cond = { manager: string[]; partner: string[]; template: string[]; rows: number };
 const EMPTY_COND: Cond = { manager: [], partner: [], template: [], rows: 50 };
 const condCount = (c: Cond) => c.manager.length + c.partner.length + c.template.length;
+const LENS_OPTS = [["", "전체"], ["late", "기한 지남"], ["warn", "이번 주"], ["empty", "입력 전"]] as const;
 
 export default function ProjectHubPage() {
   const { user, role } = useUser();
@@ -327,6 +328,10 @@ export default function ProjectHubPage() {
   const [draft, setDraft] = useState<Cond>(EMPTY_COND);
   const [live, setLive] = useState<Cond>(EMPTY_COND);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
+  //   담당 범위(내 담당/전체)·상태(전체/기한 지남/이번 주/입력 전)도 검색조건 안에서 고르고 '조회'로 반영한다
+  //   (2026-08-18 사장님: "검색조건 안에 담당, 전체, 기한지남 등 박스 안으로 들어가게 해야 통일성"). 초안 → 조회 시 확정.
+  const [dMine, setDMine] = useState(true);
+  const [dLens, setDLens] = useState<ProjectStatusKey | null>(null);
   const userId = user?.id ?? null;
 
   const partnerName = useMemo(() => {
@@ -587,6 +592,8 @@ export default function ProjectHubPage() {
   const dropCond = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(search).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setSearch(quickTerms(search).filter((_, j) => j !== i).join(", ")) })),
+    ...(!mineOnly && canViewAllProjects ? [{ group: "범위", label: "전체", onRemove: () => { setMineOnly(true); setDMine(true); } }] : []),
+    ...(lens ? [{ group: "상태", label: LENS_OPTS.find(([k]) => k === lens)?.[1] || lens, onRemove: () => { setLens(null); setDLens(null); } }] : []),
     ...live.manager.map((v) => ({ group: "담당", label: v, onRemove: () => dropCond({ manager: live.manager.filter((x) => x !== v) }) })),
     ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove: () => dropCond({ partner: live.partner.filter((x) => x !== v) }) })),
     ...live.template.map((v) => ({ group: "템플릿", label: v, onRemove: () => dropCond({ template: live.template.filter((x) => x !== v) }) })),
@@ -636,19 +643,38 @@ export default function ProjectHubPage() {
             <button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 프로젝트 생성</button>
           </>}>
             {/* 프로젝트는 기간이 없는 목록이라 조회 줄이 [검색조건] 으로 시작한다 */}
-            <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)}
+            <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) { setDMine(mineOnly); setDLens(lens); } setPanelOpen(v); }} activeCount={condCount(live) + (lens ? 1 : 0) + (mineOnly ? 0 : 1)}
               tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
                 onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
-                onBasic={() => { setListView("table"); setMineOnly(true); setLens(null); clearAll(); }}
+                onBasic={() => { setListView("table"); setMineOnly(true); setLens(null); setDMine(true); setDLens(null); clearAll(); }}
                 onRemove={saved.remove} onSetDefault={saved.setDefault} />}
               foot={<>
-                <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0 && dLens === null && dMine} onClick={() => { setDraft({ ...EMPTY_COND, rows: draft.rows }); setDLens(null); setDMine(true); }}>조건 지우기</button>
                 <ConditionSave suggest={suggestName}
-                  onSave={(name, asDefault) => { saved.save(name, { view: listView, q: search, mine: mineOnly, lens, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
+                  onSave={(name, asDefault) => { saved.save(name, { view: listView, q: search, mine: dMine, lens: dLens, cond: draft }, asDefault); setLive(draft); setMineOnly(dMine); setLens(dLens); setPanelOpen(false); }} />
                 <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>
                 <RowsPerPage value={draft.rows} onChange={setD("rows")} />
-                <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setMineOnly(dMine); setLens(dLens); setPanelOpen(false); }}>조회</button>
               </>}>
+              {canViewAllProjects && (
+                <ConditionRow label="범위">
+                  <ChipGroup value={dMine ? "mine" : "all"} onChange={(v) => setDMine(v === "mine")}
+                    options={[{ value: "mine", label: "내 담당" }, { value: "all", label: "전체" }]} />
+                </ConditionRow>
+              )}
+              <ConditionRow label="상태" hint="판정이 아니라 센 사실 — 0이면 안 보인다">
+                <span className="qk-quicks">
+                  {LENS_OPTS.map(([k, label]) => {
+                    const n = k === "" ? lensCounts.total : lensCounts[k];
+                    if (k !== "" && n === 0 && dLens !== k) return null;
+                    const on = k === "" ? dLens === null : dLens === k;
+                    return (
+                      <button key={k || "all"} type="button" onClick={() => setDLens(k === "" ? null : (k as ProjectStatusKey))}
+                        className={`qk-quick ${on ? "qk-quick-on" : ""} ${k ? `ph-stchip-${k}` : ""}`}>{label} <em className="not-italic font-extrabold">{n}</em></button>
+                    );
+                  })}
+                </span>
+              </ConditionRow>
               <ConditionRow label="담당" hint="주담당 · 여러 명">
                 <TokenField items={managerOpts} value={draft.manager} onChange={setD("manager")} placeholder="이름 일부" />
               </ConditionRow>
@@ -660,24 +686,6 @@ export default function ProjectHubPage() {
               </ConditionRow>
             </ConditionPanel>
             <QuickSearch value={search} onApply={setSearch} placeholder="프로젝트 · 거래처 · 참여자 — 쉼표로 여러 개, Enter" />
-            {/* 전체 열람 권한이 없으면 스코프 전환 자체를 감춘다 — 어차피 내 담당만 조회된다 */}
-            {canViewAllProjects && (
-              <ChipGroup value={mineOnly ? "mine" : "all"} onChange={(v) => setMineOnly(v === "mine")}
-                options={[{ value: "mine", label: "내 담당" }, { value: "all", label: "전체" }]} />
-            )}
-            {/* 상태 칩 — 판정이 아니라 **센 사실**뿐. 0이면 감추되 켜져 있는 칩은 남긴다 (2026-08-03 사장님) */}
-            <span className="qk-chips">
-              {([["", "전체", lensCounts.total], ["late", "기한 지남", lensCounts.late],
-                 ["warn", "이번 주", lensCounts.warn], ["empty", "입력 전", lensCounts.empty]] as const).map(([k, label, n]) => (
-                (k !== "" && n === 0 && lens !== k) ? null : (
-                  <button key={k || "all"} type="button" onClick={() => setLens((prev) => (prev === k || k === "" ? null : k as any))}
-                    aria-pressed={k === "" ? lens === null : lens === k}
-                    className={`qk-chip ${(k === "" ? lens === null : lens === k) ? "qk-chip-on" : ""} ${k ? `ph-stchip-${k}` : ""}`}>
-                    {label} <em className="not-italic font-extrabold">{n}</em>
-                  </button>
-                )
-              ))}
-            </span>
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -695,20 +703,19 @@ export default function ProjectHubPage() {
             <Stat label="이번 주 마감 줄" value={`${lensCounts.soonItems}건`} />
             <span className="text-[10.5px] text-[var(--text-dim)]">대표 지표는 그 프로젝트에 있는 데이터에서 자동으로 골라요 — 돈이 걸렸으면 마진율, 목표가 있으면 달성률, 할 일만 있으면 진행률</span>
           </ResultStrip>
+          {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 접혀 있어도 마운트한다(위 칩 개수) */}
+          {companyId && (
+            <QuietCheckins
+              companyId={companyId} userId={userId}
+              deals={topDeals as any[]} tasks={tasksRows as any[]}
+              outstandingOf={(id) => outstandingByDeal[id] || 0}
+              won={won} toast={toast}
+              open={nudge === "quiet"} onCount={setQuietCount} />
+          )}
         </QueryHead>
 
         <QueryBody>
-         <div className="ph-scroll">
-      {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 대상이 없으면 아무것도 그리지 않는다.
-          접혀 있어도 마운트는 한다 — 위 한 줄에 개수를 띄우려면 판정이 돌아야 한다. */}
-      {companyId && (
-        <QuietCheckins
-          companyId={companyId} userId={userId}
-          deals={topDeals as any[]} tasks={tasksRows as any[]}
-          outstandingOf={(id) => outstandingByDeal[id] || 0}
-          won={won} toast={toast}
-          open={nudge === "quiet"} onCount={setQuietCount} />
-      )}
+         <div className={listView === "table" && rows.length > 0 && !isLoading ? "ev-scroll" : "ph-scroll"}>
 
       {/* 성과 대시보드 — 사람별·부서별·입력률 집계. 유형 폐지로 전 프로젝트 대상이 됐다 */}
       {showDashboard && companyId && (
