@@ -35,6 +35,13 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/components/toast";
 import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
+import { SortableTh, nextSort, type SortState } from "@/components/sortable-th";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave,
+  ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
+  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, defaultRangeMonth, periodQuicksMonth,
+  type ExcelItem, type AppliedChip,
+} from "@/components/query-kit";
 
 const db = supabase;
 const won = (n: number) => `₩${Math.round(Number(n || 0)).toLocaleString()}`;
@@ -74,6 +81,10 @@ const MEMO_KEY = "voucher-recent-memos";
 type VCell = "y" | "m" | "d" | "gubun" | "account" | "partner" | "memo" | "debit" | "credit";
 //   전표목록 제목줄 정렬 기준 (매입매출전표와 같은 목록)
 type VSortKey = "date" | "no" | "account" | "partner" | "debit" | "credit" | "memo";
+/** 목록 검색조건 (조회 화면 표준, 2026-08-18 Wave 1 — B형: 입력부는 그대로, 목록부만) */
+type Cond = { acct: string[]; pt: string[]; rows: number };
+const EMPTY_COND: Cond = { acct: [], pt: [], rows: 50 };
+const condCount = (c: Cond) => c.acct.length + c.pt.length;
 /** 그 달의 다음 달 1일 — 조회 상한(`lt`)으로 쓴다 */
 const monthAfter = (ym: string) => {
   const [y, m] = ym.split("-").map(Number);
@@ -97,15 +108,19 @@ export default function VoucherEntryPage() {
   const [entryD, setEntryD] = useState(String(Number(todayKst().slice(8, 10))));
   const entryDate = `${entryY}-${pad2(entryM)}-${pad2(entryD)}`;
   const entryDateOk = entryY.length === 4 && Number(entryM) >= 1 && Number(entryM) <= 12 && Number(entryD) >= 1 && Number(entryD) <= 31;
-  //   제목줄 정렬 — 매입매출전표와 같은 방식(누르면 오름차순, 다시 내림차순, 세 번째 해제)
-  const [sort, setSort] = useState<{ key: VSortKey; dir: 1 | -1 } | null>(null);
-  const toggleSort = (key: VSortKey) =>
-    setSort((s0) => (s0?.key === key ? (s0.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }));
-  const sortMark = (key: VSortKey) => (sort?.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : "");
+  //   제목줄 정렬 — 공용 부품(SortableTh). 기본은 일자·전표번호 순(자료 순서 그대로).
+  const [sort, setSort] = useState<SortState<VSortKey>>({ key: "date", dir: "asc" });
+  const onSort = (k: VSortKey) => setSort((c) => nextSort(c, k));
 
-  //   ② 아래 목록이 보여 줄 기간 — 월 단위. 처음엔 이번 달만 걸어 예전과 비슷하게 보인다.
-  const [fromM, setFromM] = useState(todayKst().slice(0, 7));
-  const [toM, setToM] = useState(todayKst().slice(0, 7));
+  //   ② 아래 목록이 보여 줄 기간 — 월 단위. 기본 **지난달~이번 달**(조회 화면 표준). ★ 조회값은 기억하지 않는다.
+  const [fromM, setFromM] = useState(() => defaultRangeMonth().from);
+  const [toM, setToM] = useState(() => defaultRangeMonth().to);
+  //   ── 조회 화면 표준 (목록부) — 빠른검색·검색조건·내 조건 ──
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(EMPTY_COND);
+  const [live, setLive] = useState<Cond>(EMPTY_COND);
+  const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [vtype, setVtype] = useState<VType>("transfer");
   const [pend, setPend] = useState<PLine[]>([]);               // 상단 입력 영역 행
   const [edits, setEdits] = useState<Record<string, { desc: string; lines: PLine[] }>>({}); // 하단 인라인 편집 버퍼
@@ -198,8 +213,22 @@ export default function VoucherEntryPage() {
 
   //   제목줄 정렬 — 안 고르면 예전 그대로(일자·전표번호 순). 전표는 **줄이 아니라 장 단위**로 옮긴다
   //   (한 전표의 분개 줄들이 흩어지면 차·대가 안 읽힌다 — 매입매출전표와 다른 점이다).
+  const entryHit = (e: SavedEntry, c: Cond) => {
+    if (c.acct.length && !e.lines.some((l) => l.account && c.acct.includes(l.account.name))) return false;
+    if (c.pt.length && !e.lines.some((l) => l.partner && c.pt.includes(l.partner.name))) return false;
+    return true;
+  };
+  //   빠른검색 — 계정·거래처·적요·전표번호·금액을 한꺼번에 (쉼표 = 또는, Enter 로 반영). 전표는 장 단위로 걸린다.
+  const entryQuick = (e: SavedEntry) => quickSearchHit(q,
+    [String(e.voucher_no ?? ""), e.description, ...e.lines.flatMap((l) => [l.account?.name, l.account?.code, l.partner?.name, l.memo])],
+    e.lines.flatMap((l) => [l.debit, l.credit]).filter((n) => n > 0));
+  const filteredEntries = useMemo(() => entries.filter((e) => entryHit(e, live) && entryQuick(e)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries, live, q]);
+  const previewCount = entries.filter((e) => entryHit(e, draft)).length;
+  const acctOpts = useMemo(() => [...new Set(entries.flatMap((e) => e.lines.map((l) => l.account?.name).filter(Boolean)))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [entries]);
+  const ptOpts = useMemo(() => [...new Set(entries.flatMap((e) => e.lines.map((l) => l.partner?.name).filter(Boolean)))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [entries]);
   const sortedEntries = useMemo(() => {
-    if (!sort) return entries;
     const val = (e: SavedEntry): string | number => {
       const first = e.lines[0];
       switch (sort.key) {
@@ -212,12 +241,41 @@ export default function VoucherEntryPage() {
         default: return e.description ?? "";
       }
     };
-    return [...entries].sort((a, b) => {
+    return [...filteredEntries].sort((a, b) => {
       const x = val(a), y = val(b);
       const c = typeof x === "number" ? x - (y as number) : String(x).localeCompare(String(y), "ko");
-      return c * sort.dir;
+      return sort.dir === "asc" ? c : -c;
     });
-  }, [entries, sort]);
+  }, [filteredEntries, sort]);
+  const pager = usePager(sortedEntries, live.rows, `${fromM}|${toM}|${q}|${JSON.stringify(live)}`);
+  //   내 조건 — ★ 하나가 이 화면(목록부)의 기본값
+  const saved = useSavedQueries("voucher-entry", companyId);
+  const paramsNow = { from: fromM, to: toM, q, cond: live };
+  const paramsBasic = { ...defaultRangeMonth(), q: "", cond: EMPTY_COND };
+  const applySaved = (p: Record<string, unknown>) => {
+    if (typeof p.from === "string" && typeof p.to === "string") { setFromM(p.from); setToM(p.to); }
+    if (typeof p.q === "string") setQ(p.q);
+    const c = { ...EMPTY_COND, ...(p.cond as Partial<Cond> | undefined) };
+    setDraft(c); setLive(c);
+  };
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved.isFetched) return;
+    setDefDone(true);
+    if (saved.def) applySaved(saved.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isFetched, saved.def, defDone]);
+  const suggestName = () => [draft.acct[0], draft.pt[0]].filter(Boolean).slice(0, 2).join(" · ") || "내 조건";
+  const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...live.acct.map((v) => ({ group: "계정과목", label: v, onRemove: () => drop({ acct: live.acct.filter((x) => x !== v) }) })),
+    ...live.pt.map((v) => ({ group: "거래처", label: v, onRemove: () => drop({ pt: live.pt.filter((x) => x !== v) }) })),
+  ];
+  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
+  const sumD = filteredEntries.reduce((s0, e) => s0 + e.lines.reduce((x, l) => x + l.debit, 0), 0);
+  const sumC = filteredEntries.reduce((s0, e) => s0 + e.lines.reduce((x, l) => x + l.credit, 0), 0);
+
 
   //   엑셀 — 통장·카드·매입매출전표와 같은 공통 함수를 쓴다(한글 깨짐·칸 밀림을 한 곳에서만 막는다)
   const exportCsv = () => {
@@ -663,8 +721,13 @@ export default function VoucherEntryPage() {
   let listNo = 0;
   const sourceBadge = (s: string) => (s !== "manual" ? <span className="ml-1 text-[9px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-500 font-semibold align-middle">AI</span> : null);
 
+  //   엑셀 그릇 — 지금 조회 결과(걸린 조건 그대로, 분개 줄 단위)
+  const excelItems: ExcelItem[] = [
+    { label: "지금 조회 결과 내려받기", count: sortedEntries.length, hint: "걸린 조건 그대로 · 분개 줄 단위", disabled: sortedEntries.length === 0, onClick: () => exportCsv() },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="qk-shell">
       {/* ══ 툴바 — 일자·구분 (좌) + 액션 (우), 타이틀은 공통 헤더바가 담당 ══ */}
       <div className="voucher-entry-toolbar flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -681,7 +744,6 @@ export default function VoucherEntryPage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <Link href="/partners/reconciliation" className="btn-secondary text-xs">← 거래 매칭</Link>
           <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
             className="btn-secondary text-xs">새 전표</button>
           <button onClick={save} disabled={!canSave}
@@ -809,64 +871,89 @@ export default function VoucherEntryPage() {
         </div>
       </div>
 
-      {/* ══ 하단: 전표목록 그리드 (§3-3-A 사용자 지정 스펙) ══ */}
-      <div className="voucher-entry-list-card glass-card overflow-visible">
-        <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
-            <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-emerald-500" />전표목록
-          </span>
-          {/* 조회기간은 **목록 카드**에 둔다 — 이 값이 무엇을 정하는지(위 입력 날짜가 아니라 아래 목록)
-              자리로 말해 준다. 기간을 바꾸면 편집·선택은 초기화한다 (2026-08-11) */}
-          <DateRangeField unit="month" from={fromM} to={toM}
-            onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }} />
-          <span className="px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-[11px] font-bold mono-number">{entries.length}건</span>
-          {spCount > 0 && (
-            <Link href="/partners/reconciliation/sale-purchase" className="ve-sp-note">
-              매입매출전표 {spCount}건은 <b>매입매출전표</b> 메뉴에 →
-            </Link>
-          )}
-          <span className="hidden md:inline text-[11px] text-[var(--text-dim)]">셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span>
-          <button type="button" onClick={exportCsv} disabled={entries.length === 0}
-            className="ml-auto btn-secondary btn-sm disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
-          <button onClick={deleteSelected} disabled={busy || selected.size === 0}
-            className="btn-danger btn-sm">
-            선택 삭제{selected.size ? ` (${selected.size})` : ""}</button>
-        </div>
-        {/* 전표목록 — 데스크톱은 폭에 맞춤(overflow-visible, 드롭다운 잘림 방지),
-            모바일은 min-width + 가로 스크롤(컬럼 짓눌림·글자당 줄바꿈 방지). */}
-        <div className="overflow-x-auto sm:overflow-visible">
-          <table className="w-full min-w-[720px] sm:min-w-0 text-xs border-collapse table-fixed">
+      {/* ══ 하단: 전표목록 — 조회 화면 표준(B형: 목록부만) (2026-08-18 Wave 1). 셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제 ══ */}
+      <QueryScreen>
+        <QueryHead>
+          <QueryBar right={<ExcelMenu items={excelItems} />}>
+            <DateRangeField unit="month" label={null} parts="segments" from={fromM} to={toM}
+              onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }}
+              trailing={
+                <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)} anchorSel=".drf"
+                  tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                    onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                    onBasic={() => { const b = defaultRangeMonth(); setFromM(b.from); setToM(b.to); clearAll(); }}
+                    onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+                  foot={<>
+                    <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                    <ConditionSave suggest={suggestName}
+                      onSave={(name, asDefault) => { saved.save(name, { from: fromM, to: toM, q, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
+                    <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}장</span>
+                    <RowsPerPage value={draft.rows} onChange={setD("rows")} />
+                    <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                  </>}>
+                  <ConditionRow label="조회기간" hint="월 단위 · 위 입력 일자와는 별개">
+                    <span className="qk-range-txt">{fromM} ~ {toM}</span>
+                    <DateRangeField unit="month" label={null} parts="calendar" confirm from={fromM} to={toM}
+                      onChange={(f, t) => { setFromM(f); setToM(t); setEdits({}); setSelected(new Set()); }} />
+                    <span className="qk-quicks">
+                      {periodQuicksMonth().map((pq) => (
+                        <button key={pq.key} type="button" onClick={() => { setFromM(pq.from); setToM(pq.to); }}
+                          className={fromM === pq.from && toM === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="계정과목" hint="여러 개 · 그 계정이 든 전표">
+                    <TokenField items={acctOpts} value={draft.acct} onChange={setD("acct")} placeholder="계정 이름 일부 (예: 소모품)" />
+                  </ConditionRow>
+                  <ConditionRow label="거래처" hint="여러 곳">
+                    <TokenField items={ptOpts} value={draft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
+                  </ConditionRow>
+                </ConditionPanel>
+              } />
+            <QuickSearch value={q} onApply={setQ} placeholder="계정 · 거래처 · 적요 · 전표번호 · 금액 — 쉼표로 여러 개, Enter" />
+          </QueryBar>
+
+          <AppliedChips chips={chips} onClearAll={clearAll} />
+
+          <ResultStrip right={spCount > 0 ? (
+            <Link href="/partners/reconciliation/sale-purchase" className="ve-sp-note">매입매출전표 {spCount}건은 <b>매입매출전표</b> 메뉴에 →</Link>
+          ) : undefined}>
+            <Stat label="전표" value={`${filteredEntries.length.toLocaleString("ko")}장`} />
+            <Stat label="차변 합계" value={won(sumD)} />
+            <Stat label="대변 합계" value={won(sumC)} />
+            {filteredEntries.length > 0 && <span className={sumD === sumC ? "text-[10.5px] font-bold text-emerald-500" : "text-[10.5px] font-bold text-amber-500"}>{sumD === sumC ? "차대일치" : `차액 ${won(Math.abs(sumD - sumC))}`}</span>}
+            <span className="hidden md:inline text-[10.5px] text-[var(--text-dim)]">셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제</span>
+          </ResultStrip>
+        </QueryHead>
+
+        <QueryBody>
+        <div className="ev-scroll">
+          <table className="ev-table ev-lined ve-list-table">
             <thead>
-              <tr className="border-b border-[var(--border)]">
-                <th className="px-2 py-2.5 w-8 text-center font-semibold">
-                  <input type="checkbox"
-                    checked={entries.length > 0 && selected.size >= entries.length}
-                    onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => `s:${x.id}`)) : new Set())} />
+              <tr>
+                <th className="w-8">
+                  <button type="button" aria-label="이 쪽 전체 선택"
+                    onClick={() => setSelected(pager.view.length > 0 && pager.view.every((x) => selected.has(`s:${x.id}`)) ? new Set() : new Set(pager.view.map((x) => `s:${x.id}`)))}
+                    className={pager.view.length > 0 && pager.view.every((x) => selected.has(`s:${x.id}`)) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                    {pager.view.length > 0 && pager.view.every((x) => selected.has(`s:${x.id}`)) ? "✓" : ""}
+                  </button>
                 </th>
-                {/* 제목줄 정렬 — 매입매출전표와 같은 조작(누르면 ▲, 다시 ▼, 세 번째 해제) (2026-08-12).
-                    ⚠️ 전표는 **장 단위**로 옮긴다 — 한 전표의 분개 줄이 흩어지면 차·대를 못 읽는다. */}
-                <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-                  <button type="button" className="spv-sort" onClick={() => toggleSort("no")}>No{sortMark("no")}</button></th>
-                <th className="px-2 py-2.5 w-[84px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-                  <button type="button" className="spv-sort" onClick={() => toggleSort("date")}>일자{sortMark("date")}</button></th>
-                <th className="px-2 py-2.5 w-[76px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>
-                <th className="px-2 py-2.5 w-[72px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">계정코드</th>
-                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-                  <button type="button" className="spv-sort" onClick={() => toggleSort("account")}>계정명{sortMark("account")}</button></th>
-                <th className="px-2 py-2.5 w-[100px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">거래처코드</th>
-                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-                  <button type="button" className="spv-sort" onClick={() => toggleSort("partner")}>거래처명{sortMark("partner")}</button></th>
-                <th className="px-2 py-2.5 w-[110px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-                  <button type="button" className="spv-sort" onClick={() => toggleSort("debit")}>차변{sortMark("debit")}</button></th>
-                <th className="px-2 py-2.5 w-[110px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-                  <button type="button" className="spv-sort" onClick={() => toggleSort("credit")}>대변{sortMark("credit")}</button></th>
-                <th className="px-2 py-2.5 w-[64px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">적요코드</th>
-                <th className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">
-                  <button type="button" className="spv-sort" onClick={() => toggleSort("memo")}>적요{sortMark("memo")}</button></th>
+                {/* 제목줄 정렬 — ⚠️ 전표는 **장 단위**로 옮긴다: 한 전표의 분개 줄이 흩어지면 차·대를 못 읽는다 */}
+                <SortableTh label="No" sortKey="no" sort={sort} onSort={onSort} style={{ width: 44 }} />
+                <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} style={{ width: 92 }} />
+                <SortableTh label="구분" style={{ width: 76 }} />
+                <SortableTh label="계정코드" style={{ width: 76 }} />
+                <SortableTh label="계정명" sortKey="account" sort={sort} onSort={onSort} />
+                <SortableTh label="거래처코드" style={{ width: 104 }} />
+                <SortableTh label="거래처명" sortKey="partner" sort={sort} onSort={onSort} />
+                <SortableTh label="차변" sortKey="debit" sort={sort} onSort={onSort} style={{ width: 116 }} />
+                <SortableTh label="대변" sortKey="credit" sort={sort} onSort={onSort} style={{ width: 116 }} />
+                <SortableTh label="적요코드" style={{ width: 68 }} />
+                <SortableTh label="적요" sortKey="memo" sort={sort} onSort={onSort} />
               </tr>
             </thead>
             <tbody>
-              {sortedEntries.map((e) => {
+              {pager.view.map((e) => {
                 const buf = edits[e.id];
                 if (buf) {
                   const st = editStat(buf);
@@ -955,12 +1042,12 @@ export default function VoucherEntryPage() {
                 </td>
               </tr>
             </tbody>
-            {entries.length > 0 && (
+            {filteredEntries.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-[var(--border)] bg-[var(--bg-surface)]/70 font-bold">
                   <td colSpan={7} className="px-3 py-2.5 text-right text-[10px] uppercase tracking-wide text-[var(--text-dim)]">합계</td>
-                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.debit, 0), 0).toLocaleString()}</td>
-                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{entries.reduce((s, e) => s + e.lines.reduce((x, l) => x + l.credit, 0), 0).toLocaleString()}</td>
+                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{sumD.toLocaleString()}</td>
+                  <td className="px-2 py-2.5 text-right mono-number text-sm text-[var(--text)]">{sumC.toLocaleString()}</td>
                   <td colSpan={2} className="px-2 py-2.5">
                     <span className="inline-flex px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">차대일치</span>
                   </td>
@@ -969,7 +1056,16 @@ export default function VoucherEntryPage() {
             )}
           </table>
         </div>
-      </div>
+          {/* ── 3줄 · 고른 전표로 하는 일 — 삭제는 되돌릴 수 없어 확인창을 거친다 ── */}
+          <SelectionBar count={selected.size} onClear={() => setSelected(new Set())}>
+            <button type="button" className="btn-secondary btn-sm text-[var(--danger)]" disabled={busy} onClick={deleteSelected}>
+              선택 삭제 ({selected.size})
+            </button>
+          </SelectionBar>
+        </QueryBody>
+        <Pager page={pager.page} pages={pager.pages} total={sortedEntries.length} size={live.rows}
+          from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
 
       {/* 우클릭 메뉴 (§3-3-A: 행 삽입/복사/삭제) */}
       {ctx && (
@@ -991,8 +1087,8 @@ export default function VoucherEntryPage() {
         </div>
       )}
 
-      <p className="text-[11px] text-[var(--text-dim)]">
-        ※ 전표입력은 장부 기록입니다 — 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 매칭</Link>에서 별도 처리 · 수정하면 변경 전 값이 이력으로 남고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
+      <p className="collect-note">
+        ※ 전표입력은 장부 기록입니다 — 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 대사</Link>에서 별도 처리 · 수정하면 변경 전 값이 이력으로 남고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
       </p>
     </div>
   );

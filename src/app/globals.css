@@ -8254,6 +8254,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ledger-list-table td.ev-ell { max-width: 0; }
 .ledger-row { @apply cursor-pointer transition-colors; }
 .ledger-row:hover { @apply bg-[var(--bg-surface)]; }
+/* 일반전표 목록 — 조회 표준(B형) (2026-08-18 Wave 1). 셀 안 입력칸이 있어 table-fixed 유지 */
+.ve-list-table { min-width: 1120px; table-layout: fixed; }
+/* 입력 카드가 위에 있어 남는 높이만 목록이 먹는다 — 이 화면 뿌리(.qk-shell) 안 설명 줄은 끝에 붙는다 */
+.qk-shell > .collect-note { @apply shrink-0; }
 .partner-row { @apply cursor-pointer transition-colors; }
 .partner-row:hover { @apply bg-[var(--bg-surface)]; }
 /*   한 쪽(차변 또는 대변) — 계정과 거래처를 위아래로 */
