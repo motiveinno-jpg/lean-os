@@ -4722,11 +4722,8 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .goal-hero-summary-achievement { @apply px-4 py-3; }
 .goal-hero-summary-status { @apply px-4 py-3; }
 .goal-hero-summary-count { @apply px-4 py-3; }
-.quotes-page { @apply space-y-6; }
-.quotes-toolbar { @apply flex flex-wrap items-center justify-end gap-2; }
-.quotes-table-wrap { @apply overflow-hidden; }
-.quotes-empty-state { @apply py-16 px-6 flex flex-col items-center justify-center text-center gap-2; }
-.quotes-table-scroll { @apply overflow-auto max-h-[640px]; }
+.quotes-page { @apply flex flex-col gap-3; }
+.quotes-table { min-width: 860px; }
 .quotes-row { @apply border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/50; }
 .quote-create-modal-overlay { @apply fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4; }
 .quote-create-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-xl w-full max-w-md p-6; }

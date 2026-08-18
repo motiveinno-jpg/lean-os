@@ -68,3 +68,5 @@
 - 자체 툴바(검색칸·내담당 토글·정렬 select·성과 대시보드·생성), 한 문장 요약(ph-brief), 상태 칩 바(ph-statusbar/ph-stchip)·보기 버튼(ph-viewpick), 보기 localStorage 기억, 바닥 안내문
 - `globals.css`: `.projecthub-toolbar` `.search-input-wrap` `.mine-scope-toggle` `.sort-control` `.ph-brief*` `.ph-statusbar` `.ph-stchips*` `.ph-stchip*` `.ph-viewpick` `.ph-view-btn*` `.ph-table thead th`
 대체: collect-tabs(목록/담당별) · QueryBar(검색조건[담당·거래처·템플릿] + 빠른검색 + 내 담당/전체 ChipGroup + 상태 칩(qk-chip)) · ResultStrip · ev-table+SortableTh · Pager · 내 조건('projecthub')
+### 견적 (`/projecthub/quotes`)
+- 자체 툴바·표·빈 상태 → QueryScreen(QueryBar[빠른검색·상태 ChipGroup] · ResultStrip · ev-table+SortableTh · Pager). `globals.css`: `.quotes-toolbar` `.quotes-table-wrap` `.quotes-empty-state` `.quotes-table-scroll`

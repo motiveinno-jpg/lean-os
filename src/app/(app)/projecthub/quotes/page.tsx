@@ -1,11 +1,15 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 견적서 — 프로젝트와 별개의 독립 견적서 메뉴(프로젝트 토글 하위). 프로젝트의 견적서 탭과 동일 데이터(documents+deal_id).
 //   작성 시 기존 프로젝트 선택 또는 신규 프로젝트 생성 → 양쪽(프로젝트 운영/견적서) 연동.
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
+  Pager, usePager, type AppliedChip,
+} from "@/components/query-kit";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,6 +43,12 @@ export default function QuotesPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  //   ── 조회 화면 표준 (2026-08-18 Wave 3) — 상태 칩·빠른검색·머리단 정렬·쪽 넘김. 조건이 둘뿐이라 검색조건 패널은 없다 ──
+  const [q, setQ] = useState("");
+  const [st, setSt] = useState<string>("all");
+  type QSortKey = "no" | "name" | "deal" | "amount" | "status" | "date";
+  const [sort, setSort] = useState<SortState<QSortKey>>({ key: "date", dir: "desc" });
+  const onSort = (k: QSortKey) => setSort((c) => nextSort(c, k, k === "date" ? "desc" : "asc"));
 
   const { data: quotes = [], isLoading } = useQuery({
     queryKey: ["quotes-list", companyId],
@@ -53,60 +63,88 @@ export default function QuotesPage() {
     enabled: !!companyId,
   });
 
-  return (
-    <div className="quotes-page">
-      <div className="quotes-toolbar page-sticky-header">
-        <button onClick={() => setShowCreate(true)}
-          className="btn-primary shrink-0">+ 견적서 작성</button>
-      </div>
+  const statusLabel = (x: any) => (DOC_STATUS as any)[x.status]?.label || DOC_STATUS.draft.label;
+  const statusOpts = useMemo(() => [{ value: "all", label: "전체" }, ...[...new Set((quotes as any[]).map(statusLabel))].map((v) => ({ value: v, label: v }))], [quotes]);
+  const shown = useMemo(() => {
+    const arr = (quotes as any[]).filter((x) => (st === "all" || statusLabel(x) === st) &&
+      quickSearchHit(q, [x.name, x.deals?.name, x.document_number], [Number(x.contract_amount || 0)]));
+    const val = (x: any) => {
+      switch (sort.key) {
+        case "no": return x.document_number || ""; case "name": return x.name || ""; case "deal": return x.deals?.name || "";
+        case "amount": return Number(x.contract_amount || 0); case "status": return statusLabel(x); default: return x.created_at || "";
+      }
+    };
+    arr.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || String(b.created_at || "").localeCompare(String(a.created_at || "")); });
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotes, q, st, sort]);
+  const pager = usePager(shown, 50, `${q}|${st}`);
+  const chips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...(st !== "all" ? [{ group: "상태", label: st, onRemove: () => setSt("all") }] : []),
+  ];
 
-      <div className="quotes-table-wrap glass-card">
-        {isLoading ? (
-          <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-        ) : quotes.length === 0 ? (
-          <div className="quotes-empty-state">
-            <div className="text-4xl mb-1"><Ico e="🧾" /></div>
-            <div className="text-sm font-semibold text-[var(--text)]">아직 견적서가 없습니다</div>
-            <div className="text-xs text-[var(--text-muted)]">“+ 견적서 작성”으로 첫 견적서를 만들어 보세요.</div>
-            <button onClick={() => setShowCreate(true)} className="btn-primary mt-2">+ 견적서 작성</button>
-          </div>
-        ) : (
-          <div className="quotes-table-scroll">
-            <table className="w-full text-xs border-collapse" style={{ minWidth: 760 }}>
-              <thead className="sticky top-0 z-10">
-                <tr className="bg-[var(--bg-card)] text-xs font-semibold text-[var(--text-dim)] border-b border-[var(--border)]">
-                  <th className="px-3 py-2.5 text-center font-semibold w-[130px]">견적No.</th>
-                  <th className="px-3 py-2.5 text-center font-semibold">견적서명</th>
-                  <th className="px-3 py-2.5 text-center font-semibold w-[180px]">프로젝트</th>
-                  <th className="px-3 py-2.5 text-center font-semibold w-[120px]">금액</th>
-                  <th className="px-3 py-2.5 text-center font-semibold w-[90px]">상태</th>
-                  <th className="px-3 py-2.5 text-center font-semibold w-[110px]">작성일</th>
-                  <th className="px-3 py-2.5 text-center font-semibold w-[90px]">관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quotes.map((q) => (
-                  <tr key={q.id} className="quotes-row">
-                    <td className="px-3 py-3 mono-number text-[var(--text-muted)] text-[11px]">{q.document_number || fmtDate(q.created_at)}</td>
-                    <td className="px-3 py-3 text-[var(--text)] font-medium">{q.name || "(이름 없음)"}</td>
-                    <td className="px-3 py-3 text-[var(--text-muted)] truncate">
-                      {q.deal_id ? <Link href={`/projecthub/${q.deal_id}`} className="text-[var(--primary)] hover:underline">{q.deals?.name || "프로젝트"}</Link> : "—"}
-                    </td>
-                    <td className="px-3 py-3 text-right mono-number">{q.contract_amount != null ? won(q.contract_amount) : "—"}</td>
-                    <td className="px-3 py-3 text-center">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{(DOC_STATUS as any)[q.status]?.label || DOC_STATUS.draft.label}</span>
-                    </td>
-                    <td className="px-3 py-3 text-[var(--text-muted)] mono-number text-[11px]">{fmtDate(q.created_at)}</td>
-                    <td className="px-3 py-3 text-center">
-                      <Link href={`/documents?id=${q.id}`} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">열기/편집 →</Link>
-                    </td>
+  return (
+    <div className="qk-shell quotes-page">
+      {/* ── 조회 화면 표준 — 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김 (2026-08-18 Wave 3) ── */}
+      <QueryScreen>
+        <QueryHead>
+          <QueryBar right={<button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 견적서 작성</button>}>
+            <QuickSearch value={q} onApply={setQ} placeholder="견적서명 · 프로젝트 · 견적No. · 금액 — 쉼표로 여러 개, Enter" />
+            <ChipGroup value={st} onChange={setSt} options={statusOpts} />
+          </QueryBar>
+          <AppliedChips chips={chips} onClearAll={() => { setQ(""); setSt("all"); }} />
+          <ResultStrip>
+            <Stat label="견적서" value={`${shown.length.toLocaleString("ko")}건`} />
+            <Stat label="금액 합계" value={won(shown.reduce((s0, x) => s0 + Number(x.contract_amount || 0), 0))} />
+          </ResultStrip>
+        </QueryHead>
+        <QueryBody>
+          {isLoading ? (
+            <div className="collect-empty">불러오는 중…</div>
+          ) : quotes.length === 0 ? (
+            <div className="collect-empty">아직 견적서가 없습니다 — 오른쪽 위 [+ 견적서 작성]으로 첫 견적서를 만들어 보세요</div>
+          ) : shown.length === 0 ? (
+            <div className="collect-empty">이 조건에 맞는 견적서가 없습니다 — 검색·상태를 풀어 보세요</div>
+          ) : (
+            <div className="ev-scroll">
+              <table className="ev-table ev-lined quotes-table">
+                <thead>
+                  <tr>
+                    <SortableTh label="견적No." sortKey="no" sort={sort} onSort={onSort} style={{ width: 130 }} />
+                    <SortableTh label="견적서명" sortKey="name" sort={sort} onSort={onSort} />
+                    <SortableTh label="프로젝트" sortKey="deal" sort={sort} onSort={onSort} style={{ width: 200 }} />
+                    <SortableTh label="금액" sortKey="amount" sort={sort} onSort={onSort} style={{ width: 130 }} />
+                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} style={{ width: 96 }} />
+                    <SortableTh label="작성일" sortKey="date" sort={sort} onSort={onSort} style={{ width: 110 }} />
+                    <SortableTh label="관리" style={{ width: 96 }} />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {pager.view.map((x) => (
+                    <tr key={x.id} className="quotes-row">
+                      <td className="mono-number ev-dim">{x.document_number || fmtDate(x.created_at)}</td>
+                      <td className="ev-ell font-medium">{x.name || "(이름 없음)"}</td>
+                      <td className="ev-ell ev-dim">
+                        {x.deal_id ? <Link href={`/projecthub/${x.deal_id}`} className="text-[var(--primary)] hover:underline">{x.deals?.name || "프로젝트"}</Link> : "—"}
+                      </td>
+                      <td className="tr mono-number">{x.contract_amount != null ? won(x.contract_amount) : "—"}</td>
+                      <td className="tc">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-surface)] text-[var(--text-muted)]">{statusLabel(x)}</span>
+                      </td>
+                      <td className="tc ev-dim mono-number">{fmtDate(x.created_at)}</td>
+                      <td className="tc">
+                        <Link href={`/documents?id=${x.id}`} className="text-[11px] font-semibold text-[var(--primary)] hover:underline">열기/편집 →</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </QueryBody>
+        <Pager page={pager.page} pages={pager.pages} total={shown.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
 
       {showCreate && companyId && userId && (
         <CreateQuoteModal
