@@ -1958,6 +1958,8 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .loans-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
 .loans-summary-cards { @apply grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6; }
 .loans-list-panel { @apply overflow-hidden; }
+/* 대출 — 표 머리단만 조회 표준(ev-table) (2026-08-18 Wave 2) */
+.loans-table { min-width: 600px; }
 .loan-row { @apply p-5 hover:bg-[var(--bg-surface)]/50 transition; }
 .loan-portfolio-summary { @apply p-5; }
 .loan-repayment-bars { @apply space-y-3; }
@@ -2243,12 +2245,12 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .vault-asset-form { @apply p-6 mb-4; }
 .vault-doc-form { @apply p-6 mb-4; }
 .vault-accounts-panel { @apply overflow-x-auto; }
-.vault-accounts-table { @apply w-full text-sm min-w-[700px]; }
+.vault-accounts-table { min-width: 700px; }
 .vault-asset-summary-cards { @apply grid grid-cols-2 md:grid-cols-3 gap-4 mb-6; }
 .vault-assets-panel { @apply overflow-x-auto; }
-.vault-assets-table { @apply w-full text-sm min-w-[760px]; }
+.vault-assets-table { min-width: 760px; }
 .vault-docs-panel { @apply overflow-x-auto; }
-.vault-docs-table { @apply w-full text-sm min-w-[600px]; }
+.vault-docs-table { min-width: 600px; }
 .vault-discovery-panel { @apply overflow-hidden; }
 .vault-access-log-modal { @apply fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4; }
 .signature-failure-panel { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }

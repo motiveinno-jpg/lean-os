@@ -4,6 +4,7 @@ import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { useEffect, useState } from "react";
+import { SortableTh } from "@/components/sortable-th";
 import { DateField } from "@/components/date-field";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -473,14 +474,13 @@ function VaultPageInner() {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* Toolbar — tabs + actions */}
       <div className="vault-toolbar page-sticky-header">
-        <div className="seg-bar">
+        {/* 갈래 탭 — 공용(collect-tabs), 조회 표준 확산 Wave 2 (2026-08-18) */}
+        <div className="collect-tabs no-print">
           {TABS.map((t) => (
-            <button
-              key={t.key}
+            <button key={t.key} type="button"
               onClick={() => { setTab(t.key); setShowForm(false); setEditingId(null); }}
-              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
-            >
-              {t.label} ({t.count})
+              className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
+              {t.label}<span className="collect-tab-cnt">{t.count}</span>
             </button>
           ))}
         </div>
@@ -919,16 +919,16 @@ function VaultPageInner() {
               <button onClick={() => { setTab("accounts"); setShowForm(true); }} className="btn-primary mt-5">+ 계정 추가</button>
             </div>
           ) : (
-            <table className="vault-accounts-table">
+            <table className="ev-table ev-lined vault-accounts-table">
               <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">서비스</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">월 비용</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">사용 좌석</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">마지막 사용</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">갱신일</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">상태</th>
-                  <th className="p-4"></th>
+                <tr>
+                  <SortableTh label="서비스" />
+                  <SortableTh label="월 비용" />
+                  <SortableTh label="사용 좌석" />
+                  <SortableTh label="마지막 사용" />
+                  <SortableTh label="갱신일" />
+                  <SortableTh label="상태" />
+                  <SortableTh label="" />
                 </tr>
               </thead>
               <tbody>
@@ -1091,15 +1091,15 @@ function VaultPageInner() {
               <button onClick={() => { setShowForm(true); setEditingId(null); setAssetForm({ type: "tangible", name: "", purchaseDate: "", value: "", location: "", notes: "", usefulLifeMonths: "", attachmentUrl: "" }); }} className="btn-primary mt-5">+ 자산 추가</button>
             </div>
           ) : (
-            <table className="vault-assets-table">
+            <table className="ev-table ev-lined vault-assets-table">
               <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">자산명</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">유형</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">취득가</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">장부가</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">취득일</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">상태</th>
+                <tr>
+                  <SortableTh label="자산명" />
+                  <SortableTh label="유형" />
+                  <SortableTh label="취득가" />
+                  <SortableTh label="장부가" />
+                  <SortableTh label="취득일" />
+                  <SortableTh label="상태" />
                 </tr>
               </thead>
               <tbody>
@@ -1160,14 +1160,14 @@ function VaultPageInner() {
               <div className="text-xs text-[var(--text-muted)]">중요 문서를 안전하게 보관하세요</div>
             </div>
           ) : (
-            <table className="vault-docs-table">
+            <table className="ev-table ev-lined vault-docs-table">
               <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">문서명</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">카테고리</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">연결 프로젝트</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">만료일</th>
-                  <th className="text-center p-4 text-xs text-[var(--text-dim)] font-medium">태그</th>
+                <tr>
+                  <SortableTh label="문서명" />
+                  <SortableTh label="카테고리" />
+                  <SortableTh label="연결 프로젝트" />
+                  <SortableTh label="만료일" />
+                  <SortableTh label="태그" />
                 </tr>
               </thead>
               <tbody>

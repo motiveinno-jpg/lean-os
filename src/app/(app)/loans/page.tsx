@@ -2,6 +2,7 @@
 import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
 
 import { useEffect, useMemo, useState } from "react";
+import { SortableTh } from "@/components/sortable-th";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -332,10 +333,11 @@ export default function LoansPage() {
 
       {/* 컴팩트 툴바 — 탭(좌) + 인쇄(우). 타이틀은 상단 고정 헤더바가 담당 */}
       <div className="loans-toolbar page-sticky-header">
-        <div className="seg-bar max-w-full overflow-x-auto">
+        {/* 갈래 탭 — 공용(collect-tabs), 조회 표준 확산 Wave 2 (2026-08-18) */}
+        <div className="collect-tabs no-print">
           {TABS.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}>
+            <button key={t.key} type="button" onClick={() => setTab(t.key)}
+              className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
               {t.label}
             </button>
           ))}
@@ -553,15 +555,11 @@ export default function LoansPage() {
                     ]} />
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[500px]">
+                <div className="ev-scroll">
+                  <table className="ev-table ev-lined loans-table">
                     <thead>
-                      <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                        <th className="text-center px-3 py-2 font-medium">월</th>
-                        <th className="text-center px-3 py-2 font-medium">예상 원금</th>
-                        <th className="text-center px-3 py-2 font-medium">예상 이자</th>
-                        <th className="text-center px-3 py-2 font-medium">합계</th>
-                        <th className="text-center px-3 py-2 font-medium">잔금</th>
+                      <tr>
+                        <SortableTh label="월" /><SortableTh label="예상 원금" /><SortableTh label="예상 이자" /><SortableTh label="합계" /><SortableTh label="잔금" />
                       </tr>
                     </thead>
                     <tbody>
@@ -667,17 +665,11 @@ export default function LoansPage() {
                 desc="상단의 ‘+ 상환 기록’ 버튼으로 납부 내역을 추가하세요"
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px]">
+              <div className="ev-scroll">
+                <table className="ev-table ev-lined loans-table">
                   <thead>
-                    <tr className="text-[10px] text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className="text-center px-4 py-3 font-medium">#</th>
-                      <th className="text-center px-4 py-3 font-medium">대출</th>
-                      <th className="text-center px-4 py-3 font-medium">납부일</th>
-                      <th className="text-center px-4 py-3 font-medium">원금</th>
-                      <th className="text-center px-4 py-3 font-medium">이자</th>
-                      <th className="text-center px-4 py-3 font-medium">합계</th>
-                      <th className="text-center px-4 py-3 font-medium">거래연결</th>
+                    <tr>
+                      <SortableTh label="#" /><SortableTh label="대출" /><SortableTh label="납부일" /><SortableTh label="원금" /><SortableTh label="이자" /><SortableTh label="합계" /><SortableTh label="거래연결" />
                     </tr>
                   </thead>
                   <tbody>
