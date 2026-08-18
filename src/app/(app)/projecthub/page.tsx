@@ -22,7 +22,7 @@ import { STAGE_LABEL, STAGE_COLOR, STAGE_ORDER, type ProjectStage } from "@/lib/
 // 유형(margin/goal/delivery) 참조는 이 화면에서 전부 사라졌다 — 달성률 산식만 남는다.
 import { getOverallAchievement } from "@/lib/project-types";
 // 유형 3분할 폐지(2026-07-30) — 목록은 유형으로 걸러지지 않는다. 대표 지표는 있는 데이터에서 고른다.
-import { getHeadline, READY_LIST_VIEWS, ANALYSIS_VIEWS, normalizeListView, viewStorageKey, type ProjectSignals } from "@/lib/project-sections";
+import { getHeadline, READY_LIST_VIEWS, ANALYSIS_VIEWS, type ProjectSignals } from "@/lib/project-sections";
 import { getProjectStatus, daysToEnd, STATUS_RANK, type ProjectStatusKey } from "@/lib/project-status";
 import { incVat } from "@/lib/project-money";
 import { useCanAccessTab } from "@/lib/tab-access";
@@ -37,11 +37,22 @@ import { BOARD_TEMPLATES } from "@/lib/project-boards";
 import { MondayBoard } from "@/components/monday-board";
 import { ProjectTimeline, PortfolioCharts, ProjectCalendar } from "./_components/ListViews";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { SortableTh, nextSort, type SortState } from "@/components/sortable-th";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, SavedTabs, ConditionSave,
+  ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
+  RowsPerPage, Pager, usePager, useSavedQueries,
+  type AppliedChip,
+} from "@/components/query-kit";
 
 const won = (n: number | null | undefined) => `${Math.round(Number(n || 0)).toLocaleString("ko-KR")}원`;
 const fmtDate = (d: string | null | undefined) => (d ? String(d).slice(0, 10) : "");
 
 const NUDGE_OPEN_KEY = "ov.projecthub.nudgeOpen";
+/** 검색조건 (조회 화면 표준, 2026-08-18 Wave 3). ★ '조회'를 눌러야 반영. 빠른검색·상태 칩·내 담당은 즉시. */
+type Cond = { manager: string[]; partner: string[]; template: string[]; rows: number };
+const EMPTY_COND: Cond = { manager: [], partner: [], template: [], rows: 50 };
+const condCount = (c: Cond) => c.manager.length + c.partner.length + c.template.length;
 
 export default function ProjectHubPage() {
   const { user, role } = useUser();
@@ -301,22 +312,21 @@ export default function ProjectHubPage() {
 
   // 보기 전환(2026-07-30) — 유형 칩이 있던 자리를 대신한다. 카드=기본(처음 쓰는 사람),
   //   표=정렬·비교, 보드=회사가 만든 컬럼(구 워크플로우 탭). 고른 보기는 사람별로 기억한다.
-  const [listView, setListView] = useState<string>("card");
+  //   보기(목록/담당별)는 상자 안 갈래 탭. ★ 기억하지 않는다 — 조회 화면 표준(조회값 자동 기억 금지). 기본은 목록.
+  const [listView, setListView] = useState<string>("table");
   const [calMonth, setCalMonth] = useState(0); // 캘린더 보기 — 이번 달 기준 오프셋
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setListView(normalizeListView(window.localStorage.getItem(viewStorageKey("list", user?.id))));
-  }, [user?.id]);
-  const pickListView = (v: string) => {
-    setListView(v);
-    if (typeof window !== "undefined") window.localStorage.setItem(viewStorageKey("list", user?.id), v);
-  };
+  const pickListView = (v: string) => setListView(v);
   // 2026-07-20 QA: 전역 검색(⌘K)에서 프로젝트 결과 클릭 시 ?q=<이름> 딥링크로 진입 —
   //   검색어를 초기값으로 물려받고, 남의 담당 프로젝트도 보이도록 내담당 필터는 해제 상태로 시작.
   const searchParams = useSearchParams();
   const initialQ = searchParams?.get("q") ?? "";
-  const [search, setSearch] = useState(initialQ);
+  const [search, setSearch] = useState(initialQ);   // 빠른검색 — 프로젝트·거래처·참여자 (쉼표 = 또는, Enter 로 반영)
   const [mineOnly, setMineOnly] = useState(!initialQ); // 내 담당 우선(기본) — '전체'로 전환 가능
+  //   ── 조회 화면 표준 — 검색조건(담당·거래처·템플릿)·내 조건 ──
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(EMPTY_COND);
+  const [live, setLive] = useState<Cond>(EMPTY_COND);
+  const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const userId = user?.id ?? null;
 
   const partnerName = useMemo(() => {
@@ -348,9 +358,11 @@ export default function ProjectHubPage() {
 
 
   // 제목줄 클릭 정렬 — 콕핏 기본값은 긴급도순(2026-07-22)
-  type PSortKey = "urgency" | "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period";
-  const [sortKey, setSortKey] = useState<PSortKey>("urgency");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  type PSortKey = "urgency" | "name" | "partner" | "manager" | "stage" | "contract" | "direct_cost" | "cost_ratio" | "progress" | "period" | "items" | "quiet";
+  //   머리단 정렬 — 공용 부품(SortableTh). 기본 긴급도(급한 게 위).
+  const [sort, setSort] = useState<SortState<PSortKey>>({ key: "urgency", dir: "desc" });
+  const sortKey = sort.key, sortDir = sort.dir;
+  const onSort = (k: PSortKey) => setSort((c) => nextSort(c, k, k === "urgency" ? "desc" : "asc"));
   // 카드 뷰 정렬 옵션 — 모든 유형 공통
   const SORT_OPTIONS: [PSortKey, string][] = [
     ["urgency", "긴급도"], ["contract", "계약금액"], ["progress", "진행·달성률"], ["stage", "단계"], ["name", "프로젝트명"], ["period", "시작일"],
@@ -499,16 +511,21 @@ export default function ProjectHubPage() {
   //   (2026-08-04: 두 군데 따로 적혀 있다가 참여자 전환 때 한쪽만 고쳐져 칩이 사라졌다)
   const inScope = useCallback((d: any) => {
     if (mineOnly && !membersOfDeal(d).includes(userId || "")) return false;
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    const hay = `${d.name || ""} ${partnerName[d.partner_id] || ""} ${membersOfDeal(d).map((id: string) => userName[id] || "").join(" ")}`.toLowerCase();
-    return hay.includes(q);
+    if (!quickSearchHit(search, [d.name, partnerName[d.partner_id], ...membersOfDeal(d).map((id: string) => userName[id] || "")])) return false;
+    return true;
   }, [mineOnly, membersOfDeal, userId, search, partnerName, userName]);
+  //   검색조건 — 담당(주담당)·거래처·템플릿(그 표가 붙은 프로젝트)
+  const condHit = useCallback((d: any, c: Cond) => {
+    if (c.manager.length && !c.manager.includes(userName[d.internal_manager_id] || "")) return false;
+    if (c.partner.length && !c.partner.includes(partnerName[d.partner_id] || "")) return false;
+    if (c.template.length) { const names = rollupByDeal[d.id]?.boardNames || []; if (!c.template.some((t) => names.includes(t))) return false; }
+    return true;
+  }, [userName, partnerName, rollupByDeal]);
   // 급한 순 — 상태 순서(지연→주의→정상→완료)가 곧 긴급도다
   const urgencyRank = (d: any) => ({ late: 0, warn: 1, normal: 2, empty: 3 })[listStatusOfDeal(d)];
 
   const rows = useMemo(() => {
-    const filtered = topDeals.filter((d) => inScope(d) && matchesLens(d));
+    const filtered = topDeals.filter((d) => inScope(d) && matchesLens(d) && condHit(d, live));
     return filtered.slice().sort((a, b) => {
       // 긴급도 정렬 — 랭크 오름차순 + 마감 임박 우선. 방향 토글과 무관하게 항상 급한 게 위로.
       if (sortKey === "urgency") {
@@ -532,12 +549,49 @@ export default function ProjectHubPage() {
         case "cost_ratio": c = Number(pnlByDeal[a.id]?.direct_cost_ratio || 0) - Number(pnlByDeal[b.id]?.direct_cost_ratio || 0); break;
         case "progress": c = (headlineByDeal[a.id]?.pct ?? -1) - (headlineByDeal[b.id]?.pct ?? -1); break;
         case "period": c = (a.start_date || "").localeCompare(b.start_date || ""); break;
+        case "items": c = (rollupByDeal[a.id]?.itemCount || 0) - (rollupByDeal[b.id]?.itemCount || 0); break;
+        case "quiet": c = (rollupByDeal[a.id]?.quietDays ?? 9999) - (rollupByDeal[b.id]?.quietDays ?? 9999); break;
         default: c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       }
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [topDeals, inScope, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal]);
+  }, [topDeals, inScope, condHit, live, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal, rollupByDeal]);
+  const pager = usePager(rows, live.rows, `${listView}|${search}|${mineOnly}|${lens}|${JSON.stringify(live)}`);
+  const previewCount = useMemo(() => topDeals.filter((d) => inScope(d) && matchesLens(d) && condHit(d, draft)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [topDeals, inScope, draft, lens]);
+  const managerOpts = useMemo(() => [...new Set((topDeals as any[]).map((d) => userName[d.internal_manager_id]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [topDeals, userName]);
+  const partnerOpts = useMemo(() => [...new Set((topDeals as any[]).map((d) => partnerName[d.partner_id]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [topDeals, partnerName]);
+  const templateOpts = useMemo(() => [...new Set((topDeals as any[]).flatMap((d) => rollupByDeal[d.id]?.boardNames || []))].map((v) => ({ value: v, label: v })), [topDeals, rollupByDeal]);
+  //   내 조건 — ★ 하나가 이 화면의 기본값
+  const saved = useSavedQueries("projecthub", companyId);
+  const paramsNow = { view: listView, q: search, mine: mineOnly, lens, cond: live };
+  const paramsBasic = { view: "table", q: "", mine: true, lens: null, cond: EMPTY_COND };
+  const applySaved = (p: Record<string, unknown>) => {
+    if (p.view === "table" || p.view === "people") setListView(p.view);
+    if (typeof p.q === "string") setSearch(p.q);
+    if (typeof p.mine === "boolean") setMineOnly(p.mine);
+    if (p.lens === null || typeof p.lens === "string") setLens((p.lens as ProjectStatusKey | null) ?? null);
+    const c = { ...EMPTY_COND, ...(p.cond as Partial<Cond> | undefined) };
+    setDraft(c); setLive(c);
+  };
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved.isFetched) return;
+    setDefDone(true);
+    if (saved.def && !initialQ) applySaved(saved.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isFetched, saved.def, defDone]);
+  const suggestName = () => [draft.manager[0], draft.partner[0], draft.template[0], mineOnly ? "내 담당" : "전체"].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
+  const dropCond = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(search).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setSearch(quickTerms(search).filter((_, j) => j !== i).join(", ")) })),
+    ...live.manager.map((v) => ({ group: "담당", label: v, onRemove: () => dropCond({ manager: live.manager.filter((x) => x !== v) }) })),
+    ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove: () => dropCond({ partner: live.partner.filter((x) => x !== v) }) })),
+    ...live.template.map((v) => ({ group: "템플릿", label: v, onRemove: () => dropCond({ template: live.template.filter((x) => x !== v) }) })),
+  ];
+  const clearAll = () => { setSearch(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
 
   // 칩 카운트는 **상태 필터를 뺀** 같은 스코프에서 센다 — 그래야 칩을 눌러도 숫자가 그대로다.
   const lensScope = useMemo(() => topDeals.filter(inScope), [topDeals, inScope]);
@@ -561,104 +615,90 @@ export default function ProjectHubPage() {
   if (!tabAllowed) return <AccessDenied detail="프로젝트 접근 권한이 없습니다. 마스터에게 권한을 요청하세요." />;
 
   return (
-    <div className="projecthub-page">
+    <div className="qk-shell projecthub-page">
       {/* 카드 ⋯메뉴 바깥 클릭 닫기 */}
       {openMenu && <div className="fixed inset-0 z-10" onClick={() => setOpenMenu(null)} />}
-      {/* 툴바 — 검색·내담당·성과대시보드·생성 */}
-      <div className="projecthub-toolbar page-sticky-header">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <div className="search-input-wrap">
-            <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" /></svg>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="프로젝트·거래처·참여자 검색"
-              className="w-full h-9 pl-9 pr-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--primary)]" />
+      {/* ── 조회 화면 표준 — 보기 탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김 (2026-08-18 Wave 3) ── */}
+      <QueryScreen>
+        <QueryHead>
+          {/* 보기 — 둘만(목록·담당별). 보드·캘린더·분석은 계약·마감(회계) 전제라 새 구조에선 대부분 빈다 (2026-08-03) */}
+          <div className="collect-tabs no-print">
+            {([["table", "목록"], ["people", "담당별"]] as const).map(([k, label]) => (
+              <button key={k} type="button" onClick={() => pickListView(k)}
+                className={listView === k ? "collect-tab collect-tab-on" : "collect-tab"}>{label}</button>
+            ))}
           </div>
-          {/* 전체 열람 권한이 없으면 스코프 전환 자체를 감춘다 — 어차피 내 담당만 조회된다 */}
-          {canViewAllProjects && <div className="mine-scope-toggle">
-            <button onClick={() => setMineOnly(true)}
-              className={`px-3 h-full whitespace-nowrap transition ${mineOnly ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-              내 담당
-            </button>
-            <button onClick={() => setMineOnly(false)}
-              className={`px-3 h-full whitespace-nowrap transition border-l border-[var(--border)] ${!mineOnly ? "bg-[var(--primary)] text-white" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}>
-              전체
-            </button>
-          </div>}
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="sort-control">
-            <select value={sortKey} onChange={(e) => setSortKey(e.target.value as PSortKey)}
-              className="h-full pl-3 pr-1 bg-transparent text-[13px] text-[var(--text-muted)] focus:outline-none cursor-pointer" title="정렬 기준">
-              {SORT_OPTIONS.map(([k, label]) => <option key={k} value={k}>{label}순</option>)}
-            </select>
-            <button onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
-              className="h-full px-2 border-l border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] text-xs" title={sortDir === "asc" ? "오름차순" : "내림차순"}>
-              {sortDir === "asc" ? "▲" : "▼"}
-            </button>
-          </div>
-          {isManager && (
-            <button onClick={() => setShowDashboard((v) => !v)} className={`btn-sm ${showDashboard ? "btn-primary" : "btn-secondary"}`}>성과 대시보드</button>
-          )}
-          <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 생성</button>
-        </div>
-      </div>
 
-      {/* ① 한 문장 요약 — 숫자 타일보다 말이 먼저 온다(2026-08-03 개편 ②).
-          '미연결 거래' 제안은 뺐다(사장님 지시) — 프로젝트는 이제 입력하는 템플릿이 중심이라,
-          회계에서 후보를 역산해 권하는 줄은 성격이 다르다. */}
-      <div className="ph-brief">
-        <p className="ph-brief-line">
-          {/* 아래 칩은 '프로젝트' 를 세고 이 줄은 '줄(행)' 을 센다 — 같은 말로 읽히지 않게
-              단위를 문구에 못박는다(2026-08-05 실제 화면에서 확인). */}
-          {lensCounts.lateItems + lensCounts.soonItems === 0
-            ? <>프로젝트 <b>{lensCounts.total}건</b> · 템플릿 <b>{lensCounts.boards}개</b>. 기한이 걸린 줄은 없어요.</>
-            : <>
-                {lensCounts.lateItems > 0 && <>기한 지난 줄 <b>{lensCounts.lateItems}건</b></>}
-                {lensCounts.lateItems > 0 && lensCounts.soonItems > 0 && " · "}
-                {lensCounts.soonItems > 0 && <>이번 주 마감 <b>{lensCounts.soonItems}건</b></>}
-                {" 이 있어요."}
-              </>}
-        </p>
-        {quietCount > 0 && (
-          <div className="ph-brief-nudge">
+          <QueryBar right={<>
+            {isManager && (
+              <button type="button" onClick={() => setShowDashboard((v) => !v)} className={`btn-sm ${showDashboard ? "btn-primary" : "btn-secondary"}`}>성과 대시보드</button>
+            )}
+            <button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 프로젝트 생성</button>
+          </>}>
+            {/* 프로젝트는 기간이 없는 목록이라 조회 줄이 [검색조건] 으로 시작한다 */}
+            <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)}
+              tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                onBasic={() => { setListView("table"); setMineOnly(true); setLens(null); clearAll(); }}
+                onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+              foot={<>
+                <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                <ConditionSave suggest={suggestName}
+                  onSave={(name, asDefault) => { saved.save(name, { view: listView, q: search, mine: mineOnly, lens, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
+                <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>
+                <RowsPerPage value={draft.rows} onChange={setD("rows")} />
+                <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+              </>}>
+              <ConditionRow label="담당" hint="주담당 · 여러 명">
+                <TokenField items={managerOpts} value={draft.manager} onChange={setD("manager")} placeholder="이름 일부" />
+              </ConditionRow>
+              <ConditionRow label="거래처" hint="여러 곳">
+                <TokenField items={partnerOpts} value={draft.partner} onChange={setD("partner")} placeholder="거래처 이름 일부" />
+              </ConditionRow>
+              <ConditionRow label="템플릿" hint="그 표가 붙은 프로젝트">
+                <TokenField items={templateOpts} value={draft.template} onChange={setD("template")} placeholder="예: 예산 · 지출" />
+              </ConditionRow>
+            </ConditionPanel>
+            <QuickSearch value={search} onApply={setSearch} placeholder="프로젝트 · 거래처 · 참여자 — 쉼표로 여러 개, Enter" />
+            {/* 전체 열람 권한이 없으면 스코프 전환 자체를 감춘다 — 어차피 내 담당만 조회된다 */}
+            {canViewAllProjects && (
+              <ChipGroup value={mineOnly ? "mine" : "all"} onChange={(v) => setMineOnly(v === "mine")}
+                options={[{ value: "mine", label: "내 담당" }, { value: "all", label: "전체" }]} />
+            )}
+            {/* 상태 칩 — 판정이 아니라 **센 사실**뿐. 0이면 감추되 켜져 있는 칩은 남긴다 (2026-08-03 사장님) */}
+            <span className="qk-chips">
+              {([["", "전체", lensCounts.total], ["late", "기한 지남", lensCounts.late],
+                 ["warn", "이번 주", lensCounts.warn], ["empty", "입력 전", lensCounts.empty]] as const).map(([k, label, n]) => (
+                (k !== "" && n === 0 && lens !== k) ? null : (
+                  <button key={k || "all"} type="button" onClick={() => setLens((prev) => (prev === k || k === "" ? null : k as any))}
+                    aria-pressed={k === "" ? lens === null : lens === k}
+                    className={`qk-chip ${(k === "" ? lens === null : lens === k) ? "qk-chip-on" : ""} ${k ? `ph-stchip-${k}` : ""}`}>
+                    {label} <em className="not-italic font-extrabold">{n}</em>
+                  </button>
+                )
+              ))}
+            </span>
+          </QueryBar>
+
+          <AppliedChips chips={chips} onClearAll={clearAll} />
+
+          {/* 결과 요약 — 한 문장이었던 것을 숫자 칸으로. 아래 칩은 '프로젝트'를 세고 여기 '줄'은 행을 센다 (단위 명시) */}
+          <ResultStrip right={quietCount > 0 ? (
             <button type="button" onClick={() => pickNudge("quiet")}
               className={`ph-nudge-chip ${nudge === "quiet" ? "ph-nudge-chip-on" : ""}`}>
               변동 없는 프로젝트 <em>{quietCount}</em>
             </button>
-          </div>
-        )}
-      </div>
+          ) : undefined}>
+            <Stat label="프로젝트" value={`${rows.length.toLocaleString("ko")}건${rows.length !== lensCounts.total ? ` / ${lensCounts.total}` : ""}`} />
+            <Stat label="템플릿" value={`${lensCounts.boards}개`} />
+            <Stat label="기한 지난 줄" value={`${lensCounts.lateItems}건`} tone={lensCounts.lateItems > 0 ? "minus" : undefined} />
+            <Stat label="이번 주 마감 줄" value={`${lensCounts.soonItems}건`} />
+            <span className="text-[10.5px] text-[var(--text-dim)]">대표 지표는 그 프로젝트에 있는 데이터에서 자동으로 골라요 — 돈이 걸렸으면 마진율, 목표가 있으면 달성률, 할 일만 있으면 진행률</span>
+          </ResultStrip>
+        </QueryHead>
 
-      {/* ② 상태 칩 + 보기.
-          '정상'을 뺐다 (2026-08-03 사장님: "일정이 없는 프로젝트는 어떻게 보여줄 생각이지?").
-          날짜 칸을 안 쓰는 프로젝트를 초록 '정상'으로 찍으면 확인한 적 없는 걸 확인했다고 말하는 셈이다.
-          남긴 칩은 판정이 아니라 **센 사실**뿐이고, 셀 게 0이면 그 칩은 아예 안 나온다.
-          어디에도 안 잡히는 프로젝트는 '전체'에 그냥 남는다 — 그게 정확하다. */}
-      <div className="ph-statusbar">
-        <div className="ph-stchips">
-          <span className="ph-stchips-unit">프로젝트</span>
-          {([["", "전체", lensCounts.total], ["late", "기한 지남", lensCounts.late],
-             ["warn", "이번 주", lensCounts.warn], ["empty", "입력 전", lensCounts.empty]] as const).map(([k, label, n]) => (
-            // 0이면 감추되, **켜져 있는 칩은 남긴다** — 사라지면 끌 방법이 없어진다
-            (k !== "" && n === 0 && lens !== k) ? null : (
-              <button key={k || "all"} type="button" onClick={() => setLens((prev) => (prev === k || k === "" ? null : k as any))}
-                aria-pressed={k === "" ? lens === null : lens === k}
-                className={`ph-stchip ${k ? `ph-stchip-${k}` : ""} ${(k === "" ? lens === null : lens === k) ? "ph-stchip-on" : ""}`}>
-                {label}<em>{n}</em>
-              </button>
-            )
-          ))}
-        </div>
-        {/* 보기는 둘만 — 보드·캘린더·분석은 계약·마감(회계)을 전제로 만든 화면이라
-            새 구조에서는 대부분 빈다. 표 데이터가 쌓이면 그때 표 기준으로 다시 만든다(2026-08-03). */}
-        <div className="ph-viewpick">
-          {([["table", "목록"], ["people", "담당별"]] as const).map(([k, label]) => (
-            <button key={k} onClick={() => pickListView(k)} aria-pressed={listView === k}
-              className={`ph-view-btn ${listView === k ? "ph-view-btn-on" : ""}`}>{label}</button>
-          ))}
-        </div>
-      </div>
-
-
+        <QueryBody>
+         <div className="ph-scroll">
       {/* 조용한 프로젝트 한 줄 체크인 — 주 1회·최대 3건. 대상이 없으면 아무것도 그리지 않는다.
           접혀 있어도 마운트는 한다 — 위 한 줄에 개수를 띄우려면 판정이 돌아야 한다. */}
       {companyId && (
@@ -794,17 +834,22 @@ export default function ProjectHubPage() {
            (2026-08-03 사장님 지적). 대신 행마다 상태 줄무늬와 '확인 사항' 코멘트를 붙여
            지연·미수를 그 자리에서 읽게 한다. */
         <div className="ph-table-wrap">
-          <table className="ph-table">
+          <table className="ev-table ev-lined ph-table">
             <thead>
               <tr>
                 {/* '상태(지연/주의/정상)' 열을 뺐다 — 옆 '확인 사항'이 같은 내용을 근거와 함께 적고,
                     행 왼쪽 줄무늬가 색을 이미 맡는다. 판정 단어가 셋이면 셋 다 안 읽힌다. */}
-                <th>프로젝트</th><th>템플릿</th><th>참여자</th><th className="ph-table-n">입력</th>
-                <th>확인 사항</th><th>마지막 입력</th><th />
+                <SortableTh label="프로젝트" sortKey="name" sort={sort} onSort={onSort} />
+                <SortableTh label="템플릿" />
+                <SortableTh label="참여자" sortKey="manager" sort={sort} onSort={onSort} />
+                <SortableTh label="입력" sortKey="items" sort={sort} onSort={onSort} />
+                <SortableTh label="확인 사항" sortKey="urgency" sort={sort} onSort={onSort} title="급한 순" />
+                <SortableTh label="마지막 입력" sortKey="quiet" sort={sort} onSort={onSort} />
+                <SortableTh label="" />
               </tr>
             </thead>
             <tbody>
-              {rows.map((d: any) => {
+              {pager.view.map((d: any) => {
                 const r = rollupByDeal[d.id];
                 const key = listStatusOfDeal(d);
                 const reasons = listReasons(r || { boardCount: 0, boardNames: [], itemCount: 0, quietDays: null, lateCount: 0, soonCount: 0, doneRate: null });
@@ -860,9 +905,13 @@ export default function ProjectHubPage() {
         </div>
       )}
 
-      {listView !== "board" && (
-        <p className="text-[11px] text-[var(--text-dim)]">※ 대표 지표는 그 프로젝트에 있는 데이터에서 자동으로 골라요 — 돈이 걸렸으면 마진율, 목표가 있으면 달성률, 할 일만 있으면 진행률.</p>
-      )}
+         </div>
+        </QueryBody>
+        {listView === "table" && (
+          <Pager page={pager.page} pages={pager.pages} total={rows.length} size={live.rows}
+            from={pager.from} to={pager.to} onPage={pager.setPage} />
+        )}
+      </QueryScreen>
     </div>
   );
 }

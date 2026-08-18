@@ -4311,11 +4311,12 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .attachment-edit-grid { @apply grid grid-cols-3 gap-2; }
 .task-edit-footer { @apply px-5 py-3 border-t border-[var(--border)] flex justify-between gap-2; }
 .task-lightbox-overlay { @apply fixed inset-0 z-[90] bg-black/80 flex items-center justify-center p-4; }
-.projecthub-page { @apply space-y-6; }
-.projecthub-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
-.search-input-wrap { @apply relative flex-1 max-w-[320px]; }
-.mine-scope-toggle { @apply flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden text-[13px] font-semibold shrink-0; }
-.sort-control { @apply flex items-center h-9 rounded-lg bg-[var(--bg-card)] border border-[var(--border)] overflow-hidden; }
+.projecthub-page { @apply flex flex-col gap-3; }
+/* 프로젝트 — 조회 표준 (2026-08-18 Wave 3): 본문 스크롤 상자 · 상태 칩 색(qk-chip 위에 얹는다) */
+.qk-body > .ph-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
+.qk-chip.ph-stchip-late.qk-chip-on { @apply border-[var(--danger)] bg-[var(--danger)]/10 text-[var(--danger)]; }
+.qk-chip.ph-stchip-warn.qk-chip-on { @apply border-[var(--warning)] bg-[var(--warning)]/10 text-[var(--warning)]; }
+.ph-scroll > .ph-table-wrap { @apply shrink-0; }
 .type-filter-chips { @apply flex flex-wrap gap-1.5; }
 /* 프로젝트 상세 — 탭 폐지, 한 페이지 + 목차(2026-07-30).
    자리 순서는 프로젝트가 달라도 고정된다. 목차는 데스크톱에서 좌측 고정, 모바일에선 가로 스크롤. */
@@ -4458,12 +4459,9 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .pj-team-past-row em { @apply not-italic text-[var(--text-dim)]; }
 /* 프로젝트 목록 보기 전환(2026-07-30) — 유형 칩(type-filter-chips)을 대체한다.
    카드·표·보드(구 워크플로우). type-filter-chips 정의는 다른 화면 참조 가능성 때문에 남겨둔다. */
-.ph-view-btn { @apply px-3 py-1.5 rounded-lg text-[13px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
-.ph-view-btn-on { @apply bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm hover:text-white; }
 /* 표 보기 */
 .ph-table-wrap { @apply overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; }
 .ph-table { @apply w-full border-collapse text-[13px] min-w-[46rem]; }
-.ph-table thead th { @apply text-center px-3 py-2 bg-[var(--bg-surface)] text-[11px] font-extrabold uppercase tracking-wider text-[var(--text-muted)] whitespace-nowrap border-b border-[var(--border)]; }
 .ph-table tbody td { @apply px-3 py-2.5 border-b border-[var(--border)]/60 align-middle; }
 .ph-table tbody tr:last-child td { @apply border-b-0; }
 .ph-table-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
@@ -6397,19 +6395,6 @@ td .rounded-full { white-space: nowrap; }
 .board-desc-html th { @apply bg-[var(--bg-surface)] font-bold; }
 
 /* ── 프로젝트 목록 개편(2026-08-03) — 한 문장 요약 + 상태 칩 + [챙길 건 카드 → 표] ── */
-.ph-brief { @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2; }
-.ph-brief-line { @apply text-[14px] text-[var(--text-muted)] m-0; }
-.ph-brief-line b { @apply text-[var(--text)] font-extrabold; }
-.ph-brief-nudge { @apply flex flex-wrap items-center gap-2; }
-.ph-statusbar { @apply flex flex-wrap items-center justify-between gap-x-4 gap-y-2; }
-.ph-stchips { @apply flex flex-wrap items-center gap-1.5; }
-.ph-stchips-unit { @apply text-[10.5px] font-bold text-[var(--text-dim)] mr-0.5; }
-.ph-stchip { @apply inline-flex items-center h-8 px-3 rounded-full border border-[var(--border)] bg-[var(--bg-card)] text-[12.5px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--primary)]; }
-.ph-stchip em { @apply not-italic font-extrabold ml-1.5; }
-.ph-stchip-on { @apply border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--text)] font-bold; }
-.ph-stchip-late.ph-stchip-on { @apply border-[var(--danger)] bg-[var(--danger)]/10 text-[var(--danger)]; }
-.ph-stchip-warn.ph-stchip-on { @apply border-[var(--warning)] bg-[var(--warning)]/10 text-[var(--warning)]; }
-.ph-viewpick { @apply flex flex-wrap items-center gap-1.5; }
 /* 상태 배지 — 목록 칩·표·카드·상세가 같은 모양을 쓴다 */
 .ph-st { @apply inline-block text-[10.5px] font-extrabold px-2 py-0.5 rounded-full whitespace-nowrap; }
 .ph-st-late { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }

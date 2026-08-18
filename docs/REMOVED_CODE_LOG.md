@@ -62,3 +62,9 @@
 ## 2026-08-18 — 조회 표준 확산 Wave 2 · 자금
 - 대출·자산: seg-bar 탭 → collect-tabs, 표 머리단 → ev-table+SortableTh(정적). 카드·차트·입력은 그대로(관리 화면).
 - 정기 지출: seg-bar 탭 → collect-tabs, 상태 seg-bar → ChipGroup, 벌크 액션바 → SelectionBar(거부·승인·실행[파란]), 표 4종 → ev-table+SortableTh. `globals.css`: `.payment-bulk-action-bar`
+
+## 2026-08-18 — 조회 표준 확산 Wave 3 · 워크스페이스
+### 프로젝트 (`/projecthub`)
+- 자체 툴바(검색칸·내담당 토글·정렬 select·성과 대시보드·생성), 한 문장 요약(ph-brief), 상태 칩 바(ph-statusbar/ph-stchip)·보기 버튼(ph-viewpick), 보기 localStorage 기억, 바닥 안내문
+- `globals.css`: `.projecthub-toolbar` `.search-input-wrap` `.mine-scope-toggle` `.sort-control` `.ph-brief*` `.ph-statusbar` `.ph-stchips*` `.ph-stchip*` `.ph-viewpick` `.ph-view-btn*` `.ph-table thead th`
+대체: collect-tabs(목록/담당별) · QueryBar(검색조건[담당·거래처·템플릿] + 빠른검색 + 내 담당/전체 ChipGroup + 상태 칩(qk-chip)) · ResultStrip · ev-table+SortableTh · Pager · 내 조건('projecthub')
