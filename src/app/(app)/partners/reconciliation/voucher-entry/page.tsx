@@ -728,30 +728,6 @@ export default function VoucherEntryPage() {
 
   return (
     <div className="qk-shell">
-      {/* ══ 툴바 — 일자·구분 (좌) + 액션 (우), 타이틀은 공통 헤더바가 담당 ══ */}
-      <div className="voucher-entry-toolbar flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold text-[var(--text-dim)]">구분</span>
-            <div className="seg-bar">
-              {VTYPES.map((t) => (
-                <button key={t.id} onClick={() => changeVtype(t.id)} title={t.desc}
-                  className={`seg-item ${vtype === t.id ? "seg-item-active" : ""}`}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
-            className="btn-secondary text-xs">새 전표</button>
-          <button onClick={save} disabled={!canSave}
-            className="btn-primary text-xs disabled:opacity-40">
-            {busy ? "저장 중..." : "저장"}</button>
-        </div>
-      </div>
-
       {acctFetched && !dbReady && (
         <div className="px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/25 text-xs text-amber-600 font-semibold shadow-sm">
           <Ico e="⚠" /> 전표 시스템 DB(계정과목 마스터)가 아직 적용되지 않았습니다 — 적용 후 사용할 수 있습니다.
@@ -760,6 +736,22 @@ export default function VoucherEntryPage() {
 
       {/* ══ 상단: 입력 영역 (§3-3) ══ */}
       <div ref={topRef} onKeyDown={onTopKey} className="voucher-entry-input-card glass-card overflow-visible">
+        {/* 구분 탭 — 수집·전표처럼 상자 **안** 맨 위, 파란 밑줄 (2026-08-18 사장님). 오른쪽은 새 전표·저장 */}
+        <div className="collect-tabs ve-kind-tabs no-print">
+          {VTYPES.map((t) => (
+            <button key={t.id} type="button" onClick={() => changeVtype(t.id)} title={t.desc}
+              className={vtype === t.id ? "collect-tab collect-tab-on" : "collect-tab"}>
+              {t.label}
+            </button>
+          ))}
+          <span className="ve-kind-actions">
+            <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
+              className="btn-secondary btn-sm">새 전표</button>
+            <button onClick={save} disabled={!canSave}
+              className="btn-primary btn-sm disabled:opacity-40">
+              {busy ? "저장 중..." : "저장"}</button>
+          </span>
+        </div>
         <div className="px-5 py-3 border-b border-[var(--border)]/70 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-2 text-sm font-bold text-[var(--text)]">
             <span aria-hidden className="inline-block w-1.5 h-4 rounded-full bg-[var(--primary)]" />분개 입력

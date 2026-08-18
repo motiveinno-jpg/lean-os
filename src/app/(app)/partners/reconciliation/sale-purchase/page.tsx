@@ -18,7 +18,7 @@ import { downloadCsv as writeCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
 import { nextSort, type SortState } from "@/components/sortable-th";
 import {
-  QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField,
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField,
   AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, defaultRangeMonth, periodQuicksMonth,
   type ExcelItem, type AppliedChip,
 } from "@/components/query-kit";
@@ -772,6 +772,9 @@ function SalePurchaseInner() {
 
   return (
     <div className="qk-shell spv-page">
+      {/* ── 한 상자 안에: 갈래 탭(파란 밑줄) · 조회 줄 · 걸린 조건 · 결과 요약 · 격자 — 수집·전표와 같은 뼈대 (2026-08-18 사장님) ── */}
+      <QueryScreen>
+       <QueryHead>
       {/* 갈래 탭 — 공용(collect-tabs) */}
       <div className="collect-tabs no-print">
         {GROUPS.map((g) => (
@@ -849,6 +852,9 @@ function SalePurchaseInner() {
         <Stat label="부가세" value={won(shownSaved.reduce((x, r) => x + numOf(r.vat), 0))} />
         <span className="spv-toolbar-hint"><b>Enter</b> 를 치면 그 칸에 윗줄 값이 내려오고 다음 칸으로 넘어갑니다 · 저장분을 누르면 그 자리에서 고칩니다</span>
       </ResultStrip>
+       </QueryHead>
+       <QueryBody>
+        <div className="spv-body">
 
       {/* ── 좁은 화면: 저장분을 카드로 읽는다. 격자 입력은 접어 두고 필요할 때만 편다 ── */}
       <div className={phoneGrid ? "spv-narrow spv-narrow-off" : "spv-narrow"}>
@@ -1005,6 +1011,10 @@ function SalePurchaseInner() {
           부가세 집계에서 그만큼 차감됩니다.
         </p>
       </div>
+
+        </div>
+       </QueryBody>
+      </QueryScreen>
 
       {pullOpen && (
         <div className="spv-pull-overlay" onClick={() => setPullOpen(false)}>

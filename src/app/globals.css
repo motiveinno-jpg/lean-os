@@ -8015,11 +8015,13 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /*   머리단 세로선·가운데 — 표 머리단 표준(.ev-lined)과 같은 색 (2026-08-18) */
 .spv-head > span + span { border-left: 1px solid color-mix(in srgb, var(--text-dim) 45%, transparent); }
 .spv-page > .qk-bar { @apply mt-1; }
+/*   상자 안 본문 — 격자(스크롤)·분개 미리보기·안내를 세로로. QueryBody 가 남는 높이를 주고 이 상자가 스크롤한다 */
+.qk-body > .spv-body { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
+.spv-body > .spv-grid-wrap { @apply shrink-0 rounded-xl border border-[var(--border)]; }
+.spv-body > .spv-je { @apply shrink-0 rounded-xl border border-[var(--border)]; }
 /*   매입매출전표도 상자 끝선을 사이드바에 맞춘다 — 격자가 남는 높이만 먹고 안에서 스크롤 (2026-08-18 사장님) */
 @media (min-width: 768px) {
   .qk-shell.spv-page { padding-bottom: 0; }
-  .qk-shell > .spv-grid-wrap { @apply min-h-0 flex-1 overflow-auto; }
-  .qk-shell > .spv-grid-wrap > .spv-scroll { overflow: visible; }
 }
 .spv-row > span { @apply px-2 py-1.5 text-[12px] text-[var(--text)] whitespace-nowrap; }
 .spv-saved { @apply bg-[var(--bg-surface)]/40; }
@@ -8266,6 +8268,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ledger-row:hover { @apply bg-[var(--bg-surface)]; }
 /* 일반전표 목록 — 조회 표준(B형) (2026-08-18 Wave 1). 셀 안 입력칸이 있어 table-fixed 유지 */
 .ve-list-table { min-width: 1120px; table-layout: fixed; }
+/* 일반전표 입력 카드 위 구분 탭 — 상자 안 파란 밑줄 탭 + 오른쪽 실행 버튼 (2026-08-18) */
+.ve-kind-tabs { @apply rounded-t-2xl px-2 pt-1; }
+.ve-kind-actions { @apply ml-auto mb-1 flex items-center gap-1.5 pr-1; }
 /* 현금영수증 — 조회 표준 표 (2026-08-18 Wave 1) */
 .cr-table { min-width: 1080px; }
 /* 입력 카드가 위에 있어 남는 높이만 목록이 먹는다 — 이 화면 뿌리(.qk-shell) 안 설명 줄은 끝에 붙는다 */
