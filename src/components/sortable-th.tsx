@@ -110,8 +110,9 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
       <button type="button" ref={btnRef} onClick={openPop}
         className={active ? "th-filter th-filter-on" : "th-filter"}
         title={active ? `필터 걸림 (${spec.selected!.size}개 선택)` : "필터"}>
-        <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" aria-hidden>
-          <path d="M0 0h10L6 5v4L4 8V5L0 0z" />
+        {/*   석삼(≡) — 엑셀식 값 필터. 깔때기였다가 사장님 지시로 가로 세 줄 (2026-08-18) */}
+        <svg width="10" height="9" viewBox="0 0 10 9" fill="currentColor" aria-hidden>
+          <rect x="0" y="0.5" width="10" height="1.6" rx="0.8" /><rect x="0" y="3.7" width="10" height="1.6" rx="0.8" /><rect x="0" y="6.9" width="10" height="1.6" rx="0.8" />
         </svg>
       </button>
       {open && (
@@ -200,12 +201,16 @@ export function SortableTh<K extends string>({
     />
   ) : null;
 
+  //   글자는 칸 **정가운데**, 필터(≡)는 칸 **오른끝**에 붙는다 (2026-08-18 사장님: "삼각형이 중앙에 있고 글자가
+  //   왼쪽으로 밀렸다"). 삼각형 폭만큼 왼쪽에 빈 칸(.th-mark-pad)을 두어 글자 자체가 가운데 오게 맞춘다.
+  const thCls = filter ? " th-hasf" : "";
   if (!sortKey || !onSort) {
-    return <th style={{ ...style, ...width }} className="th-c">{label}{filter && <ThFilter spec={filter} />}{handle}</th>;
+    return <th style={{ ...style, ...width }} className={"th-c" + thCls}>{label}{filter && <ThFilter spec={filter} />}{handle}</th>;
   }
   return (
-    <th style={{ ...style, ...width }} className="th-c th-sort" onClick={() => onSort(sortKey)} title={title ?? "눌러서 정렬"}>
+    <th style={{ ...style, ...width }} className={"th-c th-sort" + thCls} onClick={() => onSort(sortKey)} title={title ?? "눌러서 정렬"}>
       <span className="th-sort-in">
+        <i className="th-mark-pad" aria-hidden />
         {label}
         {/*   정렬 표시 — 깔때기와 같은 크기(16px 상자·9px 도형)의 아래삼각형. 오름차순이면 뒤집는다.
               글자(▲▼↕)로 두면 깔때기 svg 와 기준선·크기가 안 맞아 머리단이 삐뚤어 보였다 (2026-08-18 사장님) */}
@@ -215,8 +220,8 @@ export function SortableTh<K extends string>({
             <path d="M0 2h10L5 8 0 2z" />
           </svg>
         </em>
-        {filter && <ThFilter spec={filter} />}
       </span>
+      {filter && <ThFilter spec={filter} />}
       {handle}
     </th>
   );

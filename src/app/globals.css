@@ -8249,11 +8249,14 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /*   머리단은 가운데 — 몸통 칸은 제 정렬을 지킨다 (2026-08-12 사장님 지시) */
 .ev-table thead th { @apply whitespace-nowrap border-b border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-center text-[10.5px] font-bold text-[var(--text-dim)]; }
 /*   ── 표 머리단 정렬 (components/sortable-th.tsx) — 모든 표가 같은 모양 ── */
-.th-c { @apply text-center; }
+.th-c { @apply relative text-center; }
+/*   필터가 붙는 칸 — 오른끝 ≡ 자리(20px)를 양쪽 똑같이 비워 글자가 칸 정가운데에 남는다 */
+.th-hasf { padding-left: 22px !important; padding-right: 22px !important; }
 .th-sort { @apply cursor-pointer select-none transition hover:text-[var(--text)]; }
 .th-sort-in { @apply inline-flex items-center justify-center gap-1; }
 /*   정렬 표시 — 깔때기(.th-filter)와 같은 16px 상자에 9px 삼각형. 둘이 같은 줄에 같은 크기로 선다 (2026-08-18 사장님) */
 .th-mark { @apply not-italic inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--text-dim)]/50; }
+.th-mark-pad { @apply inline-block h-4 w-4 shrink-0; }
 .th-mark-on { @apply text-[var(--primary)]; }
 .ev-table tbody td { @apply whitespace-nowrap border-b border-[var(--border)]/50 px-2.5 py-1.5 text-[var(--text)]; }
 .ev-table tbody tr:last-child td { @apply border-b-0; }
@@ -9255,7 +9258,8 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .ti-deal-none { @apply rounded-xl border border-dashed border-[var(--border)] px-3 py-3 text-[11.5px] text-[var(--text-dim)]; }
 
 /* 엑셀식 머리단 필터 + 열 너비 손잡이 (2026-08-13 사장님: "엑셀과 아예 동일하게") */
-.th-filter { @apply ml-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--text-dim)]/50 transition-colors; }
+/*   ≡ 는 칸 오른끝에 붙는다 (2026-08-18 사장님). th 가 relative(.th-c) 라 그 안에서 자리를 잡는다 */
+.th-filter { @apply absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--text-dim)]/50 transition-colors; }
 .th-filter:hover { @apply bg-[var(--primary)]/10 text-[var(--primary)]; }
 .th-filter-on { @apply bg-[var(--primary)] text-white; }
 .th-filter-on:hover { @apply bg-[var(--primary)] text-white; }
