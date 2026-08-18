@@ -6,8 +6,13 @@ import { logRead } from "@/lib/log-read";
 //   회사 회계 계정과목 마스터를 한 곳에서 조회·관리. 기본(시스템) 계정은 읽기전용,
 //   회사 자체 계정(is_system=false)만 추가/삭제. 거래매칭 직접입력·전표에서 이 계정을 사용.
 
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ConditionPanel, ConditionRow, ChipGroup, AppliedChips,
+  QuickSearch, quickSearchHit, ResultStrip, Stat, RowsPerPage, Pager, usePager, type AppliedChip,
+} from "@/components/query-kit";
+import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { STANDARD_ACCOUNTS } from "@/lib/standard-accounts";
@@ -22,6 +27,10 @@ const TYPES: { v: string; l: string }[] = [
   { v: "asset", l: "자산" }, { v: "liability", l: "부채" }, { v: "equity", l: "자본" },
   { v: "revenue", l: "수익" }, { v: "expense", l: "비용" },
 ];
+
+type CoaCond = { src: "" | "system" | "custom"; rows: number };
+const COA_EMPTY: CoaCond = { src: "", rows: 100 };
+type CoaSort = "code" | "name" | "type";
 
 export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
   const { toast } = useToast();
@@ -75,68 +84,126 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
     catch (e: any) { toast("삭제 실패: " + (e?.message || ""), "error"); }
   };
 
-  //   코드·계정명 아무 쪽으로나 찾는다 ("831" 도 "수수료" 도)
-  const needle = q.trim().toLowerCase();
-  const hits = needle
-    ? (accounts as Acct[]).filter((a) => a.code.includes(needle) || a.name.toLowerCase().includes(needle))
-    : (accounts as Acct[]);
-  const grouped = TYPES.map((t) => ({ ...t, items: hits.filter((a) => a.account_type === t.v) }));
+  //   코드·계정명 아무 쪽으로나 찾는다 ("831" 도 "수수료" 도) — 빠른검색(쉼표=또는, Enter)
+  //   2026-08-18 조회 표준: [검색조건(출처·줄 수) ▾] 빠른검색 · 구분 칩 ‖ 표준 채우기 · + 추가 → 결과 요약 → 표(정렬·≡·너비) → 쪽
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [typeKey, setTypeKey] = useState<string>("all");
+  const [draft, setDraft] = useState<CoaCond>(COA_EMPTY);
+  const [live, setLive] = useState<CoaCond>(COA_EMPTY);
+  const [sort, setSort] = useState<SortState<CoaSort>>({ key: "code", dir: "asc" });
+  const onSort = (k: CoaSort) => setSort((c) => nextSort(c, k));
+  const cf = useColFilters();
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("coa-colw-v1", { code: 90, name: 320, type: 100, src: 90, action: 100 });
+  const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
+  const typeLabel = (v: string) => TYPES.find((t) => t.v === v)?.l || v;
+  const colVal = (a: Acct) => ({ type: typeLabel(a.account_type), src: a.is_system ? "기본" : "자체" });
+  const base = useMemo(() => (accounts as Acct[]).filter((a) =>
+    (typeKey === "all" || a.account_type === typeKey)
+    && (live.src === "" || (live.src === "system" ? a.is_system : !a.is_system))
+    && quickSearchHit(q, [a.code, a.name, typeLabel(a.account_type)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [accounts, typeKey, live, q]);
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, base.map((a) => colVal(a)[k]));
+  const shown = useMemo(() => {
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const val = (a: Acct) => sort.key === "name" ? a.name : sort.key === "type" ? String(TYPES.findIndex((t) => t.v === a.account_type)) : a.code;
+    return base.filter((a) => cf.hit(colVal(a))).sort((x, y) => cmp(val(x), val(y)) * dir || cmp(x.code, y.code));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, sort, cf.key]);
+  const pager = usePager(shown, live.rows, `${typeKey}|${q}|${JSON.stringify(live)}|${cf.key}`);
+  const typeCounts = TYPES.map((t) => ({ ...t, n: (accounts as Acct[]).filter((a) => a.account_type === t.v).length }));
+  const chips: AppliedChip[] = [
+    ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
+    ...(live.src ? [{ group: "출처", label: live.src === "system" ? "기본" : "자체", onRemove: () => { const n = { ...live, src: "" as const }; setLive(n); setDraft(n); } }] : []),
+    ...cf.active.map((a) => ({ group: "칸 필터", label: `${a.k === "type" ? "구분" : "출처"} ${a.n}개`, onRemove: () => cf.clear(a.k) })),
+  ];
+  const clearAll = () => { setQ(""); setLive(COA_EMPTY); setDraft(COA_EMPTY); cf.clear(); setTypeKey("all"); };
 
   return (
-    <div className="coa-manager glass-card">
-      <div className="coa-header">
-        <h2 className="text-base font-bold text-[var(--text)]">계정과목 관리</h2>
-        <div className="flex items-center gap-2">
-          <button onClick={fillStandard} disabled={busy} className="btn-secondary">{busy ? "추가 중…" : "표준 계정과목 채우기"}</button>
-          <button onClick={() => setNewAcct({ code: "", name: "", type: "asset" })} className="btn-primary">+ 계정과목 추가</button>
-        </div>
-      </div>
-      <p className="text-xs text-[var(--text-muted)] mb-4">회사 회계의 계정과목 마스터입니다. 기본 계정은 읽기전용, 회사 자체 계정만 추가·삭제할 수 있습니다. “표준 계정과목 채우기”로 한국 표준 계정과목 {STANDARD_ACCOUNTS.length}개를 한 번에 등록할 수 있습니다. (거래매칭 직접입력·전표 처리에서 사용)</p>
+    <div className="coa-screen">
+    <QueryScreen>
+      <QueryHead>
+        <QueryBar right={<>
+          <button onClick={fillStandard} disabled={busy} className="btn-secondary btn-sm whitespace-nowrap">{busy ? "추가 중…" : "표준 계정과목 채우기"}</button>
+          <button onClick={() => setNewAcct({ code: "", name: "", type: "asset" })} className="btn-primary btn-sm whitespace-nowrap">+ 계정과목 추가</button>
+        </>}>
+          <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={live.src ? 1 : 0}
+            foot={<>
+              <button type="button" className="btn-secondary btn-sm" disabled={!draft.src} onClick={() => setDraft({ ...COA_EMPTY, rows: draft.rows })}>조건 지우기</button>
+              <span className="ml-auto" />
+              <RowsPerPage value={draft.rows} onChange={(n) => setDraft((c) => ({ ...c, rows: n }))} />
+              <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+            </>}>
+            <ConditionRow label="출처" hint="기본 = 읽기전용 · 자체 = 회사가 추가">
+              <ChipGroup value={draft.src} onChange={(v) => setDraft((c) => ({ ...c, src: v }))}
+                options={[{ value: "", label: "전체" }, { value: "system", label: "기본" }, { value: "custom", label: "자체" }] as const} />
+            </ConditionRow>
+          </ConditionPanel>
+          <QuickSearch value={q} onApply={setQ} placeholder="코드 · 계정명 · 구분 (예: 831, 지급수수료) — 쉼표로 여러 개, Enter" />
+          <ChipGroup value={typeKey} onChange={setTypeKey}
+            options={[{ value: "all", label: `전체 ${(accounts as Acct[]).length}` }, ...typeCounts.map((t) => ({ value: t.v, label: t.n > 0 ? `${t.l} ${t.n}` : t.l }))]} />
+        </QueryBar>
+        <AppliedChips chips={chips} onClearAll={clearAll} />
+        <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{shown.length}</b>개</span>}>
+          <Stat label="계정과목" value={`${(accounts as Acct[]).length}개`} />
+          <Stat label="자체 추가" value={`${(accounts as Acct[]).filter((a) => !a.is_system).length}개`} />
+          <span className="text-[11px] text-[var(--text-dim)]">기본 계정은 읽기전용 · 표준 {STANDARD_ACCOUNTS.length}개를 한 번에 채울 수 있습니다 (거래매칭 직접입력·전표 처리에서 사용)</span>
+        </ResultStrip>
+      </QueryHead>
 
-      {/*   찾기 — 474개를 위에서부터 훑을 수는 없다 (2026-08-12) */}
-      <div className="coa-search-row">
-        <input value={q} onChange={(e) => setQ(e.target.value)}
-          placeholder="계정과목 찾기 — 코드나 이름 (예: 831, 지급수수료)"
-          className="coa-search-input" />
-        {needle && <span className="text-[11px] text-[var(--text-dim)] shrink-0">{hits.length}개</span>}
-      </div>
-
-      {newAcct && (
-        <div className="coa-new-row">
-          <input value={newAcct.code} onChange={(e) => setNewAcct({ ...newAcct, code: e.target.value })} placeholder="코드 (예: 176)" className="w-28 h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]" />
-          <input value={newAcct.name} onChange={(e) => setNewAcct({ ...newAcct, name: e.target.value })} placeholder="계정명 (예: 임차보증금)" className="flex-1 min-w-[140px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]" />
-          <select value={newAcct.type} onChange={(e) => setNewAcct({ ...newAcct, type: e.target.value })} className="h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]">
-            {TYPES.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
-          </select>
-          <button onClick={add} disabled={busy} className="px-3 h-8 text-xs font-semibold rounded bg-[var(--primary)] text-white disabled:opacity-50">추가</button>
-          <button onClick={() => setNewAcct(null)} className="px-2 h-8 text-xs text-[var(--text-muted)]">취소</button>
-        </div>
-      )}
-
-      <div className="coa-groups">
-        {grouped.filter((g) => g.items.length > 0).map((g) => (
-          <div key={g.v} className="coa-group">
-            <div className="text-[11px] font-bold text-[var(--text-dim)] mb-1.5">{g.l} <span className="font-normal">({g.items.length})</span></div>
-            <div className="space-y-1">
-              {g.items.map((a) => (
-                <div key={a.id} className="coa-account-row">
-                  <span className="text-xs mono-number text-[var(--text-muted)] w-12 shrink-0">{a.code}</span>
-                  <span className="flex-1 text-sm text-[var(--text)] truncate">{a.name}</span>
-                  {a.is_system ? (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-card)] text-[var(--text-dim)] shrink-0">기본</span>
-                  ) : (
-                    <>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">자체</span>
-                      <button onClick={() => remove(a)} className="text-xs px-2 py-0.5 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10 shrink-0">삭제</button>
-                    </>
-                  )}
-                </div>
-              ))}
+      <QueryBody>
+        <div className="ev-scroll">
+          {newAcct && (
+            <div className="coa-new-row">
+              <input value={newAcct.code} onChange={(e) => setNewAcct({ ...newAcct, code: e.target.value })} placeholder="코드 (예: 176)" className="w-28 h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]" />
+              <input value={newAcct.name} onChange={(e) => setNewAcct({ ...newAcct, name: e.target.value })} placeholder="계정명 (예: 임차보증금)" className="flex-1 min-w-[140px] h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]" />
+              <select value={newAcct.type} onChange={(e) => setNewAcct({ ...newAcct, type: e.target.value })} className="h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]">
+                {TYPES.map((t) => <option key={t.v} value={t.v}>{t.l}</option>)}
+              </select>
+              <button onClick={add} disabled={busy} className="px-3 h-8 text-xs font-semibold rounded bg-[var(--primary)] text-white disabled:opacity-50">추가</button>
+              <button onClick={() => setNewAcct(null)} className="px-2 h-8 text-xs text-[var(--text-muted)]">취소</button>
             </div>
-          </div>
-        ))}
-        {(accounts as Acct[]).length === 0 && <div className="text-xs text-[var(--text-dim)] py-6 text-center">계정과목이 없습니다. <b>“표준 계정과목 채우기”</b>로 기본 계정을 불러오거나 직접 추가해 보세요.</div>}
-      </div>
+          )}
+          {(accounts as Acct[]).length === 0 ? (
+            <div className="collect-empty">계정과목이 없습니다. <b>“표준 계정과목 채우기”</b>로 기본 계정을 불러오거나 직접 추가해 보세요.</div>
+          ) : shown.length === 0 ? (
+            <div className="collect-empty">이 조건에 맞는 계정과목이 없습니다 — 검색조건을 풀어 보세요</div>
+          ) : (
+            <table ref={tableRef} className="ev-table ev-lined coa-table">
+              <thead>
+                <tr>
+                  <SortableTh label="코드" sortKey="code" sort={sort} onSort={onSort} resize={thResize("code", 1)} />
+                  <SortableTh label="계정명" sortKey="name" sort={sort} onSort={onSort} resize={thResize("name", 2)} />
+                  <SortableTh label="구분" sortKey="type" sort={sort} onSort={onSort} filter={cfSpec("type")} resize={thResize("type", 3)} />
+                  <SortableTh label="출처" filter={cfSpec("src")} resize={thResize("src", 4)} />
+                  <SortableTh label="관리" resize={thResize("action", 5)} />
+                </tr>
+              </thead>
+              <tbody>
+                {pager.view.map((a) => (
+                  <tr key={a.id}>
+                    <td className="text-center mono-number text-[var(--text-muted)]">{a.code}</td>
+                    <td className="text-left">{a.name}</td>
+                    <td className="text-center">{typeLabel(a.account_type)}</td>
+                    <td className="text-center">
+                      {a.is_system
+                        ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">기본</span>
+                        : <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)]">자체</span>}
+                    </td>
+                    <td className="text-center">
+                      {!a.is_system && <button onClick={() => remove(a)} className="text-xs px-2 py-0.5 rounded text-[var(--danger)] hover:bg-[var(--danger)]/10">삭제</button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </QueryBody>
+      <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.rows}
+        from={pager.from} to={pager.to} onPage={pager.setPage} />
+    </QueryScreen>
     </div>
   );
 }

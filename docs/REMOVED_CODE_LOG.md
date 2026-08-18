@@ -103,3 +103,9 @@
 ## 2026-08-18 — 조회 표준 확산 Wave 5 · 분석(C형: 머리단만)
 - 손익계산서 본표 th 인라인 스타일(padding·font·color·background) → `ev-table ev-lined rpt-table` + `.rpt-th-left/.rpt-th-right`(좌우 고정만 남김) · 비용 분석 월표·고정비/변동비 세부내역 표 th 인라인 스타일 → `ev-table ev-lined`. 몸통·드릴다운·합계 줄 그대로.
 - 교훈: `.ev-table { min-width:1260px }` 가 뒤에 정의돼 화면별 `.xxx-table { min-width }` 를 덮는다 → 화면별 규칙은 `table.xxx` 로 특이성을 올린다(10곳 일괄 수정).
+
+## 2026-08-18 — 조회 표준 확산 Wave 6 · 설정
+### 계정과목 관리 (회사 설정 › 계정과목·분류)
+- 카드 머리(제목·설명·버튼 2), 검색 칸, 구분별 묶음 목록(coa-group / coa-account-row) → QueryScreen(QueryBar[검색조건(출처·줄 수) + 빠른검색 + 구분 칩(건수) ‖ 표준 채우기·+ 추가] · AppliedChips · ResultStrip · ev-table+SortableTh(코드·계정명·구분 정렬, 구분·출처 ≡, 너비) · Pager 100줄). 추가 줄은 표 위 안쪽 판.
+- `globals.css`: `.coa-manager` `.coa-header` `.coa-search-row` `.coa-search-input` `.coa-groups` `.coa-account-row`
+- 교훈: 페이지가 스크롤하는 카드 더미 안에서 QueryScreen 을 쓰면 `.qk-body` 가 flex-1(basis 0) 이라 높이 0 → `.coa-screen .qk-screen > .qk-body { flex: 0 0 60vh }` 처럼 특이성 3 으로 basis 를 준다.

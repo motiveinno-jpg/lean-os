@@ -5027,13 +5027,11 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .invoice-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 
 /* chart-of-accounts-manager.tsx */
-.coa-manager { @apply p-5; }
-.coa-header { @apply flex items-center justify-between mb-1 gap-2 flex-wrap; }
-.coa-new-row { @apply flex flex-wrap items-center gap-1.5 mb-4 bg-[var(--bg-surface)] rounded-lg p-2.5; }
-.coa-search-row { @apply flex items-center gap-2 mb-3; }
-.coa-search-input { @apply flex-1 h-8 px-2.5 rounded bg-[var(--bg)] border border-[var(--border)] text-xs text-[var(--text)]; }
-.coa-groups { @apply space-y-4; }
-.coa-account-row { @apply flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
+.coa-new-row { @apply flex flex-wrap items-center gap-1.5 border-b border-[var(--border)] bg-[var(--bg-surface)] p-2.5; }
+/*   계정과목 관리 — 설정 화면 카드 더미 안의 조회 상자: 페이지가 스크롤하므로 상자 높이는 고정(60vh) 안에서 표가 스크롤 (2026-08-18 Wave 6) */
+.coa-screen .qk-screen > .qk-body { flex: 0 0 60vh; height: 60vh; } /* 특이성 3 — 뒤에 오는 .qk-screen > .qk-body(flex-1, basis 0) 을 이긴다 */
+table.coa-table { min-width: 640px; }
+.coa-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
 
 /* quick-approval-card.tsx */
 .quick-approval-card { @apply p-5 md:p-6; }
