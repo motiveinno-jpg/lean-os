@@ -171,7 +171,10 @@ export function SortableTh<K extends string>({
   resize?: ThResize;
 }) {
   const on = !!sortKey && sort?.key === sortKey;
-  const width = resize ? { width: resize.widths[resize.k], position: "relative" as const } : undefined;
+  //   ★ 예전엔 여기서 inline `position: relative` 를 줬다 — 그게 `.ev-scroll thead th { position: sticky }` 를 덮어
+  //     너비 조절 켜진 표는 스크롤하면 머리단이 따라 올라갔다 (2026-08-18 사장님). 손잡이의 기준은 .th-c(relative)와
+  //     sticky 자체가 잡아 주므로 인라인으로 줄 필요가 없다.
+  const width = resize ? { width: resize.widths[resize.k] } : undefined;
   const handle = resize ? (
     <span
       onMouseDown={(e) => {

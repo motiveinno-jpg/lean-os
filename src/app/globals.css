@@ -8247,13 +8247,14 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ev-scroll { @apply overflow-x-auto; }
 .ev-table { @apply w-full border-collapse text-[12px]; min-width: 1260px; }
 /*   머리단은 가운데 — 몸통 칸은 제 정렬을 지킨다 (2026-08-12 사장님 지시) */
-.ev-table thead th { @apply whitespace-nowrap border-b border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-center text-[10.5px] font-bold text-[var(--text-dim)]; }
+/*   leading-4: 글자 줄상자를 아이콘 상자(16px)와 같은 높이로 — 삼각형·≡·글자의 세로 중심이 한 줄에 온다 (2026-08-18 사장님) */
+.ev-table thead th { @apply whitespace-nowrap border-b border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-center text-[10.5px] leading-4 font-bold text-[var(--text-dim)]; }
 /*   ── 표 머리단 정렬 (components/sortable-th.tsx) — 모든 표가 같은 모양 ── */
 .th-c { @apply relative text-center; }
 /*   필터가 붙는 칸 — 오른끝 ≡ 자리(20px)를 양쪽 똑같이 비워 글자가 칸 정가운데에 남는다 */
 .th-hasf { padding-left: 22px !important; padding-right: 22px !important; }
 .th-sort { @apply cursor-pointer select-none transition hover:text-[var(--text)]; }
-.th-sort-in { @apply inline-flex items-center justify-center gap-1; }
+.th-sort-in { @apply inline-flex h-4 items-center justify-center gap-1 align-top leading-4; }
 /*   정렬 표시 — 깔때기(.th-filter)와 같은 16px 상자에 9px 삼각형. 둘이 같은 줄에 같은 크기로 선다 (2026-08-18 사장님) */
 .th-mark { @apply not-italic inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--text-dim)]/50; }
 .th-mark-pad { @apply inline-block h-4 w-4 shrink-0; }
@@ -9283,7 +9284,7 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 /*   55% 는 머리단 배경 위에서 안 보였다 (2026-08-18 사장님: "너무 흐려서 안 보인다") → 진하게 */
 .ev-lined th + th { border-left: 1px solid color-mix(in srgb, var(--text-dim) 45%, transparent); }
 /*   세금·증빙 발행 표 머리단 — 수집·전표(.ev-table thead th)와 같은 색·글자 (2026-08-18 사장님: "둘이 다르다") */
-.tax-invoice-list-table thead th { @apply whitespace-nowrap border-b border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-center text-[10.5px] font-bold text-[var(--text-dim)]; }
+.tax-invoice-list-table thead th { @apply whitespace-nowrap border-b border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-center text-[10.5px] leading-4 font-bold text-[var(--text-dim)]; }
 /* 세금·증빙 발행 표도 같은 규칙 — 원래 데이터 칸까지 border-l 유틸이 붙어 있던 것을 끈다 */
 .tax-invoice-list-table tbody td, .tax-invoice-list-table tfoot td { border-left-width: 0; }
 
