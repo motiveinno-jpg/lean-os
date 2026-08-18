@@ -198,7 +198,8 @@ export function BankTab({
         .eq("company_id", companyId).eq("type", "sales")
         .not("status", "in", "(void,matched,modified)")
         .gte("issue_date", since.toISOString().slice(0, 10))
-        .order("issue_date", { ascending: false }).limit(500);
+        //   ★ 500 이면 잘린다 — 모티브 prod 만 미매칭 매출 1,366장(2026-08-18). 잘리면 취소 짝 맞추기·직접 찾기가 구멍 난다
+        .order("issue_date", { ascending: false }).limit(3000);
       if (error) throw error;
       const rows = (data || []) as any[];
       //   ★ 취소된 원본을 걸러낸다 (2026-08-18 사장님 화면 검증에서 발견).
@@ -240,7 +241,12 @@ export function BankTab({
       if (nameHit) { score += 2; why.push("거래처 일치"); }
       out.push({ inv, why, score });
     }
-    return out.sort((a, b) => b.score - a.score).slice(0, 5);
+    //   ★ 금액이 같은 계산서가 수두룩하면 '금액 일치'는 근거가 아니다 (2026-08-18 prod 검증):
+    //     소상공인 자부담 550,000 이 229장 — 김두용(제로가드닝) 입금에 '동탄 에어컨청소'가 붙었다.
+    //     거래처가 겹치는 게 있으면 그것만, 없으면 같은 금액이 3장 이하일 때만 제안한다. 나머지는 직접 찾기.
+    const named = out.filter((x) => x.why.includes("거래처 일치"));
+    const picked = named.length > 0 ? named : out.length <= 3 ? out : [];
+    return picked.sort((a, b) => b.score - a.score).slice(0, 5);
   };
   //   직접 찾기 — 후보(금액 문턱)에 안 걸린 계산서도 사람이 고를 수 있어야 한다.
   //   자동으로 못 푸는 경우(분할 입금·합산 입금·금액 다른 선수금)는 사람에게 맡기고 화면에 적는다.
