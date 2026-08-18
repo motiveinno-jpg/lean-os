@@ -258,8 +258,9 @@ export function BankTab({
   const invPickItems = useMemo(
     () => (openInvoices as any[]).map((inv) => ({
       id: inv.id as string,
-      code: inv.issue_date as string,
-      name: `${inv.counterparty_name || "거래처 없음"} · ₩${Number(inv.total_amount || 0).toLocaleString("ko")}${inv.deals?.name ? ` · ${inv.deals.name}` : ""}`,
+      //   code 칸은 계정코드 폭(짧다)이라 날짜를 넣으면 이름과 겹친다 — 날짜는 이름 뒤에 (2026-08-18 prod 확인)
+      code: null,
+      name: `${inv.counterparty_name || "거래처 없음"} · ₩${Number(inv.total_amount || 0).toLocaleString("ko")}${inv.deals?.name ? ` · ${inv.deals.name}` : ""} · ${inv.issue_date}`,
       inv,
     })),
     [openInvoices]);
