@@ -2070,8 +2070,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .employee-notes-section { @apply space-y-3; }
 .employee-history-section { @apply space-y-3; }
 .employee-tab-access-section { @apply space-y-4; }
-.attendance-section-tabbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
-.attendance-view-tabbar { @apply mb-4; }
 .attendance-overtime-section { @apply space-y-4; }
 .member-role-empty { @apply bg-[var(--bg-card)] rounded-xl p-8 text-center border border-[var(--border)]; }
 .member-role-row { @apply bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex flex-wrap items-center gap-3; }
@@ -4717,6 +4715,19 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .qk-body .template-row { @apply rounded-none border-0 border-b border-[var(--border)]/50 bg-transparent p-0; }
 .qk-body .template-row-header { @apply w-full px-3.5 py-2.5; }
 .qk-body .hr-form-row { @apply rounded-none border-0 border-b border-[var(--border)]/50 bg-transparent px-3.5; }
+/* ── 근태(/attendance) — 조회 표준 (2026-08-18 Wave 4) ── */
+.qk-body > .att-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
+.qk-bar .fw-week-nav { @apply w-auto flex-nowrap; }
+.fw-table { min-width: 860px; }
+.fw-table thead th.fw-th-name { @apply sticky left-0 z-[6] text-left; min-width: 180px; }
+.fw-table thead th.fw-th-total { min-width: 170px; }
+.fw-table td.fw-td-name { @apply sticky left-0 z-[5] bg-[var(--bg-card)]; }
+.fw-absent-btn { @apply rounded-full px-2.5 py-1 text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.fw-absent-btn-on { @apply ring-2 ring-inset ring-[var(--danger)]; }
+.fw-absent-panel { @apply border-b border-[var(--border)] px-3.5 py-3; }
+.qk-body .attendance-toolbar { @apply mb-0; }
+.att-rec-table { min-width: 900px; }
+.att-rec-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
 .leave-req-table { min-width: 960px; }
 .leave-req-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 align-top text-xs; }
 .ap-tab-alert { @apply rounded-full bg-[var(--danger)] px-1.5 text-white; }
@@ -5943,8 +5954,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .allowance-admin-toolbar { @apply flex flex-wrap items-center gap-3; }
 .allowance-matrix-card { @apply overflow-hidden; }
 
-.flex-work-week-nav { @apply px-4 py-3 flex flex-wrap items-center gap-3; }
-.flex-work-board-table-card { @apply overflow-hidden; }
 .flex-work-employee-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/40; }
 
 .line-chart-empty { @apply text-xs text-[var(--text-dim)] text-center py-8; }

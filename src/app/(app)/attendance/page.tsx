@@ -12,6 +12,7 @@ import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
 import { OvertimeStats } from "@/components/overtime-stats";
 import { FlexWorkBoard } from "@/components/flex-work-board";
 import { EditRequestInbox } from "@/components/hr-attendance-extras";
+import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 
 // 근태 관리 — employees/page.tsx 의 AttendanceTab 재사용. 사이드바 '근태 관리' 진입점.
 //   래퍼 시안 리스킨 (공용 컴포넌트 사용, 표시 전용). AttendanceTab 본체(6342줄) 무변경.
@@ -72,59 +73,61 @@ export default function AttendancePage() {
 
   const activeEmp = (employees as any[]).filter((e) => !["invited", "inactive", "resigned"].includes(e.status)).length;
 
+  //   갈래 탭 — 상자 안 맨 위 파란 밑줄 (2026-08-18 조회 표준 Wave 4). 예전 두 줄 seg-bar(근무 현황/연장근무 → 워크보드/기록 상세)를
+  //   한 줄 세 갈래로 편다: 워크보드(주간) · 기록 상세 · 연장근무.
+  type Gal = "work" | "records" | "overtime";
+  const gal: Gal = section === "overtime" ? "overtime" : attView === "work" && canBoard ? "work" : "records";
+  const goGal = (g: Gal) => {
+    if (g === "overtime") { setSection("overtime"); return; }
+    setSection("work"); setAttView(g);
+  };
+  const tabsEl = (
+    <div className="collect-tabs no-print">
+      {([["work", "워크보드 (주간)"], ["records", "기록 상세"], ["overtime", "연장근무"]] as const)
+        .filter(([k]) => (k === "work" ? canBoard : true))
+        .map(([k, l]) => (
+          <button key={k} type="button" onClick={() => goGal(k)} className={gal === k ? "collect-tab collect-tab-on" : "collect-tab"}>{l}</button>
+        ))}
+    </div>
+  );
+  const headRight = isManager ? <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">재직 {activeEmp.toLocaleString()}명</span> : undefined;
+
   return (
-    <div className="attendance-page">
-      {/* 상위 섹션 탭 — 근무현황 / 연장근무 (휴가는 전자결재로 이관, 2026-07-15) */}
-      <div className="attendance-section-tabbar page-sticky-header">
-        <div className="seg-bar">
-          {([["work", "근무 현황"], ["overtime", "연장근무"]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setSection(k)}
-              className={`seg-item ${section === k ? "seg-item-active" : ""}`}>
-              {l}
-            </button>
-          ))}
-        </div>
-        {isManager && <span className="text-xs text-[var(--text-muted)]">재직 {activeEmp.toLocaleString()}명</span>}
-      </div>
-
-      {section === "work" && (
-        <>
-          {/* 보드 스타일: [워크보드] 주간 52h 게이지·타임라인 / [기록 상세] 기존 AttendanceTab(무수정) */}
-          <div className="attendance-view-tabbar seg-bar">
-            {([["work", "워크보드 (주간)"], ["records", "기록 상세"]] as const).filter(([k]) => (k === "work" ? canBoard : true)).map(([k, l]) => (
-              <button key={k} onClick={() => setAttView(k)}
-                className={`seg-item ${attView === k ? "seg-item-active" : ""}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-          {/* 관리자 — 직원이 올린 근태 수정 요청 승인 인박스. 대기 0건이면 자체적으로 렌더 안 함.
-              알림 딥링크(?view=records)가 도착하는 화면이라 기록 상세 상단에 배치. */}
-          {isManager && attView === "records" && userId && (
-            <EditRequestInbox companyId={companyId} reviewerId={userId} />
-          )}
-          {attView === "work" ? (
-            <FlexWorkBoard companyId={companyId} employees={employees} role={canManage ? "owner" : "employee"} userId={userId} />
-          ) : (
-            <AttendanceTab
-              employees={employees}
-              companyId={companyId}
-              userId={userId}
-              userEmail={userEmail}
-              queryClient={queryClient}
-              role={canManage ? "owner" : "employee"}
-            />
-          )}
-        </>
-      )}
-
-      {/* 연장근무 — 본인 신청(전원) + 관리자 승인 인박스. */}
-      {section === "overtime" && userId && (
-        <div className="attendance-overtime-section">
-          {isManager && companyId && <OvertimeStats companyId={companyId} />}
-          {isManager && <OvertimeApprovalInbox companyId={companyId} reviewerId={userId} />}
-          <OvertimeRequestCard companyId={companyId} userId={userId} />
-        </div>
+    <div className="qk-shell attendance-page">
+      {gal === "work" ? (
+        /* 보드 스타일: 주간 52h 게이지·타임라인 — 상자 전체를 워크보드 부품이 그린다 */
+        <FlexWorkBoard companyId={companyId} employees={employees} role={canManage ? "owner" : "employee"} userId={userId} tabs={tabsEl} headRight={headRight} />
+      ) : (
+        <QueryScreen>
+          <QueryHead>{tabsEl}</QueryHead>
+          <QueryBody>
+            <div className="att-scroll">
+              {gal === "records" && (
+                <>
+                  {/* 관리자 — 직원이 올린 근태 수정 요청 승인 인박스. 대기 0건이면 자체적으로 렌더 안 함.
+                      알림 딥링크(?view=records)가 도착하는 화면이라 기록 상세 상단에 배치. */}
+                  {isManager && userId && <EditRequestInbox companyId={companyId} reviewerId={userId} />}
+                  <AttendanceTab
+                    employees={employees}
+                    companyId={companyId}
+                    userId={userId}
+                    userEmail={userEmail}
+                    queryClient={queryClient}
+                    role={canManage ? "owner" : "employee"}
+                  />
+                </>
+              )}
+              {/* 연장근무 — 본인 신청(전원) + 관리자 승인 인박스. */}
+              {gal === "overtime" && userId && (
+                <div className="attendance-overtime-section">
+                  {isManager && companyId && <OvertimeStats companyId={companyId} />}
+                  {isManager && <OvertimeApprovalInbox companyId={companyId} reviewerId={userId} />}
+                  <OvertimeRequestCard companyId={companyId} userId={userId} />
+                </div>
+              )}
+            </div>
+          </QueryBody>
+        </QueryScreen>
       )}
     </div>
   );

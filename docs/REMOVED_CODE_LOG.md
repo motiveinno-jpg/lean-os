@@ -95,3 +95,7 @@
 ### 근로계약·서식 (`/hr-templates`)
 - seg-bar 탭, 서식 탭 설명줄+새 양식 버튼 줄, 계약 발송·현황의 헤더(제목·설명)·안내 띠·상태 필터 버튼줄(+일괄 발송 버튼)·계약 카드 목록(contract-package-row glass-card)·전체선택 체크박스 줄·계약 이력 카드 표(table-head-row)
 대체: qk-shell > QueryScreen(collect-tabs 서식/계약 발송·현황) · 서식 = QueryBar(빠른검색 ‖ + 새 양식 ▾) + 서식 목록(줄 사이 선만) · 계약 발송·현황 = QueryBar(검색조건[직원·부서·생성일·발송일] + 빠른검색 + 상태 칩[건수]) · AppliedChips · ResultStrip(전체·임시저장·진행 중·완료·취소) · ev-table+SortableTh(계약·구성원·부서·상태·생성·발송·완료 정렬, 구성원·부서·상태 ≡, 너비) · SelectionBar(일괄 발송[파란]) · Pager · 계약 이력 두 번째 구역(ev-table) · 안내는 collect-note. TemplatesTab/HrFormManager 에 nameFilter prop 추가(빠른검색 연결).
+### 근태 (`/attendance`)
+- 두 줄 seg-bar(근무 현황/연장근무 → 워크보드/기록 상세), 워크보드 주차 네비 카드(flex-work-week-nav glass-card)+요약 pill, 워크보드 표 카드(flex-work-board-table-card), 기록 상세의 '근태관리' 제목·캘린더/데이터 seg-bar·데이터 표 자체 머리단(table-head-row/th-cell)
+- `globals.css`: `.attendance-section-tabbar` `.attendance-view-tabbar` `.flex-work-week-nav` `.flex-work-board-table-card`
+대체: qk-shell > QueryScreen(collect-tabs 워크보드(주간)·기록 상세·연장근무 한 줄) · 워크보드 = QueryBar(◀ 이번 주 ▶ + 주 라벨 ‖ 재직 N) · ResultStrip(평균·연장 합계·52시간 초과·결근 + 결근 명단 펼침) · ev-table 머리단(구성원 고정) · 범례는 collect-note · 기록 상세/연장근무 = att-scroll 본문, 캘린더/데이터는 ChipGroup, 데이터 표는 ev-table+SortableTh(직원·날짜·출근·퇴근·근무시간·상태 정렬, 직원·상태 ≡, 너비)

@@ -867,6 +867,14 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     queryFn: () => getAttendanceRecords(companyId!, monthStart, monthEnd),
     enabled: !!companyId,
   });
+  //   데이터(표) 보기 머리단 — 정렬·≡ 필터·너비 (2026-08-18 조회 표준, 다른 표와 같은 부품)
+  type ArKey = "emp" | "date" | "in" | "out" | "hours" | "status";
+  const [arSort, setArSort] = useState<SortState<ArKey>>({ key: "date", dir: "desc" });
+  const onArSort = (k: ArKey) => setArSort((c) => nextSort(c, k));
+  const arCf = useColFilters();
+  const arTableRef = useRef<HTMLTableElement | null>(null);
+  const [arColW, setArColW] = useColWidths("attendance-records-colw-v1", { emp: 120, date: 110, in: 130, out: 130, hours: 90, ot: 90, status: 200, action: 120 });
+  const arResize = (k: string, colIndex: number) => ({ k, colIndex, widths: arColW, onResize: setArColW, tableRef: arTableRef });
 
   // 결근 파생용 — 해당 월 승인 휴가(기록 없는 평일을 결근으로 판정하되 휴가일은 제외).
   const { data: monthLeaves = [] } = useQuery({
@@ -1015,6 +1023,23 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   };
 
   // active + joined 모두 포함 (초대 수락 후 아직 active 아닌 직원도 체크인 가능)
+  const arVal = (r: any) => ({ emp: r.employees?.name || "—", status: statusLabel(effectiveStatus(r)) });
+  const arSpec = (k: keyof ReturnType<typeof arVal>) => arCf.spec(k, (records as any[]).map((r) => arVal(r)[k]));
+  const shownRecords = useMemo(() => {
+    const dir = arSort.dir === "asc" ? 1 : -1;
+    const val = (r: any): string => {
+      switch (arSort.key) {
+        case "emp": return r.employees?.name || "";
+        case "in": return r.check_in || "";
+        case "out": return r.check_out || "";
+        case "hours": return String(Number(r.work_hours || 0)).padStart(8, "0");
+        case "status": return statusLabel(effectiveStatus(r));
+        default: return `${r.date || ""} ${r.check_in || ""}`;
+      }
+    };
+    return (records as any[]).filter((r) => arCf.hit(arVal(r))).sort((a, b) => cmp(val(a), val(b)) * dir);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, arSort, arCf.key]);
   const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
   // employee 역할: 본인 직원 레코드 자동 선택 (user_id 매칭 → 이메일 폴백)
   const isEmployeeRole = role === "employee";
@@ -1112,7 +1137,6 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       {/* Controls: 타이틀 + 월 표시 + 캘린더/데이터 토글 + CSV Export (2026-07-15 리디자인 — 시안과 동일하게 단순화) */}
       <div className="attendance-toolbar">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-lg font-extrabold text-[var(--text)]">근태관리</h2>
           {/* 달력 넘기기 — 화살표로 전달/다음달 이동 (2026-08-07 사장님 제보: 월 선택기만으로는 불편) */}
           <div className="attendance-month-nav">
             <button
@@ -1139,20 +1163,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <div className="seg-bar">
-            <button
-              onClick={() => setViewMode("calendar")}
-              className={`seg-item ${viewMode === "calendar" ? "seg-item-active" : ""}`}
-            >
-              캘린더
-            </button>
-            <button
-              onClick={() => setViewMode("table")}
-              className={`seg-item ${viewMode === "table" ? "seg-item-active" : ""}`}
-            >
-              데이터
-            </button>
-          </div>
+          <ChipGroup value={viewMode} onChange={setViewMode} options={[{ value: "calendar", label: "캘린더" }, { value: "table", label: "데이터" }] as const} />
           {/* 관리자 대행 기록 — 직원이 출근 버튼을 못 눌렀을 때 대신 찍어준다(2026-07-27). */}
           {isAdmin && companyId && (
             <button
@@ -1362,28 +1373,28 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
       {/* Table View */}
       {viewMode === "table" && (
-        <div className="attendance-records-table glass-card">
+        <div className="attendance-records-table">
           {records.length === 0 ? (
             <div className="p-16 text-center">
               <div className="text-4xl mb-4"><Ico e="📊" /></div>
               <div className="text-sm text-[var(--text-muted)]">해당 월에 근태 기록이 없습니다</div>
             </div>
           ) : (
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky-bar">
-                <tr className="table-head-row">
-                  <th className="th-cell text-center">직원</th>
-                  <th className="th-cell text-center">날짜</th>
-                  <th className="th-cell text-center">출근</th>
-                  <th className="th-cell text-center">퇴근</th>
-                  <th className="th-cell text-center">근무시간</th>
-                  <th className="th-cell text-center">연장</th>
-                  <th className="th-cell text-center">상태</th>
-                  {showActionCol && <th className="th-cell text-center">관리</th>}
+            <div className="ev-scroll leave-req-scroll"><table ref={arTableRef} className="ev-table ev-lined att-rec-table">
+              <thead>
+                <tr>
+                  <SortableTh label="직원" sortKey="emp" sort={arSort} onSort={onArSort} filter={arSpec("emp")} resize={arResize("emp", 1)} />
+                  <SortableTh label="날짜" sortKey="date" sort={arSort} onSort={onArSort} resize={arResize("date", 2)} />
+                  <SortableTh label="출근" sortKey="in" sort={arSort} onSort={onArSort} resize={arResize("in", 3)} />
+                  <SortableTh label="퇴근" sortKey="out" sort={arSort} onSort={onArSort} resize={arResize("out", 4)} />
+                  <SortableTh label="근무시간" sortKey="hours" sort={arSort} onSort={onArSort} resize={arResize("hours", 5)} />
+                  <SortableTh label="연장" resize={arResize("ot", 6)} />
+                  <SortableTh label="상태" sortKey="status" sort={arSort} onSort={onArSort} filter={arSpec("status")} resize={arResize("status", 7)} />
+                  {showActionCol && <SortableTh label="관리" resize={arResize("action", 8)} />}
                 </tr>
               </thead>
               <tbody>
-                {records.map((r: any) => (
+                {shownRecords.map((r: any) => (
                   editingRecordId === r.id ? (
                     <tr key={r.id} className="border-b border-[var(--border)]/50 bg-[var(--primary)]/5">
                       <td className="px-5 py-2 text-sm font-medium">{r.employees?.name || "—"}</td>

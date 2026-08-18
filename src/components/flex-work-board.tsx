@@ -6,8 +6,9 @@ import { logRead } from "@/lib/log-read";
 //   읽기 전용 — 출퇴근 기록/연차 데이터는 기존 attendance_records / leave_requests 그대로 사용.
 //   기존 AttendanceTab(기록 상세·수정)은 보존 — 이 보드는 그 위의 조망 레이어.
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "@/components/query-kit";
 import { supabase } from "@/lib/supabase";
 
 const db = supabase;
@@ -74,8 +75,12 @@ function avatarColor(id: string): string {
 }
 const initials = (name: string) => (/[가-힣]/.test(name) ? name.slice(-2) : name.slice(0, 2).toUpperCase());
 
-export function FlexWorkBoard({ companyId, employees, role, userId }: {
+export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRight }: {
   companyId: string; employees: Emp[]; role: string; userId: string | null;
+  /** 상자 맨 위 갈래 탭(워크보드·기록 상세·연장근무) — 부모 화면이 그린다 (2026-08-18 조회 표준) */
+  tabs?: ReactNode;
+  /** 조회 줄 오른쪽에 붙일 것(재직 인원 등) */
+  headRight?: ReactNode;
 }) {
   const isEmployee = role === "employee";
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(kstToday()));
@@ -214,38 +219,40 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
   };
 
   return (
-    <div className="space-y-4">
-      {/* ── 주차 네비 + 요약 칩 ── */}
-      <div className="flex-work-week-nav glass-card">
-        <div className="flex items-center gap-1">
-          <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="w-8 h-8 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]" aria-label="이전 주">◀</button>
-          <button onClick={() => setWeekStart(mondayOf(kstToday()))} className="px-3 h-8 rounded-lg text-xs font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">이번 주</button>
-          <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="w-8 h-8 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]" aria-label="다음 주">▶</button>
-        </div>
-        <div className="text-sm font-bold text-[var(--text)]">{weekStart.getFullYear()}년 {weekLabel}</div>
+    <QueryScreen>
+      <QueryHead>
+        {tabs}
+        {/* ── 조회 줄: 주차(기간은 어디서 바꾸든 즉시) ‖ 재직 인원 ── */}
+        <QueryBar right={headRight}>
+          <span className="qk-quicks fw-week-nav">
+            <button type="button" onClick={() => setWeekStart(addDays(weekStart, -7))} className="qk-quick" aria-label="이전 주">◀</button>
+            <button type="button" onClick={() => setWeekStart(mondayOf(kstToday()))} className="qk-quick">이번 주</button>
+            <button type="button" onClick={() => setWeekStart(addDays(weekStart, 7))} className="qk-quick" aria-label="다음 주">▶</button>
+          </span>
+          <b className="text-sm text-[var(--text)]">{weekStart.getFullYear()}년 {weekLabel}</b>
+        </QueryBar>
+        {/* 결과 요약 — 목록을 바꾸지 않는 것만. 결근 칩만 명단을 펼친다 */}
         {!isEmployee && (
-          <div className="ml-auto flex items-center gap-2 flex-wrap text-[11px]">
-            <span className="px-2.5 py-1 rounded-full font-semibold bg-[var(--primary-light)] text-[var(--primary)]">평균 {hm(teamAvg)}</span>
-            <span className="px-2.5 py-1 rounded-full font-semibold bg-[var(--warning-dim)] text-[var(--warning)]">연장 합계 {hm(totalOt)}</span>
-            <span className={`px-2.5 py-1 rounded-full font-semibold`} style={over52 > 0 ? { background: FLEX.redDim, color: FLEX.red } : { background: "var(--bg-surface)", color: "var(--text-dim)" }}>
-              52시간 초과 {over52}명
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowAbsent((v) => !v)}
-              className={`px-2.5 py-1 rounded-full font-semibold transition ${showAbsent ? "ring-2 ring-inset ring-[var(--danger)]" : ""}`}
-              style={absentDayCount > 0 ? { background: FLEX.redDim, color: FLEX.red } : { background: "var(--bg-surface)", color: "var(--text-dim)" }}
-              title="클릭하면 이번주 결근자 명단이 아래에 표시됩니다"
-            >
+          <ResultStrip right={
+            <button type="button" onClick={() => setShowAbsent((v) => !v)}
+              className={showAbsent ? "fw-absent-btn fw-absent-btn-on" : "fw-absent-btn"}
+              title="클릭하면 이번주 결근자 명단이 아래에 표시됩니다">
               결근 {absentDayCount}건 {showAbsent ? "▴" : "▾"}
             </button>
-          </div>
+          }>
+            <Stat label="평균" value={hm(teamAvg)} />
+            <Stat label="연장 합계" value={hm(totalOt)} />
+            <Stat label="52시간 초과" value={`${over52}명`} tone={over52 > 0 ? "minus" : undefined} />
+            <Stat label="결근" value={`${absentDayCount}건`} tone={absentDayCount > 0 ? "minus" : undefined} />
+          </ResultStrip>
         )}
-      </div>
+      </QueryHead>
 
+      <QueryBody>
+      <div className="ev-scroll">
       {/* 결근자 명단 — 결근 칩 클릭 시 (2026-07-30 사장님) */}
       {!isEmployee && showAbsent && (
-        <div className="glass-card p-4">
+        <div className="fw-absent-panel">
           <div className="text-xs font-semibold text-[var(--text-muted)] mb-2">이번주 결근 — {absentList.length}명 · {absentDayCount}건</div>
           {absentList.length === 0 ? (
             <div className="text-xs text-[var(--text-dim)]">이번주 결근자가 없습니다</div>
@@ -262,25 +269,23 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
         </div>
       )}
 
-      {/* ── 워크보드 ── */}
-      <div className="flex-work-board-table-card glass-card">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs border-collapse min-w-[860px]">
+      {/* ── 워크보드 — 공용 표 머리단(색·선·고정) ── */}
+          <table className="ev-table ev-lined fw-table">
             <thead>
-              <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                <th className="text-left px-4 py-2.5 font-semibold min-w-[180px] sticky left-0 z-[6] bg-[var(--bg-card)]">구성원</th>
+              <tr>
+                <th className="fw-th-name">구성원</th>
                 {days.map((d, i) => {
                   const isToday = ymd(d) === todayStr;
                   const weekend = i >= 5;
                   return (
-                    <th key={i} className={`px-1 py-2.5 font-semibold text-center min-w-[86px] ${weekend ? "text-[var(--text-dim)]" : ""}`}>
+                    <th key={i} className={weekend ? "text-[var(--text-dim)]" : undefined}>
                       <span className={isToday ? "inline-flex items-center justify-center px-2 py-0.5 rounded-full text-white" : ""} style={isToday ? { background: FLEX.violet } : undefined}>
                         {DAY_LABEL[i]} {d.getDate()}
                       </span>
                     </th>
                   );
                 })}
-                <th className="text-right px-4 py-2.5 font-semibold min-w-[170px]">주간 합계 / 52h</th>
+                <th className="fw-th-total">주간 합계 / 52h</th>
               </tr>
             </thead>
             <tbody>
@@ -290,7 +295,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
               {rows.map(({ emp, total, overtime, lateDays }) => (
                 <tr key={emp.id} className="flex-work-employee-row">
                   {/* 구성원 */}
-                  <td className="px-4 py-2 sticky left-0 z-[5] bg-[var(--bg-card)]">
+                  <td className="fw-td-name px-4 py-2">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <span className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: avatarColor(emp.id) }}>
                         {initials(emp.name)}
@@ -368,11 +373,11 @@ export function FlexWorkBoard({ companyId, employees, role, userId }: {
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="px-4 py-2 border-t border-[var(--border)] text-[10px] text-[var(--text-dim)]">
-          타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가(반쪽 채움 = 반차 · 왼쪽 오전/오른쪽 오후) <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
-        </div>
       </div>
-    </div>
+      </QueryBody>
+      <div className="collect-note text-[10px] text-[var(--text-dim)]">
+        타임라인 = 출근~퇴근 (07~22시 스케일) · <span className="text-[var(--primary)]">■</span> 정상 <span className="text-[var(--warning)]">■</span> 지각 <span className="text-[var(--success)]">■</span> 휴가(반쪽 채움 = 반차 · 왼쪽 오전/오른쪽 오후) <span className="text-[var(--danger)]">■</span> 결근(지난 평일 무기록) · 합계 = 정규+연장 근무시간 · 주 52시간 초과 시 <span className="text-[var(--danger)]">빨강</span>
+      </div>
+    </QueryScreen>
   );
 }
