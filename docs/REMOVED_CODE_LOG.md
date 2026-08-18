@@ -58,3 +58,7 @@
 ### 현금영수증 (`/cash-receipts`)
 - 화면 머리(seg-bar 탭·발행 한도 배지·기간·가져오기·+발행 한 줄), doc-summary-strip 요약, 선택 액션바, 목록 카드 머리(제목·SortToolbar 정렬), 자체 표 → collect-tabs · QueryBar(기간+검색조건[달력·빠른 기간·상태·용도·거래처·금액]+빠른검색 ‖ 가져오기·+발행) · ResultStrip(건수·합계·매출/매입/공제·발행 한도) · ev-table+SortableTh · Pager · SelectionBar(전표처리)
 - `globals.css`: `.cash-receipt-bulk-action-bar`, `.cash-receipt-table` · SortToolbar import 제거
+
+## 2026-08-18 — 조회 표준 확산 Wave 2 · 자금
+- 대출·자산: seg-bar 탭 → collect-tabs, 표 머리단 → ev-table+SortableTh(정적). 카드·차트·입력은 그대로(관리 화면).
+- 정기 지출: seg-bar 탭 → collect-tabs, 상태 seg-bar → ChipGroup, 벌크 액션바 → SelectionBar(거부·승인·실행[파란]), 표 4종 → ev-table+SortableTh. `globals.css`: `.payment-bulk-action-bar`

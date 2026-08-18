@@ -1960,6 +1960,9 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .loans-list-panel { @apply overflow-hidden; }
 /* 대출 — 표 머리단만 조회 표준(ev-table) (2026-08-18 Wave 2) */
 .loans-table { min-width: 600px; }
+/* 정기 지출 — 표 3종 머리단 조회 표준 (2026-08-18 Wave 2) */
+.payments-table { min-width: 640px; }
+.payments-scroll { max-height: 560px; }
 .loan-row { @apply p-5 hover:bg-[var(--bg-surface)]/50 transition; }
 .loan-portfolio-summary { @apply p-5; }
 .loan-repayment-bars { @apply space-y-3; }
@@ -2797,7 +2800,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 /* 모바일 가로 넘침 방지(2026-08-13 전수 QA) — 탭이 많으면 바 안에서 스크롤 */
 .payment-filter-bar { @apply mb-4 flex w-full max-w-full overflow-x-auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .payment-filter-bar::-webkit-scrollbar { display: none; }
-.payment-bulk-action-bar { @apply sticky top-0 z-10 mb-3 bg-[var(--primary)]/10 border border-[var(--primary)]/30 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3; }
 .payment-queue-table { @apply overflow-hidden; }
 .payment-receipt-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }
 .refund-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }

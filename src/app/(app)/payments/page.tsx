@@ -4,6 +4,8 @@ import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
+import { SortableTh } from "@/components/sortable-th";
+import { ChipGroup, SelectionBar } from "@/components/query-kit";
 import { useRouter } from "next/navigation";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
@@ -118,13 +120,11 @@ function PaymentsPageInner() {
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
       {/* 컴팩트 툴바 — 탭(좌). 타이틀은 상단 고정 헤더바가 담당 */}
       <div className="payments-tab-bar page-sticky-header">
-        <div className="seg-bar">
+        {/* 갈래 탭 — 공용(collect-tabs), 조회 표준 확산 Wave 2 (2026-08-18) */}
+        <div className="collect-tabs no-print">
           {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`seg-item ${tab === t.key ? 'seg-item-active' : ''}`}
-            >
+            <button key={t.key} type="button" onClick={() => setTab(t.key)}
+              className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
               {t.label}
             </button>
           ))}
@@ -402,54 +402,22 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         </div>
       )}
 
-      {/* Filter */}
-      <div className="payment-filter-bar seg-bar">
-        {[
-          { key: "all", label: "전체" }, { key: "pending", label: "승인대기" },
-          { key: "approved", label: "승인완료" }, { key: "executed", label: "실행완료" }, { key: "refunded", label: "환불" }, { key: "rejected", label: "거부" },
-        ].map((f) => (
-          <button key={f.key} onClick={() => setFilter(f.key)}
-            className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}>
-            {f.label}
-          </button>
-        ))}
+      {/* 상태 칩 — 조회 표준 부품(ChipGroup) */}
+      <div className="payment-filter-bar">
+        <ChipGroup value={filter} onChange={setFilter}
+          options={[
+            { value: "all", label: "전체" }, { value: "pending", label: "승인대기" },
+            { value: "approved", label: "승인완료" }, { value: "executed", label: "실행완료" }, { value: "refunded", label: "환불" }, { value: "rejected", label: "거부" },
+          ]} />
       </div>
 
-      {/* 벌크 액션바 — 선택 항목이 있을 때만 표시 */}
-      {selectedIds.size > 0 && (
-        <div className="payment-bulk-action-bar">
-          <div className="text-sm font-semibold text-[var(--primary)]">
-            {selectedIds.size}건 선택됨 · ₩{selectedSum.toLocaleString()}
-          </div>
-          {bulkRunning && (
-            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-              <span>처리 중 {bulkProgress.done}/{bulkProgress.total}</span>
-              <div className="w-32 h-1.5 bg-[var(--bg)] rounded-full overflow-hidden">
-                <div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${bulkProgress.total > 0 ? (bulkProgress.done / bulkProgress.total) * 100 : 0}%` }} />
-              </div>
-              {bulkProgress.failed > 0 && <span className="text-red-400">실패 {bulkProgress.failed}</span>}
-            </div>
-          )}
-          <div className="ml-auto flex gap-2">
-            <button onClick={() => runBulk('approve')} disabled={bulkRunning}
-              className="px-3 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 rounded-lg text-xs font-semibold transition disabled:opacity-50">
-              일괄 승인
-            </button>
-            <button onClick={() => runBulk('reject')} disabled={bulkRunning}
-              className="px-3 py-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 rounded-lg text-xs font-semibold transition disabled:opacity-50">
-              일괄 거부
-            </button>
-            <button onClick={() => runBulk('execute')} disabled={bulkRunning}
-              className="px-3 py-1.5 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded-lg text-xs font-semibold transition disabled:opacity-50">
-              일괄 실행
-            </button>
-            <button onClick={clearSelection} disabled={bulkRunning}
-              className="px-3 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--border)] text-[var(--text-muted)] rounded-lg text-xs font-semibold transition disabled:opacity-50">
-              선택 해제
-            </button>
-          </div>
-        </div>
-      )}
+      {/* 확정 줄 — 조회 표준 SelectionBar. 승인/거부/실행 중 파란 버튼은 '실행' 하나 */}
+      <SelectionBar count={selectedIds.size} onClear={clearSelection}
+        summary={<>합계 <b className="mono-number">₩{selectedSum.toLocaleString()}</b>{bulkRunning && <> · 처리 중 {bulkProgress.done}/{bulkProgress.total}{bulkProgress.failed > 0 && <span className="text-red-400"> · 실패 {bulkProgress.failed}</span>}</>}</>}>
+        <button type="button" onClick={() => runBulk('reject')} disabled={bulkRunning} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50">일괄 거부</button>
+        <button type="button" onClick={() => runBulk('approve')} disabled={bulkRunning} className="btn-secondary btn-sm disabled:opacity-50">일괄 승인</button>
+        <button type="button" onClick={() => runBulk('execute')} disabled={bulkRunning} className="btn-primary btn-sm disabled:opacity-50">일괄 실행</button>
+      </SelectionBar>
 
       {/* Queue */}
       <div className="payment-queue-table glass-card">
@@ -461,21 +429,19 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
             <button onClick={() => setShowForm(true)} className="btn-secondary">+ 수동 결제 등록</button>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
+          <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
-              <tr className="table-head-row">
-                <th className="px-3 py-3 w-10">
-                  <input type="checkbox" checked={allSelected} onChange={toggleAllSelectable}
-                    disabled={selectableInView.length === 0}
-                    className="w-4 h-4 rounded border-[var(--border)] accent-[var(--primary)] cursor-pointer disabled:opacity-30"
-                    title="선택 가능 항목 전체 선택" />
+              <tr>
+                <th className="w-9">
+                  <button type="button" onClick={toggleAllSelectable} disabled={selectableInView.length === 0} aria-label="선택 가능 항목 전체 선택"
+                    className={allSelected ? "collect-chk collect-chk-on" : "collect-chk"}>{allSelected ? "✓" : ""}</button>
                 </th>
-                <th className="th-cell text-center">설명</th>
-                <th className="th-cell text-center">금액</th>
-                <th className="th-cell text-center">통장</th>
-                <th className="th-cell text-center">상태</th>
-                <th className="th-cell text-center">등록일</th>
-                <th className="th-cell text-center">액션</th>
+                <SortableTh label="설명" />
+                <SortableTh label="금액" />
+                <SortableTh label="통장" />
+                <SortableTh label="상태" />
+                <SortableTh label="등록일" />
+                <SortableTh label="액션" />
               </tr>
             </thead>
             <tbody>
@@ -697,14 +663,14 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
             <div className="text-sm text-[var(--text-muted)]">반복결제를 먼저 설정하고 배치를 생성하세요</div>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
+          <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
-              <tr className="table-head-row">
-                <th className="th-cell text-center">배치명</th>
-                <th className="th-cell text-center">총액</th>
-                <th className="th-cell text-center">건수</th>
-                <th className="th-cell text-center">상태</th>
-                <th className="th-cell text-center">액션</th>
+              <tr>
+                <SortableTh label="배치명" />
+                <SortableTh label="총액" />
+                <SortableTh label="건수" />
+                <SortableTh label="상태" />
+                <SortableTh label="액션" />
               </tr>
             </thead>
             <tbody>
@@ -1295,17 +1261,17 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
             <button onClick={() => setShowForm(true)} className="btn-secondary btn-sm">+ 반복결제 추가</button>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
+          <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
-              <tr className="table-head-row">
-                <th className="th-cell text-center">명칭</th>
-                <th className="th-cell text-center">카테고리</th>
-                <th className="th-cell text-center">금액</th>
-                <th className="th-cell text-center">수취인</th>
-                <th className="th-cell text-center">이체일</th>
-                <th className="th-cell text-center">자동이체</th>
-                <th className="th-cell text-center">상태</th>
-                <th className="th-cell text-center">관리</th>
+              <tr>
+                <SortableTh label="명칭" />
+                <SortableTh label="카테고리" />
+                <SortableTh label="금액" />
+                <SortableTh label="수취인" />
+                <SortableTh label="이체일" />
+                <SortableTh label="자동이체" />
+                <SortableTh label="상태" />
+                <SortableTh label="관리" />
               </tr>
             </thead>
             <tbody>
@@ -2011,17 +1977,17 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
             <button onClick={() => setShowForm(true)} className="btn-secondary">+ 지출결의/품의 작성</button>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
+          <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
-              <tr className="table-head-row">
-                <th className="th-cell text-center">유형</th>
-                <th className="th-cell text-center">제목</th>
-                <th className="th-cell text-center">카테고리</th>
-                <th className="th-cell text-center">금액</th>
-                <th className="th-cell text-center">요청자</th>
-                <th className="th-cell text-center">프로젝트</th>
-                <th className="th-cell text-center">상태</th>
-                <th className="th-cell text-center">액션</th>
+              <tr>
+                <SortableTh label="유형" />
+                <SortableTh label="제목" />
+                <SortableTh label="카테고리" />
+                <SortableTh label="금액" />
+                <SortableTh label="요청자" />
+                <SortableTh label="프로젝트" />
+                <SortableTh label="상태" />
+                <SortableTh label="액션" />
               </tr>
             </thead>
             <tbody>
