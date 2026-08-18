@@ -528,7 +528,9 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; withStatu
   const quick = <QuickSearch value={q} onApply={setQ} placeholder={opts.requesters ? "제목 · 요청자 · 유형 — 쉼표로 여러 개, Enter" : "제목 · 유형 — 쉼표로 여러 개, Enter"} />;
   const applied = <AppliedChips chips={chips} onClearAll={clearAll} />;
   const key = `${q}|${JSON.stringify(live)}`;
-  return { q, live, hit, panel, quick, applied, key, rows: live.rows };
+  //   바깥(요약 줄의 상태 버튼 등)에서 상태 조건을 걸 때
+  const applyStatuses = (arr: string[]) => { const c = { ...live, statuses: arr }; setLive(c); setDraft(c); };
+  return { q, live, hit, panel, quick, applied, key, rows: live.rows, applyStatuses };
 }
 
 type PickOpt = { value: string; label: string; sub?: string; icon: React.ReactNode };
@@ -1070,11 +1072,12 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   const lf = useListFilter({
     types: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requestType).concat((referencedRequests as any[]).map((r) => r.request_type)),
     requesters: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requesterName).concat((referencedRequests as any[]).map((r) => r.users?.name || r.users?.email || "")),
+    withStatus: true,
   });
   const matchesFilters = (item: any) => lf.hit({ type: item.requestType, title: item.title, requester: item.requesterName, amount: item.amount, created: item.createdAt || item.created_at || item.requestedAt || "" });
   const visiblePending = (pendingApprovals as any[]).filter(matchesFilters);
   const visibleProcessed = (processedApprovals as any[]).filter(matchesFilters);
-  const visibleReferenced = (referencedRequests as any[]).filter((r) => lf.hit({ type: r.request_type, title: r.title, requester: r.users?.name || r.users?.email || "", amount: r.amount, created: r.created_at }));
+  const visibleReferenced = (referencedRequests as any[]).filter((r) => lf.hit({ type: r.request_type, title: r.title, requester: r.users?.name || r.users?.email || "", amount: r.amount, created: r.created_at, status: r.status }));
 
   // 조회 줄 — 전체 현황과 동일 구성 (조회 표준 부품: 검색조건 + 빠른검색 + 보기 칩 + 건수)
   const filterBar = (
@@ -2095,7 +2098,7 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
   const refName = (req: any) => req.users?.name || req.users?.email || "알 수 없음";
   const hitFn = embedded ? embedded.hit : lf.hit;
   const rowsN = embedded ? embedded.rows : lf.rows;
-  const visibleRefs = (requests as any[]).filter((r) => (!refStatus || r.status === refStatus) && hitFn({ type: r.request_type, title: r.title, requester: refName(r), amount: r.amount, created: r.created_at }));
+  const visibleRefs = (requests as any[]).filter((r) => (embedded || !refStatus || r.status === refStatus) && hitFn({ type: r.request_type, title: r.title, requester: refName(r), amount: r.amount, created: r.created_at, status: r.status }));
   const pager = usePager(visibleRefs, rowsN, `${refStatus}|${embedded ? embedded.key : lf.key}`);
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
@@ -2108,9 +2111,7 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
   return (
     <div className="ap-list">
       {/* 조회 줄 — 목록 탭 공용 (2026-08-18). 내 결재함 안(embedded)에서는 부모가 그리고 상태 칩만 여기 남는다 */}
-      {embedded ? (
-        <div className="ap-subbar"><ChipGroup value={refStatus} onChange={setRefStatus} options={refStatusOptions} /></div>
-      ) : (<>
+      {embedded ? null : (<>
       <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleRefs.length}건</span>}>
         {lf.panel}
         {lf.quick}
@@ -2225,11 +2226,6 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "");
-  // KPI 카드 클릭 시 이미 "전체 현황" 탭에 있어도(재마운트 없이) 필터가 갱신되도록 동기화
-  useEffect(() => {
-    if (initialStatusFilter !== undefined) setStatusFilter(initialStatusFilter);
-  }, [initialStatusFilter]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -2293,11 +2289,10 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     onError: (err: any) => toast("반려 처리 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
   });
 
-  //   유형은 검색조건 패널에서 여러 개 고른다(클라이언트 필터) — 서버 조회는 상태만 (2026-08-18)
+  //   유형·상태는 검색조건 패널에서 여러 개 고른다(클라이언트 필터) — 서버는 전체를 한 번에 (2026-08-18 사장님: 상태 칩 줄도 검색조건으로)
   const { data: allRequests = [], isLoading } = useQuery({
-    queryKey: ["all-requests", companyId, statusFilter, restrictToOwn ? userId : null],
+    queryKey: ["all-requests", companyId, restrictToOwn ? userId : null],
     queryFn: () => getApprovalRequests(companyId, {
-      status: statusFilter || undefined,
       requesterId: restrictToOwn ? userId || undefined : undefined,
     }),
     enabled: !!companyId && (!restrictToOwn || !!userId),
@@ -2383,7 +2378,13 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const lf = useListFilter({
     types: (allRequests as any[]).map((r) => r.request_type),
     requesters: (allRequests as any[]).map((r) => requesterNames.get(r.requester_id) || ""),
+    withStatus: true,
   });
+  // 요약 줄(대기 중·승인 완료·반려)의 상태 버튼 → 검색조건 '상태' 로 (이미 이 탭에 있어도 갱신)
+  useEffect(() => {
+    if (initialStatusFilter !== undefined) lf.applyStatuses(initialStatusFilter ? [initialStatusFilter] : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialStatusFilter]);
   type AllSort = "status" | "title" | "requester" | "amount" | "created" | "approved";
   const [aSort, setASort] = useState<SortState<AllSort>>({ key: "created", dir: "desc" });
   const onASort = (k: AllSort) => setASort((c) => nextSort(c, k));
@@ -2401,27 +2402,18 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
         default: return cmp(a.created_at || "", b.created_at || "") * d;
       }
     });
-  const pager = usePager(visibleRequests, lf.rows, `${statusFilter}|${JSON.stringify(aSort)}|${lf.key}`);
+  const pager = usePager(visibleRequests, lf.rows, `${JSON.stringify(aSort)}|${lf.key}`);
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
 
-  const statusOptions = [
-    { value: "", label: "전체 상태" },
-    { value: "pending", label: "대기" },
-    { value: "approved", label: "승인" },
-    { value: "rejected", label: "반려" },
-    { value: "cancelled", label: "취소" },
-  ];
-
   return (
     <div className="ap-list">
-      {/* 조회 줄 — 조회 표준 부품: 검색조건 + 빠른검색 + 상태 칩 + 건수. 유형은 검색조건 안 */}
+      {/* 조회 줄 — 조회 표준 부품: 검색조건(유형·상태·요청일·요청자·금액·줄 수) + 빠른검색 + 건수 */}
       <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleRequests.length}건</span>}>
         {lf.panel}
         {lf.quick}
-        <ChipGroup value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
       </QueryBar>
       {lf.applied}
 

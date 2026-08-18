@@ -4686,7 +4686,6 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .ap-scroll .approval-table-wrap { @apply rounded-none border-0; }
 .ap-scroll .qk-pager { @apply border-t border-[var(--border)] px-3.5; }
 .ap-scroll > .ap-pad { @apply p-3; }
-.ap-subbar { @apply flex items-center gap-2 border-b border-[var(--border)] px-3.5 py-2; }
 /*   양식 관리·정책 관리 표 (2026-08-18) */
 table.afm-table { min-width: 720px; }
 table.ap-policy-table { min-width: 960px; }
