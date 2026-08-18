@@ -198,7 +198,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   }).filter((r) => qHit(r.name, [r.base]));
 
   return (
-    <div className="approval-forms-manager">
+    <div className="approval-forms-manager ap-list">
       <QueryBar right={<button onClick={openNew} className="btn-primary btn-sm whitespace-nowrap">+ 새 양식 추가</button>}>
         <ChipGroup value={listTab} onChange={setListTab}
           options={[{ value: "company", label: `회사 결재 양식 ${(forms as ApprovalForm[]).length}` }, { value: "default", label: `기본 제공 유형 ${Object.keys(REQUEST_TYPE_LABELS).length}` }] as const} />

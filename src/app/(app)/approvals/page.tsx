@@ -45,7 +45,7 @@ import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { CurrencyInput } from "@/components/currency-input";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
-import { SortableTh } from "@/components/sortable-th";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, QuickSearch, quickSearchHit, ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, RowsPerPage, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
@@ -446,12 +446,18 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
 // ── 목록 탭 공용 검색조건 (2026-08-18 사장님) ──
 //   "전체 유형·경비 청구·결제 요청 … 버튼이 너무 많다 — 유형은 검색조건에서 고르고, 기본은 전체를 한 번에."
 //   내 결재함·내 요청·참조·전체 현황이 같은 패널을 쓴다: 유형(다중) · 요청일 · 요청자(다중, 있을 때만) · 금액 · 줄 수.
-type LCond = { types: string[]; from: string; to: string; requester: string[]; min: string; max: string; rows: number };
-const LEMPTY: LCond = { types: [], from: "", to: "", requester: [], min: "", max: "", rows: 50 };
-const lCount = (c: LCond) => c.types.length + ((c.from || c.to) ? 1 : 0) + c.requester.length + ((c.min || c.max) ? 1 : 0);
+type LCond = { types: string[]; statuses: string[]; from: string; to: string; requester: string[]; min: string; max: string; rows: number };
+const LEMPTY: LCond = { types: [], statuses: [], from: "", to: "", requester: [], min: "", max: "", rows: 50 };
+const lCount = (c: LCond) => c.types.length + c.statuses.length + ((c.from || c.to) ? 1 : 0) + c.requester.length + ((c.min || c.max) ? 1 : 0);
 const typeLabelOf = (t: string) => REQUEST_TYPE_LABELS[t as RequestType] || t || "";
-type LRow = { type: string; title: string; requester?: string; amount: number; created: string };
-function useListFilter(opts: { types: string[]; requesters?: string[]; }) {
+const L_STATUSES: { value: string; label: string }[] = [
+  { value: "pending", label: "대기" }, { value: "approved", label: "승인" }, { value: "rejected", label: "반려" }, { value: "cancelled", label: "취소" },
+];
+const statusLabelOf = (v: string) => (STATUS_CONFIG[v] || STATUS_CONFIG.pending).label;
+//   상태 정렬 순서 — 대기 → 승인 → 반려 → 취소 (처리할 것이 위로)
+const statusRank = (v: string) => { const i = ["pending", "first_approved", "approved", "rejected", "cancelled"].indexOf(v); return i < 0 ? 9 : i; };
+type LRow = { type: string; title: string; requester?: string; amount: number; created: string; status?: string };
+function useListFilter(opts: { types: string[]; requesters?: string[]; withStatus?: boolean }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<LCond>(LEMPTY);
@@ -460,6 +466,7 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; }) {
   const reqOpts = [...new Set((opts.requesters || []).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko")).map((v) => ({ value: v, label: v }));
   const hit = (r: LRow) => {
     if (live.types.length && !live.types.includes(r.type)) return false;
+    if (live.statuses.length && !live.statuses.includes(r.status || "")) return false;
     if (live.from && String(r.created || "").slice(0, 10) < live.from) return false;
     if (live.to && String(r.created || "").slice(0, 10) > live.to) return false;
     if (live.requester.length && !live.requester.includes(r.requester || "")) return false;
@@ -470,6 +477,7 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; }) {
   const chips: AppliedChip[] = [
     ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
     ...live.types.map((t) => ({ group: "유형", label: typeLabelOf(t), onRemove: () => drop({ types: live.types.filter((x) => x !== t) }) })),
+    ...live.statuses.map((v) => ({ group: "상태", label: statusLabelOf(v), onRemove: () => drop({ statuses: live.statuses.filter((x) => x !== v) }) })),
     ...((live.from || live.to) ? [{ group: "요청일", label: `${live.from || "…"} ~ ${live.to || "…"}`, onRemove: () => drop({ from: "", to: "" }) }] : []),
     ...live.requester.map((v) => ({ group: "요청자", label: v, onRemove: () => drop({ requester: live.requester.filter((x) => x !== v) }) })),
     ...((live.min || live.max) ? [{ group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => drop({ min: "", max: "" }) }] : []),
@@ -493,6 +501,17 @@ function useListFilter(opts: { types: string[]; requesters?: string[]; }) {
           {typeOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">목록에 아직 유형이 없습니다</span>}
         </span>
       </ConditionRow>
+      {opts.withStatus && (
+        <ConditionRow label="상태" hint="여러 개 · 아무것도 안 고르면 전체">
+          <span className="qk-quicks">
+            {L_STATUSES.map((o) => (
+              <button key={o.value} type="button"
+                onClick={() => setDraft((c) => ({ ...c, statuses: c.statuses.includes(o.value) ? c.statuses.filter((x) => x !== o.value) : [...c.statuses, o.value] }))}
+                className={draft.statuses.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+            ))}
+          </span>
+        </ConditionRow>
+      )}
       <ConditionRow label="요청일" hint="비우면 전체 기간">
         <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
       </ConditionRow>
@@ -1076,7 +1095,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
 
   if (view === "referenced") {
     return (
-      <div>
+      <div className="ap-list">
         {filterBar}
         <ReferencedRequestsTab companyId={companyId} userId={userId} embedded={{ hit: lf.hit, rows: lf.rows, key: lf.key }} />
       </div>
@@ -1085,7 +1104,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
 
   if (view === "processed") {
     return (
-      <div>
+      <div className="ap-list">
         {filterBar}
         {(processedApprovals as any[]).length > 0 && visibleProcessed.length === 0 ? (
           <div className="ap-empty">
@@ -1142,7 +1161,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   };
 
   return (
-    <div>
+    <div className="ap-list">
     {filterBar}
 
     {/* Table — 전체 현황과 동일 디자인 (2026-08-04 사장님: 내 결재함도 똑같이) */}
@@ -1392,7 +1411,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
   );
 
   return (
-    <div>
+    <div className="ap-list">
     {hint}
 
     {/* Table — 전체 현황과 동일 디자인 (2026-08-04 사장님: 내가 결재한 건도 똑같이) */}
@@ -1715,26 +1734,32 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     }
   };
 
-  const [myStatus, setMyStatus] = useState("");
-  const lf = useListFilter({ types: (requests as any[]).map((r) => r.request_type) });
+  //   상태는 검색조건 안(다중), 정렬은 머리단 (2026-08-18 사장님: "우측 상태 탭은 검색조건에 넣고 목록에 상태 정렬")
+  const lf = useListFilter({ types: (requests as any[]).map((r) => r.request_type), withStatus: true });
+  type MySort = "status" | "title" | "amount" | "created";
+  const [mySort, setMySort] = useState<SortState<MySort>>({ key: "created", dir: "desc" });
+  const onMySort = (k: MySort) => setMySort((c) => nextSort(c, k));
 
-  const visibleMine = (requests as any[]).filter((r) => (!myStatus || r.status === myStatus) && lf.hit({ type: r.request_type, title: r.title, amount: r.amount, created: r.created_at }));
-  const pager = usePager(visibleMine, lf.rows, `${myStatus}|${lf.key}`);
+  const visibleMine = (requests as any[]).filter((r) => lf.hit({ type: r.request_type, title: r.title, amount: r.amount, created: r.created_at, status: r.status }))
+    .sort((a, b) => {
+      const d = mySort.dir === "asc" ? 1 : -1;
+      if (mySort.key === "status") return (statusRank(a.status) - statusRank(b.status)) * d || cmp(b.created_at || "", a.created_at || "");
+      if (mySort.key === "amount") return (Number(a.amount || 0) - Number(b.amount || 0)) * d;
+      if (mySort.key === "title") return cmp(a.title || "", b.title || "") * d;
+      return cmp(a.created_at || "", b.created_at || "") * d;
+    });
+  const pager = usePager(visibleMine, lf.rows, `${JSON.stringify(mySort)}|${lf.key}`);
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
 
-  const myStatusOptions = [
-    { value: "", label: "전체 상태" }, { value: "pending", label: "대기" }, { value: "approved", label: "승인" }, { value: "rejected", label: "반려" }, { value: "cancelled", label: "취소" },
-  ];
 
   return (
-    <div>
-      {/* 조회 줄 — 목록 탭 공용: 검색조건(유형·요청일·금액·줄 수) + 빠른검색 + 상태 칩 + 건수 (2026-08-18) */}
+    <div className="ap-list">
+      {/* 조회 줄 — 목록 탭 공용: 검색조건(유형·상태·요청일·금액·줄 수) + 빠른검색 + 건수 (2026-08-18) */}
       <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleMine.length}건</span>}>
         {lf.panel}
         {lf.quick}
-        <ChipGroup value={myStatus} onChange={setMyStatus} options={myStatusOptions} />
       </QueryBar>
       {lf.applied}
 
@@ -1755,11 +1780,11 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
           <table className="ev-table ev-lined approval-table">
             <thead>
               <tr>
-                <SortableTh label="상태" />
-                <SortableTh label="제목" />
-                <SortableTh label="금액" />
+                <SortableTh label="상태" sortKey="status" sort={mySort} onSort={onMySort} />
+                <SortableTh label="제목" sortKey="title" sort={mySort} onSort={onMySort} />
+                <SortableTh label="금액" sortKey="amount" sort={mySort} onSort={onMySort} />
                 <SortableTh label="진행" />
-                <SortableTh label="요청일" />
+                <SortableTh label="요청일" sortKey="created" sort={mySort} onSort={onMySort} />
                 <SortableTh label="참조" />
                 <SortableTh label="관리" />
               </tr>
@@ -1769,7 +1794,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                 const m = typeMeta(req.request_type);
                 return (
                   <tr key={req.id} className="approval-table-row" onClick={() => setExpandedId(req.id)}>
-                    <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
+                    <td className="px-4 py-3.5 text-center"><StatusBadge status={req.status} /></td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
@@ -2081,7 +2106,7 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
   ];
 
   return (
-    <div>
+    <div className="ap-list">
       {/* 조회 줄 — 목록 탭 공용 (2026-08-18). 내 결재함 안(embedded)에서는 부모가 그리고 상태 칩만 여기 남는다 */}
       {embedded ? (
         <div className="ap-subbar"><ChipGroup value={refStatus} onChange={setRefStatus} options={refStatusOptions} /></div>
@@ -2129,7 +2154,7 @@ function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: str
                 return (
                   <Fragment key={req.id}>
                     <tr className={open ? "approval-table-row ap-row-open" : "approval-table-row"} onClick={() => setExpandedId(open ? null : req.id)}>
-                      <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
+                      <td className="px-4 py-3.5 text-center"><StatusBadge status={req.status} /></td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
@@ -2359,10 +2384,24 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     types: (allRequests as any[]).map((r) => r.request_type),
     requesters: (allRequests as any[]).map((r) => requesterNames.get(r.requester_id) || ""),
   });
+  type AllSort = "status" | "title" | "requester" | "amount" | "created" | "approved";
+  const [aSort, setASort] = useState<SortState<AllSort>>({ key: "created", dir: "desc" });
+  const onASort = (k: AllSort) => setASort((c) => nextSort(c, k));
 
   // 검색조건(유형·요청일·요청자·금액·줄 수) + 빠른검색 — 목록 탭 공용 패널 (2026-08-18)
-  const visibleRequests = allRequests.filter((r: any) => lf.hit({ type: r.request_type, title: r.title, requester: requesterNames.get(r.requester_id) || "", amount: r.amount, created: r.created_at }));
-  const pager = usePager(visibleRequests, lf.rows, `${statusFilter}|${lf.key}`);
+  const visibleRequests = allRequests.filter((r: any) => lf.hit({ type: r.request_type, title: r.title, requester: requesterNames.get(r.requester_id) || "", amount: r.amount, created: r.created_at, status: r.status }))
+    .sort((a: any, b: any) => {
+      const d = aSort.dir === "asc" ? 1 : -1;
+      switch (aSort.key) {
+        case "status": return (statusRank(a.status) - statusRank(b.status)) * d || cmp(b.created_at || "", a.created_at || "");
+        case "title": return cmp(a.title || "", b.title || "") * d;
+        case "requester": return cmp(requesterNames.get(a.requester_id) || "", requesterNames.get(b.requester_id) || "") * d;
+        case "amount": return (Number(a.amount || 0) - Number(b.amount || 0)) * d;
+        case "approved": return cmp(a.status === "approved" ? a.updated_at || "" : "", b.status === "approved" ? b.updated_at || "" : "") * d;
+        default: return cmp(a.created_at || "", b.created_at || "") * d;
+      }
+    });
+  const pager = usePager(visibleRequests, lf.rows, `${statusFilter}|${JSON.stringify(aSort)}|${lf.key}`);
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
@@ -2377,7 +2416,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   ];
 
   return (
-    <div>
+    <div className="ap-list">
       {/* 조회 줄 — 조회 표준 부품: 검색조건 + 빠른검색 + 상태 칩 + 건수. 유형은 검색조건 안 */}
       <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleRequests.length}건</span>}>
         {lf.panel}
@@ -2391,13 +2430,13 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
         <table className="ev-table ev-lined approval-table">
           <thead>
             <tr>
-              <SortableTh label="상태" />
-              <SortableTh label="제목" />
-              <SortableTh label="요청자" />
-              <SortableTh label="금액" />
+              <SortableTh label="상태" sortKey="status" sort={aSort} onSort={onASort} />
+              <SortableTh label="제목" sortKey="title" sort={aSort} onSort={onASort} />
+              <SortableTh label="요청자" sortKey="requester" sort={aSort} onSort={onASort} />
+              <SortableTh label="금액" sortKey="amount" sort={aSort} onSort={onASort} />
               <SortableTh label="진행" />
-              <SortableTh label="요청일" />
-              <SortableTh label="승인일" />
+              <SortableTh label="요청일" sortKey="created" sort={aSort} onSort={onASort} />
+              <SortableTh label="승인일" sortKey="approved" sort={aSort} onSort={onASort} />
               <SortableTh label="문서" />
             </tr>
           </thead>
@@ -2421,7 +2460,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                     className="approval-table-row"
                     onClick={() => { setExpandedId(req.id); markViewed(req.id); }}
                   >
-                    <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
+                    <td className="px-4 py-3.5 text-center"><StatusBadge status={req.status} /></td>
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
@@ -3951,7 +3990,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   const visiblePolicies = (policies as ApprovalPolicy[]).filter((p) => quickSearchHit(pq, [p.name, p.label, REQUEST_TYPE_LABELS[p.document_type as RequestType] || p.document_type]));
 
   return (
-    <div>
+    <div className="ap-list">
       <QueryBar right={<button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm whitespace-nowrap">+ 정책 추가</button>}>
         <QuickSearch value={pq} onApply={setPq} placeholder="정책 이름 · 유형 — 쉼표로 여러 개, Enter" />
         <span className="text-[11px] text-[var(--text-dim)]">유형별 결재선(단계·승인자·자동승인 한도)을 정합니다 — 새 요청에 자동 적용</span>

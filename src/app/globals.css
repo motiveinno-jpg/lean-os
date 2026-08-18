@@ -4664,7 +4664,13 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .quotes-table { min-width: 860px; }
 .mc-table { min-width: 760px; }
 /* 결재 허브 — 조회 표준 뼈대 (2026-08-18 Wave 3): 본문 스크롤 상자 · 탭 경보 배지 · 결과줄 통계 버튼 */
-.qk-body > .ap-scroll { @apply absolute inset-0 flex flex-col overflow-auto; }
+.qk-body > .ap-scroll { @apply absolute inset-0 flex flex-col overflow-hidden; }
+/*   목록 탭 — 조회 줄·머리단·쪽은 고정, 표 몸통만 스크롤 (2026-08-18 사장님: "다른 메뉴처럼 동일하게") */
+.ap-scroll > .ap-list, .ap-scroll > .ap-list > .ap-list { @apply flex min-h-0 flex-1 flex-col; }
+.ap-list > * { @apply shrink-0; }
+.ap-list > .approval-table-wrap, .ap-list > .ev-scroll { @apply min-h-0 flex-1 overflow-auto; }
+.ap-list > .ap-empty { @apply min-h-0 flex-1 overflow-auto; }
+.ap-scroll > .ap-pad { @apply min-h-0 flex-1 overflow-auto; }
 /*   목록 탭의 조회 줄은 상자 안 첫 줄처럼(테두리 없이 아래 선만) — 상자 안 상자 금지 (2026-08-18 사장님) */
 .ap-scroll .qk-bar { @apply rounded-none border-0 border-b border-[var(--border)] bg-transparent px-3.5 py-2.5; }
 .ap-scroll .qk-applied { @apply px-3.5 pb-1 pt-1.5; }
