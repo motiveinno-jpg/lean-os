@@ -715,7 +715,7 @@ export default function ApprovalsPage() {
     { key: "new-request", label: "새 요청", icon: "plus" },
     { key: "all", label: "전체 현황", icon: "chart" },
     { key: "forms", label: "양식 관리", icon: "layout" },
-    { key: "policies", label: "정책 관리", icon: "route" },
+    { key: "policies", label: "결재선 관리", icon: "route" },
   ] as { key: Tab; label: string; icon: string; count?: number }[]).filter((t) => tabAllowed(t.key));
   // 현재 탭이 미허용(권한 없음)이면 첫 허용 탭으로 — 딥링크/기본값 가드
   useEffect(() => {
@@ -3184,7 +3184,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               });
               // 관리자가 만든 커스텀 정책 유형 — 내장 유형/기본 제외
               const custom: PickOpt[] = (policies as ApprovalPolicy[])
-                .filter((p) => p.is_active && p.document_type !== "default" && !(p.document_type in REQUEST_TYPE_LABELS))
+                .filter((p) => p.is_active && p.document_type !== "default" && p.document_type !== "line" && !(p.document_type in REQUEST_TYPE_LABELS))
                 .map((p) => ({ value: p.document_type, label: p.label || p.name, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${TYPE_FALLBACK.bg} ${TYPE_FALLBACK.text}`}><TypeIcon name="doc" className="w-3.5 h-3.5" /></span> }));
               //   회사 결재 양식은 요청 유형 목록에 합친다 (2026-08-18 사장님). 기본 유형에 연결된 양식(base_type)은
               //   그 유형 자리에 대신 들어가고(경비 청구를 고르면 회사 양식이 나온다), 연결 없는 양식은 뒤에 '회사 양식'으로.
@@ -3888,7 +3888,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         document_type: form.documentType === "__custom__" ? (form.customType.trim() || "custom") : form.documentType,
         label: form.label.trim() || undefined,
         description_template: form.descriptionTemplate.trim() || undefined,
-        stages: form.stages,
+        stages: form.stages.map((st, i) => ({ ...st, stage: i + 1, name: (st.name || "").trim() || `${i + 1}차 승인` })),
         auto_approve_below: Number(form.autoApproveBelow) || 0,
         allow_line_edit: form.allowLineEdit,
         // 하위호환: 직원 1명이면 requester_id 에도 채워 구버전 매칭이 계속 동작 (2026-08-11)
@@ -3916,7 +3916,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     setEditingPolicy(null);
     setForm({
       name: "",
-      documentType: "expense",
+      documentType: "line",
       customType: "",
       label: "",
       descriptionTemplate: "",
@@ -3953,6 +3953,12 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     setShowForm(true);
   }
 
+  //   단계 수를 고르면 그 수에 맞춰 늘리고 줄인다 (2026-08-18 사장님: "몇 단계인지 설정하고 누구한테")
+  function setStageCount(n: number) {
+    const cur = form.stages;
+    const next = Array.from({ length: n }, (_, i) => cur[i] || { stage: i + 1, name: `${i + 1}차 승인`, approver_role: "manager" } as ApprovalStageConfig).map((st, i) => ({ ...st, stage: i + 1 }));
+    setForm({ ...form, stages: next });
+  }
   function addStage() {
     const nextStage = form.stages.length + 1;
     setForm({
@@ -3987,266 +3993,123 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
   }
 
   //   2026-08-18 조회 표준 — 카드 격자 → 조회 줄(빠른검색 ‖ + 정책 추가) + 표(공용 머리단)
-  const visiblePolicies = (policies as ApprovalPolicy[]).filter((p) => quickSearchHit(pq, [p.name, p.label, REQUEST_TYPE_LABELS[p.document_type as RequestType] || p.document_type]));
+  const visiblePolicies = (policies as ApprovalPolicy[]).filter((p) => quickSearchHit(pq, [p.name, p.label, p.document_type === "line" ? "결재선" : REQUEST_TYPE_LABELS[p.document_type as RequestType] || p.document_type]));
+  const approverLabel = (st: ApprovalStageConfig) => (st as any).approver_id
+    ? ((st as any).approver_name || orgUsers.find((u) => u.id === (st as any).approver_id)?.name || "구성원")
+    : (ROLE_OPTIONS.find((r) => r.value === st.approver_role)?.label || st.approver_role || "");
 
   return (
     <div className="ap-list">
-      <QueryBar right={<button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm whitespace-nowrap">+ 정책 추가</button>}>
-        <QuickSearch value={pq} onApply={setPq} placeholder="정책 이름 · 유형 — 쉼표로 여러 개, Enter" />
-        <span className="text-[11px] text-[var(--text-dim)]">유형별 결재선(단계·승인자·자동승인 한도)을 정합니다 — 새 요청에 자동 적용</span>
+      <QueryBar right={<button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm whitespace-nowrap">+ 결재선 추가</button>}>
+        <QuickSearch value={pq} onApply={setPq} placeholder="결재선 이름 — 쉼표로 여러 개, Enter" />
+        <span className="text-[11px] text-[var(--text-dim)]">결재선 = 몇 단계로 누구에게 결재받고 누구를 참조할지. 양식 관리에서 양식에 붙여 씁니다.</span>
       </QueryBar>
 
-      {/* Policy Form */}
+      {/* 결재선 폼 — 이름 · 단계 수 · 단계별 승인자 · 참조 · (선택) 적용 대상 (2026-08-18 사장님: 유형·자동승인·설명 템플릿 제거) */}
       {showForm && (
         <div className="approval-policy-form ap-pad-form">
-          <h3 className="section-title">{editingPolicy ? "양식 · 결재선 수정" : "새 양식 · 결재선"}</h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">정책 이름 *</label>
-              <input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="예: 경비 결재 정책"
-                className="field-input"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">적용 문서 유형 *</label>
-              <select
-                value={form.documentType}
-                onChange={(e) => setForm({ ...form, documentType: e.target.value })}
-                className="field-input"
-              >
-                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-                <option value="default">기본 (전체)</option>
-                <option value="__custom__">+ 커스텀 유형(직접 입력)</option>
-              </select>
-              {form.documentType === "__custom__" && (
-                <input
-                  value={form.customType}
-                  onChange={(e) => setForm({ ...form, customType: e.target.value.replace(/\s/g, "_") })}
-                  placeholder="커스텀 유형 키 (영문/숫자, 예: media_buy)"
-                  className="field-input mt-2"
-                />
-              )}
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">자동승인 기준 금액 (원)</label>
-              <CurrencyInput
-                value={form.autoApproveBelow}
-                onValueChange={(raw) => { setForm({ ...form, autoApproveBelow: raw }); }}
-                placeholder="0 (비활성)"
-                className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
-              />
-            </div>
+          <div className="ap-pol-head">
+            <h3 className="section-title">{editingPolicy ? "결재선 수정" : "새 결재선"}</h3>
+            {editingPolicy && editingPolicy.document_type !== "line" && (
+              <span className="text-[11px] text-[var(--text-dim)]">
+                {REQUEST_TYPE_LABELS[editingPolicy.document_type as RequestType] || editingPolicy.document_type} 유형에 자동 적용되는 결재선
+              </span>
+            )}
           </div>
 
-          {/* 양식(요청자 화면) 표시 이름 + 설명 템플릿 */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <div className="ap-pol-grid">
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">양식 표시 이름 (선택)</label>
-              <input
-                value={form.label}
-                onChange={(e) => setForm({ ...form, label: e.target.value })}
-                placeholder="새 요청 유형에 보일 이름 (미입력 시 기본)"
-                className="field-input"
-              />
+              <label className="field-label">결재선 이름 *</label>
+              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 팀장 → 대표 2단계" className="field-input" />
             </div>
-            {/* sm:col-span-2 — 모바일 1열 그리드에서 col-span-2 는 4px 암시적 컬럼을 만들어 폼 전체가 깨졌다 (2026-08-12 모바일 점검) */}
-            <div className="sm:col-span-2">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">설명 템플릿 (선택) — 표·서식 사용 가능</label>
-              {/* 2026-07-29 사장님: 기본형식 입력에도 표·서식 — textarea → RichEditor.
-                  저장은 HTML, 기존 평문 템플릿은 plainToHtml 로 초기 표시(HTML 이면 그대로). */}
-              <RichEditor
-                key={editingPolicy?.id ?? "new-policy"}
-                content={plainToHtml(form.descriptionTemplate)}
-                onChange={(html) => setForm({ ...form, descriptionTemplate: isEmptyHtml(html) ? "" : html })}
-                placeholder="이 양식 선택 시 요청 설명란에 자동 입력될 내용"
-                maxHeight="260px"
-              />
-            </div>
-            {/* 요청자별 정책 + 승인라인 변경 허용 (2026-07-10) */}
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">적용 대상 (선택)</label>
-              {/* 직원 복수선택·팀 단위 (2026-08-11 사장님) — 전체 / 특정 직원(여러 명) / 팀(부서) */}
-              <select
-                value={form.targetMode}
-                onChange={(e) => setForm({ ...form, targetMode: e.target.value as "all" | "users" | "department" })}
-                className="field-input"
-              >
-                <option value="all">회사 전체 (기본)</option>
-                <option value="users">특정 직원 (복수 선택)</option>
-                <option value="department">팀 (부서 단위)</option>
+              <label className="field-label">결재 단계</label>
+              <select value={form.stages.length} onChange={(e) => setStageCount(Number(e.target.value))} className="field-input">
+                {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}단계</option>)}
               </select>
-              {form.targetMode === "users" && (
-                <div className="policy-target-people">
-                  {orgUsers.map((u) => {
-                    const on = form.requesterIds.includes(u.id);
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => setForm((s) => ({
-                          ...s,
-                          requesterIds: s.requesterIds.includes(u.id) ? s.requesterIds.filter((id) => id !== u.id) : [...s.requesterIds, u.id],
-                        }))}
-                        className={`policy-target-chip ${on ? "policy-target-chip-on" : ""}`}
-                      >
-                        {u.name || u.email}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {form.targetMode === "department" && (
-                departments.length > 0 ? (
-                  <select
-                    value={form.requesterDepartment}
-                    onChange={(e) => setForm({ ...form, requesterDepartment: e.target.value })}
-                    className="field-input mt-2"
-                  >
-                    <option value="">부서 선택</option>
-                    {departments.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <p className="text-[10px] text-[var(--warning)] mt-1.5">등록된 부서가 없습니다 — 구성원 화면에서 직원의 부서를 먼저 입력하세요.</p>
-                )
-              )}
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">
-                {form.targetMode === "users"
-                  ? `선택한 직원의 요청에만 이 정책이 우선 적용됩니다.${form.requesterIds.length ? ` (${form.requesterIds.length}명 선택됨)` : ""}`
-                  : form.targetMode === "department"
-                    ? "해당 부서 직원의 요청에 이 정책이 적용됩니다. 직원 지정 정책이 있으면 그쪽이 우선합니다."
-                    : "대상을 고르면 그 직원·팀 요청에만 이 정책이 우선 적용됩니다."}
-              </p>
             </div>
             <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1">승인라인 변경</label>
-              <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
-                <input type="checkbox" checked={form.allowLineEdit} onChange={(e) => setForm({ ...form, allowLineEdit: e.target.checked })} className="w-4 h-4 accent-[var(--primary)]" />
-                <span className="text-sm text-[var(--text)]">요청자가 승인자(승인라인)를 바꿀 수 있음</span>
-              </label>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">해제 시 요청자는 정책의 승인라인을 그대로 사용해야 합니다.</p>
+              <label className="field-label">적용 대상 <span className="text-[var(--text-dim)] font-normal">(선택)</span></label>
+              <select value={form.targetMode} onChange={(e) => setForm({ ...form, targetMode: e.target.value as "all" | "users" | "department" })} className="field-input">
+                <option value="all">회사 전체</option>
+                <option value="users">특정 직원</option>
+                <option value="department">팀 (부서)</option>
+              </select>
             </div>
-            {/* 참조(CC) 기본값 (2026-08-12 복원) — 이 정책으로 결재를 올리면 참조란에 미리 채워진다 */}
-            <div className="col-span-full">
-              <label className="block text-xs text-[var(--text-muted)] mb-1">참조 (선택)</label>
-              <div className="policy-target-people">
-                {orgUsers.map((u) => {
-                  const on = form.referenceIds.includes(u.id);
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => setForm((s) => ({
-                        ...s,
-                        referenceIds: s.referenceIds.includes(u.id) ? s.referenceIds.filter((id) => id !== u.id) : [...s.referenceIds, u.id],
-                      }))}
-                      className={`policy-target-chip ${on ? "policy-target-chip-on" : ""}`}
-                    >
-                      {u.name || u.email}
-                    </button>
-                  );
-                })}
+          </div>
+          {form.targetMode === "users" && (
+            <div className="policy-target-people">
+              {orgUsers.map((u) => {
+                const on = form.requesterIds.includes(u.id);
+                return (
+                  <button key={u.id} type="button"
+                    onClick={() => setForm((st) => ({ ...st, requesterIds: st.requesterIds.includes(u.id) ? st.requesterIds.filter((id) => id !== u.id) : [...st.requesterIds, u.id] }))}
+                    className={`policy-target-chip ${on ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>
+                );
+              })}
+            </div>
+          )}
+          {form.targetMode === "department" && (
+            departments.length > 0 ? (
+              <select value={form.requesterDepartment} onChange={(e) => setForm({ ...form, requesterDepartment: e.target.value })} className="field-input mt-2 max-w-xs">
+                <option value="">부서 선택</option>
+                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            ) : (
+              <p className="text-[10px] text-[var(--warning)] mt-1.5">등록된 부서가 없습니다 — 구성원 화면에서 직원의 부서를 먼저 입력하세요.</p>
+            )
+          )}
+
+          {/* 단계별 승인자 — 한 줄에 [N차] 단계 이름 · 누구에게(역할 또는 구성원) */}
+          <div className="ap-pol-stages">
+            <label className="field-label">누구에게 결재받나</label>
+            {form.stages.map((stage, idx) => (
+              <div key={idx} className="ap-pol-stage">
+                <span className="ap-pol-stage-no">{stage.stage}차</span>
+                <input value={stage.name} onChange={(e) => updateStage(idx, "name", e.target.value)} placeholder={`${stage.stage}차 승인`} className="field-input ap-pol-stage-name" />
+                <select
+                  value={stage.approver_id ? `u:${stage.approver_id}` : `r:${stage.approver_role || "manager"}`}
+                  onChange={(e) => {
+                    const v = e.target.value; const updated = [...form.stages];
+                    if (v.startsWith("u:")) { const u = orgUsers.find((x) => x.id === v.slice(2)); (updated[idx] as any).approver_id = v.slice(2); (updated[idx] as any).approver_name = u?.name || u?.email || ""; }
+                    else { delete (updated[idx] as any).approver_id; delete (updated[idx] as any).approver_name; updated[idx].approver_role = v.slice(2); }
+                    setForm({ ...form, stages: updated });
+                  }}
+                  className="field-input ap-pol-stage-who">
+                  <optgroup label="역할로">
+                    {ROLE_OPTIONS.map((r) => <option key={r.value} value={`r:${r.value}`}>{r.label}</option>)}
+                  </optgroup>
+                  <optgroup label="특정 구성원">
+                    {orgUsers.map((u) => <option key={u.id} value={`u:${u.id}`}>{u.name || u.email}</option>)}
+                  </optgroup>
+                </select>
               </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">
-                선택한 인원은 이 정책으로 올라온 결재의 참조란에 자동으로 들어갑니다(요청자가 가감 가능).
-                {form.referenceIds.length ? ` (${form.referenceIds.length}명 선택됨)` : ""}
-              </p>
+            ))}
+          </div>
+
+          {/* 참조 — 결재선과 별개로 결과를 통보받는 사람 */}
+          <div className="mt-3">
+            <label className="field-label">참조 <span className="text-[var(--text-dim)] font-normal">(선택 · 여러 명)</span></label>
+            <div className="policy-target-people">
+              {orgUsers.map((u) => {
+                const on = form.referenceIds.includes(u.id);
+                return (
+                  <button key={u.id} type="button"
+                    onClick={() => setForm((st) => ({ ...st, referenceIds: st.referenceIds.includes(u.id) ? st.referenceIds.filter((id) => id !== u.id) : [...st.referenceIds, u.id] }))}
+                    className={`policy-target-chip ${on ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Stages */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-[var(--text-muted)]">결재 단계</label>
-              <button
-                onClick={addStage}
-                className="text-xs text-[var(--primary)] hover:underline font-semibold"
-              >
-                + 단계 추가
-              </button>
-            </div>
-            <div className="space-y-2">
-              {form.stages.map((stage, idx) => (
-                <div key={idx} className="approval-stage-row">
-                  <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-xs font-bold text-[var(--primary)] shrink-0">
-                    {stage.stage}
-                  </div>
-                  <input
-                    value={stage.name}
-                    onChange={(e) => updateStage(idx, "name", e.target.value)}
-                    placeholder="단계 이름"
-                    className="flex-1 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-                  />
-                  {/* 승인자 유형: 역할 / 특정 인물(HR 서비스식) */}
-                  <select
-                    value={stage.approver_id ? "person" : "role"}
-                    onChange={(e) => {
-                      const updated = [...form.stages];
-                      if (e.target.value === "role") { delete (updated[idx] as any).approver_id; delete (updated[idx] as any).approver_name; updated[idx].approver_role = updated[idx].approver_role || "ceo"; }
-                      else { const u = orgUsers[0]; (updated[idx] as any).approver_id = u?.id || ""; (updated[idx] as any).approver_name = u?.name || u?.email || ""; }
-                      setForm({ ...form, stages: updated });
-                    }}
-                    className="w-24 px-2 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-                  >
-                    <option value="role">역할</option>
-                    <option value="person">특정 인물</option>
-                  </select>
-                  {stage.approver_id ? (
-                    <select
-                      value={stage.approver_id}
-                      onChange={(e) => {
-                        const u = orgUsers.find((x) => x.id === e.target.value);
-                        const updated = [...form.stages];
-                        (updated[idx] as any).approver_id = e.target.value;
-                        (updated[idx] as any).approver_name = u?.name || u?.email || "";
-                        setForm({ ...form, stages: updated });
-                      }}
-                      className="w-40 px-2 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-                    >
-                      {orgUsers.map((u) => (
-                        <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <select
-                      value={stage.approver_role}
-                      onChange={(e) => updateStage(idx, "approver_role", e.target.value)}
-                      className="w-32 px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-                    >
-                      {ROLE_OPTIONS.map((r) => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
-                      ))}
-                    </select>
-                  )}
-                  {form.stages.length > 1 && (
-                    <button
-                      onClick={() => removeStage(idx)}
-                      className="text-red-400 hover:text-red-500 text-sm font-bold px-1"
-                    >
-                      &#10005;
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-4">
             <button
               onClick={() => (form.name || "").trim() && upsertMut.mutate()}
-              disabled={!(form.name || "").trim() || form.stages.some((s) => !(s.name || "").trim()) || upsertMut.isPending}
-              className="btn-primary disabled:opacity-50"
-            >
+              disabled={!(form.name || "").trim() || upsertMut.isPending}
+              className="btn-primary btn-sm disabled:opacity-50">
               {upsertMut.isPending ? "저장 중..." : editingPolicy ? "수정" : "저장"}
             </button>
-            <button onClick={resetForm} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+            <button onClick={resetForm} className="btn-secondary btn-sm">취소</button>
           </div>
         </div>
       )}
@@ -4257,14 +4120,14 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>
           </div>
-          <div className="text-base font-bold mb-1.5">등록된 결재 정책이 없습니다</div>
-          <div className="text-sm text-[var(--text-muted)] mb-5">정책을 추가하면 결재 요청 시 자동으로 적용됩니다</div>
-          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 정책 추가</button>
+          <div className="text-base font-bold mb-1.5">등록된 결재선이 없습니다</div>
+          <div className="text-sm text-[var(--text-muted)] mb-5">결재선을 만들어 두면 양식 관리에서 양식에 붙일 수 있습니다</div>
+          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 결재선 추가</button>
         </div>
       ) : (
         <div className="ev-scroll">
           <table className="ev-table ev-lined ap-policy-table">
-            <thead><tr><th>정책</th><th>유형</th><th>결재선</th><th>적용 대상</th><th>자동승인</th><th>상태</th><th>관리</th></tr></thead>
+            <thead><tr><th>결재선</th><th>단계 · 승인자</th><th>참조</th><th>적용 대상</th><th>상태</th><th>관리</th></tr></thead>
             <tbody>
               {visiblePolicies.map((policy: ApprovalPolicy) => {
                 const m = typeMeta(policy.document_type);
@@ -4277,23 +4140,29 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                   <tr key={policy.id}>
                     <td className="text-left">
                       <span className="inline-flex items-center gap-2">
-                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={m.icon} className="w-3.5 h-3.5" /></span>
-                        <span className="font-semibold">{policy.name}</span>
+                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={policy.document_type === "line" ? "route" : m.icon} className="w-3.5 h-3.5" /></span>
+                        <span className="min-w-0">
+                          <span className="block font-semibold">{policy.name}</span>
+                          {policy.document_type !== "line" && <span className="block text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type} 유형에 자동 적용</span>}
+                        </span>
                       </span>
                     </td>
-                    <td className="text-center">{REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type}</td>
                     <td className="text-left">
                       <span className="inline-flex items-center gap-1 flex-wrap">
                         {stages.map((stage, idx) => (
                           <span key={idx} className="inline-flex items-center gap-1">
-                            <span className="ap-stage-pill"><b>{stage.stage}</b>{stage.name}</span>
+                            <span className="ap-stage-pill" title={stage.name}><b>{stage.stage}</b>{approverLabel(stage)}</span>
                             {idx < stages.length - 1 && <span className="text-[var(--text-dim)]">›</span>}
                           </span>
                         ))}
                       </span>
                     </td>
+                    <td className="text-center text-[var(--text-muted)]">
+                      {Array.isArray(policy.reference_user_ids) && policy.reference_user_ids.length > 0
+                        ? policy.reference_user_ids.map((id) => { const u = orgUsers.find((x) => x.id === id); return u?.name || u?.email || "?"; }).join(", ")
+                        : "—"}
+                    </td>
                     <td className="text-center text-[var(--text-muted)]">{targetText}</td>
-                    <td className="text-right mono-number">{policy.auto_approve_below > 0 ? `${formatAmount(policy.auto_approve_below)} 미만` : "—"}</td>
                     <td className="text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${policy.is_active ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>
                         {policy.is_active ? "활성" : "비활성"}
@@ -4308,7 +4177,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                   </tr>
                 );
               })}
-              {visiblePolicies.length === 0 && <tr><td colSpan={7} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 정책이 없습니다</td></tr>}
+              {visiblePolicies.length === 0 && <tr><td colSpan={6} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 정책이 없습니다</td></tr>}
             </tbody>
           </table>
         </div>

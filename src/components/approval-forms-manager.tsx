@@ -106,6 +106,22 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     enabled: !!companyId,
   });
   const [editingDefaultKey, setEditingDefaultKey] = useState<string | null>(null);
+  //   결재선 관리에서 만든 결재선(document_type = "line") — 양식에 골라 붙인다 (2026-08-18 사장님: "양식에서 생성된 결재선을 선택")
+  const lineOptions = (policies as ApprovalPolicy[]).filter((p) => p.is_active && (p.document_type === "line" || p.document_type === "default"));
+  const lineToFormStages = (p: ApprovalPolicy): ApprovalFormStage[] => (p.stages as ApprovalStageConfig[]).map((st, i) => ({
+    stage: i + 1, name: st.name || `${i + 1}차 승인`,
+    approver_type: (st as any).approver_id ? "user" : "role",
+    approver_role: (st as any).approver_id ? null : (st.approver_role || "manager"),
+    approver_user_ids: (st as any).approver_id ? [(st as any).approver_id] : [],
+    required_count: 1,
+  }));
+  const linePicker = (onPick: (p: ApprovalPolicy) => void) => (
+    <select defaultValue="" onChange={(e) => { const p = lineOptions.find((x) => x.id === e.target.value); if (p) onPick(p); e.currentTarget.value = ""; }}
+      className="h-8 px-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] text-[var(--text-muted)]">
+      <option value="">결재선 관리에서 만든 결재선 불러오기…</option>
+      {lineOptions.map((p) => <option key={p.id} value={p.id}>{p.name} · {(p.stages as ApprovalStageConfig[]).length}단계</option>)}
+    </select>
+  );
   const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", autoApproveBelow: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[], fields: [] as ApprovalFormField[], allowLineEdit: true, referenceUserIds: [] as string[] });
   const [savingDefault, setSavingDefault] = useState(false);
 
@@ -380,7 +396,10 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             <div className="approval-stages-section">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선 (승인 단계)</label>
-                <button onClick={() => patch({ stages: [...(editing.stages || []), emptyStage((editing.stages || []).length + 1)] })} className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 단계 추가</button>
+                <span className="flex items-center gap-1.5">
+                  {linePicker((p) => patch({ stages: lineToFormStages(p), reference_user_ids: Array.isArray(p.reference_user_ids) ? p.reference_user_ids : (editing.reference_user_ids || []) }))}
+                  <button onClick={() => patch({ stages: [...(editing.stages || []), emptyStage((editing.stages || []).length + 1)] })} className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 단계 추가</button>
+                </span>
               </div>
               <div className="space-y-1.5">
                 {(editing.stages || []).map((s, i) => (
@@ -564,8 +583,11 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
             <div className="approval-stages-section">
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선 (승인 단계)</label>
-                <button onClick={() => setDefaultForm((s) => ({ ...s, stages: [...s.stages, emptyPolicyStage(s.stages.length + 1)] }))}
-                  className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 단계 추가</button>
+                <span className="flex items-center gap-1.5">
+                  {linePicker((p) => setDefaultForm((s) => ({ ...s, stages: (p.stages as ApprovalStageConfig[]).map((st, i) => ({ ...st, stage: i + 1 })), referenceUserIds: Array.isArray(p.reference_user_ids) ? p.reference_user_ids : s.referenceUserIds })))}
+                  <button onClick={() => setDefaultForm((s) => ({ ...s, stages: [...s.stages, emptyPolicyStage(s.stages.length + 1)] }))}
+                    className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 단계 추가</button>
+                </span>
               </div>
               <div className="space-y-1.5">
                 {defaultForm.stages.map((s, i) => {

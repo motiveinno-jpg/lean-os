@@ -4671,6 +4671,15 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .ap-list > .approval-table-wrap, .ap-list > .ev-scroll { @apply min-h-0 flex-1 overflow-auto; }
 .ap-list > .ap-empty { @apply min-h-0 flex-1 overflow-auto; }
 .ap-scroll > .ap-pad { @apply min-h-0 flex-1 overflow-auto; }
+/*   결재선 폼 (2026-08-18) — 이름·단계 수·적용 대상 한 줄, 단계별 승인자 한 줄씩, 참조 칩 */
+.ap-pol-head { @apply mb-3 flex items-center gap-3; }
+.ap-pol-head .section-title { @apply mb-0; }
+.ap-pol-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-3; }
+.ap-pol-stages { @apply mt-3 flex flex-col gap-2; }
+.ap-pol-stage { @apply flex flex-wrap items-center gap-2; }
+.ap-pol-stage-no { @apply grid h-8 w-12 shrink-0 place-items-center rounded-lg bg-[var(--primary)]/10 text-xs font-bold text-[var(--primary)]; }
+.ap-pol-stage-name { @apply w-48 max-w-full; }
+.ap-pol-stage-who { @apply w-56 max-w-full; }
 /*   목록 탭의 조회 줄은 상자 안 첫 줄처럼(테두리 없이 아래 선만) — 상자 안 상자 금지 (2026-08-18 사장님) */
 .ap-scroll .qk-bar { @apply rounded-none border-0 border-b border-[var(--border)] bg-transparent px-3.5 py-2.5; }
 .ap-scroll .qk-applied { @apply px-3.5 pb-1 pt-1.5; }
