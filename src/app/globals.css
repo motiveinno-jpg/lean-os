@@ -2319,31 +2319,18 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .approval-att-thumb { @apply max-h-28 max-w-[180px] rounded-lg border border-[var(--border)] object-cover; }
 .approval-att-thumb-wait { @apply inline-flex items-center justify-center w-24 h-16 rounded-lg border border-dashed border-[var(--border)] text-[10px] text-[var(--text-dim)]; }
 .approval-form-field-rows { @apply py-1; }
-.approval-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
-.approval-tab-item { @apply inline-flex items-center gap-1.5; }
 /* 모바일에서 탭 7개가 화면을 밀어내던 것(2026-08-13 전수 QA) — 바 안에서 가로 스크롤 */
-.approval-tab-bar { @apply flex w-full max-w-full overflow-x-auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
-.approval-tab-bar::-webkit-scrollbar { display: none; }
-.approval-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
 /* 2026-07-21 QA: 결재관리 유형 필터 셀렉트 — 화살표는 전역 select 규칙(파일 하단)이 처리 */
-.approval-type-select {
-  @apply px-3.5 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-xs font-semibold focus:outline-none focus:border-[var(--primary)] cursor-pointer;
-}
-.approval-stat-card { @apply p-5 flex flex-col gap-3 cursor-pointer; }
 .approval-overtime-list { @apply space-y-3; }
 .approval-overtime-row { @apply p-5; }
 .approval-my-requests-list { @apply space-y-3; }
 .approval-request-card { @apply overflow-hidden; }
 .approval-timeline-panel { @apply border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60; }
-.approval-filters { @apply flex flex-wrap items-center gap-3 mb-4; }
 /* 결재 목록 검색창 (2026-08-04) — 전체 현황·내 결재함 공용, 유형 셀렉트와 같은 pill 형태 */
-.approval-search-wrap { @apply relative; }
-.approval-search-icon { @apply absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-dim)] pointer-events-none; }
-.approval-search-input { @apply pl-9 pr-3.5 py-2 w-[200px] bg-[var(--bg-card)] border border-[var(--border)] rounded-full text-xs font-semibold focus:outline-none focus:border-[var(--primary)]; }
 /* 내 결재함 표의 "승인 필요" 배지 — StatusBadge 와 같은 pill 형태 */
 .approval-need-badge { @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold leading-none whitespace-nowrap bg-[var(--warning-dim)] text-[var(--warning)]; }
 .approval-need-badge-dot { @apply w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse; }
-.approval-table { @apply w-full text-left min-w-[720px]; }
+.approval-table { min-width: 860px; }
 .approval-table-row { @apply border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition; }
 .approval-detail-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
 /* 전체 현황 상세 팝업 헤더의 PDF 저장 버튼 (2026-07-27) — 테이블 행 PDF 버튼과 동일 스타일 */
@@ -4691,6 +4678,12 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .quotes-page { @apply flex flex-col gap-3; }
 .quotes-table { min-width: 860px; }
 .mc-table { min-width: 760px; }
+/* 결재 허브 — 조회 표준 뼈대 (2026-08-18 Wave 3): 본문 스크롤 상자 · 탭 경보 배지 · 결과줄 통계 버튼 */
+.qk-body > .ap-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
+.ap-tab-alert { @apply rounded-full bg-[var(--danger)] px-1.5 text-white; }
+.collect-tab-on .ap-tab-alert { @apply text-white; }
+.ap-stat-btn { @apply rounded-md px-1 transition hover:bg-[var(--bg-surface)]; }
+.ap-scroll .approval-table-wrap { @apply rounded-xl border border-[var(--border)]; }
 /* 전자계약 — 조회 표준 (2026-08-18 Wave 3): 양식 관리 탭 스크롤 상자 · 발송 실패 칩 */
 .qk-body > .sig-scroll { @apply absolute inset-0 overflow-auto p-3; }
 .sig-fail-chip { @apply inline-flex items-center gap-1 rounded-full border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-2.5 py-1 text-[11px] font-semibold text-[var(--danger)]; }

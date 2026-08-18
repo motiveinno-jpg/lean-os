@@ -76,3 +76,8 @@
 대체: collect-tabs(계약 요청 N/양식 관리) · QueryBar(요청일 segments[전체 기간 가능] + 검색조건[요청일 달력·서명완료일·그룹·담당자] + 빠른검색 + 상태 칩) · ResultStrip(건수·서명완료 + 서명완료 고르기·발송 실패 칩·발송 한도) · ev-table+SortableTh · Pager · SelectionBar(리마인더·삭제·PDF 저장[파란]) · 내 조건('signatures')
 ### 내 서명 요청 (`/my-contracts`)
 - 자체 머리(seg-bar 필터·새로고침)·카드 목록 → collect-tabs · QueryBar(빠른검색) · ResultStrip · ev-table+SortableTh · Pager. `globals.css`: `.mycontracts-header`, `.mycontracts-empty`, `.mycontracts-list`, `.mycontracts-row`
+### 결재 허브 (`/approvals`)
+- 아이콘 seg-bar 탭 바, KPI 카드 4장(approval-summary-stats), 필터 바 2곳(seg-bar + 유형 select + 검색칸 + 건수), 표 3곳 자체 머리단
+- `globals.css`: `.approval-toolbar` `.approval-tab-item` `.approval-tab-bar*` `.approval-summary-stats` `.approval-stat-card` `.approval-filters` `.approval-type-select` `.approval-search-*`
+대체: QueryScreen(collect-tabs 7개 + 결과줄 통계 버튼 4개) · 본문 스크롤 상자 · QueryBar(보기/상태 칩 + 유형 칩 + 빠른검색 + 건수) · ev-table+SortableTh(정적)
+남긴 것(범위 밖): 표 정렬·쪽 넘김·SelectionBar 일괄 승인/반려 — 탭별 하위 컴포넌트가 커서(4,600줄) 다음 차수.

@@ -45,6 +45,8 @@ import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
 import { CurrencyInput } from "@/components/currency-input";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
+import { SortableTh } from "@/components/sortable-th";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, QuickSearch, quickSearchHit } from "@/components/query-kit";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -609,55 +611,38 @@ export default function ApprovalsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Toolbar — icon tab navigation */}
-      <div className="approval-toolbar page-sticky-header">
-        <div className="approval-tab-bar seg-bar">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`approval-tab-item seg-item ${tab === t.key ? "seg-item-active" : ""}`}
-            >
-              {tabIcon(t.icon)}
-              {t.label}
-              {t.count !== undefined && t.count > 0 && (
-                <span className={`min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[10px] font-bold ${tab === t.key ? "bg-white/25 text-white" : "bg-[var(--danger)] text-white"}`}>{t.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Summary stats — '요청 현황' 지표라 요청 탭(내 요청·전체 현황)에만 노출.
-          내 결재함(내가 결재할 것)엔 성격이 안 맞아 숨김(2026-07-23 — 대기중 stat vs 결재목록 혼동 제거). */}
-      {(tab === "my-requests" || tab === "all") && (
-      <div className="approval-summary-stats">
-        {[
-          { label: "대기 중", value: stats?.pending ?? 0, tone: "warning", valueCls: "text-[var(--warning)]", status: "pending", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" /></svg> },
-          { label: "승인 완료", value: stats?.approved ?? 0, tone: "success", valueCls: "text-[var(--success)]", status: "approved", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-          { label: "반려", value: stats?.rejected ?? 0, tone: "danger", valueCls: "text-[var(--danger)]", status: "rejected", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-          { label: statsCompanyScope ? "전체 요청" : "내 요청 전체", value: stats?.total ?? 0, tone: "", valueCls: "text-[var(--text)]", status: "", icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.008v.008H3.75V6.75zm0 5.25h.008v.008H3.75V12zm0 5.25h.008v.008H3.75v-.008z" /></svg> },
-        ].map((k) => (
-          <div
-            key={k.label}
-            // 클릭 이동처를 통계 범위와 일치: 회사(전체 현황) → 전체 현황 필터, 개인(내 요청) → 개인 탭 유지(전체로 안 튐).
-            onClick={() => { if (statsCompanyScope) goToAllWithStatus(k.status); else setTab("my-requests"); }}
-            className="approval-stat-card glass-card card-hover"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[var(--text-muted)]">{k.label}</span>
-              <span className={`kpi-icon ${k.tone}`}>{k.icon}</span>
-            </div>
-            <div className="stat-fit flex items-end gap-1">
-              <span className={`stat-fit-value font-extrabold mono-number ${k.valueCls}`}>{k.value}</span>
-              <span className="text-xs font-semibold text-[var(--text-dim)] mb-1">건</span>
-            </div>
+    <div className="qk-shell">
+      {/* ── 조회 화면 표준 뼈대 (2026-08-18 Wave 3) — 갈래 탭은 상자 안 맨 위 파란 밑줄, 본문은 상자 안에서 스크롤 ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print">
+            {TABS.map((t) => (
+              <button key={t.key} type="button" onClick={() => setTab(t.key)}
+                className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
+                <span className="inline-flex items-center gap-1.5">{tabIcon(t.icon)}{t.label}</span>
+                {t.count !== undefined && t.count > 0 && <span className="collect-tab-cnt ap-tab-alert">{t.count}</span>}
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
-      )}
-
+          {/* 요청 현황 요약 — '요청 현황' 지표라 요청 탭(내 요청·전체 현황)에만. 누르면 그 상태로 좁혀 본다 */}
+          {(tab === "my-requests" || tab === "all") && (
+            <ResultStrip>
+              {([
+                ["대기 중", stats?.pending ?? 0, "pending", "minus"],
+                ["승인 완료", stats?.approved ?? 0, "approved", "plus"],
+                ["반려", stats?.rejected ?? 0, "rejected", undefined],
+                [statsCompanyScope ? "전체 요청" : "내 요청 전체", stats?.total ?? 0, "", undefined],
+              ] as const).map(([label, value, status, tone]) => (
+                <button key={label} type="button" className="ap-stat-btn"
+                  onClick={() => { if (statsCompanyScope) goToAllWithStatus(status); else setTab("my-requests"); }}>
+                  <Stat label={label} value={`${value}건`} tone={tone as "plus" | "minus" | undefined} />
+                </button>
+              ))}
+            </ResultStrip>
+          )}
+        </QueryHead>
+        <QueryBody>
+         <div className="ap-scroll">
       {/* Tab content */}
       {tab === "my-approvals" && companyId && userId && (
         <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} />
@@ -680,6 +665,9 @@ export default function ApprovalsPage() {
       {tab === "policies" && companyId && (
         <PoliciesTab companyId={companyId} invalidate={invalidate} />
       )}
+         </div>
+        </QueryBody>
+      </QueryScreen>
     </div>
   );
 }
@@ -953,13 +941,11 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
       : undefined,
   );
 
-  // 검색·유형 필터 — 전체 현황과 같은 기준(제목·기안자·유형 라벨 부분일치)
-  const q = searchQuery.trim().toLowerCase();
+  // 검색·유형 필터 — 전체 현황과 같은 기준. 빠른검색(쉼표 = 또는, Enter 로 반영)
   const matchesFilters = (item: any) => {
     if (typeFilter && item.requestType !== typeFilter) return false;
-    if (!q) return true;
     const typeLabel = REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType || "";
-    return [item.title, item.requesterName, typeLabel].some((v: string) => (v || "").toLowerCase().includes(q));
+    return quickSearchHit(searchQuery, [item.title, item.requesterName, typeLabel]);
   };
   const visiblePending = (pendingApprovals as any[]).filter(matchesFilters);
   const visibleProcessed = (processedApprovals as any[]).filter(matchesFilters);
@@ -969,42 +955,14 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
     ...Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
   ];
 
-  // 필터 바 — 전체 현황과 동일 구성 (seg-bar + 유형 select + 검색 + 건수)
+  // 조회 줄 — 전체 현황과 동일 구성 (조회 표준 부품: 보기 칩 + 유형 칩 + 빠른검색 + 건수)
   const filterBar = (
-    <div className="approval-filters">
-      <div className="seg-bar">
-        {([
-          ["pending", `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}`],
-          ["processed", "내가 결재한 건"],
-        ] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setView(k)} className={`seg-item ${view === k ? "seg-item-active" : ""}`}>
-            {l}
-          </button>
-        ))}
-      </div>
-      <select
-        value={typeFilter}
-        onChange={(e) => setTypeFilter(e.target.value)}
-        className="approval-type-select"
-      >
-        {typeOptions.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-      <div className="approval-search-wrap">
-        <svg className="approval-search-icon" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="제목·기안자 검색"
-          className="approval-search-input"
-        />
-      </div>
-      <div className="flex-1" />
-      <div className="text-xs font-semibold text-[var(--text-dim)] self-center mono-number">
-        {(view === "pending" ? visiblePending : visibleProcessed).length}건
-      </div>
-    </div>
+    <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{(view === "pending" ? visiblePending : visibleProcessed).length}건</span>}>
+      <ChipGroup value={view} onChange={setView}
+        options={[{ value: "pending", label: `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}` }, { value: "processed", label: "내가 결재한 건" }]} />
+      <ChipGroup value={typeFilter} onChange={setTypeFilter} options={typeOptions.map((o) => ({ value: o.value, label: o.value ? o.label : "전체 유형" }))} />
+      <QuickSearch value={searchQuery} onApply={setSearchQuery} placeholder="제목 · 기안자 · 유형 — 쉼표로 여러 개, Enter" />
+    </QueryBar>
   );
 
   if (view === "processed") {
@@ -1070,16 +1028,16 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
     {filterBar}
 
     {/* Table — 전체 현황과 동일 디자인 (2026-08-04 사장님: 내 결재함도 똑같이) */}
-    <div className="approval-table-wrap glass-card overflow-x-auto">
-      <table className="approval-table">
+    <div className="approval-table-wrap ev-scroll">
+      <table className="ev-table ev-lined approval-table">
         <thead>
-          <tr className="border-b border-[var(--border)]">
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center">금액</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
+          <tr>
+            <SortableTh label="상태" />
+            <SortableTh label="제목" />
+            <SortableTh label="요청자" />
+            <SortableTh label="금액" />
+            <SortableTh label="진행" />
+            <SortableTh label="요청일" />
           </tr>
         </thead>
         <tbody>
@@ -1320,19 +1278,19 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
     {hint}
 
     {/* Table — 전체 현황과 동일 디자인 (2026-08-04 사장님: 내가 결재한 건도 똑같이) */}
-    <div className="approval-table-wrap glass-card overflow-x-auto">
-      <table className="approval-table">
+    <div className="approval-table-wrap ev-scroll">
+      <table className="ev-table ev-lined approval-table">
         <thead>
-          <tr className="border-b border-[var(--border)]">
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">내 결재</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center">금액</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">내 처리일</th>
-            <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">문서</th>
+          <tr>
+            <SortableTh label="상태" />
+            <SortableTh label="내 결재" />
+            <SortableTh label="제목" />
+            <SortableTh label="요청자" />
+            <SortableTh label="금액" />
+            <SortableTh label="진행" />
+            <SortableTh label="요청일" />
+            <SortableTh label="내 처리일" />
+            <SortableTh label="문서" />
           </tr>
         </thead>
         <tbody>
@@ -2265,65 +2223,33 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   ];
 
   // 검색 — 제목·요청자·유형 라벨 부분일치 (2026-08-04 사장님: 전체 현황·내 결재함에 검색)
-  const q = searchQuery.trim().toLowerCase();
-  const visibleRequests = q
-    ? allRequests.filter((r: any) => {
-        const typeLabel = REQUEST_TYPE_LABELS[r.request_type as RequestType] || r.request_type || "";
-        return [r.title, requesterNames.get(r.requester_id), typeLabel]
-          .some((v) => (v || "").toLowerCase().includes(q));
-      })
-    : allRequests;
+  const visibleRequests = allRequests.filter((r: any) => {
+    const typeLabel = REQUEST_TYPE_LABELS[r.request_type as RequestType] || r.request_type || "";
+    return quickSearchHit(searchQuery, [r.title, requesterNames.get(r.requester_id), typeLabel]);
+  });
 
   return (
     <div>
-      {/* Filters — 상태는 필 칩, 유형은 pill select */}
-      <div className="approval-filters">
-        <div className="seg-bar">
-          {statusOptions.map((o) => (
-            <button
-              key={o.value}
-              onClick={() => setStatusFilter(o.value)}
-              className={`seg-item ${statusFilter === o.value ? "seg-item-active" : ""}`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="approval-type-select"
-        >
-          {typeOptions.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-        <div className="approval-search-wrap">
-          <svg className="approval-search-icon" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="제목·요청자 검색"
-            className="approval-search-input"
-          />
-        </div>
-        <div className="flex-1" />
-        <div className="text-xs font-semibold text-[var(--text-dim)] self-center mono-number">{visibleRequests.length}건</div>
-      </div>
+      {/* 조회 줄 — 조회 표준 부품: 상태 칩 + 유형 칩 + 빠른검색 + 건수 */}
+      <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleRequests.length}건</span>}>
+        <ChipGroup value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
+        <ChipGroup value={typeFilter} onChange={setTypeFilter} options={typeOptions.map((o) => ({ value: o.value, label: o.value ? o.label : "전체 유형" }))} />
+        <QuickSearch value={searchQuery} onApply={setSearchQuery} placeholder="제목 · 요청자 · 유형 — 쉼표로 여러 개, Enter" />
+      </QueryBar>
 
       {/* Table */}
-      <div className="approval-table-wrap glass-card overflow-x-auto">
-        <table className="approval-table">
+      <div className="approval-table-wrap ev-scroll">
+        <table className="ev-table ev-lined approval-table">
           <thead>
-            <tr className="border-b border-[var(--border)]">
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">제목</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청자</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide text-center">금액</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">진행</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">요청일</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">승인일</th>
-              <th className="px-4 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">문서</th>
+            <tr>
+              <SortableTh label="상태" />
+              <SortableTh label="제목" />
+              <SortableTh label="요청자" />
+              <SortableTh label="금액" />
+              <SortableTh label="진행" />
+              <SortableTh label="요청일" />
+              <SortableTh label="승인일" />
+              <SortableTh label="문서" />
             </tr>
           </thead>
           <tbody>
