@@ -111,8 +111,9 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
         className={active ? "th-filter th-filter-on" : "th-filter"}
         title={active ? `필터 걸림 (${spec.selected!.size}개 선택)` : "필터"}>
         {/*   석삼(≡) — 엑셀식 값 필터. 깔때기였다가 사장님 지시로 가로 세 줄 (2026-08-18) */}
-        <svg width="10" height="9" viewBox="0 0 10 9" fill="currentColor" aria-hidden>
-          <rect x="0" y="0.5" width="10" height="1.6" rx="0.8" /><rect x="0" y="3.7" width="10" height="1.6" rx="0.8" /><rect x="0" y="6.9" width="10" height="1.6" rx="0.8" />
+        {/*   세로 크기 = 머리단 글자(10.5px 한글 ≈ 10px)와 같게 — 위아래가 다르면 같은 줄인데 어긋나 보인다 (2026-08-18 사장님) */}
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" aria-hidden>
+          <rect x="0" y="0" width="10" height="1.6" rx="0.8" /><rect x="0" y="4.2" width="10" height="1.6" rx="0.8" /><rect x="0" y="8.4" width="10" height="1.6" rx="0.8" />
         </svg>
       </button>
       {open && (
