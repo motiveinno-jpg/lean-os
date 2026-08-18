@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
 import { useToast } from "@/components/toast";
+import { QueryBar, ChipGroup, QuickSearch, quickSearchHit } from "@/components/query-kit";
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { RichEditor } from "@/components/rich-editor";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
@@ -748,14 +749,13 @@ export default function BoardPage() {
   }
 
   // HR 서비스식 필터 + 검색
-  const q = search.trim().toLowerCase();
   const filteredPosts = posts.filter((p) => {
     if (filter === "pinned" && !p.pinned) return false;
     if (filter === "event" && !p.event_date) return false;
     if (filter === "poll" && !p.poll_question) return false;
     if (filter === "file" && !(p.attachments?.length)) return false;
     if (filter === "mine" && p.author_id !== user?.id) return false;
-    if (q && !(`${p.title} ${stripHtml(p.content)}`.toLowerCase().includes(q))) return false;
+    if (!quickSearchHit(search, [p.title, stripHtml(p.content)])) return false;
     return true;
   });
 
@@ -767,46 +767,18 @@ export default function BoardPage() {
   return (
     <div className="">
       {/* 컴팩트 툴바 — 좌: 필터, 우: 검색 + 글쓰기 */}
-      <div className="board-toolbar page-sticky-header">
-        <div className="board-filter-bar seg-bar">
-          {(
-            [
-              ["all", `전체 ${posts.length}`],
-              ["pinned", "고정"],
-              ["event", "일정"],
-              ["poll", "투표"],
-              ["file", "첨부"],
-              ["mine", "내 글"],
-            ] as const
-          ).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => setFilter(k)}
-              className={`seg-item ${filter === k ? "seg-item-active" : ""}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="board-toolbar-actions">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="제목·내용 검색"
-            className="w-40 sm:w-56 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]"
-          />
-          {!showForm && (
-            <button
-              onClick={() => {
-                resetForm();
-                setShowForm(true);
-              }}
-              className="btn-primary"
-            >
-              + 글쓰기
-            </button>
-          )}
-        </div>
+      {/* 조회 줄 — 게시판은 피드(D형)라 표준 전면 대상이 아니지만 검색 줄만 같은 부품으로 (2026-08-18 Wave 3) */}
+      <div className="board-toolbar">
+        <QueryBar right={!showForm ? (
+          <button type="button" onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 글쓰기</button>
+        ) : undefined}>
+          <ChipGroup value={filter} onChange={setFilter}
+            options={[
+              { value: "all", label: `전체 ${posts.length}` }, { value: "pinned", label: "고정" }, { value: "event", label: "일정" },
+              { value: "poll", label: "투표" }, { value: "file", label: "첨부" }, { value: "mine", label: "내 글" },
+            ]} />
+          <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 내용 — 쉼표로 여러 개, Enter" />
+        </QueryBar>
       </div>
 
       {showForm && (

@@ -84,3 +84,5 @@
 ### 파일보관함 (`/documents`, files 탭)
 - 우측 툴바(list-tab 갈래·검색칸·정렬 select·올리기), 중복 파일 띠, FileList(리스트/그리드 카드) → QueryScreen(collect-tabs · QueryBar[빠른검색 ‖ 올리기] · ResultStrip[건수·용량·중복 안내] · ev-table+SortableTh[파일명·종류·크기·올린 사람·올린 날짜·버전·관리] · Pager · SelectionBar[삭제]). 폴더 트리·드롭존은 그대로.
 - `globals.css`: `.vault-file-list` `.doc-toolbar` `.doc-cat-tabs` `.doc-toolbar-right` `.doc-search-input` `.doc-sort-select` `.doc-dup-band` `.doc-dup-names` · FileList import 제거(부품 자체는 다른 화면이 쓴다)
+### D형(게시판·구성원 디렉토리)
+- 검색줄만 QueryBar(ChipGroup·QuickSearch)로. 나머지 피드/카드는 그대로. `globals.css`: `.board-filter-bar` `.board-toolbar-actions`

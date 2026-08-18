@@ -2472,9 +2472,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .approval-policy-card { @apply p-5; }
 .approval-timeline-stepper { @apply flex items-center gap-0 mb-5 pb-1; }
 .approval-comment-thread { @apply mt-4 pt-3 border-t border-[var(--border)]/60; }
-.board-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
-.board-filter-bar { @apply flex-wrap; }
-.board-toolbar-actions { @apply flex flex-wrap items-center gap-2 ml-auto; }
+.board-toolbar { @apply mb-4; }
 .board-post-form-overlay { @apply fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto; }
 .board-post-form-modal { @apply p-5 sm:p-6 my-8 w-full max-w-3xl space-y-3 shadow-2xl; }
 .board-empty-state { @apply py-16 text-center; }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { QueryBar, QuickSearch, quickSearchHit } from "@/components/query-kit";
 import { Ico } from "@/components/ui-icon";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -32,13 +33,7 @@ export default function TeamPage() {
   });
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return employees;
-    const q = search.trim().toLowerCase();
-    return employees.filter((e) =>
-      [e.name, e.department, e.position, e.email].some((v) =>
-        (v || "").toLowerCase().includes(q),
-      ),
-    );
+    return employees.filter((e) => quickSearchHit(search, [e.name, e.department, e.position, e.email]));
   }, [employees, search]);
 
   const byDept = useMemo(() => {
@@ -59,14 +54,11 @@ export default function TeamPage() {
 
   return (
     <div>
-      <div className="page-sticky-header mb-6 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-[var(--text-muted)]">총 {employees.length}명</span>
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="이름·부서·직책으로 검색"
-          className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] w-full sm:w-72"
-        />
+      {/* 조회 줄 — 디렉토리는 카드(D형)라 검색 줄만 표준 부품으로 (2026-08-18 Wave 3) */}
+      <div className="mb-6">
+        <QueryBar right={<span className="text-xs text-[var(--text-muted)]">총 {employees.length}명</span>}>
+          <QuickSearch value={search} onApply={setSearch} placeholder="이름 · 부서 · 직책 — 쉼표로 여러 개, Enter" />
+        </QueryBar>
       </div>
 
       {isLoading ? (
