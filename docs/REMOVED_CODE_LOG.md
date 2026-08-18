@@ -119,3 +119,14 @@
 - `globals.css`: `.approval-my-requests-list` `.approval-request-card` `.approval-policy-list` `.approval-policy-card` `.approval-forms-manager` `.panel-header-wrap` `.default-types-section` `.forms-grid` `.form-card-actions` `.approval-type-picker`
 ### 인사 버튼 정리
 - 급여(수당 불러오기·편집 저장·취소·급여대장 직접 작성·전체 PDF·전 직원 발송·미리보기·PDF/발송), 근태(+ 출퇴근 기록·엑셀), 휴가(입사일 기준 자동 부여), 연말정산(홈택스 열기·전체 안내 발송), 디렉토리 프로필(상세보기·근태 기록 보기·급여명세) 의 자체 색상 버튼 → btn-primary/btn-secondary btn-sm. `.attendance-manual-add-btn` 삭제.
+
+## 2026-08-18 — 조회 표준 확산 3차 (사장님: "다른 메뉴들 확산 + 지금 한 것 저장해서 누락 없게")
+- 규칙 저장: CLAUDE.md "2026-08-18 사장님 지적으로 굳은 규칙" 절 + 메모리 feedback-query-ui-rules-20260818.
+- 알림: 카드 목록 → 상자(검색조건 종류·읽음·기간, 빠른검색, 전체/안읽음 보기, 표, 쪽). `globals.css`: `.notification-toolbar` `.notification-list` `.notification-item`
+- 공지사항: 카드 목록 → 상자(검색조건 분류·기간, 표 고정 먼저, 줄 펼침). `.announcement-empty` `.announcement-list`
+- 전자계약: 조회 줄 상태 칩 → 검색조건 '상태' + 결과 요약 상태별 건수. 프로젝트: 빈 상태·안내 카드 껍데기 제거.
+- 파일보관함: 상자 끝선까지(md 고정 기둥) + 업로드 판 상자 발치 컴팩트.
+- 게시판: 카드 피드 → 상자(검색조건 종류·작성자·기간, 전체/내 글, 표 + 줄 펼침, 쪽). `.board-toolbar` `.board-post-list` `.board-post-card` `.board-post-header`
+- 일정: 달력/목록 탭 상자 안, 달력 조회 줄(◀ 오늘 ▶·전체/내 것만), 목록 = 검색조건+표+쪽. `.schedule-page`(마커만) `.schedule-tabbar` `.schedule-calendar-tab` `.schedule-calendar-header` `.sched-list-*` 12개
+- 통장·카드: 상자 밖 seg-bar 툴바 → 상자 안 파란 밑줄 탭 + 조회 줄 오른쪽 실행 버튼, 개요/통장/카드/분석도 상자 안 스크롤. `.bank-toolbar` `.cards-page-toolbar` `.card-tx-period-filter`
+- 전역: `.seg-bar/.seg-item/.seg-item-active` 를 파란 밑줄 탭 모양으로(필 알약·그라데이션 제거) — 마이페이지·리포트·요금제·부가세·회사 설정 등 남은 seg-bar 전부.
