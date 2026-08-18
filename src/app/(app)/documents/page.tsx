@@ -40,7 +40,8 @@ import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
 import { useToast } from "@/components/toast";
 import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
-import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, QuickSearch, quickSearchHit, quickTerms, AppliedChips, Pager, usePager, SelectionBar, type AppliedChip } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, QuickSearch, quickSearchHit, quickTerms, AppliedChips, Pager, usePager, SelectionBar, ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, type AppliedChip } from "@/components/query-kit";
+import { DateRangeField } from "@/components/date-range-field";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
@@ -2717,6 +2718,13 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   const [sort, setSort] = useState<SortState<FSortKey>>({ key: "at", dir: "desc" });
   const onSort = (k: FSortKey) => setSort((c) => nextSort(c, k, k === "at" || k === "size" ? "desc" : "asc"));
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  //   검색조건 — 종류(다중)·올린 사람(다중)·올린 날짜 기간·크기(KB) 범위. '조회'로 반영 (2026-08-18)
+  type DCond = { kind: string[]; by: string[]; from: string; to: string; min: string; max: string };
+  const DEMPTY: DCond = { kind: [], by: [], from: "", to: "", min: "", max: "" };
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [dDraft, setDDraft] = useState<DCond>(DEMPTY);
+  const [dLive, setDLive] = useState<DCond>(DEMPTY);
+  const dCount = (c: DCond) => c.kind.length + c.by.length + ((c.from || c.to) ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
   const uploadZoneRef = useRef<HTMLDivElement>(null);
 
   //   ⚠️ uploaded_by 에는 **사용자 id(UUID)** 가 들어 있어 화면에 그대로 찍히고 있었다.
@@ -2798,8 +2806,17 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   const cf = useColFilters();
   const colVal = (f: any) => ({ kind: kindOf(f), by: userNames[f.uploaded_by] || "" });
   const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (filteredFiles as any[]).map((f) => colVal(f)[k]));
+  const dHit = (f: any, c: DCond) => {
+    if (c.kind.length && !c.kind.includes(kindOf(f))) return false;
+    if (c.by.length && !c.by.includes(userNames[f.uploaded_by] || "")) return false;
+    const d = String(f.created_at || "").slice(0, 10);
+    if (c.from && d < c.from) return false;
+    if (c.to && d > c.to) return false;
+    if (!amountHit(Math.round(Number(f.file_size || 0) / 1024), c.min, c.max)) return false;
+    return true;
+  };
   const sortedFiles = useMemo(() => {
-    const rows = (filteredFiles as any[]).filter((f) => cf.hit(colVal(f)) && quickSearchHit(fileSearchTerm, [f.file_name, userNames[f.uploaded_by], kindOf(f)]));
+    const rows = (filteredFiles as any[]).filter((f) => dHit(f, dLive) && cf.hit(colVal(f)) && quickSearchHit(fileSearchTerm, [f.file_name, userNames[f.uploaded_by], kindOf(f)]));
     const val = (f: any) => {
       switch (sort.key) {
         case "name": return String(f.file_name || ""); case "kind": return kindOf(f); case "size": return Number(f.file_size || 0);
@@ -2809,9 +2826,18 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     rows.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || String(b.created_at || "").localeCompare(String(a.created_at || "")); });
     return rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredFiles, fileSearchTerm, sort, userNames, cf.key]);
-  const pager = usePager(sortedFiles, 50, `${selectedFolderId}|${categoryFilter}|${fileSearchTerm}|${cf.key}`);
-  const chips: AppliedChip[] = quickTerms(fileSearchTerm).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setFileSearchTerm(quickTerms(fileSearchTerm).filter((_, j) => j !== i).join(", ")) }));
+  }, [filteredFiles, fileSearchTerm, sort, userNames, cf.key, dLive]);
+  const pager = usePager(sortedFiles, 50, `${selectedFolderId}|${categoryFilter}|${fileSearchTerm}|${cf.key}|${JSON.stringify(dLive)}`);
+  const kindOpts = useMemo(() => [...new Set((filteredFiles as any[]).map(kindOf))].sort().map((v) => ({ value: v, label: v })), [filteredFiles]);
+  const byOpts = useMemo(() => [...new Set((filteredFiles as any[]).map((f) => userNames[f.uploaded_by]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [filteredFiles, userNames]);
+  const dropD = (patch: Partial<DCond>) => { const c = { ...dLive, ...patch }; setDLive(c); setDDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(fileSearchTerm).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setFileSearchTerm(quickTerms(fileSearchTerm).filter((_, j) => j !== i).join(", ")) })),
+    ...dLive.kind.map((v) => ({ group: "종류", label: v, onRemove: () => dropD({ kind: dLive.kind.filter((x) => x !== v) }) })),
+    ...dLive.by.map((v) => ({ group: "올린 사람", label: v, onRemove: () => dropD({ by: dLive.by.filter((x) => x !== v) }) })),
+    ...((dLive.from || dLive.to) ? [{ group: "올린 날짜", label: `${dLive.from || "…"} ~ ${dLive.to || "…"}`, onRemove: () => dropD({ from: "", to: "" }) }] : []),
+    ...((dLive.min || dLive.max) ? [{ group: "크기(KB)", label: `${dLive.min || 0} ~ ${dLive.max || "제한없음"}`, onRemove: () => dropD({ min: "", max: "" }) }] : []),
+  ];
   const fmtSize = (n: number) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`;
   const totalSize = sortedFiles.reduce((x: number, f: any) => x + Number(f.file_size || 0), 0);
 
@@ -3006,9 +3032,28 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
               <button type="button" className="btn-primary btn-sm whitespace-nowrap"
                 onClick={() => uploadZoneRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.click()}>＋ 올리기</button>
             }>
+              <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) setDDraft(dLive); setPanelOpen(v); }} activeCount={dCount(dLive)}
+                foot={<>
+                  <button type="button" className="btn-secondary btn-sm" disabled={dCount(dDraft) === 0} onClick={() => setDDraft(DEMPTY)}>조건 지우기</button>
+                  <span className="ml-auto text-[11px] text-[var(--text-dim)]">{(filteredFiles as any[]).filter((f) => dHit(f, dDraft)).length.toLocaleString("ko")}건</span>
+                  <button type="button" className="btn-primary btn-sm" onClick={() => { setDLive(dDraft); setPanelOpen(false); }}>조회</button>
+                </>}>
+                <ConditionRow label="올린 날짜" hint="비우면 전체 기간">
+                  <DateRangeField label={null} from={dDraft.from} to={dDraft.to} onChange={(f, t) => setDDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDDraft((c) => ({ ...c, from: "", to: "" }))} />
+                </ConditionRow>
+                <ConditionRow label="종류" hint="여러 개">
+                  <TokenField items={kindOpts} value={dDraft.kind} onChange={(v) => setDDraft((c) => ({ ...c, kind: v }))} placeholder="예: pdf" />
+                </ConditionRow>
+                <ConditionRow label="올린 사람" hint="여러 명">
+                  <TokenField items={byOpts} value={dDraft.by} onChange={(v) => setDDraft((c) => ({ ...c, by: v }))} placeholder="이름 일부" />
+                </ConditionRow>
+                <ConditionRow label="크기 (KB)" hint="한쪽만 적어도 됩니다">
+                  <AmountRange min={dDraft.min} max={dDraft.max} onMin={(v) => setDDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDDraft((c) => ({ ...c, max: v }))} />
+                </ConditionRow>
+              </ConditionPanel>
               <QuickSearch value={fileSearchTerm} onApply={setFileSearchTerm} placeholder="파일명 · 올린 사람 · 종류 — 쉼표로 여러 개, Enter" />
             </QueryBar>
-            <AppliedChips chips={chips} onClearAll={() => setFileSearchTerm("")} />
+            <AppliedChips chips={chips} onClearAll={() => { setFileSearchTerm(""); setDLive(DEMPTY); setDDraft(DEMPTY); }} />
             <ResultStrip>
               <Stat label="파일" value={`${sortedFiles.length.toLocaleString()}건`} />
               <Stat label="용량" value={fmtSize(totalSize)} />

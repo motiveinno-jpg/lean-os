@@ -46,7 +46,8 @@ import { CurrencyInput } from "@/components/currency-input";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
 import { SortableTh } from "@/components/sortable-th";
-import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, QuickSearch, quickSearchHit } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, QuickSearch, quickSearchHit, ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, type AppliedChip } from "@/components/query-kit";
+import { DateRangeField } from "@/components/date-range-field";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -2050,6 +2051,13 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  //   검색조건 — 요청일 기간·요청자(다중)·금액 범위 (조회 화면 표준, '조회'로 반영). 2026-08-18
+  type ACond = { from: string; to: string; requester: string[]; min: string; max: string };
+  const AEMPTY: ACond = { from: "", to: "", requester: [], min: "", max: "" };
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [aDraft, setADraft] = useState<ACond>(AEMPTY);
+  const [aLive, setALive] = useState<ACond>(AEMPTY);
+  const aCount = (c: ACond) => ((c.from || c.to) ? 1 : 0) + c.requester.length + ((c.min || c.max) ? 1 : 0);
   // KPI 카드 클릭 시 이미 "전체 현황" 탭에 있어도(재마운트 없이) 필터가 갱신되도록 동기화
   useEffect(() => {
     if (initialStatusFilter !== undefined) setStatusFilter(initialStatusFilter);
@@ -2225,17 +2233,44 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   // 검색 — 제목·요청자·유형 라벨 부분일치 (2026-08-04 사장님: 전체 현황·내 결재함에 검색)
   const visibleRequests = allRequests.filter((r: any) => {
     const typeLabel = REQUEST_TYPE_LABELS[r.request_type as RequestType] || r.request_type || "";
+    if (aLive.from && String(r.created_at || "").slice(0, 10) < aLive.from) return false;
+    if (aLive.to && String(r.created_at || "").slice(0, 10) > aLive.to) return false;
+    if (aLive.requester.length && !aLive.requester.includes(requesterNames.get(r.requester_id) || "")) return false;
+    if (!amountHit(Number(r.amount || 0), aLive.min, aLive.max)) return false;
     return quickSearchHit(searchQuery, [r.title, requesterNames.get(r.requester_id), typeLabel]);
   });
+  const requesterOpts = [...new Set((allRequests as any[]).map((r) => requesterNames.get(r.requester_id)).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string }));
+  const aChips: AppliedChip[] = [
+    ...((aLive.from || aLive.to) ? [{ group: "요청일", label: `${aLive.from || "…"} ~ ${aLive.to || "…"}`, onRemove: () => { const c = { ...aLive, from: "", to: "" }; setALive(c); setADraft(c); } }] : []),
+    ...aLive.requester.map((v) => ({ group: "요청자", label: v, onRemove: () => { const c = { ...aLive, requester: aLive.requester.filter((x) => x !== v) }; setALive(c); setADraft(c); } })),
+    ...((aLive.min || aLive.max) ? [{ group: "금액", label: `${Number(aLive.min || 0).toLocaleString("ko")} ~ ${aLive.max ? Number(aLive.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => { const c = { ...aLive, min: "", max: "" }; setALive(c); setADraft(c); } }] : []),
+  ];
 
   return (
     <div>
       {/* 조회 줄 — 조회 표준 부품: 상태 칩 + 유형 칩 + 빠른검색 + 건수 */}
       <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleRequests.length}건</span>}>
+        <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) setADraft(aLive); setPanelOpen(v); }} activeCount={aCount(aLive)}
+          foot={<>
+            <button type="button" className="btn-secondary btn-sm" disabled={aCount(aDraft) === 0} onClick={() => setADraft(AEMPTY)}>조건 지우기</button>
+            <span className="ml-auto" />
+            <button type="button" className="btn-primary btn-sm" onClick={() => { setALive(aDraft); setPanelOpen(false); }}>조회</button>
+          </>}>
+          <ConditionRow label="요청일" hint="비우면 전체 기간">
+            <DateRangeField label={null} from={aDraft.from} to={aDraft.to} onChange={(f, t) => setADraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setADraft((c) => ({ ...c, from: "", to: "" }))} />
+          </ConditionRow>
+          <ConditionRow label="요청자" hint="여러 명">
+            <TokenField items={requesterOpts} value={aDraft.requester} onChange={(v) => setADraft((c) => ({ ...c, requester: v }))} placeholder="이름 일부" />
+          </ConditionRow>
+          <ConditionRow label="금액" hint="한쪽만 적어도 됩니다">
+            <AmountRange min={aDraft.min} max={aDraft.max} onMin={(v) => setADraft((c) => ({ ...c, min: v }))} onMax={(v) => setADraft((c) => ({ ...c, max: v }))} />
+          </ConditionRow>
+        </ConditionPanel>
         <ChipGroup value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
         <ChipGroup value={typeFilter} onChange={setTypeFilter} options={typeOptions.map((o) => ({ value: o.value, label: o.value ? o.label : "전체 유형" }))} />
         <QuickSearch value={searchQuery} onApply={setSearchQuery} placeholder="제목 · 요청자 · 유형 — 쉼표로 여러 개, Enter" />
       </QueryBar>
+      <AppliedChips chips={aChips} onClearAll={() => { setALive(AEMPTY); setADraft(AEMPTY); }} />
 
       {/* Table */}
       <div className="approval-table-wrap ev-scroll">

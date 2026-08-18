@@ -5,10 +5,11 @@ import { logRead } from "@/lib/log-read";
 // 견적서 — 프로젝트와 별개의 독립 견적서 메뉴(프로젝트 토글 하위). 프로젝트의 견적서 탭과 동일 데이터(documents+deal_id).
 //   작성 시 기존 프로젝트 선택 또는 신규 프로젝트 생성 → 양쪽(프로젝트 운영/견적서) 연동.
 import { useMemo, useState } from "react";
+import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
-  Pager, usePager, type AppliedChip,
+  Pager, usePager, ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, type AppliedChip,
 } from "@/components/query-kit";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -46,6 +47,21 @@ export default function QuotesPage() {
   //   ── 조회 화면 표준 (2026-08-18 Wave 3) — 상태 칩·빠른검색·머리단 정렬·쪽 넘김. 조건이 둘뿐이라 검색조건 패널은 없다 ──
   const [q, setQ] = useState("");
   const [st, setSt] = useState<string>("all");
+  //   검색조건 — 프로젝트(다중)·금액 범위·작성일 기간. '조회'로 반영 (2026-08-18)
+  type QCond = { deal: string[]; min: string; max: string; from: string; to: string };
+  const QEMPTY: QCond = { deal: [], min: "", max: "", from: "", to: "" };
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<QCond>(QEMPTY);
+  const [live, setLive] = useState<QCond>(QEMPTY);
+  const qCount = (c: QCond) => c.deal.length + ((c.min || c.max) ? 1 : 0) + ((c.from || c.to) ? 1 : 0);
+  const condHit = (x: any, c: QCond) => {
+    if (c.deal.length && !c.deal.includes(x.deals?.name || "")) return false;
+    if (!amountHit(Number(x.contract_amount || 0), c.min, c.max)) return false;
+    const d = String(x.created_at || "").slice(0, 10);
+    if (c.from && d < c.from) return false;
+    if (c.to && d > c.to) return false;
+    return true;
+  };
   type QSortKey = "no" | "name" | "deal" | "amount" | "status" | "date";
   const [sort, setSort] = useState<SortState<QSortKey>>({ key: "date", dir: "desc" });
   const onSort = (k: QSortKey) => setSort((c) => nextSort(c, k, k === "date" ? "desc" : "asc"));
@@ -69,7 +85,7 @@ export default function QuotesPage() {
   const colVal = (x: any) => ({ name: x.name || "", deal: x.deals?.name || "", status: statusLabel(x) });
   const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (quotes as any[]).filter((x) => st === "all" || statusLabel(x) === st).map((x) => colVal(x)[k]));
   const shown = useMemo(() => {
-    const arr = (quotes as any[]).filter((x) => (st === "all" || statusLabel(x) === st) && cf.hit(colVal(x)) &&
+    const arr = (quotes as any[]).filter((x) => (st === "all" || statusLabel(x) === st) && condHit(x, live) && cf.hit(colVal(x)) &&
       quickSearchHit(q, [x.name, x.deals?.name, x.document_number], [Number(x.contract_amount || 0)]));
     const val = (x: any) => {
       switch (sort.key) {
@@ -80,11 +96,16 @@ export default function QuotesPage() {
     arr.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || String(b.created_at || "").localeCompare(String(a.created_at || "")); });
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotes, q, st, sort, cf.key]);
-  const pager = usePager(shown, 50, `${q}|${st}|${cf.key}`);
+  }, [quotes, q, st, sort, cf.key, live]);
+  const pager = usePager(shown, 50, `${q}|${st}|${cf.key}|${JSON.stringify(live)}`);
+  const dealOpts = useMemo(() => [...new Set((quotes as any[]).map((x) => x.deals?.name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [quotes]);
+  const dropC = (patch: Partial<QCond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
     ...(st !== "all" ? [{ group: "상태", label: st, onRemove: () => setSt("all") }] : []),
+    ...live.deal.map((v) => ({ group: "프로젝트", label: v, onRemove: () => dropC({ deal: live.deal.filter((x) => x !== v) }) })),
+    ...((live.min || live.max) ? [{ group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => dropC({ min: "", max: "" }) }] : []),
+    ...((live.from || live.to) ? [{ group: "작성일", label: `${live.from || "…"} ~ ${live.to || "…"}`, onRemove: () => dropC({ from: "", to: "" }) }] : []),
   ];
 
   return (
@@ -93,10 +114,26 @@ export default function QuotesPage() {
       <QueryScreen>
         <QueryHead>
           <QueryBar right={<button type="button" onClick={() => setShowCreate(true)} className="btn-primary btn-sm">+ 견적서 작성</button>}>
+            <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) setDraft(live); setPanelOpen(v); }} activeCount={qCount(live)}
+              foot={<>
+                <button type="button" className="btn-secondary btn-sm" disabled={qCount(draft) === 0} onClick={() => setDraft(QEMPTY)}>조건 지우기</button>
+                <span className="ml-auto text-[11px] text-[var(--text-dim)]">{(quotes as any[]).filter((x) => (st === "all" || statusLabel(x) === st) && condHit(x, draft)).length.toLocaleString("ko")}건</span>
+                <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+              </>}>
+              <ConditionRow label="작성일" hint="비우면 전체 기간">
+                <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
+              </ConditionRow>
+              <ConditionRow label="프로젝트" hint="여러 개">
+                <TokenField items={dealOpts} value={draft.deal} onChange={(v) => setDraft((c) => ({ ...c, deal: v }))} placeholder="프로젝트 이름 일부" />
+              </ConditionRow>
+              <ConditionRow label="금액" hint="한쪽만 적어도 됩니다">
+                <AmountRange min={draft.min} max={draft.max} onMin={(v) => setDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDraft((c) => ({ ...c, max: v }))} />
+              </ConditionRow>
+            </ConditionPanel>
             <QuickSearch value={q} onApply={setQ} placeholder="견적서명 · 프로젝트 · 견적No. · 금액 — 쉼표로 여러 개, Enter" />
             <ChipGroup value={st} onChange={setSt} options={statusOpts} />
           </QueryBar>
-          <AppliedChips chips={chips} onClearAll={() => { setQ(""); setSt("all"); }} />
+          <AppliedChips chips={chips} onClearAll={() => { setQ(""); setSt("all"); setLive(QEMPTY); setDraft(QEMPTY); }} />
           <ResultStrip>
             <Stat label="견적서" value={`${shown.length.toLocaleString("ko")}건`} />
             <Stat label="금액 합계" value={won(shown.reduce((s0, x) => s0 + Number(x.contract_amount || 0), 0))} />

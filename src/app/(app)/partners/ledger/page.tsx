@@ -14,7 +14,7 @@ import { BarChart } from "@/components/charts/kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, HelperMenu, SavedTabs, ConditionSave,
-  ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, SelectionBar,
+  ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, SelectionBar, AmountRange, amountHit,
   type ExcelItem, type HelperItem, type AppliedChip,
 } from "@/components/query-kit";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,9 +33,9 @@ type ArApType = "sales" | "purchase";
  * 검색조건 (조회 화면 표준, 2026-08-18 Wave 1). ★ '조회'를 눌러야 반영. 회계기간·빠른검색은 즉시.
  *   잔액: 전체 / 잔액 있는 곳만 / 마이너스만
  */
-type Cond = { bal: "" | "pos" | "neg" };
-const EMPTY_COND: Cond = { bal: "" };
-const condCount = (c: Cond) => (c.bal ? 1 : 0);
+type Cond = { bal: "" | "pos" | "neg"; min: string; max: string; code: string };
+const EMPTY_COND: Cond = { bal: "", min: "", max: "", code: "" };
+const condCount = (c: Cond) => (c.bal ? 1 : 0) + ((c.min || c.max) ? 1 : 0) + (c.code ? 1 : 0);
 const BAL_OPTS = [{ value: "", label: "전체" }, { value: "pos", label: "잔액 있는 곳만" }, { value: "neg", label: "마이너스만" }] as const;
 const thisYear = () => new Date().getFullYear();
 const yearRange = (y: number) => ({ from: `${y}-01-01`, to: `${y}-12-31` });
@@ -215,7 +215,9 @@ export default function PartnerLedgerPage() {
   const codeOf = (r: LedgerRow) => (r.partner_id && partnerCodeMap[r.partner_id]) || null;
   const codeStr = (r: LedgerRow) => { const c = codeOf(r); return c != null ? String(c).padStart(4, "0") : ""; };
   const sq = q.trim();
-  const balHit = (r: LedgerRow, c: Cond) => c.bal === "" || (c.bal === "pos" ? ledgerOut(r) > 0 : ledgerOut(r) < 0);
+  const balHit = (r: LedgerRow, c: Cond) => (c.bal === "" || (c.bal === "pos" ? ledgerOut(r) > 0 : ledgerOut(r) < 0))
+    && amountHit(Math.abs(ledgerOut(r)), c.min, c.max)
+    && (!c.code || codeStr(r).includes(c.code.trim()));
   const shown = useMemo(() => {
     //   빠른검색 — 거래처명·코드·잔액을 한꺼번에 (쉼표 = 또는, Enter 로 반영)
     const filtered = data.filter((r) => quickSearchHit(q, [nameOf(r.partner_id), codeStr(r)], [ledgerOut(r)]) && balHit(r, live));
@@ -244,11 +246,13 @@ export default function PartnerLedgerPage() {
     if (saved.def) applySaved(saved.def.params || {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.isFetched, saved.def, defDone]);
-  const suggestName = () => [draft.bal ? BAL_OPTS.find((o) => o.value === draft.bal)?.label : "", periodLabel, pal.label].filter(Boolean).slice(0, 3).join(" · ");
+  const suggestName = () => [draft.bal ? BAL_OPTS.find((o) => o.value === draft.bal)?.label : "", (draft.min || draft.max) ? "잔액 금액" : "", periodLabel, pal.label].filter(Boolean).slice(0, 3).join(" · ");
   const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
     ...(live.bal ? [{ group: "잔액", label: BAL_OPTS.find((o) => o.value === live.bal)?.label || live.bal, onRemove: () => drop({ bal: "" }) }] : []),
+    ...((live.min || live.max) ? [{ group: "잔액 금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => drop({ min: "", max: "" }) }] : []),
+    ...(live.code ? [{ group: "코드", label: live.code, onRemove: () => drop({ code: "" }) }] : []),
   ];
   const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
 
@@ -334,10 +338,16 @@ export default function PartnerLedgerPage() {
                   <ConditionRow label="잔액">
                     <span className="qk-quicks">
                       {BAL_OPTS.map((o) => (
-                        <button key={o.value} type="button" onClick={() => setDraft({ bal: o.value })}
+                        <button key={o.value} type="button" onClick={() => setDraft((c) => ({ ...c, bal: o.value }))}
                           className={draft.bal === o.value ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
                       ))}
                     </span>
+                  </ConditionRow>
+                  <ConditionRow label="잔액 금액" hint="절대값 · 한쪽만 적어도 됩니다">
+                    <AmountRange min={draft.min} max={draft.max} onMin={(v) => setDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDraft((c) => ({ ...c, max: v }))} />
+                  </ConditionRow>
+                  <ConditionRow label="거래처 코드" hint="일부만 쳐도 됩니다">
+                    <input className="qk-input w-32" value={draft.code} placeholder="예: 04" onChange={(e) => setDraft((c) => ({ ...c, code: e.target.value }))} />
                   </ConditionRow>
                 </ConditionPanel>
               } />

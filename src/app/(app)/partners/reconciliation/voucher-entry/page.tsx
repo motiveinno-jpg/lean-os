@@ -39,7 +39,7 @@ import { SortableTh, nextSort, type SortState } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave,
   ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
-  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, defaultRangeMonth, periodQuicksMonth,
+  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, defaultRangeMonth, periodQuicksMonth, AmountRange, amountHit,
   type ExcelItem, type AppliedChip,
 } from "@/components/query-kit";
 
@@ -82,9 +82,9 @@ type VCell = "y" | "m" | "d" | "gubun" | "account" | "partner" | "memo" | "debit
 //   전표목록 제목줄 정렬 기준 (매입매출전표와 같은 목록)
 type VSortKey = "date" | "no" | "account" | "partner" | "debit" | "credit" | "memo";
 /** 목록 검색조건 (조회 화면 표준, 2026-08-18 Wave 1 — B형: 입력부는 그대로, 목록부만) */
-type Cond = { acct: string[]; pt: string[]; rows: number };
-const EMPTY_COND: Cond = { acct: [], pt: [], rows: 50 };
-const condCount = (c: Cond) => c.acct.length + c.pt.length;
+type Cond = { acct: string[]; pt: string[]; vtype: string[]; memo: string; src: string; min: string; max: string; rows: number };
+const EMPTY_COND: Cond = { acct: [], pt: [], vtype: [], memo: "", src: "", min: "", max: "", rows: 50 };
+const condCount = (c: Cond) => c.acct.length + c.pt.length + c.vtype.length + (c.memo ? 1 : 0) + (c.src ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
 /** 그 달의 다음 달 1일 — 조회 상한(`lt`)으로 쓴다 */
 const monthAfter = (ym: string) => {
   const [y, m] = ym.split("-").map(Number);
@@ -216,6 +216,13 @@ export default function VoucherEntryPage() {
   const entryHit = (e: SavedEntry, c: Cond) => {
     if (c.acct.length && !e.lines.some((l) => l.account && c.acct.includes(l.account.name))) return false;
     if (c.pt.length && !e.lines.some((l) => l.partner && c.pt.includes(l.partner.name))) return false;
+    if (c.vtype.length && !c.vtype.includes(e.voucher_type || "transfer")) return false;
+    if (c.memo && !`${e.description} ${e.lines.map((l) => l.memo).join(" ")}`.toLowerCase().includes(c.memo.toLowerCase())) return false;
+    //   출처 — 여기서 친 것(manual) / 수집·전표 등에서 자동으로 만든 것
+    if (c.src === "manual" && e.source !== "manual") return false;
+    if (c.src === "auto" && e.source === "manual") return false;
+    //   금액 — 전표 한 장의 차변 합계(= 대변 합계)
+    if (!amountHit(e.lines.reduce((n, l) => n + Number(l.debit || 0), 0), c.min, c.max)) return false;
     return true;
   };
   //   빠른검색 — 계정·거래처·적요·전표번호·금액을 한꺼번에 (쉼표 = 또는, Enter 로 반영). 전표는 장 단위로 걸린다.
@@ -271,6 +278,10 @@ export default function VoucherEntryPage() {
     ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
     ...live.acct.map((v) => ({ group: "계정과목", label: v, onRemove: () => drop({ acct: live.acct.filter((x) => x !== v) }) })),
     ...live.pt.map((v) => ({ group: "거래처", label: v, onRemove: () => drop({ pt: live.pt.filter((x) => x !== v) }) })),
+    ...live.vtype.map((v) => ({ group: "구분", label: VTYPES.find((t) => t.id === v)?.label || v, onRemove: () => drop({ vtype: live.vtype.filter((x) => x !== v) }) })),
+    ...(live.memo ? [{ group: "적요", label: live.memo, onRemove: () => drop({ memo: "" }) }] : []),
+    ...(live.src ? [{ group: "출처", label: live.src === "manual" ? "직접 입력" : "자동 생성", onRemove: () => drop({ src: "" }) }] : []),
+    ...((live.min || live.max) ? [{ group: "전표 금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => drop({ min: "", max: "" }) }] : []),
   ];
   const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
   const sumD = filteredEntries.reduce((s0, e) => s0 + e.lines.reduce((x, l) => x + l.debit, 0), 0);
@@ -900,6 +911,27 @@ export default function VoucherEntryPage() {
                   </ConditionRow>
                   <ConditionRow label="거래처" hint="여러 곳">
                     <TokenField items={ptOpts} value={draft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
+                  </ConditionRow>
+                  <ConditionRow label="구분" hint="대체 · 출금 · 입금">
+                    <span className="qk-quicks">
+                      {VTYPES.map((t) => (
+                        <button key={t.id} type="button" onClick={() => setD("vtype")(draft.vtype.includes(t.id) ? draft.vtype.filter((x) => x !== t.id) : [...draft.vtype, t.id])}
+                          className={draft.vtype.includes(t.id) ? "qk-quick qk-quick-on" : "qk-quick"}>{t.label}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="적요" hint="전표 적요 · 줄 적요">
+                    <input className="qk-input w-full" value={draft.memo} placeholder="예: 임대료" onChange={(e) => setD("memo")(e.target.value)} />
+                  </ConditionRow>
+                  <ConditionRow label="출처" hint="여기서 친 것 / 자동으로 만든 것">
+                    <span className="qk-quicks">
+                      {[["", "전체"], ["manual", "직접 입력"], ["auto", "자동 생성"]].map(([v, l]) => (
+                        <button key={v} type="button" onClick={() => setD("src")(v)} className={draft.src === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="전표 금액" hint="한 장의 차변 합계 · 한쪽만 적어도 됩니다">
+                    <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
                   </ConditionRow>
                 </ConditionPanel>
               } />

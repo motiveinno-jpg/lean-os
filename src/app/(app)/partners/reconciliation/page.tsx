@@ -13,7 +13,7 @@ import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/comp
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, HelperMenu, SavedTabs, ConditionSave,
   ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
-  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, defaultRange, periodQuicks,
+  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, defaultRange, periodQuicks, AmountRange, amountHit,
   type HelperItem, type AppliedChip,
 } from "@/components/query-kit";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -33,9 +33,9 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
  * 검색조건 — 갖춰서 찾는 값들 (조회 화면 표준, 2026-08-18 Wave 1). ★ '조회'를 눌러야 반영. 기간·빠른검색은 즉시.
  *   구분(입금/출금) · 유형(매칭 방식) · 신뢰도 · 거래처
  */
-type Cond = { dir: string[]; mtype: string[]; conf: string[]; cp: string[]; rows: number };
-const EMPTY_COND: Cond = { dir: [], mtype: [], conf: [], cp: [], rows: 50 };
-const condCount = (c: Cond) => c.dir.length + c.mtype.length + c.conf.length + c.cp.length;
+type Cond = { dir: string[]; mtype: string[]; conf: string[]; cp: string[]; payer: string[]; min: string; max: string; rows: number };
+const EMPTY_COND: Cond = { dir: [], mtype: [], conf: [], cp: [], payer: [], min: "", max: "", rows: 50 };
+const condCount = (c: Cond) => c.dir.length + c.mtype.length + c.conf.length + c.cp.length + c.payer.length + ((c.min || c.max) ? 1 : 0);
 const DIR_OPTS = [{ value: "income", label: "입금" }, { value: "expense", label: "출금" }];
 const CONF_OPTS = [{ value: "high", label: "높음 (90%+)" }, { value: "mid", label: "보통 (70~90%)" }, { value: "low", label: "낮음 (70% 미만)" }];
 const confBand = (c: number | null | undefined) => { const v = c ?? 0; return v >= 0.9 ? "high" : v >= 0.7 ? "mid" : "low"; };
@@ -344,6 +344,8 @@ export default function ReconciliationPage() {
     if (c.mtype.length && !c.mtype.includes(m.match_type || "")) return false;
     if (c.conf.length && !c.conf.includes(confBand(m.confidence))) return false;
     if (c.cp.length && !c.cp.includes(m.counterparty_name || "")) return false;
+    if (c.payer.length && !c.payer.includes(m.counterparty || "")) return false;
+    if (!amountHit(Number(m.txn_amount || 0), c.min, c.max)) return false;
     return true;
   };
   const rowQuick = (m: QueueRow) => quickSearchHit(q, [m.counterparty, m.counterparty_name], [Number(m.txn_amount || 0), Number(m.invoice_amount || 0), Number(m.amount || 0)]);
@@ -386,6 +388,8 @@ export default function ReconciliationPage() {
   //   고를 수 있는 값 — 이 기간 큐·내역에 실제로 있는 것만
   const mtypeOpts = useMemo(() => [...new Set([...(queue as QueueRow[]), ...(confirmed as QueueRow[])].map((m) => m.match_type).filter(Boolean))]
     .map((v) => ({ value: v as string, label: MATCH_LABEL[v as string] || (v as string) })), [queue, confirmed]);
+  const payerOpts = useMemo(() => [...new Set([...(queue as QueueRow[]), ...(confirmed as QueueRow[])].map((m) => m.counterparty).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [queue, confirmed]);
   const cpOpts = useMemo(() => [...new Set([...(queue as QueueRow[]), ...(confirmed as QueueRow[])].map((m) => m.counterparty_name).filter(Boolean))]
     .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [queue, confirmed]);
 
@@ -421,6 +425,8 @@ export default function ReconciliationPage() {
     ...live.mtype.map((v) => ({ group: "유형", label: MATCH_LABEL[v] || v, onRemove: () => drop({ mtype: live.mtype.filter((x) => x !== v) }) })),
     ...live.conf.map((v) => ({ group: "신뢰도", label: CONF_OPTS.find((o) => o.value === v)?.label || v, onRemove: () => drop({ conf: live.conf.filter((x) => x !== v) }) })),
     ...live.cp.map((v) => ({ group: "거래처", label: v, onRemove: () => drop({ cp: live.cp.filter((x) => x !== v) }) })),
+    ...live.payer.map((v) => ({ group: "입금자", label: v, onRemove: () => drop({ payer: live.payer.filter((x) => x !== v) }) })),
+    ...((live.min || live.max) ? [{ group: "거래금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => drop({ min: "", max: "" }) }] : []),
   ];
   const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
   const toggleIn = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
@@ -453,7 +459,9 @@ export default function ReconciliationPage() {
   // 수동 매칭 빠른검색 — 통장 입금자명 + 추천(제안) 계산서 거래처 + 금액 (쉼표 = 또는)
   const manualTxMatch = (t: OpenTx) =>
     quickSearchHit(q, [t.counterparty, ...(t.suggestedPartners || [])], [Number(t.amount || 0)]) &&
-    (!live.dir.length || live.dir.includes(t.type));
+    (!live.dir.length || live.dir.includes(t.type)) &&
+    (!live.payer.length || live.payer.includes(t.counterparty || "")) &&
+    amountHit(Number(t.amount || 0), live.min, live.max);
 
   // 미정산 세금계산서 (수동 매칭 후보)
   const { data: unsettledInv = [] } = useQuery<UnsettledInv[]>({
@@ -731,6 +739,12 @@ export default function ReconciliationPage() {
                   </ConditionRow>
                   <ConditionRow label="계산서 거래처" hint="여러 곳">
                     <TokenField items={cpOpts} value={draft.cp} onChange={setD("cp")} placeholder="거래처 이름 일부" />
+                  </ConditionRow>
+                  <ConditionRow label="입금자" hint="통장에 찍힌 이름 · 여러 명">
+                    <TokenField items={payerOpts} value={draft.payer} onChange={setD("payer")} placeholder="입금자 이름 일부" />
+                  </ConditionRow>
+                  <ConditionRow label="거래금액" hint="한쪽만 적어도 됩니다">
+                    <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
                   </ConditionRow>
                 </ConditionPanel>
               } />
