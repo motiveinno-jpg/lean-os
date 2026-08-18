@@ -787,11 +787,12 @@ export default function VoucherEntryPage() {
           <span className="hidden sm:inline text-[11px] text-[var(--text-dim)]">{VTYPES.find((t) => t.id === vtype)?.desc}</span>
           <span className="ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-dim)]">전표번호: 자동(일자별 순번)</span>
         </div>
-        {/* 데스크톱: 가로 스크롤 없이 폭에 맞춤(overflow-x-auto 면 거래처 자동완성 드롭다운이 잘림).
-            모바일: min-width + 가로 스크롤 — 없으면 유연 컬럼이 짓눌려 글자당 줄바꿈(사장님 QA 2026-07-10 IMG_0577). */}
-        <div className="overflow-x-auto sm:overflow-visible">
+        {/* 데스크톱: 가로 스크롤 없이 폭에 맞춤. 모바일: min-width + 가로 스크롤 (사장님 QA 2026-07-10 IMG_0577).
+            ★ 행이 많아지면 이 칸만 스크롤한다 — 입력 줄이 늘수록 아래 목록이 밀려 상자가 깨졌다 (2026-08-18 사장님 캡처 1z).
+              드롭다운(CellDropdown)은 body 포털·fixed 라 이 칸이 스크롤 상자여도 안 잘린다. */}
+        <div className="ve-input-rows overflow-x-auto sm:overflow-x-visible">
           <table className="w-full min-w-[620px] sm:min-w-0 text-xs border-collapse table-fixed">
-            <thead>
+            <thead className="ve-input-thead">
               <tr className="border-b border-[var(--border)]">
                 <th className="px-2 py-2.5 w-9 text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">No</th>
                 <th className="px-2 py-2.5 w-[68px] text-center text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)]">구분</th>

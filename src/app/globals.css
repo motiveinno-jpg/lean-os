@@ -8250,6 +8250,11 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /*   입력 섹션 — 상자 안 첫 칸. 아래 조회 줄과는 선 하나로 갈린다 */
 .qk-screen > .ve-input-section { @apply shrink-0 border-b border-[var(--border)]; }
 .qk-screen > .ve-input-section + .qk-head { @apply rounded-t-none; }
+/*   입력 줄이 늘어나도 입력 칸은 화면의 1/3 까지만 — 그 안에서 스크롤, 머리단은 붙는다 */
+@media (min-width: 640px) {
+  .ve-input-rows { max-height: 34vh; overflow-y: auto; }
+  .ve-input-thead th { position: sticky; top: 0; z-index: 2; background: var(--bg-card); }
+}
 .ve-kind-actions { @apply ml-auto mb-1 flex items-center gap-1.5 pr-1; }
 /* 현금영수증 — 조회 표준 표 (2026-08-18 Wave 1) */
 .cr-table { min-width: 1080px; }
