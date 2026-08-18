@@ -2006,12 +2006,9 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .cash-receipt-bulk-post-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
 
 /* ═══ 클래스명 가독성 정리 재작업 — 배치3(hr) 마커 스타일 (2026-07-16) ═══ */
-.employees-page-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
-.employees-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
 /* .employee-view-toggle — pure marker, styled via co-existing seg-bar in JSX */
 /* .payroll-tab-panel — pure marker, styled via co-existing flex-skin in JSX */
 /* .certificate-tab-panel — pure marker, styled via co-existing flex-skin in JSX */
-.employee-toolbar { @apply flex items-center justify-between mb-4; }
 .employee-insurance-edi-panel { @apply mb-4 bg-[var(--info)]/5 border border-[var(--info)]/20 rounded-2xl p-5 shadow-md; }
 .employee-invite-form { @apply p-6 mb-6; } /* co-exists with glass-card in JSX */
 .employee-pending-invites { @apply mb-4; }
@@ -2862,9 +2859,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 
 /* 휴가 탭 — '직원별 연차' 표 + 서브탭 + 팝업 (2026-08-06 사장님 시안) */
 .leave-subtabs { @apply flex items-center justify-between gap-3 mb-4 flex-wrap; }
-.leave-subtab-group { @apply inline-flex gap-1 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
-.leave-subtab { @apply px-3.5 py-1.5 rounded-lg text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition; }
-.leave-subtab-on { @apply bg-[var(--primary)] text-white hover:text-white; }
 /* 표 + 필터 + 신청 목록을 한 카드에 담는다 (2026-08-06 사장님: "신청 목록도 표 안에") */
 .leave-roster { @apply mb-6 p-4; } /* co-exists with glass-card in JSX */
 .leave-roster-divider { @apply my-4 border-t border-[var(--border)]; }
@@ -4679,6 +4673,33 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .mc-table { min-width: 760px; }
 /* 결재 허브 — 조회 표준 뼈대 (2026-08-18 Wave 3): 본문 스크롤 상자 · 탭 경보 배지 · 결과줄 통계 버튼 */
 .qk-body > .ap-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
+/* ── 구성원(/employees) — 조회 표준 (2026-08-18 Wave 4) ──
+   급여·휴가·증명서 탭 본문은 상자 안에서 스크롤(끝선 = 사이드바). 인력관리 탭은 디렉토리 부품이 상자 전체를 그린다. */
+.qk-body > .emp-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
+.emp-card-grid { @apply p-3; }
+.qk-body > .ev-scroll > .employee-invite-section { @apply border-b border-[var(--border)] p-3; }
+.qk-body .employee-invite-form.glass-card { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-none; }
+.qk-body .employee-pending-invites { @apply mb-0; }
+.emp-table tbody tr.emp-row { @apply cursor-pointer; }
+.emp-table tbody tr.emp-row:hover td { background: var(--bg-surface); }
+/*   휴가 탭 — 카드 껍데기 없이 선으로 구역: 서브탭 칩 줄 / 직원별 연차 표 / 신청 내역 표 */
+.qk-body .leave-subtabs { @apply mb-0; }
+.qk-body .leave-roster { @apply mb-0 p-0; }
+.qk-body .leave-roster-divider { @apply my-3; }
+.qk-body .leave-filter-toolbar { @apply mb-3; }
+.qk-body .leave-request-form.glass-card { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-none; }
+.leave-req-scroll { max-height: 60vh; }
+/*   급여·증명서 탭 — 카드 껍데기는 얇은 안쪽 판으로, 표는 공용 머리단 */
+.qk-body .payroll-summary-cards .glass-card,
+.qk-body .certificate-issue-form.glass-card,
+.qk-body .certificate-yeartax-panel.glass-card { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-none; }
+.qk-body .certificate-issue-form.glass-card { @apply p-4; }
+.qk-body .payroll-detail-table.glass-card,
+.qk-body .certificate-log-table.glass-card { @apply rounded-none border-0 bg-transparent shadow-none; }
+.cert-log-tbl { min-width: 860px; }
+.payroll-tbl { min-width: 1260px; }
+.leave-req-table { min-width: 960px; }
+.leave-req-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 align-top text-xs; }
 .ap-tab-alert { @apply rounded-full bg-[var(--danger)] px-1.5 text-white; }
 .collect-tab-on .ap-tab-alert { @apply text-white; }
 .ap-stat-btn { @apply rounded-md px-1 transition hover:bg-[var(--bg-surface)]; }
@@ -5570,12 +5591,8 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .overtime-request-card { @apply p-5 mb-6; }
 .overtime-request-form { @apply grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3; }
 .overtime-history-row { @apply flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]; }
-.flex-people-directory { @apply space-y-4; }
-.flex-people-filter-bar { @apply px-4 py-3 flex flex-wrap items-center gap-2; }
 .flex-people-card-grid { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3; }
 .flex-people-card { @apply p-4 text-left hover:-translate-y-0.5 hover:shadow-lg transition; }
-.flex-people-list { @apply overflow-hidden; }
-.flex-people-list-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/50 cursor-pointer; }
 .flex-people-contracts-modal-backdrop { @apply fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40; }
 .flex-people-profile-backdrop { @apply fixed inset-0 z-[70] flex justify-end; }
 .flex-people-profile-panel { @apply relative w-full max-w-sm h-full bg-[var(--bg-card)] border-l border-[var(--border)] shadow-2xl flex flex-col overflow-y-auto; }

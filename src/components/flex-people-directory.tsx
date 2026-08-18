@@ -2,11 +2,19 @@
 import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 구성원 디렉토리 (2026-06-12).
-//   아바타 카드 그리드/리스트 + 팀·상태 필터 + 클릭 시 우측 프로필 슬라이드 패널
+//   아바타 카드 그리드/리스트 + 클릭 시 우측 프로필 슬라이드 패널
 //   (인사정보 · 연차 잔여 · 이번 주 근무 · 바로가기). 읽기 전용 — 추가/수정은 기존 관리 화면.
+//   2026-08-18 조회 화면 표준(query-kit)으로 갈아탐 — 팀 select·재직/전체/퇴사 세그먼트 → 검색조건 패널,
+//   검색 칸 → 빠른검색, 리스트 표 → SortableTh(정렬·≡·너비)·쪽. 카드/리스트는 보기 칩.
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ConditionPanel, ConditionRow, TokenField, ChipGroup, AppliedChips,
+  QuickSearch, quickSearchHit, ResultStrip, RowsPerPage, Pager, usePager, type TokenItem, type AppliedChip,
+} from "@/components/query-kit";
+import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
+import { DateRangeField } from "@/components/date-range-field";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -56,17 +64,61 @@ const kstYmd = (d: Date) => {
   return k.toISOString().slice(0, 10);
 };
 
-export function FlexPeopleDirectory({ companyId, employees, isManager }: {
+type Cond = { dept: string[]; pos: string[]; status: string[]; etype: string[]; from: string; to: string; rows: number };
+//   기본값 = 재직만 — 예전 세그먼트 기본값(재직)을 그대로 조건 칩으로 옮겼다. 칩 ✕ 로 풀면 전체.
+const EMPTY_COND: Cond = { dept: [], pos: [], status: [], etype: [], from: "", to: "", rows: 50 };
+const DEFAULT_COND: Cond = { ...EMPTY_COND, status: ["active"] };
+const condCount = (c: Cond) => c.dept.length + c.pos.length + c.status.length + c.etype.length + ((c.from || c.to) ? 1 : 0);
+//   상태 조건은 화면에 보이는 묶음으로 — 재직(active·joined) / 초대됨 / 계약 대기 / 퇴사·비활성
+const STATUS_GROUPS: { key: string; label: string; raw: string[] }[] = [
+  { key: "active", label: "재직", raw: ["active", "joined"] },
+  { key: "invited", label: "초대됨", raw: ["invited"] },
+  { key: "contract_pending", label: "계약 대기", raw: ["contract_pending"] },
+  { key: "left", label: "퇴사·비활성", raw: ["resigned", "inactive"] },
+];
+const statusGroup = (s?: string | null) => STATUS_GROUPS.find((g) => g.raw.includes(String(s || "")))?.key || "";
+const ETYPE_LABEL: Record<string, string> = { regular: "정규직", full_time: "정규직", fulltime: "정규직", contract: "계약직", temporary: "계약직", parttime: "파트타임", part_time: "파트타임", intern: "인턴", freelancer: "프리랜서", dispatch: "파견", daily: "일용직" };
+const etypeLabel = (t?: string | null) => (t ? ETYPE_LABEL[t] || t : "");
+type SortKey = "name" | "department" | "position" | "etype" | "hire_date" | "phone" | "status";
+const VIEW_OPTS = [{ value: "card", label: "카드" }, { value: "list", label: "리스트" }] as const;
+
+/**
+ * 구성원 디렉토리 — 조회 화면 표준(2026-08-18 Wave 4).
+ *   상자 하나: 갈래 탭(부모가 준다) → [검색조건 ▾] 빠른검색 · 보기 칩 ‖ 초대 버튼 → 걸린 조건 칩 → 결과 요약 → 카드/표 → 쪽.
+ *   예전 필터 바(검색·팀 select·재직/전체/퇴사 세그먼트·카드/리스트 세그먼트)는 전부 이 부품으로 대체.
+ */
+export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, stats, actions, before }: {
   companyId: string; employees: Emp[]; isManager: boolean;
+  /** 상자 맨 위 갈래 탭(인력관리·급여·휴가·증명서) — 부모 화면이 그린다 */
+  tabs?: ReactNode;
+  /** 결과 요약 줄에 앞세울 지표(재직 인원·연 인건비 …) */
+  stats?: ReactNode;
+  /** 조회 줄 오른쪽 실행 버튼(직원 초대 등) */
+  actions?: ReactNode;
+  /** 표 위에 끼워 넣을 것(초대 폼·초대 대기 목록) */
+  before?: ReactNode;
 }) {
-  const [search, setSearch] = useState("");
-  const [dept, setDept] = useState("");
-  const [statusF, setStatusF] = useState<"active" | "all" | "left">("active");
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(DEFAULT_COND);
+  const [live, setLive] = useState<Cond>(DEFAULT_COND);
+  const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [view, setView] = useState<"card" | "list">("card");
   const [sel, setSel] = useState<Emp | null>(null);
   const [contractsEmpId, setContractsEmpId] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "name", dir: "asc" });
+  const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
+  const cf = useColFilters();
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("employees-dir-colw-v1", {
+    name: 180, department: 120, position: 140, etype: 96, hire_date: 110, tenure: 96, phone: 130, email: 200, status: 96,
+  });
+  const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
 
   const depts = useMemo(() => [...new Set(employees.map((e) => e.department).filter(Boolean))] as string[], [employees]);
+  const positions = useMemo(() => [...new Set(employees.map((e) => e.job_title || e.position).filter(Boolean))] as string[], [employees]);
+  const etypes = useMemo(() => [...new Set(employees.map((e) => e.employment_type).filter(Boolean))] as string[], [employees]);
+  const toTokens = (xs: string[], lab?: (x: string) => string): TokenItem[] => xs.map((x) => ({ value: x, label: lab ? lab(x) : x }));
 
   // 프로필 사진 — 마이페이지에서 설정한 users.avatar_url 을 회사 단위로 조회해
   //   employees 행과 user_id(우선) 또는 email 로 매칭. 없으면 기존 이니셜 원형 유지.
@@ -89,124 +141,194 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
     return (e: Emp) => (e.user_id && byId[e.user_id]) || (e.email && byEmail[e.email.toLowerCase()]) || null;
   }, [userAvatars]);
 
+  const condHit = (e: Emp, c: Cond) => {
+    if (c.status.length && !c.status.includes(statusGroup(e.status))) return false;
+    if (c.dept.length && !c.dept.includes(e.department || "")) return false;
+    if (c.pos.length && !c.pos.includes((e.job_title || e.position) || "")) return false;
+    if (c.etype.length && !c.etype.includes(e.employment_type || "")) return false;
+    if (c.from && (!e.hire_date || e.hire_date < c.from)) return false;
+    if (c.to && (!e.hire_date || e.hire_date > c.to)) return false;
+    return true;
+  };
+  //   머리단 ≡ 필터가 고를 칸 값 — 표에 보이는 글자 그대로
+  const colVal = (e: Emp) => ({
+    department: e.department || "—", position: e.job_title || e.position || "—", etype: etypeLabel(e.employment_type) || "—",
+    status: statusMeta(e.status).label,
+  });
+  const base = useMemo(() => employees.filter((e) => condHit(e, live)
+    && quickSearchHit(q, [e.name, e.department, e.job_title, e.position, e.email, e.phone, e.employee_number, etypeLabel(e.employment_type)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [employees, live, q]);
   const shown = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return employees.filter((e) => {
-      const left = ["resigned", "inactive"].includes(String(e.status || ""));
-      if (statusF === "active" && left) return false;
-      if (statusF === "left" && !left) return false;
-      if (dept && e.department !== dept) return false;
-      if (q && !`${e.name} ${e.department || ""} ${e.position || ""} ${e.email || ""}`.toLowerCase().includes(q)) return false;
-      return true;
-    }).sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  }, [employees, search, dept, statusF]);
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const val = (e: Emp): string => {
+      switch (sort.key) {
+        case "department": return e.department || "";
+        case "position": return e.job_title || e.position || "";
+        case "etype": return etypeLabel(e.employment_type);
+        case "hire_date": return e.hire_date || "";
+        case "phone": return e.phone || "";
+        case "status": return statusMeta(e.status).label;
+        default: return e.name;
+      }
+    };
+    return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => cmp(val(a), val(b)) * dir || a.name.localeCompare(b.name, "ko"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, sort, cf.key]);
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, base.map((e) => colVal(e)[k]));
+  const previewCount = employees.filter((e) => condHit(e, draft)).length;
+  const pager = usePager(shown, live.rows, `${q}|${JSON.stringify(live)}|${cf.key}|${view}`);
+
+  const drop = (patch: Partial<Cond>) => { const n = { ...live, ...patch }; setLive(n); setDraft(n); };
+  const clearAll = () => { setLive({ ...EMPTY_COND, rows: live.rows }); setDraft({ ...EMPTY_COND, rows: live.rows }); setQ(""); cf.clear(); };
+  const chips: AppliedChip[] = [
+    ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
+    ...live.status.map((v) => ({ group: "상태", label: STATUS_GROUPS.find((g) => g.key === v)?.label || v, onRemove: () => drop({ status: live.status.filter((x) => x !== v) }) })),
+    ...live.dept.map((v) => ({ group: "부서", label: v, onRemove: () => drop({ dept: live.dept.filter((x) => x !== v) }) })),
+    ...live.pos.map((v) => ({ group: "직책", label: v, onRemove: () => drop({ pos: live.pos.filter((x) => x !== v) }) })),
+    ...live.etype.map((v) => ({ group: "고용형태", label: etypeLabel(v), onRemove: () => drop({ etype: live.etype.filter((x) => x !== v) }) })),
+    ...((live.from || live.to) ? [{ group: "입사일", label: `${live.from || "처음"} ~ ${live.to || "오늘"}`, onRemove: () => drop({ from: "", to: "" }) }] : []),
+    ...cf.active.map((a) => ({ group: "칸 필터", label: `${({ department: "부서", position: "직책", etype: "고용형태", status: "상태" } as Record<string, string>)[a.k] || a.k} ${a.n}개`, onRemove: () => cf.clear(a.k) })),
+  ];
+
+  const renderCard = (e: Emp) => {
+    const sm = statusMeta(e.status);
+    return (
+      <button key={e.id} onClick={() => setSel(e)} className="flex-people-card glass-card group">
+        <div className="flex items-center gap-3">
+          {avatarSrc(e) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarSrc(e)!} alt={e.name} className="w-12 h-12 rounded-2xl object-cover shrink-0" />
+          ) : (
+            <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-[15px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>
+              {initials(e.name)}
+            </span>
+          )}
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5">
+              <span className="text-[14px] font-bold text-[var(--text)] truncate group-hover:text-[var(--primary)]">{e.name}</span>
+              <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
+            </span>
+            <span className="block text-[11px] text-[var(--text-muted)] truncate mt-0.5">{[e.job_title || e.position, e.department].filter(Boolean).join(" · ") || "직책 미지정"}</span>
+          </span>
+        </div>
+        <div className="mt-3 pt-3 border-t border-[var(--border)]/60 flex items-center justify-between text-[10px] text-[var(--text-dim)]">
+          <span>입사 {e.hire_date || "—"}</span>
+          <span className="font-semibold text-[var(--text-muted)]">근속 {tenure(e.hire_date)}</span>
+        </div>
+      </button>
+    );
+  };
 
   return (
-    <div className="flex-people-directory">
-      {/* ── 필터 바 ── */}
-      <div className="flex-people-filter-bar glass-card">
-        <div className="relative">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="이름·팀·직책 검색"
-            className="pl-8 pr-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-52 focus:outline-none focus:border-[var(--primary)]" />
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" /></svg>
-        </div>
-        <select value={dept} onChange={(e) => setDept(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
-          <option value="">팀 전체</option>
-          {depts.map((d) => <option key={d} value={d}>{d}</option>)}
-        </select>
-        <div className="seg-bar">
-          {([["active", "재직"], ["all", "전체"], ["left", "퇴사"]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setStatusF(k)}
-              className={`seg-item ${statusF === k ? "seg-item-active" : ""}`}>{l}</button>
-          ))}
-        </div>
-        <span className="text-[11px] text-[var(--text-dim)]">{shown.length}명</span>
-        <div className="ml-auto seg-bar">
-          {([["card", "카드"], ["list", "리스트"]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setView(k)}
-              className={`seg-item ${view === k ? "seg-item-active" : ""}`}>{l}</button>
-          ))}
-        </div>
-      </div>
+    <>
+      <QueryScreen>
+        <QueryHead>
+          {tabs}
+          <QueryBar right={actions}>
+            {/*   구성원은 기간이 없는 마스터라 조회 줄이 [검색조건] 으로 시작한다 */}
+            <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)}
+              foot={<>
+                <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0}
+                  onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}명</span>
+                <RowsPerPage value={draft.rows} onChange={setD("rows")} />
+                <button type="button" className="btn-primary btn-sm"
+                  onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+              </>}>
+              <ConditionRow label="상태" hint="여러 개 · 아무것도 안 고르면 전체">
+                <span className="qk-quicks">
+                  {STATUS_GROUPS.map((g) => (
+                    <button key={g.key} type="button"
+                      onClick={() => setD("status")(draft.status.includes(g.key) ? draft.status.filter((x) => x !== g.key) : [...draft.status, g.key])}
+                      className={draft.status.includes(g.key) ? "qk-quick qk-quick-on" : "qk-quick"}>{g.label}</button>
+                  ))}
+                </span>
+              </ConditionRow>
+              <ConditionRow label="부서" hint="여러 개">
+                <TokenField items={toTokens(depts)} value={draft.dept} onChange={setD("dept")} placeholder="부서 이름 일부 (예: 마케팅)" />
+              </ConditionRow>
+              <ConditionRow label="직책" hint="여러 개">
+                <TokenField items={toTokens(positions)} value={draft.pos} onChange={setD("pos")} placeholder="직책 일부 (예: 과장)" />
+              </ConditionRow>
+              {etypes.length > 0 && (
+                <ConditionRow label="고용형태" hint="여러 개">
+                  <TokenField items={toTokens(etypes, etypeLabel)} value={draft.etype} onChange={setD("etype")} placeholder="정규직 · 계약직 …" />
+                </ConditionRow>
+              )}
+              <ConditionRow label="입사일" hint="비우면 전체">
+                <DateRangeField label={null} from={draft.from} to={draft.to}
+                  onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))}
+                  onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
+              </ConditionRow>
+            </ConditionPanel>
+            <QuickSearch value={q} onApply={setQ} placeholder="이름 · 부서 · 직책 · 이메일 · 연락처 · 사번 — 쉼표로 여러 개, Enter" />
+            <ChipGroup value={view} onChange={setView} options={VIEW_OPTS} />
+          </QueryBar>
+          <AppliedChips chips={chips} onClearAll={clearAll} />
+          <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{shown.length.toLocaleString("ko")}</b>명</span>}>
+            {stats}
+          </ResultStrip>
+        </QueryHead>
 
-      {/* ── 카드 그리드 ── */}
-      {view === "card" ? (
-        <div className="flex-people-card-grid">
-          {shown.length === 0 && <div className="col-span-full glass-card p-12 text-center text-sm text-[var(--text-muted)]">조건에 맞는 구성원이 없습니다.</div>}
-          {shown.map((e) => {
-            const sm = statusMeta(e.status);
-            return (
-              <button key={e.id} onClick={() => setSel(e)}
-                className="flex-people-card glass-card group">
-                <div className="flex items-center gap-3">
-                  {avatarSrc(e) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatarSrc(e)!} alt={e.name} className="w-12 h-12 rounded-2xl object-cover shrink-0" />
-                  ) : (
-                    <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-[15px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>
-                      {initials(e.name)}
-                    </span>
-                  )}
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-[14px] font-bold text-[var(--text)] truncate group-hover:text-[var(--primary)]">{e.name}</span>
-                      <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
-                    </span>
-                    <span className="block text-[11px] text-[var(--text-muted)] truncate mt-0.5">{[e.job_title || e.position, e.department].filter(Boolean).join(" · ") || "직책 미지정"}</span>
-                  </span>
-                </div>
-                <div className="mt-3 pt-3 border-t border-[var(--border)]/60 flex items-center justify-between text-[10px] text-[var(--text-dim)]">
-                  <span>입사 {e.hire_date || "—"}</span>
-                  <span className="font-semibold text-[var(--text-muted)]">근속 {tenure(e.hire_date)}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        /* ── 리스트 ── */
-        <div className="flex-people-list glass-card">
-          <table className="w-full text-xs">
-            <thead className="text-xs text-[var(--text-dim)]">
-              <tr className="border-b border-[var(--border)]">
-                <th className="text-left px-4 py-2.5 font-semibold">이름</th>
-                <th className="text-left px-4 py-2.5 font-semibold">팀</th>
-                <th className="text-left px-4 py-2.5 font-semibold">직책</th>
-                <th className="text-left px-4 py-2.5 font-semibold">입사일</th>
-                <th className="text-left px-4 py-2.5 font-semibold">근속</th>
-                <th className="text-center px-4 py-2.5 font-semibold">상태</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((e) => {
-                const sm = statusMeta(e.status);
-                return (
-                  <tr key={e.id} onClick={() => setSel(e)} className="flex-people-list-row">
-                    <td className="px-4 py-2">
-                      <span className="flex items-center gap-2">
-                        {avatarSrc(e) ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={avatarSrc(e)!} alt={e.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>{initials(e.name)}</span>
-                        )}
-                        <span className="font-semibold text-[var(--text)]">{e.name}</span>
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-[var(--text-muted)]">{e.department || "—"}</td>
-                    <td className="px-4 py-2 text-[var(--text-muted)]">{e.job_title || e.position || "—"}</td>
-                    <td className="px-4 py-2 text-[var(--text-muted)] mono-number">{e.hire_date || "—"}</td>
-                    <td className="px-4 py-2 text-[var(--text-muted)]">{tenure(e.hire_date)}</td>
-                    <td className="px-4 py-2 text-center"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span></td>
+        <QueryBody>
+          <div className="ev-scroll">
+            {before}
+            {shown.length === 0 ? (
+              <div className="collect-empty">조건에 맞는 구성원이 없습니다 — 검색조건을 풀어 보세요</div>
+            ) : view === "card" ? (
+              <div className="flex-people-card-grid emp-card-grid">{pager.view.map(renderCard)}</div>
+            ) : (
+              <table ref={tableRef} className="ev-table ev-lined emp-table">
+                <thead>
+                  <tr>
+                    <SortableTh label="이름" sortKey="name" sort={sort} onSort={onSort} resize={thResize("name", 1)} />
+                    <SortableTh label="부서" sortKey="department" sort={sort} onSort={onSort} filter={cfSpec("department")} resize={thResize("department", 2)} />
+                    <SortableTh label="직책" sortKey="position" sort={sort} onSort={onSort} filter={cfSpec("position")} resize={thResize("position", 3)} />
+                    <SortableTh label="고용형태" sortKey="etype" sort={sort} onSort={onSort} filter={cfSpec("etype")} resize={thResize("etype", 4)} />
+                    <SortableTh label="입사일" sortKey="hire_date" sort={sort} onSort={onSort} resize={thResize("hire_date", 5)} />
+                    <SortableTh label="근속" resize={thResize("tenure", 6)} />
+                    <SortableTh label="연락처" sortKey="phone" sort={sort} onSort={onSort} resize={thResize("phone", 7)} />
+                    <SortableTh label="이메일" resize={thResize("email", 8)} />
+                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} filter={cfSpec("status")} resize={thResize("status", 9)} />
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {shown.length === 0 && <div className="p-12 text-center text-sm text-[var(--text-muted)]">조건에 맞는 구성원이 없습니다.</div>}
-        </div>
-      )}
+                </thead>
+                <tbody>
+                  {pager.view.map((e) => {
+                    const sm = statusMeta(e.status);
+                    return (
+                      <tr key={e.id} onClick={() => setSel(e)} className="emp-row">
+                        <td className="text-left">
+                          <span className="flex items-center gap-2">
+                            {avatarSrc(e) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={avatarSrc(e)!} alt={e.name} className="w-7 h-7 rounded-full object-cover shrink-0" />
+                            ) : (
+                              <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>{initials(e.name)}</span>
+                            )}
+                            <span className="font-semibold text-[var(--text)]">{e.name}</span>
+                          </span>
+                        </td>
+                        <td className="text-center">{e.department || "—"}</td>
+                        <td className="text-center">{e.job_title || e.position || "—"}</td>
+                        <td className="text-center">{etypeLabel(e.employment_type) || "—"}</td>
+                        <td className="text-center mono-number">{e.hire_date || "—"}</td>
+                        <td className="text-center">{tenure(e.hire_date)}</td>
+                        <td className="text-center mono-number">{e.phone || "—"}</td>
+                        <td className="text-left">{e.email || "—"}</td>
+                        <td className="text-center"><span className="text-[10px] px-2 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </QueryBody>
+
+        <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.rows}
+          from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
 
       {/* ── 프로필 슬라이드 패널 ── */}
       {sel && (
@@ -228,7 +350,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager }: {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

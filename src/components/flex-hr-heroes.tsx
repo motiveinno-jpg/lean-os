@@ -40,10 +40,14 @@ export function FlexTabHero({ icon, title, desc, chips }: {
 }
 
 // ── 급여: 지급 대상·월 급여 총액·4대보험 회사부담(10.554%)·연 인건비 ──
-export function PayrollHero({ employees }: { employees: any[] }) {
+export function payrollStats(employees: any[]) {
   const active = employees.filter((e) => ["active", "joined"].includes(String(e.status || "")));
   const monthly = active.reduce((s, e) => s + Number(e.salary || 0), 0);
   const insurance = Math.round(monthly * 0.10554); // 사업주 부담률 합계 추정 (PnL 과 동일 기준)
+  return { active, monthly, insurance };
+}
+export function PayrollHero({ employees }: { employees: any[] }) {
+  const { active, monthly, insurance } = payrollStats(employees);
   return (
     <FlexTabHero icon="💸" title="급여" desc="명세서 생성 · 4대보험 자동 계산 · PDF 발급"
       chips={[
@@ -120,12 +124,13 @@ export function LeaveHero({ companyId }: { companyId: string }) {
 }
 
 // ── 증명서: 이번 달 발급·누적 발급 ──
-export function CertificatesHero({ companyId }: { companyId: string }) {
+//   2026-08-18 구성원 화면이 조회 표준(결과 요약 줄)로 바뀌며 지표만 따로 쓴다 — 히어로 카드와 같은 셈.
+export function useCertificateStats(companyId: string | null) {
   const monthStart = (() => { const k = new Date(Date.now() + 9 * 3600 * 1000); return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, "0")}-01`; })();
   const { data } = useQuery({
     queryKey: ["flex-cert-hero", companyId],
     queryFn: async () => {
-      const logs = logRead('components/flex-hr-heroes:logs', await db.from("certificate_logs").select("id, created_at").eq("company_id", companyId).limit(2000));
+      const logs = logRead('components/flex-hr-heroes:logs', await db.from("certificate_logs").select("id, created_at").eq("company_id", companyId!).limit(2000));
       const all = (logs || []) as any[];
       const month = all.filter((l) => String(l.created_at || "").slice(0, 10) >= monthStart).length;
       return { total: all.length, month };
@@ -133,6 +138,10 @@ export function CertificatesHero({ companyId }: { companyId: string }) {
     enabled: !!companyId,
     staleTime: 60_000,
   });
+  return data;
+}
+export function CertificatesHero({ companyId }: { companyId: string }) {
+  const data = useCertificateStats(companyId);
   return (
     <FlexTabHero icon="📄" title="증명서 발급" desc="재직 · 경력 증명서 즉시 발급 (PDF)"
       chips={[

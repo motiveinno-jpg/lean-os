@@ -58,7 +58,9 @@ import {
 } from "@/components/hr-attendance-extras";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
-import { PayrollHero, CertificatesHero } from "@/components/flex-hr-heroes";
+import { payrollStats, useCertificateStats } from "@/components/flex-hr-heroes";
+import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
+import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
@@ -84,6 +86,9 @@ export default function EmployeesPage() {
   const normalizeTab = (t: Tab): Tab => (t === "payroll" ? "salary" : t);
   const [tab, setTab] = useState<Tab>(isValidTab(urlTab) ? normalizeTab(urlTab) : "employees");
   const [showForm, setShowForm] = useState(false);
+  //   직원 초대 폼 / 엑셀 대량 초대 — 버튼은 조회 줄 오른쪽, 폼은 표 위(2026-08-18 조회 표준)
+  const [inviteFormOpen, setInviteFormOpen] = useState(false);
+  const [bulkInviteOpen, setBulkInviteOpen] = useState(false);
   const queryClient = useQueryClient();
   // (P3) 관리 판정 권한 기반 — 인력관리 권한 보유(또는 마스터)=관리자급, 그 외=본인 스코프
   const { isMaster, hasPerm } = useMyPermissions();
@@ -141,6 +146,15 @@ export default function EmployeesPage() {
     enabled: !!companyId && tab === "leave",
   });
 
+  //   초대 대기 배지용 — 초대 섹션과 같은 키라 캐시를 나눠 쓴다
+  const { data: invitationsForBadge = [] } = useQuery({
+    queryKey: ["employee-invitations", companyId],
+    queryFn: () => getEmployeeInvitations(companyId!),
+    enabled: !!companyId && tab === "employees",
+  });
+  const pendingInviteCount = (invitationsForBadge as any[]).filter((i) => i.status === "pending").length;
+  const certStats = useCertificateStats(tab === "certificates" ? companyId : null);
+  const pay = payrollStats(employees);
   const totalSalary = employees.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
   const totalRetirement = employees.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
   const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
@@ -165,115 +179,101 @@ export default function EmployeesPage() {
 
   // P2: 페이지-국소 인쇄 CSS 제거 → globals.css 공통 .print-area 유틸 사용.
   //     폭은 공통 토큰(--content-max-wide)으로 통일.
-  return (
-    <div className="print-area" id="employees-print-area">
-      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* Tabs — 라운드6.5: 타이틀 제거 → 필형 seg-bar 컴팩트 툴바 행 */}
-      <div className="employees-page-toolbar page-sticky-header">
-        <div className="seg-bar">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`seg-item ${effectiveTab === t.key ? "seg-item-active" : ""}`}
-            >
-              {t.label}
-              {t.count !== undefined && t.count > 0 && (
-                <span className="ml-1.5 badge badge-primary">{t.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+  //   2026-08-18 조회 화면 표준 — 갈래 탭은 상자 안 맨 위 파란 밑줄, KPI 타일은 결과 요약 줄(Stat)로,
+  //   본문은 상자 안에서 스크롤(끝선 = 사이드바). 인력관리 탭은 디렉토리 부품이 상자 전체를 그린다.
+  const tabsEl = (
+    <div className="collect-tabs no-print">
+      {tabs.map((t) => (
+        <button key={t.key} type="button" onClick={() => setTab(t.key)}
+          className={effectiveTab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
+          {t.label}
+          {t.count !== undefined && t.count > 0 && <span className="collect-tab-cnt">{t.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+  //   요약 — Employee 역할에게는 급여/인원/퇴직충당금 숨김.
+  //   휴가 탭은 시안대로 표가 주인공이라 상단 KPI 를 감춘다 (2026-08-06 사장님).
+  const peopleStats = !isEmployee ? (<>
+    <Stat label="재직 인원" value={`${activeCount}명`} />
+    <Stat label="연 인건비" value={<>₩{(totalSalary * 12).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">월 ₩{totalSalary.toLocaleString()}</small></>} />
+    <Stat label="퇴직충당금" value={`₩${totalRetirement.toLocaleString()}`} />
+    <Stat label="미결 경비" value={`${expenses.filter((e: any) => e.status === "pending").length}건`} tone={expenses.some((e: any) => e.status === "pending") ? "minus" : undefined} />
+  </>) : null;
 
-      {/* Summary — Employee 역할에게는 급여/인원/퇴직충당금 숨김.
-          휴가 탭은 시안대로 표가 주인공이라 상단 KPI 를 감춘다 (2026-08-06 사장님). */}
-      {!isEmployee && effectiveTab !== "leave" && (
-        <div className="employees-summary-stats">
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">재직 인원</span>
-              <span className="kpi-icon"><Ico e="👥" /></span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">{activeCount}명</span>
-            </div>
-          </div>
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">연 인건비</span>
-              <span className="kpi-icon danger"><Ico e="💸" /></span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">₩{(totalSalary * 12).toLocaleString()}</span>
-            </div>
-            <div className="kpi-callout">월 <b>₩{totalSalary.toLocaleString()}</b></div>
-          </div>
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">퇴직충당금</span>
-              <span className="kpi-icon warning"><Ico e="🏦" /></span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">₩{totalRetirement.toLocaleString()}</span>
-            </div>
-          </div>
-          <div className="stat-tile">
-            <div className="flex items-center justify-between">
-              <span className="stat-tile-label">미결 경비</span>
-              <span className="kpi-icon warning"><Ico e="🧾" /></span>
-            </div>
-            <div className="flex items-end gap-2">
-              <span className="stat-tile-value mono-number">
-                {expenses.filter((e: any) => e.status === "pending").length}건
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
+  return (
+    <div className="print-area qk-shell" id="employees-print-area">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
       {/* Tab Content — S-1: effectiveTab 으로 직원 비허용 탭 컴포넌트 미마운트 */}
       {/* (2026-07-30 사장님) '관리·추가/수정' 화면 삭제 — 디렉토리 단일 화면 + 초대 섹션만 이동.
           직원 정보 수정은 디렉토리 카드 → 상세보기에서. */}
       {effectiveTab === "employees" && (
-        <>
-          {!isEmployee && <EmployeeInviteSection companyId={companyId} userId={userId} queryClient={queryClient} />}
-          <FlexPeopleDirectory companyId={companyId} employees={employees} isManager={!isEmployee} />
-        </>
-      )}
-
-      {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭 */}
-      {/* V1: '급여이력' 세그먼트 제거 — 급여 탭은 명세만 (이력 진입 0) */}
-      {/* 보드 스타일(2026-06-12): 세부탭마다 모듈 히어로(실데이터 지표 칩) + flex-skin (탭 본체 무수정) */}
-      {effectiveTab === "salary" && (
-        <>
-          {!isEmployee && <PayrollHero employees={employees} />}
-          <div className="payroll-tab-panel flex-skin"><PayrollPreviewTab companyId={companyId} /></div>
-        </>
-      )}
-
-      {/* 경비청구 탭은 구성원에서 제거(2026-06-29) — 경비/지출결의는 결재관리(/approvals)에서 처리(2026-07-08 이관). 미결 경비 요약 카드는 상단 유지. 휴가 탭은 근태관리로 이동. */}
-      {/* 계약서 탭은 구성원에서 제거(2026-07-15) — 개별 발송은 인력관리 > 디렉토리에서 직원 선택 후 계약서 탭으로,
-          서식 관리/회사 문서/발송 현황(일괄발송)은 인사관리 > 양식 관리(/hr-templates)로 이관됨. */}
-      {/* 휴가 탭 복원(2026-07-30) — 관리자/대표 전용. 직원 딥링크는 S-1 렌더 경계(effectiveTab)가 차단. */}
-      {effectiveTab === "leave" && (
-        <LeaveTab
-          employees={employees}
-          directory={leaveDirectory}
-          companyId={companyId}
-          userId={userId}
-          queryClient={queryClient}
-          isEmployee={false}
-          autoNew={sp?.get("new") === "1"}
-          focusPending={sp?.get("focus") === "pending"}
+        <FlexPeopleDirectory companyId={companyId} employees={employees} isManager={!isEmployee}
+          tabs={tabsEl}
+          stats={peopleStats}
+          actions={!isEmployee ? (<>
+            {pendingInviteCount > 0 && <span className="text-[11px] font-semibold text-[var(--warning)] whitespace-nowrap">초대 대기 {pendingInviteCount}명</span>}
+            <button type="button" onClick={() => setBulkInviteOpen(true)} className="btn-secondary btn-sm whitespace-nowrap">엑셀로 대량 초대</button>
+            <button type="button" onClick={() => setInviteFormOpen((v) => !v)} className="btn-primary btn-sm whitespace-nowrap">+ 직원 초대</button>
+          </>) : undefined}
+          before={!isEmployee ? (
+            <EmployeeInviteSection companyId={companyId} userId={userId} queryClient={queryClient}
+              showForm={inviteFormOpen} setShowForm={setInviteFormOpen}
+              showBulkInvite={bulkInviteOpen} setShowBulkInvite={setBulkInviteOpen} />
+          ) : undefined}
         />
       )}
 
-      {effectiveTab === "certificates" && (
-        <>
-          <CertificatesHero companyId={companyId} />
-          <div className="certificate-tab-panel flex-skin"><CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} /></div>
-        </>
+      {effectiveTab !== "employees" && (
+        <QueryScreen>
+          <QueryHead>
+            {tabsEl}
+            {/* P1-3: 급여 = 이력 ↔ 명세 서브뷰 단일 탭. 히어로 카드(지급 대상·월 급여 총액·4대보험·연 인건비)는 결과 요약 줄로 */}
+            {effectiveTab === "salary" && !isEmployee && (
+              <ResultStrip>
+                <Stat label="지급 대상" value={`${pay.active.length}명`} />
+                <Stat label="월 급여 총액" value={`₩${pay.monthly.toLocaleString()}`} />
+                <Stat label="4대보험 회사부담(추정)" value={`₩${pay.insurance.toLocaleString()}`} />
+                <Stat label="연 인건비" value={`₩${(pay.monthly * 12).toLocaleString()}`} />
+              </ResultStrip>
+            )}
+            {effectiveTab === "certificates" && (
+              <ResultStrip>
+                <Stat label="이번 달 발급" value={`${certStats?.month ?? 0}건`} />
+                <Stat label="누적 발급" value={`${certStats?.total ?? 0}건`} />
+              </ResultStrip>
+            )}
+          </QueryHead>
+          <QueryBody>
+            <div className="emp-scroll">
+              {effectiveTab === "salary" && (
+                <div className="payroll-tab-panel"><PayrollPreviewTab companyId={companyId} /></div>
+              )}
+
+              {/* 경비청구 탭은 구성원에서 제거(2026-06-29) — 경비/지출결의는 결재관리(/approvals)에서 처리(2026-07-08 이관). 미결 경비 요약 카드는 상단 유지. 휴가 탭은 근태관리로 이동. */}
+              {/* 계약서 탭은 구성원에서 제거(2026-07-15) — 개별 발송은 인력관리 > 디렉토리에서 직원 선택 후 계약서 탭으로,
+                  서식 관리/회사 문서/발송 현황(일괄발송)은 인사관리 > 양식 관리(/hr-templates)로 이관됨. */}
+              {/* 휴가 탭 복원(2026-07-30) — 관리자/대표 전용. 직원 딥링크는 S-1 렌더 경계(effectiveTab)가 차단. */}
+              {effectiveTab === "leave" && (
+                <LeaveTab
+                  employees={employees}
+                  directory={leaveDirectory}
+                  companyId={companyId}
+                  userId={userId}
+                  queryClient={queryClient}
+                  isEmployee={false}
+                  autoNew={sp?.get("new") === "1"}
+                  focusPending={sp?.get("focus") === "pending"}
+                />
+              )}
+
+              {effectiveTab === "certificates" && (
+                <div className="certificate-tab-panel"><CertificateTab employees={employees} companyId={companyId} userId={userId} queryClient={queryClient} /></div>
+              )}
+            </div>
+          </QueryBody>
+        </QueryScreen>
       )}
     </div>
   );
@@ -281,14 +281,12 @@ export default function EmployeesPage() {
 
 // ── 구성원 초대 섹션 (2026-07-30 사장님) — 구 '관리·추가/수정' 화면에서 초대만 발췌해 디렉토리로 이동.
 //   목록 테이블·조직도·역할 관리 등 관리 화면은 삭제(수정은 디렉토리 상세보기에서).
-function EmployeeInviteSection({ companyId, userId, queryClient }: any) {
+function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setShowForm, showBulkInvite, setShowBulkInvite }: any) {
   const { toast } = useToast();
-  const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [addExisting, setAddExisting] = useState(false);
-  // 엑셀 대량 초대 (2026-07-31 사장님) — 단건 초대와 동일 경로를 행 단위로 반복
-  const [showBulkInvite, setShowBulkInvite] = useState(false);
+  // 엑셀 대량 초대 (2026-07-31 사장님) — 단건 초대와 동일 경로를 행 단위로 반복 (열림 상태는 부모 조회 줄 버튼이 쥔다)
 
   const { data: invitations = [] } = useQuery({
     queryKey: ["employee-invitations", companyId],
@@ -418,18 +416,11 @@ function EmployeeInviteSection({ companyId, userId, queryClient }: any) {
   }
 
   const pendingInvites = invitations.filter((i: any) => i.status === "pending");
+  //   보여 줄 것이 하나도 없으면 자리도 안 잡는다 (표 위 빈 띠 방지)
+  if (!showBulkInvite && !inviteMsg && !(showAcqEdi && acqEdiData) && !showForm && pendingInvites.length === 0) return null;
 
   return (
     <div className="employee-invite-section">
-      <div className="employee-toolbar">
-        <div className="text-xs text-[var(--text-dim)]">
-          {pendingInvites.length > 0 && <span className="text-[var(--warning)] font-semibold">초대 대기 {pendingInvites.length}명</span>}
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowBulkInvite(true)} className="btn-secondary">엑셀로 대량 초대</button>
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 직원 초대</button>
-        </div>
-      </div>
 
       {showBulkInvite && companyId && userId && (
         <EmployeeBulkInviteModal
@@ -2248,21 +2239,21 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 
           {/* Detail Table */}
           <div className="payroll-detail-table glass-card">
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky-bar"><tr className="table-head-row">
-                <th className="text-center px-4 py-3 font-medium">직원</th>
-                <th className="text-center px-4 py-3 font-medium" title="과세 대상 기본급">기본급(과세)</th>
-                <th className="text-center px-4 py-3 font-medium" title="식대 · 자가운전 등 비과세 합계">비과세</th>
-                <th className="text-center px-4 py-3 font-medium" title="기본급(과세) + 비과세">지급합계</th>
-                <th className="text-center px-4 py-3 font-medium">국민연금</th>
-                <th className="text-center px-4 py-3 font-medium">건강보험</th>
-                <th className="text-center px-4 py-3 font-medium">장기요양</th>
-                <th className="text-center px-4 py-3 font-medium">고용보험</th>
-                <th className="text-center px-4 py-3 font-medium">소득세</th>
-                <th className="text-center px-4 py-3 font-medium">지방소득세</th>
-                <th className="text-center px-4 py-3 font-medium">공제합계</th>
-                <th className="text-center px-4 py-3 font-medium">실수령</th>
-                <th className="text-center px-4 py-3 font-medium">발송</th>
+            <div className="ev-scroll leave-req-scroll"><table className="ev-table ev-lined payroll-tbl">
+              <thead><tr>
+                <th>직원</th>
+                <th title="과세 대상 기본급">기본급(과세)</th>
+                <th title="식대 · 자가운전 등 비과세 합계">비과세</th>
+                <th title="기본급(과세) + 비과세">지급합계</th>
+                <th>국민연금</th>
+                <th>건강보험</th>
+                <th>장기요양</th>
+                <th>고용보험</th>
+                <th>소득세</th>
+                <th>지방소득세</th>
+                <th>공제합계</th>
+                <th>실수령</th>
+                <th>발송</th>
               </tr></thead>
               <tbody>
                 {preview.items.map((item) => {
@@ -2428,6 +2419,14 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showForm, setShowForm] = useState(!!autoNew);
   const approveSectionRef = useRef<HTMLDivElement>(null);
+  //   신청 내역 표 머리단 — 정렬·≡ 필터·너비 (2026-08-18 조회 표준, 다른 표와 같은 부품)
+  type LrKey = "emp" | "type" | "period" | "days" | "approver" | "status";
+  const [lrSort, setLrSort] = useState<SortState<LrKey>>({ key: "period", dir: "desc" });
+  const onLrSort = (k: LrKey) => setLrSort((c) => nextSort(c, k));
+  const lrCf = useColFilters();
+  const lrTableRef = useRef<HTMLTableElement | null>(null);
+  const [lrColW, setLrColW] = useColWidths("leave-requests-colw-v1", { emp: 110, type: 100, period: 220, days: 90, reason: 220, approver: 180, status: 100, action: 150 });
+  const lrResize = (k: string, colIndex: number) => ({ k, colIndex, widths: lrColW, onResize: setLrColW, tableRef: lrTableRef });
 
   // 알림에서 진입(?focus=pending) 시 — 승인 대기 필터로 전환 후 승인 영역으로 스크롤.
   useEffect(() => {
@@ -2941,30 +2940,44 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       label: st?.label || r.status,
     };
   };
+  //   머리단 ≡ 가 고를 칸 값(표에 보이는 글자) + 정렬 — 취소·승인 로직은 손대지 않는다
+  const lrVal = (r: any) => ({
+    emp: r.employees?.name || "—",
+    type: leaveTypeLabel(r.leave_type),
+    period: r.start_date || "",
+    days: String(Number(r.days || 0)),
+    approver: (() => {
+      const info = stepInfo(r);
+      if (info.steps.length > 0) return info.steps.map((st: any) => { const u = memberById[st.approver_id]; return u?.name || u?.email || "구성원"; }).join(" → ");
+      return r.requested_approver?.name || r.requested_approver?.email || "전체";
+    })(),
+    status: stepInfo(r).label,
+  });
+  const lrSpec = (k: keyof ReturnType<typeof lrVal>) => lrCf.spec(k, visibleRequests.map((r: any) => lrVal(r)[k]));
+  const shownRequests = useMemo(() => {
+    const dir = lrSort.dir === "asc" ? 1 : -1;
+    return (visibleRequests as any[]).filter((r) => lrCf.hit(lrVal(r))).sort((a, b) => {
+      if (lrSort.key === "days") return (Number(a.days || 0) - Number(b.days || 0)) * dir;
+      return cmp(lrVal(a)[lrSort.key], lrVal(b)[lrSort.key]) * dir;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleRequests, lrSort, lrCf.key]);
 
   return (
     <div>
       {/* ── 휴가 탭 서브뷰 (2026-08-06 사장님 시안) ──
           상단 KPI 카드는 이 탭에서 감추고, '직원별 연차'(표) / '설정'(부여 방식·휴가 유형) 로 나눈다. */}
       <div className="leave-subtabs">
-        <div className="leave-subtab-group">
-          {([{ k: "roster", label: "직원별 연차" }, { k: "settings", label: "설정" }] as const).map((t) => (
-            <button
-              key={t.k}
-              onClick={() => setLeaveView(t.k)}
-              className={`leave-subtab ${leaveView === t.k ? "leave-subtab-on" : ""}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <ChipGroup value={leaveView} onChange={setLeaveView}
+          options={[{ value: "roster", label: "직원별 연차" }, { value: "settings", label: "설정" }] as const} />
         {leaveView === "roster" && (
           <button onClick={() => setCalendarOpen(true)} className="btn-secondary btn-sm">휴가 캘린더</button>
         )}
       </div>
 
       {leaveView === "roster" && (<>
-        <div className="leave-roster glass-card">
+        {/*   2026-08-18 상자 안 상자 금지 — 카드 껍데기(glass-card) 대신 선으로만 구역을 가른다 */}
+        <div className="leave-roster">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 연차</h3>
             {!isEmployee && grantMethod === "auto" && (
@@ -3033,34 +3046,16 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         <div className="leave-roster-divider" />
       {/* Controls */}
       <div ref={approveSectionRef} id="leave-approve-section" className="leave-filter-toolbar">
-        <div className="flex gap-2">
-          {[
-            { key: "all", label: "전체" },
-            { key: "pending", label: "대기" },
-            { key: "approved", label: "승인" },
-            { key: "rejected", label: "반려" },
-          ].map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setStatusFilter(f.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                statusFilter === f.key
-                  ? "bg-[var(--primary)] text-white"
-                  : "bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
-              }`}
-            >
-              {f.label}
-              {f.key === "pending" && visibleRequests.filter((r: any) => r.status === "pending").length > 0 && (
-                <span className="ml-1 text-[10px] px-1 py-0.5 rounded-full bg-white/20">
-                  {visibleRequests.filter((r: any) => r.status === "pending").length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <ChipGroup value={statusFilter} onChange={setStatusFilter}
+          options={[
+            { value: "all", label: "전체" },
+            { value: "pending", label: visibleRequests.filter((r: any) => r.status === "pending").length > 0 ? `대기 ${visibleRequests.filter((r: any) => r.status === "pending").length}` : "대기" },
+            { value: "approved", label: "승인" },
+            { value: "rejected", label: "반려" },
+          ]} />
         <button
           onClick={() => setShowForm(!showForm)}
-          className="btn-primary"
+          className="btn-primary btn-sm"
         >
           + 휴가 신청
         </button>
@@ -3318,21 +3313,21 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             <div className="text-sm text-[var(--text-muted)]">휴가 신청 내역이 없습니다</div>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[800px]">
+          <div className="ev-scroll leave-req-scroll"><table ref={lrTableRef} className="ev-table ev-lined leave-req-table">
             <thead>
-              <tr className="table-head-row">
-                <th className="th-cell text-center">직원</th>
-                <th className="th-cell text-center">유형</th>
-                <th className="th-cell text-center">기간</th>
-                <th className="th-cell text-center">일수</th>
-                <th className="th-cell text-center">사유</th>
-                <th className="th-cell text-center">승인자</th>
-                <th className="th-cell text-center">상태</th>
-                <th className="th-cell text-center">액션</th>
+              <tr>
+                <SortableTh label="직원" sortKey="emp" sort={lrSort} onSort={onLrSort} filter={lrSpec("emp")} resize={lrResize("emp", 1)} />
+                <SortableTh label="유형" sortKey="type" sort={lrSort} onSort={onLrSort} filter={lrSpec("type")} resize={lrResize("type", 2)} />
+                <SortableTh label="기간" sortKey="period" sort={lrSort} onSort={onLrSort} resize={lrResize("period", 3)} />
+                <SortableTh label="일수" sortKey="days" sort={lrSort} onSort={onLrSort} resize={lrResize("days", 4)} />
+                <SortableTh label="사유" resize={lrResize("reason", 5)} />
+                <SortableTh label="승인자" sortKey="approver" sort={lrSort} onSort={onLrSort} filter={lrSpec("approver")} resize={lrResize("approver", 6)} />
+                <SortableTh label="상태" sortKey="status" sort={lrSort} onSort={onLrSort} filter={lrSpec("status")} resize={lrResize("status", 7)} />
+                <SortableTh label="액션" resize={lrResize("action", 8)} />
               </tr>
             </thead>
             <tbody>
-              {visibleRequests.map((r: any) => {
+              {shownRequests.map((r: any) => {
                 const st = LEAVE_REQUEST_STATUS[r.status as keyof typeof LEAVE_REQUEST_STATUS] || LEAVE_REQUEST_STATUS.pending;
                 const leaveLabel = leaveTypeLabel(r.leave_type);
                 return (
@@ -4301,16 +4296,16 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
             <div className="text-xs text-[var(--text-dim)] mt-1">직원을 선택하고 증명서를 발급하세요</div>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
+          <div className="ev-scroll leave-req-scroll"><table className="ev-table ev-lined cert-log-tbl">
             <thead>
-              <tr className="table-head-row">
-                <th className="th-cell text-center">증명서번호</th>
-                <th className="th-cell text-center">유형</th>
-                <th className="th-cell text-center">직원</th>
-                <th className="th-cell text-center">소속/직위</th>
-                <th className="th-cell text-center">용도</th>
-                <th className="th-cell text-center">발급자</th>
-                <th className="th-cell text-center">발급일</th>
+              <tr>
+                <th>증명서번호</th>
+                <th>유형</th>
+                <th>직원</th>
+                <th>소속/직위</th>
+                <th>용도</th>
+                <th>발급자</th>
+                <th>발급일</th>
               </tr>
             </thead>
             <tbody>

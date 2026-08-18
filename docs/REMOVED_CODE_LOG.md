@@ -86,3 +86,9 @@
 - `globals.css`: `.vault-file-list` `.doc-toolbar` `.doc-cat-tabs` `.doc-toolbar-right` `.doc-search-input` `.doc-sort-select` `.doc-dup-band` `.doc-dup-names` · FileList import 제거(부품 자체는 다른 화면이 쓴다)
 ### D형(게시판·구성원 디렉토리)
 - 검색줄만 QueryBar(ChipGroup·QuickSearch)로. 나머지 피드/카드는 그대로. `globals.css`: `.board-filter-bar` `.board-toolbar-actions`
+
+## 2026-08-18 — 조회 표준 확산 Wave 4 · 인사
+### 구성원 (`/employees`)
+- 화면 머리(seg-bar 탭 + 개수 배지), KPI 타일 4장(employees-summary-stats), 초대 섹션 툴바(초대 대기 배지·엑셀 대량 초대·+ 직원 초대), 디렉토리 필터 바(검색칸·팀 select·재직/전체/퇴사 seg-bar·카드/리스트 seg-bar), 리스트 표 자체 머리단, 급여·증명서 히어로 카드(PayrollHero·CertificatesHero — 지표만 payrollStats/useCertificateStats 로 남김), 휴가 서브탭 pill(leave-subtab*), 휴가 상태 필터 버튼, 휴가 신청 내역·증명서 발급 이력·급여 명세 표 자체 머리단(table-head-row/th-cell), flex-skin 보라 머리단
+- `globals.css`: `.flex-people-directory` `.flex-people-filter-bar` `.flex-people-list` `.flex-people-list-row` `.employees-page-toolbar` `.employees-summary-stats` `.employee-toolbar` `.leave-subtab-group` `.leave-subtab` `.leave-subtab-on`
+대체: qk-shell > QueryScreen(collect-tabs 인력관리·급여·휴가·증명서) · 인력관리 = QueryBar(검색조건[상태·부서·직책·고용형태·입사일] + 빠른검색 + 카드/리스트 칩 ‖ 초대 버튼) · AppliedChips · ResultStrip(재직·연 인건비·퇴직충당금·미결 경비 · 표시 N) · 카드 격자/ev-table+SortableTh(정렬·≡·너비) · Pager · 초대 폼은 표 위 안쪽 판 / 급여·증명서 = ResultStrip 지표 + emp-scroll 본문 · 표는 ev-table 머리단 / 휴가 = ChipGroup 서브탭·상태 칩, 직원별 연차 표(카드 껍데기 제거), 신청 내역 ev-table+SortableTh(정렬·≡·너비)
