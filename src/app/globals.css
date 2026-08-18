@@ -2820,34 +2820,11 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .expense-requests-table { @apply overflow-hidden; }
 .partner-kpi-cards { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
 
-/* 거래처 — 툴바 한 줄 (2026-08-12 UI 정리). 예전의 3줄 필터바를 대신한다. */
+/* 거래처 — 툴바·필터 팝오버·처리할 것 띠·자체 쪽 넘김 CSS 는 2026-08-18 조회 표준(query-kit) 확산으로 삭제 (docs/REMOVED_CODE_LOG.md) */
 .partner-kpi-cards-3 { @apply lg:grid-cols-3; }
-.partner-toolbar { @apply flex flex-wrap items-center gap-2 mb-3; }
-.partner-kind-tabs { @apply flex items-center gap-1 flex-wrap; }
-.partner-toolbar-right { @apply ml-auto flex items-center gap-1.5 flex-wrap justify-end; }
-.partner-search-input { @apply w-[220px] max-w-full h-8 px-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]; }
 .partner-count-note { @apply text-xs text-[var(--text-dim)] tabular-nums; }
 
-/* 필터 팝오버 안쪽 */
-.partner-filter-pop { @apply flex flex-col gap-2.5; }
-.partner-filter-pop-row { @apply flex items-center gap-2 text-xs text-[var(--text-dim)]; }
-.partner-filter-pop-row > span { @apply w-14 shrink-0 font-semibold; }
-.partner-filter-pop-row select { @apply flex-1 px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-xs text-[var(--text)] focus:outline-none focus:border-[var(--primary)]; }
-.partner-filter-pop-tags { @apply flex gap-2 text-xs text-[var(--text-dim)]; }
-.partner-filter-pop-tags > span { @apply w-14 shrink-0 font-semibold pt-1; }
-.partner-filter-pop-tags > div { @apply flex flex-wrap gap-1; }
-.partner-tag-chip { @apply text-[11px] px-2 py-0.5 rounded-full border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] transition hover:border-[var(--text-dim)]; }
-.partner-tag-chip-on { @apply bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--primary)] font-semibold; }
-.partner-filter-pop-reset { @apply text-[11px] text-[var(--text-dim)] hover:text-[var(--text)] underline text-left; }
 
-/* 처리할 것 띠 — 지금 손댈 것을 화면이 먼저 말한다 */
-.partner-todo-band { @apply flex flex-wrap items-center gap-2 mb-4 px-3.5 py-2 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-[12.5px] text-amber-600; }
-.partner-todo-chip { @apply px-2.5 py-0.5 rounded-full text-[11.5px] font-semibold border border-amber-500/40 bg-[var(--bg-card)] text-amber-600 transition hover:bg-amber-500/10; }
-.partner-todo-chip-on { @apply bg-amber-500 border-amber-500 text-white; }
-.partner-todo-clear { @apply ml-auto text-[11.5px] underline text-[var(--text-dim)] hover:text-[var(--text)]; }
-.partner-list-table { @apply overflow-hidden; }
-.partner-bulk-action-bar { @apply flex items-center gap-3 px-4 py-2 mb-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
-.partner-pagination-bar { @apply flex items-center justify-between px-4 py-3 border-t border-[var(--border)] text-xs flex-wrap gap-2; }
 .partner-detail-panel { @apply fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm; }
 .partner-detail-header { @apply flex items-center justify-between px-6 py-4 border-b border-[var(--border)]; }
 .partner-detail-tabs { @apply px-4 pt-3; }
@@ -8282,6 +8259,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /*   차변·대변·적요 세 칸이 늘어 표가 넓어졌다 (2026-08-12 통장 탭 재구성) */
 /*   한 줄로 펴면서 가로가 길어졌다 — 표 안에서 가로 스크롤한다(상자 크기는 그대로) */
 .bk-table { min-width: 1660px; }
+/* 거래처 목록 — 조회 표준 표 (2026-08-18 Wave 1) */
+.partner-table { min-width: 1120px; }
+.partner-row { @apply cursor-pointer transition-colors; }
+.partner-row:hover { @apply bg-[var(--bg-surface)]; }
 /*   한 쪽(차변 또는 대변) — 계정과 거래처를 위아래로 */
 /*   차·대변은 **한 줄** — 계정 칩과 거래처 칩을 나란히 (2026-08-13 사장님 지시).
      두 줄이면 한 화면에 보이는 줄 수가 반으로 준다. 가로로 길어지는 건 표 안에서 스크롤한다. */
@@ -8612,9 +8593,6 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .data-table tbody td { @apply px-3 py-2.5 text-[12.5px] align-middle; }
 
 /* 거래처 — 요약 띠에서 고른 렌즈를 알려 주는 줄 (2026-08-12) */
-.partner-lens-note { @apply flex flex-wrap items-center gap-2 mb-3 px-3.5 py-1.5 rounded-lg text-[12px] bg-[var(--primary)]/[0.07] text-[var(--text-muted)]; }
-.partner-lens-note b { @apply text-[var(--primary)] font-bold; }
-.partner-lens-note button { @apply ml-auto text-[11.5px] underline text-[var(--text-dim)] hover:text-[var(--text)]; }
 
 /* 검색 드롭다운 — 키보드로 고른 줄 표시 (2026-08-12) */
 .spv-drop-list > button.pick-on { @apply bg-[var(--primary)]/10; }

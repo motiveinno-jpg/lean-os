@@ -33,3 +33,10 @@
 | src/lib/calculations.ts | 32 | profitMargin/survivalMonths/vatPreview/formatKRW 등 — 미사용 유틸 |
 
 합계 ~6,311줄. siyan/index.ts 는 사용 중이라 유지.
+
+
+## 2026-08-18 — 조회 표준(query-kit) 확산 Wave 1 · 거래처
+화면 고유 툴바를 공용 부품으로 바꾸며 뺀 것 (다시 만들지 말 것 — 같은 일은 query-kit 이 한다):
+- `src/app/(app)/partners/page.tsx`: 자체 검색칸(서버 ilike + 300ms 디바운스), 필터 팝오버(산업/지역/거래규모/태그 select), 더보기 메뉴(휴면 감지·CSV 템플릿·임포트·엑셀), 요약 띠(doc-summary-strip 렌즈), 처리할 것 띠, 다중선택 액션바, 자체 쪽 넘김(20/50/100)
+- `globals.css`: `.partner-toolbar`, `.partner-kind-tabs`, `.partner-toolbar-right`, `.partner-search-input`, `.partner-filter-pop`, `.partner-filter-pop-row`, `.partner-filter-pop-row > span`, `.partner-filter-pop-row select`, `.partner-filter-pop-tags`, `.partner-filter-pop-tags > span`, `.partner-filter-pop-tags > div`, `.partner-tag-chip`, `.partner-tag-chip-on`, `.partner-filter-pop-reset`, `.partner-todo-band`, `.partner-todo-chip`, `.partner-todo-chip-on`, `.partner-todo-clear`, `.partner-list-table`, `.partner-bulk-action-bar`, `.partner-pagination-bar`, `.partner-lens-note`, `.partner-lens-note b`, `.partner-lens-note button`
+대체: QueryBar+ConditionPanel(검색조건)+QuickSearch+AppliedChips+ResultStrip+SortableTh(≡·너비)+Pager(50)+SelectionBar+ExcelMenu+HelperMenu(AI 제안)+내 조건.

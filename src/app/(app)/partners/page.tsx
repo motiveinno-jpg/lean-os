@@ -1,25 +1,28 @@
 "use client";
-import { SortableTh } from "@/components/sortable-th";
+import { SortableTh, nextSort, useColWidths, type SortState, type ThFilterSpec } from "@/components/sortable-th";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, HelperMenu, SavedTabs, ConditionSave,
+  ConditionPanel, ConditionRow, TokenField, ChipGroup, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
+  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar,
+  type ExcelItem, type HelperItem, type AppliedChip,
+} from "@/components/query-kit";
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { ToolbarPopover } from "@/components/toolbar-popover";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { friendlyError } from "@/lib/friendly-error";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getPartners, upsertPartner, deletePartner, searchPartners } from "@/lib/partners";
+import { getPartners, upsertPartner, deletePartner } from "@/lib/partners";
 import { getCurrentUser, getDeals } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { verifyBusinessNumber } from "@/lib/business-verification";
 import { QueryErrorBanner } from "@/components/query-status";
-import { MoreMenu, MORE_ITEM_CLS } from "@/components/more-menu";
 import { TileIcon } from "@/components/ui/icon-tile";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
-import { EmptyState } from "@/components/empty-state";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
 // 사업자등록번호 000-00-00000 형식 정규화 (하이픈 없이 저장된 값도 표시 시 구분)
@@ -143,19 +146,37 @@ const KIND_TABS = [
 ] as const;
 type KindKey = (typeof KIND_TABS)[number]["key"];
 
+/**
+ * 검색조건 — 갖춰서 찾는 값들 (조회 화면 표준). ★ '조회'를 눌러야 반영된다. 빠른검색·갈래는 즉시.
+ *   거래처는 기간이 없는 마스터라 조회기간 칸이 없다.
+ */
+type Cond = { cls: string[]; region: string[]; scale: string; tags: string[]; todo: string[]; month: string[]; rows: number };
+const EMPTY_COND: Cond = { cls: [], region: [], scale: "", tags: [], todo: [], month: [], rows: 50 };
+const condCount = (c: Cond) => c.cls.length + c.region.length + (c.scale ? 1 : 0) + c.tags.length + c.todo.length + c.month.length;
+const SCALE_CHIPS = [
+  { value: "gte10k", label: "1억 이상 (VIP)" }, { value: "1k_10k", label: "1천만~1억" },
+  { value: "lt1000", label: "~1천만" }, { value: "none", label: "거래 없음" },
+] as const;
+const TODO_CHIPS = [{ value: "biz", label: "사업자번호 없음" }, { value: "owner", label: "담당자 없음" }] as const;
+const MONTH_CHIPS = [{ value: "traded", label: "거래 발생" }, { value: "fresh", label: "신규 등록" }] as const;
+type SortKey = "code" | "name" | "type" | "business_number" | "contact" | "phone" | "tag" | "status";
+
 export default function PartnersPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const { confirm: confirmDialog, confirmElement } = useConfirm();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [typeFilter, setTypeFilter] = useState("");
-  const [activeFilter, setActiveFilter] = useState<boolean | undefined>(true);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  //   ── 조회 화면 표준 (2026-08-18 확산 Wave 1 — CLAUDE.md 「조회 화면 표준」) ──
+  //   예전엔 이 화면만의 툴바(갈래 탭 + 검색칸 + 필터 팝오버 + 더보기 + 요약 띠 + 처리할 것 띠 + 자체 쪽 넘김)를
+  //   따로 갖고 있었다. 수집·전표에서 확정한 뼈대(조회줄 → 걸린 조건 → 결과줄 → 표 → 확정줄)로 바꾼다.
+  //   ★ 조회값은 기억하지 않는다 — 나갔다 오면 기본값. 편의는 '내 조건'(★ 기본)이 맡는다.
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(EMPTY_COND);
+  const [live, setLive] = useState<Cond>(EMPTY_COND);
+  const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   // U4 페이지네이션 (1e8bb2b 패턴 미러 — signatures/documents 와 동일 UX)
   //   필터/검색 변경 시 1페이지 리셋. classFilter/regionFilter/sizeFilter/typeFilter/activeFilter 도 의존성.
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(20);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -188,30 +209,19 @@ export default function PartnersPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showCommForm, setShowCommForm] = useState(false);
   const [commForm, setCommForm] = useState({ type: "phone" as string, summary: "", notes: "" });
-  const [tagFilter, setTagFilter] = useState<string>("");
   //   갈래 탭 — typeFilter/activeFilter 를 사람이 읽는 한 덩어리로 묶은 것
   const [kindKey, setKindKey] = useState<KindKey>("all");
   //   '처리할 것' 띠에서 고른 것 (사업자번호 없음 / 담당자 없음)
-  const [todoFilter, setTodoFilter] = useState<"" | "biz" | "owner">("");
-  //   요약 띠에서 고른 렌즈 — 이번 달 거래 발생 / 이번 달 신규
-  const [lensFilter, setLensFilter] = useState<"" | "traded" | "fresh">("");
-  type SortKey = "code" | "name" | "type" | "business_number" | "contact" | "phone" | "tag" | "status";
-  const [sortKey, setSortKey] = useState<SortKey>("name");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const toggleSort = (k: SortKey) => {
-    if (k === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(k); setSortDir("asc"); }
-  };
-  //   머리단 정렬 — 앱 전체가 같은 모양을 쓰도록 공용 컴포넌트에 맡긴다 (2026-08-12 사장님 지시).
-  //   cls(정렬 클래스)는 더 이상 쓰지 않는다 — 머리단은 언제나 가운데다.
-  const sortableTh = (k: SortKey, label: string, _cls?: string) => (
-    <SortableTh label={label} sortKey={k} sort={{ key: sortKey, dir: sortDir }} onSort={toggleSort} />
-  );
-  const [classFilter, setClassFilter] = useState<string>("");
-  const [regionFilter, setRegionFilter] = useState<string>("");
-  const [sizeFilter, setSizeFilter] = useState<string>("");
-  // 필터/검색 변경 시 page=1 리셋 (signatures L52 패턴)
-  useEffect(() => { setPage(1); }, [debouncedSearch, typeFilter, activeFilter, classFilter, regionFilter, sizeFilter, pageSize]);
+  //   머리단 정렬 — 앱 전 메뉴 같은 규칙. 기본은 이름 오름차순.
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "name", dir: "asc" });
+  const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
+  //   엑셀식 머리단 필터 — 칸에 실제로 있는 값 중에서 고른다 (null = 전체)
+  const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [colW, setColW] = useColWidths("partners-list-colw-v1", {
+    code: 64, name: 220, type: 84, business_number: 128, contact: 100, phone: 150, tag: 180, status: 80,
+  });
   const [bizVerifyResults, setBizVerifyResults] = useState<Record<string, { status: string; loading: boolean }>>({});
   const [formBizStatus, setFormBizStatus] = useState<{ status: string; loading: boolean } | null>(null);
   const [showAddressSearch, setShowAddressSearch] = useState(false);
@@ -253,29 +263,11 @@ export default function PartnersPage() {
     getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); });
   }, []);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
+  //   거래처는 회사당 수백 곳이라 **한 번에 다 받아** 화면에서 거른다 — 조건을 바꿀 때마다 서버를 안 부른다.
+  //   (예전엔 갈래·검색어마다 다시 물었고, 검색은 서버 ilike 라 담당자·연락처는 안 잡혔다.)
   const { data: rawPartners = [], isLoading, error: mainError, refetch: mainRefetch } = useQuery({
-    queryKey: ["partners", companyId, typeFilter, activeFilter, debouncedSearch, tagFilter],
-    queryFn: async () => {
-      if (debouncedSearch && debouncedSearch.length >= 2) {
-        // 복합검색: 이름+담당자+이메일+사업자번호
-        let results = await searchPartners(companyId!, debouncedSearch);
-        if (typeFilter) results = results.filter((p: any) => p.type === typeFilter);
-        if (activeFilter !== undefined) results = results.filter((p: any) => p.is_active === activeFilter);
-        if (tagFilter) results = results.filter((p: any) => (p.tags || []).includes(tagFilter));
-        return results;
-      }
-      return getPartners(companyId!, {
-        type: typeFilter || undefined,
-        isActive: activeFilter,
-        search: undefined,
-        tags: tagFilter ? [tagFilter] : undefined,
-      });
-    },
+    queryKey: ["partners", companyId],
+    queryFn: () => getPartners(companyId!),
     enabled: !!companyId,
     staleTime: 30_000,
   });
@@ -340,17 +332,7 @@ export default function PartnersPage() {
 
   //   갈래를 누르면 기존 두 상태(typeFilter·activeFilter)로 번역해 준다 — 조회 조건은 그대로 두고
   //   사람이 읽는 이름만 바꾼 것이라 서버 쿼리는 예전과 같다.
-  const applyKind = (k: KindKey) => {
-    setKindKey(k);
-    setTodoFilter("");
-    setLensFilter("");
-    setPage(1);
-    if (k === "all") { setTypeFilter(""); setActiveFilter(undefined); return; }
-    if (k === "inactive") { setTypeFilter(""); setActiveFilter(false); return; }
-    if (k === "dormant") { setTypeFilter(""); setActiveFilter(undefined); return; }
-    setTypeFilter(k);          // "client" | "vendor" — DB 값 그대로
-    setActiveFilter(true);
-  };
+  const applyKind = (k: KindKey) => setKindKey(k);
 
   //   탭 건수 — 회사 전체 기준이라 지금 걸린 필터와 무관하게 늘 같은 수를 보여 준다
   const { data: kindCounts = {} as Record<KindKey, number> } = useQuery<Record<KindKey, number>>({
@@ -380,33 +362,57 @@ export default function PartnersPage() {
     };
   }, [rawPartners]);
 
-  const advCount = [classFilter, regionFilter, sizeFilter, tagFilter].filter(Boolean).length;
-
-  // 클라이언트측 필터: 산업/지역/거래규모
-  const filteredPartners = (rawPartners as any[]).filter((p: any) => {
-    if (classFilter && (p.classification || "").trim() !== classFilter) return false;
-    if (regionFilter && parseRegion(p.address) !== regionFilter) return false;
-    if (sizeFilter) {
-      const total = partnerTotals[p.id] || 0;
-      if (sizeFilter === "none" && total > 0) return false;
-      if (sizeFilter === "lt1000" && !(total > 0 && total < 10_000_000)) return false;
-      if (sizeFilter === "1k_10k" && !(total >= 10_000_000 && total < 100_000_000)) return false;
-      if (sizeFilter === "gte10k" && !(total >= 100_000_000)) return false;
+  //   갈래(탭) — 예전 typeFilter·activeFilter 서버 조건을 화면 조건으로 옮겼다. 값은 같다.
+  const kindHit = (p: any) => {
+    if (kindKey === "all") return true;
+    if (kindKey === "inactive") return !p.is_active;
+    if (kindKey === "dormant") return !!p.is_dormant;
+    return p.type === kindKey && p.is_active;      // client / vendor — DB 값 그대로
+  };
+  const scaleOf = (p: any) => {
+    const total = partnerTotals[p.id] || 0;
+    return total >= 100_000_000 ? "gte10k" : total >= 10_000_000 ? "1k_10k" : total > 0 ? "lt1000" : "none";
+  };
+  const condHit = (p: any, c: Cond) => {
+    if (c.cls.length && !c.cls.includes((p.classification || "").trim())) return false;
+    if (c.region.length && !c.region.includes(parseRegion(p.address))) return false;
+    if (c.scale && scaleOf(p) !== c.scale) return false;
+    if (c.tags.length && !c.tags.some((t) => (p.tags || []).includes(t))) return false;
+    //   처리할 것 — 사람이 채워야만 채워지는 두 칸
+    if (c.todo.includes("biz") && String(p.business_number || "").trim()) return false;
+    if (c.todo.includes("owner") && String(p.contact_name || "").trim()) return false;
+    //   이번 달 — 거래 발생 / 신규 (요약 띠 렌즈였던 것)
+    if (c.month.includes("traded") && !activity.tradedIds?.has(p.id)) return false;
+    if (c.month.includes("fresh") && !activity.freshIds?.has(p.id)) return false;
+    return true;
+  };
+  //   머리단 ≡ 필터가 보는 값 — 표에 찍히는 글자 그대로
+  const colVal = (p: any, k: string): string => {
+    switch (k) {
+      case "type": return TYPE_BADGE[p.type]?.label || p.type || "";
+      case "contact": return p.contact_name || "";
+      case "tag": return ((p.tags || [])[0] as string) || "";
+      case "status": return p.is_active ? "활성" : "비활성";
+      default: return "";
     }
-    //   갈래 '휴면' 은 서버 조건이 아니라 이 칸으로만 갈린다
-    if (kindKey === "dormant" && !p.is_dormant) return false;
-    //   '처리할 것' 띠에서 고른 것 — 그 목록만 남긴다
-    if (todoFilter === "biz" && String(p.business_number || "").trim()) return false;
-    if (todoFilter === "owner" && String(p.contact_name || "").trim()) return false;
-    //   요약 띠에서 고른 렌즈 — 그 집합에 든 거래처만 남긴다
-    if (lensFilter === "traded" && !activity.tradedIds?.has(p.id)) return false;
-    if (lensFilter === "fresh" && !activity.freshIds?.has(p.id)) return false;
+  };
+  const colHit = (p: any) => Object.entries(colF).every(([k, sel]) => !sel || sel.has(colVal(p, k)));
+
+  const filteredPartners = (rawPartners as any[]).filter((p: any) => {
+    if (!kindHit(p)) return false;
+    //   빠른검색 — 이름·담당자·사업자번호·연락처·이메일·태그를 한꺼번에 (쉼표 = 또는, Enter 로 반영)
+    if (!quickSearchHit(q, [p.name, p.contact_name, p.business_number, fmtBizNo(p.business_number), p.contact_phone, p.contact_email, ...((p.tags || []) as string[])])) return false;
+    if (!condHit(p, live)) return false;
+    if (!colHit(p)) return false;
     return true;
   });
+  //   '조회'를 누르기 전에 몇 건 나올지만 미리 알려 준다
+  const previewCount = (rawPartners as any[]).filter((p: any) => kindHit(p) && condHit(p, draft)).length;
 
-  // 산업/지역 드롭다운 옵션 — rawPartners에서 뽑음
+  //   고를 수 있는 값들 — 이 회사에 실제로 있는 것만 (고르고도 0건이면 헷갈린다)
   const classOptions = Array.from(new Set((rawPartners as any[]).map((p: any) => (p.classification || "").trim()).filter(Boolean))).sort();
   const regionOptions = Array.from(new Set((rawPartners as any[]).map((p: any) => parseRegion(p.address)).filter(Boolean))).sort();
+  const toTokens = (xs: string[]) => xs.map((v) => ({ value: v, label: v }));
 
   // 360도뷰: 거래처의 딜/문서/결제 데이터
   const { data: partnerDeals = [] } = useQuery({
@@ -506,13 +512,13 @@ export default function PartnersPage() {
     other: "기타",
   };
 
-  // 태그 목록 수집 (필터용)
-  const allTags = Array.from(new Set(filteredPartners.flatMap((p: any) => p.tags || []))) as string[];
+  // 태그 목록 수집 (필터용) — 회사 전체 기준
+  const allTags = Array.from(new Set((rawPartners as any[]).flatMap((p: any) => p.tags || []))) as string[];
 
   // 정렬: 헤더 클릭한 컬럼 기준 (한글 로케일 비교, 코드/상태는 수치)
   const partners = [...filteredPartners].sort((a: any, b: any) => {
     let c = 0;
-    switch (sortKey) {
+    switch (sort.key) {
       case "code": c = (a.code ?? Number.MAX_SAFE_INTEGER) - (b.code ?? Number.MAX_SAFE_INTEGER); break;
       case "type": c = (TYPE_BADGE[a.type]?.label || a.type || "").localeCompare(TYPE_BADGE[b.type]?.label || b.type || "", "ko"); break;
       case "business_number": c = (a.business_number || "").localeCompare(b.business_number || "", "ko"); break;
@@ -522,9 +528,62 @@ export default function PartnersPage() {
       case "status": c = (a.is_active ? 0 : 1) - (b.is_active ? 0 : 1); break;
       default: c = (a.name || "").localeCompare(b.name || "", "ko");
     }
-    if (c === 0 && sortKey !== "name") c = (a.name || "").localeCompare(b.name || "", "ko"); // 동률은 이름순
-    return sortDir === "asc" ? c : -c;
+    if (c === 0 && sort.key !== "name") c = (a.name || "").localeCompare(b.name || "", "ko"); // 동률은 이름순
+    return sort.dir === "asc" ? c : -c;
   });
+  //   쪽 넘김 — 기본 50줄. 조건이 바뀌면 1쪽으로
+  const pager = usePager(partners, live.rows, `${kindKey}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
+  const thFilter = (k: string): ThFilterSpec => ({
+    values: (rawPartners as any[]).filter(kindHit).map((p) => colVal(p, k)),
+    selected: colF[k] ?? null,
+    onApply: (sel) => setColF((o) => ({ ...o, [k]: sel })),
+  });
+  const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
+
+  //   내 조건 — ★ 하나가 이 화면의 기본값 (DB 라 PC 를 바꿔도 따라온다)
+  const saved = useSavedQueries("partners", companyId);
+  const paramsNow = { kind: kindKey, q, cond: live };
+  const paramsBasic = { kind: "all", q: "", cond: EMPTY_COND };
+  const applySaved = (p: Record<string, unknown>) => {
+    if (typeof p.kind === "string" && KIND_TABS.some((k) => k.key === p.kind)) setKindKey(p.kind as KindKey);
+    if (typeof p.q === "string") setQ(p.q);
+    const c = { ...EMPTY_COND, ...(p.cond as Partial<Cond> | undefined) };
+    setDraft(c); setLive(c);
+  };
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved.isFetched) return;
+    setDefDone(true);
+    if (saved.def) applySaved(saved.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isFetched, saved.def, defDone]);
+  const suggestName = () => {
+    const p: string[] = [];
+    if (draft.cls.length) p.push(draft.cls[0] + (draft.cls.length > 1 ? ` 외 ${draft.cls.length - 1}` : ""));
+    if (draft.region.length) p.push(draft.region.join("·"));
+    if (draft.scale) p.push(SCALE_CHIPS.find((x) => x.value === draft.scale)?.label || "");
+    if (draft.tags.length) p.push(draft.tags[0]);
+    if (draft.todo.length) p.push("처리할 것");
+    if (draft.month.length) p.push("이번 달");
+    p.push(KIND_TABS.find((k) => k.key === kindKey)?.label || "");
+    return p.filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
+  };
+  //   걸린 조건 — 조회 줄에 칩으로 남는다 (열지 않고도 보인다, ✕ 로 하나씩 뺀다)
+  const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...live.cls.map((v) => ({ group: "산업", label: v, onRemove: () => drop({ cls: live.cls.filter((x) => x !== v) }) })),
+    ...live.region.map((v) => ({ group: "지역", label: v, onRemove: () => drop({ region: live.region.filter((x) => x !== v) }) })),
+    ...(live.scale ? [{ group: "거래규모", label: SCALE_CHIPS.find((x) => x.value === live.scale)?.label || live.scale, onRemove: () => drop({ scale: "" }) }] : []),
+    ...live.tags.map((v) => ({ group: "태그", label: v, onRemove: () => drop({ tags: live.tags.filter((x) => x !== v) }) })),
+    ...live.todo.map((v) => ({ group: "처리할 것", label: TODO_CHIPS.find((x) => x.value === v)?.label || v, onRemove: () => drop({ todo: live.todo.filter((x) => x !== v) }) })),
+    ...live.month.map((v) => ({ group: "이번 달", label: MONTH_CHIPS.find((x) => x.value === v)?.label || v, onRemove: () => drop({ month: live.month.filter((x) => x !== v) }) })),
+    ...Object.entries(colF).filter(([, sel]) => sel).map(([k, sel]) => ({
+      group: ({ type: "구분", contact: "담당자", tag: "태그", status: "상태" } as Record<string, string>)[k] || k,
+      label: `${sel!.size}개 선택`, onRemove: () => setColF((o) => ({ ...o, [k]: null })),
+    })),
+  ];
+  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); setColF({}); };
 
   const saveMutation = useMutation({
     mutationFn: () => upsertPartner({
@@ -785,330 +844,265 @@ export default function PartnersPage() {
     importPreview && !importing ? confirmImport : undefined,
   );
 
+  //   엑셀 그릇 — 내려받기·템플릿·가져오기를 한 버튼에 (되는 것만)
+  const excelItems: ExcelItem[] = [
+    { label: "지금 조회 결과 내려받기", count: partners.length, hint: "걸린 조건 그대로, 표에 보이는 칸 그대로", onClick: handleExport, disabled: partners.length === 0 },
+    { label: "CSV 템플릿 내려받기", hint: "가져오기용 빈 양식(예시 한 줄 포함)", onClick: downloadCSVTemplate },
+    { label: "CSV·엑셀로 가져오기", hint: "이름·구분·사업자번호… 열 이름은 템플릿과 같아야 합니다", onClick: () => importInputRef.current?.click() },
+  ];
+  //   AI 제안 그릇 — 보조 기능. 줄마다 출처를 적는다. 채워만 주고 확정은 사람.
+  const unverifiedOnPage = pager.view.filter((p: any) => {
+    const c = String(p.business_number || "").replace(/[^0-9]/g, "");
+    return c && !bizVerifyResults[c];
+  });
+  const helperItems: HelperItem[] = [
+    {
+      label: "사업자 상태 조회 (이 쪽)", source: "국세청 조회", badge: unverifiedOnPage.length,
+      hint: "지금 쪽에 보이는 거래처의 사업자번호로 계속·휴업·폐업을 확인해 표에 표시합니다",
+      disabled: unverifiedOnPage.length === 0,
+      onClick: () => { unverifiedOnPage.forEach((p: any) => handleVerifyBiz(p.business_number)); },
+    },
+    {
+      label: detecting ? "찾는 중…" : "휴면 거래처 찾기", source: "장부 대조", disabled: detecting,
+      hint: "6개월 이상 거래·연락이 없는 곳을 '휴면'으로 표시하고 담당자에게 알립니다 — 갈래 탭 '휴면'에서 봅니다",
+      onClick: runDormancyDetect,
+    },
+  ];
+
   return (
-    <div className="">
+    <div className="qk-shell">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* 요약 — **한 줄 띠**(세금·증빙과 같은 것). 예전엔 111.8px 짜리 큰 타일 3장이
-          목록을 화면 아래로 밀어냈다. 담는 정보는 같고 높이만 70px 로 준다 (2026-08-12 사장님 지시).
-          ★ 뒤 두 칸은 **눌러서 그 목록만** 본다 — 숫자만 보여 주고 끝나면 갈 곳이 없다. */}
-      <div className="doc-summary-strip">
-        <div className="doc-summary-cell">
-          <span>거래처</span>
-          <b>{(rawPartners as any[]).length.toLocaleString()}곳</b>
-        </div>
-        <div className={activity.traded > 0 ? "doc-summary-cell doc-summary-cell-link" : "doc-summary-cell"}
-          role={activity.traded > 0 ? "button" : undefined} tabIndex={activity.traded > 0 ? 0 : undefined}
-          onClick={() => activity.traded > 0 && setLensFilter(lensFilter === "traded" ? "" : "traded")}
-          onKeyDown={(e) => { if (activity.traded > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setLensFilter(lensFilter === "traded" ? "" : "traded"); } }}
-          title="누르면 이번 달 거래가 있었던 곳만 봅니다">
-          <span>이번 달 거래 발생{lensFilter === "traded" ? " · 보는 중" : ""}</span>
-          <b>{activity.traded.toLocaleString()}곳</b>
-        </div>
-        <div className={activity.fresh > 0 ? "doc-summary-cell doc-summary-cell-link" : "doc-summary-cell"}
-          role={activity.fresh > 0 ? "button" : undefined} tabIndex={activity.fresh > 0 ? 0 : undefined}
-          onClick={() => activity.fresh > 0 && setLensFilter(lensFilter === "fresh" ? "" : "fresh")}
-          onKeyDown={(e) => { if (activity.fresh > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setLensFilter(lensFilter === "fresh" ? "" : "fresh"); } }}
-          title="누르면 이번 달 새로 등록된 곳만 봅니다">
-          <span>이번 달 신규{lensFilter === "fresh" ? " · 보는 중" : ""}</span>
-          <b>{activity.fresh.toLocaleString()}곳</b>
-        </div>
-      </div>
-      {lensFilter && (
-        <div className="partner-lens-note">
-          <b>{lensFilter === "traded" ? "이번 달 거래 발생" : "이번 달 신규"}</b> 만 보는 중
-          <button type="button" onClick={() => setLensFilter("")}>전체 보기</button>
-        </div>
-      )}
+      {/*   가져오기 파일 칸 — 엑셀 메뉴에서 연다 */}
+      <input ref={importInputRef} type="file" className="hidden"
+        accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
 
-      {/* ── 툴바 한 줄 (2026-08-12 UI 정리) ──
-          예전엔 세 줄이었다: (1)구분·활성만·검색·버튼4 (2)산업/지역/거래규모 (3)태그.
-          갈래는 **탭이 건수를 들고**, 가끔 쓰는 필터 넷은 **필터 팝오버** 하나로 접었다.
-          '거래처 원장' 버튼은 위 탭에 같은 것이 있어 뺐다(중복). */}
-      <div className="partner-toolbar">
-        <div className="partner-kind-tabs">
-          {/* 건수 0 인 갈래는 안 그린다 — 파일보관함과 같은 규칙 (2026-08-12 사장님 지적:
-              화면마다 다르게 동작하면 안 된다) */}
-          {KIND_TABS.filter((k) => k.key === "all" || (kindCounts[k.key] ?? 0) > 0).map((k) => (
-            <button key={k.key} type="button" onClick={() => applyKind(k.key)}
-              className={kindKey === k.key ? "list-tab list-tab-on" : "list-tab"}>
-              {k.label} <span className="list-tab-count">{(kindCounts[k.key] ?? 0).toLocaleString()}</span>
-            </button>
-          ))}
-        </div>
-        <div className="partner-toolbar-right">
-          <input type="text" placeholder="이름·담당자·사업자번호 검색…" value={search}
-            onChange={(e) => setSearch(e.target.value)} className="partner-search-input" />
-          <ToolbarPopover label={advCount > 0 ? `필터 ${advCount}` : "필터"} title="산업 · 지역 · 거래규모 · 태그" width={252}>
-            {() => (
-              <div className="partner-filter-pop">
-                <label className="partner-filter-pop-row"><span>산업</span>
-                  <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
-                    <option value="">전체</option>
-                    {classOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </label>
-                <label className="partner-filter-pop-row"><span>지역</span>
-                  <select value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)}>
-                    <option value="">전체</option>
-                    {regionOptions.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </label>
-                <label className="partner-filter-pop-row"><span>거래규모</span>
-                  <select value={sizeFilter} onChange={(e) => setSizeFilter(e.target.value)}>
-                    <option value="">전체</option>
-                    <option value="gte10k">1억 이상 (VIP)</option>
-                    <option value="1k_10k">1천만~1억</option>
-                    <option value="lt1000">~1천만</option>
-                    <option value="none">거래 없음</option>
-                  </select>
-                </label>
-                {allTags.length > 0 && (
-                  <div className="partner-filter-pop-tags">
-                    <span>태그</span>
-                    <div>
-                      {allTags.map((tag) => (
-                        <button key={tag} type="button" onClick={() => setTagFilter(tagFilter === tag ? "" : tag)}
-                          className={tagFilter === tag ? "partner-tag-chip partner-tag-chip-on" : "partner-tag-chip"}>{tag}</button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {advCount > 0 && (
-                  <button type="button" onClick={() => { setClassFilter(""); setRegionFilter(""); setSizeFilter(""); setTagFilter(""); }}
-                    className="partner-filter-pop-reset">필터 초기화</button>
-                )}
-              </div>
+      {/* ── 조회 화면 표준 — 갈래 탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김 · 확정 줄 (2026-08-18 Wave 1) ── */}
+      <QueryScreen>
+        <QueryHead>
+          {/*   갈래 — 건수를 들고 있어 누르기 전에 어디에 뭐가 있는지 보인다. 0 인 갈래는 안 그린다 */}
+          <div className="collect-tabs no-print">
+            {KIND_TABS.filter((k) => k.key === "all" || (kindCounts[k.key] ?? 0) > 0).map((k) => (
+              <button key={k.key} type="button" onClick={() => applyKind(k.key)}
+                className={kindKey === k.key ? "collect-tab collect-tab-on" : "collect-tab"}>
+                {k.label}<span className="collect-tab-cnt">{(kindCounts[k.key] ?? 0).toLocaleString()}</span>
+              </button>
+            ))}
+          </div>
+
+          <QueryBar right={<>
+            <ExcelMenu items={excelItems} />
+            <HelperMenu items={helperItems} />
+            <button type="button" onClick={openCreate} className="btn-primary btn-sm whitespace-nowrap">+ 새 거래처</button>
+          </>}>
+            {/*   거래처는 기간이 없는 마스터라 조회 줄이 [검색조건] 으로 시작한다 */}
+            <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)}
+              tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                onBasic={() => { setKindKey("all"); clearAll(); }}
+                onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+              foot={<>
+                <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0}
+                  onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                <ConditionSave suggest={suggestName}
+                  onSave={(name, asDefault) => {
+                    saved.save(name, { kind: kindKey, q, cond: draft }, asDefault);
+                    setLive(draft); setPanelOpen(false);
+                  }} />
+                <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}곳</span>
+                <RowsPerPage value={draft.rows} onChange={setD("rows")} />
+                <button type="button" className="btn-primary btn-sm"
+                  onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+              </>}>
+              <ConditionRow label="산업" hint="여러 개">
+                <TokenField items={toTokens(classOptions)} value={draft.cls} onChange={setD("cls")} placeholder="산업 이름 일부 (예: 도소매)" />
+              </ConditionRow>
+              <ConditionRow label="지역" hint="여러 개">
+                <TokenField items={toTokens(regionOptions)} value={draft.region} onChange={setD("region")} placeholder="시·도 (예: 서울)" />
+              </ConditionRow>
+              <ConditionRow label="거래규모" hint="프로젝트 계약 합계">
+                <ChipGroup value={draft.scale} onChange={setD("scale")}
+                  options={[{ value: "", label: "전체" }, ...SCALE_CHIPS.map((c) => ({ value: c.value as string, label: c.label as string }))]} />
+              </ConditionRow>
+              {allTags.length > 0 && (
+                <ConditionRow label="태그" hint="여러 개">
+                  <TokenField items={toTokens(allTags)} value={draft.tags} onChange={setD("tags")} placeholder="태그 일부" />
+                </ConditionRow>
+              )}
+              <ConditionRow label="처리할 것" hint="사람이 채워야 하는 칸">
+                <span className="qk-quicks">
+                  {TODO_CHIPS.map((c) => (
+                    <button key={c.value} type="button"
+                      onClick={() => setD("todo")(draft.todo.includes(c.value) ? draft.todo.filter((x) => x !== c.value) : [...draft.todo, c.value])}
+                      className={draft.todo.includes(c.value) ? "qk-quick qk-quick-on" : "qk-quick"}>
+                      {c.label} {c.value === "biz" ? todo.noBiz : todo.noOwner}
+                    </button>
+                  ))}
+                </span>
+              </ConditionRow>
+              <ConditionRow label="이번 달" hint="세금계산서 · 등록일 기준">
+                <span className="qk-quicks">
+                  {MONTH_CHIPS.map((c) => (
+                    <button key={c.value} type="button"
+                      onClick={() => setD("month")(draft.month.includes(c.value) ? draft.month.filter((x) => x !== c.value) : [...draft.month, c.value])}
+                      className={draft.month.includes(c.value) ? "qk-quick qk-quick-on" : "qk-quick"}>
+                      {c.label} {c.value === "traded" ? activity.traded : activity.fresh}
+                    </button>
+                  ))}
+                </span>
+              </ConditionRow>
+            </ConditionPanel>
+
+            <QuickSearch value={q} onApply={setQ}
+              placeholder="이름 · 담당자 · 사업자번호 · 연락처 · 태그 — 쉼표로 여러 개, Enter" />
+          </QueryBar>
+
+          <AppliedChips chips={chips} onClearAll={clearAll} />
+
+          {/*   결과 요약 — 목록을 바꾸지 않는 것만. 거르는 손잡이는 검색조건 안에 있다 */}
+          <ResultStrip>
+            <Stat label="거래처" value={`${partners.length.toLocaleString("ko")}곳`} />
+            <Stat label="이번 달 거래 발생" value={`${activity.traded.toLocaleString("ko")}곳`} />
+            <Stat label="이번 달 신규" value={`${activity.fresh.toLocaleString("ko")}곳`} />
+            {(todo.noBiz > 0 || todo.noOwner > 0) && (
+              <Stat label="처리할 것" tone="minus"
+                value={[todo.noBiz > 0 ? `사업자번호 없음 ${todo.noBiz}` : "", todo.noOwner > 0 ? `담당자 없음 ${todo.noOwner}` : ""].filter(Boolean).join(" · ")} />
             )}
-          </ToolbarPopover>
-          <MoreMenu>
-            <button onClick={runDormancyDetect} disabled={detecting} className={MORE_ITEM_CLS} role="menuitem">
-              <Ico e="💤" /> {detecting ? "감지 중…" : "휴면 감지"}
-            </button>
-            <button onClick={downloadCSVTemplate} className={MORE_ITEM_CLS} role="menuitem"><Ico e="📄" /> CSV 템플릿</button>
-            <label className={MORE_ITEM_CLS}><Ico e="📥" /> CSV 임포트
-              <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCSVFile(f); e.currentTarget.value = ""; }} />
-            </label>
-            <button onClick={handleExport} className={MORE_ITEM_CLS} role="menuitem"><Ico e="📤" /> Excel 내보내기</button>
-          </MoreMenu>
-          <button onClick={openCreate} className="btn-primary btn-sm whitespace-nowrap">+ 새 거래처</button>
-        </div>
-      </div>
+          </ResultStrip>
+        </QueryHead>
 
-      {/* 처리할 것 — 화면이 먼저 말한다. 누르면 그 목록만 남는다 (2026-08-12) */}
-      {(todo.noBiz > 0 || todo.noOwner > 0) && (
-        <div className="partner-todo-band">
-          <b>처리할 것 {(todo.noBiz + todo.noOwner).toLocaleString()}건</b>
-          {todo.noBiz > 0 && (
-            <button type="button" onClick={() => setTodoFilter(todoFilter === "biz" ? "" : "biz")}
-              className={todoFilter === "biz" ? "partner-todo-chip partner-todo-chip-on" : "partner-todo-chip"}>
-              사업자번호 없음 {todo.noBiz}
-            </button>
-          )}
-          {todo.noOwner > 0 && (
-            <button type="button" onClick={() => setTodoFilter(todoFilter === "owner" ? "" : "owner")}
-              className={todoFilter === "owner" ? "partner-todo-chip partner-todo-chip-on" : "partner-todo-chip"}>
-              담당자 없음 {todo.noOwner}
-            </button>
-          )}
-          {todoFilter && <button type="button" onClick={() => setTodoFilter("")} className="partner-todo-clear">전체 보기</button>}
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="partner-list-table glass-card">
-        {isLoading ? (
-          <div className="p-16 text-center">
-            <div className="text-sm text-[var(--text-muted)]">불러오는 중...</div>
-          </div>
-        ) : partners.length === 0 ? (
-          <EmptyState
-            icon="🏢"
-            title="거래처를 추가하면 프로젝트, 세금계산서에서 바로 연결됩니다"
-            desc="매출처, 매입처, 협력사를 한곳에서 관리하세요"
-            action={<button onClick={() => setShowModal(true)} className="btn-primary">+ 거래처 추가</button>}
-          />
-        ) : (
-          <>
-          {/* PR: 다중선택 액션바 (선택 1+ 시만 노출) */}
-          {selectedIds.size > 0 && (
-            <div className="partner-bulk-action-bar">
-              <span className="text-xs text-[var(--text-muted)]"><b className="text-[var(--text)]">{selectedIds.size}개</b> 선택됨</span>
-              <button
-                onClick={async () => {
-                  const { ok } = await confirmDialog({ title: "거래처 일괄 삭제", desc: `선택한 거래처 ${selectedIds.size}개를 삭제하시겠습니까? 복구할 수 없습니다.`, danger: true });
-                  if (!ok) return;
-                  await bulkDeleteMut.mutateAsync(Array.from(selectedIds));
-                }}
-                disabled={bulkDeleteMut.isPending}
-                className="px-3 py-1.5 text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition disabled:opacity-50"
-              >
-                <Ico e="🗑" /> {bulkDeleteMut.isPending ? '삭제 중...' : '일괄삭제'}
-              </button>
-              <button onClick={() => setSelectedIds(new Set())} className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">
-                선택 해제
-              </button>
+        <QueryBody>
+          {isLoading ? (
+            <div className="collect-empty">불러오는 중…</div>
+          ) : (rawPartners as any[]).length === 0 ? (
+            <div className="collect-empty">
+              거래처를 추가하면 프로젝트·세금계산서에서 바로 연결됩니다 — 오른쪽 위 [+ 새 거래처] 또는 엑셀 ▾ 가져오기
             </div>
-          )}
-          <div className="overflow-auto max-h-[60vh]">
-            {/* 공용 표준 — 어느 메뉴에서든 같은 밀도로 읽히게 (2026-08-12) */}
-            <table className="data-table w-full min-w-[600px]">
-              <thead className="bg-[var(--bg-card)] sticky top-0 z-10">
-                <tr className="text-xs text-[var(--text-dim)] border-b border-[var(--border)] whitespace-nowrap">
-                  <th className="text-center w-10">
-                    <input
-                      type="checkbox"
-                      aria-label="현재 페이지 전체 선택"
-                      checked={(() => {
-                        const cur = partners.slice((page - 1) * pageSize, page * pageSize) as { id: string }[];
-                        return cur.length > 0 && cur.every((p) => selectedIds.has(p.id));
-                      })()}
-                      onChange={(e) => {
-                        const cur = partners.slice((page - 1) * pageSize, page * pageSize) as { id: string }[];
-                        const next = new Set(selectedIds);
-                        if (e.target.checked) cur.forEach((p) => next.add(p.id));
-                        else cur.forEach((p) => next.delete(p.id));
-                        setSelectedIds(next);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </th>
-                  {sortableTh("code", "코드", "text-center px-3 py-3 font-medium w-[64px]")}
-                  {sortableTh("name", "이름", "text-left px-5 py-3 font-medium")}
-                  {sortableTh("type", "구분", "text-center px-4 py-3 font-medium")}
-                  {sortableTh("business_number", "사업자번호", "text-left px-4 py-3 font-medium")}
-                  {sortableTh("contact", "담당자", "text-left px-4 py-3 font-medium")}
-                  {sortableTh("phone", "연락처", "text-left px-4 py-3 font-medium")}
-                  {sortableTh("tag", "태그", "text-left px-4 py-3 font-medium")}
-                  {sortableTh("status", "상태", "text-center px-4 py-3 font-medium")}
-                </tr>
-              </thead>
-              <tbody>
-                {partners.slice((page - 1) * pageSize, page * pageSize).map((p: any) => {
-                  const badge = TYPE_BADGE[p.type] || TYPE_BADGE.other;
-                  return (
-                    <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); setShowCommForm(false); }}
-                      className={`border-b border-[var(--border)] hover:bg-[var(--bg-surface)]/60 cursor-pointer transition ${selectedIds.has(p.id) ? 'bg-[var(--primary)]/5' : ''}`}>
-                      <td className="text-center" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          aria-label={`${p.name} 선택`}
-                          checked={selectedIds.has(p.id)}
-                          onChange={(e) => {
-                            const next = new Set(selectedIds);
-                            if (e.target.checked) next.add(p.id); else next.delete(p.id);
-                            setSelectedIds(next);
-                          }}
-                        />
-                      </td>
-                      <td className="text-center text-[var(--text-dim)] mono-number">{p.code != null ? String(p.code).padStart(4, "0") : "—"}</td>
-                      <td className="font-medium whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5">
-                          {p.name}
-                          {p.is_dormant && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락 없음 — 휴면"><Ico e="💤" /> 휴면</span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>{badge.label}</span>
-                      </td>
-                      <td className="text-[var(--text-muted)]">
-                        <div className="flex items-center gap-1.5">
-                          <span>{fmtBizNo(p.business_number) || "—"}</span>
-                          {p.business_number && (() => {
-                            const cleaned = (p.business_number as string).replace(/[^0-9]/g, "");
-                            const vr = bizVerifyResults[cleaned];
-                            if (vr?.loading) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400 animate-pulse">...</span>;
-                            if (vr && !vr.loading) {
-                              const color = vr.status === "계속사업자" ? "bg-green-500/10 text-green-400"
-                                : vr.status === "휴업자" ? "bg-yellow-500/10 text-yellow-400"
-                                : vr.status === "폐업자" ? "bg-red-500/10 text-red-400"
-                                : "bg-gray-500/10 text-gray-400";
-                              return <span className={`text-[10px] px-1.5 py-0.5 rounded ${color}`}>{vr.status}</span>;
-                            }
-                            return (
-                              <button onClick={(e) => handleVerifyBiz(p.business_number, e)}
-                                className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition whitespace-nowrap"
-                                title="국세청 사업자 진위확인">
-                                확인
-                              </button>
-                            );
-                          })()}
-                        </div>
-                      </td>
-                      <td className="">{p.contact_name || "—"}</td>
-                      <td className="text-[var(--text-muted)]">{p.contact_phone || p.contact_email || "—"}</td>
-                      <td className="">
-                        {(p.tags || []).length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {(p.tags as string[]).slice(0, 3).map((tag: string) => (
-                              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{tag}</span>
-                            ))}
-                            {(p.tags as string[]).length > 3 && (
-                              <span className="caption">+{(p.tags as string[]).length - 3}</span>
+          ) : partners.length === 0 ? (
+            <div className="collect-empty">이 조건에 맞는 거래처가 없습니다 — 검색조건을 풀어 보세요</div>
+          ) : (
+            <div className="ev-scroll">
+              <table ref={tableRef} className="ev-table ev-lined partner-table">
+                <thead>
+                  <tr>
+                    <th className="w-10">
+                      <button type="button" aria-label="이 쪽 전체 선택"
+                        onClick={() => {
+                          const cur = pager.view as { id: string }[];
+                          const all = cur.length > 0 && cur.every((p) => selectedIds.has(p.id));
+                          const next = new Set(selectedIds);
+                          if (all) cur.forEach((p) => next.delete(p.id)); else cur.forEach((p) => next.add(p.id));
+                          setSelectedIds(next);
+                        }}
+                        className={pager.view.length > 0 && (pager.view as any[]).every((p) => selectedIds.has(p.id)) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                        {pager.view.length > 0 && (pager.view as any[]).every((p) => selectedIds.has(p.id)) ? "✓" : ""}
+                      </button>
+                    </th>
+                    <SortableTh label="코드" sortKey="code" sort={sort} onSort={onSort} resize={thResize("code", 1)} />
+                    <SortableTh label="이름" sortKey="name" sort={sort} onSort={onSort} resize={thResize("name", 2)} />
+                    <SortableTh label="구분" sortKey="type" sort={sort} onSort={onSort} filter={thFilter("type")} resize={thResize("type", 3)} />
+                    <SortableTh label="사업자번호" sortKey="business_number" sort={sort} onSort={onSort} resize={thResize("business_number", 4)} />
+                    <SortableTh label="담당자" sortKey="contact" sort={sort} onSort={onSort} filter={thFilter("contact")} resize={thResize("contact", 5)} />
+                    <SortableTh label="연락처" sortKey="phone" sort={sort} onSort={onSort} resize={thResize("phone", 6)} />
+                    <SortableTh label="태그" sortKey="tag" sort={sort} onSort={onSort} filter={thFilter("tag")} resize={thResize("tag", 7)} />
+                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} filter={thFilter("status")} resize={thResize("status", 8)} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {pager.view.map((p: any) => {
+                    const badge = TYPE_BADGE[p.type] || TYPE_BADGE.other;
+                    const on = selectedIds.has(p.id);
+                    return (
+                      <tr key={p.id} onClick={() => { setDetailPartner(p); setDetailTab("info"); setShowCommForm(false); }}
+                        className={on ? "ev-on partner-row" : "partner-row"}>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <button type="button" aria-label={`${p.name} 선택`}
+                            onClick={() => { const next = new Set(selectedIds); if (on) next.delete(p.id); else next.add(p.id); setSelectedIds(next); }}
+                            className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
+                        </td>
+                        <td className="tc mono-number ev-dim">{p.code != null ? String(p.code).padStart(4, "0") : "—"}</td>
+                        <td className="ev-ell font-medium">
+                          <span className="inline-flex items-center gap-1.5">
+                            {p.name}
+                            {p.is_dormant && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title="6개월 이상 거래·연락 없음 — 휴면"><Ico e="💤" /> 휴면</span>
                             )}
+                          </span>
+                        </td>
+                        <td className="tc">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${badge.bg} ${badge.text}`}>{badge.label}</span>
+                        </td>
+                        <td className="ev-dim">
+                          <div className="flex items-center gap-1.5">
+                            <span className="mono-number">{fmtBizNo(p.business_number) || "—"}</span>
+                            {p.business_number && (() => {
+                              const cleaned = (p.business_number as string).replace(/[^0-9]/g, "");
+                              const vr = bizVerifyResults[cleaned];
+                              if (vr?.loading) return <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-400 animate-pulse">...</span>;
+                              if (vr && !vr.loading) {
+                                const color = vr.status === "계속사업자" ? "bg-green-500/10 text-green-400"
+                                  : vr.status === "휴업자" ? "bg-yellow-500/10 text-yellow-400"
+                                  : vr.status === "폐업자" ? "bg-red-500/10 text-red-400"
+                                  : "bg-gray-500/10 text-gray-400";
+                                return <span className={`text-[10px] px-1.5 py-0.5 rounded ${color}`}>{vr.status}</span>;
+                              }
+                              return (
+                                <button onClick={(e) => handleVerifyBiz(p.business_number, e)}
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 transition whitespace-nowrap"
+                                  title="국세청 사업자 진위확인">
+                                  확인
+                                </button>
+                              );
+                            })()}
                           </div>
-                        ) : <span className="text-sm text-[var(--text-dim)]">—</span>}
-                      </td>
-                      <td className="text-center">
-                        <button onClick={(e) => { e.stopPropagation(); toggleActiveMutation.mutate(p); }}
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
-                            p.is_active ? "bg-[var(--success-dim)] text-[var(--success)] hover:opacity-80" : "bg-[var(--bg-surface)] text-[var(--text-dim)] hover:opacity-80"
-                          }`}>
-                          {p.is_active ? "활성" : "비활성"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          </>
-        )}
-        {/* U4 페이지네이션 — signatures L352-362 패턴 미러 */}
-        {partners.length > 0 && (() => {
-          const totalPages = Math.max(1, Math.ceil(partners.length / pageSize));
-          const curPage = Math.min(page, totalPages);
-          const startIdx = (curPage - 1) * pageSize + 1;
-          const endIdx = Math.min(curPage * pageSize, partners.length);
-          return (
-            <div className="partner-pagination-bar">
-              <div className="text-[var(--text-muted)]">
-                전체 {partners.length.toLocaleString()}건 중 {startIdx.toLocaleString()}–{endIdx.toLocaleString()}
-              </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]"
-                  aria-label="페이지당 개수"
-                >
-                  <option value={20}>20개</option>
-                  <option value={50}>50개</option>
-                  <option value={100}>100개</option>
-                </select>
-                <button
-                  type="button"
-                  disabled={curPage <= 1}
-                  onClick={() => setPage(curPage - 1)}
-                  className="px-2.5 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] disabled:opacity-30 disabled:cursor-not-allowed transition"
-                  aria-label="이전 페이지"
-                >‹</button>
-                <span className="text-[var(--text-muted)] min-w-[60px] text-center">{curPage} / {totalPages}</span>
-                <button
-                  type="button"
-                  disabled={curPage >= totalPages}
-                  onClick={() => setPage(curPage + 1)}
-                  className="px-2.5 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] disabled:opacity-30 disabled:cursor-not-allowed transition"
-                  aria-label="다음 페이지"
-                >›</button>
-              </div>
+                        </td>
+                        <td className="ev-ell">{p.contact_name || "—"}</td>
+                        <td className="ev-ell ev-dim">{p.contact_phone || p.contact_email || "—"}</td>
+                        <td className="ev-ell">
+                          {(p.tags || []).length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {(p.tags as string[]).slice(0, 3).map((tag: string) => (
+                                <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-muted)]">{tag}</span>
+                              ))}
+                              {(p.tags as string[]).length > 3 && (
+                                <span className="caption">+{(p.tags as string[]).length - 3}</span>
+                              )}
+                            </div>
+                          ) : <span className="ev-dim">—</span>}
+                        </td>
+                        <td className="tc">
+                          <button onClick={(e) => { e.stopPropagation(); toggleActiveMutation.mutate(p); }}
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
+                              p.is_active ? "bg-[var(--success-dim)] text-[var(--success)] hover:opacity-80" : "bg-[var(--bg-surface)] text-[var(--text-dim)] hover:opacity-80"
+                            }`}>
+                            {p.is_active ? "활성" : "비활성"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          );
-        })()}
-      </div>
+          )}
+
+          {/* ── 3줄 · 고른 줄로 하는 일 — 삭제는 되돌릴 수 없어 확인창을 한 번 더 거친다 ── */}
+          <SelectionBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+            <button type="button" disabled={bulkDeleteMut.isPending}
+              className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50"
+              onClick={async () => {
+                const { ok } = await confirmDialog({ title: "거래처 일괄 삭제", desc: `선택한 거래처 ${selectedIds.size}개를 삭제하시겠습니까? 복구할 수 없습니다.`, danger: true });
+                if (!ok) return;
+                await bulkDeleteMut.mutateAsync(Array.from(selectedIds));
+              }}>
+              {bulkDeleteMut.isPending ? "삭제 중…" : `삭제 (${selectedIds.size})`}
+            </button>
+          </SelectionBar>
+        </QueryBody>
+
+        <Pager page={pager.page} pages={pager.pages} total={partners.length} size={live.rows}
+          from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
 
       {/* 360도뷰 Detail Panel */}
       {detailPartner && (() => {
