@@ -1932,7 +1932,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .bank-map-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]; }
 .card-map-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl p-6 w-[480px] max-w-[90vw]; }
 .monthly-trend-chart-card { @apply mb-5 p-5; }
-.bank-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
 .bank-sync-range-filter { @apply flex flex-wrap items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .bank-sync-pause { @apply inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition disabled:opacity-50; }
 .bank-summary-cards { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
@@ -1976,8 +1975,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .loan-register-form { @apply p-6; }
 .loan-edit-form { @apply space-y-3; }
 /* ===== src/app/(app)/cards/page.tsx ===== */
-.cards-page-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
-.card-tx-period-filter { @apply flex items-center gap-2 mb-6 px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .card-summary-strip { @apply px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1.5; }
 .card-tx-detail-panel { @apply scroll-mt-6; }
 .card-tx-list-item { @apply p-4 flex items-center justify-between gap-4 hover:shadow-md transition; }
@@ -4664,6 +4661,9 @@ table.board-table { min-width: 900px; }
 .mc-table { min-width: 760px; }
 /* 결재 허브 — 조회 표준 뼈대 (2026-08-18 Wave 3): 본문 스크롤 상자 · 탭 경보 배지 · 결과줄 통계 버튼 */
 .qk-body > .ap-scroll { @apply absolute inset-0 flex flex-col overflow-hidden; }
+/* 통장·카드 개요/통장/카드/분석 탭 — 상자 안 스크롤 (2026-08-18) */
+.qk-body > .bank-scroll { @apply absolute inset-0 overflow-auto p-3; }
+.bank-scroll > .bank-summary-cards { @apply mb-4; }
 /*   목록 탭 — 조회 줄·머리단·쪽은 고정, 표 몸통만 스크롤 (2026-08-18 사장님: "다른 메뉴처럼 동일하게") */
 .ap-scroll > .ap-list, .ap-scroll > .ap-list > .ap-list { @apply flex min-h-0 flex-1 flex-col; }
 .ap-list > * { @apply shrink-0; }

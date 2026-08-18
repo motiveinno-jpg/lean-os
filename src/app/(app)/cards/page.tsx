@@ -704,28 +704,21 @@ export default function CardsPage() {
       hint: `${pager.from}–${pager.to}번째 줄만`, onClick: () => exportCardCsv(pager.view, `_${pager.page}쪽`) },
   ];
 
-  return (
-    /*  거래내역(조회 화면) 탭은 qk-shell 세로 기둥 — qk-body 가 남는 높이를 받아 표가 그 안에서
-        스크롤된다 (세금·증빙·통장과 같은 방식). 다른 탭은 예전처럼 문서 흐름 그대로. */
-    <div className={tab === "transactions" ? "qk-shell" : undefined}>
-      {/* 컴팩트 툴바 — 탭(좌) + 카드 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
-      <div className="cards-page-toolbar page-sticky-header">
-        <div className="seg-bar">
-          {([
-            { k: "cards", l: "카드" },
-            { k: "transactions", l: "거래내역" },
-            { k: "analysis", l: "분석" },
-          ] as { k: Tab; l: string }[]).map((t) => (
-            <button
-              key={t.k}
-              type="button"
-              onClick={() => setTab(t.k)}
-              className={`seg-item ${tab === t.k ? "seg-item-active" : ""}`}
-            >
-              {t.l}
-            </button>
-          ))}
-        </div>
+  //   갈래 탭은 상자 안 파란 밑줄 · 실행 버튼은 조회 줄 오른쪽 (2026-08-18 조회 표준 확산)
+  const tabsEl = (
+    <div className="collect-tabs no-print">
+      {([
+        { k: "cards", l: "카드" },
+        { k: "transactions", l: "거래내역" },
+        { k: "analysis", l: "분석" },
+      ] as { k: Tab; l: string }[]).map((t) => (
+        <button key={t.k} type="button" onClick={() => setTab(t.k)} className={tab === t.k ? "collect-tab collect-tab-on" : "collect-tab"}>{t.l}</button>
+      ))}
+    </div>
+  );
+  const actionsEl = (
+    <>
+        
         <button
           type="button"
           onClick={() => {
@@ -758,18 +751,29 @@ export default function CardsPage() {
             </>
           )}
         </button>
-      </div>
+    </>
+  );
 
-      {/* 기간설정 — 제일 상단(툴바 아래) 통일 위치. 카드 탭에서 카드 선택 시 그 카드 거래에 적용.
-          ★ 거래내역 탭에서는 숨긴다 — 조회 줄에 기간 칸이 있고, 기간을 치는 칸은 화면에 하나뿐이어야 한다. */}
+  return (
+    /*  거래내역(조회 화면) 탭은 qk-shell 세로 기둥 — qk-body 가 남는 높이를 받아 표가 그 안에서
+        스크롤된다 (세금·증빙·통장과 같은 방식). 다른 탭은 예전처럼 문서 흐름 그대로. */
+    <div className="qk-shell">
+      {/* 컴팩트 툴바 — 탭(좌) + 카드 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
+{/* 갈래 탭·실행 버튼은 각 탭 상자 머리에 (tabsEl / actionsEl) */}
+
       {tab !== "transactions" && (
-      <div className="card-tx-period-filter no-print">
-        {/*   통장 화면과 같은 위젯 — 두 화면이 같은 일을 하므로 다르게 생길 이유가 없다 (2026-08-11) */}
-        <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
-          onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
-        <span className="text-[10px] text-[var(--text-dim)] ml-auto hidden sm:block">카드를 선택하면 해당 카드 거래에 적용됩니다</span>
-      </div>
-      )}
+        <QueryScreen>
+          <QueryHead>
+            {tabsEl}
+            <QueryBar right={actionsEl}>
+              {/* 기간 — 조회 줄에 하나(2026-08-18). 카드 탭에서 카드 선택 시 그 카드 거래·연동 기간에 적용. 거래내역 탭은 자기 조회 줄에 기간 칸이 있다 */}
+              <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
+                onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
+              <span className="text-[11px] text-[var(--text-dim)]">카드를 선택하면 해당 카드 거래에 적용 · 거래를 조건으로 찾으려면 거래내역 탭</span>
+            </QueryBar>
+          </QueryHead>
+          <QueryBody>
+            <div className="bank-scroll">
 
       {/* ========== 카드 탭 ========== */}
       {tab === "cards" && (
@@ -913,11 +917,82 @@ export default function CardsPage() {
           조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **한 상자**에. 예전의 검색 input + 카드 select +
           정렬 툴바 + 선택 액션바 낱장 구성을 버렸다 — 카드 필터는 검색조건의 '카드' 칩으로,
           정렬은 머리단으로, 선택은 바닥 SelectionBar 로. ========== */}
+      {/* ========== 분석 탭 ========== */}
+      {tab === "analysis" && (
+        <div className="card-analysis-tab-panel">
+          {/* Stat 4 — 가짜 trend 없음 */}
+          <div className="card-analysis-stats">
+            <Stat tone="danger" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
+            {hasLimits ? (
+              <Stat
+                tone="info"
+                label="사용 가능 한도"
+                value={fmtW(Math.max(0, totalLimit - totalUsage))}
+                sub={`당월 사용 차감 · 총 한도 ${fmtW(totalLimit)}`}
+                icon="💼"
+              />
+            ) : (
+              <Stat tone="" label="한도" value="—" sub="한도 정보 없음" icon="💼" />
+            )}
+            <Stat tone="" label="활성 카드" value={`${activeCards}개`} sub={`등록 ${cards.length}개`} icon="💳" />
+            <Stat tone="info" label="이번 달 거래" value={`${monthTx.length}건`} sub="카드 거래 수" icon="📊" />
+          </div>
+
+          {/* 카테고리별 지출 */}
+          <div className="card-category-spending-panel glass-card">
+            <h3 className="text-base font-bold text-[var(--text)] mb-4">카테고리별 지출 (상위 5)</h3>
+            {/* '어디에 얼마 비중' 을 묻는 자리다(줄마다 %가 붙어 있다) → 비중은 도넛이 한눈에,
+                정확한 금액은 아래 목록이 맡는다 (2026-08-07 자료별 최적 형태 판정) */}
+            {categoryStats.length === 0 ? (
+              <p className="text-sm text-[var(--text-muted)] text-center py-4">이번 달 카드 지출 없음</p>
+            ) : (<>
+              <div className="lp-donut-wrap">
+                <DonutChart unit="원" data={categoryStats.map((c) => ({ label: c.name, value: c.amount }))} />
+                <Legend items={categoryStats.map((c, i) => ({ name: c.name, color: vizColor(i) }))} />
+              </div>
+              <div className="space-y-3">
+                {categoryStats.map((c, i) => (
+                  <div key={c.name} className="card-category-row">
+                    <div className="w-28 text-sm text-[var(--text-muted)] truncate shrink-0">
+                      <i className="lp-dot" style={{ background: vizColor(i) }} />{c.name}
+                    </div>
+                    <div className="flex-1">
+                      <div className="w-full bg-[var(--bg-surface)] rounded-md h-3 overflow-hidden">
+                        <div className="h-3 rounded-r-md" style={{ width: `${c.pct}%`, background: vizColor(i) }} />
+                      </div>
+                    </div>
+                    <div className="w-32 text-right shrink-0">
+                      <p className="text-sm font-semibold text-[var(--text)] mono-number">{fmtW(c.amount)}</p>
+                      <p className="text-xs text-[var(--text-dim)]">{c.pct}%</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>)}
+          </div>
+
+          {/* 기존 컴포넌트 재사용 — 시안 분석 탭에 자연스럽게 녹임 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <TopCardExpensesThisMonth companyId={companyId} />
+            <CardAutoTransferHistory companyId={companyId} />
+          </div>
+          <CardBillingSummary companyId={companyId} />
+          <CardMonthlyUsage companyId={companyId} />
+        </div>
+      )}
+
+
+            </div>
+          </QueryBody>
+        </QueryScreen>
+      )}
+
       {tab === "transactions" && (
         <QueryScreen>
         <QueryHead>
+        {tabsEl}
         {/* ── 1줄 · 조회 조건 — 기간·빠른검색은 즉시, 검색조건은 '조회'를 눌러 ── */}
-        <QueryBar right={<ExcelMenu items={txExcelItems} />}>
+        <QueryBar right={<><ExcelMenu items={txExcelItems} />{actionsEl}</>}>
           {/*   ★ 기간을 치는 칸은 화면에 하나뿐이다. 달력은 검색조건 안에 있다. */}
           <DateRangeField from={cardTxFrom} to={cardTxTo} label={null} parts="segments"
             onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }}
@@ -1074,69 +1149,6 @@ export default function CardsPage() {
         </QueryScreen>
       )}
 
-      {/* ========== 분석 탭 ========== */}
-      {tab === "analysis" && (
-        <div className="card-analysis-tab-panel">
-          {/* Stat 4 — 가짜 trend 없음 */}
-          <div className="card-analysis-stats">
-            <Stat tone="danger" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
-            {hasLimits ? (
-              <Stat
-                tone="info"
-                label="사용 가능 한도"
-                value={fmtW(Math.max(0, totalLimit - totalUsage))}
-                sub={`당월 사용 차감 · 총 한도 ${fmtW(totalLimit)}`}
-                icon="💼"
-              />
-            ) : (
-              <Stat tone="" label="한도" value="—" sub="한도 정보 없음" icon="💼" />
-            )}
-            <Stat tone="" label="활성 카드" value={`${activeCards}개`} sub={`등록 ${cards.length}개`} icon="💳" />
-            <Stat tone="info" label="이번 달 거래" value={`${monthTx.length}건`} sub="카드 거래 수" icon="📊" />
-          </div>
-
-          {/* 카테고리별 지출 */}
-          <div className="card-category-spending-panel glass-card">
-            <h3 className="text-base font-bold text-[var(--text)] mb-4">카테고리별 지출 (상위 5)</h3>
-            {/* '어디에 얼마 비중' 을 묻는 자리다(줄마다 %가 붙어 있다) → 비중은 도넛이 한눈에,
-                정확한 금액은 아래 목록이 맡는다 (2026-08-07 자료별 최적 형태 판정) */}
-            {categoryStats.length === 0 ? (
-              <p className="text-sm text-[var(--text-muted)] text-center py-4">이번 달 카드 지출 없음</p>
-            ) : (<>
-              <div className="lp-donut-wrap">
-                <DonutChart unit="원" data={categoryStats.map((c) => ({ label: c.name, value: c.amount }))} />
-                <Legend items={categoryStats.map((c, i) => ({ name: c.name, color: vizColor(i) }))} />
-              </div>
-              <div className="space-y-3">
-                {categoryStats.map((c, i) => (
-                  <div key={c.name} className="card-category-row">
-                    <div className="w-28 text-sm text-[var(--text-muted)] truncate shrink-0">
-                      <i className="lp-dot" style={{ background: vizColor(i) }} />{c.name}
-                    </div>
-                    <div className="flex-1">
-                      <div className="w-full bg-[var(--bg-surface)] rounded-md h-3 overflow-hidden">
-                        <div className="h-3 rounded-r-md" style={{ width: `${c.pct}%`, background: vizColor(i) }} />
-                      </div>
-                    </div>
-                    <div className="w-32 text-right shrink-0">
-                      <p className="text-sm font-semibold text-[var(--text)] mono-number">{fmtW(c.amount)}</p>
-                      <p className="text-xs text-[var(--text-dim)]">{c.pct}%</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>)}
-          </div>
-
-          {/* 기존 컴포넌트 재사용 — 시안 분석 탭에 자연스럽게 녹임 */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <TopCardExpensesThisMonth companyId={companyId} />
-            <CardAutoTransferHistory companyId={companyId} />
-          </div>
-          <CardBillingSummary companyId={companyId} />
-          <CardMonthlyUsage companyId={companyId} />
-        </div>
-      )}
 
       {/* 전표처리 모달 — 카드 1건을 수동으로 전표 생성 (회사별 매핑 기본계정 제안) */}
       {postCard && (

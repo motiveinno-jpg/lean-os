@@ -706,24 +706,17 @@ export default function BankPage() {
     { key: "transactions", label: "거래내역" },
   ] as { key: Tab; label: string }[]).filter((t) => bankTabMaster || bankTabPerm(`/bank:${t.key}`));
 
-  return (
-    /*  거래내역(조회 화면) 탭은 qk-shell 세로 기둥 — qk-body 가 남는 높이를 받아 표가 그 안에서
-        스크롤된다 (세금·증빙과 같은 방식). 다른 탭은 예전처럼 문서 흐름 그대로. */
-    <div className={tab === "transactions" ? "qk-shell" : undefined}>
-      {/* 컴팩트 툴바 — 탭(좌) + 통장 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
-      <div className="bank-toolbar page-sticky-header">
-        <div className="seg-bar">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => goTab(t.key)}
-              className={`seg-item ${tab === t.key ? "seg-item-active" : ""}`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+  //   갈래 탭은 상자 안 파란 밑줄 · 실행 버튼은 조회 줄 오른쪽 (2026-08-18 조회 표준 확산)
+  const tabsEl = (
+    <div className="collect-tabs no-print">
+      {tabs.map((t) => (
+        <button key={t.key} type="button" onClick={() => goTab(t.key)} className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>{t.label}</button>
+      ))}
+    </div>
+  );
+  const actionsEl = (
+    <>
+        
         {/* 우측 — [연동 기간] + [통장 연동] 한 묶음. 이 기간이 곧 CODEF 연동 대상 범위라 버튼 옆에 배치. */}
         <div className="flex flex-wrap items-center gap-2">
           {/*   거래기간 — 다른 화면과 같은 달력 위젯 (2026-08-11). 목록 필터이자 CODEF 연동 기간이라
@@ -787,12 +780,30 @@ export default function BankPage() {
             )}
           </button>
         </div>
-      </div>
+    </>
+  );
 
+  return (
+    /*  거래내역(조회 화면) 탭은 qk-shell 세로 기둥 — qk-body 가 남는 높이를 받아 표가 그 안에서
+        스크롤된다 (세금·증빙과 같은 방식). 다른 탭은 예전처럼 문서 흐름 그대로. */
+    <div className="qk-shell">
+      {/* 컴팩트 툴바 — 탭(좌) + 통장 연동(우). 타이틀은 상단 고정 헤더바가 담당 */}
+{/* 갈래 탭·실행 버튼은 각 탭 상자 머리에 (tabsEl / actionsEl) */}
+
+      {tab !== "transactions" && (
+        <QueryScreen>
+          <QueryHead>
+            {tabsEl}
+            <QueryBar right={actionsEl}>
+              <span className="text-[11px] text-[var(--text-dim)]">통장 잔액·이번 달 흐름 — 거래를 조건으로 찾으려면 거래내역 탭</span>
+            </QueryBar>
+          </QueryHead>
+          <QueryBody>
+            <div className="bank-scroll">
       {/* 시안 stat 4 그라데이션 카드 — 거래내역(조회 화면) 탭에서는 숨긴다:
           이 숫자들은 '이번 달' 고정이라, 조회 기간과 다른 숫자가 표 위에 있으면
           "조건의 결과"로 잘못 읽힌다 (2026-08-14 조회 화면 표준 적용) */}
-      {tab !== "transactions" && (
+      {/* 상자 안(거래내역 아님) */ true && (
       <div className="bank-summary-cards">
         <Stat
           tone=""
@@ -927,11 +938,18 @@ export default function BankPage() {
           탭 줄 아래에 조회 줄·걸린 조건·결과 요약·표·쪽 넘김을 **한 상자**에.
           예전의 기간 줄+계좌 배너+정렬 툴바+선택 액션바 낱장 구성을 버렸다 —
           계좌 필터는 검색조건의 '계좌' 칩으로, 정렬은 머리단으로, 선택은 바닥 SelectionBar 로. */}
+
+            </div>
+          </QueryBody>
+        </QueryScreen>
+      )}
+
       {tab === "transactions" && (
         <QueryScreen>
         <QueryHead>
+        {tabsEl}
         {/* ── 1줄 · 조회 조건 — 기간·빠른검색은 즉시, 검색조건은 '조회'를 눌러 ── */}
-        <QueryBar right={<ExcelMenu items={txExcelItems} />}>
+        <QueryBar right={<><ExcelMenu items={txExcelItems} />{actionsEl}</>}>
           {/*   ★ 기간을 치는 칸은 화면에 하나뿐이다. 달력은 검색조건 안에 있다. */}
           <DateRangeField from={bankTxFrom} to={bankTxTo} label={null} parts="segments"
             onChange={(f, t) => { setBankTxFrom(f); setBankTxTo(t); }}
