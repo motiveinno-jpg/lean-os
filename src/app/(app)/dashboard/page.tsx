@@ -692,7 +692,7 @@ function TaxScheduleWidget({ items }: { items: ReturnType<typeof getUpcomingTaxD
 const QUICK_NAV_LINKS: { icon: string; label: string; href: string }[] = [
   { icon: '🏦', label: '통장',     href: '/bank' },
   { icon: '💳', label: '카드',     href: '/cards' },
-  { icon: '📊', label: '거래내역', href: '/transactions' },
+  { icon: '📊', label: '수집·전표', href: '/collect?tab=bank' },
   { icon: '🧾', label: '전자결재', href: '/approvals' },
   { icon: '👥', label: '구성원',   href: '/employees' },
   { icon: '🗓', label: '근태',     href: '/attendance' },

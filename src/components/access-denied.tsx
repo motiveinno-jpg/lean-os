@@ -15,7 +15,7 @@ const RECOMMEND_BY_ROLE: Record<UserRole, RecMenu[]> = {
   owner: [
     { href: "/dashboard", label: "대시보드", emoji: "🏠" },
     { href: "/approvals", label: "결재함", emoji: "📋" },
-    { href: "/transactions", label: "통장", emoji: "💳" },
+    { href: "/collect?tab=bank", label: "수집·전표", emoji: "💳" },
   ],
   admin: [
     { href: "/dashboard", label: "대시보드", emoji: "🏠" },

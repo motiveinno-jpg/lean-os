@@ -960,6 +960,12 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
   return (
     <div className="">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
+      {/*   이 화면이 하던 일(미분류 정리·계정 추천·배운 규칙)은 수집·전표 › 통장 탭으로 갔다 (2026-08-11 메뉴에서 내림,
+            2026-08-18 조회 표준 확산 때 링크까지 정리). 즐겨찾기로 들어온 사람에게 갈 곳을 알려 준다. */}
+      <div className="collect-note tx-moved-note">
+        ※ 이 화면은 <b>수집·전표 › 통장</b>으로 통합됐습니다 — 계정 지정·AI 계정 추천·배운 규칙·전표 만들기를 거기서 합니다.
+        {" "}<a href="/collect?tab=bank" className="text-[var(--primary)] font-bold underline">수집·전표 › 통장으로 →</a>
+      </div>
       <div className="tx-header-bar page-sticky-header">
         {/* 탭 — 좌측 (visibleTabs 길이가 1 이하면 탭 UI 자체 숨김, 단일 view) */}
         {visibleTabs.length > 1 ? (

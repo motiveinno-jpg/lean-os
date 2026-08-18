@@ -21,13 +21,13 @@ import Link from "next/link";
 const ITEM_LINKS: { match: RegExp; href: string; label: string }[] = [
   { match: /은행 거래내역/, href: "/bank", label: "통장 보기" },
   { match: /법인카드/, href: "/cards", label: "카드 보기" },
-  { match: /미매핑|분류/, href: "/transactions", label: "거래 분류" },
+  { match: /미매핑|분류/, href: "/collect?tab=bank", label: "통장 전표" },
   { match: /세금계산서/, href: "/tax-invoices", label: "계산서 대사" },
   { match: /미수금|미지급금/, href: "/partners/ledger", label: "원장 보기" },
   { match: /고정비/, href: "/payments", label: "정기 지출" },
   { match: /프로젝트/, href: "/projecthub", label: "프로젝트" },
   { match: /부가세/, href: "/tax-invoices?tab=vat", label: "부가세" },
-  { match: /증빙/, href: "/transactions", label: "거래 장부" },
+  { match: /증빙/, href: "/collect", label: "수집·전표" },
   { match: /손익 리포트/, href: "/reports/pnl", label: "손익 보기" },
 ];
 const itemLink = (title: string) => ITEM_LINKS.find((l) => l.match.test(title)) || null;

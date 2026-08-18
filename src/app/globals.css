@@ -8268,6 +8268,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .qk-shell > .collect-note { @apply shrink-0; }
 .qk-screen > .collect-note { @apply shrink-0 border-t border-[var(--border)] px-3.5 py-2; }
 .spv-je > .spv-note { @apply mt-2 border-t border-[var(--border)] px-3 pt-2; }
+.tx-moved-note { @apply mb-3 rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-4 py-2.5; }
 .partner-row { @apply cursor-pointer transition-colors; }
 .partner-row:hover { @apply bg-[var(--bg-surface)]; }
 /*   한 쪽(차변 또는 대변) — 계정과 거래처를 위아래로 */

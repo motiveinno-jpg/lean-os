@@ -82,7 +82,7 @@ export function AutoTransferHistoryCard({ companyId, maxItems = 8 }: Props) {
         <div className="auto-transfer-history-empty">
           이번달 자동이체 연결 내역이 없습니다.
           <div className="text-[10px] mt-1">
-            <Link href="/transactions" className="text-[var(--primary)] hover:underline font-medium">거래 자동화</Link> 페이지에서 거래를 &quot;자동이체&quot;로 표시하면 여기에 모입니다.
+            <Link href="/bank" className="text-[var(--primary)] hover:underline font-medium">통장</Link> 화면에서 거래를 &quot;자동이체&quot;로 표시하면 여기에 모입니다.
           </div>
         </div>
       ) : (

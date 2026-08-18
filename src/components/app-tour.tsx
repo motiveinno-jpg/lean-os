@@ -52,7 +52,7 @@ const TOUR_STEPS: TourStep[] = [
     },
   },
   {
-    href: "/transactions", title: "거래 장부",
+    href: "/collect?tab=bank", title: "수집·전표",
     desc: "은행·카드 거래가 자동 수집되고 계정과목까지 자동 분류됩니다. 손대지 않아도 장부가 채워져요.",
     howTo: {
       label: "은행·카드 자동 수집 등록 방법",

@@ -65,7 +65,7 @@ export function UnclassifiedPrompt({ companyId }: { companyId: string }) {
         className="shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white bg-[var(--primary)] hover:opacity-90 transition disabled:opacity-50">
         {running ? "정리 중..." : "자동 정리"}
       </button>
-      <Link href="/transactions" className="shrink-0 text-[11px] font-semibold text-[var(--primary)] hover:underline">거래 자동화 →</Link>
+      <Link href="/collect?tab=bank" className="shrink-0 text-[11px] font-semibold text-[var(--primary)] hover:underline">수집·전표 › 통장 →</Link>
     </div>
   );
 }

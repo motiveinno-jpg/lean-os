@@ -119,7 +119,7 @@ const FEATURES: GuideFeature[] = [
     category: '재무',
     description:
       '은행·카드 거래내역이 자동으로 수집되어 하나의 장부에 쌓입니다. 거래 내용을 분석해 계정과목을 자동 분류하고 부가세 구분까지 제안하므로, 검토하고 필요한 것만 고치면 장부가 완성됩니다.',
-    route: '/transactions',
+    route: '/collect?tab=bank',
     keyFeatures: [
       '자동 수집 — 인증서 연동 시 은행 입출금·카드 승인내역 자동 반영',
       '자동 분류 — 거래 내용 기반 계정과목·부가세 구분 자동 매핑',

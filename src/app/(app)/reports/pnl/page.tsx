@@ -991,7 +991,7 @@ function PnlPageInner() {
       <div className="pnl-accuracy-banner kpi-callout">
         <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" d="M12 16v-4m0-4h.01" /></svg>
         <p className="text-[11.5px] leading-relaxed">
-          <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 계정과목이 분류된 출금만</b> 반영됩니다 — 미분류 출금은 무엇인지 알 수 없어 제외되므로, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다. <Link href="/transactions" className="underline font-semibold">거래내역</Link>에서 비용을 분류할수록 정확해집니다.
+          <b>매출·매입원가는 세금계산서(발생주의) 기준</b>이라 정확합니다. 단 <b>판매관리비는 계정과목이 분류된 출금만</b> 반영됩니다 — 미분류 출금은 무엇인지 알 수 없어 제외되므로, 비용이 실제보다 적게(이익은 많게) 보일 수 있습니다. <Link href="/collect?tab=bank" className="underline font-semibold">수집·전표 › 통장</Link>에서 계정을 골라 전표를 만들수록 정확해집니다.
         </p>
       </div>
 
