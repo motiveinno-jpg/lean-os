@@ -1,10 +1,11 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, AppliedChips, QuickSearch, quickSearchHit, quickTerms, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 
@@ -35,6 +36,11 @@ export default function MyContractsPage() {
   const userId = user?.id ?? null;
   const companyId = user?.company_id ?? null;
   const [filter, setFilter] = useState<"pending" | "completed" | "all">("pending");
+  //   ── 조회 화면 표준 (2026-08-18 Wave 3) — 갈래 탭·빠른검색·머리단 정렬·쪽 넘김. 확정할 게 없어 SelectionBar 없음 ──
+  const [q, setQ] = useState("");
+  type MSortKey = "title" | "status" | "docs" | "sent" | "expires";
+  const [sort, setSort] = useState<SortState<MSortKey>>({ key: "sent", dir: "desc" });
+  const onSort = (k: MSortKey) => setSort((c) => nextSort(c, k, k === "sent" || k === "expires" ? "desc" : "asc"));
 
   const { data: packages = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["my-contracts", userId, companyId],
@@ -60,11 +66,24 @@ export default function MyContractsPage() {
     enabled: !!userId && !!companyId,
   });
 
+  const stLabel = (p: Package) => (p.expires_at && new Date(p.expires_at) < new Date()) ? "만료됨" : (STATUS_INFO[p.status] || STATUS_INFO.draft).label;
   const filtered = useMemo(() => {
-    if (filter === "all") return packages;
-    if (filter === "pending") return packages.filter((p) => ["sent", "partially_signed", "draft"].includes(p.status));
-    return packages.filter((p) => p.status === "completed");
-  }, [packages, filter]);
+    let arr = packages;
+    if (filter === "pending") arr = arr.filter((p) => ["sent", "partially_signed", "draft"].includes(p.status));
+    else if (filter === "completed") arr = arr.filter((p) => p.status === "completed");
+    arr = arr.filter((p) => quickSearchHit(q, [p.title, stLabel(p)]));
+    const val = (p: Package) => {
+      switch (sort.key) {
+        case "title": return p.title || ""; case "status": return stLabel(p);
+        case "docs": return (p.hr_contract_package_items || []).length; case "expires": return p.expires_at || "";
+        default: return p.sent_at || p.created_at || "";
+      }
+    };
+    return [...arr].sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || String(b.created_at).localeCompare(String(a.created_at)); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packages, filter, q, sort]);
+  const pager = usePager(filtered, 50, `${filter}|${q}`);
+  const chips: AppliedChip[] = quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) }));
 
   const counts = useMemo(() => {
     const pending = packages.filter((p) => ["sent", "partially_signed", "draft"].includes(p.status)).length;
@@ -85,108 +104,80 @@ export default function MyContractsPage() {
   }
 
   return (
-    <div>
-      <div className="mycontracts-header page-sticky-header">
-        <div className="mycontracts-filter-bar seg-bar">
-          {[
-            { key: "pending" as const, label: "대기 중", count: counts.pending },
-            { key: "completed" as const, label: "완료", count: counts.completed },
-            { key: "all" as const, label: "전체", count: counts.all },
-          ].map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`seg-item ${filter === f.key ? "seg-item-active" : ""}`}
-            >
-              {f.label}
-              {f.count > 0 && (
-                <span className="ml-1 badge badge-muted">
-                  {f.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="btn-secondary"
-        >
-          <svg className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M23 4v6h-6M1 20v-6h6" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          {isFetching ? '갱신 중...' : '새로고침'}
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-      ) : filtered.length === 0 ? (
-        <div className="mycontracts-empty glass-card">
-          <div className="text-4xl mb-4"><Ico e="✍" /></div>
-          <div className="text-sm font-bold">
-            {filter === "pending"
-              ? "대기 중인 서명 요청이 없습니다"
-              : filter === "completed"
-              ? "완료된 서명이 없습니다"
-              : "받은 계약서가 없습니다"}
+    <div className="qk-shell">
+      {/* ── 조회 화면 표준 — 갈래 탭 · 조회 줄 · 결과 요약 · 표 · 쪽 넘김 (2026-08-18 Wave 3) ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print">
+            {([["pending", "대기 중", counts.pending], ["completed", "완료", counts.completed], ["all", "전체", counts.all]] as const).map(([k, label, n]) => (
+              <button key={k} type="button" onClick={() => setFilter(k)}
+                className={filter === k ? "collect-tab collect-tab-on" : "collect-tab"}>
+                {label}<span className="collect-tab-cnt">{n}</span>
+              </button>
+            ))}
           </div>
-          <div className="text-xs text-[var(--text-muted)] mt-1.5">회사에서 계약서를 발송하면 이곳에 표시됩니다.</div>
-        </div>
-      ) : (
-        <div className="mycontracts-list">
-          {filtered.map((p) => {
-            const st = STATUS_INFO[p.status] || STATUS_INFO.draft;
-            const items = p.hr_contract_package_items || [];
-            const signedCount = items.filter((it) => it.status === "signed").length;
-            const totalCount = items.length;
-            const expired = p.expires_at && new Date(p.expires_at) < new Date();
-            const canSign = !expired && ["sent", "partially_signed"].includes(p.status);
-            const sentDate = p.sent_at ? kstDateStr(new Date(p.sent_at)) : "—";
-            const expDate = p.expires_at ? kstDateStr(new Date(p.expires_at)) : "—";
-
-            return (
-              <div
-                key={p.id}
-                className="mycontracts-row glass-card"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <h3 className="text-sm font-bold truncate">{p.title}</h3>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>
-                        {expired ? "만료됨" : st.label}
-                      </span>
-                    </div>
-                    <div className="text-xs text-[var(--text-muted)] space-y-0.5">
-                      <div><Ico e="📄" /> 문서 {totalCount}건 · 서명 {signedCount}/{totalCount}</div>
-                      <div>📨 발송일 {sentDate} · 만료일 {expDate}</div>
-                    </div>
-                  </div>
-                  <div className="shrink-0">
-                    {canSign ? (
-                      <button
-                        onClick={() => openSign(p)}
-                        className="btn-primary"
-                      >
-                        서명하기 →
-                      </button>
-                    ) : p.status === "completed" ? (
-                      <button
-                        onClick={() => openSign(p)}
-                        className="btn-secondary"
-                      >
-                        보기
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+          <QueryBar right={
+            <button type="button" onClick={() => refetch()} disabled={isFetching} className="btn-secondary btn-sm">{isFetching ? "갱신 중…" : "새로고침"}</button>
+          }>
+            <QuickSearch value={q} onApply={setQ} placeholder="제목 · 상태 — 쉼표로 여러 개, Enter" />
+          </QueryBar>
+          <AppliedChips chips={chips} onClearAll={() => setQ("")} />
+          <ResultStrip>
+            <Stat label="받은 계약서" value={`${filtered.length.toLocaleString("ko")}건`} />
+            <Stat label="서명 대기" value={`${counts.pending}건`} tone={counts.pending > 0 ? "minus" : undefined} />
+            <span className="text-[10.5px] text-[var(--text-dim)]">회사에서 계약서를 발송하면 여기에 쌓입니다 · 서명하기는 새 탭에서 열립니다</span>
+          </ResultStrip>
+        </QueryHead>
+        <QueryBody>
+          {isLoading ? (
+            <div className="collect-empty">불러오는 중…</div>
+          ) : filtered.length === 0 ? (
+            <div className="collect-empty">
+              {q ? "이 조건에 맞는 계약서가 없습니다 — 검색을 풀어 보세요"
+                : filter === "pending" ? "대기 중인 서명 요청이 없습니다"
+                : filter === "completed" ? "완료된 서명이 없습니다" : "받은 계약서가 없습니다"}
+            </div>
+          ) : (
+            <div className="ev-scroll">
+              <table className="ev-table ev-lined mc-table">
+                <thead>
+                  <tr>
+                    <SortableTh label="제목" sortKey="title" sort={sort} onSort={onSort} />
+                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} style={{ width: 110 }} />
+                    <SortableTh label="문서 · 서명" sortKey="docs" sort={sort} onSort={onSort} style={{ width: 130 }} />
+                    <SortableTh label="발송일" sortKey="sent" sort={sort} onSort={onSort} style={{ width: 110 }} />
+                    <SortableTh label="만료일" sortKey="expires" sort={sort} onSort={onSort} style={{ width: 110 }} />
+                    <SortableTh label="관리" style={{ width: 120 }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {pager.view.map((p) => {
+                    const st = STATUS_INFO[p.status] || STATUS_INFO.draft;
+                    const items = p.hr_contract_package_items || [];
+                    const signedCount = items.filter((it) => it.status === "signed").length;
+                    const expired = p.expires_at && new Date(p.expires_at) < new Date();
+                    const canSign = !expired && ["sent", "partially_signed"].includes(p.status);
+                    return (
+                      <tr key={p.id}>
+                        <td className="ev-ell font-medium">{p.title}</td>
+                        <td className="tc"><span className={`text-[10px] px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{expired ? "만료됨" : st.label}</span></td>
+                        <td className="tc mono-number">{items.length}건 · 서명 {signedCount}/{items.length}</td>
+                        <td className="tc mono-number ev-dim">{p.sent_at ? kstDateStr(new Date(p.sent_at)) : "—"}</td>
+                        <td className="tc mono-number ev-dim">{p.expires_at ? kstDateStr(new Date(p.expires_at)) : "—"}</td>
+                        <td className="tc">
+                          {canSign ? <button type="button" onClick={() => openSign(p)} className="btn-primary btn-sm">서명하기 →</button>
+                            : p.status === "completed" ? <button type="button" onClick={() => openSign(p)} className="btn-secondary btn-sm">보기</button> : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </QueryBody>
+        <Pager page={pager.page} pages={pager.pages} total={filtered.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
     </div>
   );
 }

@@ -2079,10 +2079,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .member-role-empty { @apply bg-[var(--bg-card)] rounded-xl p-8 text-center border border-[var(--border)]; }
 .member-role-row { @apply bg-[var(--bg-card)] rounded-xl p-4 border border-[var(--border)] flex flex-wrap items-center gap-3; }
 .hr-templates-page { @apply space-y-6; }
-.mycontracts-header { @apply mb-6 flex flex-wrap items-center justify-between gap-2; }
-.mycontracts-empty { @apply py-16 px-6 text-center; }
-.mycontracts-list { @apply space-y-4; }
-.mycontracts-row { @apply p-5 hover:border-[var(--primary)]/30 transition; }
 .schedule-page { @apply space-y-6 mx-auto; }
 .schedule-tabbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .schedule-calendar-tab { @apply space-y-4; }
@@ -4694,6 +4690,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .goal-hero-summary-count { @apply px-4 py-3; }
 .quotes-page { @apply flex flex-col gap-3; }
 .quotes-table { min-width: 860px; }
+.mc-table { min-width: 760px; }
 /* 전자계약 — 조회 표준 (2026-08-18 Wave 3): 양식 관리 탭 스크롤 상자 · 발송 실패 칩 */
 .qk-body > .sig-scroll { @apply absolute inset-0 overflow-auto p-3; }
 .sig-fail-chip { @apply inline-flex items-center gap-1 rounded-full border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-2.5 py-1 text-[11px] font-semibold text-[var(--danger)]; }
