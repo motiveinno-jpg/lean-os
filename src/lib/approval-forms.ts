@@ -35,6 +35,7 @@ export interface ApprovalForm {
   company_id: string;
   name: string;
   category: string | null;
+  base_type: string | null; // 이 양식이 대신하는 기본 요청 유형(경비 청구 등) — 새 요청에서 그 유형을 고르면 이 양식이 나온다 (2026-08-18)
   description: string | null;
   fields: ApprovalFormField[];
   content_template: string | null;
@@ -68,6 +69,7 @@ export interface SaveApprovalFormInput {
   companyId: string;
   name: string;
   category?: string | null;
+  baseType?: string | null;
   description?: string | null;
   fields: ApprovalFormField[];
   contentTemplate?: string | null;
@@ -83,6 +85,7 @@ export async function saveApprovalForm(input: SaveApprovalFormInput): Promise<st
     company_id: input.companyId,
     name: input.name.trim(),
     category: input.category || null,
+    base_type: input.baseType || null,
     description: input.description || null,
     fields: input.fields,
     content_template: input.contentTemplate || null,

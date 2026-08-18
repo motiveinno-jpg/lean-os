@@ -4671,6 +4671,7 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .ap-scroll .approval-table-wrap { @apply rounded-none border-0; }
 .ap-scroll .qk-pager { @apply border-t border-[var(--border)] px-3.5; }
 .ap-scroll > .ap-pad { @apply p-3; }
+.ap-subbar { @apply flex items-center gap-2 border-b border-[var(--border)] px-3.5 py-2; }
 /*   양식 관리·정책 관리 표 (2026-08-18) */
 table.afm-table { min-width: 720px; }
 table.ap-policy-table { min-width: 960px; }
@@ -4680,7 +4681,6 @@ table.ap-policy-table { min-width: 960px; }
 .ap-scroll .approval-policy-form.ap-pad-form { @apply m-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4; }
 .ap-scroll .forms-empty-state { @apply px-6 py-16 text-center; }
 /*   새 요청 — 요청 유형·회사 결재 양식 한 줄 고르기(누르면 아래로 목록) (2026-08-18 사장님) */
-.ap-pick-rows { @apply grid grid-cols-1 gap-3 md:grid-cols-2; }
 .ap-pick { @apply relative; }
 .ap-pick-btn { @apply flex h-10 w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-left text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--primary)]/50; }
 .ap-pick-btn-on { @apply border-[var(--primary)] text-[var(--text)]; }

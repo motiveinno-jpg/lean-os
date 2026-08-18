@@ -600,10 +600,11 @@ function formatDateTime(dateStr: string | null) {
 export default function ApprovalsPage() {
   const sp = useSearchParams();
   const newType = sp?.get('new'); // expense / payment / general — 대시보드 quick action 에서 전달
-  // 알림에서 ?tab=... 로 진입 (notification-routes.ts) — 참조 통보는 references,
+  // 알림에서 ?tab=... 로 진입 (notification-routes.ts) — 참조 통보는 references(→ 2026-08-18 부터 내 결재함의 '나를 참조한 건' 보기),
   //   결재 승인·반려 결과는 my-requests + ?request=<id> (해당 건 상세 자동 열림)
   const tabParam = sp?.get('tab');
-  const deepLinkTab = tabParam && TAB_KEYS.includes(tabParam as Tab) ? (tabParam as Tab) : null;
+  const deepLinkTab = tabParam === "references" ? "my-approvals" : tabParam && TAB_KEYS.includes(tabParam as Tab) ? (tabParam as Tab) : null;
+  const initialInboxView = tabParam === "references" ? "referenced" : undefined;
   const focusRequestId = sp?.get('request') || null;
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -691,8 +692,7 @@ export default function ApprovalsPage() {
   const TABS: { key: Tab; label: string; icon: string; count?: number }[] = ([
     { key: "my-approvals", label: "내 결재함", icon: "inbox", count: myPendingCount },
     { key: "my-requests", label: "내 요청", icon: "send" },
-    // 참조로 걸린 문서 열람 — 결재선에 없는 참조자는 여기서만 내용을 볼 수 있다(2026-07-27)
-    { key: "references", label: "참조", icon: "eye" },
+    // 참조 탭은 2026-08-18 사장님 지시로 내 결재함 안 '나를 참조한 건' 보기로 합쳤다 (별도 탭 불필요)
     { key: "new-request", label: "새 요청", icon: "plus" },
     { key: "all", label: "전체 현황", icon: "chart" },
     { key: "forms", label: "양식 관리", icon: "layout" },
@@ -751,13 +751,10 @@ export default function ApprovalsPage() {
          <div className="ap-scroll">
       {/* Tab content */}
       {tab === "my-approvals" && companyId && userId && (
-        <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} />
+        <MyApprovalsTab companyId={companyId} userId={userId} invalidate={invalidate} onGoToMyRequests={() => setTab("my-requests")} initialView={initialInboxView} />
       )}
       {tab === "my-requests" && companyId && userId && (
         <MyRequestsTab companyId={companyId} userId={userId} invalidate={invalidate} focusRequestId={focusRequestId} />
-      )}
-      {tab === "references" && companyId && userId && (
-        <ReferencedRequestsTab companyId={companyId} userId={userId} />
       )}
       {tab === "all" && companyId && (
         <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} invalidate={invalidate} />
@@ -957,7 +954,8 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
 // Tab 1: 내 결재함
 // ══════════════════════════════════════════════
 
-function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
+function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initialView }: {
+  initialView?: "pending" | "processed" | "referenced";
   companyId: string; userId: string; invalidate: () => void; onGoToMyRequests?: () => void;
 }) {
   const { toast } = useToast();
@@ -966,7 +964,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
 
   // 대기중 / 처리완료 전환 — 승인하고 나면 목록에서 사라져 다시 볼 수 없던 문제
   //   (2026-07-27 사장님 제보). 결재선에 올랐던 건은 처리 후에도 확인 가능해야 한다.
-  const [view, setView] = useState<"pending" | "processed">("pending");
+  const [view, setView] = useState<"pending" | "processed" | "referenced">(initialView || "pending");
 
   const { data: pendingApprovals = [], isLoading } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
@@ -978,6 +976,12 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
     queryKey: ["my-processed-approvals", userId, companyId],
     queryFn: () => getMyProcessedApprovals(userId, companyId),
     enabled: !!userId && !!companyId && view === "processed",
+  });
+  //   나를 참조한 건 — 예전 '참조' 탭. 결재선에 없는 참조자는 여기서만 내용을 본다 (2026-07-27 → 2026-08-18 내 결재함으로 합침)
+  const { data: referencedRequests = [] } = useQuery({
+    queryKey: ["referenced-requests", userId, companyId],
+    queryFn: () => getReferencedRequests(userId, companyId),
+    enabled: !!userId && !!companyId,
   });
 
   // 커스텀 결재 양식 필드 정의 (label·type) — custom_fields 값과 짝지어 구조화된 항목으로 표시
@@ -1045,25 +1049,39 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
 
   // 검색조건(유형·요청일·기안자·금액) + 빠른검색 — 전체 현황과 같은 패널 (2026-08-18 사장님: 유형 버튼 줄 제거)
   const lf = useListFilter({
-    types: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requestType),
-    requesters: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requesterName),
+    types: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requestType).concat((referencedRequests as any[]).map((r) => r.request_type)),
+    requesters: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requesterName).concat((referencedRequests as any[]).map((r) => r.users?.name || r.users?.email || "")),
   });
   const matchesFilters = (item: any) => lf.hit({ type: item.requestType, title: item.title, requester: item.requesterName, amount: item.amount, created: item.createdAt || item.created_at || item.requestedAt || "" });
   const visiblePending = (pendingApprovals as any[]).filter(matchesFilters);
   const visibleProcessed = (processedApprovals as any[]).filter(matchesFilters);
+  const visibleReferenced = (referencedRequests as any[]).filter((r) => lf.hit({ type: r.request_type, title: r.title, requester: r.users?.name || r.users?.email || "", amount: r.amount, created: r.created_at }));
 
   // 조회 줄 — 전체 현황과 동일 구성 (조회 표준 부품: 검색조건 + 빠른검색 + 보기 칩 + 건수)
   const filterBar = (
     <>
-      <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{(view === "pending" ? visiblePending : visibleProcessed).length}건</span>}>
+      <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{(view === "pending" ? visiblePending : view === "processed" ? visibleProcessed : visibleReferenced).length}건</span>}>
         {lf.panel}
         {lf.quick}
         <ChipGroup value={view} onChange={setView}
-          options={[{ value: "pending", label: `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}` }, { value: "processed", label: "내가 결재한 건" }]} />
+          options={[
+            { value: "pending", label: `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}` },
+            { value: "processed", label: "내가 결재한 건" },
+            { value: "referenced", label: `나를 참조한 건${(referencedRequests as any[]).length > 0 ? ` (${(referencedRequests as any[]).length})` : ""}` },
+          ]} />
       </QueryBar>
       {lf.applied}
     </>
   );
+
+  if (view === "referenced") {
+    return (
+      <div>
+        {filterBar}
+        <ReferencedRequestsTab companyId={companyId} userId={userId} embedded={{ hit: lf.hit, rows: lf.rows, key: lf.key }} />
+      </div>
+    );
+  }
 
   if (view === "processed") {
     return (
@@ -2018,7 +2036,10 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
 //   '전체 현황'은 관리자 전용 → 참조로 걸린 결재의 내용을 볼 수 있는 화면이 아예 없었다.
 //   여기서 문서 본문·양식 필드·첨부·결재 진행을 읽기 전용으로 제공한다(승인/반려 액션 없음).
 
-function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userId: string }) {
+function ReferencedRequestsTab({ companyId, userId, embedded }: { companyId: string; userId: string;
+  /** 내 결재함 안에 끼워질 때 — 조회 줄은 부모(내 결재함)가 그리고, 거르기 규칙만 받는다 (2026-08-18) */
+  embedded?: { hit: (r: LRow) => boolean; rows: number; key: string };
+}) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [refStatus, setRefStatus] = useState("");
 
@@ -2047,8 +2068,10 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
   const lf = useListFilter({ types: (requests as any[]).map((r) => r.request_type), requesters: (requests as any[]).map((r) => r.users?.name || r.users?.email || "") });
 
   const refName = (req: any) => req.users?.name || req.users?.email || "알 수 없음";
-  const visibleRefs = (requests as any[]).filter((r) => (!refStatus || r.status === refStatus) && lf.hit({ type: r.request_type, title: r.title, requester: refName(r), amount: r.amount, created: r.created_at }));
-  const pager = usePager(visibleRefs, lf.rows, `${refStatus}|${lf.key}`);
+  const hitFn = embedded ? embedded.hit : lf.hit;
+  const rowsN = embedded ? embedded.rows : lf.rows;
+  const visibleRefs = (requests as any[]).filter((r) => (!refStatus || r.status === refStatus) && hitFn({ type: r.request_type, title: r.title, requester: refName(r), amount: r.amount, created: r.created_at }));
+  const pager = usePager(visibleRefs, rowsN, `${refStatus}|${embedded ? embedded.key : lf.key}`);
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
@@ -2059,13 +2082,17 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
 
   return (
     <div>
-      {/* 조회 줄 — 목록 탭 공용 (2026-08-18) */}
+      {/* 조회 줄 — 목록 탭 공용 (2026-08-18). 내 결재함 안(embedded)에서는 부모가 그리고 상태 칩만 여기 남는다 */}
+      {embedded ? (
+        <div className="ap-subbar"><ChipGroup value={refStatus} onChange={setRefStatus} options={refStatusOptions} /></div>
+      ) : (<>
       <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleRefs.length}건</span>}>
         {lf.panel}
         {lf.quick}
         <ChipGroup value={refStatus} onChange={setRefStatus} options={refStatusOptions} />
       </QueryBar>
       {lf.applied}
+      </>)}
 
       {requests.length === 0 ? (
         <div className="ap-empty">
@@ -2154,7 +2181,7 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
             </tbody>
           </table>
         </div>
-        <Pager page={pager.page} pages={pager.pages} total={visibleRefs.length} size={lf.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
+        <Pager page={pager.page} pages={pager.pages} total={visibleRefs.length} size={rowsN} from={pager.from} to={pager.to} onPage={pager.setPage} />
         </>
       )}
     </div>
@@ -3120,22 +3147,23 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               const custom: PickOpt[] = (policies as ApprovalPolicy[])
                 .filter((p) => p.is_active && p.document_type !== "default" && !(p.document_type in REQUEST_TYPE_LABELS))
                 .map((p) => ({ value: p.document_type, label: p.label || p.name, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${TYPE_FALLBACK.bg} ${TYPE_FALLBACK.text}`}><TypeIcon name="doc" className="w-3.5 h-3.5" /></span> }));
-              const formOpts: PickOpt[] = (customForms as ApprovalForm[]).map((f) => ({ value: `form:${f.id}`, label: f.name, sub: f.category || undefined, icon: <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[var(--primary)]/12 text-[var(--primary)]"><TypeIcon name="layout" className="w-3.5 h-3.5" /></span> }));
-              const typeVal = String(form.requestType || "").startsWith("form:") ? "" : String(form.requestType || "");
-              const formVal = String(form.requestType || "").startsWith("form:") ? String(form.requestType) : "";
+              //   회사 결재 양식은 요청 유형 목록에 합친다 (2026-08-18 사장님). 기본 유형에 연결된 양식(base_type)은
+              //   그 유형 자리에 대신 들어가고(경비 청구를 고르면 회사 양식이 나온다), 연결 없는 양식은 뒤에 '회사 양식'으로.
+              const activeForms = (customForms as ApprovalForm[]);
+              const formIcon = <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[var(--primary)]/12 text-[var(--primary)]"><TypeIcon name="layout" className="w-3.5 h-3.5" /></span>;
+              const merged: PickOpt[] = [];
+              for (const b of builtin) {
+                const linked = activeForms.filter((f) => f.base_type === b.value);
+                if (linked.length === 0) { merged.push(b); continue; }
+                linked.forEach((f) => merged.push({ value: `form:${f.id}`, label: b.label, sub: `회사 양식 · ${f.name}`, icon: b.icon }));
+              }
+              merged.push(...custom);
+              activeForms.filter((f) => !f.base_type || !(f.base_type in REQUEST_TYPE_LABELS)).forEach((f) => merged.push({ value: `form:${f.id}`, label: f.name, sub: f.category ? `회사 양식 · ${f.category}` : "회사 양식", icon: formIcon }));
               return (
-                <div className="ap-pick-rows">
-                  <div className="ap-pick-row">
-                    <label className="field-label">요청 유형 *</label>
-                    <TypePicker value={typeVal} options={[...builtin, ...custom]} placeholder="유형을 고르세요 — 경비 청구 · 결제 요청 · 휴가 신청 …"
-                      onChange={(v) => setForm({ ...form, requestType: v as RequestType })} />
-                  </div>
-                  <div className="ap-pick-row">
-                    <label className="field-label">회사 결재 양식</label>
-                    <TypePicker value={formVal} options={formOpts} placeholder={formOpts.length ? "회사 양식으로 올리려면 여기서 고르세요" : "등록된 회사 양식이 없습니다 — 양식 관리에서 추가"}
-                      emptyText="양식 관리 탭에서 회사 결재 양식을 만들면 여기 나옵니다"
-                      onChange={(v) => setForm({ ...form, requestType: v as RequestType })} />
-                  </div>
+                <div className="ap-pick-row">
+                  <label className="field-label">요청 유형 *</label>
+                  <TypePicker value={String(form.requestType || "")} options={merged} placeholder="유형을 고르세요 — 경비 청구 · 결제 요청 · 휴가 신청 · 회사 양식 …"
+                    onChange={(v) => setForm({ ...form, requestType: v as RequestType })} />
                 </div>
               );
             })()}

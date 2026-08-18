@@ -589,6 +589,7 @@ export type Database = {
       approval_forms: {
         Row: {
           allow_requester_edit: boolean
+          base_type: string | null
           category: string | null
           company_id: string
           content_template: string | null
@@ -606,6 +607,7 @@ export type Database = {
         }
         Insert: {
           allow_requester_edit?: boolean
+          base_type?: string | null
           category?: string | null
           company_id: string
           content_template?: string | null
@@ -623,6 +625,7 @@ export type Database = {
         }
         Update: {
           allow_requester_edit?: boolean
+          base_type?: string | null
           category?: string | null
           company_id?: string
           content_template?: string | null

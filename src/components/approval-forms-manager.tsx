@@ -164,7 +164,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     try {
       await saveApprovalForm({
         id: editing.id, companyId,
-        name: editing.name!.trim(), category: editing.category || null, description: editing.description || null,
+        name: editing.name!.trim(), category: editing.category || null, baseType: editing.base_type || null, description: editing.description || null,
         fields: (editing.fields || []).filter((f) => (f.label || "").trim()),
         contentTemplate: editing.content_template || null,
         stages: (editing.stages || []).map((s, i) => ({ ...s, stage: i + 1 })),
@@ -239,12 +239,13 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       ) : (
         <div className="ev-scroll">
           <table className="ev-table ev-lined afm-table">
-            <thead><tr><th>양식</th><th>분류</th><th>입력 필드</th><th>결재 단계</th><th>관리</th></tr></thead>
+            <thead><tr><th>양식</th><th>연결 유형</th><th>분류</th><th>입력 필드</th><th>결재 단계</th><th>관리</th></tr></thead>
             <tbody>
               {companyRows.map((f) => (
                 <tr key={f.id}>
                   <td className="text-left font-semibold">{f.name}</td>
-                  <td className="text-center">{f.category ? <span className="badge badge-primary">{f.category}</span> : "—"}</td>
+                  <td className="text-center">{f.base_type ? <span className="badge badge-primary">{REQUEST_TYPE_LABELS[f.base_type as keyof typeof REQUEST_TYPE_LABELS] || f.base_type}</span> : <span className="text-[var(--text-dim)]">독립</span>}</td>
+                  <td className="text-center">{f.category ? <span className="badge badge-muted">{f.category}</span> : "—"}</td>
                   <td className="text-center mono-number">{f.fields?.length || 0}</td>
                   <td className="text-center mono-number">{f.stages?.length || 0}단계</td>
                   <td className="text-center">
@@ -255,7 +256,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                   </td>
                 </tr>
               ))}
-              {companyRows.length === 0 && <tr><td colSpan={5} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 양식이 없습니다</td></tr>}
+              {companyRows.length === 0 && <tr><td colSpan={6} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 양식이 없습니다</td></tr>}
             </tbody>
           </table>
         </div>
@@ -283,6 +284,15 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                 <input value={editing.category || ""} onChange={(e) => patch({ category: e.target.value })} placeholder="예: 비용 처리"
                   className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
               </div>
+            </div>
+            {/* 기본 유형 연결 (2026-08-18 사장님) — 고르면 새 요청에서 그 유형(예: 경비 청구)을 선택할 때 이 양식이 나온다 */}
+            <div className="mb-3">
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">기본 요청 유형에 연결 <span className="text-[var(--text-dim)]">(선택)</span></label>
+              <select value={editing.base_type || ""} onChange={(e) => patch({ base_type: e.target.value || null })}
+                className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm">
+                <option value="">연결 안 함 — 새 요청 목록에 양식 이름으로 따로 나옵니다</option>
+                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v} — 새 요청에서 '{v}'을(를) 고르면 이 양식이 나옵니다</option>)}
+              </select>
             </div>
             <div className="mb-3">
               <label className="block text-[11px] text-[var(--text-muted)] mb-1">설명</label>
