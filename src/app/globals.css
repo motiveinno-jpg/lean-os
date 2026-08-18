@@ -8252,7 +8252,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .th-c { @apply text-center; }
 .th-sort { @apply cursor-pointer select-none transition hover:text-[var(--text)]; }
 .th-sort-in { @apply inline-flex items-center justify-center gap-1; }
-.th-mark { @apply not-italic text-[9px] text-[var(--text-dim)]/40; }
+/*   정렬 표시 — 깔때기(.th-filter)와 같은 16px 상자에 9px 삼각형. 둘이 같은 줄에 같은 크기로 선다 (2026-08-18 사장님) */
+.th-mark { @apply not-italic inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--text-dim)]/50; }
 .th-mark-on { @apply text-[var(--primary)]; }
 .ev-table tbody td { @apply whitespace-nowrap border-b border-[var(--border)]/50 px-2.5 py-1.5 text-[var(--text)]; }
 .ev-table tbody tr:last-child td { @apply border-b-0; }
@@ -9275,7 +9276,10 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 
 /* 칸 세로선 — **머리단에만** (2026-08-13 사장님: "데이터까지 넣으니 답답해 보여").
    처음엔 데이터 칸에도 넣었다가 걷었다 — 머리단 선이 칸 경계를 알려 주면 충분하다. */
-.ev-lined th + th { border-left: 1px solid color-mix(in srgb, var(--border) 55%, transparent); }
+/*   55% 는 머리단 배경 위에서 안 보였다 (2026-08-18 사장님: "너무 흐려서 안 보인다") → 진하게 */
+.ev-lined th + th { border-left: 1px solid color-mix(in srgb, var(--text-dim) 45%, transparent); }
+/*   세금·증빙 발행 표 머리단 — 수집·전표(.ev-table thead th)와 같은 색·글자 (2026-08-18 사장님: "둘이 다르다") */
+.tax-invoice-list-table thead th { @apply whitespace-nowrap border-b border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-2 text-center text-[10.5px] font-bold text-[var(--text-dim)]; }
 /* 세금·증빙 발행 표도 같은 규칙 — 원래 데이터 칸까지 border-l 유틸이 붙어 있던 것을 끈다 */
 .tax-invoice-list-table tbody td, .tax-invoice-list-table tfoot td { border-left-width: 0; }
 

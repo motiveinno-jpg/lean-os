@@ -207,7 +207,14 @@ export function SortableTh<K extends string>({
     <th style={{ ...style, ...width }} className="th-c th-sort" onClick={() => onSort(sortKey)} title={title ?? "눌러서 정렬"}>
       <span className="th-sort-in">
         {label}
-        <em className={on ? "th-mark th-mark-on" : "th-mark"}>{on ? (sort!.dir === "asc" ? "▲" : "▼") : "↕"}</em>
+        {/*   정렬 표시 — 깔때기와 같은 크기(16px 상자·9px 도형)의 아래삼각형. 오름차순이면 뒤집는다.
+              글자(▲▼↕)로 두면 깔때기 svg 와 기준선·크기가 안 맞아 머리단이 삐뚤어 보였다 (2026-08-18 사장님) */}
+        <em className={on ? "th-mark th-mark-on" : "th-mark"} title={on ? (sort!.dir === "asc" ? "오름차순" : "내림차순") : "정렬"}>
+          <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" aria-hidden
+            style={on && sort!.dir === "asc" ? { transform: "rotate(180deg)" } : undefined}>
+            <path d="M0 2h10L5 8 0 2z" />
+          </svg>
+        </em>
         {filter && <ThFilter spec={filter} />}
       </span>
       {handle}

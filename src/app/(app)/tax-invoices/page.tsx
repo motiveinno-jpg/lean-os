@@ -5,7 +5,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
-import { ThFilter, type ThFilterSpec } from "@/components/sortable-th";
+import { SortableTh, type ThFilterSpec } from "@/components/sortable-th";
 import {
   vatBusinessTypeOf, canIssueTaxKind, taxKindBlockedReason, type TaxKind, type VatBusinessType,
 } from "@/lib/vat-business-type";
@@ -1182,36 +1182,12 @@ function TaxInvoicesPageInner() {
     issue_date: 104, counterparty_name: 200, label: 170,
     supply_amount: 118, tax_amount: 104, total_amount: 124, status: 96, act: 132,
   });
-  const startColDrag = (k: string, e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    const startX = e.clientX; const startW = colW[k] || 100;
-    const move = (ev: MouseEvent) => setColW(k, Math.max(44, startW + (ev.clientX - startX)));
-    const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); document.body.style.cursor = ""; };
-    document.body.style.cursor = "col-resize";
-    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
-  };
-  const autofitCol = (k: string, colIndex: number) => {
-    const table = listTableRef.current; if (!table) return;
-    let max = 44;
-    table.querySelectorAll("tr").forEach((tr) => { const cell = tr.children[colIndex] as HTMLElement | undefined; if (cell) max = Math.max(max, cell.scrollWidth); });
-    setColW(k, Math.min(640, max + 14));
-  };
-  const ColHandle = ({ k, colIndex }: { k: string; colIndex: number }) => (
-    <span onMouseDown={(e) => startColDrag(k, e)} onDoubleClick={() => autofitCol(k, colIndex)} onClick={(e) => e.stopPropagation()}
-      className="absolute top-0 -right-[3px] h-full w-[7px] cursor-col-resize select-none z-[1] hover:bg-[var(--primary)]/35 active:bg-[var(--primary)]/55 rounded"
-      title="드래그: 너비 조절 · 더블클릭: 내용에 맞춤" />
-  );
-  const invSortTh = (k: InvSortKey, label: string, cls: string, colIndex: number) => (
-    <th className={`px-3 py-2.5 font-semibold whitespace-nowrap border-l border-[var(--border)]/50 ${cls} cursor-pointer select-none hover:text-[var(--text)] transition`}
-        style={{ width: colW[k], position: "relative" }} onClick={() => toggleInvSort(k)}>
-      <span className={`inline-flex items-center gap-1 ${cls.includes("text-right") ? "justify-end w-full" : cls.includes("text-center") ? "justify-center w-full" : ""}`}>
-        {label}
-        <span className={`text-[9px] ${invSortKey === k ? "text-[var(--primary)]" : "text-[var(--text-dim)]/40"}`}>{invSortKey === k ? (invSortDir === "asc" ? "▲" : "▼") : "↕"}</span>
-        {/*   엑셀식 값 필터 — 수집·전표와 같은 부품 (2026-08-13) */}
-        <ThFilter spec={tiThFilter(k)} />
-      </span>
-      <ColHandle k={k} colIndex={colIndex} />
-    </th>
+  //   머리단은 수집·전표와 같은 부품(SortableTh) — 정렬 표시·깔때기·너비 손잡이가 한 벌이다 (2026-08-18 사장님:
+  //   "둘이 디자인이 다르다"). 예전엔 이 화면만 ▲▼↕ 글자·자체 손잡이(ColHandle)를 따로 갖고 있었다.
+  const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef: listTableRef });
+  const invSortTh = (k: InvSortKey, label: string, colIndex: number) => (
+    <SortableTh<InvSortKey> label={label} sortKey={k} sort={{ key: invSortKey, dir: invSortDir }} onSort={toggleInvSort}
+      filter={tiThFilter(k)} resize={thResize(k, colIndex)} />
   );
   // 대량 목록 렌더 상한 — 넓은 기간 선택 시 최대 1만 건 일괄 DOM 렌더로 화면이 멈추던 것 방지 (합계·건수는 전체 기준 유지)
   const [visibleRows, setVisibleRows] = useState(200);
@@ -1715,10 +1691,10 @@ function TaxInvoicesPageInner() {
                     같은 숫자를 이미 보여 준다. 같은 숫자 두 번은 어디를 믿을지 모르게 한다. */}
               {/* 홈택스식 격자 그리드 */}
               <div className="overflow-auto max-h-[600px]">
-                <table ref={listTableRef} className="tax-invoice-list-table">
+                <table ref={listTableRef} className="tax-invoice-list-table ev-lined">
                   <thead className="sticky top-0 z-10">
-                    <tr className="text-xs text-[var(--text-dim)] bg-[var(--bg-card)] border-b border-[var(--border)]">
-                      <th className="px-2 py-2.5 w-8 text-center border-l border-[var(--border)]/50 first:border-l-0">
+                    <tr>
+                      <th className="w-8">
                         {selectableInList.length > 0 && (
                           <input type="checkbox" checked={selectedRows.length === selectableInList.length && selectableInList.length > 0} onChange={toggleSelectAll}
                             className="w-3.5 h-3.5 rounded accent-[var(--primary)] align-middle cursor-pointer" title="미발행 전체 선택" />
@@ -1726,16 +1702,16 @@ function TaxInvoicesPageInner() {
                       </th>
                       {/*  승인번호·전송은 행을 눌러 여는 상세로 옮겼다 — 표는 찾고 고르는 곳이다 (2026-08-10).
                            국세청 미발행처럼 **눈에 띄어야 하는 것**은 상태 칸에 함께 세운다. */}
-                      {invSortTh("issue_date", "작성일자", "text-left", 1)}
-                      {invSortTh("counterparty_name", "상호(거래처)", "text-left", 2)}
-                      {invSortTh("label", "품목", "text-left", 3)}
-                      {invSortTh("supply_amount", "공급가액", "text-right", 4)}
-                      {invSortTh("tax_amount", "세액", "text-right", 5)}
-                      {invSortTh("total_amount", "합계금액", "text-right", 6)}
-                      {invSortTh("status", "상태", "text-center", 7)}
+                      {invSortTh("issue_date", "작성일자", 1)}
+                      {invSortTh("counterparty_name", "상호(거래처)", 2)}
+                      {invSortTh("label", "품목", 3)}
+                      {invSortTh("supply_amount", "공급가액", 4)}
+                      {invSortTh("tax_amount", "세액", 5)}
+                      {invSortTh("total_amount", "합계금액", 6)}
+                      {invSortTh("status", "상태", 7)}
                       {/*   매칭 사슬 — 발행 내역에서만. 발행 전 건은 아직 매칭 대상이 아니다 (2026-08-13) */}
-                      {tab === "done" && <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50">매칭</th>}
-                      <th className="px-3 py-2.5 text-center font-semibold whitespace-nowrap border-l border-[var(--border)]/50" style={{ width: colW.act, position: "relative" }}>관리<ColHandle k="act" colIndex={tab === "done" ? 9 : 8} /></th>
+                      {tab === "done" && <SortableTh label="매칭" />}
+                      <SortableTh label="관리" resize={thResize("act", tab === "done" ? 9 : 8)} />
                     </tr>
                   </thead>
                   <tbody>
