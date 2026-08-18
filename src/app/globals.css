@@ -6516,8 +6516,26 @@ td .rounded-full { white-space: nowrap; }
 .pb { @apply flex flex-col gap-0 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
 /*   상세 화면도 조회 표준 상자 모양으로 (2026-08-18 사장님: "생성된 프로젝트 눌러서 들어가면 UI 적용 안 됨").
      ① 템플릿 탭 = 상자 안 맨 위 파란 밑줄 ② 보기 줄 = 조회 줄 자리(선 아래) ③ 본문은 안쪽 여백 */
-.pb > :not(.pb-bar1):not(.pb-bar2):not(.pb-menu-veil):not(.pb-rename) { margin: 12px 12px 0; }
-.pb > :last-child:not(.pb-bar1):not(.pb-bar2) { margin-bottom: 12px; }
+.pb-body > :not(.pb-menu-veil):not(.pb-rename) { margin: 12px 12px 0; }
+.pb-body > :last-child { margin-bottom: 12px; }
+/*   상세도 상자 끝선을 사이드바 끝선에 맞추고 안에서 스크롤한다 (2026-08-18 사장님: "마지막 선 맞추고 스크롤링").
+     본문 칸(.app-content-scale) 을 세로 기둥으로 만들고 pj-shell → 상세 페이지 → 섹션 칸 → .pb 상자가 남는 높이만 먹는다.
+     .pb 가 프레임, 그 안 .pb-body 가 스크롤 — 템플릿 탭·보기 줄은 프레임에 붙어 있고 상자 끝선은 사이드바 끝선이다. */
+.pb-body { @apply flex min-h-0 flex-col; }
+@media (min-width: 768px) {
+  .app-content-scale:has(> .pj-shell) { height: calc(100vh - 100px); @apply flex min-h-0 flex-col; }
+  .app-content-scale:has(> .pj-shell) > .pj-shell { @apply min-h-0 flex-1; }
+  .pj-shell > .project-detail-page { @apply flex min-h-0 flex-1 flex-col; }
+  .pj-shell-rail > .project-detail-page { height: 100%; }
+  .pj-shell > .project-detail-page > .pj-layout { @apply min-h-0 flex-1; grid-template-rows: minmax(0, 1fr); }
+  .pj-layout > .pj-secs { @apply min-h-0 overflow-y-auto; max-height: 100%; }
+  .pj-secs > .pj-sec-on:has(> .pb) { @apply min-h-0 flex-1; }
+  .pj-secs:has(> .pj-sec-on > .pb) { overflow: hidden; }
+  /*   표 탭에서 빈 개요 격자(pj-ov-panels, 높이 0)가 gap 만 남겨 상자가 28px 위에서 끝났다 — 빈 것은 gap 도 없앤다 */
+  .pj-secs:has(> .pj-sec-on > .pb) > .pj-ov-panels:empty { display: none; }
+  .pj-sec-on > .pb { @apply min-h-0 flex-1; }
+  .pb > .pb-body { @apply min-h-0 flex-1 overflow-auto; }
+}
 /* 표 탭 — ＋ 로 같은 프로젝트에 표를 더 붙인다 */
 .pb-tab { @apply text-[12.5px] font-semibold px-3.5 py-2 text-[var(--text-dim)] border-b-2 border-transparent transition hover:text-[var(--text)]; }
 .pb-tab-on { @apply text-[var(--primary)] border-b-[var(--primary)]; }
@@ -7979,7 +7997,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
   .qk-shell.spv-page { padding-bottom: 0; }
 }
 .spv-row > span { @apply px-2 py-1.5 text-[12px] text-[var(--text)] whitespace-nowrap; }
-.spv-saved { @apply bg-[var(--bg-surface)]/40; }
+/*   저장분 줄 배경 — 회색을 걷었다. 수집·전표처럼 데이터 줄은 흰 바탕, 구분은 선으로 (2026-08-18 사장님) */
+.spv-saved { @apply bg-transparent hover:bg-[var(--bg-surface)]; }
 .spv-cur { background: color-mix(in srgb, var(--primary) 7%, transparent); }
 .tc { @apply text-center; }
 .tr { @apply text-right; font-variant-numeric: tabular-nums; }

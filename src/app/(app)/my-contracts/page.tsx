@@ -4,7 +4,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, AppliedChips, QuickSearch, quickSearchHit, quickTerms, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -67,8 +67,11 @@ export default function MyContractsPage() {
   });
 
   const stLabel = (p: Package) => (p.expires_at && new Date(p.expires_at) < new Date()) ? "만료됨" : (STATUS_INFO[p.status] || STATUS_INFO.draft).label;
+  const cf = useColFilters();
+  const colVal = (p: Package) => ({ status: stLabel(p) });
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, packages.map((p) => colVal(p)[k]));
   const filtered = useMemo(() => {
-    let arr = packages;
+    let arr = packages.filter((p) => cf.hit(colVal(p)));
     if (filter === "pending") arr = arr.filter((p) => ["sent", "partially_signed", "draft"].includes(p.status));
     else if (filter === "completed") arr = arr.filter((p) => p.status === "completed");
     arr = arr.filter((p) => quickSearchHit(q, [p.title, stLabel(p)]));
@@ -81,8 +84,8 @@ export default function MyContractsPage() {
     };
     return [...arr].sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || String(b.created_at).localeCompare(String(a.created_at)); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [packages, filter, q, sort]);
-  const pager = usePager(filtered, 50, `${filter}|${q}`);
+  }, [packages, filter, q, sort, cf.key]);
+  const pager = usePager(filtered, 50, `${filter}|${q}|${cf.key}`);
   const chips: AppliedChip[] = quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) }));
 
   const counts = useMemo(() => {
@@ -143,7 +146,7 @@ export default function MyContractsPage() {
                 <thead>
                   <tr>
                     <SortableTh label="제목" sortKey="title" sort={sort} onSort={onSort} />
-                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} style={{ width: 110 }} />
+                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} style={{ width: 120 }} filter={cfSpec("status")} />
                     <SortableTh label="문서 · 서명" sortKey="docs" sort={sort} onSort={onSort} style={{ width: 130 }} />
                     <SortableTh label="발송일" sortKey="sent" sort={sort} onSort={onSort} style={{ width: 110 }} />
                     <SortableTh label="만료일" sortKey="expires" sort={sort} onSort={onSort} style={{ width: 110 }} />

@@ -9,7 +9,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useMemo, useRef, useState, useEffect } from "react";
 import { DateRangeField } from "@/components/date-range-field";
-import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, HelperMenu, SavedTabs, ConditionSave,
   ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
@@ -347,6 +347,13 @@ export default function ReconciliationPage() {
     return true;
   };
   const rowQuick = (m: QueueRow) => quickSearchHit(q, [m.counterparty, m.counterparty_name], [Number(m.txn_amount || 0), Number(m.invoice_amount || 0), Number(m.amount || 0)]);
+  //   머리단 ≡ 필터 — 구분·입금자·계산서 거래처·유형·신뢰도 (칸에 실제로 있는 값 중에서)
+  const cf = useColFilters();
+  const colVal = (m: QueueRow) => ({
+    ttype: m.txn_type === "income" ? "입금" : "출금", cp: m.counterparty || "", icp: m.counterparty_name || "",
+    mtype: MATCH_LABEL[m.match_type] || m.match_type || "", conf: m.confidence != null ? `${Math.round(m.confidence * 100)}%` : "",
+  });
+  const cfSpec = (k: keyof ReturnType<typeof colVal>, src: QueueRow[]) => cf.spec(k, src.map((m) => colVal(m)[k]));
   const sortRows = <T,>(rows: T[], val: (r: T) => unknown, tie: (r: T) => string) => {
     const arr = [...rows];
     arr.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || tie(b).localeCompare(tie(a)); });
@@ -360,12 +367,12 @@ export default function ReconciliationPage() {
       default: return m.transaction_date ?? "";
     }
   };
-  const queueShown = useMemo(() => sortRows(queue.filter((m) => rowHit(m, live) && rowQuick(m)), qVal, (m) => m.transaction_date ?? ""),
+  const queueShown = useMemo(() => sortRows(queue.filter((m) => rowHit(m, live) && rowQuick(m) && cf.hit(colVal(m))), qVal, (m) => m.transaction_date ?? ""),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queue, live, q, sort]);
-  const confirmedShown = useMemo(() => sortRows((confirmed as QueueRow[]).filter((m) => rowHit(m, live) && rowQuick(m)), qVal, (m) => m.transaction_date ?? ""),
+    [queue, live, q, sort, cf.key]);
+  const confirmedShown = useMemo(() => sortRows((confirmed as QueueRow[]).filter((m) => rowHit(m, live) && rowQuick(m) && cf.hit(colVal(m))), qVal, (m) => m.transaction_date ?? ""),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [confirmed, live, q, sort]);
+    [confirmed, live, q, sort, cf.key]);
   const txRemainingOf = (t: OpenTx) => Math.max(0, Number(t.amount || 0) - Number(t.settled_amount || 0));
   const mVal = (t: OpenTx) => {
     switch (sort.key) {
@@ -623,7 +630,7 @@ export default function ReconciliationPage() {
 
   //   수동 매칭 목록 — 걸러서 정렬 (openTx 는 이 아래에서 읽힌다)
   const manualShown = sortRows((openTx as OpenTx[]).filter(manualTxMatch), mVal, (t) => t.transaction_date ?? "");
-  const pKey = `${tab}|${engStart}|${engEnd}|${q}|${JSON.stringify(live)}`;
+  const pKey = `${tab}|${engStart}|${engEnd}|${q}|${JSON.stringify(live)}|${cf.key}`;
   const qPager = usePager(queueShown, live.rows, pKey);
   const mPager = usePager(manualShown, live.rows, pKey);
   const cPager = usePager(confirmedShown, live.rows, pKey);
@@ -766,6 +773,7 @@ export default function ReconciliationPage() {
                     </th>
                     {([["tdate", "거래일자"], ["ttype", "구분"], ["cp", "입금자/거래처"], ["tamt", "거래금액"], ["idate", "발행일자"], ["icp", "계산서 거래처"], ["iamt", "계산서 금액"], ["amt", "정산액"], ["mtype", "유형"], ["conf", "신뢰도"]] as const).map(([k, label], i) => (
                       <SortableTh key={k} label={label} sortKey={k} sort={sort} onSort={onSort}
+                        filter={(["ttype", "cp", "icp", "mtype", "conf"] as string[]).includes(k) ? cfSpec(k as any, queue.filter((m) => rowHit(m, live))) : undefined}
                         resize={{ k, colIndex: i + 1, widths: queueW, onResize: setQueueW, tableRef: queueTableRef }} />
                     ))}
                     <SortableTh label="처리" resize={{ k: "act", colIndex: 11, widths: queueW, onResize: setQueueW, tableRef: queueTableRef }} />
@@ -889,7 +897,8 @@ export default function ReconciliationPage() {
                 <thead>
                   <tr>
                     {([["tdate", "거래일자"], ["ttype", "구분"], ["cp", "입금자/사유"], ["tamt", "거래금액"], ["idate", "발행일자"], ["icp", "계산서 거래처"], ["iamt", "계산서 금액"], ["amt", "정산액"], ["mtype", "유형"]] as const).map(([k, label]) => (
-                      <SortableTh key={k} label={label} sortKey={k} sort={sort} onSort={onSort} />
+                      <SortableTh key={k} label={label} sortKey={k} sort={sort} onSort={onSort}
+                        filter={(["ttype", "cp", "icp", "mtype"] as string[]).includes(k) ? cfSpec(k as any, (confirmed as QueueRow[]).filter((m) => rowHit(m, live))) : undefined} />
                     ))}
                     <SortableTh label="처리" />
                   </tr>

@@ -14,7 +14,7 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SortableTh, nextSort } from "@/components/sortable-th";
+import { SortableTh, nextSort, useColFilters } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, SavedTabs, ConditionSave,
   ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
@@ -227,9 +227,17 @@ function SignaturesDashboardInner() {
     enabled: !!companyId,
   });
 
+  //   머리단 ≡ 필터 — 상태·그룹·대표자·담당자
+  const cf = useColFilters();
+  const colVal = (r: any) => ({
+    status: getSignatureStatusInfo(r.status).label || r.status || "", batch: r.batch_id ? `묶음#${r.batch_seq ?? "?"}` : "—",
+    signer: r.signer_name || "", manager: memberNames[r.created_by] || "",
+  });
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (requests as any[]).filter((r) => statusFilter === "all" || r.status === statusFilter).map((r) => colVal(r)[k]));
   const filtered = useMemo(() => {
     const rows = (requests as any[]).filter((r) => {
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (!cf.hit(colVal(r))) return false;
       if (!quickSearchHit(search, [r.title, r.signer_name, r.signer_email, memberNames[r.created_by], String(docNoById.get(r.id) ?? "")])) return false;
       // 그룹(묶음)·담당자 — 고른 값만 보기
       if (batchFilter === "none" && r.batch_id) return false;
@@ -261,7 +269,8 @@ function SignaturesDashboardInner() {
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
       return String(av).localeCompare(String(bv), "ko") * dir;
     });
-  }, [requests, statusFilter, search, memberNames, reqFrom, reqTo, expFrom, expTo, sort, docNoById, batchFilter, managerFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requests, statusFilter, search, memberNames, reqFrom, reqTo, expFrom, expTo, sort, docNoById, batchFilter, managerFilter, cf.key]);
 
   // 필터 선택지 — 실제 목록에 존재하는 묶음·담당자만 (빈 선택지를 보여주지 않는다)
   const batchOptions = useMemo(() => {
@@ -387,7 +396,7 @@ function SignaturesDashboardInner() {
   }, [requests]);
 
   //   쪽 넘김 — 기본 50줄. 조건이 바뀌면 1쪽으로
-  const pager = usePager(filtered as any[], rowsPer, `${statusFilter}|${search}|${reqFrom}|${reqTo}|${expFrom}|${expTo}|${batchFilter}|${managerFilter}|${sort.key}${sort.dir}`);
+  const pager = usePager(filtered as any[], rowsPer, `${statusFilter}|${search}|${reqFrom}|${reqTo}|${expFrom}|${expTo}|${batchFilter}|${managerFilter}|${sort.key}${sort.dir}|${cf.key}`);
   const condCountLive = (expFrom || expTo ? 1 : 0) + (batchFilter ? 1 : 0) + (managerFilter ? 1 : 0);
   const condCountDraft = (dExpFrom || dExpTo ? 1 : 0) + dBatch.length + dManager.length;
   const applyDraft = () => {
@@ -653,11 +662,11 @@ function SignaturesDashboardInner() {
                         </button>
                       </th>
                       <SortableTh label="문서번호" sortKey="docNo" sort={sort} onSort={toggleSort} style={{ width: 84 }} />
-                      <SortableTh label="상태" sortKey="status" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
-                      <SortableTh label="그룹" sortKey="batch" sort={sort} onSort={toggleSort} style={{ width: 84 }} />
+                      <SortableTh label="상태" sortKey="status" sort={sort} onSort={toggleSort} style={{ width: 110 }} filter={cfSpec("status")} />
+                      <SortableTh label="그룹" sortKey="batch" sort={sort} onSort={toggleSort} style={{ width: 96 }} filter={cfSpec("batch")} />
                       <SortableTh label="제목" sortKey="title" sort={sort} onSort={toggleSort} />
-                      <SortableTh label="대표자" sortKey="signer" sort={sort} onSort={toggleSort} style={{ width: 208 }} />
-                      <SortableTh label="담당자" sortKey="manager" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
+                      <SortableTh label="대표자" sortKey="signer" sort={sort} onSort={toggleSort} style={{ width: 208 }} filter={cfSpec("signer")} />
+                      <SortableTh label="담당자" sortKey="manager" sort={sort} onSort={toggleSort} style={{ width: 110 }} filter={cfSpec("manager")} />
                       <SortableTh label="요청일" sortKey="created" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
                       <SortableTh label="서명완료일" sortKey="signed" sort={sort} onSort={toggleSort} style={{ width: 100 }} />
                       <SortableTh label="관리" style={{ width: 190 }} />

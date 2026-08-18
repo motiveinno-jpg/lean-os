@@ -39,7 +39,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
 import { useToast } from "@/components/toast";
-import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, QuickSearch, quickSearchHit, quickTerms, AppliedChips, Pager, usePager, SelectionBar, type AppliedChip } from "@/components/query-kit";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -2795,8 +2795,11 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
 
   //   빠른검색(쉼표 = 또는) — 파일명·올린 사람·종류. 서버 검색(searchFiles)은 그대로 두고 화면에서 한 번 더 거른다
   const kindOf = (f: any) => String(f.mime_type || "").split("/").pop() || "파일";
+  const cf = useColFilters();
+  const colVal = (f: any) => ({ kind: kindOf(f), by: userNames[f.uploaded_by] || "" });
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (filteredFiles as any[]).map((f) => colVal(f)[k]));
   const sortedFiles = useMemo(() => {
-    const rows = (filteredFiles as any[]).filter((f) => quickSearchHit(fileSearchTerm, [f.file_name, userNames[f.uploaded_by], kindOf(f)]));
+    const rows = (filteredFiles as any[]).filter((f) => cf.hit(colVal(f)) && quickSearchHit(fileSearchTerm, [f.file_name, userNames[f.uploaded_by], kindOf(f)]));
     const val = (f: any) => {
       switch (sort.key) {
         case "name": return String(f.file_name || ""); case "kind": return kindOf(f); case "size": return Number(f.file_size || 0);
@@ -2806,8 +2809,8 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     rows.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || String(b.created_at || "").localeCompare(String(a.created_at || "")); });
     return rows;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredFiles, fileSearchTerm, sort, userNames]);
-  const pager = usePager(sortedFiles, 50, `${selectedFolderId}|${categoryFilter}|${fileSearchTerm}`);
+  }, [filteredFiles, fileSearchTerm, sort, userNames, cf.key]);
+  const pager = usePager(sortedFiles, 50, `${selectedFolderId}|${categoryFilter}|${fileSearchTerm}|${cf.key}`);
   const chips: AppliedChip[] = quickTerms(fileSearchTerm).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setFileSearchTerm(quickTerms(fileSearchTerm).filter((_, j) => j !== i).join(", ")) }));
   const fmtSize = (n: number) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`;
   const totalSize = sortedFiles.reduce((x: number, f: any) => x + Number(f.file_size || 0), 0);
@@ -3033,9 +3036,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                         </button>
                       </th>
                       <SortableTh label="파일명" sortKey="name" sort={sort} onSort={onSort} />
-                      <SortableTh label="종류" sortKey="kind" sort={sort} onSort={onSort} style={{ width: 96 }} />
+                      <SortableTh label="종류" sortKey="kind" sort={sort} onSort={onSort} style={{ width: 110 }} filter={cfSpec("kind")} />
                       <SortableTh label="크기" sortKey="size" sort={sort} onSort={onSort} style={{ width: 96 }} />
-                      <SortableTh label="올린 사람" sortKey="by" sort={sort} onSort={onSort} style={{ width: 120 }} />
+                      <SortableTh label="올린 사람" sortKey="by" sort={sort} onSort={onSort} style={{ width: 130 }} filter={cfSpec("by")} />
                       <SortableTh label="올린 날짜" sortKey="at" sort={sort} onSort={onSort} style={{ width: 120 }} />
                       <SortableTh label="버전" sortKey="ver" sort={sort} onSort={onSort} style={{ width: 64 }} />
                       <SortableTh label="관리" style={{ width: 120 }} />

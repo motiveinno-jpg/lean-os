@@ -37,7 +37,7 @@ import { BOARD_TEMPLATES } from "@/lib/project-boards";
 import { MondayBoard } from "@/components/monday-board";
 import { ProjectTimeline, PortfolioCharts, ProjectCalendar } from "./_components/ListViews";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { SortableTh, nextSort, type SortState } from "@/components/sortable-th";
+import { SortableTh, nextSort, type SortState, useColFilters } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, SavedTabs, ConditionSave,
   ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
@@ -529,8 +529,12 @@ export default function ProjectHubPage() {
   // 급한 순 — 상태 순서(지연→주의→정상→완료)가 곧 긴급도다
   const urgencyRank = (d: any) => ({ late: 0, warn: 1, normal: 2, empty: 3 })[listStatusOfDeal(d)];
 
+  //   머리단 ≡ 필터 — 프로젝트·담당(주담당)·템플릿(첫 표)
+  const cf = useColFilters();
+  const colVal = (d: any) => ({ name: d.name || "", manager: userName[d.internal_manager_id] || "", template: (rollupByDeal[d.id]?.boardNames || [])[0] || "" });
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, topDeals.filter((d) => inScope(d) && matchesLens(d) && condHit(d, live)).map((d) => colVal(d)[k]));
   const rows = useMemo(() => {
-    const filtered = topDeals.filter((d) => inScope(d) && matchesLens(d) && condHit(d, live));
+    const filtered = topDeals.filter((d) => inScope(d) && matchesLens(d) && condHit(d, live) && cf.hit(colVal(d)));
     return filtered.slice().sort((a, b) => {
       // 긴급도 정렬 — 랭크 오름차순 + 마감 임박 우선. 방향 토글과 무관하게 항상 급한 게 위로.
       if (sortKey === "urgency") {
@@ -561,8 +565,8 @@ export default function ProjectHubPage() {
       if (c === 0) c = Number(a.contract_total || 0) - Number(b.contract_total || 0);
       return sortDir === "asc" ? c : -c;
     });
-  }, [topDeals, inScope, condHit, live, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal, rollupByDeal]);
-  const pager = usePager(rows, live.rows, `${listView}|${search}|${mineOnly}|${lens}|${JSON.stringify(live)}`);
+  }, [topDeals, inScope, condHit, live, sortKey, sortDir, lens, partnerName, userName, pnlByDeal, headlineByDeal, outstandingByDeal, rollupByDeal, cf.key]);
+  const pager = usePager(rows, live.rows, `${listView}|${search}|${mineOnly}|${lens}|${JSON.stringify(live)}|${cf.key}`);
   const previewCount = useMemo(() => topDeals.filter((d) => inScope(d) && matchesLens(d) && condHit(d, draft)).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [topDeals, inScope, draft, lens]);
@@ -846,9 +850,9 @@ export default function ProjectHubPage() {
               <tr>
                 {/* '상태(지연/주의/정상)' 열을 뺐다 — 옆 '확인 사항'이 같은 내용을 근거와 함께 적고,
                     행 왼쪽 줄무늬가 색을 이미 맡는다. 판정 단어가 셋이면 셋 다 안 읽힌다. */}
-                <SortableTh label="프로젝트" sortKey="name" sort={sort} onSort={onSort} />
-                <SortableTh label="템플릿" />
-                <SortableTh label="참여자" sortKey="manager" sort={sort} onSort={onSort} />
+                <SortableTh label="프로젝트" sortKey="name" sort={sort} onSort={onSort} filter={cfSpec("name")} />
+                <SortableTh label="템플릿" filter={cfSpec("template")} />
+                <SortableTh label="참여자" sortKey="manager" sort={sort} onSort={onSort} filter={cfSpec("manager")} />
                 <SortableTh label="입력" sortKey="items" sort={sort} onSort={onSort} />
                 <SortableTh label="확인 사항" sortKey="urgency" sort={sort} onSort={onSort} title="급한 순" />
                 <SortableTh label="마지막 입력" sortKey="quiet" sort={sort} onSort={onSort} />

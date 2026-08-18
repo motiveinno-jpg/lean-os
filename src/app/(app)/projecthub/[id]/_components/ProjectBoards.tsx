@@ -1104,6 +1104,8 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
         </div>
       </div>}
 
+      {/* 본문 — 상자 안에서 스크롤한다(템플릿 탭·보기 줄은 위에 고정). 2026-08-18 사장님: 끝선 맞추고 스크롤 */}
+      <div className="pb-body">
       {renaming && board && (
         <input autoFocus defaultValue={board.name} className="pb-rename"
           onBlur={(e) => renameBoard(e.target.value)}
@@ -1651,6 +1653,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       {/* 무엇에 대한 추가인지 위치로 말한다 — 마지막 그룹 바로 아래 */}
       <button type="button" className="pb-addgroup" onClick={addGroup}>＋ 그룹 추가</button>
       </>)}
+      </div>
     </div>
   );
 }

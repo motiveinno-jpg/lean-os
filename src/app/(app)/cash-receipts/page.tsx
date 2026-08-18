@@ -1,5 +1,5 @@
 "use client";
-import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, SavedTabs, ConditionSave,
   ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
@@ -216,7 +216,8 @@ export default function CashReceiptsPage() {
   const [sort, setSort] = useState<SortState<CrSortKey>>({ key: "issue_date", dir: "desc" });
   const onSort = (k: CrSortKey) => setSort((c) => nextSort(c, k, k === "issue_date" ? "desc" : "asc"));
   const crSortTh = (k: CrSortKey, label: string) => (
-    <SortableTh label={label} sortKey={k} sort={sort} onSort={onSort} />
+    <SortableTh label={label} sortKey={k} sort={sort} onSort={onSort}
+      filter={k === "counterparty_name" || k === "purpose" || k === "status" ? cfSpec(k) : undefined} />
   );
   //   걸러서 정렬 — 빠른검색(거래처·승인번호·상대 번호·금액) + 검색조건(상태·용도·거래처·금액)
   const statusLabel = (r: any) => (STATUS_LABELS[r.status] || STATUS_LABELS.issued).label;
@@ -228,10 +229,14 @@ export default function CashReceiptsPage() {
     if (!amountHit(Number(r.amount || 0), c.min, c.max)) return false;
     return true;
   };
-  const filteredReceipts = useMemo(() => (receipts as any[]).filter((r) => rowHit(r, live) &&
+  //   머리단 ≡ 필터 — 거래처·용도·상태
+  const cf = useColFilters();
+  const colVal = (r: any) => ({ counterparty_name: r.counterparty_name || "", purpose: purposeLabel(r), status: statusLabel(r) });
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (receipts as any[]).filter((r) => rowHit(r, live)).map((r) => colVal(r)[k]));
+  const filteredReceipts = useMemo(() => (receipts as any[]).filter((r) => rowHit(r, live) && cf.hit(colVal(r)) &&
     quickSearchHit(q, [r.counterparty_name, r.approval_number, r.identity_number, r.counterparty_bizno, r.memo], [Number(r.amount || 0), Number(r.supply_amount || 0)])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [receipts, live, q]);
+    [receipts, live, q, cf.key]);
   const previewCount = (receipts as any[]).filter((r) => rowHit(r, draft)).length;
   const displayReceipts = useMemo(() => {
     const val = (r: any) => {
@@ -253,7 +258,7 @@ export default function CashReceiptsPage() {
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredReceipts, sort]);
-  const pager = usePager(displayReceipts, live.rows, `${tab}|${startDate}|${endDate}|${q}|${JSON.stringify(live)}`);
+  const pager = usePager(displayReceipts, live.rows, `${tab}|${startDate}|${endDate}|${q}|${JSON.stringify(live)}|${cf.key}`);
   const statusOpts = useMemo(() => [...new Set((receipts as any[]).map(statusLabel))].map((v) => ({ value: v, label: v })), [receipts]);
   const purposeOpts = useMemo(() => [...new Set((receipts as any[]).map(purposeLabel).filter(Boolean))].map((v) => ({ value: v, label: v })), [receipts]);
   const partnerOpts = useMemo(() => [...new Set((receipts as any[]).map((r) => r.counterparty_name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [receipts]);

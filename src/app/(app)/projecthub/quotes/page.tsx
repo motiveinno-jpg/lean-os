@@ -5,7 +5,7 @@ import { logRead } from "@/lib/log-read";
 // 견적서 — 프로젝트와 별개의 독립 견적서 메뉴(프로젝트 토글 하위). 프로젝트의 견적서 탭과 동일 데이터(documents+deal_id).
 //   작성 시 기존 프로젝트 선택 또는 신규 프로젝트 생성 → 양쪽(프로젝트 운영/견적서) 연동.
 import { useMemo, useState } from "react";
-import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { SortableTh, nextSort, cmp, type SortState, useColFilters } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
   Pager, usePager, type AppliedChip,
@@ -65,8 +65,11 @@ export default function QuotesPage() {
 
   const statusLabel = (x: any) => (DOC_STATUS as any)[x.status]?.label || DOC_STATUS.draft.label;
   const statusOpts = useMemo(() => [{ value: "all", label: "전체" }, ...[...new Set((quotes as any[]).map(statusLabel))].map((v) => ({ value: v, label: v }))], [quotes]);
+  const cf = useColFilters();
+  const colVal = (x: any) => ({ name: x.name || "", deal: x.deals?.name || "", status: statusLabel(x) });
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, (quotes as any[]).filter((x) => st === "all" || statusLabel(x) === st).map((x) => colVal(x)[k]));
   const shown = useMemo(() => {
-    const arr = (quotes as any[]).filter((x) => (st === "all" || statusLabel(x) === st) &&
+    const arr = (quotes as any[]).filter((x) => (st === "all" || statusLabel(x) === st) && cf.hit(colVal(x)) &&
       quickSearchHit(q, [x.name, x.deals?.name, x.document_number], [Number(x.contract_amount || 0)]));
     const val = (x: any) => {
       switch (sort.key) {
@@ -77,8 +80,8 @@ export default function QuotesPage() {
     arr.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || String(b.created_at || "").localeCompare(String(a.created_at || "")); });
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quotes, q, st, sort]);
-  const pager = usePager(shown, 50, `${q}|${st}`);
+  }, [quotes, q, st, sort, cf.key]);
+  const pager = usePager(shown, 50, `${q}|${st}|${cf.key}`);
   const chips: AppliedChip[] = [
     ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
     ...(st !== "all" ? [{ group: "상태", label: st, onRemove: () => setSt("all") }] : []),
@@ -112,10 +115,10 @@ export default function QuotesPage() {
                 <thead>
                   <tr>
                     <SortableTh label="견적No." sortKey="no" sort={sort} onSort={onSort} style={{ width: 130 }} />
-                    <SortableTh label="견적서명" sortKey="name" sort={sort} onSort={onSort} />
-                    <SortableTh label="프로젝트" sortKey="deal" sort={sort} onSort={onSort} style={{ width: 200 }} />
+                    <SortableTh label="견적서명" sortKey="name" sort={sort} onSort={onSort} filter={cfSpec("name")} />
+                    <SortableTh label="프로젝트" sortKey="deal" sort={sort} onSort={onSort} style={{ width: 200 }} filter={cfSpec("deal")} />
                     <SortableTh label="금액" sortKey="amount" sort={sort} onSort={onSort} style={{ width: 130 }} />
-                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} style={{ width: 96 }} />
+                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} style={{ width: 110 }} filter={cfSpec("status")} />
                     <SortableTh label="작성일" sortKey="date" sort={sort} onSort={onSort} style={{ width: 110 }} />
                     <SortableTh label="관리" style={{ width: 96 }} />
                   </tr>
