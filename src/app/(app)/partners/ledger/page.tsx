@@ -1,6 +1,5 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
-import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 거래처 원장 — 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
@@ -9,11 +8,15 @@ import { logRead } from "@/lib/log-read";
 //   요약 카드 + 좌 거래처 목록 / 우 타사 세무 서비스식 원장 시트. 탭 상태는 URL ?type= 에 반영.
 
 import { useEffect, useMemo, useState } from "react";
-import { DateField } from "@/components/date-field";
 import { DateRangeField } from "@/components/date-range-field";
 import { EmptyState } from "@/components/empty-state";
 import { BarChart } from "@/components/charts/kit";
-import Link from "next/link";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, HelperMenu, SavedTabs, ConditionSave,
+  ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, SelectionBar,
+  type ExcelItem, type HelperItem, type AppliedChip,
+} from "@/components/query-kit";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -25,6 +28,18 @@ import {
 } from "./shared";
 
 type ArApType = "sales" | "purchase";
+
+/**
+ * 검색조건 (조회 화면 표준, 2026-08-18 Wave 1). ★ '조회'를 눌러야 반영. 회계기간·빠른검색은 즉시.
+ *   잔액: 전체 / 잔액 있는 곳만 / 마이너스만
+ */
+type Cond = { bal: "" | "pos" | "neg" };
+const EMPTY_COND: Cond = { bal: "" };
+const condCount = (c: Cond) => (c.bal ? 1 : 0);
+const BAL_OPTS = [{ value: "", label: "전체" }, { value: "pos", label: "잔액 있는 곳만" }, { value: "neg", label: "마이너스만" }] as const;
+const thisYear = () => new Date().getFullYear();
+const yearRange = (y: number) => ({ from: `${y}-01-01`, to: `${y}-12-31` });
+type LSortKey = "code" | "name" | "out";
 
 // 초기 탭 — URL ?type= (새로고침/공유 유지). useSearchParams 의 Suspense 요구를 피해 window 직접 읽기.
 function initialType(): ArApType {
@@ -52,8 +67,15 @@ export default function PartnerLedgerPage() {
   //   그 해 전체(1/1~12/31)면 '2026년'으로, 아니면 날짜 그대로 보여 준다
   const isWholeYear = customFrom.endsWith("-01-01") && customTo === `${customFrom.slice(0, 4)}-12-31`;
   const periodLabel = isWholeYear ? `${customFrom.slice(0, 4)}년` : `${customFrom} ~ ${customTo}`;
-  const [ledgerSearch, setLedgerSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"outstanding" | "name" | "code">("outstanding"); // 기본: 잔액 큰 순 (관리 우선순위)
+  //   ── 조회 화면 표준 — 수집·전표에서 확정한 뼈대. 새로 만들지 않는다 ──
+  //   회계기간은 이 화면의 뜻이 '한 해 원장'이라 기본값이 **올해 1/1~12/31**이다(표준의 '최근 1개월' 예외 — 잔액은 연도로 본다).
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(EMPTY_COND);
+  const [live, setLive] = useState<Cond>(EMPTY_COND);
+  //   목록 정렬 — 기본 잔액 큰 순(관리 우선순위). 머리단 정렬 부품으로.
+  const [sort, setSort] = useState<SortState<LSortKey>>({ key: "out", dir: "desc" });
+  const onSort = (k: LSortKey) => setSort((c) => nextSort(c, k, k === "out" ? "desc" : "asc"));
   const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
   const [detail, setDetail] = useState<{ partnerId: string | null; type: string; focus: "all" | "prior" } | null>(null);
   // 일괄 엑셀 내보내기 — 목록 체크 선택(키=partner_id ?? "none"), 거래처마다 시트 분리
@@ -190,21 +212,45 @@ export default function PartnerLedgerPage() {
   const other = ledgerType === "sales" ? AR_AP.purchase : AR_AP.sales;
   const otherTotal = ledgerType === "sales" ? totalAp : totalAr;
 
-  const sq = ledgerSearch.trim().toLowerCase();
+  const codeOf = (r: LedgerRow) => (r.partner_id && partnerCodeMap[r.partner_id]) || null;
+  const codeStr = (r: LedgerRow) => { const c = codeOf(r); return c != null ? String(c).padStart(4, "0") : ""; };
+  const sq = q.trim();
+  const balHit = (r: LedgerRow, c: Cond) => c.bal === "" || (c.bal === "pos" ? ledgerOut(r) > 0 : ledgerOut(r) < 0);
   const shown = useMemo(() => {
-    const filtered = sq ? data.filter((r) => nameOf(r.partner_id).toLowerCase().includes(sq)) : [...data];
-    filtered.sort((a, b) => {
-      if (sortBy === "name") return nameOf(a.partner_id).localeCompare(nameOf(b.partner_id), "ko");
-      if (sortBy === "code") {
-        const ca = (a.partner_id && partnerCodeMap[a.partner_id]) || Number.MAX_SAFE_INTEGER;
-        const cb = (b.partner_id && partnerCodeMap[b.partner_id]) || Number.MAX_SAFE_INTEGER;
-        return ca - cb;
-      }
-      return ledgerOut(b) - ledgerOut(a);
-    });
+    //   빠른검색 — 거래처명·코드·잔액을 한꺼번에 (쉼표 = 또는, Enter 로 반영)
+    const filtered = data.filter((r) => quickSearchHit(q, [nameOf(r.partner_id), codeStr(r)], [ledgerOut(r)]) && balHit(r, live));
+    const val = (r: LedgerRow) => sort.key === "name" ? nameOf(r.partner_id) : sort.key === "code" ? (codeOf(r) ?? null) : ledgerOut(r);
+    filtered.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || nameOf(a.partner_id).localeCompare(nameOf(b.partner_id), "ko"); });
     return filtered;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, sq, sortBy, partnerMap, partnerCodeMap]);
+  }, [data, q, live, sort, partnerMap, partnerCodeMap]);
+  const previewCount = data.filter((r) => balHit(r, draft)).length;
+
+  //   내 조건 — ★ 하나가 이 화면의 기본값
+  const saved = useSavedQueries("partner-ledger", companyId);
+  const paramsNow = { type: ledgerType, from: customFrom, to: customTo, q, cond: live };
+  const paramsBasic = { type: "sales", ...yearRange(thisYear()), q: "", cond: EMPTY_COND };
+  const applySaved = (p: Record<string, unknown>) => {
+    if (p.type === "sales" || p.type === "purchase") setLedgerType(p.type);
+    if (typeof p.from === "string" && typeof p.to === "string") { setCustomFrom(p.from); setCustomTo(p.to); }
+    if (typeof p.q === "string") setQ(p.q);
+    const c = { ...EMPTY_COND, ...(p.cond as Partial<Cond> | undefined) };
+    setDraft(c); setLive(c);
+  };
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved.isFetched) return;
+    setDefDone(true);
+    if (saved.def) applySaved(saved.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isFetched, saved.def, defDone]);
+  const suggestName = () => [draft.bal ? BAL_OPTS.find((o) => o.value === draft.bal)?.label : "", periodLabel, pal.label].filter(Boolean).slice(0, 3).join(" · ");
+  const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...(live.bal ? [{ group: "잔액", label: BAL_OPTS.find((o) => o.value === live.bal)?.label || live.bal, onRemove: () => drop({ bal: "" }) }] : []),
+  ];
+  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
 
   //   어디에 돈이 묶여 있나 — 거래처 이름이 길고 순위를 보는 자리라 가로 막대가 맞다.
   //   목록 정렬(이름순 등)과 무관하게 그래프는 늘 '많은 순'이다. 잔액 0 이하는 그리지 않는다.
@@ -218,224 +264,219 @@ export default function PartnerLedgerPage() {
   const selKey = selLedger ?? (shown[0] ? (shown[0].partner_id ?? "none") : null);
   const selRow = shown.find((r) => (r.partner_id ?? "none") === selKey) || null;
 
+  //   엑셀 그릇 — 거래처마다 시트 하나로 (선택한 곳 / 보이는 전체)
+  const runExport = async (targetsRows: LedgerRow[]) => {
+    if (exporting || !companyId || targetsRows.length === 0) return;
+    setExporting(true);
+    try {
+      const targets = targetsRows.map((r) => ({ partnerId: r.partner_id, type: r.type, name: nameOf(r.partner_id) }));
+      await exportPartnerLedgersXlsx(companyId, targets, periodStart, periodEnd, pal.label);
+      toast(`${targets.length}곳 원장을 엑셀로 내보냈습니다 (거래처별 시트)`, "success");
+    } catch (e: any) {
+      toast(e?.message || "엑셀 내보내기 실패", "error");
+    } finally { setExporting(false); }
+  };
+  const checkedRows = shown.filter((r) => checkedIds.has(r.partner_id ?? "none"));
+  const excelItems: ExcelItem[] = [
+    { label: "선택한 거래처 원장 내려받기", count: checkedRows.length, hint: "거래처마다 시트 하나 · 회계기간 그대로", disabled: exporting || checkedRows.length === 0, onClick: () => runExport(checkedRows) },
+    { label: "보이는 거래처 전부 내려받기", count: shown.length, hint: "걸린 조건 그대로 · 많으면 시간이 걸립니다", disabled: exporting || shown.length === 0, onClick: () => runExport(shown) },
+  ];
+  const helperItems: HelperItem[] = [
+    { label: linkMut.isPending ? "연결 중…" : "홈택스 거래처 연결", source: "국세청 조회", disabled: linkMut.isPending,
+      hint: "홈택스 세금계산서의 상대를 사업자번호로 거래처에 자동 등록·연결합니다 — 원장의 전제 데이터", onClick: () => linkMut.mutate() },
+  ];
+  const yearQuicks = [thisYear(), thisYear() - 1, thisYear() - 2].map((y) => ({ y, ...yearRange(y) }));
+
   return (
-    <div className="space-y-6">
-      {/* ── 툴바: 세그먼트 탭·회계기간·검색·정렬 (좌) + 액션 (우) — 타이틀은 공통 헤더바가 담당 ── */}
-      <div className="ledger-toolbar">
-        <div className="ledger-period-picker">
-          <div className="seg-bar w-fit">
-            {(["sales", "purchase"] as const).map((t) => {
-              const p = AR_AP[t];
-              return (
-                <button key={t} onClick={() => setLedgerType(t)}
-                  className={`seg-item ${ledgerType === t ? "seg-item-active" : ""}`}>
-                  <span className="text-base leading-none">{p.arrow}</span> {p.label}
-                </button>
-              );
-            })}
+    <div className="qk-shell">
+      {/* ── 조회 화면 표준 — 탭 · 조회 줄 · 걸린 조건 · 결과 요약 · (통계) · 목록+원장 · 확정 줄 (2026-08-18 Wave 1) ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print">
+            {(["sales", "purchase"] as const).map((t) => (
+              <button key={t} type="button" onClick={() => setLedgerType(t)}
+                className={ledgerType === t ? "collect-tab collect-tab-on" : "collect-tab"}>
+                {AR_AP[t].label}<span className="collect-tab-cnt">{(t === "sales" ? receivables : payables).length.toLocaleString()}</span>
+              </button>
+            ))}
           </div>
-          {/* 모바일에서 연도+회계기간이 한 줄 강제로 넘치던 것 — 줄바꿈 허용 (2026-08-13 전수 QA) */}
-          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[var(--text-muted)]">
-            {/*   연도 프리셋 — 고르면 그 해 1/1~12/31 을 기간에 채운다(지름길). 값은 늘 기간 하나가 진실. */}
-            <select value={isWholeYear ? customFrom.slice(0, 4) : "custom"}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "custom") return;      // 달력으로 직접 고르라는 뜻 — 값은 그대로 둔다
-                setCustomFrom(`${v}-01-01`); setCustomTo(`${v}-12-31`);
-              }}
-              className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
-              {[...new Set([...Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i), rpcYear])]
-                .sort((a, b) => b - a)
-                .map((y) => (
-                  <option key={y} value={String(y)}>{y}년 (1/1~12/31)</option>
-                ))}
-              {!isWholeYear && <option value="custom">기간 직접 선택</option>}
-            </select>
-            {/*   기간 — 다른 화면과 같은 달력 위젯 */}
-            <DateRangeField label="회계기간" from={customFrom} to={customTo}
-              onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
-          </div>
-          <input value={ledgerSearch} onChange={(e) => setLedgerSearch(e.target.value)} placeholder="거래처명 검색"
-            className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-36 focus:border-[var(--primary)]/60 focus:outline-none transition" />
-          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as "outstanding" | "name" | "code")}
-            className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] cursor-pointer">
-            <option value="outstanding">잔액 큰 순</option>
-            <option value="code">코드순</option>
-            <option value="name">거래처명 순</option>
-          </select>
-        </div>
-        <div className="ledger-toolbar-actions">
-          <Link href="/partners" className="btn-secondary text-xs">← 거래처</Link>
-          <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
-            className="btn-secondary text-xs"
-            title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
-            {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
-          <Link href="/collect?tab=bank"
-            className="btn-primary text-xs"
-            title="입금·계산서 자동 매칭 (확인 큐 / 수동 매칭 / 확정 내역)">
-            <Ico e="⚙" tone="mono" /> 거래 매칭 →
-          </Link>
-        </div>
-      </div>
 
-      {/* KPI 행: 총 미수금/미지급 + 거래처 수 + 반대편 미니 카드(클릭 전환) */}
-      <div className="ledger-kpi-row">
-        <div className="ledger-kpi-total glass-card stat-fit">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">{ledgerType === "sales" ? "총 미수금" : "총 미지급금"}</span>
-          <span className="stat-fit-value font-extrabold mono-number tracking-tight" style={{ color: pal.main }}>{won(total)}</span>
-        </div>
-        <div className="ledger-kpi-count glass-card stat-fit">
-          <span className="text-[13px] font-semibold text-[var(--text-muted)]">{pal.label}</span>
-          <span className="stat-fit-value font-extrabold mono-number tracking-tight text-[var(--text)]">{shown.length}<span className="text-sm font-semibold text-[var(--text-dim)]"> 곳{sq && data.length !== shown.length ? ` / ${data.length}` : ""}</span></span>
-        </div>
-        {/* 반대편 미니 요약 — 클릭하면 탭 전환 */}
-        <button onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
-          className="ledger-kpi-other glass-card stat-fit"
-          title="클릭하여 전환">
-          {/* 2026-07-21 QA: 옆 카드는 "N곳"인데 이 카드만 금액이라 "매입처 ₩0"처럼 단위가 헷갈리던 것 — 무엇의 금액인지 라벨에 명시 */}
-          <span className="text-[13px] font-semibold text-[var(--text-muted)] flex items-center gap-1">{other.arrow} {other.label} {ledgerType === "sales" ? "총 미지급금" : "총 미수금"}</span>
-          <span className={`stat-fit-value font-extrabold mono-number tracking-tight ${other.tintText}`}>{won(otherTotal)}</span>
-        </button>
-      </div>
-      <p className="text-[11px] text-[var(--text-dim)]">잔액 = 전기이월 + 당기 잔액 · 확정된 매칭(거래 매칭)만 정산으로 반영</p>
+          <QueryBar right={<>
+            <ExcelMenu items={excelItems} />
+            <HelperMenu items={helperItems} />
+          </>}>
+            <DateRangeField label={null} parts="segments" from={customFrom} to={customTo}
+              onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }}
+              trailing={
+                <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)} anchorSel=".drf"
+                  tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                    onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                    onBasic={() => { const b = yearRange(thisYear()); setCustomFrom(b.from); setCustomTo(b.to); clearAll(); }}
+                    onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+                  foot={<>
+                    <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft(EMPTY_COND)}>조건 지우기</button>
+                    <ConditionSave suggest={suggestName}
+                      onSave={(name, asDefault) => { saved.save(name, { type: ledgerType, from: customFrom, to: customTo, q, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
+                    <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}곳</span>
+                    <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                  </>}>
+                  <ConditionRow label="회계기간" hint="잔액 = 전기이월 + 이 기간 잔액">
+                    <span className="qk-range-txt">{periodLabel}</span>
+                    <DateRangeField label={null} parts="calendar" confirm from={customFrom} to={customTo}
+                      onChange={(f, t) => { setCustomFrom(f); setCustomTo(t); }} />
+                    <span className="qk-quicks">
+                      {yearQuicks.map((yq) => (
+                        <button key={yq.y} type="button" onClick={() => { setCustomFrom(yq.from); setCustomTo(yq.to); }}
+                          className={customFrom === yq.from && customTo === yq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{yq.y}년</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="잔액">
+                    <span className="qk-quicks">
+                      {BAL_OPTS.map((o) => (
+                        <button key={o.value} type="button" onClick={() => setDraft({ bal: o.value })}
+                          className={draft.bal === o.value ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                </ConditionPanel>
+              } />
+            <QuickSearch value={q} onApply={setQ} placeholder="거래처명 · 코드 · 잔액 — 쉼표로 여러 개, Enter" />
+          </QueryBar>
 
-      {/* 상위 거래처 — 합계만 보면 어디에 몰렸는지 모른다 (2026-08-07) */}
-      {topPartners.length >= 2 && (
-        <div className="ledger-top-chart glass-card">
-          <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
-            <span className="text-[12px] font-bold text-[var(--text)]">
-              {ledgerType === "sales" ? "미수금이 큰 거래처" : "미지급금이 큰 거래처"}
-            </span>
-            <span className="text-[10px] text-[var(--text-dim)]">
-              많은 순 {topPartners.length}곳{shown.length > topPartners.length ? ` · 전체 ${shown.length}곳` : ""}
-            </span>
-          </div>
-          <BarChart unit="원" data={topPartners.map((r) => ({ ...r, color: pal.main }))} />
-        </div>
-      )}
+          <AppliedChips chips={chips} onClearAll={clearAll} />
 
-      {/* 미수 경과(에이징) — 세금계산서 발행 기준. 회수 우선순위 판단용(오래 밀린 미수 강조). 매출처 뷰 전용. */}
-      {ledgerType === "sales" && aging && aging.total > 0 && (
-        <div className="ledger-ar-aging glass-card">
-          <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
-            <span className="text-[12px] font-bold text-[var(--text)]">미수 경과 · 세금계산서 발행 기준</span>
-            <span className="text-[10px] text-[var(--text-dim)]">합계 {won(aging.total)} · 원장 총 미수금은 전표·이월 포함(차이 정상)</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {aging.buckets.map((b, i) => {
-              const cls = ["bg-[var(--bg-surface)] text-[var(--text)]",
-                "bg-[var(--warning)]/10 text-[var(--warning)]",
-                "bg-[var(--warning)]/18 text-[var(--warning)]",
-                "bg-[var(--danger)]/12 text-[var(--danger)]"][i];
-              return (
-                <div key={b.label} className={`ar-aging-bucket ${cls}`}>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{b.label}</div>
-                  <div className="text-[15px] font-black mono-number leading-tight mt-0.5">{won(b.amount)}</div>
-                  <div className="text-[9px] opacity-70 mt-0.5">{b.count}건</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+          <ResultStrip right={
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setLedgerType(ledgerType === "sales" ? "purchase" : "sales")}
+              title="반대편으로 전환">{other.arrow} {other.label} {ledgerType === "sales" ? "총 미지급금" : "총 미수금"} <b className="mono-number">{won(otherTotal)}</b> →</button>
+          }>
+            <Stat label={ledgerType === "sales" ? "총 미수금" : "총 미지급금"} value={won(total)} tone={ledgerType === "sales" ? "plus" : "minus"} />
+            <Stat label={pal.label} value={`${shown.length.toLocaleString("ko")}곳${(sq || live.bal) && data.length !== shown.length ? ` / ${data.length.toLocaleString("ko")}` : ""}`} />
+            <span className="text-[10.5px] text-[var(--text-dim)]">잔액 = 전기이월 + 당기 잔액 · 확정된 매칭만 정산으로 반영 · 미확정 입금 매칭은 수집·전표 › 통장에서 확정</span>
+          </ResultStrip>
+        </QueryHead>
 
-      {lLoading ? (
-        <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-4 items-start">
-          {/* ── 좌: 거래처 목록 ── */}
-          <div className="ledger-partner-list glass-card">
-            <div className="ledger-partner-list-header" style={{ background: `color-mix(in srgb, ${pal.main} 7%, var(--bg-surface))` }}>
-              <label className="flex items-center gap-1.5 cursor-pointer select-none" title="전체 선택/해제 — 선택한 거래처를 엑셀 한 파일(거래처별 시트)로 내보냅니다">
-                <input type="checkbox"
-                  checked={shown.length > 0 && shown.every((r) => checkedIds.has(r.partner_id ?? "none"))}
-                  onChange={(e) => setCheckedIds(e.target.checked ? new Set(shown.map((r) => r.partner_id ?? "none")) : new Set())} />
-                <span className="text-xs font-bold text-[var(--text)]">{pal.label} 목록</span>
-              </label>
-              <span className="caption">{shown.length}곳</span>
-            </div>
-            {checkedIds.size > 0 && (
-              <div className="ledger-partner-list-export-bar">
-                <span className="text-[11px] text-[var(--text-muted)]">{checkedIds.size}곳 선택</span>
-                <button
-                  disabled={exporting}
-                  onClick={async () => {
-                    if (exporting || !companyId) return;
-                    setExporting(true);
-                    try {
-                      const targets = shown.filter((r) => checkedIds.has(r.partner_id ?? "none"))
-                        .map((r) => ({ partnerId: r.partner_id, type: r.type, name: nameOf(r.partner_id) }));
-                      await exportPartnerLedgersXlsx(companyId, targets, periodStart, periodEnd, pal.label);
-                      toast(`${targets.length}곳 원장을 엑셀로 내보냈습니다 (거래처별 시트)`, "success");
-                    } catch (e: any) {
-                      toast(e?.message || "엑셀 내보내기 실패", "error");
-                    } finally {
-                      setExporting(false);
-                    }
-                  }}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                  style={{ background: pal.main }}>
-                  {exporting ? "내보내는 중…" : "엑셀 내보내기"}
-                </button>
-              </div>
-            )}
-            <div className="overflow-y-auto max-h-[560px] p-1.5 space-y-0.5">
-              {shown.length === 0 ? (
-                <EmptyState
-                  icon={sq ? "🔍" : "📒"}
-                  title={sq ? "검색 결과가 없습니다." : `${periodLabel} ${pal.label} 거래가 없습니다.`}
-                  desc={sq ? undefined : "상단 “홈택스 거래처 연결”을 먼저 실행해 보세요."}
-                />
-              ) : shown.map((r, idx) => {
-                const key = r.partner_id ?? "none";
-                const active = key === selKey;
-                const out = ledgerOut(r);
-                return (
-                  <div key={`${key}-${r.type}`}
-                    className={`ledger-partner-row ${active ? "" : "hover:bg-[var(--bg-surface)]/70"}`}
-                    style={active ? { background: `color-mix(in srgb, ${pal.main} 9%, transparent)` } : undefined}>
-                    {active && <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full" style={{ background: pal.main }} />}
-                    <label className="flex items-center pl-3 pr-1 cursor-pointer" title="일괄 엑셀 내보내기 선택">
-                      <input type="checkbox" checked={checkedIds.has(key)} onChange={() => toggleChecked(key)} />
-                    </label>
-                    <button onClick={() => setSelLedger(key)}
-                      className="flex-1 min-w-0 flex items-center justify-between gap-2 pl-1 pr-3 py-2.5 text-left">
-                      <span className="min-w-0">
-                        <span className="block text-[10px] text-[var(--text-dim)] mono-number">{r.partner_id && partnerCodeMap[r.partner_id] ? String(partnerCodeMap[r.partner_id]).padStart(4, "0") : "—"}</span>
-                        <span className={`block text-xs truncate ${active ? "font-bold" : "font-medium text-[var(--text)]"}`} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</span>
-                      </span>
-                      <span className={`shrink-0 text-xs font-semibold mono-number ${out > 0 ? pal.tintText : out < 0 ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</span>
-                    </button>
+        <QueryBody>
+          {/* 상위 거래처·미수 경과 — 합계만 보면 어디에 몰렸는지 모른다 (2026-08-07). 목록 위에 접어 둔다 */}
+          {(topPartners.length >= 2 || (ledgerType === "sales" && aging && aging.total > 0)) && (
+            <div className="ledger-insights">
+              {topPartners.length >= 2 && (
+                <div className="ledger-top-chart glass-card">
+                  <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+                    <span className="text-[12px] font-bold text-[var(--text)]">{ledgerType === "sales" ? "미수금이 큰 거래처" : "미지급금이 큰 거래처"}</span>
+                    <span className="text-[10px] text-[var(--text-dim)]">많은 순 {topPartners.length}곳{shown.length > topPartners.length ? ` · 전체 ${shown.length}곳` : ""}</span>
                   </div>
-                );
-              })}
+                  <BarChart unit="원" data={topPartners.map((r) => ({ ...r, color: pal.main }))} />
+                </div>
+              )}
+              {ledgerType === "sales" && aging && aging.total > 0 && (
+                <div className="ledger-ar-aging glass-card">
+                  <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+                    <span className="text-[12px] font-bold text-[var(--text)]">미수 경과 · 세금계산서 발행 기준</span>
+                    <span className="text-[10px] text-[var(--text-dim)]">합계 {won(aging.total)} · 원장 총 미수금은 전표·이월 포함(차이 정상)</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {aging.buckets.map((b, i) => {
+                      const cls = ["bg-[var(--bg-surface)] text-[var(--text)]",
+                        "bg-[var(--warning)]/10 text-[var(--warning)]",
+                        "bg-[var(--warning)]/18 text-[var(--warning)]",
+                        "bg-[var(--danger)]/12 text-[var(--danger)]"][i];
+                      return (
+                        <div key={b.label} className={`ar-aging-bucket ${cls}`}>
+                          <div className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{b.label}</div>
+                          <div className="text-[15px] font-black mono-number leading-tight mt-0.5">{won(b.amount)}</div>
+                          <div className="text-[9px] opacity-70 mt-0.5">{b.count}건</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-
-          {/* ── 우: 일자별 원장 (차변/대변/잔액) ── */}
-          {selRow ? (
-            <PartnerLedgerSheet
-              key={`${selKey}-${selRow.type}-${periodStart}-${periodEnd}`}
-              companyId={companyId!}
-              partnerId={selRow.partner_id}
-              type={selRow.type}
-              year={rpcYear}
-              periodStart={periodStart}
-              periodEnd={periodEnd}
-              partnerName={nameOf(selRow.partner_id)}
-              openingFromRpc={Number(selRow.prior_outstanding || 0)}
-              onOpenDetail={() => setDetail({ partnerId: selRow.partner_id, type: selRow.type, focus: "all" })}
-            />
-          ) : (
-            <EmptyState
-              card
-              icon="📒"
-              title="좌측에서 거래처를 선택하세요."
-              desc="선택한 거래처의 일자별 원장(차변·대변·잔액)이 표시됩니다"
-            />
           )}
-        </div>
-      )}
+
+          {lLoading ? (
+            <div className="collect-empty">불러오는 중…</div>
+          ) : (
+            <div className="ledger-split">
+              {/* ── 좌: 거래처 목록 — 조회 표준 표. 줄을 누르면 오른쪽 원장이 바뀐다 ── */}
+              <div className="ledger-partner-list">
+                {shown.length === 0 ? (
+                  <div className="collect-empty">
+                    {sq || live.bal ? "이 조건에 맞는 거래처가 없습니다 — 검색조건을 풀어 보세요" : `${periodLabel} ${pal.label} 거래가 없습니다 — AI 제안 ▾ 「홈택스 거래처 연결」을 먼저 실행해 보세요`}
+                  </div>
+                ) : (
+                  <div className="ev-scroll ledger-list-scroll">
+                    <table className="ev-table ev-lined ledger-list-table">
+                      <thead>
+                        <tr>
+                          <th className="w-9">
+                            <button type="button" aria-label="전체 선택" title="선택한 거래처를 엑셀 한 파일(거래처별 시트)로 내보냅니다"
+                              onClick={() => setCheckedIds(shown.every((r) => checkedIds.has(r.partner_id ?? "none")) ? new Set() : new Set(shown.map((r) => r.partner_id ?? "none")))}
+                              className={shown.length > 0 && shown.every((r) => checkedIds.has(r.partner_id ?? "none")) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                              {shown.length > 0 && shown.every((r) => checkedIds.has(r.partner_id ?? "none")) ? "✓" : ""}
+                            </button>
+                          </th>
+                          <SortableTh label="코드" sortKey="code" sort={sort} onSort={onSort} style={{ width: 64 }} />
+                          <SortableTh label={pal.label} sortKey="name" sort={sort} onSort={onSort} />
+                          <SortableTh label="잔액" sortKey="out" sort={sort} onSort={onSort} style={{ width: 116 }} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shown.map((r) => {
+                          const key = r.partner_id ?? "none";
+                          const active = key === selKey;
+                          const out = ledgerOut(r);
+                          const on = checkedIds.has(key);
+                          return (
+                            <tr key={`${key}-${r.type}`} onClick={() => setSelLedger(key)}
+                              className={active ? "ledger-row ledger-row-on" : "ledger-row"}
+                              style={active ? { background: `color-mix(in srgb, ${pal.main} 9%, transparent)` } : undefined}>
+                              <td onClick={(e) => e.stopPropagation()}>
+                                <button type="button" aria-label="선택" onClick={() => toggleChecked(key)}
+                                  className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
+                              </td>
+                              <td className="tc mono-number ev-dim">{codeStr(r) || "—"}</td>
+                              <td className={active ? "ev-ell font-bold" : "ev-ell font-medium"} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</td>
+                              <td className={`tr mono-number font-semibold ${out > 0 ? pal.tintText : out < 0 ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* ── 우: 일자별 원장 (차변/대변/잔액) ── */}
+              {selRow ? (
+                <PartnerLedgerSheet
+                  key={`${selKey}-${selRow.type}-${periodStart}-${periodEnd}`}
+                  companyId={companyId!}
+                  partnerId={selRow.partner_id}
+                  type={selRow.type}
+                  year={rpcYear}
+                  periodStart={periodStart}
+                  periodEnd={periodEnd}
+                  partnerName={nameOf(selRow.partner_id)}
+                  openingFromRpc={Number(selRow.prior_outstanding || 0)}
+                  onOpenDetail={() => setDetail({ partnerId: selRow.partner_id, type: selRow.type, focus: "all" })}
+                />
+              ) : (
+                <EmptyState card icon="📒" title="왼쪽에서 거래처를 고르세요." desc="고른 거래처의 일자별 원장(차변·대변·잔액)이 표시됩니다" />
+              )}
+            </div>
+          )}
+
+          {/* ── 3줄 · 고른 거래처로 하는 일 ── */}
+          <SelectionBar count={checkedIds.size} onClear={() => setCheckedIds(new Set())}
+            summary={<>거래처마다 시트 하나 · 회계기간 {periodLabel}</>}>
+            <button type="button" className="btn-primary btn-sm" disabled={exporting || checkedRows.length === 0} onClick={() => runExport(checkedRows)}>
+              {exporting ? "내보내는 중…" : `엑셀 내보내기 (${checkedRows.length})`}
+            </button>
+          </SelectionBar>
+        </QueryBody>
+      </QueryScreen>
 
       {/* 거래처 상세 팝업 (차액 마감 포함) */}
       {detail && companyId && (
@@ -450,9 +491,6 @@ export default function PartnerLedgerPage() {
         />
       )}
 
-      <p className="text-[11px] text-[var(--text-dim)]">
-        ※ 미확정 입금 매칭은 <Link href="/collect?tab=bank" className="text-[var(--primary)] hover:underline">수집·전표 › 통장</Link>에서 확정해야 잔액에 반영됩니다 · <span className="text-[var(--danger)]">빨간색</span>은 마이너스 잔액·장기 미정산에만 사용됩니다
-      </p>
     </div>
   );
 }

@@ -2998,22 +2998,12 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .partner-detail-invoice-row { @apply border-b border-[var(--border)]/50 py-2.5; }
 .close-balance-overlay { @apply fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4; }
 .close-balance-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
-.ledger-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
-.ledger-period-picker { @apply flex items-center gap-2 flex-wrap; }
 /* shrink-0 이 컨테이너를 콘텐츠 폭으로 고정해 모바일에서 줄바꿈이 안 걸리던 것 (2026-08-13 전수 QA) */
-.ledger-toolbar-actions { @apply flex items-center gap-2 flex-wrap max-w-full; }
-.ledger-kpi-row { @apply grid grid-cols-2 lg:grid-cols-3 gap-4; }
-.ledger-kpi-total { @apply p-5 flex flex-col gap-3; }
-.ledger-kpi-count { @apply p-5 flex flex-col gap-3; }
-.ledger-kpi-other { @apply p-5 flex flex-col gap-3 text-left hover:bg-[var(--bg-surface)]/60 transition col-span-2 lg:col-span-1; }
 .ledger-ar-aging { @apply p-4; }
 /* 상위 거래처 막대 — 합계 카드 바로 아래 */
 .ledger-top-chart { @apply p-4; }
 .ar-aging-bucket { @apply rounded-lg px-3 py-2.5; }
 .ledger-partner-list { @apply overflow-hidden; }
-.ledger-partner-list-header { @apply px-3 py-2.5 border-b border-[var(--border)] flex items-center justify-between gap-2; }
-.ledger-partner-list-export-bar { @apply px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex items-center justify-between gap-2; }
-.ledger-partner-row { @apply relative flex items-stretch rounded-lg transition; }
 .invite-loading-screen { @apply min-h-screen flex items-center justify-center; }
 .invite-validating-screen { @apply min-h-screen flex items-center justify-center; }
 .invite-invalid-screen { @apply min-h-screen flex items-center justify-center px-4; }
@@ -8255,6 +8245,15 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .rc-manual-table { min-width: 860px; }
 .rc-confirmed-table { min-width: 1120px; }
 .rc-adj { background: color-mix(in srgb, #F59E0B 6%, transparent); }
+/* 거래처 원장 — 조회 표준 (2026-08-18 Wave 1): 통계 두 장 · 좌 목록(표) + 우 원장 */
+.ledger-insights { @apply grid grid-cols-1 gap-3 p-3 pb-0 lg:grid-cols-2; }
+.ledger-split { @apply grid grid-cols-1 items-start gap-3 p-3 lg:grid-cols-[380px_1fr]; }
+.ledger-partner-list { @apply min-w-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.ledger-list-scroll { max-height: 560px; }
+.ledger-list-table { min-width: 0; width: 100%; table-layout: fixed; }
+.ledger-list-table td.ev-ell { max-width: 0; }
+.ledger-row { @apply cursor-pointer transition-colors; }
+.ledger-row:hover { @apply bg-[var(--bg-surface)]; }
 .partner-row { @apply cursor-pointer transition-colors; }
 .partner-row:hover { @apply bg-[var(--bg-surface)]; }
 /*   한 쪽(차변 또는 대변) — 계정과 거래처를 위아래로 */

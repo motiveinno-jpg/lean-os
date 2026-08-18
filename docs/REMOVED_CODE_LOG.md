@@ -45,3 +45,8 @@
 - 자체 툴바(seg-bar 탭·DateField 기간·이 기간 매칭/AI 전체 매칭/홈택스 거래처 연결 버튼·원장 링크), 정리율 프로그레스 카드, 확인 큐 일괄 바(전체 선택/선택 확정·반려/고신뢰 일괄 확정), 수동 매칭 툴바(설명·검색칸), 정리 내역 설명 카드, 바닥 안내문, ResizableTh(ledger/shared) 사용
 - `globals.css`: `.partner-reconciliation-toolbar`, `.partner-reconciliation-tabs`, `.partner-reconciliation-progress-card`, `.partner-queue-tab`, `.partner-queue-bulk-bar`, `.partner-queue-table`, `.partner-manual-match-tab`, `.partner-manual-toolbar`, `.partner-manual-match-table`, `.partner-confirmed-tab`, `.partner-confirmed-table`
 대체: 탭 collect-tabs · QueryBar(기간 segments + 검색조건[구분·신뢰도·유형·계산서 거래처] + 빠른검색) · ResultStrip(정리율·대기·높음·기간 밖·확정) · AI 제안(규칙 매칭[장부 대조]·AI 전체 매칭[AI 추천]·고신뢰 고르기·홈택스 거래처 연결[국세청 조회]) · SortableTh 표 3종 · Pager · SelectionBar(선택 확정/반려)
+
+### 거래처 원장 (`/partners/ledger`)
+- 자체 툴바(seg-bar 탭·연도 select·회계기간·검색칸·정렬 select·거래처/홈택스 연결/거래 매칭 버튼), KPI 카드 3장, 좌측 카드형 거래처 목록(체크·엑셀 바), 바닥 안내문
+- `globals.css`: `.ledger-toolbar`, `.ledger-period-picker`, `.ledger-toolbar-actions`, `.ledger-kpi-row`, `.ledger-kpi-total`, `.ledger-kpi-count`, `.ledger-kpi-other`, `.ledger-partner-list-header`, `.ledger-partner-list-export-bar`, `.ledger-partner-row`
+대체: collect-tabs · QueryBar(회계기간 segments + 검색조건[회계기간 달력·연도 지름길·잔액] + 빠른검색) · ResultStrip(총액·곳 수·반대편 전환) · ExcelMenu(선택/전체 원장) · AI 제안(홈택스 거래처 연결[국세청 조회]) · 좌 목록 = ev-table+SortableTh · SelectionBar(엑셀 내보내기)
