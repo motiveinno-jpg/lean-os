@@ -3979,6 +3979,8 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     setForm({ ...form, stages: updated });
   }
 
+  useModalKeys(showForm, () => { if (!upsertMut.isPending) resetForm(); });
+
   const ROLE_OPTIONS = [
     { value: "manager", label: "팀장" },
     { value: "director", label: "이사" },
@@ -4006,8 +4008,10 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       </QueryBar>
 
       {/* 결재선 폼 — 이름 · 단계 수 · 단계별 승인자 · 참조 · (선택) 적용 대상 (2026-08-18 사장님: 유형·자동승인·설명 템플릿 제거) */}
+      {/* 결재선 폼은 팝업 — 목록 줄이 밀리지 않게 (2026-08-18 사장님) */}
       {showForm && (
-        <div className="approval-policy-form ap-pad-form">
+        <div className="approval-detail-modal" onClick={() => !upsertMut.isPending && resetForm()}>
+        <div className="approval-policy-form ap-pol-modal" onClick={(e) => e.stopPropagation()}>
           <div className="ap-pol-head">
             <h3 className="section-title">{editingPolicy ? "결재선 수정" : "새 결재선"}</h3>
             {editingPolicy && editingPolicy.document_type !== "line" && (
@@ -4111,6 +4115,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
             </button>
             <button onClick={resetForm} className="btn-secondary btn-sm">취소</button>
           </div>
+        </div>
         </div>
       )}
 

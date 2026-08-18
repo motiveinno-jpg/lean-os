@@ -4693,7 +4693,7 @@ table.ap-policy-table { min-width: 960px; }
 .afm-table tbody td, .ap-policy-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
 .ap-stage-pill { @apply inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--bg-card)] pl-1 pr-2 py-0.5 text-[11px] font-semibold text-[var(--text)]; }
 .ap-stage-pill b { @apply grid h-4 w-4 place-items-center rounded-full bg-[var(--primary)]/10 text-[9px] font-extrabold text-[var(--primary)]; }
-.ap-scroll .approval-policy-form.ap-pad-form { @apply m-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4; }
+.approval-policy-form.ap-pol-modal { @apply w-full max-w-3xl max-h-[88vh] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-xl; }
 .ap-scroll .forms-empty-state { @apply px-6 py-16 text-center; }
 /*   새 요청 — 요청 유형·회사 결재 양식 한 줄 고르기(누르면 아래로 목록) (2026-08-18 사장님) */
 .ap-pick { @apply relative; }
