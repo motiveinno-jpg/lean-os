@@ -8836,6 +8836,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
      파란 바탕 위라 흰 배지 + 파란 글자로 뒤집는다. */
 .qk-cond-btn { @apply inline-flex h-8 items-center gap-1.5 rounded-r-lg border-l border-[var(--primary)] bg-[var(--primary)] px-2.5 text-[11.5px] font-bold text-white transition-all; }
 .qk-cond-btn:hover { @apply brightness-110; }
+/*   기간 칸 없이 혼자 설 때(거래처 같은 마스터 화면) — 왼쪽도 둥글게. 기간 칸(.drf) 뒤에 붙을 때만 오른쪽만 둥글다 (2026-08-18 사장님) */
+.qk-bar-left > .qk-cond > .qk-cond-btn { @apply rounded-lg border-l-0; }
 .qk-cond-btn-on { @apply brightness-95; }
 .qk-cond-n { @apply not-italic inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-[var(--primary)]; }
 
