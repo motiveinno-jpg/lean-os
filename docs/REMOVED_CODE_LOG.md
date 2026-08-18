@@ -99,3 +99,7 @@
 - 두 줄 seg-bar(근무 현황/연장근무 → 워크보드/기록 상세), 워크보드 주차 네비 카드(flex-work-week-nav glass-card)+요약 pill, 워크보드 표 카드(flex-work-board-table-card), 기록 상세의 '근태관리' 제목·캘린더/데이터 seg-bar·데이터 표 자체 머리단(table-head-row/th-cell)
 - `globals.css`: `.attendance-section-tabbar` `.attendance-view-tabbar` `.flex-work-week-nav` `.flex-work-board-table-card`
 대체: qk-shell > QueryScreen(collect-tabs 워크보드(주간)·기록 상세·연장근무 한 줄) · 워크보드 = QueryBar(◀ 이번 주 ▶ + 주 라벨 ‖ 재직 N) · ResultStrip(평균·연장 합계·52시간 초과·결근 + 결근 명단 펼침) · ev-table 머리단(구성원 고정) · 범례는 collect-note · 기록 상세/연장근무 = att-scroll 본문, 캘린더/데이터는 ChipGroup, 데이터 표는 ev-table+SortableTh(직원·날짜·출근·퇴근·근무시간·상태 정렬, 직원·상태 ≡, 너비)
+
+## 2026-08-18 — 조회 표준 확산 Wave 5 · 분석(C형: 머리단만)
+- 손익계산서 본표 th 인라인 스타일(padding·font·color·background) → `ev-table ev-lined rpt-table` + `.rpt-th-left/.rpt-th-right`(좌우 고정만 남김) · 비용 분석 월표·고정비/변동비 세부내역 표 th 인라인 스타일 → `ev-table ev-lined`. 몸통·드릴다운·합계 줄 그대로.
+- 교훈: `.ev-table { min-width:1260px }` 가 뒤에 정의돼 화면별 `.xxx-table { min-width }` 를 덮는다 → 화면별 규칙은 `table.xxx` 로 특이성을 올린다(10곳 일괄 수정).

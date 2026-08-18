@@ -4694,22 +4694,22 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .qk-body .certificate-issue-form.glass-card { @apply p-4; }
 .qk-body .payroll-detail-table.glass-card,
 .qk-body .certificate-log-table.glass-card { @apply rounded-none border-0 bg-transparent shadow-none; }
-.cert-log-tbl { min-width: 860px; }
-.payroll-tbl { min-width: 1260px; }
+table.cert-log-tbl { min-width: 860px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
+table.payroll-tbl { min-width: 1260px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 /* ── 근로계약·서식(/hr-templates) — 조회 표준 (2026-08-18 Wave 4) ── */
 .qk-body > .ht-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
 .qk-body .hr-form-manager.glass-card,
 .qk-body .templates-list.glass-card { @apply rounded-none border-0 bg-transparent p-0 shadow-none; }
 .qk-body .templates-form.glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-none; }
 .qk-body:has(.qk-selbar) > .ca-scroll { padding-bottom: 60px; }
-.ca-table { min-width: 1180px; }
+table.ca-table { min-width: 1180px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 .ca-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
 .ca-table td.truncate { max-width: 0; }
 .ca-row-on td { background: color-mix(in srgb, var(--primary) 6%, transparent); }
 .ca-history { @apply border-t-4 border-[var(--border)]; }
 .ca-history-title { @apply px-3.5 py-2 text-xs font-bold text-[var(--text-muted)]; }
 .ca-history-title small { @apply ml-1 font-normal text-[var(--text-dim)]; }
-.ca-hist-table { min-width: 720px; }
+table.ca-hist-table { min-width: 720px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 .ca-hist-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
 /*   서식 목록 줄 — 상자 안에서는 줄 사이 선만 (2026-08-18) */
 .qk-body .template-row { @apply rounded-none border-0 border-b border-[var(--border)]/50 bg-transparent p-0; }
@@ -4718,7 +4718,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 /* ── 근태(/attendance) — 조회 표준 (2026-08-18 Wave 4) ── */
 .qk-body > .att-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
 .qk-bar .fw-week-nav { @apply w-auto flex-nowrap; }
-.fw-table { min-width: 860px; }
+table.fw-table { min-width: 860px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 .fw-table thead th.fw-th-name { @apply sticky left-0 z-[6] text-left; min-width: 180px; }
 .fw-table thead th.fw-th-total { min-width: 170px; }
 .fw-table td.fw-td-name { @apply sticky left-0 z-[5] bg-[var(--bg-card)]; }
@@ -4726,9 +4726,15 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .fw-absent-btn-on { @apply ring-2 ring-inset ring-[var(--danger)]; }
 .fw-absent-panel { @apply border-b border-[var(--border)] px-3.5 py-3; }
 .qk-body .attendance-toolbar { @apply mb-0; }
-.att-rec-table { min-width: 900px; }
+table.att-rec-table { min-width: 900px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 .att-rec-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
-.leave-req-table { min-width: 960px; }
+/* ── 분석 리포트(C형) — 표 머리단만 공용으로 맞춘다 (2026-08-18 Wave 5). 몸통 셀·드릴다운·누계 줄은 각 리포트 그대로 */
+table.rpt-table { min-width: 480px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
+.rpt-table thead th.rpt-th-left { @apply sticky left-0 z-[3]; }
+.rpt-table thead th.rpt-th-right { @apply sticky z-[3]; }
+table.costs-monthly-table { min-width: 560px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
+table.costs-detail-tbl { min-width: 0; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
+table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
 .leave-req-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 align-top text-xs; }
 .ap-tab-alert { @apply rounded-full bg-[var(--danger)] px-1.5 text-white; }
 .collect-tab-on .ap-tab-alert { @apply text-white; }

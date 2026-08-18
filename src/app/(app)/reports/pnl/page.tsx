@@ -797,70 +797,13 @@ function PnlPageInner() {
 
       {/* Table — 대시보드 글래스카드 (2026-06-10) */}
       <div className="pnl-table-container glass-card" style={{ overflow: "auto" }}>
-        <table
-          className="pnl-table"
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            minWidth: 480,
-          }}
-        >
+        {/* 머리단은 공용 표 머리단(색·선) — 조회 표준 Wave 5 (2026-08-18). 항목·합계 칸의 좌우 고정은 유지 */}
+        <table className="pnl-table ev-table ev-lined rpt-table">
           <thead>
-            <tr
-              style={{
-                borderBottom: "1px solid var(--border)",
-              }}
-            >
-              <th
-                style={{
-                  padding: "12px 16px",
-                  textAlign: "left",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "var(--text-dim)",
-                  position: "sticky",
-                  left: 0,
-                  background: "var(--bg-card)",
-                  zIndex: 3,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                항목
-              </th>
-              <th
-                style={{
-                  padding: "12px 16px",
-                  textAlign: "right",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "var(--text-dim)",
-                  whiteSpace: "nowrap",
-                  position: "sticky",
-                  right: isCompareMode ? 120 : 0,
-                  background: "var(--bg-card)",
-                  zIndex: 3,
-                }}
-              >
-                합계
-              </th>
-              {isCompareMode && (
-                <th
-                  style={{
-                    padding: "12px 16px",
-                    textAlign: "right",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "var(--text-dim)",
-                    whiteSpace: "nowrap",
-                    position: "sticky",
-                    right: 0,
-                    background: "var(--bg-card)",
-                    zIndex: 3,
-                  }}
-                >
-                  전기 대비
-                </th>
-              )}
+            <tr>
+              <th className="rpt-th-left">항목</th>
+              <th className="rpt-th-right" style={{ right: isCompareMode ? 120 : 0 }}>합계</th>
+              {isCompareMode && <th className="rpt-th-right" style={{ right: 0 }}>전기 대비</th>}
             </tr>
           </thead>
           <tbody>

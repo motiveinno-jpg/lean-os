@@ -260,14 +260,15 @@ export default function CostsPage() {
 
           {/* Monthly table */}
           <div className="costs-monthly-table-card glass-card" style={{ overflowX: "auto", marginTop: 24 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 560 }}>
+            {/* 머리단은 공용 표 머리단(색·선) — 조회 표준 Wave 5 (2026-08-18) */}
+            <table className="ev-table ev-lined rpt-table costs-monthly-table" style={{ fontSize: 13 }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  <th style={{ textAlign: "left", padding: "12px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>월</th>
-                  <th style={{ textAlign: "right", padding: "12px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>고정비</th>
-                  <th style={{ textAlign: "right", padding: "12px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>변동비</th>
-                  <th style={{ textAlign: "right", padding: "12px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>합계</th>
-                  <th style={{ textAlign: "right", padding: "12px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>고정비 비중</th>
+                <tr>
+                  <th>월</th>
+                  <th>고정비</th>
+                  <th>변동비</th>
+                  <th>합계</th>
+                  <th>고정비 비중</th>
                 </tr>
               </thead>
               <tbody>
@@ -329,12 +330,12 @@ export default function CostsPage() {
                     <div className="text-xs text-[var(--text-dim)] mt-1.5">결제 → 정기결제 등록에서 임차료·급여·4대보험 등을 추가하세요.</div>
                   </div>
                 ) : (
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                    <thead><tr style={{ borderBottom: "1px solid var(--border)" }}>
-                      <th style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600 }}>항목</th>
-                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600 }}>월 평균</th>
-                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600 }}>올해 누계</th>
-                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600 }}>비중</th>
+                  <table className="ev-table ev-lined costs-detail-tbl" style={{ fontSize: 13 }}>
+                    <thead><tr>
+                      <th>항목</th>
+                      <th>월 평균</th>
+                      <th>올해 누계</th>
+                      <th>비중</th>
                     </tr></thead>
                     <tbody>
                       {breakdown.fixed.map((r) => (
@@ -371,11 +372,11 @@ export default function CostsPage() {
                     <div className="text-xs text-[var(--text-dim)] mt-1.5">카드 사용액·일회성 지출이 쌓이면 여기에 집계됩니다.</div>
                   </div>
                 ) : (
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                    <thead><tr style={{ borderBottom: "1px solid var(--border)" }}>
-                      <th style={{ textAlign: "left", padding: "10px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600 }}>항목</th>
-                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600 }}>올해 누계</th>
-                      <th style={{ textAlign: "right", padding: "10px 16px", color: "var(--text-dim)", fontSize: 12, fontWeight: 600 }}>비중</th>
+                  <table className="ev-table ev-lined costs-detail-tbl" style={{ fontSize: 13 }}>
+                    <thead><tr>
+                      <th>항목</th>
+                      <th>올해 누계</th>
+                      <th>비중</th>
                     </tr></thead>
                     <tbody>
                       {breakdown.variable.map((r) => (
