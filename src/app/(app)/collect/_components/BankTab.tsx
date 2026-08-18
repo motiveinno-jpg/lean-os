@@ -219,18 +219,23 @@ export function BankTab({
     enabled: !!companyId,
     staleTime: 60_000,
   });
+  /** 이름 비교용 알맹이 — 법인 꼬리표·공백을 뗀다. "주식회사 엘케이나비" 앞 4자는 "주식회사"라
+   *  주식회사 입금자면 다 '거래처 일치'가 됐다(2026-08-18 prod 검증). 전각 공백(홈택스·통장 표기)도 지운다. */
+  const coreName = (v: unknown) => String(v || "").toLowerCase()
+    .replace(/주식회사|유한회사|유한책임회사|합자회사|합명회사|농업회사법인|영농조합법인|어업회사법인|협동조합|사회적협동조합|\(주\)|㈜|\(유\)|㈜/g, "")
+    .replace(/[\s　·,.\-_()]/g, "");
   /** 이 입금의 계산서 후보 — 금액 ±10% 는 문턱, 이름 겹침은 가산. 근거를 함께 돌려준다. */
   const matchCandsOf = (r: Row): { inv: any; why: string[] }[] => {
     if (!r.isIn) return [];
     const amt = Math.abs(r.amount);
-    const names = `${r.who} ${r.desc}`.toLowerCase();
+    const names = coreName(`${r.who} ${r.desc}`);
     const out: { inv: any; why: string[]; score: number }[] = [];
     for (const inv of openInvoices as any[]) {
       const total = Number(inv.total_amount || 0);
       if (total <= 0) continue;
       const diff = Math.abs(total - amt) / total;
       if (diff > 0.1) continue;                       // 금액이 문턱 — 엉뚱한 후보로 어지럽히지 않는다
-      const nm = String(inv.counterparty_name || "").trim().toLowerCase();
+      const nm = coreName(inv.counterparty_name);
       const nameHit = nm.length >= 2 && names.includes(nm.slice(0, Math.min(nm.length, 4)));
       //   ★ '금액 근접'만으로는 제안하지 않는다 (2026-08-18 사장님 화면 검증):
       //     카드 취소 환입 132,000 에 스마트케어 143,902 가, 자기 회사 계좌이동 60,300 에 옛한우 63,452 가
