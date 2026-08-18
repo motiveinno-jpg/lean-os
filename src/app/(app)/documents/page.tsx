@@ -32,7 +32,6 @@ import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/docu
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
 import { fillFormTemplate } from "@/lib/pdf-overlay";
 import { FileUploadMulti } from "@/components/file-upload-multi";
-import { FileList } from "@/components/file-list";
 import { CurrencyInput } from "@/components/currency-input";
 import { QuoteItemsTable } from "./_components/QuoteItemsTable";
 import { QuoteHeader, type QuoteHeaderData } from "./_components/QuoteHeader";
@@ -40,6 +39,8 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/models";
 import { useToast } from "@/components/toast";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, QuickSearch, quickSearchHit, quickTerms, AppliedChips, Pager, usePager, SelectionBar, type AppliedChip } from "@/components/query-kit";
 import { useDocumentViewer } from "@/contexts/document-viewer-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 
@@ -2711,8 +2712,11 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   const [showNewFolderForm, setShowNewFolderForm] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  //   정렬 — 이 화면의 주 동작은 '찾기'라 목록이 정렬돼야 한다 (2026-08-12 UI 정리)
-  const [fileSort, setFileSort] = useState<"new" | "name" | "size">("new");
+  //   정렬 — 이 화면의 주 동작은 '찾기'. 조회 표준 머리단(SortableTh)으로, 기본 최근 올린 순 (2026-08-18 Wave 3)
+  type FSortKey = "name" | "kind" | "size" | "by" | "at" | "ver";
+  const [sort, setSort] = useState<SortState<FSortKey>>({ key: "at", dir: "desc" });
+  const onSort = (k: FSortKey) => setSort((c) => nextSort(c, k, k === "at" || k === "size" ? "desc" : "asc"));
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const uploadZoneRef = useRef<HTMLDivElement>(null);
 
   //   ⚠️ uploaded_by 에는 **사용자 id(UUID)** 가 들어 있어 화면에 그대로 찍히고 있었다.
@@ -2789,13 +2793,24 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     return files.filter((f: any) => f.category === categoryFilter);
   }, [files, categoryFilter]);
 
-  //   고른 정렬대로 다시 늘어놓는다 (기본은 예전과 같은 최근 올린 순)
+  //   빠른검색(쉼표 = 또는) — 파일명·올린 사람·종류. 서버 검색(searchFiles)은 그대로 두고 화면에서 한 번 더 거른다
+  const kindOf = (f: any) => String(f.mime_type || "").split("/").pop() || "파일";
   const sortedFiles = useMemo(() => {
-    const rows = [...(filteredFiles as any[])];
-    if (fileSort === "name") rows.sort((a, b) => String(a.file_name).localeCompare(String(b.file_name), "ko"));
-    else if (fileSort === "size") rows.sort((a, b) => Number(b.file_size || 0) - Number(a.file_size || 0));
+    const rows = (filteredFiles as any[]).filter((f) => quickSearchHit(fileSearchTerm, [f.file_name, userNames[f.uploaded_by], kindOf(f)]));
+    const val = (f: any) => {
+      switch (sort.key) {
+        case "name": return String(f.file_name || ""); case "kind": return kindOf(f); case "size": return Number(f.file_size || 0);
+        case "by": return userNames[f.uploaded_by] || ""; case "ver": return Number(f.version || 1); default: return String(f.created_at || "");
+      }
+    };
+    rows.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || String(b.created_at || "").localeCompare(String(a.created_at || "")); });
     return rows;
-  }, [filteredFiles, fileSort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredFiles, fileSearchTerm, sort, userNames]);
+  const pager = usePager(sortedFiles, 50, `${selectedFolderId}|${categoryFilter}|${fileSearchTerm}`);
+  const chips: AppliedChip[] = quickTerms(fileSearchTerm).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setFileSearchTerm(quickTerms(fileSearchTerm).filter((_, j) => j !== i).join(", ")) }));
+  const fmtSize = (n: number) => n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`;
+  const totalSize = sortedFiles.reduce((x: number, f: any) => x + Number(f.file_size || 0), 0);
 
   // Create folder mutation
   const createFolderMut = useMutation({
@@ -2970,73 +2985,104 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         </div>
       </div>
 
-      {/* Right: File list + Upload */}
+      {/* Right: 파일 목록 — 조회 화면 표준 (2026-08-18 Wave 3). 이 화면의 주 동작은 **찾기**다:
+          갈래 탭 · 빠른검색 · 결과줄 · 표(머리단 정렬) · 쪽 넘김 · 확정 줄(삭제). 올리기는 버튼 하나 + 목록 아래 드롭존. */}
       <div className="vault-file-panel">
-        {/* ── 툴바 한 줄 (2026-08-12 UI 정리) ──
-            이 화면의 주 동작은 **찾기**다. 예전엔 업로드 상자가 목록 위를 크게 차지해,
-            104개를 뒤지러 온 사람에게 '올리세요'가 먼저 보였다. 올리기는 버튼 하나로 줄이고
-            드롭존은 목록 아래로 내렸다(끌어다 놓기는 그대로 된다). */}
-        <div className="doc-toolbar">
-          <div className="doc-cat-tabs">
-            {/* ⚠️ 건수가 0 인 갈래는 안 보인다 — 지금 이 회사 파일 104건은 **분류가 전부 비어 있어**
-                탭을 다 그리면 5개 중 4개가 영원히 0 인 빈 껍데기가 된다. 분류가 붙기 시작하면
-                그 갈래가 저절로 나타난다 (2026-08-12). */}
-            {/* 갈래가 '전체' 하나뿐이면 탭이 아니라 **건수 표시**다 — 고를 것이 없는데 탭 모양이면
-                누를 수 있는 것처럼 보인다 (2026-08-12 사장님 지적) */}
-            {shownCats.length <= 1 ? (
-              <span className="list-count-badge">전체 {(catCounts.all ?? 0).toLocaleString()}건</span>
-            ) : shownCats.map((c) => (
-              <button key={c.value} type="button" onClick={() => setCategoryFilter(c.value)}
-                className={categoryFilter === c.value ? "list-tab list-tab-on" : "list-tab"}>
-                {c.label} <span className="list-tab-count">{(catCounts[c.value] ?? 0).toLocaleString()}</span>
-              </button>
-            ))}
-          </div>
-          <div className="doc-toolbar-right">
-            <input value={fileSearchTerm} onChange={(e) => setFileSearchTerm(e.target.value)}
-              placeholder="파일명 검색…" className="doc-search-input" />
-            <select value={fileSort} onChange={(e) => setFileSort(e.target.value as typeof fileSort)}
-              className="doc-sort-select" aria-label="정렬">
-              <option value="new">최근 올린 순</option>
-              <option value="name">이름순</option>
-              <option value="size">큰 파일순</option>
-            </select>
-            <button type="button" className="btn-primary btn-sm whitespace-nowrap"
-              onClick={() => uploadZoneRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.click()}>
-              ＋ 올리기
-            </button>
-          </div>
-        </div>
-
-        {/* 같은 이름이 두 번 올라간 것 — 화면이 짚어 준다 (지우는 건 사람이) */}
-        {dupNames.length > 0 && (
-          <div className="doc-dup-band">
-            같은 이름의 파일이 <b>{dupNames.length}종</b> 두 번 이상 올라와 있습니다
-            <span className="doc-dup-names">{dupNames.slice(0, 3).map(([n, c]) => `${n} (${c})`).join(" · ")}{dupNames.length > 3 ? " …" : ""}</span>
-          </div>
-        )}
-
-        {/* File list */}
-        <div className="vault-file-list glass-card">
-          <FileList
-            files={sortedFiles.map((f: any) => ({
-              id: f.id,
-              file_name: f.file_name,
-              file_url: f.file_url,
-              file_size: f.file_size || 0,
-              mime_type: f.mime_type || "application/octet-stream",
-              version: f.version || 1,
-              created_at: f.created_at,
-              //   id 가 아니라 **이름**을 넘긴다 — 예전엔 UUID 가 그대로 찍혔다
-              uploaded_by: userNames[f.uploaded_by] || "",
-            }))}
-            onDelete={handleDeleteFile}
-            // 비공개 버킷(document-files, 2026-06-05 전환)은 저장된 public URL 이 400 —
-            //   클릭 시점에 서명 URL 재발급 + 원본 파일명 프록시 다운로드 (사장님 제보 2026-08-11)
-            onDownload={(file) => void downloadStoredFile(file.file_url, file.file_name)}
-            maxHeight="calc(100vh - 360px)"
-          />
-        </div>
+        <QueryScreen>
+          <QueryHead>
+            {/* 건수가 0 인 갈래는 안 보인다 — 분류가 붙기 시작하면 그 갈래가 저절로 나타난다 (2026-08-12) */}
+            <div className="collect-tabs no-print">
+              {shownCats.map((c) => (
+                <button key={c.value} type="button" onClick={() => setCategoryFilter(c.value)}
+                  className={categoryFilter === c.value ? "collect-tab collect-tab-on" : "collect-tab"}>
+                  {c.label}<span className="collect-tab-cnt">{(catCounts[c.value] ?? 0).toLocaleString()}</span>
+                </button>
+              ))}
+            </div>
+            <QueryBar right={
+              <button type="button" className="btn-primary btn-sm whitespace-nowrap"
+                onClick={() => uploadZoneRef.current?.querySelector<HTMLInputElement>('input[type="file"]')?.click()}>＋ 올리기</button>
+            }>
+              <QuickSearch value={fileSearchTerm} onApply={setFileSearchTerm} placeholder="파일명 · 올린 사람 · 종류 — 쉼표로 여러 개, Enter" />
+            </QueryBar>
+            <AppliedChips chips={chips} onClearAll={() => setFileSearchTerm("")} />
+            <ResultStrip>
+              <Stat label="파일" value={`${sortedFiles.length.toLocaleString()}건`} />
+              <Stat label="용량" value={fmtSize(totalSize)} />
+              {selectedFolderId && <span className="text-[10.5px] text-[var(--text-dim)]">폴더 안만 보는 중 — 왼쪽 '전체'를 누르면 모든 파일</span>}
+              {dupNames.length > 0 && (
+                <span className="text-[10.5px] font-semibold text-amber-600">같은 이름 파일 {dupNames.length}종이 두 번 이상 — {dupNames.slice(0, 3).map(([n, c]) => `${n} (${c})`).join(" · ")}{dupNames.length > 3 ? " …" : ""}</span>
+              )}
+            </ResultStrip>
+          </QueryHead>
+          <QueryBody>
+            {filesLoading ? (
+              <div className="collect-empty">불러오는 중…</div>
+            ) : sortedFiles.length === 0 ? (
+              <div className="collect-empty">{fileSearchTerm ? "이 조건에 맞는 파일이 없습니다 — 검색을 풀어 보세요" : "아직 파일이 없습니다 — ＋ 올리기 또는 아래로 끌어다 놓으세요"}</div>
+            ) : (
+              <div className="ev-scroll">
+                <table className="ev-table ev-lined doc-file-table">
+                  <thead>
+                    <tr>
+                      <th className="w-9">
+                        <button type="button" aria-label="이 쪽 전체 선택"
+                          onClick={() => setSelectedIds((prev) => { const n = new Set(prev); const all = (pager.view as any[]).every((f) => n.has(f.id)); for (const f of pager.view as any[]) { if (all) n.delete(f.id); else n.add(f.id); } return n; })}
+                          className={pager.view.length > 0 && (pager.view as any[]).every((f) => selectedIds.has(f.id)) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                          {pager.view.length > 0 && (pager.view as any[]).every((f) => selectedIds.has(f.id)) ? "✓" : ""}
+                        </button>
+                      </th>
+                      <SortableTh label="파일명" sortKey="name" sort={sort} onSort={onSort} />
+                      <SortableTh label="종류" sortKey="kind" sort={sort} onSort={onSort} style={{ width: 96 }} />
+                      <SortableTh label="크기" sortKey="size" sort={sort} onSort={onSort} style={{ width: 96 }} />
+                      <SortableTh label="올린 사람" sortKey="by" sort={sort} onSort={onSort} style={{ width: 120 }} />
+                      <SortableTh label="올린 날짜" sortKey="at" sort={sort} onSort={onSort} style={{ width: 120 }} />
+                      <SortableTh label="버전" sortKey="ver" sort={sort} onSort={onSort} style={{ width: 64 }} />
+                      <SortableTh label="관리" style={{ width: 120 }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(pager.view as any[]).map((f) => {
+                      const on = selectedIds.has(f.id);
+                      return (
+                        <tr key={f.id} className={on ? "ev-on" : undefined}>
+                          <td>
+                            <button type="button" aria-label="선택" onClick={() => setSelectedIds((prev) => { const n = new Set(prev); if (n.has(f.id)) n.delete(f.id); else n.add(f.id); return n; })}
+                              className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
+                          </td>
+                          <td className="ev-ell font-medium">
+                            <button type="button" className="text-left hover:text-[var(--primary)] hover:underline" title={f.file_name}
+                              onClick={() => void downloadStoredFile(f.file_url, f.file_name)}>{f.file_name}</button>
+                          </td>
+                          <td className="tc ev-dim">{kindOf(f)}</td>
+                          <td className="tr mono-number ev-dim">{fmtSize(Number(f.file_size || 0))}</td>
+                          <td className="ev-ell ev-dim">{userNames[f.uploaded_by] || "—"}</td>
+                          <td className="tc mono-number ev-dim">{String(f.created_at || "").slice(0, 10)}</td>
+                          <td className="tc mono-number ev-dim">v{f.version || 1}</td>
+                          <td className="tc whitespace-nowrap">
+                            {/* 비공개 버킷 — 클릭 시점에 서명 URL 재발급 + 원본 파일명으로 내려받기 (2026-08-11) */}
+                            <button type="button" className="btn-secondary btn-sm" onClick={() => void downloadStoredFile(f.file_url, f.file_name)}>내려받기</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {/* ── 3줄 · 고른 파일로 하는 일 — 삭제는 되돌릴 수 없어 확인창을 거친다 ── */}
+            <SelectionBar count={selectedIds.size} onClear={() => setSelectedIds(new Set())}>
+              <button type="button" className="btn-secondary btn-sm text-[var(--danger)]"
+                onClick={async () => {
+                  const ids = [...selectedIds];
+                  if (!window.confirm(`선택한 파일 ${ids.length}개를 삭제할까요? 삭제하면 복구할 수 없습니다.`)) return;
+                  for (const id of ids) await handleDeleteFile(id);
+                  setSelectedIds(new Set());
+                }}>삭제 ({selectedIds.size})</button>
+            </SelectionBar>
+          </QueryBody>
+          <Pager page={pager.page} pages={pager.pages} total={sortedFiles.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />
+        </QueryScreen>
 
         {/* 업로드 — 목록 아래. 끌어다 놓기는 화면 어디서나 그대로 동작한다. */}
         <div ref={uploadZoneRef} className="doc-upload-zone">
