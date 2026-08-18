@@ -4,9 +4,16 @@ import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ConditionPanel, ConditionRow, TokenField, ChipGroup, AppliedChips,
+  QuickSearch, quickSearchHit, ResultStrip, Stat, RowsPerPage, Pager, usePager, SelectionBar, type TokenItem, type AppliedChip,
+} from "@/components/query-kit";
+import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
+import { DateRangeField } from "@/components/date-range-field";
 import { supabase } from "@/lib/supabase";
 import { friendlyError } from "@/lib/friendly-error";
 import { useToast } from "@/components/toast";
@@ -21,7 +28,16 @@ const RichEditor = dynamic(() => import("@/components/rich-editor").then(m => ({
 // ── 계약서/서약서 템플릿 편집 + 회사 문서 + 발송 현황 — 구성원 상세패널의 "+ 계약서 보내기"로
 //   개별 발송이 이관된 뒤, 회사 전체 관점(서식 관리·회사 문서·발송 현황/일괄발송)만 여기 남음.
 //   (2026-07-15 employees/_components/ContractTab.tsx 에서 이관)
-export function ContractAdminPanel({ companyId, contracts }: { companyId: string; contracts: any[] }) {
+type CaCond = { emp: string[]; dept: string[]; cFrom: string; cTo: string; sFrom: string; sTo: string; rows: number };
+const CA_EMPTY: CaCond = { emp: [], dept: [], cFrom: "", cTo: "", sFrom: "", sTo: "", rows: 50 };
+const caCount = (c: CaCond) => c.emp.length + c.dept.length + ((c.cFrom || c.cTo) ? 1 : 0) + ((c.sFrom || c.sTo) ? 1 : 0);
+type CaSort = "title" | "emp" | "dept" | "status" | "created" | "sent" | "completed";
+const STATUS_CHIPS = [
+  { value: "all", label: "전체" }, { value: "draft", label: "임시저장" }, { value: "sent", label: "진행 중" },
+  { value: "completed", label: "완료" }, { value: "cancelled", label: "취소" },
+] as const;
+
+export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: string; contracts: any[]; tabs?: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [sending, setSending] = useState<string | null>(null);
@@ -193,10 +209,71 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
     }
   }
 
-  // 상태 필터링
-  const filteredContracts = statusFilter === "all"
-    ? contractList
-    : contractList.filter((c: any) => c.status === statusFilter);
+  // ── 조회 표준(2026-08-18 Wave 4) — 상태 칩 + 검색조건(직원·부서·생성일·발송일) + 빠른검색 + 머리단 정렬·≡·너비 + 쪽 ──
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<CaCond>(CA_EMPTY);
+  const [live, setLive] = useState<CaCond>(CA_EMPTY);
+  const setD = <K extends keyof CaCond>(k: K) => (v: CaCond[K]) => setDraft((c) => ({ ...c, [k]: v }));
+  const [sort, setSort] = useState<SortState<CaSort>>({ key: "created", dir: "desc" });
+  const onSort = (k: CaSort) => setSort((c) => nextSort(c, k));
+  const cf = useColFilters();
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("hr-contract-packages-colw-v1", {
+    title: 260, emp: 100, dept: 110, status: 110, created: 110, sent: 110, completed: 110, action: 220,
+  });
+  const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
+  const day = (v: any) => (v ? kstDateStr(new Date(v)) : "");
+  const stLabel = (c: any) => (PACKAGE_STATUS[c.status as keyof typeof PACKAGE_STATUS] || PACKAGE_STATUS.draft).label;
+  const statusHit = (c: any) => statusFilter === "all" || (statusFilter === "sent" ? (c.status === "sent" || c.status === "partially_signed") : c.status === statusFilter);
+  const condHit = (c: any, k: CaCond) => {
+    if (k.emp.length && !k.emp.includes(c.employees?.name || "")) return false;
+    if (k.dept.length && !k.dept.includes(c.employees?.department || "")) return false;
+    const cd = day(c.created_at), sd = day(c.sent_at);
+    if (k.cFrom && cd < k.cFrom) return false;
+    if (k.cTo && cd > k.cTo) return false;
+    if ((k.sFrom || k.sTo) && !sd) return false;
+    if (k.sFrom && sd < k.sFrom) return false;
+    if (k.sTo && sd > k.sTo) return false;
+    return true;
+  };
+  const colVal = (c: any) => ({ emp: c.employees?.name || "미지정", dept: c.employees?.department || "—", status: stLabel(c) });
+  const empOpts: TokenItem[] = useMemo(() => [...new Set((contractList as any[]).map((c) => c.employees?.name).filter(Boolean))].map((v) => ({ value: v as string, label: v as string })), [contractList]);
+  const deptOpts: TokenItem[] = useMemo(() => [...new Set((contractList as any[]).map((c) => c.employees?.department).filter(Boolean))].map((v) => ({ value: v as string, label: v as string })), [contractList]);
+  const base = useMemo(() => (contractList as any[]).filter((c) => statusHit(c) && condHit(c, live)
+    && quickSearchHit(q, [c.title, c.employees?.name, c.employees?.department, stLabel(c)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [contractList, statusFilter, live, q]);
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, base.map((c) => colVal(c)[k]));
+  const filteredContracts = useMemo(() => {
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const val = (c: any): string => {
+      switch (sort.key) {
+        case "title": return c.title || "";
+        case "emp": return c.employees?.name || "";
+        case "dept": return c.employees?.department || "";
+        case "status": return stLabel(c);
+        case "sent": return c.sent_at || "";
+        case "completed": return c.completed_at || "";
+        default: return c.created_at || "";
+      }
+    };
+    return base.filter((c) => cf.hit(colVal(c))).sort((a, b) => cmp(val(a), val(b)) * dir);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, sort, cf.key]);
+  const previewCount = (contractList as any[]).filter((c) => statusHit(c) && condHit(c, draft)).length;
+  const pager = usePager(filteredContracts, live.rows, `${statusFilter}|${q}|${JSON.stringify(live)}|${cf.key}`);
+  const drop = (patch: Partial<CaCond>) => { const n = { ...live, ...patch }; setLive(n); setDraft(n); };
+  const clearAll = () => { setLive(CA_EMPTY); setDraft(CA_EMPTY); setQ(""); cf.clear(); setStatusFilter("all"); };
+  const chips: AppliedChip[] = [
+    ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
+    ...live.emp.map((v) => ({ group: "직원", label: v, onRemove: () => drop({ emp: live.emp.filter((x) => x !== v) }) })),
+    ...live.dept.map((v) => ({ group: "부서", label: v, onRemove: () => drop({ dept: live.dept.filter((x) => x !== v) }) })),
+    ...((live.cFrom || live.cTo) ? [{ group: "생성일", label: `${live.cFrom || "처음"} ~ ${live.cTo || "오늘"}`, onRemove: () => drop({ cFrom: "", cTo: "" }) }] : []),
+    ...((live.sFrom || live.sTo) ? [{ group: "발송일", label: `${live.sFrom || "처음"} ~ ${live.sTo || "오늘"}`, onRemove: () => drop({ sFrom: "", sTo: "" }) }] : []),
+    ...cf.active.map((a) => ({ group: "칸 필터", label: `${({ emp: "구성원", dept: "부서", status: "상태" } as Record<string, string>)[a.k] || a.k} ${a.n}개`, onRemove: () => cf.clear(a.k) })),
+  ];
+  const draftRows = filteredContracts.filter((c: any) => c.status === "draft");
 
   // 상태별 카운트
   const statusCounts = {
@@ -208,15 +285,48 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
   };
 
   return (
-    <div>
-      {/* 상단 헤더 */}
-      <div className="contract-admin-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-        <div>
-          <h3 className="text-base font-bold text-[var(--text)]">계약 발송 현황</h3>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">발송된 계약의 서명 현황을 확인하고 일괄 발송합니다. <b className="text-[var(--text)]">서식 만들기·편집은 위 [서식] 탭</b>에서, 개별 직원 발송은 구성원 상세 › 근로계약에서 하세요.</p>
-        </div>
-      </div>
+    <QueryScreen>
+      <QueryHead>
+        {tabs}
+        <QueryBar>
+          <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={caCount(live)}
+            foot={<>
+              <button type="button" className="btn-secondary btn-sm" disabled={caCount(draft) === 0}
+                onClick={() => setDraft({ ...CA_EMPTY, rows: draft.rows })}>조건 지우기</button>
+              <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>
+              <RowsPerPage value={draft.rows} onChange={setD("rows")} />
+              <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+            </>}>
+            <ConditionRow label="직원" hint="여러 명">
+              <TokenField items={empOpts} value={draft.emp} onChange={setD("emp")} placeholder="이름 일부" />
+            </ConditionRow>
+            <ConditionRow label="부서" hint="여러 개">
+              <TokenField items={deptOpts} value={draft.dept} onChange={setD("dept")} placeholder="부서 이름 일부" />
+            </ConditionRow>
+            <ConditionRow label="생성일" hint="비우면 전체">
+              <DateRangeField label={null} from={draft.cFrom} to={draft.cTo} onChange={(f, t) => setDraft((c) => ({ ...c, cFrom: f, cTo: t }))} onClear={() => setDraft((c) => ({ ...c, cFrom: "", cTo: "" }))} />
+            </ConditionRow>
+            <ConditionRow label="발송일" hint="발송된 것만 걸린다">
+              <DateRangeField label={null} from={draft.sFrom} to={draft.sTo} onChange={(f, t) => setDraft((c) => ({ ...c, sFrom: f, sTo: t }))} onClear={() => setDraft((c) => ({ ...c, sFrom: "", sTo: "" }))} />
+            </ConditionRow>
+          </ConditionPanel>
+          <QuickSearch value={q} onApply={setQ} placeholder="계약 제목 · 직원 · 부서 · 상태 — 쉼표로 여러 개, Enter" />
+          {/* 상태 칩 — 갈래를 바로 바꾸는 값 하나짜리라 조회 줄에 둔다 */}
+          <ChipGroup value={statusFilter} onChange={(v) => { setStatusFilter(v); setSelectedIds(new Set()); }}
+            options={STATUS_CHIPS.map((c) => ({ value: c.value as string, label: (statusCounts as any)[c.value] > 0 ? `${c.label} ${(statusCounts as any)[c.value]}` : c.label }))} />
+        </QueryBar>
+        <AppliedChips chips={chips} onClearAll={clearAll} />
+        <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{filteredContracts.length}</b>건</span>}>
+          <Stat label="전체" value={`${statusCounts.all}건`} />
+          <Stat label="임시저장" value={`${statusCounts.draft}건`} tone={statusCounts.draft > 0 ? "minus" : undefined} />
+          <Stat label="진행 중" value={`${statusCounts.sent}건`} />
+          <Stat label="완료" value={`${statusCounts.completed}건`} tone="plus" />
+          <Stat label="취소" value={`${statusCounts.cancelled}건`} />
+        </ResultStrip>
+      </QueryHead>
 
+      <QueryBody>
+      <div className="ev-scroll ca-scroll">
       {/* 서식 에디터는 [서식] 탭으로 이관(2026-07-23) — 중복 제거. showTemplateEditor 는 항상 false(진입점 제거). */}
       {showTemplateEditor && (
         <div className="contract-template-editor glass-card mb-6 flex flex-col h-[80vh]">
@@ -454,102 +564,62 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
 
       {/* 회사 문서(법인 서류)는 회사 설정 › 회사정보 › 회사 문서로 이관(2026-07-23). 여기선 발송/현황만. */}
       {contractSubTab === "contracts" && <>
-      {/* 상태 필터 탭 + 일괄 발송 */}
-      <div className="contract-status-filter-bar flex items-center justify-between gap-3 mb-4">
-        <div className="flex gap-1 overflow-x-auto scrollbar-hide">
-          {[
-            { key: "all", label: "전체" },
-            { key: "draft", label: "임시저장" },
-            { key: "sent", label: "진행 중" },
-            { key: "completed", label: "완료" },
-            { key: "cancelled", label: "취소" },
-          ].map(f => (
-            <button
-              key={f.key}
-              onClick={() => { setStatusFilter(f.key); setSelectedIds(new Set()); }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap transition ${
-                statusFilter === f.key
-                  ? "bg-[var(--primary)] text-white"
-                  : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"
-              }`}
-            >
-              {f.label} {(statusCounts as any)[f.key] > 0 && <span className="ml-1 opacity-70">{(statusCounts as any)[f.key]}</span>}
-            </button>
-          ))}
+      {/* 계약 내역 — 표 하나. 임시저장 줄만 고를 수 있고(발송 대상), 일괄 발송은 바닥 선택 바의 파란 버튼 */}
+      {filteredContracts.length === 0 ? (
+        <div className="collect-empty">
+          {contractList.length === 0
+            ? <>계약 내역이 없습니다 — 구성원 &gt; 인력관리에서 직원을 선택해 계약서를 발송하세요</>
+            : <>이 조건에 맞는 계약이 없습니다 — 검색조건을 풀어 보세요</>}
         </div>
-        {selectedIds.size > 0 && (
-          <button
-            onClick={handleBatchSend}
-            disabled={batchSending}
-            className="btn-primary btn-sm whitespace-nowrap"
-          >
-            {batchSending ? "발송 중..." : `일괄 발송 (${selectedIds.size}건)`}
-          </button>
-        )}
-      </div>
-
-      {/* 계약 내역 리스트 */}
-      <div className="contract-package-list space-y-3 mb-8">
-        {filteredContracts.length === 0 ? (
-          <div className="contract-package-empty glass-card p-12 text-center">
-            <svg className="w-12 h-12 mx-auto mb-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <div className="text-sm text-[var(--text-muted)]">계약 내역이 없습니다</div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">구성원 &gt; 인력관리 &gt; 디렉토리에서 직원을 선택해 계약서를 발송하세요</div>
-          </div>
-        ) : (
-          <>
-            {filteredContracts.some((c: any) => c.status === "draft") && (
-              <div className="flex items-center gap-2 px-1">
-                <label className="flex items-center gap-2 cursor-pointer text-xs text-[var(--text-muted)]">
-                  <input
-                    type="checkbox"
-                    checked={filteredContracts.filter((c: any) => c.status === "draft").every((c: any) => selectedIds.has(c.id))}
-                    onChange={(e) => {
-                      const draftIds = filteredContracts.filter((c: any) => c.status === "draft").map((c: any) => c.id);
-                      if (e.target.checked) {
-                        setSelectedIds(new Set([...selectedIds, ...draftIds]));
-                      } else {
-                        const next = new Set(selectedIds);
-                        draftIds.forEach((id: string) => next.delete(id));
-                        setSelectedIds(next);
-                      }
+      ) : (
+        <table ref={tableRef} className="ev-table ev-lined ca-table">
+          <thead>
+            <tr>
+              <th className="w-10">
+                {draftRows.length > 0 && (
+                  <button type="button" aria-label="이 쪽 임시저장 전체 선택"
+                    onClick={() => {
+                      const ids = (pager.view as any[]).filter((c) => c.status === "draft").map((c) => c.id);
+                      const all = ids.length > 0 && ids.every((id) => selectedIds.has(id));
+                      const next = new Set(selectedIds);
+                      if (all) ids.forEach((id) => next.delete(id)); else ids.forEach((id) => next.add(id));
+                      setSelectedIds(next);
                     }}
-                    className="rounded border-[var(--border)]"
-                  />
-                  전체선택 (임시저장 {filteredContracts.filter((c: any) => c.status === "draft").length}건)
-                </label>
-              </div>
-            )}
-          {filteredContracts.map((p: any) => {
+                    className={(pager.view as any[]).some((c) => c.status === "draft") && (pager.view as any[]).filter((c) => c.status === "draft").every((c) => selectedIds.has(c.id)) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                    {(pager.view as any[]).some((c) => c.status === "draft") && (pager.view as any[]).filter((c) => c.status === "draft").every((c) => selectedIds.has(c.id)) ? "✓" : ""}
+                  </button>
+                )}
+              </th>
+              <SortableTh label="계약" sortKey="title" sort={sort} onSort={onSort} resize={thResize("title", 2)} />
+              <SortableTh label="구성원" sortKey="emp" sort={sort} onSort={onSort} filter={cfSpec("emp")} resize={thResize("emp", 3)} />
+              <SortableTh label="부서" sortKey="dept" sort={sort} onSort={onSort} filter={cfSpec("dept")} resize={thResize("dept", 4)} />
+              <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} filter={cfSpec("status")} resize={thResize("status", 5)} />
+              <SortableTh label="생성" sortKey="created" sort={sort} onSort={onSort} resize={thResize("created", 6)} />
+              <SortableTh label="발송" sortKey="sent" sort={sort} onSort={onSort} resize={thResize("sent", 7)} />
+              <SortableTh label="완료" sortKey="completed" sort={sort} onSort={onSort} resize={thResize("completed", 8)} />
+              <SortableTh label="액션" resize={thResize("action", 9)} />
+            </tr>
+          </thead>
+          <tbody>
+          {(pager.view as any[]).map((p: any) => {
             const st = PACKAGE_STATUS[p.status as keyof typeof PACKAGE_STATUS] || PACKAGE_STATUS.draft;
             return (
-              <div key={p.id} className="contract-package-row glass-card p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    {p.status === "draft" && (
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(p.id)}
-                        onChange={() => toggleSelect(p.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="mt-1 rounded border-[var(--border)]"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-sm font-semibold truncate">{p.title}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${st.bg} ${st.text}`}>{st.label}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[var(--text-muted)]">
-                        <span>{p.employees?.name || "미지정"}</span>
-                        {p.employees?.department && <span>{p.employees.department}</span>}
-                        {p.created_at && <span>생성: {kstDateStr(new Date(p.created_at))}</span>}
-                        {p.sent_at && <span>발송: {kstDateStr(new Date(p.sent_at))}</span>}
-                        {p.completed_at && <span>완료: {kstDateStr(new Date(p.completed_at))}</span>}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 ml-3 shrink-0">
+              <tr key={p.id} className={selectedIds.has(p.id) ? "ca-row ca-row-on" : "ca-row"}>
+                <td className="text-center">
+                  {p.status === "draft" && (
+                    <button type="button" aria-label="선택" onClick={() => toggleSelect(p.id)}
+                      className={selectedIds.has(p.id) ? "collect-chk collect-chk-on" : "collect-chk"}>{selectedIds.has(p.id) ? "✓" : ""}</button>
+                  )}
+                </td>
+                <td className="text-left font-semibold truncate" title={p.title}>{p.title}</td>
+                <td className="text-center">{p.employees?.name || "미지정"}</td>
+                <td className="text-center">{p.employees?.department || "—"}</td>
+                <td className="text-center"><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${st.bg} ${st.text}`}>{st.label}</span></td>
+                <td className="text-center mono-number">{day(p.created_at) || "—"}</td>
+                <td className="text-center mono-number">{day(p.sent_at) || "—"}</td>
+                <td className="text-center mono-number">{day(p.completed_at) || "—"}</td>
+                <td className="text-center">
+                  <div className="flex gap-1 justify-center">
                     {p.status === "draft" && (
                       <>
                         <button
@@ -561,7 +631,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                         </button>
                         <button
                           onClick={async () => { if (await appConfirm("이 계약을 취소하시겠습니까?", { danger: true, confirmLabel: "계약 취소" })) cancelContract.mutate(p.id); }}
-                          className="px-3 py-2 text-xs text-[var(--text-dim)] hover:text-red-400 rounded-lg hover:bg-red-500/10 transition"
+                          className="px-2 py-1 text-[11px] text-[var(--text-dim)] hover:text-red-400 rounded-lg hover:bg-red-500/10 transition"
                         >
                           삭제
                         </button>
@@ -571,7 +641,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                       <button
                         onClick={() => handleSendSignRequest(p.id)}
                         disabled={sending === p.id}
-                        className="px-3 py-2 text-xs font-medium text-blue-400 rounded-lg hover:bg-blue-500/10 transition"
+                        className="px-2 py-1 text-[11px] font-medium text-blue-400 rounded-lg hover:bg-blue-500/10 transition"
                       >
                         {sending === p.id ? "발송 중..." : "재발송"}
                       </button>
@@ -580,7 +650,7 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                       <>
                         <button
                           onClick={() => p.sign_token && window.open(`/sign?token=${p.sign_token}`, "_blank", "noopener")}
-                          className="px-3 py-2 text-xs font-medium text-green-400 rounded-lg hover:bg-green-500/10 transition flex items-center gap-1"
+                          className="px-2 py-1 text-[11px] font-medium text-green-400 rounded-lg hover:bg-green-500/10 transition flex items-center gap-1"
                           title="서명된 계약서 보기 (감사추적 + 다운로드)"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -591,51 +661,66 @@ export function ContractAdminPanel({ companyId, contracts }: { companyId: string
                     <button
                       onClick={() => handleApplySeal(p.id)}
                       disabled={sealApplying === p.id}
-                      className="px-3 py-2 text-xs font-medium text-orange-500 rounded-lg hover:bg-orange-500/10 transition disabled:opacity-50 flex items-center gap-1"
+                      className="px-2 py-1 text-[11px] font-medium text-orange-500 rounded-lg hover:bg-orange-500/10 transition disabled:opacity-50 flex items-center gap-1"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                       {sealApplying === p.id ? "적용 중..." : "직인 적용"}
                     </button>
                   </div>
-                </div>
-              </div>
+                </td>
+              </tr>
             );
           })}
-          </>
-        )}
-      </div>
+          </tbody>
+        </table>
+      )}
 
-      {/* 기존 계약 이력 */}
+      {/* 기존 계약 이력(유효 근로계약) — 같은 상자 안 두 번째 구역, 선으로 가른다 */}
       {contracts.length > 0 && (
-        <>
-          <h3 className="text-sm font-bold text-[var(--text-muted)] mb-3">계약 이력</h3>
-          <div className="contract-history-table glass-card overflow-hidden">
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky-bar"><tr className="table-head-row">
-                <th className="th-cell text-center">구성원</th>
-                <th className="th-cell text-center">계약유형</th>
-                <th className="th-cell text-center">기간</th>
-                <th className="th-cell text-center">급여</th>
-                <th className="th-cell text-center">상태</th>
-              </tr></thead>
-              <tbody>
-                {contracts.map((c: any) => (
-                  <tr key={c.id} className="border-b border-[var(--border)]/50">
-                    <td className="px-5 py-3 text-sm font-medium">{c.employees?.name || "—"}</td>
-                    <td className="px-5 py-3 text-xs">{CONTRACT_TYPES.find(t => t.value === c.contract_type)?.label || c.contract_type}</td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{c.start_date} ~ {c.end_date || "무기한"}</td>
-                    <td className="px-5 py-3 text-sm text-right">{c.salary ? `₩${Number(c.salary).toLocaleString()}` : "—"}</td>
-                    <td className="px-5 py-3 text-center">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{c.status === 'active' ? '유효' : c.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table></div>
-          </div>
-        </>
+        <div className="ca-history">
+          <h3 className="ca-history-title">계약 이력 <small>{contracts.length}건</small></h3>
+          <table className="ev-table ev-lined ca-hist-table">
+            <thead><tr>
+              <th>구성원</th>
+              <th>계약유형</th>
+              <th>기간</th>
+              <th>급여</th>
+              <th>상태</th>
+            </tr></thead>
+            <tbody>
+              {contracts.map((c: any) => (
+                <tr key={c.id}>
+                  <td className="text-center font-medium">{c.employees?.name || "—"}</td>
+                  <td className="text-center">{CONTRACT_TYPES.find(t => t.value === c.contract_type)?.label || c.contract_type}</td>
+                  <td className="text-center mono-number">{c.start_date} ~ {c.end_date || "무기한"}</td>
+                  <td className="text-right mono-number">{c.salary ? `₩${Number(c.salary).toLocaleString()}` : "—"}</td>
+                  <td className="text-center">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${c.status === 'active' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{c.status === 'active' ? '유효' : c.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       </>}
-    </div>
+      </div>
+
+      {/* 일괄 발송 — 고른 순간에만 뜨는 바닥 바. 파란(확정) 버튼은 화면을 통틀어 여기 하나 */}
+      <SelectionBar count={selectedIds.size} summary="임시저장 계약" onClear={() => setSelectedIds(new Set())}>
+        <button type="button" onClick={handleBatchSend} disabled={batchSending} className="btn-primary btn-sm whitespace-nowrap">
+          {batchSending ? "발송 중..." : `일괄 발송 (${selectedIds.size}건)`}
+        </button>
+      </SelectionBar>
+      </QueryBody>
+
+      <Pager page={pager.page} pages={pager.pages} total={filteredContracts.length} size={live.rows}
+        from={pager.from} to={pager.to} onPage={pager.setPage} />
+
+      {/* 개별 발송 동선 안내 — 구성원 상세 › 근로계약과 연결 */}
+      <div className="collect-note">
+        개별 직원의 근로·연봉계약 발송은 <Link href="/employees" className="text-[var(--primary)] font-semibold hover:underline no-underline">구성원 상세 › 근로계약</Link>에서 하세요. 이 탭은 <b className="text-[var(--text)]">회사 전체 일괄 발송과 서명 현황</b>을 관리합니다.
+      </div>
+    </QueryScreen>
   );
 }

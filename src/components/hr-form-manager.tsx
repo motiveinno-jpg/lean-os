@@ -50,11 +50,12 @@ function downloadPdf(bytes: Uint8Array | ArrayBuffer, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hideHeader }: {
+export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hideHeader, nameFilter }: {
   companyId: string | null;
   collapseUpload?: boolean;   // 통합 '새 양식' 버튼을 쓸 때 업로드 폼을 기본 접고 목록만 노출(2026-07-23)
   openUploadSignal?: number;  // 외부(통합 버튼)에서 'PDF 업로드' 선택 시 업로드 폼 펼치기 신호.
   hideHeader?: boolean;       // 통합 서식 탭: '인사 양식(PDF)' 헤더·설명 숨김(새 양식 버튼과 중복). 목록만.
+  nameFilter?: (name: string) => boolean; // 바깥 빠른검색(2026-08-18 조회 표준) — 이름으로 거른다
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -245,12 +246,12 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
   useModalKeys(!!filling, () => setFilling(null), filling ? exportFilled : undefined);
 
   if (!companyId) return null;
-  const list = templates as PdfFormTemplate[];
+  const list = (templates as PdfFormTemplate[]).filter((t) => !nameFilter || nameFilter(String(t.name || "")));
   // 통합 서식 탭(hideHeader): 저장된 PDF 양식도 없고 업로드도 안 열렸으면 아예 렌더 안 함(중복 섹션 제거)
   if (hideHeader && list.length === 0 && !uploadOpen) return null;
 
   return (
-    <div className="glass-card p-5">
+    <div className="hr-form-manager glass-card p-5">
       {!hideHeader ? (
         <>
           <h2 className="text-base font-bold text-[var(--text)] mb-1">인사 양식 (PDF)</h2>

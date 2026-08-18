@@ -51,7 +51,7 @@ export const isHrType = (type?: string) => HR_TYPES.includes(type || "");
 
 // ── Templates Tab (공용) ──
 //   scope="business" → 전자계약 양식(계약서·견적서 등), scope="hr" → 인사 양식(근로계약서 등).
-export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate, hideCreateButton, openCreateSignal }: {
+export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate, hideCreateButton, openCreateSignal, nameFilter }: {
   scope: TemplatesScope;
   companyId: string;
   userId: string;
@@ -59,6 +59,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
   onInvalidate: () => void;
   hideCreateButton?: boolean;   // 서식 탭 통합 '새 양식' 버튼을 쓸 때 자체 버튼/헤더 숨김(2026-07-23)
   openCreateSignal?: number;    // 외부(통합 버튼)에서 생성 폼 열기 신호. 증가할 때마다 폼 오픈.
+  nameFilter?: (name: string) => boolean; // 바깥 빠른검색(2026-08-18 조회 표준) — 이름으로 거른다
 }) {
   void userId; // doc_templates 에 created_by 없음 — 시그니처 호환용
   const { toast } = useToast();
@@ -72,7 +73,7 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
 
   // 목록 필터 — scope 에 맞는 양식만 노출
   const scopedTemplates = templates.filter((t: any) =>
-    scope === "hr" ? isHrType(t.type) : !isHrType(t.type)
+    (scope === "hr" ? isHrType(t.type) : !isHrType(t.type)) && (!nameFilter || nameFilter(String(t.name || "")))
   );
 
   // 폼 '문서 유형' select 옵션

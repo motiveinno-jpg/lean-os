@@ -10,7 +10,6 @@
 
 import { useEffect, useState } from "react";
 import { Ico } from "@/components/ui-icon";
-import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser, getDocTemplates } from "@/lib/queries";
 import { getActiveContracts } from "@/lib/hr";
@@ -19,6 +18,7 @@ import { HrFormManager } from "@/components/hr-form-manager";
 import { ContractAdminPanel } from "./_components/ContractAdminPanel";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, QuickSearch, quickSearchHit } from "@/components/query-kit";
 
 export default function HrTemplatesPage() {
   const { role } = useUser();
@@ -30,6 +30,7 @@ export default function HrTemplatesPage() {
   const [chooserOpen, setChooserOpen] = useState(false);
   const [pdfSignal, setPdfSignal] = useState(0);
   const [textSignal, setTextSignal] = useState(0);
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -57,23 +58,28 @@ export default function HrTemplatesPage() {
     return <AccessDenied detail="인사 양식 관리는 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
-  return (
-    <div className="hr-templates-page">
-      {companyId && userId ? (
-        <>
-          {/* 워크플로우 2탭 — 서식(준비) / 계약 발송·현황(실행·추적) */}
-          <div className="seg-bar mb-4">
-            <button onClick={() => setTab("library")} className={`seg-item ${tab === "library" ? "seg-item-active" : ""}`}>서식</button>
-            <button onClick={() => setTab("contracts")} className={`seg-item ${tab === "contracts" ? "seg-item-active" : ""}`}>계약 발송·현황</button>
-          </div>
+  //   갈래 탭 — 상자 안 맨 위 파란 밑줄 (2026-08-18 조회 표준 Wave 4)
+  const tabsEl = (
+    <div className="collect-tabs no-print">
+      <button type="button" onClick={() => setTab("library")} className={tab === "library" ? "collect-tab collect-tab-on" : "collect-tab"}>서식</button>
+      <button type="button" onClick={() => setTab("contracts")} className={tab === "contracts" ? "collect-tab collect-tab-on" : "collect-tab"}>
+        계약 발송·현황
+      </button>
+    </div>
+  );
+  const nameHit = (name: string) => quickSearchHit(q, [name]);
 
-          {tab === "library" ? (
-            <div className="space-y-6">
+  return (
+    <div className="qk-shell hr-templates-page">
+      {companyId && userId ? (
+        tab === "library" ? (
+          <QueryScreen>
+            <QueryHead>
+              {tabsEl}
               {/* 통합 '새 양식' 버튼 — [PDF 업로드(권장) | 직접 작성] 선택 팝오버 */}
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-[var(--text-muted)]">근로·연봉계약 등 인사 서식을 만들어 두는 곳입니다.</p>
+              <QueryBar right={
                 <div className="relative">
-                  <button onClick={() => setChooserOpen((o) => !o)} className="btn-primary">+ 새 양식 ▾</button>
+                  <button onClick={() => setChooserOpen((o) => !o)} className="btn-primary btn-sm whitespace-nowrap">+ 새 양식 ▾</button>
                   {chooserOpen && (
                     <>
                       <div className="fixed inset-0 z-10" onClick={() => setChooserOpen(false)} />
@@ -92,32 +98,33 @@ export default function HrTemplatesPage() {
                     </>
                   )}
                 </div>
+              }>
+                <QuickSearch value={q} onApply={setQ} placeholder="서식 이름 — 쉼표로 여러 개, Enter" />
+                <span className="text-[11px] text-[var(--text-dim)]">근로·연봉계약 등 인사 서식을 만들어 두는 곳입니다.</span>
+              </QueryBar>
+            </QueryHead>
+            <QueryBody>
+              <div className="ht-scroll">
+                {/* PDF 양식 — 헤더·업로드 입구는 '새 양식' 버튼과 중복이라 숨김. 저장된 PDF 목록만 노출(없으면 미표시) */}
+                <HrFormManager companyId={companyId} collapseUpload hideHeader openUploadSignal={pdfSignal} nameFilter={nameHit} />
+                {/* 텍스트 서식 — 자체 버튼 숨김, '새 양식›직접 작성'으로 폼 오픈 */}
+                <TemplatesTab
+                  scope="hr"
+                  companyId={companyId}
+                  userId={userId}
+                  templates={docTemplates as any[]}
+                  onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
+                  hideCreateButton
+                  openCreateSignal={textSignal}
+                  nameFilter={nameHit}
+                />
               </div>
-
-              {/* PDF 양식 — 헤더·업로드 입구는 '새 양식' 버튼과 중복이라 숨김. 저장된 PDF 목록만 노출(없으면 미표시) */}
-              <HrFormManager companyId={companyId} collapseUpload hideHeader openUploadSignal={pdfSignal} />
-              {/* 텍스트 서식 — 자체 버튼 숨김, '새 양식›직접 작성'으로 폼 오픈 */}
-              <TemplatesTab
-                scope="hr"
-                companyId={companyId}
-                userId={userId}
-                templates={docTemplates as any[]}
-                onInvalidate={() => qc.invalidateQueries({ queryKey: ["doc-templates", companyId] })}
-                hideCreateButton
-                openCreateSignal={textSignal}
-              />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* 개별 발송 동선 안내 — 어제 정리한 구성원 상세 › 근로계약과 연결 */}
-              <div className="px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[13px] text-[var(--text-muted)] leading-relaxed">
-                개별 직원의 근로·연봉계약 발송은 <Link href="/employees" className="text-[var(--primary)] font-semibold hover:underline no-underline">구성원 상세 › 근로계약</Link>에서 하세요. 이 탭은 <b className="text-[var(--text)]">회사 전체 일괄 발송과 서명 현황</b>을 관리합니다.
-              </div>
-              {/* 전자계약 서식/회사 문서/발송 현황 — 구성원 계약서 탭에서 이관(2026-07-15) */}
-              <ContractAdminPanel companyId={companyId} contracts={contracts} />
-            </div>
-          )}
-        </>
+            </QueryBody>
+          </QueryScreen>
+        ) : (
+          /* 전자계약 서식/회사 문서/발송 현황 — 구성원 계약서 탭에서 이관(2026-07-15). 상자 전체를 이 부품이 그린다 */
+          <ContractAdminPanel companyId={companyId} contracts={contracts} tabs={tabsEl} />
+        )
       ) : (
         <div className="py-16 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
       )}
