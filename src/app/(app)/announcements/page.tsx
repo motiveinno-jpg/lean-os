@@ -6,7 +6,13 @@ import { logRead } from "@/lib/log-read";
 //   공지 작성·수정·삭제는 운영자 페이지(/platform/announcements)에서만 한다.
 //   DB 도 announcements_*_operator 정책으로 쓰기를 is_platform_operator() 로 막아 두었다.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ConditionPanel, ConditionRow, AppliedChips,
+  QuickSearch, quickSearchHit, ResultStrip, Stat, RowsPerPage, Pager, usePager, type AppliedChip,
+} from "@/components/query-kit";
+import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
+import { DateRangeField } from "@/components/date-range-field";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
@@ -34,6 +40,11 @@ const CATEGORY_META: Record<string, { label: string; color: string }> = {
   maintenance: { label: "점검", color: "bg-[var(--warning-dim)] text-[var(--warning)]" },
   event: { label: "이벤트", color: "bg-[var(--primary-light)] text-[var(--primary)]" },
 };
+
+type Cond = { cats: string[]; from: string; to: string; rows: number };
+const EMPTY: Cond = { cats: [], from: "", to: "", rows: 50 };
+const condCount = (c: Cond) => c.cats.length + ((c.from || c.to) ? 1 : 0);
+type SortKey = "category" | "title" | "author" | "created";
 
 export default function AnnouncementsPage() {
   const { user } = useUser();
@@ -84,61 +95,138 @@ export default function AnnouncementsPage() {
     })();
   }, [userId, rows]);
 
-  const pinnedRows = useMemo(() => rows.filter((r) => r.pinned), [rows]);
-  const normalRows = useMemo(() => rows.filter((r) => !r.pinned), [rows]);
+  // ── 조회 표준 (2026-08-18) — 상자 하나: [검색조건(분류·기간) ▾ · 빠른검색] → 결과 요약 → 표(고정 먼저) → 쪽. 줄을 누르면 아래로 본문 펼침 ──
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(EMPTY);
+  const [live, setLive] = useState<Cond>(EMPTY);
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "created", dir: "desc" });
+  const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
+  const cf = useColFilters();
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("announcements-colw-v1", { pin: 60, category: 100, title: 420, author: 140, created: 170 });
+  const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
+  const catLabel = (c: string) => (CATEGORY_META[c] || CATEGORY_META.notice).label;
+  const day = (v: string) => String(v || "").slice(0, 10);
+  const condHit = (a: Announcement, c: Cond) => {
+    if (c.cats.length && !c.cats.includes(a.category)) return false;
+    if (c.from && day(a.created_at) < c.from) return false;
+    if (c.to && day(a.created_at) > c.to) return false;
+    return true;
+  };
+  const colVal = (a: Announcement) => ({ category: catLabel(a.category), author: a.author_name || a.author_email || "운영자" });
+  const base = useMemo(() => rows.filter((a) => condHit(a, live) && quickSearchHit(q, [a.title, a.content, catLabel(a.category), a.author_name, a.author_email])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, live, q]);
+  const shown = useMemo(() => {
+    const d = sort.dir === "asc" ? 1 : -1;
+    const val = (a: Announcement) => sort.key === "category" ? catLabel(a.category) : sort.key === "title" ? a.title : sort.key === "author" ? (a.author_name || a.author_email || "") : a.created_at;
+    //   고정 공지는 항상 위 — 그 안에서 정렬
+    return base.filter((a) => cf.hit(colVal(a))).sort((a, b) => (Number(b.pinned) - Number(a.pinned)) || cmp(val(a), val(b)) * d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, sort, cf.key]);
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, base.map((a) => colVal(a)[k]));
+  const pager = usePager(shown, live.rows, `${q}|${JSON.stringify(live)}|${cf.key}`);
+  const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
+    ...live.cats.map((c) => ({ group: "분류", label: catLabel(c), onRemove: () => drop({ cats: live.cats.filter((x) => x !== c) }) })),
+    ...((live.from || live.to) ? [{ group: "기간", label: `${live.from || "처음"} ~ ${live.to || "오늘"}`, onRemove: () => drop({ from: "", to: "" }) }] : []),
+    ...cf.active.map((a) => ({ group: "칸 필터", label: `${a.k === "category" ? "분류" : "작성자"} ${a.n}개`, onRemove: () => cf.clear(a.k) })),
+  ];
+  const clearAll = () => { setQ(""); setLive(EMPTY); setDraft(EMPTY); cf.clear(); };
 
   return (
-    <div className="">
-      {isLoading ? (
-        <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-      ) : rows.length === 0 ? (
-        <div className="announcement-empty glass-card">
-          <div className="text-4xl mb-3"><Ico e="📢" /></div>
-          <div className="text-sm font-semibold text-[var(--text)]">등록된 공지가 없습니다</div>
-          <div className="text-[11px] text-[var(--text-dim)] mt-1.5">서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다.</div>
-        </div>
-      ) : (
-        <div className="announcement-list glass-card">
-          {[...pinnedRows, ...normalRows].map((a) => {
-            const cat = CATEGORY_META[a.category] || CATEGORY_META.notice;
-            const expanded = expandedId === a.id;
-            return (
-              <div key={a.id} className={`announcement-item ${a.pinned ? "bg-[var(--primary)]/[0.03]" : ""}`}>
-                <button
-                  onClick={() => setExpandedId(expanded ? null : a.id)}
-                  className="w-full text-left px-5 py-4 flex items-start gap-3 hover:bg-[var(--bg-surface)]/60 transition"
-                >
-                  <div className="w-9 h-9 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-sm font-bold shrink-0">
-                    {(a.author_name || a.author_email || "운")[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {a.pinned && <span className="text-[10px]"><Ico e="📌" /></span>}
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${cat.color}`}>{cat.label}</span>
-                      <span className="text-sm font-bold text-[var(--text)] truncate">{a.title}</span>
-                      {newIds.has(a.id) && <span className="announcement-new-tag">NEW</span>}
-                    </div>
-                    <div className="text-[11px] text-[var(--text-dim)]">
-                      {a.author_name || a.author_email || "운영자"} · {new Date(a.created_at).toLocaleString("ko-KR")}
-                      {a.updated_at !== a.created_at && " (수정됨)"}
-                    </div>
-                  </div>
-                  <svg className={`w-4 h-4 shrink-0 text-[var(--text-dim)] transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                {expanded && (
-                  <div className="px-5 pb-4">
-                    <div className="text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed border-t border-[var(--border)] pt-3">
-                      {a.content}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <div className="qk-shell">
+      <QueryScreen>
+        <QueryHead>
+          <QueryBar>
+            <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)}
+              foot={<>
+                <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY, rows: draft.rows })}>조건 지우기</button>
+                <span className="ml-auto text-[11px] text-[var(--text-dim)]">{rows.filter((a) => condHit(a, draft)).length}건</span>
+                <RowsPerPage value={draft.rows} onChange={(n) => setDraft((c) => ({ ...c, rows: n }))} />
+                <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+              </>}>
+              <ConditionRow label="분류" hint="여러 개 · 아무것도 안 고르면 전체">
+                <span className="qk-quicks">
+                  {Object.entries(CATEGORY_META).map(([k, m]) => (
+                    <button key={k} type="button" onClick={() => setDraft((c) => ({ ...c, cats: c.cats.includes(k) ? c.cats.filter((x) => x !== k) : [...c.cats, k] }))}
+                      className={draft.cats.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{m.label}</button>
+                  ))}
+                </span>
+              </ConditionRow>
+              <ConditionRow label="기간" hint="비우면 전체">
+                <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
+              </ConditionRow>
+            </ConditionPanel>
+            <QuickSearch value={q} onApply={setQ} placeholder="제목 · 내용 · 분류 · 작성자 — 쉼표로 여러 개, Enter" />
+          </QueryBar>
+          <AppliedChips chips={chips} onClearAll={clearAll} />
+          <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{shown.length}</b>건</span>}>
+            <Stat label="공지" value={`${rows.length}건`} />
+            <Stat label="고정" value={`${rows.filter((r) => r.pinned).length}건`} />
+            {newIds.size > 0 && <Stat label="새 공지" value={`${newIds.size}건`} tone="minus" />}
+          </ResultStrip>
+        </QueryHead>
+
+        <QueryBody>
+          {isLoading ? (
+            <div className="collect-empty">불러오는 중…</div>
+          ) : rows.length === 0 ? (
+            <div className="collect-empty">등록된 공지가 없습니다 — 서비스 공지·업데이트 소식이 등록되면 여기에 표시됩니다</div>
+          ) : shown.length === 0 ? (
+            <div className="collect-empty">이 조건에 맞는 공지가 없습니다 — 검색조건을 풀어 보세요</div>
+          ) : (
+            <div className="ev-scroll">
+              <table ref={tableRef} className="ev-table ev-lined annc-table">
+                <thead>
+                  <tr>
+                    <SortableTh label="고정" resize={thResize("pin", 1)} />
+                    <SortableTh label="분류" sortKey="category" sort={sort} onSort={onSort} filter={cfSpec("category")} resize={thResize("category", 2)} />
+                    <SortableTh label="제목" sortKey="title" sort={sort} onSort={onSort} resize={thResize("title", 3)} />
+                    <SortableTh label="작성자" sortKey="author" sort={sort} onSort={onSort} filter={cfSpec("author")} resize={thResize("author", 4)} />
+                    <SortableTh label="등록" sortKey="created" sort={sort} onSort={onSort} resize={thResize("created", 5)} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {pager.view.map((a) => {
+                    const cat = CATEGORY_META[a.category] || CATEGORY_META.notice;
+                    const expanded = expandedId === a.id;
+                    return (
+                      <Fragment key={a.id}>
+                        <tr className={expanded ? "annc-row annc-row-open" : "annc-row"} onClick={() => setExpandedId(expanded ? null : a.id)}>
+                          <td className="text-center">{a.pinned ? <Ico e="📌" /> : ""}</td>
+                          <td className="text-center"><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${cat.color}`}>{cat.label}</span></td>
+                          <td className="text-left">
+                            <span className="inline-flex items-center gap-2 min-w-0">
+                              <span className="font-semibold text-[var(--text)] truncate">{a.title}</span>
+                              {newIds.has(a.id) && <span className="announcement-new-tag">NEW</span>}
+                              <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+                            </span>
+                          </td>
+                          <td className="text-center">{a.author_name || a.author_email || "운영자"}</td>
+                          <td className="text-center mono-number whitespace-nowrap">{new Date(a.created_at).toLocaleString("ko-KR")}{a.updated_at !== a.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
+                        </tr>
+                        {expanded && (
+                          <tr className="annc-detail-row">
+                            <td colSpan={5}>
+                              <div className="text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed px-4 py-3">{a.content}</div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </QueryBody>
+
+        <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.rows}
+          from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
     </div>
   );
 }
