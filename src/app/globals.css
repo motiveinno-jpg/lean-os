@@ -7999,10 +7999,6 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 
 /* ═══ 매입매출전표입력 — 회계 프로그램식 격자 (2026-08-11, WEHAGO 화면 기준) ═══════════ */
 .spv-page { @apply flex flex-col gap-3 pb-10; }
-.spv-tabs { @apply flex flex-wrap items-center gap-1 border-b border-[var(--border)] pb-0; }
-.spv-tab { @apply rounded-t-lg border border-transparent px-3.5 py-2 text-[12.5px] font-semibold text-[var(--text-dim)] transition hover:text-[var(--text)]; }
-.spv-tab-on { @apply border-[var(--border)] border-b-[var(--bg-card)] bg-[var(--bg-card)] text-[var(--primary)]; margin-bottom: -1px; }
-.spv-toolbar { @apply flex flex-wrap items-center gap-2; }
 .spv-toolbar-hint { @apply text-[11px] text-[var(--text-dim)]; }
 .spv-toolbar-hint b { @apply rounded bg-[var(--bg-surface)] px-1.5 py-0.5 font-bold text-[var(--text)]; }
 
@@ -8013,7 +8009,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-row { @apply grid items-center border-b border-[var(--border)]/50;
   grid-template-columns: 56px 40px 40px 68px minmax(130px,1.1fr) 118px 108px minmax(130px,1.3fr) 108px 96px 108px 52px 84px 30px; }
 .spv-head { @apply bg-[var(--bg-surface)]; }
-.spv-head > span { @apply px-2 py-2 text-[10.5px] font-bold text-[var(--text-dim)] whitespace-nowrap; }
+.spv-head > span { @apply px-2 py-2 text-center text-[10.5px] font-bold leading-4 text-[var(--text-dim)] whitespace-nowrap; }
+/*   머리단 세로선·가운데 — 표 머리단 표준(.ev-lined)과 같은 색 (2026-08-18) */
+.spv-head > span + span { border-left: 1px solid color-mix(in srgb, var(--text-dim) 45%, transparent); }
+.spv-page > .qk-bar { @apply mt-1; }
 .spv-row > span { @apply px-2 py-1.5 text-[12px] text-[var(--text)] whitespace-nowrap; }
 .spv-saved { @apply bg-[var(--bg-surface)]/40; }
 .spv-cur { background: color-mix(in srgb, var(--primary) 7%, transparent); }
@@ -8538,7 +8537,7 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .company-advisor-perm-panel { @apply mt-2 mb-1 p-4 rounded-xl border border-[var(--border)] bg-[var(--bg)]; }
 
 /* 매입매출전표 — 제목줄 정렬 · 전자입력 표시 · 저장분 수정 중 표시 (2026-08-11) */
-.spv-sort { @apply inline-flex items-center transition hover:text-[var(--text)]; }
+.spv-sort { @apply inline-flex items-center gap-1 transition hover:text-[var(--text)]; }
 .spv-eltag { @apply inline-block px-1.5 py-0.5 rounded text-[10px] font-bold not-italic bg-sky-500/12 text-sky-600; }
 .spv-editing { @apply bg-amber-500/[0.07] ring-1 ring-inset ring-amber-500/30; }
 .spv-je-editing { @apply px-2 py-0.5 rounded-full text-[11px] font-bold not-italic bg-amber-500/12 text-amber-600; }

@@ -50,3 +50,7 @@
 - 자체 툴바(seg-bar 탭·연도 select·회계기간·검색칸·정렬 select·거래처/홈택스 연결/거래 매칭 버튼), KPI 카드 3장, 좌측 카드형 거래처 목록(체크·엑셀 바), 바닥 안내문
 - `globals.css`: `.ledger-toolbar`, `.ledger-period-picker`, `.ledger-toolbar-actions`, `.ledger-kpi-row`, `.ledger-kpi-total`, `.ledger-kpi-count`, `.ledger-kpi-other`, `.ledger-partner-list-header`, `.ledger-partner-list-export-bar`, `.ledger-partner-row`
 대체: collect-tabs · QueryBar(회계기간 segments + 검색조건[회계기간 달력·연도 지름길·잔액] + 빠른검색) · ResultStrip(총액·곳 수·반대편 전환) · ExcelMenu(선택/전체 원장) · AI 제안(홈택스 거래처 연결[국세청 조회]) · 좌 목록 = ev-table+SortableTh · SelectionBar(엑셀 내보내기)
+
+### 매입매출전표 (`/partners/reconciliation/sale-purchase`) — B형
+- 자체 갈래 탭(spv-tabs)·툴바(spv-toolbar: 기간·힌트·엑셀 버튼) → collect-tabs · QueryBar(기간+검색조건[구분·거래처]+빠른검색) · ResultStrip · ExcelMenu. 입력 격자·저장·불러오기는 그대로.
+- `globals.css`: `.spv-tabs`, `.spv-tab`, `.spv-tab-on`, `.spv-toolbar`

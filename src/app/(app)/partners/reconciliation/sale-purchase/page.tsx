@@ -16,6 +16,12 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { PickList } from "@/components/pick-list";
 import { downloadCsv as writeCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
+import { nextSort, type SortState } from "@/components/sortable-th";
+import {
+  QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField,
+  AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, defaultRangeMonth, periodQuicksMonth,
+  type ExcelItem, type AppliedChip,
+} from "@/components/query-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -39,6 +45,10 @@ const settleOfCode = (code?: string | null): SettleType =>
 
 //   제목줄 정렬 — 어느 칸을 기준으로 볼지
 type SortKey = "date" | "code" | "partner" | "biz" | "type" | "item" | "supply" | "tax" | "total";
+/** 검색조건 (조회 화면 표준, 2026-08-18 Wave 1 — B형: 입력 격자는 그대로, 저장분 조회만) */
+type Cond = { pt: string[]; side: string[] };
+const EMPTY_COND: Cond = { pt: [], side: [] };
+const condCount = (c: Cond) => c.pt.length + c.side.length;
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 //   거래처 코드는 회사에 따라 숫자로 저장돼 있기도 하다 — 화면에서는 항상 문자열로 다룬다
@@ -149,8 +159,14 @@ function SalePurchaseInner() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [group, setGroup] = useState("all");
   //   조회기간 — 월 단위(YYYY-MM). 처음엔 이번 달 한 달만 걸어 예전과 같게 보인다.
-  const [fromM, setFromM] = useState(todayKst().slice(0, 7));
-  const [toM, setToM] = useState(todayKst().slice(0, 7));
+  //   조회기간 — 월 단위, 기본 지난달~이번 달(조회 화면 표준). ★ 조회값은 기억하지 않는다.
+  const [fromM, setFromM] = useState(() => defaultRangeMonth().from);
+  const [toM, setToM] = useState(() => defaultRangeMonth().to);
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [cDraft, setCDraft] = useState<Cond>(EMPTY_COND);
+  const [cLive, setCLive] = useState<Cond>(EMPTY_COND);
+  const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setCDraft((c) => ({ ...c, [k]: v }));
   const periodLabel = fromM === toM ? fromM : `${fromM} ~ ${toM}`;
   const [rows, setRows] = useState<Row[]>([blankRow()]);
   const [cur, setCur] = useState(0);                 // 지금 고른 줄
@@ -164,7 +180,8 @@ function SalePurchaseInner() {
   const [pulled, setPulled] = useState(0);
   //   저장분을 눌러 고치는 중인 줄. 새로 치는 줄(rows)과 같은 편집기를 쓰되 저장은 update RPC 로 간다.
   const [edit, setEdit] = useState<Row | null>(null);
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 } | null>(null);
+  //   제목줄 정렬 — 공용 규칙(SortableTh 와 같은 ▼ 표시). 기본 일자 오름차순(자료 순서 그대로)
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
   //   native select 를 눌러 목록을 펼친 상태 — 그동안은 Enter 를 우리가 가로채지 않는다
   const [selectOpen, setSelectOpen] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -259,9 +276,20 @@ function SalePurchaseInner() {
     };
   }).filter((r: Row) => group === "all" || GROUPS.find((g) => g.key === group)!.codes.includes(r.vatCode));
 
-  //   제목줄 정렬 — 안 고르면 예전 그대로(일자·전표번호 순)
+  //   저장분 조회 — 빠른검색(거래처·품명·사업자번호·금액, 쉼표=또는) + 검색조건(거래처·매출/매입)
+  const rowHit = (r: Row, c: Cond) => {
+    if (c.pt.length && !c.pt.includes(r.partner?.name || "")) return false;
+    if (c.side.length && !c.side.includes(vatType(r.vatCode)?.side || "")) return false;
+    return true;
+  };
+  const shownSaved = savedRows.filter((r) => rowHit(r, cLive) &&
+    quickSearchHit(q, [r.partner?.name, r.partner?.business_number, r.item, r.partner?.code != null ? String(r.partner.code) : ""], [numOf(r.supply), numOf(r.vat), numOf(r.supply) + numOf(r.vat)]));
+  const previewCount = savedRows.filter((r) => rowHit(r, cDraft)).length;
+  const ptOpts = useMemo(() => [...new Set(savedRows.map((r) => r.partner?.name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [saved, group]);
+  //   제목줄 정렬 — 저장분만 정렬한다. 입력 줄은 정렬을 안 탄다(치던 자리가 움직이면 안 된다)
   const sortedSaved = useMemo(() => {
-    if (!sort) return savedRows;
     const val = (r: Row): string | number => {
       switch (sort.key) {
         case "date": return `${r.y}-${String(r.m).padStart(2, "0")}-${String(r.d).padStart(2, "0")}`;
@@ -275,13 +303,40 @@ function SalePurchaseInner() {
         default: return numOf(r.supply) + numOf(r.vat);
       }
     };
-    return [...savedRows].sort((a, b) => {
+    return [...shownSaved].sort((a, b) => {
       const x = val(a), y = val(b);
       const c = typeof x === "number" ? x - (y as number) : String(x).localeCompare(String(y), "ko");
-      return c * sort.dir;
+      return sort.dir === "asc" ? c : -c;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved, group, sort]);
+  }, [saved, group, sort, q, cLive]);
+  //   내 조건 — ★ 하나가 이 화면(조회부)의 기본값
+  const saved2 = useSavedQueries("sale-purchase", companyId);
+  const paramsNow = { group, from: fromM, to: toM, q, cond: cLive };
+  const paramsBasic = { group: "all", ...defaultRangeMonth(), q: "", cond: EMPTY_COND };
+  const applySaved = (p: Record<string, unknown>) => {
+    if (typeof p.group === "string" && GROUPS.some((g) => g.key === p.group)) setGroup(p.group);
+    if (typeof p.from === "string" && typeof p.to === "string") { setFromM(p.from); setToM(p.to); }
+    if (typeof p.q === "string") setQ(p.q);
+    const c = { ...EMPTY_COND, ...(p.cond as Partial<Cond> | undefined) };
+    setCDraft(c); setCLive(c);
+  };
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved2.isFetched) return;
+    setDefDone(true);
+    if (saved2.def) applySaved(saved2.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved2.isFetched, saved2.def, defDone]);
+  const suggestName = () => [cDraft.pt[0], cDraft.side.map((x) => (x === "sale" ? "매출" : "매입")).join("·"), GROUPS.find((g) => g.key === group)?.label].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
+  const dropCond = (patch: Partial<Cond>) => { const c = { ...cLive, ...patch }; setCLive(c); setCDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...cLive.pt.map((v) => ({ group: "거래처", label: v, onRemove: () => dropCond({ pt: cLive.pt.filter((x) => x !== v) }) })),
+    ...cLive.side.map((v) => ({ group: "구분", label: v === "sale" ? "매출" : "매입", onRemove: () => dropCond({ side: cLive.side.filter((x) => x !== v) }) })),
+  ];
+  const clearAll = () => { setQ(""); setCLive(EMPTY_COND); setCDraft(EMPTY_COND); };
+  const toggleIn = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   // ── 아직 전표가 안 만들어진 증빙 — 세 화면에 흩어져 있던 입구를 여기 하나로 모은다 ──
   const { data: pending = [] } = useQuery({
@@ -451,9 +506,18 @@ function SalePurchaseInner() {
   };
   const cancelEdit = () => { setEdit(null); setAcctPick(null); setDrop(null); };
 
-  const toggleSort = (key: SortKey) =>
-    setSort((s0) => (s0?.key === key ? (s0.dir === 1 ? { key, dir: -1 } : null) : { key, dir: 1 }));
-  const sortMark = (key: SortKey) => (sort?.key === key ? (sort.dir === 1 ? " ▲" : " ▼") : "");
+  const toggleSort = (key: SortKey) => setSort((c) => nextSort(c, key));
+  //   정렬 표시 — 표 머리단 부품(SortableTh)과 같은 삼각형·같은 상자
+  const sortMark = (key: SortKey) => {
+    const on = sort.key === key;
+    return (
+      <em className={on ? "th-mark th-mark-on" : "th-mark"} aria-hidden>
+        <svg width="9" height="9" viewBox="0 0 10 10" fill="currentColor" style={on && sort.dir === "asc" ? { transform: "rotate(180deg)" } : undefined}>
+          <path d="M0 2h10L5 8 0 2z" />
+        </svg>
+      </em>
+    );
+  };
 
   const isEmptyRow = (r: Row) => !r.m && !r.d && !r.partner && !r.item && !r.supply;
 
@@ -701,42 +765,90 @@ function SalePurchaseInner() {
   const sumSupply = savedRows.reduce((s, r) => s + numOf(r.supply), 0) + rows.reduce((s, r) => s + numOf(r.supply), 0);
   const sumVat = savedRows.reduce((s, r) => s + numOf(r.vat), 0) + rows.reduce((s, r) => s + numOf(r.vat), 0);
 
+  //   엑셀 그릇 — 지금 조회 결과(저장분)
+  const excelItems: ExcelItem[] = [
+    { label: "지금 조회 결과 내려받기", count: sortedSaved.length, hint: "걸린 조건 그대로", disabled: sortedSaved.length === 0, onClick: () => downloadCsv() },
+  ];
+
   return (
     <div className="spv-page">
-      {/* 갈래 탭 */}
-      <div className="spv-tabs">
+      {/* 갈래 탭 — 공용(collect-tabs) */}
+      <div className="collect-tabs no-print">
         {GROUPS.map((g) => (
           <button key={g.key} type="button" onClick={() => setGroup(g.key)}
-            className={group === g.key ? "spv-tab spv-tab-on" : "spv-tab"}>{g.label}</button>
+            className={group === g.key ? "collect-tab collect-tab-on" : "collect-tab"}>{g.label}</button>
         ))}
       </div>
 
-      {/* 기간 + 액션 */}
-      <div className="spv-toolbar">
-        {/* 조회기간 — 손익계산서·세금계산서와 같은 위젯(월 단위). 부가세는 분기로 신고해서
-            한 달만 보면 신고 단위와 어긋난다 (2026-08-11) */}
-        <DateRangeField unit="month" from={fromM} to={toM} onChange={(f, t) => { setFromM(f); setToM(t); }} />
-        <span className="spv-toolbar-hint"><b>Enter</b> 를 치면 그 칸에 윗줄 값이 내려오고 다음 칸으로 넘어갑니다</span>
-        <div className="ml-auto flex items-center gap-2">
-          <button type="button" onClick={() => setPhoneGrid((v) => !v)} className="spv-phone-toggle btn-secondary btn-sm">
-            {phoneGrid ? "카드로 보기" : "격자로 입력"}
+      {/* 조회 줄 — 조회 화면 표준(B형: 저장분 조회만). 입력용 버튼은 오른쪽 무리에 (2026-08-18 Wave 1) */}
+      <QueryBar right={<>
+        <ExcelMenu items={excelItems} />
+        <button type="button" onClick={() => setPhoneGrid((v) => !v)} className="spv-phone-toggle btn-secondary btn-sm">
+          {phoneGrid ? "카드로 보기" : "격자로 입력"}
+        </button>
+        <span className={phoneGrid ? "spv-input-only spv-grid-forced" : "spv-input-only"}>
+          <button type="button" onClick={() => { setPulled(0); setPullOpen(true); }} className="btn-secondary btn-sm">증빙에서 불러오기</button>
+          <button type="button" onClick={addRow} className="btn-secondary btn-sm">+ 줄 추가</button>
+          {edit && (
+            <button type="button" onClick={cancelEdit} className="btn-secondary btn-sm">수정 취소</button>
+          )}
+          <button type="button" onClick={save} disabled={!canSave}
+            className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
+            {saving ? "저장 중…" : edit ? `#${edit.voucherNo ?? ""} 수정 저장` : "저장"}
           </button>
-          <button type="button" onClick={downloadCsv} disabled={savedRows.length === 0}
-            className="btn-secondary btn-sm disabled:opacity-40 disabled:cursor-not-allowed">엑셀</button>
-          {/* 아래 셋은 입력용 — 좁은 화면에서 격자를 접어 두면 같이 숨는다 */}
-          <span className={phoneGrid ? "spv-input-only spv-grid-forced" : "spv-input-only"}>
-            <button type="button" onClick={() => { setPulled(0); setPullOpen(true); }} className="btn-secondary btn-sm">증빙에서 불러오기</button>
-            <button type="button" onClick={addRow} className="btn-secondary btn-sm">+ 줄 추가</button>
-            {edit && (
-              <button type="button" onClick={cancelEdit} className="btn-secondary btn-sm">수정 취소</button>
-            )}
-            <button type="button" onClick={save} disabled={!canSave}
-              className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
-              {saving ? "저장 중…" : edit ? `#${edit.voucherNo ?? ""} 수정 저장` : "저장"}
-            </button>
-          </span>
-        </div>
-      </div>
+        </span>
+      </>}>
+        {/* 조회기간 — 월 단위. 부가세는 분기로 신고해서 한 달만 보면 신고 단위와 어긋난다 (2026-08-11) */}
+        <DateRangeField unit="month" label={null} parts="segments" from={fromM} to={toM}
+          onChange={(f, t) => { setFromM(f); setToM(t); }}
+          trailing={
+            <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(cLive)} anchorSel=".drf"
+              tabs={<SavedTabs list={saved2.list} current={paramsNow} basic={paramsBasic}
+                onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                onBasic={() => { const b = defaultRangeMonth(); setGroup("all"); setFromM(b.from); setToM(b.to); clearAll(); }}
+                onRemove={saved2.remove} onSetDefault={saved2.setDefault} />}
+              foot={<>
+                <button type="button" className="btn-secondary btn-sm" disabled={condCount(cDraft) === 0} onClick={() => setCDraft(EMPTY_COND)}>조건 지우기</button>
+                <ConditionSave suggest={suggestName}
+                  onSave={(name, asDefault) => { saved2.save(name, { group, from: fromM, to: toM, q, cond: cDraft }, asDefault); setCLive(cDraft); setPanelOpen(false); }} />
+                <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>
+                <button type="button" className="btn-primary btn-sm" onClick={() => { setCLive(cDraft); setPanelOpen(false); }}>조회</button>
+              </>}>
+              <ConditionRow label="조회기간" hint="월 단위">
+                <span className="qk-range-txt">{fromM} ~ {toM}</span>
+                <DateRangeField unit="month" label={null} parts="calendar" confirm from={fromM} to={toM}
+                  onChange={(f, t) => { setFromM(f); setToM(t); }} />
+                <span className="qk-quicks">
+                  {periodQuicksMonth().map((pq) => (
+                    <button key={pq.key} type="button" onClick={() => { setFromM(pq.from); setToM(pq.to); }}
+                      className={fromM === pq.from && toM === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
+                  ))}
+                </span>
+              </ConditionRow>
+              <ConditionRow label="구분">
+                <span className="qk-quicks">
+                  {[{ v: "sale", l: "매출" }, { v: "buy", l: "매입" }].map((o) => (
+                    <button key={o.v} type="button" onClick={() => setD("side")(toggleIn(cDraft.side, o.v))}
+                      className={cDraft.side.includes(o.v) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.l}</button>
+                  ))}
+                </span>
+              </ConditionRow>
+              <ConditionRow label="거래처" hint="여러 곳">
+                <TokenField items={ptOpts} value={cDraft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
+              </ConditionRow>
+            </ConditionPanel>
+          } />
+        <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 품명 · 사업자번호 · 금액 — 쉼표로 여러 개, Enter" />
+      </QueryBar>
+
+      <AppliedChips chips={chips} onClearAll={clearAll} />
+
+      <ResultStrip>
+        <Stat label="저장분" value={`${shownSaved.length.toLocaleString("ko")}건`} />
+        <Stat label="공급가액" value={won(shownSaved.reduce((x, r) => x + numOf(r.supply), 0))} />
+        <Stat label="부가세" value={won(shownSaved.reduce((x, r) => x + numOf(r.vat), 0))} />
+        <span className="spv-toolbar-hint"><b>Enter</b> 를 치면 그 칸에 윗줄 값이 내려오고 다음 칸으로 넘어갑니다 · 저장분을 누르면 그 자리에서 고칩니다</span>
+      </ResultStrip>
 
       {/* ── 좁은 화면: 저장분을 카드로 읽는다. 격자 입력은 접어 두고 필요할 때만 편다 ── */}
       <div className={phoneGrid ? "spv-narrow spv-narrow-off" : "spv-narrow"}>
@@ -783,9 +895,9 @@ function SalePurchaseInner() {
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("biz")}>사업자등록번호{sortMark("biz")}</button></span>
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("type")}>유형{sortMark("type")}</button></span>
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("item")}>품명{sortMark("item")}</button></span>
-              <span className="tr"><button type="button" className="spv-sort" onClick={() => toggleSort("supply")}>공급가액{sortMark("supply")}</button></span>
-              <span className="tr"><button type="button" className="spv-sort" onClick={() => toggleSort("tax")}>부가세{sortMark("tax")}</button></span>
-              <span className="tr"><button type="button" className="spv-sort" onClick={() => toggleSort("total")}>합계{sortMark("total")}</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("supply")}>공급가액{sortMark("supply")}</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("tax")}>부가세{sortMark("tax")}</button></span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("total")}>합계{sortMark("total")}</button></span>
               <span>전자</span><span>분개</span><span />
             </div>
 
