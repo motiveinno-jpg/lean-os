@@ -185,7 +185,8 @@ export function BankTab({
    *   그릇(AI 제안) 안에서는 '매칭 제안'이라 부르고, 표 안 스트립은 'AI 매칭 제안'이다.
    *   제안은 자동, 확정은 사람 — [이 계산서로 매칭]을 누르기 전에는 아무것도 안 바뀐다. */
   const [matchMode, setMatchMode] = useState(false);
-  const [matchOpen, setMatchOpen] = useState<string | null>(null);   // '다른 계산서 찾기' 펼친 줄
+  const [matchOpen, setMatchOpen] = useState<string | null>(null);   // '다른 계산서 N개 더' 펼친 줄
+  const [matchPick, setMatchPick] = useState<string | null>(null);   // '다른 계산서 찾기'·'계산서 직접 찾기' 검색창 연 줄
   const [matchBusy, setMatchBusy] = useState<string | null>(null);
   //   미매칭 매출 계산서 — 상태가 matched 가 아닌 발행분(최근 1년). 켰을 때만 읽는다.
   const { data: openInvoices = [] } = useQuery({
@@ -222,6 +223,16 @@ export function BankTab({
     }
     return out.sort((a, b) => b.score - a.score).slice(0, 5);
   };
+  //   직접 찾기 — 후보(금액 문턱)에 안 걸린 계산서도 사람이 고를 수 있어야 한다.
+  //   자동으로 못 푸는 경우(분할 입금·합산 입금·금액 다른 선수금)는 사람에게 맡기고 화면에 적는다.
+  const invPickItems = useMemo(
+    () => (openInvoices as any[]).map((inv) => ({
+      id: inv.id as string,
+      code: inv.issue_date as string,
+      name: `${inv.counterparty_name || "거래처 없음"} · ₩${Number(inv.total_amount || 0).toLocaleString("ko")}${inv.deals?.name ? ` · ${inv.deals.name}` : ""}`,
+      inv,
+    })),
+    [openInvoices]);
   /** [이 계산서로 매칭] — 입금↔계산서 연결 + 계산서의 거래처·계정(외상매출금)이 따라온다 */
   const confirmMatch = async (r: Row, inv: any) => {
     if (matchBusy) return;
@@ -231,11 +242,13 @@ export function BankTab({
       //   따라오는 기입 — 계산서의 거래처를 통장 줄에, 수금이므로 계정은 외상매출금(108)
       if (inv.partner_id) {
         await supabase.from("bank_transactions").update({ partner_id: inv.partner_id } as never).eq("id", r.id);
+        const pp = partners.find((x) => x.id === inv.partner_id);
+        if (pp) setPt((prev) => ({ ...prev, [r.id]: pp }));
       }
       const ar = accounts.find((a) => String(a.code) === "108");
       if (ar) setAcct((prev) => ({ ...prev, [r.id]: ar }));
       toast(`매칭했습니다 — ${inv.counterparty_name || "계산서"}${(inv as any).deals?.name ? ` · 프로젝트 ${(inv as any).deals.name}` : ""}`, "success");
-      setMatchOpen(null);
+      setMatchOpen(null); setMatchPick(null);
       qc.invalidateQueries({ queryKey: ["bank-rows"] });
       qc.invalidateQueries({ queryKey: ["bank-open-invoices"] });
       qc.invalidateQueries({ queryKey: ["tax-invoices-full"] });
@@ -958,42 +971,73 @@ export function BankTab({
                       ) : <span className="ev-st ev-st-todo">미처리</span>}
                     </td>
                   </tr>
-                  {sug !== null && (
+                  {sug !== null && (() => {
+                    //   직접 찾기 — 미매칭 계산서 전체에서 검색해 고른다 (후보 문턱 밖도)
+                    const picker = matchPick === r.id && (
+                      <span className="relative inline-block">
+                        <PickList items={invPickItems} placeholder="계산서 검색 (거래처·금액·프로젝트·발행일)"
+                          empty="최근 1년 미매칭 매출 계산서가 없습니다"
+                          onPick={(it) => { setMatchPick(null); confirmMatch(r, (it as any).inv); }}
+                          onClose={() => setMatchPick(null)} />
+                      </span>
+                    );
+                    return (
                     <tr className="bk-sug">
                       <td colSpan={10}>
                         {sug.length === 0 ? (
                           <div className="bk-sug-in">
                             <span className="bk-sug-tag">AI 매칭 제안</span>
-                            <span className="ev-dim">맞는 계산서가 없습니다 — 계산서 없는 매출(현금영수증·단순 입금)일 수 있습니다. 그냥 전표만 만들어도 됩니다.</span>
+                            <span className="ev-dim">맞는 계산서가 없습니다 — 계산서 없는 매출(현금영수증·단순 입금)일 수 있습니다.</span>
+                            <span className="relative inline-block">
+                              <button type="button" className="btn-secondary btn-sm"
+                                onClick={() => setMatchPick(matchPick === r.id ? null : r.id)}>계산서 직접 찾기</button>
+                              {picker}
+                            </span>
+                            <span className="ev-dim">그냥 전표만 만들어도 됩니다 (매칭은 비워 둠)</span>
                           </div>
                         ) : (
                           <div className="bk-sug-in">
                             <span className="bk-sug-tag">AI 매칭 제안</span>
-                            {(matchOpen === r.id ? sug : sug.slice(0, 1)).map(({ inv, why }) => (
+                            {(matchOpen === r.id ? sug : sug.slice(0, 1)).map(({ inv, why }) => {
+                              //   따라오는 것 — 계산서에서 프로젝트·거래처·계정(108 외상매출금)이 딸려 온다.
+                              //   확정 전에 무엇이 바뀔지 다 보여야 누른다.
+                              const follow = [
+                                (inv as any).deals?.name ? <>프로젝트 <b>{(inv as any).deals.name}</b></> : null,
+                                inv.counterparty_name ? <>거래처 <b>{inv.counterparty_name}</b></> : null,
+                                <>계정 <b>108 외상매출금</b></>,
+                              ].filter(Boolean);
+                              return (
                               <span key={inv.id} className="bk-sug-row">
                                 <b>세금계산서 · {inv.counterparty_name || "거래처 없음"} · ₩{Number(inv.total_amount).toLocaleString("ko")}</b>
                                 <i className="ev-dim">({inv.issue_date} 발행)</i>
                                 {why.map((w) => <em key={w} className="bk-sug-why">{w}</em>)}
-                                {(inv as any).deals?.name && (
-                                  <i className="ev-dim">→ 프로젝트 <b>{(inv as any).deals.name}</b> 이(가) 따라옵니다</i>
-                                )}
+                                <i className="ev-dim">
+                                  → 따라오는 것: {follow.map((f, i) => <React.Fragment key={i}>{i > 0 && " · "}{f}</React.Fragment>)}
+                                </i>
                                 <button type="button" className="btn-primary btn-sm" disabled={matchBusy === r.id}
                                   onClick={() => confirmMatch(r, inv)}>
                                   {matchBusy === r.id ? "매칭 중…" : "이 계산서로 매칭"}
                                 </button>
                               </span>
-                            ))}
+                              );
+                            })}
                             {sug.length > 1 && (
                               <button type="button" className="btn-secondary btn-sm"
                                 onClick={() => setMatchOpen(matchOpen === r.id ? null : r.id)}>
                                 {matchOpen === r.id ? "접기" : `다른 계산서 ${sug.length - 1}개 더`}
                               </button>
                             )}
+                            <span className="relative inline-block">
+                              <button type="button" className="btn-secondary btn-sm"
+                                onClick={() => setMatchPick(matchPick === r.id ? null : r.id)}>다른 계산서 찾기</button>
+                              {picker}
+                            </span>
                           </div>
                         )}
                       </td>
                     </tr>
-                  )}
+                    );
+                  })()}
                   </React.Fragment>
                 );
               })}
