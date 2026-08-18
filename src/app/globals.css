@@ -2494,9 +2494,6 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .announcement-list { @apply overflow-hidden divide-y divide-[var(--border)]; }
 /* 이번 방문에 처음 본 공지 표시 (2026-08-06) */
 .announcement-new-tag { @apply text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--danger)] text-white; }
-.notification-toolbar { @apply flex flex-wrap items-center justify-between gap-2 mb-6; }
-.notification-list { @apply overflow-hidden divide-y divide-[var(--border)]; }
-.notification-item { @apply flex items-start gap-3 px-5 py-3.5 transition; }
 .error-log-toolbar { @apply mb-4; }
 .error-log-filter-bar { @apply flex flex-wrap items-center gap-2; }
 .error-log-toolbar-actions { @apply flex gap-2; }
@@ -4671,6 +4668,13 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .ap-list > .approval-table-wrap, .ap-list > .ev-scroll { @apply min-h-0 flex-1 overflow-auto; }
 .ap-list > .ap-empty { @apply min-h-0 flex-1 overflow-auto; }
 .ap-scroll > .ap-pad { @apply min-h-0 flex-1 overflow-auto; }
+/* ── 알림(/notifications) — 조회 표준 (2026-08-18) ── */
+table.notif-table { min-width: 960px; }
+.notif-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
+.notif-table td.truncate { max-width: 0; }
+.notif-table tbody tr.notif-row { @apply cursor-pointer; }
+.notif-table tbody tr.notif-row:hover td { background: var(--bg-surface); }
+.notif-table tbody tr.notif-row-unread td { background: color-mix(in srgb, var(--primary) 4%, transparent); }
 /*   결재선 폼 (2026-08-18) — 이름·단계 수·적용 대상 한 줄, 단계별 승인자 한 줄씩, 참조 칩 */
 .ap-pol-head { @apply mb-3 flex items-center gap-3; }
 .ap-pol-head .section-title { @apply mb-0; }
