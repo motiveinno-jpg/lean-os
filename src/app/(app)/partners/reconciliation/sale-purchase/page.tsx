@@ -19,7 +19,7 @@ import { DateRangeField } from "@/components/date-range-field";
 import { nextSort, ThFilter, useColFilters, useColWidths, type SortState } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField,
-  AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, defaultRangeMonth, periodQuicksMonth,
+  AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, defaultRangeMonth, periodQuicksMonth, RowsPerPage, Pager, usePager,
   type ExcelItem, type AppliedChip,
 } from "@/components/query-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,8 +46,8 @@ const settleOfCode = (code?: string | null): SettleType =>
 //   제목줄 정렬 — 어느 칸을 기준으로 볼지
 type SortKey = "date" | "code" | "partner" | "biz" | "type" | "item" | "supply" | "tax" | "total";
 /** 검색조건 (조회 화면 표준, 2026-08-18 Wave 1 — B형: 입력 격자는 그대로, 저장분 조회만) */
-type Cond = { pt: string[]; side: string[] };
-const EMPTY_COND: Cond = { pt: [], side: [] };
+type Cond = { pt: string[]; side: string[]; rows: number };
+const EMPTY_COND: Cond = { pt: [], side: [], rows: 50 };
 const condCount = (c: Cond) => c.pt.length + c.side.length;
 
 type Acct = { id: string; code: string; name: string; account_type: string };
@@ -337,6 +337,9 @@ function SalePurchaseInner() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved, group, sort, q, cLive, cf.key]);
+  //   쪽 넘김 — 저장분만 쪽을 나눈다(기본 50줄, 줄 수는 검색조건 안). 입력 줄은 늘 맨 아래에 그대로 있다.
+  //   ⚠️ 2026-08-18 사장님: "줄 수가 없는데 맞는지? 조회 건 많으면 페이지로 제공되는지?" — 표준인데 빠져 있었다.
+  const pager = usePager(sortedSaved, cLive.rows, `${group}|${fromM}|${toM}|${q}|${JSON.stringify(cLive)}|${cf.key}`);
   //   내 조건 — ★ 하나가 이 화면(조회부)의 기본값
   const saved2 = useSavedQueries("sale-purchase", companyId);
   const paramsNow = { group, from: fromM, to: toM, q, cond: cLive };
@@ -838,10 +841,11 @@ function SalePurchaseInner() {
                 onBasic={() => { const b = defaultRangeMonth(); setGroup("all"); setFromM(b.from); setToM(b.to); clearAll(); }}
                 onRemove={saved2.remove} onSetDefault={saved2.setDefault} />}
               foot={<>
-                <button type="button" className="btn-secondary btn-sm" disabled={condCount(cDraft) === 0} onClick={() => setCDraft(EMPTY_COND)}>조건 지우기</button>
+                <button type="button" className="btn-secondary btn-sm" disabled={condCount(cDraft) === 0} onClick={() => setCDraft({ ...EMPTY_COND, rows: cDraft.rows })}>조건 지우기</button>
                 <ConditionSave suggest={suggestName}
                   onSave={(name, asDefault) => { saved2.save(name, { group, from: fromM, to: toM, q, cond: cDraft }, asDefault); setCLive(cDraft); setPanelOpen(false); }} />
                 <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>
+                <RowsPerPage value={cDraft.rows} onChange={(n) => setCDraft((c) => ({ ...c, rows: n }))} />
                 <button type="button" className="btn-primary btn-sm" onClick={() => { setCLive(cDraft); setPanelOpen(false); }}>조회</button>
               </>}>
               <ConditionRow label="조회기간" hint="월 단위">
@@ -938,7 +942,7 @@ function SalePurchaseInner() {
 
             {/* 저장된 전표 — 누르면 그 자리에서 고친다 (2026-08-11 사장님 지시).
                 예전엔 읽기 전용이라 한 번 저장하면 화면에서 고칠 길이 없었다. */}
-            {sortedSaved.map((r) => (
+            {pager.view.map((r) => (
               edit?.savedId === r.savedId ? (
                 <Fragment key={`e${r.savedId}`}>{gridRow(edit!, EDIT_IDX)}</Fragment>
               ) : (
@@ -1043,6 +1047,7 @@ function SalePurchaseInner() {
 
         </div>
        </QueryBody>
+       <Pager page={pager.page} pages={pager.pages} total={sortedSaved.length} size={cLive.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
       </QueryScreen>
 
       {pullOpen && (
