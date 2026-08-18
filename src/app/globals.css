@@ -4299,7 +4299,8 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .pj-first-note { @apply text-[11.5px] text-[var(--text-dim)]; }
 .cost-mix { @apply p-4; }
 /* 프로젝트 없음 — 신규 사용자 첫 화면(2단계) */
-.ph-onboard { @apply p-7 flex flex-col items-center text-center gap-4; }
+.ph-onboard { @apply p-7 flex flex-col items-center text-center gap-4; } /* 2026-08-18 상자 안 상자 금지 — glass-card 껍데기 없이 */
+.ph-empty { @apply flex flex-col items-center justify-center gap-2 text-center; }
 .ph-onboard-head h3 { @apply text-base font-extrabold text-[var(--text)]; }
 .ph-onboard-head p { @apply text-[12.5px] text-[var(--text-muted)] mt-1 max-w-xl; }
 .ph-onboard-steps { @apply grid gap-2.5 sm:grid-cols-3 w-full max-w-3xl text-left; }

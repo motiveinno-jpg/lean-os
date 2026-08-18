@@ -772,14 +772,14 @@ export default function ProjectHubPage() {
       {listView === "board" && companyId ? (
         <MondayBoard companyId={companyId} users={users as any} />
       ) : isLoading ? (
-        <div className="glass-card p-10 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
+        <div className="collect-empty">불러오는 중…</div>
       ) : rows.length === 0 ? (
         /* 빈 상태 — 신규 사용자가 가장 먼저 보는 화면. 검색·필터 때문에 빈 것과
            진짜 아무것도 없는 것을 구분한다(구분 없이 안내하면 있는데 없다고 읽힌다). */
         /* 열람 범위 권한이 없으면(내 담당만 보이는 직원) 회사에 프로젝트가 있어도 목록이 빈다 —
            그 경우 '첫 프로젝트를 만들어 보세요' 는 사실과 다르므로 필터 안내 쪽으로 보낸다. */
         search || mineOnly || !canViewAllProjects ? (
-          <div className="glass-card py-14 flex flex-col items-center justify-center text-center gap-2">
+          <div className="collect-empty ph-empty">
             <div className="text-4xl">🔍</div>
             <div className="text-sm font-semibold text-[var(--text)]">
               {search ? "조건에 맞는 프로젝트가 없어요." : "내가 담당한 프로젝트가 없어요."}
@@ -793,7 +793,7 @@ export default function ProjectHubPage() {
           /* 빈 화면 = 새 구조 설명서. 옛 문구(매출·비용/업무/목표·실적)는 지금 화면에 없는 것을
              설명하고 있었다(2026-08-03 사장님 지적). 지금 실제로 하게 되는 세 걸음만 적는다.
              표 이름은 BOARD_TEMPLATES 에서 직접 읽어 템플릿이 바뀌어도 문구가 어긋나지 않게 한다. */
-          <div className="ph-onboard glass-card">
+          <div className="ph-onboard">
             <div className="ph-onboard-head">
               <h3>첫 프로젝트를 만들어 보세요</h3>
               <p>이름만 적으면 만들어져요. 그다음 하는 일에 맞는 템플릿을 고르면 돼요.</p>

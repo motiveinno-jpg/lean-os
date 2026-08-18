@@ -397,8 +397,8 @@ function SignaturesDashboardInner() {
 
   //   쪽 넘김 — 기본 50줄. 조건이 바뀌면 1쪽으로
   const pager = usePager(filtered as any[], rowsPer, `${statusFilter}|${search}|${reqFrom}|${reqTo}|${expFrom}|${expTo}|${batchFilter}|${managerFilter}|${sort.key}${sort.dir}|${cf.key}`);
-  const condCountLive = (expFrom || expTo ? 1 : 0) + (batchFilter ? 1 : 0) + (managerFilter ? 1 : 0);
-  const condCountDraft = (dExpFrom || dExpTo ? 1 : 0) + dBatch.length + dManager.length;
+  const condCountLive = (statusFilter !== "all" ? 1 : 0) + (expFrom || expTo ? 1 : 0) + (batchFilter ? 1 : 0) + (managerFilter ? 1 : 0);
+  const condCountDraft = (statusFilter !== "all" ? 1 : 0) + (dExpFrom || dExpTo ? 1 : 0) + dBatch.length + dManager.length;
   const applyDraft = () => {
     setExpFrom(dExpFrom); setExpTo(dExpTo);
     setBatchFilter(dBatch[0] || ""); setManagerFilter(dManager[0] || "");
@@ -430,11 +430,12 @@ function SignaturesDashboardInner() {
   const suggestName = () => [statusFilter !== "all" ? (SIGNATURE_STATUS.find((x) => x.value === statusFilter)?.label || "") : "", dManager[0] ? memberNames[dManager[0]] : "", dBatch[0] ? (dBatch[0] === "none" ? "묶음 없음" : batchOptions.find((b) => b.id === dBatch[0])?.label || "") : ""].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
   const chips: AppliedChip[] = [
     ...quickTerms(search).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setSearch(quickTerms(search).filter((_, j) => j !== i).join(", ")) })),
+    ...(statusFilter !== "all" ? [{ group: "상태", label: SIGNATURE_STATUS.find((x) => x.value === statusFilter)?.label || statusFilter, onRemove: () => setStatusFilter("all") }] : []),
     ...((expFrom || expTo) ? [{ group: "서명완료일", label: `${expFrom || "…"} ~ ${expTo || "…"}`, onRemove: () => { setExpFrom(""); setExpTo(""); } }] : []),
     ...(batchFilter ? [{ group: "그룹", label: batchFilter === "none" ? "묶음 없음" : (batchOptions.find((b) => b.id === batchFilter)?.label || "묶음"), onRemove: () => setBatchFilter("") }] : []),
     ...(managerFilter ? [{ group: "담당자", label: memberNames[managerFilter] || "담당자", onRemove: () => setManagerFilter("") }] : []),
   ];
-  const clearAll = () => { setSearch(""); setExpFrom(""); setExpTo(""); setBatchFilter(""); setManagerFilter(""); };
+  const clearAll = () => { setSearch(""); setStatusFilter("all"); setExpFrom(""); setExpTo(""); setBatchFilter(""); setManagerFilter(""); };
 
   // 최근 7일 발송 실패 요약 — 대표/관리자만, 1분마다 폴링.
   const { data: failureSummary = [] } = useQuery({
@@ -579,6 +580,17 @@ function SignaturesDashboardInner() {
                       <button type="button" onClick={() => { setReqFrom(""); setReqTo(""); }} className={!reqFrom && !reqTo ? "qk-quick qk-quick-on" : "qk-quick"}>전체 기간</button>
                     </span>
                   </ConditionRow>
+                  {/* 상태 — 조회 줄의 칩 줄을 검색조건 안으로 (2026-08-18 사장님: 값 필터는 검색조건). 대기·거부는 실제로 도달 불가능한 상태라 뺐다 (2026-08-10) */}
+                  <ConditionRow label="상태" hint="값 하나 · 바로 반영">
+                    <span className="qk-quicks">
+                      <button type="button" onClick={() => setStatusFilter("all")} className={statusFilter === "all" ? "qk-quick qk-quick-on" : "qk-quick"}>전체 {counts.all || 0}</button>
+                      {SIGNATURE_STATUS.filter((x) => x.value !== "pending" && x.value !== "rejected").map((x) => (
+                        <button key={x.value} type="button" onClick={() => setStatusFilter(x.value)} className={statusFilter === x.value ? "qk-quick qk-quick-on" : "qk-quick"}>
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${x.dot}`} />{x.label} {counts[x.value] || 0}
+                        </button>
+                      ))}
+                    </span>
+                  </ConditionRow>
                   <ConditionRow label="서명완료일" hint="비우면 제한 없음">
                     <DateRangeField label={null} from={dExpFrom} to={dExpTo} onChange={(f, t) => { setDExpFrom(f); setDExpTo(t); }} onClear={() => { setDExpFrom(""); setDExpTo(""); }} />
                   </ConditionRow>
@@ -593,16 +605,6 @@ function SignaturesDashboardInner() {
                 </ConditionPanel>
               } />
             <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 서명자 · 이메일 · 담당자 · 문서번호 — 쉼표로 여러 개, Enter" />
-            {/* 상태 칩 — 대기·거부는 실제로 도달 불가능한 상태라 뺐다 (2026-08-10 사장님 확인) */}
-            <span className="qk-chips">
-              <button type="button" onClick={() => setStatusFilter("all")} className={statusFilter === "all" ? "qk-chip qk-chip-on" : "qk-chip"}>전체 <em className="not-italic font-extrabold">{counts.all || 0}</em></button>
-              {SIGNATURE_STATUS.filter((x) => x.value !== "pending" && x.value !== "rejected").map((x) => (
-                <button key={x.value} type="button" onClick={() => setStatusFilter(x.value)}
-                  className={statusFilter === x.value ? "qk-chip qk-chip-on" : "qk-chip"}>
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${x.dot}`} />{x.label} <em className="not-italic font-extrabold">{counts[x.value] || 0}</em>
-                </button>
-              ))}
-            </span>
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -630,7 +632,9 @@ function SignaturesDashboardInner() {
             )}
           </>}>
             <Stat label="건수" value={`${filtered.length.toLocaleString("ko")}건`} />
-            <Stat label="서명완료" value={`${signedFiltered.length.toLocaleString("ko")}건`} tone={signedFiltered.length > 0 ? "plus" : undefined} />
+            {SIGNATURE_STATUS.filter((x) => x.value !== "pending" && x.value !== "rejected").map((x) => (
+              <Stat key={x.value} label={x.label} value={`${(counts[x.value] || 0).toLocaleString("ko")}건`} tone={x.value === "signed" ? "plus" : undefined} />
+            ))}
           </ResultStrip>
           </>)}
         </QueryHead>
