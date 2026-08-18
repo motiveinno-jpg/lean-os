@@ -16,7 +16,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { PickList } from "@/components/pick-list";
 import { downloadCsv as writeCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
-import { nextSort, type SortState } from "@/components/sortable-th";
+import { nextSort, ThFilter, useColFilters, type SortState } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField,
   AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, defaultRangeMonth, periodQuicksMonth,
@@ -282,7 +282,14 @@ function SalePurchaseInner() {
     if (c.side.length && !c.side.includes(vatType(r.vatCode)?.side || "")) return false;
     return true;
   };
-  const shownSaved = savedRows.filter((r) => rowHit(r, cLive) &&
+  //   머리단 ≡ 필터 — 칸에 실제로 있는 값 중에서 고른다 (수집·전표와 같은 부품)
+  const cf = useColFilters();
+  const colVal = (r: Row) => ({
+    code: r.partner?.code != null ? String(r.partner.code) : "", partner: r.partner?.name || "", biz: String(r.partner?.business_number || ""),
+    type: vatType(r.vatCode)?.label.split(". ")[1] || r.vatCode, item: r.item || "",
+  });
+  const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, savedRows.filter((r) => rowHit(r, cLive)).map((r) => colVal(r)[k]));
+  const shownSaved = savedRows.filter((r) => rowHit(r, cLive) && cf.hit(colVal(r)) &&
     quickSearchHit(q, [r.partner?.name, r.partner?.business_number, r.item, r.partner?.code != null ? String(r.partner.code) : ""], [numOf(r.supply), numOf(r.vat), numOf(r.supply) + numOf(r.vat)]));
   const previewCount = savedRows.filter((r) => rowHit(r, cDraft)).length;
   const ptOpts = useMemo(() => [...new Set(savedRows.map((r) => r.partner?.name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })),
@@ -309,7 +316,7 @@ function SalePurchaseInner() {
       return sort.dir === "asc" ? c : -c;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved, group, sort, q, cLive]);
+  }, [saved, group, sort, q, cLive, cf.key]);
   //   내 조건 — ★ 하나가 이 화면(조회부)의 기본값
   const saved2 = useSavedQueries("sale-purchase", companyId);
   const paramsNow = { group, from: fromM, to: toM, q, cond: cLive };
@@ -892,15 +899,16 @@ function SalePurchaseInner() {
           <div className="spv-grid">
             {/* 제목줄 — 누르면 저장분이 그 칸 기준으로 정렬된다(한 번 더 누르면 거꾸로, 세 번째는 해제).
                 입력 줄은 정렬을 안 탄다 — 치던 자리가 움직이면 안 되기 때문이다 (2026-08-11) */}
+            {/*   머리단은 표 머리단 표준과 같은 모양(색·가운데·세로선·▼·≡)이고 스크롤해도 붙어 있는다 (2026-08-18 사장님) */}
             <div className="spv-row spv-head">
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>년{sortMark("date")}</button></span>
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>월</button></span>
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>일</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("code")}>코드{sortMark("code")}</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("partner")}>거래처{sortMark("partner")}</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("biz")}>사업자등록번호{sortMark("biz")}</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("type")}>유형{sortMark("type")}</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("item")}>품명{sortMark("item")}</button></span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("code")}>코드{sortMark("code")}</button><ThFilter spec={cfSpec("code")} /></span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("partner")}>거래처{sortMark("partner")}</button><ThFilter spec={cfSpec("partner")} /></span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("biz")}>사업자등록번호{sortMark("biz")}</button><ThFilter spec={cfSpec("biz")} /></span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("type")}>유형{sortMark("type")}</button><ThFilter spec={cfSpec("type")} /></span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("item")}>품명{sortMark("item")}</button><ThFilter spec={cfSpec("item")} /></span>
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("supply")}>공급가액{sortMark("supply")}</button></span>
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("tax")}>부가세{sortMark("tax")}</button></span>
               <span><button type="button" className="spv-sort" onClick={() => toggleSort("total")}>합계{sortMark("total")}</button></span>

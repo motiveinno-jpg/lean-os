@@ -65,6 +65,24 @@ export type ThFilterSpec = {
   onApply: (sel: Set<string> | null) => void;
 };
 
+/**
+ * 머리단 ≡ 필터 상태 묶음 — 화면마다 colF·spec·hit 을 따로 짜지 않게 (2026-08-18 확산 Wave 3 정리).
+ *   spec(k, values)  → SortableTh filter prop 에 그대로 넘긴다
+ *   hit(vals)        → 줄이 지금 걸린 필터를 다 통과하는가 (vals = { k: 그 칸에 찍히는 글자 })
+ *   key              → usePager resetKey 등에 섞을 문자열
+ */
+export function useColFilters() {
+  const [colF, setColF] = useState<Record<string, Set<string> | null>>({});
+  const spec = (k: string, values: string[]): ThFilterSpec => ({
+    values, selected: colF[k] ?? null, onApply: (sel) => setColF((o) => ({ ...o, [k]: sel })),
+  });
+  const hit = (vals: Record<string, string>) => Object.entries(colF).every(([k, sel]) => !sel || sel.has(vals[k] ?? ""));
+  const active = Object.entries(colF).filter(([, sel]) => sel).map(([k, sel]) => ({ k, n: sel!.size }));
+  const clear = (k?: string) => setColF((o) => (k ? { ...o, [k]: null } : {}));
+  const key = JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])));
+  return { colF, spec, hit, active, clear, key };
+}
+
 export function ThFilter({ spec }: { spec: ThFilterSpec }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
