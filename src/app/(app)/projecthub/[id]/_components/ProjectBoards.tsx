@@ -15,6 +15,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
+import { QueryBar, ChipGroup, QuickSearch, quickSearchHit, quickTerms, ConditionPanel, ConditionRow, TokenField, AppliedChips, type AppliedChip } from "@/components/query-kit";
+import { DateRangeField } from "@/components/date-range-field";
 import { DateField } from "@/components/date-field";
 import { getPartners, upsertPartner } from "@/lib/partners";
 import { buildQuoteContent, buildContractContent, insertDocument } from "@/lib/documents";
@@ -103,6 +105,15 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   //   칸 값으로 거르기 — 엑셀 필터처럼 칸마다 든 값을 세어 두고 골라서 좁힌다(2026-08-06 사장님 지시).
   //   같은 칸 안에서는 OR(둘 다 보기), 칸끼리는 AND(둘 다 만족). 고른 게 없으면 안 거른다.
   const [valueFilters, setValueFilters] = useState<Record<string, string[]>>({});
+  //   ── 조회 화면 표준 (2026-08-18 사장님: "탭별로 버튼이 많고 검색조건이 없는데 담당·상태·일정으로 검색, 간편검색도") ──
+  //   빠른검색(즉시, 쉼표=또는) + 검색조건 패널(담당·상태·기간·내 담당/이번 주/미완료 — '조회'로 반영)
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  type BCond = { person: string[]; status: string[]; from: string; to: string; mine: boolean; week: boolean; open: boolean };
+  const BEMPTY: BCond = { person: [], status: [], from: "", to: "", mine: false, week: false, open: false };
+  const [bDraft, setBDraft] = useState<BCond>(BEMPTY);
+  const [bLive, setBLive] = useState<BCond>(BEMPTY);
+  const bCount = (c: BCond) => c.person.length + c.status.length + ((c.from || c.to) ? 1 : 0) + (c.mine ? 1 : 0) + (c.week ? 1 : 0) + (c.open ? 1 : 0);
   //   필터 창 — 열려 있으면 맨 앞에 둘 칸 id("" 면 첫 칸부터). 칸 머리 ⋯ 에서도 같은 창을 연다.
   const [filterPanel, setFilterPanel] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -305,13 +316,54 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const activeValueFilters = useMemo(
     () => Object.entries(valueFilters).filter(([cid, vals]) => vals.length > 0 && cols.some((c) => c.id === cid)),
     [valueFilters, cols]);
+  //   검색조건·빠른검색 — 담당(사람 칸 어느 하나) · 상태(상태 칸 어느 하나) · 기간(날짜 칸 어느 하나가 범위 안)
+  const personCols = useMemo(() => cols.filter((c) => c.type === "person"), [cols]);
+  const statusCols = useMemo(() => cols.filter((c) => c.type === "status"), [cols]);
+  const dateCols = useMemo(() => cols.filter((c) => c.type === "date"), [cols]);
+  const condHit = (it: BoardItem, c: BCond) => {
+    if (c.person.length && !personCols.some((pc) => c.person.includes(String(it.values?.[pc.id] || "")))) return false;
+    if (c.status.length && !statusCols.some((sc) => c.status.includes(String(it.values?.[sc.id] || "")))) return false;
+    if (c.from || c.to) {
+      const ok = dateCols.some((dc) => { const v = String(it.values?.[dc.id] || "").slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(v) && (!c.from || v >= c.from) && (!c.to || v <= c.to); });
+      if (!ok) return false;
+    }
+    return true;
+  };
+  const cellText = (it: BoardItem) => cols.map((c) => {
+    const v = it.values?.[c.id]; if (v == null || v === "") return "";
+    if (c.type === "person") return users.find((u) => u.id === String(v))?.name || "";
+    if (c.type === "partner") return (partners as any[]).find((p) => p.id === String(v))?.name || "";
+    if (c.type === "status") return ((c.settings?.options || []) as StatusOption[]).find((o) => o.id === String(v))?.label || String(v);
+    return String(v);
+  });
   const shown = useMemo(() => {
-    if (activeValueFilters.length === 0) return toggled;
-    return toggled.filter((it) => activeValueFilters.every(([cid, vals]) => {
+    let rows = toggled.filter((it) => condHit(it, bLive) && quickSearchHit(q, [it.name, ...cellText(it)]));
+    if (activeValueFilters.length === 0) return rows;
+    return rows.filter((it) => activeValueFilters.every(([cid, vals]) => {
       const c = cols.find((x) => x.id === cid);
       return !c || vals.includes(facetKey(c, it));
     }));
-  }, [toggled, activeValueFilters, cols]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toggled, activeValueFilters, cols, bLive, q, users, partners]);
+  //   패널 선택지 — 이 표에 실제로 있는 값만
+  const personOpts = useMemo(() => [...new Set((items as BoardItem[]).flatMap((it) => personCols.map((pc) => String(it.values?.[pc.id] || ""))).filter(Boolean))]
+    .map((id) => ({ value: id, label: users.find((u) => u.id === id)?.name || "(나간 사람)" })), [items, personCols, users]);
+  const statusOpts = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const sc of statusCols) for (const o of ((sc.settings?.options || []) as StatusOption[])) if (!seen.has(o.id)) seen.set(o.id, statusCols.length > 1 ? `${o.label} (${sc.name})` : o.label);
+    return [...seen].map(([value, label]) => ({ value, label }));
+  }, [statusCols]);
+  const bChips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...bLive.person.map((v) => ({ group: "담당", label: users.find((u) => u.id === v)?.name || v, onRemove: () => { const c = { ...bLive, person: bLive.person.filter((x) => x !== v) }; setBLive(c); setBDraft(c); } })),
+    ...bLive.status.map((v) => ({ group: "상태", label: statusOpts.find((o) => o.value === v)?.label || v, onRemove: () => { const c = { ...bLive, status: bLive.status.filter((x) => x !== v) }; setBLive(c); setBDraft(c); } })),
+    ...((bLive.from || bLive.to) ? [{ group: "기간", label: `${bLive.from || "…"} ~ ${bLive.to || "…"}`, onRemove: () => { const c = { ...bLive, from: "", to: "" }; setBLive(c); setBDraft(c); } }] : []),
+    ...(filters.mine ? [{ group: "빠른 조건", label: "내 담당", onRemove: () => setFilters((f) => ({ ...f, mine: false })) }] : []),
+    ...(filters.week ? [{ group: "빠른 조건", label: "이번 주", onRemove: () => setFilters((f) => ({ ...f, week: false })) }] : []),
+    ...(filters.open ? [{ group: "빠른 조건", label: "미완료만", onRemove: () => setFilters((f) => ({ ...f, open: false })) }] : []),
+  ];
+  const applyDraft = () => { setBLive(bDraft); setFilters({ mine: bDraft.mine, week: bDraft.week, open: bDraft.open }); setPanelOpen(false); };
+  const openPanel = () => { setBDraft({ ...bLive, mine: filters.mine, week: filters.week, open: filters.open }); setPanelOpen(true); };
   const hiddenCount = items.length - shown.length;
   //   한 칸의 값 하나를 켜고 끈다 — 창에서도, 칸 머리 ⋯ 에서도 같은 길로 들어온다
   const toggleValueFilter = (colId: string, key: string) => setValueFilters((prev) => {
@@ -1060,49 +1112,55 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
 
       {/* 광고 표는 입력이 없어 이 줄(입력·보기·필터)이 가리킬 곳이 없다 — 통째로 감춘다 (2026-08-06) */}
       {!isAds && <div className="pb-bar2">
-        {/*  이 표를 보는 방법들을 **한 자리에 몰아** 둔다 — '입력/보기' 라벨은 뺐다
-             (2026-08-07 사장님 지시). 회의 · 결정이면 [회의록][표][칸반][요약] 이 한 줄로 선다. */}
-        <div className="pb-views" role="group" aria-label="이 표를 보는 방법">
-          {modes.map((v) => (
-            <button key={v} type="button" onClick={() => { setSummaryScope(null); pickView(v); }}
-              aria-pressed={summaryScope === null && view === v}
-              className={`pb-viewbtn ${summaryScope === null && view === v ? "pb-viewbtn-on" : ""}`}>
-              {MODE_LABEL[v]}
-            </button>
-          ))}
-          {/*  요약 — 이제 **이 표만** 요약한다(예전 '정리' 는 프로젝트 전부를 펼쳐 길었다) */}
-          <button type="button" onClick={() => setSummaryScope("board")} aria-pressed={summaryScope === "board"}
-            className={`pb-viewbtn ${summaryScope === "board" ? "pb-viewbtn-on" : ""}`}>요약</button>
-        </div>
-
-        {/*  오른쪽 묶음 — 필터와 '전체 요약'. 이 상자가 **늘 있어야** 단추가 안 움직인다.
-             (2026-08-07 사장님: "전체 요약이 중간에 있다가 누르면 오른쪽으로 이동한다" —
-              전에는 단추에 ml-auto 를 걸고 뒤에 필터를 뒀더니, 요약을 켜서 필터가 사라지면
-              단추가 오른쪽으로 튀었다. 이제 단추는 언제나 맨 오른쪽 끝이다.) */}
-        <div className="pb-bar2-right">
-          {!showSummary && (
-            <span className="pb-filters">
+        {/*  조회 줄 — 다른 조회 화면과 같은 부품: [검색조건 ▾] 빠른검색 · 보기 칩 ‖ 전체 요약 (2026-08-18 사장님) */}
+        <ConditionPanel open={panelOpen} onOpenChange={(v) => (v ? openPanel() : setPanelOpen(false))} activeCount={bCount(bLive) + (filters.mine ? 1 : 0) + (filters.week ? 1 : 0) + (filters.open ? 1 : 0)}
+          foot={<>
+            <button type="button" className="btn-secondary btn-sm" disabled={bCount(bDraft) === 0} onClick={() => setBDraft(BEMPTY)}>조건 지우기</button>
+            {cols.length > 0 && (
+              <button type="button" className="btn-secondary btn-sm" onClick={() => { setPanelOpen(false); setFilterPanel(""); }} title="칸마다 든 값을 보고 고르는 엑셀식 필터">
+                칸 값으로 거르기{activeValueFilters.length > 0 ? ` (${activeValueFilters.length})` : ""}
+              </button>
+            )}
+            <span className="ml-auto text-[11px] text-[var(--text-dim)]">{(items as BoardItem[]).filter((it) => condHit(it, bDraft)).length.toLocaleString("ko")}건</span>
+            <button type="button" className="btn-primary btn-sm" onClick={applyDraft}>조회</button>
+          </>}>
+          <ConditionRow label="빠른 조건">
+            <span className="qk-quicks">
               {([["mine", "내 담당"], ["week", "이번 주"], ["open", "미완료만"]] as const).map(([k, label]) => (
-                <button key={k} type="button" aria-pressed={filters[k]}
-                  onClick={() => setFilters((f) => ({ ...f, [k]: !f[k] }))}
-                  className={`pb-filter ${filters[k] ? "pb-filter-on" : ""}`}>{label}</button>
+                <button key={k} type="button" onClick={() => setBDraft((c) => ({ ...c, [k]: !c[k] }))}
+                  className={bDraft[k] ? "qk-quick qk-quick-on" : "qk-quick"}>{label}</button>
               ))}
-              {/* 칸 값으로 거르기 — 엑셀처럼 칸마다 든 값을 보고 고른다(2026-08-06 사장님 지시) */}
-              {cols.length > 0 && (
-                <button type="button" aria-pressed={activeValueFilters.length > 0}
-                  onClick={() => setFilterPanel("")} title="칸 값으로 거르기"
-                  className={`pb-filter ${activeValueFilters.length > 0 ? "pb-filter-on" : ""}`}>
-                  필터{activeValueFilters.length > 0 ? ` ${activeValueFilters.length}` : ""}
-                </button>
-              )}
-              {hiddenCount > 0 && <em>{hiddenCount}건 숨김</em>}
             </span>
+          </ConditionRow>
+          {personCols.length > 0 && (
+            <ConditionRow label="담당" hint="여러 명 · 담당 칸 어느 하나">
+              <TokenField items={personOpts} value={bDraft.person} onChange={(v) => setBDraft((c) => ({ ...c, person: v }))} placeholder="이름 일부" />
+            </ConditionRow>
           )}
+          {statusCols.length > 0 && (
+            <ConditionRow label="상태" hint="여러 개 · 상태 칸 어느 하나">
+              <TokenField items={statusOpts} value={bDraft.status} onChange={(v) => setBDraft((c) => ({ ...c, status: v }))} placeholder="상태 이름 일부" />
+            </ConditionRow>
+          )}
+          {dateCols.length > 0 && (
+            <ConditionRow label="일정" hint={`날짜 칸(${dateCols.map((c) => c.name).join("·")}) 어느 하나가 범위 안`}>
+              <DateRangeField label={null} from={bDraft.from} to={bDraft.to} onChange={(f, t) => setBDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setBDraft((c) => ({ ...c, from: "", to: "" }))} />
+            </ConditionRow>
+          )}
+        </ConditionPanel>
+        <QuickSearch value={q} onApply={setQ} placeholder="이름 · 칸에 든 글자 · 담당 · 상태 — 쉼표로 여러 개, Enter" />
+        {/*  이 표를 보는 방법들 — 한 자리에 (2026-08-07 사장님 지시) */}
+        <ChipGroup value={summaryScope === "board" ? "__summary" : (summaryScope === null ? view : "")}
+          onChange={(v) => { if (v === "__summary") setSummaryScope("board"); else { setSummaryScope(null); pickView(v as InputMode); } }}
+          options={[...modes.map((v) => ({ value: v as string, label: MODE_LABEL[v] })), { value: "__summary", label: "요약" }]} />
+        <div className="pb-bar2-right">
+          {hiddenCount > 0 && <em className="text-[11px] text-[var(--text-dim)] not-italic">{hiddenCount}건 숨김</em>}
           {/*  프로젝트 전체는 따로 — 표마다 한 줄인 안내판이다(다 펼치지 않는다) */}
           <button type="button" onClick={() => setSummaryScope("all")} aria-pressed={summaryScope === "all"}
             className={`pb-allsum ${summaryScope === "all" ? "pb-allsum-on" : ""}`}>전체 요약</button>
         </div>
       </div>}
+      {!isAds && bChips.length > 0 && <div className="pb-chips"><AppliedChips chips={bChips} onClearAll={() => { setQ(""); setBLive(BEMPTY); setBDraft(BEMPTY); setFilters({ mine: false, week: false, open: false }); }} /></div>}
 
       {/* 본문 — 상자 안에서 스크롤한다(템플릿 탭·보기 줄은 위에 고정). 2026-08-18 사장님: 끝선 맞추고 스크롤 */}
       <div className="pb-body">

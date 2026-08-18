@@ -6527,7 +6527,8 @@ td .rounded-full { white-space: nowrap; }
   .app-content-scale:has(> .pj-shell) > .pj-shell { @apply min-h-0 flex-1; }
   .pj-shell > .project-detail-page { @apply flex min-h-0 flex-1 flex-col; }
   .pj-shell-rail > .project-detail-page { height: 100%; }
-  .pj-shell > .project-detail-page > .pj-layout { @apply min-h-0 flex-1; grid-template-rows: minmax(0, 1fr); }
+  .pj-shell > .project-detail-page > .pj-layout { @apply min-h-0 flex-1 items-stretch; grid-template-rows: minmax(0, 1fr); }
+  .pj-layout > .pj-secs { height: 100%; }
   .pj-layout > .pj-secs { @apply min-h-0 overflow-y-auto; max-height: 100%; }
   .pj-secs > .pj-sec-on:has(> .pb) { @apply min-h-0 flex-1; }
   .pj-secs:has(> .pj-sec-on > .pb) { overflow: hidden; }
@@ -6958,7 +6959,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 툴바 3층 — 템플릿 / 보기 / 그룹 (2026-08-04 사장님 지시: 성격이 다른 동작을 한 줄에 섞지 않는다) */
 .pb-bar1 { @apply flex flex-wrap items-center gap-1 border-b border-[var(--border)] px-3 pt-2.5; }
 .pb-bar1 .pb-tab { margin-bottom: -1px; }
-.pb-bar2 { @apply flex flex-wrap items-center gap-4 border-b border-[var(--border)] px-3.5 py-2.5; }
+.pb-bar2 { @apply flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[var(--border)] px-3.5 py-2.5; }
+.pb-bar2 > .qk-qs { @apply min-w-[220px] flex-1; }
+.pb-chips { @apply border-b border-[var(--border)] px-3.5 py-1; }
 .pb-tplmenu { @apply relative inline-flex ml-auto; }
 .pb-gmenu { @apply relative inline-flex ml-1; }
 .pb-dots { @apply w-7 h-7 rounded-lg text-[15px] leading-none text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
