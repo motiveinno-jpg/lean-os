@@ -357,6 +357,8 @@ export default function PartnerLedgerPage() {
         </QueryHead>
 
         <QueryBody>
+         {/* 통계·목록·원장이 한 스크롤 안에 — 상자 밖으로 안 넘친다 (2026-08-18 사장님: "끝선이 사이드바와 안 맞음") */}
+         <div className="ledger-scroll">
           {/* 상위 거래처·미수 경과 — 합계만 보면 어디에 몰렸는지 모른다 (2026-08-07). 목록 위에 접어 둔다 */}
           {(topPartners.length >= 2 || (ledgerType === "sales" && aging && aging.total > 0)) && (
             <div className="ledger-insights">
@@ -468,6 +470,7 @@ export default function PartnerLedgerPage() {
             </div>
           )}
 
+         </div>
           {/* ── 3줄 · 고른 거래처로 하는 일 ── */}
           <SelectionBar count={checkedIds.size} onClear={() => setCheckedIds(new Set())}
             summary={<>거래처마다 시트 하나 · 회계기간 {periodLabel}</>}>

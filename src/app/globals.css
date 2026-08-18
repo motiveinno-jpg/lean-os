@@ -8011,6 +8011,12 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /*   머리단 세로선·가운데 — 표 머리단 표준(.ev-lined)과 같은 색 (2026-08-18) */
 .spv-head > span + span { border-left: 1px solid color-mix(in srgb, var(--text-dim) 45%, transparent); }
 .spv-page > .qk-bar { @apply mt-1; }
+/*   매입매출전표도 상자 끝선을 사이드바에 맞춘다 — 격자가 남는 높이만 먹고 안에서 스크롤 (2026-08-18 사장님) */
+@media (min-width: 768px) {
+  .qk-shell.spv-page { padding-bottom: 0; }
+  .qk-shell > .spv-grid-wrap { @apply min-h-0 flex-1 overflow-auto; }
+  .qk-shell > .spv-grid-wrap > .spv-scroll { overflow: visible; }
+}
 .spv-row > span { @apply px-2 py-1.5 text-[12px] text-[var(--text)] whitespace-nowrap; }
 .spv-saved { @apply bg-[var(--bg-surface)]/40; }
 .spv-cur { background: color-mix(in srgb, var(--primary) 7%, transparent); }
@@ -8247,6 +8253,9 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ledger-split { @apply grid grid-cols-1 items-start gap-3 p-3 lg:grid-cols-[380px_1fr]; }
 .ledger-partner-list { @apply min-w-0 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; }
 .ledger-list-scroll { max-height: 560px; }
+/*   원장 화면 본문 스크롤 — QueryBody 안에서 ev-scroll 이 아닌 내용(통계+목록+원장)은 이 상자가 스크롤한다 */
+.qk-body > .ledger-scroll { @apply absolute inset-0 overflow-auto; }
+.qk-body:has(.qk-selbar) > .ledger-scroll { padding-bottom: 60px; }
 .ledger-list-table { min-width: 0; width: 100%; table-layout: fixed; }
 .ledger-list-table td.ev-ell { max-width: 0; }
 .ledger-row { @apply cursor-pointer transition-colors; }
@@ -8257,6 +8266,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .cr-table { min-width: 1080px; }
 /* 입력 카드가 위에 있어 남는 높이만 목록이 먹는다 — 이 화면 뿌리(.qk-shell) 안 설명 줄은 끝에 붙는다 */
 .qk-shell > .collect-note { @apply shrink-0; }
+.qk-screen > .collect-note { @apply shrink-0 border-t border-[var(--border)] px-3.5 py-2; }
+.spv-je > .spv-note { @apply mt-2 border-t border-[var(--border)] px-3 pt-2; }
 .partner-row { @apply cursor-pointer transition-colors; }
 .partner-row:hover { @apply bg-[var(--bg-surface)]; }
 /*   한 쪽(차변 또는 대변) — 계정과 거래처를 위아래로 */

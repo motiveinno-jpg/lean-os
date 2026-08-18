@@ -771,7 +771,7 @@ function SalePurchaseInner() {
   ];
 
   return (
-    <div className="spv-page">
+    <div className="qk-shell spv-page">
       {/* 갈래 탭 — 공용(collect-tabs) */}
       <div className="collect-tabs no-print">
         {GROUPS.map((g) => (
@@ -998,6 +998,12 @@ function SalePurchaseInner() {
           <span className="tr">{won(creditSum)}</span>
           <span className={balanced ? "spv-bal spv-bal-ok" : "spv-bal"}>{balanced ? "✓ 차·대 일치" : "차·대 불일치"}</span>
         </div>
+              <p className="spv-note">
+          ※ 매입매출전표는 <b>부가세가 붙는 거래</b>(세금계산서·카드·현금영수증)를 칩니다 —
+          통장 이체·대체·결산 분개는 <b>일반전표</b>에서 칩니다. 여기 친 유형이 부가세 신고 집계의 기준이 됩니다.
+          <br />※ <b>수정세금계산서·환입·카드 취소</b>는 금액 앞에 <b>-</b> 를 붙여 같은 유형으로 칩니다 —
+          부가세 집계에서 그만큼 차감됩니다.
+        </p>
       </div>
 
       {pullOpen && (
@@ -1049,12 +1055,7 @@ function SalePurchaseInner() {
         </div>
       )}
 
-      <p className="spv-note">
-        ※ 매입매출전표는 <b>부가세가 붙는 거래</b>(세금계산서·카드·현금영수증)를 칩니다 —
-        통장 이체·대체·결산 분개는 <b>일반전표</b>에서 칩니다. 여기 친 유형이 부가세 신고 집계의 기준이 됩니다.
-        <br />※ <b>수정세금계산서·환입·카드 취소</b>는 금액 앞에 <b>-</b> 를 붙여 같은 유형으로 칩니다 —
-        부가세 집계에서 그만큼 차감됩니다.
-      </p>
+
     </div>
   );
 }

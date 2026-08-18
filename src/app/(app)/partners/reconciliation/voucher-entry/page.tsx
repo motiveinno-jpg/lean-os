@@ -1065,6 +1065,10 @@ export default function VoucherEntryPage() {
         </QueryBody>
         <Pager page={pager.page} pages={pager.pages} total={sortedEntries.length} size={live.rows}
           from={pager.from} to={pager.to} onPage={pager.setPage} />
+        {/*   안내는 상자 **안** 마지막 줄에 — 밖에 두면 상자 끝선이 사이드바 끝선과 어긋난다 (2026-08-18 사장님) */}
+        <p className="collect-note">
+          ※ 전표입력은 장부 기록입니다 — 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 대사</Link>에서 별도 처리 · 수정하면 변경 전 값이 이력으로 남고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
+        </p>
       </QueryScreen>
 
       {/* 우클릭 메뉴 (§3-3-A: 행 삽입/복사/삭제) */}
@@ -1087,9 +1091,7 @@ export default function VoucherEntryPage() {
         </div>
       )}
 
-      <p className="collect-note">
-        ※ 전표입력은 장부 기록입니다 — 계산서↔입금 대사(미수금 차감)는 <Link href="/partners/reconciliation" className="text-[var(--primary)] hover:underline">거래 대사</Link>에서 별도 처리 · 수정하면 변경 전 값이 이력으로 남고, 마감(잠금)된 월은 저장·수정·삭제가 차단됩니다
-      </p>
+
     </div>
   );
 }
