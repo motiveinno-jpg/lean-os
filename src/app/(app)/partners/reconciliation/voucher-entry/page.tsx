@@ -932,7 +932,7 @@ export default function VoucherEntryPage() {
                   </button>
                 </th>
                 {/* 제목줄 정렬 — ⚠️ 전표는 **장 단위**로 옮긴다: 한 전표의 분개 줄이 흩어지면 차·대를 못 읽는다 */}
-                <SortableTh label="No" sortKey="no" sort={sort} onSort={onSort} style={{ width: 44 }} />
+                <SortableTh label="No" sortKey="no" sort={sort} onSort={onSort} style={{ width: 64 }} />
                 <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} style={{ width: 92 }} />
                 <SortableTh label="구분" style={{ width: 76 }} />
                 <SortableTh label="계정코드" style={{ width: 76 }} />

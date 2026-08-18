@@ -1176,11 +1176,12 @@ function TaxInvoicesPageInner() {
   };
   // 목록 표 컬럼 리사이즈 — 경계선 드래그로 너비 조절 · 더블클릭 내용 자동맞춤 · localStorage 기억 (2026-07-14)
   const listTableRef = useRef<HTMLTableElement | null>(null);
-  const [colW, setColW] = useColWidths("tax-invoice-list-colw-v3", {
+  const [colW, setColW] = useColWidths("tax-invoice-list-colw-v4", {
     //   승인번호(nts)·전송(send)은 상세로 옮겨 컬럼이 없어졌다 (2026-08-10).
     //   기억해 둔 너비가 옛 컬럼 순서로 되살아나지 않게 저장 키도 v3 으로 올린다.
-    issue_date: 104, counterparty_name: 200, label: 170,
-    supply_amount: 118, tax_amount: 104, total_amount: 124, status: 96, act: 132,
+    //   v4 (2026-08-18): 머리단에 ≡ 자리(양쪽 22px)가 생겨 좁은 칸에서 글자가 ≡ 와 겹쳤다 — 기본 너비를 넓힌다.
+    issue_date: 128, counterparty_name: 200, label: 170,
+    supply_amount: 132, tax_amount: 116, total_amount: 136, status: 116, act: 132,
   });
   //   머리단은 수집·전표와 같은 부품(SortableTh) — 정렬 표시·깔때기·너비 손잡이가 한 벌이다 (2026-08-18 사장님:
   //   "둘이 디자인이 다르다"). 예전엔 이 화면만 ▲▼↕ 글자·자체 손잡이(ColHandle)를 따로 갖고 있었다.
