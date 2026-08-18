@@ -7984,16 +7984,17 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-head > span > .th-grip { right: -3px; }
 .spv-head > span > .th-filter { @apply absolute right-1 top-1/2 -translate-y-1/2; }
 /*   격자를 감싸는 가로 스크롤 상자를 끄고 .spv-body 하나만 스크롤한다 — 안 그러면 sticky 머리단이 위 상자에 붙어 세로 스크롤을 못 따라온다 */
-.spv-body > .spv-grid-wrap, .spv-body > .spv-grid-wrap > .spv-scroll { overflow: visible; }
+.spv-body > .spv-grid-wrap > .spv-scroll { overflow: visible; }
 .spv-head > span { @apply px-2 py-2 text-center text-[10.5px] font-bold leading-4 text-[var(--text-dim)] whitespace-nowrap; }
 /*   머리단 세로선·가운데 — 표 머리단 표준(.ev-lined)과 같은 색 (2026-08-18) */
 .spv-head > span + span { border-left: 1px solid color-mix(in srgb, var(--text-dim) 45%, transparent); }
 .spv-page > .qk-bar { @apply mt-1; }
 /*   상자 안 본문 — 격자(스크롤)·분개 미리보기·안내를 세로로. QueryBody 가 남는 높이를 주고 이 상자가 스크롤한다 */
-.qk-body > .spv-body { @apply absolute inset-0 flex flex-col overflow-auto; }
-/*   상자 안에 또 상자를 두지 않는다 — 격자는 상자에 꽉 차게, 분개 미리보기는 선 하나로 가른다 (2026-08-18 사장님) */
-.spv-body > .spv-grid-wrap { @apply shrink-0 rounded-none border-0 bg-transparent shadow-none backdrop-blur-none; }
-.spv-body > .spv-je { @apply shrink-0 rounded-none border-0 border-t border-[var(--border)] bg-transparent shadow-none backdrop-blur-none; }
+.qk-body > .spv-body { @apply absolute inset-0 flex flex-col overflow-hidden; }
+/*   상자 안에 또 상자를 두지 않는다 — 격자는 상자에 꽉 차게, 분개 미리보기는 선 하나로 가른다 (2026-08-18 사장님)
+     ★ 가운데 격자만 스크롤하고 아래 분개 미리보기는 고정 — 분개 보려고 끝까지 내리지 않게 (2026-08-18 사장님) */
+.spv-body > .spv-grid-wrap { @apply min-h-0 flex-1 overflow-auto rounded-none border-0 bg-transparent shadow-none backdrop-blur-none; }
+.spv-body > .spv-je { @apply shrink-0 rounded-none border-0 border-t border-[var(--border)] bg-transparent shadow-none backdrop-blur-none; max-height: 38%; overflow: auto; }
 /*   매입매출전표도 상자 끝선을 사이드바에 맞춘다 — 격자가 남는 높이만 먹고 안에서 스크롤 (2026-08-18 사장님) */
 @media (min-width: 768px) {
   .qk-shell.spv-page { padding-bottom: 0; }
