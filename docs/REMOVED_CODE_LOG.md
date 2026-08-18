@@ -54,3 +54,7 @@
 ### 매입매출전표 (`/partners/reconciliation/sale-purchase`) — B형
 - 자체 갈래 탭(spv-tabs)·툴바(spv-toolbar: 기간·힌트·엑셀 버튼) → collect-tabs · QueryBar(기간+검색조건[구분·거래처]+빠른검색) · ResultStrip · ExcelMenu. 입력 격자·저장·불러오기는 그대로.
 - `globals.css`: `.spv-tabs`, `.spv-tab`, `.spv-tab-on`, `.spv-toolbar`
+
+### 현금영수증 (`/cash-receipts`)
+- 화면 머리(seg-bar 탭·발행 한도 배지·기간·가져오기·+발행 한 줄), doc-summary-strip 요약, 선택 액션바, 목록 카드 머리(제목·SortToolbar 정렬), 자체 표 → collect-tabs · QueryBar(기간+검색조건[달력·빠른 기간·상태·용도·거래처·금액]+빠른검색 ‖ 가져오기·+발행) · ResultStrip(건수·합계·매출/매입/공제·발행 한도) · ev-table+SortableTh · Pager · SelectionBar(전표처리)
+- `globals.css`: `.cash-receipt-bulk-action-bar`, `.cash-receipt-table` · SortToolbar import 제거

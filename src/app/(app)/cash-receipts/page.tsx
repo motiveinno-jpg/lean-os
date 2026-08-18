@@ -1,7 +1,12 @@
 "use client";
-import { SortableTh } from "@/components/sortable-th";
-import { todayKst, kstDateStr } from "@/lib/kst";
-import { Ico } from "@/components/ui-icon";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, SavedTabs, ConditionSave,
+  ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
+  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, defaultRange, periodQuicks,
+  type AppliedChip,
+} from "@/components/query-kit";
+import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useRef, useState, useMemo } from "react";
@@ -34,9 +39,12 @@ import { ToolbarPopover, ToolbarPopoverItem } from "@/components/toolbar-popover
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
-import { SortToolbar } from "@/components/sort-toolbar";
 
 type Tab = "income" | "expense" | "register";
+/** 검색조건 (조회 화면 표준, 2026-08-18 Wave 1). ★ '조회'를 눌러야 반영. 기간·빠른검색은 즉시. */
+type Cond = { status: string[]; purpose: string[]; partner: string[]; min: string; max: string; rows: number };
+const EMPTY_COND: Cond = { status: [], purpose: [], partner: [], min: "", max: "", rows: 50 };
+const condCount = (c: Cond) => c.status.length + c.purpose.length + c.partner.length + ((c.min || c.max) ? 1 : 0);
 
 const SYNC_STORAGE_KEY = "cashreceipt-active-job-id";
 const TERMINAL = new Set(["completed", "failed", "cancelled"]);
@@ -148,12 +156,15 @@ export default function CashReceiptsPage() {
     if (!silent) toast("멈춘 백그라운드 동기화를 해제했습니다. 다시 시도할 수 있습니다.", "info");
   };
 
-  // Date range for filter
-  const now = new Date();
-  const [startDate, setStartDate] = useState(
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
-  );
-  const [endDate, setEndDate] = useState(kstDateStr(now));
+  //   조회기간 — 기본 최근 1개월(조회 화면 표준). 이 기간이 곧 홈택스 수집 기간이기도 하다. ★ 조회값은 기억하지 않는다.
+  const [startDate, setStartDate] = useState(() => defaultRange().from);
+  const [endDate, setEndDate] = useState(() => defaultRange().to);
+  //   ── 조회 화면 표준 — 수집·전표에서 확정한 뼈대 ──
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(EMPTY_COND);
+  const [live, setLive] = useState<Cond>(EMPTY_COND);
+  const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -200,37 +211,81 @@ export default function CashReceiptsPage() {
   }, [receipts]);
 
 
-  // 헤더 클릭 정렬 (표시용)
+  // 헤더 클릭 정렬 — 공용 부품(SortableTh). 기본 발행일 내림차순.
   type CrSortKey = "issue_date" | "counterparty_name" | "amount" | "supply_amount" | "tax_amount" | "purpose" | "status";
-  const [crSortKey, setCrSortKey] = useState<CrSortKey>("issue_date");
-  const [crSortDir, setCrSortDir] = useState<"asc" | "desc">("desc");
-  const toggleCrSort = (k: CrSortKey) => {
-    if (k === crSortKey) setCrSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setCrSortKey(k); setCrSortDir(k === "issue_date" ? "desc" : "asc"); }
-  };
-  //   머리단 정렬 — 앱 전체가 같은 모양을 쓰도록 공용 컴포넌트에 맡긴다 (2026-08-12 사장님 지시).
-  //   cls(정렬 클래스)는 더 이상 쓰지 않는다 — 머리단은 언제나 가운데다.
-  const crSortTh = (k: CrSortKey, label: string, _cls?: string) => (
-    <SortableTh label={label} sortKey={k} sort={{ key: crSortKey, dir: crSortDir }} onSort={toggleCrSort} />
+  const [sort, setSort] = useState<SortState<CrSortKey>>({ key: "issue_date", dir: "desc" });
+  const onSort = (k: CrSortKey) => setSort((c) => nextSort(c, k, k === "issue_date" ? "desc" : "asc"));
+  const crSortTh = (k: CrSortKey, label: string) => (
+    <SortableTh label={label} sortKey={k} sort={sort} onSort={onSort} />
   );
+  //   걸러서 정렬 — 빠른검색(거래처·승인번호·상대 번호·금액) + 검색조건(상태·용도·거래처·금액)
+  const statusLabel = (r: any) => (STATUS_LABELS[r.status] || STATUS_LABELS.issued).label;
+  const purposeLabel = (r: any) => PURPOSE_LABELS[r.purpose as keyof typeof PURPOSE_LABELS] || r.purpose || "";
+  const rowHit = (r: any, c: Cond) => {
+    if (c.status.length && !c.status.includes(statusLabel(r))) return false;
+    if (c.purpose.length && !c.purpose.includes(purposeLabel(r))) return false;
+    if (c.partner.length && !c.partner.includes(r.counterparty_name || "")) return false;
+    if (!amountHit(Number(r.amount || 0), c.min, c.max)) return false;
+    return true;
+  };
+  const filteredReceipts = useMemo(() => (receipts as any[]).filter((r) => rowHit(r, live) &&
+    quickSearchHit(q, [r.counterparty_name, r.approval_number, r.identity_number, r.counterparty_bizno, r.memo], [Number(r.amount || 0), Number(r.supply_amount || 0)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [receipts, live, q]);
+  const previewCount = (receipts as any[]).filter((r) => rowHit(r, draft)).length;
   const displayReceipts = useMemo(() => {
-    const arr = [...(receipts as any[])];
-    arr.sort((a: any, b: any) => {
-      let c = 0;
-      switch (crSortKey) {
-        case "counterparty_name": c = (a.counterparty_name || "").localeCompare(b.counterparty_name || "", "ko"); break;
-        case "amount": c = Number(a.amount || 0) - Number(b.amount || 0); break;
-        case "supply_amount": c = Number(a.supply_amount || 0) - Number(b.supply_amount || 0); break;
-        case "tax_amount": c = Number(a.tax_amount || 0) - Number(b.tax_amount || 0); break;
-        case "purpose": c = (a.purpose || "").localeCompare(b.purpose || "", "ko"); break;
-        case "status": c = (a.status || "").localeCompare(b.status || "", "ko"); break;
-        default: c = (a.issue_date || "").localeCompare(b.issue_date || "");
+    const val = (r: any) => {
+      switch (sort.key) {
+        case "counterparty_name": return r.counterparty_name || "";
+        case "amount": return Number(r.amount || 0);
+        case "supply_amount": return Number(r.supply_amount || 0);
+        case "tax_amount": return Number(r.tax_amount || 0);
+        case "purpose": return purposeLabel(r);
+        case "status": return statusLabel(r);
+        default: return r.issue_date || "";
       }
-      if (c === 0 && crSortKey !== "issue_date") c = (a.issue_date || "").localeCompare(b.issue_date || "");
-      return crSortDir === "asc" ? c : -c;
+    };
+    const arr = [...filteredReceipts];
+    arr.sort((a: any, b: any) => {
+      const c = cmp(val(a), val(b));
+      return (sort.dir === "asc" ? c : -c) || String(b.issue_date || "").localeCompare(String(a.issue_date || ""));
     });
     return arr;
-  }, [receipts, crSortKey, crSortDir]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredReceipts, sort]);
+  const pager = usePager(displayReceipts, live.rows, `${tab}|${startDate}|${endDate}|${q}|${JSON.stringify(live)}`);
+  const statusOpts = useMemo(() => [...new Set((receipts as any[]).map(statusLabel))].map((v) => ({ value: v, label: v })), [receipts]);
+  const purposeOpts = useMemo(() => [...new Set((receipts as any[]).map(purposeLabel).filter(Boolean))].map((v) => ({ value: v, label: v })), [receipts]);
+  const partnerOpts = useMemo(() => [...new Set((receipts as any[]).map((r) => r.counterparty_name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [receipts]);
+  //   내 조건 — ★ 하나가 이 화면의 기본값
+  const saved = useSavedQueries("cash-receipts", companyId);
+  const paramsNow = { tab, from: startDate, to: endDate, q, cond: live };
+  const paramsBasic = { tab: "income", ...defaultRange(), q: "", cond: EMPTY_COND };
+  const applySaved = (p: Record<string, unknown>) => {
+    if (p.tab === "income" || p.tab === "expense") setTab(p.tab);
+    if (typeof p.from === "string" && typeof p.to === "string") { setStartDate(p.from); setEndDate(p.to); }
+    if (typeof p.q === "string") setQ(p.q);
+    const c = { ...EMPTY_COND, ...(p.cond as Partial<Cond> | undefined) };
+    setDraft(c); setLive(c);
+  };
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved.isFetched) return;
+    setDefDone(true);
+    if (saved.def) applySaved(saved.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isFetched, saved.def, defDone]);
+  const suggestName = () => [draft.partner[0], draft.status.join("·"), draft.purpose.join("·"), (draft.min || draft.max) ? "금액" : "", tab === "income" ? "매출" : "매입"].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
+  const dropCond = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...live.status.map((v) => ({ group: "상태", label: v, onRemove: () => dropCond({ status: live.status.filter((x) => x !== v) }) })),
+    ...live.purpose.map((v) => ({ group: "용도", label: v, onRemove: () => dropCond({ purpose: live.purpose.filter((x) => x !== v) }) })),
+    ...live.partner.map((v) => ({ group: "거래처", label: v, onRemove: () => dropCond({ partner: live.partner.filter((x) => x !== v) }) })),
+    ...((live.min || live.max) ? [{ group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => dropCond({ min: "", max: "" }) }] : []),
+  ];
+  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
+  const toggleIn = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   // ─── 체크박스 다중선택 + 일괄 전표처리 (post_cash_voucher) ───
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -572,50 +627,21 @@ export default function CashReceiptsPage() {
   };
 
   return (
-    <div className="space-y-6 mx-auto">
-      {/* 한 줄짜리 머리 — [탭] ·········· [기간 ▾] [가져오기 ▾] [+ 발행]
-          세금계산서 화면과 **같은 뼈대·같은 자리**로 맞췄다 (2026-08-10 사장님 지시).
-          예전엔 이쪽만 탭이 목록 카드 안에 있고, 매입·매출 순서도 반대고, 파란 버튼이 셋이었다. */}
-      <div className="tax-invoice-tabs">
-        <div className="seg-bar flex-wrap">
-          {(
-            [
-              ["income", "매출 (발행)"],
-              ["expense", "매입 (수취)"],
-            ] as [Tab, string][]
-          ).map(([t, label]) => (
-            <button key={t} onClick={() => setTab(t)} className={`seg-item ${tab === t ? "seg-item-active" : ""}`}>
-              {label}
-            </button>
-          ))}
-        </div>
+    <div className="qk-shell">
+      <QueryErrorBanner error={error} />
+      {/* ── 조회 화면 표준 — 탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김 · 확정 줄 (2026-08-18 Wave 1) ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print">
+            {([["income", "매출 (발행)", summary?.incomeCount], ["expense", "매입 (수취)", summary?.expenseCount]] as [Tab, string, number | undefined][]).map(([t, label, n]) => (
+              <button key={t} type="button" onClick={() => setTab(t)}
+                className={tab === t ? "collect-tab collect-tab-on" : "collect-tab"}>
+                {label}{n != null && <span className="collect-tab-cnt">{n.toLocaleString()}</span>}
+              </button>
+            ))}
+          </div>
 
-        <div className="ml-auto flex items-center gap-1.5 flex-wrap">
-          {/* 무제한 플랜도 사용량은 보이게 — 한도 없으면 '이번 달 발행 N건' (2026-08-11 사장님) */}
-          {issuanceStatus && (
-            <span
-              className="cash-receipt-issuance-badge"
-              style={{
-                background: issuanceLimitReached ? "color-mix(in srgb, #ef4444 12%, transparent)" : "var(--bg-surface)",
-                borderColor: issuanceLimitReached ? "#ef4444" : "var(--border)",
-                color: issuanceLimitReached ? "#ef4444" : "var(--text-muted)",
-              }}
-              title={issuanceStatus.limit !== null
-                ? `${issuanceStatus.planName || "현재 요금제"} — 현금영수증은 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}/${issuanceStatus.limit}건 · 세금계산서 한도는 별도)`
-                : `${issuanceStatus.planName || "현재 요금제"} — 현금영수증 발행 무제한 (이번 달 ${issuanceStatus.used}건 발행)`}
-            >
-              {issuanceStatus.limit !== null
-                ? <>현금영수증 발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
-                : <>이번 달 발행 <b className="mono-number">{issuanceStatus.used}건</b></>}
-            </span>
-          )}
-
-          {/* 조회기간 — 다른 화면과 같은 달력 위젯 (2026-08-11).
-              이 기간이 곧 홈택스 수집 기간이기도 하다(한 기준으로 통일해 둔 상태). */}
-          <DateRangeField from={startDate} to={endDate}
-            onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
-
-          {/* 가져오기 — 홈택스 매출·매입과 엑셀 업로드를 한 곳에 */}
+          <QueryBar right={<>
           <ToolbarPopover label="가져오기" title="가져오기" width={230}>
             {(close) => (
               <>
@@ -653,7 +679,6 @@ export default function CashReceiptsPage() {
               </>
             )}
           </ToolbarPopover>
-
           <button
             type="button"
             onClick={() => { setIssueForm(INITIAL_ISSUE_FORM); setShowIssueModal(true); }}
@@ -663,71 +688,90 @@ export default function CashReceiptsPage() {
           >
             {issuanceLimitReached ? "발행 한도 소진" : "+ 발행"}
           </button>
-        </div>
-      </div>
+          </>}>
+            <DateRangeField label={null} parts="segments" from={startDate} to={endDate}
+              onChange={(f, t) => { setStartDate(f); setEndDate(t); }}
+              trailing={
+                <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)} anchorSel=".drf"
+                  tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                    onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                    onBasic={() => { const b = defaultRange(); setTab("income"); setStartDate(b.from); setEndDate(b.to); clearAll(); }}
+                    onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+                  foot={<>
+                    <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0} onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                    <ConditionSave suggest={suggestName}
+                      onSave={(name, asDefault) => { saved.save(name, { tab, from: startDate, to: endDate, q, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
+                    <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>
+                    <RowsPerPage value={draft.rows} onChange={setD("rows")} />
+                    <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                  </>}>
+                  <ConditionRow label="조회기간" hint="홈택스 가져오기 기간이기도 합니다">
+                    <span className="qk-range-txt">{startDate} ~ {endDate}</span>
+                    <DateRangeField label={null} parts="calendar" confirm from={startDate} to={endDate}
+                      onChange={(f, t) => { setStartDate(f); setEndDate(t); }} />
+                    <span className="qk-quicks">
+                      {periodQuicks().map((pq) => (
+                        <button key={pq.key} type="button" onClick={() => { setStartDate(pq.from); setEndDate(pq.to); }}
+                          className={startDate === pq.from && endDate === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="상태">
+                    <span className="qk-quicks">
+                      {statusOpts.map((o) => (
+                        <button key={o.value} type="button" onClick={() => setD("status")(toggleIn(draft.status, o.value))}
+                          className={draft.status.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+                      ))}
+                      {statusOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">이 기간에 건이 없습니다</span>}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="용도">
+                    <span className="qk-quicks">
+                      {purposeOpts.map((o) => (
+                        <button key={o.value} type="button" onClick={() => setD("purpose")(toggleIn(draft.purpose, o.value))}
+                          className={draft.purpose.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="거래처" hint="여러 곳">
+                    <TokenField items={partnerOpts} value={draft.partner} onChange={setD("partner")} placeholder="거래처 이름 일부" />
+                  </ConditionRow>
+                  <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다">
+                    <AmountRange min={draft.min} max={draft.max} onMin={setD("min")} onMax={setD("max")} />
+                  </ConditionRow>
+                </ConditionPanel>
+              } />
+            <QuickSearch value={q} onApply={setQ} placeholder="거래처 · 승인번호 · 상대 번호 · 금액 — 쉼표로 여러 개, Enter" />
+          </QueryBar>
 
-      {/* 요약 — 카드 4장을 한 줄 스트립으로. '합계'는 앞 두 칸을 더한 값이라 뺐다 (2026-08-10) */}
-      {summary && (
-        <div className="doc-summary-strip">
-          <div className="doc-summary-cell">
-            <span>매출 발행 {summary.incomeCount.toLocaleString()}건</span>
-            <b>₩{summary.incomeTotal.toLocaleString()}</b>
-          </div>
-          <div className="doc-summary-cell">
-            <span>매입 수취 {summary.expenseCount.toLocaleString()}건</span>
-            <b>₩{summary.expenseTotal.toLocaleString()}</b>
-          </div>
-          <div className="doc-summary-cell doc-summary-cell-link" title="부가세 신고 시 공제되는 매입세액입니다">
-            <span>매입세액 공제</span>
-            <b>₩{summary.expenseTax.toLocaleString()}</b>
-          </div>
-        </div>
-      )}
+          <AppliedChips chips={chips} onClearAll={clearAll} />
 
-      <QueryErrorBanner error={error} />
+          <ResultStrip right={issuanceStatus ? (
+            <span className="cash-receipt-issuance-badge"
+              style={{
+                background: issuanceLimitReached ? "color-mix(in srgb, #ef4444 12%, transparent)" : "var(--bg-surface)",
+                borderColor: issuanceLimitReached ? "#ef4444" : "var(--border)",
+                color: issuanceLimitReached ? "#ef4444" : "var(--text-muted)",
+              }}
+              title={issuanceStatus.limit !== null
+                ? `${issuanceStatus.planName || "현재 요금제"} — 현금영수증은 월 ${issuanceStatus.limit}건까지 발행할 수 있습니다 (이번 달 ${issuanceStatus.used}/${issuanceStatus.limit}건 · 세금계산서 한도는 별도)`
+                : `${issuanceStatus.planName || "현재 요금제"} — 현금영수증 발행 무제한 (이번 달 ${issuanceStatus.used}건 발행)`}>
+              {issuanceStatus.limit !== null
+                ? <>이번 달 발행 <b className="mono-number">{issuanceStatus.remaining ?? 0}건</b> 남음</>
+                : <>이번 달 발행 <b className="mono-number">{issuanceStatus.used}건</b></>}
+            </span>
+          ) : undefined}>
+            <Stat label="건수" value={`${displayReceipts.length.toLocaleString("ko")}건`} />
+            <Stat label="합계" value={`₩${displayReceipts.reduce((s0: number, r: any) => s0 + cashReceiptSign(r) * Number(r.amount || 0), 0).toLocaleString()}`} />
+            {summary && <>
+              <Stat label={`매출 발행 ${summary.incomeCount.toLocaleString()}건`} value={`₩${summary.incomeTotal.toLocaleString()}`} />
+              <Stat label={`매입 수취 ${summary.expenseCount.toLocaleString()}건`} value={`₩${summary.expenseTotal.toLocaleString()}`} />
+              <Stat label="매입세액 공제" value={`₩${summary.expenseTax.toLocaleString()}`} />
+            </>}
+          </ResultStrip>
+        </QueryHead>
 
-      {/* 선택 액션바 */}
-      {tab !== "register" && selectedReceipts.length > 0 && (
-        <div className="cash-receipt-bulk-action-bar">
-          <span className="text-sm font-semibold text-[var(--text)]"><b className="text-[var(--primary)]">{selectedReceipts.length}건</b> 선택됨</span>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
-              className="btn-primary text-xs">
-              전표처리({selectedReceipts.length})
-            </button>
-            <button type="button" onClick={() => setSelectedIds(new Set())}
-              className="btn-secondary text-xs">
-              선택 해제
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ─── 세그먼트 탭 + 리스트/등록 패널 ─── */}
-      <div className="glass-card overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--border)] flex items-center justify-between gap-3 flex-wrap">
-          {/* 탭은 화면 머리로 올렸다 (2026-08-10) — 여기엔 목록에 딸린 정렬만 남는다.
-              '등록' 탭은 직원 요청으로 메뉴에서 뺀 상태이고 백엔드는 보존돼 있다. */}
-          <span className="text-[13px] font-bold text-[var(--text)]">
-            {tab === "income" ? "매출 (발행)" : "매입 (수취)"}
-            {receipts.length > 0 && <span className="ml-1.5 text-xs font-medium text-[var(--text-dim)]">{receipts.length.toLocaleString()}건</span>}
-          </span>
-          {tab !== "register" && receipts.length > 0 && (
-            <SortToolbar
-              options={[
-                { key: "issue_date", label: "발행일" },
-                { key: "counterparty_name", label: "거래처" },
-                { key: "amount", label: "합계금액" },
-                { key: "supply_amount", label: "공급가액" },
-                { key: "status", label: "상태" },
-              ]}
-              sortKey={crSortKey}
-              sortDir={crSortDir}
-              onSort={(k) => toggleCrSort(k as any)}
-            />
-          )}
-        </div>
-
+        <QueryBody>
         {/* Register tab */}
         {tab === "register" && (
           <div className="cash-receipt-register-form">
@@ -918,55 +962,39 @@ export default function CashReceiptsPage() {
           </div>
         )}
 
-        {/* List tabs */}
+
         {tab !== "register" && (
           isLoading ? (
-            <div className="p-16 text-center text-sm text-[var(--text-muted)]">
-              불러오는 중...
+            <div className="collect-empty">불러오는 중…</div>
+          ) : (receipts as any[]).length === 0 ? (
+            <div className="collect-empty">
+              {tab === "income"
+                ? "이 기간에 매출 현금영수증이 없습니다 — 가져오기 ▾ 「홈택스 매출 가져오기」로 동기화하세요"
+                : "이 기간에 매입 현금영수증이 없습니다 — 가져오기 ▾ 「홈택스 매입 가져오기」 또는 엑셀 업로드"}
             </div>
-          ) : receipts.length === 0 ? (
-            <div className="py-16 px-6 text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-[var(--primary)]/10 flex items-center justify-center text-3xl mb-4"><Ico e="🧾" /></div>
-              <div className="text-base font-semibold text-[var(--text)]">
-                {tab === "income"
-                  ? "매출 현금영수증이 없습니다"
-                  : "매입 현금영수증이 없습니다"}
-              </div>
-              <div className="text-xs text-[var(--text-muted)] mt-1.5">
-                {tab === "income"
-                  ? "상단의 '홈택스 매출 가져오기' 로 동기화하세요"
-                  : "매입은 CODEF 미지원 — 등록 탭에서 직접 등록하거나 홈택스 엑셀을 업로드하세요"}
-              </div>
-            </div>
+          ) : displayReceipts.length === 0 ? (
+            <div className="collect-empty">이 조건에 맞는 현금영수증이 없습니다 — 검색조건을 풀어 보세요</div>
           ) : (
-            <div className="cash-receipt-table">
-              <table className="w-full min-w-[700px]">
-                <thead className="sticky-bar">
-                  <tr className="table-head-row">
-                    <th className="w-10 px-3 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        ref={(el) => { if (el) el.indeterminate = someSelected; }}
-                        onChange={toggleSelectAll}
-                        aria-label="전체 선택"
-                        className="h-3.5 w-3.5 cursor-pointer accent-[var(--primary)]"
-                      />
+            <div className="ev-scroll">
+              <table className="ev-table ev-lined cr-table">
+                <thead>
+                  <tr>
+                    <th className="w-9">
+                      <button type="button" aria-label="전체 선택" onClick={toggleSelectAll}
+                        className={allSelected ? "collect-chk collect-chk-on" : "collect-chk"}>{allSelected ? "✓" : someSelected ? "–" : ""}</button>
                     </th>
-                    {crSortTh("issue_date", "발행일", "text-left")}
-                    {crSortTh("counterparty_name", "거래처", "text-left")}
-                    {crSortTh("amount", "합계금액", "text-right")}
-                    {crSortTh("supply_amount", "공급가액", "text-right")}
-                    {crSortTh("tax_amount", "세액", "text-right")}
-                    {crSortTh("purpose", "용도", "text-center")}
-                    {crSortTh("status", "상태", "text-center")}
-                    <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-dim)] text-center">
-                      작업
-                    </th>
+                    {crSortTh("issue_date", "발행일")}
+                    {crSortTh("counterparty_name", "거래처")}
+                    {crSortTh("amount", "합계금액")}
+                    {crSortTh("supply_amount", "공급가액")}
+                    {crSortTh("tax_amount", "세액")}
+                    {crSortTh("purpose", "용도")}
+                    {crSortTh("status", "상태")}
+                    <SortableTh label="작업" />
                   </tr>
                 </thead>
                 <tbody>
-                  {displayReceipts.map((r: any) => {
+                  {pager.view.map((r: any) => {
                     const st = STATUS_LABELS[r.status] || STATUS_LABELS.issued;
                     //   홈택스 취소거래는 원본을 깎는 **마이너스 건**이라 부호를 뒤집어 보여 준다.
                     //   우리가 취소·무효 처리한 건은 원 금액 그대로 보여 주되(발행 원장이므로)
@@ -980,18 +1008,13 @@ export default function CashReceiptsPage() {
                     return (
                       <tr
                         key={r.id}
-                        className={`cash-receipt-row ${checked ? "bg-[var(--primary)]/5" : ""}`}
+                        className={checked ? "cash-receipt-row ev-on" : "cash-receipt-row"}
                       >
-                        <td className="px-3 py-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            disabled={!selectable}
-                            onChange={() => toggleSelect(r.id)}
-                            aria-label="선택"
-                            title={posted ? "전표처리됨" : undefined}
-                            className="h-3.5 w-3.5 cursor-pointer accent-[var(--primary)] disabled:opacity-40 disabled:cursor-not-allowed"
-                          />
+                        <td>
+                          {selectable ? (
+                            <button type="button" onClick={() => toggleSelect(r.id)} aria-label="선택"
+                              className={checked ? "collect-chk collect-chk-on" : "collect-chk"}>{checked ? "✓" : ""}</button>
+                          ) : <span className="text-[9px] text-emerald-500 font-semibold" title="전표처리됨 또는 없던 일이 된 건">{posted ? "전표" : "—"}</span>}
                         </td>
                         <td className="px-5 py-3 text-xs text-[var(--text-dim)] mono-number whitespace-nowrap">
                           {r.issue_date}
@@ -1070,13 +1093,13 @@ export default function CashReceiptsPage() {
                       colSpan={3}
                       className="px-5 py-3 text-xs font-bold text-[var(--text-muted)]"
                     >
-                      합계 ({receipts.length}건)
+                      합계 ({displayReceipts.length}건)
                     </td>
                     {/*   취소거래는 빼는 게 아니라 **마이너스로 더한다** — 빼면 원본 발행 건만 남아
                           매출이 부풀어 오른다. 우리가 취소·무효한 건은 0 이라 안 셈. (2026-08-12) */}
                     <td className="px-5 py-3 text-sm text-right font-bold mono-number">
                       ₩
-                      {receipts
+                      {displayReceipts
                         .reduce(
                           (s, r) => s + cashReceiptSign(r) * Number(r.amount || 0),
                           0,
@@ -1085,7 +1108,7 @@ export default function CashReceiptsPage() {
                     </td>
                     <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)] mono-number">
                       ₩
-                      {receipts
+                      {displayReceipts
                         .reduce(
                           (s, r) => s + cashReceiptSign(r) * Number(r.supply_amount || 0),
                           0,
@@ -1094,7 +1117,7 @@ export default function CashReceiptsPage() {
                     </td>
                     <td className="px-5 py-3 text-xs text-right font-bold text-[var(--text-muted)] mono-number">
                       ₩
-                      {receipts
+                      {displayReceipts
                         .reduce(
                           (s, r) => s + cashReceiptSign(r) * Number(r.tax_amount || 0),
                           0,
@@ -1108,7 +1131,21 @@ export default function CashReceiptsPage() {
             </div>
           )
         )}
-      </div>
+
+          {/* ── 3줄 · 고른 건으로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
+          {tab !== "register" && (
+            <SelectionBar count={selectedReceipts.length} onClear={() => setSelectedIds(new Set())}
+              summary={<>합계 <b className="mono-number">₩{selectedReceipts.reduce((s0: number, r: any) => s0 + cashReceiptSign(r) * Number(r.amount || 0), 0).toLocaleString()}</b></>}>
+              <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }} className="btn-primary btn-sm">
+                전표처리 ({selectedReceipts.length})
+              </button>
+            </SelectionBar>
+          )}
+        </QueryBody>
+
+        <Pager page={pager.page} pages={pager.pages} total={displayReceipts.length} size={live.rows}
+          from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
 
       {/* 국세청 실발행 모달 — CODEF·팝빌 연동 즉시발행 */}
       {showIssueModal && (

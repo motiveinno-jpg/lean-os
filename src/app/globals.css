@@ -1995,9 +1995,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .cash-receipt-issuance-badge { @apply px-2.5 py-1 rounded-md text-[11px] font-semibold border; }
 .cashbill-issue-open { @apply text-xs disabled:opacity-50 disabled:cursor-not-allowed; }
 .cash-receipt-summary-stats { @apply grid grid-cols-2 lg:grid-cols-4 gap-4; }
-.cash-receipt-bulk-action-bar { @apply sticky top-0 z-20 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[var(--bg-card)] border border-[var(--primary)]/30 shadow-sm; }
 .cash-receipt-register-form { @apply p-6 space-y-4; }
-.cash-receipt-table { @apply overflow-auto max-h-[560px] relative; }
 .cash-receipt-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 transition; }
 .cash-receipt-issue-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
 .cash-receipt-bulk-post-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
@@ -8255,6 +8253,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .ledger-row:hover { @apply bg-[var(--bg-surface)]; }
 /* 일반전표 목록 — 조회 표준(B형) (2026-08-18 Wave 1). 셀 안 입력칸이 있어 table-fixed 유지 */
 .ve-list-table { min-width: 1120px; table-layout: fixed; }
+/* 현금영수증 — 조회 표준 표 (2026-08-18 Wave 1) */
+.cr-table { min-width: 1080px; }
 /* 입력 카드가 위에 있어 남는 높이만 목록이 먹는다 — 이 화면 뿌리(.qk-shell) 안 설명 줄은 끝에 붙는다 */
 .qk-shell > .collect-note { @apply shrink-0; }
 .partner-row { @apply cursor-pointer transition-colors; }
