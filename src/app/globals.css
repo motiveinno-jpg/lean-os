@@ -2469,14 +2469,19 @@ table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width
 .approval-stage-row { @apply flex flex-wrap items-center gap-3 bg-[var(--bg)] rounded-xl p-3 border border-[var(--border)]; }
 .approval-timeline-stepper { @apply flex items-center gap-0 mb-5 pb-1; }
 .approval-comment-thread { @apply mt-4 pt-3 border-t border-[var(--border)]/60; }
-.board-toolbar { @apply mb-4; }
 .board-post-form-overlay { @apply fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 overflow-y-auto; }
 .board-post-form-modal { @apply p-5 sm:p-6 my-8 w-full max-w-3xl space-y-3 shadow-2xl; }
 .board-empty-state { @apply py-16 text-center; }
-.board-post-list { @apply space-y-3; }
-.board-post-card { @apply bg-[var(--bg-card)] rounded-2xl border transition; }
-.board-post-header { @apply w-full text-left px-5 py-4 flex items-start gap-3; }
-.board-post-badges { @apply flex items-center gap-2 flex-wrap mb-1; }
+.board-post-badges { @apply flex items-center gap-2 flex-wrap; }
+/*   게시판 표 (2026-08-18 조회 표준) — 줄 클릭으로 아래에 본문·투표·첨부·댓글 펼침 */
+table.board-table { min-width: 900px; }
+.board-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
+.board-table tbody tr.board-row { @apply cursor-pointer; }
+.board-table tbody tr.board-row:hover td { background: var(--bg-surface); }
+.board-table tbody tr.board-row-open td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.board-table tbody tr.board-detail-row > td { @apply bg-[var(--bg-surface)]/40 p-0; max-width: 0; white-space: normal; } /* max-width:0 — 펼침 칸이 표 폭을 넘어 늘어나지 않게 */
+.board-table .board-post-detail { @apply overflow-x-auto; }
+.board-table .board-post-detail { @apply px-5 py-4; }
 .board-post-detail { @apply px-5 pb-4; }
 .board-poll-block { @apply mt-3 rounded-xl border border-[var(--border)] p-3; }
 .board-poll-option { @apply w-full text-left relative overflow-hidden rounded-lg border px-3 py-2 transition; }
@@ -4682,7 +4687,7 @@ table.annc-table { min-width: 860px; }
 .annc-table tbody tr.annc-row { @apply cursor-pointer; }
 .annc-table tbody tr.annc-row:hover td { background: var(--bg-surface); }
 .annc-table tbody tr.annc-row-open td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
-.annc-table tbody tr.annc-detail-row > td { @apply bg-[var(--bg-surface)]/40 p-0; }
+.annc-table tbody tr.annc-detail-row > td { @apply bg-[var(--bg-surface)]/40 p-0; max-width: 0; white-space: normal; }
 table.notif-table { min-width: 960px; }
 .notif-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
 .notif-table td.truncate { max-width: 0; }
@@ -4729,7 +4734,7 @@ table.ap-policy-table { min-width: 960px; }
 /*   결재 허브 목록 탭 — 상자 안 상자 금지: 빈 상태·펼침 줄은 카드 없이 (2026-08-18 사장님) */
 .ap-empty { @apply px-6 py-16 text-center; }
 .ap-row-open td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
-.ap-detail-row > td { @apply border-b border-[var(--border)] bg-[var(--bg-surface)]/40 p-0; }
+.ap-detail-row > td { @apply border-b border-[var(--border)] bg-[var(--bg-surface)]/40 p-0; max-width: 0; white-space: normal; }
 .ap-detail-row .approval-timeline-panel { @apply border-0 bg-transparent; }
 /* ── 구성원(/employees) — 조회 표준 (2026-08-18 Wave 4) ──
    급여·휴가·증명서 탭 본문은 상자 안에서 스크롤(끝선 = 사이드바). 인력관리 탭은 디렉토리 부품이 상자 전체를 그린다. */

@@ -7,13 +7,18 @@ import { logRead } from "@/lib/log-read";
 import type { ReactNode } from "react";
 import { DateTimeField } from "@/components/datetime-field";
 import { DateField } from "@/components/date-field";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
 import { useToast } from "@/components/toast";
-import { QueryBar, ChipGroup, QuickSearch, quickSearchHit } from "@/components/query-kit";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ChipGroup, QuickSearch, quickSearchHit, ConditionPanel, ConditionRow, TokenField,
+  AppliedChips, ResultStrip, Stat, RowsPerPage, Pager, usePager, type AppliedChip,
+} from "@/components/query-kit";
+import { SortableTh, nextSort, cmp, useColWidths, type SortState } from "@/components/sortable-th";
+import { DateRangeField } from "@/components/date-range-field";
 import { FileUploadMulti } from "@/components/file-upload-multi";
 import { RichEditor } from "@/components/rich-editor";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
@@ -127,8 +132,21 @@ export default function BoardPage() {
     } catch { /* 무시 */ }
   }, []);
   // 플렉스/슬랙식 2단 — 좌측 필터/검색
-  const [filter, setFilter] = useState<"all" | "pinned" | "event" | "poll" | "file" | "mine">("all");
+  //   보기(전체/내 글)는 조회 줄, 종류·작성자·기간은 검색조건 (2026-08-18 규칙: 값 필터는 검색조건)
+  const [view, setView] = useState<"all" | "mine">("all");
   const [search, setSearch] = useState("");
+  type BCond = { kinds: string[]; authors: string[]; from: string; to: string; rows: number };
+  const BEMPTY: BCond = { kinds: [], authors: [], from: "", to: "", rows: 50 };
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [bDraft, setBDraft] = useState<BCond>(BEMPTY);
+  const [bLive, setBLive] = useState<BCond>(BEMPTY);
+  const bCount = (c: BCond) => c.kinds.length + c.authors.length + ((c.from || c.to) ? 1 : 0);
+  type BSort = "title" | "author" | "created";
+  const [bSort, setBSort] = useState<SortState<BSort>>({ key: "created", dir: "desc" });
+  const onBSort = (k: BSort) => setBSort((c) => nextSort(c, k));
+  const tableRef = useRef<HTMLTableElement | null>(null);
+  const [colW, setColW] = useColWidths("board-colw-v1", { title: 560, author: 140, created: 170 });
+  const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
   // 사진 첨부 라이트박스 (팝업 보기 + 넘기기 + 드래그)
   const [lightbox, setLightbox] = useState<{ images: { url: string; name: string }[]; index: number } | null>(null);
   // 댓글 사진 첨부 (draftKey별 업로드된 첨부 목록)
@@ -749,15 +767,40 @@ export default function BoardPage() {
   }
 
   // HR 서비스식 필터 + 검색
-  const filteredPosts = posts.filter((p) => {
-    if (filter === "pinned" && !p.pinned) return false;
-    if (filter === "event" && !p.event_date) return false;
-    if (filter === "poll" && !p.poll_question) return false;
-    if (filter === "file" && !(p.attachments?.length)) return false;
-    if (filter === "mine" && p.author_id !== user?.id) return false;
-    if (!quickSearchHit(search, [p.title, stripHtml(p.content)])) return false;
+  const KINDS = [{ key: "pinned", label: "고정" }, { key: "event", label: "일정" }, { key: "poll", label: "투표" }, { key: "file", label: "첨부" }];
+  const authorOf = (p: any) => p.author_name || p.author_email || "익명";
+  const kindHit = (p: any, k: string) => k === "pinned" ? !!p.pinned : k === "event" ? !!p.event_date : k === "poll" ? !!p.poll_question : k === "file" ? (p.attachments?.length ?? 0) > 0 : true;
+  const bHit = (p: any, c: BCond) => {
+    if (c.kinds.length && !c.kinds.some((k) => kindHit(p, k))) return false;
+    if (c.authors.length && !c.authors.includes(authorOf(p))) return false;
+    const d = String(p.created_at || "").slice(0, 10);
+    if (c.from && d < c.from) return false;
+    if (c.to && d > c.to) return false;
     return true;
+  };
+  const filteredPosts = posts.filter((p) => {
+    if (view === "mine" && p.author_id !== user?.id) return false;
+    if (!bHit(p, bLive)) return false;
+    if (!quickSearchHit(search, [p.title, stripHtml(p.content), authorOf(p)])) return false;
+    return true;
+  }).sort((a, b) => {
+    //   고정 글은 항상 위, 그 안에서 정렬
+    const d = bSort.dir === "asc" ? 1 : -1;
+    const pin = Number(!!b.pinned) - Number(!!a.pinned);
+    if (pin) return pin;
+    if (bSort.key === "title") return cmp(a.title || "", b.title || "") * d;
+    if (bSort.key === "author") return cmp(authorOf(a), authorOf(b)) * d;
+    return cmp(String(a.created_at || ""), String(b.created_at || "")) * d;
   });
+  const pager = usePager(filteredPosts, bLive.rows, `${view}|${search}|${JSON.stringify(bLive)}|${JSON.stringify(bSort)}`);
+  const authorOpts = [...new Set(posts.map(authorOf))].sort((a, b) => a.localeCompare(b, "ko")).map((v) => ({ value: v, label: v }));
+  const bDrop = (patch: Partial<BCond>) => { const c = { ...bLive, ...patch }; setBLive(c); setBDraft(c); };
+  const bChips: AppliedChip[] = [
+    ...(search ? [{ group: "빠른검색", label: search, onRemove: () => setSearch("") }] : []),
+    ...bLive.kinds.map((k) => ({ group: "종류", label: KINDS.find((x) => x.key === k)?.label || k, onRemove: () => bDrop({ kinds: bLive.kinds.filter((x) => x !== k) }) })),
+    ...bLive.authors.map((a) => ({ group: "작성자", label: a, onRemove: () => bDrop({ authors: bLive.authors.filter((x) => x !== a) }) })),
+    ...((bLive.from || bLive.to) ? [{ group: "기간", label: `${bLive.from || "처음"} ~ ${bLive.to || "오늘"}`, onRemove: () => bDrop({ from: "", to: "" }) }] : []),
+  ];
 
   // 글쓰기/수정 모달 — ESC 닫기, Enter 저장(제목·내용 미입력·업로드/저장 중엔 비활성)
   const canSavePost =
@@ -765,21 +808,46 @@ export default function BoardPage() {
   useModalKeys(showForm, resetForm, canSavePost ? () => savePost.mutate() : undefined);
 
   return (
-    <div className="">
-      {/* 컴팩트 툴바 — 좌: 필터, 우: 검색 + 글쓰기 */}
-      {/* 조회 줄 — 게시판은 피드(D형)라 표준 전면 대상이 아니지만 검색 줄만 같은 부품으로 (2026-08-18 Wave 3) */}
-      <div className="board-toolbar">
+    <div className="qk-shell">
+      <QueryScreen>
+      <QueryHead>
+      {/* 조회 줄 — 2026-08-18 조회 표준: [검색조건(종류·작성자·기간·줄 수) ▾ · 빠른검색 · 보기(전체/내 글)] ‖ + 글쓰기 */}
         <QueryBar right={!showForm ? (
           <button type="button" onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 글쓰기</button>
         ) : undefined}>
-          <ChipGroup value={filter} onChange={setFilter}
-            options={[
-              { value: "all", label: `전체 ${posts.length}` }, { value: "pinned", label: "고정" }, { value: "event", label: "일정" },
-              { value: "poll", label: "투표" }, { value: "file", label: "첨부" }, { value: "mine", label: "내 글" },
-            ]} />
-          <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 내용 — 쉼표로 여러 개, Enter" />
+          <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) setBDraft(bLive); setPanelOpen(v); }} activeCount={bCount(bLive)}
+            foot={<>
+              <button type="button" className="btn-secondary btn-sm" disabled={bCount(bDraft) === 0} onClick={() => setBDraft({ ...BEMPTY, rows: bDraft.rows })}>조건 지우기</button>
+              <span className="ml-auto text-[11px] text-[var(--text-dim)]">{posts.filter((p) => bHit(p, bDraft)).length}건</span>
+              <RowsPerPage value={bDraft.rows} onChange={(n) => setBDraft((c) => ({ ...c, rows: n }))} />
+              <button type="button" className="btn-primary btn-sm" onClick={() => { setBLive(bDraft); setPanelOpen(false); }}>조회</button>
+            </>}>
+            <ConditionRow label="종류" hint="여러 개 · 하나라도 맞으면">
+              <span className="qk-quicks">
+                {KINDS.map((k) => (
+                  <button key={k.key} type="button" onClick={() => setBDraft((c) => ({ ...c, kinds: c.kinds.includes(k.key) ? c.kinds.filter((x) => x !== k.key) : [...c.kinds, k.key] }))}
+                    className={bDraft.kinds.includes(k.key) ? "qk-quick qk-quick-on" : "qk-quick"}>{k.label}</button>
+                ))}
+              </span>
+            </ConditionRow>
+            <ConditionRow label="작성자" hint="여러 명">
+              <TokenField items={authorOpts} value={bDraft.authors} onChange={(v) => setBDraft((c) => ({ ...c, authors: v }))} placeholder="이름 일부" />
+            </ConditionRow>
+            <ConditionRow label="기간" hint="비우면 전체">
+              <DateRangeField label={null} from={bDraft.from} to={bDraft.to} onChange={(f, t) => setBDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setBDraft((c) => ({ ...c, from: "", to: "" }))} />
+            </ConditionRow>
+          </ConditionPanel>
+          <QuickSearch value={search} onApply={setSearch} placeholder="제목 · 내용 · 작성자 — 쉼표로 여러 개, Enter" />
+          <ChipGroup value={view} onChange={setView} options={[{ value: "all", label: "전체" }, { value: "mine", label: "내 글" }] as const} />
         </QueryBar>
-      </div>
+        <AppliedChips chips={bChips} onClearAll={() => { setSearch(""); setBLive(BEMPTY); setBDraft(BEMPTY); setView("all"); }} />
+        <ResultStrip right={<span className="text-[11px] text-[var(--text-dim)]">표시 <b className="mono-number">{filteredPosts.length}</b>건</span>}>
+          <Stat label="글" value={`${posts.length}건`} />
+          <Stat label="고정" value={`${posts.filter((p) => p.pinned).length}건`} />
+          <Stat label="투표" value={`${posts.filter((p) => p.poll_question).length}건`} />
+          <Stat label="첨부" value={`${posts.filter((p) => (p.attachments?.length ?? 0) > 0).length}건`} />
+        </ResultStrip>
+      </QueryHead>
 
       {showForm && (
         <div className="board-post-form-overlay fixed inset-0">
@@ -955,12 +1023,11 @@ export default function BoardPage() {
         </div>
       )}
 
+      <QueryBody>
       {isLoading ? (
-        <div className="p-12 text-center text-sm text-[var(--text-muted)]">
-          불러오는 중...
-        </div>
+        <div className="collect-empty">불러오는 중…</div>
       ) : filteredPosts.length === 0 ? (
-        <div className="board-empty-state glass-card">
+        <div className="collect-empty board-empty-state">
           <div className="text-4xl mb-3"><Ico e="📝" /></div>
           <div className="text-sm font-semibold text-[var(--text)]">
             {posts.length === 0
@@ -985,29 +1052,25 @@ export default function BoardPage() {
           )}
         </div>
       ) : (
-        <div className="board-post-list">
-          {filteredPosts.map((p) => {
+        <div className="ev-scroll">
+        <table ref={tableRef} className="ev-table ev-lined board-table">
+          <thead>
+            <tr>
+              <SortableTh label="제목" sortKey="title" sort={bSort} onSort={onBSort} resize={thResize("title", 1)} />
+              <SortableTh label="작성자" sortKey="author" sort={bSort} onSort={onBSort} resize={thResize("author", 2)} />
+              <SortableTh label="등록" sortKey="created" sort={bSort} onSort={onBSort} resize={thResize("created", 3)} />
+            </tr>
+          </thead>
+          <tbody>
+          {(pager.view as Post[]).map((p) => {
             const open = openId === p.id;
             const isMine = mine(p.author_id);
             const opts = p.poll_options || [];
             const isMulti = !!p.poll_multi;
             return (
-              <div
-                key={p.id}
-                className={`board-post-card ${
-                  p.pinned
-                    ? "border-[var(--primary)]/30"
-                    : "border-[var(--border)]"
-                }`}
-              >
-                <button
-                  onClick={() => setOpenId(open ? null : p.id)}
-                  className="board-post-header"
-                >
-                  <div className="w-9 h-9 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-sm font-bold shrink-0">
-                    {(p.author_name || p.author_email || "?")[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
+              <Fragment key={p.id}>
+                <tr className={open ? "board-row board-row-open" : "board-row"} onClick={() => setOpenId(open ? null : p.id)}>
+                  <td className="text-left">
                     <div className="board-post-badges">
                       {p.pinned && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold">
@@ -1032,26 +1095,20 @@ export default function BoardPage() {
                       <span className="text-sm font-bold text-[var(--text)] truncate">
                         {p.title}
                       </span>
+                      <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
                     </div>
-                    <div className="text-[11px] text-[var(--text-dim)]">
-                      {p.author_name || p.author_email || "익명"} ·{" "}
-                      {new Date(p.created_at).toLocaleString("ko-KR")}
-                      {p.updated_at !== p.created_at && " (수정됨)"}
-                    </div>
-                  </div>
-                  <svg
-                    className={`w-4 h-4 shrink-0 text-[var(--text-dim)] transition-transform ${
-                      open ? "rotate-180" : ""
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
+                  </td>
+                  <td className="text-center">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="w-6 h-6 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] inline-flex items-center justify-center text-[10px] font-bold shrink-0">{(p.author_name || p.author_email || "?")[0].toUpperCase()}</span>
+                      {p.author_name || p.author_email || "익명"}
+                    </span>
+                  </td>
+                  <td className="text-center mono-number whitespace-nowrap">{new Date(p.created_at).toLocaleString("ko-KR")}{p.updated_at !== p.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
+                </tr>
                 {open && (
+                  <tr className="board-detail-row" onClick={(e) => e.stopPropagation()}>
+                  <td colSpan={3}>
                   <div className="board-post-detail">
                     {/* 본문 — 새 글(HTML 서식)은 sanitize 후 렌더, 기존 평문 글은 pre-wrap 유지 */}
                     {isHtmlContent(p.content) ? (
@@ -1515,12 +1572,19 @@ export default function BoardPage() {
                       </div>
                     </div>
                   </div>
+                  </td>
+                  </tr>
                 )}
-              </div>
+              </Fragment>
             );
           })}
+          </tbody>
+        </table>
         </div>
       )}
+      </QueryBody>
+      <Pager page={pager.page} pages={pager.pages} total={filteredPosts.length} size={bLive.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
       {lightbox && (
         <BoardLightbox
           images={lightbox.images}
