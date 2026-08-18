@@ -9290,6 +9290,8 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 /*   ⚠️ 줄 클래스는 .bk-match-row — 예전 .bk-sug(flex, 0661d235 잔재)와 이름이 겹쳐 tr 이 flex 가 되며 표가 깨졌다 (2026-08-18) */
 .bk-match-row td { @apply border-b border-[var(--border)] py-2 px-3 whitespace-normal; background: color-mix(in srgb, var(--primary) 4%, transparent); }
 /*   표가 1660px 로 가로 스크롤이라 스트립은 왼쪽에 붙어 따라온다(sticky) — 스크롤해도 제안이 보인다 */
+/*   후보 없는 입금 — 입금 칩 옆 작은 [계산서 찾기] (스트립 대신) */
+.bk-find { @apply ml-1 inline-flex h-5 items-center rounded border border-dashed border-[var(--border)] px-1.5 text-[10.5px] text-[var(--text-dim)] transition hover:border-[var(--primary)]/60 hover:text-[var(--primary)]; }
 .bk-sug-in { @apply sticky left-0 flex w-max max-w-[960px] flex-wrap items-center gap-2 text-[12px]; }
 .bk-sug-tag { @apply inline-flex items-center rounded-full bg-[var(--primary)] px-2 py-0.5 text-[10.5px] font-bold text-white; }
 .bk-sug-row { @apply inline-flex flex-wrap items-center gap-2; }

@@ -905,7 +905,11 @@ export function BankTab({
                 const done = doneOf(r);
                 const on = sel.has(r.id);
                 //   AI 매칭 제안 — 켜져 있을 때, 미매칭 입금 줄 아래에만 스트립을 붙인다
-                const sug = matchMode && r.isIn && !done && !r.taxLinked ? matchCandsOf(r) : null;
+                //   ★ 후보 없는 줄엔 스트립을 안 붙인다 (2026-08-18 prod 검증: 한 쪽 24건 중 21건이 빈 스트립이라
+                //     표가 안내문으로 덮였다). 대신 입금 칩 옆에 작은 [계산서 찾기]만 둔다 — 직접 고를 길은 남긴다.
+                const matchable = matchMode && r.isIn && !done && !r.taxLinked;
+                const cands = matchable ? matchCandsOf(r) : [];
+                const sug = matchable && cands.length > 0 ? cands : null;
                 return (
                   <React.Fragment key={r.id}>
                   <tr className={done ? "ev-posted" : on ? "ev-on" : ""}>
@@ -918,6 +922,18 @@ export function BankTab({
                     <td className="mono-number">{r.date.slice(5)}</td>
                     <td>
                       <em className={r.isIn ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{r.isIn ? "입금" : "출금"}</em>
+                      {matchable && cands.length === 0 && (
+                        <span className="relative inline-block">
+                          <button type="button" className="bk-find" title="맞는 계산서 제안이 없습니다 — 계산서 없는 매출일 수 있습니다. 직접 찾아 매칭하거나, 그냥 전표만 만들어도 됩니다"
+                            onClick={() => setMatchPick(matchPick === r.id ? null : r.id)}>계산서 찾기</button>
+                          {matchPick === r.id && (
+                            <PickList items={invPickItems} placeholder="계산서 검색 (거래처·금액·프로젝트·발행일)"
+                              empty="최근 1년 미매칭 매출 계산서가 없습니다"
+                              onPick={(it) => { setMatchPick(null); confirmMatch(r, (it as any).inv); }}
+                              onClose={() => setMatchPick(null)} />
+                          )}
+                        </span>
+                      )}
                     </td>
                     <td className="ev-ell">{r.who}</td>
                     <td className="ev-ell ev-dim">{r.desc || "—"}</td>
@@ -1004,18 +1020,6 @@ export function BankTab({
                     return (
                     <tr className="bk-match-row">
                       <td colSpan={10}>
-                        {sug.length === 0 ? (
-                          <div className="bk-sug-in">
-                            <span className="bk-sug-tag">AI 매칭 제안</span>
-                            <span className="ev-dim">맞는 계산서가 없습니다 — 계산서 없는 매출(현금영수증·단순 입금)일 수 있습니다.</span>
-                            <span className="relative inline-block">
-                              <button type="button" className="btn-secondary btn-sm"
-                                onClick={() => setMatchPick(matchPick === r.id ? null : r.id)}>계산서 직접 찾기</button>
-                              {picker}
-                            </span>
-                            <span className="ev-dim">그냥 전표만 만들어도 됩니다 (매칭은 비워 둠)</span>
-                          </div>
-                        ) : (
                           <div className="bk-sug-in">
                             <span className="bk-sug-tag">AI 매칭 제안</span>
                             {(matchOpen === r.id ? sug : sug.slice(0, 1)).map(({ inv, why }) => {
@@ -1053,7 +1057,6 @@ export function BankTab({
                               {picker}
                             </span>
                           </div>
-                        )}
                       </td>
                     </tr>
                     );
