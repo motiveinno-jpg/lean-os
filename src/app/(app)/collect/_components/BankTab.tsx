@@ -196,13 +196,27 @@ export function BankTab({
       const { data, error } = await supabase.from("tax_invoices")
         .select("id, issue_date, counterparty_name, total_amount, deal_id, deals(name), partner_id, status")
         .eq("company_id", companyId).eq("type", "sales")
-        .neq("status", "void").neq("status", "matched")
+        .not("status", "in", "(void,matched,modified)")
         .gte("issue_date", since.toISOString().slice(0, 10))
         .order("issue_date", { ascending: false }).limit(500);
       if (error) throw error;
-      return data || [];
+      const rows = (data || []) as any[];
+      //   ★ 취소된 원본을 걸러낸다 (2026-08-18 사장님 화면 검증에서 발견).
+      //     홈택스 수정세금계산서(취소)는 원본은 그대로 두고 **같은 거래처·마이너스 금액** 한 장이 더 온다
+      //     (예: 야키니쿠 하 3,025,000 / -3,025,000). 원본 status 는 issued 그대로라 후보로 올라와
+      //     받을 일 없는 돈을 제안하게 된다. 마이너스 장과 짝이 맞는 원본은 뺀다.
+      const cancels = new Set(rows.filter((x) => Number(x.total_amount) < 0)
+        .map((x) => `${String(x.counterparty_name || "").trim()}|${Math.abs(Number(x.total_amount))}`));
+      return rows.filter((x) => {
+        const t = Number(x.total_amount || 0);
+        if (t <= 0) return false;                     // 마이너스 장 자체는 받을 돈이 아니다
+        const k = `${String(x.counterparty_name || "").trim()}|${t}`;
+        if (cancels.has(k)) { cancels.delete(k); return false; }   // 취소 한 장당 원본 한 장만 뺀다
+        return true;
+      });
     },
-    enabled: !!companyId && matchMode,
+    enabled: !!companyId,
+    staleTime: 60_000,
   });
   /** 이 입금의 계산서 후보 — 금액 ±10% 는 문턱, 이름 겹침은 가산. 근거를 함께 돌려준다. */
   const matchCandsOf = (r: Row): { inv: any; why: string[] }[] => {
@@ -215,10 +229,15 @@ export function BankTab({
       if (total <= 0) continue;
       const diff = Math.abs(total - amt) / total;
       if (diff > 0.1) continue;                       // 금액이 문턱 — 엉뚱한 후보로 어지럽히지 않는다
+      const nm = String(inv.counterparty_name || "").trim().toLowerCase();
+      const nameHit = nm.length >= 2 && names.includes(nm.slice(0, Math.min(nm.length, 4)));
+      //   ★ '금액 근접'만으로는 제안하지 않는다 (2026-08-18 사장님 화면 검증):
+      //     카드 취소 환입 132,000 에 스마트케어 143,902 가, 자기 회사 계좌이동 60,300 에 옛한우 63,452 가
+      //     붙었다. 근접은 거래처가 겹칠 때만 근거가 된다. 그 밖의 계산서는 [다른 계산서 찾기]로 사람이 고른다.
+      if (diff !== 0 && !nameHit) continue;
       const why: string[] = [diff === 0 ? "금액 일치" : "금액 근접(±10%)"];
       let score = diff === 0 ? 3 : 1;
-      const nm = String(inv.counterparty_name || "").trim().toLowerCase();
-      if (nm.length >= 2 && names.includes(nm.slice(0, Math.min(nm.length, 4)))) { score += 2; why.push("거래처 일치"); }
+      if (nameHit) { score += 2; why.push("거래처 일치"); }
       out.push({ inv, why, score });
     }
     return out.sort((a, b) => b.score - a.score).slice(0, 5);
@@ -412,10 +431,11 @@ export function BankTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownUnsorted, sort]);
   //   매칭 제안 대상 — 미매칭 입금(전표·수금·계좌이동·계산서 연결이 없는 것)
+  //   배지 = 그중 **제안이 붙는 줄 수** — 후보 없는 입금까지 세면 켜 봐야 빈 스트립뿐이라 숫자가 거짓말한다
   const matchTargets = useMemo(
-    () => shown.filter((r) => r.isIn && !doneOf(r) && !r.taxLinked),
+    () => shown.filter((r) => r.isIn && !doneOf(r) && !r.taxLinked && matchCandsOf(r).length > 0),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shown]);
+    [shown, openInvoices]);
   //   페이지 — 기본 50줄. 조건이 바뀌면 1쪽으로 (2026-08-13 사장님 지시)
   const pager = usePager(shown, live.size, `${from}|${to}|${q}|${JSON.stringify(live)}|${JSON.stringify(Object.fromEntries(Object.entries(colF).map(([k, v]) => [k, v ? [...v] : null])))}`);
   //   선택은 쪽을 넘겨도 남는다
@@ -982,7 +1002,7 @@ export function BankTab({
                       </span>
                     );
                     return (
-                    <tr className="bk-sug">
+                    <tr className="bk-match-row">
                       <td colSpan={10}>
                         {sug.length === 0 ? (
                           <div className="bk-sug-in">
