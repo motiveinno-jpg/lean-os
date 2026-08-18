@@ -7976,10 +7976,12 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .spv-grid { @apply min-w-[1180px]; }
 /* 년 월 일 코드 거래처 사업자번호 유형 품명 공급가액 부가세 합계 전자 분개 삭제 */
 .spv-row { @apply grid items-center border-b border-[var(--border)]/50;
-  grid-template-columns: 56px 40px 40px 68px minmax(130px,1.1fr) 118px 108px minmax(130px,1.3fr) 108px 96px 108px 52px 84px 30px; }
+  /*   열 너비는 .spv-grid 의 --spv-cols(화면 상태, 드래그 조절·localStorage 기억)가 정한다. 없으면 기본값 */
+  grid-template-columns: var(--spv-cols, 56px 40px 40px 96px minmax(190px,1fr) 130px 116px minmax(220px,1fr) 108px 96px 108px 52px 84px 30px); }
 .spv-head { @apply bg-[var(--bg-surface)]; position: sticky; top: 0; z-index: 3; }
 .spv-head > span { position: relative; }
-.spv-head > span.th-hasf { padding-left: 22px; padding-right: 22px; }
+.spv-head > span.th-hasf { padding-left: 6px; padding-right: 22px; }
+.spv-head > span > .th-grip { right: -3px; }
 .spv-head > span > .th-filter { @apply absolute right-1 top-1/2 -translate-y-1/2; }
 /*   격자를 감싸는 가로 스크롤 상자를 끄고 .spv-body 하나만 스크롤한다 — 안 그러면 sticky 머리단이 위 상자에 붙어 세로 스크롤을 못 따라온다 */
 .spv-body > .spv-grid-wrap, .spv-body > .spv-grid-wrap > .spv-scroll { overflow: visible; }

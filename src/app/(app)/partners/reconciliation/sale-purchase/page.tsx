@@ -16,7 +16,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { PickList } from "@/components/pick-list";
 import { downloadCsv as writeCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
-import { nextSort, ThFilter, useColFilters, type SortState } from "@/components/sortable-th";
+import { nextSort, ThFilter, useColFilters, useColWidths, type SortState } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField,
   AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, defaultRangeMonth, periodQuicksMonth,
@@ -282,6 +282,26 @@ function SalePurchaseInner() {
     if (c.side.length && !c.side.includes(vatType(r.vatCode)?.side || "")) return false;
     return true;
   };
+  //   열 너비 — 표 머리단 표준처럼 드래그로 조절·더블클릭 초기화. 격자(grid)라 SortableTh 를 못 쓰고 같은 손잡이(th-grip)만 붙인다.
+  //   ⚠️ 2026-08-18 사장님 지적: 코드 칸이 좁아 정렬 버튼이 ≡ 에 가려 안 눌렸다 — 칸을 넓히고 손잡이를 달았다.
+  const SPV_COLS = ["y", "m", "d", "code", "partner", "biz", "type", "item", "supply", "vat", "total", "elec", "je", "x"] as const;
+  const [colW, setColW] = useColWidths("sale-purchase-colw-v1", {
+    y: 56, m: 40, d: 40, code: 96, partner: 190, biz: 130, type: 116, item: 220, supply: 108, vat: 96, total: 108, elec: 52, je: 84, x: 30,
+  });
+  const gridTemplate = SPV_COLS.map((k) => (k === "partner" || k === "item" ? `minmax(${colW[k]}px, 1fr)` : `${colW[k]}px`)).join(" ");
+  const grip = (k: (typeof SPV_COLS)[number]) => (
+    <span className="th-grip" title="드래그: 너비 조절 · 더블클릭: 처음 너비"
+      onMouseDown={(e) => {
+        e.preventDefault(); e.stopPropagation();
+        const startX = e.clientX; const startW = colW[k] || 80;
+        const move = (ev: MouseEvent) => setColW(k, Math.max(40, startW + (ev.clientX - startX)));
+        const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); document.body.style.cursor = ""; };
+        document.body.style.cursor = "col-resize";
+        window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+      }}
+      onDoubleClick={(e) => { e.stopPropagation(); setColW(k, ({ y: 56, m: 40, d: 40, code: 96, partner: 190, biz: 130, type: 116, item: 220, supply: 108, vat: 96, total: 108, elec: 52, je: 84, x: 30 } as Record<string, number>)[k]); }}
+      onClick={(e) => e.stopPropagation()} />
+  );
   //   머리단 ≡ 필터 — 칸에 실제로 있는 값 중에서 고른다 (수집·전표와 같은 부품)
   const cf = useColFilters();
   const colVal = (r: Row) => ({
@@ -835,14 +855,15 @@ function SalePurchaseInner() {
                   ))}
                 </span>
               </ConditionRow>
-              <ConditionRow label="구분">
+              {/*   구분(매출/매입)은 갈래가 '전체'일 때만 뜻이 있다 — 매출세금 탭에서 매입을 고르게 두면 조건이 거짓말한다 (2026-08-18 사장님) */}
+              {group === "all" && <ConditionRow label="구분">
                 <span className="qk-quicks">
                   {[{ v: "sale", l: "매출" }, { v: "buy", l: "매입" }].map((o) => (
                     <button key={o.v} type="button" onClick={() => setD("side")(toggleIn(cDraft.side, o.v))}
                       className={cDraft.side.includes(o.v) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.l}</button>
                   ))}
                 </span>
-              </ConditionRow>
+              </ConditionRow>}
               <ConditionRow label="거래처" hint="여러 곳">
                 <TokenField items={ptOpts} value={cDraft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
               </ConditionRow>
@@ -896,23 +917,23 @@ function SalePurchaseInner() {
       {/* ── 위 격자: 전표 목록 + 입력 ── */}
       <div className={phoneGrid ? "spv-grid-wrap glass-card spv-grid-forced" : "spv-grid-wrap glass-card"} ref={gridRef}>
         <div className="spv-scroll">
-          <div className="spv-grid">
+          <div className="spv-grid" style={{ ["--spv-cols" as string]: gridTemplate }}>
             {/* 제목줄 — 누르면 저장분이 그 칸 기준으로 정렬된다(한 번 더 누르면 거꾸로, 세 번째는 해제).
                 입력 줄은 정렬을 안 탄다 — 치던 자리가 움직이면 안 되기 때문이다 (2026-08-11) */}
             {/*   머리단은 표 머리단 표준과 같은 모양(색·가운데·세로선·▼·≡)이고 스크롤해도 붙어 있는다 (2026-08-18 사장님) */}
             <div className="spv-row spv-head">
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>년{sortMark("date")}</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>월</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>일</button></span>
-              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("code")}>코드{sortMark("code")}</button><ThFilter spec={cfSpec("code")} /></span>
-              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("partner")}>거래처{sortMark("partner")}</button><ThFilter spec={cfSpec("partner")} /></span>
-              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("biz")}>사업자등록번호{sortMark("biz")}</button><ThFilter spec={cfSpec("biz")} /></span>
-              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("type")}>유형{sortMark("type")}</button><ThFilter spec={cfSpec("type")} /></span>
-              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("item")}>품명{sortMark("item")}</button><ThFilter spec={cfSpec("item")} /></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("supply")}>공급가액{sortMark("supply")}</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("tax")}>부가세{sortMark("tax")}</button></span>
-              <span><button type="button" className="spv-sort" onClick={() => toggleSort("total")}>합계{sortMark("total")}</button></span>
-              <span>전자</span><span>분개</span><span />
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>년{sortMark("date")}</button>{grip("y")}</span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>월</button>{grip("m")}</span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("date")}>일</button>{grip("d")}</span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("code")}>코드{sortMark("code")}</button><ThFilter spec={cfSpec("code")} />{grip("code")}</span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("partner")}>거래처{sortMark("partner")}</button><ThFilter spec={cfSpec("partner")} />{grip("partner")}</span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("biz")}>사업자등록번호{sortMark("biz")}</button><ThFilter spec={cfSpec("biz")} />{grip("biz")}</span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("type")}>유형{sortMark("type")}</button><ThFilter spec={cfSpec("type")} />{grip("type")}</span>
+              <span className="th-hasf"><button type="button" className="spv-sort" onClick={() => toggleSort("item")}>품명{sortMark("item")}</button><ThFilter spec={cfSpec("item")} />{grip("item")}</span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("supply")}>공급가액{sortMark("supply")}</button>{grip("supply")}</span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("tax")}>부가세{sortMark("tax")}</button>{grip("vat")}</span>
+              <span><button type="button" className="spv-sort" onClick={() => toggleSort("total")}>합계{sortMark("total")}</button>{grip("total")}</span>
+              <span>전자{grip("elec")}</span><span>분개{grip("je")}</span><span />
             </div>
 
             {/* 저장된 전표 — 누르면 그 자리에서 고친다 (2026-08-11 사장님 지시).
