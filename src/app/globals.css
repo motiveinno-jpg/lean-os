@@ -3307,19 +3307,8 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .refund-contact { @apply mt-10 p-6 rounded-xl bg-blue-500/5 border border-blue-500/10 text-sm text-slate-300 leading-7; }
 .refund-company-info { @apply mt-6 p-6 rounded-xl bg-white/[0.03] border border-white/5 text-sm text-slate-400 space-y-1; }
 .refund-footer { @apply py-10 px-6 bg-[#060810] text-slate-500 border-t border-white/5; }
-.partner-reconciliation-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
-.partner-reconciliation-tabs { @apply w-fit; }
-.partner-reconciliation-progress-card { @apply px-6 py-5; }
 .partner-ai-match-overlay { @apply fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
-.partner-queue-tab { @apply space-y-3; }
-.partner-queue-bulk-bar { @apply p-3 flex flex-wrap items-center justify-between gap-2; }
-.partner-queue-table { @apply overflow-hidden; }
-.partner-manual-match-tab { @apply space-y-3; }
-.partner-manual-toolbar { @apply p-4 flex flex-wrap items-center justify-between gap-3; }
-.partner-manual-match-table { @apply overflow-hidden; }
 .partner-manual-match-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
-.partner-confirmed-tab { @apply space-y-3; }
-.partner-confirmed-table { @apply overflow-hidden; }
 .partner-project-link-modal { @apply fixed inset-0 z-[95] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
 .billing-toolbar { @apply flex flex-wrap items-center justify-between gap-2; }
 .billing-kpi-row { @apply grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }
@@ -8261,6 +8250,11 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .bk-table { min-width: 1660px; }
 /* 거래처 목록 — 조회 표준 표 (2026-08-18 Wave 1) */
 .partner-table { min-width: 1120px; }
+/* 거래 대사 — 조회 표준 표 3종 (2026-08-18 Wave 1) */
+.rc-queue-table { min-width: 1240px; }
+.rc-manual-table { min-width: 860px; }
+.rc-confirmed-table { min-width: 1120px; }
+.rc-adj { background: color-mix(in srgb, #F59E0B 6%, transparent); }
 .partner-row { @apply cursor-pointer transition-colors; }
 .partner-row:hover { @apply bg-[var(--bg-surface)]; }
 /*   한 쪽(차변 또는 대변) — 계정과 거래처를 위아래로 */

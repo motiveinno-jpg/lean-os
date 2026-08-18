@@ -1,6 +1,4 @@
 "use client";
-import { kstDateStr } from "@/lib/kst";
-import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
 // 거래 대사 — 입금·계산서 자동 매칭 (2026-06-12 메뉴 분리: 구 거래처원장의 작업 화면).
@@ -10,8 +8,14 @@ import { logRead } from "@/lib/log-read";
 //   조회(거래처별 잔액)는 /partners/ledger (거래처 원장).
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import { DateField } from "@/components/date-field";
-import Link from "next/link";
+import { DateRangeField } from "@/components/date-range-field";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
+import {
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, HelperMenu, SavedTabs, ConditionSave,
+  ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
+  RowsPerPage, Pager, usePager, useSavedQueries, SelectionBar, defaultRange, periodQuicks,
+  type HelperItem, type AppliedChip,
+} from "@/components/query-kit";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
@@ -19,11 +23,23 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import {
   type QueueRow, type OpenTx, type UnsettledInv,
-  won, fmt, GRID_TH, GRID_TD, MATCH_LABEL, ADJ_REASON_LABEL,
-  useColWidths, ResizableTh,
+  won, fmt, MATCH_LABEL, ADJ_REASON_LABEL,
+  useColWidths,
 } from "../ledger/shared";
 import { STAGE_LABEL } from "@/lib/project-rules";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+
+/**
+ * 검색조건 — 갖춰서 찾는 값들 (조회 화면 표준, 2026-08-18 Wave 1). ★ '조회'를 눌러야 반영. 기간·빠른검색은 즉시.
+ *   구분(입금/출금) · 유형(매칭 방식) · 신뢰도 · 거래처
+ */
+type Cond = { dir: string[]; mtype: string[]; conf: string[]; cp: string[]; rows: number };
+const EMPTY_COND: Cond = { dir: [], mtype: [], conf: [], cp: [], rows: 50 };
+const condCount = (c: Cond) => c.dir.length + c.mtype.length + c.conf.length + c.cp.length;
+const DIR_OPTS = [{ value: "income", label: "입금" }, { value: "expense", label: "출금" }];
+const CONF_OPTS = [{ value: "high", label: "높음 (90%+)" }, { value: "mid", label: "보통 (70~90%)" }, { value: "low", label: "낮음 (70% 미만)" }];
+const confBand = (c: number | null | undefined) => { const v = c ?? 0; return v >= 0.9 ? "high" : v >= 0.7 ? "mid" : "low"; };
+type Tab = "queue" | "manual" | "confirmed";
 
 export default function ReconciliationPage() {
   const { user } = useUser();
@@ -32,23 +48,32 @@ export default function ReconciliationPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const db = supabase;
-  const [tab, setTab] = useState<"queue" | "manual" | "confirmed">("queue");
+  const [tab, setTab] = useState<Tab>("queue");
+  //   ── 조회 화면 표준 — 수집·전표에서 확정한 뼈대. 새로 만들지 않는다 ──
+  const [q, setQ] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [draft, setDraft] = useState<Cond>(EMPTY_COND);
+  const [live, setLive] = useState<Cond>(EMPTY_COND);
+  const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
+  //   머리단 정렬 — 탭마다 칸이 달라 열쇠는 문자열, 탭을 바꾸면 기본(거래일자 내림차순)으로
+  const [sort, setSort] = useState<SortState<string>>({ key: "tdate", dir: "desc" });
+  const onSort = (k: string) => setSort((c) => nextSort(c, k, k === "tdate" || k === "idate" ? "desc" : "asc"));
+  const switchTab = (t: Tab) => { setTab(t); setSort({ key: "tdate", dir: "desc" }); setSelected(new Set()); };
   const [selected, setSelected] = useState<Set<string>>(new Set()); // 확인 큐 선택 매칭
   const [matchTx, setMatchTx] = useState<OpenTx | null>(null); // 수동 매칭 대상 입금
   const [invSearch, setInvSearch] = useState("");
   const [matchDocType, setMatchDocType] = useState<"invoice" | "cash" | "card" | "voucher">("invoice"); // 수동매칭 연결 대상 종류
   const [newAcct, setNewAcct] = useState<{ code: string; name: string; type: string } | null>(null); // 직접입력용 커스텀 계정 추가 폼
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set()); // 카드 다대일 선택
-  const [manualSearch, setManualSearch] = useState(""); // 수동 매칭 탭 거래처(입금자) 검색
   // 확인 큐 — 엑셀식 컬럼 너비 (드래그/더블클릭 자동맞춤, localStorage 기억)
   const queueTableRef = useRef<HTMLTableElement | null>(null);
   const [queueW, setQueueW] = useColWidths("ledger-queue-colw", {
     sel: 36, tdate: 92, ttype: 56, cp: 170, tamt: 110, idate: 92, icp: 170, iamt: 110, amt: 110, mtype: 80, conf: 92, act: 120,
   });
-  // 매칭 엔진 기간 — 기본 최근 100일. 최대 6개월(서버 클램프). 여러 기간 반복해도 기존 매칭 누적.
-  const dStr = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return kstDateStr(d); };
-  const [engStart, setEngStart] = useState(dStr(100));
-  const [engEnd, setEngEnd] = useState(dStr(0));
+  //   조회기간 = 매칭 엔진 기간. 기본 최근 1개월(조회 화면 표준). 최대 6개월(서버 클램프).
+  //   여러 기간 반복해도 기존 매칭 누적. ★ 조회값은 기억하지 않는다 — 편의는 '내 조건'.
+  const [engStart, setEngStart] = useState(() => defaultRange().from);
+  const [engEnd, setEngEnd] = useState(() => defaultRange().to);
 
   // 확인 큐 — 미처리(suggested/needs_review)만. 뷰가 이미 필터하지만(2026-06-12 prod 정의 검증)
   //   방어적으로 클라이언트에서도 포함 목록 필터(핸드오프 §6: 부정 조건 금지, 뷰 오염 시에도 화면 안전).
@@ -313,6 +338,86 @@ export default function ReconciliationPage() {
   const toggleSel = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const highConfIds = queue.filter((m) => (m.confidence ?? 0) >= 0.9).map((m) => m.id);
 
+  //   ── 걸러서 정렬한 목록 (탭별) ──
+  const rowHit = (m: QueueRow, c: Cond) => {
+    if (c.dir.length && !c.dir.includes(m.txn_type || "")) return false;
+    if (c.mtype.length && !c.mtype.includes(m.match_type || "")) return false;
+    if (c.conf.length && !c.conf.includes(confBand(m.confidence))) return false;
+    if (c.cp.length && !c.cp.includes(m.counterparty_name || "")) return false;
+    return true;
+  };
+  const rowQuick = (m: QueueRow) => quickSearchHit(q, [m.counterparty, m.counterparty_name], [Number(m.txn_amount || 0), Number(m.invoice_amount || 0), Number(m.amount || 0)]);
+  const sortRows = <T,>(rows: T[], val: (r: T) => unknown, tie: (r: T) => string) => {
+    const arr = [...rows];
+    arr.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || tie(b).localeCompare(tie(a)); });
+    return arr;
+  };
+  const qVal = (m: QueueRow) => {
+    switch (sort.key) {
+      case "ttype": return m.txn_type ?? ""; case "cp": return m.counterparty ?? ""; case "tamt": return Number(m.txn_amount || 0);
+      case "idate": return m.issue_date ?? ""; case "icp": return m.counterparty_name ?? ""; case "iamt": return Number(m.invoice_amount || 0);
+      case "amt": return Number(m.amount || 0); case "mtype": return MATCH_LABEL[m.match_type] || m.match_type || ""; case "conf": return m.confidence ?? -1;
+      default: return m.transaction_date ?? "";
+    }
+  };
+  const queueShown = useMemo(() => sortRows(queue.filter((m) => rowHit(m, live) && rowQuick(m)), qVal, (m) => m.transaction_date ?? ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queue, live, q, sort]);
+  const confirmedShown = useMemo(() => sortRows((confirmed as QueueRow[]).filter((m) => rowHit(m, live) && rowQuick(m)), qVal, (m) => m.transaction_date ?? ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [confirmed, live, q, sort]);
+  const txRemainingOf = (t: OpenTx) => Math.max(0, Number(t.amount || 0) - Number(t.settled_amount || 0));
+  const mVal = (t: OpenTx) => {
+    switch (sort.key) {
+      case "ttype": return t.type ?? ""; case "cp": return t.counterparty ?? ""; case "tamt": return Number(t.amount || 0);
+      case "settled": return Number(t.settled_amount || 0); case "remain": return txRemainingOf(t);
+      default: return t.transaction_date ?? "";
+    }
+  };
+  const previewCount = tab === "queue" ? queue.filter((m) => rowHit(m, draft)).length
+    : tab === "confirmed" ? (confirmed as QueueRow[]).filter((m) => rowHit(m, draft)).length : 0;
+  //   고를 수 있는 값 — 이 기간 큐·내역에 실제로 있는 것만
+  const mtypeOpts = useMemo(() => [...new Set([...(queue as QueueRow[]), ...(confirmed as QueueRow[])].map((m) => m.match_type).filter(Boolean))]
+    .map((v) => ({ value: v as string, label: MATCH_LABEL[v as string] || (v as string) })), [queue, confirmed]);
+  const cpOpts = useMemo(() => [...new Set([...(queue as QueueRow[]), ...(confirmed as QueueRow[])].map((m) => m.counterparty_name).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [queue, confirmed]);
+
+  //   내 조건 — ★ 하나가 이 화면의 기본값
+  const saved = useSavedQueries("reconciliation", companyId);
+  const paramsNow = { from: engStart, to: engEnd, q, cond: live };
+  const paramsBasic = { ...defaultRange(), q: "", cond: EMPTY_COND };
+  const applySaved = (p: Record<string, unknown>) => {
+    if (typeof p.from === "string" && typeof p.to === "string") { setEngStart(p.from); setEngEnd(p.to); }
+    if (typeof p.q === "string") setQ(p.q);
+    const c = { ...EMPTY_COND, ...(p.cond as Partial<Cond> | undefined) };
+    setDraft(c); setLive(c);
+  };
+  const [defDone, setDefDone] = useState(false);
+  useEffect(() => {
+    if (defDone || !saved.isFetched) return;
+    setDefDone(true);
+    if (saved.def) applySaved(saved.def.params || {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isFetched, saved.def, defDone]);
+  const suggestName = () => {
+    const p: string[] = [];
+    if (draft.dir.length) p.push(draft.dir.map((d) => (d === "income" ? "입금" : "출금")).join("·"));
+    if (draft.conf.length) p.push(draft.conf.map((c) => CONF_OPTS.find((o) => o.value === c)?.label.split(" ")[0] || c).join("·"));
+    if (draft.mtype.length) p.push(MATCH_LABEL[draft.mtype[0]] || draft.mtype[0]);
+    if (draft.cp.length) p.push(draft.cp[0]);
+    return p.slice(0, 3).join(" · ") || "내 조건";
+  };
+  const drop = (patch: Partial<Cond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
+    ...live.dir.map((v) => ({ group: "구분", label: v === "income" ? "입금" : "출금", onRemove: () => drop({ dir: live.dir.filter((x) => x !== v) }) })),
+    ...live.mtype.map((v) => ({ group: "유형", label: MATCH_LABEL[v] || v, onRemove: () => drop({ mtype: live.mtype.filter((x) => x !== v) }) })),
+    ...live.conf.map((v) => ({ group: "신뢰도", label: CONF_OPTS.find((o) => o.value === v)?.label || v, onRemove: () => drop({ conf: live.conf.filter((x) => x !== v) }) })),
+    ...live.cp.map((v) => ({ group: "거래처", label: v, onRemove: () => drop({ cp: live.cp.filter((x) => x !== v) }) })),
+  ];
+  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
+  const toggleIn = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+
   // 수동 매칭 — 미정산 입출금 목록 (확정 안 된 건). settlement_status open/partial.
   //   확인 큐 제안(suggested)만 걸린 거래도 open 이라 여기 포함됨 — 제안 건수·상대 계산서 거래처를 함께 표시.
   //   (통장 입금자명 ≠ 계산서 거래처인 케이스에서 "추천에 뜬 거래를 수동매칭에서 못 찾는" 문제 해결 — 검색도 양쪽 매칭)
@@ -338,13 +443,10 @@ export default function ReconciliationPage() {
     enabled: !!companyId && tab === "manual",
   });
 
-  // 수동 매칭 검색 — 통장 입금자명 + 추천(제안) 계산서 거래처 양쪽 매칭
-  const manualTxMatch = (t: OpenTx) => {
-    const q = manualSearch.trim().toLowerCase();
-    if (!q) return true;
-    if ((t.counterparty || "").toLowerCase().includes(q)) return true;
-    return (t.suggestedPartners || []).some((n) => n.toLowerCase().includes(q));
-  };
+  // 수동 매칭 빠른검색 — 통장 입금자명 + 추천(제안) 계산서 거래처 + 금액 (쉼표 = 또는)
+  const manualTxMatch = (t: OpenTx) =>
+    quickSearchHit(q, [t.counterparty, ...(t.suggestedPartners || [])], [Number(t.amount || 0)]) &&
+    (!live.dir.length || live.dir.includes(t.type));
 
   // 미정산 세금계산서 (수동 매칭 후보)
   const { data: unsettledInv = [] } = useQuery<UnsettledInv[]>({
@@ -519,73 +621,335 @@ export default function ReconciliationPage() {
     ? () => linkProjectMut.mutate({ taxInvoiceId: linkPrompt!.taxInvoiceId, dealId: linkSelected })
     : undefined);
 
-  return (
-    <div className="space-y-6">
-      {/* 툴바 — 탭 (좌) + 기간·매칭 액션 (우), 타이틀은 공통 헤더바가 담당 */}
-      <div className="partner-reconciliation-toolbar">
-        <div className="partner-reconciliation-tabs seg-bar">
-          {([["queue", `거래 정리${queue.length ? ` (${queue.length})` : ""}`], ["manual", "수동 매칭"], ["confirmed", `정리 내역${confirmed.length ? ` (${confirmed.length})` : ""}`]] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>
-              {label}</button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Link href="/partners/ledger" className="btn-secondary text-xs">← 거래처 원장</Link>
-          <button onClick={() => !linkMut.isPending && linkMut.mutate()} disabled={linkMut.isPending}
-            className="btn-secondary text-xs"
-            title="홈택스 세금계산서 거래처를 사업자번호로 자동 등록·연결">
-            {linkMut.isPending ? "연결 중..." : "홈택스 거래처 연결"}</button>
-          <span className="inline-flex items-center gap-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] px-3 py-1.5">
-            <DateField value={engStart} max={engEnd} onChange={(e) => setEngStart(e.target.value)}
-              className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
-            <span className="caption">~</span>
-            <DateField value={engEnd} min={engStart} max={dStr(0)} onChange={(e) => setEngEnd(e.target.value)}
-              className="bg-transparent text-[11px] text-[var(--text)] outline-none" />
-          </span>
-          <button onClick={() => !engineMut.isPending && engineMut.mutate()} disabled={engineMut.isPending || !engStart || !engEnd || engStart > engEnd}
-            className="btn-primary text-xs disabled:opacity-50"
-            title="선택 기간(최대 6개월)의 미정산 입금과 세금계산서를 규칙으로 매칭. 여러 기간 반복해도 기존 매칭은 유지·누적됩니다.">
-            {engineMut.isPending ? "매칭 중..." : "⚙️ 이 기간 매칭"}</button>
-          <button onClick={() => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); })} disabled={aiMut.isPending || matchCd.disabled}
-            className={`btn-primary text-xs ${matchCd.disabled ? "!opacity-40 cursor-not-allowed" : ""}`}
-            title={matchCd.hint ? matchCd.hint : "규칙으로 안 풀린 입금을 AI(Claude)로 한 번에 끝까지 매칭(자동 반복). 시간이 걸릴 수 있습니다."}>
-            {aiMut.isPending ? (aiProgress ? `AI 분석 중... ${aiProgress.processed}건 (제안 ${aiProgress.suggested})` : "AI 분석 중...") : matchCd.disabled ? matchCd.label : "AI 전체 매칭"}</button>
-        </div>
-      </div>
+  //   수동 매칭 목록 — 걸러서 정렬 (openTx 는 이 아래에서 읽힌다)
+  const manualShown = sortRows((openTx as OpenTx[]).filter(manualTxMatch), mVal, (t) => t.transaction_date ?? "");
+  const pKey = `${tab}|${engStart}|${engEnd}|${q}|${JSON.stringify(live)}`;
+  const qPager = usePager(queueShown, live.rows, pKey);
+  const mPager = usePager(manualShown, live.rows, pKey);
+  const cPager = usePager(confirmedShown, live.rows, pKey);
+  const shownTotal = tab === "queue" ? queueShown.length : tab === "manual" ? manualShown.length : confirmedShown.length;
+  const pager = tab === "queue" ? qPager : tab === "manual" ? mPager : cPager;
 
-      {/* 프로그레스 스트립 — 정리 진행률 + 대기/높음/기간밖 카운트 */}
-      {(() => {
-        const doneCnt = confirmed.length;
-        const waitCnt = queue.length;
-        const outsideCnt = queueRaw.length - queue.length;
-        const totalCnt = doneCnt + waitCnt;
-        const pct = totalCnt > 0 ? Math.round((doneCnt / totalCnt) * 100) : 100;
-        return (
-          <div className="partner-reconciliation-progress-card glass-card">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-              <div className="flex items-baseline gap-2 shrink-0">
-                <span className="text-3xl font-black mono-number text-[var(--text)] leading-none">{pct}%</span>
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-dim)]">매칭 정리율</span>
-              </div>
-              <div className="flex-1 min-w-[160px]">
-                <div className="h-2.5 rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                  <div className="h-full rounded-full bg-[var(--primary)] transition-all duration-700 ease-out" style={{ width: `${Math.max(pct, 2)}%` }} />
-                </div>
-                <div className="mt-1.5 text-[10px] text-[var(--text-dim)] mono-number">확정 {doneCnt}건 / 전체 {totalCnt}건 (이 기간 대기 기준)</div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap shrink-0">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 text-amber-500 text-[11px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />이 기간 대기 <span className="mono-number">{waitCnt}</span>건</span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[11px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />높음 <span className="mono-number">{highConfIds.length}</span>건</span>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)]/70 text-[var(--text-muted)] text-[11px] font-bold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-dim)]" />기간 밖 <span className="mono-number">{outsideCnt}</span>건</span>
-              </div>
-            </div>
+  //   AI 제안 그릇 — 여기 것들은 **제안을 만들거나 골라만 준다**. 확정은 아래 확정 줄에서 사람이 한다.
+  const doneCnt = confirmed.length, waitCnt = queue.length, outsideCnt = queueRaw.length - queue.length;
+  const pct = doneCnt + waitCnt > 0 ? Math.round((doneCnt / (doneCnt + waitCnt)) * 100) : 100;
+  const helperItems: HelperItem[] = [
+    {
+      label: engineMut.isPending ? "매칭 중…" : "이 기간 규칙 매칭", source: "장부 대조",
+      hint: `${engStart} ~ ${engEnd} 미정산 입금과 세금계산서를 입금자명↔거래처 규칙으로 맞춰 제안을 만듭니다 (최대 6개월, 반복해도 누적)`,
+      disabled: engineMut.isPending || !engStart || !engEnd || engStart > engEnd,
+      onClick: () => engineMut.mutate(),
+    },
+    {
+      label: aiMut.isPending ? "AI 분석 중…" : matchCd.disabled ? (matchCd.label || "잠시 후 다시") : "AI 전체 매칭", source: "AI 추천",
+      hint: matchCd.hint || "규칙으로 안 풀린 입금을 금액·일자·정황으로 AI가 제안합니다 (끝까지 자동 반복, 시간이 걸릴 수 있음)",
+      disabled: aiMut.isPending || matchCd.disabled,
+      onClick: () => matchCd.run(() => { if (!aiMut.isPending) aiMut.mutate(); }),
+    },
+    {
+      label: "고신뢰 제안 고르기 (90%+)", source: "장부 대조", badge: highConfIds.length,
+      hint: "금액 정확·45일 이내로 신뢰도 90% 이상인 제안을 골라 둡니다 — 확정은 아래 줄에서 누릅니다",
+      disabled: highConfIds.length === 0 || tab !== "queue",
+      onClick: () => setSelected(new Set(highConfIds)),
+    },
+    {
+      label: linkMut.isPending ? "연결 중…" : "홈택스 거래처 연결", source: "국세청 조회",
+      hint: "홈택스 세금계산서의 상대를 사업자번호로 거래처에 자동 등록·연결합니다",
+      disabled: linkMut.isPending,
+      onClick: () => linkMut.mutate(),
+    },
+  ];
+
+  return (
+    <div className="qk-shell">
+      {/* ── 조회 화면 표준 — 탭 · 조회 줄 · 걸린 조건 · 결과 요약 · 표 · 쪽 넘김 · 확정 줄 (2026-08-18 Wave 1) ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print">
+            {([["queue", "거래 정리", queue.length], ["manual", "수동 매칭", null], ["confirmed", "정리 내역", confirmed.length]] as const).map(([k, label, n]) => (
+              <button key={k} type="button" onClick={() => switchTab(k)}
+                className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
+                {label}{n != null && <span className="collect-tab-cnt">{n.toLocaleString()}</span>}
+              </button>
+            ))}
           </div>
-        );
-      })()}
+
+          <QueryBar right={<HelperMenu items={helperItems} />}>
+            <DateRangeField label={null} parts="segments" from={engStart} to={engEnd}
+              onChange={(f, t) => { setEngStart(f); setEngEnd(t); }}
+              trailing={
+                <ConditionPanel open={panelOpen} onOpenChange={setPanelOpen} activeCount={condCount(live)} anchorSel=".drf"
+                  tabs={<SavedTabs list={saved.list} current={paramsNow} basic={paramsBasic}
+                    onApply={(sv) => { applySaved(sv.params || {}); setPanelOpen(false); }}
+                    onBasic={() => { const b = defaultRange(); setEngStart(b.from); setEngEnd(b.to); clearAll(); }}
+                    onRemove={saved.remove} onSetDefault={saved.setDefault} />}
+                  foot={<>
+                    <button type="button" className="btn-secondary btn-sm" disabled={condCount(draft) === 0}
+                      onClick={() => setDraft({ ...EMPTY_COND, rows: draft.rows })}>조건 지우기</button>
+                    <ConditionSave suggest={suggestName}
+                      onSave={(name, asDefault) => { saved.save(name, { from: engStart, to: engEnd, q, cond: draft }, asDefault); setLive(draft); setPanelOpen(false); }} />
+                    {tab !== "manual" && <span className="ml-auto text-[11px] text-[var(--text-dim)]">{previewCount.toLocaleString("ko")}건</span>}
+                    <RowsPerPage value={draft.rows} onChange={setD("rows")} />
+                    <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
+                  </>}>
+                  <ConditionRow label="조회기간" hint="매칭 기간 = 조회 기간 · 최대 6개월">
+                    <span className="qk-range-txt">{engStart} ~ {engEnd}</span>
+                    <DateRangeField label={null} parts="calendar" confirm from={engStart} to={engEnd}
+                      onChange={(f, t) => { setEngStart(f); setEngEnd(t); }} />
+                    <span className="qk-quicks">
+                      {periodQuicks().map((pq) => (
+                        <button key={pq.key} type="button" onClick={() => { setEngStart(pq.from); setEngEnd(pq.to); }}
+                          className={engStart === pq.from && engEnd === pq.to ? "qk-quick qk-quick-on" : "qk-quick"}>{pq.label}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="구분">
+                    <span className="qk-quicks">
+                      {DIR_OPTS.map((o) => (
+                        <button key={o.value} type="button" onClick={() => setD("dir")(toggleIn(draft.dir, o.value))}
+                          className={draft.dir.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="신뢰도" hint="거래 정리 탭">
+                    <span className="qk-quicks">
+                      {CONF_OPTS.map((o) => (
+                        <button key={o.value} type="button" onClick={() => setD("conf")(toggleIn(draft.conf, o.value))}
+                          className={draft.conf.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+                      ))}
+                    </span>
+                  </ConditionRow>
+                  <ConditionRow label="유형" hint="매칭 방식 · 여러 개">
+                    <TokenField items={mtypeOpts} value={draft.mtype} onChange={setD("mtype")} placeholder="예: 금액 일치" />
+                  </ConditionRow>
+                  <ConditionRow label="계산서 거래처" hint="여러 곳">
+                    <TokenField items={cpOpts} value={draft.cp} onChange={setD("cp")} placeholder="거래처 이름 일부" />
+                  </ConditionRow>
+                </ConditionPanel>
+              } />
+            <QuickSearch value={q} onApply={setQ} placeholder="입금자 · 계산서 거래처 · 금액 — 쉼표로 여러 개, Enter" />
+          </QueryBar>
+
+          <AppliedChips chips={chips} onClearAll={clearAll} />
+
+          <ResultStrip>
+            <Stat label="매칭 정리율" value={`${pct}%`} />
+            <Stat label="이 기간 대기" value={`${waitCnt.toLocaleString("ko")}건`} tone={waitCnt > 0 ? "minus" : undefined} />
+            <Stat label="높음 (90%+)" value={`${highConfIds.length.toLocaleString("ko")}건`} tone={highConfIds.length > 0 ? "plus" : undefined} />
+            <Stat label="기간 밖 대기" value={`${outsideCnt.toLocaleString("ko")}건`} />
+            <Stat label="확정" value={`${doneCnt.toLocaleString("ko")}건`} />
+            <span className="text-[10.5px] text-[var(--text-dim)]">확정하면 미수금·미지급 차감과 분개 전표 기장이 함께 처리됩니다 · 정리 내역에서 되돌리면 둘 다 원복</span>
+          </ResultStrip>
+        </QueryHead>
+
+        <QueryBody>
+          {tab === "queue" && (qLoading ? (
+            <div className="collect-empty">불러오는 중…</div>
+          ) : queueShown.length === 0 ? (
+            <div className="collect-empty">
+              {queue.length === 0
+                ? <>이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다{outsideCnt > 0 && <> — 기간 밖에 미확정 제안 <b>{outsideCnt}건</b>이 있습니다. 조회기간을 넓혀 보세요</>}.
+                    <br /><span className="text-[11px]">제안은 AI 제안 ▾ 「이 기간 규칙 매칭」(입금자명↔거래처) 으로 만들고, 입금자명이 다른 건은 「AI 전체 매칭」이 금액·일자·정황으로 찾습니다.</span></>
+                : "이 조건에 맞는 제안이 없습니다 — 검색조건을 풀어 보세요"}
+            </div>
+          ) : (
+            <div className="ev-scroll">
+              <table ref={queueTableRef} className="ev-table ev-lined rc-queue-table">
+                <thead>
+                  <tr>
+                    <th className="w-9">
+                      <button type="button" aria-label="이 쪽 전체 선택"
+                        onClick={() => { const cur = qPager.view; const all = cur.every((m) => selected.has(m.id)); setSelected((sv) => { const n = new Set(sv); cur.forEach((m) => (all ? n.delete(m.id) : n.add(m.id))); return n; }); }}
+                        className={qPager.view.length > 0 && qPager.view.every((m) => selected.has(m.id)) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                        {qPager.view.length > 0 && qPager.view.every((m) => selected.has(m.id)) ? "✓" : ""}
+                      </button>
+                    </th>
+                    {([["tdate", "거래일자"], ["ttype", "구분"], ["cp", "입금자/거래처"], ["tamt", "거래금액"], ["idate", "발행일자"], ["icp", "계산서 거래처"], ["iamt", "계산서 금액"], ["amt", "정산액"], ["mtype", "유형"], ["conf", "신뢰도"]] as const).map(([k, label], i) => (
+                      <SortableTh key={k} label={label} sortKey={k} sort={sort} onSort={onSort}
+                        resize={{ k, colIndex: i + 1, widths: queueW, onResize: setQueueW, tableRef: queueTableRef }} />
+                    ))}
+                    <SortableTh label="처리" resize={{ k: "act", colIndex: 11, widths: queueW, onResize: setQueueW, tableRef: queueTableRef }} />
+                  </tr>
+                </thead>
+                <tbody>
+                      {qPager.view.map((m) => (
+                        <tr key={m.id} title={m.reason || ""}
+                          className={selected.has(m.id) ? "ev-on group" : "group"}>
+                          <td>
+                            <button type="button" onClick={() => toggleSel(m.id)} aria-label="선택"
+                              className={selected.has(m.id) ? "collect-chk collect-chk-on" : "collect-chk"}>{selected.has(m.id) ? "✓" : ""}</button>
+                          </td>
+                          <td className="tc mono-number ev-dim">{m.transaction_date}</td>
+                          <td className="tc">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${m.txn_type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"}</span>
+                          </td>
+                          <td className="ev-ell font-medium" title={m.counterparty || ""}>{m.counterparty || "—"}</td>
+                          <td className="tr mono-number">{fmt(m.txn_amount)}</td>
+                          <td className="tc mono-number ev-dim">{m.issue_date}</td>
+                          <td className="ev-ell" title={m.counterparty_name || ""}>{m.counterparty_name || "—"}</td>
+                          <td className="tr mono-number">{fmt(m.invoice_amount)}</td>
+                          <td className="tr">
+                            <div className="mono-number font-semibold text-[var(--text)]">{fmt(m.amount)}</div>
+                            <div className="text-[9px] text-[var(--text-dim)] font-normal truncate leading-tight"
+                              title={`확정 시 자동 기장: ${m.txn_type === "income" ? "(차)보통예금 (대)외상매출금" : "(차)외상매입금 (대)보통예금"}`}>
+                              {m.txn_type === "income" ? "차)보통예금·대)외상매출금" : "차)외상매입금·대)보통예금"}
+                            </div>
+                          </td>
+                          <td className="tc">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold whitespace-nowrap">{MATCH_LABEL[m.match_type] || m.match_type}</span>
+                          </td>
+                          <td className="tc">
+                            {m.confidence != null ? (() => {
+                              const t = confTier(m.confidence);
+                              const p = Math.round(m.confidence * 100);
+                              return (
+                                <span className="inline-flex flex-col items-center gap-1 align-middle w-full px-1">
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap leading-none ${t.cls}`}>{p}% {t.label}</span>
+                                  <span className="block h-1 w-full max-w-[56px] rounded-full bg-[var(--bg-surface)] overflow-hidden">
+                                    <span className={`block h-full rounded-full ${p >= 90 ? "bg-emerald-500" : p >= 70 ? "bg-amber-500" : "bg-red-400"}`} style={{ width: `${p}%` }} />
+                                  </span>
+                                </span>
+                              );
+                            })() : "—"}
+                          </td>
+                          <td className="tc whitespace-nowrap">
+                            <button onClick={() => decideMut.mutate({ id: m.id, status: "confirmed", counterparty: m.counterparty, tax_invoice_id: m.tax_invoice_id })} disabled={decideMut.isPending}
+                              className="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-emerald-500/15 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition disabled:opacity-50">확정</button>
+                            <button onClick={() => decideMut.mutate({ id: m.id, status: "rejected" })} disabled={decideMut.isPending}
+                              className="ml-1 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] group-hover:border-red-400/50 hover:text-red-400 transition disabled:opacity-50">반려</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+              </table>
+            </div>
+          ))}
+
+          {tab === "manual" && (manualShown.length === 0 ? (
+            <div className="collect-empty">
+              {openTx.length === 0
+                ? <>이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다 — 조회기간을 조정해 보세요.<br /><span className="text-[11px]">규칙·AI가 못 잡은 입출금이 있으면 여기서 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.</span></>
+                : "이 조건에 맞는 입출금이 없습니다 — 빠른검색·구분을 풀어 보세요"}
+            </div>
+          ) : (
+            <div className="ev-scroll">
+              <table className="ev-table ev-lined rc-manual-table">
+                <thead>
+                  <tr>
+                    {([["tdate", "거래일자"], ["ttype", "구분"], ["cp", "거래처(입금자)"], ["tamt", "거래금액"], ["settled", "기정산"], ["remain", "잔여"]] as const).map(([k, label]) => (
+                      <SortableTh key={k} label={label} sortKey={k} sort={sort} onSort={onSort} />
+                    ))}
+                    <SortableTh label="처리" />
+                  </tr>
+                </thead>
+                <tbody>
+                    {mPager.view.map((t) => (
+                      <tr key={t.id} className="group">
+                        <td className="tc mono-number ev-dim">{t.transaction_date}</td>
+                        <td className="tc">
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${t.type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{t.type === "income" ? "입금" : "출금"}</span>
+                        </td>
+                        <td className="ev-ell font-medium">
+                          <span className="inline-flex items-center gap-1.5 min-w-0">
+                            <span className="truncate">{t.counterparty || "—"}</span>
+                            {(t.suggestedCount ?? 0) > 0 && (
+                              <button onClick={() => setTab("queue")}
+                                className="shrink-0 max-w-[160px] truncate text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-semibold hover:bg-amber-500/20 transition"
+                                title={`이 거래에 자동 매칭 제안이 거래 정리 탭에 대기 중입니다${(t.suggestedPartners?.length ?? 0) > 0 ? ` (추천 계산서: ${t.suggestedPartners!.join(", ")})` : ""} — 클릭하면 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.`}>
+                                제안 {t.suggestedCount}건{(t.suggestedPartners?.length ?? 0) > 0 ? ` · ${t.suggestedPartners![0]}${t.suggestedPartners!.length > 1 ? ` 외 ${t.suggestedPartners!.length - 1}` : ""}` : ""}
+                              </button>
+                            )}
+                          </span>
+                        </td>
+                        <td className="tr mono-number">{fmt(t.amount)}</td>
+                        <td className="tr mono-number ev-dim">{fmt(t.settled_amount)}</td>
+                        <td className="tr mono-number font-semibold">{fmt(txRemaining(t))}</td>
+                        <td className="tc">
+                          <button onClick={() => { setMatchTx(t); setInvSearch(""); setMatchDocType("invoice"); setSelectedCardIds(new Set()); }}
+                            className="px-3 py-1 text-[11px] font-semibold rounded-full bg-[var(--primary)]/10 text-[var(--primary)] group-hover:bg-[var(--primary)] group-hover:text-white transition">
+                            연결
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+              </table>
+            </div>
+          ))}
+
+          {tab === "confirmed" && (confirmedShown.length === 0 ? (
+            <div className="collect-empty">
+              {confirmed.length === 0
+                ? "확정된 매칭이 없습니다 — 거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다"
+                : "이 조건에 맞는 내역이 없습니다 — 검색조건을 풀어 보세요"}
+            </div>
+          ) : (
+            <div className="ev-scroll">
+              <table className="ev-table ev-lined rc-confirmed-table">
+                <thead>
+                  <tr>
+                    {([["tdate", "거래일자"], ["ttype", "구분"], ["cp", "입금자/사유"], ["tamt", "거래금액"], ["idate", "발행일자"], ["icp", "계산서 거래처"], ["iamt", "계산서 금액"], ["amt", "정산액"], ["mtype", "유형"]] as const).map(([k, label]) => (
+                      <SortableTh key={k} label={label} sortKey={k} sort={sort} onSort={onSort} />
+                    ))}
+                    <SortableTh label="처리" />
+                  </tr>
+                </thead>
+                <tbody>
+                    {cPager.view.map((m) => {
+                      const isAdj = m.match_type === "adjustment";
+                      return (
+                        <tr key={m.id} className={isAdj ? "group rc-adj" : "group"}>
+                          <td className="tc mono-number ev-dim">{isAdj ? "—" : m.transaction_date}</td>
+                          <td className="tc">
+                            {isAdj ? (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap bg-amber-500/10 text-amber-500">차액마감</span>
+                            ) : (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${m.txn_type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"}</span>
+                            )}
+                          </td>
+                          <td className={isAdj ? "ev-ell font-medium text-amber-500" : "ev-ell font-medium"}>
+                            {isAdj ? (ADJ_REASON_LABEL[(m as any).adjustment_reason] || m.reason || "잔액 정리") : (m.counterparty || "—")}
+                          </td>
+                          <td className="tr mono-number">{isAdj ? "—" : fmt(m.txn_amount)}</td>
+                          <td className="tc mono-number ev-dim">{m.issue_date}</td>
+                          <td className="ev-ell">{m.counterparty_name || "—"}</td>
+                          <td className="tr mono-number">{fmt(m.invoice_amount)}</td>
+                          <td className="tr mono-number font-semibold">{fmt(m.amount)}</td>
+                          <td className="tc">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${isAdj ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}`}>
+                              {m.match_source === "manual" && !isAdj ? "수동 연결" : MATCH_LABEL[m.match_type] || m.match_type}
+                            </span>
+                          </td>
+                          <td className="tc">
+                            <button onClick={() => unconfirmMut.mutate(m)} disabled={unconfirmMut.isPending}
+                              className="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] group-hover:border-amber-500/50 hover:text-amber-500 transition disabled:opacity-50"
+                              title={isAdj ? "차액 마감을 취소하고 잔액·전표를 원복합니다" : "확정을 취소하고 미수금·분개 전표를 원복합니다 (거래 정리로 되돌아감)"}>{isAdj ? "마감 취소" : "확정 취소"}</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+              </table>
+            </div>
+          ))}
+
+          {/* ── 3줄 · 고른 제안으로 하는 일 — 파란(확정) 버튼은 화면을 통틀어 여기 하나 ── */}
+          {tab === "queue" && (
+            <SelectionBar count={selected.size} onClear={() => setSelected(new Set())}
+              summary={<>확정하면 미수금 차감 + 분개 전표가 함께 기장됩니다</>}>
+              <button type="button" className="btn-secondary btn-sm text-[var(--danger)]" disabled={bulkDecideMut.isPending}
+                onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "rejected" })}>선택 반려</button>
+              <button type="button" className="btn-primary btn-sm" disabled={bulkDecideMut.isPending}
+                onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "confirmed" })}>
+                {bulkDecideMut.isPending ? "처리 중…" : `선택 ${selected.size}건 확정`}
+              </button>
+            </SelectionBar>
+          )}
+        </QueryBody>
+
+        <Pager page={pager.page} pages={pager.pages} total={shownTotal} size={live.rows}
+          from={pager.from} to={pager.to} onPage={pager.setPage} />
+      </QueryScreen>
 
       {/* AI 전체 매칭 진행 오버레이 — 실시간 진행률 + 애니메이션 */}
       {aiMut.isPending && (
@@ -621,196 +985,6 @@ export default function ReconciliationPage() {
             })()}
             <div className="text-[10px] text-[var(--text-dim)] mt-5 leading-relaxed">이 창을 닫지 마세요 · 완료까지 잠시 기다려 주세요<br />이미 찾은 제안은 거래 정리에 바로 쌓입니다</div>
           </div>
-        </div>
-      )}
-
-      {tab === "queue" && (
-        <div className="partner-queue-tab">
-          {qLoading ? (
-            <div className="p-12 text-center text-sm text-[var(--text-muted)]">불러오는 중...</div>
-          ) : queue.length === 0 ? (
-            <div className="py-14 px-6 text-center glass-card">
-              <div className="text-4xl mb-3"><Ico e="✅" /></div>
-              <div className="text-sm font-semibold text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 확인 대기 중인 매칭이 없습니다</div>
-              {queueRaw.length > queue.length && (
-                <div className="text-[12px] text-[var(--primary)] mt-1.5 font-semibold">이 기간 밖에 미확정 제안 {queueRaw.length - queue.length}건이 있습니다 — 상단에서 기간을 넓혀 보세요.</div>
-              )}
-              <div className="text-[11px] text-[var(--text-dim)] mt-1 leading-relaxed">
-                대기 매칭은 <b>자동 제안</b>만 표시됩니다(상단 기간의 거래일만 노출). 상단에서 기간을 고르고 <b>“⚙️ 이 기간 매칭”</b>(규칙: 입금자명↔거래처)으로 제안을 생성하세요.<br />
-                입금자명이 거래처와 다른 건(자사명·개인명 등)은 <b>“AI 전체 매칭”</b>을 누르면 AI가 금액·일자·정황으로 추천합니다(30건씩, 여러 번 눌러 누적).
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="partner-queue-bulk-bar glass-card">
-                <div className="flex items-center gap-2 text-[11px]">
-                  <button onClick={() => setSelected(new Set(queue.map((m) => m.id)))} className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] font-semibold transition">전체 선택</button>
-                  {selected.size > 0 && <button onClick={() => setSelected(new Set())} className="px-2.5 py-1.5 rounded-full text-[var(--text-dim)] hover:text-[var(--text)] transition">해제</button>}
-                  <span className="text-[var(--text-dim)]">{selected.size > 0 ? `${selected.size}건 선택됨` : `이 기간 대기 ${queue.length}건 · 높음 ${highConfIds.length}건${queueRaw.length > queue.length ? ` · 기간 밖 ${queueRaw.length - queue.length}건` : ""}`}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {selected.size > 0 ? (
-                    <>
-                      <button onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "confirmed" })} disabled={bulkDecideMut.isPending}
-                        className="btn-primary btn-sm">선택 {selected.size}건 확정</button>
-                      <button onClick={() => bulkDecideMut.mutate({ ids: [...selected], status: "rejected" })} disabled={bulkDecideMut.isPending}
-                        className="btn-danger btn-sm">선택 반려</button>
-                    </>
-                  ) : highConfIds.length > 0 ? (
-                    <button onClick={() => bulkDecideMut.mutate({ ids: highConfIds, status: "confirmed" })} disabled={bulkDecideMut.isPending}
-                      className="btn-primary btn-sm"
-                      title="신뢰도 90% 이상(금액 정확·45일 이내) 매칭을 한 번에 확정합니다">고신뢰 {highConfIds.length}건 일괄 확정 (90%+)</button>
-                  ) : null}
-                </div>
-              </div>
-              <p className="text-[11px] text-[var(--text-dim)] px-1">확정하면 정산(미수금·미지급 차감)과 <b className="text-[var(--text-muted)]">분개 전표가 함께 장부에 자동 기록</b>됩니다 · 정리 내역에서 되돌리면 정산·전표 둘 다 원복</p>
-              {/* 타사 세무 서비스식 그리드: 통장거래 | 세금계산서 | 정산액(+자동분개) | 유형 | 신뢰도 | 처리 */}
-              <div className="partner-queue-table glass-card">
-                <div className="overflow-auto max-h-[600px]">
-                  <table ref={queueTableRef} className="w-full min-w-[1020px] text-xs border-collapse table-fixed">
-                    <thead className="sticky top-0 z-10">
-                      <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                        <th className="px-2 py-2 text-center" style={{ width: queueW.sel }}>
-                          <input type="checkbox" checked={selected.size === queue.length && queue.length > 0}
-                            onChange={(e) => setSelected(e.target.checked ? new Set(queue.map((m) => m.id)) : new Set())}
-                            className="accent-[var(--primary)] w-3.5 h-3.5 align-middle cursor-pointer" />
-                        </th>
-                        <ResizableTh k="tdate" colIndex={1} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-left`}>거래일자</ResizableTh>
-                        <ResizableTh k="ttype" colIndex={2} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-center`}>구분</ResizableTh>
-                        <ResizableTh k="cp" colIndex={3} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-left`}>입금자/거래처</ResizableTh>
-                        <ResizableTh k="tamt" colIndex={4} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-right`}>거래금액</ResizableTh>
-                        <ResizableTh k="idate" colIndex={5} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-left`}>발행일자</ResizableTh>
-                        <ResizableTh k="icp" colIndex={6} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-left`}>계산서 거래처</ResizableTh>
-                        <ResizableTh k="iamt" colIndex={7} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-right`}>계산서 금액</ResizableTh>
-                        <ResizableTh k="amt" colIndex={8} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-right`}>정산액</ResizableTh>
-                        <ResizableTh k="mtype" colIndex={9} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-center`}>유형</ResizableTh>
-                        <ResizableTh k="conf" colIndex={10} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-center`}>신뢰도</ResizableTh>
-                        <ResizableTh k="act" colIndex={11} widths={queueW} onResize={setQueueW} tableRef={queueTableRef} className={`${GRID_TH} uppercase text-center`}>처리</ResizableTh>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {queue.map((m) => (
-                        <tr key={m.id} title={m.reason || ""}
-                          className={`group border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors ${selected.has(m.id) ? "bg-[var(--primary)]/5" : ""}`}>
-                          <td className="px-2 py-1.5 text-center">
-                            <input type="checkbox" checked={selected.has(m.id)} onChange={() => toggleSel(m.id)} className="accent-[var(--primary)] w-3.5 h-3.5 align-middle cursor-pointer" />
-                          </td>
-                          <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{m.transaction_date}</td>
-                          <td className={`${GRID_TD} text-center`}>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${m.txn_type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"}</span>
-                          </td>
-                          <td className={`${GRID_TD} font-medium text-[var(--text)]`} title={m.counterparty || ""}>{m.counterparty || "—"}</td>
-                          <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.txn_amount)}</td>
-                          <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{m.issue_date}</td>
-                          <td className={`${GRID_TD} text-[var(--text)]`} title={m.counterparty_name || ""}>{m.counterparty_name || "—"}</td>
-                          <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.invoice_amount)}</td>
-                          <td className={`${GRID_TD} text-right`}>
-                            <div className="mono-number font-semibold text-[var(--text)]">{fmt(m.amount)}</div>
-                            <div className="text-[9px] text-[var(--text-dim)] font-normal truncate leading-tight"
-                              title={`확정 시 자동 기장: ${m.txn_type === "income" ? "(차)보통예금 (대)외상매출금" : "(차)외상매입금 (대)보통예금"}`}>
-                              {m.txn_type === "income" ? "차)보통예금·대)외상매출금" : "차)외상매입금·대)보통예금"}
-                            </div>
-                          </td>
-                          <td className={`${GRID_TD} text-center`}>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold whitespace-nowrap">{MATCH_LABEL[m.match_type] || m.match_type}</span>
-                          </td>
-                          <td className={`${GRID_TD} text-center`}>
-                            {m.confidence != null ? (() => {
-                              const t = confTier(m.confidence);
-                              const p = Math.round(m.confidence * 100);
-                              return (
-                                <span className="inline-flex flex-col items-center gap-1 align-middle w-full px-1">
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap leading-none ${t.cls}`}>{p}% {t.label}</span>
-                                  <span className="block h-1 w-full max-w-[56px] rounded-full bg-[var(--bg-surface)] overflow-hidden">
-                                    <span className={`block h-full rounded-full ${p >= 90 ? "bg-emerald-500" : p >= 70 ? "bg-amber-500" : "bg-red-400"}`} style={{ width: `${p}%` }} />
-                                  </span>
-                                </span>
-                              );
-                            })() : "—"}
-                          </td>
-                          <td className={`${GRID_TD} text-center whitespace-nowrap`}>
-                            <button onClick={() => decideMut.mutate({ id: m.id, status: "confirmed", counterparty: m.counterparty, tax_invoice_id: m.tax_invoice_id })} disabled={decideMut.isPending}
-                              className="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-emerald-500/15 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition disabled:opacity-50">확정</button>
-                            <button onClick={() => decideMut.mutate({ id: m.id, status: "rejected" })} disabled={decideMut.isPending}
-                              className="ml-1 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] group-hover:border-red-400/50 hover:text-red-400 transition disabled:opacity-50">반려</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {tab === "manual" && (
-        <div className="partner-manual-match-tab">
-          <div className="partner-manual-toolbar glass-card">
-            <p className="text-xs text-[var(--text-muted)] min-w-0">
-              규칙·AI 가 못 잡은 입출금을 세금계산서·현금영수증·카드사용에 직접 연결합니다. 세금계산서는 연결 즉시 미수금에 반영됩니다.
-              <span className="ml-2 text-[var(--text-dim)] mono-number">기간 {engStart} ~ {engEnd} (상단에서 변경) · {openTx.filter(manualTxMatch).length}건</span>
-            </p>
-            <input value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} placeholder="입금자·추천 계산서 거래처 검색"
-              className="px-3.5 py-2 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)] w-52 outline-none focus:border-[var(--primary)] transition" />
-          </div>
-          {openTx.length === 0 ? (
-            <div className="py-14 px-6 text-center glass-card">
-              <div className="text-4xl mb-3"><Ico e="🔗" /></div>
-              <div className="text-sm font-semibold text-[var(--text)]">이 기간({engStart} ~ {engEnd})에 미정산 입출금이 없습니다. 상단에서 기간을 조정해 보세요.</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1.5">규칙·AI가 못 잡은 입출금이 있으면 여기서 직접 연결할 수 있습니다</div>
-            </div>
-          ) : (
-            <div className="partner-manual-match-table glass-card">
-              <div className="overflow-auto max-h-[600px]">
-                <table className="w-full min-w-[680px] text-xs border-collapse">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className={`${GRID_TH} uppercase text-center w-[92px]`}>거래일자</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[52px]`}>구분</th>
-                      <th className={`${GRID_TH} uppercase text-center`}>거래처(입금자)</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[120px]`}>거래금액</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[120px]`}>기정산</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[120px]`}>잔여</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[130px]`}>처리</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {openTx.filter(manualTxMatch).map((t) => (
-                      <tr key={t.id} className="group border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors">
-                        <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{t.transaction_date}</td>
-                        <td className={`${GRID_TD} text-center`}>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${t.type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{t.type === "income" ? "입금" : "출금"}</span>
-                        </td>
-                        <td className={`${GRID_TD} font-medium text-[var(--text)] max-w-[220px]`}>
-                          <span className="inline-flex items-center gap-1.5 min-w-0">
-                            <span className="truncate">{t.counterparty || "—"}</span>
-                            {(t.suggestedCount ?? 0) > 0 && (
-                              <button onClick={() => setTab("queue")}
-                                className="shrink-0 max-w-[160px] truncate text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-semibold hover:bg-amber-500/20 transition"
-                                title={`이 거래에 자동 매칭 제안이 거래 정리 탭에 대기 중입니다${(t.suggestedPartners?.length ?? 0) > 0 ? ` (추천 계산서: ${t.suggestedPartners!.join(", ")})` : ""} — 클릭하면 이동. 여기서 직접 연결하면 그 제안과 별개로 확정됩니다.`}>
-                                제안 {t.suggestedCount}건{(t.suggestedPartners?.length ?? 0) > 0 ? ` · ${t.suggestedPartners![0]}${t.suggestedPartners!.length > 1 ? ` 외 ${t.suggestedPartners!.length - 1}` : ""}` : ""}
-                              </button>
-                            )}
-                          </span>
-                        </td>
-                        <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(t.amount)}</td>
-                        <td className={`${GRID_TD} text-right mono-number text-[var(--text-muted)]`}>{fmt(t.settled_amount)}</td>
-                        <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(txRemaining(t))}</td>
-                        <td className={`${GRID_TD} text-center`}>
-                          <button onClick={() => { setMatchTx(t); setInvSearch(""); setMatchDocType("invoice"); setSelectedCardIds(new Set()); }}
-                            className="px-3 py-1 text-[11px] font-semibold rounded-full bg-[var(--primary)]/10 text-[var(--primary)] group-hover:bg-[var(--primary)] group-hover:text-white transition">
-                            연결
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -946,78 +1120,6 @@ export default function ReconciliationPage() {
         </div>
       )}
 
-      {tab === "confirmed" && (
-        <div className="partner-confirmed-tab">
-          <div className="glass-card p-4">
-            <p className="text-xs text-[var(--text-muted)]">확정된 매칭 내역입니다. 잘못 확정한 건은 “확정 취소”로 되돌리면 미수금과 <b>분개 전표가 함께 원복</b>되고 거래 정리로 돌아갑니다.</p>
-          </div>
-          {confirmed.length === 0 ? (
-            <div className="py-14 px-6 text-center glass-card">
-              <div className="text-4xl mb-3"><Ico e="📂" /></div>
-              <div className="text-sm font-semibold text-[var(--text)]">확정된 매칭이 없습니다.</div>
-              <div className="text-xs text-[var(--text-muted)] mt-1.5">거래 정리 탭에서 매칭을 확정하면 여기에 내역이 쌓입니다</div>
-            </div>
-          ) : (
-            <div className="partner-confirmed-table glass-card">
-              <div className="overflow-auto max-h-[600px]">
-                <table className="w-full min-w-[1020px] text-xs border-collapse">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-                      <th className={`${GRID_TH} uppercase text-center w-[88px]`}>거래일자</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[64px]`}>구분</th>
-                      <th className={`${GRID_TH} uppercase text-center`}>입금자/사유</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[110px]`}>거래금액</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[88px]`}>발행일자</th>
-                      <th className={`${GRID_TH} uppercase text-center`}>계산서 거래처</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[110px]`}>계산서 금액</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[110px]`}>정산액</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[80px]`}>유형</th>
-                      <th className={`${GRID_TH} uppercase text-center w-[96px]`}>처리</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {confirmed.map((m) => {
-                      const isAdj = m.match_type === "adjustment";
-                      return (
-                        <tr key={m.id} className={`group border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors ${isAdj ? "bg-amber-500/5" : ""}`}>
-                          <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{isAdj ? "—" : m.transaction_date}</td>
-                          <td className={`${GRID_TD} text-center`}>
-                            {isAdj ? (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap bg-amber-500/10 text-amber-500">차액마감</span>
-                            ) : (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold whitespace-nowrap ${m.txn_type === "income" ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-400"}`}>{m.txn_type === "income" ? "입금" : "출금"}</span>
-                            )}
-                          </td>
-                          <td className={`${GRID_TD} truncate max-w-[160px] font-medium ${isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>
-                            {isAdj ? (ADJ_REASON_LABEL[(m as any).adjustment_reason] || m.reason || "잔액 정리") : (m.counterparty || "—")}
-                          </td>
-                          <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{isAdj ? "—" : fmt(m.txn_amount)}</td>
-                          <td className={`${GRID_TD} text-[var(--text-muted)] mono-number`}>{m.issue_date}</td>
-                          <td className={`${GRID_TD} text-[var(--text)] truncate max-w-[160px]`}>{m.counterparty_name || "—"}</td>
-                          <td className={`${GRID_TD} text-right mono-number text-[var(--text)]`}>{fmt(m.invoice_amount)}</td>
-                          <td className={`${GRID_TD} text-right mono-number font-semibold text-[var(--text)]`}>{fmt(m.amount)}</td>
-                          <td className={`${GRID_TD} text-center`}>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${isAdj ? "bg-amber-500/10 text-amber-500" : "bg-emerald-500/10 text-emerald-500"}`}>
-                              {m.match_source === "manual" && !isAdj ? "수동 연결" : MATCH_LABEL[m.match_type] || m.match_type}
-                            </span>
-                          </td>
-                          <td className={`${GRID_TD} text-center`}>
-                            <button onClick={() => unconfirmMut.mutate(m)} disabled={unconfirmMut.isPending}
-                              className="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] group-hover:border-amber-500/50 hover:text-amber-500 transition disabled:opacity-50"
-                              title={isAdj ? "차액 마감을 취소하고 잔액·전표를 원복합니다" : "확정을 취소하고 미수금·분개 전표를 원복합니다 (거래 정리로 되돌아감)"}>{isAdj ? "마감 취소" : "확정 취소"}</button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      <p className="text-[11px] text-[var(--text-dim)]">※ 확정하면 미수금/미지급 차감과 분개 전표 기장이 함께 처리됩니다. 거래처별 잔액은 <Link href="/partners/ledger" className="text-[var(--primary)] hover:underline">거래처 원장</Link>에서 확인하세요.</p>
 
       {/* 확정 후 프로젝트 연결 제안 — 같은 거래처 프로젝트가 있으면 비용 구성에 연결 */}
       {linkPrompt && (
