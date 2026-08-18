@@ -2125,7 +2125,15 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .vault-layout { @apply flex flex-col md:flex-row gap-4 md:gap-6; }
 .vault-folder-tree { @apply w-full md:w-[240px] shrink-0; }
 .vault-file-panel { @apply flex min-w-0 flex-1 flex-col gap-3; }
-.vault-file-panel > .qk-screen { height: calc(100vh - 380px); min-height: 480px; }
+.vault-file-panel > .qk-screen { height: calc(100vh - 380px); min-height: 480px; } /* 폰 폭 — md 이상은 아래 미디어 규칙이 덮는다 */
+/*   2026-08-18 상자는 사이드바 끝선까지 — md 이상에서 세로 기둥을 고정 높이로, 폴더 트리·상자는 그 안에서 스크롤 */
+@media (min-width: 768px) {
+  .vault-layout { height: calc(100vh - 100px); min-height: 0; }
+  .vault-folder-tree { @apply min-h-0 overflow-auto; }
+  .vault-file-panel { @apply min-h-0; }
+  .vault-file-panel > .qk-screen { height: auto; min-height: 0; @apply min-h-0 flex-1; }
+}
+
 .doc-file-table { min-width: 860px; }
 .vault-filter-bar { @apply flex gap-3; }
 .share-status-panel { @apply p-4 mb-6; }
@@ -8654,7 +8662,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .advisor-viewing-select { @apply font-bold text-[12.5px] rounded-md px-1.5 py-0.5 outline-none cursor-pointer; background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.25); }
 
 /* 파일보관함 — 툴바 한 줄 · 종류 탭 · 업로드는 목록 아래 (2026-08-12 UI 정리) */
-.doc-upload-zone { @apply mt-3; }
+.doc-upload-zone { @apply mt-0 shrink-0 border-t border-[var(--border)] px-3 py-2; }
+.doc-upload-zone .file-upload-dropzone-compact { @apply py-2; }
 
 /* 정기 지출 — 처리할 것 띠 · 위험 작업 접기 (2026-08-12 UI 정리) */
 .payments-todo-band { @apply w-full flex flex-wrap items-center gap-2 mb-4 px-3.5 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] text-[12.5px] text-amber-600 text-left transition hover:bg-amber-500/[0.12]; }

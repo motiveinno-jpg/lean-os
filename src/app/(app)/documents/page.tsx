@@ -3130,17 +3130,17 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
             </SelectionBar>
           </QueryBody>
           <Pager page={pager.page} pages={pager.pages} total={sortedFiles.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />
+          {/* 업로드 — 상자 발치 한 줄(컴팩트). 끌어다 놓기는 화면 어디서나 그대로 동작한다. 상자는 사이드바 끝선까지 (2026-08-18) */}
+          <div ref={uploadZoneRef} className="doc-upload-zone">
+            <FileUploadMulti
+              onFilesSelect={handleFilesSelected}
+              maxFiles={10}
+              maxSize={50}
+              compact
+              label="여기로 끌어다 놓아도 올라갑니다 (이미지·PDF·Word·Excel·PPT·CSV·ZIP·TXT)"
+            />
+          </div>
         </QueryScreen>
-
-        {/* 업로드 — 목록 아래. 끌어다 놓기는 화면 어디서나 그대로 동작한다. */}
-        <div ref={uploadZoneRef} className="doc-upload-zone">
-          <FileUploadMulti
-            onFilesSelect={handleFilesSelected}
-            maxFiles={10}
-            maxSize={50}
-            label="여기로 끌어다 놓아도 올라갑니다"
-          />
-        </div>
       </div>
     </div>
   );
