@@ -19,7 +19,7 @@ import { DateRangeField } from "@/components/date-range-field";
 import { nextSort, ThFilter, useColFilters, useColWidths, type SortState } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave, ConditionPanel, ConditionRow, TokenField,
-  AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, defaultRangeMonth, periodQuicksMonth, RowsPerPage, Pager, usePager,
+  AppliedChips, QuickSearch, quickSearchHit, quickTerms, useSavedQueries, defaultRangeMonth, periodQuicksMonth, RowsPerPage, Pager, usePager, AmountRange, amountHit,
   type ExcelItem, type AppliedChip,
 } from "@/components/query-kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,9 +46,13 @@ const settleOfCode = (code?: string | null): SettleType =>
 //   제목줄 정렬 — 어느 칸을 기준으로 볼지
 type SortKey = "date" | "code" | "partner" | "biz" | "type" | "item" | "supply" | "tax" | "total";
 /** 검색조건 (조회 화면 표준, 2026-08-18 Wave 1 — B형: 입력 격자는 그대로, 저장분 조회만) */
-type Cond = { pt: string[]; side: string[]; rows: number };
-const EMPTY_COND: Cond = { pt: [], side: [], rows: 50 };
-const condCount = (c: Cond) => c.pt.length + c.side.length;
+/**
+ * 검색조건 — 이 화면에서 걸 수 있는 조건 전부 (2026-08-18 사장님: "전자, 분개, 금액 등 조건을 다양하게").
+ *   거래처(다중) · 유형(다중, 갈래 안) · 품명(글자) · 전자입력 여부 · 분개(외상/현금/카드…) · 합계 금액 범위 · 구분(갈래 '전체'일 때만)
+ */
+type Cond = { pt: string[]; side: string[]; vat: string[]; item: string; elec: string; settle: string[]; min: string; max: string; rows: number };
+const EMPTY_COND: Cond = { pt: [], side: [], vat: [], item: "", elec: "", settle: [], min: "", max: "", rows: 50 };
+const condCount = (c: Cond) => c.pt.length + c.side.length + c.vat.length + (c.item ? 1 : 0) + (c.elec ? 1 : 0) + c.settle.length + ((c.min || c.max) ? 1 : 0);
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 //   거래처 코드는 회사에 따라 숫자로 저장돼 있기도 하다 — 화면에서는 항상 문자열로 다룬다
@@ -280,6 +284,12 @@ function SalePurchaseInner() {
   const rowHit = (r: Row, c: Cond) => {
     if (c.pt.length && !c.pt.includes(r.partner?.name || "")) return false;
     if (c.side.length && !c.side.includes(vatType(r.vatCode)?.side || "")) return false;
+    if (c.vat.length && !c.vat.includes(r.vatCode)) return false;
+    if (c.item && !String(r.item || "").toLowerCase().includes(c.item.toLowerCase())) return false;
+    if (c.elec === "y" && !r.electronic) return false;
+    if (c.elec === "n" && r.electronic) return false;
+    if (c.settle.length && !c.settle.includes(r.settle)) return false;
+    if (!amountHit(numOf(r.supply) + numOf(r.vat), c.min, c.max)) return false;
     return true;
   };
   //   열 너비 — 표 머리단 표준처럼 드래그로 조절·더블클릭 초기화. 격자(grid)라 SortableTh 를 못 쓰고 같은 손잡이(th-grip)만 붙인다.
@@ -312,6 +322,9 @@ function SalePurchaseInner() {
   const shownSaved = savedRows.filter((r) => rowHit(r, cLive) && cf.hit(colVal(r)) &&
     quickSearchHit(q, [r.partner?.name, r.partner?.business_number, r.item, r.partner?.code != null ? String(r.partner.code) : ""], [numOf(r.supply), numOf(r.vat), numOf(r.supply) + numOf(r.vat)]));
   const previewCount = savedRows.filter((r) => rowHit(r, cDraft)).length;
+  //   고를 수 있는 값 — 갈래 안 유형만, 분개는 전부
+  const vatOpts = useMemo(() => VAT_TYPES.filter((v) => group === "all" || GROUPS.find((g) => g.key === group)!.codes.includes(v.code)).map((v) => ({ value: v.code, label: v.label })), [group]);
+  const settleOpts = (Object.keys(SETTLE_LABEL) as SettleType[]).map((st) => ({ value: st, label: SETTLE_LABEL[st].split(". ")[1] || SETTLE_LABEL[st] }));
   const ptOpts = useMemo(() => [...new Set(savedRows.map((r) => r.partner?.name).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [saved, group]);
@@ -358,12 +371,17 @@ function SalePurchaseInner() {
     if (saved2.def) applySaved(saved2.def.params || {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved2.isFetched, saved2.def, defDone]);
-  const suggestName = () => [cDraft.pt[0], cDraft.side.map((x) => (x === "sale" ? "매출" : "매입")).join("·"), GROUPS.find((g) => g.key === group)?.label].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
+  const suggestName = () => [cDraft.pt[0], cDraft.vat[0] ? (VAT_TYPES.find((x) => x.code === cDraft.vat[0])?.label || "") : "", cDraft.settle[0] ? (settleOpts.find((o) => o.value === cDraft.settle[0])?.label || "") : "", cDraft.elec === "y" ? "전자입력" : "", (cDraft.min || cDraft.max) ? "금액" : "", GROUPS.find((g) => g.key === group)?.label].filter(Boolean).slice(0, 3).join(" · ") || "내 조건";
   const dropCond = (patch: Partial<Cond>) => { const c = { ...cLive, ...patch }; setCLive(c); setCDraft(c); };
   const chips: AppliedChip[] = [
     ...quickTerms(q).map((t, i) => ({ group: "빠른검색", label: t, onRemove: () => setQ(quickTerms(q).filter((_, j) => j !== i).join(", ")) })),
     ...cLive.pt.map((v) => ({ group: "거래처", label: v, onRemove: () => dropCond({ pt: cLive.pt.filter((x) => x !== v) }) })),
     ...cLive.side.map((v) => ({ group: "구분", label: v === "sale" ? "매출" : "매입", onRemove: () => dropCond({ side: cLive.side.filter((x) => x !== v) }) })),
+    ...cLive.vat.map((v) => ({ group: "유형", label: VAT_TYPES.find((x) => x.code === v)?.label || v, onRemove: () => dropCond({ vat: cLive.vat.filter((x) => x !== v) }) })),
+    ...(cLive.item ? [{ group: "품명", label: cLive.item, onRemove: () => dropCond({ item: "" }) }] : []),
+    ...(cLive.elec ? [{ group: "전자", label: cLive.elec === "y" ? "전자입력만" : "직접 입력만", onRemove: () => dropCond({ elec: "" }) }] : []),
+    ...cLive.settle.map((v) => ({ group: "분개", label: settleOpts.find((o) => o.value === v)?.label || v, onRemove: () => dropCond({ settle: cLive.settle.filter((x) => x !== v) }) })),
+    ...((cLive.min || cLive.max) ? [{ group: "합계 금액", label: `${Number(cLive.min || 0).toLocaleString("ko")} ~ ${cLive.max ? Number(cLive.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => dropCond({ min: "", max: "" }) }] : []),
   ];
   const clearAll = () => { setQ(""); setCLive(EMPTY_COND); setCDraft(EMPTY_COND); };
   const toggleIn = (arr: string[], v: string) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
@@ -870,6 +888,30 @@ function SalePurchaseInner() {
               </ConditionRow>}
               <ConditionRow label="거래처" hint="여러 곳">
                 <TokenField items={ptOpts} value={cDraft.pt} onChange={setD("pt")} placeholder="거래처 이름 일부" />
+              </ConditionRow>
+              <ConditionRow label="유형" hint="부가세 유형 · 여러 개">
+                <TokenField items={vatOpts} value={cDraft.vat} onChange={setD("vat")} placeholder="예: 과세매입" />
+              </ConditionRow>
+              <ConditionRow label="품명">
+                <input className="qk-input w-full" value={cDraft.item} placeholder="예: 임대료" onChange={(e) => setD("item")(e.target.value)} />
+              </ConditionRow>
+              <ConditionRow label="전자" hint="전자(세금)계산서 발행·수취분">
+                <span className="qk-quicks">
+                  {[["", "전체"], ["y", "전자입력만"], ["n", "직접 입력만"]].map(([v, l]) => (
+                    <button key={v} type="button" onClick={() => setD("elec")(v)} className={cDraft.elec === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>
+                  ))}
+                </span>
+              </ConditionRow>
+              <ConditionRow label="분개" hint="외상 · 현금 · 카드 … 여러 개">
+                <span className="qk-quicks">
+                  {settleOpts.map((o) => (
+                    <button key={o.value} type="button" onClick={() => setD("settle")(toggleIn(cDraft.settle, o.value))}
+                      className={cDraft.settle.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+                  ))}
+                </span>
+              </ConditionRow>
+              <ConditionRow label="합계 금액" hint="한쪽만 적어도 됩니다">
+                <AmountRange min={cDraft.min} max={cDraft.max} onMin={setD("min")} onMax={setD("max")} />
               </ConditionRow>
             </ConditionPanel>
           } />
