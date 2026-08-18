@@ -109,3 +109,13 @@
 - 카드 머리(제목·설명·버튼 2), 검색 칸, 구분별 묶음 목록(coa-group / coa-account-row) → QueryScreen(QueryBar[검색조건(출처·줄 수) + 빠른검색 + 구분 칩(건수) ‖ 표준 채우기·+ 추가] · AppliedChips · ResultStrip · ev-table+SortableTh(코드·계정명·구분 정렬, 구분·출처 ≡, 너비) · Pager 100줄). 추가 줄은 표 위 안쪽 판.
 - `globals.css`: `.coa-manager` `.coa-header` `.coa-search-row` `.coa-search-input` `.coa-groups` `.coa-account-row`
 - 교훈: 페이지가 스크롤하는 카드 더미 안에서 QueryScreen 을 쓰면 `.qk-body` 가 flex-1(basis 0) 이라 높이 0 → `.coa-screen .qk-screen > .qk-body { flex: 0 0 60vh }` 처럼 특이성 3 으로 basis 를 준다.
+
+## 2026-08-18 — 결재 허브 2차 (사장님: 유형 버튼 줄 제거·상자 안 상자·새 요청 한 줄 고르기)
+- 내 결재함·전체 현황의 유형 칩 줄(전체 유형·경비 청구·…) → 검색조건 패널 '유형(다중)' (공용 훅 useListFilter: 유형·요청일·요청자·금액·줄 수). 전체 현황 서버 조회의 requestType 파라미터 제거(클라이언트 필터).
+- 내 요청·참조 카드 목록(approval-request-card glass-card) → 조회 줄 + ev-table + 쪽. 참조는 줄 아래 펼침(ap-detail-row).
+- 새 요청 요청 유형 아이콘 칩 격자·회사 결재 양식 칩 → TypePicker(한 줄, 누르면 아래 목록) 두 줄. `.approval-type-picker` 삭제.
+- 양식 관리 카드 격자·seg-bar → QueryBar(갈래 칩·빠른검색 ‖ + 새 양식 추가) + ev-table. 정책 관리 카드 격자 → QueryBar(빠른검색 ‖ + 정책 추가) + ev-table(결재선 pill).
+- 빈 상태 glass-card → .ap-empty. 본문(ap-scroll) 여백 제거, 목록 탭 조회 줄은 상자 첫 줄처럼(아래 선만).
+- `globals.css`: `.approval-my-requests-list` `.approval-request-card` `.approval-policy-list` `.approval-policy-card` `.approval-forms-manager` `.panel-header-wrap` `.default-types-section` `.forms-grid` `.form-card-actions` `.approval-type-picker`
+### 인사 버튼 정리
+- 급여(수당 불러오기·편집 저장·취소·급여대장 직접 작성·전체 PDF·전 직원 발송·미리보기·PDF/발송), 근태(+ 출퇴근 기록·엑셀), 휴가(입사일 기준 자동 부여), 연말정산(홈택스 열기·전체 안내 발송), 디렉토리 프로필(상세보기·근태 기록 보기·급여명세) 의 자체 색상 버튼 → btn-primary/btn-secondary btn-sm. `.attendance-manual-add-btn` 삭제.

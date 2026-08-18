@@ -2025,7 +2025,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .expense-receipt-uploader { @apply mb-4; }
 .expense-list-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
 .attendance-toolbar { @apply flex items-center justify-between gap-3 flex-wrap mb-4; }
-.attendance-manual-add-btn { @apply px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] rounded-xl text-xs font-semibold hover:bg-[var(--bg-surface)] transition; }
 .attendance-today-panel { @apply flex flex-col gap-4 h-full; }
 .attendance-records-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
 .attendance-monthly-summary { @apply mt-6; }
@@ -2319,14 +2318,12 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 /* 2026-07-21 QA: 결재관리 유형 필터 셀렉트 — 화살표는 전역 select 규칙(파일 하단)이 처리 */
 .approval-overtime-list { @apply space-y-3; }
 .approval-overtime-row { @apply p-5; }
-.approval-my-requests-list { @apply space-y-3; }
-.approval-request-card { @apply overflow-hidden; }
 .approval-timeline-panel { @apply border-t border-[var(--border)] px-5 py-4 bg-[var(--bg)]/60; }
 /* 결재 목록 검색창 (2026-08-04) — 전체 현황·내 결재함 공용, 유형 셀렉트와 같은 pill 형태 */
 /* 내 결재함 표의 "승인 필요" 배지 — StatusBadge 와 같은 pill 형태 */
 .approval-need-badge { @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold leading-none whitespace-nowrap bg-[var(--warning-dim)] text-[var(--warning)]; }
 .approval-need-badge-dot { @apply w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse; }
-.approval-table { min-width: 860px; }
+table.approval-table { min-width: 860px; } /* table. — .ev-table 의 min-width 를 이긴다 */
 .approval-table-row { @apply border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-surface)]/60 cursor-pointer transition; }
 .approval-detail-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4; }
 /* 전체 현황 상세 팝업 헤더의 PDF 저장 버튼 (2026-07-27) — 테이블 행 PDF 버튼과 동일 스타일 */
@@ -2447,7 +2444,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .orderable-field-controls:focus-within { @apply opacity-100; }
 .orderable-drag-handle { @apply cursor-grab select-none px-1 text-sm leading-none text-[var(--text-dim)] hover:text-[var(--text)] rounded bg-[var(--bg-surface)] border border-[var(--border)]; }
 .orderable-move-btn { @apply px-1 text-[11px] leading-4 text-[var(--text-dim)] hover:text-[var(--text)] rounded bg-[var(--bg-surface)] border border-[var(--border)]; }
-.approval-type-picker { @apply flex flex-wrap gap-2; }
 /* 요청 유형을 고르기 전 안내 (2026-08-05) — 고른 뒤에야 제목·내용·결재선이 나온다 */
 .approval-type-empty-hint {
   @apply rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface)]/50
@@ -2463,8 +2459,6 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .policy-target-chip { @apply px-2.5 py-1 rounded-full text-[11px] font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] cursor-pointer transition hover:border-[var(--primary)]; }
 .policy-target-chip-on { @apply bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)]; }
 .approval-stage-row { @apply flex flex-wrap items-center gap-3 bg-[var(--bg)] rounded-xl p-3 border border-[var(--border)]; }
-.approval-policy-list { @apply grid gap-4 md:grid-cols-2; }
-.approval-policy-card { @apply p-5; }
 .approval-timeline-stepper { @apply flex items-center gap-0 mb-5 pb-1; }
 .approval-comment-thread { @apply mt-4 pt-3 border-t border-[var(--border)]/60; }
 .board-toolbar { @apply mb-4; }
@@ -4670,7 +4664,41 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .quotes-table { min-width: 860px; }
 .mc-table { min-width: 760px; }
 /* 결재 허브 — 조회 표준 뼈대 (2026-08-18 Wave 3): 본문 스크롤 상자 · 탭 경보 배지 · 결과줄 통계 버튼 */
-.qk-body > .ap-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
+.qk-body > .ap-scroll { @apply absolute inset-0 flex flex-col overflow-auto; }
+/*   목록 탭의 조회 줄은 상자 안 첫 줄처럼(테두리 없이 아래 선만) — 상자 안 상자 금지 (2026-08-18 사장님) */
+.ap-scroll .qk-bar { @apply rounded-none border-0 border-b border-[var(--border)] bg-transparent px-3.5 py-2.5; }
+.ap-scroll .qk-applied { @apply px-3.5 pb-1 pt-1.5; }
+.ap-scroll .approval-table-wrap { @apply rounded-none border-0; }
+.ap-scroll .qk-pager { @apply border-t border-[var(--border)] px-3.5; }
+.ap-scroll > .ap-pad { @apply p-3; }
+/*   양식 관리·정책 관리 표 (2026-08-18) */
+table.afm-table { min-width: 720px; }
+table.ap-policy-table { min-width: 960px; }
+.afm-table tbody td, .ap-policy-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
+.ap-stage-pill { @apply inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--bg-card)] pl-1 pr-2 py-0.5 text-[11px] font-semibold text-[var(--text)]; }
+.ap-stage-pill b { @apply grid h-4 w-4 place-items-center rounded-full bg-[var(--primary)]/10 text-[9px] font-extrabold text-[var(--primary)]; }
+.ap-scroll .approval-policy-form.ap-pad-form { @apply m-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4; }
+.ap-scroll .forms-empty-state { @apply px-6 py-16 text-center; }
+/*   새 요청 — 요청 유형·회사 결재 양식 한 줄 고르기(누르면 아래로 목록) (2026-08-18 사장님) */
+.ap-pick-rows { @apply grid grid-cols-1 gap-3 md:grid-cols-2; }
+.ap-pick { @apply relative; }
+.ap-pick-btn { @apply flex h-10 w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-2.5 text-left text-xs font-semibold text-[var(--text-muted)] transition hover:border-[var(--primary)]/50; }
+.ap-pick-btn-on { @apply border-[var(--primary)] text-[var(--text)]; }
+.ap-pick-ph { @apply truncate font-medium text-[var(--text-dim)]; }
+.ap-pick-label { @apply truncate; }
+.ap-pick-sub { @apply shrink-0 text-[10px] font-semibold text-[var(--text-dim)]; }
+.ap-pick-menu { @apply absolute left-0 right-0 z-30 mt-1 max-h-72 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-1 shadow-lg; }
+.ap-pick-item { @apply flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold text-[var(--text-muted)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.ap-pick-item-on { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
+.ap-pick-empty { @apply px-2 py-3 text-center text-[11px] text-[var(--text-dim)]; }
+/*   새 요청 폼·미리보기 — 상자 안 상자 대신 얇은 판 */
+.ap-pad .approval-new-request-form > .glass-card { @apply rounded-none border-0 bg-transparent p-2 shadow-none; }
+.ap-pad .approval-policy-preview.glass-card, .ap-pad .approval-document-preview.glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-none; }
+/*   결재 허브 목록 탭 — 상자 안 상자 금지: 빈 상태·펼침 줄은 카드 없이 (2026-08-18 사장님) */
+.ap-empty { @apply px-6 py-16 text-center; }
+.ap-row-open td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
+.ap-detail-row > td { @apply border-b border-[var(--border)] bg-[var(--bg-surface)]/40 p-0; }
+.ap-detail-row .approval-timeline-panel { @apply border-0 bg-transparent; }
 /* ── 구성원(/employees) — 조회 표준 (2026-08-18 Wave 4) ──
    급여·휴가·증명서 탭 본문은 상자 안에서 스크롤(끝선 = 사이드바). 인력관리 탭은 디렉토리 부품이 상자 전체를 그린다. */
 .qk-body > .emp-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
@@ -4963,15 +4991,10 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .modal-actions { @apply flex justify-end gap-2 pt-2 border-t border-[var(--border)]; }
 
 /* approval-forms-manager.tsx */
-.approval-forms-manager { @apply p-5; }
-.panel-header-wrap { @apply flex items-center justify-between mb-5 gap-2 flex-wrap; }
-.default-types-section { @apply mb-6; }
 .policy-stage-row { @apply flex items-center gap-1.5 bg-[var(--bg-surface)] rounded-lg p-2; }
 .policy-edit-modal { @apply w-full max-w-lg max-h-[90vh] overflow-y-auto p-5; }
 .forms-empty-state { @apply text-center py-14; }
-.forms-grid { @apply grid gap-3 sm:grid-cols-2; }
 .form-card { @apply p-4 hover:border-[var(--primary)]/40 hover:shadow-md transition; }
-.form-card-actions { @apply flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity; }
 .form-builder-modal { @apply w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5; }
 .modal-header-icon { @apply flex items-center gap-2.5 mb-4; }
 .form-fields-section { @apply mb-3; }

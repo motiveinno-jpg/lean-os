@@ -1169,7 +1169,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             <button
               type="button"
               onClick={() => setManualRecordOpen(true)}
-              className="attendance-manual-add-btn"
+              className="btn-secondary btn-sm"
             >
               + 출퇴근 기록
             </button>
@@ -1193,7 +1193,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                   ]),
                 );
               }}
-              className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text)] rounded-xl text-xs font-semibold hover:bg-[var(--bg-surface)] transition"
+              className="btn-secondary btn-sm"
             >
               엑셀
             </button>
@@ -2192,30 +2192,30 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
             <>
               {editMode ? (
                 <>
-                  <button onClick={loadAllowances} disabled={loadingAllowances} className="px-3 py-2 bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/30 hover:bg-[var(--info)]/20 rounded-xl text-xs font-semibold transition disabled:opacity-50" title="해당 월 근태 산정 수당(야간·연장·당직 등)을 불러와 채웁니다">
+                  <button onClick={loadAllowances} disabled={loadingAllowances} className="btn-secondary btn-sm" title="해당 월 근태 산정 수당(야간·연장·당직 등)을 불러와 채웁니다">
                     {loadingAllowances ? "불러오는 중..." : "수당 불러오기"}
                   </button>
-                  <button onClick={saveEdits} disabled={savingEdit} className="px-3 py-2 bg-[var(--warning)] hover:brightness-110 text-white rounded-xl text-xs font-semibold transition disabled:opacity-50">
+                  <button onClick={saveEdits} disabled={savingEdit} className="btn-primary btn-sm">
                     {savingEdit ? "저장 중..." : "편집 저장"}
                   </button>
-                  <button onClick={() => { setEditMode(false); generate(); }} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
+                  <button onClick={() => { setEditMode(false); generate(); }} className="btn-secondary btn-sm">
                     취소
                   </button>
                 </>
               ) : (
-                <button onClick={() => setEditMode(true)} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--primary)] rounded-xl text-xs font-semibold transition">
-                  ✏️ 급여대장 직접 작성
+                <button onClick={() => setEditMode(true)} className="btn-secondary btn-sm">
+                  급여대장 직접 작성
                 </button>
               )}
-              <button onClick={downloadAll} className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] hover:bg-[var(--bg-surface)] rounded-xl text-xs font-semibold transition">
+              <button onClick={downloadAll} className="btn-secondary btn-sm">
                 전체 PDF 다운로드
               </button>
-              <button onClick={() => handleSendPayslips()} disabled={sending} className="px-4 py-2.5 bg-[var(--success)] hover:brightness-110 text-white rounded-xl text-sm font-semibold transition disabled:opacity-50">
+              <button onClick={() => handleSendPayslips()} disabled={sending} className="btn-primary btn-sm">
                 {sending ? "발송 중..." : `전 직원 발송 (${preview.items.length}명)`}
               </button>
             </>
           )}
-          <button onClick={generate} disabled={loading || !companyId} className="btn-primary">
+          <button onClick={generate} disabled={loading || !companyId} className="btn-secondary btn-sm">
             {loading ? "계산 중..." : "급여 명세 미리보기"}
           </button>
         </div>
@@ -2327,12 +2327,12 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     <td className="px-4 py-3 text-sm text-right font-bold text-[var(--success)]">{fmtKRW(item.netPay)}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="px-2 py-1 text-[10px] font-semibold bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 rounded-lg transition">
+                        <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="btn-secondary btn-sm">
                           <Ico e="⬇" tone="mono" /> PDF
                         </button>
                         <button onClick={() => handleSendPayslips([item.employeeId])} disabled={sending}
                           title="이 직원에게만 메일로 명세서 발송 (비밀번호=생년월일)"
-                          className="px-2 py-1 text-[10px] font-semibold bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 rounded-lg transition disabled:opacity-50">
+                          className="btn-secondary btn-sm">
                           <Ico e="✉" tone="mono" /> 발송
                         </button>
                       </div>
@@ -2995,7 +2995,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               <button
                 onClick={() => bulkAutoMut.mutate()}
                 disabled={bulkAutoMut.isPending}
-                className="text-xs px-3 py-1.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg hover:bg-[var(--primary)]/20 transition disabled:opacity-50"
+                className="btn-secondary btn-sm"
                 title="1년 미만: 1개월 만근당 1일(최대 11) · 1년 이상: 근로기준법 기본(15일+)"
               >
                 {bulkAutoMut.isPending ? "처리 중..." : "입사일 기준 자동 부여"}
@@ -4433,10 +4433,10 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
           <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-xs">
             {[currentYear, currentYear - 1, currentYear - 2].map((y) => <option key={y} value={y}>{y}년 귀속</option>)}
           </select>
-          <a href="https://www.hometax.go.kr" target="_blank" rel="noopener noreferrer" className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl text-xs font-semibold transition">
+          <a href="https://www.hometax.go.kr" target="_blank" rel="noopener noreferrer" className="btn-primary btn-sm no-underline">
             홈택스 열기 ↗
           </a>
-          <button onClick={sendReminderToAll} className="px-3 py-2 bg-[var(--warning)]/10 hover:bg-[var(--warning)]/20 text-[var(--warning)] rounded-xl text-xs font-semibold transition border border-[var(--warning)]/30">
+          <button onClick={sendReminderToAll} className="btn-secondary btn-sm">
             전체 안내 발송
           </button>
         </div>

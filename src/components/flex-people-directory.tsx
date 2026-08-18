@@ -442,7 +442,7 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
           <InfoRow label="연락처" value={emp.phone || "—"} />
           <InfoRow label="입사일" value={emp.hire_date || "—"} />
           <InfoRow label="근속" value={tenure(emp.hire_date)} />
-          <InfoRow label="고용형태" value={emp.employment_type || "—"} />
+          <InfoRow label="고용형태" value={etypeLabel(emp.employment_type) || "—"} />
           {emp.employee_number && <InfoRow label="사번" value={emp.employee_number} />}
         </div>
 
@@ -451,12 +451,12 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
           {/* 2026-07-30 사장님: 계약서→상세보기(정보 탭 연결)로 명칭·링크 변경 + 근태 기록 보기와 위치 맞교환 */}
           {isManager ? (
             <>
-              <button onClick={() => onOpenContracts(emp.id)} className="block w-full text-center px-4 py-2.5 rounded-xl text-xs font-bold text-white transition hover:brightness-110 bg-[var(--primary)]">
+              <button onClick={() => onOpenContracts(emp.id)} className="btn-primary w-full">
                 상세보기
               </button>
               <div className="grid grid-cols-2 gap-2">
-                <Link href="/attendance" className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">근태 기록 보기</Link>
-                <Link href="/employees?tab=payroll" className="text-center px-3 py-2 rounded-xl text-[11px] font-semibold border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]">급여명세</Link>
+                <Link href="/attendance" className="btn-secondary btn-sm justify-center no-underline">근태 기록 보기</Link>
+                <Link href="/employees?tab=payroll" className="btn-secondary btn-sm justify-center no-underline">급여명세</Link>
               </div>
             </>
           ) : (

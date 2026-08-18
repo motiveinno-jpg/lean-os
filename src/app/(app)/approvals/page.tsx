@@ -46,7 +46,7 @@ import { CurrencyInput } from "@/components/currency-input";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
 import { SortableTh } from "@/components/sortable-th";
-import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, QuickSearch, quickSearchHit, ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, type AppliedChip } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, QuickSearch, quickSearchHit, ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, RowsPerPage, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -443,6 +443,111 @@ function contentWithoutFieldLines(description: string, formFields: { label: stri
   return lines.slice(i).join("\n").replace(/^\n+/, "");
 }
 
+// ── 목록 탭 공용 검색조건 (2026-08-18 사장님) ──
+//   "전체 유형·경비 청구·결제 요청 … 버튼이 너무 많다 — 유형은 검색조건에서 고르고, 기본은 전체를 한 번에."
+//   내 결재함·내 요청·참조·전체 현황이 같은 패널을 쓴다: 유형(다중) · 요청일 · 요청자(다중, 있을 때만) · 금액 · 줄 수.
+type LCond = { types: string[]; from: string; to: string; requester: string[]; min: string; max: string; rows: number };
+const LEMPTY: LCond = { types: [], from: "", to: "", requester: [], min: "", max: "", rows: 50 };
+const lCount = (c: LCond) => c.types.length + ((c.from || c.to) ? 1 : 0) + c.requester.length + ((c.min || c.max) ? 1 : 0);
+const typeLabelOf = (t: string) => REQUEST_TYPE_LABELS[t as RequestType] || t || "";
+type LRow = { type: string; title: string; requester?: string; amount: number; created: string };
+function useListFilter(opts: { types: string[]; requesters?: string[]; }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<LCond>(LEMPTY);
+  const [live, setLive] = useState<LCond>(LEMPTY);
+  const typeOpts = [...new Set(opts.types.filter(Boolean))].map((t) => ({ value: t, label: typeLabelOf(t) }));
+  const reqOpts = [...new Set((opts.requesters || []).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ko")).map((v) => ({ value: v, label: v }));
+  const hit = (r: LRow) => {
+    if (live.types.length && !live.types.includes(r.type)) return false;
+    if (live.from && String(r.created || "").slice(0, 10) < live.from) return false;
+    if (live.to && String(r.created || "").slice(0, 10) > live.to) return false;
+    if (live.requester.length && !live.requester.includes(r.requester || "")) return false;
+    if (!amountHit(Number(r.amount || 0), live.min, live.max)) return false;
+    return quickSearchHit(q, [r.title, r.requester, typeLabelOf(r.type)]);
+  };
+  const drop = (patch: Partial<LCond>) => { const c = { ...live, ...patch }; setLive(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
+    ...live.types.map((t) => ({ group: "유형", label: typeLabelOf(t), onRemove: () => drop({ types: live.types.filter((x) => x !== t) }) })),
+    ...((live.from || live.to) ? [{ group: "요청일", label: `${live.from || "…"} ~ ${live.to || "…"}`, onRemove: () => drop({ from: "", to: "" }) }] : []),
+    ...live.requester.map((v) => ({ group: "요청자", label: v, onRemove: () => drop({ requester: live.requester.filter((x) => x !== v) }) })),
+    ...((live.min || live.max) ? [{ group: "금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => drop({ min: "", max: "" }) }] : []),
+  ];
+  const clearAll = () => { setQ(""); setLive({ ...LEMPTY, rows: live.rows }); setDraft({ ...LEMPTY, rows: live.rows }); };
+  const panel = (
+    <ConditionPanel open={open} onOpenChange={(v) => { if (v) setDraft(live); setOpen(v); }} activeCount={lCount(live)}
+      foot={<>
+        <button type="button" className="btn-secondary btn-sm" disabled={lCount(draft) === 0} onClick={() => setDraft({ ...LEMPTY, rows: draft.rows })}>조건 지우기</button>
+        <span className="ml-auto" />
+        <RowsPerPage value={draft.rows} onChange={(n) => setDraft((c) => ({ ...c, rows: n }))} />
+        <button type="button" className="btn-primary btn-sm" onClick={() => { setLive(draft); setOpen(false); }}>조회</button>
+      </>}>
+      <ConditionRow label="유형" hint="여러 개 · 아무것도 안 고르면 전체">
+        <span className="qk-quicks">
+          {typeOpts.map((o) => (
+            <button key={o.value} type="button"
+              onClick={() => setDraft((c) => ({ ...c, types: c.types.includes(o.value) ? c.types.filter((x) => x !== o.value) : [...c.types, o.value] }))}
+              className={draft.types.includes(o.value) ? "qk-quick qk-quick-on" : "qk-quick"}>{o.label}</button>
+          ))}
+          {typeOpts.length === 0 && <span className="text-[11px] text-[var(--text-dim)]">목록에 아직 유형이 없습니다</span>}
+        </span>
+      </ConditionRow>
+      <ConditionRow label="요청일" hint="비우면 전체 기간">
+        <DateRangeField label={null} from={draft.from} to={draft.to} onChange={(f, t) => setDraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setDraft((c) => ({ ...c, from: "", to: "" }))} />
+      </ConditionRow>
+      {opts.requesters && (
+        <ConditionRow label="요청자" hint="여러 명">
+          <TokenField items={reqOpts} value={draft.requester} onChange={(v) => setDraft((c) => ({ ...c, requester: v }))} placeholder="이름 일부" />
+        </ConditionRow>
+      )}
+      <ConditionRow label="금액" hint="한쪽만 적어도 됩니다">
+        <AmountRange min={draft.min} max={draft.max} onMin={(v) => setDraft((c) => ({ ...c, min: v }))} onMax={(v) => setDraft((c) => ({ ...c, max: v }))} />
+      </ConditionRow>
+    </ConditionPanel>
+  );
+  const quick = <QuickSearch value={q} onApply={setQ} placeholder={opts.requesters ? "제목 · 요청자 · 유형 — 쉼표로 여러 개, Enter" : "제목 · 유형 — 쉼표로 여러 개, Enter"} />;
+  const applied = <AppliedChips chips={chips} onClearAll={clearAll} />;
+  const key = `${q}|${JSON.stringify(live)}`;
+  return { q, live, hit, panel, quick, applied, key, rows: live.rows };
+}
+
+type PickOpt = { value: string; label: string; sub?: string; icon: React.ReactNode };
+function TypePicker({ value, options, placeholder, onChange, emptyText }: {
+  value: string; options: PickOpt[]; placeholder: string; onChange: (v: string) => void; emptyText?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const cur = options.find((o) => o.value === value);
+  return (
+    <div className="ap-pick" ref={box}>
+      <button type="button" className={cur ? "ap-pick-btn ap-pick-btn-on" : "ap-pick-btn"} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+        {cur ? (<>{cur.icon}<span className="ap-pick-label">{cur.label}</span>{cur.sub && <span className="ap-pick-sub">{cur.sub}</span>}</>) : <span className="ap-pick-ph">{placeholder}</span>}
+        <span className="qk-caret ml-auto">▾</span>
+      </button>
+      {open && (
+        <div className="ap-pick-menu" role="listbox">
+          {options.length === 0 && <div className="ap-pick-empty">{emptyText || "고를 것이 없습니다"}</div>}
+          {options.map((o) => (
+            <button key={o.value} type="button" role="option" aria-selected={o.value === value}
+              className={o.value === value ? "ap-pick-item ap-pick-item-on" : "ap-pick-item"}
+              onClick={() => { onChange(o.value); setOpen(false); }}>
+              {o.icon}<span className="ap-pick-label">{o.label}</span>{o.sub && <span className="ap-pick-sub">{o.sub}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function formatDate(dateStr: string | null) {
   if (!dateStr) return "-";
   return kstDateStr(new Date(dateStr)); // 앱 표준 YYYY-MM-DD (점표기 혼용 정리)
@@ -658,7 +763,7 @@ export default function ApprovalsPage() {
         <AllRequestsTab companyId={companyId} initialStatusFilter={allTabStatusFilter} userId={userId} userRole={userRole} invalidate={invalidate} />
       )}
       {tab === "new-request" && companyId && userId && (
-        <NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} />
+        <div className="ap-pad"><NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} /></div>
       )}
       {tab === "forms" && companyId && (
         <ApprovalFormsManager companyId={companyId} />
@@ -788,7 +893,7 @@ function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
     <div>
       {confirmElement}
       {rows.length === 0 ? (
-        <div className="text-center py-16 glass-card">
+        <div className="ap-empty">
           <div className="text-3xl mb-3">&#10003;</div>
           <div className="text-[var(--text-muted)] text-sm">대기 중인 연장근무 신청이 없습니다</div>
         </div>
@@ -862,10 +967,6 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
   // 대기중 / 처리완료 전환 — 승인하고 나면 목록에서 사라져 다시 볼 수 없던 문제
   //   (2026-07-27 사장님 제보). 결재선에 올랐던 건은 처리 후에도 확인 가능해야 한다.
   const [view, setView] = useState<"pending" | "processed">("pending");
-
-  // 검색·유형 필터 (2026-08-04 사장님: 전체 현황과 같은 화면 구성 + 검색)
-  const [typeFilter, setTypeFilter] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: pendingApprovals = [], isLoading } = useQuery({
     queryKey: ["my-pending-approvals", userId, companyId],
@@ -942,28 +1043,26 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
       : undefined,
   );
 
-  // 검색·유형 필터 — 전체 현황과 같은 기준. 빠른검색(쉼표 = 또는, Enter 로 반영)
-  const matchesFilters = (item: any) => {
-    if (typeFilter && item.requestType !== typeFilter) return false;
-    const typeLabel = REQUEST_TYPE_LABELS[item.requestType as RequestType] || item.requestType || "";
-    return quickSearchHit(searchQuery, [item.title, item.requesterName, typeLabel]);
-  };
+  // 검색조건(유형·요청일·기안자·금액) + 빠른검색 — 전체 현황과 같은 패널 (2026-08-18 사장님: 유형 버튼 줄 제거)
+  const lf = useListFilter({
+    types: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requestType),
+    requesters: [...(pendingApprovals as any[]), ...(processedApprovals as any[])].map((i) => i.requesterName),
+  });
+  const matchesFilters = (item: any) => lf.hit({ type: item.requestType, title: item.title, requester: item.requesterName, amount: item.amount, created: item.createdAt || item.created_at || item.requestedAt || "" });
   const visiblePending = (pendingApprovals as any[]).filter(matchesFilters);
   const visibleProcessed = (processedApprovals as any[]).filter(matchesFilters);
 
-  const typeOptions = [
-    { value: "", label: "전체 유형" },
-    ...Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
-  ];
-
-  // 조회 줄 — 전체 현황과 동일 구성 (조회 표준 부품: 보기 칩 + 유형 칩 + 빠른검색 + 건수)
+  // 조회 줄 — 전체 현황과 동일 구성 (조회 표준 부품: 검색조건 + 빠른검색 + 보기 칩 + 건수)
   const filterBar = (
-    <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{(view === "pending" ? visiblePending : visibleProcessed).length}건</span>}>
-      <ChipGroup value={view} onChange={setView}
-        options={[{ value: "pending", label: `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}` }, { value: "processed", label: "내가 결재한 건" }]} />
-      <ChipGroup value={typeFilter} onChange={setTypeFilter} options={typeOptions.map((o) => ({ value: o.value, label: o.value ? o.label : "전체 유형" }))} />
-      <QuickSearch value={searchQuery} onApply={setSearchQuery} placeholder="제목 · 기안자 · 유형 — 쉼표로 여러 개, Enter" />
-    </QueryBar>
+    <>
+      <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{(view === "pending" ? visiblePending : visibleProcessed).length}건</span>}>
+        {lf.panel}
+        {lf.quick}
+        <ChipGroup value={view} onChange={setView}
+          options={[{ value: "pending", label: `대기중${pendingApprovals.length > 0 ? ` (${pendingApprovals.length})` : ""}` }, { value: "processed", label: "내가 결재한 건" }]} />
+      </QueryBar>
+      {lf.applied}
+    </>
   );
 
   if (view === "processed") {
@@ -971,7 +1070,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
       <div>
         {filterBar}
         {(processedApprovals as any[]).length > 0 && visibleProcessed.length === 0 ? (
-          <div className="text-center py-16 px-6 glass-card">
+          <div className="ap-empty">
             <div className="text-sm font-bold mb-1">검색 결과가 없습니다</div>
             <div className="text-xs text-[var(--text-muted)]">검색어나 유형 필터를 바꿔보세요</div>
           </div>
@@ -996,7 +1095,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests }: {
     return (
       <div>
         {filterBar}
-        <div className="text-center py-20 px-6 glass-card">
+        <div className="ap-empty">
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
@@ -1253,7 +1352,7 @@ function ProcessedApprovalsList({ items, isLoading, formsById, policies, onGoToM
     return (
       <div>
         {hint}
-        <div className="text-center py-20 px-6 glass-card">
+        <div className="ap-empty">
           <div className="text-base font-bold mb-1.5">아직 결재한 건이 없습니다</div>
           <div className="text-sm text-[var(--text-muted)]">
             내가 승인하거나 반려한 결재가 여기에 쌓입니다
@@ -1598,103 +1697,101 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
     }
   };
 
+  const [myStatus, setMyStatus] = useState("");
+  const lf = useListFilter({ types: (requests as any[]).map((r) => r.request_type) });
+
+  const visibleMine = (requests as any[]).filter((r) => (!myStatus || r.status === myStatus) && lf.hit({ type: r.request_type, title: r.title, amount: r.amount, created: r.created_at }));
+  const pager = usePager(visibleMine, lf.rows, `${myStatus}|${lf.key}`);
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
 
+  const myStatusOptions = [
+    { value: "", label: "전체 상태" }, { value: "pending", label: "대기" }, { value: "approved", label: "승인" }, { value: "rejected", label: "반려" }, { value: "cancelled", label: "취소" },
+  ];
+
   return (
     <div>
+      {/* 조회 줄 — 목록 탭 공용: 검색조건(유형·요청일·금액·줄 수) + 빠른검색 + 상태 칩 + 건수 (2026-08-18) */}
+      <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleMine.length}건</span>}>
+        {lf.panel}
+        {lf.quick}
+        <ChipGroup value={myStatus} onChange={setMyStatus} options={myStatusOptions} />
+      </QueryBar>
+      {lf.applied}
+
       {requests.length === 0 ? (
-        <div className="text-center py-20 px-6 glass-card">
+        <div className="ap-empty">
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           </div>
           <div className="text-base font-bold mb-1.5">제출한 결재 요청이 없습니다</div>
           <div className="text-sm text-[var(--text-muted)]">&ldquo;새 요청&rdquo; 탭에서 결재를 요청할 수 있습니다</div>
         </div>
+      ) : visibleMine.length === 0 ? (
+        <div className="ap-empty"><div className="text-sm font-bold mb-1">이 조건에 맞는 요청이 없습니다</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요</div></div>
       ) : (
-        <div className="approval-my-requests-list">
-          {requests.map((req: any) => {
-            const m = typeMeta(req.request_type);
-            const open = expandedId === req.id;
-            return (
-              <div key={req.id} className="approval-request-card glass-card card-hover animate-slide-in">
-                <div
-                  className="p-5 cursor-pointer"
-                  onClick={() => setExpandedId(open ? null : req.id)}
-                >
-                  <div className="flex items-start gap-4">
-                    <span className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
-                      <TypeIcon name={m.icon} className="w-5 h-5" />
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                        <StatusBadge status={req.status} />
-                        <TypeChip type={req.request_type} label={REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} />
-                        <span className="text-[11px] text-[var(--text-dim)]">{formatDate(req.created_at)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-[15px] leading-6 truncate">{req.title}</span>
-                        <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                          <path d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                      <div className="mt-3">
-                        <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
-                      </div>
-                      {Array.isArray(req.reference_user_ids) && req.reference_user_ids.length > 0 && (
-                        <div className="approval-reference-line mt-2 text-[11px] text-[var(--text-dim)]">
-                          참조: {req.reference_user_ids.map((id: string) => userName(id)).join(", ")}
+        <>
+        {/* 표 — 전체 현황과 같은 뼈대. 줄을 누르면 상세 팝업 */}
+        <div className="approval-table-wrap ev-scroll">
+          <table className="ev-table ev-lined approval-table">
+            <thead>
+              <tr>
+                <SortableTh label="상태" />
+                <SortableTh label="제목" />
+                <SortableTh label="금액" />
+                <SortableTh label="진행" />
+                <SortableTh label="요청일" />
+                <SortableTh label="참조" />
+                <SortableTh label="관리" />
+              </tr>
+            </thead>
+            <tbody>
+              {(pager.view as any[]).map((req: any) => {
+                const m = typeMeta(req.request_type);
+                return (
+                  <tr key={req.id} className="approval-table-row" onClick={() => setExpandedId(req.id)}>
+                    <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                          <TypeIcon name={m.icon} className="w-4 h-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold truncate max-w-[280px]">{req.title}</div>
+                          <div className="text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}</div>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-3 shrink-0">
-                      {req.amount > 0 && (
-                        <div className="text-right">
-                          <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">금액</div>
-                          <div className="text-lg font-extrabold mono-number leading-6">{formatAmount(req.amount)}</div>
-                        </div>
-                      )}
-                      {req.status === "rejected" && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); resubmitMut.mutate(req.id); }}
-                          disabled={resubmitMut.isPending}
-                          className="btn-primary"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
-                          재제출
-                        </button>
-                      )}
-                      {req.status === "pending" && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openEdit(req); }}
-                            className="btn-secondary"
-                            title="대기중인 동안 요청 내용을 수정할 수 있습니다"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                            수정
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDeleteMine(req); }}
-                            disabled={deletingId === req.id}
-                            className="btn-secondary text-[var(--danger)] disabled:opacity-50"
-                            title="대기중인 동안 요청을 삭제할 수 있습니다"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                            {deletingId === req.id ? "삭제 중…" : "삭제"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded: Timeline */}
-              </div>
-            );
-          })}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3.5 text-sm font-bold mono-number text-right">{req.amount > 0 ? formatAmount(req.amount) : "-"}</td>
+                    <td className="px-4 py-3.5 w-[140px]"><StageProgress current={req.current_stage} total={req.total_stages} status={req.status} /></td>
+                    <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(req.created_at)}</td>
+                    <td className="px-4 py-3.5 text-xs text-[var(--text-dim)]">
+                      {Array.isArray(req.reference_user_ids) && req.reference_user_ids.length > 0 ? req.reference_user_ids.map((id: string) => userName(id)).join(", ") : "-"}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-1.5">
+                        {req.status === "rejected" && (
+                          <button onClick={(e) => { e.stopPropagation(); resubmitMut.mutate(req.id); }} disabled={resubmitMut.isPending} className="btn-primary btn-sm">재제출</button>
+                        )}
+                        {req.status === "pending" && (
+                          <>
+                            <button onClick={(e) => { e.stopPropagation(); openEdit(req); }} className="btn-secondary btn-sm" title="대기중인 동안 요청 내용을 수정할 수 있습니다">수정</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteMine(req); }} disabled={deletingId === req.id} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50" title="대기중인 동안 요청을 삭제할 수 있습니다">
+                              {deletingId === req.id ? "삭제 중…" : "삭제"}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+        <Pager page={pager.page} pages={pager.pages} total={visibleMine.length} size={lf.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
+        </>
       )}
 
       {/* 상세 팝업 — 올린 결재의 전체 내용(필드표·본문·첨부·결재선) 확인.
@@ -1923,6 +2020,7 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
 
 function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userId: string }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [refStatus, setRefStatus] = useState("");
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["referenced-requests", userId, companyId],
@@ -1946,92 +2044,119 @@ function ReferencedRequestsTab({ companyId, userId }: { companyId: string; userI
     (customForms as ApprovalForm[]).forEach((f) => map.set(f.id, f));
     return map;
   }, [customForms]);
+  const lf = useListFilter({ types: (requests as any[]).map((r) => r.request_type), requesters: (requests as any[]).map((r) => r.users?.name || r.users?.email || "") });
 
+  const refName = (req: any) => req.users?.name || req.users?.email || "알 수 없음";
+  const visibleRefs = (requests as any[]).filter((r) => (!refStatus || r.status === refStatus) && lf.hit({ type: r.request_type, title: r.title, requester: refName(r), amount: r.amount, created: r.created_at }));
+  const pager = usePager(visibleRefs, lf.rows, `${refStatus}|${lf.key}`);
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
 
-  if (requests.length === 0) {
-    return (
-      <div className="text-center py-20 px-6 glass-card">
-        <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
-          <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        </div>
-        <div className="text-base font-bold mb-1.5">참조로 지정된 결재가 없습니다</div>
-        <div className="text-sm text-[var(--text-muted)]">다른 구성원이 결재를 올리며 나를 참조로 지정하면 이곳에 표시됩니다</div>
-      </div>
-    );
-  }
+  const refStatusOptions = [
+    { value: "", label: "전체 상태" }, { value: "pending", label: "대기" }, { value: "approved", label: "승인" }, { value: "rejected", label: "반려" }, { value: "cancelled", label: "취소" },
+  ];
 
   return (
-    <div className="approval-my-requests-list">
-      {requests.map((req: any) => {
-        const m = typeMeta(req.request_type);
-        const open = expandedId === req.id;
-        // 네이티브 휴가 건은 양식 필드·결재 타임라인이 없음(내용은 description 으로 전달)
-        const isNativeLeave = !!req.is_native_leave;
-        const formFields = isNativeLeave ? [] : resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
-        const contentText = contentWithoutFieldLines(req.description || "", formFields);
-        const requesterName = req.users?.name || req.users?.email || "알 수 없음";
-        return (
-          <div key={req.id} className="approval-request-card glass-card card-hover animate-slide-in">
-            <div className="p-5 cursor-pointer" onClick={() => setExpandedId(open ? null : req.id)}>
-              <div className="flex items-start gap-4">
-                <span className={`hidden sm:flex w-10 h-10 rounded-xl items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
-                  <TypeIcon name={m.icon} className="w-5 h-5" />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                    <StatusBadge status={req.status} />
-                    <TypeChip type={req.request_type} label={REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type} />
-                    <span className="text-[11px] text-[var(--text-dim)]">{requesterName} · {formatDate(req.created_at)}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[15px] leading-6 truncate">{req.title}</span>
-                    <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                  <div className="mt-3">
-                    <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
-                  </div>
-                </div>
-                {req.amount > 0 && (
-                  <div className="text-right shrink-0">
-                    <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider">금액</div>
-                    <div className="text-lg font-extrabold mono-number leading-6">{formatAmount(req.amount)}</div>
-                  </div>
-                )}
-              </div>
-            </div>
+    <div>
+      {/* 조회 줄 — 목록 탭 공용 (2026-08-18) */}
+      <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleRefs.length}건</span>}>
+        {lf.panel}
+        {lf.quick}
+        <ChipGroup value={refStatus} onChange={setRefStatus} options={refStatusOptions} />
+      </QueryBar>
+      {lf.applied}
 
-            {open && (
-              <div className="approval-timeline-panel">
-                {formFields.length > 0 && (
-                  <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
-                    <FormFieldRows fields={formFields} />
-                  </div>
-                )}
-                {contentText && (
-                  <DescriptionContent text={contentText} className="mb-3 text-sm text-[var(--text)] leading-8" />
-                )}
-                <AttachmentList attachments={req.attachments} />
-                {!isNativeLeave && (
-                  <div className="mt-5 pt-4 border-t border-[var(--border)]">
-                    <ApprovalTimelineView
-                      requestId={req.id}
-                      currentStage={req.current_stage}
-                      totalStages={req.total_stages}
-                      requestStatus={req.status}
-                      currentUserId={userId}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
+      {requests.length === 0 ? (
+        <div className="ap-empty">
+          <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--bg-surface)] text-[var(--text-dim)] flex items-center justify-center">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </div>
-        );
-      })}
+          <div className="text-base font-bold mb-1.5">참조로 지정된 결재가 없습니다</div>
+          <div className="text-sm text-[var(--text-muted)]">다른 구성원이 결재를 올리며 나를 참조로 지정하면 이곳에 표시됩니다</div>
+        </div>
+      ) : visibleRefs.length === 0 ? (
+        <div className="ap-empty"><div className="text-sm font-bold mb-1">이 조건에 맞는 요청이 없습니다</div><div className="text-xs text-[var(--text-muted)]">검색조건을 풀어 보세요</div></div>
+      ) : (
+        <>
+        <div className="approval-table-wrap ev-scroll">
+          <table className="ev-table ev-lined approval-table">
+            <thead>
+              <tr>
+                <SortableTh label="상태" />
+                <SortableTh label="제목" />
+                <SortableTh label="요청자" />
+                <SortableTh label="금액" />
+                <SortableTh label="진행" />
+                <SortableTh label="요청일" />
+              </tr>
+            </thead>
+            <tbody>
+              {(pager.view as any[]).map((req: any) => {
+                const m = typeMeta(req.request_type);
+                const open = expandedId === req.id;
+                // 네이티브 휴가 건은 양식 필드·결재 타임라인이 없음(내용은 description 으로 전달)
+                const isNativeLeave = !!req.is_native_leave;
+                const formFields = isNativeLeave ? [] : resolveFormFields(req.form_id, req.custom_fields, formsById, fieldPolicies as ApprovalPolicy[], req.request_type);
+                const contentText = contentWithoutFieldLines(req.description || "", formFields);
+                return (
+                  <Fragment key={req.id}>
+                    <tr className={open ? "approval-table-row ap-row-open" : "approval-table-row"} onClick={() => setExpandedId(open ? null : req.id)}>
+                      <td className="px-4 py-3.5"><StatusBadge status={req.status} /></td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
+                            <TypeIcon name={m.icon} className="w-4 h-4" />
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold truncate max-w-[280px]">{req.title}</div>
+                            <div className="text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type}</div>
+                          </div>
+                          <svg className={`w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-[var(--text-muted)]">{refName(req)}</td>
+                      <td className="px-4 py-3.5 text-sm font-bold mono-number text-right">{req.amount > 0 ? formatAmount(req.amount) : "-"}</td>
+                      <td className="px-4 py-3.5 w-[140px]"><StageProgress current={req.current_stage} total={req.total_stages} status={req.status} /></td>
+                      <td className="px-4 py-3.5 text-xs text-[var(--text-muted)] whitespace-nowrap">{formatDate(req.created_at)}</td>
+                    </tr>
+                    {open && (
+                      <tr className="ap-detail-row">
+                        <td colSpan={6}>
+                          <div className="approval-timeline-panel">
+                            {formFields.length > 0 && (
+                              <div className="mb-4 pb-4 border-b border-[var(--border)]/60">
+                                <FormFieldRows fields={formFields} />
+                              </div>
+                            )}
+                            {contentText && (
+                              <DescriptionContent text={contentText} className="mb-3 text-sm text-[var(--text)] leading-8" />
+                            )}
+                            <AttachmentList attachments={req.attachments} />
+                            {!isNativeLeave && (
+                              <div className="mt-5 pt-4 border-t border-[var(--border)]">
+                                <ApprovalTimelineView
+                                  requestId={req.id}
+                                  currentStage={req.current_stage}
+                                  totalStages={req.total_stages}
+                                  requestStatus={req.status}
+                                  currentUserId={userId}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <Pager page={pager.page} pages={pager.pages} total={visibleRefs.length} size={lf.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
+        </>
+      )}
     </div>
   );
 }
@@ -2049,15 +2174,6 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
   const { confirm, confirmElement } = useConfirm();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "");
-  const [typeFilter, setTypeFilter] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
-  //   검색조건 — 요청일 기간·요청자(다중)·금액 범위 (조회 화면 표준, '조회'로 반영). 2026-08-18
-  type ACond = { from: string; to: string; requester: string[]; min: string; max: string };
-  const AEMPTY: ACond = { from: "", to: "", requester: [], min: "", max: "" };
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [aDraft, setADraft] = useState<ACond>(AEMPTY);
-  const [aLive, setALive] = useState<ACond>(AEMPTY);
-  const aCount = (c: ACond) => ((c.from || c.to) ? 1 : 0) + c.requester.length + ((c.min || c.max) ? 1 : 0);
   // KPI 카드 클릭 시 이미 "전체 현황" 탭에 있어도(재마운트 없이) 필터가 갱신되도록 동기화
   useEffect(() => {
     if (initialStatusFilter !== undefined) setStatusFilter(initialStatusFilter);
@@ -2125,11 +2241,11 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     onError: (err: any) => toast("반려 처리 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
   });
 
+  //   유형은 검색조건 패널에서 여러 개 고른다(클라이언트 필터) — 서버 조회는 상태만 (2026-08-18)
   const { data: allRequests = [], isLoading } = useQuery({
-    queryKey: ["all-requests", companyId, statusFilter, typeFilter, restrictToOwn ? userId : null],
+    queryKey: ["all-requests", companyId, statusFilter, restrictToOwn ? userId : null],
     queryFn: () => getApprovalRequests(companyId, {
       status: statusFilter || undefined,
-      requestType: typeFilter || undefined,
       requesterId: restrictToOwn ? userId || undefined : undefined,
     }),
     enabled: !!companyId && (!restrictToOwn || !!userId),
@@ -2212,6 +2328,14 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
 
   // 요청 상세 팝업(읽기 전용) — ESC로만 닫기, 별도 확인 액션 없음
   useModalKeys(!!expandedId, () => setExpandedId(null));
+  const lf = useListFilter({
+    types: (allRequests as any[]).map((r) => r.request_type),
+    requesters: (allRequests as any[]).map((r) => requesterNames.get(r.requester_id) || ""),
+  });
+
+  // 검색조건(유형·요청일·요청자·금액·줄 수) + 빠른검색 — 목록 탭 공용 패널 (2026-08-18)
+  const visibleRequests = allRequests.filter((r: any) => lf.hit({ type: r.request_type, title: r.title, requester: requesterNames.get(r.requester_id) || "", amount: r.amount, created: r.created_at }));
+  const pager = usePager(visibleRequests, lf.rows, `${statusFilter}|${lf.key}`);
 
   if (isLoading) {
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
@@ -2225,52 +2349,15 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
     { value: "cancelled", label: "취소" },
   ];
 
-  const typeOptions = [
-    { value: "", label: "전체 유형" },
-    ...Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => ({ value: k, label: v })),
-  ];
-
-  // 검색 — 제목·요청자·유형 라벨 부분일치 (2026-08-04 사장님: 전체 현황·내 결재함에 검색)
-  const visibleRequests = allRequests.filter((r: any) => {
-    const typeLabel = REQUEST_TYPE_LABELS[r.request_type as RequestType] || r.request_type || "";
-    if (aLive.from && String(r.created_at || "").slice(0, 10) < aLive.from) return false;
-    if (aLive.to && String(r.created_at || "").slice(0, 10) > aLive.to) return false;
-    if (aLive.requester.length && !aLive.requester.includes(requesterNames.get(r.requester_id) || "")) return false;
-    if (!amountHit(Number(r.amount || 0), aLive.min, aLive.max)) return false;
-    return quickSearchHit(searchQuery, [r.title, requesterNames.get(r.requester_id), typeLabel]);
-  });
-  const requesterOpts = [...new Set((allRequests as any[]).map((r) => requesterNames.get(r.requester_id)).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string }));
-  const aChips: AppliedChip[] = [
-    ...((aLive.from || aLive.to) ? [{ group: "요청일", label: `${aLive.from || "…"} ~ ${aLive.to || "…"}`, onRemove: () => { const c = { ...aLive, from: "", to: "" }; setALive(c); setADraft(c); } }] : []),
-    ...aLive.requester.map((v) => ({ group: "요청자", label: v, onRemove: () => { const c = { ...aLive, requester: aLive.requester.filter((x) => x !== v) }; setALive(c); setADraft(c); } })),
-    ...((aLive.min || aLive.max) ? [{ group: "금액", label: `${Number(aLive.min || 0).toLocaleString("ko")} ~ ${aLive.max ? Number(aLive.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => { const c = { ...aLive, min: "", max: "" }; setALive(c); setADraft(c); } }] : []),
-  ];
-
   return (
     <div>
-      {/* 조회 줄 — 조회 표준 부품: 상태 칩 + 유형 칩 + 빠른검색 + 건수 */}
+      {/* 조회 줄 — 조회 표준 부품: 검색조건 + 빠른검색 + 상태 칩 + 건수. 유형은 검색조건 안 */}
       <QueryBar right={<span className="text-xs font-semibold text-[var(--text-dim)] mono-number">{visibleRequests.length}건</span>}>
-        <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) setADraft(aLive); setPanelOpen(v); }} activeCount={aCount(aLive)}
-          foot={<>
-            <button type="button" className="btn-secondary btn-sm" disabled={aCount(aDraft) === 0} onClick={() => setADraft(AEMPTY)}>조건 지우기</button>
-            <span className="ml-auto" />
-            <button type="button" className="btn-primary btn-sm" onClick={() => { setALive(aDraft); setPanelOpen(false); }}>조회</button>
-          </>}>
-          <ConditionRow label="요청일" hint="비우면 전체 기간">
-            <DateRangeField label={null} from={aDraft.from} to={aDraft.to} onChange={(f, t) => setADraft((c) => ({ ...c, from: f, to: t }))} onClear={() => setADraft((c) => ({ ...c, from: "", to: "" }))} />
-          </ConditionRow>
-          <ConditionRow label="요청자" hint="여러 명">
-            <TokenField items={requesterOpts} value={aDraft.requester} onChange={(v) => setADraft((c) => ({ ...c, requester: v }))} placeholder="이름 일부" />
-          </ConditionRow>
-          <ConditionRow label="금액" hint="한쪽만 적어도 됩니다">
-            <AmountRange min={aDraft.min} max={aDraft.max} onMin={(v) => setADraft((c) => ({ ...c, min: v }))} onMax={(v) => setADraft((c) => ({ ...c, max: v }))} />
-          </ConditionRow>
-        </ConditionPanel>
+        {lf.panel}
+        {lf.quick}
         <ChipGroup value={statusFilter} onChange={setStatusFilter} options={statusOptions} />
-        <ChipGroup value={typeFilter} onChange={setTypeFilter} options={typeOptions.map((o) => ({ value: o.value, label: o.value ? o.label : "전체 유형" }))} />
-        <QuickSearch value={searchQuery} onApply={setSearchQuery} placeholder="제목 · 요청자 · 유형 — 쉼표로 여러 개, Enter" />
       </QueryBar>
-      <AppliedChips chips={aChips} onClearAll={() => { setALive(AEMPTY); setADraft(AEMPTY); }} />
+      {lf.applied}
 
       {/* Table */}
       <div className="approval-table-wrap ev-scroll">
@@ -2299,7 +2386,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                 </td>
               </tr>
             ) : (
-              visibleRequests.map((req: any) => {
+              (pager.view as any[]).map((req: any) => {
                 const m = typeMeta(req.request_type);
                 return (
                   <tr
@@ -2366,6 +2453,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
           </tbody>
         </table>
       </div>
+      <Pager page={pager.page} pages={pager.pages} total={visibleRequests.length} size={lf.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
 
       {/* 요청 상세 팝업 — 클릭한 행의 내용·구조화 필드·첨부파일·결재 타임라인 */}
       {expandedId && (() => {
@@ -3019,88 +3107,38 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           <h3 className="text-sm font-bold mb-5">새 결재 요청</h3>
 
           <div className="space-y-4">
-            {/* Request Type — 아이콘 칩 피커 */}
-            <div>
-              <label className="field-label">요청 유형 *</label>
-              <div className="approval-type-picker">
-                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
-                  const m = typeMeta(k);
-                  const on = form.requestType === k;
-                  // 2026-07-16 QA: "정책 관리"에서 기본 유형(경비청구 등)에 지정한 "양식 표시 이름"이
-                  //   여기(새 요청 유형 피커)에 반영 안 되던 버그 — 매칭 정책의 label 을 우선 사용.
-                  const matchedPolicy = (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k);
-                  const displayLabel = matchedPolicy?.label || v;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setForm({ ...form, requestType: k as RequestType })}
-                      className={`inline-flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-                        on
-                          ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)] shadow-sm"
-                          : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--text)]"
-                      }`}
-                    >
-                      <span className={`w-6 h-6 rounded-lg flex items-center justify-center ${m.bg} ${m.text}`}>
-                        <TypeIcon name={m.icon} className="w-3.5 h-3.5" />
-                      </span>
-                      {displayLabel}
-                    </button>
-                  );
-                })}
-                {/* 관리자가 만든 커스텀 정책 유형 — 내장 유형/기본 제외 */}
-                {(policies as ApprovalPolicy[])
-                  .filter((p) => p.is_active && p.document_type !== "default" && !(p.document_type in REQUEST_TYPE_LABELS))
-                  .map((p) => {
-                    const on = form.requestType === p.document_type;
-                    return (
-                      <button
-                        key={p.document_type}
-                        type="button"
-                        onClick={() => setForm({ ...form, requestType: p.document_type as RequestType })}
-                        className={`inline-flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-                          on
-                            ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)] shadow-sm"
-                            : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--text)]"
-                        }`}
-                      >
-                        <span className={`w-6 h-6 rounded-lg flex items-center justify-center ${TYPE_FALLBACK.bg} ${TYPE_FALLBACK.text}`}>
-                          <TypeIcon name="doc" className="w-3.5 h-3.5" />
-                        </span>
-                        {p.label || p.name}
-                      </button>
-                    );
-                  })}
-              </div>
-              {(customForms as ApprovalForm[]).length > 0 && (
-                <div className="mt-3">
-                  <div className="text-[11px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-1.5">회사 결재 양식</div>
-                  <div className="flex flex-wrap gap-2">
-                    {(customForms as ApprovalForm[]).map((f) => {
-                      const on = form.requestType === `form:${f.id}`;
-                      return (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => setForm({ ...form, requestType: `form:${f.id}` as RequestType })}
-                          className={`inline-flex items-center gap-1.5 pl-1.5 pr-3 py-1.5 rounded-xl text-xs font-bold border transition ${
-                            on
-                              ? "border-[var(--primary)] bg-[var(--primary)]/8 text-[var(--primary)] shadow-sm"
-                              : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-[var(--primary)]/50 hover:text-[var(--text)]"
-                          }`}
-                        >
-                          <span className="w-6 h-6 rounded-lg flex items-center justify-center bg-[var(--primary)]/12 text-[var(--primary)]">
-                            <TypeIcon name="layout" className="w-3.5 h-3.5" />
-                          </span>
-                          {f.name}
-                          {f.category && <span className="text-[10px] font-semibold text-[var(--text-dim)]">{f.category}</span>}
-                        </button>
-                      );
-                    })}
+            {/* Request Type — 한 줄 고르기(누르면 아래로 목록) — 2026-08-18 사장님. 예전 아이콘 칩 격자는 버튼이 너무 많았다 */}
+            {(() => {
+              // 2026-07-16 QA: "정책 관리"에서 기본 유형(경비청구 등)에 지정한 "양식 표시 이름"이
+              //   여기(새 요청 유형 피커)에 반영 안 되던 버그 — 매칭 정책의 label 을 우선 사용.
+              const builtin: PickOpt[] = Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
+                const m = typeMeta(k);
+                const matchedPolicy = (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k);
+                return { value: k, label: matchedPolicy?.label || v, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={m.icon} className="w-3.5 h-3.5" /></span> };
+              });
+              // 관리자가 만든 커스텀 정책 유형 — 내장 유형/기본 제외
+              const custom: PickOpt[] = (policies as ApprovalPolicy[])
+                .filter((p) => p.is_active && p.document_type !== "default" && !(p.document_type in REQUEST_TYPE_LABELS))
+                .map((p) => ({ value: p.document_type, label: p.label || p.name, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${TYPE_FALLBACK.bg} ${TYPE_FALLBACK.text}`}><TypeIcon name="doc" className="w-3.5 h-3.5" /></span> }));
+              const formOpts: PickOpt[] = (customForms as ApprovalForm[]).map((f) => ({ value: `form:${f.id}`, label: f.name, sub: f.category || undefined, icon: <span className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 bg-[var(--primary)]/12 text-[var(--primary)]"><TypeIcon name="layout" className="w-3.5 h-3.5" /></span> }));
+              const typeVal = String(form.requestType || "").startsWith("form:") ? "" : String(form.requestType || "");
+              const formVal = String(form.requestType || "").startsWith("form:") ? String(form.requestType) : "";
+              return (
+                <div className="ap-pick-rows">
+                  <div className="ap-pick-row">
+                    <label className="field-label">요청 유형 *</label>
+                    <TypePicker value={typeVal} options={[...builtin, ...custom]} placeholder="유형을 고르세요 — 경비 청구 · 결제 요청 · 휴가 신청 …"
+                      onChange={(v) => setForm({ ...form, requestType: v as RequestType })} />
+                  </div>
+                  <div className="ap-pick-row">
+                    <label className="field-label">회사 결재 양식</label>
+                    <TypePicker value={formVal} options={formOpts} placeholder={formOpts.length ? "회사 양식으로 올리려면 여기서 고르세요" : "등록된 회사 양식이 없습니다 — 양식 관리에서 추가"}
+                      emptyText="양식 관리 탭에서 회사 결재 양식을 만들면 여기 나옵니다"
+                      onChange={(v) => setForm({ ...form, requestType: v as RequestType })} />
                   </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* 유형 선택 전 — 아래 입력을 감추고 안내만 (2026-08-05 사장님) */}
             {!typeChosen && (
@@ -3726,6 +3764,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 // ══════════════════════════════════════════════
 
 function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
+  const [pq, setPq] = useState("");
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<ApprovalPolicy | null>(null);
@@ -3880,20 +3919,19 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
   }
 
+  //   2026-08-18 조회 표준 — 카드 격자 → 조회 줄(빠른검색 ‖ + 정책 추가) + 표(공용 머리단)
+  const visiblePolicies = (policies as ApprovalPolicy[]).filter((p) => quickSearchHit(pq, [p.name, p.label, REQUEST_TYPE_LABELS[p.document_type as RequestType] || p.document_type]));
+
   return (
     <div>
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => { resetForm(); setShowForm(true); }}
-          className="btn-primary"
-        >
-          + 정책 추가
-        </button>
-      </div>
+      <QueryBar right={<button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm whitespace-nowrap">+ 정책 추가</button>}>
+        <QuickSearch value={pq} onApply={setPq} placeholder="정책 이름 · 유형 — 쉼표로 여러 개, Enter" />
+        <span className="text-[11px] text-[var(--text-dim)]">유형별 결재선(단계·승인자·자동승인 한도)을 정합니다 — 새 요청에 자동 적용</span>
+      </QueryBar>
 
       {/* Policy Form */}
       {showForm && (
-        <div className="approval-policy-form glass-card">
+        <div className="approval-policy-form ap-pad-form">
           <h3 className="section-title">{editingPolicy ? "양식 · 결재선 수정" : "새 양식 · 결재선"}</h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -4146,86 +4184,66 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         </div>
       )}
 
-      {/* Policy List — 결재선 플로우 카드 */}
+      {/* Policy List — 표 (2026-08-18) */}
       {policies.length === 0 && !showForm ? (
-        <div className="text-center py-20 px-6 glass-card">
+        <div className="ap-empty">
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--primary-light)] text-[var(--primary)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>
           </div>
           <div className="text-base font-bold mb-1.5">등록된 결재 정책이 없습니다</div>
           <div className="text-sm text-[var(--text-muted)] mb-5">정책을 추가하면 결재 요청 시 자동으로 적용됩니다</div>
-          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">+ 정책 추가</button>
+          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 정책 추가</button>
         </div>
       ) : (
-        <div className="approval-policy-list">
-          {policies.map((policy: ApprovalPolicy) => {
-            const m = typeMeta(policy.document_type);
-            const stages = policy.stages as ApprovalStageConfig[];
-            return (
-              <div key={policy.id} className="approval-policy-card glass-card card-hover group">
-                <div className="flex items-start gap-3 mb-4">
-                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}>
-                    <TypeIcon name={m.icon} className="w-5 h-5" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm truncate">{policy.name}</span>
+        <div className="ev-scroll">
+          <table className="ev-table ev-lined ap-policy-table">
+            <thead><tr><th>정책</th><th>유형</th><th>결재선</th><th>적용 대상</th><th>자동승인</th><th>상태</th><th>관리</th></tr></thead>
+            <tbody>
+              {visiblePolicies.map((policy: ApprovalPolicy) => {
+                const m = typeMeta(policy.document_type);
+                const stages = policy.stages as ApprovalStageConfig[];
+                const t = policyTargets(policy);
+                const targetText = t.department ? `${t.department} 팀 전용` : t.userIds.length
+                  ? (() => { const names = t.userIds.map((id) => { const u = orgUsers.find((x) => x.id === id); return u?.name || u?.email || "?"; }); return `${names.slice(0, 2).join("·")}${names.length > 2 ? ` 외 ${names.length - 2}명` : ""} 전용`; })()
+                  : "전체";
+                return (
+                  <tr key={policy.id}>
+                    <td className="text-left">
+                      <span className="inline-flex items-center gap-2">
+                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={m.icon} className="w-3.5 h-3.5" /></span>
+                        <span className="font-semibold">{policy.name}</span>
+                      </span>
+                    </td>
+                    <td className="text-center">{REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type}</td>
+                    <td className="text-left">
+                      <span className="inline-flex items-center gap-1 flex-wrap">
+                        {stages.map((stage, idx) => (
+                          <span key={idx} className="inline-flex items-center gap-1">
+                            <span className="ap-stage-pill"><b>{stage.stage}</b>{stage.name}</span>
+                            {idx < stages.length - 1 && <span className="text-[var(--text-dim)]">›</span>}
+                          </span>
+                        ))}
+                      </span>
+                    </td>
+                    <td className="text-center text-[var(--text-muted)]">{targetText}</td>
+                    <td className="text-right mono-number">{policy.auto_approve_below > 0 ? `${formatAmount(policy.auto_approve_below)} 미만` : "—"}</td>
+                    <td className="text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${policy.is_active ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>
-                        <span className={`w-1 h-1 rounded-full ${policy.is_active ? "bg-[var(--success)]" : "bg-[var(--text-dim)]"}`} />
                         {policy.is_active ? "활성" : "비활성"}
                       </span>
-                    </div>
-                    <div className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                      {REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type} · {stages.length}단계
-                      {policy.auto_approve_below > 0 && ` · ${formatAmount(policy.auto_approve_below)} 미만 자동승인`}
-                      {(() => {
-                        // 적용 대상 표시 (2026-08-11) — 부서 또는 지정 직원 이름(2명까지 + 외 N명)
-                        const t = policyTargets(policy);
-                        if (t.department) return ` · ${t.department} 팀 전용`;
-                        if (!t.userIds.length) return null;
-                        const names = t.userIds.map((id) => { const u = orgUsers.find((x) => x.id === id); return u?.name || u?.email || "?"; });
-                        const head = names.slice(0, 2).join("·");
-                        return ` · ${head}${names.length > 2 ? ` 외 ${names.length - 2}명` : ""} 전용`;
-                      })()}
-                    </div>
-                  </div>
-                  <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => startEdit(policy)}
-                      className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition"
-                      title="수정"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    </button>
-                    <button
-                      onClick={async () => { if (await appConfirm("이 정책을 삭제하시겠습니까?", { danger: true })) deleteMut.mutate(policy.id); }}
-                      disabled={deleteMut.isPending}
-                      className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition disabled:opacity-50"
-                      title="삭제"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                    </button>
-                  </div>
-                </div>
-                {/* Stage flow — 번호 서클 + 화살표 */}
-                <div className="flex items-center gap-1.5 flex-wrap px-3 py-2.5 rounded-xl bg-[var(--bg-surface)]/70">
-                  {stages.map((stage, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5">
-                      <span className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full bg-[var(--bg-card)] border border-[var(--border)]">
-                        <span className="w-4.5 h-4.5 min-w-[18px] min-h-[18px] rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-[9px] font-extrabold">{stage.stage}</span>
-                        <span className="text-[11px] font-semibold text-[var(--text)]">{stage.name}</span>
+                    </td>
+                    <td className="text-center">
+                      <span className="inline-flex gap-1">
+                        <button onClick={() => startEdit(policy)} className="btn-secondary btn-sm">수정</button>
+                        <button onClick={async () => { if (await appConfirm("이 정책을 삭제하시겠습니까?", { danger: true })) deleteMut.mutate(policy.id); }} disabled={deleteMut.isPending} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50">삭제</button>
                       </span>
-                      {idx < stages.length - 1 && (
-                        <svg className="w-3 h-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 5l7 7-7 7" />
-                        </svg>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+                    </td>
+                  </tr>
+                );
+              })}
+              {visiblePolicies.length === 0 && <tr><td colSpan={7} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 정책이 없습니다</td></tr>}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

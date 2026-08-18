@@ -1,5 +1,6 @@
 "use client";
 import { appConfirm } from "@/components/global-confirm";
+import { QueryBar, ChipGroup, QuickSearch, quickSearchHit } from "@/components/query-kit";
 import { logRead } from "@/lib/log-read";
 
 // 결재 양식 관리 + 빌더 (2026-07-01, HR 서비스식) — approvals '양식 관리' 탭에서 사용.
@@ -64,6 +65,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   // 기본 제공 유형/회사 양식을 탭으로 분리 (2026-08-06 사장님 — 계약 양식 관리와 동일한 방식).
   //   기본은 '회사 결재 양식' — 기본 유형 카드 11개에 밀려 아래로 내려가던 쪽.
   const [listTab, setListTab] = useState<"company" | "default">("company");
+  const [q, setQ] = useState("");
   const [editing, setEditing] = useState<null | Partial<ApprovalForm>>(null);
   const [saving, setSaving] = useState(false);
 
@@ -187,69 +189,43 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const setField = (i: number, p: Partial<ApprovalFormField>) => patch({ fields: (editing!.fields || []).map((f, j) => (j === i ? { ...f, ...p } : f)) });
   const setStage = (i: number, p: Partial<ApprovalFormStage>) => patch({ stages: (editing!.stages || []).map((s, j) => (j === i ? { ...s, ...p } : s)) });
 
-  return (
-    <div className="approval-forms-manager glass-card">
-      <div className="panel-header-wrap">
-        <div>
-          <h2 className="text-sm font-bold text-[var(--text)]">결재 양식 관리</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">회사에서 쓰는 결재 양식(필드·내용·결재선)을 만들어 새 요청에서 선택합니다.</p>
-        </div>
-        <button onClick={openNew} className="btn-primary">+ 새 양식 추가</button>
-      </div>
+  //   2026-08-18 조회 표준 — 카드 격자 → 조회 줄(갈래 칩·빠른검색 ‖ + 새 양식 추가) + 표(공용 머리단). 상자 안 상자 없음.
+  const qHit = (name: string, extra: string[] = []) => quickSearchHit(q, [name, ...extra]);
+  const companyRows = (forms as ApprovalForm[]).filter((f) => qHit(f.name, [f.category || ""]));
+  const defaultRows = Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
+    const p = (policies as ApprovalPolicy[]).find((x) => x.document_type === k && x.is_active);
+    return { key: k, base: v, name: p?.label || v, fields: p?.fields?.length || 0, stages: p?.stages?.length || 1, custom: !!p };
+  }).filter((r) => qHit(r.name, [r.base]));
 
-      {/* 두 목록을 탭으로 분리 — 기본 유형 카드가 길어 회사 양식이 아래로 밀리던 문제(2026-08-06 사장님) */}
-      <div className="template-section-tabs seg-bar">
-        <button
-          onClick={() => setListTab("company")}
-          className={`seg-item ${listTab === "company" ? "seg-item-active" : ""}`}
-        >
-          회사 결재 양식 <span className="template-section-count">{(forms as ApprovalForm[]).length}</span>
-        </button>
-        <button
-          onClick={() => setListTab("default")}
-          className={`seg-item ${listTab === "default" ? "seg-item-active" : ""}`}
-        >
-          기본 제공 유형 <span className="template-section-count">{Object.keys(REQUEST_TYPE_LABELS).length}</span>
-        </button>
-      </div>
+  return (
+    <div className="approval-forms-manager">
+      <QueryBar right={<button onClick={openNew} className="btn-primary btn-sm whitespace-nowrap">+ 새 양식 추가</button>}>
+        <ChipGroup value={listTab} onChange={setListTab}
+          options={[{ value: "company", label: `회사 결재 양식 ${(forms as ApprovalForm[]).length}` }, { value: "default", label: `기본 제공 유형 ${Object.keys(REQUEST_TYPE_LABELS).length}` }] as const} />
+        <QuickSearch value={q} onApply={setQ} placeholder="양식 이름 · 분류 — 쉼표로 여러 개, Enter" />
+        <span className="text-[11px] text-[var(--text-dim)]">회사에서 쓰는 결재 양식(필드·내용·결재선)을 만들어 새 요청에서 선택합니다.</span>
+      </QueryBar>
 
       {/* 기본 제공 유형 — 표시 이름·결재선을 여기서 편집(저장 방식은 그대로, 정책으로 커스터마이즈) */}
       {listTab === "default" && (
-      <div className="default-types-section">
-        <div className="text-[11px] text-[var(--text-muted)] mb-2">오너뷰가 제공하는 유형입니다 — 표시 이름·입력 필드·결재선을 회사에 맞게 바꿀 수 있습니다.</div>
-        <div className="forms-grid">
-          {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
-            const p = (policies as ApprovalPolicy[]).find((x) => x.document_type === k && x.is_active);
-            const displayName = p?.label || v;
-            const stageCount = p?.stages?.length || 1;
-            return (
-              <div key={k} className="form-card glass-card group">
-                <div className="flex items-start gap-3">
-                  <span className="w-10 h-10 rounded-xl bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center shrink-0">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-bold text-[var(--text)] truncate">{displayName}</span>
-                      <span className="badge badge-muted">기본</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="badge badge-muted">입력 필드 {p?.fields?.length || 0}</span>
-                      <span className="badge badge-muted">결재 {stageCount}단계</span>
-                      {p && <span className="badge badge-muted">커스텀 적용됨</span>}
-                    </div>
-                  </div>
-                  <div className="form-card-actions">
-                    <button onClick={() => openEditDefault(k)} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition" title="편집">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="ev-scroll">
+          <table className="ev-table ev-lined afm-table">
+            <thead><tr><th>유형</th><th>기본 이름</th><th>입력 필드</th><th>결재 단계</th><th>커스텀</th><th>관리</th></tr></thead>
+            <tbody>
+              {defaultRows.map((r) => (
+                <tr key={r.key}>
+                  <td className="text-left font-semibold">{r.name}</td>
+                  <td className="text-center text-[var(--text-muted)]">{r.base}</td>
+                  <td className="text-center mono-number">{r.fields}</td>
+                  <td className="text-center mono-number">{r.stages}단계</td>
+                  <td className="text-center">{r.custom ? <span className="badge badge-primary">적용됨</span> : <span className="badge badge-muted">기본</span>}</td>
+                  <td className="text-center"><button onClick={() => openEditDefault(r.key)} className="btn-secondary btn-sm">편집</button></td>
+                </tr>
+              ))}
+              {defaultRows.length === 0 && <tr><td colSpan={6} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 유형이 없습니다</td></tr>}
+            </tbody>
+          </table>
         </div>
-      </div>
       )}
 
       {listTab === "company" && ((forms as ApprovalForm[]).length === 0 ? (
@@ -261,34 +237,27 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
           <div className="text-xs text-[var(--text-muted)]">&ldquo;+ 새 양식 추가&rdquo;로 우리 회사만의 결재 양식을 만들어 보세요</div>
         </div>
       ) : (
-        <div className="forms-grid">
-          {(forms as ApprovalForm[]).map((f) => (
-            <div key={f.id} className="form-card glass-card group">
-              <div className="flex items-start gap-3">
-                <span className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-sm font-bold text-[var(--text)] truncate">{f.name}</span>
-                    {f.category && <span className="badge badge-primary">{f.category}</span>}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className="badge badge-muted">입력 필드 {f.fields?.length || 0}</span>
-                    <span className="badge badge-muted">결재 {f.stages?.length || 0}단계</span>
-                  </div>
-                </div>
-                <div className="form-card-actions">
-                  <button onClick={() => openEdit(f)} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition" title="편집">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                  </button>
-                  <button onClick={() => remove(f)} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-dim)] transition" title="삭제">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="ev-scroll">
+          <table className="ev-table ev-lined afm-table">
+            <thead><tr><th>양식</th><th>분류</th><th>입력 필드</th><th>결재 단계</th><th>관리</th></tr></thead>
+            <tbody>
+              {companyRows.map((f) => (
+                <tr key={f.id}>
+                  <td className="text-left font-semibold">{f.name}</td>
+                  <td className="text-center">{f.category ? <span className="badge badge-primary">{f.category}</span> : "—"}</td>
+                  <td className="text-center mono-number">{f.fields?.length || 0}</td>
+                  <td className="text-center mono-number">{f.stages?.length || 0}단계</td>
+                  <td className="text-center">
+                    <span className="inline-flex gap-1">
+                      <button onClick={() => openEdit(f)} className="btn-secondary btn-sm">편집</button>
+                      <button onClick={() => remove(f)} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {companyRows.length === 0 && <tr><td colSpan={5} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 양식이 없습니다</td></tr>}
+            </tbody>
+          </table>
         </div>
       ))}
 
