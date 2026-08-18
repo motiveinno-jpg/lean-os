@@ -2802,8 +2802,11 @@ serve(withSentry("codef-sync", async (req) => {
       try {
         result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType }, cid);
       } catch (regErr: any) {
-        // CF-04019/CF-04000 with stale connectedId — retry with fresh /v1/account/create
-        if (cid && (regErr.message?.includes("CF-04019") || regErr.message?.includes("CF-04000"))) {
+        // CF-04019(connectedId 무효)일 때만 fresh /v1/account/create 로 재시도.
+        //   CF-04000 은 기관 측 인증 실패(예: 미등록 인증서 CF-12805) — 같은 자격증명으로
+        //   create 해봐야 같은 이유로 실패하고(2026-08-18 BC카드 재현), 만에 하나 성공하면
+        //   아래 upsert 가 새 connectedId 로 덮어써 기존 기관 계정이 전부 고아가 된다.
+        if (cid && regErr.message?.includes("CF-04019")) {
           try {
             result = await registerAccount(token, accountType, organization, { loginType, loginId, loginPw, derFile, keyFile, certPassword, pfxFile, clientType });
           } catch (retryErr: any) {
@@ -2824,6 +2827,20 @@ serve(withSentry("codef-sync", async (req) => {
 
       // Save connectedId to company_settings
       if (result.connectedId) {
+        // 덮어쓰기 가드: connectedId 가 바뀌는 경우(= create 폴백 경로) 기존 connectedId 에
+        //   다른 기관 계정이 살아 있으면 저장하지 않는다 — 덮어쓰는 순간 그 계정들의 자동
+        //   수집이 전부 끊긴다(2026-08-05 BC카드 9일 무음 중단과 같은 부류의 사고).
+        if (cid && result.connectedId !== cid) {
+          let oldAccounts: any[] = [];
+          try { oldAccounts = await getAccountList(token, cid); } catch (_) { /* 죽은 cid — 교체 안전 */ }
+          if (oldAccounts.length > 0) {
+            const orgs = oldAccounts.map((a: any) => a.organization).join(", ");
+            return new Response(JSON.stringify({
+              error: `새 connectedId 가 발급됐지만 기존 연결(기관: ${orgs})이 아직 살아 있어 저장하지 않았습니다. 기존 연결이 끊기는 것을 막기 위한 보호 조치입니다. 문제가 반복되면 관리자에게 문의하세요.`,
+              newConnectedId: result.connectedId,
+            }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+        }
         await supabase.from("company_settings").upsert({
           company_id: companyId,
           codef_connected_id: result.connectedId,
