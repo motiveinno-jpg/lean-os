@@ -73,7 +73,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
   const [prefs, setPrefs] = useState<NotifPrefs>(DEFAULT_NOTIF_PREFS);
   const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);   //   저장 중 표시는 띠와 함께 뺐다
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState<NotificationPermission | "unknown">("unknown");
   // iOS(사파리)는 '홈 화면에 추가'한 standalone 앱에서만 백그라운드 푸시 지원 — 안내용
@@ -106,7 +106,17 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
     }).catch(() => {});
   }, []);
 
-  async function save() {
+  //   자동 저장 — 값을 바꾸고 0.6초 지나면 서버·로컬에 저장(불러오는 중·첫 렌더는 건너뜀). 저장 버튼 없음 (2026-08-19).
+  const firstRun = React.useRef(true);
+  useEffect(() => {
+    if (!loaded) return;
+    if (firstRun.current) { firstRun.current = false; return; }
+    const t = setTimeout(() => { void save(true); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs, loaded]);
+
+  async function save(silent = false) {
     setSaving(true);
     try {
       localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(prefs));
@@ -133,7 +143,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
           }
         }
       }
-      toast("알림 설정 저장됨", "success");
+      if (!silent) toast("알림 설정 저장됨", "success");
     } catch (err: any) {
       toast(`저장 실패: ${err.message || err}`, "error");
     } finally {
@@ -341,22 +351,7 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       {/* 자금일보 카카오 알림톡 — 매일 KST 09:00 자동 발송 */}
       <DailyReportCard companyId={companyId} />
 
-      {/* Save bar */}
-      <div className="notification-save-bar">
-        <button
-          onClick={() => setPrefs(DEFAULT_NOTIF_PREFS)}
-          className="btn-ghost"
-        >
-          기본값으로
-        </button>
-        <button
-          onClick={save}
-          disabled={saving}
-          className="btn-primary px-5"
-        >
-          {saving ? "저장중..." : "저장"}
-        </button>
-      </div>
+      {/* 저장 띠(기본값으로·저장)는 2026-08-19 사장님 지시로 뺐다 — 바꾸면 자동 저장(아래 useEffect). */}
     </div>
   );
 }
