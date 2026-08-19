@@ -3,7 +3,7 @@
 // ── 마스터 권한 부여 트리 (2026-07-30 개편 P1) ──
 //   마스터가 구성원에게 전 메뉴·세부탭 권한을 체크박스로 부여. 저장은 set_member_permissions RPC(전체 교체).
 //   P1 단계에서는 저장만 되고 화면 게이트는 P2(사이드바 단일화)부터 이 권한을 소비한다.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -40,23 +40,21 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
     },
   });
 
-  const applyTemplate = async (tpl: { name: string; perm_keys: string[] }) => {
-    // 체크 상태 교체 + 즉시 저장(서버 RPC — 위임 권한 보호 규칙 동일 적용)
+  // 템플릿 선택 = 체크 상태만 교체(미리보기) — **저장을 눌러야** 실제 적용 (2026-08-19 사장님:
+  //   확인 없이 즉시 적용되던 것 수정. 잘못 골라도 저장 전이면 되돌릴 수 있다)
+  const stageTemplate = (tpl: { name: string; perm_keys: string[] }) => {
     setChecked(new Set(tpl.perm_keys || []));
     setDirty(true);
-    try {
-      const { data, error } = await (supabase as any).rpc("set_member_permissions", {
-        p_user_id: targetUserId, p_perm_keys: tpl.perm_keys || [],
-      });
-      if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "적용 실패");
-      setDirty(false);
-      toast(`"${tpl.name}" 템플릿이 ${empName}님에게 적용되었습니다`, "success");
-      qc.invalidateQueries({ queryKey: ["member-permissions", targetUserId] });
-    } catch (e: any) {
-      toast(friendlyError(e, "템플릿 적용 실패"), "error");
-    }
   };
+
+  // 현재 체크 상태와 정확히 일치하는 템플릿 — 셀렉트에 그 이름이 떠서 "무엇이 적용돼 있는지" 보인다 (2026-08-19 사장님)
+  const matchedTplId = useMemo(() => {
+    const hit = (templates as any[]).find((t) => {
+      const keys: string[] = t.perm_keys || [];
+      return keys.length === checked.size && keys.every((k) => checked.has(k));
+    });
+    return hit?.id || "";
+  }, [templates, checked]);
 
   const { data: targetIsMaster = false } = useQuery({
     queryKey: ["target-is-master", targetUserId],
@@ -114,12 +112,12 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
           {/* 템플릿이 없어도 자리를 지킨다 — 비활성으로 두어 버튼 배치가 흔들리지 않게 (2026-08-06 사장님) */}
           <select
             className="perm-apply-select"
-            value=""
+            value={matchedTplId}
             disabled={templates.length === 0}
             title={templates.length === 0 ? "만들어 둔 템플릿이 없습니다 — 템플릿 관리에서 먼저 만드세요" : undefined}
             onChange={(e) => {
               const tpl = (templates as any[]).find((t) => t.id === e.target.value);
-              if (tpl) applyTemplate(tpl);
+              if (tpl) stageTemplate(tpl);
             }}
           >
             <option value="">{templates.length === 0 ? "템플릿 없음" : "템플릿 적용..."}</option>
@@ -134,7 +132,7 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
         </div>
       </div>
       <PermissionTree checked={checked} onToggle={toggle} viewerIsMaster={viewerIsMaster} />
-      {dirty && <div className="text-[11px] text-[var(--warning)] mt-2">변경사항이 있습니다 — 저장을 눌러야 반영됩니다.</div>}
+      {dirty && <div className="text-[11px] text-[var(--warning)] mt-2">변경사항이 있습니다 — 저장을 눌러야 반영됩니다. (템플릿 선택도 저장 전에는 적용되지 않습니다)</div>}
 
       <PermissionTemplateModal
         open={showTemplateModal}
