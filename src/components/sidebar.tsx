@@ -119,13 +119,14 @@ const NAV_GROUPS: NavGroup[] = [
     label: "회사 관리", short: "회사", icon: "settings",
     items: [
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
-      { href: "/announcements", label: "공지사항", icon: "megaphone", badgeKey: "announcements" },
       { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
     ],
   },
   {
     label: "도움말", short: "도움말", icon: "help-circle",
     items: [
+      //   공지사항 = 오너뷰가 올리는 공지·업데이트 내역(회사 기능 아님, 2026-08-19 사장님) → 도움말 그룹
+      { href: "/announcements", label: "공지사항", icon: "megaphone", badgeKey: "announcements" },
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/support", label: "고객센터", icon: "headphones" },
     ],
