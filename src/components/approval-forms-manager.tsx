@@ -553,26 +553,15 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                 maxHeight="260px" />
             </div>
 
-            {/* 결재선 — 단계 편집은 결재허브 > 결재선 관리에서. 여기선 만든 결재선을 골라 붙이기만 (2026-08-19 사장님) */}
+            {/* 결재선 — 기본양식에서는 아예 고르지 않는다. 결재선 관리에서 만든 결재선이 자동 적용
+                (2026-08-19 사장님: "여기는 아무것도 선택 못하고 그냥 결재선 가져오기로").
+                저장 시 stages 는 열 때 불러온 값이 그대로 통과 — 기존 결재선 데이터를 건드리지 않는다. */}
             <div className="approval-stages-section">
-              <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
-                <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선 (승인 단계)</label>
-                {linePicker((p) => setDefaultForm((s) => ({ ...s, stages: (p.stages as ApprovalStageConfig[]).map((st, i) => ({ ...st, stage: i + 1 })), referenceUserIds: Array.isArray(p.reference_user_ids) ? p.reference_user_ids : s.referenceUserIds })))}
-              </div>
-              <div className="space-y-1">
-                {defaultForm.stages.map((s, i) => (
-                  <div key={i} className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded bg-[var(--bg-surface)] border border-[var(--border)]">
-                    <span className="text-[10px] font-bold w-5 h-5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">{i + 1}</span>
-                    <span className="font-medium truncate">{s.name || `${i + 1}차 승인`}</span>
-                    <span className="text-[11px] text-[var(--text-dim)] ml-auto shrink-0">
-                      {s.approver_id != null
-                        ? ((s as any).approver_name || (users as any[]).find((u) => u.id === s.approver_id)?.name || "지정 안 됨")
-                        : (POLICY_ROLE_OPTS.find((o) => o.value === (s.approver_role || "manager"))?.label || s.approver_role)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[10px] text-[var(--text-dim)] mt-1">단계 구성(추가·역할·담당자 변경)은 결재허브 &gt; 결재선 관리에서 합니다.</p>
+              <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선</label>
+              <p className="mt-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[11px] text-[var(--text-muted)]">
+                결재선은 <b>결재허브 &gt; 결재선 관리</b>에서 만든 결재선을 자동으로 가져와 적용됩니다 —
+                신청자의 부서·직원 대상 결재선이 우선, 없으면 회사 공통 결재선입니다. 여기서는 따로 선택하지 않습니다.
+              </p>
             </div>
 
             {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (빌더와 동일) */}
