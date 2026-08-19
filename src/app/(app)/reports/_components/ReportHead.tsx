@@ -5,11 +5,10 @@
 //   [결과 요약(핵심 지표)] 만 이 부품으로 넘긴다 → layout 의 #report-head-slot 에 포털로 들어간다.
 //   페이지 본문(스크롤)과 머리(고정)가 갈라지므로 기간을 바꿔도 조회 줄은 제자리.
 
-import { useEffect, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { QueryBar, ResultStrip } from "@/components/query-kit";
+import { type ReactNode } from "react";
+import { SlotHead } from "@/components/slot-head";
 
-export function ReportHead({ bar, right, stats, statsRight }: {
+export function ReportHead(props: {
   /** 조회 줄 왼쪽 — 기간·비교 칩 */
   bar?: ReactNode;
   /** 조회 줄 오른쪽 — 실행(엑셀·인쇄·새로고침) */
@@ -18,14 +17,6 @@ export function ReportHead({ bar, right, stats, statsRight }: {
   stats?: ReactNode;
   statsRight?: ReactNode;
 }) {
-  const [el, setEl] = useState<HTMLElement | null>(null);
-  useEffect(() => { setEl(document.getElementById("report-head-slot")); }, []);
-  if (!el) return null;
-  return createPortal(
-    <>
-      {(bar || right) && <QueryBar right={right}>{bar}</QueryBar>}
-      {stats && <ResultStrip right={statsRight}>{stats}</ResultStrip>}
-    </>,
-    el,
-  );
+  //   2026-08-19 공용 SlotHead 로 — 같은 슬롯 방식이 정기 지출·통장·카드에도 쓰인다
+  return <SlotHead slotId="report-head-slot" {...props} />;
 }

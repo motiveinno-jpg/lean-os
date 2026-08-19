@@ -5,7 +5,8 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
 import { SortableTh } from "@/components/sortable-th";
-import { ChipGroup, SelectionBar } from "@/components/query-kit";
+import { ChipGroup, SelectionBar, QueryScreen, QueryHead, QueryBody, Stat } from "@/components/query-kit";
+import { SlotHead } from "@/components/slot-head";
 import { useRouter } from "next/navigation";
 import { DateField } from "@/components/date-field";
 import { friendlyError } from "@/lib/friendly-error";
@@ -117,11 +118,12 @@ function PaymentsPageInner() {
   if (mainError) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
-    <div className="">
+    <div className="qk-shell pay-page">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-      {/* 컴팩트 툴바 — 탭(좌). 타이틀은 상단 고정 헤더바가 담당 */}
-      <div className="payments-tab-bar page-sticky-header">
-        {/* 갈래 탭 — 공용(collect-tabs), 조회 표준 확산 Wave 2 (2026-08-18) */}
+      {/* 조회 화면 표준 상자 (2026-08-19 자금 메뉴 확산) — 갈래 탭은 상자 안 맨 위 파란 밑줄, 갈래마다 조회 줄·결과 요약은 SlotHead 로 #pay-head-slot 에,
+          본문만 스크롤. 예전엔 탭 상자 따로 + 제목·버튼이 상자 밖 + 큰 빈 카드 (사장님 2026-08-19 점검) */}
+      <QueryScreen>
+      <QueryHead>
         <div className="collect-tabs no-print">
           {TABS.map((t) => (
             <button key={t.key} type="button" onClick={() => setTab(t.key)}
@@ -130,7 +132,10 @@ function PaymentsPageInner() {
             </button>
           ))}
         </div>
-      </div>
+        <div id="pay-head-slot" />
+      </QueryHead>
+      <QueryBody>
+      <div className="pay-scroll">
 
       {/* 처리할 것 — 통장에서 새로 잡힌 반복 지출이 있으면 본체 화면 위에서 알려 주고,
           누르면 자동 추천 탭으로 보낸다. 예전엔 이게 첫 화면 자체였다 (2026-08-12) */}
@@ -161,6 +166,9 @@ function PaymentsPageInner() {
         <PaymentQueueTab companyId={companyId} userId={userId} filter={filter} setFilter={setFilter}
           showForm={showForm} setShowForm={setShowForm} form={form} setForm={setForm} invalidate={invalidate} />
       )}
+      </div>
+      </QueryBody>
+      </QueryScreen>
     </div>
   );
 }
@@ -354,40 +362,26 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
 
   return (
     <>
-      {/* Stats */}
-      <div className="payment-stats-grid">
-        <div className="stat-tile overflow-hidden">
-          <div className="stat-tile-label">승인 대기</div>
-          <div className="stat-tile-value text-[var(--warning)] truncate">{stats?.pendingCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mono-number truncate">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</div>
-        </div>
-        <div className="stat-tile overflow-hidden">
-          <div className="stat-tile-label">승인 완료</div>
-          <div className="stat-tile-value text-[var(--info)] truncate">{stats?.approvedCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mono-number truncate">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</div>
-        </div>
-        <div className="stat-tile overflow-hidden">
-          <div className="stat-tile-label">실행 완료</div>
-          <div className="stat-tile-value text-[var(--success)] truncate">{stats?.executedCount ?? 0}건</div>
-          <div className="text-xs text-[var(--text-dim)] mono-number truncate">₩{(stats?.executedAmount ?? 0).toLocaleString()}</div>
-        </div>
-        <div className="stat-tile overflow-hidden">
-          <div className="stat-tile-label">통장 총 잔고</div>
-          <div className="stat-tile-value [overflow-wrap:anywhere]">₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()}</div>
-          <div className="text-xs text-[var(--text-dim)] truncate">{bankAccounts.length}개 통장</div>
-        </div>
-      </div>
-
-      {/* Add button */}
-      <div className="flex justify-end mb-4">
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-          + 수동 결제 등록
-        </button>
-      </div>
+      {/* 조회 줄(상태 칩) ‖ 수동 결제 등록 · 결과 요약 — 상자 머리 슬롯 (2026-08-19, KPI 타일 4장 → Stat) */}
+      <SlotHead slotId="pay-head-slot"
+        bar={<ChipGroup value={filter} onChange={setFilter}
+          options={[
+            { value: "all", label: "전체" }, { value: "pending", label: "승인대기" },
+            { value: "approved", label: "승인완료" }, { value: "executed", label: "실행완료" }, { value: "refunded", label: "환불" }, { value: "rejected", label: "거부" },
+          ]} />}
+        right={<button type="button" onClick={() => setShowForm(true)} className="btn-secondary btn-sm">+ 수동 결제 등록</button>}
+        stats={<>
+          <Stat label="승인 대기" value={<>{stats?.pendingCount ?? 0}건 <small className="mono-number font-normal text-[var(--text-dim)]">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</small></>} tone="minus" />
+          <Stat label="승인 완료" value={<>{stats?.approvedCount ?? 0}건 <small className="mono-number font-normal text-[var(--text-dim)]">₩{(stats?.approvedAmount ?? 0).toLocaleString()}</small></>} />
+          <Stat label="실행 완료" value={<>{stats?.executedCount ?? 0}건 <small className="mono-number font-normal text-[var(--text-dim)]">₩{(stats?.executedAmount ?? 0).toLocaleString()}</small></>} tone="plus" />
+          <Stat label="통장 총 잔고" value={<>₩{bankAccounts.reduce((s: number, a: any) => s + Number(a.balance || 0), 0).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">{bankAccounts.length}개</small></>} />
+        </>} />
 
       {showForm && (
-        <div className="payment-manual-form-card glass-card">
-          <h3 className="section-title">수동 결제 등록</h3>
+        <div className="approval-detail-modal" onClick={() => setShowForm(false)}>
+        <div className="pnl-drill pay-form-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="pnl-drill-head"><h3 className="text-sm font-bold">수동 결제 등록</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setShowForm(false)}>닫기</button></div>
+          <div className="pay-form-body">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) *</label>
@@ -402,23 +396,16 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                 className="field-input" />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowForm(false)} className="btn-secondary btn-sm">취소</button>
             <button onClick={() => Number(form.amount) > 0 && createMut.mutate()}
               disabled={!form.amount || createMut.isPending}
-              className="btn-primary">등록</button>
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+              className="btn-primary btn-sm">등록</button>
+          </div>
           </div>
         </div>
+        </div>
       )}
-
-      {/* 상태 칩 — 조회 표준 부품(ChipGroup) */}
-      <div className="payment-filter-bar">
-        <ChipGroup value={filter} onChange={setFilter}
-          options={[
-            { value: "all", label: "전체" }, { value: "pending", label: "승인대기" },
-            { value: "approved", label: "승인완료" }, { value: "executed", label: "실행완료" }, { value: "refunded", label: "환불" }, { value: "rejected", label: "거부" },
-          ]} />
-      </div>
 
       {/* 확정 줄 — 조회 표준 SelectionBar. 승인/거부/실행 중 파란 버튼은 '실행' 하나 */}
       <SelectionBar count={selectedIds.size} onClear={clearSelection}
@@ -429,14 +416,9 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
       </SelectionBar>
 
       {/* Queue */}
-      <div className="payment-queue-table glass-card">
+      <div className="payment-queue-table">
         {filtered.length === 0 ? (
-          <div className="py-16 px-6 text-center">
-            <div className="text-5xl mb-4"><Ico e="💳" /></div>
-            <div className="text-lg font-bold mb-2">결제 큐가 비어있습니다</div>
-            <div className="text-sm text-[var(--text-muted)] mb-5">프로젝트 비용 스케줄에서 자동 생성되거나 수동으로 등록하세요</div>
-            <button onClick={() => setShowForm(true)} className="btn-secondary">+ 수동 결제 등록</button>
-          </div>
+          <div className="collect-empty">결제 내역이 없습니다 — 프로젝트 비용 스케줄에서 자동 생성되거나 위 '수동 결제 등록'으로 넣습니다</div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
@@ -646,16 +628,10 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 
   return (
     <>
-      <div className="fixed-cost-batch-header">
-        <div>
-          <h2 className="text-lg font-bold">고정비 일괄 이체</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">반복결제(임대/보험/구독 등) 배치 → 대표 승인 → 일괄 이체</p>
-        </div>
-        <button onClick={handleGenerate} disabled={generating}
-          className="btn-primary disabled:opacity-50">
-          {generating ? '생성 중...' : '이번 달 고정비 배치 생성'}
-        </button>
-      </div>
+      <SlotHead slotId="pay-head-slot"
+        bar={<span className="text-[11px] text-[var(--text-dim)]">반복결제(임대·보험·구독)를 달마다 배치로 묶어 → 대표 승인 → 일괄 이체</span>}
+        right={<button type="button" onClick={handleGenerate} disabled={generating} className="btn-primary btn-sm">{generating ? '생성 중…' : '이번 달 고정비 배치 생성'}</button>}
+        stats={<><Stat label="배치" value={`${batches.length}건`} /><Stat label="승인 대기" value={`${batches.filter((b: any) => b.status === "pending" || b.status === "draft").length}건`} /></>} />
 
       {selectedBatchId && (
         <BatchDetailModal
@@ -664,13 +640,9 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
         />
       )}
 
-      <div className="fixed-cost-batch-table glass-card">
+      <div className="fixed-cost-batch-table">
         {batches.length === 0 ? (
-          <div className="py-14 px-6 text-center">
-            <div className="text-5xl mb-4"><Ico e="🏢" /></div>
-            <div className="text-base font-bold mb-1.5">고정비 배치 없음</div>
-            <div className="text-sm text-[var(--text-muted)]">반복결제를 먼저 설정하고 배치를 생성하세요</div>
-          </div>
+          <div className="collect-empty">고정비 배치가 없습니다 — 반복결제를 먼저 등록하고 위에서 이번 달 배치를 만드세요</div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
             <thead>
@@ -1067,89 +1039,38 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
   return (
     <>
-      {/* Detected recurring from bank tx */}
+      {/* 조회 줄 ‖ 실행 · 결과 요약 — 상자 머리 슬롯으로 (2026-08-19). 제목 h2·큰 배너는 뺐다 */}
+      <SlotHead slotId="pay-head-slot"
+        bar={<span className="text-[11px] text-[var(--text-dim)]">임대료·보험·구독처럼 매달 나가는 돈을 등록해 두면 자금 전망·고정비 대조에 쓰입니다</span>}
+        right={<>
+          <button type="button" onClick={async () => {
+              setRefreshing(true); setRefreshResults(null);
+              try { const results = await refreshRecurringAmounts(companyId); setRefreshResults(results); if (results.length > 0) { queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }); invalidate(); } }
+              finally { setRefreshing(false); }
+            }} disabled={refreshing} className="btn-secondary btn-sm">{refreshing ? '최신화 중…' : '금액 최신화'}</button>
+          <button type="button" onClick={() => setShowForm(true)} className="btn-primary btn-sm">+ 반복결제 추가</button>
+        </>}
+        stats={<>
+          <Stat label="월 고정비 합계" value={`₩${totalActive.toLocaleString()}`} />
+          <Stat label="활성" value={`${recurring.filter((r: any) => r.is_active).length}건`} />
+          <Stat label="전체" value={`${recurring.length}건`} />
+          {newDetected.length > 0 && <Stat label="통장에서 새로 잡힘" value={<span className="text-[var(--warning)]">{newDetected.length}건</span>} />}
+        </>} />
+
+      {/* 통장에서 잡힌 반복 지출 — 한 줄 안내 + 전체 자동등록 (검토는 자동 추천 탭에서) */}
       {newDetected.length > 0 && (
-        <div className="recurring-detected-banner">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-bold text-blue-500">
-              이체내역에서 고정비 {newDetected.length}건 감지됨
-            </div>
-            <button
-              onClick={async () => {
-                await registerDetectedRecurring(companyId, newDetected);
-                queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
-                queryClient.invalidateQueries({ queryKey: ["detected-recurring"] });
-              }}
-              className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition"
-            >
-              전체 자동등록
-            </button>
-          </div>
-          <div className="space-y-1.5">
-            {newDetected.slice(0, 5).map((d: DetectedRecurring, i: number) => (
-              <div key={i} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    d.confidence === 'high' ? 'bg-green-500/10 text-green-500' :
-                    d.confidence === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
-                    'bg-gray-500/10 text-gray-400'
-                  }`}>
-                    {d.confidence === 'high' ? '확실' : d.confidence === 'medium' ? '가능성' : '낮음'}
-                  </span>
-                  <span>{d.counterparty}</span>
-                </div>
-                <span className="font-bold">₩{d.amount.toLocaleString()}/월</span>
-              </div>
-            ))}
-            {newDetected.length > 5 && (
-              <div className="text-xs text-blue-400">... 외 {newDetected.length - 5}건</div>
-            )}
-          </div>
+        <div className="pay-note">
+          <b>통장에서 반복 지출 {newDetected.length}건이 잡혔습니다</b>
+          <span>{newDetected.slice(0, 3).map((d: DetectedRecurring) => `${d.counterparty} ₩${d.amount.toLocaleString()}`).join(" · ")}{newDetected.length > 3 && ` … 외 ${newDetected.length - 3}건`}</span>
+          <span className="ml-auto flex gap-1.5">
+            <button type="button" onClick={async () => { await registerDetectedRecurring(companyId, newDetected); queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }); queryClient.invalidateQueries({ queryKey: ["detected-recurring"] }); }} className="btn-secondary btn-sm">전체 자동등록</button>
+          </span>
         </div>
       )}
 
-      <div className="recurring-payments-header">
-        <div>
-          <h2 className="text-lg font-bold">반복 결제 설정</h2>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
-            월 고정비 합계: <span className="font-bold text-[var(--text)]">₩{totalActive.toLocaleString()}</span>
-            ({recurring.filter((r: any) => r.is_active).length}건 활성)
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={async () => {
-              setRefreshing(true);
-              setRefreshResults(null);
-              try {
-                const results = await refreshRecurringAmounts(companyId);
-                setRefreshResults(results);
-                if (results.length > 0) {
-                  queryClient.invalidateQueries({ queryKey: ["recurring-payments"] });
-                  invalidate();
-                }
-              } finally {
-                setRefreshing(false);
-              }
-            }}
-            disabled={refreshing}
-            className="px-4 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-xl text-xs font-semibold transition disabled:opacity-50"
-          >
-            {refreshing ? '최신화 중...' : '금액 최신화'}
-          </button>
-          <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-            + 반복결제 추가
-          </button>
-        </div>
-      </div>
-
       {/* Refresh Results */}
       {refreshResults !== null && (
-        <div className={`recurring-refresh-results ${
-          refreshResults.length > 0
-            ? 'bg-green-500/5 border-green-500/20'
-            : 'bg-[var(--bg-surface)] border-[var(--border)]'
-        }`}>
+        <div className="pay-note pay-note-col">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-bold">
               {refreshResults.length > 0
@@ -1185,8 +1106,10 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       )}
 
       {showForm && (
-        <div className="recurring-payment-form-card glass-card">
-          <h3 className="section-title">{editingId ? '반복결제 수정' : '반복결제 등록'}</h3>
+        <div className="approval-detail-modal" onClick={resetForm}>
+        <div className="pnl-drill pay-form-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="pnl-drill-head"><h3 className="text-sm font-bold">{editingId ? '반복결제 수정' : '반복결제 등록'}</h3><button type="button" className="btn-secondary btn-sm" onClick={resetForm}>닫기</button></div>
+          <div className="pay-form-body">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">명칭 *</label>
@@ -1250,12 +1173,14 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex justify-end gap-2">
+            <button onClick={resetForm} className="btn-secondary btn-sm">취소</button>
             <button onClick={() => form.name && form.amount && saveMut.mutate()}
               disabled={!form.name || !form.amount || saveMut.isPending}
-              className="btn-primary">{editingId ? '수정 저장' : '등록'}</button>
-            <button onClick={resetForm} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+              className="btn-primary btn-sm">{editingId ? '수정 저장' : '등록'}</button>
           </div>
+          </div>
+        </div>
         </div>
       )}
 
@@ -1269,21 +1194,12 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
         />
       )}
 
-      {/* List */}
-      <div className="recurring-payments-table glass-card">
+      {/* List — 상자 안 상자 없이 표만 (2026-08-19) */}
+      <div className="recurring-payments-table">
         {recurring.length === 0 ? (
-          <div className="py-14 px-6 text-center">
-            <div className="text-5xl mb-4"><Ico e="🔄" /></div>
-            <div className="text-base font-bold mb-1.5">반복결제가 없습니다</div>
-            <div className="text-sm text-[var(--text-muted)] mb-5">임대료, 보험, 구독 등 매월 고정 지출을 등록하세요</div>
-            {/* 위 배너에서 이미 N건을 감지해 놓고 여기서는 "없습니다" 만 말하면 서로 따로 논다 —
-                빈 화면이 **다음 할 일**을 가리키게 한다 (2026-08-12 사장님 지적) */}
-            {newDetected.length > 0 && (
-              <div className="text-[13px] text-[var(--text)] mb-3">
-                통장에서 <b>{newDetected.length}건</b>이 감지돼 있습니다 — 위에서 <b>전체 자동등록</b>을 누르면 한 번에 채워집니다
-              </div>
-            )}
-            <button onClick={() => setShowForm(true)} className="btn-secondary btn-sm">+ 반복결제 추가</button>
+          <div className="collect-empty">
+            반복결제가 없습니다 — 임대료, 보험, 구독 등 매월 고정 지출을 등록하세요.
+            {newDetected.length > 0 && <> 통장에서 <b>{newDetected.length}건</b>이 잡혀 있습니다 — 위 <b>전체 자동등록</b>을 누르면 한 번에 채워집니다.</>}
           </div>
         ) : (
           <div className="ev-scroll payments-scroll"><table className="ev-table ev-lined payments-table">
@@ -1466,48 +1382,25 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
   const executedCount = stats?.executedCount ?? 0;
 
   return (
-    <div className="mb-6 space-y-3">
-      {/* Pipeline visualization */}
-      <div className="payment-automation-pipeline glass-card">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="eyebrow">자동화 진행 현황</span>
-          <span className="caption">설정 &rarr; 지출결의 &rarr; 승인 &rarr; 결제 &rarr; 세금계산서</span>
-        </div>
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {[
-            { label: '반복설정', count: activeRecurring, color: 'bg-purple-500' },
-            { label: '승인대기', count: pendingCount, color: 'bg-yellow-500' },
-            { label: '결제대기', count: approvedCount, color: 'bg-blue-500' },
-            { label: '완료', count: executedCount, color: 'bg-green-500' },
-          ].map((step, i) => (
-            <div key={i} className="flex items-center gap-1 flex-1 min-w-[70px]">
-              <div className="flex-1 bg-[var(--bg-surface)] rounded-lg p-2 text-center">
-                <div className={`text-lg font-bold ${step.color.replace('bg-', 'text-')}`}>{step.count}</div>
-                <div className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{step.label}</div>
-              </div>
-              {i < 3 && <span className="text-[var(--text-dim)] text-xs flex-shrink-0">&rarr;</span>}
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="space-y-3">
+      {/* 조회 줄 ‖ 이체내역 분석 · 자동화 실행 · 결과 요약(자동화 진행 현황 4단계) — 상자 머리 슬롯 (2026-08-19, 유리 카드 → Stat) */}
+      <SlotHead slotId="pay-head-slot"
+        bar={<span className="text-[11px] text-[var(--text-dim)]">통장·카드에서 2개월 이상 같은 거래처·금액으로 반복된 거래를 찾아 정기결제로 등록하길 <b>제안</b>합니다 — 등록은 사람이 고릅니다</span>}
+        right={<>
+          <button type="button" onClick={handleDetect} disabled={detecting} className="btn-secondary btn-sm">{detecting ? '분석 중…' : '이체내역 분석'}</button>
+          <button type="button" onClick={handleRunAutomation} disabled={running} className="btn-primary btn-sm">{running ? '실행 중…' : '자동화 실행'}</button>
+        </>}
+        stats={<>
+          <Stat label="반복설정" value={`${activeRecurring}건`} />
+          <Stat label="승인대기" value={`${pendingCount}건`} tone="minus" />
+          <Stat label="결제대기" value={`${approvedCount}건`} />
+          <Stat label="완료" value={`${executedCount}건`} tone="plus" />
+          <span className="text-[10.5px] text-[var(--text-dim)]">설정 → 지출결의 → 승인 → 결제 → 세금계산서</span>
+        </>} />
 
-      {/* Action buttons */}
-      <div className="payment-automation-actions">
-        <div className="flex gap-2">
-          <button onClick={handleDetect} disabled={detecting}
-            className="px-4 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
-            {detecting ? '분석 중...' : '이체내역 분석'}
-          </button>
-          <button onClick={handleRunAutomation} disabled={running}
-            className="btn-primary btn-sm">
-            {running ? '실행 중...' : '자동화 실행'}
-          </button>
-        </div>
-        {/* 무엇을 하는지 투명하게 안내. 위험 작업은 **접어 둔다** — 켤 일이 드문데 늘 펼쳐져 있으면
-            무서운 문구만 상시 노출되고, 실수로 눌릴 자리도 넓어진다 (2026-08-12) */}
-        <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
-          기본 실행: 거래 자동분류·매칭, 결제큐 정리, 지출결의 드래프트 생성 (데이터 정리만, 돈/세무 변경 없음).
-        </p>
+      {/* 자동화 실행이 무엇을 하는지 — 위험 작업은 접어 둔다 (2026-08-12) */}
+      <div className="pay-note pay-note-col">
+        <span className="text-[11px]">자동화 실행 = 거래 자동분류·매칭, 결제큐 정리, 지출결의 드래프트 생성 (데이터 정리만, 돈/세무 변경 없음).</span>
         <details className="payment-risky-details" open={includeRisky}>
           <summary>고급 — 위험 작업 {includeRisky && <em>켜짐</em>}</summary>
           <label className="payment-risky-label">
@@ -1522,8 +1415,8 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
 
       {/* Automation result */}
       {result && (
-        <div className="payment-automation-result">
-          <div className="text-xs font-bold text-green-500 mb-2">자동화 실행 완료</div>
+        <div className="pay-note pay-note-col">
+          <div className="text-xs font-bold text-[var(--success)]">자동화 실행 완료</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
             {result.recurringExpense.created > 0 && (
               <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
@@ -1587,72 +1480,48 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
         </div>
       )}
 
-      {/* Detected patterns from bank tx — 건별 등록/미등록 (반복 이체 ≠ 전부 정기결제) */}
+      {/* 통장에서 잡힌 반복 이체 — 건별 등록/미등록 (반복 이체 ≠ 전부 정기결제). 표로 (2026-08-19) */}
       {detected.length > 0 && (
-        <div className="payment-detected-patterns">
-          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-            <div className="text-xs font-bold text-blue-500">
-              이체내역에서 {freshDetected.length}건 신규 감지 / {detected.filter(d => d.alreadyRegistered).length}건 기등록
-              <span className="ml-1.5 font-normal text-[10px] text-[var(--text-dim)]">건별로 등록 여부를 선택하세요</span>
-            </div>
+        <div>
+          <div className="pay-note">
+            <b>이체내역에서 {freshDetected.length}건 신규 감지 · {detected.filter(d => d.alreadyRegistered).length}건 기등록</b>
+            <span>건별로 등록 여부를 고르세요 — 미등록으로 둔 항목은 다시 추천하지 않습니다</span>
             {freshDetected.length > 1 && (
-              <button
+              <span className="ml-auto"><button type="button" className="btn-secondary btn-sm"
                 onClick={async () => {
                   const { ok } = await confirm({ title: "전체 등록", desc: `감지된 ${freshDetected.length}건을 전부 고정비(반복결제)로 등록할까요? 반복 이체라도 정기결제가 아닐 수 있으니 목록을 확인한 뒤 진행하세요.`, danger: true, confirmLabel: "등록" });
                   if (!ok) return;
                   await registerDetectedRecurring(companyId, freshDetected);
-                  invalidate();
-                  refetchDetect();
+                  invalidate(); refetchDetect();
                   queryClient.invalidateQueries({ queryKey: ["recurring-payments", companyId] });
-                  toast(`${freshDetected.length}건을 등록했습니다 — 아래 '반복 결제 설정' 탭에서 확인·수정하세요`, "success");
+                  toast(`${freshDetected.length}건을 등록했습니다 — '정기결제' 탭에서 확인·수정하세요`, "success");
                   onRegistered?.();
-                }}
-                className="px-3 py-1 bg-[var(--bg-card)] border border-blue-500/30 text-blue-500 rounded-lg text-[10px] font-semibold hover:bg-blue-500/10 transition"
-                title="목록 전체를 한 번에 등록 (확인 후 진행)"
-              >
-                전체 등록
-              </button>
+                }}>전체 등록</button></span>
             )}
           </div>
           {freshDetected.length === 0 ? (
-            <p className="text-[11px] text-[var(--text-dim)]">신규 후보가 없습니다. (미등록 처리한 항목은 다시 표시되지 않습니다)</p>
+            <div className="collect-empty">신규 후보가 없습니다 (미등록 처리한 항목은 다시 표시되지 않습니다)</div>
           ) : (
-            <div className="space-y-1 max-h-64 overflow-y-auto pr-1">
-              {freshDetected.map((d) => (
-                <div key={detKey(d)} className="flex items-center justify-between gap-2 text-[11px]">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-medium ${
-                      d.confidence === 'high' ? 'bg-green-500/10 text-green-500' :
-                      d.confidence === 'medium' ? 'bg-yellow-500/10 text-yellow-500' :
-                      'bg-gray-500/10 text-gray-400'
-                    }`}>
-                      {d.occurrences}회
-                    </span>
-                    <span className="truncate">{d.counterparty}</span>
-                    <span className="shrink-0 text-[var(--text-dim)]">({d.suggestedCategory})</span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-bold">₩{d.amount.toLocaleString()}</span>
-                    <button
-                      onClick={() => registerOne(d)}
-                      disabled={!!registeringKey}
-                      className="px-2 py-0.5 rounded bg-blue-500 text-white text-[10px] font-semibold hover:bg-blue-600 transition disabled:opacity-50"
-                      title="이 항목만 고정비(반복결제)로 등록"
-                    >
-                      {registeringKey === detKey(d) ? "등록 중…" : "등록"}
-                    </button>
-                    <button
-                      onClick={() => dismissDetected(d)}
-                      disabled={!!registeringKey}
-                      className="px-2 py-0.5 rounded bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] text-[10px] font-semibold hover:text-[var(--text)] transition disabled:opacity-50"
-                      title="정기결제가 아님 — 이 항목은 다시 추천하지 않습니다"
-                    >
-                      미등록
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="ev-scroll"><table className="ev-table ev-lined pay-detect-table">
+              <thead><tr><th>횟수</th><th className="text-left">거래처</th><th>추정 구분</th><th>금액 (월)</th><th>확신</th><th>동작</th></tr></thead>
+              <tbody>
+                {freshDetected.map((d) => (
+                  <tr key={detKey(d)}>
+                    <td className="text-center mono-number">{d.occurrences}회</td>
+                    <td className="text-left font-semibold">{d.counterparty}</td>
+                    <td className="text-center text-[var(--text-muted)]">{d.suggestedCategory}</td>
+                    <td className="text-right mono-number font-bold">₩{d.amount.toLocaleString()}</td>
+                    <td className="text-center"><span className={`ol-sure ${d.confidence === 'high' ? 'ol-sure-ok' : d.confidence === 'medium' ? 'ol-sure-est' : ''}`}>{d.confidence === 'high' ? '확실' : d.confidence === 'medium' ? '가능성' : '낮음'}</span></td>
+                    <td className="text-center">
+                      <span className="inline-flex gap-1.5">
+                        <button type="button" onClick={() => registerOne(d)} disabled={!!registeringKey} className="btn-secondary btn-sm" title="이 항목만 고정비(반복결제)로 등록">{registeringKey === detKey(d) ? "등록 중…" : "등록"}</button>
+                        <button type="button" onClick={() => dismissDetected(d)} disabled={!!registeringKey} className="btn-secondary btn-sm text-[var(--text-dim)]" title="정기결제가 아님 — 다시 추천하지 않습니다">미등록</button>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table></div>
           )}
         </div>
       )}

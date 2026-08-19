@@ -9541,3 +9541,16 @@ table.ol-items-table { min-width: 960px; }
 body.split-dragging { cursor: row-resize; user-select: none; }
 /*   매입매출전표: 손잡이가 분개 위에 있으니 분개 자체 border-t 는 뺀다(선이 둘이 되지 않게) */
 .spv-body > .split-handle + .spv-je { border-top: 0; }
+/* ── 정기 지출 조회 표준 상자 (2026-08-19 자금 메뉴 확산) ── */
+.qk-body > .pay-scroll { @apply absolute inset-0 overflow-auto px-3.5 py-3; }
+.pay-page .payments-scroll { max-height: none; }
+.pay-note { @apply mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/60 px-3.5 py-2 text-[12px] text-[var(--text-muted)]; }
+.pay-note > b { @apply text-[var(--text)]; }
+.pay-note-col { @apply flex-col items-stretch; }
+.pay-form-modal { @apply max-w-3xl; }
+.pay-form-body { @apply overflow-auto p-4; }
+.pay-page .payments-todo-band { @apply mb-3; }
+table.subs-table { min-width: 760px; }
+.subs-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
+table.pay-detect-table { min-width: 720px; }
+.pay-detect-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-1.5 text-xs; }

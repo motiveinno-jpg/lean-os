@@ -25,6 +25,8 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { CurrencyInput } from "@/components/currency-input";
+import { SlotHead } from "@/components/slot-head";
+import { Stat } from "@/components/query-kit";
 
 const db = supabase;
 
@@ -161,46 +163,23 @@ export function SubscriptionsPanel() {
 
   return (
     <div className="subscriptions-panel">
-      {/* 컴팩트 툴바 — 액션(우). 타이틀은 상단 고정 헤더바가 담당 */}
-      {canEdit && (
-        <div className="subscriptions-toolbar">
-          <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary">
-            + 구독 추가
-          </button>
-        </div>
-      )}
-
-      {/* 요약 */}
-      <div className="subscriptions-summary">
-        <div className="stat-tile">
-          <div className="stat-tile-label">월 총 구독비</div>
-          <div className="stat-tile-value text-[var(--primary)]">{fmtW(totalMonthly)}</div>
-        </div>
-        <div className="stat-tile">
-          <div className="stat-tile-label">연 환산</div>
-          <div className="stat-tile-value">{fmtW(totalMonthly * 12)}</div>
-        </div>
-        <div className="stat-tile">
-          <div className="stat-tile-label">외부 구독</div>
-          <div className="stat-tile-value">{activeAccounts.length}개</div>
-        </div>
-        <div className="stat-tile">
-          <div className="stat-tile-label">카테고리</div>
-          <div className="text-xs mt-1.5 space-y-0.5">
-            {Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-2">
-                <span className="text-[var(--text-muted)]">{CATEGORY_LABEL[k] || k}</span>
-                <span className="font-semibold">{fmtW(v)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* 조회 줄 ‖ 구독 추가 · 결과 요약 — 정기 지출 상자 머리 슬롯 (2026-08-19, KPI 타일 → Stat) */}
+      <SlotHead slotId="pay-head-slot"
+        bar={<span className="text-[11px] text-[var(--text-dim)]">SaaS·소프트웨어 구독을 한 표에 — 오너뷰 요금제는 자동으로 들어옵니다</span>}
+        right={canEdit ? <button type="button" onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary btn-sm">+ 구독 추가</button> : undefined}
+        stats={<>
+          <Stat label="월 총 구독비" value={fmtW(totalMonthly)} />
+          <Stat label="연 환산" value={fmtW(totalMonthly * 12)} />
+          <Stat label="외부 구독" value={`${activeAccounts.length}개`} />
+          {Array.from(byCategory.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => <Stat key={k} label={CATEGORY_LABEL[k] || k} value={fmtW(v)} />)}
+        </>} />
 
       {/* 등록/수정 폼 */}
       {showForm && canEdit && (
-        <div className="subscription-form glass-card">
-          <h3 className="section-title">{editingId ? "구독 수정" : "구독 추가"}</h3>
+        <div className="approval-detail-modal" onClick={resetForm}>
+        <div className="pnl-drill pay-form-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="pnl-drill-head"><h3 className="text-sm font-bold">{editingId ? "구독 수정" : "구독 추가"}</h3><button type="button" className="btn-secondary btn-sm" onClick={resetForm}>닫기</button></div>
+          <div className="pay-form-body">
           <div className="subscription-form-grid">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-1">서비스명 *</label>
@@ -259,30 +238,26 @@ export function SubscriptionsPanel() {
           <div className="subscription-form-actions">
             <button onClick={() => { if (!form.serviceName.trim()) return; saveMut.mutate(); }}
               disabled={!form.serviceName.trim() || saveMut.isPending}
-              className="btn-primary">
+              className="btn-primary btn-sm">
               {editingId ? "저장" : "추가"}
             </button>
             {editingId && (
               <button onClick={async () => { const { ok } = await confirm({ title: "구독 해지", desc: "이 구독을 해지 처리할까요?", danger: true, confirmLabel: "해지" }); if (ok) deleteMut.mutate(editingId); }} disabled={deleteMut.isPending}
                 className="btn-danger btn-sm">해지</button>
             )}
-            <button onClick={resetForm} className="px-4 py-2 text-[var(--text-muted)] text-sm">취소</button>
+            <button onClick={resetForm} className="btn-secondary btn-sm">취소</button>
           </div>
+          </div>
+        </div>
         </div>
       )}
 
       {/* 목록 */}
-      <div className="subscriptions-table glass-card overflow-x-auto">
-        <table className="w-full text-sm min-w-[760px]">
+      <div className="subscriptions-table overflow-x-auto">
+        <table className="ev-table ev-lined subs-table">
           <thead>
-            <tr className="border-b border-[var(--border)]">
-              <th className="text-left p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">서비스</th>
-              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">카테고리</th>
-              <th className="text-right p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">월 금액</th>
-              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">주기</th>
-              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">다음 결제</th>
-              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">담당자</th>
-              <th className="text-center p-4 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide">상태</th>
+            <tr>
+              <th className="text-left">서비스</th><th>카테고리</th><th>월 금액</th><th>주기</th><th>다음 결제</th><th>담당자</th><th>상태</th>
             </tr>
           </thead>
           <tbody>
