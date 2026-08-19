@@ -130,3 +130,7 @@
 - 일정: 달력/목록 탭 상자 안, 달력 조회 줄(◀ 오늘 ▶·전체/내 것만), 목록 = 검색조건+표+쪽. `.schedule-page`(마커만) `.schedule-tabbar` `.schedule-calendar-tab` `.schedule-calendar-header` `.sched-list-*` 12개
 - 통장·카드: 상자 밖 seg-bar 툴바 → 상자 안 파란 밑줄 탭 + 조회 줄 오른쪽 실행 버튼, 개요/통장/카드/분석도 상자 안 스크롤. `.bank-toolbar` `.cards-page-toolbar` `.card-tx-period-filter`
 - 전역: `.seg-bar/.seg-item/.seg-item-active` 를 파란 밑줄 탭 모양으로(필 알약·그라데이션 제거) — 마이페이지·리포트·요금제·부가세·회사 설정 등 남은 seg-bar 전부.
+
+## 2026-08-19 — 분석 리포트 표준 1·2차
+- reports/layout 상자(qk-shell·ReportsTabs 파란 밑줄·설명 줄·report-body 스크롤·카드는 얇은 판). StatementsTabs 삭제(회계 자료 하위 갈래로 합침), 페이지마다 그리던 ReportsTabs 제거.
+- ReportHead 포털: pnl(툴바+KPI 4)·bs(툴바+KPI 3)·costs(연도+KPI 3)·vat(seg-bar+연도)·flow(seg-bar 툴바)·summary(StatCard 4) → 머리 조회 줄·결과 요약. `globals.css`: `.statements-tabs-list` `.statements-tab-link` `.tax-invoice-tabs` `.flow-toolbar` `.summary-stat-grid`
