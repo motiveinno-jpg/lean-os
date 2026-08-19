@@ -10,7 +10,9 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ActivityCard } from "./dashboard-activity";
-import { REQUEST_TYPE_LABELS } from "@/lib/approval-workflow";
+import { REQUEST_TYPE_LABELS, getMyPendingApprovals } from "@/lib/approval-workflow";
+import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -73,10 +75,21 @@ export function BankRecentCard({ companyId }: { companyId: string }) {
 // ── 결재 — 회사 결재 대기 목록 ──
 const DOC_KIND: Record<string, string> = { quote: "견적서", contract: "계약서", invoice: "계산서", report: "보고서" };
 export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
+  // 권한 분기 (2026-08-19 사장님: 직원 계정에 회사 전체 대기가 다 보였다) —
+  //   결재허브 '전체 현황' 게이트(isMaster ‖ /approvals:all)와 같은 규칙.
+  //   그 외 계정은 '내가 결재할 차례인 건'(내 결재함 규칙)만 본다.
+  const { user } = useUser();
+  const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
+  const companyWide = isMaster || hasPerm("/approvals:all");
   const { data } = useQuery({
-    queryKey: ["dash-approvals-pending", companyId],
-    enabled: !!companyId, staleTime: 60_000,
+    queryKey: ["dash-approvals-pending", companyId, companyWide ? "all" : user?.id || ""],
+    enabled: !!companyId && !permLoading && (companyWide || !!user?.id), staleTime: 60_000,
     queryFn: async () => {
+      if (!companyWide) {
+        const mine = await getMyPendingApprovals(user!.id, companyId);
+        const reqs = mine.map((m: any) => ({ id: m.stepId, title: m.title, request_type: m.requestType, amount: m.amount, created_at: m.createdAt }));
+        return { docs: [] as any[], reqs, total: reqs.length };
+      }
       // 문서결재(doc_approvals) + 결재허브 대기(approval_requests) — 진짜 '결재 대기'만.
       //   (2026-08-19 사장님: payment_queue 는 지급 대기라 결재가 끝난 건이 유령처럼 남았고,
       //    누르면 정기지출로 이동해 헷갈렸다. 오너뷰에 이체 기능이 없어 지급 대기 표시 자체가 불필요.)
