@@ -626,7 +626,7 @@ export function MonthlyRecomputeButton({ companyId, from, to }: { companyId: str
     <button
       onClick={() => mut.mutate()}
       disabled={mut.isPending}
-      className="btn-primary btn-sm"
+      className="btn-secondary btn-sm"   /* 2026-08-19 월간 요약 조회 줄의 검색조건이 파란 채움 — 파란 버튼은 화면에 하나 */
       title="해당 기간의 가산수당(연장·야간·휴일) 시간을 회사 정책과 휴일 기준으로 다시 계산합니다."
     >
       {mut.isPending ? "재계산 중…" : "가산수당 재계산"}

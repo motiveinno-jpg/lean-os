@@ -60,7 +60,7 @@ import {
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 import { payrollStats, useCertificateStats } from "@/components/flex-hr-heroes";
-import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
@@ -859,6 +859,13 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const [sumSort, setSumSort] = useState<SortState<string>>({ key: "name", dir: "asc" });
   const [sumQ, setSumQ] = useState("");
   const [sumOpen, setSumOpen] = useState<Map<string, boolean>>(new Map());
+  //   월간 요약 검색조건 (2026-08-19 사장님: "연차 걸면 이 달 연차 쓴 사람만" 처럼 지표로 사람을 거른다)
+  type SumCond = { depts: string[]; has: string[]; ratioMax: string; hoursMin: string; hoursMax: string };
+  const SUM_COND0: SumCond = { depts: [], has: [], ratioMax: "", hoursMin: "", hoursMax: "" };
+  const [sumCond, setSumCond] = useState<SumCond>(SUM_COND0);
+  const [sumDraft, setSumDraft] = useState<SumCond>(SUM_COND0);
+  const [sumPanel, setSumPanel] = useState(false);
+  const SUM_HAS: [string, string][] = [["leaveDays", "연차 쓴 사람"], ["lateDays", "지각 있음"], ["absentDays", "결근 있음"], ["remoteDays", "재택 있음"], ["halfDays", "반차 있음"], ["overtimeMinutesSum", "연장근무 있음"], ["nightMinutesSum", "야간근무 있음"], ["holidayMinutesSum", "휴일근무 있음"], ["alwTotal", "수당 있음"]];
   const [dayDeptOpen, setDayDeptOpen] = useState<Map<string, boolean>>(new Map());
   // 표시용 상태 — 두 컬럼의 축이 다르다 (2026-08-07 정리).
   //   status  = 그 날의 근무 형태(출근/재택/반차/결근)
@@ -1606,7 +1613,12 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         //   연차 = 이 달 승인 휴가일 수(leaveDaySet — 달력이 쓰는 것과 같은 것)
         const leaveCount = (empId: string) => { let n = 0; leaveDaySet.forEach((k: string) => { if (k.startsWith(`${empId}:${selectedMonth}-`)) n++; }); return n; };
         const rowsAll = (summary as any[]).map((s) => ({ ...s, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0, leaveDays: leaveCount(s.employee_id) }));
-        const rows = rowsAll.filter((r) => !sumQ || String(r.name || "").toLowerCase().includes(sumQ.toLowerCase()) || String(r.department || "").toLowerCase().includes(sumQ.toLowerCase()))
+        const rows = rowsAll.filter((r) => quickSearchHit(sumQ, [r.name, r.department])
+            && (sumCond.depts.length === 0 || sumCond.depts.includes(r.department || "미배정"))
+            && sumCond.has.every((k) => Number((r as any)[k] || 0) > 0)
+            && (!sumCond.ratioMax || r.ratio * 100 <= Number(sumCond.ratioMax))
+            && (!sumCond.hoursMin || r.totalHours >= Number(sumCond.hoursMin))
+            && (!sumCond.hoursMax || r.totalHours <= Number(sumCond.hoursMax)))
           .sort((a, b) => { const k = sumSort.key as string; const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1); });
         //   부서 묶음 (2026-08-19 사장님: 부서별로 정렬하고 토글을 열면 그 부서 직원) — 부서 줄은 합계·평균, 직원 줄은 열어야 보인다
         const deptMap = new Map<string, any[]>();
@@ -1628,14 +1640,41 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         );
         return (
           <div className="attendance-monthly-summary">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약 <small className="font-normal text-[var(--text-dim)]">{deptRows.length}개 부서 · {rows.length}명 · 근무일 {workdaysSoFar}일 기준 · 부서 줄을 누르면 직원, 직원 줄을 누르면 상세</small></h3>
-              <span className="ml-auto flex items-center gap-1.5">
+            {/* 조회 줄 — [검색조건 ▾ · 빠른검색] ‖ 모두 펼침/접기 (2026-08-19). 검색조건: 부서 · 이 달에 …한 사람 · 출근율 이하 · 총 근무 범위 */}
+            <div className="qk-bar mb-2">
+              <div className="qk-bar-left">
+                <ConditionPanel open={sumPanel} onOpenChange={(v) => { if (v) setSumDraft(sumCond); setSumPanel(v); }} activeCount={(sumCond.depts.length ? 1 : 0) + (sumCond.has.length ? 1 : 0) + (sumCond.ratioMax ? 1 : 0) + (sumCond.hoursMin || sumCond.hoursMax ? 1 : 0)}
+                  foot={<>
+                    <button type="button" className="btn-secondary btn-sm" onClick={() => setSumDraft(SUM_COND0)}>기본으로</button>
+                    <span className="ml-auto" />
+                    <button type="button" className="btn-primary btn-sm" onClick={() => { setSumCond(sumDraft); setSumPanel(false); }}>조회</button>
+                  </>}>
+                  <ConditionRow label="부서" hint="여러 개">
+                    <span className="qk-quicks">{[...new Set(rowsAll.map((r) => r.department || "미배정"))].sort().map((d) => <button key={d} type="button" onClick={() => setSumDraft((c) => ({ ...c, depts: c.depts.includes(d) ? c.depts.filter((x) => x !== d) : [...c.depts, d] }))} className={sumDraft.depts.includes(d) ? "qk-quick qk-quick-on" : "qk-quick"}>{d}</button>)}</span>
+                  </ConditionRow>
+                  <ConditionRow label="이 달에" hint="고른 것 모두 해당하는 사람만">
+                    <span className="qk-quicks">{SUM_HAS.map(([k, l]) => <button key={k} type="button" onClick={() => setSumDraft((c) => ({ ...c, has: c.has.includes(k) ? c.has.filter((x) => x !== k) : [...c.has, k] }))} className={sumDraft.has.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
+                  </ConditionRow>
+                  <ConditionRow label="출근율" hint="이하 %"><input className="qk-input h-8 w-28 px-2 text-xs" inputMode="numeric" placeholder="예: 80" value={sumDraft.ratioMax} onChange={(e) => setSumDraft((c) => ({ ...c, ratioMax: e.target.value.replace(/[^0-9]/g, "") }))} /></ConditionRow>
+                  <ConditionRow label="총 근무" hint="시간 범위">
+                    <span className="inline-flex items-center gap-1.5"><input className="qk-input h-8 w-24 px-2 text-xs" inputMode="numeric" placeholder="이상" value={sumDraft.hoursMin} onChange={(e) => setSumDraft((c) => ({ ...c, hoursMin: e.target.value.replace(/[^0-9.]/g, "") }))} /><span className="text-[var(--text-dim)]">~</span><input className="qk-input h-8 w-24 px-2 text-xs" inputMode="numeric" placeholder="이하" value={sumDraft.hoursMax} onChange={(e) => setSumDraft((c) => ({ ...c, hoursMax: e.target.value.replace(/[^0-9.]/g, "") }))} /><span className="text-[11px] text-[var(--text-dim)]">h</span></span>
+                  </ConditionRow>
+                </ConditionPanel>
+                <QuickSearch value={sumQ} onApply={setSumQ} placeholder="이름 · 부서 — 쉼표로 여러 개, Enter" />
+              </div>
+              <div className="qk-bar-right">
                 <button type="button" className="btn-secondary btn-sm" onClick={() => setSumOpen(new Map(deptRows.map((d) => [d.department, true])))}>모두 펼침</button>
                 <button type="button" className="btn-secondary btn-sm" onClick={() => setSumOpen(new Map(deptRows.map((d) => [d.department, false])))}>모두 접기</button>
-                <input value={sumQ} onChange={(e) => setSumQ(e.target.value)} placeholder="이름 · 부서 검색" className="qk-input h-8 w-44 px-2.5 text-xs" />
-              </span>
+              </div>
             </div>
+            <AppliedChips chips={([
+              ...(sumCond.depts.length ? [{ group: "부서", label: sumCond.depts.join(" · "), onRemove: () => setSumCond((c) => ({ ...c, depts: [] })) }] : []),
+              ...(sumCond.has.length ? [{ group: "이 달에", label: sumCond.has.map((k) => SUM_HAS.find((h) => h[0] === k)?.[1] || k).join(" · "), onRemove: () => setSumCond((c) => ({ ...c, has: [] })) }] : []),
+              ...(sumCond.ratioMax ? [{ group: "출근율", label: `${sumCond.ratioMax}% 이하`, onRemove: () => setSumCond((c) => ({ ...c, ratioMax: "" })) }] : []),
+              ...(sumCond.hoursMin || sumCond.hoursMax ? [{ group: "총 근무", label: `${sumCond.hoursMin || "0"}~${sumCond.hoursMax || "∞"}h`, onRemove: () => setSumCond((c) => ({ ...c, hoursMin: "", hoursMax: "" })) }] : []),
+              ...(sumQ ? [{ group: "빠른검색", label: sumQ, onRemove: () => setSumQ("") }] : []),
+            ] as AppliedChip[])} onClearAll={() => { setSumCond(SUM_COND0); setSumQ(""); }} />
+            <div className="mb-1 text-[11px] text-[var(--text-dim)]">{deptRows.length}개 부서 · {rows.length}명 · 근무일 {workdaysSoFar}일 기준 · 부서 줄을 누르면 직원, 직원 줄을 누르면 상세{sumCond.has.length || sumCond.depts.length || sumCond.ratioMax || sumCond.hoursMin || sumCond.hoursMax || sumQ ? " · 조건에 맞는 사람만" : ""}</div>
             <div className="ev-scroll att-summary-scroll">
               <table className="ev-table ev-lined att-summary-table">
                 <thead>
