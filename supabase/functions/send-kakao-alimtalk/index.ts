@@ -10,9 +10,19 @@ const kakaoSenderId = Deno.env.get("KAKAO_SENDER_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, x-ingest-secret, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// 공유 시크릿 게이트 (2026-08-19 감사): 종전엔 인증이 전혀 없어 URL 만 알면 임의 번호로
+//   회사명이 박힌 알림톡을 무제한 발송할 수 있었다. receive-bank-transactions 와 동일한
+//   n8n 공유 시크릿(fail-closed) 게이트를 적용한다. 현재 호출 트래픽 0건 실측 — 기존 연동 영향 없음.
+function checkIngestSecret(req: Request): boolean {
+  const expected = Deno.env.get("N8N_INGEST_SECRET");
+  if (!expected) return false;
+  const provided = req.headers.get("x-ingest-secret");
+  return !!provided && provided === expected;
+}
 
 interface AlimtalkPayload {
   template_code: string;
@@ -64,6 +74,11 @@ Deno.serve(withSentry("send-kakao-alimtalk", async (req: Request) => {
   }
 
   try {
+    if (!checkIngestSecret(req)) {
+      return new Response(JSON.stringify({ error: "Unauthorized (invalid or missing ingest secret)" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const supabase = createClient(supabaseUrl, serviceKey);
     const payload: AlimtalkPayload = await req.json();
 
@@ -116,12 +131,16 @@ Deno.serve(withSentry("send-kakao-alimtalk", async (req: Request) => {
       metadata: { variables: payload.variables },
     }).then(() => {}, () => {});
 
+    // 발송 실패를 success:true 로 돌려주면 호출자가 성공으로 오인해 무음 전멸한다 (2026-08-19 감사).
+    //   API 미설정(skipped)은 의도된 상태라 200, 실제 발송 실패는 502 + success:false.
+    const failed = !sent && !!kakaoApiKey;
     return new Response(JSON.stringify({
-      success: true,
+      success: !failed,
       sent,
       title: rendered.title,
       message: sent ? "알림톡 발송 완료" : kakaoApiKey ? "발송 실패" : "카카오 API 미설정 — 로그만 기록됨",
     }), {
+      status: failed ? 502 : 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: unknown) {

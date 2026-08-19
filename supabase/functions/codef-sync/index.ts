@@ -817,7 +817,11 @@ async function syncCardBilling(
                 .eq("id", dupRow.id);
             }
           } else {
-          const { error } = await supabase.from("card_transactions").upsert(upsertRow, { onConflict: "external_id" });
+          //   ignoreDuplicates (2026-08-19 감사): 없으면 같은 external_id 재수집(크론 35일 윈도우)이
+          //   기존 행을 UPDATE 해 mapping_status 가 unmapped 로 되돌아가고 사용자 분류·비고가
+          //   카드사 응답으로 덮어써졌다. 승인내역 경로와 동일하게 기존 행은 절대 건드리지 않는다.
+          //   (금액 정정은 위 dupRow 분기가 미사용 행에 한해 별도로 수행)
+          const { error } = await supabase.from("card_transactions").upsert(upsertRow, { onConflict: "external_id", ignoreDuplicates: true });
 
           if (error) {
             if (!debuggedInsertErr) {
@@ -890,7 +894,7 @@ async function syncCardBilling(
       const missing = fetchedForRecon.filter((f) => !isPresent(f));
       if (missing.length > 0) {
         for (const f of missing) {
-          await supabase.from("card_transactions").upsert(f.row, { onConflict: "external_id" });
+          await supabase.from("card_transactions").upsert(f.row, { onConflict: "external_id", ignoreDuplicates: true });
         }
         // 재적재 후 실존 재확인
         const { data: recheck } = await supabase.from("card_transactions")
@@ -2910,12 +2914,17 @@ serve(withSentry("codef-sync", async (req) => {
         //   다른 기관 계정이 살아 있으면 저장하지 않는다 — 덮어쓰는 순간 그 계정들의 자동
         //   수집이 전부 끊긴다(2026-08-05 BC카드 9일 무음 중단과 같은 부류의 사고).
         if (cid && result.connectedId !== cid) {
-          let oldAccounts: any[] = [];
-          try { oldAccounts = await getAccountList(token, cid); } catch (_) { /* 죽은 cid — 교체 안전 */ }
-          if (oldAccounts.length > 0) {
-            const orgs = oldAccounts.map((a: any) => a.organization).join(", ");
+          //   죽은 cid(CF-04019)는 getAccountList 가 throw 없이 [] 를 돌려준다. throw 는 CODEF
+          //   일시 장애/타임아웃이라 "살았는지 모름" — 모르면 덮어쓰지 않는다(2026-08-19 감사:
+          //   종전엔 throw 를 죽은 cid 로 오판해 가드가 예외 경로에서 무력화됐다).
+          let oldAccounts: any[] | null = null;
+          try { oldAccounts = await getAccountList(token, cid); } catch (_) { oldAccounts = null; }
+          if (oldAccounts === null || oldAccounts.length > 0) {
+            const orgs = (oldAccounts || []).map((a: any) => a.organization).join(", ");
             return new Response(JSON.stringify({
-              error: `새 connectedId 가 발급됐지만 기존 연결(기관: ${orgs})이 아직 살아 있어 저장하지 않았습니다. 기존 연결이 끊기는 것을 막기 위한 보호 조치입니다. 문제가 반복되면 관리자에게 문의하세요.`,
+              error: oldAccounts === null
+                ? "기존 연결 상태를 확인하지 못해(일시적 오류) 새 connectedId 를 저장하지 않았습니다. 잠시 후 다시 시도하세요."
+                : `새 connectedId 가 발급됐지만 기존 연결(기관: ${orgs})이 아직 살아 있어 저장하지 않았습니다. 기존 연결이 끊기는 것을 막기 위한 보호 조치입니다. 문제가 반복되면 관리자에게 문의하세요.`,
               newConnectedId: result.connectedId,
             }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
@@ -2936,6 +2945,22 @@ serve(withSentry("codef-sync", async (req) => {
         return new Response(JSON.stringify({ error: "프로덕션 환경에서는 샌드박스 연결을 사용할 수 없습니다." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const sandboxConnectedId = "sandbox_connectedId_01";
+
+      // 덮어쓰기 가드 (2026-08-19 감사): register 와 동일 — 실계정이 붙어 있는 connectedId 를
+      //   샌드박스 ID 로 덮어쓰면 그 회사의 은행·카드 수집이 통째로 고아가 된다 (2026-08-05
+      //   BC카드 사고와 같은 결과). 기존 연결이 살아 있으면 거부한다.
+      if (cid && cid !== sandboxConnectedId) {
+        //   죽은 cid 는 [] 로 온다(throw 없음). throw = 확인 불가 — 모르면 덮어쓰지 않는다.
+        let oldAccounts: any[] | null = null;
+        try { oldAccounts = await getAccountList(token, cid); } catch (_) { oldAccounts = null; }
+        if (oldAccounts === null || oldAccounts.length > 0) {
+          return new Response(JSON.stringify({
+            error: oldAccounts === null
+              ? "기존 연결 상태를 확인하지 못해 샌드박스로 전환하지 않았습니다. 잠시 후 다시 시도하세요."
+              : `기존 연결(기관 ${oldAccounts.map((a: any) => a.organization).join(", ")})이 살아 있어 샌드박스로 전환하지 않았습니다. 먼저 기존 연동을 해제하세요.`,
+          }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+      }
 
       // Verify sandbox connection by fetching account list
       const bankAccounts = await getAccountList(token, sandboxConnectedId, "bank");

@@ -1016,11 +1016,15 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                   // 다른 페이지(대시보드 등) 도 잔액 갱신하도록 전역 이벤트 발행
                   try { window.dispatchEvent(new CustomEvent('ownerview:codef-synced')); } catch { /* ignore */ }
                   const balMsg = balResult.status === 'success' ? ` · ${balResult.message}` : '';
-                  const allNotes = [...(result.errors || []), ...(result.notes || [])];
-                  const blockerNote = allNotes.find(n =>
+                  // 오류(errors)는 코드 화이트리스트 없이 전부 표출 (2026-08-19) — CF-04015 등이
+                  //   "새 거래 없음"으로 가려지던 무음 실패 방지. notes 는 종전대로 안내 코드만.
+                  const firstError = (result.errors || [])[0] as { message?: string; hint?: string } | undefined;
+                  const blockerNote = (result.notes || []).find(n =>
                     n.code === 'NO_DEMAND_DEPOSIT' || n.code === 'CF-00401' || n.code === 'CF-00003' || n.code === 'CF-13021'
                   );
-                  if (synced > 0) {
+                  if (firstError) {
+                    toast(`통장 동기화 오류 — ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ''}`, 'error');
+                  } else if (synced > 0) {
                     toast(`통장 최근 거래 ${synced}건 불러옴${balMsg}`, 'success');
                   } else if (blockerNote) {
                     toast(`통장 불러오기 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ''}`, 'info');
@@ -1068,12 +1072,15 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                   }
                   const synced = syncType === 'bank' ? (result.bankSynced ?? 0) : ((result.cardSynced ?? 0) + approvalSynced);
                   const label = syncType === 'bank' ? '통장' : '카드';
-                  const allNotes = [...(result.errors || []), ...(result.notes || [])];
+                  // 오류(errors)는 화이트리스트 없이 전부 표출 (2026-08-19) — 무음 실패 방지.
+                  const firstError = (result.errors || [])[0] as { message?: string; hint?: string } | undefined;
                   // 환경/등록 이슈 — 사용자가 행동해야 풀리는 것 우선 표시
-                  const blockerNote = allNotes.find(n =>
+                  const blockerNote = (result.notes || []).find(n =>
                     n.code === 'NO_DEMAND_DEPOSIT' || n.code === 'CF-00401' || n.code === 'CF-00003' || n.code === 'CF-13021'
                   );
-                  if (synced > 0) {
+                  if (firstError) {
+                    toast(`${label} 동기화 오류 — ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ''}`, 'error');
+                  } else if (synced > 0) {
                     toast(`${label} 거래내역 ${synced}건 동기화 완료`, 'success');
                   } else if (blockerNote) {
                     toast(`${label} 동기화 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ''}`, 'info');

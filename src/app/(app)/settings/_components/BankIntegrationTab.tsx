@@ -284,6 +284,14 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
       }
 
       // ── 은행/카드 — 기존 register/connectedId 흐름 ──
+      // 개인(P) 차단 (2026-08-19): 은행 조회는 법인(/b/) API 전용이라 P 로 등록되면 등록은
+      //   성공하고 이후 수집이 CF-04015 로 영영 무음 실패한다 (드림세무회계 3주 실사고).
+      //   UI 토글도 막지만 제출 직전에 한 번 더 막는다.
+      if (clientType === "P") {
+        setResult({ ok: false, msg: "개인 계정 연동은 아직 지원하지 않습니다. 법인/기업 계정으로 등록해 주세요." });
+        setRegistering(false);
+        return;
+      }
       if (authMethod === "cert") {
         const useAutoPfx = certSource === "auto" && !!autoPfxB64;
         if (useAutoPfx ? !certPassword : (!derFileB64 || !keyFileB64 || !certPassword)) {
@@ -385,10 +393,11 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
           <button onClick={() => { setAccountType("hometax"); setOrganization("0001"); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "hometax" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>홈택스</button>
         </div>
 
-        {/* 개인/법인 선택 */}
+        {/* 개인/법인 선택 — 개인(P)은 비활성 (2026-08-19): 백엔드 수집이 법인(/b/) API 전용이라
+            P 로 등록하면 등록만 성공하고 수집이 CF-04015 로 영영 무음 실패한다(실사고). */}
         <div className="bank-integration-client-type-toggle">
-          <button onClick={() => setClientType("P")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "P" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-            개인
+          <button disabled title="개인 계정 연동은 준비 중입니다. 법인/기업 계정을 사용해 주세요." className="flex-1 py-2.5 rounded-xl text-xs font-semibold border bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-dim)] opacity-50 cursor-not-allowed">
+            개인 (준비 중)
           </button>
           <button onClick={() => setClientType("B")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "B" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             법인/기업

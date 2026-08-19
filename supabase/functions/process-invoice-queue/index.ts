@@ -7,13 +7,29 @@ const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-api-key, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-api-key, x-ingest-secret, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// 공유 시크릿 게이트 (2026-08-19 감사): 종전엔 인증이 전혀 없어 URL 만 알면 전사 발행 큐를
+//   임의로 돌리고 tax_invoices 상태를 바꿀 수 있었다. 형제 함수(receive-bank-transactions,
+//   generate-monthly-batches)와 동일한 n8n 게이트(fail-closed). 현재 호출 트래픽 0건 실측.
+function checkIngestSecret(req: Request): boolean {
+  const expected = Deno.env.get("N8N_INGEST_SECRET");
+  if (!expected) return false;
+  const provided = req.headers.get("x-ingest-secret");
+  return !!provided && provided === expected;
+}
 
 Deno.serve(withSentry("process-invoice-queue", async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (!checkIngestSecret(req)) {
+    return new Response(JSON.stringify({ error: "Unauthorized (invalid or missing ingest secret)" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   const supabase = createClient(supabaseUrl, serviceKey);

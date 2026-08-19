@@ -27,6 +27,25 @@ describe("reconcile — schema_migrations.name(파일 접미사) 매칭", () => 
   });
 });
 
+describe("reconcile — 접미사 중복 시 name 매칭 무효 (2026-08-19)", () => {
+  it("같은 접미사 파일이 2개면 name 한 줄로 둘 다 applied 처리하지 않는다", () => {
+    // 실사례: 20260702090000_standard_chart_of_accounts / 20260812120000_standard_chart_of_accounts.
+    // ledger 의 name='standard_chart_of_accounts' 는 어느 쪽 증거인지 알 수 없다 —
+    // 타임스탬프(version) 또는 커스텀 ledger(파일명) 매칭만 인정.
+    const files = ["20260702090000_dup_suffix", "20260812120000_dup_suffix"];
+    const schemaVersions = new Set(["20260702090000"]);            // 앞 파일만 실제 적용
+    const schemaNames = new Set(["dup_suffix"]);                   // name 은 하나뿐
+    const r = reconcile(files, schemaVersions, new Set(), "20260101000000_x", false, schemaNames);
+    expect(r.ok).toBe(false);
+    expect(r.pending).toEqual(["20260812120000_dup_suffix"]);      // 뒤 파일은 미적용으로 잡혀야 함
+  });
+  it("접미사가 유일하면 종전대로 name 매칭 인정", () => {
+    const files = ["20260722160000_unique_suffix"];
+    const r = reconcile(files, new Set(), new Set(), "20260101000000_x", false, new Set(["unique_suffix"]));
+    expect(r.ok).toBe(true);
+  });
+});
+
 describe("reconcile — 단일 신뢰기준(공식 schema_migrations)", () => {
   const files = [
     "20260520010000_applied_migrations_ledger",

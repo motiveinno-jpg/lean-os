@@ -590,7 +590,11 @@ export default function CardsPage() {
       queryClient.invalidateQueries({ queryKey: ["card-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["corporate-cards"] });
       try { window.dispatchEvent(new CustomEvent("ownerview:codef-synced")); } catch { /* ignore */ }
-      if (synced > 0) toast(`카드 거래 ${synced}건 불러옴`, "success");
+      // partial(일부 카드사 실패)의 errors 를 버리지 않는다 (2026-08-19): 종전엔 카드 2장이
+      //   인증 오류로 실패해도 "새 거래 없음"으로 보여 수집 중단을 알 수 없었다.
+      const cardErr = ((result.errors || [])[0] || ((approvalRes as any)?.errors || [])[0]) as { message?: string; hint?: string } | undefined;
+      if (cardErr) toast(`카드 동기화 오류 — ${cardErr.message}${cardErr.hint ? ` · ${cardErr.hint}` : ""}`, "error");
+      else if (synced > 0) toast(`카드 거래 ${synced}건 불러옴`, "success");
       else toast("카드 연동 완료 — 새 거래 없음", "info");
 
       // 동기화 후 카드 자동분류(비차단) — 학습규칙(learned_from_count≥1)만. UI 비차단, 매칭분 있을 때만 토스트+갱신.

@@ -110,18 +110,45 @@ serve(withSentry("attendance-checkin", async (req) => {
     const today = date || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
     const now = new Date().toISOString();
 
-    const { data: empCheck } = await admin.from("employees").select("id").eq("id", employeeId).maybeSingle();
+    // 소속 검증 (2026-08-19 감사): 종전엔 body 의 companyId/employeeId 를 그대로 믿어
+    //   로그인한 아무 사용자가 타사 직원의 근태를 삭제·조작할 수 있었다(IDOR).
+    //   호출자 회사 = body.companyId = 직원 소속 회사 삼자가 일치해야 한다.
+    const { data: callerRow } = await admin.from("users")
+      .select("id, company_id").eq("auth_id", user.id).maybeSingle();
+    if (!callerRow || callerRow.company_id !== companyId) {
+      return new Response(JSON.stringify({ error: "권한이 없습니다." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: empCheck } = await admin.from("employees").select("id, company_id").eq("id", employeeId).maybeSingle();
     if (!empCheck) {
       return new Response(JSON.stringify({ error: "직원 정보를 찾을 수 없습니다. 관리자에게 문의하세요." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (empCheck.company_id !== companyId) {
+      return new Response(JSON.stringify({ error: "권한이 없습니다." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (action === "checkin") {
-      await admin.from("attendance_records")
-        .delete()
+      // delete-then-insert 제거 (2026-08-19 감사): 종전엔 그날 행을 무조건 지우고 다시
+      //   만들었다 — 퇴근까지 찍은 날 출근을 또 누르면 check_out·work_hours·overtime_request_id
+      //   가 통째로 사라지고, insert 가 실패하면 그날 근태 행 자체가 소멸했다(급여 누락).
+      //   codef 재등록 폴백(2026-08-05, 삭제 후 재추가 실패로 9일 수집 중단)과 같은 형태.
+      //   → 퇴근 기록이 있으면 거부, 미퇴근 행은 UPDATE 로 출근시각만 갱신, 없을 때만 INSERT.
+      const { data: existing } = await admin.from("attendance_records")
+        .select("id, check_out, overtime_request_id")
         .eq("employee_id", employeeId)
-        .eq("date", today);
+        .eq("date", today)
+        .maybeSingle();
+      if (existing?.check_out) {
+        return new Response(JSON.stringify({ error: "오늘은 이미 퇴근까지 기록되어 있습니다. 기록 수정이 필요하면 관리자에게 요청하세요." }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       // 회귀픽스 (2026-05-21): INSERT 시 is_late / late_minutes 컬럼을 함께 채워
       //   "출근 누를 때마다 행 재생성 → late 컬럼 0" 회귀 차단. KST 분 단위 비교.
@@ -184,21 +211,22 @@ serve(withSentry("attendance-checkin", async (req) => {
       //   NO_WORK_END / BEFORE_WORK_END 케이스에서는 null 로 전달돼 정상 처리.
       const otReqId = typeof overtimeRequestId === "string" && overtimeRequestId ? overtimeRequestId : null;
 
-      const { data, error } = await admin.from("attendance_records")
-        .insert({
-          company_id: companyId,
-          employee_id: employeeId,
-          date: today,
-          check_in: now,
-          status: rowStatus,
-          is_late: isLateFlag,
-          late_minutes: lateMinutes,
-          work_hours: 0,
-          overtime_hours: 0,
-          overtime_request_id: otReqId,
-        })
-        .select()
-        .single();
+      const rowValues = {
+        company_id: companyId,
+        employee_id: employeeId,
+        date: today,
+        check_in: now,
+        status: rowStatus,
+        is_late: isLateFlag,
+        late_minutes: lateMinutes,
+        work_hours: 0,
+        overtime_hours: 0,
+        // 재출근 시 기존 연장근무 승인 연결은 보존 — 새 값이 있을 때만 교체.
+        overtime_request_id: otReqId ?? existing?.overtime_request_id ?? null,
+      };
+      const { data, error } = existing
+        ? await admin.from("attendance_records").update(rowValues).eq("id", existing.id).select().single()
+        : await admin.from("attendance_records").insert(rowValues).select().single();
 
       if (error) throw error;
       return new Response(JSON.stringify({ success: true, data }), {

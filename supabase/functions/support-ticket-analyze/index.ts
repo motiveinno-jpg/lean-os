@@ -195,7 +195,10 @@ serve(withSentry("support-ticket-analyze", async (req) => {
         const rows = (ops || []).map((op: any) => ({
           company_id: op.company_id,
           user_id: op.id,
-          type: "support_ai",
+          // 'support_ai' 는 notifications_type_check 허용 목록에 없어 INSERT 가 조용히
+          //   실패했다(2026-08-19 감사 — 20260728060000 이 고친 "결재 알림 안 옴"과 동일 결함).
+          //   허용된 'system' 을 쓴다. entity_type 으로 지원티켓 구분은 유지된다.
+          type: "system",
           title: `AI 진단: 확인 필요 문의${a.needs_dev ? " (개발 수정 필요)" : ""}`,
           message: `[${co?.name || "고객사"}] ${String(ticket.subject || "").slice(0, 80)} — ${String(a.summary || "").slice(0, 120)}`,
           link: "/platform/support",

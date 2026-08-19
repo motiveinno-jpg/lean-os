@@ -126,13 +126,15 @@ Deno.serve(withSentry("receive-bank-transactions", async (req: Request) => {
         }
       }
 
+      const txType = tx.type || (tx.amount >= 0 ? "income" : "expense");
+      const amountAbs = Math.abs(tx.amount);
       return {
         company_id: companyId,
         bank_account_id: bankAccountId,
         transaction_date: tx.transaction_date,
-        amount: Math.abs(tx.amount),
+        amount: amountAbs,
         balance_after: tx.balance_after ?? null,
-        type: tx.type || (tx.amount >= 0 ? "income" : "expense"),
+        type: txType,
         counterparty: tx.counterparty || null,
         description: tx.description || null,
         memo: tx.memo || null,
@@ -142,14 +144,22 @@ Deno.serve(withSentry("receive-bank-transactions", async (req: Request) => {
         is_fixed_cost: isFixedCost,
         mapping_status: mappingStatus,
         source,
+        // 결정적 dedup 키 (2026-08-19 감사): 종전 onConflict:"id" 는 rows 에 id 가 없어
+        //   충돌이 영영 안 나 매 호출이 전량 신규 insert 였다 — n8n 타임아웃 재시도/배치
+        //   재전송이 통장 거래를 그대로 2배로 쌓았다. codef_bank 경로와 같은 방식으로
+        //   내용 기반 키를 만들어 external_id UNIQUE 로 수렴시킨다.
+        external_id: [
+          "n8n", companyId, bankAccountId || "", tx.transaction_date, String(amountAbs),
+          txType, String(tx.balance_after ?? ""), tx.counterparty || "", tx.description || "",
+        ].join("|"),
         raw_data: tx.raw_data || null,
       };
     });
 
-    // Deduplicate: skip if same date+amount+counterparty exists
+    // dedup — 같은 내용의 재전송은 조용히 스킵. 이미 적재된 행(사용자 분류 포함)은 덮지 않는다.
     const { data: inserted, error } = await supabase
       .from("bank_transactions")
-      .upsert(rows, { onConflict: "id" })
+      .upsert(rows, { onConflict: "external_id", ignoreDuplicates: true })
       .select("id, mapping_status");
 
     if (error) {

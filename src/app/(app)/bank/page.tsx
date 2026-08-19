@@ -267,10 +267,15 @@ export default function BankPage() {
       queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
       try { window.dispatchEvent(new CustomEvent("ownerview:codef-synced")); } catch { /* ignore */ }
       const balMsg = balResult.status === "success" ? ` · ${balResult.message}` : "";
-      const blockerNote = [...(result.errors || []), ...(result.notes || [])].find((n: any) =>
+      // 오류는 화이트리스트가 아니라 전부 보여준다 (2026-08-19): 종전엔 4개 코드만 검사해
+      //   CF-04015(연동 깨짐) 등이 "새 거래 없음"(초록)으로 가려졌다 — 3주 무음 실사고의 화면 쪽 원인.
+      const firstError = (result.errors || [])[0] as any;
+      const blockerNote = (result.notes || []).find((n: any) =>
         n.code === "NO_DEMAND_DEPOSIT" || n.code === "CF-00401" || n.code === "CF-00003" || n.code === "CF-13021",
       );
-      if (synced > 0) {
+      if (firstError) {
+        toast(`통장 동기화 오류 — ${firstError.message}${firstError.hint ? ` · ${firstError.hint}` : ""}`, "error");
+      } else if (synced > 0) {
         toast(`통장 거래 ${synced}건 불러옴${balMsg}`, "success");
       } else if (blockerNote) {
         toast(`통장 연동 — ${blockerNote.message}${blockerNote.hint ? ` · ${blockerNote.hint}` : ""}`, "info");
