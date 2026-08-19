@@ -42,11 +42,15 @@ const NAV_GROUPS: NavGroup[] = [
     //   라우트·페이지는 그대로. match 로 허브 활성 범위를 지정(예: 거래 장부는 /partners/reconciliation 포함).
     label: "파이낸스",
     items: [
+      //   2026-08-19 사장님 확정(A안) — 층으로 쌓는다: 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출).
+      //   "위에 있는 것이 아래를 먹여 살린다" — 새 회사는 위에서부터 차례로 채우면 된다. (예전: 매일 여는 수집·전표가 첫 자리)
+      //   통장·카드·정기 지출은 옛 '자금' 그룹에서 왔다(2026-08-19 사장님: 자금 그룹 폐지).
+      { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
+      { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
       //   흩어져 있던 다섯 화면의 수집을 모은 입구 (2026-08-11). 자료를 받아 전표까지 여기서 끝낸다.
-      //   → 이제 파이낸스의 첫 자리다. 일의 순서가 수집 → 전표 → 조회이기 때문.
       { href: "/collect", label: "수집·전표", icon: "download", roles: ["owner", "admin"], match: ["/collect"] },
       { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
-      { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
       //   2026-08-11 — '자동 분류'를 메뉴에서 내렸다(사장님 지시).
       //     · 통장 줄 처리(수금 매칭·전표·계좌이동·카드 다대일·되돌리기·추천)는 전부 수집·전표 통장 탭으로 갔고,
       //     · 마지막 남았던 **비목**도 이제 전표를 만들 때 함께 붙는다(post_bank_voucher 가 category 를 채운다).
@@ -59,9 +63,7 @@ const NAV_GROUPS: NavGroup[] = [
       //   경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 각각 단독 활성.
       { href: "/partners/reconciliation/voucher-entry", label: "일반전표", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"] },
       { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
-      //   통장·카드·정기 지출 — 2026-08-19 사장님: '자금' 그룹을 없애고 파이낸스로 (돈이 드나드는 그릇도 파이낸스 안에서 본다)
-      { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
-      { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
+      //   정기 지출은 실적이 아니라 '예정' — 성격이 달라 맨 아래. (분석 '자금 전망' 옆으로 옮길지는 사장님 결정 대기)
       { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"] },
       // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인). 라우트(/loans, /vault)는 그대로.
     ],
