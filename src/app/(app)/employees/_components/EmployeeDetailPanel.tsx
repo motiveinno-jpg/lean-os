@@ -27,6 +27,8 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 import { cancelSentContractPackage, getContractTemplates, createContractPackage, sendContractPackage, buildContractFieldsForTemplates, type ContractField } from "@/lib/hr-contracts";
 
 // 구성원 디렉토리(flex-people-directory)와 동일한 해시 팔레트 — 같은 직원은 어디서나 같은 아바타 색.
+//   고용형태 값이 두 계열(regular/parttime ↔ full_time/part_time)로 섞여 있어 둘 다 읽는다 (2026-08-19 상세 정리)
+const ETYPE_LABEL: Record<string, string> = { regular: "정규직", full_time: "정규직", fulltime: "정규직", contract: "계약직", temporary: "계약직", parttime: "파트타임", part_time: "파트타임", intern: "인턴", freelance: "프리랜서", freelancer: "프리랜서", dispatch: "파견", daily: "일용직" };
 function avatarColor(id: string): string {
   let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
   const palette = ["#6C5CE7", "#0984E3", "#00B894", "#E17055", "#00CEC9", "#A29BFE", "#FF7675", "#55A3FF"];
@@ -362,12 +364,12 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
           </div>
           <div className="flex items-center gap-2 shrink-0 pb-0.5">
             {!isEditing && detailTab === "info" && (
-              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="px-3.5 py-1.5 text-[11px] font-semibold text-[var(--primary)] bg-[var(--primary)]/10 hover:bg-[var(--primary)]/20 rounded-xl transition">
-                ✏ 수정
+              <button onClick={() => { setEditData({ name: emp.name || "", department: emp.department || "", position: emp.position || "", job_grade: emp.job_grade || "", employment_type: emp.employment_type || "", employee_number: emp.employee_number || "", hire_date: emp.hire_date || "", email: emp.email || "", phone: emp.phone || "", birth_date: emp.birth_date || "", address: emp.address || "", emergency_contact: emp.emergency_contact || "", emergency_phone: emp.emergency_phone || "", salary: emp.salary ? String(emp.salary) : "", bank_name: emp.bank_name || "", bank_account: emp.bank_account || "", bank_holder: emp.bank_holder || "", is_4_insurance: emp.is_4_insurance ? "true" : "false", work_start_time: emp.work_start_time ? emp.work_start_time.slice(0, 5) : "", work_end_time: emp.work_end_time ? emp.work_end_time.slice(0, 5) : "" }); setAnnualSalaryInput(emp.salary ? String(Number(emp.salary) * 12) : ""); setIsEditing(true); }} className="btn-secondary btn-sm">
+                수정
               </button>
             )}
             {emp.status !== "inactive" && emp.status !== "resigned" && (
-              <button onClick={() => setShowTermModal(true)} className="px-3.5 py-1.5 text-[11px] font-semibold text-[var(--danger)] bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 rounded-xl transition">
+              <button onClick={() => setShowTermModal(true)} className="btn-secondary btn-sm text-[var(--danger)]">
                 퇴사 처리
               </button>
             )}
@@ -405,8 +407,8 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[var(--info)]">정보 수정 중</span>
                 <div className="flex gap-2">
-                  <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--text)] transition">취소</button>
-                  <button onClick={async () => { try { await updateEmployee(employeeId, { ...editData, salary: editData.salary ? Number(editData.salary) : undefined, is_4_insurance: editData.is_4_insurance === "true" }); queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] }); queryClient.invalidateQueries({ queryKey: ["employees"] }); setIsEditing(false); toast("저장 완료", "success"); } catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } }} className="px-3 py-1.5 text-[10px] font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary-hover)] rounded-lg transition">저장</button>
+                  <button onClick={() => setIsEditing(false)} className="btn-secondary btn-sm">취소</button>
+                  <button onClick={async () => { try { await updateEmployee(employeeId, { ...editData, salary: editData.salary ? Number(editData.salary) : undefined, is_4_insurance: editData.is_4_insurance === "true" }); queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] }); queryClient.invalidateQueries({ queryKey: ["employees"] }); setIsEditing(false); toast("저장 완료", "success"); } catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } }} className="btn-primary btn-sm">저장</button>
                 </div>
               </div>
             )}
@@ -426,7 +428,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <PositionField companyId={companyId} value={editData.position} onChange={(v) => setEditData({ ...editData, position: v })} />
                   <EditField label="직급" value={editData.job_grade} onChange={(v) => setEditData({ ...editData, job_grade: v })} />
                   <EditField label="입사일" value={editData.hire_date} onChange={(v) => setEditData({ ...editData, hire_date: v })} type="date" />
-                  <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">고용형태</div><select value={editData.employment_type} onChange={(e) => setEditData({ ...editData, employment_type: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="">선택</option><option value="regular">정규직</option><option value="contract">계약직</option><option value="parttime">파트타임</option><option value="intern">인턴</option></select></div>
+                  <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">고용형태</div><select value={editData.employment_type} onChange={(e) => setEditData({ ...editData, employment_type: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="">선택</option><option value="regular">정규직</option><option value="contract">계약직</option><option value="parttime">파트타임</option><option value="intern">인턴</option>{editData.employment_type && !["", "regular", "contract", "parttime", "intern"].includes(editData.employment_type) && <option value={editData.employment_type}>{ETYPE_LABEL[editData.employment_type] || editData.employment_type}</option>}</select></div>
                   <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">4대보험</div><select value={editData.is_4_insurance} onChange={(e) => setEditData({ ...editData, is_4_insurance: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="true">가입</option><option value="false">미가입</option></select></div>
                 </>) : (<>
                   <InfoRow label="사번" value={emp.employee_number} />
@@ -435,7 +437,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <InfoRow label="직급" value={emp.job_grade} />
                   <InfoRow label="입사일" value={emp.hire_date} />
                   <InfoRow label="근속기간" value={emp.hire_date ? (() => { const d = new Date(emp.hire_date); const now = new Date(); const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth(); const y = Math.floor(months / 12); const m = months % 12; return y > 0 ? `${y}년 ${m}개월` : `${m}개월`; })() : undefined} />
-                  <InfoRow label="고용형태" value={emp.employment_type === "regular" ? "정규직" : emp.employment_type === "contract" ? "계약직" : emp.employment_type === "parttime" ? "파트타임" : emp.employment_type === "intern" ? "인턴" : emp.employment_type || ""} />
+                  <InfoRow label="고용형태" value={ETYPE_LABEL[emp.employment_type ?? ""] || emp.employment_type || ""} />
                   <InfoRow label="4대보험" value={emp.is_4_insurance ? "가입" : "미가입"} />
                 </>)}
               </div>
@@ -812,22 +814,22 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         {detailTab === "certificates" && (
           <div className="employee-certificates-tab">
             {/* Quick issue buttons — 용도·제출처 선택 후 발급 (2026-07-30 사장님: 이 경로에만 빠져 있었음) */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start">
+            <div className="flex flex-wrap gap-2 items-start">
               <CertQuickIssue type="employment" label="재직증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
               <CertQuickIssue type="career" label="경력증명서" emp={emp} companyId={companyId} queryClient={queryClient} />
             </div>
             {/* Issue history */}
-            <div>
-              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">발급 내역</div>
+            <div className="emp-section">
+              <div className="emp-section-head"><div className="emp-section-title">발급 내역</div></div>
               {empCertLogs.length === 0 ? (
-                <div className="text-center py-6 text-xs text-[var(--text-dim)]">발급 이력이 없습니다</div>
+                <div className="collect-empty">발급 이력이 없습니다</div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="emp-rows">
                   {empCertLogs.map((log: any) => (
-                    <div key={log.id} className="flex items-center justify-between px-4 py-2.5 glass-card">
-                      <div>
-                        <div className="text-xs font-medium">{log.certificate_type}</div>
-                        <div className="caption">{log.certificate_number} · {kstDateStr(new Date(log.created_at))}</div>
+                    <div key={log.id} className="emp-row justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs font-medium">{log.certificate_type}</span>
+                        <span className="caption mono-number">{log.certificate_number} · {kstDateStr(new Date(log.created_at))}</span>
                       </div>
                       {log.pdf_url && (
                         <a href={log.pdf_url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[var(--primary)] hover:underline">PDF</a>
@@ -844,41 +846,30 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         {detailTab === "leave" && (
           <div className="employee-leave-tab">
             {/* Leave balance summary */}
+            {/* 2026-08-19 상세 정리 — KPI 카드 3장 → 요약 한 줄(상자 안 상자 금지) */}
             {empLeaveBalance ? (
-              <div className="leave-balance-summary">
-                <div className="glass-card p-3 text-center">
-                  <div className="caption">총 부여</div>
-                  <div className="text-lg font-bold text-[var(--text)] mt-0.5">{empLeaveBalance.total_days}일</div>
-                </div>
-                <div className="glass-card p-3 text-center">
-                  <div className="caption">사용</div>
-                  <div className="text-lg font-bold text-[var(--danger)] mt-0.5">{empLeaveBalance.used_days}일</div>
-                </div>
-                <div className="glass-card p-3 text-center">
-                  <div className="caption">잔여</div>
-                  <div className={`text-lg font-bold mt-0.5 ${(empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0)) <= 3 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>
-                    {empLeaveBalance.remaining_days ?? ((empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0))}일
-                  </div>
-                </div>
+              <div className="emp-strip">
+                <span>총 부여 <b className="mono-number">{empLeaveBalance.total_days}일</b></span>
+                <span>사용 <b className="mono-number">{empLeaveBalance.used_days}일</b></span>
+                <span>잔여 <b className={`mono-number ${(empLeaveBalance.remaining_days ?? (empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0)) <= 3 ? "text-[var(--warning)]" : "text-[var(--success)]"}`}>{empLeaveBalance.remaining_days ?? ((empLeaveBalance.total_days ?? 0) - (empLeaveBalance.used_days ?? 0))}일</b></span>
+                <span className="text-[var(--text-dim)]">{currentYear}년 · 사용일수는 승인된 휴가로 자동 반영</span>
               </div>
             ) : (
-              <div className="glass-card p-4 text-center text-xs text-[var(--text-dim)]">
-                {currentYear}년 연차가 아직 설정되지 않았습니다
-              </div>
+              <div className="collect-empty">{currentYear}년 연차가 아직 설정되지 않았습니다 — 아래에서 총 부여일수를 정하세요</div>
             )}
 
             {/* 연차 설정(관리자) — 총 부여일수 초기화/조정. 휴가 신청/승인은 전자결재. */}
             {canManageAccess && (
-              <div className="employee-leave-setter glass-card">
-                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                  <div className="text-xs font-bold text-[var(--text-muted)]">{currentYear}년 총 부여일수 설정</div>
+              <div className="emp-section">
+                <div className="emp-section-head">
+                  <div className="emp-section-title">{currentYear}년 총 부여일수</div>
                   {emp?.hire_date && (() => {
                     const calc = calculateAnnualLeave(emp.hire_date, `${currentYear}-12-31`);
                     return (
                       <button
                         onClick={() => setLeaveMut.mutate(calc.totalDays)}
                         disabled={setLeaveMut.isPending}
-                        className="btn-ghost btn-sm text-[var(--primary)] disabled:opacity-50"
+                        className="btn-secondary btn-sm disabled:opacity-50"
                         title={calc.formula}
                       >
                         입사일 기준 자동 {calc.totalDays}일
@@ -893,35 +884,35 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                     value={leaveDaysInput}
                     onChange={(e) => setLeaveDaysInput(e.target.value.replace(/[^0-9.]/g, ""))}
                     placeholder={empLeaveBalance ? String(empLeaveBalance.total_days) : "예: 15"}
-                    className="field-input w-28"
+                    className="field-input" style={{ width: 112 }}
                   />
                   <button
                     onClick={() => { const v = Number(leaveDaysInput); if (v >= 0) setLeaveMut.mutate(v); }}
                     disabled={setLeaveMut.isPending || leaveDaysInput === ""}
-                    className="btn-primary btn-sm disabled:opacity-50"
+                    className="btn-secondary btn-sm disabled:opacity-50 whitespace-nowrap"
                   >
                     {setLeaveMut.isPending ? "저장 중..." : empLeaveBalance ? "수정" : "설정"}
                   </button>
                 </div>
-                <p className="text-[11px] text-[var(--text-dim)] mt-2">사용일수는 승인된 휴가에 따라 자동 반영됩니다.</p>
               </div>
             )}
 
             {/* 연차 발생 이력 — 입사일 기준 부여·월 발생(1년 미만)·이월·조정을 날짜별로 기록.
                 총 부여일수는 항상 이 목록의 합계로 동기화된다(단일 출처). 마이페이지 연차 원장에 그대로 표시. */}
             {canManageAccess && (
-              <div className="employee-leave-grants glass-card">
-                <div className="text-xs font-bold text-[var(--text-muted)] mb-2">{currentYear}년 연차 발생 이력</div>
+              <div className="emp-section">
+                <div className="emp-section-head"><div className="emp-section-title">{currentYear}년 연차 발생 이력</div><span className="text-[11px] text-[var(--text-dim)]">총 부여일수 = 이 목록의 합계 · 회수는 음수로</span></div>
                 {empLeaveGrants.length === 0 ? (
-                  <div className="text-[11px] text-[var(--text-dim)] py-3 text-center">발생 이력이 없습니다. 아래에서 추가하세요.</div>
+                  <div className="collect-empty">발생 이력이 없습니다 — 아래에서 추가하세요</div>
                 ) : (
-                  <div className="space-y-1.5 mb-3">
+                  <div className="emp-rows mb-2">
                     {empLeaveGrants.map((g) => (
-                      <div key={g.id} className="employee-leave-grant-row">
+                      <div key={g.id} className="emp-row">
                         <span className="badge badge-primary shrink-0">{GRANT_TYPE_LABELS[g.grant_type] || "발생"}</span>
-                        <span className="text-xs text-[var(--text-muted)] shrink-0">{g.grant_date}</span>
+                        <span className="text-xs text-[var(--text-muted)] shrink-0 mono-number">{g.grant_date}</span>
                         <span className="text-xs text-[var(--text-dim)] truncate flex-1 min-w-0">{g.memo || ""}</span>
-                        <span className="text-xs font-bold text-[var(--success)] shrink-0">+{Number(g.days)}일</span>
+                        {/* 부호 — 음수(회수)는 '+-5.5' 가 아니라 '−5.5' 로 */}
+                        <span className={`text-xs font-bold shrink-0 mono-number ${Number(g.days) < 0 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>{Number(g.days) < 0 ? "−" : "+"}{Math.abs(Number(g.days))}일</span>
                         <button
                           onClick={async () => { if (await appConfirm(`${g.grant_date} 발생 ${g.days}일을 삭제할까요?`, { danger: true })) delGrantMut.mutate(g); }}
                           disabled={delGrantMut.isPending}
@@ -935,13 +926,13 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   </div>
                 )}
                 <div className="employee-leave-grant-form">
-                  <input type="date" value={grantForm.date} onChange={(e) => setGrantForm((p) => ({ ...p, date: e.target.value }))} className="field-input" />
+                  <input type="date" value={grantForm.date} onChange={(e) => setGrantForm((p) => ({ ...p, date: e.target.value }))} className="field-input" style={{ width: 150 }} />
                   <input
                     type="text" inputMode="decimal" value={grantForm.days}
                     onChange={(e) => setGrantForm((p) => ({ ...p, days: e.target.value.replace(/[^0-9.-]/g, "") }))}
-                    placeholder="일수" className="field-input w-20"
+                    placeholder="일수" className="field-input" style={{ width: 72 }}
                   />
-                  <select value={grantForm.type} onChange={(e) => setGrantForm((p) => ({ ...p, type: e.target.value as LeaveGrantType }))} className="field-input w-28">
+                  <select value={grantForm.type} onChange={(e) => setGrantForm((p) => ({ ...p, type: e.target.value as LeaveGrantType }))} className="field-input" style={{ width: 120 }}>
                     {(Object.keys(GRANT_TYPE_LABELS) as LeaveGrantType[]).map((k) => (
                       <option key={k} value={k}>{GRANT_TYPE_LABELS[k]}</option>
                     ))}
@@ -949,44 +940,38 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   <input
                     type="text" value={grantForm.memo}
                     onChange={(e) => setGrantForm((p) => ({ ...p, memo: e.target.value }))}
-                    placeholder="메모 (선택)" className="field-input flex-1 min-w-[100px]"
+                    placeholder="메모 (선택)" className="field-input" style={{ flex: 1, minWidth: 120 }}
                   />
                   <button
                     onClick={() => addGrantMut.mutate()}
                     disabled={addGrantMut.isPending || !grantForm.date || grantForm.days === ""}
-                    className="btn-primary btn-sm disabled:opacity-50 shrink-0"
+                    className="btn-secondary btn-sm disabled:opacity-50 shrink-0 whitespace-nowrap"
                   >
                     {addGrantMut.isPending ? "추가 중..." : "발생 추가"}
                   </button>
                 </div>
-                <p className="text-[11px] text-[var(--text-dim)] mt-2">총 부여일수는 이 목록의 합계로 자동 계산됩니다. 회수는 일수를 음수로 입력하세요.</p>
               </div>
             )}
 
             {/* Leave type cards (Flex-style) */}
-            <div>
-              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">휴가 유형</div>
-              <div className="grid grid-cols-3 gap-2">
+            <div className="emp-section">
+              <div className="emp-section-head"><div className="emp-section-title">휴가 유형별 사용</div></div>
+              <div className="emp-strip">
                 {companyLeaveTypes.slice(0, 6).map((lt) => {
                   const used = empLeaveRequests.filter((r: any) => r.leave_type === lt.value && r.status === "approved")
                     .reduce((s: number, r: any) => s + Number(r.days || 0), 0);
-                  return (
-                    <div key={lt.value} className="bg-[var(--bg-card)] rounded-lg border border-[var(--border)] px-3 py-2">
-                      <div className="caption">{lt.label}</div>
-                      <div className="text-sm font-bold mt-0.5">{used > 0 ? `${used}일 사용` : `${lt.defaultDays}일`}</div>
-                    </div>
-                  );
+                  return <span key={lt.value}>{lt.label} <b className="mono-number">{used > 0 ? `${used}일` : "—"}</b><small className="text-[var(--text-dim)]"> / {lt.defaultDays}일</small></span>;
                 })}
               </div>
             </div>
 
             {/* Recent leave requests */}
-            <div>
-              <div className="text-xs font-bold text-[var(--text-muted)] mb-2">사용 기록</div>
+            <div className="emp-section">
+              <div className="emp-section-head"><div className="emp-section-title">사용 기록</div></div>
               {empLeaveRequests.length === 0 ? (
-                <div className="text-center py-6 text-xs text-[var(--text-dim)]">휴가 사용 기록이 없습니다</div>
+                <div className="collect-empty">휴가 사용 기록이 없습니다</div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="emp-rows">
                   {empLeaveRequests.slice(0, 10).map((r: any) => {
                     const typeLabel = companyLeaveTypes.find((t) => t.value === r.leave_type)?.label
                       || LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
@@ -996,10 +981,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                       rejected: "text-[var(--danger)] bg-[var(--danger)]/10",
                     };
                     return (
-                      <div key={r.id} className="flex items-center justify-between px-4 py-2.5 glass-card">
-                        <div>
-                          <div className="text-xs font-medium">{typeLabel} · {r.days}일</div>
-                          <div className="caption">{r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}</div>
+                      <div key={r.id} className="emp-row justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-xs font-medium">{typeLabel} · {r.days}일</span>
+                          <span className="caption mono-number">{r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}</span>
                         </div>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full ${statusColors[r.status] || "text-[var(--text-dim)] bg-[var(--bg-surface)]"}`}>
                           {r.status === "pending" ? "대기" : r.status === "approved" ? "승인" : "반려"}
@@ -1249,13 +1234,8 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
   return (
     <div className="employee-docs-checklist">
       {/* Progress summary */}
-      <div className="flex items-center justify-between px-4 py-3 glass-card">
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-          </svg>
-          <span className="text-xs font-semibold">입사서류 진행률</span>
-        </div>
+      <div className="emp-strip justify-between">
+        <span className="font-semibold text-[var(--text)]">입사서류 진행률</span>
         <div className="flex items-center gap-2">
           <div className="w-24 h-1.5 bg-[var(--bg-surface)] rounded-full overflow-hidden">
             <div className="h-full bg-[var(--primary)] rounded-full transition-all" style={{ width: `${items.length > 0 ? (completedCount / items.length) * 100 : 0}%` }} />
@@ -1268,9 +1248,9 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
       </div>
 
       {/* Document checklist */}
-      <div className="space-y-2">
+      <div className="emp-rows">
         {items.map((item) => (
-          <div key={item.key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition ${item.completed ? "bg-[var(--success)]/5 border-[var(--success)]/20" : "bg-[var(--bg-card)] border-[var(--border)]"}`}>
+          <div key={item.key} className={`emp-row gap-3 ${item.completed ? "emp-row-done" : ""}`}>
             {/* Checkbox */}
             <input
               type="checkbox"
@@ -1376,7 +1356,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
           <button
             onClick={addNote}
             disabled={!noteText.trim() || saving}
-            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition"
+            className="btn-primary btn-sm disabled:opacity-50"
           >
             {saving ? "저장 중..." : "추가"}
           </button>
@@ -1385,11 +1365,11 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
 
       {/* 노트 목록 */}
       {notes.length === 0 ? (
-        <div className="text-center py-8 text-sm text-[var(--text-dim)]">등록된 인사노트가 없습니다</div>
+        <div className="collect-empty">등록된 인사노트가 없습니다</div>
       ) : (
-        <div className="space-y-2">
+        <div className="emp-rows">
           {[...notes].reverse().map((n, i) => (
-            <div key={i} className="px-4 py-3 glass-card">
+            <div key={i} className="emp-row flex-col items-start gap-1">
               <div className="text-sm text-[var(--text)] whitespace-pre-wrap">{n.text}</div>
               <div className="flex items-center gap-2 mt-2 text-[10px] text-[var(--text-dim)]">
                 <span>{n.author}</span>
@@ -1586,17 +1566,18 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
     }
   }
   return (
-    <div className="flex-1 w-full">
-      <button onClick={() => setOpen((v) => !v)} disabled={issuing} className="w-full py-3 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs font-semibold hover:border-[var(--primary)] transition disabled:opacity-50">
+    <div className="relative">
+      <button onClick={() => setOpen((v) => !v)} disabled={issuing} className={open ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
         {issuing ? "생성 중..." : `${label} 발급`}
       </button>
       {open && (
-        <div className="mt-2 p-3 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl space-y-2">
+        <div className="emp-cert-pop">
           <CertChoiceField label="용도" options={CERT_PURPOSE_OPTIONS} value={purpose} onChange={setPurpose} />
           <CertChoiceField label="제출처" options={CERT_SUBMIT_TO_OPTIONS} value={submitTo} onChange={setSubmitTo} />
-          <button onClick={issue} disabled={issuing} className="w-full py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-bold hover:brightness-110 transition disabled:opacity-50">
-            {issuing ? "생성 중..." : "발급하기"}
-          </button>
+          <div className="flex justify-end gap-2 pt-1">
+            <button onClick={() => setOpen(false)} className="btn-secondary btn-sm">취소</button>
+            <button onClick={issue} disabled={issuing} className="btn-primary btn-sm disabled:opacity-50">{issuing ? "생성 중..." : "발급하기"}</button>
+          </div>
         </div>
       )}
     </div>

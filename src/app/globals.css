@@ -2046,13 +2046,13 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 .employee-invite-banner { @apply mb-4 p-3 rounded-xl text-sm font-medium shadow-sm; } /* dynamic ok/danger color left inline in JSX */
 .attendance-calendar-view { @apply grid gap-4; } /* dynamic lg:grid-cols-4 left inline in JSX */
 .attendance-calendar { @apply overflow-hidden; } /* co-exists with glass-card in JSX; dynamic lg:col-span-3 left inline in JSX */
-.employee-detail-modal { @apply overflow-hidden shadow-2xl; }
-.employee-detail-hero { @apply relative; }
+.employee-detail-modal { @apply overflow-hidden shadow-2xl flex flex-col h-[88vh]; }  /* 2026-08-19 상세 정리: 탭마다 높이가 출렁이지 않게 — 머리·탭 고정, 본문만 스크롤 */
+.employee-detail-hero { @apply relative shrink-0; }
 /* 겹침을 -mt-4 로 (기존 -mt-9 는 하단정렬된 이름·직책 블록 상단이 그라데이션 배너 위로 올라타
    이름 가독성이 떨어졌다). 아바타 오버랩은 유지하면서 텍스트는 배너 아래에서 시작. */
 .employee-detail-hero-body { @apply px-6 pb-4 -mt-4 flex items-end justify-between gap-4 flex-wrap; }
-.employee-detail-tabbar { @apply px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20; }
-.employee-detail-body { @apply p-6 bg-[var(--bg-surface)]/30 max-h-[68vh] overflow-y-auto; }
+.employee-detail-tabbar { @apply px-6 pt-3 pb-0 border-b border-[var(--border)] bg-[var(--bg-surface)]/20 shrink-0; }
+.employee-detail-body { @apply p-6 bg-[var(--bg-surface)]/30 flex-1 min-h-0 overflow-y-auto; }
 .employee-info-tab { @apply space-y-5; }
 .employee-contracts-tab { @apply space-y-3; }
 .contract-create-form { @apply p-4 space-y-3; }
@@ -9862,3 +9862,14 @@ table.dup-table { min-width: 0; }
 .perm-confirm-add { @apply text-[var(--success)]; }
 .perm-confirm-rm { @apply text-[var(--danger)]; }
 .perm-confirm-list b { @apply text-[var(--text)]; }
+
+/* ── 구성원 상세 카드 정리 (2026-08-19 사장님: "상세보기 카드 UI 정리") — 상자 안 상자 대신 요약 줄·얇은 구획·줄 목록 ── */
+.emp-strip { @apply flex items-center gap-4 flex-wrap text-[12px] text-[var(--text-muted)] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2; }
+.emp-strip b { @apply text-[var(--text)] font-semibold text-[13px]; }
+.emp-section { @apply pt-1; }
+.emp-section-head { @apply flex items-center justify-between gap-2 flex-wrap mb-1.5; }
+.emp-section-title { @apply text-[12px] font-bold text-[var(--text-muted)]; }
+.emp-rows { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] divide-y divide-[var(--border)]/70 overflow-hidden; }
+.emp-row { @apply flex items-center gap-2 px-3.5 py-2 text-[12px]; }
+.emp-row-done { @apply bg-[var(--success)]/5; }
+.emp-cert-pop { @apply absolute left-0 top-full mt-1.5 z-20 w-[320px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-[var(--shadow-lg)] p-3 space-y-2; }

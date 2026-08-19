@@ -105,6 +105,9 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [view, setView] = useState<"card" | "list">("list");   //   2026-08-19 사장님: 규칙대로 리스트가 기본
   const [sel, setSel] = useState<Emp | null>(null);
+  //   2026-08-19 사장님: 구성원(인력관리)에서 이름을 누르면 약식 패널 없이 **바로 상세보기** — 대부분 상세로 들어가므로 한 단계 덜 누른다.
+  //   약식 프로필 패널(ProfilePanel)은 디렉토리(/team, 관리자 아님)에서만 쓴다. 근태 기록·급여명세 링크는 사람별 화면이 아니라 빼도 겹친다(사장님: 중복이면 안 넣음).
+  const openEmp = (e: Emp) => { if (isManager) setContractsEmpId(e.id); else setSel(e); };
   const [contractsEmpId, setContractsEmpId] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "name", dir: "asc" });
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
@@ -194,7 +197,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
   const renderCard = (e: Emp) => {
     const sm = statusMeta(e.status);
     return (
-      <button key={e.id} onClick={() => setSel(e)} className="flex-people-card glass-card group">
+      <button key={e.id} onClick={() => openEmp(e)} className="flex-people-card glass-card group">
         <div className="flex items-center gap-3">
           {avatarSrc(e) ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -297,7 +300,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                   {pager.view.map((e) => {
                     const sm = statusMeta(e.status);
                     return (
-                      <tr key={e.id} onClick={() => setSel(e)} className="emp-row">
+                      <tr key={e.id} onClick={() => openEmp(e)} className="emp-row">
                         <td className="text-left">
                           <span className="flex items-center gap-2">
                             {avatarSrc(e) ? (
