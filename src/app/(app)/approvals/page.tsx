@@ -46,7 +46,7 @@ import { CurrencyInput } from "@/components/currency-input";
 import { Avatar } from "@/components/avatar";
 import { useToast } from "@/components/toast";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
-import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, QuickSearch, quickSearchHit, ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, RowsPerPage, Pager, usePager, type AppliedChip } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup, QuickSearch, quickSearchHit, ConditionPanel, ConditionRow, TokenField, AmountRange, amountHit, AppliedChips, RowsPerPage, Pager, usePager, SelectionBar, type AppliedChip } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { ApprovalFormsManager } from "@/components/approval-forms-manager";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -982,6 +982,11 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
   const { toast } = useToast();
   const [comment, setComment] = useState("");
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
+  //   일괄 승인·반려 — 줄을 골라 바닥 선택 바에서 (2026-08-19 조회 표준: 확정 버튼은 SelectionBar 하나)
+  const [pickedSteps, setPickedSteps] = useState<Set<string>>(new Set());
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchRejectOpen, setBatchRejectOpen] = useState(false);
+  const [batchReason, setBatchReason] = useState("");
 
   // 대기중 / 처리완료 전환 — 승인하고 나면 목록에서 사라져 다시 볼 수 없던 문제
   //   (2026-07-27 사장님 제보). 결재선에 올랐던 건은 처리 후에도 확인 가능해야 한다.
@@ -1047,6 +1052,26 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
     },
     onError: (err: any) => toast("반려 처리 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
+
+  const runBatch = async (kind: "approve" | "reject", reason?: string) => {
+    const ids = [...pickedSteps].filter((id) => (pendingApprovals as any[]).some((p) => p.stepId === id));
+    if (ids.length === 0) return;
+    setBatchBusy(true);
+    let ok = 0, fail = 0;
+    for (const id of ids) {
+      try {
+        if (kind === "approve") await approveStep(id, userId, undefined);
+        else await rejectStep(id, userId, reason || "");
+        ok += 1;
+      } catch { fail += 1; }
+    }
+    setBatchBusy(false);
+    setPickedSteps(new Set());
+    setBatchRejectOpen(false); setBatchReason("");
+    invalidate();
+    window.dispatchEvent(new Event("sidebar-refresh-badges"));
+    toast(`${kind === "approve" ? "승인" : "반려"} ${ok}건 처리${fail ? ` · 실패 ${fail}건` : ""}`, fail ? "error" : "success");
+  };
 
   // 목록이 바뀌면(처리 완료 등으로 사라지면) 열려 있던 상세 팝업 닫기
   useEffect(() => {
@@ -1172,6 +1197,13 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
       <table className="ev-table ev-lined approval-table">
         <thead>
           <tr>
+            <th className="w-10">
+              <button type="button" aria-label="이 목록 전체 선택"
+                onClick={() => { const all = visiblePending.length > 0 && visiblePending.every((p: any) => pickedSteps.has(p.stepId)); const next = new Set(pickedSteps); if (all) visiblePending.forEach((p: any) => next.delete(p.stepId)); else visiblePending.forEach((p: any) => next.add(p.stepId)); setPickedSteps(next); }}
+                className={visiblePending.length > 0 && visiblePending.every((p: any) => pickedSteps.has(p.stepId)) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                {visiblePending.length > 0 && visiblePending.every((p: any) => pickedSteps.has(p.stepId)) ? "✓" : ""}
+              </button>
+            </th>
             <SortableTh label="상태" />
             <SortableTh label="제목" />
             <SortableTh label="요청자" />
@@ -1183,7 +1215,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
         <tbody>
           {visiblePending.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-4 py-16 text-center">
+              <td colSpan={7} className="px-4 py-16 text-center">
                 <div className="text-sm font-bold mb-1">검색 결과가 없습니다</div>
                 <div className="text-xs text-[var(--text-muted)]">검색어나 유형 필터를 바꿔보세요</div>
               </td>
@@ -1194,10 +1226,14 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
               return (
                 <tr
                   key={item.stepId}
-                  className="approval-table-row"
+                  className={pickedSteps.has(item.stepId) ? "approval-table-row ap-row-open" : "approval-table-row"}
                   onClick={() => { setSelectedStepId(item.stepId); setComment(""); }}
                 >
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
+                    <button type="button" aria-label="선택" onClick={() => setPickedSteps((s) => { const n = new Set(s); if (n.has(item.stepId)) n.delete(item.stepId); else n.add(item.stepId); return n; })}
+                      className={pickedSteps.has(item.stepId) ? "collect-chk collect-chk-on" : "collect-chk"}>{pickedSteps.has(item.stepId) ? "✓" : ""}</button>
+                  </td>
+                  <td className="px-4 py-3.5 text-center">
                     <span className="approval-need-badge"><span className="approval-need-badge-dot" />승인 필요</span>
                   </td>
                   <td className="px-4 py-3.5">
@@ -1229,6 +1265,25 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
         </tbody>
       </table>
     </div>
+
+    {/* 일괄 승인·반려 — 고른 순간에만 뜨는 바닥 바. 파란(확정) 버튼은 여기 하나 */}
+    <SelectionBar count={pickedSteps.size} summary="승인 대기 결재" onClear={() => setPickedSteps(new Set())}>
+      <button type="button" className="btn-secondary btn-sm text-[var(--danger)]" disabled={batchBusy} onClick={() => setBatchRejectOpen(true)}>선택 반려</button>
+      <button type="button" className="btn-primary btn-sm" disabled={batchBusy} onClick={() => runBatch("approve")}>{batchBusy ? "처리 중…" : `선택 승인 (${pickedSteps.size})`}</button>
+    </SelectionBar>
+    {batchRejectOpen && (
+      <div className="approval-detail-modal" onClick={() => !batchBusy && setBatchRejectOpen(false)}>
+        <div className="approval-policy-form ap-pol-modal max-w-md" onClick={(e) => e.stopPropagation()}>
+          <h3 className="section-title">선택 {pickedSteps.size}건 반려</h3>
+          <p className="text-xs text-[var(--text-muted)] mb-2">반려 사유는 요청자에게 그대로 전달됩니다 (모든 건에 같은 사유).</p>
+          <textarea value={batchReason} onChange={(e) => setBatchReason(e.target.value)} rows={3} placeholder="반려 사유 (필수)" className="field-input w-full" />
+          <div className="flex gap-2 mt-3">
+            <button type="button" className="btn-primary btn-sm" disabled={batchBusy || batchReason.trim().length < 2} onClick={() => runBatch("reject", batchReason.trim())}>{batchBusy ? "처리 중…" : "반려"}</button>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setBatchRejectOpen(false)}>취소</button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* 결재 상세 팝업 — 전체 현황 상세와 동일 구성 + 승인/반려 처리 */}
     {selected && (() => {
