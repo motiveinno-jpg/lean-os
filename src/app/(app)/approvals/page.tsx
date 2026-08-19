@@ -3107,11 +3107,21 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     setCustomFieldValues(initFields);
   }, [selectedForm, matchedPolicy, form.requestType]);
 
-  const effectiveTitle = isLeave ? leaveTitle : form.title;
   const effectiveDescription = isLeave ? leaveDescription : form.description;
   // 2026-07-16: 기본 제공 유형(경비청구 등)도 정책(matchedPolicy)에 입력 필드를 정의해두면
   //   커스텀 양식과 동일하게 필드를 보여준다. 휴가는 전용 구조화 입력(leaveForm)이 있어 제외.
   const activeFields = !isLeave ? (selectedForm?.fields || matchedPolicy?.fields || []) : [];
+  // 업체명류 필드가 있으면 제목 뒤에 붙인다 (2026-08-19 사장님: 광고비 지출결의서가 어느 업체 건인지
+  //   제목만으로 보이게). 이미 제목에 그 업체명이 들어 있으면 중복으로 붙이지 않는다.
+  const vendorFieldVal = (() => {
+    const fd = (activeFields as any[]).find((f) => /업체명|거래처|공급처|매입처/.test(String(f?.label || "")));
+    return fd ? String(customFieldValues[fd.key] || "").trim() : "";
+  })();
+  const effectiveTitle = isLeave
+    ? leaveTitle
+    : (vendorFieldVal && form.title.trim() && !form.title.includes(vendorFieldVal)
+        ? `${form.title.trim()} — ${vendorFieldVal}`
+        : form.title);
   // 커스텀 결재양식은 양식 자체 필드가 기준 — 일반 '금액' 입력은 숨기고(중복·혼란),
   //   양식(또는 기본 유형 정책)에 금액 타입 필드가 있으면 그 값을 결재 금액으로 사용, 없으면 금액 없는 결재(0).
   const formAmountField = activeFields.find((fd: any) => fd.type === "amount") || null;
