@@ -122,17 +122,22 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   });
 
   // 회사 공휴일 (2026-08-19 사장님: 대체휴일이 전 직원 결근으로 표시) — 결근 판정에서 제외.
-  const { data: weekHolidays = [] } = useQuery<{ date: string }[]>({
+  const { data: weekHolidays = [] } = useQuery<{ date: string; name: string | null }[]>({
     queryKey: ["flex-work-holidays", companyId, startStr],
     queryFn: async () => {
       const data = logRead('components/flex-work-board:data', await db.from("holidays")
-        .select("date").eq("company_id", companyId).gte("date", startStr).lte("date", endStr));
+        .select("date, name").eq("company_id", companyId).gte("date", startStr).lte("date", endStr));
       return (data || []) as any[];
     },
     enabled: !!companyId,
     staleTime: 60_000,
   });
   const holidaySet = useMemo(() => new Set(weekHolidays.map((h) => String(h.date).slice(0, 10))), [weekHolidays]);
+  const holidayNameByDate = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const h of weekHolidays) m.set(String(h.date).slice(0, 10), h.name || "공휴일");
+    return m;
+  }, [weekHolidays]);
 
   const attByEmpDate = useMemo(() => {
     const m = new Map<string, Att>();
@@ -345,8 +350,18 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     if (!a || (!a.check_in && !minutesOf(a))) {
                       // 결근 표시 — 지난 평일인데 기록·휴가가 없으면 공백 대신 "결근"
                       //   (2026-07-30 사장님). 오늘/미래·주말·입사 전 날짜는 제외.
+                      //   공휴일은 "—" 가 아니라 이름을 보여준다 (2026-08-19 사장님).
                       const dstr = ymd(d);
-                      const absent = !weekend && !holidaySet.has(dstr) && dstr < todayStr && (!emp.hire_date || dstr >= emp.hire_date);
+                      if (holidaySet.has(dstr)) {
+                        return (
+                          <td key={i} className="px-1 py-2 text-center align-middle bg-[var(--bg-surface)]/30">
+                            <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--info-dim,var(--bg-surface))] text-[var(--info)]" title={holidayNameByDate.get(dstr)}>
+                              {holidayNameByDate.get(dstr) || "공휴일"}
+                            </span>
+                          </td>
+                        );
+                      }
+                      const absent = !weekend && dstr < todayStr && (!emp.hire_date || dstr >= emp.hire_date);
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent

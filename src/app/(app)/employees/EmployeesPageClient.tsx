@@ -907,7 +907,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     queryKey: ["attendance-cal-holidays", companyId, selectedMonth],
     queryFn: async () => {
       const data = logRead('employees/page:holidays', await (supabase).from("holidays")
-        .select("date")
+        .select("date, name")
         .eq("company_id", companyId)
         .gte("date", monthStart).lte("date", monthEnd));
       return data || [];
@@ -918,6 +918,11 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     () => new Set((monthHolidays as any[]).map((h) => String(h.date).slice(0, 10))),
     [monthHolidays],
   );
+  const holidayNameByDate = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const h of monthHolidays as any[]) m.set(String(h.date).slice(0, 10), h.name || "공휴일");
+    return m;
+  }, [monthHolidays]);
 
   // Monthly summary
   const { data: summary = [] } = useQuery({
@@ -1289,9 +1294,13 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     }`}
                   >
                     <div className={`text-sm font-medium mb-1.5 flex items-center gap-1 ${
-                      isToday ? "text-[var(--primary)] font-bold" : dayOfWeek === 0 ? "text-[var(--danger)]" : dayOfWeek === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
+                      isToday ? "text-[var(--primary)] font-bold" : (dayOfWeek === 0 || holidayDaySet.has(dateStr)) ? "text-[var(--danger)]" : dayOfWeek === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"
                     }`}>
                       {isSelected ? <span className="w-5 h-5 rounded-full bg-[var(--primary)] text-white text-[11px] flex items-center justify-center font-bold">{day}</span> : day}
+                      {/* 공휴일 이름 표시 (2026-08-19 사장님: "—"만 보이면 왜 쉬는 날인지 모름) */}
+                      {holidayDaySet.has(dateStr) && (
+                        <span className="text-[10px] font-semibold text-[var(--danger)] truncate">{holidayNameByDate.get(dateStr)}</span>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1 items-start">
                       {ATTENDANCE_STATUS.filter((s) => dayStatusCounts.get(s.value)).map((s) => (
