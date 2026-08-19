@@ -1724,7 +1724,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                       : '수당 기록 없음';
                     return (
                       <tr key={s.employee_id} className="pnl-row-acct att-emp-row" onClick={() => setSummaryDetailId(s.employee_id)}>
-                        <td className="text-left pl-8"><span className="inline-flex items-center gap-2"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: attAvatarColor(s.employee_id) }}>{attInitials(s.name)}</span>{s.name}</span></td>
+                        <td className="text-left pl-8"><span className="inline-flex items-center gap-2"><span className="inline-flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-white" style={{ background: attAvatarColor(s.employee_id) }}>{attInitials(s.name)}</span>{s.name}</span></td>
                         <td className="text-center mono-number">{s.totalDays}일</td>
                         <td className="text-center"><span className="att-ratio"><i style={{ width: `${Math.round(s.ratio * 100)}%` }} /></span><small className="ml-1.5 mono-number text-[var(--text-dim)]">{Math.round(s.ratio * 100)}%</small></td>
                         <td className={`text-center mono-number ${s.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{s.lateDays > 0 ? `${s.lateDays}회` : "—"}</td>
