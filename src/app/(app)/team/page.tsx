@@ -46,7 +46,7 @@ export default function TeamPage() {
   // 조직도 (2026-08-19 사장님: 디렉토리에서 조직도도 보이게) — 회사 루트 → 부서 상자 → 직책 서열순 구성원.
   //   검색·부서 필터가 조직도에도 그대로 적용된다. '미배정'은 맨 뒤.
   const { data: companyName = "" } = useQuery({
-    queryKey: ["company-name", companyId],
+    queryKey: ["team-org-company-name", companyId], // ⚠️ "company-name" 키는 구성원 페이지가 객체를 캐시함 — 문자열 반환인 이 쿼리와 키를 공유하면 조직도에 객체가 렌더돼 React #31 (2026-08-19 실사고)
     enabled: !!companyId && view === "org",
     staleTime: 300_000,
     queryFn: async () => {

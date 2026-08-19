@@ -35,7 +35,12 @@ const EMP_STATUS: Record<string, { label: string; color: string }> = {
 // 회사 설정에 없는 레거시 유형(경조휴가·무급휴가)까지 덮는 폴백 표기
 const LEAVE_TYPE_LABELS: Record<string, string> = { annual: "연차", sick: "병가", special: "경조휴가", unpaid: "무급휴가" };
 // 연차 원장 표기 — 'YYYY-MM-DD' → 'M월 D일'
-const fmtLedgerDate = (d?: string | null) => (d ? `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일` : "—");
+// ⚠️ 날짜가 결재 custom_fields(jsonb)에서도 와서 문자열이 아닐 수 있다 — 숫자가 오면 .slice 에서
+//   마이페이지 전체가 죽었다(2026-08-19 에러로그 3건). 어떤 값이 와도 크래시하지 않게 방어.
+const fmtLedgerDate = (d?: string | number | null) => {
+  const s = d == null ? "" : String(d);
+  return /^\d{4}-\d{2}-\d{2}/.test(s) ? `${Number(s.slice(5, 7))}월 ${Number(s.slice(8, 10))}일` : (s || "—");
+};
 
 //   2026-08-19 재편(docs/20260819_PLAN_mypage_redesign.md): 내 현황 · 근태 · 휴가·연차 · 급여·계약·증명 · 내 정보·설정
 type MyPageTab = "home" | "attendance" | "leave" | "docs" | "me";
