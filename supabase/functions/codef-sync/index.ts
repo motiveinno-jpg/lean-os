@@ -2194,6 +2194,10 @@ serve(withSentry("codef-sync", async (req) => {
       } catch (e: any) {
         return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+      // 은행 미등록 회사(카드만 연동 등)도 동일 — 크론 대상 아님을 error 로 기록하지 않는다.
+      if ((bankRes?.errors?.length ?? 0) > 0 && bankRes.errors.every((e: any) => e.code === "NO_BANK_ACCOUNTS")) {
+        return new Response(JSON.stringify({ ok: true, skipped: "no bank accounts" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
       // e39b351 동일 산식 잔액 재계산 (서버측 RPC — 마이그레이션 미적용 시 graceful skip)
       try { await supabase.rpc("recompute_bank_balances", { p_company: companyId }); } catch { /* RPC 미배포 — 다음 syncBankBalances 가 보정 */ }
       try {
@@ -2239,6 +2243,12 @@ serve(withSentry("codef-sync", async (req) => {
         }
       } catch (e: any) {
         return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      // 카드 미등록 회사는 "오류"가 아니라 크론 대상 아님 — 매 크론마다 error 로그가 쌓여
+      //   진짜 장애와 구분이 안 됐다(2026-08-19 실측: 미등록 1개사만으로 14일간 error 46건).
+      //   유실 감시(alertMissingCardOrgs)는 위에서 이미 돌았으므로 ORG_MISSING 은 놓치지 않는다.
+      if ((cardRes?.errors?.length ?? 0) > 0 && cardRes.errors.every((e: any) => e.code === "NO_CARD_ACCOUNTS")) {
+        return new Response(JSON.stringify({ ok: true, skipped: "no card accounts" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       try {
         await supabase.from("sync_logs").insert({
