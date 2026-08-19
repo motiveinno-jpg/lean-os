@@ -19,6 +19,7 @@ import { generateEmploymentCertificate, generateCareerCertificate, saveCertifica
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { PermissionSection } from "./PermissionSection";
 import { useMyPermissions } from "@/lib/permissions";
+import { DepartmentField, PositionField } from "@/components/org-option-fields";
 import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
@@ -409,8 +410,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 {isEditing ? (<>
                   <EditField label="이름" value={editData.name} onChange={(v) => setEditData({ ...editData, name: v })} />
                   <EditField label="사번" value={editData.employee_number} onChange={(v) => setEditData({ ...editData, employee_number: v })} />
-                  <EditField label="부서" value={editData.department} onChange={(v) => setEditData({ ...editData, department: v })} />
-                  <EditField label="직책" value={editData.position} onChange={(v) => setEditData({ ...editData, position: v })} />
+                  {/* 목록에서 선택 + 직접 추가 (2026-08-19 사장님) — 부서는 settings 부서 관리와 공용 */}
+                  <DepartmentField companyId={companyId} value={editData.department} onChange={(v) => setEditData({ ...editData, department: v })} />
+                  <PositionField companyId={companyId} value={editData.position} onChange={(v) => setEditData({ ...editData, position: v })} />
                   <EditField label="직급" value={editData.job_grade} onChange={(v) => setEditData({ ...editData, job_grade: v })} />
                   <EditField label="입사일" value={editData.hire_date} onChange={(v) => setEditData({ ...editData, hire_date: v })} type="date" />
                   <div><div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">고용형태</div><select value={editData.employment_type} onChange={(e) => setEditData({ ...editData, employment_type: e.target.value })} className="w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]"><option value="">선택</option><option value="regular">정규직</option><option value="contract">계약직</option><option value="parttime">파트타임</option><option value="intern">인턴</option></select></div>
@@ -612,7 +614,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
 
         {/* History Tab (D-9: 인사발령 히스토리) */}
         {detailTab === "history" && (
-          <EmploymentHistorySection employeeId={employeeId} emp={emp} queryClient={queryClient} />
+          <EmploymentHistorySection employeeId={employeeId} emp={emp} queryClient={queryClient} companyId={companyId} />
         )}
 
         {/* 탭 권한 (관리자/대표 전용) — 2026-07-30 개편 P1: 마스터에게는 새 권한 트리 병기.
@@ -1376,7 +1378,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
 }
 
 // ── D-9: 인사발령 히스토리 ──
-function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId: string; emp: any; queryClient: any }) {
+function EmploymentHistorySection({ employeeId, emp, queryClient, companyId }: { employeeId: string; emp: any; queryClient: any; companyId: string | null }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ department: "", position: "", date: "", note: "" });
   const [saving, setSaving] = useState(false);
@@ -1419,24 +1421,8 @@ function EmploymentHistorySection({ employeeId, emp, queryClient }: { employeeId
       {showForm && (
         <div className="glass-card p-4">
           <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">부서 *</label>
-              <input
-                value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
-                placeholder="부서명"
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">직위</label>
-              <input
-                value={form.position}
-                onChange={(e) => setForm({ ...form, position: e.target.value })}
-                placeholder="직위"
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
+            <DepartmentField companyId={companyId} label="부서 *" value={form.department} onChange={(v) => setForm({ ...form, department: v })} />
+            <PositionField companyId={companyId} label="직위" value={form.position} onChange={(v) => setForm({ ...form, position: v })} />
             <div>
               <label className="block text-[10px] text-[var(--text-dim)] mb-1">발령일</label>
               <DateField

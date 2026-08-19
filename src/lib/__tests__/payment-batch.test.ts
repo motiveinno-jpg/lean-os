@@ -80,17 +80,30 @@ describe("calculateRetirementPay — 근로기준법 퇴직금", () => {
     expect(r.retirementPay).toBe(0);
   });
 
-  it("딱 1년(365일) — 3개월 총급여 900만 → 평균일급 10만 × 30일 = 300만", () => {
-    const r = calculateRetirementPay({ startDate: "2025-01-01", endDate: "2026-01-01", last3MonthsSalary: 9_000_000 });
+  // 2026-08-19: 재직일수는 입사일·마지막근무일 양 끝 포함(+1) — 만 1년 근무(1/1~12/31)가
+  //   364일로 계산돼 퇴직금 0원이 되던 결함 수정. tools 퇴직금 계산기와 동일 규칙.
+  it("만 1년(1/1~12/31, 365일) — 3개월 90일 지정 시 평균일급 10만 × 30일 = 300만", () => {
+    const r = calculateRetirementPay({ startDate: "2025-01-01", endDate: "2025-12-31", last3MonthsSalary: 9_000_000, last3MonthsDays: 90 });
     expect(r.eligible).toBe(true);
     expect(r.totalDays).toBe(365);
     expect(r.dailyAvgWage).toBe(100_000);
     expect(r.retirementPay).toBe(3_000_000);
   });
 
+  it("364일(1/1~12/30) → 미지급 — 양끝 포함 규칙의 경계", () => {
+    const r = calculateRetirementPay({ startDate: "2025-01-01", endDate: "2025-12-30", last3MonthsSalary: 9_000_000 });
+    expect(r.totalDays).toBe(364);
+    expect(r.eligible).toBe(false);
+  });
+
+  it("3개월 산정기간 자동 계산 — 5/31 퇴직은 3/1~5/31 = 92일 (setMonth 오버플로 방지)", () => {
+    const r = calculateRetirementPay({ startDate: "2024-01-01", endDate: "2026-05-31", last3MonthsSalary: 9_200_000 });
+    expect(r.dailyAvgWage).toBe(9_200_000 / 92);
+  });
+
   it("2년 근속 → 근속 비례 (약 2배)", () => {
-    const r = calculateRetirementPay({ startDate: "2024-01-01", endDate: "2026-01-01", last3MonthsSalary: 9_000_000 });
+    const r = calculateRetirementPay({ startDate: "2024-01-01", endDate: "2025-12-31", last3MonthsSalary: 9_000_000, last3MonthsDays: 90 });
     expect(r.retirementPay).toBe(Math.round(100_000 * 30 * (r.totalDays / 365)));
-    expect(r.totalDays).toBe(731); // 2024 윤년 포함
+    expect(r.totalDays).toBe(731); // 2024 윤년 포함, 양끝 포함
   });
 });
