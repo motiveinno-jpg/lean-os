@@ -57,8 +57,11 @@ export function DepartmentsTab({ companyId }: { companyId: string | null }) {
       const swap = active[idx + dir];
       if (!swap) return;
       const a = active[idx];
-      await db.from("departments").update({ sort_order: swap.sort_order }).eq("id", a.id);
-      await db.from("departments").update({ sort_order: a.sort_order }).eq("id", swap.id);
+      // 한쪽만 성공하면 순서가 깨진 채 무음이던 것 — 오류를 던져 onError 토스트로 (2026-08-19)
+      const { error: e1 } = await db.from("departments").update({ sort_order: swap.sort_order }).eq("id", a.id);
+      if (e1) throw new Error(e1.message);
+      const { error: e2 } = await db.from("departments").update({ sort_order: a.sort_order }).eq("id", swap.id);
+      if (e2) throw new Error(e2.message);
     },
     onSuccess: refresh,
     onError: (e: any) => toast(e?.message || "정렬 실패", "error"),

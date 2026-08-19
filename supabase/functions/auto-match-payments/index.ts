@@ -229,6 +229,17 @@ async function matchCompanyTransactions(
         (tx.counterparty || "송금자불명") +
         ` (후보 ${candidates.length}건, 최고 ${top.score}점)`;
 
+      // 중복 방지 (2026-08-19 감사): review 분기는 거래 상태를 안 바꿔서 다음 크론에
+      //   같은 거래가 또 잡혔다 — 같은 거래의 pending 액션이 이미 있으면 다시 만들지 않는다.
+      const { data: dupAction } = await supabase.from("ai_pending_actions")
+        .select("id")
+        .eq("company_id", tx.company_id)
+        .eq("action_type", "match_payment")
+        .eq("entity_id", tx.id)
+        .eq("status", "pending")
+        .limit(1);
+      if (dupAction && dupAction.length > 0) continue;
+
       await supabase.from("ai_pending_actions").insert({
         company_id: tx.company_id,
         action_type: "match_payment",
@@ -308,8 +319,8 @@ serve(withSentry("auto-match-payments", async (req: Request) => {
     const { data: profile } = await supabase
       .from("users")
       .select("company_id")
-      .eq("id", userData.user.id)
-      .single();
+      .eq("auth_id", userData.user.id)   // 신원 대조는 auth_id 로만 (2026-08-19)
+      .maybeSingle();
     if (!profile?.company_id) {
       return jsonResponse({ error: "Company not found" }, 403);
     }

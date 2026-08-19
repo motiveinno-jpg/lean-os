@@ -107,7 +107,7 @@ serve(withSentry("confirm-toss-payment", async (req: Request) => {
   const { data: profile } = await supabase
     .from("users")
     .select("id, company_id")
-    .eq("id", userData.user.id)
+    .eq("auth_id", userData.user.id)   // 신원 대조는 auth_id 로만 — 레거시 불일치 계정 무음 실패 방지 (2026-08-19)
     .single();
 
   if (!profile?.company_id) {

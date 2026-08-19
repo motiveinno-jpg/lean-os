@@ -206,14 +206,22 @@ serve(withSentry("settlement-ai-match", async (req) => {
     }
 
     // 처리한 입금(매칭 여부 무관) AI 시도 표시 → 다음 호출에서 재처리 안 함(끝까지 1회 처리, 무한루프 방지).
-    await admin.from("bank_transactions").update({ ai_attempted_at: new Date().toISOString() }).in("id", txs.map((t: any) => t.id));
+    //   단 Claude 호출 자체가 실패(429/5xx/파싱 실패 → ai=null)한 건은 "시도"가 아니다 —
+    //   종전엔 그 건까지 마킹해 일시 API 장애 한 번에 그날 처리분이 영구 제외됐다 (2026-08-19 감사).
+    const attemptedIds = aiResults.filter((r) => r.ai !== null).map((r) => r.tx.id);
+    if (attemptedIds.length > 0) {
+      await admin.from("bank_transactions").update({ ai_attempted_at: new Date().toISOString() }).in("id", attemptedIds);
+    }
     // 아직 AI 시도 안 한 미정산 건수
     const { count: remaining } = await admin.from("bank_transactions")
       .select("id", { count: "exact", head: true })
       .eq("company_id", companyId).eq("settlement_status", "open").in("type", ["income", "expense"])
       .is("ai_attempted_at", null).gt("amount", 0);
 
-    return new Response(JSON.stringify({ processed: txs.length, resolved, suggested, remaining: remaining ?? 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // aiFailed — Claude 호출 실패 건수. 마킹을 안 하므로 호출자가 이 신호로 조기 중단해야
+    //   같은 50건을 100라운드 재시도하는 낭비를 막는다.
+    const aiFailed = aiResults.filter((r) => r.ai === null).length;
+    return new Response(JSON.stringify({ processed: txs.length, resolved, suggested, aiFailed, remaining: remaining ?? 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err?.message || "AI 매칭 오류" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }

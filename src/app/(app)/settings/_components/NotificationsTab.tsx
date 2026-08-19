@@ -125,7 +125,12 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
               prefs: prefs as never,
               updated_at: new Date().toISOString(),
             }, { onConflict: "user_id" });
-          if (error) console.error("알림 설정 서버 저장 실패:", error.message);
+          // 서버 저장 실패를 성공으로 알리지 않는다 (2026-08-19 감사): 종전엔 console.error 후
+          //   성공 토스트 — localStorage 에만 남아 다른 기기·서버 발송 판정에 반영되지 않았다.
+          if (error) {
+            toast(`알림 설정 서버 저장 실패: ${error.message} — 이 기기에만 임시 저장됐습니다`, "error");
+            return;
+          }
         }
       }
       toast("알림 설정 저장됨", "success");

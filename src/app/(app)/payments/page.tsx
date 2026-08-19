@@ -316,19 +316,27 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     setBulkRunning(true);
     setBulkProgress({ done: 0, total: candidates.length, failed: 0 });
     let failed = 0;
+    // 실패 사유 보존 (2026-08-19 감사): 종전엔 catch 로 삼켜 "실패 8건"만 보이고
+    //   어느 건이 왜 실패했는지(잔액 부족 등) 알 수 없었다.
+    const failReasons: string[] = [];
     for (let i = 0; i < candidates.length; i++) {
       try {
         const id = candidates[i].id;
         if (action === 'approve') await approvePayment(id, userId);
         else if (action === 'reject') await rejectPayment(id, userId);
         else await executePayment(id);
-      } catch { failed++; }
+      } catch (e: unknown) {
+        failed++;
+        const who = candidates[i].recipient_name || candidates[i].description || candidates[i].id;
+        failReasons.push(`${who}: ${e instanceof Error ? e.message : '알 수 없는 오류'}`);
+      }
       setBulkProgress({ done: i + 1, total: candidates.length, failed });
     }
     setBulkRunning(false);
     setSelectedIds(new Set());
     invalidate();
-    queueToast(`${verb} 완료: ${candidates.length - failed}/${candidates.length}${failed > 0 ? ` (실패 ${failed}건)` : ''}`, failed > 0 ? 'error' : 'success');
+    const reasonNote = failReasons.length ? ` — ${failReasons.slice(0, 3).join(' · ')}${failReasons.length > 3 ? ` 외 ${failReasons.length - 3}건` : ''}` : '';
+    queueToast(`${verb} 완료: ${candidates.length - failed}/${candidates.length}${failed > 0 ? ` (실패 ${failed}건)${reasonNote}` : ''}`, failed > 0 ? 'error' : 'success');
   }
 
   const selectableInView = filtered.filter((q: any) => q.status === 'pending' || q.status === 'approved');

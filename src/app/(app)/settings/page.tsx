@@ -676,6 +676,7 @@ function SettingsPageInner() {
 //    부가세집계)는 소비처 0 확인 후 화면에서 제거 — tax_settings 의 다른 키는 건드리지 않는다.
 function MatchingRuleCard({ companyId }: { companyId: string | null }) {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const [tolerance, setTolerance] = useState<string>("1");
   const [saved, setSaved] = useState(false);
   const { data: taxSettings } = useQuery({
@@ -694,7 +695,8 @@ function MatchingRuleCard({ companyId }: { companyId: string | null }) {
   async function saveTolerance() {
     if (!companyId) return;
     const merged = { ...(taxSettings || {}), matching_tolerance: Math.min(100, Math.max(0, Number(tolerance) || 1)) };
-    await supabase.from("companies").update({ tax_settings: merged }).eq("id", companyId);
+    const { error } = await supabase.from("companies").update({ tax_settings: merged }).eq("id", companyId);
+    if (error) { toast(`저장 실패: ${error.message}`, "error"); return; }
     qc.invalidateQueries({ queryKey: ["tax-settings"] });
     setSaved(true); setTimeout(() => setSaved(false), 2000);
   }

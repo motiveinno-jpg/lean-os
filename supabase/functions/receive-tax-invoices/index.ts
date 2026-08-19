@@ -98,28 +98,37 @@ Deno.serve(withSentry("receive-tax-invoices", async (req: Request) => {
 
     runId = run?.id || null;
 
-    // Dedup: fetch existing approval_no values for this company
+    // Dedup 키 통일 (2026-08-19 감사): 종전엔 승인번호를 label 에 저장·대조했는데,
+    //   CODEF 수집 경로는 같은 승인번호를 nts_confirm_no 에 넣는다 — 서로를 중복으로
+    //   인식하지 못해 같은 계산서가 두 줄로 쌓였고(부가세 이중계상), label 은 원래
+    //   deal_number 용 컬럼이라 우연히 같으면 정상 건이 스킵됐다. codef-sync 와 동일하게
+    //   영숫자 정규화한 nts_confirm_no 로 통일한다.
+    const normConfirmNo = (v: unknown): string | null => {
+      const s = String(v ?? "").trim().replace(/[^0-9A-Za-z]/g, "");
+      return s || null;
+    };
     const approvalNos = invoices
-      .map((inv) => inv.approval_no)
+      .map((inv) => normConfirmNo(inv.approval_no))
       .filter(Boolean) as string[];
 
     const existingApprovalNos = new Set<string>();
     if (approvalNos.length > 0) {
       const { data: existing } = await supabase
         .from("tax_invoices")
-        .select("label")
+        .select("nts_confirm_no")
         .eq("company_id", companyId)
-        .in("label", approvalNos);
+        .in("nts_confirm_no", approvalNos);
 
       (existing || []).forEach((e: any) => {
-        if (e.label) existingApprovalNos.add(e.label);
+        if (e.nts_confirm_no) existingApprovalNos.add(e.nts_confirm_no);
       });
     }
 
     // Filter out duplicates and build insert rows
-    const newInvoices = invoices.filter(
-      (inv) => !inv.approval_no || !existingApprovalNos.has(inv.approval_no)
-    );
+    const newInvoices = invoices.filter((inv) => {
+      const key = normConfirmNo(inv.approval_no);
+      return !key || !existingApprovalNos.has(key);
+    });
 
     let imported = 0;
     let skipped = invoices.length - newInvoices.length;
@@ -141,13 +150,15 @@ Deno.serve(withSentry("receive-tax-invoices", async (req: Request) => {
           total_amount: totalAmount,
           issue_date: inv.issue_date,
           status: inv.type === "sales" ? "issued" : "received",
-          label: inv.approval_no || inv.label || null,
+          nts_confirm_no: normConfirmNo(inv.approval_no),
+          label: inv.label || null,   // label 은 deal_number 용 — 승인번호를 넣지 않는다
         };
       });
 
+      // (company_id, nts_confirm_no) UNIQUE 로 최종 수렴 — 동시 유입 경쟁도 안전.
       const { data: inserted, error: insertError } = await supabase
         .from("tax_invoices")
-        .insert(rows)
+        .upsert(rows, { onConflict: "company_id,nts_confirm_no", ignoreDuplicates: true })
         .select("id");
 
       if (insertError) {

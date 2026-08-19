@@ -219,6 +219,24 @@ serve(withSentry("ads-sync", async (req: Request) => {
         const msg = e instanceof Error ? e.message : String(e);
         await admin.from("ad_accounts").update({ status: "error", sync_error: msg.slice(0, 500) }).eq("id", acc.id);
         results.push({ id: acc.id, label: acc.label, ok: false, error: msg.slice(0, 300) });
+        // 무음 실패 방지 (2026-08-19 감사): 실패가 ad_accounts.sync_error 컬럼에만 남아
+        //   광고 성과가 몇 주간 0으로 보여도 아무도 몰랐다 — 은행·카드 감시와 동일하게
+        //   마스터 인앱 알림(24시간 dedup).
+        try {
+          const title = `광고 수집 실패: ${acc.label || acc.platform}`;
+          const { data: dup } = await admin.from("notifications")
+            .select("id").eq("company_id", acc.company_id).eq("title", title)
+            .gte("created_at", new Date(Date.now() - 24 * 3600000).toISOString()).limit(1);
+          if (!dup || dup.length === 0) {
+            const { data: masters } = await admin.from("users")
+              .select("id").eq("company_id", acc.company_id).eq("is_master", true);
+            const rows = (masters || []).map((m: { id: string }) => ({
+              company_id: acc.company_id, user_id: m.id, type: "system", title,
+              message: `광고 계정 동기화가 실패하고 있습니다: ${msg.slice(0, 150)}`, link: "/settings",
+            }));
+            if (rows.length) await admin.from("notifications").insert(rows);
+          }
+        } catch { /* 감시 실패가 수집을 막지 않게 */ }
       }
     }
     return new Response(JSON.stringify({ ok: true, results }), {

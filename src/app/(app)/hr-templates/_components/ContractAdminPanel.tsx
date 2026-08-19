@@ -71,7 +71,8 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
   async function deleteTemplate(id: string) {
     if (!(await appConfirm("이 서식을 삭제하시겠습니까? 발송된 계약서엔 영향 없음.", { danger: true }))) return;
     try {
-      await supabase.from("doc_templates").update({ is_active: false }).eq("id", id);
+      const { error } = await supabase.from("doc_templates").update({ is_active: false }).eq("id", id);
+      if (error) throw error;   // supabase-js 는 throw 하지 않음 — 미검사 시 실패도 성공 토스트 (2026-08-19)
       queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
       queryClient.invalidateQueries({ queryKey: ["contract-templates-all"] });
       toast("서식이 삭제되었습니다.", "success");
@@ -196,10 +197,11 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
       notesObj.seal_applied_at = new Date().toISOString();
       notesObj.seal_url = company.seal_url;
       notesObj.seal_company_name = company.name || '';
-      await supabase
+      const { error: sealErr } = await supabase
         .from("hr_contract_packages")
         .update({ notes: JSON.stringify(notesObj) })
         .eq("id", contractId);
+      if (sealErr) throw sealErr;   // 미검사 시 실패해도 "직인 적용됨" — 실제 PDF엔 직인 없음 (2026-08-19)
       queryClient.invalidateQueries({ queryKey: ["contract-packages"] });
       toast("직인이 적용되었습니다 (서명본/PDF에 반영됨)", "success");
     } catch (err: any) {

@@ -240,14 +240,23 @@ serve(withSentry("cashbill-purchase-sync", async (req) => {
     // continue2Way 안내 객체 등 매입 행이 아닌 것 제외 — 승인번호·사용일자 있는 행만
     const purchases = rows.filter((r) => r && (r.resApprovalNo || r.resUsedDate));
 
-    // ── 중복 방지 — 기존 매입 건의 승인번호+일자 집합과 대조 ──
+    // ── 중복 방지 — 기존 매입 건과 대조 ──
+    //   승인번호 있는 건: 승인번호+일자. 승인번호 없는 건(국세청이 안 주는 케이스):
+    //   내용 키(일자|금액|사업자번호|상호) — 종전엔 dedup 을 그냥 통과해 같은 기간을
+    //   두 번 조회하면 매입이 중복 적재돼 부가세 매입세액이 부풀었다 (2026-08-19 감사).
     const { data: existing } = await admin
       .from("cash_receipts")
-      .select("approval_number, issue_date")
+      .select("approval_number, issue_date, amount, counterparty_bizno, counterparty_name")
       .eq("company_id", companyId)
-      .eq("type", "expense")
-      .not("approval_number", "is", null);
-    const seen = new Set((existing || []).map((r: any) => `${r.approval_number}|${r.issue_date}`));
+      .eq("type", "expense");
+    const contentKey = (r: { issue_date?: unknown; amount?: unknown; counterparty_bizno?: unknown; counterparty_name?: unknown }) =>
+      `${r.issue_date}|${Number(r.amount || 0)}|${r.counterparty_bizno || ""}|${r.counterparty_name || ""}`;
+    const seen = new Set(
+      (existing || []).filter((r: any) => r.approval_number).map((r: any) => `${r.approval_number}|${r.issue_date}`),
+    );
+    const seenContent = new Set(
+      (existing || []).filter((r: any) => !r.approval_number).map((r: any) => contentKey(r)),
+    );
 
     const inserts: Record<string, unknown>[] = [];
     let skippedDup = 0, skippedBad = 0;
@@ -263,6 +272,15 @@ serve(withSentry("cashbill-purchase-sync", async (req) => {
       const dupKey = `${approvalNo}|${issueDate}`;
       if (approvalNo && seen.has(dupKey)) { skippedDup++; continue; }
       if (approvalNo) seen.add(dupKey);
+      if (!approvalNo) {
+        const ck = contentKey({
+          issue_date: issueDate, amount,
+          counterparty_bizno: String(r.resMemberStoreCorpNo || "").replace(/\D/g, "") || "",
+          counterparty_name: String(r.resMemberStoreName || "").trim() || "",
+        });
+        if (seenContent.has(ck)) { skippedDup++; continue; }
+        seenContent.add(ck);
+      }
       const transType = String(r.resTransTypeNm || "").trim();     // 승인거래/취소거래 등
       const deduct = String(r.resDeductDescription || "").trim();  // 공제/불공제
       inserts.push({

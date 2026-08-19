@@ -329,12 +329,15 @@ serve(withSentry("operator-user-admin", async (req) => {
         .maybeSingle();
       if (upErr) return json({ error: `수정 실패: ${upErr.message}` }, 500);
 
-      // 이메일 변경 시 auth.users 도 동기화
+      // 이메일 변경 시 auth.users 도 동기화 — 실패하면 users.email 을 되돌린다 (2026-08-19 감사):
+      //   종전엔 console.warn 만 하고 넘어가 public.users 와 auth.users 이메일이 영구히
+      //   어긋났고(중복 이메일 거부 등), 그 계정은 로그인 후 프로필 매칭이 깨졌다.
       if (patch.email && before.auth_id) {
         try {
           await svc.auth.admin.updateUserById(before.auth_id, { email: String(patch.email) });
         } catch (e) {
-          console.warn("auth email sync 실패:", e);
+          await svc.from("users").update({ email: before.email }).eq("id", userId);
+          return json({ error: `이메일 변경 실패(인증 계정 동기화 거부): ${(e as Error)?.message || e}. 변경이 취소되었습니다.` }, 409);
         }
       }
 

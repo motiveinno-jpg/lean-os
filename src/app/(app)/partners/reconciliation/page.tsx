@@ -188,13 +188,18 @@ export default function ReconciliationPage() {
         const { data, error } = await supabase.functions.invoke("settlement-ai-match", { body: { companyId, limit: 50 } });
         if (error) throw new Error(error.message);
         if ((data as any)?.error) throw new Error((data as any).error);
-        const r = data as { processed: number; resolved: number; suggested: number; remaining?: number };
+        const r = data as { processed: number; resolved: number; suggested: number; aiFailed?: number; remaining?: number };
         totalProcessed += r.processed || 0;
         totalResolved += r.resolved || 0;
         totalSuggested += r.suggested || 0;
         setAiProgress({ total: total ?? totalProcessed, processed: totalProcessed, suggested: totalSuggested });
         qc.invalidateQueries({ queryKey: ["settlement-queue"] }); // 라운드마다 큐 실시간 반영
         if ((r.processed || 0) === 0) break; // 더 처리할 입금 없음 → 종료
+        // AI 호출이 전건 실패하면 같은 건들이 다음 라운드에 그대로 다시 잡힌다(실패 건은
+        // 시도 마킹을 안 하므로) — 반복해봐야 낭비라 즉시 중단하고 사용자에게 알린다. (2026-08-19)
+        if ((r.aiFailed || 0) >= (r.processed || 0) && (r.processed || 0) > 0) {
+          throw new Error("AI 호출이 계속 실패하고 있습니다. 잠시 후 다시 시도해 주세요.");
+        }
       }
       return { processed: totalProcessed, resolved: totalResolved, suggested: totalSuggested };
     },
@@ -541,8 +546,10 @@ export default function ReconciliationPage() {
     mutationFn: async ({ tx, accountId }: { tx: OpenTx; accountId: string }) => {
       const { error } = await db.rpc("post_bank_voucher", { p_bank_tx_id: tx.id, p_account_id: accountId, p_remember: false });
       if (error) throw new Error(error.message);
-      // 증빙 매칭이 아니라 전표로 정리 — 미정산 목록에서 제외
-      await db.from("bank_transactions").update({ settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
+      // 증빙 매칭이 아니라 전표로 정리 — 미정산 목록에서 제외.
+      //   미검사 시 실패해도 "전표 처리 완료"가 떠서 미정산 큐에 남아 이중 전표 위험 (2026-08-19).
+      const { error: e3 } = await db.from("bank_transactions").update({ settlement_status: "settled", settled_amount: tx.amount }).eq("id", tx.id);
+      if (e3) throw new Error(`전표는 생성됐지만 정산 상태 갱신 실패: ${e3.message}`);
     },
     onSuccess: () => { invalidateAll(); qc.invalidateQueries({ queryKey: ["manual-open-tx"] }); setMatchTx(null); setInvSearch(""); toast("전표 처리 완료 — 거래가 정리되었습니다", "success"); },
     onError: (e: any) => toast(e?.message || "전표 처리 실패", "error"),

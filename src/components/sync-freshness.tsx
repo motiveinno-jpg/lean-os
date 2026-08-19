@@ -41,12 +41,23 @@ export function SyncFreshness({ companyId }: { companyId: string }) {
 
   const staleH = (Date.now() - new Date(latest).getTime()) / 3_600_000;
   const stale = staleH > 26; // 자동 동기화가 하루 2회라 26시간 넘게 밀리면 주의 색.
+  // 실패 반영 (2026-08-19 감사): 종전엔 created_at 만 봐서 크론이 매번 실패해도 초록 점이
+  //   떴다 — "1시간 전 동기화"가 3주 무음 실패를 가렸다. 최근 성공이 없으면 빨간 점 + 안내.
+  const latestOkOf = (types: string[]) =>
+    logs.find((l: any) => types.includes(l.sync_type) && (l.status === "success" || l.status === "partial"))?.created_at || null;
+  const bankOk = latestOkOf(BANK_TYPES);
+  const cardOk = latestOkOf(CARD_TYPES);
+  const failing = (bank && !bankOk) || (card && !cardOk);
 
   return (
     <div className="sync-freshness flex items-center gap-1.5 text-[10px] text-[var(--text-dim)]"
-      title="자동 동기화는 하루 2회(오전·오후) 실행됩니다. 지금 최신화하려면 '동기화' 버튼을 누르세요.">
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${stale ? "bg-[var(--warning)]" : "bg-[var(--success)]"}`} />
-      <span className="whitespace-nowrap">통장 {rel(bank)} · 카드 {rel(card)} 동기화</span>
+      title={failing
+        ? "최근 동기화가 계속 실패하고 있습니다. 설정 > API 연동에서 연결 상태를 확인하세요."
+        : "자동 동기화는 하루 2회(오전·오후) 실행됩니다. 지금 최신화하려면 '동기화' 버튼을 누르세요."}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${failing ? "bg-[var(--danger)]" : stale ? "bg-[var(--warning)]" : "bg-[var(--success)]"}`} />
+      <span className="whitespace-nowrap">
+        {failing ? "동기화 실패 중 — " : ""}통장 {rel(bankOk || bank)} · 카드 {rel(cardOk || card)} 동기화
+      </span>
     </div>
   );
 }

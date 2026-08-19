@@ -1926,7 +1926,8 @@ function TaxInvoicesPageInner() {
                         <button type="button" className="btn-danger-solid btn-sm" onClick={async () => {
                           const { ok: rowOk } = await confirmDialog({ title: "세금계산서 삭제", desc: `${inv.counterparty_name} / ₩${Number(inv.total_amount).toLocaleString()}`, danger: true });
                           if (!rowOk) return;
-                          await supabase.from("tax_invoices").delete().eq("id", inv.id);
+                          const { error: delErr } = await supabase.from("tax_invoices").delete().eq("id", inv.id);
+                          if (delErr) { toast(`삭제 실패: ${delErr.message}`, "error"); return; }
                           invalidate();
                           toast("세금계산서가 삭제되었습니다", "success");
                         }}>삭제</button>

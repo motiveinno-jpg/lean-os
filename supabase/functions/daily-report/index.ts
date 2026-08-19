@@ -242,12 +242,21 @@ serve(withSentry("daily-report", async (req) => {
 
       const { data: companies } = await supabase
         .from("notification_settings")
-        .select("company_id, daily_report_send_hour")
+        .select("company_id, daily_report_send_hour, last_sent_at")
         .eq("daily_report_enabled", true)
         .eq("daily_report_send_hour", kstHour);
 
+      // 같은 날(KST) 재발송 방지 (2026-08-19 감사): pg_cron 재시도·수동 재호출이 같은
+      //   시간대에 겹치면 전 수신자에게 자금일보 알림톡이 중복 발송됐다.
+      const todayKst = new Date(nowUtc.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+      const alreadySentToday = (c: { last_sent_at?: string | null }) => {
+        if (!c.last_sent_at) return false;
+        return new Date(new Date(c.last_sent_at).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10) === todayKst;
+      };
+
       const results = [];
       for (const c of (companies || [])) {
+        if (alreadySentToday(c)) { results.push({ companyId: c.company_id, skipped: "already_sent_today" }); continue; }
         try {
           const r = await sendForCompany(supabase, c.company_id, reportDate, cfg);
           results.push({ companyId: c.company_id, ...r });

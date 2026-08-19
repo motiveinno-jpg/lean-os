@@ -181,13 +181,20 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
             }
             // 검증 통과 → PFX 저장 + 비밀번호 병합 저장 (기존 cert_password 등 다른 키는 보존)
             const pfxBytes = Uint8Array.from(atob(autoPfxB64), (c) => c.charCodeAt(0));
-            await supabase.storage.from("certificates").upload(
+            // 저장 실패를 확인한다 (2026-08-19 감사): 종전엔 결과를 안 봐서 업로드/자격증명
+            //   저장이 실패해도 "연결 완료"가 떴고, 이후 동기화가 인증서 없음으로 계속 실패했다.
+            const { error: upPfxErr } = await supabase.storage.from("certificates").upload(
               `${companyId}/hometax.pfx`, new Blob([pfxBytes]), { upsert: true },
             );
+            if (upPfxErr) {
+              setResult({ ok: false, msg: `인증서 저장 실패: ${upPfxErr.message}` });
+              setRegistering(false);
+              return;
+            }
             const encPfxPw = await encCred(certPassword);
             const { data: prevCred } = await supabase.from("automation_credentials")
               .select("credentials").eq("company_id", companyId).eq("service", "hometax").maybeSingle();
-            await supabase.from("automation_credentials").upsert({
+            const { error: credErr } = await supabase.from("automation_credentials").upsert({
               company_id: companyId,
               service: "hometax",
               credentials: {
@@ -198,6 +205,11 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
               },
               updated_at: new Date().toISOString(),
             }, { onConflict: "company_id,service" });
+            if (credErr) {
+              setResult({ ok: false, msg: `인증서 비밀번호 저장 실패: ${credErr.message}` });
+              setRegistering(false);
+              return;
+            }
             setResult({ ok: true, msg: "홈택스 인증 확인 완료 (PC 인증서). 세금계산서 동기화를 사용할 수 있습니다." });
             toast("홈택스 연결 완료", "success");
             setCertPassword("");
@@ -214,20 +226,30 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
           // 1. 인증서 파일을 storage 에 업로드 (codef-sync 가 거기서 가져감)
           const derBytes = Uint8Array.from(atob(derFileB64), (c) => c.charCodeAt(0));
           const keyBytes = Uint8Array.from(atob(keyFileB64), (c) => c.charCodeAt(0));
-          await supabase.storage.from("certificates").upload(
+          const { error: derErr } = await supabase.storage.from("certificates").upload(
             `${companyId}/signCert.der`, new Blob([derBytes]), { upsert: true },
           );
-          await supabase.storage.from("certificates").upload(
+          const { error: keyErr } = await supabase.storage.from("certificates").upload(
             `${companyId}/signPri.key`, new Blob([keyBytes]), { upsert: true },
           );
+          if (derErr || keyErr) {
+            setResult({ ok: false, msg: `인증서 저장 실패: ${(derErr || keyErr)!.message}` });
+            setRegistering(false);
+            return;
+          }
           // 2. 인증서 비밀번호를 암호화하여 automation_credentials 에 저장 (sync 시 사용)
           const enc = await encCred(certPassword);
-          await (supabase).from("automation_credentials").upsert({
+          const { error: credErr2 } = await (supabase).from("automation_credentials").upsert({
             company_id: companyId,
             service: "hometax",
             credentials: { login_method: "certificate", cert_password: enc || "" },
             updated_at: new Date().toISOString(),
           }, { onConflict: "company_id,service" });
+          if (credErr2) {
+            setResult({ ok: false, msg: `인증서 비밀번호 저장 실패: ${credErr2.message}` });
+            setRegistering(false);
+            return;
+          }
           // 3. verify API 호출 (파일 업로드 경로 — 자동 선택은 위에서 이미 검증 후 return)
           const res = await verifyHometaxRegistration(companyId, {
             loginType: "0",
@@ -388,9 +410,9 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
 
         {/* 은행/카드/홈택스 선택 */}
         <div className="bank-integration-account-type-toggle">
-          <button onClick={() => { setAccountType("bank"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>은행</button>
-          <button onClick={() => { setAccountType("card"); setOrganization(""); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>카드</button>
-          <button onClick={() => { setAccountType("hometax"); setOrganization("0001"); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "hometax" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>홈택스</button>
+          <button onClick={() => { setAccountType("bank"); setOrganization(""); setResult(null); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>은행</button>
+          <button onClick={() => { setAccountType("card"); setOrganization(""); setResult(null); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>카드</button>
+          <button onClick={() => { setAccountType("hometax"); setOrganization("0001"); setResult(null); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "hometax" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>홈택스</button>
         </div>
 
         {/* 개인/법인 선택 — 개인(P)은 비활성 (2026-08-19): 백엔드 수집이 법인(/b/) API 전용이라
@@ -406,10 +428,10 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
 
         {/* 인증 방식 선택 */}
         <div className="bank-integration-auth-method-toggle">
-          <button onClick={() => setAuthMethod("cert")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "cert" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+          <button onClick={() => { setAuthMethod("cert"); setResult(null); }} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "cert" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             공동인증서
           </button>
-          <button onClick={() => setAuthMethod("idpw")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "idpw" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+          <button onClick={() => { setAuthMethod("idpw"); setResult(null); }} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "idpw" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             아이디/비밀번호
           </button>
         </div>
@@ -562,6 +584,8 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
 function codefAction(code?: string): { label: string; tab?: string; retry?: boolean } | null {
   if (!code) return { label: "다시 시도", retry: true };
   if (code === "CF-00401") return { label: "인증서 다시 등록", tab: "certificate" };
+  // CF-04015/ORG_MISSING: 계정이 등록 안 됐거나 유형(개인/법인) 불일치 — 재시도로는 절대 안 풀림 (2026-08-19)
+  if (code === "CF-04015" || code === "ORG_MISSING") return { label: "계정 다시 등록", tab: "bank" };
   if (code === "CF-12838" || code === "CF-12839") return { label: "ConnectedID 재등록", tab: "bank" };
   if (code === "CF-13021") return { label: "다시 시도", retry: true }; // 외부(은행) 처리 필요 — UI에서 할 일 없음
   if (code === "NO_DEMAND_DEPOSIT") return { label: "다시 시도", retry: true };
@@ -676,7 +700,9 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
         card: cardRes.success ? (cardRes.accounts || []) : [],
       });
     }).finally(() => setLoadingAccounts(false));
-  }, [companyId, isConnected]);
+    // hasCodefConnection 을 의존성에 — 홈택스만 먼저 연결된 회사(isConnected 이미 true)가
+    // 은행을 새로 등록해도 목록이 갱신되지 않던 버그 (2026-08-19 감사).
+  }, [companyId, isConnected, hasCodefConnection]);
 
   // 최근 CODEF 동기화 이력 로드 (오류 모니터링)
   async function loadRecentSyncLogs() {

@@ -2075,7 +2075,8 @@ serve(withSentry("codef-sync", async (req) => {
         .select("company_id, codef_connected_id, codef_client_id")
         .not("codef_connected_id", "is", null)
         .neq("codef_connected_id", "")
-        .limit(50);
+        .order("company_id")
+        .limit(500);   // 50 → 500 (2026-08-19): 연동 51번째 회사부터 자동수집이 무음 누락되던 상한. order 로 결정적.
       // 체험 만료·해지 기간종료 회사 제외 — 페이월 뒤 회사에 CODEF 과금 누수 방지
       const billable = await filterBillableCompanies(supabase, (allCompanies || []).map((c: any) => c.company_id));
       const companies = (allCompanies || []).filter((c: any) => billable.has(c.company_id));
@@ -2117,7 +2118,8 @@ serve(withSentry("codef-sync", async (req) => {
         .select("company_id, codef_connected_id")
         .not("codef_connected_id", "is", null)
         .neq("codef_connected_id", "")
-        .limit(50);
+        .order("company_id")
+        .limit(500);   // 50 → 500 (2026-08-19): 연동 51번째 회사부터 자동수집이 무음 누락되던 상한. order 로 결정적.
       // 체험 만료·해지 기간종료 회사 제외 — bank-cron-tick 과 동일 가드
       const cardBillable = await filterBillableCompanies(supabase, (allCardCompanies || []).map((c: any) => c.company_id));
       const companies = (allCardCompanies || []).filter((c: any) => cardBillable.has(c.company_id));

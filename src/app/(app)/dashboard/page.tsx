@@ -400,7 +400,15 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["financial-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
 
-      if (codefResult.success) {
+      // partial(일부 실패)은 성공 스타일로 가리지 않는다 (2026-08-19 감사) — 첫 오류를 그대로 노출.
+      const firstErr = ((codefResult as any).errors || [])[0] as { message?: string; hint?: string } | undefined;
+      if (codefResult.success && firstErr) {
+        setSyncResult({
+          success: false,
+          message: `부분 동기화 — 오류: ${firstErr.message}${firstErr.hint ? ` · ${firstErr.hint}` : ''}`,
+          time: now(),
+        });
+      } else if (codefResult.success) {
         setSyncResult({
           success: true,
           message: `${codefResult.message} · 분류: 은행 ${autoResult.bankClassification.matched}건, 카드 ${autoResult.cardMapping.matched}건, 매칭 ${autoResult.threeWayMatch.autoMatched}건`,
