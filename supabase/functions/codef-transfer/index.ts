@@ -177,8 +177,26 @@ Deno.serve(withSentry("codef-transfer", async (req: Request) => {
     }
   }
 
+  // ⚠️ CODEF 자동이체 경로 봉인 (2026-08-19 감사 · 사장님 확인: 오너뷰에 자동이체 기능 없음,
+  //   이체는 수동). 아래 codef 분기는 검증된 적 없고 그대로 켜면 실사고가 난다:
+  //   ① 멱등키 없음 — 60초 타임아웃 후 재실행 시 같은 이체 2회(이중 출금)
+  //   ② organization 에 bank_accounts.bank_code 사용 — sync 는 bank_name 만 저장해 항상 빈 값
+  //   ③ rsaEncrypt 가 OAEP — CODEF 는 PKCS1v1.5 요구(codef-sync 와 불일치)
+  //   위 3개를 고치기 전에 플래그를 켜면 여기서 명시적으로 거부한다(무음 오작동 방지).
+  //   현재 정상 경로는 아래 "수동이체 기록 모드"(플래그 off) 하나다.
+  if (transferEnabled) {
+    return new Response(
+      JSON.stringify({
+        error: "CODEF 자동이체는 아직 검증되지 않아 비활성화되어 있습니다. 멱등키·계좌필드·암호화 수정 후 활성화하세요.",
+        code: "AUTO_TRANSFER_NOT_READY",
+      }),
+      { status: 501, headers: CORS_HEADERS }
+    );
+  }
+
   const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const transferRef = `TXN-${Date.now()}-${randomSuffix}`;
+  // 수동이체 기록임을 참조번호에 드러낸다 — 감사 시 자동이체 실행분과 혼동 방지.
+  const transferRef = `MANUAL-${Date.now()}-${randomSuffix}`;
 
   // 3) Execute transfer
   let mode: "manual" | "codef" = "manual";

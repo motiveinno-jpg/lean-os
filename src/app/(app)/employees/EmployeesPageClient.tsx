@@ -2121,7 +2121,13 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       if (result.skippedNoBirth && result.skippedNoBirth.length > 0) {
         toast(`⚠ 생년월일 미등록 ${result.skippedNoBirth.length}명: ${result.skippedNoBirth.join(', ')}. 명세서 PDF 비밀번호 보호 안 됨.`, 'error');
       }
-    } catch { /* ignore */ }
+    } catch (e: unknown) {
+      // 무음 실패 금지 (2026-08-19 감사): 종전엔 실패를 삼켜 직전 달 미리보기가 새 달 라벨을
+      //   달고 남았고, 그 상태로 저장·발송하면 지난달 금액이 새 달 명세서로 나갔다.
+      setPreview(null);
+      setEditValues({});
+      toast(`미리보기 생성 실패: ${e instanceof Error ? e.message : '알 수 없는 오류'}`, 'error');
+    }
     setLoading(false);
   };
 
@@ -2184,7 +2190,13 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         <div className="flex gap-2 items-center flex-wrap">
           <MonthField
             value={periodMonth}
-            onChange={(e) => setPeriodMonth(e.target.value)}
+            onChange={(e) => {
+              setPeriodMonth(e.target.value);
+              // 월 변경 시 직전 달 미리보기·편집값을 비운다 (2026-08-19) — 남겨두면
+              //   이전 달 금액이 새 달 라벨로 저장·발송될 수 있다.
+              setPreview(null);
+              setEditValues({});
+            }}
             className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs"
             title="조회할 급여 명세 월 선택"
           />

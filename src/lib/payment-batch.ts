@@ -475,6 +475,9 @@ export async function sendPayslipEmails(
       pdfBase64 = dataUri.split(',')[1]; // "data:application/pdf;base64,..." → base64 only
     } catch (e: any) {
       errors.push(`${item.employeeName}: PDF 생성 실패 ${e.message || ''}`);
+      // PDF 없이 계속 진행하면 첨부 없는 빈 메일이 나가고 발급 기록까지 'issued'로 박제된다
+      //   (2026-08-19 감사). 이 직원은 발송을 건너뛰고 실패로 남긴다 — 재시도 시 다시 시도됨.
+      continue;
     }
 
     try {

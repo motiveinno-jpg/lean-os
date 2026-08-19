@@ -116,6 +116,20 @@ Deno.serve(withSentry("generate-monthly-batches", async (req: Request) => {
       errors: [],
     };
 
+    // 중복 실행 가드 (2026-08-19 감사): 같은 달 배치가 이미 있으면 다시 만들지 않는다.
+    //   종전엔 n8n 재시도·버튼 이중 클릭이 "{월} 급여" 배치와 직원별 지급 큐를 2벌 만들었고,
+    //   승인 화면에서 그대로 승인하면 급여가 두 번 나가는 구조였다.
+    const batchExists = async (batchType: string, name: string): Promise<boolean> => {
+      const { data } = await supabase
+        .from("payment_batches")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("batch_type", batchType)
+        .eq("name", name)
+        .limit(1);
+      return !!(data && data.length > 0);
+    };
+
     // ── 1. Payroll Batch ──
     try {
       const { data: employees } = await supabase
@@ -133,7 +147,9 @@ Deno.serve(withSentry("generate-monthly-batches", async (req: Request) => {
             return { employeeId: emp.id, employeeName: emp.name, baseSalary: salary, bankAccount: emp.bank_account, bankName: emp.bank_name, ...calc };
           });
 
-        if (payrollItems.length > 0) {
+        if (payrollItems.length > 0 && await batchExists("payroll", `${monthLabel} 급여`)) {
+          result.payroll = { skipped: `"${monthLabel} 급여" 배치가 이미 존재 — 중복 생성 방지` };
+        } else if (payrollItems.length > 0) {
           const totalAmount = payrollItems.reduce((s: number, i: any) => s + i.netPay, 0);
 
           const { data: batch } = await supabase
@@ -191,7 +207,9 @@ Deno.serve(withSentry("generate-monthly-batches", async (req: Request) => {
         .eq("company_id", companyId)
         .eq("is_active", true);
 
-      if (recurring && recurring.length > 0) {
+      if (recurring && recurring.length > 0 && await batchExists("fixed_cost", `${monthLabel} 고정비`)) {
+        result.fixedCost = { skipped: `"${monthLabel} 고정비" 배치가 이미 존재 — 중복 생성 방지` };
+      } else if (recurring && recurring.length > 0) {
         const totalAmount = recurring.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
 
         const { data: batch } = await supabase
