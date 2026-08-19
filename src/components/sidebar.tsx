@@ -91,7 +91,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
-      { href: "/my-contracts", label: "내 서명 요청", icon: "edit-3" },
+      //   내 서명 요청 — 2026-08-19 마이페이지 › 급여·계약·증명 갈래로 흡수(라우트는 전체 목록용으로 남김, 메뉴만 뺌)
     ],
   },
   {

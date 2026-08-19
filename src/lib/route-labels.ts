@@ -53,7 +53,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/chat": { group: "워크스페이스", title: "메신저" },
   "/signatures": { group: "워크스페이스", title: "전자계약", desc: "거래처·고객 등 외부 대상 전자계약을 발송하고 서명을 관리합니다." },
   "/contracts/signed": { group: "워크스페이스", title: "서명 완료 계약서" },
-  "/my-contracts": { group: "워크스페이스", title: "내 서명 요청", desc: "나에게 온 서명 요청을 봅니다." },
+  "/my-contracts": { group: "홈", title: "내 서명 요청", desc: "나에게 온 서명 요청 전체 목록 (마이페이지 › 급여·계약·증명에서 옵니다)." },
 
   "/employees": { group: "인사관리", title: "구성원", desc: "직원 정보·급여·계약을 관리합니다." },
   "/team": { group: "인사관리", title: "구성원 디렉토리", desc: "누가 어느 부서·직책에 있는지 봅니다." },

@@ -31,7 +31,7 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   signature_request: () => `/signatures`,
   signature: (id) => `/contracts/signed/${id}`,
   company_join_request: (id) => `/settings?tab=team&request=${id}`,
-  hr_contract_package: () => `/my-contracts`,
+  hr_contract_package: () => `/mypage?tab=docs`,   //   2026-08-19 마이페이지 › 급여·계약·증명
   leave_request: () => `/approvals`,
   overtime_request: () => `/approvals?tab=overtime`,   //   2026-08-19 연장근무 → 결재 허브
   project_checkin: (id) => `/projecthub/${id}?tab=performance`,

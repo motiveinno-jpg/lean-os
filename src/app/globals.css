@@ -9640,3 +9640,8 @@ table.team-mgmt-table { min-width: 640px; }
 /* ── 요금제 조회 표준 상자 (2026-08-19) ── */
 .qk-body > .billing-scroll { @apply absolute inset-0 space-y-5 overflow-auto p-4; }
 .billing-scroll .glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }
+/* ── 마이페이지 재편 (2026-08-19) — 내 현황·휴가 표 ── */
+.mypage-gauge { @apply my-2 block h-2 w-full; }
+table.mypage-leave-table { min-width: 0; }
+.mypage-leave-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
+.mypage-today-panel .glass-card { @apply rounded-xl border-0 bg-transparent p-0 shadow-none backdrop-blur-none; }

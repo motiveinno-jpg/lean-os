@@ -1,6 +1,5 @@
 "use client";
 import { logRead } from "@/lib/log-read";
-import { Ico } from "@/components/ui-icon";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +8,11 @@ import { getCurrentUser, clearCurrentUserCache } from "@/lib/queries";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { useUser } from "@/components/user-context";
 import { Avatar } from "@/components/avatar";
-import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat } from "@/components/query-kit";
+import Link from "next/link";
+import { getMyPendingApprovals } from "@/lib/approval-workflow";
+import { getTodos } from "@/lib/schedule";
+import { todayKst } from "@/lib/kst";
 import { useToast } from "@/components/toast";
 // 개인 계정 영역 — 회사 설정에서 마이페이지로 이관(2026-07-08). 컴포넌트 위치는 유지, 마운트만 옮김.
 import { AccountTab } from "../settings/_components/AccountTab";
@@ -34,12 +37,14 @@ const LEAVE_TYPE_LABELS: Record<string, string> = { annual: "연차", sick: "병
 // 연차 원장 표기 — 'YYYY-MM-DD' → 'M월 D일'
 const fmtLedgerDate = (d?: string | null) => (d ? `${Number(d.slice(5, 7))}월 ${Number(d.slice(8, 10))}일` : "—");
 
-type MyPageTab = "records" | "attendance" | "notif" | "account";
+//   2026-08-19 재편(docs/20260819_PLAN_mypage_redesign.md): 내 현황 · 근태 · 휴가·연차 · 급여·계약·증명 · 내 정보·설정
+type MyPageTab = "home" | "attendance" | "leave" | "docs" | "me";
+const TAB_FROM_QUERY: Record<string, MyPageTab> = { records: "docs", notif: "me", account: "me", home: "home", attendance: "attendance", leave: "leave", docs: "docs", me: "me" };
 
 export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<MyPageTab>("records");
+  const [tab, setTab] = useState<MyPageTab>(() => { if (typeof window === "undefined") return "home"; const t = new URLSearchParams(window.location.search).get("tab") || ""; return TAB_FROM_QUERY[t] || "home"; });
   // 연봉 기본 가림 (2026-08-19 사장님: 급여가 화면에 바로 보이면 안 됨) — 눌러야 표시.
   const [showSalary, setShowSalary] = useState(false);
   const { role, user: ctxUser, refresh } = useUser();
@@ -309,6 +314,40 @@ export default function MyPage() {
     enabled: !!employee?.id && !!userId,
   });
 
+  //   ── 내 현황(2026-08-19) — 이번 주 근무 · 내가 처리할 것(결재·서명·할 일·내 요청) · 최근 공지 ──
+  const todayStr = todayKst();
+  const weekStart = (() => { const d = new Date(todayStr + "T00:00:00"); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d.toISOString().slice(0, 10); })();
+  const { data: weekRecs = [] } = useQuery({
+    queryKey: ["my-week-attendance", employee?.id, weekStart],
+    queryFn: async () => { const data = logRead("mypage:week", await supabase.from("attendance_records").select("date, work_hours, overtime_minutes, is_late, status").eq("employee_id", employee!.id).gte("date", weekStart).lte("date", todayStr)); return (data || []) as any[]; },
+    enabled: !!employee?.id,
+  });
+  const weekHours = weekRecs.reduce((s: number, r: any) => s + Number(r.work_hours || 0), 0);
+  const weekOt = weekRecs.reduce((s: number, r: any) => s + Number(r.overtime_minutes || 0), 0);
+  const weekLate = weekRecs.filter((r: any) => r.is_late).length;
+  const { data: myPendingApprovals = [] } = useQuery({ queryKey: ["my-pending-count", userId, companyId], queryFn: () => getMyPendingApprovals(userId!, companyId!), enabled: !!userId && !!companyId, staleTime: 60_000 });
+  const { data: myRequestsPending = 0 } = useQuery({
+    queryKey: ["my-requests-pending", userId], enabled: !!userId, staleTime: 60_000,
+    queryFn: async () => { const { count } = await supabase.from("approval_requests").select("id", { count: "exact", head: true }).eq("requester_id", userId!).eq("status", "pending"); return count || 0; },
+  });
+  const { data: signPackages = [] } = useQuery({
+    queryKey: ["my-contracts", userId, companyId], enabled: !!userId && !!companyId, staleTime: 60_000,
+    queryFn: async () => {
+      const emp = logRead("mypage:emp-for-sign", await supabase.from("employees").select("id").eq("user_id", userId!).eq("company_id", companyId!).maybeSingle());
+      if (!emp) return [] as any[];
+      const data = logRead("mypage:sign", await supabase.from("hr_contract_packages").select("id, title, status, sign_token, sent_at, expires_at, completed_at, created_at, hr_contract_package_items(id, status)").eq("employee_id", (emp as any).id).order("created_at", { ascending: false }));
+      return (data || []) as any[];
+    },
+  });
+  const signPending = signPackages.filter((p: any) => ["sent", "partially_signed"].includes(p.status) && !(p.expires_at && new Date(p.expires_at) < new Date()));
+  const { data: todosToday = [] } = useQuery({ queryKey: ["my-todos-open", userId], enabled: !!userId, staleTime: 60_000, queryFn: async () => (await getTodos(userId!)).filter((t: any) => !t.due_date || t.due_date <= todayStr) });
+  const { data: recentNotices = [] } = useQuery({
+    queryKey: ["my-recent-notices", companyId], enabled: !!companyId, staleTime: 60_000,
+    queryFn: async () => { const data = logRead("mypage:notices", await supabase.from("announcements").select("id, title, created_at").eq("company_id", companyId!).order("created_at", { ascending: false }).limit(3)); return (data || []) as any[]; },
+  });
+  //   휴가·연차 갈래는 원장을 바로 연다(모달이 아니라 표)
+  useEffect(() => { if (tab === "leave") setShowUsedLeaves(true); }, [tab]);
+
   if (!userId) return <div className="p-6 text-center text-[var(--text-muted)]">불러오는 중...</div>;
 
   const st = employee ? EMP_STATUS[employee.status as string] || EMP_STATUS.active : null;
@@ -324,8 +363,12 @@ export default function MyPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print" role="tablist" aria-label="마이페이지 메뉴">
-            {([["records", "인사기록"], ["attendance", "근태"], ["notif", "알림 설정"], ["account", "계정·보안"]] as const).map(([k, l]) => (
-              <button key={k} type="button" onClick={() => setTab(k)} className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"} role="tab" aria-selected={tab === k}>{l}</button>
+            {([["home", "내 현황"], ["attendance", "근태"], ["leave", "휴가·연차"], ["docs", "급여·계약·증명"], ["me", "내 정보·설정"]] as const)
+              .filter(([k]) => role !== "partner" || k === "home" || k === "me")
+              .map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setTab(k)} className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"} role="tab" aria-selected={tab === k}>
+                {l}{k === "docs" && signPending.length > 0 && <span className="collect-tab-cnt ap-tab-alert">{signPending.length}</span>}
+              </button>
             ))}
           </div>
           <div className="mypage-identity">
@@ -339,266 +382,228 @@ export default function MyPage() {
             </span>
             <b>{userInfo?.name || "—"}</b>
             <span className="badge badge-primary">{roleLabel}</span>
-            <span className="text-[var(--text-muted)]">{[userInfo?.email, company?.name].filter(Boolean).join(" · ") || "—"}</span>
-            {(userInfo as any)?.avatar_url && (
-              <button type="button" onClick={handleAvatarRemove} disabled={uploadingAvatar} className="btn-secondary btn-sm ml-auto">기본 이미지로</button>
-            )}
+            <span className="text-[var(--text-muted)]">{[userInfo?.email, company?.name, employee ? [employee.department, employee.position].filter(Boolean).join(" ") : null, employee?.hire_date ? `입사 ${employee.hire_date}` : null].filter(Boolean).join(" · ") || "—"}</span>
           </div>
+          {tab === "home" && (
+            <ResultStrip>
+              <Stat label="이번 주 근무" value={<>{weekHours.toFixed(1)}h <small className="font-normal text-[var(--text-dim)]">/ 52h</small></>} />
+              <Stat label="연차 잔여" value={remaining !== null ? `${remaining}일` : "—"} tone={remaining !== null && remaining <= 3 ? "minus" : undefined} />
+              <Stat label="내가 처리할 것" value={`${myPendingApprovals.length + signPending.length + todosToday.length}건`} tone={myPendingApprovals.length + signPending.length + todosToday.length > 0 ? "minus" : undefined} />
+              <Stat label="내 요청 대기" value={`${myRequestsPending}건`} />
+            </ResultStrip>
+          )}
         </QueryHead>
         <QueryBody>
         <div className="mypage-scroll">
 
-      {/* ── 인사기록 탭 — 인사정보 · 연차 · 계약서 · 급여명세 · 증명서 ── */}
-      {tab === "records" && (
-      <div className="mypage-records-grid">
-      {/* 직원 정보 */}
-      {employee && (
-        <div className="mypage-employee-card glass-card">
-          <h2 className="section-title">인사 정보</h2>
-          <div className="mypage-info-grid">
-            <div className="mypage-info-tile">
-              <div className="text-xs text-[var(--text-dim)] mb-0.5">부서</div>
-              <div className="font-medium">{employee.department || "—"}</div>
-            </div>
-            <div className="mypage-info-tile">
-              <div className="text-xs text-[var(--text-dim)] mb-0.5">직위</div>
-              <div className="font-medium">{employee.position || "—"}</div>
-            </div>
-            <div className="mypage-info-tile">
-              <div className="text-xs text-[var(--text-dim)] mb-0.5">입사일</div>
-              <div className="font-medium">{employee.hire_date || "—"}</div>
-            </div>
-            <div className="mypage-info-tile">
-              <div className="text-xs text-[var(--text-dim)] mb-0.5">상태</div>
-              <div className={`font-medium ${st?.color || ""}`}>{st?.label || employee.status}</div>
-            </div>
-            {Number(employee.salary) > 0 && (
-              <button type="button" onClick={() => setShowSalary((v) => !v)} className="mypage-info-tile text-left cursor-pointer" title={showSalary ? "누르면 가립니다" : "누르면 표시됩니다"}>
-                <div className="text-xs text-[var(--text-dim)] mb-0.5">연봉</div>
-                <div className={`font-medium mono-number ${showSalary ? "" : "text-[var(--text-dim)] tracking-widest"}`}>
-                  {showSalary ? `₩${(Number(employee.salary) * 12).toLocaleString()}` : "₩ ••••••"}
-                </div>
-              </button>
-            )}
-            {employee.employee_number && (
-              <div className="mypage-info-tile">
-                <div className="text-xs text-[var(--text-dim)] mb-0.5">사번</div>
-                <div className="font-medium">{employee.employee_number}</div>
-              </div>
-            )}
+      {/* ── 내 현황 — 오늘 출퇴근 · 이번 주 근무 · 연차 · 내가 처리할 것 · 최근 소식 ── */}
+      {tab === "home" && (
+        <div className="bz-body">
+          <div className="bz-grid3">
+            <section className="pnl-panel mypage-today-panel">
+              <h3>오늘 출퇴근</h3>
+              <p>{todayStr} · 출근·퇴근 버튼은 여기서</p>
+              {companyId && <MyAttendanceCard companyId={companyId} userId={userId} compact />}
+            </section>
+            <section className="pnl-panel">
+              <h3>이번 주 근무</h3>
+              <p>{weekStart.slice(5).replace("-", "/")}~ · 52시간 한도</p>
+              <div className="bz-big mono-number">{weekHours.toFixed(1)}h</div>
+              <div className="att-ratio mypage-gauge"><i style={{ width: `${Math.min(100, Math.round((weekHours / 52) * 100))}%` }} /></div>
+              <dl className="bz-kv">
+                <div><dt>연장</dt><dd className="mono-number">{weekOt > 0 ? `${Math.floor(weekOt / 60)}h ${weekOt % 60}m` : "—"}</dd></div>
+                <div><dt>지각</dt><dd className={weekLate > 0 ? "text-[var(--warning)]" : ""}>{weekLate > 0 ? `${weekLate}회` : "—"}</dd></div>
+                <div><dt>남은 한도</dt><dd className="mono-number">{Math.max(0, 52 - weekHours).toFixed(1)}h</dd></div>
+              </dl>
+              <p className="bz-why"><button type="button" onClick={() => setTab("attendance")} className="bz-link">이 달 출퇴근 기록 →</button></p>
+            </section>
+            <section className="pnl-panel">
+              <h3>연차</h3>
+              <p>{currentYear}년{leaveBalance ? ` · 발생 ${leaveBalance.total_days} · 사용 ${leaveBalance.used_days}` : ""}</p>
+              <div className={`bz-big mono-number ${remaining !== null && remaining <= 3 ? "bz-minus" : ""}`}>{remaining !== null ? `${remaining}일` : "—"} <small className="text-[13px] font-medium text-[var(--text-dim)]">남음</small></div>
+              <dl className="bz-kv">
+                <div><dt>최근 신청</dt><dd>{recentLeaves[0] ? `${recentLeaves[0].start_date} ${leaveTypeLabel(recentLeaves[0].leave_type)} · ${recentLeaves[0].status === "approved" ? "승인" : recentLeaves[0].status === "rejected" ? "반려" : "대기"}` : "없음"}</dd></div>
+                <div><dt>대기 중</dt><dd>{recentLeaves.filter((l: any) => l.status === "pending").length}건</dd></div>
+              </dl>
+              <p className="bz-why"><Link href="/approvals?tab=new-request&new=leave" className="bz-link">휴가 신청 → 결재 허브</Link> · <button type="button" onClick={() => setTab("leave")} className="bz-link">내역 →</button></p>
+            </section>
+          </div>
+          <div className="bz-grid2">
+            <section className="pnl-panel">
+              <h3>내가 처리할 것 <small className="font-normal text-[var(--text-dim)]">{myPendingApprovals.length + signPending.length + todosToday.length}건</small></h3>
+              <p>나한테 온 것 — 결재·서명·할 일. 누르면 그 화면으로</p>
+              {myPendingApprovals.length + signPending.length + todosToday.length + myRequestsPending === 0 ? <div className="collect-empty">지금 처리할 것이 없습니다</div> : (
+                <ul className="bz-todos">
+                  {myPendingApprovals.slice(0, 5).map((a: any) => (
+                    <li key={a.stepId} className="bz-todo"><span className="bz-kind bz-kind-r">결재</span><span className="bz-todo-text">{a.title || "결재 요청"}{a.requesterName && <small> · {a.requesterName}</small>}{a.amount ? <small className="mono-number"> · ₩{Number(a.amount).toLocaleString()}</small> : null}</span><Link href="/approvals" className="bz-link">결재 허브 →</Link></li>
+                  ))}
+                  {signPending.map((p: any) => (
+                    <li key={p.id} className="bz-todo"><span className="bz-kind bz-kind-y">서명</span><span className="bz-todo-text">{p.title}<small> · 회사가 보낸 서명 요청{p.expires_at ? ` · ${p.expires_at.slice(0, 10)}까지` : ""}</small></span><button type="button" onClick={() => p.sign_token && window.open(`/sign?token=${p.sign_token}`, "_blank", "noopener")} className="bz-link">서명하기 →</button></li>
+                  ))}
+                  {todosToday.slice(0, 5).map((t: any) => (
+                    <li key={t.id} className="bz-todo"><span className="bz-kind bz-kind-g">할 일</span><span className="bz-todo-text">{t.title}{t.due_date && <small> · {t.due_date}</small>}</span><Link href="/schedule" className="bz-link">일정/할 일 →</Link></li>
+                  ))}
+                  {myRequestsPending > 0 && <li className="bz-todo bz-todo-done"><span className="bz-kind bz-kind-y">내 요청</span><span className="bz-todo-text">승인 기다리는 내 요청 {myRequestsPending}건</span><Link href="/approvals?tab=my-requests" className="bz-link">내 요청 →</Link></li>}
+                </ul>
+              )}
+            </section>
+            <section className="pnl-panel">
+              <h3>최근 소식</h3>
+              <p>공지 · 내 휴가 결과</p>
+              <dl className="bz-kv">
+                {recentNotices.map((n: any) => <div key={n.id}><dt className="truncate">공지 · {n.title}</dt><dd><Link href="/announcements" className="bz-link">보기 →</Link></dd></div>)}
+                {recentLeaves.slice(0, 3).map((l: any) => <div key={l.id}><dt>{leaveTypeLabel(l.leave_type)} {l.start_date}</dt><dd className={l.status === "approved" ? "bz-plus" : l.status === "rejected" ? "bz-minus" : "bz-tone-y"}>{l.status === "approved" ? "승인" : l.status === "rejected" ? "반려" : "대기"}</dd></div>)}
+                {recentNotices.length + recentLeaves.length === 0 && <div><dt className="text-[var(--text-dim)]">최근 소식이 없습니다</dt><dd /></div>}
+              </dl>
+            </section>
           </div>
         </div>
       )}
 
-      {/* 내 근로계약서 — 나에게 온 서명 요청/계약서 (개인 인사기록) */}
-      {employee?.id && <MyContractsCard employeeId={employee.id} />}
-
-      {/* 내 급여명세 — 월별 명세 본인 조회 (개인 인사기록) */}
-      {employee?.id && <MyPayslips employeeId={employee.id} />}
-
-      {/* 연차 현황 */}
-      <div className="mypage-leave-card glass-card">
-        <div className="mypage-leave-header flex items-center justify-between mb-4">
-          <h2 className="section-title mb-0">{currentYear}년 연차 현황</h2>
-          {recentLeaves.length > 0 && <span className="badge badge-muted">신청 {recentLeaves.length}건</span>}
-        </div>
-        {leaveBalance ? (
-          <div className="mypage-leave-stats">
-            <div className="stat-tile items-center text-center">
-              <div className="stat-tile-label">총 연차</div>
-              <div className="stat-tile-value mono-number text-[var(--primary)]">{leaveBalance.total_days}일</div>
-            </div>
-            {/* 사용 클릭 → 올해 사용한 연차 상세 */}
-            <button
-              type="button"
-              onClick={() => { setLedgerYear(currentYear); setShowUsedLeaves(true); }}
-              className="mypage-leave-stat-btn stat-tile items-center text-center"
-              title="연차 발생·사용 내역 보기"
-            >
-              <div className="stat-tile-label flex items-center gap-1">
-                사용
-                <svg className="w-3 h-3 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
-              </div>
-              <div className="stat-tile-value mono-number text-[var(--warning)]">{leaveBalance.used_days}일</div>
-            </button>
-            <div className="stat-tile items-center text-center">
-              <div className="stat-tile-label">잔여</div>
-              <div className={`stat-tile-value mono-number ${remaining !== null && remaining <= 3 ? "text-[var(--danger)]" : "text-[var(--success)]"}`}>
-                {remaining ?? 0}일
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="mypage-record-empty">
-            <div className="text-3xl mb-3">🌴</div>
-            <div className="text-sm font-semibold text-[var(--text-muted)]">연차 정보가 설정되지 않았습니다.</div>
-            <div className="text-xs text-[var(--text-dim)] mt-1">관리자가 연차를 설정하면 이곳에 표시됩니다. (휴가 신청은 전자결재에서)</div>
-          </div>
-        )}
-
-        {recentLeaves.length > 0 && (
-          <div className="mypage-leave-recent-block flex-1">
-            <div className="text-xs font-semibold text-[var(--text-dim)] mb-2 mt-2">최근 휴가 신청</div>
-            <div className="mypage-recent-leaves">
-              {recentLeaves.map((leave: any) => (
-                <div key={leave.id} className="flex items-center justify-between text-xs bg-[var(--bg-surface)] rounded-lg px-3 py-2 border border-[var(--border)]">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{leaveTypeLabel(leave.leave_type)}</span>
-                    <span className="text-[var(--text-muted)]">{leave.start_date}{leave.end_date && leave.end_date !== leave.start_date ? ` ~ ${leave.end_date}` : ""}</span>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                    leave.status === "approved" ? "bg-[var(--success-dim)] text-[var(--success)]"
-                      : leave.status === "rejected" ? "bg-[var(--danger-dim)] text-[var(--danger)]"
-                      : "bg-[var(--warning-dim)] text-[var(--warning)]"
-                  }`}>
-                    {leave.status === "approved" ? "승인" : leave.status === "rejected" ? "반려" : "대기"}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      </div>
-      )}
-
-      {/* ── 근태 탭 — 오늘 출퇴근(찍기) + 월별 내 출퇴근 기록 ── */}
+      {/* ── 근태 — 월별 내 출퇴근 기록 + 정정 요청 (오늘 찍기는 내 현황) ── */}
       {tab === "attendance" && (
         <div className="mypage-attendance-tab space-y-5">
-          {companyId && <MyAttendanceCard companyId={companyId} userId={userId} />}
           {employee?.id ? (
             <MyAttendance employeeId={employee.id} />
           ) : (
-            <div className="glass-card p-6 text-center">
-              <div className="text-3xl mb-2"><Ico e="🕘" /></div>
-              <div className="text-sm font-semibold text-[var(--text-muted)]">구성원 정보와 연결되지 않았습니다</div>
-              <div className="text-xs text-[var(--text-dim)] mt-1">인사관리에서 내 계정이 구성원으로 등록되면 출퇴근 기록이 표시됩니다.</div>
+            <div className="collect-empty">구성원 정보와 연결되지 않았습니다 — 인사관리에서 내 계정이 구성원으로 등록되면 출퇴근 기록이 표시됩니다</div>
+          )}
+        </div>
+      )}
+
+      {/* ── 휴가·연차 — 결과 요약 · 사용 내역 표 · 발생 내역 (예전 인사기록 카드 + 원장 모달) ── */}
+      {tab === "leave" && (
+        <div className="bz-body">
+          <div className="qk-bar">
+            <div className="qk-bar-left">
+              {allBalances.length > 1 ? (
+                <select value={ledgerYear} onChange={(e) => setLedgerYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">{allBalances.map((b: any) => <option key={b.year} value={b.year}>{b.year}년</option>)}</select>
+              ) : <span className="text-xs font-semibold text-[var(--text-muted)]">{ledgerYear}년</span>}
+              <span className="text-[11px] text-[var(--text-dim)]">발생분에서 승인된 휴가를 차례로 차감한 내역 · 신청·승인은 결재 허브</span>
+            </div>
+            <div className="qk-bar-right"><Link href="/approvals?tab=new-request&new=leave" className="btn-primary btn-sm">휴가 신청</Link></div>
+          </div>
+          <ResultStrip>
+            <Stat label="발생" value={`${ledgerBalance ? ledgerGranted : (leaveBalance?.total_days ?? 0)}일`} />
+            <Stat label="사용" value={`${ledgerBalance ? usedLeavesTotal : (leaveBalance?.used_days ?? 0)}일`} />
+            <Stat label="잔여" value={`${ledgerBalance ? (balanceRemain ?? runningRemain) : (remaining ?? 0)}일`} tone="plus" />
+            <Stat label="대기 중" value={`${recentLeaves.filter((l: any) => l.status === "pending").length}건`} />
+          </ResultStrip>
+          {!leaveBalance && !ledgerBalance ? (
+            <div className="collect-empty">연차 정보가 설정되지 않았습니다 — 관리자가 연차를 설정하면 여기 표시됩니다</div>
+          ) : (
+            <div className="bz-grid2">
+              <section className="pnl-panel">
+                <h3>사용 내역 <small className="font-normal text-[var(--text-dim)]">{ledgerYear}년 · {useEntries.length}건</small></h3>
+                <p>발생(+) · 사용(−)을 날짜순으로, 오른쪽은 그때 잔여</p>
+                {usedLeavesLoading ? <div className="collect-empty">불러오는 중…</div> : (
+                  <table className="ev-table ev-lined mypage-leave-table">
+                    <thead><tr><th>날짜</th><th className="text-left">구분</th><th>일수</th><th>잔여</th></tr></thead>
+                    <tbody>
+                      {ledgerRows.map((e: any) => (
+                        <tr key={e.id} className={e.kind === "grant" ? "bg-[var(--bg-surface)]/50" : ""}>
+                          <td className="text-center mono-number">{fmtLedgerDate(e.date)}{e.kind === "use" && e.endDate && e.endDate !== e.date ? ` ~ ${fmtLedgerDate(e.endDate)}` : ""}</td>
+                          <td className="text-left">{e.kind === "grant" ? <><span className="badge badge-primary">{e.label}</span>{e.memo && <small className="ml-1 text-[var(--text-dim)]">{e.memo}</small>}</> : e.label}</td>
+                          <td className={`text-right mono-number font-bold ${e.kind === "grant" ? (e.days < 0 ? "bz-minus" : "bz-plus") : "bz-minus"}`}>{e.kind === "grant" ? (e.days < 0 ? "−" : "+") : "−"}{Math.abs(e.days)}</td>
+                          <td className="text-right mono-number">{e.remain}</td>
+                        </tr>
+                      ))}
+                      {ledgerRows.length === 0 && <tr><td colSpan={4} className="text-center text-[var(--text-dim)] py-6">{ledgerYear}년 내역이 없습니다</td></tr>}
+                    </tbody>
+                  </table>
+                )}
+                {ledgerMismatch && <p className="mt-2 text-[11px] text-[var(--text-dim)]">※ 관리자가 연차를 직접 조정한 이력이 있어 최종 잔여({balanceRemain}일)가 내역 합계와 다릅니다.</p>}
+              </section>
+              <section className="pnl-panel">
+                <h3>최근 신청</h3>
+                <p>네이티브 휴가 신청 + 결재 허브 휴가 요청</p>
+                {recentLeaves.length === 0 ? <div className="collect-empty">신청이 없습니다</div> : (
+                  <table className="ev-table ev-lined mypage-leave-table">
+                    <thead><tr><th>기간</th><th className="text-left">종류</th><th>상태</th></tr></thead>
+                    <tbody>{recentLeaves.map((leave: any) => (
+                      <tr key={leave.id}><td className="text-center mono-number">{leave.start_date}{leave.end_date && leave.end_date !== leave.start_date ? ` ~ ${leave.end_date}` : ""}</td><td className="text-left">{leaveTypeLabel(leave.leave_type)}</td><td className="text-center"><span className={`ol-sure ${leave.status === "approved" ? "ol-sure-ok" : leave.status === "rejected" ? "" : "ol-sure-est"}`}>{leave.status === "approved" ? "승인" : leave.status === "rejected" ? "반려" : "대기"}</span></td></tr>
+                    ))}</tbody>
+                  </table>
+                )}
+              </section>
             </div>
           )}
         </div>
       )}
 
-      {/* ── 알림 설정 탭 — 내 알림 수신 채널·이벤트 ── */}
-      {tab === "notif" && companyId && <NotificationsTab companyId={companyId} />}
-
-      {/* ── 계정·보안 탭 — 비밀번호 변경 + 회원 탈퇴 ── */}
-      {tab === "account" && (
-      <div className="space-y-5">
-      <AccountTab />
-
-      {/* 회원 탈퇴 */}
-      <div className="mypage-withdraw-card glass-card">
-        <h2 className="text-sm font-bold mb-2 text-[var(--danger)]">회원 탈퇴</h2>
-        <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-3">
-          탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>
-          {(ctxUser as any)?.is_master && <span className="block mt-1 text-amber-500">※ 마스터 계정입니다. 탈퇴해도 회사·직원·거래 데이터는 남으니, 회사 정리가 필요하면 먼저 처리하세요.</span>}
-        </p>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <input
-            value={withdrawText}
-            onChange={(e) => setWithdrawText(e.target.value)}
-            placeholder='탈퇴하려면 "탈퇴" 입력'
-            className="px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)] sm:w-48"
-          />
-          <button
-            onClick={handleWithdraw}
-            disabled={withdrawText.trim() !== "탈퇴" || withdrawing}
-            className="btn-danger disabled:cursor-not-allowed"
-          >
-            {withdrawing ? "처리 중..." : "회원 탈퇴"}
-          </button>
-        </div>
-        {withdrawErr && <p className="text-xs text-[var(--danger)] mt-2">{withdrawErr}</p>}
-      </div>
-      </div>
-      )}
-
-      {/* ── 연차 원장 모달 — 연차 현황의 "사용" 타일 클릭 진입. 발생 → 사용 → 잔여를 순서대로 ── */}
-      {showUsedLeaves && (
-        <div className="mypage-used-leaves-modal" onClick={() => setShowUsedLeaves(false)}>
-          <div className="modal-backdrop" />
-          <div className="mypage-used-leaves-panel modal-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="mypage-used-leaves-head">
-              <div>
-                <h3 className="text-sm font-bold">연차 사용 내역</h3>
-                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">발생분에서 승인된 휴가를 차례로 차감한 내역입니다</p>
-              </div>
-              <button onClick={() => setShowUsedLeaves(false)} className="text-[var(--text-dim)] hover:text-[var(--text)] transition" aria-label="닫기">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-              </button>
-            </div>
-
-            {/* 연도 전환 — 연차가 부여된 모든 해(전년도 이전 포함) */}
-            {allBalances.length > 1 && (
-              <div className="mypage-ledger-years seg-bar">
-                {allBalances.map((b: any) => (
-                  <button
-                    key={b.year}
-                    onClick={() => setLedgerYear(Number(b.year))}
-                    className={`seg-item ${ledgerYear === Number(b.year) ? "seg-item-active" : ""}`}
-                  >
-                    {b.year}년
-                  </button>
-                ))}
-              </div>
+      {/* ── 급여·계약·증명 — 급여명세 · 근로계약서/서명 요청(예전 '내 서명 요청' 메뉴 흡수) ── */}
+      {tab === "docs" && (
+        <div className="bz-body">
+          <section className="pnl-panel">
+            <h3>서명 요청 <small className="font-normal text-[var(--text-dim)]">회사가 보낸 계약서 — 서명하고 보관</small>{signPending.length > 0 && <span className="collect-tab-cnt ap-tab-alert ml-2">{signPending.length}</span>}</h3>
+            <p>예전 사이드바 '내 서명 요청'이 여기로 왔습니다. 전체 목록·정렬은 <Link href="/my-contracts" className="bz-link">내 서명 요청 →</Link></p>
+            {signPackages.length === 0 ? <div className="collect-empty">받은 서명 요청이 없습니다</div> : (
+              <table className="ev-table ev-lined mypage-leave-table">
+                <thead><tr><th className="text-left">문서</th><th>문서 수</th><th>보낸 날</th><th>만료</th><th>상태</th><th>동작</th></tr></thead>
+                <tbody>{signPackages.slice(0, 10).map((p: any) => {
+                  const expired = p.expires_at && new Date(p.expires_at) < new Date();
+                  const st = expired ? "만료됨" : p.status === "completed" ? "서명 완료" : p.status === "partially_signed" ? "일부 서명" : p.status === "sent" ? "서명 대기" : p.status === "cancelled" ? "취소됨" : "준비 중";
+                  return (
+                    <tr key={p.id}><td className="text-left font-semibold">{p.title}</td><td className="text-center mono-number">{(p.hr_contract_package_items || []).length}</td><td className="text-center mono-number">{(p.sent_at || p.created_at || "").slice(0, 10)}</td><td className="text-center mono-number">{p.expires_at ? p.expires_at.slice(0, 10) : "—"}</td>
+                      <td className="text-center"><span className={`ol-sure ${st === "서명 완료" ? "ol-sure-ok" : st === "서명 대기" || st === "일부 서명" ? "ol-sure-est" : ""}`}>{st}</span></td>
+                      <td className="text-center">{["sent", "partially_signed"].includes(p.status) && !expired && p.sign_token ? <button type="button" onClick={() => window.open(`/sign?token=${p.sign_token}`, "_blank", "noopener")} className="btn-primary btn-sm">서명</button> : "—"}</td></tr>
+                  );
+                })}</tbody>
+              </table>
             )}
-
-            <div className="mypage-used-leaves-body">
-              {usedLeavesLoading ? (
-                <div className="py-10 text-center text-xs text-[var(--text-muted)]">불러오는 중...</div>
-              ) : !ledgerBalance ? (
-                <div className="py-10 text-center">
-                  <div className="text-3xl mb-2"><Ico e="🗓" /></div>
-                  <div className="text-sm font-semibold text-[var(--text-muted)]">{ledgerYear}년 연차 정보가 없습니다</div>
-                  <div className="text-xs text-[var(--text-dim)] mt-1">관리자가 연차를 설정하면 이곳에 표시됩니다.</div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {/* 발생(+) · 사용(−) 을 날짜순으로 — 우측에 진행 잔여 누적 */}
-                  {ledgerRows.map((e: any) => (
-                    <div key={e.id} className={`mypage-ledger-row ${e.kind === "grant" ? "mypage-ledger-grant" : ""}`}>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className={`badge shrink-0 ${e.kind === "grant" ? "badge-primary" : "badge-muted"}`}>{e.label}</span>
-                        <span className="text-xs text-[var(--text-muted)] truncate">
-                          {fmtLedgerDate(e.date)}
-                          {e.kind === "grant"
-                            ? ` 발생${e.memo ? ` · ${e.memo}` : ""}`
-                            : `${e.endDate && e.endDate !== e.date ? ` ~ ${fmtLedgerDate(e.endDate)}` : ""} 사용`}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className={`text-xs font-bold mono-number ${e.kind === "grant" ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
-                          {e.kind === "grant" ? "+" : "−"}{e.days}일
-                        </span>
-                        <span className="mypage-ledger-remain">잔여 {e.remain}일</span>
-                      </div>
-                    </div>
-                  ))}
-                  {useEntries.length === 0 && (
-                    <div className="py-6 text-center text-xs text-[var(--text-muted)]">{ledgerYear}년에 사용한 휴가가 없습니다</div>
-                  )}
-
-                  {ledgerMismatch && (
-                    <p className="text-[11px] text-[var(--text-dim)] pt-1">
-                      ※ 관리자가 연차를 직접 조정한 이력이 있어 최종 잔여({balanceRemain}일)가 내역 합계와 다릅니다.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {ledgerBalance && (
-              <div className="mypage-used-leaves-foot">
-                <span className="text-xs font-semibold text-[var(--text-muted)]">
-                  발생 {ledgerGranted}일 · 사용 {usedLeavesTotal}일 ({usedLeaves.length}건)
-                </span>
-                <span className="text-sm font-bold mono-number text-[var(--success)]">잔여 {balanceRemain ?? runningRemain}일</span>
-              </div>
-            )}
+          </section>
+          <div className="bz-grid2">
+            {employee?.id && <MyPayslips employeeId={employee.id} />}
+            {employee?.id && <MyContractsCard employeeId={employee.id} />}
           </div>
         </div>
       )}
+
+      {/* ── 내 정보·설정 — 인사 정보 · 알림 · 계정·보안 ── */}
+      {tab === "me" && (
+        <div className="bz-body">
+          {employee && (
+            <section className="pnl-panel">
+              <h3>인사 정보</h3>
+              <p>회사가 관리하는 값 — 틀리면 인사팀에 정정을 요청하세요</p>
+              <div className="mypage-info-grid">
+                <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">부서</div><div className="font-medium">{employee.department || "—"}</div></div>
+                <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">직위</div><div className="font-medium">{employee.position || "—"}</div></div>
+                <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">입사일</div><div className="font-medium">{employee.hire_date || "—"}</div></div>
+                <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">상태</div><div className={`font-medium ${st?.color || ""}`}>{st?.label || employee.status}</div></div>
+                {Number(employee.salary) > 0 && (
+                  <button type="button" onClick={() => setShowSalary((v) => !v)} className="mypage-info-tile text-left cursor-pointer" title={showSalary ? "누르면 가립니다" : "누르면 표시됩니다"}>
+                    <div className="text-xs text-[var(--text-dim)] mb-0.5">연봉</div>
+                    <div className={`font-medium mono-number ${showSalary ? "" : "text-[var(--text-dim)] tracking-widest"}`}>{showSalary ? `₩${(Number(employee.salary) * 12).toLocaleString()}` : "₩ ••••••"}</div>
+                  </button>
+                )}
+                {employee.employee_number && <div className="mypage-info-tile"><div className="text-xs text-[var(--text-dim)] mb-0.5">사번</div><div className="font-medium">{employee.employee_number}</div></div>}
+              </div>
+            </section>
+          )}
+          <section className="pnl-panel">
+            <h3>프로필</h3>
+            <p>내가 고치는 값</p>
+            <dl className="bz-kv">
+              <div><dt>이메일</dt><dd>{userInfo?.email || "—"}</dd></div>
+              <div><dt>프로필 사진</dt><dd><span className="inline-flex gap-1.5"><button type="button" onClick={() => fileRef.current?.click()} disabled={uploadingAvatar} className="btn-secondary btn-sm">변경</button>{(userInfo as any)?.avatar_url && <button type="button" onClick={handleAvatarRemove} disabled={uploadingAvatar} className="btn-secondary btn-sm">기본으로</button>}</span></dd></div>
+            </dl>
+          </section>
+          {companyId && <NotificationsTab companyId={companyId} />}
+          <AccountTab />
+          <div className="mypage-withdraw-card pnl-panel">
+            <h3 className="text-[var(--danger)]">회원 탈퇴</h3>
+            <p>탈퇴하면 <b>로그인 계정이 영구 삭제</b>되고 이름·이메일 등 개인정보가 파기됩니다. <b>되돌릴 수 없습니다.</b>{(ctxUser as any)?.is_master && <span className="block mt-1 text-amber-500">※ 마스터 계정입니다. 탈퇴해도 회사·직원·거래 데이터는 남으니, 회사 정리가 필요하면 먼저 처리하세요.</span>}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <input value={withdrawText} onChange={(e) => setWithdrawText(e.target.value)} placeholder='탈퇴하려면 "탈퇴" 입력' className="qk-input h-8 px-2.5 text-xs sm:w-48" />
+              <button onClick={handleWithdraw} disabled={withdrawText.trim() !== "탈퇴" || withdrawing} className="btn-secondary btn-sm text-[var(--danger)] disabled:cursor-not-allowed">{withdrawing ? "처리 중..." : "회원 탈퇴"}</button>
+            </div>
+            {withdrawErr && <p className="text-xs text-[var(--danger)] mt-2">{withdrawErr}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* 연차 원장 모달은 2026-08-19 '휴가·연차' 갈래의 표로 대체 */}
         </div>
         </QueryBody>
       </QueryScreen>
