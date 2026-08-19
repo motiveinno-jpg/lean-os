@@ -383,7 +383,9 @@ async function syncBankTransactions(
 
   // 1. 등록된 은행 기관 코드 추출
   const registeredAccounts = await getAccountList(token, connectedId);
-  debug.push(`registeredAccounts: ${registeredAccounts.length}개, orgs: ${registeredAccounts.map((a: any) => `${a.organization}(${a.businessType})`).join(",")}`);
+  // clientType 포함 — P(개인)로 등록된 계정은 아래 /b/(법인) 조회가 CF-04015 로 영영 실패한다
+  //   (2026-08-19 드림세무회계 실사고: 농협을 P 로 등록 → 3주간 무음 실패). 로그로 바로 보이게 남긴다.
+  debug.push(`registeredAccounts: ${registeredAccounts.length}개, orgs: ${registeredAccounts.map((a: any) => `${a.organization}(${a.businessType}/${a.clientType || "?"})`).join(",")}`);
 
   const bankOrgs = new Set<string>();
   for (const acct of registeredAccounts) {
@@ -399,7 +401,7 @@ async function syncBankTransactions(
 
   if (bankOrgs.size === 0) {
     errors.push({ accountNo: "", organization: "", code: "NO_BANK_ACCOUNTS", message: "등록된 은행 계정이 없습니다.", hint: "설정 → API 연동에서 은행을 먼저 연결하세요." });
-    return { synced: 0, errors, debug };
+    return { synced: 0, errors, debug, orgs: [] as string[] };
   }
 
   // 2. 각 은행에서 보유계좌 목록 조회 → 실제 계좌번호 확보
@@ -595,7 +597,63 @@ async function syncBankTransactions(
     }
   }
 
-  return { synced: totalSynced, errors, debug };
+  return { synced: totalSynced, errors, debug, orgs: [...bankOrgs] };
+}
+
+// 은행 수집 중단 감시 — 카드(alertMissingCardOrgs)의 은행판 + 인증오류 감시. (2026-08-19)
+//   드림세무회계 실사고: 농협이 P(개인) 유형으로 등록돼 법인 API 조회가 CF-04015 로
+//   3주간 무음 실패했는데, 감시가 카드에만 있어 아무도 몰랐다. 은행은 두 갈래를 잡는다:
+//   ① 최근까지 수집되던 은행이 연결 목록에서 사라짐 (카드와 동일)
+//   ② 은행이 목록엔 있는데 인증·계정 오류(CF-03/04xx)로 조회가 계속 실패 — P/B 유형
+//      불일치·인증 만료가 여기로 온다. 알림은 24시간 dedup.
+async function alertBankSyncIssues(
+  supabase: any, companyId: string, seenOrgs: string[], errors: SyncError[],
+): Promise<string[]> {
+  const missing: string[] = [];
+  const notify = async (org: string, title: string, message: string) => {
+    const { data: dup } = await supabase.from("notifications")
+      .select("id").eq("company_id", companyId).eq("title", title)
+      .gte("created_at", new Date(Date.now() - 24 * 3600000).toISOString())
+      .limit(1);
+    if (dup && dup.length > 0) return;
+    const { data: masters } = await supabase.from("users")
+      .select("id").eq("company_id", companyId).eq("is_master", true);
+    const rows = (masters || []).map((m: { id: string }) => ({
+      company_id: companyId, user_id: m.id, type: "system", title, message, link: "/settings",
+    }));
+    if (rows.length) await supabase.from("notifications").insert(rows);
+  };
+  try {
+    // ① 유실: 최근 45일 내 거래가 적재된 은행이 목록에 없음
+    const seen = new Set(seenOrgs);
+    for (const org of Object.keys(BANK_CODES)) {
+      if (seen.has(org)) continue;
+      const { data: recent } = await supabase.from("bank_transactions")
+        .select("id").eq("company_id", companyId)
+        .contains("raw_data", { organization: org })
+        .gte("created_at", new Date(Date.now() - 45 * 86400000).toISOString())
+        .limit(1);
+      if (!recent || recent.length === 0) continue;
+      missing.push(org);
+      await notify(org,
+        `은행 수집 중단: ${BANK_CODES[org]}`,
+        `${BANK_CODES[org]} 계정이 연결 목록에서 사라져 거래 수집이 멈췄습니다. 설정 > API 연동에서 ${BANK_CODES[org]}을(를) 다시 등록해 주세요.`);
+    }
+    // ② 인증·계정 오류로 조회 실패 — 등록은 돼 있는데 수집이 안 되는 상태
+    const authFailed = new Set<string>();
+    for (const e of errors) {
+      if (!e.organization || !(e.code || "").match(/^CF-0[34]/)) continue;
+      if (authFailed.has(e.organization)) continue;
+      authFailed.add(e.organization);
+      const bankName = BANK_CODES[e.organization] || e.organization;
+      await notify(e.organization,
+        `은행 수집 실패: ${bankName}`,
+        `${bankName} 조회가 인증 오류(${e.code})로 계속 실패하고 있습니다. 인증 정보 만료 또는 등록 유형(개인/법인) 불일치일 수 있습니다. 설정 > API 연동에서 법인 계정으로 다시 등록해 주세요.`);
+    }
+  } catch (e) {
+    console.error("alertBankSyncIssues failed", e); // 감시 실패가 수집을 막지 않게
+  }
+  return missing;
 }
 
 // 가맹점 사업자번호 — 숫자 10자리일 때만 인정한다 (2026-08-12).
@@ -2122,6 +2180,17 @@ serve(withSentry("codef-sync", async (req) => {
       let bankRes: any = null;
       try {
         bankRes = await syncBankTransactions(supabase, token, companyId, cid, startC, endC);
+        //   카드(ORG_MISSING)와 동일 — 은행이 목록에서 사라졌거나 인증 오류로 계속 실패하면
+        //   오류로 격상 + 마스터에게 인앱 알림. "오류 없음"과 "전부 수집됨"은 다르다.
+        const missingBankOrgs = await alertBankSyncIssues(supabase, companyId, bankRes?.orgs || [], bankRes?.errors || []);
+        for (const org of missingBankOrgs) {
+          bankRes.errors = bankRes.errors || [];
+          bankRes.errors.push({
+            accountNo: "", organization: org, code: "ORG_MISSING",
+            message: `${BANK_CODES[org]} 계정이 CODEF 연결 목록에서 사라짐 — 수집 중단 상태`,
+            hint: "설정 > API 연동에서 해당 은행을 다시 등록하세요.",
+          });
+        }
       } catch (e: any) {
         return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
