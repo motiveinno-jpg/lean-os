@@ -6,7 +6,6 @@
 import Link from "next/link";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ReportsTabs } from "../_components/ReportsTabs";
 
 const DOCS = [
   { href: "/reports/pnl", title: "손익계산서 (P&L)", desc: "매출·매출원가·판관비·영업이익 등 기간 손익을 정식 회계 양식으로." },
@@ -21,7 +20,6 @@ export default function StatementsHub() {
   }
   return (
     <div>
-      <ReportsTabs />
       <div className="statements-hub-grid">
         {DOCS.map((d) => (
           <Link key={d.href} href={d.href}

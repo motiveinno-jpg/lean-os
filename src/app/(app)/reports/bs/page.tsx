@@ -12,8 +12,6 @@ import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ReportsTabs } from "../_components/ReportsTabs";
-import { StatementsTabs } from "../_components/StatementsTabs";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -569,8 +567,6 @@ function BalanceSheetPageInner() {
   return (
     <div id="bs-printable">
       <style>{PRINT_CSS}</style>
-      <ReportsTabs />
-      <StatementsTabs />
       {/* 툴바 — 기준일·채권채무 필터(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
       <div className="bs-toolbar page-sticky-header">
         <div className="no-print flex flex-wrap items-center gap-x-4 gap-y-2">

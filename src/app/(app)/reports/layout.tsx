@@ -1,9 +1,19 @@
-// 리포트(분석) 공용 레이아웃 — 확정된 리포트형 디자인 셸을 전 리포트 화면에 일괄 적용(2026-07-14).
-//   ReportShell(풀폭 리포트 컨테이너)로 감싸 모든 /reports/* 페이지가 동일한 셸을 공유한다.
-//   상단 탭·헤더는 각 페이지가 <ReportsTabs/> 로 렌더(중복 방지).
+// 리포트(분석) 공용 레이아웃 — 리포트 표준 상자 (2026-08-19 사장님: "분석 메뉴들에도 UI 개선").
+//   qk-shell > qk-screen: 머리 = ReportsTabs(하위 갈래 파란 밑줄 + 설명 줄), 본문 = 상자 안 스크롤(report-body).
+//   각 페이지는 내용(요약·지표·섹션)만 그린다 — 예전엔 페이지마다 <ReportsTabs/> 를 그렸다(중복 제거).
+//   상자 끝선 = 사이드바, 갈래 탭은 상자 안, 카드 껍데기는 CSS(.report-body …)가 얇은 판/선으로 눕힌다.
 
-import { ReportShell } from "@/components/report-kit";
+import { ReportsTabs } from "./_components/ReportsTabs";
 
 export default function ReportsLayout({ children }: { children: React.ReactNode }) {
-  return <ReportShell>{children}</ReportShell>;
+  return (
+    <div className="qk-shell report-shell">
+      <div className="qk-screen">
+        <ReportsTabs />
+        <div className="qk-body">
+          <div className="report-body">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
 }

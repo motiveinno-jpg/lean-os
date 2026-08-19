@@ -13,8 +13,6 @@ import { getAccountMap, classifyAccount, accountById, NATURE_LABEL } from "@/lib
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import PnlChart from "./pnl-chart";
-import { ReportsTabs } from "../_components/ReportsTabs";
-import { StatementsTabs } from "../_components/StatementsTabs";
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -603,8 +601,6 @@ function PnlPageInner() {
   return (
     <div id="pnl-printable">
       <style>{PRINT_CSS}</style>
-      <ReportsTabs />
-      <StatementsTabs />
       {/* 툴바 — 기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
       <div className="pnl-toolbar page-sticky-header no-print-sticky">
         {/* 조회 기간 — 세금계산서·계산서와 같은 위젯(월 단위). 손익계산서는 **월이 최소 단위**라

@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ReportsTabs } from "../_components/ReportsTabs";
 import { FlowMatrix } from "../flow/_components/FlowMatrix";
 import { ymNow } from "../_components/kit";
 
@@ -25,7 +24,6 @@ export default function MonthlyDetailPage() {
 
   return (
     <div className="monthly-detail-page">
-      <ReportsTabs />
       <p className="monthly-detail-intro">
         월별로 계정별 금액을 보고, 셀을 클릭하면 그 금액이 어떻게 구성됐는지 확인할 수 있습니다.
         상단 토글로 <b>전월·전년동월 비교</b>, 누계, 구성비도 볼 수 있습니다.

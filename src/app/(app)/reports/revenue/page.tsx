@@ -14,7 +14,6 @@ import { getCurrentUser } from "@/lib/queries";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ReportsTabs } from "../_components/ReportsTabs";
 import { fmt, ymNow, MonthlyCompareCard } from "../_components/kit";
 import { CellDetail } from "../flow/_components/CellDetail";
 import { IntroCard, Section } from "@/components/report-kit";
@@ -98,7 +97,6 @@ export default function RevenuePage() {
 
   return (
     <>
-      <ReportsTabs />
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (

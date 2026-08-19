@@ -12,7 +12,6 @@ import { buildCashPulse } from "@/lib/cash-pulse";
 import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ReportsTabs } from "../_components/ReportsTabs";
 import { fmt } from "../_components/kit";
 import { IntroCard, Section } from "@/components/report-kit";
 import { AreaTrend, type TrendPoint } from "../flow/_components/AreaTrend";
@@ -72,7 +71,6 @@ export default function OutlookPage() {
 
   return (
     <>
-      <ReportsTabs />
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (

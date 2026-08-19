@@ -18,7 +18,6 @@ import { getVATPreview, type VATPreview } from "@/lib/tax-invoice";
 import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ReportsTabs } from "../_components/ReportsTabs";
 import { IntroCard, StatCard, Section } from "@/components/report-kit";
 
 const db = supabase;
@@ -139,7 +138,6 @@ export default function ManagementSummaryPage() {
 
   return (
     <>
-      <ReportsTabs />
 
       {loading ? (
         <div className="flex items-center justify-center py-20">

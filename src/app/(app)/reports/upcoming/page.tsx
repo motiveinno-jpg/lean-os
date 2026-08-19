@@ -17,7 +17,6 @@ import { getMonthlyBudgetOverview, getLoanStatuses, type MonthlyBudget, type Loa
 import { getVATPreview, type VATPreview } from "@/lib/tax-invoice";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { ReportsTabs } from "../_components/ReportsTabs";
 import { fmt, ymNow } from "../_components/kit";
 import { IntroCard, Section } from "@/components/report-kit";
 
@@ -88,7 +87,6 @@ export default function UpcomingPage() {
 
   return (
     <>
-      <ReportsTabs />
       {loading ? (
         <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
       ) : (

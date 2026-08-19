@@ -2687,8 +2687,6 @@ table.board-table { min-width: 900px; }
 .reports-tabs-list { @apply flex flex-wrap gap-1.5; }
 .reports-tab-link { @apply px-3.5 py-1.5 rounded-full text-[13px] font-semibold no-underline transition; }
 .reports-tab-desc { @apply text-sm text-[var(--text-muted)] mt-3 mb-5 max-w-3xl leading-relaxed; }
-.statements-tabs-list { @apply flex flex-wrap gap-1.5 -mt-2 mb-5; }
-.statements-tab-link { @apply px-3 py-1 rounded-lg text-[12px] font-semibold no-underline transition; }
 .three-way-match-page { @apply mx-auto; }
 .three-way-match-toolbar { @apply mb-5 flex flex-wrap items-center justify-between gap-2; }
 .three-way-unmatched-panel { @apply lg:col-span-2 overflow-hidden; }
@@ -5287,6 +5285,13 @@ table.coa-table { min-width: 640px; }
 
 /* 보고서형 밀도 정리(2026-07-22) — 분석 탭 전반이 과하게 커 보이던 여백/카드를 컴팩트하게 */
 .report-shell { @apply w-full; }
+/* ── 리포트 표준 (2026-08-19) — 분석 메뉴 전부: 상자 하나(qk-shell) · 머리 = 하위 갈래 탭 + 설명 줄 · 본문 스크롤 · 카드 껍데기는 얇은 판/선 ── */
+.report-head .report-desc { @apply px-3.5 py-2 text-[12px] text-[var(--text-muted)]; }
+.qk-body > .report-body { @apply absolute inset-0 overflow-auto p-3; }
+/*   상자 안 카드는 전부 얇은 판(선만) — 그림자·유리 효과 없음. 요약 문장·KPI·섹션·페이지 자체 카드 한 규칙 */
+.report-body .glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; box-shadow: none; backdrop-filter: none; }
+/*   상단 sticky 툴바(pnl·bs·costs)는 본문 안이라 sticky 를 푼다 — 상자 첫 줄로(아래 선만) */
+.report-body .page-sticky-header { position: static; background: transparent; box-shadow: none; backdrop-filter: none; @apply mb-3 rounded-none border-0 border-b border-[var(--border)] px-0 pb-3 pt-0; }
 .report-intro-card { @apply p-5; }
 .report-intro-grid { @apply grid gap-5 md:grid-cols-[1fr_220px]; }
 .report-intro-text { @apply min-w-0; }

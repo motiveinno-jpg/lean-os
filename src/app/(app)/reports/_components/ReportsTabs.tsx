@@ -52,6 +52,17 @@ const GROUPS: Group[] = [
     label: "회계 자료",
     desc: "손익계산서·재무상태표 등 정식 재무제표를 봅니다.",
     match: STATEMENT_ROUTES,
+    //   2026-08-19 리포트 표준 — 예전 StatementsTabs(2단 링크 줄)를 여기 하위 갈래로 합쳐 상자 안 파란 밑줄 한 줄로
+    subs: [
+      { href: "/reports/pnl", label: "손익계산서", desc: "기간별 손익계산서 — 표준 양식(Ⅰ~Ⅸ), 항목을 누르면 원천 내역." },
+      { href: "/reports/bs", label: "재무상태표", desc: "기준일 자산·부채·자본 — 채권·채무는 해당연도 1/1~기준일 확정 전표 누적." },
+      { href: "/reports/costs", label: "비용 분석", desc: "고정비·변동비 구성과 월별 추이 — 지난 달의 실적 기준." },
+    ],
+  },
+  {
+    href: "/reports/vat",
+    label: "부가세",
+    desc: "매입매출전표 기준 부가세 예상 — 분기·반기 신고 전에 납부/환급 예상액을 미리 봅니다.",
   },
 ];
 
@@ -65,23 +76,27 @@ export function ReportsTabs() {
   const activeLeaf = activeGroup.subs?.find((l) => matchesPath(pathname, leafPaths(l)));
   const desc = activeLeaf?.desc ?? activeGroup.desc;
 
+  //   리포트 표준(2026-08-19) — 상자 머리: 하위 갈래는 파란 밑줄 탭 한 줄, 설명은 그 아래 한 줄.
+  //   갈래(경영요약·손익현황·자금전망·회계자료)는 사이드바가 맡는다 — 여기선 하위 갈래만.
   return (
-    <div className="reports-tabs reports-header">
-      {/* 갈래(경영요약·손익현황·자금전망·회계자료)는 사이드바가 맡는다 — 여기선 하위 토글만 */}
-      {activeGroup.subs && (
-        <div className="seg-bar no-print">
+    <div className="qk-head report-head no-print">
+      {activeGroup.subs ? (
+        <div className="collect-tabs">
           {activeGroup.subs.map((l) => {
             const active = matchesPath(pathname, leafPaths(l));
             return (
-              <Link key={l.href} href={l.href} className={`seg-item no-underline ${active ? "seg-item-active" : ""}`}>
+              <Link key={l.href} href={l.href} className={active ? "collect-tab collect-tab-on no-underline" : "collect-tab no-underline"}>
                 {l.label}
               </Link>
             );
           })}
         </div>
+      ) : (
+        <div className="collect-tabs">
+          <span className="collect-tab collect-tab-on">{activeGroup.label}</span>
+        </div>
       )}
-
-      {desc && <p className="reports-tab-desc">{desc}</p>}
+      {desc && <div className="report-desc">{desc}</div>}
     </div>
   );
 }
