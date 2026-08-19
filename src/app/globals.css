@@ -9690,3 +9690,26 @@ table.ve-import-table { min-width: 720px; }
 table.dup-table { min-width: 0; }
 .dup-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
 .exclude-prompt { @apply max-w-lg; }
+
+/* ── 레일 + 패널 사이드바 (2026-08-19 사장님 확정, docs/20260819_PLAN_sidebar_rail_panel.md) ──
+   왼쪽 레일 64px = 로고 · 그룹 아이콘 · (아래) 다크 모드 · 접기 · 로그아웃. 오른쪽 패널 192px = 고른 그룹의 항목만.
+   접기 = 레일만 남고, 레일 아이콘에 올리면 그 그룹 패널이 떠서(flyout) 보인다. */
+.sb-shell { @apply flex-row; }
+.sb-rail { @apply w-16 shrink-0 h-full flex flex-col items-center py-3 gap-1 border-r border-[var(--border)]/60; }
+.sb-rail-logo { @apply mb-2 rounded-xl hover:opacity-80 transition; }
+.sb-rail-groups { @apply flex-1 min-h-0 overflow-y-auto flex flex-col items-center gap-1 w-full px-2; }
+.sb-rail-btn { @apply relative w-12 h-12 shrink-0 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-light)] transition; }
+.sb-rail-btn-on, .sb-rail-btn-on:hover { background: linear-gradient(135deg, var(--primary), var(--primary-soft)); color: #fff; box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--primary) 55%, transparent); }
+.sb-rail-ico { @apply text-[var(--text-muted)]; }
+.sb-rail-txt { @apply text-[9.5px] leading-none tracking-tight whitespace-nowrap; }
+.sb-rail-dot { @apply absolute top-1.5 right-2 w-2 h-2 rounded-full bg-[var(--danger)] ring-2 ring-[var(--bg-elevated)]; }
+.sb-rail-bottom { @apply shrink-0 flex flex-col items-center gap-0.5 pt-2 border-t border-[var(--border)]/60 w-full px-2; }
+.sb-rail-iconbtn { @apply w-10 h-9 rounded-lg flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition; }
+.sb-rail-iconbtn-danger { @apply hover:text-[var(--danger)] hover:bg-[var(--danger-dim)]; }
+.sb-panel { @apply flex-1 min-w-0 h-full flex flex-col; }
+.sb-panel-brand { @apply flex items-center gap-2 px-3.5 pt-3.5 pb-3 border-b border-[var(--border)]; }
+.sb-panel-title { @apply flex items-baseline justify-between px-2 pt-1 pb-1.5 text-[13px] font-bold text-[var(--text)]; }
+.sb-panel-title small { @apply text-[10px] font-normal text-[var(--text-dim)]; }
+.sb-layer { @apply px-2.5 pt-2.5 pb-1 text-[10px] font-semibold tracking-wider text-[var(--text-dim)]; }
+.sb-flyout-wrap { @apply absolute left-full pl-1.5 z-[60]; }
+.sb-flyout { @apply w-52 max-h-[80vh] overflow-y-auto rounded-2xl border border-[var(--border)]/60 shadow-[var(--shadow-lg)] p-2; }

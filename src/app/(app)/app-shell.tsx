@@ -316,7 +316,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       {/* 라운드6.5 TeamHub 헤더바 — 좌: 브레드크럼+타이틀 / 우: 검색 필·알림 벨·도움말·프로필 칩 */}
       <header
         className={`chrome-glass absolute top-0 md:top-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] transition-all duration-200 md:max-w-[1400px] ${
-          collapsed ? "md:left-[124px]" : "md:left-[296px]"
+          collapsed ? "md:left-[120px]" : "md:left-[312px]"
         } left-0 right-0 ${guideOpen ? "md:right-[412px]" : "md:right-3"}`}
       >
         {/* Left: Mobile hamburger — hide for limited roles on mobile (they use bottom nav) */}
@@ -402,7 +402,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <main
         className={`flex-1 min-w-0 transition-[margin] duration-200 pt-[80px] md:pt-[88px] ${
-          collapsed ? "md:ml-[92px]" : "md:ml-[264px]"
+          collapsed ? "md:ml-[88px]" : "md:ml-[280px]"
         } ml-0 ${guideOpen ? "md:mr-[412px]" : ""} ${isLimitedRole ? "p-4 pb-20 md:p-6 md:pl-8 md:pr-3 md:pb-3" : "p-6 pb-20 md:pb-3 md:pr-3 md:pl-8"}`}
       >
         {/* 2026-07-14 콘텐츠 좌측 정렬 + 우측 여백 + 전체 축소(사장님 요청, 오너뷰사이즈.PNG).

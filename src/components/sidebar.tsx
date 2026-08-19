@@ -18,15 +18,17 @@ import { usePopups } from "@/components/popup-windows";
 
 //   permKey — 권한을 확인할 때 쓸 라우트. 한 권한(예: /reports) 아래 여러 메뉴를 펼 때 쓴다.
 //   없으면 href 를 쓴다(대부분).
-type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; permKey?: string; children?: NavItem[] };
-type NavGroup = { label: string; items: NavItem[] };
+//   layer — 이 항목부터 새 '층'이 시작된다는 소제목 (긴 그룹을 패널 안에서 읽히게, 2026-08-19 파이낸스 A안: 기초/자료/기장/예정)
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; permKey?: string; children?: NavItem[]; layer?: string };
+//   short/icon — 레일(왼쪽 60px 세로 줄)에 그리는 두세 글자 이름과 아이콘 (2026-08-19 레일+패널 사이드바)
+type NavGroup = { label: string; short: string; icon: string; items: NavItem[] };
 
 // ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
 //   파이낸스(구 회계관리) 홈 바로 아래. 워크스페이스(구 그룹웨어): 게시판·채팅·승인·일정·프로젝트·전자계약.
 //   인사관리: 구성원·근태·서류. 자산관리: 통장·카드·정기결제 등. (2026-07-30 P2: 화면 한 벌 — 권한 기반 노출)
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: "홈",
+    label: "홈", short: "홈", icon: "grid",
     items: [
       { href: "/dashboard", label: "대시보드", icon: "grid" },
       // 마스터 전용 — 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동 (2026-08-10 사장님)
@@ -40,16 +42,16 @@ const NAV_GROUPS: NavGroup[] = [
     // 2026-07-23 파이낸스 4탭 통합 — 8개 항목을 목적 단위 4개 허브로. 상세는 각 화면 상단 하위 탭(FinanceTabs)으로 전환.
     //   거래처(관리·원장) / 세금·증빙(세금계산서·현금영수증) / 거래 장부(자동분류·입금매칭) / 전표입력(별도) / 분석.
     //   라우트·페이지는 그대로. match 로 허브 활성 범위를 지정(예: 거래 장부는 /partners/reconciliation 포함).
-    label: "파이낸스",
+    label: "파이낸스", short: "파이낸스", icon: "wallet",
     items: [
       //   2026-08-19 사장님 확정(A안) — 층으로 쌓는다: 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출).
       //   "위에 있는 것이 아래를 먹여 살린다" — 새 회사는 위에서부터 차례로 채우면 된다. (예전: 매일 여는 수집·전표가 첫 자리)
       //   통장·카드·정기 지출은 옛 '자금' 그룹에서 왔다(2026-08-19 사장님: 자금 그룹 폐지).
-      { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"], layer: "기초" },
       { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
       { href: "/partners", label: "거래처", icon: "users", roles: ["owner", "admin"], match: ["/partners"] },
       //   흩어져 있던 다섯 화면의 수집을 모은 입구 (2026-08-11). 자료를 받아 전표까지 여기서 끝낸다.
-      { href: "/collect", label: "수집·전표", icon: "download", roles: ["owner", "admin"], match: ["/collect"] },
+      { href: "/collect", label: "수집·전표", icon: "download", roles: ["owner", "admin"], match: ["/collect"], layer: "자료" },
       { href: "/tax-invoices", label: "세금·증빙", icon: "receipt", roles: ["owner", "admin"], match: ["/tax-invoices", "/cash-receipts", "/e-invoices"] },
       //   2026-08-11 — '자동 분류'를 메뉴에서 내렸다(사장님 지시).
       //     · 통장 줄 처리(수금 매칭·전표·계좌이동·카드 다대일·되돌리기·추천)는 전부 수집·전표 통장 탭으로 갔고,
@@ -61,10 +63,10 @@ const NAV_GROUPS: NavGroup[] = [
       // 전표는 두 갈래로 나눠 각각 메뉴로 둔다 (2026-08-11 사장님 지시 — 탭 말고 메뉴).
       //   일반전표 = 통장·대체·결산 / 매입매출전표 = 세금계산서·카드·현금영수증(부가세 유형이 붙는 거래).
       //   경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 각각 단독 활성.
-      { href: "/partners/reconciliation/voucher-entry", label: "일반전표", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"] },
+      { href: "/partners/reconciliation/voucher-entry", label: "일반전표", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"], layer: "기장" },
       { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
       //   정기 지출은 실적이 아니라 '예정' — 성격이 달라 맨 아래. (분석 '자금 전망' 옆으로 옮길지는 사장님 결정 대기)
-      { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"] },
+      { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"], layer: "예정" },
       // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인). 라우트(/loans, /vault)는 그대로.
     ],
   },
@@ -73,7 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
     //   ★ 5개까지만 편다. 하위(매출·비용·월별표 / 예정지출·운영시나리오)는 화면 안 세그먼트로 남긴다
     //     — 8개를 다 펴면 사이드바가 길어져 오히려 못 찾는다.
     //   거래처 원장도 여기로 옮겼다 — 판단용 장부라 '보는 곳'이 맞다(거래처 화면의 링크는 그대로 둔다).
-    label: "분석",
+    label: "분석", short: "분석", icon: "bar-chart",
     items: [
       { href: "/reports/summary", permKey: "/reports", label: "경영 요약", icon: "bar-chart", roles: ["owner", "admin"], match: ["/reports", "/reports/summary"] },
       { href: "/reports/profit", permKey: "/reports", label: "손익 현황", icon: "trending-up", roles: ["owner", "admin"], match: ["/reports/profit", "/reports/revenue", "/reports/expense", "/reports/monthly"] },
@@ -88,7 +90,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "워크스페이스",
+    label: "워크스페이스", short: "워크", icon: "briefcase",
     items: [
       // 메뉴 순서: 일정/할일 → 프로젝트 → 승인요청 → 게시판 → 메신저 (전자계약은 끝 유지)
       //   '워크플로우'(전사 칸반 /projects)는 실행형 프로젝트 상세 마지막 탭으로 이동 (2026-06-30).
@@ -102,7 +104,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "인사관리",
+    label: "인사관리", short: "인사", icon: "user-check",
     items: [
       { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
@@ -114,7 +116,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     //   2026-08-19 사장님: '설정·도움말'은 오너뷰가 주는 기능(가이드·고객센터)과 회사가 다루는 것(회사 설정)이 섞여
     //   통일감이 없다 → 둘로 가른다. 회사 관리 = 회사가 정하는 것(설정·공지·요금제) / 도움말 = 오너뷰가 주는 것.
-    label: "회사 관리",
+    label: "회사 관리", short: "회사", icon: "settings",
     items: [
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
       { href: "/announcements", label: "공지사항", icon: "megaphone", badgeKey: "announcements" },
@@ -122,7 +124,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "도움말",
+    label: "도움말", short: "도움말", icon: "help-circle",
     items: [
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/support", label: "고객센터", icon: "headphones" },
@@ -291,6 +293,16 @@ export function Sidebar() {
   const { isMaster, hasMenu } = useMyPermissions();
   const filteredNav = filterNavUnified(role, isMaster, hasMenu, isOperator);
 
+  // ── 레일 + 패널 (2026-08-19 사장님 확정, docs/20260819_PLAN_sidebar_rail_panel.md) ──
+  //   왼쪽 레일에 그룹 7개, 오른쪽 패널엔 고른 그룹의 항목만. 지금 그룹은 **주소가 정한다**(화면이 바뀌면 그 화면의 그룹으로).
+  //   레일에 마우스를 올리면 미리 보고(preview), 누르면 고정(view). 마지막에 본 그룹은 기억하지 않는다.
+  //   접기 = 레일만 남고, 레일 아이콘에 올리면 그 그룹 패널이 떠서(flyout) 보인다.
+  const [viewGroup, setViewGroup] = useState<string | null>(null);
+  const [previewGroup, setPreviewGroup] = useState<string | null>(null);
+  const [flyTop, setFlyTop] = useState(0);
+  const railWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { setViewGroup(null); setPreviewGroup(null); }, [pathname]);
+
   // Build flat lookup for pinned pages
   const allNavItems = filteredNav.flatMap(g => g.items.flatMap(i => i.children ? [i, ...i.children] : [i]));
   const pinnedItems = pinnedPages
@@ -317,7 +329,9 @@ export function Sidebar() {
   }, []);
 
   // 데스크톱 단일 아이템 렌더 (하위 토글 지원 — 부모는 chevron, 일반은 핀)
+  //   ★ 접힌 상태에서도 항목은 떠 있는 패널 안에 '펼친 모양'으로 그리므로, 여기서는 항상 펼친 형태다 (2026-08-19 레일+패널)
   const renderDesktopItem = (item: NavItem, isChild: boolean, hasChildren = false, open = false) => {
+    const collapsed = false;
     const active = isItemActive(item);
     const bk = (item as any).badgeKey;
     const badge = bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : bk === "announcements" ? announcementsUnread : 0;
@@ -498,17 +512,102 @@ export function Sidebar() {
     window.location.href = "/auth";
   }
 
-  const sidebarWidth = collapsed ? "w-[68px]" : "w-60";
+  //   지금 주소가 속한 그룹(최장 매치 항목이 있는 그룹). 아무 데도 안 맞으면 첫 그룹.
+  const routeGroup = filteredNav.find((g) => g.items.some((i) => isItemActive(i) || (i.children || []).some(isItemActive)))?.label ?? filteredNav[0]?.label ?? "";
+  const shownGroupLabel = (collapsed ? previewGroup : (previewGroup || viewGroup)) || routeGroup;
+  const shownGroup = filteredNav.find((g) => g.label === shownGroupLabel) || filteredNav[0];
+  const badgeOf = (bk?: string) => bk === "chat" ? chatUnread : bk === "approvals" ? approvalsPending : bk === "notifications" ? notificationsUnread : bk === "announcements" ? announcementsUnread : 0;
+  const groupHasBadge = (g: NavGroup) => g.items.some((i) => badgeOf(i.badgeKey) > 0);
+  const groupItemsFlat = (g: NavGroup) => g.items.flatMap((i) => i.children ? [i, ...i.children] : [i]);
+  const groupOn = (g: NavGroup) => (collapsed ? (previewGroup || routeGroup) : shownGroupLabel) === g.label;
+  //   레일 아이콘 hover — 펼친 상태면 패널 미리 보기, 접힌 상태면 떠 있는 패널 위치를 그 아이콘 높이에 맞춘다
+  const onRailEnter = (g: NavGroup, e: React.MouseEvent<HTMLElement>) => {
+    if (collapsed) {
+      const wrap = railWrapRef.current?.getBoundingClientRect();
+      const r = e.currentTarget.getBoundingClientRect();
+      setFlyTop(Math.max(0, r.top - (wrap?.top ?? 0) - 8));
+    }
+    setPreviewGroup(g.label);
+  };
+
+  //   패널(또는 떠 있는 패널) 안 항목 목록 — 층 소제목 + 항목 + 하위
+  const renderGroupItems = (g: NavGroup) => (
+    <div className="sidebar-group-list">
+      {g.items.map((item) => {
+        const layer = item.layer ? <div key={`layer-${item.href}`} className="sb-layer">{item.layer}</div> : null;
+        const kids = item.children;
+        if (kids && kids.length) {
+          const open = !collapsedParents.has(item.href);
+          return (
+            <div key={item.href}>
+              {layer}
+              {renderDesktopItem(item, false, true, open)}
+              {open && <div className="mt-0.5 space-y-0.5">{kids.map((c) => renderDesktopItem(c, true))}</div>}
+            </div>
+          );
+        }
+        return <div key={item.href}>{layer}{renderDesktopItem(item, false)}</div>;
+      })}
+    </div>
+  );
+
+  const themeIcon = theme === "light" ? (
+    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+    </svg>
+  ) : (
+    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  );
+
+  const sidebarWidth = collapsed ? "w-16" : "w-64";
 
   const sidebarContent = (
-    <aside
-      className={`sidebar-panel chrome-glass ${sidebarWidth}`}
-    >
-      {/* Logo — U1: 로고 클릭 → /dashboard. 오른쪽에 원클릭 출퇴근 버튼 (2026-08-10 사장님 요청) */}
-      <div className={`sidebar-logo-block ${collapsed ? "px-3 py-4" : "sidebar-logo-row px-5 py-4"}`}>
-        <Link href="/dashboard" className={`sidebar-brand-link ${collapsed ? "justify-center" : "gap-2.5 flex-1 min-w-0"}`} aria-label="대시보드로 이동">
-          <OwnerViewIcon size={28} />
-          {!collapsed && (
+    <aside className={`sidebar-panel chrome-glass sb-shell ${sidebarWidth}`}>
+      {/* ── 레일: 로고 · 그룹 7개 · (아래) 다크 모드 · 접기 · 로그아웃 — 다크 모드는 아이콘으로 접기 위에 (2026-08-19 사장님) ── */}
+      <div className="sb-rail">
+        <Link href="/dashboard" className="sb-rail-logo" aria-label="대시보드로 이동" title="대시보드"><OwnerViewIcon size={30} /></Link>
+        <div className="sb-rail-groups">
+          {filteredNav.map((g) => {
+            const on = groupOn(g);
+            return (
+              <button key={g.label} type="button"
+                onMouseEnter={(e) => onRailEnter(g, e)}
+                onClick={() => { setViewGroup(g.label); setPreviewGroup(g.label); }}
+                className={`sb-rail-btn ${on ? "sb-rail-btn-on" : ""}`} aria-label={g.label} aria-pressed={on}>
+                <NavIcon name={g.icon} className={on ? "text-white" : "sb-rail-ico"} />
+                <span className="sb-rail-txt">{g.short}</span>
+                {groupHasBadge(g) && <span className="sb-rail-dot" aria-label="새 알림" />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="sb-rail-bottom">
+          <Tooltip label={theme === "light" ? "다크 모드" : "라이트 모드"} show>
+            <button type="button" onClick={toggleTheme} className="sb-rail-iconbtn" aria-label={theme === "light" ? "다크 모드" : "라이트 모드"}>{themeIcon}</button>
+          </Tooltip>
+          <Tooltip label={collapsed ? "사이드바 펼치기" : "사이드바 접기"} show>
+            <button type="button" onClick={() => { toggleSidebar(); setPreviewGroup(null); }} className="sb-rail-iconbtn" aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}>
+              <svg className={`w-4 h-4 transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="11 17 6 12 11 7" /><polyline points="18 17 13 12 18 7" />
+              </svg>
+            </button>
+          </Tooltip>
+          <Tooltip label="로그아웃" show>
+            <button type="button" onClick={handleLogout} className="sb-rail-iconbtn sb-rail-iconbtn-danger" aria-label="로그아웃">
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+
+      {/* ── 패널: 브랜드·내 이름·출퇴근 → 검색 → (즐겨찾기) → 고른 그룹의 항목만 ── */}
+      {!collapsed && shownGroup && (
+        <div className="sb-panel">
+          <div className="sb-panel-brand">
             <div className="flex-1 min-w-0">
               <div className="text-sm font-bold text-[var(--text)]"><RollingBrandText /></div>
               <div className="text-[10px] text-[var(--text-dim)] flex items-center gap-1">
@@ -520,188 +619,65 @@ export function Sidebar() {
                 </span>
               </div>
             </div>
-          )}
-        </Link>
-        {!collapsed && <SidebarAttendanceButton />}
-      </div>
-
-      {/* Search */}
-      <div className={`sidebar-search-block ${collapsed ? "px-2" : "px-3"}`}>
-        <Tooltip label="검색 (⌘K)" show={collapsed}>
-          <button
-            onClick={() => openGlobalSearch()}
-            className={`sidebar-search-btn ${
-              collapsed ? "justify-center px-0 py-2" : "gap-2 px-3 py-2"
-            }`}
-          >
-            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8" />
-              <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
-            </svg>
-            {!collapsed && (
-              <>
-                <span>검색</span>
-                <kbd className="ml-auto text-[9px] text-[var(--text-dim)] bg-[var(--bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">
-                  ⌘K
-                </kbd>
-              </>
-            )}
-          </button>
-        </Tooltip>
-      </div>
-
-      {/* Nav Groups */}
-      <nav ref={navRef} className={`sidebar-nav ${collapsed ? "px-2" : "px-3"} ${navFade ? "sidebar-nav-fade" : ""}`}>
-        {/* Pinned Pages */}
-        {pinnedItems.length > 0 && (
-          <div className="sidebar-pinned-block">
-            {!collapsed && (
-              <div className="px-2 mb-1 text-[10px] font-semibold text-amber-500 uppercase tracking-wider flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                즐겨찾기
+            <SidebarAttendanceButton />
+          </div>
+          <div className="sidebar-search-block px-3">
+            <button onClick={() => openGlobalSearch()} className="sidebar-search-btn gap-2 px-3 py-2">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+              </svg>
+              <span>검색</span>
+              <kbd className="ml-auto text-[9px] text-[var(--text-dim)] bg-[var(--bg)] px-1.5 py-0.5 rounded border border-[var(--border)]">⌘K</kbd>
+            </button>
+          </div>
+          <nav ref={navRef} className={`sidebar-nav px-3 ${navFade ? "sidebar-nav-fade" : ""}`}>
+            {pinnedItems.length > 0 && (
+              <div className="sidebar-pinned-block">
+                <div className="px-2 mb-1 text-[10px] font-semibold text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+                  즐겨찾기
+                </div>
+                <div className="space-y-0.5">
+                  {pinnedItems.map((item) => {
+                    const active = isItemActive(item);
+                    return (
+                      <Link key={`pin-${item.href}`} href={item.href}
+                        className={`sidebar-pinned-link gap-2.5 px-2.5 py-2 ${active ? "nav-active" : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"}`}>
+                        <NavIcon name={item.icon} href={item.href} className={active ? "text-white" : ""} />
+                        <span className="flex-1">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             )}
-            {collapsed && <div className="my-1 border-t border-amber-500/30" />}
-            <div className="space-y-0.5">
-              {pinnedItems.map((item) => {
-                const active = isItemActive(item);
-                return (
-                  <Tooltip key={`pin-${item.href}`} label={item.label} show={collapsed}>
-                    <Link
-                      href={item.href}
-                      className={`sidebar-pinned-link ${
-                        collapsed ? "justify-center px-0 py-2.5" : "gap-2.5 px-2.5 py-2"
-                      } ${
-                        active
-                          ? "nav-active"
-                          : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
-                      }`}
-                    >
-                      <NavIcon name={item.icon} href={item.href} className={active ? "text-white" : ""} />
-                      {!collapsed && <span className="flex-1">{item.label}</span>}
-                    </Link>
-                  </Tooltip>
-                );
-              })}
+            <div className="sidebar-nav-group">
+              <div className="sb-panel-title"><span>{shownGroup.label}</span><small>{groupItemsFlat(shownGroup).length}</small></div>
+              {renderGroupItems(shownGroup)}
             </div>
-          </div>
-        )}
-
-        {filteredNav.map((group) => {
-          const groupClosed = !collapsed && collapsedGroups.has(group.label);
-          return (
-          <div key={group.label} className="sidebar-nav-group">
-            {!collapsed && (
-              <button onClick={() => toggleGroup(group.label)}
-                className="sidebar-group-toggle-btn">
-                <span>{group.label}</span>
-                <span className={`text-[11px] transition-transform ${groupClosed ? "" : "rotate-90"}`}>›</span>
-              </button>
-            )}
-            {collapsed && <div className="my-1 border-t border-[var(--border)]" />}
-            {!groupClosed && (
-            <div className="sidebar-group-list">
-              {group.items.map((item) => {
-                const kids = item.children;
-                if (kids && kids.length) {
-                  if (collapsed) return <div key={item.href} className="space-y-0.5">{[item, ...kids].map((c) => renderDesktopItem(c, false))}</div>;
-                  const open = !collapsedParents.has(item.href);
-                  return (
-                    <div key={item.href}>
-                      {renderDesktopItem(item, false, true, open)}
-                      {open && <div className="mt-0.5 space-y-0.5">{kids.map((c) => renderDesktopItem(c, true))}</div>}
-                    </div>
-                  );
-                }
-                return renderDesktopItem(item, false);
-              })}
-            </div>
-            )}
-          </div>
-          );
-        })}
-      </nav>
-
-      {/* Collapse Toggle (desktop only) */}
-      <div className="sidebar-collapse-block">
-        <button
-          onClick={toggleSidebar}
-          className="sidebar-collapse-btn"
-          title={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-        >
-          <svg
-            className={`w-4 h-4 transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            viewBox="0 0 24 24"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="11 17 6 12 11 7" />
-            <polyline points="18 17 13 12 18 7" />
-          </svg>
-          {!collapsed && <span>접기</span>}
-        </button>
-      </div>
-
-      {/* Theme Toggle */}
-      <div className={`sidebar-theme-block ${collapsed ? "px-2" : "px-3"}`}>
-        <Tooltip label={theme === "light" ? "다크 모드" : "라이트 모드"} show={collapsed}>
-          <button
-            onClick={toggleTheme}
-            className={`sidebar-theme-btn ${
-              collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-2"
-            }`}
-          >
-            {theme === "light" ? (
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-              </svg>
-            )}
-            {!collapsed && <span>{theme === "light" ? "다크 모드" : "라이트 모드"}</span>}
-          </button>
-        </Tooltip>
-      </div>
-
-      {/* Footer */}
-      <div className={`sidebar-footer-block ${collapsed ? "p-2" : "p-3"}`}>
-        <Tooltip label="로그아웃" show={collapsed}>
-          <button
-            onClick={handleLogout}
-            className={`sidebar-logout-btn ${
-              collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-2.5 py-2 text-left"
-            }`}
-          >
-            <svg
-              className="w-4 h-4 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              viewBox="0 0 24 24"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            {!collapsed && <span>로그아웃</span>}
-          </button>
-        </Tooltip>
-      </div>
+          </nav>
+        </div>
+      )}
     </aside>
   );
+
+  //   접힌 상태에서 레일 아이콘에 올렸을 때 떠서 보이는 그 그룹의 패널 — 레일과 사이에 틈을 안 둔다(틈에서 mouseleave 가 나면 닫힌다)
+  const flyGroup = collapsed && previewGroup ? filteredNav.find((g) => g.label === previewGroup) : null;
+  const flyout = flyGroup ? (
+    <div className="sb-flyout-wrap" style={{ top: flyTop }}>
+      <div className="sb-flyout chrome-glass">
+        <div className="sb-panel-title"><span>{flyGroup.label}</span><small>{groupItemsFlat(flyGroup).length}</small></div>
+        {renderGroupItems(flyGroup)}
+      </div>
+    </div>
+  ) : null;
 
   return (
     <>
       {/* Desktop sidebar: 떠 있는 유리 패널 (여백 두고 둥글게 — 리퀴드글래스 목업 정합) */}
-      <div className="sidebar-desktop-wrapper">
+      <div ref={railWrapRef} className="sidebar-desktop-wrapper" onMouseLeave={() => setPreviewGroup(null)}>
         {sidebarContent}
+        {flyout}
       </div>
 
       {/* Mobile overlay backdrop */}
