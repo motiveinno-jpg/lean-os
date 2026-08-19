@@ -22,7 +22,8 @@ export type AuditAction =
   | 'signature_uploaded'
   | 'signature_submitted'
   | 'document_completed'
-  | 'document_locked';
+  | 'document_locked'
+  | 'sending_cancelled'; // 열람 전 발송 취소 (2026-08-19)
 
 export interface AuditTrailEntry {
   action: AuditAction;
@@ -45,6 +46,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   signature_submitted: '서명 제출',
   document_completed: '서명 완료',
   document_locked: '문서 잠금',
+  sending_cancelled: '발송 취소 (열람 전)',
 };
 
 // ── Log Audit Trail ──

@@ -24,7 +24,7 @@ import { LOSS_REASONS } from "@/lib/insurance-edi";
 import { calculateRetirementPay } from "@/lib/payment-batch";
 import { useUser } from "@/components/user-context";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { getContractTemplates, createContractPackage, sendContractPackage, buildContractFieldsForTemplates, type ContractField } from "@/lib/hr-contracts";
+import { cancelSentContractPackage, getContractTemplates, createContractPackage, sendContractPackage, buildContractFieldsForTemplates, type ContractField } from "@/lib/hr-contracts";
 
 // 구성원 디렉토리(flex-people-directory)와 동일한 해시 팔레트 — 같은 직원은 어디서나 같은 아바타 색.
 function avatarColor(id: string): string {
@@ -153,7 +153,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
     queryFn: async () => {
       const data = logRead('_components/EmployeeDetailPanel:data', await (supabase)
         .from("hr_contract_packages")
-        .select("id, title, status, sign_token, sent_at, completed_at, expires_at, created_at, hr_contract_package_items(id, status)")
+        .select("id, title, status, sign_token, sent_at, viewed_at, completed_at, expires_at, created_at, hr_contract_package_items(id, status)")
         .eq("employee_id", employeeId)
         .order("created_at", { ascending: false }));
       return data || [];
@@ -198,6 +198,17 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
       });
     });
   }
+
+  // 발송 취소 (2026-08-19 사장님) — 상대가 열람·서명하기 전에만. 서명 링크까지 무효화된다.
+  const cancelPkgMut = useMutation({
+    mutationFn: (pkgId: string) => cancelSentContractPackage(pkgId),
+    onSuccess: (r) => {
+      if (!r.success) { toast(r.error || "발송 취소 실패", "error"); return; }
+      toast("발송을 취소했습니다 — 상대의 서명 링크가 무효화되었습니다", "success");
+      queryClient.invalidateQueries({ queryKey: ["emp-hr-packages", employeeId] });
+    },
+    onError: (err: any) => toast("발송 취소 실패: " + friendlyError(err, "알 수 없는 오류"), "error"),
+  });
 
   const sendContractMut = useMutation({
     mutationFn: async () => {
@@ -747,9 +758,24 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                                 {p.created_at ? kstDateStr(new Date(p.created_at)) : ""}
                                 {items.length > 0 ? ` · ${signedCount}/${items.length} 서명` : ""}
                                 {p.completed_at ? ` · 완료 ${kstDateStr(new Date(p.completed_at))}` : p.sent_at ? ` · 발송 ${kstDateStr(new Date(p.sent_at))}` : ""}
+                                {p.viewed_at && !p.completed_at ? ` · 열람 ${kstDateStr(new Date(p.viewed_at))}` : ""}
                               </div>
                             </div>
                             <span className={`text-[10px] px-2 py-0.5 rounded-full shrink-0 ${st.color}`}>{st.label}</span>
+                            {p.status === "sent" && !p.viewed_at && signedCount === 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm("발송을 취소할까요?\n상대에게 보낸 서명 링크가 무효화됩니다.")) cancelPkgMut.mutate(p.id);
+                                }}
+                                disabled={cancelPkgMut.isPending}
+                                title="상대가 열람하기 전에만 취소할 수 있습니다"
+                                className="text-[10px] px-2 py-0.5 rounded-full shrink-0 border border-[var(--danger)]/40 text-[var(--danger)] hover:bg-[var(--danger)]/10 transition disabled:opacity-50"
+                              >
+                                {cancelPkgMut.isPending ? "취소 중..." : "발송 취소"}
+                              </button>
+                            )}
                           </div>
                         );
                       })}

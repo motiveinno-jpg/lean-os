@@ -25,6 +25,7 @@ export interface ContractPackage {
   status: 'draft' | 'sent' | 'partially_signed' | 'completed' | 'cancelled';
   created_by: string;
   sent_at?: string;
+  viewed_at?: string;  // 상대가 서명 페이지를 처음 연 시각 (2026-08-19) — 열람 전에만 발송 취소 가능
   completed_at?: string;
   expires_at?: string;
   sign_token?: string;
@@ -754,6 +755,54 @@ export async function sendContractPackage(
   }
 
   return { success: true, emailSent, inAppDelivered };
+}
+
+// ── Mark Viewed (열람 기록) — /sign 페이지가 열릴 때 SECURITY DEFINER RPC 로 기록 ──
+export async function markContractPackageViewed(token: string): Promise<void> {
+  try { await (db as any).rpc('mark_contract_package_viewed', { p_token: token }); } catch { /* 비차단 */ }
+}
+
+// ── Cancel Sent Package (발송 취소) — 상대가 열람·서명하기 전에만 (2026-08-19 사장님) ──
+//   sign_token 을 비워 /sign 조회 RPC 와 complete-signing 엣지 함수 경로를 모두 끊는다 —
+//   상대가 이미 페이지를 띄워 둔 상태라도 이후 서명이 불가능하다.
+export async function cancelSentContractPackage(packageId: string): Promise<{ success: boolean; error?: string }> {
+  const { data: pkg } = await db
+    .from('hr_contract_packages')
+    .select('id, status, viewed_at, title, company_id, employees(user_id), hr_contract_package_items(id, status)')
+    .eq('id', packageId)
+    .maybeSingle();
+  if (!pkg) return { success: false, error: '계약서를 찾을 수 없습니다.' };
+  const p = pkg as any;
+  if (p.status !== 'sent') return { success: false, error: '발송됨 상태에서만 취소할 수 있습니다.' };
+  if (p.viewed_at) return { success: false, error: '상대가 이미 열람한 계약서입니다 — 취소할 수 없습니다.' };
+  if ((p.hr_contract_package_items || []).some((it: any) => it.status === 'signed')) {
+    return { success: false, error: '이미 서명이 시작된 계약서입니다 — 취소할 수 없습니다.' };
+  }
+
+  const { error } = await db
+    .from('hr_contract_packages')
+    .update({ status: 'cancelled', sign_token: null, updated_at: new Date().toISOString() })
+    .eq('id', packageId)
+    .eq('status', 'sent'); // 그 사이 상태가 바뀌었으면(서명 진행 등) 덮어쓰지 않는다
+  if (error) return { success: false, error: error.message };
+
+  // 발송 때 만든 인앱 알림 회수 — 열람 전 취소는 조용히(죽은 링크 방지). 실패해도 취소는 유효.
+  try {
+    await db.from('notifications').delete()
+      .eq('entity_type', 'hr_contract_package')
+      .eq('entity_id', packageId);
+  } catch { /* RLS 로 못 지울 수 있음 — 비차단 */ }
+
+  try {
+    await logAuditTrail(packageId, {
+      action: 'sending_cancelled',
+      timestamp: new Date().toISOString(),
+      actor: 'company',
+      details: '열람 전 발송 취소 — 서명 링크 무효화',
+    });
+  } catch { /* 비차단 */ }
+
+  return { success: true };
 }
 
 // ── Get Package by Sign Token (for external signing page) ──

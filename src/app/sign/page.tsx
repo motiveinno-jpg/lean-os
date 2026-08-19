@@ -588,6 +588,16 @@ function SignContent() {
         sealUrl = companySeal;
         sealAppliedAt = sealAppliedAt || p.sent_at || p.created_at || new Date().toISOString();
       }
+      // 열람 기록 (2026-08-19) — 발송됨 상태에서 처음 열릴 때 stamp. 보낸 사람(created_by) 본인의
+      //   미리보기는 열람으로 치지 않는다 — '열람 전 발송 취소' 판단이 오염되지 않게.
+      if ((p as any).status === "sent" && !(p as any).viewed_at) {
+        try {
+          const { data: au } = await db.auth.getUser();
+          if (!au?.user?.id || au.user.id !== (p as any).created_by) {
+            await (db as any).rpc("mark_contract_package_viewed", { p_token: token });
+          }
+        } catch { /* 비차단 */ }
+      }
       setPkg({ ...p, expired, items: items || [], seal_url: sealUrl, seal_applied_at: sealAppliedAt, seal_company_name: sealCompanyName, contract_meta: contractMeta } as any);
 
       // Saved signature 도 RPC 가 employees.saved_signature 로 함께 반환
