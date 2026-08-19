@@ -9,6 +9,7 @@ import { getCurrentUser, clearCurrentUserCache } from "@/lib/queries";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { useUser } from "@/components/user-context";
 import { Avatar } from "@/components/avatar";
+import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { useToast } from "@/components/toast";
 // 개인 계정 영역 — 회사 설정에서 마이페이지로 이관(2026-07-08). 컴포넌트 위치는 유지, 마운트만 옮김.
 import { AccountTab } from "../settings/_components/AccountTab";
@@ -318,53 +319,34 @@ export default function MyPage() {
   const roleLabel = (ctxUser as any)?.is_master ? "마스터" : role === "partner" ? "파트너" : "멤버"; // (P3) 역할 라벨 개편
 
   return (
-    <div className="mypage-page">
-      {/* ── 히어로 프로필 — 그라데이션 배너 + 아바타 오버랩 (직원상세패널 히어로 패턴) ── */}
-      <div className="mypage-hero glass-card">
-        <div className="mypage-hero-banner" />
-        <div className="mypage-hero-body">
-          <div className="mypage-hero-avatar-wrap">
-            <Avatar name={userInfo?.name} src={(userInfo as any)?.avatar_url} size={84} className="mypage-hero-avatar" />
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={uploadingAvatar}
-              className="mypage-avatar-cam-btn"
-              title="프로필 사진 변경"
-              aria-label="프로필 사진 변경"
-            >
-              {uploadingAvatar ? (
-                <span className="w-3.5 h-3.5 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
-              )}
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
+    <div className="qk-shell mypage-page">
+      {/* ── 조회 화면 표준 상자 (2026-08-19 확산) — 그라데이션 히어로 + 바깥 seg-bar → 갈래 탭 상자 안 파란 밑줄 + 신원 한 줄(아바타·이름·역할·이메일·회사), 본문만 스크롤 ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print" role="tablist" aria-label="마이페이지 메뉴">
+            {([["records", "인사기록"], ["attendance", "근태"], ["notif", "알림 설정"], ["account", "계정·보안"]] as const).map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setTab(k)} className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"} role="tab" aria-selected={tab === k}>{l}</button>
+            ))}
           </div>
-          <div className="mypage-hero-identity">
-            <div className="mypage-hero-name-row">
-              <span className="text-lg font-extrabold text-[var(--text)] truncate">{userInfo?.name || "—"}</span>
-              <span className="badge badge-primary">{roleLabel}</span>
-            </div>
-            <div className="mypage-hero-sub">{[userInfo?.email, company?.name].filter(Boolean).join(" · ") || "—"}</div>
-          </div>
-          {/* 연차 잔여 배지는 "연차 현황" 카드와, 부서·직위·입사일 칩은 "인사 정보" 카드와 중복이라 제거(2026-07-20) */}
-          {(userInfo as any)?.avatar_url && (
-            <div className="mypage-hero-chips">
-              <button onClick={handleAvatarRemove} disabled={uploadingAvatar}
-                className="text-[11px] text-[var(--text-dim)] hover:text-[var(--text-muted)] underline underline-offset-2">
-                기본 이미지로
+          <div className="mypage-identity">
+            <span className="mypage-identity-avatar">
+              <Avatar name={userInfo?.name} src={(userInfo as any)?.avatar_url} size={36} />
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploadingAvatar} className="mypage-avatar-cam-btn" title="프로필 사진 변경" aria-label="프로필 사진 변경">
+                {uploadingAvatar ? <span className="w-3 h-3 border-2 border-[var(--border)] border-t-[var(--primary)] rounded-full animate-spin" />
+                  : <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>}
               </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── 섹션 탭 ── */}
-      <div className="mypage-section-tabs seg-bar" role="tablist" aria-label="마이페이지 메뉴">
-        {([["records", "인사기록"], ["attendance", "근태"], ["notif", "알림 설정"], ["account", "계정·보안"]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} className={`seg-item ${tab === k ? "seg-item-active" : ""}`} role="tab" aria-selected={tab === k}>{l}</button>
-        ))}
-      </div>
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarFile} className="hidden" />
+            </span>
+            <b>{userInfo?.name || "—"}</b>
+            <span className="badge badge-primary">{roleLabel}</span>
+            <span className="text-[var(--text-muted)]">{[userInfo?.email, company?.name].filter(Boolean).join(" · ") || "—"}</span>
+            {(userInfo as any)?.avatar_url && (
+              <button type="button" onClick={handleAvatarRemove} disabled={uploadingAvatar} className="btn-secondary btn-sm ml-auto">기본 이미지로</button>
+            )}
+          </div>
+        </QueryHead>
+        <QueryBody>
+        <div className="mypage-scroll">
 
       {/* ── 인사기록 탭 — 인사정보 · 연차 · 계약서 · 급여명세 · 증명서 ── */}
       {tab === "records" && (
@@ -617,6 +599,9 @@ export default function MyPage() {
           </div>
         </div>
       )}
+        </div>
+        </QueryBody>
+      </QueryScreen>
     </div>
   );
 }
