@@ -10,6 +10,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { ActivityCard } from "@/components/dashboard-activity";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -180,7 +181,8 @@ export function DashboardRevenueTrendCard({ companyId }: { companyId: string }) 
 
 // ── 하단 풀폭 행 — 카드 / 자산 ──
 // ── 카드 위젯 — 이번 달 카드별 사용액 (독립 위젯) ──
-export function CardsSummaryCard({ companyId }: { companyId: string }) {
+//   2026-08-19 재편 — headExtra(동기화 시각·미분류·↻)는 대시보드가 넣어 준다(통장은 통장, 카드는 카드 위젯 머리에)
+export function CardsSummaryCard({ companyId, headExtra }: { companyId: string; headExtra?: React.ReactNode }) {
   const { data: cards } = useQuery({
     queryKey: ["dash-cards", companyId],
     queryFn: async () => {
@@ -198,8 +200,9 @@ export function CardsSummaryCard({ companyId }: { companyId: string }) {
     enabled: !!companyId, staleTime: 60_000,
   });
   return (
-    <CompactAssetCard title="카드" color={A.red} total={cards?.total ?? 0} totalLabel="이번 달 사용"
-      rows={(cards?.list || []).slice(0, 3)} count={cards?.count ?? 0} href="/cards" empty="이번 달 카드 사용이 없습니다 — 카드를 연결하면 사용액이 자동 집계됩니다." />
+    <CompactAssetCard title="카드 사용" summary={cards && cards.total > 0 ? <>이번 달 <b className="mono-number text-[var(--text)]">{fmtW(cards.total)}</b></> : undefined}
+      rows={(cards?.list || []).slice(0, 5)} href="/cards" headExtra={headExtra}
+      empty="이번 달 카드 사용이 없습니다 — 카드를 연결하면 사용액이 자동 집계됩니다." />
   );
 }
 
@@ -216,44 +219,25 @@ export function AssetsSummaryCard({ companyId }: { companyId: string }) {
     enabled: !!companyId, staleTime: 60_000,
   });
   return (
-    <CompactAssetCard title="자산" color={A.green} total={assets?.total ?? 0} totalLabel="총 자산"
-      rows={(assets?.list || []).slice(0, 3)} count={assets?.count ?? 0} href="/bank" empty="등록된 계좌가 없습니다 — 통장을 연결하면 잔액이 자동으로 모입니다." />
+    <CompactAssetCard title="계좌별 잔액" summary={assets && assets.count > 0 ? <>합계 <b className="mono-number text-[var(--text)]">{fmtW(assets.total)}</b> · {assets.count}개</> : undefined}
+      rows={(assets?.list || []).slice(0, 5)} href="/bank"
+      empty="등록된 계좌가 없습니다 — 통장을 연결하면 잔액이 자동으로 모입니다." />
   );
 }
 
 // 자산/카드 요약 — 작고 세련된 직사각형(총액 강조 + 얇은 내역 라인 + 카드 전체 클릭 이동)
-function CompactAssetCard({ title, color, total, totalLabel, rows, count, href, empty }: {
-  title: string; color: string; total: number; totalLabel: string;
-  rows: { name: string; amount: number }[]; count: number; href: string; empty: string;
+//   2026-08-19 재편 — 공용 셸(ActivityCard)로. '이번 달 사용'·'총 자산' 카드 → 머리의 요약 글자(상자 안 상자 금지)
+function CompactAssetCard({ title, summary, rows, href, empty, headExtra }: {
+  title: string; summary?: React.ReactNode; rows: { name: string; amount: number }[]; href: string; empty: string; headExtra?: React.ReactNode;
 }) {
   return (
-    <Link href={href} className="compact-asset-card glass-card">
-      <div className="compact-asset-header">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-          <span className="text-[13px] font-bold text-[var(--text)]">{title}</span>
-        </div>
-        <span className="widget-more-link">{count}개 전체보기 →</span>
-      </div>
-      {/* 브리핑 숫자 스트립과 동일 문법 — 라벨 위 + 굵은 값 아래, 서피스 밴드 (2026-08-10 통일) */}
-      <div className="widget-statband widget-statband-1">
-        <div className="widget-stat">
-          <div className="widget-stat-label">{totalLabel}</div>
-          <div className="widget-stat-value mono-number" style={{ color }}>{fmtW(total)}</div>
-        </div>
-      </div>
-      {rows.length === 0 ? (
-        <div className="widget-empty"><span className="widget-empty-text">{empty}</span></div>
-      ) : (
-        <div className="compact-asset-rows">
-          {rows.map((r) => (
-            <div key={r.name} className="compact-asset-row">
-              <span className="truncate text-[var(--text-dim)] mr-2">{r.name}</span>
-              <span className="tabular-nums text-[var(--text-muted)] shrink-0">{fmtW(r.amount)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </Link>
+    <ActivityCard title={title} href={href} summary={summary} headExtra={headExtra} empty={rows.length === 0} emptyText={empty}>
+      {rows.map((r) => (
+        <Link key={r.name} href={href} className="compact-asset-row">
+          <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{r.name}</span>
+          <span className="text-[11px] mono-number text-[var(--text-muted)] shrink-0">{fmtW(r.amount)}</span>
+        </Link>
+      ))}
+    </ActivityCard>
   );
 }

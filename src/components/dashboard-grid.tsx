@@ -13,7 +13,6 @@
 //     창 축소→확대 시 잘못된 너비가 고정되는 버그가 있었음. 직접 측정으로 완전 해결.
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Ico } from "@/components/ui-icon";
 import { supabase } from "@/lib/supabase";
 import GridLayout, { type Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -77,9 +76,11 @@ function useContainerWidth(): [(node: HTMLDivElement | null) => void, number] {
   return [setRef, width];
 }
 
+export type WidgetPreset = { id: string; label: string; ids: string[] };
+
 export function DashboardGrid({
   storageKey, catalog, defaultActiveIds, title = "", recommended = [], sidebarCollapsed = false,
-  layoutMigration, activeMigration,
+  layoutMigration, activeMigration, fixedH, presets = [],
 }: {
   storageKey: string;
   catalog: CatalogWidget[];
@@ -87,6 +88,10 @@ export function DashboardGrid({
   title?: string;
   recommended?: string[];
   sidebarCollapsed?: boolean;
+  //   2026-08-19 재편 — 모든 위젯 같은 키(h 고정, 폭 4칸 고정, 크기 조절 없음). 높이 제각각이던 벽돌 쌓기의 원인을 없앤다.
+  fixedH?: number;
+  //   관점 프리셋(대표/회계/직원) — '보기 설정' 판에서 고르면 그 위젯 묶음이 켜진다. 이후 사람이 켜고 끈 것이 이긴다.
+  presets?: WidgetPreset[];
   // 위젯 내용이 커졌을 때 이미 저장된 배치를 한 번만 끌어올린다(id 가 바뀔 때만 재적용).
   //   저장본이 있는 계정은 카탈로그 기본 크기를 안 쓰기 때문에, 이게 없으면 큰 카드가 옛 높이에 갇힌다.
   layoutMigration?: { id: string; minH: Record<string, number> };
@@ -94,12 +99,11 @@ export function DashboardGrid({
   //   병합 후 사용자가 위젯을 빼면 그 선택은 그대로 유지된다.
   activeMigration?: string;
 }) {
-  const [edit, setEdit] = useState(false);
+  const [edit, setEdit] = useState(false);      // 순서 바꾸기(드래그) 모드
+  const [viewOpen, setViewOpen] = useState(false); // 보기 설정 판
   const [mounted, setMounted] = useState(false);
   const [layout, setLayout] = useState<Layout[]>([]);
   const [activeIds, setActiveIds] = useState<string[]>(defaultActiveIds);
-  const [copied, setCopied] = useState(false);
-  const [picking, setPicking] = useState(false);
 
   const activeKey = `${storageKey}::active`;
 
@@ -232,17 +236,17 @@ export function DashboardGrid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
-  const active = useMemo(() => activeIds.map((id) => catMap[id]).filter(Boolean) as CatalogWidget[], [activeIds, catalogIds]);
-  const addable = useMemo(() => catalog.filter((c) => !activeIds.includes(c.id)), [activeIds, catalogIds]);
-  const recSet = recommended.join(",");
-  const recAddable = useMemo(() => addable.filter((c) => recommended.includes(c.id)), [addable, recSet]);
-  const pickerList = useMemo(() => [...addable].sort((a, b) => (recommended.includes(b.id) ? 1 : 0) - (recommended.includes(a.id) ? 1 : 0)), [addable, recSet]);
+  //   catMap(=카탈로그 객체)에 의존한다 — id 만 보면 render 클로저가 첫 렌더 값(예: 동기화 상태 로딩 전)에 갇힌다 (2026-08-19)
+  const active = useMemo(() => activeIds.map((id) => catMap[id]).filter(Boolean) as CatalogWidget[], [activeIds, catMap]);
 
   const effective = useMemo(() => {
     const saved = Object.fromEntries(layout.map((l) => [l.i, l]));
     const def = Object.fromEntries(buildDefault(active).map((l) => [l.i, l]));
-    return active.map((w) => saved[w.id] || def[w.id]);
-  }, [layout, activeIds, catalogIds]);
+    const raw = active.map((w) => saved[w.id] || def[w.id]);
+    if (!fixedH) return raw;
+    //   같은 키 — 폭 4(3열)·높이 fixedH 로 강제. 저장본의 옛 크기는 무시하고 x 는 열에 맞춰 0/4/8 로 스냅.
+    return raw.map((l) => ({ ...l, w: 4, h: fixedH, minW: 4, maxW: 4, minH: fixedH, maxH: fixedH, x: Math.min(8, Math.round((l.x ?? 0) / 4) * 4) }));
+  }, [layout, activeIds, catalogIds, fixedH]);
 
   const persistActive = (ids: string[]) => {
     setActiveIds(ids);
@@ -267,7 +271,6 @@ export function DashboardGrid({
     });
   };
 
-  const addWidget = (id: string) => { if (!activeIds.includes(id)) persistActive([...activeIds, id]); setPicking(false); };
   const removeWidget = (id: string) => persistActive(activeIds.filter((x) => x !== id));
   const reset = () => {
     setLayout([]);
@@ -275,39 +278,59 @@ export function DashboardGrid({
     persistActive(defaultActiveIds); // scheduleServerSave 포함 — 리셋도 다른 기기에 전파
     try { localStorage.removeItem(storageKey); } catch { /* noop */ }
   };
-  const copyLayout = async () => {
-    const json = JSON.stringify(effective.map((l) => ({ i: l.i, x: l.x, y: l.y, w: l.w, h: l.h })));
-    try { await navigator.clipboard.writeText(json); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-    catch { window.prompt("아래 값을 복사하세요", json); }
-  };
 
+  //   보기 설정 판 (2026-08-19 재편) — 조회 화면의 '보기 설정'과 같은 생김새: 관점 프리셋 · 위젯 켜기/끄기 · 순서 바꾸기 · 기본으로.
+  //   예전 '위젯 편집'(드래그·크기·추가 피커)을 이 판 하나로 모았다.
+  const applyPreset = (pr: WidgetPreset) => {
+    const ids = pr.ids.filter((id) => catMap[id]);
+    setLayout([]); stateRef.current = { ...stateRef.current, layout: [] };
+    try { localStorage.removeItem(storageKey); } catch { /* noop */ }
+    persistActive(ids);
+  };
+  const toggleWidget = (id: string) => (activeIds.includes(id) ? removeWidget(id) : persistActive([...activeIds, id]));
   const Header = (
     <div className="dash-section-head">
       <div>
         {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
-        {edit && !isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">카드를 드래그해 이동 · 우측/하단 모서리로 크기 조절 · 위젯 추가/삭제 (자동 저장)</p>}
-        {edit && isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">모바일에서는 위젯 추가/삭제만 가능합니다. 배치 편집은 데스크톱에서 하세요.</p>}
+        {edit && !isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">위젯을 드래그해 순서를 바꾸세요 (자동 저장)</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0 relative">
-        {edit && <button onClick={() => setPicking((v) => !v)} className="btn-secondary btn-sm no-drag">{picking ? "닫기" : `위젯 추가${addable.length ? ` (${addable.length})` : ""}`}</button>}
-        {edit && <button onClick={copyLayout} className="btn-secondary btn-sm no-drag">{copied ? "복사됨!" : "배치 복사"}</button>}
-        {edit && <button onClick={reset} className="btn-secondary btn-sm no-drag">기본값</button>}
-        <button onClick={() => { setEdit((v) => !v); setPicking(false); }} className={`btn-sm no-drag ${edit ? "btn-primary" : "btn-secondary"}`}>{edit ? "편집 완료" : "위젯 편집"}</button>
-        {edit && picking && (
-          <div className="widget-picker">
-            {addable.length === 0 ? <div className="text-[12px] text-[var(--text-dim)] text-center py-6">추가할 수 있는 위젯이 없습니다.<br />모든 위젯이 이미 표시 중입니다.</div> : pickerList.map((c) => (
-              <button key={c.id} onClick={() => addWidget(c.id)} className="w-full flex items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--bg-surface)] transition">
-                <span className="w-7 h-7 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center text-[14px] shrink-0"><Ico e={c.icon || "🧩"} /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    <span className="text-[12px] font-bold text-[var(--text)] truncate">{c.name}</span>
-                    {recommended.includes(c.id) && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)]">추천</span>}
-                  </span>
-                  {c.desc && <span className="block text-[11px] text-[var(--text-dim)] truncate">{c.desc}</span>}
-                </span>
-                <span className="text-[16px] text-[var(--primary)] font-bold shrink-0 leading-none mt-1">＋</span>
-              </button>
-            ))}
+        {edit && <button onClick={() => setEdit(false)} className="btn-primary btn-sm no-drag">순서 바꾸기 끝</button>}
+        {!edit && (
+          <button onClick={() => setViewOpen((v) => !v)} className={`btn-secondary btn-sm no-drag ${viewOpen ? "dash-view-btn-on" : ""}`} aria-expanded={viewOpen}>
+            보기 설정 <span className="text-[var(--text-dim)]">▾</span>
+          </button>
+        )}
+        {viewOpen && !edit && (
+          <div className="dash-view-panel no-drag" role="dialog" aria-label="보기 설정">
+            {presets.length > 0 && (
+              <>
+                <div className="dash-view-h">관점</div>
+                <div className="dash-view-row">
+                  {presets.map((pr) => {
+                    const on = pr.ids.filter((id) => catMap[id]).every((id) => activeIds.includes(id)) && activeIds.every((id) => pr.ids.includes(id));
+                    return <button key={pr.id} type="button" onClick={() => applyPreset(pr)} className={on ? "qk-quick qk-quick-on" : "qk-quick"}>{pr.label}</button>;
+                  })}
+                </div>
+              </>
+            )}
+            <div className="dash-view-h">위젯 켜기 · 끄기</div>
+            <div className="dash-view-row">
+              {catalog.map((c) => {
+                const on = activeIds.includes(c.id);
+                return (
+                  <button key={c.id} type="button" onClick={() => toggleWidget(c.id)} className={on ? "qk-quick qk-quick-on" : "qk-quick"} title={c.desc}>
+                    {on ? "✓ " : ""}{c.name}{!on && recommended.includes(c.id) ? " · 추천" : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="dash-view-foot">
+              {!isMobile && <button type="button" className="btn-secondary btn-sm" onClick={() => { setEdit(true); setViewOpen(false); }}>순서 바꾸기</button>}
+              <button type="button" className="btn-secondary btn-sm" onClick={reset}>기본으로</button>
+              <span className="flex-1" />
+              <button type="button" className="btn-primary btn-sm" onClick={() => setViewOpen(false)}>닫기</button>
+            </div>
           </div>
         )}
       </div>
@@ -332,16 +355,6 @@ export function DashboardGrid({
   return (
     <div className={`dashboard-grid ${edit ? "rgl-editing" : ""}`}>
       {Header}
-      {edit && recAddable.length > 0 && (
-        <div className="recommended-widgets-row">
-          <span className="text-[var(--text-dim)]"><Ico e="💡" /> 지금 유용한 위젯:</span>
-          {recAddable.map((c) => (
-            <button key={c.id} onClick={() => addWidget(c.id)} className="no-drag inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-semibold hover:bg-[var(--primary)]/20 transition">
-              <Ico e={c.icon ?? ""} /> {c.name} 추가 ＋
-            </button>
-          ))}
-        </div>
-      )}
       <div ref={containerRef}>
         <GridLayout
           key={cols} // cols 1↔12 전환 시 강제 리마운트 — RGL 은 layout prop 이 같으면 cols 변화만으로 내부 클램프 배치를 다시 풀지 않는다 (2026-07-29 짜부 사고)
@@ -353,7 +366,7 @@ export function DashboardGrid({
           margin={[12, 12]}
           containerPadding={[0, 0]}
           isDraggable={edit && !isMobile}
-          isResizable={edit && !isMobile}
+          isResizable={edit && !isMobile && !fixedH}
           compactType="vertical"
           onLayoutChange={onLayoutChange}
           draggableCancel=".no-drag"

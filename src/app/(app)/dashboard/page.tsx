@@ -3,8 +3,6 @@ import { GroupedColumnChart } from "@/components/charts/kit";
 import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
-import { fetchJournalLines } from "@/lib/journal-reports";
-import { summarize as summarizePnl } from "@/lib/pnl-status";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -17,10 +15,8 @@ import { getMyProjectTasks } from "@/lib/my-project-tasks";
 import { buildCashPulse, getPulseLevel, type CashPulseResult } from "@/lib/cash-pulse";
 import { buildFounderDashboard, buildFinancialDashboard as buildFinDash, type FounderDashboardData, type FinancialDashboardData, type RiskLabel, type RiskItem, getRunwayLevel } from "@/lib/engines";
 import { parseExcel, type ParsedExcelData } from "@/lib/excel-parser";
-import { generateSampleData } from "@/lib/sample-data";
 import { exportFinancialReport, exportDrillDownItems } from "@/lib/excel-export";
 import { generateMonthlyPLReport } from "@/lib/pdf-report";
-import { MyAttendanceCard } from "@/components/my-attendance-card";
 import { CardsSummaryCard, AssetsSummaryCard } from "@/components/dashboard-bottom-cards";
 import { LineChart } from "@/components/line-chart";
 import { FunnelChart, type FunnelStage } from "@/components/funnel-chart";
@@ -47,13 +43,12 @@ import { useToast } from "@/components/toast";
 import { MorningBrief } from "@/components/morning-brief";
 import { ReceivablesPreview } from "@/components/receivables-preview";
 import { DashboardCalendar } from "@/components/dashboard-calendar"; // 일정·할 일 미니 캘린더(2026-07-14)
-import { DashboardBizSummary } from "@/components/dashboard-biz-summary"; // 경영 요약(손익·잔액·런웨이)
-import { RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드
-import { DashboardGrid, type CatalogWidget } from "@/components/dashboard-grid"; // 위젯식 드래그 이동·크기 조절 그리드
+import { DashboardSignals } from "@/components/dashboard-signals"; // 층 1 신호 6칸 (2026-08-19 재편)
+import { ChannelHead, useSyncStatus, useUnclassifiedCounts } from "@/components/dashboard-data-status"; // 통장·카드 위젯 머리의 동기화·미분류
+import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드(공용 셸)
+import { DashboardGrid, type CatalogWidget, type WidgetPreset } from "@/components/dashboard-grid"; // 위젯 격자 — 같은 키·순서 드래그·보기 설정
 import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, MyTasksCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
-import { SyncFreshness } from "@/components/sync-freshness"; // 데이터 신선도(마지막 동기화 시각) 표시
-import { UnclassifiedPrompt } from "@/components/unclassified-prompt"; // 미분류 거래 원클릭 자동정리
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -87,11 +82,8 @@ const RISK_LABELS: Record<RiskLabel, { title: string; icon: string; color: strin
 //   목록에 없는 위젯(work-appr/proj/sign/ment 등 조건부 카드)은 표시될 때 그리드가 자동 배치.
 // 2026-08-10 숫자 스트립 문법 도입으로 카드 콘텐츠가 커짐 — 기본 높이를 실측 기준으로 상향
 //   (h3=156px 이던 자산·카드가 잘리던 것. 저장된 배치는 아래 layoutMigration 이 1회 끌어올린다)
-const DEFAULT_WIDGET_POS: Record<string, { x: number; y: number; w: number; h: number }> = {
-  attendance: { x: 0, y: 0, w: 4, h: 5 }, calendar: { x: 0, y: 5, w: 4, h: 9 }, "work-tasks": { x: 0, y: 14, w: 4, h: 4 },
-  projects: { x: 4, y: 0, w: 4, h: 5 }, revenue: { x: 4, y: 5, w: 4, h: 5 }, tax: { x: 4, y: 10, w: 4, h: 5 },
-  biz: { x: 8, y: 0, w: 4, h: 5 }, receivables: { x: 8, y: 5, w: 4, h: 6 }, assets: { x: 8, y: 11, w: 4, h: 5 }, cards: { x: 8, y: 16, w: 4, h: 5 },
-};
+//   (2026-08-19 재편) 옛 DEFAULT_WIDGET_POS(열·높이 제각각 좌표)는 버렸다 — 모든 위젯이 같은 키라 순서만 있으면 되고,
+//   순서는 프리셋(대표/회계/직원)의 배열 순서가 정한다. 저장 키는 dashboard-grid-v2 로 새로 시작(옛 배치 값은 안 읽는다).
 
 // ═══════════════════════════════════════════
 // Main Component
@@ -108,7 +100,6 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
   const [uploading, setUploading] = useState(false);
   const [parseResult, setParseResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [generating, setGenerating] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   // 첫 가입 탭 투어는 앱 셸(AppTourHost)이 띄운다 — 여기서는 투어 중일 때 온보딩 체크리스트 팝업만 억제 (2026-08-10).
   const [dealCount, setDealCount] = useState<number | null>(null);
@@ -228,41 +219,6 @@ export default function DashboardPage() {
     refetchInterval: 30_000,
   });
 
-  //   대시보드 '경영 요약' 손익 = 확정 전표 기준 (2026-08-19 손익 현황 재편 파급 — 손익 현황·손익계산서와 같은 숫자).
-  //   전표가 하나도 없는 달은 예전 셈(매출 엔진·고정비+카드)으로 폴백해 빈 카드가 되지 않게 한다.
-  const { data: dashPnl } = useQuery({
-    queryKey: ["dash-pnl", companyId, todayKst().slice(0, 7)],
-    queryFn: async () => {
-      const ym = todayKst().slice(0, 7);
-      const [y, m] = ym.split("-").map(Number);
-      const to = `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
-      const lines = await fetchJournalLines(companyId!, `${ym}-01`, to);
-      const s = summarizePnl(lines);
-      return { revenue: s.revenue, cost: s.cogs + s.opex, hasData: lines.length > 0 };
-    },
-    enabled: !!companyId, staleTime: 60_000,
-  });
-
-  // 2026-05-22 월 변동비 — 이번 달 카드 사용액 (payment_queue 는 due_date 컬럼 부재로 제외).
-  const { data: realVariableData } = useQuery({
-    queryKey: ["real-variable", companyId],
-    queryFn: async () => {
-      // 월 경계 — '-31' 하드코딩은 30일 달·2월에 무효날짜(예 2026-06-31) → 쿼리 에러. < 다음달 1일로 안전 처리.
-      const _now = new Date();
-      const monthStart = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-01`;
-      const _nm = new Date(_now.getFullYear(), _now.getMonth() + 1, 1);
-      const nextStart = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, '0')}-01`;
-      const cards = logRead('dashboard/page:cards', await (supabase)
-        .from('card_transactions')
-        .select('amount, transaction_date')
-        .eq('company_id', companyId!)
-        .gte('transaction_date', monthStart)
-        .lt('transaction_date', nextStart));
-      return (cards || []).reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
-    },
-    enabled: !!companyId,
-    refetchInterval: 30_000,
-  });
 
   // (비용 구성 도넛 제거로 costBreakdown 쿼리 삭제 — 추세·구성 그래프는 분석 메뉴(/reports)로 일원화)
 
@@ -371,26 +327,18 @@ export default function DashboardPage() {
   }, [companyId, queryClient]);
 
   // ── Sample Data Handler ──
-  const handleSampleData = useCallback(async () => {
-    if (!companyId) return;
-    setGenerating(true);
-    const result = await generateSampleData(companyId);
-    setParseResult(result);
-    queryClient.invalidateQueries({ queryKey: ["founder-data"] });
-    setGenerating(false);
-  }, [companyId, queryClient]);
-
   // ── 데이터 동기화 핸들러 (CODEF 수집 + 자동 분류 통합) ──
-  const handleDataSync = useCallback(async () => {
+  //   channel — 2026-08-19 재편: ↻ 가 통장·카드 위젯 머리에 각각 붙어 그 채널만 받아온다 ('all' 은 예전 '지금 동기화')
+  const handleDataSync = useCallback(async (channel: 'bank' | 'card' | 'all' = 'all') => {
     if (!companyId || syncing) return;
     setSyncing(true);
     setSyncResult(null);
     const now = () => new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     try {
-      // 1) CODEF Edge Function 호출 — 은행+카드 거래내역 실제 수집
-      const codefResult = await syncCodefData(companyId, 'all');
+      // 1) CODEF Edge Function 호출 — 은행/카드 거래내역 실제 수집
+      const codefResult = await syncCodefData(companyId, channel);
       // 1.5) 카드 승인내역(실시간) — 'all' 번들에서 분리 (묶으면 Edge 150s 초과 HTTP 546). 별도 호출.
-      await syncCodefData(companyId, 'card_approval').catch(() => null);
+      if (channel !== 'bank') await syncCodefData(companyId, 'card_approval').catch(() => null);
 
       // 2) 자동 분류 엔진 실행 — 동기화 직후 백그라운드: 정리(organize)만. 드래프트 생성·위험 작업 제외.
       const autoResult = await runAllAutomation(companyId, { includeDrafts: false, includeRisky: false });
@@ -399,6 +347,10 @@ export default function DashboardPage() {
       queryClient.invalidateQueries({ queryKey: ["founder-data"] });
       queryClient.invalidateQueries({ queryKey: ["financial-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["cash-pulse"] });
+      queryClient.invalidateQueries({ queryKey: ["codef-sync-freshness"] });
+      queryClient.invalidateQueries({ queryKey: ["unclassified-count-by-channel"] });
+      queryClient.invalidateQueries({ queryKey: ["dash-bank-recent"] });
+      queryClient.invalidateQueries({ queryKey: ["dash-cards"] });
 
       // partial(일부 실패)은 성공 스타일로 가리지 않는다 (2026-08-19 감사) — 첫 오류를 그대로 노출.
       const firstErr = ((codefResult as any).errors || [])[0] as { message?: string; hint?: string } | undefined;
@@ -441,6 +393,9 @@ export default function DashboardPage() {
   const canFinance = dashMaster || dashPerm("/dashboard:finance");
   // AI 브리핑은 별도 세부 권한(2026-08-10 사장님) — 부여자에게만 보이고, 없으면 카드 자체가 안 뜬다
   const canBriefing = dashMaster || dashPerm("/dashboard:briefing");
+  //   통장·카드 위젯 머리에 쓰는 자료 상태 (2026-08-19 재편 — 사장님: "위젯 안으로, 통장은 통장 카드는 카드")
+  const syncStatus = useSyncStatus(canFinance ? companyId : null);
+  const unclassified = useUnclassifiedCounts(canFinance ? companyId : null);
 
   // (2026-07-30 개편 P2) 직원 분기 삭제 — 파트너 외 전원 동일 대시보드(접근은 권한 가드가 판정).
 
@@ -552,10 +507,17 @@ export default function DashboardPage() {
       {/* (P3) 대시보드 권한 보유자 전원 노출 — 구 owner/admin 분기 제거 */}
       {companyId && (
         <div className="dashboard-owner-widgets-section">
-          {/* (0) AI 브리핑 + 오늘의 액션 — 라운드7.1(컨셉 1안). 문장 요약은 MorningBrief(규칙 기반) 재사용,
-               버튼은 이미 계산된 sixPack·세금 마감에서 파생 — 신규 쿼리 0.
-               게이트: /dashboard:briefing 세부 권한(마스터 항상) — 없으면 카드 자체 미표시 (2026-08-10) */}
-          {canBriefing && (<div>
+          {/* ── 2026-08-19 대시보드 재편 (docs/20260819_PLAN_dashboard_redesign.md) — 세 층:
+               층 1 신호 6칸(회사가 안전한가, 경영 요약과 같은 함수) → 층 2 오늘 챙길 것(AI 제안 표) → 층 3 위젯 격자(같은 키).
+               예전 '동기화 줄 + 노란 미분류 배너 + 위젯 편집'은 없앴다 — 동기화·미분류는 통장/카드 위젯 머리에. ── */}
+          <div className="dash-head">
+            <span className="dash-head-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
+            <span className="dash-head-co">· {companyName}</span>
+          </div>
+          {canFinance && <DashboardSignals companyId={companyId} userId={userId} forecast30={cashPulse?.forecast30d ?? null} balanceFallback={sp.cashBalance} />}
+
+          {/* 층 2 · 오늘 챙길 것 — 게이트: /dashboard:briefing 세부 권한(마스터 항상). 없으면 층 자체가 없다 (2026-08-10) */}
+          {canBriefing && (
             <MorningBrief
               userName={userName}
               companyName={companyName}
@@ -565,31 +527,9 @@ export default function DashboardPage() {
               userId={userId ?? undefined}
               aiBriefingEnabled={aiBriefingEnabled}
             />
-          </div>)}
-
-          {/* 데이터 유틸리티 행 — 신선도 + 동기화·업로드 도구를 한 줄로(2026-08-10 리파인:
-              그리드 아래에 고아처럼 떨어져 있던 도구 버튼을 데이터 위젯들 바로 위로) */}
-          {canFinance && companyId && (
-            <div className="dash-utility-row">
-              <SyncFreshness companyId={companyId} />
-              {/* ml-auto: 신선도 표시가 아직 없을 때도 버튼은 오른쪽 정렬 유지 */}
-              <div className="ml-auto flex items-center gap-1.5">
-                <button onClick={handleDataSync} disabled={syncing} className="dash-tool-btn">
-                  {syncing ? "동기화 중..." : "지금 동기화"}
-                </button>
-                <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
-                <button onClick={() => fileRef.current?.click()} disabled={uploading} className="dash-tool-btn">
-                  {uploading ? "올리는 중..." : "엑셀 업로드"}
-                </button>
-                {!hasData && (
-                  <button onClick={handleSampleData} disabled={generating} className="dash-tool-btn">
-                    {generating ? "..." : "샘플 데이터"}
-                  </button>
-                )}
-              </div>
-            </div>
           )}
-          {/* 동기화·엑셀 결과 토스트 — 버튼 곁에서 바로 보이게 */}
+
+          {/* 동기화·엑셀 결과 토스트 — 위젯 머리 ↻ 를 누른 뒤 결과가 여기 뜬다 */}
           {canFinance && parseResult && (
             <div className={`dashboard-parse-toast ${
               parseResult.success ? 'bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]'
@@ -611,62 +551,56 @@ export default function DashboardPage() {
               </span>
             </div>
           )}
-          {canFinance && companyId && <UnclassifiedPrompt companyId={companyId} />}
+          {/* 엑셀 업로드 입력은 남긴다(샘플·업로드 경로 유지) — 버튼은 수집·전표에 있으므로 여기선 숨김 */}
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
 
           {/* 대시보드 통합 위젯 그리드 — 카탈로그 기반: 개인별 위젯 추가/삭제 자유(2026-07-15).
               기본 활성 위젯 = 사장님 확정 배치(DEFAULT_WIDGET_POS), 그 외는 편집 모드 '위젯 추가'로. */}
           {(() => {
             const taxItems = getUpcomingTaxDeadlines(60);
-            const P = DEFAULT_WIDGET_POS;
             const uid = userId || "";
-            // 마스터 확정 좌표(P)는 재무 위젯까지 전부 보이는 계정에서만 의미가 있다.
-            //   권한 필터로 위젯이 줄어든 직원 계정이 그대로 상속하면 지정 위젯이 왼쪽 열에 몰리고
-            //   나머지가 흩어진다(2026-08-11 사장님) — 비재무 계정은 크기만 받고 좌표는 자동 균형 배치.
-            const pos = (k: keyof typeof DEFAULT_WIDGET_POS) => (canFinance ? P[k] : { w: P[k].w, h: P[k].h });
-            // 카탈로그 — 앞쪽 10개는 기본 활성(확정 배치), 뒤쪽은 추가 가능(기본 비활성).
+            //   위젯 카탈로그 — 전부 같은 키(폭 4 · 높이 5줄). 경영 요약(신호 6칸과 중복)·출퇴근(마이페이지·사이드바 버튼이 있다)은 뺐다.
+            //   통장·카드 위젯 머리에 동기화 시각·미분류·↻ 를 단다.
+            const bankHead = <ChannelHead status={syncStatus.bank} unclassified={unclassified.bank} unclassifiedHref="/collect?tab=bank" onSync={() => handleDataSync('bank')} syncing={syncing} />;
+            const cardHead = <ChannelHead status={syncStatus.card} unclassified={unclassified.card} unclassifiedHref="/collect?tab=card" onSync={() => handleDataSync('card')} syncing={syncing} />;
             const catalog: CatalogWidget[] = [
-              { id: "biz", name: "경영 요약", icon: "📊", desc: "돈·손익·받을 돈·낼 돈 세 신호 + 챙길 것", category: "경영", ...pos("biz"),
-                render: () => <DashboardBizSummary monthRevenue={dashPnl?.hasData ? dashPnl.revenue : dashboard.growth.monthRevenue} expense={dashPnl?.hasData ? dashPnl.cost : (realBurnData ?? 0) + (realVariableData ?? 0)} basis={dashPnl?.hasData ? "확정 전표 기준" : "매출 엔진·고정비+카드 추정 (이번 달 전표 없음)"} balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0} runwayMonths={dashboard.sixPack.runwayMonths} companyId={companyId} userId={userId} /> },
-              { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", ...pos("revenue"), render: () => <RecentRevenue companyId={companyId} /> },
-              { id: "receivables", name: "미수금", icon: "💸", desc: "미수금·연체 현황", category: "경영", ...pos("receivables"), render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
-              { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", ...pos("projects"), render: () => <RecentProjects companyId={companyId} /> },
-              { id: "tax", name: "세금 일정", icon: "🧾", desc: "다가오는 세금 마감", category: "경영", ...pos("tax"), render: () => <TaxScheduleWidget items={taxItems} /> },
-              { id: "cards", name: "카드", icon: "💳", desc: "이번 달 카드 사용액", category: "자금", ...pos("cards"), render: () => <CardsSummaryCard companyId={companyId} /> },
-              { id: "assets", name: "자산", icon: "🏦", desc: "계좌별 잔액·총자산", category: "자금", ...pos("assets"), render: () => <AssetsSummaryCard companyId={companyId} /> },
-              { id: "calendar", name: "일정·캘린더", icon: "📅", desc: "이번 달 일정·할 일", category: "개인", ...pos("calendar"), render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
-              // 2026-07-31 사장님: 한 줄짜리 압축 카드 말고 큰 출근 카드로. (compact 제거 = 출근/퇴근 시각·
-              //   지각/연장 배지·재택/반차 선택 + 큰 '출근하기' 버튼)
-              { id: "attendance", name: "출퇴근", icon: "🕘", desc: "출근/퇴근 기록 + 오늘 근무 상태", category: "개인", ...pos("attendance"), render: () => <MyAttendanceCard companyId={companyId} userId={uid} /> },
-              { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", ...pos("work-tasks"), render: () => <MyTasksCard userId={uid} /> },
-              // ── 추가 가능(기본 비활성) ──
-              { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금 내역", category: "자금", w: 4, h: 5, render: () => <BankRecentCard companyId={companyId} /> },
-              { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", w: 4, h: 5, render: () => <RecentInvoices companyId={companyId} /> },
-              { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", w: 4, h: 5, render: () => <ApprovalsPendingCard companyId={companyId} /> },
-              { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", w: 4, h: 5, render: () => <EmployeesCard companyId={companyId} /> },
-              { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", w: 4, h: 5, render: () => <PartnersCard companyId={companyId} /> },
-              { id: "announcements", name: "공지사항", icon: "📢", desc: "최근 공지", category: "업무", w: 4, h: 5, render: () => <AnnouncementsCard /> },
-              { id: "todos", name: "내 할일·일정", icon: "📝", desc: "할 일 + 다가오는 일정 통합", category: "개인", w: 4, h: 6, render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
+              { id: "receivables", name: "미수금", icon: "💸", desc: "미회수 합계·오래된 순 5곳·독촉 문구", category: "경영", render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
+              { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", render: () => <RecentRevenue companyId={companyId} /> },
+              { id: "tax", name: "세금·납부 일정", icon: "🧾", desc: "60일 안 세금 마감", category: "경영", render: () => <TaxScheduleWidget items={taxItems} /> },
+              { id: "bank", name: "통장 거래", icon: "🏛️", desc: "최근 입출금 + 동기화·미분류", category: "자금", render: () => <BankRecentCard companyId={companyId} headExtra={bankHead} /> },
+              { id: "cards", name: "카드 사용", icon: "💳", desc: "이번 달 카드별 사용액 + 동기화·미분류", category: "자금", render: () => <CardsSummaryCard companyId={companyId} headExtra={cardHead} /> },
+              { id: "approvals", name: "결재 대기", icon: "🗂️", desc: "회사 결재 대기 목록", category: "업무", render: () => <ApprovalsPendingCard companyId={companyId} /> },
+              { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", render: () => <RecentProjects companyId={companyId} /> },
+              { id: "announcements", name: "공지사항", icon: "📢", desc: "오너뷰 공지·업데이트", category: "업무", render: () => <AnnouncementsCard /> },
+              { id: "todos", name: "오늘 일정·할 일", icon: "📝", desc: "내 할 일 + 다가오는 일정", category: "개인", render: () => <MyTodosWidget userId={uid} companyId={companyId} /> },
+              { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", render: () => <RecentInvoices companyId={companyId} /> },
+              { id: "assets", name: "계좌별 잔액", icon: "🏦", desc: "계좌별 잔액·합계", category: "자금", render: () => <AssetsSummaryCard companyId={companyId} /> },
+              { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", render: () => <MyTasksCard userId={uid} /> },
+              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·할 일 달력", category: "개인", render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
+              { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", render: () => <EmployeesCard companyId={companyId} /> },
+              { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", render: () => <PartnersCard companyId={companyId} /> },
             ];
-            // (2026-07-30 사장님) 금액 위젯(경영·자금·프로젝트 계약액)은 재무 권한 보유자만 카탈로그에 노출.
-            // (2026-08-04 사장님) ① 결재/구성원/거래처 위젯도 해당 메뉴 권한 보유자만 선택 가능하게 확장,
-            //   ② 기본 활성 = 자기 권한으로 선택 가능한 위젯 전부(일부만 켜진 기본값 폐지).
-            const FINANCE_WIDGET_IDS = new Set(["biz", "revenue", "receivables", "tax", "cards", "assets", "bank", "invoices", "projects"]);
+            // (2026-07-30 사장님) 금액 위젯은 재무 권한 보유자만 카탈로그에 노출. (2026-08-04) 결재/구성원/거래처는 해당 메뉴 권한.
+            const FINANCE_WIDGET_IDS = new Set(["revenue", "receivables", "tax", "cards", "assets", "bank", "invoices", "projects"]);
             const WIDGET_PERM_KEYS: Record<string, string> = { approvals: "/approvals", employees: "/employees", partners: "/partners" };
             const visibleCatalog = catalog.filter((w) =>
               FINANCE_WIDGET_IDS.has(w.id) ? canFinance
                 : WIDGET_PERM_KEYS[w.id] ? dashPerm(WIDGET_PERM_KEYS[w.id])
                 : true);
-            const defaultActiveIds = visibleCatalog.map((w) => w.id);
-            // 상황 기반 추천 — 신호가 있는 위젯을 편집모드에서 추천(비활성일 때만 칩 노출).
+            const allowed = (ids: string[]) => ids.filter((id) => visibleCatalog.some((w) => w.id === id));
+            //   관점 프리셋 — 배열 순서 = 격자 순서. 프리셋은 시작점이고 이후 사람이 켜고 끈 것이 이긴다.
+            const presets: WidgetPreset[] = [
+              { id: "owner", label: "대표", ids: allowed(["receivables", "revenue", "tax", "bank", "cards", "approvals", "projects", "announcements", "todos"]) },
+              { id: "acct", label: "회계", ids: allowed(["receivables", "bank", "cards", "tax", "invoices", "approvals", "revenue", "announcements", "todos"]) },
+              { id: "staff", label: "직원", ids: allowed(["todos", "work-tasks", "approvals", "announcements", "employees", "projects"]) },
+            ].filter((p) => p.ids.length > 0);
+            //   기본 = 권한으로 고른다: 재무 권한 있으면 대표, 없으면 직원
+            const defaultActiveIds = (canFinance ? presets.find((p) => p.id === "owner") : presets.find((p) => p.id === "staff"))?.ids ?? visibleCatalog.map((w) => w.id);
             const recommended: string[] = [];
             if ((dashboard.sixPack.arOver30 ?? 0) > 0) recommended.push("receivables");
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
-            return <DashboardGrid storageKey={`dashboard-grid-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds} recommended={recommended} sidebarCollapsed={sidebarCollapsed}
-              // 저장된 배치의 옛 높이를 콘텐츠에 맞춰 한 번 끌어올린다 — 숫자 스트립 문법으로
-              //   카드가 커진 위젯들(2026-08-10). 이전 attendance 마이그레이션 값 포함(누적).
-              layoutMigration={{ id: "widget-heights-20260811", minH: { attendance: 5, biz: 5, receivables: 6, assets: 5, cards: 5, revenue: 5, approvals: 5, todos: 6, employees: 5, partners: 5, announcements: 5 } }}
-              // 기본 전체 선택 전환(2026-08-04) — 기존 저장 선택에도 새 기본값을 1회 병합해 전 위젯이 켜진다.
-              activeMigration="all-widgets-default-20260804" />;
+            return <DashboardGrid storageKey={`dashboard-grid-v2-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}
+              recommended={recommended} sidebarCollapsed={sidebarCollapsed} fixedH={5} presets={presets} />;
           })()}
         </div>
       )}
@@ -687,29 +621,18 @@ export default function DashboardPage() {
 
 // ── 세금 일정 위젯(카탈로그용) — 다가오는 세금 마감 미리보기 ──
 function TaxScheduleWidget({ items }: { items: ReturnType<typeof getUpcomingTaxDeadlines> }) {
-  if (items.length === 0) {
-    return (
-      <div className="dashboard-tax-schedule-empty glass-card">
-        <span className="text-[13px] font-bold mb-2 text-[var(--text)]">세금 일정</span>
-        <div className="widget-empty"><span className="widget-empty-text">다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없어요.</span></div>
-      </div>
-    );
-  }
+  //   2026-08-19 재편 — 공용 셸(ActivityCard)로. 날짜 칸 + D-day 칩
   return (
-    <Link href={items[0].href} className="dashboard-tax-schedule-link glass-card">
-      <div className="flex items-center justify-between gap-2 mb-2.5">
-        <span className="text-[13px] font-bold text-[var(--text)]">세금 일정</span>
-        <span className="widget-more-link">전체보기 →</span>
-      </div>
-      <div className="flex flex-col divide-y divide-[var(--border)]/60">
-        {items.slice(0, 4).map((t) => (
-          <div key={t.id} className="flex items-center gap-2 py-2">
-            <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title}</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold ${t.daysLeft <= 7 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--warning)]/12 text-[var(--warning)]"}`}>{t.daysLeft === 0 ? "D-Day" : `D-${t.daysLeft}`}</span>
-          </div>
-        ))}
-      </div>
-    </Link>
+    <ActivityCard title="세금·납부 일정" href={items[0]?.href || "/reports/vat"} summary={items.length > 0 ? "60일" : undefined} empty={items.length === 0}
+      emptyText="다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없어요.">
+      {items.slice(0, 5).map((t) => (
+        <Link key={t.id} href={t.href} className="dash-tax-row">
+          <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title}</span>
+          <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{String(t.date || "").slice(5).replace("-", "/")}</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 font-semibold mono-number ${t.daysLeft <= 7 ? "bg-[var(--danger)]/12 text-[var(--danger)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"}`}>{t.daysLeft === 0 ? "오늘" : `D-${t.daysLeft}`}</span>
+        </Link>
+      ))}
+    </ActivityCard>
   );
 }
 
@@ -912,7 +835,7 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
     <div className="dashboard-todos-widget glass-card">
       <div className="flex items-center justify-between gap-2 mb-2.5">
         <div className="flex items-baseline gap-1.5 min-w-0">
-          <h2 className="text-[13px] font-bold text-[var(--text)] truncate">내 할일 · 일정</h2>
+          <h2 className="text-[13px] font-bold text-[var(--text)] truncate">오늘 일정 · 할 일</h2>
           {items.length > 0 && <span className="text-[11px] font-semibold text-[var(--text-dim)] mono-number">{items.length}</span>}
         </div>
         <Link href="/schedule" className="widget-more-link">전체보기 →</Link>

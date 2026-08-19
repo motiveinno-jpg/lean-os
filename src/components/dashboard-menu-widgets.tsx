@@ -42,7 +42,8 @@ function Badge({ label, tone }: { label: string; tone: string }) {
 }
 
 // ── 통장 — 최근 거래내역 ──
-export function BankRecentCard({ companyId }: { companyId: string }) {
+//   2026-08-19 재편 — headExtra(동기화 시각·미분류·↻)는 대시보드가 넣어 준다
+export function BankRecentCard({ companyId, headExtra }: { companyId: string; headExtra?: React.ReactNode }) {
   const { data = [] } = useQuery({
     queryKey: ["dash-bank-recent", companyId],
     enabled: !!companyId, staleTime: 60_000,
@@ -54,7 +55,7 @@ export function BankRecentCard({ companyId }: { companyId: string }) {
     },
   });
   return (
-    <ActivityCard title="통장 거래" href="/bank" empty={data.length === 0}
+    <ActivityCard title="통장 거래" href="/bank" headExtra={headExtra} empty={data.length === 0}
       emptyText="아직 거래 내역이 없습니다." emptyAction={{ label: "통장 연결하고 자동 수집하기", href: "/settings?tab=bank" }}>
       {data.map((t) => {
         const isIn = t.type === "in" || t.type === "deposit" || Number(t.amount) > 0;

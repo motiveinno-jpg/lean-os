@@ -7,6 +7,7 @@ import { logRead } from "@/lib/log-read";
 //   입금 매칭 트리거(Phase 1)로 프로젝트/입금이 자동 연결된 데이터를 그대로 활용. 미수 없으면 카드 숨김.
 
 import Link from "next/link";
+import { ActivityCard } from "@/components/dashboard-activity";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
@@ -75,23 +76,14 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
     },
   });
 
-  if (!data || data.list.length === 0) return null;
-  const top = data.list.slice(0, 5);
+  const top = (data?.list || []).slice(0, 5);
+  const n = data?.list.length ?? 0;
 
+  //   2026-08-19 재편 — 공용 셸(ActivityCard). '미회수 합계' 카드 → 머리의 요약 글자(상자 안 상자 금지)
   return (
-    <div className="receivables-preview glass-card">
-      <div className="receivables-preview-header">
-        <span className="text-[13px] font-bold shrink-0 text-[var(--text)]">미수금</span>
-        <Link href="/partners/ledger?type=sales" className="widget-more-link">전체보기 →</Link>
-      </div>
-      {/* 브리핑 숫자 스트립과 동일 문법 (2026-08-10 통일) */}
-      <div className="widget-statband widget-statband-1">
-        <div className="widget-stat">
-          <div className="widget-stat-label">미회수 합계 · 거래처 {data.list.length}곳</div>
-          {/* 색은 inline style — 커스텀 클래스가 유틸리티를 이기는 v4 캐스케이드 함정 회피 */}
-          <div className="widget-stat-value mono-number" style={{ color: "var(--danger)" }}>{won(data.total)}</div>
-        </div>
-      </div>
+    <ActivityCard title="미수금" href="/partners/ledger?type=sales" empty={!data || n === 0}
+      summary={n > 0 ? <><b className="mono-number text-[var(--text)]">{won(data!.total)}</b> · {n}곳</> : undefined}
+      emptyText="미수금이 없습니다 — 발행한 세금계산서가 모두 회수됐어요.">
       <div className="receivables-preview-list">
         {top.map((g) => (
           <div key={g.name} className="receivables-preview-row">
@@ -110,10 +102,10 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
             </button>
           </div>
         ))}
-        {data.list.length > 5 && (
-          <Link href="/partners/ledger?type=sales" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] px-2 pt-1 no-underline transition">외 {data.list.length - 5}곳 더 보기 →</Link>
+        {n > 5 && (
+          <Link href="/partners/ledger?type=sales" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] px-2 pt-1 no-underline transition">외 {n - 5}곳 더 보기 →</Link>
         )}
       </div>
-    </div>
+    </ActivityCard>
   );
 }

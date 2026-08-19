@@ -14,7 +14,7 @@
 
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -139,6 +139,9 @@ export function MorningBrief({
   // KAIROS H2 fix: 모바일에서 카드가 80%+ 차지하던 문제 해결
   // 기본은 축약(line1, line2, line4만), 펼치면 전체
   const [expanded, setExpanded] = useState(false);
+  //   2026-08-19 재편 — 액션 플랜을 표 5줄로 접었다. 줄을 누르면 이유가 펼쳐지고, 근거(경고·양호)는 '근거 보기'로.
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [showEvidence, setShowEvidence] = useState(false);
 
   // AI 브리핑 2.0 (액션 플랜) — 회사당 하루 1회 서버 캐시. 실패/미생성 시 아래 규칙 브리핑으로 폴백.
   //   훅 순서 보존을 위해 early return 앞에 선언, enabled 로 데이터 있을 때만 호출.
@@ -340,122 +343,77 @@ export function MorningBrief({
 
   const hasExtra = Boolean(line3 || progressLine || hasTx);
 
-  // 우측 핵심 숫자 패널 — 브리핑 문장과 같은 소스(cashPulse·dashboard)라 신규 쿼리 0.
-  const runwayLabel = !isFinite(runwayMonths) || runwayMonths >= 99 ? "충분" : runwayMonths <= 0 ? "위험" : `${runwayMonths >= 12 ? Math.floor(runwayMonths) : runwayMonths.toFixed(1)}개월`;
-  const runwayColor = !isFinite(runwayMonths) || runwayMonths >= 6 ? "var(--success)" : runwayMonths >= 3 ? "var(--warning)" : "var(--danger)";
-  const delta30ForStats = forecast30 - balance;
-  const nextTax = getUpcomingTaxDeadlines(60)[0] ?? null;
+  //   (2026-08-19) 숫자 스트립은 여기서 빠져 대시보드 층 1 '신호 6칸'(dashboard-signals.tsx)이 됐다 — 경영 요약과 같은 함수.
+  const genLabel = briefPlan ? "오늘 생성" : null;
 
   return (
-    <section className="morning-brief-card glass-card">
-      <p className="text-xs sm:text-sm text-[var(--text-dim)]">
-        {today} · {companyName}
-      </p>
-
-      {/* 숫자 스트립 — 6지표를 상자 벽이 아니라 하나의 조용한 밴드로. 잔고·매출·미수금·세금은 클릭 이동 */}
-      <div className="morning-brief-statbar">
-        <Link href="/bank" className="morning-brief-statbar-item">
-          <div className="morning-brief-stat-label">통장 잔고</div>
-          <div className="morning-brief-stat-value mono-number">{formatKrwWords(balance)}</div>
-        </Link>
-        <div className="morning-brief-statbar-item">
-          <div className="morning-brief-stat-label">30일 뒤 전망</div>
-          <div className="morning-brief-stat-value mono-number">{formatKrwWords(forecast30)}</div>
-          {Math.abs(delta30ForStats) >= balance * 0.02 && (
-            <div className="morning-brief-stat-sub" style={{ color: delta30ForStats > 0 ? "var(--success)" : "var(--danger)" }}>
-              {delta30ForStats > 0 ? "▲ " : "▼ "}{formatKrwWords(Math.abs(delta30ForStats))}
-            </div>
-          )}
-        </div>
-        <div className="morning-brief-statbar-item">
-          <div className="morning-brief-stat-label">버틸 수 있는 기간</div>
-          <div className="morning-brief-stat-value mono-number" style={{ color: runwayColor }}>{runwayLabel}</div>
-        </div>
-        <Link href="/reports/revenue" className="morning-brief-statbar-item">
-          <div className="morning-brief-stat-label">이번 달 매출</div>
-          <div className="morning-brief-stat-value mono-number">{formatKrwWords(monthRevenue)}</div>
-          {monthTarget > 0 && <div className="morning-brief-stat-sub">목표의 {Math.round((monthRevenue / monthTarget) * 100)}%</div>}
-        </Link>
-        <Link href="/partners/ledger?type=sales" className="morning-brief-statbar-item">
-          <div className="morning-brief-stat-label">밀린 미수금</div>
-          <div className="morning-brief-stat-value mono-number" style={{ color: arOver30 > 0 ? "var(--danger)" : "var(--success)" }}>
-            {arOver30 > 0 ? formatKrwWords(arOver30) : "없음"}
-          </div>
-        </Link>
-        {nextTax ? (
-          <Link href={nextTax.href} className="morning-brief-statbar-item">
-            <div className="morning-brief-stat-label">다가오는 세금</div>
-            <div className="morning-brief-stat-value mono-number" style={{ color: nextTax.daysLeft <= 7 ? "var(--danger)" : "var(--warning)" }}>
-              {nextTax.daysLeft === 0 ? "D-Day" : `D-${nextTax.daysLeft}`}
-            </div>
-            <div className="morning-brief-stat-sub">{nextTax.title}</div>
-          </Link>
-        ) : (
-          <div className="morning-brief-statbar-item">
-            <div className="morning-brief-stat-label">다가오는 세금</div>
-            <div className="morning-brief-stat-value mono-number" style={{ color: "var(--success)" }}>없음</div>
-          </div>
+    <section className="morning-brief-card glass-card brief-compact">
+      {/* 머리 한 줄 — 이름 · 출처(AI 제안) · 생성 · 다시 생성 */}
+      <div className="brief-head">
+        <span className="text-[13px] font-bold text-[var(--text)]">오늘 챙길 것</span>
+        {aiBrief ? <span className="brief-src">AI 제안</span> : <span className="brief-src">규칙 요약</span>}
+        {genLabel && <span className="text-[11px] text-[var(--text-dim)]">{genLabel}</span>}
+        <span className="flex-1" />
+        {aiBriefingEnabled && (
+          <button type="button" onClick={regenerateBrief} disabled={regenerating} className="btn-secondary btn-sm"
+            title="지금 데이터로 브리핑을 다시 생성합니다">{regenerating ? "생성 중…" : "↻ 다시 생성"}</button>
         )}
       </div>
-
       <div className="space-y-2">
         {briefPlan ? (
-          /* ── AI 브리핑 2.0: 오늘의 액션 플랜 ── */
+          /* ── AI 브리핑 2.0: 오늘의 액션 플랜 — 한 문장 + 표 5줄 (2026-08-19 재편) ── */
           <div className="brief-plan">
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]"><Ico e="✦" /> AI 액션 플랜</span>
-              <button type="button" onClick={regenerateBrief} disabled={regenerating}
-                className="text-[10px] text-[var(--text-dim)] hover:text-[var(--primary)] font-semibold disabled:opacity-50"
-                title="지금 데이터로 브리핑을 다시 생성합니다">
-                {regenerating ? "생성 중…" : "↻ 다시 생성"}
-              </button>
-            </div>
-            <p className="text-base sm:text-lg font-extrabold leading-snug mb-1.5">{briefPlan.headline}</p>
-            <p className="text-[13px] sm:text-[15px] text-[var(--text-muted)] leading-relaxed">{renderTagged(briefPlan.summary)}</p>
+            <p className="text-[14.5px] font-extrabold leading-snug">{briefPlan.headline}</p>
+            <p className="text-[12.5px] text-[var(--text-muted)] leading-relaxed mt-0.5">{renderTagged(briefPlan.summary)}</p>
 
             {briefPlan.actions.length > 0 && (
-              <ol className="brief-action-list">
-                {briefPlan.actions.map((a, i) => {
-                  const lk = ACTION_HREF[a.link];
-                  return (
-                    <li key={i} className="brief-action-item">
-                      <span className={`shrink-0 mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE["권장"]}`}>{a.priority}</span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-[13px] sm:text-[14px] font-bold leading-snug">{i + 1}. {a.title}</span>
-                        <span className="block text-[11px] sm:text-[12px] text-[var(--text-dim)] mt-0.5 leading-relaxed">{a.detail}</span>
-                      </span>
-                      {lk && (
-                        <Link href={lk.href} className="shrink-0 self-center text-[11px] font-semibold text-[var(--primary)] hover:underline whitespace-nowrap">
-                          {lk.label} →
-                        </Link>
-                      )}
-                    </li>
-                  );
-                })}
-              </ol>
+              <table className="brief-table">
+                <tbody>
+                  {briefPlan.actions.map((a, i) => {
+                    const lk = ACTION_HREF[a.link];
+                    const open = openIdx === i;
+                    return (
+                      <Fragment key={i}>
+                        <tr className={open ? "brief-row brief-row-open" : "brief-row"} onClick={() => setOpenIdx(open ? null : i)} title={open ? "접기" : "이유 보기"}>
+                          <td className="brief-td-tag"><span className={`brief-tag ${PRIORITY_STYLE[a.priority] || PRIORITY_STYLE["권장"]}`}>{a.priority}</span></td>
+                          <td className="brief-td-title">{i + 1}. {a.title}</td>
+                          <td className="brief-td-link" onClick={(e) => e.stopPropagation()}>
+                            {lk && <Link href={lk.href} className="text-[11.5px] font-semibold text-[var(--primary)] hover:underline whitespace-nowrap">{lk.label} →</Link>}
+                          </td>
+                        </tr>
+                        {open && (
+                          <tr className="brief-row-detail"><td /><td colSpan={2} className="brief-td-detail">{a.detail}</td></tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
 
             {(briefPlan.risks.length > 0 || briefPlan.wins.length > 0) && (
-              <div className="mt-3 flex flex-col gap-1">
-                {briefPlan.risks.slice(0, 3).map((r, i) => (
-                  <p key={`r${i}`} className="text-[11px] sm:text-[12px] text-[var(--text-muted)] leading-relaxed">
-                    <span className="font-bold text-[var(--danger)]"><Ico e="⚠" /> </span>{renderTagged(r)}
-                  </p>
-                ))}
-                {briefPlan.wins.slice(0, 2).map((w, i) => (
-                  <p key={`w${i}`} className="text-[11px] sm:text-[12px] text-[var(--text-muted)] leading-relaxed">
-                    <span className="font-bold text-[var(--success)]">✓ </span>{renderTagged(w)}
-                  </p>
-                ))}
+              <div className="brief-foot">
+                <button type="button" className="brief-evidence-btn" onClick={() => setShowEvidence((v) => !v)}>
+                  {showEvidence ? "근거 접기" : `근거 보기 (경고 ${Math.min(3, briefPlan.risks.length)} · 양호 ${Math.min(2, briefPlan.wins.length)})`}
+                </button>
+                {showEvidence && (
+                  <div className="brief-evidence">
+                    {briefPlan.risks.slice(0, 3).map((r, i) => (
+                      <p key={`r${i}`}><span className="font-bold text-[var(--danger)]"><Ico e="⚠" /> </span>{renderTagged(r)}</p>
+                    ))}
+                    {briefPlan.wins.slice(0, 2).map((w, i) => (
+                      <p key={`w${i}`}><span className="font-bold text-[var(--success)]">✓ </span>{renderTagged(w)}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
         ) : aiBrief ? (
           /* 구버전 캐시(평문 단락) 호환 */
           <>
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--primary-light)] text-[var(--primary)]"><Ico e="✦" /> AI 브리핑</span>
             {aiBrief.split(/\n+/).map((s) => s.trim()).filter(Boolean).map((s, i) => (
-              <p key={i}>{renderTagged(s)}</p>
+              <p key={i} className="text-[12.5px] text-[var(--text-muted)] leading-relaxed">{renderTagged(s)}</p>
             ))}
           </>
         ) : (

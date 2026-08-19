@@ -140,3 +140,10 @@
 - 경영 요약 예전 계산(tax_invoices status 만 세는 미수 11억, 예산 추정 고정비) → `lib/biz-summary.ts`. 자금 전망 직선 전망·±10% 3칸·예정 지출 5줄 → `lib/cash-outlook.ts`.
 - `globals.css` 의 `.summary-*` `.upcoming-*` `.outlook-*` 는 이제 사용처 없음(다른 PC 충돌 회피로 남김 — 다음 정리 때 제거).
 - 자금 전망 › 월별 흐름(예전 경영 흐름) 정리: 콕핏(미래·다각도) 뷰와 `flow/_components/FlowTrend.tsx`·`FlowSchedule.tsx`·`CashPulseHeader.tsx` 삭제 — '전망' 갈래(날짜별 예정 곡선)가 대신한다. `AreaTrend.tsx`는 데모 프레임이 써서 남김. KPI 카드·경고 배너·타임라인·StepCard(상자 안 상자) → Stat + pnl-panel. '기본값 저장'(user_preferences.flow_settings) 버튼 제거(조회값 자동 기억 금지 규칙). `globals.css` 의 `.flow-kpi-*` `.flow-alert*` `.flow-timeline` `.flow-step-card` `.flow-steps-grid` `.flow-footer-note` `.flow-past-range-switch` `.flow-cockpit-view` `.flow-matrix-toolbar` 사용처 없음(다음 정리 때 제거).
+
+## 2026-08-19 — 대시보드 전면 재편 (docs/20260819_PLAN_dashboard_redesign.md)
+- `src/components/dashboard-biz-summary.tsx` 삭제 — 경영 요약 위젯은 신호 6칸(`dashboard-signals.tsx`, 같은 함수 lib/biz-summary)과 중복.
+- `src/components/sync-freshness.tsx`·`unclassified-prompt.tsx` 삭제 — 동기화 시각·미분류 건수는 통장/카드 위젯 머리(`dashboard-data-status.tsx` ChannelHead)로. 노란 미분류 배너·'지금 동기화/엑셀 업로드/샘플 데이터' 유틸리티 줄 제거(엑셀 업로드 input 은 숨김으로 남김).
+- `dashboard/page.tsx`: DEFAULT_WIDGET_POS(좌표·높이 제각각)·dashPnl/realVariable 쿼리·handleSampleData 제거. 위젯 카탈로그에서 경영 요약(biz)·출퇴근(attendance) 제거(출퇴근은 사이드바 버튼 + 마이페이지). 저장 키 `dashboard-grid-v2-*` 로 새로 시작(옛 `dashboard-grid-*` 값은 안 읽음).
+- `dashboard-grid.tsx`: 위젯 편집(드래그·크기 조절·추가 피커·배치 복사·추천 줄) → 보기 설정 판(관점 프리셋·켜기끄기·순서 바꾸기·기본으로). `fixedH` 로 높이·폭 고정. 미사용 CSS `.widget-picker` `.recommended-widgets-row` `.morning-brief-statbar*` `.brief-action-*` `.dashboard-tax-schedule-*` `.compact-asset-header` `.receivables-preview-header` `.unclassified-prompt` `.sync-freshness` `.dash-utility-row` `.dash-tool-btn` 는 다른 PC 충돌 회피로 남김(다음 정리 때 제거).
+- `morning-brief.tsx`: 숫자 스트립(6지표) 제거(신호 6칸이 대신), 액션 플랜 카드 5장 → 표 5줄 + 이유 펼침 + 근거 보기, 오늘·회사 줄은 대시보드 머리 줄로.

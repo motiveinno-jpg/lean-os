@@ -26,10 +26,12 @@ const soft = (c: string, p = 12) => `color-mix(in srgb, ${c} ${p}%, transparent)
 // ── 공용 카드 셸 ──
 //   2026-08-10 리파인: 링크는 조용한 회색(호버 시 착색) 통일, 빈 상태는 한 줄 안내 +
 //   "어떻게 채우는지" 링크(emptyText/emptyAction) — 빈 위젯이 다음 행동을 알려준다.
-export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, emptyText = "표시할 내용이 없습니다.", emptyAction, children, count }: {
+//   2026-08-19 대시보드 재편 — 모든 위젯이 이 셸 하나로: 머리 한 줄(이름 · 요약(summary) · 머리 도구(headExtra) · 전체보기 →) + 몸통(표 줄).
+//   높이는 격자가 정한다(h-full) — 위젯 안에 카드·상자를 또 넣지 않는다(미수금 합계·총 자산 같은 숫자는 summary 로).
+export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, emptyText = "표시할 내용이 없습니다.", emptyAction, children, count, summary, headExtra }: {
   title: string; href: string; hrefLabel?: string; empty?: boolean;
   emptyText?: string; emptyAction?: { label: string; href: string };
-  count?: number; children: React.ReactNode;
+  count?: number; summary?: React.ReactNode; headExtra?: React.ReactNode; children: React.ReactNode;
 }) {
   return (
     <div className="activity-card glass-card">
@@ -37,8 +39,12 @@ export function ActivityCard({ title, href, hrefLabel = "전체보기", empty, e
         <div className="flex items-baseline gap-1.5 min-w-0">
           <h3 className="text-[13px] font-bold text-[var(--text)] truncate">{title}</h3>
           {count != null && count > 0 && <span className="text-[11px] font-semibold text-[var(--text-dim)] mono-number">{count}</span>}
+          {summary && <span className="activity-card-summary">{summary}</span>}
         </div>
-        <Link href={href} className="widget-more-link">{hrefLabel} →</Link>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {headExtra}
+          <Link href={href} className="widget-more-link">{hrefLabel} →</Link>
+        </div>
       </div>
       {empty ? (
         <div className="widget-empty">
@@ -116,16 +122,10 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
   });
   return (
     <ActivityCard title="이번 달 매출" href="/reports/revenue" hrefLabel="매출 현황" empty={!data || data.count === 0}
+      summary={data && data.count > 0 ? <>합계 <b className="mono-number text-[var(--text)]">{won(data.total)}</b> · {data.count}건</> : undefined}
       emptyText="이번 달 발행된 매출 세금계산서가 없습니다." emptyAction={{ label: "세금계산서 발행하기", href: "/tax-invoices" }}>
       {data && (
         <>
-          {/* 브리핑 숫자 스트립과 동일 문법 (2026-08-10 통일) */}
-          <div className="widget-statband widget-statband-1">
-            <div className="widget-stat">
-              <div className="widget-stat-label">이번 달 합계 · {data.count}건</div>
-              <div className="widget-stat-value mono-number" style={{ color: "var(--success)" }}>{won(data.total)}</div>
-            </div>
-          </div>
           {data.rows.map((r) => (
             <Link key={r.id} href="/tax-invoices" className="revenue-row">
               <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{r.counterparty_name || "-"}</span>
