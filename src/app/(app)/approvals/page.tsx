@@ -3936,6 +3936,14 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     enabled: !!companyId,
   });
 
+  // 회사가 만든 양식 — '적용 양식' 선택지 (2026-08-19 사장님: 우리가 만든 양식도 결재선에 나오게).
+  //   커스텀 양식으로 올린 요청의 request_type 은 양식 이름이므로, document_type = 양식 이름이면 자동 매칭된다.
+  const { data: companyForms = [] } = useQuery({
+    queryKey: ["approval-forms-for-policies", companyId],
+    queryFn: () => listApprovalForms(),
+    enabled: !!companyId,
+  });
+
   // 팀(부서) 단위 적용 대상 선택지 — employees.department 고유값 (2026-08-11)
   const { data: departments = [] } = useQuery({
     queryKey: ["policy-departments", companyId],
@@ -4002,7 +4010,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     const isBuiltin = policy.document_type === "default" || policy.document_type in REQUEST_TYPE_LABELS;
     setForm({
       name: policy.name,
-      documentType: isBuiltin ? policy.document_type : "__custom__",
+      documentType: policy.document_type,
       customType: isBuiltin ? "" : policy.document_type,
       label: policy.label || "",
       descriptionTemplate: policy.description_template || "",
@@ -4095,9 +4103,21 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
               <label className="field-label">적용 양식</label>
               <select value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })} className="field-input">
                 <option value="line">공용 — 양식 관리에서 불러와 사용</option>
-                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                <optgroup label="기본 양식">
+                  {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </optgroup>
+                {(companyForms as ApprovalForm[]).length > 0 && (
+                  <optgroup label="회사 양식">
+                    {(companyForms as ApprovalForm[]).map((f) => <option key={f.id} value={f.name}>{f.name}</option>)}
+                  </optgroup>
+                )}
                 {form.documentType === "default" && <option value="default">기본(공통)</option>}
-                {form.documentType === "__custom__" && <option value="__custom__">{form.customType || "커스텀 유형"}</option>}
+                {/* 삭제(비활성)된 양식 이름으로 남은 정책 — 옵션이 없으면 셀렉트가 빈 값으로 보인다 */}
+                {form.documentType !== "line" && form.documentType !== "default"
+                  && !(form.documentType in REQUEST_TYPE_LABELS)
+                  && !(companyForms as ApprovalForm[]).some((f) => f.name === form.documentType) && (
+                  <option value={form.documentType}>{form.documentType} (삭제된 양식)</option>
+                )}
               </select>
             </div>
             <div>
