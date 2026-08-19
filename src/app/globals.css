@@ -9869,7 +9869,7 @@ table.dup-table { min-width: 0; }
 .emp-section { @apply pt-1; }
 .emp-section-head { @apply flex items-center justify-between gap-2 flex-wrap mb-1.5; }
 .emp-section-title { @apply text-[12px] font-bold text-[var(--text-muted)]; }
-.emp-rows { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] divide-y divide-[var(--border)]/70 overflow-hidden; }
-.emp-row { @apply flex items-center gap-2 px-3.5 py-2 text-[12px]; }
-.emp-row-done { @apply bg-[var(--success)]/5; }
+.empd-rows { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] divide-y divide-[var(--border)]/70 overflow-hidden; }
+.empd-row { @apply flex items-center gap-2 px-3.5 py-2 text-[12px]; }
+.empd-row-done { @apply bg-[var(--success)]/5; }
 .emp-cert-pop { @apply absolute left-0 top-full mt-1.5 z-20 w-[320px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-[var(--shadow-lg)] p-3 space-y-2; }

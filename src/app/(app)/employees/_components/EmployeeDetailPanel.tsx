@@ -824,9 +824,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               {empCertLogs.length === 0 ? (
                 <div className="collect-empty">발급 이력이 없습니다</div>
               ) : (
-                <div className="emp-rows">
+                <div className="empd-rows">
                   {empCertLogs.map((log: any) => (
-                    <div key={log.id} className="emp-row justify-between">
+                    <div key={log.id} className="empd-row justify-between">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-xs font-medium">{log.certificate_type}</span>
                         <span className="caption mono-number">{log.certificate_number} · {kstDateStr(new Date(log.created_at))}</span>
@@ -905,9 +905,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 {empLeaveGrants.length === 0 ? (
                   <div className="collect-empty">발생 이력이 없습니다 — 아래에서 추가하세요</div>
                 ) : (
-                  <div className="emp-rows mb-2">
+                  <div className="empd-rows mb-2">
                     {empLeaveGrants.map((g) => (
-                      <div key={g.id} className="emp-row">
+                      <div key={g.id} className="empd-row">
                         <span className="badge badge-primary shrink-0">{GRANT_TYPE_LABELS[g.grant_type] || "발생"}</span>
                         <span className="text-xs text-[var(--text-muted)] shrink-0 mono-number">{g.grant_date}</span>
                         <span className="text-xs text-[var(--text-dim)] truncate flex-1 min-w-0">{g.memo || ""}</span>
@@ -971,7 +971,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               {empLeaveRequests.length === 0 ? (
                 <div className="collect-empty">휴가 사용 기록이 없습니다</div>
               ) : (
-                <div className="emp-rows">
+                <div className="empd-rows">
                   {empLeaveRequests.slice(0, 10).map((r: any) => {
                     const typeLabel = companyLeaveTypes.find((t) => t.value === r.leave_type)?.label
                       || LEAVE_TYPES.find((t) => t.value === r.leave_type)?.label || r.leave_type;
@@ -981,7 +981,7 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                       rejected: "text-[var(--danger)] bg-[var(--danger)]/10",
                     };
                     return (
-                      <div key={r.id} className="emp-row justify-between">
+                      <div key={r.id} className="empd-row justify-between">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="text-xs font-medium">{typeLabel} · {r.days}일</span>
                           <span className="caption mono-number">{r.start_date}{r.end_date && r.end_date !== r.start_date ? ` ~ ${r.end_date}` : ""}</span>
@@ -1248,9 +1248,9 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
       </div>
 
       {/* Document checklist */}
-      <div className="emp-rows">
+      <div className="empd-rows">
         {items.map((item) => (
-          <div key={item.key} className={`emp-row gap-3 ${item.completed ? "emp-row-done" : ""}`}>
+          <div key={item.key} className={`empd-row gap-3 ${item.completed ? "empd-row-done" : ""}`}>
             {/* Checkbox */}
             <input
               type="checkbox"
@@ -1367,9 +1367,9 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
       {notes.length === 0 ? (
         <div className="collect-empty">등록된 인사노트가 없습니다</div>
       ) : (
-        <div className="emp-rows">
+        <div className="empd-rows">
           {[...notes].reverse().map((n, i) => (
-            <div key={i} className="emp-row flex-col items-start gap-1">
+            <div key={i} className="empd-row flex-col items-start gap-1">
               <div className="text-sm text-[var(--text)] whitespace-pre-wrap">{n.text}</div>
               <div className="flex items-center gap-2 mt-2 text-[10px] text-[var(--text-dim)]">
                 <span>{n.author}</span>
