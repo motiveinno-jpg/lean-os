@@ -30,11 +30,14 @@ const GROUPS: Group[] = [
     desc: "지금 회사가 괜찮은지 한 화면으로 — 이번 달 손익·통장 잔액·운영 가능 기간과 다가오는 지출을 요약합니다.",
   },
   {
-    href: "/reports/revenue",
+    href: "/reports/profit",
     label: "손익 현황",
+    match: ["/reports/profit"],
+    //   2026-08-19 재편 — 확정 전표 기준으로 통일(기획 docs/20260819_PLAN_pnl_status_redesign.md). 요약이 기본.
     subs: [
-      { href: "/reports/revenue", label: "매출", desc: "이번 달 매출과 거래처·항목별 구성을 봅니다." },
-      { href: "/reports/expense", label: "비용", desc: "이번 달 비용을 항목별로 나눠 어디에 얼마를 썼는지 봅니다." },
+      { href: "/reports/profit", label: "요약", desc: "이번 달 벌었나 — 손익 구조, 무엇이 달라졌나, 살펴볼 것. 손익계산서와 같은 숫자입니다." },
+      { href: "/reports/revenue", label: "매출", desc: "어디서 얼마 벌었나 — 거래처별·계정별 매출과 미수금 (확정 전표 기준)." },
+      { href: "/reports/expense", label: "비용", desc: "어디로 얼마 나갔나 — 계정별·거래처별 비용, 인건비·고정비·변동비 (확정 전표 기준)." },
       { href: "/reports/monthly", label: "월별 표", desc: "월별 매출·비용·손익과 전월·전년 대비를 자세히 봅니다." },
     ],
   },

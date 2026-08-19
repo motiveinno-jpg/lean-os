@@ -269,6 +269,14 @@ export default function VoucherEntryPage() {
   useEffect(() => {
     if (defDone || !saved.isFetched) return;
     setDefDone(true);
+    //   딥링크(?from=YYYY-MM&to=YYYY-MM&q=전표번호) — 손익 현황 원천 드릴다운에서 넘어올 때(2026-08-19). 있으면 내 조건 기본값보다 우선.
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("q") || sp.get("from")) {
+        applySaved({ from: sp.get("from") || fromM, to: sp.get("to") || toM, q: sp.get("q") || "" });
+        return;
+      }
+    }
     if (saved.def) applySaved(saved.def.params || {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved.isFetched, saved.def, defDone]);

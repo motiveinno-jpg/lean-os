@@ -69,7 +69,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "분석",
     items: [
       { href: "/reports/summary", permKey: "/reports", label: "경영 요약", icon: "bar-chart", roles: ["owner", "admin"], match: ["/reports", "/reports/summary"] },
-      { href: "/reports/revenue", permKey: "/reports", label: "손익 현황", icon: "trending-up", roles: ["owner", "admin"], match: ["/reports/revenue", "/reports/expense", "/reports/monthly"] },
+      { href: "/reports/profit", permKey: "/reports", label: "손익 현황", icon: "trending-up", roles: ["owner", "admin"], match: ["/reports/profit", "/reports/revenue", "/reports/expense", "/reports/monthly"] },
       { href: "/reports/upcoming", permKey: "/reports", label: "자금 전망", icon: "clock", roles: ["owner", "admin"], match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
       { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", roles: ["owner", "admin"], match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
       //   부가세 — 세금계산서 화면의 탭이었는데 분석으로 옮겼다 (2026-08-13 사장님 지시).

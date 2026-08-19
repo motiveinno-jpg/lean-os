@@ -5302,6 +5302,36 @@ table.coa-table { min-width: 640px; }
 .qk-body > .report-body { @apply absolute inset-0 overflow-auto p-3; }
 /*   상자 안 카드는 전부 얇은 판(선만) — 그림자·유리 효과 없음. 요약 문장·KPI·섹션·페이지 자체 카드 한 규칙 */
 .report-body .glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; box-shadow: none; backdrop-filter: none; }
+/* ── 손익 현황(요약·매출·비용) — 2026-08-19 재편. 얇은 판·선, 공용 표 ── */
+.pnl-basis-note { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]/60 px-3.5 py-2 text-[12px] text-[var(--text-muted)]; }
+.pnl-headline { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3; }
+.pnl-headline > b { @apply text-[15px] font-extrabold leading-snug text-[var(--text)]; }
+.pnl-headline-sub { @apply mt-1 text-[12px] text-[var(--text-muted)]; }
+.pnl-grid2 { @apply mb-3 grid grid-cols-1 gap-3 lg:grid-cols-2; }
+.pnl-panel { @apply mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3.5; }
+.pnl-panel > h3 { @apply text-[13px] font-bold text-[var(--text)]; }
+.pnl-panel > p { @apply mb-2 text-[11px] text-[var(--text-dim)]; }
+.pnl-tbl-wrap { @apply overflow-x-auto; }
+table.pnl-diff-table, table.pnl-mini-table { min-width: 0; }
+table.pnl-partner-table { min-width: 720px; }
+.pnl-diff-table tbody td, .pnl-mini-table tbody td, .pnl-partner-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
+.pnl-diff-table tr.pnl-row-sec > td { @apply bg-[var(--bg-surface)] font-bold text-[var(--text)] cursor-pointer; }
+.pnl-diff-table tr.pnl-row-total > td { @apply border-t-2 border-[var(--border)] bg-[var(--primary)]/6 font-extrabold; }
+tr.pnl-row-acct { @apply cursor-pointer; }
+tr.pnl-row-acct:hover > td { background: var(--bg-surface); }
+tr.pnl-row-unclassified > td { background: color-mix(in srgb, var(--warning) 6%, transparent); }
+.pnl-flag { @apply inline-block rounded-full bg-[var(--danger)]/10 px-1.5 text-[10px] font-bold text-[var(--danger)]; }
+.pnl-flag-w { @apply bg-[var(--warning)]/12 text-[var(--warning)]; }
+.pnl-watch { @apply m-0 list-none p-0; }
+.pnl-watch > li { @apply flex flex-wrap items-center gap-2 border-b border-[var(--border)]/60 py-2 text-xs last:border-b-0; }
+.pnl-watch > li > em { @apply not-italic text-[10.5px] text-[var(--text-dim)]; }
+.pnl-watch-link { @apply ml-auto text-[11.5px] font-semibold text-[var(--primary)] no-underline hover:underline; }
+.pnl-drill { @apply flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }
+.pnl-drill-head { @apply flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3; }
+.pnl-drill-body { @apply min-h-0 flex-1 overflow-auto; }
+table.pnl-drill-table { min-width: 760px; }
+.pnl-drill-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
+.pnl-drill-table td.truncate { max-width: 0; }
 /*   상단 sticky 툴바(pnl·bs·costs)는 본문 안이라 sticky 를 푼다 — 상자 첫 줄로(아래 선만) */
 .report-body .page-sticky-header { position: static; background: transparent; box-shadow: none; backdrop-filter: none; @apply mb-3 rounded-none border-0 border-b border-[var(--border)] px-0 pb-3 pt-0; }
 .report-intro-card { @apply p-5; }
