@@ -266,9 +266,9 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
               </div>
             </div>
             {/* Body: 좌 설정 / 우 편집기 */}
-            <div className="flex-1 flex min-h-0">
+            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-y-visible">
               {/* 좌 — 양식명·유형·변수 */}
-              <aside className="w-72 shrink-0 overflow-y-auto p-4 space-y-4 border-r border-[var(--border)]">
+              <aside className="w-full md:w-72 shrink-0 md:overflow-y-auto p-4 space-y-4 border-b md:border-b-0 md:border-r border-[var(--border)]">
                 <div>
                   <label className="block text-xs text-[var(--text-muted)] mb-1">양식명 *</label>
                   <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}

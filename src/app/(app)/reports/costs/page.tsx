@@ -296,7 +296,7 @@ export default function CostsPage() {
           {breakdown && (
             <div className="costs-breakdown-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginTop: 24 }}>
               {/* 고정비 세부내역 */}
-              <div className="costs-fixed-breakdown-card glass-card" style={{ overflow: "hidden" }}>
+              <div className="costs-fixed-breakdown-card glass-card" style={{ overflowX: "auto" }}>
                 <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "var(--warning)" }}>
                   고정비 세부내역 ({year}년)
                 </div>
@@ -338,7 +338,7 @@ export default function CostsPage() {
               </div>
 
               {/* 변동비 세부내역 */}
-              <div className="costs-variable-breakdown-card glass-card" style={{ overflow: "hidden" }}>
+              <div className="costs-variable-breakdown-card glass-card" style={{ overflowX: "auto" }}>
                 <div style={{ padding: "12px 16px", background: "var(--bg-surface)", borderBottom: "1px solid var(--border)", fontWeight: 700, fontSize: 14, color: "var(--info)" }}>
                   변동비 세부내역 ({year}년)
                 </div>

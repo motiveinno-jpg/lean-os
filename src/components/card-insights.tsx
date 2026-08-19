@@ -412,7 +412,7 @@ export function CardMonthlyUsage({ companyId }: Props) {
       {/* 합계 막대 그래프 */}
       <div className="card-monthly-usage-bars">
         <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase tracking-wider mb-2">월별 합계</div>
-        <div className="grid grid-cols-6 gap-2">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {months.map((m) => {
             const v = totals[m] || 0;
             const pct = monthMax > 0 ? (v / monthMax) * 100 : 0;

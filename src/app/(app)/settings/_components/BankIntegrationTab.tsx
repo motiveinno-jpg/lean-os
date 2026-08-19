@@ -1131,11 +1131,11 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
           <div className="space-y-2">
             {bankAccounts.map((acc) => (
               <div key={acc.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] text-xs font-bold">B</div>
-                  <div>
-                    <div className="text-sm font-medium">{acc.alias || acc.bank_name}</div>
-                    <div className="text-xs text-[var(--text-dim)]">{acc.bank_name} {acc.account_number}</div>
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] text-xs font-bold shrink-0">B</div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium truncate">{acc.alias || acc.bank_name}</div>
+                    <div className="text-xs text-[var(--text-dim)] truncate">{acc.bank_name} {acc.account_number}</div>
                   </div>
                 </div>
                 <div className="text-right">

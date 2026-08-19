@@ -801,7 +801,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
               ) : (
                 <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] max-h-[400px] overflow-y-auto">
                   {items.map((it) => (
-                    <div key={it.id} className="px-4 py-3 grid grid-cols-12 gap-2 items-center text-xs">
+                    <div key={it.id} className="px-4 py-3 grid grid-cols-12 gap-2 items-center text-xs max-sm:flex max-sm:flex-col max-sm:items-start">
                       <div className="col-span-5">
                         <div className="font-medium text-sm">{stripInternalTag(it.description) || '(설명 없음)'}</div>
                         {it.recipient_name && (

@@ -205,7 +205,7 @@ export default function OutlookPage() {
           <div className="pnl-drill ol-pick" onClick={(e) => e.stopPropagation()}>
             <div className="pnl-drill-head"><h3 className="text-sm font-bold">{pick.title}</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setPick(null)}>닫기</button></div>
             {pick.items.length === 0 ? <div className="collect-empty">이 날엔 예정 항목이 없습니다</div> : (
-              <table className="ev-table ev-lined pnl-mini-table">
+              <div className="pnl-drill-body"><table className="ev-table ev-lined pnl-mini-table">
                 <thead><tr><th>날짜</th><th className="text-left">항목</th><th>구분</th><th>금액</th><th>근거</th><th>확실도</th></tr></thead>
                 <tbody>{pick.items.map((it) => (
                   <tr key={it.id} className={it.href ? "pnl-row-acct" : ""} onClick={() => it.href && (window.location.href = it.href)}>
@@ -214,7 +214,7 @@ export default function OutlookPage() {
                     <td className="text-center text-[var(--text-muted)]">{it.basis}</td><td className="text-center"><span className={it.sure === "확정" ? "ol-sure ol-sure-ok" : "ol-sure ol-sure-est"}>{it.sure}</span></td>
                   </tr>
                 ))}</tbody>
-              </table>
+              </table></div>
             )}
           </div>
         </div>

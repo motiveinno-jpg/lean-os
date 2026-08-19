@@ -158,7 +158,7 @@ export function InviteModal({
             </div>
             <div className="signature-invite-signer-rows">
               {signers.map((s, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <div key={i} className="grid grid-cols-12 gap-2 items-center max-sm:flex max-sm:flex-col max-sm:items-stretch">
                   <input
                     value={s.name}
                     onChange={(e) => updateSigner(i, "name", e.target.value)}

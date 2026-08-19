@@ -121,7 +121,7 @@ function PopupWindow({ win }: { win: Win }) {
         const vw = window.innerWidth, vh = window.innerHeight;
         setRect(win.id, { x: Math.min(Math.max(0, s.x + dx), vw - 80), y: Math.min(Math.max(0, s.y + dy), vh - 40) });
       } else {
-        setRect(win.id, { w: Math.max(380, s.w + dx), h: Math.max(260, s.h + dy) });
+        setRect(win.id, { w: Math.max(Math.min(380, window.innerWidth - 24), s.w + dx), h: Math.max(260, s.h + dy) });
       }
     };
     const onUp = () => { if (modeRef.current) { modeRef.current = null; setDragging(false); } };

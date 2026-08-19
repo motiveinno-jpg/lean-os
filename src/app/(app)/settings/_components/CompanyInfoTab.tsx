@@ -768,7 +768,7 @@ function TaxAdvisorSection() {
                 <div className="min-w-0">
                   <span className="font-bold text-sm">{a.name}</span>
                   {a.office_name && <span className="text-xs text-[var(--text-muted)] ml-1.5">{a.office_name}</span>}
-                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate">
+                  <div className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate sm:whitespace-nowrap max-sm:whitespace-normal max-sm:break-all">
                     {a.email}{a.phone ? ` · ${a.phone}` : ""}{a.specialty ? ` · ${a.specialty}` : ""} · {String(a.linked_at).slice(0, 10)} 연결
                   </div>
                 </div>

@@ -2091,7 +2091,7 @@ table.sched-table { min-width: 900px; }
 /* ═══ 클래스명 가독성 정리 재작업 — 배치4(docs) 마커 스타일 (2026-07-16) ═══ */
 .document-detail-nav { @apply flex items-center gap-3 mb-3; }
 .document-detail-header { @apply flex items-start justify-between mb-6; }
-.document-actions-bar { @apply flex gap-2; }
+.document-actions-bar { @apply flex flex-wrap gap-2; }
 .document-approval-form { @apply p-5 mb-6; }
 .document-share-email-panel { @apply p-5 mb-6; }
 .signature-request-form { @apply p-5 mb-6; }
@@ -2099,7 +2099,7 @@ table.sched-table { min-width: 900px; }
 .document-detail-tabs { @apply mb-6; }
 .document-items-table { @apply overflow-hidden p-4; }
 .invoice-issue-modal { @apply fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4; }
-.quote-preview-panel { @apply overflow-hidden scroll-mt-4; }
+.quote-preview-panel { @apply overflow-x-auto scroll-mt-4; }
 .contract-payment-schedule-table { @apply overflow-hidden; }
 .document-seal-panel { @apply p-5; }
 .document-content-panel { @apply overflow-hidden; }
@@ -2547,7 +2547,7 @@ table.board-table { min-width: 900px; }
 .bs-summary-card { @apply p-5 flex flex-col gap-3; }
 .bs-balance-sheet-grid { @apply grid grid-cols-1 md:grid-cols-2 gap-4; }
 /*   T자표 (2026-08-19) — 양쪽 같은 표: 공용 머리단, 구역 머리·소계·총계 줄 */
-.bs-side { @apply overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; }
+.bs-side { @apply overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)]; }
 .bs-side-title { @apply border-b-2 border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2.5 text-sm font-bold text-[var(--text)]; }
 table.bs-t-table { min-width: 360px; }
 .bs-t-table tbody td { @apply border-b border-[var(--border)]/50 px-4 py-2 text-[13px]; }
@@ -2823,7 +2823,7 @@ table.bs-t-table { min-width: 360px; }
 .mypage-payslips-card { @apply p-6 h-full flex flex-col; }
 /* 증명서는 발급 폼(유형·용도·버튼)이 가로로 길어 3열 행에 끼우면 좁다 — 하단 전폭 */
 .mypage-certificates-card { @apply p-6 h-full flex flex-col lg:col-span-3; }
-.mypage-leave-stats { @apply grid grid-cols-3 gap-4 mb-4; }
+.mypage-leave-stats { @apply grid grid-cols-3 gap-2 sm:gap-4 mb-4; }
 /* 총 연차 타일 — 클릭 시 사용 내역 모달. 나머지 stat-tile 과 시각적으로 동일하고 호버만 추가 */
 .mypage-leave-stat-btn { @apply w-full transition hover:border-[var(--primary)]/40 hover:bg-[var(--primary)]/5; }
 .mypage-used-leaves-modal { @apply fixed inset-0 z-50 flex items-center justify-center p-4; }
@@ -2939,7 +2939,7 @@ table.bs-t-table { min-width: 360px; }
 .voucher-edit-overlay { @apply fixed inset-0 z-[70] bg-black/40; }
 .voucher-edit-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-[calc(100vw-2rem)] max-w-3xl max-h-[calc(100vh-3rem)] overflow-y-auto flex flex-col shadow-2xl fixed left-1/2 top-1/2; }
 .voucher-edit-header { @apply sticky top-0 z-10 bg-[var(--bg-card)] rounded-t-2xl px-5 py-4 border-b border-[var(--border)] flex items-start justify-between gap-3 cursor-move select-none; }
-.voucher-edit-table { @apply px-5 py-3 pt-2; }
+.voucher-edit-table { @apply overflow-x-auto px-5 py-3 pt-2; }
 .voucher-edit-footer { @apply px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-3; }
 .adj-voucher-overlay { @apply fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4; }
 .adj-voucher-modal { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-md shadow-xl; }
@@ -5579,7 +5579,7 @@ table.pnl-drill-table { min-width: 760px; }
 .templates-variable-chip { @apply inline-flex items-center gap-1 px-2.5 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full text-xs; }
 .templates-variable-input-row { @apply flex gap-2; }
 .templates-form-actions { @apply flex gap-2; }
-.templates-list { @apply overflow-hidden; } /* glass-card(기존)는 JSX 병기 */
+.templates-list { @apply overflow-x-auto; } /* 2026-08-19 폰: overflow-hidden 이 640px 표를 잘라먹었다 */ /* glass-card(기존)는 JSX 병기 */
 .templates-list-empty { @apply p-16 text-center; }
 .template-row-header { @apply px-5 py-4 hover:bg-[var(--bg-surface)] transition; }
 .template-row-badges { @apply flex items-center gap-2; }
@@ -9285,7 +9285,7 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
    ★ 이름 충돌 확인 완료 — .ti-* 접두는 이 블록에서 처음 쓴다. */
 .vat-report-page { @apply space-y-4; }
 
-.ti-sum { @apply overflow-hidden p-0; }
+.ti-sum { @apply overflow-x-auto overflow-y-hidden p-0; }
 .ti-sum-table { @apply w-full; }
 .ti-sum-table td { @apply py-2 px-3 text-[12.5px] border-b border-[var(--border)]/50; }
 .ti-sum-table tfoot td { @apply py-2.5 font-bold border-t border-[var(--border)] bg-[var(--bg-surface)]; }
@@ -9647,3 +9647,30 @@ table.mypage-leave-table { min-width: 0; }
 .mypage-today-panel .glass-card { @apply rounded-xl border-0 bg-transparent p-0 shadow-none backdrop-blur-none; }
 table.mypage-att-table { min-width: 760px; }
 .mypage-att-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
+
+/* ── 폰(<768px) — 조회 화면 표준(qk) 본문 복구 (2026-08-19 사장님: 반응형 전수 점검) ──
+   qk-shell 의 높이·flex 체계는 md 이상에서만 켜진다(위 min-width:768px 블록). 폰에서는
+   .qk-body 가 block 이라 높이 0인데, 본문 스크롤 상자들이 absolute inset-0 이어서
+   **본문 전체가 높이 0으로 잘려 안 보였다**(구성원·휴가·근태·결재허브·통장 등 전부).
+   폰에서는 상자를 보통 흐름으로 되돌려 페이지째 스크롤한다(원래 설계 의도) —
+   표의 가로 스크롤(overflow-x)은 그대로 산다. */
+@media (max-width: 767px) {
+  .qk-body > .ev-scroll,
+  .qk-body > .collect-empty,
+  .qk-body > .ph-scroll,
+  .qk-body > .ap-scroll,
+  .qk-body > .bank-scroll,
+  .qk-body > .emp-scroll,
+  .qk-body > .ht-scroll,
+  .qk-body > .att-scroll,
+  .qk-body > .sig-scroll,
+  .qk-body > .report-body,
+  .qk-body > .spv-body,
+  .qk-body > .ledger-scroll,
+  .qk-body > .pay-scroll,
+  .qk-body > .team-scroll { position: static; inset: auto; }
+  .qk-body > .collect-empty { min-height: 40vh; }
+  /* 고정 높이 특례들 — 폰에서는 내용 높이대로 (페이지 스크롤) */
+  .coa-screen .qk-screen > .qk-body { height: auto; flex: none; }
+  .vault-file-panel > .qk-screen { height: auto; min-height: 0; }
+}

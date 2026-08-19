@@ -513,9 +513,9 @@ function TemplateEditorModal({
         </div>
 
         {/* Body: 좌 설정 / 우 본문 편집기 */}
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-y-visible">
           {/* 좌 — 기본 양식·이름·방식·변수 */}
-          <aside className="w-72 shrink-0 overflow-y-auto p-4 space-y-4 border-r border-[var(--border)]">
+          <aside className="w-full md:w-72 shrink-0 md:overflow-y-auto p-4 space-y-4 border-b md:border-b-0 md:border-r border-[var(--border)]">
             {!editing && !readonly && systemTemplates.length > 0 && (
               <div>
                 <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1">기본 양식 선택 <span className="text-[var(--text-dim)] font-normal">(표준에서 시작)</span></label>

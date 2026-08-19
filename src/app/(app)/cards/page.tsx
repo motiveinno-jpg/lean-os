@@ -930,7 +930,7 @@ export default function CardsPage() {
               <div className="space-y-3">
                 {categoryStats.map((c, i) => (
                   <div key={c.name} className="card-category-row">
-                    <div className="w-28 text-sm text-[var(--text-muted)] truncate shrink-0">
+                    <div className="w-20 sm:w-28 text-sm text-[var(--text-muted)] truncate shrink-0">
                       <i className="lp-dot" style={{ background: vizColor(i) }} />{c.name}
                     </div>
                     <div className="flex-1">

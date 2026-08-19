@@ -479,7 +479,7 @@ export function MorningBrief({
             <p className="text-sm font-semibold text-[var(--text-muted)] mb-3">
               {yesterdayLabel} 거래 요약
             </p>
-            <div className="grid grid-cols-3 gap-3 mb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
               <div className="rounded-xl p-3 text-center bg-[var(--bg-surface)]">
                 <div className="text-xs text-[var(--text-muted)] mb-1">입금</div>
                 <div className="text-sm font-bold text-[var(--success)]">

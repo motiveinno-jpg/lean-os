@@ -1566,7 +1566,7 @@ export default function PartnersPage() {
               <button onClick={() => setImportResult(null)} className="text-[var(--text-dim)] hover:text-[var(--text)] text-xl">✕</button>
             </div>
             <div className="px-6 py-4 space-y-3">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div className="px-3 py-3 rounded-lg bg-green-500/10 border border-green-500/30 text-center">
                   <div className="text-2xl font-bold text-green-400">{importResult.created}</div>
                   <div className="text-[10px] text-[var(--text-muted)]">신규 생성</div>

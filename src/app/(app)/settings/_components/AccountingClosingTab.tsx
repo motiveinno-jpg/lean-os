@@ -313,7 +313,7 @@ export function AccountingClosingTab({ companyId }: { companyId: string | null }
           <div className="mt-2 space-y-1.5">
             {manualLines.map((l) => (
               <div key={l.id} className="closing-manual-line">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                   <input value={l.name} onChange={(e) => setLine(l.id, (x) => ({ ...x, name: e.target.value }))} placeholder="계정명 직접입력"
                     className="flex-1 min-w-[120px] h-8 px-3 rounded-lg bg-[var(--bg)] border border-[var(--border)] text-sm" />
                   <button onClick={() => setLine(l.id, (x) => ({ ...x, mode: x.mode === "party" ? "account" : "party", parties: x.mode !== "party" && x.parties.length === 0 ? [newParty()] : x.parties }))}

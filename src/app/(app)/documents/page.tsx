@@ -1034,7 +1034,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       <ShareStatusPanel documentId={id} />
 
       {/* Tabs */}
-      <div className="document-detail-tabs seg-bar">
+      <div className="document-detail-tabs seg-bar max-w-full overflow-x-auto">
         {(
           [
             { key: "content" as const, label: "내용" },
@@ -1155,7 +1155,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     </tbody>
                   </table>
                   <div className="flex justify-end mb-4">
-                    <div className="w-64 text-xs space-y-1 text-[#333]">
+                    <div className="w-64 max-w-full text-xs space-y-1 text-[#333]">
                       <div className="flex justify-between"><span>공급가액</span><span>{w(supplyTotal)}</span></div>
                       <div className="flex justify-between"><span>부가세</span><span>{w(taxTotal)}</span></div>
                       {discountVal > 0 && <div className="flex justify-between"><span>할인</span><span>-{w(discountVal)}</span></div>}
@@ -2125,7 +2125,7 @@ function DocumentsPageInner() {
 
             {showArchiveForm && (
               <div className="contract-archive-form">
-                <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">계약서명 *</label>
                     <input value={archiveForm.title} onChange={(e) => setArchiveForm({ ...archiveForm, title: e.target.value })}
@@ -2370,7 +2370,7 @@ function DocumentsPageInner() {
           {showSignForm && (
             <div className="signature-create-form">
               <h3 className="text-sm font-bold mb-4 text-indigo-600">새 서명 요청</h3>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div className="col-span-2">
                   <label className="block text-xs text-[var(--text-muted)] mb-1">문서 선택 *</label>
                   <select
@@ -2563,7 +2563,7 @@ function DocumentsPageInner() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {/* Left: Info */}
                 <div className="space-y-3">
                   <div>
@@ -2572,7 +2572,7 @@ function DocumentsPageInner() {
                   </div>
                   <div>
                     <span className="text-[10px] text-[var(--text-dim)] uppercase">서명자</span>
-                    <p className="text-sm mt-0.5">{selectedSignature.signer_name} ({selectedSignature.signer_email})</p>
+                    <p className="text-sm mt-0.5 break-all">{selectedSignature.signer_name} ({selectedSignature.signer_email})</p>
                     {selectedSignature.signer_phone && (
                       <p className="text-xs text-[var(--text-muted)]">{selectedSignature.signer_phone}</p>
                     )}
