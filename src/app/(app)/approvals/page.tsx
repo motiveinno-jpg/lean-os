@@ -104,6 +104,7 @@ const TYPE_META: Record<string, { icon: string; bg: string; text: string }> = {
   contract: { icon: "pen", bg: "bg-[var(--primary)]/12", text: "text-[var(--primary)]" },
   travel: { icon: "plane", bg: "bg-blue-500/12", text: "text-blue-500" },
   approval_doc: { icon: "doc", bg: "bg-rose-500/12", text: "text-rose-500" },
+  certificate: { icon: "doc", bg: "bg-teal-500/12", text: "text-teal-600" },
 };
 const TYPE_FALLBACK = { icon: "doc", bg: "bg-[var(--primary)]/12", text: "text-[var(--primary)]" };
 const typeMeta = (t: string) => TYPE_META[t] || TYPE_FALLBACK;
@@ -2831,7 +2832,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   //   경비 청구가 선택된 것처럼 보이면서 상세 내용은 안 뜨고, 다른 유형을 눌렀다 돌아와야
   //   나오던 문제. 처음부터 고르게 하면 그 혼란이 사라진다).
   const initialType = (() => {
-    if (presetType === 'expense' || presetType === 'payment' || presetType === 'leave') return presetType as RequestType;
+    if (presetType && presetType in REQUEST_TYPE_LABELS && presetType !== 'custom') return presetType as RequestType;   //   2026-08-19: 마이페이지에서 오는 certificate 등 모든 기본 유형
     return "" as const;
   })();
   const [form, setForm] = useState<{ requestType: RequestType | ""; title: string; amount: string; description: string }>({
@@ -2843,7 +2844,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const typeChosen = !!form.requestType; // 유형을 고르기 전에는 아래 입력들을 감춘다
   // presetType 이 바뀌면 requestType 동기화 (대시보드에서 들어올 때)
   useEffect(() => {
-    if (presetType && (presetType === 'expense' || presetType === 'payment' || presetType === 'leave' || presetType === 'general')) {
+    if (presetType && ((presetType in REQUEST_TYPE_LABELS && presetType !== 'custom') || presetType === 'general')) {
       const t = presetType === 'general' ? 'expense' : presetType;
       setForm(f => ({ ...f, requestType: t as RequestType }));
     }

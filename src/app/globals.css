@@ -9645,3 +9645,5 @@ table.team-mgmt-table { min-width: 640px; }
 table.mypage-leave-table { min-width: 0; }
 .mypage-leave-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
 .mypage-today-panel .glass-card { @apply rounded-xl border-0 bg-transparent p-0 shadow-none backdrop-blur-none; }
+table.mypage-att-table { min-width: 760px; }
+.mypage-att-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }

@@ -1,6 +1,5 @@
 "use client";
 import { logRead } from "@/lib/log-read";
-import { Ico } from "@/components/ui-icon";
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -11,6 +10,7 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { createAttendanceEditRequest } from "@/lib/hr";
 import { kstLocalToIso } from "@/lib/kst";
+import { QueryBar, ConditionPanel, ConditionRow, AppliedChips, ResultStrip, Stat, type AppliedChip } from "@/components/query-kit";
 
 // 내 출퇴근 기록 — 인사관리>근태관리가 "전 직원"이라면 여기는 "나"만.
 //   월 단위로 내 attendance_records 를 조회해 요약(근무일·총 근무시간·지각·연장) + 일별 목록을 보여준다.
@@ -146,95 +146,88 @@ export function MyAttendance({ employeeId }: { employeeId: string | null }) {
   const lateDays = records.filter((r) => r.is_late).length;
   const overtimeMinutes = records.reduce((sum, r) => sum + Number(r.overtime_minutes || 0), 0);
 
-  return (
-    <div className="mypage-attendance-card glass-card">
-      <div className="mypage-attendance-header">
-        <h2 className="section-title mb-0">내 출퇴근 기록</h2>
-        <div className="mypage-attendance-month-nav">
-          <button onClick={() => setMonth(shiftMonth(month, -1))} className="mypage-attendance-month-btn" aria-label="이전 달">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
-          </button>
-          <span className="text-xs font-bold mono-number w-[86px] text-center">{month.replace("-", "년 ")}월</span>
-          <button
-            onClick={() => setMonth(shiftMonth(month, 1))}
-            disabled={isCurrentMonth}
-            className="mypage-attendance-month-btn disabled:opacity-30 disabled:cursor-not-allowed"
-            aria-label="다음 달"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5l7 7-7 7"/></svg>
-          </button>
-        </div>
-      </div>
+  //   검색조건 — 상태(다중) · 정정 요청 있음 · 연장 있음 (2026-08-19 조회 표준: 갈래 안 표는 조회 줄+검색조건+결과 요약+표)
+  const [cond, setCond] = useState<{ st: string[]; flags: string[] }>({ st: [], flags: [] });
+  const [draft, setDraft] = useState(cond);
+  const [panel, setPanel] = useState(false);
+  const shown = records.filter((r) => {
+    const st = r.is_late ? "late" : (r.status || "present");
+    if (cond.st.length && !cond.st.includes(st) && !cond.st.includes(r.status)) return false;
+    if (cond.flags.includes("edit") && !pendingSet.has(r.id)) return false;
+    if (cond.flags.includes("ot") && !(Number(r.overtime_minutes || 0) > 0)) return false;
+    return true;
+  });
+  const chips: AppliedChip[] = [
+    ...(cond.st.length ? [{ group: "상태", label: cond.st.map((k) => STATUS_LABEL[k]?.label || k).join(" · "), onRemove: () => setCond((c) => ({ ...c, st: [] })) }] : []),
+    ...(cond.flags.length ? [{ group: "표시", label: cond.flags.map((f) => (f === "edit" ? "정정 대기" : "연장 있음")).join(" · "), onRemove: () => setCond((c) => ({ ...c, flags: [] })) }] : []),
+  ];
 
-      <div className="mypage-attendance-summary">
-        <div className="stat-tile items-center text-center">
-          <div className="stat-tile-label">근무일</div>
-          <div className="stat-tile-value mono-number text-[var(--primary)]">{workDays}일</div>
-        </div>
-        <div className="stat-tile items-center text-center">
-          <div className="stat-tile-label">총 근무</div>
-          <div className="stat-tile-value mono-number">{Math.floor(totalMinutes / 60)}시간</div>
-        </div>
-        <div className="stat-tile items-center text-center">
-          <div className="stat-tile-label">지각</div>
-          <div className={`stat-tile-value mono-number ${lateDays > 0 ? "text-[var(--danger)]" : ""}`}>{lateDays}회</div>
-        </div>
-        <div className="stat-tile items-center text-center">
-          <div className="stat-tile-label">연장근무</div>
-          <div className={`stat-tile-value mono-number ${overtimeMinutes > 0 ? "text-[var(--warning)]" : ""}`}>{Math.floor(overtimeMinutes / 60)}시간</div>
-        </div>
-      </div>
+  return (
+    <div className="mypage-attendance-card bz-body">
+      {/* 조회 줄 — [월 이동 · 검색조건 ▾] ‖ (오늘 찍기는 내 현황) */}
+      <QueryBar right={<span className="text-[11px] text-[var(--text-dim)]">출근·퇴근 시각이 잘못 찍힌 날은 줄의 '정정 요청' — 관리자 승인 후 반영</span>}>
+        <span className="inline-flex items-center gap-1">
+          <button type="button" onClick={() => setMonth(shiftMonth(month, -1))} className="btn-secondary btn-sm" aria-label="이전 달">‹</button>
+          <span className="text-xs font-bold mono-number w-[86px] text-center">{month.replace("-", "년 ")}월</span>
+          <button type="button" onClick={() => setMonth(shiftMonth(month, 1))} disabled={isCurrentMonth} className="btn-secondary btn-sm disabled:opacity-30" aria-label="다음 달">›</button>
+        </span>
+        <ConditionPanel open={panel} onOpenChange={(v) => { if (v) setDraft(cond); setPanel(v); }} activeCount={(cond.st.length ? 1 : 0) + (cond.flags.length ? 1 : 0)}
+          foot={<>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setDraft({ st: [], flags: [] })}>기본으로</button>
+            <span className="ml-auto" />
+            <button type="button" className="btn-primary btn-sm" onClick={() => { setCond(draft); setPanel(false); }}>조회</button>
+          </>}>
+          <ConditionRow label="상태" hint="여러 개">
+            <span className="qk-quicks">{Object.entries(STATUS_LABEL).map(([k, v]) => <button key={k} type="button" onClick={() => setDraft((d) => ({ ...d, st: d.st.includes(k) ? d.st.filter((x) => x !== k) : [...d.st, k] }))} className={draft.st.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{v.label}</button>)}</span>
+          </ConditionRow>
+          <ConditionRow label="표시">
+            <span className="qk-quicks">{([["edit", "정정 대기 있음"], ["ot", "연장 있음"]] as const).map(([k, l]) => <button key={k} type="button" onClick={() => setDraft((d) => ({ ...d, flags: d.flags.includes(k) ? d.flags.filter((x) => x !== k) : [...d.flags, k] }))} className={draft.flags.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
+          </ConditionRow>
+        </ConditionPanel>
+      </QueryBar>
+      <AppliedChips chips={chips} onClearAll={() => setCond({ st: [], flags: [] })} />
+      <ResultStrip>
+        <Stat label="근무일" value={`${workDays}일`} />
+        <Stat label="총 근무" value={`${Math.floor(totalMinutes / 60)}시간 ${Math.round(totalMinutes % 60)}분`} />
+        <Stat label="지각" value={`${lateDays}회`} tone={lateDays > 0 ? "minus" : undefined} />
+        <Stat label="연장" value={fmtHM(overtimeMinutes)} />
+        <Stat label="정정 대기" value={`${records.filter((r) => pendingSet.has(r.id)).length}건`} />
+      </ResultStrip>
 
       {isLoading ? (
-        <div className="mypage-record-loading">불러오는 중...</div>
-      ) : records.length === 0 ? (
-        <div className="mypage-record-empty">
-          <div className="text-3xl mb-2"><Ico e="🕘" /></div>
-          <div className="text-sm font-semibold text-[var(--text-muted)]">이 달의 출퇴근 기록이 없습니다</div>
-          <div className="text-xs text-[var(--text-dim)] mt-1">출근을 기록하면 이곳에 일자별로 쌓입니다.</div>
-        </div>
+        <div className="collect-empty">불러오는 중…</div>
+      ) : shown.length === 0 ? (
+        <div className="collect-empty">{records.length === 0 ? "이 달의 출퇴근 기록이 없습니다 — 출근을 기록하면 여기 일자별로 쌓입니다" : "조건에 맞는 날이 없습니다"}</div>
       ) : (
-        <div className="mypage-attendance-list mypage-record-body">
-          {records.map((r) => {
-            const st = STATUS_LABEL[r.status as string] || STATUS_LABEL.present;
-            const ci = timeOf(r.check_in);
-            const co = timeOf(r.check_out);
-            const dayMinutes = Number(r.regular_minutes || 0) + Number(r.overtime_minutes || 0) || Math.round(Number(r.work_hours || 0) * 60);
-            const d = new Date(`${r.date}T00:00:00`);
-            return (
-              <div key={r.id} className="mypage-attendance-row">
-                <div className="mypage-attendance-date">
-                  <span className="text-sm font-bold mono-number">{Number(r.date.slice(5, 7))}/{Number(r.date.slice(8, 10))}</span>
-                  <span className="text-[10px] text-[var(--text-dim)]">{WEEKDAYS[d.getDay()]}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-[10px] font-bold ${st.color}`}>{st.label}</span>
-                    <span className="text-xs mono-number text-[var(--text-muted)]">
-                      {ci || "—"} → {co || (ci ? "근무 중" : "—")}
-                    </span>
-                    {dayMinutes > 0 && <span className="text-xs font-semibold">{fmtHM(dayMinutes)}</span>}
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap mt-1 empty:hidden">
-                    <AttendanceBadges record={r} compact />
-                  </div>
-                </div>
-                {pendingSet.has(r.id) ? (
-                  <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full bg-[var(--warning-dim)] text-[var(--warning)]" title="관리자 승인 대기 중인 정정 요청이 있습니다">정정 대기중</span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => openEdit(r)}
-                    className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-lg bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 transition"
-                    title="출근·퇴근 시각이 잘못 기록됐다면 관리자에게 정정을 요청하세요"
-                  >
-                    정정 요청
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <table className="ev-table ev-lined mypage-att-table">
+          <thead><tr><th>날짜</th><th>요일</th><th>출근</th><th>퇴근</th><th>근무</th><th>연장</th><th>상태</th><th className="text-left">비고</th><th>정정</th></tr></thead>
+          <tbody>
+            {shown.map((r) => {
+              const st = STATUS_LABEL[r.status as string] || STATUS_LABEL.present;
+              const ci = timeOf(r.check_in);
+              const co = timeOf(r.check_out);
+              const dayMinutes = Number(r.regular_minutes || 0) + Number(r.overtime_minutes || 0) || Math.round(Number(r.work_hours || 0) * 60);
+              const d = new Date(`${r.date}T00:00:00`);
+              const ot = Number(r.overtime_minutes || 0);
+              return (
+                <tr key={r.id}>
+                  <td className="text-center mono-number font-semibold">{Number(r.date.slice(5, 7))}/{Number(r.date.slice(8, 10))}</td>
+                  <td className={`text-center ${d.getDay() === 0 ? "text-[var(--danger)]" : d.getDay() === 6 ? "text-[var(--info)]" : "text-[var(--text-muted)]"}`}>{WEEKDAYS[d.getDay()]}</td>
+                  <td className={`text-center mono-number ${r.is_late ? "text-[var(--warning)] font-bold" : ""}`}>{ci || "—"}</td>
+                  <td className="text-center mono-number">{co || (ci ? <span className="text-[var(--text-dim)]">근무 중</span> : "—")}</td>
+                  <td className="text-right mono-number">{dayMinutes > 0 ? fmtHM(dayMinutes) : "—"}</td>
+                  <td className={`text-right mono-number ${ot > 0 ? "text-[var(--warning)]" : "text-[var(--text-dim)]"}`}>{ot > 0 ? fmtHM(ot) : "—"}</td>
+                  <td className="text-center"><span className={`ol-sure ${r.status === "present" && !r.is_late ? "ol-sure-ok" : r.is_late || r.status === "absent" ? "" : "ol-sure-est"}`}>{r.is_late ? `지각${r.late_minutes ? ` ${r.late_minutes}분` : ""}` : st.label}</span></td>
+                  <td className="text-left"><span className="inline-flex flex-wrap gap-1"><AttendanceBadges record={r} compact /></span></td>
+                  <td className="text-center">
+                    {pendingSet.has(r.id) ? <span className="ol-sure ol-sure-est" title="관리자 승인 대기 중인 정정 요청이 있습니다">정정 대기</span>
+                      : <button type="button" onClick={() => openEdit(r)} className="btn-secondary btn-sm" title="출근·퇴근 시각이 잘못 기록됐다면 관리자에게 정정을 요청하세요">정정 요청</button>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
 
       {/* ── 정정 요청 모달 ── */}

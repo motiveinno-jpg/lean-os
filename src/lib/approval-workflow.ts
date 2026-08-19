@@ -29,6 +29,7 @@ export type RequestType =
   | 'equipment'
   | 'approval_doc'
   | 'expense_report'
+  | 'certificate'
   | 'custom';
 
 export interface ApprovalPolicy {
@@ -108,6 +109,7 @@ export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
   equipment: '장비 요청',
   approval_doc: '품의서',
   expense_report: '지출결의서',
+  certificate: '증명서 발급',   //   2026-08-19 마이페이지 › 급여·계약·증명에서 신청 — 재직·경력·급여 증명, 인사팀이 승인·발급
   custom: '기타',
 };
 

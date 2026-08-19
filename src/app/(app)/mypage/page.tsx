@@ -345,6 +345,11 @@ export default function MyPage() {
     queryKey: ["my-recent-notices", companyId], enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => { const data = logRead("mypage:notices", await supabase.from("announcements").select("id, title, created_at").eq("company_id", companyId!).order("created_at", { ascending: false }).limit(3)); return (data || []) as any[]; },
   });
+  //   증명서 발급 신청(결재 허브 유형 certificate) — 내 신청 목록 (2026-08-19)
+  const { data: certReqs = [] } = useQuery({
+    queryKey: ["my-certificate-requests", userId], enabled: !!userId, staleTime: 60_000,
+    queryFn: async () => { const data = logRead("mypage:cert", await supabase.from("approval_requests").select("id, title, description, status, created_at, attachments").eq("requester_id", userId!).eq("request_type", "certificate").order("created_at", { ascending: false }).limit(20)); return (data || []) as any[]; },
+  });
   //   휴가·연차 갈래는 원장을 바로 연다(모달이 아니라 표)
   useEffect(() => { if (tab === "leave") setShowUsedLeaves(true); }, [tab]);
 
@@ -556,6 +561,21 @@ export default function MyPage() {
             {employee?.id && <MyPayslips employeeId={employee.id} />}
             {employee?.id && <MyContractsCard employeeId={employee.id} />}
           </div>
+          <section className="pnl-panel">
+            <h3>증명서 <small className="font-normal text-[var(--text-dim)]">재직·경력·급여 증명 — 신청하면 인사팀이 결재 허브에서 승인·발급</small></h3>
+            <p>신청 제목에 종류(재직/경력/급여)와 용도(은행 제출 등)를 적어 주세요. 발급본은 결재 건의 첨부로 돌아옵니다.</p>
+            <div className="mb-2"><Link href="/approvals?tab=new-request&new=certificate" className="btn-secondary btn-sm">증명서 발급 신청</Link></div>
+            {certReqs.length === 0 ? <div className="collect-empty">신청한 증명서가 없습니다</div> : (
+              <table className="ev-table ev-lined mypage-leave-table">
+                <thead><tr><th className="text-left">신청</th><th>신청일</th><th>상태</th><th>발급본</th></tr></thead>
+                <tbody>{certReqs.map((r: any) => (
+                  <tr key={r.id}><td className="text-left font-semibold">{r.title}{r.description && <small className="ml-1 text-[var(--text-dim)]">{String(r.description).slice(0, 40)}</small>}</td><td className="text-center mono-number">{String(r.created_at || "").slice(0, 10)}</td>
+                    <td className="text-center"><span className={`ol-sure ${r.status === "approved" ? "ol-sure-ok" : r.status === "rejected" ? "" : "ol-sure-est"}`}>{r.status === "approved" ? "발급 완료" : r.status === "rejected" ? "반려" : "처리 중"}</span></td>
+                    <td className="text-center">{Array.isArray(r.attachments) && r.attachments.length > 0 ? <Link href={`/approvals?tab=my-requests&request=${r.id}`} className="bz-link">첨부 {r.attachments.length}건 →</Link> : "—"}</td></tr>
+                ))}</tbody>
+              </table>
+            )}
+          </section>
         </div>
       )}
 
