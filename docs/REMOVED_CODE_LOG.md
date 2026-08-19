@@ -151,3 +151,6 @@
 ## 2026-08-19 — 구성원 탭 권한 재편 (docs/20260819_PLAN_permission_tab_redesign.md)
 - PermissionSection: 템플릿 셀렉트(perm-apply-select)·'전체 선택/해제' 버튼 제거(그룹 스위치로 대체). PermissionTree: 2열 글래스 카드 체크박스 트리 → 표. `globals.css` 의 `.member-permission-groups/-group/-menu/-tabs` `.perm-apply-select` 는 사용처 없음(다른 PC 충돌 회피로 남김).
 - PERMISSION_CATALOG: '파이낸스' 중복 그룹 합침, '자동 분류(/transactions)' 줄은 hidden(키·게이트 유지).
+
+## 2026-08-19 — 요금제 재편 (docs/20260819_PLAN_billing_redesign.md)
+- billing/page.tsx: KPI 카드 4(stat-tile)·사용량 타일·요금제 카드(billing-plan-card, PLAN_FEATURES)·해외카드 배너(billing-overseas-card-notice)·해지 상자(billing-cancel-section)·충전 카드(billing-credit-balance/shop/history)·결제 수단/안내 카드·청구서 카드 → 요약 한 줄 + 표. '청구서' 탭은 '결제' 탭에 합침. `globals.css` 옛 `.billing-kpi-row .billing-usage-card .billing-plan-grid .billing-plan-card .billing-cancel-section .billing-overseas-card-notice .billing-credit-* .billing-payment-*-card .billing-invoices-card .billing-coupon-card` 는 사용처 없음(다른 PC 충돌 회피로 남김).

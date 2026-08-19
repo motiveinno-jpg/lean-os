@@ -9873,3 +9873,35 @@ table.dup-table { min-width: 0; }
 .empd-row { @apply flex items-center gap-2 px-3.5 py-2 text-[12px]; }
 .empd-row-done { @apply bg-[var(--success)]/5; }
 .emp-cert-pop { @apply absolute left-0 top-full mt-1.5 z-20 w-[320px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-[var(--shadow-lg)] p-3 space-y-2; }
+
+/* ── 요금제 재편 (2026-08-19, docs/20260819_PLAN_billing_redesign.md) — 요약 한 줄 · 구획(표) · 비교 표 · 각주 ── */
+.billing-strip { @apply flex items-center gap-4 flex-wrap text-[12.5px] text-[var(--text-muted)] px-1 pb-3 mb-1 border-b border-[var(--border)]; }
+.billing-strip b { @apply text-[var(--text)] font-semibold; }
+.billing-strip-inner { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3.5 py-2 mb-0 border-b; }
+.billing-chip-warn { @apply inline-flex items-center text-[11px] font-semibold rounded-full px-2 py-0.5 bg-[var(--warning)]/12 text-[var(--warning)]; }
+.billing-plan-tab, .billing-pay-tab, .billing-credits { @apply flex flex-col gap-4; }
+.billing-sec { @apply flex flex-col gap-1.5; }
+.billing-sec-head { @apply flex items-center gap-3 flex-wrap; }
+.billing-sec-head .qk-quicks { @apply inline-flex w-auto; }
+.billing-sec-title { @apply text-[13px] font-bold text-[var(--text)]; }
+.billing-sec-sub { @apply text-[11.5px] text-[var(--text-dim)]; }
+.billing-table { @apply w-full; min-width: 560px; }
+.billing-table td { @apply py-2; }
+.billing-qty { @apply w-14 px-2 py-1 text-right rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[12px]; }
+.billing-bar { @apply inline-block w-[120px] h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden align-middle; }
+.billing-bar > span { @apply block h-full rounded-full; }
+.billing-coupon-row { @apply flex items-center gap-3 px-3.5 py-2 rounded-xl border border-dashed border-[var(--primary)]/40 bg-[var(--bg-card)]; }
+.billing-matrix th { @apply align-top; }
+.billing-matrix th.billing-col-rec { @apply bg-[var(--primary-light)]; }
+.billing-matrix th.billing-col-cur .billing-col-name { @apply text-[var(--primary)]; }
+.billing-col-name { @apply text-[14px] font-bold text-[var(--text)] normal-case; }
+.billing-col-tag { @apply text-[10px] font-semibold text-[var(--primary)] ml-1; }
+.billing-col-price { @apply text-[17px] font-extrabold text-[var(--text)] mt-0.5 normal-case; }
+.billing-col-price small { @apply text-[11px] font-normal text-[var(--text-muted)]; }
+.billing-col-sub { @apply text-[11px] font-normal text-[var(--text-dim)] mt-0.5 mb-2 normal-case tracking-normal; }
+.billing-col-btn-cur { @apply inline-block text-[12px] font-semibold rounded-lg px-3 py-1 bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.billing-cell-rec { background: color-mix(in srgb, var(--primary-light) 45%, transparent); }
+.billing-ok { @apply text-[var(--success)] font-bold; }
+.billing-note { @apply text-[11.5px] text-[var(--text-dim)] leading-relaxed m-0; }
+.billing-cancel-line { @apply text-[12px] text-[var(--text-dim)] m-0 pt-1; }
+.billing-cancel-link { @apply underline underline-offset-2 text-[var(--text-dim)] hover:text-[var(--danger)] disabled:opacity-50; }
