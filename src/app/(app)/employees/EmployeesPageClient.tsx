@@ -854,6 +854,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   // 직원별 월간 요약 카드 클릭 시 상세(수당내역·근무내역) 모달.
   const [summaryDetailId, setSummaryDetailId] = useState<string | null>(null);
+  //   직원별 월간 요약 표 — 정렬·이름 검색 (2026-08-19)
+  const [sumSort, setSumSort] = useState<SortState<string>>({ key: "name", dir: "asc" });
+  const [sumQ, setSumQ] = useState("");
   // 표시용 상태 — 두 컬럼의 축이 다르다 (2026-08-07 정리).
   //   status  = 그 날의 근무 형태(출근/재택/반차/결근)
   //   is_late = 지각 여부. 실제 출근시각과 회사 유예로만 정해진다.
@@ -1580,58 +1583,60 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           const ds = `${selectedMonth}-${String(d).padStart(2, '0')}`;
           if (dow !== 0 && dow !== 6 && !holidayDaySet.has(ds)) workdaysSoFar++;   // 공휴일 제외 (2026-08-19)
         }
+        //   표 정렬·빠른검색 (2026-08-19 사장님: 직원이 많아지면 카드 격자로는 못 본다 → 표 + 정렬 + 검색)
+        const rowsAll = (summary as any[]).map((s) => ({ ...s, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0 }));
+        const rows = rowsAll.filter((r) => !sumQ || String(r.name || "").toLowerCase().includes(sumQ.toLowerCase()))
+          .sort((a, b) => { const k = sumSort.key as string; const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1); });
+        const th = (label: string, key: string) => (
+          <th><button type="button" className="ev-th-btn" onClick={() => setSumSort((c) => nextSort(c, key as any, key === "name" ? "asc" : "desc"))}>{label}{sumSort.key === key ? (sumSort.dir === "asc" ? " ▲" : " ▼") : ""}</button></th>
+        );
         return (
           <div className="attendance-monthly-summary">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약</h3>
-              <span className="text-[11px] text-[var(--text-dim)]">카드를 클릭하면 상세 내역을 볼 수 있습니다</span>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약 <small className="font-normal text-[var(--text-dim)]">{rows.length}명 · 근무일 {workdaysSoFar}일 기준 · 줄을 누르면 상세</small></h3>
+              <input value={sumQ} onChange={(e) => setSumQ(e.target.value)} placeholder="이름 검색" className="qk-input ml-auto h-8 w-44 px-2.5 text-xs" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {summary.map((s: any) => {
-                const alw = allowanceByEmployee.get(s.employee_id);
-                const alwTitle = alw
-                  ? `연장 ${alw.overtime.toLocaleString('ko-KR')}원 · 야간 ${alw.night.toLocaleString('ko-KR')}원 · 휴일 ${alw.holiday.toLocaleString('ko-KR')}원 · 당직 ${alw.on_duty.toLocaleString('ko-KR')}원 · 기타 ${alw.etc.toLocaleString('ko-KR')}원`
-                  : '수당 기록 없음';
-                const ratio = workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0;
-                return (
-                  <button
-                    type="button"
-                    key={s.employee_id}
-                    onClick={() => setSummaryDetailId(s.employee_id)}
-                    className="glass-card p-4 text-left hover:-translate-y-0.5 hover:shadow-lg transition"
-                  >
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <span
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                        style={{ background: attAvatarColor(s.employee_id) }}
-                      >
-                        {attInitials(s.name)}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-sm font-bold text-[var(--text)] truncate">{s.name}</div>
-                        <div className="text-[11px] text-[var(--text-dim)] truncate">
-                          {s.totalDays}일 근무{s.lateDays > 0 ? ` · 지각 ${s.lateDays}회` : ""}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden mb-3">
-                      <div className="h-full rounded-full bg-[var(--primary)] transition-all" style={{ width: `${Math.round(ratio * 100)}%` }} />
-                    </div>
-                    <div className="flex items-end justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-[10px] text-[var(--text-dim)]">총 근무</div>
-                        <div className="text-base font-extrabold mono-number text-[var(--text)]">{s.totalHours.toFixed(1)}h</div>
-                      </div>
-                      {isAdminForAllowance && (
-                        <div className="text-right min-w-0" title={alwTitle}>
-                          <div className="text-[10px] text-[var(--text-dim)]">수당</div>
-                          <div className="text-sm font-bold mono-number text-[var(--success)] truncate">{fmtKRW(alw?.total ?? 0)}</div>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="ev-scroll att-summary-scroll">
+              <table className="ev-table ev-lined att-summary-table">
+                <thead>
+                  <tr>
+                    <th className="text-left"><button type="button" className="ev-th-btn" onClick={() => setSumSort((c) => nextSort(c, "name" as any, "asc"))}>직원{sumSort.key === "name" ? (sumSort.dir === "asc" ? " ▲" : " ▼") : ""}</button></th>
+                    {th("출근일", "totalDays")}
+                    <th>출근율</th>
+                    {th("지각", "lateDays")}
+                    {th("결근", "absentDays")}
+                    {th("재택", "remoteDays")}
+                    {th("반차", "halfDays")}
+                    {th("연장(분)", "overtimeMinutesSum")}
+                    {th("총 근무", "totalHours")}
+                    {isAdminForAllowance && th("수당", "alwTotal")}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr><td colSpan={isAdminForAllowance ? 10 : 9} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "이름에 맞는 직원이 없습니다" : "이 달 근태 기록이 없습니다"}</td></tr>
+                  ) : rows.map((s: any) => {
+                    const alw = allowanceByEmployee.get(s.employee_id);
+                    const alwTitle = alw
+                      ? `연장 ${alw.overtime.toLocaleString('ko-KR')}원 · 야간 ${alw.night.toLocaleString('ko-KR')}원 · 휴일 ${alw.holiday.toLocaleString('ko-KR')}원 · 당직 ${alw.on_duty.toLocaleString('ko-KR')}원 · 기타 ${alw.etc.toLocaleString('ko-KR')}원`
+                      : '수당 기록 없음';
+                    return (
+                      <tr key={s.employee_id} className="pnl-row-acct" onClick={() => setSummaryDetailId(s.employee_id)}>
+                        <td className="text-left"><span className="inline-flex items-center gap-2"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: attAvatarColor(s.employee_id) }}>{attInitials(s.name)}</span><b>{s.name}</b></span></td>
+                        <td className="text-center mono-number">{s.totalDays}일</td>
+                        <td className="text-center"><span className="att-ratio"><i style={{ width: `${Math.round(s.ratio * 100)}%` }} /></span><small className="ml-1.5 mono-number text-[var(--text-dim)]">{Math.round(s.ratio * 100)}%</small></td>
+                        <td className={`text-center mono-number ${s.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{s.lateDays > 0 ? `${s.lateDays}회` : "—"}</td>
+                        <td className={`text-center mono-number ${s.absentDays > 0 ? "text-[var(--danger)] font-bold" : "text-[var(--text-dim)]"}`}>{s.absentDays > 0 ? `${s.absentDays}일` : "—"}</td>
+                        <td className="text-center mono-number text-[var(--text-muted)]">{s.remoteDays > 0 ? `${s.remoteDays}일` : "—"}</td>
+                        <td className="text-center mono-number text-[var(--text-muted)]">{s.halfDays > 0 ? `${s.halfDays}회` : "—"}</td>
+                        <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(s.overtimeMinutesSum || 0) > 0 ? Math.round(s.overtimeMinutesSum || 0).toLocaleString() : "—"}</td>
+                        <td className="text-right mono-number font-bold">{s.totalHours.toFixed(1)}h</td>
+                        {isAdminForAllowance && <td className="text-right mono-number font-bold text-[var(--success)]" title={alwTitle}>{fmtKRW(alw?.total ?? 0)}</td>}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         );
