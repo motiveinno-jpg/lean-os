@@ -9564,3 +9564,8 @@ table.team-table { min-width: 760px; }
 .team-card { @apply flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
 table.templates-table { min-width: 640px; }
 .templates-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-1.5 text-xs; }
+/* ── 통장 개요·통장 탭 정리 (2026-08-19 자금 메뉴 점검) — 상자 안 유리 카드는 얇은 판으로, 계좌 목록은 표 ── */
+.bank-overview-panel > .glass-card, .bank-overview-panel .upcoming-transfers-card, .bank-overview-panel .auto-transfer-history-card, .bank-overview-panel .top-expenses-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }
+.bank-overview-panel > .bank-balance-chart { @apply mb-0; }
+table.bank-accounts-table { min-width: 720px; }
+.bank-accounts-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }

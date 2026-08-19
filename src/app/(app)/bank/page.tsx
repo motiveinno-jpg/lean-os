@@ -140,6 +140,8 @@ export default function BankPage() {
   // 통장 거래 기간 — 연동 시 CODEF sync 범위 + 거래내역 표 필터에 공통 적용 (카드 페이지와 동일 패턴)
   //   ★ 기본값은 최근 1개월 (조회 화면 표준) — 예전 '미설정=최근 50건' 방식을 버렸다.
   const [bankTxFrom, setBankTxFrom] = useState<string>(() => defaultRange().from);
+  //   통장 탭 보기 — 표가 기본, 카드는 보기 옵션 (2026-08-19 조회 표준: 목록은 표)
+  const [accountsView, setAccountsView] = useState<"list" | "card">("list");
   const [bankTxTo, setBankTxTo] = useState<string>(() => defaultRange().to);
   //   조회 줄 — 빠른검색(즉시) + 검색조건 패널(조회를 눌러야). 수집·전표와 같은 draft/live 구도.
   //   통장 탭 카드 클릭의 '이 통장만'은 검색조건의 계좌 칩으로 들어온다(배너 방식 폐기).
@@ -800,48 +802,19 @@ export default function BankPage() {
           <QueryHead>
             {tabsEl}
             <QueryBar right={actionsEl}>
+              {tab === "accounts" && <ChipGroup value={accountsView} onChange={setAccountsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
               <span className="text-[11px] text-[var(--text-dim)]">통장 잔액·이번 달 흐름 — 거래를 조건으로 찾으려면 거래내역 탭</span>
             </QueryBar>
+            {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·이번 달 수익·지출·분류 완료율)를 Stat 줄로 (2026-08-19 자금 메뉴 점검) */}
+            <ResultStrip>
+              <QStat label="총 자산" value={<>{fmtW(totalBalance)} <small className="font-normal text-[var(--text-dim)]">{accounts.length}개 계좌</small></>} />
+              <QStat label="이번 달 수익" value={<>+{fmtW(income)} {incomeDelta != null && <small className={`font-bold ${incomeDelta >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{incomeDelta >= 0 ? "▲" : "▼"}{Math.abs(incomeDelta).toFixed(1)}%</small>}</>} tone="plus" />
+              <QStat label="이번 달 지출" value={<>−{fmtW(expense)} {expenseDelta != null && <small className={`font-bold ${expenseDelta <= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{expenseDelta >= 0 ? "▲" : "▼"}{Math.abs(expenseDelta).toFixed(1)}%</small>}</>} tone="minus" />
+              <QStat label="분류 완료율" value={<>{mappingRate != null ? `${mappingRate}%` : "—"} <small className="font-normal text-[var(--text-dim)]">{flow && flow.total > 0 ? `${flow.mapped}/${flow.total}건` : "거래 없음"}</small></>} />
+            </ResultStrip>
           </QueryHead>
           <QueryBody>
             <div className="bank-scroll">
-      {/* 시안 stat 4 그라데이션 카드 — 거래내역(조회 화면) 탭에서는 숨긴다:
-          이 숫자들은 '이번 달' 고정이라, 조회 기간과 다른 숫자가 표 위에 있으면
-          "조건의 결과"로 잘못 읽힌다 (2026-08-14 조회 화면 표준 적용) */}
-      {/* 상자 안(거래내역 아님) */ true && (
-      <div className="bank-summary-cards">
-        <Stat
-          tone=""
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
-          label="총 자산"
-          value={fmtW(totalBalance)}
-          sub={`${accounts.length}개 계좌`}
-        />
-        <Stat
-          tone="success"
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>}
-          label="이번 달 수익"
-          value={`+${fmtW(income)}`}
-          delta={incomeDelta}
-        />
-        <Stat
-          tone="danger"
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" /></svg>}
-          label="이번 달 지출"
-          value={`-${fmtW(expense)}`}
-          delta={expenseDelta}
-          invertDeltaColor
-        />
-        <Stat
-          tone="info"
-          icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
-          label="분류 완료율"
-          value={mappingRate != null ? `${mappingRate}%` : "—"}
-          sub={flow && flow.total > 0 ? `${flow.mapped}/${flow.total}건` : "거래 없음"}
-        />
-      </div>
-      )}
-
       {/* 연동 기간 선택기는 상단 툴바(통장 연동 버튼 왼쪽)로 이동 — 이 기간이 곧 CODEF 연동 대상 범위라 버튼과 한 묶음이 자연스러움. */}
 
       {/* 개요 — 계좌별 잔액·자동이체 예정·자동이체 내역·이번달 큰 지출 */}
@@ -851,11 +824,9 @@ export default function BankPage() {
                통장 이름이 길어(은행명 + 별칭) 세로 막대에선 잘리므로 가로 막대로 읽는다.
                비중이 아니라 '어디에 얼마'가 궁금한 자리라 도넛이 아니다. (2026-08-07) */}
           {positiveAccounts.length >= 2 && (
-            <section className="bank-balance-chart glass-card">
-              <header className="bank-balance-chart-head">
-                <b>계좌별 잔액</b>
-                <em>많은 순 · 합계 {fmtW(totalBalance)}{hiddenAccounts > 0 ? ` · 0원 이하 ${hiddenAccounts}개는 뺐어요` : ""}</em>
-              </header>
+            <section className="bank-balance-chart pnl-panel">
+              <h3>계좌별 잔액</h3>
+              <p>많은 순 · 합계 {fmtW(totalBalance)}{hiddenAccounts > 0 ? ` · 0원 이하 ${hiddenAccounts}개는 뺐어요` : ""}</p>
               <BarChart unit="원" data={positiveAccounts.map((a) => ({ label: a.label, value: a.balance, color: "var(--viz-1)" }))} />
             </section>
           )}
@@ -866,7 +837,29 @@ export default function BankPage() {
       )}
 
       {/* 통장 — portfolio 카드(이름·잔액·이번달 증감). 2026-05-29 카드 크기 축소(p-4·3열). */}
-      {tab === "accounts" && (
+      {tab === "accounts" && accountsView === "list" && accounts.length > 0 && (
+        <table className="ev-table ev-lined bank-accounts-table">
+          <thead><tr><th className="text-left">통장</th><th>계좌</th><th>잔액</th><th>이번 달 변화</th><th>동작</th></tr></thead>
+          <tbody>
+            {accounts.map((a) => {
+              const accNo = a.accountNo || "";
+              const change = changeByAcct[accNo] || 0;
+              const name = a.alias || (a.bankName ? `${a.bankName}${accNo.slice(-4) ? " " + accNo.slice(-4) : ""}` : accNo) || "계좌";
+              const bal = Number(a.balance || 0);
+              return (
+                <tr key={a.accountNo} className="pnl-row-acct" onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 이 통장 거래내역">
+                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}</span></td>
+                  <td className="text-center mono-number text-[var(--text-muted)]">{accNo ? `···· ${accNo.slice(-4)}` : "—"}</td>
+                  <td className="text-right mono-number font-bold">{fmtW(bal)}</td>
+                  <td className={`text-right mono-number ${Math.round(change) === 0 ? "text-[var(--text-dim)]" : change > 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{Math.round(change) === 0 ? "변화 없음" : `${change > 0 ? "+" : "−"}${fmtW(Math.abs(change))}`}</td>
+                  <td className="text-center"><button type="button" onClick={(e) => { e.stopPropagation(); handleEditAlias(accNo, a.alias, a.bankName, bal); }} className="btn-secondary btn-sm">이름 변경</button></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {tab === "accounts" && (accountsView === "card" || accounts.length === 0) && (
         <div className="bank-accounts-grid">
           {accounts.length === 0 ? (
             <div className="sm:col-span-2 lg:col-span-3">
