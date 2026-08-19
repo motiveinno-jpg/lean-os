@@ -172,6 +172,8 @@ export default function CardsPage() {
   // 선택 카드 거래내역 기간 필터 + 거래내역 탭 조회기간 + CODEF 연동 범위 (공통)
   //   ★ 기본값은 최근 1개월 (조회 화면 표준) — 예전 '미설정=최근 N건' 방식을 버렸다.
   const [cardTxFrom, setCardTxFrom] = useState<string>(() => defaultRange().from);
+  //   카드 탭 보기 — 표가 기본, 카드는 보기 옵션 (2026-08-19 조회 표준: 목록은 표)
+  const [cardsView, setCardsView] = useState<"list" | "card">("list");
   const [cardTxTo, setCardTxTo] = useState<string>(() => defaultRange().to);
   // 전표처리 (카드 → 수동 전표)
   const [postCard, setPostCard] = useState<any | null>(null);
@@ -776,8 +778,24 @@ export default function CardsPage() {
               {/* 기간 — 조회 줄에 하나(2026-08-18). 카드 탭에서 카드 선택 시 그 카드 거래·연동 기간에 적용. 거래내역 탭은 자기 조회 줄에 기간 칸이 있다 */}
               <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
                 onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
+              {tab === "cards" && cards.length > 0 && <ChipGroup value={cardsView} onChange={setCardsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
               <span className="text-[11px] text-[var(--text-dim)]">카드를 선택하면 해당 카드 거래에 적용 · 거래를 조건으로 찾으려면 거래내역 탭</span>
             </QueryBar>
+            {/* 분석 탭 결과 요약 — 예전 Stat 카드 4장 → Stat 줄 (2026-08-19 자금 메뉴 점검) */}
+            {tab === "analysis" && (
+              <ResultStrip>
+                <QStat label="총 사용액 (이번 달)" value={fmtW(totalUsage)} tone="minus" />
+                <QStat label="사용 가능 한도" value={hasLimits ? <>{fmtW(Math.max(0, totalLimit - totalUsage))} <small className="font-normal text-[var(--text-dim)]">/ 총 한도 {fmtW(totalLimit)}</small></> : <span className="text-[var(--text-dim)]">한도 정보 없음</span>} />
+                <QStat label="활성 카드" value={<>{activeCards}개 <small className="font-normal text-[var(--text-dim)]">등록 {cards.length}개</small></>} />
+                <QStat label="이번 달 거래" value={`${monthTx.length}건`} />
+              </ResultStrip>
+            )}
+            {tab === "cards" && currentCard && (
+              <ResultStrip right={<button type="button" onClick={() => setShowBalance((v) => !v)} className="btn-secondary btn-sm">{showBalance ? "금액 숨김" : "금액 보기"}</button>}>
+                <QStat label="선택한 카드" value={<>{currentCard.card_name || "카드"} <small className="font-normal text-[var(--text-dim)]">{cardTypeLabel(currentCard.card_type)} · •••• {(currentCard.card_number || "").slice(-4) || "----"} · 결제일 {currentCard.payment_day ? `매월 ${currentCard.payment_day}일` : "—"}</small></>} />
+                <QStat label="이번 달" value={<>{showBalance ? fmtW(currentSpend) : "••••••"} <small className="font-normal text-[var(--text-dim)]">{currentTxCount}건{Number(currentCard.monthly_limit || 0) > 0 && showBalance ? ` / 한도 ${fmtW(Number(currentCard.monthly_limit))}` : ""}</small></>} />
+              </ResultStrip>
+            )}
           </QueryHead>
           <QueryBody>
             <div className="bank-scroll">
@@ -793,35 +811,26 @@ export default function CardsPage() {
           />
         ) : (
           <div className="space-y-6">
-            {/* 컴팩트 카드 요약 스트립 — 대형 CARD HOLDER 히어로 제거 (직원 QA 2026-07-10: 카드홀더 불필요·상단 공간 절약).
-                같은 정보(카드명·종류·끝번호·결제일·이번달 사용·거래수)를 한 줄로. */}
-            {currentCard && (
-              <div className="card-summary-strip glass-card">
-                <span className="text-sm font-bold text-[var(--text)] truncate max-w-[200px]">{currentCard.card_name || "카드"}</span>
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${cardTypeBadgeClass(currentCard.card_type)}`}>
-                  {cardTypeLabel(currentCard.card_type)}
-                </span>
-                <span className="text-xs text-[var(--text-muted)] mono-number">•••• {(currentCard.card_number || "").slice(-4) || "----"}</span>
-                <span className="text-xs text-[var(--text-muted)]">결제일 {currentCard.payment_day ? `매월 ${currentCard.payment_day}일` : "—"}</span>
-                <span className="ml-auto inline-flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                  이번 달 <b className="text-sm text-[var(--text)] mono-number">{showBalance ? fmtW(currentSpend) : "••••••"}</b> · {currentTxCount}건
-                  {Number(currentCard.monthly_limit || 0) > 0 && showBalance && (
-                    <span className="text-[11px] text-[var(--text-dim)]">/ 한도 {fmtW(Number(currentCard.monthly_limit))}</span>
-                  )}
-                  <button type="button" onClick={() => setShowBalance((v) => !v)} className="p-1 rounded-lg hover:bg-[var(--bg-surface)]" aria-label="금액 표시 토글">
-                    {showBalance ? (
-                      <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={2} d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" strokeWidth={2} /></svg>
-                    ) : (
-                      <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeWidth={2} d="M3 3l18 18M10.6 10.6a3 3 0 004.2 4.2M6.6 6.6A17 17 0 002 11.5s3.5 7 10 7a9.7 9.7 0 004-.9" /></svg>
-                    )}
-                  </button>
-                </span>
-              </div>
-            )}
-
             {/* 카드 미니 그리드 — 클릭 시 그 카드 거래내역 영역으로 스크롤+필터 */}
+            {cardsView === "list" ? (
+              <table className="ev-table ev-lined cards-table">
+                <thead><tr><th className="text-left">카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
+                <tbody>
+                  {cards.map((card: any, idx: number) => (
+                    <tr key={card.id} className={`pnl-row-acct ${idx === selectedCardIdx ? "cards-row-on" : ""}`} onClick={() => handleSelectCardForTx(card, idx)} title="누르면 이 카드 거래내역">
+                      <td className="text-left font-semibold">{card.card_name || "카드"}</td>
+                      <td className="text-center"><span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${cardTypeBadgeClass(card.card_type)}`}>{cardTypeLabel(card.card_type)}</span></td>
+                      <td className="text-center mono-number text-[var(--text-muted)]">•••• {(card.card_number || "").slice(-4) || "----"}</td>
+                      <td className="text-center text-[var(--text-muted)]">{card.card_company || "—"}</td>
+                      <td className="text-center">{card.payment_day ? `매월 ${card.payment_day}일` : "—"}</td>
+                      <td className="text-right mono-number">{Number(card.monthly_limit || 0) > 0 ? fmtW(Number(card.monthly_limit)) : "—"}</td>
+                      <td className="text-center"><button type="button" onClick={(e) => { e.stopPropagation(); setEditingCardId(card.id); setEditingName(card.card_name || ""); setCardsView("card"); }} className="btn-secondary btn-sm">이름 변경</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
             <div className="card-mini-grid-section">
-              <h3 className="text-lg font-bold text-[var(--text)] mb-4">내 카드</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {cards.map((card: any, idx: number) => (
                   <MiniCard
@@ -839,6 +848,7 @@ export default function CardsPage() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* 카드 선택 시에만 그 카드 거래내역 노출. 닫기 → 영역 자체 hide.
                 전체 카드 거래는 별도 거래내역 탭에서 제공하므로 미선택 시 영역 없음. */}
@@ -927,27 +937,10 @@ export default function CardsPage() {
       {/* ========== 분석 탭 ========== */}
       {tab === "analysis" && (
         <div className="card-analysis-tab-panel">
-          {/* Stat 4 — 가짜 trend 없음 */}
-          <div className="card-analysis-stats">
-            <Stat tone="danger" label="총 사용액" value={fmtW(totalUsage)} sub="이번 달" icon="🛒" />
-            {hasLimits ? (
-              <Stat
-                tone="info"
-                label="사용 가능 한도"
-                value={fmtW(Math.max(0, totalLimit - totalUsage))}
-                sub={`당월 사용 차감 · 총 한도 ${fmtW(totalLimit)}`}
-                icon="💼"
-              />
-            ) : (
-              <Stat tone="" label="한도" value="—" sub="한도 정보 없음" icon="💼" />
-            )}
-            <Stat tone="" label="활성 카드" value={`${activeCards}개`} sub={`등록 ${cards.length}개`} icon="💳" />
-            <Stat tone="info" label="이번 달 거래" value={`${monthTx.length}건`} sub="카드 거래 수" icon="📊" />
-          </div>
-
           {/* 카테고리별 지출 */}
-          <div className="card-category-spending-panel glass-card">
-            <h3 className="text-base font-bold text-[var(--text)] mb-4">카테고리별 지출 (상위 5)</h3>
+          <div className="card-category-spending-panel pnl-panel">
+            <h3>카테고리별 지출 (상위 5)</h3>
+            <p>이번 달 카드 지출을 어디에 썼나 — 비중은 도넛, 금액은 아래 목록</p>
             {/* '어디에 얼마 비중' 을 묻는 자리다(줄마다 %가 붙어 있다) → 비중은 도넛이 한눈에,
                 정확한 금액은 아래 목록이 맡는다 (2026-08-07 자료별 최적 형태 판정) */}
             {categoryStats.length === 0 ? (
