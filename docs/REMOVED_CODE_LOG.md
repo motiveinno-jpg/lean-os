@@ -147,3 +147,7 @@
 - `dashboard/page.tsx`: DEFAULT_WIDGET_POS(좌표·높이 제각각)·dashPnl/realVariable 쿼리·handleSampleData 제거. 위젯 카탈로그에서 경영 요약(biz)·출퇴근(attendance) 제거(출퇴근은 사이드바 버튼 + 마이페이지). 저장 키 `dashboard-grid-v2-*` 로 새로 시작(옛 `dashboard-grid-*` 값은 안 읽음).
 - `dashboard-grid.tsx`: 위젯 편집(드래그·크기 조절·추가 피커·배치 복사·추천 줄) → 보기 설정 판(관점 프리셋·켜기끄기·순서 바꾸기·기본으로). `fixedH` 로 높이·폭 고정. 미사용 CSS `.widget-picker` `.recommended-widgets-row` `.morning-brief-statbar*` `.brief-action-*` `.dashboard-tax-schedule-*` `.compact-asset-header` `.receivables-preview-header` `.unclassified-prompt` `.sync-freshness` `.dash-utility-row` `.dash-tool-btn` 는 다른 PC 충돌 회피로 남김(다음 정리 때 제거).
 - `morning-brief.tsx`: 숫자 스트립(6지표) 제거(신호 6칸이 대신), 액션 플랜 카드 5장 → 표 5줄 + 이유 펼침 + 근거 보기, 오늘·회사 줄은 대시보드 머리 줄로.
+
+## 2026-08-19 — 구성원 탭 권한 재편 (docs/20260819_PLAN_permission_tab_redesign.md)
+- PermissionSection: 템플릿 셀렉트(perm-apply-select)·'전체 선택/해제' 버튼 제거(그룹 스위치로 대체). PermissionTree: 2열 글래스 카드 체크박스 트리 → 표. `globals.css` 의 `.member-permission-groups/-group/-menu/-tabs` `.perm-apply-select` 는 사용처 없음(다른 PC 충돌 회피로 남김).
+- PERMISSION_CATALOG: '파이낸스' 중복 그룹 합침, '자동 분류(/transactions)' 줄은 hidden(키·게이트 유지).

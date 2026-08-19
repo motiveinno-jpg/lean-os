@@ -9814,3 +9814,51 @@ table.dup-table { min-width: 0; }
 .dash-view-h { @apply text-[10.5px] font-semibold tracking-wider text-[var(--text-dim)]; }
 .dash-view-row { @apply flex flex-wrap gap-1.5; }
 .dash-view-foot { @apply flex items-center gap-1.5 pt-2 mt-1 border-t border-[var(--border)]; }
+
+/* ── 구성원 › 탭 권한 재편 (2026-08-19, docs/20260819_PLAN_permission_tab_redesign.md) ──
+   표 한 장(그룹 줄 · 메뉴 줄 · 접근 스위치 · 세부 칩) + 템플릿 칩 · 요약 줄 · 오른쪽 미리보기 · 저장 확인 */
+.perm-section { @apply flex flex-col gap-2.5; }
+.perm-head { @apply flex items-start justify-between gap-3 flex-wrap; }
+.perm-tpls { @apply flex items-center gap-1.5 flex-wrap; }
+.perm-sum { @apply flex items-center gap-3.5 flex-wrap text-[12px] text-[var(--text-muted)] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-3 py-1.5; }
+.perm-sum b { @apply text-[var(--text)] font-semibold; }
+.perm-sum-warn { @apply text-[var(--warning)] font-semibold; }
+.perm-money-chip { @apply text-[11px] font-semibold rounded-full px-2 py-0.5 bg-[var(--warning)]/12 text-[var(--warning)]; }
+.perm-body { @apply grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-3 items-start; }
+.perm-table-wrap { @apply rounded-xl border border-[var(--border)] overflow-auto max-h-[60vh] bg-[var(--bg-card)]; }
+.perm-table { @apply w-full; min-width: 480px; }
+.perm-table th { @apply sticky top-0 z-[1]; }
+.perm-group-row td { @apply bg-[var(--bg-surface)] py-1.5 px-3; }
+.perm-group-name { @apply text-[12px] font-bold text-[var(--text)]; }
+.perm-group-cnt { @apply ml-1.5 text-[11px] text-[var(--text-dim)]; }
+.perm-group-all { @apply float-right inline-flex items-center; }
+.perm-row td { @apply py-1.5 px-3 align-middle; }
+.perm-row-changed .perm-menu { box-shadow: inset 3px 0 0 var(--warning); }
+.perm-menu { @apply text-left text-[12.5px] font-medium text-[var(--text)] whitespace-nowrap; }
+.perm-menu-sub { @apply pl-7 text-[var(--text-muted)] font-normal; }
+.perm-won { @apply ml-1 text-[10px] font-bold text-[var(--warning)]; }
+.perm-always { @apply ml-1.5 text-[9.5px] font-semibold rounded-full px-1.5 py-px bg-[var(--success)]/10 text-[var(--success)]; }
+.perm-table td.perm-tabs { @apply text-left; white-space: normal; }
+.perm-chip { @apply inline-flex items-center text-[11px] rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] px-2 py-0.5 mr-1 my-0.5 transition hover:border-[var(--primary)]/50; }
+.perm-chip-on { @apply bg-[var(--primary-light)] border-[var(--primary)] text-[var(--primary)] font-semibold; }
+.perm-chip-dim { @apply opacity-45; }
+.perm-chip-lock { @apply border-dashed cursor-not-allowed opacity-60; }
+.perm-sw { @apply relative inline-block w-[30px] h-4 rounded-full bg-[var(--border)] transition align-middle disabled:opacity-50 disabled:cursor-not-allowed; }
+.perm-sw-knob { @apply absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white transition-[left] shadow; }
+.perm-sw-on { @apply bg-[var(--primary)]; }
+.perm-sw-on .perm-sw-knob { left: 14px; }
+.perm-foot-row td { @apply px-3 py-2 text-[11px] text-[var(--text-dim)]; }
+.perm-preview { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 text-[12px] lg:sticky lg:top-0; }
+.perm-preview-title { @apply text-[11px] font-semibold text-[var(--text-dim)] mb-1.5; }
+.perm-preview-money { @apply inline-block text-[11px] font-semibold rounded-full px-2 py-0.5 bg-[var(--warning)]/12 text-[var(--warning)] mb-1.5; }
+.perm-preview-group { @apply text-[10.5px] text-[var(--text-dim)] tracking-wider mt-2 mb-0.5; }
+.perm-preview-menu { @apply flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[var(--text)]; }
+.perm-preview-menu small { @apply ml-auto text-[10px] text-[var(--text-dim)]; }
+.perm-preview-ico { @apply w-3 h-3 rounded bg-[var(--primary-light)] shrink-0; }
+.perm-preview-off { @apply text-[var(--text-dim)] line-through opacity-60; }
+.perm-foot { @apply flex items-center justify-end gap-2 flex-wrap; }
+.perm-confirm { @apply max-w-md; }
+.perm-confirm-list { @apply list-none m-0 p-0 max-h-[50vh] overflow-auto space-y-1 text-[12.5px]; }
+.perm-confirm-add { @apply text-[var(--success)]; }
+.perm-confirm-rm { @apply text-[var(--danger)]; }
+.perm-confirm-list b { @apply text-[var(--text)]; }

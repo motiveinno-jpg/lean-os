@@ -8,64 +8,75 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 
-export type PermTab = { key: string; label: string };
-export type PermMenu = { route: string; label: string; tabs?: PermTab[]; always?: boolean };
+//   desc = 툴팁 설명(라벨은 짧게), money = 금액이 보이는 메뉴/기능(₩ 표시 · 저장 확인에서 따로 줄),
+//   masterOnly = 마스터만 부여/회수, sub = 위 메뉴의 하위 줄(세금·증빙 아래 전자계산서처럼), hidden = 사이드바에서 내린 옛 메뉴
+//   (화면 게이트·기존 부여 키 호환을 위해 카탈로그엔 남기되 권한 표에는 안 그린다).
+export type PermTab = { key: string; label: string; desc?: string; money?: boolean; masterOnly?: boolean };
+export type PermMenu = { route: string; label: string; tabs?: PermTab[]; always?: boolean; desc?: string; money?: boolean; sub?: boolean; hidden?: boolean };
 export type PermGroup = { group: string; menus: PermMenu[] };
 
-// 전 메뉴·세부탭 카탈로그 — 사이드바(NAV_GROUPS)와 각 페이지의 탭 구성을 따른다.
-//   always: 모든 구성원 기본 제공(부여 대상 아님 — 마이페이지·알림 등 개인 영역).
+// 전 메뉴·세부탭 카탈로그 — **사이드바(NAV_GROUPS)와 같은 순서·이름** (2026-08-19 사장님: 바뀐 메뉴 위치대로 정리).
+//   키(route·tab key)는 절대 바꾸지 않는다 — member_permissions.perm_key 와 화면 게이트가 이 키로 돈다.
+//   always: 모든 구성원 기본 제공(부여 대상 아님 — 마이페이지·알림 등 개인 영역). always 메뉴의 세부탭은 부여 대상.
 export const PERMISSION_CATALOG: PermGroup[] = [
   {
     group: "홈",
     menus: [
-      // 대시보드 자체는 전원 기본 제공(필수 위젯: 출근·할일·캘린더) — 금액 위젯은 세부 권한
+      // 대시보드 자체는 전원 기본 제공 — 금액 위젯·AI 브리핑은 세부 권한
       { route: "/dashboard", label: "대시보드", always: true, tabs: [
-        { key: "finance", label: "재무·경영 위젯 (현금펄스·매출·잔액 등 금액 정보)" },
-        { key: "briefing", label: "AI 브리핑 (아침 요약 문장 + 잔고·전망 핵심 숫자)" },
+        { key: "finance", label: "재무·경영 위젯", desc: "신호 6칸·통장·카드·미수·매출 등 금액 위젯", money: true },
+        { key: "briefing", label: "AI 브리핑", desc: "오늘 챙길 것(AI 제안)" },
       ] },
-      { route: "/copilot", label: "AI 참모" },
+      { route: "/copilot", label: "AI 참모", desc: "회사 자료를 읽고 답하는 AI — 금액 질문에 답할 수 있다", money: true },
       { route: "/mypage", label: "마이페이지", always: true },
       { route: "/notifications", label: "알림", always: true },
     ],
   },
   {
+    //   파이낸스 A안 순서(2026-08-19): 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출)
     group: "파이낸스",
     menus: [
-      { route: "/collect", label: "수집·전표" },
+      { route: "/bank", label: "통장", money: true, tabs: [
+        { key: "overview", label: "개요" },
+        { key: "accounts", label: "계좌·잔액" },
+        { key: "transactions", label: "거래내역" },
+      ] },
+      { route: "/cards", label: "카드", money: true },
       { route: "/partners", label: "거래처" },
+      { route: "/collect", label: "수집·전표", money: true, desc: "통장·카드·계산서 자료를 받아 전표로" },
       //   세금·증빙 = 오너뷰가 **발행하는** 곳으로 재편 (2026-08-13 사장님 지시).
-      //   옛 탭(sales·purchase·vat·summary·queue·sync)은 사라졌다 — 목록은 수집·전표,
-      //   부가세·요약은 분석(/reports/vat)으로 갔다. 옛 키에 걸어 둔 권한은 이제 아무것도 안 연다.
-      { route: "/tax-invoices", label: "세금·증빙 (발행)", tabs: [
+      //   옛 탭(sales·purchase·vat·summary·queue·sync)은 사라졌다 — 목록은 수집·전표, 부가세·요약은 분석(/reports/vat)으로 갔다.
+      { route: "/tax-invoices", label: "세금·증빙", money: true, desc: "세금계산서 발행", tabs: [
         { key: "wait", label: "발행 대기" },
         { key: "done", label: "발행 내역" },
         { key: "issue-status", label: "발행 현황" },
       ] },
-      { route: "/e-invoices", label: "전자계산서" },
-      { route: "/cash-receipts", label: "현금영수증" },
-      { route: "/transactions", label: "자동 분류" },
-      { route: "/partners/reconciliation/voucher-entry", label: "일반전표" },
-      { route: "/partners/reconciliation/sale-purchase", label: "매입매출전표" },
+      //   사이드바에선 세금·증빙 한 메뉴 안(match)이지만 권한 키는 따로다 — 하위 줄로 그린다
+      { route: "/e-invoices", label: "전자계산서", money: true, sub: true },
+      { route: "/cash-receipts", label: "현금영수증", money: true, sub: true },
+      { route: "/partners/reconciliation/voucher-entry", label: "일반전표", money: true },
+      { route: "/partners/reconciliation/sale-purchase", label: "매입매출전표", money: true },
+      { route: "/payments", label: "정기 지출", money: true },
+      //   2026-08-11 사이드바에서 내림(수집·전표 통장 탭이 대신). 주소로는 열리므로 게이트·옛 부여 키 호환을 위해 남긴다 — 표에는 안 그림
+      { route: "/transactions", label: "자동 분류", money: true, hidden: true },
     ],
   },
   {
-    //   분석 — 사이드바 그룹으로 승격 (2026-08-11). 거래처 원장도 여기로 옮겼다.
-    //   라우트는 그대로라 기존 권한(/reports, /partners/ledger)이 그대로 먹는다.
+    //   분석 — 사이드바 그룹(2026-08-11). 라우트는 그대로라 기존 권한(/reports, /partners/ledger)이 그대로 먹는다.
     group: "분석",
     menus: [
-      { route: "/reports", label: "분석·리포트" },
-      { route: "/partners/ledger", label: "거래처 원장" },
+      { route: "/reports", label: "분석·리포트", money: true, desc: "경영 요약 · 손익 현황 · 자금 전망 · 회계 자료 · 부가세 — 한 권한으로 전부" },
+      { route: "/partners/ledger", label: "거래처 원장", money: true, desc: "미수·미지급 원장" },
     ],
   },
   {
     group: "워크스페이스",
     menus: [
       { route: "/schedule", label: "일정 / 할 일", always: true },
-      // 열람 범위 — 구성원(/employees:all)과 같은 방식. '전체'가 없으면 자기가 담당자인 프로젝트만 보인다.
-      //   2026-07-31 사장님: "프로젝트도 내 담당과 전체를 권한으로 주자".
+      // 열람 범위 — 구성원(/employees:all)과 같은 방식. '전체'가 없으면 자기가 담당자인 프로젝트만 보인다 (2026-07-31 사장님).
       { route: "/projecthub", label: "프로젝트", tabs: [
-        { key: "mine", label: "내 담당 프로젝트 (담당자로 지정된 것만)" },
-        { key: "all", label: "전체 프로젝트 열람 (미부여 시 내 담당만 보임)" },
+        { key: "mine", label: "내 담당만", desc: "담당자로 지정된 프로젝트만" },
+        { key: "all", label: "전체 열람", desc: "미부여 시 내 담당만 보임" },
       ] },
       { route: "/approvals", label: "결재 허브", tabs: [
         { key: "my-approvals", label: "내 결재함" },
@@ -78,7 +89,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       ] },
       // 게시판 자체는 전원 기본, 상단 고정만 부여 대상 (2026-08-05 사장님: 아무나 고정·해제하던 문제)
       { route: "/board", label: "게시판", always: true, tabs: [
-        { key: "pin", label: "게시글 상단 고정·해제 (미부여 시 마스터만 가능)" },
+        { key: "pin", label: "상단 고정", desc: "게시글 상단 고정·해제 (미부여 시 마스터만)" },
       ] },
       { route: "/my-contracts", label: "내 서명 요청", always: true },
       { route: "/chat", label: "메신저", always: true },
@@ -90,13 +101,12 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     menus: [
       { route: "/employees", label: "구성원", tabs: [
         { key: "employees", label: "인력관리" },
-        // 열람 범위 — 이 키가 없으면 구성원 화면에서 '본인 정보'만 보인다(RLS 가 행 단위로 차단).
-        //   2026-07-31 사장님: "구성원 탭 권한을 주면 전 직원 내용이 보인다 — 몇몇만 전체, 대부분 본인만".
-        { key: "all", label: "전 직원 정보 열람 (미부여 시 본인 정보만 보임)" },
-        { key: "salary", label: "급여" },
+        // 열람 범위 — 이 키가 없으면 구성원 화면에서 '본인 정보'만 보인다(RLS 가 행 단위로 차단). 2026-07-31 사장님.
+        { key: "all", label: "전 직원 열람", desc: "미부여 시 본인 정보만 보임" },
+        { key: "salary", label: "급여", money: true },
         { key: "leave", label: "휴가 관리" },
         { key: "certificates", label: "증명서 발급" },
-        { key: "permissions", label: "권한 부여 (다른 구성원에게 권한 위임 — 마스터만 부여 가능)" },
+        { key: "permissions", label: "권한 부여", desc: "다른 구성원에게 권한 위임 — 마스터만 부여 가능", masterOnly: true },
       ] },
       { route: "/attendance", label: "근태 관리", tabs: [
         { key: "board", label: "워크보드" },
@@ -108,28 +118,14 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
-    //   '자산관리' → '자금' (2026-08-11) → '파이낸스' 안으로 (2026-08-19 사장님: 사이드바에서 자금 그룹을 없앰). 라우트는 그대로라 권한은 유지된다.
-    group: "파이낸스",
+    group: "회사 관리",
     menus: [
-      { route: "/bank", label: "통장", tabs: [
-        { key: "overview", label: "개요" },
-        { key: "accounts", label: "계좌·잔액" },
-        { key: "transactions", label: "거래내역" },
-      ] },
-      { route: "/cards", label: "카드" },
-      { route: "/payments", label: "정기 지출" },
-    ],
-  },
-  {
-    group: "회사 관리",   // 사이드바 그룹 이름과 맞춤 (2026-08-19)
-    menus: [
-      // 2026-08-13 설정 탭 통합: departments→team, deal→chart, tax→closing 에 흡수.
-      //   (certificate·approval 은 2026-08-12 제거) 옛 키로 이미 부여된 권한은 설정 화면이
-      //   OR 매핑으로 계속 존중한다 — 여기서는 새 부여 항목만 노출.
+      // 2026-08-13 설정 탭 통합: departments→team, deal→chart, tax→closing 에 흡수. (certificate·approval 은 2026-08-12 제거)
+      //   옛 키로 이미 부여된 권한은 설정 화면이 OR 매핑으로 계속 존중한다 — 여기서는 새 부여 항목만 노출.
       { route: "/settings", label: "회사 설정", tabs: [
         { key: "company-info", label: "회사정보" },
         { key: "team", label: "구성원·초대" },
-        { key: "cash", label: "자금·통장" },
+        { key: "cash", label: "자금·통장", money: true },
         { key: "chart", label: "계정과목·분류" },
         { key: "closing", label: "회계마감" },
         { key: "bank", label: "은행연동" },
@@ -137,9 +133,13 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "attendance", label: "근태·가산수당" },
         { key: "forms", label: "회사 양식" },
       ] },
-      { route: "/billing", label: "요금제·결제" },
-      // 공지는 전원 열람만. 작성·수정·삭제는 서비스 운영자 페이지(/platform/announcements)에서만 하고
-      //   DB 도 announcements_*_operator 정책으로 막았다 — 그래서 부여할 권한 항목이 없다(2026-08-06).
+      { route: "/billing", label: "요금제·결제", money: true },
+    ],
+  },
+  {
+    //   도움말 — 전부 기본 제공. 공지는 전원 열람만(작성은 운영자 페이지, DB 정책으로 차단 2026-08-06) — 부여 항목 없음
+    group: "도움말",
+    menus: [
       { route: "/announcements", label: "공지사항", always: true },
       { route: "/guide", label: "사용 가이드", always: true },
       { route: "/support", label: "고객센터", always: true },
