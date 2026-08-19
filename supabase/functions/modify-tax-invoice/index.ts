@@ -88,7 +88,7 @@ serve(withSentry("modify-tax-invoice", async (req) => {
         hint: `허용값: ${Object.keys(MODIFICATION_REASON_CODES).join(", ")}`,
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const modDate = modification_date || new Date().toISOString().slice(0, 10);
+    const modDate = modification_date || new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     // 취소(전액 반대) = new_supply_amount 미지정 → 원본 음수. 부분 수정(공급가액 변동) = 지정값.
     const hasNewAmount = new_supply_amount !== undefined && new_supply_amount !== null;
     const supplyAmount = hasNewAmount ? Number(new_supply_amount) : -Number(original.supply_amount);

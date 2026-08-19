@@ -473,6 +473,44 @@ export type Holiday = {
   type: 'legal' | 'company' | 'substitute';
 };
 
+/** 근무일 기준 일수 (2026-08-19 감사) — 주말(workdays_mask)·회사 공휴일 제외.
+ *  종전엔 연차 사용일수를 달력 일수로 계산해 금~월 휴가가 4일 차감됐다(실제 1일).
+ *  mask 비트: 월=1,화=2,수=4,목=8,금=16,토=32,일=64 (attendance-checkin 엣지와 동일). */
+export function countBusinessDaysStr(startYmd: string, endYmd: string, holidaySet: Set<string>, workdaysMask = 31): number {
+  if (!startYmd) return 0;
+  const s = new Date(`${startYmd}T00:00:00Z`).getTime();
+  const e = new Date(`${(endYmd || startYmd)}T00:00:00Z`).getTime();
+  const [lo, hi] = s <= e ? [s, e] : [e, s];
+  const BITS = [64, 1, 2, 4, 8, 16, 32]; // getUTCDay(): 0=일
+  let n = 0;
+  for (let t = lo, guard = 0; t <= hi && guard < 400; t += 86400000, guard++) {
+    const d = new Date(t);
+    const ymd = d.toISOString().slice(0, 10);
+    if ((workdaysMask & BITS[d.getUTCDay()]) === 0) continue;
+    if (holidaySet.has(ymd)) continue;
+    n++;
+  }
+  return n;
+}
+
+/** 휴가 사용일수 — 회사 공휴일·근무일 설정을 반영해 계산 (조회 실패 시 주5일 기준 fallback). */
+export async function calcLeaveDays(companyId: string, startYmd: string, endYmd: string): Promise<number> {
+  let holidaySet = new Set<string>();
+  let mask = 31;
+  try {
+    const [{ data: hol }, { data: cs }] = await Promise.all([
+      db.from('holidays').select('date').eq('company_id', companyId)
+        .gte('date', startYmd <= endYmd ? startYmd : endYmd)
+        .lte('date', startYmd <= endYmd ? endYmd : startYmd),
+      db.from('company_settings').select('workdays_mask').eq('company_id', companyId).maybeSingle(),
+    ]);
+    holidaySet = new Set(((hol as { date: string }[]) || []).map((h) => String(h.date).slice(0, 10)));
+    const m = Number((cs as { workdays_mask?: number } | null)?.workdays_mask);
+    if (Number.isFinite(m) && m > 0) mask = Math.trunc(m);
+  } catch { /* 조회 실패 시 주말만 제외 */ }
+  return countBusinessDaysStr(startYmd, endYmd, holidaySet, mask);
+}
+
 export async function listHolidays(companyId: string, year?: number): Promise<Holiday[]> {
   let q = db.from('holidays').select('*').eq('company_id', companyId).order('date');
   if (year) {
@@ -2062,7 +2100,11 @@ export function calculateAnnualLeave(hireDate: string, referenceDate?: string): 
   const diffMs = ref.getTime() - hire.getTime();
   if (diffMs < 0) return { totalDays: 0, yearsWorked: 0, monthsWorked: 0, formula: '입사 전' };
 
-  const totalMonths = (ref.getFullYear() - hire.getFullYear()) * 12 + (ref.getMonth() - hire.getMonth());
+  // 일(day) 보정 (2026-08-19 감사): 미보정 시 3/31 입사자가 4/1 에 "1개월 개근"으로 잡혀
+  //   연차가 하루 만에 발생했다. tools/leave-calculator 의 fullMonthsBetween 과 동일 규칙.
+  let totalMonths = (ref.getFullYear() - hire.getFullYear()) * 12 + (ref.getMonth() - hire.getMonth());
+  if (ref.getDate() < hire.getDate()) totalMonths -= 1;
+  totalMonths = Math.max(0, totalMonths);
   const yearsWorked = Math.floor(totalMonths / 12);
   const monthsWorked = totalMonths;
 

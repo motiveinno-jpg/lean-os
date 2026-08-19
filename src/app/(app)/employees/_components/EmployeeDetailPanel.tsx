@@ -37,6 +37,9 @@ type DetailTab = "info" | "docs" | "notes" | "history" | "contracts" | "certific
 
 export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab }: { employeeId: string; companyId: string; onClose: () => void; initialTab?: DetailTab }) {
   const { hasPerm: _panelHasPerm, isMaster: _panelIsMaster } = useMyPermissions();
+  // 급여·계좌·퇴직금은 급여 권한자만 (2026-08-19 감사): 종전엔 인력관리 권한만으로
+  //   전 직원 연봉·계좌번호가 보여 급여 탭의 권한 분리가 여기서 무력화됐다.
+  const canSeeSalary = _panelIsMaster || _panelHasPerm("/employees:salary");
   const viewerHasGrantPerm = _panelHasPerm("/employees:permissions");
   const [detailTab, setDetailTab] = useState<DetailTab>(initialTab || "info");
   const { user: viewer } = useUser();
@@ -465,7 +468,12 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 </>)}
               </div>
             </div>
-            {/* 급여/계좌 정보 */}
+            {/* 급여/계좌 정보 — 급여 권한자만 */}
+            {!canSeeSalary ? (
+              <div className="employee-info-section">
+                <div className="text-xs text-[var(--text-dim)]">급여 · 계좌 정보는 급여 권한이 있는 사용자만 볼 수 있습니다.</div>
+              </div>
+            ) : (
             <div className="employee-info-section">
               <div className="text-xs font-bold text-[var(--text-muted)] mb-2 flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
@@ -514,9 +522,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                 </>)}
               </div>
             </div>
+            )}
             </div>
-            {/* 퇴직금 계산 */}
-            {emp.hire_date && emp.salary && (() => {
+            {/* 퇴직금 계산 — 급여 권한자만 */}
+            {canSeeSalary && emp.hire_date && emp.salary && (() => {
               const retCalcResult = calculateRetirementPay({
                 startDate: emp.hire_date,
                 endDate: retirementEndDate,

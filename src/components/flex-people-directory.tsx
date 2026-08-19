@@ -377,14 +377,16 @@ function ProfilePanel({ companyId, emp, avatarUrl, isManager, onClose, onOpenCon
   const { data: weekMin = 0 } = useQuery<number>({
     queryKey: ["flex-profile-week", emp.id],
     queryFn: async () => {
+      // KST 오늘·월요일을 UTC 앵커로 계산 (2026-08-19 감사: -9h/+9h 이중 보정이 상쇄돼
+      //   KST 브라우저에서 범위가 하루 밀려 "오늘 근무"가 빠졌다)
       const now = new Date(Date.now() + 9 * 3600 * 1000);
-      const today = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-      const monday = new Date(today); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const monday = new Date(today); monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
       const data = logRead('components/flex-people-directory:data', await db.from("attendance_records")
         .select("regular_minutes, overtime_minutes, work_hours")
         .eq("company_id", companyId).eq("employee_id", emp.id)
-        .gte("date", kstYmd(new Date(monday.getTime() - 9 * 3600 * 1000)))
-        .lte("date", kstYmd(new Date(today.getTime() - 9 * 3600 * 1000))));
+        .gte("date", monday.toISOString().slice(0, 10))
+        .lte("date", today.toISOString().slice(0, 10)));
       return ((data || []) as any[]).reduce((s, a) => {
         const m = Number(a.regular_minutes || 0) + Number(a.overtime_minutes || 0);
         return s + (m > 0 ? m : Math.round(Number(a.work_hours || 0) * 60));

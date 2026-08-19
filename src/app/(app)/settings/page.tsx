@@ -272,7 +272,26 @@ function SettingsPageInner() {
 
   const totalBankBalance = bankAccounts.reduce((s: number, a: BankAccount) => s + Number(a.balance || 0), 0);
   const totalCash = totalBankBalance + (Number(balance) || 0);
-  const runwayMonths = totalCash > 0 && Number(fixedCost) > 0 ? totalCash / Number(fixedCost) : null;
+  // 생존 개월수 분모 = 반복결제 + 재직자 급여 + 추가 고정비 (2026-08-19 감사):
+  //   종전엔 "추가 월 고정비" 입력값만 나눠 실제 고정비 5천만/입력 5백만 회사가 "20개월"로 보였다.
+  //   아래 도움말이 약속한 산식과 동일하게 맞춘다.
+  const { data: burnParts } = useQuery({
+    queryKey: ["settings-burn-parts", companyId],
+    enabled: !!companyId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const [{ data: rec }, { data: emps }] = await Promise.all([
+        supabase.from("recurring_payments").select("amount").eq("company_id", companyId!).eq("is_active", true),
+        supabase.from("employees").select("salary, status").eq("company_id", companyId!).in("status", ["active", "joined"]),
+      ]);
+      return {
+        recurring: (rec || []).reduce((s: number, r: any) => s + Number(r.amount || 0), 0),
+        salary: (emps || []).reduce((s: number, e: any) => s + Number(e.salary || 0), 0),
+      };
+    },
+  });
+  const monthlyBurnTotal = (burnParts?.recurring || 0) + (burnParts?.salary || 0) + (Number(fixedCost) || 0);
+  const runwayMonths = totalCash > 0 && monthlyBurnTotal > 0 ? totalCash / monthlyBurnTotal : null;
 
   if (pageLoading) {
     return (
@@ -356,7 +375,9 @@ function SettingsPageInner() {
             {/* 요약 밴드 — 대시보드 숫자 문법(라벨 위·값 아래) */}
             <div className="stg-statband">
               <div className="stg-stat">
-                <div className="stg-stat-label">연동 통장 합산</div>
+                {/* 라벨 정정 (2026-08-19): 이 값은 연동+수기 전체 합산 — "연동"이라 쓰면
+                    수기 계좌만 있는 회사가 연동된 것으로 오해한다 */}
+                <div className="stg-stat-label">전체 통장 합산 (연동+수기)</div>
                 <div className="stg-stat-value">₩{totalBankBalance.toLocaleString()}</div>
                 <div className="stg-stat-sub">{bankAccounts.length}개 계좌</div>
               </div>

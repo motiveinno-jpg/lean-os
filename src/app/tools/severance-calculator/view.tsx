@@ -44,9 +44,12 @@ export default function SeveranceCalculatorView() {
     const serviceDays = Math.floor((l.getTime() - h.getTime()) / 86400000) + 1;
     if (serviceDays < 365) return { under1: true as const, serviceDays };
 
-    // 퇴직일 이전 3개월의 실제 일수 — (퇴직일-3개월+1일) ~ 퇴직일
-    const from = new Date(l);
-    from.setMonth(from.getMonth() - 3);
+    // 퇴직일 이전 3개월의 실제 일수 — (퇴직일-3개월+1일) ~ 퇴직일.
+    //   setMonth 오버플로 보정 (2026-08-19): 5/31 퇴직 시 "2/31"이 3/3 으로 정규화돼
+    //   89일(정답 92일)로 계산되던 것 → 3개월 전 같은 날을 월말로 클램프.
+    const ly = l.getFullYear(), lm = l.getMonth(), ld = l.getDate();
+    const lastDayOf3mAgo = new Date(ly, lm - 2, 0).getDate();
+    const from = new Date(ly, lm - 3, Math.min(ld, lastDayOf3mAgo));
     from.setDate(from.getDate() + 1);
     const periodDays = Math.round((l.getTime() - from.getTime()) / 86400000) + 1;
 

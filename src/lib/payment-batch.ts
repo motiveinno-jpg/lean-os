@@ -256,9 +256,22 @@ export function calculateRetirementPay(params: {
 }): { retirementPay: number; totalDays: number; dailyAvgWage: number; eligible: boolean } {
   const start = new Date(params.startDate);
   const end = new Date(params.endDate);
-  const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  // +1 — 재직일수는 입사일·퇴사일 양 끝 포함 (2026-08-19 감사: 만 1년(365일) 근무자가
+  //   364일로 계산돼 퇴직금 0원으로 표시됐다. tools 퇴직금 계산기와도 어긋났음)
+  const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   const eligible = totalDays >= 365; // 1년 이상 근무
-  const last3MonthsDays = params.last3MonthsDays || 90;
+  // 직전 3개월 실제 일수 (89~92일) — 90 고정이면 5/31 퇴직(92일) 시 평균임금이 2.2% 과다.
+  const calc3mDays = (() => {
+    // "3개월 전 같은 날"을 월말로 클램프 후 +1일 — setMonth 오버플로(5/31→2/31→3/3) 방지.
+    //   예: 퇴직 5/31 → 산정기간 3/1~5/31 = 92일, 퇴직 8/18 → 5/19~8/18 = 92일.
+    const y = end.getUTCFullYear(), m = end.getUTCMonth(), d = end.getUTCDate();
+    const lastDayOf3mAgo = new Date(Date.UTC(y, m - 2, 0)).getUTCDate();   // (m-3)월의 말일
+    const from = new Date(Date.UTC(y, m - 3, Math.min(d, lastDayOf3mAgo)));
+    from.setUTCDate(from.getUTCDate() + 1);
+    const days = Math.round((end.getTime() - from.getTime()) / 86_400_000) + 1;
+    return days > 0 ? days : 90;
+  })();
+  const last3MonthsDays = params.last3MonthsDays || calc3mDays;
   const dailyAvgWage = params.last3MonthsSalary / last3MonthsDays;
   const retirementPay = eligible ? Math.round((dailyAvgWage * 30) * (totalDays / 365)) : 0;
   return { retirementPay, totalDays, dailyAvgWage, eligible };

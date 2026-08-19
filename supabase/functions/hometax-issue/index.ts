@@ -102,7 +102,8 @@ function normalizeNtsConfirmNum(v: string | null | undefined): string {
 
 // 안전 변환: yyyy-mm-dd → yyyymmdd
 function toYmd(d: string | null): string {
-  if (!d) return new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  // KST 오늘 (2026-08-19 감사): UTC 면 KST 새벽 발행의 작성일자가 전날(월경계면 전월)로 전송됐다.
+  if (!d) return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replaceAll("-", "");
   return d.replaceAll("-", "").slice(0, 8);
 }
 

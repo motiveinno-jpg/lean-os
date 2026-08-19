@@ -5,6 +5,7 @@ import { Ico } from "@/components/ui-icon";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
+import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import ByPersonChart from "./by-person-chart";
 
@@ -129,7 +130,11 @@ async function loadByPerson(companyId: string, year: number): Promise<PersonRow[
 
 export default function ByPersonPage() {
   const { role } = useUser();
-  const blocked = role === "partner";
+  // 급여 명단·개인별 월급 매트릭스가 있는 화면 — 급여 권한자만 (2026-08-19 감사).
+  //   종전 게이트(role==='partner')는 employee/advisor 를 못 막아 /reports 권한만으로
+  //   전 직원 급여 랭킹이 노출됐다.
+  const { hasPerm, isMaster } = useMyPermissions();
+  const blocked = role === "partner" || role === "advisor" || !(isMaster || hasPerm("/employees:salary"));
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [year, setYear] = useState(YEAR_NOW);

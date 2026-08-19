@@ -54,7 +54,7 @@ export async function getCEOPendingActions(companyId: string, userId?: string): 
     // 1. 결제 대기
     supabase
       .from('payment_queue')
-      .select('id, amount, description, created_at, deals(name)')
+      .select('id, amount, description, payment_type, created_at, deals(name)')
       .eq('company_id', companyId)
       .eq('status', 'pending')
       .order('created_at', { ascending: false }),
@@ -112,10 +112,17 @@ export async function getCEOPendingActions(companyId: string, userId?: string): 
   const cleanTitle = stripInternalTag;
   // Map payments
   (payments.data || []).forEach((p: any) => {
+    // 급여 항목 익명화 (2026-08-19 감사): "8월 급여 - 홍길동 ₩3,120,450" 이 대시보드
+    //   결재 위젯(공용 모니터에 자주 띄움)에 그대로 노출됐다 — 직원명을 제거해
+    //   "2026년 8월 급여 지급" 으로만 표시. 실제 승인은 /payments 에서 급여 권한으로.
+    const raw = cleanTitle(p.description) || '결제 승인 요청';
+    const displayTitle = p.payment_type === 'payroll'
+      ? `${raw.split(' - ')[0]} 지급`
+      : raw;
     actions.push({
       id: p.id,
       type: 'payment',
-      title: cleanTitle(p.description) || '결제 승인 요청',
+      title: displayTitle,
       amount: Number(p.amount || 0),
       createdAt: p.created_at,
       urgency: Number(p.amount || 0) >= 5000000 ? 'high' : 'medium',

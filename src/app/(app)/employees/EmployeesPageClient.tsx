@@ -21,7 +21,7 @@ import {
   getAttendanceRecords, getMonthlyAttendanceSummary,
   recomputeAttendance,
   calculateWeeklyHours,
-  getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest,
+  getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, calcLeaveDays,
   getLeaveBalances, correctAttendanceRecord,
   autoInitLeaveBalance, bulkAutoInitLeaveBalances, calculateAnnualLeave,
   cancelLeaveRequest, getCompanyMembers,
@@ -155,8 +155,10 @@ export default function EmployeesPage() {
   const pendingInviteCount = (invitationsForBadge as any[]).filter((i) => i.status === "pending").length;
   const certStats = useCertificateStats(tab === "certificates" ? companyId : null);
   const pay = payrollStats(employees);
-  const totalSalary = employees.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
-  const totalRetirement = employees.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
+  // 재직자만 합산 (2026-08-19 감사): 퇴사자 급여가 섞여 급여 탭 합계와 다른 인건비가 표시됐다.
+  const activeForPay = employees.filter((e: any) => ["active", "joined"].includes(e.status));
+  const totalSalary = activeForPay.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
+  const totalRetirement = activeForPay.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
   const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
 
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여받은 탭만.
@@ -196,8 +198,12 @@ export default function EmployeesPage() {
   //   휴가 탭은 시안대로 표가 주인공이라 상단 KPI 를 감춘다 (2026-08-06 사장님).
   const peopleStats = !isEmployee ? (<>
     <Stat label="재직 인원" value={`${activeCount}명`} />
-    <Stat label="연 인건비" value={<>₩{(totalSalary * 12).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">월 ₩{totalSalary.toLocaleString()}</small></>} />
-    <Stat label="퇴직충당금" value={`₩${totalRetirement.toLocaleString()}`} />
+    {/* 인건비·퇴직충당금은 급여 권한자만 (2026-08-19 감사) — 급여 탭 KPI(tabAllowed) 와 일관.
+        소규모 팀에선 총액만으로 개인 급여가 역산된다. */}
+    {tabAllowed("salary") && (<>
+      <Stat label="연 인건비" value={<>₩{(totalSalary * 12).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">월 ₩{totalSalary.toLocaleString()}</small></>} />
+      <Stat label="퇴직충당금" value={`₩${totalRetirement.toLocaleString()}`} />
+    </>)}
     <Stat label="미결 경비" value={`${expenses.filter((e: any) => e.status === "pending").length}건`} tone={expenses.some((e: any) => e.status === "pending") ? "minus" : undefined} />
   </>) : null;
 
@@ -1123,9 +1129,14 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     const late = (todayStatus?.lateIds || []).map(nameOf);
     const leave = (todayStatus?.leaveIds || []).map(nameOf);
     const counted = new Set([...(todayStatus?.presentIds || []), ...(todayStatus?.lateIds || []), ...(todayStatus?.leaveIds || [])]);
-    const absent = activeEmployees.filter((e: any) => !counted.has(e.id)).map((e: any) => e.name || "구성원");
+    // 공휴일·주말엔 결근 명단도 비운다 + 입사 전 직원 제외 (2026-08-19 감사: 카드는 0인데
+    // 클릭하면 전 직원 명단이 나오던 모순).
+    const todayIsOff = holidayDaySet.has(todayStr) || [0, 6].includes(today.getDay());
+    const absent = todayIsOff ? [] : activeEmployees
+      .filter((e: any) => !counted.has(e.id) && (!e.hire_date || todayStr >= String(e.hire_date).slice(0, 10)))
+      .map((e: any) => e.name || "구성원");
     return { present, late, absent, leave } as Record<string, string[]>;
-  }, [todayStatus, employees, activeEmployees]);
+  }, [todayStatus, employees, activeEmployees, holidayDaySet, todayStr]);
 
   // 캘린더에서 선택한 날짜 — 없으면 조회 중인 달이 이번 달일 때만 오늘을 기본 선택(시안처럼 진입 시 바로 상세 노출).
   const effectiveSelectedDay = selectedDay || (
@@ -1141,7 +1152,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     activeEmployees.forEach((emp: any) => {
       const rec = records.find((r: any) => r.employee_id === emp.id && r.date === effectiveSelectedDay);
       let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[effectiveSelectedDay] || null);
-      if (!status && isPast && dow !== 0 && dow !== 6 && showDerivedAbsence) {
+      if (!status && isPast && dow !== 0 && dow !== 6 && !holidayDaySet.has(effectiveSelectedDay) && showDerivedAbsence) {
         const onLeave = leaveDaySet.has(`${emp.id}:${effectiveSelectedDay}`);
         const employed = !emp.hire_date || effectiveSelectedDay >= String(emp.hire_date).slice(0, 10);
         if (!onLeave && employed) status = "absent";
@@ -1153,7 +1164,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     });
     return byStatus;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveSelectedDay, activeEmployees, records, calendarData, leaveDaySet, showDerivedAbsence, todayStr]);
+  }, [effectiveSelectedDay, activeEmployees, records, calendarData, leaveDaySet, showDerivedAbsence, todayStr, holidayDaySet]);
 
   return (
     <div>
@@ -1564,7 +1575,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         let workdaysSoFar = 0;
         for (let d = 1; d <= upToDay; d++) {
           const dow = new Date(wy, wm - 1, d).getDay();
-          if (dow !== 0 && dow !== 6) workdaysSoFar++;
+          const ds = `${selectedMonth}-${String(d).padStart(2, '0')}`;
+          if (dow !== 0 && dow !== 6 && !holidayDaySet.has(ds)) workdaysSoFar++;   // 공휴일 제외 (2026-08-19)
         }
         return (
           <div className="attendance-monthly-summary">
@@ -2149,7 +2161,8 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
       }
       // 생년월일 누락 안내
       if (result.skippedNoBirth && result.skippedNoBirth.length > 0) {
-        toast(`⚠ 생년월일 미등록 ${result.skippedNoBirth.length}명: ${result.skippedNoBirth.join(', ')}. 명세서 PDF 비밀번호 보호 안 됨.`, 'error');
+        // 실명 나열 제거 (2026-08-19 감사) — 토스트는 공용 화면·화면공유에서 가장 잘 보이는 위치.
+        toast(`⚠ 생년월일 미등록 ${result.skippedNoBirth.length}명 — 해당 직원 명세서는 PDF 비밀번호 보호가 안 됩니다. 인력관리에서 생년월일을 등록하세요.`, 'error');
       }
     } catch (e: unknown) {
       // 무음 실패 금지 (2026-08-19 감사): 종전엔 실패를 삼켜 직전 달 미리보기가 새 달 라벨을
@@ -2569,7 +2582,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
   // Create leave request mutation
   const createLeave = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const unit = form.leaveUnit;
       let days: number;
       if (unit === "half_day") {
@@ -2577,11 +2590,9 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       } else if (unit === "two_hours") {
         days = 0.25;
       } else {
-        // full_day: calculate from date range
-        const start = new Date(form.startDate);
-        const end = new Date(form.endDate || form.startDate);
-        const diffTime = Math.abs(end.getTime() - start.getTime());
-        days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        // full_day: 근무일 기준 — 주말·공휴일 미차감 (2026-08-19 감사: 달력 일수 계산은
+        //   금~월 휴가를 4일로 차감했다. 실제 사용일 1일)
+        days = await calcLeaveDays(companyId!, form.startDate, form.endDate || form.startDate);
       }
 
       return createLeaveRequest({
@@ -2613,14 +2624,16 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   const [quickOpen, setQuickOpen] = useState(false);
   const [quick, setQuick] = useState({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am" as "am" | "pm", startDate: "", endDate: "", reason: "" });
   const resetQuick = () => setQuick({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", reason: "" });
-  const quickDays = (() => {
-    if (quick.leaveUnit === "half_day") return 0.5;
-    if (quick.leaveUnit === "two_hours") return 0.25;
-    if (!quick.startDate) return 0;
-    const start = new Date(quick.startDate);
-    const end = new Date(quick.endDate || quick.startDate);
-    return Math.ceil(Math.abs(end.getTime() - start.getTime()) / 86400000) + 1;
-  })();
+  // 근무일 기준 일수 (2026-08-19) — 주말·공휴일 미차감. 표시·저장 모두 이 값 사용.
+  const { data: quickBizDays } = useQuery({
+    queryKey: ["leave-days", companyId, quick.startDate, quick.endDate],
+    enabled: !!companyId && !!quick.startDate && quick.leaveUnit === "full_day",
+    queryFn: () => calcLeaveDays(companyId!, quick.startDate, quick.endDate || quick.startDate),
+  });
+  const quickDays = quick.leaveUnit === "half_day" ? 0.5
+    : quick.leaveUnit === "two_hours" ? 0.25
+    : !quick.startDate ? 0
+    : (quickBizDays ?? 0);
   const createQuickLeave = useMutation({
     mutationFn: () => createLeaveRequest({
       companyId: companyId!,

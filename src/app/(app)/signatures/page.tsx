@@ -386,14 +386,29 @@ function SignaturesDashboardInner() {
   // 단체일괄 "우리 서명 일괄 적용" UI 는 2026-05-21 사용자 요청으로 제거됨 (동작 미완료).
   //   백엔드 RPC submit_our_signature_bulk 는 보존 (마이그·DB 미터치, 향후 재사용 가능).
 
+  // 상태별 건수도 목록과 같은 필터 기준 (2026-08-19 감사: 옆의 "건수"는 필터 반영,
+  //   상태 건수는 전체 기준이라 "건수 3 · 서명완료 47"이 한 줄에 나란히 떴다).
+  //   상태 필터 자체는 제외 — 상태 칩을 눌러도 다른 상태 건수가 0이 되지 않게.
   const counts = useMemo(() => {
-    const map: Record<string, number> = { all: requests.length };
+    const base = (requests as any[]).filter((r) => {
+      if (!cf.hit(colVal(r))) return false;
+      if (!quickSearchHit(search, [r.title, r.signer_name, r.signer_email, memberNames[r.created_by], String(docNoById.get(r.id) ?? "")])) return false;
+      if (batchFilter === "none" && r.batch_id) return false;
+      if (batchFilter && batchFilter !== "none" && r.batch_id !== batchFilter) return false;
+      if (managerFilter && r.created_by !== managerFilter) return false;
+      if (reqFrom && String(r.created_at || "") < reqFrom) return false;
+      if (reqTo && String(r.created_at || "") > `${reqTo}T23:59:59.999Z`) return false;
+      if (expFrom && (!r.signed_at || String(r.signed_at) < expFrom)) return false;
+      if (expTo && (!r.signed_at || String(r.signed_at) > `${expTo}T23:59:59.999Z`)) return false;
+      return true;
+    });
+    const map: Record<string, number> = { all: base.length };
     for (const s of SIGNATURE_STATUS) map[s.value] = 0;
-    for (const r of requests as any[]) {
+    for (const r of base) {
       map[r.status] = (map[r.status] || 0) + 1;
     }
     return map;
-  }, [requests]);
+  }, [requests, cf, search, memberNames, docNoById, batchFilter, managerFilter, reqFrom, reqTo, expFrom, expTo]);
 
   //   쪽 넘김 — 기본 50줄. 조건이 바뀌면 1쪽으로
   const pager = usePager(filtered as any[], rowsPer, `${statusFilter}|${search}|${reqFrom}|${reqTo}|${expFrom}|${expTo}|${batchFilter}|${managerFilter}|${sort.key}${sort.dir}|${cf.key}`);

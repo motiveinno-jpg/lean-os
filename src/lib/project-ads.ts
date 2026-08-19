@@ -61,7 +61,8 @@ export function periodRange(key: AdPeriodKey): { since: string; until: string } 
   const until = todayKst();
   if (key === "month") return { since: `${until.slice(0, 7)}-01`, until };
   const days = AD_PERIODS.find((p) => p.key === key)?.days || 7;
-  const since = new Date(new Date(`${until}T00:00:00`).getTime() - (days - 1) * 86_400_000)
+  // T00:00:00Z — Z 없이 파싱하면 로컬(KST) 자정 → toISOString(UTC) 에서 하루가 밀린다 (2026-08-19)
+  const since = new Date(new Date(`${until}T00:00:00Z`).getTime() - (days - 1) * 86_400_000)
     .toISOString().slice(0, 10);
   return { since, until };
 }
@@ -118,7 +119,8 @@ export async function dailySeries(accountIds: string[], period: AdPeriodKey): Pr
     by.set(d, cur);
   }
   const out: DayPoint[] = [];
-  for (let t = new Date(`${since}T00:00:00`).getTime(); t <= new Date(`${until}T00:00:00`).getTime(); t += 86_400_000) {
+  // Z 앵커 — 로컬 파싱이면 KST 사용자의 일별 버킷이 통째로 하루 밀렸다(오늘 누락) (2026-08-19)
+  for (let t = new Date(`${since}T00:00:00Z`).getTime(); t <= new Date(`${until}T00:00:00Z`).getTime(); t += 86_400_000) {
     const d = new Date(t).toISOString().slice(0, 10);
     out.push(by.get(d) || { date: d, impressions: 0, clicks: 0, cost: 0, conversions: 0 });
   }

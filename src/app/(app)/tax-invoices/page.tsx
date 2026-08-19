@@ -2670,7 +2670,7 @@ function TaxInvoicesPageInner() {
           )}
 
           {/* 연결됨 + 첫 동기화 전 — 시작 안내 */}
-          {isHometaxConnected && syncLogs.length === 0 && (
+          {isHometaxConnected && syncLogs.length === 0 && invoices.length === 0 && (
             <div className="bg-emerald-500/10 border border-green-500/30 rounded-2xl p-5 shadow-md">
               <div className="flex items-start gap-3">
                 <div className="text-2xl"><Ico e="✅" /></div>
@@ -3187,6 +3187,7 @@ function InvoiceDetailModal({ invoice, companyInfo, partners, deals, issuanceSta
       toast(r?.nts_confirm_no ? `홈택스 발행 완료 (승인번호 ${r.nts_confirm_no})` : '세금계산서가 발행되었습니다', 'success');
       queryClient.invalidateQueries({ queryKey: ['tax-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['tax-invoices-full'] });
+      queryClient.invalidateQueries({ queryKey: ['tax-invoice-issuance-status'] });   // 한도 칩 갱신 (2026-08-19)
       onClose();
     } catch (err: any) {
       toast(`발행 실패: ${err.message}${err.hint ? ' — ' + err.hint : ''}`, 'error');

@@ -115,6 +115,7 @@ export default function CashReceiptsPage() {
       setTab("income");
       queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
       queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["cashbill-issuance-status"] });   // 한도 칩 갱신 (2026-08-19)
     } catch (err: any) {
       toast(`발행 실패: ${err.message}${err.hint ? ` — ${err.hint}` : ""}`, "error");
     } finally { setIssuing(false); }

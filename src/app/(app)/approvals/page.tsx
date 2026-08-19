@@ -53,7 +53,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { useAvatarMap } from "@/hooks/use-avatar-map";
 import { listApprovalForms, type ApprovalForm } from "@/lib/approval-forms";
-import { computeHalfDaySlot, LEAVE_TYPES } from "@/lib/hr";
+import { computeHalfDaySlot, LEAVE_TYPES, calcLeaveDays } from "@/lib/hr";
 import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
@@ -2868,7 +2868,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
   useEffect(() => {
     if (draftLoaded || !companyId) return;
-    const draftKey = `ov-approval-draft-${companyId}`;
+    // userId 포함 (2026-08-19 감사): 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
+  const draftKey = `ov-approval-draft-${companyId}-${userId || "anon"}`;
     const saved = localStorage.getItem(draftKey);
     if (saved) {
       try {
@@ -2918,14 +2919,16 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const remainingLeave = leaveBalance ? Number(leaveBalance.total_days || 0) - Number(leaveBalance.used_days || 0) : null;
 
   // Calculate leave days
-  const leaveDays = useMemo(() => {
-    if (leaveForm.leaveUnit === "half_day") return 0.5;
-    if (leaveForm.leaveUnit === "two_hours") return 0.25;
-    if (!leaveForm.startDate) return 0;
-    const start = new Date(leaveForm.startDate);
-    const end = leaveForm.endDate ? new Date(leaveForm.endDate) : start;
-    return Math.ceil(Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  }, [leaveForm.leaveUnit, leaveForm.startDate, leaveForm.endDate]);
+  // 근무일 기준 (2026-08-19 감사): 달력 일수는 금~월 휴가를 4일로 차감했다(실제 1일).
+  const { data: leaveBizDays } = useQuery({
+    queryKey: ["leave-days", companyId, leaveForm.startDate, leaveForm.endDate],
+    enabled: !!companyId && !!leaveForm.startDate && leaveForm.leaveUnit === "full_day",
+    queryFn: () => calcLeaveDays(companyId, leaveForm.startDate, leaveForm.endDate || leaveForm.startDate),
+  });
+  const leaveDays = leaveForm.leaveUnit === "half_day" ? 0.5
+    : leaveForm.leaveUnit === "two_hours" ? 0.25
+    : !leaveForm.startDate ? 0
+    : (leaveBizDays ?? 0);
 
   // Auto-generate leave title
   const leaveTitle = useMemo(() => {
@@ -3206,7 +3209,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       setSelectedApprovers([]); setCustomFieldValues({});
       setSelectedReferences([]); setReferencesInited("");
       setDescriptionInited("");
-      localStorage.removeItem(`ov-approval-draft-${companyId}`);
+      localStorage.removeItem(`ov-approval-draft-${companyId}-${userId || "anon"}`);
+      localStorage.removeItem(`ov-approval-draft-${companyId}`);   // 구 키 정리 (2026-08-19 이전 저장분)
       onComplete();
     },
     onError: (err: any) => toast("결재 요청 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
@@ -3706,7 +3710,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             <button
               type="button"
               onClick={() => {
-                const draftKey = `ov-approval-draft-${companyId}`;
+                // userId 포함 (2026-08-19 감사): 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
+  const draftKey = `ov-approval-draft-${companyId}-${userId || "anon"}`;
                 const draft = { form, leaveForm, description: form.description };
                 localStorage.setItem(draftKey, JSON.stringify(draft));
                 toast("임시저장되었습니다", "success");
@@ -3725,7 +3730,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 setFiles([]);
                 setSelectedApprovers([]);
                 setSelectedReferences([]); setReferencesInited("");
-                localStorage.removeItem(`ov-approval-draft-${companyId}`);
+                localStorage.removeItem(`ov-approval-draft-${companyId}-${userId || "anon"}`);
+      localStorage.removeItem(`ov-approval-draft-${companyId}`);   // 구 키 정리 (2026-08-19 이전 저장분)
               }}
               className="px-4 py-2.5 text-[var(--text-dim)] text-sm hover:text-red-400 transition"
             >

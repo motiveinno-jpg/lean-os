@@ -235,11 +235,24 @@ serve(withSentry("attendance-checkin", async (req) => {
     }
 
     if (action === "checkout") {
-      const { data: record } = await admin.from("attendance_records")
+      let { data: record } = await admin.from("attendance_records")
         .select("*")
         .eq("employee_id", employeeId)
         .eq("date", today)
         .maybeSingle();
+
+      // 자정 넘긴 퇴근 (2026-08-19 감사): 22시 출근 → 새벽 2시 퇴근이면 today 가 이미
+      //   다음날이라 출근 행을 못 찾아 400 이 났다 — 어제 날짜의 미퇴근 행이 있으면 그걸 닫는다.
+      //   (attendance-calc 는 자정 넘김·야간가산을 이미 정식 지원)
+      if (!record || !record.check_in) {
+        const yesterday = new Date(new Date(`${today}T00:00:00Z`).getTime() - 86400000).toISOString().slice(0, 10);
+        const { data: prevOpen } = await admin.from("attendance_records")
+          .select("*")
+          .eq("employee_id", employeeId)
+          .eq("date", yesterday)
+          .maybeSingle();
+        if (prevOpen?.check_in && !prevOpen.check_out) record = prevOpen;
+      }
 
       if (!record || !record.check_in) {
         return new Response(JSON.stringify({ error: "출근 기록이 없습니다" }), {

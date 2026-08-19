@@ -105,9 +105,11 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const now = new Date();
       const mStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      // limit(30) 이 합계·건수까지 잘랐다 (2026-08-19 감사: 월 45건 회사가 영원히 "30건").
+      //   합계는 월 전체(상한 2000, 대시보드 위젯 부하 고려), 목록만 4건.
       const data = logRead('components/dashboard-activity:data', await db.from("tax_invoices").select("id, counterparty_name, supply_amount, issue_date")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", mStart).order("issue_date", { ascending: false }).limit(30));
+        .gte("issue_date", mStart).order("issue_date", { ascending: false }).limit(2000));
       const rows = (data || []) as any[];
       return { rows: rows.slice(0, 4), total: rows.reduce((s, r) => s + Number(r.supply_amount || 0), 0), count: rows.length };
     },

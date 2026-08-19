@@ -21,6 +21,7 @@ import { SubscriptionsPanel } from "@/components/subscriptions-panel"; // 구독
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
+import { useMyPermissions } from "@/lib/permissions";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
@@ -724,7 +725,18 @@ function FixedCostBatchTab({ companyId, userId, invalidate }: { companyId: strin
 }
 
 // ── 고정비 배치 상세 모달 (read-only) ──
+// 계좌번호 마스킹 — 뒤 4자리만 (2026-08-19 감사: 급여 배치 상세에 직원 계좌 전체가 노출)
+function maskAccount(acc?: string | null): string {
+  const s = String(acc || "").trim();
+  if (!s) return "";
+  const digits = s.replace(/\D/g, "");
+  return digits.length > 4 ? `••••${digits.slice(-4)}` : "••••";
+}
+
 function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () => void }) {
+  // 급여 배치의 직원별 실수령액·계좌는 급여 권한자만 (2026-08-19 감사)
+  const { hasPerm: batchHasPerm, isMaster: batchIsMaster } = useMyPermissions();
+  const canSeeSalary = batchIsMaster || batchHasPerm("/employees:salary");
   const { data, isLoading } = useQuery({
     queryKey: ["batch-with-items", batchId],
     queryFn: () => getBatchWithItems(batchId),
@@ -803,6 +815,11 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
               <div className="text-[10px] font-semibold text-[var(--text-dim)] uppercase mb-2">포함된 항목 ({items.length}건)</div>
               {items.length === 0 ? (
                 <div className="p-6 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-xl">포함된 항목이 없습니다.</div>
+              ) : batch?.batch_type === 'payroll' && !canSeeSalary ? (
+                <div className="p-6 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-surface)] rounded-xl">
+                  급여 항목 {items.length}건 · 합계 ₩{items.reduce((s, it) => s + Number(it.amount || 0), 0).toLocaleString()}
+                  <div className="mt-1 text-[var(--text-dim)]">직원별 상세는 급여 권한이 있는 사용자만 볼 수 있습니다.</div>
+                </div>
               ) : (
                 <div className="border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] max-h-[400px] overflow-y-auto">
                   {items.map((it) => (
@@ -812,7 +829,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
                         {it.recipient_name && (
                           <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                             {it.recipient_name}
-                            {it.recipient_account && ` · ${it.recipient_bank || ''} ${it.recipient_account}`}
+                            {it.recipient_account && ` · ${it.recipient_bank || ''} ${maskAccount(it.recipient_account)}`}
                           </div>
                         )}
                       </div>

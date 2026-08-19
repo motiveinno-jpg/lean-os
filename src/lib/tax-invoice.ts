@@ -487,22 +487,26 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
     .eq('company_id', companyId));
 
   // 현금영수증 매출 세액 — 세금계산서 미발행 매출의 부가세도 납부 대상 (cash-receipts 화면 동일 테이블)
-  //   발행(issued)만 집계, 취소/무효 제외. 매입 현금영수증 공제는 증빙 요건 판단이 필요해 미반영(보수적).
+  //   부호는 cashReceiptSign 기준 (2026-08-19 감사): 홈택스 취소거래는 status='cancelled'인
+  //   별개의 마이너스 매출 행이라, issued 만 집계하면 취소분이 안 빠져 매출세액이 과다했다.
+  //   매입 현금영수증 공제는 증빙 요건 판단이 필요해 미반영(보수적).
+  const { cashReceiptSign } = await import('./cash-receipts');
   const crData = logRead('lib/tax-invoice:crData', await db
     .from('cash_receipts')
-    .select('tax_amount, issue_date')
+    .select('tax_amount, issue_date, status, source')
     .eq('company_id', companyId)
     .eq('type', 'income')
-    .eq('status', 'issued')
     .gte('issue_date', `${year}-01-01`)
     .lt('issue_date', `${year + 1}-01-01`));
 
   const crByQuarter = new Map<string, number>();
   (crData || []).forEach((c: any) => {
+    const sign = cashReceiptSign(c);
+    if (sign === 0) return;
     const d = new Date(c.issue_date);
     const q = Math.ceil((d.getMonth() + 1) / 3);
     const key = `${year}-Q${q}`;
-    crByQuarter.set(key, (crByQuarter.get(key) ?? 0) + Number(c.tax_amount ?? 0));
+    crByQuarter.set(key, (crByQuarter.get(key) ?? 0) + sign * Number(c.tax_amount ?? 0));
   });
 
   // Map card deductions to quarters

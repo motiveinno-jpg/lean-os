@@ -35,18 +35,18 @@ const WIDGETS: { key: string; label: string; hint: string }[] = [
 ];
 const DEFAULT_WIDGETS = WIDGETS.map((w) => w.key);
 const dayStr = (offset: number) =>
-  new Date(new Date(`${todayKst()}T00:00:00`).getTime() + offset * 86_400_000).toISOString().slice(0, 10);
+  new Date(new Date(`${todayKst()}T00:00:00Z`).getTime() + offset * 86_400_000).toISOString().slice(0, 10);
 
 const QUICK = [
   { label: "최근 7일", since: () => dayStr(-6), until: () => todayKst() },
   { label: "최근 30일", since: () => dayStr(-29), until: () => todayKst() },
   { label: "이번 달", since: () => `${todayKst().slice(0, 7)}-01`, until: () => todayKst() },
   { label: "지난 달", since: () => {
-      const d = new Date(`${todayKst().slice(0, 7)}-01T00:00:00`);
+      const d = new Date(`${todayKst().slice(0, 7)}-01T00:00:00Z`);
       d.setMonth(d.getMonth() - 1);
       return d.toISOString().slice(0, 10);
     }, until: () => {
-      const d = new Date(`${todayKst().slice(0, 7)}-01T00:00:00`);
+      const d = new Date(`${todayKst().slice(0, 7)}-01T00:00:00Z`);
       return new Date(d.getTime() - 86_400_000).toISOString().slice(0, 10);
     } },
 ];
@@ -143,7 +143,7 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
     }
     //   고른 기간의 모든 날을 세운다 — 집행이 없던 날도 자리를 지켜야 '언제 몰아 썼는지'가 보인다
     const out: Row[] = [];
-    for (let t0 = new Date(`${since}T00:00:00`).getTime(); t0 <= new Date(`${until}T00:00:00`).getTime(); t0 += 86_400_000) {
+    for (let t0 = new Date(`${since}T00:00:00Z`).getTime(); t0 <= new Date(`${until}T00:00:00Z`).getTime(); t0 += 86_400_000) {
       const d = new Date(t0).toISOString().slice(0, 10);
       out.push({ date: d, ...aggregate(m.get(d) || [], picked) });
     }
@@ -219,7 +219,7 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
       .select("stat_date").in("ad_account_id", linked).gte("stat_date", s2).lte("stat_date", u2).limit(5000));
     for (const r of (data || []) as any[]) have.add(String(r.stat_date).slice(0, 10));
     const missing: string[] = [];
-    for (let t0 = new Date(`${s2}T00:00:00`).getTime(); t0 <= new Date(`${u2}T00:00:00`).getTime(); t0 += 86_400_000) {
+    for (let t0 = new Date(`${s2}T00:00:00Z`).getTime(); t0 <= new Date(`${u2}T00:00:00Z`).getTime(); t0 += 86_400_000) {
       const d = new Date(t0).toISOString().slice(0, 10);
       if (!have.has(d) && d <= todayKst()) missing.push(d);
     }

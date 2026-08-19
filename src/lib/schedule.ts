@@ -238,6 +238,11 @@ export const PRIORITY_LABEL: Record<0 | 1 | 2, { label: string; color: string }>
 
 /** ISO/타임스탬프 문자열에서 로컬과 무관하게 'YYYY-MM-DD' 추출 */
 export function dateKeyOf(ts: string): string {
+  // KST 보정 (2026-08-19 감사): 종일 일정이 KST 자정(=전날 15:00Z)으로 저장된 행이 실재해
+  //   UTC slice 만 하면 /schedule 달력·채팅 달력이 대시보드 달력과 다른 날에 표시했다.
+  //   dashboard-calendar.tsx 의 kstDay 픽스(2026-08-07)와 동일 규칙.
+  const t = Date.parse(ts);
+  if (Number.isFinite(t)) return new Date(t + 9 * 3600 * 1000).toISOString().slice(0, 10);
   return ts.slice(0, 10);
 }
 

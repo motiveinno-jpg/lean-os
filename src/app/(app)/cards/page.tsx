@@ -384,7 +384,8 @@ export default function CardsPage() {
     for (const tx of monthTx) {
       const k = (tx.card_id as string) || (tx.card_name as string) || "?";
       counts[k] = (counts[k] || 0) + 1;
-      sums[k] = (sums[k] || 0) + Math.abs(Number(tx.amount || 0));
+      // 음수 = 취소/환불 — 사용액에서 상계 (2026-08-19 감사: 절댓값 합산은 취소를 사용으로 더했다)
+      sums[k] = (sums[k] || 0) + Number(tx.amount || 0);
     }
     return { counts, sums };
   }, [monthTx]);
@@ -392,15 +393,16 @@ export default function CardsPage() {
   // 카테고리별 지출 상위 5
   const categoryStats = useMemo(() => {
     const m: Record<string, number> = {};
+    let totalSpendAll = 0;   // 상위 5 가 아닌 전체 지출 — % 분모용 (2026-08-19)
     for (const tx of monthTx) {
-      const amt = Math.abs(Number(tx.amount || 0));
-      if (amt <= 0) continue;
+      const amt = Number(tx.amount || 0);   // 음수(취소)는 해당 카테고리에서 상계
+      if (amt === 0) continue;
+      totalSpendAll += Math.max(0, amt);
       const cat = classificationLabel(tx.classification) || tx.category || "미분류";
       m[cat] = (m[cat] || 0) + amt;
     }
-    const entries = Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const total = entries.reduce((s, [, v]) => s + v, 0);
-    return entries.map(([name, amount]) => ({ name, amount, pct: total > 0 ? Math.round((amount / total) * 100) : 0 }));
+    const entries = Object.entries(m).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return entries.map(([name, amount]) => ({ name, amount, pct: totalSpendAll > 0 ? Math.round((amount / totalSpendAll) * 100) : 0 }));
   }, [monthTx]);
 
   if (!companyId) {
@@ -412,7 +414,8 @@ export default function CardsPage() {
   const currentTxCount = perCard.counts[currentCardKey] || 0;
   const currentSpend = perCard.sums[currentCardKey] || 0;
 
-  const totalUsage = monthTx.reduce((s: number, t: any) => s + Math.abs(Number(t.amount || 0)), 0);
+  // 순 사용액 = 사용 − 취소 (2026-08-19 감사: 절댓값 합산은 100만원 결제+전액취소를 200만원 사용으로 표시)
+  const totalUsage = monthTx.reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
   // corporate_cards 실제 컬럼은 is_active / monthly_limit (credit_limit·status 는 없음 — 2026-07-06 QA)
   const activeCards = cards.filter((c: any) => c.is_active !== false).length;
   const hasLimits = cards.some((c: any) => Number(c.monthly_limit || 0) > 0);

@@ -763,7 +763,7 @@ async function syncCardBilling(
         const externalId = `codef_card_${org}_${usedDate}_${charge.resUsedTime || ""}_${approvalNo || totalSynced}`;
         const formattedDate = usedDate.length >= 8
           ? `${usedDate.slice(0,4)}-${usedDate.slice(4,6)}-${usedDate.slice(6,8)}`
-          : new Date().toISOString().split("T")[0];
+          : new Date(Date.now() + 9 * 3600 * 1000).toISOString().split("T")[0];
 
         if (!biznoOnly) {
           //   ★ 해외 결제는 같은 결제가 승인·청구 두 채널로 들어오는데 금액(환율 확정)과
@@ -1477,7 +1477,7 @@ async function syncHometaxInvoices(
   debug.push(`cert source=${htCert.source}`);
 
   // CF-13001 방지: 미래 날짜는 today 로 cap. CODEF 통합 API 는 endDate > today 면 거부.
-  const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const todayYmd = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replaceAll("-", "");   // KST (2026-08-19)
   const cappedEnd = endDate > todayYmd ? todayYmd : endDate;
   const cappedStart = startDate > cappedEnd ? cappedEnd : startDate;
 
@@ -1859,7 +1859,7 @@ async function syncHometaxCashReceipts(
   debug.push(`cert source=${htCert.source}`);
 
   // 미래 날짜 cap.
-  const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+  const todayYmd = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replaceAll("-", "");   // KST (2026-08-19)
   const cappedEnd = endDate > todayYmd ? todayYmd : endDate;
   const cappedStart = startDate > cappedEnd ? cappedEnd : startDate;
 
@@ -2181,8 +2181,8 @@ serve(withSentry("codef-sync", async (req) => {
       if (!cid) {
         return new Response(JSON.stringify({ ok: true, skipped: "no connectedId" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      const endC = new Date().toISOString().split("T")[0].replace(/-/g, "");
-      const startC = (() => { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      const endC = new Date(Date.now() + 9 * 3600 * 1000).toISOString().split("T")[0].replace(/-/g, "");
+      const startC = (() => { const d = new Date(Date.now() + 9 * 3600 * 1000); d.setDate(d.getDate() - 14); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
       let bankRes: any = null;
       try {
         bankRes = await syncBankTransactions(supabase, token, companyId, cid, startC, endC);
@@ -2231,8 +2231,8 @@ serve(withSentry("codef-sync", async (req) => {
       //   internal 호출에 한해 startDate/endDate(YYYYMMDD) 를 받는다. 미지정이면 기존 35일 윈도우.
       const ovrEnd = String(endDate || "").replace(/-/g, "");
       const ovrStart = String(startDate || "").replace(/-/g, "");
-      const endC = ovrEnd.length === 8 ? ovrEnd : new Date().toISOString().split("T")[0].replace(/-/g, "");
-      const startC = ovrStart.length === 8 ? ovrStart : (() => { const d = new Date(); d.setDate(d.getDate() - 35); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      const endC = ovrEnd.length === 8 ? ovrEnd : new Date(Date.now() + 9 * 3600 * 1000).toISOString().split("T")[0].replace(/-/g, "");
+      const startC = ovrStart.length === 8 ? ovrStart : (() => { const d = new Date(Date.now() + 9 * 3600 * 1000); d.setDate(d.getDate() - 35); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
       let cardRes: any = null;
       try {
         cardRes = await syncCardBilling(supabase, token, companyId, cid, startC, endC);
@@ -2383,8 +2383,8 @@ serve(withSentry("codef-sync", async (req) => {
       //   기간 지정 재수집 — card-cron-one 과 동일 (카드사 승인내역 조회 허용 기간 안에서만 유효).
       const ovrEndA = String(endDate || "").replace(/-/g, "");
       const ovrStartA = String(startDate || "").replace(/-/g, "");
-      const endC = ovrEndA.length === 8 ? ovrEndA : new Date().toISOString().split("T")[0].replace(/-/g, "");
-      const startC = ovrStartA.length === 8 ? ovrStartA : (() => { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      const endC = ovrEndA.length === 8 ? ovrEndA : new Date(Date.now() + 9 * 3600 * 1000).toISOString().split("T")[0].replace(/-/g, "");
+      const startC = ovrStartA.length === 8 ? ovrStartA : (() => { const d = new Date(Date.now() + 9 * 3600 * 1000); d.setDate(d.getDate() - 14); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
       let apprRes: any = null;
       try {
         apprRes = await syncCardApprovals(supabase, token, companyId, cid, startC, endC);
@@ -2513,7 +2513,7 @@ serve(withSentry("codef-sync", async (req) => {
         // ─── sync 호출 ───
         const [my, mm] = targetMonth.split("-").map(Number);
         const lastDay = new Date(my, mm, 0).getDate();
-        const todayYmd = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+        const todayYmd = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replaceAll("-", "");   // KST (2026-08-19)
         const monthStart = `${my}${String(mm).padStart(2, "0")}01`;
         let monthEnd = `${my}${String(mm).padStart(2, "0")}${String(lastDay).padStart(2, "0")}`;
         if (monthEnd > todayYmd) monthEnd = todayYmd;
@@ -3014,7 +3014,7 @@ serve(withSentry("codef-sync", async (req) => {
       return new Response(JSON.stringify({ error: "Connected ID가 없습니다. 설정에서 은행/카드를 먼저 연결하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const end = endDate || new Date().toISOString().split("T")[0].replace(/-/g, "");
+    const end = endDate || new Date(Date.now() + 9 * 3600 * 1000).toISOString().split("T")[0].replace(/-/g, "");
     let start = startDate || (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
 
     // 회계마감 컷오프: 마감일 이전(또는 2년 초과) 자료는 수집하지 않도록 시작일을 하한으로 clamp.

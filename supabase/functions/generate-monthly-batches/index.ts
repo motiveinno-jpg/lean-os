@@ -90,8 +90,10 @@ Deno.serve(withSentry("generate-monthly-batches", async (req: Request) => {
 
     const body = await req.json().catch(() => ({}));
     const source = body.source || "manual";
-    const now = new Date();
-    const monthLabel = body.monthLabel || `${now.getFullYear()}년 ${now.getMonth() + 1}월`;
+    // KST 월 (2026-08-19 감사): Deno=UTC 라 매월 1일 KST 00~08시에 돌면 전월 라벨이 생성돼
+    //   중복 가드("이미 존재")에 걸려 이번 달 배치가 통째로 skip 될 수 있었다.
+    const now = new Date(Date.now() + 9 * 3600 * 1000);
+    const monthLabel = body.monthLabel || `${now.getUTCFullYear()}년 ${now.getUTCMonth() + 1}월`;
 
     // Create automation_run
     const { data: run } = await supabase

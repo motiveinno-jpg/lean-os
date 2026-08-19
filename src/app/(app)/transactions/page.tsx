@@ -921,8 +921,9 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     return xs;
   })();
 
-  /* Category breakdown for expense donut chart */
-  const categoryBreakdown = bankTx.reduce((acc: Record<string, number>, tx: any) => {
+  /* Category breakdown for expense donut chart — 목록·합계와 같은 필터 기준 (2026-08-19:
+     계좌를 골라도 분포는 전 계좌 기준이라 그 계좌 지출 구성으로 오독됐다) */
+  const categoryBreakdown = filteredBankTx.reduce((acc: Record<string, number>, tx: any) => {
     if (tx.type !== 'expense' && tx.type !== '출금') return acc;
     const cat = tx.category || '미분류';
     acc[cat] = (acc[cat] || 0) + Number(tx.amount);

@@ -216,8 +216,9 @@ serve(withSentry("daily-report", async (req) => {
         }
       }
       const date = reportDate || (() => {
-        const d = new Date();
-        d.setDate(d.getDate() - 1);
+        // KST 어제 (2026-08-19 감사): UTC 기준이면 KST 아침에 "그제" 리포트가 나갔다. tick 과 동일 계산.
+        const d = new Date(Date.now() + 9 * 3600 * 1000);
+        d.setUTCDate(d.getUTCDate() - 1);
         return d.toISOString().slice(0, 10);
       })();
       const result = await sendForCompany(supabase, companyId, date, cfg);
