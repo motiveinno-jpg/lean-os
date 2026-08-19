@@ -134,3 +134,8 @@
 ## 2026-08-19 — 분석 리포트 표준 1·2차
 - reports/layout 상자(qk-shell·ReportsTabs 파란 밑줄·설명 줄·report-body 스크롤·카드는 얇은 판). StatementsTabs 삭제(회계 자료 하위 갈래로 합침), 페이지마다 그리던 ReportsTabs 제거.
 - ReportHead 포털: pnl(툴바+KPI 4)·bs(툴바+KPI 3)·costs(연도+KPI 3)·vat(seg-bar+연도)·flow(seg-bar 툴바)·summary(StatCard 4) → 머리 조회 줄·결과 요약. `globals.css`: `.statements-tabs-list` `.statements-tab-link` `.tax-invoice-tabs` `.flow-toolbar` `.summary-stat-grid`
+
+## 2026-08-19 — 경영 요약·자금 전망 재편 (docs/20260819_PLAN_summary_outlook_redesign.md)
+- `src/components/report-kit.tsx` 삭제(ReportShell·PageHeader·IntroCard·StatCard·Section) — 경영 요약·예정 지출·운영 가능 세 화면이 마지막 사용처였고 전부 세 신호 판·곡선·표로 다시 그렸다. 리포트 표준은 `reports/layout` + `ReportHead` + `pnl-panel`.
+- 경영 요약 예전 계산(tax_invoices status 만 세는 미수 11억, 예산 추정 고정비) → `lib/biz-summary.ts`. 자금 전망 직선 전망·±10% 3칸·예정 지출 5줄 → `lib/cash-outlook.ts`.
+- `globals.css` 의 `.summary-*` `.upcoming-*` `.outlook-*` 는 이제 사용처 없음(다른 PC 충돌 회피로 남김 — 다음 정리 때 제거).

@@ -625,8 +625,8 @@ export default function DashboardPage() {
             const pos = (k: keyof typeof DEFAULT_WIDGET_POS) => (canFinance ? P[k] : { w: P[k].w, h: P[k].h });
             // 카탈로그 — 앞쪽 10개는 기본 활성(확정 배치), 뒤쪽은 추가 가능(기본 비활성).
             const catalog: CatalogWidget[] = [
-              { id: "biz", name: "경영 요약", icon: "📊", desc: "손익·잔액·런웨이 + 매출·비용", category: "경영", ...pos("biz"),
-                render: () => <DashboardBizSummary monthRevenue={dashPnl?.hasData ? dashPnl.revenue : dashboard.growth.monthRevenue} expense={dashPnl?.hasData ? dashPnl.cost : (realBurnData ?? 0) + (realVariableData ?? 0)} basis={dashPnl?.hasData ? "확정 전표 기준" : "매출 엔진·고정비+카드 추정 (이번 달 전표 없음)"} balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0} runwayMonths={dashboard.sixPack.runwayMonths} /> },
+              { id: "biz", name: "경영 요약", icon: "📊", desc: "돈·손익·받을 돈·낼 돈 세 신호 + 챙길 것", category: "경영", ...pos("biz"),
+                render: () => <DashboardBizSummary monthRevenue={dashPnl?.hasData ? dashPnl.revenue : dashboard.growth.monthRevenue} expense={dashPnl?.hasData ? dashPnl.cost : (realBurnData ?? 0) + (realVariableData ?? 0)} basis={dashPnl?.hasData ? "확정 전표 기준" : "매출 엔진·고정비+카드 추정 (이번 달 전표 없음)"} balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0} runwayMonths={dashboard.sixPack.runwayMonths} companyId={companyId} userId={userId} /> },
               { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", ...pos("revenue"), render: () => <RecentRevenue companyId={companyId} /> },
               { id: "receivables", name: "미수금", icon: "💸", desc: "미수금·연체 현황", category: "경영", ...pos("receivables"), render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
               { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", ...pos("projects"), render: () => <RecentProjects companyId={companyId} /> },
