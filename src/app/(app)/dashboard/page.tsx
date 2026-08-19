@@ -3,6 +3,8 @@ import { GroupedColumnChart } from "@/components/charts/kit";
 import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { fetchJournalLines } from "@/lib/journal-reports";
+import { summarize as summarizePnl } from "@/lib/pnl-status";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -224,6 +226,21 @@ export default function DashboardPage() {
     },
     enabled: !!companyId,
     refetchInterval: 30_000,
+  });
+
+  //   대시보드 '경영 요약' 손익 = 확정 전표 기준 (2026-08-19 손익 현황 재편 파급 — 손익 현황·손익계산서와 같은 숫자).
+  //   전표가 하나도 없는 달은 예전 셈(매출 엔진·고정비+카드)으로 폴백해 빈 카드가 되지 않게 한다.
+  const { data: dashPnl } = useQuery({
+    queryKey: ["dash-pnl", companyId, todayKst().slice(0, 7)],
+    queryFn: async () => {
+      const ym = todayKst().slice(0, 7);
+      const [y, m] = ym.split("-").map(Number);
+      const to = `${ym}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
+      const lines = await fetchJournalLines(companyId!, `${ym}-01`, to);
+      const s = summarizePnl(lines);
+      return { revenue: s.revenue, cost: s.cogs + s.opex, hasData: lines.length > 0 };
+    },
+    enabled: !!companyId, staleTime: 60_000,
   });
 
   // 2026-05-22 월 변동비 — 이번 달 카드 사용액 (payment_queue 는 due_date 컬럼 부재로 제외).
@@ -601,7 +618,7 @@ export default function DashboardPage() {
             // 카탈로그 — 앞쪽 10개는 기본 활성(확정 배치), 뒤쪽은 추가 가능(기본 비활성).
             const catalog: CatalogWidget[] = [
               { id: "biz", name: "경영 요약", icon: "📊", desc: "손익·잔액·런웨이 + 매출·비용", category: "경영", ...pos("biz"),
-                render: () => <DashboardBizSummary monthRevenue={dashboard.growth.monthRevenue} expense={(realBurnData ?? 0) + (realVariableData ?? 0)} balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0} runwayMonths={dashboard.sixPack.runwayMonths} /> },
+                render: () => <DashboardBizSummary monthRevenue={dashPnl?.hasData ? dashPnl.revenue : dashboard.growth.monthRevenue} expense={dashPnl?.hasData ? dashPnl.cost : (realBurnData ?? 0) + (realVariableData ?? 0)} basis={dashPnl?.hasData ? "확정 전표 기준" : "매출 엔진·고정비+카드 추정 (이번 달 전표 없음)"} balance={cashPulse?.currentBalance ?? dashboard.sixPack.cashBalance ?? 0} runwayMonths={dashboard.sixPack.runwayMonths} /> },
               { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", ...pos("revenue"), render: () => <RecentRevenue companyId={companyId} /> },
               { id: "receivables", name: "미수금", icon: "💸", desc: "미수금·연체 현황", category: "경영", ...pos("receivables"), render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
               { id: "projects", name: "최근 프로젝트", icon: "💼", desc: "진행 프로젝트 단계·계약액", category: "업무", ...pos("projects"), render: () => <RecentProjects companyId={companyId} /> },

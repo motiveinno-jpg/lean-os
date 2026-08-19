@@ -119,6 +119,38 @@ export async function fetchUnclassifiedOutflow(companyId: string, from: string, 
   return { count: rows.length, amount: rows.reduce((s, r) => s + Math.abs(Number(r.amount || 0)), 0) };
 }
 
+/** 고정비 등록값(정기 지출·고정비 등록) vs 기간 실제 — 이름(정규화 부분일치)으로 전표 줄을 찾고, 전표가 없으면 통장 출금으로 폴백.
+ *  매칭 규칙은 cash-budget 의 정기결제↔통장 매처와 같다(이름 2자 이상, 금액 ±10% 는 여기선 안 본다 — 차이를 보여 주는 게 목적이라). */
+export type FixedCostRow = { key: string; name: string; source: "recurring" | "fixed_cost"; monthly: number; expected: number; actual: number; basis: "전표" | "통장" | "없음"; day: number | null; matchedLines: JournalLine[] };
+export async function fetchFixedCostCompare(companyId: string, range: MonthRange, lines: JournalLine[]): Promise<FixedCostRow[]> {
+  const { from, to } = rangeDates(range);
+  const months = (() => { const [ay, am] = range.fromYm.split("-").map(Number); const [by, bm] = range.toYm.split("-").map(Number); return (by * 12 + bm) - (ay * 12 + am) + 1; })();
+  const [rec, fixed, bank] = await Promise.all([
+    supabase.from("recurring_payments").select("id, name, amount, day_of_month, recipient_name, is_active").eq("company_id", companyId).eq("is_active", true),
+    supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring").eq("company_id", companyId),
+    (supabase.from("bank_transactions").select("counterparty, description, amount") as any).eq("company_id", companyId).lt("amount", 0).gte("transaction_date", from).lte("transaction_date", to),
+  ]);
+  const norm = (s: string) => String(s || "").toLowerCase().replace(/\s+/g, "");
+  const items: { key: string; name: string; alt: string; source: "recurring" | "fixed_cost"; monthly: number; day: number | null }[] = [
+    ...((rec.data || []) as any[]).map((r) => ({ key: `r:${r.id}`, name: String(r.name || ""), alt: String(r.recipient_name || ""), source: "recurring" as const, monthly: Number(r.amount || 0), day: r.day_of_month ?? null })),
+    ...((fixed.data || []) as any[]).map((r) => ({ key: `f:${r.id}`, name: String(r.name || ""), alt: "", source: "fixed_cost" as const, monthly: Number(r.amount || 0), day: r.payment_day ?? null })),
+  ].filter((i) => norm(i.name).length >= 2);
+  const costLines = lines.filter((l) => l.section === "cogs" || l.section === "opex");
+  const bankRows = ((bank.data || []) as any[]);
+  return items.map((it) => {
+    const keys = [norm(it.name), norm(it.alt)].filter((k) => k.length >= 2);
+    const hitTxt = (t: string) => keys.some((k) => t.includes(k) || (t.length >= 2 && k.includes(t)));
+    const matched = costLines.filter((l) => hitTxt(norm([l.partnerName, l.memo].filter(Boolean).join(" "))));
+    if (matched.length > 0) {
+      const actual = matched.reduce((s, l) => s + pnlAmount(l), 0);
+      return { key: it.key, name: it.name, source: it.source, monthly: it.monthly, expected: it.monthly * months, actual, basis: "전표" as const, day: it.day, matchedLines: matched };
+    }
+    const bankHit = bankRows.filter((b) => hitTxt(norm([b.counterparty, b.description].filter(Boolean).join(" "))));
+    const actual = bankHit.reduce((s, b) => s + Math.abs(Number(b.amount || 0)), 0);
+    return { key: it.key, name: it.name, source: it.source, monthly: it.monthly, expected: it.monthly * months, actual, basis: bankHit.length ? "통장" as const : "없음" as const, day: it.day, matchedLines: [] };
+  }).sort((a, b) => b.expected - a.expected);
+}
+
 /** 한 번에 — 이번 기간 · 비교 기간 줄 + 미처리 건수 */
 export async function fetchPnlStatus(companyId: string, range: MonthRange, compare: "prev" | "yoy") {
   const cur = rangeDates(range);

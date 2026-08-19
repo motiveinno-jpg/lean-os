@@ -13,7 +13,8 @@ import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
 import { downloadCsv } from "@/lib/csv-export";
 import { ConditionPanel, ConditionRow, TokenField, QuickSearch, quickSearchHit, AppliedChips, ChipGroup, Stat, RowsPerPage, Pager, usePager, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
-import { groupByAccount, groupByPartner, monthlySeries, rangeDates, rangeLabel, type JournalLine } from "@/lib/pnl-status";
+import { groupByAccount, groupByPartner, monthlySeries, rangeDates, rangeLabel, fetchFixedCostCompare, type JournalLine } from "@/lib/pnl-status";
+import { useQuery } from "@tanstack/react-query";
 import { usePnlStatus, PnlHead, BasisNote, Delta, DrillModal, won, num, cmpRangeLabel, type Drill } from "../_components/PnlStatusKit";
 
 //   비용 성격 — 계정 이름 규칙(투명하게 화면에 적는다). 인건비 = 급여·상여·퇴직·복리후생, 고정비 = 임차·보험·감가상각·통신·리스·구독·세금과공과, 나머지 = 변동비.
@@ -62,6 +63,12 @@ export default function ExpensePage() {
   const series = useMemo(() => monthlySeries(linesF, rangeDates(s.range).from, rangeDates(s.range).to), [linesF, s.range]);
   const cmpSeries = useMemo(() => s.data ? monthlySeries(cmpF, rangeDates(s.data.cmpRange).from, rangeDates(s.data.cmpRange).to) : [], [cmpF, s.data]);
   const isSpike = (cur: number, prev: number) => prev > 0 && cur >= prev * 1.5 && s.cur.opex > 0 && cur >= s.cur.opex * 0.05;
+  //   고정비 등록값 vs 실제 (2026-08-19 남은 것) — 정기 지출·고정비 등록 ↔ 이름으로 찾은 전표(없으면 통장)
+  const { data: fixedRows = [] } = useQuery({
+    queryKey: ["pnl-fixed-compare", s.companyId, s.range.fromYm, s.range.toYm, s.curLines.length],
+    queryFn: () => fetchFixedCostCompare(s.companyId!, s.range, s.curLines),
+    enabled: !!s.companyId && !s.loading, staleTime: 60_000,
+  });
 
   const colVal = (g: { label: string }) => ({ name: g.label, kind: KIND_LABEL[kindOf(g.label)] });
   const rows = useMemo(() => {
@@ -202,6 +209,37 @@ export default function ExpensePage() {
         </div>
         <Pager page={pager.page} pages={pager.pages} total={rows.length} size={live.rows} from={pager.from} to={pager.to} onPage={pager.setPage} />
       </section>
+
+      {!s.loading && (
+        <section className="pnl-panel">
+          <h3>고정비 · 정기 지출 — 등록값 vs 실제</h3>
+          <p>정기 지출·고정비에 등록한 월액과 이 기간 실제(이름으로 찾은 전표, 전표가 없으면 통장 출금)를 나란히. 10% 넘게 다르면 '확인' — 판단은 사람이. 이름이 달라 못 찾은 것은 '없음'(등록 이름과 거래처·적요를 맞춰 주세요)</p>
+          <div className="pnl-tbl-wrap">
+            <table className="ev-table ev-lined pnl-mini-table">
+              <thead><tr><th className="text-left">항목</th><th>출처</th><th>등록(월)</th><th>기간 등록</th><th>기간 실제</th><th>차이</th><th>근거</th><th>결제일</th></tr></thead>
+              <tbody>
+                {fixedRows.length === 0 && <tr><td colSpan={8} className="text-center text-[var(--text-dim)] py-6">등록된 정기 지출·고정비가 없습니다 — <Link href="/payments" className="text-[var(--primary)] font-semibold">정기 지출</Link>에 등록하면 여기서 실제와 대조합니다</td></tr>}
+                {fixedRows.map((r) => {
+                  const diff = r.actual - r.expected;
+                  const off = r.expected > 0 && Math.abs(diff) / r.expected > 0.1;
+                  return (
+                    <tr key={r.key} className={r.matchedLines.length ? "pnl-row-acct" : ""} onClick={() => r.matchedLines.length && setDrill({ title: r.name, sub: `${rangeLabel(s.range)} · 고정비 대조`, lines: r.matchedLines })}>
+                      <td className="text-left font-semibold">{r.name}</td>
+                      <td className="text-center text-[var(--text-muted)]">{r.source === "recurring" ? "정기 지출" : "고정비 등록"}</td>
+                      <td className="text-right mono-number">{num(r.monthly)}</td>
+                      <td className="text-right mono-number">{num(r.expected)}</td>
+                      <td className="text-right mono-number">{r.basis === "없음" ? <span className="text-[var(--text-dim)]">—</span> : num(r.actual)}</td>
+                      <td className="text-right mono-number">{r.basis === "없음" ? <span className="text-[var(--text-dim)]">—</span> : <>{diff > 0 ? "+" : ""}{num(diff)}{off && <span className="pnl-flag ml-1">확인</span>}</>}</td>
+                      <td className="text-center">{r.basis === "전표" ? "전표" : r.basis === "통장" ? <span className="text-[var(--warning)]">통장(전표 없음)</span> : <span className="text-[var(--text-dim)]">못 찾음</span>}</td>
+                      <td className="text-center mono-number">{r.day ? `${r.day}일` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <DrillModal drill={drill} onClose={() => setDrill(null)} />
     </>

@@ -35,7 +35,7 @@ function Signal({ label, value, tone }: { label: string; value: string; tone: st
   );
 }
 
-export function DashboardBizSummary({ monthRevenue, expense, balance, runwayMonths }: { monthRevenue: number; expense: number; balance: number; runwayMonths: number }) {
+export function DashboardBizSummary({ monthRevenue, expense, balance, runwayMonths, basis }: { monthRevenue: number; expense: number; balance: number; runwayMonths: number; basis?: string }) {
   const profit = monthRevenue - expense;
   return (
     <Link href="/reports/summary" className="dashboard-biz-summary glass-card">
@@ -45,7 +45,7 @@ export function DashboardBizSummary({ monthRevenue, expense, balance, runwayMont
       </div>
       {/* 건강 신호 5 — 브리핑 스트립과 같은 서피스 밴드 하나로(3+2 줄바꿈) */}
       <div className="widget-statband widget-statband-3">
-        <Signal label="이번 달 손익" value={`${profit >= 0 ? "+" : ""}${won(profit)}`} tone={profit >= 0 ? "success" : "danger"} />
+        <Signal label={basis ? `이번 달 손익 · ${basis}` : "이번 달 손익"} value={`${profit >= 0 ? "+" : ""}${won(profit)}`} tone={profit >= 0 ? "success" : "danger"} />
         <Signal label="통장 잔액" value={won(balance)} tone="primary" />
         <Signal label="버티는 기간" value={runwayText(runwayMonths)} tone={runwayTone(runwayMonths)} />
         <Signal label="이번 달 매출" value={won(monthRevenue)} tone="success" />
