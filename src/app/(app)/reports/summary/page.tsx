@@ -9,7 +9,7 @@ import { logRead } from "@/lib/log-read";
 //   회계 용어 없이: 규칙 기반 한 줄 요약 + 신호등 3카드(이번 달 손익·통장 잔액·버티는 기간)
 //   + 번 돈/쓴 돈/남은 돈 요약 + 주요 예정 항목. 기존 계산(cash-pulse·budget·VAT·미수금) 재조합.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -20,6 +20,7 @@ import { getVATPreview, type VATPreview } from "@/lib/tax-invoice";
 import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
+import { fetchJournalLines, pnlAmount } from "@/lib/journal-reports";
 import { IntroCard, Section } from "@/components/report-kit";
 
 const db = supabase;
@@ -81,6 +82,28 @@ export default function ManagementSummaryPage() {
     enabled: !!companyId,
     staleTime: 60_000,
   });
+  //   확정 전표 — 최근 6개월(이번 달 포함) 손익 (손익 현황과 같은 함수)
+  const recentMonths = useMemo(() => { const [y, mo] = month.split("-").map(Number); const out: string[] = []; for (let i = 5; i >= 0; i--) { const t = y * 12 + (mo - 1) - i; out.push(`${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`); } return out; }, [month]);
+  const { data: journalMonths } = useQuery({
+    queryKey: ["summary-journal", companyId, recentMonths[0], month],
+    queryFn: async () => {
+      const [ey, em] = month.split("-").map(Number);
+      const to = `${month}-${String(new Date(ey, em, 0).getDate()).padStart(2, "0")}`;
+      const lines = await fetchJournalLines(companyId!, `${recentMonths[0]}-01`, to);
+      const map = new Map<string, { revenue: number; cost: number; operating: number }>();
+      for (const m of recentMonths) map.set(m, { revenue: 0, cost: 0, operating: 0 });
+      for (const l of lines) {
+        const g = map.get(l.month); if (!g) continue;
+        const a = pnlAmount(l);
+        if (l.section === "revenue") g.revenue += a;
+        else if (l.section === "cogs" || l.section === "opex") g.cost += a;
+      }
+      for (const g of map.values()) g.operating = g.revenue - g.cost;
+      return map;
+    },
+    enabled: !!companyId, staleTime: 60_000,
+  });
+
   const { data: vat = [] } = useQuery<VATPreview[]>({
     queryKey: ["summary-vat", companyId, year],
     queryFn: () => getVATPreview(companyId!, year),
@@ -107,14 +130,14 @@ export default function ManagementSummaryPage() {
     return <AccessDenied detail="경영 요약은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
   }
 
-  const mBudget = budget.find((b) => b.month === month);
-  const lBudget = budget.find((b) => b.month === lastMonth);
-  const sales = mBudget?.salesRevenue ?? 0;
-  const expense = mBudget?.expenseTotal ?? 0;
-  const profit = sales - expense;
-  const lastSales = lBudget?.salesRevenue ?? 0;
-  const lastExpense = lBudget?.expenseTotal ?? 0;
-  const lastProfit = lastSales - lastExpense;
+  //   손익 숫자는 확정 전표 기준 — 손익 현황·손익계산서와 같은 숫자 (2026-08-19 손익 현황 재편 Phase 3). 예산 추정(budget)은 통장·자금 전망 몫.
+  const jm = (m: string) => journalMonths?.get(m) || { revenue: 0, cost: 0, operating: 0 };
+  const sales = jm(month).revenue;
+  const expense = jm(month).cost;
+  const profit = jm(month).operating;
+  const lastSales = jm(lastMonth).revenue;
+  const lastExpense = jm(lastMonth).cost;
+  const lastProfit = jm(lastMonth).operating;
 
   const balance = pulse?.currentBalance ?? 0;
   const burn = pulse?.monthlyBurn ?? 0;
@@ -128,14 +151,14 @@ export default function ManagementSummaryPage() {
   const nextVat = vat.filter((v) => v.dueDate >= today && Math.abs(v.netVAT) > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
   const vatDday = nextVat ? daysUntil(nextVat.dueDate) : null;
 
-  const loading = !companyId || pulseLoading || budgetLoading;
+  const loading = !companyId || pulseLoading || budgetLoading || !journalMonths;
 
   // 규칙 기반 한 줄 요약
   const profitTxt = profit >= 0 ? `이번 달 ${fmtMan(profit)} 흑자` : `이번 달 ${fmtMan(-profit)} 적자`;
   const summaryLine = `${profitTxt}, 통장 잔액 ${fmtMan(balance)} — 현재 지출 속도라면 ${runwayTxt} 운영 가능합니다.`;
 
-  // 최근 6개월 손익 미니 추이
-  const recent = budget.slice(-6).map((b) => ({ m: b.month.slice(5), profit: (b.salesRevenue ?? 0) - (b.expenseTotal ?? 0) }));
+  // 최근 6개월 손익(영업이익) 미니 추이 — 확정 전표 기준
+  const recent = recentMonths.map((m) => ({ m: m.slice(5), profit: jm(m).operating }));
   const maxAbs = Math.max(1, ...recent.map((r) => Math.abs(r.profit)));
 
   return (
@@ -172,7 +195,7 @@ export default function ManagementSummaryPage() {
           />
 
           <div className="summary-sections-grid">
-            <Section title="이번 달 손익 요약" desc="매출에서 비용을 뺀 이번 달 손익입니다." className="summary-pnl-section">
+            <Section title="이번 달 손익 요약" desc="매출 − (매출원가+판관비) = 영업이익 · 확정 전표 기준(손익 현황·손익계산서와 같은 숫자)" className="summary-pnl-section">
               <div className="summary-pnl-breakdown">
                 {[
                   { l: "매출", v: fmt(sales), c: "var(--success)", cur: sales, prev: lastSales, invert: false, href: "/reports/revenue" },
@@ -218,7 +241,7 @@ export default function ManagementSummaryPage() {
                 )}
                 <div className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-[var(--bg-surface)]">
                   <span className="text-sm text-[var(--text)]"><Ico e="🔁" /> 월 고정비</span>
-                  <span className="mono-number font-bold text-[var(--text)]">{fmt(mBudget?.fixedCosts ?? 0)}</span>
+                  <span className="mono-number font-bold text-[var(--text)]">{fmt(budget.find((b) => b.month === month)?.fixedCosts ?? 0)}</span>
                 </div>
                 {(receivable?.over30 ?? 0) > 0 && (
                   <Link href="/partners/ledger" className="flex items-center justify-between px-3.5 py-3 rounded-xl no-underline transition hover:opacity-90"
