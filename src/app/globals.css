@@ -9496,3 +9496,41 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .bz-kind-g { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
 .bz-kind-y { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
 .bz-kind-r { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+
+/* ── 자금 전망 재편 (2026-08-19) — 잔액 곡선 · 자금 달력 · 시나리오 ── */
+.ol-svg { @apply block h-auto w-full; }
+.ol-grid { stroke: var(--border); stroke-width: 1; }
+.ol-zero { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 3 3; }
+.ol-tick { fill: var(--text-dim); font-size: 10px; }
+.ol-area { fill: color-mix(in srgb, var(--primary) 8%, transparent); }
+.ol-line-base { fill: none; stroke: var(--primary); stroke-width: 2; }
+.ol-line-linear { fill: none; stroke: var(--text-dim); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.ol-line-scen { fill: none; stroke: var(--warning); stroke-width: 2; stroke-dasharray: 2 3; }
+.ol-mark { cursor: pointer; }
+.ol-dot-in { fill: var(--success); } .ol-dot-out { fill: var(--danger); }
+.ol-dot-min { fill: var(--bg-card); stroke: var(--danger); stroke-width: 2; }
+.ol-lab { fill: var(--text-muted); font-size: 10px; font-weight: 700; }
+.ol-lab-min { fill: var(--danger); }
+.ol-range { @apply inline-flex items-center gap-2; }
+.ol-range input[type=range] { @apply w-44; }
+.ol-extra { @apply flex flex-wrap items-center gap-1.5; }
+.ol-extra .qk-input { @apply h-8 w-36 px-2 text-xs; }
+.ol-extra input[type=date].qk-input { @apply w-36; }
+.ol-panel-note { @apply col-span-2 mt-1 text-[11px] text-[var(--text-dim)]; }
+.ol-cal { @apply grid gap-1.5; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+.ol-wk { @apply flex flex-col items-center gap-0.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-1 py-1.5 text-[10px] text-[var(--text-muted)] transition-colors; }
+.ol-wk:hover { @apply border-[var(--primary)]; }
+.ol-wk > b { @apply text-[11px] text-[var(--text)]; }
+.ol-wk-in { color: var(--success); } .ol-wk-out { color: var(--danger); }
+.ol-wk-low { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); }
+.ol-wk-now { border-color: var(--primary); }
+.ol-gaps { @apply m-0 list-none space-y-1.5 p-0; }
+.ol-gaps > li { @apply flex items-center justify-between gap-3 border-b border-dashed border-[var(--border)] pb-1.5 text-[12px] text-[var(--text)]; }
+.ol-gaps > li:last-child { @apply border-b-0; }
+.ol-pick { @apply max-w-3xl; }
+.ol-sure { @apply rounded-full px-2 py-px text-[10.5px] font-bold; }
+.ol-sure-ok { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+.ol-sure-est { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+table.ol-items-table { min-width: 960px; }
+.ol-items-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
+.ol-sure:not(.ol-sure-ok):not(.ol-sure-est) { @apply border border-[var(--border)] text-[var(--text-muted)]; }

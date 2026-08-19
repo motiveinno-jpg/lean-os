@@ -42,12 +42,13 @@ const GROUPS: Group[] = [
     ],
   },
   {
-    href: "/reports/upcoming",
+    href: "/reports/outlook",
     label: "자금 전망",
+    //   2026-08-19 재편 — 전망(잔액 곡선·13주 달력·시나리오) / 예정 항목(표) / 월별 흐름(예전 경영 흐름). 기획 docs/20260819_PLAN_summary_outlook_redesign.md
     subs: [
-      { href: "/reports/upcoming", label: "예정 지출", desc: "앞으로 나갈 고정비·세금·정기결제를 미리 챙깁니다." },
-      // 운영 가능 시나리오(outlook) + 상세 현금흐름(flow)을 한 하위로 묶어 활성.
-      { href: "/reports/outlook", label: "운영 가능·시나리오", desc: "현재 지출 속도 기준 시나리오와 운영 가능 기간을 봅니다.", match: ["/reports/outlook", "/reports/flow"] },
+      { href: "/reports/outlook", label: "전망", desc: "앞으로 돈이 괜찮은지 — 오늘 잔액에서 날짜 있는 예정 입출금을 빼고 더한 잔액 곡선. 실선은 예정 반영, 점선은 지금 속도, 시나리오는 겹쳐 그립니다." },
+      { href: "/reports/upcoming", label: "예정 항목", desc: "앞으로 들어올 돈·나갈 돈을 날짜대로 한 표에 — 어디서 온 숫자인지(근거)와 확실도를 같이 적습니다." },
+      { href: "/reports/flow", label: "월별 흐름", desc: "매출 → 수금 → 비용 → 손익 → 세무 → 결산을 월 단위 한 흐름으로 (통장·세금계산서 기준)." },
     ],
   },
   {

@@ -1,126 +1,136 @@
 "use client";
-import { todayKst } from "@/lib/kst";
-import { Ico } from "@/components/ui-icon";
-import { logRead } from "@/lib/log-read";
 
-// 예정 지출 — "앞으로 낼 돈은?"에 답하는 대표용 화면(2026-07-08).
-//   세금(부가세)·대출 상환·매달 고정비·미지급금 (매입)을 모아, 다음 30일 예상 지출과
-//   통장으로 감당되는지 신호로. 읽기 전용 소스만(스냅샷 쓰기 부수효과 없는 헬퍼).
+// 자금 전망 › 예정 항목 — 앞으로 들어올 돈·나갈 돈을 날짜대로 한 표에 (2026-08-19 재편, docs/20260819_PLAN_summary_outlook_redesign.md).
+//   2026-07-08 '예정 지출'(세금·대출·고정비·미지급 5줄 나열) → 조회 표준 표: 날짜·항목·구분·금액·그때 잔액·근거·확실도·상태.
+//   검색조건(구분·확실도·금액) · 빠른검색 · 보기 칩(전체/들어올 돈/나갈 돈) · 쪽 50. 줄 클릭 → 원천. 계산은 lib/cash-outlook.ts (전망과 같은 항목).
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getCashPulseData } from "@/lib/queries";
-import { buildCashPulse } from "@/lib/cash-pulse";
-import { getMonthlyBudgetOverview, getLoanStatuses, type MonthlyBudget, type LoanStatus } from "@/lib/cash-budget";
-import { getVATPreview, type VATPreview } from "@/lib/tax-invoice";
+import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { fmt, ymNow } from "../_components/kit";
-import { IntroCard, Section } from "@/components/report-kit";
+import { ReportHead } from "../_components/ReportHead";
+import { ConditionPanel, ConditionRow, ChipGroup, QuickSearch, quickSearchHit, Stat, ExcelMenu, AppliedChips, Pager, usePager, type AppliedChip } from "@/components/query-kit";
+import { downloadCsv } from "@/lib/csv-export";
+import { fetchOutlook, buildCurve, type ItemKind, type OutlookItem } from "@/lib/cash-outlook";
 
-const db = supabase;
-function daysUntil(dateStr: string) { return Math.ceil((new Date(dateStr + "T00:00:00").getTime() - Date.now()) / 864e5); }
+const won = (n: number) => `${n < 0 ? "−" : ""}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
+const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
+const KINDS: ItemKind[] = ["매출 입금", "계약 회차", "급여", "정기 지출", "대출 상환", "세금", "매입 지급", "계약 지출", "결재 대기"];
+type Dir = "all" | "in" | "out";
+type Cond = { kinds: ItemKind[]; sure: ("확정" | "추정")[]; minAmt: string };
+const COND0: Cond = { kinds: [], sure: [], minAmt: "" };
 
 export default function UpcomingPage() {
   const { role } = useUser();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const { year, month } = ymNow();
-
+  const [days, setDays] = useState<number>(90);
+  const [dir, setDir] = useState<Dir>("all");
+  const [q, setQ] = useState("");
+  const [cond, setCond] = useState<Cond>(COND0);
+  const [draft, setDraft] = useState<Cond>(COND0);
+  const [panelOpen, setPanelOpen] = useState(false);
   useEffect(() => { getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } }); }, []);
 
-  const { data: pulse, isLoading: pulseLoading } = useQuery({
-    queryKey: ["upcoming-pulse", companyId, userId],
-    queryFn: async () => { const raw = await getCashPulseData(companyId!, userId || undefined); return raw ? buildCashPulse(raw) : null; },
+  const { data, isLoading } = useQuery({
+    queryKey: ["cash-outlook", companyId, days],
+    queryFn: () => fetchOutlook(companyId!, days, userId || undefined),
     enabled: !!companyId, staleTime: 60_000,
   });
-  const { data: budget = [], isLoading: budgetLoading } = useQuery<MonthlyBudget[]>({
-    queryKey: ["upcoming-budget", companyId, year], queryFn: () => getMonthlyBudgetOverview(companyId!, year), enabled: !!companyId, staleTime: 60_000,
-  });
-  const { data: vat = [] } = useQuery<VATPreview[]>({
-    queryKey: ["upcoming-vat", companyId, year], queryFn: () => getVATPreview(companyId!, year), enabled: !!companyId, staleTime: 60_000,
-  });
-  const { data: loans = [] } = useQuery<LoanStatus[]>({
-    queryKey: ["upcoming-loans", companyId], queryFn: () => getLoanStatuses(companyId!), enabled: !!companyId, staleTime: 60_000,
-  });
-  const { data: apTotal = 0 } = useQuery<number>({
-    queryKey: ["upcoming-ap", companyId],
-    queryFn: async () => {
-      const data = logRead('upcoming/page:data', await db.from("tax_invoices").select("total_amount").eq("company_id", companyId ?? "")
-        .eq("type", "purchase").in("status", ["issued", "sent", "pending", "overdue"]));
-      return ((data || []) as { total_amount: number | null }[]).reduce((s, r) => s + Number(r.total_amount || 0), 0);
-    },
-    enabled: !!companyId, staleTime: 60_000,
-  });
+  //   그때 잔액 — 전망 곡선과 같은 계산
+  const balAt = useMemo(() => { const m = new Map<string, number>(); if (data) for (const p of buildCurve(data, days).points) m.set(p.date, p.balance); return m; }, [data, days]);
+  const rows = useMemo(() => {
+    const min = Number(cond.minAmt.replace(/[^0-9]/g, "")) || 0;
+    return (data?.items || []).filter((it) =>
+      (dir === "all" || (dir === "in" ? it.amount > 0 : it.amount < 0)) &&
+      (cond.kinds.length === 0 || cond.kinds.includes(it.kind)) &&
+      (cond.sure.length === 0 || cond.sure.includes(it.sure)) &&
+      Math.abs(it.amount) >= min &&
+      quickSearchHit(q, [it.label, it.kind, it.basis, it.flag], [it.amount]));
+  }, [data, dir, cond, q]);
+  const pager = usePager(rows, 50, `${dir}|${q}|${JSON.stringify(cond)}|${days}`);
 
-  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="예정 지출은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
-  }
+  if (role === "partner") return <AccessDenied detail="예정 항목은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
 
-  const today = todayKst();
-  const fixedCosts = budget.find((b) => b.month === month)?.fixedCosts ?? 0;
-  const loanMonthly = loans.filter((l) => l.repaymentType !== "bullet").reduce((s, l) => s + Number(l.monthlyPayment || 0), 0);
-  const bulletSoon = loans.filter((l) => l.repaymentType === "bullet" && l.maturityDate >= today && daysUntil(l.maturityDate) <= 90);
-  const nextVat = vat.filter((v) => v.dueDate >= today && Math.abs(v.netVAT) > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
-  const vatWithin30 = nextVat && daysUntil(nextVat.dueDate) <= 30 ? Math.abs(nextVat.netVAT) : 0;
-
-  const next30 = fixedCosts + loanMonthly + vatWithin30;
-  const balance = pulse?.currentBalance ?? 0;
-  const covered = balance >= next30;
-  const loading = !companyId || pulseLoading || budgetLoading;
-
-  // 규칙 기반 요약 코멘트 — 경영요약 '이번 달 상태'와 동일 방식(예정액·충당여부·가장 급한 항목 조합, LLM 아님)
-  const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
-  const coverTxt = covered ? `가용 현금 ${fmtMan(balance)}으로 충당할 수 있습니다` : `가용 현금 ${fmtMan(balance)}으로는 부족이 우려됩니다`;
-  const urgentTxt = nextVat && daysUntil(nextVat.dueDate) <= 30 ? ` 가장 급한 항목은 부가세 납부(D-${Math.max(0, daysUntil(nextVat.dueDate))})입니다.` : "";
-  const upLine = `다음 30일 예정 지출은 ${fmtMan(next30)}으로, ${coverTxt}.${urgentTxt}`;
-
-  // 항목 리스트 구성
-  const items: { icon: string; title: string; note: string; amount: number; danger?: boolean; href?: string }[] = [];
-  if (nextVat) items.push({ icon: "🧾", title: "부가세 납부", note: `D-${Math.max(0, daysUntil(nextVat.dueDate))} · ${nextVat.dueDate}`, amount: Math.abs(nextVat.netVAT), href: "/tax-invoices" });
-  if (loanMonthly > 0) items.push({ icon: "🏦", title: "대출 상환 (월 상환)", note: `${loans.filter((l) => l.repaymentType !== "bullet").length}건 원리금`, amount: loanMonthly, href: "/loans" });
-  bulletSoon.forEach((l) => items.push({ icon: "🏦", title: `${l.name} 만기 일시상환`, note: `D-${Math.max(0, daysUntil(l.maturityDate))} · ${l.maturityDate}`, amount: l.remainingAmount, danger: true, href: "/loans" }));
-  if (fixedCosts > 0) items.push({ icon: "🔁", title: "월 고정비", note: "임대·구독·정기결제 등", amount: fixedCosts, href: "/payments" });
-  if (apTotal > 0) items.push({ icon: "💳", title: "미지급금 (매입)", note: "매입 세금계산서 미결제", amount: apTotal, href: "/tax-invoices" });
+  const inflow = rows.filter((r) => r.amount > 0).reduce((s, r) => s + r.amount, 0);
+  const outflow = rows.filter((r) => r.amount < 0).reduce((s, r) => s - r.amount, 0);
+  const sureRate = rows.length ? Math.round((rows.filter((r) => r.sure === "확정").length / rows.length) * 100) : 0;
+  const apply = (c: Cond) => { setCond(c); setDraft(c); };
+  const chips: AppliedChip[] = [
+    ...(cond.kinds.length ? [{ group: "구분", label: cond.kinds.join(" · "), onRemove: () => apply({ ...cond, kinds: [] }) }] : []),
+    ...(cond.sure.length ? [{ group: "확실도", label: cond.sure.join(" · "), onRemove: () => apply({ ...cond, sure: [] }) }] : []),
+    ...(cond.minAmt ? [{ group: "금액", label: `${Number(cond.minAmt.replace(/[^0-9]/g, "")).toLocaleString()} 이상`, onRemove: () => apply({ ...cond, minAmt: "" }) }] : []),
+    ...(q ? [{ group: "빠른검색", label: q, onRemove: () => setQ("") }] : []),
+  ];
+  const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+  const excel = [{ label: `예정 항목 ${rows.length}건`, count: rows.length, onClick: () => downloadCsv(`예정항목_${days}일`, ["날짜", "항목", "구분", "금액", "그때 잔액", "근거", "확실도", "상태"], rows.map((r) => [r.date, r.label, r.kind, Math.round(r.amount), balAt.get(r.date) ?? "", r.basis, r.sure, r.flag || ""])) }];
+  const minDate = data ? buildCurve(data, days).min.date : "";
 
   return (
     <>
-      {loading ? (
-        <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" /></div>
-      ) : (
-        <div className="upcoming-page-content">
-          <IntroCard
-            eyebrow="다음 30일 요약"
-            title={upLine}
-            desc={`고정비 + 대출 매달 상환${vatWithin30 ? " + 부가세" : ""} 기준의 예정 지출입니다.`}
-            callout={{
-              label: "가용 현금 충당 여부",
-              value: covered ? "충당 가능 🟢" : "부족 우려 🔴",
-              sub: `가용 ${fmt(balance)} − 예정 ${fmt(next30)} = ${fmt(balance - next30)}`,
-              tone: covered ? "success" : "danger",
-            }}
-          />
+      <ReportHead
+        bar={<>
+          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="기간">
+            {[30, 90, 180].map((h) => <option key={h} value={h}>앞으로 {h}일</option>)}
+          </select>
+          <ConditionPanel open={panelOpen} onOpenChange={(v) => { if (v) setDraft(cond); setPanelOpen(v); }} activeCount={chips.filter((c) => c.group !== "빠른검색").length}
+            foot={<>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setDraft(COND0)}>기본으로</button>
+              <span className="ml-auto" />
+              <button type="button" className="btn-primary btn-sm" onClick={() => { apply(draft); setPanelOpen(false); }}>조회</button>
+            </>}>
+            <ConditionRow label="구분" hint="여러 개">
+              <span className="qk-quicks">{KINDS.map((k) => <button key={k} type="button" onClick={() => setDraft((d) => ({ ...d, kinds: toggle(d.kinds, k) }))} className={draft.kinds.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{k}</button>)}</span>
+            </ConditionRow>
+            <ConditionRow label="확실도">
+              <span className="qk-quicks">{(["확정", "추정"] as const).map((k) => <button key={k} type="button" onClick={() => setDraft((d) => ({ ...d, sure: toggle(d.sure, k) }))} className={draft.sure.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{k}</button>)}</span>
+            </ConditionRow>
+            <ConditionRow label="금액" hint="이상"><input className="qk-input h-8 w-40 px-2 text-xs" inputMode="numeric" placeholder="예: 1,000,000" value={draft.minAmt} onChange={(e) => setDraft((d) => ({ ...d, minAmt: e.target.value }))} /></ConditionRow>
+          </ConditionPanel>
+          <QuickSearch value={q} onApply={setQ} placeholder="빠른검색 — 항목·구분·근거·금액 (쉼표=또는)" />
+          <ChipGroup value={dir} onChange={setDir} options={[{ value: "all", label: `전체 ${data?.items.length ?? 0}` }, { value: "in", label: `들어올 돈 ${data?.items.filter((i) => i.amount > 0).length ?? 0}` }, { value: "out", label: `나갈 돈 ${data?.items.filter((i) => i.amount < 0).length ?? 0}` }] as const} />
+        </>}
+        right={<ExcelMenu items={excel} />}
+        stats={<>
+          <Stat label="들어올 돈" value={won(inflow)} tone="plus" />
+          <Stat label="나갈 돈" value={won(outflow)} tone="minus" />
+          <Stat label="순" value={won(inflow - outflow)} tone={inflow - outflow >= 0 ? "plus" : "minus"} />
+          <Stat label="확정 비율" value={`${sureRate}%`} />
+          <Stat label="건수" value={rows.length.toLocaleString()} />
+        </>}
+      />
+      <AppliedChips chips={chips} onClearAll={() => { apply(COND0); setQ(""); }} />
 
-          {/* 예정 지출 목록 */}
-          <Section title="예정 지출 항목" desc="곧 나갈 세금·대출·고정 지출">
-            {items.length === 0 ? (
-              <div className="text-xs text-[var(--text-dim)] py-6 text-center">예정된 세금·대출·고정 지출이 없습니다.</div>
-            ) : (
-              <div className="upcoming-item-list">
-                {items.map((it, i) => (
-                  <Link key={i} href={it.href || "#"} className="upcoming-item-row"
-                    style={{ background: it.danger ? "color-mix(in srgb, var(--danger) 8%, transparent)" : "var(--bg-surface)", border: `1px solid ${it.danger ? "color-mix(in srgb, var(--danger) 25%, transparent)" : "var(--border)"}` }}>
-                    <span className={`text-sm ${it.danger ? "font-semibold text-[var(--danger)]" : "text-[var(--text)]"}`}><Ico e={it.icon} /> {it.title} <span className="text-[var(--text-dim)] text-xs font-normal ml-1">{it.note}</span></span>
-                    <span className="mono-number font-bold shrink-0" style={{ color: it.danger ? "var(--danger)" : "var(--text)" }}>{fmt(it.amount)}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-            <div className="text-[11px] text-[var(--text-dim)] mt-3">※ 부가세·대출·고정비는 예정 기준입니다. 실제 납부일은 홈택스·은행 일정을 확인하세요.</div>
-          </Section>
-        </div>
+      {isLoading || !data ? <div className="collect-empty">불러오는 중…</div> : rows.length === 0 ? (
+        <div className="collect-empty">{data.items.length === 0 ? `앞으로 ${days}일 안에 날짜가 있는 예정 항목이 없습니다 — 세금계산서·급여·대출·정기 지출을 등록하면 여기 쌓입니다` : "조건에 맞는 항목이 없습니다"}</div>
+      ) : (
+        <>
+          <div className="pnl-tbl-wrap">
+            <table className="ev-table ev-lined ol-items-table">
+              <thead><tr><th>날짜</th><th className="text-left">항목</th><th>구분</th><th>금액</th><th>그때 잔액</th><th>근거</th><th>확실도</th><th>상태</th></tr></thead>
+              <tbody>
+                {pager.view.map((it: OutlookItem) => {
+                  const bal = balAt.get(it.date);
+                  return (
+                    <tr key={it.id} className={it.href ? "pnl-row-acct" : ""} onClick={() => it.href && (window.location.href = it.href)}>
+                      <td className="text-center mono-number">{md(it.date)}<small className="ml-1 text-[var(--text-dim)]">{it.date.slice(0, 4)}</small></td>
+                      <td className="text-left font-semibold">{it.label}</td>
+                      <td className="text-center">{it.kind}</td>
+                      <td className={`text-right mono-number font-bold ${it.amount >= 0 ? "bz-plus" : "bz-minus"}`}>{it.amount >= 0 ? "+" : "−"}{Math.abs(Math.round(it.amount)).toLocaleString()}</td>
+                      <td className={`text-right mono-number ${bal !== undefined && bal < 0 ? "bz-minus" : it.date === minDate ? "bz-tone-y font-bold" : ""}`}>{bal !== undefined ? Math.round(bal).toLocaleString() : "—"}</td>
+                      <td className="text-center text-[var(--text-muted)]">{it.basis}</td>
+                      <td className="text-center"><span className={it.sure === "확정" ? "ol-sure ol-sure-ok" : "ol-sure ol-sure-est"}>{it.sure}</span></td>
+                      <td className="text-center">{it.date === minDate ? <span className="ol-sure ol-sure-est">최저점</span> : it.flag ? <span className="ol-sure">{it.flag}</span> : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={pager.page} pages={pager.pages} total={rows.length} from={pager.from} to={pager.to} size={50} onPage={pager.setPage} />
+          <p className="mt-2 text-[11px] text-[var(--text-dim)]">'그때 잔액'은 오늘 잔액에서 그날까지 예정을 반영한 값(전망 곡선과 같음). 30일 넘은 미수·발행 30일 지난 미지급은 날짜를 몰라 여기 없습니다 — 전망의 '틀릴 수 있는 곳'.</p>
+        </>
       )}
     </>
   );

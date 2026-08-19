@@ -24,7 +24,7 @@ export type BizSummary = {
   //   벌고 있나 — 확정 전표
   pnl: { cur: PnlSummary; prev: PnlSummary; series: { month: string; op: number }[]; unposted: { taxInvoice: number; card: number; bank: number; total: number }; unpostedSalesAmt: number; tone: Tone };
   //   받을 돈·낼 돈 — 원장
-  arap: { ar: number; ap: number; over30: number; over30Partners: number; vatNext: { due: string; amount: number; dday: number } | null; salary: number; loanMonthly: number; recurring: number; due30: number; tone: Tone };
+  arap: { ar: number; ap: number; over30: number; over30Partners: number; vatNext: { due: string; amount: number; dday: number; pay: boolean } | null; salary: number; loanMonthly: number; recurring: number; due30: number; tone: Tone };
   todos: Todo[];
   changes: ChangeRow[];
   overall: { tone: Tone; label: string };
@@ -67,7 +67,7 @@ export async function fetchBizSummary(companyId: string, month: string, userId?:
   const prevNet = sumIn(bp) - sumOut(bp);
   const runway = calcRunwayMonths(balance, 0, 0, burn);
   const vatNextRaw = vat.filter((v) => v.dueDate >= today && Math.abs(v.netVAT) > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
-  const vatNext = vatNextRaw ? { due: vatNextRaw.dueDate, amount: Math.abs(vatNextRaw.netVAT), dday: Math.max(0, daysUntil(vatNextRaw.dueDate, today)) } : null;
+  const vatNext = vatNextRaw ? { due: vatNextRaw.dueDate, amount: Math.abs(vatNextRaw.netVAT), dday: Math.max(0, daysUntil(vatNextRaw.dueDate, today)), pay: vatNextRaw.netVAT > 0 } : null;
   const runwayAfterVat = vatNext && vatNextRaw!.netVAT > 0 ? calcRunwayMonths(balance - vatNext.amount, 0, 0, burn) : runway;
   const lv = getRunwayLevel(runway);
   const cashTone: Tone = lv === "CRITICAL" || lv === "DANGER" ? "r" : lv === "WARNING" ? "y" : "g";

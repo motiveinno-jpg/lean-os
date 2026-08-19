@@ -109,7 +109,7 @@ export default function ManagementSummaryPage() {
               </dl>
               <p className="bz-why">
                 {!s.cash.hasBank ? <>통장이 연결돼 있지 않습니다 — <Link href="/bank" className="bz-link">통장 연결 →</Link></>
-                  : <>월 지출 약 {man(s.cash.burn)}(정기 지출+급여) 기준.{s.arap.vatNext && s.cash.runwayAfterVat !== s.cash.runway && <> 부가세 {man(s.arap.vatNext.amount)}이 {s.arap.vatNext.due.slice(5).replace("-", "/")}에 나가면 <b>{s.cash.runwayAfterVat.toFixed(1)}개월</b>.</>} <Link href="/reports/outlook" className="bz-link">자금 전망 →</Link></>}
+                  : <>월 지출 약 {man(s.cash.burn)}(정기 지출+급여) 기준.{s.arap.vatNext && s.arap.vatNext.pay && s.cash.runwayAfterVat !== s.cash.runway && <> 부가세 {man(s.arap.vatNext.amount)}이 {s.arap.vatNext.due.slice(5).replace("-", "/")}에 나가면 <b>{s.cash.runwayAfterVat.toFixed(1)}개월</b>.</>} <Link href="/reports/outlook" className="bz-link">자금 전망 →</Link></>}
               </p>
             </section>
 
@@ -142,7 +142,7 @@ export default function ManagementSummaryPage() {
                 <div><dt>받을 돈 (미수금)</dt><dd className="mono-number bz-plus">{num(s.arap.ar)}</dd></div>
                 <div className="bz-kv-sub"><dt>└ 30일 넘은 것 · {s.arap.over30Partners}곳</dt><dd className={`mono-number ${s.arap.over30 > 0 ? "bz-minus" : ""}`}>{num(s.arap.over30)}</dd></div>
                 <div><dt>미지급금 잔액 <small className="text-[var(--text-dim)]">(만기 없음)</small></dt><dd className="mono-number">{num(s.arap.ap)}</dd></div>
-                {s.arap.vatNext && <div><dt>부가세 ({s.arap.vatNext.due.slice(5).replace("-", "/")} · D-{s.arap.vatNext.dday})</dt><dd className="mono-number">{num(s.arap.vatNext.amount)}</dd></div>}
+                {s.arap.vatNext && <div><dt>부가세 {s.arap.vatNext.pay ? "납부" : "환급"} ({s.arap.vatNext.due.slice(5).replace("-", "/")} · D-{s.arap.vatNext.dday})</dt><dd className={`mono-number ${s.arap.vatNext.pay ? "" : "bz-plus"}`}>{s.arap.vatNext.pay ? "" : "+"}{num(s.arap.vatNext.amount)}</dd></div>}
                 <div><dt>급여 (등록 급여 합)</dt><dd className="mono-number">{num(s.arap.salary)}</dd></div>
                 {s.arap.loanMonthly > 0 && <div><dt>대출 월 상환</dt><dd className="mono-number">{num(s.arap.loanMonthly)}</dd></div>}
                 {s.arap.recurring > 0 && <div><dt>정기 지출</dt><dd className="mono-number">{num(s.arap.recurring)}</dd></div>}
