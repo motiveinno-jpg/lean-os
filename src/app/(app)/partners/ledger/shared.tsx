@@ -136,11 +136,13 @@ export function ResizableTh({ k, colIndex, widths, onResize, tableRef, className
 // ── 타사 세무 서비스식 거래처원장 시트: 일자 | 적요 | 차변 | 대변 | 잔액 + 전기이월/월계/합계 행 ──
 //   매출처(외상매출금): 차변=발생(세금계산서), 대변=회수(입금·차액마감). 잔액 = 이월 + 차변 - 대변.
 //   매입처(외상매입금): 차변=지급(출금·차액마감), 대변=발생(세금계산서). 잔액 = 이월 + 대변 - 차변.
-type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean; sid?: string; isVoucher?: boolean; vid?: string };
+type SheetEntry = { date: string; desc: string; debit: number; credit: number; isAdj?: boolean; sid?: string; isVoucher?: boolean; vid?: string; no?: number | null };
 
-export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerName, openingFromRpc, onOpenDetail, periodStart, periodEnd }: {
+export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerName, openingFromRpc, onOpenDetail, periodStart, periodEnd, headLead, headTail, hideName }: {
   companyId: string; partnerId: string | null; type: string; year: number; partnerName: string;
   openingFromRpc: number; onOpenDetail: () => void; periodStart?: string; periodEnd?: string;
+  /** 2026-08-19 원장 칸 확대 — 머리 왼쪽(‹ › · 거래처 피커) / 오른쪽 끝(↔ 넓게) 에 끼울 것. hideName = 피커가 이름을 대신할 때 */
+  headLead?: React.ReactNode; headTail?: React.ReactNode; hideName?: boolean;
 }) {
   const yStart = periodStart || `${year}-01-01`;
   const yEnd = periodEnd || `${year}-12-31`;
@@ -263,7 +265,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     const voucherEntries = (v: any): SheetEntry[] =>
       ((v.journal_lines || []) as any[])
         .filter((l) => l.partner_id === partnerId && l.chart_of_accounts?.code === arApCode)
-        .map((l) => ({ date: String(v.entry_date), desc: l.description || v.description || "전표", debit: Number(l.debit || 0), credit: Number(l.credit || 0), isVoucher: true, vid: v.id }));
+        .map((l) => ({ date: String(v.entry_date), desc: l.description || v.description || "전표", debit: Number(l.debit || 0), credit: Number(l.credit || 0), isVoucher: true, vid: v.id, no: v.voucher_no ?? null }));
     const voucherRows = manualVouchers.flatMap(voucherEntries);
 
     const all: SheetEntry[] = [...invoices.map(occur), ...settles.map(settle), ...voucherRows];
@@ -319,33 +321,36 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   let cumCredit = 0; // 누계(대변)
 
   return (
-    <div className="ledger-sheet-card glass-card">
-      {/* 시트 헤더 — 거래처명 크게 + 유형·기간 pill + 우측 액션 */}
-      <div className="ledger-sheet-header">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span aria-hidden className="w-1.5 h-5 rounded-full shrink-0" style={{ background: pal.main }} />
-            <span className="text-lg font-extrabold tracking-tight text-[var(--text)] truncate">{partnerName}</span>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${pal.tintBg} ${pal.tintText}`}>{pal.acct}</span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-dim)] mono-number">{yStart} ~ {yEnd}</span>
-          </div>
+    <div className="ledger-sheet-fill">
+      {/* 시트 머리 — 한 줄: [‹ › · 피커] 거래처명 · 잔액 · 유형·기간 pill ‖ + 전표 입력 · 엑셀 · 상세 · [↔ 넓게] (2026-08-19 원장 칸 확대) */}
+      <div className="ledger-sheet-header ledger-sheet-header-slim">
+        <div className="ledger-sheet-title">
+          {headLead}
+          {!hideName && (
+            <span className="flex items-center gap-2 min-w-0">
+              <span aria-hidden className="w-1.5 h-5 rounded-full shrink-0" style={{ background: pal.main }} />
+              <span className="text-[15px] font-extrabold tracking-tight text-[var(--text)] truncate" title={partnerName}>{partnerName}</span>
+            </span>
+          )}
+          <span className="text-[12px] text-[var(--text-muted)] whitespace-nowrap">잔액 <b className={`mono-number ${totals.ending > 0 ? pal.tintText : totals.ending < 0 ? "text-red-500" : "text-[var(--text)]"}`}>{Math.round(totals.ending).toLocaleString()}</b>원</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${pal.tintBg} ${pal.tintText}`} title={`${yStart} ~ ${yEnd}`}>{pal.acct}</span>
         </div>
         <div className="ledger-sheet-actions">
           <button onClick={() => setNewOpen(true)} className="btn-primary btn-sm">+ 전표 입력</button>
-          <button onClick={downloadCsv} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition">엑셀</button>
-          <button onClick={onOpenDetail} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition">상세 · 차액 마감</button>
+          <button onClick={downloadCsv} className="btn-secondary btn-sm">엑셀</button>
+          <button onClick={onOpenDetail} className="btn-secondary btn-sm">상세 · 차액 마감</button>
+          {headTail}
         </div>
       </div>
 
-      {/* 원장 그리드 */}
-      <div className="ledger-sheet-grid">
-        <table className="w-full min-w-[640px] text-xs border-collapse">
+      {/* 원장 그리드 — 머리단 위 고정 · 합계 줄 바닥 고정 · 몸통만 스크롤 */}
+      <div className="ledger-sheet-grid ledger-sheet-grid-fill">
+        <table className="w-full min-w-[720px] text-xs border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[var(--bg-card)] text-xs text-[var(--text-dim)] border-b border-[var(--border)]">
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[92px]">일자</th>
-              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center">적요</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[100px]">일자</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-left">적요</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[84px]">전표</th>
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[120px]">차변{isSales ? " (발생)" : " (지급)"}</th>
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[120px]">대변{isSales ? " (회수)" : " (발생)"}</th>
               <th className="px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] uppercase tracking-wide text-center w-[130px]">잔액</th>
@@ -353,17 +358,17 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={5} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
+              <tr><td colSpan={6} className="p-10 text-center text-[var(--text-muted)]">불러오는 중...</td></tr>
             ) : (
               <>
                 <tr className="bg-[var(--bg-surface)]/70 border-b border-[var(--border)]/60 font-bold">
-                  <td className="px-3 py-2 text-[var(--text-dim)] mono-number">{yStart}</td>
+                  <td className="px-3 py-2 text-[var(--text-dim)] mono-number whitespace-nowrap">{yStart}</td>
                   <td className="px-3 py-2 text-[var(--text-muted)]">[전기이월]</td>
-                  <td className={cellR} /><td className={cellR} />
+                  <td /><td className={cellR} /><td className={cellR} />
                   <td className={`${cellR} ${opening !== 0 ? "text-amber-500" : "text-[var(--text-dim)]"}`}>{Math.round(opening).toLocaleString()}</td>
                 </tr>
                 {months.length === 0 && (
-                  <tr><td colSpan={5} className="p-8 text-center text-[var(--text-muted)]">선택 기간에 거래가 없습니다.</td></tr>
+                  <tr><td colSpan={6} className="p-8 text-center text-[var(--text-muted)]">선택 기간에 거래가 없습니다.</td></tr>
                 )}
                 {months.map(([m, entries]) => {
                   const md = entries.reduce((s, e) => s + e.debit, 0);
@@ -376,8 +381,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                         running += isSales ? e.debit - e.credit : e.credit - e.debit;
                         return (
                           <tr key={`${m}-${i}`} className="border-b border-[var(--border)]/40 hover:bg-[var(--bg-surface)]/60 transition-colors">
-                            <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{e.date}</td>
-                            <td className={`px-3 py-2 truncate max-w-[260px] font-medium ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`}>
+                            <td className="px-3 py-2 text-[var(--text-muted)] mono-number whitespace-nowrap">{e.date}</td>
+                            <td className={`px-3 py-2 truncate max-w-0 font-medium ${e.isAdj ? "text-amber-500" : "text-[var(--text)]"}`} title={e.desc}>
                               {e.isAdj && e.sid ? (
                                 <button onClick={() => setAdjView(e.sid!)}
                                   className="underline decoration-dotted underline-offset-2 hover:text-amber-400 text-left"
@@ -387,6 +392,14 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                                   className="text-[var(--primary)] underline decoration-dotted underline-offset-2 hover:opacity-80 text-left"
                                   title="수동 전표 — 클릭하면 수정/삭제(일자 변경 포함)">{e.desc}</button>
                               ) : e.desc}
+                            </td>
+                            {/* 전표 칸 — 수동 전표는 #번호(누르면 수정), 차액 마감은 '차액'(누르면 분개), 계산서·정산은 — */}
+                            <td className="px-2 py-2 text-center whitespace-nowrap">
+                              {e.isVoucher && e.vid ? (
+                                <button onClick={() => setEditEntryId(e.vid!)} className="ledger-vno" title="전표 열기 (수정·삭제)">#{e.no ?? "전표"}</button>
+                              ) : e.isAdj && e.sid ? (
+                                <button onClick={() => setAdjView(e.sid!)} className="ledger-vno ledger-vno-adj" title="차액 마감 전표(분개) 보기">차액</button>
+                              ) : <span className="text-[var(--text-dim)]">—</span>}
                             </td>
                             <td className={`${cellR} ${e.debit ? "text-[var(--text)]" : ""}`}>{num(e.debit)}</td>
                             <td className={`${cellR} ${e.credit ? "text-[var(--text)]" : ""}`}>{num(e.credit)}</td>
@@ -398,6 +411,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                       <tr className="bg-emerald-500/10 border-b border-[var(--border)]/40 text-emerald-700 dark:text-emerald-300 font-semibold">
                         <td className="px-3 py-2">{Number(m.slice(5, 7))}월</td>
                         <td className="px-3 py-2">[월 계]</td>
+                        <td />
                         <td className={cellR}>{num(md)}</td>
                         <td className={cellR}>{num(mc)}</td>
                         <td className={cellR} />
@@ -406,6 +420,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                       <tr className="bg-emerald-500/20 border-b border-[var(--border)]/60 text-emerald-800 dark:text-emerald-200 font-bold">
                         <td className="px-3 py-2" />
                         <td className="px-3 py-2">[누 계]</td>
+                        <td />
                         <td className={cellR}>{num(cumDebit)}</td>
                         <td className={cellR}>{num(cumCredit)}</td>
                         <td className={cellR} />
@@ -413,20 +428,25 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                     </Fragment>
                   );
                 })}
-                <tr className="bg-[var(--bg-surface)] border-t-2 border-[var(--border)] font-bold text-[var(--text)]">
-                  <td className="px-3 py-2.5" />
-                  <td className="px-3 py-2.5">[합계]</td>
-                  <td className={cellR}>{num(totals.debit)}</td>
-                  <td className={cellR}>{num(totals.credit)}</td>
-                  <td className={`${cellR} ${totals.ending > 0 ? pal.tintText : totals.ending < 0 ? "text-red-500" : ""}`}>{Math.round(totals.ending).toLocaleString()}</td>
-                </tr>
               </>
             )}
           </tbody>
+          {!isLoading && (
+            <tfoot className="ledger-sheet-tfoot">
+              <tr className="font-bold text-[var(--text)]">
+                <td className="px-3 py-2.5" />
+                <td className="px-3 py-2.5">[합계]</td>
+                <td />
+                <td className={cellR}>{num(totals.debit)}</td>
+                <td className={cellR}>{num(totals.credit)}</td>
+                <td className={`${cellR} ${totals.ending > 0 ? pal.tintText : totals.ending < 0 ? "text-red-500" : ""}`}>{Math.round(totals.ending).toLocaleString()}</td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
       <div className="ledger-sheet-footnote">
-        발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 통장 매칭 + 차액 마감 · <span className="text-[var(--primary)]">파란 글씨</span> = 수동 전표(클릭 시 수정·삭제, 일자 변경 포함) · 상단 “+ 전표 입력”으로 신규 작성
+        잔액 = 전기이월 + 당기 잔액 · 발생 = 세금계산서(부가세 포함) · {isSales ? "회수" : "지급"} = 확정된 통장 매칭 + 차액 마감(미확정 입금 매칭은 수집·전표 › 통장에서 확정) · <span className="text-[var(--primary)]">#전표</span> = 수동 전표(누르면 수정·삭제) · “+ 전표 입력”으로 신규
       </div>
 
       {editEntryId && (

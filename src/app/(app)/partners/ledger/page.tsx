@@ -10,7 +10,7 @@ import { logRead } from "@/lib/log-read";
 import { useEffect, useMemo, useState } from "react";
 import { DateRangeField } from "@/components/date-range-field";
 import { EmptyState } from "@/components/empty-state";
-import { BarChart } from "@/components/charts/kit";
+import { PickList } from "@/components/pick-list";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, HelperMenu, SavedTabs, ConditionSave,
@@ -78,6 +78,12 @@ export default function PartnerLedgerPage() {
   const onSort = (k: LSortKey) => setSort((c) => nextSort(c, k, k === "out" ? "desc" : "asc"));
   const [selLedger, setSelLedger] = useState<string | null>(null); // 좌측 목록 선택 (partner_id, null 거래처는 "none")
   const [detail, setDetail] = useState<{ partnerId: string | null; type: string; focus: "all" | "prior" } | null>(null);
+  //   2026-08-19 원장 칸 확대(docs/20260819_PLAN_partner_ledger_layout.md): ↔ 넓게 = 목록을 접고 원장만 전폭.
+  //   화면 안 상태(기억 안 함). 넓게일 때 거래처는 원장 머리의 피커 + ‹ › 로 바꾼다.
+  const [wide, setWide] = useState(false);
+  const [pickOpen, setPickOpen] = useState(false);
+  //   미수 경과 칩 필터 — 요약 줄의 경과 칩을 누르면 그 경과 구간에 미결 계산서가 있는 거래처만 (재클릭 해제)
+  const [ageFilter, setAgeFilter] = useState<number | null>(null);
   // 일괄 엑셀 내보내기 — 목록 체크 선택(키=partner_id ?? "none"), 거래처마다 시트 분리
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
@@ -140,14 +146,14 @@ export default function PartnerLedgerPage() {
 
   // 미수 경과(에이징) — 세금계산서 발행분 기준 잔액을 발행일 경과일로 버킷팅(매출처 뷰 전용, 표시만).
   //   ⚠️ 원장 '총 미수금'(RPC)은 전표·이월 포함이라 이 에이징 합계와 다를 수 있음 → 라벨로 구분.
-  const { data: aging } = useQuery<{ buckets: { label: string; amount: number; count: number }[]; total: number } | null>({
+  const { data: aging } = useQuery<{ buckets: { label: string; amount: number; count: number }[]; total: number; byPartner: Record<string, number[]> } | null>({
     queryKey: ["ledger-ar-aging", companyId],
     enabled: !!companyId && ledgerType === "sales",
     staleTime: 60_000,
     queryFn: async () => {
       const since = new Date(); since.setDate(since.getDate() - 730);
       const inv = logRead('ledger/page:inv', await db.from("tax_invoices")
-        .select("total_amount, supply_amount, settled_amount, issue_date, status")
+        .select("total_amount, supply_amount, settled_amount, issue_date, status, partner_id")
         .eq("company_id", companyId ?? "").eq("type", "sales").neq("status", "void")
         .gte("issue_date", kstDateStr(since)).limit(5000));
       const buckets = [
@@ -158,15 +164,21 @@ export default function PartnerLedgerPage() {
       ];
       const now = new Date();
       const todayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      //   거래처별로 어느 구간에 미결 계산서가 있는지 — 요약 줄 경과 칩을 눌러 목록을 거를 때 쓴다 (미지정 = "none")
+      const byPartner: Record<string, number[]> = {};
       for (const r of (inv || []) as any[]) {
         if (r.status === "draft") continue;
         const bal = Number(r.total_amount || r.supply_amount || 0) - Number(r.settled_amount || 0);
         if (bal <= 1) continue;
         const days = r.issue_date ? Math.floor((todayMs - new Date(String(r.issue_date).slice(0, 10)).getTime()) / 86400000) : 0;
-        const b = buckets.find((x) => days >= x.min && days <= x.max) || buckets[3];
+        const bi = Math.max(0, buckets.findIndex((x) => days >= x.min && days <= x.max));
+        const b = buckets[bi] || buckets[3];
         b.amount += bal; b.count += 1;
+        const pk = r.partner_id || "none";
+        if (!byPartner[pk]) byPartner[pk] = [];
+        if (!byPartner[pk].includes(bi)) byPartner[pk].push(bi);
       }
-      return { buckets: buckets.map(({ label, amount, count }) => ({ label, amount, count })), total: buckets.reduce((s, b) => s + b.amount, 0) };
+      return { buckets: buckets.map(({ label, amount, count }) => ({ label, amount, count })), total: buckets.reduce((s, b) => s + b.amount, 0), byPartner };
     },
   });
 
@@ -220,12 +232,13 @@ export default function PartnerLedgerPage() {
     && (!c.code || codeStr(r).includes(c.code.trim()));
   const shown = useMemo(() => {
     //   빠른검색 — 거래처명·코드·잔액을 한꺼번에 (쉼표 = 또는, Enter 로 반영)
-    const filtered = data.filter((r) => quickSearchHit(q, [nameOf(r.partner_id), codeStr(r)], [ledgerOut(r)]) && balHit(r, live));
+    const ageHit = (r: LedgerRow) => ageFilter === null || ledgerType !== "sales" || !!aging?.byPartner[r.partner_id ?? "none"]?.includes(ageFilter);
+    const filtered = data.filter((r) => quickSearchHit(q, [nameOf(r.partner_id), codeStr(r)], [ledgerOut(r)]) && balHit(r, live) && ageHit(r));
     const val = (r: LedgerRow) => sort.key === "name" ? nameOf(r.partner_id) : sort.key === "code" ? (codeOf(r) ?? null) : ledgerOut(r);
     filtered.sort((a, b) => { const c = cmp(val(a), val(b)); return (sort.dir === "asc" ? c : -c) || nameOf(a.partner_id).localeCompare(nameOf(b.partner_id), "ko"); });
     return filtered;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, q, live, sort, partnerMap, partnerCodeMap]);
+  }, [data, q, live, sort, partnerMap, partnerCodeMap, ageFilter, aging, ledgerType]);
   const previewCount = data.filter((r) => balHit(r, draft)).length;
 
   //   내 조건 — ★ 하나가 이 화면의 기본값
@@ -253,20 +266,17 @@ export default function PartnerLedgerPage() {
     ...(live.bal ? [{ group: "잔액", label: BAL_OPTS.find((o) => o.value === live.bal)?.label || live.bal, onRemove: () => drop({ bal: "" }) }] : []),
     ...((live.min || live.max) ? [{ group: "잔액 금액", label: `${Number(live.min || 0).toLocaleString("ko")} ~ ${live.max ? Number(live.max).toLocaleString("ko") : "제한없음"}`, onRemove: () => drop({ min: "", max: "" }) }] : []),
     ...(live.code ? [{ group: "코드", label: live.code, onRemove: () => drop({ code: "" }) }] : []),
+    ...(ageFilter !== null && aging ? [{ group: "미수 경과", label: aging.buckets[ageFilter]?.label || "", onRemove: () => setAgeFilter(null) }] : []),
   ];
-  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); };
+  const clearAll = () => { setQ(""); setLive(EMPTY_COND); setDraft(EMPTY_COND); setAgeFilter(null); };
 
-  //   어디에 돈이 묶여 있나 — 거래처 이름이 길고 순위를 보는 자리라 가로 막대가 맞다.
-  //   목록 정렬(이름순 등)과 무관하게 그래프는 늘 '많은 순'이다. 잔액 0 이하는 그리지 않는다.
-  const topPartners = useMemo(
-    () => shown.map((r) => ({ label: nameOf(r.partner_id), value: ledgerOut(r) }))
-      .filter((r) => r.value > 0).sort((a, b) => b.value - a.value).slice(0, 8),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shown, partnerMap, voucherPartnerTypes],
-  );
-
+  //   (2026-08-19) '미수금이 큰 거래처' 막대는 뺐다 — 목록이 잔액순이라 같은 정보였고, 원장 칸을 먹었다.
   const selKey = selLedger ?? (shown[0] ? (shown[0].partner_id ?? "none") : null);
   const selRow = shown.find((r) => (r.partner_id ?? "none") === selKey) || null;
+  //   ‹ › — 목록 순서대로 이전·다음 거래처 (넓게에서 목록이 없을 때의 이동 수단, 펼친 상태에서도 쓴다)
+  const selIdx = shown.findIndex((r) => (r.partner_id ?? "none") === selKey);
+  const gotoIdx = (i: number) => { const r = shown[i]; if (r) setSelLedger(r.partner_id ?? "none"); };
+  const pickItems = shown.map((r) => ({ id: r.partner_id ?? "none", code: codeStr(r) || null, name: nameOf(r.partner_id), out: ledgerOut(r) }));
 
   //   엑셀 그릇 — 거래처마다 시트 하나로 (선택한 곳 / 보이는 전체)
   const runExport = async (targetsRows: LedgerRow[]) => {
@@ -361,61 +371,36 @@ export default function PartnerLedgerPage() {
               title="반대편으로 전환">{other.arrow} {other.label} {ledgerType === "sales" ? "총 미지급금" : "총 미수금"} <b className="mono-number">{won(otherTotal)}</b> →</button>
           }>
             <Stat label={ledgerType === "sales" ? "총 미수금" : "총 미지급금"} value={won(total)} tone={ledgerType === "sales" ? "plus" : "minus"} />
-            <Stat label={pal.label} value={`${shown.length.toLocaleString("ko")}곳${(sq || live.bal) && data.length !== shown.length ? ` / ${data.length.toLocaleString("ko")}` : ""}`} />
-            <span className="text-[10.5px] text-[var(--text-dim)]">잔액 = 전기이월 + 당기 잔액 · 확정된 매칭만 정산으로 반영 · 미확정 입금 매칭은 수집·전표 › 통장에서 확정</span>
+            <Stat label={pal.label} value={`${shown.length.toLocaleString("ko")}곳${(sq || live.bal || ageFilter !== null) && data.length !== shown.length ? ` / ${data.length.toLocaleString("ko")}` : ""}`} />
+            {/* 미수 경과 — 예전 카드 4칸을 칩으로 (2026-08-19). 누르면 그 구간에 미결 계산서가 있는 거래처만 목록에 남는다 */}
+            {ledgerType === "sales" && aging && aging.total > 0 && (
+              <span className="ledger-age-chips" title={`합계 ${won(aging.total)} · 세금계산서 발행 기준 — 원장 총 미수금은 전표·이월 포함(차이 정상)`}>
+                <span className="ledger-age-lbl">미수 경과</span>
+                {aging.buckets.map((b, i) => (
+                  <button key={b.label} type="button" onClick={() => setAgeFilter(ageFilter === i ? null : i)}
+                    className={`ledger-age-chip ledger-age-${i} ${ageFilter === i ? "ledger-age-chip-on" : ""}`}
+                    title={ageFilter === i ? "누르면 조건을 풉니다" : "누르면 이 구간 거래처만 봅니다"}>
+                    {b.label} <b className="mono-number">{won(b.amount)}</b> · {b.count}건
+                  </button>
+                ))}
+              </span>
+            )}
+
           </ResultStrip>
         </QueryHead>
 
         <QueryBody>
-         {/* 통계·목록·원장이 한 스크롤 안에 — 상자 밖으로 안 넘친다 (2026-08-18 사장님: "끝선이 사이드바와 안 맞음") */}
-         <div className="ledger-scroll">
-          {/* 상위 거래처·미수 경과 — 합계만 보면 어디에 몰렸는지 모른다 (2026-08-07). 목록 위에 접어 둔다 */}
-          {(topPartners.length >= 2 || (ledgerType === "sales" && aging && aging.total > 0)) && (
-            <div className="ledger-insights">
-              {topPartners.length >= 2 && (
-                <div className="ledger-top-chart glass-card">
-                  <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
-                    <span className="text-[12px] font-bold text-[var(--text)]">{ledgerType === "sales" ? "미수금이 큰 거래처" : "미지급금이 큰 거래처"}</span>
-                    <span className="text-[10px] text-[var(--text-dim)]">많은 순 {topPartners.length}곳{shown.length > topPartners.length ? ` · 전체 ${shown.length}곳` : ""}</span>
-                  </div>
-                  <BarChart unit="원" data={topPartners.map((r) => ({ ...r, color: pal.main }))} />
-                </div>
-              )}
-              {ledgerType === "sales" && aging && aging.total > 0 && (
-                <div className="ledger-ar-aging glass-card">
-                  <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
-                    <span className="text-[12px] font-bold text-[var(--text)]">미수 경과 · 세금계산서 발행 기준</span>
-                    <span className="text-[10px] text-[var(--text-dim)]">합계 {won(aging.total)} · 원장 총 미수금은 전표·이월 포함(차이 정상)</span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {aging.buckets.map((b, i) => {
-                      const cls = ["bg-[var(--bg-surface)] text-[var(--text)]",
-                        "bg-[var(--warning)]/10 text-[var(--warning)]",
-                        "bg-[var(--warning)]/18 text-[var(--warning)]",
-                        "bg-[var(--danger)]/12 text-[var(--danger)]"][i];
-                      return (
-                        <div key={b.label} className={`ar-aging-bucket ${cls}`}>
-                          <div className="text-[10px] font-semibold uppercase tracking-wider opacity-80">{b.label}</div>
-                          <div className="text-[15px] font-black mono-number leading-tight mt-0.5">{won(b.amount)}</div>
-                          <div className="text-[9px] opacity-70 mt-0.5">{b.count}건</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
+         {/* ── 좌 목록 300px · 우 원장 나머지 전부, 상자 끝선까지. 각자 스크롤 (2026-08-19 사장님: "원장 칸이 작아 보기 어렵다") ── */}
+         <div className={`ledger-body ${wide ? "ledger-body-wide" : ""}`}>
           {lLoading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : (
-            <div className="ledger-split">
-              {/* ── 좌: 거래처 목록 — 조회 표준 표. 줄을 누르면 오른쪽 원장이 바뀐다 ── */}
-              <div className="ledger-partner-list">
+            <>
+              {/* ── 좌: 거래처 목록 — 조회 표준 표. 줄을 누르면 오른쪽 원장이 바뀐다. ↔ 넓게면 접힌다 ── */}
+              <div className="ledger-list-pane">
                 {shown.length === 0 ? (
                   <div className="collect-empty">
-                    {sq || live.bal ? "이 조건에 맞는 거래처가 없습니다 — 검색조건을 풀어 보세요" : `${periodLabel} ${pal.label} 거래가 없습니다 — AI 제안 ▾ 「홈택스 거래처 연결」을 먼저 실행해 보세요`}
+                    {sq || live.bal || ageFilter !== null ? "이 조건에 맞는 거래처가 없습니다 — 검색조건을 풀어 보세요" : `${periodLabel} ${pal.label} 거래가 없습니다 — AI 제안 ▾ 「홈택스 거래처 연결」을 먼저 실행해 보세요`}
                   </div>
                 ) : (
                   <div className="ev-scroll ledger-list-scroll">
@@ -429,9 +414,9 @@ export default function PartnerLedgerPage() {
                               {shown.length > 0 && shown.every((r) => checkedIds.has(r.partner_id ?? "none")) ? "✓" : ""}
                             </button>
                           </th>
-                          <SortableTh label="코드" sortKey="code" sort={sort} onSort={onSort} style={{ width: 64 }} />
+                          <SortableTh label="코드" sortKey="code" sort={sort} onSort={onSort} style={{ width: 56 }} />
                           <SortableTh label={pal.label} sortKey="name" sort={sort} onSort={onSort} />
-                          <SortableTh label="잔액" sortKey="out" sort={sort} onSort={onSort} style={{ width: 116 }} />
+                          <SortableTh label="잔액" sortKey="out" sort={sort} onSort={onSort} style={{ width: 104 }} />
                         </tr>
                       </thead>
                       <tbody>
@@ -449,7 +434,7 @@ export default function PartnerLedgerPage() {
                                   className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
                               </td>
                               <td className="tc mono-number ev-dim">{codeStr(r) || "—"}</td>
-                              <td className={active ? "ev-ell font-bold" : "ev-ell font-medium"} style={active ? { color: pal.main } : undefined}>{nameOf(r.partner_id)}</td>
+                              <td className={active ? "ev-ell font-bold" : "ev-ell font-medium"} style={active ? { color: pal.main } : undefined} title={nameOf(r.partner_id)}>{nameOf(r.partner_id)}</td>
                               <td className={`tr mono-number font-semibold ${out > 0 ? pal.tintText : out < 0 ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>{Math.round(out).toLocaleString()}</td>
                             </tr>
                           );
@@ -460,7 +445,8 @@ export default function PartnerLedgerPage() {
                 )}
               </div>
 
-              {/* ── 우: 일자별 원장 (차변/대변/잔액) ── */}
+              {/* ── 우: 일자별 원장 (차변/대변/잔액) — 상자 나머지 전부, 머리단·합계 고정에 몸통만 스크롤 ── */}
+              <div className="ledger-sheet-pane">
               {selRow ? (
                 <PartnerLedgerSheet
                   key={`${selKey}-${selRow.type}-${periodStart}-${periodEnd}`}
@@ -473,13 +459,35 @@ export default function PartnerLedgerPage() {
                   partnerName={nameOf(selRow.partner_id)}
                   openingFromRpc={Number(selRow.prior_outstanding || 0)}
                   onOpenDetail={() => setDetail({ partnerId: selRow.partner_id, type: selRow.type, focus: "all" })}
+                  headLead={
+                    <span className="ledger-nav">
+                      <button type="button" className="ledger-nav-btn" disabled={selIdx <= 0} onClick={() => gotoIdx(selIdx - 1)} title="이전 거래처 (목록 순서)" aria-label="이전 거래처">‹</button>
+                      <button type="button" className="ledger-nav-btn" disabled={selIdx < 0 || selIdx >= shown.length - 1} onClick={() => gotoIdx(selIdx + 1)} title="다음 거래처 (목록 순서)" aria-label="다음 거래처">›</button>
+                      {wide && (
+                        <span className="relative inline-block">
+                          <button type="button" className="btn-secondary btn-sm" onClick={() => setPickOpen((v) => !v)} title="거래처 바꾸기 — 이름·코드로 찾습니다">
+                            {nameOf(selRow.partner_id)} <span className="text-[var(--text-dim)]">▾</span>
+                          </button>
+                          {pickOpen && (
+                            <PickList items={pickItems} placeholder="거래처 검색 (이름·코드)" empty="이 조건에 맞는 거래처가 없습니다"
+                              onPick={(it) => { setSelLedger(it.id); setPickOpen(false); }} onClose={() => setPickOpen(false)} />
+                          )}
+                        </span>
+                      )}
+                    </span>
+                  }
+                  headTail={
+                    <button type="button" className={wide ? "btn-secondary btn-sm ledger-wide-on" : "btn-secondary btn-sm"} onClick={() => { setWide((v) => !v); setPickOpen(false); }}
+                      title={wide ? "왼쪽 거래처 목록을 다시 보입니다" : "목록을 접고 원장만 넓게 봅니다"}>↔ {wide ? "목록 보기" : "넓게"}</button>
+                  }
+                  hideName={wide}
                 />
               ) : (
                 <EmptyState card icon="📒" title="왼쪽에서 거래처를 고르세요." desc="고른 거래처의 일자별 원장(차변·대변·잔액)이 표시됩니다" />
               )}
-            </div>
+              </div>
+            </>
           )}
-
          </div>
           {/* ── 3줄 · 고른 거래처로 하는 일 ── */}
           <SelectionBar count={checkedIds.size} onClear={() => setCheckedIds(new Set())}

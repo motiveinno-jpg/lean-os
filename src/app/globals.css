@@ -9667,6 +9667,7 @@ table.mypage-att-table { min-width: 760px; }
   .qk-body > .report-body,
   .qk-body > .spv-body,
   .qk-body > .ledger-scroll,
+  .qk-body > .ledger-body,
   .qk-body > .pay-scroll,
   .qk-body > .team-scroll { position: static; inset: auto; }
   .qk-body > .collect-empty { min-height: 40vh; }
@@ -9713,3 +9714,35 @@ table.dup-table { min-width: 0; }
 .sb-layer { @apply px-2.5 pt-2.5 pb-1 text-[10px] font-semibold tracking-wider text-[var(--text-dim)]; }
 .sb-flyout-wrap { @apply absolute left-full pl-1.5 z-[60]; }
 .sb-flyout { @apply w-52 max-h-[80vh] overflow-y-auto rounded-2xl border border-[var(--border)]/60 shadow-[var(--shadow-lg)] p-2; }
+
+/* ── 거래처 원장 · 원장 칸 확대 (2026-08-19, docs/20260819_PLAN_partner_ledger_layout.md) ──
+   좌 목록 300px · 우 원장 나머지 전부, 상자 끝선까지. 각자 스크롤. ↔ 넓게 = 목록 접고 원장 전폭. */
+.qk-body > .ledger-body { @apply absolute inset-0 flex min-h-0; }
+.qk-body:has(.qk-selbar) > .ledger-body { padding-bottom: 60px; }
+.ledger-list-pane { @apply w-[300px] shrink-0 min-h-0 flex flex-col border-r border-[var(--border)] overflow-hidden; }
+.ledger-body-wide .ledger-list-pane { @apply w-0 border-r-0; }
+.ledger-list-pane .ledger-list-scroll { @apply flex-1 min-h-0; max-height: none; }
+.ledger-sheet-pane { @apply flex-1 min-w-0 min-h-0 flex flex-col; }
+.ledger-sheet-fill { @apply h-full min-h-0 flex flex-col; }
+.ledger-sheet-header-slim { @apply px-4 py-2.5 gap-2 flex-nowrap; }
+.ledger-sheet-title { @apply flex items-center gap-2 min-w-0 flex-1 flex-wrap; }
+.ledger-sheet-grid-fill { @apply flex-1 min-h-0; max-height: none; }
+.ledger-sheet-tfoot td { @apply sticky bottom-0 z-10 bg-[var(--bg-surface)] border-t-2 border-[var(--border)]; }
+.ledger-nav { @apply inline-flex items-center gap-1 shrink-0; }
+.ledger-nav-btn { @apply w-7 h-7 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-muted)] text-[15px] leading-none hover:text-[var(--text)] hover:bg-[var(--bg-surface)] disabled:opacity-35 disabled:cursor-not-allowed transition; }
+.ledger-wide-on { @apply border-[var(--primary)] text-[var(--primary)]; }
+.ledger-vno { @apply text-[11px] font-semibold text-[var(--primary)] px-1.5 py-0.5 rounded hover:bg-[var(--primary-light)] transition; font-variant-numeric: tabular-nums; }
+.ledger-vno-adj { @apply text-amber-500 hover:bg-amber-500/10; }
+.ledger-age-chips { @apply inline-flex items-center gap-1.5 flex-wrap; }
+.ledger-age-lbl { @apply text-[10.5px] text-[var(--text-dim)] mr-0.5; }
+.ledger-age-chip { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] border border-transparent bg-[var(--bg-surface)] text-[var(--text-muted)] hover:border-[var(--border)] transition whitespace-nowrap; }
+.ledger-age-1 { @apply bg-[var(--warning)]/10 text-[var(--warning)]; }
+.ledger-age-2 { @apply bg-[var(--warning)]/18 text-[var(--warning)]; }
+.ledger-age-3 { @apply bg-[var(--danger)]/12 text-[var(--danger)]; }
+.ledger-age-chip-on { @apply ring-2 ring-[var(--primary)] ring-offset-1 ring-offset-[var(--bg-card)]; }
+@media (max-width: 767px) {
+  /* 거래처 원장 — 폰에서는 목록 → 원장 세로 쌓임, 넓게 토글은 뜻이 없어 목록 폭을 항상 100% */
+  .qk-body > .ledger-body { flex-direction: column; }
+  .ledger-list-pane, .ledger-body-wide .ledger-list-pane { width: 100%; max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--border); }
+  .ledger-sheet-fill { height: auto; }
+}
