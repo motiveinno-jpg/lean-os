@@ -9623,3 +9623,6 @@ table.team-mgmt-table { min-width: 640px; }
 .mypage-identity-avatar { @apply relative inline-flex; }
 .mypage-identity-avatar .mypage-avatar-cam-btn { @apply absolute -bottom-1 -right-1 h-5 w-5 rounded-full border border-[var(--border)] bg-[var(--bg-card)] p-0 text-[var(--text-muted)] flex items-center justify-center; }
 .mypage-scroll .glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }
+/* ── AI 참모 조회 표준 상자 (2026-08-19) ── */
+.qk-body > .copilot2-scroll { @apply absolute inset-0 overflow-auto p-4; }
+.copilot2-scroll .glass-card, .copilot2-scroll .copilot2-quick-card, .copilot2-scroll .copilot2-token-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }

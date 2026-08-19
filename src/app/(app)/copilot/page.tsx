@@ -14,6 +14,7 @@ import { kstLocalToIso } from "@/lib/kst";
 import { friendlyError } from "@/lib/friendly-error";
 import { sanitizeAiContractHtml } from "@/lib/sanitize-html";
 import { createAiContractDraft } from "@/lib/documents";
+import { QueryScreen, QueryHead, QueryBody, QueryBar } from "@/components/query-kit";
 import {
   COPILOT_ATTACHMENT_ACCEPT,
   COPILOT_MAX_ATTACHMENTS,
@@ -496,32 +497,17 @@ export default function CopilotPage() {
   const estQuestions = usage?.remaining_tokens != null ? Math.max(0, Math.floor(usage.remaining_tokens / AVG_Q_TOKENS)) : 0;
 
   return (
-    <div className="copilot2-page">
-      {/* Hero */}
-      <div className="copilot2-hero">
-        <div className="copilot2-hero-orb copilot2-hero-orb-a" aria-hidden />
-        <div className="copilot2-hero-orb copilot2-hero-orb-b" aria-hidden />
-        <div className="copilot2-hero-content">
-          <div className="copilot2-hero-badge"><span className="copilot2-hero-spark" aria-hidden><Ico e="✦" /></span> AI 참모</div>
-          <h1 className="copilot2-hero-title">회사 데이터를 읽고, 대표가 지금 해야 할 일을 정리합니다</h1>
-          <div className="copilot2-hero-meta">
-            <span className={`copilot2-conn ${connErr ? "copilot2-conn-err" : "copilot2-conn-ok"}`}>
-              <span className="copilot2-conn-dot" aria-hidden />{connErr ? "연결 오류" : "AI 연결됨"}
-            </span>
-            <span className="copilot2-hero-asof">기준 {kstDate(usage?.as_of)}</span>
-            {messages.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setMessages([])}
-                className="copilot2-clear-btn"
-                aria-label="대화 초기화"
-              >
-                대화 초기화
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="qk-shell copilot2-page">
+      {/* ── 조회 화면 표준 상자 (2026-08-19 확산) — 오브·큰 제목 히어로 → 조회 줄 한 줄(연결 상태 · 기준 시각 ‖ 대화 초기화), 본문(대화 + 토큰)만 스크롤 ── */}
+      <QueryScreen>
+        <QueryHead>
+          <QueryBar right={messages.length > 0 ? <button type="button" onClick={() => setMessages([])} className="btn-secondary btn-sm" aria-label="대화 초기화">대화 초기화</button> : undefined}>
+            <span className={`copilot2-conn ${connErr ? "copilot2-conn-err" : "copilot2-conn-ok"}`}><span className="copilot2-conn-dot" aria-hidden />{connErr ? "연결 오류" : "AI 연결됨"}</span>
+            <span className="text-[11px] text-[var(--text-dim)]">기준 {kstDate(usage?.as_of)} · 회사 데이터를 읽고 대표가 지금 해야 할 일을 정리합니다 — 답변은 참고용, 실행 전 확인</span>
+          </QueryBar>
+        </QueryHead>
+        <QueryBody>
+        <div className="copilot2-scroll">
 
       {locked ? (
         <div className="copilot2-lock-card">
@@ -647,6 +633,9 @@ export default function CopilotPage() {
           </aside>
         </div>
       )}
+        </div>
+        </QueryBody>
+      </QueryScreen>
     </div>
   );
 }
