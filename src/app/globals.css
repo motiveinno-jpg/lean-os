@@ -5328,7 +5328,19 @@ tr.pnl-row-unclassified > td { background: color-mix(in srgb, var(--warning) 6%,
 .pnl-drill-head { @apply flex items-start justify-between gap-3 border-b border-[var(--border)] px-4 py-3; }
 .pnl-drill-body { @apply min-h-0 flex-1 overflow-auto; }
 /*   월별 표(손익) */
-table.pnl-mx-table { min-width: 1180px; }
+/* 2026-08-19 보기 설정: 열 수에 따라 페이지가 인라인 min-width 를 준다 (분기/반기는 좁게) */
+table.pnl-mx-table { min-width: 760px; }
+/* 셀 아래 작은 비교값 (함께 보기) */
+.pnl-mx-table .pnl-cell-sub { @apply block text-[10px] leading-tight; }
+/* 전월비 히트맵 — 좋으면 초록, 나쁘면 빨강, ±30% 이상 진하게 */
+.pnl-mx-table td.pnl-hm1 { background: color-mix(in srgb, var(--success) 9%, transparent); }
+.pnl-mx-table td.pnl-hm2 { background: color-mix(in srgb, var(--success) 20%, transparent); }
+.pnl-mx-table td.pnl-hn1 { background: color-mix(in srgb, var(--danger) 9%, transparent); }
+.pnl-mx-table td.pnl-hn2 { background: color-mix(in srgb, var(--danger) 20%, transparent); }
+/* 최고·최저 달 테두리 (매출·영업이익) */
+.pnl-mx-table td.pnl-mx-max { box-shadow: inset 0 0 0 2px var(--primary); }
+.pnl-mx-table td.pnl-mx-min { box-shadow: inset 0 0 0 2px var(--danger); }
+.pnl-mx-table tr.pnl-mx-tall-row > td.pnl-mx-label { @apply font-bold text-[var(--text)]; }
 .pnl-mx-table tbody td { @apply border-b border-[var(--border)]/50 px-2 py-1.5 text-[11.5px]; }
 .pnl-mx-table td.pnl-mx-label { @apply sticky left-0 z-[2] bg-[var(--bg-card)] font-semibold text-[var(--text-muted)]; }
 .pnl-mx-table tr.pnl-mx-sec > td { @apply font-bold text-[var(--text)]; }

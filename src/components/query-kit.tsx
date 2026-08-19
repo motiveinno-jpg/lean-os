@@ -221,7 +221,7 @@ export function quickSearchHit(q: string, fields: (string | null | undefined)[],
  *     펼쳐져 **찾지도 않은 목록**이 화면을 덮는다. 어느 칸을 쓸지는 사람이 정한다.
  */
 export function ConditionPanel({
-  open, onOpenChange, activeCount, children, foot, tabs, anchorSel,
+  open, onOpenChange, activeCount, children, foot, tabs, anchorSel, label = "검색조건",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -233,6 +233,8 @@ export function ConditionPanel({
   tabs?: ReactNode;
   /** 바깥 클릭으로 안 닫을 영역 (기간 칸처럼 같이 쓰는 것) */
   anchorSel?: string;
+  /** 버튼·패널 이름 — 값을 거르는 게 아니라 **보는 법**을 고르는 곳(월별 표)은 '보기 설정' (2026-08-19). 문법은 같다: 고르고 → 적용 */
+  label?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -253,14 +255,14 @@ export function ConditionPanel({
     <div className="qk-cond" ref={box}>
       <button type="button" onClick={() => onOpenChange(!open)} aria-expanded={open}
         className={activeCount > 0 || open ? "qk-cond-btn qk-cond-btn-on" : "qk-cond-btn"}>
-        검색조건
+        {label}
         {activeCount > 0 && <em className="qk-cond-n">{activeCount}</em>}
         <span className="qk-caret">▾</span>
       </button>
       {open && (
-        <div className="qk-panel" role="dialog" aria-label="검색조건">
+        <div className="qk-panel" role="dialog" aria-label={label}>
           <div className="qk-panel-head">
-            <b>검색조건</b>
+            <b>{label}</b>
             {tabs}
             <button type="button" className="qk-panel-x" aria-label="닫기"
               onClick={() => onOpenChange(false)}>✕</button>
