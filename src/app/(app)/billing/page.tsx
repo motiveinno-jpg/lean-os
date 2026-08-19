@@ -21,6 +21,7 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { useMyPermissions } from "@/lib/permissions";
 import { loadTossPayments } from "@tosspayments/tosspayments-sdk";
 import { TossCardSection } from "./_components/TossCardSection";
+import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 
 // 신규 테이블 타입이 아직 database.ts에 없으므로 any 캐스팅
 const db = supabase;
@@ -567,34 +568,26 @@ function BillingPageInner() {
   if (mainError) return <div className="p-6 text-center text-red-400">데이터를 불러올 수 없습니다. 새로고침해 주세요.</div>;
 
   return (
-    <div className="mx-auto">
-      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-
-      {/* 툴바 — 탭(좌) + 액션(우) */}
-      <div className="page-sticky-header mb-6">
-        <div className="billing-toolbar">
-          <div className="seg-bar overflow-x-auto">
+    <div className="qk-shell billing-page">
+      {/* ── 조회 화면 표준 상자 (2026-08-19 확산) — 상자 밖 seg-bar 툴바 → 갈래 탭 상자 안 파란 밑줄 ‖ 구독 관리, 본문만 스크롤 ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print">
             {TABS.map((t) => (
-              <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
-                className={`seg-item inline-flex items-center gap-1.5 ${tab === t.key ? "seg-item-active" : ""}`}
-              >
-                <span><Ico e={t.icon} tone="mono" /></span> {t.label}
+              <button key={t.key} type="button" onClick={() => setTab(t.key)} className={tab === t.key ? "collect-tab collect-tab-on" : "collect-tab"}>
+                {t.label}
               </button>
             ))}
+            {hasStripeSubscription && (
+              <span className="ml-auto flex items-center pr-2">
+                <button type="button" onClick={handleOpenPortal} disabled={isPaymentLoading} className="btn-secondary btn-sm">{isPaymentLoading ? "로딩 중…" : "구독 관리"}</button>
+              </span>
+            )}
           </div>
-          {hasStripeSubscription && (
-            <button
-              onClick={handleOpenPortal}
-              disabled={isPaymentLoading}
-              className="btn-secondary"
-            >
-              {isPaymentLoading ? "로딩 중..." : "구독 관리"}
-            </button>
-          )}
-        </div>
-      </div>
+        </QueryHead>
+        <QueryBody>
+        <div className="billing-scroll">
+      <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
       {/* 업그레이드 배너 — 무료 플랜이면 노출 (2026-08-06 개편: 무료가 영구 플랜이 되어 '체험 만료' 개념이 사라짐) */}
       {entitlement && entitlement.effective_plan_slug === "free" && subscription?.status !== "trialing" && (
@@ -1256,6 +1249,10 @@ td:first-child{color:#666;width:140px}td:last-child{text-align:right;font-weight
           )}
         </div>
       )}
+
+        </div>
+        </QueryBody>
+      </QueryScreen>
 
       {/* Upgrade Modal */}
       {showUpgradeModal && (

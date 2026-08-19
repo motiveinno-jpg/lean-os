@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { friendlyError, reportError } from "@/lib/friendly-error";
+import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 
 const db = supabase;
 
@@ -220,22 +221,16 @@ export default function SupportPage() {
   const answeredCount = useMemo(() => tickets.filter((t) => t.status === "answered").length, [tickets]);
 
   return (
-    <div className="support-page-root">
-      {/* ═══ 안내 히어로 — 전화 상담 없이 문의함 일원화 ═══ */}
-      <div className="support-hero">
-        <div className="support-hero-eyebrow">SUPPORT CENTER</div>
-        <h1 className="support-hero-title">무엇이든 문의하세요 — 모든 문의는 여기서 받습니다</h1>
-        <p className="support-hero-desc">
-          OwnerView 고객 지원은 전화 상담 없이 문의함으로 운영됩니다. 이용 방법부터 오류 신고,
-          결제·연동 문제까지 어떤 내용이든 남겨주세요. 답변이 등록되면 알림으로 바로 알려드립니다.
-        </p>
-        <div className="support-hero-points">
-          <span className="support-hero-point"><Ico e="⏱️" /> 영업일 1일 이내에 처리 후 답변드립니다</span>
-          <span className="support-hero-point"><Ico e="📸" /> 화면 사진을 첨부하면 더 빠르고 정확하게 해결됩니다</span>
-          <span className="support-hero-point"><Ico e="🔔" /> 접수·답변 시 알림 발송</span>
-          <span className="support-hero-point"><Ico e="🔒" /> 첨부 사진은 우리 회사만 볼 수 있습니다</span>
-        </div>
-      </div>
+    <div className="qk-shell support-page-root">
+      {/* ── 조회 화면 표준 상자 (2026-08-19 확산) — 히어로 → 설명 줄 하나, 문의 작성·내 문의 내역은 본문(스크롤) 얇은 판 ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="report-desc support-desc">
+            <b>무엇이든 문의하세요 — 모든 문의는 여기서 받습니다.</b> 전화 상담 없이 문의함으로 운영됩니다 · 영업일 1일 이내 답변 · 화면 사진을 첨부하면 더 빠르게 해결됩니다 · 접수·답변 시 알림 · 첨부 사진은 우리 회사만 봅니다
+          </div>
+        </QueryHead>
+        <QueryBody>
+        <div className="support-scroll">
 
       {/* ═══ 문의 작성 ═══ */}
       <div className="support-compose-card glass-card">
@@ -397,6 +392,9 @@ export default function SupportPage() {
           </div>
         )}
       </div>
+        </div>
+        </QueryBody>
+      </QueryScreen>
     </div>
   );
 }

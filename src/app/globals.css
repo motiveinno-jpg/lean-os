@@ -9626,3 +9626,17 @@ table.team-mgmt-table { min-width: 640px; }
 /* ── AI 참모 조회 표준 상자 (2026-08-19) ── */
 .qk-body > .copilot2-scroll { @apply absolute inset-0 overflow-auto p-4; }
 .copilot2-scroll .glass-card, .copilot2-scroll .copilot2-quick-card, .copilot2-scroll .copilot2-token-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }
+/* ── 사용 가이드 조회 표준 상자 (2026-08-19) ── */
+.gd-root.qk-shell { @apply space-y-0; }
+.qk-body > .gd-scroll { @apply absolute inset-0 space-y-5 overflow-auto p-4; }
+.gd-search-bar { @apply flex min-w-[280px] flex-1 items-center gap-1.5; }
+.gd-root.qk-shell { max-width: none; }
+/* ── 고객센터 조회 표준 상자 (2026-08-19) ── */
+.support-page-root.qk-shell { max-width: none; @apply space-y-0; }
+.qk-body > .support-scroll { @apply absolute inset-0 space-y-4 overflow-auto p-4; }
+.support-desc { @apply px-3.5 py-2 text-[12px] text-[var(--text-muted)]; }
+.support-desc > b { @apply text-[var(--text)]; }
+.support-scroll .glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }
+/* ── 요금제 조회 표준 상자 (2026-08-19) ── */
+.qk-body > .billing-scroll { @apply absolute inset-0 space-y-5 overflow-auto p-4; }
+.billing-scroll .glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }

@@ -5,6 +5,7 @@ import { Ico, icoColor } from "@/components/ui-icon";
 import Link from 'next/link';
 import { resetOnboardingDismiss } from '@/components/onboarding';
 import { useMyPermissions, matchCatalogRoute } from '@/lib/permissions';
+import { QueryScreen, QueryHead, QueryBody, QueryBar } from "@/components/query-kit";
 
 // 접근 판정 — 앱 게이트와 같은 기준 (2026-08-12 사장님: 직원은 권한에 맞게).
 //   쿼리를 떼고 카탈로그 최장 접두 매치; 카탈로그 밖 경로(/onboarding·/mypage 등)는 게이트 비대상 → 통과.
@@ -574,62 +575,34 @@ export default function GuidePage() {
   // 등장 애니메이션은 CSS 키프레임(gd-rise)이 담당 — JS 리빌 제거 (2026-08-12 카드 미표시 사고)
 
   return (
-    <div className="gd-root">
-      {/* ── 헤더 — 큰 검색이 주인공 ── */}
-      <div className="gd-hero" data-gd>
-        <div className="gd-hero-top">
-          <div>
-            <h1 className="gd-hero-title">사용 가이드</h1>
-            <p className="gd-hero-sub">오너뷰의 모든 기능을 한 곳에서 — 검색하거나, 업무 흐름을 따라가 보세요.</p>
+    <div className="qk-shell gd-root">
+      {/* ── 조회 화면 표준 상자 (2026-08-19 확산) — 큰 검색 히어로 + seg-bar → 갈래 탭(카테고리) 상자 안 파란 밑줄 + 조회 줄(빠른검색 ‖ 모두 펼치기 · 초기 설정), 본문만 스크롤 ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print" role="tablist" aria-label="기능 카테고리">
+            {CATEGORY_TABS.map((tab) => {
+              const isActive = activeTab === tab;
+              return (
+                <button key={tab} type="button" onClick={() => setActiveTab(tab)} role="tab" aria-selected={isActive} className={isActive ? "collect-tab collect-tab-on" : "collect-tab"}>
+                  {tab}<span className="collect-tab-cnt">{visibleTabCounts[tab]}</span>
+                </button>
+              );
+            })}
           </div>
-          {/* 초기 설정은 회사 단위 관리자 작업 — 마스터에게만 (2026-08-12 권한 맞춤) */}
-          {isMaster && (
-            <button
-              onClick={() => { resetOnboardingDismiss(); window.location.href = "/dashboard"; }}
-              className="gd-onboard-btn"
-              title="회사 정보·통장·카드·직원 등 초기 설정을 다시 시작합니다"
-            >
-              초기 설정 다시 하기
-            </button>
-          )}
-        </div>
-        <div className="gd-search">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
-          <input
-            type="text"
-            placeholder="어떤 기능을 찾으세요? (예: 세금계산서, 연차, 결재)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="기능 검색"
-          />
-          {searchQuery && (
-            <button className="gd-search-clear" onClick={() => setSearchQuery("")} aria-label="검색어 지우기">✕</button>
-          )}
-        </div>
-      </div>
-
-      {/* ── 카테고리 + 펼침 컨트롤 ── */}
-      <div className="gd-toolbar" data-gd>
-        <div className="seg-bar max-w-full overflow-x-auto" role="tablist" aria-label="기능 카테고리">
-          {CATEGORY_TABS.map((tab) => {
-            const isActive = activeTab === tab;
-            return (
-              <button key={tab} onClick={() => setActiveTab(tab)} role="tab" aria-selected={isActive}
-                className={`seg-item flex items-center gap-1.5 ${isActive ? "seg-item-active" : ""}`}>
-                <span className="text-[14px]">{CATEGORY_TAB_ICONS[tab]}</span>
-                {tab}
-                <span className={`gd-tab-count ${isActive ? "gd-tab-count-on" : ""}`}>{visibleTabCounts[tab]}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="gd-toolbar-right">
-          <span className="gd-count">{filteredFeatures.length}개 기능</span>
-          <button onClick={isAllExpanded ? collapseAll : expandAll} className="gd-expand-btn">
-            {isAllExpanded ? "모두 접기" : "모두 펼치기"}
-          </button>
-        </div>
-      </div>
+          <QueryBar right={<>
+            <span className="text-[11px] text-[var(--text-dim)]">{filteredFeatures.length}개 기능</span>
+            <button type="button" onClick={isAllExpanded ? collapseAll : expandAll} className="btn-secondary btn-sm">{isAllExpanded ? "모두 접기" : "모두 펼치기"}</button>
+            {isMaster && <button type="button" onClick={() => { resetOnboardingDismiss(); window.location.href = "/dashboard"; }} className="btn-secondary btn-sm" title="회사 정보·통장·카드·직원 등 초기 설정을 다시 시작합니다">초기 설정 다시 하기</button>}
+          </>}>
+            <div className="qk-quick-search gd-search-bar">
+              <input type="text" className="qk-input h-8 w-full px-2.5 text-xs" placeholder="어떤 기능을 찾으세요? (예: 세금계산서, 연차, 결재)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} aria-label="기능 검색" />
+              {searchQuery && <button type="button" className="btn-secondary btn-sm" onClick={() => setSearchQuery("")} aria-label="검색어 지우기">지움</button>}
+            </div>
+            <span className="text-[11px] text-[var(--text-dim)]">오너뷰의 모든 기능을 한 곳에서 — 검색하거나, 업무 흐름을 따라가 보세요.</span>
+          </QueryBar>
+        </QueryHead>
+        <QueryBody>
+        <div className="gd-scroll">
 
       {/* ── 기능 카드 그리드 ── */}
       <div className="gd-grid">
@@ -660,6 +633,9 @@ export default function GuidePage() {
           ))}
         </div>
       </section>
+        </div>
+        </QueryBody>
+      </QueryScreen>
     </div>
   );
 }
