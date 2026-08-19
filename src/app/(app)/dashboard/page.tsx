@@ -389,7 +389,7 @@ export default function DashboardPage() {
 
   // (2026-07-30 사장님) 대외비(금액) 위젯 게이트 — 기본 대시보드는 전원(필수 위젯만),
   //   재무·경영 위젯은 /dashboard:finance 권한 보유자(또는 마스터)만 추가·표시 가능.
-  const { isMaster: dashMaster, hasPerm: dashPerm } = useMyPermissions();
+  const { isMaster: dashMaster, hasPerm: dashPerm, loading: permLoading } = useMyPermissions();
   const canFinance = dashMaster || dashPerm("/dashboard:finance");
   // AI 브리핑은 별도 세부 권한(2026-08-10 사장님) — 부여자에게만 보이고, 없으면 카드 자체가 안 뜬다
   const canBriefing = dashMaster || dashPerm("/dashboard:briefing");
@@ -580,18 +580,35 @@ export default function DashboardPage() {
               { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", render: () => <EmployeesCard companyId={companyId} /> },
               { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", render: () => <PartnersCard companyId={companyId} /> },
             ];
-            // (2026-07-30 사장님) 금액 위젯은 재무 권한 보유자만 카탈로그에 노출. (2026-08-04) 결재/구성원/거래처는 해당 메뉴 권한.
-            const FINANCE_WIDGET_IDS = new Set(["revenue", "receivables", "tax", "cards", "assets", "bank", "invoices", "projects"]);
-            const WIDGET_PERM_KEYS: Record<string, string> = { approvals: "/approvals", employees: "/employees", partners: "/partners" };
-            const visibleCatalog = catalog.filter((w) =>
-              FINANCE_WIDGET_IDS.has(w.id) ? canFinance
-                : WIDGET_PERM_KEYS[w.id] ? dashPerm(WIDGET_PERM_KEYS[w.id])
-                : true);
+            // 위젯 노출 = 권한 (2026-08-19 사장님: "권한 설정에 맞게 노출되는지, 보기 설정에서 내가 권한 있는 메뉴만 체크 가능한지")
+            //   · 금액 위젯: /dashboard:finance(재무·경영 위젯) **그리고** 그 위젯이 여는 메뉴 권한 둘 다 있어야 한다 (2026-07-30 규칙 + 메뉴 권한)
+            //   · 메뉴 위젯: 그 메뉴 권한. 전원 기본(always) 메뉴 위젯(공지·일정·내 담당 업무·달력)은 항상.
+            //   보기 설정 판도 이 목록(visibleCatalog)만 보이므로, 권한 없는 위젯은 켤 수도 없다.
+            const WIDGET_GATE: Record<string, { finance?: boolean; menu?: string }> = {
+              receivables: { finance: true, menu: "/partners/ledger" },
+              revenue: { finance: true, menu: "/reports" },
+              tax: { finance: true, menu: "/tax-invoices" },
+              bank: { finance: true, menu: "/bank" },
+              cards: { finance: true, menu: "/cards" },
+              assets: { finance: true, menu: "/bank" },
+              invoices: { finance: true, menu: "/tax-invoices" },
+              projects: { finance: true, menu: "/projecthub" },
+              approvals: { menu: "/approvals" },
+              employees: { menu: "/employees" },
+              partners: { menu: "/partners" },
+              todos: { menu: "/schedule" },
+              calendar: { menu: "/schedule" },
+            };
+            const canSee = (id: string) => { const g = WIDGET_GATE[id]; if (!g) return true; if (g.finance && !canFinance) return false; return g.menu ? dashPerm(g.menu) : true; };
+            const visibleCatalog = catalog.filter((w) => canSee(w.id));
             const allowed = (ids: string[]) => ids.filter((id) => visibleCatalog.some((w) => w.id === id));
             //   관점 프리셋 — 배열 순서 = 격자 순서. 프리셋은 시작점이고 이후 사람이 켜고 끈 것이 이긴다.
+            //   대표·회계 관점은 금액 위젯이 핵심이라 재무 권한(/dashboard:finance)이 있어야 고를 수 있다. 직원 관점은 누구나.
             const presets: WidgetPreset[] = [
-              { id: "owner", label: "대표", ids: allowed(["receivables", "revenue", "tax", "bank", "cards", "approvals", "projects", "announcements", "todos"]) },
-              { id: "acct", label: "회계", ids: allowed(["receivables", "bank", "cards", "tax", "invoices", "approvals", "revenue", "announcements", "todos"]) },
+              ...(canFinance ? [
+                { id: "owner", label: "대표", ids: allowed(["receivables", "revenue", "tax", "bank", "cards", "approvals", "projects", "announcements", "todos"]) },
+                { id: "acct", label: "회계", ids: allowed(["receivables", "bank", "cards", "tax", "invoices", "approvals", "revenue", "announcements", "todos"]) },
+              ] : []),
               { id: "staff", label: "직원", ids: allowed(["todos", "work-tasks", "approvals", "announcements", "employees", "projects"]) },
             ].filter((p) => p.ids.length > 0);
             //   기본 = 권한으로 고른다: 재무 권한 있으면 대표, 없으면 직원
@@ -599,6 +616,8 @@ export default function DashboardPage() {
             const recommended: string[] = [];
             if ((dashboard.sixPack.arOver30 ?? 0) > 0) recommended.push("receivables");
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
+            //   권한이 아직 안 왔을 때 그리면 기본값이 '직원' 묶음으로 굳는다 → 권한 로딩 끝난 뒤에 격자를 만든다
+            if (permLoading) return <div className="collect-empty">불러오는 중…</div>;
             return <DashboardGrid storageKey={`dashboard-grid-v2-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}
               recommended={recommended} sidebarCollapsed={sidebarCollapsed} fixedH={5} presets={presets} />;
           })()}

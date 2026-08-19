@@ -104,6 +104,10 @@ export function DashboardGrid({
   const [mounted, setMounted] = useState(false);
   const [layout, setLayout] = useState<Layout[]>([]);
   const [activeIds, setActiveIds] = useState<string[]>(defaultActiveIds);
+  //   저장된 선택이 없을 때는 기본값(권한·프리셋으로 정해짐)을 따라간다 — 기본값이 나중에 바뀌어도(권한 도착) 굳지 않게 (2026-08-19)
+  const hasSavedActive = useRef(false);
+  const defaultKey = defaultActiveIds.join(",");
+  useEffect(() => { if (!hasSavedActive.current) setActiveIds(defaultActiveIds); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [defaultKey]);
 
   const activeKey = `${storageKey}::active`;
 
@@ -178,6 +182,7 @@ export function DashboardGrid({
     try {
       const rawA = JSON.parse(localStorage.getItem(activeKey) || "null");
       if (Array.isArray(rawA)) {
+        hasSavedActive.current = true;
         if (activeMigration && localStorage.getItem(`${activeKey}::mig`) !== activeMigration) {
           const merged = [...rawA, ...defaultActiveIds.filter((id) => !rawA.includes(id))];
           setActiveIds(merged);
@@ -223,6 +228,7 @@ export function DashboardGrid({
           try { localStorage.setItem(storageKey, JSON.stringify(srvLayout)); } catch { /* noop */ }
         }
         if (srvActive) {
+          hasSavedActive.current = true;
           setActiveIds(srvActive);
           try { localStorage.setItem(activeKey, JSON.stringify(srvActive)); } catch { /* noop */ }
         }
@@ -249,6 +255,7 @@ export function DashboardGrid({
   }, [layout, activeIds, catalogIds, fixedH]);
 
   const persistActive = (ids: string[]) => {
+    hasSavedActive.current = true;
     setActiveIds(ids);
     stateRef.current = { ...stateRef.current, activeIds: ids };
     try { localStorage.setItem(activeKey, JSON.stringify(ids)); } catch { /* noop */ }
