@@ -79,7 +79,7 @@ export function ReportsTabs() {
   //   리포트 표준(2026-08-19) — 상자 머리: 하위 갈래는 파란 밑줄 탭 한 줄, 설명은 그 아래 한 줄.
   //   갈래(경영요약·손익현황·자금전망·회계자료)는 사이드바가 맡는다 — 여기선 하위 갈래만.
   return (
-    <div className="qk-head report-head no-print">
+    <>
       {activeGroup.subs ? (
         <div className="collect-tabs">
           {activeGroup.subs.map((l) => {
@@ -97,6 +97,6 @@ export function ReportsTabs() {
         </div>
       )}
       {desc && <div className="report-desc">{desc}</div>}
-    </div>
+    </>
   );
 }

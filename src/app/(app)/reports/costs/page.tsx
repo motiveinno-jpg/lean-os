@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { ReportHead } from "../_components/ReportHead";
+import { Stat } from "@/components/query-kit";
 import { Ico } from "@/components/ui-icon";
 import { useQuery } from "@tanstack/react-query";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -183,24 +185,23 @@ export default function CostsPage() {
   return (
     <div className="report-costs-page">
       {/* 툴바 — 연도 필터. 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="costs-toolbar page-sticky-header">
-        <select
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "var(--bg-card)",
-            color: "var(--text)",
-            fontSize: 13,
-          }}
-        >
-          {[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2].map((y) => (
-            <option key={y} value={y}>{y}년</option>
-          ))}
-        </select>
-      </div>
+      {/* 리포트 표준 2차(2026-08-19) — 조회 줄(연도)과 핵심 지표는 상자 머리에 고정 */}
+      <ReportHead
+        bar={<>
+          <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs">
+            {[YEAR_NOW, YEAR_NOW - 1, YEAR_NOW - 2].map((y) => (
+              <option key={y} value={y}>{y}년</option>
+            ))}
+          </select>
+          <span className="text-[11px] text-[var(--text-dim)]">고정비 = 급여·임대료·정기결제 등 · 변동비 = 카드·일회성 지출 (경과월 누계)</span>
+        </>}
+        stats={!isLoading && !error && shownRows ? (<>
+          <Stat label={`${year}년 고정비`} value={`₩${fmtKrw(totals.fixed)}`} />
+          <Stat label={`${year}년 변동비`} value={`₩${fmtKrw(totals.variable)}`} />
+          <Stat label={`${year}년 총비용`} value={`₩${fmtKrw(totals.total)}`} tone="minus" />
+        </>) : undefined}
+      />
 
       {isLoading && (
         <div style={{ padding: "60px 0", textAlign: "center", color: "var(--text-dim)", fontSize: 13 }}>
@@ -216,26 +217,6 @@ export default function CostsPage() {
 
       {!isLoading && !error && shownRows && (
         <>
-          {/* Summary cards — 그라데이션 + 아이콘칩 (2026-06-30 손익계산서 카드와 일관) */}
-          <div className="costs-summary-cards" style={{ marginBottom: 24 }}>
-            {[
-              { label: `${year}년 고정비`, value: totals.fixed, tone: "warning", hint: "급여·임대료·정기결제 등 (경과월 누계)", icon: "M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6" },
-              { label: `${year}년 변동비`, value: totals.variable, tone: "info", hint: "카드·일회성 지출 (경과월 누계)", icon: "M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" },
-              { label: `${year}년 총비용`, value: totals.total, tone: "", hint: "고정비 + 변동비", icon: "M12 6v12m0-12c-1.66 0-3 .9-3 2s1.34 2 3 2 3 .9 3 2-1.34 2-3 2-3-.9-3-2" },
-            ].map((c) => (
-              <div key={c.label} className="costs-summary-card glass-card stat-fit">
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] font-semibold text-[var(--text-muted)] truncate">{c.label}</span>
-                  <span className={`kpi-icon shrink-0 ${c.tone}`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={c.icon} /></svg>
-                  </span>
-                </div>
-                <div className="mono-number stat-fit-value font-extrabold text-[var(--text)]">₩{fmtKrw(c.value)}</div>
-                <div className="text-[11px] text-[var(--text-dim)] truncate">{c.hint}</div>
-              </div>
-            ))}
-          </div>
-
           {/*  연중 비용이 어떻게 흘렀고 그 안에서 고정·변동 비중이 어떻게 변했나 — 누적 영역.
                달마다의 정확한 값은 바로 아래 표가 담당하므로, 이 자리의 일은 흐름을 보여 주는 것이다.
                (2026-08-07: 자체 SVG 누적 막대 → 차트 키트. 손을 올리면 그 달의 고정·변동·합계가 함께 뜬다.

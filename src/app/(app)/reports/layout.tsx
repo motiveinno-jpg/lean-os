@@ -9,7 +9,11 @@ export default function ReportsLayout({ children }: { children: React.ReactNode 
   return (
     <div className="qk-shell report-shell">
       <div className="qk-screen">
-        <ReportsTabs />
+        <div className="qk-head report-head no-print">
+          <ReportsTabs />
+          {/* 각 리포트가 ReportHead 로 조회 줄·결과 요약을 여기 끼운다 */}
+          <div id="report-head-slot" />
+        </div>
         <div className="qk-body">
           <div className="report-body">{children}</div>
         </div>

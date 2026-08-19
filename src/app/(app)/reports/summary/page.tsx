@@ -1,5 +1,7 @@
 "use client";
 import { todayKst, kstDateStr } from "@/lib/kst";
+import { ReportHead } from "../_components/ReportHead";
+import { Stat } from "@/components/query-kit";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
 
@@ -18,7 +20,7 @@ import { getVATPreview, type VATPreview } from "@/lib/tax-invoice";
 import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { IntroCard, StatCard, Section } from "@/components/report-kit";
+import { IntroCard, Section } from "@/components/report-kit";
 
 const db = supabase;
 const fmt = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
@@ -158,12 +160,16 @@ export default function ManagementSummaryPage() {
             box={nextVat && vatDday !== null ? { label: `다가오는 부가세 · D-${Math.max(0, vatDday)}`, value: fmt(Math.abs(nextVat.netVAT)), sub: nextVat.dueDate, tone: "warning" } : undefined}
           />
 
-          <div className="summary-stat-grid">
-            <StatCard label="이번 달 손익" value={`${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`} caption="매출 − 비용 · 월별 표 →" tone={profit >= 0 ? "success" : "danger"} icon="📊" href="/reports/monthly" />
-            <StatCard label="이번 달 매출" value={fmt(sales)} caption="세금계산서 기준 · 매출 현황 →" tone="success" icon="💰" href="/reports/revenue" />
-            <StatCard label="이번 달 비용" value={fmt(expense)} caption="지출 합계 · 비용 현황 →" tone="warning" icon="⚡" href="/reports/expense" />
-            <StatCard label="통장 잔액" value={fmt(balance)} caption={`월 평균 지출 ${fmtMan(burn)} · 자금 전망 →`} tone="primary" icon="🏦" href="/reports/outlook" />
-          </div>
+          {/* 리포트 표준 2차(2026-08-19) — KPI 카드 4장 → 상자 머리 결과 요약(누르면 그 화면으로) */}
+          <ReportHead
+            stats={<>
+              <Link href="/reports/monthly" className="no-underline" title="매출 − 비용 · 월별 표"><Stat label="이번 달 손익" value={`${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`} tone={profit >= 0 ? "plus" : "minus"} /></Link>
+              <Link href="/reports/revenue" className="no-underline" title="세금계산서 기준 · 매출 현황"><Stat label="이번 달 매출" value={fmt(sales)} tone="plus" /></Link>
+              <Link href="/reports/expense" className="no-underline" title="지출 합계 · 비용 현황"><Stat label="이번 달 비용" value={fmt(expense)} tone="minus" /></Link>
+              <Link href="/reports/outlook" className="no-underline" title={`월 평균 지출 ${fmtMan(burn)} · 자금 전망`}><Stat label="통장 잔액" value={fmt(balance)} /></Link>
+            </>}
+            statsRight={<span className="text-[11px] text-[var(--text-dim)]">지표를 누르면 그 화면으로</span>}
+          />
 
           <div className="summary-sections-grid">
             <Section title="이번 달 손익 요약" desc="매출에서 비용을 뺀 이번 달 손익입니다." className="summary-pnl-section">

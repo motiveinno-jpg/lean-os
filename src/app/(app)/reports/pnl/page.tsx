@@ -5,6 +5,8 @@ import { Fragment, useEffect, useState, useMemo, useCallback } from "react";
 import { Ico } from "@/components/ui-icon";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { DateRangeField } from "@/components/date-range-field";
+import { ReportHead } from "../_components/ReportHead";
+import { Stat } from "@/components/query-kit";
 import { fetchJournalLines, countUnposted, pnlAmount, type JournalLine } from "@/lib/journal-reports";
 import Link from "next/link";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -601,23 +603,21 @@ function PnlPageInner() {
   return (
     <div id="pnl-printable">
       <style>{PRINT_CSS}</style>
-      {/* 툴바 — 기간(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="pnl-toolbar page-sticky-header no-print-sticky">
-        {/* 조회 기간 — 세금계산서·계산서와 같은 위젯(월 단위). 손익계산서는 **월이 최소 단위**라
-            일 단위로 열지 않는다 — 반달 손익은 회계적으로 의미가 흐리다 (2026-08-11). */}
-        <div className="pnl-period-picker">
+      {/* 리포트 표준 2차(2026-08-19) — 조회 줄(기간·비교 ‖ 새로고침·CSV·인쇄)과 핵심 지표는 상자 머리에 고정 */}
+      <ReportHead
+        bar={<>
           <DateRangeField
             unit="month" label="조회 기간"
             from={customStart} to={customEnd}
             onChange={(f, t) => { setCustomStart(f); setCustomEnd(t); }}
           />
-        </div>
-        <div className="pnl-toolbar-actions">
+        </>}
+        right={<>
           <button
             type="button"
             onClick={() => setIsCompareMode((v) => !v)}
             aria-label="전기 비교"
-            className={isCompareMode ? "btn-primary text-xs" : "btn-secondary text-xs"}
+            className={isCompareMode ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전기 비교
@@ -626,7 +626,7 @@ function PnlPageInner() {
             onClick={() => setRefreshKey(k => k + 1)}
             aria-label="새로고침"
             title="DB 에서 최신 데이터 다시 불러오기"
-            className="btn-ghost text-xs"
+            className="btn-secondary btn-sm"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
               <polyline points="23 4 23 10 17 10" />
@@ -638,7 +638,7 @@ function PnlPageInner() {
           <button
             onClick={handleExportCsv}
             aria-label="CSV 다운로드"
-            className="btn-secondary text-xs"
+            className="btn-secondary btn-sm"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
@@ -650,7 +650,7 @@ function PnlPageInner() {
           <button
             onClick={() => window.print()}
             aria-label="인쇄"
-            className="btn-secondary text-xs"
+            className="btn-secondary btn-sm"
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="6 9 6 2 18 2 18 9" />
@@ -659,8 +659,24 @@ function PnlPageInner() {
             </svg>
             인쇄
           </button>
-        </div>
-      </div>
+        
+        </>}
+        stats={<>
+          {[
+            { label: "총 매출", value: computed.sumCurr(computed.totalRevenue), prev: computed.prevTotals.totalRevenue, tone: undefined as "plus" | "minus" | undefined },
+            { label: "매출총이익", value: computed.sumCurr(computed.grossProfit), prev: computed.prevTotals.grossProfit, tone: "plus" as const },
+            { label: "영업이익", value: computed.sumCurr(computed.operatingIncome), prev: computed.prevTotals.operatingIncome, tone: (computed.sumCurr(computed.operatingIncome) >= 0 ? "plus" : "minus") as "plus" | "minus" },
+            { label: "당기순이익", value: computed.sumCurr(computed.netIncome), prev: computed.prevTotals.netIncome, tone: (computed.sumCurr(computed.netIncome) >= 0 ? "plus" : "minus") as "plus" | "minus" },
+          ].map((card) => {
+            const d = card.value - card.prev;
+            const pct = card.prev !== 0 ? Math.round((d / Math.abs(card.prev)) * 100) : 0;
+            return (
+              <Stat key={card.label} label={card.label} tone={card.tone}
+                value={<>{card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}{isCompareMode && card.prev !== 0 && <small className={`ml-1 font-semibold ${d > 0 ? "text-[var(--success)]" : d < 0 ? "text-[var(--danger)]" : "text-[var(--text-dim)]"}`}>전기 대비 {d > 0 ? "+" : ""}{pct}%</small>}</>} />
+            );
+          })}
+        </>}
+      />
 
       {/*   ★ 전표만 반영한다 — 비어 보이는 이유를 화면이 스스로 말한다 (2026-08-11 사장님 지시).
             "손익계산서와 재무상태표에는 전표로 처리된 내역만 반영되게. 불러오기만 한 건 반영되지 않게." */}
@@ -729,59 +745,6 @@ function PnlPageInner() {
           </div>
         </div>
       )}
-
-      {/* Summary Cards — 대시보드 글래스카드 스타일 (2026-06-10 리디자인) */}
-      <div className="pnl-summary-cards" style={{ marginBottom: 24 }}>
-        {[
-          {
-            label: "총 매출",
-            value: computed.sumCurr(computed.totalRevenue),
-            prev: computed.prevTotals.totalRevenue,
-            color: "var(--primary)",
-          },
-          {
-            label: "매출총이익",
-            value: computed.sumCurr(computed.grossProfit),
-            prev: computed.prevTotals.grossProfit,
-            color: "var(--success)",
-          },
-          {
-            label: "영업이익",
-            value: computed.sumCurr(computed.operatingIncome),
-            prev: computed.prevTotals.operatingIncome,
-            color: computed.sumCurr(computed.operatingIncome) >= 0 ? "var(--success)" : "var(--danger)",
-          },
-          {
-            label: "당기순이익",
-            value: computed.sumCurr(computed.netIncome),
-            prev: computed.prevTotals.netIncome,
-            color: computed.sumCurr(computed.netIncome) >= 0 ? "var(--success)" : "var(--danger)",
-          },
-        ].map((card) => {
-          const d = card.value - card.prev;
-          const pct = card.prev !== 0 ? Math.round((d / Math.abs(card.prev)) * 100) : 0;
-          return (
-            <div key={card.label} className="pnl-summary-card glass-card">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-[var(--text-muted)]">{card.label}</span>
-                <span className={`kpi-icon ${card.value < 0 ? "danger" : card.label === "총 매출" ? "" : "success"}`}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" /></svg>
-                </span>
-              </div>
-              <div className="stat-fit flex items-end gap-2 flex-wrap">
-                <span className={`stat-fit-value font-extrabold mono-number ${card.value < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
-                  {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
-                </span>
-              </div>
-              {isCompareMode && card.prev !== 0 && (
-                <div className={`delta-chip self-start ${d > 0 ? "delta-up" : d < 0 ? "delta-down" : "delta-flat"}`}>
-                  전기 대비 {d > 0 ? "+" : ""}{pct}% {d > 0 ? "\u25B2" : d < 0 ? "\u25BC" : ""}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
 
       {/* 표기 규칙 — 단 한 가지: 초록 배경 = 이익 소계 3줄. 나머지는 표준 양식의 위계(굵은 Ⅰ~Ⅵ / 들여쓴 세부). */}
       <div className="pnl-legend">

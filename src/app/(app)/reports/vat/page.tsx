@@ -9,6 +9,8 @@
  *   (대시보드의 '부가세 납부' 카드가 그 주소를 쓴다).
  */
 import { useEffect, useState } from "react";
+import { ReportHead } from "../_components/ReportHead";
+import { ChipGroup } from "@/components/query-kit";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -50,23 +52,17 @@ export default function VatReportPage() {
 
   return (
     <div className="vat-report-page" data-print-area>
-      <div className="tax-invoice-tabs no-print">
-        <div className="seg-bar flex-wrap">
-          {([["vat", "부가세 예상"], ["summary", "기간별 집계"]] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setTab(k)}
-              className={`seg-item ${tab === k ? "seg-item-active" : ""}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-1.5">
+      {/* 리포트 표준 2차(2026-08-19) — 보기(부가세 예상/기간별 집계)·연도는 상자 머리 조회 줄에 */}
+      <ReportHead
+        bar={<>
+          <ChipGroup value={tab} onChange={setTab} options={[{ value: "vat", label: "부가세 예상" }, { value: "summary", label: "기간별 집계" }] as const} />
           {/*   연도 — 부가세는 해 단위 신고라 달까지 고를 이유가 없다 */}
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))}
-            className="field-input-sm !w-auto">
+          <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs">
             {years.map((y) => <option key={y} value={y}>{y}년</option>)}
           </select>
-        </div>
-      </div>
+        </>}
+      />
 
       {tab === "summary" && (
         <SummaryTab

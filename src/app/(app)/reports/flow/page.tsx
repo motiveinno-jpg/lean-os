@@ -1,5 +1,7 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
+import { ReportHead } from "../_components/ReportHead";
+import { ChipGroup } from "@/components/query-kit";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo } from "react";
@@ -311,32 +313,15 @@ export default function BusinessFlowPage() {
 
   return (
     <div className="space-y-6">
-      {/* ═══ 툴바 — 뷰 전환(좌) + 기간·기본값 저장(우). 타이틀은 공통 헤더바가 표시 ═══ */}
-      <div className="flow-toolbar no-print">
-        {/* 뷰 전환 — 콕핏(미래·다각도) / 이번달 흐름(기존 6단계) / 월별표 */}
-        <div className="flow-view-switch seg-bar">
-          {([{ k: "month", l: "이번달 흐름" }, { k: "cockpit", l: "콕핏 (미래·다각도)" }, { k: "matrix", l: "월별 표 (1년치)" }] as const).map((t) => (
-            <button key={t.k} onClick={() => setFlowView(t.k)}
-              className={`seg-item ${flowView === t.k ? "seg-item-active" : ""}`}>
-              {t.l}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <MonthField
-            value={month}
-            onChange={(e) => e.target.value && setMonth(e.target.value)}
-            className="px-3 py-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text)] text-[13px]"
-          />
-          <button
-            onClick={saveFlowSettings}
-            className="btn-secondary text-[11px]"
-            title="현재 뷰·렌즈·기간을 기본값으로 저장"
-          >
-            {savedFlow ? "✓ 저장됨" : "기본값 저장"}
-          </button>
-        </div>
-      </div>
+      {/* 리포트 표준 2차(2026-08-19) — 보기(이번달 흐름/콕핏/월별 표)·기준 달은 상자 머리 조회 줄, 기본값 저장은 오른쪽 */}
+      <ReportHead
+        bar={<>
+          <ChipGroup value={flowView} onChange={setFlowView}
+            options={[{ value: "month", label: "이번달 흐름" }, { value: "cockpit", label: "콕핏 (미래·다각도)" }, { value: "matrix", label: "월별 표 (1년치)" }] as const} />
+          <MonthField value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className="qk-input h-8 px-2.5 text-xs" />
+        </>}
+        right={<button onClick={saveFlowSettings} className="btn-secondary btn-sm" title="현재 뷰·렌즈·기간을 기본값으로 저장">{savedFlow ? "✓ 저장됨" : "기본값 저장"}</button>}
+      />
 
       {/* ═══ 콕핏 — 미래 현금 예측 + 다각도 (P1~) ═══ */}
       {flowView === "cockpit" && companyId && (

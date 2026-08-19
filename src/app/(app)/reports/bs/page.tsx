@@ -5,6 +5,8 @@ import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { useEffect, useState, useCallback } from "react";
 import { DateField } from "@/components/date-field";
+import { ReportHead } from "../_components/ReportHead";
+import { Stat } from "@/components/query-kit";
 import { fetchJournalLines, countUnposted, bsAmount } from "@/lib/journal-reports";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
@@ -567,75 +569,47 @@ function BalanceSheetPageInner() {
   return (
     <div id="bs-printable">
       <style>{PRINT_CSS}</style>
-      {/* 툴바 — 기준일·채권채무 필터(좌) + 액션(우). 페이지 타이틀은 공통 헤더바가 표시 (2026-07-03 라운드6.5) */}
-      <div className="bs-toolbar page-sticky-header">
-        <div className="no-print flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="flex items-center gap-2">
+      {/* 리포트 표준 2차(2026-08-19) — 조회 줄(기준일·채권채무 안내 ‖ 전월 비교·CSV·인쇄)과 핵심 지표는 상자 머리에 고정 */}
+      <ReportHead
+        bar={<>
+          <span className="flex items-center gap-2">
             <label className="text-xs font-semibold text-[var(--text-dim)]">기준일</label>
             <DateField value={cutoffInput || today} max={today} onChange={(e) => setCutoffInput(e.target.value)}
               className="h-8 px-2.5 text-xs rounded-lg border border-[var(--border)] bg-[var(--bg)] text-[var(--text)]" />
             {cutoffInput && cutoffInput !== today && (
               <button onClick={() => setCutoffInput('')} className="text-[11px] text-[var(--primary)] font-semibold hover:underline" title="오늘로 초기화">↺ 오늘</button>
             )}
-          </div>
-          <div className="h-5 w-px bg-[var(--border)] hidden sm:block" />
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="text-xs font-semibold text-[var(--text-dim)]">채권·채무</label>
-            <span className="text-[11px] text-[var(--text-dim)]">해당연도 <b className="text-[var(--text-muted)]">1/1 ~ 기준일</b> 확정 전표 누적</span>
-          </div>
-        </div>
-        <div className="no-print flex items-center gap-1.5 flex-wrap">
-          <button onClick={() => setIsCompareMode((v) => !v)} aria-label="전월 비교"
-            className={isCompareMode ? "btn-primary text-xs" : "btn-secondary text-xs"}>
+          </span>
+          <span className="text-[11px] text-[var(--text-dim)]">채권·채무는 해당연도 <b className="text-[var(--text-muted)]">1/1 ~ 기준일</b> 확정 전표 누적</span>
+        </>}
+        right={<>
+          <button onClick={() => setIsCompareMode((v) => !v)} aria-label="전월 비교" className={isCompareMode ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전월 비교
           </button>
-          <button onClick={handleExportCsv} aria-label="CSV 다운로드"
-            className="btn-secondary text-xs">
+          <button onClick={handleExportCsv} aria-label="CSV 다운로드" className="btn-secondary btn-sm">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" /></svg>
             CSV
           </button>
-          <button onClick={() => window.print()} aria-label="인쇄"
-            className="btn-secondary text-xs">
+          <button onClick={() => window.print()} aria-label="인쇄" className="btn-secondary btn-sm">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" /></svg>
             인쇄
           </button>
-        </div>
-      </div>
-
-      {/* Summary Cards — 그라데이션 액센트 + 전월 델타 (2026-06-25 리디자인) */}
-      <div className="bs-summary-cards">
-        {[
-          { key: "asset", label: "총 자산", value: data.totalAssets, prev: prevData?.totalAssets, tone: "",
-            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7H5a2 2 0 010-4h14v4M3 5v14a2 2 0 002 2h16v-5M18 12a2 2 0 000 4h3v-4h-3z" /> },
-          { key: "liab", label: "총 부채", value: data.totalLiabilities, prev: prevData?.totalLiabilities, tone: "danger",
-            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6m0-6h-6" /> },
-          { key: "equity", label: "순자산 (자본)", value: data.totalEquity, prev: prevData?.totalEquity, tone: data.totalEquity >= 0 ? "success" : "danger",
-            icon: <path strokeLinecap="round" strokeLinejoin="round" d="M3 7l9-4 9 4-9 4-9-4zm0 5l9 4 9-4M3 17l9 4 9-4" /> },
-        ].map((card) => {
-          const delta = isCompareMode && card.prev !== undefined ? card.value - card.prev : undefined;
-          return (
-            <div key={card.key} className="bs-summary-card glass-card">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-[var(--text-muted)]">{card.label}</span>
-                <span className={`kpi-icon ${card.tone}`}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">{card.icon}</svg>
-                </span>
-              </div>
-              <div className="stat-fit flex items-end gap-2 flex-wrap">
-                <span className={`stat-fit-value font-extrabold mono-number ${card.value < 0 ? "text-[var(--danger)]" : "text-[var(--text)]"}`}>
-                  {card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}
-                </span>
-                {delta !== undefined && (
-                  <span className={`delta-chip ${delta === 0 ? "delta-flat" : delta > 0 ? "delta-up" : "delta-down"}`}>
-                    {delta === 0 ? "전월과 동일" : `${delta > 0 ? "▲" : "▼"} ₩${Math.abs(Math.round(delta)).toLocaleString("ko-KR")}`}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        </>}
+        stats={<>
+          {[
+            { key: "asset", label: "총 자산", value: data.totalAssets, prev: prevData?.totalAssets, tone: undefined as "plus" | "minus" | undefined },
+            { key: "liab", label: "총 부채", value: data.totalLiabilities, prev: prevData?.totalLiabilities, tone: "minus" as const },
+            { key: "equity", label: "순자산 (자본)", value: data.totalEquity, prev: prevData?.totalEquity, tone: (data.totalEquity >= 0 ? "plus" : "minus") as "plus" | "minus" },
+          ].map((card) => {
+            const delta = isCompareMode && card.prev !== undefined ? card.value - card.prev : undefined;
+            return (
+              <Stat key={card.key} label={card.label} tone={card.tone}
+                value={<>{card.value < 0 ? "-" : ""}₩{Math.abs(Math.round(card.value)).toLocaleString("ko-KR")}{delta !== undefined && <small className={`ml-1 font-semibold ${delta === 0 ? "text-[var(--text-dim)]" : delta > 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{delta === 0 ? "전월과 동일" : `${delta > 0 ? "▲" : "▼"} ₩${Math.abs(Math.round(delta)).toLocaleString("ko-KR")}`}</small>}</>} />
+            );
+          })}
+        </>}
+      />
 
       {/* Balance Sheet — T자 레이아웃 (좌: 자산 / 우: 부채 + 자본) */}
       <div className="bs-balance-sheet-grid">
