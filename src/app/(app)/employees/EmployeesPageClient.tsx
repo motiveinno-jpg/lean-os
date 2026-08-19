@@ -831,6 +831,8 @@ function attAvatarColor(id: string): string {
   return palette[Math.abs(h) % palette.length];
 }
 const attInitials = (name: string) => (/[가-힣]/.test(name || "") ? (name || "").slice(-2) : (name || "").slice(0, 2).toUpperCase());
+// 16~20px 작은 원에는 한 글자만 — 두 글자(8px×2 = 원 폭)를 넣으면 뚫고 나가 깨져 보인다 (2026-08-19 사장님 제보)
+const attInitial1 = (name: string) => (/[가-힣]/.test(name || "") ? (name || "").slice(-1) : (name || "").slice(0, 1).toUpperCase());
 
 // ── Attendance Tab ──
 // 'YYYY-MM' 을 delta 개월 이동 (연 경계 넘김 포함). 마이페이지 근태와 같은 규약.
@@ -1420,7 +1422,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                                         <div className="flex flex-wrap gap-1.5 pl-4 pt-1 pb-1.5">
                                           {members.map((emp) => (
                                             <span key={emp.id} className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
-                                              <span className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: attAvatarColor(emp.id) }}>{attInitials(emp.name)}</span>
+                                              <span className="w-5 h-5 rounded-full flex items-center justify-center overflow-hidden text-white text-[9px] font-bold shrink-0" style={{ background: attAvatarColor(emp.id) }}>{attInitial1(emp.name)}</span>
                                               {emp.name}
                                             </span>
                                           ))}
