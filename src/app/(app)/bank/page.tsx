@@ -64,8 +64,9 @@ const BANK_CATEGORIES = ["복리후생비", "소모품비", "통신비", "교통
 const TX_IO_CHIPS = [
   { value: "all", label: "전체" }, { value: "in", label: "입금" }, { value: "out", label: "출금" },
 ] as const;
+//   기본은 '미전표'(전표 안 된 것만) — 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
 const TX_STATE_CHIPS = [
-  { value: "all", label: "전체" }, { value: "unmapped", label: "미매핑" }, { value: "auto_mapped", label: "자동" },
+  { value: "unposted", label: "미전표" }, { value: "all", label: "전체" }, { value: "unmapped", label: "미매핑" }, { value: "auto_mapped", label: "자동" },
   { value: "manual_mapped", label: "수동" }, { value: "ignored", label: "무시" }, { value: "posted", label: "전표됨" },
 ] as const;
 type TxCond = {
@@ -77,7 +78,7 @@ type TxCond = {
   min: string; max: string;
   size: number;     // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
 };
-const TX_EMPTY: TxCond = { who: [], accts: [], cls: [], io: "all", state: "all", min: "", max: "", size: 50 };
+const TX_EMPTY: TxCond = { who: [], accts: [], cls: [], io: "all", state: "unposted", min: "", max: "", size: 50 };
 /** 배지에 셀 것 — 줄 수는 '좁히는 조건'이 아니라 보기 방식이라 안 센다 */
 const txCondCount = (c: TxCond) =>
   c.who.length + c.accts.length + c.cls.length
@@ -555,6 +556,7 @@ export default function BankPage() {
     if (c.accts.length && !c.accts.includes(tx.raw_data?.accountNo || "")) return false;
     if (c.cls.length && !c.cls.includes(tx.classification || tx.category || "")) return false;
     if (c.state === "posted") { if (!tx.journal_entry_id) return false; }
+    else if (c.state === "unposted") { if (tx.journal_entry_id) return false; }
     else if (c.state !== "all" && (tx.mapping_status || "unmapped") !== c.state) return false;
     if (!amountHit(Number(tx.amount || 0), c.min, c.max)) return false;
     return true;
@@ -679,9 +681,9 @@ export default function BankPage() {
     ...txLive.accts.map((v) => ({ group: "계좌", label: acctLabelByNo[v] ?? v, onRemove: () => dropTx({ accts: txLive.accts.filter((x) => x !== v) }) })),
     ...txLive.cls.map((v) => ({ group: "분류", label: v, onRemove: () => dropTx({ cls: txLive.cls.filter((x) => x !== v) }) })),
     ...(txLive.io !== "all" ? [{ group: "입/출", label: txLive.io === "in" ? "입금" : "출금", onRemove: () => dropTx({ io: "all" as const }) }] : []),
-    ...(txLive.state !== "all" ? [{
+    ...(txLive.state !== "unposted" ? [{
       group: "상태", label: TX_STATE_CHIPS.find((s) => s.value === txLive.state)?.label ?? txLive.state,
-      onRemove: () => dropTx({ state: "all" as const }),
+      onRemove: () => dropTx({ state: "unposted" as const }),
     }] : []),
     ...((txLive.min || txLive.max) ? [{
       group: "금액",

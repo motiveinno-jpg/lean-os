@@ -59,6 +59,11 @@ const NAV_GROUPS: NavGroup[] = [
       //   경로가 /partners/reconciliation 하위지만 match로 자기 경로만 지정 → 최장매치로 각각 단독 활성.
       { href: "/partners/reconciliation/voucher-entry", label: "일반전표", icon: "edit-3", roles: ["owner", "admin"], match: ["/partners/reconciliation/voucher-entry"] },
       { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
+      //   통장·카드·정기 지출 — 2026-08-19 사장님: '자금' 그룹을 없애고 파이낸스로 (돈이 드나드는 그릇도 파이낸스 안에서 본다)
+      { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
+      { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"] },
+      // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인). 라우트(/loans, /vault)는 그대로.
     ],
   },
   {
@@ -102,22 +107,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/hr-templates", label: "근로계약·서식", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/documents", label: "파일보관함", icon: "folder" },
       { href: "/team", label: "구성원 디렉토리", icon: "users" },
-    ],
-  },
-  {
-    //   '자산관리' → '자금' (2026-08-11). 거래 내역 처리는 수집·전표로 갔고
-    //   여기 남은 건 **그릇 관리**(잔액·계좌·카드·정기지출)라 이름을 실제 내용에 맞췄다.
-    label: "자금",
-    items: [
-      { href: "/bank", label: "통장", icon: "arrow-right-left", roles: ["owner", "admin"] },
-      { href: "/cards", label: "카드", icon: "wallet", roles: ["owner", "admin"] },
-      // 2026-07-08 "정기 지출" 재편 — 자동 추천 중심. 지출결의→결재관리, 급여→인사, 구독→정기지출 "구독" 탭 흡수.
-      { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"] },
-      // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인).
-      //   라우트(/loans, /vault)와 데이터는 그대로 둔다 — 자금 전망·다가오는 지출에서
-      //   여전히 링크로 들어가고, 되살릴 땐 아래 두 줄만 복구하면 된다.
-      // { href: "/loans", label: "대출", icon: "trending-up", roles: ["owner"] },
-      // { href: "/vault", label: "자산", icon: "shield", roles: ["owner"] },
     ],
   },
   {
@@ -170,7 +159,7 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
 /*  NavIcon                                                            */
 /* ------------------------------------------------------------------ */
 // 메뉴 아이콘 색 — 그룹별 색 계열로 통일 (2026-08-03 사장님: "너무 다채로워 난잡 — 같은 그룹은 비슷한 계열로").
-//   홈=블루 · 파이낸스=그린 · 워크스페이스=바이올렛 · 인사관리=오렌지 · 자산관리=시안 · 설정·도움말=슬레이트.
+//   홈=블루 · 파이낸스=그린(통장·카드·정기 지출은 시안 계열 유지) · 워크스페이스=바이올렛 · 인사관리=오렌지 · 설정·도움말=슬레이트.
 //   같은 아이콘이 여러 그룹에 쓰여서(calendar=일정+근태 등) 아이콘 이름이 아니라 메뉴 경로(href) 기준.
 //   활성 메뉴(색 배경 + text-white)는 흰색 유지 — 아래 NavIcon 에서 text-white 면 색을 안 입힌다.
 const NAV_ITEM_COLOR: Record<string, string> = {

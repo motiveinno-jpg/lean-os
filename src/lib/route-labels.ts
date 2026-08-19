@@ -62,9 +62,9 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/hr-templates": { group: "인사관리", title: "근로계약·서식", desc: "근로·연봉계약 서식을 만들고, 일괄 발송과 서명 현황을 관리합니다. (개별 발송은 구성원 상세)" },
   "/documents": { group: "인사관리", title: "파일보관함", desc: "회사 파일·문서를 보관합니다." },
 
-  "/bank": { group: "자금", title: "통장", desc: "통장 잔액과 거래를 봅니다." },
-  "/cards": { group: "자금", title: "카드", desc: "법인카드 사용내역을 봅니다." },
-  "/payments": { group: "자금", title: "정기 지출", desc: "정기결제·고정비를 관리합니다." },
+  "/bank": { group: "파이낸스", title: "통장", desc: "통장 잔액과 거래를 봅니다." },
+  "/cards": { group: "파이낸스", title: "카드", desc: "법인카드 사용내역을 봅니다." },
+  "/payments": { group: "파이낸스", title: "정기 지출", desc: "정기결제·고정비를 관리합니다." },
   "/subscriptions": { group: "자금", title: "구독 관리", desc: "구독 서비스를 관리합니다." },
   "/loans": { group: "자금", title: "대출", desc: "대출 현황을 관리합니다." },
   "/vault": { group: "자금", title: "자산", desc: "회사 자산을 관리합니다." },

@@ -106,8 +106,9 @@ type Tab = "cards" | "transactions" | "analysis";
 
 /*  ── 조회 화면 표준 (2026-08-13 확정) — 수집·전표·통장과 같은 검색조건/줄수/내 조건 구성 ──
     ★ 여기 있는 것은 **'조회'를 눌러야** 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다. */
+//   기본은 '미처리' — 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
 const CARD_STATE_CHIPS = [
-  { value: "all", label: "전체" }, { value: "todo", label: "미처리" }, { value: "posted", label: "전표됨" },
+  { value: "todo", label: "미처리" }, { value: "all", label: "전체" }, { value: "posted", label: "전표됨" },
 ] as const;
 type CardCond = {
   cards: string[];  // 카드 (id, id 없는 옛 데이터는 카드명)
@@ -117,7 +118,7 @@ type CardCond = {
   min: string; max: string;
   size: number;     // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
 };
-const CARD_EMPTY: CardCond = { cards: [], merch: [], cls: [], state: "all", min: "", max: "", size: 50 };
+const CARD_EMPTY: CardCond = { cards: [], merch: [], cls: [], state: "todo", min: "", max: "", size: 50 };
 /** 배지에 셀 것 — 줄 수는 '좁히는 조건'이 아니라 보기 방식이라 안 센다 */
 const cardCondCount = (c: CardCond) =>
   c.cards.length + c.merch.length + c.cls.length + (c.state !== "all" ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
@@ -710,9 +711,9 @@ export default function CardsPage() {
     ...txLive.cards.map((v) => ({ group: "카드", label: cardLabelOf(v), onRemove: () => dropTx({ cards: txLive.cards.filter((x) => x !== v) }) })),
     ...txLive.merch.map((v) => ({ group: "가맹점", label: v, onRemove: () => dropTx({ merch: txLive.merch.filter((x) => x !== v) }) })),
     ...txLive.cls.map((v) => ({ group: "분류", label: v, onRemove: () => dropTx({ cls: txLive.cls.filter((x) => x !== v) }) })),
-    ...(txLive.state !== "all" ? [{
+    ...(txLive.state !== "todo" ? [{
       group: "상태", label: CARD_STATE_CHIPS.find((s) => s.value === txLive.state)?.label ?? txLive.state,
-      onRemove: () => dropTx({ state: "all" as const }),
+      onRemove: () => dropTx({ state: "todo" as const }),
     }] : []),
     ...((txLive.min || txLive.max) ? [{
       group: "금액",
