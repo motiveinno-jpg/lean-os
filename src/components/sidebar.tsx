@@ -296,7 +296,9 @@ export function Sidebar() {
 
   // ── 레일 + 패널 (2026-08-19 사장님 확정, docs/20260819_PLAN_sidebar_rail_panel.md) ──
   //   왼쪽 레일에 그룹 7개, 오른쪽 패널엔 고른 그룹의 항목만. 지금 그룹은 **주소가 정한다**(화면이 바뀌면 그 화면의 그룹으로).
-  //   레일에 마우스를 올리면 미리 보고(preview), 누르면 고정(view). 마지막에 본 그룹은 기억하지 않는다.
+  //   레일에 마우스를 올리면 미리 보고(preview), 누르면 고정(view) — **고정한 뒤에는 다른 아이콘에 올려도 안 바뀐다**
+  //   (2026-08-19 사장님: "한번 클릭하면 그 메뉴가 고정되게"). 다른 아이콘을 누르면 그쪽으로 고정이 옮겨 간다.
+  //   화면이 바뀌면 고정이 풀리고 그 화면의 그룹으로. 마지막에 본 그룹은 기억하지 않는다.
   //   접기 = 레일만 남고, 레일 아이콘에 올리면 그 그룹 패널이 떠서(flyout) 보인다.
   const [viewGroup, setViewGroup] = useState<string | null>(null);
   const [previewGroup, setPreviewGroup] = useState<string | null>(null);
@@ -528,6 +530,7 @@ export function Sidebar() {
       const r = e.currentTarget.getBoundingClientRect();
       setFlyTop(Math.max(0, r.top - (wrap?.top ?? 0) - 8));
     }
+    else if (viewGroup) return;   // 펼친 상태에서 고정해 둔 그룹이 있으면 hover 로 안 바꾼다
     setPreviewGroup(g.label);
   };
 
