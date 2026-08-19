@@ -9679,3 +9679,9 @@ table.mypage-att-table { min-width: 760px; }
 .att-status { @apply flex flex-col gap-2 p-3; }
 .att-status-scroll { max-height: none; }
 .att-summary-table tr.att-month-row > td { @apply bg-[var(--bg-surface)]/40 text-[11.5px]; }
+/* 일반전표 › 통장·카드 불러오기 팝업 (2026-08-19) */
+.ve-import-modal { @apply max-w-4xl; }
+.ve-import-bar { @apply flex flex-wrap items-center gap-2 border-b border-[var(--border)] px-4 py-2; }
+.ve-import-body { @apply max-h-[60vh] overflow-auto; }
+table.ve-import-table { min-width: 720px; }
+.ve-import-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }

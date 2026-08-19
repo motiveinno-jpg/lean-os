@@ -124,6 +124,14 @@ export default function VoucherEntryPage() {
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [vtype, setVtype] = useState<VType>("transfer");
   const [pend, setPend] = useState<PLine[]>([]);               // 상단 입력 영역 행
+  //   통장·카드 불러오기 (2026-08-19 사장님): 미전표 거래를 골라 입력칸에 채우고, 저장되면 그 거래에 journal_entry_id 를 걸어
+  //   수집·전표/통장/카드 어디서든 '전표됨'으로 보이게 — 같은 돈을 두 번 치는 것을 막는다.
+  type SrcTx = { kind: "bank" | "card"; id: string; date: string; amount: number; isIn: boolean; who: string; desc: string; account?: string };
+  const [linkedSrc, setLinkedSrc] = useState<SrcTx | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importKind, setImportKind] = useState<"bank" | "card">("bank");
+  const [importQ, setImportQ] = useState("");
+  const [importDays, setImportDays] = useState(60);
   const [edits, setEdits] = useState<Record<string, { desc: string; lines: PLine[] }>>({}); // 하단 인라인 편집 버퍼
   const [selected, setSelected] = useState<Set<string>>(new Set()); // "s:entryId"
   const [picker, setPicker] = useState<{ kind: "acct" | "pt" | "memo"; rowId: string; q: string; anchor: Anchor; idx?: number } | null>(null);
@@ -161,6 +169,39 @@ export default function VoucherEntryPage() {
   });
   //   보통예금은 표준 계정과목표에서 **103** 이다 (101 은 현금). 2026-08-12 표준 채택.
   const cashAcct = useMemo(() => accounts.find((a) => a.code === "103") || null, [accounts]);
+  //   불러오기 후보 — 미전표 통장/카드 거래 (최근 N일)
+  const { data: importRows = [], isLoading: importLoading } = useQuery<SrcTx[]>({
+    queryKey: ["ve-import", companyId, importKind, importDays],
+    queryFn: async () => {
+      const from = new Date(Date.now() + 9 * 3600 * 1000 - importDays * 86400000).toISOString().slice(0, 10);
+      if (importKind === "bank") {
+        const data = logRead("ve-import:bank", await db.from("bank_transactions").select("id, transaction_date, amount, type, counterparty, description, raw_data").eq("company_id", companyId ?? "").is("journal_entry_id", null).gte("transaction_date", from).order("transaction_date", { ascending: false }).limit(500));
+        return ((data || []) as any[]).map((r) => ({ kind: "bank" as const, id: r.id, date: r.transaction_date, amount: Math.abs(Number(r.amount || 0)), isIn: r.type === "income", who: r.counterparty || "", desc: r.description || "", account: r.raw_data?.accountNo ? String(r.raw_data.accountNo).slice(-4) : undefined }));
+      }
+      const data = logRead("ve-import:card", await db.from("card_transactions").select("id, transaction_date, amount, merchant_name, card_name, category").eq("company_id", companyId ?? "").is("journal_entry_id", null).gte("transaction_date", from).order("transaction_date", { ascending: false }).limit(500));
+      return ((data || []) as any[]).map((r) => ({ kind: "card" as const, id: r.id, date: r.transaction_date, amount: Math.abs(Number(r.amount || 0)), isIn: Number(r.amount || 0) < 0, who: r.merchant_name || "", desc: r.card_name || "", account: r.category || undefined }));
+    },
+    enabled: !!companyId && importOpen, staleTime: 30_000,
+  });
+  const importShown = importRows.filter((r) => quickSearchHit(importQ, [r.who, r.desc, r.account, r.date], [r.amount])).slice(0, 200);
+  const applyImport = (r: SrcTx) => {
+    //   날짜·유형·첫 줄(금액·적요)을 채운다. 계정과목은 사람이 고른다(자동으로 정하면 틀렸을 때 못 찾는다)
+    setEntryY(r.date.slice(0, 4)); setEntryM(String(Number(r.date.slice(5, 7)))); setEntryD(String(Number(r.date.slice(8, 10))));
+    const t: VType = r.kind === "bank" ? (r.isIn ? "cash_in" : "cash_out") : "transfer";
+    setVtype(t);
+    const rows = freshRows(t);
+    const memo = [r.who, r.desc].filter(Boolean).join(" · ").slice(0, 60);
+    if (r.kind === "bank") {
+      //   입금 = 대변(수익) 금액, 출금 = 차변(비용) 금액. 반대편 보통예금은 저장 때 자동으로 붙는다
+      rows[0] = { ...rows[0], memo, debit: r.isIn ? "" : String(r.amount), credit: r.isIn ? String(r.amount) : "" };
+    } else {
+      //   카드 = 대체: 차변(비용) 금액 / 대변(미지급금 등) 금액 — 계정은 사람이
+      rows[0] = { ...rows[0], memo, debit: String(r.amount), credit: "" };
+      rows[1] = { ...rows[1], memo, debit: "", credit: String(r.amount) };
+    }
+    setPend(rows); setEdits({}); setLinkedSrc(r); setImportOpen(false);
+    toast(`${r.kind === "bank" ? "통장" : "카드"} 거래를 불러왔습니다 — 계정과목을 고르고 저장하면 그 거래는 전표됨으로 처리됩니다`, "info");
+  };
   const dbReady = accounts.length > 0;
 
   const { data: partners = [] } = useQuery<Pt[]>({
@@ -485,6 +526,21 @@ export default function VoucherEntryPage() {
       }
       let newId: string | null = null;
       if (pendFilled.length > 0) {
+        //   중복 의심 경고 (2026-08-19 사장님): 불러온 거래가 아닌데 같은 날·같은 금액의 통장/카드 거래가 이미 전표돼 있으면 확인을 받는다
+        if (!linkedSrc) {
+          const total = vtype === "cash_in" ? pendCredit : vtype === "cash_out" ? pendDebit : Math.max(pendDebit, pendCredit);
+          if (total > 0) {
+            const [bk, cd] = await Promise.all([
+              db.from("bank_transactions").select("id, amount, counterparty, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", entryDate).not("journal_entry_id", "is", null).in("amount", [total, -total]).limit(5),
+              db.from("card_transactions").select("id, amount, merchant_name, journal_entry_id").eq("company_id", companyId ?? "").eq("transaction_date", entryDate).not("journal_entry_id", "is", null).in("amount", [total, -total]).limit(5),
+            ]);
+            const dups = [...((bk.data || []) as any[]).map((r) => `통장 ${r.counterparty || ""} ${Number(r.amount).toLocaleString()}`), ...((cd.data || []) as any[]).map((r) => `카드 ${r.merchant_name || ""} ${Number(r.amount).toLocaleString()}`)];
+            if (dups.length > 0) {
+              const ok = await appConfirm(`중복 의심 — 같은 날(${entryDate}) 같은 금액(${total.toLocaleString()})의 거래가 이미 전표처리돼 있습니다:\n${dups.join("\n")}\n\n그래도 새 전표로 저장할까요? (같은 돈이 두 번 장부에 오를 수 있습니다. 통장·카드 거래를 전표로 치려면 '통장·카드 불러오기'를 쓰세요)`, { danger: true });
+              if (!ok) { setBusy(false); return; }
+            }
+          }
+        }
         const payload = linePayload(pend);
         if (vtype !== "transfer" && cashAcct && autoAmt > 0) {
           payload.push({ account_id: cashAcct.id, debit: vtype === "cash_in" ? autoAmt : 0, credit: vtype === "cash_out" ? autoAmt : 0, memo: pendFilled[0]?.memo || "", partner_id: "" });
@@ -494,6 +550,14 @@ export default function VoucherEntryPage() {
         });
         if (error) throw new Error(errMsg(String(error.message)));
         newId = data as string;
+        //   불러온 통장/카드 거래에 전표를 건다 → 수집·전표/통장/카드에서 '전표됨', 다시 전표 못 침(ALREADY_POSTED)
+        if (linkedSrc && newId) {
+          const tbl = linkedSrc.kind === "bank" ? "bank_transactions" : "card_transactions";
+          const { error: linkErr } = await db.from(tbl).update({ journal_entry_id: newId } as never).eq("id", linkedSrc.id).is("journal_entry_id", null);
+          if (linkErr) toast(`전표는 저장됐지만 ${linkedSrc.kind === "bank" ? "통장" : "카드"} 거래 연결에 실패했습니다: ${linkErr.message}`, "error");
+          setLinkedSrc(null);
+          qc.invalidateQueries({ queryKey: ["ve-import"] });
+        }
       }
       rememberMemos([...pendFilled.map((l) => l.memo), ...editIds.flatMap((id) => edits[id].lines.map((l) => l.memo))]);
       setEdits({});
@@ -769,7 +833,9 @@ export default function VoucherEntryPage() {
             </button>
           ))}
           <span className="ve-kind-actions">
-            <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); }} disabled={busy}
+            {linkedSrc && <span className="ol-sure ol-sure-est" title="저장하면 이 거래에 전표가 걸립니다">{linkedSrc.kind === "bank" ? "통장" : "카드"} {linkedSrc.date.slice(5).replace("-", "/")} {linkedSrc.amount.toLocaleString()} 불러옴 <button type="button" className="ml-1 underline" onClick={() => setLinkedSrc(null)}>해제</button></span>}
+            <button type="button" onClick={() => setImportOpen(true)} disabled={busy} className="btn-secondary btn-sm">통장·카드 불러오기</button>
+            <button onClick={() => { setPend(freshRows(vtype)); setEdits({}); setLinkedSrc(null); }} disabled={busy}
               className="btn-secondary btn-sm">새 전표</button>
             <button onClick={save} disabled={!canSave}
               className="btn-primary btn-sm disabled:opacity-40">
@@ -889,6 +955,40 @@ export default function VoucherEntryPage() {
       </div>
       {/* 구분선 = 잡아끄는 손잡이 — 분개 입력 칸 높이를 사용자가 정한다 (2026-08-19 사장님) */}
       <SplitHandle onMouseDown={split.onMouseDown} onReset={split.reset} />
+      {/* 통장·카드 불러오기 팝업 — 미전표 거래 목록에서 하나 골라 입력칸에 채운다 (2026-08-19) */}
+      {importOpen && (
+        <div className="approval-detail-modal" onClick={() => setImportOpen(false)}>
+          <div className="pnl-drill ve-import-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pnl-drill-head">
+              <h3 className="text-sm font-bold">통장·카드 불러오기 <small className="ml-2 font-normal text-[var(--text-dim)]">전표가 아직 없는 거래만 · 하나 고르면 입력칸에 채워지고, 저장하면 그 거래는 전표됨</small></h3>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setImportOpen(false)}>닫기</button>
+            </div>
+            <div className="ve-import-bar">
+              <span className="qk-chips">{(["bank", "card"] as const).map((k) => <button key={k} type="button" onClick={() => setImportKind(k)} className={importKind === k ? "qk-chip qk-chip-on" : "qk-chip"}>{k === "bank" ? "통장" : "카드"}</button>)}</span>
+              <select value={importDays} onChange={(e) => setImportDays(Number(e.target.value))} className="qk-input h-8 px-2 text-xs">{[30, 60, 90, 180].map((d) => <option key={d} value={d}>최근 {d}일</option>)}</select>
+              <input className="qk-input h-8 flex-1 px-2.5 text-xs" placeholder="거래처 · 적요 · 금액 — 쉼표로 여러 개" value={importQ} onChange={(e) => setImportQ(e.target.value)} />
+              <span className="text-[11px] text-[var(--text-dim)]">{importShown.length}건{importRows.length > 200 ? " (앞 200건만)" : ""}</span>
+            </div>
+            <div className="ve-import-body">
+              {importLoading ? <div className="collect-empty">불러오는 중…</div> : importShown.length === 0 ? <div className="collect-empty">전표 안 된 {importKind === "bank" ? "통장" : "카드"} 거래가 없습니다</div> : (
+                <table className="ev-table ev-lined ve-import-table">
+                  <thead><tr><th>날짜</th><th>구분</th><th className="text-left">{importKind === "bank" ? "예금주 · 적요" : "가맹점 · 카드"}</th><th>{importKind === "bank" ? "계좌" : "분류"}</th><th>금액</th><th></th></tr></thead>
+                  <tbody>{importShown.map((r) => (
+                    <tr key={r.id} className="pnl-row-acct" onClick={() => applyImport(r)}>
+                      <td className="text-center mono-number">{r.date}</td>
+                      <td className="text-center"><span className={`ol-sure ${r.isIn ? "ol-sure-ok" : ""}`}>{r.kind === "bank" ? (r.isIn ? "입금" : "출금") : (r.isIn ? "취소" : "사용")}</span></td>
+                      <td className="text-left"><b>{r.who || "—"}</b>{r.desc && <small className="ml-1 text-[var(--text-dim)]">{r.desc}</small>}</td>
+                      <td className="text-center text-[var(--text-muted)]">{r.account ? (r.kind === "bank" ? `···${r.account}` : r.account) : "—"}</td>
+                      <td className={`text-right mono-number font-bold ${r.isIn ? "text-[var(--success)]" : ""}`}>{r.isIn ? "+" : "−"}{r.amount.toLocaleString()}</td>
+                      <td className="text-center"><button type="button" className="btn-secondary btn-sm">불러오기</button></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ 하단: 전표목록 — 조회 화면 표준(B형: 목록부만) (2026-08-18 Wave 1). 셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제 ══ */}
         <QueryHead>
