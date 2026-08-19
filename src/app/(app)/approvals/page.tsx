@@ -4081,17 +4081,24 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
         <div className="approval-policy-form ap-pol-modal" onClick={(e) => e.stopPropagation()}>
           <div className="ap-pol-head">
             <h3 className="section-title">{editingPolicy ? "결재선 수정" : "새 결재선"}</h3>
-            {editingPolicy && editingPolicy.document_type !== "line" && (
-              <span className="text-[11px] text-[var(--text-dim)]">
-                {REQUEST_TYPE_LABELS[editingPolicy.document_type as RequestType] || editingPolicy.document_type} 유형에 자동 적용되는 결재선
-              </span>
-            )}
           </div>
 
           <div className="ap-pol-grid">
             <div>
               <label className="field-label">결재선 이름 *</label>
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="예: 팀장 → 대표 2단계" className="field-input" />
+            </div>
+            {/* 적용 양식 (2026-08-19 사장님) — 유형을 고르면 그 유형의 새 요청에 자동 적용된다.
+                종전엔 이 칸이 없어 새 결재선이 전부 '공용'으로 만들어졌고, 부서 대상 결재선이
+                휴가신청에 자동 적용되지 않는 사고(전략운영팀 휴가)가 났다. */}
+            <div>
+              <label className="field-label">적용 양식</label>
+              <select value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })} className="field-input">
+                <option value="line">공용 — 양식 관리에서 불러와 사용</option>
+                {Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                {form.documentType === "default" && <option value="default">기본(공통)</option>}
+                {form.documentType === "__custom__" && <option value="__custom__">{form.customType || "커스텀 유형"}</option>}
+              </select>
             </div>
             <div>
               <label className="field-label">결재 단계</label>
@@ -4108,6 +4115,11 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
               </select>
             </div>
           </div>
+          <p className="mt-1.5 text-[10px] text-[var(--text-dim)]">
+            {form.documentType === "line"
+              ? "공용 결재선은 자동 적용되지 않습니다 — 양식 관리 > 편집에서 불러와 붙일 때만 쓰입니다."
+              : "선택한 양식의 새 요청에 자동 적용됩니다 — 부서·직원 대상 결재선이 회사 전체 결재선보다 우선합니다."}
+          </p>
           {form.targetMode === "users" && (
             <div className="policy-target-people">
               {orgUsers.map((u) => {
