@@ -1,260 +1,195 @@
 "use client";
-import { todayKst, kstDateStr } from "@/lib/kst";
-import { ReportHead } from "../_components/ReportHead";
-import { Stat } from "@/components/query-kit";
-import { Ico } from "@/components/ui-icon";
-import { logRead } from "@/lib/log-read";
 
-// 경영 요약 — "지금 우리 회사 괜찮나?"에 한 화면으로 답하는 대표용 진입 화면(2026-07-08).
-//   회계 용어 없이: 규칙 기반 한 줄 요약 + 신호등 3카드(이번 달 손익·통장 잔액·버티는 기간)
-//   + 번 돈/쓴 돈/남은 돈 요약 + 주요 예정 항목. 기존 계산(cash-pulse·budget·VAT·미수금) 재조합.
+// 경영 요약 — "지금 우리 회사 괜찮나?"에 답하는 대표용 진입 화면.
+//   2026-07-08 신설(문장 1줄 + 신호등 카드 + 손익 3칸 + 예정 3줄) → 2026-08-19 재편(docs/20260819_PLAN_summary_outlook_redesign.md):
+//   세 신호 판(돈 있나 / 벌고 있나 / 받을 돈·낼 돈 — 신호등·숫자·왜·링크) + 이번 주 챙길 것(규칙, 사람이 체크) + 지난달과 달라진 것.
+//   기준 통일: 손익=확정 전표 · 현금=통장 · 받을·낼 돈=거래처 원장(정산 반영). 계산은 전부 lib/biz-summary.ts (대시보드 위젯과 같은 함수).
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { getCurrentUser, getCashPulseData } from "@/lib/queries";
-import { buildCashPulse } from "@/lib/cash-pulse";
-import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
-import { getVATPreview, type VATPreview } from "@/lib/tax-invoice";
-import { calcRunwayMonths, getRunwayLevel } from "@/lib/engines";
+import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
-import { fetchJournalLines, pnlAmount } from "@/lib/journal-reports";
-import { IntroCard, Section } from "@/components/report-kit";
+import { ReportHead } from "../_components/ReportHead";
+import { Stat, ExcelMenu } from "@/components/query-kit";
+import { downloadCsv } from "@/lib/csv-export";
+import { fetchBizSummary, type Tone, type Todo } from "@/lib/biz-summary";
+import { todayKst } from "@/lib/kst";
 
-const db = supabase;
-const fmt = (n: number) => `₩${Math.round(n).toLocaleString("ko-KR")}`;
-const fmtMan = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
+const won = (n: number) => `${n < 0 ? "−" : ""}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
+const num = (n: number) => `${n < 0 ? "−" : ""}${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
+const man = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
+const TONE_TXT: Record<Tone, string> = { g: "안정", y: "주의", r: "위험" };
+const shift = (ym: string, n: number) => { const [y, m] = ym.split("-").map(Number); const t = y * 12 + (m - 1) + n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`; };
+const monthLabel = (ym: string) => `${ym.slice(0, 4)}년 ${Number(ym.slice(5))}월`;
+//   챙길 것 체크 — 이번 주(월요일 기준) 동안 숨긴다. 로컬 값(사용자·PC별). 서버 저장은 다음 단계.
+const weekKey = (d: string) => { const t = new Date(d + "T00:00:00"); const dow = (t.getDay() + 6) % 7; t.setDate(t.getDate() - dow); return t.toISOString().slice(0, 10); };
 
-function ymNow() {
-  const d = new Date();
-  return { year: d.getFullYear(), month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` };
-}
-function prevMonthStr(month: string) {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(y, m - 2, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-function daysUntil(dateStr: string) {
-  const t = new Date(dateStr + "T00:00:00").getTime();
-  return Math.ceil((t - Date.now()) / (24 * 3600 * 1000));
-}
-
-// 지난달 대비 화살표
-function Delta({ cur, prev, invert }: { cur: number; prev: number; invert?: boolean }) {
+function Pct({ cur, prev, invert }: { cur: number; prev: number; invert?: boolean }) {
   if (!prev) return null;
-  const diff = cur - prev;
-  if (diff === 0) return <span className="text-[11px] text-[var(--text-dim)]">지난달과 같음</span>;
-  const up = diff > 0;
-  const good = invert ? !up : up;
-  const pct = Math.abs(Math.round((diff / Math.abs(prev)) * 100));
-  return (
-    <span className={`text-[11px] font-semibold ${good ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>
-      {up ? "▲" : "▼"} 지난달 대비 {pct}%
-    </span>
-  );
+  const p = Math.round(((cur - prev) / Math.abs(prev)) * 100);
+  if (p === 0) return <small className="bz-pct bz-pct-flat">지난달과 같음</small>;
+  const good = invert ? p < 0 : p > 0;
+  return <small className={`bz-pct ${good ? "bz-pct-good" : "bz-pct-bad"}`}>{p > 0 ? "▲" : "▼"}{Math.abs(p)}%</small>;
 }
 
 export default function ManagementSummaryPage() {
   const { role } = useUser();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const { year, month } = ymNow();
-  const lastMonth = prevMonthStr(month);
+  const thisMonth = todayKst().slice(0, 7);
+  const [month, setMonth] = useState(thisMonth);
+  const [done, setDone] = useState<Set<string>>(new Set());
+  useEffect(() => { getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } }); }, []);
+  const doneKey = companyId ? `bizsum-done:${companyId}:${weekKey(todayKst())}` : null;
+  useEffect(() => { if (!doneKey) return; try { setDone(new Set(JSON.parse(localStorage.getItem(doneKey) || "[]"))); } catch { setDone(new Set()); } }, [doneKey]);
+  const toggleDone = (k: string) => setDone((d) => { const n = new Set(d); if (n.has(k)) n.delete(k); else n.add(k); if (doneKey) localStorage.setItem(doneKey, JSON.stringify([...n])); return n; });
 
-  useEffect(() => {
-    getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } });
-  }, []);
-
-  const { data: pulse, isLoading: pulseLoading } = useQuery({
-    queryKey: ["summary-pulse", companyId, userId],
-    queryFn: async () => {
-      const raw = await getCashPulseData(companyId!, userId || undefined);
-      return raw ? buildCashPulse(raw) : null;
-    },
-    enabled: !!companyId,
-    staleTime: 60_000,
-  });
-  const { data: budget = [], isLoading: budgetLoading } = useQuery<MonthlyBudget[]>({
-    queryKey: ["summary-budget", companyId, year],
-    queryFn: () => getMonthlyBudgetOverview(companyId!, year),
-    enabled: !!companyId,
-    staleTime: 60_000,
-  });
-  //   확정 전표 — 최근 6개월(이번 달 포함) 손익 (손익 현황과 같은 함수)
-  const recentMonths = useMemo(() => { const [y, mo] = month.split("-").map(Number); const out: string[] = []; for (let i = 5; i >= 0; i--) { const t = y * 12 + (mo - 1) - i; out.push(`${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`); } return out; }, [month]);
-  const { data: journalMonths } = useQuery({
-    queryKey: ["summary-journal", companyId, recentMonths[0], month],
-    queryFn: async () => {
-      const [ey, em] = month.split("-").map(Number);
-      const to = `${month}-${String(new Date(ey, em, 0).getDate()).padStart(2, "0")}`;
-      const lines = await fetchJournalLines(companyId!, `${recentMonths[0]}-01`, to);
-      const map = new Map<string, { revenue: number; cost: number; operating: number }>();
-      for (const m of recentMonths) map.set(m, { revenue: 0, cost: 0, operating: 0 });
-      for (const l of lines) {
-        const g = map.get(l.month); if (!g) continue;
-        const a = pnlAmount(l);
-        if (l.section === "revenue") g.revenue += a;
-        else if (l.section === "cogs" || l.section === "opex") g.cost += a;
-      }
-      for (const g of map.values()) g.operating = g.revenue - g.cost;
-      return map;
-    },
+  const { data: s, isLoading } = useQuery({
+    queryKey: ["biz-summary", companyId, month],
+    queryFn: () => fetchBizSummary(companyId!, month, userId || undefined),
     enabled: !!companyId, staleTime: 60_000,
   });
+  const months = useMemo(() => Array.from({ length: 12 }, (_, i) => shift(thisMonth, -i)), [thisMonth]);
 
-  const { data: vat = [] } = useQuery<VATPreview[]>({
-    queryKey: ["summary-vat", companyId, year],
-    queryFn: () => getVATPreview(companyId!, year),
-    enabled: !!companyId,
-    staleTime: 60_000,
-  });
-  const { data: receivable } = useQuery({
-    queryKey: ["summary-receivable", companyId],
-    queryFn: async () => {
-      const data = logRead('summary/page:data', await db.from("tax_invoices")
-        .select("total_amount, issue_date").eq("company_id", companyId ?? "")
-        .eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]));
-      const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
-      const cutoff = kstDateStr(new Date(Date.now() - 30 * 24 * 3600 * 1000));
-      const total = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0);
-      const over30 = rows.filter((r) => (r.issue_date || "") < cutoff).reduce((s, r) => s + Number(r.total_amount || 0), 0);
-      return { total, over30 };
-    },
-    enabled: !!companyId,
-    staleTime: 60_000,
-  });
+  if (role === "partner") return <AccessDenied detail="경영 요약은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
 
-  if (role === "partner" /* (P3) 멤버는 권한 게이트가 판정 */) {
-    return <AccessDenied detail="경영 요약은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
-  }
+  const todosOpen = (s?.todos || []).filter((t) => !done.has(t.key));
+  const todosDone = (s?.todos || []).filter((t) => done.has(t.key));
+  const excel = s ? [
+    { label: "이번 주 챙길 것", count: s.todos.length, onClick: () => downloadCsv(`경영요약_챙길것_${month}`, ["구분", "내용", "메모", "금액", "확인"], s.todos.map((t) => [t.kind, t.text, t.sub || "", t.amount ? Math.round(t.amount) : "", done.has(t.key) ? "확인" : ""])) },
+    { label: "지난달과 달라진 것", count: s.changes.length, onClick: () => downloadCsv(`경영요약_달라진것_${month}`, ["무엇", "지난달", "이번 달", "차이"], s.changes.map((c) => [c.label, Math.round(c.prev), Math.round(c.cur), Math.round(c.cur - c.prev)])) },
+  ] : [];
+  const seriesMax = Math.max(1, ...(s?.pnl.series.map((x) => Math.abs(x.op)) || [1]));
 
-  //   손익 숫자는 확정 전표 기준 — 손익 현황·손익계산서와 같은 숫자 (2026-08-19 손익 현황 재편 Phase 3). 예산 추정(budget)은 통장·자금 전망 몫.
-  const jm = (m: string) => journalMonths?.get(m) || { revenue: 0, cost: 0, operating: 0 };
-  const sales = jm(month).revenue;
-  const expense = jm(month).cost;
-  const profit = jm(month).operating;
-  const lastSales = jm(lastMonth).revenue;
-  const lastExpense = jm(lastMonth).cost;
-  const lastProfit = jm(lastMonth).operating;
-
-  const balance = pulse?.currentBalance ?? 0;
-  const burn = pulse?.monthlyBurn ?? 0;
-  const runway = calcRunwayMonths(balance, 0, 0, burn);
-  const runwayLevel = getRunwayLevel(runway);
-  const runwayTone = runwayLevel === "CRITICAL" || runwayLevel === "DANGER" ? "danger" : runwayLevel === "WARNING" ? "warning" : "success";
-  const runwayTxt = runway >= 999 ? "무기한" : `약 ${runway.toFixed(1)}개월`;
-
-  // 다가오는 부가세(가장 가까운 미래 납부, 금액>0)
-  const today = todayKst();
-  const nextVat = vat.filter((v) => v.dueDate >= today && Math.abs(v.netVAT) > 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
-  const vatDday = nextVat ? daysUntil(nextVat.dueDate) : null;
-
-  const loading = !companyId || pulseLoading || budgetLoading || !journalMonths;
-
-  // 규칙 기반 한 줄 요약
-  const profitTxt = profit >= 0 ? `이번 달 ${fmtMan(profit)} 흑자` : `이번 달 ${fmtMan(-profit)} 적자`;
-  const summaryLine = `${profitTxt}, 통장 잔액 ${fmtMan(balance)} — 현재 지출 속도라면 ${runwayTxt} 운영 가능합니다.`;
-
-  // 최근 6개월 손익(영업이익) 미니 추이 — 확정 전표 기준
-  const recent = recentMonths.map((m) => ({ m: m.slice(5), profit: jm(m).operating }));
-  const maxAbs = Math.max(1, ...recent.map((r) => Math.abs(r.profit)));
+  const TodoRow = ({ t }: { t: Todo }) => (
+    <li className={`bz-todo ${done.has(t.key) ? "bz-todo-done" : ""}`}>
+      <input type="checkbox" checked={done.has(t.key)} onChange={() => toggleDone(t.key)} aria-label="확인" />
+      <span className={`bz-kind bz-kind-${t.tone}`}>{t.kind}</span>
+      <span className="bz-todo-text">{t.text}{t.sub && <small> {t.sub}</small>}</span>
+      {t.amount !== undefined && <b className="mono-number bz-todo-amt">{won(t.amount)}</b>}
+      {t.href && <Link href={t.href} className="bz-link">보기 →</Link>}
+    </li>
+  );
 
   return (
     <>
+      <ReportHead
+        bar={<>
+          <label className="text-xs font-semibold text-[var(--text-dim)]">기준 월</label>
+          <select value={month} onChange={(e) => setMonth(e.target.value)} className="qk-input h-8 px-2.5 text-xs">
+            {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+          </select>
+          <span className="text-[11px] text-[var(--text-dim)]">손익 = 확정 전표 · 현금 = 통장 · 받을 돈·낼 돈 = 거래처 원장 · 오늘 {todayKst()}</span>
+        </>}
+        right={<><ExcelMenu items={excel} /><button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button></>}
+        stats={s ? <>
+          <Stat label="지금 상태" value={<span className={`bz-tone-${s.overall.tone}`}>{s.overall.label}</span>} />
+          <Stat label="통장 잔액" value={won(s.cash.balance)} />
+          <Stat label={`${Number(month.slice(5))}월 영업이익`} value={won(s.pnl.cur.operating)} tone={s.pnl.cur.operating >= 0 ? "plus" : "minus"} />
+          <Stat label="운영 가능" value={s.cash.runway >= 999 ? "무기한" : `${s.cash.runway.toFixed(1)}개월`} />
+          <Stat label="받을 돈" value={won(s.arap.ar)} tone="plus" />
+          <Stat label="낼 돈 (30일)" value={won(s.arap.due30)} tone="minus" />
+        </> : <span className="text-[11px] text-[var(--text-dim)]">불러오는 중…</span>}
+      />
 
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : (
-        <div className="summary-body">
-          <IntroCard
-            eyebrow="이번 달 상태"
-            title={summaryLine}
-            desc="아래 지표는 통장·세금계산서·예산 데이터를 규칙 기반으로 재조합해 자동 계산됩니다."
-            callout={{
-              label: "운영 가능 기간 (현재 현금 기준)",
-              value: runwayTxt,
-              sub: runwayTone === "danger" ? "자금 계획이 필요합니다" : runwayTone === "warning" ? "여유가 넉넉하진 않습니다" : "당장은 안정적입니다",
-              tone: runwayTone,
-            }}
-            box={nextVat && vatDday !== null ? { label: `다가오는 부가세 · D-${Math.max(0, vatDday)}`, value: fmt(Math.abs(nextVat.netVAT)), sub: nextVat.dueDate, tone: "warning" } : undefined}
-          />
+      {isLoading || !s ? <div className="collect-empty">불러오는 중…</div> : (
+        <div className="bz-body">
+          {/* ── 세 신호 ── */}
+          <div className="bz-grid3">
+            <section className="pnl-panel bz-signal">
+              <h3><i className={`bz-dot bz-dot-${s.cash.tone}`} />돈은 있나 — 통장 <em className={`bz-tone-${s.cash.tone}`}>{TONE_TXT[s.cash.tone]}</em></h3>
+              <div className="bz-big mono-number">{won(s.cash.balance)}</div>
+              <dl className="bz-kv">
+                <div><dt>{Number(month.slice(5))}월 들어온 돈</dt><dd className="mono-number bz-plus">+{num(s.cash.inflow)}</dd></div>
+                <div><dt>{Number(month.slice(5))}월 나간 돈</dt><dd className="mono-number bz-minus">−{num(s.cash.outflow)}</dd></div>
+                <div><dt>순 현금 흐름</dt><dd className={`mono-number ${s.cash.inflow - s.cash.outflow >= 0 ? "bz-plus" : "bz-minus"}`}>{num(s.cash.inflow - s.cash.outflow)} <Pct cur={s.cash.inflow - s.cash.outflow} prev={s.cash.prevNet} /></dd></div>
+                <div><dt>지금 속도면 운영 가능</dt><dd className="mono-number">{s.cash.runway >= 999 ? "무기한" : `${s.cash.runway.toFixed(1)}개월`}</dd></div>
+              </dl>
+              <p className="bz-why">
+                {!s.cash.hasBank ? <>통장이 연결돼 있지 않습니다 — <Link href="/bank" className="bz-link">통장 연결 →</Link></>
+                  : <>월 지출 약 {man(s.cash.burn)}(정기 지출+급여) 기준.{s.arap.vatNext && s.cash.runwayAfterVat !== s.cash.runway && <> 부가세 {man(s.arap.vatNext.amount)}이 {s.arap.vatNext.due.slice(5).replace("-", "/")}에 나가면 <b>{s.cash.runwayAfterVat.toFixed(1)}개월</b>.</>} <Link href="/reports/outlook" className="bz-link">자금 전망 →</Link></>}
+              </p>
+            </section>
 
-          {/* 리포트 표준 2차(2026-08-19) — KPI 카드 4장 → 상자 머리 결과 요약(누르면 그 화면으로) */}
-          <ReportHead
-            stats={<>
-              <Link href="/reports/monthly" className="no-underline" title="매출 − 비용 · 월별 표"><Stat label="이번 달 손익" value={`${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`} tone={profit >= 0 ? "plus" : "minus"} /></Link>
-              <Link href="/reports/revenue" className="no-underline" title="세금계산서 기준 · 매출 현황"><Stat label="이번 달 매출" value={fmt(sales)} tone="plus" /></Link>
-              <Link href="/reports/expense" className="no-underline" title="지출 합계 · 비용 현황"><Stat label="이번 달 비용" value={fmt(expense)} tone="minus" /></Link>
-              <Link href="/reports/outlook" className="no-underline" title={`월 평균 지출 ${fmtMan(burn)} · 자금 전망`}><Stat label="통장 잔액" value={fmt(balance)} /></Link>
-            </>}
-            statsRight={<span className="text-[11px] text-[var(--text-dim)]">지표를 누르면 그 화면으로</span>}
-          />
-
-          <div className="summary-sections-grid">
-            <Section title="이번 달 손익 요약" desc="매출 − (매출원가+판관비) = 영업이익 · 확정 전표 기준(손익 현황·손익계산서와 같은 숫자)" className="summary-pnl-section">
-              <div className="summary-pnl-breakdown">
-                {[
-                  { l: "매출", v: fmt(sales), c: "var(--success)", cur: sales, prev: lastSales, invert: false, href: "/reports/revenue" },
-                  { l: "비용", v: fmt(expense), c: "var(--warning)", cur: expense, prev: lastExpense, invert: true, href: "/reports/expense" },
-                  { l: "손익", v: `${profit >= 0 ? "+" : "−"}${fmt(Math.abs(profit))}`, c: profit >= 0 ? "var(--success)" : "var(--danger)", cur: profit, prev: lastProfit, invert: false, href: null },
-                ].map((x) => {
-                  const inner = (
-                    <>
-                      <div className="text-[11px] text-[var(--text-muted)]">{x.l}</div>
-                      <div className="text-lg font-extrabold mono-number mt-0.5" style={{ color: x.c }}>{x.v}</div>
-                      <div className="mt-0.5"><Delta cur={x.cur} prev={x.prev} invert={x.invert} /></div>
-                    </>
-                  );
-                  return x.href
-                    ? <Link key={x.l} href={x.href} className="rounded-xl bg-[var(--bg-surface)] p-3 block no-underline hover:ring-1 hover:ring-[var(--primary)]/30 transition">{inner}</Link>
-                    : <div key={x.l} className="rounded-xl bg-[var(--bg-surface)] p-3">{inner}</div>;
-                })}
+            <section className="pnl-panel bz-signal">
+              <h3><i className={`bz-dot bz-dot-${s.pnl.tone}`} />벌고 있나 — 손익 (확정 전표) <em className={`bz-tone-${s.pnl.tone}`}>{TONE_TXT[s.pnl.tone]}</em></h3>
+              <div className={`bz-big mono-number ${s.pnl.cur.operating >= 0 ? "bz-plus" : "bz-minus"}`}>{won(s.pnl.cur.operating)}</div>
+              <dl className="bz-kv">
+                <div><dt>매출</dt><dd className="mono-number">{num(s.pnl.cur.revenue)} <Pct cur={s.pnl.cur.revenue} prev={s.pnl.prev.revenue} />{s.pnl.cur.revenue === 0 && <small className="text-[var(--text-dim)]"> (전표 없음)</small>}</dd></div>
+                <div><dt>비용 (원가+판관비)</dt><dd className="mono-number">{num(s.pnl.cur.cogs + s.pnl.cur.opex)} <Pct cur={s.pnl.cur.cogs + s.pnl.cur.opex} prev={s.pnl.prev.cogs + s.pnl.prev.opex} invert /></dd></div>
+                <div><dt>지난달 영업이익</dt><dd className={`mono-number ${s.pnl.prev.operating >= 0 ? "bz-plus" : "bz-minus"}`}>{num(s.pnl.prev.operating)}</dd></div>
+              </dl>
+              <div className="bz-bars" aria-label="최근 6개월 영업이익">
+                {s.pnl.series.map((x) => (
+                  <Link key={x.month} href="/reports/monthly" className="bz-bar-col" title={`${x.month} ${won(x.op)}`}>
+                    <i className={x.op >= 0 ? "bz-bar-p" : "bz-bar-n"} style={{ height: `${Math.max(3, (Math.abs(x.op) / seriesMax) * 40)}px` }} />
+                    <small>{x.month.slice(5)}</small>
+                  </Link>
+                ))}
               </div>
-              {recent.length > 1 && (
-                <div className="summary-profit-trend">
-                  <div className="text-[11px] text-[var(--text-dim)] mb-2">최근 손익 추이</div>
-                  <div className="flex items-end gap-2">
-                    {recent.map((r, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                        <div className="w-full flex items-end justify-center" style={{ height: 48 }}>
-                          <div className="w-6 rounded-t" style={{ height: `${Math.max(4, (Math.abs(r.profit) / maxAbs) * 44)}px`, background: r.profit >= 0 ? "var(--success)" : "var(--danger)" }} title={fmt(r.profit)} />
-                        </div>
-                        <span className="text-[9px] text-[var(--text-dim)] mono-number">{r.m}</span>
-                      </div>
-                    ))}
-                  </div>
+              <p className="bz-why">
+                {s.pnl.unposted.taxInvoice > 0 ? <>세금계산서 <b>{s.pnl.unposted.taxInvoice}건 미처리</b>{s.pnl.unpostedSalesAmt > 0 && <>(매출 {won(s.pnl.unpostedSalesAmt)})</>} — 전표를 확정하면 숫자가 바뀝니다. <Link href="/collect" className="bz-link">수집·전표 →</Link></>
+                  : s.pnl.cur.operating >= 0 ? <>이익률 {s.pnl.cur.revenue > 0 ? `${Math.round((s.pnl.cur.operating / s.pnl.cur.revenue) * 100)}%` : "—"}. <Link href="/reports/profit" className="bz-link">손익 현황 →</Link></>
+                  : <>비용이 매출보다 큽니다. 어디로 나갔는지 <Link href="/reports/expense" className="bz-link">비용 →</Link></>}
+              </p>
+            </section>
+
+            <section className="pnl-panel bz-signal">
+              <h3><i className={`bz-dot bz-dot-${s.arap.tone}`} />받을 돈 · 낼 돈 — 거래처 원장 <em className={`bz-tone-${s.arap.tone}`}>{TONE_TXT[s.arap.tone]}</em></h3>
+              <dl className="bz-kv">
+                <div><dt>받을 돈 (미수금)</dt><dd className="mono-number bz-plus">{num(s.arap.ar)}</dd></div>
+                <div className="bz-kv-sub"><dt>└ 30일 넘은 것 · {s.arap.over30Partners}곳</dt><dd className={`mono-number ${s.arap.over30 > 0 ? "bz-minus" : ""}`}>{num(s.arap.over30)}</dd></div>
+                <div><dt>미지급금 잔액 <small className="text-[var(--text-dim)]">(만기 없음)</small></dt><dd className="mono-number">{num(s.arap.ap)}</dd></div>
+                {s.arap.vatNext && <div><dt>부가세 ({s.arap.vatNext.due.slice(5).replace("-", "/")} · D-{s.arap.vatNext.dday})</dt><dd className="mono-number">{num(s.arap.vatNext.amount)}</dd></div>}
+                <div><dt>급여 (등록 급여 합)</dt><dd className="mono-number">{num(s.arap.salary)}</dd></div>
+                {s.arap.loanMonthly > 0 && <div><dt>대출 월 상환</dt><dd className="mono-number">{num(s.arap.loanMonthly)}</dd></div>}
+                {s.arap.recurring > 0 && <div><dt>정기 지출</dt><dd className="mono-number">{num(s.arap.recurring)}</dd></div>}
+              </dl>
+              <p className="bz-why">
+                30일 안에 낼 돈(급여·정기 지출·대출·부가세) <b>{won(s.arap.due30)}</b>{s.cash.balance < s.arap.due30 ? <> — <b className="bz-minus">통장 잔액보다 많습니다</b>.</> : <> — 통장으로 감당됩니다.</>}
+                {s.arap.over30 > 0 && <> 30일 넘은 미수 {man(s.arap.over30)}을 받으면 여유가 생깁니다.</>} <Link href="/partners/ledger" className="bz-link">거래처 원장 →</Link>
+              </p>
+            </section>
+          </div>
+
+          {/* ── 챙길 것 · 달라진 것 ── */}
+          <div className="bz-grid2">
+            <section className="pnl-panel">
+              <h3>이번 주 챙길 것 <small className="text-[var(--text-dim)] font-normal">{todosOpen.length}건</small></h3>
+              <p>규칙으로 찾아 놓기만 합니다 — 확인은 사람이. 체크하면 이번 주 동안 아래로 내려갑니다(이 PC 기준).</p>
+              {todosOpen.length === 0 && todosDone.length === 0 ? <div className="collect-empty">지금 챙길 것이 없습니다</div> : (
+                <ul className="bz-todos">
+                  {todosOpen.map((t) => <TodoRow key={t.key} t={t} />)}
+                  {todosDone.map((t) => <TodoRow key={t.key} t={t} />)}
+                </ul>
+              )}
+            </section>
+            <section className="pnl-panel">
+              <h3>지난달과 달라진 것</h3>
+              <p>{monthLabel(s.prevMonth)} → {monthLabel(month)} · 금액 차이 큰 순 (확정 전표 계정 + 통장 순 현금 흐름). 줄을 누르면 그 화면으로.</p>
+              {s.changes.length === 0 ? <div className="collect-empty">두 달 다 전표가 없어 견줄 것이 없습니다</div> : (
+                <div className="pnl-tbl-wrap">
+                  <table className="ev-table ev-lined pnl-mini-table">
+                    <thead><tr><th className="text-left">무엇</th><th>지난달</th><th>이번 달</th><th>차이</th></tr></thead>
+                    <tbody>
+                      {s.changes.map((c) => {
+                        const d = c.cur - c.prev; const good = c.invert ? d < 0 : d > 0;
+                        return (
+                          <tr key={c.key} className="pnl-row-acct" onClick={() => c.href && (window.location.href = c.href)}>
+                            <td className="text-left font-semibold">{c.label}</td>
+                            <td className="text-right mono-number">{num(c.prev)}</td>
+                            <td className="text-right mono-number">{num(c.cur)}</td>
+                            <td className={`text-right mono-number font-bold ${good ? "bz-plus" : "bz-minus"}`}>{d > 0 ? "▲" : "▼"}{num(Math.abs(d))}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
-            </Section>
-
-            <Section title="주요 예정 항목" desc="곧 나갈 돈·받을 돈을 미리 챙깁니다." className="summary-upcoming-section">
-              <div className="summary-upcoming-list">
-                {nextVat && vatDday !== null && (
-                  <Link href="/tax-invoices" className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-[var(--bg-surface)] no-underline hover:ring-1 hover:ring-[var(--primary)]/30 transition">
-                    <span className="text-sm text-[var(--text)]"><Ico e="🧾" /> 부가세 납부 <span className="text-[var(--text-dim)] text-xs">D-{Math.max(0, vatDday)}</span></span>
-                    <span className="mono-number font-bold text-[var(--text)]">{fmt(Math.abs(nextVat.netVAT))}</span>
-                  </Link>
-                )}
-                <div className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-[var(--bg-surface)]">
-                  <span className="text-sm text-[var(--text)]"><Ico e="🔁" /> 월 고정비</span>
-                  <span className="mono-number font-bold text-[var(--text)]">{fmt(budget.find((b) => b.month === month)?.fixedCosts ?? 0)}</span>
-                </div>
-                {(receivable?.over30 ?? 0) > 0 && (
-                  <Link href="/partners/ledger" className="flex items-center justify-between px-3.5 py-3 rounded-xl no-underline transition hover:opacity-90"
-                    style={{ background: "color-mix(in srgb, var(--danger) 8%, transparent)" }}>
-                    <span className="text-sm font-semibold text-[var(--danger)]"><Ico e="💰" /> 30일+ 미수금</span>
-                    <span className="mono-number font-bold text-[var(--danger)]">{fmt(receivable!.over30)}</span>
-                  </Link>
-                )}
-                {!nextVat && (receivable?.over30 ?? 0) === 0 && (
-                  <div className="text-xs text-[var(--text-dim)] px-1 py-2">당장 예정된 지출·회수 항목이 없습니다.</div>
-                )}
-              </div>
-            </Section>
+            </section>
           </div>
         </div>
       )}

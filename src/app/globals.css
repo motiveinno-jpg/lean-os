@@ -9457,3 +9457,42 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .bk-sug-row b { @apply font-bold text-[var(--text)]; }
 .bk-sug-row i { @apply not-italic; }
 .bk-sug-why { @apply inline-flex rounded-full px-1.5 py-px text-[10px] font-bold not-italic text-[var(--primary)]; background: color-mix(in srgb, var(--primary) 10%, transparent); }
+
+/* ── 경영 요약 재편 (2026-08-19) — 세 신호 판 · 챙길 것 · 달라진 것 ── */
+.bz-body { @apply space-y-3; }
+.bz-grid3 { @apply grid gap-3 lg:grid-cols-3; }
+.bz-grid2 { @apply grid gap-3 lg:grid-cols-2; }
+.bz-body .pnl-panel { @apply mb-0; }
+.bz-signal > h3 { @apply flex items-center gap-2; }
+.bz-signal > h3 > em { @apply ml-auto not-italic text-[11px] font-bold; }
+.bz-dot { @apply inline-block h-2.5 w-2.5 rounded-full; }
+.bz-dot-g { background: var(--success); } .bz-dot-y { background: var(--warning); } .bz-dot-r { background: var(--danger); }
+.bz-tone-g { color: var(--success); } .bz-tone-y { color: var(--warning); } .bz-tone-r { color: var(--danger); }
+.bz-big { @apply my-1 text-[22px] font-extrabold text-[var(--text)]; }
+.bz-plus { color: var(--success); } .bz-minus { color: var(--danger); }
+.bz-kv { @apply m-0; }
+.bz-kv > div { @apply flex items-center justify-between gap-2 border-b border-dashed border-[var(--border)] py-1 text-[12px]; }
+.bz-kv > div:last-child { @apply border-b-0; }
+.bz-kv dt { @apply text-[var(--text-muted)]; }
+.bz-kv dd { @apply m-0 font-bold text-[var(--text)]; }
+.bz-kv-sub dt { @apply pl-3 text-[11px]; }
+.bz-pct { @apply ml-1 text-[10.5px] font-bold; }
+.bz-pct-good { color: var(--success); } .bz-pct-bad { color: var(--danger); } .bz-pct-flat { color: var(--text-dim); font-weight: 500; }
+.bz-why { @apply mt-2 border-t border-[var(--border)] pt-2 text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
+.bz-link { @apply font-bold text-[var(--primary)] no-underline; }
+.bz-bars { @apply mt-2 flex items-end gap-1.5; }
+.bz-bar-col { @apply flex flex-1 flex-col items-center gap-0.5 no-underline; }
+.bz-bar-col > i { @apply block w-full max-w-[26px] rounded-t; }
+.bz-bar-p { background: var(--success); } .bz-bar-n { background: var(--danger); }
+.bz-bar-col > small { @apply text-[9px] text-[var(--text-dim)]; }
+.bz-todos { @apply m-0 list-none space-y-1.5 p-0; }
+.bz-todo { @apply flex items-center gap-2.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-[12px]; }
+.bz-todo-done { @apply opacity-50; }
+.bz-todo-done .bz-todo-text { @apply line-through; }
+.bz-todo-text { @apply min-w-0 flex-1; }
+.bz-todo-text > small { @apply text-[var(--text-dim)]; }
+.bz-todo-amt { @apply shrink-0; }
+.bz-kind { @apply shrink-0 rounded-full px-2 py-px text-[10.5px] font-bold; }
+.bz-kind-g { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+.bz-kind-y { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
+.bz-kind-r { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
