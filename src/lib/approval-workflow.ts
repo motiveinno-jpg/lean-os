@@ -160,6 +160,14 @@ export function policyTargets(p: Pick<ApprovalPolicy, 'requester_id' | 'requeste
 
 /** 같은 문서 유형 후보들 중 요청자에게 적용될 정책 선택 (2026-08-11).
  *  우선순위: ① 직원 지정 정책(요청자 포함) ② 팀(부서) 정책(요청자 부서 일치) ③ 회사 공통(대상 미지정). */
+/** 대상 미지정(회사 공통) 정책인가 — 기본 유형 편집/저장·양식 필드 조회는 부서·직원 대상 정책을
+ *  잡으면 안 된다. (2026-08-19: leave 정책이 공통+팀 2개가 되자 기본양식 저장이 팀 결재선을
+ *  덮어써 이름이 바뀌는 사고 — find() 첫 번째 잡기 금지) */
+export function isCompanyWidePolicy(p: Pick<ApprovalPolicy, 'requester_id' | 'requester_ids' | 'requester_department'>): boolean {
+  const t = policyTargets(p);
+  return t.userIds.length === 0 && !t.department;
+}
+
 export function pickPolicyForRequester<T extends Pick<ApprovalPolicy, 'requester_id' | 'requester_ids' | 'requester_department'>>(
   candidates: T[],
   userId?: string | null,

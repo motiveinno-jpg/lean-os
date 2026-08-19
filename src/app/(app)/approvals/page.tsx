@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
 import { createNotification, notifyOvertimeDecision } from "@/lib/notifications";
-import {
+import { isCompanyWidePolicy,
   getApprovalPolicies,
   upsertApprovalPolicy,
   deleteApprovalPolicy,
@@ -297,7 +297,7 @@ function resolveFormFields(
   const leaveRows = leaveFieldRows(customFields);
   const defs = formId
     ? formsById.get(formId)?.fields
-    : (policies || []).find((p) => p.document_type === requestType)?.fields;
+    : ((policies || []).find((p) => p.document_type === requestType && isCompanyWidePolicy(p)) || (policies || []).find((p) => p.document_type === requestType))?.fields;
   if (!defs || defs.length === 0) return leaveRows;
   // 값이 빈 필드도 포함한다 — 양식에 있는 항목이면 표에 있어야 하고, 빼버리면 본문에
   // 병합돼 있던 "라벨: " 줄이 제거되지 않아 표 밖으로 새어 나온다
@@ -3244,7 +3244,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               //   여기(새 요청 유형 피커)에 반영 안 되던 버그 — 매칭 정책의 label 을 우선 사용.
               const builtin: PickOpt[] = Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
                 const m = typeMeta(k);
-                const matchedPolicy = (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k);
+                const matchedPolicy = (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k && isCompanyWidePolicy(p)) || (policies as ApprovalPolicy[]).find((p) => p.is_active && p.document_type === k);
                 return { value: k, label: matchedPolicy?.label || v, icon: <span className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={m.icon} className="w-3.5 h-3.5" /></span> };
               });
               // 관리자가 만든 커스텀 정책 유형 — 내장 유형/기본 제외

@@ -36,7 +36,7 @@ import {
   listApprovalForms, saveApprovalForm, deleteApprovalForm,
   FIELD_TYPE_LABEL, type ApprovalForm, type ApprovalFormField, type ApprovalFormStage, type ApprovalFieldType, type ApproverType,
 } from "@/lib/approval-forms";
-import {
+import { isCompanyWidePolicy,
   getApprovalPolicies, upsertApprovalPolicy,
   REQUEST_TYPE_LABELS, type ApprovalPolicy, type ApprovalStageConfig,
 } from "@/lib/approval-workflow";
@@ -126,7 +126,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const [savingDefault, setSavingDefault] = useState(false);
 
   const openEditDefault = (key: string) => {
-    const p = (policies as ApprovalPolicy[]).find((x) => x.document_type === key && x.is_active);
+    const p = (policies as ApprovalPolicy[]).find((x) => x.document_type === key && x.is_active && isCompanyWidePolicy(x));
     setDefaultForm({
       label: p?.label || "",
       descriptionTemplate: p?.description_template || "",
@@ -142,7 +142,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     if (!editingDefaultKey) return;
     setSavingDefault(true);
     try {
-      const existing = (policies as ApprovalPolicy[]).find((x) => x.document_type === editingDefaultKey && x.is_active);
+      const existing = (policies as ApprovalPolicy[]).find((x) => x.document_type === editingDefaultKey && x.is_active && isCompanyWidePolicy(x));
       await upsertApprovalPolicy({
         id: existing?.id,
         company_id: companyId,
@@ -206,7 +206,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   const qHit = (name: string, extra: string[] = []) => quickSearchHit(q, [name, ...extra]);
   const companyRows = (forms as ApprovalForm[]).filter((f) => qHit(f.name, [f.category || ""]));
   const defaultRows = Object.entries(REQUEST_TYPE_LABELS).map(([k, v]) => {
-    const p = (policies as ApprovalPolicy[]).find((x) => x.document_type === k && x.is_active);
+    const p = (policies as ApprovalPolicy[]).find((x) => x.document_type === k && x.is_active && isCompanyWidePolicy(x));
     return { key: k, base: v, name: p?.label || v, fields: p?.fields?.length || 0, stages: p?.stages?.length || 1, custom: !!p };
   }).filter((r) => qHit(r.name, [r.base]));
 
