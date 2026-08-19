@@ -660,57 +660,8 @@ export async function autoCreateExpenseFromRecurring(companyId: string) {
   return { created, total: recurring.length };
 }
 
-// ══════════════════════════════════════════
-// 12. 승인완료 → 결제큐 자동등록
-// ══════════════════════════════════════════
-export async function autoQueueApprovedExpenses(companyId: string) {
-  // Find approved approval_requests that are NOT yet in payment_queue
-  const approved = logRead('lib/automation:approved', await db
-    .from('approval_requests')
-    .select('id, title, amount, request_type, requester_id')
-    .eq('company_id', companyId)
-    .eq('status', 'approved')
-    .in('request_type', ['expense', 'payment', 'purchase']));
-
-  if (!approved?.length) return { queued: 0 };
-
-  // Get existing payment_queue entries linked via approval_request_id (FK-based dedup)
-  // Note: approval_request_id column may not exist yet — fall back to description-based dedup
-  let existingIds = new Set<string>();
-  try {
-    const { data: existingQueue, error: queueErr } = await db
-      .from('payment_queue')
-      .select('approval_request_id')
-      .eq('company_id', companyId)
-      .not('approval_request_id', 'is', null);
-    if (!queueErr && existingQueue) {
-      existingIds = new Set(existingQueue.map((q: any) => q.approval_request_id));
-    }
-  } catch {
-    // Column doesn't exist yet — skip FK-based dedup
-  }
-  let queued = 0;
-
-  for (const req of approved) {
-    // Skip if already queued (FK-based)
-    if (existingIds.has(req.id)) continue;
-
-    const amount = Number(req.amount || 0);
-    if (amount <= 0) continue;
-
-    await createQueueEntry({
-      companyId,
-      approvalRequestId: req.id,
-      amount,
-      description: req.title,
-      costType: req.request_type === 'purchase' ? 'purchase' : 'expense',
-    });
-
-    queued++;
-  }
-
-  return { queued, total: approved.length };
-}
+// (12. 승인완료 → 결제큐 자동등록 — 2026-08-19 삭제. 오너뷰에 이체 기능이 없어 지급 대기(payment_queue
+//  pending)를 만들 이유가 없고, 승인 끝난 경비가 대시보드 '결재 대기'에 유령처럼 남던 원인이었다.)
 
 // ══════════════════════════════════════════
 // 13. 계약 완료 → 지출결의서 자동생성
@@ -901,7 +852,6 @@ export interface AutomationResult {
   contractLinking: { linked: number };
   // Phase U: 파이프라인 자동화
   recurringExpense: { created: number };
-  approvedQueue: { queued: number };
   contractExpense: { created: number };
   taxOnPayment: { created: number };
   taxCancelOnRefund: { cancelled: number };
@@ -932,7 +882,7 @@ export async function runAllAutomation(
   const risky = gate(includeRisky);
   const [
     bankResult, cardResult, matchResult, txMatchResult, dormantResult, expenseResult, contractResult,
-    recurringResult, queueResult, contractExpResult, taxPayResult, taxCancelResult, loanMatchResult,
+    recurringResult, contractExpResult, taxPayResult, taxCancelResult, loanMatchResult,
   ] = await Promise.all([
     // organize(항상): 데이터 정리만
     safe('거래 자동분류', applyBankClassificationRules(companyId), { processed: 0, matched: 0 }),
@@ -945,7 +895,6 @@ export async function runAllAutomation(
     safe('계약→일정 연결', autoLinkApprovedContractsToSchedule(companyId), { linked: 0 }),
     // draft(기본 ON): 레코드 생성하나 승인 필요
     draft('반복→지출결의(드래프트)', () => autoCreateExpenseFromRecurring(companyId), { created: 0 }),
-    draft('승인→결제큐', () => autoQueueApprovedExpenses(companyId), { queued: 0 }),
     draft('계약→지출결의(드래프트)', () => autoCreateExpenseFromContract(companyId), { created: 0 }),
     // risky: 세금계산서 자동발행/취소 (기본 OFF)
     risky('결제→세금계산서 발행', () => autoCreateTaxInvoiceOnPayment(companyId), { created: 0 }),
@@ -962,7 +911,6 @@ export async function runAllAutomation(
     expenseApproval: expenseResult,
     contractLinking: contractResult,
     recurringExpense: recurringResult,
-    approvedQueue: queueResult,
     contractExpense: contractExpResult,
     taxOnPayment: taxPayResult,
     taxCancelOnRefund: taxCancelResult,

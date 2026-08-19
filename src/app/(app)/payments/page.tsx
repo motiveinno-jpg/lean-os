@@ -1358,7 +1358,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
       setResult(res);
       invalidate();
       const total =
-        res.recurringExpense.created + res.approvedQueue.queued + res.contractExpense.created +
+        res.recurringExpense.created + res.contractExpense.created +
         res.taxOnPayment.created + res.expenseApproval.approved + res.bankClassification.matched +
         res.threeWayMatch.autoMatched + res.dormantDeals.detected;
       const failed = res.errors?.length ?? 0;
@@ -1428,12 +1428,6 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
               <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
                 <div className="font-bold">{result.recurringExpense.created}건</div>
                 <div className="text-[var(--text-dim)]">반복→지출결의</div>
-              </div>
-            )}
-            {result.approvedQueue.queued > 0 && (
-              <div className="bg-[var(--bg-surface)] rounded-lg p-2 text-center">
-                <div className="font-bold">{result.approvedQueue.queued}건</div>
-                <div className="text-[var(--text-dim)]">승인→결제큐</div>
               </div>
             )}
             {result.contractExpense.created > 0 && (

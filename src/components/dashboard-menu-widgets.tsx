@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ActivityCard } from "./dashboard-activity";
+import { REQUEST_TYPE_LABELS } from "@/lib/approval-workflow";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -76,16 +77,18 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
     queryKey: ["dash-approvals-pending", companyId],
     enabled: !!companyId, staleTime: 60_000,
     queryFn: async () => {
-      // 문서결재(doc_approvals) + 지출결재(payment_queue) 둘 다 목록에 — 건수와 표시가 일치하도록.
-      const [docRes, payRes] = await Promise.all([
+      // 문서결재(doc_approvals) + 결재허브 대기(approval_requests) — 진짜 '결재 대기'만.
+      //   (2026-08-19 사장님: payment_queue 는 지급 대기라 결재가 끝난 건이 유령처럼 남았고,
+      //    누르면 정기지출로 이동해 헷갈렸다. 오너뷰에 이체 기능이 없어 지급 대기 표시 자체가 불필요.)
+      const [docRes, reqRes] = await Promise.all([
         db.from("doc_approvals").select("id, created_at, documents(content_type, contract_amount)")
           .eq("company_id", companyId).eq("status", "pending").order("created_at", { ascending: false }).limit(8),
-        db.from("payment_queue").select("id, amount, description, recipient_name, created_at")
+        db.from("approval_requests").select("id, title, request_type, amount, created_at")
           .eq("company_id", companyId).eq("status", "pending").order("created_at", { ascending: false }).limit(8),
       ]);
       const docs = (docRes.data || []) as any[];
-      const pays = (payRes.data || []) as any[];
-      return { docs, pays, total: docs.length + pays.length };
+      const reqs = (reqRes.data || []) as any[];
+      return { docs, reqs, total: docs.length + reqs.length };
     },
   });
   const items = [
@@ -93,9 +96,9 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
       kind: "doc" as const, id: a.id, href: "/approvals", badge: DOC_KIND[a.documents?.content_type] || "결재 문서",
       amt: Number(a.documents?.contract_amount || 0), date: a.created_at as string,
     })),
-    ...(data?.pays || []).map((p) => ({
-      kind: "pay" as const, id: p.id, href: "/payments", badge: "지출",
-      label: (p.description || p.recipient_name || "지출 결재") as string, amt: Number(p.amount || 0), date: p.created_at as string,
+    ...(data?.reqs || []).map((r) => ({
+      kind: "req" as const, id: r.id, href: "/approvals", badge: REQUEST_TYPE_LABELS[r.request_type as keyof typeof REQUEST_TYPE_LABELS] || "결재",
+      label: (r.title || "결재 요청") as string, amt: Number(r.amount || 0), date: r.created_at as string,
     })),
   ].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 6);
 
@@ -106,7 +109,7 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
         <Link key={`${it.kind}-${it.id}`} href={it.href} className="dash-approval-row">
           <Badge label={it.badge} tone="var(--warning)" />
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">
-            {it.kind === "pay" ? (it as any).label : (it.amt ? won(it.amt) : "결재 문서")}
+            {it.kind === "req" ? (it as any).label : (it.amt ? won(it.amt) : "결재 문서")}
           </span>
           {it.amt > 0 && <span className="text-[11px] mono-number text-[var(--text-muted)] shrink-0">{won(it.amt)}</span>}
           <span className="text-[10px] text-[var(--text-dim)] shrink-0">{md(it.date)}</span>
