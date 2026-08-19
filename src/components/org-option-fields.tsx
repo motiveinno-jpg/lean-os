@@ -16,6 +16,7 @@ const DEFAULT_POSITIONS = ["대표", "이사", "부장", "차장", "과장", "�
 
 const FIELD_CLS = "w-full px-2 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)]";
 const ADD_SENTINEL = "__add__";
+const MANAGE_SENTINEL = "__manage__";
 
 function useDepartmentOptions(companyId: string | null) {
   return useQuery({
@@ -45,13 +46,15 @@ function usePositionOptions(companyId: string | null) {
   });
 }
 
-function SelectWithAdd({ label, value, options, onChange, onAdd, addPlaceholder }: {
+function SelectWithAdd({ label, value, options, onChange, onAdd, onRemove, addPlaceholder }: {
   label: string; value: string; options: string[];
   onChange: (v: string) => void;
   onAdd: (name: string) => Promise<void>;
+  onRemove: (name: string) => Promise<void>;
   addPlaceholder: string;
 }) {
   const [adding, setAdding] = useState(false);
+  const [managing, setManaging] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   // 자유입력 시절 저장값이 목록에 없으면 옵션으로 함께 노출
@@ -71,10 +74,35 @@ function SelectWithAdd({ label, value, options, onChange, onAdd, addPlaceholder 
     }
   };
 
+  // 삭제는 목록에서만 뺀다 — 이미 저장된 직원 값은 그대로 두고, 화면에선 '목록에 없는 값' 폴백으로 계속 보인다.
+  const removeOne = async (name: string) => {
+    if (saving) return;
+    setSaving(true);
+    try { await onRemove(name); } finally { setSaving(false); }
+  };
+
   return (
     <div>
       <div className="text-[10px] text-[var(--text-dim)] font-medium mb-0.5">{label}</div>
-      {adding ? (
+      {managing ? (
+        <div className="border border-[var(--border)] rounded-lg p-1.5 space-y-1 bg-[var(--bg)]">
+          {options.length === 0 && (
+            <div className="text-[11px] text-[var(--text-dim)] px-1 py-0.5">삭제할 항목이 없습니다</div>
+          )}
+          {options.map((o) => (
+            <div key={o} className="flex items-center justify-between gap-2 px-1">
+              <span className="text-xs truncate">{o}</span>
+              <button type="button" onClick={() => removeOne(o)} disabled={saving}
+                title="목록에서 삭제 (이미 지정된 직원의 값은 유지)"
+                className="text-[11px] text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded px-1.5 py-0.5 shrink-0">✕</button>
+            </div>
+          ))}
+          <div className="flex justify-end pt-0.5">
+            <button type="button" onClick={() => setManaging(false)}
+              className="px-2 py-1 text-[11px] text-[var(--text-muted)] rounded-lg">닫기</button>
+          </div>
+        </div>
+      ) : adding ? (
         <div className="flex gap-1">
           <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={addPlaceholder}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitAdd(); } if (e.key === "Escape") setAdding(false); }}
@@ -88,11 +116,13 @@ function SelectWithAdd({ label, value, options, onChange, onAdd, addPlaceholder 
         <select value={value || ""} className={FIELD_CLS}
           onChange={(e) => {
             if (e.target.value === ADD_SENTINEL) { setAdding(true); return; }
+            if (e.target.value === MANAGE_SENTINEL) { setManaging(true); return; }
             onChange(e.target.value);
           }}>
           <option value="">선택 안 함</option>
           {opts.map((o) => <option key={o} value={o}>{o}</option>)}
           <option value={ADD_SENTINEL}>＋ 직접 추가…</option>
+          <option value={MANAGE_SENTINEL}>－ 목록에서 삭제…</option>
         </select>
       )}
     </div>
@@ -112,6 +142,15 @@ export function DepartmentField({ companyId, value, onChange, label = "부서" }
         const nextOrder = options.length;
         const { error } = await supabase.from("departments").insert({ company_id: companyId as string, name, sort_order: nextOrder });
         if (error && (error as { code?: string }).code !== "23505") { toast(`부서 추가 실패: ${error.message}`, "error"); throw error; }
+        qc.invalidateQueries({ queryKey: ["departments", companyId] });
+        qc.invalidateQueries({ queryKey: ["settings-departments", companyId] });
+      }}
+      onRemove={async (name) => {
+        // 설정 > 부서 관리와 같은 소프트 삭제 — 그 화면의 '보관됨' 목록에서 복원 가능
+        const { error } = await supabase.from("departments")
+          .update({ archived_at: new Date().toISOString() })
+          .eq("company_id", companyId as string).eq("name", name).is("archived_at", null);
+        if (error) { toast(`부서 삭제 실패: ${error.message}`, "error"); throw error; }
         qc.invalidateQueries({ queryKey: ["departments", companyId] });
         qc.invalidateQueries({ queryKey: ["settings-departments", companyId] });
       }} />
@@ -134,6 +173,14 @@ export function PositionField({ companyId, value, onChange, label = "직책" }: 
         const { error } = await supabase.from("company_settings")
           .upsert({ company_id: companyId as string, settings: merged }, { onConflict: "company_id" });
         if (error) { toast(`직책 추가 실패: ${error.message}`, "error"); throw error; }
+        qc.invalidateQueries({ queryKey: ["position-options", companyId] });
+      }}
+      onRemove={async (name) => {
+        const { data: row } = await supabase.from("company_settings").select("settings").eq("company_id", companyId!).maybeSingle();
+        const merged = { ...((row?.settings as Record<string, unknown>) || {}), position_options: options.filter((o) => o !== name) };
+        const { error } = await supabase.from("company_settings")
+          .upsert({ company_id: companyId as string, settings: merged }, { onConflict: "company_id" });
+        if (error) { toast(`직책 삭제 실패: ${error.message}`, "error"); throw error; }
         qc.invalidateQueries({ queryKey: ["position-options", companyId] });
       }} />
   );
