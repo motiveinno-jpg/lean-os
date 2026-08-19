@@ -19,6 +19,7 @@ import { markConnectedOnce } from "@/lib/analytics";
 import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
+import { useConfirm } from "@/components/confirm-dialog";
 import { friendlyError } from "@/lib/friendly-error";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { getBankSyncAccess } from "@/lib/billing";
@@ -173,6 +174,34 @@ export default function CardsPage() {
   const [cardTxFrom, setCardTxFrom] = useState<string>(() => defaultRange().from);
   //   카드 탭 보기 — 표가 기본, 카드는 보기 옵션 (2026-08-19 조회 표준: 목록은 표)
   const [cardsView, setCardsView] = useState<"list" | "card">("list");
+  //   카드 동작 확장 (2026-08-19 사장님) — 수정(이름·메모)·숨김(is_active=false)·삭제(거래 있으면 막음)
+  const { confirm: confirmDlg, confirmElement: cardConfirmEl } = useConfirm();
+  const [showHiddenCards, setShowHiddenCards] = useState(false);
+  const [cardEdit, setCardEdit] = useState<{ id: string; name: string; memo: string } | null>(null);
+  const [cardSaving, setCardSaving] = useState(false);
+  const refreshCards = () => { queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] }); queryClient.invalidateQueries({ queryKey: ["corporate-cards"] }); };
+  const saveCardEdit = async () => {
+    if (!cardEdit) return;
+    const name = cardEdit.name.trim(); if (!name) { toast("카드 이름을 입력해 주세요", "error"); return; }
+    setCardSaving(true);
+    try { const { error } = await db.from("corporate_cards").update({ card_name: name, memo: cardEdit.memo.trim() || null } as never).eq("id", cardEdit.id); if (error) throw error; refreshCards(); toast("카드 정보를 저장했습니다", "success"); setCardEdit(null); }
+    catch (e) { toast(friendlyError(e, "저장 실패"), "error"); } finally { setCardSaving(false); }
+  };
+  const toggleCardHidden = async (card: any) => {
+    const hide = card.is_active !== false;
+    try { const { error } = await db.from("corporate_cards").update({ is_active: !hide }).eq("id", card.id); if (error) throw error; refreshCards(); toast(hide ? "목록에서 숨겼습니다(비활성) — '숨긴 카드 보기'로 되돌릴 수 있습니다" : "다시 보입니다(활성)", "success"); }
+    catch (e) { toast(friendlyError(e, "변경 실패"), "error"); }
+  };
+  const removeCard = async (card: any) => {
+    const { ok } = await confirmDlg({ title: "카드 삭제", desc: `"${card.card_name || "카드"}"을(를) 삭제할까요? 거래가 있는 카드는 삭제되지 않습니다(숨김을 쓰세요). 삭제는 되돌릴 수 없습니다.`, danger: true, confirmLabel: "삭제" });
+    if (!ok) return;
+    try {
+      const { count } = await db.from("card_transactions").select("id", { count: "exact", head: true }).eq("card_id", card.id);
+      if ((count || 0) > 0) { toast(`이 카드에 거래 ${(count || 0).toLocaleString()}건이 있어 삭제할 수 없습니다 — '숨김'을 쓰세요.`, "error"); return; }
+      const { error } = await db.from("corporate_cards").delete().eq("id", card.id); if (error) throw error;
+      refreshCards(); toast("삭제했습니다", "success");
+    } catch (e) { toast(friendlyError(e, "삭제 실패"), "error"); }
+  };
   const [cardTxTo, setCardTxTo] = useState<string>(() => defaultRange().to);
   // 전표처리 (카드 → 수동 전표)
   const [postCard, setPostCard] = useState<any | null>(null);
@@ -778,6 +807,9 @@ export default function CardsPage() {
               <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
                 onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
               {tab === "cards" && cards.length > 0 && <ChipGroup value={cardsView} onChange={setCardsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
+              {tab === "cards" && cards.some((c: any) => c.is_active === false) && (
+                <button type="button" onClick={() => setShowHiddenCards((v) => !v)} className={showHiddenCards ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 카드 {cards.filter((c: any) => c.is_active === false).length}개 {showHiddenCards ? "감추기" : "보기"}</button>
+              )}
               <span className="text-[11px] text-[var(--text-dim)]">카드를 선택하면 해당 카드 거래에 적용 · 거래를 조건으로 찾으려면 거래내역 탭</span>
             </QueryBar>
             {/* 분석 탭 결과 요약 — 예전 Stat 카드 4장 → Stat 줄 (2026-08-19 자금 메뉴 점검) */}
@@ -813,17 +845,24 @@ export default function CardsPage() {
             {/* 카드 미니 그리드 — 클릭 시 그 카드 거래내역 영역으로 스크롤+필터 */}
             {cardsView === "list" ? (
               <table className="ev-table ev-lined cards-table">
-                <thead><tr><th className="text-left">카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
+                <thead><tr><th className="text-left">카드</th><th>종류</th><th>끝번호</th><th>카드사</th><th className="text-left">메모</th><th>결제일</th><th>한도</th><th>동작</th></tr></thead>
                 <tbody>
-                  {cards.map((card: any, idx: number) => (
-                    <tr key={card.id} className={`pnl-row-acct ${idx === selectedCardIdx ? "cards-row-on" : ""}`} onClick={() => handleSelectCardForTx(card, idx)} title="누르면 이 카드 거래내역">
-                      <td className="text-left font-semibold">{card.card_name || "카드"}</td>
+                  {cards.map((card: any, idx: number) => ({ card, idx })).filter(({ card }) => showHiddenCards || card.is_active !== false).map(({ card, idx }) => (
+                    <tr key={card.id} className={`pnl-row-acct ${idx === selectedCardIdx ? "cards-row-on" : ""} ${card.is_active === false ? "opacity-60" : ""}`} onClick={() => handleSelectCardForTx(card, idx)} title="누르면 이 카드 거래내역">
+                      <td className="text-left font-semibold">{card.card_name || "카드"}{card.is_active === false && <span className="ol-sure ml-1.5">숨김</span>}</td>
                       <td className="text-center"><span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${cardTypeBadgeClass(card.card_type)}`}>{cardTypeLabel(card.card_type)}</span></td>
                       <td className="text-center mono-number text-[var(--text-muted)]">•••• {(card.card_number || "").slice(-4) || "----"}</td>
                       <td className="text-center text-[var(--text-muted)]">{card.card_company || "—"}</td>
+                      <td className="text-left text-[var(--text-muted)]">{card.memo ? <span className="truncate inline-block max-w-[200px]" title={card.memo}>{card.memo}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
                       <td className="text-center">{card.payment_day ? `매월 ${card.payment_day}일` : "—"}</td>
                       <td className="text-right mono-number">{Number(card.monthly_limit || 0) > 0 ? fmtW(Number(card.monthly_limit)) : "—"}</td>
-                      <td className="text-center"><button type="button" onClick={(e) => { e.stopPropagation(); setEditingCardId(card.id); setEditingName(card.card_name || ""); setCardsView("card"); }} className="btn-secondary btn-sm">이름 변경</button></td>
+                      <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                        <span className="inline-flex gap-1.5">
+                          <button type="button" onClick={() => setCardEdit({ id: card.id, name: card.card_name || "", memo: card.memo || "" })} className="btn-secondary btn-sm">수정</button>
+                          <button type="button" onClick={() => toggleCardHidden(card)} className="btn-secondary btn-sm">{card.is_active === false ? "보이기" : "숨김"}</button>
+                          <button type="button" onClick={() => removeCard(card)} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -831,7 +870,7 @@ export default function CardsPage() {
             ) : (
             <div className="card-mini-grid-section">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {cards.map((card: any, idx: number) => (
+                {cards.map((card: any, idx: number) => ({ card, idx })).filter(({ card }) => showHiddenCards || card.is_active !== false).map(({ card, idx }) => (
                   <MiniCard
                     key={card.id}
                     card={card}
@@ -1240,6 +1279,20 @@ export default function CardsPage() {
           </div>
         </div>
       )}
+      {/* 카드 수정 팝업 — 이름·메모 (2026-08-19) */}
+      {cardEdit && (
+        <div className="approval-detail-modal" onClick={() => setCardEdit(null)}>
+          <div className="pnl-drill bank-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pnl-drill-head"><h3 className="text-sm font-bold">카드 수정</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setCardEdit(null)}>닫기</button></div>
+            <div className="pay-form-body space-y-3">
+              <label className="block"><span className="field-label">카드 이름</span><input className="qk-input h-9 w-full px-2.5 text-sm" value={cardEdit.name} onChange={(e) => setCardEdit({ ...cardEdit, name: e.target.value })} /></label>
+              <label className="block"><span className="field-label">메모</span><textarea className="qk-input w-full px-2.5 py-2 text-sm" rows={3} value={cardEdit.memo} onChange={(e) => setCardEdit({ ...cardEdit, memo: e.target.value })} placeholder="예: 마케팅팀 광고비 전용 · 대표 소지" /></label>
+              <div className="flex justify-end gap-2"><button type="button" className="btn-secondary btn-sm" onClick={() => setCardEdit(null)}>취소</button><button type="button" className="btn-primary btn-sm" disabled={cardSaving} onClick={saveCardEdit}>{cardSaving ? "저장 중…" : "저장"}</button></div>
+            </div>
+          </div>
+        </div>
+      )}
+      {cardConfirmEl}
     </div>
   );
 }

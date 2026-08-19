@@ -829,6 +829,43 @@ export async function setBankAccountAlias(
   if (error) throw error;
 }
 
+/** 통장 이름·메모·숨김 한 번에 (2026-08-19 사장님: 이름 변경만으론 단편적 — 수정·숨김·삭제). bank_accounts 행이 없으면 만든다 */
+export async function updateBankAccountMeta(
+  companyId: string,
+  accountNumber: string,
+  patch: { alias?: string | null; memo?: string | null; is_hidden?: boolean },
+  opts?: { bankName?: string; balance?: number },
+) {
+  const clean: Record<string, unknown> = {};
+  if ('alias' in patch) clean.alias = (patch.alias || '').trim() || null;
+  if ('memo' in patch) clean.memo = (patch.memo || '').trim() || null;
+  if ('is_hidden' in patch) clean.is_hidden = !!patch.is_hidden;
+  const updated = logRead('updateBankAccountMeta', await supabase
+    .from('bank_accounts').update(clean as never).eq('company_id', companyId).eq('account_number', accountNumber).select('id'));
+  if (updated && updated.length > 0) return;
+  const { error } = await supabase.from('bank_accounts').insert({
+    company_id: companyId, account_number: accountNumber, bank_name: opts?.bankName || '기타', balance: opts?.balance ?? 0, ...clean,
+  } as never);
+  if (error) throw error;
+}
+
+/** 통장 삭제 — 거래가 하나라도 있으면 막는다(장부가 깨진다). 그 경우 '숨김'을 안내 */
+export async function deleteBankAccountSafe(companyId: string, accountNumber: string): Promise<void> {
+  const [{ count: byRaw }, acct] = await Promise.all([
+    supabase.from('bank_transactions').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('raw_data->>accountNo', accountNumber),
+    supabase.from('bank_accounts').select('id').eq('company_id', companyId).eq('account_number', accountNumber).maybeSingle(),
+  ]);
+  let n = byRaw || 0;
+  if (acct.data?.id) {
+    const { count } = await supabase.from('bank_transactions').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('bank_account_id', acct.data.id);
+    n = Math.max(n, count || 0);
+  }
+  if (n > 0) throw new Error(`이 통장에 거래 ${n.toLocaleString()}건이 있어 삭제할 수 없습니다 — 목록에서 안 보이게 하려면 '숨김'을 쓰세요.`);
+  if (!acct.data?.id) throw new Error('삭제할 통장 정보가 없습니다 (연동 정보만 있는 계좌).');
+  const { error } = await supabase.from('bank_accounts').delete().eq('id', acct.data.id);
+  if (error) throw error;
+}
+
 // 기간 내 계좌별 증감 = Σ(income) − Σ(expense). accountNo(raw_data.accountNo) 기준.
 //   잔액 계산(syncBankBalances) 무변경 — 표시용 증감만 별도 집계.
 export async function getBankAccountChanges(
@@ -1720,6 +1757,9 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
   balance: number;
   alias?: string;
   bankName?: string;
+  id?: string;
+  isHidden?: boolean;
+  memo?: string;
 }>> {
   const [txs, { data: accts }] = await Promise.all([
     // 기존 .limit(5000) 의도 유지 — 서버 max_rows=1000 절단으로 계좌별 count 가 과소집계되던 것을 페이징으로 복원
@@ -1735,7 +1775,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
       .order('id', { ascending: false }), 5000),
     supabase
       .from('bank_accounts')
-      .select('account_number, alias, bank_name, balance')
+      .select('id, account_number, alias, bank_name, balance, is_hidden, memo')
       .eq('company_id', companyId),
   ]);
   // tx 별 count + 최신 잔액 계산.
@@ -1760,14 +1800,17 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
     }
   }
   // bank_accounts 정보 매핑 — 통장 list 의 source. 거래 0건이어도 표시하기 위해.
-  const acctInfo = new Map<string, { alias?: string; bankName?: string; balance: number }>();
+  const acctInfo = new Map<string, { id?: string; alias?: string; bankName?: string; balance: number; isHidden?: boolean; memo?: string }>();
   const allAccountNos = new Set<string>();
   for (const a of (accts || []) as any[]) {
     if (a.account_number) {
       acctInfo.set(a.account_number, {
+        id: a.id,
         alias: a.alias || undefined,
         bankName: a.bank_name || undefined,
         balance: Number(a.balance || 0),
+        isHidden: !!a.is_hidden,
+        memo: a.memo || undefined,
       });
       allAccountNos.add(a.account_number);
     }
@@ -1787,6 +1830,9 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
         balance: latestTxBal !== undefined ? latestTxBal : (info?.balance ?? 0),
         alias: info?.alias,
         bankName: info?.bankName,
+        id: info?.id,
+        isHidden: info?.isHidden || false,
+        memo: info?.memo,
       };
     })
     .sort((a, b) => {

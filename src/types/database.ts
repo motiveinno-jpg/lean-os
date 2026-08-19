@@ -1279,7 +1279,9 @@ export type Database = {
           company_id: string
           created_at: string | null
           id: string
+          is_hidden: boolean
           is_primary: boolean | null
+          memo: string | null
           role: string
         }
         Insert: {
@@ -1290,7 +1292,9 @@ export type Database = {
           company_id: string
           created_at?: string | null
           id?: string
+          is_hidden?: boolean
           is_primary?: boolean | null
+          memo?: string | null
           role?: string
         }
         Update: {
@@ -1301,7 +1305,9 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           id?: string
+          is_hidden?: boolean
           is_primary?: boolean | null
+          memo?: string | null
           role?: string
         }
         Relationships: [
@@ -3864,6 +3870,7 @@ export type Database = {
           holder_name: string | null
           id: string
           is_active: boolean | null
+          memo: string | null
           monthly_limit: number | null
           payment_day: number | null
         }
@@ -3878,6 +3885,7 @@ export type Database = {
           holder_name?: string | null
           id?: string
           is_active?: boolean | null
+          memo?: string | null
           monthly_limit?: number | null
           payment_day?: number | null
         }
@@ -3892,6 +3900,7 @@ export type Database = {
           holder_name?: string | null
           id?: string
           is_active?: boolean | null
+          memo?: string | null
           monthly_limit?: number | null
           payment_day?: number | null
         }

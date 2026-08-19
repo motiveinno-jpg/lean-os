@@ -9674,3 +9674,4 @@ table.mypage-att-table { min-width: 760px; }
   .coa-screen .qk-screen > .qk-body { height: auto; flex: none; }
   .vault-file-panel > .qk-screen { height: auto; min-height: 0; }
 }
+.bank-edit-modal { @apply max-w-lg; }

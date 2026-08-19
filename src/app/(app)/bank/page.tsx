@@ -21,7 +21,7 @@ import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getSyncPausedUntil, setSyncPause, clearSyncPause } from "@/lib/data-sync";
 import { getBankSyncAccess } from "@/lib/billing";
 import { DateRangeField } from "@/components/date-range-field";
-import { getBankAccountChanges, getDistinctBankAccountNos, setBankAccountAlias, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
+import { getBankAccountChanges, getDistinctBankAccountNos, updateBankAccountMeta, deleteBankAccountSafe, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { EmptyState } from "@/components/empty-state";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -142,6 +142,29 @@ export default function BankPage() {
   const [bankTxFrom, setBankTxFrom] = useState<string>(() => defaultRange().from);
   //   통장 탭 보기 — 표가 기본, 카드는 보기 옵션 (2026-08-19 조회 표준: 목록은 표)
   const [accountsView, setAccountsView] = useState<"list" | "card">("list");
+  //   통장 동작 확장 (2026-08-19 사장님: 이름 변경만으론 단편적) — 수정(이름·메모)·숨김·삭제. 숨긴 통장은 목록에서만 빠진다(합계·연동 그대로)
+  const [showHiddenAccts, setShowHiddenAccts] = useState(false);
+  const [acctEdit, setAcctEdit] = useState<{ accountNo: string; alias: string; memo: string; bankName?: string; balance: number } | null>(null);
+  const [acctSaving, setAcctSaving] = useState(false);
+  const refreshAccts = () => { queryClient.invalidateQueries({ queryKey: ["bank-page-accounts-distinct"] }); queryClient.invalidateQueries({ queryKey: ["bank-accounts-distinct"] }); };
+  const saveAcctEdit = async () => {
+    if (!acctEdit || !companyId) return;
+    setAcctSaving(true);
+    try { await updateBankAccountMeta(companyId, acctEdit.accountNo, { alias: acctEdit.alias, memo: acctEdit.memo }, { bankName: acctEdit.bankName, balance: acctEdit.balance }); refreshAccts(); toast("통장 정보를 저장했습니다", "success"); setAcctEdit(null); }
+    catch (e: any) { toast(friendlyError(e, "저장 실패"), "error"); } finally { setAcctSaving(false); }
+  };
+  const toggleAcctHidden = async (a: { accountNo: string; isHidden?: boolean; bankName?: string; balance: number }) => {
+    if (!companyId) return;
+    try { await updateBankAccountMeta(companyId, a.accountNo, { is_hidden: !a.isHidden }, { bankName: a.bankName, balance: a.balance }); refreshAccts(); toast(a.isHidden ? "다시 보입니다" : "목록에서 숨겼습니다 — '숨긴 통장 보기'로 되돌릴 수 있습니다", "success"); }
+    catch (e: any) { toast(friendlyError(e, "변경 실패"), "error"); }
+  };
+  const removeAcct = async (a: { accountNo: string; alias?: string; bankName?: string }) => {
+    if (!companyId) return;
+    const { ok } = await confirm({ title: "통장 삭제", desc: `"${a.alias || a.bankName || a.accountNo}"을(를) 삭제할까요? 거래가 있는 통장은 삭제되지 않습니다(숨김을 쓰세요). 삭제는 되돌릴 수 없습니다.`, danger: true, confirmLabel: "삭제" });
+    if (!ok) return;
+    try { await deleteBankAccountSafe(companyId, a.accountNo); refreshAccts(); toast("삭제했습니다", "success"); }
+    catch (e: any) { toast(friendlyError(e, "삭제 실패"), "error"); }
+  };
   const [bankTxTo, setBankTxTo] = useState<string>(() => defaultRange().to);
   //   조회 줄 — 빠른검색(즉시) + 검색조건 패널(조회를 눌러야). 수집·전표와 같은 draft/live 구도.
   //   통장 탭 카드 클릭의 '이 통장만'은 검색조건의 계좌 칩으로 들어온다(배너 방식 폐기).
@@ -190,26 +213,7 @@ export default function BankPage() {
     });
   };
 
-  // 통장 이름 편집 — BankAccountsOverview 와 동일한 setBankAccountAlias 사용. 빈 문자열이면 별칭 해제.
-  const handleEditAlias = async (accountNo: string, currentAlias: string | undefined, bankName: string | undefined, balance: number) => {
-    const { ok, input } = await confirm({
-      title: "통장 이름 변경",
-      desc: currentAlias ? `현재 이름: ${currentAlias} — 비워두고 저장하면 별칭이 해제됩니다.` : "비워두고 저장하면 별칭이 해제됩니다.",
-      withInput: "새 이름",
-      inputOptional: true,
-      confirmLabel: "저장",
-    });
-    if (!ok) return; // 취소
-    const next = (input ?? "").trim();
-    try {
-      await setBankAccountAlias(companyId!, accountNo, next, { bankName, balance });
-      queryClient.invalidateQueries({ queryKey: ["bank-page-accounts-distinct"] });
-      queryClient.invalidateQueries({ queryKey: ["bank-accounts-distinct"] });
-      toast(next ? `이름을 "${next}"으로 변경` : "별칭 해제 완료", "success");
-    } catch (e: any) {
-      toast(friendlyError(e, "이름 변경 실패"), "error");
-    }
-  };
+  // 통장 이름 편집은 2026-08-19 '수정' 팝업(이름·메모)으로 — setAcctEdit
 
   // 통장 거래 인라인 매핑 (미매핑 배지에서 바로 처리 — 거래매칭 페이지 불필요)
   //   고정비 체크: is_fixed_cost 저장 + 거래처 규칙 학습(learnRuleFromMapping) → 같은 거래처는 다음부터 자동 체크.
@@ -803,6 +807,9 @@ export default function BankPage() {
             {tabsEl}
             <QueryBar right={actionsEl}>
               {tab === "accounts" && <ChipGroup value={accountsView} onChange={setAccountsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
+              {tab === "accounts" && accounts.some((a) => a.isHidden) && (
+                <button type="button" onClick={() => setShowHiddenAccts((v) => !v)} className={showHiddenAccts ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 통장 {accounts.filter((a) => a.isHidden).length}개 {showHiddenAccts ? "감추기" : "보기"}</button>
+              )}
               <span className="text-[11px] text-[var(--text-dim)]">통장 잔액·이번 달 흐름 — 거래를 조건으로 찾으려면 거래내역 탭</span>
             </QueryBar>
             {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·이번 달 수익·지출·분류 완료율)를 Stat 줄로 (2026-08-19 자금 메뉴 점검) */}
@@ -839,21 +846,28 @@ export default function BankPage() {
       {/* 통장 — portfolio 카드(이름·잔액·이번달 증감). 2026-05-29 카드 크기 축소(p-4·3열). */}
       {tab === "accounts" && accountsView === "list" && accounts.length > 0 && (
         <table className="ev-table ev-lined bank-accounts-table">
-          <thead><tr><th className="text-left">통장</th><th>계좌</th><th>잔액</th><th>이번 달 변화</th><th>동작</th></tr></thead>
+          <thead><tr><th className="text-left">통장</th><th>계좌</th><th className="text-left">메모</th><th>잔액</th><th>이번 달 변화</th><th>동작</th></tr></thead>
           <tbody>
-            {accounts.map((a) => {
+            {accounts.filter((a) => showHiddenAccts || !a.isHidden).map((a) => {
               const accNo = a.accountNo || "";
               const change = changeByAcct[accNo] || 0;
               const name = a.alias || (a.bankName ? `${a.bankName}${accNo.slice(-4) ? " " + accNo.slice(-4) : ""}` : accNo) || "계좌";
               const bal = Number(a.balance || 0);
               return (
-                <tr key={a.accountNo} className="pnl-row-acct" onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 이 통장 거래내역">
-                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}</span></td>
+                <tr key={a.accountNo} className={`pnl-row-acct ${a.isHidden ? "opacity-60" : ""}`} onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 이 통장 거래내역">
+                  <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}{a.isHidden && <span className="ol-sure">숨김</span>}</span></td>
                   {/* 계좌번호는 전체를 보인다 (2026-08-19 사장님: "통장에서 계좌번호를 다 보이게") */}
                   <td className="text-center mono-number text-[var(--text-muted)]">{accNo || "—"}</td>
+                  <td className="text-left text-[var(--text-muted)]">{a.memo ? <span className="truncate inline-block max-w-[220px]" title={a.memo}>{a.memo}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
                   <td className="text-right mono-number font-bold">{fmtW(bal)}</td>
                   <td className={`text-right mono-number ${Math.round(change) === 0 ? "text-[var(--text-dim)]" : change > 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{Math.round(change) === 0 ? "변화 없음" : `${change > 0 ? "+" : "−"}${fmtW(Math.abs(change))}`}</td>
-                  <td className="text-center"><button type="button" onClick={(e) => { e.stopPropagation(); handleEditAlias(accNo, a.alias, a.bankName, bal); }} className="btn-secondary btn-sm">이름 변경</button></td>
+                  <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <span className="inline-flex gap-1.5">
+                      <button type="button" onClick={() => setAcctEdit({ accountNo: accNo, alias: a.alias || "", memo: a.memo || "", bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">수정</button>
+                      <button type="button" onClick={() => toggleAcctHidden({ accountNo: accNo, isHidden: a.isHidden, bankName: a.bankName, balance: bal })} className="btn-secondary btn-sm">{a.isHidden ? "보이기" : "숨김"}</button>
+                      <button type="button" onClick={() => removeAcct({ accountNo: accNo, alias: a.alias, bankName: a.bankName })} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
+                    </span>
+                  </td>
                 </tr>
               );
             })}
@@ -876,7 +890,7 @@ export default function BankPage() {
                 }
               />
             </div>
-          ) : accounts.map((a) => {
+          ) : accounts.filter((a) => showHiddenAccts || !a.isHidden).map((a) => {
             const accNo = a.accountNo || "";
             const change = changeByAcct[accNo] || 0;
             const name = a.alias || (a.bankName ? `${a.bankName}${accNo.slice(-4) ? " " + accNo.slice(-4) : ""}` : accNo) || "계좌";
@@ -900,7 +914,7 @@ export default function BankPage() {
                     {/* 통장 이름 편집(연필) — 카드 클릭과 분리(stopPropagation) */}
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); handleEditAlias(accNo, a.alias, a.bankName, bal); }}
+                      onClick={(e) => { e.stopPropagation(); setAcctEdit({ accountNo: accNo, alias: a.alias || "", memo: a.memo || "", bankName: a.bankName, balance: bal }); }}
                       className="opacity-0 group-hover:opacity-100 transition p-1 rounded-md bg-[var(--bg-surface)] hover:bg-[var(--bg-card)] text-[var(--text-muted)] hover:text-[var(--primary)] border border-[var(--border)]"
                       title="이름 변경"
                       aria-label="이름 변경"
@@ -1240,6 +1254,19 @@ export default function BankPage() {
         </div>
       )}
 
+      {/* 통장 수정 팝업 — 이름·메모 (2026-08-19) */}
+      {acctEdit && (
+        <div className="approval-detail-modal" onClick={() => setAcctEdit(null)}>
+          <div className="pnl-drill bank-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pnl-drill-head"><h3 className="text-sm font-bold">통장 수정 <small className="ml-2 font-normal text-[var(--text-dim)] mono-number">{acctEdit.bankName || ""} {acctEdit.accountNo}</small></h3><button type="button" className="btn-secondary btn-sm" onClick={() => setAcctEdit(null)}>닫기</button></div>
+            <div className="pay-form-body space-y-3">
+              <label className="block"><span className="field-label">이름(별칭)</span><input className="qk-input h-9 w-full px-2.5 text-sm" value={acctEdit.alias} onChange={(e) => setAcctEdit({ ...acctEdit, alias: e.target.value })} placeholder="비워두면 은행명 + 끝번호로 표시" /></label>
+              <label className="block"><span className="field-label">메모</span><textarea className="qk-input w-full px-2.5 py-2 text-sm" rows={3} value={acctEdit.memo} onChange={(e) => setAcctEdit({ ...acctEdit, memo: e.target.value })} placeholder="예: 보조금 전용 · 인건비 이체 계좌 · 12월 만기" /></label>
+              <div className="flex justify-end gap-2"><button type="button" className="btn-secondary btn-sm" onClick={() => setAcctEdit(null)}>취소</button><button type="button" className="btn-primary btn-sm" disabled={acctSaving} onClick={saveAcctEdit}>{acctSaving ? "저장 중…" : "저장"}</button></div>
+            </div>
+          </div>
+        </div>
+      )}
       {confirmElement}
     </div>
   );
