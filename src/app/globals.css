@@ -9848,7 +9848,7 @@ table.dup-table { min-width: 0; }
 .perm-sw-on { @apply bg-[var(--primary)]; }
 .perm-sw-on .perm-sw-knob { left: 14px; }
 .perm-foot-row td { @apply px-3 py-2 text-[11px] text-[var(--text-dim)]; }
-.perm-preview { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 text-[12px] lg:sticky lg:top-0; }
+.perm-preview { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3 text-[12px] lg:sticky lg:top-0 overflow-auto max-h-[60vh]; }
 .perm-preview-title { @apply text-[11px] font-semibold text-[var(--text-dim)] mb-1.5; }
 .perm-preview-money { @apply inline-block text-[11px] font-semibold rounded-full px-2 py-0.5 bg-[var(--warning)]/12 text-[var(--warning)] mb-1.5; }
 .perm-preview-group { @apply text-[10.5px] text-[var(--text-dim)] tracking-wider mt-2 mb-0.5; }

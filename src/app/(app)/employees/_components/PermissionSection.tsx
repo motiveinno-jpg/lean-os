@@ -17,11 +17,12 @@ import { PermissionTree, permKeyLabel, permKeyIsMoney } from "./PermissionTree";
 import { PermissionTemplateModal } from "./PermissionTemplateModal";
 
 /** 오른쪽 미리보기 — 이 권한이면 사이드바에 무엇이 보이나 (그룹별, 꺼진 메뉴는 취소선) */
-function SidebarPreview({ checked }: { checked: Set<string> }) {
+function SidebarPreview({ checked, empName }: { checked: Set<string>; empName: string }) {
   const moneyOn = PERMISSION_CATALOG.some((g) => g.menus.some((m) => m.money && !m.hidden && checked.has(m.route))) || checked.has("/dashboard:finance");
   return (
     <div className="perm-preview">
-      <div className="perm-preview-title">이 사람이 보게 될 메뉴</div>
+      {/* 이름 — '이 사람' 대신 실제 이름으로 (2026-08-19 사장님: "이 사람이라는 명칭이 별로") */}
+      <div className="perm-preview-title">{empName}님이 사용하게 될 메뉴</div>
       {moneyOn && <div className="perm-preview-money">₩ 금액 정보 포함</div>}
       {PERMISSION_CATALOG.map((g) => {
         const menus = g.menus.filter((m) => !m.hidden && !m.sub);
@@ -201,7 +202,7 @@ export function PermissionSection({ targetUserId, empName, viewerIsMaster = true
       {/* 몸통 — 표 + 미리보기 */}
       <div className="perm-body">
         <PermissionTree checked={checked} onToggle={toggle} viewerIsMaster={viewerIsMaster} savedKeys={saved} />
-        <SidebarPreview checked={checked} />
+        <SidebarPreview checked={checked} empName={empName} />
       </div>
 
       {/* 바닥 — 저장(확인 팝업) */}
