@@ -9567,7 +9567,14 @@ table.team-table { min-width: 760px; }
 .org-root { @apply whitespace-nowrap rounded-xl border border-[var(--primary)]/40 bg-[var(--primary)]/5 px-6 py-3 text-center; } /* nowrap: 이미지 캡처 클론에서 fit-content 폭이 좁게 재측정돼 줄바꿈·겹침 방지 (2026-08-19) */
 .org-stem { @apply h-4 w-px bg-[var(--border)]; }
 .org-stem-sm { @apply h-3; }
-.org-depts { @apply flex flex-wrap justify-center gap-x-3 items-start; }
+.org-depts { @apply flex flex-wrap justify-center items-start; } /* 가로 간격은 org-branch 의 px 가 맡는다 — gap 이면 연결 가로선이 끊긴다 (2026-08-19) */
+/* 부서 가지 — 위 가로 버스 한 줄로 전부 연결 (2026-08-19 사장님: 세로선들을 하나의 가로선으로 묶기).
+   각 기둥의 ::before 가 제 폭만큼 선을 긋고, 첫/끝 기둥은 바깥 절반을 지워 중앙 구간만 남는다. */
+.org-branch { @apply relative flex flex-col items-center px-1.5; }
+.org-branch::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1.5px; background: var(--border); }
+.org-branch:first-child::before { left: 50%; }
+.org-branch:last-child::before { right: 50%; }
+.org-branch:only-child::before { content: none; }
 .org-dept { @apply w-56 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] mb-3; }
 .org-dept-head { @apply flex items-center justify-between gap-2 whitespace-nowrap border-b border-[var(--border)] px-3 py-2; }
 .org-member { @apply flex items-center gap-2 whitespace-nowrap px-3 py-1.5; }

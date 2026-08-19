@@ -192,7 +192,7 @@ export default function TeamPage() {
                 <div className="org-stem" />
                 <div className="org-depts">
                   {orgDepts.map(([dept, rows]) => (
-                    <div key={dept} className="flex flex-col items-center">
+                    <div key={dept} className="org-branch">
                       <div className="org-stem org-stem-sm" />
                       <div className="org-dept">
                         <div className="org-dept-head">
