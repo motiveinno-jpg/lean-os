@@ -58,13 +58,16 @@ import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { sendApprovalMails } from "@/lib/approval-email";
+import { OvertimeRequestCard } from "@/components/overtime-request-card";
+import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
+import { OvertimeStats } from "@/components/overtime-stats";
 
 const db = supabase;
 
-type Tab = "my-approvals" | "my-requests" | "references" | "all" | "new-request" | "policies" | "forms";
+type Tab = "my-approvals" | "my-requests" | "references" | "all" | "new-request" | "overtime" | "policies" | "forms";
 
 // 알림/딥링크(?tab=...)로 진입 가능한 탭 키 — 오타·구 링크는 무시하고 기본 탭 유지
-const TAB_KEYS: Tab[] = ["my-approvals", "my-requests", "references", "all", "new-request", "policies", "forms"];
+const TAB_KEYS: Tab[] = ["my-approvals", "my-requests", "references", "all", "new-request", "overtime", "policies", "forms"];
 
 // ── 2026-07-03 결재관리 리디자인 — 유형·상태·진행 프리미티브 ──
 
@@ -706,7 +709,7 @@ export default function ApprovalsPage() {
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여받은 탭만.
   //   perm key 는 카탈로그(/approvals:내부탭키)와 1:1. 구 isAdmin 분기 대체.
   const { isMaster, hasPerm } = useMyPermissions();
-  const tabAllowed = (k: Tab) => isMaster || hasPerm(`/approvals:${k}`);
+  const tabAllowed = (k: Tab) => k === "overtime" || isMaster || hasPerm(`/approvals:${k}`);   //   연장근무 신청은 전원
   const isAdmin = isMaster || hasPerm("/approvals:all"); // 전체 현황 권한 = 관리 조회 성격 분기 유지용
 
   // 탭 순서(2026-07-23 재편) — 개인 업무 3종(받고·보내고·올리고) → 회사 전체 → 설정.
@@ -715,6 +718,8 @@ export default function ApprovalsPage() {
     { key: "my-requests", label: "내 요청", icon: "send" },
     // 참조 탭은 2026-08-18 사장님 지시로 내 결재함 안 '나를 참조한 건' 보기로 합쳤다 (별도 탭 불필요)
     { key: "new-request", label: "새 요청", icon: "plus" },
+    //   연장근무 신청·승인 — 2026-08-19 사장님: 인사관리(근태)는 인사팀만 들어오니 직원이 신청하는 연장근무는 결재 허브로. 전원 보임(신청), 관리자는 승인 인박스·통계까지.
+    { key: "overtime", label: "연장근무", icon: "clock" },
     { key: "all", label: "전체 현황", icon: "chart" },
     { key: "forms", label: "양식 관리", icon: "layout" },
     { key: "policies", label: "결재선 관리", icon: "route" },
@@ -733,6 +738,7 @@ export default function ApprovalsPage() {
       case "plus": return <svg {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
       case "layout": return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>;
       case "eye": return <svg {...p}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>;
+      case "clock": return <svg {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
       default: return <svg {...p}><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><path d="M12 19h4.5a3.5 3.5 0 000-7h-9a3.5 3.5 0 010-7H12"/></svg>;
     }
   };
@@ -782,6 +788,13 @@ export default function ApprovalsPage() {
       )}
       {tab === "new-request" && companyId && userId && (
         <div className="ap-pad"><NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} /></div>
+      )}
+      {tab === "overtime" && companyId && userId && (
+        <div className="ap-pad ap-overtime">
+          {isAdmin && <OvertimeStats companyId={companyId} />}
+          {isAdmin && <OvertimeApprovalInbox companyId={companyId} reviewerId={userId} />}
+          <OvertimeRequestCard companyId={companyId} userId={userId} />
+        </div>
       )}
       {tab === "forms" && companyId && (
         <ApprovalFormsManager companyId={companyId} />

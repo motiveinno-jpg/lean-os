@@ -840,7 +840,8 @@ function shiftMonth(ym: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-export function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role }: any) {
+//   mode (2026-08-19 사장님): "records" = 달력·그 날 현황(기록 상세 갈래), "summary" = 부서→직원 월간 요약만(월간 요약 갈래, 예전 연장근무 갈래 자리)
+export function AttendanceTab({ employees, companyId, userId, userEmail, queryClient, role, mode = "records" }: any) {
   const { toast } = useToast();
   const today = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
@@ -1204,9 +1205,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           </div>
         </div>
         <div className="flex gap-2 items-center">
-          <ChipGroup value={viewMode} onChange={setViewMode} options={[{ value: "calendar", label: "캘린더" }, { value: "table", label: "데이터" }] as const} />
+          {mode === "records" && <ChipGroup value={viewMode} onChange={setViewMode} options={[{ value: "calendar", label: "캘린더" }, { value: "table", label: "데이터" }] as const} />}
           {/* 관리자 대행 기록 — 직원이 출근 버튼을 못 눌렀을 때 대신 찍어준다(2026-07-27). */}
-          {isAdmin && companyId && (
+          {mode === "records" && isAdmin && companyId && (
             <button
               type="button"
               onClick={() => setManualRecordOpen(true)}
@@ -1216,7 +1217,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             </button>
           )}
           {/* L 근태 — C-3 관리자: 가산수당 재계산 (월 일괄) */}
-          {isAdmin && companyId && (
+          {mode === "summary" && isAdmin && companyId && (
             <MonthlyRecomputeButton companyId={companyId} from={monthStart} to={monthEnd} />
           )}
           {summary.length > 0 && (
@@ -1226,9 +1227,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 //   다른 화면과 같은 공통 함수로 (2026-08-12) — 숫자는 서식 없이 넘겨 엑셀이 숫자로 읽게 한다
                 downloadCsv(
                   `근태_월간요약_${selectedMonth}`,
-                  ["직원", "출근일", "지각횟수", "지각합계(분)", "연장(분)", "야간(분)", "휴일(분)", "결근", "재택", "반차", "총근무(h)"],
+                  ["부서", "직원", "출근일", "지각횟수", "지각합계(분)", "연장(분)", "야간(분)", "휴일(분)", "결근", "재택", "반차", "총근무(h)"],
                   (summary as any[]).map((s) => [
-                    s.name, s.totalDays, s.lateDays, Math.round(s.lateMinutesSum || 0),
+                    s.department || "미배정", s.name, s.totalDays, s.lateDays, Math.round(s.lateMinutesSum || 0),
                     Math.round(s.overtimeMinutesSum || 0), Math.round(s.nightMinutesSum || 0), Math.round(s.holidayMinutesSum || 0),
                     s.absentDays, s.remoteDays, s.halfDays, Number(s.totalHours.toFixed(1)),
                   ]),
@@ -1243,7 +1244,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       </div>
 
       {/* Calendar View — 2026-07-15 리디자인: 좌 월간 캘린더 + 우 오늘 통계·선택일 상세(관리자 전용) */}
-      {viewMode === "calendar" && (
+      {mode === "records" && viewMode === "calendar" && (
         <div className={`attendance-calendar-view ${!isEmployeeRole ? "lg:grid-cols-4" : ""}`}>
           <div className={`attendance-calendar glass-card ${!isEmployeeRole ? "lg:col-span-3" : ""}`}>
             {/* 헤더: 타이틀 + 범례 */}
@@ -1436,7 +1437,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       )}
 
       {/* Table View */}
-      {viewMode === "table" && (
+      {mode === "records" && viewMode === "table" && (
         <div className="attendance-records-table">
           {records.length === 0 ? (
             <div className="p-16 text-center">
@@ -1585,7 +1586,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       )}
 
       {/* Monthly Summary per Employee */}
-      {summary.length > 0 && (() => {
+      {mode === "summary" && summary.length > 0 && (() => {
         const fmtKRW = (n: number): string => {
           const v = Math.round(Number(n) || 0);
           return v > 0 ? `${v.toLocaleString('ko-KR')}원` : "—";
@@ -1602,7 +1603,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
           if (dow !== 0 && dow !== 6 && !holidayDaySet.has(ds)) workdaysSoFar++;   // 공휴일 제외 (2026-08-19)
         }
         //   표 정렬·빠른검색 (2026-08-19 사장님: 직원이 많아지면 카드 격자로는 못 본다 → 표 + 정렬 + 검색)
-        const rowsAll = (summary as any[]).map((s) => ({ ...s, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0 }));
+        //   연차 = 이 달 승인 휴가일 수(leaveDaySet — 달력이 쓰는 것과 같은 것)
+        const leaveCount = (empId: string) => { let n = 0; leaveDaySet.forEach((k: string) => { if (k.startsWith(`${empId}:${selectedMonth}-`)) n++; }); return n; };
+        const rowsAll = (summary as any[]).map((s) => ({ ...s, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0, leaveDays: leaveCount(s.employee_id) }));
         const rows = rowsAll.filter((r) => !sumQ || String(r.name || "").toLowerCase().includes(sumQ.toLowerCase()) || String(r.department || "").toLowerCase().includes(sumQ.toLowerCase()))
           .sort((a, b) => { const k = sumSort.key as string; const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1); });
         //   부서 묶음 (2026-08-19 사장님: 부서별로 정렬하고 토글을 열면 그 부서 직원) — 부서 줄은 합계·평균, 직원 줄은 열어야 보인다
@@ -1611,6 +1614,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         const deptRows = [...deptMap.entries()].map(([d, list]) => ({
           department: d, list, n: list.length,
           totalDays: list.reduce((x, r) => x + (r.totalDays || 0), 0) / list.length,
+          leaveDays: list.reduce((x, r) => x + (r.leaveDays || 0), 0),
+          nightMinutesSum: list.reduce((x, r) => x + (r.nightMinutesSum || 0), 0), holidayMinutesSum: list.reduce((x, r) => x + (r.holidayMinutesSum || 0), 0),
           ratio: list.reduce((x, r) => x + (r.ratio || 0), 0) / list.length,
           lateDays: list.reduce((x, r) => x + (r.lateDays || 0), 0), absentDays: list.reduce((x, r) => x + (r.absentDays || 0), 0),
           remoteDays: list.reduce((x, r) => x + (r.remoteDays || 0), 0), halfDays: list.reduce((x, r) => x + (r.halfDays || 0), 0),
@@ -1642,14 +1647,17 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     {th("결근", "absentDays")}
                     {th("재택", "remoteDays")}
                     {th("반차", "halfDays")}
+                    {th("연차", "leaveDays")}
                     {th("연장(분)", "overtimeMinutesSum")}
+                    {th("야간(분)", "nightMinutesSum")}
+                    {th("휴일(분)", "holidayMinutesSum")}
                     {th("총 근무", "totalHours")}
                     {isAdminForAllowance && th("수당", "alwTotal")}
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
-                    <tr><td colSpan={isAdminForAllowance ? 10 : 9} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "이름·부서에 맞는 직원이 없습니다" : "이 달 근태 기록이 없습니다"}</td></tr>
+                    <tr><td colSpan={isAdminForAllowance ? 13 : 12} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "이름·부서에 맞는 직원이 없습니다" : "이 달 근태 기록이 없습니다"}</td></tr>
                   ) : deptRows.map((d) => {
                     const open = sumOpen.has(d.department) ? !!sumOpen.get(d.department) : autoOpen;
                     return (
@@ -1662,7 +1670,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                           <td className={`text-center mono-number ${d.absentDays > 0 ? "text-[var(--danger)] font-bold" : "text-[var(--text-dim)]"}`}>{d.absentDays > 0 ? `${d.absentDays}일` : "—"}</td>
                           <td className="text-center mono-number text-[var(--text-muted)]">{d.remoteDays > 0 ? `${d.remoteDays}일` : "—"}</td>
                           <td className="text-center mono-number text-[var(--text-muted)]">{d.halfDays > 0 ? `${d.halfDays}회` : "—"}</td>
+                          <td className="text-center mono-number text-[var(--text-muted)]">{d.leaveDays > 0 ? `${d.leaveDays}일` : "—"}</td>
                           <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(d.overtimeMinutesSum) > 0 ? Math.round(d.overtimeMinutesSum).toLocaleString() : "—"}</td>
+                          <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(d.nightMinutesSum) > 0 ? Math.round(d.nightMinutesSum).toLocaleString() : "—"}</td>
+                          <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(d.holidayMinutesSum) > 0 ? Math.round(d.holidayMinutesSum).toLocaleString() : "—"}</td>
                           <td className="text-right mono-number font-bold">{d.totalHours.toFixed(1)}h</td>
                           {isAdminForAllowance && <td className="text-right mono-number font-bold text-[var(--success)]">{fmtKRW(d.alwTotal)}</td>}
                         </tr>
@@ -1679,7 +1690,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         <td className={`text-center mono-number ${s.absentDays > 0 ? "text-[var(--danger)] font-bold" : "text-[var(--text-dim)]"}`}>{s.absentDays > 0 ? `${s.absentDays}일` : "—"}</td>
                         <td className="text-center mono-number text-[var(--text-muted)]">{s.remoteDays > 0 ? `${s.remoteDays}일` : "—"}</td>
                         <td className="text-center mono-number text-[var(--text-muted)]">{s.halfDays > 0 ? `${s.halfDays}회` : "—"}</td>
+                        <td className="text-center mono-number text-[var(--text-muted)]">{s.leaveDays > 0 ? `${s.leaveDays}일` : "—"}</td>
                         <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(s.overtimeMinutesSum || 0) > 0 ? Math.round(s.overtimeMinutesSum || 0).toLocaleString() : "—"}</td>
+                        <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(s.nightMinutesSum || 0) > 0 ? Math.round(s.nightMinutesSum || 0).toLocaleString() : "—"}</td>
+                        <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(s.holidayMinutesSum || 0) > 0 ? Math.round(s.holidayMinutesSum || 0).toLocaleString() : "—"}</td>
                         <td className="text-right mono-number font-bold">{s.totalHours.toFixed(1)}h</td>
                         {isAdminForAllowance && <td className="text-right mono-number font-bold text-[var(--success)]" title={alwTitle}>{fmtKRW(alw?.total ?? 0)}</td>}
                       </tr>

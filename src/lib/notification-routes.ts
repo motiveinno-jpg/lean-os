@@ -33,7 +33,7 @@ export const ENTITY_HREF: Record<string, (id: string) => string> = {
   company_join_request: (id) => `/settings?tab=team&request=${id}`,
   hr_contract_package: () => `/my-contracts`,
   leave_request: () => `/approvals`,
-  overtime_request: () => `/attendance?section=overtime`,
+  overtime_request: () => `/approvals?tab=overtime`,   //   2026-08-19 연장근무 → 결재 허브
   project_checkin: (id) => `/projecthub/${id}?tab=performance`,
   // 프로젝트 표의 행 메모에서 @로 불렀을 때 — entity_id 는 그 프로젝트(deal) id 다
   project_board_item: (id) => `/projecthub/${id}`,

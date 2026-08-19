@@ -7,9 +7,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { AttendanceTab } from "@/app/(app)/employees/EmployeesPageClient";
-import { OvertimeRequestCard } from "@/components/overtime-request-card";
-import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
-import { OvertimeStats } from "@/components/overtime-stats";
 import { FlexWorkBoard } from "@/components/flex-work-board";
 import { EditRequestInbox } from "@/components/hr-attendance-extras";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
@@ -42,14 +39,16 @@ export default function AttendancePage() {
   const [attView, setAttView] = useState<"work" | "records">("records");
   useEffect(() => { if (canBoard && canManage) setAttView((v) => (v === "records" && !new URLSearchParams(window.location.search).get("view") ? "work" : v)); }, [canBoard, canManage]);
   // 상위 섹션: 근무현황 / 연장근무. 휴가 신청·승인은 전자결재로, 연차 설정은 인사관리로 이관(2026-07-15).
-  const [section, setSection] = useState<"work" | "overtime">("work");
+  //   2026-08-19: 연장근무 신청·승인은 결재 허브(/approvals?tab=overtime)로 옮겼다 — 여기 셋째 갈래는 "월간 요약"(부서→직원 지표)
+  const [section, setSection] = useState<"work" | "summary">("work");
   // ?view=records/work + ?section=overtime/work 딥링크(근태 수정요청 알림 → records).
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const v = sp.get("view");
     if (v === "records" || v === "work") setAttView(v);
     const s = sp.get("section");
-    if (s === "overtime" || s === "work") setSection(s);
+    if (s === "summary" || s === "work") setSection(s);
+    if (s === "overtime") window.location.replace("/approvals?tab=overtime");   //   예전 연장근무 딥링크 → 결재 허브
     // 휴가(section=leave/focus=pending) 딥링크는 전자결재로 이관 → /leave 리다이렉트가 처리.
   }, []);
 
@@ -74,16 +73,16 @@ export default function AttendancePage() {
   const activeEmp = (employees as any[]).filter((e) => !["invited", "inactive", "resigned"].includes(e.status)).length;
 
   //   갈래 탭 — 상자 안 맨 위 파란 밑줄 (2026-08-18 조회 표준 Wave 4). 예전 두 줄 seg-bar(근무 현황/연장근무 → 워크보드/기록 상세)를
-  //   한 줄 세 갈래로 편다: 워크보드(주간) · 기록 상세 · 연장근무.
-  type Gal = "work" | "records" | "overtime";
-  const gal: Gal = section === "overtime" ? "overtime" : attView === "work" && canBoard ? "work" : "records";
+  //   한 줄 세 갈래로 편다: 워크보드(주간) · 기록 상세 · 월간 요약(2026-08-19, 예전 연장근무).
+  type Gal = "work" | "records" | "summary";
+  const gal: Gal = section === "summary" ? "summary" : attView === "work" && canBoard ? "work" : "records";
   const goGal = (g: Gal) => {
-    if (g === "overtime") { setSection("overtime"); return; }
+    if (g === "summary") { setSection("summary"); return; }
     setSection("work"); setAttView(g);
   };
   const tabsEl = (
     <div className="collect-tabs no-print">
-      {([["work", "워크보드 (주간)"], ["records", "기록 상세"], ["overtime", "연장근무"]] as const)
+      {([["work", "워크보드 (주간)"], ["records", "기록 상세"], ["summary", "월간 요약"]] as const)
         .filter(([k]) => (k === "work" ? canBoard : true))
         .map(([k, l]) => (
           <button key={k} type="button" onClick={() => goGal(k)} className={gal === k ? "collect-tab collect-tab-on" : "collect-tab"}>{l}</button>
@@ -117,13 +116,18 @@ export default function AttendancePage() {
                   />
                 </>
               )}
-              {/* 연장근무 — 본인 신청(전원) + 관리자 승인 인박스. */}
-              {gal === "overtime" && userId && (
-                <div className="attendance-overtime-section">
-                  {isManager && companyId && <OvertimeStats companyId={companyId} />}
-                  {isManager && <OvertimeApprovalInbox companyId={companyId} reviewerId={userId} />}
-                  <OvertimeRequestCard companyId={companyId} userId={userId} />
-                </div>
+              {/* 월간 요약 — 부서→직원 표(지각·결근·재택·반차·연차·연장·야간·휴일·총 근무·수당). 예전 연장근무 갈래 자리
+                  (2026-08-19 사장님: 연장근무 신청·승인은 결재 허브로, 여기는 인사팀이 보는 월간 지표) */}
+              {gal === "summary" && (
+                <AttendanceTab
+                  employees={employees}
+                  companyId={companyId}
+                  userId={userId}
+                  userEmail={userEmail}
+                  queryClient={queryClient}
+                  role={canManage ? "owner" : "employee"}
+                  mode="summary"
+                />
               )}
             </div>
           </QueryBody>
