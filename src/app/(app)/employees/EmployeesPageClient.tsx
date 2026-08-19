@@ -24,7 +24,7 @@ import {
   calculateWeeklyHours,
   getLeaveRequests, createLeaveRequest, approveLeaveRequest, rejectLeaveRequest, calcLeaveDays,
   getLeaveBalances, correctAttendanceRecord,
-  autoInitLeaveBalance, bulkAutoInitLeaveBalances, calculateAnnualLeave,
+  calculateAnnualLeave,
   cancelLeaveRequest, getCompanyMembers,
   getLeaveGrantMethod, setLeaveGrantMethod, type LeaveGrantMethod,
   LEAVE_TYPES, LEAVE_UNITS, ATTENDANCE_STATUS, LEAVE_REQUEST_STATUS,
@@ -2728,23 +2728,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     onError: (err: any) => toast("남은 연차 설정 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
   });
 
-  // 입사일 기준 자동 부여 (1년 미만 = 월 1일 만근, 1년+ = 근로기준법 기본)
-  const autoInitMut = useMutation({
-    mutationFn: (params: { employeeId: string; hireDate: string }) =>
-      autoInitLeaveBalance(companyId!, params.employeeId, params.hireDate, currentYear),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leave-balances"] }),
-    onError: (err: any) => toast("자동 부여 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
-  });
-
-  const bulkAutoMut = useMutation({
-    mutationFn: () => bulkAutoInitLeaveBalances(companyId!, currentYear),
-    onSuccess: (r: any) => {
-      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
-      toast(`입사일 기준 자동 부여 완료 (${r?.updated ?? 0}명)`, "success");
-    },
-    onError: (err: any) => toast("일괄 자동 부여 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
-  });
-
   // 연차 부여 방식 (자동부여 / 직접입력) — company_settings.settings JSONB
   const { data: grantMethod = "auto" } = useQuery<LeaveGrantMethod>({
     queryKey: ["leave-grant-method", companyId],
@@ -2752,12 +2735,20 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     enabled: !!companyId,
   });
 
-  const setGrantMethodMut = useMutation({
-    mutationFn: (m: LeaveGrantMethod) => setLeaveGrantMethod(companyId!, m),
-    onSuccess: (_d, m) => {
+  // 부여 방식 + 발생 기준 통합 저장 (2026-08-19 사장님 시안) — 자동부여 = 자동 발생 켬(선택 기준),
+  //   직접입력 = 자동 발생 끔. 별도 '연차 자동 발생' 패널을 없애고 여기서 한 번에 저장한다.
+  const saveGrantCfgMut = useMutation({
+    mutationFn: async (next: { method: LeaveGrantMethod; basis: MonthlyAccrualBasis }) => {
+      await setLeaveGrantMethod(companyId!, next.method);
+      await setMonthlyAccrualSettings(companyId!, { enabled: next.method === "auto", basis: next.basis });
+    },
+    onSuccess: (_d, next) => {
       queryClient.invalidateQueries({ queryKey: ["leave-grant-method", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["leave-monthly-accrual", companyId] });
       toast(
-        m === "auto" ? "연차 부여 방식: 자동부여(입사일 기준)" : "연차 부여 방식: 직접입력",
+        next.method === "auto"
+          ? `연차 부여 방식: 자동부여 · ${ACCRUAL_BASIS_LABELS[next.basis].label}`
+          : "연차 부여 방식: 직접입력",
         "success",
       );
     },
@@ -2771,19 +2762,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     queryFn: () => getMonthlyAccrualSettings(companyId!),
     enabled: !!companyId,
   });
-  const saveAccrualMut = useMutation({
-    mutationFn: (next: { enabled: boolean; basis: MonthlyAccrualBasis }) => setMonthlyAccrualSettings(companyId!, next),
-    onSuccess: (_d, next) => {
-      queryClient.invalidateQueries({ queryKey: ["leave-monthly-accrual", companyId] });
-      toast(next.enabled ? `연차 자동 발생 켬 · ${ACCRUAL_BASIS_LABELS[next.basis].label}` : "연차 자동 발생 끔", "success");
-    },
-    onError: (err: any) => toast("저장 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
-  });
-  // 연차 자동 발생 — 접힌 요약이 기본, '변경'으로 펼쳐 고른 뒤 저장 (2026-08-06 사장님 요청).
-  //   '연차 부여 방식' 패널과 같은 규약. 켜고 끄는 즉시 저장되던 걸 저장 버튼으로 바꾼다.
-  const [accrualEditing, setAccrualEditing] = useState(false);
-  const [pendingAccrual, setPendingAccrual] = useState<{ enabled: boolean; basis: MonthlyAccrualBasis } | null>(null);
-  const draftAccrual = pendingAccrual ?? accrual;
 
   // 회사별 휴가 유형·기본 일수 — 저장값이 없으면 법정 기본값
   const { data: companyLeaveTypes = defaultCompanyLeaveTypes() } = useQuery({
@@ -2891,6 +2869,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   // R12: 연차 부여 방식 — 선택+저장 후 작은 요약으로 접힘 (변경 시 펼침)
   const [grantEditing, setGrantEditing] = useState(false);
   const [pendingGrant, setPendingGrant] = useState<LeaveGrantMethod | null>(null);
+  const [pendingBasis, setPendingBasis] = useState<MonthlyAccrualBasis | null>(null);
 
   // 연차 일수 인라인 편집 상태
   const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
@@ -3048,16 +3027,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
         <div className="leave-roster">
           <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
             <h3 className="text-sm font-bold text-[var(--text-muted)]">{currentYear}년 직원별 연차</h3>
-            {!isEmployee && grantMethod === "auto" && (
-              <button
-                onClick={() => bulkAutoMut.mutate()}
-                disabled={bulkAutoMut.isPending}
-                className="btn-secondary btn-sm"
-                title="1년 미만: 1개월 만근당 1일(최대 11) · 1년 이상: 근로기준법 기본(15일+)"
-              >
-                {bulkAutoMut.isPending ? "처리 중..." : "입사일 기준 자동 부여"}
-              </button>
-            )}
           </div>
           {rosterRows.length === 0 ? (
             <div className="templates-empty">표시할 구성원이 없습니다.</div>
@@ -3664,105 +3633,8 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           )}
         </div>
 
-        {/* 반차 시간 — 회사별 설정 (2026-08-11 사장님). 비워두면 근무시간 절반으로 자동 산정 */}
-        {!isEmployee && companyId && <HalfDaySlotSettings companyId={companyId} />}
-
-        {/* 연차 자동 발생 (근로기준법 60조) — 매일 자정 pg_cron 이 월 1일·1주년 부여를 생성.
-            2026-08-06 사장님: 공간을 너무 먹어 접힌 요약이 기본. '변경'으로 펼쳐 고른 뒤 저장. */}
-        {!isEmployee && (
-          <div className="leave-accrual-panel glass-card">
-            {!accrualEditing ? (
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-[var(--text-muted)]">
-                  연차 자동 발생 ·{" "}
-                  <strong className="text-[var(--text)]">
-                    {accrual.enabled ? `켬 · ${ACCRUAL_BASIS_LABELS[accrual.basis].label}` : "끔"}
-                  </strong>
-                </div>
-                <button
-                  onClick={() => { setPendingAccrual({ ...accrual }); setAccrualEditing(true); }}
-                  className="leave-accrual-change-btn"
-                >
-                  변경
-                </button>
-              </div>
-            ) : (
-              <>
-                <label className="leave-accrual-toggle">
-                  <input
-                    type="checkbox"
-                    checked={draftAccrual.enabled}
-                    onChange={(e) => setPendingAccrual({ ...draftAccrual, enabled: e.target.checked })}
-                    className="w-4 h-4 accent-[var(--primary)] shrink-0"
-                  />
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold">연차 자동 발생</div>
-                    <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                      입사 1년 전까지는 매월 1일씩(최대 11일), 1주년부터는 근속연수별 법정 연차(1~2년 15일 · 3년 이상 2년마다 +1일 · 상한 25일)가
-                      입사 응당일에 자동으로 발생합니다. 근로기준법 60조.
-                    </p>
-                    <p className="text-[11px] text-[var(--text-dim)] mt-0.5">
-                      총 부여일수는 입사일 기준으로 자동 계산됩니다. 직원 카드에서 남은 연차를 직접 고치면 그 차액만 조정으로 반영됩니다.
-                    </p>
-                  </div>
-                </label>
-
-                {draftAccrual.enabled && (
-                  <div className="leave-accrual-basis">
-                    <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">발생 기준</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
-                        const on = draftAccrual.basis === k;
-                        return (
-                          <button
-                            key={k}
-                            onClick={() => setPendingAccrual({ ...draftAccrual, basis: k })}
-                            className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
-                          >
-                            <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
-                            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                      <button
-                        onClick={() => syncAccrualMut.mutate()}
-                        disabled={syncAccrualMut.isPending}
-                        className="btn-secondary btn-sm disabled:opacity-50"
-                        title="누락된 과거 발생분을 지금 즉시 생성합니다"
-                      >
-                        {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
-                      </button>
-                      <span className="text-[11px] text-[var(--text-dim)]">매일 자정에도 자동으로 반영됩니다</span>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-2 justify-end mt-3">
-                  <button
-                    onClick={() => { setAccrualEditing(false); setPendingAccrual(null); }}
-                    disabled={saveAccrualMut.isPending}
-                    className="leave-accrual-cancel-btn"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={() => saveAccrualMut.mutate(draftAccrual, {
-                      onSuccess: () => { setAccrualEditing(false); setPendingAccrual(null); },
-                    })}
-                    disabled={saveAccrualMut.isPending}
-                    className="btn-primary btn-sm"
-                  >
-                    {saveAccrualMut.isPending ? "저장 중..." : "저장"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 연차 부여 방식 — R12: 저장 후 작은 요약으로 접힘, '변경' 시 펼침 */}
+        {/* 연차 부여 방식 — 2026-08-19 사장님 시안: 자동부여를 고르면 그 아래에서 기준(입사일/회계연도)을
+            바로 고른다. 직접입력이면 자동 발생(매일 자정 pg_cron)도 끈다. 저장 후엔 작은 요약으로 접힘. */}
         {!isEmployee && (
           <div className="leave-grant-method-panel glass-card">
             {!grantEditing ? (
@@ -3770,11 +3642,11 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                 <div className="text-xs text-[var(--text-muted)]">
                   연차 부여 방식 ·{" "}
                   <strong className="text-[var(--text)]">
-                    {grantMethod === "auto" ? "자동부여 (입사일 기준)" : "직접입력"}
+                    {grantMethod === "auto" ? `자동부여 · ${ACCRUAL_BASIS_LABELS[accrual.basis].label}` : "직접입력"}
                   </strong>
                 </div>
                 <button
-                  onClick={() => { setPendingGrant(grantMethod); setGrantEditing(true); }}
+                  onClick={() => { setPendingGrant(grantMethod); setPendingBasis(accrual.basis); setGrantEditing(true); }}
                   className="text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-[var(--border)] hover:bg-[var(--bg-surface)] transition shrink-0"
                 >
                   변경
@@ -3784,12 +3656,12 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               <>
                 <div className="text-sm font-bold mb-1">연차 부여 방식</div>
                 <p className="text-[11px] text-[var(--text-dim)] mb-3">
-                  회사 정책에 맞게 선택 후 <strong>저장</strong>하세요. 저장하면 아래 UI가 그에 맞게 표시됩니다.
+                  회사 정책에 맞게 선택 후 <strong>저장</strong>하세요. 자동부여를 고르면 아래에서 기준을 선택합니다.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {([
-                    { v: "auto" as LeaveGrantMethod, label: "자동부여 (입사일 기준)", desc: "근로기준법 공식으로 자동 산정" },
-                    { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력" },
+                    { v: "auto" as LeaveGrantMethod, label: "자동부여", desc: "근로기준법 공식으로 자동 산정 · 매일 자정 자동 발생" },
+                    { v: "manual" as LeaveGrantMethod, label: "직접입력", desc: "직원별 연차를 수동으로 입력 (자동 발생 끔)" },
                   ]).map((opt) => {
                     const active = (pendingGrant ?? grantMethod) === opt.v;
                     return (
@@ -3811,29 +3683,66 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                     );
                   })}
                 </div>
+
+                {/* 자동부여 선택 시에만 기준 선택 노출 — 시안: "선택시 기준 선택(입사일기준/회계연도기준)" */}
+                {(pendingGrant ?? grantMethod) === "auto" && (
+                  <div className="leave-accrual-basis">
+                    <div className="text-[11px] font-bold text-[var(--text-muted)] mb-2">기준 선택</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(Object.keys(ACCRUAL_BASIS_LABELS) as MonthlyAccrualBasis[]).map((k) => {
+                        const on = (pendingBasis ?? accrual.basis) === k;
+                        return (
+                          <button
+                            key={k}
+                            onClick={() => setPendingBasis(k)}
+                            className={`leave-accrual-basis-opt ${on ? "leave-accrual-basis-opt-on" : ""}`}
+                          >
+                            <div className="text-xs font-bold">{ACCRUAL_BASIS_LABELS[k].label}</div>
+                            <div className="text-[11px] text-[var(--text-dim)] mt-0.5">{ACCRUAL_BASIS_LABELS[k].desc}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center gap-2 mt-3 flex-wrap">
+                      <button
+                        onClick={() => syncAccrualMut.mutate()}
+                        disabled={syncAccrualMut.isPending}
+                        className="btn-secondary btn-sm disabled:opacity-50"
+                        title="누락된 과거 발생분을 지금 즉시 생성합니다"
+                      >
+                        {syncAccrualMut.isPending ? "반영 중..." : "지금 반영"}
+                      </button>
+                      <span className="text-[11px] text-[var(--text-dim)]">1년 미만 매월 1일(최대 11일) · 1주년부터 법정 연차가 매일 자정 자동 반영됩니다</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2 justify-end mt-3">
                   <button
-                    onClick={() => { setGrantEditing(false); setPendingGrant(null); }}
-                    disabled={setGrantMethodMut.isPending}
+                    onClick={() => { setGrantEditing(false); setPendingGrant(null); setPendingBasis(null); }}
+                    disabled={saveGrantCfgMut.isPending}
                     className="px-4 py-2 rounded-lg text-xs font-semibold border border-[var(--border)] hover:bg-[var(--bg-surface)] transition disabled:opacity-50"
                   >
                     취소
                   </button>
                   <button
-                    onClick={() => {
-                      const sel = pendingGrant ?? grantMethod;
-                      setGrantMethodMut.mutate(sel, { onSuccess: () => { setGrantEditing(false); setPendingGrant(null); } });
-                    }}
-                    disabled={setGrantMethodMut.isPending}
+                    onClick={() => saveGrantCfgMut.mutate(
+                      { method: pendingGrant ?? grantMethod, basis: pendingBasis ?? accrual.basis },
+                      { onSuccess: () => { setGrantEditing(false); setPendingGrant(null); setPendingBasis(null); } },
+                    )}
+                    disabled={saveGrantCfgMut.isPending}
                     className="btn-primary btn-sm"
                   >
-                    {setGrantMethodMut.isPending ? "저장 중..." : "저장"}
+                    {saveGrantCfgMut.isPending ? "저장 중..." : "저장"}
                   </button>
                 </div>
               </>
             )}
           </div>
         )}
+
+        {/* 반차 시간 — 회사별 설정 (2026-08-11 사장님). 비워두면 근무시간 절반으로 자동 산정 */}
+        {!isEmployee && companyId && <HalfDaySlotSettings companyId={companyId} />}
 
       </>)}
 

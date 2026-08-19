@@ -2207,23 +2207,6 @@ export async function autoInitLeaveBalance(
 /**
  * 전 직원 연차 일괄 자동 세팅 (입사일 기반)
  */
-export async function bulkAutoInitLeaveBalances(companyId: string, year: number) {
-  const employees = logRead('lib/hr:employees', await db
-    .from('employees')
-    .select('id, hire_date')
-    .eq('company_id', companyId)
-    .in('status', ['active', 'joined']));
-
-  if (!employees || employees.length === 0) return { updated: 0 };
-
-  let updated = 0;
-  for (const emp of employees) {
-    if (!emp.hire_date) continue;
-    await autoInitLeaveBalance(companyId, emp.id, emp.hire_date, year);
-    updated++;
-  }
-  return { updated };
-}
 
 // ── Leave Promotion (연차촉진) — 근로기준법 §61 ──
 
