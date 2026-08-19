@@ -7,7 +7,7 @@ import { DepartmentField, PositionField } from "@/components/org-option-fields";
 import { todayKst, kstDateStr, kstDateTimeLocal, kstLocalToIso } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { MonthField } from "@/components/month-field";
 import { DateTimeField } from "@/components/datetime-field";
 import { DateField } from "@/components/date-field";
@@ -857,6 +857,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   //   직원별 월간 요약 표 — 정렬·이름 검색 (2026-08-19)
   const [sumSort, setSumSort] = useState<SortState<string>>({ key: "name", dir: "asc" });
   const [sumQ, setSumQ] = useState("");
+  const [sumOpen, setSumOpen] = useState<Map<string, boolean>>(new Map());
+  const [dayDeptOpen, setDayDeptOpen] = useState<Map<string, boolean>>(new Map());
   // 표시용 상태 — 두 컬럼의 축이 다르다 (2026-08-07 정리).
   //   status  = 그 날의 근무 형태(출근/재택/반차/결근)
   //   is_late = 지각 여부. 실제 출근시각과 회사 유예로만 정해진다.
@@ -1153,7 +1155,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     if (!effectiveSelectedDay) return null;
     const dow = new Date(`${effectiveSelectedDay}T00:00:00`).getDay();
     const isPast = effectiveSelectedDay < todayStr;
-    const byStatus: Record<string, { id: string; name: string }[]> = {};
+    const byStatus: Record<string, { id: string; name: string; department: string }[]> = {};
     activeEmployees.forEach((emp: any) => {
       const rec = records.find((r: any) => r.employee_id === emp.id && r.date === effectiveSelectedDay);
       let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[effectiveSelectedDay] || null);
@@ -1164,7 +1166,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
       }
       if (status) {
         if (!byStatus[status]) byStatus[status] = [];
-        byStatus[status].push({ id: emp.id, name: emp.name });
+        byStatus[status].push({ id: emp.id, name: emp.name, department: emp.department || "미배정" });
       }
     });
     return byStatus;
@@ -1385,28 +1387,44 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     {groups.length === 0 ? (
                       <div className="text-xs text-[var(--text-dim)]">해당 날짜 기록이 없습니다</div>
                     ) : (
-                      <div className="space-y-4 overflow-y-auto">
-                        {groups.map((s) => (
-                          <div key={s.value}>
-                            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] mb-1.5">
-                              <span className={`w-2 h-2 rounded-full ${statusColor(s.value)}`} />
-                              {s.label} <span className="text-[var(--text-dim)] font-normal">{dayDetail![s.value].length}</span>
+                      <div className="space-y-3 overflow-y-auto">
+                        {/* 상태 → 부서 → 이름 (2026-08-19 사장님: 직원이 많으면 이름 칩이 넘친다 → 부서 줄을 열어 본다) */}
+                        {groups.map((s) => {
+                          const list = dayDetail![s.value];
+                          const depts = [...new Set(list.map((e) => e.department))].sort();
+                          return (
+                            <div key={s.value}>
+                              <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] mb-1">
+                                <span className={`w-2 h-2 rounded-full ${statusColor(s.value)}`} />
+                                {s.label} <span className="text-[var(--text-dim)] font-normal">{list.length}</span>
+                              </div>
+                              <ul className="att-day-depts">
+                                {depts.map((d) => {
+                                  const key = `${s.value}:${d}`;
+                                  const members = list.filter((e) => e.department === d);
+                                  const open = dayDeptOpen.has(key) ? !!dayDeptOpen.get(key) : list.length <= 8;   //   사람이 적으면 처음부터 펼침
+                                  return (
+                                    <li key={d}>
+                                      <button type="button" className="att-day-dept" onClick={() => setDayDeptOpen((o) => { const n = new Map(o); n.set(key, !open); return n; })}>
+                                        <span className={`bs-caret ${open ? "rotate-90" : ""}`}>▸</span>{d} <em className="bs-cnt">{members.length}</em>
+                                      </button>
+                                      {open && (
+                                        <div className="flex flex-wrap gap-1.5 pl-4 pt-1 pb-1.5">
+                                          {members.map((emp) => (
+                                            <span key={emp.id} className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
+                                              <span className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: attAvatarColor(emp.id) }}>{attInitials(emp.name)}</span>
+                                              {emp.name}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {dayDetail![s.value].map((emp) => (
-                                <span key={emp.id} className="inline-flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs text-[var(--text)]">
-                                  <span
-                                    className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
-                                    style={{ background: attAvatarColor(emp.id) }}
-                                  >
-                                    {attInitials(emp.name)}
-                                  </span>
-                                  {emp.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1585,22 +1603,39 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         }
         //   표 정렬·빠른검색 (2026-08-19 사장님: 직원이 많아지면 카드 격자로는 못 본다 → 표 + 정렬 + 검색)
         const rowsAll = (summary as any[]).map((s) => ({ ...s, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0 }));
-        const rows = rowsAll.filter((r) => !sumQ || String(r.name || "").toLowerCase().includes(sumQ.toLowerCase()))
+        const rows = rowsAll.filter((r) => !sumQ || String(r.name || "").toLowerCase().includes(sumQ.toLowerCase()) || String(r.department || "").toLowerCase().includes(sumQ.toLowerCase()))
           .sort((a, b) => { const k = sumSort.key as string; const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1); });
+        //   부서 묶음 (2026-08-19 사장님: 부서별로 정렬하고 토글을 열면 그 부서 직원) — 부서 줄은 합계·평균, 직원 줄은 열어야 보인다
+        const deptMap = new Map<string, any[]>();
+        for (const r of rows) { const d = r.department || "미배정"; if (!deptMap.has(d)) deptMap.set(d, []); deptMap.get(d)!.push(r); }
+        const deptRows = [...deptMap.entries()].map(([d, list]) => ({
+          department: d, list, n: list.length,
+          totalDays: list.reduce((x, r) => x + (r.totalDays || 0), 0) / list.length,
+          ratio: list.reduce((x, r) => x + (r.ratio || 0), 0) / list.length,
+          lateDays: list.reduce((x, r) => x + (r.lateDays || 0), 0), absentDays: list.reduce((x, r) => x + (r.absentDays || 0), 0),
+          remoteDays: list.reduce((x, r) => x + (r.remoteDays || 0), 0), halfDays: list.reduce((x, r) => x + (r.halfDays || 0), 0),
+          overtimeMinutesSum: list.reduce((x, r) => x + (r.overtimeMinutesSum || 0), 0), totalHours: list.reduce((x, r) => x + (r.totalHours || 0), 0),
+          alwTotal: list.reduce((x, r) => x + (r.alwTotal || 0), 0),
+        })).sort((a, b) => { const k = sumSort.key as string; if (k === "name") return a.department.localeCompare(b.department) * (sumSort.dir === "asc" ? 1 : -1); const av = (a as any)[k] ?? 0, bv = (b as any)[k] ?? 0; return (av - bv) * (sumSort.dir === "asc" ? 1 : -1); });
+        const autoOpen = rowsAll.length <= 15;   //   직원이 적으면 처음부터 펼쳐 둔다
         const th = (label: string, key: string) => (
           <th><button type="button" className="ev-th-btn" onClick={() => setSumSort((c) => nextSort(c, key as any, key === "name" ? "asc" : "desc"))}>{label}{sumSort.key === key ? (sumSort.dir === "asc" ? " ▲" : " ▼") : ""}</button></th>
         );
         return (
           <div className="attendance-monthly-summary">
             <div className="flex flex-wrap items-center gap-2 mb-2">
-              <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약 <small className="font-normal text-[var(--text-dim)]">{rows.length}명 · 근무일 {workdaysSoFar}일 기준 · 줄을 누르면 상세</small></h3>
-              <input value={sumQ} onChange={(e) => setSumQ(e.target.value)} placeholder="이름 검색" className="qk-input ml-auto h-8 w-44 px-2.5 text-xs" />
+              <h3 className="text-sm font-bold text-[var(--text-muted)]">직원별 월간 요약 <small className="font-normal text-[var(--text-dim)]">{deptRows.length}개 부서 · {rows.length}명 · 근무일 {workdaysSoFar}일 기준 · 부서 줄을 누르면 직원, 직원 줄을 누르면 상세</small></h3>
+              <span className="ml-auto flex items-center gap-1.5">
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setSumOpen(new Map(deptRows.map((d) => [d.department, true])))}>모두 펼침</button>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setSumOpen(new Map(deptRows.map((d) => [d.department, false])))}>모두 접기</button>
+                <input value={sumQ} onChange={(e) => setSumQ(e.target.value)} placeholder="이름 · 부서 검색" className="qk-input h-8 w-44 px-2.5 text-xs" />
+              </span>
             </div>
             <div className="ev-scroll att-summary-scroll">
               <table className="ev-table ev-lined att-summary-table">
                 <thead>
                   <tr>
-                    <th className="text-left"><button type="button" className="ev-th-btn" onClick={() => setSumSort((c) => nextSort(c, "name" as any, "asc"))}>직원{sumSort.key === "name" ? (sumSort.dir === "asc" ? " ▲" : " ▼") : ""}</button></th>
+                    <th className="text-left"><button type="button" className="ev-th-btn" onClick={() => setSumSort((c) => nextSort(c, "name" as any, "asc"))}>부서 · 직원{sumSort.key === "name" ? (sumSort.dir === "asc" ? " ▲" : " ▼") : ""}</button></th>
                     {th("출근일", "totalDays")}
                     <th>출근율</th>
                     {th("지각", "lateDays")}
@@ -1614,15 +1649,30 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
-                    <tr><td colSpan={isAdminForAllowance ? 10 : 9} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "이름에 맞는 직원이 없습니다" : "이 달 근태 기록이 없습니다"}</td></tr>
-                  ) : rows.map((s: any) => {
-                    const alw = allowanceByEmployee.get(s.employee_id);
+                    <tr><td colSpan={isAdminForAllowance ? 10 : 9} className="text-center text-[var(--text-dim)] py-6">{sumQ ? "이름·부서에 맞는 직원이 없습니다" : "이 달 근태 기록이 없습니다"}</td></tr>
+                  ) : deptRows.map((d) => {
+                    const open = sumOpen.has(d.department) ? !!sumOpen.get(d.department) : autoOpen;
+                    return (
+                      <Fragment key={d.department}>
+                        <tr className="att-dept-row" onClick={() => setSumOpen((m) => { const n = new Map(m); n.set(d.department, !open); return n; })}>
+                          <td className="text-left"><span className={`bs-caret ${open ? "rotate-90" : ""}`}>▸</span><b>{d.department}</b> <em className="bs-cnt">{d.n}</em></td>
+                          <td className="text-center mono-number">평균 {d.totalDays.toFixed(1)}일</td>
+                          <td className="text-center"><span className="att-ratio"><i style={{ width: `${Math.round(d.ratio * 100)}%` }} /></span><small className="ml-1.5 mono-number text-[var(--text-dim)]">{Math.round(d.ratio * 100)}%</small></td>
+                          <td className={`text-center mono-number ${d.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{d.lateDays > 0 ? `${d.lateDays}회` : "—"}</td>
+                          <td className={`text-center mono-number ${d.absentDays > 0 ? "text-[var(--danger)] font-bold" : "text-[var(--text-dim)]"}`}>{d.absentDays > 0 ? `${d.absentDays}일` : "—"}</td>
+                          <td className="text-center mono-number text-[var(--text-muted)]">{d.remoteDays > 0 ? `${d.remoteDays}일` : "—"}</td>
+                          <td className="text-center mono-number text-[var(--text-muted)]">{d.halfDays > 0 ? `${d.halfDays}회` : "—"}</td>
+                          <td className="text-right mono-number text-[var(--text-muted)]">{Math.round(d.overtimeMinutesSum) > 0 ? Math.round(d.overtimeMinutesSum).toLocaleString() : "—"}</td>
+                          <td className="text-right mono-number font-bold">{d.totalHours.toFixed(1)}h</td>
+                          {isAdminForAllowance && <td className="text-right mono-number font-bold text-[var(--success)]">{fmtKRW(d.alwTotal)}</td>}
+                        </tr>
+                        {open && d.list.map((s: any) => {                    const alw = allowanceByEmployee.get(s.employee_id);
                     const alwTitle = alw
                       ? `연장 ${alw.overtime.toLocaleString('ko-KR')}원 · 야간 ${alw.night.toLocaleString('ko-KR')}원 · 휴일 ${alw.holiday.toLocaleString('ko-KR')}원 · 당직 ${alw.on_duty.toLocaleString('ko-KR')}원 · 기타 ${alw.etc.toLocaleString('ko-KR')}원`
                       : '수당 기록 없음';
                     return (
-                      <tr key={s.employee_id} className="pnl-row-acct" onClick={() => setSummaryDetailId(s.employee_id)}>
-                        <td className="text-left"><span className="inline-flex items-center gap-2"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: attAvatarColor(s.employee_id) }}>{attInitials(s.name)}</span><b>{s.name}</b></span></td>
+                      <tr key={s.employee_id} className="pnl-row-acct att-emp-row" onClick={() => setSummaryDetailId(s.employee_id)}>
+                        <td className="text-left pl-8"><span className="inline-flex items-center gap-2"><span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: attAvatarColor(s.employee_id) }}>{attInitials(s.name)}</span>{s.name}</span></td>
                         <td className="text-center mono-number">{s.totalDays}일</td>
                         <td className="text-center"><span className="att-ratio"><i style={{ width: `${Math.round(s.ratio * 100)}%` }} /></span><small className="ml-1.5 mono-number text-[var(--text-dim)]">{Math.round(s.ratio * 100)}%</small></td>
                         <td className={`text-center mono-number ${s.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{s.lateDays > 0 ? `${s.lateDays}회` : "—"}</td>
@@ -1633,6 +1683,9 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         <td className="text-right mono-number font-bold">{s.totalHours.toFixed(1)}h</td>
                         {isAdminForAllowance && <td className="text-right mono-number font-bold text-[var(--success)]" title={alwTitle}>{fmtKRW(alw?.total ?? 0)}</td>}
                       </tr>
+                    );
+                  })}
+                      </Fragment>
                     );
                   })}
                 </tbody>
