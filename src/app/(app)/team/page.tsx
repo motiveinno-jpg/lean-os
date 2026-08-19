@@ -8,15 +8,19 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
+import { logRead } from "@/lib/log-read";
 
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 //   2026-08-19 조회 화면 표준(인사 메뉴 점검): 상자 + [검색조건(부서) · 빠른검색 · 보기 칩(리스트/카드) ‖ 인원] + 표(정렬) + 쪽. 카드는 보기 옵션.
 //   예전엔 상자 없이 부서별 유리 카드 격자만 있었다.
+// 조직도 정렬용 직책 서열 — org-option-fields 기본 직책과 같은 순서. 목록에 없는 직책은 뒤로.
+const POSITION_RANK = ["대표", "이사", "부장", "차장", "과장", "대리", "주임", "사원"];
+
 export default function TeamPage() {
   const { user, role } = useUser();
   const companyId = user?.company_id ?? null;
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"list" | "card">("list");
+  const [view, setView] = useState<"list" | "card" | "org">("list");
   const [depts, setDepts] = useState<string[]>([]);
   const [draftDepts, setDraftDepts] = useState<string[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -36,12 +40,32 @@ export default function TeamPage() {
   });
   const allDepts = useMemo(() => [...new Set(employees.map((e) => e.department || "미배정"))].sort(), [employees]);
 
+  // 조직도 (2026-08-19 사장님: 디렉토리에서 조직도도 보이게) — 회사 루트 → 부서 상자 → 직책 서열순 구성원.
+  //   검색·부서 필터가 조직도에도 그대로 적용된다. '미배정'은 맨 뒤.
+  const { data: companyName = "" } = useQuery({
+    queryKey: ["company-name", companyId],
+    enabled: !!companyId && view === "org",
+    staleTime: 300_000,
+    queryFn: async () => {
+      const data = logRead("team:companyName", await supabase.from("companies").select("name").eq("id", companyId!).maybeSingle());
+      return (data as { name?: string } | null)?.name || "";
+    },
+  });
+
   const filtered = useMemo(() => {
     const rows = employees.filter((e) => quickSearchHit(search, [e.name, e.department, e.position, e.email, e.phone]) && (depts.length === 0 || depts.includes(e.department || "미배정")));
     const k = sort.key;
     return [...rows].sort((a, b) => (cmp((a as any)[k] || "", (b as any)[k] || "") * (sort.dir === "asc" ? 1 : -1)) || (a.name || "").localeCompare(b.name || ""));
   }, [employees, search, depts, sort]);
   const pager = usePager(filtered, 50, `${search}|${depts.join()}|${sort.key}${sort.dir}`);
+  const orgDepts = useMemo(() => {
+    const rank = (p?: string | null) => { const i = POSITION_RANK.indexOf(p || ""); return i === -1 ? POSITION_RANK.length : i; };
+    const m = new Map<string, typeof filtered>();
+    filtered.forEach((e) => { const d = e.department || "미배정"; if (!m.has(d)) m.set(d, []); m.get(d)!.push(e); });
+    return [...m.entries()]
+      .sort((a, b) => (a[0] === "미배정" ? 1 : b[0] === "미배정" ? -1 : a[0].localeCompare(b[0])))
+      .map(([d, rows]) => [d, [...rows].sort((x, y) => (rank(x.position) - rank(y.position)) || (x.name || "").localeCompare(y.name || ""))] as const);
+  }, [filtered]);
 
   if (!companyId) return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
@@ -67,7 +91,7 @@ export default function TeamPage() {
               </ConditionRow>
             </ConditionPanel>
             <QuickSearch value={search} onApply={setSearch} placeholder="이름 · 부서 · 직책 · 이메일 · 연락처 — 쉼표로 여러 개, Enter" />
-            <ChipGroup value={view} onChange={setView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />
+            <ChipGroup value={view} onChange={setView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }, { value: "org", label: "조직도" }] as const} />
           </QueryBar>
           <AppliedChips chips={chips} onClearAll={() => { setDepts([]); setDraftDepts([]); setSearch(""); }} />
           <ResultStrip>
@@ -110,6 +134,36 @@ export default function TeamPage() {
                 </table>
                 <Pager page={pager.page} pages={pager.pages} total={filtered.length} from={pager.from} to={pager.to} size={50} onPage={pager.setPage} />
               </>
+            ) : view === "org" ? (
+              <div className="org-chart">
+                <div className="org-root">
+                  <div className="text-sm font-bold">{companyName || "우리 회사"}</div>
+                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{filtered.length}명</div>
+                </div>
+                <div className="org-stem" />
+                <div className="org-depts">
+                  {orgDepts.map(([dept, rows]) => (
+                    <div key={dept} className="flex flex-col items-center">
+                      <div className="org-stem org-stem-sm" />
+                      <div className="org-dept">
+                        <div className="org-dept-head">
+                          <span className="text-xs font-bold truncate">{dept}</span>
+                          <span className="text-[11px] text-[var(--text-dim)] shrink-0">{rows.length}명</span>
+                        </div>
+                        <div className="py-1">
+                          {rows.map((e) => (
+                            <div key={e.id} className="org-member">
+                              <span className="team-avatar">{(e.name || "?").slice(0, 1)}</span>
+                              <span className="text-xs font-semibold truncate flex-1">{e.name || "—"}</span>
+                              <span className="text-[11px] text-[var(--text-muted)] shrink-0">{e.position || ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             ) : (
               <div className="team-cards">
                 {pager.view.map((e) => (
