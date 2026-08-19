@@ -175,10 +175,10 @@ export default function VoucherEntryPage() {
     queryFn: async () => {
       const from = new Date(Date.now() + 9 * 3600 * 1000 - importDays * 86400000).toISOString().slice(0, 10);
       if (importKind === "bank") {
-        const data = logRead("ve-import:bank", await db.from("bank_transactions").select("id, transaction_date, amount, type, counterparty, description, raw_data").eq("company_id", companyId ?? "").is("journal_entry_id", null).gte("transaction_date", from).order("transaction_date", { ascending: false }).limit(500));
+        const data = logRead("ve-import:bank", await db.from("bank_transactions").select("id, transaction_date, amount, type, counterparty, description, raw_data").eq("company_id", companyId ?? "").is("journal_entry_id", null).is("ledger_excluded_reason", null).gte("transaction_date", from).order("transaction_date", { ascending: false }).limit(500));
         return ((data || []) as any[]).map((r) => ({ kind: "bank" as const, id: r.id, date: r.transaction_date, amount: Math.abs(Number(r.amount || 0)), isIn: r.type === "income", who: r.counterparty || "", desc: r.description || "", account: r.raw_data?.accountNo ? String(r.raw_data.accountNo).slice(-4) : undefined }));
       }
-      const data = logRead("ve-import:card", await db.from("card_transactions").select("id, transaction_date, amount, merchant_name, card_name, category").eq("company_id", companyId ?? "").is("journal_entry_id", null).gte("transaction_date", from).order("transaction_date", { ascending: false }).limit(500));
+      const data = logRead("ve-import:card", await db.from("card_transactions").select("id, transaction_date, amount, merchant_name, card_name, category").eq("company_id", companyId ?? "").is("journal_entry_id", null).is("ledger_excluded_reason", null).gte("transaction_date", from).order("transaction_date", { ascending: false }).limit(500));
       return ((data || []) as any[]).map((r) => ({ kind: "card" as const, id: r.id, date: r.transaction_date, amount: Math.abs(Number(r.amount || 0)), isIn: Number(r.amount || 0) < 0, who: r.merchant_name || "", desc: r.card_name || "", account: r.category || undefined }));
     },
     enabled: !!companyId && importOpen, staleTime: 30_000,

@@ -94,12 +94,13 @@ export async function countUnposted(
     supabase.from("tax_invoices").select("id", COUNT)
       .eq("company_id", companyId).neq("status", "void").is("journal_entry_id", null)
       .gte("issue_date", fromDate).lte("issue_date", toDate),
-    supabase.from("card_transactions").select("id", COUNT)
-      .eq("company_id", companyId).is("journal_entry_id", null)
+    //   장부 제외(ledger_excluded_reason)한 건은 '끝난 것' — 미처리에 세지 않는다 (2026-08-19)
+    (supabase.from("card_transactions").select("id", COUNT) as any)
+      .eq("company_id", companyId).is("journal_entry_id", null).is("ledger_excluded_reason", null)
       .gte("transaction_date", fromDate).lte("transaction_date", toDate),
     //   통장은 '전표가 없다'가 아니라 '아직 처리 안 했다'가 기준 — 수금 매칭도 처리에 들어간다
     (supabase.from("bank_transactions").select("id", COUNT) as any)
-      .eq("company_id", companyId).is("journal_entry_id", null).eq("settlement_status", "open")
+      .eq("company_id", companyId).is("journal_entry_id", null).is("ledger_excluded_reason", null).eq("settlement_status", "open")
       .gte("transaction_date", fromDate).lte("transaction_date", toDate),
   ]);
   const n = (r: any) => Number(r?.count || 0);

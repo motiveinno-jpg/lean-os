@@ -31,6 +31,9 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
+import { findDuplicateEntries, linkTransactionToEntry, setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
+import { useDupVoucherPrompt } from "@/components/dup-voucher-prompt";
+import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import {
   VAT_TYPES, STD, buildVoucherLines, vatType, suggestVatType, normalizeSides,
   type SettleType,
@@ -54,6 +57,7 @@ type Row = {
   vatCode: string;
   settle: SettleType;
   posted: boolean;
+  excluded?: string | null;   // 장부 제외 사유 (2026-08-19, 카드 탭만) — 전표 없이 끝낸 줄
   voucherNo: number | null;
   /** 이 줄이 만든 전표 — 취소(되돌리기)할 때 쓴다 */
   entryId?: string | null;
@@ -94,7 +98,7 @@ type Cond = {
   card: string[];      // 카드 이름 (카드 탭만)
   kind: string;        // 구분 — 법인·일반·간이·면세 (카드 탭만)
   dir: "all" | "sale" | "purchase";
-  todo: "todo" | "all"; // 전표 미처리만 볼지 — 검색조건 안으로 옮겼다(2026-08-13 사장님 지시)
+  todo: "todo" | "all" | "excluded"; // 전표 미처리만 볼지 (excluded=장부 제외한 줄만, 2026-08-19) — 검색조건 안으로 옮겼다(2026-08-13 사장님 지시)
   item: string;        // 품명
   min: string; max: string;   // 합계 금액 범위
   size: number;        // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
@@ -110,7 +114,7 @@ const DIR_CHIPS = [
   { value: "all", label: "전체" }, { value: "sale", label: "매출" }, { value: "purchase", label: "매입" },
 ] as const;
 const STATE_CHIPS = [
-  { value: "todo", label: "전표 미처리" }, { value: "all", label: "전체" },
+  { value: "todo", label: "전표 미처리" }, { value: "all", label: "전체" }, { value: "excluded", label: "장부 제외" },
 ] as const;
 //   구분 — merchantKindOf 가 돌려주는 값 그대로 (lib/merchant-tax-type)
 const KIND_CHIPS = [
@@ -166,7 +170,7 @@ export function EvidenceTab({
       case "tax": return amountsOf(r).vat.toLocaleString("ko");
       case "total": return (amountsOf(r).supply + amountsOf(r).vat).toLocaleString("ko");
       case "debit": { const a = acctOf(r).acct; return a ? `${a.code} ${a.name}` : ""; }
-      case "state": return r.posted ? "전표됨" : "미처리";
+      case "state": return r.posted ? "전표됨" : r.excluded ? "장부 제외" : "미처리";
       default: return "";
     }
   };
@@ -292,7 +296,8 @@ export function EvidenceTab({
   };
 
   const shownUnsorted = rows.filter((r) => {
-    if (live.todo === "todo" && r.posted) return false;
+    if (live.todo === "todo" && (r.posted || r.excluded)) return false;
+    if (live.todo === "excluded" && !r.excluded) return false;
     const acct = acctOf(r).acct;
     const total = amountsOf(r).supply + amountsOf(r).vat;
     //   빠른검색 — 글자 하나로 거래처·계정·카드·품명·금액을 한꺼번에 (쉼표=또는)
@@ -321,7 +326,7 @@ export function EvidenceTab({
         case "tax": return amountsOf(r).vat;
         case "total": return amountsOf(r).supply + amountsOf(r).vat;
         case "debit": return acctOf(r).acct?.code ?? "";
-        case "state": return r.posted ? 1 : 0;
+        case "state": return r.posted ? 2 : r.excluded ? 1 : 0;
         default: return r.date;
       }
     };
@@ -404,10 +409,31 @@ export function EvidenceTab({
     return id;
   };
 
+  //   중복 의심 팝업 (2026-08-19) — 같은 날 같은 금액 전표가 이미 있으면 새 전표/기존 전표에 연결/취소 (카드만 연결 가능 — 세금계산서·현금영수증은 자기 RPC 가 건다)
+  const { askDup, dupPromptElement } = useDupVoucherPrompt();
+  //   장부 제외 (2026-08-19) — 카드 탭만. 고른 미처리 줄을 사유와 함께 전표 없이 끝낸다 / 해제
+  const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
+  const excludeSelected = async () => {
+    if (kind !== "card") return;
+    const targets = selRows.filter((r) => !r.posted && !r.excluded);
+    if (targets.length === 0) { toast("장부 제외할 미처리 줄을 고르세요", "info"); return; }
+    const f = targets[0];
+    const reason = await askExclude(`카드 ${f.date} ${f.partnerName} ${won(Math.abs(f.supply + f.vat))}원`, targets.length);
+    if (!reason) return;
+    try {
+      const n = await setLedgerExcluded("card", targets.map((r) => r.id), reason);
+      toast(`${n}건 장부 제외 — 미처리 목록에서 사라졌습니다 (상태 '장부 제외'로 다시 봅니다)`, "success");
+      setSel(new Set()); qc.invalidateQueries({ queryKey: ["collect-rows"] }); qc.invalidateQueries({ queryKey: ["collect-status"] });
+    } catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
+  };
+  const unexclude = async (r: Row) => {
+    try { await setLedgerExcluded("card", [r.id], null); toast("제외를 해제했습니다 — 미처리로 돌아옵니다", "success"); qc.invalidateQueries({ queryKey: ["collect-rows"] }); qc.invalidateQueries({ queryKey: ["collect-status"] }); }
+    catch (e) { toast(friendlyError(e, "해제 실패"), "error"); }
+  };
   const makeVouchers = async () => {
     if (selRows.length === 0 || saving) return;
     setSaving(true);
-    let ok = 0;
+    let ok = 0, linked = 0;
     const fails: string[] = [];
     for (const r of selRows) {
       const lines = linesFor(r);
@@ -415,6 +441,19 @@ export function EvidenceTab({
       if (lines.length < 2 || resolved.some((a) => !a)) {
         fails.push(`${r.partnerName}: 계정을 먼저 고르세요`);
         continue;
+      }
+      const dups = await findDuplicateEntries(companyId, r.date, Math.abs(r.supply + r.vat));
+      if (dups.length > 0) {
+        const a = await askDup(`${kind === "card" ? "카드" : kind === "cash_receipt" ? "현금영수증" : "세금계산서"} ${r.date} ${r.partnerName || ""} ${Math.abs(r.supply + r.vat).toLocaleString()}원`, r.item || "", dups);
+        if (a.action === "cancel") { fails.push(`${r.partnerName}: 취소`); continue; }
+        if (a.action === "link") {
+          if (kind === "card") { if (await linkTransactionToEntry("card", r.id, a.entryId)) linked += 1; continue; }
+          //   세금계산서·현금영수증은 자기 표의 journal_entry_id 를 건다
+          const tbl = kind === "cash_receipt" ? "cash_receipts" : "tax_invoices";
+          const { data } = await supabase.from(tbl).update({ journal_entry_id: a.entryId } as never).eq("id", r.id).is("journal_entry_id", null).select("id");
+          if ((data || []).length > 0) linked += 1;
+          continue;
+        }
       }
       const norm = normalizeSides(lines.map((l) => ({ side: l.side, amount: l.amount })));
       //   ★ 카드는 **차변(비용)은 가맹점, 대변(미지급금)은 카드사** — 상대가 서로 다르다.
@@ -479,8 +518,9 @@ export function EvidenceTab({
     qc.invalidateQueries({ queryKey: ["collect-status"] });
     qc.invalidateQueries({ queryKey: ["voucher-rules"] });
     setSaving(false);
-    if (ok > 0 && fails.length === 0) toast(`전표 ${ok}건을 만들었습니다`, "success");
-    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
+    const linkedTxt = linked > 0 ? ` · 기존 전표에 연결 ${linked}건` : "";
+    if ((ok > 0 || linked > 0) && fails.length === 0) toast(`${ok > 0 ? `전표 ${ok}건을 만들었습니다` : "전표는 만들지 않았습니다"}${linkedTxt}`, "success");
+    else if (ok > 0 || linked > 0) toast(`${ok}건 성공${linkedTxt} · ${fails.length}건 실패 — ${fails[0]}`, "info");
     else toast(`전표를 만들지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
 
@@ -514,7 +554,7 @@ export function EvidenceTab({
   const toggle = (id: string) =>
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   //   머리단 전체 선택은 **보이는 쪽만** 고른다 — 안 보이는 3쪽까지 딸려 오면 무엇을 만드는지 모른다
-  const pickable = pager.view.filter((r) => !r.posted);
+  const pickable = pager.view.filter((r) => !r.posted && !r.excluded);
   const allOn = pickable.length > 0 && pickable.every((r) => sel.has(r.id));
   const toggleAll = () => setSel((s) => {
     const n = new Set(s);
@@ -639,7 +679,8 @@ export function EvidenceTab({
     for (const r of rows) {
       const a2 = acctOf(r).acct;
       const total = amountsOf(r).supply + amountsOf(r).vat;
-      if (draft.todo === "todo" && r.posted) continue;
+      if (draft.todo === "todo" && (r.posted || r.excluded)) continue;
+      if (draft.todo === "excluded" && !r.excluded) continue;
       if (!quickSearchHit(q, [r.partnerName, r.bizno, r.item, r.cardName, a2?.name, a2?.code], [total])) continue;
       if (draft.dir !== "all" && vatType(vatCodeOf(r))?.side !== draft.dir) continue;
       if (draft.partner.length && !draft.partner.includes(r.partnerName)) continue;
@@ -674,7 +715,7 @@ export function EvidenceTab({
       "합계": amt.supply + amt.vat,
       "계정과목": a ? `${a.code} ${a.name}` : "",
       "상대계정": counter?.code ? `${counter.code} ${counter.name}` : "",
-      "상태": r.posted ? `확정 #${r.voucherNo ?? ""}` : "미처리",
+      "상태": r.posted ? `확정 #${r.voucherNo ?? ""}` : r.excluded ? `장부 제외(${excludeLabelOf(r.excluded)})` : "미처리",
     };
   });
   const KIND_LABEL: Record<string, string> = {
@@ -685,7 +726,7 @@ export function EvidenceTab({
       `${KIND_LABEL[kind] ?? "수집자료"}_${from}~${to}${tag}`);
   //   계정 일괄 지정 — 계정이 아직 없는 줄만 내려받아 엑셀에서 채우고 되올린다 (2026-08-13 사장님 승인).
   //   ★ 되올려도 **전표는 안 생긴다** — 화면 계정 칸이 채워질 뿐이고 확정은 '전표 만들기'다.
-  const needAcct = shown.filter((r) => !r.posted && !acctOf(r).acct);
+  const needAcct = shown.filter((r) => !r.posted && !r.excluded && !acctOf(r).acct);
   const fillRef = useRef<HTMLInputElement>(null);
   const onFillFile = async (f: File) => {
     try {
@@ -696,7 +737,7 @@ export function EvidenceTab({
       for (const pk of picks) {
         const row = byId.get(pk.id);
         if (!row) { miss.push(`이 조회에 없는 줄 (${pk.id.slice(0, 8)}…)`); continue; }
-        if (row.posted) { miss.push(`${row.date} ${row.partnerName} — 이미 전표가 된 줄`); continue; }
+        if (row.posted || row.excluded) { miss.push(`${row.date} ${row.partnerName} — 이미 ${row.posted ? "전표가 된" : "장부 제외한"} 줄`); continue; }
         const a = acctByCode.get(pk.code);
         if (a) next[pk.id] = { ...override[pk.id], acct: a };
       }
@@ -911,9 +952,9 @@ export function EvidenceTab({
                 const counter = t.side === "sale" ? debit[0] : credit[credit.length - 1];
                 const on = sel.has(r.id);
                 return (
-                  <tr key={r.id} className={r.posted ? "ev-posted" : on ? "ev-on" : ""}>
+                  <tr key={r.id} className={r.posted || r.excluded ? "ev-posted" : on ? "ev-on" : ""}>
                     <td>
-                      {!r.posted && (
+                      {!r.posted && !r.excluded && (
                         <button type="button" onClick={() => toggle(r.id)} aria-label="선택"
                           className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
                       )}
@@ -938,7 +979,7 @@ export function EvidenceTab({
                       })()}
                     </td>
                     <td>
-                      {r.posted ? (
+                      {r.posted || r.excluded ? (
                         <em className={t.side === "sale" ? "spv-type spv-type-s" : "spv-type spv-type-b"}>{isGeneral ? "일반" : t.label.split(". ")[1]}</em>
                       ) : (
                         <select className="ev-sel" value={vatCodeOf(r)}
@@ -956,7 +997,7 @@ export function EvidenceTab({
                           오른쪽으로 떠 보인다 (2026-08-12 사장님 제보).
                           숫자 칸은 자릿수 비교 때문에 오른쪽을 지킨다(회계 표 관행). */}
                     <td className="tc">
-                      {t.side === "purchase" && !r.posted ? (
+                      {t.side === "purchase" && !r.posted && !r.excluded ? (
                         <span className="relative inline-block">
                           <button type="button" onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
                             className={acct ? "ev-acct" : "ev-acct ev-acct-empty"}>
@@ -974,7 +1015,7 @@ export function EvidenceTab({
                       )}
                     </td>
                     <td className="tc">
-                      {t.side === "sale" && !r.posted ? (
+                      {t.side === "sale" && !r.posted && !r.excluded ? (
                         <span className="relative inline-block">
                           <button type="button" onClick={() => setPick(pick?.id === r.id ? null : { id: r.id, q: "" })}
                             className={acct ? "ev-acct" : "ev-acct"}>
@@ -1006,6 +1047,11 @@ export function EvidenceTab({
                               onClick={() => unpost(r)}>취소</button>
                           )}
                         </span>
+                      ) : r.excluded ? (
+                        <span className="ev-st-cell">
+                          <span className="ev-st ev-st-done" title={excludeLabelOf(r.excluded)}>장부 제외 · {excludeLabelOf(r.excluded).split(" · ")[0]}</span>
+                          <button type="button" className="ev-undo" disabled={saving} onClick={() => unexclude(r)}>해제</button>
+                        </span>
                       ) : <span className="ev-st ev-st-todo">미처리</span>}
                     </td>
                   </tr>
@@ -1019,6 +1065,7 @@ export function EvidenceTab({
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 화면을 통틀어 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
         summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}</>}>
+        {kind === "card" && <button type="button" onClick={excludeSelected} disabled={saving} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>}
         <button type="button" onClick={makeVouchers} disabled={saving}
           className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
           {saving ? "만드는 중…" : `전표 만들기 (${selRows.length})`}
@@ -1030,8 +1077,8 @@ export function EvidenceTab({
       <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
         from={pager.from} to={pager.to} onPage={pager.setPage} />
       </QueryScreen>
-
-
+      {dupPromptElement}
+      {excludePromptElement}
     </div>
   );
 }
@@ -1065,7 +1112,7 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
 
   if (kind === "card") {
     const got = await fetchAllPages<any>((a, b) => supabase.from("card_transactions")
-      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id, merchant_bizno, card_name")
+      .select("id, transaction_date, merchant_name, amount, category, classification, journal_entry_id, ledger_excluded_reason, merchant_bizno, card_name")
       .eq("company_id", companyId)
       .gte("transaction_date", from).lte("transaction_date", to)
       .order("transaction_date").range(a, b));
@@ -1081,7 +1128,7 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
         partnerId: null, partnerName: r.merchant_name || "—", bizno: r.merchant_bizno || "",
         item: label || "카드 사용", supply, vat: amt - supply,
         vatCode: suggestVatType({ kind: "card", direction: "purchase", memo: `${r.merchant_name || ""} ${label}` }),
-        settle, posted: !!r.journal_entry_id, voucherNo: null,
+        settle, posted: !!r.journal_entry_id, excluded: r.ledger_excluded_reason || null, voucherNo: null,
         cardCategory: r.category || null, cardName: r.card_name || null,
       } as Row;
     });

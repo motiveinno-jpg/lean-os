@@ -34,6 +34,9 @@ import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
+import { findDuplicateEntries, linkTransactionToEntry, setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
+import { useDupVoucherPrompt } from "@/components/dup-voucher-prompt";
+import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import { fetchAllPages } from "@/lib/fetch-all";
 import { exportToExcel } from "@/lib/excel-export";
 import { downloadAccountFillSheet, parseAccountFill } from "@/lib/account-fill-excel";
@@ -58,6 +61,7 @@ type Row = {
   settled: boolean;        // 매칭이 확정됐다
   settledAmount: number;
   transfer: boolean;       // 계좌 이동으로 표시됨
+  excluded: string | null; // 장부 제외 사유 (2026-08-19) — 전표 없이 끝낸 줄
   voucherNo: number | null;
   entryId: string | null;          // 되돌릴 때 지울 전표
   settleIds: { id: string; type: string }[];  // 되돌릴 때 되돌릴 정산 행
@@ -92,7 +96,7 @@ function bankIsIn(type: string, amount: number): boolean {
 }
 
 const STATE_CHIPS = [
-  { value: "todo", label: "미처리" }, { value: "all", label: "전체" },
+  { value: "todo", label: "미처리" }, { value: "all", label: "전체" }, { value: "excluded", label: "장부 제외" },
 ] as const;
 const IO_CHIPS = [
   { value: "all", label: "전체" }, { value: "in", label: "입금" }, { value: "out", label: "출금" },
@@ -108,7 +112,7 @@ type Cond = {
   bank: string[];   // 계좌
   acct: string[];   // 붙은 계정과목 코드
   io: "all" | "in" | "out";
-  todo: "todo" | "all"; // 미처리만 볼지 — 검색조건 안으로 옮겼다(2026-08-13 사장님 지시)
+  todo: "todo" | "all" | "excluded"; // 미처리만 볼지 (excluded=장부 제외한 줄만, 2026-08-19) — 검색조건 안으로 옮겼다(2026-08-13 사장님 지시)
   desc: string;     // 통장 적요
   min: string; max: string;
   size: number;     // 한 쪽에 몇 줄 — 조건의 하나라 '내 조건'에 같이 저장된다
@@ -342,7 +346,7 @@ export function BankTab({
       //     잘려 기간을 넓히는 의미가 없었다. 읽기 실패는 fetchAllPages 가 던진다
       //     ('처리할 거래가 없습니다'로 보여 다 끝낸 줄 알면 안 된다 — PGRST201 로 실제로 그랬다).
       const got = await fetchAllPages<any>((a, b) => supabase.from("bank_transactions")
-        .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, tax_invoice_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
+        .select("id, transaction_date, amount, type, counterparty, description, partner_id, bank_account_id, journal_entry_id, ledger_excluded_reason, tax_invoice_id, settlement_status, settled_amount, is_auto_transfer, invoice_settlements(id, status, match_type), card_transactions!card_transactions_bank_transaction_id_fkey(id)")
         .eq("company_id", companyId)
         .gte("transaction_date", from).lte("transaction_date", to)
         .order("transaction_date").range(a, b));
@@ -371,6 +375,7 @@ export function BankTab({
           taxLinked: !!r.tax_invoice_id,
           settledAmount: Number(r.settled_amount || 0),
           transfer: !!r.is_auto_transfer,
+          excluded: r.ledger_excluded_reason || null,
           voucherNo: r.journal_entry_id ? (noBy.get(r.journal_entry_id) ?? null) : null,
           entryId: r.journal_entry_id ?? null,
           settleIds: ((r.invoice_settlements || []) as any[])
@@ -404,11 +409,12 @@ export function BankTab({
   const memoOf = (r: Row) => memo[r.id] ?? "";
   const memoPlaceholder = (r: Row) => r.desc || r.who || "적요";
 
-  const doneOf = (r: Row) => r.posted || r.settled || r.transfer;
+  const doneOf = (r: Row) => r.posted || r.settled || r.transfer || !!r.excluded;
 
   const bankLabelOf = (r: Row) => bankAccounts.find((b) => b.id === r.bankId)?.label ?? "";
   const shownUnsorted = rows.filter((r) => {
     if (live.todo === "todo" && doneOf(r)) return false;
+    if (live.todo === "excluded" && !r.excluded) return false;
     const a = acctOf(r).a;
     //   빠른검색 — 글자 하나로 거래처·적요·계좌·계정·금액을 한꺼번에 (쉼표=또는)
     if (!quickSearchHit(q, [r.who, ptOf(r)?.name, r.desc, bankLabelOf(r), a?.name, a?.code], [r.amount])) return false;
@@ -457,15 +463,37 @@ export function BankTab({
   const ready = (r: Row) => !!acctOf(r).a;
   const notReady = selRows.filter((r) => !ready(r));
 
+  //   중복 의심 팝업 (2026-08-19) — 같은 날 같은 금액의 전표가 이미 있으면 새 전표/기존 전표에 연결/취소
+  const { askDup, dupPromptElement } = useDupVoucherPrompt();
+  //   장부 제외 (2026-08-19) — 고른 미처리 줄을 사유와 함께 전표 없이 끝낸다. 되돌리기로 해제
+  const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
+  const excludeSelected = async () => {
+    const targets = selRows.filter((r) => !doneOf(r));
+    if (targets.length === 0) { toast("장부 제외할 미처리 줄을 고르세요", "info"); return; }
+    const f = targets[0];
+    const reason = await askExclude(`통장 ${f.date} ${f.who} ${won(Math.abs(f.amount))}원`, targets.length);
+    if (!reason) return;
+    try {
+      const n = await setLedgerExcluded("bank", targets.map((r) => r.id), reason);
+      toast(`${n}건 장부 제외 — 미처리 목록에서 사라졌습니다 (상태 '장부 제외'로 다시 봅니다)`, "success");
+      setSel(new Set()); qc.invalidateQueries({ queryKey: ["bank-rows"] }); qc.invalidateQueries({ queryKey: ["collect-status"] });
+    } catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
+  };
   const confirmAll = async () => {
     if (selRows.length === 0 || busy) return;
     setBusy(true);
-    let ok = 0;
+    let ok = 0, linked = 0;
     const fails: string[] = [];
     for (const r of selRows) {
       try {
         const acc = acctOf(r).a;
         if (!acc) throw new Error("계정을 먼저 고르세요");
+        const dups = await findDuplicateEntries(companyId, r.date, Math.abs(r.amount));
+        if (dups.length > 0) {
+          const a = await askDup(`통장 ${r.date} ${r.who || ""} ${Math.abs(r.amount).toLocaleString()}원`, r.isIn ? "입금" : "출금", dups);
+          if (a.action === "cancel") { fails.push(`${r.who}: 취소`); continue; }
+          if (a.action === "link") { if (await linkTransactionToEntry("bank", r.id, a.entryId)) linked += 1; continue; }
+        }
         //   ★ 보통예금 쪽(계정·통장 거래처·계좌 연결)과 차·대 방향은 **서버가 붙인다**.
         //     화면은 상대 계정·상대 거래처·적요만 보낸다 — "자동 입력"을 화면 신뢰에 맡기지 않는다.
         const { error } = await (supabase.rpc as any)("post_bank_manual_voucher", {
@@ -494,8 +522,9 @@ export function BankTab({
     qc.invalidateQueries({ queryKey: ["voucher-rules"] });
     qc.invalidateQueries({ queryKey: ["bank-partners"] });
     setBusy(false);
-    if (ok > 0 && fails.length === 0) toast(`일반전표 ${ok}건을 만들었습니다`, "success");
-    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
+    const linkedTxt = linked > 0 ? ` · 기존 전표에 연결 ${linked}건` : "";
+    if ((ok > 0 || linked > 0) && fails.length === 0) toast(`${ok > 0 ? `일반전표 ${ok}건을 만들었습니다` : "전표는 만들지 않았습니다"}${linkedTxt}`, "success");
+    else if (ok > 0 || linked > 0) toast(`${ok}건 성공${linkedTxt} · ${fails.length}건 실패 — ${fails[0]}`, "info");
     else toast(`처리하지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
 
@@ -504,7 +533,9 @@ export function BankTab({
     if (busy) return;
     setBusy(true);
     try {
-      if (r.posted) {
+      if (r.excluded) {
+        await setLedgerExcluded("bank", [r.id], null);
+      } else if (r.posted) {
         //   전표는 **지우지 않고 반려**한다 — 재무제표에서 빠지고 이력은 남는다.
         //   수집·전표의 다른 탭('취소')과 같은 길을 쓴다 (2026-08-12).
         const { error } = await (supabase.rpc as any)("unpost_evidence_voucher", { p_entry_id: r.entryId });
@@ -677,6 +708,7 @@ export function BankTab({
     for (const r of rows) {
       const a2 = acctOf(r).a;
       if (draft.todo === "todo" && doneOf(r)) continue;
+      if (draft.todo === "excluded" && !r.excluded) continue;
       if (!quickSearchHit(q, [r.who, ptOf(r)?.name, r.desc, bankLabelOf(r), a2?.name, a2?.code], [r.amount])) continue;
       if (draft.io !== "all" && r.isIn !== (draft.io === "in")) continue;
       if (draft.who.length && !draft.who.includes(r.who)) continue;
@@ -1011,7 +1043,7 @@ export function BankTab({
                       {done ? (
                         <span className="bk-done">
                           <span className="ev-st ev-st-done">
-                            {r.transfer ? "이동 표시" : r.voucherNo != null ? `#${r.voucherNo} 확정` : "확정"}
+                            {r.excluded ? `장부 제외 · ${excludeLabelOf(r.excluded).split(" · ")[0]}` : r.transfer ? "이동 표시" : r.voucherNo != null ? `#${r.voucherNo} 확정` : "확정"}
                           </span>
                           {/*   잘못 처리한 걸 되돌릴 수 있어야 한다 — 거래 매칭의 '확정 취소'를 옮겨 왔다 */}
                           <button type="button" onClick={() => undo(r)} disabled={busy} className="rules-del">되돌리기</button>
@@ -1084,6 +1116,7 @@ export function BankTab({
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
         summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}</>}>
+        <button type="button" onClick={excludeSelected} disabled={busy} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>
         <button type="button" onClick={confirmAll} disabled={busy}
           className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
           {busy ? "만드는 중…" : `일반전표 만들기 (${selRows.length})`}
@@ -1095,8 +1128,8 @@ export function BankTab({
       <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
         from={pager.from} to={pager.to} onPage={pager.setPage} />
       </QueryScreen>
-
-
+      {dupPromptElement}
+      {excludePromptElement}
     </div>
   );
 }

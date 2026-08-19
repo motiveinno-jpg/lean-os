@@ -33,3 +33,10 @@
 
 ## 단계
 1) 팝업 세 갈래(기존 전표에 연결) — 반일  2) 장부 제외 처리(DB 칸 + 통장/카드/수집·전표 줄 동작 + 상태 필터 + countUnposted) — 1일  3) 매입매출전표 팝업 — 반일
+
+## 반영 (2026-08-19 — 사장님 "진행")
+- 1) 팝업 세 갈래: `lib/dup-voucher.ts findDuplicateEntries/linkTransactionToEntry` + `components/dup-voucher-prompt.tsx`. 수집·전표 통장 탭(confirmAll)·카드/계산서/영수증 탭(makeVouchers)·카드 거래내역(doPostVoucher)·매입매출전표 저장(손으로 친 줄은 걸어 둘 거래가 없어 새 전표/취소만 — `allowLink:false`).
+- 2) 장부 제외: `bank_transactions/card_transactions.ledger_excluded_reason`(마이그레이션 20260819130000, prod 적용). 통장·카드 거래내역·수집·전표 통장/카드 탭에 SelectionBar '장부 제외'(사유 팝업 `ledger-exclude-prompt.tsx`, "코드:메모") + 상태 칩 '장부 제외' + 줄 '해제'(수집·전표는 되돌리기). 미처리 셈(`countUnposted`·`collect.ts`·`fetchUnclassifiedOutflow`)과 일반전표 불러오기에서 제외 건은 뺀다.
+- 3) 매입매출전표 팝업 반영.
+- 확인: 통장 거래내역 실제 1건 제외 → 목록에서 사라짐 → 상태 '장부 제외'로 조회 → 배지 '장부 제외 · 이체' + 해제 → 원복(Playwright, prod DB, 원복 완료).
+- 이름: 검색조건·배지 모두 '장부 제외'로 통일('제외'만 쓰면 '무시(ignored)'와 헷갈린다).

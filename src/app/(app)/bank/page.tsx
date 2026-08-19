@@ -22,6 +22,8 @@ import { getSyncPausedUntil, setSyncPause, clearSyncPause } from "@/lib/data-syn
 import { getBankSyncAccess } from "@/lib/billing";
 import { DateRangeField } from "@/components/date-range-field";
 import { getBankAccountChanges, getDistinctBankAccountNos, updateBankAccountMeta, deleteBankAccountSafe, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
+import { setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
+import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { EmptyState } from "@/components/empty-state";
 import { useConfirm } from "@/components/confirm-dialog";
@@ -67,7 +69,7 @@ const TX_IO_CHIPS = [
 //   기본은 '미전표'(전표 안 된 것만) — 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
 const TX_STATE_CHIPS = [
   { value: "unposted", label: "미전표" }, { value: "all", label: "전체" }, { value: "unmapped", label: "미매핑" }, { value: "auto_mapped", label: "자동" },
-  { value: "manual_mapped", label: "수동" }, { value: "ignored", label: "무시" }, { value: "posted", label: "전표됨" },
+  { value: "manual_mapped", label: "수동" }, { value: "ignored", label: "무시" }, { value: "posted", label: "전표됨" }, { value: "excluded", label: "장부 제외" },
 ] as const;
 type TxCond = {
   who: string[];    // 예금주명
@@ -382,7 +384,7 @@ export default function BankPage() {
     queryKey: ["bank-page-recent-tx", companyId, bankTxFrom, bankTxTo],
     queryFn: async () => {
       let q = db.from("bank_transactions")
-        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
+        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(2000);
@@ -445,6 +447,21 @@ export default function BankPage() {
   const [bulkAccountId, setBulkAccountId] = useState<string>("");
   const [bulkFixed, setBulkFixed] = useState(false); // 고정비로 표시 — 전표처리와 함께 is_fixed_cost 저장
   const [bulkPosting, setBulkPosting] = useState(false);
+  //   장부 제외 (2026-08-19) — 선택한 미전표 거래를 사유와 함께 전표 없이 끝낸다 / 제외 해제
+  const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
+  const excludeSelected = async () => {
+    const ids = Array.from(selectedTxIds).filter((id) => { const t = (recentTx as any[]).find((x) => x.id === id); return t && !t.journal_entry_id && !t.ledger_excluded_reason; });
+    if (ids.length === 0) { toast("장부 제외할 미전표 거래를 고르세요", "info"); return; }
+    const first = (recentTx as any[]).find((x) => x.id === ids[0]);
+    const reason = await askExclude(`통장 ${first?.transaction_date} ${first?.counterparty || ""} ${fmtW(Math.abs(Number(first?.amount || 0)))}`, ids.length);
+    if (!reason) return;
+    try { const n = await setLedgerExcluded("bank", ids, reason); toast(`${n}건 장부 제외 — 목록에서 사라졌습니다 (검색조건 상태 '장부 제외'로 다시 봅니다)`, "success"); setSelectedTxIds(new Set()); queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] }); }
+    catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
+  };
+  const unexclude = async (id: string) => {
+    try { await setLedgerExcluded("bank", [id], null); toast("제외를 해제했습니다 — 미전표로 돌아옵니다", "success"); queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] }); }
+    catch (e) { toast(friendlyError(e, "해제 실패"), "error"); }
+  };
   const doBulkPostBank = async () => {
     if (!bulkAccountId || bulkPosting) { if (!bulkAccountId) toast("계정과목을 선택하세요", "error"); return; }
     setBulkPosting(true);
@@ -556,7 +573,8 @@ export default function BankPage() {
     if (c.accts.length && !c.accts.includes(tx.raw_data?.accountNo || "")) return false;
     if (c.cls.length && !c.cls.includes(tx.classification || tx.category || "")) return false;
     if (c.state === "posted") { if (!tx.journal_entry_id) return false; }
-    else if (c.state === "unposted") { if (tx.journal_entry_id) return false; }
+    else if (c.state === "excluded") { if (!tx.ledger_excluded_reason) return false; }
+    else if (c.state === "unposted") { if (tx.journal_entry_id || tx.ledger_excluded_reason) return false; }
     else if (c.state !== "all" && (tx.mapping_status || "unmapped") !== c.state) return false;
     if (!amountHit(Number(tx.amount || 0), c.min, c.max)) return false;
     return true;
@@ -598,7 +616,7 @@ export default function BankPage() {
     });
   };
   // 전체선택/일괄은 미처리(journal_entry_id 없음) 건만 대상.
-  const selectableTx = shownTx.filter((tx) => !tx.journal_entry_id);
+  const selectableTx = shownTx.filter((tx) => !tx.journal_entry_id && !tx.ledger_excluded_reason);
   const allTxSelected = selectableTx.length > 0 && selectableTx.every((tx) => selectedTxIds.has(tx.id));
   const someTxSelected = selectableTx.some((tx) => selectedTxIds.has(tx.id)) && !allTxSelected;
   const toggleAllTx = () => {
@@ -1112,6 +1130,7 @@ export default function BankPage() {
                           title="클릭해서 바로 매핑/무시 처리"
                         >{m.label}</button>
                         {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}
+                        {!posted && tx.ledger_excluded_reason && <span className="ml-1.5 inline-flex items-center gap-1"><span className="ol-sure" title={excludeLabelOf(tx.ledger_excluded_reason)}>장부 제외 · {excludeLabelOf(tx.ledger_excluded_reason).split(" · ")[0]}</span><button type="button" onClick={() => unexclude(tx.id)} className="btn-secondary btn-sm">해제</button></span>}
                         {mapOpenId === tx.id && (
                           <>
                             <div className="fixed inset-0 z-40" onClick={() => setMapOpenId(null)} />
@@ -1192,9 +1211,11 @@ export default function BankPage() {
         {/* ── 3줄 · 고른 줄로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
         <SelectionBar count={selectedTxIds.size} onClear={() => setSelectedTxIds(new Set())}
           summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 이미 처리된 건은 건너뜁니다</>}>
+          <button type="button" onClick={excludeSelected} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>
           <button type="button" onClick={() => { setBulkAccountId(""); setBulkFixed(false); setShowBulkPost(true); }}
             className="btn-primary btn-sm">전표처리({selectedTxIds.size})</button>
         </SelectionBar>
+        {excludePromptElement}
         </QueryBody>
 
         {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 검색조건의 '조회 줄 수'를 올린다 ── */}

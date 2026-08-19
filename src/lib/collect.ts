@@ -102,8 +102,11 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
     const [total, pending, latest] = await Promise.all([
       q(k, "id", COUNT),
       //   통장은 '전표가 없다'가 아니라 '아직 처리 안 했다'가 기준 — 매칭도 처리에 들어간다
+      //   장부 제외한 건(통장·카드 ledger_excluded_reason)은 끝난 것 — 미처리에 세지 않는다 (2026-08-19)
       k === "bank"
-        ? (q(k, "id", COUNT) as any).is("journal_entry_id", null).eq("settlement_status", "open")
+        ? (q(k, "id", COUNT) as any).is("journal_entry_id", null).is("ledger_excluded_reason", null).eq("settlement_status", "open")
+        : k === "card"
+        ? (q(k, "id", COUNT) as any).is("journal_entry_id", null).is("ledger_excluded_reason", null)
         : (q(k, "id", COUNT) as any).is("journal_entry_id", null),
       q(k, col).order(col, { ascending: false }).limit(1),
     ]);

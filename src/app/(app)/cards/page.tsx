@@ -21,6 +21,9 @@ import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
 import { friendlyError } from "@/lib/friendly-error";
+import { findDuplicateEntries, linkTransactionToEntry, setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
+import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
+import { useDupVoucherPrompt } from "@/components/dup-voucher-prompt";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { getBankSyncAccess } from "@/lib/billing";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
@@ -108,7 +111,7 @@ type Tab = "cards" | "transactions" | "analysis";
     ★ 여기 있는 것은 **'조회'를 눌러야** 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다. */
 //   기본은 '미처리' — 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
 const CARD_STATE_CHIPS = [
-  { value: "todo", label: "미처리" }, { value: "all", label: "전체" }, { value: "posted", label: "전표됨" },
+  { value: "todo", label: "미처리" }, { value: "all", label: "전체" }, { value: "posted", label: "전표됨" }, { value: "excluded", label: "장부 제외" },
 ] as const;
 type CardCond = {
   cards: string[];  // 카드 (id, id 없는 옛 데이터는 카드명)
@@ -262,7 +265,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(500);
@@ -315,10 +318,37 @@ export default function CardsPage() {
     setPostFixed(!!tx.is_fixed_cost); // 이전에 고정비로 체크했던 거래는 체크된 상태로 열림
     setPostMemo(tx.memo || ""); setPostTags((tx.tags || []).join(", ")); setPostEmployee(tx.used_by_employee_id || "");
   };
+  //   중복 의심 팝업 (2026-08-19) — 같은 날 같은 금액 전표가 이미 있으면 새 전표/기존 전표에 연결/취소
+  const { askDup, dupPromptElement } = useDupVoucherPrompt();
+  //   장부 제외 (2026-08-19) — 선택한 미처리 카드 거래를 사유와 함께 전표 없이 끝낸다 / 해제
+  const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
+  const excludeSelectedCards = async () => {
+    const ids = Array.from(selectedTxIds).filter((id) => { const t = (shownTx as any[]).find((x) => x.id === id); return t && !t.journal_entry_id && !t.ledger_excluded_reason; });
+    if (ids.length === 0) { toast("장부 제외할 미처리 거래를 고르세요", "info"); return; }
+    const first = (shownTx as any[]).find((x) => x.id === ids[0]);
+    const reason = await askExclude(`카드 ${first?.transaction_date} ${first?.merchant_name || ""} ${fmtW(Math.abs(Number(first?.amount || 0)))}`, ids.length);
+    if (!reason) return;
+    try { const n = await setLedgerExcluded("card", ids, reason); toast(`${n}건 장부 제외 — 목록에서 사라졌습니다 (검색조건 상태 '장부 제외'로 다시 봅니다)`, "success"); setSelectedTxIds(new Set()); queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] }); }
+    catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
+  };
+  const unexcludeCard = async (id: string) => {
+    try { await setLedgerExcluded("card", [id], null); toast("제외를 해제했습니다 — 미처리로 돌아옵니다", "success"); queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] }); }
+    catch (e) { toast(friendlyError(e, "해제 실패"), "error"); }
+  };
   const doPostVoucher = async () => {
     if (!postCard || !postAccountId || posting) return;
     setPosting(true);
     try {
+      const dups = await findDuplicateEntries(companyId ?? "", postCard.transaction_date, Math.abs(Number(postCard.amount || 0)));
+      if (dups.length > 0) {
+        const a = await askDup(`카드 ${postCard.transaction_date} ${postCard.merchant_name || ""} ${Math.abs(Number(postCard.amount || 0)).toLocaleString()}원`, postCard.card_name || "", dups);
+        if (a.action === "cancel") { setPosting(false); return; }
+        if (a.action === "link") {
+          const done = await linkTransactionToEntry("card", postCard.id, a.entryId);
+          toast(done ? "기존 전표에 연결했습니다 — 전표는 만들지 않았고 목록에서 전표됨으로 처리됩니다" : "이미 전표가 걸린 거래입니다", done ? "success" : "info");
+          setPostCard(null); setPostAccountId(""); queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] }); setPosting(false); return;
+        }
+      }
       const { error } = await db.rpc("post_card_voucher", { p_card_tx_id: postCard.id, p_account_id: postAccountId, p_remember: postRemember });
       if (error) throw new Error(error.message);
       // 고정비·사유·태그·사용직원 저장 (직원 QA 카드 그랜터 — 실패해도 전표는 유지)
@@ -396,7 +426,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-recent-tx", companyId, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, is_fixed_cost, memo, tags, used_by_employee_id")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(2000);
@@ -548,7 +578,8 @@ export default function CardsPage() {
     if (c.merch.length && !c.merch.includes(tx.merchant_name || "")) return false;
     if (c.cls.length && !c.cls.includes(cls)) return false;
     if (c.state === "posted" && !tx.journal_entry_id) return false;
-    if (c.state === "todo" && tx.journal_entry_id) return false;
+    if (c.state === "excluded" && !tx.ledger_excluded_reason) return false;
+    if (c.state === "todo" && (tx.journal_entry_id || tx.ledger_excluded_reason)) return false;
     if (!amountHit(Number(tx.amount || 0), c.min, c.max)) return false;
     return true;
   };
@@ -589,7 +620,7 @@ export default function CardsPage() {
     });
   };
   // 전체선택/일괄은 미처리(journal_entry_id 없음) 건만 대상.
-  const selectableTx = shownTx.filter((tx: any) => !tx.journal_entry_id);
+  const selectableTx = shownTx.filter((tx: any) => !tx.journal_entry_id && !tx.ledger_excluded_reason);
   const allTxSelected = selectableTx.length > 0 && selectableTx.every((tx: any) => selectedTxIds.has(tx.id));
   const someTxSelected = selectableTx.some((tx: any) => selectedTxIds.has(tx.id)) && !allTxSelected;
   const toggleAllTx = () => {
@@ -921,7 +952,7 @@ export default function CardsPage() {
                             </span>
                           </td>
                           <td className={`text-right mono-number font-bold ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : ""}`}>{Number(tx.amount || 0) < 0 ? "+" : "−"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
-                          <td className="text-center">{tx.journal_entry_id ? <span className="ol-sure ol-sure-ok">전표처리됨</span> : <button type="button" onClick={() => openPost(tx)} className="btn-secondary btn-sm">전표처리</button>}</td>
+                          <td className="text-center">{tx.journal_entry_id ? <span className="ol-sure ol-sure-ok">전표처리됨</span> : tx.ledger_excluded_reason ? <span className="ol-sure" title={excludeLabelOf(tx.ledger_excluded_reason)}>장부 제외</span> : <button type="button" onClick={() => openPost(tx)} className="btn-secondary btn-sm">전표처리</button>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1130,6 +1161,7 @@ export default function CardsPage() {
                           {/* 승인 시각 — 승인내역이 준 건만 있다. 청구내역만 있는 건(옛 데이터·일부 카드사)은 날짜만. */}
                           {tx.transaction_time && <span className="ml-1.5 text-[11px] text-[var(--text-dim)]">{String(tx.transaction_time).slice(0, 5)}</span>}
                           {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}
+                          {!posted && tx.ledger_excluded_reason && <span className="ml-1.5 inline-flex items-center gap-1"><span className="ol-sure" title={excludeLabelOf(tx.ledger_excluded_reason)}>장부 제외 · {excludeLabelOf(tx.ledger_excluded_reason).split(" · ")[0]}</span><button type="button" onClick={() => unexcludeCard(tx.id)} className="btn-secondary btn-sm">해제</button></span>}
                         </td>
                       </tr>
                     );
@@ -1141,6 +1173,7 @@ export default function CardsPage() {
         {/* ── 3줄 · 고른 줄로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
         <SelectionBar count={selectedTxIds.size} onClear={() => setSelectedTxIds(new Set())}
           summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 이미 처리된 건은 건너뜁니다</>}>
+          <button type="button" onClick={excludeSelectedCards} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>
           <button type="button" onClick={() => { setBulkAccountId(""); setShowBulkPost(true); }}
             className="btn-primary btn-sm">전표처리({selectedTxIds.size})</button>
         </SelectionBar>
@@ -1280,6 +1313,8 @@ export default function CardsPage() {
         </div>
       )}
       {cardConfirmEl}
+      {dupPromptElement}
+      {excludePromptElement}
     </div>
   );
 }

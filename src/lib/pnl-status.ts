@@ -113,7 +113,7 @@ export async function fetchReceivables(companyId: string): Promise<{ total: numb
 /** 미분류 출금 — 전표도 없고 처리도 안 된 통장 출금(판관비에서 빠져 있는 돈) */
 export async function fetchUnclassifiedOutflow(companyId: string, from: string, to: string): Promise<{ count: number; amount: number }> {
   const data = logRead("pnl-status:unclassified", await (supabase.from("bank_transactions").select("amount") as any)
-    .eq("company_id", companyId).is("journal_entry_id", null).eq("settlement_status", "open").lt("amount", 0)
+    .eq("company_id", companyId).is("journal_entry_id", null).is("ledger_excluded_reason", null).eq("settlement_status", "open").lt("amount", 0)
     .gte("transaction_date", from).lte("transaction_date", to));
   const rows = (data || []) as { amount: number }[];
   return { count: rows.length, amount: rows.reduce((s, r) => s + Math.abs(Number(r.amount || 0)), 0) };

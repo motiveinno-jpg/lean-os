@@ -32,6 +32,8 @@ import { AccessDenied } from "@/components/access-denied";
 import { friendlyError } from "@/lib/friendly-error";
 import { cashReceiptSign } from "@/lib/cash-receipts";
 import { useDragHeight, SplitHandle } from "@/components/split-handle";
+import { findDuplicateEntries, linkTransactionToEntry } from "@/lib/dup-voucher";
+import { useDupVoucherPrompt } from "@/components/dup-voucher-prompt";
 import {
   VAT_TYPES, SETTLE_LABEL, STD, buildVoucherLines, vatOf, vatType, suggestVatType, normalizeSides,
   type SettleType,
@@ -633,11 +635,33 @@ function SalePurchaseInner() {
     setRows((rs) => (rs.length > 1 ? rs.filter((_, k) => k !== i) : [blankRow()]));
   };
 
+  //   중복 의심 (2026-08-19, docs/20260819_PLAN_duplicate_voucher_handling.md) — 새 전표를 만들기 전에
+  //   같은 날 같은 금액의 전표가 있으면 묻는다. 증빙에서 온 줄은 그 증빙을 기존 전표에 걸 수 있고,
+  //   손으로 친 줄은 걸어 둘 것이 없어 새 전표/취소만 고른다.
+  const { askDup, dupPromptElement } = useDupVoucherPrompt();
   const save = async () => {
     if (!canSave) return;
+    const date = `${row.y}-${String(Number(row.m)).padStart(2, "0")}-${String(Number(row.d)).padStart(2, "0")}`;
+    if (!edit?.savedId && companyId) {
+      const dups = await findDuplicateEntries(companyId, date, supplyNum + vatNum);
+      if (dups.length > 0) {
+        const a = await askDup(`${t.label} ${date} ${row.partner?.name || ""} ${won(supplyNum + vatNum)}원`, row.item || "", dups, { allowLink: !!(row.refType && row.refId) });
+        if (a.action === "cancel") return;
+        if (a.action === "link" && row.refType && row.refId) {
+          try {
+            if (row.refType === "card_transaction") await linkTransactionToEntry("card", row.refId, a.entryId);
+            else await supabase.from(row.refType === "cash_receipt" ? "cash_receipts" : "tax_invoices").update({ journal_entry_id: a.entryId } as never).eq("id", row.refId).is("journal_entry_id", null);
+            toast("기존 전표에 연결했습니다 — 새 전표는 만들지 않았습니다", "success");
+            qc.invalidateQueries({ queryKey: ["sp-pending"] });
+            setRows((rs) => { const next = rs.filter((_, k) => k !== cur); return (next.length > 0 ? next : [blankRow()]); });
+            setCur(0); setOverrides({});
+          } catch (e) { toast(friendlyError(e, "연결 실패"), "error"); }
+          return;
+        }
+      }
+    }
     setSaving(true);
     try {
-      const date = `${row.y}-${String(Number(row.m)).padStart(2, "0")}-${String(Number(row.d)).padStart(2, "0")}`;
       //   음수 줄은 차/대를 뒤집어 절대값으로 넣는다 — journal_lines 는 음수를 받지 않는다.
       //   결과적으로 정상 전표의 반대 분개가 되어 회계적으로도 맞다.
       const normalized = normalizeSides(jeLines.map((l) => ({ side: l.side, amount: l.amount })));
@@ -1145,7 +1169,7 @@ function SalePurchaseInner() {
         </div>
       )}
 
-
+      {dupPromptElement}
     </div>
   );
 }

@@ -1446,6 +1446,7 @@ export type Database = {
           is_auto_transfer: boolean | null
           is_fixed_cost: boolean | null
           journal_entry_id: string | null
+          ledger_excluded_reason: string | null
           mapped_at: string | null
           mapped_by: string | null
           mapping_status: string | null
@@ -1479,6 +1480,7 @@ export type Database = {
           is_auto_transfer?: boolean | null
           is_fixed_cost?: boolean | null
           journal_entry_id?: string | null
+          ledger_excluded_reason?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapping_status?: string | null
@@ -1512,6 +1514,7 @@ export type Database = {
           is_auto_transfer?: boolean | null
           is_fixed_cost?: boolean | null
           journal_entry_id?: string | null
+          ledger_excluded_reason?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapping_status?: string | null
@@ -2176,6 +2179,7 @@ export type Database = {
           is_deductible: boolean | null
           is_fixed_cost: boolean | null
           journal_entry_id: string | null
+          ledger_excluded_reason: string | null
           mapped_at: string | null
           mapped_by: string | null
           mapping_status: string | null
@@ -2210,6 +2214,7 @@ export type Database = {
           is_deductible?: boolean | null
           is_fixed_cost?: boolean | null
           journal_entry_id?: string | null
+          ledger_excluded_reason?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapping_status?: string | null
@@ -2244,6 +2249,7 @@ export type Database = {
           is_deductible?: boolean | null
           is_fixed_cost?: boolean | null
           journal_entry_id?: string | null
+          ledger_excluded_reason?: string | null
           mapped_at?: string | null
           mapped_by?: string | null
           mapping_status?: string | null
