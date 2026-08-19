@@ -153,22 +153,36 @@ export function BarChart({ data, unit = "", max: fixedMax }: { data: Datum[]; un
 }
 
 /** 선 — 흐름을 본다. 계열이 여럿이면 색으로 가르고 범례를 붙인다 */
-export function LineChart({ series, height = 200, unit = "" }: { series: Series[]; height?: number; unit?: string }) {
+export function LineChart({ series, height = 200, unit = "", styles, colors, yFmt }: {
+  series: Series[]; height?: number; unit?: string;
+  /** 계열별 선 모양 — 확정은 실선, 추정은 점선처럼 '얼마나 믿을 수 있나'를 선으로 (2026-08-19 자금 전망) */
+  styles?: ("solid" | "dashed" | "dotted")[];
+  /** 계열별 색 — 주면 그걸, 없으면 순서색 */
+  colors?: string[];
+  /** 축 글자 형식(만원 등) */
+  yFmt?: (n: number) => string;
+}) {
   const id = useId();
   const [hover, setHover] = useState<number | null>(null);
   const labels = series[0]?.points.map((p) => p.label) || [];
-  const max = niceMax(Math.max(1, ...series.flatMap((s) => s.points.map((p) => p.value))));
+  const vals = series.flatMap((s) => s.points.map((p) => p.value));
+  const max = niceMax(Math.max(1, ...vals));
+  //   음수가 있으면 축을 아래로 늘린다(잔액 전망이 마이너스로 가는 경우) — 0 선을 진하게
+  const rawMin = Math.min(0, ...vals);
+  const min = rawMin < 0 ? -niceMax(-rawMin) : 0;
   const W = 100, H = 100;
   const x = (i: number) => (labels.length <= 1 ? 0 : (i / (labels.length - 1)) * W);
-  const y = (v: number) => H - (v / max) * H;
+  const y = (v: number) => H - ((v - min) / (max - min)) * H;
+  const yf = yFmt || fmt;
+  const dash = (st?: "solid" | "dashed" | "dotted") => (st === "dashed" ? "6 5" : st === "dotted" ? "2 4" : undefined);
   return (
     <div className="viz-wrap" style={{ height }}>
-      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></div>
+      <div className="viz-yaxis"><em>{yf(max)}</em><em>{yf(min < 0 ? 0 : max / 2)}</em><em>{yf(min)}</em></div>
       <div className="viz-plot" onMouseLeave={() => setHover(null)}>
-        <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
+        <span className="viz-grid" />{min < 0 ? <span className="viz-grid viz-grid-zero" style={{ top: `${y(0)}%` }} /> : <span className="viz-grid viz-grid-mid" />}
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="viz-svg">
           {series.map((s, si) => (
-            <polyline key={s.name} fill="none" stroke={vizColor(si)} strokeWidth="2"
+            <polyline key={s.name} fill="none" stroke={colors?.[si] || vizColor(si)} strokeWidth="2" strokeDasharray={dash(styles?.[si])}
               vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round"
               points={s.points.map((p, i) => `${x(i)},${y(p.value)}`).join(" ")} />
           ))}
@@ -179,7 +193,7 @@ export function LineChart({ series, height = 200, unit = "" }: { series: Series[
             {hover === i && (
               <b className="viz-tip viz-tip-line">{l}
                 {series.map((s, si) => (
-                  <em key={s.name}><i style={{ background: vizColor(si) }} />{s.name} {fmt(s.points[i]?.value || 0)}{unit}</em>
+                  <em key={s.name}><i style={{ background: colors?.[si] || vizColor(si) }} />{s.name} {fmt(s.points[i]?.value || 0)}{unit}</em>
                 ))}
               </b>
             )}

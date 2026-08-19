@@ -75,11 +75,18 @@ const ROWS: Row[] = [
 
 const SECTION_LABEL: Record<string, string> = { income: "수입", expense: "지출", vat: "세무", summary: "요약·재무비율" };
 
-export function FlowMatrix({ companyId, currentMonth }: { companyId: string; currentMonth: string }) {
+export type FlowCellMode = CellMode;
+export const FLOW_CELL_MODES = CELL_MODES;
+export const FLOW_MODE_HINT = MODE_HINT;
+/** year·mode 를 밖에서 주면(2026-08-19 자금 전망 › 월별 흐름 재편) 자체 툴바·glass 상자를 그리지 않는다 — 조회 줄이 부모(ReportHead)에 있다 */
+export function FlowMatrix({ companyId, currentMonth, year: yearProp, mode: modeProp }: { companyId: string; currentMonth: string; year?: number; mode?: CellMode }) {
   const curYear = Number(currentMonth.slice(0, 4));
   const curMonthNum = Number(currentMonth.slice(5, 7));
-  const [year, setYear] = useState(curYear);
-  const [mode, setMode] = useState<CellMode>("amount");
+  const embedded = yearProp !== undefined;
+  const [yearState, setYear] = useState(curYear);
+  const [modeState, setMode] = useState<CellMode>("amount");
+  const year = yearProp ?? yearState;
+  const mode = modeProp ?? modeState;
   const [detail, setDetail] = useState<{ rowKey: string; label: string; mo: number } | null>(null);
 
   const { data: budget = [] } = useQuery({
@@ -204,8 +211,8 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
 
   return (
     <div className="space-y-3">
-      {/* 컨트롤 바 — 연도(좌) + 표시 방식 세그먼트(우) + 현재 모드 설명 */}
-      <div className="flow-matrix-toolbar glass-card">
+      {/* 컨트롤 바 — 연도(좌) + 표시 방식 세그먼트(우) + 현재 모드 설명 (embedded 면 부모 조회 줄이 맡는다) */}
+      {!embedded && <div className="flow-matrix-toolbar glass-card">
         <div className="flow-matrix-year-switch">
           <button onClick={() => setYear((y) => y - 1)} className="w-8 h-8 flex items-center justify-center text-sm rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)]">←</button>
           <span className="text-sm font-bold text-[var(--text)] mono-number min-w-[64px] text-center">{year}년</span>
@@ -222,10 +229,10 @@ export function FlowMatrix({ companyId, currentMonth }: { companyId: string; cur
           </div>
           <span className="text-[11px] text-[var(--text-dim)] leading-snug">{MODE_HINT[mode]}</span>
         </div>
-      </div>
+      </div>}
 
       {/* 표 */}
-      <div className="flow-matrix-table-wrap glass-card">
+      <div className={embedded ? "flow-matrix-table-wrap" : "flow-matrix-table-wrap glass-card"}>
         <div className="overflow-x-auto">
           <table className="flow-matrix-table">
             <thead>

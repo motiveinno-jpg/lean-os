@@ -17,9 +17,10 @@ import { ConditionPanel, ConditionRow, Stat, ExcelMenu, AppliedChips, type Appli
 import { downloadCsv } from "@/lib/csv-export";
 import { fetchOutlook, buildCurve, linearBalance, weekBuckets, runwayFromCurve, scenarioActive, SCENARIO_DEFAULT, addDays, type Scenario, type OutlookItem } from "@/lib/cash-outlook";
 import { calcRunwayMonths } from "@/lib/engines";
+import { LineChart, Legend } from "@/components/charts/kit";
 
 const won = (n: number) => `${n < 0 ? "−" : ""}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
-const man = (n: number) => `${n < 0 ? "−" : ""}${Math.abs(Math.round(n / 10000)).toLocaleString("ko-KR")}만`;
+const man = (n: number) => { const a = Math.abs(n), sg = n < 0 ? "−" : ""; return a >= 1e8 ? `${sg}${(a / 1e8).toFixed(1)}억` : `${sg}${Math.round(a / 10000).toLocaleString("ko-KR")}만`; };
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
 const HORIZONS = [30, 90, 180] as const;
 
@@ -64,46 +65,29 @@ export default function OutlookPage() {
       base.points.map((p, i) => [p.date, p.balance, ...(scen ? [scen.points[i]?.balance ?? ""] : []), linearBalance(data!.balance, data!.burn, p.day), p.items.map((it) => `${it.label} ${Math.round(it.amount)}`).join(" / ")])),
   }] : [];
 
-  // ── 곡선 SVG ──
-  const W = 900, H = 210, PL = 56, PR = 12, PT = 16, PB = 26;
-  const chart = (() => {
-    if (!base || !data) return null;
-    const lin = base.points.map((p) => linearBalance(data.balance, data.burn, p.day));
-    const all = [...base.points.map((p) => p.balance), ...lin, ...(scen ? scen.points.map((p) => p.balance) : []), 0];
-    const max = Math.max(...all), min = Math.min(...all);
-    const span = Math.max(1, max - min);
-    const x = (d: number) => PL + (d / days) * (W - PL - PR);
-    const y = (v: number) => PT + ((max - v) / span) * (H - PT - PB);
-    const path = (vals: number[]) => vals.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-    const area = `${path(base.points.map((p) => p.balance))} L${x(days).toFixed(1)},${y(Math.max(min, 0)).toFixed(1)} L${x(0).toFixed(1)},${y(Math.max(min, 0)).toFixed(1)} Z`;
-    //   표시할 큰 건 — 잔액의 5% 이상 또는 상위 5
-    const big = base.points.filter((p) => p.items.length).map((p) => ({ p, sum: p.items.reduce((s, it) => s + it.amount, 0) }))
-      .filter((b) => Math.abs(b.sum) >= Math.max(1, data.balance * 0.05)).sort((a, b) => Math.abs(b.sum) - Math.abs(a.sum)).slice(0, 5);
-    const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(min + span * f));
-    const monthMarks = base.points.filter((p) => p.date.endsWith("-01") || p.day === 0);
-    return (
-      <svg viewBox={`0 0 ${W} ${H}`} className="ol-svg" role="img" aria-label="잔액 곡선">
-        {ticks.map((t) => <g key={t}><line x1={PL} x2={W - PR} y1={y(t)} y2={y(t)} className="ol-grid" /><text x={PL - 6} y={y(t) + 3} textAnchor="end" className="ol-tick">{man(t)}</text></g>)}
-        {min < 0 && <line x1={PL} x2={W - PR} y1={y(0)} y2={y(0)} className="ol-zero" />}
-        <path d={area} className="ol-area" />
-        <path d={path(lin)} className="ol-line-linear" />
-        {scen && <path d={path(scen.points.map((p) => p.balance))} className="ol-line-scen" />}
-        <path d={path(base.points.map((p) => p.balance))} className="ol-line-base" />
-        {monthMarks.map((p) => <text key={p.date} x={x(p.day)} y={H - 8} textAnchor={p.day === 0 ? "start" : "middle"} className="ol-tick">{p.day === 0 ? "오늘" : md(p.date)}</text>)}
-        <text x={x(days)} y={H - 8} textAnchor="end" className="ol-tick">{md(base.points[days].date)}</text>
+  // ── 곡선 — 차트 키트 LineChart(축 글자는 HTML 이라 화면 폭에 안 늘어난다) · 큰 건은 그림 아래 칩으로 ──
+  const big = base && data ? base.points.filter((p) => p.items.length).map((p) => ({ p, sum: p.items.reduce((s, it) => s + it.amount, 0) }))
+    .filter((b) => Math.abs(b.sum) >= Math.max(1, data.balance * 0.05)).sort((a, b) => a.p.day - b.p.day).slice(0, 8) : [];
+  const chart = base && data ? (
+    <>
+      <LineChart height={220} yFmt={(n) => `${man(n)}`}
+        series={[
+          { name: "예정 반영", points: base.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: p.balance })) },
+          { name: "지금 속도", points: base.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: linearBalance(data.balance, data.burn, p.day) })) },
+          ...(scen ? [{ name: "시나리오", points: scen.points.map((p) => ({ label: p.day === 0 ? "오늘" : md(p.date), value: p.balance })) }] : []),
+        ]}
+        styles={["solid", "dashed", "dotted"]} colors={["var(--primary)", "var(--text-dim)", "var(--warning)"]} />
+      <Legend items={[{ name: "예정 반영 (실선)", color: "var(--primary)" }, { name: "지금 속도 직선 (점선)", color: "var(--text-dim)" }, ...(scen ? [{ name: "시나리오", color: "var(--warning)" }] : [])]} />
+      <div className="ol-marks">
+        <button type="button" className="ol-mark-chip ol-mark-min" onClick={() => setPick({ title: `${base.min.date} 최저점`, items: base.min.items })}>최저 {md(base.min.date)} <b className="mono-number">{man(base.min.balance)}</b></button>
         {big.filter(({ p }) => p.day !== base.min.day).map(({ p, sum }) => (
-          <g key={p.date} className="ol-mark" onClick={() => setPick({ title: `${p.date} 예정`, items: p.items })}>
-            <circle cx={x(p.day)} cy={y(p.balance)} r={4} className={sum < 0 ? "ol-dot-out" : "ol-dot-in"} />
-            <text x={x(p.day)} y={y(p.balance) + (sum < 0 ? 14 : -8)} textAnchor="middle" className="ol-lab">{md(p.date)} {p.items.length === 1 ? p.items[0].label.slice(0, 12) : `${p.items.length}건`} {sum > 0 ? "+" : ""}{man(sum)}</text>
-          </g>
+          <button type="button" key={p.date} className={`ol-mark-chip ${sum < 0 ? "ol-mark-out" : "ol-mark-in"}`} onClick={() => setPick({ title: `${p.date} 예정`, items: p.items })}>
+            {md(p.date)} {p.items.length === 1 ? p.items[0].label.slice(0, 14) : `${p.items.length}건`} <b className="mono-number">{sum > 0 ? "+" : ""}{man(sum)}</b>
+          </button>
         ))}
-        <g className="ol-mark" onClick={() => setPick({ title: `${base.min.date} 최저점`, items: base.min.items })}>
-          <circle cx={x(base.min.day)} cy={y(base.min.balance)} r={5} className="ol-dot-min" />
-          <text x={x(base.min.day)} y={y(base.min.balance) + 16} textAnchor="middle" className="ol-lab ol-lab-min">최저 {md(base.min.date)} {man(base.min.balance)}</text>
-        </g>
-      </svg>
-    );
-  })();
+      </div>
+    </>
+  ) : null;
 
   return (
     <>
@@ -159,9 +143,22 @@ export default function OutlookPage() {
 
       {isLoading || !data || !base ? <div className="collect-empty">불러오는 중…</div> : (
         <div className="bz-body">
+          <div className="pnl-basis-note">
+            <b>오늘 통장 잔액 + 날짜 있는 예정 항목 {data.items.length}건</b> — 세금계산서(발행+30일)·급여·대출·정기 지출·부가세·계약 회차·결재 대기. 확정 {data.items.filter((i) => i.sure === "확정").length}건 · 추정 {data.items.filter((i) => i.sure === "추정").length}건.
+            {data.gaps.length > 0 && <> 틀릴 수 있는 곳 <b className="text-[var(--warning)]">{data.gaps.length}</b>가지는 아래에.</>}
+          </div>
+          <div className="pnl-headline">
+            <b>
+              {base.shortfall
+                ? `${md(base.shortfall.date)}에 통장이 마이너스가 됩니다 — 그날까지 ${man(Math.abs(base.min.balance))} 모자랍니다.`
+                : `${days}일 안에는 통장이 마이너스가 되지 않습니다 — 가장 낮을 때는 ${md(base.min.date)} ${man(base.min.balance)}.`}
+              {scen && (scen.shortfall ? ` 시나리오대로면 ${md(scen.shortfall.date)}에 모자랍니다.` : ` 시나리오대로도 ${days}일 안에는 버팁니다.`)}
+            </b>
+            <div className="pnl-headline-sub">오늘 {man(data.balance)} → {days}일 뒤 {man(base.end)} · 지금 속도(월 {man(data.burn)}원)로는 {rw(runwayNow)} · 예정 반영 {rw(runwayFromCurve(base, days))}</div>
+          </div>
           <section className="pnl-panel">
             <h3>잔액 곡선 — 오늘부터 {days}일</h3>
-            <p>{!data.hasBank ? "통장이 연결돼 있지 않아 오늘 잔액이 0 입니다. " : ""}큰 예정 건과 최저점을 표시했습니다 — 점을 누르면 그날 항목. 예정 항목 {data.items.length}건 반영.</p>
+            <p>{!data.hasBank ? "통장이 연결돼 있지 않아 오늘 잔액이 0 입니다. " : ""}선 위에 손을 올리면 그날 잔액. 아래 칩은 큰 예정 건·최저점 — 누르면 그날 항목. 예정 항목 {data.items.length}건 반영.</p>
             {chart}
           </section>
 

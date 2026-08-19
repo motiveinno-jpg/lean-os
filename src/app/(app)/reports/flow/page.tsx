@@ -1,541 +1,219 @@
 "use client";
-import { kstDateStr } from "@/lib/kst";
-import { ReportHead } from "../_components/ReportHead";
-import { ChipGroup } from "@/components/query-kit";
-import { logRead } from "@/lib/log-read";
 
-import { useEffect, useState, useMemo } from "react";
-import { MonthField } from "@/components/month-field";
+// 자금 전망 › 월별 흐름 — 예전 '경영 흐름'(2026-05 신설: 이번달 6단계 흐름 / 콕핏(미래·다각도) / 월별 표) 을 2026-08-19 정리.
+//   · 콕핏은 '전망' 갈래(날짜별 예정 곡선)가 대신하므로 뺐다(FlowTrend·FlowSchedule·CashPulseHeader 삭제, docs/REMOVED_CODE_LOG.md).
+//   · 보기 = [월별 표 · 이번 달 흐름] 칩 하나. 조회 줄 = 연도/기준 달 · 보기 설정(셀 표시) ‖ 인쇄. 결과 요약 = Stat.
+//   · KPI 카드 4장·경고 배너·타임라인·StepCard(상자 안 상자) → Stat + 얇은 판(pnl-panel + bz-kv) 로. 숫자·소스는 그대로.
+//   숫자 기준: 매출·부가세 = 세금계산서(발행), 수금 = 입금 매칭 확정, 비용 = 정기결제+카드+일회성 (통장·세금계산서 기준 — 손익 현황의 확정 전표와 다르다).
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { logRead } from "@/lib/log-read";
+import { kstDateStr } from "@/lib/kst";
+import { MonthField } from "@/components/month-field";
 import { getCurrentUser } from "@/lib/queries";
 import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
+import { ReportHead } from "../_components/ReportHead";
+import { ChipGroup, ConditionPanel, ConditionRow, Stat } from "@/components/query-kit";
 import { getTaxInvoiceSummary, getVATPreview, type PeriodSummary, type VATPreview } from "@/lib/tax-invoice";
 import { getMonthlyBudgetOverview, type MonthlyBudget } from "@/lib/cash-budget";
 import { getOrCreateChecklist } from "@/lib/closing";
-import { CashPulseHeader } from "./_components/CashPulseHeader";
-import { FlowTrend, type FlowLens } from "./_components/FlowTrend";
-import { FlowSchedule } from "./_components/FlowSchedule";
-import { FlowMatrix } from "./_components/FlowMatrix";
-
-/* ------------------------------------------------------------------ */
-/*  경영 흐름 — 매출 → 수금 → 비용 → 손익 → 세무 → 결산                 */
-/*  5개 도메인(영업·자금·회계·세무·결산)을 월 단위 한 흐름으로 연결.     */
-/*  전부 기존 집계 재사용(읽기 전용): tax-invoice / cash-budget /        */
-/*  invoice_settlements / closing. 숫자는 각 원본 화면과 동일 소스라      */
-/*  화면 간 불일치가 없다. DB 무변경.                                    */
-/* ------------------------------------------------------------------ */
+import { FlowMatrix, FLOW_CELL_MODES, FLOW_MODE_HINT, type FlowCellMode } from "./_components/FlowMatrix";
 
 const db = supabase;
-
-function fmtKrw(value: number): string {
-  if (!value) return "0";
-  const isNeg = value < 0;
-  const abs = Math.abs(Math.round(value));
-  return (isNeg ? "-" : "") + abs.toLocaleString("ko-KR");
-}
-
-/** YYYY-MM → [당월 1일, 익월 1일) — 월말 31일 하드코딩 금지 규칙 준수 */
+const won = (n: number) => `${n < 0 ? "−" : ""}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
+const num = (n: number) => `${n < 0 ? "−" : ""}${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
 function monthRange(month: string): { start: string; end: string } {
   const [y, m] = month.split("-").map(Number);
-  const start = `${month}-01`;
-  const end = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
-  return { start, end };
+  return { start: `${month}-01`, end: m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01` };
 }
-
-function thisMonth(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-/* ── 6단계 정의 — 타임라인 노드 + 카드 액센트가 같은 소스를 공유 ── */
-const FLOW_STEPS = [
-  { no: 1, title: "영업", accent: "var(--primary)" },
-  { no: 2, title: "매출", accent: "var(--info)" },
-  { no: 3, title: "수금", accent: "var(--success)" },
-  { no: 4, title: "비용", accent: "var(--warning)" },
-  { no: 5, title: "손익 · 세금", accent: "var(--primary)" },
-  { no: 6, title: "결산", accent: "var(--viz-info)" },
-] as const;
-
-/* ── 단계 카드 공통 — 상단 액센트 라인 + 단계 번호 칩 ── */
-function StepCard({
-  no, title, accent, links, children,
-}: {
-  no: number;
-  title: string;
-  accent: string;
-  links: { href: string; label: string }[];
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flow-step-card glass-card">
-      {/* 단계 액센트 라인 — 흐름의 연속성을 색으로 표현 */}
-      {/* <div
-        className="absolute top-0 left-0 right-0 h-[3px]"
-        style={{ background: `linear-gradient(90deg, ${accent}, color-mix(in srgb, ${accent} 25%, transparent))` }}
-      /> */}
-      <div className="mb-3.5 flex items-center gap-2.5">
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[14px] font-black"
-          style={{
-            background: `color-mix(in srgb, ${accent} 14%, transparent)`,
-            color: accent,
-            boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 30%, transparent)`,
-          }}
-        >
-          {no}
-        </div>
-        <div className="text-[15px] font-extrabold tracking-tight text-[var(--text)]">{title}</div>
-      </div>
-      <div className="flex-1">{children}</div>
-      <div className="mt-3.5 flex flex-wrap gap-2">
-        {links.map((l) => (
-          <Link
-            key={l.href + l.label}
-            href={l.href}
-            className="rounded-full px-2.5 py-1 text-[11.5px] font-semibold no-underline transition-opacity hover:opacity-80"
-            style={{ color: accent, background: `color-mix(in srgb, ${accent} 10%, transparent)` }}
-          >
-            {l.label} →
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value, color, bold }: { label: string; value: string; color?: string; bold?: boolean }) {
-  return (
-    <div className="flow-metric-row">
-      <span className="text-[12.5px] text-[var(--text-muted)]">{label}</span>
-      <span
-        className={`mono-number ${bold ? "text-[15px] font-extrabold" : "text-[13px] font-semibold"}`}
-        style={{ color: color || "var(--text)" }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-/* 진행률 미니 바 — 수금률·결산 진행률 시각화 */
-function MiniBar({ pct, color, label }: { pct: number; color: string; label?: string }) {
-  const clamped = Math.max(0, Math.min(100, Math.round(pct)));
-  return (
-    <div className="flow-mini-bar">
-      {/*   값이 붙는 쪽만 둥글게 — 양끝을 다 둥글리면 막대가 축에서 떠 보인다 (2026-08-07 키트 규칙) */}
-      <div className="h-1.5 overflow-hidden rounded-md bg-[var(--bg-surface)]">
-        <div
-          className="h-full rounded-r-md transition-[width] duration-500 ease-out"
-          style={{ width: `${clamped}%`, background: color }}
-        />
-      </div>
-      {label && (
-        <div className="mt-1 text-right text-[10.5px] text-[var(--text-dim)]">{label}</div>
-      )}
-    </div>
-  );
-}
+function thisMonth(): string { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
 
 export default function BusinessFlowPage() {
   const { role } = useUser();
   const blocked = role === "partner";
-
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [flowView, setFlowView] = useState<"cockpit" | "matrix" | "month">("month");
-  const [lens, setLens] = useState<FlowLens>("income");
-  const [pastN, setPastN] = useState(6);
-  const [savedFlow, setSavedFlow] = useState(false);
+  const [view, setView] = useState<"matrix" | "month">("matrix");
   const [month, setMonth] = useState(thisMonth());
-  const year = Number(month.split("-")[0]);
+  const [year, setYear] = useState(Number(thisMonth().slice(0, 4)));
+  const [mode, setMode] = useState<FlowCellMode>("amount");
+  const [draftMode, setDraftMode] = useState<FlowCellMode>("amount");
+  const [panelOpen, setPanelOpen] = useState(false);
   const { start, end } = monthRange(month);
+  const mYear = Number(month.slice(0, 4));
 
-  useEffect(() => {
-    if (blocked) return;
-    getCurrentUser().then((u) => { if (u) { setCompanyId(u.company_id); setUserId(u.id); } });
-  }, [blocked]);
+  useEffect(() => { if (blocked) return; getCurrentUser().then((u) => { if (u) setCompanyId(u.company_id); }); }, [blocked]);
 
-  // 개인화 설정 로드 (user_preferences.flow_settings)
-  useEffect(() => {
-    if (!userId) return;
-    (async () => {
-      const db = supabase;
-      const data = logRead('flow/page:data', await db.from("user_preferences").select("flow_settings").eq("user_id", userId).maybeSingle());
-      const fs = data?.flow_settings as { default_view?: string; default_lens?: string; past_n?: number } | null;
-      if (fs && typeof fs === "object") {
-        if (fs.default_view === "cockpit" || fs.default_view === "matrix" || fs.default_view === "month") setFlowView(fs.default_view);
-        if (fs.default_lens === "income" || fs.default_lens === "expense" || fs.default_lens === "net") setLens(fs.default_lens);
-        if (fs.past_n === 6 || fs.past_n === 12) setPastN(fs.past_n);
-      }
-    })();
-  }, [userId]);
-
-  const saveFlowSettings = async () => {
-    if (!userId || !companyId) return;
-    const db = supabase;
-    await db.from("user_preferences").upsert({
-      user_id: userId, company_id: companyId,
-      flow_settings: { default_view: flowView, default_lens: lens, past_n: pastN },
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,company_id" });
-    setSavedFlow(true);
-    setTimeout(() => setSavedFlow(false), 2000);
-  };
-
-  /* ① 영업 파이프라인 — 진행중 딜. 프로젝트 목록과 동일 기준: 소프트 삭제(archived_at) 제외 + 상위 프로젝트만
-     (세부 프로젝트(캠페인)는 상위 롤업에 포함되므로 건수·금액 중복 방지) */
+  /* ① 영업 파이프라인 — 진행중 상위 프로젝트 */
   const { data: pipeline } = useQuery({
     queryKey: ["flow-pipeline", companyId],
     queryFn: async () => {
-      const data = logRead('flow/page:data', await db.from("deals")
-        .select("contract_total, stage")
-        .eq("company_id", companyId ?? "")
-        .eq("status", "active")
-        .is("archived_at", null)
-        .is("parent_deal_id", null));
+      const data = logRead("flow/page:data", await db.from("deals").select("contract_total, stage").eq("company_id", companyId ?? "").eq("status", "active").is("archived_at", null).is("parent_deal_id", null));
       const rows = (data || []) as { contract_total: number | null; stage: string | null }[];
-      return {
-        count: rows.length,
-        total: rows.reduce((s, d) => s + Number(d.contract_total || 0), 0),
-        settling: rows.filter((d) => d.stage === "settlement").length,
-      };
+      return { count: rows.length, total: rows.reduce((s, d) => s + Number(d.contract_total || 0), 0), settling: rows.filter((d) => d.stage === "settlement").length };
     },
-    enabled: !!companyId,
-    staleTime: 60_000,
+    enabled: !!companyId && view === "month", staleTime: 60_000,
   });
-
-  /* ①·④·⑤ 세금계산서 월별 집계 (tax-invoices 화면 동일 소스) */
+  /* ② 세금계산서 월별 집계 */
   const { data: invoiceSummary = [] } = useQuery<PeriodSummary[]>({
-    queryKey: ["flow-invoice-summary", companyId, year],
-    queryFn: () => getTaxInvoiceSummary(companyId!, year, "monthly"),
-    enabled: !!companyId,
-    staleTime: 60_000,
+    queryKey: ["flow-invoice-summary", companyId, mYear], queryFn: () => getTaxInvoiceSummary(companyId!, mYear, "monthly"), enabled: !!companyId && view === "month", staleTime: 60_000,
   });
   const monthInv = invoiceSummary.find((s) => s.period === month);
-
-  /* ② 당월 확정 수금 — invoice_settlements(confirmed) × 입금일 (거래처 원장 동일 소스) */
+  /* ③ 당월 확정 수금 */
   const { data: settled } = useQuery({
     queryKey: ["flow-settled", companyId, month],
     queryFn: async () => {
-      const data = logRead('flow/page:data', await db.from("invoice_settlements")
-        .select("amount, bank_transactions!inner(transaction_date)")
-        .eq("company_id", companyId ?? "")
-        .eq("status", "confirmed")
-        .gte("bank_transactions.transaction_date", start)
-        .lt("bank_transactions.transaction_date", end));
+      const data = logRead("flow/page:data", await db.from("invoice_settlements").select("amount, bank_transactions!inner(transaction_date)").eq("company_id", companyId ?? "").eq("status", "confirmed").gte("bank_transactions.transaction_date", start).lt("bank_transactions.transaction_date", end));
       const rows = (data || []) as { amount: number | null }[];
       return { count: rows.length, total: rows.reduce((s, r) => s + Number(r.amount || 0), 0) };
     },
-    enabled: !!companyId,
-    staleTime: 60_000,
+    enabled: !!companyId && view === "month", staleTime: 60_000,
   });
-
-  /* ② 미수금 잔액 — 대시보드 요약 위젯과 동일 소스/조건 (화면 간 숫자 일치) */
+  /* ③ 미수금 잔액 (세금계산서 status 기준 — 거래처 원장 표시와 같은 방식) */
   const { data: receivable } = useQuery({
     queryKey: ["flow-receivable", companyId],
     queryFn: async () => {
-      const data = logRead('flow/page:data', await db.from("tax_invoices")
-        .select("total_amount, issue_date")
-        .eq("company_id", companyId ?? "")
-        .eq("type", "sales") // 2026-06-11 미수금=매출 계산서만 (매입 혼입 차단)
-        .in("status", ["issued", "sent", "pending", "overdue"]));
+      const data = logRead("flow/page:data", await db.from("tax_invoices").select("total_amount, issue_date").eq("company_id", companyId ?? "").eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]));
       const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
       const cutoff = kstDateStr(new Date(Date.now() - 30 * 24 * 3600 * 1000));
-      const total = rows.reduce((s, r) => s + Number(r.total_amount || 0), 0);
-      const over30 = rows
-        .filter((r) => (r.issue_date || "") < cutoff)
-        .reduce((s, r) => s + Number(r.total_amount || 0), 0);
-      return { total, over30 };
+      return { total: rows.reduce((s, r) => s + Number(r.total_amount || 0), 0), over30: rows.filter((r) => (r.issue_date || "") < cutoff).reduce((s, r) => s + Number(r.total_amount || 0), 0) };
     },
-    enabled: !!companyId,
-    staleTime: 60_000,
+    enabled: !!companyId && view === "month", staleTime: 60_000,
   });
-
-  /* ③·④ 비용/손익 — cash-budget 월별 집계 (/reports/costs 동일 소스) */
+  /* ④·⑤ 비용/손익 — cash-budget 월별 집계 (월별 표와 같은 소스) */
   const { data: budget = [] } = useQuery<MonthlyBudget[]>({
-    queryKey: ["flow-budget", companyId, year],
-    queryFn: () => getMonthlyBudgetOverview(companyId!, year),
-    enabled: !!companyId,
-    staleTime: 60_000,
+    queryKey: ["flow-matrix-budget", companyId, view === "matrix" ? year : mYear], queryFn: () => getMonthlyBudgetOverview(companyId!, view === "matrix" ? year : mYear), enabled: !!companyId, staleTime: 60_000,
   });
   const monthBudget = budget.find((b) => b.month === month);
   const monthNet = monthBudget ? monthBudget.incomeTotal - monthBudget.expenseTotal : 0;
-
-  /* ⑤ 부가세 — 해당 분기 미리보기 (tax-invoices VAT 탭 동일 소스) */
+  /* ⑤ 부가세 */
   const { data: vat = [] } = useQuery<VATPreview[]>({
-    queryKey: ["flow-vat", companyId, year],
-    queryFn: () => getVATPreview(companyId!, year),
-    enabled: !!companyId,
-    staleTime: 60_000,
+    queryKey: ["flow-vat", companyId, mYear], queryFn: () => getVATPreview(companyId!, mYear), enabled: !!companyId && view === "month", staleTime: 60_000,
   });
-  const quarter = `${year}-Q${Math.ceil(Number(month.split("-")[1]) / 3)}`;
+  const quarter = `${mYear}-Q${Math.ceil(Number(month.split("-")[1]) / 3)}`;
   const monthVat = vat.find((v) => v.quarter === quarter);
-  const vatDday = useMemo(() => {
-    if (!monthVat?.dueDate) return null;
-    const diff = Math.ceil((new Date(monthVat.dueDate).getTime() - Date.now()) / (24 * 3600 * 1000));
-    return diff;
-  }, [monthVat]);
-
-  /* ⑥ 월결산 체크리스트 (대시보드 월결산 위젯 동일 소스) */
-  const { data: checklist } = useQuery({
-    queryKey: ["flow-closing", companyId, month],
-    queryFn: () => getOrCreateChecklist(companyId!, month),
-    enabled: !!companyId,
-    staleTime: 60_000,
-  });
+  const vatDday = useMemo(() => (monthVat?.dueDate ? Math.ceil((new Date(monthVat.dueDate).getTime() - Date.now()) / 864e5) : null), [monthVat]);
+  /* ⑥ 월결산 체크리스트 */
+  const { data: checklist } = useQuery({ queryKey: ["flow-closing", companyId, month], queryFn: () => getOrCreateChecklist(companyId!, month), enabled: !!companyId && view === "month", staleTime: 60_000 });
   const closing = useMemo(() => {
     if (!checklist) return null;
     const items = (checklist.items || []) as { is_required: boolean; is_completed: boolean }[];
     const required = items.filter((i) => i.is_required);
-    return {
-      status: checklist.status as string,
-      done: items.filter((i) => i.is_completed).length,
-      total: items.length,
-      requiredDone: required.filter((i) => i.is_completed).length,
-      requiredTotal: required.length,
-    };
+    return { status: checklist.status as string, done: items.filter((i) => i.is_completed).length, total: items.length, requiredDone: required.filter((i) => i.is_completed).length, requiredTotal: required.length };
   }, [checklist]);
 
-  /* 흐름 갭 — 발행 vs 수금 */
-  const issuedThisMonth = monthInv?.salesTotal ?? 0;
-  const settledThisMonth = settled?.total ?? 0;
-  const monthGap = issuedThisMonth - settledThisMonth;
+  if (blocked) return <AccessDenied detail="월별 흐름은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
 
-  if (blocked) {
-    return <AccessDenied detail="경영 흐름은 회사 구성원 전용입니다 (외부 파트너 제외)." />;
-  }
+  const issued = monthInv?.salesTotal ?? 0, got = settled?.total ?? 0, gap = issued - got;
+  const mLabel = `${Number(month.split("-")[1])}월`;
+  const yIn = budget.reduce((s, b) => s + Number(b.incomeTotal || 0), 0), yOut = budget.reduce((s, b) => s + Number(b.expenseTotal || 0), 0);
+  const curYear = Number(thisMonth().slice(0, 4));
 
-  const monthLabel = `${Number(month.split("-")[1])}월`;
+  const Panel = ({ no, title, links, children }: { no: number; title: string; links: { href: string; label: string }[]; children: React.ReactNode }) => (
+    <section className="pnl-panel bz-signal">
+      <h3><span className="flow-step-no">{no}</span>{title}</h3>
+      <dl className="bz-kv">{children}</dl>
+      <p className="bz-why">{links.map((l, i) => <span key={l.href}>{i > 0 && " · "}<Link href={l.href} className="bz-link">{l.label} →</Link></span>)}</p>
+    </section>
+  );
+  const KV = ({ k, v, tone }: { k: string; v: string; tone?: "plus" | "minus" | "warn" }) => <div><dt>{k}</dt><dd className={`mono-number ${tone === "plus" ? "bz-plus" : tone === "minus" ? "bz-minus" : tone === "warn" ? "bz-tone-y" : ""}`}>{v}</dd></div>;
 
   return (
-    <div className="space-y-6">
-      {/* 리포트 표준 2차(2026-08-19) — 보기(이번달 흐름/콕핏/월별 표)·기준 달은 상자 머리 조회 줄, 기본값 저장은 오른쪽 */}
+    <>
       <ReportHead
         bar={<>
-          <ChipGroup value={flowView} onChange={setFlowView}
-            options={[{ value: "month", label: "이번달 흐름" }, { value: "cockpit", label: "콕핏 (미래·다각도)" }, { value: "matrix", label: "월별 표 (1년치)" }] as const} />
-          <MonthField value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className="qk-input h-8 px-2.5 text-xs" />
+          {view === "matrix" ? (
+            <>
+              <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">
+                {[curYear, curYear - 1, curYear - 2].map((y) => <option key={y} value={y}>{y}년</option>)}
+              </select>
+              <ConditionPanel label="보기 설정" open={panelOpen} onOpenChange={(v) => { if (v) setDraftMode(mode); setPanelOpen(v); }} activeCount={mode !== "amount" ? 1 : 0}
+                foot={<>
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => setDraftMode("amount")}>기본으로</button>
+                  <span className="ml-auto" />
+                  <button type="button" className="btn-primary btn-sm" onClick={() => { setMode(draftMode); setPanelOpen(false); }}>적용</button>
+                </>}>
+                <ConditionRow label="셀 표시" hint={FLOW_MODE_HINT[draftMode]}>
+                  <span className="qk-quicks">{FLOW_CELL_MODES.map((m) => <button key={m.key} type="button" onClick={() => setDraftMode(m.key)} className={draftMode === m.key ? "qk-quick qk-quick-on" : "qk-quick"}>{m.label}</button>)}</span>
+                </ConditionRow>
+              </ConditionPanel>
+            </>
+          ) : (
+            <MonthField value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className="qk-input h-8 px-2.5 text-xs" />
+          )}
+          <ChipGroup value={view} onChange={setView} options={[{ value: "matrix", label: "월별 표 (1년치)" }, { value: "month", label: "이번 달 흐름" }] as const} />
+          <span className="text-[11px] text-[var(--text-dim)]">통장·세금계산서 기준 (손익 현황의 확정 전표와 다릅니다)</span>
         </>}
-        right={<button onClick={saveFlowSettings} className="btn-secondary btn-sm" title="현재 뷰·렌즈·기간을 기본값으로 저장">{savedFlow ? "✓ 저장됨" : "기본값 저장"}</button>}
+        right={<button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button>}
+        stats={view === "matrix" ? <>
+          <Stat label={`${year}년 수입`} value={won(yIn)} tone="plus" />
+          <Stat label="지출" value={won(yOut)} tone="minus" />
+          <Stat label="순" value={won(yIn - yOut)} tone={yIn - yOut >= 0 ? "plus" : "minus"} />
+          {mode !== "amount" && <Stat label="셀 표시" value={FLOW_CELL_MODES.find((m) => m.key === mode)?.label || ""} />}
+        </> : <>
+          <Stat label={`${mLabel} 발행 매출`} value={won(issued)} />
+          <Stat label="수금" value={won(got)} tone="plus" />
+          <Stat label="지출" value={won(monthBudget?.expenseTotal ?? 0)} tone="minus" />
+          <Stat label="순 흐름" value={won(monthNet)} tone={monthNet >= 0 ? "plus" : "minus"} />
+          <Stat label={`부가세 예상 (${quarter.split("-")[1]})`} value={won(monthVat?.netVAT ?? 0)} />
+        </>}
       />
 
-      {/* ═══ 콕핏 — 미래 현금 예측 + 다각도 (P1~) ═══ */}
-      {flowView === "cockpit" && companyId && (
-        <div className="flow-cockpit-view">
-          <div className="no-print -mb-1 flex items-center justify-end gap-2">
-            <span className="text-[11px] text-[var(--text-muted)]">과거 범위</span>
-            <div className="flow-past-range-switch seg-bar">
-              {[6, 12].map((n) => (
-                <button key={n} onClick={() => setPastN(n)}
-                  className={`seg-item ${pastN === n ? "seg-item-active" : ""}`}>
-                  {n}개월
-                </button>
-              ))}
-            </div>
+      {!companyId ? <div className="collect-empty">불러오는 중…</div> : view === "matrix" ? (
+        <FlowMatrix companyId={companyId} currentMonth={thisMonth()} year={year} mode={mode} />
+      ) : (
+        <div className="bz-body">
+          {((receivable?.over30 ?? 0) > 0 || gap > 0 || (vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0)) && (
+            <section className="pnl-panel">
+              <h3>막힌 곳</h3>
+              <ul className="ol-gaps">
+                {(receivable?.over30 ?? 0) > 0 && <li><span>30일 넘은 미수금 <b className="mono-number bz-minus">{won(receivable!.over30)}</b> — 거래처 원장에서 확인·독촉</span><Link href="/partners/ledger" className="bz-link">원장 →</Link></li>}
+                {gap > 0 && <li><span>{mLabel} 발행액 중 <b className="mono-number">{won(gap)}</b> 아직 수금 확인 안 됨 — 입금 매칭으로 확정</span><Link href="/collect?tab=bank" className="bz-link">수집·전표 →</Link></li>}
+                {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && <li><span>부가세 신고 D-{vatDday} ({monthVat!.dueDate}) — 예상 납부 <b className="mono-number">{won(monthVat!.netVAT)}</b></span><Link href="/reports/vat" className="bz-link">부가세 →</Link></li>}
+              </ul>
+            </section>
+          )}
+          <div className="bz-grid3">
+            <Panel no={1} title="영업" links={[{ href: "/projecthub", label: "프로젝트" }, { href: "/partners", label: "거래처" }]}>
+              <KV k="진행중 프로젝트" v={`${pipeline?.count ?? 0}건`} />
+              <KV k="계약 총액 (파이프라인)" v={num(pipeline?.total ?? 0)} />
+              {(pipeline?.settling ?? 0) > 0 && <KV k="정산 단계" v={`${pipeline!.settling}건`} tone="warn" />}
+            </Panel>
+            <Panel no={2} title="매출" links={[{ href: "/tax-invoices", label: "세금계산서" }]}>
+              <KV k="매출 발행" v={`${monthInv?.salesCount ?? 0}건 · ${num(issued)}`} />
+              <KV k="공급가액" v={num(monthInv?.salesSupply ?? 0)} />
+              <KV k="매출세액 (부가세)" v={num(monthInv?.salesTax ?? 0)} />
+            </Panel>
+            <Panel no={3} title="수금" links={[{ href: "/partners/ledger", label: "거래처 원장 · 입금 매칭" }, { href: "/bank", label: "통장" }]}>
+              <KV k="확정 수금" v={`${settled?.count ?? 0}건 · ${num(got)}`} tone="plus" />
+              {issued > 0 && <KV k={`${mLabel} 발행 대비 수금률`} v={`${Math.min(100, Math.round((got / issued) * 100))}%`} />}
+              <KV k="미수금 잔액 (전체)" v={num(receivable?.total ?? 0)} />
+              {(receivable?.over30 ?? 0) > 0 && <KV k="30일+ 연체" v={num(receivable!.over30)} tone="minus" />}
+            </Panel>
+            <Panel no={4} title="비용" links={[{ href: "/reports/expense", label: "비용" }, { href: "/cards", label: "카드" }, { href: "/payments", label: "결제" }]}>
+              <KV k="지출 합계" v={num(monthBudget?.expenseTotal ?? 0)} tone="minus" />
+              <KV k="고정비" v={num(monthBudget?.fixedCosts ?? 0)} />
+              <KV k="변동비" v={num(monthBudget?.variableCosts ?? 0)} />
+            </Panel>
+            <Panel no={5} title="손익 · 세금" links={[{ href: "/reports/pnl", label: "손익계산서" }, { href: "/reports/vat", label: "부가세" }]}>
+              <KV k="수입 합계 (자금 기준)" v={num(monthBudget?.incomeTotal ?? 0)} />
+              <KV k="이번 달 순흐름" v={num(monthNet)} tone={monthNet >= 0 ? "plus" : "minus"} />
+              <KV k={`부가세 예상 (${quarter.split("-")[1]})`} v={num(monthVat?.netVAT ?? 0)} />
+              {vatDday !== null && <KV k="신고 기한" v={vatDday >= 0 ? `${monthVat!.dueDate} (D-${vatDday})` : monthVat!.dueDate} tone={vatDday >= 0 && vatDday <= 30 ? "minus" : undefined} />}
+            </Panel>
+            <Panel no={6} title="결산" links={[{ href: "/dashboard", label: "월결산 체크리스트" }]}>
+              {closing ? <>
+                <KV k="필수 항목" v={`${closing.requiredDone} / ${closing.requiredTotal} 완료`} tone={closing.requiredDone === closing.requiredTotal ? "plus" : undefined} />
+                <KV k="전체 진행" v={`${closing.done} / ${closing.total}${closing.total ? ` (${Math.round((closing.done / closing.total) * 100)}%)` : ""}`} />
+                <KV k="상태" v={closing.status === "locked" ? "잠금" : closing.status === "completed" ? "마감 완료" : "진행 중"} />
+              </> : <KV k="체크리스트" v="불러오는 중…" />}
+            </Panel>
           </div>
-          <CashPulseHeader companyId={companyId} userId={userId || undefined} />
-          <FlowTrend companyId={companyId} userId={userId || undefined} anchorMonth={month} pastN={pastN} lens={lens} onLensChange={setLens} />
-          <FlowSchedule companyId={companyId} userId={userId || undefined} />
         </div>
       )}
-
-      {flowView === "matrix" && companyId && (
-        <FlowMatrix companyId={companyId} currentMonth={month} />
-      )}
-
-      {flowView === "month" && (
-      <>
-      {/* ═══ 핵심 요약 스트립 — KPI ═══ */}
-      <div className="flow-kpi-strip">
-        {[
-          { label: `${monthLabel} 발행 매출`, value: issuedThisMonth, color: "var(--primary)", hint: "세금계산서 합계 (부가세 포함)" },
-          { label: `${monthLabel} 수금`, value: settledThisMonth, color: "var(--success)", hint: "확정 매칭 입금 (부가세 포함)" },
-          { label: `${monthLabel} 지출`, value: monthBudget?.expenseTotal ?? 0, color: "var(--warning)", hint: "고정비 + 변동비" },
-          { label: "부가세 예상", value: monthVat?.netVAT ?? 0, color: "var(--primary)", hint: `${quarter.split("-")[1]} 분기 누적` },
-        ].map((c) => (
-          <div key={c.label} className="flow-kpi-card glass-card">
-            <span className="text-[13px] font-semibold text-[var(--text-muted)]">{c.label}</span>
-            <div className="stat-fit flex items-end gap-2">
-              <span className="mono-number stat-fit-value font-extrabold" style={{ color: c.color }}>₩{fmtKrw(c.value)}</span>
-            </div>
-            <div className="text-[11px] text-[var(--text-dim)]">{c.hint}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ═══ 흐름 경고 — 단계 사이가 막힌 곳 ═══ */}
-      {((receivable?.over30 ?? 0) > 0 || monthGap > 0 || (vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0)) && (
-        <div className="flow-alerts">
-          {(receivable?.over30 ?? 0) > 0 && (
-            <Link
-              href="/partners/ledger"
-              className="flow-alert-receivable"
-              style={{
-                background: "color-mix(in srgb, var(--danger) 8%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--danger) 25%, transparent)",
-                color: "var(--danger)",
-                boxShadow: "0 6px 20px -8px color-mix(in srgb, var(--danger) 35%, transparent), inset 0 1px 0 color-mix(in srgb, var(--danger) 10%, white)",
-              }}
-            >
-              30일 넘은 미수금 ₩{fmtKrw(receivable!.over30)} — 거래처 원장에서 확인·독촉하세요 →
-            </Link>
-          )}
-          {monthGap > 0 && (
-            <Link
-              href="/collect?tab=bank"
-              className="flow-alert-gap"
-              style={{
-                background: "color-mix(in srgb, var(--warning) 8%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--warning) 25%, transparent)",
-                color: "var(--warning)",
-                boxShadow: "0 6px 20px -8px color-mix(in srgb, var(--warning) 35%, transparent), inset 0 1px 0 color-mix(in srgb, var(--warning) 10%, white)",
-              }}
-            >
-              {monthLabel} 발행액 중 ₩{fmtKrw(monthGap)} 아직 수금 확인 안 됨 — 입금 매칭으로 확인하세요 →
-            </Link>
-          )}
-          {vatDday !== null && vatDday <= 30 && (monthVat?.netVAT ?? 0) > 0 && (
-            <Link
-              href="/tax-invoices"
-              className="flow-alert-vat-dday"
-              style={{
-                background: "color-mix(in srgb, var(--primary) 8%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--primary) 25%, transparent)",
-                color: "var(--primary)",
-                boxShadow: "0 6px 20px -8px color-mix(in srgb, var(--primary) 35%, transparent), inset 0 1px 0 color-mix(in srgb, var(--primary) 10%, white)",
-              }}
-            >
-              부가세 신고 D-{vatDday} ({monthVat!.dueDate}) — 예상 납부 ₩{fmtKrw(monthVat!.netVAT)} 현금 준비 →
-            </Link>
-          )}
-        </div>
-      )}
-
-      {/* ═══ 6단계 흐름 — 가로 타임라인 + 카드 그리드 ═══ */}
-      <div>
-        {/* 흐름 타임라인 — 단계 노드 + 연결선 (넓은 화면 전용 오리엔테이션) */}
-        <div className="flow-timeline" aria-hidden="true">
-          {FLOW_STEPS.map((s, i) => (
-            <div key={s.no} className={`flex items-center ${i < FLOW_STEPS.length - 1 ? "flex-1" : "flex-none"}`}>
-              <div className="flex items-center gap-2">
-                <div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-black"
-                  style={{
-                    background: `color-mix(in srgb, ${s.accent} 14%, transparent)`,
-                    color: s.accent,
-                    boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${s.accent} 35%, transparent)`,
-                  }}
-                >
-                  {s.no}
-                </div>
-                <span className="whitespace-nowrap text-xs font-bold text-[var(--text)]">{s.title}</span>
-              </div>
-              {i < FLOW_STEPS.length - 1 && (
-                <div className="mx-3 flex flex-1 items-center">
-                  <div
-                    className="h-px flex-1"
-                    style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${s.accent} 45%, transparent), color-mix(in srgb, ${FLOW_STEPS[i + 1].accent} 45%, transparent))` }}
-                  />
-                  <span className="ml-1 text-[10px] leading-none" style={{ color: `color-mix(in srgb, ${FLOW_STEPS[i + 1].accent} 60%, transparent)` }}>▶</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div className="flow-steps-grid">
-          {/* ① 영업 */}
-          <StepCard no={1} title="영업" accent="var(--primary)"
-            links={[{ href: "/projects", label: "프로젝트" }, { href: "/partners", label: "거래처" }]}>
-            <Row label="진행중 프로젝트" value={`${pipeline?.count ?? 0}건`} />
-            <Row label="계약 총액 (파이프라인)" value={`₩${fmtKrw(pipeline?.total ?? 0)}`} bold />
-            {(pipeline?.settling ?? 0) > 0 && (
-              <Row label="정산 단계" value={`${pipeline!.settling}건`} color="var(--warning)" />
-            )}
-          </StepCard>
-
-          {/* ② 매출 */}
-          <StepCard no={2} title="매출" accent="var(--info)"
-            links={[{ href: "/tax-invoices", label: "세금계산서" }]}>
-            <Row label="매출 발행" value={`${monthInv?.salesCount ?? 0}건 · ₩${fmtKrw(monthInv?.salesTotal ?? 0)}`} bold />
-            <Row label="공급가액" value={`₩${fmtKrw(monthInv?.salesSupply ?? 0)}`} />
-            <Row label="매출세액 (부가세)" value={`₩${fmtKrw(monthInv?.salesTax ?? 0)}`} color="var(--text-muted)" />
-          </StepCard>
-
-          {/* ③ 수금 */}
-          <StepCard no={3} title="수금" accent="var(--success)"
-            links={[{ href: "/partners/ledger", label: "거래처 원장 · 입금 매칭" }, { href: "/bank", label: "통장" }]}>
-            <Row label="확정 수금" value={`${settled?.count ?? 0}건 · ₩${fmtKrw(settledThisMonth)}`} bold color="var(--success)" />
-            {issuedThisMonth > 0 && (
-              <MiniBar
-                pct={(settledThisMonth / issuedThisMonth) * 100}
-                color="var(--success)"
-                label={`${monthLabel} 발행 대비 수금률 ${Math.min(100, Math.round((settledThisMonth / issuedThisMonth) * 100))}%`}
-              />
-            )}
-            <Row label="미수금 잔액 (전체)" value={`₩${fmtKrw(receivable?.total ?? 0)}`} color={(receivable?.total ?? 0) > 0 ? "var(--primary)" : "var(--text)"} />
-            {(receivable?.over30 ?? 0) > 0 && (
-              <Row label="30일+ 연체" value={`₩${fmtKrw(receivable!.over30)}`} color="var(--danger)" />
-            )}
-          </StepCard>
-
-          {/* ④ 비용 */}
-          <StepCard no={4} title="비용" accent="var(--warning)"
-            links={[{ href: "/reports/costs", label: "고정비·변동비" }, { href: "/cards", label: "카드" }, { href: "/payments", label: "결제" }]}>
-            <Row label="지출 합계" value={`₩${fmtKrw(monthBudget?.expenseTotal ?? 0)}`} bold color="var(--warning)" />
-            <Row label="고정비" value={`₩${fmtKrw(monthBudget?.fixedCosts ?? 0)}`} />
-            <Row label="변동비" value={`₩${fmtKrw(monthBudget?.variableCosts ?? 0)}`} />
-          </StepCard>
-
-          {/* ⑤ 손익 + 세무 */}
-          <StepCard no={5} title="손익 · 세금" accent="var(--primary)"
-            links={[{ href: "/reports/pnl", label: "손익계산서" }, { href: "/reports/bs", label: "재무상태표" }]}>
-            <Row label="수입 합계 (자금 기준)" value={`₩${fmtKrw(monthBudget?.incomeTotal ?? 0)}`} />
-            <Row label="이번 달 순흐름" value={`₩${fmtKrw(monthNet)}`} bold color={monthNet >= 0 ? "var(--success)" : "var(--danger)"} />
-            <Row label={`부가세 예상 (${quarter.split("-")[1]})`} value={`₩${fmtKrw(monthVat?.netVAT ?? 0)}`} color="var(--primary)" />
-            {vatDday !== null && (
-              <Row label="신고 기한" value={vatDday >= 0 ? `${monthVat!.dueDate} (D-${vatDday})` : monthVat!.dueDate} color={vatDday >= 0 && vatDday <= 30 ? "var(--danger)" : "var(--text-muted)"} />
-            )}
-          </StepCard>
-
-          {/* ⑥ 결산 */}
-          <StepCard no={6} title="결산" accent="var(--viz-info)"
-            links={[{ href: "/dashboard", label: "월결산 체크리스트" }]}>
-            {closing ? (
-              <>
-                <Row label="필수 항목" value={`${closing.requiredDone} / ${closing.requiredTotal} 완료`} bold
-                  color={closing.requiredDone === closing.requiredTotal ? "var(--success)" : "var(--text)"} />
-                {closing.total > 0 && (
-                  <MiniBar
-                    pct={(closing.done / closing.total) * 100}
-                    color={closing.requiredDone === closing.requiredTotal ? "var(--success)" : "var(--viz-info)"}
-                    label={`전체 진행 ${Math.round((closing.done / closing.total) * 100)}%`}
-                  />
-                )}
-                <Row label="전체 진행" value={`${closing.done} / ${closing.total}`} />
-                <Row label="상태" value={closing.status === "locked" ? "잠금" : closing.status === "completed" ? "마감 완료" : "진행 중"}
-                  color={closing.status === "open" ? "var(--text-muted)" : "var(--success)"} />
-              </>
-            ) : (
-              <div className="py-2 text-[12.5px] text-[var(--text-dim)]">체크리스트 불러오는 중…</div>
-            )}
-          </StepCard>
-        </div>
-      </div>
-
-      {/* Footer note */}
-      <div className="flow-footer-note glass-card">
-        <strong className="text-[var(--text-muted)]">숫자 기준</strong>
-        <br />- 매출·부가세는 세금계산서(발행) 기준, 수금은 입금 매칭 확정 기준, 비용은 정기결제+카드+일회성 지출 기준입니다.
-        <br />- 각 카드의 숫자는 해당 상세 화면(세금계산서·거래처 원장·고정비/변동비·손익계산서)과 동일한 집계를 사용합니다.
-        <br />- 발행했는데 수금 확인이 안 된 금액은 거래처 원장의 입금 매칭에서 확정하면 즉시 반영됩니다.
-      </div>
-      </>
-      )}
-    </div>
+    </>
   );
 }

@@ -19,7 +19,7 @@ import { todayKst } from "@/lib/kst";
 
 const won = (n: number) => `${n < 0 ? "−" : ""}₩${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
 const num = (n: number) => `${n < 0 ? "−" : ""}${Math.abs(Math.round(n)).toLocaleString("ko-KR")}`;
-const man = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
+const man = (n: number) => { const a = Math.abs(n), sg = n < 0 ? "−" : ""; return a >= 1e8 ? `${sg}${(a / 1e8).toFixed(1)}억원` : `${sg}${Math.round(a / 10000).toLocaleString("ko-KR")}만원`; };
 const TONE_TXT: Record<Tone, string> = { g: "안정", y: "주의", r: "위험" };
 const shift = (ym: string, n: number) => { const [y, m] = ym.split("-").map(Number); const t = y * 12 + (m - 1) + n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`; };
 const monthLabel = (ym: string) => `${ym.slice(0, 4)}년 ${Number(ym.slice(5))}월`;
@@ -81,7 +81,7 @@ export default function ManagementSummaryPage() {
           <select value={month} onChange={(e) => setMonth(e.target.value)} className="qk-input h-8 px-2.5 text-xs">
             {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
           </select>
-          <span className="text-[11px] text-[var(--text-dim)]">손익 = 확정 전표 · 현금 = 통장 · 받을 돈·낼 돈 = 거래처 원장 · 오늘 {todayKst()}</span>
+          <span className="text-[11px] text-[var(--text-dim)]">오늘 {todayKst()}</span>
         </>}
         right={<><ExcelMenu items={excel} /><button type="button" onClick={() => window.print()} className="btn-secondary btn-sm">인쇄</button></>}
         stats={s ? <>
@@ -96,6 +96,23 @@ export default function ManagementSummaryPage() {
 
       {isLoading || !s ? <div className="collect-empty">불러오는 중…</div> : (
         <div className="bz-body">
+          {/* 손익 현황과 같은 머리 — 기준 한 줄 + 한 문장 결론 (규칙 기반, LLM 아님) */}
+          <div className="pnl-basis-note">
+            <b>손익 = 확정 전표 · 현금 = 통장 · 받을 돈·낼 돈 = 거래처 원장</b>
+            {s.pnl.unposted.total > 0 ? <> — 전표로 만들지 않은 자료 <b className="text-[var(--warning)]">{s.pnl.unposted.total.toLocaleString()}건</b>은 손익에 빠져 있습니다 · <Link href="/collect" className="font-semibold text-[var(--primary)]">수집·전표 →</Link></> : <> — 이 달 자료는 모두 전표로 반영됐습니다.</>}
+          </div>
+          <div className="pnl-headline">
+            <b>
+              {s.overall.tone === "g"
+                ? `지금은 안정적입니다 — ${Number(month.slice(5))}월 영업이익 ${won(s.pnl.cur.operating)}, 통장 ${man(s.cash.balance)}으로 ${s.cash.runway >= 999 ? "무기한" : `${s.cash.runway.toFixed(1)}개월`} 운영 가능합니다.`
+                : `${s.overall.label} — ${[
+                  s.cash.tone !== "g" ? `현금이 ${s.cash.runway.toFixed(1)}개월치뿐입니다` : null,
+                  s.pnl.tone !== "g" ? `${Number(month.slice(5))}월은 ${man(-s.pnl.cur.operating)} 손실입니다${s.pnl.unposted.taxInvoice > 0 ? "(미처리 전표 있음)" : ""}` : null,
+                  s.arap.tone !== "g" ? (s.cash.balance < s.arap.due30 ? "30일 안에 낼 돈이 잔액보다 많습니다" : `30일 넘은 미수 ${man(s.arap.over30)}이 묶여 있습니다`) : null,
+                ].filter(Boolean).join(" · ")}`}
+            </b>
+            <div className="pnl-headline-sub">통장 {man(s.cash.balance)} · 이달 순 현금 흐름 {man(s.cash.inflow - s.cash.outflow)} · 받을 돈 {man(s.arap.ar)} · 30일 안에 낼 돈 {man(s.arap.due30)}{s.todos.length > 0 && <> · 이번 주 챙길 것 <b>{s.todos.length}건</b></>}</div>
+          </div>
           {/* ── 세 신호 ── */}
           <div className="bz-grid3">
             <section className="pnl-panel bz-signal">

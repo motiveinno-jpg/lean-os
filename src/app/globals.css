@@ -9498,19 +9498,12 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .bz-kind-r { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
 
 /* ── 자금 전망 재편 (2026-08-19) — 잔액 곡선 · 자금 달력 · 시나리오 ── */
-.ol-svg { @apply block h-auto w-full; }
-.ol-grid { stroke: var(--border); stroke-width: 1; }
-.ol-zero { stroke: var(--danger); stroke-width: 1; stroke-dasharray: 3 3; }
-.ol-tick { fill: var(--text-dim); font-size: 10px; }
-.ol-area { fill: color-mix(in srgb, var(--primary) 8%, transparent); }
-.ol-line-base { fill: none; stroke: var(--primary); stroke-width: 2; }
-.ol-line-linear { fill: none; stroke: var(--text-dim); stroke-width: 1.5; stroke-dasharray: 5 4; }
-.ol-line-scen { fill: none; stroke: var(--warning); stroke-width: 2; stroke-dasharray: 2 3; }
-.ol-mark { cursor: pointer; }
-.ol-dot-in { fill: var(--success); } .ol-dot-out { fill: var(--danger); }
-.ol-dot-min { fill: var(--bg-card); stroke: var(--danger); stroke-width: 2; }
-.ol-lab { fill: var(--text-muted); font-size: 10px; font-weight: 700; }
-.ol-lab-min { fill: var(--danger); }
+.ol-marks { @apply mt-2 flex flex-wrap gap-1.5; }
+.ol-mark-chip { @apply rounded-full border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--text-muted)] transition-colors; }
+.ol-mark-chip:hover { @apply border-[var(--primary)]; }
+.ol-mark-chip > b { @apply ml-1 text-[var(--text)]; }
+.ol-mark-min { border-color: var(--danger); color: var(--danger); } .ol-mark-min > b { color: var(--danger); }
+.ol-mark-out > b { color: var(--danger); } .ol-mark-in > b { color: var(--success); }
 .ol-range { @apply inline-flex items-center gap-2; }
 .ol-range input[type=range] { @apply w-44; }
 .ol-extra { @apply flex flex-wrap items-center gap-1.5; }
@@ -9534,3 +9527,4 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 table.ol-items-table { min-width: 960px; }
 .ol-items-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
 .ol-sure:not(.ol-sure-ok):not(.ol-sure-est) { @apply border border-[var(--border)] text-[var(--text-muted)]; }
+.flow-step-no { @apply mr-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary-light)] text-[11px] font-black text-[var(--primary)]; }

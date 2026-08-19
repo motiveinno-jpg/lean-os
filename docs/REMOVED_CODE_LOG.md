@@ -139,3 +139,4 @@
 - `src/components/report-kit.tsx` 삭제(ReportShell·PageHeader·IntroCard·StatCard·Section) — 경영 요약·예정 지출·운영 가능 세 화면이 마지막 사용처였고 전부 세 신호 판·곡선·표로 다시 그렸다. 리포트 표준은 `reports/layout` + `ReportHead` + `pnl-panel`.
 - 경영 요약 예전 계산(tax_invoices status 만 세는 미수 11억, 예산 추정 고정비) → `lib/biz-summary.ts`. 자금 전망 직선 전망·±10% 3칸·예정 지출 5줄 → `lib/cash-outlook.ts`.
 - `globals.css` 의 `.summary-*` `.upcoming-*` `.outlook-*` 는 이제 사용처 없음(다른 PC 충돌 회피로 남김 — 다음 정리 때 제거).
+- 자금 전망 › 월별 흐름(예전 경영 흐름) 정리: 콕핏(미래·다각도) 뷰와 `flow/_components/FlowTrend.tsx`·`FlowSchedule.tsx`·`CashPulseHeader.tsx` 삭제 — '전망' 갈래(날짜별 예정 곡선)가 대신한다. `AreaTrend.tsx`는 데모 프레임이 써서 남김. KPI 카드·경고 배너·타임라인·StepCard(상자 안 상자) → Stat + pnl-panel. '기본값 저장'(user_preferences.flow_settings) 버튼 제거(조회값 자동 기억 금지 규칙). `globals.css` 의 `.flow-kpi-*` `.flow-alert*` `.flow-timeline` `.flow-step-card` `.flow-steps-grid` `.flow-footer-note` `.flow-past-range-switch` `.flow-cockpit-view` `.flow-matrix-toolbar` 사용처 없음(다음 정리 때 제거).
