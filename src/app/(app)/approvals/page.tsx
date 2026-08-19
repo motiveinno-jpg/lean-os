@@ -3111,10 +3111,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   // 2026-07-16: 기본 제공 유형(경비청구 등)도 정책(matchedPolicy)에 입력 필드를 정의해두면
   //   커스텀 양식과 동일하게 필드를 보여준다. 휴가는 전용 구조화 입력(leaveForm)이 있어 제외.
   const activeFields = !isLeave ? (selectedForm?.fields || matchedPolicy?.fields || []) : [];
-  // 업체명류 필드가 있으면 제목 뒤에 붙인다 (2026-08-19 사장님: 광고비 지출결의서가 어느 업체 건인지
-  //   제목만으로 보이게). 이미 제목에 그 업체명이 들어 있으면 중복으로 붙이지 않는다.
+  // 광고비 지출결의서만: 업체명 필드 값을 제목 뒤에 붙인다 (2026-08-19 사장님: 어느 업체 건인지
+  //   제목만으로 구분되게. "다른 건 건들지 말고 광고비지출결의서만"). 이미 제목에 들어 있으면 중복 방지.
   const vendorFieldVal = (() => {
-    const fd = (activeFields as any[]).find((f) => /업체명|거래처|공급처|매입처/.test(String(f?.label || "")));
+    if (!String(selectedForm?.name || "").replace(/\s/g, "").includes("광고비지출결의서")) return "";
+    const fd = (activeFields as any[]).find((f) => /업체명/.test(String(f?.label || "")));
     return fd ? String(customFieldValues[fd.key] || "").trim() : "";
   })();
   const effectiveTitle = isLeave
