@@ -1315,7 +1315,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 {([
                   { key: "present", label: "오늘 출근", count: todayStatus?.present ?? 0, cls: "text-[var(--text)]" },
                   { key: "late", label: "지각", count: todayStatus?.late ?? 0, cls: "text-yellow-500" },
-                  { key: "absent", label: "결근", count: Math.max(0, activeEmployees.length - (todayStatus?.present ?? 0) - (todayStatus?.late ?? 0) - (todayStatus?.leave ?? 0)), cls: "text-[var(--danger)]" },
+                  // 공휴일·주말엔 오늘 결근 0 (2026-08-19) — 쉬는 날 전 직원이 결근으로 집계되지 않게.
+                  { key: "absent", label: "결근", count: (holidayDaySet.has(todayStr) || [0, 6].includes(today.getDay())) ? 0 : Math.max(0, activeEmployees.length - (todayStatus?.present ?? 0) - (todayStatus?.late ?? 0) - (todayStatus?.leave ?? 0)), cls: "text-[var(--danger)]" },
                   { key: "leave", label: "자리비움", count: todayStatus?.leave ?? 0, cls: "text-[var(--info)]" },
                 ] as const).map((c) => (
                   <button

@@ -121,6 +121,19 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     staleTime: 60_000,
   });
 
+  // 회사 공휴일 (2026-08-19 사장님: 대체휴일이 전 직원 결근으로 표시) — 결근 판정에서 제외.
+  const { data: weekHolidays = [] } = useQuery<{ date: string }[]>({
+    queryKey: ["flex-work-holidays", companyId, startStr],
+    queryFn: async () => {
+      const data = logRead('components/flex-work-board:data', await db.from("holidays")
+        .select("date").eq("company_id", companyId).gte("date", startStr).lte("date", endStr));
+      return (data || []) as any[];
+    },
+    enabled: !!companyId,
+    staleTime: 60_000,
+  });
+  const holidaySet = useMemo(() => new Set(weekHolidays.map((h) => String(h.date).slice(0, 10))), [weekHolidays]);
+
   const attByEmpDate = useMemo(() => {
     const m = new Map<string, Att>();
     for (const a of atts) m.set(`${a.employee_id}|${a.date}`, a);
@@ -180,6 +193,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
       for (let i = 0; i < 5; i++) {
         const dstr = ymd(days[i]);
         if (dstr >= todayS) continue;
+        if (holidaySet.has(dstr)) continue;   // 공휴일 제외 (2026-08-19)
         if (emp.hire_date && dstr < emp.hire_date) continue;
         const key = `${emp.id}|${dstr}`;
         if (leaveByEmpDate.has(key)) continue;
@@ -191,7 +205,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
       }
     }
     return [...m.values()];
-  }, [rows, days, attByEmpDate, leaveByEmpDate, todayStr]);
+  }, [rows, days, attByEmpDate, leaveByEmpDate, todayStr, holidaySet]);
   const absentDayCount = absentList.reduce((s, x) => s + x.dates.length, 0);
 
   const teamAvg = rows.length ? Math.round(rows.reduce((s, r) => s + r.total, 0) / rows.length) : 0;
@@ -332,7 +346,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       // 결근 표시 — 지난 평일인데 기록·휴가가 없으면 공백 대신 "결근"
                       //   (2026-07-30 사장님). 오늘/미래·주말·입사 전 날짜는 제외.
                       const dstr = ymd(d);
-                      const absent = !weekend && dstr < todayStr && (!emp.hire_date || dstr >= emp.hire_date);
+                      const absent = !weekend && !holidaySet.has(dstr) && dstr < todayStr && (!emp.hire_date || dstr >= emp.hire_date);
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent
