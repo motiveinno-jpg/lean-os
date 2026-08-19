@@ -9675,3 +9675,7 @@ table.mypage-att-table { min-width: 760px; }
   .vault-file-panel > .qk-screen { height: auto; min-height: 0; }
 }
 .bank-edit-modal { @apply max-w-lg; }
+/* 근태 현황 (2026-08-19) */
+.att-status { @apply flex flex-col gap-2 p-3; }
+.att-status-scroll { max-height: none; }
+.att-summary-table tr.att-month-row > td { @apply bg-[var(--bg-surface)]/40 text-[11.5px]; }

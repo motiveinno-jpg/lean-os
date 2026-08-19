@@ -10,6 +10,7 @@ import { AttendanceTab } from "@/app/(app)/employees/EmployeesPageClient";
 import { FlexWorkBoard } from "@/components/flex-work-board";
 import { EditRequestInbox } from "@/components/hr-attendance-extras";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
+import { AttendanceStatusTab } from "./_components/AttendanceStatusTab";
 
 // 근태 관리 — employees/page.tsx 의 AttendanceTab 재사용. 사이드바 '근태 관리' 진입점.
 //   래퍼 시안 리스킨 (공용 컴포넌트 사용, 표시 전용). AttendanceTab 본체(6342줄) 무변경.
@@ -82,7 +83,7 @@ export default function AttendancePage() {
   };
   const tabsEl = (
     <div className="collect-tabs no-print">
-      {([["work", "워크보드 (주간)"], ["records", "기록 상세"], ["summary", "월간 요약"]] as const)
+      {([["work", "워크보드 (주간)"], ["records", "기록 상세"], ["summary", "근태 현황"]] as const)
         .filter(([k]) => (k === "work" ? canBoard : true))
         .map(([k, l]) => (
           <button key={k} type="button" onClick={() => goGal(k)} className={gal === k ? "collect-tab collect-tab-on" : "collect-tab"}>{l}</button>
@@ -118,17 +119,8 @@ export default function AttendancePage() {
               )}
               {/* 월간 요약 — 부서→직원 표(지각·결근·재택·반차·연차·연장·야간·휴일·총 근무·수당). 예전 연장근무 갈래 자리
                   (2026-08-19 사장님: 연장근무 신청·승인은 결재 허브로, 여기는 인사팀이 보는 월간 지표) */}
-              {gal === "summary" && (
-                <AttendanceTab
-                  employees={employees}
-                  companyId={companyId}
-                  userId={userId}
-                  userEmail={userEmail}
-                  queryClient={queryClient}
-                  role={canManage ? "owner" : "employee"}
-                  mode="summary"
-                />
-              )}
+              {/* 근태 현황 (2026-08-19 사장님: 월간 요약 → 근태 현황, 조회기간·사람/부서 다중 지정) */}
+              {gal === "summary" && <AttendanceStatusTab companyId={companyId} employees={employees} isAdmin={canManage} />}
             </div>
           </QueryBody>
         </QueryScreen>
