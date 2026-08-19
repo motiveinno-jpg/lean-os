@@ -31,6 +31,7 @@ import { useUser } from "@/components/user-context";
 import { AccessDenied } from "@/components/access-denied";
 import { friendlyError } from "@/lib/friendly-error";
 import { cashReceiptSign } from "@/lib/cash-receipts";
+import { useDragHeight, SplitHandle } from "@/components/split-handle";
 import {
   VAT_TYPES, SETTLE_LABEL, STD, buildVoucherLines, vatOf, vatType, suggestVatType, normalizeSides,
   type SettleType,
@@ -158,6 +159,8 @@ export default function SalePurchaseVoucherPage() {
 }
 
 function SalePurchaseInner() {
+  //   분개 영역 높이 — 구분선(손잡이)이 영역 위에 있어 아래로 끌면 줄고 위로 끌면 는다 (기본 CSS max-height 38%)
+  const split = useDragHeight("ve-split:sale-purchase", { min: 120, invert: true });
   const { toast } = useToast();
   const qc = useQueryClient();
   const [companyId, setCompanyId] = useState<string | null>(null);
@@ -1018,8 +1021,9 @@ function SalePurchaseInner() {
         </div>
       </div>
 
-      {/* ── 아래 격자: 분개 ── */}
-      <div className={phoneGrid ? "spv-je glass-card spv-grid-forced" : "spv-je glass-card"}>
+      {/* ── 아래 격자: 분개 — 위 구분선을 끌어 높이 조절 (2026-08-19 사장님: 분개를 더 넓게 보고 싶을 때 스스로) ── */}
+      <SplitHandle onMouseDown={split.onMouseDown} onReset={split.reset} />
+      <div ref={split.ref} style={split.height != null ? { maxHeight: split.height, height: split.height } : undefined} className={phoneGrid ? "spv-je glass-card spv-grid-forced" : "spv-je glass-card"}>
         <div className="spv-je-head">
           <b>분개</b>
           {edit && <em className="spv-je-editing">저장된 전표 #{edit.voucherNo ?? ""} 를 고치는 중</em>}

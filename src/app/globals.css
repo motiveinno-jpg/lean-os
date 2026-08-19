@@ -9533,3 +9533,11 @@ table.ol-items-table { min-width: 960px; }
 .bz-body .pnl-panel > .viz-legend { @apply mt-2.5; }
 .bz-body .pnl-panel > .ol-marks { @apply mt-2.5; }
 .bz-body .pnl-panel > .ol-cal, .bz-body .pnl-panel > .ol-gaps, .bz-body .pnl-panel > .bz-kv, .bz-body .pnl-panel > .bz-todos, .bz-body .pnl-panel > .pnl-tbl-wrap { @apply mt-1; }
+/* ── 영역 나누는 손잡이 (2026-08-19) — 일반전표·매입매출전표 분개 영역 높이 조절 ── */
+.split-handle { @apply relative z-[4] flex h-2 shrink-0 cursor-row-resize items-center justify-center border-t border-[var(--border)] bg-[var(--bg-card)] transition-colors; }
+.split-handle:hover, body.split-dragging .split-handle { background: color-mix(in srgb, var(--primary) 8%, var(--bg-card)); }
+.split-handle-grip { @apply block h-1 w-10 rounded-full bg-[var(--border)]; }
+.split-handle:hover > .split-handle-grip { background: var(--primary); }
+body.split-dragging { cursor: row-resize; user-select: none; }
+/*   매입매출전표: 손잡이가 분개 위에 있으니 분개 자체 border-t 는 뺀다(선이 둘이 되지 않게) */
+.spv-body > .split-handle + .spv-je { border-top: 0; }

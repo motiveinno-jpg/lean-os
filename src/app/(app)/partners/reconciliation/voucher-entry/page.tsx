@@ -36,6 +36,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/components/toast";
 import { CellDropdown, anchorOf, type Anchor } from "@/components/cell-dropdown";
 import { SortableTh, nextSort, type SortState } from "@/components/sortable-th";
+import { useDragHeight, SplitHandle } from "@/components/split-handle";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, SavedTabs, ConditionSave,
   ConditionPanel, ConditionRow, TokenField, AppliedChips, QuickSearch, quickSearchHit, quickTerms,
@@ -131,6 +132,8 @@ export default function VoucherEntryPage() {
   const [flashId, setFlashId] = useState<string | null>(null); // §3-3-B 방금 저장한 전표 하이라이트
   const [recentMemos, setRecentMemos] = useState<string[]>([]);
   const topRef = useRef<HTMLDivElement | null>(null);
+  //   분개 입력 칸 높이 — 아래 구분선을 끌어 조절 (기본은 CSS max-height 34vh)
+  const split = useDragHeight("ve-split:voucher-entry", { min: 120 });
   const flashScrolled = useRef(false);
   useEffect(() => { try { setRecentMemos(JSON.parse(localStorage.getItem(MEMO_KEY) || "[]")); } catch { /* noop */ } }, []);
   useEffect(() => { const close = () => setCtx(null); window.addEventListener("click", close); return () => window.removeEventListener("click", close); }, []);
@@ -798,7 +801,7 @@ export default function VoucherEntryPage() {
         {/* 데스크톱: 가로 스크롤 없이 폭에 맞춤. 모바일: min-width + 가로 스크롤 (사장님 QA 2026-07-10 IMG_0577).
             ★ 행이 많아지면 이 칸만 스크롤한다 — 입력 줄이 늘수록 아래 목록이 밀려 상자가 깨졌다 (2026-08-18 사장님 캡처 1z).
               드롭다운(CellDropdown)은 body 포털·fixed 라 이 칸이 스크롤 상자여도 안 잘린다. */}
-        <div className="ve-input-rows overflow-x-auto sm:overflow-x-visible">
+        <div ref={split.ref} style={split.height != null ? { height: split.height, maxHeight: split.height } : undefined} className="ve-input-rows overflow-x-auto sm:overflow-x-visible">
           <table className="w-full min-w-[620px] sm:min-w-0 text-xs border-collapse table-fixed">
             <thead className="ve-input-thead">
               <tr className="border-b border-[var(--border)]">
@@ -884,6 +887,8 @@ export default function VoucherEntryPage() {
           </div>
         </div>
       </div>
+      {/* 구분선 = 잡아끄는 손잡이 — 분개 입력 칸 높이를 사용자가 정한다 (2026-08-19 사장님) */}
+      <SplitHandle onMouseDown={split.onMouseDown} onReset={split.reset} />
 
       {/* ══ 하단: 전표목록 — 조회 화면 표준(B형: 목록부만) (2026-08-18 Wave 1). 셀 클릭 = 인라인 수정 · 행 우클릭 = 삽입/복사/삭제 ══ */}
         <QueryHead>
