@@ -208,19 +208,26 @@ export function WaterfallChart({ steps, unit = "원", height = 220 }: {
     else run = s.value;
     return { ...s, lo: Math.min(start, end), hi: Math.max(start, end) };
   });
+  //   ★ 눈금은 최저(음수 가능)~최고를 다 덮는다 — 비용이 매출보다 커서 누적이 0 아래로 내려가면
+  //     예전 셈(0~최고)에선 막대 bottom 이 -100만% 가 돼 화면이 200만px 로 늘어났다 (2026-08-19 사장님: "그래프가 아래로 내려온다").
   const max = niceMax(Math.max(1, ...bars.map((b) => b.hi)));
+  const min = Math.min(0, ...bars.map((b) => b.lo));
+  const minNice = min < 0 ? -niceMax(Math.abs(min)) : 0;
+  const range = Math.max(1, max - minNice);
+  const pct = (v: number) => ((v - minNice) / range) * 100;
   //   더하는 것·빼는 것·결론을 색으로 가른다(상태색이 아니라 시리즈 색 — 좋고 나쁨이 아니다)
   const colorOf = (k: string) => (k === "sub" ? vizColor(1) : k === "total" ? vizColor(2) : vizColor(0));
   return (
     <div className="viz-wrap" style={{ height }}>
-      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(max / 2)}</em><em>0</em></div>
+      <div className="viz-yaxis"><em>{fmt(max)}</em><em>{fmt(minNice + range / 2)}</em><em>{fmt(minNice)}</em></div>
       <div className="viz-plot" onMouseLeave={() => setHover(null)}>
         <span className="viz-grid" /><span className="viz-grid viz-grid-mid" />
+        {minNice < 0 && <span className="viz-grid viz-grid-zero" style={{ bottom: `${pct(0)}%` }} />}
         {bars.map((b, i) => (
           <span key={`${b.label}-${i}`} className="viz-wf" onMouseEnter={() => setHover(i)}>
             <i style={{
-              bottom: `${(b.lo / max) * 100}%`,
-              height: `${Math.max(1, ((b.hi - b.lo) / max) * 100)}%`,
+              bottom: `${Math.max(0, Math.min(100, pct(b.lo)))}%`,
+              height: `${Math.max(1, Math.min(100, ((b.hi - b.lo) / range) * 100))}%`,
               background: colorOf(b.kind),
             }} />
             {hover === i && (

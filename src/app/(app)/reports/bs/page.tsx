@@ -3,7 +3,7 @@ import { GroupedColumnChart, Legend, vizColor } from "@/components/charts/kit";
 
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import { DateField } from "@/components/date-field";
 import { ReportHead } from "../_components/ReportHead";
 import { Stat } from "@/components/query-kit";
@@ -67,12 +67,6 @@ interface BsData {
 }
 
 // 통합 세부 모달용 행 (날짜/거래처/금액)
-interface DetailRow {
-  date: string | null;
-  name: string;
-  amount: number;
-  subText?: string;
-}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -330,7 +324,6 @@ function BalanceSheetPageInner() {
   const [showPayableDrill, setShowPayableDrill] = useState(false);
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
   // 통합 세부 모달: 자산/부채 항목 클릭 시 열림
-  const [detailModal, setDetailModal] = useState<{ title: string; total: number; rows: DetailRow[]; prevTotal?: number } | null>(null);
 
   useEffect(() => {
     getCurrentUser().then((u) => {
@@ -422,90 +415,6 @@ function BalanceSheetPageInner() {
   /* ---------------------------------------------------------------- */
   /*  Render helpers                                                   */
   /* ---------------------------------------------------------------- */
-  const renderSectionRow = (
-    label: string,
-    amount: number,
-    options?: { isBold?: boolean; isTotal?: boolean; indent?: boolean; isNested?: boolean; prevAmount?: number },
-  ) => {
-    const delta = options?.prevAmount !== undefined ? amount - options.prevAmount : undefined;
-    return (
-      <tr
-        key={label}
-        style={{
-          borderBottom: options?.isTotal ? "2px solid var(--text)" : undefined,
-          background: options?.isTotal ? "var(--bg-surface)" : undefined,
-        }}
-      >
-        <td
-          style={{
-            padding: "10px 16px",
-            fontSize: 13,
-            fontWeight: options?.isBold || options?.isTotal ? 600 : 400,
-            color: options?.isTotal ? "var(--text)" : options?.isNested ? "var(--text-dim)" : "var(--text-muted)",
-            paddingLeft: options?.isNested ? 48 : options?.indent ? 32 : 16,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {label}
-        </td>
-        <td
-          style={{
-            padding: "10px 16px",
-            fontSize: 13,
-            fontWeight: options?.isBold || options?.isTotal ? 600 : 400,
-            textAlign: "right",
-            color: amount < 0 ? "var(--danger)" : options?.isTotal ? "var(--text)" : "var(--text-muted)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {formatKrw(amount)}
-        </td>
-        {isCompareMode && (
-          <td
-            style={{
-              padding: "10px 16px",
-              fontSize: 13,
-              fontWeight: options?.isBold || options?.isTotal ? 600 : 400,
-              textAlign: "right",
-              whiteSpace: "nowrap",
-              color: delta === undefined || delta === 0
-                ? "var(--text-dim)"
-                : delta > 0 ? "var(--viz-pos)" : "var(--viz-neg)",
-            }}
-          >
-            {delta === undefined ? "-" : delta === 0 ? "-" : `${delta > 0 ? "+" : ""}${formatKrw(delta)} ${delta > 0 ? "\u25B2" : "\u25BC"}`}
-          </td>
-        )}
-      </tr>
-    );
-  };
-
-  const colCount = isCompareMode ? 3 : 2;
-
-  const renderSectionHeader = (label: string) => (
-    <tr key={`header-${label}`}>
-      <td
-        colSpan={colCount}
-        style={{
-          padding: "14px 16px 6px",
-          fontSize: 11,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          color: "var(--primary)",
-          background: "var(--bg-card)",
-        }}
-      >
-        {label}
-      </td>
-    </tr>
-  );
-
-  const renderDivider = (key: string) => (
-    <tr key={key}>
-      <td colSpan={colCount} style={{ padding: 0, height: 1, background: "var(--border)" }} />
-    </tr>
-  );
 
   /* ---------------------------------------------------------------- */
   /*  Loading / Error / Empty states                                   */
@@ -611,106 +520,44 @@ function BalanceSheetPageInner() {
         </>}
       />
 
-      {/* Balance Sheet — T자 레이아웃 (좌: 자산 / 우: 부채 + 자본) */}
+      {/* Balance Sheet — T자 레이아웃 (좌: 자산 / 우: 부채 + 자본).
+          2026-08-19 사장님: "재무상태표 자세하게, T자표 진행" — 공용 머리단(계정과목·금액·전월 대비) 표 두 장,
+          계정을 누르면 그 자리에서 세부(통장별·거래처별·자산별)가 펼쳐진다. 소계·총계 줄은 굵게. */}
       <div className="bs-balance-sheet-grid">
-        {/* ── 좌: 자산 ── */}
-        <div className="bs-assets-card glass-card" style={{ overflow: "auto" }}>
-          <div style={{ padding: "14px 16px", borderBottom: "2px solid var(--border)", background: "var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>자산 (Assets)</div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}>금액 (원)</div>
-          </div>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 360 }}>
-            <tbody>
-              {renderSectionHeader("유동자산 (Current Assets)")}
-              <ClickableRow
-                label="현금 및 예금" amount={data.cashAndDeposits}
-                prevAmount={isCompareMode && prevData ? prevData.cashAndDeposits : undefined}
-                isCompareMode={isCompareMode}
-                onClick={() => setDetailModal({
-                  title: '현금 및 예금 세부',
-                  total: data.cashAndDeposits,
-                  prevTotal: isCompareMode && prevData ? prevData.cashAndDeposits : undefined,
-                  rows: data.bankAccountDetails.map((b: any) => ({ date: b.date || null, name: b.name, amount: b.balance })),
-                })}
-              />
-              <ClickableRow
-                label="매출채권" amount={data.accountsReceivable}
-                prevAmount={isCompareMode && prevData ? prevData.accountsReceivable : undefined}
-                isCompareMode={isCompareMode}
-                onClick={() => setDetailModal({
-                  title: '매출채권 세부',
-                  total: data.accountsReceivable,
-                  prevTotal: isCompareMode && prevData ? prevData.accountsReceivable : undefined,
-                  rows: data.receivableDetails.map((r: any) => ({ date: r.date || null, name: r.name, amount: r.amount })),
-                })}
-              />
-              {renderDivider("div-ca-left")}
-              {renderSectionRow("유동자산 소계", data.currentAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.currentAssets : undefined })}
+        <BsSide title="자산 (Assets)" isCompareMode={isCompareMode}
+          sections={[
+            { label: "유동자산 (Current Assets)", subtotalLabel: "유동자산 소계", subtotal: data.currentAssets, prevSubtotal: isCompareMode && prevData ? prevData.currentAssets : undefined,
+              rows: [
+                { key: "cash", label: "현금 및 예금", amount: data.cashAndDeposits, prev: isCompareMode && prevData ? prevData.cashAndDeposits : undefined,
+                  details: data.bankAccountDetails.map((b: any) => ({ name: b.name, amount: b.balance, date: b.date || null })) },
+                { key: "ar", label: "매출채권", amount: data.accountsReceivable, prev: isCompareMode && prevData ? prevData.accountsReceivable : undefined,
+                  details: data.receivableDetails.map((r: any) => ({ name: r.name, amount: r.amount, date: r.date || null })) },
+              ] },
+            { label: "고정자산 (Fixed Assets)", subtotalLabel: "고정자산 소계", subtotal: data.fixedAssets, prevSubtotal: isCompareMode && prevData ? prevData.fixedAssets : undefined,
+              rows: [
+                { key: "fa", label: "고정자산", amount: data.fixedAssets, prev: isCompareMode && prevData ? prevData.fixedAssets : undefined,
+                  details: data.fixedAssetDetails.map((a: any) => ({ name: `${a.name} (${a.type})`, amount: a.value, date: a.date || null })) },
+              ] },
+          ]}
+          total={{ label: "자산 총계", amount: data.totalAssets, prev: isCompareMode && prevData ? prevData.totalAssets : undefined }} />
 
-              {renderSectionHeader("고정자산 (Fixed Assets)")}
-              <ClickableRow
-                label="고정자산" amount={data.fixedAssets}
-                prevAmount={isCompareMode && prevData ? prevData.fixedAssets : undefined}
-                isCompareMode={isCompareMode}
-                onClick={() => setDetailModal({
-                  title: '고정자산 세부',
-                  total: data.fixedAssets,
-                  prevTotal: isCompareMode && prevData ? prevData.fixedAssets : undefined,
-                  rows: data.fixedAssetDetails.map((a: any) => ({ date: a.date || null, name: `${a.name} (${a.type})`, amount: a.value })),
-                })}
-              />
-              {renderDivider("div-fa-left")}
-              {renderSectionRow("고정자산 소계", data.fixedAssets, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.fixedAssets : undefined })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── 우: 부채 + 자본 ── */}
-        <div className="bs-liabilities-equity-card glass-card" style={{ overflow: "auto" }}>
-          <div style={{ padding: "14px 16px", borderBottom: "2px solid var(--border)", background: "var(--bg-surface)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>부채 + 자본 (Liabilities + Equity)</div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-dim)" }}>금액 (원)</div>
-          </div>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 360 }}>
-            <tbody>
-              {renderSectionHeader("부채 (Liabilities)")}
-              <ClickableRow
-                label="차입금" amount={data.borrowings}
-                prevAmount={isCompareMode && prevData ? prevData.borrowings : undefined}
-                isCompareMode={isCompareMode}
-                onClick={() => setDetailModal({
-                  title: '차입금 세부',
-                  total: data.borrowings,
-                  prevTotal: isCompareMode && prevData ? prevData.borrowings : undefined,
-                  rows: data.loanDetails.map((l: any) => ({ date: l.date || null, name: l.name, amount: l.remainingAmount })),
-                })}
-              />
-              <ClickableRow
-                label="미지급금" amount={data.accountsPayable}
-                prevAmount={isCompareMode && prevData ? prevData.accountsPayable : undefined}
-                isCompareMode={isCompareMode}
-                onClick={() => setDetailModal({
-                  title: '미지급금 세부',
-                  total: data.accountsPayable,
-                  prevTotal: isCompareMode && prevData ? prevData.accountsPayable : undefined,
-                  rows: data.payableDetails.map((p: any) => ({ date: p.date || null, name: p.name, amount: p.amount })),
-                })}
-              />
-              {renderDivider("div-l-right")}
-              {renderSectionRow("부채 합계", data.totalLiabilities, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalLiabilities : undefined })}
-
-              {renderSectionHeader("자본 (Equity)")}
-              {renderSectionRow(
-                data.isCapitalDefault ? "자본금 (기본값)" : "자본금",
-                data.capital,
-                { indent: true, prevAmount: isCompareMode && prevData ? prevData.capital : undefined },
-              )}
-              {renderSectionRow("이익잉여금", data.retainedEarnings, { indent: true, prevAmount: isCompareMode && prevData ? prevData.retainedEarnings : undefined })}
-              {renderDivider("div-e-right")}
-              {renderSectionRow("자본 합계", data.totalEquity, { isTotal: true, prevAmount: isCompareMode && prevData ? prevData.totalEquity : undefined })}
-            </tbody>
-          </table>
-        </div>
+        <BsSide title="부채 + 자본 (Liabilities + Equity)" isCompareMode={isCompareMode}
+          sections={[
+            { label: "부채 (Liabilities)", subtotalLabel: "부채 합계", subtotal: data.totalLiabilities, prevSubtotal: isCompareMode && prevData ? prevData.totalLiabilities : undefined,
+              rows: [
+                { key: "loan", label: "차입금", amount: data.borrowings, prev: isCompareMode && prevData ? prevData.borrowings : undefined,
+                  details: data.loanDetails.map((l: any) => ({ name: l.name, amount: l.remainingAmount, date: l.date || null })) },
+                { key: "ap", label: "미지급금", amount: data.accountsPayable, prev: isCompareMode && prevData ? prevData.accountsPayable : undefined,
+                  details: data.payableDetails.map((p: any) => ({ name: p.name, amount: p.amount, date: p.date || null })) },
+              ] },
+            { label: "자본 (Equity)", subtotalLabel: "자본 합계", subtotal: data.totalEquity, prevSubtotal: isCompareMode && prevData ? prevData.totalEquity : undefined,
+              rows: [
+                { key: "cap", label: data.isCapitalDefault ? "자본금 (기본값)" : "자본금", amount: data.capital, prev: isCompareMode && prevData ? prevData.capital : undefined },
+                { key: "re", label: "이익잉여금", amount: data.retainedEarnings, prev: isCompareMode && prevData ? prevData.retainedEarnings : undefined,
+                  note: "누적 손익 — 손익계산서 당기순이익이 쌓인 것" },
+              ] },
+          ]}
+          total={{ label: "부채와 자본 총계", amount: data.totalLiabilities + data.totalEquity, prev: isCompareMode && prevData ? prevData.totalLiabilities + prevData.totalEquity : undefined }} />
       </div>
 
       {/* 합계 요약 — 자산 vs 부채+자본 (표 바로 아래 정적 요약, sticky 제거: 하단 콘텐츠 위로 떠다니고 헤더와 z충돌하던 문제 수정 2026-06-10) */}
@@ -965,13 +812,6 @@ function BalanceSheetPageInner() {
       )}
 
       {/* 통합 세부 모달 — 자산/부채 항목 클릭 시 열림 */}
-      {detailModal && (
-        <DetailModalView
-          modal={detailModal}
-          isCompareMode={isCompareMode}
-          onClose={() => setDetailModal(null)}
-        />
-      )}
 
       {/* Financial Ratios */}
       <div className="bs-ratios-section">
@@ -1002,148 +842,101 @@ function BalanceSheetPageInner() {
   );
 }
 
+/* ── T자표 한쪽 — 공용 머리단 표 + 계정 줄(누르면 세부 펼침) + 소계·총계 (2026-08-19) ── */
+type BsDetail = { name: string; amount: number; date?: string | null };
+type BsRow = { key: string; label: string; amount: number; prev?: number; details?: BsDetail[]; note?: string };
+type BsSection = { label: string; rows: BsRow[]; subtotalLabel: string; subtotal: number; prevSubtotal?: number };
+function BsSide({ title, sections, total, isCompareMode }: {
+  title: string; sections: BsSection[]; total: { label: string; amount: number; prev?: number }; isCompareMode: boolean;
+}) {
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState<Set<string>>(new Set());
+  const toggle = (k: string) => setOpen((o) => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const cols = isCompareMode ? 3 : 2;
+  const amt = (v: number, bold = false) => (
+    <span className={`mono-number ${bold ? "font-bold" : ""} ${v < 0 ? "text-[var(--danger)]" : ""}`}>{formatKrw(v)}</span>
+  );
+  const deltaCell = (cur: number, prev?: number) => {
+    if (!isCompareMode) return null;
+    const d = prev === undefined ? undefined : cur - prev;
+    return (
+      <td className={`text-right mono-number ${d === undefined || d === 0 ? "text-[var(--text-dim)]" : d > 0 ? "text-[var(--viz-pos)]" : "text-[var(--viz-neg)]"}`}>
+        {d === undefined || d === 0 ? "-" : `${d > 0 ? "+" : ""}${formatKrw(d)} ${d > 0 ? "\u25B2" : "\u25BC"}`}
+      </td>
+    );
+  };
+  const LIMIT = 8;
+  return (
+    <div className="bs-side">
+      <div className="bs-side-title">{title}</div>
+      <table className="ev-table ev-lined bs-t-table">
+        <thead>
+          <tr>
+            <th className="text-left">계정과목</th>
+            <th>금액 (원)</th>
+            {isCompareMode && <th>전월 대비</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {sections.map((sec) => (
+            <Fragment key={sec.label}>
+              <tr className="bs-sec-head"><td colSpan={cols}>{sec.label}</td></tr>
+              {sec.rows.map((r) => {
+                const has = (r.details?.length ?? 0) > 0;
+                const isOpen = open.has(r.key);
+                const list = r.details || [];
+                const shown = showAll.has(r.key) ? list : list.slice(0, LIMIT);
+                const rest = list.length - shown.length;
+                return (
+                  <Fragment key={r.key}>
+                    <tr className={has ? "bs-acct-row bs-acct-row-click" : "bs-acct-row"} onClick={() => has && toggle(r.key)} title={has ? (isOpen ? "세부 접기" : "세부 펼치기") : undefined}>
+                      <td className="text-left">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className={`bs-caret ${has ? "" : "invisible"} ${isOpen ? "rotate-90" : ""}`}>▸</span>
+                          {r.label}
+                          {has && <em className="bs-cnt">{list.length}</em>}
+                          {r.note && <small className="text-[10px] text-[var(--text-dim)]">{r.note}</small>}
+                        </span>
+                      </td>
+                      <td className="text-right">{amt(r.amount)}</td>
+                      {deltaCell(r.amount, r.prev)}
+                    </tr>
+                    {has && isOpen && shown.map((d, i) => (
+                      <tr key={`${r.key}-${i}`} className="bs-detail-row">
+                        <td className="text-left"><span className="bs-detail-name">{d.name}{d.date && <small className="ml-1 text-[var(--text-dim)]">{String(d.date).slice(0, 10)}</small>}</span></td>
+                        <td className="text-right">{amt(d.amount)}</td>
+                        {isCompareMode && <td />}
+                      </tr>
+                    ))}
+                    {has && isOpen && rest > 0 && (
+                      <tr className="bs-detail-row">
+                        <td colSpan={cols} className="text-left">
+                          <button type="button" className="text-[11px] font-semibold text-[var(--primary)] hover:underline pl-7" onClick={(e) => { e.stopPropagation(); setShowAll((o) => new Set(o).add(r.key)); }}>나머지 {rest}건 더 보기</button>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+              <tr className="bs-subtotal-row">
+                <td className="text-left">{sec.subtotalLabel}</td>
+                <td className="text-right">{amt(sec.subtotal, true)}</td>
+                {deltaCell(sec.subtotal, sec.prevSubtotal)}
+              </tr>
+            </Fragment>
+          ))}
+          <tr className="bs-total-row">
+            <td className="text-left">{total.label}</td>
+            <td className="text-right">{amt(total.amount, true)}</td>
+            {deltaCell(total.amount, total.prev)}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ============================================================ */
 /*  Sub-components                                                */
 /* ============================================================ */
 
-function ClickableRow({ label, amount, prevAmount, isCompareMode, onClick }: {
-  label: string;
-  amount: number;
-  prevAmount?: number;
-  isCompareMode: boolean;
-  onClick: () => void;
-}) {
-  const delta = prevAmount !== undefined ? amount - prevAmount : undefined;
-  return (
-    <tr
-      onClick={onClick}
-      style={{ cursor: 'pointer' }}
-      className="bs-clickable-row"
-      title="클릭해서 세부 보기"
-    >
-      <td style={{ padding: "10px 16px", paddingLeft: 32, fontSize: 13, fontWeight: 600, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
-        {label}
-      </td>
-      <td style={{ padding: "10px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", color: amount < 0 ? "var(--danger)" : "var(--text-muted)", whiteSpace: "nowrap" }}>
-        {amount === 0 ? "-" : (amount < 0 ? `(${Math.abs(Math.round(amount)).toLocaleString("ko-KR")})` : Math.round(amount).toLocaleString("ko-KR"))}
-      </td>
-      {isCompareMode && (
-        <td style={{
-          padding: "10px 16px", fontSize: 13, fontWeight: 600, textAlign: "right", whiteSpace: "nowrap",
-          color: delta === undefined || delta === 0 ? "var(--text-dim)" : delta > 0 ? "var(--viz-pos)" : "var(--viz-neg)",
-        }}>
-          {delta === undefined ? "-" : delta === 0 ? "-" : `${delta > 0 ? "+" : ""}${Math.round(delta).toLocaleString("ko-KR")} ${delta > 0 ? "▲" : "▼"}`}
-        </td>
-      )}
-    </tr>
-  );
-}
-
-type SortKey = 'date' | 'name' | 'amount';
-
-function DetailModalView({ modal, isCompareMode, onClose }: {
-  modal: { title: string; total: number; rows: DetailRow[]; prevTotal?: number };
-  isCompareMode: boolean;
-  onClose: () => void;
-}) {
-  const [sortKey, setSortKey] = useState<SortKey>('amount');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-
-  const toggle = (k: SortKey) => {
-    if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(k); setSortDir('desc'); }
-  };
-
-  const sortedRows = [...modal.rows].sort((a, b) => {
-    const dir = sortDir === 'asc' ? 1 : -1;
-    if (sortKey === 'amount') return (a.amount - b.amount) * dir;
-    if (sortKey === 'date') return String(a.date || '').localeCompare(String(b.date || '')) * dir;
-    return String(a.name || '').localeCompare(String(b.name || ''), 'ko') * dir;
-  });
-
-  const arrow = (k: SortKey) => sortKey === k ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
-
-  return (
-    <div onClick={onClose} className="bs-detail-modal-overlay"
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} className="bs-detail-modal"
-        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Header */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{modal.title}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{modal.rows.length}건 · 컬럼 헤더 클릭 시 정렬</div>
-          </div>
-          <button onClick={onClose}
-            style={{ background: 'transparent', border: 'none', fontSize: 18, color: 'var(--text-muted)', cursor: 'pointer' }}>✕</button>
-        </div>
-
-        {/* 합계 */}
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>합계</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>₩{Math.round(modal.total).toLocaleString('ko-KR')}</div>
-          </div>
-          {isCompareMode && modal.prevTotal !== undefined && (
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>전월</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>₩{Math.round(modal.prevTotal).toLocaleString('ko-KR')}</div>
-              {(() => {
-                const delta = modal.total - modal.prevTotal!;
-                return (
-                  <div style={{ fontSize: 11, fontWeight: 600, color: delta === 0 ? 'var(--text-dim)' : delta > 0 ? 'var(--viz-pos)' : 'var(--viz-neg)' }}>
-                    {delta === 0 ? '-' : `${delta > 0 ? '+' : ''}${Math.round(delta).toLocaleString('ko-KR')} ${delta > 0 ? '▲' : '▼'}`}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* 표 */}
-        <div style={{ overflow: 'auto', flex: 1 }}>
-          {sortedRows.length === 0 ? (
-            <div className="py-12 text-center">
-              <div className="text-3xl mb-2"><Ico e="🗂" /></div>
-              <div className="text-[13px] font-semibold text-[var(--text)]">세부 항목이 없습니다.</div>
-              <div className="text-[11px] text-[var(--text-dim)] mt-1">해당 항목에 집계된 내역이 아직 없어요</div>
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 1 }}>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th onClick={() => toggle('date')}
-                    style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', cursor: 'pointer', userSelect: 'none' }}>
-                    날짜{arrow('date')}
-                  </th>
-                  <th onClick={() => toggle('name')}
-                    style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', cursor: 'pointer', userSelect: 'none' }}>
-                    거래처/항목{arrow('name')}
-                  </th>
-                  <th onClick={() => toggle('amount')}
-                    style={{ padding: '10px 16px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', cursor: 'pointer', userSelect: 'none' }}>
-                    금액{arrow('amount')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedRows.map((r, i) => (
-                  <tr key={i}>
-                    <td style={{ padding: '8px 16px', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{r.date || '-'}</td>
-                    <td style={{ padding: '8px 16px', fontSize: 12, color: 'var(--text)' }}>
-                      {r.name}
-                      {r.subText && <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{r.subText}</div>}
-                    </td>
-                    <td style={{ padding: '8px 16px', fontSize: 12, fontWeight: 600, textAlign: 'right', color: 'var(--text)' }}>
-                      ₩{Math.round(r.amount).toLocaleString('ko-KR')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
