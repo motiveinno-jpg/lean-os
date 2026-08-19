@@ -70,6 +70,98 @@ export default function TeamPage() {
       .map(([d, rows]) => [d, [...rows].sort((x, y) => (rank(x.position) - rank(y.position)) || (x.name || "").localeCompare(y.name || ""))] as const);
   }, [filtered]);
 
+
+  // 조직도 이미지(PNG) 내보내기 (2026-08-19 사장님) — 화면 캡처 라이브러리 없이 조직도 데이터를
+  //   캔버스에 직접 그린다(다크모드·CSS 변수 무관, 항상 인쇄용 밝은 배경). 부서 4개씩 줄바꿈.
+  const exportOrgImage = () => {
+    const C = { bg: "#ffffff", border: "#d8dee9", text: "#0f172a", muted: "#64748b", dim: "#94a3b8", primary: "#4f46e5", primarySoft: "#eef2ff", surface: "#f8fafc" };
+    const BOX_W = 224, GAP_X = 24, GAP_Y = 44, MARGIN = 36, COLS = Math.max(1, Math.min(4, orgDepts.length));
+    const deptH = (rows: number) => 34 + rows * 22 + 8;
+    const rowsOf: (typeof orgDepts)[] = [];
+    for (let i = 0; i < orgDepts.length; i += COLS) rowsOf.push(orgDepts.slice(i, i + COLS));
+    const rowHeights = rowsOf.map((r) => Math.max(...r.map(([, list]) => deptH(list.length))));
+    const rootH = 30 + orgCeos.length * 22 + 22;
+    const rootW = 240;
+    const gridW = COLS * BOX_W + (COLS - 1) * GAP_X;
+    const W = Math.max(gridW, rootW) + MARGIN * 2;
+    const H = MARGIN + rootH + GAP_Y + rowHeights.reduce((a, b) => a + b + GAP_Y, 0) - (rowsOf.length ? GAP_Y : 0) + rowHeights.length * 0 + MARGIN;
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = W * scale; canvas.height = H * scale;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(scale, scale);
+    ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+    const font = (size: number, bold = false) => { ctx.font = `${bold ? "700 " : ""}${size}px -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif`; };
+    const ellipsize = (t: string, max: number) => { let v = t; while (v && ctx.measureText(v).width > max) v = v.slice(0, -1); return v === t ? t : v.slice(0, -1) + "…"; };
+    const rr = (x: number, y: number, w: number, h: number, r: number) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
+    const cx = W / 2;
+
+    // 뿌리 — 회사명(작게) + 대표들
+    const rootX = cx - rootW / 2, rootY = MARGIN;
+    rr(rootX, rootY, rootW, rootH, 12); ctx.fillStyle = C.primarySoft; ctx.fill(); ctx.strokeStyle = C.primary; ctx.lineWidth = 1; ctx.stroke();
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    font(10); ctx.fillStyle = C.muted; ctx.fillText(ellipsize(companyName || "우리 회사", rootW - 24), cx, rootY + 14);
+    orgCeos.forEach((e, i) => {
+      font(13, true); ctx.fillStyle = C.text;
+      const nm = e.name || "—"; const pos = e.position || "";
+      const label = pos ? `${nm}  ·  ${pos}` : nm;
+      ctx.fillText(ellipsize(label, rootW - 24), cx, rootY + 30 + i * 22 + 4);
+    });
+    font(10); ctx.fillStyle = C.muted;
+    ctx.fillText(`총 ${filtered.length}명`, cx, rootY + rootH - 12);
+
+    // 가지 — 뿌리 줄기 → 줄마다 가로 버스 → 부서 상자 줄기
+    ctx.strokeStyle = C.border; ctx.lineWidth = 1.5;
+    let y = rootY + rootH;
+    let prevBusY = rootY + rootH;
+    rowsOf.forEach((row, ri) => {
+      const rowW = row.length * BOX_W + (row.length - 1) * GAP_X;
+      const startX = cx - rowW / 2;
+      const busY = y + GAP_Y / 2;
+      const centers = row.map((_, i) => startX + i * BOX_W + BOX_W / 2);
+      ctx.beginPath();
+      ctx.moveTo(cx, prevBusY); ctx.lineTo(cx, busY); // 줄기(이전 버스 → 이번 버스)
+      if (row.length > 1 || Math.abs(centers[0] - cx) > 1) {
+        ctx.moveTo(Math.min(cx, centers[0]), busY); ctx.lineTo(Math.max(cx, centers[centers.length - 1]), busY);
+      }
+      centers.forEach((c) => { ctx.moveTo(c, busY); ctx.lineTo(c, y + GAP_Y); });
+      ctx.stroke();
+      prevBusY = busY;
+
+      // 부서 상자들
+      row.forEach(([dept, list], i) => {
+        const bx = startX + i * BOX_W, by = y + GAP_Y, bh = deptH(list.length);
+        rr(bx, by, BOX_W, bh, 12); ctx.fillStyle = C.bg; ctx.fill(); ctx.strokeStyle = C.border; ctx.stroke();
+        rr(bx, by, BOX_W, 30, 12); ctx.save(); ctx.clip(); ctx.fillStyle = C.surface; ctx.fillRect(bx, by, BOX_W, 30); ctx.restore();
+        ctx.beginPath(); ctx.moveTo(bx, by + 30); ctx.lineTo(bx + BOX_W, by + 30); ctx.strokeStyle = C.border; ctx.stroke();
+        ctx.textAlign = "left"; font(12, true); ctx.fillStyle = C.text;
+        ctx.fillText(ellipsize(dept, BOX_W - 70), bx + 12, by + 16);
+        ctx.textAlign = "right"; font(10); ctx.fillStyle = C.dim;
+        ctx.fillText(`${list.length}명`, bx + BOX_W - 12, by + 16);
+        list.forEach((e, mi) => {
+          const my = by + 34 + mi * 22 + 11;
+          ctx.textAlign = "left"; font(11.5); ctx.fillStyle = C.text;
+          ctx.fillText(ellipsize(e.name || "—", BOX_W - 90), bx + 12, my);
+          ctx.textAlign = "right"; font(10.5); ctx.fillStyle = C.muted;
+          ctx.fillText(ellipsize(e.position || "", 70), bx + BOX_W - 12, my);
+        });
+        ctx.strokeStyle = C.border; // 다음 연결선 색 복구
+      });
+      y = y + GAP_Y + rowHeights[ri];
+    });
+
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement("a");
+      const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+      a.href = URL.createObjectURL(blob);
+      a.download = `조직도_${(companyName || "회사").replace(/[\/:*?"<>|]/g, "")}_${day}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }, "image/png");
+  };
+
   if (!companyId) return <div className="p-8 text-center text-sm text-[var(--text-muted)]">로딩 중...</div>;
 
   const chips: AppliedChip[] = [
@@ -139,6 +231,9 @@ export default function TeamPage() {
               </>
             ) : view === "org" ? (
               <div className="org-chart">
+                <div className="self-end -mb-2">
+                  <button type="button" onClick={exportOrgImage} className="btn-secondary btn-sm">이미지 저장</button>
+                </div>
                 <div className="org-root">
                   <div className="text-[10px] text-[var(--text-dim)]">{companyName || "우리 회사"}</div>
                   {orgCeos.length > 0 ? (
