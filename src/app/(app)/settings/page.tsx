@@ -26,6 +26,7 @@ import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./_components/DealClassificationManager";
 import { CompanyDeleteTab } from "./_components/CompanyDeleteTab";
 import { CompanyInfoTab } from "./_components/CompanyInfoTab";
+import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 // 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
 
@@ -318,56 +319,39 @@ function SettingsPageInner() {
   const groupOf = (leaf: LeafKey) => HUB_GROUPS.find((g) => g.leaves.includes(leaf));
 
   return (
-    <div>
-      {/* ── 잉크 밴드 (시안 B) — 회사 아이덴티티 + 항목 네비를 네이비 한 판에 ── */}
-      <div className="stg-band">
-        <div className="stg-band-top">
-          <div className="min-w-0">
-            <div className="stg-band-name">{hubCompany?.name || "회사 설정"}</div>
-            <div className="stg-band-sub">
-              {hubCompany?.representative ? `대표 ${hubCompany.representative}` : "회사 운영의 기준을 여기서 정합니다"}
-              {hubCompany?.business_number ? ` · ${hubCompany.business_number}` : ""}
-            </div>
+    <div className="qk-shell stg-page">
+      {/* ── 조회 화면 표준 상자 (2026-08-19 설정·도움말 확산) — 예전 잉크 밴드(회사 이름 + 알약 네비) → 갈래 탭 상자 안 파란 밑줄 한 줄 + 설명 줄, 본문만 스크롤 ── */}
+      <QueryScreen>
+        <QueryHead>
+          <div className="collect-tabs no-print stg-tabs" role="tablist" aria-label="회사 설정">
+            {visibleTabs.map((t, i) => {
+              const active = tab === t.key;
+              const st = bandStatus[t.key];
+              const prev = visibleTabs[i - 1];
+              const newGroup = prev && groupOf(prev.key)?.key !== groupOf(t.key)?.key;
+              return (
+                <React.Fragment key={t.key}>
+                  {newGroup && <span className="stg-tab-sep" aria-hidden />}
+                  <button role="tab" aria-selected={active} type="button" onClick={() => setTab(t.key)}
+                    className={`collect-tab ${active ? "collect-tab-on" : ""} ${t.danger ? "stg-tab-danger" : ""}`}>
+                    {t.label}
+                    {st && <span className={`collect-tab-cnt ${st.warn ? "stg-tab-warn" : ""}`}>{st.text}</span>}
+                  </button>
+                </React.Fragment>
+              );
+            })}
           </div>
-          {hubCompany && !hubCompany.business_number && (
-            <button onClick={() => setTab("company-info")} className="stg-band-alert">사업자번호 미입력</button>
-          )}
-        </div>
-        <nav className="stg-band-nav" role="tablist" aria-label="회사 설정">
-          {visibleTabs.map((t, i) => {
-            const active = tab === t.key;
-            const st = bandStatus[t.key];
-            const prev = visibleTabs[i - 1];
-            const newGroup = prev && groupOf(prev.key)?.key !== groupOf(t.key)?.key;
-            return (
-              <React.Fragment key={t.key}>
-                {newGroup && <span className="stg-band-sep" aria-hidden />}
-                <button
-                  role="tab"
-                  aria-selected={active}
-                  ref={(el) => { if (el && active) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" }); }}
-                  onClick={() => setTab(t.key)}
-                  className={`stg-band-item ${t.danger ? "stg-band-item-danger" : ""} ${active ? "stg-band-item-on" : ""}`}
-                >
-                  {t.label}
-                  {st && <small className={st.warn ? "stg-band-item-warn" : ""}>{st.text}</small>}
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </nav>
-      </div>
-
+          <div className="report-desc stg-desc">
+            <b>{hubCompany?.name || "회사 설정"}</b>
+            {hubCompany?.representative ? ` · 대표 ${hubCompany.representative}` : ""}{hubCompany?.business_number ? ` · ${hubCompany.business_number}` : ""}
+            {hubCompany && !hubCompany.business_number && <button type="button" onClick={() => setTab("company-info")} className="stg-band-alert ml-2">사업자번호 미입력</button>}
+            {meta && <span className="stg-desc-meta"> — <b className={meta.danger ? "text-[var(--danger)]" : ""}>{meta.title}</b> · {meta.desc}</span>}
+          </div>
+        </QueryHead>
+        <QueryBody>
+        <div className="stg-scroll">
       <div className="stg-main">
         <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
-
-        {meta && (
-          <header className="stg-head">
-            <div className="stg-head-crumb">설정 / {groupOf(tab)?.label || "회사"}</div>
-            <h2 className={`stg-head-title ${meta.danger ? "text-[var(--danger)]" : ""}`}>{meta.title}</h2>
-            <p className="stg-head-desc">{meta.desc}</p>
-          </header>
-        )}
 
         {/* ═══ 자금·통장 — 가용 현금 집계 + 미연동 통장 + 비용 라우팅 ═══ */}
         {tab === "cash" && (
@@ -686,6 +670,9 @@ function SettingsPageInner() {
 
         {tab === "delete-company" && companyId && permMaster && <CompanyDeleteTab companyId={companyId} />}
       </div>
+        </div>
+        </QueryBody>
+      </QueryScreen>
 
       {confirmElement}
     </div>

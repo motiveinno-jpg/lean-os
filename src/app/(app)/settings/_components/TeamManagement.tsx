@@ -257,20 +257,14 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="team-tabs-bar seg-bar">
+      {/* 보기 칩 — 두 층 탭 금지(2026-08-19 조회 표준): 갈래는 회사 설정 탭 한 줄, 여기는 '보기' 칩 */}
+      <div className="qk-chips mb-3">
         {([
-          { key: "members" as const, label: "멤버" },
-          { key: "employees" as const, label: "멤버 초대" },
-          { key: "partners" as const, label: "파트너 초대" },
+          { key: "members" as const, label: `멤버 ${members.length}` },
+          { key: "employees" as const, label: `멤버 초대 ${empInvites.length}` },
+          { key: "partners" as const, label: `파트너 초대 ${partnerInvites.length}` },
         ]).map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`seg-item flex-1 ${tab === t.key ? "seg-item-active" : ""}`}
-          >
-            {t.label}
-          </button>
+          <button key={t.key} type="button" onClick={() => setTab(t.key)} className={tab === t.key ? "qk-chip qk-chip-on" : "qk-chip"}>{t.label}</button>
         ))}
       </div>
       <div className="team-role-info-banner">
@@ -404,144 +398,62 @@ export function TeamManagement({ companyId }: { companyId: string | null }) {
       {tab === "members" && (
         <div className="team-members-list">
           {members.length === 0 ? (
-            <div className="text-center py-6 text-sm text-[var(--text-muted)]">멤버가 없습니다</div>
+            <div className="collect-empty">멤버가 없습니다</div>
           ) : (
-            members.map((m: any) => (
-              <div key={m.id} className="team-member-row">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[var(--primary-light)] flex items-center justify-center text-[var(--primary)] text-xs font-bold">
-                    {(m.name || m.email)?.[0]?.toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium flex items-center gap-2">
-                      {m.name || m.email?.split("@")[0]}
-                      {memberBadge(m)}
-                    </div>
-                    <div className="text-xs text-[var(--text-dim)]">{m.email}</div>
-                  </div>
-                </div>
-              </div>
-            ))
+            <table className="ev-table ev-lined team-mgmt-table">
+              <thead><tr><th className="text-left">이름</th><th className="text-left">이메일</th><th>역할</th></tr></thead>
+              <tbody>
+                {members.map((m: any) => (
+                  <tr key={m.id}>
+                    <td className="text-left"><span className="inline-flex items-center gap-2"><span className="team-avatar">{(m.name || m.email)?.[0]?.toUpperCase()}</span><b>{m.name || m.email?.split("@")[0]}</b></span></td>
+                    <td className="text-left text-[var(--text-muted)]">{m.email}</td>
+                    <td className="text-center">{memberBadge(m)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       )}
 
-      {/* Employee Invites Tab */}
-      {tab === "employees" && (
-        <div className="team-employee-invites-list">
-          {empInvites.length === 0 ? (
-            <div className="text-center py-6 text-sm text-[var(--text-muted)]">멤버 초대가 없습니다</div>
-          ) : (
-            empInvites.map((inv: any) => (
-              <div key={inv.id} className="team-invite-row">
-                <div>
-                  <div className="text-sm font-medium flex items-center gap-2">
-                    {inv.name || inv.email}
-                    {memberBadge(inv.role || "employee")}
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                      inv.status === "pending" ? "bg-[var(--warning-dim)] text-[var(--warning)]" :
-                      inv.status === "accepted" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-                    }`}>
-                      {inv.status === "pending" ? "대기중" : inv.status === "accepted" ? "수락됨" : "취소됨"}
-                    </span>
-                  </div>
-                  <div className="text-xs text-[var(--text-dim)]">{inv.email}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {emailResult && emailResult.token === inv.invite_token && (
-                    <span className={`text-[10px] font-medium ${emailResult.ok ? "text-green-600" : "text-red-500"}`}>
-                      {emailResult.msg}
-                    </span>
-                  )}
-                  {inv.status === "pending" && (
-                    <>
-                      <button
-                        onClick={() => resendEmail(inv, inv.role || "employee")}
-                        disabled={emailSending === inv.invite_token}
-                        className="text-xs text-[var(--primary)] hover:underline disabled:opacity-50"
-                      >
-                        {emailSending === inv.invite_token ? "발송중..." : "이메일"}
-                      </button>
-                      <button
-                        onClick={() => copyInviteLink(inv.invite_token)}
-                        className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
-                      >
-                        {copiedToken === inv.invite_token ? "복사됨!" : "링크"}
-                      </button>
-                      <button
-                        onClick={() => cancelEmpMut.mutate(inv.id)}
-                        className="text-xs text-red-400/60 hover:text-red-400"
-                      >
-                        취소
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Partner Invites Tab */}
-      {tab === "partners" && (
-        <div className="team-partner-invites-list">
-          {partnerInvites.length === 0 ? (
-            <div className="text-center py-6 text-sm text-[var(--text-muted)]">파트너 초대가 없습니다</div>
-          ) : (
-            partnerInvites.map((inv: any) => (
-              <div key={inv.id} className="team-partner-invite-row">
-                <div>
-                  <div className="text-sm font-medium flex items-center gap-2">
-                    {inv.name || inv.email}
-                    {memberBadge("partner")}
-                    <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${
-                      inv.status === "pending" ? "bg-[var(--warning-dim)] text-[var(--warning)]" :
-                      inv.status === "accepted" ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-                    }`}>
-                      {inv.status === "pending" ? "대기중" : inv.status === "accepted" ? "수락됨" : "취소됨"}
-                    </span>
-                  </div>
-                  <div className="text-xs text-[var(--text-dim)]">
-                    {inv.email}
-                    {inv.deals?.name && <span className="ml-2 text-[var(--text-muted)]">({inv.deals.name})</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {emailResult && emailResult.token === inv.invite_token && (
-                    <span className={`text-[10px] font-medium ${emailResult.ok ? "text-green-600" : "text-red-500"}`}>
-                      {emailResult.msg}
-                    </span>
-                  )}
-                  {inv.status === "pending" && (
-                    <>
-                      <button
-                        onClick={() => resendEmail(inv, "partner")}
-                        disabled={emailSending === inv.invite_token}
-                        className="text-xs text-[var(--primary)] hover:underline disabled:opacity-50"
-                      >
-                        {emailSending === inv.invite_token ? "발송중..." : "이메일"}
-                      </button>
-                      <button
-                        onClick={() => copyInviteLink(inv.invite_token)}
-                        className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)]"
-                      >
-                        {copiedToken === inv.invite_token ? "복사됨!" : "링크"}
-                      </button>
-                      <button
-                        onClick={() => cancelPartnerMut.mutate(inv.id)}
-                        className="text-xs text-red-400/60 hover:text-red-400"
-                      >
-                        취소
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      {/* 초대 목록 — 멤버 초대·파트너 초대 같은 표 (2026-08-19) */}
+      {(tab === "employees" || tab === "partners") && (() => {
+        const list = tab === "employees" ? empInvites : partnerInvites;
+        const isPartner = tab === "partners";
+        return (
+          <div className={isPartner ? "team-partner-invites-list" : "team-employee-invites-list"}>
+            {list.length === 0 ? (
+              <div className="collect-empty">{isPartner ? "파트너 초대가 없습니다" : "멤버 초대가 없습니다"} — 위 '초대하기'로 보냅니다</div>
+            ) : (
+              <table className="ev-table ev-lined team-mgmt-table">
+                <thead><tr><th className="text-left">이름</th><th className="text-left">이메일</th><th>역할</th>{isPartner && <th>프로젝트</th>}<th>상태</th><th>보낸 날</th><th>동작</th></tr></thead>
+                <tbody>
+                  {list.map((inv: any) => (
+                    <tr key={inv.id}>
+                      <td className="text-left font-semibold">{inv.name || inv.email}</td>
+                      <td className="text-left text-[var(--text-muted)]">{inv.email}</td>
+                      <td className="text-center">{memberBadge(isPartner ? "partner" : (inv.role || "employee"))}</td>
+                      {isPartner && <td className="text-center text-[var(--text-muted)]">{inv.deals?.name || "—"}</td>}
+                      <td className="text-center"><span className={`ol-sure ${inv.status === "pending" ? "ol-sure-est" : inv.status === "accepted" ? "ol-sure-ok" : ""}`}>{inv.status === "pending" ? "대기중" : inv.status === "accepted" ? "수락됨" : "취소됨"}</span></td>
+                      <td className="text-center mono-number text-[var(--text-muted)]">{String(inv.created_at || "").slice(0, 10)}</td>
+                      <td className="text-center">
+                        {emailResult && emailResult.token === inv.invite_token && <span className={`mr-2 text-[10px] font-medium ${emailResult.ok ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{emailResult.msg}</span>}
+                        {inv.status === "pending" && (
+                          <span className="inline-flex gap-1.5">
+                            <button type="button" onClick={() => resendEmail(inv, isPartner ? "partner" : (inv.role || "employee"))} disabled={emailSending === inv.invite_token} className="btn-secondary btn-sm">{emailSending === inv.invite_token ? "발송중…" : "이메일"}</button>
+                            <button type="button" onClick={() => copyInviteLink(inv.invite_token)} className="btn-secondary btn-sm">{copiedToken === inv.invite_token ? "복사됨" : "링크"}</button>
+                            <button type="button" onClick={() => (isPartner ? cancelPartnerMut : cancelEmpMut).mutate(inv.id)} className="btn-secondary btn-sm text-[var(--danger)]">취소</button>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
