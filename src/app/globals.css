@@ -9529,3 +9529,7 @@ table.ol-items-table { min-width: 960px; }
 .ol-items-table tbody td { @apply border-b border-[var(--border)]/50 px-2.5 py-1.5 text-xs; }
 .ol-sure:not(.ol-sure-ok):not(.ol-sure-est) { @apply border border-[var(--border)] text-[var(--text-muted)]; }
 .flow-step-no { @apply mr-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary-light)] text-[11px] font-black text-[var(--primary)]; }
+/* 전망 곡선 아래 범례·칩 — 그림에 붙지 않게 (2026-08-19 사장님: 판·요소가 붙어 보임) */
+.bz-body .pnl-panel > .viz-legend { @apply mt-2.5; }
+.bz-body .pnl-panel > .ol-marks { @apply mt-2.5; }
+.bz-body .pnl-panel > .ol-cal, .bz-body .pnl-panel > .ol-gaps, .bz-body .pnl-panel > .bz-kv, .bz-body .pnl-panel > .bz-todos, .bz-body .pnl-panel > .pnl-tbl-wrap { @apply mt-1; }
