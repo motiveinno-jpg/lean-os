@@ -732,28 +732,18 @@ export default function BankPage() {
         <div className="flex flex-wrap items-center gap-2">
           {/*   거래기간 — 다른 화면과 같은 달력 위젯 (2026-08-11). 목록 필터이자 CODEF 연동 기간이라
                 '기간 해제'(전체 기간)를 그대로 남긴다. */}
-          {tab === "accounts" && (
-            <div className="bank-sync-range-filter no-print">
-              <DateRangeField label="거래기간" from={bankTxFrom} to={bankTxTo}
-                onChange={(f, t) => { setBankTxFrom(f); setBankTxTo(t); }}
-                onClear={() => { setBankTxFrom(""); setBankTxTo(""); }} />
-            </div>
-          )}
+          {/* 거래기간은 조회 줄 왼쪽으로 옮겼다 (2026-08-19 조회 표준: 기간·보기는 왼쪽, 실행은 오른쪽 btn-sm) */}
           {/* 연동 일시정지 — 은행에 직접 로그인할 때 우리 앱 동기화가 겹쳐 강제 로그아웃(W98010) 되는 것 방지 */}
           <button
             type="button"
             onClick={() => pauseMut.mutate()}
             disabled={!companyId || pauseMut.isPending}
-            className={`bank-sync-pause no-print ${
-              isSyncPaused
-                ? "bg-amber-500/15 border-amber-500/40 text-amber-600 hover:bg-amber-500/25"
-                : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
-            }`}
+            className={`btn-secondary btn-sm no-print ${isSyncPaused ? "border-amber-500/40 text-amber-600" : ""}`}
             title="데이터 연동 잠시 멈추기 (30분간 중복 로그인 방지) — 은행 사이트에 직접 로그인할 때 우리 앱의 자동 동기화가 겹쳐 강제 로그아웃되는 것을 막습니다"
           >
             {isSyncPaused
-              ? <>▶ 정지 해제 ({new Date(syncPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)</>
-              : <>⏸ 연동 정지</>}
+              ? <>정지 해제 ({new Date(syncPausedUntil!).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}까지)</>
+              : <>연동 정지</>}
           </button>
           <button
             type="button"
@@ -773,22 +763,10 @@ export default function BankPage() {
             // 무료는 disabled 로 막지 않는다 — 눌렀을 때 왜 안 되는지 알려줘야 하는데
             //   disabled 면 클릭 이벤트 자체가 안 온다. 흐릿하게만 표시하고 안내는 onClick 에서.
             disabled={syncing || !companyId || bankCd.disabled || isSyncPaused}
-            className={`btn-primary ${bankCd.disabled || isSyncPaused || (bankSync && !bankSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
+            className={`btn-primary btn-sm ${bankCd.disabled || isSyncPaused || (bankSync && !bankSync.manualAllowed) ? "!opacity-40 cursor-not-allowed" : ""}`}
             title={bankSync && !bankSync.manualAllowed ? "무료 요금제는 즉시 동기화를 쓸 수 없습니다 — 하루 2회 자동 동기화는 그대로 됩니다" : isSyncPaused ? "연동 일시정지 중 — 정지 해제 후 연동" : bankCd.hint ? bankCd.hint : "왼쪽 거래기간을 설정한 뒤 CODEF 은행 연동으로 그 기간의 거래·잔액을 불러옵니다"}
           >
-            {syncing ? (
-              <>
-                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                연동 중...
-              </>
-            ) : bankCd.disabled ? (
-              <>⏳ {bankCd.label}</>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                통장 연동
-              </>
-            )}
+            {syncing ? "연동 중…" : bankCd.disabled ? bankCd.label : "통장 연동"}
           </button>
         </div>
     </>
@@ -806,11 +784,16 @@ export default function BankPage() {
           <QueryHead>
             {tabsEl}
             <QueryBar right={actionsEl}>
+              {tab === "accounts" && (
+                <DateRangeField label="거래기간" from={bankTxFrom} to={bankTxTo}
+                  onChange={(f, t) => { setBankTxFrom(f); setBankTxTo(t); }}
+                  onClear={() => { setBankTxFrom(""); setBankTxTo(""); }} />
+              )}
               {tab === "accounts" && <ChipGroup value={accountsView} onChange={setAccountsView} options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />}
               {tab === "accounts" && accounts.some((a) => a.isHidden) && (
                 <button type="button" onClick={() => setShowHiddenAccts((v) => !v)} className={showHiddenAccts ? "qk-quick qk-quick-on" : "qk-quick"}>숨긴 통장 {accounts.filter((a) => a.isHidden).length}개 {showHiddenAccts ? "감추기" : "보기"}</button>
               )}
-              <span className="text-[11px] text-[var(--text-dim)]">통장 잔액·이번 달 흐름 — 거래를 조건으로 찾으려면 거래내역 탭</span>
+              <span className="text-[11px] text-[var(--text-dim)]">{tab === "accounts" ? "거래기간은 연동 범위이자 표의 '이번 달 변화' 기준 · 거래를 조건으로 찾으려면 거래내역 탭" : "통장 잔액·이번 달 흐름 — 거래를 조건으로 찾으려면 거래내역 탭"}</span>
             </QueryBar>
             {/* 결과 요약 — 예전 stat 4 그라데이션 카드(총 자산·이번 달 수익·지출·분류 완료율)를 Stat 줄로 (2026-08-19 자금 메뉴 점검) */}
             <ResultStrip>
