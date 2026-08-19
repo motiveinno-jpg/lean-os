@@ -48,6 +48,8 @@ export const HR_TYPES = [
 type TemplatesScope = "business" | "hr";
 
 export const isHrType = (type?: string) => HR_TYPES.includes(type || "");
+//   표 '유형' 칸 — DOC_TYPES 에 없는 인사 유형 코드의 우리말 (2026-08-19)
+const HR_TYPE_LABEL: Record<string, string> = { hr_contract: "인사 계약", employment: "근로계약서", salary_contract: "연봉계약서", comprehensive_labor: "포괄임금 근로계약서", non_compete: "겸업금지서약서", privacy_consent: "개인정보 동의서" };
 
 // ── Templates Tab (공용) ──
 //   scope="business" → 전자계약 양식(계약서·견적서 등), scope="hr" → 인사 양식(근로계약서 등).
@@ -407,59 +409,34 @@ export function TemplatesTab({ scope, companyId, userId, templates, onInvalidate
         </div>
       ))}
 
-      {/* Templates List */}
-      <div className="templates-list glass-card">
+      {/* Templates List — 표 (2026-08-19 인사·전자계약 UI 점검: 이름만 줄줄이 → 이름·유형·변수·수정일·동작 표) */}
+      <div className="templates-list">
         {scopedTemplates.length === 0 ? (
-          <div className="templates-list-empty">
-            <div className="text-4xl mb-4"><Ico e="📝" /></div>
-            <div className="text-lg font-bold mb-2">등록된 양식이 없습니다</div>
-            <div className="text-sm text-[var(--text-muted)] mb-4">
-              {scope === "hr"
-                ? "표준근로계약서 등 인사 양식을 한번에 등록하거나, 직접 만들 수 있습니다"
-                : "계약서·견적서 등 기본 양식을 한번에 등록하거나, 직접 만들 수 있습니다"}
-            </div>
-            <button
-              onClick={seedDefaults}
-              disabled={seeding}
-              className="btn-primary"
-            >
-              {seeding ? "등록 중..." : "기본 양식 등록하기"}
-            </button>
+          <div className="collect-empty">
+            등록된 양식이 없습니다 — {scope === "hr" ? "표준근로계약서 등 인사 양식을 한번에 등록하거나, 직접 만들 수 있습니다" : "계약서·견적서 등 기본 양식을 한번에 등록하거나, 직접 만들 수 있습니다"}
+            <span className="ml-3"><button type="button" onClick={seedDefaults} disabled={seeding} className="btn-secondary btn-sm">{seeding ? "등록 중…" : "기본 양식 등록하기"}</button></span>
           </div>
         ) : (
-          <div className="divide-y divide-[var(--border)]/50">
-            {scopedTemplates.map((tpl: any) => {
-              return (
-                <div key={tpl.id} className="template-row">
-                  <div className="template-row-header">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="template-row-badges">
-                          <span className="text-sm font-medium">{tpl.name}</span>
-                        </div>
-                      </div>
-                      <div className="template-row-actions">
-                        <button onClick={() => setPreviewId(tpl.id)}
-                          className="text-xs text-[var(--text-muted)] hover:text-[var(--text)] transition">
-                          미리보기
-                        </button>
-                        <button onClick={() => startEdit(tpl)}
-                          className="text-xs text-[var(--primary)] hover:underline font-medium transition">
-                          수정
-                        </button>
-                        <button onClick={async () => {
-                          if (await appConfirm(`"${tpl.name}" 양식을 삭제하시겠습니까?`, { danger: true })) deleteMut.mutate(tpl.id);
-                        }}
-                          className="text-xs text-red-400 hover:text-red-500 font-medium transition">
-                          삭제
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <table className="ev-table ev-lined templates-table">
+            <thead><tr><th className="text-left">이름</th><th>유형</th><th>변수</th><th>수정일</th><th>동작</th></tr></thead>
+            <tbody>
+              {scopedTemplates.map((tpl: any) => (
+                <tr key={tpl.id} className="pnl-row-acct" onClick={() => setPreviewId(tpl.id)}>
+                  <td className="text-left font-semibold">{tpl.name}</td>
+                  <td className="text-center text-[var(--text-muted)]">{DOC_TYPES.find((t) => t.value === tpl.type)?.label || HR_TYPE_LABEL[tpl.type] || tpl.type || "—"}</td>
+                  <td className="text-center mono-number">{Array.isArray(tpl.variables) ? tpl.variables.length : 0}</td>
+                  <td className="text-center mono-number">{String(tpl.updated_at || tpl.created_at || "").slice(0, 10) || "—"}</td>
+                  <td className="text-center">
+                    <span className="inline-flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" onClick={() => setPreviewId(tpl.id)} className="btn-secondary btn-sm">미리보기</button>
+                      <button type="button" onClick={() => startEdit(tpl)} className="btn-secondary btn-sm">수정</button>
+                      <button type="button" onClick={async () => { if (await appConfirm(`"${tpl.name}" 양식을 삭제하시겠습니까?`, { danger: true })) deleteMut.mutate(tpl.id); }} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
