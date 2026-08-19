@@ -1,7 +1,7 @@
 "use client";
 import { logRead } from "@/lib/log-read";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -100,7 +100,9 @@ export default function NotificationsPage() {
 
   // ── 조회 표준 ──
   const [q, setQ] = useState("");
-  const [view, setView] = useState<"all" | "unread">("all");
+  //   들어오면 안읽음부터 (2026-08-19 사장님: 전체가 기본이라 읽은 것까지 한꺼번에 나옴). 안읽음이 0건이면 한 번만 전체로.
+  const [view, setView] = useState<"all" | "unread">("unread");
+  const autoSwitched = useRef(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [draft, setDraft] = useState<Cond>(EMPTY);
   const [live, setLive] = useState<Cond>(EMPTY);
@@ -144,6 +146,7 @@ export default function NotificationsPage() {
   ];
 
   const unread = rows.filter(r => !r.is_read).length;
+  useEffect(() => { if (!loading && !autoSwitched.current) { autoSwitched.current = true; if (unread === 0) setView("all"); } }, [loading, unread]);
   const open = (n: NotificationRow) => {
     if (!n.is_read) markOneRead(n.id);
     router.push(resolveNotificationHref(n, quoteMap));
