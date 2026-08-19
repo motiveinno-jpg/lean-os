@@ -3,6 +3,8 @@
 // 예쁜 커스텀 날짜 선택 — 네이티브 <input type="date"> 드롭인 대체.
 //   onChange 는 input 호환({ target: { value } })이라 기존 핸들러(e.target.value) 그대로 동작.
 //   value/onChange/min/max/className/disabled/placeholder/id/name 지원. body 포털로 어디서든 안 잘림.
+//   2026-08-19 사장님: ① 칸에서 숫자를 키보드로 바로 입력 가능(20260821 · 2026-8-21 · 0821 · 8-21,
+//   Enter 로 반영) ② 머리의 "YYYY년 M월"을 누르면 연·월 선택 모드로 바뀌어 연 단위 이동.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { getHoliday } from "@/lib/holidays";
@@ -20,6 +22,28 @@ function parseYmd(v?: string | null): { y: number; m: number; d: number } | null
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
 
+// 자유 입력 해석 — 구분자(-, ., /, 공백, 년월일) 허용. 8자리=YMD · 4자리=올해 MMDD ·
+//   두 조각=올해 M-D · 세 조각=Y-M-D. 실제 존재하는 날짜만 통과(2/30 등 거부).
+function parseLoose(text: string, fallbackYear: number): { y: number; m: number; d: number } | null {
+  const s = text.trim().replace(/[.\s/년월일]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!s) return null;
+  let y: number, m: number, d: number;
+  if (/^\d{8}$/.test(s)) { y = +s.slice(0, 4); m = +s.slice(4, 6); d = +s.slice(6, 8); }
+  else if (/^\d{4}$/.test(s)) { y = fallbackYear; m = +s.slice(0, 2); d = +s.slice(2, 4); }
+  else {
+    const parts = s.split("-").filter(Boolean);
+    if (parts.some((p) => !/^\d+$/.test(p))) return null;
+    const nums = parts.map(Number);
+    if (nums.length === 3) [y, m, d] = nums as [number, number, number];
+    else if (nums.length === 2) { y = fallbackYear; [m, d] = nums as [number, number]; }
+    else return null;
+  }
+  if (y < 1900 || y > 2200 || m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return { y, m, d };
+}
+
 export function DateField({
   value, onChange, min, max, className = "", disabled, placeholder = "연도-월-일", id, name,
   title, style, autoFocus, onBlur,
@@ -32,13 +56,19 @@ export function DateField({
   title?: string; style?: CSSProperties; autoFocus?: boolean; onBlur?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [pick, setPick] = useState(false); // 연·월 선택 모드 (머리 클릭)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
+  const btnRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const sel = parseYmd(value);
   const today = new Date();
   const [view, setView] = useState(() => sel ? { y: sel.y, m: sel.m } : { y: today.getFullYear(), m: today.getMonth() + 1 });
+  // 키보드 입력 초안 — 편집 중이 아닐 땐 항상 저장값을 비춘다
+  const [draft, setDraft] = useState(value || "");
+  const [editing, setEditing] = useState(false);
+  const committedRef = useRef(false);
 
-  useEffect(() => { if (sel) setView({ y: sel.y, m: sel.m }); /* eslint-disable-next-line */ }, [value]);
+  useEffect(() => { if (sel) setView({ y: sel.y, m: sel.m }); if (!editing) setDraft(value || ""); /* eslint-disable-next-line */ }, [value]);
 
   useEffect(() => {
     if (!open) return;
@@ -49,24 +79,60 @@ export function DateField({
     return () => { window.removeEventListener("mousedown", onDoc); window.removeEventListener("keydown", onKey); };
   }, [open]);
 
+  const place = () => {
+    if (!btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const W = 256, H = 300;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
+    const top = r.bottom + H > window.innerHeight ? Math.max(8, r.top - H - 4) : r.bottom + 4;
+    setPos({ top, left });
+  };
+  const openPop = () => { if (disabled || open) return; place(); setPick(false); setOpen(true); };
   const toggle = () => {
     if (disabled) return;
-    if (!open && btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      const W = 256, H = 300;
-      const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
-      const top = r.bottom + H > window.innerHeight ? Math.max(8, r.top - H - 4) : r.bottom + 4;
-      setPos({ top, left });
-    }
+    if (!open) { place(); setPick(false); }
     setOpen((o) => !o);
   };
-  const emit = (v: string) => { onChange?.({ target: { value: v } }); setOpen(false); };
+  const emit = (v: string) => {
+    committedRef.current = true;
+    onChange?.({ target: { value: v } });
+    setEditing(false);
+    setDraft(v);
+    setOpen(false);
+  };
 
   // autoFocus: 마운트 시 달력 자동 오픈 (인라인 편집 셀용)
-  useEffect(() => { if (autoFocus) toggle(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { if (autoFocus) { inputRef.current?.focus(); toggle(); } /* eslint-disable-next-line */ }, []);
   // onBlur: 팝오버가 닫힐 때 호출 (편집 종료 신호)
   const prevOpen = useRef(false);
-  useEffect(() => { if (prevOpen.current && !open) onBlur?.(); prevOpen.current = open; /* eslint-disable-next-line */ }, [open]);
+  useEffect(() => { if (prevOpen.current && !open) { setPick(false); onBlur?.(); } prevOpen.current = open; /* eslint-disable-next-line */ }, [open]);
+
+  // ── 키보드 입력 ──
+  const handleType = (raw: string) => {
+    setEditing(true);
+    setDraft(raw);
+    const p = parseLoose(raw, view.y);
+    if (p) setView({ y: p.y, m: p.m }); // 치는 대로 달력이 따라간다
+  };
+  const commitDraft = () => {
+    const t = draft.trim();
+    if (t === "") { emit(""); return; }
+    const p = parseLoose(t, view.y);
+    if (!p) { setEditing(false); setDraft(value || ""); return; } // 해석 불가 — 원래 값으로
+    const v = ymd(p.y, p.m, p.d);
+    if ((min && v < min) || (max && v > max)) { setEditing(false); setDraft(value || ""); return; }
+    emit(v);
+  };
+  const handleInputBlur = () => {
+    // 팝오버(포털) 클릭으로 빠지는 블러는 무시 — 확정은 Enter/날짜 클릭으로
+    setTimeout(() => {
+      if (committedRef.current) { committedRef.current = false; return; }
+      const pop = document.getElementById("datefield-pop");
+      if (pop && pop.contains(document.activeElement)) return;
+      setEditing(false);
+      setDraft(value || "");
+    }, 120);
+  };
 
   // 달력 그리드
   const first = new Date(view.y, view.m - 1, 1);
@@ -87,30 +153,64 @@ export function DateField({
   const nextMonth = () => setView((v) => v.m === 12 ? { y: v.y + 1, m: 1 } : { y: v.y, m: v.m + 1 });
   const prevYear = () => setView((v) => ({ y: v.y - 1, m: v.m }));
   const nextYear = () => setView((v) => ({ y: v.y + 1, m: v.m }));
+  const prevYear10 = () => setView((v) => ({ y: v.y - 10, m: v.m }));
+  const nextYear10 = () => setView((v) => ({ y: v.y + 10, m: v.m }));
 
   const popStyle: CSSProperties = pos ? { position: "fixed", top: pos.top, left: pos.left, width: 256, zIndex: 90 } : { display: "none" };
+  const navBtnCls = "w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center";
 
   return (
     <>
-      <button ref={btnRef} type="button" id={id} disabled={disabled} onClick={toggle} title={title} style={style}
-        className={`date-field-button ${className} ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
-        <span className={value ? "text-[var(--text)] mono-number" : "text-[var(--text-dim)]"}>{value || placeholder}</span>
-        <svg className="w-3.5 h-3.5 shrink-0 text-[var(--text-dim)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-      </button>
+      <div ref={btnRef} title={title} style={style}
+        onClick={() => { if (!disabled) { inputRef.current?.focus(); openPop(); } }}
+        className={`date-field-button ${className} ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-text"}`}>
+        <input
+          ref={inputRef}
+          id={id}
+          type="text"
+          inputMode="numeric"
+          disabled={disabled}
+          value={editing ? draft : (value || "")}
+          placeholder={placeholder}
+          onChange={(e) => handleType(e.target.value)}
+          onFocus={openPop}
+          onBlur={handleInputBlur}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); commitDraft(); }
+            if (e.key === "Escape") { setEditing(false); setDraft(value || ""); setOpen(false); }
+          }}
+          className={`date-field-typed-input mono-number ${value || editing ? "text-[var(--text)]" : ""}`}
+        />
+        <svg onClick={(e) => { e.stopPropagation(); toggle(); }} className="w-3.5 h-3.5 shrink-0 text-[var(--text-dim)] cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
       {name && <input type="hidden" name={name} value={value || ""} readOnly />}
       {open && typeof document !== "undefined" && createPortal(
         <div id="datefield-pop" style={popStyle} className="date-field-popover">
           <div className="date-field-popover-header">
             <div className="flex items-center gap-0.5">
-              <button type="button" onClick={prevYear} title="이전 연도" className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center text-xs font-bold">«</button>
-              <button type="button" onClick={prevMonth} title="이전 달" className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center">‹</button>
+              <button type="button" onClick={pick ? prevYear10 : prevYear} title={pick ? "10년 전" : "이전 연도"} className={`${navBtnCls} text-xs font-bold`}>«</button>
+              <button type="button" onClick={pick ? prevYear : prevMonth} title={pick ? "이전 연도" : "이전 달"} className={navBtnCls}>‹</button>
             </div>
-            <div className="text-sm font-bold text-[var(--text)] tabular-nums">{view.y}년 {view.m}월</div>
+            {/* 머리 클릭 → 연·월 선택 모드 (2026-08-19 사장님: 연 단위 이동) */}
+            <button type="button" onClick={() => setPick((p) => !p)} title={pick ? "일 선택으로 돌아가기" : "연·월 바로 이동"}
+              className="text-sm font-bold text-[var(--text)] tabular-nums px-2 py-0.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
+              {pick ? `${view.y}년` : `${view.y}년 ${view.m}월`}<span className="ml-1 text-[9px] text-[var(--text-dim)]">▾</span>
+            </button>
             <div className="flex items-center gap-0.5">
-              <button type="button" onClick={nextMonth} title="다음 달" className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center">›</button>
-              <button type="button" onClick={nextYear} title="다음 연도" className="w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center text-xs font-bold">»</button>
+              <button type="button" onClick={pick ? nextYear : nextMonth} title={pick ? "다음 연도" : "다음 달"} className={navBtnCls}>›</button>
+              <button type="button" onClick={pick ? nextYear10 : nextYear} title={pick ? "10년 후" : "다음 연도"} className={`${navBtnCls} text-xs font-bold`}>»</button>
             </div>
           </div>
+          {pick ? (
+            <div className="date-field-month-grid">
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <button key={m} type="button" onClick={() => { setView((v) => ({ y: v.y, m })); setPick(false); }}
+                  className={`date-field-month-btn ${view.m === m ? "date-field-month-btn-on" : ""}`}>
+                  {m}월
+                </button>
+              ))}
+            </div>
+          ) : (<>
           <div className="date-field-weekday-row">
             {WD.map((w, i) => (
               <div key={w} className={`date-field-weekday ${i === 0 ? "text-red-400" : i === 6 ? "text-blue-400" : "text-[var(--text-dim)]"}`}>{w}</div>
@@ -145,6 +245,7 @@ export function DateField({
             <button type="button" onClick={() => emit("")} className="date-field-clear-btn">지우기</button>
             <button type="button" onClick={() => emit(ymd(today.getFullYear(), today.getMonth() + 1, today.getDate()))} className="date-field-today-btn">오늘</button>
           </div>
+          </>)}
         </div>,
         document.body,
       )}

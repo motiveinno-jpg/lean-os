@@ -113,6 +113,10 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
     return { year, monthIdx0: monthIdx0 + 1 };
   });
   const goToday = () => setView({ year: today.getFullYear(), monthIdx0: today.getMonth() });
+  // 머리('YYYY년 M월') 클릭 → 연 단위 이동 버튼 노출 (2026-08-19 사장님: 모든 달력 공통)
+  const [yearNav, setYearNav] = useState(false);
+  const prevYear = () => setView(({ year, monthIdx0 }) => ({ year: year - 1, monthIdx0 }));
+  const nextYear = () => setView(({ year, monthIdx0 }) => ({ year: year + 1, monthIdx0 }));
 
   const openAdd = (dateStr: string) => {
     setSelectedDate(dateStr);
@@ -131,7 +135,16 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
             <button type="button" onClick={goToday} className="qk-quick">오늘</button>
             <button type="button" onClick={nextMonth} className="qk-quick" aria-label="다음 달">▶</button>
           </span>
-          <b className="text-sm text-[var(--text)]">{view.year}년 {view.monthIdx0 + 1}월</b>
+          <button type="button" onClick={() => setYearNav((v) => !v)} title="누르면 연 단위 이동 버튼이 나타납니다"
+            className="text-sm font-bold text-[var(--text)] tabular-nums px-1.5 py-0.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
+            {view.year}년 {view.monthIdx0 + 1}월<span className="ml-1 text-[9px] text-[var(--text-dim)]">▾</span>
+          </button>
+          {yearNav && (
+            <span className="qk-quicks fw-week-nav">
+              <button type="button" onClick={prevYear} className="qk-quick" aria-label="이전 해">◀ 1년</button>
+              <button type="button" onClick={nextYear} className="qk-quick" aria-label="다음 해">1년 ▶</button>
+            </span>
+          )}
           {/* 보기 전환 — 무엇이 보이는지는 공개 범위(RLS)가 정한다. 여기서는 내 것만 좁혀 볼 뿐 */}
           <ChipGroup value={scope} onChange={setScope} options={[{ value: "all", label: "전체" }, { value: "mine", label: "내 것만" }] as const} />
           <span className="text-[11px] text-[var(--text-dim)]">
