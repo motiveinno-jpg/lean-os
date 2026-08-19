@@ -39,6 +39,8 @@ export default function MyPage() {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [tab, setTab] = useState<MyPageTab>("records");
+  // 연봉 기본 가림 (2026-08-19 사장님: 급여가 화면에 바로 보이면 안 됨) — 눌러야 표시.
+  const [showSalary, setShowSalary] = useState(false);
   const { role, user: ctxUser, refresh } = useUser();
   // 휴가 유형 이름은 회사 설정을 따른다 — 구성원 > 휴가 탭에서 바꾸면 직원 화면도 같이 바뀐다.
   //   queryKey 는 휴가 탭과 동일해 캐시를 공유한다. (2026-08-06)
@@ -389,10 +391,12 @@ export default function MyPage() {
               <div className={`font-medium ${st?.color || ""}`}>{st?.label || employee.status}</div>
             </div>
             {Number(employee.salary) > 0 && (
-              <div className="mypage-info-tile">
+              <button type="button" onClick={() => setShowSalary((v) => !v)} className="mypage-info-tile text-left cursor-pointer" title={showSalary ? "누르면 가립니다" : "누르면 표시됩니다"}>
                 <div className="text-xs text-[var(--text-dim)] mb-0.5">연봉</div>
-                <div className="font-medium mono-number">₩{(Number(employee.salary) * 12).toLocaleString()}</div>
-              </div>
+                <div className={`font-medium mono-number ${showSalary ? "" : "text-[var(--text-dim)] tracking-widest"}`}>
+                  {showSalary ? `₩${(Number(employee.salary) * 12).toLocaleString()}` : "₩ ••••••"}
+                </div>
+              </button>
             )}
             {employee.employee_number && (
               <div className="mypage-info-tile">

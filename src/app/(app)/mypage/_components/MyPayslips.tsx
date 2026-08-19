@@ -86,7 +86,11 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="text-right">
                       <div className="text-[10px] text-[var(--text-dim)]">실수령액</div>
-                      <div className="text-sm font-bold mono-number text-[var(--success)]">{won(p.net_pay)}</div>
+                      {/* 금액은 기본 가림 — 펼쳤을 때만 표시 (2026-08-19 사장님: 화면 열자마자
+                          급여가 보이면 안 됨. 어깨너머 노출 방지). */}
+                      <div className={`text-sm font-bold mono-number ${open ? "text-[var(--success)]" : "text-[var(--text-dim)] tracking-widest"}`}>
+                        {open ? won(p.net_pay) : "₩ ••••••"}
+                      </div>
                     </div>
                     <svg className={`w-4 h-4 text-[var(--text-muted)] transition-transform ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                       <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />

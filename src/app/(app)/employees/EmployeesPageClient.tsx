@@ -901,6 +901,24 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   }, [monthLeaves]);
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
+  // 결근 파생용 — 회사 공휴일 (2026-08-19 사장님: 공휴일에 출근 안 한 날이 결근으로 표시됨).
+  //   지각 판정(attendance-checkin 엣지)은 이미 holidays 를 보는데 결근 파생만 주말 제외였다.
+  const { data: monthHolidays = [] } = useQuery({
+    queryKey: ["attendance-cal-holidays", companyId, selectedMonth],
+    queryFn: async () => {
+      const data = logRead('employees/page:holidays', await (supabase).from("holidays")
+        .select("date")
+        .eq("company_id", companyId)
+        .gte("date", monthStart).lte("date", monthEnd));
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+  const holidayDaySet = useMemo(
+    () => new Set((monthHolidays as any[]).map((h) => String(h.date).slice(0, 10))),
+    [monthHolidays],
+  );
+
   // Monthly summary
   const { data: summary = [] } = useQuery({
     queryKey: ["attendance-summary", companyId, selectedMonth],
@@ -1245,12 +1263,14 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
 
                 // Get all employee statuses for this day, aggregated into per-status counts
                 //   (시안: 사람별 칩이 아니라 "●출근 7" 처럼 상태별 집계 pill — 개인 목록은 우측 선택일 패널에서).
-                const isPastWeekday = dateStr < todayStr && !isWeekend;
+                // 공휴일 제외 (2026-08-19): 주말만 빼고 공휴일을 안 봐서 광복절 등 쉬는 날이
+                //   전 직원 결근으로 표시됐다. 지각 판정(엣지)과 동일하게 holidays 를 반영.
+                const isPastWeekday = dateStr < todayStr && !isWeekend && !holidayDaySet.has(dateStr);
                 const dayStatusCounts = new Map<string, number>();
                 activeEmployees.forEach((emp: any) => {
                   const rec = records.find((r: any) => r.employee_id === emp.id && r.date === dateStr);
                   let status = rec ? effectiveStatus(rec) : (calendarData.empMap[emp.id]?.[dateStr] || null);
-                  // 결근 파생: 기록 없는 과거 평일 + 휴가 아님 + 입사일 이후 → 결근 (토글 ON일 때만)
+                  // 결근 파생: 기록 없는 과거 평일(공휴일 제외) + 휴가 아님 + 입사일 이후 → 결근 (토글 ON일 때만)
                   if (!status && isPastWeekday && showDerivedAbsence) {
                     const onLeave = leaveDaySet.has(`${emp.id}:${dateStr}`);
                     const employed = !emp.hire_date || dateStr >= String(emp.hire_date).slice(0, 10);
