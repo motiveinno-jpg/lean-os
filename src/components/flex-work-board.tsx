@@ -254,9 +254,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
         {!isEmployee && (
           <ResultStrip right={
             <button type="button" onClick={() => setShowAbsent((v) => !v)}
-              className={showAbsent ? "fw-absent-btn fw-absent-btn-on" : "fw-absent-btn"}
+              className={showAbsent ? "btn-secondary btn-sm border-[var(--primary)] text-[var(--primary)]" : "btn-secondary btn-sm"}
               title="클릭하면 이번주 결근자 명단이 아래에 표시됩니다">
-              결근 {absentDayCount}건 {showAbsent ? "▴" : "▾"}
+              결근자 명단 {showAbsent ? "접기 ▴" : "펼치기 ▾"}
             </button>
           }>
             <Stat label="평균" value={hm(teamAvg)} />

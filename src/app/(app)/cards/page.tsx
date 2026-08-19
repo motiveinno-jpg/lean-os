@@ -23,7 +23,6 @@ import { friendlyError } from "@/lib/friendly-error";
 import { CardBillingSummary } from "@/components/card-billing-summary";
 import { getBankSyncAccess } from "@/lib/billing";
 import { TopCardExpensesThisMonth, CardAutoTransferHistory, CardMonthlyUsage } from "@/components/card-insights";
-import { SortToolbar } from "@/components/sort-toolbar";
 import { SortableTh, useColWidths, type ThFilterSpec } from "@/components/sortable-th";
 import { BankLogo } from "@/components/bank-logo";
 import {
@@ -853,77 +852,55 @@ export default function CardsPage() {
             {/* 카드 선택 시에만 그 카드 거래내역 노출. 닫기 → 영역 자체 hide.
                 전체 카드 거래는 별도 거래내역 탭에서 제공하므로 미선택 시 영역 없음. */}
             {(selectedCardId || selectedCardName) && (
-              <section id="card-tx-detail" className="card-tx-detail-panel">
-                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                  <h3 className="text-lg font-bold text-[var(--text)]">
-                    {selectedCardLabel} 거래내역 <span className="text-sm font-normal text-[var(--text-dim)]">({cardTx.length}건)</span>
-                  </h3>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <input value={cardTxSearch} onChange={(e) => setCardTxSearch(e.target.value)} placeholder="가맹점·계정·사유·태그·직원 검색"
-                      className="px-3 py-1.5 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs w-52 outline-none focus:border-[var(--primary)]" />
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedCardId(""); setSelectedCardName(""); setCardTxFrom(""); setCardTxTo(""); }}
-                      className="btn-secondary btn-sm"
-                    >
-                      ✕ 닫기
-                    </button>
-                  </div>
+              <section id="card-tx-detail" className="card-tx-detail-panel pnl-panel">
+                {/* 2026-08-19 정리 — 큰 제목·정렬 칩·유리 줄 카드 → 얇은 판 + 표(머리단 정렬) */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="!mb-0">{selectedCardLabel} 거래내역 <small className="font-normal text-[var(--text-dim)]">{cardTx.length}건 · {cardTxFrom || cardTxTo ? "위 카드 거래 기간" : "전체 기간"}</small></h3>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    <input value={cardTxSearch} onChange={(e) => setCardTxSearch(e.target.value)} placeholder="가맹점·계정·사유·태그·직원" className="qk-input h-8 w-56 px-2.5 text-xs" />
+                    <button type="button" onClick={() => { setSelectedCardId(""); setSelectedCardName(""); setCardTxFrom(""); setCardTxTo(""); }} className="btn-secondary btn-sm">닫기</button>
+                  </span>
                 </div>
-                <div className="mb-2">
-                  <SortToolbar
-                    options={[
-                      { key: "transaction_date", label: "날짜" },
-                      { key: "merchant_name", label: "가맹점" },
-                      { key: "category", label: "계정과목" },
-                      { key: "card_name", label: "카드" },
-                      { key: "amount", label: "금액" },
-                    ]}
-                    sortKey={cardSortKey}
-                    sortDir={cardSortDir}
-                    onSort={(k) => { if (cardSortKey === k) setCardSortDir((d) => (d === "asc" ? "desc" : "asc")); else { setCardSortKey(k); setCardSortDir(k === "transaction_date" || k === "amount" ? "desc" : "asc"); } }}
-                  />
-                </div>
-                <div className="space-y-2 max-h-[560px] overflow-y-auto pr-1">
-                  {shownCardTx.length === 0 ? (
-                    <EmptyState
-                      card
-                      icon="🧾"
-                      title={(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"}
-                      desc="기간을 조정하거나 상단의 카드 연동으로 거래를 불러오세요"
-                    />
-                  ) : shownCardTx.map((tx: any) => (
-                    <div key={tx.id} className="card-tx-list-item glass-card">
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-[var(--bg-surface)] flex items-center justify-center text-lg shrink-0">
-                          <Ico e={categoryEmoji(classificationLabel(tx.classification) || tx.category)} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm text-[var(--text)] truncate">{tx.merchant_name || "(가맹점 미상)"}</p>
-                          <p className="text-xs text-[var(--text-muted)] truncate">{(classificationLabel(tx.classification) || tx.category || "미분류")} · {tx.card_name || "카드"}</p>
-                          {(tx.memo || (tx.tags && tx.tags.length) || tx.used_by_employee_id) && (
-                            <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                              {tx.used_by_employee_id && empNameById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium shrink-0"><Ico e="👤" /> {empNameById[tx.used_by_employee_id]}</span>}
-                              {(tx.tags || []).map((t: string) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)] shrink-0">#{t}</span>)}
-                              {tx.memo && <span className="text-[10px] text-[var(--text-dim)] truncate max-w-[220px]" title={tx.memo}><Ico e="📝" /> {tx.memo}</span>}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <p className={`text-sm sm:text-base font-bold mono-number ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>
-                          {Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}
-                        </p>
-                        <span className="text-xs text-[var(--text-dim)] hidden sm:inline mono-number">{tx.transaction_date}{tx.transaction_time ? ` ${String(tx.transaction_time).slice(0, 5)}` : ""}</span>
-                        {tx.journal_entry_id ? (
-                          <span className="text-[10px] px-2 py-1 rounded-lg bg-[var(--success-dim)] text-[var(--success)] font-semibold shrink-0">전표처리됨</span>
-                        ) : (
-                          <button onClick={() => openPost(tx)} className="text-[11px] px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 shrink-0 font-semibold">전표처리</button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {shownCardTx.length === 0 ? (
+                  <div className="collect-empty mt-2">{(cardTxFrom || cardTxTo) ? "이 기간에 거래내역이 없습니다" : "이 카드의 거래내역이 없습니다"} — 기간을 조정하거나 카드 연동으로 거래를 불러오세요</div>
+                ) : (
+                  <div className="ev-scroll mt-2 max-h-[560px]"><table className="ev-table ev-lined card-tx-table">
+                    <thead>
+                      <tr>
+                        {([["transaction_date", "날짜"], ["merchant_name", "가맹점"], ["category", "계정과목"], ["card_name", "카드"]] as [string, string][]).map(([k, l]) => (
+                          <th key={k} className={k === "merchant_name" ? "text-left" : ""}>
+                            <button type="button" className="ev-th-btn" onClick={() => { if (cardSortKey === k) setCardSortDir((d) => (d === "asc" ? "desc" : "asc")); else { setCardSortKey(k); setCardSortDir(k === "transaction_date" ? "desc" : "asc"); } }}>
+                              {l}{cardSortKey === k ? (cardSortDir === "asc" ? " ▲" : " ▼") : ""}
+                            </button>
+                          </th>
+                        ))}
+                        <th>사용자 · 태그 · 메모</th>
+                        <th><button type="button" className="ev-th-btn" onClick={() => { if (cardSortKey === "amount") setCardSortDir((d) => (d === "asc" ? "desc" : "asc")); else { setCardSortKey("amount"); setCardSortDir("desc"); } }}>금액{cardSortKey === "amount" ? (cardSortDir === "asc" ? " ▲" : " ▼") : ""}</button></th>
+                        <th>전표</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shownCardTx.map((tx: any) => (
+                        <tr key={tx.id}>
+                          <td className="text-center mono-number">{tx.transaction_date}{tx.transaction_time ? <small className="ml-1 text-[var(--text-dim)]">{String(tx.transaction_time).slice(0, 5)}</small> : null}</td>
+                          <td className="text-left font-semibold">{tx.merchant_name || "(가맹점 미상)"}</td>
+                          <td className="text-center text-[var(--text-muted)]">{classificationLabel(tx.classification) || tx.category || "미분류"}</td>
+                          <td className="text-center text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
+                          <td className="text-left">
+                            <span className="inline-flex flex-wrap items-center gap-1">
+                              {tx.used_by_employee_id && empNameById[tx.used_by_employee_id] && <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--primary)]/10 text-[var(--primary)] font-medium">{empNameById[tx.used_by_employee_id]}</span>}
+                              {(tx.tags || []).map((t: string) => <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-dim)]">#{t}</span>)}
+                              {tx.memo && <span className="text-[10.5px] text-[var(--text-dim)] truncate max-w-[220px]" title={tx.memo}>{tx.memo}</span>}
+                              {!tx.used_by_employee_id && !(tx.tags && tx.tags.length) && !tx.memo && <span className="text-[var(--text-dim)]">—</span>}
+                            </span>
+                          </td>
+                          <td className={`text-right mono-number font-bold ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : ""}`}>{Number(tx.amount || 0) < 0 ? "+" : "−"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
+                          <td className="text-center">{tx.journal_entry_id ? <span className="ol-sure ol-sure-ok">전표처리됨</span> : <button type="button" onClick={() => openPost(tx)} className="btn-secondary btn-sm">전표처리</button>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                )}
               </section>
             )}
           </div>

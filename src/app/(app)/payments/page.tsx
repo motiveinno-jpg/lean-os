@@ -5,7 +5,7 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
 import { SortableTh } from "@/components/sortable-th";
-import { ChipGroup, SelectionBar, QueryScreen, QueryHead, QueryBody, Stat } from "@/components/query-kit";
+import { SelectionBar, QueryScreen, QueryHead, QueryBody, Stat, ConditionPanel, ConditionRow, AppliedChips } from "@/components/query-kit";
 import { SlotHead } from "@/components/slot-head";
 import { useRouter } from "next/navigation";
 import { DateField } from "@/components/date-field";
@@ -283,11 +283,14 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
   });
 
   // 'executed' and legacy 'completed' are treated as the same bucket in filter and stats.
-  const filtered = filter === "all"
+  //   상태 필터 — 검색조건 패널(다중, 쉼표로 이어 든다). 'all' 또는 '' 이면 전체 (2026-08-19 조회 표준: 값 필터는 검색조건)
+  const filterSet = filter === "all" || !filter ? [] : filter.split(",");
+  const filtered = filterSet.length === 0
     ? queue
-    : filter === "executed"
-      ? queue.filter((q: any) => q.status === 'executed' || q.status === 'completed')
-      : queue.filter((q: any) => q.status === filter);
+    : queue.filter((q: any) => filterSet.includes(q.status === 'completed' ? 'executed' : q.status));
+  const [statusPanel, setStatusPanel] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<string[]>([]);
+  const STATUS_OPTS: [string, string][] = [["pending", "승인대기"], ["approved", "승인완료"], ["executed", "실행완료"], ["refunded", "환불"], ["rejected", "거부"]];
 
   function toggleOne(id: string) {
     setSelectedIds(prev => {
@@ -364,11 +367,20 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     <>
       {/* 조회 줄(상태 칩) ‖ 수동 결제 등록 · 결과 요약 — 상자 머리 슬롯 (2026-08-19, KPI 타일 4장 → Stat) */}
       <SlotHead slotId="pay-head-slot"
-        bar={<ChipGroup value={filter} onChange={setFilter}
-          options={[
-            { value: "all", label: "전체" }, { value: "pending", label: "승인대기" },
-            { value: "approved", label: "승인완료" }, { value: "executed", label: "실행완료" }, { value: "refunded", label: "환불" }, { value: "rejected", label: "거부" },
-          ]} />}
+        bar={<>
+          <ConditionPanel open={statusPanel} onOpenChange={(v) => { if (v) setDraftStatus(filterSet); setStatusPanel(v); }} activeCount={filterSet.length ? 1 : 0}
+            foot={<>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setDraftStatus([])}>기본으로</button>
+              <span className="ml-auto" />
+              <button type="button" className="btn-primary btn-sm" onClick={() => { setFilter(draftStatus.length ? draftStatus.join(",") : "all"); setStatusPanel(false); }}>조회</button>
+            </>}>
+            <ConditionRow label="상태" hint="여러 개">
+              <span className="qk-quicks">{STATUS_OPTS.map(([v, l]) => <button key={v} type="button" onClick={() => setDraftStatus((d) => d.includes(v) ? d.filter((x) => x !== v) : [...d, v])} className={draftStatus.includes(v) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span>
+            </ConditionRow>
+          </ConditionPanel>
+          <span className="text-[11px] text-[var(--text-dim)]">프로젝트 비용 스케줄·수동 등록에서 온 결제 건 — 승인 → 실행 순</span>
+        </>}
+        below={<AppliedChips chips={filterSet.length ? [{ group: "상태", label: filterSet.map((v) => STATUS_OPTS.find((o) => o[0] === v)?.[1] || v).join(" · "), onRemove: () => setFilter("all") }] : []} onClearAll={() => setFilter("all")} />}
         right={<button type="button" onClick={() => setShowForm(true)} className="btn-secondary btn-sm">+ 수동 결제 등록</button>}
         stats={<>
           <Stat label="승인 대기" value={<>{stats?.pendingCount ?? 0}건 <small className="mono-number font-normal text-[var(--text-dim)]">₩{(stats?.pendingAmount ?? 0).toLocaleString()}</small></>} tone="minus" />
@@ -461,27 +473,21 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
                       <div className="flex gap-1.5 justify-center">
                         {item.status === "pending" && (
                           <>
-                            <button onClick={() => approveMut.mutate(item.id)} disabled={approveMut.isPending}
-                              className="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition">승인</button>
-                            <button onClick={() => rejectMut.mutate(item.id)} disabled={rejectMut.isPending}
-                              className="px-2.5 py-1 bg-red-500/10 text-red-400 rounded-lg text-xs font-medium hover:bg-red-500/20 transition">거부</button>
+                            <button onClick={() => approveMut.mutate(item.id)} disabled={approveMut.isPending} className="btn-secondary btn-sm">승인</button>
+                            <button onClick={() => rejectMut.mutate(item.id)} disabled={rejectMut.isPending} className="btn-secondary btn-sm text-[var(--danger)]">거부</button>
                           </>
                         )}
                         {item.status === "approved" && (
-                          <button onClick={() => executeMut.mutate(item.id)} disabled={executeMut.isPending}
-                            className="px-2.5 py-1 bg-green-500/10 text-green-400 rounded-lg text-xs font-medium hover:bg-green-500/20 transition">실행</button>
+                          <button onClick={() => executeMut.mutate(item.id)} disabled={executeMut.isPending} className="btn-secondary btn-sm">실행</button>
                         )}
                         {item.status === "executed" && (
                           <>
-                            <button onClick={() => setReceiptItem(item)}
-                              className="px-2.5 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-xs font-medium hover:bg-blue-500/20 transition">영수증</button>
-                            <button onClick={() => { setRefundItem(item); setRefundReason(""); setRefundStep(1); }}
-                              className="px-2.5 py-1 bg-orange-500/10 text-orange-400 rounded-lg text-xs font-medium hover:bg-orange-500/20 transition">환불</button>
+                            <button onClick={() => setReceiptItem(item)} className="btn-secondary btn-sm">영수증</button>
+                            <button onClick={() => { setRefundItem(item); setRefundReason(""); setRefundStep(1); }} className="btn-secondary btn-sm text-[var(--warning)]">환불</button>
                           </>
                         )}
                         {item.status === "refunded" && (
-                          <button onClick={() => setReceiptItem(item)}
-                            className="px-2.5 py-1 bg-[var(--bg-surface)] text-[var(--text-muted)] rounded-lg text-xs font-medium hover:bg-[var(--border)] transition">영수증</button>
+                          <button onClick={() => setReceiptItem(item)} className="btn-secondary btn-sm">영수증</button>
                         )}
                       </div>
                     </td>

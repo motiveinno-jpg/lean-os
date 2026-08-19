@@ -849,7 +849,8 @@ export default function BankPage() {
               return (
                 <tr key={a.accountNo} className="pnl-row-acct" onClick={() => { seedAccountCond(accNo); goTab("transactions"); }} title="누르면 이 통장 거래내역">
                   <td className="text-left"><span className="inline-flex items-center gap-2"><BankLogo name={a.bankName || name} size={20} /><b>{name}</b>{a.alias && a.bankName && <small className="text-[var(--text-dim)]">{a.bankName}</small>}</span></td>
-                  <td className="text-center mono-number text-[var(--text-muted)]">{accNo ? `···· ${accNo.slice(-4)}` : "—"}</td>
+                  {/* 계좌번호는 전체를 보인다 (2026-08-19 사장님: "통장에서 계좌번호를 다 보이게") */}
+                  <td className="text-center mono-number text-[var(--text-muted)]">{accNo || "—"}</td>
                   <td className="text-right mono-number font-bold">{fmtW(bal)}</td>
                   <td className={`text-right mono-number ${Math.round(change) === 0 ? "text-[var(--text-dim)]" : change > 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{Math.round(change) === 0 ? "변화 없음" : `${change > 0 ? "+" : "−"}${fmtW(Math.abs(change))}`}</td>
                   <td className="text-center"><button type="button" onClick={(e) => { e.stopPropagation(); handleEditAlias(accNo, a.alias, a.bankName, bal); }} className="btn-secondary btn-sm">이름 변경</button></td>
@@ -915,6 +916,7 @@ export default function BankPage() {
                     )}
                   </div>
                 </div>
+                {accNo && <p className="mb-1 text-[11px] mono-number text-[var(--text-dim)]">{accNo}</p>}
                 <p className="text-lg font-bold text-[var(--text)] mb-1.5 mono-number truncate">{fmtW(bal)}</p>
                 {Math.round(change) !== 0 ? (
                   <div className={`delta-chip ${change >= 0 ? "delta-up" : "delta-down"}`}>

@@ -80,7 +80,7 @@ const statusGroup = (s?: string | null) => STATUS_GROUPS.find((g) => g.raw.inclu
 const ETYPE_LABEL: Record<string, string> = { regular: "정규직", full_time: "정규직", fulltime: "정규직", contract: "계약직", temporary: "계약직", parttime: "파트타임", part_time: "파트타임", intern: "인턴", freelancer: "프리랜서", dispatch: "파견", daily: "일용직" };
 const etypeLabel = (t?: string | null) => (t ? ETYPE_LABEL[t] || t : "");
 type SortKey = "name" | "department" | "position" | "etype" | "hire_date" | "phone" | "status";
-const VIEW_OPTS = [{ value: "card", label: "카드" }, { value: "list", label: "리스트" }] as const;
+const VIEW_OPTS = [{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const;
 
 /**
  * 구성원 디렉토리 — 조회 화면 표준(2026-08-18 Wave 4).
@@ -103,7 +103,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
   const [draft, setDraft] = useState<Cond>(DEFAULT_COND);
   const [live, setLive] = useState<Cond>(DEFAULT_COND);
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
-  const [view, setView] = useState<"card" | "list">("card");
+  const [view, setView] = useState<"card" | "list">("list");   //   2026-08-19 사장님: 규칙대로 리스트가 기본
   const [sel, setSel] = useState<Emp | null>(null);
   const [contractsEmpId, setContractsEmpId] = useState<string | null>(null);
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "name", dir: "asc" });

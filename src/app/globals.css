@@ -9576,3 +9576,8 @@ table.cards-table { min-width: 760px; }
 .card-analysis-tab-panel > .glass-card, .card-analysis-tab-panel .glass-card { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-none backdrop-blur-none; }
 .card-analysis-tab-panel > .pnl-panel { @apply mb-0; }
 .card-analysis-tab-panel { @apply space-y-3; }
+/* 카드 선택 거래내역 표 (2026-08-19) */
+table.card-tx-table { min-width: 860px; }
+.card-tx-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-1.5 text-xs; }
+.ev-th-btn { @apply inline-flex items-center gap-0.5 font-bold text-inherit; }
+.card-tx-detail-panel > h3 { @apply mb-0; }
