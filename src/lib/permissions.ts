@@ -121,7 +121,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
-    group: "설정·관리",
+    group: "회사 관리",   // 사이드바 그룹 이름과 맞춤 (2026-08-19)
     menus: [
       // 2026-08-13 설정 탭 통합: departments→team, deal→chart, tax→closing 에 흡수.
       //   (certificate·approval 은 2026-08-12 제거) 옛 키로 이미 부여된 권한은 설정 화면이

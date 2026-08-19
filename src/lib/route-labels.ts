@@ -69,12 +69,12 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/loans": { group: "자금", title: "대출", desc: "대출 현황을 관리합니다." },
   "/vault": { group: "자금", title: "자산", desc: "회사 자산을 관리합니다." },
 
-  "/settings": { group: "설정·도움말", title: "회사 설정", desc: "회사 기본·회계·인사 설정을 관리합니다." },
-  "/announcements": { group: "설정·도움말", title: "공지사항", desc: "공지사항을 관리합니다." },
+  "/settings": { group: "회사 관리", title: "회사 설정", desc: "회사 기본·회계·인사 설정을 관리합니다." },
+  "/announcements": { group: "회사 관리", title: "공지사항", desc: "공지사항을 관리합니다." },
   "/mypage": { group: "홈", title: "마이페이지", desc: "내 계정 정보를 관리합니다." },
-  "/billing": { group: "설정·도움말", title: "요금제", desc: "요금제와 결제를 관리합니다." },
-  "/guide": { group: "설정·도움말", title: "사용 가이드" },
-  "/support": { group: "설정·도움말", title: "고객센터" },
+  "/billing": { group: "회사 관리", title: "요금제", desc: "요금제와 결제를 관리합니다." },
+  "/guide": { group: "도움말", title: "사용 가이드" },
+  "/support": { group: "도움말", title: "고객센터" },
 
   "/error-logs": { group: "운영", title: "에러 모니터링", desc: "발생한 에러를 모니터링합니다." },
   "/operator-users": { group: "운영", title: "유저 계정 관리", desc: "유저 계정을 관리합니다." },

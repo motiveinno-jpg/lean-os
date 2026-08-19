@@ -110,11 +110,18 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "설정·도움말",
+    //   2026-08-19 사장님: '설정·도움말'은 오너뷰가 주는 기능(가이드·고객센터)과 회사가 다루는 것(회사 설정)이 섞여
+    //   통일감이 없다 → 둘로 가른다. 회사 관리 = 회사가 정하는 것(설정·공지·요금제) / 도움말 = 오너뷰가 주는 것.
+    label: "회사 관리",
     items: [
       { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
       { href: "/announcements", label: "공지사항", icon: "megaphone", badgeKey: "announcements" },
       { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
+    ],
+  },
+  {
+    label: "도움말",
+    items: [
       { href: "/guide", label: "사용 가이드", icon: "help-circle" },
       { href: "/support", label: "고객센터", icon: "headphones" },
     ],
@@ -159,7 +166,7 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
 /*  NavIcon                                                            */
 /* ------------------------------------------------------------------ */
 // 메뉴 아이콘 색 — 그룹별 색 계열로 통일 (2026-08-03 사장님: "너무 다채로워 난잡 — 같은 그룹은 비슷한 계열로").
-//   홈=블루 · 파이낸스=그린(통장·카드·정기 지출은 시안 계열 유지) · 워크스페이스=바이올렛 · 인사관리=오렌지 · 설정·도움말=슬레이트.
+//   홈=블루 · 파이낸스=그린(통장·카드·정기 지출은 시안 계열 유지) · 워크스페이스=바이올렛 · 인사관리=오렌지 · 회사 관리·도움말=슬레이트.
 //   같은 아이콘이 여러 그룹에 쓰여서(calendar=일정+근태 등) 아이콘 이름이 아니라 메뉴 경로(href) 기준.
 //   활성 메뉴(색 배경 + text-white)는 흰색 유지 — 아래 NavIcon 에서 text-white 면 색을 안 입힌다.
 const NAV_ITEM_COLOR: Record<string, string> = {
@@ -176,7 +183,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/documents": "#fbbf24", "/team": "#ea580c",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
-  // 설정·도움말 — 슬레이트
+  // 회사 관리·도움말 — 슬레이트
   "/settings": "#64748b", "/announcements": "#94a3b8", "/billing": "#64748b",
   "/guide": "#94a3b8", "/support": "#64748b",
 };
