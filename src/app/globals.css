@@ -9459,7 +9459,8 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .bk-sug-why { @apply inline-flex rounded-full px-1.5 py-px text-[10px] font-bold not-italic text-[var(--primary)]; background: color-mix(in srgb, var(--primary) 10%, transparent); }
 
 /* ── 경영 요약 재편 (2026-08-19) — 세 신호 판 · 챙길 것 · 달라진 것 ── */
-.bz-body { @apply space-y-3; }
+.bz-body { @apply flex flex-col gap-3; } /* space-y 가 안 먹어 판 사이가 0 이 됐다(2026-08-19 사장님: 막힌 곳과 카드가 붙어 보임) — 카드 사이(gap-3)와 같은 12px 로 */
+.bz-body > .pnl-basis-note, .bz-body > .pnl-headline { @apply mb-0; }
 .bz-grid3 { @apply grid gap-3 lg:grid-cols-3; }
 .bz-grid2 { @apply grid gap-3 lg:grid-cols-2; }
 .bz-body .pnl-panel { @apply mb-0; }
