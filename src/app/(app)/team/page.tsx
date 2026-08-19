@@ -13,8 +13,10 @@ import { logRead } from "@/lib/log-read";
 // 직원용 구성원 디렉토리 — 읽기 전용. 누가 어느 부서/직책에 있는지만 보여준다.
 //   2026-08-19 조회 화면 표준(인사 메뉴 점검): 상자 + [검색조건(부서) · 빠른검색 · 보기 칩(리스트/카드) ‖ 인원] + 표(정렬) + 쪽. 카드는 보기 옵션.
 //   예전엔 상자 없이 부서별 유리 카드 격자만 있었다.
-// 조직도 정렬용 직책 서열 — org-option-fields 기본 직책과 같은 순서. 목록에 없는 직책은 뒤로.
-const POSITION_RANK = ["대표", "이사", "부장", "차장", "과장", "대리", "주임", "사원"];
+// 조직도 정렬용 직책 서열 (2026-08-19 사장님: 본부장→팀장→과장→사원 순으로 먼저). 목록에 없는 직책은 뒤로.
+const POSITION_RANK = ["대표", "이사", "본부장", "부장", "팀장", "차장", "과장", "대리", "주임", "사원"];
+// 대표(CEO)는 부서 상자에서 빼서 조직도 맨 위 가운데 뿌리로 올린다 (2026-08-19 사장님)
+const isCeoPosition = (p?: string | null) => /^(대표(이사)?|CEO)$/i.test(String(p || "").trim());
 
 export default function TeamPage() {
   const { user, role } = useUser();
@@ -58,10 +60,11 @@ export default function TeamPage() {
     return [...rows].sort((a, b) => (cmp((a as any)[k] || "", (b as any)[k] || "") * (sort.dir === "asc" ? 1 : -1)) || (a.name || "").localeCompare(b.name || ""));
   }, [employees, search, depts, sort]);
   const pager = usePager(filtered, 50, `${search}|${depts.join()}|${sort.key}${sort.dir}`);
+  const orgCeos = useMemo(() => filtered.filter((e) => isCeoPosition(e.position)), [filtered]);
   const orgDepts = useMemo(() => {
     const rank = (p?: string | null) => { const i = POSITION_RANK.indexOf(p || ""); return i === -1 ? POSITION_RANK.length : i; };
     const m = new Map<string, typeof filtered>();
-    filtered.forEach((e) => { const d = e.department || "미배정"; if (!m.has(d)) m.set(d, []); m.get(d)!.push(e); });
+    filtered.forEach((e) => { if (isCeoPosition(e.position)) return; const d = e.department || "미배정"; if (!m.has(d)) m.set(d, []); m.get(d)!.push(e); });
     return [...m.entries()]
       .sort((a, b) => (a[0] === "미배정" ? 1 : b[0] === "미배정" ? -1 : a[0].localeCompare(b[0])))
       .map(([d, rows]) => [d, [...rows].sort((x, y) => (rank(x.position) - rank(y.position)) || (x.name || "").localeCompare(y.name || ""))] as const);
@@ -137,8 +140,21 @@ export default function TeamPage() {
             ) : view === "org" ? (
               <div className="org-chart">
                 <div className="org-root">
-                  <div className="text-sm font-bold">{companyName || "우리 회사"}</div>
-                  <div className="text-[11px] text-[var(--text-muted)] mt-0.5">{filtered.length}명</div>
+                  <div className="text-[10px] text-[var(--text-dim)]">{companyName || "우리 회사"}</div>
+                  {orgCeos.length > 0 ? (
+                    <div className="mt-1 space-y-0.5">
+                      {orgCeos.map((e) => (
+                        <div key={e.id} className="flex items-center justify-center gap-2">
+                          <span className="team-avatar">{(e.name || "?").slice(0, 1)}</span>
+                          <span className="text-sm font-bold">{e.name}</span>
+                          <span className="text-[11px] text-[var(--text-muted)]">{e.position}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm font-bold mt-0.5">{companyName || "우리 회사"}</div>
+                  )}
+                  <div className="text-[11px] text-[var(--text-muted)] mt-1">총 {filtered.length}명</div>
                 </div>
                 <div className="org-stem" />
                 <div className="org-depts">
