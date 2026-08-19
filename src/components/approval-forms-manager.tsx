@@ -167,8 +167,6 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     } catch (e: any) { toast("저장 실패: " + (e?.message || ""), "error"); }
     finally { setSavingDefault(false); }
   };
-  const patchDefaultStage = (i: number, p: Partial<ApprovalStageConfig>) =>
-    setDefaultForm((s) => ({ ...s, stages: s.stages.map((st, j) => (j === i ? { ...st, ...p } : st)) }));
   const setDefaultField = (i: number, p: Partial<ApprovalFormField>) =>
     setDefaultForm((s) => ({ ...s, fields: s.fields.map((f, j) => (j === i ? { ...f, ...p } : f)) }));
 
@@ -203,7 +201,6 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
   // ── 빌더 내부 편집 헬퍼 ──
   const patch = (p: Partial<ApprovalForm>) => setEditing((s) => s && ({ ...s, ...p }));
   const setField = (i: number, p: Partial<ApprovalFormField>) => patch({ fields: (editing!.fields || []).map((f, j) => (j === i ? { ...f, ...p } : f)) });
-  const setStage = (i: number, p: Partial<ApprovalFormStage>) => patch({ stages: (editing!.stages || []).map((s, j) => (j === i ? { ...s, ...p } : s)) });
 
   //   2026-08-18 조회 표준 — 카드 격자 → 조회 줄(갈래 칩·빠른검색 ‖ + 새 양식 추가) + 표(공용 머리단). 상자 안 상자 없음.
   const qHit = (name: string, extra: string[] = []) => quickSearchHit(q, [name, ...extra]);
@@ -392,49 +389,26 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                 maxHeight="260px" />
             </div>
 
-            {/* 결재선 단계 */}
+            {/* 결재선 — 단계 편집은 결재허브 > 결재선 관리에서. 여기선 만든 결재선을 골라 붙이기만 (2026-08-19 사장님) */}
             <div className="approval-stages-section">
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
                 <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선 (승인 단계)</label>
-                <span className="flex items-center gap-1.5">
-                  {linePicker((p) => patch({ stages: lineToFormStages(p), reference_user_ids: Array.isArray(p.reference_user_ids) ? p.reference_user_ids : (editing.reference_user_ids || []) }))}
-                  <button onClick={() => patch({ stages: [...(editing.stages || []), emptyStage((editing.stages || []).length + 1)] })} className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 단계 추가</button>
-                </span>
+                {linePicker((p) => patch({ stages: lineToFormStages(p), reference_user_ids: Array.isArray(p.reference_user_ids) ? p.reference_user_ids : (editing.reference_user_ids || []) }))}
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {(editing.stages || []).map((s, i) => (
-                  <div key={i} className="stage-row">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold w-5 h-5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">{i + 1}</span>
-                      <input value={s.name} onChange={(e) => setStage(i, { name: e.target.value })} placeholder="단계 이름(예: 팀장 승인)"
-                        className="flex-1 h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
-                      <select value={s.approver_type} onChange={(e) => setStage(i, { approver_type: e.target.value as ApproverType })}
-                        className="h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs">
-                        <option value="role">역할</option><option value="user">특정 인물</option>
-                      </select>
-                      <button onClick={() => patch({ stages: (editing.stages || []).filter((_, j) => j !== i) })} className="text-[var(--danger)] text-xs px-1">✕</button>
-                    </div>
-                    {s.approver_type === "role" ? (
-                      <select value={s.approver_role || "manager"} onChange={(e) => setStage(i, { approver_role: e.target.value })}
-                        className="w-full h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs">
-                        {ROLE_OPTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
-                      </select>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {(users as any[]).map((u) => {
-                          const on = (s.approver_user_ids || []).includes(u.id);
-                          return (
-                            <button key={u.id} onClick={() => setStage(i, { approver_user_ids: on ? (s.approver_user_ids || []).filter((x) => x !== u.id) : [...(s.approver_user_ids || []), u.id] })}
-                              className={`text-[10px] px-2 py-0.5 rounded-full border ${on ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}>
-                              {u.name || u.email}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                  <div key={i} className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded bg-[var(--bg-surface)] border border-[var(--border)]">
+                    <span className="text-[10px] font-bold w-5 h-5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">{i + 1}</span>
+                    <span className="font-medium truncate">{s.name || `${i + 1}차 승인`}</span>
+                    <span className="text-[11px] text-[var(--text-dim)] ml-auto shrink-0">
+                      {s.approver_type === "user"
+                        ? ((s.approver_user_ids || []).map((id) => { const u = (users as any[]).find((x) => x.id === id); return u?.name || u?.email || "?"; }).join(", ") || "지정 안 됨")
+                        : roleLabel(s.approver_role)}
+                    </span>
                   </div>
                 ))}
               </div>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">단계 구성(추가·역할·담당자 변경)은 결재허브 &gt; 결재선 관리에서 합니다.</p>
             </div>
 
             {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (미리 지정) */}
@@ -579,59 +553,26 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                 maxHeight="260px" />
             </div>
 
-            {/* 결재선 단계 — 역할 또는 특정 인물 지정 (빌더와 동일 UX) */}
+            {/* 결재선 — 단계 편집은 결재허브 > 결재선 관리에서. 여기선 만든 결재선을 골라 붙이기만 (2026-08-19 사장님) */}
             <div className="approval-stages-section">
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
                 <label className="text-[11px] font-semibold text-[var(--text-muted)]">결재선 (승인 단계)</label>
-                <span className="flex items-center gap-1.5">
-                  {linePicker((p) => setDefaultForm((s) => ({ ...s, stages: (p.stages as ApprovalStageConfig[]).map((st, i) => ({ ...st, stage: i + 1 })), referenceUserIds: Array.isArray(p.reference_user_ids) ? p.reference_user_ids : s.referenceUserIds })))}
-                  <button onClick={() => setDefaultForm((s) => ({ ...s, stages: [...s.stages, emptyPolicyStage(s.stages.length + 1)] }))}
-                    className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 단계 추가</button>
-                </span>
+                {linePicker((p) => setDefaultForm((s) => ({ ...s, stages: (p.stages as ApprovalStageConfig[]).map((st, i) => ({ ...st, stage: i + 1 })), referenceUserIds: Array.isArray(p.reference_user_ids) ? p.reference_user_ids : s.referenceUserIds })))}
               </div>
-              <div className="space-y-1.5">
-                {defaultForm.stages.map((s, i) => {
-                  const isUserStage = s.approver_id != null;
-                  return (
-                    <div key={i} className="stage-row">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold w-5 h-5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">{i + 1}</span>
-                        <input value={s.name} onChange={(e) => patchDefaultStage(i, { name: e.target.value })} placeholder="단계 이름(예: 팀장 승인)"
-                          className="flex-1 h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs" />
-                        <select value={isUserStage ? "user" : "role"}
-                          onChange={(e) => e.target.value === "user"
-                            ? patchDefaultStage(i, { approver_id: "" })
-                            : patchDefaultStage(i, { approver_id: undefined, approver_name: undefined })}
-                          className="h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs">
-                          <option value="role">역할</option><option value="user">특정 인물</option>
-                        </select>
-                        {defaultForm.stages.length > 1 && (
-                          <button onClick={() => setDefaultForm((s2) => ({ ...s2, stages: s2.stages.filter((_, j) => j !== i).map((st, j) => ({ ...st, stage: j + 1 })) }))}
-                            className="text-[var(--danger)] text-xs px-1">✕</button>
-                        )}
-                      </div>
-                      {!isUserStage ? (
-                        <select value={s.approver_role || "manager"} onChange={(e) => patchDefaultStage(i, { approver_role: e.target.value })}
-                          className="w-full h-8 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs">
-                          {POLICY_ROLE_OPTS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {(users as any[]).map((u) => {
-                            const on = s.approver_id === u.id;
-                            return (
-                              <button key={u.id} onClick={() => patchDefaultStage(i, { approver_id: u.id, approver_name: u.name || u.email || "" })}
-                                className={`text-[10px] px-2 py-0.5 rounded-full border ${on ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "border-[var(--border)] text-[var(--text-muted)]"}`}>
-                                {u.name || u.email}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+              <div className="space-y-1">
+                {defaultForm.stages.map((s, i) => (
+                  <div key={i} className="flex items-center gap-1.5 text-xs px-2 py-1.5 rounded bg-[var(--bg-surface)] border border-[var(--border)]">
+                    <span className="text-[10px] font-bold w-5 h-5 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center shrink-0">{i + 1}</span>
+                    <span className="font-medium truncate">{s.name || `${i + 1}차 승인`}</span>
+                    <span className="text-[11px] text-[var(--text-dim)] ml-auto shrink-0">
+                      {s.approver_id != null
+                        ? ((s as any).approver_name || (users as any[]).find((u) => u.id === s.approver_id)?.name || "지정 안 됨")
+                        : (POLICY_ROLE_OPTS.find((o) => o.value === (s.approver_role || "manager"))?.label || s.approver_role)}
+                    </span>
+                  </div>
+                ))}
               </div>
+              <p className="text-[10px] text-[var(--text-dim)] mt-1">단계 구성(추가·역할·담당자 변경)은 결재허브 &gt; 결재선 관리에서 합니다.</p>
             </div>
 
             {/* 참조(CC) — 결재선과 별개, 결과를 통보만 받는 인원 (빌더와 동일) */}
