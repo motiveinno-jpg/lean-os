@@ -135,18 +135,24 @@ function barPath(x: number, y: number, w: number, h: number): string {
   return `M${x},${y + h} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + w - r},${y} Q${x + w},${y} ${x + w},${y + r} L${x + w},${y + h} Z`;
 }
 
-export function AnalyticsSection({ usage, traffic, companies, testData }: {
+export function AnalyticsSection({ usage, traffic, companies, companyActivity, testData }: {
   // page.tsx 의 기존 쿼리를 그대로 받는다 — 활동 사용자·인기 페이지·유입 경로 표시용.
-  usage: { accounts: { dau: number; wau: number; mau: number; never_signed_in: number; total: number } } | null;
+  usage: { accounts: { dau: number; wau: number; mau: number; active_90d?: number; active_365d?: number; active_1095d?: number; never_signed_in: number; total: number } } | null;
   traffic: {
     top_paths: { path: string; views: number }[];
     top_referrers: { host: string; visitors: number }[];
   } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   companies: any[];
+  // 이용 형태 기간 연동용 — 회사별 마지막 활동 (platform_company_activity)
+  companyActivity?: { company_id: string; last_activity: string | null }[];
   /** 시각 검증·테스트용 — 주면 RPC 를 부르지 않고 이 데이터로 렌더한다. */
   testData?: Analytics;
 }) {
+  // 사이드 카드(활동 사용자·이용 형태·많이 본 페이지·유입) 기간 창 — 상단 일간/월간/연간 토글과
+  // 같은 범위를 본다 (2026-08-20 사장님: 토글 눌렀을 때 사이드도 맞게 적용).
+  const SIDE_WINDOW_DAYS: Record<Gran, number> = { day: 30, month: 365, year: 1095 };
+  const SIDE_WINDOW_LABEL: Record<Gran, string> = { day: "최근 30일", month: "최근 12개월", year: "최근 3년" };
   const [gran, setGran] = useState<Gran>("day");
   const [metric, setMetric] = useState<MetricKey>("visitors");
   const [hover, setHover] = useState<number | null>(null);
@@ -168,7 +174,32 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
   });
 
   const buckets = useMemo(() => data?.buckets ?? [], [data]);
-  const kinds = useMemo(() => countPlanKinds(companies), [companies]);
+  // 많이 본 페이지·유입 — 토글 기간 창으로 재조회 (page.tsx 의 traffic 은 14일 고정이라 폴백으로만)
+  const { data: granTraffic } = useQuery({
+    queryKey: ["p-traffic-side", gran],
+    enabled: !testData,
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: d, error } = await (supabase as any).rpc("platform_traffic_stats", { p_days: SIDE_WINDOW_DAYS[gran] });
+      if (error) return null;
+      return d as NonNullable<typeof traffic>;
+    },
+  });
+  const sideTraffic = granTraffic ?? traffic;
+
+  // 이용 형태 — 기간 창 안에 활동한 가입사 기준 (활동 데이터가 없으면 전체 스냅샷 유지)
+  const kinds = useMemo(() => {
+    const winMs = SIDE_WINDOW_DAYS[gran] * 86400000;
+    const nowMs = Date.now();
+    if (!companyActivity || companyActivity.length === 0) return countPlanKinds(companies);
+    const act = new Map(companyActivity.map((x) => [x.company_id, x.last_activity]));
+    const scoped = companies.filter((c: { id: string }) => {
+      const la = act.get(c.id);
+      return la && nowMs - new Date(la).getTime() <= winMs;
+    });
+    return countPlanKinds(scoped);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companies, companyActivity, gran]);
 
   // 타일 수치: 현재 버킷(오늘/이번 달/올해) + 직전 버킷 대비 증감
   const tiles = METRICS.map((m) => {
@@ -335,11 +366,25 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
           <div className="glass-card p-4">
             <div className="pa-side-title">활동 사용자</div>
             {(() => {
-              const rows = [
-                { label: "오늘", v: usage?.accounts.dau ?? 0 },
-                { label: "주간", v: usage?.accounts.wau ?? 0 },
-                { label: "월간", v: usage?.accounts.mau ?? 0 },
-              ];
+              const acc = usage?.accounts;
+              // 토글 기간에 맞춘 창 — 일간: 오늘/주간/월간, 월간: 월간/분기/연간, 연간: 연간/3년/전체 활동
+              const rows = gran === "day"
+                ? [
+                    { label: "오늘", v: acc?.dau ?? 0 },
+                    { label: "주간", v: acc?.wau ?? 0 },
+                    { label: "월간", v: acc?.mau ?? 0 },
+                  ]
+                : gran === "month"
+                ? [
+                    { label: "월간", v: acc?.mau ?? 0 },
+                    { label: "분기", v: acc?.active_90d ?? 0 },
+                    { label: "연간", v: acc?.active_365d ?? 0 },
+                  ]
+                : [
+                    { label: "연간", v: acc?.active_365d ?? 0 },
+                    { label: "3년", v: acc?.active_1095d ?? 0 },
+                    { label: "전체 활동", v: Math.max(0, (acc?.total ?? 0) - (acc?.never_signed_in ?? 0)) },
+                  ];
               const max = Math.max(1, ...rows.map((r) => r.v));
               return (
                 <div className="pa-hbar-list">
@@ -359,7 +404,7 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
           </div>
 
           <div className="glass-card p-4">
-            <div className="pa-side-title">이용 형태</div>
+            <div className="pa-side-title">이용 형태 <span className="font-normal text-[var(--text-dim)]">· {SIDE_WINDOW_LABEL[gran]} 활동 가입사</span></div>
             <div className="platform-plan-rows">
               {[
                 { label: "미구독", n: kinds.free, cls: "platform-plan-free" },
@@ -382,12 +427,12 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
           </div>
 
           <div className="glass-card p-4">
-            <div className="pa-side-title">많이 본 페이지</div>
-            {(traffic?.top_paths?.length ?? 0) === 0 ? (
+            <div className="pa-side-title">많이 본 페이지 <span className="font-normal text-[var(--text-dim)]">· {SIDE_WINDOW_LABEL[gran]}</span></div>
+            {(sideTraffic?.top_paths?.length ?? 0) === 0 ? (
               <div className="pa-side-empty">수집 대기 중</div>
             ) : (
               (() => {
-                const rows = traffic!.top_paths.slice(0, 5);
+                const rows = sideTraffic!.top_paths.slice(0, 5);
                 const max = Math.max(1, ...rows.map((r) => r.views));
                 return (
                   <div className="pa-hbar-list">
@@ -404,12 +449,12 @@ export function AnalyticsSection({ usage, traffic, companies, testData }: {
                 );
               })()
             )}
-            <div className="pa-side-title mt-4">유입 경로</div>
-            {(traffic?.top_referrers?.length ?? 0) === 0 ? (
+            <div className="pa-side-title mt-4">유입 경로 <span className="font-normal text-[var(--text-dim)]">· {SIDE_WINDOW_LABEL[gran]}</span></div>
+            {(sideTraffic?.top_referrers?.length ?? 0) === 0 ? (
               <div className="pa-side-empty">수집 대기 중</div>
             ) : (
               (() => {
-                const rows = traffic!.top_referrers.slice(0, 4);
+                const rows = sideTraffic!.top_referrers.slice(0, 4);
                 const max = Math.max(1, ...rows.map((r) => r.visitors));
                 return (
                   <div className="pa-hbar-list">

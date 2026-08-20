@@ -683,7 +683,7 @@ export default function PlatformOverview() {
       <RecentCompanies companies={companies as any[]} filter={kpiFilter} onFilter={setKpiFilter} activityById={activityById} nowMs={nowMs} />
 
       {/* 성장 분석 — 방문·가입 차트 */}
-      <AnalyticsSection usage={usage ?? null} traffic={traffic ?? null} companies={companies as any[]} />
+      <AnalyticsSection usage={usage ?? null} traffic={traffic ?? null} companies={companies as any[]} companyActivity={companyActivity as any[]} />
 
       {/* 가입 퍼널 — 단계별 게이지 */}
       <SignupFunnelSection funnel={funnel ?? null} />
@@ -697,9 +697,24 @@ export default function PlatformOverview() {
 // 퍼널 단계 색 — 순차(ordinal) 블루 램프 고정 배정 (dataviz: 밝은 끝은 step 250 이상)
 const FUNNEL_COLORS = ["#86b6ef", "#5598e7", "#2a78d6", "#1c5cab"];
 
+// 운영자 목록 공용 미니 페이저 — N개씩 끊고 옆으로 넘긴다 (2026-08-20 사장님)
+function MiniPager({ page, pages, onPage }: { page: number; pages: number; onPage: (p: number) => void }) {
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-end gap-2 px-3 py-2 text-xs text-[var(--text-muted)]">
+      <button type="button" onClick={() => onPage(Math.max(0, page - 1))} disabled={page === 0} className="platform-filter-clear disabled:opacity-40 disabled:cursor-default">‹ 이전</button>
+      <span className="mono-number">{page + 1} / {pages}</span>
+      <button type="button" onClick={() => onPage(Math.min(pages - 1, page + 1))} disabled={page >= pages - 1} className="platform-filter-clear disabled:opacity-40 disabled:cursor-default">다음 ›</button>
+    </div>
+  );
+}
+
 function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
   const t = funnel?.today;
   const pending = funnel?.pending ?? [];
+  // 10명씩 페이지 (2026-08-20 사장님)
+  const [peoplePage, setPeoplePage] = useState(0);
+  const [pendingPage, setPendingPage] = useState(0);
   const detail = funnel?.today_detail;
   // 단계 클릭 → 그 단계에 해당하는 오늘의 명단 (2026-07-28 사장님 요청)
   const [openStep, setOpenStep] = useState<number | null>(null);
@@ -721,6 +736,7 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
     iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
 
   // 단계별 명단 행 구성 — 계정 단계는 상태(로그인·회사연결)까지 병기
+  useEffect(() => { setPeoplePage(0); }, [funnel]);
   const stepRows: { key: string; who: React.ReactNode; sub: string }[] = (() => {
     if (openStep === null || !detail) return [];
     if (openStep === 0 || openStep === 1) {
@@ -793,14 +809,17 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
           {stepRows.length === 0 ? (
             <div className="platform-traffic-empty">오늘 해당 단계에 도달한 사람이 없습니다.</div>
           ) : (
+            <>
             <ul className="platform-funnel-people">
-              {stepRows.map((r) => (
+              {stepRows.slice(peoplePage * 10, peoplePage * 10 + 10).map((r) => (
                 <li key={r.key}>
                   {r.who}
                   <span className="text-[11px] text-[var(--text-dim)]">{r.sub}</span>
                 </li>
               ))}
             </ul>
+            <MiniPager page={peoplePage} pages={Math.ceil(stepRows.length / 10)} onPage={setPeoplePage} />
+            </>
           )}
         </div>
       )}
@@ -824,7 +843,7 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
                 </tr>
               </thead>
               <tbody>
-                {pending.map((p) => (
+                {pending.slice(pendingPage * 10, pendingPage * 10 + 10).map((p) => (
                   <tr key={p.email} className="border-b border-[var(--border)]/50">
                     <td className="px-3 py-2 text-[var(--text)]">{p.email}</td>
                     <td className="px-3 py-2 text-[var(--text-muted)] mono-number">{fmtKst(p.created_at)}</td>
@@ -838,6 +857,7 @@ function SignupFunnelSection({ funnel }: { funnel: FunnelStats | null }) {
                 ))}
               </tbody>
             </table>
+            <MiniPager page={pendingPage} pages={Math.ceil(pending.length / 10)} onPage={setPendingPage} />
           </div>
         )}
       </div>
@@ -881,6 +901,13 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
     .filter(matches)
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
 
+  // 5곳씩 페이지 (2026-08-20 사장님: 운영자 가입사 표 5개씩 + 옆으로 넘기기)
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(rows.length / 5));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = rows.slice(safePage * 5, safePage * 5 + 5);
+  useEffect(() => { setPage(0); }, [filter]);
+
   const FILTER_LABEL: Record<string, string> = {
     all: "전체", new: "이번 달 신규", paid: "유료", trial: "체험 중", free: "미구독", expired: "체험 만료",
   };
@@ -913,7 +940,7 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-[var(--text-dim)]">해당하는 가입사가 없습니다</td></tr>
-            ) : rows.map((c) => {
+            ) : pageRows.map((c) => {
               const p = planOf(c);
               // 활동 표시 — 10분 내 활동이면 "활동중", 아니면 마지막 로그인(없으면 마지막 활동) 시각
               const act = activityById.get(c.id);
@@ -951,6 +978,7 @@ function RecentCompanies({ companies, filter, onFilter, activityById, nowMs }: {
             })}
           </tbody>
         </table>
+        <MiniPager page={safePage} pages={pageCount} onPage={setPage} />
       </div>
     </section>
   );
