@@ -430,6 +430,23 @@ export async function createApprovalRequest(params: {
 
       const approverList = approvers || [];
 
+      // 결재선의 '팀장·이사·대표·재무' 는 계정 권한(users.role = admin|employee|owner|partner)이
+      //   아니라 **직책**이다. 종전엔 users.role 로만 찾아 늘 0명이 나왔고, 아래 폴백이 조용히
+      //   관리자·소유자에게 배정했다 — 모티브 정책 11단계(팀장 8·대표 3)가 전부 그랬다.
+      //   (2026-08-20 감사) 이제 구성원 직책으로 찾아 의도대로 배정한다.
+      if (approverList.length === 0 && ROLE_POSITION_NAMES[approverRole]) {
+        const byPosition = logRead('lib/approval-workflow:approversByPosition', await db
+          .from('employees')
+          .select('user_id, name, position')
+          .eq('company_id', params.companyId)
+          .in('position', ROLE_POSITION_NAMES[approverRole])
+          .not('user_id', 'is', null)
+          .limit(requiredCount));
+        for (const e of (byPosition || []) as { user_id: string | null; name: string }[]) {
+          if (e.user_id) approverList.push({ id: e.user_id, name: e.name });
+        }
+      }
+
       if (approverList.length === 0) {
         const fallbackApprovers = logRead('lib/approval-workflow:fallbackApprovers', await db
           .from('users')
@@ -1017,6 +1034,16 @@ export async function getMyProcessedApprovals(
 /**
  * Get approval timeline for a request (all steps ordered by stage + created_at).
  */
+/** 결재선 단계의 '역할'을 구성원 직책으로 푼다 (2026-08-20 감사).
+ *  users.role 은 admin|employee|owner|partner 뿐이라 팀장·이사·대표·재무는 여기서만 찾을 수 있다.
+ *  회사마다 직책 표기가 달라 흔한 표기를 함께 본다. 못 찾으면 종전 폴백(관리자·소유자)으로 간다. */
+const ROLE_POSITION_NAMES: Record<string, string[]> = {
+  manager: ['팀장'],
+  director: ['이사', '본부장'],
+  ceo: ['대표', '대표이사'],
+  finance: ['재무', '재무팀장', '경리'],
+};
+
 export async function getApprovalTimeline(requestId: string): Promise<ApprovalStep[]> {
   const { data: steps, error } = await db
     .from('approval_steps')
