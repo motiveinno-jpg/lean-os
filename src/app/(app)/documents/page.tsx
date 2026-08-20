@@ -27,6 +27,7 @@ import { forceApproveDocument } from "@/lib/deal-pipeline";
 import { classifyDocument, getDocTypeInfo, DOC_INTEL_TYPES, saveDocumentIntelligence, extractContractFields } from "@/lib/doc-intelligence";
 import { createSignatureRequest, getSignatureRequests, getDocumentSignatures, updateSignatureStatus, saveSignature, cancelSignature, getSignatureStatusInfo, SIGNATURE_STATUS, applyCompanySeal, sendSignatureEmail, createBulkSignatureRequests, sendSignatureReminder, bulkSendReminders, getDocumentSignatureAudit } from "@/lib/signatures";
 import { createNotification } from "@/lib/notifications";
+import { useMyPermissions } from "@/lib/permissions";
 import { uploadFile, getFilesForDocument, createFolder, getFolders, deleteFolder, searchFiles, deleteFile, pruneUnreferencedDocumentFiles, downloadStoredFile } from "@/lib/file-storage";
 import { generateDocumentPDF, generateQuotePDF, issueDocument } from "@/lib/document-generator";
 import { getActiveTemplate, downloadTemplateFile, buildQuoteValues } from "@/lib/form-templates";
@@ -2707,6 +2708,11 @@ function DocumentsPageInner() {
 function FileStorageTab({ companyId, userId }: { companyId: string; userId: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  //   삭제는 본인이 올린 파일만 — 남의 파일까지는 마스터 또는 '/documents:delete' 위임자만
+  //   (2026-08-20 사장님: "모든 사람이 삭제가 가능해"). 진짜 차단은 RLS, 여기선 버튼을 감춘다.
+  const { isMaster, hasPerm } = useMyPermissions();
+  const canDeleteOthers = isMaster || hasPerm("/documents:delete");
+  const canDeleteFile = (f: { uploaded_by?: string | null }) => canDeleteOthers || f.uploaded_by === userId;
   const [fileSearchTerm, setFileSearchTerm] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -2828,6 +2834,8 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredFiles, fileSearchTerm, sort, userNames, cf.key, dLive]);
   const pager = usePager(sortedFiles, 50, `${selectedFolderId}|${categoryFilter}|${fileSearchTerm}|${cf.key}|${JSON.stringify(dLive)}`);
+  //   이 쪽에서 내가 실제로 지울 수 있는 파일만 — 머리단 '전체 선택'의 대상이자 개수 기준 (2026-08-20)
+  const selectableView = useMemo(() => (pager.view as any[]).filter(canDeleteFile), [pager.view, canDeleteOthers, userId]);
   const kindOpts = useMemo(() => [...new Set((filteredFiles as any[]).map(kindOf))].sort().map((v) => ({ value: v, label: v })), [filteredFiles]);
   const byOpts = useMemo(() => [...new Set((filteredFiles as any[]).map((f) => userNames[f.uploaded_by]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), "ko")).map((v) => ({ value: v as string, label: v as string })), [filteredFiles, userNames]);
   const dropD = (patch: Partial<DCond>) => { const c = { ...dLive, ...patch }; setDLive(c); setDDraft(c); };
@@ -2893,7 +2901,7 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
   // Delete file
   const handleDeleteFile = async (fileId: string) => {
     try {
-      await deleteFile(fileId, userId, companyId);
+      await deleteFile(fileId, userId, companyId, { canDeleteOthers });
       queryClient.invalidateQueries({ queryKey: ["storage-files"] });
     } catch (err: any) {
       toast("삭제 실패: " + (err?.message || err), "error");
@@ -3082,11 +3090,13 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                 <table className="ev-table ev-lined doc-file-table">
                   <thead>
                     <tr>
+                      {/* 고르기는 삭제에만 쓰인다 — 내가 못 지우는 파일은 아예 못 고르게 해서
+                          '삭제 (3)' 을 눌렀는데 1개만 지워지는 어긋남을 없앤다 (2026-08-20) */}
                       <th className="w-9">
-                        <button type="button" aria-label="이 쪽 전체 선택"
-                          onClick={() => setSelectedIds((prev) => { const n = new Set(prev); const all = (pager.view as any[]).every((f) => n.has(f.id)); for (const f of pager.view as any[]) { if (all) n.delete(f.id); else n.add(f.id); } return n; })}
-                          className={pager.view.length > 0 && (pager.view as any[]).every((f) => selectedIds.has(f.id)) ? "collect-chk collect-chk-on" : "collect-chk"}>
-                          {pager.view.length > 0 && (pager.view as any[]).every((f) => selectedIds.has(f.id)) ? "✓" : ""}
+                        <button type="button" aria-label="이 쪽 전체 선택" disabled={selectableView.length === 0}
+                          onClick={() => setSelectedIds((prev) => { const n = new Set(prev); const all = selectableView.every((f) => n.has(f.id)); for (const f of selectableView) { if (all) n.delete(f.id); else n.add(f.id); } return n; })}
+                          className={selectableView.length > 0 && selectableView.every((f) => selectedIds.has(f.id)) ? "collect-chk collect-chk-on" : "collect-chk"}>
+                          {selectableView.length > 0 && selectableView.every((f) => selectedIds.has(f.id)) ? "✓" : ""}
                         </button>
                       </th>
                       <SortableTh label="파일명" sortKey="name" sort={sort} onSort={onSort} />
@@ -3101,11 +3111,14 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
                   <tbody>
                     {(pager.view as any[]).map((f) => {
                       const on = selectedIds.has(f.id);
+                      const mine = canDeleteFile(f);
                       return (
                         <tr key={f.id} className={on ? "ev-on" : undefined}>
                           <td>
-                            <button type="button" aria-label="선택" onClick={() => setSelectedIds((prev) => { const n = new Set(prev); if (n.has(f.id)) n.delete(f.id); else n.add(f.id); return n; })}
-                              className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
+                            <button type="button" aria-label={mine ? "선택" : "다른 사람이 올린 파일 — 삭제 권한 없음"} disabled={!mine}
+                              title={mine ? undefined : `${userNames[f.uploaded_by] || "다른 사람"} 님이 올린 파일입니다 — 삭제할 수 없습니다`}
+                              onClick={() => setSelectedIds((prev) => { const n = new Set(prev); if (n.has(f.id)) n.delete(f.id); else n.add(f.id); return n; })}
+                              className={on ? "collect-chk collect-chk-on" : mine ? "collect-chk" : "collect-chk doc-file-chk-locked"}>{on ? "✓" : ""}</button>
                           </td>
                           <td className="ev-ell font-medium">
                             <button type="button" className="text-left hover:text-[var(--primary)] hover:underline" title={f.file_name}

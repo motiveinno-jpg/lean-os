@@ -1956,6 +1956,8 @@ table.sched-table { min-width: 900px; }
 }
 
 .doc-file-table { min-width: 860px; }
+/*   남이 올려서 내가 못 지우는 파일 — 고를 수 없다는 걸 눈으로 알린다 (2026-08-20 사장님) */
+.doc-file-chk-locked { @apply cursor-not-allowed border-dashed opacity-40; }
 .vault-filter-bar { @apply flex gap-3; }
 .share-status-panel { @apply p-4 mb-6; }
 

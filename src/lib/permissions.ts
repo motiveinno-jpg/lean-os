@@ -92,7 +92,12 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "pin", label: "상단 고정", desc: "게시글 상단 고정·해제 (미부여 시 마스터만)" },
       ] },
       { route: "/my-contracts", label: "내 서명 요청", always: true },
-      { route: "/documents", label: "파일보관함" },   // 인사관리 → 워크스페이스 (2026-08-20 사장님). 키 불변
+      // 파일보관함 — 인사관리 → 워크스페이스 (2026-08-20 사장님). 키 불변
+      //   삭제는 기본이 '본인이 올린 파일만'. 남의 파일까지 지우려면 아래 세부권한이 있어야 한다
+      //   (2026-08-20 사장님: "모든 사람이 삭제가 가능해" — 회사 구성원 누구나 남의 파일을 지우던 문제)
+      { route: "/documents", label: "파일보관함", tabs: [
+        { key: "delete", label: "남의 파일 삭제", desc: "다른 사람이 올린 파일도 삭제 (미부여 시 본인이 올린 것만)" },
+      ] },
       { route: "/chat", label: "메신저", always: true },
       { route: "/signatures", label: "전자계약" },
     ],

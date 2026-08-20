@@ -394,7 +394,11 @@ export async function createNewVersion(
 export async function deleteFile(
   fileId: string,
   userId: string,
-  companyId: string
+  companyId: string,
+  // 남의 파일까지 지울 수 있는 권한(마스터 또는 '/documents:delete' 위임자). 화면이 판정해 넘긴다.
+  //   진짜 방어선은 RLS(document_files_delete_owner_or_perm) — 이 인자는 사람이 읽을 수 있는
+  //   실패 메시지를 주기 위한 것이지, 이것만으로 막는 게 아니다. (2026-08-20 사장님)
+  opts?: { canDeleteOthers?: boolean }
 ): Promise<void> {
   // Fetch file record
   const { data: file, error: fetchError } = await db
@@ -405,6 +409,18 @@ export async function deleteFile(
   if (fetchError) throw fetchError;
   if (!file) throw new Error("파일을 찾을 수 없습니다.");
 
+  if (file.uploaded_by !== userId && !opts?.canDeleteOthers) {
+    throw new Error("본인이 올린 파일만 삭제할 수 있습니다. (다른 사람의 파일은 마스터 또는 삭제 권한을 받은 사람만)");
+  }
+
+  // ⚠️ 순서 주의 — DB 행을 먼저 지운다. 종전엔 실물부터 지워서, RLS 가 행 삭제를 막으면
+  //   파일만 사라지고 목록엔 남는 깨진 상태가 됐다. 행이 지워진 뒤엔 실물 삭제도 정책상 허용된다.
+  const { error: deleteError } = await db
+    .from("document_files")
+    .delete()
+    .eq("id", fileId);
+  if (deleteError) throw deleteError;
+
   // Delete from storage
   const bucket = (file.bucket || "document-files") as BucketName;
   if (file.storage_path) {
@@ -413,13 +429,6 @@ export async function deleteFile(
       .remove([file.storage_path]);
     if (storageError) throw storageError;
   }
-
-  // Delete DB record
-  const { error: deleteError } = await db
-    .from("document_files")
-    .delete()
-    .eq("id", fileId);
-  if (deleteError) throw deleteError;
 
   // Audit log (non-blocking)
   logAudit({
