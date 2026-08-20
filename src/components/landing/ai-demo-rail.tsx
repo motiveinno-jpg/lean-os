@@ -63,7 +63,7 @@ const TX_ROWS = [
 function ScreenTx() {
   return (
     <div className="lp5-aid-screen lp5-aid-tx" data-demo="tx" data-len={3700}>
-      <div className="lp5-aid-top"><span className="lp5-aid-tab">거래 장부</span><span className="lp5-aid-meta">신규 5건</span></div>
+      <div className="lp5-aid-top"><span className="lp5-aid-tab">수집·전표</span><span className="lp5-aid-meta">신규 5건</span></div>
       <div className="lp5-aid-txbody">
         {TX_ROWS.map((r) => (
           <div key={r.n} className="lp5-aid-txrow">
@@ -120,7 +120,7 @@ function ScreenWay() {
 function ScreenRadar() {
   return (
     <div className="lp5-aid-screen lp5-aid-rad" data-demo="radar" data-len={3100}>
-      <div className="lp5-aid-top"><span className="lp5-aid-tab">경영 흐름</span><span className="lp5-aid-meta">자동 동기화 · 하루 2회</span></div>
+      <div className="lp5-aid-top"><span className="lp5-aid-tab">자금 전망</span><span className="lp5-aid-meta">자동 동기화 · 하루 2회</span></div>
       <div className="lp5-aid-radaccs">
         <div className="lp5-aid-radacc lp5-aid-anim"><span>기업은행 ···1234</span><b className="lp5-aid-fig">2,140만원</b></div>
         <div className="lp5-aid-radacc lp5-aid-anim"><span>국민은행 ···8802</span><b className="lp5-aid-fig">1,860만원</b></div>

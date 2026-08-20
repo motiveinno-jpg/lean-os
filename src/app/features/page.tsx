@@ -6,9 +6,9 @@ import FeaturesView from "@/components/landing/features-view";
 
 const SITE = "https://www.owner-view.com";
 const TITLE = "기능 둘러보기 | 오너뷰";
-// ⚠️ 메뉴 개수는 CATALOG(=사이드바 4개 업무 그룹) 와 같아야 한다. 2026-07-28 대출·자산을
-//    사이드바에서 내리면서 20개 → 18개가 됐다. 사이드바가 바뀌면 이 숫자도 같이 고칠 것.
-const DESC = "거래처·세금·장부·프로젝트·결재·전자계약·인사·근태·통장·카드까지 메뉴 18개. 어느 메뉴에서 무엇을 할 수 있는지 실제 화면으로 보여드려요.";
+// ⚠️ 메뉴 개수는 CATALOG(=사이드바 NAV_GROUPS) 와 같아야 한다. 2026-08-20 전수 대조로
+//    7그룹 34메뉴(마스터 전용 제외)에 맞췄다. 사이드바가 바뀌면 이 숫자도 같이 고칠 것.
+const DESC = "통장·카드·거래처·수집전표·세금증빙·프로젝트·결재·전자계약·인사·근태까지 7개 영역 메뉴 34개. 어느 메뉴에서 무엇을 할 수 있는지 실제 화면으로 보여드려요.";
 
 export const metadata: Metadata = {
   title: TITLE,

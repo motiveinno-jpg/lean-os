@@ -84,7 +84,7 @@ export function VoucherPanel() {
   return (
     <section className="pp glass-card" id="pp-voucher">
       <PanelHead
-        menu="파이낸스 › 전표입력"
+        menu="파이낸스 › 일반전표"
         title="필요할 땐 직접 입력해요"
         sub="계정과목 사전을 회사에 맞게 관리하고, 수기 전표도 그대로 기장돼요"
         right={<span className="pp-badge pp-badge-s">차·대변 일치</span>}
@@ -397,7 +397,7 @@ export function BankPanel() {
   return (
     <section className="pp glass-card" id="pp-bank">
       <PanelHead
-        menu="자산관리 › 통장"
+        menu="파이낸스 › 통장"
         title="계좌를 연결하면 알아서 들어와요"
         sub="잔액과 거래내역이 하루 2회 자동으로 동기화돼요"
         right={<span className="pp-badge pp-badge-s">동기화 07-24 18:00</span>}
@@ -443,7 +443,7 @@ export function CardsPanel() {
   return (
     <section className="pp glass-card" id="pp-cards">
       <PanelHead
-        menu="자산관리 › 카드"
+        menu="파이낸스 › 카드"
         title="법인카드 승인 내역이 자동으로 모여요"
         sub="누가 어디에 썼는지, 어떤 계정과목인지까지 같이 정리돼요"
         right={<span className="pp-badge pp-badge-p">이번 달 68건</span>}
@@ -491,7 +491,7 @@ export function PaymentsPanel() {
   return (
     <section className="pp glass-card" id="pp-payments">
       <PanelHead
-        menu="자산관리 › 정기 지출"
+        menu="파이낸스 › 정기 지출"
         title="매달 나가는 돈을 놓치지 않아요"
         sub="반복 결제를 자동으로 찾아 등록을 추천하고, 결제일 전에 알려줘요"
         right={<span className="pp-badge pp-badge-p">월 ₩8,636,000</span>}

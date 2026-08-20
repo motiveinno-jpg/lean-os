@@ -105,16 +105,16 @@ function ShotStack({ items, active, sizes = "(max-width: 999px) 94vw, 1040px" }:
  *   ⚠️ 폰에서 데스크톱 화면을 320px 로 줄이면 글자가 안 읽혀 전달이 0 이 된다.
  *      /demo 를 390px 뷰포트로 열어 실제 앱이 리플로우된 화면을 그대로 찍은 것들이다. */
 const MOBILE_OF: Record<string, string> = {
-  "/product/dashboard-v5.png":   "/product/m-dash-v3.png",
-  "/product/f-estimate-v3.png":  "/product/m-estimate-v2.png",
-  "/product/f-settlement-v3.png":"/product/m-settlement-v2.png",
-  "/product/f-payroll-v3.png":        "/product/m-payroll-v2.png",
-  "/product/f-flow-v3.png":      "/product/m-outlook-v2.png",
-  "/product/f-projects-v4.png":  "/product/m-hub-v3.png",
-  "/product/f-acct-v3.png":      "/product/m-analytics-v2.png",
-  "/product/f-bank-v3.png":      "/product/m-bank-v2.png",
-  "/product/f-hr-v3.png":     "/product/m-leave-v2.png",
-  "/product/f-ai-brief-v3.png":  "/product/m-brief-v2.png",
+  "/product/dashboard-v6.png":   "/product/m-dash-v4.png",
+  "/product/f-estimate-v4.png":  "/product/m-estimate-v3.png",
+  "/product/f-settlement-v4.png":"/product/m-settlement-v3.png",
+  "/product/f-payroll-v4.png":   "/product/m-payroll-v3.png",
+  "/product/f-flow-v4.png":      "/product/m-outlook-v3.png",
+  "/product/f-projects-v5.png":  "/product/m-hub-v4.png",
+  "/product/f-acct-v4.png":      "/product/m-analytics-v3.png",
+  "/product/f-bank-v4.png":      "/product/m-bank-v3.png",
+  "/product/f-hr-v4.png":        "/product/m-leave-v3.png",
+  "/product/f-ai-brief-v4.png":  "/product/m-brief-v3.png",
 };
 
 /** 코어 카드 전용 조각 — 패널 헤더를 뺀 "그 기능 블록"만 잘라 둔 캡처.
@@ -124,15 +124,15 @@ const MOBILE_OF: Record<string, string> = {
  *   /features 는 계속 전체 화면(f-*.png)을 쓰므로 파일을 따로 둔다. */
 
 const CORE_SHOT: Record<string, string> = {
-  "/product/f-projects-v4.png":   "/product/c-projects-v3.png",
-  "/product/f-estimate-v3.png":   "/product/c-estimate-v2.png",
-  "/product/f-settlement-v3.png": "/product/c-settlement-v2.png",
-  "/product/f-acct-v3.png":       "/product/c-acct-v2.png",
-  "/product/f-bank-v3.png":       "/product/c-bank-v2.png",
-  "/product/f-tax-v3.png":        "/product/c-tax-v2.png",
-  "/product/f-payroll-v3.png":         "/product/c-hr-v2.png",
-  "/product/f-members-v3.png":    "/product/c-members-v2.png",
-  "/product/f-hr-v3.png":      "/product/c-leave-v2.png",
+  "/product/f-projects-v5.png":   "/product/c-projects-v4.png",
+  "/product/f-estimate-v4.png":   "/product/c-estimate-v3.png",
+  "/product/f-settlement-v4.png": "/product/c-settlement-v3.png",
+  "/product/f-acct-v4.png":       "/product/c-acct-v3.png",
+  "/product/f-bank-v4.png":       "/product/c-bank-v3.png",
+  "/product/f-tax-v4.png":        "/product/c-tax-v3.png",
+  "/product/f-payroll-v4.png":    "/product/c-hr-v3.png",
+  "/product/f-members-v4.png":    "/product/c-members-v3.png",
+  "/product/f-hr-v4.png":         "/product/c-leave-v3.png",
 };
 
 /** 화면 다섯 장이 마름모로 펼쳐지는 묶음 — 페이지 최상단.
@@ -144,11 +144,11 @@ const CORE_SHOT: Record<string, string> = {
  *     그 카드가 가운데 자리로 온다. 슬롯마다 비율(aspect)을 달리 주면 전환이 튀므로
  *     비율은 하나로 통일하고 크기(scale)로만 마름모를 만든다. */
 const FAN = [
-  { src: "/product/hero-appr.png", alt: "오너뷰 결재 허브" },
-  { src: "/product/hero-hub.png",  alt: "오너뷰 프로젝트 파이프라인" },
-  { src: "/product/hero-dash.png", alt: "오너뷰 대시보드" },
-  { src: "/product/hero-bank.png", alt: "오너뷰 거래 장부" },
-  { src: "/product/hero-hr.png",   alt: "오너뷰 급여 배치" },
+  { src: "/product/hero-appr-v2.png", alt: "오너뷰 결재 허브" },
+  { src: "/product/hero-hub-v2.png",  alt: "오너뷰 프로젝트" },
+  { src: "/product/hero-dash-v2.png", alt: "오너뷰 대시보드" },
+  { src: "/product/hero-bank-v2.png", alt: "오너뷰 통장" },
+  { src: "/product/hero-hr-v2.png",   alt: "오너뷰 구성원" },
 ];
 /** 자리 5개 — 왼쪽 끝부터. fx = 자기 폭 기준 가로 이동, fs = 크기. */
 const FAN_SLOTS = [
@@ -811,11 +811,12 @@ function SceneAI() {
   );
 }
 
-// ══════════════════ 6. 커버리지 — 그룹 4개로 요약 ══════════════════
-//   ⚠️ 18칸을 전부 나열했었다. 범위 증명은 "18개"라는 숫자와 그룹 이름으로 충분하고,
-//      18칸 전부는 읽히지 않는다. 그룹별 대표 메뉴만 보이고 나머지는 /features 로 넘긴다.
+// ══════════════════ 6. 커버리지 — 실제 사이드바 그룹 그대로 ══════════════════
+//   ⚠️ 그룹·메뉴 수는 CATALOG 에서 파생한다. 숫자를 손으로 적지 말 것 —
+//      2026-08-20 감사에서 "메뉴 18개/20개·네 영역·기능 30가지"가 전부 실제(7그룹 34메뉴)와 어긋나 있었다.
 const GROUP_COLOR: Record<string, string> = {
-  "파이낸스": "#2F6FED", "워크스페이스": "#5B4BE8", "인사관리": "#0E8F6F", "자산관리": "#E08422",
+  "홈": "#5B4BE8", "파이낸스": "#2F6FED", "분석": "#0E8F6F", "워크스페이스": "#7C3AED",
+  "인사관리": "#E08422", "회사 관리": "#0F766E", "도움말": "#64748B",
 };
 
 function SceneCoverage() {
@@ -830,7 +831,7 @@ function SceneCoverage() {
               제목도 같은 방향으로 옮기고, 리드는 아래 네 카드를 직접 가리키게 한다. */}
           <h2 className="lp5-h lp5-h-sm">필요한 기능은 <span className="lp5-grad">이미 다 들어 있어요</span></h2>
           <Sentences className="lp5-lead lp5-lead-c"
-            text={`이게 다가 아니에요. 아래 네 영역에 메뉴 ${total}개, 기능 30가지가 있어요. 앱을 더 쓰지 않아도 돼요.`} />
+            text={`이게 다가 아니에요. 아래 ${CATALOG.length}개 영역에 메뉴 ${total}개가 들어 있어요. 앱을 더 쓰지 않아도 돼요.`} />
         </Rise>
         <div className="lp5-cov4 lp5-swipe">
           {CATALOG.map((g, i) => (

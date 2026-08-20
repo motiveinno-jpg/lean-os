@@ -193,7 +193,7 @@ export function AcctBeforePanel() {
   return (
     <section className="pp glass-card" id="pp-acct-b">
       <PanelHead
-        menu="파이낸스 › 거래 장부 · 세금·증빙"
+        menu="파이낸스 › 수집·전표 · 세금·증빙"
         title="통장·카드가 자동으로 장부가 돼요"
         sub="실계좌를 연결하면 거래가 들어오고, AI가 계정과목까지 나눠줘요"
         right={<span className="pp-badge pp-badge-p">분류 전</span>}
@@ -207,7 +207,7 @@ export function AcctBeforePanel() {
         <div className="pp-mini"><span>이번 달 비용</span><b>{DASH}</b></div>
         <div className="pp-mini"><span>순현금</span><b>{DASH}</b></div>
       </div>
-      <div className="pp-section-t">거래 장부 — 자동 분류</div>
+      <div className="pp-section-t">수집·전표 — 계정 자동 추천</div>
       <table className="pp-table">
         <thead><tr><th>일자</th><th>내용</th><th>계정과목</th><th>금액</th></tr></thead>
         <tbody>
@@ -238,7 +238,7 @@ export function BankBeforePanel() {
   return (
     <section className="pp glass-card" id="pp-bank-b">
       <PanelHead
-        menu="자산관리 › 통장"
+        menu="파이낸스 › 통장"
         title="계좌를 연결하면 알아서 들어와요"
         sub="잔액과 거래내역이 하루 2회 자동으로 동기화돼요"
         right={<span className="pp-badge pp-badge-p">동기화 중</span>}

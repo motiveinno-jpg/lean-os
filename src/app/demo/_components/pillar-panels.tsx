@@ -42,7 +42,7 @@ export function FlowPanel() {
   return (
     <section className="pp glass-card" id="pp-flow">
       <PanelHead
-        menu="분석 › 경영 흐름"
+        menu="분석 › 자금 전망"
         title="미래 현금 예측 콕핏"
         sub="예정된 입출금까지 넣어 90일 뒤 잔고를 예측해요"
         right={<span className="pp-badge pp-badge-p">기간 · 최근 90일</span>}
@@ -147,7 +147,7 @@ export function AccountPanel() {
   return (
     <section className="pp glass-card" id="pp-acct">
       <PanelHead
-        menu="파이낸스 › 거래 장부 · 세금·증빙"
+        menu="파이낸스 › 수집·전표 · 세금·증빙"
         title="통장·카드가 자동으로 장부가 돼요"
         sub="실계좌를 연결하면 거래가 들어오고, AI가 계정과목까지 나눠줘요"
         right={<span className="pp-badge pp-badge-p">AI 분류 94% 자동</span>}
@@ -164,7 +164,7 @@ export function AccountPanel() {
         <div className="pp-mini pp-mini-ok"><span>순현금</span><b>+{won(13_000_000)}</b></div>
       </div>
 
-      <div className="pp-section-t">거래 장부 — 자동 분류</div>
+      <div className="pp-section-t">수집·전표 — 계정 자동 추천</div>
       <table className="pp-table">
         <thead><tr><th>일자</th><th>내용</th><th>계정과목</th><th>금액</th></tr></thead>
         <tbody>

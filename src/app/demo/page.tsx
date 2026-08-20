@@ -78,7 +78,7 @@ const QUICK_LINKS = [
   { href: "#", label: "결제/승인", icon: "💳", desc: "결제 큐 관리" },
   { href: "#", label: "인사/급여", icon: "👤", desc: "직원 관리" },
   { href: "#", label: "전자계약", icon: "📄", desc: "문서 서명" },
-  { href: "#", label: "고객 DB", icon: "🏢", desc: "거래처 관리" },
+  { href: "#", label: "거래처", icon: "🏢", desc: "거래처 관리" },
   { href: "#", label: "채팅", icon: "💬", desc: "팀 소통" },
 ];
 
@@ -102,7 +102,7 @@ const NAV_GROUPS: { label: string; items: { label: string; icon: string; view?: 
   { label: "파이낸스", items: [
     { label: "거래처", icon: "users", view: "partners" },
     { label: "세금·증빙", icon: "receipt", view: "tax" },
-    { label: "거래 장부", icon: "book", view: "ledger" },
+    { label: "수집·전표", icon: "book", view: "ledger" },
     { label: "일반전표", icon: "pen", view: "voucher" },
   ] },
   //   2026-08-11 — 앱 사이드바가 '분석' 그룹으로 갈라져 시연 화면도 같이 맞췄다.
@@ -137,7 +137,7 @@ const VIEW_META: Record<string, { crumb: string; title: string }> = {
   copilot: { crumb: "홈", title: "AI 참모" },
   partners: { crumb: "파이낸스", title: "거래처" },
   tax: { crumb: "파이낸스", title: "세금·증빙" },
-  ledger: { crumb: "파이낸스", title: "거래 장부" },
+  ledger: { crumb: "파이낸스", title: "수집·전표" },
   voucher: { crumb: "파이낸스", title: "일반전표" },
   flow: { crumb: "분석", title: "경영 요약" },
   schedule: { crumb: "워크스페이스", title: "일정 / 할 일" },

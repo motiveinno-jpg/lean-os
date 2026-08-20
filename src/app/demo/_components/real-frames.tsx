@@ -93,8 +93,8 @@ export function LedgerPanel({ before = false }: { before?: boolean }) {
   return (
     <section className="pp glass-card" id={before ? "pp-ledger-b" : "pp-ledger"}>
       <Head
-        crumb="파이낸스 › 거래 장부"
-        title="은행 거래를 계정과목으로 자동 분류합니다"
+        crumb="파이낸스 › 수집·전표"
+        title="받아온 자료를 전표로 만들고 계정을 추천합니다"
         sub="미분류 거래를 한 번에 정리하고, 반복되는 건은 규칙으로 남겨요."
         tabs={["자동 분류", "입금 매칭"]}
       />
@@ -211,7 +211,7 @@ export function ReconPanel({ before = false }: { before?: boolean }) {
   return (
     <section className="pp glass-card" id={before ? "pp-recon-b" : "pp-recon"}>
       <Head
-        crumb="파이낸스 › 거래 장부"
+        crumb="파이낸스 › 수집·전표"
         title="입금과 세금계산서를 맞춰 수금을 확정합니다"
         sub="세 금액이 맞으면 미수금이 차감되고 회계 전표까지 자동으로 만들어져요."
         tabs={["자동 분류", "입금 매칭"]}
