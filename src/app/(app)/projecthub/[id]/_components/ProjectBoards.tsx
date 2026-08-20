@@ -2603,10 +2603,14 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
   const moveMine = (i: number, d: number) => { const next = [...mineIds]; const j = i + d; if (j < 0 || j >= next.length) return; [next[i], next[j]] = [next[j], next[i]]; saveMine(next); };
   const swapMine = (i: number, id: string) => { const next = [...mineIds]; next[i] = id; saveMine(next); };
 
-  const tools = (
+  //   [표로] = 그림(도넛·막대·선)을 숫자 표로 바꿔 읽는 토글(색을 못 가르는 눈에도 같은 값).
+  //   기록 유형(대표 그림 없음)·타임라인은 바꿀 그림이 없어 **버튼이 아무 일도 안 했다** (2026-08-20 사장님 제보)
+  //   → 토글이 먹는 그림이 하나라도 있을 때만 버튼을 보인다.
+  const tableTargets = (heroFig ? 1 : 0) + minePieces.filter((x) => x.kind !== "card").length;
+  const tools = tableTargets === 0 ? undefined : (
     <div className="pb-fmt">
       <button type="button" className={`pb-fmt-btn ${asTable ? "pb-fmt-on" : ""}`}
-        onClick={() => setAsTable((v) => !v)} title="그림 대신 숫자로 읽기">{asTable ? "그림으로" : "표로"}</button>
+        onClick={() => setAsTable((v) => !v)} title="도넛·막대 그림을 숫자 표로 바꿔 읽습니다">{asTable ? "그림으로" : "표로"}</button>
     </div>
   );
 
