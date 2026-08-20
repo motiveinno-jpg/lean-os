@@ -4,7 +4,7 @@ from deck2_core import *          # noqa: F401,F403
 
 def part3():
     # ══════════ 21 챕터 Ⅲ ══════════
-    chapter("CHAPTER Ⅲ", "이렇게 씁니다", "실제 화면을 그대로 보여 드립니다.", 21)
+    chapter("CHAPTER Ⅲ", "어떻게 쓰게 될까요", "실제 사용 화면을 그대로 담았습니다.", 21)
 
     # ══════════ 22~29 사용 예시 8장 ══════════
     uses = [
@@ -29,12 +29,12 @@ def part3():
         use_slide(pg, title, pipes, img)
 
     # ══════════ 30 챕터 Ⅳ ══════════
-    chapter("CHAPTER Ⅳ", "도입하기", "오늘 가입하고, 오늘부터 씁니다.", 30)
+    chapter("CHAPTER Ⅳ", "어떻게 시작할까요", "가입하신 날부터 바로 쓰실 수 있습니다.", 30)
 
     # ══════════ 31 역할별로 보는 화면 ══════════
-    s = plain(31, "역할마다 보는 화면이 다릅니다", "같은 자료를 쓰지만, 각자에게 필요한 것만 먼저 보입니다.")
-    roles = [("대표", "회사 신호 6칸 · 오늘 챙길 것 · 경영 흐름", "오늘 회사가 어떤 상태인지 30초 안에 확인합니다."),
-             ("경리 · 총무", "수집 · 전표 · 세금계산서 · 급여", "제안된 분류를 확인하고 확정합니다. 월말이 짧아집니다."),
+    s = plain(31, "역할마다 보는 화면이 다릅니다", "같은 자료를 쓰지만 각자에게 필요한 것이 먼저 보입니다.")
+    roles = [("대표", "회사 신호 6칸 · 오늘 챙길 것 · 경영 흐름", "회사 상태를 30초 안에 확인하실 수 있습니다."),
+             ("경리 · 총무", "수집 · 전표 · 세금계산서 · 급여", "제안된 분류를 확인하고 확정하면 됩니다."),
              ("팀장", "프로젝트 · 결재 · 일정", "맡은 일의 진행과 결재를 한 화면에서 처리합니다."),
              ("직원", "마이페이지 · 근태 · 급여명세 · 요청", "출퇴근부터 증명서까지 스스로 처리합니다.")]
     for i, (t, menus, d) in enumerate(roles):
@@ -50,8 +50,8 @@ def part3():
          [("메뉴 접근과 세부 기능(금액 보기 등)은 구성원마다 따로 켜고 끕니다.", 10.5, False, DIM)], PP_ALIGN.CENTER)
 
     # ══════════ 32 보안 · 권한 · 데이터 ══════════
-    s = plain(32, "회사 자료를 맡기는 일이라, 여기부터 말씀드립니다",
-              "권한은 메뉴 단위로, 보안은 데이터 단위로 걸어 둡니다.")
+    s = plain(32, "회사 자료를 맡기시는 일이라, 여기부터 말씀드립니다",
+              "권한은 메뉴 단위로, 보안은 데이터 단위로 걸려 있습니다.")
     rect(s, Inches(0.62), Inches(1.95), Inches(6.5), Inches(4.55), fill=WHITE, line=LINE,
          shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.04)
     pic(s, "f-perm.png", Inches(0.75), Inches(2.08), Inches(6.24), Inches(4.29), border=False)
@@ -66,11 +66,11 @@ def part3():
         text(s, Inches(7.7), y + Inches(0.46), Inches(4.85), Inches(0.5), [(d, 9.2, False, MUT)], spacing=1.25)
 
     # ══════════ 33 도입 절차 · 자료 이관 ══════════
-    s = plain(33, "도입은 네 단계로 끝납니다", "설치가 필요 없습니다. 웹에서 가입하고 바로 씁니다.")
+    s = plain(33, "도입은 네 단계면 됩니다", "설치가 필요 없습니다. 웹에서 가입하고 바로 쓰시면 됩니다.")
     steps = [("가입", "이메일 또는 카카오·구글 계정으로 가입합니다.", "3분"),
              ("회사 개설", "사업자등록번호로 회사를 만듭니다.\n이미 있으면 합류를 요청합니다.", "5분"),
              ("연동", "공동인증서를 한 번 등록하면\n은행·카드·홈택스 자료가 모입니다.", "10분"),
-             ("구성원 초대", "메일로 초대하고 권한을 메뉴별로 켭니다.", "5분")]
+             ("구성원 초대", "메일로 초대하고 권한을 메뉴별로 켜 줍니다.", "5분")]
     for i, (t, d, tm) in enumerate(steps):
         x = Inches(0.62) + i * Inches(3.11)
         rect(s, x, Inches(2.1), Inches(2.9), Inches(2.75), fill=WHITE, line=LINE,
@@ -85,19 +85,19 @@ def part3():
     rect(s, Inches(0.62), Inches(5.15), Inches(12.11), Inches(1.35), fill=BAND, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.06)
     text(s, Inches(0.95), Inches(5.35), Inches(5.4), Inches(0.32), [("쓰시던 자료는 어떻게 되나요?", 12, True, BR)])
     text(s, Inches(0.95), Inches(5.72), Inches(5.4), Inches(0.6),
-         [("엑셀은 그대로 올리시면 됩니다. 지난 거래는 연동 시점부터 자동으로 들어오고, 그 이전 자료는 업로드로 채웁니다.", 9.8, False, MUT)], spacing=1.3)
+         [("엑셀은 그대로 올리시면 됩니다. 연동한 시점부터는 자동으로 들어오고, 그 이전 자료는 업로드로 채우시면 됩니다.", 9.8, False, MUT)], spacing=1.3)
     text(s, Inches(6.9), Inches(5.35), Inches(5.4), Inches(0.32), [("세무사와는 어떻게 하나요?", 12, True, BR)])
     text(s, Inches(6.9), Inches(5.72), Inches(5.4), Inches(0.6),
-         [("같은 화면을 열어 드리면 됩니다. 필요한 자료는 엑셀로 내려받아 전달하실 수도 있습니다.", 9.8, False, MUT)], spacing=1.3)
+         [("세무사에게 같은 화면을 열어 드리면 됩니다. 필요한 자료는 엑셀로 내려받아 전달하셔도 됩니다.", 9.8, False, MUT)], spacing=1.3)
 
     # ══════════ 34 요금제 (실제 구성) · 문의 ══════════
     #   사장님 지시(2026-08-20): 문의 폼 입력칸은 빼고 **실제 요금제 구성**을 넣는다.
     #   링크는 하이퍼링크로 — 누르면 그 페이지가 열린다.
     s = slide()
     text(s, Inches(0.6), Inches(0.42), Inches(12.13), Inches(0.45),
-         [("무료로 시작해, 회사에 맞게 자랍니다", 23, True, INK)], PP_ALIGN.CENTER)
+         [("무료로 시작해, 회사에 맞게 사용하세요", 23, True, INK)], PP_ALIGN.CENTER)
     text(s, Inches(0.6), Inches(1.0), Inches(12.13), Inches(0.3),
-         [("기본 5명 포함 · VAT 별도 · 카드 등록 없이 무료로 시작합니다.", 11.5, False, MUT)], PP_ALIGN.CENTER)
+         [("기본 5명 포함 · VAT 별도 · 카드 등록 없이 바로 시작하실 수 있습니다.", 11.5, False, MUT)], PP_ALIGN.CENTER)
 
     # 열 위치
     cx = [Inches(0.62), Inches(4.72), Inches(7.42), Inches(10.12)]
@@ -143,7 +143,7 @@ def part3():
     ly = Inches(6.35)
     rect(s, Inches(0.62), ly, Inches(12.11), Inches(0.72), fill=BR, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.18)
     text(s, Inches(1.0), ly + Inches(0.22), Inches(2.6), Inches(0.3),
-         [("지금 시작해 보십시오", 12, True, WHITE)])
+         [("지금 바로 시작해 보세요", 12, True, WHITE)])
     link_text(s, Inches(3.5), ly + Inches(0.22), Inches(2.9), Inches(0.3),
               "www.owner-view.com", "https://www.owner-view.com",
               size=11.5, bold=True, color=RGBColor(0xFF, 0xFF, 0xFF))

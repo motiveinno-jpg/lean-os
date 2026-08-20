@@ -9,8 +9,8 @@ from deck2_core import *          # noqa: F401,F403  (prs · 색 · 틀 함수)
 cover()
 
 # ══════════ 02 오너뷰는 ══════════
-s = plain(2, "오너뷰는 작은 회사의 운영 소프트웨어입니다",
-          "은행 앱·엑셀·근태 앱·문서함·단톡방으로 나뉘어 있던 일을 한 화면으로 모읍니다.")
+s = plain(2, "오너뷰는 회사 운영 All in one 시스템입니다",
+          "은행 앱·엑셀·근태 앱·문서함·단톡방으로 나뉘어 있던 일을 한 화면에서 처리합니다.")
 for i, (t, d) in enumerate([("돈", "통장 · 카드 · 세금 · 장부"), ("일", "프로젝트 · 일정 · 결재"),
                             ("사람", "근태 · 연차 · 급여 · 계약"), ("기록", "문서 · 게시판 · 파일")]):
     x = Inches(0.6) + i * Inches(3.11)
@@ -23,9 +23,9 @@ rect(s, Inches(0.6), Inches(3.55), Inches(12.13), Inches(2.95), fill=WHITE, line
 pic_top(s, "use-dash.png", Inches(0.72), Inches(3.67), Inches(11.89), Inches(2.71))
 
 # ══════════ 03 이런 분들을 위해 ══════════
-s = plain(3, "이런 분들을 위해 만들었습니다", "규모가 크지 않아도, 회사는 돌아가야 합니다.")
+s = plain(3, "이런 분들을 위해 만들었습니다", "회사마다 상황은 다르지만, 관리해야 할 일은 같습니다.")
 for i, (tag, title, body, fix) in enumerate([
-        ("CASE 1", ["구식 ERP가 무겁게", "느껴지는 대표님"],
+        ("CASE 1", ["기존 ERP가 무겁게", "느껴지는 대표님"],
          "몇 해 전 들인 시스템이 어렵고 느립니다. 쓰는 기능은 일부인데 유지비는 계속 나갑니다.",
          "설치도 구축도 없이, 오늘 가입해 오늘부터"),
         ("CASE 2", ["이제 막 시작한", "창업 대표님"],
@@ -48,7 +48,7 @@ for i, (tag, title, body, fix) in enumerate([
     text(s, x + Inches(0.45), Inches(5.72), Inches(3.05), Inches(0.4), [("→ " + fix, 9.5, True, BR)], spacing=1.2)
 
 # ══════════ 04 자주 듣는 이야기 ══════════
-s = plain(4, "자주 듣는 이야기입니다", "오너뷰는 이 네 가지를 없애려고 만들었습니다.")
+s = plain(4, "자주 듣는 이야기입니다", "오너뷰는 이 네 가지를 덜어 드리려고 만들었습니다.")
 for i, (a, b, c, note) in enumerate([
         ("“통장이 세 개인데 ", "잔액을 보려면 앱을 세 번 열어야", " 해요”", "은행마다 따로 · 합계는 머릿속에서"),
         ("“", "월말마다 세무사에게 넘길 자료 챙기는 데 하루가", " 갑니다”", "영수증·계산서·통장을 모아 정리"),
@@ -63,7 +63,7 @@ for i, (a, b, c, note) in enumerate([
 
 # ══════════ 05 연결되는 곳 ══════════
 s = plain(5, "은행·카드사·국세청이 직접 연결됩니다",
-          "공동인증서를 한 번 등록하면 거래 자료가 스스로 들어옵니다. 옮겨 적을 일이 없습니다.")
+          "공동인증서를 한 번 등록하면 거래 자료가 자동으로 들어옵니다. 옮겨 적으실 일이 없습니다.")
 for i, (cat, names) in enumerate([
         ("은행 20+", ["국민", "신한", "우리", "하나", "기업", "농협", "카카오뱅크"]),
         ("카드사 10+", ["신한카드", "삼성카드", "현대카드", "KB국민", "롯데카드", "BC카드", "하나카드"]),
@@ -78,11 +78,11 @@ for i, (cat, names) in enumerate([
              shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.12)
         text(s, x + Inches(0.22), yy + Inches(0.07), Inches(2.46), Inches(0.24), [(nm, 9.5, False, MUT)], PP_ALIGN.CENTER)
 text(s, Inches(0.6), Inches(6.5), Inches(12.13), Inches(0.3),
-     [("연동을 건너뛰어도 됩니다 — 엑셀 업로드와 직접 입력으로 먼저 시작하고, 나중에 연결해도 자료는 그대로 이어집니다.", 10, False, DIM)],
+     [("연동은 나중에 하셔도 됩니다 — 엑셀 업로드와 직접 입력으로 먼저 시작하시고, 이후 연결해도 자료는 그대로 이어집니다.", 10, False, DIM)],
      PP_ALIGN.CENTER)
 
 # ══════════ 06 오너뷰 한 장 ══════════
-s = plain(6, "흩어진 자료가 한 곳으로 모이고, 세 가지로 정리됩니다")
+s = plain(6, "흩어진 자료를 한곳에 모아, 세 가지로 정리해 드립니다")
 for i, t in enumerate(["은행 거래", "카드 승인", "세금계산서", "직원 근태", "계약·문서", "프로젝트"]):
     y = Inches(2.0) + i * Inches(0.72)
     rect(s, Inches(0.7), y, Inches(2.5), Inches(0.55), fill=WHITE, line=LINE,
@@ -103,8 +103,8 @@ for i, (t, d) in enumerate([("오늘 회사 상태", "잔액·손익·받을 돈
     text(s, Inches(8.85), y + Inches(0.66), Inches(3.6), Inches(0.4), [(d, 10, False, MUT)], spacing=1.25)
 
 # ══════════ 07 세 가지 원칙 ══════════
-s = plain(7, "모으고 · 제안하고 · 사람이 확정합니다",
-          "자동화의 목적은 사람을 대신하는 것이 아니라, 판단할 준비를 끝내 두는 것입니다.")
+s = plain(7, "모으고 · 제안하고 · 확정은 사람이",
+          "자동화는 사람을 대신하는 것이 아니라, 판단할 준비를 대신하는 것입니다.")
 for i, (t, d, hl) in enumerate([
         ("① 자동으로 모읍니다", "은행·카드·국세청 자료가 스스로 들어옵니다.\n옮겨 적을 일이 없습니다.", False),
         ("② AI가 제안합니다", "분류·매칭·오늘 챙길 것을 출처와 함께 제안합니다.\n(AI 추천 / 배운 규칙 / 국세청 / 장부 대조)", False),
@@ -118,4 +118,4 @@ for i, (t, d, hl) in enumerate([
         text(s, x + Inches(3.98), Inches(3.6), Inches(0.3), Inches(0.4), [("›", 17, True, DIM)], PP_ALIGN.CENTER)
 rect(s, Inches(0.6), Inches(5.5), Inches(12.13), Inches(0.75), fill=BAND, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.16)
 text(s, Inches(0.6), Inches(5.72), Inches(12.13), Inches(0.4),
-     [("AI 가 대신 눌러 주지 않습니다. 대신, 누르기 전까지의 준비를 모두 끝내 둡니다.", 12.5, True, INK)], PP_ALIGN.CENTER)
+     [("AI 가 대신 누르지 않습니다. 누르기 전까지의 준비만 대신합니다.", 12.5, True, INK)], PP_ALIGN.CENTER)
