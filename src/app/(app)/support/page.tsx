@@ -188,7 +188,14 @@ export default function SupportPage() {
         uploaded.push({ path, name: f.name.slice(0, 120), size: f.size });
       }
       if (uploaded.length > 0) {
-        await (db as any).from("support_tickets").update({ attachments: uploaded }).eq("id", inserted.id);
+        // error 를 봐야 한다 (2026-08-20 감사): 실패하면 "사진 N장 첨부" 라고 알리면서 티켓엔
+        //   첨부가 없고, 올린 스크린샷만 스토리지에 남았다.
+        const { error: attErr } = await (db as any).from("support_tickets").update({ attachments: uploaded }).eq("id", inserted.id);
+        if (attErr) {
+          await db.storage.from("support-attachments").remove(uploaded.map((u) => u.path)).catch(() => {});
+          failed += uploaded.length;
+          uploaded.length = 0;
+        }
       }
       // 3) AI 자동 진단 — 접수 완료와 무관하게 백그라운드 실행 (실패해도 무시, 결과는 운영자 화면에)
       db.auth.getSession().then(({ data: { session } }) => {

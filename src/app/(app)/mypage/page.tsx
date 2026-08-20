@@ -125,11 +125,23 @@ export default function MyPage() {
       const ext = (file.name.split(".").pop() || "png").toLowerCase();
       // company-assets 버킷 RLS: 첫 폴더 = 회사ID 여야 업로드 허용. (avatars/ 로 시작하면 거부됨)
       const path = `${companyId}/avatars/${userId}-${Date.now()}.${ext}`;
+      const prevAvatarPath = (() => {
+        const m = String((userInfo as any)?.avatar_url || "").match(/\/object\/(?:public|sign|authenticated)\/company-assets\/([^?]+)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      })();
       const { error: upErr } = await supabase.storage.from("company-assets").upload(path, file, { upsert: true, contentType: file.type });
       if (upErr) throw new Error(upErr.message);
       const { data: urlData } = supabase.storage.from("company-assets").getPublicUrl(path);
       const { error: updErr } = await supabase.from("users").update({ avatar_url: urlData.publicUrl }).eq("id", userId);
-      if (updErr) throw new Error(updErr.message);
+      if (updErr) {
+        await supabase.storage.from("company-assets").remove([path]).catch(() => {});   // 고아 방지
+        throw new Error(updErr.message);
+      }
+      // 예전 사진 정리 (2026-08-20 감사): 경로에 Date.now() 가 들어가 바꿀 때마다 한 장씩
+      //   영구히 쌓였다. 교체가 확정된 다음에 지운다.
+      if (prevAvatarPath && prevAvatarPath !== path) {
+        await supabase.storage.from("company-assets").remove([prevAvatarPath]).catch(() => {});
+      }
       toast("프로필 사진이 변경되었습니다", "success");
       refreshAvatar();
     } catch (err: any) {
