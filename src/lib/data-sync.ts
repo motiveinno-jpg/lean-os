@@ -634,7 +634,7 @@ export async function registerCodefAccount(
   loginId: string,
   loginPw: string,
   clientType: 'P' | 'B' = 'B',
-): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
+): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string; verify?: { ok: boolean; code?: string; message?: string } }> {
   return callCodefRegister(companyId, {
     accountType, organization, loginType: '1', loginId, loginPw, clientType,
   });
@@ -649,7 +649,7 @@ export async function registerCodefCertificate(
   certPassword: string,
   pfxFile?: string,
   clientType: 'P' | 'B' = 'B',
-): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
+): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string; verify?: { ok: boolean; code?: string; message?: string } }> {
   const params: Record<string, string> = {
     accountType, organization, loginType: '0', certPassword, clientType,
   };
@@ -715,7 +715,7 @@ export async function verifyHometaxRegistration(
 async function callCodefRegister(
   companyId: string,
   params: Record<string, string>,
-): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string }> {
+): Promise<{ success: boolean; connectedId?: string; accountList?: any[]; error?: string; verify?: { ok: boolean; code?: string; message?: string } }> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return { success: false, error: '로그인이 필요합니다' };
@@ -759,6 +759,9 @@ async function callCodefRegister(
       success: true,
       connectedId: result.connectedId,
       accountList: result.accountList,
+      // 등록 직후 실제 조회 검증 결과 (2026-08-20) — 등록만 되고 수집이 안 되는 무음 실패를
+      //   화면에서 바로 알리기 위한 것. 없으면(구버전 엣지) undefined.
+      verify: result.verify ?? undefined,
     };
   } catch (err: any) {
     return { success: false, error: err.message || '계정 등록 실패' };

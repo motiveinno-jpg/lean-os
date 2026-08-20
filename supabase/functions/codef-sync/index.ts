@@ -299,19 +299,20 @@ async function syncBankBalanceOnly(
   const debug: string[] = [];
 
   const registeredAccounts = await getAccountList(token, connectedId);
-  const bankOrgs = new Set<string>();
+  // 개인(P)/법인(B) 라우팅 — 위 전체 수집 함수와 같은 규칙 (2026-08-20)
+  const bankOrgs = new Map<string, boolean>();
   for (const acct of registeredAccounts) {
     const org = acct.organization;
     if (!org || CARD_CODES[org]) continue;
-    if (acct.businessType === "BK" || BANK_CODES[org]) bankOrgs.add(org);
+    if (acct.businessType === "BK" || BANK_CODES[org]) bankOrgs.set(org, acct.clientType === "P");
   }
 
   if (bankOrgs.size === 0) {
     return { synced: 0, errors, debug: ["no bank orgs"] };
   }
 
-  for (const org of bankOrgs) {
-    const acctListResult = await codefRequest(token, "/v1/kr/bank/b/account/account-list", {
+  for (const [org, isPersonal] of bankOrgs) {
+    const acctListResult = await codefRequest(token, `/v1/kr/bank/${isPersonal ? "p" : "b"}/account/account-list`, {
       connectedId, organization: org,
     });
 
@@ -387,17 +388,24 @@ async function syncBankTransactions(
   //   (2026-08-19 드림세무회계 실사고: 농협을 P 로 등록 → 3주간 무음 실패). 로그로 바로 보이게 남긴다.
   debug.push(`registeredAccounts: ${registeredAccounts.length}개, orgs: ${registeredAccounts.map((a: any) => `${a.organization}(${a.businessType}/${a.clientType || "?"})`).join(",")}`);
 
-  const bankOrgs = new Set<string>();
+  // 기관별 개인(P)/법인(B) 구분 — 카드는 예전부터 이 분기를 쓰고 있었는데 은행만 /b/ 고정이라
+  //   P 로 등록한 개인사업자는 수집이 CF-04015 로 영영 실패했다(2026-08-19 드림세무회계 실사고).
+  //   CODEF 문서 대조 완료(2026-08-20): /v1/kr/bank/p/account/{account-list,transaction-list} 는
+  //   입력부(organization·connectedId·account·startDate·endDate·orderBy·inquiryType)와
+  //   출력부(resDepositTrust)가 법인과 동일하다 — 경로만 갈라주면 된다.
+  const bankOrgs = new Map<string, boolean>();   // org → isPersonal
   for (const acct of registeredAccounts) {
     const org = acct.organization;
     if (!org) continue;
     if (CARD_CODES[org]) continue;
     if (acct.businessType === "BK" || BANK_CODES[org]) {
-      bankOrgs.add(org);
+      bankOrgs.set(org, acct.clientType === "P");
     }
   }
+  const bankPath = (isPersonal: boolean, api: "account-list" | "transaction-list") =>
+    `/v1/kr/bank/${isPersonal ? "p" : "b"}/account/${api}`;
 
-  debug.push(`bankOrgs: ${[...bankOrgs].join(",") || "없음"}`);
+  debug.push(`bankOrgs: ${[...bankOrgs].map(([o, p]) => `${o}(${p ? "P" : "B"})`).join(",") || "없음"}`);
 
   if (bankOrgs.size === 0) {
     errors.push({ accountNo: "", organization: "", code: "NO_BANK_ACCOUNTS", message: "등록된 은행 계정이 없습니다.", hint: "설정 → API 연동에서 은행을 먼저 연결하세요." });
@@ -405,8 +413,8 @@ async function syncBankTransactions(
   }
 
   // 2. 각 은행에서 보유계좌 목록 조회 → 실제 계좌번호 확보
-  for (const org of bankOrgs) {
-    const acctListResult = await codefRequest(token, "/v1/kr/bank/b/account/account-list", {
+  for (const [org, isPersonal] of bankOrgs) {
+    const acctListResult = await codefRequest(token, bankPath(isPersonal, "account-list"), {
       connectedId, organization: org,
     });
 
@@ -504,7 +512,7 @@ async function syncBankTransactions(
       const accountNo = bankAcct.resAccount || bankAcct.resAccountNo || bankAcct.resAccountDisplay || "";
       if (!accountNo) continue;
 
-      const result = await codefRequest(token, "/v1/kr/bank/b/account/transaction-list", {
+      const result = await codefRequest(token, bankPath(isPersonal, "transaction-list"), {
         connectedId, organization: org, account: accountNo,
         startDate, endDate, orderBy: "0", inquiryType: "1",
       });
@@ -597,7 +605,10 @@ async function syncBankTransactions(
     }
   }
 
-  return { synced: totalSynced, errors, debug, orgs: [...bankOrgs] };
+  //   ⚠️ bankOrgs 는 Map(org → isPersonal) 이다 — 소비처(alertBankSyncIssues)는 기관코드
+  //      문자열 배열을 기대하므로 키만 넘긴다. 그대로 펼치면 [org, boolean] 쌍이 돼
+  //      은행 유실 감시가 조용히 오작동한다. (2026-08-20 개인 라우팅 도입 시 확인)
+  return { synced: totalSynced, errors, debug, orgs: [...bankOrgs.keys()] };
 }
 
 // 은행 수집 중단 감시 — 카드(alertMissingCardOrgs)의 은행판 + 인증오류 감시. (2026-08-19)
@@ -2938,7 +2949,33 @@ serve(withSentry("codef-sync", async (req) => {
         }, { onConflict: "company_id" });
       }
 
-      return new Response(JSON.stringify({ success: true, connectedId: result.connectedId, accountList: result.accountList }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      // 등록 직후 1회 실제 조회로 확인 (2026-08-20 사장님) — "등록은 됐는데 수집이 안 되는"
+      //   무음 실패를 없앤다. 드림세무회계 건(농협을 개인으로 등록 → CF-04015 로 3주간 조용히
+      //   실패, 아무 화면에도 안 뜸)이 정확히 이 자리에서 막혔어야 했다.
+      //   조회 자체가 목적이 아니라 **연결이 실제로 쓸 수 있는 상태인지** 지금 알려주는 게 목적이다.
+      let verify: { ok: boolean; code?: string; message?: string } | null = null;
+      if (accountType === "bank" && result.connectedId) {
+        try {
+          const isP = clientType === "P";
+          const probe = await codefRequest(token, `/v1/kr/bank/${isP ? "p" : "b"}/account/account-list`, {
+            connectedId: result.connectedId, organization,
+          });
+          const code = probe.result?.code;
+          verify = code === "CF-00000"
+            ? { ok: true, code }
+            : { ok: false, code, message: probe.result?.message || codefErrorHint(code) };
+        } catch (e) {
+          // 검증 호출 자체가 실패해도 등록은 살린다 — 다만 "확인 못 했다"고 분명히 말한다.
+          verify = { ok: false, code: "VERIFY_FAILED", message: (e as Error)?.message || "연결 확인에 실패했습니다." };
+        }
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        connectedId: result.connectedId,
+        accountList: result.accountList,
+        verify,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // --- Action: sandbox-connect (샌드박스 데모 데이터 즉시 연결) ---

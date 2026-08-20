@@ -330,10 +330,18 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
           ? await registerCodefCertificate(companyId, accountType, organization, "", "", certPassword, autoPfxB64, clientType)
           : await registerCodefCertificate(companyId, accountType, organization, derFileB64, keyFileB64, certPassword, undefined, clientType);
         if (res.success) {
-          setResult({ ok: true, msg: "금융기관 연결 성공!" });
-          toast("금융기관 연결 완료", "success");
-          setCertPassword("");
-          onRegistered();
+          //   등록만 되고 수집이 안 되는 무음 실패를 여기서 잡는다 (2026-08-20).
+          //   드림세무회계 건은 등록 성공 화면만 보고 3주간 아무도 몰랐다.
+          if (res.verify && !res.verify.ok) {
+            setResult({ ok: false, msg: `연결은 등록됐지만 계좌 조회가 안 됩니다 (${res.verify.code || "확인 실패"}). ${res.verify.message || ""}\n개인/법인 구분이나 인증 정보를 다시 확인해 주세요.` });
+            toast("연결 확인 실패 — 수집이 안 되는 상태입니다", "error");
+            onRegistered();
+          } else {
+            setResult({ ok: true, msg: res.verify?.ok ? "금융기관 연결 성공! (계좌 조회까지 확인됨)" : "금융기관 연결 성공!" });
+            toast("금융기관 연결 완료", "success");
+            setCertPassword("");
+            onRegistered();
+          }
         } else {
           setResult({ ok: false, msg: res.error || "연결 실패" });
         }
@@ -346,11 +354,17 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
         const { registerCodefAccount } = await import("@/lib/data-sync");
         const res = await registerCodefAccount(companyId, accountType, organization, loginId, loginPw, clientType);
         if (res.success) {
-          setResult({ ok: true, msg: "금융기관 연결 성공!" });
-          toast("금융기관 연결 완료", "success");
-          setLoginId("");
-          setLoginPw("");
-          onRegistered();
+          if (res.verify && !res.verify.ok) {
+            setResult({ ok: false, msg: `연결은 등록됐지만 계좌 조회가 안 됩니다 (${res.verify.code || "확인 실패"}). ${res.verify.message || ""}\n개인/법인 구분이나 아이디·비밀번호를 다시 확인해 주세요.` });
+            toast("연결 확인 실패 — 수집이 안 되는 상태입니다", "error");
+            onRegistered();
+          } else {
+            setResult({ ok: true, msg: res.verify?.ok ? "금융기관 연결 성공! (계좌 조회까지 확인됨)" : "금융기관 연결 성공!" });
+            toast("금융기관 연결 완료", "success");
+            setLoginId("");
+            setLoginPw("");
+            onRegistered();
+          }
         } else {
           setResult({ ok: false, msg: res.error || "연결 실패" });
         }
@@ -428,11 +442,14 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
           <button onClick={() => { setAccountType("hometax"); setOrganization("0001"); setResult(null); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "hometax" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>홈택스</button>
         </div>
 
-        {/* 개인/법인 선택 — 개인(P)은 비활성 (2026-08-19): 백엔드 수집이 법인(/b/) API 전용이라
-            P 로 등록하면 등록만 성공하고 수집이 CF-04015 로 영영 무음 실패한다(실사고). */}
+        {/* 개인/법인 선택 — 2026-08-20 개인(P) 개방.
+            2026-08-19 에 막았던 이유(백엔드가 법인 /b/ API 전용이라 P 등록 시 수집이 CF-04015 로
+            영영 무음 실패)를 codef-sync 에서 해소했다: 은행도 카드처럼 clientType 으로
+            /v1/kr/bank/{p|b}/... 를 갈라 부른다(CODEF 문서 대조 — 입력·출력 스펙 동일).
+            더해서 등록 직후 1회 실제 조회로 검증해, 안 되면 그 자리에서 알린다(무음 실패 차단). */}
         <div className="bank-integration-client-type-toggle">
-          <button disabled title="개인 계정 연동은 준비 중입니다. 법인/기업 계정을 사용해 주세요." className="flex-1 py-2.5 rounded-xl text-xs font-semibold border bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-dim)] opacity-50 cursor-not-allowed">
-            개인 (준비 중)
+          <button onClick={() => setClientType("P")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "P" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
+            개인
           </button>
           <button onClick={() => setClientType("B")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "B" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
             법인/기업
