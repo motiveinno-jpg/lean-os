@@ -304,19 +304,21 @@ def cover():
          [[("은행·카드·세금·계약·직원 —", 28, True, WHITE)],
           [("회사 운영의 모든 것을 한 화면에", 28, True, LAV)]], spacing=1.28)
     text(s, Inches(0.85), Inches(5.3), Inches(5), Inches(0.4), [("◈ OwnerView", 19, True, WHITE)])
-    text(s, Inches(0.85), Inches(5.95), Inches(4.05), Inches(0.35),
-         [("작은 회사를 위한 운영 소프트웨어 · ", 11.5, False, RGBColor(0xD5, 0xDC, 0xF5))])
+    text(s, Inches(0.85), Inches(5.95), Inches(3.0), Inches(0.35),
+         [("회사 운영 All in one 시스템", 11.5, False, RGBColor(0xD5, 0xDC, 0xF5))])
+    text(s, Inches(3.72), Inches(5.95), Inches(0.3), Inches(0.35),
+         [("·", 11.5, False, RGBColor(0x9F, 0xAA, 0xD8))])
     #   표지 주소 — 글자는 흰색으로 두고 링크는 투명 도형에 건다
     #   (하이퍼링크 run 은 테마색(파랑·밑줄)이 강제돼 표지에서 튄다)
-    text(s, Inches(4.35), Inches(5.95), Inches(3.4), Inches(0.35),
+    text(s, Inches(4.02), Inches(5.95), Inches(3.4), Inches(0.35),
          [("www.owner-view.com", 11.5, True, RGBColor(0xFF, 0xFF, 0xFF))])
-    hot = rect(s, Inches(4.3), Inches(5.92), Inches(2.5), Inches(0.32), fill=None)
+    hot = rect(s, Inches(3.98), Inches(5.92), Inches(2.5), Inches(0.32), fill=None)
     link_shape(s, hot, "https://www.owner-view.com")
     p = os.path.join(CAP, "use-dash.png")
     if os.path.exists(p):
         iw, ih = Image.open(p).size
-        w_ = Inches(6.5); h_ = int(w_ * ih / iw)
-        s.shapes.add_picture(p, Inches(7.1), Inches(1.5), w_, h_)
+        w_ = Inches(5.95); h_ = int(w_ * ih / iw)
+        s.shapes.add_picture(p, Inches(6.95), Inches(1.75), w_, h_)
     return s
 
 def chapter(no, title, sub, page):
