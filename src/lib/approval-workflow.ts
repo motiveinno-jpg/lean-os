@@ -440,8 +440,8 @@ export async function createApprovalRequest(params: {
           .select('user_id, name, position')
           .eq('company_id', params.companyId)
           .in('position', ROLE_POSITION_NAMES[approverRole])
-          .not('user_id', 'is', null)
           .limit(requiredCount));
+        // 계정이 연결되지 않은 구성원은 승인자가 될 수 없다 — 여기서 거른다(쿼리 .not 대신 JS 필터).
         for (const e of (byPosition || []) as { user_id: string | null; name: string }[]) {
           if (e.user_id) approverList.push({ id: e.user_id, name: e.name });
         }
