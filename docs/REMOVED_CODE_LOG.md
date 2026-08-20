@@ -154,3 +154,6 @@
 
 ## 2026-08-19 — 요금제 재편 (docs/20260819_PLAN_billing_redesign.md)
 - billing/page.tsx: KPI 카드 4(stat-tile)·사용량 타일·요금제 카드(billing-plan-card, PLAN_FEATURES)·해외카드 배너(billing-overseas-card-notice)·해지 상자(billing-cancel-section)·충전 카드(billing-credit-balance/shop/history)·결제 수단/안내 카드·청구서 카드 → 요약 한 줄 + 표. '청구서' 탭은 '결제' 탭에 합침. `globals.css` 옛 `.billing-kpi-row .billing-usage-card .billing-plan-grid .billing-plan-card .billing-cancel-section .billing-overseas-card-notice .billing-credit-* .billing-payment-*-card .billing-invoices-card .billing-coupon-card` 는 사용처 없음(다른 PC 충돌 회피로 남김).
+
+## 2026-08-20 — 프로젝트 템플릿 요약 재편 (docs/20260820_PLAN_project_summary_redesign.md)
+- BoardSummary: '어떻게 볼까' 형태 스위치(SHAPES·pickShape)·양식 칩(pickFormat)·지표 고르기(SummaryFormatDialog 열기)·정리 양식 저장/수정 다이얼로그·thin 접기 제거 → 유형별 고정 한 장 + 내 지표. SummaryFormatDialog·summary-layout(applyLayout 등) 함수는 남아 있으나 요약에서 미사용(프롭 호환 — 다음 정리 때 제거). localStorage `ov.board.sumshape/sumfmt` 는 더 안 읽음(새 키 ov.board.mine.*).

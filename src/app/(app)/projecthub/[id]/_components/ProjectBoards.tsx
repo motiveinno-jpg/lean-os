@@ -34,7 +34,7 @@ import { hasMoneyData } from "@/lib/project-money-rollup";
 import { BoardFigure } from "./BoardFigures";
 import { AdDashboard } from "./AdDashboard";
 import { templateFigures, shapeFigures, summaryCardKey, type Figure, boardDigest, type BoardChip } from "@/lib/project-template-summary";
-import { todayKst } from "@/lib/kst";
+import { todayKst, mondayOfStr, addDaysStr } from "@/lib/kst";
 import { BoardNewModal, LabelEditor } from "./BoardNewModal";
 import { listPresets, savePreset, updatePreset, removePreset, type Preset } from "@/lib/board-presets";
 import {
@@ -47,7 +47,7 @@ import {
 } from "@/lib/summary-layout";
 import {
   findTemplate, ITEM_LABEL, templateKind, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
-  flowColumnOf, spanColumnsOf, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, inputModesOf, MODE_LABEL, isDoneRow, START_DATE_RE,
+  flowColumnOf, spanColumnsOf, terminalOptionId, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, inputModesOf, MODE_LABEL, isDoneRow, START_DATE_RE,
   COL_FORMATS, DEFAULT_STATUS_OPTIONS,
   type InputMode, type PayTermRow, type ColumnDef, type GroupDef, type StatusOption,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
@@ -2426,164 +2426,289 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
   onRemovePreset?: (p: Preset) => void;
   onOpenItem?: (itemId: string) => void;
 }) {
+  //   2026-08-20 재편 (docs/20260820_PLAN_project_summary_redesign.md, 사장님 확정) —
+  //   지표 카드 나열 + '어떻게 볼까' 전역 형태 스위치(도구 11개) → 유형별 **정해진 한 장**
+  //   (결론 한 문장 → 핵심 숫자 → 대표 그림 → 챙길 것) + **내 지표**(원하는 그림을 원하는 형태로 추가·전환·순서).
+  //   정리 양식(presets)·전역 스위치·지표 고르기는 내 지표가 흡수 — 프롭은 호환으로 받기만 한다(다음 정리 때 제거).
+  //   캘린더 형태는 요약에서 뺐다(달력은 일정/할 일 메뉴가 본체) — 간트는 일정 유형의 대표 그림으로 남는다.
+  void presets; void onSavePreset; void onUpdatePreset; void onRemovePreset;
   const tplKey = templateKey || "blank";
-  // 고른 양식은 표 형태별로 기억한다 — 같은 형태의 표는 같은 눈으로 보는 게 자연스럽다
-  const [pickedId, setPickedId] = useState<string>("");
-  const [shape, setShape] = useState<SummaryShape>("auto");
-  const [configOpen, setConfigOpen] = useState(false);
-  const [asTable, setAsTable] = useState(false);      // 그림 대신 숫자로 읽기
-  const [openThin, setOpenThin] = useState(false);    // 볼 게 거의 없는 리포트를 펼쳤나
-  const [naming, setNaming] = useState<SummaryLayout | null>(null);
-  const [editing, setEditing] = useState<SummaryLayout | null>(null);   // 고른 양식 덮어쓰기(이름도 함께)
+  const [asTable, setAsTable] = useState(false);      // 그림 대신 숫자로 읽기 (색을 못 가르는 눈에도 같은 값)
+  const [pickOpen, setPickOpen] = useState(false);    // 내 지표 추가 피커
+  const [mineIds, setMineIds] = useState<string[]>([]);
   useEffect(() => {
-    try {
-      setPickedId(localStorage.getItem(`ov.board.sumfmt.${tplKey}`) || "");
-      const s = localStorage.getItem(`ov.board.sumshape.${tplKey}`);
-      setShape(SUMMARY_SHAPES.includes(s as SummaryShape) ? (s as SummaryShape) : "auto");
-    } catch { /* 저장소 못 쓰면 기본 */ }
+    try { const raw = JSON.parse(localStorage.getItem(`ov.board.mine.${tplKey}`) || "[]"); setMineIds(Array.isArray(raw) ? raw : []); } catch { setMineIds([]); }
+    setPickOpen(false);
   }, [tplKey]);
-  const pickShape = (s: SummaryShape) => {
-    setShape(s);
-    try { localStorage.setItem(`ov.board.sumshape.${tplKey}`, s); } catch { /* 무시 */ }
-  };
+  //   내 지표 저장 — 사람·브라우저별(localStorage). 기존 sumshape/sumfmt 와 같은 저장 방식('내가 보는 눈'은 나에게만).
+  const saveMine = (ids: string[]) => { setMineIds(ids); try { localStorage.setItem(`ov.board.mine.${tplKey}`, JSON.stringify(ids)); } catch { /* 무시 */ } };
 
   const nameOf = (id: string) => users.find((u) => u.id === id)?.name || "";
   const today = todayKst();
 
-  //   고를 수 있는 그림 — 근거가 되는 칸이 있는 것만 띄운다(빈 화면을 만들지 않는다)
+  // ── 유형 판별 — 템플릿 키가 먼저, 커스텀은 칸 타입으로 (돈 > 일정 > 할 일 > 기록) ──
+  const flow = flowColumnOf(cols);
+  const term = flow ? terminalOptionId(flow) : null;
   const span = spanColumnsOf(cols);
   const dateCols = cols.filter((c) => c.type === "date");
-  const hasDate = dateCols.length > 0;
-  //   시작 칸이 없으면 기간이 아니라 한 점이다 — 간트는 그려 주되 무엇이 빠졌는지 알려 준다
-  const hasStart = dateCols.some((c) => START_DATE_RE.test(c.name)) || dateCols.length >= 2;
-  const canDonut = cols.some((c) => c.type === "status") || groups.length > 1;
-  const SHAPES: { key: SummaryShape; label: string; ok: boolean; hint: string }[] = [
-    { key: "auto", label: "자동", ok: true, hint: "자동 — 이 표에 맞는 그림을 골라 줍니다" },
-    { key: "gantt", label: "간트", ok: !!span, hint: "간트 — 시작·종료로 기간 막대" },
-    { key: "calendar", label: "캘린더", ok: hasDate, hint: "캘린더 — 날짜 칸을 달력으로" },
-    { key: "donut", label: "원형", ok: canDonut, hint: "원형 — 무엇이 얼마를 차지하나" },
-    { key: "bars", label: "막대", ok: true, hint: "막대 — 크기를 나란히 비교" },
-    { key: "line", label: "선형", ok: hasDate, hint: "선형 — 주별로 오르내림을 잇는다" },
-    { key: "cards", label: "숫자만", ok: true, hint: "숫자만 — 그림 없이 합계·분포 카드" },
+  const dueCol = cols.find((c) => c.type === "date" && !START_DATE_RE.test(c.name)) || null;
+  //   금액 칸이 둘일 수 있다(예산·집행) — 예산 칸은 '전체 그릇', 집행(그 외 첫 금액 칸)이 실적이다.
+  //   섞어 쓰면 핵심 숫자(예산 기준)와 대표 그림(집행 기준)이 서로 다른 얘기를 한다 (2026-08-20 구현 중 발견).
+  const wonCols = cols.filter((c) => c.type === "number" && (c.settings?.unit || "") === "원");
+  const budgetCol = wonCols.find((c) => /예산|budget/i.test(c.name)) || null;
+  const moneyCol = wonCols.find((c) => c.id !== budgetCol?.id) || budgetCol;
+  type SumType = "money" | "task" | "date" | "log";
+  const { sumType, typeWhy } = ((): { sumType: SumType; typeWhy: string } => {
+    if (["spend", "cost", "budget", "revenue", "pipeline", "billing"].includes(tplKey)) return { sumType: "money", typeWhy: "" };
+    if (["todo", "review"].includes(tplKey)) return { sumType: "task", typeWhy: "" };
+    if (["schedule", "contract"].includes(tplKey)) return { sumType: "date", typeWhy: "" };
+    if (tplKey === "meeting") return { sumType: "log", typeWhy: "" };
+    if (moneyCol) return { sumType: "money", typeWhy: "금액 칸이 있어 돈 요약으로 보여드려요" };
+    if (span || dateCols.length >= 2) return { sumType: "date", typeWhy: "날짜 칸이 있어 일정 요약으로 보여드려요" };
+    if (flow) return { sumType: "task", typeWhy: "단계 칸이 있어 할 일 요약으로 보여드려요" };
+    return { sumType: "log", typeWhy: "" };
+  })();
+
+  // ── 사실 계산 — 결론·숫자·챙길 것이 같은 값을 쓴다 ──
+  const isOpen = (it: BoardItem) => !isDoneRow(it as any, cols as any, groups as any);
+  const openItems = items.filter(isOpen);
+  const doneCount = items.length - openItems.length;
+  const dval = (it: BoardItem) => String((dueCol && it.values?.[dueCol.id]) || "").slice(0, 10);
+  const validD = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const overdue = dueCol ? openItems.filter((it) => validD(dval(it)) && dval(it) < today).sort((a, b) => dval(a).localeCompare(dval(b))) : [];
+  const weekEnd = addDaysStr(mondayOfStr(today), 7);
+  const thisWeek = dueCol ? openItems.filter((it) => validD(dval(it)) && dval(it) >= today && dval(it) < weekEnd).sort((a, b) => dval(a).localeCompare(dval(b))) : [];
+  const upcoming = dueCol ? openItems.filter((it) => validD(dval(it)) && dval(it) >= today).sort((a, b) => dval(a).localeCompare(dval(b))) : [];
+  const mval = (it: BoardItem) => Number((moneyCol && it.values?.[moneyCol.id]) || 0) || 0;
+  const totalMoney = moneyCol ? items.reduce((n, it) => n + mval(it), 0) : 0;
+  const openMoney = moneyCol ? openItems.reduce((n, it) => n + mval(it), 0) : 0;
+  const dday = (v: string) => Math.round((new Date(v + "T00:00:00").getTime() - new Date(today + "T00:00:00").getTime()) / 864e5);
+
+  // ── 결론 한 문장 + 핵심 숫자 (유형별) ──
+  const shortW = (n: number) => { const v = Math.round(n || 0); if (Math.abs(v) >= 1e8) return `${(v / 1e8).toFixed(1)}억`; if (Math.abs(v) >= 1e4) return `${Math.round(v / 1e4).toLocaleString("ko-KR")}만`; return v.toLocaleString("ko-KR"); };
+  type StatCell = { l: string; v: string; s?: string; tone?: "warn" | "bad" | "ok" };
+  let headline = ""; let why = ""; let stats: StatCell[] = [];
+  if (sumType === "money") {
+    const budgetTotal = budgetCol && budgetCol.id !== moneyCol?.id ? items.reduce((n, it) => n + (Number(it.values?.[budgetCol.id]) || 0), 0) : 0;
+    if (budgetTotal > 0 && moneyCol) {
+      //   예산 칸 + 집행 칸 — "예산 대비 얼마나 썼나"가 결론
+      const pctUsed = Math.round((totalMoney / budgetTotal) * 100);
+      headline = `${budgetCol!.name} ${shortW(budgetTotal)}원 중 ${shortW(totalMoney)}원(${pctUsed}%)을 썼어요` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요해요.` : ".");
+      why = [`남은 ${budgetCol!.name} ${shortW(Math.max(0, budgetTotal - totalMoney))}원`, thisWeek.length ? `이번 주 ${dueCol?.name || "결제"} ${thisWeek.length}건` : ""].filter(Boolean).join(" · ");
+      stats = [
+        { l: budgetCol!.name, v: `${shortW(budgetTotal)}원` },
+        { l: moneyCol.name, v: `${shortW(totalMoney)}원`, s: `${items.length}건` },
+        { l: "남음", v: `${shortW(Math.max(0, budgetTotal - totalMoney))}원` },
+        { l: "집행률", v: `${pctUsed}%`, tone: pctUsed >= 90 ? "bad" as const : pctUsed >= 75 ? "warn" as const : undefined },
+        ...(dueCol ? [{ l: `${dueCol.name} 지남`, v: `${overdue.length}건`, tone: overdue.length ? "bad" as const : undefined }] : []),
+      ];
+    } else {
+      headline = moneyCol
+        ? `${moneyCol.name} 합계 ${shortW(totalMoney)}원 중 ${shortW(totalMoney - openMoney)}원이 끝났어요` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요해요.` : ".")
+        : `${items.length}건이 있어요.`;
+      why = [dueCol && thisWeek.length ? `이번 주 ${dueCol.name} ${thisWeek.length}건` : "", `미완료 ${openItems.length}건 ${moneyCol ? shortW(openMoney) + "원" : ""}`].filter(Boolean).join(" · ");
+      stats = [
+        ...(moneyCol ? [
+          { l: "합계", v: `${shortW(totalMoney)}원` },
+          { l: "완료", v: `${shortW(totalMoney - openMoney)}원`, s: `${doneCount}건` },
+          { l: "미완료", v: `${shortW(openMoney)}원`, s: `${openItems.length}건` },
+        ] : [{ l: "전체", v: `${items.length}건` }]),
+        ...(dueCol ? [{ l: `${dueCol.name} 지남`, v: `${overdue.length}건`, tone: overdue.length ? "bad" as const : undefined }, { l: "이번 주", v: `${thisWeek.length}건`, tone: thisWeek.length ? "warn" as const : undefined }] : []),
+      ];
+    }
+  } else if (sumType === "task") {
+    headline = `${items.length}건 중 ${doneCount}건이 끝났어요` + (overdue.length ? ` — 기한 지난 ${overdue.length}건이 밀려 있어요.` : overdue.length === 0 && dueCol ? " — 기한 지난 건은 없어요." : ".");
+    why = [flow ? `진행 중 ${openItems.length}건` : "", thisWeek.length ? `이번 주 마감 ${thisWeek.length}건` : ""].filter(Boolean).join(" · ");
+    stats = [
+      { l: "전체", v: `${items.length}건` },
+      { l: "완료", v: `${doneCount}건`, s: items.length ? `${Math.round((doneCount / items.length) * 100)}%` : undefined },
+      { l: "남음", v: `${openItems.length}건` },
+      ...(dueCol ? [{ l: "기한 지남", v: `${overdue.length}건`, tone: overdue.length ? "bad" as const : undefined }, { l: "이번 주 마감", v: `${thisWeek.length}건`, tone: thisWeek.length ? "warn" as const : undefined }] : []),
+    ];
+  } else if (sumType === "date") {
+    const next = upcoming[0] || null;
+    headline = `${items.length}건 중 ${doneCount}건이 끝났어요` + (overdue.length ? ` — 종료가 지난 미완료 ${overdue.length}건이 밀려 있어요.` : ".");
+    why = next ? `다음 ${dueCol?.name || "마감"} ${dval(next).slice(5)} (D-${dday(dval(next))}) · ${next.name}` : "";
+    stats = [
+      { l: "전체", v: `${items.length}건` },
+      { l: "완료", v: `${doneCount}건`, s: items.length ? `${Math.round((doneCount / items.length) * 100)}%` : undefined },
+      { l: "지연", v: `${overdue.length}건`, tone: overdue.length ? "bad" as const : undefined, s: "종료 지났는데 미완료" },
+      ...(next ? [{ l: `다음 ${dueCol?.name || "마감"}`, v: dday(dval(next)) === 0 ? "오늘" : `D-${dday(dval(next))}`, s: next.name.slice(0, 16) }] : []),
+    ];
+  } else {
+    headline = `기록 ${items.length}건이 있어요` + (overdue.length ? ` — 후속 기한 지난 ${overdue.length}건이 밀려 있어요.` : ".");
+    why = flow ? "" : "";
+    const opts: any[] = (flow?.settings?.options || []) as any[];
+    const topStates = opts.map((o) => ({ label: String(o.label), n: items.filter((it) => it.values?.[flow!.id] === o.id).length })).filter((x) => x.n > 0).slice(0, 3);
+    stats = [
+      { l: "전체", v: `${items.length}건` },
+      ...topStates.map((x) => ({ l: x.label, v: `${x.n}건` })),
+      ...(dueCol ? [{ l: "기한 지남", v: `${overdue.length}건`, tone: overdue.length ? "bad" as const : undefined }] : []),
+    ];
+  }
+
+  // ── 그림 재료 — 기존 빌더 그대로 (자동 + 도넛 + 막대 + 선), id 로 합친다 ──
+  const auto = templateFigures(tplKey, cols, items, groups, nameOf, today);
+  const poolFigs: Figure[] = [...auto.figures];
+  for (const sh of ["donut", "bars", "line"] as const) {
+    for (const f of shapeFigures(sh, cols, items, groups, nameOf, today).figures) {
+      if (!poolFigs.some((x) => x.id === f.id)) poolFigs.push(f);
+    }
+  }
+  const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, today);
+  type Piece = { id: string; title: string; kind: string; node: ReactNode };
+  const pool: Piece[] = [
+    ...poolFigs.map((f) => ({ id: f.id, title: f.title, kind: f.kind, node: <BoardFigure f={f} table={asTable} /> })),
+    ...cards.map((c) => ({ id: `card:${summaryCardKey(c)}`, title: c.label, kind: "card", node: <SummaryCardView c={c} /> })),
   ];
-  //   근거 칸을 지웠는데 그 그림이 걸려 있으면 자동으로 되돌린다
-  const useShape: SummaryShape = SHAPES.find((s) => s.key === shape)?.ok ? shape : "auto";
 
-  // 무엇으로 볼지 — 자동은 템플릿 성격에 맞는 그림, 고른 형태가 있으면 그 형태로 통일(2026-08-05 사장님 지시)
-  const { figures, covers } = useShape === "donut" || useShape === "bars" || useShape === "line"
-    ? shapeFigures(useShape, cols, items, groups, nameOf, today)
-    : useShape === "cards" ? { figures: [] as Figure[], covers: [] as string[] }
-      : templateFigures(templateKey, cols, items, groups, nameOf, today);
-  // 그림이 이미 말한 카드는 뺀다 — 같은 얘기를 두 번 하면 정리가 아니라 나열이다
-  const covered = new Set(covers);
-  const cards: SummaryCard[] = buildBoardSummary(cols, items, groups, nameOf, today)
-    .filter((c) => !covered.has(summaryCardKey(c)));
+  // ── 대표 그림 — 유형별 하나 (일정은 타임라인) ──
+  const heroFig = sumType === "date" ? null
+    : sumType === "log" ? null
+    : (() => {
+      const rank = sumType === "money" ? ["hbars", "donut", "weeks", "line", "ring"] : ["hbars", "ring", "donut", "weeks", "line"];
+      for (const k of rank) { const f = auto.figures.find((x) => x.kind === k); if (f) return f; }
+      return auto.figures[0] || null;
+    })();
+  const hero = sumType === "date" && span
+    ? <BoardTimeline items={items} span={span} flowCol={flow} nameLabel="행" />
+    : heroFig ? <BoardFigure f={heroFig} table={asTable} /> : null;
 
-  // 그림과 카드를 한 줄로 세운다 — 양식이 이 목록을 골라 늘어놓는다
-  type Piece = { id: string; title: string; node: ReactNode };
-  const all: Piece[] = [
-    ...figures.map((f) => ({ id: f.id, title: f.title, node: <BoardFigure f={f} table={asTable} /> })),
-    ...cards.map((c) => ({ id: `card:${summaryCardKey(c)}`, title: c.label, node: <SummaryCardView c={c} /> })),
-  ];
+  // ── 챙길 것 — 지남 → 이번 주 → 고액(돈) / 다가오는(일정) 순, 8줄 컷. 줄 클릭 = 그 행 열기 ──
+  type Todo = { tag: string; tone: "bad" | "warn" | "dim"; text: string; right: string; itemId: string };
+  const todos: Todo[] = [];
+  for (const it of overdue) todos.push({ tag: sumType === "date" ? "지연" : "지남", tone: "bad", text: `${it.name}${dueCol ? ` — ${dueCol.name} ${dval(it).slice(5)}` : ""}`, right: moneyCol && mval(it) ? `${shortW(mval(it))}원` : `D+${-dday(dval(it))}`, itemId: it.id });
+  for (const it of thisWeek) todos.push({ tag: "이번 주", tone: "warn", text: `${it.name}${dueCol ? ` — ${dval(it).slice(5)}` : ""}`, right: moneyCol && mval(it) ? `${shortW(mval(it))}원` : (dday(dval(it)) === 0 ? "오늘" : `D-${dday(dval(it))}`), itemId: it.id });
+  if (sumType === "money" && moneyCol) {
+    const used = new Set(todos.map((t) => t.itemId));
+    for (const it of [...openItems].sort((a, b) => mval(b) - mval(a)).filter((it) => mval(it) > 0 && !used.has(it.id)).slice(0, 3)) {
+      todos.push({ tag: "고액", tone: "dim", text: it.name, right: `${shortW(mval(it))}원`, itemId: it.id });
+    }
+  }
+  if (sumType === "date") {
+    const used = new Set(todos.map((t) => t.itemId));
+    for (const it of upcoming.filter((it) => !used.has(it.id)).slice(0, 3)) {
+      todos.push({ tag: "예정", tone: "dim", text: `${it.name} — ${dval(it).slice(5)}`, right: `D-${dday(dval(it))}`, itemId: it.id });
+    }
+  }
+  const todoCut = todos.slice(0, 8);
 
-  const mine = (presets || []).filter((p) => !p.template_key || p.template_key === tplKey);
-  const picked = mine.find((p) => p.id === pickedId) || null;
-  const layout = picked ? normalizeLayout(picked.payload) : null;
-  const shown = applyLayout(all, layout);
-  const pickFormat = (id: string) => {
-    setPickedId(id);
-    try { localStorage.setItem(`ov.board.sumfmt.${tplKey}`, id); } catch { /* 무시 */ }
-    // 양식에 어떤 그림으로 볼지가 담겨 있으면 그것까지 따라간다 — 양식은 '보는 눈' 전체다
-    const s = normalizeLayout(mine.find((p) => p.id === id)?.payload).shape;
-    if (s) pickShape(s);
-  };
+  // ── 내 지표 — 카드마다 형태 전환(같은 제목의 다른 그림이 있을 때만) ──
+  const KIND_SHAPE: Record<string, SummaryShape> = { donut: "donut", hbars: "bars", weeks: "bars", line: "line" };
+  const shapeOf = (title: string, want: "donut" | "bars" | "line") =>
+    pool.find((x) => x.title === title && (KIND_SHAPE[x.kind] === want));
+  const minePieces = mineIds.map((id) => pool.find((x) => x.id === id)).filter(Boolean) as Piece[];
+  const addable = pool.filter((x) => !mineIds.includes(x.id) && x.id !== heroFig?.id);
+  const KIND_LABEL: Record<string, string> = { donut: "도넛", hbars: "막대", weeks: "주별", line: "선", ring: "링", stat: "숫자", card: "숫자" };
+  const moveMine = (i: number, d: number) => { const next = [...mineIds]; const j = i + d; if (j < 0 || j >= next.length) return; [next[i], next[j]] = [next[j], next[i]]; saveMine(next); };
+  const swapMine = (i: number, id: string) => { const next = [...mineIds]; next[i] = id; saveMine(next); };
 
   const tools = (
     <div className="pb-fmt">
-      {/* ① 무엇으로 볼지 — 그림 모양 그대로 아이콘으로 (2026-08-05 사장님 지시) */}
-      <span className="pb-fmt-k">어떻게 볼까</span>
-      {SHAPES.filter((s) => s.ok).map((s) => (
-        <button key={s.key} type="button" title={s.hint} aria-label={s.hint} aria-pressed={useShape === s.key}
-          className={`pb-shape ${useShape === s.key ? "pb-shape-on" : ""}`}
-          onClick={() => pickShape(s.key)}><ShapeIcon kind={s.key} /></button>
-      ))}
-      {/* ② 무엇을 볼지 — 지표 고르기와 저장해 둔 정리 양식 */}
-      <span className="pb-fmt-k pb-fmt-k2">양식</span>
-      <button type="button" className={`pb-fmt-btn ${!picked ? "pb-fmt-on" : ""}`} onClick={() => pickFormat("")}>기본</button>
-      {mine.map((p) => (
-        <button key={p.id} type="button" className={`pb-fmt-btn ${picked?.id === p.id ? "pb-fmt-on" : ""}`}
-          onClick={() => pickFormat(p.id)}>{p.name}</button>
-      ))}
-      <button type="button" className="pb-fmt-gear" onClick={() => setConfigOpen(true)}
-        title="무엇을 어떤 순서로 볼지 고르기">지표 고르기</button>
-      {/* 색을 못 가르는 눈에도 같은 값이 남아야 한다 — 그림과 표를 오간다 */}
       <button type="button" className={`pb-fmt-btn ${asTable ? "pb-fmt-on" : ""}`}
         onClick={() => setAsTable((v) => !v)} title="그림 대신 숫자로 읽기">{asTable ? "그림으로" : "표로"}</button>
     </div>
   );
 
-  //   그림 하나로 보는 보기(간트·캘린더)는 지표 목록이 아니라 그 그림이 본체다
-  const body = useShape === "gantt" && span ? (
-    <>
-      {!hasStart && (
-        <p className="pb-shape-note">
-          시작 칸이 없어 기간이 아니라 <b>{span.end.name} 한 점</b>으로 찍혔어요.
-          표 보기에서 칸 이름 옆 ＋ 로 <b>날짜</b> 칸을 하나 더 만들고 이름에 <b>‘시작’</b>을 넣으면 기간 막대로 그려집니다.
-        </p>
-      )}
-      <BoardTimeline items={items} span={span} flowCol={flowColumnOf(cols)} nameLabel="행" />
-    </>
-  ) : useShape === "calendar" && hasDate ? (
-    <BoardCalendar items={items} cols={cols} flowCol={flowColumnOf(cols)} onOpen={(id) => onOpenItem?.(id)} />
-  ) : all.length === 0 ? (
-    <p className="pj-sec-empty">이 그림으로 볼 값이 아직 없어요. ‘자동’으로 보면 지금 있는 값에 맞춰 정리해 드려요.</p>
-  ) : (
-    <div className="bf-grid">
-      {shown.map((p) => <div key={p.id} className="contents">{p.node}</div>)}
-    </div>
-  );
-  const isPicture = (useShape === "gantt" && span) || (useShape === "calendar" && hasDate);
-  //   같은 이름의 표가 또 있을 때만 그룹 이름을 붙여 구분한다('일정 · 마일스톤'이 두 장이면 어느 쪽인지 모른다)
   const hint = needsHint ? groups.map((g) => g.name).filter(Boolean).slice(0, 2).join(" · ") : "";
-  //   지표가 한둘뿐인 리포트는 접어 둔다 — 펼쳐 두면 자리만 차지하고 읽을 게 없다
-  const thin = !isPicture && shown.length > 0 && shown.length <= 2;
-  const collapsed = thin && !openThin;
+  const TYPE_LABEL: Record<SumType, string> = { money: "돈", task: "할 일", date: "일정", log: "기록" };
   const meta = items.length === 0 ? "아직 채운 값이 없어요"
-    : [hint, `${items.length}행`, isPicture ? "" : `지표 ${shown.length}개`].filter(Boolean).join(" · ");
+    : [hint, `${items.length}행`, `${TYPE_LABEL[sumType]} 요약`, typeWhy].filter(Boolean).join(" · ");
 
   return (
-    <SummaryReport kicker="템플릿" title={boardName} meta={meta}
-      tools={items.length === 0 || collapsed ? undefined : tools}>
-      {items.length === 0
-        ? <p className="pj-sec-empty">값을 채우면 여기에 합계 · 분포 · 마감이 자동으로 정리돼요.</p>
-        : collapsed
-          ? (
-            <p className="pb-rep-thin">
-              볼 지표가 {shown.length}개뿐이에요 — {shown.map((p) => p.title).join(" · ")}
-              <button type="button" onClick={() => setOpenThin(true)}>펼치기</button>
-            </p>
-          )
-          : body}
-
-      {configOpen && (
-        <SummaryFormatDialog all={all} layout={layout} presetName={picked?.name || null}
-          canRemove={!!picked && !!onRemovePreset}
-          onRemove={() => { if (picked && onRemovePreset) { onRemovePreset(picked); pickFormat(""); } setConfigOpen(false); }}
-          onApply={(next) => { setConfigOpen(false); setNaming(next); }}
-          onUpdate={picked && onUpdatePreset ? (next) => { setConfigOpen(false); setEditing(next); } : undefined}
-          onClose={() => setConfigOpen(false)} />
-      )}
-      {editing && picked && (
-        <NameDialog title="정리 양식 수정" hint="이름도 함께 바꿀 수 있어요 · 이 양식을 쓰는 다른 프로젝트에도 반영됩니다"
-          value={picked.name}
-          onCancel={() => setEditing(null)}
-          onSave={(nm) => { onUpdatePreset?.(picked, nm, { ...editing, shape: useShape }); setEditing(null); }} />
-      )}
-      {naming && (
-        <NameDialog title="정리 양식으로 저장" hint="지금 고른 그림과 지표를 함께 담습니다 · 같은 칸 구성의 표에서 고를 수 있어요"
-          value={picked?.name || "내 정리"}
-          onCancel={() => setNaming(null)}
-          onSave={(nm) => { onSavePreset?.(nm, { ...naming, shape: useShape }, tplKey); setNaming(null); }} />
+    <SummaryReport kicker="템플릿" title={boardName} meta={meta} tools={items.length === 0 ? undefined : tools}>
+      {items.length === 0 ? (
+        <p className="pj-sec-empty">값을 채우면 여기에 결론 · 핵심 숫자 · 챙길 것이 자동으로 정리돼요.</p>
+      ) : (
+        <>
+          {/* ① 결론 한 문장 */}
+          <div className="pbsum-concl"><b>{headline}</b>{why && <span className="pbsum-why">{why}</span>}</div>
+          {/* ② 핵심 숫자 */}
+          <div className="pbsum-stats">
+            {stats.map((c) => (
+              <div key={c.l} className="pbsum-stat">
+                <span className="pbsum-stat-l">{c.l}{c.tone && <em className={`pbsum-tone pbsum-tone-${c.tone}`}>{c.tone === "bad" ? "확인" : "임박"}</em>}</span>
+                <span className={`pbsum-stat-v mono-number ${c.tone === "bad" ? "text-[var(--danger)]" : ""}`}>{c.v}</span>
+                {c.s && <span className="pbsum-stat-s">{c.s}</span>}
+              </div>
+            ))}
+          </div>
+          {/* ③ 대표 그림 + ④ 챙길 것 */}
+          <div className={`pbsum-body ${hero ? "" : "pbsum-body-1"}`}>
+            {hero && <div className="pbsum-hero">{hero}</div>}
+            <div className="pbsum-todo">
+              <h5>챙길 것 {todos.length > 0 && <span className="pbsum-todo-n mono-number">{todos.length}</span>}<small>— 누르면 그 행이 열립니다</small></h5>
+              {todoCut.length === 0 ? (
+                <p className="pbsum-todo-empty">지금 챙길 것이 없어요 — 기한 지남 · 이번 주 마감이 생기면 여기에 떠요.</p>
+              ) : (
+                <ul>
+                  {todoCut.map((t) => (
+                    <li key={t.itemId + t.tag}>
+                      <button type="button" onClick={() => onOpenItem?.(t.itemId)}>
+                        <em className={`pbsum-tag pbsum-tag-${t.tone}`}>{t.tag}</em>
+                        <span className="pbsum-todo-t">{t.text}</span>
+                        <span className="pbsum-todo-r mono-number">{t.right}</span>
+                      </button>
+                    </li>
+                  ))}
+                  {todos.length > todoCut.length && <li className="pbsum-todo-more">외 {todos.length - todoCut.length}건 — 표에서 보세요</li>}
+                </ul>
+              )}
+            </div>
+          </div>
+          {/* ⑤ 내 지표 — 내가 골라 붙인 그림. 형태는 카드마다, 나에게만 저장 */}
+          <div className="pbsum-mine">
+            <div className="pbsum-mine-h">
+              <b>내 지표</b>
+              <span>내가 골라 붙인 그림 · 형태는 카드마다 · 나에게만 저장</span>
+              <span className="flex-1" />
+              <span className="relative inline-block">
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setPickOpen((v) => !v)}>＋ 지표 추가</button>
+                {pickOpen && (
+                  <div className="pbsum-picker">
+                    <div className="pbsum-picker-h">이 표의 칸으로 만들 수 있는 그림</div>
+                    {addable.length === 0 ? <p className="pbsum-todo-empty">더 붙일 그림이 없어요.</p> : (
+                      <div className="pbsum-picker-list">
+                        {addable.map((x) => (
+                          <button key={x.id} type="button" onClick={() => { saveMine([...mineIds, x.id]); setPickOpen(false); }}>
+                            {x.title} <small>{KIND_LABEL[x.kind] || x.kind}</small>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </span>
+            </div>
+            {minePieces.length === 0 ? (
+              <p className="pbsum-todo-empty">＋ 지표 추가로 보고 싶은 그림(도넛·막대·선·숫자)을 붙여 두세요.</p>
+            ) : (
+              <div className="bf-grid">
+                {minePieces.map((x, i) => (
+                  <div key={x.id} className="pbsum-mfig">
+                    <div className="pbsum-mfig-tools">
+                      <button type="button" onClick={() => moveMine(i, -1)} disabled={i === 0} title="앞으로">‹</button>
+                      <button type="button" onClick={() => moveMine(i, 1)} disabled={i === minePieces.length - 1} title="뒤로">›</button>
+                      {(["donut", "bars", "line"] as const).map((sh) => {
+                        const alt = shapeOf(x.title, sh);
+                        const on = KIND_SHAPE[x.kind] === sh;
+                        if (!alt && !on) return null;
+                        return (
+                          <button key={sh} type="button" className={on ? "pbsum-sh-on" : ""} disabled={on || !alt}
+                            onClick={() => alt && swapMine(i, alt.id)} title={`${sh === "donut" ? "도넛" : sh === "bars" ? "막대" : "선"}으로 보기`}>
+                            <ShapeIcon kind={sh} />
+                          </button>
+                        );
+                      })}
+                      <button type="button" onClick={() => saveMine(mineIds.filter((id) => id !== x.id))} title="빼기">✕</button>
+                    </div>
+                    {x.node}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </SummaryReport>
   );

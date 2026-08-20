@@ -9910,3 +9910,46 @@ table.dup-table { min-width: 0; }
 /* 신호·챙길 것 위젯화 (2026-08-20) — 격자 타일 안에서는 자체 여백을 지우고 타일을 꽉 채운다 */
 .dashboard-widget-tile .dash-signals { @apply mb-0 h-full; }
 .dashboard-widget-tile .morning-brief-card.brief-compact { @apply mb-0 min-h-full; }
+
+/* ── 프로젝트 템플릿 요약 재편 (2026-08-20, docs/20260820_PLAN_project_summary_redesign.md) —
+   결론 한 문장 · 핵심 숫자 · 대표 그림+챙길 것 · 내 지표 ── */
+.pbsum-concl { @apply text-[14px] text-[var(--text)] mb-2.5; }
+.pbsum-concl b { @apply font-bold; }
+.pbsum-why { @apply block text-[12px] text-[var(--text-muted)] mt-0.5 font-normal; }
+.pbsum-stats { @apply flex flex-wrap rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden mb-3; }
+.pbsum-stat { @apply flex-1 min-w-[110px] px-3.5 py-2 border-r border-[var(--border)] last:border-r-0; }
+.pbsum-stat-l { @apply flex items-center justify-between gap-1.5 text-[11px] text-[var(--text-dim)]; }
+.pbsum-stat-v { @apply block text-[16px] font-bold text-[var(--text)] leading-tight mt-0.5; }
+.pbsum-stat-s { @apply block text-[10.5px] text-[var(--text-muted)] truncate; }
+.pbsum-tone { @apply not-italic text-[10px] font-semibold rounded-full px-1.5 leading-4; }
+.pbsum-tone-bad { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }
+.pbsum-tone-warn { @apply bg-[var(--warning)]/12 text-[var(--warning)]; }
+.pbsum-body { @apply grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-3 items-start mb-3; }
+.pbsum-body-1 { @apply lg:grid-cols-1; }
+.pbsum-hero { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-3.5 min-w-0 overflow-x-auto; }
+.pbsum-todo { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden; }
+.pbsum-todo h5 { @apply m-0 px-3.5 py-2 text-[12px] font-bold text-[var(--text-muted)] border-b border-[var(--border)] bg-[var(--bg-surface)]/60 flex items-center gap-1.5; }
+.pbsum-todo h5 small { @apply font-normal text-[var(--text-dim)]; }
+.pbsum-todo-n { @apply text-[11px] text-[var(--text-dim)] font-semibold; }
+.pbsum-todo ul { @apply list-none m-0 p-0 divide-y divide-[var(--border)]/70; }
+.pbsum-todo li > button { @apply w-full flex items-center gap-2 px-3.5 py-2 text-left text-[12.5px] hover:bg-[var(--bg-surface)] transition; }
+.pbsum-tag { @apply not-italic shrink-0 text-[10.5px] font-bold rounded-md px-1.5 py-0.5; }
+.pbsum-tag-bad { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }
+.pbsum-tag-warn { @apply bg-[var(--warning)]/12 text-[var(--warning)]; }
+.pbsum-tag-dim { @apply bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.pbsum-todo-t { @apply flex-1 min-w-0 truncate text-[var(--text)]; }
+.pbsum-todo-r { @apply shrink-0 text-[11.5px] font-semibold text-[var(--text-muted)]; }
+.pbsum-todo-more { @apply px-3.5 py-1.5 text-[11px] text-[var(--text-dim)]; }
+.pbsum-todo-empty { @apply m-0 px-3.5 py-4 text-[12px] text-[var(--text-dim)]; }
+.pbsum-mine { @apply rounded-xl border border-dashed border-[var(--primary)]/40 p-3; }
+.pbsum-mine-h { @apply flex items-center gap-2 flex-wrap mb-2 text-[11.5px] text-[var(--text-dim)]; }
+.pbsum-mine-h b { @apply text-[12px] text-[var(--text)]; }
+.pbsum-picker { @apply absolute right-0 top-full mt-1.5 z-30 w-[300px] rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-[var(--shadow-lg)] p-2.5; }
+.pbsum-picker-h { @apply text-[10.5px] font-semibold text-[var(--text-dim)] mb-1.5; }
+.pbsum-picker-list { @apply flex flex-col gap-0.5 max-h-[280px] overflow-auto; }
+.pbsum-picker-list > button { @apply flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-left text-[12px] text-[var(--text)] hover:bg-[var(--bg-surface)] transition; }
+.pbsum-picker-list small { @apply text-[10px] text-[var(--text-dim)]; }
+.pbsum-mfig { @apply relative rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-2; }
+.pbsum-mfig-tools { @apply absolute top-1.5 right-1.5 z-10 flex gap-1; }
+.pbsum-mfig-tools > button { @apply w-6 h-6 inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[12px] text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-40 transition; }
+.pbsum-mfig-tools > button.pbsum-sh-on { @apply border-[var(--primary)] text-[var(--primary)] opacity-100; }
