@@ -6803,7 +6803,7 @@ td .rounded-full { white-space: nowrap; }
 /* 정리 카드 */
 .pb-sum-grid { @apply grid gap-3 grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4; }
 /* 그림(.bf)과 한 격자에 서므로 같은 생김새로 — 2026-08-05 정리 양식 */
-.pb-sum-card { @apply flex flex-col gap-0.5 p-3.5 rounded-xl bg-[var(--bg-surface)] min-w-0; }
+.pb-sum-card { @apply flex flex-col gap-0.5 p-3.5 rounded-xl bg-transparent min-w-0; }
 .pb-sum-card > span:first-child { @apply text-[11px] font-semibold text-[var(--text-dim)]; }
 .pb-sum-card > b { @apply text-[19px] font-extrabold tracking-tight text-[var(--text)]; font-variant-numeric: tabular-nums; }
 .pb-sum-card > em { @apply not-italic text-[11px] text-[var(--text-muted)] leading-snug; }
@@ -7433,7 +7433,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 /* 템플릿별 정리 그림 — 도넛·깔때기·가로막대·주별막대·진행링 (2026-08-05)
    마크는 얇게, 격자는 뒤로, 값은 늘 글자로 함께 — 색만으로 뜻을 전하지 않는다. */
 .bf-grid { @apply grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 grid-flow-row-dense; }
-.bf { @apply flex flex-col gap-2 p-3.5 rounded-xl bg-[var(--bg-surface)] min-w-0; }
+/* 2026-08-20 사장님: 요약 카드 안 회색 배경 제거 — 바깥 흰 카드(pbsum-hero·pbsum-mfig)가 그릇이라 그림은 투명하게 */
+.bf { @apply flex flex-col gap-2 p-1 rounded-xl bg-transparent min-w-0; }
 .bf figcaption { @apply text-[12px] font-bold text-[var(--text)]; }
 .bf > em, .bf-note { @apply not-italic text-[11px] text-[var(--text-dim)] leading-snug; }
 .bf-bad { @apply !text-[var(--danger)]; }
