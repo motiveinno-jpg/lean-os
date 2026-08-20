@@ -193,10 +193,10 @@ def head_band(s, title, pipe):
          [("| ", 12.5, True, BR), (pipe, 12.5, True, BR), (" |", 12.5, True, BR)], PP_ALIGN.CENTER)
 
 def three_band(page, title, pipe, voices, feats):
-    """기능 장표 — 밴드(제목/|부제|) / 고객의 말 2 / 기능 3행(왼쪽 설명 + 오른쪽 넓은 캡처)
+    """기능 장표 — 밴드(제목/|부제|) / 고객의 말 2 / 왼쪽 기능 설명 3 + 오른쪽 **화면 전체 1장**
 
-       ⚠️ 기능을 3열 카드로 두면 제품 조각(대개 5:1 로 가로가 길다)이 우표처럼 작아지거나
-          왼쪽 라벨이 잘려 무슨 화면인지 알 수 없다. 그래서 **행**으로 눕혀 캡처를 넓게 준다.
+       2026-08-20 사장님: "이미지 전부 다 바꿔줘 · 전체화면이 다 나오게".
+       조각을 3개 늘어놓으면 각각이 작아진다 — 대표 화면 하나를 크게 두고 설명은 왼쪽에 쌓는다.
     """
     s = slide(); head_band(s, title, pipe)
     y = Inches(1.9)
@@ -204,19 +204,24 @@ def three_band(page, title, pipe, voices, feats):
         runs = [("“" + a, 13, True, INK), (b, 13, True, RED), (c + "”", 13, True, INK)]
         text(s, Inches(1.0), y, Inches(11.3), Inches(0.4), runs, PP_ALIGN.CENTER)
         y += Inches(0.5)
-    rect(s, 0, Inches(3.05), W, H - Inches(3.05), fill=BAND)
-    n = len(feats)
-    top = Inches(3.25); gap = Inches(0.14)
-    rh = int((Inches(3.75) - gap * (n - 1)) / n)
-    for i, (nm, desc, img) in enumerate(feats):
-        ry = top + i * (rh + gap)
-        rect(s, Inches(0.6), ry, Inches(12.13), rh, fill=WHITE, line=LINE,
-             shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.06)
-        rect(s, Inches(0.6), ry, Inches(0.08), rh, fill=BR)
-        text(s, Inches(0.92), ry + Inches(0.14), Inches(2.7), Inches(0.3), [(nm, 12.5, True, BR)])
-        text(s, Inches(0.92), ry + Inches(0.5), Inches(2.75), rh - Inches(0.6),
-             [(desc.replace(chr(10), " "), 9.8, False, MUT)], spacing=1.25)
-        pic(s, img, Inches(3.85), ry + Inches(0.1), Inches(8.7), rh - Inches(0.2), border=False, align="left")
+    rect(s, 0, Inches(2.95), W, H - Inches(2.95), fill=BAND)
+
+    # 왼쪽 — 기능 설명 3개
+    ty = Inches(3.2)
+    for i, (nm, desc, _img) in enumerate(feats):
+        rect(s, Inches(0.6), ty, Inches(4.35), Inches(1.15), fill=WHITE, line=LINE,
+             shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.07)
+        rect(s, Inches(0.6), ty, Inches(0.08), Inches(1.15), fill=BR)
+        text(s, Inches(0.92), ty + Inches(0.16), Inches(3.8), Inches(0.3), [(nm, 12.5, True, BR)])
+        text(s, Inches(0.92), ty + Inches(0.5), Inches(3.85), Inches(0.55),
+             [(desc.replace(chr(10), " "), 9.6, False, MUT)], spacing=1.25)
+        ty += Inches(1.32)
+
+    # 오른쪽 — 대표 화면 전체(자르지 않는다)
+    hero = feats[0][2]
+    rect(s, Inches(5.2), Inches(3.2), Inches(7.53), Inches(3.75), fill=WHITE, line=LINE,
+         shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.03)
+    pic(s, hero, Inches(5.32), Inches(3.32), Inches(7.29), Inches(3.51), border=False)
     foot(s, page)
     return s
 
@@ -231,10 +236,9 @@ def use_slide(page, title, pipes, img):
         text(s, Inches(0.55), y, Inches(12.2), Inches(0.28),
              [("| ", 11, True, RED), (t, 11, False, RGBColor(0x3A, 0x43, 0x56))])
         y += Inches(0.3)
-    box_y = Inches(1.72)
-    rect(s, Inches(0.55), box_y, Inches(12.23), H - box_y - Inches(0.45),
-         fill=WHITE, line=LINE, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.02)
-    pic_top(s, img, Inches(0.68), box_y + Inches(0.12), Inches(11.97), H - box_y - Inches(0.69))
+    #   화면 전체가 한눈에 들어와야 한다 — 자르지 않고 비율을 지켜 넣는다 (2026-08-20 사장님 지시)
+    box_y = Inches(1.62)
+    pic(s, img, Inches(0.55), box_y, Inches(12.23), H - box_y - Inches(0.38))
     foot(s, page)
     return s
 

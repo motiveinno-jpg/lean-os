@@ -20,7 +20,7 @@ for i, (t, d) in enumerate([("돈", "통장 · 카드 · 세금 · 장부"), ("�
     text(s, x + Inches(0.2), Inches(2.72), Inches(2.5), Inches(0.4), [(d, 10, False, MUT)], PP_ALIGN.CENTER)
 rect(s, Inches(0.6), Inches(3.55), Inches(12.13), Inches(2.95), fill=WHITE, line=LINE,
      shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.03)
-pic_top(s, "use-dash.png", Inches(0.72), Inches(3.67), Inches(11.89), Inches(2.71))
+pic(s, "use-dash.png", Inches(0.72), Inches(3.67), Inches(11.89), Inches(2.71))
 
 # ══════════ 03 이런 분들을 위해 ══════════
 s = plain(3, "이런 분들을 위해 만들었습니다", "회사마다 상황은 다르지만, 관리해야 할 일은 같습니다.")
