@@ -589,16 +589,33 @@ async function applyOvertimeApproval(request: any): Promise<void> {
     const rawDate: string | undefined =
       ot?.date ||
       request?.description?.match(/(\d{4}[-.]\d{1,2}[-.]\d{1,2})/)?.[1];
-    const rawEnd: string | undefined =
-      ot?.end_time ||
-      request?.description?.match(/(\d{1,2}:\d{2})\s*(?:까지|종료)?/)?.[1];
     if (!rawDate) return;
-
     const date = rawDate.replace(/\./g, '-').replace(/-(\d)(?=-|$)/g, '-0$1');
-    const endTime = (rawEnd || '22:00').length === 5 ? (rawEnd || '22:00') : `${rawEnd}:00`;
 
     const employeeId = await resolveRequesterEmployeeId(request);
     if (!employeeId) return;
+
+    // 종료시각은 **신청서에 적힌 시각 그대로** 반영한다 (2026-08-20 사장님).
+    //   신청서에 없는 구버전 결재만: 본문 텍스트 → 본인이 설정한 퇴근시각(employees.work_end_time)
+    //   → 회사 기본 퇴근시각 순으로 찾는다. 임의의 고정 시각(종전 22:00)은 쓰지 않는다.
+    const hhmm = (v?: string | null) => {
+      const m = String(v ?? '').match(/^([0-2]?\d):([0-5]\d)/);
+      return m ? `${m[1].padStart(2, '0')}:${m[2]}` : null;
+    };
+    let endTime =
+      hhmm(ot?.end_time) ||
+      hhmm(request?.description?.match(/(\d{1,2}:\d{2})\s*(?:까지|종료)/)?.[1]);
+    if (!endTime) {
+      const emp = logRead('lib/approval-workflow:otEmpWorkEnd', await db
+        .from('employees').select('work_end_time').eq('id', employeeId).maybeSingle());
+      endTime = hhmm(emp?.work_end_time);
+    }
+    if (!endTime) {
+      const cs = logRead('lib/approval-workflow:otCompanyWorkEnd', await db
+        .from('company_settings').select('work_end_time').eq('company_id', request.company_id).maybeSingle());
+      endTime = hhmm(cs?.work_end_time);
+    }
+    if (!endTime) return;   // 어디에도 시각이 없으면 근태를 임의로 열지 않는다
 
     // 같은 날 같은 신청이 이미 있으면 중복 생성하지 않는다(재승인·중복 결재 방지).
     const existing = logRead('lib/approval-workflow:otExisting', await db

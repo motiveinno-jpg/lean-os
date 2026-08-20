@@ -2676,10 +2676,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       const { data: user } = await db.from("users").select("email, name").eq("id", userId).maybeSingle();
       if (!user?.email) return null;
       // 이메일로 매칭
-      let { data: emp } = await db.from("employees").select("id, name, email, department").eq("company_id", companyId).eq("email", user.email).maybeSingle();
+      let { data: emp } = await db.from("employees").select("id, name, email, department, work_end_time").eq("company_id", companyId).eq("email", user.email).maybeSingle();
       // 이메일 실패 시 user_id로 폴백
       if (!emp) {
-        const { data: empById } = await db.from("employees").select("id, name, email, department").eq("company_id", companyId).eq("user_id", userId).maybeSingle();
+        const { data: empById } = await db.from("employees").select("id, name, email, department, work_end_time").eq("company_id", companyId).eq("user_id", userId).maybeSingle();
         emp = empById;
       }
       return emp ? { ...emp, userName: user.name } : { id: null, name: user.name, userName: user.name };
@@ -2924,9 +2924,22 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       ? (formAmountField ? (Number(String(customFieldValues[formAmountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0) : 0)
       : (Number(form.amount) || 0);
 
+  // 초과근무는 일자·종료시각이 그대로 근태로 넘어간다 — 둘 다 있어야 제출 (2026-08-20 사장님).
   const canSubmit = isLeave
     ? !!leaveForm.startDate && !!leaveForm.leaveType
-    : !!form.title.trim();
+    : isOvertime
+      ? !!form.title.trim() && !!overtimeForm.date && !!overtimeForm.endTime
+      : !!form.title.trim();
+
+  // 종료시각 기본값은 본인이 설정한 퇴근시각 — 없으면 비워 두고 직접 고르게 한다(임의 시각 금지).
+  const myWorkEnd = useMemo(() => {
+    const m = String((currentEmployee as { work_end_time?: string } | null)?.work_end_time || "").match(/^([0-2]?\d):([0-5]\d)/);
+    return m ? `${m[1].padStart(2, "0")}:${m[2]}` : "";
+  }, [currentEmployee]);
+  useEffect(() => {
+    if (!isOvertime || overtimeForm.endTime || !myWorkEnd) return;
+    setOvertimeForm((f) => ({ ...f, endTime: myWorkEnd }));
+  }, [isOvertime, myWorkEnd, overtimeForm.endTime]);
 
   /** 영수증 사진에서 상호·금액·날짜를 읽어 폼을 채운다. 확정은 사람이 — 값은 전부 수정 가능.
    *  ⚠️ 엣지 함수가 서버에서 이미지를 직접 받아가므로 서명 URL(시간제한)이 필요하다.
@@ -3035,7 +3048,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           : isLeave
             ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays, ...leaveTimes } }
             : isOvertime && overtimeForm.date
-              ? { overtime: { date: overtimeForm.date, end_time: overtimeForm.endTime || "22:00" } }
+              ? { overtime: { date: overtimeForm.date, end_time: overtimeForm.endTime } }
               : undefined,
         // 참조: 요청자가 화면에서 지정한 인원(양식·정책 기본값이 프리필돼 있고 가감 가능)
         referenceUserIds: selectedReferences.length > 0 ? selectedReferences.map((r) => r.userId) : undefined,
@@ -3303,7 +3316,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                     </div>
                   </div>
                   <div className="text-[11px] text-[var(--text-dim)]">
-                    승인되면 이 날짜·시각으로 근태에 반영됩니다 — 회사 퇴근시간 이후 출근이 이 시각까지 허용됩니다.
+                    승인되면 여기 적은 날짜·시각 그대로 근태에 반영됩니다 — 퇴근시간 이후 출근이 이 시각까지 허용됩니다.
+                    {myWorkEnd && <> 기본값은 내 퇴근시각({myWorkEnd})이며 필요한 만큼 늦춰 잡으세요.</>}
                   </div>
                 </div>
               )}
