@@ -170,8 +170,13 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
     a.remove();
   };
 
+  //   지우기는 쓴 사람만 — 종전엔 남의 노트에도 ✕ 가 보이고 실제로 지워졌다 (2026-08-20 사장님).
+  //   진짜 차단은 RLS(pbi_notes_own_write). 여기선 버튼을 감추고, 막혔을 때 이유를 말해 준다.
+  const canRemoveNote = (n: ItemNote) => !!userId && n.user_id === userId;
   const removeNote = async (n: ItemNote) => {
-    await db.from("project_board_item_notes").delete().eq("id", n.id);
+    if (!canRemoveNote(n)) return;
+    const { error } = await db.from("project_board_item_notes").delete().eq("id", n.id);
+    if (error) { toast("내가 쓴 노트만 지울 수 있어요.", "error"); return; }
     refresh();
   };
 
@@ -208,7 +213,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
               {n.file_url
                 ? <button type="button" className="pb-note-file" onClick={() => openFile(n)}>📎 {n.file_name || "첨부파일"}</button>
                 : <p className="pb-note-body">{markMentions(n.body || "", users)}</p>}
-              <button type="button" onClick={() => removeNote(n)} title="지우기">✕</button>
+              {canRemoveNote(n) && <button type="button" onClick={() => removeNote(n)} title="지우기">✕</button>}
             </div>
           ))}
         </section>

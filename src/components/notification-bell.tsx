@@ -48,8 +48,12 @@ export function NotificationBell() {
       try {
         const { webPushSupported, subscribeWebPush } = await import("@/lib/web-push");
         if (!webPushSupported() || Notification.permission !== "granted") return;
+        // notification_prefs.user_id 는 auth.users(id) 참조 — users.id 를 넣으면 두 값이 다른
+        //   계정에서 조회가 조용히 빗나가, 푸시를 꺼둔 사람을 다시 구독시킨다 (2026-08-20 감사에서 발견).
+        //   저장하는 쪽(NotificationsTab)은 이미 auth_id 를 쓴다 — 읽는 쪽만 어긋나 있었다.
+        const prefUserId = (user as { auth_id?: string }).auth_id || user.id;
         const { data: prefRow } = await supabase
-          .from("notification_prefs").select("prefs").eq("user_id", user.id).maybeSingle();
+          .from("notification_prefs").select("prefs").eq("user_id", prefUserId).maybeSingle();
         if ((prefRow?.prefs as any)?.push?.enabled === false) return;
         await subscribeWebPush(user.company_id ?? null);
       } catch { /* 비차단 — 구독 실패해도 인앱 알림은 정상 */ }

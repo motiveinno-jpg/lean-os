@@ -724,12 +724,15 @@ export async function deleteEmployeeFile(fileId: string) {
     .eq("id", fileId)
     .single());
 
+  // ⚠️ 순서 주의 — 원장을 먼저 지운다. 종전엔 실물부터 지워서, 권한이 없어 원장 삭제가 막히면
+  //   파일만 사라지고 목록엔 남는 깨진 상태가 됐다(파일보관함에서 고친 것과 같은 결함).
+  //   인사 서류 접근은 RLS(employee_files_perm_or_self)가 판정한다 — '/employees:all' 또는 본인. (2026-08-20)
+  const { error } = await db.from("employee_files").delete().eq("id", fileId);
+  if (error) throw error;
+
   if (file?.storage_path) {
     await supabase.storage.from("employee-files").remove([file.storage_path]);
   }
-
-  const { error } = await db.from("employee_files").delete().eq("id", fileId);
-  if (error) throw error;
 }
 
 /** 입사서류 체크리스트에서 올린 파일 삭제 (2026-08-20 사장님 요청) — 체크리스트는 파일 id 가
@@ -737,7 +740,9 @@ export async function deleteEmployeeFile(fileId: string) {
  *  스토리지 → 원장 순서로 지우되 스토리지 실패는 무시한다: 이미 없는 파일 때문에 목록에서
  *  영영 못 지우는 상태가 되면 안 된다. */
 export async function deleteEmployeeFileByPath(storagePath: string): Promise<void> {
-  await supabase.storage.from("employee-files").remove([storagePath]).catch(() => {});
+  // 2026-08-20: 여기도 원장 먼저 — 권한이 없어 원장이 안 지워지는데 실물만 사라지면 안 된다.
+  //   실물 삭제 실패는 종전대로 무시한다(이미 없는 파일 때문에 목록에서 영영 못 지우면 안 되므로).
   const { error } = await db.from("employee_files").delete().eq("storage_path", storagePath);
   if (error) throw error;
+  await supabase.storage.from("employee-files").remove([storagePath]).catch(() => {});
 }
