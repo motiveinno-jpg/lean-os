@@ -8046,8 +8046,15 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .viz-wrap { @apply grid gap-x-2; grid-template-columns: auto 1fr; grid-template-rows: 1fr auto; }
 .viz-yaxis { @apply flex flex-col justify-between items-end text-[10px] text-[var(--text-dim)] py-0.5; }
 .viz-yaxis em { @apply not-italic; font-variant-numeric: tabular-nums; }
-/* 2026-08-20 사장님: 차트 판 회색 배경 제거(요약에 이어 분석도 동일하게) — 흰 카드가 그릇, 판은 투명 */
-.viz-plot { @apply relative flex items-end gap-[3px] h-full rounded-lg bg-transparent px-1.5 py-1; }
+/* 2026-08-20 사장님: 차트 판 — 회색 면 대신 **바닥 축선 + 연한 가로 눈금**으로 영역을 정의(면을 빼니 영역 인지가 떨어진다는 지적).
+   눈금은 25% 간격 헤어라인, 축선은 조금 진하게 — 숫자 없이도 높이를 가늠하게 한다 */
+.viz-plot {
+  @apply relative flex items-end gap-[3px] h-full px-1.5 pt-1 bg-transparent rounded-none;
+  border-bottom: 1.5px solid var(--border);
+  background-image: linear-gradient(color-mix(in srgb, var(--border) 55%, transparent) 1px, transparent 1px);
+  background-size: 100% 25%;
+  background-position: 0 -1px;   /* 맨 위 선은 판 밖으로 밀어 25·50·75% 세 줄만 보이게 */
+}
 .viz-grid { @apply absolute left-0 right-0 top-0 border-t border-dashed border-[var(--border)] pointer-events-none; }
 .viz-grid-mid { @apply top-1/2; }
 .viz-svg { @apply absolute inset-1.5 w-[calc(100%-0.75rem)] h-[calc(100%-0.5rem)] overflow-visible; }
