@@ -375,6 +375,9 @@ export async function createApprovalRequest(params: {
     if (params.requestType === 'leave') {
       await applyLeaveDeduction(request);
     }
+    if (params.requestType === 'overtime') {
+      await applyOvertimeApproval(request);
+    }
     await logAudit({
       companyId: params.companyId,
       userId: params.requesterId,
@@ -559,6 +562,64 @@ export async function createApprovalRequest(params: {
  * Approve a single step.
  * If all steps in current stage are approved, advance to next stage or mark request approved.
  */
+/** 결재 요청자(users.id) → 구성원(employees.id). user_id 우선, 실패 시 이메일 매칭(네이티브 경로와 동일 폴백). */
+async function resolveRequesterEmployeeId(request: any): Promise<string | null> {
+  const empByUser = logRead('lib/approval-workflow:empByUser', await db
+    .from('employees').select('id')
+    .eq('company_id', request.company_id).eq('user_id', request.requester_id).maybeSingle());
+  if (empByUser) return empByUser.id as string;
+  const user = logRead('lib/approval-workflow:user', await db.from('users').select('email').eq('id', request.requester_id).maybeSingle());
+  if (!user?.email) return null;
+  const empByEmail = logRead('lib/approval-workflow:empByEmail', await db
+    .from('employees').select('id')
+    .eq('company_id', request.company_id).eq('email', user.email).maybeSingle());
+  return (empByEmail?.id as string | undefined) ?? null;
+}
+
+/** 초과근무 결재 최종 승인 → 근태 반영 (2026-08-20 사장님: 결재허브 연장근무 탭을 없애고
+ *  결재로 일원화. "여기서 결재 올려서 승인되면 근태에 정확히 반영돼야 한다").
+ *
+ *  근태가 보는 것은 overtime_requests(status=approved) 다 — 퇴근시간 이후 출근을 열어 주는
+ *  관문(check_can_clock_in_after_hours)이 이 테이블을 읽고, 출근 시 overtime_request_id 가
+ *  근태 기록에 연결된다. 그래서 승인 시 여기에 승인된 행을 만들어 준다(휴가→leave_requests 와 동일 방식).
+ *  구조화 필드(custom_fields.overtime) 우선, 없으면 본문 텍스트에서 날짜·시각을 읽는다. 비차단. */
+async function applyOvertimeApproval(request: any): Promise<void> {
+  try {
+    const ot = request?.custom_fields?.overtime;
+    const rawDate: string | undefined =
+      ot?.date ||
+      request?.description?.match(/(\d{4}[-.]\d{1,2}[-.]\d{1,2})/)?.[1];
+    const rawEnd: string | undefined =
+      ot?.end_time ||
+      request?.description?.match(/(\d{1,2}:\d{2})\s*(?:까지|종료)?/)?.[1];
+    if (!rawDate) return;
+
+    const date = rawDate.replace(/\./g, '-').replace(/-(\d)(?=-|$)/g, '-0$1');
+    const endTime = (rawEnd || '22:00').length === 5 ? (rawEnd || '22:00') : `${rawEnd}:00`;
+
+    const employeeId = await resolveRequesterEmployeeId(request);
+    if (!employeeId) return;
+
+    // 같은 날 같은 신청이 이미 있으면 중복 생성하지 않는다(재승인·중복 결재 방지).
+    const existing = logRead('lib/approval-workflow:otExisting', await db
+      .from('overtime_requests').select('id')
+      .eq('employee_id', employeeId).eq('requested_date', date).eq('status', 'approved').maybeSingle());
+    if (existing) return;
+
+    await db.from('overtime_requests').insert({
+      company_id: request.company_id,
+      employee_id: employeeId,
+      requested_date: date,
+      requested_end_time: endTime,
+      reason: request.title || '전자결재 초과근무',
+      status: 'approved',
+      approved_at: new Date().toISOString(),
+    });
+  } catch {
+    // 근태 반영 실패가 승인 자체를 막지는 않는다(휴가와 동일 원칙).
+  }
+}
+
 // 휴가 결재 최종 승인 시 연차 차감 — 사내 결재 전자결재 일원화(2026-07-15).
 //   전자결재(approval_requests, request_type='leave')는 그동안 승인돼도 leave_balances 를
 //   차감하지 않는 버그가 있었다(네이티브 leave_requests 경로만 차감). 여기서 동일 규칙으로 차감한다.
@@ -573,21 +634,7 @@ async function applyLeaveDeduction(request: any): Promise<void> {
     const days = Number(leave?.days ?? request?.description?.match(/(\d+(?:\.\d+)?)일/)?.[1]);
     if (!rawStart || !days || days <= 0) return;
 
-    // requester(user id) → employee 매핑: user_id 우선, 실패 시 email 매칭(네이티브 경로와 동일 폴백).
-    let employeeId: string | null = null;
-    const empByUser = logRead('lib/approval-workflow:empByUser', await db
-      .from('employees').select('id')
-      .eq('company_id', request.company_id).eq('user_id', request.requester_id).maybeSingle());
-    if (empByUser) employeeId = empByUser.id;
-    else {
-      const user = logRead('lib/approval-workflow:user', await db.from('users').select('email').eq('id', request.requester_id).maybeSingle());
-      if (user?.email) {
-        const empByEmail = logRead('lib/approval-workflow:empByEmail', await db
-          .from('employees').select('id')
-          .eq('company_id', request.company_id).eq('email', user.email).maybeSingle());
-        if (empByEmail) employeeId = empByEmail.id;
-      }
-    }
+    const employeeId = await resolveRequesterEmployeeId(request);
     if (!employeeId) return;
 
     const year = new Date(rawStart.replace(/\./g, '-')).getFullYear();
@@ -743,6 +790,10 @@ export async function approveStep(
       const reqType = request.request_type;
       if (reqType === 'leave') {
         await applyLeaveDeduction(request);
+      }
+      // 초과근무 결재 최종 승인 → 근태 반영 (2026-08-20 사장님)
+      if (reqType === 'overtime') {
+        await applyOvertimeApproval(request);
       }
 
       // Auto-queue to payment if expense/payment/purchase type

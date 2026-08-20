@@ -61,6 +61,19 @@ export default function TeamPage() {
     return [...rows].sort((a, b) => (cmp((a as any)[k] || "", (b as any)[k] || "") * (sort.dir === "asc" ? 1 : -1)) || (a.name || "").localeCompare(b.name || ""));
   }, [employees, search, depts, sort]);
   const pager = usePager(filtered, 50, `${search}|${depts.join()}|${sort.key}${sort.dir}`);
+  // 카드 보기 팀별 묶음 (2026-08-20 사장님 지시) — 현재 쪽에 보이는 인원을 부서로 묶고,
+  //   팀 안은 조직도와 같은 직책 서열로 정렬한다. 부서 미지정은 맨 뒤.
+  const cardGroups = useMemo(() => {
+    const rank = (p?: string | null) => { const i = POSITION_RANK.indexOf(p || ""); return i === -1 ? POSITION_RANK.length : i; };
+    const m = new Map<string, typeof pager.view>();
+    pager.view.forEach((e) => { const d = e.department || "부서 미지정"; if (!m.has(d)) m.set(d, []); m.get(d)!.push(e); });
+    return [...m.entries()]
+      .sort((a, b) => (a[0] === "부서 미지정" ? 1 : b[0] === "부서 미지정" ? -1 : a[0].localeCompare(b[0])))
+      .map(([department, list]) => ({
+        department,
+        list: [...list].sort((x, y) => (rank(x.position) - rank(y.position)) || (x.name || "").localeCompare(y.name || "")),
+      }));
+  }, [pager.view]);
   const orgCeos = useMemo(() => filtered.filter((e) => isCeoPosition(e.position)), [filtered]);
   const orgDepts = useMemo(() => {
     const rank = (p?: string | null) => { const i = POSITION_RANK.indexOf(p || ""); return i === -1 ? POSITION_RANK.length : i; };
@@ -214,15 +227,27 @@ export default function TeamPage() {
                 </div>
               </div>
             ) : (
-              <div className="team-cards">
-                {pager.view.map((e) => (
-                  <div key={e.id} className="team-card">
-                    <span className="team-avatar team-avatar-lg">{(e.name || "?").slice(0, 1)}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-bold truncate">{e.name || "—"}</div>
-                      <div className="text-xs text-[var(--text-muted)] truncate">{[e.department, e.position].filter(Boolean).join(" · ") || "—"}</div>
-                      {e.email && <div className="text-[11px] text-[var(--text-dim)] truncate mt-1"><Ico e="✉" /> {e.email}</div>}
-                      {e.phone && <div className="text-[11px] text-[var(--text-dim)] truncate"><Ico e="📞" /> {e.phone}</div>}
+              /* 카드 보기는 팀(부서)별로 묶어서 보여준다 (2026-08-20 사장님 지시).
+                 팀 안에서는 직책 서열(대표→이사→본부장→…→사원) 순, 부서 미지정은 맨 뒤. */
+              <div className="space-y-5">
+                {cardGroups.map((g) => (
+                  <div key={g.department}>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <h3 className="text-sm font-bold text-[var(--text)]">{g.department}</h3>
+                      <span className="text-[11px] text-[var(--text-dim)] mono-number">{g.list.length}명</span>
+                    </div>
+                    <div className="team-cards">
+                      {g.list.map((e) => (
+                        <div key={e.id} className="team-card">
+                          <span className="team-avatar team-avatar-lg">{(e.name || "?").slice(0, 1)}</span>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-bold truncate">{e.name || "—"}</div>
+                            <div className="text-xs text-[var(--text-muted)] truncate">{e.position || "직책 미지정"}</div>
+                            {e.email && <div className="text-[11px] text-[var(--text-dim)] truncate mt-1"><Ico e="✉" /> {e.email}</div>}
+                            {e.phone && <div className="text-[11px] text-[var(--text-dim)] truncate"><Ico e="📞" /> {e.phone}</div>}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}

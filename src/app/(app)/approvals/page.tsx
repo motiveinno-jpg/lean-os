@@ -58,16 +58,13 @@ import { generateApprovalPdf } from "@/lib/document-generator";
 import { openStoredFile, downloadStoredFile, resolveSignedUrl } from "@/lib/file-storage";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { sendApprovalMails } from "@/lib/approval-email";
-import { OvertimeRequestCard } from "@/components/overtime-request-card";
-import { OvertimeApprovalInbox } from "@/components/overtime-approval-inbox";
-import { OvertimeStats } from "@/components/overtime-stats";
 
 const db = supabase;
 
-type Tab = "my-approvals" | "my-requests" | "references" | "all" | "new-request" | "overtime" | "policies" | "forms";
+type Tab = "my-approvals" | "my-requests" | "references" | "all" | "new-request" | "policies" | "forms";
 
 // 알림/딥링크(?tab=...)로 진입 가능한 탭 키 — 오타·구 링크는 무시하고 기본 탭 유지
-const TAB_KEYS: Tab[] = ["my-approvals", "my-requests", "references", "all", "new-request", "overtime", "policies", "forms"];
+const TAB_KEYS: Tab[] = ["my-approvals", "my-requests", "references", "all", "new-request", "policies", "forms"];
 
 // ── 2026-07-03 결재관리 리디자인 — 유형·상태·진행 프리미티브 ──
 
@@ -98,7 +95,6 @@ const TYPE_META: Record<string, { icon: string; bg: string; text: string }> = {
   card_expense: { icon: "card", bg: "bg-fuchsia-500/12", text: "text-fuchsia-500" },
   payment: { icon: "banknote", bg: "bg-sky-500/12", text: "text-sky-500" },
   leave: { icon: "sun", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
-  overtime: { icon: "clock", bg: "bg-amber-500/12", text: "text-amber-500" },
   purchase: { icon: "cart", bg: "bg-orange-500/12", text: "text-orange-500" },
   equipment: { icon: "monitor", bg: "bg-cyan-600/12", text: "text-cyan-600" },
   contract: { icon: "pen", bg: "bg-[var(--primary)]/12", text: "text-[var(--primary)]" },
@@ -714,7 +710,7 @@ export default function ApprovalsPage() {
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여받은 탭만.
   //   perm key 는 카탈로그(/approvals:내부탭키)와 1:1. 구 isAdmin 분기 대체.
   const { isMaster, hasPerm } = useMyPermissions();
-  const tabAllowed = (k: Tab) => k === "overtime" || isMaster || hasPerm(`/approvals:${k}`);   //   연장근무 신청은 전원
+  const tabAllowed = (k: Tab) => isMaster || hasPerm(`/approvals:${k}`);
   const isAdmin = isMaster || hasPerm("/approvals:all"); // 전체 현황 권한 = 관리 조회 성격 분기 유지용
 
   // 탭 순서(2026-07-23 재편) — 개인 업무 3종(받고·보내고·올리고) → 회사 전체 → 설정.
@@ -723,8 +719,6 @@ export default function ApprovalsPage() {
     { key: "my-requests", label: "내 요청", icon: "send" },
     // 참조 탭은 2026-08-18 사장님 지시로 내 결재함 안 '나를 참조한 건' 보기로 합쳤다 (별도 탭 불필요)
     { key: "new-request", label: "새 요청", icon: "plus" },
-    //   연장근무 신청·승인 — 2026-08-19 사장님: 인사관리(근태)는 인사팀만 들어오니 직원이 신청하는 연장근무는 결재 허브로. 전원 보임(신청), 관리자는 승인 인박스·통계까지.
-    { key: "overtime", label: "연장근무", icon: "clock" },
     { key: "all", label: "전체 현황", icon: "chart" },
     { key: "forms", label: "양식 관리", icon: "layout" },
     { key: "policies", label: "결재선 관리", icon: "route" },
@@ -794,13 +788,6 @@ export default function ApprovalsPage() {
       {tab === "new-request" && companyId && userId && (
         <div className="ap-pad"><NewRequestTab companyId={companyId} userId={userId} invalidate={invalidate} onComplete={() => setTab("my-requests")} presetType={presetType} /></div>
       )}
-      {tab === "overtime" && companyId && userId && (
-        <div className="ap-pad ap-overtime">
-          {isAdmin && <OvertimeStats companyId={companyId} />}
-          {isAdmin && <OvertimeApprovalInbox companyId={companyId} reviewerId={userId} />}
-          <OvertimeRequestCard companyId={companyId} userId={userId} />
-        </div>
-      )}
       {tab === "forms" && companyId && (
         <ApprovalFormsManager companyId={companyId} />
       )}
@@ -810,181 +797,6 @@ export default function ApprovalsPage() {
          </div>
         </QueryBody>
       </QueryScreen>
-    </div>
-  );
-}
-
-// ══════════════════════════════════════════════
-// Tab: 연장근무 승인 (admin/owner)
-// ══════════════════════════════════════════════
-// pending overtime_requests 만 표시. 직원명은 employees JOIN 으로 fetch.
-// 승인: rpc('approve_overtime'). 반려: rpc('reject_overtime', p_reason ≥ 3자)
-// RLS 가 회사 격리 자동 처리.
-function OvertimeApprovalsTab({ companyId }: { companyId: string }) {
-  const { toast } = useToast();
-  const { confirm, confirmElement } = useConfirm();
-  const qc = useQueryClient();
-
-  const { data: rows = [], isLoading } = useQuery<any[]>({
-    queryKey: ["overtime-pending", companyId],
-    queryFn: async () => {
-      const { data, error } = await db
-        .from("overtime_requests")
-        .select("id, requested_date, requested_end_time, reason, status, created_at, employee_id, employees(name, user_id)")
-        .eq("status", "pending")
-        .order("requested_date", { ascending: true })
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!companyId,
-    staleTime: 30_000,
-  });
-
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["overtime-pending"] });
-    qc.invalidateQueries({ queryKey: ["overtime-pending-count"] });
-  };
-
-  const approveMut = useMutation({
-    mutationFn: async (row: any) => {
-      const { error } = await db.rpc("approve_overtime", { p_request_id: row.id });
-      if (error) throw error;
-      return row;
-    },
-    onSuccess: (row: any) => {
-      toast("연장근무 승인 처리 완료", "success");
-      refresh();
-      const targetUserId = row?.employees?.user_id;
-      if (targetUserId) {
-        void notifyOvertimeDecision({
-          companyId,
-          requestId: row.id,
-          targetUserId,
-          decision: "approved",
-          requestedDate: row.requested_date,
-          requestedEndTime: String(row.requested_end_time || "").slice(0, 5),
-        }).catch(() => { /* silent */ });
-      }
-    },
-    onError: (err: any) => toast(friendlyError(err, "승인 처리 실패"), "error"),
-  });
-
-  const rejectMut = useMutation({
-    mutationFn: async ({ row, reason }: { row: any; reason: string }) => {
-      const { error } = await db.rpc("reject_overtime", { p_request_id: row.id, p_reason: reason });
-      if (error) throw error;
-      return { row, reason };
-    },
-    onSuccess: ({ row, reason }: { row: any; reason: string }) => {
-      toast("연장근무 반려 처리 완료", "success");
-      refresh();
-      const targetUserId = row?.employees?.user_id;
-      if (targetUserId) {
-        void notifyOvertimeDecision({
-          companyId,
-          requestId: row.id,
-          targetUserId,
-          decision: "rejected",
-          requestedDate: row.requested_date,
-          requestedEndTime: String(row.requested_end_time || "").slice(0, 5),
-          rejectedReason: reason,
-        }).catch(() => { /* silent */ });
-      }
-    },
-    onError: (err: any) => toast(friendlyError(err, "반려 처리 실패"), "error"),
-  });
-
-  const handleReject = async (row: any) => {
-    const { ok, input } = await confirm({
-      title: "연장근무 반려",
-      withInput: "반려 사유를 입력하세요 (3자 이상)",
-      confirmLabel: "반려",
-      danger: true,
-    });
-    if (!ok) return;
-    const trimmed = (input || "").trim();
-    if (trimmed.length < 3) {
-      toast("반려 사유는 3자 이상 입력해 주세요", "error");
-      return;
-    }
-    rejectMut.mutate({ row, reason: trimmed });
-  };
-
-  // KST 표시
-  const fmtDateKst = (s: string | null) => (s ? s : "-");
-  const fmtTimeHhmm = (t: string | null) => (t ? String(t).slice(0, 5) : "-");
-  const fmtCreated = (ts: string | null) =>
-    ts
-      ? new Date(ts).toLocaleString("ko-KR", {
-          year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-        })
-      : "-";
-
-  if (isLoading) {
-    return <div className="text-center py-12 text-[var(--text-muted)]">로딩 중...</div>;
-  }
-
-  return (
-    <div>
-      {confirmElement}
-      {rows.length === 0 ? (
-        <div className="ap-empty">
-          <div className="text-3xl mb-3">&#10003;</div>
-          <div className="text-[var(--text-muted)] text-sm">대기 중인 연장근무 신청이 없습니다</div>
-        </div>
-      ) : (
-        <div className="approval-overtime-list">
-          {rows.map((row) => {
-            const empName: string = row?.employees?.name || "(이름 없음)";
-            return (
-              <div key={row.id} className="approval-overtime-row glass-card">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                        연장근무
-                      </span>
-                      <span className="text-[11px] text-[var(--text-dim)]">신청일 {fmtCreated(row.created_at)}</span>
-                    </div>
-                    <div className="font-semibold text-sm text-[var(--text)] mb-1">{empName}</div>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)] mb-2">
-                      <span>
-                        예정일 <span className="font-mono text-[var(--text)]">{fmtDateKst(row.requested_date)}</span>
-                      </span>
-                      <span>
-                        종료시각 <span className="font-mono text-[var(--text)]">~{fmtTimeHhmm(row.requested_end_time)}</span>
-                      </span>
-                    </div>
-                    <div
-                      className="px-3 py-2 bg-[var(--bg-surface)] rounded-lg text-xs text-[var(--text-muted)] whitespace-pre-wrap line-clamp-3"
-                      title={row.reason}
-                    >
-                      {row.reason}
-                    </div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                    <button
-                      onClick={() => approveMut.mutate(row)}
-                      disabled={approveMut.isPending}
-                      className="btn-primary"
-                    >
-                      승인
-                    </button>
-                    <button
-                      onClick={() => handleReject(row)}
-                      disabled={rejectMut.isPending}
-                      className="btn-danger"
-                    >
-                      반려
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -2852,6 +2664,10 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   }, [companyId, draftLoaded]);
 
   const isLeave = form.requestType === "leave";
+  // 초과근무는 승인되면 근태(퇴근시간 이후 출근 허용)로 이어지므로 날짜·종료시각을 구조화해서 받는다.
+  //   (2026-08-20 사장님: 연장근무 탭을 없애고 결재로 일원화 — "승인되면 근태에 정확히 반영")
+  const isOvertime = form.requestType === "overtime";
+  const [overtimeForm, setOvertimeForm] = useState({ date: "", endTime: "" });
 
   // Fetch current user's employee record (이메일 매칭 → user_id 폴백)
   const { data: currentEmployee } = useQuery({
@@ -3218,7 +3034,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           ? customFieldValues
           : isLeave
             ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays, ...leaveTimes } }
-            : undefined,
+            : isOvertime && overtimeForm.date
+              ? { overtime: { date: overtimeForm.date, end_time: overtimeForm.endTime || "22:00" } }
+              : undefined,
         // 참조: 요청자가 화면에서 지정한 인원(양식·정책 기본값이 프리필돼 있고 가감 가능)
         referenceUserIds: selectedReferences.length > 0 ? selectedReferences.map((r) => r.userId) : undefined,
       });
@@ -3470,6 +3288,25 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
               </>
             ) : (
               /* ── Non-leave fields — 순서 고정 (2026-08-20 사장님: 요청자는 필드 이동 불가) ── */
+              <>
+              {isOvertime && (
+                <div className="mb-4 p-3 rounded-xl bg-[var(--bg-surface)] space-y-3">
+                  <div className="text-xs font-bold text-[var(--text-muted)]">근태 반영 정보</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">초과근무 일자 *</label>
+                      <DateField value={overtimeForm.date} onChange={(e) => setOvertimeForm({ ...overtimeForm, date: e.target.value })} className="field-input" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">종료 예정 시각 *</label>
+                      <input type="time" value={overtimeForm.endTime} onChange={(e) => setOvertimeForm({ ...overtimeForm, endTime: e.target.value })} className="field-input" />
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-[var(--text-dim)]">
+                    승인되면 이 날짜·시각으로 근태에 반영됩니다 — 회사 퇴근시간 이후 출근이 이 시각까지 허용됩니다.
+                  </div>
+                </div>
+              )}
               <FieldBlocks
                 blocks={[
                   {
@@ -3556,6 +3393,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   },
                 ]}
               />
+              </>
             )}
 
             {typeChosen && (<>

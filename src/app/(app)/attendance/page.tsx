@@ -40,7 +40,7 @@ export default function AttendancePage() {
   const [attView, setAttView] = useState<"work" | "records">("records");
   useEffect(() => { if (canBoard && canManage) setAttView((v) => (v === "records" && !new URLSearchParams(window.location.search).get("view") ? "work" : v)); }, [canBoard, canManage]);
   // 상위 섹션: 근무현황 / 연장근무. 휴가 신청·승인은 전자결재로, 연차 설정은 인사관리로 이관(2026-07-15).
-  //   2026-08-19: 연장근무 신청·승인은 결재 허브(/approvals?tab=overtime)로 옮겼다 — 여기 셋째 갈래는 "월간 요약"(부서→직원 지표)
+  //   2026-08-20: 연장근무는 결재 새 요청 > 초과근무로 일원화(전용 탭 폐지) — 여기 셋째 갈래는 "월간 요약"(부서→직원 지표)
   const [section, setSection] = useState<"work" | "summary">("work");
   // ?view=records/work + ?section=overtime/work 딥링크(근태 수정요청 알림 → records).
   useEffect(() => {
@@ -49,7 +49,7 @@ export default function AttendancePage() {
     if (v === "records" || v === "work") setAttView(v);
     const s = sp.get("section");
     if (s === "summary" || s === "work") setSection(s);
-    if (s === "overtime") window.location.replace("/approvals?tab=overtime");   //   예전 연장근무 딥링크 → 결재 허브
+    if (s === "overtime") window.location.replace("/approvals?tab=new-request&type=overtime");   //   연장근무 탭 폐지(2026-08-20) → 결재 새 요청(초과근무)
     // 휴가(section=leave/focus=pending) 딥링크는 전자결재로 이관 → /leave 리다이렉트가 처리.
   }, []);
 
