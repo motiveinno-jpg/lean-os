@@ -322,7 +322,9 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
         companyId, email: form.email, name: form.name || undefined,
         role: form.role, invitedBy: userId,
       });
-      await supabase.from("employees").insert({
+      // error 를 봐야 한다 (2026-08-20 감사): 권한 부족(RLS)으로 이 insert 가 막혀도 조용히 넘어가
+      //   초대 메일만 나가고 구성원 행은 안 생겼다 — 받은 사람은 초대장을 보는데 명단엔 없는 상태.
+      const { error: empErr } = await supabase.from("employees").insert({
         company_id: companyId,
         name: form.name || form.email.split("@")[0],
         email: form.email,
@@ -332,6 +334,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
         hire_date: form.hireDate || todayKst(),
         status: "invited",
       });
+      if (empErr) throw empErr;
       return invitation;
     },
     onSuccess: async (data: any) => {

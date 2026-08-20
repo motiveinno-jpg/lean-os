@@ -219,11 +219,14 @@ export async function executePayment(paymentId: string): Promise<void> {
 
   // ── Pre-execution balance check ──
   if (payment.bank_account_id) {
+    // maybeSingle: 계좌가 지워졌거나 안 보이면 .single() 이 406 → logRead 가 null 을 돌려주고
+    //   잔액 0 으로 읽혀 멀쩡한 지급이 '잔액 부족' 으로 막혔다 (2026-08-20 감사).
     const bank = logRead('lib/payment-queue:bank', await supabase
       .from('bank_accounts')
       .select('balance')
       .eq('id', payment.bank_account_id)
-      .single());
+      .maybeSingle());
+    if (!bank) throw new Error('출금 계좌를 찾을 수 없습니다 — 계좌 연결을 확인해 주세요.');
 
     const currentBalance = Number(bank?.balance || 0);
     const paymentAmount = Number(payment.amount);
@@ -327,7 +330,7 @@ export async function executePayment(paymentId: string): Promise<void> {
         .from('bank_accounts')
         .select('balance')
         .eq('id', payment.bank_account_id)
-        .single());
+        .maybeSingle());   // 위와 같은 이유 — 0행이면 406 이 나고 잔액 차감이 조용히 건너뛰어졌다
 
       if (bank) {
         await supabase

@@ -387,8 +387,12 @@ export async function acceptLoanMatch(candidate: LoanMatchCandidate): Promise<vo
 
   // Mark transaction as matched
   // updated_at 은 bank_transactions 에 없는 컬럼 — 넣으면 update 전체가 400 (매칭 표시 무음 실패)
-  await db.from('bank_transactions').update({
-    mapping_status: 'matched',
+  //   mapping_status 는 unmapped|auto_mapped|manual_mapped|ignored 만 허용 — 'matched' 는 400 이었고
+  //   error 를 안 봐서 "상환 매칭이 반영되었습니다" 토스트가 뜬 채 거래는 unmapped 로 남아
+  //   같은 후보가 계속 다시 떴다 (2026-08-20 감사).
+  const { error: mapErr } = await db.from('bank_transactions').update({
+    mapping_status: 'manual_mapped',
     deal_id: null,
   }).eq('id', transaction.id);
+  if (mapErr) throw mapErr;
 }

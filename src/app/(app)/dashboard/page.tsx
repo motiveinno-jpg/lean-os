@@ -2499,7 +2499,9 @@ function PartnerDashboard({ companyId, userId }: {
         .from("signature_requests")
         .select("id", { count: "exact", head: true })
         .eq("company_id", companyId!)
-        .eq("status", "pending_signature");
+        // 'pending_signature' 라는 상태는 없다 — 실제 값은 sent/viewed/signed/expired/rejected/pending.
+        //   그래서 이 카드는 늘 0 이었다 (2026-08-20 감사). 보냈지만 아직 서명 안 된 건을 센다.
+        .in("status", ["sent", "viewed", "pending"]);
       return count ?? 0;
     },
     enabled: !!companyId,

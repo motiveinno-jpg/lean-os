@@ -103,13 +103,17 @@ export async function updateContractTemplate(id: string, patch: Partial<{
   if (patch.sortOrder !== undefined) update.sort_order = patch.sortOrder;
   if (patch.isActive !== undefined) update.is_active = patch.isActive;
 
+  // maybeSingle: 권한이 없으면 update 가 0행이라 .single() 이 406 이 나고, 화면엔 엉뚱하게
+  //   "데이터를 찾을 수 없습니다. 새로고침 후 다시 시도해 주세요" 가 떴다 — 새로고침해도 소용없다.
+  //   (2026-08-20 감사: 07-31 에 쓰기 권한이 마스터·/hr-templates 로 좁혀졌다)
   const { data, error } = await db
     .from("contract_templates")
     .update(update as never)
     .eq("id", id)
     .select()
-    .single();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("이 양식을 수정할 권한이 없습니다 — 근로계약·서식 권한이 필요합니다.");
   return data as ContractTemplate;
 }
 

@@ -201,11 +201,12 @@ async function matchCompanyTransactions(
       candidates.length > 1 && candidates[1].score >= winner.score - 5;
 
     if (winner.confidence === "exact" && !ambiguous) {
+      // status 허용값은 auto|review|unmatched — "confirmed" 는 400 이었다 (2026-08-20 감사)
       await supabase.from("transaction_matches").insert({
         transaction_id: tx.id,
         revenue_schedule_id: winner.scheduleId,
         match_score: winner.score,
-        status: "confirmed",
+        status: "auto",
       });
       await supabase
         .from("deal_revenue_schedule")

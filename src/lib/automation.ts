@@ -226,10 +226,11 @@ export async function autoMatchTransactions(companyId: string) {
       // 2026-07-20: transaction_matches 실스키마 = transaction_id/match_score/status 뿐
       //   (company_id·bank_transaction_id·tax_invoice_id·deal_id·match_type 은 유령컬럼 → 매칭 기록이 항상 400).
       //   계산서 연결의 정식 경로는 invoice_settlements — 여기선 스키마가 허용하는 기록만 남긴다.
+      //   status 허용값은 auto|review|unmatched — 'confirmed' 는 400 이었다(무음, 2026-08-20 감사).
       await db.from('transaction_matches').insert({
         transaction_id: tx.id,
         match_score: bestScore,
-        status: 'confirmed',
+        status: 'auto',
       });
 
       // Update bank transaction — mapped_by 는 uuid 컬럼이라 'system' 문자열 금지(22P02).
