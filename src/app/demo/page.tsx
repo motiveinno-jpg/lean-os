@@ -196,9 +196,31 @@ const BellGlyph = () => (<svg {...gp} className="demo-header-glyph"><path d="M18
 
 // ── Helpers ──
 
-function formatBrief(): string[] {
-  const now = new Date();
-  const hour = now.getHours();
+/** 브리핑 2~4번째 줄 — 시각과 무관한 고정 문구. */
+const BRIEF_REST = [
+  "통장 잔고 2억 3,000만원, 런웨이 8.2개월로 안정 구간입니다.",
+  "미수금 1,200만원이 30일을 넘겼습니다. (주)하늘건설 담당자에게 연락이 필요합니다.",
+  "이번 달 매출 4,500만원 중 미입금 1,800만원 — 예정대로면 D+7 내 입금됩니다.",
+];
+
+/** 첫 렌더(서버 HTML)용 — 시각이 안 들어간 문장. 클라이언트 첫 렌더도 이 값이라 서버와 어긋나지 않는다. */
+const BRIEF_HEAD_STATIC = `${DEMO_USER}님, 오늘의 ${DEMO_COMPANY} 브리핑입니다.`;
+
+/** 접속 시각(KST) 기준 인사말·날짜.
+ *  ⚠️ 렌더 도중에 new Date() 를 쓰면 안 된다 — /demo 는 빌드 때 미리 그려지므로(prerender)
+ *     서버 HTML 은 빌드 시각으로 굳는데 브라우저는 접속 시각으로 그려 글자가 어긋난다
+ *     (React #418 hydration text mismatch, 2026-08-20 프로덕션에서 실제 발생).
+ *     그래서 이 함수는 마운트 뒤 useEffect 에서만 부른다.
+ *  ⚠️ 시간대를 Asia/Seoul 로 못 박는다. 방문자 로컬 시각을 쓰면 해외에서 볼 때 날짜가 하루 어긋난다. */
+function briefHeadNow(): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul", hourCycle: "h23", hour: "numeric", month: "numeric", day: "numeric", weekday: "short",
+    })
+      .formatToParts(new Date())
+      .map((p) => [p.type, p.value]),
+  );
+  const hour = Number(parts.hour);
   const greeting =
     hour < 5
       ? "늦은 밤이네요"
@@ -207,18 +229,8 @@ function formatBrief(): string[] {
         : hour < 18
           ? "오후 브리핑입니다"
           : "저녁 브리핑입니다";
-
-  const month = now.getMonth() + 1;
-  const date = now.getDate();
-  const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
-  const today = `${month}월 ${date}일 ${weekdays[now.getDay()]}요일`;
-
-  return [
-    `${greeting}, ${DEMO_USER}님. ${today} ${DEMO_COMPANY} 브리핑입니다.`,
-    "통장 잔고 2억 3,000만원, 런웨이 8.2개월로 안정 구간입니다.",
-    "미수금 1,200만원이 30일을 넘겼습니다. (주)하늘건설 담당자에게 연락이 필요합니다.",
-    "이번 달 매출 4,500만원 중 미입금 1,800만원 — 예정대로면 D+7 내 입금됩니다.",
-  ];
+  const today = `${parts.month}월 ${parts.day}일 ${parts.weekday}요일`;
+  return `${greeting}, ${DEMO_USER}님. ${today} ${DEMO_COMPANY} 브리핑입니다.`;
 }
 
 // ── Page Component ──
@@ -229,12 +241,15 @@ export default function DemoPage() {
   const [view, setView] = useState("dashboard");
   const [soon, setSoon] = useState({ crumb: "홈", title: "알림" });   // 데모에 없는 메뉴의 헤더용
   const [capAll, setCapAll] = useState(false);
+  // 브리핑 첫 줄은 접속 시각에 따라 달라지므로 마운트 뒤에 채운다(위 briefHeadNow 주석 참고).
+  const [briefHead, setBriefHead] = useState(BRIEF_HEAD_STATIC);
   useEffect(() => {
     setCapAll(new URLSearchParams(window.location.search).get("all") === "1");
+    setBriefHead(briefHeadNow());
   }, []);
   const show = (k: string) => capAll || view === k;
   const meta = VIEW_META[view] ?? soon;
-  const briefLines = formatBrief();
+  const briefLines = [briefHead, ...BRIEF_REST];
   const maxForecast = Math.max(...PULSE_FORECAST.map((p) => p.balance));
 
   return (
