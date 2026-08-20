@@ -10,6 +10,8 @@ const h = vi.hoisted(() => {
     defaultPolicies: [] as Row[],   // entity_type = 'default' 폴백
     usersByRole: {} as Record<string, Row[]>,
     fallbackUsers: [] as Row[],     // role in ('ceo','admin','owner') 폴백 조회 결과
+    // 요청자 부서·직급 (2026-08-20 적용 대상별 규칙 매칭에서 조회) — user_id → {department, position}
+    employeeByUser: {} as Record<string, Row>,
     inserted: [] as { table: string; row: Row }[],
   };
   function chain(table: string) {
@@ -31,6 +33,10 @@ const h = vi.hoisted(() => {
         const role = s.filters.find((f: any) => f.op === "eq" && f.col === "role")?.val;
         return { data: state.usersByRole[role] || [], error: null };
       }
+      if (table === "employees") {
+        const uid = s.filters.find((f: any) => f.op === "eq" && f.col === "user_id")?.val;
+        return { data: state.employeeByUser[uid] || null, error: null };
+      }
       if (table === "approval_steps") {
         // 알림용 stage 1 승인자 조회
         const rows = state.inserted
@@ -48,6 +54,7 @@ const h = vi.hoisted(() => {
       in: (col: string, val: any) => { s.filters.push({ col, val, op: "in" }); return api; },
       limit: () => api,
       single: () => api,
+      maybeSingle: () => api,
       then: (res: any, rej: any) => Promise.resolve(respond()).then(res, rej),
     };
     return api;
@@ -61,7 +68,7 @@ vi.mock("@/lib/payment-queue", () => ({ createQueueEntry: vi.fn() }));
 vi.mock("@/lib/routing", () => ({ resolveBank: vi.fn() }));
 vi.mock("@/lib/notifications", () => ({ createNotification: vi.fn() }));
 
-import { createApprovalRequest, pickPolicyForRequester, policyTargets } from "@/lib/approval-workflow";
+import { createApprovalRequest, pickPolicyForRequester, policyTargets, policyRules, pickRuleForRequester, rulesNeedEmployeeInfo } from "@/lib/approval-workflow";
 import { createNotification } from "@/lib/notifications";
 
 const mockNotify = vi.mocked(createNotification);
@@ -85,6 +92,7 @@ beforeEach(() => {
   st.defaultPolicies = [];
   st.usersByRole = {};
   st.fallbackUsers = [];
+  st.employeeByUser = {};
   st.inserted.length = 0;
   mockNotify.mockReset();
 });
@@ -204,5 +212,138 @@ describe("pickPolicyForRequester — 대상 매칭 우선순위", () => {
   });
   it("policyTargets — requester_ids 와 requester_id 합집합", () => {
     expect(policyTargets({ requester_id: "u3", requester_ids: ["u1"], requester_department: null }).userIds).toEqual(["u1", "u3"]);
+  });
+});
+
+// 한 결재선 안의 적용 대상별 결재선·참조 (2026-08-20 사장님 요청).
+//   우선순위: 특정 직원 > 팀(부서) > 직급 > 회사 전체. rules 가 없는 옛 정책은 규칙 1개로 읽힌다.
+describe("policyRules / pickRuleForRequester — 적용 대상별 규칙", () => {
+  const st = (name: string) => [{ stage: 1, name, approver_role: "manager" }];
+  const rules = [
+    { id: "r-users", target: { mode: "users" as const, userIds: ["u1", "u2"] }, stages: st("김대리선"), reference_user_ids: ["ref-u"] },
+    { id: "r-dept", target: { mode: "department" as const, department: "디자인" }, stages: st("디자인선"), reference_user_ids: ["ref-d"] },
+    { id: "r-pos", target: { mode: "position" as const, position: "사원" }, stages: st("사원선"), reference_user_ids: ["ref-p"] },
+    { id: "r-all", target: { mode: "all" as const }, stages: st("기본선"), reference_user_ids: [] },
+  ];
+
+  it("특정 직원이 부서·직급·전체보다 우선", () => {
+    expect(pickRuleForRequester(rules, "u1", "디자인", "사원")?.id).toBe("r-users");
+  });
+  it("직원 불일치면 부서", () => {
+    expect(pickRuleForRequester(rules, "u9", "디자인", "사원")?.id).toBe("r-dept");
+  });
+  it("직원·부서 불일치면 직급", () => {
+    expect(pickRuleForRequester(rules, "u9", "개발", "사원")?.id).toBe("r-pos");
+  });
+  it("전부 불일치면 '회사 전체' 기본 규칙", () => {
+    expect(pickRuleForRequester(rules, "u9", "개발", "부장")?.id).toBe("r-all");
+  });
+  it("기본 규칙이 없고 아무 대상도 안 맞으면 null", () => {
+    expect(pickRuleForRequester(rules.slice(0, 3), "u9", "개발", "부장")).toBeNull();
+  });
+  it("규칙마다 참조가 따로 걸린다", () => {
+    expect(pickRuleForRequester(rules, "u9", "디자인", null)?.reference_user_ids).toEqual(["ref-d"]);
+    expect(pickRuleForRequester(rules, "u1", null, null)?.reference_user_ids).toEqual(["ref-u"]);
+  });
+
+  it("policyRules — rules 없는 옛 정책은 기존 대상·단계·참조를 규칙 1개로 읽는다", () => {
+    const legacy = policyRules({
+      requester_id: null, requester_ids: ["u7"], requester_department: null, rules: null,
+      stages: st("옛선") as never, reference_user_ids: ["ref-legacy"],
+    });
+    expect(legacy).toHaveLength(1);
+    expect(legacy[0].target).toEqual({ mode: "users", userIds: ["u7"] });
+    expect(legacy[0].reference_user_ids).toEqual(["ref-legacy"]);
+    // 그 요청자에게 실제로 매칭되어 옛 결재선이 그대로 쓰인다
+    expect(pickRuleForRequester(legacy, "u7", null, null)?.stages[0].name).toBe("옛선");
+  });
+
+  it("policyRules — 대상도 rules 도 없으면 '회사 전체' 규칙 1개", () => {
+    const wide = policyRules({
+      requester_id: null, requester_ids: null, requester_department: null, rules: null,
+      stages: st("공통선") as never, reference_user_ids: [],
+    });
+    expect(wide[0].target.mode).toBe("all");
+    expect(pickRuleForRequester(wide, "누구든", null, null)?.stages[0].name).toBe("공통선");
+  });
+
+  it("rulesNeedEmployeeInfo — 부서·직급 규칙이 있을 때만 직원 조회가 필요", () => {
+    expect(rulesNeedEmployeeInfo(rules)).toBe(true);
+    expect(rulesNeedEmployeeInfo([rules[0], rules[3]])).toBe(false);
+  });
+});
+
+// 규칙이 '실제 결재 스텝'까지 이어지는지 — 여기가 깨지면 화면만 맞고 결재는 엉뚱한 사람에게 간다.
+describe("createApprovalRequest — 적용 대상별 결재선이 실제 스텝에 반영", () => {
+  // 결재선 하나에 대상 3개: 특정 직원(u-kim) 2단계 / 개발팀 1단계(재무) / 그 외 전체 1단계(팀장)
+  const RULES_POLICY = {
+    id: "pol-rules",
+    auto_approve_below: 0,
+    stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }], // 거울(옛 경로용)
+    reference_user_ids: [],
+    requester_id: null, requester_ids: null, requester_department: null,
+    rules: [
+      { id: "r-users", target: { mode: "users", userIds: ["u-kim"] },
+        stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }, { stage: 2, name: "대표 승인", approver_role: "ceo" }],
+        reference_user_ids: ["u-cc-a"] },
+      { id: "r-dept", target: { mode: "department", department: "개발팀" },
+        stages: [{ stage: 1, name: "재무 확인", approver_role: "finance" }], reference_user_ids: ["u-cc-b"] },
+      { id: "r-all", target: { mode: "all" },
+        stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }], reference_user_ids: [] },
+    ],
+  };
+
+  beforeEach(() => {
+    st.usersByRole = {
+      manager: [{ id: "u-mgr" }], ceo: [{ id: "u-ceo" }], finance: [{ id: "u-fin" }],
+    };
+  });
+
+  it("특정 직원 대상 → 그 규칙의 2단계(팀장→대표)로 스텝 생성", async () => {
+    st.policies = [RULES_POLICY];
+    await createApprovalRequest({ ...base, requesterId: "u-kim", requestType: "expense", amount: 500_000 });
+    expect(requestRow().total_stages).toBe(2);
+    expect(steps()).toEqual([
+      expect.objectContaining({ stage: 1, stage_name: "팀장 승인", approver_id: "u-mgr" }),
+      expect.objectContaining({ stage: 2, stage_name: "대표 승인", approver_id: "u-ceo" }),
+    ]);
+  });
+
+  it("부서 대상 → 직원 부서를 조회해 그 규칙의 1단계(재무)로", async () => {
+    st.policies = [RULES_POLICY];
+    st.employeeByUser = { "u-dev": { department: "개발팀", position: "주임" } };
+    await createApprovalRequest({ ...base, requesterId: "u-dev", requestType: "expense", amount: 500_000 });
+    expect(requestRow().total_stages).toBe(1);
+    expect(steps()).toEqual([expect.objectContaining({ stage: 1, stage_name: "재무 확인", approver_id: "u-fin" })]);
+  });
+
+  it("어느 대상에도 안 걸리면 '그 외 전체' 규칙의 1단계", async () => {
+    st.policies = [RULES_POLICY];
+    st.employeeByUser = { "u-etc": { department: "마케팅", position: "사원" } };
+    await createApprovalRequest({ ...base, requesterId: "u-etc", requestType: "expense", amount: 500_000 });
+    expect(requestRow().total_stages).toBe(1);
+    expect(steps()).toEqual([expect.objectContaining({ stage: 1, stage_name: "팀장 승인", approver_id: "u-mgr" })]);
+  });
+
+  it("참조를 안 넘긴 호출은 매칭된 규칙의 참조가 요청에 붙는다", async () => {
+    st.policies = [RULES_POLICY];
+    await createApprovalRequest({ ...base, requesterId: "u-kim", requestType: "expense", amount: 500_000 });
+    expect(requestRow().reference_user_ids).toEqual(["u-cc-a"]);
+  });
+
+  it("요청자가 고른 참조가 있으면 그 값이 우선(규칙 참조로 덮어쓰지 않는다)", async () => {
+    st.policies = [RULES_POLICY];
+    await createApprovalRequest({ ...base, requesterId: "u-kim", requestType: "expense", amount: 500_000, referenceUserIds: ["u-picked"] });
+    expect(requestRow().reference_user_ids).toEqual(["u-picked"]);
+  });
+
+  it("rules 없는 옛 정책은 종전대로 policy.stages 를 쓴다(회귀 방지)", async () => {
+    st.policies = [TWO_STAGE_POLICY];
+    await createApprovalRequest({ ...base, requestType: "expense", amount: 500_000 });
+    expect(requestRow().total_stages).toBe(2);
+    expect(steps()).toEqual([
+      expect.objectContaining({ stage: 1, stage_name: "팀장 승인", approver_id: "u-mgr" }),
+      expect.objectContaining({ stage: 2, stage_name: "최종 승인", approver_id: "u-ceo" }),
+    ]);
   });
 });

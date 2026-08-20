@@ -1428,6 +1428,7 @@ export type Database = {
           requester_id: string | null
           requester_ids: string[] | null
           required_role: string | null
+          rules: Json | null
           stages: Json | null
           updated_at: string | null
         }
@@ -1451,6 +1452,7 @@ export type Database = {
           requester_id?: string | null
           requester_ids?: string[] | null
           required_role?: string | null
+          rules?: Json | null
           stages?: Json | null
           updated_at?: string | null
         }
@@ -1474,6 +1476,7 @@ export type Database = {
           requester_id?: string | null
           requester_ids?: string[] | null
           required_role?: string | null
+          rules?: Json | null
           stages?: Json | null
           updated_at?: string | null
         }

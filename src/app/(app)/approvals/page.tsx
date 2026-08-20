@@ -19,6 +19,9 @@ import { isCompanyWidePolicy,
   deleteApprovalPolicy,
   pickPolicyForRequester,
   policyTargets,
+  policyRules,
+  pickRuleForRequester,
+  rulesNeedEmployeeInfo,
   createApprovalRequest,
   updateApprovalRequest,
   approveStep,
@@ -39,6 +42,8 @@ import { isCompanyWidePolicy,
   type ApprovalRequest,
   type ApprovalStep,
   type ApprovalStageConfig,
+  type ApprovalPolicyRule,
+  type PolicyRuleTargetMode,
 } from "@/lib/approval-workflow";
 import { RichEditor, type RichEditorRef } from "@/components/rich-editor";
 import { sanitizeDocumentHtml } from "@/lib/sanitize-html";
@@ -2671,10 +2676,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       const { data: user } = await db.from("users").select("email, name").eq("id", userId).maybeSingle();
       if (!user?.email) return null;
       // 이메일로 매칭
-      let { data: emp } = await db.from("employees").select("id, name, email, department, work_end_time").eq("company_id", companyId).eq("email", user.email).maybeSingle();
+      //   work_end_time = 초과근무 종료시각 기본값(2026-08-20), position = 적용 대상 '직급' 매칭(2026-08-20)
+      let { data: emp } = await db.from("employees").select("id, name, email, department, work_end_time, position").eq("company_id", companyId).eq("email", user.email).maybeSingle();
       // 이메일 실패 시 user_id로 폴백
       if (!emp) {
-        const { data: empById } = await db.from("employees").select("id, name, email, department, work_end_time").eq("company_id", companyId).eq("user_id", userId).maybeSingle();
+        const { data: empById } = await db.from("employees").select("id, name, email, department, work_end_time, position").eq("company_id", companyId).eq("user_id", userId).maybeSingle();
         emp = empById;
       }
       return emp ? { ...emp, userName: user.name } : { id: null, name: user.name, userName: user.name };
@@ -2780,6 +2786,17 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       pickPolicyForRequester(active.filter((p: ApprovalPolicy) => p.document_type === docType), userId, dept);
     return pick(form.requestType) || pick("default");
   }, [policies, form.requestType, userId, currentEmployee]);
+
+  // 그 결재선 안에서 나에게 적용되는 규칙 — 미리보기 단계·참조 프리필의 기준.
+  //   createApprovalRequest 서버 매칭(pickRuleForRequester)과 같은 규칙이어야 화면과 실제가 안 어긋난다. (2026-08-20)
+  const matchedRule = useMemo(() => {
+    if (!matchedPolicy) return null;
+    const rules = policyRules(matchedPolicy);
+    const emp = currentEmployee as { department?: string; position?: string } | null | undefined;
+    return pickRuleForRequester(rules, userId, emp?.department, emp?.position);
+  }, [matchedPolicy, userId, currentEmployee]);
+  // 미리보기·프리필에 쓸 실제 단계 — 규칙이 있으면 규칙 것, 없으면 결재선 기본.
+  const matchedStages = (matchedRule?.stages?.length ? matchedRule.stages : (matchedPolicy?.stages as ApprovalStageConfig[])) || [];
   // 승인라인 변경 허용 여부 — 정책이 불허면 요청자는 승인자 지정 불가.
   const canEditLine = matchedPolicy?.allow_line_edit !== false;
 
@@ -2845,11 +2862,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   useEffect(() => {
     // 구성원 목록 로딩 전에는 프리필하지 않는다 — 빈 배열로 확정돼 기본 참조자가 사라지는 것 방지.
     if (referencesInited === form.requestType || companyUsers.length === 0) return;
+    // 2026-08-20: 결재선 참조는 '나에게 적용되는 규칙'의 참조를 쓴다(규칙 없는 옛 결재선은 종전과 동일).
     const defaults = selectedForm?.reference_user_ids?.length
       ? selectedForm.reference_user_ids
-      : matchedPolicy?.reference_user_ids?.length
-        ? matchedPolicy.reference_user_ids
-        : [];
+      : matchedRule?.reference_user_ids?.length
+        ? matchedRule.reference_user_ids
+        : matchedPolicy?.reference_user_ids?.length
+          ? matchedPolicy.reference_user_ids
+          : [];
     setSelectedReferences(
       defaults
         .map((rid: string) => (companyUsers as any[]).find((u) => u.id === rid))
@@ -2857,7 +2877,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         .map((u: any) => ({ userId: u.id, name: u.name || u.email })),
     );
     setReferencesInited(form.requestType);
-  }, [form.requestType, referencesInited, selectedForm, matchedPolicy, companyUsers]);
+  }, [form.requestType, referencesInited, selectedForm, matchedPolicy, matchedRule, companyUsers]);
 
   // 2026-07-16: 기본 제공 유형에 정책 입력 필드가 있으면 — 유형 전환 시 고정값(fixed) 필드 프리필 +
   //   필드 없는 유형으로 바뀌면 이전 값 정리.
@@ -3658,9 +3678,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   <div className="text-xs font-bold pt-1">요청 제출</div>
                   <div className="text-[11px] text-[var(--text-dim)]">나</div>
                 </div>
-                {(matchedPolicy.stages as ApprovalStageConfig[]).map((stage, idx) => (
+                {matchedStages.map((stage, idx) => (
                   <div key={idx} className="relative pl-8 pb-4 last:pb-0">
-                    {idx < (matchedPolicy.stages as ApprovalStageConfig[]).length - 1 && (
+                    {idx < matchedStages.length - 1 && (
                       <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />
                     )}
                     <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/8 flex items-center justify-center text-[11px] font-extrabold text-[var(--primary)]">
@@ -3742,6 +3762,82 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 // Tab 6: 정책 관리 (Admin)
 // ══════════════════════════════════════════════
 
+// 결재선 폼에서 편집 중인 규칙 한 줄 — 저장 시 ApprovalPolicyRule 로 접힌다. (2026-08-20)
+//   mode 별로 쓰는 칸이 다르지만(users→userIds, department→department, position→position)
+//   모드를 오갈 때 값이 날아가지 않게 draft 는 네 칸을 다 들고 있는다.
+type RuleDraft = {
+  key: string;
+  mode: PolicyRuleTargetMode;
+  userIds: string[];
+  department: string;
+  position: string;
+  stages: ApprovalStageConfig[];
+  referenceIds: string[];
+};
+
+let ruleKeySeq = 0;
+function newRuleDraft(mode: PolicyRuleTargetMode): RuleDraft {
+  return {
+    key: `rule-${++ruleKeySeq}`,
+    mode,
+    userIds: [],
+    department: "",
+    position: "",
+    stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }],
+    referenceIds: [],
+  };
+}
+
+const RULE_MODE_LABELS: Record<PolicyRuleTargetMode, string> = {
+  all: "회사 전체",
+  users: "특정 직원",
+  department: "팀 (부서)",
+  position: "직급",
+};
+
+/** 목록 표에 적는 적용 대상 한 줄. (2026-08-20) */
+function ruleTargetText(rule: ApprovalPolicyRule, orgUsers: { id: string; name: string | null; email: string }[]): string {
+  const t = rule.target;
+  if (t.mode === "department") return `${t.department} 팀`;
+  if (t.mode === "position") return `${t.position} 직급`;
+  if (t.mode === "users") {
+    const names = (t.userIds || []).map((id) => { const u = orgUsers.find((x) => x.id === id); return u?.name || u?.email || "?"; });
+    if (names.length === 0) return "—";
+    return `${names.slice(0, 2).join("·")}${names.length > 2 ? ` 외 ${names.length - 2}명` : ""}`;
+  }
+  return "그 외 전체";
+}
+
+/** 폼 draft → 저장 형태. 단계 번호·이름을 여기서 정규화한다(빈 이름은 'N차 승인'). (2026-08-20) */
+function draftsToRules(drafts: RuleDraft[]): ApprovalPolicyRule[] {
+  return drafts.map((d) => ({
+    id: d.key,
+    target:
+      d.mode === "users" ? { mode: "users" as const, userIds: d.userIds }
+      : d.mode === "department" ? { mode: "department" as const, department: d.department.trim() }
+      : d.mode === "position" ? { mode: "position" as const, position: d.position.trim() }
+      : { mode: "all" as const },
+    stages: d.stages.map((st, si) => ({ ...st, stage: si + 1, name: (st.name || "").trim() || `${si + 1}차 승인` })),
+    reference_user_ids: d.referenceIds,
+  }));
+}
+
+/** 저장 형태 → 폼 draft. '회사 전체' 규칙은 항상 마지막에 하나 있도록 보정한다. (2026-08-20) */
+function rulesToDrafts(rules: ApprovalPolicyRule[]): RuleDraft[] {
+  const drafts = rules.map((r) => ({
+    key: `rule-${++ruleKeySeq}`,
+    mode: r.target?.mode || "all",
+    userIds: r.target?.userIds || [],
+    department: r.target?.department || "",
+    position: r.target?.position || "",
+    stages: r.stages?.length ? r.stages : [{ stage: 1, name: "팀장 승인", approver_role: "manager" }],
+    referenceIds: r.reference_user_ids || [],
+  })) as RuleDraft[];
+  const others = drafts.filter((d) => d.mode !== "all");
+  const fallback = drafts.find((d) => d.mode === "all") || newRuleDraft("all");
+  return [...others, fallback];
+}
+
 function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate: () => void }) {
   const [pq, setPq] = useState("");
   const { toast } = useToast();
@@ -3755,14 +3851,11 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     descriptionTemplate: "",
     autoApproveBelow: "",
     allowLineEdit: true,
-    // 적용 대상 (2026-08-11 사장님: 직원 복수선택·팀단위) — all=회사 전체, users=특정 직원(복수), department=팀
-    targetMode: "all" as "all" | "users" | "department",
-    requesterIds: [] as string[],
-    requesterDepartment: "",
-    // 참조(CC) 기본값 (2026-08-12 사장님: "원래 있었던 것 같은데 사라졌어") — 이 정책으로 만든
-    //   요청의 참조란에 프리필된다. ⚠️ 종전엔 저장 시 미전달 → upsert 기본 [] 로 기존 참조가 지워졌다.
-    referenceIds: [] as string[],
-    stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }] as ApprovalStageConfig[],
+    // 적용 대상별 규칙 (2026-08-20 사장님: "적용대상을 여러개 생성하고 그 대상마다 각각의
+    //   누구한테결재받나·참조를 하나의 결재선에서 관리") — 한 결재선 안에 [대상 → 단계 → 참조] N개.
+    //   종전엔 대상 1묶음 + 단계 1세트 + 참조 1세트라 사람마다 결재선을 따로 만들어야 했다.
+    //   맨 아래 '회사 전체' 규칙은 항상 있고 지울 수 없다(어느 규칙에도 안 걸리는 요청자의 몫).
+    rules: [newRuleDraft("all")] as RuleDraft[],
   });
 
   const { data: policies = [], isLoading } = useQuery({
@@ -3799,25 +3892,42 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
     enabled: !!companyId,
   });
 
+  // 직급 단위 적용 대상 선택지 — employees.position 고유값 (2026-08-20).
+  //   ⚠️ users.role(마스터/멤버/파트너)이 아니라 인사기록의 직급이다 — 팀장·사원 같은 직책 개념은 여기에만 있다.
+  const { data: positions = [] } = useQuery({
+    queryKey: ["policy-positions", companyId],
+    queryFn: async () => {
+      const data = logRead('approvals/page:positions', await db.from("employees").select("position").eq("company_id", companyId).not("position", "is", null));
+      return [...new Set((data || []).map((r: { position: string | null }) => String(r.position || "").trim()).filter(Boolean))].sort() as string[];
+    },
+    enabled: !!companyId,
+  });
+
   const upsertMut = useMutation({
-    mutationFn: () =>
-      upsertApprovalPolicy({
+    mutationFn: () => {
+      const rules = draftsToRules(form.rules);
+      // 규칙을 쓰는 결재선은 정책 자체가 회사 전체에 걸리고(대상 칸 null), 누구에게 갈지는 규칙이 가른다.
+      //   그래야 pickPolicyForRequester 가 이 결재선을 '회사 공통'으로 집어 규칙 매칭까지 도달한다. (2026-08-20)
+      const fallback = rules.find((r) => r.target.mode === "all") || rules[0];
+      return upsertApprovalPolicy({
         id: editingPolicy?.id,
         company_id: companyId,
         name: form.name,
         document_type: form.documentType === "__custom__" ? (form.customType.trim() || "custom") : form.documentType,
         label: form.label.trim() || undefined,
         description_template: form.descriptionTemplate.trim() || undefined,
-        stages: form.stages.map((st, i) => ({ ...st, stage: i + 1, name: (st.name || "").trim() || `${i + 1}차 승인` })),
+        rules,
+        // 아래 세 칸은 규칙을 못 읽는 옛 경로(요청 상세·PDF 등)를 위한 거울 — '회사 전체' 규칙을 복사해 둔다.
+        stages: fallback.stages,
+        reference_user_ids: fallback.reference_user_ids,
         auto_approve_below: Number(form.autoApproveBelow) || 0,
         allow_line_edit: form.allowLineEdit,
-        // 하위호환: 직원 1명이면 requester_id 에도 채워 구버전 매칭이 계속 동작 (2026-08-11)
-        requester_id: form.targetMode === "users" && form.requesterIds.length === 1 ? form.requesterIds[0] : null,
-        requester_ids: form.targetMode === "users" && form.requesterIds.length > 0 ? form.requesterIds : null,
-        requester_department: form.targetMode === "department" ? form.requesterDepartment.trim() || null : null,
-        reference_user_ids: form.referenceIds,
+        requester_id: null,
+        requester_ids: null,
+        requester_department: null,
         is_active: true,
-      }),
+      });
+    },
     onSuccess: () => {
       invalidate();
       resetForm();
@@ -3842,11 +3952,7 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       descriptionTemplate: "",
       autoApproveBelow: "",
       allowLineEdit: true,
-      targetMode: "all",
-      requesterIds: [],
-      requesterDepartment: "",
-      referenceIds: [],
-      stages: [{ stage: 1, name: "팀장 승인", approver_role: "manager" }],
+      rules: [newRuleDraft("all")],
     });
   }
 
@@ -3861,45 +3967,57 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
       descriptionTemplate: policy.description_template || "",
       autoApproveBelow: policy.auto_approve_below ? String(policy.auto_approve_below) : "",
       allowLineEdit: policy.allow_line_edit !== false,
-      ...(() => {
-        const t = policyTargets(policy);
-        if (t.department) return { targetMode: "department" as const, requesterIds: [], requesterDepartment: t.department };
-        if (t.userIds.length) return { targetMode: "users" as const, requesterIds: t.userIds, requesterDepartment: "" };
-        return { targetMode: "all" as const, requesterIds: [], requesterDepartment: "" };
-      })(),
-      referenceIds: Array.isArray(policy.reference_user_ids) ? policy.reference_user_ids : [],
-      stages: policy.stages as ApprovalStageConfig[],
+      // 개편 전 결재선은 policyRules() 가 기존 대상·단계·참조를 규칙 1개로 돌려준다 — 열면 그대로 보인다.
+      rules: rulesToDrafts(policyRules(policy)),
     });
     setShowForm(true);
   }
 
+  // ── 규칙(적용 대상 묶음) 조작 ───────────────────────────────
+  function patchRule(idx: number, patch: Partial<RuleDraft>) {
+    setForm((st) => ({ ...st, rules: st.rules.map((r, i) => (i === idx ? { ...r, ...patch } : r)) }));
+  }
+  function addRule() {
+    // 새 규칙은 '회사 전체'(맨 아래 기본 규칙) 바로 앞에 끼워 넣는다 — 기본 규칙은 항상 마지막.
+    setForm((st) => ({ ...st, rules: [...st.rules.slice(0, -1), newRuleDraft("users"), st.rules[st.rules.length - 1]] }));
+  }
+  function removeRule(idx: number) {
+    setForm((st) => (st.rules[idx]?.mode === "all" ? st : { ...st, rules: st.rules.filter((_, i) => i !== idx) }));
+  }
+
+  // ── 규칙 안의 결재 단계 조작 ─────────────────────────────────
   //   단계 수를 고르면 그 수에 맞춰 늘리고 줄인다 (2026-08-18 사장님: "몇 단계인지 설정하고 누구한테")
-  function setStageCount(n: number) {
-    const cur = form.stages;
+  function setStageCount(ruleIdx: number, n: number) {
+    const cur = form.rules[ruleIdx].stages;
     const next = Array.from({ length: n }, (_, i) => cur[i] || { stage: i + 1, name: `${i + 1}차 승인`, approver_role: "manager" } as ApprovalStageConfig).map((st, i) => ({ ...st, stage: i + 1 }));
-    setForm({ ...form, stages: next });
-  }
-  function addStage() {
-    const nextStage = form.stages.length + 1;
-    setForm({
-      ...form,
-      stages: [...form.stages, { stage: nextStage, name: "", approver_role: "ceo" }],
-    });
+    patchRule(ruleIdx, { stages: next });
   }
 
-  function removeStage(idx: number) {
-    if (form.stages.length <= 1) return;
-    const updated = form.stages.filter((_, i) => i !== idx).map((s, i) => ({ ...s, stage: i + 1 }));
-    setForm({ ...form, stages: updated });
+  function updateStage(ruleIdx: number, idx: number, patch: Partial<ApprovalStageConfig>) {
+    patchRule(ruleIdx, { stages: form.rules[ruleIdx].stages.map((st, i) => (i === idx ? { ...st, ...patch } : st)) });
   }
 
-  function updateStage(idx: number, field: keyof ApprovalStageConfig, value: string | number) {
-    const updated = [...form.stages];
-    (updated[idx] as any)[field] = value;
-    setForm({ ...form, stages: updated });
+  function toggleRuleUser(ruleIdx: number, userId: string) {
+    const cur = form.rules[ruleIdx].userIds;
+    patchRule(ruleIdx, { userIds: cur.includes(userId) ? cur.filter((id) => id !== userId) : [...cur, userId] });
+  }
+
+  function toggleRuleReference(ruleIdx: number, userId: string) {
+    const cur = form.rules[ruleIdx].referenceIds;
+    patchRule(ruleIdx, { referenceIds: cur.includes(userId) ? cur.filter((id) => id !== userId) : [...cur, userId] });
   }
 
   useModalKeys(showForm, () => { if (!upsertMut.isPending) resetForm(); });
+
+  // 대상을 안 고른 규칙은 저장해도 아무에게도 안 걸린다 — 조용히 새지 않게 저장을 막고 이유를 적는다. (2026-08-20)
+  const ruleError = (() => {
+    for (const r of form.rules) {
+      if (r.mode === "users" && r.userIds.length === 0) return "'특정 직원' 적용 대상에 직원을 한 명 이상 고르세요.";
+      if (r.mode === "department" && !r.department.trim()) return "'팀 (부서)' 적용 대상에 부서를 고르세요.";
+      if (r.mode === "position" && !r.position.trim()) return "'직급' 적용 대상에 직급을 고르세요.";
+    }
+    return "";
+  })();
 
   const ROLE_OPTIONS = [
     { value: "manager", label: "팀장" },
@@ -3965,95 +4083,128 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
                 )}
               </select>
             </div>
-            <div>
-              <label className="field-label">결재 단계</label>
-              <select value={form.stages.length} onChange={(e) => setStageCount(Number(e.target.value))} className="field-input">
-                {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}단계</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="field-label">적용 대상 <span className="text-[var(--text-dim)] font-normal">(선택)</span></label>
-              <select value={form.targetMode} onChange={(e) => setForm({ ...form, targetMode: e.target.value as "all" | "users" | "department" })} className="field-input">
-                <option value="all">회사 전체</option>
-                <option value="users">특정 직원</option>
-                <option value="department">팀 (부서)</option>
-              </select>
-            </div>
           </div>
           <p className="mt-1.5 text-[10px] text-[var(--text-dim)]">
             {form.documentType === "line"
               ? "공용 결재선은 자동 적용되지 않습니다 — 양식 관리 > 편집에서 불러와 붙일 때만 쓰입니다."
-              : "선택한 양식의 새 요청에 자동 적용됩니다 — 부서·직원 대상 결재선이 회사 전체 결재선보다 우선합니다."}
+              : "선택한 양식의 새 요청에 자동 적용됩니다 — 요청자에게 맞는 적용 대상의 결재선이 쓰입니다."}
           </p>
-          {form.targetMode === "users" && (
-            <div className="policy-target-people">
-              {orgUsers.map((u) => {
-                const on = form.requesterIds.includes(u.id);
-                return (
-                  <button key={u.id} type="button"
-                    onClick={() => setForm((st) => ({ ...st, requesterIds: st.requesterIds.includes(u.id) ? st.requesterIds.filter((id) => id !== u.id) : [...st.requesterIds, u.id] }))}
-                    className={`policy-target-chip ${on ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>
-                );
-              })}
-            </div>
-          )}
-          {form.targetMode === "department" && (
-            departments.length > 0 ? (
-              <select value={form.requesterDepartment} onChange={(e) => setForm({ ...form, requesterDepartment: e.target.value })} className="field-input mt-2 max-w-xs">
-                <option value="">부서 선택</option>
-                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            ) : (
-              <p className="text-[10px] text-[var(--warning)] mt-1.5">등록된 부서가 없습니다 — 구성원 화면에서 직원의 부서를 먼저 입력하세요.</p>
-            )
-          )}
 
-          {/* 단계별 승인자 — 한 줄에 [N차] 단계 이름 · 누구에게(역할 또는 구성원) */}
-          <div className="ap-pol-stages">
-            <label className="field-label">누구에게 결재받나</label>
-            {form.stages.map((stage, idx) => (
-              <div key={idx} className="ap-pol-stage">
-                <span className="ap-pol-stage-no">{stage.stage}차</span>
-                <input value={stage.name} onChange={(e) => updateStage(idx, "name", e.target.value)} placeholder={`${stage.stage}차 승인`} className="field-input ap-pol-stage-name" />
-                <select
-                  value={stage.approver_id ? `u:${stage.approver_id}` : `r:${stage.approver_role || "manager"}`}
-                  onChange={(e) => {
-                    const v = e.target.value; const updated = [...form.stages];
-                    if (v.startsWith("u:")) { const u = orgUsers.find((x) => x.id === v.slice(2)); (updated[idx] as any).approver_id = v.slice(2); (updated[idx] as any).approver_name = u?.name || u?.email || ""; }
-                    else { delete (updated[idx] as any).approver_id; delete (updated[idx] as any).approver_name; updated[idx].approver_role = v.slice(2); }
-                    setForm({ ...form, stages: updated });
-                  }}
-                  className="field-input ap-pol-stage-who">
-                  <optgroup label="역할로">
-                    {ROLE_OPTIONS.map((r) => <option key={r.value} value={`r:${r.value}`}>{r.label}</option>)}
-                  </optgroup>
-                  <optgroup label="특정 구성원">
-                    {orgUsers.map((u) => <option key={u.id} value={`u:${u.id}`}>{u.name || u.email}</option>)}
-                  </optgroup>
-                </select>
+          {/* 적용 대상별 규칙 — [대상 → 누구에게 결재받나 → 참조] 묶음을 필요한 만큼 (2026-08-20 사장님) */}
+          <div className="ap-pol-rules">
+            <div className="ap-pol-rules-head">
+              <label className="field-label">적용 대상별 결재선</label>
+              <button type="button" onClick={addRule} className="btn-secondary btn-sm">+ 적용 대상 추가</button>
+            </div>
+            <p className="ap-pol-rules-hint">
+              위에서부터 먼저 맞는 대상이 적용됩니다 — 특정 직원 &gt; 팀 &gt; 직급 &gt; 회사 전체.
+            </p>
+
+            <div className="ap-pol-rule-list">
+            {form.rules.map((rule, ruleIdx) => (
+              <div key={rule.key} className={`ap-pol-rule ${rule.mode === "all" ? "ap-pol-rule-fallback" : ""}`}>
+                <div className="ap-pol-rule-head">
+                  {rule.mode === "all" ? (
+                    <span className="ap-pol-rule-title">그 외 전체 (기본)</span>
+                  ) : (
+                    <select value={rule.mode}
+                      onChange={(e) => patchRule(ruleIdx, { mode: e.target.value as PolicyRuleTargetMode })}
+                      className="field-input ap-pol-rule-mode">
+                      {(["users", "department", "position"] as PolicyRuleTargetMode[]).map((m) => (
+                        <option key={m} value={m}>{RULE_MODE_LABELS[m]}</option>
+                      ))}
+                    </select>
+                  )}
+                  {rule.mode !== "all" && (
+                    <button type="button" onClick={() => removeRule(ruleIdx)} className="ap-pol-rule-del" aria-label="이 적용 대상 삭제">&#10005;</button>
+                  )}
+                </div>
+
+                {/* 대상 지정 — 모드별로 칸이 다르다 */}
+                {rule.mode === "users" && (
+                  <div className="policy-target-people">
+                    {orgUsers.map((u) => (
+                      <button key={u.id} type="button" onClick={() => toggleRuleUser(ruleIdx, u.id)}
+                        className={`policy-target-chip ${rule.userIds.includes(u.id) ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>
+                    ))}
+                  </div>
+                )}
+                {rule.mode === "department" && (
+                  departments.length > 0 ? (
+                    <select value={rule.department} onChange={(e) => patchRule(ruleIdx, { department: e.target.value })} className="field-input ap-pol-rule-pick">
+                      <option value="">부서 선택</option>
+                      {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  ) : (
+                    <p className="ap-pol-rule-warn">등록된 부서가 없습니다 — 구성원 화면에서 직원의 부서를 먼저 입력하세요.</p>
+                  )
+                )}
+                {rule.mode === "position" && (
+                  positions.length > 0 ? (
+                    <select value={rule.position} onChange={(e) => patchRule(ruleIdx, { position: e.target.value })} className="field-input ap-pol-rule-pick">
+                      <option value="">직급 선택</option>
+                      {positions.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  ) : (
+                    <p className="ap-pol-rule-warn">등록된 직급이 없습니다 — 구성원 화면에서 직원의 직급을 먼저 입력하세요.</p>
+                  )
+                )}
+
+                {/* 이 대상의 결재 단계 — 한 줄에 [N차] 단계 이름 · 누구에게(역할 또는 구성원) */}
+                <div className="ap-pol-stages">
+                  <div className="ap-pol-stages-head">
+                    <label className="field-label">누구에게 결재받나</label>
+                    <select value={rule.stages.length} onChange={(e) => setStageCount(ruleIdx, Number(e.target.value))} className="field-input ap-pol-stage-count">
+                      {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}단계</option>)}
+                    </select>
+                  </div>
+                  {rule.stages.map((stage, idx) => (
+                    <div key={idx} className="ap-pol-stage">
+                      <span className="ap-pol-stage-no">{stage.stage}차</span>
+                      <input value={stage.name} onChange={(e) => updateStage(ruleIdx, idx, { name: e.target.value })} placeholder={`${stage.stage}차 승인`} className="field-input ap-pol-stage-name" />
+                      <select
+                        value={stage.approver_id ? `u:${stage.approver_id}` : `r:${stage.approver_role || "manager"}`}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v.startsWith("u:")) {
+                            const u = orgUsers.find((x) => x.id === v.slice(2));
+                            updateStage(ruleIdx, idx, { approver_id: v.slice(2), approver_name: u?.name || u?.email || "" });
+                          } else {
+                            updateStage(ruleIdx, idx, { approver_id: undefined, approver_name: undefined, approver_role: v.slice(2) });
+                          }
+                        }}
+                        className="field-input ap-pol-stage-who">
+                        <optgroup label="역할로">
+                          {ROLE_OPTIONS.map((r) => <option key={r.value} value={`r:${r.value}`}>{r.label}</option>)}
+                        </optgroup>
+                        <optgroup label="특정 구성원">
+                          {orgUsers.map((u) => <option key={u.id} value={`u:${u.id}`}>{u.name || u.email}</option>)}
+                        </optgroup>
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 이 대상의 참조 — 결재선과 별개로 결과를 통보받는 사람 */}
+                <div className="ap-pol-rule-refs">
+                  <label className="field-label">참조 <span className="text-[var(--text-dim)] font-normal">(선택 · 여러 명)</span></label>
+                  <div className="policy-target-people">
+                    {orgUsers.map((u) => (
+                      <button key={u.id} type="button" onClick={() => toggleRuleReference(ruleIdx, u.id)}
+                        className={`policy-target-chip ${rule.referenceIds.includes(u.id) ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>
+                    ))}
+                  </div>
+                </div>
               </div>
             ))}
-          </div>
-
-          {/* 참조 — 결재선과 별개로 결과를 통보받는 사람 */}
-          <div className="mt-3">
-            <label className="field-label">참조 <span className="text-[var(--text-dim)] font-normal">(선택 · 여러 명)</span></label>
-            <div className="policy-target-people">
-              {orgUsers.map((u) => {
-                const on = form.referenceIds.includes(u.id);
-                return (
-                  <button key={u.id} type="button"
-                    onClick={() => setForm((st) => ({ ...st, referenceIds: st.referenceIds.includes(u.id) ? st.referenceIds.filter((id) => id !== u.id) : [...st.referenceIds, u.id] }))}
-                    className={`policy-target-chip ${on ? "policy-target-chip-on" : ""}`}>{u.name || u.email}</button>
-                );
-              })}
             </div>
           </div>
 
+          {ruleError && <p className="ap-pol-rule-warn mt-3">{ruleError}</p>}
           <div className="flex gap-2 mt-4">
             <button
-              onClick={() => (form.name || "").trim() && upsertMut.mutate()}
-              disabled={!(form.name || "").trim() || upsertMut.isPending}
+              onClick={() => (form.name || "").trim() && !ruleError && upsertMut.mutate()}
+              disabled={!(form.name || "").trim() || !!ruleError || upsertMut.isPending}
               className="btn-primary btn-sm disabled:opacity-50">
               {upsertMut.isPending ? "저장 중..." : editingPolicy ? "수정" : "저장"}
             </button>
@@ -4078,53 +4229,57 @@ function PoliciesTab({ companyId, invalidate }: { companyId: string; invalidate:
           <table className="ev-table ev-lined ap-policy-table">
             <thead><tr><th>결재선</th><th>단계 · 승인자</th><th>참조</th><th>적용 대상</th><th>상태</th><th>관리</th></tr></thead>
             <tbody>
-              {visiblePolicies.map((policy: ApprovalPolicy) => {
+              {/* 결재선 한 줄이 아니라 '적용 대상 한 줄' — 이름·상태·관리는 rowSpan 으로 묶는다. (2026-08-20) */}
+              {visiblePolicies.flatMap((policy: ApprovalPolicy) => {
                 const m = typeMeta(policy.document_type);
-                const stages = policy.stages as ApprovalStageConfig[];
-                const t = policyTargets(policy);
-                const targetText = t.department ? `${t.department} 팀 전용` : t.userIds.length
-                  ? (() => { const names = t.userIds.map((id) => { const u = orgUsers.find((x) => x.id === id); return u?.name || u?.email || "?"; }); return `${names.slice(0, 2).join("·")}${names.length > 2 ? ` 외 ${names.length - 2}명` : ""} 전용`; })()
-                  : "전체";
-                return (
-                  <tr key={policy.id}>
-                    <td className="text-left">
-                      <span className="inline-flex items-center gap-2">
-                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={policy.document_type === "line" ? "route" : m.icon} className="w-3.5 h-3.5" /></span>
-                        <span className="min-w-0">
-                          <span className="block font-semibold">{policy.name}</span>
-                          {policy.document_type !== "line" && <span className="block text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type} 유형에 자동 적용</span>}
+                const rules = policyRules(policy);
+                return rules.map((rule, ruleIdx) => (
+                  <tr key={`${policy.id}-${rule.id}`}>
+                    {ruleIdx === 0 && (
+                      <td className="text-left" rowSpan={rules.length}>
+                        <span className="inline-flex items-center gap-2">
+                          <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${m.bg} ${m.text}`}><TypeIcon name={policy.document_type === "line" ? "route" : m.icon} className="w-3.5 h-3.5" /></span>
+                          <span className="min-w-0">
+                            <span className="block font-semibold">{policy.name}</span>
+                            {policy.document_type !== "line" && <span className="block text-[10px] text-[var(--text-dim)]">{REQUEST_TYPE_LABELS[policy.document_type as RequestType] || policy.document_type} 유형에 자동 적용</span>}
+                            {rules.length > 1 && <span className="block text-[10px] text-[var(--text-dim)]">적용 대상 {rules.length}개</span>}
+                          </span>
                         </span>
-                      </span>
-                    </td>
+                      </td>
+                    )}
                     <td className="text-left">
                       <span className="inline-flex items-center gap-1 flex-wrap">
-                        {stages.map((stage, idx) => (
+                        {rule.stages.map((stage, idx) => (
                           <span key={idx} className="inline-flex items-center gap-1">
                             <span className="ap-stage-pill" title={stage.name}><b>{stage.stage}</b>{approverLabel(stage)}</span>
-                            {idx < stages.length - 1 && <span className="text-[var(--text-dim)]">›</span>}
+                            {idx < rule.stages.length - 1 && <span className="text-[var(--text-dim)]">›</span>}
                           </span>
                         ))}
                       </span>
                     </td>
                     <td className="text-center text-[var(--text-muted)]">
-                      {Array.isArray(policy.reference_user_ids) && policy.reference_user_ids.length > 0
-                        ? policy.reference_user_ids.map((id) => { const u = orgUsers.find((x) => x.id === id); return u?.name || u?.email || "?"; }).join(", ")
+                      {rule.reference_user_ids.length > 0
+                        ? rule.reference_user_ids.map((id) => { const u = orgUsers.find((x) => x.id === id); return u?.name || u?.email || "?"; }).join(", ")
                         : "—"}
                     </td>
-                    <td className="text-center text-[var(--text-muted)]">{targetText}</td>
-                    <td className="text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${policy.is_active ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>
-                        {policy.is_active ? "활성" : "비활성"}
-                      </span>
-                    </td>
-                    <td className="text-center">
-                      <span className="inline-flex gap-1">
-                        <button onClick={() => startEdit(policy)} className="btn-secondary btn-sm">수정</button>
-                        <button onClick={async () => { if (await appConfirm("이 정책을 삭제하시겠습니까?", { danger: true })) deleteMut.mutate(policy.id); }} disabled={deleteMut.isPending} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50">삭제</button>
-                      </span>
-                    </td>
+                    <td className="text-center text-[var(--text-muted)]">{ruleTargetText(rule, orgUsers)}</td>
+                    {ruleIdx === 0 && (
+                      <td className="text-center" rowSpan={rules.length}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${policy.is_active ? "bg-[var(--success-dim)] text-[var(--success)]" : "bg-[var(--bg-surface)] text-[var(--text-dim)]"}`}>
+                          {policy.is_active ? "활성" : "비활성"}
+                        </span>
+                      </td>
+                    )}
+                    {ruleIdx === 0 && (
+                      <td className="text-center" rowSpan={rules.length}>
+                        <span className="inline-flex gap-1">
+                          <button onClick={() => startEdit(policy)} className="btn-secondary btn-sm">수정</button>
+                          <button onClick={async () => { if (await appConfirm("이 정책을 삭제하시겠습니까?", { danger: true })) deleteMut.mutate(policy.id); }} disabled={deleteMut.isPending} className="btn-secondary btn-sm text-[var(--danger)] disabled:opacity-50">삭제</button>
+                        </span>
+                      </td>
+                    )}
                   </tr>
-                );
+                ));
               })}
               {visiblePolicies.length === 0 && <tr><td colSpan={6} className="ap-empty text-xs text-[var(--text-muted)]">이 조건에 맞는 정책이 없습니다</td></tr>}
             </tbody>

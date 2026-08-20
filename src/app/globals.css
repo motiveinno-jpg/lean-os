@@ -4695,12 +4695,31 @@ table.notif-table { min-width: 960px; }
 /*   결재선 폼 (2026-08-18) — 이름·단계 수·적용 대상 한 줄, 단계별 승인자 한 줄씩, 참조 칩 */
 .ap-pol-head { @apply mb-3 flex items-center gap-3; }
 .ap-pol-head .section-title { @apply mb-0; }
-.ap-pol-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-3; }
+/*   2026-08-20: 단계 수·적용 대상이 규칙 블록 안으로 옮겨가 윗줄 칸이 3→2개 (셋째 열이 비어 보이던 것) */
+.ap-pol-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-2; }
 .ap-pol-stages { @apply mt-3 flex flex-col gap-2; }
 .ap-pol-stage { @apply flex flex-wrap items-center gap-2; }
 .ap-pol-stage-no { @apply grid h-8 w-12 shrink-0 place-items-center rounded-lg bg-[var(--primary)]/10 text-xs font-bold text-[var(--primary)]; }
 .ap-pol-stage-name { @apply w-48 max-w-full; }
 .ap-pol-stage-who { @apply w-56 max-w-full; }
+/*   적용 대상별 결재선 (2026-08-20) — 한 결재선 안에 [대상 → 단계 → 참조] 묶음을 여러 개.
+     묶음이 늘어나므로 목록만 스크롤하고 저장 줄은 아래에 남긴다(상자 안 상자로 안 보이게 얇은 판). */
+.ap-pol-rules { @apply mt-4; }
+.ap-pol-rules-head { @apply flex items-center justify-between gap-3; }
+.ap-pol-rules-hint { @apply mt-1 text-[10px] text-[var(--text-dim)]; }
+/*     대상이 늘어나도 저장 줄이 밀려나지 않게 — 묶음 목록만 스크롤한다 */
+.ap-pol-rule-list { @apply max-h-[46vh] overflow-y-auto pr-1; }
+.ap-pol-rule { @apply mt-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3; }
+.ap-pol-rule-fallback { @apply border-dashed; }
+.ap-pol-rule-head { @apply flex items-center justify-between gap-2; }
+.ap-pol-rule-title { @apply text-xs font-bold text-[var(--text-muted)]; }
+.ap-pol-rule-mode { @apply w-40 max-w-full; }
+.ap-pol-rule-del { @apply shrink-0 px-1 text-sm font-bold text-[var(--danger)] hover:opacity-70; }
+.ap-pol-rule-pick { @apply mt-2 max-w-xs; }
+.ap-pol-rule-warn { @apply mt-1.5 text-[10px] text-[var(--warning)]; }
+.ap-pol-rule-refs { @apply mt-3; }
+.ap-pol-stages-head { @apply flex items-center justify-between gap-3; }
+.ap-pol-stage-count { @apply w-28 max-w-full; }
 /*   목록 탭의 조회 줄은 상자 안 첫 줄처럼(테두리 없이 아래 선만) — 상자 안 상자 금지 (2026-08-18 사장님) */
 .ap-scroll .qk-bar { @apply rounded-none border-0 border-b border-[var(--border)] bg-transparent px-3.5 py-2.5; }
 .ap-scroll .qk-applied { @apply px-3.5 pb-1 pt-1.5; }

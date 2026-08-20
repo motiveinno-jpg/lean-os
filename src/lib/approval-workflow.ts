@@ -46,6 +46,7 @@ export interface ApprovalPolicy {
   requester_id?: string | null;  // 특정 요청자 전용 정책(null=회사 공통) — 하위호환, 매칭은 requester_ids ∪ {requester_id}
   requester_ids?: string[] | null;       // 2026-08-11 적용 대상 직원 복수선택
   requester_department?: string | null;  // 2026-08-11 팀(부서) 단위 적용 — employees.department 와 문자열 일치
+  rules?: ApprovalPolicyRule[] | null;   // 2026-08-20 적용 대상별 결재선·참조 (아래 ApprovalPolicyRule 주석 참조)
   fields?: ApprovalFormField[];  // 2026-07-16 기본 유형용 커스텀 입력 필드(approval_forms.fields 와 동일 구조)
   reference_user_ids?: string[]; // 2026-07-16 기본 유형용 참조(CC) 인원 — approval_forms 와 동일 개념
   created_at?: string;
@@ -59,6 +60,27 @@ export interface ApprovalStageConfig {
   required_count?: number; // how many approvers needed (default 1)
   approver_id?: string;    // 특정 인물 지정(HR 서비스식) — 설정 시 role 대신 이 사용자가 승인자
   approver_name?: string;  // 표시용(특정 인물 이름)
+}
+
+/** 규칙의 적용 대상 — 한 규칙은 한 가지 기준만 쓴다(겹치면 우선순위로 고른다). (2026-08-20) */
+export type PolicyRuleTargetMode = 'all' | 'users' | 'department' | 'position';
+
+export interface ApprovalPolicyRuleTarget {
+  mode: PolicyRuleTargetMode;
+  userIds?: string[];    // mode='users'    — users.id 복수
+  department?: string;   // mode='department' — employees.department 와 문자열 일치
+  position?: string;     // mode='position'   — employees.position(직급) 과 문자열 일치
+}
+
+/** 결재선 하나 안의 '적용 대상 → 그 대상 전용 결재단계 · 참조' 묶음. (2026-08-20 사장님:
+ *  "적용대상을 여러개 생성하고 그 대상마다 각각의 누구한테결재받나·참조를 하나의 결재선에서")
+ *  종전엔 정책 1개 = 대상 1묶음 + 단계 1세트 + 참조 1세트라, 사람마다 결재선이 다르면
+ *  결재선을 사람 수만큼 따로 만들어야 했다. */
+export interface ApprovalPolicyRule {
+  id: string;                     // 폼 편집용 키(클라이언트 생성)
+  target: ApprovalPolicyRuleTarget;
+  stages: ApprovalStageConfig[];
+  reference_user_ids: string[];
 }
 
 export interface ApprovalRequest {
@@ -143,6 +165,7 @@ export async function getApprovalPolicies(companyId: string): Promise<ApprovalPo
     requester_id: (row.requester_id as string) ?? null,
     requester_ids: (row.requester_ids as string[]) ?? null,
     requester_department: (row.requester_department as string) ?? null,
+    rules: (row.rules as ApprovalPolicyRule[]) ?? null,
     fields: (row.fields as ApprovalFormField[]) || [],
     reference_user_ids: (row.reference_user_ids as string[]) || [],
     created_at: row.created_at as string | undefined,
@@ -166,6 +189,63 @@ export function policyTargets(p: Pick<ApprovalPolicy, 'requester_id' | 'requeste
 export function isCompanyWidePolicy(p: Pick<ApprovalPolicy, 'requester_id' | 'requester_ids' | 'requester_department'>): boolean {
   const t = policyTargets(p);
   return t.userIds.length === 0 && !t.department;
+}
+
+/** 규칙 목록 — rules 가 없는(=개편 전) 정책은 기존 대상·단계·참조를 규칙 1개로 읽는다.
+ *  하위호환의 핵심: 이 함수만 거치면 옛 정책도 새 정책과 같은 모양으로 다뤄진다. (2026-08-20) */
+export function policyRules(
+  p: Pick<ApprovalPolicy, 'requester_id' | 'requester_ids' | 'requester_department' | 'rules' | 'stages' | 'reference_user_ids'>,
+): ApprovalPolicyRule[] {
+  if (Array.isArray(p.rules) && p.rules.length > 0) {
+    return p.rules.map((r, i) => ({
+      id: r.id || `r${i + 1}`,
+      target: r.target || { mode: 'all' },
+      stages: Array.isArray(r.stages) ? r.stages : [],
+      reference_user_ids: Array.isArray(r.reference_user_ids) ? r.reference_user_ids : [],
+    }));
+  }
+  const t = policyTargets(p);
+  const target: ApprovalPolicyRuleTarget = t.userIds.length
+    ? { mode: 'users', userIds: t.userIds }
+    : t.department
+      ? { mode: 'department', department: t.department }
+      : { mode: 'all' };
+  return [{
+    id: 'legacy',
+    target,
+    stages: (p.stages as ApprovalStageConfig[]) || [],
+    reference_user_ids: p.reference_user_ids || [],
+  }];
+}
+
+/** 요청자에게 적용될 규칙 — 좁은 대상이 이긴다: 직원 지정 > 부서 > 직급 > 회사 전체.
+ *  어디에도 안 걸리면 null (호출부가 정책의 기본 단계로 폴백한다). (2026-08-20) */
+export function pickRuleForRequester(
+  rules: ApprovalPolicyRule[],
+  userId?: string | null,
+  department?: string | null,
+  position?: string | null,
+): ApprovalPolicyRule | null {
+  const byUser = userId
+    ? rules.find((r) => r.target.mode === 'users' && (r.target.userIds || []).includes(userId))
+    : undefined;
+  if (byUser) return byUser;
+  const dept = (department || '').trim();
+  const byDept = dept
+    ? rules.find((r) => r.target.mode === 'department' && (r.target.department || '').trim() === dept)
+    : undefined;
+  if (byDept) return byDept;
+  const pos = (position || '').trim();
+  const byPos = pos
+    ? rules.find((r) => r.target.mode === 'position' && (r.target.position || '').trim() === pos)
+    : undefined;
+  if (byPos) return byPos;
+  return rules.find((r) => r.target.mode === 'all') || null;
+}
+
+/** 규칙 중 하나라도 부서/직급 기준을 쓰는가 — 쓰지 않으면 요청자 부서·직급 조회를 생략한다. */
+export function rulesNeedEmployeeInfo(rules: ApprovalPolicyRule[]): boolean {
+  return rules.some((r) => r.target.mode === 'department' || r.target.mode === 'position');
 }
 
 export function pickPolicyForRequester<T extends Pick<ApprovalPolicy, 'requester_id' | 'requester_ids' | 'requester_department'>>(
@@ -212,12 +292,13 @@ export async function upsertApprovalPolicy(
     requester_id: policy.requester_id ?? null,
     requester_ids: policy.requester_ids?.length ? policy.requester_ids : null,
     requester_department: (policy.requester_department || '').trim() || null,
+    rules: policy.rules?.length ? policy.rules : null,
     fields: policy.fields ?? [],
     reference_user_ids: policy.reference_user_ids ?? [],
   };
 
   let { data, error } = await db.from('approval_policies').upsert(fullRow as never).select().single();
-  if (error && /label|description_template|allow_line_edit|requester_id|requester_department|fields|reference_user_ids|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
+  if (error && /label|description_template|allow_line_edit|requester_id|requester_department|rules|fields|reference_user_ids|schema cache|column|PGRST204|42703/i.test(error.message || '')) {
     ({ data, error } = await db.from('approval_policies').upsert(baseRow as never).select().single());
   }
   if (error) throw error;
@@ -236,6 +317,7 @@ export async function upsertApprovalPolicy(
     requester_id: (d.requester_id as string) ?? null,
     requester_ids: (d.requester_ids as string[]) ?? null,
     requester_department: (d.requester_department as string) ?? null,
+    rules: (d.rules as ApprovalPolicyRule[]) ?? null,
     fields: (d.fields as ApprovalFormField[]) || [],
     reference_user_ids: (d.reference_user_ids as string[]) || [],
     created_at: d.created_at as string | undefined,
@@ -299,25 +381,30 @@ export async function createApprovalRequest(params: {
     .eq('entity_type', params.requestType)
     .eq('is_active', true));
 
-  // 요청자 부서 — 부서 대상 정책이 하나라도 있을 때만 조회 (없으면 쿼리 생략)
-  const needsDept = (rows?: any[] | null) => (rows || []).some((p) => (p.requester_department || '').trim());
-  let requesterDept: string | null = null;
-  const deptOf = async () => {
-    if (requesterDept !== null) return requesterDept;
+  // 요청자 부서·직급 — 부서/직급 기준을 쓰는 정책·규칙이 하나라도 있을 때만 조회 (없으면 쿼리 생략)
+  //   2026-08-20: 규칙(rules)도 부서·직급을 보므로 판정 대상에 포함하고, 직급(position)까지 함께 읽는다.
+  const needsEmp = (rows?: any[] | null) => (rows || []).some((p) =>
+    (p.requester_department || '').trim() || rulesNeedEmployeeInfo(policyRules(p as never)));
+  let requesterEmp: { department: string; position: string } | null = null;
+  const empOf = async () => {
+    if (requesterEmp) return requesterEmp;
     const emp = logRead('lib/approval-workflow:requester-emp', await db
       .from('employees')
-      .select('department')
+      .select('department, position')
       .eq('company_id', params.companyId)
       .eq('user_id', params.requesterId)
       .maybeSingle());
-    requesterDept = String(emp?.department || '').trim();
-    return requesterDept;
+    requesterEmp = {
+      department: String(emp?.department || '').trim(),
+      position: String(emp?.position || '').trim(),
+    };
+    return requesterEmp;
   };
 
   let matchedPolicy = pickPolicyForRequester(
     (policies || []) as any[],
     params.requesterId,
-    needsDept(policies) ? await deptOf() : null,
+    needsEmp(policies) ? (await empOf()).department : null,
   ) as ApprovalPolicy | undefined | null;
 
   // If no policy found, try a "default" fallback
@@ -331,11 +418,20 @@ export async function createApprovalRequest(params: {
     matchedPolicy = pickPolicyForRequester(
       (defaultPolicies || []) as any[],
       params.requesterId,
-      needsDept(defaultPolicies) ? await deptOf() : null,
+      needsEmp(defaultPolicies) ? (await empOf()).department : null,
     ) as ApprovalPolicy | undefined | null;
   }
 
-  const stages: ApprovalStageConfig[] = matchedPolicy?.stages || [
+  // 하나의 결재선 안에서 요청자에게 맞는 규칙(적용 대상)을 고른다 — 그 규칙의 단계가 실제 결재선이 된다.
+  //   규칙이 없는 옛 정책은 policyRules() 가 기존 단계를 규칙 1개로 돌려주므로 동작이 그대로다. (2026-08-20)
+  let matchedRule: ApprovalPolicyRule | null = null;
+  if (matchedPolicy) {
+    const rules = policyRules(matchedPolicy as never);
+    const emp = rulesNeedEmployeeInfo(rules) ? await empOf() : null;
+    matchedRule = pickRuleForRequester(rules, params.requesterId, emp?.department, emp?.position);
+  }
+
+  const stages: ApprovalStageConfig[] = (matchedRule?.stages?.length ? matchedRule.stages : matchedPolicy?.stages) || [
     { stage: 1, name: '최종 승인', approver_role: 'ceo', required_count: 1 },
   ];
 
@@ -363,7 +459,9 @@ export async function createApprovalRequest(params: {
       attachments: params.attachments ?? [],
       form_id: params.formId ?? null,
       custom_fields: (params.customFields ?? {}) as never,
-      reference_user_ids: params.referenceUserIds ?? [],
+      // 참조는 요청자 화면에서 가감할 수 있으므로 넘어온 값이 우선 — 아예 안 넘겨준 호출(UI 밖 경로)만
+      //   매칭된 규칙의 참조로 채운다. (2026-08-20)
+      reference_user_ids: params.referenceUserIds ?? matchedRule?.reference_user_ids ?? [],
     })
     .select()
     .single();
@@ -1346,12 +1444,29 @@ export async function resubmitRequest(
   if (request.policy_id) {
     const policy = logRead('lib/approval-workflow:policy', await db
       .from('approval_policies')
-      .select('stages')
+      .select('stages, rules, requester_id, requester_ids, requester_department, reference_user_ids')
       .eq('id', request.policy_id)
       .single());
     if (policy?.stages) {
       stages = policy.stages as unknown as ApprovalStageConfig[];
     }
+    // 재상신도 최초 상신과 같은 규칙으로 결재선을 다시 만든다 — 안 그러면 규칙별 결재선이
+    //   재상신 순간 정책 기본 단계로 되돌아간다. (2026-08-20)
+    const rules = policyRules(policy as never);
+    let dept: string | null = null;
+    let position: string | null = null;
+    if (rulesNeedEmployeeInfo(rules)) {
+      const emp = logRead('lib/approval-workflow:resubmit-emp', await db
+        .from('employees')
+        .select('department, position')
+        .eq('company_id', request.company_id)
+        .eq('user_id', request.requester_id)
+        .maybeSingle());
+      dept = String(emp?.department || '').trim();
+      position = String(emp?.position || '').trim();
+    }
+    const rule = pickRuleForRequester(rules, request.requester_id, dept, position);
+    if (rule?.stages?.length) stages = rule.stages;
   }
 
   for (const stageConfig of stages) {
