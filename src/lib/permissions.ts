@@ -92,6 +92,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "pin", label: "상단 고정", desc: "게시글 상단 고정·해제 (미부여 시 마스터만)" },
       ] },
       { route: "/my-contracts", label: "내 서명 요청", always: true },
+      { route: "/documents", label: "파일보관함" },   // 인사관리 → 워크스페이스 (2026-08-20 사장님). 키 불변
       { route: "/chat", label: "메신저", always: true },
       { route: "/signatures", label: "전자계약" },
     ],
@@ -113,7 +114,6 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "records", label: "기록 상세·수정" },
       ] },
       { route: "/hr-templates", label: "근로계약·서식" },
-      { route: "/documents", label: "파일보관함" },
       { route: "/team", label: "구성원 디렉토리", always: true },
     ],
   },

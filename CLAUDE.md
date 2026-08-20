@@ -25,6 +25,7 @@
 
 ## 절대 하지 말 것
 - RLS 없이 테이블 생성 금지
+- **메뉴를 옮기거나 이름을 바꿀 때 `lib/permissions.ts`(PERMISSION_CATALOG 그룹·순서)와 `lib/route-labels.ts` 동기화 없이 커밋 금지** (2026-08-20 사장님: "메뉴 이동 시 권한 설정에도 다 변경돼야 해")
 - `console.log` 프로덕션에 남기지 않기
 - 소스 코드에 API 키 하드코딩 금지
 - curl/SQL만으로 "완료" 보고 금지

@@ -100,6 +100,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/board", label: "게시판", icon: "message-square" },
       { href: "/chat", label: "메신저", icon: "message-circle", badgeKey: "chat" },
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
+      //   파일보관함 — 인사관리 → 워크스페이스 (2026-08-20 사장님: 문서는 인사만의 것이 아니다)
+      { href: "/documents", label: "파일보관함", icon: "folder" },
       //   내 서명 요청 — 2026-08-19 마이페이지 › 급여·계약·증명 갈래로 흡수(라우트는 전체 목록용으로 남김, 메뉴만 뺌)
     ],
   },
@@ -109,7 +111,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
       { href: "/hr-templates", label: "근로계약·서식", icon: "file-text", roles: ["owner", "admin"] },
-      { href: "/documents", label: "파일보관함", icon: "folder" },
       { href: "/team", label: "구성원 디렉토리", icon: "users" },
     ],
   },
@@ -182,10 +183,10 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/partners/reconciliation/voucher-entry": "#34d399", "/partners/reconciliation/sale-purchase": "#38bdf8", "/reports": "#22c55e",
   // 워크스페이스 — 바이올렛
   "/schedule": "#8b5cf6", "/projecthub": "#7c3aed", "/approvals": "#a855f7",
-  "/board": "#a78bfa", "/chat": "#c084fc", "/signatures": "#9333ea", "/my-contracts": "#c4b5fd",
+  "/board": "#a78bfa", "/chat": "#c084fc", "/signatures": "#9333ea", "/my-contracts": "#c4b5fd", "/documents": "#8b5cf6",
   // 인사관리 — 오렌지
   "/employees": "#f97316", "/attendance": "#fb923c", "/hr-templates": "#f59e0b",
-  "/documents": "#fbbf24", "/team": "#ea580c",
+  "/team": "#ea580c",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
   // 회사 관리·도움말 — 슬레이트
