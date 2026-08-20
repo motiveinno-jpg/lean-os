@@ -354,7 +354,10 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                             placeholder="옵션 입력 후 Enter"
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
-                              if (e.key !== "Enter" || !e.nativeEvent.isComposing) return;
+                              // 조합 중일 때 return 이어야 한다 — 종전엔 조건이 뒤집혀(!isComposing)
+                              //   한글 조합이 끝난 뒤 누른 Enter 가 통째로 무시됐다 (2026-08-20 사장님 제보:
+                              //   "내 PC 에서는 되는데 다른 곳에서는 엔터 자체가 안 눌린다").
+                              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
                               e.preventDefault();
                               const v = e.currentTarget.value.trim();
                               if (!v) return;
@@ -518,7 +521,10 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                             placeholder="옵션 입력 후 Enter"
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
-                              if (e.key !== "Enter" || !e.nativeEvent.isComposing) return;
+                              // 조합 중일 때 return 이어야 한다 — 종전엔 조건이 뒤집혀(!isComposing)
+                              //   한글 조합이 끝난 뒤 누른 Enter 가 통째로 무시됐다 (2026-08-20 사장님 제보:
+                              //   "내 PC 에서는 되는데 다른 곳에서는 엔터 자체가 안 눌린다").
+                              if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
                               e.preventDefault();
                               const v = e.currentTarget.value.trim();
                               if (!v) return;

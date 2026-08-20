@@ -92,7 +92,8 @@ export function QuoteItemsTable({
   const editableCols = cols.filter((c) => c.type !== "calc");
   const focusCell = (r: number, c: number) => { const el = document.getElementById(`qcell-${r}-${c}`); if (el) (el as HTMLElement).focus(); };
   const onTableKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== "Enter" || !e.nativeEvent.isComposing) return;
+    // 조합 중일 때 return (2026-08-20): 뒤집힌 조건 탓에 Enter 로 다음 칸 이동이 대부분 안 먹었다.
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
     const active = document.activeElement as HTMLElement | null;
     const m = active?.id?.match(/^qcell-(\d+)-(\d+)$/);
     if (!m) return;
