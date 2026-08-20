@@ -1381,6 +1381,7 @@ function MiniCard({
             onChange={(e) => onEditChange(e.target.value)}
             onBlur={onSaveEdit}
             onKeyDown={(e) => {
+              if ((e.nativeEvent as KeyboardEvent).isComposing) return;   // 한글 조합 중 Enter 는 확정 아님
               if (e.key === "Enter") { e.preventDefault(); onSaveEdit(); }
               if (e.key === "Escape") { e.preventDefault(); onCancelEdit(); }
             }}

@@ -373,7 +373,7 @@ function EditInline({ content, onSave, onCancel }: { content: string; onSave: (c
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') onSave(text); if (e.key === 'Escape') onCancel(); }}
+        onKeyDown={(e) => { if ((e.nativeEvent as KeyboardEvent).isComposing) return; if (e.key === 'Enter') onSave(text); if (e.key === 'Escape') onCancel(); }}
         className="flex-1 px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
         autoFocus
       />
@@ -567,14 +567,31 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
     return () => { subs.forEach(unsubscribe); setRtStatus('connecting'); };
   }, [channelId, queryClient]);
 
-  useEffect(() => {
-    if (channelId && userId) {
-      markAsRead(channelId, userId).then(() => {
+  // 읽음 처리 — 방을 열었을 때, 새 메시지가 도착했을 때, 그리고 창이 다시 앞으로 왔을 때.
+  //   ⚠️ 메신저는 **새 창**으로 뜬다(플로팅 단추 → 팝업 창). 읽음은 이 창에서 일어나는데
+  //   안읽음 뱃지는 원래 창(사이드바·플로팅 단추)에 있어서, 종전엔 원래 창이 스스로 다시
+  //   조회할 때까지 뱃지가 그대로 남았다 — 사장님이 "읽어도 답장하기 전까지 알림이 떠있다"고
+  //   하신 것이 이것이다. localStorage 신호는 **다른 창**에서 storage 이벤트로 잡히므로
+  //   이걸로 즉시 알린다 (2026-08-20).
+  const markRead = useCallback(() => {
+    if (!channelId || !userId) return;
+    markAsRead(channelId, userId)
+      .then(() => {
         queryClient.invalidateQueries({ queryKey: ["chat-unread"] });
         window.dispatchEvent(new Event("sidebar-refresh-badges"));
-      });
-    }
-  }, [channelId, userId, allMessages.length]);
+        try { localStorage.setItem("ov:chat:read", String(Date.now())); } catch { /* 사생활 모드 등 */ }
+      })
+      .catch(() => { /* 읽음 표시 실패가 대화를 막지는 않는다 */ });
+  }, [channelId, userId, queryClient]);
+
+  useEffect(() => { markRead(); }, [markRead, allMessages.length]);
+
+  useEffect(() => {
+    const onBack = () => { if (document.visibilityState === "visible") markRead(); };
+    window.addEventListener("focus", onBack);
+    document.addEventListener("visibilitychange", onBack);
+    return () => { window.removeEventListener("focus", onBack); document.removeEventListener("visibilitychange", onBack); };
+  }, [markRead]);
 
   // Auto-scroll on new messages (skip during initial load — handled separately)
   //   ⚠️ scrollIntoView 는 스크롤 가능한 모든 "조상"을 스크롤 → 플로팅 팝업에서 패널 자체가 스크롤되어

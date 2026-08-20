@@ -1471,6 +1471,7 @@ export default function BoardPage() {
                                           handleMentionChange(replyKey, e.currentTarget);
                                         }}
                                         onKeyDown={(e) => {
+                                          if ((e.nativeEvent as KeyboardEvent).isComposing) return;   // 한글 조합 중 Enter 는 전송 아님 (2026-08-20)
                                           if (e.key === "Enter" && !e.shiftKey && mentionQuery?.key !== replyKey) {
                                             e.preventDefault();
                                             addComment.mutate({ postId: p.id, parentCommentId: c.id });
@@ -1534,6 +1535,7 @@ export default function BoardPage() {
                               handleMentionChange(p.id, e.currentTarget);
                             }}
                             onKeyDown={(e) => {
+                              if ((e.nativeEvent as KeyboardEvent).isComposing) return;   // 한글 조합 중 Enter 는 전송 아님 (2026-08-20)
                               if (e.key === "Enter" && !e.shiftKey && mentionQuery?.key !== p.id) {
                                 e.preventDefault();
                                 addComment.mutate({ postId: p.id, parentCommentId: null });

@@ -92,12 +92,23 @@ export function FloatingMessenger() {
   const userId = me?.id ?? null;
 
   // 안읽음 합계는 런처 배지에 항상 필요 → 창이 닫혀 있어도 폴링(합계만이라 가볍다).
-  const { data: unreadMap } = useQuery({
+  const { data: unreadMap, refetch: refetchUnread } = useQuery({
     queryKey: ["chat-unread", companyId, userId],
     queryFn: () => getUnreadCounts(companyId!, userId!),
     enabled: !!companyId && !!userId,
     refetchInterval: 30_000,
   });
+
+  // 메신저는 새 창으로 뜬다 — 그 창에서 읽으면 여기(원래 창) 뱃지도 바로 지워져야 한다.
+  //   다른 창의 localStorage 쓰기는 이 창에서 storage 이벤트로 잡힌다 (2026-08-20 사장님 제보:
+  //   "읽어도 답장하기 전까지 알림이 떠있다"). 창이 다시 앞으로 올 때도 한 번 더 확인한다.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => { if (e.key === "ov:chat:read") refetchUnread(); };
+    const onFocus = () => refetchUnread();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => { window.removeEventListener("storage", onStorage); window.removeEventListener("focus", onFocus); };
+  }, [refetchUnread]);
   const totalUnread = useMemo(
     () => (unreadMap ? Array.from(unreadMap.values()).reduce((s: number, v: number) => s + v, 0) : 0),
     [unreadMap]

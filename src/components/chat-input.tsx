@@ -94,6 +94,14 @@ export function ChatInput({ onSend, onFileUpload, disabled, placeholder, users, 
   }, [text, disabled, onSend, mentionedIds, replyTo, onCancelReply, users]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
+    // 한글 입력 중(IME 조합 중)의 Enter 는 무시한다 — 조합을 끝내라는 뜻이지 전송이 아니다.
+    //   (2026-08-20 사장님 제보: "메시지를 보내면 뒤에 말이 한번씩 더 반복돼")
+    //   조합 중 Enter 로 전송하면 본문이 나간 뒤 브라우저가 조합 중이던 글자를 빈 입력창에
+    //   되돌려 넣고, 같은 Enter 의 두 번째 keydown 이 그 한 글자를 또 보냈다.
+    //   실제 기록: "그렇네"→"네", "왜 두개씩 나가"→"가" 처럼 끝 글자가 1~9ms 뒤 재전송됐다.
+    if ((e.nativeEvent as KeyboardEvent).isComposing || (e as unknown as { keyCode?: number }).keyCode === 229) {
+      return;
+    }
     // 멘션 드롭다운 열림 시: ↑/↓ 이동, Enter·Tab 선택, Esc 닫기 (전송보다 우선)
     if (mentionQuery !== null && mentionCandidates.length > 0) {
       if (e.key === "ArrowDown") {

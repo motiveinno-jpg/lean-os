@@ -475,7 +475,14 @@ export function Sidebar() {
     loadCounts();
     const interval = setInterval(loadCounts, 60000); // 30s→60s: 배지 폴링 절반(인스턴스 요청부하 절감)
     window.addEventListener("sidebar-refresh-badges", loadCounts);
-    return () => { clearInterval(interval); window.removeEventListener("sidebar-refresh-badges", loadCounts); };
+    // 메신저 새 창에서 읽으면 이 창 뱃지도 즉시 갱신 (다른 창의 localStorage 쓰기 = storage 이벤트)
+    const onStorage = (e: StorageEvent) => { if (e.key === "ov:chat:read") loadCounts(); };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("sidebar-refresh-badges", loadCounts);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   useEffect(() => {
