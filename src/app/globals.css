@@ -9891,6 +9891,7 @@ table.dup-table { min-width: 0; }
 .billing-bar { @apply inline-block w-[120px] h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden align-middle; }
 .billing-bar > span { @apply block h-full rounded-full; }
 .billing-coupon-row { @apply flex items-center gap-3 px-3.5 py-2 rounded-xl border border-dashed border-[var(--primary)]/40 bg-[var(--bg-card)]; }
+.billing-matrix { table-layout: fixed; }  /* 세 요금제 열 폭 동일 (2026-08-20 사장님) — 기능 열만 고정폭, 나머지는 균등 */
 .billing-matrix th { @apply align-top; }
 .billing-matrix th.billing-col-rec { @apply bg-[var(--primary-light)]; }
 .billing-matrix th.billing-col-cur .billing-col-name { @apply text-[var(--primary)]; }
