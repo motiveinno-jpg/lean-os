@@ -76,6 +76,20 @@ export default function PlatformErrorsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["op-errors"] }),
   });
 
+  // 일괄 해결 (2026-08-20 사장님: 고쳐 놓은 건이 대시보드에 계속 쌓인다) — 한 건씩만 누를 수
+  //   있어 아무도 표시를 안 했다. 해결로 표시하면 대시보드 24시간 카운트에서 빠지고,
+  //   같은 에러가 다시 나면 새 건으로 올라온다(중복 접기는 미해결 건에만 걸린다).
+  const resolveMany = useMutation({
+    mutationFn: async ({ ids, resolved }: { ids: string[]; resolved: boolean }) => {
+      // 생성 타입에 아직 없는 신규 RPC (database.ts 재생성은 다음 라운드에 — 다른 세션과 충돌 방지)
+      const { error } = await (db as any).rpc("operator_resolve_errors", { p_ids: ids, p_resolved: resolved });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["op-errors"] }),
+  });
+
+  const unresolvedIds = useMemo(() => errors.filter((e) => !e.resolved).map((e) => e.id), [errors]);
+
   // 그룹핑: 코드별 빈도
   const grouped = useMemo(() => {
     const map = new Map<string, { code: string; explanation: ErrorExplanation; rows: ErrorRow[] }>();
@@ -137,6 +151,18 @@ export default function PlatformErrorsPage() {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (unresolvedIds.length === 0) return;
+              if (!confirm(`미해결 ${unresolvedIds.length}건을 모두 해결로 표시할까요?\n(다시 발생하면 새 건으로 올라옵니다)`)) return;
+              resolveMany.mutate({ ids: unresolvedIds, resolved: true });
+            }}
+            disabled={unresolvedIds.length === 0 || resolveMany.isPending}
+            className="px-3 py-2 rounded-lg text-xs font-bold bg-[var(--success)] text-white hover:opacity-90 disabled:opacity-40"
+          >
+            ✓ 미해결 {unresolvedIds.length}건 모두 해결
+          </button>
         </div>
       </div>
 
@@ -170,6 +196,16 @@ export default function PlatformErrorsPage() {
                       {g.rows.length}회{unresolvedCount > 0 && ` (미해결 ${unresolvedCount})`}
                     </span>
                   </div>
+                  {unresolvedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => resolveMany.mutate({ ids: g.rows.filter((r) => !r.resolved).map((r) => r.id), resolved: true })}
+                      disabled={resolveMany.isPending}
+                      className="shrink-0 text-[11px] font-semibold px-2 py-1 rounded bg-[var(--success)] text-white hover:opacity-90 disabled:opacity-50"
+                    >
+                      ✓ 이 {unresolvedCount}건 해결
+                    </button>
+                  )}
                 </div>
                 <div className="platform-error-explanation">
                   <div className="text-sm text-[var(--text)] font-semibold mb-1">{g.explanation.what}</div>

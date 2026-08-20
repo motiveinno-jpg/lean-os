@@ -89,7 +89,11 @@ export default function PlatformMarketingPage() {
     };
   }, [events, days]);
 
-  const maxDaily = Math.max(1, ...view.daily.map(([, v]) => v.pv));
+  // 두 막대(방문·계산기)가 같은 축을 쓰므로 기준값도 둘 다 봐야 한다 (2026-08-20 사장님:
+  //   "그래프가 하늘을 뚫고 넘어간다"). 방문 0 · 계산기 5 인 날 기준값이 1 이 돼 막대가
+  //   500%(480px)로 카드 밖까지 솟았다.
+  const maxDaily = Math.max(1, ...view.daily.map(([, v]) => Math.max(v.pv, v.tool)));
+  const barPct = (n: number) => Math.min(100, Math.max(0, (n / maxDaily) * 100));
 
   return (
     <div className="max-w-[1100px] space-y-4">
@@ -139,8 +143,8 @@ export default function PlatformMarketingPage() {
               {view.daily.map(([day, v]) => (
                 <div key={day} className="mkt-trend-col" title={`${day} · 방문 ${v.pv} · 계산기 ${v.tool}`}>
                   <div className="mkt-trend-bars">
-                    <div className="mkt-trend-bar-pv" style={{ height: `${(v.pv / maxDaily) * 100}%` }} />
-                    <div className="mkt-trend-bar-tool" style={{ height: `${(v.tool / maxDaily) * 100}%` }} />
+                    <div className="mkt-trend-bar-pv" style={{ height: `${barPct(v.pv)}%` }} />
+                    <div className="mkt-trend-bar-tool" style={{ height: `${barPct(v.tool)}%` }} />
                   </div>
                   <div className="mkt-trend-day">{day.slice(8)}</div>
                 </div>

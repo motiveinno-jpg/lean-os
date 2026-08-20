@@ -9352,7 +9352,8 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .mkt-two-col { @apply grid grid-cols-1 md:grid-cols-2 gap-4; }
 .mkt-trend-row { @apply flex items-end gap-1 h-32; }
 .mkt-trend-col { @apply flex-1 flex flex-col items-center gap-1 min-w-0; }
-.mkt-trend-bars { @apply relative w-full h-24 flex items-end justify-center; }
+/* overflow-hidden: 어떤 데이터가 와도 막대가 카드 밖으로 솟지 않게 (2026-08-20 사장님 제보) */
+.mkt-trend-bars { @apply relative w-full h-24 flex items-end justify-center overflow-hidden; }
 .mkt-trend-bar-pv { @apply w-3/5 rounded-t bg-[var(--primary)]/25; }
 .mkt-trend-bar-tool { @apply absolute bottom-0 w-3/5 rounded-t bg-[var(--primary)]; }
 .mkt-trend-day { @apply text-[9px] text-[var(--text-dim)]; }

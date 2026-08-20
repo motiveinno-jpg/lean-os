@@ -180,9 +180,12 @@ export default function PlatformOverview() {
     queryFn: async () => {
       const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
       // 처리(resolved)된 오류는 제외 — 시스템상태 신호등과 같은 기준(2026-07-29 사장님)
+      // 로컬 개발 서버(localhost) 에러도 제외 — 운영 신호가 아니다 (2026-08-20 사장님)
       const data = logRead('platform/page:data', await db.from("error_logs")
         .select("id, error_type, message, source, created_at")
         .eq("resolved", false).gte("created_at", since)
+        .not("url", "ilike", "%//localhost%")
+        .not("url", "ilike", "%//127.0.0.1%")
         .order("created_at", { ascending: false }).limit(200));
       return data || [];
     },

@@ -57,7 +57,12 @@ export function ChartOfAccountsManager({ companyId }: { companyId: string }) {
       const { error } = await db.from("chart_of_accounts").insert({ company_id: companyId, code: newAcct.code.trim(), name: newAcct.name.trim(), account_type: newAcct.type, is_system: false });
       if (error) throw error;
       toast("계정과목을 추가했습니다", "success"); setNewAcct(null); refresh();
-    } catch (e: any) { toast("추가 실패: " + (e?.message || (e?.code === "23505" ? "이미 있는 코드입니다" : "")), "error"); }
+    // 코드 판정을 message 보다 먼저 — Postgres 오류엔 message 가 항상 있어 친절 문구가 영영 안 나왔다.
+    //   사장님이 본 건 "duplicate key value violates unique constraint …" 영문 원문이었다(2026-08-20 에러점검).
+    } catch (e: any) {
+      const dup = e?.code === "23505" || /duplicate key|already exists/i.test(String(e?.message || ""));
+      toast("추가 실패: " + (dup ? "이미 있는 코드입니다" : e?.message || "알 수 없는 오류"), "error");
+    }
     finally { setBusy(false); }
   };
   // 표준 계정과목 일괄 채우기 — 이미 있는 코드는 건너뛰고 없는 것만 추가 (unique(company_id, code))
