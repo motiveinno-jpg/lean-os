@@ -83,6 +83,30 @@ def text(s, x, y, w, h, runs, align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, spacin
             r.font.color.rgb = color; r.font.name = FONT
     return tb
 
+def link_text(s, x, y, w, h, label, url, size=12, bold=True, color=None, align=PP_ALIGN.LEFT):
+    """하이퍼링크가 걸린 글자 — 발표·PDF 어느 쪽에서 눌러도 그 페이지로 간다 (2026-08-20 사장님 지시)"""
+    tb = s.shapes.add_textbox(x, y, w, h)
+    tf = tb.text_frame; tf.word_wrap = True
+    tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
+    p = tf.paragraphs[0]; p.alignment = align
+    r = p.add_run(); r.text = label
+    r.font.size = Pt(size); r.font.bold = bold; r.font.name = FONT
+    r.font.color.rgb = color if color is not None else BR
+    r.hyperlink.address = url
+    return tb
+
+
+def link_shape(s, shape, url):
+    """도형(버튼) 자체에 링크를 건다"""
+    from pptx.oxml.ns import qn
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    rId = s.part.relate_to(url, RT.HYPERLINK, is_external=True)
+    cNvPr = shape._element._nvXxPr.cNvPr
+    hl = cNvPr.makeelement(qn("a:hlinkClick"), {qn("r:id"): rId})
+    cNvPr.append(hl)
+    return shape
+
+
 def grad(s, c1, c2, angle=45):
     sp = rect(s, 0, 0, W, H, fill=c1)
     f = sp.fill; f.gradient(); f.gradient_angle = angle
@@ -137,8 +161,12 @@ def cover():
          [[("은행·카드·세금·계약·직원 —", 28, True, WHITE)],
           [("회사 운영의 모든 것을 한 화면에", 28, True, LAV)]], spacing=1.28)
     text(s, Inches(0.85), Inches(5.3), Inches(5), Inches(0.4), [("◈ OwnerView", 19, True, WHITE)])
-    text(s, Inches(0.85), Inches(5.95), Inches(7), Inches(0.35),
-         [("작은 회사를 위한 운영 소프트웨어 · www.owner-view.com", 11.5, False, RGBColor(0xD5, 0xDC, 0xF5))])
+    text(s, Inches(0.85), Inches(5.95), Inches(4.05), Inches(0.35),
+         [("작은 회사를 위한 운영 소프트웨어 · ", 11.5, False, RGBColor(0xD5, 0xDC, 0xF5))])
+    #   표지 주소도 누르면 열리게 (2026-08-20 사장님 지시)
+    link_text(s, Inches(4.35), Inches(5.95), Inches(3.4), Inches(0.35),
+              "www.owner-view.com", "https://www.owner-view.com",
+              size=11.5, bold=True, color=RGBColor(0xFF, 0xFF, 0xFF))
     p = os.path.join(CAP, "use-dash.png")
     if os.path.exists(p):
         iw, ih = Image.open(p).size

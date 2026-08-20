@@ -90,47 +90,69 @@ def part3():
     text(s, Inches(6.9), Inches(5.72), Inches(5.4), Inches(0.6),
          [("같은 화면을 열어 드리면 됩니다. 필요한 자료는 엑셀로 내려받아 전달하실 수도 있습니다.", 9.8, False, MUT)], spacing=1.3)
 
-    # ══════════ 34 요금제 · 문의 ══════════
+    # ══════════ 34 요금제 (실제 구성) · 문의 ══════════
+    #   사장님 지시(2026-08-20): 문의 폼 입력칸은 빼고 **실제 요금제 구성**을 넣는다.
+    #   링크는 하이퍼링크로 — 누르면 그 페이지가 열린다.
     s = slide()
-    grad(s, DEEP, BR2, 45)
-    text(s, Inches(0.7), Inches(0.55), Inches(12), Inches(0.45), [("무료로 시작해, 회사에 맞게 자랍니다", 22, True, WHITE)])
-    text(s, Inches(0.7), Inches(1.12), Inches(12), Inches(0.3),
-         [("기본 5명 포함 · VAT 별도 · 카드 등록 없이 무료로 시작합니다.", 11, False, RGBColor(0xC7, 0xD6, 0xFF))])
-    plans = [("무료", "₩0", "카드 등록 없이 계속 무료", False),
-             ("오너뷰", "₩39,000 / 월", "추가 1명 ₩5,000 · 가장 많이 쓰는 요금제", True),
-             ("울트라", "비용 협의", "회사 시스템에 맞춘 별도 UX 구축", False)]
-    for i, (t, price, sub, hl) in enumerate(plans):
-        x = Inches(0.7) + i * Inches(4.02)
-        rect(s, x, Inches(1.85), Inches(3.75), Inches(1.72),
-             fill=RGBColor(0xFF, 0xFF, 0xFF) if hl else None,
-             line=None if hl else RGBColor(0x8F, 0xA5, 0xF5),
-             shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.06)
-        c1 = BR if hl else WHITE
-        c2 = INK if hl else WHITE
-        c3 = MUT if hl else RGBColor(0xC7, 0xD6, 0xFF)
-        text(s, x + Inches(0.3), Inches(2.05), Inches(3.15), Inches(0.3), [(t, 13, True, c1)])
-        text(s, x + Inches(0.3), Inches(2.42), Inches(3.15), Inches(0.4), [(price, 18, True, c2)])
-        text(s, x + Inches(0.3), Inches(2.95), Inches(3.15), Inches(0.45), [(sub, 9.2, False, c3)], spacing=1.25)
-    # 문의 — 랜딩 폼 그대로
-    rect(s, Inches(0.7), Inches(3.85), Inches(5.9), Inches(2.75),
-         fill=RGBColor(0x1A, 0x28, 0x5C), line=RGBColor(0x8F, 0xA5, 0xF5), shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.05)
-    text(s, Inches(1.05), Inches(4.1), Inches(5.2), Inches(0.3), [("서비스 바로 보기", 11.5, True, RGBColor(0xC7, 0xD6, 0xFF))])
-    text(s, Inches(1.05), Inches(4.45), Inches(5.2), Inches(0.4), [("www.owner-view.com", 17, True, WHITE)])
-    for i, t in enumerate(["무료로 가입해 오늘 바로 사용해 보실 수 있습니다",
-                           "가격 안내 · www.owner-view.com/pricing",
-                           "기능 전체 보기 · www.owner-view.com/features"]):
-        text(s, Inches(1.05), Inches(5.1) + i * Inches(0.42), Inches(5.2), Inches(0.3),
-             [("· " + t, 9.8, False, RGBColor(0xD5, 0xDC, 0xF5))])
-    rect(s, Inches(6.95), Inches(3.85), Inches(5.78), Inches(2.75),
-         fill=RGBColor(0x1A, 0x28, 0x5C), line=RGBColor(0x8F, 0xA5, 0xF5), shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.05)
-    text(s, Inches(7.3), Inches(4.1), Inches(5.1), Inches(0.3),
-         [("도입 상담 신청 · www.owner-view.com/#partner", 11.5, True, RGBColor(0xC7, 0xD6, 0xFF))])
-    for i, f in enumerate(["회사명 *", "담당자명 *", "이메일 *", "연락처"]):
-        fx = Inches(7.3) + (i % 2) * Inches(2.6)
-        fy = Inches(4.55) + (i // 2) * Inches(0.52)
-        text(s, fx, fy, Inches(2.4), Inches(0.28), [(f, 9.8, False, RGBColor(0xD5, 0xDC, 0xF5))])
-        rect(s, fx, fy + Inches(0.28), Inches(2.35), Emu(9525), fill=RGBColor(0x6C, 0x7C, 0xB8))
-    text(s, Inches(7.3), Inches(5.72), Inches(5.1), Inches(0.5),
-         [("문의 내용 * — 도입 규모, 필요 기능, 연동 요구사항 등을 알려주세요", 9.2, False, RGBColor(0xD5, 0xDC, 0xF5))], spacing=1.25)
-    text(s, Inches(0.7), Inches(6.85), Inches(12.03), Inches(0.3),
-         [("제출된 정보는 상담 목적으로만 사용되며, 개인정보처리방침에 따라 관리됩니다. · 주식회사 모티브이노베이션", 8.5, False, RGBColor(0x9F, 0xAA, 0xD8))])
+    text(s, Inches(0.6), Inches(0.42), Inches(12.13), Inches(0.45),
+         [("무료로 시작해, 회사에 맞게 자랍니다", 23, True, INK)], PP_ALIGN.CENTER)
+    text(s, Inches(0.6), Inches(1.0), Inches(12.13), Inches(0.3),
+         [("기본 5명 포함 · VAT 별도 · 카드 등록 없이 무료로 시작합니다.", 11.5, False, MUT)], PP_ALIGN.CENTER)
+
+    # 열 위치
+    cx = [Inches(0.62), Inches(4.72), Inches(7.42), Inches(10.12)]
+    cw = [Inches(4.0), Inches(2.6), Inches(2.6), Inches(2.6)]
+    top = Inches(1.52)
+    # 추천 열(오너뷰) 배경
+    rect(s, cx[2], top, cw[2], Inches(4.62), fill=SOFT, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.04)
+    # 머리
+    heads = [("", "", ""), ("무료", "₩0", "카드 등록 없이 계속"),
+             ("오너뷰", "₩39,000/월", "추가 1명 ₩5,000"), ("울트라", "비용 협의", "도입 범위에 따라 견적")]
+    for i2, (nm, price, sub) in enumerate(heads):
+        if not nm: continue
+        c = BR if i2 == 2 else INK
+        text(s, cx[i2], top + Inches(0.12), cw[i2], Inches(0.3), [(nm, 12.5, True, c)], PP_ALIGN.CENTER)
+        text(s, cx[i2], top + Inches(0.45), cw[i2], Inches(0.35), [(price, 15, True, c)], PP_ALIGN.CENTER)
+        text(s, cx[i2], top + Inches(0.85), cw[i2], Inches(0.28), [(sub, 8.8, False, DIM)], PP_ALIGN.CENTER)
+    rect(s, cx[0], top + Inches(1.2), Inches(12.11), Emu(12700), fill=LINE)
+
+    rows = [
+        ("구성원", "5명", "기본 5명 + 1명 ₩5,000/월", "무제한"),
+        ("세금계산서·현금영수증 발행", "월 5건 · 5건", "월 100건 · 100건", "무제한"),
+        ("전자계약", "월 5건", "무제한", "무제한"),
+        ("통장·카드 연결", "3개 · 하루 2회", "무제한 · 하루 2회 + 즉시", "무제한 + 주기 협의"),
+        ("홈택스 자동 수집", "—", "✓", "✓"),
+        ("AI 참모", "월 10만 토큰", "월 50만 토큰", "협의(전용 한도)"),
+        ("AI 브리핑", "기본형(규칙)", "매일 자동 분석", "회사 지표에 맞춘 브리핑"),
+        ("전자결재·근태·급여·프로젝트", "무제한", "무제한", "무제한"),
+        ("회사에 맞춘 별도 UX 구축", "—", "—", "✓ 화면·흐름 맞춤 설계"),
+        ("기존 시스템 연동(ERP·그룹웨어)", "—", "—", "✓ 협의"),
+        ("데이터 이관 · 온보딩 교육", "—", "셀프 가이드", "✓ 전담 담당자"),
+        ("지원", "고객센터", "고객센터 · 우선 답변", "전담 채널 · SLA"),
+    ]
+    y = top + Inches(1.34)
+    for k, a, b, c in rows:
+        text(s, cx[0], y, cw[0], Inches(0.26), [(k, 9.6, True, INK)])
+        for i2, v in enumerate([a, b, c], start=1):
+            col = BR if i2 == 2 else (DIM if v == "—" else MUT)
+            bold = i2 == 2
+            text(s, cx[i2], y, cw[i2], Inches(0.26), [(v, 9.2, bold, col)], PP_ALIGN.CENTER)
+        y += Inches(0.283)
+
+    # 하단 — 하이퍼링크 3개
+    ly = Inches(6.35)
+    rect(s, Inches(0.62), ly, Inches(12.11), Inches(0.72), fill=BR, shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.18)
+    text(s, Inches(1.0), ly + Inches(0.22), Inches(2.6), Inches(0.3),
+         [("지금 시작해 보십시오", 12, True, WHITE)])
+    link_text(s, Inches(3.5), ly + Inches(0.22), Inches(2.9), Inches(0.3),
+              "www.owner-view.com", "https://www.owner-view.com",
+              size=11.5, bold=True, color=RGBColor(0xFF, 0xFF, 0xFF))
+    link_text(s, Inches(6.6), ly + Inches(0.22), Inches(2.6), Inches(0.3),
+              "요금 안내 →", "https://www.owner-view.com/pricing",
+              size=11.5, bold=True, color=RGBColor(0xC7, 0xD6, 0xFF))
+    link_text(s, Inches(9.3), ly + Inches(0.22), Inches(3.2), Inches(0.3),
+              "도입 상담 신청 →", "https://www.owner-view.com/#partner",
+              size=11.5, bold=True, color=RGBColor(0xC7, 0xD6, 0xFF))
+    #   이 장표는 하단 링크 바가 푸터 자리를 쓰므로 쪽번호만 오른쪽 위에 둔다
+    text(s, Inches(9.8), Inches(0.45), Inches(2.9), Inches(0.22),
+         [("34 / 34", 8, False, DIM)], PP_ALIGN.RIGHT)
