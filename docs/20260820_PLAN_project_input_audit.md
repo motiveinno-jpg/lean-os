@@ -89,3 +89,20 @@ QuickAddRow 코드 대조.
 
 구현 대상 파일: ProjectBoards.tsx(sendToTodo·QuickAddRow), BoardMinutes.tsx(버튼 상태),
 BoardExpense.tsx(날짜 칸), BoardExpiry.tsx(입력 줄·인라인 날짜).
+
+---
+
+## 반영 (2026-08-20 사장님 "진행")
+
+결정 1~4 전부 구현. Playwright 실측(시연 프로젝트):
+- ① '오픈 리허설 일자' 보내기 → 버튼 "할 일로 보냄 ✓"(초록), 재클릭 → "이미 할 일로 보냈어요"
+  토스트만, 새 줄 0. 탭 이동 후에도 표식 유지(TODO_LINK_KEY 가 DB values 에 저장).
+- ② 지출 줄에 결제일 2026-08-20 기본, 한 줄 정렬 유지.
+- ③ 만기 화면 맨 위 적기 줄(이름·거래처·금액·시작(오늘)·만기), 새 계약 카드 첫 단계 '검토' 자동.
+  '그룹웨어 구독' 빈 만기를 카드에서 2026-09-30 입력 → 즉시 D-41 로 재정렬·저장.
+- ④ 빠른 줄 상태 '할 일' 미리 선택(색 라벨), 우선순위(비 flow)는 '—' 유지 — 거짓 기본값 없음.
+  이름만 적고 Enter → 행이 '할 일' 단계로 저장됨(검증 행은 삭제).
+
+tsc 통과. 변경: project-boards.ts(TODO_LINK_KEY), ProjectBoards.tsx(sendToTodo 중복 방지+링크
+기록, QuickAddRow flow 기본값, BoardExpiry 배선), BoardMinutes/Expense/Expiry.tsx,
+globals.css(.pbm-send-sent, .pbe-quick 6칸, .pbe-date, .pbx-quick, .pbx-fill).

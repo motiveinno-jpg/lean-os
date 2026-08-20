@@ -21,7 +21,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { BoardColumn, BoardGroup, BoardItem } from "@/lib/project-boards";
-import { flowColumnOf, START_DATE_RE } from "@/lib/project-boards";
+import { flowColumnOf, START_DATE_RE, TODO_LINK_KEY } from "@/lib/project-boards";
 import { growTextarea } from "@/lib/textarea";
 
 export function BoardMinutes({
@@ -113,6 +113,8 @@ export function BoardMinutes({
           {rows.map((it) => {
             const open = !folded.has(it.id);
             const written = String((textCol && it.values?.[textCol.id]) || "").trim();
+            //   이미 할 일로 보낸 안건 — 보낸 것은 보냈다고 남는다 (2026-08-20). 눌러도 중복이 안 생긴다.
+            const sentTodo = !!String(it.values?.[TODO_LINK_KEY] || "");
             return (
               <article key={it.id} className={`pbm-item ${open ? "pbm-item-open" : ""}`}>
                 <div className="pbm-item-t">
@@ -141,10 +143,12 @@ export function BoardMinutes({
                   {personCol && <span className="pbm-cell">{renderCell(personCol, it)}</span>}
                   {dueCol && <span className="pbm-cell">{renderCell(dueCol, it)}</span>}
                   {/*  결정에는 다음 손이 붙어야 한다 — 담당·기한을 그대로 할 일로 넘긴다 */}
-                  <button type="button" className="pbm-send" disabled={sending === it.id}
+                  <button type="button" className={`pbm-send ${sentTodo ? "pbm-send-sent" : ""}`} disabled={sending === it.id}
                     onClick={() => onSendToTodo(it)}
-                    title="담당·기한을 그대로 '할 일 · 진행' 표에 만듭니다">
-                    {sending === it.id ? "보내는 중…" : "할 일로 보내기"}
+                    title={sentTodo
+                      ? "이미 보냈습니다 — 다시 눌러도 새 줄을 만들지 않아요 (보낸 할 일을 지웠다면 다시 보냅니다)"
+                      : "담당·기한을 그대로 '할 일 · 진행' 표에 만듭니다"}>
+                    {sending === it.id ? "보내는 중…" : sentTodo ? "할 일로 보냄 ✓" : "할 일로 보내기"}
                   </button>
                 </div>
               </article>

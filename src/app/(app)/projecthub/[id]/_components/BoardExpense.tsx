@@ -28,8 +28,12 @@ export function BoardExpense({ items, cols, groups, onAdd, onOpen, renderPartner
   const kindCol = cols.find((c) => c.type === "status" && !c.settings?.flow) || cols.find((c) => c.type === "status") || null;
   const partnerCol = cols.find((c) => c.type === "partner") || null;
   const kindOptions = (kindCol?.settings?.options || []) as StatusOption[];
+  //   결제일 칸 — 입력 줄에도, '최근' 정렬에도 이 칸을 쓴다
+  const dateCol = cols.find((c) => c.type === "date") || null;
 
-  const [draft, setDraft] = useState({ name: "", partner: "", kind: "", amount: "" });
+  //   결제일 기본값은 오늘 (2026-08-20 입력 점검: 날짜 없이 저장된 지출이 '최근' 정렬과
+  //   주별 추이에서 빠졌다). 대부분 그대로 Enter — 지난 지출을 몰아 적을 때만 바꾼다.
+  const [draft, setDraft] = useState({ name: "", partner: "", kind: "", amount: "", date: todayKst() });
 
   const sums = useMemo(() => {
     const plan = planCol ? items.reduce((s, it) => s + (Number(it.values?.[planCol.id]) || 0), 0) : 0;
@@ -40,7 +44,6 @@ export function BoardExpense({ items, cols, groups, onAdd, onOpen, renderPartner
   //   '최근' 은 적은 차례가 아니라 **오늘에 가까운 결제일** 순이 실무에 맞다 — 곧 나갈 돈과
   //   방금 나간 돈이 먼저 보여야 한다. (2026-08-07 시연: 처음엔 표 맨 끝 여섯 줄을 뒤집어 보여
   //   줬고, 날짜순으로 고쳤더니 이번엔 **먼 미래**가 맨 위로 왔다.)
-  const dateCol = cols.find((c) => c.type === "date") || null;
   const recent = useMemo(() => {
     const today = todayKst();
     const dist = (it: BoardItem) => {
@@ -61,8 +64,9 @@ export function BoardExpense({ items, cols, groups, onAdd, onOpen, renderPartner
     if (realCol && draft.amount) values[realCol.id] = Number(draft.amount.replace(/[^0-9.-]/g, "")) || 0;
     if (kindCol && draft.kind) values[kindCol.id] = draft.kind;
     if (partnerCol && draft.partner) values[partnerCol.id] = draft.partner;
+    if (dateCol && draft.date) values[dateCol.id] = draft.date;
     onAdd(gid, nm, values);
-    setDraft({ name: "", partner: "", kind: "", amount: "" });
+    setDraft({ name: "", partner: "", kind: "", amount: "", date: todayKst() });
   };
 
   return (
@@ -98,6 +102,11 @@ export function BoardExpense({ items, cols, groups, onAdd, onOpen, renderPartner
         <input className="pbe-in pbe-num" value={draft.amount} inputMode="numeric" placeholder="금액"
           onChange={(e) => setDraft((p) => ({ ...p, amount: e.target.value.replace(/[^0-9]/g, "") }))}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); } }} />
+        {dateCol && (
+          <input type="date" className="pbe-in pbe-date" value={draft.date} aria-label={dateCol.name}
+            title={`${dateCol.name} — 기본 오늘, 지난 지출을 몰아 적을 때만 바꿉니다`}
+            onChange={(e) => setDraft((p) => ({ ...p, date: e.target.value }))} />
+        )}
         <button type="button" className="pbe-go" onClick={submit} disabled={!draft.name.trim()}>적기</button>
       </div>
       <p className="pbe-hint">영수증·계산서는 줄을 눌러 열고 그 안에 붙입니다 — 예산 칸은 ‘표’ 에서 채웁니다.</p>

@@ -48,7 +48,7 @@ import {
 import {
   findTemplate, ITEM_LABEL, templateKind, sumColumn, buildBoardSummary, DOC_VALUE_KEY,
   flowColumnOf, spanColumnsOf, terminalOptionId, CONTRACT_VALUE_KEY, payTermsOf, INPUT_MODES, inputModesOf, MODE_LABEL, isDoneRow, START_DATE_RE,
-  COL_FORMATS, DEFAULT_STATUS_OPTIONS,
+  COL_FORMATS, DEFAULT_STATUS_OPTIONS, TODO_LINK_KEY,
   type InputMode, type PayTermRow, type ColumnDef, type GroupDef, type StatusOption,
   type BoardColumn, type BoardGroup, type BoardItem, type ColType, type SummaryCard,
 } from "@/lib/project-boards";
@@ -910,6 +910,14 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     if (!todoBoard) { toast("'할 일 · 진행' 표가 없어요 — ＋ 템플릿에서 먼저 만들어 주세요.", "error"); return; }
     setSendingTodo(it.id);
     try {
+      //   이미 보낸 안건이면 새 줄을 또 만들지 않는다 (2026-08-20 입력 점검: 누를 때마다
+      //   insert 라 같은 할 일이 3줄 서 있었다). 보낸 할 일이 지워졌으면 다시 보낼 수 있다.
+      const sentId = String((it.values || {})[TODO_LINK_KEY] || "");
+      if (sentId) {
+        const { data: alive } = await db.from("project_board_items")
+          .select("id").eq("id", sentId).is("archived_at", null).maybeSingle();
+        if (alive?.id) { toast("이미 할 일로 보냈어요 — '할 일 · 진행' 표에 있습니다.", "success"); return; }
+      }
       const [tc, tg] = await Promise.all([
         db.from("project_board_columns").select("id, name, type, settings").eq("board_id", todoBoard.id).order("position"),
         db.from("project_board_groups").select("id").eq("board_id", todoBoard.id).order("position"),
@@ -931,9 +939,16 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       const tflow = tcols.find((c) => c.type === "status" && c.settings?.flow) || tcols.find((c) => c.type === "status");
       const firstOpt = ((tflow?.settings?.options || []) as any[])[0];
       if (tflow && firstOpt) values[tflow.id] = firstOpt.id;
-      const { error } = await db.from("project_board_items")
-        .insert({ board_id: todoBoard.id, group_id: gid, name: it.name || "(안건)", position: 0, values });
+      const { data: made, error } = await db.from("project_board_items")
+        .insert({ board_id: todoBoard.id, group_id: gid, name: it.name || "(안건)", position: 0, values })
+        .select("id").single();
       if (error) throw new Error(error.message);
+      //   안건에 만든 할 일의 id 를 남긴다 — 버튼이 '보냄 ✓' 로 바뀌고, 다시 눌러도 중복이 안 생긴다
+      if (made?.id) {
+        await db.from("project_board_items")
+          .update({ values: { ...(it.values || {}), [TODO_LINK_KEY]: made.id } }).eq("id", it.id);
+        qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
+      }
       qc.invalidateQueries({ queryKey: ["pb-items", todoBoard.id] });
       toast(`'${it.name || "안건"}' 을 할 일로 보냈습니다.`, "success");
     } catch (e: any) {
@@ -1294,13 +1309,20 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           onOpenItem={(itemId) => setOpenItemId(itemId)} />
       ) : view === "expiry" ? (
         /* 만기 카드 — '계약 · 갱신' 의 첫 화면 (2026-08-07) */
-        <BoardExpiry items={shown} cols={cols}
+        <BoardExpiry items={shown} cols={cols} groups={groups}
           partnerName={(it) => (partners as any[]).find((p) => p.id === it.values?.[partnerColId || ""])?.name || ""}
           onOpen={setOpenItemId}
           onAdvance={(it, next) => { const f = flowColumnOf(cols); if (f) saveValue(it, f.id, next); }}
           onContract={makeContract}
           contractOf={(it) => !!((it.values || {})[CONTRACT_VALUE_KEY] as any)?.id}
-          busyId={makingDoc} />
+          busyId={makingDoc}
+          onAdd={(gid, name, values) => addItem(gid, values, name)}
+          onSetDate={(it, colId, v) => saveValue(it, colId, v)}
+          renderPartner={(value, onChange) => (
+            <PartnerCell value={value} partners={partners as any[]} companyId={companyId}
+              onSave={(v) => onChange(v || "")}
+              onCreated={() => qc.invalidateQueries({ queryKey: ["pb-partners", companyId] })} />
+          )} />
       ) : view === "expense" ? (
         /* 지출 입력 — '예산 · 지출' 의 첫 화면 (2026-08-07) */
         <BoardExpense items={shown} cols={cols} groups={groups}
@@ -1733,7 +1755,22 @@ function QuickAddRow({ nameLabel, slots, users, partners, companyId, onPartnerCr
   onAdd: (name: string, values: Record<string, any>) => Promise<void> | void;
 }) {
   const [name, setName] = useState("");
-  const [values, setValues] = useState<Record<string, any>>({});
+  //   흐름(단계) 칸은 첫 단계가 기본 — 빈 단계 줄이 칸반의 '단계 미지정'으로 떨어지는 걸 막는다
+  //   (2026-08-20 입력 점검). 회의→할 일 보내기의 "첫 단계에 세운다"와 같은 정책.
+  //   ⚠️ flow 표시가 있는 칸만 — 구분·우선순위 같은 일반 상태 칸에 기본값을 넣으면 거짓 데이터가 된다.
+  //   바꾸거나 비우는 것('—')은 그 자리에서 그대로 가능하다.
+  const flowDefault = useMemo(() => {
+    const fc = slots.map((s) => s.col).find((c) => c && c.type === "status" && c.settings?.flow) || null;
+    const first = ((fc?.settings?.options || []) as StatusOption[])[0];
+    return fc && first ? { [fc.id]: String(first.id) } : {};
+  }, [slots]);
+  const [values, setValues] = useState<Record<string, any>>(flowDefault);
+  //   칸이 늦게 오면(첫 렌더 때 slots 가 비었으면) 기본값을 뒤늦게 한 번 채운다.
+  //   사용자가 '—' 로 비운 값("")은 undefined 가 아니므로 다시 덮지 않는다.
+  useEffect(() => {
+    const [k, v] = Object.entries(flowDefault)[0] || [];
+    if (k) setValues((prev) => (prev[k] === undefined ? { ...prev, [k]: v } : prev));
+  }, [flowDefault]);
   const [busy, setBusy] = useState(false);
   const nameRef = useRef<HTMLInputElement | null>(null);
   const set = (id: string, v: any) => setValues((prev) => ({ ...prev, [id]: v }));
@@ -1746,7 +1783,7 @@ function QuickAddRow({ nameLabel, slots, users, partners, companyId, onPartnerCr
       const clean: Record<string, any> = {};
       for (const [k, v] of Object.entries(values)) if (v !== "" && v != null) clean[k] = v;
       await onAdd(name.trim(), clean);
-      setName(""); setValues({});
+      setName(""); setValues(flowDefault);
       nameRef.current?.focus();
     } finally { setBusy(false); }
   };

@@ -7541,6 +7541,13 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pb-tpl-pick { @apply relative p-0 overflow-hidden; }
 /* 만기 카드 — '계약 · 갱신' 의 첫 화면 (2026-08-07). 임박한 순으로 세우고 지난 것은 빨갛게. */
 .pbx { @apply grid gap-2.5; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+/* 계약 적기 한 줄 — 만기 화면이 읽기 전용이라 표로 가야 했다 (2026-08-20 입력 점검). 카드 격자의 전폭 줄. */
+.pbx-quick { @apply grid gap-2 items-center; grid-column: 1 / -1; grid-template-columns: 1.6fr 1.1fr .9fr .95fr .95fr auto; }
+@media (max-width: 860px) { .pbx-quick { grid-template-columns: 1fr 1fr; } }
+.pbx .pj-sec-empty { grid-column: 1 / -1; }
+/* 만기 미입력 카드의 그 자리 날짜 입력 — "표에서 채워 주세요" 로 떠넘기지 않는다 */
+.pbx-fill { @apply inline-flex items-center gap-1.5 text-[11px] font-bold text-[var(--primary)]; }
+.pbx-fill input { @apply px-1.5 py-0.5 rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[11px] text-[var(--text)] outline-none focus:border-[var(--primary)]; font-variant-numeric: tabular-nums; }
 .pbx-card { @apply flex flex-col gap-1.5 p-3.5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
 .pbx-card-bad { @apply border-[var(--danger)]; }
 .pbx-dday { @apply self-start px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
@@ -7563,8 +7570,10 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pbe-track { @apply flex-1 min-w-[120px] h-2.5 rounded-full bg-[var(--bg-card)] overflow-hidden; }
 .pbe-track i { @apply block h-full rounded-r-full bg-[var(--primary)]; }
 .pbe-track i.pbe-over { @apply bg-[var(--danger)]; }
-.pbe-quick { @apply grid gap-2 items-center; grid-template-columns: 1.6fr 1.2fr .9fr .9fr auto; }
+/* 결제일 칸이 한 자리 늘었다 — 기본 오늘 (2026-08-20 입력 점검: 날짜 없는 지출이 정렬·추이에서 빠짐) */
+.pbe-quick { @apply grid gap-2 items-center; grid-template-columns: 1.6fr 1.1fr .8fr .85fr .95fr auto; }
 @media (max-width: 860px) { .pbe-quick { grid-template-columns: 1fr 1fr; } }
+.pbe-date { font-variant-numeric: tabular-nums; }
 .pbe-in { @apply px-2.5 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[12.5px] text-[var(--text)] outline-none focus:border-[var(--primary)]; }
 .pbe-num { @apply text-right; font-variant-numeric: tabular-nums; }
 .pbe-partner { @apply block min-w-0; }
@@ -7671,6 +7680,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
 .pbm-foot { @apply flex items-center gap-2 flex-wrap pt-2 mt-0.5 border-t border-dashed border-[var(--border)]; }
 .pbm-foot .pbm-cell { @apply w-[124px]; }
 .pbm-send { @apply ml-auto px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[var(--primary-light)] text-[var(--primary)] transition hover:bg-[var(--primary)] hover:text-white disabled:opacity-50; }
+/* 이미 보낸 안건 — 보낸 것은 보냈다고 남는다 (2026-08-20). 눌러도 새 줄이 안 생기니 조용한 색. */
+.pbm-send-sent { @apply bg-[var(--success-dim)] text-[var(--success)] hover:bg-[var(--success-dim)] hover:text-[var(--success)]; }
 .pbm-add { @apply flex items-center gap-2 p-2.5 rounded-xl border border-dashed border-[var(--border)]; }
 .pbm-add input { @apply flex-1 min-w-0 bg-transparent text-[12.5px] text-[var(--text)] placeholder:text-[var(--text-dim)] outline-none; }
 .pbm-add button { @apply shrink-0 px-2.5 py-1 rounded-lg text-[11.5px] font-bold bg-[var(--primary)] text-white disabled:opacity-40; }

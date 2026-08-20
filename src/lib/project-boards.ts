@@ -389,6 +389,9 @@ export const BLANK_TEMPLATE: BoardTemplate = {
  *  (사용자가 컬럼을 지워도 연결이 끊기지 않게). 각각 { id, no } */
 export const DOC_VALUE_KEY = "__quote";
 export const CONTRACT_VALUE_KEY = "__contract";
+/** 회의 안건이 '할 일로 보내기'로 만든 할 일의 id — 두 번 눌러도 새 줄을 또 만들지 않기 위한
+ *  표식 (2026-08-20 입력 점검: 시연 데이터에 같은 할 일이 3줄 서 있었다). 1안건 = 1할 일. */
+export const TODO_LINK_KEY = "__todo_item";
 
 /** 계약서의 결제조건 한 회차 — documents.content_json.paymentSchedule 의 원소 */
 export type PayTermRow = { label: string; ratio?: number; amount?: number; condition?: string };
