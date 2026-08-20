@@ -4,6 +4,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=Noto+Sans+KR:wght@700;900&family=Nanum+Myeongjo:wght@700;800&display=swap');
 @import "tailwindcss";
 
+/* dark: 유틸을 **앱 테마**에 묶는다 (2026-08-20 사장님 제보: "상대방 글씨가 너무 검게 나와 잘 안 보임").
+   Tailwind v4 의 dark: 기본값은 OS 설정(prefers-color-scheme)이라, 앱을 라이트로 쓰는데 맥이
+   다크면 dark: 배경만 어두워지고 글자색(--text)은 라이트 기준(검정)이라 검은 말풍선에 검은 글씨가 됐다.
+   이 앱의 테마는 <html data-theme> 이므로 그 기준으로 맞춘다. */
+@custom-variant dark ([data-theme="dark"] &);
+
 :root, [data-theme="light"] {
   /* OwnerView — Granter-inspired (clean B2B SaaS, neutral + accent yellow) */
   /* 페이지 콘텐츠 공통 최대폭 토큰 — 페이지 이동 시 좌우 점프 방지.

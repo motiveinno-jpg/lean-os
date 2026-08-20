@@ -183,7 +183,9 @@ export function ChatBubble({
             className={`chat-bubble-bubble ${
               isOwn
                 ? (glass ? "bg-[var(--primary)] text-white rounded-br-md" : "bg-[#3B82F6] text-white rounded-br-md")
-                : (glass ? "bg-[var(--bg-surface)]/85 backdrop-blur-md text-[var(--text)] border border-[var(--border)] rounded-bl-md" : "bg-white dark:bg-[#2A2A2E] text-[var(--text)] rounded-bl-md border border-gray-100 dark:border-[var(--border)]")
+                /* 받은 말풍선은 테마 토큰만 쓴다 — bg-white/dark: 조합은 OS 설정을 따라가
+                   앱 테마와 어긋나면 어두운 말풍선에 검은 글씨가 됐다 (2026-08-20 사장님 제보) */
+                : (glass ? "bg-[var(--bg-surface)]/85 backdrop-blur-md text-[var(--text)] border border-[var(--border)] rounded-bl-md" : "bg-[var(--bg-card)] text-[var(--text)] rounded-bl-md border border-[var(--border)]")
             } ${pinned ? "ring-1 ring-yellow-500/50" : ""}`}
           >
             {/* File content */}
