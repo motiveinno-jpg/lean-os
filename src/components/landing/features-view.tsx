@@ -24,7 +24,7 @@ const Check = () => (<svg width="15" height="15" fill="none" stroke="currentColo
 const Arrow = () => (<svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5-5 5M6 12h12" /></svg>);
 
 // 메뉴 아이콘 — 실제 사이드바(components/sidebar.tsx)가 쓰는 아이콘과 같은 모양.
-function MenuGlyph({ n }: { n: string }) {
+export function MenuGlyph({ n }: { n: string }) {
   const p = { width: 20, height: 20, fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   switch (n) {
     case "users": return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /></svg>;
@@ -46,6 +46,14 @@ function MenuGlyph({ n }: { n: string }) {
     case "wallet": return <svg {...p}><path d="M21 12V7H5a2 2 0 010-4h14v4" /><path d="M3 5v14a2 2 0 002 2h16v-5" /><path d="M18 12a2 2 0 000 4h4v-4h-4z" /></svg>;
     case "repeat": return <svg {...p}><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 014-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 01-4 4H3" /></svg>;
     case "trend": return <svg {...p}><path d="M22 7l-8.5 8.5-5-5L2 17" /><path d="M16 7h6v6" /></svg>;
+    // 2026-08-20 CATALOG 재작성으로 새로 쓰이게 된 아이콘들 — 없으면 전부 같은 기본 도형으로 떨어져
+    //   통장·카드·수집전표·매입매출전표가 구분되지 않았다(/features 와 /demo 양쪽에서).
+    case "bank": return <svg {...p}><path d="M3 10h18M5 10v8M10 10v8M14 10v8M19 10v8M3 21h18" /><path d="M12 3L3 8h18l-9-5z" /></svg>;
+    case "card": return <svg {...p}><rect x="2" y="5" width="20" height="14" rx="2.5" /><path d="M2 10h20M6 15h4" /></svg>;
+    case "drive": return <svg {...p}><path d="M12 3v12" /><path d="M7.5 10.5L12 15l4.5-4.5" /><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>;
+    case "sheet": return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M3 15h18M9 3v18" /></svg>;
+    case "won": return <svg {...p}><path d="M4 7l3.2 10L12 9l4.8 8L20 7" /><path d="M3 12h18" /></svg>;
+    case "mail": return <svg {...p}><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>;
     default: return <svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
   }
 }

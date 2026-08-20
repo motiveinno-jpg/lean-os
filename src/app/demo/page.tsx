@@ -1,965 +1,160 @@
 "use client";
 
+// 데모 체험 (/demo) — 랜딩 히어로의 "데모 보기"로 들어온다.
+//
+// 2026-08-20 전면 재작성. 왜 바꿨나:
+//   예전 데모는 앱 화면을 손으로 흉내 낸 목업 4,000줄이었다. 앱이 바뀔 때마다 같이 고쳐야 하는데
+//   실제로는 안 고쳐져서, 사이드바는 1단 구버전 · 메뉴에는 없어진 '거래 장부/전표입력' ·
+//   대시보드는 런웨이/번레이트 시절 위젯을 보여주고 있었다(사장님 지적).
+//   목업은 원리상 계속 어긋난다 → 사이드바만 진짜로 만들고, 본문은 **실제 앱 화면 캡처**를 띄운다.
+//
+// 구조: 아이콘 레일(그룹 7개) + 메뉴 패널 + 본문(그 메뉴의 실제 화면).
+//   ⚠️ 메뉴 목록·아이콘·화면 이미지는 전부 landing/content.ts 의 CATALOG 하나에서 온다.
+//      사이드바가 바뀌면 CATALOG 만 고치면 랜딩·둘러보기·데모가 함께 따라온다.
+//   ⚠️ 본문 캡처(f-*.png)는 "브레드크럼 헤더 + 본문" 구도라 왼쪽에 사이드바를 붙이면
+//      실제 앱 화면이 그대로 이어진다. 그래서 데모는 자체 헤더를 그리지 않는다.
+//      다시 찍는 법: deliverables/landing-capture/README.md
+
 import Link from "next/link";
-import { Ico } from "@/components/ui-icon";
-import { useEffect, useState } from "react";
-import { ProjectFlow } from "./_components/project-flow";
-import { WidgetBoard } from "./_components/widget-board";
-import { FlowPanel, HrPanel, AccountPanel } from "./_components/pillar-panels";
-import {
-  PartnersPanel, VoucherPanel, SchedulePanel, ApprovalsPanel, BoardPanel, ChatPanel,
-  TemplatesPanel, DocumentsPanel, BankPanel, CardsPanel, PaymentsPanel,
-} from "./_components/menu-panels";
-import {
-  ProjectsPanel, EstimatePanel, ContractPanel, SettlementPanel, MembersPanel, LeavePanel, TaxPanel,
-  EstimateBeforePanel, SettlementBeforePanel,
-} from "./_components/pillar-frames";
-import { CopilotPanel, BriefPanel, OcrPanel } from "./_components/ai-panels";
-import {
-  ProjectsBeforePanel, HrBeforePanel, MembersBeforePanel, LeaveBeforePanel,
-  AcctBeforePanel, BankBeforePanel, TaxBeforePanel,
-} from "./_components/before-frames";
-import { AnalyticsPanel, LedgerPanel, TaxRealPanel, ReconPanel } from "./_components/real-frames";
-import {
-  ProjectHubPanel, ApprovalsRealPanel, SignRealPanel, EmployeesRealPanel,
-  AttendanceRealPanel, BankRealPanel, CardsRealPanel, PaymentsRealPanel, CopilotRealPanel,
-} from "./_components/real-frames2";
-import {
-  OutlookPanel, PayrollPanel, PartnersRealPanel, VoucherRealPanel, ScheduleRealPanel,
-  BoardRealPanel, ChatRealPanel, TemplatesRealPanel, DocumentsRealPanel, BriefRealPanel,
-} from "./_components/real-frames3";
+import Image from "next/image";
+import { useState } from "react";
+import { CATALOG } from "@/components/landing/content";
+import { MenuGlyph } from "@/components/landing/features-view";
 
-// ── Constants ──
-
-const DEMO_COMPANY = "데모 회사 (주)";
 const DEMO_USER = "김대표";
 
-const SIX_PACK = [
-  { label: "통장 잔고", value: "₩2.3억", color: "var(--text)" },
-  { label: "런웨이", value: "8.2개월", color: "var(--success)" },
-  { label: "미수금 30일+", value: "₩1,200만", color: "var(--warning)" },
-  { label: "월 매출", value: "₩4,500만", color: "var(--text)" },
-  { label: "번레이트", value: "₩3,200만", color: "var(--text)" },
-  { label: "진행중 프로젝트", value: "7건", color: "var(--primary)" },
-];
-
-const PULSE_FORECAST = [
-  { label: "현재", balance: 23000, color: "var(--primary)" },
-  { label: "D+7", balance: 21500, color: "var(--primary)" },
-  { label: "D+30", balance: 19800, color: "var(--primary)" },
-  { label: "D+60", balance: 16300, color: "var(--warning)" },
-  { label: "D+90", balance: 14100, color: "var(--warning)" },
-];
-
-const TODAY_ACTIONS = [
-  { priority: "critical" as const, text: "미수금 30일+ ₩1,200만 — (주)하늘건설 독촉 필요" },
-  { priority: "high" as const, text: "승인대기 ₩850만 — 외주비 2건 검토/승인 필요" },
-  { priority: "high" as const, text: "마감 임박 2건 — D-5 이내 납품 확인" },
-  { priority: "normal" as const, text: "이번달 순현금 +₩1,300만 예상 — 안정적" },
-];
-
-const RISK_ITEMS = [
-  { label: "마진 20% 이하", icon: "📉", count: 1, detail: "A사 웹개발 프로젝트 (마진 14%)" },
-  { label: "D-7 이내 마감", icon: "⏰", count: 2, detail: "B사 디자인, C사 컨설팅" },
-  { label: "미수금 30일+", icon: "💸", count: 1, detail: "(주)하늘건설 ₩1,200만" },
-  { label: "외주비 마진잠식", icon: "🔥", count: 0, detail: "해당 없음" },
-];
-
-const DEALS = [
-  { name: "B사 UI/UX 리뉴얼", stage: "진행중", amount: "₩2,800만", progress: 65 },
-  { name: "C사 전략 컨설팅", stage: "계약완료", amount: "₩1,500만", progress: 30 },
-  { name: "D사 앱 개발", stage: "견적발송", amount: "₩4,200만", progress: 10 },
-  { name: "E사 유지보수", stage: "진행중", amount: "₩600만", progress: 80 },
-  { name: "F사 브랜딩", stage: "협상중", amount: "₩900만", progress: 5 },
-];
-
-const QUICK_LINKS = [
-  { href: "#", label: "프로젝트", icon: "📋", desc: "프로젝트 파이프라인" },
-  { href: "#", label: "결제/승인", icon: "💳", desc: "결제 큐 관리" },
-  { href: "#", label: "인사/급여", icon: "👤", desc: "직원 관리" },
-  { href: "#", label: "전자계약", icon: "📄", desc: "문서 서명" },
-  { href: "#", label: "거래처", icon: "🏢", desc: "거래처 관리" },
-  { href: "#", label: "채팅", icon: "💬", desc: "팀 소통" },
-];
-
-const YESTERDAY_TX = [
-  { type: "입금", desc: "A사 2차 기성금", amount: "+₩1,200만" },
-  { type: "출금", desc: "사무실 월세", amount: "-₩180만" },
-  { type: "출금", desc: "외주비 (디자이너)", amount: "-₩350만" },
-  { type: "입금", desc: "E사 유지보수 월정액", amount: "+₩600만" },
-];
-
-// 사이드바 — 실제 앱(components/sidebar.tsx)의 그룹·라벨을 그대로 옮긴 정적 사본.
-//   데모는 라우팅/권한이 없으므로 링크 없이 모양만 재현한다.
-// 사이드바 — 실제 앱(components/sidebar.tsx)의 그룹·라벨을 그대로 옮긴 사본.
-//   view 는 이 메뉴를 눌렀을 때 보여줄 화면 키다(가상 데이터). 없는 메뉴는 준비중으로 안내한다.
-const NAV_GROUPS: { label: string; items: { label: string; icon: string; view?: string; badge?: string }[] }[] = [
-  { label: "홈", items: [
-    { label: "대시보드", icon: "grid", view: "dashboard" },
-    { label: "AI 참모", icon: "sparkles", view: "copilot" },
-    { label: "알림", icon: "bell", badge: "3" },
-  ] },
-  { label: "파이낸스", items: [
-    { label: "거래처", icon: "users", view: "partners" },
-    { label: "세금·증빙", icon: "receipt", view: "tax" },
-    { label: "수집·전표", icon: "book", view: "ledger" },
-    { label: "일반전표", icon: "pen", view: "voucher" },
-  ] },
-  //   2026-08-11 — 앱 사이드바가 '분석' 그룹으로 갈라져 시연 화면도 같이 맞췄다.
-  { label: "분석", items: [
-    { label: "경영 요약", icon: "chart", view: "flow" },
-  ] },
-  { label: "워크스페이스", items: [
-    { label: "일정 / 할 일", icon: "calendar", view: "schedule" },
-    { label: "프로젝트", icon: "briefcase", view: "projects" },
-    { label: "결재 허브", icon: "check", badge: "5", view: "approvals" },
-    { label: "게시판", icon: "board", view: "board" },
-    { label: "메신저", icon: "chat", view: "chat" },
-    { label: "전자계약", icon: "pen", view: "contract" },
-  ] },
-  { label: "인사관리", items: [
-    { label: "구성원", icon: "user", view: "members" },
-    { label: "근태 관리", icon: "calendar", view: "leave" },
-    { label: "근로계약·서식", icon: "file", view: "templates" },
-    { label: "파일보관함", icon: "folder", view: "documents" },
-  ] },
-  //   '자산관리' → '자금' (앱과 같은 이름)
-  { label: "자금", items: [
-    { label: "통장", icon: "swap", view: "bank" },
-    { label: "카드", icon: "wallet", view: "cards" },
-    { label: "정기 지출", icon: "repeat", view: "payments" },
-  ] },
-];
-
-// 헤더에 뿌릴 위치 정보
-const VIEW_META: Record<string, { crumb: string; title: string }> = {
-  dashboard: { crumb: "홈", title: "대시보드" },
-  copilot: { crumb: "홈", title: "AI 참모" },
-  partners: { crumb: "파이낸스", title: "거래처" },
-  tax: { crumb: "파이낸스", title: "세금·증빙" },
-  ledger: { crumb: "파이낸스", title: "수집·전표" },
-  voucher: { crumb: "파이낸스", title: "일반전표" },
-  flow: { crumb: "분석", title: "경영 요약" },
-  schedule: { crumb: "워크스페이스", title: "일정 / 할 일" },
-  projects: { crumb: "워크스페이스", title: "프로젝트" },
-  approvals: { crumb: "워크스페이스", title: "결재 허브" },
-  board: { crumb: "워크스페이스", title: "게시판" },
-  chat: { crumb: "워크스페이스", title: "메신저" },
-  contract: { crumb: "워크스페이스", title: "전자계약" },
-  members: { crumb: "인사관리", title: "구성원" },
-  leave: { crumb: "인사관리", title: "근태 관리" },
-  templates: { crumb: "인사관리", title: "근로계약·서식" },
-  documents: { crumb: "인사관리", title: "파일보관함" },
-  bank: { crumb: "자금", title: "통장" },
-  cards: { crumb: "자금", title: "카드" },
-  payments: { crumb: "자금", title: "정기 지출" },
+/** 레일에 쓰는 짧은 이름 — 실제 사이드바 NAV_GROUPS 의 short 와 같게. */
+const SHORT: Record<string, string> = {
+  "홈": "홈", "파이낸스": "파이낸스", "분석": "분석", "워크스페이스": "워크",
+  "인사관리": "인사", "회사 관리": "회사", "도움말": "도움말",
+};
+/** 그룹 아이콘 — 실제 사이드바 그룹 아이콘과 같은 모양을 CATALOG 아이콘 이름으로 고른다. */
+const GROUP_ICON: Record<string, string> = {
+  "홈": "chart", "파이낸스": "wallet", "분석": "trend", "워크스페이스": "briefcase",
+  "인사관리": "user", "회사 관리": "sheet", "도움말": "book",
 };
 
-// ── Glyphs ──
-
-const gp = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, viewBox: "0 0 24 24", strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-
-function NavGlyph({ type }: { type: string }) {
-  const p = { ...gp, className: "demo-nav-glyph" };
-  switch (type) {
-    case "grid": return <svg {...p}><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>;
-    case "sparkles": return <svg {...p}><path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3z"/><path d="M18 15l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9L18 15z"/></svg>;
-    case "bell": return <svg {...p}><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>;
-    case "users": return <svg {...p}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/></svg>;
-    case "receipt": return <svg {...p}><path d="M4 2v20l2-1.5L8 22l2-1.5L12 22l2-1.5L16 22l2-1.5L20 22V2l-2 1.5L16 2l-2 1.5L12 2l-2 1.5L8 2 6 3.5 4 2z"/><path d="M8 8h8M8 12h8"/></svg>;
-    case "book": return <svg {...p}><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
-    case "chart": return <svg {...p}><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 5-9"/></svg>;
-    case "briefcase": return <svg {...p}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>;
-    case "check": return <svg {...p}><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>;
-    case "pen": return <svg {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>;
-    case "chat": return <svg {...p}><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.4 8.4 0 01-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 013 11.5a8.4 8.4 0 019-8.4 8.4 8.4 0 019 8.4z"/></svg>;
-    case "user": return <svg {...p}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
-    case "calendar": return <svg {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>;
-    case "swap": return <svg {...p}><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg>;
-    case "wallet": return <svg {...p}><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4h-4z"/></svg>;
-    default: return null;
-  }
-}
-
-const OwnerViewMark = () => (
-  <div className="demo-sidebar-mark">
-    <svg width="20" height="20" viewBox="0 0 40 40" fill="none">
-      <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.6" fill="none" />
-      <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
-      <polyline points="12,20 15,18 18,19 22,14" stroke="#fdba74" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </svg>
-  </div>
+const Glyph = ({ d, w = 16 }: { d: string; w?: number }) => (
+  <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
 );
 
-const SearchGlyph = () => (<svg {...gp} className="demo-header-glyph"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>);
-const BellGlyph = () => (<svg {...gp} className="demo-header-glyph"><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>);
-
-// ── Helpers ──
-
-/** 브리핑 2~4번째 줄 — 시각과 무관한 고정 문구. */
-const BRIEF_REST = [
-  "통장 잔고 2억 3,000만원, 런웨이 8.2개월로 안정 구간입니다.",
-  "미수금 1,200만원이 30일을 넘겼습니다. (주)하늘건설 담당자에게 연락이 필요합니다.",
-  "이번 달 매출 4,500만원 중 미입금 1,800만원 — 예정대로면 D+7 내 입금됩니다.",
-];
-
-/** 첫 렌더(서버 HTML)용 — 시각이 안 들어간 문장. 클라이언트 첫 렌더도 이 값이라 서버와 어긋나지 않는다. */
-const BRIEF_HEAD_STATIC = `${DEMO_USER}님, 오늘의 ${DEMO_COMPANY} 브리핑입니다.`;
-
-/** 접속 시각(KST) 기준 인사말·날짜.
- *  ⚠️ 렌더 도중에 new Date() 를 쓰면 안 된다 — /demo 는 빌드 때 미리 그려지므로(prerender)
- *     서버 HTML 은 빌드 시각으로 굳는데 브라우저는 접속 시각으로 그려 글자가 어긋난다
- *     (React #418 hydration text mismatch, 2026-08-20 프로덕션에서 실제 발생).
- *     그래서 이 함수는 마운트 뒤 useEffect 에서만 부른다.
- *  ⚠️ 시간대를 Asia/Seoul 로 못 박는다. 방문자 로컬 시각을 쓰면 해외에서 볼 때 날짜가 하루 어긋난다. */
-function briefHeadNow(): string {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("ko-KR", {
-      timeZone: "Asia/Seoul", hourCycle: "h23", hour: "numeric", month: "numeric", day: "numeric", weekday: "short",
-    })
-      .formatToParts(new Date())
-      .map((p) => [p.type, p.value]),
-  );
-  const hour = Number(parts.hour);
-  const greeting =
-    hour < 5
-      ? "늦은 밤이네요"
-      : hour < 12
-        ? "좋은 아침입니다"
-        : hour < 18
-          ? "오후 브리핑입니다"
-          : "저녁 브리핑입니다";
-  const today = `${parts.month}월 ${parts.day}일 ${parts.weekday}요일`;
-  return `${greeting}, ${DEMO_USER}님. ${today} ${DEMO_COMPANY} 브리핑입니다.`;
-}
-
-// ── Page Component ──
+const Mark = () => (
+  <span className="demo2-mark">
+    <svg width="19" height="19" viewBox="0 0 40 40" fill="none">
+      <circle cx="18" cy="17" r="9" stroke="#fff" strokeWidth="2.6" />
+      <line x1="24.5" y1="23.5" x2="32" y2="31" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
+      <polyline points="12,20 15,18 18,19 22,14" stroke="#93c5fd" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  </span>
+);
 
 export default function DemoPage() {
-  const [showDeals, setShowDeals] = useState(false);
-  // 사이드바에서 고른 메뉴. ?all=1 은 랜딩 캡처용 — 모든 화면을 한 번에 렌더한다.
-  const [view, setView] = useState("dashboard");
-  const [soon, setSoon] = useState({ crumb: "홈", title: "알림" });   // 데모에 없는 메뉴의 헤더용
-  const [capAll, setCapAll] = useState(false);
-  // 브리핑 첫 줄은 접속 시각에 따라 달라지므로 마운트 뒤에 채운다(위 briefHeadNow 주석 참고).
-  const [briefHead, setBriefHead] = useState(BRIEF_HEAD_STATIC);
-  useEffect(() => {
-    setCapAll(new URLSearchParams(window.location.search).get("all") === "1");
-    setBriefHead(briefHeadNow());
-  }, []);
-  const show = (k: string) => capAll || view === k;
-  const meta = VIEW_META[view] ?? soon;
-  const briefLines = [briefHead, ...BRIEF_REST];
-  const maxForecast = Math.max(...PULSE_FORECAST.map((p) => p.balance));
+  // 레일에서 고른 그룹(메뉴 목록이 바뀜)과, 본문에 띄운 메뉴는 따로 둔다 —
+  //   실제 앱도 그룹을 훑어보는 동안 본문은 그대로 있는다.
+  const [railIdx, setRailIdx] = useState(0);
+  const [pick, setPick] = useState({ g: 0, m: 0 });
+  const group = CATALOG[railIdx];
+  const shown = CATALOG[pick.g].menus[pick.m];
 
   return (
     <div className="demo-root">
-      {/* ═══ Demo Banner ═══ */}
       <div className="demo-banner">
-        데모 모드입니다. 실제 데이터로 사용하려면{" "}
-        <Link
-          href="/auth"
-          className="underline underline-offset-2 font-bold hover:opacity-90 transition"
-        >
-          무료로 시작하기
-        </Link>{" "}
-        를 눌러주세요.
+        데모 모드입니다. 실제 화면을 그대로 보여드려요 — 내 회사 데이터로 쓰시려면{" "}
+        <Link href="/auth" className="underline font-bold">무료로 시작하기</Link> 를 눌러주세요.
       </div>
 
-      {/* ═══ App Shell — 실제 앱과 동일한 인셋 플로팅 유리 셸 ═══ */}
-      <div className="demo-shell">
-        {/* Sidebar — sidebar-panel/chrome-glass: 앱 본체 사이드바와 같은 재질·폭 */}
-        <aside className="demo-sidebar chrome-glass">
-          <div className="demo-sidebar-brand">
-            <OwnerViewMark />
-            <div className="demo-sidebar-brand-text">
-              <span className="demo-sidebar-brand-name">오너뷰</span>
-              <span className="demo-sidebar-brand-sub">{DEMO_USER} <b className="demo-role">대표</b></span>
-            </div>
-          </div>
-
-          <div className="demo-side-search"><SearchGlyph /><span>검색</span><kbd className="demo-side-kbd">⌘K</kbd></div>
-
-          <nav className="demo-sidebar-nav">
-            {NAV_GROUPS.map((g) => (
-              <div key={g.label}>
-                <div className="demo-sidebar-group">{g.label}</div>
-                {g.items.map((item) => (
-                  <button
-                    type="button"
-                    key={item.label}
-                    className={`demo-nav-item ${item.view === view ? "nav-active" : ""}`}
-                    onClick={() => { setView(item.view ?? "soon"); if (!item.view) setSoon({ crumb: g.label, title: item.label }); window.scrollTo({ top: 0 }); }}
-                  >
-                    <NavGlyph type={item.icon} />
-                    <span>{item.label}</span>
-                    {item.badge ? <span className="demo-nav-badge">{item.badge}</span> : null}
-                  </button>
-                ))}
-              </div>
+      <div className="demo2-shell">
+        {/* ── 아이콘 레일 — 그룹 7개 ── */}
+        <aside className="demo2-rail chrome-glass">
+          <Mark />
+          <div className="demo2-rail-list">
+            {CATALOG.map((g, i) => (
+              <button key={g.key} type="button" onClick={() => setRailIdx(i)}
+                className={`demo2-rail-item ${i === railIdx ? "is-on" : ""}`}>
+                <MenuGlyph n={GROUP_ICON[g.group] || "chart"} />
+                <span>{SHORT[g.group] || g.group}</span>
+              </button>
             ))}
-          </nav>
-
-          <div className="demo-sidebar-foot">
-            <span className="demo-foot-item">« 접기</span>
-            <span className="demo-foot-item">☾ 다크 모드</span>
-            <span className="demo-foot-item">↪ 로그아웃</span>
+          </div>
+          <div className="demo2-rail-foot">
+            <Glyph d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" />
+            <Glyph d="M15 18l-6-6 6-6" />
+            <Glyph d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
           </div>
         </aside>
 
-        {/* Main column — 앱과 동일하게 플로팅 헤더 + 본문 */}
-        <div className="demo-main-col">
-          <header className="demo-header chrome-glass">
-            <div className="demo-header-titles">
-              <div className="demo-header-crumb">{meta.crumb} ›</div>
-              <div className="demo-header-title">{meta.title}</div>
+        {/* ── 메뉴 패널 ── */}
+        <aside className="demo2-panel chrome-glass">
+          <div className="demo2-brand">
+            <div className="demo2-brand-txt">
+              <b>OwnerView</b>
+              <span>{DEMO_USER} <i className="demo2-badge">마스터</i></span>
             </div>
-            <div className="demo-header-search">
-              <SearchGlyph />
-              <span>무엇이든 검색</span>
-              <kbd className="demo-header-kbd">⌘K</kbd>
-            </div>
-            <div className="demo-header-chip">
-              <BellGlyph />
-              <span className="demo-header-badge">99+</span>
-            </div>
-            <div className="demo-header-profile"><span className="demo-header-avatar">김</span><span className="demo-header-me"><b>{DEMO_USER}</b><i>대표</i></span></div>
-          </header>
+            <span className="demo2-clock">출근</span>
+          </div>
+          <div className="demo2-search">
+            <Glyph d="M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-3.5-3.5" w={14} />
+            <span>검색</span><kbd>⌘K</kbd>
+          </div>
+          <div className="demo2-grp">
+            <span>{group.group}</span><small>{group.menus.length}</small>
+          </div>
+          <nav className="demo2-menu">
+            {group.menus.map((m, i) => {
+              const on = pick.g === railIdx && pick.m === i;
+              return (
+                <button key={m.name} type="button"
+                  onClick={() => { setPick({ g: railIdx, m: i }); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                  className={`demo2-menu-item ${on ? "is-on" : ""}`}>
+                  <MenuGlyph n={m.icon} />
+                  <span>{m.name}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
 
-          <main className="demo-main">
-          {show("dashboard") && (<>
-          {/* ═══ 위젯 대시보드 (실제 앱 최상단) ═══ */}
-          <WidgetBoard />
-
-          {/* ═══ Morning Brief ═══ */}
-          <section
-            className="morning-brief-card glass-card"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: "var(--success)" }}
-              />
-              <span
-                className="text-[10px] font-semibold uppercase tracking-wider"
-                style={{ color: "var(--text-dim)" }}
-              >
-                Morning Brief
-              </span>
-            </div>
-            <div className="space-y-2">
-              {briefLines.map((line, i) => (
-                <p
-                  key={i}
-                  className={`${i === 0 ? "text-base font-bold" : "text-sm"} leading-[1.7]`}
-                  style={{
-                    color:
-                      i === 0 ? "var(--text)" : "var(--text-muted)",
-                  }}
-                >
-                  {line}
-                </p>
+        {/* ── 본문 — 고른 메뉴의 실제 화면 ── */}
+        <main className="demo2-main">
+          {/* 모바일 — 레일·패널이 숨겨지므로 여기서 그룹·메뉴를 고른다(가로 스크롤 칩). */}
+          <div className="demo2-mnav md:hidden">
+            <div className="demo2-mnav-row">
+              {CATALOG.map((g, i) => (
+                <button key={g.key} type="button" onClick={() => setRailIdx(i)}
+                  className={`demo2-mchip ${i === railIdx ? "is-on" : ""}`}>{SHORT[g.group] || g.group}</button>
               ))}
             </div>
-          </section>
-
-          {/* ═══ Cash Pulse Bar ═══ */}
-          <div
-            className="cash-pulse-bar glass-card"
-          >
-            <div
-              className="grid grid-cols-2 md:grid-cols-4 divide-x"
-              style={
-                {
-                  "--tw-divide-opacity": 1,
-                  borderColor: "var(--border)",
-                } as React.CSSProperties
-              }
-            >
-              <div className="pulse-balance-stat">
-                <div
-                  className="text-[9px] font-semibold uppercase tracking-wider mb-1"
-                  style={{ color: "var(--text-dim)" }}
-                >
-                  통장 잔고
-                </div>
-                <div
-                  className="text-base font-black"
-                  style={{ color: "var(--text)" }}
-                >
-                  ₩2.3억
-                </div>
-              </div>
-              <div className="pulse-forecast-stat">
-                <div
-                  className="text-[9px] font-semibold uppercase tracking-wider mb-1"
-                  style={{ color: "var(--text-dim)" }}
-                >
-                  현금 예측
-                </div>
-                <div className="text-sm font-black" style={{ color: "var(--text)" }}>
-                  D+30 ₩1.98억
-                </div>
-                <div
-                  className="text-[10px] font-semibold mt-0.5"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  D+90 ₩1.41억
-                </div>
-              </div>
-              <div className="pulse-score-stat">
-                <div
-                  className="text-[9px] font-semibold uppercase tracking-wider mb-1"
-                  style={{ color: "var(--text-dim)" }}
-                >
-                  펄스 점수
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    className="text-lg font-black text-[#22c55e]"
-                  >
-                    72
-                  </span>
-                  <span
-                    className="text-[10px] font-semibold"
-                    style={{ color: "var(--text-dim)" }}
-                  >
-                    / 100
-                  </span>
-                </div>
-              </div>
-              <div className="pulse-risk-stat">
-                <div
-                  className="text-[9px] font-semibold uppercase tracking-wider mb-1"
-                  style={{ color: "var(--text-dim)" }}
-                >
-                  위험 . 대기
-                </div>
-                <div className="flex items-baseline gap-3">
-                  <span
-                    className="text-sm font-black"
-                    style={{ color: "var(--danger, #ef4444)" }}
-                  >
-                    위험 3
-                  </span>
-                  <span
-                    className="text-sm font-black"
-                    style={{ color: "var(--warning, #f59e0b)" }}
-                  >
-                    대기 2
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* ═══ 6-Pack Metrics ═══ */}
-          <div
-            className="six-pack-metrics-card glass-card"
-          >
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-y md:divide-y-0"
-              style={{ borderColor: "var(--border)" }}
-            >
-              {SIX_PACK.map((item) => (
-                <div key={item.label} className="six-pack-metric-item">
-                  <div
-                    className="text-[9px] font-semibold uppercase tracking-wider mb-1"
-                    style={{ color: "var(--text-dim)" }}
-                  >
-                    {item.label}
-                  </div>
-                  <div className="text-sm font-black" style={{ color: item.color }}>
-                    {item.value}
-                  </div>
-                </div>
+            <div className="demo2-mnav-row demo2-mnav-sub">
+              {group.menus.map((m, i) => (
+                <button key={m.name} type="button"
+                  onClick={() => setPick({ g: railIdx, m: i })}
+                  className={`demo2-mchip ${pick.g === railIdx && pick.m === i ? "is-on" : ""}`}>{m.name}</button>
               ))}
             </div>
           </div>
-
-          {/* ═══ Cash Pulse Forecast Chart ═══ */}
-          <div
-            className="cash-pulse-forecast-card glass-card"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: "var(--primary)" }}
-              />
-              <h2
-                className="text-xs font-bold uppercase tracking-wider"
-                style={{ color: "var(--text-dim)" }}
-              >
-                현금 펄스
-              </h2>
-              <span
-                className="text-[9px] px-1.5 py-0.5 rounded font-semibold"
-                style={{
-                  background: "rgba(34,197,94,0.1)",
-                  color: "#22c55e",
-                }}
-              >
-                72/100
-              </span>
-            </div>
-            <div className="grid grid-cols-5 gap-2 mb-3">
-              {PULSE_FORECAST.map((pt) => {
-                const pct =
-                  maxForecast > 0
-                    ? (Math.abs(pt.balance) / maxForecast) * 100
-                    : 0;
-                return (
-                  <div key={pt.label} className="forecast-bar-item">
-                    <div
-                      className="text-[9px] font-semibold mb-1"
-                      style={{ color: "var(--text-dim)" }}
-                    >
-                      {pt.label}
-                    </div>
-                    <div className="h-12 flex items-end justify-center mb-1">
-                      <div
-                        className="w-full max-w-[32px] rounded-t opacity-80"
-                        style={{
-                          height: `${Math.max(pct, 8)}%`,
-                          background: pt.color,
-                        }}
-                      />
-                    </div>
-                    <div
-                      className="text-[10px] font-bold"
-                      style={{ color: "var(--text)" }}
-                    >
-                      ₩{(pt.balance / 10000).toFixed(1)}만
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div
-              className="text-[11px] leading-relaxed px-1 py-2 rounded"
-              style={{
-                color: "var(--text-muted)",
-                background: "var(--bg-surface, var(--bg))",
-              }}
-            >
-              현재 잔고 2.3억, D+30 1.98억 예측. 런웨이 8.2개월로 안정 구간.
-              미수금 1,200만원 회수 시 D+90 예측이 1.53억으로 개선됩니다.
+          <div className="demo2-shot">
+            {/* 캡처마다 세로 길이가 달라 높이를 고정하지 않는다(잘리면 화면을 오해한다). */}
+            <Image key={shown.src} src={shown.src} alt={shown.alt} width={2288} height={1432}
+              sizes="(max-width: 1100px) 96vw, 1180px" priority />
+          </div>
+          <div className="demo2-cap">
+            {/* ⚠️ 레일에서 고른 그룹(group)이 아니라 '지금 보고 있는 화면'의 그룹을 적는다 —
+                그룹만 훑어볼 때 "파이낸스 › 대시보드" 처럼 어긋난다. */}
+            <div className="demo2-cap-t">{CATALOG[pick.g].group} › {shown.name}</div>
+            <p>{shown.desc}</p>
+            <div className="demo2-cap-items">
+              {shown.items.map((it) => <span key={it}>{it}</span>)}
             </div>
           </div>
+        </main>
+      </div>
 
-          {/* ═══ Today Actions ═══ */}
-          <div className="today-actions-list">
-            <div className="flex items-center gap-2 mb-3">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: "var(--primary)" }}
-              />
-              <h2
-                className="text-xs font-bold uppercase tracking-wider"
-                style={{ color: "var(--text-dim)" }}
-              >
-                오늘의 액션
-              </h2>
-            </div>
-            <div className="space-y-2">
-              {TODAY_ACTIONS.map((a, i) => {
-                const borderColor =
-                  a.priority === "critical"
-                    ? "var(--danger, #ef4444)"
-                    : a.priority === "high"
-                      ? "var(--warning, #f59e0b)"
-                      : "var(--text-dim)";
-                const dotColor =
-                  a.priority === "critical"
-                    ? "bg-red-500"
-                    : a.priority === "high"
-                      ? "bg-amber-500"
-                      : "bg-slate-400";
-                return (
-                  <div
-                    key={i}
-                    className={`today-action-item glass-card today-action-${a.priority}`}
-                    style={{ borderLeftColor: borderColor }}
-                  >
-                    <div
-                      className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`}
-                    />
-                    <span
-                      className="text-xs flex-1"
-                      style={{ color: "var(--text-muted)" }}
-                    >
-                      {a.text}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ═══ Yesterday Transactions ═══ */}
-          <div
-            className="yesterday-tx-card glass-card"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: "var(--text-dim)" }}
-              />
-              <h2
-                className="text-xs font-bold uppercase tracking-wider"
-                style={{ color: "var(--text-dim)" }}
-              >
-                어제 거래 요약
-              </h2>
-            </div>
-            <div className="space-y-2">
-              {YESTERDAY_TX.map((tx, i) => (
-                <div
-                  key={i}
-                  className="yesterday-tx-row"
-                  style={{ background: "var(--bg-surface, var(--bg))" }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                      style={{
-                        background:
-                          tx.type === "입금"
-                            ? "rgba(34,197,94,0.1)"
-                            : "rgba(239,68,68,0.1)",
-                        color:
-                          tx.type === "입금" ? "#22c55e" : "#ef4444",
-                      }}
-                    >
-                      {tx.type}
-                    </span>
-                    <span
-                      className="text-xs"
-                      style={{ color: "var(--text)" }}
-                    >
-                      {tx.desc}
-                    </span>
-                  </div>
-                  <span
-                    className="text-xs font-bold"
-                    style={{
-                      color:
-                        tx.amount.startsWith("+")
-                          ? "#22c55e"
-                          : "#ef4444",
-                    }}
-                  >
-                    {tx.amount}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ═══ Risk Zone ═══ */}
-          <div className="risk-zone-section">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <h2
-                className="text-xs font-bold uppercase tracking-wider"
-                style={{ color: "var(--text-dim)" }}
-              >
-                위험 구역
-              </h2>
-              <span
-                className="text-[10px]"
-                style={{ color: "var(--text-dim)" }}
-              >
-                3건
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {RISK_ITEMS.map((risk) => (
-                <div
-                  key={risk.label}
-                  className={`risk-item-card glass-card ${risk.count > 0 ? "risk-item-card-hot" : ""}`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm"><Ico e={risk.icon} /></span>
-                    <span
-                      className="text-[11px] font-bold"
-                      style={{ color: "var(--text)" }}
-                    >
-                      {risk.label}
-                    </span>
-                    <span
-                      className="ml-auto text-xs font-black"
-                      style={{
-                        color:
-                          risk.count > 0
-                            ? "var(--danger, #ef4444)"
-                            : "var(--text-dim)",
-                      }}
-                    >
-                      {risk.count}
-                    </span>
-                  </div>
-                  <div
-                    className="text-[10px]"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {risk.detail}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ═══ Deal Pipeline (collapsible) ═══ */}
-          <div
-            className="deal-pipeline-card glass-card"
-          >
-            <button
-              onClick={() => setShowDeals(!showDeals)}
-              className="flex items-center gap-2 w-full text-left"
-            >
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: "var(--primary)" }}
-              />
-              <h2
-                className="text-xs font-bold uppercase tracking-wider flex-1"
-                style={{ color: "var(--text-dim)" }}
-              >
-                프로젝트 파이프라인
-              </h2>
-              <span
-                className="text-[10px] font-semibold"
-                style={{ color: "var(--text-dim)" }}
-              >
-                {DEALS.length}건
-              </span>
-              <svg
-                className={`w-4 h-4 transition-transform ${showDeals ? "rotate-180" : ""}`}
-                style={{ color: "var(--text-dim)" }}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M19 9l-7 7-7-7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            {showDeals && (
-              <div className="mt-3 space-y-2">
-                {DEALS.map((deal) => (
-                  <div
-                    key={deal.name}
-                    className="deal-pipeline-row"
-                    style={{ background: "var(--bg-surface, var(--bg))" }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div
-                        className="text-xs font-bold truncate"
-                        style={{ color: "var(--text)" }}
-                      >
-                        {deal.name}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded font-semibold opacity-90"
-                          style={{
-                            background: "var(--primary)",
-                            color: "#fff",
-                          }}
-                        >
-                          {deal.stage}
-                        </span>
-                        <span
-                          className="text-[10px]"
-                          style={{ color: "var(--text-muted)" }}
-                        >
-                          {deal.amount}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="w-16 flex-shrink-0">
-                      <div
-                        className="h-1.5 rounded-full overflow-hidden"
-                        style={{ background: "var(--border)" }}
-                      >
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${deal.progress}%`,
-                            background: "var(--primary)",
-                          }}
-                        />
-                      </div>
-                      <div
-                        className="text-[9px] text-right mt-0.5 font-semibold"
-                        style={{ color: "var(--text-dim)" }}
-                      >
-                        {deal.progress}%
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 대시보드에서만 프로젝트 흐름을 같이 보여준다 */}
-          <ProjectFlow />
-          </>)}
-
-          {/* ═══ 메뉴별 화면 — 사이드바에서 고른 메뉴 하나만 (?all=1 이면 전부) ═══ */}
-          {show("flow") && <AnalyticsPanel />}
-          {show("leave") && <HrPanel />}
-          {show("ledger") && <LedgerPanel />}
-          {show("partners") && <PartnersRealPanel />}
-          {show("voucher") && <VoucherRealPanel />}
-          {show("schedule") && <ScheduleRealPanel />}
-          {show("approvals") && <ApprovalsRealPanel />}
-          {show("board") && <BoardRealPanel />}
-          {show("chat") && <ChatRealPanel />}
-          {show("templates") && <TemplatesRealPanel />}
-          {show("documents") && <DocumentsRealPanel />}
-          {show("bank") && <BankRealPanel />}
-          {show("cards") && <CardsRealPanel />}
-          {show("payments") && <PaymentsRealPanel />}
-          {show("projects") && <ProjectHubPanel />}
-          {(show("projects") || capAll) && <EstimatePanel />}
-          {show("contract") && <SignRealPanel />}
-          {(show("projects") || capAll) && <SettlementPanel />}
-          {show("members") && <EmployeesRealPanel />}
-          {show("leave") && <AttendanceRealPanel />}
-          {show("tax") && <TaxRealPanel />}
-          {/* 랜딩 "처리 전 → 처리 후" 크로스페이드용 앞 상태 — 캡처 모드에서만 렌더 */}
-          {capAll && <EstimateBeforePanel />}
-          {capAll && <SettlementBeforePanel />}
-          {capAll && <ProjectsBeforePanel />}
-          {capAll && <HrBeforePanel />}
-          {capAll && <MembersBeforePanel />}
-          {capAll && <LeaveBeforePanel />}
-          {capAll && <AcctBeforePanel />}
-          {capAll && <BankBeforePanel />}
-          {capAll && <TaxBeforePanel />}
-          {capAll && <AnalyticsPanel before />}
-          {capAll && <LedgerPanel before />}
-          {capAll && <TaxRealPanel before />}
-          {capAll && <ReconPanel />}
-          {capAll && <ReconPanel before />}
-          {capAll && <ProjectHubPanel before />}
-          {capAll && <ApprovalsRealPanel before />}
-          {capAll && <SignRealPanel before />}
-          {capAll && <EmployeesRealPanel before />}
-          {capAll && <AttendanceRealPanel before />}
-          {capAll && <BankRealPanel before />}
-          {capAll && <CardsRealPanel before />}
-          {capAll && <PaymentsRealPanel before />}
-          {capAll && <CopilotRealPanel before />}
-          {capAll && <OutlookPanel />}         {capAll && <OutlookPanel before />}
-          {capAll && <PayrollPanel />}         {capAll && <PayrollPanel before />}
-          {capAll && <PartnersRealPanel before />}
-          {capAll && <VoucherRealPanel before />}
-          {capAll && <ScheduleRealPanel before />}
-          {capAll && <BoardRealPanel before />}
-          {capAll && <ChatRealPanel before />}
-          {capAll && <TemplatesRealPanel before />}
-          {capAll && <DocumentsRealPanel before />}
-          {capAll && <BriefRealPanel />}       {capAll && <BriefRealPanel before />}
-          {show("copilot") && <CopilotRealPanel />}
-          {(show("copilot") || capAll) && <BriefPanel />}
-          {(show("approvals") || capAll) && <OcrPanel />}
-
-          {view === "soon" && !capAll && (
-            <section className="pp glass-card">
-              <div className="pp-head">
-                <div className="pp-head-l">
-                  <div className="pp-menu">데모</div>
-                  <div className="pp-title">이 메뉴는 데모에 담지 않았어요</div>
-                  <div className="pp-sub">가입하면 알림·설정까지 전부 쓸 수 있어요. 다른 메뉴를 눌러보세요.</div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* ═══ Quick Links ═══ */}
-          <div className="quick-links-section">
-            <div className="flex items-center gap-2 mb-3">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: "var(--text-dim)" }}
-              />
-              <h2
-                className="text-xs font-bold uppercase tracking-wider"
-                style={{ color: "var(--text-dim)" }}
-              >
-                빠른 이동
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {QUICK_LINKS.map((link) => (
-                <div
-                  key={link.label}
-                  className="quick-link-card glass-card"
-                >
-                  <div className="text-xl mb-1.5"><Ico e={link.icon} /></div>
-                  <div
-                    className="text-xs font-bold"
-                    style={{ color: "var(--text)" }}
-                  >
-                    {link.label}
-                  </div>
-                  <div
-                    className="text-[10px] mt-0.5"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {link.desc}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ═══ CTA ═══ */}
-          <div
-            className="cta-card glass-card"
-          >
-            <h3
-              className="text-lg font-bold mb-2"
-              style={{ color: "var(--text)" }}
-            >
-              실제 데이터로 시작해보세요
-            </h3>
-            <p
-              className="text-sm mb-6"
-              style={{ color: "var(--text-muted)" }}
-            >
-              기존 엑셀만 올리면 70% 즉시 완성. 가입 시 카드 등록 · 14일 무료.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                href="/auth"
-                className="px-8 py-3 rounded-xl text-sm font-bold text-white transition hover:opacity-90 active:scale-[0.98]"
-                style={{ background: "var(--primary)" }}
-              >
-                무료로 시작하기
-              </Link>
-              <Link
-                href="/"
-                className="px-8 py-3 rounded-xl text-sm font-semibold border transition"
-                style={{
-                  borderColor: "var(--border)",
-                  color: "var(--text-muted)",
-                  background: "var(--bg-surface, var(--bg))",
-                }}
-              >
-                랜딩 페이지로 돌아가기
-              </Link>
-            </div>
-          </div>
-          </main>
-        </div>
+      {/* 버튼은 globals.css 의 공용 클래스로 — 랜딩 전용 lp5-btn 은 landing-v5/v6.css 에 있어
+          /demo 에서는 로드되지 않아 스타일이 안 먹는다(2026-08-20 실측). */}
+      <div className="demo2-foot">
+        <Link href="/" className="btn-secondary no-underline">랜딩 페이지로 돌아가기</Link>
+        <Link href="/auth" className="btn-primary no-underline">무료로 시작하기</Link>
       </div>
     </div>
   );

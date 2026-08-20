@@ -1281,51 +1281,69 @@ thead th { white-space: nowrap; word-break: keep-all; }
    앰비언트 캔버스 노출 + 인셋 플로팅 유리 사이드바/헤더로 맞춘다.
    (배경을 칠하지 않아야 body::before 오브가 유리를 투과한다) */
 .demo-root { @apply min-h-screen; }
+
+/* ── /demo 2026-08-20 재작성 — 아이콘 레일 + 메뉴 패널 + 실제 화면 캡처 ──
+   앱 사이드바(2단)와 같은 뼈대. 기존 .demo-* 는 옛 1단 목업용이라 건드리지 않고 새 이름(demo2-*)만 추가. */
+.demo2-shell { @apply flex gap-0 p-3 pt-3 md:p-4 md:pt-4 items-start; }
+.demo2-rail { @apply hidden md:flex flex-col items-center gap-1 shrink-0 w-[72px] py-3 rounded-[20px]
+  border border-[var(--border)]/60 shadow-[var(--shadow-lg)] sticky top-[76px]; }
+.demo2-mark { @apply w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 mb-2;
+  background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.demo2-rail-list { @apply flex flex-col items-center gap-0.5 w-full px-1.5; }
+.demo2-rail-item { @apply w-full flex flex-col items-center gap-1 py-2 rounded-xl
+  text-[10px] font-bold text-[var(--text-dim)] transition; }
+.demo2-rail-item:hover { @apply bg-[var(--bg-surface)] text-[var(--text)]; }
+.demo2-rail-item.is-on { @apply bg-[var(--primary)] text-white; }
+.demo2-rail-foot { @apply mt-auto pt-3 flex flex-col items-center gap-3 text-[var(--text-dim)]; }
+
+.demo2-panel { @apply hidden md:flex flex-col shrink-0 w-[224px] ml-2 p-3 rounded-[20px]
+  border border-[var(--border)]/60 shadow-[var(--shadow-lg)] sticky top-[76px] max-h-[calc(100vh-96px)]; }
+.demo2-brand { @apply flex items-center gap-2 pb-2.5 mb-1 border-b border-[var(--border)]/70; }
+.demo2-brand-txt { @apply flex flex-col min-w-0 flex-1; }
+.demo2-brand-txt b { @apply text-[13px] font-extrabold text-[var(--text)] leading-4; }
+.demo2-brand-txt span { @apply text-[10px] text-[var(--text-dim)] truncate; }
+.demo2-badge { @apply not-italic ml-0.5 px-1 py-px rounded text-[8px] font-bold text-white;
+  background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.demo2-clock { @apply shrink-0 px-2 py-1 rounded-lg text-[10.5px] font-bold text-white;
+  background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
+.demo2-search { @apply flex items-center gap-1.5 mt-1 mb-2 px-2.5 py-1.5 rounded-xl
+  border border-[var(--border)]/80 bg-[var(--bg)]/60 text-[11px] text-[var(--text-dim)]; }
+.demo2-search kbd { @apply ml-auto px-1 py-px rounded border border-[var(--border)] text-[9px] font-semibold; }
+.demo2-grp { @apply flex items-center justify-between px-1.5 pb-1 text-[11px] font-extrabold text-[var(--text)]; }
+.demo2-grp small { @apply text-[10px] font-bold text-[var(--text-dim)]; }
+.demo2-menu { @apply flex-1 overflow-y-auto flex flex-col gap-0.5 pr-0.5; }
+.demo2-menu-item { @apply w-full flex items-center gap-2 px-2 py-[7px] rounded-xl text-left
+  text-[12.5px] font-medium text-[var(--text-muted)] transition; }
+.demo2-menu-item:hover { @apply bg-[var(--bg-surface)] text-[var(--text)]; }
+.demo2-menu-item.is-on { @apply bg-[var(--primary)] text-white font-bold; }
+
+.demo2-main { @apply flex-1 min-w-0 md:pl-4; }
+.demo2-shot { @apply rounded-[18px] overflow-hidden border border-[var(--border)]/70 bg-white shadow-[var(--shadow-lg)]; }
+.demo2-shot img { @apply block w-full h-auto; }
+.demo2-cap { @apply mt-4 px-1; }
+.demo2-cap-t { @apply text-[13px] font-extrabold text-[var(--primary)]; }
+.demo2-cap p { @apply mt-1 text-sm leading-relaxed text-[var(--text-muted)]; }
+.demo2-cap-items { @apply mt-2.5 flex flex-wrap gap-1.5; }
+.demo2-cap-items span { @apply px-2.5 py-1 rounded-lg border border-[var(--border)]/80
+  bg-[var(--bg-surface)] text-[11.5px] font-semibold text-[var(--text-muted)]; }
+.demo2-foot { @apply flex flex-wrap items-center justify-center gap-3 pb-12 pt-2; }
+/* 모바일 메뉴 — 레일·패널이 숨는 폭에서 그룹·메뉴를 고르는 가로 칩 줄 */
+.demo2-mnav { @apply mb-3 flex flex-col gap-1.5; }
+.demo2-mnav-row { @apply flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1; scrollbar-width: none; }
+.demo2-mnav-row::-webkit-scrollbar { display: none; }
+.demo2-mchip { @apply shrink-0 px-3 py-1.5 rounded-full border border-[var(--border)]/80
+  bg-[var(--bg-card)] text-[12px] font-bold text-[var(--text-muted)] whitespace-nowrap; }
+.demo2-mchip.is-on { @apply bg-[var(--primary)] border-transparent text-white; }
+.demo2-mnav-sub .demo2-mchip { @apply font-medium text-[11.5px]; }
 /* 2026-07-28 배너가 화면 끝까지 차서 아래 셸(p-4 인셋)보다 넓어 보였다 → 셸과 같은 폭·라운드로 */
 .demo-banner { @apply sticky top-0 z-50 mx-3 md:mx-4 mt-3 md:mt-4 px-4 py-2.5 rounded-[16px]
   text-center text-sm font-semibold text-white; }
 .demo-banner { background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.demo-shell { @apply flex gap-0 p-3 pt-3 md:p-4 md:pt-4; }
 /* .sidebar-panel 을 겸용하지 않고 그 속성을 여기서 직접 정의한다 —
    .sidebar-panel 이 globals.css 뒤쪽에 정의돼 있어 display:flex 가 이 규칙의 hidden 을
    덮어써 모바일에서 사이드바가 그대로 노출됐다.
    sticky 오프셋은 상단 데모 배너(약 42px) 아래로 — 배너가 브랜드 블록을 덮던 문제. */
-.demo-sidebar {
-  @apply hidden md:flex flex-col w-[248px] flex-shrink-0 p-3 sticky top-[54px] h-[calc(100vh-70px)]
-         rounded-[20px] border border-[var(--border)]/60 overflow-hidden shadow-[var(--shadow-lg)];
-}
-.demo-sidebar-brand { @apply flex items-center gap-2.5 px-1 pb-3 mb-1 border-b border-[var(--border)]/70; }
-.demo-sidebar-mark { @apply w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.demo-sidebar-brand-text { @apply flex flex-col min-w-0; }
-.demo-sidebar-brand-name { @apply text-sm font-extrabold text-[var(--text)] leading-4; }
-.demo-sidebar-brand-sub { @apply text-[10px] text-[var(--text-dim)] truncate; }
-.demo-sidebar-nav { @apply flex-1 overflow-y-auto space-y-3 pt-2 pr-0.5; }
-.demo-sidebar-group { @apply px-2 pb-1 text-[10px] font-bold tracking-wider uppercase text-[var(--text-dim)]; }
 /* 2026-07-28 데모 사이드바를 실제로 눌러 볼 수 있게 바꿨다 — cursor-default → pointer + hover */
-.demo-nav-item { @apply w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[13px] font-medium
-  text-[var(--text-muted)] cursor-pointer text-left transition-colors; }
-.demo-nav-item:hover { @apply bg-[var(--bg-surface)] text-[var(--text)]; }
-.demo-nav-item.nav-active:hover { @apply text-white; }
-.demo-nav-glyph { @apply w-4 h-4 shrink-0; }
-.demo-nav-badge { @apply ml-auto px-1.5 py-0.5 rounded-full bg-[var(--danger)] text-white text-[10px] font-bold leading-none; }
-.demo-nav-item.nav-active .demo-nav-badge { @apply bg-white/25; }
-.demo-sidebar-foot { @apply flex items-center gap-2.5 pt-3 mt-1 border-t border-[var(--border)]/70; }
-.demo-sidebar-avatar { @apply w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.demo-sidebar-user { @apply min-w-0; }
-.demo-sidebar-user-name { @apply text-xs font-bold text-[var(--text)] leading-4; }
-.demo-sidebar-user-role { @apply text-[10px] text-[var(--text-dim)]; }
-.demo-main-col { @apply flex-1 min-w-0 md:pl-4; }
-.demo-header { @apply h-16 flex items-center gap-3 px-4 md:px-6 rounded-[20px] border border-[var(--border)]/60 shadow-[var(--shadow-lg)] mb-4; }
-.demo-header-titles { @apply flex-1 min-w-0; }
-.demo-header-crumb { @apply text-[11px] leading-4 text-[var(--text-dim)]; }
-.demo-header-title { @apply text-base font-bold text-[var(--text)] leading-5; }
-.demo-header-glyph { @apply w-4 h-4; }
-.demo-header-search { @apply hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)]/80 bg-[var(--bg)]/70 text-xs text-[var(--text-dim)] w-[200px]; }
-.demo-header-kbd { @apply ml-auto px-1.5 py-0.5 rounded-md border border-[var(--border)] text-[10px] font-semibold; }
-.demo-header-chip { @apply relative w-9 h-9 rounded-xl border border-[var(--border)]/80 flex items-center justify-center text-[var(--text-muted)]; }
-.demo-header-dot { @apply absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--danger)]; }
-.demo-header-avatar { @apply w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.demo-main { @apply min-w-0 max-w-[1180px] pb-10; }
 .risk-item-card-hot { border-color: rgba(239,68,68,0.28); }
 .today-action-critical { background: color-mix(in srgb, var(--danger) 4%, var(--glass-bg)); }
 .today-action-high { background: color-mix(in srgb, var(--warning) 4%, var(--glass-bg)); }
@@ -1365,20 +1383,7 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
    실제 앱 대시보드는 react-grid-layout 위젯 보드(12칼럼 · rowHeight 44 · margin 12)다.
    데모에 이게 빠져 있어 "예전 화면" 으로 보였다. 같은 격자 규격을 CSS Grid 로 재현한다. */
 .wb { @apply mb-5; }
-.wb-head { @apply flex items-end justify-between gap-3 flex-wrap mb-3; }
-.wb-eyebrow { @apply text-[11px] font-bold tracking-wider uppercase text-[var(--primary)]; }
-.wb-title { @apply text-[13px] text-[var(--text-dim)] mt-0.5; }
-.wb-actions { @apply flex items-center gap-1.5 shrink-0; }
-.wb-btn { @apply px-3 py-1.5 rounded-lg text-[11px] font-bold border border-[var(--border)] text-[var(--text-muted)] bg-[var(--bg-card)]; }
-.wb-btn-on { @apply text-white border-transparent; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.wb-grid { @apply hidden md:grid; grid-template-columns: repeat(12, 1fr); grid-auto-rows: 44px; gap: 12px; }
 /* 모바일은 실제 앱도 1칼럼으로 떨어진다 */
-.wb-grid-m { @apply grid md:hidden gap-3; }
-.wb-tile { @apply flex flex-col overflow-hidden; }
-.wb-tile-head { @apply flex items-center gap-2 px-3.5 pt-3 pb-2 shrink-0; }
-.wb-tile-name { @apply text-[12.5px] font-bold text-[var(--text)] flex-1 truncate; }
-.wb-tile-link { @apply text-[11px] font-semibold text-[var(--primary)] shrink-0; }
-.wb-tile-body { @apply px-3.5 pb-3.5 flex-1 min-h-0 overflow-hidden; }
 
 .wg-row { @apply flex items-center justify-between gap-2 py-1.5 text-[11.5px] border-b border-[var(--border)] last:border-0; }
 .wg-row-l { @apply text-[var(--text-muted)] truncate; }
@@ -1434,29 +1439,9 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 
 
 /* 실제 앱과 맞춘 데모 셸 요소 (2026-07-27 실계정 화면 대조) */
-.demo-role { @apply ml-1 px-1 py-px rounded text-[8px] font-bold text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.demo-side-search { @apply flex items-center gap-2 mx-1 mt-3 px-3 py-2 rounded-xl border border-[var(--border)]/80 bg-[var(--bg)]/60 text-[11.5px] text-[var(--text-dim)]; }
-.demo-side-kbd { @apply ml-auto px-1.5 py-0.5 rounded border border-[var(--border)] text-[9.5px] font-semibold; }
-.demo-sidebar-foot { @apply flex flex-col gap-1.5 pt-3 mt-1 border-t border-[var(--border)]/70; }
-.demo-foot-item { @apply text-[11.5px] text-[var(--text-dim)] px-1; }
-.demo-header-badge { @apply absolute -top-1 -right-1 px-1 rounded-full bg-[var(--danger)] text-white text-[9px] font-bold leading-[14px]; }
-.demo-header-profile { @apply flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-[var(--border)]/70; }
-.demo-header-me { @apply hidden lg:flex flex-col leading-tight; }
-.demo-header-me b { @apply text-[11.5px] font-bold text-[var(--text)]; }
-.demo-header-me i { @apply not-italic text-[9.5px] text-[var(--text-dim)]; }
 
 /* ── /demo 3대 축 패널 (2026-07-27) — 경영흐름 · 인사관리 · 회계관리 캡처 소스 ── */
 .pp { @apply mb-5 p-6; }
-.pp-head { @apply flex items-start justify-between gap-4 flex-wrap pb-4 mb-4 border-b border-[var(--border)]; }
-.pp-menu { @apply text-[10px] font-bold tracking-wider uppercase text-[var(--primary)]; }
-.pp-title { @apply text-lg font-extrabold text-[var(--text)] mt-1; }
-.pp-sub { @apply text-xs text-[var(--text-muted)] mt-1; }
-.pp-badge { @apply px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 leading-none; }
-.pp-badge-p { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
-.pp-badge-s { @apply bg-[var(--success-dim)] text-[var(--success)]; }
-.pp-section-t { @apply text-xs font-bold text-[var(--text-muted)] mt-5 mb-2.5; }
-.pp-alert { @apply mt-3 px-3.5 py-2.5 rounded-xl text-[11.5px] font-semibold bg-[var(--warning-dim)] text-[var(--warning)]; }
-.pp-mt { @apply mt-4; }
 /* 파이낸스 허브 하위 탭 — 실제 화면(components/finance-tabs.tsx)의 탭 줄 재현 */
 /* ⚠️ 390px 에서 탭 7개가 폭에 맞춰 찌그러지며 글자가 한 자씩 세로로 쪼개졌다
    ("내 결재함" 이 네 줄이 됐다 — 폰 캡처에 그대로 담겼다, 2026-07-29).
@@ -1464,187 +1449,25 @@ a.morning-brief-statbar-item:hover .morning-brief-stat-value { color: var(--prim
 /* ⚠️ 앱의 실제 탭은 seg-bar(틴트 바 안의 필) 다. 데모가 낱개 알약 + 그라데이션이라
       캡처가 앱과 다르게 보였다(2026-07-30 사장님: 전 메뉴 화면이 바뀌었다).
       seg-bar/seg-item 과 같은 시각으로 맞춘다 — 배경 바, 솔리드 프라이머리 활성. */
-.pp-subtabs {
-  @apply inline-flex items-center gap-1 -mt-1 mb-1 p-1 rounded-xl overflow-x-auto;
-  background: var(--bg-surface); border: 1px solid var(--border); scrollbar-width: none;
-}
-.pp-subtabs::-webkit-scrollbar { display: none; }
-.pp-subtab { @apply shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-lg text-[12px] font-semibold text-[var(--text-muted)]; }
-.pp-subtab-on { @apply font-bold text-white; background: var(--primary); }
-
 /* 경영 흐름 */
-.pp-forecast { @apply grid grid-cols-4 gap-3 items-end; }
-.pp-fc { @apply text-center; }
-.pp-fc-bar-wrap { @apply h-24 flex items-end justify-center; }
-.pp-fc-bar { @apply w-10 rounded-t-lg; }
-.pp-fc-ok { background: linear-gradient(180deg, var(--primary-soft), var(--primary)); }
-.pp-fc-warn { background: linear-gradient(180deg, #fbbf24, var(--warning)); }
-.pp-fc-v { @apply text-[11.5px] font-extrabold text-[var(--text)] mt-1.5; font-variant-numeric: tabular-nums; }
-.pp-fc-l { @apply text-[10px] text-[var(--text-dim)]; }
-.pp-steps { @apply flex items-stretch gap-1 overflow-hidden; }
-.pp-step-wrap { @apply flex items-center gap-1 flex-1 min-w-0; }
-.pp-step { @apply flex-1 min-w-0 p-2.5 rounded-xl border border-[var(--border)] border-t-2; }
-.pp-step-no { @apply text-[9px] font-bold text-[var(--text-dim)]; }
-.pp-step-n { @apply text-[11.5px] font-bold text-[var(--text)] truncate; }
-.pp-step-v { @apply text-[12.5px] font-extrabold text-[var(--text)] mt-1; font-variant-numeric: tabular-nums; }
-.pp-step-d { @apply text-[9.5px] text-[var(--text-dim)] truncate; }
-.pp-step-arrow { @apply text-[var(--text-dim)] text-sm shrink-0; }
-.pp-step-p { border-top-color: var(--primary); }
-.pp-step-i { border-top-color: var(--info); }
-.pp-step-s { border-top-color: var(--success); }
-.pp-step-w { border-top-color: var(--warning); }
-.pp-step-vi { border-top-color: var(--primary-soft); }
 
 /* 공통 서브카드 · 표 */
-.pp-grid2 { @apply grid grid-cols-1 md:grid-cols-2 gap-3; }
-.pp-grid3 { @apply grid grid-cols-3 gap-3; }
-.pp-sub-card { @apply p-4 rounded-xl border border-[var(--border)] bg-[var(--bg)]/40; }
-.pp-sub-t { @apply text-[11px] font-bold text-[var(--text-muted)] mb-2.5; }
-.pp-stats { @apply grid grid-cols-2 gap-x-3 gap-y-2.5; }
-.pp-stat { @apply flex flex-col; }
-.pp-stat b { @apply text-[15px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
-.pp-stat span { @apply text-[10px] text-[var(--text-dim)]; }
-.pp-payroll { @apply flex flex-col; }
-.pp-pay-row { @apply flex items-center justify-between gap-2 py-1.5 text-[11.5px] text-[var(--text-muted)] border-b border-[var(--border)] last:border-0; }
-.pp-pay-row b { @apply text-[var(--text)] font-bold; font-variant-numeric: tabular-nums; }
-.pp-pay-cta { @apply flex items-center justify-between gap-2 mt-3 flex-wrap; }
-.pp-chip-ok { @apply text-[10.5px] font-bold px-2 py-1 rounded-full bg-[var(--success-dim)] text-[var(--success)]; }
-.pp-btn { @apply px-3 py-1.5 rounded-lg text-[11px] font-bold text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
 /* KPI 타일 — 앱의 .stat-tile 과 같은 재질(흰 카드 + 카드 라운드/그림자)로 맞춘다 */
-.pp-mini {
-  @apply p-4 flex flex-col gap-1;
-  background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-card);
-  box-shadow: 0 8px 32px -10px rgba(31,38,75,0.13), 0 2px 8px -3px rgba(31,38,75,0.05), inset 0 1px 0 var(--glass-inner);
-}
-.pp-mini span { @apply text-[11px] font-medium text-[var(--text-dim)]; }
-.pp-mini b { @apply text-[20px] font-extrabold text-[var(--text)] leading-7; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.pp-mini-ok b { color: var(--success); }
 /* 표 — 앱의 .table-head-row(헤더 12px dim + 하단선) 위계에 맞춘다 */
-.pp-table { @apply w-full text-[12px] border-collapse; }
-.pp-table th { @apply text-left font-semibold text-[var(--text-dim)] py-2.5 border-b border-[var(--border)] text-[11px]; }
-.pp-table td { @apply py-3 border-b border-[var(--border)] text-[var(--text-muted)]; }
-.pp-table th:last-child, .pp-table td:last-child { @apply text-right; }
-.pp-strong { @apply font-semibold text-[var(--text)]; }
-.pp-num { @apply font-bold; font-variant-numeric: tabular-nums; }
-.pp-in { color: var(--success); }
-.pp-out { color: var(--text); }
-.pp-tag { @apply text-[9.5px] font-bold px-1.5 py-0.5 rounded-md; }
-.pp-tag-n { @apply bg-[var(--bg-surface)] text-[var(--text-muted)]; }
-.pp-tag-s { @apply bg-[var(--success-dim)] text-[var(--success)]; }
-.pp-tag-w { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
-.pp-ai { @apply ml-1 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
 
 
 /* ── /demo 메뉴별 패널 (2026-07-27) — 랜딩 "오너뷰 둘러보기" 캐프처 소스
    기존 pp- 클래스를 그대로 쓰고, 여기서는 새 이름만 추가한다(기존 정의 변경 금지). ── */
-.pp-cal { @apply grid grid-cols-5 gap-2; }
-.pp-cal-day { @apply p-2.5 rounded-xl border border-[var(--border)] min-h-[92px]; }
-.pp-cal-dh { @apply text-[10px] font-bold text-[var(--text-dim)] mb-2; }
-.pp-bar { @apply mt-3 h-1.5 rounded-full bg-[var(--bg-surface)] overflow-hidden; }
-.pp-bar-fill { @apply h-full rounded-full; background: linear-gradient(90deg, var(--primary-soft), var(--primary)); }
-.pp-chatwrap { @apply grid gap-3; grid-template-columns: 190px 1fr; }
-.pp-chan { @apply p-3 rounded-xl border border-[var(--border)] flex flex-col gap-0.5; }
-.pp-chan-row { @apply flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-[11.5px] font-semibold text-[var(--text-muted)]; }
-.pp-chan-row:nth-child(2) { @apply bg-[var(--primary-light)] text-[var(--primary)]; }
-.pp-chan-badge { @apply text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full bg-[var(--primary)] text-white; }
-.pp-thread { @apply p-3.5 rounded-xl border border-[var(--border)] flex flex-col gap-2.5; }
-.pp-thread-h { @apply text-[11px] font-bold text-[var(--text-dim)] pb-2.5 border-b border-[var(--border)]; }
-.pp-msg { @apply max-w-[78%] px-3 py-2 rounded-2xl bg-[var(--bg-surface)]; }
-.pp-msg-me { @apply self-end bg-[var(--primary-light)]; }
-.pp-msg-who { @apply block text-[9.5px] font-bold text-[var(--text-dim)] mb-0.5; }
-.pp-msg p { @apply text-[11.5px] text-[var(--text)] leading-relaxed; }
-.pp-msg-input { @apply mt-1 px-3 py-2 rounded-xl border border-[var(--border)] text-[11px] text-[var(--text-dim)]; }
 
 
 /* ── /demo 실화면 대조 패널 (2026-07-28) — 실제 라우트의 하위 탭·필터바·거래 카드 리스트 재현 ── */
-.pp-inner-tabs { @apply flex items-center gap-1.5 mb-3; }
-.pp-inner-tab { @apply px-3 py-1.5 rounded-lg text-[11.5px] font-bold text-[var(--text-dim)] bg-[var(--bg-surface)]; }
-.pp-inner-tab-on { @apply text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.pp-notice { @apply flex items-center justify-between gap-3 flex-wrap px-4 py-3 rounded-xl mb-3
-  text-[11.5px] font-semibold bg-[var(--primary-light)] text-[var(--primary)]; }
-.pp-filter { @apply flex items-center gap-2 flex-wrap mb-3; }
-.pp-chip-on { @apply px-3 py-1.5 rounded-lg text-[11px] font-bold text-white; background: linear-gradient(135deg, var(--primary), var(--primary-soft)); }
-.pp-chip-off { @apply px-3 py-1.5 rounded-lg text-[11px] font-bold text-[var(--text-dim)] bg-[var(--bg-surface)]; }
-.pp-chip-input { @apply flex-1 min-w-[120px] px-3 py-1.5 rounded-lg text-[11px] text-[var(--text-dim)] border border-[var(--border)]; }
-.pp-btn-ai { @apply ml-auto; }
-.pp-txlist { @apply flex flex-col gap-2; }
-.pp-tx { @apply flex items-center gap-3 px-4 py-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)]; }
-.pp-tx-ico { @apply w-8 h-8 rounded-full flex items-center justify-center text-[13px] font-bold shrink-0; }
-.pp-tx-in { @apply bg-[var(--success-dim)] text-[var(--success)]; }
-.pp-tx-out { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
-.pp-tx-body { @apply flex-1 min-w-0 flex flex-col; }
-.pp-tx-body b { @apply text-[12.5px] font-bold text-[var(--text)]; }
-.pp-tx-body i { @apply not-italic text-[10.5px] text-[var(--text-dim)] flex items-center gap-1.5 mt-0.5; }
-.pp-tx-amt { @apply text-[13px] font-extrabold shrink-0; font-variant-numeric: tabular-nums; }
-.pp-syncbar { @apply flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl mb-3
-  text-[11.5px] font-semibold text-[var(--text-muted)] border border-[var(--border)]; }
-.pp-state-line { @apply text-[15px] font-extrabold text-[var(--text)] mt-1.5; }
-.pp-grid4 { @apply grid grid-cols-2 md:grid-cols-4 gap-3; }
-.pp-mini i { @apply not-italic text-[9.5px] text-[var(--text-dim)] mt-1; }
-
 /* 데모 › 자산관리 통장 — 실제 /bank 의 "통장 카드 그리드"를 그대로 재현 (2026-07-30).
    ⚠️ 실제 화면은 표가 아니라 카드다. 캡처가 예전 표 화면이라 둘러보기에 옛 화면이 나갔다.
    ⚠️ .pp-grid4 는 위(.pp-state-line 부근)에 이미 있다 — 다시 정의하지 말 것(같은 이름 두 번 = 충돌). */
-.pp-acctgrid { @apply grid grid-cols-3 gap-3; }
-.pp-acct { @apply p-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] flex flex-col; }
-.pp-acct-h { @apply flex flex-col gap-0.5; }
-.pp-acct-h b { @apply text-[12px] font-semibold text-[var(--text)]; }
-.pp-acct-h span { @apply text-[10px] text-[var(--text-dim)]; }
-.pp-acct-amt { @apply text-[17px] font-extrabold text-[var(--text)] mt-2 mb-1.5; font-variant-numeric: tabular-nums; }
-.pp-acct-chip { @apply self-start text-[10px] font-bold px-2 py-0.5 rounded-full; font-variant-numeric: tabular-nums; }
-.pp-acct-chip-up { @apply bg-[var(--success-dim)] text-[var(--success)]; }
-.pp-acct-chip-flat { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
-.pp-acct-hint { @apply text-[9.5px] text-[var(--text-dim)] mt-2; }
 
 /* 데모 › 프로젝트 카드 — 실제 /projecthub 의 project-card 재현 (2026-08-03 최신화).
    ⚠️ 유형 3분할(수익형·목표형·실행형) 폐지 반영: 배지 자리에 "지연 있음 / 대표 지표"가 온다. */
-.pp-pjgrid { @apply grid grid-cols-3 gap-3; }
-.pp-pj {
-  @apply p-3.5 flex flex-col gap-2;
-  background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-card);
-  box-shadow: 0 8px 32px -10px rgba(31,38,75,0.13), 0 2px 8px -3px rgba(31,38,75,0.05);
-}
-.pp-pj-top { @apply flex items-center justify-between gap-2; }
-.pp-pj-flag { @apply text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--danger-dim)] text-[var(--danger)]; }
-.pp-pj-flag-off { @apply text-[10px] font-semibold text-[var(--text-dim)]; }
-.pp-pj-n { @apply text-[13px] font-bold text-[var(--text)] leading-snug; }
-.pp-pj-dot { @apply not-italic mr-1 text-[var(--danger)]; }
-.pp-pj-meta { @apply text-[10.5px] text-[var(--text-muted)] truncate; }
-.pp-pj-bar { @apply flex items-center gap-2; }
-.pp-pj-bar span { @apply text-[10px] text-[var(--text-dim)] w-11 shrink-0; }
-.pp-pj-bar i { @apply flex-1 h-1.5 rounded-full overflow-hidden; background: var(--bg-surface); }
-.pp-pj-bar i b { @apply block h-full rounded-full; background: var(--primary); }
-.pp-pj-bar i b.pp-pj-bar-risk { background: var(--danger); }
-.pp-pj-bar em { @apply not-italic text-[10px] text-[var(--text-muted)] w-9 text-right; font-variant-numeric: tabular-nums; }
-.pp-pj-bar-empty span { @apply w-auto; }
-.pp-pj-next { @apply flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
-.pp-pj-next-warn { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
-.pp-pj-next em { @apply not-italic font-bold; font-variant-numeric: tabular-nums; }
-.pp-pj-foot { @apply flex items-center justify-between gap-2 mt-auto pt-2 border-t border-[var(--border)] text-[10.5px] text-[var(--text-muted)]; }
-.pp-pj-foot em { @apply not-italic font-bold text-[var(--primary)]; }
-.pp-dim { @apply text-[var(--text-dim)] font-normal; }
-.pp-statbar { @apply flex flex-wrap items-stretch gap-0 rounded-xl border border-[var(--border)] overflow-hidden mb-3; }
-.pp-statbar > span { @apply flex-1 min-w-[80px] flex flex-col items-center gap-0.5 px-3 py-3 border-r border-[var(--border)] last:border-r-0; }
-.pp-statbar i { @apply not-italic text-[10.5px] text-[var(--text-dim)]; }
 /* 5구간 예측(오늘·D+7·D+30·D+60·D+90) — 4칸 그리드에 넣으면 줄바꿈된다 */
-.pp-chart-empty { @apply h-[150px] flex items-center justify-center rounded-xl border border-dashed border-[var(--border)] text-[12px] text-[var(--text-dim)]; }
-.pp-forecast5 { @apply grid grid-cols-5 gap-3 items-end; }
-.pp-forecast5 .pp-fc { @apply text-center; }
-.pp-forecast5 .pp-fc-bar-wrap { @apply h-16 flex items-end justify-center; }
-.pp-forecast-sm .pp-fc-bar-wrap { @apply h-16; }
-.pp-cal7 { @apply grid grid-cols-7 gap-1; }
-.pp-cal7-h { @apply text-center text-[10px] font-bold text-[var(--text-dim)] py-1; }
-.pp-cal7-d { @apply min-h-[46px] p-1.5 rounded-lg border border-[var(--border)] flex flex-col gap-0.5; }
-.pp-cal7-d > span { @apply text-[10.5px] font-bold text-[var(--text-muted)]; }
-.pp-cal7-d i { @apply not-italic text-[9px] px-1 py-0.5 rounded bg-[var(--primary-light)] text-[var(--primary)] truncate; }
-.pp-cal7-today { @apply border-transparent; background: var(--primary-light); }
-.pp-chan-g { @apply px-2 pt-2 pb-1 text-[10px] font-bold tracking-wide uppercase text-[var(--text-dim)]; }
-.pp-chan-g b { @apply text-[var(--text-muted)]; }
-.pp-drop { @apply flex flex-col items-center gap-1 py-5 mb-3 rounded-xl border border-dashed border-[var(--border)]
-  text-[12px] font-semibold text-[var(--text-muted)]; }
-.pp-drop i { @apply not-italic text-[10px] text-[var(--text-dim)]; }
-.pp-statbar b { @apply text-[16px] font-extrabold text-[var(--text)]; font-variant-numeric: tabular-nums; }
-
 /* ── /demo 프로젝트 흐름 패널 (2026-07-27) — 랜딩 "견적부터 정산까지" 모션 섹션의 캡처 소스 ── */
 .flow-panel { @apply mb-5 p-6; }
 .flow-head { @apply flex items-start justify-between gap-4 flex-wrap; }

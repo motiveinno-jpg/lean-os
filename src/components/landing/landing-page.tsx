@@ -120,7 +120,8 @@ const MOBILE_OF: Record<string, string> = {
 /** 코어 카드 전용 조각 — 패널 헤더를 뺀 "그 기능 블록"만 잘라 둔 캡처.
  *   ⚠️ 예전엔 전체 화면 캡처를 좌표로 확대·크롭해 썼다. 기능이 있는 자리가 화면마다 달라
  *      반드시 설명과 어긋났고, 카드 제목과 캡처 안 패널 제목이 같은 말을 두 번 했다.
- *      → 좌표가 아니라 DOM 으로 자른다(.pp-head 를 숨기고 패널을 찍는다). cap 스크립트 참고.
+ *      → 2026-08-20 부터는 실제 앱을 클립 좌표로 두 번 찍는다(패널용 f-*, 코어용 c-*).
+ *        deliverables/landing-capture/README.md 참고.
  *   /features 는 계속 전체 화면(f-*.png)을 쓰므로 파일을 따로 둔다. */
 
 const CORE_SHOT: Record<string, string> = {
