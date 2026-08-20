@@ -331,6 +331,10 @@ async function buildAndSaveApprovalPdf(args: {
 }): Promise<boolean> {
   const { req, requesterName, formFields } = args;
   const timeline = await getApprovalTimeline(req.id);
+  // 상태는 목록 캐시가 아니라 DB 최신값으로 — 최종 승인 직후 목록이 갱신되기 전에 PDF 를
+  //   받으면 완결된 결재가 '대기'로 찍혔다 (2026-08-20 사장님 제보).
+  const { data: freshReq } = await db.from("approval_requests").select("status").eq("id", req.id).maybeSingle();
+  const status = (freshReq as { status?: string } | null)?.status || req.status;
   const attachments = (await Promise.all(
     (req.attachments || []).map(async (url) => {
       const name = attachmentFileName(url);
@@ -349,7 +353,7 @@ async function buildAndSaveApprovalPdf(args: {
   const blob = await generateApprovalPdf({
     title: req.title,
     requestTypeLabel: REQUEST_TYPE_LABELS[req.request_type as RequestType] || req.request_type,
-    statusLabel: STATUS_CONFIG[req.status]?.label || req.status,
+    statusLabel: STATUS_CONFIG[status]?.label || status,
     requesterName,
     amount: req.amount || 0,
     // 서식 본문(표·이미지·정렬)은 HTML 그대로 넘겨 PDF 에서 재현한다.
@@ -2742,76 +2746,15 @@ function PeriodFieldInput({ value, onChange }: { value: string; onChange: (v: st
   );
 }
 
-// 입력 필드 블록 재배치 (2026-07-30 사장님 — "사람마다 원하는 배치가 다 달라"):
-//   각 블록을 드래그 핸들(⠿) 또는 ↑↓ 로 옮길 수 있고, 순서는 브라우저(localStorage)에
-//   사용자·양식별로 저장돼 다음 작성 때 유지된다. 값·검증 로직은 순서와 무관.
-function OrderableFieldBlocks({ storageKey, blocks }: { storageKey: string; blocks: { key: string; node: React.ReactNode }[] }) {
-  const [savedOrder, setSavedOrder] = useState<string[]>([]);
-  const [dragKey, setDragKey] = useState<string | null>(null);
-  useEffect(() => {
-    try { setSavedOrder(JSON.parse(localStorage.getItem(storageKey) || "[]")); } catch { setSavedOrder([]); }
-    setDragKey(null);
-  }, [storageKey]);
-  // 저장된 순서 우선 적용, 저장에 없는(새로 생긴) 블록은 원래 자리 순서대로 뒤에 붙인다
-  const seq = useMemo(() => {
-    const present = blocks.map((b) => b.key);
-    const kept = savedOrder.filter((k) => present.includes(k));
-    return [...kept, ...present.filter((k) => !kept.includes(k))];
-  }, [blocks, savedOrder]);
-  const persist = (next: string[]) => {
-    setSavedOrder(next);
-    try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* 저장 실패해도 이번 화면 순서는 유지 */ }
-  };
-  const move = (key: string, dir: -1 | 1) => {
-    const i = seq.indexOf(key);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= seq.length) return;
-    const next = [...seq];
-    [next[i], next[j]] = [next[j], next[i]];
-    persist(next);
-  };
-  const dropOn = (targetKey: string) => {
-    if (!dragKey || dragKey === targetKey) return;
-    const next = seq.filter((k) => k !== dragKey);
-    next.splice(next.indexOf(targetKey), 0, dragKey);
-    persist(next);
-  };
+// 입력 필드 블록 — 고정 순서 렌더.
+//   2026-07-30 재배치 기능(드래그·↑↓·localStorage 순서 저장)은 2026-08-20 사장님 지시로 제거:
+//   "요청을 하는 사람은 입력필드의 위치를 변경하거나 옮기는게 안되게 해야돼".
+function FieldBlocks({ blocks }: { blocks: { key: string; node: React.ReactNode }[] }) {
   return (
     <>
-      {seq.map((k) => {
-        const b = blocks.find((x) => x.key === k);
-        if (!b) return null;
-        return (
-          <div
-            key={k}
-            draggable
-            className={`orderable-field-block ${dragKey === k ? "orderable-field-block-dragging" : ""}`}
-            onDragStart={(e) => {
-              // 입력창·에디터·버튼 위에서 시작한 드래그는 이동이 아니라 입력 동작 — 차단
-              const t = e.target as HTMLElement;
-              if (t !== e.currentTarget && t.closest("input, textarea, select, button, a, label, [contenteditable], .rich-editor")) { e.preventDefault(); return; }
-              setDragKey(k);
-              e.dataTransfer.effectAllowed = "move";
-            }}
-            onDragEnd={() => setDragKey(null)}
-            onDragOver={(e) => { if (dragKey) e.preventDefault(); }}
-            onDrop={(e) => { e.preventDefault(); dropOn(k); }}
-          >
-            <div className="orderable-field-controls">
-              <span
-                draggable
-                onDragStart={(e) => { setDragKey(k); e.dataTransfer.effectAllowed = "move"; }}
-                onDragEnd={() => setDragKey(null)}
-                title="끌어서 위치 이동"
-                className="orderable-drag-handle"
-              >⠿</span>
-              <button type="button" onClick={() => move(k, -1)} title="위로" className="orderable-move-btn">↑</button>
-              <button type="button" onClick={() => move(k, 1)} title="아래로" className="orderable-move-btn">↓</button>
-            </div>
-            {b.node}
-          </div>
-        );
-      })}
+      {blocks.map((b) => (
+        <div key={b.key}>{b.node}</div>
+      ))}
     </>
   );
 }
@@ -2861,6 +2804,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     reason: "",
   });
   const [files, setFiles] = useState<File[]>([]);
+  // 임시저장된 첨부 — File 은 localStorage 에 못 담아 임시저장 때 사라졌다(2026-08-20 사장님 제보).
+  //   임시저장 시 스토리지에 올려 URL 로 보존하고, 제출 때 함께 붙인다.
+  const [draftAttachmentUrls, setDraftAttachmentUrls] = useState<string[]>([]);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [descriptionInited, setDescriptionInited] = useState<string>("");
   const [selectedApprovers, setSelectedApprovers] = useState<{ userId: string; name: string }[]>([]);
@@ -2894,6 +2840,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
           if (draft.form.description) descEditorRef.current?.setContent(plainToHtml(draft.form.description));
         }
         if (draft.leaveForm) setLeaveForm({ halfDayPeriod: "am", ...draft.leaveForm }); // 구 임시저장엔 halfDayPeriod 가 없다
+        if (Array.isArray(draft.attachmentUrls)) setDraftAttachmentUrls(draft.attachmentUrls);
       } catch { /* ignore corrupt draft */ }
     }
     setDraftLoaded(true);
@@ -3211,7 +3158,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         title: effectiveTitle,
         amount: effectiveAmount,
         description: finalDesc || undefined,
-        attachments: attachmentUrls.length > 0 ? attachmentUrls : undefined,
+        attachments: draftAttachmentUrls.length + attachmentUrls.length > 0 ? [...draftAttachmentUrls, ...attachmentUrls] : undefined,
         customApprovers: (canEditLine && selectedApprovers.length > 0) ? selectedApprovers : undefined,
         formId: selectedForm?.id,
         // 휴가는 승인 시 연차 차감에 쓰이는 구조화 데이터를 저장(description 텍스트 파싱 의존 제거).
@@ -3231,6 +3178,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
       descEditorRef.current?.setContent("");
       setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
       setFiles([]);
+      setDraftAttachmentUrls([]);
       setSelectedApprovers([]); setCustomFieldValues({});
       setSelectedReferences([]); setReferencesInited("");
       setDescriptionInited("");
@@ -3321,9 +3269,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   </div>
                 )}
 
-                {/* 휴가 입력 블록 — 재배치 가능 (2026-07-30, 사용자별 localStorage 저장) */}
-                <OrderableFieldBlocks
-                  storageKey={`ov-req-block-order-v2-${userId}-leave`}
+                {/* 휴가 입력 블록 — 순서 고정 (2026-08-20 사장님: 요청자는 필드 이동 불가) */}
+                <FieldBlocks
                   blocks={[
                     {
                       key: "leave-type-unit",
@@ -3471,9 +3418,8 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 />
               </>
             ) : (
-              /* ── Non-leave fields — 블록 재배치 가능 (2026-07-30, 사용자·양식별 localStorage 저장) ── */
-              <OrderableFieldBlocks
-                storageKey={`ov-req-block-order-v2-${userId}-${form.requestType}`}
+              /* ── Non-leave fields — 순서 고정 (2026-08-20 사장님: 요청자는 필드 이동 불가) ── */
+              <FieldBlocks
                 blocks={[
                   {
                     key: "title",
@@ -3598,6 +3544,20 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                   className="hidden"
                 />
               </label>
+              {draftAttachmentUrls.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {draftAttachmentUrls.map((url, i) => (
+                    <div key={url} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-[var(--bg-surface)] text-xs">
+                      <span className="w-7 h-7 rounded-lg bg-[var(--success)]/12 text-[var(--success)] flex items-center justify-center shrink-0">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                      </span>
+                      <span className="truncate flex-1 font-medium text-[var(--text)]">{attachmentFileName(url)}</span>
+                      <span className="text-[10px] text-[var(--text-dim)] shrink-0">임시저장됨</span>
+                      <button type="button" onClick={() => setDraftAttachmentUrls(prev => prev.filter((_, idx) => idx !== i))} className="text-[var(--text-dim)] hover:text-[var(--danger)] font-bold px-1 transition">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {files.length > 0 && (
                 <div className="mt-2 space-y-1.5">
                   {files.map((f, i) => (
@@ -3734,12 +3694,25 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             </button>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 // userId 포함 (2026-08-19 감사): 회사 단위 키는 공용 브라우저에서 남의 임시저장(휴가 사유 등)이 보였다
-  const draftKey = `ov-approval-draft-${companyId}-${userId || "anon"}`;
-                const draft = { form, leaveForm, description: form.description };
+                const draftKey = `ov-approval-draft-${companyId}-${userId || "anon"}`;
+                // 첨부도 보존 (2026-08-20 사장님: 끌어놓은 첨부가 임시저장하면 사라졌다) —
+                //   File 은 localStorage 에 못 담으므로 지금 업로드해 URL 로 남긴다.
+                const urls = [...draftAttachmentUrls];
+                const failed: string[] = [];
+                for (const file of files) {
+                  const path = `approvals/${companyId}/${Date.now()}_${toBase64Url(file.name)}`;
+                  const { error } = await supabase.storage.from("documents").upload(path, file);
+                  if (!error) urls.push(supabase.storage.from("documents").getPublicUrl(path).data.publicUrl);
+                  else failed.push(file.name);
+                }
+                if (failed.length > 0) toast(`첨부 저장 실패 — ${failed.join(", ")}`, "error");
+                setDraftAttachmentUrls(urls);
+                setFiles([]);
+                const draft = { form, leaveForm, description: form.description, attachmentUrls: urls };
                 localStorage.setItem(draftKey, JSON.stringify(draft));
-                toast("임시저장되었습니다", "success");
+                toast(urls.length > 0 ? `임시저장되었습니다 — 첨부 ${urls.length}개 포함` : "임시저장되었습니다", "success");
               }}
               className="btn-secondary"
             >
@@ -3753,6 +3726,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 setDescriptionInited("");
                 setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
                 setFiles([]);
+                setDraftAttachmentUrls([]);
                 setSelectedApprovers([]);
                 setSelectedReferences([]); setReferencesInited("");
                 localStorage.removeItem(`ov-approval-draft-${companyId}-${userId || "anon"}`);
