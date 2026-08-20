@@ -122,7 +122,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
       {lineOptions.map((p) => <option key={p.id} value={p.id}>{p.name} · {(p.stages as ApprovalStageConfig[]).length}단계</option>)}
     </select>
   );
-  const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", autoApproveBelow: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[], fields: [] as ApprovalFormField[], allowLineEdit: true, referenceUserIds: [] as string[] });
+  const [defaultForm, setDefaultForm] = useState({ label: "", descriptionTemplate: "", stages: [emptyPolicyStage(1)] as ApprovalStageConfig[], fields: [] as ApprovalFormField[], allowLineEdit: true, referenceUserIds: [] as string[] });
   const [savingDefault, setSavingDefault] = useState(false);
 
   const openEditDefault = (key: string) => {
@@ -130,7 +130,6 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
     setDefaultForm({
       label: p?.label || "",
       descriptionTemplate: p?.description_template || "",
-      autoApproveBelow: p?.auto_approve_below ? String(p.auto_approve_below) : "",
       stages: p?.stages?.length ? p.stages : [emptyPolicyStage(1)],
       fields: p?.fields || [],
       allowLineEdit: p?.allow_line_edit !== false,
@@ -150,7 +149,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
         document_type: editingDefaultKey,
         label: defaultForm.label.trim() || undefined,
         description_template: defaultForm.descriptionTemplate.trim() || undefined,
-        auto_approve_below: Number(defaultForm.autoApproveBelow) || 0,
+        auto_approve_below: 0,   // 자동승인 기능 제거 (2026-08-20) — 저장할 때마다 0 으로 정리된다
         // 특정 인물 미선택(빈 approver_id) 단계는 역할 기준으로 정리 + stage 번호 재정렬
         stages: defaultForm.stages.map((st, i) => {
           const { approver_id, approver_name, ...rest } = st;
@@ -469,19 +468,13 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-              <div>
-                <label className="block text-[11px] text-[var(--text-muted)] mb-1">표시 이름 (비우면 기본값)</label>
-                <input value={defaultForm.label} onChange={(e) => setDefaultForm((s) => ({ ...s, label: e.target.value }))}
-                  placeholder={REQUEST_TYPE_LABELS[editingDefaultKey as keyof typeof REQUEST_TYPE_LABELS]}
-                  className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
-              </div>
-              <div>
-                <label className="block text-[11px] text-[var(--text-muted)] mb-1">자동승인 기준 금액 (원, 선택)</label>
-                <input value={defaultForm.autoApproveBelow} onChange={(e) => setDefaultForm((s) => ({ ...s, autoApproveBelow: e.target.value.replace(/[^0-9]/g, "") }))}
-                  placeholder="0 (비활성)"
-                  className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-right" />
-              </div>
+            {/* 자동승인 기준 금액 칸은 없앴다 (2026-08-20 사장님 지시) — 금액은 입력 필드로 받는다.
+                프로덕션에 기준값이 설정된 정책은 하나도 없었다(제거 전 확인). */}
+            <div className="mb-3">
+              <label className="block text-[11px] text-[var(--text-muted)] mb-1">표시 이름 (비우면 기본값)</label>
+              <input value={defaultForm.label} onChange={(e) => setDefaultForm((s) => ({ ...s, label: e.target.value }))}
+                placeholder={REQUEST_TYPE_LABELS[editingDefaultKey as keyof typeof REQUEST_TYPE_LABELS]}
+                className="w-full h-9 px-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm" />
             </div>
 
             {/* 커스텀 필드 — 회사 결재 양식 빌더와 동일 */}

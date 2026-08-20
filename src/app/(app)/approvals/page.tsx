@@ -1820,7 +1820,9 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                   <label className="block text-xs text-[var(--text-muted)] mb-1">제목</label>
                   <input value={editForm.title} onChange={(e) => setEditForm((s) => ({ ...s, title: e.target.value }))} className="field-input" />
                 </div>
-                {!isLeaveReq && fields.length === 0 && (
+                {/* 금액 칸은 새 요청에서 없앴다(2026-08-20 사장님) — 여기서는 이미 금액이 들어간
+                    예전 결재를 고칠 때만 보인다. 앞으로 금액은 양식의 '금액' 입력 필드로 받는다. */}
+                {!isLeaveReq && fields.length === 0 && Number(editReq?.amount || 0) > 0 && (
                   <div>
                     <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원)</label>
                     <CurrencyInput
@@ -2361,7 +2363,8 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                         <span className="text-xs text-[var(--text-muted)] truncate max-w-[100px]">{requesterNames.get(req.requester_id) || "-"}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-sm font-bold mono-number text-right">{formatAmount(req.amount)}</td>
+                    {/* 금액 없는 결재가 ₩0 으로 보이지 않게 — 다른 표와 같은 규칙 (2026-08-20) */}
+                    <td className="px-4 py-3.5 text-sm font-bold mono-number text-right">{req.amount > 0 ? formatAmount(req.amount) : "-"}</td>
                     <td className="px-4 py-3.5 w-[140px]">
                       <StageProgress current={req.current_stage} total={req.total_stages} status={req.status} />
                     </td>
@@ -2934,10 +2937,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     }
     setAutoFieldsInited(form.requestType);
   }, [isLeave, activeFields, autoFieldsInited, form.requestType, currentEmployee]);
+  // 금액은 양식의 '금액' 입력 필드에서만 온다 — 기본 금액 칸은 제거했다 (2026-08-20 사장님 지시).
   const effectiveAmount = isLeave ? 0
-    : activeFields.length > 0
-      ? (formAmountField ? (Number(String(customFieldValues[formAmountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0) : 0)
-      : (Number(form.amount) || 0);
+    : (activeFields.length > 0 && formAmountField)
+      ? (Number(String(customFieldValues[formAmountField.key] ?? "").replace(/[^0-9.-]/g, "")) || 0)
+      : 0;
 
   // 초과근무는 일자·종료시각이 그대로 근태로 넘어간다 — 둘 다 있어야 제출 (2026-08-20 사장님).
   const canSubmit = isLeave
@@ -3306,21 +3310,9 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                       </div>
                     ),
                   },
-                  // Amount — 커스텀 양식 선택 시 숨김(양식 자체의 금액 필드가 기준, 없으면 금액 없는 결재). 선택 입력.
-                  ...(!selectedForm ? [{
-                    key: "amount",
-                    node: (
-                      <div>
-                        <label className="block text-xs text-[var(--text-muted)] mb-1">금액 (원) <span className="text-[var(--text-dim)]">— 선택, 금액 없는 결재는 비워두세요</span></label>
-                        <CurrencyInput
-                          value={form.amount}
-                          onValueChange={(raw) => { setForm({ ...form, amount: raw }); }}
-                          placeholder="0"
-                          className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)] text-right"
-                        />
-                      </div>
-                    ),
-                  }] : []),
+                  // 금액 칸은 없앴다 (2026-08-20 사장님 지시) — 금액 없는 결재에도 항상 떠 있어
+                  //   0 으로 둬야 하는 게 불편했다. 금액이 필요한 결재는 양식의 '금액' 입력 필드로 받는다.
+                  //   (effectiveAmount 는 그 필드값에서 뽑는다 — 아래 activeFields 참조)
                   ...activeFields.map((fd) => ({
                     key: `cf:${fd.key}`,
                     node: (
