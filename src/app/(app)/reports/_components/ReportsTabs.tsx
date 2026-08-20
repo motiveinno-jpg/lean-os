@@ -57,10 +57,14 @@ const GROUPS: Group[] = [
     desc: "손익계산서·재무상태표 등 정식 재무제표를 봅니다.",
     match: STATEMENT_ROUTES,
     //   2026-08-19 리포트 표준 — 예전 StatementsTabs(2단 링크 줄)를 여기 하위 갈래로 합쳐 상자 안 파란 밑줄 한 줄로
+    //   ⚠️ 2026-08-20 — 인원별 지출·3-Way 매칭은 STATEMENT_ROUTES 에만 있고 하위 갈래엔 빠져 있어
+    //      주소를 직접 치지 않으면 도달할 수 없었다(랜딩 감사에서 발견). 같은 그룹이므로 여기 붙인다.
     subs: [
       { href: "/reports/pnl", label: "손익계산서", desc: "기간별 손익계산서 — 표준 양식(Ⅰ~Ⅸ), 항목을 누르면 원천 내역." },
       { href: "/reports/bs", label: "재무상태표", desc: "기준일 자산·부채·자본 — 채권·채무는 해당연도 1/1~기준일 확정 전표 누적." },
       { href: "/reports/costs", label: "비용 분석", desc: "고정비·변동비 구성과 월별 추이 — 지난 달의 실적 기준." },
+      { href: "/reports/by-person", label: "인원별 지출", desc: "직원별로 얼마나 나갔나 — 법인카드 사용액과 급여를 사람 기준으로 합산." },
+      { href: "/reports/three-way-match", label: "3-Way 매칭", desc: "계약 ↔ 세금계산서 ↔ 입금 대조 — 미매칭 계산서에 후보를 추천하고 확정하면 전표·미수금이 갱신됩니다." },
     ],
   },
   {
