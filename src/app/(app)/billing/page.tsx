@@ -845,9 +845,10 @@ function BillingPageInner() {
                           : std ? <button type="button" onClick={() => setShowUpgradeModal("standard")} className={primaryCol === "standard" ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>이 요금제로 변경</button> : null}
                       </th>
                       <th className={isLegacy ? "billing-col-cur" : ""}>
+                        {/* 울트라는 항상 '비용 협의' — 옛 울트라 구독 계정이라도 금액을 여기 안 적는다(내는 금액은 위 요약 줄, 2026-08-20 사장님) */}
                         <div className="billing-col-name">{isLegacy ? (currentPlan?.name || "울트라") : "울트라"}</div>
-                        <div className="billing-col-price">{isLegacy ? <>{fmtW((currentPlan?.base_price || 0) + (currentPlan?.per_seat_price || 0) * Math.max(0, (subscription?.seat_count || 1) - (currentPlan?.included_seats || 0)))} <small>/월</small></> : "비용 협의"}</div>
-                        <div className="billing-col-sub">{isLegacy ? `지금 쓰는 요금제 · ${subscription?.seat_count || 1}명` : "회사 시스템에 맞춘 별도 UX 구축 · 도입 범위에 따라 견적"}</div>
+                        <div className="billing-col-price">비용 협의</div>
+                        <div className="billing-col-sub">회사 시스템에 맞춘 별도 UX 구축 · 도입 범위에 따라 견적{isLegacy ? ` · 지금 쓰는 요금제(${subscription?.seat_count || 1}명)` : ""}</div>
                         {isLegacy ? <span className="billing-col-btn-cur">사용 중</span>
                           : <a href="/support?topic=ultra" className={`${primaryCol === "ultra" ? "btn-primary" : "btn-secondary"} btn-sm no-underline inline-flex`}>도입 문의</a>}
                       </th>
