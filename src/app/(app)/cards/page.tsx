@@ -817,6 +817,15 @@ export default function CardsPage() {
         </button>
     </>
   );
+  //   조회 줄 오른쪽 = [금액 숨김 · 카드 연동] 한 줄 — 통장([연동 정지 · 통장 연동])과 같은 배치 (2026-08-20 사장님: 위아래로 쌓여 통일감 없음)
+  const actionsRow = (
+    <>
+      {tab === "cards" && (
+        <button type="button" onClick={() => setShowBalance((v) => !v)} className="btn-secondary btn-sm">{showBalance ? "금액 숨김" : "금액 보기"}</button>
+      )}
+      {actionsEl}
+    </>
+  );
 
   return (
     /*  거래내역(조회 화면) 탭은 qk-shell 세로 기둥 — qk-body 가 남는 높이를 받아 표가 그 안에서
@@ -829,7 +838,7 @@ export default function CardsPage() {
         <QueryScreen>
           <QueryHead>
             {tabsEl}
-            <QueryBar right={actionsEl}>
+            <QueryBar right={actionsRow}>
               {/* 기간 — 조회 줄에 하나(2026-08-18). 카드 탭에서 카드 선택 시 그 카드 거래·연동 기간에 적용. 거래내역 탭은 자기 조회 줄에 기간 칸이 있다 */}
               <DateRangeField label="카드 거래 기간" from={cardTxFrom} to={cardTxTo}
                 onChange={(f, t) => { setCardTxFrom(f); setCardTxTo(t); }} />
@@ -849,7 +858,7 @@ export default function CardsPage() {
               </ResultStrip>
             )}
             {tab === "cards" && currentCard && (
-              <ResultStrip right={<button type="button" onClick={() => setShowBalance((v) => !v)} className="btn-secondary btn-sm">{showBalance ? "금액 숨김" : "금액 보기"}</button>}>
+              <ResultStrip>
                 <QStat label="선택한 카드" value={<>{currentCard.card_name || "카드"} <small className="font-normal text-[var(--text-dim)]">{cardTypeLabel(currentCard.card_type)} · {cardNoDisplay(currentCard.card_number)} · 결제일 {currentCard.payment_day ? `매월 ${currentCard.payment_day}일` : "—"}</small></>} />
                 <QStat label="이번 달" value={<>{showBalance ? fmtW(currentSpend) : "••••••"} <small className="font-normal text-[var(--text-dim)]">{currentTxCount}건{Number(currentCard.monthly_limit || 0) > 0 && showBalance ? ` / 한도 ${fmtW(Number(currentCard.monthly_limit))}` : ""}</small></>} />
               </ResultStrip>
