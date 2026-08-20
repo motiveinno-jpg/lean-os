@@ -903,9 +903,10 @@ function SceneProof() {
                     <b>{p.name}</b>
                     <span>{p.desc}</span>
                   </div>
+                  {/* 정가가 없는 요금제(울트라)는 ₩·/월 을 붙이지 않는다 — "₩비용 협의 /월" 이 된다. */}
                   <div className="lp5-price-amt">
-                    {p.price === "0" ? <em>0원</em> : <em>₩{p.price}</em>}
-                    <span>{p.price === "0" ? "" : "/월"}</span>
+                    {p.price === "0" ? <em>0원</em> : p.price.includes("협의") ? <em>{p.price}</em> : <em>₩{p.price}</em>}
+                    <span>{p.price === "0" || p.price.includes("협의") ? "" : "/월"}</span>
                   </div>
                 </div>
               ))}

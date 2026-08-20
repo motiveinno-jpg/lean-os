@@ -2804,6 +2804,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
     reason: "",
   });
   const [files, setFiles] = useState<File[]>([]);
+  // 영수증 스캔(OCR) — 2026-08-20 복구. ocr-receipt 엣지 함수는 계속 살아 있었는데 호출 화면이
+  //   /transactions(사이드바 비노출)와 구성원 경비탭(2026-06-29 제거)뿐이라 아무도 쓸 수 없었다.
+  //   경비·지출결의가 여기로 이관됐으니(2026-07-08) 스캔 버튼도 여기 있어야 한다.
+  const ocrFileRef = useRef<HTMLInputElement>(null);
+  const [ocrScanning, setOcrScanning] = useState(false);
   // 임시저장된 첨부 — File 은 localStorage 에 못 담아 임시저장 때 사라졌다(2026-08-20 사장님 제보).
   //   임시저장 시 스토리지에 올려 URL 로 보존하고, 제출 때 함께 붙인다.
   const [draftAttachmentUrls, setDraftAttachmentUrls] = useState<string[]>([]);
@@ -3106,6 +3111,52 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
   const canSubmit = isLeave
     ? !!leaveForm.startDate && !!leaveForm.leaveType
     : !!form.title.trim();
+
+  /** 영수증 사진에서 상호·금액·날짜를 읽어 폼을 채운다. 확정은 사람이 — 값은 전부 수정 가능.
+   *  ⚠️ 엣지 함수가 서버에서 이미지를 직접 받아가므로 서명 URL(시간제한)이 필요하다.
+   *  ⚠️ 인식용 임시 이미지는 끝나면 지운다 — DB 행이 없어 아무도 못 지우는 파일이 쌓인다
+   *     (/transactions 에서 실제로 그렇게 쌓였고 2026-08-20 감사에서 정리됐다).
+   *     대신 고른 사진은 첨부파일 목록에 넣어 결재 증빙으로 같이 올라가게 한다. */
+  const handleOcrScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !companyId) return;
+    setOcrScanning(true);
+    let tempPath: string | null = null;
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `approvals/${companyId}/ocr/${Date.now()}.${ext}`;
+      tempPath = path;
+      const { error: upErr } = await supabase.storage.from("documents").upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: signed, error: signErr } = await supabase.storage.from("documents").createSignedUrl(path, 300);
+      if (signErr || !signed?.signedUrl) throw signErr || new Error("이미지 URL 생성 실패");
+      const { data, error } = await supabase.functions.invoke("ocr-receipt", { body: { image_url: signed.signedUrl } });
+      if (error) throw error;
+      if (!data?.success || !data.confidence) {
+        toast("영수증을 인식하지 못했습니다. 직접 입력해 주세요.", "error");
+        return;
+      }
+      // 금액이 들어갈 자리는 양식에 따라 다르다 — 회사 양식에 금액 필드가 있으면 일반 '금액' 입력은 숨겨져 있다.
+      if (data.amount) {
+        if (formAmountField) setCustomFieldValues((s) => ({ ...s, [formAmountField.key]: String(data.amount) }));
+        else setForm((f) => ({ ...f, amount: String(data.amount) }));
+      }
+      // 제목은 비어 있을 때만 채운다 — 이미 쓰고 있던 제목을 덮어쓰면 놀란다.
+      if (data.merchant) setForm((f) => (f.title.trim() ? f : { ...f, title: `${data.merchant} 영수증` }));
+      // 날짜 필드가 있는 양식이면 영수증 날짜를 넣는다(비어 있을 때만).
+      const dateField = activeFields.find((fd: any) => fd.type === "date");
+      if (data.date && dateField) setCustomFieldValues((s) => (s[dateField.key] ? s : { ...s, [dateField.key]: data.date }));
+      setFiles((prev) => [...prev, file]);   // 스캔한 사진 = 결재 증빙
+      const items = Array.isArray(data.items) && data.items.length ? ` · ${data.items.slice(0, 3).join(", ")}` : "";
+      toast(`영수증을 읽었어요 (확신도 ${data.confidence}%)${items} — 내용 확인 후 올려주세요`, "success");
+    } catch (err: any) {
+      toast(`영수증 스캔 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
+    } finally {
+      if (tempPath) await supabase.storage.from("documents").remove([tempPath]).catch(() => {});
+      setOcrScanning(false);
+      if (ocrFileRef.current) ocrFileRef.current.value = "";
+    }
+  };
 
   const createMut = useMutation({
     mutationFn: async () => {
@@ -3511,6 +3562,23 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             {/* File upload — 드롭존 스타일. 2026-07-21 사장님 요청으로 승인자/참조자 위로 이동 */}
             <div className="approval-file-upload">
               <label className="field-label">첨부파일</label>
+              {/* 영수증 스캔 — 돈이 오가는 유형에서만 (휴가·일반 품의엔 영수증이 없다).
+                  capture="environment" 라 휴대폰에서는 카메라가 바로 열린다. */}
+              {["expense", "expense_report", "card_expense"].includes(form.requestType) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => ocrFileRef.current?.click()}
+                    disabled={ocrScanning}
+                    className="approval-ocr-btn"
+                  >
+                    {ocrScanning
+                      ? <><span className="approval-ocr-spin" />영수증 읽는 중…</>
+                      : <><Ico e="🧾" />영수증 찍어서 채우기 <span className="approval-ocr-hint">상호·금액·날짜를 읽어 와요</span></>}
+                  </button>
+                  <input ref={ocrFileRef} type="file" accept="image/*" capture="environment" onChange={handleOcrScan} className="hidden" />
+                </>
+              )}
               <label
                 className={`flex flex-col items-center justify-center gap-1.5 px-4 py-6 rounded-xl border-2 border-dashed transition cursor-pointer ${
                   isDraggingFile

@@ -5037,6 +5037,15 @@ table.leave-req-table { min-width: 960px; } /* table. — .ev-table(뒤에 정�
 .content-template-section { @apply mb-3; }
 .approval-stages-section { @apply mb-3; }
 .stage-row { @apply bg-[var(--bg-surface)] rounded-lg p-2 space-y-1.5; }
+
+/* 결재 새 요청 — 영수증 스캔(OCR) 버튼 (2026-08-20 복구). 첨부 드롭존 바로 위에 놓인다.
+   확정 버튼이 아니므로 파란(primary) 채움을 쓰지 않는다 — 화면의 파란 버튼은 '올리기' 하나. */
+.approval-ocr-btn { @apply mb-2 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+  border border-[var(--primary)]/35 bg-[var(--primary)]/6 text-[13px] font-semibold text-[var(--primary)]
+  transition hover:bg-[var(--primary)]/12 disabled:opacity-60 disabled:cursor-not-allowed; }
+.approval-ocr-hint { @apply text-[11px] font-medium text-[var(--text-muted)]; }
+.approval-ocr-spin { @apply inline-block w-3.5 h-3.5 rounded-full border-2 border-[var(--primary)]/30
+  border-t-[var(--primary)] animate-spin; }
 .reference-users-section { @apply mb-3; }
 .options-toggle-row { @apply flex flex-wrap gap-4 mb-4; }
 .modal-footer-actions { @apply flex gap-2; }
