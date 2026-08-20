@@ -1151,6 +1151,8 @@ interface OnboardingDocItem {
   uploadedAt?: string;
 }
 
+// 여기에 항목을 더하면 employee_files.category 체크 제약도 같이 넓혀야 한다 —
+//   안 그러면 그 줄만 업로드가 400 으로 조용히 막힌다 (2026-08-20 실사고: 5줄이 막혀 있었다).
 const ONBOARDING_DOC_DEFAULTS: Omit<OnboardingDocItem, "completed" | "fileUrl" | "fileName" | "uploadedAt">[] = [
   { key: "resident_reg", label: "주민등록등본" },
   { key: "bank_copy", label: "통장사본" },

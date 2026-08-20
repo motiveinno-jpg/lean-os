@@ -673,7 +673,15 @@ export async function uploadEmployeeFile(params: {
     })
     .select()
     .single();
-  if (insertError) throw insertError;
+  if (insertError) {
+    // 원장 기록이 실패하면 방금 올린 파일은 아무도 못 찾는 고아가 된다 — 되돌린다.
+    //   (2026-08-20: category 제약 위반으로 막힌 업로드 3건이 스토리지에만 남아 있었다)
+    await supabase.storage.from("employee-files").remove([storagePath]).catch(() => {});
+    if ((insertError as { message?: string }).message?.includes("employee_files_category_check")) {
+      throw new Error("이 서류 종류는 아직 저장할 수 없습니다 — 관리자에게 알려주세요.");
+    }
+    throw insertError;
+  }
 
   return { id: record.id, file_url: urlData.publicUrl, storage_path: storagePath };
 }
