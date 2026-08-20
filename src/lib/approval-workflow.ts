@@ -10,6 +10,7 @@ import { createQueueEntry } from './payment-queue';
 import { resolveBank } from './routing';
 import { createNotification } from './notifications';
 import { sendApprovalMails } from './approval-email';
+import { logError } from './error-logger';
 import type { ApprovalFormField } from './approval-forms';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -721,15 +722,31 @@ async function applyOvertimeApproval(request: any): Promise<void> {
       .eq('employee_id', employeeId).eq('requested_date', date).eq('status', 'approved').maybeSingle());
     if (existing) return;
 
-    await db.from('overtime_requests').insert({
+    // 사유는 결재 제목을 쓰는데, overtime_requests_reason_check 가 5자 이상을 요구한다.
+    //   제목을 "야근" 처럼 짧게 쓰면 insert 가 400 으로 튕기고 아래 catch 가 삼켜서
+    //   **승인은 됐는데 근태에는 안 들어가는** 조용한 실패가 났다 (2026-08-20 실제 발생).
+    //   제약을 넓히는 대신 여기서 사람이 읽을 수 있게 채운다 — 짧은 제목도 맥락이 남는다.
+    const rawReason = String(request.title || '').trim();
+    const reason = rawReason.length >= 5 ? rawReason
+      : rawReason ? `초과근무 신청 — ${rawReason}` : '전자결재 초과근무';
+
+    const { error: otErr } = await db.from('overtime_requests').insert({
       company_id: request.company_id,
       employee_id: employeeId,
       requested_date: date,
       requested_end_time: endTime,
-      reason: request.title || '전자결재 초과근무',
+      reason,
       status: 'approved',
       approved_at: new Date().toISOString(),
     });
+    // 조용히 넘기지 않는다 — 근태에 안 들어간 걸 아무도 모르는 게 이 버그의 본질이었다.
+    if (otErr) {
+      logError({
+        source: 'manual',
+        message: `[근태] 초과근무 승인 반영 실패: ${otErr.message}`,
+        context: { requestId: request.id, employeeId, date, endTime, code: (otErr as { code?: string }).code },
+      });
+    }
   } catch {
     // 근태 반영 실패가 승인 자체를 막지는 않는다(휴가와 동일 원칙).
   }

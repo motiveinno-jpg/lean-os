@@ -12,6 +12,8 @@ import { CertAutoPicker } from "@/components/cert-auto-picker";
 import { BANK_ROLES } from "@/lib/routing";
 import type { BankAccount } from "@/types/models";
 import { useToast } from "@/components/toast";
+import { useCompanyBizNo } from "@/lib/use-company-bizno";
+import { BizNoRequired } from "@/components/biz-no-required";
 
 const CODEF_BANKS: Record<string, string> = {
   "0003": "기업은행", "0004": "국민은행", "0011": "농협은행",
@@ -84,6 +86,8 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
     setNotifySaved(true); setTimeout(() => setNotifySaved(false), 2000);
     toast(v ? "발행 알림 주소를 저장했습니다" : "발행 알림을 끕니다 (주소 비움)", "success");
   };
+  // 사업자번호 유무 — 없으면 실제 금융기관 연결은 못 하고 데모 체험만 열어 둔다 (2026-08-20)
+  const { hasBizNo } = useCompanyBizNo();
   // Common
   const [registering, setRegistering] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -405,6 +409,15 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
         {registering ? "연결 중..." : "데모 데이터로 바로 체험하기"}
       </button>
 
+      {/* 사업자번호가 없으면 CODEF 계정등록 자체가 안 된다 — 가입 관문에서 옮겨온 요구를 여기서 한다.
+          데모 체험은 위에 그대로 두어, 번호 없이도 오너뷰가 뭘 해주는지 볼 수 있게 한다. (2026-08-20) */}
+      {!hasBizNo ? (
+        <BizNoRequired
+          feature="통장·카드 연결"
+          why="은행에 계좌 소유를 확인하려면 사업자등록번호가 있어야 합니다. 위의 '데모 데이터로 바로 체험하기'는 번호 없이도 됩니다."
+        />
+      ) : (
+      <>
       <div className="border-t border-[var(--border)] pt-4 mb-4">
         <p className="text-xs font-semibold text-[var(--text)] mb-3">실제 금융기관 연결</p>
 
@@ -573,6 +586,8 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
       >
         {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
       </button>
+      </>
+      )}
     </div>
   );
 }

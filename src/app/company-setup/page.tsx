@@ -74,29 +74,38 @@ export default function CompanySetupPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!authUser) return;
-    if (!isValidBizNo(bizNo)) return setError("사업자번호 10자리를 입력해주세요.");
-    if (bizCheck !== "available" || bizCheckedDigits !== bizNoDigits(bizNo)) {
+    if (!companyName.trim()) return setError("회사명을 입력해주세요.");
+    // 2026-08-20 사장님 지시 — 사업자번호는 **선택**. 가입 2초 시점엔 등록증을 손에 든 사람이 거의 없어
+    //   소셜 가입자의 80%가 이 칸 하나에서 사라졌다(운영 실측). 번호가 실제로 필요한 건
+    //   통장·카드 수집 / 세금계산서 / 결제 뿐이라, 그 기능에 들어갈 때 그 자리에서 받는다.
+    const hasBiz = bizNoDigits(bizNo).length === 10;
+    if (bizNo.trim() && !hasBiz) return setError("사업자번호는 10자리로 입력하거나 비워두세요.");
+    if (hasBiz && (bizCheck !== "available" || bizCheckedDigits !== bizNoDigits(bizNo))) {
       return setError("사업자번호 '중복 확인'을 먼저 진행해주세요.");
     }
-    if (!companyName.trim()) return setError("회사명을 입력해주세요.");
     setError("");
     setLoading(true);
     try {
-      // ① 제출 시점 재확인(레이스) — 확인 후 다른 사용자가 같은 번호로 회사를 만들었을 수 있음
-      const dup = await checkBusinessNumberRegistered(bizNo);
-      if (dup.registered) {
-        setBizCheck("registered");
-        setJoinPrompt(dup.companyNameMasked || "등록된 회사");
-        return;
+      if (hasBiz) {
+        // ① 제출 시점 재확인(레이스) — 확인 후 다른 사용자가 같은 번호로 회사를 만들었을 수 있음
+        const dup = await checkBusinessNumberRegistered(bizNo);
+        if (dup.registered) {
+          setBizCheck("registered");
+          setJoinPrompt(dup.companyNameMasked || "등록된 회사");
+          return;
+        }
+        // ② 국세청 상태 확인 — 번호만으로 폐업·휴업·미등록 차단 (진위확인은 관문에서 제거, 2026-08-05)
+        const gate = await assertBizNoActive(bizNo);
+        if (!gate.ok) {
+          // 확인 실패도 로그 — 여기서 이탈하는 가입자가 얼마나 되는지 운영자가 봐야 한다(2026-07-29)
+          try { logError({ source: "manual", message: `[간편가입] 국세청 확인 통과 실패: ${gate.error || "사유 미상"}`, context: { step: "nts_gate", biz: bizNoDigits(bizNo).slice(0, 3) + "-**-*****" } }); } catch { /* 무시 */ }
+          return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
+        }
       }
-      // ② 국세청 상태 확인 — 번호만으로 폐업·휴업·미등록 차단 (진위확인은 관문에서 제거, 2026-08-05)
-      const gate = await assertBizNoActive(bizNo);
-      if (!gate.ok) {
-        // 확인 실패도 로그 — 여기서 이탈하는 가입자가 얼마나 되는지 운영자가 봐야 한다(2026-07-29)
-        try { logError({ source: "manual", message: `[간편가입] 국세청 확인 통과 실패: ${gate.error || "사유 미상"}`, context: { step: "nts_gate", biz: bizNoDigits(bizNo).slice(0, 3) + "-**-*****" } }); } catch { /* 무시 */ }
-        return setError(gate.error || "사업자번호를 확인할 수 없습니다.");
-      }
-      // ③ 회사 개설 (+owner 연결, 14일 트라이얼) — 유니크 충돌 시 합류 전환
+      // ③ 회사 개설 (+owner 연결) — 유니크 충돌 시 합류 전환.
+      //   사업자번호가 비면 createCompanyWithOwner 가 companies.business_number 를 아예 안 넣는다.
+      //   유니크 인덱스가 부분 인덱스(WHERE business_number IS NOT NULL)라 빈 회사끼리는 충돌하지 않고,
+      //   나중에 회사설정에서 번호를 넣는 순간 중복 검사가 정상 작동한다.
       const displayName = authUser.user_metadata?.display_name || authUser.user_metadata?.name || authUser.email?.split("@")[0] || "사용자";
       // 소셜 가입은 메타에 phone 이 없을 수 있어 이 화면에서 받은 값을 우선 사용한다.
       const phoneToSave = isValidMobile(phone) ? phone : (authUser.user_metadata?.phone || null);
@@ -133,8 +142,8 @@ export default function CompanySetupPage() {
           <div className="text-4xl mb-3" aria-hidden><Ico e="🏢" /></div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">회사 정보를 설정해주세요</h1>
           <p className="text-[var(--text-muted)] text-sm mt-1.5 leading-relaxed">
-            오너뷰는 회사(사업자번호)마다 하나의 전용 공간을 사용합니다.<br />
-            회사를 새로 개설하거나, 이미 등록된 회사라면 합류 요청을 보냅니다.
+            회사 이름만 알려주시면 바로 시작할 수 있어요.<br />
+            사업자번호는 통장·세금계산서를 쓰실 때 등록하셔도 됩니다.
           </p>
         </div>
 
@@ -144,36 +153,42 @@ export default function CompanySetupPage() {
           )}
 
           <form onSubmit={submit}>
-            {/* 사업자번호 + 명시적 중복 확인 (available 전에는 회사 개설 정보 미노출) */}
+            {/* 2026-08-20: 회사명이 먼저 온다. 종전엔 사업자번호 칸 하나만 보였고 그걸 통과해야
+                회사명이 나타나, 등록증이 없는 사람은 아무것도 못 하고 나갔다. */}
             <div className="mb-4">
-              <label htmlFor="setup-biz-no" className="field-label">사업자등록번호</label>
+              <label htmlFor="setup-company-name" className="field-label">회사명</label>
+              <input id="setup-company-name" type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
+                placeholder="(주)모티브이노베이션" maxLength={50} autoComplete="organization"
+                className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
+            </div>
+
+            {/* 사업자번호 — 선택. 넣으면 지금처럼 중복·국세청 확인을 거친다. */}
+            <div className="mb-4">
+              <label htmlFor="setup-biz-no" className="field-label">
+                사업자등록번호 <span className="text-[var(--text-dim)] font-normal">(선택 · 나중에 등록해도 됩니다)</span>
+              </label>
               <div className="biz-no-check-row">
                 <input id="setup-biz-no" type="text" inputMode="numeric" value={bizNo}
                   onChange={(e) => { setBizNo(formatBizNo(bizNoDigits(e.target.value))); setBizCheck("unchecked"); setJoinPrompt(null); }}
-                  placeholder="123-45-67890" maxLength={12}
-                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] mono-number biz-no-check-input focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
+                  placeholder="123-45-67890 (비워둬도 됩니다)" maxLength={12}
+                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] mono-number biz-no-check-input focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" />
                 <button type="button" onClick={runBizCheck} disabled={bizCheck === "checking" || !isValidBizNo(bizNo)} className="biz-no-check-btn">
                   {bizCheck === "checking" ? "확인 중..." : "중복 확인"}
                 </button>
               </div>
               {bizCheck === "unchecked" && (
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">먼저 사업자번호 중복 확인을 진행해주세요. 이미 등록된 회사면 합류 요청으로 이어집니다.</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">
+                  통장·카드 자동수집, 세금계산서 발행, 결제에는 사업자번호가 필요합니다 — 그때 등록하셔도 됩니다.
+                </p>
               )}
               {bizCheck === "available" && (
-                <p className="text-[11px] text-[var(--success)] mt-1">사용 가능한 사업자번호입니다. 아래 정보를 입력해 새 회사를 개설하세요.</p>
+                <p className="text-[11px] text-[var(--success)] mt-1">사용 가능한 사업자번호입니다.</p>
               )}
               {bizCheck === "error" && (
-                <p className="text-[11px] text-[var(--danger)] mt-1">확인 중 오류가 발생했습니다. 다시 시도해주세요.</p>
+                <p className="text-[11px] text-[var(--danger)] mt-1">확인 중 오류가 발생했습니다. 다시 시도하거나, 비워두고 시작해도 됩니다.</p>
               )}
             </div>
-            {bizCheck === "available" && (
-              <>
-              <div className="mb-4">
-                <label htmlFor="setup-company-name" className="field-label">회사명</label>
-                <input id="setup-company-name" type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="(주)모티브이노베이션" maxLength={50} autoComplete="organization"
-                  className="w-full px-4 py-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-[var(--text)] focus:outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/20 transition" required />
-              </div>
+            {bizCheck !== "registered" && (
               <div className="mb-4">
                 <label htmlFor="setup-phone" className="field-label">휴대전화 <span className="text-[var(--text-dim)] font-normal">(선택)</span></label>
                 <input id="setup-phone" type="tel" inputMode="numeric" value={phone}
@@ -185,7 +200,6 @@ export default function CompanySetupPage() {
                 )}
                 <p className="text-[11px] text-[var(--text-dim)] mt-1">결재·계약 알림을 카카오톡으로 받는 데 사용됩니다. 나중에 설정에서 입력해도 됩니다.</p>
               </div>
-              </>
             )}
 
             {bizCheck === "registered" && joinPrompt && (
@@ -209,10 +223,21 @@ export default function CompanySetupPage() {
             )}
 
             {bizCheck !== "registered" && (
-              <button type="submit" disabled={loading || bizCheck !== "available"}
-                className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm">
-                {loading ? "확인 중..." : "회사 개설하고 시작하기 (14일 무료)"}
-              </button>
+              <>
+                {/* 번호를 넣었으면 확인을 통과해야 하고, 비웠으면 회사명만으로 시작할 수 있다. */}
+                <button type="submit" disabled={loading || !companyName.trim() || (!!bizNo.trim() && bizCheck !== "available")}
+                  className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-xl font-semibold text-sm transition disabled:opacity-50 shadow-sm">
+                  {/* 2026-08-11 무료체험 폐지(f825e35) 후에도 '(14일 무료)' 가 남아 있었다 —
+                      환불규정("별도의 무료체험 기간은 제공되지 않습니다")과 정면으로 어긋나는 약속이었다. */}
+                  {loading ? "확인 중..." : bizNo.trim() ? "회사 개설하고 시작하기" : "사업자번호 없이 먼저 둘러보기"}
+                </button>
+                {!bizNo.trim() && (
+                  <p className="text-[11px] text-[var(--text-dim)] mt-2 text-center leading-relaxed">
+                    결재·일정·게시판·파일보관함은 바로 쓸 수 있어요.<br />
+                    통장 연결·세금계산서·결제는 사업자번호를 등록하면 열립니다.
+                  </p>
+                )}
+              </>
             )}
           </form>
 

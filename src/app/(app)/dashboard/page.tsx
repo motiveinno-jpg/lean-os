@@ -49,6 +49,7 @@ import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/c
 import { DashboardGrid, type CatalogWidget, type WidgetPreset } from "@/components/dashboard-grid"; // 위젯 격자 — 같은 키·순서 드래그·보기 설정
 import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, MyTasksCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
+import { useCompanyBizNo } from "@/lib/use-company-bizno"; // 사업자번호 미등록 유도 배너 판정
 
 // ── Formatters ──
 function fmtW(n: number): string {
@@ -476,6 +477,9 @@ export default function DashboardPage() {
       onTouchEnd={onTouchEnd}
     >
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
+
+      {/* 사업자번호 미등록 유도 — 가입 관문에서 뺀 대신 여기서 계속 부른다 (2026-08-20) */}
+      <BizNoNotice />
 
       {/* (2026-07-30 개편 P2) 마스터 안내 — 권한 미부여 구성원은 기본 메뉴만 보임 */}
       <MasterPermissionNotice />
@@ -2440,6 +2444,37 @@ function EmployeeProjectsWidget() {
   );
 }
 // (2026-07-30 개편 P2) EmployeeDashboard 삭제 — 화면 한 벌: 모든 구성원이 동일 대시보드(권한 게이트는 RouteGuard).
+
+// 사업자번호 미등록 유도 (2026-08-20 사장님) — 가입 관문에서 번호를 빼면서 함께 넣은 장치.
+//   "나중에 하면 영영 안 한다"에 대한 답 중 하나: **닫아도 세션마다 다시 뜬다**(localStorage 아님).
+//   막지는 않는다 — 막는 건 번호가 실제로 필요한 자리(통장 연결·세금계산서)에서만 한다.
+function BizNoNotice() {
+  const { user } = useUser();
+  const { hasBizNo, loading } = useCompanyBizNo();
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    try { setHidden(sessionStorage.getItem("ov:bizno-notice") === "1"); } catch { /* ignore */ }
+  }, []);
+  if (!(user as any)?.is_master || loading || hasBizNo || hidden) return null;
+  return (
+    <div className="master-perm-notice">
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-[var(--text)]">사업자등록번호를 등록하면 통장·세금계산서가 열립니다</div>
+        <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">
+          지금은 결재·일정·게시판·파일보관함을 쓰실 수 있어요. 번호를 넣으시면 <b>통장·카드 자동 수집</b>과
+          <b> 세금계산서 발행</b>까지 이어집니다. 회사 설정 → 회사정보에서 1분이면 됩니다.
+        </div>
+      </div>
+      <div className="flex gap-2 shrink-0">
+        <a href="/settings?tab=company-info" className="btn-primary btn-sm">사업자번호 등록</a>
+        <button
+          onClick={() => { try { sessionStorage.setItem("ov:bizno-notice", "1"); } catch { /* ignore */ } setHidden(true); }}
+          className="btn-secondary btn-sm"
+        >나중에</button>
+      </div>
+    </div>
+  );
+}
 
 // (2026-07-30 개편 P2) 마스터 안내 배너 — 권한 체계 전환 직후 구성원 권한 부여 유도. 닫으면 다시 안 뜸.
 function MasterPermissionNotice() {

@@ -9824,3 +9824,12 @@ table.dup-table { min-width: 0; }
 .pbsum-mfig-tools { @apply absolute top-1.5 right-1.5 z-10 flex gap-1; }
 .pbsum-mfig-tools > button { @apply w-6 h-6 inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[12px] text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-40 transition; }
 .pbsum-mfig-tools > button.pbsum-sh-on { @apply border-[var(--primary)] text-[var(--primary)] opacity-100; }
+
+/* 사업자번호가 있어야 열리는 기능 앞 안내 (2026-08-20) — 가입 관문에서 받던 번호를
+   실제로 필요한 자리로 옮기면서 신설. 기능 자리를 대신 차지하므로 닫기 버튼이 없다. */
+.bizno-required { @apply mx-auto my-10 max-w-md rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-6 py-8 text-center; }
+.bizno-required-icon { @apply mb-3 text-4xl; }
+.bizno-required-title { @apply text-base font-extrabold text-[var(--text)]; }
+.bizno-required-desc { @apply mt-2 text-sm leading-relaxed text-[var(--text-muted)]; }
+.bizno-required-cta { @apply mt-5 inline-flex; }
+.bizno-required-note { @apply mt-3 text-[11px] text-[var(--text-dim)]; }
