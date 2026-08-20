@@ -2124,7 +2124,11 @@ serve(withSentry("owner-copilot", async (req) => {
         feature: "owner_copilot", // 로그 호환 위해 feature 명 유지
         system: mode === "manager" ? SYSTEM_MANAGER : SYSTEM_EMPLOYEE,
         messages,
-        maxTokens: attachments.length > 0 ? 8000 : 4000,
+        // Opus 5 는 thinking 이 max_tokens 를 함께 쓴다 — 여유 확보 (2026-08-20 모델 상향)
+        maxTokens: attachments.length > 0 ? 8000 : (isHeavy ? 8000 : 6000),
+        // 일반 질의는 effort medium(빠르면서 기존 Sonnet 보다 정확), 무거운 질의만 high —
+        //   게이트웨이 150s 안에서 "바로바로" 답하기 위한 차등 (2026-08-20 사장님).
+        outputConfig: attachmentContractMode ? undefined : { effort: isHeavy ? "high" : "medium" },
         tools: TOOLS,
         // 회사 데이터로 답할 수 없는 질문에서 지어내는 대신 찾아보게 한다 (2026-08-07).
         //   2026-08-10 확대(사장님: "날씨·점심 같은 일반 질문도 다 답해야 한다") —

@@ -9,13 +9,17 @@ import { tfetch } from "./http.ts";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
-// task → 모델. 기본 분석은 Sonnet, 복잡 질의만 Opus (2026-07-22 사장님 결정).
+// task → 모델. 2026-08-20 사장님: "AI 참모를 나(Claude Code)처럼 정확하게" — 분석 계열을
+//   구세대 Sonnet 4.6/Opus 4.8 → 최신 Claude Opus 5 로 상향(가격은 Opus 4.8 과 동일 $5/$25).
+//   extract/classify 는 속도가 관건인 기계적 작업이라 Haiku 유지.
+//   ⚠️ Opus 5 는 thinking 이 기본 켜짐 + temperature/top_p 미지원 + 강제 tool_choice 와
+//   thinking 병용 불가 → callClaude 가 스키마(강제 tool use) 호출에서 자동으로 thinking 을 끈다.
 export type ClaudeTask = "extract" | "classify" | "analysis" | "deep_analysis";
 const MODEL_BY_TASK: Record<ClaudeTask, string> = {
   extract: "claude-haiku-4-5-20251001",
   classify: "claude-haiku-4-5-20251001",
-  analysis: "claude-sonnet-4-6",
-  deep_analysis: "claude-opus-4-8",
+  analysis: "claude-opus-5",
+  deep_analysis: "claude-opus-5",
 };
 
 // 토큰당 대략 단가(USD, 추정치 — 비용 표시용. 정확 청구 아님). input/output 백만토큰당.
@@ -24,6 +28,7 @@ const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
   "claude-haiku-4-5-20251001": { in: 1.0, out: 5.0 },
   "claude-sonnet-4-6": { in: 3.0, out: 15.0 },
   "claude-opus-4-8": { in: 5.0, out: 25.0 },
+  "claude-opus-5": { in: 5.0, out: 25.0 },
 };
 
 // 회사별 월 AI 비용 상한 — 기능 불문 합산.
@@ -32,7 +37,9 @@ const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
 //   비용 상한이 이보다 낮으면 횟수를 다 쓰기 전에 막혀 한도 표기가 거짓이 된다.
 //   실제 방어선은 아래 '월 호출 횟수' 상한이고, 이 값은 폭주 안전망이다.
 //   env(AI_MONTHLY_COST_CAP_USD)로 조정 가능.
-const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "6");
+//   2026-08-20 참모 Opus 5 상향으로 호출당 원가 상승(약 1.7배) — 월 100회 한도가 비용 상한에
+//   먼저 막히지 않게 기본값 6 → 12 로 조정. env(AI_MONTHLY_COST_CAP_USD)로 조정 가능.
+const MONTHLY_COST_CAP_USD = Number(Deno.env.get("AI_MONTHLY_COST_CAP_USD") || "12");
 
 export interface ClaudeCallOpts {
   task: ClaudeTask;
@@ -117,6 +124,9 @@ export async function callClaude<T = unknown>(opts: ClaudeCallOpts): Promise<Cla
   if (useSchemaTool) {
     body.tools = [{ name: "respond", description: "요청에 대한 구조화된 응답을 지정된 스키마로 반환합니다.", input_schema: opts.schema }];
     body.tool_choice = { type: "tool", name: "respond" };
+    // Opus 5 는 thinking 기본 켜짐 — 강제 tool_choice 와 병용 불가라 스키마 모드에선 명시적으로 끈다.
+    //   (effort 기본 high 에선 disabled 허용. 호출측이 thinking 을 준 경우는 그대로 존중.)
+    if (model.startsWith("claude-opus-5") && !opts.thinking) body.thinking = { type: "disabled" };
   } else {
     const tools = [...(opts.tools ?? [])];
     // 웹검색 — Anthropic 서버 도구. 모델이 필요하다고 판단할 때만 검색하고,
