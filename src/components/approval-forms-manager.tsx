@@ -351,6 +351,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                           ))}
                           <input
                             placeholder="옵션 입력 후 Enter"
+                            title="'기타' 를 옵션으로 넣으면, 작성자가 그걸 고를 때 옆에 내용 적는 칸이 열립니다"
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
                               // 조합 중일 때 return 이어야 한다 — 종전엔 조건이 뒤집혀(!isComposing)
@@ -485,7 +486,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                   className="text-[11px] px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]">+ 필드 추가</button>
               </div>
               {defaultForm.fields.length === 0 ? (
-                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">필드를 추가하면 작성자가 채웁니다(예: 지출 항목, 금액, 사유). 비워두면 기존처럼 설명+금액만 사용됩니다.</div>
+                <div className="text-[11px] text-[var(--text-dim)] px-1 py-1.5">필드를 추가하면 작성자가 채웁니다(예: 지출 항목, 금액, 사유). 드롭다운 옵션에 '기타' 를 넣으면 고를 때 내용 적는 칸이 함께 열립니다.</div>
               ) : (
                 <div className="space-y-1.5">
                   {defaultForm.fields.map((f, i) => (
@@ -512,6 +513,7 @@ export function ApprovalFormsManager({ companyId }: { companyId: string }) {
                           ))}
                           <input
                             placeholder="옵션 입력 후 Enter"
+                            title="'기타' 를 옵션으로 넣으면, 작성자가 그걸 고를 때 옆에 내용 적는 칸이 열립니다"
                             className="h-7 px-2 rounded bg-[var(--bg)] border border-[var(--border)] text-xs w-[110px]"
                             onKeyDown={(e) => {
                               // 조합 중일 때 return 이어야 한다 — 종전엔 조건이 뒤집혀(!isComposing)

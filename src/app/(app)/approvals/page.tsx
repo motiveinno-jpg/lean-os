@@ -1839,10 +1839,11 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
                     {fd.type === "textarea" ? (
                       <textarea value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
                     ) : fd.type === "select" ? (
-                      <select value={editFieldValues[fd.key] || ""} onChange={(e) => setEditFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="field-input">
-                        <option value="">선택</option>
-                        {(fd.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
-                      </select>
+                      <SelectWithEtc
+                        value={editFieldValues[fd.key] || ""}
+                        options={fd.options || []}
+                        onChange={(v) => setEditFieldValues((s) => ({ ...s, [fd.key]: v }))}
+                      />
                     ) : fd.type === "fixed" ? (
                       <input type="text" value={fd.default_value || ""} readOnly disabled
                         className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl text-sm text-[var(--text-muted)]" />
@@ -2569,6 +2570,41 @@ function PeriodFieldInput({ value, onChange }: { value: string; onChange: (v: st
 // 입력 필드 블록 — 고정 순서 렌더.
 //   2026-07-30 재배치 기능(드래그·↑↓·localStorage 순서 저장)은 2026-08-20 사장님 지시로 제거:
 //   "요청을 하는 사람은 입력필드의 위치를 변경하거나 옮기는게 안되게 해야돼".
+// ── 드롭다운 '기타' 선택 시 내용 입력칸 (2026-08-20 사장님 요청) ────────────────────
+//   양식 옵션에 '기타'(또는 그 외·직접입력)가 있으면, 그걸 고른 순간 옆에 내용 칸이 열린다.
+//   저장 형식은 "기타: 실제내용" 한 문자열 — 목록·상세·PDF 등 기존 표시 경로가 그대로 통한다.
+//   '기타'가 아닌 옵션은 예전과 완전히 같은 값으로 저장된다(호환 유지).
+const isEtcOption = (o: string) => /^(기타|그\s*외|직접\s*입력)/.test((o || "").trim());
+
+function SelectWithEtc({ value, options, onChange, placeholder = "선택" }: {
+  value: string; options: string[]; onChange: (v: string) => void; placeholder?: string;
+}) {
+  const raw = value || "";
+  const picked = options.find((o) => raw === o) || options.find((o) => isEtcOption(o) && raw.startsWith(o)) || "";
+  const etc = !!picked && isEtcOption(picked);
+  const detail = etc ? raw.slice(picked.length).replace(/^\s*[:：—-]\s*/, "") : "";
+  return (
+    <div className={etc ? "flex gap-2" : ""}>
+      <select
+        value={picked}
+        onChange={(e) => onChange(e.target.value)}
+        className={`field-input ${etc ? "w-[45%] shrink-0" : ""}`}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+      {etc && (
+        <input
+          value={detail}
+          onChange={(e) => { const t = e.target.value; onChange(t.trim() ? `${picked}: ${t}` : picked); }}
+          placeholder={`${picked} 내용을 적어주세요`}
+          className="field-input flex-1 min-w-0"
+        />
+      )}
+    </div>
+  );
+}
+
 function FieldBlocks({ blocks }: { blocks: { key: string; node: React.ReactNode }[] }) {
   return (
     <>
@@ -3321,10 +3357,11 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                         {fd.type === "textarea" ? (
                           <textarea value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} rows={2} className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm" />
                         ) : fd.type === "select" ? (
-                          <select value={customFieldValues[fd.key] || ""} onChange={(e) => setCustomFieldValues((s) => ({ ...s, [fd.key]: e.target.value }))} className="field-input">
-                            <option value="">선택</option>
-                            {(fd.options || []).map((o) => <option key={o} value={o}>{o}</option>)}
-                          </select>
+                          <SelectWithEtc
+                            value={customFieldValues[fd.key] || ""}
+                            options={fd.options || []}
+                            onChange={(v) => setCustomFieldValues((s) => ({ ...s, [fd.key]: v }))}
+                          />
                         ) : fd.type === "fixed" ? (
                           /* 직원 QA #11 — 직접입력 고정값: 양식이 지정한 값 그대로(작성자 수정 불가) */
                           <input type="text" value={fd.default_value || ""} readOnly disabled
