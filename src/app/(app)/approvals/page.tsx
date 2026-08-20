@@ -4577,7 +4577,14 @@ function ApprovalCommentThread({ requestId }: { requestId: string }) {
     } finally { setPosting(false); }
   };
   const deleteComment = async (id: string) => {
-    await (supabase).from("approval_comments").delete().eq("id", id);
+    // 첨부도 같이 지운다 (2026-08-20 감사): 종전엔 행만 지워 파일이 스토리지에 영구히 남았다.
+    const target = (comments as any[]).find((c) => c.id === id);
+    const { error } = await (supabase).from("approval_comments").delete().eq("id", id);
+    if (error) { toast("댓글 삭제 실패: " + friendlyError(error, "알 수 없는 오류"), "error"); return; }
+    for (const url of (target?.attachments || []) as string[]) {
+      const m = String(url).match(/\/object\/(?:public|sign|authenticated)\/documents\/([^?]+)/);
+      if (m) await supabase.storage.from("documents").remove([decodeURIComponent(m[1])]).catch(() => {});
+    }
     qc.invalidateQueries({ queryKey: ["approval-comments", requestId] });
   };
   return (

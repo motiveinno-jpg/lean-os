@@ -449,12 +449,20 @@ export default function BoardPage() {
     mutationFn: async (id: string) => {
       // 삭제는 작성자 본인만 (2026-07-31 사장님) — 버튼 노출 조건과 이중 방어
       if (!user?.id) throw new Error("작성자 본인만 삭제할 수 있습니다.");
+      // 첨부 경로를 먼저 확보 (행이 사라지면 못 찾는다). 삭제가 성공한 뒤에 파일을 지운다.
+      //   종전엔 행만 지워 사진·문서가 board-files 에 영구히 남았다 (2026-08-20 감사).
+      const doomed = (posts as Post[]).find((p) => p.id === id);
       const { error } = await db
         .from("board_posts")
         .delete()
         .eq("id", id)
         .eq("author_id", user.id);
       if (error) throw error;
+      const paths = (doomed?.attachments || [])
+        .map((a) => String(a?.url || "").match(/\/object\/(?:public|sign|authenticated)\/board-files\/([^?]+)/))
+        .filter(Boolean)
+        .map((m) => decodeURIComponent((m as RegExpMatchArray)[1]));
+      if (paths.length > 0) await db.storage.from("board-files").remove(paths).catch(() => {});
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["board-posts"] });
