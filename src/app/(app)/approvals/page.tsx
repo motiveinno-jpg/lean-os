@@ -3726,6 +3726,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
                 setDescriptionInited("");
                 setLeaveForm({ leaveType: "annual", leaveUnit: "full_day", halfDayPeriod: "am", startDate: "", endDate: "", startTime: "", endTime: "", reason: "" });
                 setFiles([]);
+                // 임시저장 때 이미 스토리지에 올린 첨부는 여기서 같이 지운다 — 안 지우면
+                //   아무 화면에서도 안 보이는 고아 파일로 남는다 (2026-08-20 감사).
+                void (async () => {
+                  for (const url of draftAttachmentUrls) {
+                    const m = url.match(/\/object\/(?:public|sign|authenticated)\/documents\/([^?]+)/);
+                    if (m) await supabase.storage.from("documents").remove([decodeURIComponent(m[1])]).catch(() => {});
+                  }
+                })();
                 setDraftAttachmentUrls([]);
                 setSelectedApprovers([]);
                 setSelectedReferences([]); setReferencesInited("");

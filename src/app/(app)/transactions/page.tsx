@@ -514,9 +514,13 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     const file = e.target.files?.[0];
     if (!file || !companyId) return;
     setOcrScanning(true);
+    // OCR 용 임시 이미지는 인식이 끝나면 지운다 (2026-08-20 감사) — 종전엔 스캔할 때마다
+    //   receipts 버킷에 1장씩 영구히 쌓였다(DB 행이 없어 아무도 못 지우는 파일).
+    let ocrTempPath: string | null = null;
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
       const path = `${companyId}/ocr/${Date.now()}.${ext}`;
+      ocrTempPath = path;
       const { error: upErr } = await supabase.storage.from("receipts").upload(path, file, { upsert: true });
       if (upErr) throw upErr;
       // Edge 가 서버에서 fetch 하므로 서명 URL(시간제한 공개) 사용 — 버킷 public/private 무관 동작.
@@ -545,8 +549,9 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       }));
       toast(`영수증 인식 완료 (확신도 ${data.confidence}%) — 내용 확인 후 등록하세요`, "success");
     } catch (err: any) {
-      toast(`영수증 스캔 실패: ${err.message}`, "error");
+      toast(`영수증 스캔 실패: ${friendlyError(err, "알 수 없는 오류")}`, "error");
     } finally {
+      if (ocrTempPath) await supabase.storage.from("receipts").remove([ocrTempPath]).catch(() => {});
       setOcrScanning(false);
       if (ocrFileRef.current) ocrFileRef.current.value = "";
     }

@@ -14,7 +14,7 @@ import { useToast } from "@/components/toast";
 import { updateEmployee, LEAVE_TYPES, calculateAnnualLeave } from "@/lib/hr";
 import { getCompanyLeaveTypes, defaultCompanyLeaveTypes } from "@/lib/leave-grants";
 import { listLeaveGrants, addLeaveGrant, deleteLeaveGrant, setBaseLeaveGrant, GRANT_TYPE_LABELS, type LeaveGrant, type LeaveGrantType } from "@/lib/leave-grants";
-import { uploadEmployeeFile, getSignedUrl } from "@/lib/file-storage";
+import { uploadEmployeeFile, deleteEmployeeFileByPath, getSignedUrl } from "@/lib/file-storage";
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { PermissionSection } from "./PermissionSection";
@@ -1201,8 +1201,31 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
   async function saveDocState(key: string, update: Partial<OnboardingDocItem>) {
     const current = { ...saved };
     current[key] = { ...current[key], ...update } as any;
-    await (supabase).from("employees").update({ onboarding_docs: current }).eq("id", employeeId);
+    // error 를 봐야 한다 (2026-08-20 감사): 종전엔 이 update 가 실패해도 위에서 "업로드되었습니다"
+    //   토스트가 떠서, 직원은 냈다고 믿고 인사담당자는 안 왔다고 보는 상태가 조용히 생겼다.
+    const { error } = await (supabase).from("employees").update({ onboarding_docs: current }).eq("id", employeeId);
+    if (error) throw error;
     queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
+  }
+
+  // 올린 서류 삭제 (2026-08-20 사장님 요청) — 파일·원장·체크리스트 표시를 함께 지운다.
+  async function handleFileDelete(item: OnboardingDocItem) {
+    if (!confirm(`'${item.label}'에 올린 파일${item.fileName ? ` (${item.fileName})` : ""}을 삭제할까요?`)) return;
+    setUploading(item.key);
+    try {
+      let path = item.storagePath;
+      if (!path && item.fileUrl) {
+        const m = item.fileUrl.match(/\/object\/(?:public|sign|authenticated)\/employee-files\/([^?]+)/);
+        if (m) path = decodeURIComponent(m[1]);
+      }
+      if (path) await deleteEmployeeFileByPath(path);
+      await saveDocState(item.key, { completed: false, fileUrl: undefined, storagePath: undefined, fileName: undefined, uploadedAt: undefined });
+      toast("파일을 삭제했습니다", "success");
+    } catch (err: any) {
+      toast(friendlyError(err, "삭제 실패"), "error");
+    } finally {
+      setUploading(null);
+    }
   }
 
   async function handleFileUpload(key: string, file: File) {
@@ -1285,9 +1308,19 @@ function OnboardingDocsSection({ employeeId, companyId, emp, queryClient }: { em
             {/* File link or upload button */}
             <div className="flex items-center gap-2 flex-shrink-0">
               {(item.fileUrl || item.storagePath) && (
-                <button type="button" onClick={() => openDocFile(item)} className="text-[10px] text-[var(--primary)] hover:underline">
-                  보기
-                </button>
+                <>
+                  <button type="button" onClick={() => openDocFile(item)} className="text-[10px] text-[var(--primary)] hover:underline">
+                    보기
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleFileDelete(item)}
+                    disabled={uploading === item.key}
+                    className="text-[10px] text-[var(--text-dim)] hover:text-[var(--danger)] hover:underline disabled:opacity-50"
+                  >
+                    삭제
+                  </button>
+                </>
               )}
               <label className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold cursor-pointer transition ${uploading === item.key ? "opacity-50 pointer-events-none" : "bg-[var(--bg-surface)] hover:bg-[var(--primary)]/10 text-[var(--text-muted)] hover:text-[var(--primary)]"}`}>
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

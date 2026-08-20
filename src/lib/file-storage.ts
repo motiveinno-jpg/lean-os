@@ -240,7 +240,12 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
     })
     .select()
     .single();
-  if (insertError) throw insertError;
+  if (insertError) {
+    // 원장 기록이 실패하면 방금 올린 파일은 앱에서 영영 안 보이는 고아가 된다 — 되돌린다.
+    //   (2026-08-20 감사: 이 함수 하나에 문서함·금고·HR 양식 등 9개 화면이 매달려 있다)
+    await supabase.storage.from(bucket).remove([storagePath]).catch(() => {});
+    throw insertError;
+  }
 
   // Audit log (non-blocking — upload already succeeded)
   logAudit({
@@ -355,7 +360,10 @@ export async function createNewVersion(
     })
     .select()
     .single();
-  if (insertError) throw insertError;
+  if (insertError) {
+    await supabase.storage.from(bucket).remove([storagePath]).catch(() => {});   // 위와 같은 이유
+    throw insertError;
+  }
 
   // Audit log (non-blocking)
   logAudit({
@@ -712,5 +720,15 @@ export async function deleteEmployeeFile(fileId: string) {
   }
 
   const { error } = await db.from("employee_files").delete().eq("id", fileId);
+  if (error) throw error;
+}
+
+/** 입사서류 체크리스트에서 올린 파일 삭제 (2026-08-20 사장님 요청) — 체크리스트는 파일 id 가
+ *  아니라 storage_path 로 파일을 들고 있어서(employees.onboarding_docs JSONB) 경로로 지운다.
+ *  스토리지 → 원장 순서로 지우되 스토리지 실패는 무시한다: 이미 없는 파일 때문에 목록에서
+ *  영영 못 지우는 상태가 되면 안 된다. */
+export async function deleteEmployeeFileByPath(storagePath: string): Promise<void> {
+  await supabase.storage.from("employee-files").remove([storagePath]).catch(() => {});
+  const { error } = await db.from("employee_files").delete().eq("storage_path", storagePath);
   if (error) throw error;
 }

@@ -1594,7 +1594,9 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
           receipt_urls: form.receipt_urls.length > 0 ? form.receipt_urls : null,
         };
         if (requestType === 'purchase_request') patch.request_type = 'purchase_request';
-        await (supabase).from('expense_requests').update(patch as never).eq('id', data.id);
+        // error 를 봐야 한다 (2026-08-20 감사): 실패해도 "등록되었습니다" 가 떠서 영수증이 사라졌다.
+        const { error: patchErr } = await (supabase).from('expense_requests').update(patch as never).eq('id', data.id);
+        if (patchErr) throw patchErr;
       }
       queryClient.invalidateQueries({ queryKey: ['expense-requests'] });
       invalidate();
@@ -1821,7 +1823,10 @@ function ExpenseTab({ companyId, userId, invalidate }: { companyId: string; user
                     const { supabase } = await import('@/lib/supabase');
                     const newUrls: string[] = [];
                     for (const file of files) {
-                      const path = `${companyId}/expense-receipts/${Date.now()}-${file.name}`;
+                      // 파일명을 키에 그대로 쓰면 한글·공백에서 Storage 가 Invalid key 로 거절한다
+                      //   (2026-08-20 감사 — 다른 업로드 경로는 전부 안전화한다). 원본 이름은 URL 로 남는다.
+                      const safeName = file.name.replace(/[^\w.\-]/g, "_");
+                      const path = `${companyId}/expense-receipts/${Date.now()}-${safeName}`;
                       const { error: upErr } = await (supabase).storage.from('company-assets').upload(path, file, { cacheControl: '3600', upsert: false });
                       if (upErr) throw upErr;
                       const { data: pub } = (supabase).storage.from('company-assets').getPublicUrl(path);

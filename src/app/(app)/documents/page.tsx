@@ -2864,6 +2864,9 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
 
   // Upload files
   const handleFilesSelected = async (selectedFiles: File[]) => {
+    // 실패를 사용자에게 알린다 (2026-08-20 감사): 종전엔 console 로만 흘려, 10개를 끌어넣어
+    //   10개 다 실패해도 화면이 조용히 그대로였다.
+    const failed: string[] = [];
     for (const file of selectedFiles) {
       try {
         await uploadFile({
@@ -2876,9 +2879,15 @@ function FileStorageTab({ companyId, userId }: { companyId: string; userId: stri
         });
       } catch (err: any) {
         console.error("Upload failed:", err);
+        failed.push(`${file.name} — ${friendlyError(err, "알 수 없는 오류")}`);
       }
     }
     queryClient.invalidateQueries({ queryKey: ["storage-files"] });
+    if (failed.length > 0) {
+      toast(`${failed.length}개 파일을 올리지 못했습니다: ${failed.slice(0, 3).join(" / ")}${failed.length > 3 ? " 외" : ""}`, "error");
+    } else if (selectedFiles.length > 0) {
+      toast(`${selectedFiles.length}개 파일을 올렸습니다`, "success");
+    }
   };
 
   // Delete file
