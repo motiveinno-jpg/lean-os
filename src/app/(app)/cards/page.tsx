@@ -53,6 +53,15 @@ function cardTypeBadgeClass(cardType?: string | null): string {
 }
 
 // 흰 배경 카드(MiniCard) 위 종류 칩 — 라이트/다크 양쪽 잘 보이는 톤.
+/** 카드번호 표시 — 저장된 값 전체를 4자리씩 끊어 보여준다. 카드사(CODEF)는 마스킹된 번호만 줘서
+ *  기본은 끝 4자리다 — 전체를 보려면 '수정'에서 카드번호를 직접 채운다 (2026-08-20 사장님) */
+function cardNoDisplay(no: string | null | undefined): string {
+  const v = String(no || "").replace(/[^0-9*]/g, "");
+  if (!v) return "----";
+  if (v.length <= 4) return `•••• ${v}`;
+  return v.replace(/(.{4})(?=.)/g, "$1-");
+}
+
 function cardTypeChipClass(cardType?: string | null): string {
   if (cardType === "check") return "bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 dark:text-emerald-400";
   if (cardType === "debit") return "bg-fuchsia-500/15 text-fuchsia-600 border border-fuchsia-500/30 dark:text-fuchsia-400";
@@ -181,14 +190,14 @@ export default function CardsPage() {
   //   카드 동작 확장 (2026-08-19 사장님) — 수정(이름·메모)·숨김(is_active=false)·삭제(거래 있으면 막음)
   const { confirm: confirmDlg, confirmElement: cardConfirmEl } = useConfirm();
   const [showHiddenCards, setShowHiddenCards] = useState(false);
-  const [cardEdit, setCardEdit] = useState<{ id: string; name: string; memo: string } | null>(null);
+  const [cardEdit, setCardEdit] = useState<{ id: string; name: string; memo: string; number: string } | null>(null);
   const [cardSaving, setCardSaving] = useState(false);
   const refreshCards = () => { queryClient.invalidateQueries({ queryKey: ["cards-page-corporate"] }); queryClient.invalidateQueries({ queryKey: ["corporate-cards"] }); };
   const saveCardEdit = async () => {
     if (!cardEdit) return;
     const name = cardEdit.name.trim(); if (!name) { toast("카드 이름을 입력해 주세요", "error"); return; }
     setCardSaving(true);
-    try { const { error } = await db.from("corporate_cards").update({ card_name: name, memo: cardEdit.memo.trim() || null } as never).eq("id", cardEdit.id); if (error) throw error; refreshCards(); toast("카드 정보를 저장했습니다", "success"); setCardEdit(null); }
+    try { const { error } = await db.from("corporate_cards").update({ card_name: name, memo: cardEdit.memo.trim() || null, card_number: cardEdit.number.replace(/[^0-9]/g, "") || null } as never).eq("id", cardEdit.id); if (error) throw error; refreshCards(); toast("카드 정보를 저장했습니다", "success"); setCardEdit(null); }
     catch (e) { toast(friendlyError(e, "저장 실패"), "error"); } finally { setCardSaving(false); }
   };
   const toggleCardHidden = async (card: any) => {
@@ -841,7 +850,7 @@ export default function CardsPage() {
             )}
             {tab === "cards" && currentCard && (
               <ResultStrip right={<button type="button" onClick={() => setShowBalance((v) => !v)} className="btn-secondary btn-sm">{showBalance ? "금액 숨김" : "금액 보기"}</button>}>
-                <QStat label="선택한 카드" value={<>{currentCard.card_name || "카드"} <small className="font-normal text-[var(--text-dim)]">{cardTypeLabel(currentCard.card_type)} · •••• {(currentCard.card_number || "").slice(-4) || "----"} · 결제일 {currentCard.payment_day ? `매월 ${currentCard.payment_day}일` : "—"}</small></>} />
+                <QStat label="선택한 카드" value={<>{currentCard.card_name || "카드"} <small className="font-normal text-[var(--text-dim)]">{cardTypeLabel(currentCard.card_type)} · {cardNoDisplay(currentCard.card_number)} · 결제일 {currentCard.payment_day ? `매월 ${currentCard.payment_day}일` : "—"}</small></>} />
                 <QStat label="이번 달" value={<>{showBalance ? fmtW(currentSpend) : "••••••"} <small className="font-normal text-[var(--text-dim)]">{currentTxCount}건{Number(currentCard.monthly_limit || 0) > 0 && showBalance ? ` / 한도 ${fmtW(Number(currentCard.monthly_limit))}` : ""}</small></>} />
               </ResultStrip>
             )}
@@ -869,14 +878,14 @@ export default function CardsPage() {
                     <tr key={card.id} className={`pnl-row-acct ${idx === selectedCardIdx ? "cards-row-on" : ""} ${card.is_active === false ? "opacity-60" : ""}`} onClick={() => handleSelectCardForTx(card, idx)} title="누르면 이 카드 거래내역">
                       <td className="text-left font-semibold">{card.card_name || "카드"}{card.is_active === false && <span className="ol-sure ml-1.5">숨김</span>}</td>
                       <td className="text-center"><span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${cardTypeBadgeClass(card.card_type)}`}>{cardTypeLabel(card.card_type)}</span></td>
-                      <td className="text-center mono-number text-[var(--text-muted)]">•••• {(card.card_number || "").slice(-4) || "----"}</td>
+                      <td className="text-center mono-number text-[var(--text-muted)] whitespace-nowrap">{cardNoDisplay(card.card_number)}</td>
                       <td className="text-center text-[var(--text-muted)]">{card.card_company || "—"}</td>
                       <td className="text-left text-[var(--text-muted)]">{card.memo ? <span className="truncate inline-block max-w-[200px]" title={card.memo}>{card.memo}</span> : <span className="text-[var(--text-dim)]">—</span>}</td>
                       <td className="text-center">{card.payment_day ? `매월 ${card.payment_day}일` : "—"}</td>
                       <td className="text-right mono-number">{Number(card.monthly_limit || 0) > 0 ? fmtW(Number(card.monthly_limit)) : "—"}</td>
                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
                         <span className="inline-flex gap-1.5">
-                          <button type="button" onClick={() => setCardEdit({ id: card.id, name: card.card_name || "", memo: card.memo || "" })} className="btn-secondary btn-sm">수정</button>
+                          <button type="button" onClick={() => setCardEdit({ id: card.id, name: card.card_name || "", memo: card.memo || "", number: card.card_number || "" })} className="btn-secondary btn-sm">수정</button>
                           <button type="button" onClick={() => toggleCardHidden(card)} className="btn-secondary btn-sm">{card.is_active === false ? "보이기" : "숨김"}</button>
                           <button type="button" onClick={() => removeCard(card)} className="btn-secondary btn-sm text-[var(--danger)]">삭제</button>
                         </span>
@@ -1306,6 +1315,7 @@ export default function CardsPage() {
             <div className="pnl-drill-head"><h3 className="text-sm font-bold">카드 수정</h3><button type="button" className="btn-secondary btn-sm" onClick={() => setCardEdit(null)}>닫기</button></div>
             <div className="pay-form-body space-y-3">
               <label className="block"><span className="field-label">카드 이름</span><input className="qk-input h-9 w-full px-2.5 text-sm" value={cardEdit.name} onChange={(e) => setCardEdit({ ...cardEdit, name: e.target.value })} /></label>
+              <label className="block"><span className="field-label">카드번호 <span className="text-[var(--text-dim)] font-normal">— 카드사가 끝 4자리만 알려줘서, 전체로 보려면 직접 입력</span></span><input className="qk-input h-9 w-full px-2.5 text-sm mono-number" inputMode="numeric" value={cardEdit.number} onChange={(e) => setCardEdit({ ...cardEdit, number: e.target.value.replace(/[^0-9-]/g, "") })} placeholder="예: 5137-1234-5678-4962" /></label>
               <label className="block"><span className="field-label">메모</span><textarea className="qk-input w-full px-2.5 py-2 text-sm" rows={3} value={cardEdit.memo} onChange={(e) => setCardEdit({ ...cardEdit, memo: e.target.value })} placeholder="예: 마케팅팀 광고비 전용 · 대표 소지" /></label>
               <div className="flex justify-end gap-2"><button type="button" className="btn-secondary btn-sm" onClick={() => setCardEdit(null)}>취소</button><button type="button" className="btn-primary btn-sm" disabled={cardSaving} onClick={saveCardEdit}>{cardSaving ? "저장 중…" : "저장"}</button></div>
             </div>
@@ -1336,7 +1346,7 @@ function MiniCard({
   onSaveEdit: () => void;
   onCancelEdit: () => void;
 }) {
-  const last4 = (card.card_number || "").slice(-4) || "----";
+  const cardNoText = cardNoDisplay(card.card_number);
   const chipClass = cardTypeChipClass(card.card_type);
   // 등록 카드(corporate_cards.id 존재)만 이름 편집 가능. CODEF 미식별 묶음은 hide.
   const canEditName = !!card.id;
@@ -1391,7 +1401,7 @@ function MiniCard({
           {cardTypeLabel(card.card_type)}
         </span>
       </div>
-      <p className="text-xs text-[var(--text-muted)] font-mono mb-1">•••• {last4}</p>
+      <p className="text-xs text-[var(--text-muted)] font-mono mb-1">{cardNoText}</p>
       <p className="text-[11px] text-[var(--text-dim)] truncate">{card.card_company || ""}</p>
     </div>
   );
