@@ -153,6 +153,9 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
   // 같은 범위를 본다 (2026-08-20 사장님: 토글 눌렀을 때 사이드도 맞게 적용).
   const SIDE_WINDOW_DAYS: Record<Gran, number> = { day: 30, month: 365, year: 1095 };
   const SIDE_WINDOW_LABEL: Record<Gran, string> = { day: "최근 30일", month: "최근 12개월", year: "최근 3년" };
+  // 많이 본 페이지·유입 경로는 말 그대로 일간=오늘 / 월간=한 달 / 연간=1년 (2026-08-20 사장님 정정)
+  const TRAFFIC_WINDOW_DAYS: Record<Gran, number> = { day: 1, month: 30, year: 365 };
+  const TRAFFIC_WINDOW_LABEL: Record<Gran, string> = { day: "오늘", month: "최근 30일", year: "최근 1년" };
   const [gran, setGran] = useState<Gran>("day");
   const [metric, setMetric] = useState<MetricKey>("visitors");
   const [hover, setHover] = useState<number | null>(null);
@@ -180,7 +183,7 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
     enabled: !testData,
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: d, error } = await (supabase as any).rpc("platform_traffic_stats", { p_days: SIDE_WINDOW_DAYS[gran] });
+      const { data: d, error } = await (supabase as any).rpc("platform_traffic_stats", { p_days: TRAFFIC_WINDOW_DAYS[gran] });
       if (error) return null;
       return d as NonNullable<typeof traffic>;
     },
@@ -427,7 +430,7 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
           </div>
 
           <div className="glass-card p-4">
-            <div className="pa-side-title">많이 본 페이지 <span className="font-normal text-[var(--text-dim)]">· {SIDE_WINDOW_LABEL[gran]}</span></div>
+            <div className="pa-side-title">많이 본 페이지 <span className="font-normal text-[var(--text-dim)]">· {TRAFFIC_WINDOW_LABEL[gran]}</span></div>
             {(sideTraffic?.top_paths?.length ?? 0) === 0 ? (
               <div className="pa-side-empty">수집 대기 중</div>
             ) : (
@@ -449,7 +452,7 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
                 );
               })()
             )}
-            <div className="pa-side-title mt-4">유입 경로 <span className="font-normal text-[var(--text-dim)]">· {SIDE_WINDOW_LABEL[gran]}</span></div>
+            <div className="pa-side-title mt-4">유입 경로 <span className="font-normal text-[var(--text-dim)]">· {TRAFFIC_WINDOW_LABEL[gran]}</span></div>
             {(sideTraffic?.top_referrers?.length ?? 0) === 0 ? (
               <div className="pa-side-empty">수집 대기 중</div>
             ) : (
