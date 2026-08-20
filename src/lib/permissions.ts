@@ -27,9 +27,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "finance", label: "재무·경영 위젯", desc: "신호 6칸·통장·카드·미수·매출 등 금액 위젯", money: true },
         { key: "briefing", label: "AI 브리핑", desc: "오늘 챙길 것(AI 제안)" },
       ] },
-      { route: "/copilot", label: "AI 참모", desc: "회사 자료를 읽고 답하는 AI — 금액 질문에 답할 수 있다", money: true },
-      { route: "/mypage", label: "마이페이지", always: true },
       { route: "/notifications", label: "알림", always: true },
+      { route: "/mypage", label: "마이페이지", always: true },
+      { route: "/copilot", label: "AI 참모", desc: "회사 자료를 읽고 답하는 AI — 금액 질문에 답할 수 있다", money: true },
     ],
   },
   {

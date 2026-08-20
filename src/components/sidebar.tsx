@@ -30,12 +30,13 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "홈", short: "홈", icon: "grid",
     items: [
+      //   순서 = 매일 여는 순 (2026-08-20 전수 점검): 대시보드 → 알림 → 마이페이지 → AI 참모 → 마스터(특수 화면이라 맨 아래)
       { href: "/dashboard", label: "대시보드", icon: "grid" },
+      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
+      { href: "/mypage", label: "마이페이지", icon: "user" },
+      { href: "/copilot", label: "AI 참모", icon: "sparkles", roles: ["owner", "admin"] },
       // 마스터 전용 — 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동 (2026-08-10 사장님)
       { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
-      { href: "/copilot", label: "AI 참모", icon: "sparkles", roles: ["owner", "admin"] },
-      { href: "/mypage", label: "마이페이지", icon: "user" },
-      { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
     ],
   },
   {
@@ -83,10 +84,10 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", roles: ["owner", "admin"], match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
       //   부가세 — 세금계산서 화면의 탭이었는데 분석으로 옮겼다 (2026-08-13 사장님 지시).
       //   세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞아졌다.
-      //   ★ 위 '5개까지만 편다'를 하나 넘긴다 — 부가세는 원래 최상위 탭이었고 신고철마다 찾는 화면이라
-      //     하위로 접으면 못 찾는다. 더 늘릴 거면 그때 묶는다.
-      { href: "/reports/vat", permKey: "/reports", label: "부가세", icon: "receipt", roles: ["owner", "admin"], match: ["/reports/vat"] },
+      //   순서 (2026-08-20 전수 점검): 요약 → 현재(손익) → 미래(전망) → 자료(회계 자료·거래처 원장) → 신고(부가세, 신고철에만 여는 행사성이라 맨 아래)
       { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"], match: ["/partners/ledger"] },
+      //   ★ 위 '5개까지만 편다'를 하나 넘긴다 — 부가세는 원래 최상위 탭이었고 신고철마다 찾는 화면이라 하위로 접으면 못 찾는다.
+      { href: "/reports/vat", permKey: "/reports", label: "부가세", icon: "receipt", roles: ["owner", "admin"], match: ["/reports/vat"] },
     ],
   },
   {
