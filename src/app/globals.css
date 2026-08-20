@@ -9954,3 +9954,5 @@ table.dup-table { min-width: 0; }
 .pbsum-mfig-tools { @apply absolute top-1.5 right-1.5 z-10 flex gap-1; }
 .pbsum-mfig-tools > button { @apply w-6 h-6 inline-flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--bg-card)] text-[12px] text-[var(--text-dim)] hover:text-[var(--text)] disabled:opacity-40 transition; }
 .pbsum-mfig-tools > button.pbsum-sh-on { @apply border-[var(--primary)] text-[var(--primary)] opacity-100; }
+/* 내 지표·대표 그림 안 차트 판 배경 제거 (2026-08-20 사장님: 배경색 남음) — viz-plot 회색은 분석 화면용, 요약 카드 안에서는 투명 */
+.pbsum-hero .viz-plot, .pbsum-mfig .viz-plot { @apply bg-transparent; }
