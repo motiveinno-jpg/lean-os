@@ -8,6 +8,7 @@
 import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { track } from "@/lib/analytics";
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
@@ -15,8 +16,11 @@ export function Analytics() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!GA_ID || typeof window === "undefined" || !(window as any).gtag) return;
-    (window as any).gtag("event", "page_view", { page_path: pathname });
+    // track() 경유 — 종전엔 gtag 를 직접 불러 우리 DB(marketing_events)엔 방문이 한 건도 안 쌓였다.
+    //   그래서 운영자 마케팅 퍼널의 맨 위 '방문'이 늘 0 이고 전환율이 전부 무의미했다(2026-08-20).
+    //   공개 마케팅 경로만 적재하는 필터는 track() 안에 그대로 있다. GA 미설치·차단이어도 자체 기록은 남는다.
+    if (typeof window === "undefined") return;
+    track("page_view", { page_path: pathname });
   }, [pathname]);
 
   if (!GA_ID) return null;
