@@ -645,7 +645,7 @@ function TaxScheduleWidget({ items }: { items: ReturnType<typeof getUpcomingTaxD
   return (
     <ActivityCard title="세금·납부 일정" href={items[0]?.href || "/reports/vat"} summary={items.length > 0 ? "60일" : undefined} empty={items.length === 0}
       emptyText="다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없어요.">
-      {items.slice(0, 5).map((t) => (
+      {items.slice(0, 15).map((t) => (
         <Link key={t.id} href={t.href} className="dash-tax-row">
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title}</span>
           <span className="text-[10px] text-[var(--text-dim)] mono-number shrink-0">{String(t.date || "").slice(5).replace("-", "/")}</span>

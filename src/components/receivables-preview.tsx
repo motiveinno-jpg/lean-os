@@ -76,7 +76,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
     },
   });
 
-  const top = (data?.list || []).slice(0, 5);
+  const top = (data?.list || []).slice(0, 15);   // 위젯을 키우면 더 보이게 (2026-08-20 사장님: 크기를 키워도 5줄뿐)
   const n = data?.list.length ?? 0;
 
   //   2026-08-19 재편 — 공용 셸(ActivityCard). '미회수 합계' 카드 → 머리의 요약 글자(상자 안 상자 금지)
@@ -102,8 +102,8 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
             </button>
           </div>
         ))}
-        {n > 5 && (
-          <Link href="/partners/ledger?type=sales" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] px-2 pt-1 no-underline transition">외 {n - 5}곳 더 보기 →</Link>
+        {n > 15 && (
+          <Link href="/partners/ledger?type=sales" className="text-[11px] text-[var(--text-dim)] hover:text-[var(--primary)] px-2 pt-1 no-underline transition">외 {n - 15}곳 더 보기 →</Link>
         )}
       </div>
     </ActivityCard>

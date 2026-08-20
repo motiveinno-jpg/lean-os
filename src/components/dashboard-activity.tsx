@@ -81,7 +81,7 @@ export function RecentProjects({ companyId }: { companyId: string }) {
       // deals 엔 updated_at 컬럼이 없음(42703 400) — 최근활동/생성 시각으로 정렬 (2026-07-16 QA)
       const data = logRead('components/dashboard-activity:data', await db.from("deals").select("id, name, stage, contract_total, last_activity_at, created_at")
         .eq("company_id", companyId).is("archived_at", null).is("parent_deal_id", null)
-        .order("last_activity_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(5));
+        .order("last_activity_at", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(15));   // 위젯을 키우면 더 보이게 (2026-08-20 사장님: 크기를 키워도 5줄뿐)
       return (data || []) as any[];
     },
   });
@@ -117,7 +117,7 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
         .gte("issue_date", mStart).order("issue_date", { ascending: false }).limit(2000));
       const rows = (data || []) as any[];
-      return { rows: rows.slice(0, 4), total: rows.reduce((s, r) => s + Number(r.supply_amount || 0), 0), count: rows.length };
+      return { rows: rows.slice(0, 15), total: rows.reduce((s, r) => s + Number(r.supply_amount || 0), 0), count: rows.length };
     },
   });
   return (
@@ -148,7 +148,7 @@ export function RecentInvoices({ companyId }: { companyId: string }) {
     queryFn: async () => {
       const data = logRead('components/dashboard-activity:data', await db.from("tax_invoices").select("id, counterparty_name, total_amount, type, issue_date, status")
         .eq("company_id", companyId).neq("status", "void")
-        .order("issue_date", { ascending: false }).limit(5));
+        .order("issue_date", { ascending: false }).limit(15));
       return (data || []) as any[];
     },
   });

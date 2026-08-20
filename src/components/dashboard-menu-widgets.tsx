@@ -50,7 +50,7 @@ export function BankRecentCard({ companyId, headExtra }: { companyId: string; he
     queryFn: async () => {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("bank_transactions")
         .select("id, transaction_date, type, amount, counterparty, description")
-        .eq("company_id", companyId).order("transaction_date", { ascending: false }).limit(5));
+        .eq("company_id", companyId).order("transaction_date", { ascending: false }).limit(15));   // 위젯을 키우면 더 보이게 (2026-08-20 사장님)
       return (data || []) as any[];
     },
   });
@@ -114,7 +114,7 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
       kind: "req" as const, id: r.id, href: "/approvals", badge: REQUEST_TYPE_LABELS[r.request_type as keyof typeof REQUEST_TYPE_LABELS] || "결재",
       label: (r.title || "결재 요청") as string, amt: Number(r.amount || 0), date: r.created_at as string,
     })),
-  ].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 6);
+  ].sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 15);
 
   return (
     <ActivityCard title="결재 대기" href="/approvals" count={data?.total} empty={(data?.total ?? 0) === 0}
@@ -142,7 +142,7 @@ export function EmployeesCard({ companyId }: { companyId: string }) {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("employees").select("id, name, department")
         .eq("company_id", companyId).in("status", ["active", "joined"]).order("name").limit(50));
       const list = (data || []) as any[];
-      return { list: list.slice(0, 5), count: list.length };
+      return { list: list.slice(0, 15), count: list.length };
     },
   });
   const list = data?.list || [];
@@ -168,7 +168,7 @@ export function PartnersCard({ companyId }: { companyId: string }) {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("partners").select("id, name")
         .eq("company_id", companyId).order("created_at", { ascending: false }).limit(50));
       const list = (data || []) as any[];
-      return { list: list.slice(0, 5), count: list.length };
+      return { list: list.slice(0, 15), count: list.length };
     },
   });
   const list = data?.list || [];
@@ -191,7 +191,7 @@ export function AnnouncementsCard() {
     staleTime: 60_000,
     queryFn: async () => {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("announcements").select("id, title, pinned, created_at")
-        .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(5));
+        .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(15));
       return (data || []) as any[];
     },
   });
@@ -217,7 +217,7 @@ export function MyTasksCard({ userId }: { userId: string }) {
     queryFn: async () => {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("project_tasks").select("id, title, due_date, deal_id")
         .eq("assignee_id", userId).is("archived_at", null).neq("status", "done")
-        .order("due_date", { ascending: true, nullsFirst: false }).limit(5));
+        .order("due_date", { ascending: true, nullsFirst: false }).limit(15));
       return (data || []) as any[];
     },
   });
