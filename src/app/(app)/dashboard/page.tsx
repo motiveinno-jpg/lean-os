@@ -510,24 +510,8 @@ export default function DashboardPage() {
           {/* ── 2026-08-19 대시보드 재편 (docs/20260819_PLAN_dashboard_redesign.md) — 세 층:
                층 1 신호 6칸(회사가 안전한가, 경영 요약과 같은 함수) → 층 2 오늘 챙길 것(AI 제안 표) → 층 3 위젯 격자(같은 키).
                예전 '동기화 줄 + 노란 미분류 배너 + 위젯 편집'은 없앴다 — 동기화·미분류는 통장/카드 위젯 머리에. ── */}
-          <div className="dash-head">
-            <span className="dash-head-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
-            <span className="dash-head-co">· {companyName}</span>
-          </div>
-          {canFinance && <DashboardSignals companyId={companyId} userId={userId} forecast30={cashPulse?.forecast30d ?? null} balanceFallback={sp.cashBalance} />}
-
-          {/* 층 2 · 오늘 챙길 것 — 게이트: /dashboard:briefing 세부 권한(마스터 항상). 없으면 층 자체가 없다 (2026-08-10) */}
-          {canBriefing && (
-            <MorningBrief
-              userName={userName}
-              companyName={companyName}
-              cashPulse={cashPulse}
-              dashboard={dashboard}
-              hasData={hasData}
-              userId={userId ?? undefined}
-              aiBriefingEnabled={aiBriefingEnabled}
-            />
-          )}
+          {/* 층 1(신호)·층 2(챙길 것)는 2026-08-20 위젯이 됐다(사장님: 통장잔액 영역·AI 제안도 위젯화) — 아래 카탈로그의 signals·briefing.
+              날짜·회사 이름과 '보기 설정'은 격자 머리 한 줄(headLeft)로 올라가 최상단 오른쪽에 보기 설정이 온다. */}
 
           {/* 동기화·엑셀 결과 토스트 — 위젯 머리 ↻ 를 누른 뒤 결과가 여기 뜬다 */}
           {canFinance && parseResult && (
@@ -564,6 +548,11 @@ export default function DashboardPage() {
             const bankHead = <ChannelHead status={syncStatus.bank} unclassified={unclassified.bank} unclassifiedHref="/collect?tab=bank" onSync={() => handleDataSync('bank')} syncing={syncing} />;
             const cardHead = <ChannelHead status={syncStatus.card} unclassified={unclassified.card} unclassifiedHref="/collect?tab=card" onSync={() => handleDataSync('card')} syncing={syncing} />;
             const catalog: CatalogWidget[] = [
+              //   층 1·2 — 전폭 위젯 (2026-08-20 사장님: 위젯화). 끄면 아래 위젯이 올라온다.
+              { id: "signals", name: "회사 신호", icon: "🚦", desc: "통장 잔액 · 30일 뒤 · 손익 · 받을 돈 · 낼 돈 · 세금 6칸", category: "경영", x: 0, y: 0, w: 12, h: 2, minW: 6, minH: 2,
+                render: () => <DashboardSignals companyId={companyId} userId={userId} forecast30={cashPulse?.forecast30d ?? null} balanceFallback={sp.cashBalance} /> },
+              { id: "briefing", name: "오늘 챙길 것", icon: "✦", desc: "AI 제안 — 한 문장 + 할 일 5줄", category: "경영", x: 0, y: 2, w: 12, h: 7, minW: 6, minH: 4,
+                render: () => <MorningBrief userName={userName} companyName={companyName} cashPulse={cashPulse} dashboard={dashboard} hasData={hasData} userId={userId ?? undefined} aiBriefingEnabled={aiBriefingEnabled} /> },
               { id: "receivables", name: "미수금", icon: "💸", desc: "미회수 합계·오래된 순 5곳·독촉 문구", category: "경영", render: () => <ReceivablesPreview companyId={companyId} companyName={companyName} /> },
               { id: "revenue", name: "이번 달 매출", icon: "💰", desc: "매출 합계·최근 내역", category: "경영", render: () => <RecentRevenue companyId={companyId} /> },
               { id: "tax", name: "세금·납부 일정", icon: "🧾", desc: "60일 안 세금 마감", category: "경영", render: () => <TaxScheduleWidget items={taxItems} /> },
@@ -593,21 +582,25 @@ export default function DashboardPage() {
               assets: { finance: true, menu: "/bank" },
               invoices: { finance: true, menu: "/tax-invoices" },
               projects: { finance: true, menu: "/projecthub" },
+              signals: { finance: true },
               approvals: { menu: "/approvals" },
               employees: { menu: "/employees" },
               partners: { menu: "/partners" },
               todos: { menu: "/schedule" },
               calendar: { menu: "/schedule" },
             };
-            const canSee = (id: string) => { const g = WIDGET_GATE[id]; if (!g) return true; if (g.finance && !canFinance) return false; return g.menu ? dashPerm(g.menu) : true; };
+            const canSee = (id: string) => {
+              if (id === "briefing") return canBriefing;   // AI 브리핑은 별도 세부 권한 (2026-08-10)
+              const g = WIDGET_GATE[id]; if (!g) return true; if (g.finance && !canFinance) return false; return g.menu ? dashPerm(g.menu) : true;
+            };
             const visibleCatalog = catalog.filter((w) => canSee(w.id));
             const allowed = (ids: string[]) => ids.filter((id) => visibleCatalog.some((w) => w.id === id));
             //   관점 프리셋 — 배열 순서 = 격자 순서. 프리셋은 시작점이고 이후 사람이 켜고 끈 것이 이긴다.
             //   대표·회계 관점은 금액 위젯이 핵심이라 재무 권한(/dashboard:finance)이 있어야 고를 수 있다. 직원 관점은 누구나.
             const presets: WidgetPreset[] = [
               ...(canFinance ? [
-                { id: "owner", label: "대표", ids: allowed(["receivables", "revenue", "tax", "bank", "cards", "approvals", "projects", "announcements", "todos"]) },
-                { id: "acct", label: "회계", ids: allowed(["receivables", "bank", "cards", "tax", "invoices", "approvals", "revenue", "announcements", "todos"]) },
+                { id: "owner", label: "대표", ids: allowed(["signals", "briefing", "receivables", "revenue", "tax", "bank", "cards", "approvals", "projects", "announcements", "todos"]) },
+                { id: "acct", label: "회계", ids: allowed(["signals", "briefing", "receivables", "bank", "cards", "tax", "invoices", "approvals", "revenue", "announcements", "todos"]) },
               ] : []),
               { id: "staff", label: "직원", ids: allowed(["todos", "work-tasks", "approvals", "announcements", "employees", "projects"]) },
             ].filter((p) => p.ids.length > 0);
@@ -618,8 +611,16 @@ export default function DashboardPage() {
             if ((approvalsPending ?? 0) > 0) recommended.push("approvals");
             //   권한이 아직 안 왔을 때 그리면 기본값이 '직원' 묶음으로 굳는다 → 권한 로딩 끝난 뒤에 격자를 만든다
             if (permLoading) return <div className="collect-empty">불러오는 중…</div>;
-            return <DashboardGrid storageKey={`dashboard-grid-v2-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}
-              recommended={recommended} sidebarCollapsed={sidebarCollapsed} fixedH={5} presets={presets} />;
+            //   저장 키 v3 (2026-08-20) — v2(전날, 크기 고정 시절) 배치에 신호·챙길 것을 병합하면 바닥에 흩어진다.
+            //   하루 된 배치라 버리고 새 기본(신호·챙길 것 전폭 위)에서 시작.
+            return <DashboardGrid storageKey={`dashboard-grid-v3-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}
+              recommended={recommended} sidebarCollapsed={sidebarCollapsed} presets={presets}
+              headLeft={
+                <div className="dash-head">
+                  <span className="dash-head-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
+                  <span className="dash-head-co">· {companyName}</span>
+                </div>
+              } />;
           })()}
         </div>
       )}

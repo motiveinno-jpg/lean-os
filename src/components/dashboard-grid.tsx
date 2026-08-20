@@ -26,6 +26,8 @@ export type CatalogWidget = {
   desc?: string;
   category?: string;
   x?: number; y?: number; w?: number; h?: number;
+  //   크기 조절 하한 (2026-08-20 사장님: 위젯 크기 자유 조절 복원) — 신호 줄처럼 좁으면 깨지는 위젯이 정한다
+  minW?: number; minH?: number;
   render: () => React.ReactNode;
 };
 
@@ -36,8 +38,10 @@ function buildDefault(cat: CatalogWidget[]): Layout[] {
   // 지정 좌표 위젯이 이미 차지한 높이를 열별로 반영
   for (const w of cat) {
     if (w.x != null && w.y != null) {
-      const c = Math.max(0, Math.min(2, Math.floor((w.x ?? 0) / 4)));
-      colH[c] = Math.max(colH[c], (w.y ?? 0) + (w.h || 4));
+      //   전폭 위젯(신호·챙길 것, w=12)은 세 열을 다 차지한다 — 한 열만 올리면 나머지 열의 자동 배치가 그 위로 끼어든다 (2026-08-20)
+      const c0 = Math.max(0, Math.min(2, Math.floor((w.x ?? 0) / 4)));
+      const c1 = Math.max(c0, Math.min(2, Math.floor(((w.x ?? 0) + (w.w || 4) - 1) / 4)));
+      for (let c = c0; c <= c1; c++) colH[c] = Math.max(colH[c], (w.y ?? 0) + (w.h || 4));
     }
   }
   return cat.map((w) => {
@@ -80,7 +84,7 @@ export type WidgetPreset = { id: string; label: string; ids: string[] };
 
 export function DashboardGrid({
   storageKey, catalog, defaultActiveIds, title = "", recommended = [], sidebarCollapsed = false,
-  layoutMigration, activeMigration, fixedH, presets = [],
+  layoutMigration, activeMigration, presets = [], headLeft,
 }: {
   storageKey: string;
   catalog: CatalogWidget[];
@@ -88,8 +92,8 @@ export function DashboardGrid({
   title?: string;
   recommended?: string[];
   sidebarCollapsed?: boolean;
-  //   2026-08-19 재편 — 모든 위젯 같은 키(h 고정, 폭 4칸 고정, 크기 조절 없음). 높이 제각각이던 벽돌 쌓기의 원인을 없앤다.
-  fixedH?: number;
+  //   머리 줄 왼쪽에 끼울 것(대시보드의 날짜·회사 이름) — '보기 설정'이 화면 최상단 오른쪽에 온다 (2026-08-20 사장님)
+  headLeft?: React.ReactNode;
   //   관점 프리셋(대표/회계/직원) — '보기 설정' 판에서 고르면 그 위젯 묶음이 켜진다. 이후 사람이 켜고 끈 것이 이긴다.
   presets?: WidgetPreset[];
   // 위젯 내용이 커졌을 때 이미 저장된 배치를 한 번만 끌어올린다(id 가 바뀔 때만 재적용).
@@ -248,11 +252,12 @@ export function DashboardGrid({
   const effective = useMemo(() => {
     const saved = Object.fromEntries(layout.map((l) => [l.i, l]));
     const def = Object.fromEntries(buildDefault(active).map((l) => [l.i, l]));
-    const raw = active.map((w) => saved[w.id] || def[w.id]);
-    if (!fixedH) return raw;
-    //   같은 키 — 폭 4(3열)·높이 fixedH 로 강제. 저장본의 옛 크기는 무시하고 x 는 열에 맞춰 0/4/8 로 스냅.
-    return raw.map((l) => ({ ...l, w: 4, h: fixedH, minW: 4, maxW: 4, minH: fixedH, maxH: fixedH, x: Math.min(8, Math.round((l.x ?? 0) / 4) * 4) }));
-  }, [layout, activeIds, catalogIds, fixedH]);
+    //   크기 조절 자유(2026-08-20 사장님 — 8/19 의 '같은 키 고정'을 하루 만에 되돌림). 하한만 위젯이 정한다.
+    return active.map((w) => {
+      const l = saved[w.id] || def[w.id];
+      return { ...l, minW: w.minW ?? 3, minH: w.minH ?? 2 };
+    });
+  }, [layout, activeIds, catMap, catalogIds]);
 
   const persistActive = (ids: string[]) => {
     hasSavedActive.current = true;
@@ -297,12 +302,13 @@ export function DashboardGrid({
   const toggleWidget = (id: string) => (activeIds.includes(id) ? removeWidget(id) : persistActive([...activeIds, id]));
   const Header = (
     <div className="dash-section-head">
-      <div>
+      <div className="min-w-0">
+        {headLeft}
         {title && <div className="text-[11px] font-bold tracking-wider uppercase" style={{ color: "var(--primary)" }}>{title}</div>}
-        {edit && !isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">위젯을 드래그해 순서를 바꾸세요 (자동 저장)</p>}
+        {edit && !isMobile && <p className="text-[11px] text-[var(--text-dim)] mt-0.5">위젯을 드래그해 이동 · 우측/하단 모서리로 크기 조절 · ×로 끄기 (자동 저장)</p>}
       </div>
       <div className="flex items-center gap-1.5 shrink-0 relative">
-        {edit && <button onClick={() => setEdit(false)} className="btn-primary btn-sm no-drag">순서 바꾸기 끝</button>}
+        {edit && <button onClick={() => setEdit(false)} className="btn-primary btn-sm no-drag">편집 완료</button>}
         {!edit && (
           <button onClick={() => setViewOpen((v) => !v)} className={`btn-secondary btn-sm no-drag ${viewOpen ? "dash-view-btn-on" : ""}`} aria-expanded={viewOpen}>
             보기 설정 <span className="text-[var(--text-dim)]">▾</span>
@@ -333,7 +339,7 @@ export function DashboardGrid({
               })}
             </div>
             <div className="dash-view-foot">
-              {!isMobile && <button type="button" className="btn-secondary btn-sm" onClick={() => { setEdit(true); setViewOpen(false); }}>순서 바꾸기</button>}
+              {!isMobile && <button type="button" className="btn-secondary btn-sm" onClick={() => { setEdit(true); setViewOpen(false); }} title="드래그로 이동 · 모서리로 크기 조절">편집</button>}
               <button type="button" className="btn-secondary btn-sm" onClick={reset}>기본으로</button>
               <span className="flex-1" />
               <button type="button" className="btn-primary btn-sm" onClick={() => setViewOpen(false)}>닫기</button>
@@ -373,7 +379,7 @@ export function DashboardGrid({
           margin={[12, 12]}
           containerPadding={[0, 0]}
           isDraggable={edit && !isMobile}
-          isResizable={edit && !isMobile && !fixedH}
+          isResizable={edit && !isMobile}
           compactType="vertical"
           onLayoutChange={onLayoutChange}
           draggableCancel=".no-drag"

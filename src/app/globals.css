@@ -9906,3 +9906,7 @@ table.dup-table { min-width: 0; }
 .billing-note { @apply text-[11.5px] text-[var(--text-dim)] leading-relaxed m-0; }
 .billing-cancel-line { @apply text-[12px] text-[var(--text-dim)] m-0 pt-1; }
 .billing-cancel-link { @apply underline underline-offset-2 text-[var(--text-dim)] hover:text-[var(--danger)] disabled:opacity-50; }
+
+/* 신호·챙길 것 위젯화 (2026-08-20) — 격자 타일 안에서는 자체 여백을 지우고 타일을 꽉 채운다 */
+.dashboard-widget-tile .dash-signals { @apply mb-0 h-full; }
+.dashboard-widget-tile .morning-brief-card.brief-compact { @apply mb-0 min-h-full; }
