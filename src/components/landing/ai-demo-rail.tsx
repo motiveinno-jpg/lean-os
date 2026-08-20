@@ -194,18 +194,20 @@ function ScreenPipe() {
   );
 }
 
+// 회사 양식 PDF 에서 찾아낸 변수들 (parse-form-template).
+//   ⚠️ 2026-08-20 이전엔 영수증 OCR 연출이었다 — 영수증 스캔 기능을 제품에서 걷어내며 서식 인식으로 교체.
 const DOC_FIELDS = [
-  ["상호", "한우리 식당", false],
-  ["날짜", "2026·07·26", true],
-  ["금액", "143,000원", true],
-  ["부가세", "13,000원", true],
-  ["사업자", "214-81-····", true],
+  ["근로자명", "{{직원명}}", false],
+  ["입사일", "{{입사일}}", true],
+  ["연봉", "{{연봉}}", true],
+  ["근무지", "{{근무지}}", true],
+  ["계약기간", "{{계약기간}}", true],
 ] as const;
 
 function ScreenDoc() {
   return (
     <div className="lp5-aid-screen lp5-aid-doc2" data-demo="doc" data-len={3300}>
-      <div className="lp5-aid-top"><span className="lp5-aid-tab">경비 영수증</span><span className="lp5-aid-meta">사진 1장</span></div>
+      <div className="lp5-aid-top"><span className="lp5-aid-tab">근로계약·서식</span><span className="lp5-aid-meta">회사 양식 PDF</span></div>
       <div className="lp5-aid-scan">
         <div className="lp5-aid-paper">
           <i /><i /><i /><i /><i />
@@ -220,8 +222,8 @@ function ScreenDoc() {
         </div>
       </div>
       <div className="lp5-aid-docfoot lp5-aid-anim">
-        <span className="lp5-aid-chip lp5-aid-chip-plain">접대비 · 과세</span>
-        <span className="lp5-aid-type" data-type="경비 정산으로 넘겼어요" data-delay={2750} />
+        <span className="lp5-aid-chip lp5-aid-chip-plain">변수 5개 · 자동 인식</span>
+        <span className="lp5-aid-type" data-type="바로 쓰는 서식이 됐어요" data-delay={2750} />
       </div>
     </div>
   );

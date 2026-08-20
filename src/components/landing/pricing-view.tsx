@@ -93,21 +93,19 @@ export default function PricingView() {
                 {p.regularPrice
                   ? <div className="lp4-price-reg">₩{p.regularPrice}{p.discount && <span className="lp4-price-off">{p.discount} 할인</span>}</div>
                   : <div className="lp4-price-reg-empty" />}
-                {/* 정가가 없는 요금제(울트라 = 비용 협의)는 ₩ 를 붙이지 않는다 — "₩비용 협의" 가 된다. */}
-                <div className={`lp4-price-amt ${p.price.includes("협의") ? "lp4-price-amt-text" : ""}`}>
-                  {p.price.includes("협의") ? p.price : `₩${p.price}`}
+                <div className={`lp4-price-amt ${p.price === "별도 협의" ? "lp4-price-amt-text" : ""}`}>
+                  {p.price === "별도 협의" ? "별도 협의" : `₩${p.price}`}
                   <span className="lp4-price-unit">{p.unit && ` ${p.unit}`}</span>
                 </div>
                 <div className="lp4-price-period">{p.period}</div>
                 <ul className="lp4-price-feats">
                   {p.features.map((ft, i) => <li key={i} className="lp4-price-feat"><Check />{ft}</li>)}
                 </ul>
-                {/* 울트라는 가입이 아니라 상담이 시작점이다 — 견적을 내야 금액이 정해지므로 /auth 로 보내면 막힌다. */}
                 <Link
-                  href={p.slug === "ultra" ? "/#partner" : p.slug ? `/auth?plan=${p.slug}` : "/auth"}
+                  href={p.slug ? `/auth?plan=${p.slug}` : "/auth"}
                   className={`lp4-price-cta ${p.hl ? "lp4-price-cta-brand" : "lp4-price-cta-line"}`}
                 >
-                  {p.slug === "ultra" ? "도입 문의하기" : p.slug === "standard" ? "오너뷰 시작하기" : "무료로 시작하기"}
+                  {p.slug === "standard" ? "오너뷰 시작하기" : "무료로 시작하기"}
                 </Link>
               </div>
             ))}

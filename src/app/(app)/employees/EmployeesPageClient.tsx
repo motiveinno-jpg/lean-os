@@ -38,10 +38,7 @@ import {
   getCompanyLeaveTypes, setCompanyLeaveTypes, defaultCompanyLeaveTypes, type CompanyLeaveType,
 } from "@/lib/leave-grants";
 import { EmployeeDetailPanel } from "./_components/EmployeeDetailPanel";
-import {
-  getExpenseRequests, createExpenseRequest, approveExpense, rejectExpense,
-  markExpensePaid, EXPENSE_CATEGORIES, EXPENSE_STATUS,
-} from "@/lib/expenses";
+import { getExpenseRequests } from "@/lib/expenses";
 import { getSignedUrl } from "@/lib/file-storage";
 import { previewPayroll } from "@/lib/payroll";
 import { EmployeeBulkInviteModal } from "@/components/employee-bulk-invite"; // 엑셀 대량 초대(2026-07-31)
@@ -66,7 +63,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
 //   수동 트리거 (MonthlyRecomputeButton / AllowanceAdminTab "월 일괄 재계산") 만 유지.
 
-type Tab = "employees" | "salary" | "payroll" | "expenses" | "leave" | "certificates";
+type Tab = "employees" | "salary" | "payroll" | "leave" | "certificates";
 
 // Employee 역할은 자기 관련 탭만 접근 가능
 // 근태 관리는 /attendance 별도 페이지로 분리됨. employees 페이지엔 휴가/경비/증명서만.
@@ -81,7 +78,7 @@ export default function EmployeesPage() {
   const sp = useSearchParams();
   const urlTab = sp?.get('tab') as Tab | null;
   const isValidTab = (t: string | null): t is Tab =>
-    !!t && (['employees','salary','payroll','expenses','leave','certificates'] as const).includes(t as Tab);
+    !!t && (['employees','salary','payroll','leave','certificates'] as const).includes(t as Tab);
   // V1: '급여이력' 완전 제거. '급여' 탭 = 급여 명세(PayrollPreviewTab)만.
   //   ?tab=salary / ?tab=payroll 딥링크 모두 '급여' 탭(명세)으로 정규화.
   const normalizeTab = (t: Tab): Tab => (t === "payroll" ? "salary" : t);
@@ -133,7 +130,7 @@ export default function EmployeesPage() {
   const { data: expenses = [] } = useQuery({
     queryKey: ["expenses", companyId],
     queryFn: () => getExpenseRequests(companyId!),
-    enabled: !!companyId && tab === "expenses",
+    enabled: !!companyId,
   });
 
   // ── 휴가 탭용 디렉토리 — employees RLS 로 타인 행이 null 될 때 이름 폴백 (team 페이지와 동일 RPC) ──
@@ -617,212 +614,6 @@ function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, 
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-// ── Expense Tab ──
-function ExpenseTab({ expenses, companyId, userId, queryClient, isEmployee }: any) {
-  const { toast } = useToast();
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: "", amount: "", category: "general", description: "" });
-  const [receiptFiles, setReceiptFiles] = useState<{ file: File; name: string }[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [ocrProcessing, setOcrProcessing] = useState(false);
-
-  async function uploadReceipts(): Promise<string[]> {
-    if (receiptFiles.length === 0) return [];
-    const urls: string[] = [];
-    for (const { file } of receiptFiles) {
-      const ext = file.name.split(".").pop();
-      const path = `expense-receipts/${companyId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("document-files").upload(path, file);
-      if (error) throw new Error(`영수증 업로드 실패: ${error.message}`);
-      const { data: urlData } = supabase.storage.from("document-files").getPublicUrl(path);
-      urls.push(urlData.publicUrl);
-    }
-    return urls;
-  }
-
-  async function ocrReceipt(file: File) {
-    setOcrProcessing(true);
-    try {
-      const ext = file.name.split(".").pop();
-      const path = `expense-receipts/${companyId}/ocr-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("document-files").upload(path, file);
-      if (upErr) throw upErr;
-      // document-files private 전환 → OCR 엣지함수가 읽도록 signed URL 전달
-      const signedUrl = await getSignedUrl("document-files", path);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ocr-receipt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ image_url: signedUrl }),
-      });
-      const result = await res.json();
-      if (result.success && result.confidence > 30) {
-        setForm(prev => ({
-          ...prev,
-          title: result.merchant ? `${result.merchant} 결제` : prev.title,
-          amount: result.amount ? String(result.amount) : prev.amount,
-          category: result.category === "식대" ? "meal" : result.category === "교통" ? "transport" : result.category === "소모품" ? "supplies" : prev.category,
-          description: result.items.length > 0 ? result.items.join(", ") : prev.description,
-        }));
-        toast(`영수증 인식 완료 (확신도 ${result.confidence}%)`, "success");
-      } else {
-        toast("영수증 인식 실패 — 수동으로 입력해주세요", "info");
-      }
-    } catch (err: any) {
-      toast(`OCR 실패: ${err.message}`, "error");
-    } finally {
-      setOcrProcessing(false);
-    }
-  }
-
-  const addExpense = useMutation({
-    mutationFn: async () => {
-      setUploading(true);
-      try {
-        const receiptUrls = await uploadReceipts();
-        return createExpenseRequest({
-          companyId: companyId!, requesterId: userId!, title: form.title.trim(),
-          amount: Number(form.amount), category: form.category, description: form.description.trim(),
-          receiptUrls,
-        });
-      } finally {
-        setUploading(false);
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["expenses"] });
-      queryClient.invalidateQueries({ queryKey: ["approval"] });
-      setShowForm(false);
-      setForm({ title: "", amount: "", category: "general", description: "" });
-      setReceiptFiles([]);
-    },
-    onError: (err: any) => toast(friendlyError(err, "청구 실패"), "error"),
-  });
-
-  const approve = useMutation({
-    mutationFn: (expenseId: string) => approveExpense({ companyId: companyId!, expenseId, approverId: userId! }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["expenses"] }); queryClient.invalidateQueries({ queryKey: ["payment-queue"] }); },
-    onError: (err: any) => toast("비용 승인 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
-  });
-
-  const reject = useMutation({
-    mutationFn: (expenseId: string) => rejectExpense({ companyId: companyId!, expenseId, approverId: userId! }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
-    onError: (err: any) => toast("비용 반려 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
-  });
-
-  return (
-    <div>
-      <div className="expense-toolbar">
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 경비 청구</button>
-      </div>
-
-      {showForm && (
-        <div className="expense-request-form glass-card">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">제목 *</label><input value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="field-input" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">금액 *</label><input type="text" inputMode="numeric" value={form.amount ? Number(form.amount).toLocaleString("ko-KR") : ""} onChange={e => { const v = e.target.value.replace(/[^0-9]/g, ""); setForm({...form, amount: v}); }} placeholder="0" className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm text-right font-mono focus:outline-none focus:border-[var(--primary)]" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">분류</label>
-              <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className="w-full px-3 py-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm">
-                {EXPENSE_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">설명</label><input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="field-input" /></div>
-          </div>
-          {/* 영수증 첨부 */}
-          <div className="expense-receipt-uploader">
-            <label className="block text-xs text-[var(--text-muted)] mb-1">영수증 첨부 (선택)</label>
-            <div className="flex flex-wrap gap-2 items-center">
-              <label className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg)] border border-[var(--border)] hover:border-[var(--primary)] rounded-lg text-xs text-[var(--text-muted)] hover:text-[var(--primary)] cursor-pointer transition">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-                </svg>
-                파일 첨부
-                <input
-                  type="file"
-                  className="hidden"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.gif"
-                  onChange={e => {
-                    const files = Array.from(e.target.files || []);
-                    const added = files.map(f => ({ file: f, name: f.name }));
-                    setReceiptFiles(prev => [...prev, ...added]);
-                    const imageFile = files.find(f => /\.(jpg|jpeg|png|gif)$/i.test(f.name));
-                    if (imageFile && !form.title && !form.amount) ocrReceipt(imageFile);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-              {ocrProcessing && (
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-violet-500/10 text-violet-500 rounded-lg text-[10px]">
-                  <span className="w-3 h-3 border-2 border-violet-300 border-t-violet-500 rounded-full animate-spin" />
-                  AI 인식 중...
-                </div>
-              )}
-              {receiptFiles.map((f, i) => (
-                <div key={i} className="flex items-center gap-1 px-2 py-1 bg-[var(--primary)]/10 text-[var(--primary)] rounded-lg text-[10px]">
-                  <span className="max-w-[120px] truncate">{f.name}</span>
-                  <button onClick={() => setReceiptFiles(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 opacity-70 hover:opacity-100">×</button>
-                </div>
-              ))}
-            </div>
-          </div>
-          <button onClick={() => form.title.trim() && form.amount && addExpense.mutate()} disabled={!form.title.trim() || !form.amount || addExpense.isPending || uploading} className="btn-primary">{addExpense.isPending || uploading ? "처리 중..." : "청구"}</button>
-        </div>
-      )}
-
-      <div className="expense-list-table glass-card">
-        {expenses.length === 0 ? (
-          <div className="p-16 text-center"><div className="text-4xl mb-4"><Ico e="🧾" /></div><div className="text-sm text-[var(--text-muted)]">경비 청구 내역이 없습니다</div></div>
-        ) : (
-          <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-            <thead className="sticky-bar"><tr className="table-head-row">
-              <th className="th-cell text-center">제목</th>
-              <th className="th-cell text-center">청구자</th>
-              <th className="th-cell text-center">분류</th>
-              <th className="th-cell text-center">금액</th>
-              <th className="th-cell text-center">상태</th>
-              <th className="th-cell text-center">액션</th>
-            </tr></thead>
-            <tbody>
-              {expenses.map((e: any) => {
-                const st = EXPENSE_STATUS[e.status as keyof typeof EXPENSE_STATUS] || EXPENSE_STATUS.pending;
-                const cat = EXPENSE_CATEGORIES.find(c => c.value === e.category);
-                return (
-                  <tr key={e.id} className="border-b border-[var(--border)]/50">
-                    <td className="px-5 py-3 text-sm font-medium">{e.title}</td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{e.users?.name || e.users?.email || "—"}</td>
-                    <td className="px-5 py-3 text-xs">{cat?.label || e.category}</td>
-                    <td className="px-5 py-3 text-sm text-right font-medium">₩{Number(e.amount).toLocaleString("ko-KR")}</td>
-                    <td className="px-5 py-3 text-center"><span className={`text-xs px-2 py-0.5 rounded-full ${st.bg} ${st.text}`}>{st.label}</span></td>
-                    <td className="px-5 py-3 text-center">
-                      {e.status === "pending" && !isEmployee && (
-                        <div className="flex gap-1 justify-center">
-                          <button onClick={() => approve.mutate(e.id)} className="text-[10px] px-2 py-1 rounded bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20">승인</button>
-                          <button onClick={() => reject.mutate(e.id)} className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20">반려</button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-              <tr className="bg-[var(--bg-surface)]/60">
-                <td colSpan={3} className="px-5 py-2 text-xs font-bold text-[var(--text-muted)]">합계</td>
-                <td className="px-5 py-2 text-sm text-right font-bold">₩{expenses.reduce((s: number, e: any) => s + Number(e.amount || 0), 0).toLocaleString("ko-KR")}</td>
-                <td colSpan={2} />
-              </tr>
-            </tbody>
-          </table></div>
-        )}
-      </div>
     </div>
   );
 }
