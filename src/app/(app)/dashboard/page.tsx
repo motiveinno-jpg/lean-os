@@ -103,6 +103,15 @@ export default function DashboardPage() {
   const [parseResult, setParseResult] = useState<{ success: boolean; message: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   // 첫 가입 탭 투어는 앱 셸(AppTourHost)이 띄운다 — 여기서는 투어 중일 때 온보딩 체크리스트 팝업만 억제 (2026-08-10).
+  //   isTourActive() 는 sessionStorage 조회라 반응형이 아니다 — 투어가 끝나면 체크리스트가 다시
+  //   나타나야 하므로 가볍게 폴링해 상태로 들고 있는다 (2026-08-20).
+  const [tourActive, setTourActive] = useState(false);
+  useEffect(() => {
+    const tick = () => setTourActive(isTourActive());
+    tick();
+    const t = setInterval(tick, 800);
+    return () => clearInterval(t);
+  }, []);
   const [dealCount, setDealCount] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ success: boolean; message: string; time: string } | null>(null);
@@ -502,7 +511,10 @@ export default function DashboardPage() {
       )}
 
       {/* ═══ [배너] 체크리스트 — 접힌 상태 기본 ═══ */}
-      {!showOnboarding && companyId && (
+      {/* 투어 중에는 비켜선다 (2026-08-20 사장님): 신규 가입 첫 화면에서 배너·체크리스트·12단계
+          투어가 한꺼번에 뜨고, 투어 말풍선이 체크리스트 첫 줄을 덮어 글자가 잘려 보였다.
+          투어가 끝나면(sessionStorage 스텝 소멸) 다음 진입에서 정상 노출된다. */}
+      {!showOnboarding && companyId && !tourActive && (
         <GettingStartedChecklist companyId={companyId} />
       )}
 
@@ -2484,7 +2496,21 @@ function MasterPermissionNotice() {
     if (!(user as any)?.is_master) return;
     try { setDismissed(localStorage.getItem("ov:master-perm-notice") === "1"); } catch { setDismissed(false); }
   }, [user]);
+  // 혼자인 회사엔 뜨지 않는다 (2026-08-20 사장님): 방금 가입한 1인 회사가 첫 화면에서
+  //   "권한 체계가 **개편**되었습니다 — **구성원** 권한을 부여해 주세요" 를 봤다.
+  //   개편을 겪은 적도 없고 권한 줄 사람도 없다. 기존 고객용 공지가 신규에게까지 나가던 것.
+  const companyId = (user as any)?.company_id as string | undefined;
+  const { data: memberCount } = useQuery({
+    queryKey: ["member-count-for-perm-notice", companyId],
+    queryFn: async () => {
+      const { count } = await supabase.from("users").select("id", { count: "exact", head: true }).eq("company_id", companyId!);
+      return count ?? 0;
+    },
+    enabled: !!companyId && !!(user as any)?.is_master,
+    staleTime: 300_000,
+  });
   if (!(user as any)?.is_master || dismissed) return null;
+  if ((memberCount ?? 0) < 2) return null;
   return (
     <div className="master-perm-notice">
       <div className="flex-1 min-w-0">

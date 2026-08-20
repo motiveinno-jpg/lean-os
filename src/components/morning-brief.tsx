@@ -43,10 +43,29 @@ interface AiBriefPlan {
   risks: string[];
   wins: string[];
 }
+// ⚠️ AI 가 만든 JSON 을 그대로 믿지 않는다 (2026-08-20 실사고).
+//   종전엔 headline·actions 만 검사하고 risks·wins 는 무검증으로 통과시켰다. 모델이 그 두 칸을
+//   배열이 아닌 값(객체·문자열)으로 내거나 빼먹은 날, 대시보드 첫 화면이
+//   "eT.slice is not a function" 으로 통째로 죽었다 — 아침 브리핑은 하루 한 번 생성돼
+//   **그날 그 회사 사람 전원이 같은 크래시**를 봤다(8/19~8/20 4명 실측).
+//   AI 출력은 외부 입력으로 취급하고, 화면이 기대하는 모양으로 강제한다.
+const asStringArray = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.trim()) : [];
+
 function parseBriefPlan(content: string): AiBriefPlan | null {
   try {
     const p = JSON.parse(content);
-    if (p && typeof p.headline === "string" && Array.isArray(p.actions)) return p as AiBriefPlan;
+    if (!p || typeof p !== "object") return null;
+    if (typeof p.headline !== "string" || !Array.isArray(p.actions)) return null;
+    return {
+      ...p,
+      headline: p.headline,
+      summary: typeof p.summary === "string" ? p.summary : "",
+      // 액션은 화면이 a.priority / a.text 등을 읽으므로 객체인 것만 남긴다
+      actions: p.actions.filter((a: unknown) => a && typeof a === "object"),
+      risks: asStringArray(p.risks),
+      wins: asStringArray(p.wins),
+    } as AiBriefPlan;
   } catch { /* 구버전 평문 브리핑 */ }
   return null;
 }
@@ -68,7 +87,9 @@ const PRIORITY_STYLE: Record<string, string> = {
 };
 
 // AI 브리핑의 톤 태그(<neg>/<pos>/<key>)를 색상 강조 span 으로 변환 (예전 규칙 브리핑의 hl 색상 재사용)
-function renderTagged(text: string): ReactNode[] {
+//   2026-08-20: 문자열이 아닌 값이 들어오면 정규식 exec 에서 죽는다 — AI 출력이라 방어한다.
+function renderTagged(input: unknown): ReactNode[] {
+  const text = typeof input === "string" ? input : String(input ?? "");
   const parts: ReactNode[] = [];
   const re = /<(neg|pos|key)>([\s\S]*?)<\/\1>/g;
   let last = 0;

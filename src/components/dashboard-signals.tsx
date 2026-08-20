@@ -53,8 +53,14 @@ export function DashboardSignals({ companyId, userId, forecast30, balanceFallbac
   const pnl = s?.pnl.cur;
   return (
     <div className="dash-signals">
-      <Cell href="/bank" label="통장 잔액" value={wonShort(balance)} tone={s ? s.cash.tone : "n"}
-        sub={s ? `이번 달 +${wonShort(s.cash.inflow)} · −${wonShort(s.cash.outflow)}` : undefined} title="통장 잔액 합계 · 누르면 통장으로" />
+      {/* 통장을 아직 연결 안 한 회사에 잔액 0 을 '위험'으로 찍던 것 수정 (2026-08-20 사장님):
+          cashTone 은 runway 만 보고 나오는데, 통장이 없으면 runway 가 0 이라 무조건 위험이 됐다.
+          "위험"과 "아직 자료가 없음"은 완전히 다른 얘기다 — 가입 첫날 화면이 빨간 경고로 시작했다.
+          판정에 필요한 hasBank 는 이미 요약에 실려 있었다. */}
+      <Cell href="/bank" label="통장 잔액" value={s && !s.cash.hasBank ? "—" : wonShort(balance)}
+        tone={s ? (s.cash.hasBank ? s.cash.tone : "n") : "n"}
+        sub={s ? (s.cash.hasBank ? `이번 달 +${wonShort(s.cash.inflow)} · −${wonShort(s.cash.outflow)}` : "통장을 연결하면 잔고가 자동으로 채워져요") : undefined}
+        title="통장 잔액 합계 · 누르면 통장으로" />
       <Cell href="/reports/outlook" label="30일 뒤 잔액" value={f30 == null ? "—" : wonShort(f30)} tone={f30Tone}
         sub={f30 == null ? "전망 자료 없음" : `${d30! >= 0 ? "▲ " : "▼ "}${wonShort(Math.abs(d30!))} · ${runwayText(runway)} 운영 가능`} title="예정된 입출금으로 본 30일 뒤 잔액 · 누르면 자금 전망으로" />
       <Cell href="/reports/profit" label="이번 달 손익" value={pnl ? `${pnl.operating >= 0 ? "+" : ""}${wonShort(pnl.operating)}` : "—"} tone={s ? s.pnl.tone : "n"}
