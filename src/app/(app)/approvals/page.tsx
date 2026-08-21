@@ -287,6 +287,20 @@ function leaveFieldRows(customFields?: Record<string, unknown>): { label: string
   return rows;
 }
 
+/** 초과근무 구조화 데이터(custom_fields.overtime) → 필드 행 (2026-08-20 사장님 제보:
+ *  "몇 시까지 할 건지 입력해도 시간이 안 나타난다"). 신청서에 적은 일자·종료시각이
+ *  상세·목록·PDF 어디에도 표시되는 경로가 없었다 — 휴가(leaveFieldRows)와 같은 방식으로 푼다. */
+function overtimeFieldRows(customFields?: Record<string, unknown>): { label: string; type: string; value: string }[] {
+  const ot = customFields?.overtime as Record<string, unknown> | undefined;
+  if (!ot || typeof ot !== "object") return [];
+  const date = String(ot.date || "");
+  const end = String(ot.end_time || "").slice(0, 5);
+  const rows: { label: string; type: string; value: string }[] = [];
+  if (date) rows.push({ label: "초과근무 일자", type: "date", value: date });
+  if (end) rows.push({ label: "종료 예정 시각", type: "text", value: end });
+  return rows;
+}
+
 function resolveFormFields(
   formId: string | null | undefined,
   customFields: Record<string, unknown> | undefined,
@@ -294,8 +308,8 @@ function resolveFormFields(
   policies?: ApprovalPolicy[],
   requestType?: string
 ): { label: string; type: string; value: string }[] {
-  // 휴가는 구조화 데이터가 원본 — 필드 정의 유무와 무관하게 항상 폼 행으로 먼저 푼다.
-  const leaveRows = leaveFieldRows(customFields);
+  // 휴가·초과근무는 구조화 데이터가 원본 — 필드 정의 유무와 무관하게 항상 폼 행으로 먼저 푼다.
+  const leaveRows = [...leaveFieldRows(customFields), ...overtimeFieldRows(customFields)];
   const defs = formId
     ? formsById.get(formId)?.fields
     : ((policies || []).find((p) => p.document_type === requestType && isCompanyWidePolicy(p)) || (policies || []).find((p) => p.document_type === requestType))?.fields;
@@ -1586,7 +1600,15 @@ function MyRequestsTab({ companyId, userId, invalidate, focusRequestId }: {
         title: editForm.title.trim() || editReq.title,
         amount,
         description: finalDesc,
-        customFields: fields.length > 0 ? editFieldValues : undefined,
+        // 구조화 데이터(휴가·초과근무)는 양식 필드 목록에 없으므로 여기서 살려 둬야 한다 —
+        //   안 그러면 수정 한 번에 초과근무 일자·종료시각이 날아가고 근태 반영도 끊긴다 (2026-08-20).
+        customFields: fields.length > 0
+          ? {
+              ...(editReq.custom_fields?.leave ? { leave: editReq.custom_fields.leave } : {}),
+              ...(editReq.custom_fields?.overtime ? { overtime: editReq.custom_fields.overtime } : {}),
+              ...editFieldValues,
+            }
+          : undefined,
         attachments: [...editAttachments, ...uploadedUrls],
       });
       toast("요청을 수정했습니다", "success");
