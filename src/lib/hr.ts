@@ -866,6 +866,32 @@ export async function reviewAttendanceEditRequest(params: {
       .update(updatePayload as never)
       .eq('id', req.attendance_record_id);
     if (uErr) throw uErr;
+
+    // ★ 그 날짜를 다시 계산한다 (2026-08-21 감사): 종전엔 출퇴근 시각만 바꾸고
+    //   연장·야간·휴일 분과 총 근무시간은 예전 값 그대로 남아, 워크보드의 '연장' 도
+    //   수당(allowance_entries)도 급여 가산분도 전부 틀린 값으로 굳었다.
+    //   관리자가 따로 '근태 재계산' 을 누르기 전까지 급여가 어긋난 상태였다.
+    try {
+      const target = logRead('lib/hr:recalcTarget', await db
+        .from('attendance_records')
+        .select('company_id, employee_id, date')
+        .eq('id', req.attendance_record_id)
+        .maybeSingle());
+      if (target?.company_id && target?.employee_id && target?.date) {
+        await recomputeAttendance({
+          companyId: target.company_id as string,
+          employeeId: target.employee_id as string,
+          from: target.date as string,
+          to: target.date as string,
+        });
+      }
+    } catch (e) {
+      logError({
+        source: 'manual',
+        message: `[근태] 수정 승인 후 재계산 실패 — record=${req.attendance_record_id}: ${(e as Error)?.message || e}`,
+        context: { step: 'recompute_after_edit_approval' },
+      });
+    }
   }
 
   const { error } = await db

@@ -3339,6 +3339,19 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                     </td>
                     <td className="px-5 py-3 text-center">
                       <div className="flex gap-1 justify-center">
+                        {/* 전자결재로 올라온 휴가는 여기서 처리할 수 없다 (2026-08-21 감사):
+                            목록에 병합될 때 id 가 'approval-<uuid>' 라 휴가 API 를 부르면 무조건
+                            실패하고 "휴가 승인 실패" 토스트만 떴다. 처리는 결재 허브에서 한다. */}
+                        {r._source === "approval" ? (
+                          (r.status === "pending" || r.status === "first_approved") ? (
+                            <a href="/approvals?tab=my-approvals"
+                               className="text-[10px] px-2 py-1 rounded bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)]/20 whitespace-nowrap">
+                              결재 허브에서 처리 →
+                            </a>
+                          ) : (
+                            <span className="text-[10px] text-[var(--text-dim)]">전자결재</span>
+                          )
+                        ) : (<>
                         {(r.status === "pending" || r.status === "first_approved") && (() => {
                           // 승인/반려 버튼 노출 조건.
                           //   · 현재 pending 단계의 지정 승인자이면 노출 — isEmployee 무관.
@@ -3390,6 +3403,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                             </button>
                           );
                         })()}
+                        </>)}
                       </div>
                     </td>
                   </tr>
