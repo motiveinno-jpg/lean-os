@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { todayKst, daysBetweenStr } from "./kst";
+import { requiredDocsOf, readyCount, type DocCheck } from "./support-docs";
 
 /**
  * 지원사업 큐레이션 — 회사 프로필 6축 ↔ 제도 자격 요건 대조 (2026-08-21 사장님 지시)
@@ -66,6 +67,8 @@ export type GovProgram = {
   sort_order: number;
   /** 공고형에서 수집한 구조화 자격 — { regions[], max_years, targets[], exclude, dept } */
   eligibility?: Eligibility | null;
+  /** 신청에 필요한 서류 키 (lib/support-docs.ts DOC_CATALOG). 비면 rule_key 기본 세트 */
+  required_docs?: string[] | null;
 };
 
 /** 공고 자격 스펙 — K-Startup 응답이 이미 구조화돼 있어 AI 없이 코드로 대조한다 */
@@ -75,6 +78,8 @@ export type Eligibility = {
   targets?: string[];
   exclude?: string | null;
   dept?: string | null;
+  /** 온라인 접수 가능 여부 — 방문·우편만 되는 사업은 준비 부담이 다르다 */
+  online?: boolean;
 };
 
 export type SavedRow = {
@@ -550,6 +555,91 @@ export function judge(program: GovProgram, profile: CompanyProfile): Judgement {
   }
 }
 
+
+// ── 적합도 ────────────────────────────────────────────────────────────────
+
+/**
+ * 적합도 — **우선순위를 정하는 점수** (2026-08-21 사장님 지시:
+ *   "가장 적합하거나 바로 신청할 수 있는 것이 상단으로, 적합도를 평가해주는 것")
+ *
+ * ★ 점수만 내놓지 않는다. 세 갈래로 나누고 무엇 때문에 깎였는지 줄로 적는다 —
+ *   "87점"만 보여 주면 틀렸을 때 어디가 틀렸는지 짚을 수 없다.
+ *
+ *   자격 50 — 우리 회사가 요건에 맞는가 (✕ 가 하나라도 있으면 전체 0점)
+ *   서류 30 — 지금 낼 수 있는 서류가 몇 개나 준비돼 있는가
+ *   신청 20 — 지금 접수 중인가, 온라인으로 되는가, 마감까지 여유가 있는가
+ */
+export type FitScore = {
+  total: number;
+  fit: number;
+  docs: number;
+  ease: number;
+  /** 자격 ✕ 없음 + 서류 전부 준비 + 접수 중 → 목록에 '지금 신청 가능' 으로 뜬다 */
+  ready: boolean;
+  lines: string[];
+};
+
+export function scoreProgram(
+  program: GovProgram,
+  judgement: Judgement,
+  checks: DocCheck[],
+  today = todayKst(),
+): FitScore {
+  const lines: string[] = [];
+
+  // ── 자격 50 ──
+  let fit = 0;
+  if (judgement.verdict === "none") {
+    return { total: 0, fit: 0, docs: 0, ease: 0, ready: false, lines: ["자격 요건에 맞지 않습니다"] };
+  }
+  const okN = judgement.reasons.filter((r) => r.mark === "ok").length;
+  const unkN = judgement.reasons.filter((r) => r.mark === "unknown").length;
+  if (judgement.verdict === "high") {
+    fit = 50;
+    lines.push("자격 50/50 — 확인 가능한 요건을 모두 충족");
+  } else {
+    //   모르는 값이 섞여 있다 — 아는 것의 비율만큼 준다. 바닥은 15점(전부 모른다고 0점이면 목록에서 사라진다)
+    fit = Math.max(15, Math.round((okN / Math.max(1, okN + unkN)) * 50));
+    lines.push(`자격 ${fit}/50 — 확인됨 ${okN}가지 · 확인 필요 ${unkN}가지`);
+  }
+
+  // ── 서류 30 ──
+  const needed = requiredDocsOf(program);
+  let docs = 15;
+  if (needed.length === 0) {
+    lines.push("서류 15/30 — 필요 서류를 아직 모릅니다(공고 원문 확인)");
+  } else {
+    const have = readyCount(checks);
+    docs = Math.round((have / needed.length) * 30);
+    lines.push(`서류 ${docs}/30 — ${needed.length}가지 중 ${have}가지가 보관함에 있습니다`);
+  }
+
+  // ── 신청 20 ──
+  let ease = 0;
+  const left = daysLeft(program.apply_end);
+  const started = !program.apply_start || program.apply_start.slice(0, 10) <= today;
+  const open = started && (left === null || left >= 0);
+
+  if (left === null) { ease += 10; lines.push("신청 +10 — 상시 접수(마감 없음)"); }
+  else if (!started) { ease += 4; lines.push(`신청 +4 — 아직 접수 전 (${program.apply_start?.slice(5, 10)} 시작)`); }
+  else { ease += 10; lines.push("신청 +10 — 접수 중"); }
+
+  const el = (program.eligibility || {}) as Eligibility;
+  if (el.online) { ease += 5; lines.push("신청 +5 — 온라인 접수"); }
+
+  if (left !== null && left >= 0) {
+    if (left >= 14) { ease += 5; lines.push(`신청 +5 — 마감까지 ${left}일 여유`); }
+    else if (left >= 7) { ease += 3; lines.push(`신청 +3 — 마감까지 ${left}일`); }
+    else { ease += 1; lines.push(`신청 +1 — 마감이 ${left}일 남아 급합니다`); }
+  }
+
+  const shortDocs = needed.length > 0 && readyCount(checks) < needed.length;
+  //   verdict none 은 위에서 이미 돌려보냈다 — 여기 오면 자격에 ✕ 는 없다
+  const ready = open && !shortDocs && needed.length > 0;
+
+  return { total: Math.min(100, fit + docs + ease), fit, docs, ease, ready, lines };
+}
+
 /** 마감까지 남은 날 — null 이면 상시(마감 없음) */
 export function daysLeft(applyEnd: string | null): number | null {
   if (!applyEnd) return null;
@@ -561,7 +651,7 @@ export function daysLeft(applyEnd: string | null): number | null {
 export async function listPrograms(): Promise<GovProgram[]> {
   const { data, error } = await supabase
     .from("gov_programs")
-    .select("id, source, title, org, field, support_type, summary, requirement, amount_text, amount_max, detail_url, apply_start, apply_end, rule_key, status, sort_order, eligibility")
+    .select("id, source, title, org, field, support_type, summary, requirement, amount_text, amount_max, detail_url, apply_start, apply_end, rule_key, status, sort_order, eligibility, required_docs")
     .eq("status", "open")
     .order("sort_order", { ascending: true });
   if (error) throw error;

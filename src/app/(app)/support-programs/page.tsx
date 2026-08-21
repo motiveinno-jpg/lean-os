@@ -17,11 +17,16 @@ import {
   ChipGroup, type AppliedChip,
 } from "@/components/query-kit";
 import {
-  listPrograms, listSaved, loadCompanyProfile, judge, daysLeft, lastSyncAt,
+  listPrograms, listSaved, loadCompanyProfile, judge, daysLeft, lastSyncAt, scoreProgram,
   saveProgram, unsaveProgram, setSavedStatus,
   VERDICT_LABEL, SAVED_STATUS_LABEL, CARD_TOTAL,
-  type GovProgram, type Judgement, type Verdict, type SavedRow,
+  type GovProgram, type Judgement, type Verdict, type SavedRow, type FitScore,
 } from "@/lib/support-programs";
+import {
+  loadCompanyFiles, requiredDocsOf, docsAreEstimated, checkDocs, readyCount,
+  DOC_STATUS_LABEL, type DocCheck,
+} from "@/lib/support-docs";
+import { todayKst } from "@/lib/kst";
 
 /**
  * 지원사업 — 회사 자료로 걸러 주는 정부 지원정책 (2026-08-21 사장님 지시)
@@ -36,7 +41,7 @@ import {
  */
 
 type Tab = "recommend" | "all" | "saved" | "history";
-type SortKey = "dday" | "title" | "field" | "org" | "amount" | "verdict";
+type SortKey = "dday" | "title" | "field" | "org" | "amount" | "verdict" | "fit" | "docs";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "recommend", label: "추천" },
@@ -70,13 +75,14 @@ function SupportProgramsInner() {
   const [detail, setDetail] = useState<string | null>(null);   // 상세를 연 program id
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [view, setView] = useState<"list" | "card">("list");
-  const [sort, setSort] = useState<SortState<SortKey>>({ key: "verdict", dir: "asc" });
+  //   기본은 적합도 높은 순 — 사장님 지시: "가장 적합하거나 바로 신청할 수 있는 것이 상단으로"
+  const [sort, setSort] = useState<SortState<SortKey>>({ key: "fit", dir: "desc" });
 
   // ── 조건 — 패널 안은 초안이고, [조회] 를 눌러야 나간다 (기간 하나짜리가 아니라 여러 칸이라) ──
   const [condOpen, setCondOpen] = useState(false);
   const [q, setQ] = useState("");
   const [size, setSize] = useState(50);
-  const [applied, setApplied] = useState({ fields: [] as string[], types: [] as string[], verdicts: [] as string[], min: "", max: "" });
+  const [applied, setApplied] = useState({ fields: [] as string[], types: [] as string[], verdicts: [] as string[], min: "", max: "", ready: false });
   const [draft, setDraft] = useState(applied);
   const [draftSize, setDraftSize] = useState(size);
 
@@ -95,6 +101,13 @@ function SupportProgramsInner() {
   const { data: syncedAt } = useQuery({
     queryKey: ["support-last-sync"],
     queryFn: lastSyncAt,
+  });
+
+  //   회사가 이미 가진 파일 — 신청 서류를 여기서 끌어온다
+  const { data: files = [] } = useQuery({
+    queryKey: ["support-files", companyId],
+    queryFn: () => loadCompanyFiles(companyId!),
+    enabled: !!companyId,
   });
 
   const { data: saved = [] } = useQuery({
@@ -137,17 +150,27 @@ function SupportProgramsInner() {
   });
 
   // ── 판정 — 제도마다 회사 프로필과 대조한다 ────────────────────────────
-  type Row = { program: GovProgram; judgement: Judgement; savedRow?: SavedRow; dday: number | null };
+  type Row = {
+    program: GovProgram; judgement: Judgement; savedRow?: SavedRow; dday: number | null;
+    checks: DocCheck[]; needed: number; have: number; score: FitScore;
+  };
 
   const judged: Row[] = useMemo(() => {
     if (!profile) return [];
-    return (programs as GovProgram[]).map((program) => ({
-      program,
-      judgement: judge(program, profile),
-      savedRow: savedByProgram.get(program.id),
-      dday: daysLeft(program.apply_end),
-    }));
-  }, [programs, profile, savedByProgram]);
+    const today = todayKst();
+    return (programs as GovProgram[]).map((program) => {
+      const judgement = judge(program, profile);
+      const needed = requiredDocsOf(program);
+      const checks = checkDocs(needed, files, today);
+      return {
+        program, judgement,
+        savedRow: savedByProgram.get(program.id),
+        dday: daysLeft(program.apply_end),
+        checks, needed: needed.length, have: readyCount(checks),
+        score: scoreProgram(program, judgement, checks, today),
+      };
+    });
+  }, [programs, profile, savedByProgram, files]);
 
   // ── 갈래 → 조건 → 빠른검색 → 정렬 ──────────────────────────────────────
   const rows: Row[] = useMemo(() => {
@@ -160,6 +183,7 @@ function SupportProgramsInner() {
     if (applied.fields.length) list = list.filter((r) => r.program.field && applied.fields.includes(r.program.field));
     if (applied.types.length) list = list.filter((r) => r.program.support_type && applied.types.includes(r.program.support_type));
     if (applied.verdicts.length) list = list.filter((r) => applied.verdicts.includes(r.judgement.verdict));
+    if (applied.ready) list = list.filter((r) => r.score.ready);
     if (applied.min || applied.max) {
       list = list.filter((r) => amountHit(Number(r.judgement.estimate?.amount ?? r.program.amount_max ?? 0), applied.min, applied.max));
     }
@@ -177,7 +201,9 @@ function SupportProgramsInner() {
         case "field": return r.program.field;
         case "org": return r.program.org;
         case "amount": return Number(r.judgement.estimate?.amount ?? r.program.amount_max ?? 0);
-        default: return VERDICT_ORDER[r.judgement.verdict];
+        case "docs": return r.needed === 0 ? -1 : r.have / r.needed;
+        case "verdict": return VERDICT_ORDER[r.judgement.verdict];
+        default: return r.score.total;
       }
     };
     //   같은 판정 안에서는 예상액이 큰 것부터 — 대표가 먼저 볼 이유가 있는 순서
@@ -197,17 +223,20 @@ function SupportProgramsInner() {
       high: judged.filter((r) => r.judgement.verdict === "high").length,
       check: judged.filter((r) => r.judgement.verdict === "check").length,
       soon: judged.filter((r) => r.dday !== null && r.dday >= 0 && r.dday <= 7).length,
+      ready: judged.filter((r) => r.score.ready).length,
       estimate: base.reduce((s, r) => s + Number(r.judgement.estimate?.amount ?? 0), 0),
     };
   }, [judged]);
 
-  const activeCount = applied.fields.length + applied.types.length + applied.verdicts.length + (applied.min || applied.max ? 1 : 0);
+  const activeCount = applied.fields.length + applied.types.length + applied.verdicts.length
+    + (applied.min || applied.max ? 1 : 0) + (applied.ready ? 1 : 0);
 
   const chips: AppliedChip[] = [
     ...applied.fields.map((v) => ({ group: "분야", label: v, onRemove: () => setBoth({ ...applied, fields: applied.fields.filter((x) => x !== v) }) })),
     ...applied.types.map((v) => ({ group: "지원형태", label: v, onRemove: () => setBoth({ ...applied, types: applied.types.filter((x) => x !== v) }) })),
     ...applied.verdicts.map((v) => ({ group: "판정", label: VERDICT_LABEL[v as Verdict], onRemove: () => setBoth({ ...applied, verdicts: applied.verdicts.filter((x) => x !== v) }) })),
     ...(applied.min || applied.max ? [{ group: "금액", label: `${applied.min || "0"}~${applied.max || "제한없음"}`, onRemove: () => setBoth({ ...applied, min: "", max: "" }) }] : []),
+    ...(applied.ready ? [{ group: "보기", label: "지금 신청 가능", onRemove: () => setBoth({ ...applied, ready: false }) }] : []),
   ];
 
   function setBoth(next: typeof applied) { setApplied(next); setDraft(next); }
@@ -255,7 +284,7 @@ function SupportProgramsInner() {
                   <RowsPerPage value={draftSize} onChange={setDraftSize} />
                   <div className="sp-panel-actions">
                     <button type="button" className="btn-secondary btn-sm"
-                      onClick={() => setDraft({ fields: [], types: [], verdicts: [], min: "", max: "" })}>비우기</button>
+                      onClick={() => setDraft({ fields: [], types: [], verdicts: [], min: "", max: "", ready: false })}>비우기</button>
                     <button type="button" className="btn-primary btn-sm"
                       onClick={() => { setApplied(draft); setSize(draftSize); setCondOpen(false); }}>조회</button>
                   </div>
@@ -288,13 +317,18 @@ function SupportProgramsInner() {
               options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />
           </QueryBar>
 
-          <AppliedChips chips={chips} onClearAll={() => setBoth({ fields: [], types: [], verdicts: [], min: "", max: "" })} />
+          <AppliedChips chips={chips} onClearAll={() => setBoth({ fields: [], types: [], verdicts: [], min: "", max: "", ready: false })} />
 
           <ResultStrip right={
             syncedAt
               ? <span className="sp-synced">공고 갱신 {new Date(syncedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
               : <span className="sp-synced">상시 제도만 — 공고는 아직 받지 않았습니다</span>
           }>
+            {/*   숫자를 누르면 그 조건으로 좁혀 본다 (조회 화면 표준) */}
+            <button type="button" className="sp-stat-btn"
+              onClick={() => setBoth({ ...applied, ready: !applied.ready })}>
+              <Stat label="지금 신청 가능" value={`${stats.ready}건`} tone="plus" />
+            </button>
             <Stat label="가능성 높음" value={`${stats.high}건`} tone="plus" />
             <Stat label="조건 확인 필요" value={`${stats.check}건`} />
             <Stat label="이번 주 마감" value={`${stats.soon}건`} tone={stats.soon > 0 ? "minus" : undefined} />
@@ -318,13 +352,17 @@ function SupportProgramsInner() {
               {pager.view.map((r) => (
                 <button key={r.program.id} type="button" className="sp-card" onClick={() => setDetail(r.program.id)}>
                   <div className="sp-card-top">
-                    <VerdictBadge v={r.judgement.verdict} />
+                    <span className="sp-card-badges">
+                      <VerdictBadge v={r.judgement.verdict} />
+                      <b className="sp-fit-n">{r.score.total}</b>
+                      {r.score.ready && <span className="sp-ready">지금 신청</span>}
+                    </span>
                     <span className="sp-dday">{ddayLabel(r.dday)}</span>
                   </div>
                   <b className="sp-card-title">{r.program.title}</b>
                   <p className="sp-card-sum">{r.program.summary}</p>
                   <div className="sp-card-foot">
-                    <span>{r.program.org}</span>
+                    <span>{r.program.org}{r.needed > 0 ? ` · 서류 ${r.have}/${r.needed}` : ""}</span>
                     <b className="mono-number">{r.judgement.estimate?.text || r.program.amount_text || "—"}</b>
                   </div>
                 </button>
@@ -340,8 +378,9 @@ function SupportProgramsInner() {
                     <SortableTh label="사업명" sortKey="title" sort={sort} onSort={(k) => setSort(nextSort(sort, k))} />
                     <SortableTh label="분야" sortKey="field" sort={sort} onSort={(k) => setSort(nextSort(sort, k))} style={{ width: 84 }} />
                     <SortableTh label="주관" sortKey="org" sort={sort} onSort={(k) => setSort(nextSort(sort, k))} style={{ width: 150 }} />
-                    <SortableTh label="지원 규모 (예상)" sortKey="amount" sort={sort} onSort={(k) => setSort(nextSort(sort, k))} style={{ width: 190 }} />
-                    <SortableTh label="판정" sortKey="verdict" sort={sort} onSort={(k) => setSort(nextSort(sort, k))} style={{ width: 108 }} />
+                    <SortableTh label="지원 규모 (예상)" sortKey="amount" sort={sort} onSort={(k) => setSort(nextSort(sort, k))} style={{ width: 180 }} />
+                    <SortableTh label="서류" sortKey="docs" sort={sort} onSort={(k) => setSort(nextSort(sort, k, "desc"))} style={{ width: 72 }} />
+                    <SortableTh label="적합도" sortKey="fit" sort={sort} onSort={(k) => setSort(nextSort(sort, k, "desc"))} style={{ width: 148 }} />
                     <th style={{ width: 56 }}>담기</th>
                   </tr>
                 </thead>
@@ -371,7 +410,19 @@ function SupportProgramsInner() {
                           ? <b className="sp-amt-est">{r.judgement.estimate.text}</b>
                           : <span className="sp-amt-plain">{r.program.amount_text || "—"}</span>}
                       </td>
-                      <td className="text-center"><VerdictBadge v={r.judgement.verdict} /></td>
+                      <td className="text-center">
+                        {r.needed === 0
+                          ? <span className="sp-docs-none" title="공고 원문에서 확인하세요">—</span>
+                          : <span className={r.have >= r.needed ? "sp-docs sp-docs-full" : "sp-docs"}>{r.have}/{r.needed}</span>}
+                      </td>
+                      <td>
+                        <div className="sp-fit">
+                          <VerdictBadge v={r.judgement.verdict} />
+                          <span className="sp-fit-bar" aria-hidden><i style={{ width: `${r.score.total}%` }} /></span>
+                          <b className="sp-fit-n">{r.score.total}</b>
+                          {r.score.ready && <span className="sp-ready">지금 신청</span>}
+                        </div>
+                      </td>
                       <td className="text-center" onClick={(e) => e.stopPropagation()}>
                         {r.savedRow ? (
                           <button type="button" className="sp-star sp-star-on" aria-label="관심에서 빼기"
@@ -439,11 +490,24 @@ function firstReason(j: Judgement) {
   return (blocker || j.reasons[0])?.text ?? "";
 }
 
+function ScoreBar({ label, v, max }: { label: string; v: number; max: number }) {
+  return (
+    <div className="sp-sbar">
+      <span className="sp-sbar-l">{label}</span>
+      <span className="sp-sbar-t"><i style={{ width: `${Math.round((v / max) * 100)}%` }} /></span>
+      <b className="sp-sbar-v">{v}<em>/{max}</em></b>
+    </div>
+  );
+}
+
 function VerdictBadge({ v }: { v: Verdict }) {
   return <span className={`sp-verdict sp-verdict-${v}`}>{VERDICT_LABEL[v]}</span>;
 }
 
-type DetailRow = { program: GovProgram; judgement: Judgement; savedRow?: SavedRow; dday: number | null };
+type DetailRow = {
+  program: GovProgram; judgement: Judgement; savedRow?: SavedRow; dday: number | null;
+  checks: DocCheck[]; needed: number; have: number; score: FitScore;
+};
 
 function ProgramDetail({ row, onClose, onSave, onDrop, onStatus, onOpenCard }: {
   row: DetailRow; onClose: () => void; onSave: () => void; onDrop: () => void;
@@ -467,6 +531,66 @@ function ProgramDetail({ row, onClose, onSave, onDrop, onStatus, onOpenCard }: {
 
         <div className="sp-modal-body">
           {p.summary && <p className="sp-detail-sum">{p.summary}</p>}
+
+          {/* 적합도 — 점수만 두면 못 믿는다. 무엇으로 매겨졌는지 줄로 적는다 */}
+          <div className="sp-detail-sec">
+            <b className="sp-detail-h">적합도 {row.score.total}점 {row.score.ready && <span className="sp-ready">지금 신청 가능</span>}</b>
+            <div className="sp-score">
+              <div className="sp-score-bars">
+                <ScoreBar label="자격" v={row.score.fit} max={50} />
+                <ScoreBar label="서류" v={row.score.docs} max={30} />
+                <ScoreBar label="신청" v={row.score.ease} max={20} />
+              </div>
+              <ul className="sp-score-lines">
+                {row.score.lines.map((l, i) => <li key={i}>{l}</li>)}
+              </ul>
+            </div>
+          </div>
+
+          {/* 필요 서류 — 회사 파일보관함에서 찾아 붙인다 */}
+          <div className="sp-detail-sec">
+            <b className="sp-detail-h">
+              신청 서류 {row.needed > 0 && <span className="sp-detail-sub">{row.have}/{row.needed} 준비됨</span>}
+            </b>
+            {row.needed === 0 ? (
+              <p className="sp-detail-req">이 공고의 제출 서류는 공고 원문에서 확인해 주세요.</p>
+            ) : (
+              <>
+                {docsAreEstimated(p) && (
+                  <p className="sp-docs-note">공고문을 읽어 확인한 목록이 아니라 <b>대부분의 사업이 요구하는 기본 서류</b>입니다 — 원문을 함께 보세요.</p>
+                )}
+                {row.have > 0 && (
+                  <p className="sp-docs-note">✓ 표시는 <b>파일 이름으로 찾은 것</b>입니다 — 실제로 낼 서류가 맞는지 눌러서 확인해 주세요.</p>
+                )}
+                <ul className="sp-doclist">
+                  {row.checks.map((c) => (
+                    <li key={c.spec.key} className={`sp-doc sp-doc-${c.status}`}>
+                      <span className="sp-doc-mark" aria-hidden>
+                        {c.status === "have" ? "✓" : c.status === "stale" ? "!" : "·"}
+                      </span>
+                      <span className="sp-doc-body">
+                        <b>{c.spec.label}</b>
+                        <small>{c.status === "have" || c.status === "stale" ? c.file?.file_name : c.note}</small>
+                        {c.spec.hint && <em>{c.spec.hint}</em>}
+                      </span>
+                      <span className="sp-doc-act">
+                        {(c.status === "have" || c.status === "stale") && c.file?.file_url && (
+                          <a href={c.file.file_url} target="_blank" rel="noreferrer noopener">열기 ↗</a>
+                        )}
+                        {c.status === "ownerview" && c.spec.ownerview && (
+                          <Link href={c.spec.ownerview.href}>가기 →</Link>
+                        )}
+                        {(c.status === "issue" || c.status === "stale") && c.spec.url && (
+                          <a href={c.spec.url} target="_blank" rel="noreferrer noopener">{c.spec.source} ↗</a>
+                        )}
+                        <em className="sp-doc-st">{DOC_STATUS_LABEL[c.status]}</em>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
 
           <div className="sp-detail-sec">
             <b className="sp-detail-h">왜 이렇게 판정했나</b>

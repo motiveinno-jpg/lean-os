@@ -192,6 +192,8 @@ serve(async (req: Request) => {
             targets: splitList(r.aply_trgt),
             exclude: short(r.aply_excl_trgt_ctnt, 300),
             dept: String(r.biz_prch_dprt_nm ?? "").trim() || null,
+            //   온라인 접수 가능 여부 — 방문·우편만 되는 사업은 준비 부담이 달라 적합도에 반영한다
+            online: !!String(r.aply_mthd_onli_rcpt_istc ?? "").trim(),
           },
           rule_key: "kstartup",
           status: "open",

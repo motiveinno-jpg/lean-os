@@ -4676,6 +4676,7 @@ export type Database = {
           id: string
           org: string | null
           requirement: string | null
+          required_docs: string[]
           rule_key: string | null
           sort_order: number
           source: string
@@ -4698,6 +4699,7 @@ export type Database = {
           id?: string
           org?: string | null
           requirement?: string | null
+          required_docs?: string[]
           rule_key?: string | null
           sort_order?: number
           source?: string
@@ -4720,6 +4722,7 @@ export type Database = {
           id?: string
           org?: string | null
           requirement?: string | null
+          required_docs?: string[]
           rule_key?: string | null
           sort_order?: number
           source?: string

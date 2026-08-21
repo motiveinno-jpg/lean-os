@@ -9862,7 +9862,7 @@ table.dup-table { min-width: 0; }
 .sp-card-meter b { @apply font-bold text-[var(--text)]; }
 
 /* 표 */
-table.sp-table { min-width: 1020px; } /* table. — .ev-table 의 min-width 를 이긴다 */
+table.sp-table { min-width: 1160px; } /* 서류·적합도 칸이 늘어 넓어졌다 (2026-08-21) */ /* table. — .ev-table 의 min-width 를 이긴다 */
 .sp-th-pick { @apply w-9; }
 .sp-td-pick { @apply text-center; }
 /*   .ev-table tbody td / tr 를 이겨야 한다 — 낱개 클래스로는 특이도가 모자라 nowrap 이 안 풀린다 */
@@ -9968,3 +9968,51 @@ table.sp-table { min-width: 1020px; } /* table. — .ev-table 의 min-width 를 
   .qk-body > [class] { overflow-y: visible; }
 }
 .sp-synced { @apply text-[11px] text-[var(--text-dim)]; }
+
+/* ── 지원사업 — 적합도 점수 · 신청 서류 (2026-08-21 사장님 지시) ─────────────
+   "가장 적합하거나 바로 신청할 수 있는 것이 상단으로, 적합도를 평가해주는 것"
+   "신청시 필요한 서류가 어떤 것인지, 회사에 등록된 서류가 있다면 자동으로 끌고오게" */
+
+.sp-stat-btn { @apply rounded-lg px-1 transition-colors hover:bg-[var(--bg-surface)]; }
+
+/* 표 — 적합도 칸(배지 + 막대 + 점수 + '지금 신청') */
+.sp-fit { @apply flex items-center gap-1.5; }
+.sp-fit-bar { @apply h-1.5 w-10 shrink-0 overflow-hidden rounded-full bg-[var(--border)]; }
+.sp-fit-bar i { @apply block h-full rounded-full bg-[var(--primary)]; }
+.sp-fit-n { @apply w-6 shrink-0 text-right text-[12px] font-bold tabular-nums text-[var(--text)]; }
+.sp-ready { @apply shrink-0 whitespace-nowrap rounded-full bg-[var(--success-dim)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--success)]; }
+.sp-card-badges { @apply flex items-center gap-1.5; }
+
+.sp-docs { @apply inline-block rounded-md bg-[var(--bg-surface)] px-1.5 py-0.5 text-[11.5px] font-bold tabular-nums text-[var(--text-dim)]; }
+.sp-docs-full { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.sp-docs-none { @apply text-[11.5px] text-[var(--text-dim)]; }
+
+/* 상세 — 적합도 갈래 막대 */
+.sp-score { @apply flex flex-col gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3; }
+.sp-score-bars { @apply flex flex-col gap-1.5; }
+.sp-sbar { @apply flex items-center gap-2; }
+.sp-sbar-l { @apply w-8 shrink-0 text-[11.5px] font-bold text-[var(--text-dim)]; }
+.sp-sbar-t { @apply h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--border)]; }
+.sp-sbar-t i { @apply block h-full rounded-full bg-[var(--primary)]; }
+.sp-sbar-v { @apply w-12 shrink-0 text-right text-[11.5px] font-bold tabular-nums text-[var(--text)]; }
+.sp-sbar-v em { @apply not-italic font-normal text-[var(--text-dim)]; }
+.sp-score-lines { @apply flex list-none flex-col gap-1 p-0 text-[11.5px] leading-4 text-[var(--text-muted)]; }
+
+/* 상세 — 신청 서류 목록 */
+.sp-detail-sub { @apply ml-1 font-normal text-[var(--text-dim)]; }
+.sp-docs-note { @apply rounded-lg border border-dashed border-[var(--border)] px-3 py-2 text-[11px] leading-4 text-[var(--text-dim)]; }
+.sp-docs-note b { @apply font-bold text-[var(--text-muted)]; }
+.sp-doclist { @apply flex list-none flex-col gap-1 p-0; }
+.sp-doc { @apply flex items-start gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-2; }
+.sp-doc-mark { @apply mt-0.5 w-3.5 shrink-0 text-center text-[13px] font-bold text-[var(--text-dim)]; }
+.sp-doc-have { @apply border-[var(--success)]/35; }
+.sp-doc-have .sp-doc-mark { @apply text-[var(--success)]; }
+.sp-doc-stale { @apply border-[var(--warning)]/40; }
+.sp-doc-stale .sp-doc-mark { @apply text-[var(--warning)]; }
+.sp-doc-body { @apply flex min-w-0 flex-1 flex-col gap-0.5; }
+.sp-doc-body b { @apply text-[12.5px] font-bold text-[var(--text)]; }
+.sp-doc-body small { @apply truncate text-[11px] text-[var(--text-dim)]; }
+.sp-doc-body em { @apply not-italic text-[10.5px] leading-4 text-[var(--text-dim)] opacity-80; }
+.sp-doc-act { @apply flex shrink-0 flex-col items-end gap-0.5; }
+.sp-doc-act a { @apply text-[11px] font-bold text-[var(--primary)] hover:underline; }
+.sp-doc-st { @apply not-italic text-[10px] text-[var(--text-dim)]; }
