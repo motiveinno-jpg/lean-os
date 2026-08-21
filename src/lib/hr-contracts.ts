@@ -889,6 +889,10 @@ export async function signContractItem(
 
 // ── Post-signing: Update salary + leave balance ──
 
+// ⚠️ 이 함수와 signContractItem 은 **호출되지 않는다**(2026-08-21 확인).
+//   실제 서명은 엣지 함수 supabase/functions/complete-signing 이 처리하며, 계약 완료 시
+//   연봉·급여이력·계약이력·재직상태 반영도 그쪽에 있다. 여기 로직을 고쳐도 반영되지 않으니
+//   수정은 반드시 엣지 함수 쪽에서 할 것.
 async function onAllContractsSigned(packageId: string) {
   const pkg = logRead('lib/hr-contracts:pkg', await db
     .from('hr_contract_packages')

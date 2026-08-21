@@ -93,11 +93,19 @@ serve(withSentry("complete-signing", async (req) => {
     }
 
     // 3) 아이템 서명 저장
+    //   ⚠️ error 를 봐야 한다 (2026-08-21 감사): 저장이 실패해도 아래로 그대로 진행해
+    //   직원 화면엔 "서명이 완료되었습니다" 가 뜨는데 **서명 데이터는 저장되지 않은** 상태가 됐다.
     const signedAt = new Date().toISOString();
-    await supabase
+    const { error: signErr } = await supabase
       .from("hr_contract_package_items")
       .update({ status: "signed", signed_at: signedAt, signature_data: signatureData })
       .eq("id", itemId);
+    if (signErr) {
+      return new Response(JSON.stringify({ error: `서명 저장 실패: ${signErr.message}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // 4) 문서 lock
     if (item.document_id) {
@@ -130,6 +138,68 @@ serve(withSentry("complete-signing", async (req) => {
         .from("hr_contract_packages")
         .update({ status: "completed", completed_at: signedAt })
         .eq("id", pkg.id);
+
+      // ★ 계약 완료 → 구성원 반영 (2026-08-21 감사)
+      //   종전엔 이 처리가 hr-contracts.ts 의 onAllContractsSigned 에만 있었는데 그 호출부
+      //   (signContractItem)가 저장소 어디에도 없는 **죽은 코드**였다. 실제 서명은 이 함수가
+      //   처리하므로, 계약이 완료돼도 연봉·계약이력·재직상태가 하나도 안 바뀌었다:
+      //   구성원 상세의 '근로 계약(이력)' 이 영원히 비어 있고 연차 자동부여도 안 돌았다.
+      try {
+        let annualSalary = 0;
+        try {
+          const meta = typeof pkg.notes === "string" ? JSON.parse(pkg.notes) : pkg.notes;
+          if (meta?.salary) annualSalary = Number(meta.salary) || 0;
+        } catch { /* notes 가 JSON 이 아니면 급여 반영은 생략 */ }
+
+        if (annualSalary > 0 && pkg.employee_id) {
+          const monthlySalary = Math.round(annualSalary / 12);
+          const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);   // KST
+          const nextYear = new Date(Date.now() + 9 * 3600 * 1000);
+          nextYear.setFullYear(nextYear.getFullYear() + 1);
+
+          const { error: salErr } = await supabase.from("employees")
+            .update({ salary: monthlySalary }).eq("id", pkg.employee_id);
+          if (salErr) throw salErr;
+
+          await supabase.from("salary_history").insert({
+            company_id: pkg.company_id,
+            employee_id: pkg.employee_id,
+            effective_date: today,
+            salary: monthlySalary,
+            change_reason: "연봉계약 체결",
+          });
+
+          // 같은 계약으로 두 번 만들지 않는다(재서명·재실행 대비)
+          const { data: existingContract } = await supabase.from("employee_contracts")
+            .select("id").eq("employee_id", pkg.employee_id).eq("start_date", today).maybeSingle();
+          if (!existingContract) {
+            await supabase.from("employee_contracts").insert({
+              company_id: pkg.company_id,
+              employee_id: pkg.employee_id,
+              contract_type: "full_time",
+              start_date: today,
+              end_date: nextYear.toISOString().slice(0, 10),
+              salary: monthlySalary,
+              status: "active",
+            });
+          }
+        }
+
+        // 온보딩 완료 → 재직 상태로
+        if (pkg.employee_id) {
+          await supabase.from("employees").update({ status: "active" }).eq("id", pkg.employee_id);
+        }
+      } catch (e) {
+        // 서명 자체는 막지 않되 조용히 사라지지 않게 남긴다
+        console.error("contract completion side effects failed:", e);
+        await supabase.from("error_logs").insert({
+          company_id: pkg.company_id,
+          source: "manual",
+          error_type: "contract_completion",
+          message: `[전자계약] 완료 후 구성원 반영 실패 — package=${pkg.id}: ${(e as Error)?.message || e}`,
+          url: "supabase/functions/complete-signing",
+        }).select().maybeSingle();
+      }
     } else if (someSigned) {
       packageStatus = "partially_signed";
       await supabase
