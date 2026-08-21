@@ -4548,6 +4548,153 @@ export type Database = {
           },
         ]
       }
+      company_profile_ext: {
+        Row: {
+          certifications: string[]
+          company_id: string
+          has_export: boolean | null
+          interests: string[]
+          ksic_main: string | null
+          open_date: string | null
+          prior_grants: Json
+          size_class: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          certifications?: string[]
+          company_id: string
+          has_export?: boolean | null
+          interests?: string[]
+          ksic_main?: string | null
+          open_date?: string | null
+          prior_grants?: Json
+          size_class?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          certifications?: string[]
+          company_id?: string
+          has_export?: boolean | null
+          interests?: string[]
+          ksic_main?: string | null
+          open_date?: string | null
+          prior_grants?: Json
+          size_class?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      gov_program_saved: {
+        Row: {
+          assignee_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          memo: string | null
+          program_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          memo?: string | null
+          program_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          memo?: string | null
+          program_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gov_programs: {
+        Row: {
+          amount_max: number | null
+          amount_text: string | null
+          apply_end: string | null
+          apply_start: string | null
+          created_at: string
+          detail_url: string | null
+          eligibility: Json
+          external_id: string | null
+          field: string | null
+          id: string
+          org: string | null
+          requirement: string | null
+          rule_key: string | null
+          sort_order: number
+          source: string
+          status: string
+          summary: string | null
+          support_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount_max?: number | null
+          amount_text?: string | null
+          apply_end?: string | null
+          apply_start?: string | null
+          created_at?: string
+          detail_url?: string | null
+          eligibility?: Json
+          external_id?: string | null
+          field?: string | null
+          id?: string
+          org?: string | null
+          requirement?: string | null
+          rule_key?: string | null
+          sort_order?: number
+          source?: string
+          status?: string
+          summary?: string | null
+          support_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount_max?: number | null
+          amount_text?: string | null
+          apply_end?: string | null
+          apply_start?: string | null
+          created_at?: string
+          detail_url?: string | null
+          eligibility?: Json
+          external_id?: string | null
+          field?: string | null
+          id?: string
+          org?: string | null
+          requirement?: string | null
+          rule_key?: string | null
+          sort_order?: number
+          source?: string
+          status?: string
+          summary?: string | null
+          support_type?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null

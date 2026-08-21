@@ -30,6 +30,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/notifications", label: "알림", always: true },
       { route: "/mypage", label: "마이페이지", always: true },
       { route: "/copilot", label: "AI 참모", desc: "회사 자료를 읽고 답하는 AI — 금액 질문에 답할 수 있다", money: true },
+      //   지원사업 (2026-08-21) — 직원 생년월일·급여로 고용장려금 자격을 판정하므로 인사 정보를 읽는다
+      { route: "/support-programs", label: "지원사업", desc: "회사 자료로 걸러 주는 정부 지원정책 — 예상 수령액을 계산해 보여준다", money: true },
     ],
   },
   {

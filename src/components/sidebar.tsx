@@ -35,6 +35,9 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/notifications", label: "알림", icon: "bell", badgeKey: "notifications" },
       { href: "/mypage", label: "마이페이지", icon: "user" },
       { href: "/copilot", label: "AI 참모", icon: "sparkles", roles: ["owner", "admin"] },
+      //   지원사업 — 정부 지원정책 큐레이션 (2026-08-21 사장님 지시). 회사 자료로 걸러 주는 곳.
+      //   매일 여는 순서 원칙에서 주 1회쯤 여는 성격이라 AI 참모 아래. 직원 인사 정보로 자격을 판정해 대표·관리자 전용.
+      { href: "/support-programs", label: "지원사업", icon: "gift", roles: ["owner", "admin"] },
       // 마스터 전용 — 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동 (2026-08-10 사장님)
       { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
     ],
@@ -179,6 +182,7 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
 const NAV_ITEM_COLOR: Record<string, string> = {
   // 홈 — 블루
   "/dashboard": "#3b82f6", "/master": "#2563eb", "/copilot": "#6366f1", "/mypage": "#60a5fa", "/notifications": "#818cf8",
+  "/support-programs": "#4f7cf7",
   // 파이낸스 — 그린
   "/partners": "#10b981", "/tax-invoices": "#059669", "/transactions": "#14b8a6",
   "/partners/reconciliation/voucher-entry": "#34d399", "/partners/reconciliation/sale-purchase": "#38bdf8", "/reports": "#22c55e",
@@ -236,6 +240,8 @@ function NavIcon({ name, href, className = "" }: { name: string; href?: string; 
     case "clock": return <svg {...props}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>;
     case "umbrella": return <svg {...props}><path d="M12 2a9 9 0 019 9H3a9 9 0 019-9z"/><path d="M12 11v8a2.5 2.5 0 005 0"/></svg>;
     case "download": return <svg {...props}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
+    //   지원사업 — 나라에서 주는 것이라 선물 상자 (2026-08-21)
+    case "gift": return <svg {...props}><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 001 1h12a1 1 0 001-1v-8"/><line x1="12" y1="8" x2="12" y2="21"/><path d="M12 8H7.5a2.5 2.5 0 010-5C11 3 12 8 12 8z"/><path d="M12 8h4.5a2.5 2.5 0 000-5C13 3 12 8 12 8z"/></svg>;
     default: return <svg {...props}><circle cx="12" cy="12" r="10"/></svg>;
   }
 }

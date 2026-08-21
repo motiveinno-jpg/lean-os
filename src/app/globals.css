@@ -9846,3 +9846,104 @@ table.dup-table { min-width: 0; }
 .bizno-required-desc { @apply mt-2 text-sm leading-relaxed text-[var(--text-muted)]; }
 .bizno-required-cta { @apply mt-5 inline-flex; }
 .bizno-required-note { @apply mt-3 text-[11px] text-[var(--text-dim)]; }
+
+/* ── 지원사업 (/support-programs) — 정부 지원정책 큐레이션 (2026-08-21 사장님 지시) ──────
+   조회 화면 표준을 그대로 쓰되, 이 화면에만 있는 것들:
+     · 판정 배지 3단(가능성 높음/조건 확인/해당 없음) — 근거 없는 점수 대신 상태로 읽힌다
+     · 근거 줄 ✓ ? ✕ + 출처 꼬리표(회사 자료 / 회사 카드 / 제도 요건)
+     · 회사 카드 7문항 팝업
+   ★ 새 이름만 추가한다 — 기존 클래스 정의는 건드리지 않는다. */
+
+.sp-count { @apply shrink-0 text-[11.5px] font-bold text-[var(--text-dim)]; }
+.sp-panel-actions { @apply ml-auto flex items-center gap-2; }
+.sp-card-meter { @apply shrink-0 text-[11.5px] text-[var(--text-dim)]; }
+.sp-card-meter b { @apply font-bold text-[var(--text)]; }
+
+/* 표 */
+table.sp-table { min-width: 1020px; } /* table. — .ev-table 의 min-width 를 이긴다 */
+.sp-th-pick { @apply w-9; }
+.sp-td-pick { @apply text-center; }
+/*   .ev-table tbody td / tr 를 이겨야 한다 — 낱개 클래스로는 특이도가 모자라 nowrap 이 안 풀린다 */
+.ev-table tbody tr.sp-row { @apply cursor-pointer transition-colors hover:bg-[var(--bg-surface)]; }
+.ev-table tbody td.sp-td-title { @apply max-w-0 whitespace-normal; }
+.sp-td-title b { @apply block text-[12.5px] font-bold text-[var(--text)]; }
+.sp-td-title small { @apply mt-0.5 block text-[11px] leading-4 text-[var(--text-dim)]; }
+.sp-dday { @apply inline-block text-[11.5px] font-bold text-[var(--text-dim)] tabular-nums; }
+.sp-dday-soon { @apply text-[var(--danger)]; }
+.sp-amt-est { @apply text-[12.5px] font-bold text-[var(--success)]; }
+.sp-amt-plain { @apply text-[12px] text-[var(--text-dim)]; }
+.sp-star { @apply text-[15px] leading-none text-[var(--text-dim)] transition-colors hover:text-[var(--warning)]; }
+.sp-star-on { @apply text-[var(--warning)]; }
+
+/* 판정 배지 */
+.sp-verdict { @apply inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold; }
+.sp-verdict-high { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.sp-verdict-check { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.sp-verdict-none { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+
+/* 카드 보기 — 표가 기본이고 카드는 '보기' 옵션일 때만 */
+/*   카드 보기도 표와 같은 자리에서 스크롤한다 — qk-body 안은 absolute 한 겹이 규칙 */
+.qk-body > .sp-cards { @apply absolute inset-0 overflow-auto; }
+.sp-cards { @apply grid gap-2.5 p-3; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-content: start; }
+.sp-card { @apply flex flex-col gap-1.5 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 text-left transition-colors hover:border-[var(--primary)]/40; }
+.sp-card-top { @apply flex items-center justify-between gap-2; }
+.sp-card-title { @apply text-[13.5px] font-bold leading-5 text-[var(--text)]; }
+.sp-card-sum { @apply text-[11.5px] leading-4 text-[var(--text-dim)]; }
+/*   기관명이 긴 금액에 밀려 두 줄이 되던 것 — 기관은 줄이고, 금액은 오른쪽에 한 줄로 붙인다 */
+.sp-card-foot { @apply mt-1 flex items-baseline justify-between gap-2 border-t border-[var(--border)] pt-2 text-[11.5px] text-[var(--text-dim)]; }
+.sp-card-foot > span { @apply min-w-0 shrink truncate; }
+.sp-card-foot b { @apply shrink-0 text-right text-[12px] font-bold text-[var(--success)]; max-width: 62%; }
+
+.sp-disclaimer { @apply border-t border-[var(--border)] px-4 py-3 text-center text-[11px] leading-4 text-[var(--text-dim)]; }
+.sp-disclaimer b { @apply font-bold text-[var(--text-muted)]; }
+
+/* 팝업 — 추가·수정 폼과 상세는 팝업으로 (목록 줄이 밀리지 않게) */
+.sp-modal-back { @apply fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4; }
+.sp-modal { @apply flex max-h-[86vh] w-full max-w-[620px] flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-xl; }
+.sp-modal-detail { @apply max-w-[680px]; }
+.sp-modal-head { @apply flex items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4; }
+.sp-modal-title { @apply block text-[15px] font-bold text-[var(--text)]; }
+.sp-modal-desc { @apply mt-1 text-[11.5px] leading-4 text-[var(--text-dim)]; }
+.sp-modal-desc b { @apply font-bold text-[var(--warning)]; }
+.sp-modal-body { @apply flex flex-col gap-4 overflow-y-auto px-5 py-4; }
+.sp-modal-foot { @apply flex flex-wrap items-center justify-end gap-2 border-t border-[var(--border)] bg-[var(--bg-surface)] px-5 py-3; }
+.sp-card-count { @apply shrink-0 rounded-full bg-[var(--primary-light)] px-2.5 py-1 text-[11.5px] font-bold text-[var(--primary)]; }
+
+/* 회사 카드 7문항 */
+.sp-q { @apply grid gap-2; grid-template-columns: 116px 1fr; }
+.sp-q-label { @apply pt-1.5 text-[12px] font-bold text-[var(--text)]; }
+.sp-q-label em { @apply mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-[var(--primary-light)] text-[10px] not-italic text-[var(--primary)]; }
+.sp-q-body { @apply flex min-w-0 flex-col gap-1.5; }
+.sp-q-hint { @apply text-[11px] leading-4 text-[var(--text-dim)]; }
+.sp-pick-row { @apply flex flex-wrap gap-1.5; }
+.sp-pick { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1 text-[12px] text-[var(--text-muted)] transition-colors hover:border-[var(--primary)]/50; }
+.sp-pick-on { @apply border-[var(--primary)] bg-[var(--primary-light)] font-bold text-[var(--primary)]; }
+.sp-select { @apply h-9 w-full text-[12.5px]; }
+.sp-chip-row { @apply flex flex-wrap gap-1.5; }
+.sp-chip { @apply inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1 text-[11.5px] text-[var(--text-muted)]; }
+.sp-chip button { @apply text-[var(--text-dim)] hover:text-[var(--danger)]; }
+.sp-grant-add { @apply flex flex-wrap items-center gap-1.5; }
+.sp-grant-year { @apply h-9 w-[80px] text-[12.5px]; }
+.sp-grant-name { @apply h-9 min-w-0 flex-1 text-[12.5px]; }
+
+/* 상세 — 왜 이렇게 판정했나 */
+.sp-detail-sum { @apply text-[12.5px] leading-5 text-[var(--text-muted)]; }
+.sp-detail-sec { @apply flex flex-col gap-2; }
+.sp-detail-h { @apply text-[12px] font-bold text-[var(--text-dim)]; }
+.sp-detail-req { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-[12px] leading-5 text-[var(--text-muted)]; }
+.sp-why { @apply flex flex-col gap-1.5; }
+.sp-why-row { @apply flex items-start gap-2 text-[12.5px] leading-5 text-[var(--text)]; }
+.sp-why-mark { @apply w-3.5 shrink-0 text-center text-[13px] font-bold; }
+.sp-why-ok .sp-why-mark { @apply text-[var(--success)]; }
+.sp-why-unknown .sp-why-mark { @apply text-[var(--warning)]; }
+.sp-why-no .sp-why-mark { @apply text-[var(--danger)]; }
+.sp-why-text { @apply min-w-0 flex-1; }
+.sp-why-src { @apply shrink-0 rounded border border-[var(--border)] px-1.5 text-[10px] leading-4 text-[var(--text-dim)]; }
+.sp-est { @apply flex flex-col gap-1 rounded-xl border border-[var(--success)]/30 bg-[var(--success-dim)] p-3; }
+.sp-est b { @apply text-[15px] font-bold text-[var(--success)]; }
+.sp-est small { @apply text-[11px] leading-4 text-[var(--text-muted)]; }
+
+@media (max-width: 640px) {
+  .sp-q { grid-template-columns: 1fr; }
+  .sp-q-label { @apply pt-0; }
+}
