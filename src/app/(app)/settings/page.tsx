@@ -26,7 +26,7 @@ import { DepartmentsTab } from "./_components/DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./_components/DealClassificationManager";
 import { CompanyDeleteTab } from "./_components/CompanyDeleteTab";
-import { CompanyInfoTab } from "./_components/CompanyInfoTab";
+import { CompanyInfoTab, TaxAdvisorSection, ApprovalNotifySection, IpRestrictionSection } from "./_components/CompanyInfoTab";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 // 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
@@ -41,7 +41,7 @@ import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 type LeafKey =
   | "company-info" | "team" | "cash" | "chart" | "closing"
   | "bank" | "ads" | "api-keys" | "attendance" | "forms"
-  | "delete-company";
+  | "tax-partner" | "security" | "delete-company";
 
 // perms: 이 항목을 보여주는 부여 키들(구 키 포함 OR) — 이미 부여된 옛 세부탭 권한을 계속 존중한다.
 // icon: 허브 행 아이콘(stroke path).
@@ -51,6 +51,9 @@ const SETTINGS_TABS: { key: LeafKey; label: string; perms: string[]; icon: strin
   { key: "cash", label: "자금·통장", perms: ["cash"], icon: "M2 9h20M4 5h16a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V7a2 2 0 012-2zM6 14h4" },
   { key: "chart", label: "계정과목·분류", perms: ["chart", "deal"], icon: "M9 7h6m-6 4h6m-6 4h4M5 3h14a1 1 0 011 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 011-1z" },
   { key: "closing", label: "회계마감", perms: ["closing", "tax"], icon: "M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" },
+  //   세무 파트너 (2026-08-21) — 회사정보 잡화점에서 떼어 냈다. 장부를 함께 보는 사람이라 회계·세무 그룹.
+  //   perms 에 옛 "company-info" 를 함께 둔다 — 회사정보 권한자가 내일 이 화면을 잃지 않게.
+  { key: "tax-partner", label: "세무 파트너", perms: ["tax-partner", "company-info"], icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
   { key: "bank", label: "은행연동", perms: ["bank"], icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" },
   { key: "ads", label: "광고 계정", perms: ["ads"], icon: "M3 3v18h18M8 17V9m4 8V5m4 12v-6" },
   //   연동·API 키 (2026-08-21 사장님 지시) — 회사가 자기 이름으로 발급받은 인증키를 넣는 곳.
@@ -58,6 +61,9 @@ const SETTINGS_TABS: { key: LeafKey; label: string; perms: string[]; icon: strin
   { key: "api-keys", label: "연동·API 키", perms: ["api-keys", "ads"], icon: "M15 7a5 5 0 11-4.9 6H7v3H4v-3H2l3-3h5.1A5 5 0 0115 7z" },
   { key: "attendance", label: "근태·가산수당", perms: ["attendance"], icon: "M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
   { key: "forms", label: "회사 양식", perms: ["forms"], icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h6" },
+  //   보안·알림 (2026-08-21) — 접속 허용 IP + 결재 총괄 알림. 둘 다 회사 전체에 걸리는 운영 설정이다.
+  //   ※ 결재 총괄 알림은 결재 허브(정책)로 옮기는 것이 더 맞다 — 이번 범위 밖이라 후속으로 남긴다.
+  { key: "security", label: "보안·알림", perms: ["security", "company-info"], icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" },
   // 회사 자체를 지우는 항목 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
   { key: "delete-company", label: "회사 삭제", perms: [], masterOnly: true, danger: true, icon: "M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m-1 0v14a1 1 0 01-1 1H9a1 1 0 01-1-1V6" },
 ];
@@ -71,14 +77,14 @@ const ALL_LEAVES: LeafKey[] = SETTINGS_TABS.map((t) => t.key);
 const HUB_GROUPS: { key: string; label: string; leaves: LeafKey[] }[] = [
   { key: "company", label: "회사 기초정보", leaves: ["company-info", "forms"] },
   { key: "people", label: "구성원", leaves: ["team", "attendance"] },
-  { key: "finance", label: "회계·세무", leaves: ["cash", "chart", "closing"] },
+  { key: "finance", label: "회계·세무", leaves: ["cash", "chart", "closing", "tax-partner"] },
   { key: "integration", label: "연동·API 키", leaves: ["api-keys", "bank", "ads"] },
-  { key: "system", label: "시스템", leaves: ["delete-company"] },
+  { key: "system", label: "시스템", leaves: ["security", "delete-company"] },
 ];
 
 // 콘텐츠 헤더 — 탭마다 무엇을 하는 곳인지 한 줄로.
 const LEAF_META: Record<LeafKey, { title: string; desc: string; danger?: boolean }> = {
-  "company-info": { title: "회사정보", desc: "사업자 정보와 직인·로고, 회사 문서, 세무 파트너 연결을 관리합니다." },
+  "company-info": { title: "회사정보", desc: "사업자 정보와 직인·로고, 회사 문서를 관리합니다." },
   team: { title: "구성원·초대", desc: "구성원 초대·합류 요청 승인과 부서를 관리합니다. 메뉴 권한 부여는 구성원 화면에서 합니다." },
   cash: { title: "자금·통장", desc: "가용 현금 집계와 미연동 통장, 비용 유형별 지급 통장을 설정합니다." },
   chart: { title: "계정과목·분류", desc: "장부의 계정과목 체계와 거래 장부의 딜 분류를 관리합니다." },
@@ -87,6 +93,8 @@ const LEAF_META: Record<LeafKey, { title: string; desc: string; danger?: boolean
   ads: { title: "광고 계정", desc: "광고 매체 API 키를 한 곳에 등록하고 프로젝트에서 골라 씁니다." },
   attendance: { title: "근태·가산수당", desc: "출퇴근 기준 시각과 유예, 가산수당 규칙을 정합니다." },
   forms: { title: "회사 양식", desc: "회사 공용 PDF 양식을 등록하고 관리합니다." },
+  "tax-partner": { title: "세무 파트너", desc: "제휴 세무사를 연결하고, 우리 장부에서 무엇까지 볼 수 있는지 정합니다." },
+  security: { title: "보안·알림", desc: "접속을 허용할 IP와 결재 상신을 받아 볼 총괄 이메일을 정합니다." },
   "api-keys": { title: "연동·API 키", desc: "회사 이름으로 발급받은 외부 인증키를 등록합니다. 넣는 순간 실제로 한 번 불러 보고, 키는 암호화되어 화면에 다시 나오지 않습니다." },
   "delete-company": { title: "회사 삭제", desc: "회사와 모든 데이터를 영구 삭제합니다. 되돌릴 수 없습니다.", danger: true },
 };
@@ -644,6 +652,15 @@ function SettingsPageInner() {
 
         {/* ═══ 회사정보 ═══ */}
         {tab === "company-info" && <CompanyInfoTab companyId={companyId} />}
+
+        {/* 세무 파트너 · 보안·알림 — 회사정보에서 떼어 낸 것들 (2026-08-21) */}
+        {tab === "tax-partner" && <TaxAdvisorSection />}
+        {tab === "security" && (
+          <div className="space-y-5">
+            <IpRestrictionSection companyId={companyId} />
+            <ApprovalNotifySection companyId={companyId} />
+          </div>
+        )}
 
         {/* ═══ 구성원·초대 — 초대·합류 승인 + 부서 (2026-08-13 통합) ═══ */}
         {tab === "team" && (

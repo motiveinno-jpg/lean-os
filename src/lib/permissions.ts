@@ -135,6 +135,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "cash", label: "자금·통장", money: true },
         { key: "chart", label: "계정과목·분류" },
         { key: "closing", label: "회계마감" },
+        //   2026-08-21 회사정보 분리 — 옛 'company-info' 권한자도 계속 보이게 설정 화면이 OR 로 받는다
+        { key: "tax-partner", label: "세무 파트너" },
         { key: "bank", label: "은행연동" },
         { key: "ads", label: "광고 계정" },
         //   2026-08-21 신설 — 회사가 발급받은 외부 인증키. 기존 'ads' 권한자도 볼 수 있게
@@ -142,6 +144,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "api-keys", label: "연동·API 키" },
         { key: "attendance", label: "근태·가산수당" },
         { key: "forms", label: "회사 양식" },
+        { key: "security", label: "보안·알림" },
       ] },
       { route: "/billing", label: "요금제·결제", money: true },
     ],

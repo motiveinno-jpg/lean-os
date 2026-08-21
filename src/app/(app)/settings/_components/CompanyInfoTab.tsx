@@ -666,14 +666,11 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
       {/* 회사 문서 (법인 서류) — 계약 발송·현황에서 이관(2026-07-23). 업로드 상태·보기·교체·삭제 지원 */}
       <CompanyDocsSection companyId={companyId} />
 
-      {/* 결재 상신 총괄 알림 (2026-08-13 사장님: 승인 차례가 아닌 총책임자에게도 메일) */}
-      <ApprovalNotifySection companyId={companyId} />
-
-      {/* 보안 — 접속 허용 IP (옵션, 2026-08-11 사장님: 쓰는 회사만) */}
-      <IpRestrictionSection companyId={companyId} />
-
-      {/* 세무 파트너 — 제휴 세무사 연결/해제 (2026-08-11 사장님 ①②) */}
-      <TaxAdvisorSection />
+      {/*   2026-08-21 사장님 지시로 여기서 세 가지를 뺐다 — 회사정보가 잡화점이었다.
+              · 세무 파트너   → 회계·세무 그룹의 '세무 파트너' 탭
+              · 접속 허용 IP  → 시스템 그룹의 '보안·알림' 탭
+              · 결재 총괄 알림 → 같은 '보안·알림' 탭 (결재 허브로 옮기는 것이 더 맞다 — 후속)
+            여기 남은 것은 "우리 회사가 무엇인가" 하나로 묶이는 것들뿐이다. */}
     </div>
   );
 }
@@ -682,7 +679,7 @@ export function CompanyInfoTab({ companyId }: { companyId: string | null }) {
    연결된 세무사는 /advisor 포털과 오너뷰 열람 모드(읽기 전용)로 이 회사를 볼 수 있다 —
    단, 여기서 부여한 메뉴 권한만 보인다(일반 구성원과 동일 모델, 연결 시 세무 기본 패키지 자동 부여).
    목록·연결·해제·권한은 전부 SECURITY DEFINER RPC — 관리자(마스터 포함)만. */
-function TaxAdvisorSection() {
+export function TaxAdvisorSection() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [permOpenFor, setPermOpenFor] = useState<string | null>(null); // link_id
@@ -850,7 +847,7 @@ function TaxAdvisorSection() {
    결재가 상신되면 승인 차례인 사람 외에 이 주소로도 알림 메일이 간다 (2026-08-13 사장님:
    "승인 차례가 아닌 회사 총책임자한테도 메일이 가게"). 비우면 발송 안 함.
    발송 배선은 sendApprovalMails(kind='requested') 가 이 값을 읽어 1통 추가한다. */
-function ApprovalNotifySection({ companyId }: { companyId: string | null }) {
+export function ApprovalNotifySection({ companyId }: { companyId: string | null }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [addr, setAddr] = useState("");
@@ -927,7 +924,7 @@ function ApprovalNotifySection({ companyId }: { companyId: string | null }) {
 
 /* ── 보안: 접속 허용 IP — company_settings.settings.ip_restriction { enabled, ips[] } ──
    켠 회사만 적용(IpGate 가 앱 전역에서 판정). 켤 때 현재 IP 를 자동 포함해 스스로 잠기는 사고를 막는다. */
-function IpRestrictionSection({ companyId }: { companyId: string | null }) {
+export function IpRestrictionSection({ companyId }: { companyId: string | null }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [ipsText, setIpsText] = useState("");
