@@ -4548,192 +4548,6 @@ export type Database = {
           },
         ]
       }
-      company_profile_ext: {
-        Row: {
-          certifications: string[]
-          company_id: string
-          has_export: boolean | null
-          interests: string[]
-          ksic_main: string | null
-          open_date: string | null
-          prior_grants: Json
-          size_class: string | null
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          certifications?: string[]
-          company_id: string
-          has_export?: boolean | null
-          interests?: string[]
-          ksic_main?: string | null
-          open_date?: string | null
-          prior_grants?: Json
-          size_class?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          certifications?: string[]
-          company_id?: string
-          has_export?: boolean | null
-          interests?: string[]
-          ksic_main?: string | null
-          open_date?: string | null
-          prior_grants?: Json
-          size_class?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
-      gov_sync_log: {
-        Row: {
-          finished_at: string | null
-          id: string
-          message: string | null
-          ok: boolean | null
-          closed: number | null
-          fetched: number | null
-          source: string
-          started_at: string
-          upserted: number | null
-        }
-        Insert: {
-          finished_at?: string | null
-          id?: string
-          message?: string | null
-          ok?: boolean | null
-          closed?: number | null
-          fetched?: number | null
-          source: string
-          started_at?: string
-          upserted?: number | null
-        }
-        Update: {
-          finished_at?: string | null
-          id?: string
-          message?: string | null
-          ok?: boolean | null
-          closed?: number | null
-          fetched?: number | null
-          source?: string
-          started_at?: string
-          upserted?: number | null
-        }
-        Relationships: []
-      }
-      gov_program_saved: {
-        Row: {
-          assignee_id: string | null
-          company_id: string
-          created_at: string
-          created_by: string | null
-          due_date: string | null
-          id: string
-          memo: string | null
-          program_id: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          assignee_id?: string | null
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          due_date?: string | null
-          id?: string
-          memo?: string | null
-          program_id: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          assignee_id?: string | null
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          due_date?: string | null
-          id?: string
-          memo?: string | null
-          program_id?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      gov_programs: {
-        Row: {
-          amount_max: number | null
-          amount_text: string | null
-          apply_end: string | null
-          apply_start: string | null
-          created_at: string
-          detail_url: string | null
-          eligibility: Json
-          external_id: string | null
-          field: string | null
-          id: string
-          org: string | null
-          requirement: string | null
-          required_docs: string[]
-          rule_key: string | null
-          sort_order: number
-          source: string
-          status: string
-          summary: string | null
-          support_type: string | null
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          amount_max?: number | null
-          amount_text?: string | null
-          apply_end?: string | null
-          apply_start?: string | null
-          created_at?: string
-          detail_url?: string | null
-          eligibility?: Json
-          external_id?: string | null
-          field?: string | null
-          id?: string
-          org?: string | null
-          requirement?: string | null
-          required_docs?: string[]
-          rule_key?: string | null
-          sort_order?: number
-          source?: string
-          status?: string
-          summary?: string | null
-          support_type?: string | null
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          amount_max?: number | null
-          amount_text?: string | null
-          apply_end?: string | null
-          apply_start?: string | null
-          created_at?: string
-          detail_url?: string | null
-          eligibility?: Json
-          external_id?: string | null
-          field?: string | null
-          id?: string
-          org?: string | null
-          requirement?: string | null
-          required_docs?: string[]
-          rule_key?: string | null
-          sort_order?: number
-          source?: string
-          status?: string
-          summary?: string | null
-          support_type?: string | null
-          title?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       companies: {
         Row: {
           address: string | null
@@ -4996,6 +4810,53 @@ export type Database = {
             columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_profile_ext: {
+        Row: {
+          certifications: string[]
+          company_id: string
+          has_export: boolean | null
+          interests: string[]
+          ksic_main: string | null
+          open_date: string | null
+          prior_grants: Json
+          size_class: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          certifications?: string[]
+          company_id: string
+          has_export?: boolean | null
+          interests?: string[]
+          ksic_main?: string | null
+          open_date?: string | null
+          prior_grants?: Json
+          size_class?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          certifications?: string[]
+          company_id?: string
+          has_export?: boolean | null
+          interests?: string[]
+          ksic_main?: string | null
+          open_date?: string | null
+          prior_grants?: Json
+          size_class?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_profile_ext_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -7902,6 +7763,168 @@ export type Database = {
           },
         ]
       }
+      gov_program_saved: {
+        Row: {
+          assignee_id: string | null
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          memo: string | null
+          program_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          memo?: string | null
+          program_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assignee_id?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          memo?: string | null
+          program_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gov_program_saved_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gov_program_saved_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "gov_programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gov_programs: {
+        Row: {
+          amount_max: number | null
+          amount_text: string | null
+          apply_end: string | null
+          apply_start: string | null
+          created_at: string
+          detail_url: string | null
+          eligibility: Json
+          external_id: string | null
+          field: string | null
+          id: string
+          org: string | null
+          required_docs: string[]
+          requirement: string | null
+          rule_key: string | null
+          sort_order: number
+          source: string
+          status: string
+          summary: string | null
+          support_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount_max?: number | null
+          amount_text?: string | null
+          apply_end?: string | null
+          apply_start?: string | null
+          created_at?: string
+          detail_url?: string | null
+          eligibility?: Json
+          external_id?: string | null
+          field?: string | null
+          id?: string
+          org?: string | null
+          required_docs?: string[]
+          requirement?: string | null
+          rule_key?: string | null
+          sort_order?: number
+          source?: string
+          status?: string
+          summary?: string | null
+          support_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount_max?: number | null
+          amount_text?: string | null
+          apply_end?: string | null
+          apply_start?: string | null
+          created_at?: string
+          detail_url?: string | null
+          eligibility?: Json
+          external_id?: string | null
+          field?: string | null
+          id?: string
+          org?: string | null
+          required_docs?: string[]
+          requirement?: string | null
+          rule_key?: string | null
+          sort_order?: number
+          source?: string
+          status?: string
+          summary?: string | null
+          support_type?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gov_sync_log: {
+        Row: {
+          closed: number | null
+          fetched: number | null
+          finished_at: string | null
+          id: string
+          message: string | null
+          ok: boolean | null
+          source: string
+          started_at: string
+          upserted: number | null
+        }
+        Insert: {
+          closed?: number | null
+          fetched?: number | null
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          ok?: boolean | null
+          source: string
+          started_at?: string
+          upserted?: number | null
+        }
+        Update: {
+          closed?: number | null
+          fetched?: number | null
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          ok?: boolean | null
+          source?: string
+          started_at?: string
+          upserted?: number | null
+        }
+        Relationships: []
+      }
       growth_targets: {
         Row: {
           company_id: string
@@ -10379,6 +10402,7 @@ export type Database = {
           income_tax: number | null
           issued_at: string | null
           local_income_tax: number | null
+          long_term_care_insurance: number | null
           national_pension: number | null
           net_pay: number
           non_taxable_amount: number
@@ -10401,6 +10425,7 @@ export type Database = {
           income_tax?: number | null
           issued_at?: string | null
           local_income_tax?: number | null
+          long_term_care_insurance?: number | null
           national_pension?: number | null
           net_pay?: number
           non_taxable_amount?: number
@@ -10423,6 +10448,7 @@ export type Database = {
           income_tax?: number | null
           issued_at?: string | null
           local_income_tax?: number | null
+          long_term_care_insurance?: number | null
           national_pension?: number | null
           net_pay?: number
           non_taxable_amount?: number
@@ -15430,6 +15456,10 @@ export type Database = {
         Returns: number
       }
       ai_usage_summary: { Args: never; Returns: Json }
+      apply_approval_side_effects: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
       apply_credit_purchase: {
         Args: { p_purchase_id: string }
         Returns: boolean

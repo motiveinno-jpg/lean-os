@@ -27,12 +27,12 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
     queryKey: ["mypage-payslips", employeeId],
     queryFn: async () => {
       const db = supabase;
-      // 2026-07-16 QA: long_term_care_insurance 컬럼은 prod payroll_items 에 없음(42703 400 →
-      //   급여명세가 조용히 빈 화면). 장기요양은 별도 컬럼이 아니라 extras/건보에 포함되는 모델.
+      //   long_term_care_insurance 는 2026-08-21 에 추가된 칸이다 — 그 전 명세서는 0/NULL 이라
+      //   화면에서 자동으로 숨겨진다(아래 필터). 공제 합계에는 원래부터 들어가 있었다.
       const data = logRead('_components/MyPayslips:data', await db
         .from("payroll_items")
         .select(
-          "id, period_month, base_salary, non_taxable_amount, national_pension, health_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, extras, issued_at, created_at",
+          "id, period_month, base_salary, non_taxable_amount, national_pension, health_insurance, long_term_care_insurance, employment_insurance, income_tax, local_income_tax, deductions_total, net_pay, extras, issued_at, created_at",
         )
         .eq("employee_id", employeeId!)
         .not("period_month", "is", null)
@@ -65,6 +65,7 @@ export function MyPayslips({ employeeId }: { employeeId: string | null }) {
             const deductions = [
               { label: "국민연금", v: p.national_pension },
               { label: "건강보험", v: p.health_insurance },
+              { label: "장기요양", v: p.long_term_care_insurance },
               { label: "고용보험", v: p.employment_insurance },
               { label: "소득세", v: p.income_tax },
               { label: "지방소득세", v: p.local_income_tax },

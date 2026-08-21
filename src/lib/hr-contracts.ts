@@ -729,18 +729,37 @@ export async function sendContractPackage(
 
   // 인앱·이메일 둘 다 실패한 경우만 실패 처리
   if (!inAppDelivered && !emailSent) {
-    await db.from('hr_contract_packages').update({
-      notes: (pkg.notes ? pkg.notes + '\n' : '') + `발송 실패: ${emailError || '경로 없음'}`,
-    }).eq('id', packageId);
+    // ⚠️ notes 는 JSON 이다 (salary·contract_meta·audit_trail·seal_url·document_hash 를 담는다).
+    //   종전엔 그 뒤에 평문 "발송 실패: …" 를 이어 붙여 **구조를 통째로 깨뜨렸다** —
+    //   재발송에 성공해도 서명 화면·서명본의 계약일·생년월일·을(乙) 정보가 사라지고
+    //   연봉 메타·직인·감사추적·무결성 해시가 전부 유실됐다 (2026-08-21 감사).
+    //   JSON 안의 필드로 남긴다.
+    try {
+      let meta: Record<string, unknown> = {};
+      if (pkg.notes) {
+        try {
+          const parsed = JSON.parse(pkg.notes);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) meta = parsed;
+          else meta = { text: String(pkg.notes) };
+        } catch { meta = { text: String(pkg.notes) }; }
+      }
+      meta.last_send_error = `${new Date().toISOString()} — ${emailError || '경로 없음'}`;
+      await db.from('hr_contract_packages').update({ notes: JSON.stringify(meta) }).eq('id', packageId);
+    } catch { /* 기록 실패가 발송 결과를 바꾸지는 않는다 */ }
     return { success: false, error: emailError || '인앱·이메일 발송 경로 모두 실패' };
   }
 
-  // 적어도 하나의 경로로 전달됐으면 sent 상태로 갱신
-  await db.from('hr_contract_packages').update({
+  // 적어도 하나의 경로로 전달됐으면 sent 상태로 갱신 — error 확인 (2026-08-21 감사):
+  //   실패해도 "서명 요청 발송 완료" 가 떴고, 패키지는 draft·만료일 미설정으로 남아
+  //   발송취소·재발송 흐름이 어긋났다.
+  const { error: sentErr } = await db.from('hr_contract_packages').update({
     status: 'sent',
     sent_at: new Date().toISOString(),
     expires_at: expiresAt.toISOString(),
   }).eq('id', packageId);
+  if (sentErr) {
+    return { success: false, error: `발송 상태 갱신 실패: ${sentErr.message}` };
+  }
 
   // Audit: 발송 채널 기록
   try {

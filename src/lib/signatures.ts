@@ -427,7 +427,10 @@ export async function saveSignature(
       ip_address: ipAddress || null,
     })
     .eq('id', id)
-    .in('status', ['sent', 'viewed']) // viewed 상태에서도 서명 가능
+    // 'pending' 포함 (2026-08-21 감사): 문서함 '자체 서명' 은 요청을 만든 직후(=pending) 바로
+    //   서명하는데 이 조건에 없어 **항상 실패**했고, 남은 pending 유령 행이 그 문서의 완료
+    //   판정(every signed)을 영원히 false 로 만들어 다시는 자동 승인·잠금되지 않았다.
+    .in('status', ['pending', 'sent', 'viewed'])
     .select()
     .single();
 

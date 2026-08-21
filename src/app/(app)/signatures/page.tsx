@@ -36,6 +36,7 @@ import {
   cancelSignature,
   deleteSignatureRequest,
   getSignatureStatusInfo,
+  expireOverdueSignatures,
   SIGNATURE_STATUS,
   type SignatureStatusValue,
 } from "@/lib/signatures";
@@ -117,6 +118,10 @@ function SignaturesDashboardInner() {
       if (u) {
         setUserId(u.id);
         setCompanyId(u.company_id);
+        // 만료일이 지난 요청을 실제 'expired' 로 정리한다 (2026-08-21 감사) — 이 함수를
+        //   부르는 곳이 어디에도 없어 215건이 '발송' 으로 남아 통계의 만료 건수는 늘 0 이었고
+        //   죽은 링크로 리마인더가 계속 나갔다. 화면을 열 때 그 회사 것만 훑는다.
+        expireOverdueSignatures(u.company_id).catch(() => { /* 정리 실패가 목록을 막지 않는다 */ });
       }
     });
   }, []);
@@ -694,7 +699,11 @@ function SignaturesDashboardInner() {
                   <tbody>
                     {(pager.view as any[]).map((r: any) => {
                       const info = getSignatureStatusInfo(r.status);
-                      const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected";
+                      // 만료일이 지났으면 상태가 아직 '발송' 이어도 리마인드 금지 (2026-08-21 감사):
+                      //   만료 처리 함수를 부르는 곳이 없어 215건이 'sent/viewed' 로 남아 있었고,
+                      //   죽은 링크로 리마인더가 계속 나가 받는 사람은 "만료되었습니다" 만 봤다.
+                      const isOverdue = !!r.expires_at && new Date(r.expires_at) < new Date();
+                      const canRemind = r.status !== "signed" && r.status !== "expired" && r.status !== "rejected" && !isOverdue;
                       const delivery = ({
                         delivered: { t: "전달됨", c: "bg-green-500/10 text-green-500" },
                         bounced: { t: "반송됨", c: "bg-red-500/10 text-red-500" },

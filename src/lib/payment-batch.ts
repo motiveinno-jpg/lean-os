@@ -527,6 +527,8 @@ export async function sendPayslipEmails(
             non_taxable_amount: item.nonTaxableAmount,
             national_pension: item.nationalPension,
             health_insurance: item.healthInsurance,
+            //   장기요양은 공제 합계에 들어가는 별도 항목 — 스냅샷에도 남겨야 명세서 항목합이 맞는다 (2026-08-21)
+            long_term_care_insurance: item.longTermCareInsurance || 0,
             employment_insurance: item.employmentInsurance,
             income_tax: item.incomeTax,
             local_income_tax: item.localIncomeTax,
