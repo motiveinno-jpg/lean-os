@@ -3076,13 +3076,20 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
         formId: selectedForm?.id,
         // 휴가는 승인 시 연차 차감에 쓰이는 구조화 데이터를 저장(description 텍스트 파싱 의존 제거).
         //   기본 유형 정책 필드는 activeFields 로 커스텀 폼과 동일하게 customFieldValues 사용.
-        customFields: activeFields.length > 0
-          ? customFieldValues
-          : isLeave
-            ? { leave: { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays, ...leaveTimes } }
-            : isOvertime && overtimeForm.date
-              ? { overtime: { date: overtimeForm.date, end_time: overtimeForm.endTime } }
-              : undefined,
+        //   구조화 값(휴가·초과근무)은 양식 필드가 있어도 **함께** 넣는다 — 종전엔 필드를 하나라도
+        //   추가하면 customFieldValues 로 통째로 덮여 일자·종료시각이 사라졌고, 근태 반영도 끊겼다
+        //   (2026-08-21 감사). 입력칸은 필수로 막아 놓고 값은 안 저장하던 상태.
+        customFields: (() => {
+          const structured: Record<string, unknown> = {};
+          if (isLeave) {
+            structured.leave = { leave_type: leaveForm.leaveType, leave_unit: leaveForm.leaveUnit, start_date: leaveForm.startDate, end_date: leaveForm.endDate || leaveForm.startDate, days: leaveDays, ...leaveTimes };
+          }
+          if (isOvertime && overtimeForm.date) {
+            structured.overtime = { date: overtimeForm.date, end_time: overtimeForm.endTime };
+          }
+          const merged = { ...(activeFields.length > 0 ? customFieldValues : {}), ...structured };
+          return Object.keys(merged).length > 0 ? merged : undefined;
+        })(),
         // 참조: 요청자가 화면에서 지정한 인원(양식·정책 기본값이 프리필돼 있고 가감 가능)
         referenceUserIds: selectedReferences.length > 0 ? selectedReferences.map((r) => r.userId) : undefined,
       });
