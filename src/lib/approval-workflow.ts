@@ -1341,10 +1341,12 @@ export async function resubmitRequest(
   if (title) updates.title = title;
   if (amount !== undefined) updates.amount = amount;
 
-  await db.from('approval_requests').update(updates as never).eq('id', requestId);
+  const { error: resubErr } = await db.from('approval_requests').update(updates as never).eq('id', requestId);
+  if (resubErr) throw resubErr;
 
   // Delete old steps
-  await db.from('approval_steps').delete().eq('request_id', requestId);
+  const { error: delStepsErr } = await db.from('approval_steps').delete().eq('request_id', requestId);
+  if (delStepsErr) throw delStepsErr;
 
   // Re-create steps based on policy
   let stages: ApprovalStageConfig[] = [
@@ -1381,6 +1383,21 @@ export async function resubmitRequest(
 
   for (const stageConfig of stages) {
     const requiredCount = stageConfig.required_count ?? 1;
+
+    // 특정 인물 지정 결재선은 그 사람 그대로 (2026-08-21 감사): 최초 상신에는 있던 이 분기가
+    //   재상신 경로에만 없어서, 반려 후 재제출 한 번에 지정했던 팀장·이사가 사라지고
+    //   폴백(대표·관리자)으로 결재가 넘어갔다 — 같은 문서인데 결재선이 달라졌다.
+    if (stageConfig.approver_id) {
+      await db.from('approval_steps').insert({
+        request_id: requestId,
+        stage: stageConfig.stage,
+        stage_name: stageConfig.name,
+        approver_id: stageConfig.approver_id,
+        status: 'pending',
+      });
+      continue;
+    }
+
     const approvers = logRead('lib/approval-workflow:approvers', await db
       .from('users')
       .select('id')
@@ -1389,6 +1406,20 @@ export async function resubmitRequest(
       .limit(requiredCount));
 
     const approverList = approvers || [];
+
+    // 역할이 직책(팀장·이사·대표·재무)이면 구성원 직책으로 찾는다 — 최초 상신과 같은 규칙.
+    if (approverList.length === 0 && ROLE_POSITION_NAMES[stageConfig.approver_role]) {
+      const byPosition = logRead('lib/approval-workflow:resubmitByPosition', await db
+        .from('employees')
+        .select('user_id')
+        .eq('company_id', request.company_id)
+        .in('position', ROLE_POSITION_NAMES[stageConfig.approver_role])
+        .limit(requiredCount));
+      for (const e of (byPosition || []) as { user_id: string | null }[]) {
+        if (e.user_id) approverList.push({ id: e.user_id });
+      }
+    }
+
     if (approverList.length === 0) {
       const fallback = logRead('lib/approval-workflow:fallback', await db
         .from('users')
@@ -1400,13 +1431,14 @@ export async function resubmitRequest(
     }
 
     for (const approver of approverList.length > 0 ? approverList : [{ id: request.requester_id }]) {
-      await db.from('approval_steps').insert({
+      const { error: stepErr } = await db.from('approval_steps').insert({
         request_id: requestId,
         stage: stageConfig.stage,
         stage_name: stageConfig.name,
         approver_id: approver.id,
         status: 'pending',
       });
+      if (stepErr) throw stepErr;   // 결재선 없는 재상신을 만들지 않는다
     }
   }
 
@@ -1436,7 +1468,8 @@ export async function cancelRequest(requestId: string, userId: string): Promise<
   if (request.status !== 'pending') throw new Error('대기 중인 요청만 취소할 수 있습니다.');
 
   const now = new Date().toISOString();
-  await db.from('approval_requests').update({ status: 'cancelled', updated_at: now }).eq('id', requestId);
+  const { error: cancelErr } = await db.from('approval_requests').update({ status: 'cancelled', updated_at: now }).eq('id', requestId);
+  if (cancelErr) throw cancelErr;   // 실패해도 "취소했습니다" 가 뜨던 것 (2026-08-21 감사)
 
   await logAudit({
     companyId: request.company_id,
@@ -1448,9 +1481,18 @@ export async function cancelRequest(requestId: string, userId: string): Promise<
 }
 
 /**
- * Permanently delete an approval request and its steps (admin cleanup — 상태 무관).
+ * 결재 요청 완전 삭제 — **대기·취소 건만** 지울 수 있다 (2026-08-21 감사).
+ *   종전엔 상태 무관 삭제라, 승인 완료된 휴가를 지우면 차감된 연차와 leave_requests 승인 행은
+ *   그대로 남아 **근거 결재 없이 연차만 깎인 상태**가 됐다. 지급 큐의 approval_request_id 도
+ *   ON DELETE SET NULL 이라 승인 근거 없는 지급 건이 남고 중복 방지 키까지 사라진다.
+ *   기록으로 남겨야 하는 건은 삭제가 아니라 취소를 쓴다.
  */
 export async function deleteApprovalRequest(requestId: string): Promise<void> {
+  const req = logRead('lib/approval-workflow:delTarget', await db
+    .from('approval_requests').select('status').eq('id', requestId).maybeSingle());
+  if (req && !['pending', 'cancelled', 'rejected'].includes(String(req.status))) {
+    throw new Error('이미 승인이 끝난 결재는 삭제할 수 없습니다 — 기록을 지우면 연차 차감·지급 건이 근거 없이 남습니다.');
+  }
   await db.from('approval_steps').delete().eq('request_id', requestId);
   await db.from('approval_comments').delete().eq('request_id', requestId);
   const { error } = await db.from('approval_requests').delete().eq('id', requestId);

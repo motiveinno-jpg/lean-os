@@ -2410,6 +2410,9 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                             {pdfLoadingId === req.id ? "생성 중..." : "PDF"}
                           </button>
                         )}
+                        {/* 승인·반려가 끝난 건은 삭제 버튼 자체를 감춘다 (2026-08-21 감사) —
+                            지우면 차감된 연차·지급 건이 근거 없이 남는다. 기록은 취소로 남긴다. */}
+                        {["pending", "cancelled"].includes(String(req.status)) && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDelete(req); }}
                           disabled={deletingId === req.id}
@@ -2420,6 +2423,7 @@ function AllRequestsTab({ companyId, initialStatusFilter, userId, userRole, inva
                             <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" />
                           </svg>
                         </button>
+                        )}
                       </div>
                     </td>
                   </tr>

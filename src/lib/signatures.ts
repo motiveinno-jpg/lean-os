@@ -1051,12 +1051,23 @@ export async function cancelSignature(id: string) {
 
   if (error) throw error;
 
-  // 서명 취소 후 연결된 문서를 draft 상태로 롤백
+  // 서명 취소 후 문서를 draft 로 되돌린다 — 단, **남은 서명 요청이 없을 때만** (2026-08-21 감사).
+  //   종전엔 무조건 draft 로 바꿔서, 이미 서명이 끝나 잠긴 계약서에 추가 서명자를 한 명 더
+  //   요청했다가 그 요청만 취소하면 **잠금이 풀려 서명된 계약 본문을 사후에 고칠 수 있었다.**
   if (data?.document_id) {
-    await db
-      .from('documents')
-      .update({ status: 'draft' })
-      .eq('id', data.document_id);
+    const others = logRead('lib/signatures:otherReqs', await db
+      .from('signature_requests')
+      .select('id, status')
+      .eq('document_id', data.document_id)
+      .neq('id', id));
+    const hasLive = (others || []).some((r) => r.status !== 'expired');
+    if (!hasLive) {
+      const { error: docErr } = await db
+        .from('documents')
+        .update({ status: 'draft' })
+        .eq('id', data.document_id);
+      if (docErr) throw docErr;
+    }
   }
 
   return data;
