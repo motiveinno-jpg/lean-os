@@ -64,6 +64,17 @@ export type GovProgram = {
   rule_key: string | null;
   status: string;
   sort_order: number;
+  /** 공고형에서 수집한 구조화 자격 — { regions[], max_years, targets[], exclude, dept } */
+  eligibility?: Eligibility | null;
+};
+
+/** 공고 자격 스펙 — K-Startup 응답이 이미 구조화돼 있어 AI 없이 코드로 대조한다 */
+export type Eligibility = {
+  regions?: string[];
+  max_years?: number | null;
+  targets?: string[];
+  exclude?: string | null;
+  dept?: string | null;
 };
 
 export type SavedRow = {
@@ -461,6 +472,40 @@ const RULES: Record<string, Rule> = {
     } : undefined);
   },
 
+  // ── K-Startup 공고 (수집형) ──────────────────────────────────────────
+  //   공고 본문을 AI 로 읽지 않는다 — K-Startup 응답에 지역·업력·신청대상이 이미 갈려 있다.
+  //   그 셋만 대조하고, 나머지(예산·평가항목·제외조항)는 공고 원문을 보게 한다.
+  kstartup: (p, program) => {
+    const el = (program.eligibility || {}) as Eligibility;
+    const rs: Reason[] = [];
+
+    // 지역 — 빈 배열이면 전국
+    const rgs = el.regions ?? [];
+    if (rgs.length === 0) rs.push(ok("전국 대상 — 지역 제한 없음", "제도 요건"));
+    else if (!p.region) rs.push(unknown(`${rgs.join("·")} 지역 사업 — 회사 주소가 없어 확인할 수 없습니다`, "회사 자료"));
+    else if (rgs.some((r) => r.includes(p.region!) || p.region!.includes(r))) rs.push(ok(`소재지 ${p.region} — 대상 지역`));
+    else rs.push(no(`${rgs.join("·")} 지역 사업 — 소재지가 ${p.region} 입니다`));
+
+    // 업력 — 창업 N년 이내
+    if (el.max_years == null) rs.push(ok("업력 제한 없음", "제도 요건"));
+    else if (p.yearsInBusiness == null) rs.push(unknown(`창업 ${el.max_years}년 이내 대상 — 개업일이 없어 확인할 수 없습니다(회사 카드 ①)`, "회사 카드"));
+    else if (p.yearsInBusiness <= el.max_years) rs.push(ok(`업력 ${p.yearsInBusiness.toFixed(1)}년 — 창업 ${el.max_years}년 이내`));
+    else rs.push(no(`창업 ${el.max_years}년 이내 대상 — 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다`));
+
+    // 신청 대상 — 기업이 낄 자리가 있는가
+    const targets = el.targets ?? [];
+    const forBiz = targets.some((t) => /기업|사업자|법인|창업기업|소상공인/.test(t));
+    const onlyPre = targets.length > 0 && !forBiz && targets.some((t) => /예비창업|일반인|대학생|청소년/.test(t));
+    if (targets.length === 0) rs.push(unknown("신청 대상이 적혀 있지 않습니다 — 공고 원문을 확인하세요", "제도 요건"));
+    else if (forBiz) rs.push(ok(`신청 대상에 기업 포함 (${targets.slice(0, 4).join("·")}${targets.length > 4 ? " 외" : ""})`, "제도 요건"));
+    else if (onlyPre) rs.push(no(`예비창업자·개인 대상입니다 (${targets.slice(0, 4).join("·")})`));
+    else rs.push(unknown(`신청 대상: ${targets.slice(0, 4).join("·")} — 우리 회사가 해당되는지 확인하세요`, "제도 요건"));
+
+    if (el.exclude) rs.push(unknown("신청 제외 대상이 있습니다 — 공고 원문에서 확인하세요", "제도 요건"));
+
+    return fold(rs);
+  },
+
   // ── 장애인 고용장려금 ────────────────────────────────────────────────
   disability_employment: (p) => {
     const empty = needEmployees(p);
@@ -479,6 +524,14 @@ const RULES: Record<string, Rule> = {
  *   모르는 것을 아는 척하지 않는다.
  */
 export function judge(program: GovProgram, profile: CompanyProfile): Judgement {
+  //   접수가 끝난 건 규칙을 볼 것도 없다 — 자격이 맞아도 신청할 수 없다
+  const left = daysLeft(program.apply_end);
+  if (left !== null && left < 0) {
+    return {
+      verdict: "none",
+      reasons: [{ mark: "no", text: `접수가 끝났습니다 (마감 ${program.apply_end?.slice(0, 10)})`, src: "제도 요건" }],
+    };
+  }
   const rule = program.rule_key ? RULES[program.rule_key] : undefined;
   if (!rule) {
     return {
@@ -508,11 +561,23 @@ export function daysLeft(applyEnd: string | null): number | null {
 export async function listPrograms(): Promise<GovProgram[]> {
   const { data, error } = await supabase
     .from("gov_programs")
-    .select("id, source, title, org, field, support_type, summary, requirement, amount_text, amount_max, detail_url, apply_start, apply_end, rule_key, status, sort_order")
+    .select("id, source, title, org, field, support_type, summary, requirement, amount_text, amount_max, detail_url, apply_start, apply_end, rule_key, status, sort_order, eligibility")
     .eq("status", "open")
     .order("sort_order", { ascending: true });
   if (error) throw error;
   return (data || []) as GovProgram[];
+}
+
+/** 공고를 마지막으로 언제 받았나 — 화면에 적어 둔다(목록이 비어 보일 때 원인을 알 수 있게) */
+export async function lastSyncAt(): Promise<string | null> {
+  const { data } = await supabase
+    .from("gov_sync_log")
+    .select("started_at")
+    .eq("ok", true)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.started_at ?? null;
 }
 
 export async function listSaved(companyId: string): Promise<SavedRow[]> {

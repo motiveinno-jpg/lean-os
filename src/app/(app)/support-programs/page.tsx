@@ -17,7 +17,7 @@ import {
   ChipGroup, type AppliedChip,
 } from "@/components/query-kit";
 import {
-  listPrograms, listSaved, loadCompanyProfile, judge, daysLeft,
+  listPrograms, listSaved, loadCompanyProfile, judge, daysLeft, lastSyncAt,
   saveProgram, unsaveProgram, setSavedStatus,
   VERDICT_LABEL, SAVED_STATUS_LABEL, CARD_TOTAL,
   type GovProgram, type Judgement, type Verdict, type SavedRow,
@@ -89,6 +89,12 @@ function SupportProgramsInner() {
     queryKey: ["support-profile", companyId],
     queryFn: () => loadCompanyProfile(companyId!),
     enabled: !!companyId,
+  });
+
+  //   공고를 마지막으로 언제 받았는지 — 목록이 허전할 때 "안 받아온 건지" 를 알 수 있어야 한다
+  const { data: syncedAt } = useQuery({
+    queryKey: ["support-last-sync"],
+    queryFn: lastSyncAt,
   });
 
   const { data: saved = [] } = useQuery({
@@ -284,7 +290,11 @@ function SupportProgramsInner() {
 
           <AppliedChips chips={chips} onClearAll={() => setBoth({ fields: [], types: [], verdicts: [], min: "", max: "" })} />
 
-          <ResultStrip>
+          <ResultStrip right={
+            syncedAt
+              ? <span className="sp-synced">공고 갱신 {new Date(syncedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+              : <span className="sp-synced">상시 제도만 — 공고는 아직 받지 않았습니다</span>
+          }>
             <Stat label="가능성 높음" value={`${stats.high}건`} tone="plus" />
             <Stat label="조건 확인 필요" value={`${stats.check}건`} />
             <Stat label="이번 주 마감" value={`${stats.soon}건`} tone={stats.soon > 0 ? "minus" : undefined} />

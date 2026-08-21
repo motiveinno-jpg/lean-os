@@ -9967,3 +9967,4 @@ table.sp-table { min-width: 1020px; } /* table. — .ev-table 의 min-width 를 
   /*   가로로 넓은 표는 폰에서도 옆으로 밀어 봐야 한다 — 세로만 흐름에 맡긴다 */
   .qk-body > [class] { overflow-y: visible; }
 }
+.sp-synced { @apply text-[11px] text-[var(--text-dim)]; }

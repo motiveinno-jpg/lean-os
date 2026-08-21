@@ -4587,6 +4587,42 @@ export type Database = {
         }
         Relationships: []
       }
+      gov_sync_log: {
+        Row: {
+          finished_at: string | null
+          id: string
+          message: string | null
+          ok: boolean | null
+          closed: number | null
+          fetched: number | null
+          source: string
+          started_at: string
+          upserted: number | null
+        }
+        Insert: {
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          ok?: boolean | null
+          closed?: number | null
+          fetched?: number | null
+          source: string
+          started_at?: string
+          upserted?: number | null
+        }
+        Update: {
+          finished_at?: string | null
+          id?: string
+          message?: string | null
+          ok?: boolean | null
+          closed?: number | null
+          fetched?: number | null
+          source?: string
+          started_at?: string
+          upserted?: number | null
+        }
+        Relationships: []
+      }
       gov_program_saved: {
         Row: {
           assignee_id: string | null
