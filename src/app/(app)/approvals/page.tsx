@@ -700,7 +700,7 @@ export default function ApprovalsPage() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["my-pending-approvals"] });
-    queryClient.invalidateQueries({ queryKey: ["my-pending-count"] });
+    queryClient.invalidateQueries({ queryKey: ["my-pending-approvals"] });
     queryClient.invalidateQueries({ queryKey: ["my-requests"] });
     queryClient.invalidateQueries({ queryKey: ["referenced-requests"] });
     queryClient.invalidateQueries({ queryKey: ["all-requests"] });
@@ -717,12 +717,14 @@ export default function ApprovalsPage() {
     enabled: !!companyId && (statsCompanyScope || !!userId),
   });
 
+  // ⚠️ 마이페이지와 **같은 캐시**를 쓴다 — 종전엔 같은 키(my-pending-count)에 이 화면은 숫자를,
+  //   마이페이지는 배열을 넣어, 결재허브를 먼저 본 뒤 마이페이지로 가면 캐시에 담긴 숫자에
+  //   .slice() 를 호출해 화면이 통째로 깨졌다 (2026-08-20 정다정님 3회 발생).
+  //   이제 배열 하나만 캐싱하고 개수는 select 로 파생시킨다.
   const { data: myPendingCount } = useQuery({
-    queryKey: ["my-pending-count", userId, companyId],
-    queryFn: async () => {
-      const items = await getMyPendingApprovals(userId!, companyId!);
-      return items.length;
-    },
+    queryKey: ["my-pending-approvals", userId, companyId],
+    queryFn: () => getMyPendingApprovals(userId!, companyId!),
+    select: (items: unknown[]) => items.length,
     enabled: !!userId && !!companyId,
   });
 
@@ -4418,7 +4420,7 @@ function ApprovalTimelineView({ requestId, currentStage, totalStages, requestSta
       qc.invalidateQueries({ queryKey: ["approval-timeline", requestId] });
       qc.invalidateQueries({ queryKey: ["activity-timeline", requestId] });
       qc.invalidateQueries({ queryKey: ["my-pending-approvals"] });
-      qc.invalidateQueries({ queryKey: ["my-pending-count"] });
+      qc.invalidateQueries({ queryKey: ["my-pending-approvals"] });
       qc.invalidateQueries({ queryKey: ["all-requests"] });
       setReassignStepId(null);
       setReassignTo("");

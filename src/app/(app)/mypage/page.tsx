@@ -342,7 +342,7 @@ export default function MyPage() {
   const weekHours = weekRecs.reduce((s: number, r: any) => s + Number(r.work_hours || 0), 0);
   const weekOt = weekRecs.reduce((s: number, r: any) => s + Number(r.overtime_minutes || 0), 0);
   const weekLate = weekRecs.filter((r: any) => r.is_late).length;
-  const { data: myPendingApprovals = [] } = useQuery({ queryKey: ["my-pending-count", userId, companyId], queryFn: () => getMyPendingApprovals(userId!, companyId!), enabled: !!userId && !!companyId, staleTime: 60_000 });
+  const { data: myPendingApprovals = [] } = useQuery({ queryKey: ["my-pending-approvals", userId, companyId], queryFn: () => getMyPendingApprovals(userId!, companyId!), enabled: !!userId && !!companyId, staleTime: 60_000 });
   const { data: myRequestsPending = 0 } = useQuery({
     queryKey: ["my-requests-pending", userId], enabled: !!userId, staleTime: 60_000,
     queryFn: async () => { const { count } = await supabase.from("approval_requests").select("id", { count: "exact", head: true }).eq("requester_id", userId!).eq("status", "pending"); return count || 0; },
