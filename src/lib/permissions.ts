@@ -137,6 +137,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "closing", label: "회계마감" },
         { key: "bank", label: "은행연동" },
         { key: "ads", label: "광고 계정" },
+        //   2026-08-21 신설 — 회사가 발급받은 외부 인증키. 기존 'ads' 권한자도 볼 수 있게
+        //   설정 화면이 OR 로 받아 준다(SETTINGS_TABS.perms = ["api-keys","ads"]).
+        { key: "api-keys", label: "연동·API 키" },
         { key: "attendance", label: "근태·가산수당" },
         { key: "forms", label: "회사 양식" },
       ] },

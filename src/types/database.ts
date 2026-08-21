@@ -4548,6 +4548,51 @@ export type Database = {
           },
         ]
       }
+      company_api_keys: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key_encrypted: string
+          key_hint: string | null
+          last_error: string | null
+          last_tested_at: string | null
+          last_used_at: string | null
+          provider: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_encrypted: string
+          key_hint?: string | null
+          last_error?: string | null
+          last_tested_at?: string | null
+          last_used_at?: string | null
+          provider: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_encrypted?: string
+          key_hint?: string | null
+          last_error?: string | null
+          last_tested_at?: string | null
+          last_used_at?: string | null
+          provider?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           address: string | null

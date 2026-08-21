@@ -17,7 +17,7 @@ import {
   ChipGroup, type AppliedChip,
 } from "@/components/query-kit";
 import {
-  listPrograms, listSaved, loadCompanyProfile, judge, daysLeft, lastSyncAt, scoreProgram,
+  listPrograms, listSaved, loadCompanyProfile, judge, daysLeft, lastSyncAt, scoreProgram, connectedSources,
   saveProgram, unsaveProgram, setSavedStatus,
   VERDICT_LABEL, SAVED_STATUS_LABEL, CARD_TOTAL,
   type GovProgram, type Judgement, type Verdict, type SavedRow, type FitScore,
@@ -52,6 +52,12 @@ const TABS: { key: Tab; label: string }[] = [
 
 //   판정 순서 — 처리할 것이 위 (조회 표준: 상태 정렬은 할 일이 위)
 const VERDICT_ORDER: Record<Verdict, number> = { high: 0, check: 1, none: 2 };
+
+//   공고 원천 — 회사가 자기 인증키를 넣어야 보인다 (상시 제도는 키 없이도 보인다)
+const ANNOUNCEMENT_SOURCES = [
+  { key: "kstartup", label: "K-Startup 창업지원" },
+  { key: "bizinfo", label: "기업마당(중앙부처·지자체)" },
+];
 
 const won = (n: number) => n.toLocaleString("ko-KR");
 
@@ -94,6 +100,13 @@ function SupportProgramsInner() {
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["support-profile", companyId],
     queryFn: () => loadCompanyProfile(companyId!),
+    enabled: !!companyId,
+  });
+
+  //   이 회사가 인증키를 넣어 둔 공고 원천 — 안 넣었으면 공고는 안 보이고 발급 안내가 뜬다
+  const { data: connected = [] } = useQuery({
+    queryKey: ["support-connected", companyId],
+    queryFn: () => connectedSources(companyId!),
     enabled: !!companyId,
   });
 
@@ -158,7 +171,10 @@ function SupportProgramsInner() {
   const judged: Row[] = useMemo(() => {
     if (!profile) return [];
     const today = todayKst();
-    return (programs as GovProgram[]).map((program) => {
+    //   상시 제도는 API 가 필요 없어 늘 보인다. 공고는 그 원천 키를 넣은 회사에만 보인다.
+    const allowed = (programs as GovProgram[]).filter(
+      (p) => p.source === "always" || connected.includes(p.source));
+    return allowed.map((program) => {
       const judgement = judge(program, profile);
       const needed = requiredDocsOf(program);
       const checks = checkDocs(needed, files, today);
@@ -170,7 +186,7 @@ function SupportProgramsInner() {
         score: scoreProgram(program, judgement, checks, today),
       };
     });
-  }, [programs, profile, savedByProgram, files]);
+  }, [programs, profile, savedByProgram, files, connected]);
 
   // ── 갈래 → 조건 → 빠른검색 → 정렬 ──────────────────────────────────────
   const rows: Row[] = useMemo(() => {
@@ -227,6 +243,9 @@ function SupportProgramsInner() {
       estimate: base.reduce((s, r) => s + Number(r.judgement.estimate?.amount ?? 0), 0),
     };
   }, [judged]);
+
+  //   아직 연결 안 된 공고 원천 — 무엇을 넣으면 무엇이 늘어나는지 화면이 말해 준다
+  const missingSources = ANNOUNCEMENT_SOURCES.filter((src) => !connected.includes(src.key));
 
   const activeCount = applied.fields.length + applied.types.length + applied.verdicts.length
     + (applied.min || applied.max ? 1 : 0) + (applied.ready ? 1 : 0);
@@ -316,6 +335,16 @@ function SupportProgramsInner() {
             <ChipGroup value={view} onChange={setView}
               options={[{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const} />
           </QueryBar>
+
+          {missingSources.length > 0 && (
+            <div className="sp-connect">
+              <span className="sp-connect-t">
+                <b>{missingSources.map((m) => m.label).join(" · ")}</b> 공고는 회사 인증키를 넣어야 보입니다 —
+                무료로 발급받을 수 있습니다.
+              </span>
+              <Link href="/settings?tab=api-keys" className="btn-secondary btn-sm">인증키 넣기 →</Link>
+            </div>
+          )}
 
           <AppliedChips chips={chips} onClearAll={() => setBoth({ fields: [], types: [], verdicts: [], min: "", max: "", ready: false })} />
 

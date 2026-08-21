@@ -10016,3 +10016,46 @@ table.sp-table { min-width: 1160px; } /* 서류·적합도 칸이 늘어 넓어�
 .sp-doc-act { @apply flex shrink-0 flex-col items-end gap-0.5; }
 .sp-doc-act a { @apply text-[11px] font-bold text-[var(--primary)] hover:underline; }
 .sp-doc-st { @apply not-italic text-[10px] text-[var(--text-dim)]; }
+
+/* ── 회사 설정 › 연동·API 키 (2026-08-21 사장님 지시: 회사별 인증키) ────────────
+   화면의 주인공은 입력칸이 아니라 연결 상태다 — 사람이 여기 오는 이유는
+   키를 넣으려고가 아니라 "왜 안 되지?" 를 보려고다. */
+
+.apik-wrap { @apply flex flex-col gap-4; }
+.apik-intro { @apply text-[12.5px] leading-5 text-[var(--text-muted)]; }
+.apik-intro b { @apply font-bold text-[var(--text)]; }
+.apik-list { @apply flex flex-col gap-2.5; }
+.apik-row { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
+.apik-main { @apply flex flex-col gap-1; }
+.apik-head { @apply flex flex-wrap items-center gap-2; }
+.apik-head b { @apply text-[14px] font-bold text-[var(--text)]; }
+.apik-pill { @apply rounded-full px-2 py-0.5 text-[11px] font-bold; }
+.apik-pill-ok { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.apik-pill-error { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.apik-pill-pending { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.apik-pill-none { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.apik-hint { @apply rounded border border-[var(--border)] px-1.5 font-mono text-[11px] text-[var(--text-dim)]; }
+.apik-gives { @apply text-[12px] leading-5 text-[var(--text-muted)]; }
+.apik-err { @apply rounded-lg bg-[var(--danger-dim)] px-2.5 py-1.5 text-[11.5px] leading-4 text-[var(--danger)]; }
+.apik-meta { @apply text-[11px] text-[var(--text-dim)]; }
+.apik-link { @apply font-bold text-[var(--primary)] hover:underline; }
+.apik-acts { @apply mt-3 flex flex-wrap items-center gap-1.5; }
+.apik-del { @apply ml-auto text-[11.5px] text-[var(--text-dim)] hover:text-[var(--danger)]; }
+
+.apik-guide { @apply mt-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3.5; }
+.apik-guide-h { @apply mb-2 flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-bold text-[var(--text)]; }
+.apik-steps { @apply flex list-decimal flex-col gap-1 pl-4 text-[12px] leading-5 text-[var(--text-muted)]; }
+.apik-caution { @apply mt-2 rounded-lg bg-[var(--warning-dim)] px-2.5 py-1.5 text-[11.5px] leading-4 text-[var(--warning)]; }
+
+.apik-field { @apply flex flex-col gap-1; }
+.apik-field span { @apply text-[12px] font-bold text-[var(--text-dim)]; }
+.apik-reveal { @apply inline-flex cursor-pointer items-center gap-1.5 text-[11.5px] text-[var(--text-dim)]; }
+.apik-result { @apply rounded-lg px-3 py-2 text-[12.5px] leading-5; }
+.apik-result-ok { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.apik-result-bad { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.apik-note { @apply text-[11px] leading-4 text-[var(--text-dim)]; }
+.apik-note b { @apply font-bold text-[var(--text-muted)]; }
+/* 지원사업 — 공고 원천 미연결 안내 (2026-08-21: 회사가 자기 인증키를 넣어야 공고가 보인다) */
+.sp-connect { @apply flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--primary-light)] px-4 py-2.5; }
+.sp-connect-t { @apply min-w-0 flex-1 text-[12px] leading-4 text-[var(--text-muted)]; }
+.sp-connect-t b { @apply font-bold text-[var(--primary)]; }

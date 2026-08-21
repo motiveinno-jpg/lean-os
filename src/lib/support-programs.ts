@@ -46,6 +46,12 @@ export type Judgement = {
   reasons: Reason[];
   /** 우리 자료로 계산되는 예상액 — 없으면 목록에 제도 표기 금액만 뜬다 */
   estimate?: { amount: number; text: string; basis: string };
+  /**
+   * 자격 점수(0~50)를 규칙이 직접 매길 때. 안 주면 scoreProgram 이 ✓/? 개수로 셈한다.
+   * 공고는 수천 건이라 ✓ 개수만으로는 **전부 같은 점수**가 되어 순위가 사라진다 —
+   * 무엇이 얼마나 맞는지(지역 전용인지, 업력이 딱 맞는지, 관심 분야인지)로 갈라야 큐레이션이 된다.
+   */
+  fitScore?: number;
 };
 
 export type GovProgram = {
@@ -281,6 +287,15 @@ export async function loadCompanyProfile(companyId: string): Promise<CompanyProf
 // ── 판정 규칙 ──────────────────────────────────────────────────────────────
 
 const won = (n: number) => `${Math.round(n).toLocaleString("ko-KR")}원`;
+
+//   회사 카드 ⑦ 관심 분야 ↔ 공고 분야 이름. 관심 있다고 고른 갈래를 위로 올린다.
+const INTEREST_FIELDS: Record<string, string[]> = {
+  fund: ["금융", "융자", "정책자금", "자금"],
+  people: ["인력", "고용"],
+  tech: ["기술", "연구", "R&D"],
+  export: ["수출", "글로벌", "해외"],
+  market: ["내수", "판로", "마케팅"],
+};
 const man = (n: number) => `${Math.round(n / 10000).toLocaleString("ko-KR")}만원`;
 
 /** 근거들을 모아 3단 판정으로 접는다 — ✕ 가 하나라도 있으면 해당 없음, ? 가 있으면 확인 필요 */
@@ -483,33 +498,87 @@ const RULES: Record<string, Rule> = {
   kstartup: (p, program) => {
     const el = (program.eligibility || {}) as Eligibility;
     const rs: Reason[] = [];
+    let fit = 0;
 
-    // 지역 — 빈 배열이면 전국
+    //   ⚠️ 기업마당의 regions 는 **해시태그에서 뽑은 것**이라 "그 지역 전용"이라는 보장이 없다.
+    //     주관기관 소재지가 섞여 들어온다(울산테크노파크 → '울산'). 2026-08-21 실측:
+    //     1,558건 중 1,556건이 지역한정으로 잡혔다 — 사실상 전부 오분류다.
+    //     틀린 근거로 걸러 내면 진짜 기회를 놓치므로, 기업마당은 지역을 **참고로만** 쓴다.
+    const regionIsHint = program.source === "bizinfo";
     const rgs = el.regions ?? [];
-    if (rgs.length === 0) rs.push(ok("전국 대상 — 지역 제한 없음", "제도 요건"));
-    else if (!p.region) rs.push(unknown(`${rgs.join("·")} 지역 사업 — 회사 주소가 없어 확인할 수 없습니다`, "회사 자료"));
-    else if (rgs.some((r) => r.includes(p.region!) || p.region!.includes(r))) rs.push(ok(`소재지 ${p.region} — 대상 지역`));
-    else rs.push(no(`${rgs.join("·")} 지역 사업 — 소재지가 ${p.region} 입니다`));
+
+    if (regionIsHint) {
+      if (rgs.length > 0) {
+        rs.push(unknown(`${rgs.join("·")} 관련 표시가 있습니다 — 지역 제한은 공고 원문에서 확인하세요`, "제도 요건"));
+      } else {
+        rs.push(unknown("지역 제한은 공고 원문에서 확인하세요", "제도 요건"));
+      }
+      fit += 8;
+    } else if (rgs.length === 0) {
+      rs.push(ok("전국 대상 — 지역 제한 없음", "제도 요건"));
+      fit += 10;
+    } else if (!p.region) {
+      rs.push(unknown(`${rgs.join("·")} 지역 사업 — 회사 주소가 없어 확인할 수 없습니다`, "회사 자료"));
+      fit += 5;
+    } else if (rgs.some((r) => r.includes(p.region!) || p.region!.includes(r))) {
+      //   우리 지역 전용 사업은 전국 사업보다 **겨루는 곳이 적다** — 더 높이 친다
+      rs.push(ok(`소재지 ${p.region} 전용 사업 — 전국 공모보다 경쟁이 적습니다`));
+      fit += 15;
+    } else {
+      rs.push(no(`${rgs.join("·")} 지역 사업 — 소재지가 ${p.region} 입니다`));
+    }
 
     // 업력 — 창업 N년 이내
-    if (el.max_years == null) rs.push(ok("업력 제한 없음", "제도 요건"));
-    else if (p.yearsInBusiness == null) rs.push(unknown(`창업 ${el.max_years}년 이내 대상 — 개업일이 없어 확인할 수 없습니다(회사 카드 ①)`, "회사 카드"));
-    else if (p.yearsInBusiness <= el.max_years) rs.push(ok(`업력 ${p.yearsInBusiness.toFixed(1)}년 — 창업 ${el.max_years}년 이내`));
-    else rs.push(no(`창업 ${el.max_years}년 이내 대상 — 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다`));
+    if (el.max_years == null) {
+      rs.push(ok("업력 제한 없음", "제도 요건"));
+      fit += 10;
+    } else if (p.yearsInBusiness == null) {
+      rs.push(unknown(`창업 ${el.max_years}년 이내 대상 — 개업일이 없어 확인할 수 없습니다(회사 카드 ①)`, "회사 카드"));
+      fit += 5;
+    } else if (p.yearsInBusiness <= el.max_years) {
+      rs.push(ok(`업력 ${p.yearsInBusiness.toFixed(1)}년 — 창업 ${el.max_years}년 이내`));
+      fit += 15;
+    } else {
+      rs.push(no(`창업 ${el.max_years}년 이내 대상 — 업력이 ${p.yearsInBusiness.toFixed(1)}년입니다`));
+    }
 
     // 신청 대상 — 기업이 낄 자리가 있는가
     const targets = el.targets ?? [];
     const forBiz = targets.some((t) => /기업|사업자|법인|창업기업|소상공인/.test(t));
     const onlyPre = targets.length > 0 && !forBiz && targets.some((t) => /예비창업|일반인|대학생|청소년/.test(t));
-    if (targets.length === 0) rs.push(unknown("신청 대상이 적혀 있지 않습니다 — 공고 원문을 확인하세요", "제도 요건"));
-    else if (forBiz) rs.push(ok(`신청 대상에 기업 포함 (${targets.slice(0, 4).join("·")}${targets.length > 4 ? " 외" : ""})`, "제도 요건"));
-    else if (onlyPre) rs.push(no(`예비창업자·개인 대상입니다 (${targets.slice(0, 4).join("·")})`));
-    else rs.push(unknown(`신청 대상: ${targets.slice(0, 4).join("·")} — 우리 회사가 해당되는지 확인하세요`, "제도 요건"));
+    if (targets.length === 0) {
+      rs.push(unknown("신청 대상이 적혀 있지 않습니다 — 공고 원문을 확인하세요", "제도 요건"));
+      fit += 5;
+    } else if (forBiz) {
+      rs.push(ok(`신청 대상에 기업 포함 (${targets.slice(0, 4).join("·")}${targets.length > 4 ? " 외" : ""})`, "제도 요건"));
+      fit += 10;
+    } else if (onlyPre) {
+      rs.push(no(`예비창업자·개인 대상입니다 (${targets.slice(0, 4).join("·")})`));
+    } else {
+      rs.push(unknown(`신청 대상: ${targets.slice(0, 4).join("·")} — 우리 회사가 해당되는지 확인하세요`, "제도 요건"));
+      fit += 5;
+    }
+
+    //   회사 카드 ⑦ 관심 분야 — 사장님이 보겠다고 고른 갈래를 위로 올린다.
+    //   이게 수천 건을 실제로 가르는 유일한 축이다(지역·업력이 안 갈리는 공고가 대부분이라).
+    const field = String(program.field ?? "");
+    const wanted = p.interests.flatMap((i) => INTEREST_FIELDS[i] ?? []);
+    if (wanted.length > 0 && field && wanted.some((w) => field.includes(w))) {
+      rs.push(ok(`관심 분야로 고르신 '${field}' 사업입니다`, "회사 카드"));
+      fit += 15;
+    } else if (p.interests.length === 0) {
+      rs.push(unknown("회사 카드에서 관심 분야를 고르면 그 갈래를 위로 올려 드립니다(⑦)", "회사 카드"));
+    }
 
     if (el.exclude) rs.push(unknown("신청 제외 대상이 있습니다 — 공고 원문에서 확인하세요", "제도 요건"));
 
-    return fold(rs);
+    const j = fold(rs);
+    return { ...j, fitScore: j.verdict === "none" ? 0 : Math.min(50, fit) };
   },
+
+  //   기업마당 공고 — 보는 축이 K-Startup 과 같다(지역·업력·대상). 규칙을 따로 둘 이유가 없어 같이 쓴다.
+  //   기업마당은 업력 칸이 없어 max_years 가 늘 null 이고, 그 줄은 '업력 제한 없음'으로 나온다.
+  bizinfo: (p, program) => RULES.kstartup(p, program),
 
   // ── 장애인 고용장려금 ────────────────────────────────────────────────
   disability_employment: (p) => {
@@ -594,7 +663,11 @@ export function scoreProgram(
   }
   const okN = judgement.reasons.filter((r) => r.mark === "ok").length;
   const unkN = judgement.reasons.filter((r) => r.mark === "unknown").length;
-  if (judgement.verdict === "high") {
+  if (typeof judgement.fitScore === "number") {
+    //   규칙이 직접 매긴 점수 — 공고처럼 건수가 많을 때 ✓ 개수만으로는 순위가 안 갈린다
+    fit = judgement.fitScore;
+    lines.push(`자격 ${fit}/50 — 지역·업력·대상·관심 분야를 따져 매겼습니다`);
+  } else if (judgement.verdict === "high") {
     fit = 50;
     lines.push("자격 50/50 — 확인 가능한 요건을 모두 충족");
   } else {
@@ -668,6 +741,20 @@ export async function lastSyncAt(): Promise<string | null> {
     .limit(1)
     .maybeSingle();
   return data?.started_at ?? null;
+}
+
+/**
+ * 이 회사가 인증키를 넣어 둔 공고 원천 — 넣지 않았으면 공고는 보이지 않는다
+ *   (2026-08-21 사장님 지시: "회사가 자기 키를 넣었을 때만 쓸 수 있게").
+ *   상시 제도(source='always')는 API 가 필요 없으므로 키와 무관하게 늘 보인다.
+ */
+export async function connectedSources(companyId: string): Promise<string[]> {
+  const { data } = await supabase
+    .from("company_api_keys")
+    .select("provider")
+    .eq("company_id", companyId)
+    .eq("status", "ok");
+  return (data || []).map((r) => String(r.provider));
 }
 
 export async function listSaved(companyId: string): Promise<SavedRow[]> {

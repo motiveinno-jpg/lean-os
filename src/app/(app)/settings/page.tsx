@@ -20,6 +20,7 @@ import { AccessDenied } from "@/components/access-denied";
 import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
 import { BankIntegrationTab } from "./_components/BankIntegrationTab";
 import { AdAccountsTab } from "./_components/AdAccountsTab";
+import { ApiKeysTab } from "./_components/ApiKeysTab";
 import { TeamManagement } from "./_components/TeamManagement";
 import { DepartmentsTab } from "./_components/DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
@@ -39,7 +40,7 @@ import { AccountingClosingTab } from "./_components/AccountingClosingTab";
 //    · 내부 디자인: .stg-main 스코프 CSS 로 기존 glass-card·section-title 을 일괄 재스킨.
 type LeafKey =
   | "company-info" | "team" | "cash" | "chart" | "closing"
-  | "bank" | "ads" | "attendance" | "forms"
+  | "bank" | "ads" | "api-keys" | "attendance" | "forms"
   | "delete-company";
 
 // perms: 이 항목을 보여주는 부여 키들(구 키 포함 OR) — 이미 부여된 옛 세부탭 권한을 계속 존중한다.
@@ -52,6 +53,9 @@ const SETTINGS_TABS: { key: LeafKey; label: string; perms: string[]; icon: strin
   { key: "closing", label: "회계마감", perms: ["closing", "tax"], icon: "M8 2v4M16 2v4M3 9h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" },
   { key: "bank", label: "은행연동", perms: ["bank"], icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" },
   { key: "ads", label: "광고 계정", perms: ["ads"], icon: "M3 3v18h18M8 17V9m4 8V5m4 12v-6" },
+  //   연동·API 키 (2026-08-21 사장님 지시) — 회사가 자기 이름으로 발급받은 인증키를 넣는 곳.
+  //   perms 에 기존 "ads" 를 함께 둔다 — 연동 성격 권한을 이미 받은 사람이 내일 못 보는 일이 없게.
+  { key: "api-keys", label: "연동·API 키", perms: ["api-keys", "ads"], icon: "M15 7a5 5 0 11-4.9 6H7v3H4v-3H2l3-3h5.1A5 5 0 0115 7z" },
   { key: "attendance", label: "근태·가산수당", perms: ["attendance"], icon: "M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
   { key: "forms", label: "회사 양식", perms: ["forms"], icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M9 13h6M9 17h6" },
   // 회사 자체를 지우는 항목 — 권한을 부여받은 멤버에게도 절대 노출하지 않는다(마스터 전용).
@@ -59,11 +63,16 @@ const SETTINGS_TABS: { key: LeafKey; label: string; perms: string[]; icon: strin
 ];
 const ALL_LEAVES: LeafKey[] = SETTINGS_TABS.map((t) => t.key);
 // 허브 그룹 — 항목을 성격별 패널로 묶는다.
+//   2026-08-21 사장님 지시로 5그룹 재편 — 기능 이름이 아니라 **"무엇을 정하는 곳인가"** 로 나눈다.
+//   AS_IS 5그룹(회사 / 회계·자금 / 연동 / 근무·문서 / 시스템) 의 문제:
+//     · '근무·문서' 가 억지 묶음이었다 — 출퇴근 기준과 PDF 양식은 아무 관계가 없다.
+//     · '연동' 에 은행·광고만 있었는데 실제 연동은 공고 API·알림까지 있다.
+//   TO_BE: 회사 기초정보(양식 흡수) / 구성원(근무 규칙 흡수) / 회계·세무 / 연동·API 키 / 시스템.
 const HUB_GROUPS: { key: string; label: string; leaves: LeafKey[] }[] = [
-  { key: "company", label: "회사", leaves: ["company-info", "team"] },
-  { key: "finance", label: "회계·자금", leaves: ["cash", "chart", "closing"] },
-  { key: "integration", label: "연동", leaves: ["bank", "ads"] },
-  { key: "workplace", label: "근무·문서", leaves: ["attendance", "forms"] },
+  { key: "company", label: "회사 기초정보", leaves: ["company-info", "forms"] },
+  { key: "people", label: "구성원", leaves: ["team", "attendance"] },
+  { key: "finance", label: "회계·세무", leaves: ["cash", "chart", "closing"] },
+  { key: "integration", label: "연동·API 키", leaves: ["api-keys", "bank", "ads"] },
   { key: "system", label: "시스템", leaves: ["delete-company"] },
 ];
 
@@ -78,6 +87,7 @@ const LEAF_META: Record<LeafKey, { title: string; desc: string; danger?: boolean
   ads: { title: "광고 계정", desc: "광고 매체 API 키를 한 곳에 등록하고 프로젝트에서 골라 씁니다." },
   attendance: { title: "근태·가산수당", desc: "출퇴근 기준 시각과 유예, 가산수당 규칙을 정합니다." },
   forms: { title: "회사 양식", desc: "회사 공용 PDF 양식을 등록하고 관리합니다." },
+  "api-keys": { title: "연동·API 키", desc: "회사 이름으로 발급받은 외부 인증키를 등록합니다. 넣는 순간 실제로 한 번 불러 보고, 키는 암호화되어 화면에 다시 나오지 않습니다." },
   "delete-company": { title: "회사 삭제", desc: "회사와 모든 데이터를 영구 삭제합니다. 되돌릴 수 없습니다.", danger: true },
 };
 
@@ -143,6 +153,7 @@ function SettingsPageInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, permMaster, firstAllowedLeaf, visibleTabs.map((t) => t.key).join()]);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [balance, setBalance] = useState("");
   const [fixedCost, setFixedCost] = useState("");
   const [saved, setSaved] = useState(false);
@@ -157,6 +168,7 @@ function SettingsPageInner() {
     getCurrentUser().then(async (u) => {
       if (!u) { setPageLoading(false); return; }
       setCompanyId(u.company_id);
+      setUserId(u.id);
       const data = logRead('settings/page:data', await supabase
         .from("cash_snapshot")
         .select("*")
@@ -658,6 +670,8 @@ function SettingsPageInner() {
         )}
 
         {/* ═══ 연동·인증 ═══ */}
+        {/* 연동·API 키 — 회사가 자기 이름으로 발급받은 인증키 (2026-08-21) */}
+        {tab === "api-keys" && companyId && <ApiKeysTab companyId={companyId} userId={userId} />}
         {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
         {/* 광고 계정 — 키는 여기 한 번, 프로젝트에서는 골라 쓴다 (2026-08-06) */}
         {tab === "ads" && companyId && <AdAccountsTab companyId={companyId} />}
