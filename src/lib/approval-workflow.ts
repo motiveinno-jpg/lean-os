@@ -496,13 +496,13 @@ export async function createApprovalRequest(params: {
       const stageName = params.customApprovers.length === 1
         ? "최종 승인"
         : stageNum === params.customApprovers.length ? "최종 승인" : `${stageNum}차 승인`;
-      await db.from('approval_steps').insert({
+      await insertApprovalStep({
         request_id: request.id,
         stage: stageNum,
         stage_name: stageName,
         approver_id: approver.userId,
         status: 'pending',
-      });
+      }, request.id);
     }
     if (params.customApprovers.length !== totalStages) {
       await db.from('approval_requests').update({ total_stages: params.customApprovers.length }).eq('id', request.id);
@@ -511,13 +511,13 @@ export async function createApprovalRequest(params: {
     for (const stageConfig of stages) {
       // 특정 인물 지정(HR 서비스식) — approver_id 가 있으면 role 해석을 건너뛰고 그 사용자로 단계 생성.
       if (stageConfig.approver_id) {
-        await db.from('approval_steps').insert({
+        await insertApprovalStep({
           request_id: request.id,
           stage: stageConfig.stage,
           stage_name: stageConfig.name,
           approver_id: stageConfig.approver_id,
           status: 'pending',
-        });
+        }, request.id);
         continue;
       }
       const approverRole = stageConfig.approver_role;
@@ -561,22 +561,22 @@ export async function createApprovalRequest(params: {
 
       if (approverList.length > 0) {
         for (const approver of approverList) {
-          await db.from('approval_steps').insert({
+          await insertApprovalStep({
             request_id: request.id,
             stage: stageConfig.stage,
             stage_name: stageConfig.name,
             approver_id: approver.id,
             status: 'pending',
-          });
+          }, request.id);
         }
       } else {
-        await db.from('approval_steps').insert({
+        await insertApprovalStep({
           request_id: request.id,
           stage: stageConfig.stage,
           stage_name: stageConfig.name,
           approver_id: params.requesterId,
           status: 'pending',
-        });
+        }, request.id);
       }
     }
   }
@@ -661,6 +661,17 @@ export async function createApprovalRequest(params: {
  * Approve a single step.
  * If all steps in current stage are approved, advance to next stage or mark request approved.
  */
+/** 결재 단계 생성 — 실패를 삼키지 않는다 (2026-08-21 감사).
+ *  종전엔 insert 결과를 안 봐서, RLS·제약으로 막히면 **결재선이 0단계인 요청**이 만들어져
+ *  아무 승인자에게도 안 가고 영원히 대기로 남았다. 실패 시 방금 만든 요청을 지우고 던진다
+ *  — 그래야 사용자가 다시 올릴 때 유령 요청이 쌓이지 않는다. */
+async function insertApprovalStep(row: Record<string, unknown>, requestId: string): Promise<void> {
+  const { error } = await db.from('approval_steps').insert(row as never);
+  if (!error) return;
+  await db.from('approval_requests').delete().eq('id', requestId);   // 최선 노력 정리
+  throw new Error('결재선을 만들지 못했습니다 — 결재선 설정을 확인하거나 관리자에게 문의해 주세요.');
+}
+
 /** 결재 요청자(users.id) → 구성원(employees.id). user_id 우선, 실패 시 이메일 매칭(네이티브 경로와 동일 폴백). */
 async function resolveRequesterEmployeeId(request: any): Promise<string | null> {
   const empByUser = logRead('lib/approval-workflow:empByUser', await db
@@ -907,7 +918,9 @@ export async function approveStep(
       }
     } else {
       // All stages complete - mark request approved
-      await db
+      // error 를 봐야 한다 (2026-08-21 감사): 여기서 실패하면 단계는 승인인데 요청은 계속 대기로
+      //   남아, 목록에 안 사라지고 재승인도 "이미 처리된 단계" 로 막힌다.
+      const { error: doneErr } = await db
         .from('approval_requests')
         .update({
           status: 'approved',
@@ -915,6 +928,7 @@ export async function approveStep(
           updated_at: now,
         })
         .eq('id', step.request_id);
+      if (doneErr) throw doneErr;
 
       finallyApproved = true;
 
@@ -1038,8 +1052,8 @@ export async function rejectStep(
 
   const now = new Date().toISOString();
 
-  // Mark step as rejected
-  await db
+  // Mark step as rejected — error 확인 (2026-08-21 감사): 실패해도 "반려 처리했습니다" 가 떴다.
+  const { error: rejStepErr } = await db
     .from('approval_steps')
     .update({
       status: 'rejected',
@@ -1047,6 +1061,7 @@ export async function rejectStep(
       decided_at: now,
     })
     .eq('id', stepId);
+  if (rejStepErr) throw rejStepErr;
 
   // Mark entire request as rejected
   const request = logRead('lib/approval-workflow:request', await db
@@ -1055,13 +1070,14 @@ export async function rejectStep(
     .eq('id', step.request_id)
     .single());
 
-  await db
+  const { error: rejReqErr } = await db
     .from('approval_requests')
     .update({
       status: 'rejected',
       updated_at: now,
     })
     .eq('id', step.request_id);
+  if (rejReqErr) throw rejReqErr;   // 요청이 계속 대기로 남으면 기안자는 반려를 영영 모른다
 
   // Log audit
   if (request) {

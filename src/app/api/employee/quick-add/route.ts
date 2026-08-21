@@ -114,11 +114,18 @@ export async function POST(req: NextRequest) {
       .eq("email", normEmail)
       .maybeSingle());
     if (emp?.id) {
-      await admin.from("employees").update({
-        user_id: authUser.id,
+      // employees.user_id 는 users(id) 외래키 — auth uid 를 넣으면 id≠auth_id 계정에서 23503.
+      //   게다가 error 를 안 봐서 실패해도 "자동으로 직원 등록했습니다" 만 뜨고 연결은 안 됐다 (2026-08-21 감사).
+      const linkedUser = logRead('quick-add/route:linkedUser', await admin
+        .from("users").select("id").eq("auth_id", authUser.id).maybeSingle());
+      const { error: linkErr } = await admin.from("employees").update({
+        user_id: linkedUser?.id || authUser.id,
         status: "joined",
         ...(name ? { name } : {}),
       }).eq("id", emp.id);
+      if (linkErr) {
+        return NextResponse.json({ error: `구성원 연결 실패: ${linkErr.message}` }, { status: 500 });
+      }
     }
 
     // (이전엔 추적용 invitation row INSERT — 제거.

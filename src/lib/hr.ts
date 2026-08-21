@@ -1,5 +1,6 @@
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { logError } from "@/lib/error-logger";
 /**
  * OwnerView HR Engine
  * 급여이력 + 계약서 + 근태관리 + 휴가관리
@@ -1641,12 +1642,21 @@ async function deductLeaveBalance(request: any) {
     .eq('employee_id', request.employee_id)
     .eq('year', year)
     .maybeSingle());
+  // error 를 봐야 한다 (2026-08-21 감사): 실패해도 승인 완료로 보여, 연차가 안 깎인 채
+  //   직원이 계속 쓸 수 있었다. 잔여 행이 아예 없는 경우(신규 입사자)도 조용히 넘기지 않는다.
   if (balance) {
     const newUsed = Number(balance.used_days) + Number(request.days);
-    await db
+    const { error: dedErr } = await db
       .from('leave_balances')
       .update({ used_days: newUsed })
       .eq('id', balance.id);
+    if (dedErr) throw dedErr;
+  } else {
+    logError({
+      source: 'manual',
+      message: `[휴가] 연차 잔여 정보가 없어 차감하지 못했습니다 — employee_id=${request.employee_id}, year=${year}, days=${request.days}`,
+      context: { step: 'deduct_leave_balance' },
+    });
   }
 }
 
@@ -1900,7 +1910,9 @@ export async function cancelLeaveRequest(id: string, opts?: {
       .maybeSingle());
     if (balance) {
       const restored = Math.max(0, Number(balance.used_days) - Number(request.days));
-      await db.from('leave_balances').update({ used_days: restored }).eq('id', balance.id);
+      // error 확인 (2026-08-21 감사): 실패해도 "잔여가 복구되었습니다" 라고 알려 왔다.
+      const { error: restErr } = await db.from('leave_balances').update({ used_days: restored }).eq('id', balance.id);
+      if (restErr) throw restErr;
     }
   }
 
