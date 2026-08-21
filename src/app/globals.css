@@ -9948,6 +9948,8 @@ table.sp-table { min-width: 1020px; } /* table. — .ev-table 의 min-width 를 
 @media (max-width: 640px) {
   .sp-q { grid-template-columns: 1fr; }
   .sp-q-label { @apply pt-0; }
+}
+
 /* ══ 폰에서 조회 상자 본문이 통째로 안 보이던 것 (2026-08-21 전수 점검) ══
    조회 화면 표준은 데스크톱 기준이다 — .qk-screen 이 세로 flex 로 높이를 잡고(min-width:768px 규칙),
    그 안 .qk-body 가 flex-1 로 남는 높이를 먹은 뒤 스크롤 칸을 `absolute inset-0` 로 채운다.
