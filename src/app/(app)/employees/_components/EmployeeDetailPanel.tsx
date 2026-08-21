@@ -1584,6 +1584,19 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
       const url = URL.createObjectURL(result.pdf);
       window.open(url, "_blank");
 
+      // 발급본 보관 (2026-08-21 감사): 종전엔 PDF 를 브라우저 blob 으로만 만들고 pdf_url 을
+      //   한 번도 넘기지 않아, 발급 내역의 PDF 링크가 **영원히 안 그려졌다**. 한 번 발급한
+      //   대외 제출용 증명서를 다시 받을 방법이 없어 재발급하면 번호만 하나 더 늘었다.
+      let pdfUrl: string | undefined;
+      try {
+        const path = `${companyId}/certificates/${result.certificateNumber}.pdf`;
+        const { error: upErr } = await supabase.storage.from("documents")
+          .upload(path, result.pdf, { contentType: "application/pdf", upsert: true });
+        if (!upErr) {
+          pdfUrl = supabase.storage.from("documents").getPublicUrl(path).data.publicUrl;
+        }
+      } catch { /* 보관 실패가 발급 자체를 막지는 않는다 */ }
+
       // Log
       const certType = type === "employment" ? "재직증명서" : "경력증명서";
       // ⚠️ issued_by/audit user_id 는 users.id — auth.uid 를 넣으면 초대 합류 직원
@@ -1591,7 +1604,7 @@ function CertQuickIssue({ type, label, emp, companyId, queryClient }: { type: "e
       const { getCurrentUser } = await import("@/lib/queries");
       const me = await getCurrentUser();
       if (me) {
-        await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: me.id, purpose: [purpose.trim() || "제출용", submitTo.trim()].filter(Boolean).join(" / ") });
+        await saveCertificateLog({ companyId, employeeId: emp.id, certificateType: certType, certificateNumber: result.certificateNumber, issuedBy: me.id, purpose: [purpose.trim() || "제출용", submitTo.trim()].filter(Boolean).join(" / "), pdfUrl });
       }
       queryClient.invalidateQueries({ queryKey: ["emp-cert-logs", emp.id] });
     } catch (err: any) {

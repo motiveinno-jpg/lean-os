@@ -587,7 +587,17 @@ export default function MyPage() {
                 <thead><tr><th className="text-left">신청</th><th>신청일</th><th>상태</th><th>발급본</th></tr></thead>
                 <tbody>{certReqs.map((r: any) => (
                   <tr key={r.id}><td className="text-left font-semibold">{r.title}{r.description && <small className="ml-1 text-[var(--text-dim)]">{String(r.description).slice(0, 40)}</small>}</td><td className="text-center mono-number">{String(r.created_at || "").slice(0, 10)}</td>
-                    <td className="text-center"><span className={`ol-sure ${r.status === "approved" ? "ol-sure-ok" : r.status === "rejected" ? "" : "ol-sure-est"}`}>{r.status === "approved" ? "발급 완료" : r.status === "rejected" ? "반려" : "처리 중"}</span></td>
+                    {/* 승인 = 발급이 아니다 (2026-08-21 감사): 결재 승인만으로는 증명서가
+                        만들어지지 않는데 '발급 완료' 로 찍혀, 직원은 받을 파일이 없는데
+                        다 됐다고 알고 있었다. 발급본(첨부)이 붙어야 완료로 본다. */}
+                    <td className="text-center">{(() => {
+                      const hasFile = Array.isArray(r.attachments) && r.attachments.length > 0;
+                      const label = r.status === "rejected" ? "반려"
+                        : r.status === "approved" ? (hasFile ? "발급 완료" : "승인됨 · 발급 대기")
+                        : "처리 중";
+                      const cls = r.status === "rejected" ? "" : (r.status === "approved" && hasFile) ? "ol-sure-ok" : "ol-sure-est";
+                      return <span className={`ol-sure ${cls}`}>{label}</span>;
+                    })()}</td>
                     <td className="text-center">{Array.isArray(r.attachments) && r.attachments.length > 0 ? <Link href={`/approvals?tab=my-requests&request=${r.id}`} className="bz-link">첨부 {r.attachments.length}건 →</Link> : "—"}</td></tr>
                 ))}</tbody>
               </table>
