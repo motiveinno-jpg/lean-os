@@ -47,7 +47,7 @@ export const API_PROVIDERS: ApiProvider[] = [
       "마이페이지 > 오픈API > 인증키에서 일반 인증키를 복사해 아래에 붙여넣습니다.",
     ],
     caution: "Encoding 키·Decoding 키 둘 다 받습니다 — 어느 쪽을 넣어도 됩니다.",
-    usedBy: { href: "/support-programs", label: "지원사업" },
+    usedBy: { href: "/support-programs", label: "지원사업추천" },
   },
   {
     key: "bizinfo",
@@ -62,7 +62,7 @@ export const API_PROVIDERS: ApiProvider[] = [
       "신청하면 화면 아래에 바로 인증키가 뜨고 이메일로도 옵니다.",
     ],
     caution: "IP 로 등록하면 안 됩니다 — 수집 서버 주소가 고정이 아니라 오늘은 되고 내일 막힙니다. 반드시 URL 로 등록하세요.",
-    usedBy: { href: "/support-programs", label: "지원사업" },
+    usedBy: { href: "/support-programs", label: "지원사업추천" },
   },
 ];
 

@@ -37,7 +37,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/copilot", label: "AI 참모", icon: "sparkles", roles: ["owner", "admin"] },
       //   지원사업 — 정부 지원정책 큐레이션 (2026-08-21 사장님 지시). 회사 자료로 걸러 주는 곳.
       //   매일 여는 순서 원칙에서 주 1회쯤 여는 성격이라 AI 참모 아래. 직원 인사 정보로 자격을 판정해 대표·관리자 전용.
-      { href: "/support-programs", label: "지원사업", icon: "gift", roles: ["owner", "admin"] },
+      { href: "/support-programs", label: "지원사업추천", icon: "gift", roles: ["owner", "admin"] },
       // 마스터 전용 — 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동 (2026-08-10 사장님)
       { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
     ],

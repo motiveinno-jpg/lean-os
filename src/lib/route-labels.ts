@@ -10,7 +10,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/dashboard": { group: "홈", title: "대시보드", desc: "오늘 챙길 것을 한눈에 — 내 업무·자금·일정·전자결재 현황을 봅니다." },
   "/copilot": { group: "홈", title: "AI 참모" },
   "/notifications": { group: "홈", title: "알림", desc: "받은 알림을 모아 봅니다." },
-  "/support-programs": { group: "홈", title: "지원사업", desc: "회사 자료(업종·소재지·직원·매출)로 걸러 낸 정부 지원정책입니다. 신청은 각 기관에서 합니다." },
+  "/support-programs": { group: "홈", title: "지원사업추천", desc: "회사 자료(업종·소재지·직원·매출)로 걸러 낸 정부 지원정책입니다. 신청은 각 기관에서 합니다." },
 
   // 브레드크럼 title = 좌측 사이드바 허브 라벨과 일치(거래처 / 세금·증빙 / 거래 장부 / 전표입력 / 분석).
   //   세부 화면(거래처 관리·원장, 손익계산서 등)은 FinanceTabs·ReportsTabs 하위 탭이 표시 → 헤더 중복 방지.
