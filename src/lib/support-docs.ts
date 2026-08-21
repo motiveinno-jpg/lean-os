@@ -132,6 +132,9 @@ export const DOC_BY_KEY: Record<string, DocSpec> =
  */
 const DEFAULT_DOCS_BY_RULE: Record<string, string[]> = {
   kstartup: ["biz_license", "sme_cert", "tax_clear_national", "biz_plan"],
+  //   기업마당(중앙부처·지자체)도 바탕 서류는 거의 같다 — 사업자등록증·중소기업확인서·완납증명.
+  //   사업계획서는 공모형에만 필요해 뺐다(융자·바우처는 안 받는 경우가 많다).
+  bizinfo: ["biz_license", "sme_cert", "tax_clear_national", "tax_clear_local"],
 };
 
 export function requiredDocsOf(program: { required_docs?: string[] | null; rule_key: string | null }): string[] {

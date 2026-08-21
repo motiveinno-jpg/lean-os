@@ -88,7 +88,7 @@ function SupportProgramsInner() {
   const [condOpen, setCondOpen] = useState(false);
   const [q, setQ] = useState("");
   const [size, setSize] = useState(50);
-  const [applied, setApplied] = useState({ fields: [] as string[], types: [] as string[], verdicts: [] as string[], min: "", max: "", ready: false });
+  const [applied, setApplied] = useState({ fields: [] as string[], types: [] as string[], verdicts: [] as string[], min: "", max: "", ready: false, dueSoon: false });
   const [draft, setDraft] = useState(applied);
   const [draftSize, setDraftSize] = useState(size);
 
@@ -189,17 +189,24 @@ function SupportProgramsInner() {
   }, [programs, profile, savedByProgram, files, connected]);
 
   // ── 갈래 → 조건 → 빠른검색 → 정렬 ──────────────────────────────────────
-  const rows: Row[] = useMemo(() => {
-    let list = judged;
+  //   갈래(탭)까지만 적용한 목록 — **요약 줄 숫자의 기준**이다.
+  //   숫자를 누르면 그 조건이 걸리는데, 기준이 다르면 "372건을 눌렀는데 317건"이 되어 사람이 갸웃한다.
+  const tabRows: Row[] = useMemo(() => {
+    if (tab === "recommend") return judged.filter((r) => r.judgement.verdict !== "none");
+    if (tab === "saved") return judged.filter((r) => r.savedRow && ["saved", "preparing"].includes(r.savedRow.status));
+    if (tab === "history") return judged.filter((r) => r.savedRow && ["applied", "selected", "rejected", "dropped"].includes(r.savedRow.status));
+    return judged;
+  }, [judged, tab]);
 
-    if (tab === "recommend") list = list.filter((r) => r.judgement.verdict !== "none");
-    if (tab === "saved") list = list.filter((r) => r.savedRow && ["saved", "preparing"].includes(r.savedRow.status));
-    if (tab === "history") list = list.filter((r) => r.savedRow && ["applied", "selected", "rejected", "dropped"].includes(r.savedRow.status));
+  const rows: Row[] = useMemo(() => {
+    let list = tabRows;
 
     if (applied.fields.length) list = list.filter((r) => r.program.field && applied.fields.includes(r.program.field));
     if (applied.types.length) list = list.filter((r) => r.program.support_type && applied.types.includes(r.program.support_type));
     if (applied.verdicts.length) list = list.filter((r) => applied.verdicts.includes(r.judgement.verdict));
     if (applied.ready) list = list.filter((r) => r.score.ready);
+    //   이번 주 마감 — 오늘부터 7일 안. 상시(마감 없음)는 급할 것이 없으니 뺀다
+    if (applied.dueSoon) list = list.filter((r) => r.dday !== null && r.dday >= 0 && r.dday <= 7);
     if (applied.min || applied.max) {
       list = list.filter((r) => amountHit(Number(r.judgement.estimate?.amount ?? r.program.amount_max ?? 0), applied.min, applied.max));
     }
@@ -229,26 +236,23 @@ function SupportProgramsInner() {
       return Number(b.judgement.estimate?.amount ?? b.program.amount_max ?? 0)
            - Number(a.judgement.estimate?.amount ?? a.program.amount_max ?? 0);
     });
-  }, [judged, tab, applied, q, sort]);
+  }, [tabRows, applied, q, sort]);
 
   const pager = usePager(rows, size, `${tab}-${q}-${JSON.stringify(applied)}`);
 
-  const stats = useMemo(() => {
-    const base = judged.filter((r) => r.judgement.verdict !== "none");
-    return {
-      high: judged.filter((r) => r.judgement.verdict === "high").length,
-      check: judged.filter((r) => r.judgement.verdict === "check").length,
-      soon: judged.filter((r) => r.dday !== null && r.dday >= 0 && r.dday <= 7).length,
-      ready: judged.filter((r) => r.score.ready).length,
-      estimate: base.reduce((s, r) => s + Number(r.judgement.estimate?.amount ?? 0), 0),
-    };
-  }, [judged]);
+  const stats = useMemo(() => ({
+    high: tabRows.filter((r) => r.judgement.verdict === "high").length,
+    check: tabRows.filter((r) => r.judgement.verdict === "check").length,
+    soon: tabRows.filter((r) => r.dday !== null && r.dday >= 0 && r.dday <= 7).length,
+    ready: tabRows.filter((r) => r.score.ready).length,
+    estimate: tabRows.reduce((s, r) => s + Number(r.judgement.estimate?.amount ?? 0), 0),
+  }), [tabRows]);
 
   //   아직 연결 안 된 공고 원천 — 무엇을 넣으면 무엇이 늘어나는지 화면이 말해 준다
   const missingSources = ANNOUNCEMENT_SOURCES.filter((src) => !connected.includes(src.key));
 
   const activeCount = applied.fields.length + applied.types.length + applied.verdicts.length
-    + (applied.min || applied.max ? 1 : 0) + (applied.ready ? 1 : 0);
+    + (applied.min || applied.max ? 1 : 0) + (applied.ready ? 1 : 0) + (applied.dueSoon ? 1 : 0);
 
   const chips: AppliedChip[] = [
     ...applied.fields.map((v) => ({ group: "분야", label: v, onRemove: () => setBoth({ ...applied, fields: applied.fields.filter((x) => x !== v) }) })),
@@ -256,9 +260,16 @@ function SupportProgramsInner() {
     ...applied.verdicts.map((v) => ({ group: "판정", label: VERDICT_LABEL[v as Verdict], onRemove: () => setBoth({ ...applied, verdicts: applied.verdicts.filter((x) => x !== v) }) })),
     ...(applied.min || applied.max ? [{ group: "금액", label: `${applied.min || "0"}~${applied.max || "제한없음"}`, onRemove: () => setBoth({ ...applied, min: "", max: "" }) }] : []),
     ...(applied.ready ? [{ group: "보기", label: "지금 신청 가능", onRemove: () => setBoth({ ...applied, ready: false }) }] : []),
+    ...(applied.dueSoon ? [{ group: "보기", label: "이번 주 마감", onRemove: () => setBoth({ ...applied, dueSoon: false }) }] : []),
   ];
 
   function setBoth(next: typeof applied) { setApplied(next); setDraft(next); }
+
+  //   요약 줄에서 판정 하나만 켠다 — 이미 그것만 켜져 있으면 끈다(다시 눌러 되돌리기)
+  const onlyVerdict = applied.verdicts.length === 1 ? applied.verdicts[0] : null;
+  function toggleVerdict(v: Verdict) {
+    setBoth({ ...applied, verdicts: onlyVerdict === v ? [] : [v] });
+  }
 
   const fieldItems = useMemo(() =>
     Array.from(new Set((programs as GovProgram[]).map((p) => p.field).filter(Boolean) as string[]))
@@ -303,7 +314,7 @@ function SupportProgramsInner() {
                   <RowsPerPage value={draftSize} onChange={setDraftSize} />
                   <div className="sp-panel-actions">
                     <button type="button" className="btn-secondary btn-sm"
-                      onClick={() => setDraft({ fields: [], types: [], verdicts: [], min: "", max: "", ready: false })}>비우기</button>
+                      onClick={() => setDraft({ fields: [], types: [], verdicts: [], min: "", max: "", ready: false, dueSoon: false })}>비우기</button>
                     <button type="button" className="btn-primary btn-sm"
                       onClick={() => { setApplied(draft); setSize(draftSize); setCondOpen(false); }}>조회</button>
                   </div>
@@ -346,21 +357,35 @@ function SupportProgramsInner() {
             </div>
           )}
 
-          <AppliedChips chips={chips} onClearAll={() => setBoth({ fields: [], types: [], verdicts: [], min: "", max: "", ready: false })} />
+          <AppliedChips chips={chips} onClearAll={() => setBoth({ fields: [], types: [], verdicts: [], min: "", max: "", ready: false, dueSoon: false })} />
 
           <ResultStrip right={
             syncedAt
               ? <span className="sp-synced">공고 갱신 {new Date(syncedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
               : <span className="sp-synced">상시 제도만 — 공고는 아직 받지 않았습니다</span>
           }>
-            {/*   숫자를 누르면 그 조건으로 좁혀 본다 (조회 화면 표준) */}
-            <button type="button" className="sp-stat-btn"
+            {/*   네 항목 모두 **누르면 그 조건으로 좁혀진다** (2026-08-21 사장님 지시).
+                  켜진 것은 눌러서 다시 끄고, 걸린 조건 칩에도 남는다 — 조회 화면 표준 그대로. */}
+            <button type="button" aria-pressed={applied.ready}
+              className={applied.ready ? "sp-stat-btn sp-stat-on" : "sp-stat-btn"}
               onClick={() => setBoth({ ...applied, ready: !applied.ready })}>
               <Stat label="지금 신청 가능" value={`${stats.ready}건`} tone="plus" />
             </button>
-            <Stat label="가능성 높음" value={`${stats.high}건`} tone="plus" />
-            <Stat label="조건 확인 필요" value={`${stats.check}건`} />
-            <Stat label="이번 주 마감" value={`${stats.soon}건`} tone={stats.soon > 0 ? "minus" : undefined} />
+            <button type="button" aria-pressed={onlyVerdict === "high"}
+              className={onlyVerdict === "high" ? "sp-stat-btn sp-stat-on" : "sp-stat-btn"}
+              onClick={() => toggleVerdict("high")}>
+              <Stat label="가능성 높음" value={`${stats.high}건`} tone="plus" />
+            </button>
+            <button type="button" aria-pressed={onlyVerdict === "check"}
+              className={onlyVerdict === "check" ? "sp-stat-btn sp-stat-on" : "sp-stat-btn"}
+              onClick={() => toggleVerdict("check")}>
+              <Stat label="조건 확인 필요" value={`${stats.check}건`} />
+            </button>
+            <button type="button" aria-pressed={applied.dueSoon}
+              className={applied.dueSoon ? "sp-stat-btn sp-stat-on" : "sp-stat-btn"}
+              onClick={() => setBoth({ ...applied, dueSoon: !applied.dueSoon })}>
+              <Stat label="이번 주 마감" value={`${stats.soon}건`} tone={stats.soon > 0 ? "minus" : undefined} />
+            </button>
             <Stat label="예상 수령 가능액" value={stats.estimate > 0 ? `${won(stats.estimate)}원` : "—"} tone="plus" />
           </ResultStrip>
         </QueryHead>

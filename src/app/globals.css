@@ -10059,3 +10059,6 @@ table.sp-table { min-width: 1160px; } /* 서류·적합도 칸이 늘어 넓어�
 .sp-connect { @apply flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--primary-light)] px-4 py-2.5; }
 .sp-connect-t { @apply min-w-0 flex-1 text-[12px] leading-4 text-[var(--text-muted)]; }
 .sp-connect-t b { @apply font-bold text-[var(--primary)]; }
+/* 지원사업 결과 줄 — 눌러서 거르는 숫자 (2026-08-21 사장님: 각 텍스트를 누르면 그것만 보이게) */
+.sp-stat-btn { @apply rounded-lg px-1.5 py-0.5 transition-colors hover:bg-[var(--bg-surface)]; }
+.sp-stat-on { @apply bg-[var(--primary-light)] ring-1 ring-[var(--primary)]/40 hover:bg-[var(--primary-light)]; }
