@@ -108,6 +108,7 @@ export type CompanyProfile = {
   contractCount: number;      // 계약직(기간제)
   belowMinWage: number;       // 월 최저임금 미만으로 적힌 인원
   salaryMissing: number;      // 급여 미입력 인원 — 계산을 믿을 수 없게 만드는 구멍
+  birthMissing: number;       // 생년월일 미입력 인원 — 청년 수가 실제보다 적게 잡힌다
   seniorCount: number;        // 만 60세 이상
   /** 5 업력 · 6 자격·인증 — 회사 카드(company_profile_ext) */
   openDate: string | null;
@@ -184,9 +185,13 @@ export async function loadCompanyProfile(companyId: string): Promise<CompanyProf
   const emps = (empRes.data || []) as EmployeeRow[];
   const ext = extRes.data;
 
-  //   재직 판정 — status 가 비어 있는 옛 데이터는 퇴사일이 없으면 재직으로 본다
+  //   재직 판정 — 이 저장소의 정본은 `.in('status', ['active','joined'])` 이다
+  //   (lib/queries.ts:211, lib/hr.ts:76). 초대로 합류한 직원은 'joined' 로 들어오므로
+  //   'active' 만 보면 **회사 전체가 0명으로 잡힌다**(2026-08-21 프로덕션에서 실제로 그랬다).
+  //   status 가 비어 있는 옛 데이터는 퇴사일 유무로 가른다.
+  const ACTIVE_STATUS = new Set(["active", "joined", "재직"]);
   const isActive = (e: EmployeeRow) =>
-    e.status ? e.status === "active" || e.status === "재직" : !e.resignation_date;
+    (e.status ? ACTIVE_STATUS.has(e.status) : true) && !e.resignation_date;
   const active = emps.filter(isActive);
 
   //   daysBetweenStr(a, b) = a - b (일). 지난 날이므로 today - date 로 잰다.
@@ -243,6 +248,7 @@ export async function loadCompanyProfile(companyId: string): Promise<CompanyProf
     contractCount: active.filter((e) => e.employment_type === "contract" || e.employment_type === "계약직").length,
     belowMinWage: active.filter((e) => Number(e.salary || 0) > 0 && Number(e.salary) < MIN_WAGE_MONTHLY_2026).length,
     salaryMissing: active.filter((e) => !e.salary).length,
+    birthMissing: active.filter((e) => ageOf(e.birth_date, today) === null).length,
     seniorCount: active.filter((e) => { const a = ageOf(e.birth_date, today); return a !== null && a >= 60; }).length,
     openDate,
     yearsInBusiness,
@@ -296,7 +302,11 @@ const RULES: Record<string, Rule> = {
 
     if (p.youngNewHires3m > 0) rs.push(ok(`최근 3개월 만 34세 이하 신규 입사 ${p.youngNewHires3m}명`));
     else if (p.youngCount > 0) rs.push(unknown(`만 34세 이하 재직 ${p.youngCount}명 — 다만 최근 3개월 신규 채용은 없습니다`, "회사 자료"));
+    else if (p.birthMissing > 0) rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명 — 나이를 몰라 청년 인원을 셀 수 없습니다`, "회사 자료"));
     else rs.push(no("만 34세 이하 직원이 없습니다 — 청년을 신규 채용할 때 대상이 됩니다"));
+    if (p.youngCount > 0 && p.birthMissing > 0) {
+      rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명은 청년 집계에서 빠져 있습니다 — 실제 대상이 더 많을 수 있습니다`, "회사 자료"));
+    }
 
     if (p.resigned3m > 0) rs.push(unknown(`최근 3개월 퇴사 ${p.resigned3m}명 — 인위적 감원이면 제외됩니다(자발적 퇴사는 무관)`, "회사 자료"));
     else rs.push(ok("최근 3개월 감원 없음"));
@@ -440,6 +450,7 @@ const RULES: Record<string, Rule> = {
     const n = p.youngCount + p.seniorCount;
     const rs: Reason[] = [];
     if (n > 0) rs.push(ok(`감면 대상 후보 ${n}명 — 만 34세 이하 ${p.youngCount}명 · 만 60세 이상 ${p.seniorCount}명`));
+    else if (p.birthMissing > 0) rs.push(unknown(`생년월일이 없는 직원 ${p.birthMissing}명 — 나이를 몰라 감면 대상을 셀 수 없습니다`, "회사 자료"));
     else rs.push(no("만 34세 이하 또는 만 60세 이상 직원이 없습니다"));
     rs.push(unknown("중소기업 해당 업종인지 확인이 필요합니다(전문서비스업 등 일부 업종 제외)", "제도 요건"));
     rs.push(ok("회사가 감면 신청서를 원천징수 관할 세무서에 내면 직원 소득세가 줄어듭니다", "제도 요건"));
