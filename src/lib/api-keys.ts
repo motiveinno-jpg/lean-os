@@ -153,3 +153,76 @@ export async function retestApiKey(provider: string): Promise<{ ok: boolean; mes
   const body = await res.json().catch(() => ({}));
   return { ok: !!body.ok, message: String(body.message || "") };
 }
+
+// ── 다른 탭에서 관리하는 연동 ─────────────────────────────────────────────
+
+/**
+ * 연결 현황은 **키를 여기서 넣는 것만 보여주면 반쪽**이다 (2026-08-21 사장님 지적).
+ *   은행·카드·홈택스·광고는 각자 전용 화면에서 붙이지만, "무엇이 연결됐나" 는 한 곳에서 봐야 한다.
+ *   그래서 상태만 여기로 모아 보여주고, 손보는 것은 [관리] 로 그 탭에 보낸다.
+ *
+ * ⚠️ 알림(Slack·카카오)은 **일부러 뺐다.** company_settings.slack_webhook_url 컬럼은 있지만
+ *   값이 0건이고 읽는 코드도 없다(2026-08-21 grep·실측). 동작하지 않는 줄을 그려 두면
+ *   "연결하면 되겠지" 라고 믿게 만든다 — 기능이 실제로 생기면 그때 넣는다.
+ */
+export type LinkedIntegration = {
+  key: string;
+  label: string;
+  gives: string;
+  status: "ok" | "partial" | "error" | "none";
+  detail: string;
+  /** 손보러 가는 곳 */
+  href: string;
+};
+
+export const LINKED_STATUS_LABEL: Record<LinkedIntegration["status"], string> = {
+  ok: "연결됨",
+  partial: "일부 오류",
+  error: "오류",
+  none: "안 씀",
+};
+
+const ymd = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }) : null;
+
+export async function loadLinkedIntegrations(companyId: string): Promise<LinkedIntegration[]> {
+  const [settingsRes, hometaxRes, adsRes] = await Promise.all([
+    supabase.from("company_settings").select("codef_connected_id, codef_connected_at").eq("company_id", companyId).maybeSingle(),
+    supabase.from("automation_credentials").select("id, updated_at").eq("company_id", companyId).eq("service", "hometax").maybeSingle(),
+    supabase.from("ad_accounts").select("status").eq("company_id", companyId),
+  ]);
+
+  const cs = settingsRes.data;
+  const ht = hometaxRes.data;
+  const ads = (adsRes.data || []) as { status: string }[];
+  const adErr = ads.filter((a) => a.status === "error").length;
+
+  return [
+    {
+      key: "codef",
+      label: "은행·카드 (CODEF)",
+      gives: "공동인증서로 통장·카드 거래를 자동으로 받아옵니다.",
+      status: cs?.codef_connected_id ? "ok" : "none",
+      detail: cs?.codef_connected_id ? `${ymd(cs.codef_connected_at) ?? ""} 연결` : "인증서를 등록하면 거래가 자동으로 들어옵니다",
+      href: "/settings?tab=bank",
+    },
+    {
+      key: "hometax",
+      label: "홈택스",
+      gives: "세금계산서·현금영수증을 받아옵니다.",
+      status: ht?.id ? "ok" : "none",
+      detail: ht?.id ? `${ymd(ht.updated_at) ?? ""} 등록` : "아직 등록하지 않았습니다",
+      href: "/settings?tab=bank",
+    },
+    {
+      key: "ads",
+      label: "광고 계정",
+      gives: "네이버·카카오·메타 광고 성과를 받아옵니다.",
+      status: ads.length === 0 ? "none" : adErr === 0 ? "ok" : adErr === ads.length ? "error" : "partial",
+      detail: ads.length === 0 ? "등록된 광고 계정이 없습니다"
+        : adErr === 0 ? `${ads.length}개 연결됨`
+        : `${ads.length}개 중 ${adErr}개 오류`,
+      href: "/settings?tab=ads",
+    },
+  ];
+}

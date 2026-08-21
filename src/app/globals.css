@@ -10025,8 +10025,10 @@ table.sp-table { min-width: 1160px; } /* 서류·적합도 칸이 늘어 넓어�
 .apik-intro { @apply text-[12.5px] leading-5 text-[var(--text-muted)]; }
 .apik-intro b { @apply font-bold text-[var(--text)]; }
 .apik-list { @apply flex flex-col gap-2.5; }
-.apik-row { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
-.apik-main { @apply flex flex-col gap-1; }
+/*   한 연동이 한 줄 — 목업처럼 조밀하게. 카드로 부풀리면 다섯 줄이 한 화면에 안 들어와
+     "무엇이 연결됐나"를 한눈에 본다는 목적 자체가 무너진다 (2026-08-21 사장님 지적). */
+.apik-row { @apply flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3; }
+.apik-main { @apply flex min-w-0 flex-1 flex-col gap-0.5; }
 .apik-head { @apply flex flex-wrap items-center gap-2; }
 .apik-head b { @apply text-[14px] font-bold text-[var(--text)]; }
 .apik-pill { @apply rounded-full px-2 py-0.5 text-[11px] font-bold; }
@@ -10035,14 +10037,15 @@ table.sp-table { min-width: 1160px; } /* 서류·적합도 칸이 늘어 넓어�
 .apik-pill-pending { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
 .apik-pill-none { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
 .apik-hint { @apply rounded border border-[var(--border)] px-1.5 font-mono text-[11px] text-[var(--text-dim)]; }
-.apik-gives { @apply text-[12px] leading-5 text-[var(--text-muted)]; }
-.apik-err { @apply rounded-lg bg-[var(--danger-dim)] px-2.5 py-1.5 text-[11.5px] leading-4 text-[var(--danger)]; }
+.apik-gives { @apply truncate text-[12px] leading-5 text-[var(--text-muted)]; }
+.apik-err { @apply w-full rounded-lg bg-[var(--danger-dim)] px-2.5 py-1.5 text-[11.5px] leading-4 text-[var(--danger)]; }
 .apik-meta { @apply text-[11px] text-[var(--text-dim)]; }
 .apik-link { @apply font-bold text-[var(--primary)] hover:underline; }
-.apik-acts { @apply mt-3 flex flex-wrap items-center gap-1.5; }
-.apik-del { @apply ml-auto text-[11.5px] text-[var(--text-dim)] hover:text-[var(--danger)]; }
+.apik-acts { @apply flex shrink-0 flex-wrap items-center gap-1.5; }
+.apik-del { @apply text-[11.5px] text-[var(--text-dim)] hover:text-[var(--danger)]; }
 
-.apik-guide { @apply mt-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3.5; }
+/*   발급 안내는 줄 아래로 전체 폭을 차지하며 펼쳐진다 */
+.apik-guide { @apply w-full basis-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3.5; }
 .apik-guide-h { @apply mb-2 flex flex-wrap items-center justify-between gap-2 text-[12.5px] font-bold text-[var(--text)]; }
 .apik-steps { @apply flex list-decimal flex-col gap-1 pl-4 text-[12px] leading-5 text-[var(--text-muted)]; }
 .apik-caution { @apply mt-2 rounded-lg bg-[var(--warning-dim)] px-2.5 py-1.5 text-[11.5px] leading-4 text-[var(--warning)]; }

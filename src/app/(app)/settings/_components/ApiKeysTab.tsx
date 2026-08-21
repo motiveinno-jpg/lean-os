@@ -15,9 +15,9 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 import { friendlyError } from "@/lib/friendly-error";
 import { appConfirm } from "@/components/global-confirm";
 import {
-  API_PROVIDERS, PROVIDER_BY_KEY, KEY_STATUS_LABEL,
-  listApiKeys, saveApiKey, deleteApiKey, testApiKey, retestApiKey,
-  type ApiKeyRow, type ApiProvider,
+  API_PROVIDERS, KEY_STATUS_LABEL, LINKED_STATUS_LABEL,
+  listApiKeys, saveApiKey, deleteApiKey, testApiKey, retestApiKey, loadLinkedIntegrations,
+  type ApiProvider, type LinkedIntegration,
 } from "@/lib/api-keys";
 
 const fmt = (iso: string | null) =>
@@ -33,6 +33,14 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ["company-api-keys", companyId],
     queryFn: () => listApiKeys(companyId),
+    enabled: !!companyId,
+  });
+
+  //   다른 탭에서 붙이는 연동(은행·카드·홈택스·광고)의 상태 — 손보러는 그 탭으로 보낸다.
+  //   "무엇이 연결됐나" 는 한 곳에서 봐야 한다 (2026-08-21 사장님 지적).
+  const { data: linked = [] } = useQuery({
+    queryKey: ["company-linked-integrations", companyId],
+    queryFn: () => loadLinkedIntegrations(companyId),
     enabled: !!companyId,
   });
 
@@ -70,14 +78,17 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
   return (
     <div className="apik-wrap">
       <p className="apik-intro">
-        오너뷰가 바깥 자료를 받아오려면 <b>회사 이름으로 발급받은 인증키</b>가 필요합니다.
-        키는 넣는 순간 암호화되어 저장되고, 화면에는 다시 나오지 않습니다.
+        오너뷰가 바깥과 주고받는 것을 한 곳에 모았습니다. 인증키는 <b>회사 이름으로 발급받아</b> 넣고,
+        넣는 순간 암호화되어 화면에는 다시 나오지 않습니다.
       </p>
 
       {isLoading ? (
         <div className="collect-empty">불러오는 중…</div>
       ) : (
         <div className="apik-list">
+          {/* 다른 탭에서 붙이는 연동 — 상태만 보고, 손보는 것은 그 탭에서 */}
+          {linked.map((it) => <LinkedRow key={it.key} item={it} />)}
+
           {API_PROVIDERS.map((p) => {
             const row = byProvider.get(p.key);
             const status = row?.status ?? "none";
@@ -146,6 +157,33 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
   );
 }
 
+/**
+ * 다른 탭에서 붙이는 연동 한 줄 — 여기서는 **상태만** 보여주고 손보러는 그 탭으로 보낸다.
+ *   키를 여기서 받지 않는 이유: 은행은 공동인증서, 광고는 매체별 ID·비밀키라 입력 방식이 전혀 다르다.
+ *   한 화면에 다 욱여넣으면 오히려 못 찾는다 — "무엇이 연결됐나" 만 모은다.
+ */
+function LinkedRow({ item }: { item: LinkedIntegration }) {
+  return (
+    <div className="apik-row">
+      <div className="apik-main">
+        <div className="apik-head">
+          <b>{item.label}</b>
+          <span className={`apik-pill apik-pill-${item.status === "ok" ? "ok" : item.status === "none" ? "none" : item.status === "partial" ? "pending" : "error"}`}>
+            {LINKED_STATUS_LABEL[item.status]}
+          </span>
+        </div>
+        <p className="apik-gives">{item.gives}</p>
+        <p className="apik-meta">{item.detail}</p>
+      </div>
+      <div className="apik-acts">
+        <Link href={item.href} className="btn-secondary btn-sm">
+          {item.status === "none" ? "연결하기 →" : "관리 →"}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 /** 키 넣기 — 저장 전에 반드시 한 번 불러 본다 */
 function KeyDialog({ provider, companyId, userId, onClose, onSaved }: {
   provider: ApiProvider; companyId: string; userId: string | null;
@@ -210,7 +248,7 @@ function KeyDialog({ provider, companyId, userId, onClose, onSaved }: {
             </p>
           )}
 
-          <div className="apik-guide">
+          <div className="apik-guide apik-guide-modal">
             <div className="apik-guide-h"><b>받는 방법</b></div>
             <ol className="apik-steps">
               {provider.steps.map((s, i) => <li key={i}>{s}</li>)}
