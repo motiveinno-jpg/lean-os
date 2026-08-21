@@ -44,13 +44,14 @@ function buildDefault(cat: CatalogWidget[]): Layout[] {
       for (let c = c0; c <= c1; c++) colH[c] = Math.max(colH[c], (w.y ?? 0) + (w.h || 4));
     }
   }
+  // ⚠️ 하한은 위젯이 정한 값을 쓴다 — 예전엔 minW:3/minH:2 로 못박아 CatalogWidget 의 minW·minH 가
+  //    무시됐다. 달력처럼 작게 줄이면 내용이 잘리는 위젯이 스스로를 지킬 수 없었다 (2026-08-21).
   return cat.map((w) => {
-    if (w.x != null && w.y != null) {
-      return { i: w.id, x: w.x, y: w.y, w: w.w || 4, h: w.h || 4, minW: 3, minH: 2 };
-    }
+    const size = { w: w.w || 4, h: w.h || 4, minW: w.minW ?? 3, minH: w.minH ?? 2 };
+    if (w.x != null && w.y != null) return { i: w.id, x: w.x, y: w.y, ...size };
     const c = colH.indexOf(Math.min(...colH));
-    const item = { i: w.id, x: c * 4, y: colH[c], w: w.w || 4, h: w.h || 4, minW: 3, minH: 2 };
-    colH[c] += (w.h || 4);
+    const item = { i: w.id, x: c * 4, y: colH[c], ...size };
+    colH[c] += size.h;
     return item;
   });
 }

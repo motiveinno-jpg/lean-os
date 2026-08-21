@@ -581,7 +581,10 @@ export default function DashboardPage() {
               { id: "invoices", name: "최근 세금계산서", icon: "📄", desc: "매출·매입 최근 발행", category: "경영", render: () => <RecentInvoices companyId={companyId} /> },
               { id: "assets", name: "계좌별 잔액", icon: "🏦", desc: "계좌별 잔액·합계", category: "자금", render: () => <AssetsSummaryCard companyId={companyId} /> },
               { id: "work-tasks", name: "내 담당 업무", icon: "✅", desc: "나에게 배정된 프로젝트 태스크", category: "개인", render: () => <MyTasksCard userId={uid} /> },
-              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·할 일 달력", category: "개인", render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
+              // 달력은 6주가 들어가야 해서 기본 h(4=212px)로는 달이 반쯤 잘렸다(2026-08-21 제보).
+              //   이제 칸이 타일 높이를 나눠 가지므로 h 만 넉넉하면 어떤 폭에서도 통째로 보인다.
+              { id: "calendar", name: "달력", icon: "📅", desc: "이번 달 일정·할 일 달력", category: "개인", w: 4, h: 8, minH: 6,
+                render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
               { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", render: () => <EmployeesCard companyId={companyId} /> },
               { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", render: () => <PartnersCard companyId={companyId} /> },
             ];
@@ -631,6 +634,9 @@ export default function DashboardPage() {
             //   하루 된 배치라 버리고 새 기본(신호·챙길 것 전폭 위)에서 시작.
             return <DashboardGrid storageKey={`dashboard-grid-v3-${companyId}`} catalog={visibleCatalog} defaultActiveIds={defaultActiveIds}
               recommended={recommended} sidebarCollapsed={sidebarCollapsed} presets={presets}
+              // 이미 저장된 배치도 한 번 끌어올린다 — 달력이 h4(212px)로 저장돼 있으면 달이 반쯤 잘린다.
+              //   새 기본값(h9)은 새로 담을 때만 적용되므로, 쓰던 분들은 이 마이그레이션이 고친다 (2026-08-21).
+              layoutMigration={{ id: "cal-h7-20260821", minH: { calendar: 7 } }}
               headLeft={
                 <div className="dash-head">
                   <span className="dash-head-date">{new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</span>
@@ -876,7 +882,9 @@ function MyTodosWidget({ userId, companyId }: { userId: string; companyId?: stri
         </div>
         <Link href="/schedule" className="widget-more-link">전체보기 →</Link>
       </div>
-      <div className="flex-1">
+      {/* 항목이 많으면 이 안에서만 스크롤한다 — 예전엔 카드 높이가 타일에 고정된 채 내용만 넘쳐
+          카드 배경 밖으로 글자가 삐져나왔다 (2026-08-21 사장님 제보). */}
+      <div className="dashboard-todos-body">
       {items.length === 0 ? (
         <div className="widget-empty">
           <span className="widget-empty-text">등록된 할일·일정이 없습니다.</span>

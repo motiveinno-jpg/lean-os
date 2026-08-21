@@ -2124,6 +2124,7 @@ table.sched-table { min-width: 900px; }
 .dashboard-quick-nav-widget { @apply mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
 .dashboard-summary-kpis-widget { @apply mb-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
 .dashboard-todos-widget { @apply p-4 flex flex-col h-full; }
+.dashboard-todos-body { @apply flex-1; }   /* 위젯 타일 안에서는 여기서만 스크롤 (아래 tile 규칙) */
 .dashboard-six-pack-cell { @apply px-3 py-3; }
 .dashboard-cash-pulse-widget { @apply mb-5 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
 .dashboard-overdue-receivables-widget { @apply mb-5 p-5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)]; }
@@ -5815,11 +5816,17 @@ table.pnl-drill-table { min-width: 760px; }
 .top-expense-row { @apply flex items-center gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)]; }
 
 /* dashboard-calendar.tsx */
-.dashboard-calendar { @apply p-4; }
-.dashboard-calendar-header { @apply flex items-center justify-between mb-3; }
-.dashboard-calendar-weekdays { @apply grid grid-cols-7 gap-0.5 mb-1; }
-.dashboard-calendar-days { @apply grid grid-cols-7 gap-0.5; }
-.dashboard-calendar-selected { @apply mt-3 border-t border-[var(--border)] pt-2.5; }
+/* 2026-08-21 사장님 제보: "달력이 절반쯤 잘려 나와서 매번 크기를 늘려야 한다".
+   원인 — 날짜 칸이 aspect-square 라 위젯 폭이 넓어질수록 세로가 같이 늘어(1280px 383 → 1920px 510px)
+   고정 높이 타일을 넘겼다. 폭에 맞춰 세로를 정하지 말고, 타일이 준 높이를 6주가 나눠 갖게 한다.
+   → 어떤 폭·어떤 높이에서도 달이 통째로 보이고, 크기를 줄여도 칸만 납작해질 뿐 잘리지 않는다. */
+.dashboard-calendar { @apply p-4 h-full flex flex-col; }
+.dashboard-calendar-header { @apply flex items-center justify-between mb-3 shrink-0; }
+.dashboard-calendar-weekdays { @apply grid grid-cols-7 gap-0.5 mb-1 shrink-0; }
+.dashboard-calendar-days { @apply grid grid-cols-7 auto-rows-fr gap-0.5 flex-1 min-h-0; }
+.dashboard-calendar-cell { @apply w-full h-full min-h-[26px]; }
+/* 고른 날짜의 일정 — 길어지면 여기서만 스크롤(카드 밖으로 밀지 않는다) */
+.dashboard-calendar-selected { @apply mt-3 border-t border-[var(--border)] pt-2.5 shrink-0 max-h-[38%] overflow-y-auto; }
 .dashboard-calendar-items { @apply flex flex-col gap-1; }
 
 /* access-denied.tsx */
@@ -9668,6 +9675,12 @@ table.dup-table { min-width: 0; }
 .brief-evidence { @apply mt-1.5 flex flex-col gap-1 text-[12px] text-[var(--text-muted)] leading-relaxed; }
 /* 위젯 공용 셸 — 격자가 높이를 정하고, 머리 한 줄 · 요약 글자 · 몸통 */
 .dashboard-widget-tile .activity-card { @apply h-full; }
+/* 위젯 안 목록은 카드 안에서만 스크롤한다 (2026-08-21 사장님 제보).
+   카드는 타일 높이에 h-full 로 묶여 있는데 행 목록은 그대로 늘어나서, 공지사항·통장 거래처럼
+   항목이 많은 위젯은 글자가 카드 배경 밖으로 삐져나왔다(스크롤하면 더 도드라졌다).
+   머리단은 고정하고 몸통만 스크롤 — 조회 화면 표준(CLAUDE.md)과 같은 방식. */
+.dashboard-widget-tile .activity-card-rows { @apply flex-1 min-h-0 overflow-y-auto; }
+.dashboard-widget-tile .dashboard-todos-body { @apply flex-1 min-h-0 overflow-y-auto; }
 .activity-card-summary { @apply text-[11.5px] text-[var(--text-dim)] truncate; }
 .dash-tax-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }
 .dashboard-widget-tile .compact-asset-row { @apply flex items-center gap-2 py-2 no-underline hover:bg-[var(--bg-surface)] -mx-1 px-1 rounded transition; }

@@ -147,14 +147,14 @@ export function DashboardCalendar({ userId, companyId }: { userId: string; compa
 
       <div className="dashboard-calendar-days">
         {cells.map((d, i) => {
-          if (d === null) return <div key={`x${i}`} className="aspect-square" />;
+          if (d === null) return <div key={`x${i}`} className="dashboard-calendar-cell" />;
           const key = ymd(year, month, d);
           const marks = byDate[key];
           const isToday = key === todayStr;
           const isSel = key === selected;
           return (
             <button key={key} type="button" onClick={() => setSelected(key)}
-              className={`aspect-square rounded-lg flex flex-col items-center justify-center leading-none transition ${
+              className={`dashboard-calendar-cell rounded-lg flex flex-col items-center justify-center leading-none transition ${
                 isSel ? "bg-[var(--primary)] text-white font-bold" : isToday ? "bg-[var(--primary)]/12 text-[var(--primary)] font-bold" : "text-[var(--text)] hover:bg-[var(--bg-surface)]"
               }`}>
               <span className="text-[11px]">{d}</span>
