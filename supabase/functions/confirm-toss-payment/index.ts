@@ -172,8 +172,11 @@ serve(withSentry("confirm-toss-payment", async (req: Request) => {
   }
 
   // 8. Update invoice status (if present)
+  //   error 를 봐야 한다 (2026-08-21 감사): 결제는 승인됐는데 청구서가 '미결제' 로 남으면
+  //   미납 독촉·중복 청구 대상이 된다. 승인 자체는 되돌릴 수 없으니 결제는 성공 처리하되
+  //   운영이 볼 수 있게 billing_events 에 남긴다.
   if (invoice) {
-    await supabase
+    const { error: invErr } = await supabase
       .from("invoices")
       .update({
         status: "paid",
@@ -181,6 +184,14 @@ serve(withSentry("confirm-toss-payment", async (req: Request) => {
         toss_payment_key: tossResponse.paymentKey,
       })
       .eq("id", invoice.id);
+    if (invErr) {
+      await supabase.from("billing_events").insert({
+        company_id: invoice.company_id,
+        event_type: "payment_success",
+        metadata: { invoiceId: invoice.id, paymentKey: tossResponse.paymentKey,
+          db_error: `청구서 결제완료 반영 실패: ${invErr.message}` },
+      });
+    }
   }
 
   // 9. Log success event

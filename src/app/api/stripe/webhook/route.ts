@@ -113,8 +113,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       return;
     }
     const { data, error } = await db.rpc('apply_credit_purchase', { p_purchase_id: purchaseId });
-    if (error) console.error('apply_credit_purchase failed:', error.message, purchaseId);
-    else if (data === false) console.warn('credit already applied (duplicate webhook)', purchaseId);
+    //   실패를 삼키면 **결제는 됐는데 크레딧이 안 들어가고** 웹훅 재전송도 없어 영구 손실이었다
+    //   (2026-08-21 감사). 던져서 500 → Stripe 가 재시도하게 한다. 적립은 status='paid' 로
+    //   멱등하므로 재시도해도 두 번 적립되지 않는다.
+    if (error) throw new Error(`크레딧 적립 실패(${purchaseId}): ${error.message}`);
+    if (data === false) console.warn('credit already applied (duplicate webhook)', purchaseId);
     return;
   }
 
@@ -169,11 +172,13 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     .limit(1)
     .maybeSingle());
 
-  if (existing) {
-    await db.from('subscriptions').update(patch).eq('id', existing.id);
-  } else {
-    await db.from('subscriptions').insert({ company_id: companyId, ...patch });
-  }
+  //   error 를 봐야 한다 (2026-08-21 감사): supabase-js 는 throw 하지 않아 위 try/catch 도
+  //   못 잡고 Stripe 엔 200 이 나가, **결제는 됐는데 구독이 무료 상태로 남고** 재전송도 없었다.
+  //   이 경로는 '있으면 갱신, 없으면 생성' 이라 재시도해도 중복이 생기지 않는다.
+  const subErr = existing
+    ? (await db.from('subscriptions').update(patch).eq('id', existing.id)).error
+    : (await db.from('subscriptions').insert({ company_id: companyId, ...patch })).error;
+  if (subErr) throw new Error(`구독 반영 실패(${companyId}): ${subErr.message}`);
 
   // 연간 결제 혜택 — 추가인원 12명 무료 등록 쿠폰 발급 (2026-07-30 사장님).
   //   구독당 1장(stripe_subscription_id 유니크로 멱등 — 웹훅 재전송에도 중복 발급 없음).
@@ -206,8 +211,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     } catch { /* 쿠폰 발급 실패가 결제 처리를 막지 않는다 */ }
   }
 
-  // 회사 캐시 플랜 — trialing 도 해당 플랜 권한 유지.
-  await db.from('companies').update({ current_plan: planSlug }).eq('id', companyId);
+  // 회사 캐시 플랜 — trialing 도 해당 플랜 권한 유지. (같은 값을 다시 써도 안전 = 재시도 가능)
+  const { error: planErr } = await db.from('companies').update({ current_plan: planSlug }).eq('id', companyId);
+  if (planErr) throw new Error(`플랜 반영 실패(${companyId}): ${planErr.message}`);
 
   // 영업코드 사용이력 — 어느 영업사원 코드로 어떤 회사가 들어왔는지(운영자 화면 소스).
   //   회사당 1건(unique) — 재결제·플랜변경 시 최초 유입 기록을 덮어쓰지 않는다.
