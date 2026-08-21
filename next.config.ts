@@ -25,14 +25,18 @@ const securityHeaders = [
       "default-src 'self'",
       // local.espider.co.kr = CodefCert 로컬 인증 엔진(127.0.0.1 로 해석). 버전확인이 JSONP(스크립트 태그)라 script-src 필요.
       // js.tosspayments.com — 토스 결제 SDK(카드 등록창). 2026-08-06 자동결제 1단계.
-      "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app https://*.daumcdn.net https://local.espider.co.kr:24646 https://js.tosspayments.com",
+      // *.googletagmanager.com — GA4(components/analytics.tsx). 2026-08-21 전수 점검에서 발견:
+      //   GA 를 붙여 두고 CSP 에 도메인을 안 넣어 프로덕션 콘솔에 계속 차단 로그가 찍히고 있었다
+      //   ("Loading the script ... violates the Content Security Policy"). 즉 GA 통계가 안 쌓였다.
+      //   우리 DB(marketing_events) 기록은 gtag 와 무관하게 계속 남고 있었으므로 유실 범위는 GA 쪽뿐.
+      "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.app https://*.daumcdn.net https://local.espider.co.kr:24646 https://js.tosspayments.com https://*.googletagmanager.com",
       "style-src 'self' 'unsafe-inline' https://*.daumcdn.net https://fonts.googleapis.com https://cdn.jsdelivr.net",
       // *.pstatic.net — 네이버 광고 소재(쇼핑 상품) 이미지. 광고 대시보드의 소재 카드가 그린다
       //   (2026-08-06: 허용 전에는 카드가 깨진 이미지로 떴다). 이미지 표시만 허용, 스크립트는 여전히 차단.
-      `img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net https://*.pstatic.net${localSupaImgCsp}`,
+      `img-src 'self' data: blob: https://*.supabase.co https://*.daumcdn.net https://*.pstatic.net https://*.google-analytics.com https://*.googletagmanager.com${localSupaImgCsp}`,
       "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net",
       // wss://local.espider.co.kr:* — CodefCert 엔진 WebSocket(포트가 getPort 응답마다 동적).
-      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net wss://local.espider.co.kr:* https://api.tosspayments.com https://*.tosspayments.com${localSupaCsp}`,
+      `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://vercel.live https://*.vercel.app https://*.ingest.sentry.io https://fonts.gstatic.com https://*.daumcdn.net https://*.daum.net wss://local.espider.co.kr:* https://api.tosspayments.com https://*.tosspayments.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com${localSupaCsp}`,
       "frame-src 'self' blob: https://*.daumcdn.net https://*.daum.net https://*.kakao.com https://*.tosspayments.com",
       // 'self' — 자사 페이지가 자사 페이지를 iframe 으로 임베드(메뉴 팝업 기능) 허용. 외부 출처 임베드는 여전히 차단.
       "frame-ancestors 'self'",

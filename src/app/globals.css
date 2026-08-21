@@ -9793,6 +9793,8 @@ table.dup-table { min-width: 0; }
 
 /* 신호·챙길 것 위젯화 (2026-08-20) — 격자 타일 안에서는 자체 여백을 지우고 타일을 꽉 채운다 */
 .dashboard-widget-tile .dash-signals { @apply mb-0 h-full; }
+/* 모바일 — 위젯을 세로로 쌓고 각자 제 높이를 갖는다(dashboard-grid.tsx isMobile 분기) */
+.dashboard-grid-stack { @apply flex flex-col gap-3; }
 .dashboard-widget-tile .morning-brief-card.brief-compact { @apply mb-0 min-h-full; }
 
 /* ── 프로젝트 템플릿 요약 재편 (2026-08-20, docs/20260820_PLAN_project_summary_redesign.md) —
@@ -9946,4 +9948,20 @@ table.sp-table { min-width: 1020px; } /* table. — .ev-table 의 min-width 를 
 @media (max-width: 640px) {
   .sp-q { grid-template-columns: 1fr; }
   .sp-q-label { @apply pt-0; }
+/* ══ 폰에서 조회 상자 본문이 통째로 안 보이던 것 (2026-08-21 전수 점검) ══
+   조회 화면 표준은 데스크톱 기준이다 — .qk-screen 이 세로 flex 로 높이를 잡고(min-width:768px 규칙),
+   그 안 .qk-body 가 flex-1 로 남는 높이를 먹은 뒤 스크롤 칸을 `absolute inset-0` 로 채운다.
+   그런데 768px 미만에서는 .qk-screen 이 그냥 block 이라 .qk-body 의 flex-1 이 아무 일도 하지 않는다.
+   자식이 전부 absolute 라 상자는 높이 0 으로 무너지고, 내용은 갈 곳을 잃어 화면에서 사라졌다.
+   실측(390px): 마이페이지·회사 설정·사용 가이드·고객센터·요금제·AI 참모·거래처 원장 7개 화면에서
+   .qk-body 높이 0 / 내용 294~3,408px — 본문이 보이지 않거나 상자 밖으로 새어 나왔다.
+   폰에서는 안쪽 스크롤을 쓰지 않고 화면 전체가 스크롤되는 게 맞으므로, 스크롤 칸을 흐름 안으로 되돌린다.
+   ⚠️ 데스크톱(768px 이상) 규칙은 건드리지 않는다 — 조회 화면 표준은 그대로다. */
+@media (max-width: 767px) {
+  .qk-body { display: block; }
+  /*   [class] 로 기존 `.qk-body > .xxx-scroll` 규칙(특이성 0,2,0)과 같은 무게를 맞추고,
+       파일 맨 뒤라 나중에 선언된 이 규칙이 이긴다. */
+  .qk-body > [class] { position: static; inset: auto; height: auto; max-height: none; }
+  /*   가로로 넓은 표는 폰에서도 옆으로 밀어 봐야 한다 — 세로만 흐름에 맡긴다 */
+  .qk-body > [class] { overflow-y: visible; }
 }

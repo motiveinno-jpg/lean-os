@@ -173,9 +173,16 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
             const isToday = dateStr === toLocalDateStr(today);
             const dow = cell.date.getDay();
             return (
-              <button
+              // ⚠️ 날짜 칸은 <button> 이면 안 된다 — 칸 안에 일정별 '수정' 버튼이 또 들어가
+              //    button 안의 button 이 되어 HTML 규칙 위반이고 하이드레이션 오류가 났다
+              //    (2026-08-21 전수 점검에서 /schedule 콘솔 에러로 검출).
+              //    역할·키보드 조작은 그대로 두고 태그만 div 로 바꾼다.
+              <div
                 key={i}
+                role="button"
+                tabIndex={0}
                 onClick={() => openAdd(dateStr)}
+                onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openAdd(dateStr); } }}
                 className={`schedule-day-cell ${
                   !cell.inMonth ? "bg-[var(--bg)] opacity-50" : ""
                 } ${isToday ? "ring-1 ring-inset ring-[var(--primary)]" : ""}`}
@@ -244,7 +251,7 @@ function CalendarTab({ companyId, userId, toast, tabs }: { companyId: string; us
                     <div className="text-[9px] text-[var(--text-dim)] px-1.5">+{cellEvents.length - 3}</div>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

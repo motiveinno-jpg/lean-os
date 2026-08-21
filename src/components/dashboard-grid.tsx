@@ -366,6 +366,27 @@ export function DashboardGrid({
     );
   }
 
+  // 모바일은 드래그·크기조절이 없다(아래 isDraggable/isResizable). 그런데도 격자로 그리면
+  //   데스크톱에서 저장한 h 가 그대로 높이가 돼 내용이 잘린다 —
+  //   신호 6칸이 100px 타일 안에 255px 로 들어가 4칸이 아예 안 보였다(2026-08-21 실측).
+  //   폰에서는 위젯을 세로로 쌓고 각자 제 높이를 갖게 한다(잘림 원천 차단).
+  //   ⚠️ 측정용 ref 는 여기서도 붙여야 데스크톱으로 돌아올 때 폭을 다시 잰다.
+  if (isMobile) {
+    const pos = Object.fromEntries(effective.map((l) => [l.i, l]));
+    const ordered = [...active].sort((a, b) => {
+      const A = pos[a.id], B = pos[b.id];
+      return (A?.y ?? 0) - (B?.y ?? 0) || (A?.x ?? 0) - (B?.x ?? 0);
+    });
+    return (
+      <div className="dashboard-grid">
+        {Header}
+        <div ref={containerRef} className="dashboard-grid-stack">
+          {ordered.map((w) => <div key={w.id}>{w.render()}</div>)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`dashboard-grid ${edit ? "rgl-editing" : ""}`}>
       {Header}
