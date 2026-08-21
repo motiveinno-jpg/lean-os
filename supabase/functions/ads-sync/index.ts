@@ -136,6 +136,11 @@ async function syncNaverSA(acc: AdAccount, sec: Secret, days?: string[]) {
         platform: acc.platform,
         campaign_id: cid,
         campaign_name: campaigns[cid] || null,
+        // 2026-08-06 마이그(20260806170000)로 지표 테이블이 캠페인 전용에서 계층(캠페인>광고그룹>소재)
+        //   구조로 바뀌면서 level·entity_id 가 생겼는데 이 함수는 안 따라갔다.
+        //   entity_id 는 NOT NULL 이고 유니크 키의 일부다 — 안 채우면 저장이 통째로 실패한다.
+        level: "campaign",
+        entity_id: cid,
         stat_date: day,
         impressions: Number(s.impCnt) || 0,
         clicks: Number(s.clkCnt) || 0,
@@ -149,7 +154,11 @@ async function syncNaverSA(acc: AdAccount, sec: Secret, days?: string[]) {
   }
   if (rows.length > 0) {
     const { error } = await admin.from("ad_metrics_daily")
-      .upsert(rows, { onConflict: "ad_account_id,campaign_id,stat_date" });
+      //   실제 유니크 인덱스와 정확히 같아야 한다: ad_metrics_daily_uniq2(ad_account_id, level, entity_id, stat_date).
+      //   종전 값(ad_account_id,campaign_id,stat_date)은 8/06 에 지워진 옛 인덱스를 가리켜
+      //   "there is no unique or exclusion constraint matching the ON CONFLICT specification"(42P10) 로
+      //   **모든 수집이 실패**하고 있었다.
+      .upsert(rows, { onConflict: "ad_account_id,level,entity_id,stat_date" });
     if (error) throw new Error(error.message);
   }
   return { rows: rows.length, campaigns: ids.length };
