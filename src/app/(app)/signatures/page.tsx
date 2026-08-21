@@ -37,6 +37,7 @@ import {
   deleteSignatureRequest,
   getSignatureStatusInfo,
   expireOverdueSignatures,
+  finalizeFullySignedDocuments,
   SIGNATURE_STATUS,
   type SignatureStatusValue,
 } from "@/lib/signatures";
@@ -122,6 +123,9 @@ function SignaturesDashboardInner() {
         //   부르는 곳이 어디에도 없어 215건이 '발송' 으로 남아 통계의 만료 건수는 늘 0 이었고
         //   죽은 링크로 리마인더가 계속 나갔다. 화면을 열 때 그 회사 것만 훑는다.
         expireOverdueSignatures(u.company_id).catch(() => { /* 정리 실패가 목록을 막지 않는다 */ });
+        // 외부 서명자가 메일 링크로 끝낸 계약은 익명 세션이라 문서 승인·잠금이 안 돈다 —
+        //   권한 있는 이 세션에서 밀린 것을 마무리한다 (2026-08-21 감사).
+        finalizeFullySignedDocuments(u.company_id).catch(() => { /* 무시 */ });
       }
     });
   }, []);

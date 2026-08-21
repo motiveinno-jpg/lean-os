@@ -234,9 +234,13 @@ export async function autoMatchTransactions(companyId: string) {
       });
 
       // Update bank transaction — mapped_by 는 uuid 컬럼이라 'system' 문자열 금지(22P02).
+      //   ★ 어떤 계산서와 맞췄는지도 남긴다 (2026-08-21 감사): 종전엔 상대(bestInvoice)를 어느
+      //   컬럼에도 안 넣어서, "거래 자동매칭 N건" 이라고 보고해 놓고 3-Way 매칭 화면의 '매칭됨'
+      //   에는 0건이었다 — 거래가 미분류 인박스에서만 사라지고 무엇과 맞춰졌는지 알 수 없었다.
       const { error: upErr } = await db.from('bank_transactions').update({
         mapping_status: 'auto_mapped',
         mapped_at: new Date().toISOString(),
+        tax_invoice_id: bestInvoice.id,
       }).eq('id', tx.id);
       if (upErr) continue;
 

@@ -1132,6 +1132,56 @@ export async function applyCompanySeal(params: {
 }
 
 // ── Expire Overdue Signatures ──
+/** 서명이 전부 끝났는데 문서가 아직 초안인 건을 찾아 승인·잠금까지 마무리한다 (2026-08-21 감사).
+ *
+ *  왜 필요한가: 외부 서명자가 메일 링크(/sign?token=…)로 서명하면 익명 세션이라 문서를 만질 권한이
+ *  없어, saveSignature 의 토큰 분기가 서명만 저장하고 바로 반환한다. 그래서 목록은 '서명완료' 인데
+ *  문서함의 계약서는 **여전히 「초안」·미잠금이라 사후 수정이 가능**했고, 승인 시 도는 파이프라인
+ *  (견적→계약, 계약→세금계산서·스케줄)도 아예 안 돌았다. 사내 경로로 서명하면 다 도는 —
+ *  **어느 경로로 서명했느냐에 따라 결과가 달랐다.**
+ *
+ *  회사 사용자가 전자계약 화면을 열 때 훑어서 밀린 것을 마무리한다(권한이 있는 세션에서 실행).
+ *  @returns 마무리한 문서 수 */
+export async function finalizeFullySignedDocuments(companyId: string): Promise<number> {
+  const rows = logRead('lib/signatures:finalizeScan', await db
+    .from('signature_requests')
+    .select('document_id, status')
+    .eq('company_id', companyId)
+    .not('document_id', 'is', null));
+  if (!rows || rows.length === 0) return 0;
+
+  // 문서별로 모아 '전부 signed' 인 것만 고른다
+  const byDoc = new Map<string, string[]>();
+  for (const r of rows as { document_id: string | null; status: string | null }[]) {
+    if (!r.document_id) continue;
+    const list = byDoc.get(r.document_id) || [];
+    list.push(r.status || '');
+    byDoc.set(r.document_id, list);
+  }
+  const candidates = [...byDoc.entries()]
+    .filter(([, sts]) => sts.length > 0 && sts.every((st) => st === 'signed'))
+    .map(([docId]) => docId);
+  if (candidates.length === 0) return 0;
+
+  const docs = logRead('lib/signatures:finalizeDocs', await db
+    .from('documents')
+    .select('id, status')
+    .in('id', candidates));
+  const pending = (docs || []).filter((d: { status: string | null }) => d.status !== 'approved' && d.status !== 'locked');
+  if (pending.length === 0) return 0;
+
+  const { approveDocument, lockDocument } = await import('./documents');
+  let done = 0;
+  for (const d of pending as { id: string }[]) {
+    try {
+      await approveDocument(d.id, 'system', '전체 서명 완료로 자동 승인(밀린 건 정리)');
+      await lockDocument(d.id, 'system');
+      done++;
+    } catch { /* 한 건 실패가 나머지를 막지 않는다 */ }
+  }
+  return done;
+}
+
 export async function expireOverdueSignatures(companyId?: string): Promise<number> {
   const now = new Date().toISOString();
 
