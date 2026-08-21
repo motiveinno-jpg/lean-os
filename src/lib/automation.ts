@@ -805,12 +805,14 @@ export async function autoCancelTaxInvoiceOnRefund(companyId: string) {
   const taxSettings = company?.tax_settings as any;
   if (!taxSettings?.autoCancelOnRefund) return { cancelled: 0, reason: '환불 자동취소 비활성' };
 
-  // Find rejected/cancelled payment_queue entries that have linked tax invoices
+  // 환불된 지급만 대상 (2026-08-21 감사): 종전엔 'rejected','cancelled' 를 봤는데 환불이 쓰는
+  //   값은 'refunded' 라 **환불 건은 한 건도 안 잡혔고**, 반대로 한 번도 실행 안 된 'rejected'
+  //   결제에 반응해 **멀쩡한 세금계산서를 void** 로 만들었다. ('cancelled' 를 쓰는 코드는 없다)
   const cancelled = logRead('lib/automation:cancelled', await db
     .from('payment_queue')
     .select('id, cost_schedule_id, description, deals(id)')
     .eq('company_id', companyId)
-    .in('status', ['rejected', 'cancelled']));
+    .in('status', ['refunded']));
 
   if (!cancelled?.length) return { cancelled: 0 };
 

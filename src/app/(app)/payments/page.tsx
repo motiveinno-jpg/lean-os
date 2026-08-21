@@ -237,6 +237,28 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
         refunded_by: userId,
       }).eq('id', refundItem.id);
       if (error) throw error;
+
+      // 실행 시 깎았던 통장 잔액과 프로젝트 원가 상태를 되돌린다 (2026-08-21 감사) —
+      //   종전엔 상태만 'refunded' 로 바꿔서, 통장 총 잔고는 환불액만큼 계속 적게 나오고
+      //   프로젝트 원가에는 지급 완료로 계속 잡혔다.
+      const wasExecuted = ['completed', 'paid', 'executed'].includes(String(refundItem.status));
+      if (wasExecuted) {
+        if (refundItem.bank_account_id) {
+          const { data: bank } = await db.from('bank_accounts').select('balance').eq('id', refundItem.bank_account_id).maybeSingle();
+          if (bank) {
+            const { error: balErr } = await db.from('bank_accounts')
+              .update({ balance: Number(bank.balance || 0) + Number(refundItem.amount || 0) })
+              .eq('id', refundItem.bank_account_id);
+            if (balErr) throw balErr;
+          }
+        }
+        if (refundItem.cost_schedule_id) {
+          const { error: csErr } = await db.from('deal_cost_schedule')
+            .update({ status: 'pending', approved: false, approved_at: null })
+            .eq('id', refundItem.cost_schedule_id);
+          if (csErr) throw csErr;
+        }
+      }
       await db.from('audit_logs').insert({
         company_id: companyId,
         user_id: userId,
@@ -289,7 +311,8 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     : queue.filter((q: any) => filterSet.includes(q.status === 'completed' ? 'executed' : q.status));
   const [statusPanel, setStatusPanel] = useState(false);
   const [draftStatus, setDraftStatus] = useState<string[]>([]);
-  const STATUS_OPTS: [string, string][] = [["pending", "승인대기"], ["approved", "승인완료"], ["executed", "실행완료"], ["refunded", "환불"], ["rejected", "거부"]];
+  //   'failed'(실행 실패) 를 필터에도 넣는다 — 없으면 실패 건만 따로 볼 방법이 없다 (2026-08-21)
+  const STATUS_OPTS: [string, string][] = [["pending", "승인대기"], ["approved", "승인완료"], ["executed", "실행완료"], ["failed", "실행실패"], ["refunded", "환불"], ["rejected", "거부"]];
 
   function toggleOne(id: string) {
     setSelectedIds(prev => {
@@ -360,6 +383,9 @@ function PaymentQueueTab({ companyId, userId, filter, setFilter, showForm, setSh
     completed: { label: "실행완료", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
     rejected: { label: "거부", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
     refunded: { label: "환불완료", bg: "bg-orange-500/10", text: "text-orange-400" },
+    // 실행 실패(잔액 부족 등)는 배지 정의가 없어 '승인대기' 로 보였다 — 토스트가 사라지면
+    //   실패 건을 화면에서 알 방법이 없었다 (2026-08-21 감사).
+    failed: { label: "실행실패", bg: "bg-[var(--danger-dim)]", text: "text-[var(--danger)]" },
   };
 
   return (
