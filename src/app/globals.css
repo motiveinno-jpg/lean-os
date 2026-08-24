@@ -3119,6 +3119,32 @@ table.bs-t-table { min-width: 360px; }
 .copilot2-main { @apply flex flex-col gap-4 min-w-0; }
 .copilot2-side { @apply min-w-0; }
 .copilot2-conv { @apply flex flex-col gap-4 max-h-[52vh] overflow-y-auto pr-1; }
+/* ── AI 참모 화면 높이 (2026-08-24 사장님 지적: "처음 들어갔을 때 아래 입력창이 짤려 보임") ──
+   예전엔 겉(.copilot2-scroll)이 통째로 스크롤이고 대화는 52vh 로 묶여 있었다. 그래서
+   대화(52vh) + 빠른 질문 카드 + 입력창을 더하면 상자보다 커져 **입력창이 접힌 아래로 밀렸다**
+   (실측: 입력창 bottom 894px, 상자 bottom 887px — 23px 스크롤해야 보였다).
+   → 넓은 화면에서는 채팅 화면의 정석대로 **대화만 스크롤하고 입력창은 바닥에 붙인다.**
+   좁은 화면(<900px)은 사용량 칼럼이 아래로 내려가므로 예전처럼 겉이 스크롤한다. */
+@media (min-width:900px){
+  .qk-body > .copilot2-scroll { @apply overflow-hidden; }
+  .copilot2-scroll > .copilot2-grid { @apply h-full; min-height: 0; }
+  .copilot2-main { min-height: 0; }
+  .copilot2-conv { @apply flex-1; max-height: none; min-height: 0; }
+  .copilot2-side { @apply overflow-y-auto; min-height: 0; }
+}
+/* 물어본 질문 목차 — 사용량 카드 아래. 누르면 그 질문으로 이동한다 (2026-08-24 사장님 지시) */
+.copilot2-qidx { @apply mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
+.copilot2-qidx-head { @apply flex items-baseline justify-between gap-2 mb-2; }
+.copilot2-qidx-title { @apply text-sm font-bold text-[var(--text)]; }
+.copilot2-qidx-cnt { @apply text-[11px] tabular-nums text-[var(--text-dim)]; }
+/*   목록 높이 — 사용량 카드(약 380px) 아래에 놓여도 **상자 안에서 끝나야** 한다.
+     64(256px)로 두면 카드 아래가 상자 밖으로 삐져나갔다(실측). 52(208px) = 대여섯 줄 + 자체 스크롤. */
+.copilot2-qidx-list { @apply flex flex-col gap-0.5 max-h-52 overflow-y-auto -mx-1 px-1; }
+.copilot2-qidx-item { @apply flex items-start gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-[var(--bg-surface)]; }
+.copilot2-qidx-no { @apply shrink-0 text-[10px] tabular-nums text-[var(--text-dim)] pt-0.5; }
+.copilot2-qidx-txt { @apply min-w-0 flex-1 text-[11.5px] leading-snug text-[var(--text-muted)] line-clamp-2; }
+/* 목차에서 눌러 찾아간 질문 — 어디로 갔는지 눈으로 확인되게 잠깐 테를 두른다 */
+.copilot2-bubble-hit { @apply ring-2 ring-offset-2 ring-[var(--primary)] ring-offset-[var(--bg)]; }
 /* Empty */
 .copilot2-empty { @apply text-center py-10 text-[var(--text-muted)]; animation: copilot2-fadeup .4s ease both; }
 .copilot2-empty-icon { @apply text-3xl mb-2 text-[var(--primary)]; }

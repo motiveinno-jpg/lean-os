@@ -126,8 +126,13 @@ export default function CopilotPage() {
   const [attachments, setAttachments] = useState<CopilotAttachment[]>([]);
   const [attaching, setAttaching] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  //   목차에서 눌러 찾아간 질문 — 잠깐 테를 둘러 어디로 갔는지 보이게 한다 (2026-08-24)
+  const [hitIdx, setHitIdx] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  //   ⚠️ 예전엔 `order(asc).limit(50)` 이라 **가장 오래된 50건**을 받아 왔다("최근"이라 적혀 있었지만).
+  //     지금 35건이라 아직 안 물렸지만 51건이 되는 순간 **새로 물어본 대화가 화면에 안 나온다.**
+  //     내림차순으로 최근 것을 받고, 화면에 그릴 때 다시 시간순으로 뒤집는다. (2026-08-24)
   // 페이지 진입 시 DB에서 대화 기록 로드 (최근 MAX_HISTORY건)
   useEffect(() => {
     if (!companyId || historyLoaded) return;
@@ -135,14 +140,14 @@ export default function CopilotPage() {
       const { data, error: loadErr } = await supabase
         .from("ai_copilot_history")
         .select("query, answer, as_of, model, created_at")
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(MAX_HISTORY);
       
       if (loadErr) {
         console.error("[copilot] 로드 실패:", loadErr);
       } else if (data && data.length > 0) {
         const loaded: AiMsg[] = [];
-        for (const row of data) {
+        for (const row of [...data].reverse()) {   // 최근 것부터 받았으니 시간순으로 되돌린다
           loaded.push({ role: "user", text: row.query });
           const ans = row.answer as Answer | null;
           if (ans) {
@@ -197,6 +202,17 @@ export default function CopilotPage() {
   }, [loading]);
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages, loading]);
+  //   목차 → 그 질문으로 이동. 대화 칸(.copilot2-conv)이 스크롤러라 그 안에서 움직인다.
+  const jumpTo = (i: number) => {
+    const el = document.getElementById(`copilot-q-${i}`);
+    if (!el) return;
+    //   ★ 부드럽게(smooth) 하지 않는다 — 대화가 길면 스크롤 높이가 28,000px 을 넘어
+    //     애니메이션이 몇 초씩 흐르고 그동안 화면이 흔들린다(실측). 바로 앉히고, 어디 앉았는지는
+    //     아래 테두리(copilot2-bubble-hit)로 알려 준다.
+    el.scrollIntoView({ block: "center" });
+    setHitIdx(i);
+    window.setTimeout(() => setHitIdx((v) => (v === i ? null : v)), 1600);
+  };
 
   // 특정 AI 메시지(인덱스)의 액션 상태만 갱신
   const setActionState = useCallback((idx: number, state: ActionState, result?: string) => {
@@ -530,8 +546,8 @@ export default function CopilotPage() {
               )}
               {messages.map((m, i) =>
                 m.role === "user" ? (
-                  <div key={i} className="copilot2-msg-user">
-                    <div className="copilot2-bubble-user">
+                  <div key={i} id={`copilot-q-${i}`} className="copilot2-msg-user">
+                    <div className={`copilot2-bubble-user ${hitIdx === i ? "copilot2-bubble-hit" : ""}`}>
                       {m.attachments && m.attachments.length > 0 && (
                         <div className="copilot2-msg-files">
                           {m.attachments.map((file) => (
@@ -630,6 +646,9 @@ export default function CopilotPage() {
           {/* 우: 토큰 사용량 */}
           <aside className="copilot2-side">
             <TokenCard usage={usage} pct={pct} gaugeTone={gaugeTone} estQuestions={estQuestions} />
+            {/*   물어본 질문 목차 (2026-08-24 사장님 지시) — 대화가 길어지면 한참 올려야 찾던 것을
+                  여기서 눌러 바로 간다. 질문이 없으면 그리지 않는다(빈 상자 금지). */}
+            <QuestionIndex messages={messages} onJump={jumpTo} />
           </aside>
         </div>
       )}
@@ -986,6 +1005,31 @@ function LoadingCard({ stage, progress }: { stage: number; progress: number }) {
       <div className="copilot2-skel copilot2-skel-lg" />
       <div className="copilot2-skel" />
       <div className="copilot2-skel copilot2-skel-sm" />
+    </div>
+  );
+}
+
+/** 물어본 질문 목차 — **최신이 위**. 방금 물어본 것을 다시 찾는 일이 가장 많다. */
+function QuestionIndex({ messages, onJump }: { messages: AiMsg[]; onJump: (i: number) => void }) {
+  const items = messages
+    .map((m, i) => (m.role === "user" ? { i, text: m.text } : null))
+    .filter((v): v is { i: number; text: string } => !!v);
+  if (items.length === 0) return null;
+  return (
+    <div className="copilot2-qidx">
+      <div className="copilot2-qidx-head">
+        <span className="copilot2-qidx-title">물어본 질문</span>
+        <span className="copilot2-qidx-cnt">{items.length}개</span>
+      </div>
+      <div className="copilot2-qidx-list">
+        {[...items].reverse().map((it, n) => (
+          <button key={it.i} type="button" className="copilot2-qidx-item"
+            onClick={() => onJump(it.i)} title="이 질문으로 이동">
+            <span className="copilot2-qidx-no">{items.length - n}</span>
+            <span className="copilot2-qidx-txt">{it.text}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
