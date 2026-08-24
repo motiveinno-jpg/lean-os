@@ -232,7 +232,7 @@ export default function TeamPage() {
               <div className="space-y-5">
                 {cardGroups.map((g) => (
                   <div key={g.department}>
-                    <div className="flex items-baseline gap-2 mb-2">
+                    <div className="team-cards-head">
                       <h3 className="text-sm font-bold text-[var(--text)]">{g.department}</h3>
                       <span className="text-[11px] text-[var(--text-dim)] mono-number">{g.list.length}명</span>
                     </div>
