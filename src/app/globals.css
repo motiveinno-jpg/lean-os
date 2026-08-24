@@ -3792,6 +3792,9 @@ table.bs-t-table { min-width: 360px; }
 .stg-table-wrap { @apply overflow-x-auto; }
 /* 수동 등록 계좌 표 — 설정 상자 안이라 최소 폭을 낮게 잡는다 */
 table.table-bank-manual { min-width: 640px; }
+/* 제목 옆 요약 — 목록을 접어 둔 채로도 "몇 개·얼마"는 보이게 (2026-08-24) */
+.bank-manual-sum { @apply ml-2 text-[11.5px] font-normal text-[var(--text-dim)]; }
+.bank-manual-sum b { @apply font-bold text-[var(--text-muted)]; }
 .approval-policy-tab { @apply space-y-6; }
 .approval-policy-list-card { @apply p-6; }
 .approval-policy-settings-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-4; }

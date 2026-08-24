@@ -865,6 +865,10 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
   }
 
   const [rangeProgress, setRangeProgress] = useState<string>('');
+  //   직접 적어 넣은 통장 — **기본은 접어 둔다** (2026-08-24 사장님: "표가 너무 커서 정리가 필요하다").
+  //   여기서 고칠 수 있는 것이 없다(추가·수정은 회계·세무 › 자금·통장). 이 탭에서 알아야 할 것은
+  //   "연동 밖 계좌가 몇 개고 잔고가 얼마나 합산되나" 한 줄이라 그것만 펴 둔다.
+  const [showManual, setShowManual] = useState(false);
 
   // 사용자가 명시한 기간으로 다시 sync — 3개월씩 분할 sequential 호출 (HTTP 546 timeout 회피)
   async function handleRangeSync() {
@@ -1161,21 +1165,33 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
 
       {/* 수동 등록 계좌 */}
       <div className="bank-integration-manual-accounts stg-sec">
-        <div className="stg-sec-head mb-4">
+        <div className="stg-sec-head mb-3">
           <div>
-            <h2 className="stg-sec-title">직접 적어 넣은 통장</h2>
+            <h2 className="stg-sec-title">
+              직접 적어 넣은 통장
+              {bankAccounts.length > 0 && (
+                <span className="bank-manual-sum">
+                  {bankAccounts.length}개 · 합계 <b className="mono-number">₩{bankAccounts.reduce((n, a) => n + Number(a.balance || 0), 0).toLocaleString()}</b>
+                </span>
+              )}
+            </h2>
             {/*   위 '자동 수집 연결'과 무엇이 다른지 여기서 말한다 (2026-08-24 사장님 지적) */}
             <p className="stg-sec-desc">
               연동 밖의 계좌입니다 — 거래는 들어오지 않고 <b>잔고만</b> 대시보드 합계에 더해집니다.
               추가·수정은 회계·세무 › 자금·통장에서 합니다.
             </p>
           </div>
+          {bankAccounts.length > 0 && (
+            <button type="button" className="btn-secondary btn-sm shrink-0" onClick={() => setShowManual((v) => !v)}>
+              {showManual ? "접기" : `목록 보기 (${bankAccounts.length})`}
+            </button>
+          )}
         </div>
         {/*   목록은 표로 (2026-08-24 정리) — 예전엔 계좌마다 큰 카드 줄이라 여덟 개만 되어도
               화면 절반을 먹었다. 조회 화면 표준: 목록이 있는 곳은 표(머리단 가운데·숫자 오른쪽). */}
         {bankAccounts.length === 0 ? (
           <div className="collect-empty">등록된 계좌가 없습니다 — 회계·세무 › 자금·통장에서 추가하세요.</div>
-        ) : (
+        ) : !showManual ? null : (
           <div className="stg-table-wrap">
             <table className="ev-table ev-lined table-bank-manual">
               <thead>
