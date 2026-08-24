@@ -3117,7 +3117,9 @@ table.bs-t-table { min-width: 360px; }
 .copilot2-grid { @apply grid gap-5; grid-template-columns: 1fr; }
 @media (min-width:900px){ .copilot2-grid { grid-template-columns: 1fr 320px; } }
 .copilot2-main { @apply flex flex-col gap-4 min-w-0; }
-.copilot2-side { @apply min-w-0; }
+/*   우측 칼럼은 항상 세로 흐름 — 카드 사이 여백은 **여기 gap 한 곳에서만** 준다.
+     카드에 mt 를 또 주면 겹쳐서 두 배가 된다(실측 36px). 좁은 화면에서도 같은 간격이 된다. */
+.copilot2-side { @apply flex flex-col gap-5 min-w-0; }
 .copilot2-conv { @apply flex flex-col gap-4 max-h-[52vh] overflow-y-auto pr-1; }
 /* ── AI 참모 화면 높이 (2026-08-24 사장님 지적: "처음 들어갔을 때 아래 입력창이 짤려 보임") ──
    예전엔 겉(.copilot2-scroll)이 통째로 스크롤이고 대화는 52vh 로 묶여 있었다. 그래서
@@ -3130,10 +3132,17 @@ table.bs-t-table { min-width: 360px; }
   .copilot2-scroll > .copilot2-grid { @apply h-full; min-height: 0; }
   .copilot2-main { min-height: 0; }
   .copilot2-conv { @apply flex-1; max-height: none; min-height: 0; }
-  .copilot2-side { @apply overflow-y-auto; min-height: 0; }
+  /*   우측 칼럼을 세로 흐름으로 — 카드 사이 여백(gap)을 여기서 주고, 아래에 숨통(pb)을 둔다.
+       ★ 목차 카드 아래 선이 잘려 보이던 이유: 카드가 스크롤 잘림선에 딱 붙으면 테두리 1px 이 먹힌다.
+       ★ 목차는 남은 높이를 그대로 채운다 — 208px 로 못박아 두면 화면이 짧을 땐 넘치고 길 땐 빈다. */
+  .copilot2-side { @apply overflow-y-auto pb-2; min-height: 0; }
+  .copilot2-qidx { @apply flex-1 flex flex-col; min-height: 0; }
+  /*   남은 높이를 채우되 **바닥은 있다** — 화면이 낮으면 flex 가 목록을 22px(한 줄)까지 눌러
+       목차 구실을 못 했다(700px 높이에서 실측). 최소 7rem 은 지키고, 그래도 모자라면 칼럼이 스크롤한다. */
+  .copilot2-qidx-list { @apply flex-1; max-height: none; min-height: 7rem; }
 }
 /* 물어본 질문 목차 — 사용량 카드 아래. 누르면 그 질문으로 이동한다 (2026-08-24 사장님 지시) */
-.copilot2-qidx { @apply mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
+.copilot2-qidx { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4; }
 .copilot2-qidx-head { @apply flex items-baseline justify-between gap-2 mb-2; }
 .copilot2-qidx-title { @apply text-sm font-bold text-[var(--text)]; }
 .copilot2-qidx-cnt { @apply text-[11px] tabular-nums text-[var(--text-dim)]; }
@@ -3265,7 +3274,11 @@ table.bs-t-table { min-width: 360px; }
 .copilot2-lock-title { @apply text-lg font-bold text-[var(--text)]; }
 .copilot2-lock-desc { @apply text-sm text-[var(--text-muted)] my-3; }
 /* Token card */
-.copilot2-token-card { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 sticky top-4; }
+/*   sticky top-4 → **top-0** (2026-08-24 사장님: "AI 토큰 사용량 위치를 더 올리고").
+     16px 오프셋 때문에 ①카드가 왼쪽 대화 상자보다 16px 내려앉고 ②밀려난 만큼 아래 목차의
+     위 여백을 먹어 **사이 여백이 0px 으로 보였다**(실측: 토큰 bottom 575 = 목차 top 575).
+     여백은 이제 우측 칼럼의 gap 이 준다. */
+.copilot2-token-card { @apply rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 sticky top-0; }
 .copilot2-token-head { @apply flex items-center justify-between mb-1; }
 .copilot2-token-title { @apply text-sm font-bold text-[var(--text)]; }
 .copilot2-live { @apply inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--success)]; }
