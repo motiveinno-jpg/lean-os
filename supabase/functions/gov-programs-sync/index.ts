@@ -201,6 +201,23 @@ serve(async (req: Request) => {
     wantProvider = b?.provider ? String(b.provider) : null;
   } catch { /* 본문 없이 불러도 된다 */ }
 
+  //   유저 트리거(비-cron)는 인증 필수 + 본인 회사로만 강제 (2026-08-24 보안:
+  //   무인증으로 임의 companyId 를 넘겨 남의 공공데이터 키를 소진·상태변조하던 경로 차단).
+  if (!isCron) {
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) return json(401, { ok: false, message: "인증이 필요합니다." });
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const { data: ud, error: ue } = await userClient.auth.getUser();
+    if (ue || !ud.user) return json(401, { ok: false, message: "인증이 필요합니다." });
+    const { data: profile } = await db.from("users").select("company_id").eq("auth_id", ud.user.id).maybeSingle();
+    if (!profile?.company_id) return json(403, { ok: false, message: "회사 정보를 찾을 수 없습니다." });
+    wantCompany = String(profile.company_id);  // body 의 companyId 는 무시 — 본인 회사로 강제
+  }
+
   // ── 쿨타임 — 사람이 연타해도 원천을 두 번 때리지 않는다 ──
   if (!isCron) {
     const since = new Date(Date.now() - COOLDOWN_MIN * 60_000).toISOString();

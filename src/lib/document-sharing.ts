@@ -39,19 +39,15 @@ export async function createDocumentShare(params: {
 // ── Get Share by Token (public) ──
 
 export async function getShareByToken(token: string) {
-  const { data, error } = await db
-    .from('document_shares')
-    .select('*, documents(*, companies(name, representative, address, phone, business_number, seal_url))')
-    .eq('share_token', token)
-    .eq('is_active', true)
-    .single();
+  // 2026-08-24 보안: 예전엔 anon 이 document_shares 를 직접 select 했는데, 그 정책(anon_read_active_shares)
+  //   이 is_active=true 인 전 회사 토큰을 열거할 수 있어 제거했다. 이제 토큰을 넘겨야만 그 한 건을 돌려주는
+  //   SECURITY DEFINER RPC 로 조회한다(/sign 의 get_signature_request_by_token 과 동일 패턴).
+  //   RPC 가 is_active·만료까지 확인해 유효한 것만 내려준다.
+  const { data, error } = await db.rpc('get_share_by_token', { p_token: token });
 
   if (error || !data) return null;
 
-  // Check expiration
-  if (data.expires_at && new Date(data.expires_at) < new Date()) return null;
-
-  return data;
+  return data as Record<string, any>;
 }
 
 // ── Record View ──

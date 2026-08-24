@@ -46,6 +46,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "update-role") {
+      // 역할 변경은 파괴적 관리작업 — 마스터만 (2026-08-24 보안: /employees 권한 위임자의 owner 자가승격 차단).
+      //   role in('owner','admin') 을 아직 게이트로 쓰는 라우트(stripe/cancel·contract-pdf·test-key)가 남아 있어
+      //   위임자가 자기 role 을 owner 로 올리면 그쪽까지 열리던 상승 경로를 닫는다.
+      if (!gate.caller.isMaster) {
+        return NextResponse.json({ error: "역할 변경은 마스터만 할 수 있습니다." }, { status: 403 });
+      }
+      if (userId === gate.caller.id) {
+        return NextResponse.json({ error: "본인의 역할은 변경할 수 없습니다." }, { status: 400 });
+      }
       if (!role || !["owner", "admin", "employee", "partner"].includes(role)) {
         return NextResponse.json({ error: "유효하지 않은 role" }, { status: 400 });
       }
@@ -90,6 +99,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "remove-from-company") {
+      // 회사 제외도 파괴적 — 마스터만, 본인 제외 불가 (2026-08-24 보안).
+      if (!gate.caller.isMaster) {
+        return NextResponse.json({ error: "회사 제외는 마스터만 할 수 있습니다." }, { status: 403 });
+      }
+      if (userId === gate.caller.id) {
+        return NextResponse.json({ error: "본인은 회사에서 제외할 수 없습니다." }, { status: 400 });
+      }
       if (targetUser.role === "owner") {
         const { count } = await admin.from("users")
           .select("id", { count: "exact", head: true })

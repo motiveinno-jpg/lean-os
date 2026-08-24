@@ -15786,6 +15786,10 @@ export type Database = {
         Args: { p_sign_token: string }
         Returns: Json
       }
+      get_share_by_token: {
+        Args: { p_token: string }
+        Returns: Json
+      }
       get_signature_request_by_token: {
         Args: { p_token: string }
         Returns: Json

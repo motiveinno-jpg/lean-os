@@ -15,9 +15,10 @@ const STATUS_MAP: Record<string, string> = {
   "email.delivery_delayed": "delayed",
 };
 
-// Svix(=Resend) 서명 검증. 시크릿 미설정 시 검증 생략(설정 전 임시 동작).
+// Svix(=Resend) 서명 검증. 시크릿 미설정 시 fail-closed (2026-08-24 보안: 예전엔 미설정 시
+//   검증을 생략(return true)해 아무나 delivery_status·send_failures 를 위조할 수 있었다).
 async function verifySignature(headers: Headers, body: string): Promise<boolean> {
-  if (!WEBHOOK_SECRET) return true;
+  if (!WEBHOOK_SECRET) return false;
   const id = headers.get("svix-id");
   const ts = headers.get("svix-timestamp");
   const sigHeader = headers.get("svix-signature");

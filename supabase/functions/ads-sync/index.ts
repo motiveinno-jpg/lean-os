@@ -184,8 +184,47 @@ serve(withSentry("ads-sync", async (req: Request) => {
       ? body.days.filter((d: unknown) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 92)
       : undefined;
 
+    //   인증·회사 스코프 (2026-08-24 보안: 무인증 전-테넌트 호출 차단).
+    //     cron/service_role → 전 계정 스윕(기존 자동수집 그대로). 유저 JWT → 본인 회사 계정만.
+    //     판별 방식은 codef-sync·auto-match-payments 와 동일(service_role 헤더 매칭 / x-cron-key).
+    const authHeader = req.headers.get("Authorization") || "";
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+    const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
+    const isInternal = (!!SERVICE_ROLE && authHeader.includes(SERVICE_ROLE))
+      || (!!CRON_SECRET && req.headers.get("x-cron-secret") === CRON_SECRET);
+
+    let scopeCompanyId: string | null = null;
+    if (!isInternal) {
+      if (!authHeader.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ ok: false, error: "인증이 필요합니다." }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: ud, error: ue } = await userClient.auth.getUser();
+      if (ue || !ud.user) {
+        return new Response(JSON.stringify({ ok: false, error: "인증이 필요합니다." }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      //   신원 대조는 auth_id 로만 (2026-08-19)
+      const { data: profile } = await admin.from("users")
+        .select("company_id").eq("auth_id", ud.user.id).maybeSingle();
+      if (!profile?.company_id) {
+        return new Response(JSON.stringify({ ok: false, error: "회사 정보를 찾을 수 없습니다." }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      scopeCompanyId = profile.company_id;
+    }
+
     let q = admin.from("ad_accounts").select("id, company_id, platform, label, external_id")
       .neq("status", "disabled");
+    //   유저 모드면 본인 회사로만 — 남의 accountId 를 줘도 여기서 걸러진다
+    if (scopeCompanyId) q = q.eq("company_id", scopeCompanyId);
     if (only) q = q.eq("id", only);
     const { data: accounts, error } = await q;
     if (error) throw new Error(error.message);

@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     const hireDate = body.hireDate || todayKst();
 
     // 3) 대상 회원 조회 — public.users 우선, 없으면 auth 에서
-    const targetRow = logRead('add-existing-employee/route:targetRow', await admin.from('users').select('id, name').ilike('email', email).maybeSingle());
+    const targetRow = logRead('add-existing-employee/route:targetRow', await admin.from('users').select('id, name, company_id').ilike('email', email).maybeSingle());
     let targetUserId: string | undefined = targetRow?.id;
     let targetName = inName || targetRow?.name || email.split('@')[0];
 
@@ -54,6 +54,13 @@ export async function POST(req: NextRequest) {
     // 4) 본인은 추가 불가
     if (targetUserId === callerRow.id) {
       return NextResponse.json({ error: '본인은 직원으로 추가할 수 없습니다.' }, { status: 400 });
+    }
+
+    // 4-1) 이미 다른 회사에 소속된 회원은 뜯어올 수 없다 (2026-08-24 보안: 크로스 테넌트 탈취 차단).
+    //   quick-add 와 동일 가드. company_id 가 null(회사 없음)이거나 우리 회사면 통과 —
+    //   소속 이동은 초대 수락과 같은 정당한 흐름이지만, 남의 회사 소속을 몰래 편입하는 것은 막는다.
+    if (targetRow?.company_id && targetRow.company_id !== companyId) {
+      return NextResponse.json({ error: '이미 다른 회사에 소속된 사용자입니다.' }, { status: 409 });
     }
 
     // 5) 이미 이 회사 직원인지 확인

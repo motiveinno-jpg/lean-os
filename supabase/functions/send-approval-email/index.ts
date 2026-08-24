@@ -39,22 +39,72 @@ const ACTION_TYPE_LABELS: Record<string, string> = {
   leave: '휴가', signature: '서명', cost: '비용', approval: '결재',
 };
 
-// 호출자 사용자 JWT 검증 — anon 키만으로는 통과 못 함(오픈 이메일 릴레이 차단).
-async function verifyUser(req: Request): Promise<boolean> {
+// 호출자 사용자 JWT 검증 — anon 키만으로는 통과 못 함. 통과 시 auth uid 반환.
+async function verifyUser(req: Request): Promise<string | null> {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   const url = Deno.env.get("SUPABASE_URL");
   const anon = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!token || !url || !anon) return false;
+  if (!token || !url || !anon) return null;
   try {
     const res = await tfetch(`${url}/auth/v1/user`, {
       headers: { Authorization: `Bearer ${token}`, apikey: anon },
     });
-    if (!res.ok) return false;
+    if (!res.ok) return null;
     const u = await res.json();
-    return !!u?.id;
+    return u?.id ? String(u.id) : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+// 오픈 릴레이 차단 (2026-08-24 보안): verifyUser 는 '유효한 로그인'만 봤을 뿐 수신자를 payload.email 로
+//   그대로 믿어, 로그인한 누구나 인증도메인(noreply@owner-view.com)으로 임의 주소에 발송할 수 있었다.
+//   → 수신자가 호출자와 같은 회사 구성원인지 service_role 로 확인한다.
+function restCtx(): { url: string; headers: Record<string, string> } | null {
+  const url = Deno.env.get("SUPABASE_URL");
+  const svc = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  return url && svc ? { url, headers: { apikey: svc, Authorization: `Bearer ${svc}` } } : null;
+}
+
+async function callerCompany(authId: string): Promise<string | null> {
+  const r = restCtx(); if (!r) return null;
+  try {
+    const res = await tfetch(`${r.url}/rest/v1/users?select=company_id&auth_id=eq.${encodeURIComponent(authId)}`, { headers: r.headers });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return rows?.[0]?.company_id ? String(rows[0].company_id) : null;
+  } catch { return null; }
+}
+
+async function chiefNotifyAddress(company: string): Promise<string | null> {
+  const r = restCtx(); if (!r) return null;
+  try {
+    const res = await tfetch(`${r.url}/rest/v1/company_settings?select=settings&company_id=eq.${encodeURIComponent(company)}`, { headers: r.headers });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    const addr = rows?.[0]?.settings?.approval_notify_email;
+    return typeof addr === "string" && addr.includes("@") ? addr.trim() : null;
+  } catch { return null; }
+}
+
+async function recipientInCompany(company: string, opts: { authId?: string; email?: string }): Promise<boolean> {
+  const r = restCtx(); if (!r) return false;
+  const q = encodeURIComponent(company);
+  try {
+    if (opts.authId) {
+      const res = await tfetch(`${r.url}/rest/v1/users?select=id&company_id=eq.${q}&auth_id=eq.${encodeURIComponent(opts.authId)}`, { headers: r.headers });
+      return res.ok && ((await res.json())?.length ?? 0) > 0;
+    }
+    if (opts.email) {
+      const em = encodeURIComponent(opts.email.trim().toLowerCase());
+      const u = await tfetch(`${r.url}/rest/v1/users?select=id&company_id=eq.${q}&email=eq.${em}`, { headers: r.headers });
+      if (u.ok && ((await u.json())?.length ?? 0) > 0) return true;
+      const e = await tfetch(`${r.url}/rest/v1/employees?select=id&company_id=eq.${q}&email=eq.${em}`, { headers: r.headers });
+      if (e.ok && ((await e.json())?.length ?? 0) > 0) return true;
+      return false;
+    }
+    return false;
+  } catch { return false; }
 }
 
 // 수신 설정 조회 (service role) — 설정 > 알림에서 '결재 요청' 이메일을 끈 사람은 보내지 않는다.
@@ -215,7 +265,8 @@ Deno.serve(withSentry("send-approval-email", async (req: Request) => {
     });
   }
   try {
-    if (!(await verifyUser(req))) {
+    const callerAuthId = await verifyUser(req);
+    if (!callerAuthId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -227,6 +278,29 @@ Deno.serve(withSentry("send-approval-email", async (req: Request) => {
     }
     if (!payload.result && !payload.kind) {
       throw new Error("Missing required fields");
+    }
+    // 오픈 릴레이 차단 (2026-08-24 보안): 수신자는 호출자와 같은 회사 구성원이어야 한다.
+    const company = await callerCompany(callerAuthId);
+    if (!company) {
+      return new Response(JSON.stringify({ error: "회사 정보를 찾을 수 없습니다." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    //   chief_notice 는 회사설정의 '총책임자' 주소로 가므로(구성원이 아닐 수 있다) 그 주소와 일치만 허용.
+    //   그 외는 수신자가 호출자 회사의 구성원인지 확인한다.
+    let recipientOk: boolean;
+    if (String(payload.kind) === "chief_notice") {
+      const chief = await chiefNotifyAddress(company);
+      recipientOk = !!chief && chief.toLowerCase() === payload.email.trim().toLowerCase();
+    } else if (payload.recipientAuthId) {
+      recipientOk = await recipientInCompany(company, { authId: payload.recipientAuthId });
+    } else {
+      recipientOk = await recipientInCompany(company, { email: payload.email });
+    }
+    if (!recipientOk) {
+      return new Response(JSON.stringify({ error: "수신자가 회사 구성원이 아닙니다." }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
     // 요청 도착 메일만 수신 설정을 따른다(결과 통보는 요청자 본인에게 가는 것이라 종전대로).
     let toAddress = payload.email;
