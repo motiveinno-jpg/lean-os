@@ -58,6 +58,14 @@ export type SourceStatus = {
 /** 조회 기간 안의 자료별 현황. 화면 하나가 다섯 자료를 한 번에 읽는다.
  *  2026-08-11 — 조회 단위가 '월'에서 **기간(시작일~종료일)** 으로 바뀌었다.
  *  끝날은 그 날까지 포함해야 하므로 lte 로 건다(예전엔 다음 달 1일 미만이었다). */
+//   ★ '실제로 국세청에 있는 계산서'의 기준 (2026-08-24 사장님 지적: "수집은 실제 홈택스에서 발행된 건을
+//     불러오는 건데 저 부분은 실제로 존재하지 않는 전표입니다")
+//   국세청 승인번호(nts_confirm_no)가 있거나, 우리가 발행해 전송이 끝난(nts_issue_status='issued') 것.
+//   발행 전 초안·전송 실패 건은 홈택스에 없다 — 그걸로 전표를 만들면 **없는 매출이 장부에 선다.**
+//   ※ 새 기준을 만든 게 아니다. 세금·증빙 화면이 쓰는 판정(isSent)과 같은 규칙을 여기에도 적용한 것이다
+//     (tax-invoices/page.tsx: nts_issue_status === 'issued' || !!nts_confirm_no).
+export const ISSUED_AT_NTS = "nts_confirm_no.not.is.null,nts_issue_status.eq.issued";
+
 export async function fetchCollectStatus(companyId: string, from: string, to: string): Promise<Record<SourceKey, SourceStatus>> {
 
   //   ★ 건수는 **행을 세어서** 얻는다(count exact + head). 행을 다 받아 JS 로 세면
@@ -74,10 +82,12 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
         return supabase.from("tax_invoices").select(sel, opts as any)
           .eq("company_id", companyId).neq("status", "void")
           .or("tax_kind.is.null,tax_kind.neq.exempt")
+          .or(ISSUED_AT_NTS)
           .gte("issue_date", from).lte("issue_date", to);
       case "exempt_invoice":
         return supabase.from("tax_invoices").select(sel, opts as any)
           .eq("company_id", companyId).neq("status", "void").eq("tax_kind", "exempt")
+          .or(ISSUED_AT_NTS)
           .gte("issue_date", from).lte("issue_date", to);
       case "cash_receipt":
         return supabase.from("cash_receipts").select(sel, opts as any)

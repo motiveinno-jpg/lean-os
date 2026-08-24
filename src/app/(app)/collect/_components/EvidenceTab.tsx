@@ -26,6 +26,7 @@ import { PickList } from "@/components/pick-list";
 import { fetchMerchantKinds, fillMerchantKinds, type MerchantInfo } from "@/lib/merchant-tax-type";
 import { UNCLASSIFIED_CATEGORY } from "@/lib/card-vat-classification";
 import { cashReceiptSign } from "@/lib/cash-receipts";
+import { ISSUED_AT_NTS } from "@/lib/collect";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -213,6 +214,8 @@ export function EvidenceTab({
   const rows = fetched?.rows ?? [];
   //   자를 수밖에 없었을 때만 뜬다 — 조용히 자르면 '이게 전부'로 읽힌다
   const capped = fetched?.capped ?? false;
+  //   국세청에 없는 초안이라 빼 놓은 건수 (세금계산서·전자계산서에만 있다)
+  const hiddenDrafts = fetched?.hiddenDrafts ?? 0;
 
   //   학습된 규칙 — 2단계에서 전표를 되읽던 방식을 표로 올렸다(4단계).
   //   거래처가 없는 자료(카드 가맹점·현금영수증 상호)도 이제 배운다.
@@ -925,6 +928,10 @@ export function EvidenceTab({
         <Stat label="부가세" value={won(sumVat)} />
         {/*   ★ 잘렸으면 반드시 말한다 — 조용히 500건만 보여 주면 '이게 전부'로 읽힌다 */}
         {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
+        {/*   감춘 것은 말한다 — 여기는 '홈택스에 있는 자료'만 다룬다(2026-08-24 사장님 지적) */}
+        {hiddenDrafts > 0 && (
+          <span className="ev-draft-note">발행 전 초안 {won(hiddenDrafts)}건은 빼고 보여줍니다 — 국세청에 아직 없는 건이라 전표로 만들 수 없습니다. 세금·증빙에서 발행하면 여기에 나타납니다.</span>
+        )}
       </ResultStrip>
       </QueryHead>
 
@@ -1148,7 +1155,7 @@ async function attachVoucherNo(rows: Row[], entryIds: (string | null)[]): Promis
 }
 
 // ── 자료별 읽기 ───────────────────────────────────────────────────────────
-async function fetchRows(companyId: string, from: string, to: string, kind: SourceKey): Promise<{ rows: Row[]; capped: boolean }> {
+async function fetchRows(companyId: string, from: string, to: string, kind: SourceKey): Promise<{ rows: Row[]; capped: boolean; hiddenDrafts?: number }> {
   const settle = SETTLE_BY_KIND[kind] ?? "credit";
 
   if (kind === "card") {
@@ -1203,14 +1210,28 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
   }
 
   //   세금계산서 / 전자계산서 — 같은 표(tax_invoices)에 tax_kind 로 갈린다
+  //   ★ **국세청에 실제로 있는 것만** 가져온다 (2026-08-24 사장님 지적).
+  //     수집 화면은 '홈택스에서 받아온 자료'를 다루는 곳인데, 앱에서 만들고 아직 발행하지 않은
+  //     초안(source='manual' · 승인번호 없음)까지 섞여 나왔다. 그걸로 전표를 만들면 **없는 매출이 장부에 선다.**
+  //     기준은 세금·증빙 화면이 쓰는 판정(isSent)과 같은 것이다 — lib/collect.ts ISSUED_AT_NTS.
   const got = await fetchAllPages<any>((a, b) => {
     const q = supabase.from("tax_invoices")
       .select("id, type, issue_date, counterparty_name, counterparty_bizno, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
       .eq("company_id", companyId).neq("status", "void")
+      .or(ISSUED_AT_NTS)
       .gte("issue_date", from).lte("issue_date", to)
       .order("issue_date").range(a, b);
     return kind === "exempt_invoice" ? q.eq("tax_kind", "exempt") : q.neq("tax_kind", "exempt");
   });
+  //   빼 놓은 초안이 몇 건인지 **화면에 적는다** — 조용히 감추면 "내가 만든 게 어디 갔지"가 된다.
+  //   (세금·증빙에서 발행하면 승인번호가 붙어 여기에 나타난다)
+  const draftQ = supabase.from("tax_invoices")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId).neq("status", "void")
+    .is("nts_confirm_no", null).neq("nts_issue_status", "issued")
+    .gte("issue_date", from).lte("issue_date", to);
+  const { count: hiddenDrafts } = await (kind === "exempt_invoice"
+    ? draftQ.eq("tax_kind", "exempt") : draftQ.neq("tax_kind", "exempt"));
   const src = got.rows;
   const built = src.map((r) => {
     const direction = (r.type === "sales" || r.type === "매출") ? "sale" : "purchase";
@@ -1226,5 +1247,5 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
       settle, posted: !!r.journal_entry_id, voucherNo: null,
     } as Row;
   });
-  return { rows: await attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null)), capped: got.capped };
+  return { rows: await attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null)), capped: got.capped, hiddenDrafts: hiddenDrafts ?? 0 };
 }

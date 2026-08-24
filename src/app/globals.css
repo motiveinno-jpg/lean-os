@@ -8429,6 +8429,8 @@ tr:hover .pb-open, .pb-card:hover .pb-open { @apply opacity-100; }
   .drf-cal { @apply w-full; }
 }
 .ev-cut { @apply font-bold text-[var(--warning)]; }
+/* 수집에서 빼 놓은 '발행 전 초안' 안내 — 경고가 아니라 사실 알림이라 톤을 낮춘다 (2026-08-24) */
+.ev-draft-note { @apply text-[11.5px] leading-snug text-[var(--text-dim)]; }
 /* 조회기간 — 월 단위 모드 (두 해 × 12개월) */
 .drf-cal-y { @apply w-[188px]; }
 .drf-months { @apply grid grid-cols-3 gap-1; }
