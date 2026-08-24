@@ -158,7 +158,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "bank", label: "은행연동" },
         { key: "ads", label: "광고 계정" },
         // 보안·시스템 (/settings/system) — 회사 삭제는 마스터 전용이라 부여 대상이 아니다
-        { key: "security", label: "보안·알림" },
+        //   2026-08-24 '보안·알림' → '접속 보안' (결재 총괄 알림 삭제). 부여 키(security)는 그대로다.
+        { key: "security", label: "접속 보안" },
       ] },
       { route: "/billing", label: "요금제·결제", money: true },
     ],

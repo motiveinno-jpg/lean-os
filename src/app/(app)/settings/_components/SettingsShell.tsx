@@ -25,7 +25,7 @@ import { DepartmentsTab } from "./DepartmentsTab";
 import { FormTemplateManager } from "@/components/form-template-manager";
 import { DealClassificationManager } from "./DealClassificationManager";
 import { CompanyDeleteTab } from "./CompanyDeleteTab";
-import { CompanyInfoTab, TaxAdvisorSection, ApprovalNotifySection, IpRestrictionSection } from "./CompanyInfoTab";
+import { CompanyInfoTab, TaxAdvisorSection, IpRestrictionSection } from "./CompanyInfoTab";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AccountingClosingTab } from "./AccountingClosingTab";
 import { loadLinkedIntegrations, listApiKeys } from "@/lib/api-keys";
@@ -618,14 +618,13 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {/* ═══ 회사정보 ═══ */}
         {tab === "company-info" && <CompanyInfoTab companyId={companyId} />}
 
-        {/* 세무 파트너 · 보안·알림 — 회사정보에서 떼어 낸 것들 (2026-08-21) */}
+        {/* 세무 파트너 · 접속 보안 — 회사정보에서 떼어 낸 것들 (2026-08-21) */}
         {tab === "tax-partner" && <TaxAdvisorSection />}
-        {tab === "security" && (
-          <div className="space-y-5">
-            <IpRestrictionSection companyId={companyId} />
-            <ApprovalNotifySection companyId={companyId} />
-          </div>
-        )}
+        {/*   '결재 상신 알림(총괄 수신)'은 2026-08-24 삭제했다 — 사장님:
+              "결재는 참조·결재자한테만 알람이 가면 되는 건데, 직원 100명이면 100명이 올리는 상신
+               알람을 다 받을 것인가? 쓸데없는 메뉴·기능이다."
+              맞는 말이다. 결재 알림은 그 건의 결재자·참조자에게만 간다(그 경로는 그대로 둔다). */}
+        {tab === "security" && <IpRestrictionSection companyId={companyId} />}
 
         {/* ═══ 구성원·초대 — 초대·합류 승인 + 부서 (2026-08-13 통합) ═══ */}
         {tab === "team" && (

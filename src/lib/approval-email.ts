@@ -89,24 +89,11 @@ export async function sendApprovalMails(params: {
       if (await sendOne(r.email!, r.name || '', r.auth_id || undefined)) ok++;
     }
 
-    // 총괄 알림 (2026-08-13 사장님) — 상신(requested)일 때만, 회사설정 > 회사정보의
-    //   '결재 상신 알림 — 총책임자' 주소로 1통 추가. 승인자에게 이미 간 주소면 중복 발송 안 함.
-    if (params.kind === 'requested') {
-      try {
-        const { data: me } = await db.from('users').select('company_id').eq('auth_id', session.user.id).maybeSingle();
-        if (me?.company_id) {
-          const { data: cs } = await db.from('company_settings').select('settings').eq('company_id', me.company_id).maybeSingle();
-          const chief = String((cs?.settings as any)?.approval_notify_email || '').trim();
-          const alreadySent = new Set(recipients.map((r) => (r.email || '').toLowerCase()));
-          if (chief.includes('@') && !alreadySent.has(chief.toLowerCase())) {
-            // kind='chief_notice' — 수신자가 결재자가 아니므로 메일 문구·버튼이 '확인하러 가기'로 감
-            if (await sendOne(chief, '', undefined, '결재 상신 통보', 'chief_notice')) ok++;
-          }
-        }
-      } catch {
-        // 총괄 알림 실패도 결재 흐름·승인자 발송에 영향 없음
-      }
-    }
+    //   '총괄 알림'(회사설정에 적은 한 주소로 모든 상신을 1통 더 보내기)은 2026-08-24 삭제했다.
+    //   사장님: "결재는 참조·결재자한테만 가면 된다. 직원 100명이면 100명이 올리는 상신 알람을
+    //   다 받을 것인가 — 쓸데없는 기능이다." 위 recipients(결재자·참조자)만 남긴다.
+    //   company_settings.settings.approval_notify_email 은 이제 **아무도 읽지 않는다**
+    //   (값이 남아 있어도 무해 — 지우는 것은 사장님 판단).
     return ok;
   } catch {
     return 0;
