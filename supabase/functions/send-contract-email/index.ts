@@ -4,7 +4,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
-const FROM_EMAIL = 'OwnerView <noreply@owner-view.com>';
+const FROM_EMAIL = '오너뷰 <noreply@owner-view.com>';
 const APP_URL = Deno.env.get('PUBLIC_APP_URL') || 'https://www.owner-view.com';
 
 Deno.serve(withSentry("send-contract-email", async (req: Request) => {
@@ -95,7 +95,7 @@ Deno.serve(withSentry("send-contract-email", async (req: Request) => {
       </p>
     </div>
     <div style="background: #f9fafb; padding: 20px 32px; text-align: center; border-top: 1px solid #e5e7eb;">
-      <p style="margin: 0; font-size: 12px; color: #9ca3af;">OwnerView에서 자동 발송된 이메일입니다.</p>
+      <p style="margin: 0; font-size: 12px; color: #9ca3af;">오너뷰에서 자동 발송된 이메일입니다.</p>
     </div>
   </div>
 </body>
@@ -110,7 +110,7 @@ Deno.serve(withSentry("send-contract-email", async (req: Request) => {
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: [to],
-        subject: `[${companyName || 'OwnerView'}] ${packageTitle || '계약서'} 서명 요청`,
+        subject: `[${companyName || '오너뷰'}] ${packageTitle || '계약서'} 서명 요청`,
         html,
       }),
     });

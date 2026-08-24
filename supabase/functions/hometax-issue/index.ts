@@ -632,7 +632,7 @@ serve(withSentry("hometax-issue", async (req) => {
             method: "POST",
             headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
             body: JSON.stringify({
-              from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+              from: Deno.env.get("RESEND_FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>",
               to: [notifyEmail],
               subject: `[오너뷰] 세금계산서 발행 완료 — ${partner?.name || "거래처"} · ${won(invoice.total_amount)}`,
               html: [

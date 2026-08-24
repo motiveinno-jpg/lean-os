@@ -73,7 +73,7 @@ serve(withSentry("send-payslip-email", async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+        from: Deno.env.get("RESEND_FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>",
         to: [data.email],
         subject: `[${data.companyName}] ${data.monthLabel} 급여명세서`,
         html,

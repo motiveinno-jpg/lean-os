@@ -31,7 +31,7 @@ serve(withSentry("send-share-email", async (req) => {
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
       <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-        <h1 style="margin:0;font-size:20px">${companyName || "OwnerView"}</h1>
+        <h1 style="margin:0;font-size:20px">${companyName || "오너뷰"}</h1>
         <p style="margin:8px 0 0;opacity:0.8;font-size:14px">문서가 공유되었습니다</p>
       </div>
       <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
@@ -54,9 +54,9 @@ serve(withSentry("send-share-email", async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+        from: Deno.env.get("RESEND_FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>",
         to: [email],
-        subject: `[${companyName || "OwnerView"}] ${sharedBy || "동료"}님이 "${documentName}" 문서를 공유했습니다`,
+        subject: `[${companyName || "오너뷰"}] ${sharedBy || "동료"}님이 "${documentName}" 문서를 공유했습니다`,
         html,
       }),
     });

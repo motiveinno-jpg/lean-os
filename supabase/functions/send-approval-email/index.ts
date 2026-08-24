@@ -4,7 +4,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 // 2026-07-06 보안감사 P0: 하드코딩 Resend 키 제거 — env 로만. (노출된 키는 사장님이 Resend 대시보드에서 로테이션 필요)
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "OwnerView <noreply@owner-view.com>";
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -104,7 +104,7 @@ function buildEmailHtml(p: ApprovalPayload): string {
   <tr><td align="center">
     <table width="100%" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
       <tr><td style="background:#0F172A;padding:28px 32px;text-align:center">
-        <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:1px">OwnerView</span>
+        <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:1px">오너뷰</span>
       </td></tr>
       <tr><td style="padding:32px">
         <h2 style="margin:0 0 8px;font-size:20px;color:#1a1a2e">${greeting},</h2>
@@ -120,16 +120,16 @@ function buildEmailHtml(p: ApprovalPayload): string {
         </div>
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr><td align="center" style="padding:8px 0 24px">
-            <a href="${dashUrl}" target="_blank" style="display:inline-block;padding:14px 40px;background:#2563EB;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:10px">OwnerView에서 확인하기</a>
+            <a href="${dashUrl}" target="_blank" style="display:inline-block;padding:14px 40px;background:#2563EB;color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;border-radius:10px">오너뷰에서 확인하기</a>
           </td></tr>
         </table>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
         <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5">
-          본 이메일은 OwnerView에서 자동 발송되었습니다.
+          본 이메일은 오너뷰에서 자동 발송되었습니다.
         </p>
       </td></tr>
     </table>
-    <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;text-align:center">&copy; 2026 OwnerView by MOTIVE INNOVATION</p>
+    <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;text-align:center">&copy; 2026 오너뷰 by MOTIVE INNOVATION</p>
   </td></tr>
 </table>
 </body>
@@ -172,7 +172,7 @@ function buildRequestEmailHtml(p: ApprovalPayload): string {
   <tr><td align="center">
     <table width="100%" style="max-width:520px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
       <tr><td style="background:#0F172A;padding:28px 32px;text-align:center">
-        <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:1px">OwnerView</span>
+        <span style="color:#ffffff;font-size:18px;font-weight:700;letter-spacing:1px">오너뷰</span>
       </td></tr>
       <tr><td style="padding:32px">
         <h2 style="margin:0 0 8px;font-size:20px;color:#1a1a2e">${greeting},</h2>
@@ -191,14 +191,14 @@ function buildRequestEmailHtml(p: ApprovalPayload): string {
         </table>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
         <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.5">
-          본 이메일은 OwnerView에서 자동 발송되었습니다.<br>
+          본 이메일은 오너뷰에서 자동 발송되었습니다.<br>
           ${isChief
             ? "이 알림은 회사 설정 &gt; 회사정보 &gt; '결재 상신 알림 — 총책임자' 주소로 발송되었습니다. 주소를 비우면 더 이상 발송되지 않습니다."
             : `받고 싶지 않으시면 설정 &gt; 알림에서 '${isReference ? '결재 참조' : '결재 요청'}' 이메일을 끄실 수 있습니다.`}
         </p>
       </td></tr>
     </table>
-    <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;text-align:center">&copy; 2026 OwnerView by MOTIVE INNOVATION</p>
+    <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;text-align:center">&copy; 2026 오너뷰 by MOTIVE INNOVATION</p>
   </td></tr>
 </table>
 </body>
@@ -243,8 +243,8 @@ Deno.serve(withSentry("send-approval-email", async (req: Request) => {
     // kind 가 오면 '요청 도착' 메일, 아니면 종전 '결과 통보' 메일 (기존 호출부 무변경)
     const html = payload.kind ? buildRequestEmailHtml(payload) : buildEmailHtml(payload);
     const subject = payload.kind
-      ? `[OwnerView] ${payload.kindLabel || '결재 요청'}: ${payload.actionTitle}`
-      : `[OwnerView] ${typeLabel} ${payload.result === 'approved' ? '승인' : '반려'}: ${payload.actionTitle}`;
+      ? `[오너뷰] ${payload.kindLabel || '결재 요청'}: ${payload.actionTitle}`
+      : `[오너뷰] ${typeLabel} ${payload.result === 'approved' ? '승인' : '반려'}: ${payload.actionTitle}`;
     const res = await tfetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },

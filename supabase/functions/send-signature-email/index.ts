@@ -98,7 +98,7 @@ function buildSignatureHtml(p: {
 }): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
     <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-      <h1 style="margin:0;font-size:20px">${htmlEscape(p.companyName || "OwnerView")}</h1>
+      <h1 style="margin:0;font-size:20px">${htmlEscape(p.companyName || "오너뷰")}</h1>
       <p style="margin:8px 0 0;opacity:0.8;font-size:14px">전자서명 요청</p>
     </div>
     <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
@@ -166,7 +166,7 @@ function buildQuoteHtml(p: {
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
     <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-      <h1 style="margin:0;font-size:20px">${htmlEscape(p.companyName || "OwnerView")}</h1>
+      <h1 style="margin:0;font-size:20px">${htmlEscape(p.companyName || "오너뷰")}</h1>
       ${repLine}
       <p style="margin:10px 0 0;opacity:0.9;font-size:14px">${stageLabel} 확인 요청</p>
     </div>
@@ -198,7 +198,7 @@ function buildText(p: {
   signUrl: string; expiryText: string; companyName?: string; amount?: number;
 }): string {
   const who = p.signerName || "담당자";
-  const company = p.companyName || "OwnerView";
+  const company = p.companyName || "오너뷰";
   const lines: string[] = [];
   lines.push(`안녕하세요 ${who}님,`);
   lines.push("");
@@ -216,7 +216,7 @@ function buildText(p: {
   lines.push(p.signUrl);
   lines.push("");
   lines.push("기한이 지나면 링크가 만료됩니다.");
-  lines.push("본 메일은 OwnerView 에서 자동 발송되었습니다.");
+  lines.push("본 메일은 오너뷰 에서 자동 발송되었습니다.");
   return lines.join("\n");
 }
 
@@ -249,8 +249,8 @@ serve(withSentry("send-signature-email", async (req) => {
       : buildSignatureHtml({ signerName, title, signUrl, expiryText, companyName });
 
     const subject = isQuote
-      ? `[${stageLabel}] ${companyName || "OwnerView"} → ${signerName || "담당자"}${amount ? ` (총 ${fmtKRW(amount)})` : ""} (유효 ~${expiryText})`
-      : `[${companyName || "OwnerView"}] "${title}" 전자서명 요청`;
+      ? `[${stageLabel}] ${companyName || "오너뷰"} → ${signerName || "담당자"}${amount ? ` (총 ${fmtKRW(amount)})` : ""} (유효 ~${expiryText})`
+      : `[${companyName || "오너뷰"}] "${title}" 전자서명 요청`;
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) {
@@ -267,7 +267,7 @@ serve(withSentry("send-signature-email", async (req) => {
     const replyToAddr = replyTo || Deno.env.get("RESEND_REPLY_TO") || undefined;
 
     const payload: Record<string, unknown> = {
-      from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>",
       to: [to],
       subject,
       html,

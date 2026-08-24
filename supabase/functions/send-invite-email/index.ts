@@ -38,7 +38,7 @@ serve(withSentry("send-invite-email", async (req) => {
     const displayRole = role === "partner" ? "파트너" : "멤버";
     const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     const displayName = esc(name || email.split("@")[0]);
-    const displayCompany = esc(companyName || "OwnerView");
+    const displayCompany = esc(companyName || "오너뷰");
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
       <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
@@ -78,7 +78,7 @@ serve(withSentry("send-invite-email", async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
       body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+        from: Deno.env.get("RESEND_FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>",
         to: [email],
         subject: `[${displayCompany}] ${displayName}님, 팀에 초대합니다`,
         html,

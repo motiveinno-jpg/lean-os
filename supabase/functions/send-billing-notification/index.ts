@@ -81,7 +81,7 @@ serve(withSentry("send-billing-notification", async (req) => {
 
     // ── 메일 구성 ──
     const label = TYPE_LABEL[notificationType];
-    const subject = `[OwnerView 결제] ${TYPE_SUBJECT[notificationType]} — ${p.company_name || "회사"}`;
+    const subject = `[오너뷰 결제] ${TYPE_SUBJECT[notificationType]} — ${p.company_name || "회사"}`;
     const rows: [string, string][] = [
       ["결제 유형", label],
       ["회사명", String(p.company_name || "-")],
@@ -99,7 +99,7 @@ serve(withSentry("send-billing-notification", async (req) => {
     ];
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#1a1613">
       <div style="background:#1a1613;color:#fff;padding:22px 24px;border-radius:12px 12px 0 0">
-        <div style="font-size:13px;opacity:.7">OwnerView 결제 알림</div>
+        <div style="font-size:13px;opacity:.7">오너뷰 결제 알림</div>
         <h1 style="margin:6px 0 0;font-size:19px">${esc(label)}</h1>
       </div>
       <div style="border:1px solid #e7e5e4;border-top:none;border-radius:0 0 12px 12px;padding:22px 24px">
@@ -122,7 +122,7 @@ serve(withSentry("send-billing-notification", async (req) => {
     const res = await tfetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-      body: JSON.stringify({ from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>", to: [recipient], subject, html }),
+      body: JSON.stringify({ from: Deno.env.get("RESEND_FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>", to: [recipient], subject, html }),
     });
     if (res.ok) {
       const body = await res.json().catch(() => ({}));

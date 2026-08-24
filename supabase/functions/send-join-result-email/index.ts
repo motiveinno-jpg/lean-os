@@ -59,8 +59,8 @@ serve(withSentry("send-join-result-email", async (req) => {
     const approved = rq.status === "approved";
 
     const subject = approved
-      ? `[OwnerView] ${company} 가입이 승인되었습니다`
-      : `[OwnerView] 회사 가입 요청 결과 안내`;
+      ? `[오너뷰] ${company} 가입이 승인되었습니다`
+      : `[오너뷰] 회사 가입 요청 결과 안내`;
 
     const html = approved
       ? `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
@@ -75,14 +75,14 @@ serve(withSentry("send-join-result-email", async (req) => {
             메뉴·기능 접근 권한은 회사 마스터가 부여하며, 아래 버튼으로 로그인하면 회사 페이지를 사용할 수 있습니다.
           </p>
           <div style="text-align:center;margin:24px 0">
-            <a href="${LOGIN_URL}" style="display:inline-block;background:#3B82F6;color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-weight:bold;font-size:15px">OwnerView 로그인</a>
+            <a href="${LOGIN_URL}" style="display:inline-block;background:#3B82F6;color:#fff;text-decoration:none;padding:14px 40px;border-radius:8px;font-weight:bold;font-size:15px">오너뷰 로그인</a>
           </div>
           <p style="font-size:12px;color:#9ca3af;text-align:center">${LOGIN_URL}</p>
         </div>
       </body></html>`
       : `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:20px;color:#333">
         <div style="background:#1a1a2e;color:#fff;padding:24px;border-radius:12px 12px 0 0;text-align:center">
-          <h1 style="margin:0;font-size:20px">OwnerView</h1>
+          <h1 style="margin:0;font-size:20px">오너뷰</h1>
           <p style="margin:8px 0 0;opacity:0.8;font-size:14px">가입 요청 결과 안내</p>
         </div>
         <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:24px">
@@ -107,7 +107,7 @@ serve(withSentry("send-join-result-email", async (req) => {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
         body: JSON.stringify({
-          from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+          from: Deno.env.get("RESEND_FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>",
           to: [to],
           subject,
           html,

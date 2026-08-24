@@ -55,12 +55,12 @@ serve(withSentry("send-tax-invoice-email", async (req) => {
     }
 
     const typeLabel = type === "sales" ? "매출" : "매입";
-    const subject = `[${senderCompany || "OwnerView"}] 세금계산서 (${typeLabel}) - ${invoiceNumber}`;
+    const subject = `[${senderCompany || "오너뷰"}] 세금계산서 (${typeLabel}) - ${invoiceNumber}`;
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
 <body style="font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;max-width:640px;margin:0 auto;padding:20px;color:#333;background:#f9fafb">
   <div style="background:#1a1a2e;color:#fff;padding:24px 28px;border-radius:12px 12px 0 0">
-    <h1 style="margin:0;font-size:18px">${senderCompany || "OwnerView"}</h1>
+    <h1 style="margin:0;font-size:18px">${senderCompany || "오너뷰"}</h1>
     <p style="margin:6px 0 0;opacity:0.8;font-size:13px">세금계산서가 발행되었습니다</p>
   </div>
   <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px;padding:28px;background:#fff">
@@ -105,7 +105,7 @@ serve(withSentry("send-tax-invoice-email", async (req) => {
     </div>
 
     <p style="margin:20px 0 0;font-size:11px;color:#9ca3af;text-align:center">
-      본 이메일은 ${senderCompany || "OwnerView"}에서 자동 발송되었습니다.
+      본 이메일은 ${senderCompany || "오너뷰"}에서 자동 발송되었습니다.
     </p>
   </div>
 </body></html>`;
@@ -119,7 +119,7 @@ serve(withSentry("send-tax-invoice-email", async (req) => {
 
     // Build email payload
     const emailPayload: Record<string, unknown> = {
-      from: Deno.env.get("RESEND_FROM_EMAIL") || "OwnerView <noreply@owner-view.com>",
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "오너뷰 <noreply@owner-view.com>",
       to: [recipientEmail],
       subject,
       html,
