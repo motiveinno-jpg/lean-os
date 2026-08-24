@@ -16,7 +16,7 @@ import { approvePayment, rejectPayment, executePayment, createQueueEntry, getPay
 import { getRecurringPayments, upsertRecurringPayment, deleteRecurringPayment, getPaymentBatches, refreshRecurringAmounts, stripInternalTag, type RefreshResult } from "@/lib/approval-center";
 import { createFixedCostBatch, approveBatch, triggerBatchExecution, getBatchWithItems, type BatchSummary } from "@/lib/payment-batch";
 import { runAllAutomation, type AutomationResult } from "@/lib/automation";
-import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring } from "@/lib/smart-setup";
+import { detectRecurringFromBankTx, registerDetectedRecurring, type DetectedRecurring, listRecurringDismissals, dismissRecurringCandidate, dismissRecurringCandidates, recurringMatchKey } from "@/lib/smart-setup";
 import { SubscriptionsPanel } from "@/components/subscriptions-panel"; // 구독 흡수(2026-07-08)
 import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
@@ -103,7 +103,15 @@ function PaymentsPageInner() {
     queryFn: () => detectRecurringFromBankTx(companyId!),
     enabled: !!companyId, staleTime: 60_000,
   });
-  const detectedCount = (detectedAll as any[]).filter((d: any) => !d.alreadyRegistered).length;
+  //   치운 후보(회사 공통)도 빼야 띠 숫자와 자동 추천 목록 건수가 같아진다.
+  //   ★ 2026-08-24 사장님 지적 전에는 이 띠가 치운 것을 안 뺐다 — "처리할 것 5건"인데 열면 2건이었다.
+  const { data: dismissedKeys } = useQuery({
+    queryKey: ["recurring-dismissals", companyId],
+    queryFn: () => listRecurringDismissals(companyId!),
+    enabled: !!companyId, staleTime: 60_000,
+  });
+  const detectedCount = (detectedAll as any[]).filter((d: any) =>
+    !d.alreadyRegistered && !(dismissedKeys?.has(recurringMatchKey(d.counterparty, d.amount)))).length;
 
   const TABS: { key: Tab; label: string }[] = [
     { key: 'recurring', label: '정기결제' },
@@ -150,7 +158,7 @@ function PaymentsPageInner() {
 
       {/* 자동 추천 (도구) — 통장·카드에서 2개월↑ 반복거래(동일 거래처·금액) 감지 → 정기결제 등록 추천 */}
       {tab === 'recommend' && companyId && (
-        <SmartSetupBanner companyId={companyId} invalidate={invalidate} onRegistered={() => setTab('recurring')} />
+        <SmartSetupBanner companyId={companyId} userId={userId} invalidate={invalidate} onRegistered={() => setTab('recurring')} />
       )}
       {tab === 'recurring' && companyId && (
         <RecurringPaymentsTab companyId={companyId} invalidate={invalidate} />
@@ -1314,7 +1322,7 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
 
 // ── Smart Setup Banner (이체내역 분석 + 자동화 실행 + 진행 현황) ──
 
-function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: string; invalidate: () => void; onRegistered?: () => void }) {
+function SmartSetupBanner({ companyId, userId, invalidate, onRegistered }: { companyId: string; userId?: string | null; invalidate: () => void; onRegistered?: () => void }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<AutomationResult | null>(null);
   const [includeRisky, setIncludeRisky] = useState(false);
@@ -1343,19 +1351,39 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
   });
 
   // 감지 후보 개별 등록/미등록 — 반복 이체라고 전부 정기결제는 아니므로 건별 판단.
-  //   미등록(숨김)은 회사별 localStorage 기억 → 재분석 때 다시 안 뜸. 등록은 건별 registerDetectedRecurring.
-  const dismissKey = `recurring-dismissed-${companyId}`;
-  const [dismissed, setDismissed] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try { return new Set(JSON.parse(localStorage.getItem(`recurring-dismissed-${companyId}`) || "[]")); } catch { return new Set(); }
+  //   ★ 미등록 판단은 **회사 공통**이다 (2026-08-24 사장님 지적: "직원마다 다르게 뜸").
+  //     예전엔 브라우저 localStorage 에만 남겨서 ①사장님이 치운 후보가 직원 화면엔 그대로 뜨고
+  //     ②같은 사람도 PC 를 바꾸면 다시 봤다. 이제 recurring_dismissals 테이블에 남긴다.
+  const { data: dismissed } = useQuery({
+    queryKey: ["recurring-dismissals", companyId],
+    queryFn: () => listRecurringDismissals(companyId),
+    enabled: !!companyId, staleTime: 60_000,
   });
-  const detKey = (d: DetectedRecurring) => `${d.counterparty}|${d.amount}`;
-  const dismissDetected = (d: DetectedRecurring) => {
-    setDismissed((prev) => {
-      const next = new Set(prev); next.add(detKey(d));
-      try { localStorage.setItem(dismissKey, JSON.stringify([...next])); } catch { /* ignore */ }
-      return next;
-    });
+  const detKey = (d: DetectedRecurring) => recurringMatchKey(d.counterparty, d.amount);
+  //   옛 localStorage 기록을 한 번만 DB 로 옮긴다 — 이미 치워 둔 것이 다시 나타나면 또 지적받는다.
+  useEffect(() => {
+    if (!companyId || !dismissed) return;
+    const lsKey = `recurring-dismissed-${companyId}`;
+    let old: string[] = [];
+    try { old = JSON.parse(localStorage.getItem(lsKey) || "[]"); } catch { return; }
+    const missing = old.filter((k) => typeof k === "string" && !dismissed.has(k));
+    if (!missing.length) { try { localStorage.removeItem(lsKey); } catch { /* ignore */ } return; }
+    dismissRecurringCandidates(companyId, missing, userId)
+      .then(() => {
+        try { localStorage.removeItem(lsKey); } catch { /* ignore */ }
+        queryClient.invalidateQueries({ queryKey: ["recurring-dismissals", companyId] });
+      })
+      .catch(() => { /* 실패하면 다음 진입에서 다시 시도한다 */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, !!dismissed]);
+  const dismissDetected = async (d: DetectedRecurring) => {
+    try {
+      await dismissRecurringCandidate(companyId, detKey(d), userId);
+      queryClient.invalidateQueries({ queryKey: ["recurring-dismissals", companyId] });
+      toast(`'${d.counterparty}'을(를) 정기결제가 아닌 것으로 두었습니다 — 회사 전체에서 다시 추천하지 않습니다`, "info");
+    } catch (e: any) {
+      toast("미등록 처리 실패: " + (e?.message || "오류"), "error");
+    }
   };
   const [registeringKey, setRegisteringKey] = useState<string | null>(null);
   const registerOne = async (d: DetectedRecurring) => {
@@ -1374,7 +1402,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
       setRegisteringKey(null);
     }
   };
-  const freshDetected = detected.filter((d) => !d.alreadyRegistered && !dismissed.has(detKey(d)));
+  const freshDetected = detected.filter((d) => !d.alreadyRegistered && !(dismissed?.has(detKey(d))));
 
   async function handleRunAutomation() {
     setRunning(true);
@@ -1510,7 +1538,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
         <div>
           <div className="pay-note">
             <b>이체내역에서 {freshDetected.length}건 신규 감지 · {detected.filter(d => d.alreadyRegistered).length}건 기등록</b>
-            <span>건별로 등록 여부를 고르세요 — 미등록으로 둔 항목은 다시 추천하지 않습니다</span>
+            <span>건별로 등록 여부를 고르세요 — 미등록으로 둔 항목은 <b>회사 전체</b>에서 다시 추천하지 않습니다</span>
             {freshDetected.length > 1 && (
               <span className="ml-auto"><button type="button" className="btn-secondary btn-sm"
                 onClick={async () => {
@@ -1540,7 +1568,7 @@ function SmartSetupBanner({ companyId, invalidate, onRegistered }: { companyId: 
                     <td className="text-center">
                       <span className="inline-flex gap-1.5">
                         <button type="button" onClick={() => registerOne(d)} disabled={!!registeringKey} className="btn-secondary btn-sm" title="이 항목만 고정비(반복결제)로 등록">{registeringKey === detKey(d) ? "등록 중…" : "등록"}</button>
-                        <button type="button" onClick={() => dismissDetected(d)} disabled={!!registeringKey} className="btn-secondary btn-sm text-[var(--text-dim)]" title="정기결제가 아님 — 다시 추천하지 않습니다">미등록</button>
+                        <button type="button" onClick={() => dismissDetected(d)} disabled={!!registeringKey} className="btn-secondary btn-sm text-[var(--text-dim)]" title="정기결제가 아님 — 회사 전체에서 다시 추천하지 않습니다">미등록</button>
                       </span>
                     </td>
                   </tr>

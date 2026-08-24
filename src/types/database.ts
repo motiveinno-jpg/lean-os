@@ -12389,6 +12389,45 @@ export type Database = {
           },
         ]
       }
+      recurring_dismissals: {
+        Row: {
+          company_id: string
+          created_at: string
+          dismissed_by: string | null
+          id: string
+          match_key: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          match_key: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          match_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_dismissals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_dismissals_dismissed_by_fkey"
+            columns: ["dismissed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_payments: {
         Row: {
           amount: number
