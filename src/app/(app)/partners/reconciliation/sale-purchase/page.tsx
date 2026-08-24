@@ -228,6 +228,11 @@ function SalePurchaseInner() {
   }, [accounts]);
 
   // ── 그 달에 저장된 전표를 격자 위쪽에 그대로 올린다 (회계 프로그램처럼) ──
+  //   ★ **확정 전표만** 그린다 (2026-08-24 사장님 지적: "수집·전표에서는 미처리인데 매입매출전표에는 반영돼 있다").
+  //     전표 취소(unpost_evidence_voucher)는 전표를 지우지 않고 `status='rejected'` 로 남기고
+  //     원자료의 journal_entry_id 를 비운다 — 그래서 수집은 '미처리'로 돌아온다.
+  //     이 목록만 status 를 안 걸러서 **취소한 전표가 계속 보였다.** 옆 화면(일반전표)·장부·원장은
+  //     전부 status='confirmed' 로 읽는다(journal-reports.ts: "반려·임시분은 장부가 아니다").
   const { data: saved = [] } = useQuery({
     queryKey: ["sp-saved", companyId, fromM, toM],
     queryFn: async () => {
@@ -235,7 +240,7 @@ function SalePurchaseInner() {
       const data = logRead("sale-purchase:saved", await (supabase as any)
         .from("journal_entries")
         .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, reference_type, is_electronic, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
-        .eq("company_id", companyId!).eq("entry_kind", "sale_purchase")
+        .eq("company_id", companyId!).eq("entry_kind", "sale_purchase").eq("status", "confirmed")
         .gte("entry_date", `${fromM}-01`).lt("entry_date", to)
         .order("entry_date").order("voucher_no"));
       return (data || []) as any[];

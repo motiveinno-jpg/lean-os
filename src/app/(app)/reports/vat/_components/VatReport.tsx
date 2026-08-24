@@ -146,6 +146,9 @@ export function VatByVoucherType({ companyId, year }: { companyId: string | null
         .select("vat_type, supply_amount, vat_amount")
         .eq("company_id", companyId!)
         .eq("entry_kind", "sale_purchase")
+        //   ★ 확정 전표만 (2026-08-24) — 취소(반려)한 전표가 신고용 집계에 얹혀 있었다.
+        //     실제로 이 회사 2026년 집계에 반려 3건(공급가액 3,030,909 · 부가세 3,091)이 섞여 있었다.
+        .eq("status", "confirmed")
         .gte("entry_date", `${year}-01-01`)
         .lte("entry_date", `${year}-12-31`));
       return (data || []) as any[];
