@@ -9145,6 +9145,12 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
   background: color-mix(in srgb, var(--primary) 8%, var(--bg-card));
   backdrop-filter: blur(6px);
 }
+/* 계정과목 일괄변경 목록은 **위로** 펼친다 (2026-08-24) — 선택 바가 화면 바닥에 붙어 있어
+   기본값(top-full)으로 열면 상자 밖으로 나가 잘린다. 실제로 아래로 열어 보고 고쳤다.
+   ⚠️ 새 이름이다(.ev-bulk-pick) — .spv-drop 정의는 건드리지 않는다(다른 화면이 다 쓴다). */
+/* 오른쪽 끝에 붙은 버튼이라 left-0 으로 열면 화면 밖으로 260px 이 나가 잘린다(눌러 보고 잡았다).
+   버튼 오른쪽에 맞춰 왼쪽으로 펼친다. */
+.ev-bulk-pick .spv-drop { @apply bottom-full left-auto right-0 top-auto mb-1.5 mt-0; }
 /* 선택 바가 떠 있는 동안 마지막 줄이 그 밑에 깔린 채 끝나지 않게 — 상자 크기는 그대로다 */
 .qk-body:has(.qk-selbar) > .ev-scroll { padding-bottom: 60px; }
 

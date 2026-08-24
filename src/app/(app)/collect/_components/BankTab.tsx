@@ -144,6 +144,8 @@ export function BankTab({
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [acct, setAcct] = useState<Record<string, Acct>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
+  //   고른 줄 전부의 계정과목을 한 번에 바꾸는 목록이 열려 있는지 (2026-08-24 사장님 지시)
+  const [bulkOpen, setBulkOpen] = useState(false);
   //   상대 거래처 — 보통예금 쪽은 서버가 붙이므로 여기서 고르는 건 **반대편 하나**뿐이다
   const [pt, setPt] = useState<Record<string, Pt>>({});
   const [ptPick, setPtPick] = useState<{ id: string; q: string } | null>(null);
@@ -462,6 +464,24 @@ export function BankTab({
   //   확정할 수 있는 줄인가 — 상대 계정 하나면 된다(거래처·적요는 없어도 전표가 선다)
   const ready = (r: Row) => !!acctOf(r).a;
   const notReady = selRows.filter((r) => !ready(r));
+
+  //   ── 계정과목 일괄변경 (2026-08-24 사장님 지시) ─────────────────────────────
+  //   전자세금계산서 탭과 같은 규칙이다(EvidenceTab 주석 참고). 줄 하나를 고를 때와 **같은 경로**로
+  //   저장하고(setAcct), 전표는 여전히 '일반전표 만들기'를 눌러야 만들어진다.
+  //   ★ 여기서 가르는 기준은 매출·매입이 아니라 **입금·출금** — 고를 수 있는 목록이 수익 vs 비용으로 다르다.
+  //   ★ 이미 끝난 줄(전표됨·수금매칭·이체·장부제외)은 계정을 바꿔도 의미가 없어 제외한다.
+  const bulkRows = selRows.filter((r) => !doneOf(r));
+  const bulkSides = new Set(bulkRows.map((r) => r.isIn));
+  const bulkIsIn = bulkSides.size === 1 ? [...bulkSides][0] : null;
+  const bulkApply = (a: Acct) => {
+    setAcct((o) => {
+      const n = { ...o };
+      for (const r of bulkRows) n[r.id] = a;
+      return n;
+    });
+    setBulkOpen(false);
+    toast(`${bulkRows.length}건을 ${a.code} ${a.name} 으로 바꿨습니다 — 전표는 '일반전표 만들기'를 눌러야 만들어집니다.`, "success");
+  };
 
   //   중복 의심 팝업 (2026-08-19) — 같은 날 같은 금액의 전표가 이미 있으면 새 전표/기존 전표에 연결/취소
   const { askDup, dupPromptElement } = useDupVoucherPrompt();
@@ -1115,8 +1135,23 @@ export function BankTab({
 
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
-        summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}</>}>
+        summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}{bulkRows.length > 1 && bulkIsIn === null && ` · 입금·출금이 섞여 계정과목을 함께 바꿀 수 없습니다`}</>}>
         <button type="button" onClick={excludeSelected} disabled={busy} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>
+        {/*   계정과목 일괄변경 — 목록은 위로·왼쪽으로 펼친다(선택 바가 화면 바닥 오른쪽에 붙어 있다) */}
+        <span className="relative inline-block ev-bulk-pick">
+          <button type="button" disabled={busy || bulkIsIn === null}
+            onClick={() => setBulkOpen((v) => !v)}
+            className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={bulkIsIn !== null
+              ? `고른 ${bulkRows.length}건의 계정과목을 한 번에 바꿉니다 (전표는 따로 '일반전표 만들기')`
+              : "입금·출금이 섞여 있습니다 — 검색조건의 입·출을 한쪽으로 좁힌 뒤 다시 고르세요"}>
+            {bulkIsIn === true ? "수익 계정 바꾸기" : bulkIsIn === false ? "비용 계정 바꾸기" : "계정과목 바꾸기"}
+          </button>
+          {bulkOpen && bulkIsIn !== null && (
+            <PickList items={acctsOf(bulkIsIn)} placeholder="계정과목 검색 (이름·코드)"
+              onPick={bulkApply} onClose={() => setBulkOpen(false)} />
+          )}
+        </span>
         <button type="button" onClick={confirmAll} disabled={busy}
           className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
           {busy ? "만드는 중…" : `일반전표 만들기 (${selRows.length})`}

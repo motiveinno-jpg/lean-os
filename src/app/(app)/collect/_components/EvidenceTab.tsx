@@ -147,6 +147,8 @@ export function EvidenceTab({
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState<Record<string, { vatCode?: string; acct?: Acct }>>({});
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
+  //   고른 줄 전부의 계정과목을 한 번에 바꾸는 목록이 열려 있는지 (2026-08-24 사장님 지시)
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   //   머리단 정렬 — 기본은 일자 오름차순(장부는 날짜 순으로 본다) (2026-08-12)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });
@@ -368,6 +370,28 @@ export function EvidenceTab({
 
   //   계정이 안 정해진 줄은 전표를 못 만든다 — 몇 건인지 먼저 알려 준다
   const notReady = selRows.filter((r) => linesFor(r).some((l) => !l.code || !acctByCode.get(l.code)));
+
+  //   ── 계정과목 일괄변경 (2026-08-24 사장님 지시) ─────────────────────────────
+  //   왜: 같은 성격의 줄이 수십 개씩 딸려 온다(스크린샷의 '소상공인 광고비 위임' 49건).
+  //     줄마다 눌러 고르면 49번을 눌러야 하고, 한 줄이라도 빠지면 전표가 엉뚱한 계정으로 나간다.
+  //   저장 방식은 줄 하나를 고를 때와 **똑같다**(override[id].acct) — 새 경로를 만들지 않았다.
+  //     그래서 이 버튼은 아무것도 확정하지 않는다. 전표는 여전히 '전표 만들기'를 눌러야 만들어진다.
+  //   ★ 매출·매입을 함께 바꾸지 않는 이유: 고를 수 있는 목록이 다르다(수익 계정 vs 비용 계정).
+  //     한 계정을 양쪽에 밀어 넣으면 매출 줄에 비용 계정이 박힌다. 섞였으면 막고 **화면에 이유를 적는다.**
+  //   ★ 이미 전표가 된 줄(posted)·장부 제외 줄은 애초에 고를 수 없지만(체크박스 없음) 한 번 더 걸러 둔다.
+  const sideOf = (r: Row) => vatType(vatCodeOf(r))?.side ?? "purchase";   // '3. 일반'은 매입 취급 — 표 렌더와 같은 규칙
+  const bulkRows = selRows.filter((r) => !r.posted && !r.excluded);
+  const bulkSides = new Set(bulkRows.map(sideOf));
+  const bulkSide = bulkSides.size === 1 ? [...bulkSides][0] : null;
+  const bulkApply = (a: Acct) => {
+    setOverride((o) => {
+      const n = { ...o };
+      for (const r of bulkRows) n[r.id] = { ...n[r.id], acct: a };
+      return n;
+    });
+    setBulkOpen(false);
+    toast(`${bulkRows.length}건을 ${a.code} ${a.name} 으로 바꿨습니다 — 전표는 '전표 만들기'를 눌러야 만들어집니다.`, "success");
+  };
 
   /**
    * 카드 미지급금에 걸 **카드사 거래처** — 카드 이름 하나당 한 번만 물어본다. (2026-08-12 사장님 지시)
@@ -1064,8 +1088,25 @@ export function EvidenceTab({
 
       {/* ── 3줄 · 고른 줄로 하는 일 — 파란 버튼은 화면을 통틀어 여기 하나뿐 ── */}
       <SelectionBar count={selRows.length} onClear={() => setSel(new Set())}
-        summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}</>}>
+        summary={<>합계 <b className="mono-number">{won(selTotal)}</b>원{notReady.length > 0 && ` · ${notReady.length}건은 계정을 먼저 골라야 합니다`}{bulkRows.length > 1 && !bulkSide && ` · 매출·매입이 섞여 계정과목을 함께 바꿀 수 없습니다`}</>}>
         {kind === "card" && <button type="button" onClick={excludeSelected} disabled={saving} className="btn-secondary btn-sm" title="전표 없이 끝낸 것으로 — 중복·이체·개인 지출">장부 제외</button>}
+        {/*   계정과목 일괄변경 — 고른 줄 전부에 같은 계정을 넣는다. 확정이 아니라 채워 주는 일이라
+              파란 버튼이 아니다(파란 버튼은 화면을 통틀어 '전표 만들기' 하나).
+              목록은 위로 펼친다 — 이 바는 화면 바닥에 붙어 있어 아래로 열면 잘려 안 보인다. */}
+        <span className="relative inline-block ev-bulk-pick">
+          <button type="button" disabled={saving || !bulkSide}
+            onClick={() => setBulkOpen((v) => !v)}
+            className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            title={bulkSide
+              ? `고른 ${bulkRows.length}건의 계정과목을 한 번에 바꿉니다 (전표는 따로 '전표 만들기')`
+              : "매출·매입이 섞여 있습니다 — 검색조건의 매출·매입을 한쪽으로 좁힌 뒤 다시 고르세요"}>
+            {bulkSide === "sale" ? "매출 계정 바꾸기" : bulkSide === "purchase" ? "비용 계정 바꾸기" : "계정과목 바꾸기"}
+          </button>
+          {bulkOpen && bulkSide && (
+            <PickList items={acctsOf(bulkSide)} placeholder="계정과목 검색 (이름·코드)"
+              onPick={bulkApply} onClose={() => setBulkOpen(false)} />
+          )}
+        </span>
         <button type="button" onClick={makeVouchers} disabled={saving}
           className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed">
           {saving ? "만드는 중…" : `전표 만들기 (${selRows.length})`}
