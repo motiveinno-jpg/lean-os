@@ -627,8 +627,33 @@ export function BankTab({
     } finally { setAiAcctBusy(false); }
   };
 
-  const toggle = (id: string) =>
+  //   ── 줄 고르기 · Shift+클릭이면 사이 줄까지 (2026-08-24 사장님 지시) ──
+  //   "시작 칸 체크 후 Shift+마지막 칸 체크하면 그 사이 값 모두 선택되게"
+  //   · 범위는 **지금 보고 있는 순서**(정렬·검색조건이 걸린 shown) 기준이다. 화면에 보이는 것과
+  //     다른 순서로 잡히면 엉뚱한 줄이 딸려 온다.
+  //   · shown 을 쓰므로 쪽을 넘겨 잡아도 된다(같은 쪽 안이면 결과가 같다).
+  //   · 고를 수 없는 줄(이미 끝난 줄(전표됨·수금매칭·이체·장부 제외))은 조용히 건너뛴다.
+  //   · Shift 로 잡은 구간은 **누른 칸이 가려는 상태**를 그대로 따른다 — 켜면 다 켜고, 끄면 다 끈다
+  //     (잘못 잡았을 때 Shift 로 되돌릴 수 있어야 한다).
+  const anchorRef = useRef<string | null>(null);
+  const toggle = (id: string, shift = false) => {
+    const rows = shown.filter((r) => !doneOf(r));
+    const at = rows.findIndex((r) => r.id === id);
+    const from = anchorRef.current ? rows.findIndex((r) => r.id === anchorRef.current) : -1;
+    if (shift && at >= 0 && from >= 0 && from !== at) {
+      const [a, b] = from < at ? [from, at] : [at, from];
+      const want = !sel.has(id);
+      setSel((s) => {
+        const n = new Set(s);
+        for (let i = a; i <= b; i++) { if (want) n.add(rows[i].id); else n.delete(rows[i].id); }
+        return n;
+      });
+      anchorRef.current = id;
+      return;
+    }
+    anchorRef.current = id;
     setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  };
   //   머리단 전체 선택은 **보이는 쪽만** 고른다 — 안 보이는 쪽까지 딸려 오면 무엇을 만드는지 모른다
   const pickable = pager.view.filter((r) => !doneOf(r));
   const allOn = pickable.length > 0 && pickable.every((r) => sel.has(r.id));
@@ -951,6 +976,7 @@ export function BankTab({
               <tr>
                 <th style={{ width: 34 }}>
                   <button type="button" aria-label="이 쪽 전체 선택" onClick={toggleAll}
+                    title="이 쪽 전체 선택 — 몇 줄만 고를 때는 첫 줄을 누르고 마지막 줄을 Shift+클릭"
                     className={allOn ? "collect-chk collect-chk-on" : "collect-chk"}>{allOn ? "✓" : ""}</button>
                 </th>
                 <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} filter={thFilter("date", rows)} resize={thResize("date", 1)} />
@@ -979,7 +1005,8 @@ export function BankTab({
                   <tr className={done ? "ev-posted" : on ? "ev-on" : ""}>
                     <td>
                       {!done && (
-                        <button type="button" onClick={() => toggle(r.id)} aria-label="선택"
+                        <button type="button" onClick={(e) => toggle(r.id, e.shiftKey)} aria-label="선택"
+                          title="선택 — Shift 를 누르고 누르면 앞서 고른 줄부터 여기까지 한 번에"
                           className={on ? "collect-chk collect-chk-on" : "collect-chk"}>{on ? "✓" : ""}</button>
                       )}
                     </td>
