@@ -478,12 +478,10 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
               <option value="idpw">아이디/비밀번호</option>
             </select>
           </div>
-        </div>
-
-        {/* 금융기관 선택 */}
-        <div className="bank-integration-org-select">
+          {/*   기관 선택도 같은 줄로 (2026-08-24) — 혼자 전폭 한 줄(62px)을 쓰고 있었다.
+                고르는 것 넷이 한 줄에 나란히 서야 "무엇을 정하는 칸인지" 한눈에 읽힌다. */}
           <div>
-            <label className="field-label">{accountType === "bank" ? "은행" : accountType === "card" ? "카드사" : "공공기관"} 선택</label>
+            <label className="field-label">{accountType === "bank" ? "은행" : accountType === "card" ? "카드사" : "공공기관"}</label>
             <select value={organization} onChange={(e) => setOrganization(e.target.value)} className="field-input">
               <option value="">선택하세요</option>
               {Object.entries(orgList).map(([code, name]) => (
@@ -491,7 +489,10 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
               ))}
             </select>
           </div>
+        </div>
 
+        {/* 금융기관 선택 */}
+        <div className="bank-integration-org-select">
           {accountType === "hometax" && (
             <div className="bank-integration-hometax-identity">
               <label className="field-label">대표자 주민번호 앞 7자리 <span className="caption">(선택, ID/PW 방식 또는 검증 필요시)</span></label>

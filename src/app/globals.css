@@ -3763,7 +3763,7 @@ table.bs-t-table { min-width: 360px; }
 .bank-integration-account-type-toggle { @apply flex gap-2 mb-3; }
 .bank-integration-client-type-toggle { @apply flex gap-2 mb-3; }
 .bank-integration-auth-method-toggle { @apply flex gap-2 mb-4; }
-.bank-integration-org-select { @apply space-y-3; }
+.bank-integration-org-select { @apply space-y-2.5; }
 .bank-integration-result-message { @apply mt-3 p-3 rounded-xl text-xs font-medium whitespace-pre-wrap break-all; }
 .bank-integration-error-card { @apply p-3 rounded-xl bg-red-500/8 border border-red-500/15 shadow-sm; }
 .bank-integration-tab { @apply space-y-6; }
@@ -3773,7 +3773,12 @@ table.bs-t-table { min-width: 360px; }
 .bank-integration-sync-log-list { @apply mt-2 p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .bank-integration-manual-accounts { @apply p-6; }
 /* 연결 조건 한 줄 — 예전 버튼 격자 세 층(자료 종류·명의·인증 방식)을 대신한다 (2026-08-24) */
-.bank-connect-row { @apply grid grid-cols-1 gap-3 mb-4 sm:grid-cols-3; }
+/*   연결 조건 한 줄 — 자료 종류·명의·인증 방식·기관 넷을 나란히 (2026-08-24).
+     칸(field-input 40px)이 커서 네 줄이면 250px 을 먹었다 — 이 폼 안에서만 한 단계 조인다.
+     ★ .field-input / .field-label 원본은 건드리지 않는다(앱 전체가 쓴다). */
+.bank-connect-row { @apply grid grid-cols-1 gap-x-3 gap-y-2 mb-3 sm:grid-cols-2 lg:grid-cols-4; }
+.bank-connect-row .field-label { @apply mb-1 text-[11px]; }
+.bank-connect-row .field-input { @apply h-9 py-0 text-[13px]; }
 /* 연결됨 안내 — 상자(p-4)에서 얇은 줄로 (2026-08-24, 영역이 쓸데없이 컸다) */
 .bank-connected-note { @apply rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2; }
 /* 붙어 있는 계좌·카드 — 확인만 하면 되므로 칩 한 줄로 (2026-08-24, 큰 카드 목록이었다) */
