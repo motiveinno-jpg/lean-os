@@ -3767,6 +3767,12 @@ table.bs-t-table { min-width: 360px; }
 .bank-integration-sync-result { @apply p-3 rounded-xl text-xs font-medium; }
 .bank-integration-sync-log-list { @apply mt-2 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .bank-integration-manual-accounts { @apply p-6; }
+/* 연결 조건 한 줄 — 예전 버튼 격자 세 층(자료 종류·명의·인증 방식)을 대신한다 (2026-08-24) */
+.bank-connect-row { @apply grid grid-cols-1 gap-3 mb-4 sm:grid-cols-3; }
+/* 설정 화면 표 감싸개 — 넓은 표는 **자기 안에서** 가로로 스크롤한다(본문이 옆으로 밀리지 않게) */
+.stg-table-wrap { @apply overflow-x-auto; }
+/* 수동 등록 계좌 표 — 설정 상자 안이라 최소 폭을 낮게 잡는다 */
+table.table-bank-manual { min-width: 640px; }
 .approval-policy-tab { @apply space-y-6; }
 .approval-policy-list-card { @apply p-6; }
 .approval-policy-settings-form { @apply p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] mb-4 space-y-4; }

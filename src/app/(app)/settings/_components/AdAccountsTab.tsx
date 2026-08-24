@@ -111,7 +111,9 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
   const picked = PLATFORMS.find((p) => p.key === form.platform)!;
 
   return (
-    <div className="ad-acc-wrap stg-sec">
+    <div className="ad-acc-wrap">
+      {/*   상자 안 상자 금지 (2026-08-24 정리) — 줄들이 탭 바닥 위에 바로 놓인다.
+            옆 탭(연동·API 키)이 이미 그 모양이라 셋이 같은 결로 읽힌다. */}
       <div className="ad-acc-head">
         <div>
           <h3 className="ad-acc-title">광고 계정</h3>
@@ -120,7 +122,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
             <b> API 키는 저장 즉시 암호화되고 다시 화면에 나오지 않습니다.</b>
           </p>
         </div>
-        <button type="button" className="ad-acc-add" onClick={openForm}>＋ 계정 등록</button>
+        <button type="button" className="btn-primary btn-sm ml-auto shrink-0" onClick={openForm}>＋ 계정 등록</button>
       </div>
 
       {isLoading ? <p className="ad-acc-empty">불러오는 중…</p>

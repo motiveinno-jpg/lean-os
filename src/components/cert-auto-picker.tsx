@@ -240,7 +240,8 @@ export function CertAutoPicker({ onExtracted, purpose = "register" }: {
             설치하면 은행 사이트처럼 PC에 저장된 공동인증서를 자동으로 찾아드립니다. 설치는 최초 1회만 필요합니다.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <a href={isMac ? "/downloads/CodefCertInstaller.pkg" : "/downloads/CodefCertInstaller.exe"} download className="btn-primary text-xs px-4">
+            {/*   파란(확정) 버튼은 화면에 하나 — 이 화면의 확정은 '연결하기'다. 설치는 보조 버튼으로. (2026-08-24) */}
+            <a href={isMac ? "/downloads/CodefCertInstaller.pkg" : "/downloads/CodefCertInstaller.exe"} download className="btn-secondary btn-sm">
               {isMac ? "macOS 설치 파일 다운로드" : "Windows 설치 파일 다운로드"}
             </a>
             <a href={isMac ? "/downloads/CodefCertInstaller.exe" : "/downloads/CodefCertInstaller.pkg"} download className="text-[11px] text-[var(--text-muted)] hover:underline">

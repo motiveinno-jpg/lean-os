@@ -387,10 +387,9 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
           <h2 className="stg-sec-title">금융기관 연결</h2>
           <p className="stg-sec-desc">공동인증서 또는 인터넷뱅킹 아이디로 계좌를 연결하면 거래내역이 자동 수집됩니다.</p>
         </div>
-      </div>
-
-      {/* 데모 체험 */}
-      <button
+        {/*   데모 체험 — 예전엔 전폭 파란 블록이라 진짜 연결보다 더 커 보였다(2026-08-24 정리).
+              여기서 확정되는 것이 없으므로 머리 오른쪽 보조 버튼으로 내린다. */}
+        <button
         onClick={async () => {
           if (!companyId || registering) return;
           setRegistering(true);
@@ -418,10 +417,12 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
           setRegistering(false);
         }}
         disabled={registering}
-        className="mb-4 w-full py-2.5 bg-[var(--info-dim)] text-[var(--info)] border border-[var(--info)]/20 rounded-xl text-xs font-semibold hover:bg-[var(--info)]/20 transition disabled:opacity-50"
+        className="btn-secondary btn-sm shrink-0"
+        title="사업자등록번호 없이도 오너뷰가 무엇을 해주는지 볼 수 있습니다"
       >
-        {registering ? "연결 중..." : "데모 데이터로 바로 체험하기"}
+        {registering ? "연결 중..." : "데모로 체험"}
       </button>
+      </div>
 
       {/* 사업자번호가 없으면 CODEF 계정등록 자체가 안 된다 — 가입 관문에서 옮겨온 요구를 여기서 한다.
           데모 체험은 위에 그대로 두어, 번호 없이도 오너뷰가 뭘 해주는지 볼 수 있게 한다. (2026-08-20) */}
@@ -435,35 +436,47 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
       <div className="border-t border-[var(--border)] pt-4 mb-4">
         <p className="text-xs font-semibold text-[var(--text)] mb-3">실제 금융기관 연결</p>
 
-        {/* 은행/카드/홈택스 선택 */}
-        <div className="bank-integration-account-type-toggle">
-          <button onClick={() => { setAccountType("bank"); setOrganization(""); setResult(null); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "bank" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>은행</button>
-          <button onClick={() => { setAccountType("card"); setOrganization(""); setResult(null); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "card" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>카드</button>
-          <button onClick={() => { setAccountType("hometax"); setOrganization("0001"); setResult(null); }} className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${accountType === "hometax" ? "bg-[var(--primary)] text-white" : "bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text)]"}`}>홈택스</button>
-        </div>
-
-        {/* 개인/법인 선택 — 2026-08-20 개인(P) 개방.
-            2026-08-19 에 막았던 이유(백엔드가 법인 /b/ API 전용이라 P 등록 시 수집이 CF-04015 로
-            영영 무음 실패)를 codef-sync 에서 해소했다: 은행도 카드처럼 clientType 으로
-            /v1/kr/bank/{p|b}/... 를 갈라 부른다(CODEF 문서 대조 — 입력·출력 스펙 동일).
-            더해서 등록 직후 1회 실제 조회로 검증해, 안 되면 그 자리에서 알린다(무음 실패 차단). */}
-        <div className="bank-integration-client-type-toggle">
-          <button onClick={() => setClientType("P")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "P" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-            개인
-          </button>
-          <button onClick={() => setClientType("B")} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${clientType === "B" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-            법인/기업
-          </button>
-        </div>
-
-        {/* 인증 방식 선택 */}
-        <div className="bank-integration-auth-method-toggle">
-          <button onClick={() => { setAuthMethod("cert"); setResult(null); }} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "cert" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-            공동인증서
-          </button>
-          <button onClick={() => { setAuthMethod("idpw"); setResult(null); }} className={`flex-1 py-2.5 rounded-xl text-xs font-semibold transition border ${authMethod === "idpw" ? "bg-[var(--primary-light)] text-[var(--primary)] border-[var(--primary)]/30" : "bg-[var(--bg-surface)] border-[var(--border)] text-[var(--text-muted)]"}`}>
-            아이디/비밀번호
-          </button>
+        {/*   무엇을 · 누구 명의로 · 어떻게 — 예전엔 **버튼 격자 세 층**이었다(2026-08-24 사장님: "예전 UI 형태").
+              조회 화면 표준: 여러 값 중 하나 고르기는 **한 줄 셀렉트**, 버튼 격자 금지.
+              고르는 값과 동작은 그대로다 — 생김새만 바꿨다. */}
+        <div className="bank-connect-row">
+          <div>
+            <label className="field-label">자료 종류</label>
+            <select
+              value={accountType}
+              onChange={(e) => {
+                const v = e.target.value as "bank" | "card" | "hometax";
+                setAccountType(v);
+                setOrganization(v === "hometax" ? "0001" : "");
+                setResult(null);
+              }}
+              className="field-input"
+            >
+              <option value="bank">은행</option>
+              <option value="card">카드</option>
+              <option value="hometax">홈택스</option>
+            </select>
+          </div>
+          {/*   개인(P) 은 2026-08-20 개방 — 은행도 카드처럼 clientType 으로 /v1/kr/bank/(p|b)/ 를 갈라 부른다.
+                등록 직후 1회 실제 조회로 검증해 무음 실패를 막는다. */}
+          <div>
+            <label className="field-label">명의</label>
+            <select value={clientType} onChange={(e) => setClientType(e.target.value as "P" | "B")} className="field-input">
+              <option value="B">법인/기업</option>
+              <option value="P">개인</option>
+            </select>
+          </div>
+          <div>
+            <label className="field-label">인증 방식</label>
+            <select
+              value={authMethod}
+              onChange={(e) => { setAuthMethod(e.target.value as "cert" | "idpw"); setResult(null); }}
+              className="field-input"
+            >
+              <option value="cert">공동인증서</option>
+              <option value="idpw">아이디/비밀번호</option>
+            </select>
+          </div>
         </div>
 
         {/* 금융기관 선택 */}
@@ -596,13 +609,16 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
         </div>
       )}
 
-      <button
-        onClick={handleRegister}
-        disabled={registering || !isReady}
-        className="btn-primary w-full mt-4"
-      >
-        {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
-      </button>
+      {/*   확정 버튼 — 예전엔 전폭 슬래브였다. 표준: 오른쪽 정렬 확정 버튼 하나(2026-08-24 정리) */}
+      <div className="stg-sec-actions">
+        <button
+          onClick={handleRegister}
+          disabled={registering || !isReady}
+          className="btn-primary btn-sm"
+        >
+          {registering ? "연결 중..." : `${orgList[organization] || (accountType === "bank" ? "은행" : "카드사")} 연결하기`}
+        </button>
+      </div>
       </>
       )}
     </div>
@@ -944,7 +960,7 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
                 <button
                   onClick={() => setShowRangeSync(v => !v)}
                   disabled={syncing}
-                  className="px-3 py-2 bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text)] rounded-xl text-xs font-semibold transition disabled:opacity-50 border border-[var(--border)]"
+                  className="btn-secondary btn-sm"
                   title="원하는 기간으로 과거 거래 다시 가져오기 (누락분 채워넣기)"
                 >
                   <Ico e="📅" /> 기간 선택 sync
@@ -1157,25 +1173,34 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       {/* 수동 등록 계좌 */}
       <div className="bank-integration-manual-accounts stg-sec">
         <h2 className="stg-sec-title mb-4">수동 등록 계좌</h2>
+        {/*   목록은 표로 (2026-08-24 정리) — 예전엔 계좌마다 큰 카드 줄이라 여덟 개만 되어도
+              화면 절반을 먹었다. 조회 화면 표준: 목록이 있는 곳은 표(머리단 가운데·숫자 오른쪽). */}
         {bankAccounts.length === 0 ? (
-          <div className="text-center py-6 text-sm text-[var(--text-muted)]">등록된 계좌가 없습니다. 일반 설정에서 통장을 추가하세요.</div>
+          <div className="collect-empty">등록된 계좌가 없습니다 — 회계·세무 › 자금·통장에서 추가하세요.</div>
         ) : (
-          <div className="space-y-2">
-            {bankAccounts.map((acc) => (
-              <div key={acc.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] text-xs font-bold shrink-0">B</div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{acc.alias || acc.bank_name}</div>
-                    <div className="text-xs text-[var(--text-dim)] truncate">{acc.bank_name} {acc.account_number}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-bold">{Number(acc.balance || 0).toLocaleString()}원</div>
-                  <div className="caption">{BANK_ROLES.find(r => r.value === acc.role)?.label || acc.role}</div>
-                </div>
-              </div>
-            ))}
+          <div className="stg-table-wrap">
+            <table className="ev-table ev-lined table-bank-manual">
+              <thead>
+                <tr>
+                  <th>별칭</th>
+                  <th>은행</th>
+                  <th>계좌번호</th>
+                  <th>용도</th>
+                  <th>잔고</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bankAccounts.map((acc) => (
+                  <tr key={acc.id}>
+                    <td className="text-left"><b>{acc.alias || acc.bank_name}</b></td>
+                    <td className="tc">{acc.bank_name}</td>
+                    <td className="tc mono-number ev-dim">{acc.account_number}</td>
+                    <td className="tc">{BANK_ROLES.find(r => r.value === acc.role)?.label || acc.role}</td>
+                    <td className="tr mono-number">{Number(acc.balance || 0).toLocaleString()}원</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
