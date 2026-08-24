@@ -48,7 +48,7 @@ const TOUR_STEPS: TourStep[] = [
         "회사 인증서를 고르고 인증서 비밀번호를 입력하세요",
         "「홈택스 연결하기」를 누르면 끝 — 이후 세금계산서가 자동으로 모입니다",
       ],
-      link: { label: "설정 > 연동·인증 바로 가기", href: "/settings?tab=bank" },
+      link: { label: "설정 > 연동·인증 바로 가기", href: "/settings/integration?tab=bank" },
     },
   },
   {
@@ -62,7 +62,7 @@ const TOUR_STEPS: TourStep[] = [
         "인증서면 「PC 인증서 자동 선택」 → 인증서 선택 → 비밀번호 입력",
         "「연결하기」를 누르면 거래내역이 자동으로 수집되기 시작합니다",
       ],
-      link: { label: "설정 > 연동·인증 바로 가기", href: "/settings?tab=bank" },
+      link: { label: "설정 > 연동·인증 바로 가기", href: "/settings/integration?tab=bank" },
     },
   },
   { href: "/schedule", title: "일정 / 할 일", desc: "회사 일정과 할 일을 한곳에서 관리합니다. 팀원과 공유돼요." },
@@ -104,11 +104,13 @@ const TOUR_STEPS: TourStep[] = [
         "연결하면 전 계좌 잔액과 거래가 하루 2회 자동 동기화됩니다",
         "「지금 동기화」 버튼으로 언제든 즉시 갱신할 수도 있어요",
       ],
-      link: { label: "설정 > 연동·인증 바로 가기", href: "/settings?tab=bank" },
+      link: { label: "설정 > 연동·인증 바로 가기", href: "/settings/integration?tab=bank" },
     },
   },
   {
-    href: "/settings", title: "회사 설정",
+    //   2026-08-24 설정 IA 재편 — href 는 사이드바 항목과 같아야 하이라이트된다.
+    //   '/settings' 는 이제 사이드바에 없는 길잡이 주소라 첫 그룹(회사 기초정보)을 가리킨다.
+    href: "/settings/company", title: "회사 설정",
     desc: "인증서 연동, 회사 문서, 결재 정책 등 회사 운영 설정을 관리합니다.",
     howTo: {
       label: "먼저 해두면 좋은 등록 3가지",
@@ -117,7 +119,7 @@ const TOUR_STEPS: TourStep[] = [
         "회사 정보: 사업자등록증·통장사본 등 회사 문서 업로드 (계약서·증명서 발급에 쓰여요)",
         "직인 등록: 회사 직인을 올려두면 세금계산서·계약서에 자동 날인됩니다",
       ],
-      link: { label: "회사 설정 바로 가기", href: "/settings" },
+      link: { label: "회사 설정 바로 가기", href: "/settings/company" },
     },
   },
   { href: null, title: "준비 끝!", desc: "더 자세한 사용법은 사이드바 아래 '사용 가이드'에서 언제든 볼 수 있어요. 이제 시작해 볼까요?" },

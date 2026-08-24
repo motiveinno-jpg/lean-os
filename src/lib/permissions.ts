@@ -129,21 +129,30 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     menus: [
       // 2026-08-13 설정 탭 통합: departments→team, deal→chart, tax→closing 에 흡수. (certificate·approval 은 2026-08-12 제거)
       //   옛 키로 이미 부여된 권한은 설정 화면이 OR 매핑으로 계속 존중한다 — 여기서는 새 부여 항목만 노출.
+      //   2026-08-24 설정 IA 재편 — 이 12개 세부탭이 사이드바 **다섯 줄**로 갈렸다(lib/settings-nav.ts).
+      //     ★ 부여 키(key)는 하나도 바꾸지 않았다 — member_permissions 백필 0건.
+      //       사이드바는 "그룹 안 키를 하나라도 받았으면 그 줄을 보여준다"로 판정한다(NavItem.anyPerm).
+      //     아래 순서·묶음은 사이드바 순서와 같게 맞춘 것이다(그룹 소제목을 권한 화면에도 그리는 일은 후속).
       { route: "/settings", label: "회사 설정", tabs: [
+        // 회사 기초정보 (/settings/company)
         { key: "company-info", label: "회사정보" },
+        { key: "forms", label: "회사 양식" },
+        // 구성원 (/settings/people)
         { key: "team", label: "구성원·초대" },
+        { key: "attendance", label: "근태·가산수당" },
+        // 회계·세무 (/settings/finance)
         { key: "cash", label: "자금·통장", money: true },
         { key: "chart", label: "계정과목·분류" },
         { key: "closing", label: "회계마감" },
         //   2026-08-21 회사정보 분리 — 옛 'company-info' 권한자도 계속 보이게 설정 화면이 OR 로 받는다
         { key: "tax-partner", label: "세무 파트너" },
+        // 연동·API 키 (/settings/integration)
+        //   2026-08-21 신설 — 회사가 발급받은 외부 인증키. 기존 'ads' 권한자도 볼 수 있게
+        //   설정 화면이 OR 로 받아 준다(settings-nav 의 perms = ["api-keys","ads"]).
+        { key: "api-keys", label: "연동·API 키" },
         { key: "bank", label: "은행연동" },
         { key: "ads", label: "광고 계정" },
-        //   2026-08-21 신설 — 회사가 발급받은 외부 인증키. 기존 'ads' 권한자도 볼 수 있게
-        //   설정 화면이 OR 로 받아 준다(SETTINGS_TABS.perms = ["api-keys","ads"]).
-        { key: "api-keys", label: "연동·API 키" },
-        { key: "attendance", label: "근태·가산수당" },
-        { key: "forms", label: "회사 양식" },
+        // 보안·시스템 (/settings/system) — 회사 삭제는 마스터 전용이라 부여 대상이 아니다
         { key: "security", label: "보안·알림" },
       ] },
       { route: "/billing", label: "요금제·결제", money: true },

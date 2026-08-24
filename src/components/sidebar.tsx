@@ -15,11 +15,15 @@ import { useTheme } from "@/components/theme-context";
 import { useUser, type UserRole } from "@/components/user-context";
 import { useMyPermissions } from "@/lib/permissions";
 import { usePopups } from "@/components/popup-windows";
+import { SETTINGS_GROUPS, groupPermKeys } from "@/lib/settings-nav";
 
 //   permKey — 권한을 확인할 때 쓸 라우트. 한 권한(예: /reports) 아래 여러 메뉴를 펼 때 쓴다.
 //   없으면 href 를 쓴다(대부분).
+//   anyPerm — 부여 키 여러 개 중 **하나라도** 있으면 보인다 (회사 설정 그룹, 2026-08-24).
+//     새 권한 키를 만들지 않으려고 둔 장치다 — 새 키는 member_permissions 에 행이 없어
+//     백필 전까지 마스터 외 아무에게도 안 보인다(2026-08-21에 실제로 밟은 함정).
 //   layer — 이 항목부터 새 '층'이 시작된다는 소제목 (긴 그룹을 패널 안에서 읽히게, 2026-08-19 파이낸스 A안: 기초/자료/기장/예정)
-type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; permKey?: string; children?: NavItem[]; layer?: string };
+type NavItem = { href: string; label: string; icon: string; badgeKey?: string; roles?: UserRole[]; operatorOnly?: boolean; masterOnly?: boolean; match?: string[]; permKey?: string; anyPerm?: string[]; children?: NavItem[]; layer?: string };
 //   short/icon — 레일(왼쪽 60px 세로 줄)에 그리는 두세 글자 이름과 아이콘 (2026-08-19 레일+패널 사이드바)
 type NavGroup = { label: string; short: string; icon: string; items: NavItem[] };
 
@@ -123,8 +127,19 @@ const NAV_GROUPS: NavGroup[] = [
     //   통일감이 없다 → 둘로 가른다. 회사 관리 = 회사가 정하는 것(설정·공지·요금제) / 도움말 = 오너뷰가 주는 것.
     label: "회사 관리", short: "회사", icon: "settings",
     items: [
-      { href: "/settings", label: "회사 설정", icon: "settings", roles: ["owner", "admin"] },
-      { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"] },
+      //   회사 설정 — 항목 13개를 **그룹 5개**로 폈다 (2026-08-24 사장님 지시: "좌측 사이드바로 메뉴화").
+      //     ★ 13개를 다 펴지 않는 이유: 분석 그룹에서 사장님이 정한 "5개까지만 편다 — 8개를 다 펴면
+      //       사이드바가 길어져 오히려 못 찾는다"를 그대로 따른다. leaf 는 각 화면 안 탭(2~4개)으로 남는다.
+      //     ★ 2026-08-13 에 기각된 '좌측 네비'와 다르다 — 그때 사유는 '왼쪽'이 아니라 '왼쪽이 두 개'
+      //       (설정 화면 안에 또 패널을 뒀다). 이번엔 화면 안에 패널을 만들지 않는다.
+      //   목록·순서·권한 키의 원본은 lib/settings-nav.ts 하나다 — 여기에 다시 적지 않는다(적으면 어긋난다).
+      ...SETTINGS_GROUPS.map((g, i): NavItem => ({
+        href: g.route, label: g.label, icon: g.icon, roles: ["owner", "admin"],
+        anyPerm: groupPermKeys(g),
+        layer: i === 0 ? "회사 설정" : undefined,
+      })),
+      //   요금제는 설정 안으로 넣지 않는다 — 돈이 나가는 화면이라 권한(money)이 따로 붙고 성격이 다르다.
+      { href: "/billing", label: "요금제", icon: "credit-card", roles: ["owner", "admin"], layer: "구독" },
     ],
   },
   {
@@ -158,6 +173,8 @@ function filterNavUnified(role: UserRole, isMaster: boolean, hasMenu: (route: st
     if (i.masterOnly && !isMaster) return false; // 마스터 전용 — 메뉴 권한 부여로도 안 열림
     if (role === "partner") return !i.roles || i.roles.includes(role);
     if (isMaster) return true;
+    //   그룹 안 세부 권한을 하나라도 받았으면 그 메뉴를 보여준다 (회사 설정 5그룹).
+    if (i.anyPerm) return i.anyPerm.some((k) => hasMenu(k));
     return hasMenu(i.permKey || i.href);
   };
   return NAV_GROUPS
@@ -196,6 +213,9 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
   // 회사 관리·도움말 — 슬레이트
   "/settings": "#64748b", "/announcements": "#94a3b8", "/billing": "#64748b",
+  //   회사 설정 5그룹 (2026-08-24) — 같은 그룹이라 전부 슬레이트 계열
+  "/settings/company": "#64748b", "/settings/people": "#6b7688", "/settings/finance": "#5f7186",
+  "/settings/integration": "#58708f", "/settings/system": "#7a8598",
   "/guide": "#94a3b8", "/support": "#64748b",
 };
 
