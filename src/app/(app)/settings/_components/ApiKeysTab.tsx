@@ -14,6 +14,7 @@ import { useToast } from "@/components/toast";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { friendlyError } from "@/lib/friendly-error";
 import { appConfirm } from "@/components/global-confirm";
+import { AdAccountsTab } from "./AdAccountsTab";
 import {
   API_PROVIDERS, KEY_STATUS_LABEL,
   listApiKeys, saveApiKey, deleteApiKey, testApiKey, retestApiKey,
@@ -73,10 +74,9 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
   return (
     <div className="apik-wrap">
       <p className="apik-intro">
-        공공기관에서 <b>회사 이름으로 발급받은 인증키</b>를 여기에 넣습니다. 넣는 순간 실제로 한 번 불러 보고,
+        광고 매체·공공기관에서 <b>회사 이름으로 발급받은 키</b>를 여기에 넣습니다. 넣는 순간 실제로 한 번 불러 보고,
         키는 암호화되어 화면에 다시 나오지 않습니다.
-        은행·카드·홈택스는 <Link href="/settings/integration?tab=bank" className="apik-link">은행연동</Link>,
-        광고는 <Link href="/settings/integration?tab=ads" className="apik-link">광고 계정</Link> 탭에서 붙입니다.
+        은행·카드·홈택스는 공동인증서로 붙이므로 <Link href="/settings/integration?tab=bank" className="apik-link">은행연동</Link> 탭에서 합니다.
       </p>
 
       {isLoading ? (
@@ -147,6 +147,13 @@ export function ApiKeysTab({ companyId, userId }: { companyId: string; userId: s
           })}
         </div>
       )}
+
+      {/*   광고 계정 — 2026-08-24 별도 탭에서 여기로 합쳤다(사장님: "광고 계정도 API인데 앞에 API 탭이랑
+            다른 것도 사용자가 혼동될 수가 있음"). 매체에서 받은 키를 넣는 일이라 성격이 같다.
+            다만 **계정마다 여러 개**(대행이면 클라이언트별)라 목록·등록은 자기 부품이 그대로 그린다. */}
+      <div className="apik-section">
+        <AdAccountsTab companyId={companyId} />
+      </div>
 
       {editing && (
         <KeyDialog provider={editing} companyId={companyId} userId={userId}

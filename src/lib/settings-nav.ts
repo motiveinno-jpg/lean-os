@@ -14,7 +14,7 @@ export type SettingsLeafKey =
   | "company-info" | "forms"
   | "team"
   | "cash" | "chart" | "closing" | "tax-partner"
-  | "api-keys" | "bank" | "ads"
+  | "api-keys" | "bank"
   | "security" | "delete-company";
 
 export type SettingsGroupKey = "company" | "people" | "finance" | "integration" | "system";
@@ -85,6 +85,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     ],
   },
   {
+    //   연동은 **붙이는 방식**으로 가른다 — 인증서(은행연동) / 키(API 키). 2026-08-24.
     key: "integration", label: "연동·API 키", route: "/settings/integration", icon: "link",
     leaves: [
       //   연동·API 키 (2026-08-21 사장님 지시) — 회사가 자기 이름으로 발급받은 인증키를 넣는 곳.
@@ -92,14 +93,15 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       //   탭 이름은 'API 키' — 그릇(그룹)이 이미 '연동·API 키'다. 같은 말을 두 번 읽히게 하지 않는다
       //   (2026-08-13 사장님 원칙: 그릇에 적혀 있으면 안에서는 뺀다). 2026-08-24.
       { key: "api-keys", label: "API 키", perms: ["api-keys", "ads"],
-        title: "연동·API 키", desc: "회사 이름으로 발급받은 외부 인증키를 등록합니다. 넣는 순간 실제로 한 번 불러 보고, 키는 암호화되어 화면에 다시 나오지 않습니다.",
+        title: "API 키", desc: "광고 매체·공공기관에서 회사 이름으로 발급받은 키를 등록합니다. 넣는 순간 실제로 한 번 불러 보고, 키는 암호화되어 화면에 다시 나오지 않습니다.",
         icon: "M15 7a5 5 0 11-4.9 6H7v3H4v-3H2l3-3h5.1A5 5 0 0115 7z" },
       { key: "bank", label: "은행연동", perms: ["bank"],
         title: "은행연동", desc: "공동인증서로 은행·카드·홈택스 자동 수집을 연결합니다.",
         icon: "M13.828 10.172a4 4 0 010 5.656l-3 3a4 4 0 01-5.656-5.656l1.5-1.5M10.172 13.828a4 4 0 010-5.656l3-3a4 4 0 015.656 5.656l-1.5 1.5" },
-      { key: "ads", label: "광고 계정", perms: ["ads"],
-        title: "광고 계정", desc: "광고 매체 API 키를 한 곳에 등록하고 프로젝트에서 골라 씁니다.",
-        icon: "M3 3v18h18M8 17V9m4 8V5m4 12v-6" },
+      //   광고 계정은 2026-08-24 **API 키 탭으로 합쳤다** (사장님: "광고 계정도 API인데 앞에 API 탭이랑
+      //   다른 것도 사용자가 혼동될 수가 있음"). 맞는 말이다 — 광고도 매체에서 받은 키를 넣는 일이다.
+      //   이제 이 그룹은 **붙이는 방식**으로 둘로 갈린다: 인증서로 붙이는 것(은행연동) · 키로 붙이는 것(API 키).
+      //   옛 주소 ?tab=ads 는 아래 TAB_COMPAT 가 API 키 탭으로 보낸다.
     ],
   },
   {
@@ -144,6 +146,7 @@ export const TAB_COMPAT: Record<string, SettingsLeafKey> = {
   general: "team", company: "company-info", certificate: "bank",
   danger: "delete-company", data: "delete-company",
   departments: "team", deal: "chart", tax: "closing",   // 2026-08-13 탭 통합
+  ads: "api-keys",                                      // 2026-08-24 광고 계정 → API 키 탭으로 합침
 };
 
 // 다른 화면으로 이관된 옛 키 — 그 주소로 보낸다.

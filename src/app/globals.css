@@ -3754,6 +3754,11 @@ table.bs-t-table { min-width: 360px; }
 .platform-sub-admin-controls { @apply space-y-4 pt-4 border-t border-[var(--border)]/60; }
 
 /* ═══ 클래스명 가독성 정리 재작업 — 배치9(settings) 마커 스타일 (2026-07-16) ═══ */
+/*   연동 탭의 구역은 설정 기본(px-7 py-6)보다 한 단계 조인다 (2026-08-24 사장님: "영역이 쓸데없이 크다").
+     읽을 것이 칸 몇 개뿐인데 여백이 화면의 절반을 먹고 있었다. */
+.bank-integration-register-form.stg-sec,
+.bank-integration-status-card.stg-sec,
+.bank-integration-manual-accounts.stg-sec { @apply px-5 py-4; }
 .bank-integration-register-form { @apply p-6; }
 .bank-integration-account-type-toggle { @apply flex gap-2 mb-3; }
 .bank-integration-client-type-toggle { @apply flex gap-2 mb-3; }
@@ -3765,10 +3770,19 @@ table.bs-t-table { min-width: 360px; }
 .bank-integration-status-card { @apply p-6; }
 .bank-integration-range-sync-panel { @apply mb-4 p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .bank-integration-sync-result { @apply p-3 rounded-xl text-xs font-medium; }
-.bank-integration-sync-log-list { @apply mt-2 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
+.bank-integration-sync-log-list { @apply mt-2 p-2.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]; }
 .bank-integration-manual-accounts { @apply p-6; }
 /* 연결 조건 한 줄 — 예전 버튼 격자 세 층(자료 종류·명의·인증 방식)을 대신한다 (2026-08-24) */
 .bank-connect-row { @apply grid grid-cols-1 gap-3 mb-4 sm:grid-cols-3; }
+/* 연결됨 안내 — 상자(p-4)에서 얇은 줄로 (2026-08-24, 영역이 쓸데없이 컸다) */
+.bank-connected-note { @apply rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2; }
+/* 붙어 있는 계좌·카드 — 확인만 하면 되므로 칩 한 줄로 (2026-08-24, 큰 카드 목록이었다) */
+.bank-linked-chips { @apply mt-3 flex flex-wrap gap-1.5; }
+.bank-linked-chip { @apply inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-[11.5px] text-[var(--text)]; }
+.bank-linked-chip b { @apply font-semibold; }
+.bank-linked-chip em { @apply not-italic text-[var(--text-dim)]; }
+.bank-linked-chip-amt { @apply ml-1 font-bold; }
+.bank-linked-chip-card { @apply border-purple-500/20 bg-purple-500/5; }
 /* 설정 화면 표 감싸개 — 넓은 표는 **자기 안에서** 가로로 스크롤한다(본문이 옆으로 밀리지 않게) */
 .stg-table-wrap { @apply overflow-x-auto; }
 /* 수동 등록 계좌 표 — 설정 상자 안이라 최소 폭을 낮게 잡는다 */
@@ -10089,6 +10103,8 @@ table.sp-table { min-width: 1160px; } /* 서류·적합도 칸이 늘어 넓어�
 .apik-intro { @apply text-[12.5px] leading-5 text-[var(--text-muted)]; }
 .apik-intro b { @apply font-bold text-[var(--text)]; }
 .apik-list { @apply flex flex-col gap-2.5; }
+/* 키를 넣는 것끼리 한 화면 — 공공 API 목록과 광고 계정 사이를 선 하나로 가른다 (2026-08-24) */
+.apik-section { @apply mt-6 pt-6 border-t border-[var(--border)]; }
 /*   한 연동이 한 줄 — 목업처럼 조밀하게. 카드로 부풀리면 다섯 줄이 한 화면에 안 들어와
      "무엇이 연결됐나"를 한눈에 본다는 목적 자체가 무너진다 (2026-08-21 사장님 지적). */
 .apik-row { @apply flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-4 py-3; }

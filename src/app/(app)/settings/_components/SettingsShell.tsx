@@ -19,7 +19,6 @@ import { useConfirm } from "@/components/confirm-dialog";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
 import { BankIntegrationTab } from "./BankIntegrationTab";
-import { AdAccountsTab } from "./AdAccountsTab";
 import { ApiKeysTab } from "./ApiKeysTab";
 import { TeamManagement } from "./TeamManagement";
 import { DepartmentsTab } from "./DepartmentsTab";
@@ -293,12 +292,15 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
       if (!linkedNow.length) return undefined;
       return on === 2 ? { text: "연결됨" } : on === 1 ? { text: "일부 연결" } : { text: "미연결", warn: true };
     })(),
-    ads: (() => {
-      const a = linkedNow.find((l) => l.key === "ads");
-      if (!a) return undefined;
-      return a.status === "none" ? undefined : { text: a.detail, warn: a.status !== "ok" };
+    //   광고 계정이 API 키 탭으로 합쳐졌으므로(2026-08-24) 배지도 **한 자리에서 함께** 센다.
+    //   따로 두면 탭은 하나인데 숫자가 둘이라 또 헷갈린다.
+    "api-keys": (() => {
+      const ads = linkedNow.find((l) => l.key === "ads");
+      const adCount = ads && ads.status !== "none" ? Number(String(ads.detail).match(/^(\d+)/)?.[1] || 0) : 0;
+      const total = apiKeyRows.length + adCount;
+      if (!total) return undefined;
+      return { text: `${total}개`, warn: !!ads && ads.status !== "ok" && ads.status !== "none" };
     })(),
-    "api-keys": apiKeyRows.length > 0 ? { text: `${apiKeyRows.length}개` } : undefined,
   };
   return (
     <div className="qk-shell stg-page">
@@ -653,8 +655,6 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {/* 연동·API 키 — 회사가 자기 이름으로 발급받은 인증키 (2026-08-21) */}
         {tab === "api-keys" && companyId && <ApiKeysTab companyId={companyId} userId={userId} />}
         {tab === "bank" && <BankIntegrationTab companyId={companyId} bankAccounts={bankAccounts} />}
-        {/* 광고 계정 — 키는 여기 한 번, 프로젝트에서는 골라 쓴다 (2026-08-06) */}
-        {tab === "ads" && companyId && <AdAccountsTab companyId={companyId} />}
 
         {/* 근태·가산수당 탭은 인사관리로 이관(2026-08-24 사장님 지시) —
             근무시간·휴일 → 근태 관리 › 근무 기준 / 가산수당·수당 카탈로그 → 구성원 › 급여.

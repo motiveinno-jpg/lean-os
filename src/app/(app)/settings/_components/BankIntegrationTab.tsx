@@ -433,8 +433,9 @@ export function CodefAccountRegister({ companyId, onRegistered }: { companyId: s
         />
       ) : (
       <>
-      <div className="border-t border-[var(--border)] pt-4 mb-4">
-        <p className="text-xs font-semibold text-[var(--text)] mb-3">실제 금융기관 연결</p>
+      {/*   '실제 금융기관 연결' 라벨을 뺐다 (2026-08-24) — 데모 체험이 머리 오른쪽 작은 버튼이 된 뒤로
+            "이건 진짜"라고 따로 말할 이유가 없어졌다. 구분선만 남긴다. */}
+      <div className="border-t border-[var(--border)] pt-4 mb-3">
 
         {/*   무엇을 · 누구 명의로 · 어떻게 — 예전엔 **버튼 격자 세 층**이었다(2026-08-24 사장님: "예전 UI 형태").
               조회 화면 표준: 여러 값 중 하나 고르기는 **한 줄 셀렉트**, 버튼 격자 금지.
@@ -756,7 +757,8 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
   async function loadRecentSyncLogs() {
     if (!companyId) return;
     const { getRecentCodefSyncLogs } = await import("@/lib/data-sync");
-    const logs = await getRecentCodefSyncLogs(companyId, 5);
+    //   3건이면 "지금 잘 돌고 있나"는 알 수 있다. 5건은 화면만 길게 했다 (2026-08-24)
+    const logs = await getRecentCodefSyncLogs(companyId, 3);
     setRecentSyncLogs(logs);
   }
   useEffect(() => { if (isConnected) loadRecentSyncLogs(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [companyId, isConnected]);
@@ -947,7 +949,9 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
       <div className="bank-integration-status-card stg-sec">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="stg-sec-title">금융 데이터 연동</h2>
+            {/*   이름을 '자동 수집 연결'로 (2026-08-24) — 아래 '직접 적어 넣은 통장'과 무엇이 다른지
+                  이름만으로 갈리게 한다. 여기 = 저절로 들어오는 것, 아래 = 사람이 적는 것. */}
+            <h2 className="stg-sec-title">자동 수집 연결</h2>
             {isConnected ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/10 text-green-500">연결됨</span>
             ) : (
@@ -1031,7 +1035,8 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
 
         {isConnected ? (
           <div className="space-y-3">
-            <div className="p-4 rounded-xl bg-green-500/5 border border-green-500/20 shadow-sm">
+            {/*   세 줄짜리 상자였다 — 같은 말을 한 줄로 줄인다(2026-08-24 사장님: 영역이 쓸데없이 크다) */}
+            <div className="bank-connected-note">
               <p className="text-xs text-green-600 font-semibold">
                 {hasCodefConnection && hasHometaxConnection
                   ? "은행/카드 + 홈택스가 모두 연결되었습니다. 거래내역과 세금계산서가 자동으로 수집됩니다."
@@ -1056,43 +1061,26 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
               <div className="text-center py-4 text-xs text-[var(--text-muted)]">계좌 정보 불러오는 중...</div>
             ) : (
               <>
-                {codefAccounts.bank.length > 0 && (
-                  <div className="bank-integration-connected-bank-list">
-                    <h3 className="text-xs font-semibold text-[var(--text-muted)] mb-2">연결된 은행 계좌</h3>
-                    <div className="space-y-1.5">
-                      {codefAccounts.bank.map((acc: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 text-xs font-bold">B</div>
-                            <div>
-                              <div className="text-sm font-medium">{acc.displayName || acc.resAccountName || acc.organization || "계좌"}</div>
-                              <div className="text-xs text-[var(--text-dim)]">{acc.resAccount || acc.resAccountDisplay || acc.organization || ""}</div>
-                            </div>
-                          </div>
-                          {acc.resAccountBalance && (
-                            <div className="text-sm font-bold">{Number(acc.resAccountBalance).toLocaleString()}원</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {codefAccounts.card.length > 0 && (
-                  <div className="bank-integration-connected-card-list">
-                    <h3 className="text-xs font-semibold text-[var(--text-muted)] mb-2">연결된 카드</h3>
-                    <div className="space-y-1.5">
-                      {codefAccounts.card.map((card: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between px-4 py-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 text-xs font-bold">C</div>
-                            <div>
-                              <div className="text-sm font-medium">{card.displayName || card.resCardName || card.organization || "카드"}</div>
-                              <div className="text-xs text-[var(--text-dim)]">{card.resCardNo || card.organization || ""}</div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                {/*   연결된 것 — 예전엔 하나마다 아바타 + 두 줄짜리 큰 카드라 세 개만 되어도 250px 을 먹었다
+                      (2026-08-24 사장님: "영역이 쓸데없이 크다 · 아이콘 및 크기 조절").
+                      여기서 할 일은 **무엇이 붙어 있나 확인**뿐이다 — 이름·뒷번호를 칩 한 줄로 편다. */}
+                {(codefAccounts.bank.length > 0 || codefAccounts.card.length > 0) && (
+                  <div className="bank-linked-chips">
+                    {codefAccounts.bank.map((acc: any, i: number) => (
+                      <span key={`b${i}`} className="bank-linked-chip">
+                        <b>{acc.displayName || acc.resAccountName || acc.organization || "계좌"}</b>
+                        <em>{acc.resAccount || acc.resAccountDisplay || ""}</em>
+                        {acc.resAccountBalance && (
+                          <span className="bank-linked-chip-amt mono-number">{Number(acc.resAccountBalance).toLocaleString()}원</span>
+                        )}
+                      </span>
+                    ))}
+                    {codefAccounts.card.map((card: any, i: number) => (
+                      <span key={`c${i}`} className="bank-linked-chip bank-linked-chip-card">
+                        <b>{card.displayName || card.resCardName || card.organization || "카드"}</b>
+                        <em>{card.resCardNo || ""}</em>
+                      </span>
+                    ))}
                   </div>
                 )}
                 {codefAccounts.bank.length === 0 && codefAccounts.card.length === 0 && (
@@ -1172,7 +1160,16 @@ export function BankIntegrationTab({ companyId, bankAccounts }: { companyId: str
 
       {/* 수동 등록 계좌 */}
       <div className="bank-integration-manual-accounts stg-sec">
-        <h2 className="stg-sec-title mb-4">수동 등록 계좌</h2>
+        <div className="stg-sec-head mb-4">
+          <div>
+            <h2 className="stg-sec-title">직접 적어 넣은 통장</h2>
+            {/*   위 '자동 수집 연결'과 무엇이 다른지 여기서 말한다 (2026-08-24 사장님 지적) */}
+            <p className="stg-sec-desc">
+              연동 밖의 계좌입니다 — 거래는 들어오지 않고 <b>잔고만</b> 대시보드 합계에 더해집니다.
+              추가·수정은 회계·세무 › 자금·통장에서 합니다.
+            </p>
+          </div>
+        </div>
         {/*   목록은 표로 (2026-08-24 정리) — 예전엔 계좌마다 큰 카드 줄이라 여덟 개만 되어도
               화면 절반을 먹었다. 조회 화면 표준: 목록이 있는 곳은 표(머리단 가운데·숫자 오른쪽). */}
         {bankAccounts.length === 0 ? (
