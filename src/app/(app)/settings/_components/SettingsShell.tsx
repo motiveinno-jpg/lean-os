@@ -29,6 +29,7 @@ import { CompanyDeleteTab } from "./CompanyDeleteTab";
 import { CompanyInfoTab, TaxAdvisorSection, ApprovalNotifySection, IpRestrictionSection } from "./CompanyInfoTab";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AccountingClosingTab } from "./AccountingClosingTab";
+import { loadLinkedIntegrations, listApiKeys } from "@/lib/api-keys";
 import { TAB_COMPAT, settingsGroup, type SettingsGroupKey, type SettingsLeafKey } from "@/lib/settings-nav";
 // 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
 
@@ -140,6 +141,24 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
       return count ?? null;
     },
     enabled: !!companyId,
+  });
+
+  //   ── 연동 그룹 탭 줄 = 연결 현황판 (2026-08-24) ──
+  //   8-21 사장님 요구는 "무엇이 연결됐나를 한 곳에서 본다"였고, 그래서 'API 키' 탭 목록에
+  //   은행·홈택스·광고 줄까지 모아 뒀다. 그런데 같은 것이 두 탭에 나와 헷갈렸다(8-24 사장님).
+  //   → 목록에서는 빼고 **탭 줄 배지**로 옮긴다. 조망은 남고 중복만 사라진다.
+  //   ★ 연동 그룹을 볼 때만 부른다 — 다른 설정 화면에서 헛돌게 하지 않는다.
+  const { data: linkedNow = [] } = useQuery({
+    queryKey: ["company-linked-integrations", companyId],
+    queryFn: () => loadLinkedIntegrations(companyId!),
+    enabled: !!companyId && group === "integration",
+    staleTime: 60_000,
+  });
+  const { data: apiKeyRows = [] } = useQuery({
+    queryKey: ["company-api-keys", companyId],
+    queryFn: () => listApiKeys(companyId!),
+    enabled: !!companyId && group === "integration",
+    staleTime: 60_000,
   });
 
   const { data: routingRules = [] } = useQuery({
@@ -266,7 +285,20 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
     "company-info": hubCompany && !hubCompany.business_number ? { text: "번호 미입력", warn: true } : undefined,
     team: hubMemberCount != null ? { text: `${hubMemberCount}명` } : undefined,
     cash: totalCash > 0 ? { text: `₩${compactWon(totalCash)}` } : undefined,
-    bank: bankAccounts.length > 0 ? { text: `${bankAccounts.length}계좌` } : undefined,
+    //   ★ 예전 배지는 '수동 등록 계좌 수'라 연동 상태로 오해됐다 — 연동은 연결 여부로 말한다.
+    bank: (() => {
+      const codef = linkedNow.find((l) => l.key === "codef");
+      const ht = linkedNow.find((l) => l.key === "hometax");
+      const on = [codef?.status === "ok", ht?.status === "ok"].filter(Boolean).length;
+      if (!linkedNow.length) return undefined;
+      return on === 2 ? { text: "연결됨" } : on === 1 ? { text: "일부 연결" } : { text: "미연결", warn: true };
+    })(),
+    ads: (() => {
+      const a = linkedNow.find((l) => l.key === "ads");
+      if (!a) return undefined;
+      return a.status === "none" ? undefined : { text: a.detail, warn: a.status !== "ok" };
+    })(),
+    "api-keys": apiKeyRows.length > 0 ? { text: `${apiKeyRows.length}개` } : undefined,
   };
   return (
     <div className="qk-shell stg-page">

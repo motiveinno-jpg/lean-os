@@ -89,7 +89,9 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     leaves: [
       //   연동·API 키 (2026-08-21 사장님 지시) — 회사가 자기 이름으로 발급받은 인증키를 넣는 곳.
       //   perms 에 기존 "ads" 를 함께 둔다 — 연동 성격 권한을 이미 받은 사람이 내일 못 보는 일이 없게.
-      { key: "api-keys", label: "연동·API 키", perms: ["api-keys", "ads"],
+      //   탭 이름은 'API 키' — 그릇(그룹)이 이미 '연동·API 키'다. 같은 말을 두 번 읽히게 하지 않는다
+      //   (2026-08-13 사장님 원칙: 그릇에 적혀 있으면 안에서는 뺀다). 2026-08-24.
+      { key: "api-keys", label: "API 키", perms: ["api-keys", "ads"],
         title: "연동·API 키", desc: "회사 이름으로 발급받은 외부 인증키를 등록합니다. 넣는 순간 실제로 한 번 불러 보고, 키는 암호화되어 화면에 다시 나오지 않습니다.",
         icon: "M15 7a5 5 0 11-4.9 6H7v3H4v-3H2l3-3h5.1A5 5 0 0115 7z" },
       { key: "bank", label: "은행연동", perms: ["bank"],
