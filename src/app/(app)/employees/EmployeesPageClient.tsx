@@ -54,6 +54,10 @@ import {
   AttendanceEditRequestDialog,
   ManualAttendanceDialog,
 } from "@/components/hr-attendance-extras";
+//   수당 기준 — 2026-08-24 회사 설정 '근태·가산수당' 에서 이관.
+//   통상시급 분모·당직 단가·수당 단가는 allowance-calc → allowance_entries → **급여대장 금액**을 만든다.
+//   옛 자리(/settings:attendance)에는 money 표시가 없어 급여 권한 없이도 금액을 움직일 수 있었다.
+import { HrAllowancePolicyPanel } from "@/components/hr-attendance-settings";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 import { payrollStats, useCertificateStats } from "@/components/flex-hr-heroes";
@@ -252,7 +256,13 @@ export default function EmployeesPage() {
           <QueryBody>
             <div className="emp-scroll">
               {effectiveTab === "salary" && (
-                <div className="payroll-tab-panel"><PayrollPreviewTab companyId={companyId} /></div>
+                <>
+                  <div className="payroll-tab-panel"><PayrollPreviewTab companyId={companyId} /></div>
+                  {/* 수당 기준 — 가산수당 정책(주 소정근로·통상시급 분모·당직 단가·5인 미만·포괄임금) + 수당 카탈로그.
+                      매일 보는 것(급여 이력·명세) 아래에 둔다 — 기준은 자주 바꾸지 않는다.
+                      이 탭 자체가 급여 권한(money)이라, 금액을 만드는 값이 금액 권한과 같은 자리에 놓인다. */}
+                  <div className="hr-rule-panel"><HrAllowancePolicyPanel companyId={companyId} /></div>
+                </>
               )}
 
               {/* 경비청구 탭은 구성원에서 제거(2026-06-29) — 경비/지출결의는 결재관리(/approvals)에서 처리(2026-07-08 이관). 미결 경비 요약 카드는 상단 유지. 휴가 탭은 근태관리로 이동. */}

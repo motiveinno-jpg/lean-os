@@ -18,7 +18,6 @@ import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
 import { QueryErrorBanner } from "@/components/query-status";
 import { AccessDenied } from "@/components/access-denied";
-import HrAttendanceSettingsPanel from "@/components/hr-attendance-settings";
 import { BankIntegrationTab } from "./BankIntegrationTab";
 import { AdAccountsTab } from "./AdAccountsTab";
 import { ApiKeysTab } from "./ApiKeysTab";
@@ -625,8 +624,9 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
         {/* 광고 계정 — 키는 여기 한 번, 프로젝트에서는 골라 쓴다 (2026-08-06) */}
         {tab === "ads" && companyId && <AdAccountsTab companyId={companyId} />}
 
-        {/* ═══ 근태·가산수당 ═══ */}
-        {tab === "attendance" && companyId && <HrAttendanceSettingsPanel companyId={companyId} />}
+        {/* 근태·가산수당 탭은 인사관리로 이관(2026-08-24 사장님 지시) —
+            근무시간·휴일 → 근태 관리 › 근무 기준 / 가산수당·수당 카탈로그 → 구성원 › 급여.
+            옛 주소는 lib/settings-nav.ts 의 TAB_MOVED 가 받는다. */}
 
         {/* ═══ 회사 양식 ═══ */}
         {tab === "forms" && <FormTemplateManager companyId={companyId} />}

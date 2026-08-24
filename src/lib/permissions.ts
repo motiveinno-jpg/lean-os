@@ -119,6 +119,9 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/attendance", label: "근태 관리", tabs: [
         { key: "board", label: "워크보드" },
         { key: "records", label: "기록 상세·수정" },
+        //   2026-08-24 회사 설정에서 이관 — 출퇴근 기준·지각 유예·야간 시간대·근무 요일·휴일.
+        //   옛 '/settings:attendance' 권한자도 보이게 화면이 OR 로 받는다(새 키 백필 불필요).
+        { key: "settings", label: "근무 기준", desc: "출퇴근 기준 시각·유예·야간 시간대·근무 요일·휴일" },
       ] },
       { route: "/hr-templates", label: "근로계약·서식" },
       { route: "/team", label: "구성원 디렉토리", always: true },
@@ -137,9 +140,11 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         // 회사 기초정보 (/settings/company)
         { key: "company-info", label: "회사정보" },
         { key: "forms", label: "회사 양식" },
-        // 구성원 (/settings/people)
+        // 구성원·초대 (/settings/people)
+        //   2026-08-24 'attendance'(근태·가산수당) 는 인사관리로 이관돼 여기서 뺐다.
+        //   ★ 이미 부여된 '/settings:attendance' 는 **계속 유효하다** — 근태 관리 '근무 기준' 탭과
+        //     구성원 › 급여 '수당 기준' 이 그 옛 키를 OR 로 받아 준다(백필·회수 없이 권한자가 그대로 본다).
         { key: "team", label: "구성원·초대" },
-        { key: "attendance", label: "근태·가산수당" },
         // 회계·세무 (/settings/finance)
         { key: "cash", label: "자금·통장", money: true },
         { key: "chart", label: "계정과목·분류" },

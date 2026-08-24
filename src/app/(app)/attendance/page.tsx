@@ -9,6 +9,9 @@ import { useUser } from "@/components/user-context";
 import { AttendanceTab } from "@/app/(app)/employees/EmployeesPageClient";
 import { FlexWorkBoard } from "@/components/flex-work-board";
 import { EditRequestInbox } from "@/components/hr-attendance-extras";
+//   근무 기준 — 2026-08-24 회사 설정에서 이관(출퇴근 기준·유예·야간 시간대·근무 요일 + 휴일).
+//   근태 판정(attendance-calc)·워크보드가 이 값으로 그리므로 근태 화면이 주인이다.
+import { HrWorkRuleSettingsPanel } from "@/components/hr-attendance-settings";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AttendanceStatusTab } from "./_components/AttendanceStatusTab";
 
@@ -33,6 +36,9 @@ export default function AttendancePage() {
   const { isMaster, hasPerm } = useMyPermissions();
   const canManage = isMaster || hasPerm("/attendance:records");
   const canBoard = isMaster || hasPerm("/attendance:board");
+  //   근무 기준 탭 — 새 키 '/attendance:settings' 또는 **옛 키 '/settings:attendance'**.
+  //   옛 키를 함께 받아야 어제까지 근태·가산수당을 보던 사람이 오늘 화면을 잃지 않는다(백필 0건).
+  const canRules = isMaster || hasPerm("/attendance:settings") || hasPerm("/settings:attendance");
   const isEmployee = !canManage;
   const isManager = canManage;
   // 보드 스타일 워크보드(주간 52h·타임라인) ↔ 기존 기록 상세 토글.
@@ -41,14 +47,16 @@ export default function AttendancePage() {
   useEffect(() => { if (canBoard && canManage) setAttView((v) => (v === "records" && !new URLSearchParams(window.location.search).get("view") ? "work" : v)); }, [canBoard, canManage]);
   // 상위 섹션: 근무현황 / 연장근무. 휴가 신청·승인은 전자결재로, 연차 설정은 인사관리로 이관(2026-07-15).
   //   2026-08-20: 연장근무는 결재 새 요청 > 초과근무로 일원화(전용 탭 폐지) — 여기 셋째 갈래는 "월간 요약"(부서→직원 지표)
-  const [section, setSection] = useState<"work" | "summary">("work");
+  const [section, setSection] = useState<"work" | "summary" | "rules">("work");
   // ?view=records/work + ?section=overtime/work 딥링크(근태 수정요청 알림 → records).
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
     const v = sp.get("view");
     if (v === "records" || v === "work") setAttView(v);
+    //   ?view=rules — 옛 회사 설정 근태·가산수당 주소가 여기로 온다(settings-nav TAB_MOVED)
+    if (v === "rules") setSection("rules");
     const s = sp.get("section");
-    if (s === "summary" || s === "work") setSection(s);
+    if (s === "summary" || s === "work" || s === "rules") setSection(s);
     if (s === "overtime") window.location.replace("/approvals?tab=new-request&type=overtime");   //   연장근무 탭 폐지(2026-08-20) → 결재 새 요청(초과근무)
     // 휴가(section=leave/focus=pending) 딥링크는 전자결재로 이관 → /leave 리다이렉트가 처리.
   }, []);
@@ -75,16 +83,18 @@ export default function AttendancePage() {
 
   //   갈래 탭 — 상자 안 맨 위 파란 밑줄 (2026-08-18 조회 표준 Wave 4). 예전 두 줄 seg-bar(근무 현황/연장근무 → 워크보드/기록 상세)를
   //   한 줄 세 갈래로 편다: 워크보드(주간) · 기록 상세 · 월간 요약(2026-08-19, 예전 연장근무).
-  type Gal = "work" | "records" | "summary";
-  const gal: Gal = section === "summary" ? "summary" : attView === "work" && canBoard ? "work" : "records";
+  type Gal = "work" | "records" | "summary" | "rules";
+  const gal: Gal = section === "summary" ? "summary"
+    : section === "rules" && canRules ? "rules"
+    : attView === "work" && canBoard ? "work" : "records";
   const goGal = (g: Gal) => {
-    if (g === "summary") { setSection("summary"); return; }
+    if (g === "summary" || g === "rules") { setSection(g); return; }
     setSection("work"); setAttView(g);
   };
   const tabsEl = (
     <div className="collect-tabs no-print">
-      {([["work", "워크보드 (주간)"], ["records", "기록 상세"], ["summary", "근태 현황"]] as const)
-        .filter(([k]) => (k === "work" ? canBoard : true))
+      {([["work", "워크보드 (주간)"], ["records", "기록 상세"], ["summary", "근태 현황"], ["rules", "근무 기준"]] as const)
+        .filter(([k]) => (k === "work" ? canBoard : k === "rules" ? canRules : true))
         .map(([k, l]) => (
           <button key={k} type="button" onClick={() => goGal(k)} className={gal === k ? "collect-tab collect-tab-on" : "collect-tab"}>{l}</button>
         ))}
@@ -121,6 +131,9 @@ export default function AttendancePage() {
                   (2026-08-19 사장님: 연장근무 신청·승인은 결재 허브로, 여기는 인사팀이 보는 월간 지표) */}
               {/* 근태 현황 (2026-08-19 사장님: 월간 요약 → 근태 현황, 조회기간·사람/부서 다중 지정) */}
               {gal === "summary" && <AttendanceStatusTab companyId={companyId} employees={employees} isAdmin={canManage} />}
+              {/* 근무 기준 — 출퇴근 기준·지각 유예·야간 시간대·근무 요일 + 휴일(연도별).
+                  가산수당·수당 단가는 급여 금액을 만드는 값이라 구성원 › 급여로 갔다(2026-08-24). */}
+              {gal === "rules" && <div className="hr-rule-panel"><HrWorkRuleSettingsPanel companyId={companyId} /></div>}
             </div>
           </QueryBody>
         </QueryScreen>

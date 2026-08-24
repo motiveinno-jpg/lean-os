@@ -12,7 +12,7 @@
 
 export type SettingsLeafKey =
   | "company-info" | "forms"
-  | "team" | "attendance"
+  | "team"
   | "cash" | "chart" | "closing" | "tax-partner"
   | "api-keys" | "bank" | "ads"
   | "security" | "delete-company";
@@ -54,14 +54,15 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
     ],
   },
   {
-    key: "people", label: "구성원", route: "/settings/people", icon: "user-cog",
+    //   2026-08-24 사장님 지시 — '근태·가산수당' 을 인사관리로 내보내고 이 그룹은 '구성원·초대' 하나가 됐다.
+    //   그래서 그룹 이름도 남은 것과 같게 바꿨다(그릇과 안이 같으면 이름을 두 번 읽히게 하지 않는다).
+    //     · 근무시간·휴일 → 근태 관리 › 근무 기준 / 가산수당·수당 카탈로그 → 구성원 › 급여
+    //     · 옮긴 이유는 그 값을 읽는 화면이 거기라서다(근태 판정 / 급여대장 금액). TAB_MOVED 가 옛 주소를 받는다.
+    key: "people", label: "구성원·초대", route: "/settings/people", icon: "user-cog",
     leaves: [
       { key: "team", label: "구성원·초대", perms: ["team", "departments"],
         title: "구성원·초대", desc: "구성원 초대·합류 요청 승인과 부서를 관리합니다. 메뉴 권한 부여는 구성원 화면에서 합니다.",
         icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" },
-      { key: "attendance", label: "근태·가산수당", perms: ["attendance"],
-        title: "근태·가산수당", desc: "출퇴근 기준 시각과 유예, 가산수당 규칙을 정합니다.",
-        icon: "M12 8v4l3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
     ],
   },
   {
@@ -139,7 +140,7 @@ export function groupPermKeys(g: SettingsGroup): string[] {
 // 옛 ?tab= 딥링크 호환 — 재편 전 키를 leaf 로 매핑. 지우지 않는다(사장님 즐겨찾기·알림 주소가 산다).
 export const TAB_COMPAT: Record<string, SettingsLeafKey> = {
   general: "team", company: "company-info", certificate: "bank",
-  hr_attendance: "attendance", danger: "delete-company", data: "delete-company",
+  danger: "delete-company", data: "delete-company",
   departments: "team", deal: "chart", tax: "closing",   // 2026-08-13 탭 통합
 };
 
@@ -147,6 +148,10 @@ export const TAB_COMPAT: Record<string, SettingsLeafKey> = {
 export const TAB_MOVED: Record<string, string> = {
   account: "/mypage", notifications: "/mypage",          // 개인 설정 — 마이페이지로 이관(2026-07-08)
   approval: "/approvals?tab=policies",                    // 결재 정책 — 결재 허브로 일원화(2026-08-12)
+  //   근태·가산수당 — 2026-08-24 인사관리로 이관. 출퇴근 기준을 찾아온 사람은 근무 기준으로 보낸다
+  //   (가산수당은 구성원 › 급여로 갔지만, 옛 탭 하나를 두 곳으로 보낼 수는 없어 더 자주 찾는 쪽으로 보낸다).
+  attendance: "/attendance?view=rules",
+  hr_attendance: "/attendance?view=rules",
 };
 
 //   옛 /settings?tab=X → 새 /settings/<group>?tab=X. 못 알아보는 값이면 undefined.

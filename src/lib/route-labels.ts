@@ -74,7 +74,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   //   설정 5그룹 (2026-08-24) — 사이드바에 편 다섯 줄. 최장 prefix 우선이라 /settings 보다 먼저 잡힌다.
   //   설정 화면은 self-헤더(상자 안 탭 + 설명 줄)를 가지므로 desc 는 두지 않는다.
   "/settings/company": { group: "회사 관리", title: "회사 기초정보" },
-  "/settings/people": { group: "회사 관리", title: "구성원 설정" },
+  "/settings/people": { group: "회사 관리", title: "구성원·초대" },
   "/settings/finance": { group: "회사 관리", title: "회계·세무 설정" },
   "/settings/integration": { group: "회사 관리", title: "연동·API 키" },
   "/settings/system": { group: "회사 관리", title: "보안·시스템" },
