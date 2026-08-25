@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { createSupabaseAdminClient } from "@/lib/supabase-admin";
 import { buildSignedContractPrintHtml, STRIP_BODY_SIGNATURE_FN } from "@/lib/contract-print-html";
-import chromium from "@sparticuz/chromium";
-import puppeteer, { type Browser } from "puppeteer-core";
+import type { Browser } from "puppeteer-core";
+import { getPdfBrowser } from "@/lib/headless-chrome";
 import { fetchAssetAsDataUrl } from "@/lib/pdf-fetch-guard";
 
 // 서명완료 계약서 → 네이티브 인쇄 품질 PDF (업체별 1파일). 클라이언트가 chunk 로 호출 → zip.
@@ -12,18 +12,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 // URL 이미지 → dataURL (계약 양식 오버레이의 갑 직인 seal_url 변환용)
-// 서버리스 warm 인스턴스 재사용 — 콜드스타트(브라우저 launch) 1회로 분산
-let _browser: Browser | null = null;
-async function getBrowser(): Promise<Browser> {
-  if (_browser && _browser.connected) return _browser;
-  _browser = await puppeteer.launch({
-    args: [...chromium.args, "--font-render-hinting=none"],
-    defaultViewport: { width: 1240, height: 1754, deviceScaleFactor: 2 },
-    executablePath: await chromium.executablePath(),
-    headless: true,
-  });
-  return _browser;
-}
+// 브라우저 기동은 공용 런처로 — Vercel 라이브러리 미추출(libnss3) 우회 포함 (headless-chrome.ts)
 
 export async function POST(req: NextRequest) {
   try {
@@ -125,7 +114,7 @@ export async function POST(req: NextRequest) {
       }
 
       // ── 폴백: 현행 puppeteer 렌더 ──
-      if (!browser) browser = await getBrowser();
+      if (!browser) browser = await getPdfBrowser();
       const page = await browser.newPage();
       try {
         const html = buildSignedContractPrintHtml({

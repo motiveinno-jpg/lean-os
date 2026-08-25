@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isAllowedAssetUrl } from "@/lib/pdf-fetch-guard";
 import { logServerError } from "@/lib/server-error-log";
 import { PDF_SANITIZE_CONFIG, PDF_SANITIZE_URI_REGEXP_SOURCE } from "@/lib/pdf-sanitize-config";
-import type { Browser } from "puppeteer-core";
+import { getPdfBrowser } from "@/lib/headless-chrome";
 
 // 임의 HTML → 인쇄품질 PDF (텍스트변환 회사양식 발급 공용). contract-pdf 의 puppeteer 패턴 재사용.
 export const runtime = "nodejs";
@@ -13,24 +13,7 @@ export const maxDuration = 120;
 const MAX_HTML_BYTES = 3 * 1024 * 1024; // 3MB — 과도한 입력 차단
 const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB — 응답 PDF 상한
 
-// 서버리스 warm 인스턴스 재사용 — 콜드스타트(브라우저 launch) 분산.
-//   ⚠️ chromium/puppeteer 는 동적 import — 정적 import 로 두면 모듈 로드 자체가 죽었을 때
-//   catch·로깅까지 못 가고 빈 500 이 나간다(2026-08-25 채우기·출력 500 실사고).
-let _browser: Browser | null = null;
-async function getBrowser(): Promise<Browser> {
-  if (_browser && _browser.connected) return _browser;
-  const [{ default: chromium }, { default: puppeteer }] = await Promise.all([
-    import("@sparticuz/chromium"),
-    import("puppeteer-core"),
-  ]);
-  _browser = await puppeteer.launch({
-    args: [...chromium.args, "--font-render-hinting=none"],
-    defaultViewport: { width: 1240, height: 1754, deviceScaleFactor: 2 },
-    executablePath: await chromium.executablePath(),
-    headless: true,
-  });
-  return _browser;
-}
+// 브라우저 기동은 공용 런처로 — Vercel 라이브러리 미추출(libnss3) 우회 포함 (headless-chrome.ts)
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "문서가 너무 큽니다." }, { status: 413 });
     }
 
-    const browser = await getBrowser();
+    const browser = await getPdfBrowser();
     const page = await browser.newPage();
     try {
       page.setDefaultNavigationTimeout(30000);
@@ -102,6 +85,6 @@ export async function POST(req: NextRequest) {
     console.error("[html-pdf]", msg);
     await logServerError({ where: "html-pdf", message: msg, context: { stack: e instanceof Error ? String(e.stack).slice(0, 1200) : null } });
     // x-ov-pdf: 배포 세대 표식 — "지금 서빙 중인 빌드에 수정이 실렸는가"를 밖에서 확인하는 용도
-    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "trace-v2" } });
+    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "env-v3" } });
   }
 }
