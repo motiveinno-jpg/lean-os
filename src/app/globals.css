@@ -10167,6 +10167,8 @@ table.table-inv-products { min-width: 940px; }
 table.table-inv-stock { min-width: 760px; }
 table.table-inv-moves { min-width: 1040px; }
 table.table-inv-wh { min-width: 560px; }
+table.table-inv-counts { min-width: 720px; }
+table.table-inv-count-lines { min-width: 820px; }
 .inv-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
 /* 음수 줄 — 에러가 아니라 '아직 안 맞춘 것'이라 눈에는 띄되 겁주지 않는다 (결정 7) */
 .inv-row-fix { background: color-mix(in srgb, var(--danger) 6%, transparent); }
@@ -10226,3 +10228,16 @@ table.table-inv-wh { min-width: 560px; }
 .inv-soon-what { @apply text-[13px] leading-relaxed text-[var(--text-muted)]; }
 .inv-soon-list { @apply flex list-disc flex-col gap-1 pl-5 text-[12.5px] leading-relaxed text-[var(--text-muted)]; }
 .inv-soon-now { @apply mt-1 text-[12.5px] text-[var(--text-muted)]; }
+
+/*   재고 › 실사 — 센 수량을 칸에서 바로 적고, 차이만 눈에 띄게 한다 */
+.inv-count-title { @apply flex items-center gap-1.5 text-[12.5px] text-[var(--text-muted)]; }
+.inv-saved { @apply text-[11px] text-[var(--success)]; }
+.inv-count-input { @apply mx-auto h-7 w-[86px] px-2 text-center text-[12.5px] tabular-nums; }
+.inv-row-click { @apply cursor-pointer; }
+.inv-row-click:hover { @apply bg-[var(--primary)]/5; }
+.inv-row-diff { @apply bg-[var(--warning)]/6; }
+.inv-diff-plus { @apply text-[var(--success)]; }
+.inv-diff-minus { @apply text-[var(--danger)]; }
+.inv-check { @apply flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-subtle)] px-3.5 py-3 text-[12.5px]; }
+.inv-check > span > b { @apply text-[13px]; }
+.inv-check em { @apply mt-0.5 block not-italic text-[11px] leading-relaxed text-[var(--text-muted)]; }

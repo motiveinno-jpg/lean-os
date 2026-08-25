@@ -243,3 +243,137 @@ export async function listMoves(companyId: string, from: string, to: string): Pr
     .limit(2000));
   return ((data || []) as any[]).map((r) => ({ ...r, doc: r.stock_docs ?? null })) as MoveRow[];
 }
+
+// ── 재고조사(실사) — 2026-08-25 사장님 지시 ───────────────────────────────────
+//   ★ 결정 9 — **실사는 숫자를 덮어쓰는 일이 아니라, 차이를 기록으로 남기는 일이다.**
+//     장부 100 · 실제 97 이면 97로 고치는 게 아니라 '실사 조정 −3' 한 줄을 쌓는다.
+//     그래야 나중에 "언제 3개가 비었나"를 물어볼 데가 있다(결정 3과 같은 이유).
+//   ★ 결정 10 — **안 센 줄은 건드리지 않는다.** 센 수량이 비어 있는 것과 0을 적은 것은 다르다.
+//     비었으면 조정에서 빠지고, 0을 적었으면 '0개였다'로 읽어 재고를 0으로 맞춘다.
+//     (이걸 안 가르면 반쯤 세다 만 실사가 창고 전체를 0으로 만든다.)
+//   ★ 결정 11 — **차이는 반영하는 순간의 장부와 견준다.** 세는 동안에도 판매는 일어난다.
+//     시작할 때 찍어 둔 수량(system_qty)으로 조정하면 그 사이 판매가 지워진다.
+//     대신 그 사이 움직인 줄이 있으면 **반영 전에 화면이 알린다** — 고르는 것은 사람이다.
+
+export type StockCount = {
+  id: string; count_date: string; status: "draft" | "done";
+  warehouse_id: string | null; adjust_doc_id: string | null; note: string | null; created_at: string;
+};
+export type CountLine = { id: string; product_id: string; system_qty: number; counted_qty: number | null };
+
+export async function listCounts(companyId: string): Promise<StockCount[]> {
+  if (!companyId) return [];
+  const data = logRead("inventory:counts", await supabase
+    .from("stock_counts").select("id, count_date, status, warehouse_id, adjust_doc_id, note, created_at")
+    .eq("company_id", companyId).order("count_date", { ascending: false }).order("created_at", { ascending: false })
+    .limit(300));
+  return (data || []) as StockCount[];
+}
+
+export async function listCountLines(countId: string): Promise<CountLine[]> {
+  if (!countId) return [];
+  const data = logRead("inventory:countlines", await supabase
+    .from("stock_count_lines").select("id, product_id, system_qty, counted_qty")
+    .eq("count_id", countId).limit(5000));
+  return ((data || []) as any[]).map((r) => ({
+    ...r, system_qty: Number(r.system_qty || 0),
+    counted_qty: r.counted_qty == null ? null : Number(r.counted_qty),
+  })) as CountLine[];
+}
+
+/**
+ * 실사를 연다 — 그 시점 장부 수량을 줄로 찍어 둔다.
+ *   `includeAll` 이면 재고가 0인 품목까지 깐다(창고를 통째로 세는 경우).
+ *   꺼져 있으면 **지금 그 창고에 잡혀 있는 품목만** — 안 쓰는 품목 수백 개를 세게 하지 않는다.
+ */
+export async function createCount(
+  companyId: string,
+  input: { warehouseId: string; countDate?: string; note?: string | null; includeAll?: boolean },
+  userId?: string | null,
+): Promise<{ id: string; lines: number }> {
+  const countDate = input.countDate || todayKst();
+  const products = (await listProducts(companyId)).filter((p) => p.track_stock && p.is_active);
+  const onhand = (await listOnHand(companyId)).filter((r) => r.warehouse_id === input.warehouseId);
+  const qtyOf = new Map(onhand.map((r) => [r.product_id, r.qty]));
+
+  const targets = input.includeAll ? products : products.filter((p) => qtyOf.has(p.id));
+  if (!targets.length) throw new Error("셀 품목이 없습니다 — 품목을 먼저 등록하거나 '재고 0인 품목까지'를 켜세요");
+
+  const { data: head, error } = await supabase.from("stock_counts").insert({
+    company_id: companyId, warehouse_id: input.warehouseId, count_date: countDate,
+    status: "draft", note: input.note?.trim() || null, created_by: userId ?? null,
+  }).select("id").single();
+  if (error) throw error;
+  const countId = (head as { id: string }).id;
+
+  const { error: lineErr } = await supabase.from("stock_count_lines").insert(
+    targets.map((p) => ({
+      company_id: companyId, count_id: countId, product_id: p.id,
+      system_qty: qtyOf.get(p.id) ?? 0, counted_qty: null,
+    })),
+  );
+  if (lineErr) {
+    await supabase.from("stock_counts").delete().eq("id", countId);   // 줄 없는 실사를 남기지 않는다
+    throw lineErr;
+  }
+  return { id: countId, lines: targets.length };
+}
+
+export async function saveCountedQty(countId: string, edits: { id: string; counted_qty: number | null }[]) {
+  for (const e of edits) {
+    const { error } = await supabase.from("stock_count_lines")
+      .update({ counted_qty: e.counted_qty }).eq("id", e.id).eq("count_id", countId);
+    if (error) throw error;
+  }
+}
+
+export async function deleteCount(countId: string) {
+  const { error } = await supabase.from("stock_counts").delete().eq("id", countId).eq("status", "draft");
+  if (error) throw error;
+}
+
+/**
+ * 실사를 반영한다 — 차이가 있는 줄만 모아 **'실사 조정' 문서 한 건**을 세운다(결정 9).
+ *   ★ 견주는 대상은 반영 시점의 현재고다(결정 11). 스냅샷이 아니다.
+ *   ★ 센 수량이 비어 있으면 아예 빠진다(결정 10).
+ *   차이가 하나도 없으면 문서를 만들지 않고 '맞았다'로 닫는다 — 빈 문서를 남기지 않는다.
+ */
+export async function applyCount(
+  companyId: string, countId: string, userId?: string | null,
+): Promise<{ docNo: string | null; changed: number; counted: number; drifted: number }> {
+  const { data: head } = await supabase.from("stock_counts")
+    .select("id, warehouse_id, count_date, status").eq("id", countId).single();
+  const h = head as { warehouse_id: string | null; count_date: string; status: string } | null;
+  if (!h) throw new Error("실사를 찾을 수 없습니다");
+  if (h.status === "done") throw new Error("이미 반영한 실사입니다 — 다시 맞추려면 새 실사를 여세요");
+  if (!h.warehouse_id) throw new Error("창고가 없는 실사입니다");
+
+  const lines = (await listCountLines(countId)).filter((l) => l.counted_qty != null);
+  const onhand = (await listOnHand(companyId)).filter((r) => r.warehouse_id === h.warehouse_id);
+  const nowOf = new Map(onhand.map((r) => [r.product_id, r.qty]));
+
+  let drifted = 0;
+  const moveLines: MoveLine[] = [];
+  for (const l of lines) {
+    const now = nowOf.get(l.product_id) ?? 0;
+    if (now !== l.system_qty) drifted++;                       // 세는 동안 움직인 줄
+    const diff = Number(l.counted_qty) - now;
+    if (diff !== 0) moveLines.push({ product_id: l.product_id, qty: diff, note: `실사 ${h.count_date}` });
+  }
+
+  let docNo: string | null = null;
+  let docId: string | null = null;
+  if (moveLines.length) {
+    const r = await createStockDoc(companyId, {
+      reason: "count", docDate: h.count_date, warehouseId: h.warehouse_id,
+      note: `실사 반영 (${moveLines.length}줄)`, lines: moveLines,
+    }, userId);
+    docNo = r.docNo; docId = r.id;
+  }
+
+  const { error } = await supabase.from("stock_counts")
+    .update({ status: "done", adjust_doc_id: docId, updated_at: new Date().toISOString() })
+    .eq("id", countId);
+  if (error) throw error;
+  return { docNo, changed: moveLines.length, counted: lines.length, drifted };
+}

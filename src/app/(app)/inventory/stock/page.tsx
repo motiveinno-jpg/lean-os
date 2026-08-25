@@ -20,6 +20,7 @@ import {
   Pager, usePager, QuickSearch, quickSearchHit,
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
+import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
 import {
   listProducts, listOnHand, listWarehouses, listMoves, createStockDoc,
   ensureDefaultWarehouse, upsertWarehouse, STOCK_REASONS, reasonOf, reasonLabel,
@@ -27,7 +28,7 @@ import {
 } from "@/lib/inventory";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
-type Tab = "onhand" | "moves" | "warehouse";
+type Tab = "onhand" | "moves" | "count" | "warehouse";
 type Signal = "all" | "low" | "zero" | "fix";
 
 export default function StockPage() {
@@ -60,6 +61,9 @@ export default function StockPage() {
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const whById = useMemo(() => new Map(warehouses.map((w) => [w.id, w])), [warehouses]);
+
+  //   실사 — 상태가 여러 곳(조회 줄·표·팝업)에 걸려 훅 하나로 모은다. 훅은 조기 return 앞이어야 한다.
+  const count = useStockCount(companyId, userId, canMove, productById);
 
   //   현재고 줄 — 품목 × 창고. 수량을 세지 않는 품목은 애초에 나오지 않는다(결정 6-④).
   const rows = useMemo(() => {
@@ -104,7 +108,7 @@ export default function StockPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["onhand", "현재고"], ["moves", "움직인 이력"], ["warehouse", "창고"]] as const).map(([k, l]) => (
+            {([["onhand", "현재고"], ["moves", "움직인 이력"], ["count", "실사"], ["warehouse", "창고"]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k as Tab)}
                 className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {l}
@@ -151,6 +155,8 @@ export default function StockPage() {
               </ResultStrip>
             </>
           )}
+
+          {tab === "count" && <CountBar ctl={count} warehouses={warehouses} onhand={onhand} />}
 
           {tab === "warehouse" && (
             <QueryBar right={canMove ? <WarehouseAdd companyId={companyId} onDone={invalidate} /> : undefined}>
@@ -244,6 +250,8 @@ export default function StockPage() {
               )
             )}
 
+            {tab === "count" && <CountBody ctl={count} warehouses={warehouses} onhand={onhand} productById={productById} />}
+
             {tab === "warehouse" && (
               warehouses.length === 0 ? (
                 <div className="collect-empty">창고가 없습니다 — 첫 입·출고에서 &lsquo;본사창고&rsquo;가 자동으로 만들어집니다.</div>
@@ -273,6 +281,14 @@ export default function StockPage() {
         </QueryBody>
 
         {tab === "onhand" && <Pager page={pager.page} pages={pager.pages} total={shown.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />}
+        {tab === "count" && !count.openId && count.counts.data && count.counts.data.length > 0 && (
+          <Pager page={count.listPager.page} pages={count.listPager.pages} total={count.counts.data.length} size={50}
+            from={count.listPager.from} to={count.listPager.to} onPage={count.listPager.setPage} />
+        )}
+        {tab === "count" && count.openId && (
+          <Pager page={count.linePager.page} pages={count.linePager.pages} total={count.shown.length} size={50}
+            from={count.linePager.from} to={count.linePager.to} onPage={count.linePager.setPage} />
+        )}
         {tab === "moves" && <Pager page={movePager.page} pages={movePager.pages} total={moves.length} size={50} from={movePager.from} to={movePager.to} onPage={movePager.setPage} />}
       </QueryScreen>
 
@@ -282,6 +298,8 @@ export default function StockPage() {
           onSaved={(msg) => { setDocOpen(false); invalidate(); toast(msg, "success"); }}
           onError={(e) => toast(friendlyError(e, "저장하지 못했습니다"), "error")} />
       )}
+      <NewCountDialog ctl={count} warehouses={warehouses} />
+      <CountPasteDialog ctl={count} productById={productById} />
       {openingOpen && companyId && (
         <OpeningDialog companyId={companyId} userId={userId} products={products} warehouses={warehouses}
           onClose={() => setOpeningOpen(false)}
