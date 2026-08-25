@@ -177,16 +177,21 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     return targets.map((e) => {
       let total = 0, overtime = 0, lateDays = 0;
       for (const d of days) {
-        const a = attByEmpDate.get(`${e.id}|${ymd(d)}`);
+        const key = `${e.id}|${ymd(d)}`;
+        const a = attByEmpDate.get(key);
         if (!a) continue;
         total += minutesOf(a);
         overtime += Number(a.overtime_minutes || 0);
-        if (a.is_late) lateDays += 1;
+        //   오전반차·종일·방향미상 휴가는 아침 지각을 면제한다(오후반차만 아침 출근 의무가 남는다).
+        //   classifyLeaveForLate 와 같은 규칙 — 저장된 is_late 가 반차 승인 전 아침 기준으로 잘못
+        //   박히는 경우가 있어 표시단에서도 면제해 오전반차가 지각으로 뜨는 것을 막는다 (2026-08-25 사장님).
+        const lv = leaveByEmpDate.get(key);
+        if (a.is_late && (!lv || lv.kind === "pm")) lateDays += 1;
       }
       return { emp: e, total, overtime, lateDays };
     }).sort((a, b) => b.total - a.total);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targets, attByEmpDate, startStr]);
+  }, [targets, attByEmpDate, leaveByEmpDate, startStr]);
 
   // 이번주 결근 집계 — 셀의 결근 배지와 동일 규칙(지난 평일 + 무기록 + 휴가 아님 + 입사 이후).
   //   요약 칩 클릭 시 명단 펼침 (2026-07-30 사장님: 결근자 이름을 클릭으로 확인).
@@ -333,8 +338,11 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const lv = leaveByEmpDate.get(key);
                     const weekend = i >= 5;
                     if (lv) {
+                      //   반차여도 출근을 찍었으면 출근시간을 함께 보여준다 (2026-08-25 사장님).
+                      const lci = a ? timeOf(a.check_in) : null;
+                      const lco = a ? timeOf(a.check_out) : null;
                       return (
-                        <td key={i} className="px-1 py-2 text-center align-middle" title={lv.tip}>
+                        <td key={i} className="px-1 py-2 text-center align-middle" title={lv.tip + (lci ? ` · 출근 ${lci}${lco ? `~${lco}` : ""}` : "")}>
                           {lv.kind === "full" ? (
                             <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">휴가</span>
                           ) : (
@@ -343,6 +351,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                               {lv.kind !== "half" && <span className={`flex-halfday-fill ${lv.kind === "am" ? "left-0" : "right-0"}`} />}
                               <span className="flex-halfday-label">{lv.kind === "am" ? "오전 반차" : lv.kind === "pm" ? "오후 반차" : "반차"}</span>
                             </span>
+                          )}
+                          {lv.kind !== "full" && lci && (
+                            <span className="block mt-0.5 text-[9px] leading-tight text-[var(--text-dim)] mono-number">{lci}{lco ? `~${lco}` : ""}</span>
                           )}
                         </td>
                       );
