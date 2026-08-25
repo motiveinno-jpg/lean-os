@@ -223,7 +223,9 @@ export function DateField({
           value={editing ? draft : (value || "")}
           placeholder={placeholder}
           onChange={(e) => handleType(e.target.value)}
-          onFocus={openPop}
+          // 포커스 시 기존값 전체 선택 → 키보드로 치면 기존값에 덧붙지 않고 대체된다 (2026-08-25 사장님).
+          //   달력만 클릭할 땐 타이핑이 없으므로 값은 그대로 보존된다.
+          onFocus={() => { openPop(); setTimeout(() => inputRef.current?.select(), 0); }}
           onBlur={handleInputBlur}
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); commitDraft(); }
