@@ -8843,3 +8843,11 @@ table.table-inv-summary { min-width: 760px; }
 .pull-order { @apply mb-2 overflow-hidden rounded-xl border border-[var(--border)]; }
 .pull-order-head { @apply flex flex-wrap items-center gap-2 bg-[var(--bg-subtle)] px-3 py-2 text-[12.5px]; }
 .pull-order-head em { @apply not-italic text-[var(--text-muted)]; }
+
+/* ═══ 데이터 제공사 점검 안내 팝업 (2026-08-25, maintenance-notice.tsx) ═══ */
+.maint-popup-overlay { @apply z-[95] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4; }
+.maint-popup-panel { @apply w-full max-w-md p-6 shadow-xl; } /* glass-card·animate-count-up 은 커스텀 클래스라 JSX 에 직접 둔다 */
+.maint-popup-badge { @apply inline-block mb-2 px-2 py-0.5 rounded-full bg-[var(--warning)]/15 text-[var(--warning)] text-[11px] font-bold; }
+.maint-popup-rows { @apply mt-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-1 divide-y divide-[var(--border)]/60; }
+.maint-popup-row { @apply flex items-start gap-3 py-2 text-sm leading-6; }
+.maint-popup-row-label { @apply shrink-0 w-16 text-[12px] font-bold text-[var(--text)] leading-6; }

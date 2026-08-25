@@ -22,6 +22,7 @@ import { UserProvider, useUser } from "@/components/user-context";
 import { BoardProvider } from "@/components/board-context";
 import { HometaxBackgroundChain } from "@/components/hometax-background-chain";
 import { AppTourHost } from "@/components/app-tour";
+import { MaintenanceNoticeHost } from "@/components/maintenance-notice";
 import { SingleSessionGuard } from "@/components/single-session-guard";
 import { IpGate } from "@/components/ip-gate";
 import { PopupProvider, PopupWindowsHost } from "@/components/popup-windows";
@@ -431,6 +432,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <PopupWindowsHost />
       {/* 첫 가입 탭 투어 — 셸 상주라 투어 중 다른 화면으로 가도 유지, 새로고침도 sessionStorage 로 이어감 (2026-08-10) */}
       <AppTourHost companyId={companyId} />
+      {/* 데이터 제공사(헥토데이터) 점검 안내 팝업 — 2026-08-27 09:00 KST 지나면 저절로 안 뜸 (2026-08-25) */}
+      <MaintenanceNoticeHost />
       {/* 중복 로그인 방지 — 다른 기기 로그인 시 이 기기 즉시 로그아웃 (2026-08-11) */}
       <SingleSessionGuard />
       {/* 회사별 접속 허용 IP 제한 — 설정을 켠 회사만 (2026-08-11) */}
