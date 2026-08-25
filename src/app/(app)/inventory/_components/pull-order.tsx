@@ -81,13 +81,23 @@ function PullDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
     return out;
   }, [shown, picked]);
 
+  //   고른 줄이 **한 주문서에서만** 왔으면 그 머리(거래처·창고·납기)도 같이 가져온다.
+  //   여러 주문서에서 골랐으면 어느 거래처를 넣을지 알 수 없어 넣지 않는다.
+  const fromHead = useMemo(() => {
+    const nos = [...new Set(chosen.map((c) => c.no))];
+    if (nos.length !== 1) return undefined;
+    const o = shown.find((x) => x.o.order_no === nos[0])?.o;
+    if (!o) return undefined;
+    return { partner: o.partner_name, partner_id: o.partner_id, wh: o.warehouse_id, due: o.due_date };
+  }, [chosen, shown]);
+
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">주문서 불러오기</h3>
         <p className="inv-modal-desc">
-          아직 처리되지 않은 주문서입니다. 가져올 항목을 선택하면 <b>남은 수량</b>이 입력됩니다 —
-          <b>어느 주문서에서 왔는지</b>도 함께 표시됩니다.
+          아직 처리되지 않은 주문서입니다. 가져올 항목을 선택하면 <b>남은 수량</b>이 입력되고,
+          한 주문서에서만 골랐다면 <b>거래처·창고·납기일</b>도 함께 채워집니다.
         </p>
 
         <div className="inv-ship-table">
@@ -130,7 +140,7 @@ function PullDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
           <button type="button" className="btn-primary btn-sm" disabled={!chosen.length}
             onClick={() => {
-              try { ctl.pullLines(chosen); onClose(); }
+              try { ctl.pullLines(chosen, fromHead); onClose(); }
               catch (e) { toast(friendlyError(e), "error"); }
             }}>가져오기</button>
         </div>

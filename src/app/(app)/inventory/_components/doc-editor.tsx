@@ -173,8 +173,22 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
     ]);
   }, [byId]);
 
-  /** 다른 주문서에서 줄을 가져온다 — 남은 수량만. 어디서 왔는지 줄에 남는다. */
-  const pullLines = useCallback((src: { no: string; lineId: string; product_id: string; qty: number; price: number | null; lnote?: string }[]) => {
+  /** 다른 주문서에서 줄을 가져온다 — 남은 수량만. 어디서 왔는지 줄에 남는다.
+   *  ★ 머리(거래처·창고·납기)도 같이 가져온다 — 주문서에 이미 적힌 것을 다시 치게 하지 않는다.
+   *    다만 **이미 적어 둔 값은 덮지 않는다**(사람이 고쳐 둔 것이 이긴다). */
+  const pullLines = useCallback((
+    src: { no: string; lineId: string; product_id: string; qty: number; price: number | null; lnote?: string }[],
+    from?: { partner?: string | null; partner_id?: string | null; wh?: string | null; due?: string | null; date?: string | null },
+  ) => {
+    if (from) {
+      setHead((h) => ({
+        ...h,
+        partner: h.partner || from.partner || "",
+        partner_id: h.partner_id || from.partner_id || "",
+        wh: h.wh || from.wh || "",
+        due: h.due || from.due || "",
+      }));
+    }
     setRows((s) => {
       const keep = s.filter((r) => r.product_id || r.sku.trim());
       const add = src.map((x) => {
@@ -272,7 +286,9 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                       ...(f.field_id === "partner" ? { partner_id: "" } : {}) }));
                     setDrop(f.field_id);
                   }}
-                  onFocus={() => setDrop(f.field_id)} />
+                  //   ★ 커서만 왔다고 목록을 펼치지 않는다 — 남의 칸을 덮는다(2026-08-18 사장님 규칙).
+                  //     글자를 치면 열리고, 빈 칸에서 목록을 보고 싶으면 ↓ 를 누른다.
+                  onKeyDown={(e) => { if (e.key === "ArrowDown" && drop !== f.field_id) { e.preventDefault(); setDrop(f.field_id); } }} />
                 {drop === f.field_id && (
                   //   ★ 칸에 친 글자로 **미리 좁혀서** 넘긴다 — 안 그러면 고르개 검색칸에 또 쳐야 한다.
                   //     고르개 안에서 더 좁힐 수도 있다(두 겹).
@@ -363,10 +379,11 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                         placeholder={id === "sku" ? "품목명 · SKU" : f.name}
                         value={shown}
                         onChange={(e) => { setCell(i, id, e.target.value); if (id === "sku") setPick({ row: i, q: e.target.value, idx: 0 }); }}
-                        onFocus={() => { if (id === "sku" && !r.product_id) setPick({ row: i, q: raw, idx: 0 }); }}
                         onKeyDown={(e) => {
                           //   품목 고르개가 열려 있으면 ↑↓·Enter 는 그쪽이 먹는다(PickList 안에서 처리)
                           if (id === "sku" && pick && pick.row === i && e.key !== "Escape") return;
+                          //   ★ 빈 칸에서 목록을 보고 싶으면 ↓ — 커서만 왔다고 펼치지는 않는다
+                          if (id === "sku" && e.key === "ArrowDown") { e.preventDefault(); setPick({ row: i, q: raw, idx: 0 }); return; }
                           onCellKey(e, i, id);
                         }} />
                       {/*   ★ 품목도 일반전표와 같은 고르개 — 치면 목록, ↑↓ 이동, Enter 고르기.
