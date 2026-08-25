@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useMyPermissions } from "@/lib/permissions";
@@ -23,15 +24,16 @@ import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
 import {
-  listProducts, listOnHand, listWarehouses, listMoves, createStockDoc,
+  listProducts, listOnHand, listWarehouses, listMoves, listAvgCost, createStockDoc,
   ensureDefaultWarehouse, upsertWarehouse, STOCK_REASONS, reasonOf, reasonLabel,
   type Product, type Warehouse, type StockReason,
 } from "@/lib/inventory";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
-type Tab = "onhand" | "moves" | "count" | "warehouse";
+type Tab = "onhand" | "moves" | "count" | "warehouse" | "summary";
 type Signal = "all" | "low" | "zero" | "fix";
-type StockKey = "sku" | "name" | "spec" | "wh" | "qty" | "safety" | "state";
+type StockKey = "sku" | "name" | "spec" | "wh" | "qty" | "avg" | "safety" | "state";
+type SumView = "product" | "partner" | "month";
 type MoveKey = "date" | "doc" | "reason" | "sku" | "name" | "wh" | "qty" | "price" | "amount";
 //   상태 정렬은 처리할 것이 위 (CLAUDE.md: 대기→승인→반려→취소와 같은 원칙)
 const STATE_RANK: Record<Signal, number> = { fix: 0, zero: 1, low: 2, all: 3 };
@@ -49,6 +51,7 @@ export default function StockPage() {
   const [signal, setSignal] = useState<Signal>("all");
   const [sort, setSort] = useState<SortState<StockKey>>({ key: "state", dir: "asc" });
   const [mSort, setMSort] = useState<SortState<MoveKey>>({ key: "date", dir: "desc" });
+  const [sumView, setSumView] = useState<SumView>("product");
   const [from, setFrom] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(todayKst);
   const [docOpen, setDocOpen] = useState(false);
@@ -63,7 +66,17 @@ export default function StockPage() {
   const { data: moves = [] } = useQuery({
     queryKey: ["inv-moves", companyId, from, to],
     queryFn: () => listMoves(companyId!, from, to),
-    enabled: !!companyId && tab === "moves",
+    enabled: !!companyId && (tab === "moves" || tab === "summary"),
+  });
+  //   이동평균 원가(결정 27) — 재고금액은 이것으로, 없으면 품목 매입가로
+  const { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-avgcost", companyId], queryFn: () => listAvgCost(companyId!), enabled: !!companyId });
+  const { data: partners = [] } = useQuery({
+    queryKey: ["inv-partners", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("partners").select("id, name").eq("company_id", companyId!).limit(2000);
+      return ((data || []) as any[]).map((p) => ({ id: p.id as string, name: p.name as string }));
+    },
+    enabled: !!companyId && tab === "summary",
   });
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
@@ -99,20 +112,21 @@ export default function StockPage() {
         case "spec": return r.product?.spec || "";
         case "wh": return r.wh?.name || "";
         case "qty": return r.qty;
+        case "avg": return avgCost.get(r.product_id) ?? Number(r.product?.cost_price || 0);
         case "safety": return r.product?.safety_stock == null ? -Infinity : Number(r.product.safety_stock);
         default: return STATE_RANK[r.state];
       }
     };
     return [...shown].sort((a, b) => cmp(val(a), val(b)) * d);
-  }, [shown, sort]);
+  }, [shown, sort, avgCost]);
   const onSort = (k: string) => setSort((s) => nextSort(s, k as StockKey));
   const pager = usePager(sorted, 50, `${q}|${signal}|${sort.key}${sort.dir}`);
   const counts = useMemo(() => ({
     low: rows.filter((r) => r.state === "low").length,
     zero: rows.filter((r) => r.state === "zero").length,
     fix: rows.filter((r) => r.state === "fix").length,
-    value: rows.reduce((n, r) => n + r.qty * Number(r.product?.cost_price || 0), 0),
-  }), [rows]);
+    value: rows.reduce((n, r) => n + r.qty * (avgCost.get(r.product_id) ?? Number(r.product?.cost_price || 0)), 0),
+  }), [rows, avgCost]);
 
   const sortedMoves = useMemo(() => {
     const d = mSort.dir === "asc" ? 1 : -1;
@@ -134,6 +148,28 @@ export default function StockPage() {
   }, [moves, mSort, productById, whById]);
   const onMSort = (k: string) => setMSort((s) => nextSort(s, k as MoveKey));
   const movePager = usePager(sortedMoves, 50, `${from}|${to}|${mSort.key}${mSort.dir}`);
+  //   집계 — 판매·매입 전표만. 판매는 음수로 쌓여 있어 절대값으로 센다.
+  const summary = useMemo(() => {
+    const partnerName = new Map(partners.map((p) => [p.id, p.name]));
+    const acc = new Map<string, { key: string; label: string; sub?: string; saleQty: number; saleAmt: number; buyQty: number; buyAmt: number }>();
+    let saleTotal = 0, buyTotal = 0;
+    for (const m of moves) {
+      const reason = m.doc?.reason;
+      if (reason !== "sale" && reason !== "purchase") continue;
+      const p = productById.get(m.product_id);
+      const key = sumView === "product" ? m.product_id : sumView === "partner" ? (m.doc?.partner_id || "-") : m.moved_at.slice(0, 7);
+      const label = sumView === "product" ? (p?.name || "?") : sumView === "partner" ? (partnerName.get(m.doc?.partner_id || "") || "거래처 없음") : m.moved_at.slice(0, 7);
+      const sub = sumView === "product" ? p?.sku : undefined;
+      const cur = acc.get(key) || { key, label, sub, saleQty: 0, saleAmt: 0, buyQty: 0, buyAmt: 0 };
+      const qty = Math.abs(m.qty) * (reason === "sale" ? (m.qty < 0 ? 1 : -1) : (m.qty > 0 ? 1 : -1));   // 반품은 빼기
+      const amt = Math.abs(Number(m.amount || 0)) * (qty < 0 ? -1 : 1);
+      if (reason === "sale") { cur.saleQty += qty; cur.saleAmt += amt; saleTotal += amt; }
+      else { cur.buyQty += qty; cur.buyAmt += amt; buyTotal += amt; }
+      acc.set(key, cur);
+    }
+    const rows = [...acc.values()].sort((a, b) => sumView === "month" ? a.key.localeCompare(b.key) : (b.saleAmt + b.buyAmt) - (a.saleAmt + a.buyAmt));
+    return { rows, saleTotal, buyTotal };
+  }, [moves, sumView, productById, partners]);
 
   if (!permLoading && !(isMaster || hasPerm("/inventory/stock"))) {
     return <AccessDenied detail="재고 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
@@ -150,7 +186,7 @@ export default function StockPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["onhand", "현재고"], ["moves", "움직인 이력"], ["count", "실사"], ["warehouse", "창고"]] as const).map(([k, l]) => (
+            {([["onhand", "현재고"], ["moves", "움직인 이력"], ["summary", "집계"], ["count", "실사"], ["warehouse", "창고"]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k as Tab)}
                 className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {l}
@@ -198,6 +234,22 @@ export default function StockPage() {
             </>
           )}
 
+          {tab === "summary" && (
+            <>
+              <QueryBar>
+                <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+                <ChipGroup value={sumView} onChange={setSumView} options={[
+                  { value: "product", label: "품목별" }, { value: "partner", label: "거래처별" }, { value: "month", label: "월별" },
+                ]} />
+                <span className="inv-hint">판매·매입 전표를 모아 봅니다 — 취소 전표는 빠집니다.</span>
+              </QueryBar>
+              <ResultStrip>
+                <Stat label="판매" value={`₩${won(summary.saleTotal)}`} />
+                <Stat label="매입" value={`₩${won(summary.buyTotal)}`} />
+                <Stat label="차익" value={`₩${won(summary.saleTotal - summary.buyTotal)}`} tone={summary.saleTotal - summary.buyTotal < 0 ? "minus" : "plus"} />
+              </ResultStrip>
+            </>
+          )}
           {tab === "count" && <CountBar ctl={count} warehouses={warehouses} onhand={onhand} />}
 
           {tab === "warehouse" && (
@@ -232,6 +284,7 @@ export default function StockPage() {
                         <SortableTh label="규격" sortKey="spec" sort={sort} onSort={onSort} />
                         <SortableTh label="창고" sortKey="wh" sort={sort} onSort={onSort} />
                         <SortableTh label="현재고" sortKey="qty" sort={sort} onSort={onSort} />
+                        <SortableTh label="평균단가" sortKey="avg" sort={sort} onSort={onSort} title="이동평균 — 매입·기초 입고의 (수량×단가)합 ÷ 수량합. 없으면 품목 매입가" />
                         <SortableTh label="안전재고" sortKey="safety" sort={sort} onSort={onSort} />
                         <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
                       </tr></thead>
@@ -243,6 +296,7 @@ export default function StockPage() {
                             <td className="tc ev-dim">{r.product?.spec || "—"}</td>
                             <td className="tc">{r.wh?.name || "—"}</td>
                             <td className="tr mono-number"><b className={r.qty < 0 ? "text-[var(--danger)]" : undefined}>{won(r.qty)}</b></td>
+                            <td className="tr mono-number ev-dim">{avgCost.has(r.product_id) ? won(avgCost.get(r.product_id)!) : r.product?.cost_price != null ? <span title="아직 매입 기록이 없어 품목 매입가">{won(Number(r.product.cost_price))}</span> : "—"}</td>
                             <td className="tr mono-number ev-dim">{r.product?.safety_stock != null ? won(Number(r.product.safety_stock)) : "—"}</td>
                             <td className="tc">
                               {r.state === "fix" ? <span className="inv-pill inv-pill-danger">맞춰야 함</span>
@@ -318,6 +372,32 @@ export default function StockPage() {
               )
             )}
 
+            {tab === "summary" && (
+              summary.rows.length === 0 ? (
+                <div className="collect-empty">이 기간에 판매·매입 전표가 없습니다.</div>
+              ) : (
+                <div className="stg-table-wrap">
+                  <table className="ev-table ev-lined table-inv-summary">
+                    <thead><tr>
+                      <th>{sumView === "product" ? "품목" : sumView === "partner" ? "거래처" : "월"}</th>
+                      <th>판매 수량</th><th>판매 금액</th><th>매입 수량</th><th>매입 금액</th><th>차익</th>
+                    </tr></thead>
+                    <tbody>
+                      {summary.rows.map((r) => (
+                        <tr key={r.key}>
+                          <td className="text-left"><b>{r.label}</b>{r.sub ? <span className="ev-dim"> {r.sub}</span> : null}</td>
+                          <td className="tr mono-number">{won(r.saleQty)}</td>
+                          <td className="tr mono-number">₩{won(r.saleAmt)}</td>
+                          <td className="tr mono-number">{won(r.buyQty)}</td>
+                          <td className="tr mono-number">₩{won(r.buyAmt)}</td>
+                          <td className="tr mono-number"><b className={r.saleAmt - r.buyAmt < 0 ? "inv-diff-minus" : undefined}>₩{won(r.saleAmt - r.buyAmt)}</b></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
             {tab === "count" && <CountBody ctl={count} warehouses={warehouses} onhand={onhand} productById={productById} />}
 
             {tab === "warehouse" && (

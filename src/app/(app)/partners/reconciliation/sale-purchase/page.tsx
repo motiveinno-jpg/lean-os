@@ -419,7 +419,7 @@ function SalePurchaseInner() {
         //     전표를 자동으로 만들지 않고 여기서 사람이 불러와 저장한다(제안은 자동, 확정은 사람).
         supabase.from("stock_docs")
           .select("id, doc_no, reason, doc_date, partner_id, note, journal_entry_id, partners(name), stock_moves(qty, unit_price, vat_amount)")
-          .eq("company_id", companyId!).is("journal_entry_id", null).in("reason", ["sale", "purchase"])
+          .eq("company_id", companyId!).is("journal_entry_id", null).eq("status", "active").in("reason", ["sale", "purchase"])
           .gte("doc_date", from).lt("doc_date", to).order("doc_date").limit(200),
       ]);
       const out: EvidenceRow[] = [];

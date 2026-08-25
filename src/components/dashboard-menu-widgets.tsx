@@ -242,3 +242,41 @@ export function MyTasksCard({ userId }: { userId: string }) {
     </ActivityCard>
   );
 }
+
+
+// ── 재고 부족 — 안전재고 아래로 내려간 품목 (2026-08-25 사장님 지시, 재고 2순위) ──
+//   재고 화면에 들어가지 않아도 대시보드에서 먼저 보이게. 안전재고를 정한 품목만 셀 수 있다.
+export function InventoryShortageCard({ companyId }: { companyId: string }) {
+  const { data } = useQuery({
+    queryKey: ["dash-inventory-short", companyId],
+    enabled: !!companyId, staleTime: 60_000,
+    queryFn: async () => {
+      const [prods, onhand] = await Promise.all([
+        db.from("products").select("id, sku, name, spec, safety_stock").eq("company_id", companyId)
+          .eq("is_active", true).eq("track_stock", true).not("safety_stock", "is", null),
+        db.from("v_stock_onhand").select("product_id, qty").eq("company_id", companyId),
+      ]);
+      const qty = new Map<string, number>();
+      for (const r of ((onhand.data as any[]) || [])) qty.set(r.product_id, (qty.get(r.product_id) || 0) + Number(r.qty || 0));
+      const list = ((prods.data as any[]) || [])
+        .map((p) => ({ id: p.id, sku: p.sku, name: p.name, spec: p.spec, safety: Number(p.safety_stock), qty: qty.get(p.id) || 0 }))
+        .filter((p) => p.qty <= p.safety)
+        .sort((a, b) => (a.qty - a.safety) - (b.qty - b.safety));
+      return { list: list.slice(0, 15), count: list.length };
+    },
+  });
+  const list = data?.list || [];
+  return (
+    <ActivityCard title="재고 부족" href="/inventory/stock" count={data?.count} empty={list.length === 0}
+      emptyText="안전재고 아래로 내려간 품목이 없습니다." emptyAction={{ label: "재고 보기", href: "/inventory/stock" }}>
+      {list.map((p) => (
+        <Link key={p.id} href="/inventory/purchase" className="dash-partner-row" title="구매에서 발주하기">
+          <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{p.name}{p.spec ? <span className="text-[var(--text-dim)]"> {p.spec}</span> : null}</span>
+          <span className={p.qty <= 0 ? "text-[11px] font-bold tabular-nums text-[var(--danger)]" : "text-[11px] font-bold tabular-nums text-[var(--warning)]"}>
+            {p.qty.toLocaleString("ko-KR")} / {p.safety.toLocaleString("ko-KR")}
+          </span>
+        </Link>
+      ))}
+    </ActivityCard>
+  );
+}

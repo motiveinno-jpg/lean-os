@@ -8682,6 +8682,7 @@ table.table-inv-ch-imports { min-width: 760px; }
 table.table-inv-ch-check { min-width: 820px; }
 table.table-doc { min-width: 940px; }
 table.table-doc-hist { min-width: 860px; }
+table.table-inv-summary { min-width: 760px; }
 .inv-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
 /* 음수 줄 — 에러가 아니라 '아직 안 맞춘 것'이라 눈에는 띄되 겁주지 않는다 (결정 7) */
 .inv-row-fix { background: color-mix(in srgb, var(--danger) 6%, transparent); }

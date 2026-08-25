@@ -7,7 +7,7 @@
 import { DocScreen, type HistRow } from "../_components/doc-screen";
 import { PullOrderButton } from "../_components/pull-order";
 import {
-  createStockDoc, updateStockDoc, getStockDoc, deleteStockDoc, listStockDocs, listProducts, listWarehouses, returnStockDoc,
+  createStockDoc, updateStockDoc, getStockDoc, listStockDocs, listProducts, listWarehouses, returnStockDoc, cancelStockDoc, rememberPartnerPrices,
 } from "@/lib/inventory";
 import { listOrders } from "@/lib/inventory-orders";
 
@@ -37,6 +37,8 @@ export default function SalesPage() {
           return `${r.docNo} 을 수정했습니다 — 재고가 수정한 수량으로 반영됩니다`;
         }
         const r = await createStockDoc(ctl.companyId!, input, ctl.userId);
+        //   거래처별 단가가 저절로 남는다(결정 26) — 실패해도 저장은 된 것이라 조용히 넘긴다
+        rememberPartnerPrices(ctl.companyId!, built.head.partner_id, "sale", built.lines, r.id).catch(() => {});
         return (r.skipped > 0
           ? `${r.docNo} 로 기록했습니다 · 수량 관리 대상이 아닌 ${r.skipped}줄은 제외했습니다`
           : `${r.docNo} 로 기록했습니다`)
@@ -55,7 +57,8 @@ export default function SalesPage() {
           label: (d.order_id ? `${orderNo.get(d.order_id) || "주문"} 에서 · ` : "") + `${d.lines}품목`,
           lines: d.lines, total: d.supply + d.vat,
           //   전표가 섰는지 — 매입매출전표 › 증빙에서 불러오기로 만든다(제안은 자동, 확정은 사람)
-          state: d.journal_entry_id ? "전표 있음" : "전표 없음", stateTone: d.journal_entry_id ? "ok" : "warn",
+          state: d.status === "cancelled" ? `취소${d.cancel_reason ? " · " + d.cancel_reason : ""}` : d.journal_entry_id ? "전표 있음" : "전표 없음",
+          stateTone: d.status === "cancelled" ? "danger" : d.journal_entry_id ? "ok" : "warn",
         }));
       }}
       onOpen={async ({ id, ctl }) => {
@@ -64,7 +67,7 @@ export default function SalesPage() {
           {
             id: doc.id, order_no: doc.doc_no, order_date: doc.doc_date, due_date: null,
             partner_id: doc.partner_id, partner_name: null, warehouse_id: doc.warehouse_id,
-            status: "open", note: doc.note, custom: {}, created_at: "",
+            status: doc.status === "cancelled" ? "cancelled" : "open", note: doc.note, custom: {}, created_at: "",
           },
           moves.map((m: any, i: number) => ({
             id: m.id, order_id: id, product_id: m.product_id,
@@ -76,7 +79,7 @@ export default function SalesPage() {
           })),
         );
       }}
-      onDelete={async ({ id }) => { await deleteStockDoc(id); }}
+      onCancel={async ({ id, ctl, reason }) => { await cancelStockDoc(id, reason, ctl.userId); }}
       onReturn={async ({ id, ctl }) => { const r = await returnStockDoc(ctl.companyId!, id, ctl.userId); return `${r.docNo} 로 반품 처리했습니다 — 재고가 되돌아갔습니다`; }}
     />
   );

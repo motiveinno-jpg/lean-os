@@ -107,6 +107,39 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_prices: {
+        Row: {
+          company_id: string
+          id: string
+          last_doc_id: string | null
+          partner_id: string
+          product_id: string
+          side: string
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          last_doc_id?: string | null
+          partner_id: string
+          product_id: string
+          side: string
+          unit_price: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          last_doc_id?: string | null
+          partner_id?: string
+          product_id?: string
+          side?: string
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_boms: {
         Row: {
           company_id: string
@@ -337,10 +370,14 @@ export type Database = {
           journal_entry_id: string | null
           kind: string
           note: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           order_id: string | null
           original_doc_id: string | null
           partner_id: string | null
           reason: string
+          status: string
           tax_invoice_id: string | null
           to_warehouse_id: string | null
           updated_at: string
@@ -357,10 +394,14 @@ export type Database = {
           journal_entry_id?: string | null
           kind: string
           note?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           order_id?: string | null
           original_doc_id?: string | null
           partner_id?: string | null
           reason: string
+          status?: string
           tax_invoice_id?: string | null
           to_warehouse_id?: string | null
           updated_at?: string
@@ -377,10 +418,14 @@ export type Database = {
           journal_entry_id?: string | null
           kind?: string
           note?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           order_id?: string | null
           original_doc_id?: string | null
           partner_id?: string | null
           reason?: string
+          status?: string
           tax_invoice_id?: string | null
           to_warehouse_id?: string | null
           updated_at?: string
@@ -15699,6 +15744,15 @@ export type Database = {
           ordered_qty: number | null
           product_id: string | null
           used_qty: number | null
+        }
+        Relationships: []
+      }
+      v_stock_avg_cost: {
+        Row: {
+          avg_cost: number | null
+          company_id: string | null
+          priced_qty: number | null
+          product_id: string | null
         }
         Relationships: []
       }

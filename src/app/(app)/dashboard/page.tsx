@@ -47,7 +47,7 @@ import { DashboardSignals } from "@/components/dashboard-signals"; // 층 1 신�
 import { ChannelHead, useSyncStatus, useUnclassifiedCounts } from "@/components/dashboard-data-status"; // 통장·카드 위젯 머리의 동기화·미분류
 import { ActivityCard, RecentProjects, RecentRevenue, RecentInvoices } from "@/components/dashboard-activity"; // 회사 활동 요약 카드(공용 셸)
 import { DashboardGrid, type CatalogWidget, type WidgetPreset } from "@/components/dashboard-grid"; // 위젯 격자 — 같은 키·순서 드래그·보기 설정
-import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, MyTasksCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
+import { BankRecentCard, ApprovalsPendingCard, EmployeesCard, PartnersCard, AnnouncementsCard, MyTasksCard, InventoryShortageCard } from "@/components/dashboard-menu-widgets"; // 카탈로그용 메뉴 위젯
 import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { useCompanyBizNo } from "@/lib/use-company-bizno"; // 사업자번호 미등록 유도 배너 판정
 
@@ -587,6 +587,7 @@ export default function DashboardPage() {
                 render: () => <DashboardCalendar userId={uid} companyId={companyId} /> },
               { id: "employees", name: "구성원", icon: "👥", desc: "재직 인원", category: "업무", render: () => <EmployeesCard companyId={companyId} /> },
               { id: "partners", name: "거래처", icon: "🤝", desc: "등록 거래처", category: "업무", render: () => <PartnersCard companyId={companyId} /> },
+              { id: "inventory", name: "재고 부족", icon: "📦", desc: "안전재고 아래로 내려간 품목", category: "업무", render: () => <InventoryShortageCard companyId={companyId} /> },
             ];
             // 위젯 노출 = 권한 (2026-08-19 사장님: "권한 설정에 맞게 노출되는지, 보기 설정에서 내가 권한 있는 메뉴만 체크 가능한지")
             //   · 금액 위젯: /dashboard:finance(재무·경영 위젯) **그리고** 그 위젯이 여는 메뉴 권한 둘 다 있어야 한다 (2026-07-30 규칙 + 메뉴 권한)
@@ -605,6 +606,7 @@ export default function DashboardPage() {
               approvals: { menu: "/approvals" },
               employees: { menu: "/employees" },
               partners: { menu: "/partners" },
+              inventory: { menu: "/inventory/stock" },
               todos: { menu: "/schedule" },
               calendar: { menu: "/schedule" },
             };

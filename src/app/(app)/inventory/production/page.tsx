@@ -10,7 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DocScreen, type HistRow } from "../_components/doc-screen";
 import { PullOrderButton } from "../_components/pull-order";
 import {
-  updateStockDoc, getStockDoc, deleteStockDoc, listStockDocs, listProducts, listWarehouses,
+  updateStockDoc, getStockDoc, cancelStockDoc, listStockDocs, listProducts, listWarehouses,
 } from "@/lib/inventory";
 import { listBoms } from "@/lib/inventory-production";
 import { produceLines } from "@/lib/inventory-production";
@@ -78,7 +78,8 @@ export default function ProductionPage() {
             who: d.note || "",
             label: (d.order_id ? `${orderNo.get(d.order_id) || "주문"} 에서 · ` : "") + `${d.lines}품목`,
             lines: d.lines, total: d.supply + d.vat,
-            state: "재고 반영됨", stateTone: "ok",
+            state: d.status === "cancelled" ? `취소${d.cancel_reason ? " · " + d.cancel_reason : ""}` : "재고 반영됨",
+            stateTone: d.status === "cancelled" ? "danger" : "ok",
           }));
         }}
         onOpen={async ({ id, ctl }) => {
@@ -87,7 +88,7 @@ export default function ProductionPage() {
             {
               id: doc.id, order_no: doc.doc_no, order_date: doc.doc_date, due_date: null,
               partner_id: null, partner_name: null, warehouse_id: doc.warehouse_id,
-              status: "open", note: doc.note, custom: {}, created_at: "",
+              status: doc.status === "cancelled" ? "cancelled" : "open", note: doc.note, custom: {}, created_at: "",
             },
             moves.map((m: any, i: number) => ({
               id: m.id, order_id: id, product_id: m.product_id, qty: Math.abs(m.qty),
@@ -98,7 +99,7 @@ export default function ProductionPage() {
             })),
           );
         }}
-        onDelete={async ({ id }) => { await deleteStockDoc(id); }}
+        onCancel={async ({ id, ctl, reason }) => { await cancelStockDoc(id, reason, ctl.userId); }}
       />
       {bomOpen && <BomPanel onClose={() => setBomOpen(false)} />}
     </>

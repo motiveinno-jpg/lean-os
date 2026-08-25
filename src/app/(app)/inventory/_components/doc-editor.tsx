@@ -16,7 +16,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { todayKst } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
 import { PickList } from "@/components/pick-list";
-import type { Product, Warehouse } from "@/lib/inventory";
+import { listPartnerPrices, type Product, type Warehouse } from "@/lib/inventory";
 import {
   loadLayout, saveLayout, resetLayout, newFieldId, defaultLayout,
   FORM_LABEL, type FormKey, type Field, type Layout, type Order, type OrderLine,
@@ -69,7 +69,17 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const bySku = useMemo(() => new Map(products.map((p) => [p.sku.toUpperCase(), p])), [products]);
 
-  const priceOf = useCallback((p: Product) => (formKey === "buy" || formKey === "make" ? p.cost_price : p.sale_price), [formKey]);
+  //   ★ 거래처별 단가(결정 26) — 거래처를 고르면 그 거래처와 마지막에 거래한 단가가 먼저 온다.
+  //     없으면 품목의 판매가·매입가. 채워만 주고 정하는 것은 사람이다.
+  const [partnerPrices, setPartnerPrices] = useState<Map<string, number>>(new Map());
+  const side: "sale" | "buy" = formKey === "buy" || formKey === "make" ? "buy" : "sale";
+  useEffect(() => {
+    let alive = true;
+    if (!companyId || !head.partner_id) { setPartnerPrices(new Map()); return; }
+    listPartnerPrices(companyId, head.partner_id, side).then((m) => { if (alive) setPartnerPrices(m); }).catch(() => {});
+    return () => { alive = false; };
+  }, [companyId, head.partner_id, side]);
+  const priceOf = useCallback((p: Product) => partnerPrices.get(p.id) ?? (side === "buy" ? p.cost_price : p.sale_price), [partnerPrices, side]);
 
   /** 품목을 고르면 규격·단가를 채워 준다 — 채워만 주고 정하는 것은 사람이다. */
   const fillFrom = useCallback((r: DocRow, p: Product) => {
@@ -92,7 +102,8 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
       if (key.startsWith("f_")) { n.custom[key] = v; return n; }
       (n as any)[key] = v;
       //   공급가액을 치면 부가세 10% 가 저절로 선다 — 면세·영세면 부가세만 0 으로 고친다
-      if (key === "supply") n.vat = String(Math.round(num(v) * 0.1));
+      //   ★ 단가도 다시 낸다 — 단가 칸이 꺼진 양식에서 공급가액을 고치면 저장 단가가 옛 값으로 남았다(2026-08-25 검증에서 잡음)
+      if (key === "supply") { n.vat = String(Math.round(num(v) * 0.1)); if (num(n.qty)) n.price = String(num(v) / num(n.qty)); }
       //   수량을 치면 단가가 있는 한 공급가액이 따라온다 — 단가를 직접 치지 않아도 되게
       if (key === "qty" && num(n.price)) {
         const sup = num(n.price) * num(v);

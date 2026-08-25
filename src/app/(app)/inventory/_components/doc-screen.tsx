@@ -37,7 +37,7 @@ export type HistRow = {
 };
 
 export function DocScreen({
-  formKey, perm, saveActions, onSave, history, onOpen, onDelete, onReturn, popupExtra, pull, headNote,
+  formKey, perm, saveActions, onSave, history, onOpen, onDelete, onCancel, onReturn, popupExtra, pull, headNote,
 }: {
   formKey: FormKey;
   perm: string;
@@ -47,6 +47,8 @@ export function DocScreen({
   history: (a: { companyId: string; from: string; to: string }) => Promise<HistRow[]>;
   onOpen: (a: { id: string; ctl: DocCtl }) => Promise<void>;
   onDelete?: (a: { id: string; ctl: DocCtl }) => Promise<void>;
+  /** 취소 — 지우지 않고 사유와 함께 남긴다(재고 전표). 주문서는 onDelete 를 쓴다 */
+  onCancel?: (a: { id: string; ctl: DocCtl; reason: string }) => Promise<void>;
   /** 반품 — 원본을 가리키는 반대 전표를 만든다. 판매·구매만 넘긴다 */
   onReturn?: (a: { id: string; ctl: DocCtl }) => Promise<string>;
   /** 팝업 바닥에 더 둘 동작(주문서 PDF 등) */
@@ -277,13 +279,13 @@ export function DocScreen({
             <div className="doc-popup-head">
               <div>
                 <h3 className="inv-modal-title">{ctl.editing?.order_no || "전표"} 수정</h3>
-                <p className="inv-modal-desc">입력 화면과 같습니다 — 항목과 규칙이 동일합니다.</p>
+                <p className="inv-modal-desc">{ctl.editing?.status === "cancelled" ? "취소된 전표입니다 — 보기만 할 수 있습니다." : "입력 화면과 같습니다 — 항목과 규칙이 동일합니다."}</p>
               </div>
               <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
             </div>
             <div className="doc-popup-body">{editor}</div>
             <DocSums ctl={ctl} right={
-              canWrite ? saveActions.map((a) => (
+              canWrite && ctl.editing?.status !== "cancelled" ? saveActions.map((a) => (
                 <button key={a.key} type="button" className={a.primary ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
                   disabled={busy} onClick={() => doSave(a.key)}>{a.label}</button>
               )) : null
@@ -299,7 +301,19 @@ export function DocScreen({
                     finally { setBusy(false); }
                   }}>삭제</button>
               )}
-              {onReturn && canWrite && (
+              {onCancel && canWrite && ctl.editing?.status !== "cancelled" && (
+                <button type="button" className="btn-secondary btn-sm doc-del" disabled={busy}
+                  onClick={async () => {
+                    //   지우지 않는다 — 누가 언제 왜 취소했는지가 남아야 한다(결정 25)
+                    const reason = window.prompt("취소 사유를 적어 주세요 (전표는 지워지지 않고 취소로 남습니다)");
+                    if (reason == null) return;
+                    setBusy(true);
+                    try { await onCancel({ id: ctl.editing!.id, ctl, reason }); toast("취소했습니다 — 재고가 되돌아갔습니다", "success"); closePopup(); invalidate(); }
+                    catch (e) { toast(friendlyError(e), "error"); }
+                    finally { setBusy(false); }
+                  }}>취소</button>
+              )}
+              {onReturn && canWrite && ctl.editing?.status !== "cancelled" && (
                 <button type="button" className="btn-secondary btn-sm" disabled={busy}
                   onClick={async () => {
                     if (!window.confirm("이 전표 전체를 반품 처리할까요? 반대 전표가 새로 만들어지고 재고가 되돌아갑니다.")) return;

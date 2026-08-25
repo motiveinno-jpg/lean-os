@@ -260,8 +260,9 @@ export async function listMoves(companyId: string, from: string, to: string): Pr
   if (!companyId) return [];
   const data = logRead("inventory:moves", await supabase
     .from("stock_moves")
-    .select("id, moved_at, qty, unit_price, amount, note, product_id, warehouse_id, stock_docs(id, doc_no, kind, reason, note, partner_id)")
-    .eq("company_id", companyId)
+    //   ★ 취소 전표의 줄은 이력에서도 뺀다 — 현재고와 같은 눈으로 본다(결정 25)
+    .select("id, moved_at, qty, unit_price, amount, note, product_id, warehouse_id, stock_docs!inner(id, doc_no, kind, reason, note, partner_id, status)")
+    .eq("company_id", companyId).eq("stock_docs.status", "active")
     .gte("moved_at", from).lte("moved_at", to)
     .order("moved_at", { ascending: false })
     .limit(2000));
@@ -487,6 +488,7 @@ export type DocRowHead = {
   id: string; doc_no: string; reason: string; doc_date: string;
   partner_id: string | null; warehouse_id: string | null; order_id: string | null; note: string | null;
   journal_entry_id: string | null;
+  status: "active" | "cancelled"; cancel_reason: string | null;
   lines: number; supply: number; vat: number;
 };
 export async function listStockDocs(
@@ -495,7 +497,7 @@ export async function listStockDocs(
   if (!companyId) return [];
   const data = logRead("inventory:doc-list", await supabase
     .from("stock_docs")
-    .select("id, doc_no, reason, doc_date, partner_id, warehouse_id, order_id, note, journal_entry_id, stock_moves(qty, unit_price, vat_amount)")
+    .select("id, doc_no, reason, doc_date, partner_id, warehouse_id, order_id, note, journal_entry_id, status, cancel_reason, stock_moves(qty, unit_price, vat_amount)")
     .eq("company_id", companyId).in("reason", reasons)
     .gte("doc_date", from).lte("doc_date", to)
     .order("doc_date", { ascending: false }).order("created_at", { ascending: false })
@@ -506,6 +508,7 @@ export async function listStockDocs(
       id: d.id, doc_no: d.doc_no, reason: d.reason, doc_date: d.doc_date,
       partner_id: d.partner_id, warehouse_id: d.warehouse_id, order_id: d.order_id, note: d.note,
       journal_entry_id: d.journal_entry_id ?? null,
+      status: d.status === "cancelled" ? "cancelled" : "active", cancel_reason: d.cancel_reason ?? null,
       lines: ms.length,
       supply: ms.reduce((n, m) => n + Math.abs(Number(m.unit_price || 0) * Number(m.qty || 0)), 0),
       vat: ms.reduce((n, m) => n + Math.abs(Number(m.vat_amount || 0)), 0),
@@ -534,4 +537,57 @@ export async function returnStockDoc(companyId: string, docId: string, userId?: 
       note: m.note, order_line_id: m.order_line_id,
     })),
   }, userId);
+}
+
+
+// ── 전표 취소 — 지우지 않는다 (결정 25, 2026-08-25 사장님 지시 2순위) ─────────────
+//   줄은 남기고 status 만 바꾼다. 현재고·이력·주문 진행률 뷰가 취소 전표를 빼고 세므로 재고는 그만큼 되돌아간다.
+//   전표(회계)가 이미 붙어 있으면 못 지운다 — 먼저 매입매출전표에서 되돌려야 한다(장부와 재고가 어긋나지 않게).
+export async function cancelStockDoc(docId: string, reason: string, userId?: string | null) {
+  const { data } = await supabase.from("stock_docs").select("status, journal_entry_id").eq("id", docId).single();
+  const d = data as { status: string; journal_entry_id: string | null } | null;
+  if (!d) throw new Error("전표를 찾을 수 없습니다");
+  if (d.status === "cancelled") throw new Error("이미 취소한 전표입니다");
+  if (d.journal_entry_id) throw new Error("회계 전표가 붙어 있습니다 — 매입매출전표에서 먼저 되돌리세요");
+  const { error } = await supabase.from("stock_docs").update({
+    status: "cancelled", cancelled_at: new Date().toISOString(), cancelled_by: userId ?? null,
+    cancel_reason: reason.trim() || null, updated_at: new Date().toISOString(),
+  }).eq("id", docId);
+  if (error) throw error;
+}
+
+// ── 이동평균 원가 (결정 27) ───────────────────────────────────────────────────
+export async function listAvgCost(companyId: string): Promise<Map<string, number>> {
+  if (!companyId) return new Map();
+  const data = logRead("inventory:avg-cost", await supabase
+    .from("v_stock_avg_cost").select("product_id, avg_cost").eq("company_id", companyId));
+  return new Map(((data || []) as any[]).filter((r) => r.product_id && r.avg_cost != null)
+    .map((r) => [r.product_id as string, Number(r.avg_cost)]));
+}
+
+// ── 거래처별 단가 (결정 26) — 관리 화면 없이 마지막 거래 단가가 저절로 남는다 ─────
+export async function listPartnerPrices(companyId: string, partnerId: string, side: "sale" | "buy"): Promise<Map<string, number>> {
+  if (!companyId || !partnerId) return new Map();
+  const data = logRead("inventory:partner-prices", await supabase
+    .from("partner_prices").select("product_id, unit_price")
+    .eq("company_id", companyId).eq("partner_id", partnerId).eq("side", side));
+  return new Map(((data || []) as any[]).map((r) => [r.product_id as string, Number(r.unit_price)]));
+}
+
+export async function rememberPartnerPrices(
+  companyId: string, partnerId: string | null | undefined, side: "sale" | "buy",
+  lines: { product_id: string; unit_price?: number | null }[], docId?: string | null,
+) {
+  if (!partnerId) return;
+  const rows = lines.filter((l) => l.product_id && l.unit_price != null && Number(l.unit_price) > 0)
+    .map((l) => ({
+      company_id: companyId, partner_id: partnerId, product_id: l.product_id, side,
+      unit_price: Number(l.unit_price), last_doc_id: docId ?? null, updated_at: new Date().toISOString(),
+    }));
+  if (!rows.length) return;
+  //   같은 품목이 한 전표에 두 줄이면 뒤 줄이 이긴다 — upsert 가 한 번에 같은 키를 두 번 받으면 막히므로 미리 합친다
+  const uniq = new Map(rows.map((r) => [r.product_id, r]));
+  const { error } = await supabase.from("partner_prices")
+    .upsert([...uniq.values()], { onConflict: "company_id,partner_id,product_id,side" });
+  if (error) throw error;
 }
