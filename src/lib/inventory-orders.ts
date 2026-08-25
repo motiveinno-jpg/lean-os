@@ -30,22 +30,22 @@ export type Field = {
 function baseHead(): Field[] {
   return [
     { field_id: "date",    name: "일자",   on: true,  custom: false, lock: true, why: "전표의 날짜" },
-    { field_id: "partner", name: "거래처", on: true,  custom: false, why: "누구와 한 거래인가 — 없어도 저장됩니다" },
-    { field_id: "wh",      name: "창고",   on: true,  custom: false, why: "대부분 하나라 기본값이 잡힙니다" },
-    { field_id: "staff",   name: "담당자", on: false, custom: false, why: "누가 받은 건인가" },
-    { field_id: "due",     name: "납기일", on: false, custom: false, why: "주기로 한 날" },
-    { field_id: "note",    name: "비고",   on: false, custom: false, why: "전표 전체에 남기는 말" },
+    { field_id: "partner", name: "거래처", on: true,  custom: false, why: "거래 상대 — 없어도 저장됩니다" },
+    { field_id: "wh",      name: "창고",   on: true,  custom: false, why: "기본 창고가 자동으로 선택됩니다" },
+    { field_id: "staff",   name: "담당자", on: false, custom: false, why: "담당 직원" },
+    { field_id: "due",     name: "납기일", on: false, custom: false, why: "납품 예정일" },
+    { field_id: "note",    name: "비고",   on: false, custom: false, why: "전표 전체에 대한 메모" },
   ];
 }
 function baseLine(): Field[] {
   return [
-    { field_id: "sku",    name: "품목",     on: true,  custom: false, lock: true, why: "무엇을" },
-    { field_id: "spec",   name: "규격",     on: true,  custom: false, why: "품목에서 따라옵니다" },
-    { field_id: "qty",    name: "수량",     on: true,  custom: false, lock: true, why: "몇 개" },
-    { field_id: "price",  name: "단가",     on: false, custom: false, why: "수량·공급가액에서 나눠 냅니다" },
+    { field_id: "sku",    name: "품목",     on: true,  custom: false, lock: true, why: "거래할 품목" },
+    { field_id: "spec",   name: "규격",     on: true,  custom: false, why: "품목 정보에서 자동 입력" },
+    { field_id: "qty",    name: "수량",     on: true,  custom: false, lock: true, why: "거래 수량" },
+    { field_id: "price",  name: "단가",     on: false, custom: false, why: "수량과 공급가액으로 자동 계산" },
     { field_id: "supply", name: "공급가액", on: true,  custom: false, lock: true, why: "세금 전 금액" },
-    { field_id: "vat",    name: "부가세",   on: true,  custom: false, why: "공급가액의 10% 가 자동" },
-    { field_id: "lnote",  name: "품목 비고", on: false, custom: false, why: "그 품목에만 남기는 말" },
+    { field_id: "vat",    name: "부가세",   on: true,  custom: false, why: "공급가액의 10% 자동 계산" },
+    { field_id: "lnote",  name: "품목 비고", on: false, custom: false, why: "해당 품목에 대한 메모" },
   ];
 }
 
@@ -196,7 +196,7 @@ export async function saveOrder(
 ): Promise<{ id: string; orderNo: string }> {
   const orderDate = input.orderDate || todayKst();
   const lines = input.lines.filter((l) => l.product_id && Number(l.qty) > 0);
-  if (!lines.length) throw new Error("칠 줄이 한 줄도 없습니다");
+  if (!lines.length) throw new Error("입력된 항목이 없습니다");
 
   const head = {
     company_id: companyId, order_date: orderDate, due_date: input.dueDate || null,
@@ -244,7 +244,7 @@ export async function saveOrder(
 export async function deleteOrder(companyId: string, orderId: string) {
   //   가져간 것이 있으면 못 지운다 — 재고는 움직였는데 근거만 사라지면 장부가 거짓말을 한다.
   const used = (await listUsed(companyId, [orderId])).reduce((n, u) => n + u.used_qty, 0);
-  if (used !== 0) throw new Error("이미 판매·구매·생산으로 가져간 줄이 있는 주문서입니다 — 그쪽을 먼저 되돌리세요");
+  if (used !== 0) throw new Error("판매·구매·생산에서 이미 사용한 항목이 있습니다 — 해당 전표를 먼저 삭제하세요");
   const { error } = await supabase.from("orders").delete().eq("id", orderId);
   if (error) throw error;
 }

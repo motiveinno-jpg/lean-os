@@ -91,11 +91,11 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/inventory/stock", label: "재고", icon: "layers", roles: ["owner", "admin"] },
       //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
       //     주문서는 약속이라 재고를 안 건드리고, 나머지 셋이 그것을 불러와 재고를 움직인다.
-      { href: "/inventory/orders", label: "주문", icon: "clipboard", roles: ["owner", "admin"], layer: "움직임" },
+      { href: "/inventory/orders", label: "주문", icon: "clipboard", roles: ["owner", "admin"], layer: "거래" },
       { href: "/inventory/sales", label: "판매", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/inventory/purchase", label: "구매", icon: "download", roles: ["owner", "admin"] },
       { href: "/inventory/production", label: "생산", icon: "kanban", roles: ["owner", "admin"] },
-      { href: "/inventory/channels", label: "채널", icon: "link", roles: ["owner", "admin"], layer: "밖과 잇기" },
+      { href: "/inventory/channels", label: "채널", icon: "link", roles: ["owner", "admin"], layer: "연동" },
     ],
   },
   {

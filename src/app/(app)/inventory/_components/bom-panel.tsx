@@ -50,8 +50,8 @@ export function BomPanel({ onClose }: { onClose: () => void }) {
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">자재구성{pick ? ` — ${pick.name}` : ""}</h3>
         <p className="inv-modal-desc">
-          <b>1개를 만들 때</b> 무엇이 얼마나 드는지 적습니다. 완성할 때 <b>이 양 × 완성 수량</b>만큼 자재가 빠집니다.
-          비워 두면 자재는 빠지지 않고 완제품만 늡니다.
+          <b>1개를 만들 때</b> 필요한 자재와 수량을 등록합니다. 완성할 때 <b>이 수량 × 완성 수량</b>만큼 자재가 차감됩니다.
+          비워 두면 자재는 차감되지 않고 완제품만 증가합니다.
         </p>
 
         {!pick ? (
@@ -59,7 +59,7 @@ export function BomPanel({ onClose }: { onClose: () => void }) {
             <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 규격 — 쉼표로 여러 개, Enter" />
             <div className="inv-ship-table">
               <table className="ev-table ev-lined">
-                <thead><tr><th>SKU</th><th>품목명</th><th>들어가는 자재</th><th>1개 드는 값</th></tr></thead>
+                <thead><tr><th>SKU</th><th>품목명</th><th>소요 자재</th><th>1개당 원가</th></tr></thead>
                 <tbody>
                   {list.map((p) => {
                     const ls = boms.filter((b) => b.product_id === p.id);
@@ -69,7 +69,7 @@ export function BomPanel({ onClose }: { onClose: () => void }) {
                         <td className="mono-number text-left">{p.sku}</td>
                         <td className="text-left"><b>{p.name}</b> <span className="ev-dim">{p.spec || ""}</span></td>
                         <td className="text-left">
-                          {ls.length === 0 ? <span className="ev-dim">— 아직 없음</span>
+                          {ls.length === 0 ? <span className="ev-dim">— 없음</span>
                             : ls.slice(0, 4).map((b) => (
                               <span key={b.id} className="inv-bom-chip">{byId.get(b.component_id)?.name || "?"} <em>×{won(b.qty)}</em></span>
                             ))}
@@ -89,7 +89,7 @@ export function BomPanel({ onClose }: { onClose: () => void }) {
               <table className="ev-table ev-lined">
                 <thead><tr><th>자재</th><th>1개당</th><th>단가</th><th>드는 값</th><th></th></tr></thead>
                 <tbody>
-                  {mine.length === 0 && <tr><td colSpan={5} className="tc ev-dim">아직 없습니다 — 아래에서 더하세요</td></tr>}
+                  {mine.length === 0 && <tr><td colSpan={5} className="tc ev-dim">등록된 자재가 없습니다 — 아래에서 추가하세요</td></tr>}
                   {mine.map((b) => {
                     const c = byId.get(b.component_id);
                     return (
@@ -127,9 +127,9 @@ export function BomPanel({ onClose }: { onClose: () => void }) {
                 onClick={() => run(async () => {
                   await upsertBomLine(companyId!, { product_id: pick.id, component_id: addId, qty: Number(addQty) });
                   setAddId(""); setAddQty("");
-                })}>더하기</button>
+                })}>추가</button>
             </div>
-            <div className="inv-modal-foot">1개 만드는 데 드는 값 <b>₩{won(cost)}</b></div>
+            <div className="inv-modal-foot">1개당 자재 원가 <b>₩{won(cost)}</b></div>
           </>
         )}
 

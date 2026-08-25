@@ -116,7 +116,7 @@ export function DocScreen({
   const doSave = async (actionKey: string) => {
     const built = ctl.build();
     if (!built.ok) {
-      toast(built.lines.length ? "일자와 품목·수량을 확인하세요" : "칠 줄이 한 줄도 없습니다", "error");
+      toast(built.lines.length ? "일자와 품목·수량을 확인하세요" : "입력된 항목이 없습니다", "error");
       return;
     }
     setBusy(true);
@@ -153,7 +153,7 @@ export function DocScreen({
   const runButtons = canWrite ? (
     <>
       {pull?.(ctl)}
-      <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>양식 고치기</button>
+      <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
       {saveActions.map((a) => (
         <button key={a.key} type="button" title={a.hint}
           className={a.primary ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
@@ -184,7 +184,7 @@ export function DocScreen({
                 <Stat label="부가세" value={`₩${won(ctl.sums.vat)}`} />
                 <Stat label="합계" value={`₩${won(ctl.sums.total)}`} />
                 <span className="spv-toolbar-hint">
-                  <b>Enter</b> 를 치면 그 칸에 윗줄 값이 내려오고 다음 칸으로 넘어갑니다 · 마지막 칸에서 새 줄이 생깁니다
+                  <b>Enter</b> 를 누르면 윗줄 값이 입력되고 다음 칸으로 이동합니다 · 마지막 칸에서 새 줄이 추가됩니다
                 </span>
               </ResultStrip>
             </>
@@ -199,7 +199,7 @@ export function DocScreen({
               <ResultStrip>
                 <Stat label="전표" value={`${won(shown.length)}건`} />
                 <Stat label="합계" value={`₩${won(shown.reduce((n, h) => n + h.total, 0))}`} />
-                <span className="spv-toolbar-hint">줄을 누르면 <b>치던 그 화면</b>이 떠서 고칠 수 있습니다</span>
+                <span className="spv-toolbar-hint">줄을 선택하면 <b>입력 화면</b>이 그대로 열려 수정할 수 있습니다</span>
               </ResultStrip>
             </>
           )}
@@ -210,7 +210,7 @@ export function DocScreen({
             {tab === "edit" ? editor : (
               shown.length === 0 ? (
                 <div className="collect-empty">
-                  이 기간에 저장한 것이 없습니다 — <b>입력</b> 갈래에서 치면 여기 쌓입니다.
+                  이 기간에 저장된 전표가 없습니다 — <b>입력</b> 탭에서 저장하면 여기에 표시됩니다.
                 </div>
               ) : (
                 <div className="stg-table-wrap">
@@ -251,10 +251,10 @@ export function DocScreen({
           <div className="inv-modal-box doc-popup" onClick={(e) => e.stopPropagation()}>
             <div className="doc-popup-head">
               <div>
-                <h3 className="inv-modal-title">{ctl.editing?.order_no || "전표"} 고치기</h3>
-                <p className="inv-modal-desc">치던 화면 그대로입니다 — 칸도 규칙도 같습니다.</p>
+                <h3 className="inv-modal-title">{ctl.editing?.order_no || "전표"} 수정</h3>
+                <p className="inv-modal-desc">입력 화면과 같습니다 — 항목과 규칙이 동일합니다.</p>
               </div>
-              <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>양식 고치기</button>
+              <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
             </div>
             <div className="doc-popup-body">{editor}</div>
             <DocSums ctl={ctl} right={
@@ -267,12 +267,12 @@ export function DocScreen({
               {onDelete && canWrite && (
                 <button type="button" className="btn-secondary btn-sm doc-del" disabled={busy}
                   onClick={async () => {
-                    if (!window.confirm("이 전표를 지울까요?")) return;
+                    if (!window.confirm("이 전표를 삭제할까요?")) return;
                     setBusy(true);
-                    try { await onDelete({ id: ctl.editing!.id, ctl }); toast("지웠습니다", "success"); closePopup(); invalidate(); }
+                    try { await onDelete({ id: ctl.editing!.id, ctl }); toast("삭제했습니다", "success"); closePopup(); invalidate(); }
                     catch (e) { toast(friendlyError(e), "error"); }
                     finally { setBusy(false); }
-                  }}>지우기</button>
+                  }}>삭제</button>
               )}
               <span className="doc-sums-sp" />
               <button type="button" className="btn-secondary btn-sm" onClick={closePopup}>닫기</button>

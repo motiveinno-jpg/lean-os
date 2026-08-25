@@ -19,10 +19,10 @@ export default function OrdersPage() {
     <DocScreen
       formKey="order"
       perm="/inventory/orders"
-      saveActions={[{ key: "save", label: "주문서 저장", primary: true, hint: "재고는 움직이지 않습니다" }]}
+      saveActions={[{ key: "save", label: "주문서 저장", primary: true, hint: "재고에 반영되지 않습니다" }]}
       headNote={
         <span className="inv-hint doc-note-safe">
-          여기서 친 것은 <b>재고에 반영되지 않습니다</b> — 판매·구매·생산에서 불러와 저장할 때 움직입니다.
+          입력한 내용은 <b>재고에 반영되지 않습니다</b> — 판매·구매·생산에서 불러와 저장할 때 반영됩니다.
         </span>
       }
       onSave={async ({ built, ctl, editingId }) => {
@@ -65,7 +65,7 @@ export default function OrdersPage() {
             who: o.partner_name || "", label: first + (ls.length > 1 ? ` 외 ${ls.length - 1}` : ""),
             lines: ls.length,
             total: ls.reduce((n, l) => n + l.supply_amount + l.vat_amount, 0),
-            state: o.status === "cancelled" ? "접음" : rate >= 100 ? "다 씀" : rate > 0 ? `${rate}% 씀` : "안 씀",
+            state: o.status === "cancelled" ? "취소" : rate >= 100 ? "처리 완료" : rate > 0 ? `${rate}% 처리` : "미처리",
             stateTone: o.status === "cancelled" ? "danger" : rate >= 100 ? "ok" : "warn",
           };
         });

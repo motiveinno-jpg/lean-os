@@ -86,14 +86,14 @@ function PullDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">주문서 불러오기</h3>
         <p className="inv-modal-desc">
-          아직 다 안 쓴 주문서입니다. 가져올 줄을 고르면 <b>남은 수량</b>이 격자에 채워집니다 —
-          줄에 <b>어느 주문서에서 왔는지</b>가 남습니다.
+          아직 처리되지 않은 주문서입니다. 가져올 항목을 선택하면 <b>남은 수량</b>이 입력됩니다 —
+          <b>어느 주문서에서 왔는지</b>도 함께 표시됩니다.
         </p>
 
         <div className="inv-ship-table">
           {isLoading ? <p className="collect-empty">읽는 중…</p>
             : shown.length === 0 ? (
-              <p className="collect-empty">가져올 주문서가 없습니다 — <b>재고 › 주문서</b>에서 먼저 치세요.</p>
+              <p className="collect-empty">가져올 주문서가 없습니다 — <b>재고 › 주문서</b>에서 먼저 등록하세요.</p>
             ) : shown.map((x) => (
               <div key={x.o.id} className="pull-order">
                 <div className="pull-order-head">
@@ -113,7 +113,7 @@ function PullDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
                           </td>
                           <td className="text-left"><b>{p?.name || "—"}</b> <span className="ev-dim">{p?.sku}</span></td>
                           <td className="tr mono-number ev-dim">주문 {won(l.qty)}</td>
-                          <td className="tr mono-number ev-dim">가져감 {won(l.gone)}</td>
+                          <td className="tr mono-number ev-dim">처리 {won(l.gone)}</td>
                           <td className="tr mono-number"><b className="inv-diff-minus">남음 {won(l.rest)}</b></td>
                         </tr>
                       );
@@ -125,14 +125,14 @@ function PullDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
         </div>
 
         <div className="inv-modal-actions">
-          <span className="inv-hint">고른 줄 <b>{chosen.length}</b>개</span>
+          <span className="inv-hint">선택한 항목 <b>{chosen.length}</b>개</span>
           <span className="doc-sums-sp" />
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
           <button type="button" className="btn-primary btn-sm" disabled={!chosen.length}
             onClick={() => {
               try { ctl.pullLines(chosen); onClose(); }
               catch (e) { toast(friendlyError(e), "error"); }
-            }}>격자에 넣기</button>
+            }}>가져오기</button>
         </div>
       </div>
     </div>

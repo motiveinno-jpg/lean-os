@@ -17,8 +17,8 @@ export default function SalesPage() {
       formKey="sale"
       perm="/inventory/sales"
       pull={(ctl) => <PullOrderButton ctl={ctl} />}
-      saveActions={[{ key: "save", label: "판매 저장", primary: true, hint: "재고가 바로 빠집니다" }]}
-      headNote={<span className="inv-hint doc-note-move">저장하면 <b>재고가 바로 빠집니다</b>.</span>}
+      saveActions={[{ key: "save", label: "판매 저장", primary: true, hint: "재고가 즉시 차감됩니다" }]}
+      headNote={<span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감됩니다</b>.</span>}
       onSave={async ({ built, ctl, editingId }) => {
         const wh = built.head.wh;
         if (!wh) throw new Error("나갈 창고를 고르세요");
@@ -34,11 +34,11 @@ export default function SalesPage() {
         };
         if (editingId) {
           const r = await updateStockDoc(ctl.companyId!, editingId, input, ctl.userId);
-          return `${r.docNo} 을 고쳐 저장했습니다 — 재고가 이 숫자로 다시 섰습니다`;
+          return `${r.docNo} 을 수정했습니다 — 재고가 수정한 수량으로 반영됩니다`;
         }
         const r = await createStockDoc(ctl.companyId!, input, ctl.userId);
         return r.skipped > 0
-          ? `${r.docNo} 로 기록했습니다 · 수량을 세지 않는 ${r.skipped}줄은 뺐습니다`
+          ? `${r.docNo} 로 기록했습니다 · 수량 관리 대상이 아닌 ${r.skipped}줄은 제외했습니다`
           : `${r.docNo} 로 기록했습니다`;
       }}
       history={async ({ companyId, from, to }) => {

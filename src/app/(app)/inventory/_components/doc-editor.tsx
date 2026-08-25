@@ -226,8 +226,8 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
       await saveLayout(companyId, formKey, draft, userId);
       await qc.invalidateQueries({ queryKey: ["form-layout", companyId, formKey] });
       setFormOpen(false);
-      toast("양식을 저장했습니다 — 이 회사 전체에 쓰입니다", "success");
-    } catch (e) { toast(friendlyError(e, "양식을 저장하지 못했습니다"), "error"); }
+      toast("입력 항목을 저장했습니다 — 회사 전체에 적용됩니다", "success");
+    } catch (e) { toast(friendlyError(e, "입력 항목을 저장하지 못했습니다"), "error"); }
   }, [draft, companyId, formKey, userId, qc, toast]);
 
   return {
@@ -277,7 +277,7 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                   <PickList
                     items={(f.field_id === "partner" ? partners : (staff || [])).map((p) => ({ id: p.id, name: p.name }))}
                     placeholder={`${f.name} 검색`}
-                    empty={f.field_id === "partner" ? "거래처가 없습니다 — 그냥 이름만 적어도 됩니다" : "구성원이 없습니다"}
+                    empty={f.field_id === "partner" ? "등록된 거래처가 없습니다 — 이름만 입력해도 됩니다" : "등록된 구성원이 없습니다"}
                     onPick={(sel) => {
                       setHead((s) => ({ ...s, [f.field_id]: sel.name,
                         ...(f.field_id === "partner" ? { partner_id: sel.id } : {}) }));
@@ -373,7 +373,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                             name: `${p.name}${p.spec ? ` (${p.spec})` : ""}`,
                           }))}
                           placeholder="품목 검색 (이름·SKU·규격)"
-                          empty="품목이 없습니다 — 재고 › 품목에서 먼저 올리세요"
+                          empty="등록된 품목이 없습니다 — 재고 › 품목에서 먼저 등록하세요"
                           onPick={(sel) => {
                             const p = products.find((x) => x.id === sel.id);
                             if (p) choose(i, p);
@@ -386,7 +386,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                 })}
                 <td className="doc-auto"><b>{has ? won(tot) : "—"}</b></td>
                 <td className="tc">
-                  <button type="button" className="inv-line-x" aria-label="줄 지우기"
+                  <button type="button" className="inv-line-x" aria-label="줄 삭제"
                     onClick={() => setRows((s) => (s.length > 1 ? s.filter((_, j) => j !== i) : [blankRow()]))}>✕</button>
                 </td>
               </tr>
@@ -409,7 +409,7 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
   const addField = (sec: "head" | "line", name: string, clear: () => void) => {
     const nm = name.trim();
     //   ★ 이름 없이는 못 만든다 — '문자형식2' 같은 칸을 두지 않으려는 것이다
-    if (!nm) { toast("칸은 이름부터 지어야 만들 수 있습니다", "error"); return; }
+    if (!nm) { toast("항목 이름을 입력해야 추가할 수 있습니다", "error"); return; }
     setDraft((d) => d && ({ ...d, [sec]: [...d[sec], { field_id: newFieldId(), name: nm, on: true, custom: true }] }));
     clear();
   };
@@ -420,9 +420,9 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
         onChange={(e) => setField(sec, f.field_id, { on: e.target.checked })} />
       <input className="fl-name" value={f.name} readOnly={f.lock}
         onChange={(e) => setField(sec, f.field_id, { name: e.target.value })} />
-      {f.lock ? <span className="fl-why">끌 수 없음</span> : <span className="fl-why">{f.why || (f.custom ? "직접 만든 칸" : "")}</span>}
+      {f.lock ? <span className="fl-why">해제 불가</span> : <span className="fl-why">{f.why || (f.custom ? "직접 추가한 항목" : "")}</span>}
       {f.custom && (
-        <button type="button" className="inv-line-x" title="이 칸 지우기"
+        <button type="button" className="inv-line-x" title="이 항목 삭제"
           onClick={() => setDraft((d) => d && ({ ...d, [sec]: d[sec].filter((x) => x.field_id !== f.field_id) }))}>✕</button>
       )}
     </div>
@@ -431,43 +431,43 @@ export function FormDialog({ ctl }: { ctl: DocCtl }) {
   return (
     <div className="inv-modal" onClick={() => setFormOpen(false)}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">양식 고치기 — {FORM_LABEL[formKey]}</h3>
+        <h3 className="inv-modal-title">입력 항목 설정 — {FORM_LABEL[formKey]}</h3>
         <p className="inv-modal-desc">
-          쓰는 칸만 켜세요. <b>이름을 눌러 바꿀 수 있습니다.</b>
-          이 설정은 <b>이 양식에만</b>, 그리고 <b>회사 전체에</b> 쓰입니다.
+          사용할 항목만 선택하세요. <b>이름을 눌러 변경할 수 있습니다.</b>
+          이 설정은 <b>이 양식에만</b> 적용되며 <b>회사 전체에</b> 반영됩니다.
         </p>
 
         <div className="fl-grp">
-          <h4>머리 칸 — 전표 하나에 한 번 적는 것</h4>
-          <p className="fl-desc">일자·거래처는 없으면 전표가 서지 않아 끌 수 없습니다.</p>
+          <h4>공통 항목 — 전표당 한 번 입력합니다</h4>
+          <p className="fl-desc">일자는 필수 항목이라 해제할 수 없습니다.</p>
           <div className="fl-list">{draft.head.map(rowOf("head"))}</div>
           <div className="fl-add">
-            <input className="field-input" placeholder="새 칸 이름 (예: 현장명 · 결제조건)" value={nh} onChange={(e) => setNh(e.target.value)} />
-            <button type="button" className="btn-secondary btn-sm" onClick={() => addField("head", nh, () => setNh(""))}>머리에 더하기</button>
+            <input className="field-input" placeholder="추가할 항목 이름 (예: 현장명 · 결제조건)" value={nh} onChange={(e) => setNh(e.target.value)} />
+            <button type="button" className="btn-secondary btn-sm" onClick={() => addField("head", nh, () => setNh(""))}>공통 항목 추가</button>
           </div>
         </div>
 
         <div className="fl-grp">
-          <h4>줄 칸 — 품목마다 적는 것</h4>
-          <p className="fl-desc">품목·수량·공급가액은 계산의 뼈대라 끌 수 없습니다.</p>
+          <h4>품목 항목 — 품목마다 입력합니다</h4>
+          <p className="fl-desc">품목·수량·공급가액은 계산에 필요해 해제할 수 없습니다.</p>
           <div className="fl-list">{draft.line.map(rowOf("line"))}</div>
           <div className="fl-add">
-            <input className="field-input" placeholder="새 칸 이름 (예: 도면번호 · 색상)" value={nl} onChange={(e) => setNl(e.target.value)} />
-            <button type="button" className="btn-secondary btn-sm" onClick={() => addField("line", nl, () => setNl(""))}>줄에 더하기</button>
+            <input className="field-input" placeholder="추가할 항목 이름 (예: 도면번호 · 색상)" value={nl} onChange={(e) => setNl(e.target.value)} />
+            <button type="button" className="btn-secondary btn-sm" onClick={() => addField("line", nl, () => setNl(""))}>품목 항목 추가</button>
           </div>
         </div>
 
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm"
             onClick={async () => {
-              if (!window.confirm(`${FORM_LABEL[formKey]} 양식을 처음 상태로 되돌릴까요?`)) return;
+              if (!window.confirm(`${FORM_LABEL[formKey]} 입력 항목을 기본값으로 되돌릴까요?`)) return;
               try {
                 await resetLayout(companyId!, formKey);
                 await qc.invalidateQueries({ queryKey: ["form-layout", companyId, formKey] });
-                setFormOpen(false); toast("되돌렸습니다", "success");
+                setFormOpen(false); toast("기본값으로 되돌렸습니다", "success");
               } catch (e) { toast(friendlyError(e), "error"); }
-            }}>처음으로</button>
-          <span className="fl-note">끈 칸에 적힌 값은 지워지지 않습니다 — 다시 켜면 그대로 있습니다.</span>
+            }}>기본값으로</button>
+          <span className="fl-note">해제한 항목의 값은 삭제되지 않습니다 — 다시 선택하면 그대로 표시됩니다.</span>
           <button type="button" className="btn-secondary btn-sm" onClick={() => setFormOpen(false)}>취소</button>
           <button type="button" className="btn-primary btn-sm" onClick={commitForm}>저장</button>
         </div>

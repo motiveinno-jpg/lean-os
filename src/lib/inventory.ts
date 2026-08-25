@@ -176,7 +176,7 @@ export async function createStockDoc(
   }
   const lines = input.lines.filter((l) => tracked.has(l.product_id) && Number(l.qty) !== 0);
   const skipped = input.lines.length - lines.length;
-  if (!lines.length) throw new Error("재고를 세는 품목이 한 줄도 없습니다");
+  if (!lines.length) throw new Error("수량 관리 대상 품목이 없습니다");
 
   //   문서번호 — 사유 갈래 + 날짜 + 그 날 일련번호. 사람이 읽고 부를 수 있어야 한다.
   //   생산은 문서가 둘씩 서서(자재·완제품) IN/OUT 으로는 구별이 안 된다 — 부르는 이름을 따로 준다.
@@ -423,7 +423,7 @@ export async function updateStockDoc(
   }
   const lines = input.lines.filter((l) => tracked.has(l.product_id) && Number(l.qty) !== 0);
   const skipped = input.lines.length - lines.length;
-  if (!lines.length) throw new Error("재고를 세는 품목이 한 줄도 없습니다");
+  if (!lines.length) throw new Error("수량 관리 대상 품목이 없습니다");
 
   const { data: cur } = await supabase.from("stock_docs").select("doc_no").eq("id", docId).single();
   const docNo = (cur as { doc_no: string } | null)?.doc_no || "";

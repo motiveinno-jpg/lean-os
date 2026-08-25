@@ -199,7 +199,7 @@ export async function produceLines(
   userId?: string | null,
 ) {
   const use = input.lines.filter((l) => l.product_id && Number(l.qty) !== 0);
-  if (!use.length) throw new Error("만든 것이 한 줄도 없습니다");
+  if (!use.length) throw new Error("완성 수량이 입력되지 않았습니다");
   const docDate = input.docDate || todayKst();
 
   //   ① 완제품 — 이게 결과다

@@ -32,10 +32,10 @@ export default function ProductionPage() {
             <button type="button" className="btn-secondary btn-sm" onClick={() => setBomOpen(true)}>자재구성</button>
           </>
         )}
-        saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 빠지고 완제품이 늡니다" }]}
+        saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
         headNote={
           <span className="inv-hint doc-note-move">
-            저장하면 <b>자재가 빠지고 완제품이 늡니다</b> — 자재는 <b>자재구성</b>이 정합니다.
+            저장하면 <b>자재가 차감되고 완제품이 증가합니다</b> — 자재는 <b>자재구성</b>에 따릅니다.
           </span>
         }
         onSave={async ({ built, ctl, editingId }) => {
@@ -51,7 +51,7 @@ export default function ProductionPage() {
                 vat_amount: l.vat_amount, note: l.note, order_line_id: l.srcLineId,
               })),
             }, ctl.userId);
-            return `${r.docNo} 을 고쳐 저장했습니다`;
+            return `${r.docNo} 을 수정했습니다`;
           }
           const boms = await listBoms(ctl.companyId!);
           const r = await produceLines(ctl.companyId!, {
@@ -64,7 +64,7 @@ export default function ProductionPage() {
           qc.invalidateQueries({ queryKey: ["inv-onhand", ctl.companyId] });
           return r.matDocNo
             ? `${r.prodDocNo} · 자재 ${r.matDocNo} 로 기록했습니다`
-            : `${r.prodDocNo} 로 기록했습니다 (자재구성이 없어 자재는 안 뺐습니다)`;
+            : `${r.prodDocNo} 로 기록했습니다 (자재구성이 없어 자재는 차감하지 않았습니다)`;
         }}
         history={async ({ companyId, from, to }) => {
           const [docs, prods, orders] = await Promise.all([
