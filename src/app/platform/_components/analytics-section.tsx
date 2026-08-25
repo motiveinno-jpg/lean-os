@@ -18,9 +18,10 @@ import { countPlanKinds } from "./plan-kind";
 type Bucket = {
   start: string;      // 'YYYY-MM-DD' (버킷 시작, KST)
   visitors: number; views: number; guests: number;
+  internal?: number;  // 이 버킷에서 제외된 내부 방문자 (2026-08-25)
   accounts: number; companies: number; trials: number;
 };
-type Analytics = { as_of: string; granularity: string; page_views_since: string | null; buckets: Bucket[] };
+type Analytics = { as_of: string; granularity: string; scope?: Scope; page_views_since: string | null; buckets: Bucket[] };
 
 type Gran = "day" | "month" | "year";
 const GRANS: { key: Gran; label: string; buckets: number }[] = [
@@ -29,10 +30,22 @@ const GRANS: { key: Gran; label: string; buckets: number }[] = [
   { key: "year", label: "연간", buckets: 3 },
 ];
 
+// 집계 범위 (2026-08-25 사장님 지적으로 신설 — "이 25명 다 우리가 테스트한 것 아니냐").
+//   visitor_key 가 localStorage 난수라 우리 팀이 시크릿 창을 열 때마다 새 방문자가 됐다.
+//   '검색 유입' 은 검색엔진 리퍼러가 찍힌 방문자 — 우리가 만들어낼 수 없는 기록이라
+//   신뢰할 수 있는 하한선으로 쓴다.
+type Scope = "all" | "external" | "search";
+const SCOPES: { key: Scope; label: string; hint: string }[] = [
+  { key: "external", label: "외부", hint: "우리 팀 방문을 뺀 숫자예요. 평소엔 이걸 보세요." },
+  { key: "search", label: "검색 유입", hint: "검색엔진을 타고 들어온 방문자만. 가장 확실한 숫자예요." },
+  { key: "all", label: "전체", hint: "우리 팀 방문까지 포함한 원래 숫자예요." },
+];
+
 type MetricKey = "visitors" | "views" | "guests" | "accounts" | "companies" | "trials";
 const METRICS: { key: MetricKey; label: string; unit: string }[] = [
-  { key: "visitors", label: "방문자(전체)", unit: "명" },
-  { key: "guests", label: "비로그인 방문자(전체에 포함)", unit: "명" },
+  // 범위 토글에 '전체' 가 생겨서(2026-08-25) 라벨의 "(전체)" 가 그 뜻으로 읽힌다 — 표현만 정리.
+  { key: "visitors", label: "방문자", unit: "명" },
+  { key: "guests", label: "비로그인 방문자(방문자에 포함)", unit: "명" },
   { key: "views", label: "페이지뷰", unit: "회" },
   { key: "accounts", label: "신규 가입자", unit: "명" },
   { key: "companies", label: "신규 회사", unit: "곳" },
@@ -141,6 +154,10 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
   traffic: {
     top_paths: { path: string; views: number }[];
     top_referrers: { host: string; visitors: number }[];
+    breakdown?: {
+      internal_visitors: number; external_visitors: number; search_visitors: number;
+      raw_views: number; deduped_views: number;
+    };
   } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   companies: any[];
@@ -157,18 +174,19 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
   const TRAFFIC_WINDOW_DAYS: Record<Gran, number> = { day: 1, month: 30, year: 365 };
   const TRAFFIC_WINDOW_LABEL: Record<Gran, string> = { day: "오늘", month: "최근 30일", year: "최근 1년" };
   const [gran, setGran] = useState<Gran>("day");
+  const [scope, setScope] = useState<Scope>("external");
   const [metric, setMetric] = useState<MetricKey>("visitors");
   const [hover, setHover] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<Analytics | null>({
-    queryKey: ["p-analytics", gran],
+    queryKey: ["p-analytics", gran, scope],
     initialData: testData ?? undefined,
     enabled: !testData,
     queryFn: async () => {
       const cfg = GRANS.find((g) => g.key === gran)!;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: d, error } = await (supabase as any).rpc("platform_analytics", {
-        p_granularity: gran, p_buckets: cfg.buckets,
+        p_granularity: gran, p_buckets: cfg.buckets, p_scope: scope,
       });
       if (error) return null;
       return d as Analytics;
@@ -179,11 +197,13 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
   const buckets = useMemo(() => data?.buckets ?? [], [data]);
   // 많이 본 페이지·유입 — 토글 기간 창으로 재조회 (page.tsx 의 traffic 은 14일 고정이라 폴백으로만)
   const { data: granTraffic } = useQuery({
-    queryKey: ["p-traffic-side", gran],
+    queryKey: ["p-traffic-side", gran, scope],
     enabled: !testData,
     queryFn: async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: d, error } = await (supabase as any).rpc("platform_traffic_stats", { p_days: TRAFFIC_WINDOW_DAYS[gran] });
+      const { data: d, error } = await (supabase as any).rpc("platform_traffic_stats", {
+        p_days: TRAFFIC_WINDOW_DAYS[gran], p_scope: scope,
+      });
       if (error) return null;
       return d as NonNullable<typeof traffic>;
     },
@@ -230,21 +250,40 @@ export function AnalyticsSection({ usage, traffic, companies, companyActivity, t
 
   return (
     <section className="pa-section">
-      {/* 헤더: 제목 + 기간 전환 */}
+      {/* 헤더: 제목 + 집계 범위 + 기간 전환 */}
       <div className="pa-head">
         <div>
           <h2 className="pa-title">성장 분석</h2>
           <p className="pa-subtitle">
             방문자·페이지뷰는 {data?.page_views_since ? new Date(data.page_views_since).toLocaleDateString("ko-KR", { month: "long", day: "numeric" }) : "2026-07-28"}부터 수집 · 가입 지표는 전 기간
           </p>
+          <p className="pa-scope-note">
+            {SCOPES.find((s) => s.key === scope)!.hint}
+            {sideTraffic?.breakdown && (
+              <span className="pa-scope-excluded">
+                {" "}· 내부 {sideTraffic.breakdown.internal_visitors}명 제외 · 중복 뷰{" "}
+                {sideTraffic.breakdown.raw_views - sideTraffic.breakdown.deduped_views}회 접음
+              </span>
+            )}
+          </p>
         </div>
-        <div className="seg-bar">
-          {GRANS.map((g) => (
-            <button key={g.key} onClick={() => setGran(g.key)}
-              className={`seg-item ${gran === g.key ? "seg-item-active" : ""}`}>
-              {g.label}
-            </button>
-          ))}
+        <div className="pa-head-controls">
+          <div className="seg-bar">
+            {SCOPES.map((s) => (
+              <button key={s.key} onClick={() => setScope(s.key)} title={s.hint}
+                className={`seg-item ${scope === s.key ? "seg-item-active" : ""}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="seg-bar">
+            {GRANS.map((g) => (
+              <button key={g.key} onClick={() => setGran(g.key)}
+                className={`seg-item ${gran === g.key ? "seg-item-active" : ""}`}>
+                {g.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

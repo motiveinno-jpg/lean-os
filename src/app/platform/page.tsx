@@ -34,7 +34,14 @@ type FunnelStats = {
 };
 type TrafficStats = {
   as_of: string; days: number;
+  // 집계 범위 — all(전체) / external(내부 제외, 기본) / search(검색 유입만). 2026-08-25 신설.
+  scope?: "all" | "external" | "search";
   totals: { views_today: number; visitors_today: number; views: number; visitors: number; guest_visitors: number };
+  // 범위와 무관하게 항상 오는 값 — 무엇이 빠졌는지 화면에 적기 위한 것.
+  breakdown?: {
+    internal_visitors: number; external_visitors: number; search_visitors: number;
+    raw_views: number; deduped_views: number;
+  };
   daily: { date: string; views: number; visitors: number }[];
   top_paths: { path: string; views: number; visitors: number }[];
   top_referrers: { host: string; visitors: number }[];
@@ -242,7 +249,8 @@ export default function PlatformOverview() {
   const { data: traffic, isError: trafficErr } = useQuery<TrafficStats | null>({
     queryKey: ["p-traffic-stats"],
     queryFn: async () => {
-      const { data, error } = await (db as any).rpc("platform_traffic_stats", { p_days: 14 });
+      // 기본 범위는 external — 우리 팀 방문을 뺀 숫자가 기본이어야 판단이 흔들리지 않는다.
+      const { data, error } = await (db as any).rpc("platform_traffic_stats", { p_days: 14, p_scope: "external" });
       if (error) throw error;
       return data as TrafficStats;
     },

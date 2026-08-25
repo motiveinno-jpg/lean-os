@@ -10,6 +10,12 @@
 //     비밀이라 아래 SKIP_PREFIXES 로 아예 수집하지 않는다.
 //
 // 실패해도 화면에 영향 없음 — 수집은 부가 기능이라 전부 조용히 삼킨다.
+//
+// 집계 보정 (2026-08-25 사장님 지적 "다 우리가 테스트한 것 아니냐" — 실제로 그랬다):
+//   - 내부(우리 팀) 방문은 is_internal 로 표시해 외부 방문자 수에서 뺀다.
+//     visitor_key 가 localStorage 난수라 시크릿 창을 열 때마다 '새 방문자'가 되던 문제.
+//   - 같은 경로가 60초 안에 두 번 적히는 것을 막는다. 네이버 유입이 1초 뒤 referrer 없이
+//     한 번 더 적혀 뷰가 2배로 부풀던 문제(referrerHost() 가 자기 도메인을 지우기 때문).
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
@@ -20,6 +26,14 @@ import { supabase } from "@/lib/supabase";
 const db = supabase as any;
 
 const VISITOR_KEY = "ownerview_visitor_key";
+// 이 브라우저가 내부(우리 팀) 것이라는 표식. 한 번 붙으면 로그아웃 상태로 돌아다녀도 유지된다
+//   — 우리 팀은 로그인 없이 랜딩·계산기를 열어보는 일이 잦고, 그게 바로 외부 방문자로 새던 경로다.
+const INTERNAL_KEY = "ownerview_internal";
+// 회사의 내부 여부 조회 결과 캐시(탭 단위) — 페이지마다 companies 를 다시 읽지 않으려고 둔다.
+const INTERNAL_CACHE_KEY = "ownerview_internal_company";
+// 같은 경로 재기록 차단용 — sessionStorage 라 탭 안에서는 전체 페이지 이동에도 살아남는다.
+const DEDUP_PREFIX = "ownerview_pv:";
+const DEDUP_WINDOW_MS = 60_000;
 
 // 경로 자체가 비밀이거나(서명·공유 토큰) 수집 의미가 없는 곳.
 //   /platform = 운영자 콘솔 — 운영자가 콘솔을 돌아다니는 건 고객 트래픽이 아니다(2026-07-29 사장님).
@@ -63,6 +77,57 @@ function referrerHost(): string | null {
   }
 }
 
+/** 이 브라우저에 붙은 내부 표식. `?internal=1` 로 직접 붙이고 `?internal=0` 으로 뗀다.
+ *  시크릿 창 테스트는 로그인도 표식도 없어 여전히 외부로 잡힌다 — 그건 막을 방법이 없으므로
+ *  화면에서 '검색 유입'(우리가 만들 수 없는 기록) 을 따로 보여주는 것으로 보완한다. */
+function internalFlag(): boolean {
+  try {
+    const q = new URLSearchParams(window.location.search).get("internal");
+    if (q === "1") localStorage.setItem(INTERNAL_KEY, "1");
+    if (q === "0") localStorage.removeItem(INTERNAL_KEY);
+    return localStorage.getItem(INTERNAL_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markInternal() {
+  try { localStorage.setItem(INTERNAL_KEY, "1"); } catch { /* 스토리지 차단 — 무시 */ }
+}
+
+/** 같은 경로를 60초 안에 다시 적으려 하면 막는다. 막았으면 true. */
+function seenRecently(path: string): boolean {
+  try {
+    const k = DEDUP_PREFIX + path;
+    const prev = Number(sessionStorage.getItem(k) || 0);
+    const now = Date.now();
+    if (prev && now - prev < DEDUP_WINDOW_MS) return true;
+    sessionStorage.setItem(k, String(now));
+    return false;
+  } catch {
+    return false; // 스토리지 차단 시엔 그냥 보낸다(조회 쪽에서 한 번 더 접는다)
+  }
+}
+
+/** 로그인한 사용자의 회사가 우리 소유(companies.is_internal)인지. 탭 단위로 캐시한다. */
+async function companyIsInternal(companyId: string): Promise<boolean> {
+  try {
+    const cached = sessionStorage.getItem(INTERNAL_CACHE_KEY);
+    if (cached) {
+      const [id, val] = cached.split(":");
+      if (id === companyId) return val === "1";
+    }
+  } catch { /* 캐시 못 읽으면 그냥 조회한다 */ }
+  try {
+    const { data } = await db.from("companies").select("is_internal").eq("id", companyId).maybeSingle();
+    const val = !!(data as { is_internal?: boolean } | null)?.is_internal;
+    try { sessionStorage.setItem(INTERNAL_CACHE_KEY, `${companyId}:${val ? "1" : "0"}`); } catch { /* 무시 */ }
+    return val;
+  } catch {
+    return false; // 조회 실패는 외부로 취급 — 집계를 임의로 지우지 않는다
+  }
+}
+
 export function PageViewBeacon() {
   const pathname = usePathname();
 
@@ -74,6 +139,9 @@ export function PageViewBeacon() {
     const visitorKey = getVisitorKey();
     if (!visitorKey) return;
 
+    const path = pathname.split("?")[0].slice(0, 300);
+    if (seenRecently(path)) return;
+
     let cancelled = false;
     (async () => {
       try {
@@ -81,18 +149,24 @@ export function PageViewBeacon() {
         const { data: { session } } = await supabase.auth.getSession();
         if (cancelled) return;
         let companyId: string | null = null;
+        let internal = internalFlag();
         if (session?.user) {
           const { data } = await supabase
             .from("users").select("company_id").eq("auth_id", session.user.id).maybeSingle();
           companyId = (data as { company_id?: string } | null)?.company_id ?? null;
+          if (!internal && companyId && (await companyIsInternal(companyId))) {
+            internal = true;
+            markInternal(); // 이후 로그아웃 상태 방문까지 내부로 이어지게 표식을 남긴다
+          }
         }
         if (cancelled) return;
         await db.from("page_views").insert({
-          path: pathname.split("?")[0].slice(0, 300),
+          path,
           visitor_key: visitorKey,
           is_auth: !!session?.user,
           referrer_host: referrerHost(),
           company_id: companyId,
+          is_internal: internal,
         });
       } catch {
         /* 수집 실패는 무시 — 사용자 경험에 영향 없음 */
