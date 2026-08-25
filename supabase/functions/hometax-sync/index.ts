@@ -643,6 +643,33 @@ serve(withSentry("hometax-sync", async (req: Request) => {
       return jsonResponse(400, { success: false, message: "companyId is required" });
     }
 
+    // 인증 게이트 (2026-08-25 보안): 이 함수는 companyId 만 받아 그 회사의 공동인증서(개인키)를 읽어
+    //   홈택스에 로그인하는 극도로 민감한 엔드포인트인데 무인증(--no-verify-jwt)으로 열려 있었다.
+    //   내부(service_role) 호출이거나, 로그인한 사용자가 본인 회사(companyId)를 지정한 경우만 허용한다.
+    //   ※ 홈택스 sync 로직·CF 에러 처리는 건드리지 않는다 — 입구 가드만 추가(BLOCKED 영역 로직 무변경).
+    {
+      const authHeader = req.headers.get("Authorization") || "";
+      const isInternal = !!supabaseServiceKey && authHeader.includes(supabaseServiceKey);
+      if (!isInternal) {
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+        if (!authHeader.startsWith("Bearer ") || !anonKey) {
+          return jsonResponse(401, { success: false, message: "인증이 필요합니다." });
+        }
+        const userClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: ud, error: ue } = await userClient.auth.getUser();
+        if (ue || !ud.user) {
+          return jsonResponse(401, { success: false, message: "인증이 필요합니다." });
+        }
+        const { data: profile } = await supabase.from("users")
+          .select("company_id").eq("auth_id", ud.user.id).maybeSingle();
+        if (!profile?.company_id || profile.company_id !== companyId) {
+          return jsonResponse(403, { success: false, message: "본인 회사만 동기화할 수 있습니다." });
+        }
+      }
+    }
+
     const errors: string[] = [];
     const typesToSync = syncTypes || ["tax_invoice", "withholding_tax"];
 

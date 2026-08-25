@@ -45,9 +45,14 @@ serve(withSentry("operator-user-admin", async (req) => {
     //   global 헤더를 auth 요청에 쓰지 않아 "유효하지 않은 세션"으로 전멸했다 — 토큰 명시 전달.
     const { data: userData, error: userErr } = await authClient.auth.getUser(token);
     if (userErr || !userData.user) return json({ error: "유효하지 않은 세션" }, 401);
-    const callerEmail = userData.user.email || "";
-    if (!/@mo-tive\.com$/i.test(callerEmail)) {
-      return json({ error: "운영자 전용 기능입니다 (@mo-tive.com)" }, 403);
+    const callerEmail = (userData.user.email || "").toLowerCase();
+    // 실제 플랫폼 운영자만 — DB is_platform_operator() 와 동일 allowlist (2026-08-25 보안).
+    //   예전엔 @mo-tive.com 도메인 전체를 허용해, 스태프 계정 하나만 탈취돼도 전 테넌트 사용자 정보·
+    //   CODEF 사용량을 읽을 수 있었다. 콘솔의 다른 운영자 RPC 는 이미 creative@ 단독으로 제한돼 있어
+    //   여기만 넓었던 불일치를 맞춘다.
+    const PLATFORM_OPERATORS = ["creative@mo-tive.com"];
+    if (!PLATFORM_OPERATORS.includes(callerEmail)) {
+      return json({ error: "운영자 전용 기능입니다." }, 403);
     }
 
     const svc = createClient(SUPABASE_URL, SERVICE_ROLE, {
