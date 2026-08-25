@@ -5,6 +5,8 @@
 //   value/onChange/min/max/className/disabled/placeholder/id/name 지원. body 포털로 어디서든 안 잘림.
 //   2026-08-19 사장님: ① 칸에서 숫자를 키보드로 바로 입력 가능(20260821 · 2026-8-21 · 0821 · 8-21,
 //   Enter 로 반영) ② 머리의 "YYYY년 M월"을 누르면 연·월 선택 모드로 바뀌어 연 단위 이동.
+//   2026-08-25 사장님: ③ 머리 클릭 → 연도 그리드 선택 → 연도 고르면 월 선택 → 일 선택(3단 드릴다운).
+//   ④ 완성된 날짜를 키보드로 치면 Enter 없이 바로 반영, 유효한 날짜를 쳐두고 포커스가 빠져도 되돌리지 않는다.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { getHoliday } from "@/lib/holidays";
@@ -44,6 +46,19 @@ function parseLoose(text: string, fallbackYear: number): { y: number; m: number;
   return { y, m, d };
 }
 
+// 연도가 확실히 들어간 '완성된' 입력인가 — Enter 없이 바로 반영해도 되는지 판단.
+//   YYYYMMDD(8자리) 또는 세 조각 중 첫 조각이 4자리 연도(YYYY-M-D)일 때만 true.
+//   (올해 기준 MMDD·M-D 같은 축약형은 치는 도중 조기 확정되면 곤란하므로 Enter/블러로 반영.)
+function isCompleteDateInput(text: string): boolean {
+  const t = text.trim();
+  if (/^\d{8}$/.test(t)) return true;
+  const parts = t.replace(/[.\s/년월일]+/g, "-").split("-").filter(Boolean);
+  return parts.length === 3 && /^\d{4}$/.test(parts[0]);
+}
+
+// 12년 묶음 그리드의 시작 연도
+const yearBlock = (y: number) => Math.floor(y / 12) * 12;
+
 export function DateField({
   value, onChange, min, max, className = "", disabled, placeholder = "연도-월-일", id, name,
   title, style, autoFocus, onBlur,
@@ -56,13 +71,16 @@ export function DateField({
   title?: string; style?: CSSProperties; autoFocus?: boolean; onBlur?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [pick, setPick] = useState(false); // 연·월 선택 모드 (머리 클릭)
+  // 머리 클릭 드릴다운: false(일) → "year"(연도 그리드) → "month"(월 그리드) → false(일)
+  const [pick, setPick] = useState<false | "year" | "month">(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sel = parseYmd(value);
   const today = new Date();
   const [view, setView] = useState(() => sel ? { y: sel.y, m: sel.m } : { y: today.getFullYear(), m: today.getMonth() + 1 });
+  // 연도 그리드가 보여줄 12년 묶음의 시작 연도
+  const [yearWin, setYearWin] = useState(() => yearBlock(sel ? sel.y : today.getFullYear()));
   // 키보드 입력 초안 — 편집 중이 아닐 땐 항상 저장값을 비춘다
   const [draft, setDraft] = useState(value || "");
   const [editing, setEditing] = useState(false);
@@ -108,11 +126,19 @@ export function DateField({
   useEffect(() => { if (prevOpen.current && !open) { setPick(false); onBlur?.(); } prevOpen.current = open; /* eslint-disable-next-line */ }, [open]);
 
   // ── 키보드 입력 ──
+  const withinRange = (v: string) => !((min && v < min) || (max && v > max));
   const handleType = (raw: string) => {
     setEditing(true);
     setDraft(raw);
     const p = parseLoose(raw, view.y);
-    if (p) setView({ y: p.y, m: p.m }); // 치는 대로 달력이 따라간다
+    if (p) {
+      setView({ y: p.y, m: p.m }); // 치는 대로 달력이 따라간다
+      // 연도까지 완성된 날짜면 Enter 없이 바로 반영 (2026-08-25 사장님)
+      if (isCompleteDateInput(raw)) {
+        const v = ymd(p.y, p.m, p.d);
+        if (withinRange(v)) emit(v);
+      }
+    }
   };
   const commitDraft = () => {
     const t = draft.trim();
@@ -120,7 +146,7 @@ export function DateField({
     const p = parseLoose(t, view.y);
     if (!p) { setEditing(false); setDraft(value || ""); return; } // 해석 불가 — 원래 값으로
     const v = ymd(p.y, p.m, p.d);
-    if ((min && v < min) || (max && v > max)) { setEditing(false); setDraft(value || ""); return; }
+    if (!withinRange(v)) { setEditing(false); setDraft(value || ""); return; }
     emit(v);
   };
   const handleInputBlur = () => {
@@ -129,6 +155,15 @@ export function DateField({
       if (committedRef.current) { committedRef.current = false; return; }
       const pop = document.getElementById("datefield-pop");
       if (pop && pop.contains(document.activeElement)) return;
+      // 유효한 날짜를 쳐두고 포커스가 빠지면 되돌리지 말고 반영 (2026-08-25 사장님)
+      const t = draft.trim();
+      if (t !== "" && t !== (value || "")) {
+        const p = parseLoose(t, view.y);
+        if (p) {
+          const v = ymd(p.y, p.m, p.d);
+          if (withinRange(v)) { emit(v); return; }
+        }
+      }
       setEditing(false);
       setDraft(value || "");
     }, 120);
@@ -155,6 +190,21 @@ export function DateField({
   const nextYear = () => setView((v) => ({ y: v.y + 1, m: v.m }));
   const prevYear10 = () => setView((v) => ({ y: v.y - 10, m: v.m }));
   const nextYear10 = () => setView((v) => ({ y: v.y + 10, m: v.m }));
+
+  // 머리 클릭: 일 → 연도 그리드, 월 → 연도 그리드(다시 위로), 연도 → 일(취소)
+  const openYear = () => { setYearWin(yearBlock(view.y)); setPick("year"); };
+  const headerClick = () => { if (pick === "year") setPick(false); else openYear(); };
+  // 네비게이션 화살표 — 모드별로 의미가 다르다
+  const navPrevOuter = () => { if (pick === "year") setYearWin((w) => w - 12); else if (pick === "month") prevYear10(); else prevYear(); };
+  const navPrevInner = () => { if (pick === "year") setYearWin((w) => w - 12); else if (pick === "month") prevYear(); else prevMonth(); };
+  const navNextInner = () => { if (pick === "year") setYearWin((w) => w + 12); else if (pick === "month") nextYear(); else nextMonth(); };
+  const navNextOuter = () => { if (pick === "year") setYearWin((w) => w + 12); else if (pick === "month") nextYear10(); else nextYear(); };
+  const headerLabel = pick === "year" ? `${yearWin} - ${yearWin + 11}` : pick === "month" ? `${view.y}년` : `${view.y}년 ${view.m}월`;
+  const outerPrevTitle = pick === "year" ? "이전 12년" : pick === "month" ? "10년 전" : "이전 연도";
+  const innerPrevTitle = pick === "year" ? "이전 12년" : pick === "month" ? "이전 연도" : "이전 달";
+  const innerNextTitle = pick === "year" ? "다음 12년" : pick === "month" ? "다음 연도" : "다음 달";
+  const outerNextTitle = pick === "year" ? "다음 12년" : pick === "month" ? "10년 후" : "다음 연도";
+  const headerTitle = pick === "year" ? "일 선택으로 돌아가기" : pick === "month" ? "연도 선택으로" : "연·월 바로 이동";
 
   const popStyle: CSSProperties = pos ? { position: "fixed", top: pos.top, left: pos.left, width: 256, zIndex: 90 } : { display: "none" };
   const navBtnCls = "w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center";
@@ -188,20 +238,29 @@ export function DateField({
         <div id="datefield-pop" style={popStyle} className="date-field-popover">
           <div className="date-field-popover-header">
             <div className="flex items-center gap-0.5">
-              <button type="button" onClick={pick ? prevYear10 : prevYear} title={pick ? "10년 전" : "이전 연도"} className={`${navBtnCls} text-xs font-bold`}>«</button>
-              <button type="button" onClick={pick ? prevYear : prevMonth} title={pick ? "이전 연도" : "이전 달"} className={navBtnCls}>‹</button>
+              <button type="button" onClick={navPrevOuter} title={outerPrevTitle} className={`${navBtnCls} text-xs font-bold`}>«</button>
+              <button type="button" onClick={navPrevInner} title={innerPrevTitle} className={navBtnCls}>‹</button>
             </div>
-            {/* 머리 클릭 → 연·월 선택 모드 (2026-08-19 사장님: 연 단위 이동) */}
-            <button type="button" onClick={() => setPick((p) => !p)} title={pick ? "일 선택으로 돌아가기" : "연·월 바로 이동"}
+            {/* 머리 클릭 → 연도 그리드 → 월 그리드 → 일 (2026-08-25 사장님) */}
+            <button type="button" onClick={headerClick} title={headerTitle}
               className="text-sm font-bold text-[var(--text)] tabular-nums px-2 py-0.5 rounded-lg hover:bg-[var(--bg-surface)] transition">
-              {pick ? `${view.y}년` : `${view.y}년 ${view.m}월`}<span className="ml-1 text-[9px] text-[var(--text-dim)]">▾</span>
+              {headerLabel}<span className="ml-1 text-[9px] text-[var(--text-dim)]">▾</span>
             </button>
             <div className="flex items-center gap-0.5">
-              <button type="button" onClick={pick ? nextYear : nextMonth} title={pick ? "다음 연도" : "다음 달"} className={navBtnCls}>›</button>
-              <button type="button" onClick={pick ? nextYear10 : nextYear} title={pick ? "10년 후" : "다음 연도"} className={`${navBtnCls} text-xs font-bold`}>»</button>
+              <button type="button" onClick={navNextInner} title={innerNextTitle} className={navBtnCls}>›</button>
+              <button type="button" onClick={navNextOuter} title={outerNextTitle} className={`${navBtnCls} text-xs font-bold`}>»</button>
             </div>
           </div>
-          {pick ? (
+          {pick === "year" ? (
+            <div className="date-field-month-grid">
+              {Array.from({ length: 12 }, (_, i) => yearWin + i).map((y) => (
+                <button key={y} type="button" onClick={() => { setView((v) => ({ y, m: v.m })); setPick("month"); }}
+                  className={`date-field-month-btn ${view.y === y ? "date-field-month-btn-on" : ""}`}>
+                  {y}
+                </button>
+              ))}
+            </div>
+          ) : pick === "month" ? (
             <div className="date-field-month-grid">
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <button key={m} type="button" onClick={() => { setView((v) => ({ y: v.y, m })); setPick(false); }}
