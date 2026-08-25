@@ -14,6 +14,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { todayKst } from "@/lib/kst";
+import { DateField } from "@/components/date-field";
+import { PickList } from "@/components/pick-list";
 import type { Product, Warehouse } from "@/lib/inventory";
 import {
   loadLayout, saveLayout, resetLayout, newFieldId, defaultLayout,
@@ -45,7 +47,8 @@ export const blankRow = (): DocRow => ({
 export function useDocEditor(companyId: string | null, userId: string | null, formKey: FormKey, products: Product[]) {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const [head, setHead] = useState<Record<string, string>>({});
+  //   ★ 들어오면 **오늘 날짜**가 이미 들어가 있다(사장님 지시) — 매번 치게 하지 않는다.
+  const [head, setHead] = useState<Record<string, string>>(() => ({ date: todayKst() }));
   const [rows, setRows] = useState<DocRow[]>(() => Array.from({ length: 5 }, blankRow));
   const [editing, setEditing] = useState<Order | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -143,14 +146,14 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   }), [live]);
 
   const reset = useCallback(() => {
-    setHead({}); setRows(Array.from({ length: 5 }, blankRow)); setEditing(null);
+    setHead({ date: todayKst() }); setRows(Array.from({ length: 5 }, blankRow)); setEditing(null);
   }, []);
 
   /** 저장분을 불러 그대로 편다 — 치던 화면 그대로다. */
   const loadDoc = useCallback((o: Order, ls: OrderLine[]) => {
     setEditing(o);
     setHead({
-      y: o.order_date.slice(0, 4), m: String(Number(o.order_date.slice(5, 7))), d: String(Number(o.order_date.slice(8, 10))),
+      date: o.order_date,
       partner: o.partner_name || "", partner_id: o.partner_id || "",
       wh: o.warehouse_id || "", due: o.due_date || "", note: o.note || "",
       ...(o.custom || {}),
@@ -191,8 +194,8 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
 
   /** 저장할 값으로 빚는다 — 화면 값이 아니라 **셀 수 있는 값**으로. */
   const build = useCallback(() => {
-    const date = `${head.y || new Date().getFullYear()}-${String(head.m || "").padStart(2, "0")}-${String(head.d || "").padStart(2, "0")}`;
-    const valid = /^\d{4}-\d{2}-\d{2}$/.test(date) && Number(head.m) >= 1 && Number(head.m) <= 12 && Number(head.d) >= 1 && Number(head.d) <= 31;
+    const date = head.date || todayKst();
+    const valid = /^\d{4}-\d{2}-\d{2}$/.test(date);
     const customHead: Record<string, string> = {};
     onHead.forEach((f) => { if (f.custom && head[f.field_id]) customHead[f.field_id] = head[f.field_id]; });
     const lines = live.map((r) => {
@@ -237,11 +240,13 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
 export type DocCtl = ReturnType<typeof useDocEditor>;
 
 // ── 머리 ──────────────────────────────────────────────────────────────────────
-export function DocHead({ ctl, warehouses, partners }: { ctl: DocCtl; warehouses: Warehouse[]; partners: Partner[] }) {
+export function DocHead({ ctl, warehouses, partners, staff }: {
+  ctl: DocCtl; warehouses: Warehouse[]; partners: Partner[]; staff?: Partner[];
+}) {
   const { head, setHead, onHead } = ctl;
+  const [drop, setDrop] = useState<string | null>(null);
   const set = (k: string, v: string) => setHead((s) => ({ ...s, [k]: v }));
   useEffect(() => {
-    if (!head.y) set("y", String(new Date().getFullYear()));
     if (!head.wh && warehouses.length) set("wh", warehouses.find((w) => w.is_default)?.id || warehouses[0].id);
   }, [warehouses]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -251,28 +256,41 @@ export function DocHead({ ctl, warehouses, partners }: { ctl: DocCtl; warehouses
         <label key={f.field_id} className="doc-fld">
           <span className="field-label">{f.name}{f.lock ? <b> *</b> : null}</span>
           <div className="doc-fld-in">
+            {/*   ★ 날짜는 한 칸에 다 친다(사장님 지시) — 20260825 · 0825 · 8-25 다 알아듣고,
+                  오른쪽 달력으로 골라도 된다. 일반전표·매입매출전표가 쓰는 그 칸이다. */}
             {f.field_id === "date" ? (
-              <div className="doc-d3">
-                <input className="field-input doc-y" inputMode="numeric" maxLength={4} value={head.y || ""} onChange={(e) => set("y", e.target.value)} />
-                <input className="field-input doc-md" inputMode="numeric" maxLength={2} placeholder="월" value={head.m || ""} onChange={(e) => set("m", e.target.value)} />
-                <input className="field-input doc-md" inputMode="numeric" maxLength={2} placeholder="일" value={head.d || ""} onChange={(e) => set("d", e.target.value)} />
-              </div>
-            ) : f.field_id === "partner" ? (
-              <>
-                <input className="field-input" list="doc-partners" placeholder="거래처" value={head.partner || ""}
+              <DateField value={head.date || ""} onChange={(e) => set("date", e.target.value)} className="field-input" />
+            ) : f.field_id === "due" ? (
+              <DateField value={head.due || ""} onChange={(e) => set("due", e.target.value)} className="field-input" />
+            ) : f.field_id === "partner" || f.field_id === "staff" ? (
+              //   ★ 거래처·담당자는 일반전표와 **같은 방식**으로 고른다 — 치면 목록, ↑↓ 이동, Enter 고르기
+              <div className="doc-pick-wrap">
+                <input className="field-input" placeholder={f.name}
+                  value={head[f.field_id] || ""}
                   onChange={(e) => {
-                    const hit = partners.find((p) => p.name === e.target.value);
-                    setHead((s) => ({ ...s, partner: e.target.value, partner_id: hit?.id || "" }));
-                  }} />
-                <datalist id="doc-partners">{partners.map((p) => <option key={p.id} value={p.name} />)}</datalist>
-              </>
+                    setHead((s) => ({ ...s, [f.field_id]: e.target.value,
+                      ...(f.field_id === "partner" ? { partner_id: "" } : {}) }));
+                    setDrop(f.field_id);
+                  }}
+                  onFocus={() => setDrop(f.field_id)} />
+                {drop === f.field_id && (
+                  <PickList
+                    items={(f.field_id === "partner" ? partners : (staff || [])).map((p) => ({ id: p.id, name: p.name }))}
+                    placeholder={`${f.name} 검색`}
+                    empty={f.field_id === "partner" ? "거래처가 없습니다 — 그냥 이름만 적어도 됩니다" : "구성원이 없습니다"}
+                    onPick={(sel) => {
+                      setHead((s) => ({ ...s, [f.field_id]: sel.name,
+                        ...(f.field_id === "partner" ? { partner_id: sel.id } : {}) }));
+                      setDrop(null);
+                    }}
+                    onClose={() => setDrop(null)} />
+                )}
+              </div>
             ) : f.field_id === "wh" ? (
               <select className="field-input" value={head.wh || ""} onChange={(e) => set("wh", e.target.value)}>
                 {!warehouses.length && <option value="">창고 없음</option>}
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
-            ) : f.field_id === "due" ? (
-              <input type="date" className="field-input" value={head.due || ""} onChange={(e) => set("due", e.target.value)} />
             ) : (
               <input className="field-input" placeholder={f.name} value={head[f.field_id] || ""} onChange={(e) => set(f.field_id, e.target.value)} />
             )}
@@ -294,13 +312,6 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
   const { onLine, rows, setRows, setCell, onCellKey, gridRef, fillFrom, priceOf } = ctl;
   const [pick, setPick] = useState<{ row: number; q: string; idx: number } | null>(null);
   const anySrc = rows.some((r) => r.src);
-
-  const cands = useMemo(() => {
-    if (!pick) return [];
-    const q = pick.q.trim().toLowerCase();
-    return products.filter((p) => p.is_active &&
-      (!q || `${p.sku} ${p.name} ${p.spec || ""}`.toLowerCase().includes(q))).slice(0, 7);
-  }, [pick, products]);
 
   const choose = (i: number, p: Product) => {
     setRows((s) => s.map((r, j) => {
@@ -348,30 +359,27 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                         value={shown}
                         onChange={(e) => { setCell(i, id, e.target.value); if (id === "sku") setPick({ row: i, q: e.target.value, idx: 0 }); }}
                         onFocus={() => { if (id === "sku" && !r.product_id) setPick({ row: i, q: raw, idx: 0 }); }}
-                        onBlur={() => setTimeout(() => setPick((p) => (p && p.row === i ? null : p)), 140)}
                         onKeyDown={(e) => {
-                          if (pick && pick.row === i && cands.length) {
-                            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                              e.preventDefault();
-                              setPick((p) => p && ({ ...p, idx: Math.max(0, Math.min(cands.length - 1, p.idx + (e.key === "ArrowDown" ? 1 : -1))) }));
-                              return;
-                            }
-                            if (e.key === "Enter") { e.preventDefault(); choose(i, cands[pick.idx]); return; }
-                            if (e.key === "Escape") { setPick(null); return; }
-                          }
+                          //   품목 고르개가 열려 있으면 ↑↓·Enter 는 그쪽이 먹는다(PickList 안에서 처리)
+                          if (id === "sku" && pick && pick.row === i && e.key !== "Escape") return;
                           onCellKey(e, i, id);
                         }} />
-                      {id === "sku" && pick && pick.row === i && cands.length > 0 && (
-                        <div className="doc-pick">
-                          {cands.map((p, n) => (
-                            <div key={p.id} aria-selected={n === pick.idx}
-                              onMouseDown={(e) => { e.preventDefault(); choose(i, p); }}>
-                              <code>{p.sku}</code>
-                              <span>{p.name}{p.spec ? <em> {p.spec}</em> : null}</span>
-                              <small>{priceOf(p) != null ? `₩${won(Number(priceOf(p)))}` : "—"}</small>
-                            </div>
-                          ))}
-                        </div>
+                      {/*   ★ 품목도 일반전표와 같은 고르개 — 치면 목록, ↑↓ 이동, Enter 고르기.
+                            아래로 뜨는 자체 목록을 쓰다가 표 안에서 잘렸다. */}
+                      {id === "sku" && pick && pick.row === i && (
+                        <PickList
+                          items={products.filter((p) => p.is_active).map((p) => ({
+                            id: p.id, code: p.sku,
+                            name: `${p.name}${p.spec ? ` (${p.spec})` : ""}`,
+                          }))}
+                          placeholder="품목 검색 (이름·SKU·규격)"
+                          empty="품목이 없습니다 — 재고 › 품목에서 먼저 올리세요"
+                          onPick={(sel) => {
+                            const p = products.find((x) => x.id === sel.id);
+                            if (p) choose(i, p);
+                            else setPick(null);
+                          }}
+                          onClose={() => setPick(null)} />
                       )}
                     </td>
                   );

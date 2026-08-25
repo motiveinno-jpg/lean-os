@@ -76,6 +76,16 @@ export function DocScreen({
     },
     enabled: !!companyId,
   });
+  //   담당자 고르개에 쓸 구성원 — 거래처와 같은 방식으로 고른다
+  const { data: staff = [] } = useQuery({
+    queryKey: ["inv-staff", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("users").select("id, name")
+        .eq("company_id", companyId!).order("name").limit(300);
+      return ((data || []) as any[]).map((u) => ({ id: u.id, name: u.name || "" })).filter((u) => u.name) as Partner[];
+    },
+    enabled: !!companyId,
+  });
   const { data: hist = [], refetch: refetchHist } = useQuery({
     queryKey: ["doc-hist", formKey, companyId, from, to],
     queryFn: () => history({ companyId: companyId!, from, to }),
@@ -130,7 +140,7 @@ export function DocScreen({
   //   입력 영역 — 갈래에서도 팝업에서도 **이것 하나**를 쓴다
   const editor = (
     <>
-      <DocHead ctl={ctl} warehouses={warehouses} partners={partners} />
+      <DocHead ctl={ctl} warehouses={warehouses} partners={partners} staff={staff} />
       <DocGrid ctl={ctl} products={products} />
       <div className="doc-add">
         <button type="button" className="btn-secondary btn-sm"

@@ -10293,10 +10293,6 @@ table.table-doc-hist { min-width: 860px; }
 .doc-fld-in { @apply flex min-w-0 gap-1.5; }
 /*   머리 칸은 **격자 줄과 같은 밀도**로 — 입력칸이 격자보다 크면 눈이 위에 붙잡힌다 */
 .doc-fld-in .field-input { @apply rounded-lg text-[13px]; height: var(--control-h-sm); }
-.doc-d3 { @apply flex gap-1; }
-.doc-d3 .field-input { @apply text-center tabular-nums; }
-.doc-y { @apply w-[58px] flex-none; }
-.doc-md { @apply w-[42px] flex-none; }
 
 .doc-no { @apply w-[30px] text-center text-[11px] text-[var(--text-dim)]; }
 .ev-table td.cell { @apply relative p-0; }
@@ -10308,12 +10304,8 @@ table.table-doc-hist { min-width: 860px; }
 .doc-auto b { @apply text-[var(--text)]; }
 .doc-src { @apply rounded px-1.5 py-px text-[10.5px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]; }
 
-.doc-pick { @apply absolute left-0 top-full z-30 min-w-[290px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl; }
-.doc-pick > div { @apply flex cursor-pointer items-baseline gap-2 px-3 py-1.5 text-[12.5px]; }
-.doc-pick > div[aria-selected="true"] { @apply bg-[var(--primary)]/10; }
-.doc-pick code { @apply text-[11.5px] font-bold text-[var(--primary)]; }
-.doc-pick em { @apply not-italic text-[var(--text-dim)]; }
-.doc-pick small { @apply ml-auto tabular-nums text-[var(--text-dim)]; }
+/*   고르개(PickList)를 담는 자리 — 위치를 잡아 줄 뿐, 목록 모양은 공용 부품이 정한다 */
+.doc-pick-wrap { @apply relative min-w-0 flex-1; }
 
 .doc-add { @apply px-4 py-2.5; }
 .doc-sums { @apply flex flex-wrap items-center gap-4 border-t border-[var(--border)] bg-[var(--bg-subtle)] px-4 py-2.5; }
