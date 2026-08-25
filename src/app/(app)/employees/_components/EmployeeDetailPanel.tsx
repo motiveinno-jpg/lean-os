@@ -926,7 +926,10 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                   </div>
                 )}
                 <div className="employee-leave-grant-form">
-                  <input type="date" value={grantForm.date} onChange={(e) => setGrantForm((p) => ({ ...p, date: e.target.value }))} className="field-input" style={{ width: 150 }} />
+                  {/* 2026-08-25 사장님: 네이티브 date 입력은 연도칸이 6자리까지 먹어 월로 안 넘어갔다.
+                      이 파일의 다른 날짜칸과 동일하게 앱 표준 DateField 로 교체 —
+                      키보드로 20200310 · 2020-3-10 치면 바로 반영되고 연·월 달력도 붙는다. */}
+                  <DateField value={grantForm.date} onChange={(e) => setGrantForm((p) => ({ ...p, date: e.target.value }))} style={{ width: 150 }} />
                   <input
                     type="text" inputMode="decimal" value={grantForm.days}
                     onChange={(e) => setGrantForm((p) => ({ ...p, days: e.target.value.replace(/[^0-9.-]/g, "") }))}

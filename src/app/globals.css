@@ -5558,6 +5558,10 @@ table.pnl-drill-table { min-width: 760px; }
 
 /* === date-field.tsx === */
 .date-field-button { @apply inline-flex items-center justify-between gap-2 text-left; }
+/* 모든 달력 겉모습 통일 (2026-08-25 사장님: "모든 달력 똑같이"). 80여 곳 호출부가 각자 넘기던
+   bg·border·radius·글자크기·패딩 편차를 한 곳에서 고정 — 이중 클래스로 호출부 유틸(text-xs·bg-[var(--bg)]·rounded 등)을 이긴다.
+   너비/레이아웃(w-full·flex-1·style width)은 문맥마다 달라야 하므로 호출부에 그대로 맡긴다. */
+.date-field-button.date-field-button { @apply px-2 py-1.5 bg-[var(--bg-surface)] border border-[var(--border)] rounded-lg text-sm; }
 .date-field-popover { @apply rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl p-2.5 select-none; }
 .date-field-popover-header { @apply flex items-center justify-between mb-2 px-0.5; }
 .date-field-weekday-row { @apply grid grid-cols-7 gap-0.5 mb-1; }
