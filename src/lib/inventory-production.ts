@@ -1,6 +1,6 @@
 "use client";
 
-// ── 재고 4단계 — 생산(자재구성 · 작업지시) (2026-08-25 사장님 지시) ────────────
+// ── 재고 4단계 — 생산(자재구성 · 완성 기록) (2026-08-25 사장님 지시) ─────────────
 //   ★ 결정 14 — 완성 한 번에 **두 문서**를 세운다: 자재 출고(MTL) + 완제품 입고(PRD).
 //     둘 중 하나만 서면 그 순간 재고가 거짓말을 한다. 그래서 자재 문서가 실패하면 완제품도 되돌린다.
 //   ★ 결정 15 — BOM 이 없으면 자재를 빼지 않는다. 없는 걸 지어내지 않는다.
@@ -14,13 +14,6 @@ import { createStockDoc, type MoveLine } from "@/lib/inventory";
 export type BomLine = {
   id: string; product_id: string; component_id: string; qty: number; note: string | null;
 };
-export type WorkOrder = {
-  id: string; wo_no: string; product_id: string; planned_qty: number;
-  warehouse_id: string | null; order_date: string; due_date: string | null;
-  status: "open" | "done" | "cancelled"; note: string | null; created_at: string;
-};
-export type WoDone = { work_order_id: string; product_id: string; planned_qty: number; done_qty: number };
-
 // ── 자재구성 ──────────────────────────────────────────────────────────────────
 export async function listBoms(companyId: string): Promise<BomLine[]> {
   if (!companyId) return [];
@@ -47,33 +40,6 @@ export async function deleteBomLine(id: string) {
   const { error } = await supabase.from("product_boms").delete().eq("id", id);
   if (error) throw error;
 }
-
-export async function listWoDone(companyId: string, ids?: string[]): Promise<WoDone[]> {
-  if (!companyId) return [];
-  let qb = supabase.from("v_work_order_done")
-    .select("work_order_id, product_id, planned_qty, done_qty").eq("company_id", companyId);
-  if (ids && ids.length) qb = qb.in("work_order_id", ids);
-  const data = logRead("inventory:wo-done", await qb);
-  return ((data || []) as any[]).filter((r) => r.work_order_id).map((r) => ({
-    work_order_id: r.work_order_id, product_id: r.product_id,
-    planned_qty: Number(r.planned_qty || 0), done_qty: Number(r.done_qty || 0),
-  }));
-}
-
-export async function syncWoStatus(companyId: string, woId: string) {
-  const rows = await listWoDone(companyId, [woId]);
-  const r = rows[0];
-  if (!r) return;
-  const { data: cur } = await supabase.from("work_orders").select("status").eq("id", woId).single();
-  const now = (cur as { status: string } | null)?.status;
-  if (now === "cancelled") return;
-  const next = r.done_qty >= r.planned_qty ? "done" : "open";
-  if (now !== next) {
-    await supabase.from("work_orders")
-      .update({ status: next, updated_at: new Date().toISOString() }).eq("id", woId);
-  }
-}
-
 
 // ── 격자에서 바로 완성 기록 (2026-08-25 사장님 지시) ──────────────────────────
 //   작업지시를 따로 두지 않는다 — **주문서가 그 자리**다. 격자에 완제품 줄을 치고 저장하면

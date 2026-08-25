@@ -354,10 +354,10 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
         <thead>
           <tr>
             <th className="doc-no"></th>
-            {anySrc && <th style={{ width: "116px" }}>불러온 곳</th>}
+            {anySrc && <th className="doc-th-src">불러온 곳</th>}
             {onLine.map((f) => <th key={f.field_id} style={{ width: W[f.field_id] || "130px" }}>{f.name}</th>)}
-            <th style={{ width: "116px" }}>합계</th>
-            <th style={{ width: "34px" }}></th>
+            <th className="doc-th-src">합계</th>
+            <th className="doc-th-x"></th>
           </tr>
         </thead>
         <tbody>

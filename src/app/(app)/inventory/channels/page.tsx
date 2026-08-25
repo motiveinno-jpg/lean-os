@@ -19,6 +19,7 @@ import {
   Pager, usePager, QuickSearch, quickSearchHit,
 } from "@/components/query-kit";
 import { listProducts, listWarehouses } from "@/lib/inventory";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import {
   CHANNELS, channelLabel, listChannelCodes, upsertChannelCode, deleteChannelCode,
   listImports, resolveRows, importChannelOrders,
@@ -27,6 +28,8 @@ import {
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 type Tab = "import" | "codes" | "history";
+type CodeKey = "code" | "cname" | "sku" | "pname";
+type ImpKey = "no" | "date" | "buyer" | "amount" | "at";
 
 export default function ChannelsPage() {
   const { toast } = useToast();
@@ -40,6 +43,8 @@ export default function ChannelsPage() {
   const [channel, setChannel] = useState<ChannelValue>("smartstore");
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [cSort, setCSort] = useState<SortState<CodeKey>>({ key: "code", dir: "asc" });
+  const [iSort, setISort] = useState<SortState<ImpKey>>({ key: "at", dir: "desc" });
 
   const canWrite = isMaster || hasPerm("/inventory/channels");
 
@@ -55,12 +60,29 @@ export default function ChannelsPage() {
     quickSearchHit(q, [c.channel_product_id, c.channel_product_name, c.channel_sku,
       productById.get(c.product_id)?.sku, productById.get(c.product_id)?.name])
   ), [codes, channel, q, productById]);
-  const codePager = usePager(shownCodes, 50, `${channel}|${q}`);
+  const sortedCodes = useMemo(() => {
+    const d = cSort.dir === "asc" ? 1 : -1;
+    const val = (c: (typeof shownCodes)[number]) => cSort.key === "code" ? c.channel_product_id
+      : cSort.key === "cname" ? (c.channel_product_name || "")
+      : cSort.key === "sku" ? (productById.get(c.product_id)?.sku || "")
+      : (productById.get(c.product_id)?.name || "");
+    return [...shownCodes].sort((a, b) => cmp(val(a), val(b)) * d);
+  }, [shownCodes, cSort, productById]);
+  const onCSort = (k: string) => setCSort((s) => nextSort(s, k as CodeKey));
+  const codePager = usePager(sortedCodes, 50, `${channel}|${q}|${cSort.key}${cSort.dir}`);
 
   const shownImports = useMemo(() => imports.filter((i) =>
     i.channel === channel && quickSearchHit(q, [i.channel_order_no, i.buyer_name])
   ), [imports, channel, q]);
-  const importPager = usePager(shownImports, 50, `${channel}|${q}`);
+  const sortedImports = useMemo(() => {
+    const d = iSort.dir === "asc" ? 1 : -1;
+    const val = (i: (typeof shownImports)[number]) => iSort.key === "no" ? i.channel_order_no
+      : iSort.key === "date" ? (i.order_date || "") : iSort.key === "buyer" ? (i.buyer_name || "")
+      : iSort.key === "amount" ? (i.amount ?? -Infinity) : i.imported_at;
+    return [...shownImports].sort((a, b) => cmp(val(a), val(b)) * d);
+  }, [shownImports, iSort]);
+  const onISort = (k: string) => setISort((s) => nextSort(s, k as ImpKey));
+  const importPager = usePager(sortedImports, 50, `${channel}|${q}|${iSort.key}${iSort.dir}`);
 
   const counts = useMemo(() => ({
     codes: codes.filter((c) => c.channel === channel).length,
@@ -153,7 +175,13 @@ export default function ChannelsPage() {
               ) : (
                 <div className="stg-table-wrap">
                   <table className="ev-table ev-lined table-inv-ch-codes">
-                    <thead><tr><th>채널 상품코드</th><th>채널 상품명</th><th>우리 SKU</th><th>품목명</th><th>규격</th><th></th></tr></thead>
+                    <thead><tr>
+                      <SortableTh label="채널 상품코드" sortKey="code" sort={cSort} onSort={onCSort} />
+                      <SortableTh label="채널 상품명" sortKey="cname" sort={cSort} onSort={onCSort} />
+                      <SortableTh label="우리 SKU" sortKey="sku" sort={cSort} onSort={onCSort} />
+                      <SortableTh label="품목명" sortKey="pname" sort={cSort} onSort={onCSort} />
+                      <th>규격</th><th></th>
+                    </tr></thead>
                     <tbody>
                       {codePager.view.map((c) => {
                         const p = productById.get(c.product_id);
@@ -191,7 +219,13 @@ export default function ChannelsPage() {
               ) : (
                 <div className="stg-table-wrap">
                   <table className="ev-table ev-lined table-inv-ch-imports">
-                    <thead><tr><th>주문번호</th><th>주문일</th><th>주문자</th><th>금액</th><th>가져온 때</th></tr></thead>
+                    <thead><tr>
+                      <SortableTh label="주문번호" sortKey="no" sort={iSort} onSort={onISort} />
+                      <SortableTh label="주문일" sortKey="date" sort={iSort} onSort={onISort} />
+                      <SortableTh label="주문자" sortKey="buyer" sort={iSort} onSort={onISort} />
+                      <SortableTh label="금액" sortKey="amount" sort={iSort} onSort={onISort} />
+                      <SortableTh label="가져온 때" sortKey="at" sort={iSort} onSort={onISort} />
+                    </tr></thead>
                     <tbody>
                       {importPager.view.map((i) => (
                         <tr key={i.id}>

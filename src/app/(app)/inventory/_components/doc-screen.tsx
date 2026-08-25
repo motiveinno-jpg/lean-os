@@ -19,6 +19,7 @@ import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, Pager, usePager, QuickSearch, quickSearchHit,
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { listProducts, listWarehouses, type Product, type Warehouse } from "@/lib/inventory";
 import { FORM_LABEL, type FormKey } from "@/lib/inventory-orders";
 import {
@@ -27,6 +28,7 @@ import {
 } from "./doc-editor";
 
 export type SaveAction = { key: string; label: string; primary?: boolean; hint?: string };
+type HistKey = "no" | "date" | "who" | "label" | "lines" | "total" | "state";
 
 /** 이력 한 줄 — 무엇을 보여줄지는 화면마다 다르지만 모양은 같다. */
 export type HistRow = {
@@ -64,6 +66,7 @@ export function DocScreen({
   const [to, setTo] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 10); });
   const [busy, setBusy] = useState(false);
   const [popup, setPopup] = useState(false);
+  const [sort, setSort] = useState<SortState<HistKey>>({ key: "date", dir: "desc" });
 
   const canWrite = isMaster || hasPerm(perm);
 
@@ -97,7 +100,12 @@ export function DocScreen({
   const ctl = useDocEditor(companyId, userId, formKey, products);
 
   const shown = useMemo(() => hist.filter((h) => quickSearchHit(q, [h.no, h.who, h.label, h.state])), [hist, q]);
-  const pager = usePager(shown, 50, `${q}|${from}|${to}`);
+  const sorted = useMemo(() => {
+    const d = sort.dir === "asc" ? 1 : -1;
+    return [...shown].sort((a, b) => cmp(a[sort.key], b[sort.key]) * d);
+  }, [shown, sort]);
+  const onSort = (k: string) => setSort((s) => nextSort(s, k as HistKey));
+  const pager = usePager(sorted, 50, `${q}|${from}|${to}|${sort.key}${sort.dir}`);
 
   //   들어오면 첫 칸에 커서 — 손이 바로 키보드에 있게(사장님 지시)
   useEffect(() => {
@@ -220,7 +228,15 @@ export function DocScreen({
               ) : (
                 <div className="stg-table-wrap">
                   <table className="ev-table ev-lined table-doc-hist">
-                    <thead><tr><th>번호</th><th>일자</th><th>거래처</th><th>품목</th><th>줄</th><th>합계</th><th>상태</th></tr></thead>
+                    <thead><tr>
+                      <SortableTh label="번호" sortKey="no" sort={sort} onSort={onSort} />
+                      <SortableTh label="일자" sortKey="date" sort={sort} onSort={onSort} />
+                      <SortableTh label="거래처" sortKey="who" sort={sort} onSort={onSort} />
+                      <SortableTh label="품목" sortKey="label" sort={sort} onSort={onSort} />
+                      <SortableTh label="줄" sortKey="lines" sort={sort} onSort={onSort} />
+                      <SortableTh label="합계" sortKey="total" sort={sort} onSort={onSort} />
+                      <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
+                    </tr></thead>
                     <tbody>
                       {pager.view.map((h) => (
                         <tr key={h.id} className="inv-row-click" onClick={() => openRow(h.id)}>

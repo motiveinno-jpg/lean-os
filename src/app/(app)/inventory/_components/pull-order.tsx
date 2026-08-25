@@ -117,7 +117,7 @@ function PullDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
                       const p = nameOf.get(l.product_id);
                       return (
                         <tr key={l.id}>
-                          <td className="tc" style={{ width: 36 }}>
+                          <td className="tc doc-th-x">
                             <input type="checkbox" checked={!!picked[l.id]}
                               onChange={(e) => setPicked((s) => ({ ...s, [l.id]: e.target.checked }))} />
                           </td>

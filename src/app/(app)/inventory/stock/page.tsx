@@ -20,6 +20,7 @@ import {
   Pager, usePager, QuickSearch, quickSearchHit,
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
+import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
 import {
   listProducts, listOnHand, listWarehouses, listMoves, createStockDoc,
@@ -30,6 +31,10 @@ import {
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 type Tab = "onhand" | "moves" | "count" | "warehouse";
 type Signal = "all" | "low" | "zero" | "fix";
+type StockKey = "sku" | "name" | "spec" | "wh" | "qty" | "safety" | "state";
+type MoveKey = "date" | "doc" | "reason" | "sku" | "name" | "wh" | "qty" | "price" | "amount";
+//   상태 정렬은 처리할 것이 위 (CLAUDE.md: 대기→승인→반려→취소와 같은 원칙)
+const STATE_RANK: Record<Signal, number> = { fix: 0, zero: 1, low: 2, all: 3 };
 
 export default function StockPage() {
   const { toast } = useToast();
@@ -42,6 +47,8 @@ export default function StockPage() {
   const [tab, setTab] = useState<Tab>("onhand");
   const [q, setQ] = useState("");
   const [signal, setSignal] = useState<Signal>("all");
+  const [sort, setSort] = useState<SortState<StockKey>>({ key: "state", dir: "asc" });
+  const [mSort, setMSort] = useState<SortState<MoveKey>>({ key: "date", dir: "desc" });
   const [from, setFrom] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(todayKst);
   const [docOpen, setDocOpen] = useState(false);
@@ -83,7 +90,23 @@ export default function StockPage() {
     quickSearchHit(q, [r.product?.sku, r.product?.name, r.product?.spec, r.wh?.name])
   ), [rows, signal, q]);
 
-  const pager = usePager(shown, 50, `${q}|${signal}`);
+  const sorted = useMemo(() => {
+    const d = sort.dir === "asc" ? 1 : -1;
+    const val = (r: (typeof shown)[number]) => {
+      switch (sort.key) {
+        case "sku": return r.product?.sku || "";
+        case "name": return r.product?.name || "";
+        case "spec": return r.product?.spec || "";
+        case "wh": return r.wh?.name || "";
+        case "qty": return r.qty;
+        case "safety": return r.product?.safety_stock == null ? -Infinity : Number(r.product.safety_stock);
+        default: return STATE_RANK[r.state];
+      }
+    };
+    return [...shown].sort((a, b) => cmp(val(a), val(b)) * d);
+  }, [shown, sort]);
+  const onSort = (k: string) => setSort((s) => nextSort(s, k as StockKey));
+  const pager = usePager(sorted, 50, `${q}|${signal}|${sort.key}${sort.dir}`);
   const counts = useMemo(() => ({
     low: rows.filter((r) => r.state === "low").length,
     zero: rows.filter((r) => r.state === "zero").length,
@@ -91,7 +114,26 @@ export default function StockPage() {
     value: rows.reduce((n, r) => n + r.qty * Number(r.product?.cost_price || 0), 0),
   }), [rows]);
 
-  const movePager = usePager(moves, 50, `${from}|${to}`);
+  const sortedMoves = useMemo(() => {
+    const d = mSort.dir === "asc" ? 1 : -1;
+    const val = (m: (typeof moves)[number]) => {
+      const p = productById.get(m.product_id);
+      switch (mSort.key) {
+        case "doc": return m.doc?.doc_no || "";
+        case "reason": return reasonLabel(m.doc?.reason || "");
+        case "sku": return p?.sku || "";
+        case "name": return p?.name || "";
+        case "wh": return whById.get(m.warehouse_id)?.name || "";
+        case "qty": return m.qty;
+        case "price": return m.unit_price ?? -Infinity;
+        case "amount": return m.amount ?? -Infinity;
+        default: return m.moved_at;
+      }
+    };
+    return [...moves].sort((a, b) => cmp(val(a), val(b)) * d);
+  }, [moves, mSort, productById, whById]);
+  const onMSort = (k: string) => setMSort((s) => nextSort(s, k as MoveKey));
+  const movePager = usePager(sortedMoves, 50, `${from}|${to}|${mSort.key}${mSort.dir}`);
 
   if (!permLoading && !(isMaster || hasPerm("/inventory/stock"))) {
     return <AccessDenied detail="재고 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
@@ -159,9 +201,16 @@ export default function StockPage() {
           {tab === "count" && <CountBar ctl={count} warehouses={warehouses} onhand={onhand} />}
 
           {tab === "warehouse" && (
-            <QueryBar right={canMove ? <WarehouseAdd companyId={companyId} onDone={invalidate} /> : undefined}>
-              <span className="text-[11px] text-[var(--text-dim)]">재고는 창고마다 따로 셉니다. 창고가 없으면 첫 입·출고에서 &lsquo;본사창고&rsquo;가 자동으로 만들어집니다.</span>
-            </QueryBar>
+            <>
+              <QueryBar right={canMove ? <WarehouseAdd companyId={companyId} onDone={invalidate} /> : undefined}>
+                <span className="inv-hint">재고는 창고마다 따로 셉니다. 창고가 없으면 첫 입·출고에서 &lsquo;본사창고&rsquo;가 자동으로 만들어집니다.</span>
+              </QueryBar>
+              <ResultStrip>
+                <Stat label="창고" value={`${won(warehouses.length)}개`} />
+                <Stat label="재고 있는 품목" value={`${won(new Set(onhand.filter((r) => r.qty !== 0).map((r) => r.product_id)).size)}개`} />
+                <Stat label="재고 수량" value={`${won(onhand.reduce((n, r) => n + r.qty, 0))}개`} />
+              </ResultStrip>
+            </>
           )}
         </QueryHead>
 
@@ -178,8 +227,13 @@ export default function StockPage() {
                   <div className="stg-table-wrap">
                     <table className="ev-table ev-lined table-inv-stock">
                       <thead><tr>
-                        <th>SKU</th><th>품목명</th><th>규격</th><th>창고</th><th>현재고</th>
-                        <th>안전재고</th><th>상태</th>
+                        <SortableTh label="SKU" sortKey="sku" sort={sort} onSort={onSort} />
+                        <SortableTh label="품목명" sortKey="name" sort={sort} onSort={onSort} />
+                        <SortableTh label="규격" sortKey="spec" sort={sort} onSort={onSort} />
+                        <SortableTh label="창고" sortKey="wh" sort={sort} onSort={onSort} />
+                        <SortableTh label="현재고" sortKey="qty" sort={sort} onSort={onSort} />
+                        <SortableTh label="안전재고" sortKey="safety" sort={sort} onSort={onSort} />
+                        <SortableTh label="상태" sortKey="state" sort={sort} onSort={onSort} />
                       </tr></thead>
                       <tbody>
                         {pager.view.map((r) => (
@@ -218,7 +272,18 @@ export default function StockPage() {
               ) : (
                 <div className="stg-table-wrap">
                   <table className="ev-table ev-lined table-inv-moves">
-                    <thead><tr><th>일자</th><th>문서번호</th><th>사유</th><th>SKU</th><th>품목명</th><th>창고</th><th>수량</th><th>단가</th><th>금액</th><th>메모</th></tr></thead>
+                    <thead><tr>
+                      <SortableTh label="일자" sortKey="date" sort={mSort} onSort={onMSort} />
+                      <SortableTh label="문서번호" sortKey="doc" sort={mSort} onSort={onMSort} />
+                      <SortableTh label="사유" sortKey="reason" sort={mSort} onSort={onMSort} />
+                      <SortableTh label="SKU" sortKey="sku" sort={mSort} onSort={onMSort} />
+                      <SortableTh label="품목명" sortKey="name" sort={mSort} onSort={onMSort} />
+                      <SortableTh label="창고" sortKey="wh" sort={mSort} onSort={onMSort} />
+                      <SortableTh label="수량" sortKey="qty" sort={mSort} onSort={onMSort} />
+                      <SortableTh label="단가" sortKey="price" sort={mSort} onSort={onMSort} />
+                      <SortableTh label="금액" sortKey="amount" sort={mSort} onSort={onMSort} />
+                      <th>메모</th>
+                    </tr></thead>
                     <tbody>
                       {movePager.view.map((m) => {
                         const p = productById.get(m.product_id);

@@ -8794,6 +8794,8 @@ table.table-doc-hist { min-width: 860px; }
 .doc-auto { @apply bg-[var(--bg-subtle)] px-2.5 text-right text-[13px] tabular-nums text-[var(--text-muted)]; }
 .doc-auto b { @apply text-[var(--text)]; }
 .doc-src { @apply rounded px-1.5 py-px text-[10.5px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]; }
+.doc-th-src { @apply w-[116px]; }
+.doc-th-x { @apply w-[36px]; }
 
 /*   고르개(PickList)를 담는 자리 — 위치를 잡아 줄 뿐, 목록 모양은 공용 부품이 정한다 */
 .doc-pick-wrap { @apply relative min-w-0 flex-1; }
