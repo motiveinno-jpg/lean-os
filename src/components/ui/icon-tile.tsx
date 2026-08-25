@@ -15,27 +15,6 @@ const GRAD: Record<Tone, string> = {
   muted: "from-[#6B7280] to-[#4B5563] shadow-black/20",
 };
 
-export function IconTile({
-  tone = "brand",
-  size = 40,
-  children,
-  className = "",
-}: {
-  tone?: Tone;
-  size?: number;
-  children?: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`icon-tile ${GRAD[tone]} ${className}`}
-      style={{ width: size, height: size }}
-    >
-      {children}
-    </div>
-  );
-}
-
 // 자주 쓰는 흰색 svg 아이콘 모음 (시안 헤더용)
 const ICON_PATH: Record<string, string> = {
   card: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",

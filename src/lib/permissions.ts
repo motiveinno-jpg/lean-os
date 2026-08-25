@@ -209,19 +209,6 @@ export function matchCatalogRoute(pathname: string): string | null {
   return best;
 }
 
-/** 부여 가능한 전체 perm key (always 제외) — 메뉴 키 + 탭 키 */
-export function allGrantableKeys(): string[] {
-  const keys: string[] = [];
-  for (const g of PERMISSION_CATALOG) {
-    for (const m of g.menus) {
-      if (!m.always) keys.push(m.route);
-      // 기본 제공 메뉴여도 세부탭은 부여 대상 (예: 대시보드 재무 위젯)
-      for (const t of m.tabs || []) keys.push(`${m.route}:${t.key}`);
-    }
-  }
-  return keys;
-}
-
 /** 현재 사용자 권한 — 마스터는 전부 true. 멤버는 member_permissions 기반. */
 export function useMyPermissions(): {
   isMaster: boolean;

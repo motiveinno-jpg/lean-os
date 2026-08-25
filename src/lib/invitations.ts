@@ -41,18 +41,6 @@ export async function getPartnerInvitations(companyId: string) {
   return data || [];
 }
 
-export async function acceptPartnerInvitation(token: string) {
-  const { data, error } = await db
-    .from('partner_invitations')
-    .update({ status: 'accepted', accepted_at: new Date().toISOString() })
-    .eq('invite_token', token)
-    .eq('status', 'pending')
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
 export async function cancelPartnerInvitation(invitationId: string) {
   const { error } = await db
     .from('partner_invitations')
@@ -101,47 +89,12 @@ export async function getEmployeeInvitations(companyId: string) {
   return data || [];
 }
 
-export async function acceptEmployeeInvitation(token: string) {
-  const { data, error } = await db
-    .from('employee_invitations')
-    .update({ status: 'accepted', accepted_at: new Date().toISOString() })
-    .eq('invite_token', token)
-    .eq('status', 'pending')
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
 export async function cancelEmployeeInvitation(invitationId: string) {
   const { error } = await db
     .from('employee_invitations')
     .update({ status: 'cancelled' })
     .eq('id', invitationId);
   if (error) throw error;
-}
-
-export async function resendEmployeeInvitationByEmail(email: string, companyId: string) {
-  const existing = logRead('lib/invitations:existing', await db
-    .from('employee_invitations')
-    .select('*')
-    .eq('email', email)
-    .eq('company_id', companyId)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle());
-  if (!existing) return null;
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
-  const { data, error } = await db
-    .from('employee_invitations')
-    .update({ expires_at: expiresAt.toISOString() })
-    .eq('id', existing.id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 // ── Validate Invitation Token ──

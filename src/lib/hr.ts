@@ -58,16 +58,6 @@ export async function addSalaryRecord(params: {
   return data;
 }
 
-// ── Employee Contracts ──
-export async function getContracts(employeeId: string) {
-  const data = logRead('lib/hr:data', await db
-    .from('employee_contracts')
-    .select('*')
-    .eq('employee_id', employeeId)
-    .order('start_date', { ascending: false }));
-  return data || [];
-}
-
 export async function getActiveContracts(companyId: string) {
   const data = logRead('lib/hr:data', await db
     .from('employee_contracts')
@@ -76,45 +66,6 @@ export async function getActiveContracts(companyId: string) {
     .in('status', ['active', 'joined'])
     .order('start_date', { ascending: false }));
   return data || [];
-}
-
-export async function createContract(params: {
-  companyId: string;
-  employeeId: string;
-  contractType: string;
-  startDate: string;
-  endDate?: string;
-  salary?: number;
-  workHoursPerWeek?: number;
-  probationEndDate?: string;
-  fileUrl?: string;
-}) {
-  const { data, error } = await db
-    .from('employee_contracts')
-    .insert({
-      company_id: params.companyId,
-      employee_id: params.employeeId,
-      contract_type: params.contractType,
-      start_date: params.startDate,
-      end_date: params.endDate || null,
-      salary: params.salary || null,
-      work_hours_per_week: params.workHoursPerWeek || 40,
-      probation_end_date: params.probationEndDate || null,
-      file_url: params.fileUrl || null,
-      status: 'active',
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function terminateContract(contractId: string) {
-  const { error } = await db
-    .from('employee_contracts')
-    .update({ status: 'terminated', updated_at: new Date().toISOString() })
-    .eq('id', contractId);
-  if (error) throw error;
 }
 
 // ── Employee update with all editable fields ──
@@ -311,27 +262,6 @@ export async function getAttendancePolicy(companyId: string, employeeId?: string
   } catch {
     return { ...DEFAULT_ATTENDANCE_POLICY };
   }
-}
-
-/** 회사 출근 기준 저장. 신규 컬럼에 직접 upsert (JSONB 키는 더 이상 안 씀).
- *  기존 settings JSONB 의 다른 키는 보존(다른 모듈이 leave_grant_method 등 사용).
- */
-export async function setAttendancePolicy(
-  companyId: string,
-  policy: Partial<AttendancePolicy>,
-): Promise<void> {
-  const patch: Record<string, unknown> = { company_id: companyId };
-  if (policy.workStartTime && /^\d{2}:\d{2}$/.test(policy.workStartTime)) {
-    patch.work_start_time = policy.workStartTime;
-  }
-  if (typeof policy.lateThresholdMinutes === 'number' && Number.isFinite(policy.lateThresholdMinutes)) {
-    patch.late_grace_minutes = Math.max(0, Math.min(240, Math.trunc(policy.lateThresholdMinutes)));
-  }
-
-  const { error } = await db
-    .from('company_settings')
-    .upsert(patch as never, { onConflict: 'company_id' });
-  if (error) throw error;
 }
 
 // ── L 근태: 전체 회사 설정 (가산수당 계산 엔진 입력 타입) ──
@@ -908,23 +838,6 @@ export async function reviewAttendanceEditRequest(params: {
 // re-export 타입 (UI 가 attendance-calc 직접 임포트 안 해도 되게)
 export type { AttendanceCompanySettings, MonthlyPayResult } from './attendance-calc';
 
-/**
- * KST(Asia/Seoul) 기준 현재 분(分) 단위 시각 (0~1439).
- * `date` 미지정 시 호출 시점 사용. 테스트용으로 Date 주입 가능.
- */
-export function nowKstMinutes(date: Date = new Date()): number {
-  // Intl 로 KST 의 H/m 추출 — 서버 TZ 무관하게 정확
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Seoul',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(date);
-  const h = Number(parts.find(p => p.type === 'hour')?.value ?? '0');
-  const m = Number(parts.find(p => p.type === 'minute')?.value ?? '0');
-  return h * 60 + m;
-}
-
 /** 'HH:MM' → 분. 형식 오류 시 540 (09:00) fallback. */
 function parseHhmmToMinutes(hhmm: string): number {
   if (!/^\d{2}:\d{2}$/.test(hhmm)) return 540;
@@ -1288,21 +1201,6 @@ export async function getAttendanceRecords(companyId: string, startDate: string,
     .gte('date', startDate)
     .lte('date', endDate)
     .order('date', { ascending: false }));
-  return data || [];
-}
-
-// ── Attendance: Get monthly attendance for one employee ──
-export async function getEmployeeAttendance(employeeId: string, month: string) {
-  // month = 'YYYY-MM'
-  const startDate = `${month}-01`;
-  const endDate = `${month}-${String(new Date(Number(month.slice(0,4)), Number(month.slice(5,7)), 0).getDate()).padStart(2, '0')}`;
-  const data = logRead('lib/hr:data', await db
-    .from('attendance_records')
-    .select('*')
-    .eq('employee_id', employeeId)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date'));
   return data || [];
 }
 
@@ -2536,13 +2434,6 @@ export async function deleteAllowanceType(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** 회사 법정 4종 재seed (단가 바뀌어 INSERT 재실행 — ON CONFLICT DO NOTHING). */
-export async function seedLegalAllowances(companyId: string): Promise<number> {
-  const { data, error } = await db.rpc('seed_legal_allowances', { p_company_id: companyId });
-  if (error) throw error;
-  return Number(data) || 0;
-}
-
 // ── L 수당: 월별 entries 조회/편집 (UI C-2, C-3 에서 사용) ──
 
 export type AllowanceEntryRow = {
@@ -2559,61 +2450,3 @@ export type AllowanceEntryRow = {
   edited_at: string | null;
   note: string | null;
 };
-
-/** 본인 월별 수당 — RLS 가 본인 또는 admin 만 허용. */
-export async function listMyAllowanceEntries(
-  employeeId: string,
-  yyyymm: string,
-): Promise<AllowanceEntryRow[]> {
-  const { data, error } = await db
-    .from('allowance_entries')
-    .select('*')
-    .eq('employee_id', employeeId)
-    .eq('payroll_month', yyyymm);
-  if (error) throw error;
-  return (data as AllowanceEntryRow[]) || [];
-}
-
-/** 회사 전체 직원의 월별 수당 — admin only(RLS). */
-export async function listCompanyAllowanceEntries(
-  companyId: string,
-  yyyymm: string,
-): Promise<AllowanceEntryRow[]> {
-  const { data, error } = await db
-    .from('allowance_entries')
-    .select('*')
-    .eq('company_id', companyId)
-    .eq('payroll_month', yyyymm);
-  if (error) throw error;
-  return (data as AllowanceEntryRow[]) || [];
-}
-
-/** 관리자 — entries 셀 인라인 수정 (source='edit', edited_by 기록). */
-export async function upsertAllowanceEntryManual(params: {
-  companyId: string;
-  employeeId: string;
-  payrollMonth: string;
-  allowanceTypeId: string;
-  amount: number;
-  editedBy: string;
-  source?: 'manual' | 'edit';
-  note?: string;
-}): Promise<void> {
-  const row = {
-    company_id: params.companyId,
-    employee_id: params.employeeId,
-    payroll_month: params.payrollMonth,
-    allowance_type_id: params.allowanceTypeId,
-    amount: Math.round(params.amount),
-    source: params.source || 'edit',
-    edited_by: params.editedBy,
-    edited_at: new Date().toISOString(),
-    note: params.note ?? null,
-  };
-  const { error } = await db
-    .from('allowance_entries')
-    .upsert(row, {
-      onConflict: 'company_id,employee_id,payroll_month,allowance_type_id',
-    });
-  if (error) throw error;
-}

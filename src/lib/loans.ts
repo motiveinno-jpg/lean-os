@@ -64,26 +64,6 @@ export async function getLoans(companyId: string): Promise<LoanRow[]> {
   return data || [];
 }
 
-export async function getLoan(loanId: string): Promise<LoanRow | null> {
-  const { data, error } = await db
-    .from('loans')
-    .select('*')
-    .eq('id', loanId)
-    .single();
-  if (error) return null;
-  return data;
-}
-
-export async function getLoanPayments(loanId: string): Promise<LoanPaymentRow[]> {
-  const { data, error } = await db
-    .from('loan_payments')
-    .select('*')
-    .eq('loan_id', loanId)
-    .order('payment_number', { ascending: false });
-  if (error) throw error;
-  return data || [];
-}
-
 export async function getAllLoanPayments(companyId: string): Promise<LoanPaymentRow[]> {
   const loans = await getLoans(companyId);
   if (loans.length === 0) return [];

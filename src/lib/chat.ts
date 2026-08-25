@@ -7,21 +7,6 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from './supabase';
 import type { Json } from '@/types/models';
 
-// ── Channel types ──
-export const CHANNEL_TYPES = [
-  { value: 'deal', label: '프로젝트 채널' },
-  { value: 'subdeal', label: '외주 채널' },
-  { value: 'general', label: '일반 채널' },
-] as const;
-
-export const PARTICIPANT_ROLES = [
-  { value: 'OWNER', label: '오너' },
-  { value: 'INTERNAL_MANAGER', label: '내부 담당자' },
-  { value: 'CLIENT', label: '클라이언트' },
-  { value: 'VENDOR', label: '외주사' },
-  { value: 'member', label: '멤버' },
-] as const;
-
 // ── Create channel ──
 export async function createChannel(params: {
   companyId: string;
@@ -146,18 +131,6 @@ export async function inviteParticipant(params: {
   });
 }
 
-// ── Remove participant ──
-export async function removeParticipant(channelId: string, userId: string) {
-  const { error } = await supabase
-    .from('chat_participants')
-    .delete()
-    .eq('channel_id', channelId)
-    .eq('user_id', userId);
-  if (error) throw error;
-
-  await logEvent(channelId, 'user_left', { user_id: userId });
-}
-
 // ── Leave channel (본인이 대화방 나가기) ──
 //   남은 참가자에게는 "{이름}님이 대화방을 나갔습니다." 시스템 메시지를 남기고,
 //   본인은 chat_members(RLS SELECT 게이트) + chat_participants(read tracking) 양쪽에서
@@ -178,15 +151,6 @@ export async function markAsRead(channelId: string, userId: string) {
     .update({ last_read_at: new Date().toISOString() })
     .eq('channel_id', channelId)
     .eq('user_id', userId);
-  if (error) throw error;
-}
-
-// ── Archive channel ──
-export async function archiveChannel(channelId: string) {
-  const { error } = await supabase
-    .from('chat_channels')
-    .update({ is_archived: true })
-    .eq('id', channelId);
   if (error) throw error;
 }
 
@@ -351,19 +315,6 @@ export async function sendMessageWithMentions(params: {
     .eq('user_id', params.senderId);
 
   return data;
-}
-
-// ── Search messages in a channel ──
-export async function searchMessages(channelId: string, query: string, limit = 50) {
-  const data = logRead('lib/chat:data', await supabase
-    .from('chat_messages')
-    .select('*, users:sender_id(name, email)')
-    .eq('channel_id', channelId)
-    .is('deleted_at', null)
-    .ilike('content', `%${query}%`)
-    .order('created_at', { ascending: false })
-    .limit(limit));
-  return data || [];
 }
 
 // ── Add reaction ──
@@ -534,26 +485,6 @@ export async function getOrCreateDMChannel(params: {
   }
   const created = await createDMChannel({ companyId: params.companyId, participantIds: [params.meId, params.otherId] });
   return { id: (created as any).id };
-}
-
-// Get channels by type
-export async function getChannelsByType(companyId: string, type: 'deal' | 'team' | 'dm') {
-  const db = supabase;
-  let query = db
-    .from('chat_channels')
-    .select('*, chat_members(user_id)')
-    .eq('company_id', companyId);
-
-  if (type === 'deal') {
-    query = query.not('deal_id', 'is', null);
-  } else if (type === 'team') {
-    query = query.is('deal_id', null).eq('is_dm', false);
-  } else {
-    query = query.eq('is_dm', true);
-  }
-
-  const data = logRead('lib/chat:data', await query.order('updated_at', { ascending: false }));
-  return data || [];
 }
 
 // ── Get or create invite token for guest access ──

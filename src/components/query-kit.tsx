@@ -128,19 +128,6 @@ export function QueryBar({ children, right }: { children?: ReactNode; right?: Re
   );
 }
 
-export function QueryField({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <label className="qk-field">
-      <span className="qk-field-label">{label}</span>
-      <span className="qk-field-body">{children}</span>
-    </label>
-  );
-}
-
-export function QueryDivider() {
-  return <span className="qk-divider" aria-hidden />;
-}
-
 export type Chip<T extends string> = { value: T; label: string; title?: string };
 
 /** 값 몇 개 중 하나 고르기 — 좁은 native select 는 글자가 잘려 안 보인다 */
@@ -412,14 +399,6 @@ export function amountHit(n: number, min: string, max: string): boolean {
   if (min && v < Number(min)) return false;
   if (max && v > Number(max)) return false;
   return true;
-}
-
-/** 부분일치 — 공백으로 나눈 낱말이 **전부** 들어 있어야 맞는다 */
-export function textHit(q: string, ...fields: (string | null | undefined)[]): boolean {
-  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return true;
-  const hay = fields.filter(Boolean).join(" ").toLowerCase();
-  return words.every((w) => hay.includes(w));
 }
 
 /** 한 쪽에 몇 줄 — **조건의 하나**라 '내 조건'에 같이 저장된다 (2026-08-13 사장님 지시) */

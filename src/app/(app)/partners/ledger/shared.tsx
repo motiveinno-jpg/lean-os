@@ -61,10 +61,6 @@ export const AR_AP = {
 } as const;
 export const palette = (type: string) => (type === "sales" ? AR_AP.sales : AR_AP.purchase);
 
-// ── 타사 세무 서비스식 그리드 공통 셀 클래스 ──
-export const GRID_TH = "px-3 py-3 text-[11px] font-semibold text-[var(--text-dim)] tracking-wide whitespace-nowrap";
-export const GRID_TD = "px-3 py-2.5 whitespace-nowrap overflow-hidden text-ellipsis";
-
 export const MATCH_LABEL: Record<string, string> = {
   one_to_one: "1:1 정확", aggregate: "합산입금", partial: "부분입금", withholding: "원천징수", manual: "수동", adjustment: "차액 마감",
 };
@@ -91,46 +87,6 @@ export function useColWidths(storageKey: string, defaults: Record<string, number
     return next;
   });
   return [w, set] as const;
-}
-
-export function ResizableTh({ k, colIndex, widths, onResize, tableRef, className, children }: {
-  k: string; colIndex: number; widths: Record<string, number>;
-  onResize: (k: string, px: number) => void;
-  tableRef: React.RefObject<HTMLTableElement | null>;
-  className?: string; children: React.ReactNode;
-}) {
-  const startDrag = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = widths[k] || 100;
-    const move = (ev: MouseEvent) => onResize(k, Math.max(44, startW + (ev.clientX - startX)));
-    const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); document.body.style.cursor = ""; };
-    document.body.style.cursor = "col-resize";
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-  };
-  // 더블클릭 = 자동 맞춤: 이 컬럼 모든 셀의 내용 폭(scrollWidth) 최대값으로
-  const autofit = () => {
-    const table = tableRef.current;
-    if (!table) return;
-    let max = 44;
-    table.querySelectorAll("tr").forEach((tr) => {
-      const cell = tr.children[colIndex] as HTMLElement | undefined;
-      if (cell) max = Math.max(max, cell.scrollWidth);
-    });
-    onResize(k, Math.min(640, max + 14));
-  };
-  return (
-    <th className={className} style={{ width: widths[k], position: "relative" }}>
-      {children}
-      <span
-        onMouseDown={startDrag}
-        onDoubleClick={autofit}
-        className="absolute top-0 -right-[3px] h-full w-[7px] cursor-col-resize select-none z-[1] hover:bg-[var(--primary)]/35 active:bg-[var(--primary)]/55 rounded"
-        title="드래그: 너비 조절 · 더블클릭: 내용에 맞춤"
-      />
-    </th>
-  );
 }
 
 // ── 타사 세무 서비스식 거래처원장 시트: 일자 | 적요 | 차변 | 대변 | 잔액 + 전기이월/월계/합계 행 ──

@@ -55,16 +55,6 @@ export const PACKAGE_STATUS = {
   cancelled: { label: '취소', bg: 'bg-red-500/10', text: 'text-red-400', dot: 'bg-red-400' },
 } as const;
 
-// ── Contract Template Categories ──
-
-export const CONTRACT_TEMPLATE_CATEGORIES = [
-  { value: 'salary_contract', label: '연봉계약서' },
-  { value: 'nda', label: '비밀유지서약서' },
-  { value: 'non_compete', label: '겸업금지서약서' },
-  { value: 'privacy_consent', label: '개인정보 동의서' },
-  { value: 'comprehensive_labor', label: '포괄임금 근로계약서' },
-] as const;
-
 // ── Contract Field Table — 계약서 발송 시 채워 넣는 변수 입력 폼(직원상세패널 "+ 계약서 보내기"에서 사용) ──
 
 export type ContractFieldType = "text" | "date" | "number" | "select";
@@ -776,11 +766,6 @@ export async function sendContractPackage(
   return { success: true, emailSent, inAppDelivered };
 }
 
-// ── Mark Viewed (열람 기록) — /sign 페이지가 열릴 때 SECURITY DEFINER RPC 로 기록 ──
-export async function markContractPackageViewed(token: string): Promise<void> {
-  try { await (db as any).rpc('mark_contract_package_viewed', { p_token: token }); } catch { /* 비차단 */ }
-}
-
 // ── Cancel Sent Package (발송 취소) — 상대가 열람·서명하기 전에만 (2026-08-19 사장님) ──
 //   sign_token 을 비워 /sign 조회 RPC 와 complete-signing 엣지 함수 경로를 모두 끊는다 —
 //   상대가 이미 페이지를 띄워 둔 상태라도 이후 서명이 불가능하다.
@@ -822,88 +807,6 @@ export async function cancelSentContractPackage(packageId: string): Promise<{ su
   } catch { /* 비차단 */ }
 
   return { success: true };
-}
-
-// ── Get Package by Sign Token (for external signing page) ──
-
-export async function getPackageByToken(token: string) {
-  const pkg = logRead('lib/hr-contracts:pkg', await db
-    .from('hr_contract_packages')
-    .select('*, employees(name, email, department, position)')
-    .eq('sign_token', token)
-    .single());
-
-  if (!pkg) return null;
-
-  // Check expiration
-  if (pkg.expires_at && new Date(pkg.expires_at) < new Date()) {
-    return { ...pkg, expired: true, items: [] };
-  }
-
-  // Get items with document content
-  const items = logRead('lib/hr-contracts:items', await db
-    .from('hr_contract_package_items')
-    .select('*, documents(name, content_json, status)')
-    .eq('package_id', pkg.id)
-    .order('sort_order'));
-
-  return { ...pkg, expired: false, items: items || [] };
-}
-
-// ── Sign a Contract Item ──
-
-export async function signContractItem(
-  itemId: string,
-  signatureData: { type: 'draw' | 'type' | 'upload'; data: string },
-  ipAddress?: string,
-): Promise<{ allSigned: boolean }> {
-  // Update item
-  const { data: item, error } = await db
-    .from('hr_contract_package_items')
-    .update({
-      status: 'signed',
-      signed_at: new Date().toISOString(),
-      signature_data: { ...signatureData, ip: ipAddress || null },
-    })
-    .eq('id', itemId)
-    .select('package_id, document_id')
-    .single();
-
-  if (error) throw error;
-
-  // Lock the associated document
-  if (item?.document_id) {
-    await db.from('documents').update({
-      status: 'locked',
-      locked_at: new Date().toISOString(),
-    }).eq('id', item.document_id);
-  }
-
-  // Check if all items in the package are signed
-  const allItems = logRead('lib/hr-contracts:allItems', await db
-    .from('hr_contract_package_items')
-    .select('id, status')
-    .eq('package_id', item.package_id));
-
-  const allSigned = (allItems || []).every((i: any) => i.status === 'signed');
-  const someSigned = (allItems || []).some((i: any) => i.status === 'signed');
-
-  if (allSigned) {
-    // Complete the package
-    await db.from('hr_contract_packages').update({
-      status: 'completed',
-      completed_at: new Date().toISOString(),
-    }).eq('id', item.package_id);
-
-    // Trigger post-signing actions
-    await onAllContractsSigned(item.package_id);
-  } else if (someSigned) {
-    await db.from('hr_contract_packages').update({
-      status: 'partially_signed',
-    }).eq('id', item.package_id);
-  }
-
-  return { allSigned };
 }
 
 // ── Post-signing: Update salary + leave balance ──
@@ -1026,26 +929,6 @@ export async function getContractPackages(companyId: string, status?: string) {
   return data || [];
 }
 
-// ── Get Package with Items ──
-
-export async function getContractPackageWithItems(packageId: string) {
-  const pkg = logRead('lib/hr-contracts:pkg', await db
-    .from('hr_contract_packages')
-    .select('*, employees(name, email, department, position)')
-    .eq('id', packageId)
-    .single());
-
-  if (!pkg) return null;
-
-  const items = logRead('lib/hr-contracts:items', await db
-    .from('hr_contract_package_items')
-    .select('*, documents(name, content_json, status)')
-    .eq('package_id', packageId)
-    .order('sort_order'));
-
-  return { ...pkg, items: items || [] };
-}
-
 // ── Cancel Package ──
 
 export async function cancelContractPackage(packageId: string) {
@@ -1092,10 +975,4 @@ export async function getContractTemplates(companyId: string) {
     }));
 
   return [...(data || []), ...builtins];
-}
-
-// ── Resend Contract Email ──
-
-export async function resendContractEmail(packageId: string, baseUrl?: string) {
-  return sendContractPackage(packageId, baseUrl);
 }

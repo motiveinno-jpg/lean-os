@@ -358,23 +358,6 @@ export function ClusterChart({ data, unit = "" }: { data: Datum[]; unit?: string
   );
 }
 
-/** 말 구름 — 많이 나온 말이 크게. 색은 뜻이 없으므로 한 색의 진하기로만 (2026-08-06) */
-export function WordCloud({ data }: { data: Datum[] }) {
-  const max = Math.max(1, ...data.map((d) => d.value));
-  return (
-    <div className="viz-cloud">
-      {data.map((d, i) => {
-        const r = d.value / max;
-        return (
-          <span key={`${d.label}-${i}`} className="viz-word"
-            style={{ fontSize: `${11 + r * 20}px`, opacity: 0.45 + r * 0.55 }}
-            title={`${d.label} ${fmt(d.value)}`}>{d.label}</span>
-        );
-      })}
-    </div>
-  );
-}
-
 /** 누적 영역 — '전체가 어떻게 흘렀고, 그 안에서 구성이 어떻게 변했나' (2026-08-07).
  *
  *  누적 막대와 언제 갈리나: 달마다의 **값을 정확히 읽는 게 목적이면 막대**,

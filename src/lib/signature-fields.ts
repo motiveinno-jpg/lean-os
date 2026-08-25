@@ -99,27 +99,6 @@ export function validateInputs(
   return { ok: missing.length === 0, missing };
 }
 
-// PDF/HTML 본문 합성용: 토큰을 결과 문자열로 치환.
-// 라디오: 모든 옵션을 줄바꿈으로 나열, 선택값 앞에 ☑ 나머지 앞에 ☐.
-// 텍스트: when 만족 + 입력값 있으면 그대로, 아니면 빈 문자열.
-// signer_inputs 가 null/빈 객체이면 안전 폴백 — 라디오는 옵션 모두 ☐, 텍스트는 빈 문자열.
-export function renderFieldToken(
-  field: SignerField,
-  inputs: Record<string, string> | null | undefined,
-): string {
-  const ins = inputs || {};
-  if (field.kind === 'radio') {
-    const selected = ins[field.key];
-    return field.options
-      .map((opt) => (opt === selected ? `☑ ${opt}` : `☐ ${opt}`))
-      .join('\n');
-  }
-  // text
-  if (!isFieldActive(field, ins)) return '';
-  const v = ins[field.key];
-  return v ? String(v) : '';
-}
-
 // HTML 본문에 토큰 치환 — sign 페이지 서명 완료 후 PDF/모달용.
 // 라디오는 각 옵션을 줄바꿈 표시 위해 <br/> 로 연결.
 export function applySignerInputsToHtml(
@@ -173,13 +152,6 @@ export function applySignerInputsToHtml(
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-// 발송측 변수 매핑에서 ?-prefix 토큰을 제외하기 위한 헬퍼.
-// extractTokens 안에서 추출한 raw 토큰명이 이 함수에서 true 면 매핑 UI 에서 숨김.
-export function isSignerInputTokenName(name: string): boolean {
-  const t = String(name || '').trim();
-  return t.startsWith('?라디오') || t.startsWith('?텍스트');
 }
 
 // ── Sanity check (dev 콘솔용) ──

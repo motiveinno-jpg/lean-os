@@ -1,25 +1,6 @@
 import { supabase } from "./supabase";
 import { todayKst, daysBetweenStr } from "./kst";
 import { requiredDocsOf, readyCount, type DocCheck } from "./support-docs";
-
-/**
- * 지원사업 큐레이션 — 회사 프로필 6축 ↔ 제도 자격 요건 대조 (2026-08-21 사장님 지시)
- *
- * 기획: docs/20260821_PLAN_support_programs.md
- *
- * ★ 여기서 판정을 만든다. AI 가 아니다 — **규칙**이다.
- *   공고 원문의 AI 해석은 플랫폼 전체에서 공고 1건당 1회(Phase 2)이고,
- *   회사별 판정은 이 파일의 규칙이 회사 자료와 대조해 만든다.
- *   그래서 판정 근거를 한 줄씩 적을 수 있고, 틀렸을 때 어디가 틀렸는지 짚을 수 있다.
- *
- * ★ 판정은 3단이다 — `high`(가능성 높음) / `check`(조건 확인 필요) / `none`(해당 없음).
- *   **모르는 값이 하나라도 있으면 `check`.** 최종 자격은 주관기관이 정하므로
- *   우리가 '맞다/아니다'로 단정하면 틀렸을 때 신뢰가 통째로 무너진다. 놓치는 것보다 낫다.
- */
-
-// 2026년 최저임금 시급 10,320원 · 월 환산 2,156,880원(주 40시간 + 주휴, 209시간).
-//   employees.salary 는 **월 지급액**이다(lib/payroll.ts: "employees.salary(연봉 ÷ 12 = 월급)").
-export const MIN_WAGE_HOURLY_2026 = 10320;
 export const MIN_WAGE_MONTHLY_2026 = 2156880;
 
 // 두루누리 월평균보수 상한 — 이 값 미만이어야 지원 대상

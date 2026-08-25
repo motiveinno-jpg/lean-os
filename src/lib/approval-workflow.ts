@@ -1454,33 +1454,6 @@ export async function resubmitRequest(
 }
 
 /**
- * Cancel an approval request (only by requester, only if still pending).
- */
-export async function cancelRequest(requestId: string, userId: string): Promise<void> {
-  const request = logRead('lib/approval-workflow:request', await db
-    .from('approval_requests')
-    .select('*')
-    .eq('id', requestId)
-    .single());
-
-  if (!request) throw new Error('결재 요청을 찾을 수 없습니다.');
-  if (request.requester_id !== userId) throw new Error('요청자만 취소할 수 있습니다.');
-  if (request.status !== 'pending') throw new Error('대기 중인 요청만 취소할 수 있습니다.');
-
-  const now = new Date().toISOString();
-  const { error: cancelErr } = await db.from('approval_requests').update({ status: 'cancelled', updated_at: now }).eq('id', requestId);
-  if (cancelErr) throw cancelErr;   // 실패해도 "취소했습니다" 가 뜨던 것 (2026-08-21 감사)
-
-  await logAudit({
-    companyId: request.company_id,
-    userId,
-    entityType: 'approval_request',
-    entityId: requestId,
-    action: 'cancelled',
-  });
-}
-
-/**
  * 결재 요청 완전 삭제 — **대기·취소 건만** 지울 수 있다 (2026-08-21 감사).
  *   종전엔 상태 무관 삭제라, 승인 완료된 휴가를 지우면 차감된 연차와 leave_requests 승인 행은
  *   그대로 남아 **근거 결재 없이 연차만 깎인 상태**가 됐다. 지급 큐의 approval_request_id 도

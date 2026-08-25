@@ -189,17 +189,6 @@ export function classifyCardTransaction(transaction: CardTransactionInput): VATC
   };
 }
 
-// ── Batch Classify Transactions ──
-
-export function classifyCardTransactions(
-  transactions: CardTransactionInput[],
-): Array<CardTransactionInput & { classification: VATClassificationResult }> {
-  return transactions.map(tx => ({
-    ...tx,
-    classification: classifyCardTransaction(tx),
-  }));
-}
-
 // ── Save Classification to DB ──
 
 export async function saveVATClassification(
@@ -278,97 +267,6 @@ export interface VATDeductionSummary {
   estimatedVATCredit: number; // 예상 매입세액 공제 금액
 }
 
-export async function getVATDeductionSummary(
-  companyId: string,
-  period: { from: string; to: string },
-): Promise<VATDeductionSummary> {
-  const { data, error } = await db
-    .from('card_transactions')
-    .select('id, amount, is_deductible, merchant_name, category, classification, mapping_status, merchant_category')
-    .eq('company_id', companyId)
-    .gte('transaction_date', period.from)
-    .lte('transaction_date', period.to);
-
-  if (error) throw error;
-
-  const transactions = (data || []) as Array<{
-    id: string;
-    amount: number;
-    is_deductible: boolean | null;
-    merchant_name: string | null;
-    category: string | null;
-    classification: string | null;
-    mapping_status: string | null;
-    merchant_category: string | null;
-  }>;
-
-  // Auto-classify any unclassified transactions in-memory
-  const classified = transactions.map(tx => {
-    const parsed = tx.classification ? (() => { try { return JSON.parse(tx.classification); } catch { return null; } })() : null;
-    if (tx.category && parsed?.label) {
-      return {
-        ...tx,
-        _deductible: tx.is_deductible ?? true,
-        _category: tx.category,
-        _label: parsed.label as string,
-      };
-    }
-    const result = classifyCardTransaction({
-      merchant_name: tx.merchant_name || undefined,
-      category: tx.merchant_category || undefined,
-      amount: tx.amount,
-    });
-    return {
-      ...tx,
-      _deductible: result.deductible,
-      _category: result.categoryCode,
-      _label: result.categoryLabel,
-    };
-  });
-
-  const totalAmount = classified.reduce((s, t) => s + Number(t.amount || 0), 0);
-
-  // Deductible breakdown
-  const deductibleTx = classified.filter(t => t._deductible);
-  const deductibleAmount = deductibleTx.reduce((s, t) => s + Number(t.amount || 0), 0);
-  // VAT = supply price * 10%, supply price = total / 1.1
-  const deductibleVAT = Math.round(deductibleAmount / 11);
-
-  const deductibleByCategory = groupByCategory(deductibleTx, true);
-
-  // Non-deductible breakdown
-  const nonDeductibleTx = classified.filter(t => !t._deductible);
-  const nonDeductibleAmount = nonDeductibleTx.reduce((s, t) => s + Number(t.amount || 0), 0);
-
-  const nonDeductibleByCategory = groupByCategory(nonDeductibleTx, false);
-
-  // Unclassified (those without saved classification in DB)
-  const unclassifiedTx = transactions.filter(t => !t.classification || t.mapping_status === 'unmapped');
-  const unclassifiedAmount = unclassifiedTx.reduce((s, t) => s + Number(t.amount || 0), 0);
-
-  return {
-    period,
-    totalTransactions: classified.length,
-    totalAmount,
-    deductible: {
-      count: deductibleTx.length,
-      amount: deductibleAmount,
-      vatAmount: deductibleVAT,
-      byCategory: deductibleByCategory,
-    },
-    nonDeductible: {
-      count: nonDeductibleTx.length,
-      amount: nonDeductibleAmount,
-      byCategory: nonDeductibleByCategory,
-    },
-    unclassified: {
-      count: unclassifiedTx.length,
-      amount: unclassifiedAmount,
-    },
-    estimatedVATCredit: deductibleVAT,
-  };
-}
-
 // ── Helper: Group transactions by category ──
 
 function groupByCategory(
@@ -398,52 +296,4 @@ function groupByCategory(
       vatAmount: includeVAT ? Math.round(item.amount / 11) : 0,
     }))
     .sort((a, b) => b.amount - a.amount);
-}
-
-// ── Get VAT Period Boundaries (한국 부가세 신고기간) ──
-
-export function getVATPeriods(year: number): Array<{
-  label: string;
-  from: string;
-  to: string;
-  filingDeadline: string;
-}> {
-  return [
-    {
-      label: `${year}년 1기 예정 (1~3월)`,
-      from: `${year}-01-01`,
-      to: `${year}-03-31`,
-      filingDeadline: `${year}-04-25`,
-    },
-    {
-      label: `${year}년 1기 확정 (1~6월)`,
-      from: `${year}-01-01`,
-      to: `${year}-06-30`,
-      filingDeadline: `${year}-07-25`,
-    },
-    {
-      label: `${year}년 2기 예정 (7~9월)`,
-      from: `${year}-07-01`,
-      to: `${year}-09-30`,
-      filingDeadline: `${year}-10-25`,
-    },
-    {
-      label: `${year}년 2기 확정 (7~12월)`,
-      from: `${year}-07-01`,
-      to: `${year}-12-31`,
-      filingDeadline: `${year + 1}-01-25`,
-    },
-  ];
-}
-
-// ── Format Helpers ──
-
-export function formatVATAmount(amount: number): string {
-  return `₩${amount.toLocaleString('ko-KR')}`;
-}
-
-export function getDeductionRateDisplay(deductibleAmount: number, totalAmount: number): string {
-  if (totalAmount === 0) return '0%';
-  const rate = (deductibleAmount / totalAmount) * 100;
-  return `${Math.round(rate * 10) / 10}%`;
 }

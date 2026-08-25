@@ -189,23 +189,6 @@ export function detectRisks(
 }
 
 // ═══════════════════════════════════════════
-// Engine 4: Margin Engine
-// ═══════════════════════════════════════════
-export function calcContributionMargin(revenue: number, directCost: number): number {
-  return revenue - directCost;
-}
-
-export function calcMarginRate(revenue: number, directCost: number): number {
-  if (revenue <= 0) return 0;
-  return ((revenue - directCost) / revenue) * 100;
-}
-
-export function allocateFixedCost(monthlyFixed: number, activeDealCount: number): number {
-  if (activeDealCount <= 0) return monthlyFixed;
-  return monthlyFixed / activeDealCount;
-}
-
-// ═══════════════════════════════════════════
 // Aggregator: Build complete dashboard data
 // ═══════════════════════════════════════════
 export function buildFounderDashboard(

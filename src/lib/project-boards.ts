@@ -307,8 +307,6 @@ export type AdMetricKey = "impressions" | "clicks" | "ctr" | "cost" | "conversio
 /** 이 행이 어느 캠페인인지 — 칸이 아니라 예약 키로 값에 담는다(칸을 지워도 연결이 안 끊기게) */
 export const AD_VALUE_KEY = "__ad";
 export type AdRowLink = { accountId: string; campaignId: string };
-
-export const AD_TEMPLATE_KEY = "ads";
 /** 자동으로 채우는 칸 — 사람이 고쳐도 다음 수집 때 덮어써지므로 화면에서 잠근다 */
 export const AD_AUTO_KEYS: AdMetricKey[] = ["impressions", "clicks", "ctr", "cost", "conversions", "cpa", "roas", "platform"];
 export function adMetricOf(col: { settings?: any }): AdMetricKey | null {

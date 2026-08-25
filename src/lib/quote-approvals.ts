@@ -316,14 +316,3 @@ export const STATUS_LABEL: Record<QuoteApprovalStatus, string> = {
   pending_our_signature: '우리 서명 대기',
   fully_signed: '최종 성립',
 };
-
-export const STATUS_TONE: Record<QuoteApprovalStatus, 'neutral' | 'info' | 'positive' | 'warn' | 'negative'> = {
-  draft: 'neutral',
-  sent: 'info',
-  viewed: 'info',
-  approved: 'positive',
-  rejected: 'negative',
-  expired: 'warn',
-  pending_our_signature: 'warn',
-  fully_signed: 'positive',
-};

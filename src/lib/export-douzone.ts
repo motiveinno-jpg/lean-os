@@ -110,22 +110,3 @@ export interface CardTxExport {
   card_name?: string | null;
   classification?: string | null;
 }
-
-export function exportCardTransactionsDouzone(rows: CardTxExport[], periodLabel?: string) {
-  const lines = [
-    '일자,시각,카드,가맹점,업종,분류,금액',
-  ];
-  for (const t of rows) {
-    lines.push([
-      escapeCsv(t.transaction_date || ''),
-      escapeCsv(t.transaction_time || ''),
-      escapeCsv(t.card_name || ''),
-      escapeCsv(t.merchant_name || ''),
-      escapeCsv(t.category || ''),
-      escapeCsv(t.classification || ''),
-      escapeCsv(Number(t.amount || 0)),
-    ].join(','));
-  }
-  const fname = `카드내역_${periodLabel || todayKst()}.csv`;
-  downloadCsv(fname, lines);
-}

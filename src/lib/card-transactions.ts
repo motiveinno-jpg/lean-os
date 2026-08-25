@@ -378,15 +378,6 @@ export async function uploadReceiptToCard(id: string, receiptUrl: string) {
   if (error) throw error;
 }
 
-// ── Toggle tax deduction ──
-export async function toggleDeductible(id: string, isDeductible: boolean) {
-  const { error } = await supabase
-    .from('card_transactions')
-    .update({ is_deductible: isDeductible })
-    .eq('id', id);
-  if (error) throw error;
-}
-
 // ── Card Deduction Summary by month ──
 export async function getCardDeductionSummary(companyId: string, year: number) {
   const db = supabase;

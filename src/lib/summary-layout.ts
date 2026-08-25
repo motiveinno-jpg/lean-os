@@ -14,8 +14,6 @@ export const SUMMARY_SHAPES: SummaryShape[] = ["auto", "gantt", "calendar", "don
 
 export type SummaryLayout = { off: string[]; order: string[]; shape?: SummaryShape };
 
-export const EMPTY_LAYOUT: SummaryLayout = { off: [], order: [] };
-
 export function normalizeLayout(v: any): SummaryLayout {
   const off = Array.isArray(v?.off) ? v.off.filter((x: any) => typeof x === "string") : [];
   const order = Array.isArray(v?.order) ? v.order.filter((x: any) => typeof x === "string") : [];

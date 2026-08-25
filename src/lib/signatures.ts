@@ -915,50 +915,6 @@ export async function createBulkSignatureRequestsToOrgs(params: {
   };
 }
 
-// 일괄 발송 진행도 (목록 뱃지·재시도 UI 용)
-export async function getBatchProgress(batchId: string): Promise<{
-  total: number;
-  created: number;
-  sent: number;
-  viewed: number;
-  signed: number;
-  rejected: number;
-  expired: number;
-}> {
-  const { data, error } = await db
-    .from('signature_requests')
-    .select('status')
-    .eq('batch_id', batchId);
-  if (error) throw error;
-  const rows = (data || []) as { status: string }[];
-  const total = rows.length;
-  const c = { created: total, sent: 0, viewed: 0, signed: 0, rejected: 0, expired: 0 };
-  for (const r of rows) {
-    if (r.status === 'sent') c.sent += 1;
-    else if (r.status === 'viewed') c.viewed += 1;
-    else if (r.status === 'signed') c.signed += 1;
-    else if (r.status === 'rejected') c.rejected += 1;
-    else if (r.status === 'expired') c.expired += 1;
-  }
-  return { total, ...c };
-}
-
-// 같은 batch_id 안에서 실패한(미발송) partner_id 목록 (재시도 진입용)
-export async function getFailedPartnersInBatch(batchId: string): Promise<{
-  partnerIds: string[];
-}> {
-  const { data, error } = await db
-    .from('signature_requests')
-    .select('partner_id, status')
-    .eq('batch_id', batchId)
-    .in('status', ['pending']);
-  if (error) throw error;
-  const partnerIds = ((data || []) as { partner_id: string|null }[])
-    .map((r) => r.partner_id)
-    .filter((x): x is string => !!x);
-  return { partnerIds };
-}
-
 // ── Send Signature Reminder (리마인더 발송) ──
 export async function sendSignatureReminder(signatureRequestId: string): Promise<{ success: boolean; error?: string }> {
   const req = await getSignatureRequest(signatureRequestId);

@@ -71,20 +71,6 @@ export function ProgressBar({ pct, color, height = 8 }: { pct: number | null; co
   );
 }
 
-// ── ① 미니 스파크라인 ──
-export function Sparkline({ points, color, width = 80, height = 24 }: { points: number[]; color?: string; width?: number; height?: number }) {
-  if (!points || points.length === 0) return <svg className="sparkline" width={width} height={height} />;
-  const max = Math.max(...points, 1), min = Math.min(...points, 0);
-  const span = max - min || 1;
-  const step = points.length > 1 ? width / (points.length - 1) : 0;
-  const d = points.map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${(height - ((v - min) / span) * (height - 2) - 1).toFixed(1)}`).join(" ");
-  return (
-    <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} style={{ width, height }} preserveAspectRatio="none">
-      <path d={d} fill="none" stroke={color || PRIMARY} strokeWidth={1.4} />
-    </svg>
-  );
-}
-
 // ── ③ 정렬된 가로 막대 리스트 (분해) ──
 export function BarList({ items, unit = "", emptyText = "데이터 없음" }: { items: { label: string; value: number; color?: string }[]; unit?: string; emptyText?: string }) {
   const rows = [...items].filter((i) => i.value > 0).sort((a, b) => b.value - a.value);
@@ -110,42 +96,6 @@ export function BarList({ items, unit = "", emptyText = "데이터 없음" }: { 
 
 // ── ② 라인 차트 (누적 실적 vs 목표 페이스 + today) ──
 export type LineSeries = { color: string; dash?: boolean; points: { x: number; y: number }[]; label?: string };
-export function LineChart({ series, markerX, height = 160, yUnit = "" }: { series: LineSeries[]; markerX?: number; height?: number; yUnit?: string }) {
-  const id = useId();
-  const W = 320, H = height, padL = 6, padR = 6, padT = 10, padB = 16;
-  const allPts = series.flatMap((s) => s.points);
-  if (allPts.length === 0) return <div className="text-xs text-[var(--text-dim)] py-6 text-center">표시할 데이터가 없습니다</div>;
-  const xs = allPts.map((p) => p.x), ys = allPts.map((p) => p.y);
-  const xMin = Math.min(...xs), xMax = Math.max(...xs) || 1;
-  const yMax = Math.max(...ys, 1), yMin = Math.min(...ys, 0);
-  const xSpan = xMax - xMin || 1, ySpan = yMax - yMin || 1;
-  const sx = (x: number) => padL + ((x - xMin) / xSpan) * (W - padL - padR);
-  const sy = (y: number) => padT + (1 - (y - yMin) / ySpan) * (H - padT - padB);
-  const path = (pts: { x: number; y: number }[]) => pts.map((p, i) => `${i === 0 ? "M" : "L"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
-  return (
-    <div className="chart-line">
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: H }} preserveAspectRatio="none">
-        <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke={BORDER} strokeWidth={0.5} />
-        {markerX != null && (
-          <line x1={sx(markerX)} y1={padT} x2={sx(markerX)} y2={H - padB} stroke={DIM} strokeWidth={0.5} strokeDasharray="2 2" />
-        )}
-        {series.map((s, i) => (
-          <path key={`${id}-${i}`} d={path(s.points)} fill="none" stroke={s.color} strokeWidth={1.6} strokeDasharray={s.dash ? "4 3" : undefined} strokeLinejoin="round" />
-        ))}
-        {/* 마지막 실제점 강조 (첫 시리즈 = 실제) */}
-        {series[0]?.points.length ? (() => { const last = series[0].points[series[0].points.length - 1]; return <circle cx={sx(last.x)} cy={sy(last.y)} r={2.5} fill={series[0].color} />; })() : null}
-      </svg>
-      <div className="flex flex-wrap gap-3 mt-1">
-        {series.filter((s) => s.label).map((s, i) => (
-          <span key={i} className="inline-flex items-center gap-1 text-[10px] text-[var(--text-muted)]">
-            <span style={{ width: 12, height: 2, background: s.color, display: "inline-block", opacity: s.dash ? 0.6 : 1 }} />{s.label}
-          </span>
-        ))}
-        {yUnit && <span className="text-[10px] text-[var(--text-dim)] ml-auto">단위: {yUnit}</span>}
-      </div>
-    </div>
-  );
-}
 
 // ── ② 막대 + 목표선 콤보 (기간별 실적 vs 목표) ──
 //   buckets: 기간(일/주/월) 단위 실적·목표. value=null 은 미래(목표만큼 빈 막대).

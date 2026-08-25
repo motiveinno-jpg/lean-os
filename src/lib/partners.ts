@@ -67,19 +67,6 @@ export async function getPartners(companyId: string, filters?: PartnerFilters) {
   return data || [];
 }
 
-// ── Get single partner ──
-
-export async function getPartner(id: string) {
-  const { data, error } = await supabase
-    .from('partners')
-    .select('*, deals!deals_partner_id_fkey(name)')
-    .eq('id', id)
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
 // ── Create or update partner ──
 
 // 사업자등록번호 표준 표기 000-00-00000 — 10자리 숫자면 하이픈 포맷으로 저장(사장님 QA 2026-07-10).
@@ -143,61 +130,4 @@ export async function deletePartner(id: string) {
     .eq('id', id);
 
   if (error) throw error;
-}
-
-// ── Auto-create partner from deal counterparty ──
-
-export async function autoCreatePartnerFromDeal(
-  companyId: string,
-  dealId: string,
-  counterpartyName: string,
-  businessNumber?: string,
-) {
-  // Check if partner with same name already exists for this company
-  const existing = logRead('lib/partners:existing', await supabase
-    .from('partners')
-    .select('*')
-    .eq('company_id', companyId)
-    .eq('name', counterpartyName)
-    .maybeSingle());
-
-  if (existing) return existing;
-
-  // Create new partner linked to the deal
-  const row: any = {
-    company_id: companyId,
-    name: counterpartyName,
-    type: 'client',
-    source_deal_id: dealId,
-    is_active: true,
-  };
-
-  if (businessNumber) row.business_number = businessNumber;
-
-  const { data, error } = await supabase
-    .from('partners')
-    .insert(row)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-// ── Full-text search partners (pg_trgm) ──
-
-export async function searchPartners(companyId: string, query: string) {
-  const pattern = `%${query}%`;
-
-  const data = logRead('lib/partners:data', await supabase
-    .from('partners')
-    .select('*')
-    .eq('company_id', companyId)
-    .or(
-      `name.ilike.${pattern},contact_name.ilike.${pattern},contact_email.ilike.${pattern},business_number.ilike.${pattern}`,
-    )
-    .order('name', { ascending: true })
-    .limit(20));
-
-  return data || [];
 }

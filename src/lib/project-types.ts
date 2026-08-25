@@ -76,15 +76,9 @@ export const PROJECT_TYPES: Record<ProjectType, ProjectTypeConfig> = {
   },
 };
 
-export const PROJECT_TYPE_ORDER: ProjectType[] = ["margin", "goal", "delivery"];
-
 /** 알 수 없는/없는 project_type → margin 폴백 (회귀 안전). */
 export function normalizeProjectType(t: unknown): ProjectType {
   return t === "goal" || t === "delivery" ? t : "margin";
-}
-
-export function getProjectTypeConfig(t: unknown): ProjectTypeConfig {
-  return PROJECT_TYPES[normalizeProjectType(t)];
 }
 
 // ── 히어로 지표 정규화 (0~100%) ──

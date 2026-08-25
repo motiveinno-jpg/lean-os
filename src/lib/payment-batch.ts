@@ -646,29 +646,3 @@ export async function getBatchWithItems(batchId: string) {
 
   return { batch, items: items || [] };
 }
-
-// ── Get all batches for a company ──
-
-export async function getCompanyBatches(companyId: string, status?: string): Promise<BatchSummary[]> {
-  let query = db
-    .from('payment_batches')
-    .select('*, users:approved_by(name)')
-    .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
-
-  if (status) query = query.eq('status', status);
-
-  const { data } = await query;
-
-  return (data || []).map((b: any) => ({
-    id: b.id,
-    name: b.name,
-    batchType: b.batch_type,
-    totalAmount: Number(b.total_amount || 0),
-    itemCount: b.item_count || 0,
-    status: b.status,
-    approvedBy: b.users?.name,
-    approvedAt: b.approved_at,
-    createdAt: b.created_at,
-  }));
-}

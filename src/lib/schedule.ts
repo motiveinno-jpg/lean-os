@@ -173,47 +173,6 @@ export async function getTodos(userId: string, opts?: { includeDone?: boolean })
   return (data || []) as ScheduleTodo[];
 }
 
-export async function upsertTodo(input: {
-  id?: string;
-  companyId: string;
-  userId: string;
-  title: string;
-  description?: string;
-  priority?: 0 | 1 | 2;
-  dueDate?: string | null;
-  done?: boolean;
-}): Promise<ScheduleTodo> {
-  const row: any = {
-    company_id: input.companyId,
-    user_id: input.userId,
-    title: input.title,
-    description: input.description ?? null,
-    priority: input.priority ?? 1,
-    due_date: input.dueDate ?? null,
-  };
-  if (input.id) row.id = input.id;
-  if (input.done !== undefined) {
-    row.done = input.done;
-    row.done_at = input.done ? new Date().toISOString() : null;
-  }
-  const { data, error } = await db.from("schedule_todos").upsert(row).select().single();
-  if (error) throw error;
-  return data as ScheduleTodo;
-}
-
-export async function toggleTodoDone(id: string, done: boolean): Promise<void> {
-  const { error } = await db
-    .from("schedule_todos")
-    .update({ done, done_at: done ? new Date().toISOString() : null })
-    .eq("id", id);
-  if (error) throw error;
-}
-
-export async function deleteTodo(id: string): Promise<void> {
-  const { error } = await db.from("schedule_todos").delete().eq("id", id);
-  if (error) throw error;
-}
-
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 export const EVENT_COLOR_BG: Record<EventColor, string> = {

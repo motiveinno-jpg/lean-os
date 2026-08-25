@@ -24,11 +24,6 @@ export const NATURE_LABEL: Record<AccountNature, string> = {
   asset: "자산", liability: "부채", equity: "자본", revenue: "수익", expense: "비용",
 };
 
-export const SECTION_LABEL: Record<Exclude<PnlSection, null>, string> = {
-  revenue: "매출액", cogs: "매출원가", opex: "판매비와관리비",
-  nonop_income: "영업외수익", nonop_expense: "영업외비용", tax: "법인세비용",
-};
-
 export interface AccountInfo {
   name: string;
   code: string | null;
@@ -115,9 +110,6 @@ export function classifyAccount(category: string | null | undefined, map: Accoun
   if (!raw) return null;
   return map.get(norm(raw)) || guessByName(raw);
 }
-
-/** 손익계산서에 실리는가 (자산·부채·자본 계정이면 아니다) */
-export const isPnlAccount = (a: AccountInfo | null): boolean => !!a && a.section !== null;
 
 /**
  * 이 분류를 **비용으로 세도 되는가**.

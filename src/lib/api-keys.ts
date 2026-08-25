@@ -66,9 +66,6 @@ export const API_PROVIDERS: ApiProvider[] = [
   },
 ];
 
-export const PROVIDER_BY_KEY: Record<string, ApiProvider> =
-  Object.fromEntries(API_PROVIDERS.map((p) => [p.key, p]));
-
 export type ApiKeyRow = {
   id: string;
   provider: string;
@@ -173,13 +170,6 @@ export type LinkedIntegration = {
   detail: string;
   /** 손보러 가는 곳 */
   href: string;
-};
-
-export const LINKED_STATUS_LABEL: Record<LinkedIntegration["status"], string> = {
-  ok: "연결됨",
-  partial: "일부 오류",
-  error: "오류",
-  none: "안 씀",
 };
 
 const ymd = (iso: string | null | undefined) =>

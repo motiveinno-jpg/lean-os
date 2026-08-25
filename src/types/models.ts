@@ -30,9 +30,6 @@ export type DealClassification = TableRow<'deal_classifications'>;
 // ── Finance ──
 export type CashSnapshot = TableRow<'cash_snapshot'>;
 export type BankAccount = TableRow<'bank_accounts'>;
-export type Transaction = TableRow<'transactions'>;
-export type DealRevenueSchedule = TableRow<'deal_revenue_schedule'>;
-export type DealCostSchedule = TableRow<'deal_cost_schedule'>;
 export type PaymentQueue = TableRow<'payment_queue'>;
 export type TaxInvoice = TableRow<'tax_invoices'>;
 export type RoutingRule = TableRow<'routing_rules'>;
@@ -58,13 +55,6 @@ export type AutoDiscoveryResult = TableRow<'auto_discovery_results'>;
 // ── Closing ──
 export type ClosingChecklist = TableRow<'closing_checklists'>;
 export type ClosingChecklistItem = TableRow<'closing_checklist_items'>;
-
-// ── Loans ──
-export type Loan = TableRow<'loans'>;
-export type LoanPayment = TableRow<'loan_payments'>;
-
-// ── Certificates ──
-export type CertificateLog = TableRow<'certificate_logs'>;
 
 // ── Audit / Partners ──
 export type AuditLog = TableRow<'audit_logs'>;

@@ -101,56 +101,6 @@ export const NOTIFICATION_TYPES: Record<string, { label: string; icon: string; c
   },
 };
 
-export function getNotificationTypeInfo(type: string) {
-  return NOTIFICATION_TYPES[type] || NOTIFICATION_TYPES.system;
-}
-
-// ── Get Notifications ──
-export async function getNotifications(userId: string, limit = 20) {
-  const { data, error } = await db
-    .from('notifications')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  return data || [];
-}
-
-// ── Get Unread Count ──
-export async function getUnreadCount(userId: string): Promise<number> {
-  const { count, error } = await db
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('is_read', false);
-
-  if (error) throw error;
-  return count || 0;
-}
-
-// ── Mark as Read ──
-export async function markAsRead(id: string) {
-  const { error } = await db
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('id', id);
-
-  if (error) throw error;
-}
-
-// ── Mark All as Read ──
-export async function markAllAsRead(userId: string) {
-  const { error } = await db
-    .from('notifications')
-    .update({ is_read: true })
-    .eq('user_id', userId)
-    .eq('is_read', false);
-
-  if (error) throw error;
-}
-
 // ── Create Notification ──
 export async function createNotification(params: {
   companyId: string;
@@ -180,16 +130,6 @@ export async function createNotification(params: {
   return data;
 }
 
-// ── Delete Notification ──
-export async function deleteNotification(id: string) {
-  const { error } = await db
-    .from('notifications')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-}
-
 // ════════════════════════════════════════════════════════════════════════
 // 2026-05-29 연장근무 알림 헬퍼 (신청·승인·거절·자동퇴근)
 //   - notifications 테이블 insert (필수)
@@ -204,36 +144,6 @@ async function getCompanyAdminOwnerIds(companyId: string): Promise<string[]> {
     .in('role', ['owner', 'admin']);
   if (error) return [];
   return (data || []).map((u: { id: string }) => u.id);
-}
-
-// A. 신청 → 회사 admin/owner 전원 알림.
-export async function notifyOvertimeRequest(params: {
-  companyId: string;
-  requestId: string;
-  employeeName: string;
-  requestedDate: string;     // YYYY-MM-DD
-  requestedEndTime: string;  // HH:MM
-  reason: string;
-}): Promise<void> {
-  const { companyId, requestId, employeeName, requestedDate, requestedEndTime, reason } = params;
-  const targets = await getCompanyAdminOwnerIds(companyId);
-  if (targets.length === 0) return;
-  const title = `연장근무 신청 — ${employeeName}`;
-  const message = `${requestedDate} ${requestedEndTime}까지 · 사유: ${reason}`;
-  // 각 admin/owner 에게 1건씩 insert (실패 1건은 다른 건 영향 없음)
-  await Promise.allSettled(
-    targets.map((uid) =>
-      createNotification({
-        companyId,
-        userId: uid,
-        type: 'overtime_request',
-        title,
-        message,
-        entityType: 'overtime_request',
-        entityId: requestId,
-      }),
-    ),
-  );
 }
 
 // B. 승인/반려 → 신청자에게 알림.

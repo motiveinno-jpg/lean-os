@@ -21,20 +21,6 @@ export type SectionKey = "todo" | "flow" | "money" | "work" | "goal" | "team" | 
 //   구조가 자리 잡으면 나머지 자리를 여기로 흡수한다.
 export const SECTION_ORDER: SectionKey[] = ["boards", "todo", "flow", "money", "work", "goal", "team"];
 
-/** 목차(레일)에 쓰는 짧은 이름
- *   ⚠️ 이름은 회사에서 실제로 쓰는 말로만 짓는다(2026-08-03 사장님 지시).
- *      구 "돈 / 일 / 성과 / 팀" 은 뜻은 통해도 업무에서 안 쓰는 말이라
- *      → 매출·비용 / 업무 / 목표·실적 / 구성원 으로 바꿨다. 회계·영업 문서와 같은 낱말을 쓴다. */
-export const SECTION_LABEL: Record<SectionKey, string> = {
-  todo: "확인 필요",
-  flow: "진행 단계",
-  money: "매출·비용",
-  work: "업무",
-  goal: "목표·실적",
-  team: "구성원",
-  boards: "표",
-};
-
 /** 자리 제목 — 본문 머리에 쓰는 이름 */
 export const SECTION_TITLE: Record<SectionKey, string> = {
   todo: "확인이 필요한 항목",

@@ -12,8 +12,6 @@ import type { ColumnDef } from "@/lib/project-boards";
 const db = supabase as any;
 
 export type PresetKind = "board" | "summary";
-export type BoardPresetPayload = { columns: ColumnDef[] };
-export type SummaryPresetPayload = { off: string[]; order: string[] };
 
 export type Preset = {
   id: string;

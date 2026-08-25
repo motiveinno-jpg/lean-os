@@ -65,11 +65,6 @@ export function periodLabel(periodStart: string, cadence: Cadence): string {
   return `${Number(m)}/${Number(day)} 주`;
 }
 
-// 마감 임박/경과 — today 가 마감일을 지났으면 overdue
-export function isOverdue(dueDate: string, today: string = todayYMD()): boolean {
-  return today > dueDate;
-}
-
 // 영업일수 — [fromYMD, toYMD] 구간의 평일(월~금) 수(양끝 포함). 주말 제외.
 //   공휴일 소스 미정이라 1차는 주말만 제외(영업일 ≈ 평일). to < from 이면 0.
 export function businessDaysBetween(fromYMD: string, toYMD: string): number {

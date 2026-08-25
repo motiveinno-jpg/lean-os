@@ -122,21 +122,4 @@ export function AttendanceBadges({
   );
 }
 
-/** 일일 분 합산 텍스트 (월간 요약 카드용). 빈값/0 은 표시 안 함. */
-export function summarizeMonthlyMinutes(records: AttendanceRecordBadgeInput[]): {
-  overtime: number;
-  night: number;
-  holiday: number;
-  lateCount: number;
-} {
-  let overtime = 0, night = 0, holiday = 0, lateCount = 0;
-  for (const r of records) {
-    overtime += Number(r.overtime_minutes || 0);
-    night += Number(r.night_minutes || 0);
-    holiday += Number(r.holiday_minutes || 0);
-    if (r.is_late && Number(r.late_minutes || 0) > 0) lateCount += 1;
-  }
-  return { overtime, night, holiday, lateCount };
-}
-
 export { fmtHM };

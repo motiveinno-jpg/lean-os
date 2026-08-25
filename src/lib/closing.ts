@@ -88,21 +88,6 @@ export async function toggleChecklistItem(itemId: string, userId: string, comple
   if (error) throw error;
 }
 
-// ── Update evidence on item ──
-export async function updateChecklistEvidence(itemId: string, evidence: {
-  evidenceUrl?: string;
-  evidenceNote?: string;
-}) {
-  const { error } = await supabase
-    .from('closing_checklist_items')
-    .update({
-      evidence_url: evidence.evidenceUrl || null,
-      evidence_note: evidence.evidenceNote || null,
-    })
-    .eq('id', itemId);
-  if (error) throw error;
-}
-
 // ── Complete entire checklist ──
 export async function completeClosingChecklist(checklistId: string, userId: string) {
   const { error } = await supabase
@@ -183,42 +168,6 @@ export async function unlockClosingMonth(checklistId: string, userId: string) {
     entity_type: 'closing',
     entity_id: checklistId,
     entity_name: cl?.month ? `${cl.month} 월마감` : undefined,
-  });
-}
-
-export async function isMonthLocked(companyId: string, month: string): Promise<boolean> {
-  const data = logRead('lib/closing:data', await supabase
-    .from('closing_checklists')
-    .select('status')
-    .eq('company_id', companyId)
-    .eq('month', month)
-    .maybeSingle());
-  return data?.status === 'locked';
-}
-
-// ── Get closing history ──
-export async function getClosingHistory(companyId: string) {
-  const data = logRead('lib/closing:data', await supabase
-    .from('closing_checklists')
-    .select('*, closing_checklist_items(id, is_completed, is_required)')
-    .eq('company_id', companyId)
-    .order('month', { ascending: false })
-    .limit(12));
-
-  return (data || []).map((cl: any) => {
-    const items = cl.closing_checklist_items || [];
-    const total = items.length;
-    const completed = items.filter((i: any) => i.is_completed).length;
-    const requiredTotal = items.filter((i: any) => i.is_required).length;
-    const requiredCompleted = items.filter((i: any) => i.is_required && i.is_completed).length;
-    return {
-      ...cl,
-      total,
-      completed,
-      requiredTotal,
-      requiredCompleted,
-      progress: total > 0 ? Math.round((completed / total) * 100) : 0,
-    };
   });
 }
 

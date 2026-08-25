@@ -46,82 +46,6 @@ export function payrollStats(employees: any[]) {
   const insurance = Math.round(monthly * 0.10554); // 사업주 부담률 합계 추정 (PnL 과 동일 기준)
   return { active, monthly, insurance };
 }
-export function PayrollHero({ employees }: { employees: any[] }) {
-  const { active, monthly, insurance } = payrollStats(employees);
-  return (
-    <FlexTabHero icon="💸" title="급여" desc="명세서 생성 · 4대보험 자동 계산 · PDF 발급"
-      chips={[
-        { label: "지급 대상", value: `${active.length}명`, tone: "violet" },
-        { label: "월 급여 총액", value: won(monthly), tone: "blue" },
-        { label: "4대보험 회사부담(추정)", value: won(insurance), tone: "amber" },
-        { label: "연 인건비", value: won(monthly * 12), tone: "red" },
-      ]} />
-  );
-}
-
-// ── 계약서: 전체·서명 대기·완료 ──
-export function ContractsHero({ contracts }: { contracts: any[] }) {
-  const status = (c: any) => String(c.status || "").toLowerCase();
-  const done = contracts.filter((c) => ["signed", "completed", "active"].includes(status(c))).length;
-  const pending = contracts.filter((c) => ["pending", "sent", "draft", "waiting"].includes(status(c))).length;
-  return (
-    <FlexTabHero icon="📝" title="근로계약" desc="전자 근로계약 발송 · 서명 추적 · 보관"
-      chips={[
-        { label: "전체 계약", value: `${contracts.length}건`, tone: "violet" },
-        { label: "서명 대기", value: `${pending}건`, tone: pending > 0 ? "amber" : "dim" },
-        { label: "체결 완료", value: `${done}건`, tone: "green" },
-      ]} />
-  );
-}
-
-// ── 경비청구: 승인 대기 건수·대기 금액·이번 달 신청 합 ──
-export function ExpensesHero({ expenses }: { expenses: any[] }) {
-  const pend = expenses.filter((e) => String(e.status || "") === "pending");
-  const pendAmt = pend.reduce((s, e) => s + Number(e.amount || 0), 0);
-  const monthStart = (() => { const k = new Date(Date.now() + 9 * 3600 * 1000); return `${k.getUTCFullYear()}-${String(k.getUTCMonth() + 1).padStart(2, "0")}-01`; })();
-  const monthAmt = expenses.filter((e) => String(e.created_at || "").slice(0, 10) >= monthStart)
-    .reduce((s, e) => s + Number(e.amount || 0), 0);
-  return (
-    <FlexTabHero icon="🧾" title="경비청구" desc="영수증 첨부 · 결재 승인 · 지급 처리"
-      chips={[
-        { label: "승인 대기", value: `${pend.length}건`, tone: pend.length > 0 ? "amber" : "dim" },
-        { label: "대기 금액", value: won(pendAmt), tone: pend.length > 0 ? "red" : "dim" },
-        { label: "이번 달 신청", value: won(monthAmt), tone: "blue" },
-      ]} />
-  );
-}
-
-// ── 휴가: 오늘 휴가중·승인 대기·올해 사용률 ──
-export function LeaveHero({ companyId }: { companyId: string }) {
-  const kstToday = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-  const year = Number(kstToday.slice(0, 4));
-
-  const { data } = useQuery({
-    queryKey: ["flex-leave-hero", companyId, kstToday],
-    queryFn: async () => {
-      const [pendRes, todayRes, balRes] = await Promise.all([
-        db.from("leave_requests").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("status", "pending"),
-        db.from("leave_requests").select("employee_id").eq("company_id", companyId).eq("status", "approved").lte("start_date", kstToday).gte("end_date", kstToday),
-        db.from("leave_balances").select("total_days, used_days").eq("company_id", companyId).eq("year", year),
-      ]);
-      const onLeave = new Set(((todayRes.data || []) as any[]).map((r) => r.employee_id)).size;
-      const totals = ((balRes.data || []) as any[]).reduce((a, b) => ({ t: a.t + Number(b.total_days || 0), u: a.u + Number(b.used_days || 0) }), { t: 0, u: 0 });
-      return { pending: pendRes.count || 0, onLeave, total: totals.t, used: totals.u };
-    },
-    enabled: !!companyId,
-    staleTime: 60_000,
-  });
-
-  const pct = data && data.total > 0 ? Math.round((data.used / data.total) * 100) : 0;
-  return (
-    <FlexTabHero icon="🏖" title="휴가" desc="연차 신청 · 승인 · 잔여 관리"
-      chips={[
-        { label: "오늘 휴가중", value: `${data?.onLeave ?? 0}명`, tone: "green" },
-        { label: "승인 대기", value: `${data?.pending ?? 0}건`, tone: (data?.pending ?? 0) > 0 ? "amber" : "dim" },
-        { label: `${year} 사용률`, value: data && data.total > 0 ? `${pct}% (${data.used}/${data.total}일)` : "—", tone: "violet" },
-      ]} />
-  );
-}
 
 // ── 증명서: 이번 달 발급·누적 발급 ──
 //   2026-08-18 구성원 화면이 조회 표준(결과 요약 줄)로 바뀌며 지표만 따로 쓴다 — 히어로 카드와 같은 셈.
@@ -139,14 +63,4 @@ export function useCertificateStats(companyId: string | null) {
     staleTime: 60_000,
   });
   return data;
-}
-export function CertificatesHero({ companyId }: { companyId: string }) {
-  const data = useCertificateStats(companyId);
-  return (
-    <FlexTabHero icon="📄" title="증명서 발급" desc="재직 · 경력 증명서 즉시 발급 (PDF)"
-      chips={[
-        { label: "이번 달 발급", value: `${data?.month ?? 0}건`, tone: "violet" },
-        { label: "누적 발급", value: `${data?.total ?? 0}건`, tone: "dim" },
-      ]} />
-  );
 }

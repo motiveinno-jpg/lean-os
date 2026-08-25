@@ -112,12 +112,6 @@ export function bucketSeries(opts: {
   return out;
 }
 
-// 스파크라인용 — 주간 누적 실적 y 배열(없으면 빈 배열).
-export function sparkPoints(entries: { date: string; value: number }[], startDate?: string | null, endDate?: string | null): number[] {
-  if (!entries || entries.length === 0) return [];
-  return buildTrend({ entries, target: 0, startDate, endDate }).actual.map((p) => p.y);
-}
-
 // 기간 진행률(영업일 기준) — 0~1.
 export function periodProgress(startDate?: string | null, endDate?: string | null, today: string = todayYMD()): { elapsed: number; total: number; pct: number } | null {
   if (!startDate || !endDate) return null;

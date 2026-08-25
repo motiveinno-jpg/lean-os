@@ -55,12 +55,3 @@ export async function getAuditLogs(
   if (error) throw error;
   return data;
 }
-
-// ── Entity Change History ──
-export async function getEntityHistory(
-  companyId: string,
-  entityType: string,
-  entityId: string
-) {
-  return getAuditLogs(companyId, { entityType, entityId });
-}

@@ -22,13 +22,6 @@ const db = supabase;
 export type SyncType = "hometax" | "bank" | "card" | "match";
 export const COOLDOWN_MS = 30 * 60 * 1000; // 30분
 
-export const SYNC_LABEL: Record<SyncType, string> = {
-  hometax: "세금계산서 불러오기",
-  bank: "통장 불러오기",
-  card: "카드 불러오기",
-  match: "AI 전체 매칭",
-};
-
 // 회사의 모든 수집 타입별 마지막 실행 시각(ms). 없으면 0.
 async function fetchCooldowns(companyId: string): Promise<Record<string, number>> {
   const { data, error } = await db

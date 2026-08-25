@@ -54,21 +54,3 @@ export interface BankTxExcelRow {
   balance_after?: number | string | null;
   bank_accounts?: { alias?: string | null; bank_name?: string | null } | null;
 }
-
-export function exportBankTransactionsExcel(rows: BankTxExcelRow[], periodLabel: string) {
-  const data = rows.map(t => {
-    const amt = Math.abs(Number(t.amount || 0));
-    const isIncome = t.type === 'income' || t.type === '입금';
-    return {
-      '일자': t.transaction_date || '',
-      '통장': t.bank_accounts?.alias || t.bank_accounts?.bank_name || '',
-      '거래처': t.counterparty || '',
-      '적요': t.description || '',
-      '분류': t.classification || t.category || '',
-      '입금': isIncome ? amt : '',
-      '출금': !isIncome ? amt : '',
-      '잔액': t.balance_after != null ? Number(t.balance_after) : '',
-    };
-  });
-  exportToExcel(data, '통장거래내역', `통장거래내역_${periodLabel}`);
-}

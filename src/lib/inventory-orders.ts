@@ -248,9 +248,3 @@ export async function deleteOrder(companyId: string, orderId: string) {
   const { error } = await supabase.from("orders").delete().eq("id", orderId);
   if (error) throw error;
 }
-
-export async function setOrderStatus(orderId: string, status: "open" | "closed" | "cancelled") {
-  const { error } = await supabase.from("orders")
-    .update({ status, updated_at: new Date().toISOString() }).eq("id", orderId);
-  if (error) throw error;
-}

@@ -467,5 +467,3 @@ export function calcLegacyWorkHours(input: {
     overtimeHours: Math.round((Math.max(0, workMin - nominalMin) / 60) * 100) / 100,
   };
 }
-
-export const __internal = { parseHhmm, dayOfWeekKst, isWorkday, calcNightMinutes, toKstAbsMinutes };

@@ -66,40 +66,6 @@ export async function resolveBank(
   return primary || null;
 }
 
-// ── Generate deal number ──
-// Format: DEAL-YYYYMM-NNN (e.g., DEAL-202603-001)
-export async function generateDealNumber(companyId: string): Promise<string> {
-  const now = new Date();
-  const prefix = `DEAL-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-  const data = logRead('lib/routing:data', await supabase
-    .from('deals')
-    .select('deal_number')
-    .eq('company_id', companyId)
-    .like('deal_number', `${prefix}%`)
-    .order('deal_number', { ascending: false })
-    .limit(1));
-
-  let seq = 1;
-  if (data && data.length > 0 && data[0].deal_number) {
-    const last = data[0].deal_number.split('-').pop();
-    seq = (parseInt(last || '0', 10) || 0) + 1;
-  }
-
-  return `${prefix}-${String(seq).padStart(3, '0')}`;
-}
-
-// ── Get total balance across all bank accounts ──
-export async function getTotalBankBalance(companyId: string): Promise<number> {
-  const data = logRead('lib/routing:data', await supabase
-    .from('bank_accounts')
-    .select('balance')
-    .eq('company_id', companyId));
-
-  if (!data) return 0;
-  return data.reduce((sum, acc) => sum + Number(acc.balance || 0), 0);
-}
-
 // ── Cost type labels ──
 export const COST_TYPES = [
   { value: 'salary', label: '급여' },

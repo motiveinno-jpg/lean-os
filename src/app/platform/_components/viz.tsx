@@ -6,9 +6,6 @@
 //   카테고리 팔레트는 검증된 기본 순서(blue→orange→aqua→yellow→magenta) 고정 배정 — 순환 금지.
 
 import React from "react";
-
-// 검증된 카테고리 팔레트 (dataviz 기본, 인접쌍 CVD ΔE≥8 통과 순서 — 재배열 금지)
-export const VIZ_CATEGORICAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"] as const;
 export const VIZ_GRAY = "#9ca3af";
 
 export type DonutSegment = { label: string; value: number; color: string };

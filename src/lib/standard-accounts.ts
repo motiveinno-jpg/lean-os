@@ -18,11 +18,6 @@ import type { AccountType } from "@/lib/ledger";
 
 export interface StandardAccount { code: string; name: string; type: AccountType }
 
-export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
-  asset: "자산", liability: "부채", equity: "자본", revenue: "수익", expense: "비용",
-};
-export const ACCOUNT_TYPE_ORDER: AccountType[] = ["asset", "liability", "equity", "revenue", "expense"];
-
 export const STANDARD_ACCOUNTS: StandardAccount[] = [
   // ── 자산 — 당좌자산 (101~145) ──
   { code: "101", name: "현금", type: "asset" },

@@ -21,13 +21,6 @@ export async function hashString(input: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * 문서 콘텐츠(HTML 또는 JSON 문자열)의 SHA-256 해시 반환
- */
-export async function generateDocumentHash(content: string): Promise<string> {
-  return hashString(content);
-}
-
 // ── Package-level Hash ──
 
 /**
@@ -104,41 +97,4 @@ export interface IntegrityResult {
   valid: boolean;
   storedHash: string;
   currentHash: string;
-}
-
-/**
- * 현재 문서 내용으로 해시를 재생성하여 저장된 해시와 비교
- */
-export async function verifyDocumentIntegrity(packageId: string): Promise<IntegrityResult> {
-  // 저장된 해시 읽기
-  const { data: pkg, error: fetchError } = await db
-    .from('hr_contract_packages')
-    .select('notes')
-    .eq('id', packageId)
-    .single();
-
-  if (fetchError) throw new Error(`패키지 조회 실패: ${fetchError.message}`);
-
-  let storedHash = '';
-  if (pkg?.notes) {
-    try {
-      const meta = JSON.parse(pkg.notes);
-      storedHash = meta.document_hash || '';
-    } catch {
-      // notes가 JSON이 아니면 해시 없음
-    }
-  }
-
-  if (!storedHash) {
-    throw new Error('저장된 해시가 없습니다. 먼저 storeDocumentHash를 호출하세요.');
-  }
-
-  // 현재 콘텐츠로 해시 재생성
-  const currentHash = await generatePackageHash(packageId);
-
-  return {
-    valid: storedHash === currentHash,
-    storedHash,
-    currentHash,
-  };
 }

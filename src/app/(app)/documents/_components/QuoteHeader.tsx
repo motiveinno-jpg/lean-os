@@ -19,12 +19,6 @@ export type QuoteHeaderData = {
   discount?: number;
 };
 
-export const TAX_TYPE_LABEL: Record<string, string> = {
-  taxable: "부가세 적용 (10%)",
-  exempt: "부가세 미적용",
-  zero: "영세율 (0%)",
-};
-
 const LB = "text-[11px] text-[var(--text-muted)] w-16 shrink-0";
 const IN = "flex-1 h-8 px-2.5 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-xs focus:outline-none focus:border-[var(--primary)] disabled:opacity-60";
 

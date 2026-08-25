@@ -96,55 +96,6 @@ export async function insertDocument(params: {
   return data as any;
 }
 
-export async function createQuoteForDeal(params: {
-  companyId: string; dealId: string; userId: string; name: string;
-}): Promise<{ id: string; document_number: string | null }> {
-  const { data, error } = await supabase.from("documents").insert({
-    company_id: params.companyId,
-    deal_id: params.dealId,
-    sub_deal_id: null,
-    name: params.name,
-    status: "draft",
-    document_number: await nextQuoteNumber(params.companyId),
-    content_type: "invoice",
-    content_json: QUOTE_SKELETON as unknown as Json,
-    version: 1,
-    created_by: params.userId,
-  }).select("id, document_number").single();
-  if (error) throw new Error(error.message);
-  return data as any;
-}
-
-/** 견적서 → 계약서. 거래처·금액·품목을 이월하고 원본 견적을 링크한다.
- *  결제조건(선금·중도금·잔금)은 계약 편집기에서 정한다 — 여기서는 비워 둔다.
- *  ('매출 · 청구' 템플릿의 행에서 부른다. 2026-08-04 기획 3단계) */
-export async function createContractFromQuoteDoc(params: {
-  companyId: string; dealId: string; userId: string;
-  /** 견적서 — 없어도 된다. 견적 없이 바로 계약하는 일이 흔하다(2026-08-07 사장님 지적).
-   *  있으면 품목·수신처를 물려받고 '이 견적에 근거한다' 고 적는다. */
-  quoteDoc?: { id: string; document_number?: string | null; content_json?: any; sub_deal_id?: string | null } | null;
-  dealName: string; partnerName?: string; amount?: number;
-  /** 견적 없이 만들 때 계약서 이름에 쓸 줄 이름(예: '브랜드몰 구축 1차') */
-  rowName?: string;
-}): Promise<{ id: string }> {
-  const content = buildContractContent(params);
-  const { data, error } = await supabase.from("documents").insert({
-    company_id: params.companyId,
-    deal_id: params.dealId,
-    sub_deal_id: params.quoteDoc?.sub_deal_id || null,
-    name: `${params.rowName || params.dealName || "프로젝트"} 계약서`,
-    status: "draft",
-    document_number: null,
-    content_type: "contract",
-    content_json: content as unknown as Json,
-    source_document_id: params.quoteDoc?.id || null,
-    version: 1,
-    created_by: params.userId,
-  }).select("id").single();
-  if (error) throw new Error(error.message);
-  return data as any;
-}
-
 /** 계약서 초안 내용 — 저장 전 편집기에 실을 내용만 만든다(문서는 아직 안 생긴다) */
 export function buildContractContent(params: {
   quoteDoc?: { id: string; document_number?: string | null; content_json?: any; sub_deal_id?: string | null } | null;
@@ -373,32 +324,6 @@ export function docTemplateToHtml(tpl: { name: string; content_json?: any }): st
     html += "<p>&nbsp;</p>";
   }
   return html;
-}
-
-// 같은 회사에 동일 이름 documents 행이 이미 있으면 재사용(중복 생성 방지), 없으면 신규 생성.
-export async function materializeDocTemplate(companyId: string, tpl: { name: string; type?: string; content_json?: any }) {
-  const existing = logRead('lib/documents:existing', await supabase
-    .from("documents")
-    .select("*")
-    .eq("company_id", companyId)
-    .eq("name", tpl.name)
-    .maybeSingle());
-  if (existing) return existing;
-
-  const body = docTemplateToHtml(tpl);
-  const { data, error } = await supabase
-    .from("documents")
-    .insert({
-      company_id: companyId,
-      name: tpl.name,
-      content_json: { body } as unknown as Json,
-      auto_classified_type: "contract",
-      status: "draft",
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
 }
 
 // contract_templates(계약 양식) → documents 행 실체화 (2026-07-23 전자계약 양식 통합 Phase 2).

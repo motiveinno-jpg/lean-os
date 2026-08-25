@@ -43,11 +43,6 @@ export interface TaxInvoiceItem {
   supplyAmount: number;
 }
 
-/** 품목 줄 합계 — 줄이 없으면 0. 화면·저장 양쪽이 이 함수 하나만 쓴다. */
-export function sumItems(items: TaxInvoiceItem[] | null | undefined): number {
-  return (items || []).reduce((s, it) => s + Math.round(Number(it.supplyAmount) || 0), 0);
-}
-
 /** 목록에 쓰는 품목 요약 — "첫 품목 외 N건" */
 export function itemsLabel(items: TaxInvoiceItem[] | null | undefined, fallback?: string | null): string {
   const list = (items || []).filter((it) => (it?.name || '').trim());
@@ -548,79 +543,6 @@ export async function getVATPreview(companyId: string, year: number): Promise<VA
   });
 }
 
-// ── HomeTax Excel Import Parser ──
-export function parseHomeTaxExcel(rows: any[]) {
-  return rows.map((r: any) => ({
-    type: (r['구분'] === '매출' || r['유형'] === '발행' ? 'sales' : 'purchase') as 'sales' | 'purchase',
-    counterpartyName: String(r['거래처명'] || r['상호'] || ''),
-    counterpartyBizno: String(r['사업자번호'] || r['사업자등록번호'] || ''),
-    supplyAmount: Number(r['공급가액'] ?? r['공급가'] ?? 0),
-    taxAmount: Number(r['세액'] ?? r['부가세'] ?? 0),
-    totalAmount: Number(r['합계금액'] ?? r['합계'] ?? 0),
-    issueDate: String(r['발행일'] || r['작성일자'] || ''),
-  })).filter(r => r.counterpartyName && r.supplyAmount > 0);
-}
-
-// ── Sync HomeTax invoices ──
-// CODEF 통합 sync 경유 (국세청 organization 0004).
-// 자체 hometax-sync Edge Function은 NPKI 복호화 미구현으로 사용하지 않음.
-export async function syncHomeTaxInvoices(params: {
-  companyId: string;
-  startDate: string;
-  endDate: string;
-}): Promise<{
-  success: boolean;
-  status: 'success' | 'partial' | 'error';
-  synced: number;
-  responseCount: number;  // CODEF 응답에 들어온 row 수 — synced 와 차이가 있으면 누락
-  errors: Array<{ code: string; message: string; hint: string; organization: string; accountNo: string }>;
-  notes: Array<{ code: string; message: string; hint: string; organization: string; accountNo: string }>;
-}> {
-  // 홈택스 연동 일시정지 중이면 중단 (2026-07-30 — 통장 정지와 동일 UX)
-  const { getHometaxPausedUntil } = await import('./data-sync');
-  const hometaxPaused = await getHometaxPausedUntil(params.companyId);
-  if (hometaxPaused) {
-    const t = new Date(hometaxPaused).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-    const msg = `홈택스 연동 일시정지 중 (${t}까지) — 정지 해제 후 다시 시도하세요.`;
-    return { success: false, status: 'error', synced: 0, responseCount: 0, errors: [{ code: 'PAUSED', message: msg, hint: '동기화 바의 정지 해제 버튼을 누른 뒤 다시 시도하세요.', organization: '0004', accountNo: '' }], notes: [] };
-  }
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('로그인이 필요합니다');
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!supabaseUrl) throw new Error('Supabase URL이 설정되지 않았습니다');
-
-  const res = await fetch(`${supabaseUrl}/functions/v1/codef-sync`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({
-      companyId: params.companyId,
-      action: 'sync',
-      syncType: 'hometax',
-      startDate: params.startDate.replace(/-/g, ''),
-      endDate: params.endDate.replace(/-/g, ''),
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: '홈택스 동기화 오류' }));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-
-  const result = await res.json();
-  return {
-    success: result.success ?? false,
-    status: result.status ?? 'error',
-    synced: result.results?.hometax?.synced ?? 0,
-    responseCount: result.results?.hometax?.responseCount ?? 0,
-    errors: result.errors ?? [],
-    notes: result.notes ?? [],
-  };
-}
-
 // ── Modify tax invoice (수정세금계산서) ──
 export async function modifyTaxInvoice(params: {
   invoiceId: string;
@@ -677,35 +599,4 @@ export async function getHomeTaxSyncLogs(companyId: string, limit = 20) {
     .limit(limit);
   if (error) throw error;
   return data || [];
-}
-
-// ── Bulk import tax invoices ──
-export async function bulkImportTaxInvoices(companyId: string, items: {
-  type: 'sales' | 'purchase';
-  counterpartyName: string;
-  counterpartyBizno?: string;
-  supplyAmount: number;
-  taxAmount?: number;
-  totalAmount?: number;
-  issueDate: string;
-}[]) {
-  const rows = items.map(item => ({
-    company_id: companyId,
-    type: item.type,
-    counterparty_name: item.counterpartyName,
-    counterparty_bizno: item.counterpartyBizno || null,
-    supply_amount: item.supplyAmount,
-    tax_amount: item.taxAmount ?? Math.round(item.supplyAmount * DEFAULT_VAT_RATE),
-    /* 부동소수점 오류 방지: supplyAmount + taxAmount 합산 방식 사용 */
-    total_amount: item.totalAmount ?? (item.supplyAmount + (item.taxAmount ?? Math.round(item.supplyAmount * DEFAULT_VAT_RATE))),
-    issue_date: item.issueDate,
-    status: item.type === 'sales' ? 'issued' : 'received',
-  }));
-
-  const { data, error } = await supabase
-    .from('tax_invoices')
-    .insert(rows)
-    .select();
-  if (error) throw error;
-  return data;
 }

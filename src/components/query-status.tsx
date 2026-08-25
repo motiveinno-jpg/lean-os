@@ -32,34 +32,3 @@ export function QueryErrorBanner({ error, onRetry }: { error: Error | null; onRe
     </div>
   );
 }
-
-export function PageLoadingSpinner() {
-  return (
-    <div className="page-loading-spinner">
-      <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
-}
-
-export function EmptyState({ icon, title, description, action }: {
-  icon: string;
-  title: string;
-  description?: string;
-  action?: { label: string; onClick: () => void };
-}) {
-  return (
-    <div className="empty-state-block glass-card">
-      <div className="text-4xl mb-3"><Ico e={icon} size={34} /></div>
-      <div className="text-base font-bold mb-1">{title}</div>
-      {description && <div className="text-xs text-[var(--text-muted)] mb-4">{description}</div>}
-      {action && (
-        <button
-          onClick={action.onClick}
-          className="px-4 py-2 rounded-lg bg-[var(--primary)] text-white text-xs font-semibold hover:opacity-90 transition"
-        >
-          {action.label}
-        </button>
-      )}
-    </div>
-  );
-}
