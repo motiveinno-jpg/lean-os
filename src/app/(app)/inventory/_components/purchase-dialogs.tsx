@@ -1,28 +1,28 @@
 "use client";
 
-// ── 재고 › 판매 — 팝업 세 개 (2026-08-25 재고 2단계) ───────────────────────────
-//   ① 주문 만들기   ② 주문에서 출고   ③ 주문 없이 바로 출고
-//   ★ ③이 곁다리가 아니라는 점이 이 화면의 성격을 정한다(결정 5) —
-//     현장·온라인은 주문을 안 적고 판다. 그래서 '바로 출고'는 주문과 같은 자리에 둔다.
+// ── 재고 › 구매 — 팝업 세 개 (2026-08-25 재고 3단계) ───────────────────────────
+//   ① 발주 만들기 (+ 부족한 품목 채우기)   ② 발주에서 입고   ③ 발주 없이 바로 매입
+//   ★ '부족한 품목 채우기'가 이 화면에만 있는 이유 —
+//     모자란 양은 (안전재고 − 현재고 − 들어올 것)이다. **이미 시킨 것을 빼지 않으면 두 번 시킨다.**
 
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { todayKst } from "@/lib/kst";
-import { createStockDoc, type Product, type Warehouse } from "@/lib/inventory";
-import { LineEditor, PartnerField, type Partner, type LineDraft } from "./line-editor";
+import { createStockDoc, type Product, type Warehouse, type OnHand } from "@/lib/inventory";
 import {
-  createSalesOrder, shipSalesOrder,
-  type SalesOrder, type SalesOrderLine, type ShippedRow, type Available,
-} from "@/lib/inventory-sales";
+  createPurchaseOrder, receivePurchaseOrder,
+  type PurchaseOrder, type PurchaseOrderLine, type ReceivedRow, type Incoming,
+} from "@/lib/inventory-purchase";
+import { LineEditor, PartnerField, type Partner, type LineDraft } from "./line-editor";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
-export type { Partner } from "./line-editor";
 
-// ── ① 주문 만들기 ─────────────────────────────────────────────────────────────
-export function OrderDialog({ companyId, userId, products, warehouses, partners, available, onClose, onSaved }: {
+// ── ① 발주 만들기 ─────────────────────────────────────────────────────────────
+export function PoDialog({ companyId, userId, products, warehouses, partners, onhand, incoming, onClose, onSaved }: {
   companyId: string; userId: string | null; products: Product[]; warehouses: Warehouse[];
-  partners: Partner[]; available: Available[]; onClose: () => void; onSaved: (msg: string) => void;
+  partners: Partner[]; onhand: OnHand[]; incoming: Incoming[];
+  onClose: () => void; onSaved: (msg: string) => void;
 }) {
   const { toast } = useToast();
   const [orderDate, setOrderDate] = useState(todayKst);
@@ -36,78 +36,109 @@ export function OrderDialog({ companyId, userId, products, warehouses, partners,
 
   useEffect(() => { if (!warehouseId) setWarehouseId(warehouses.find((w) => w.is_default)?.id || warehouses[0]?.id || ""); }, [warehouses, warehouseId]);
 
-  const availableOf = (pid: string) => {
-    const rows = available.filter((a) => a.product_id === pid && (!warehouseId || a.warehouse_id === warehouseId));
-    return rows.length ? rows.reduce((n, a) => n + a.available_qty, 0) : 0;
+  //   모자란 품목 — 안전재고를 정해 둔 것만 본다. 안 정했으면 얼마가 모자란지 알 길이 없다.
+  const shortages = useMemo(() => {
+    if (!warehouseId) return [];
+    const have = new Map<string, number>();
+    for (const r of onhand) if (r.warehouse_id === warehouseId) have.set(r.product_id, r.qty);
+    const coming = new Map<string, number>();
+    for (const r of incoming) if (r.warehouse_id === warehouseId) coming.set(r.product_id, r.incoming_qty);
+    return products
+      .filter((p) => p.is_active && p.track_stock && p.safety_stock != null)
+      .map((p) => {
+        const now = have.get(p.id) ?? 0;
+        const inc = coming.get(p.id) ?? 0;
+        return { p, now, inc, need: Number(p.safety_stock) - now - inc };
+      })
+      .filter((x) => x.need > 0);
+  }, [products, onhand, incoming, warehouseId]);
+
+  const fillShortages = () => {
+    if (!shortages.length) { toast("안전재고보다 모자란 품목이 없습니다", "info"); return; }
+    const already = new Set(lines.map((l) => l.product_id).filter(Boolean));
+    const add = shortages.filter((x) => !already.has(x.p.id)).map((x) => ({
+      product_id: x.p.id, qty: String(x.need), unit_price: x.p.cost_price != null ? String(x.p.cost_price) : "",
+    }));
+    if (!add.length) { toast("모자란 품목이 이미 다 들어 있습니다", "info"); return; }
+    setLines((s) => [...s.filter((l) => l.product_id), ...add]);
+    toast(`모자란 ${add.length}줄을 넣었습니다 — 수량은 고치셔도 됩니다`, "success");
   };
+
   const ready = lines.some((l) => l.product_id && Number(l.qty) > 0) && !!warehouseId;
   const total = lines.reduce((n, l) => n + (Number(l.qty) || 0) * (Number(l.unit_price) || 0), 0);
 
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">주문 받기</h3>
+        <h3 className="inv-modal-title">발주하기</h3>
         <p className="inv-modal-desc">
-          주문은 <b>약속</b>입니다 — 받는 순간 재고가 줄지 않고 <b>판매가능수량</b>만 줄어듭니다.
-          실제로 나가는 것은 <b>출고</b>할 때입니다.
+          발주는 <b>약속</b>입니다 — 시킨다고 재고가 늘지 않고 <b>들어올 것</b>으로만 잡힙니다.
+          실제로 느는 것은 <b>입고</b>할 때입니다.
         </p>
         <div className="inv-grid2">
-          <label className="inv-field"><span>주문일 *</span>
+          <label className="inv-field"><span>발주일 *</span>
             <input type="date" className="field-input" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></label>
-          <label className="inv-field"><span>주기로 한 날</span>
+          <label className="inv-field"><span>받기로 한 날</span>
             <input type="date" className="field-input" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></label>
         </div>
         <PartnerField partners={partners} partnerId={partnerId} setPartnerId={setPartnerId}
-          partnerName={partnerName} setPartnerName={setPartnerName} hint="또는 이름만 적기 (온라인 주문 등)" />
-        <label className="inv-field"><span>나갈 창고 *</span>
+          partnerName={partnerName} setPartnerName={setPartnerName} hint="또는 이름만 적기 (시장·일회성 매입 등)" />
+        <label className="inv-field"><span>받을 창고 *</span>
           <select className="field-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
             {warehouses.length === 0 && <option value="">창고가 없습니다 — 재고 › 창고에서 먼저 만드세요</option>}
             {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
           </select></label>
 
-        <LineEditor lines={lines} setLines={setLines} products={products}
-          priceOf={(p) => p.sale_price}
-          warn={(pid, qty) => { const a = availableOf(pid); return qty > a ? `가능 ${won(a)}` : null; }} />
+        <div className="inv-fill-row">
+          <button type="button" className="btn-secondary btn-sm" onClick={fillShortages}>부족한 품목 채우기</button>
+          <span className="inv-hint">
+            {shortages.length > 0
+              ? <>안전재고보다 모자란 <b>{shortages.length}품목</b>이 있습니다 — <b>이미 시킨 것을 빼고</b> 셉니다.</>
+              : <>안전재고보다 모자란 품목이 없습니다. 안전재고를 정하지 않은 품목은 셀 수 없습니다.</>}
+          </span>
+        </div>
+
+        <LineEditor lines={lines} setLines={setLines} products={products} priceOf={(p) => p.cost_price} />
 
         <label className="inv-field"><span>메모</span>
-          <input className="field-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="배송 요청 등" /></label>
+          <input className="field-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="납기 요청 등" /></label>
 
-        <div className="inv-modal-foot">주문 금액 <b>₩{won(total)}</b></div>
+        <div className="inv-modal-foot">발주 금액 <b>₩{won(total)}</b></div>
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
           <button type="button" className="btn-primary btn-sm" disabled={!ready || busy}
             onClick={async () => {
               setBusy(true);
               try {
-                const r = await createSalesOrder(companyId, {
+                const r = await createPurchaseOrder(companyId, {
                   orderDate, dueDate: dueDate || null, partnerId: partnerId || null,
                   partnerName: partnerName || null, warehouseId, note,
                   lines: lines.filter((l) => l.product_id && Number(l.qty) > 0)
                     .map((l) => ({ product_id: l.product_id, qty: Number(l.qty), unit_price: l.unit_price ? Number(l.unit_price) : null })),
                 }, userId);
-                onSaved(`${r.orderNo} 로 주문을 받았습니다`);
+                onSaved(`${r.poNo} 로 발주했습니다`);
               } catch (e) { toast(friendlyError(e, "저장하지 못했습니다"), "error"); }
               finally { setBusy(false); }
-            }}>주문 받기</button>
+            }}>발주하기</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── ② 주문에서 출고 ───────────────────────────────────────────────────────────
-export function ShipDialog({ companyId, userId, order, lines, shipped, products, onClose, onSaved }: {
-  companyId: string; userId: string | null; order: SalesOrder;
-  lines: SalesOrderLine[]; shipped: ShippedRow[]; products: Map<string, Product>;
+// ── ② 발주에서 입고 ───────────────────────────────────────────────────────────
+export function ReceiveDialog({ companyId, userId, order, lines, received, products, onClose, onSaved }: {
+  companyId: string; userId: string | null; order: PurchaseOrder;
+  lines: PurchaseOrderLine[]; received: ReceivedRow[]; products: Map<string, Product>;
   onClose: () => void; onSaved: (msg: string) => void;
 }) {
   const { toast } = useToast();
-  const shippedOf = useMemo(() => new Map(shipped.map((s) => [s.order_line_id, s.shipped_qty])), [shipped]);
-  //   남은 수량을 기본값으로 넣는다 — 대부분은 남은 것을 그대로 내보낸다. 부분 출고면 줄이면 된다.
+  const gotOf = useMemo(() => new Map(received.map((s) => [s.po_line_id, s.received_qty])), [received]);
+  //   남은 수량이 기본값. 덜 왔으면 줄이고, 잘못 받았으면 음수로 되돌린다.
   const [qty, setQty] = useState<Record<string, string>>(() => {
     const o: Record<string, string> = {};
     for (const l of lines) {
-      const rest = l.qty - (shippedOf.get(l.id) ?? 0);
+      const rest = l.qty - (gotOf.get(l.id) ?? 0);
       o[l.id] = rest > 0 ? String(rest) : "";
     }
     return o;
@@ -117,37 +148,37 @@ export function ShipDialog({ companyId, userId, order, lines, shipped, products,
   const [busy, setBusy] = useState(false);
 
   const use = lines.map((l) => ({ l, n: Number(qty[l.id]) })).filter((x) => x.n && !Number.isNaN(x.n));
-  const ready = use.length > 0;
+  const done = order.status === "done";
 
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">{order.status === "done" ? "반품 — " : "출고 — "}{order.order_no}</h3>
+        <h3 className="inv-modal-title">{done ? "반품 — " : "입고 — "}{order.po_no}</h3>
         <p className="inv-modal-desc">
-          {order.status === "done" ? (
-            <>이 주문은 <b>다 나갔습니다</b>. 되돌릴 수량을 <b>음수로</b> 적으세요 — 재고가 다시 늘고
-              주문은 저절로 &lsquo;보낼 것&rsquo;으로 돌아갑니다.</>
+          {done ? (
+            <>이 발주는 <b>다 받았습니다</b>. 돌려보낼 수량을 <b>음수로</b> 적으세요 — 재고가 줄고
+              발주는 저절로 &lsquo;받을 것&rsquo;으로 돌아갑니다.</>
           ) : (
-            <>남은 수량을 미리 넣어 두었습니다. <b>일부만 보낼 때는 줄이세요</b> — 남은 것은 주문에 그대로 남습니다.
-              되돌릴 때는 <b>음수</b>를 넣으면 반품으로 잡힙니다.</>
+            <>남은 수량을 미리 넣어 두었습니다. <b>덜 왔으면 줄이세요</b> — 남은 것은 발주에 그대로 남습니다.
+              잘못 받은 것은 <b>음수</b>로 돌려보냅니다.</>
           )}
         </p>
-        <label className="inv-field"><span>출고일 *</span>
+        <label className="inv-field"><span>입고일 *</span>
           <input type="date" className="field-input" value={docDate} onChange={(e) => setDocDate(e.target.value)} /></label>
 
         <div className="inv-ship-table">
           <table className="ev-table ev-lined">
-            <thead><tr><th>품목</th><th>주문</th><th>나감</th><th>남음</th><th>이번에</th></tr></thead>
+            <thead><tr><th>품목</th><th>발주</th><th>받음</th><th>남음</th><th>이번에</th></tr></thead>
             <tbody>
               {lines.map((l) => {
                 const p = products.get(l.product_id);
-                const done = shippedOf.get(l.id) ?? 0;
-                const rest = l.qty - done;
+                const got = gotOf.get(l.id) ?? 0;
+                const rest = l.qty - got;
                 return (
                   <tr key={l.id}>
                     <td className="text-left"><b>{p?.name || "—"}</b> <span className="ev-dim">{p?.sku}</span></td>
                     <td className="tr mono-number">{won(l.qty)}</td>
-                    <td className="tr mono-number ev-dim">{won(done)}</td>
+                    <td className="tr mono-number ev-dim">{won(got)}</td>
                     <td className="tr mono-number"><b className={rest > 0 ? undefined : "ev-dim"}>{won(rest)}</b></td>
                     <td className="tc">
                       <input className="field-input inv-count-input" inputMode="numeric" placeholder="—"
@@ -161,31 +192,29 @@ export function ShipDialog({ companyId, userId, order, lines, shipped, products,
         </div>
 
         <label className="inv-field"><span>메모</span>
-          <input className="field-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="송장번호 등" /></label>
+          <input className="field-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="거래명세서 번호 등" /></label>
 
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
-          <button type="button" className="btn-primary btn-sm" disabled={!ready || busy}
+          <button type="button" className="btn-primary btn-sm" disabled={!use.length || busy}
             onClick={async () => {
               setBusy(true);
               try {
-                const r = await shipSalesOrder(companyId, order.id,
-                  use.map((x) => ({ order_line_id: x.l.id, product_id: x.l.product_id, qty: x.n, unit_price: x.l.unit_price })),
+                const r = await receivePurchaseOrder(companyId, order.id,
+                  use.map((x) => ({ po_line_id: x.l.id, product_id: x.l.product_id, qty: x.n, unit_price: x.l.unit_price })),
                   { docDate, note }, userId);
-                onSaved(use.some((x) => x.n < 0)
-                  ? `${r.docNo} 로 되돌렸습니다`
-                  : `${r.docNo} 로 내보냈습니다`);
-              } catch (e) { toast(friendlyError(e, "내보내지 못했습니다"), "error"); }
+                onSaved(use.some((x) => x.n < 0) ? `${r.docNo} 로 돌려보냈습니다` : `${r.docNo} 로 받았습니다`);
+              } catch (e) { toast(friendlyError(e, "받지 못했습니다"), "error"); }
               finally { setBusy(false); }
-            }}>{order.status === "done" ? "반품 넣기" : "내보내기"}</button>
+            }}>{done ? "반품 넣기" : "받기"}</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── ③ 주문 없이 바로 출고 ─────────────────────────────────────────────────────
-export function DirectShipDialog({ companyId, userId, products, warehouses, partners, onClose, onSaved }: {
+// ── ③ 발주 없이 바로 매입 ─────────────────────────────────────────────────────
+export function DirectReceiveDialog({ companyId, userId, products, warehouses, partners, onClose, onSaved }: {
   companyId: string; userId: string | null; products: Product[]; warehouses: Warehouse[];
   partners: Partner[]; onClose: () => void; onSaved: (msg: string) => void;
 }) {
@@ -207,42 +236,41 @@ export function DirectShipDialog({ companyId, userId, products, warehouses, part
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">바로 판매</h3>
+        <h3 className="inv-modal-title">바로 매입</h3>
         <p className="inv-modal-desc">
-          주문을 적지 않고 <b>판 것만</b> 기록합니다 — 현장·온라인 판매가 이렇습니다.
-          바로 재고가 줄고, 판매 이력에 남습니다.
+          발주서를 적지 않고 <b>사 온 것만</b> 기록합니다 — 시장 매입·급한 보충이 이렇습니다.
+          바로 재고가 늘고, 매입 이력에 남습니다.
         </p>
         <div className="inv-grid2">
-          <label className="inv-field"><span>판매일 *</span>
+          <label className="inv-field"><span>매입일 *</span>
             <input type="date" className="field-input" value={docDate} onChange={(e) => setDocDate(e.target.value)} /></label>
-          <label className="inv-field"><span>나갈 창고 *</span>
+          <label className="inv-field"><span>받을 창고 *</span>
             <select className="field-input" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
               {warehouses.length === 0 && <option value="">창고가 없습니다</option>}
               {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select></label>
         </div>
         <PartnerField partners={partners} partnerId={partnerId} setPartnerId={setPartnerId}
-          partnerName={partnerName} setPartnerName={setPartnerName} hint="또는 이름만 적기 (온라인 주문 등)" />
+          partnerName={partnerName} setPartnerName={setPartnerName} hint="또는 이름만 적기 (시장·일회성 매입 등)" />
 
-        <LineEditor lines={lines} setLines={setLines} products={products} priceOf={(p) => p.sale_price} />
+        <LineEditor lines={lines} setLines={setLines} products={products} priceOf={(p) => p.cost_price} />
 
         {hasMinus && (
-          <p className="inv-warn">수량이 음수인 줄은 <b>판매 취소</b>로 읽습니다 — 재고가 다시 늘어납니다.</p>
+          <p className="inv-warn">수량이 음수인 줄은 <b>매입 취소</b>로 읽습니다 — 재고가 다시 줄어듭니다.</p>
         )}
         <label className="inv-field"><span>메모</span>
-          <input className="field-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="주문번호 · 채널 등" /></label>
+          <input className="field-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="거래명세서 번호 등" /></label>
 
-        <div className="inv-modal-foot">판매 금액 <b>₩{won(total)}</b></div>
+        <div className="inv-modal-foot">매입 금액 <b>₩{won(total)}</b></div>
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
           <button type="button" className="btn-primary btn-sm" disabled={!use.length || !warehouseId || busy}
             onClick={async () => {
               setBusy(true);
               try {
-                //   거래처를 이름으로만 적은 경우는 문서 메모에 남긴다 — 없는 거래처를 몰래 만들지 않는다.
                 const memo = [note.trim(), partnerName.trim() ? `거래처: ${partnerName.trim()}` : ""].filter(Boolean).join(" · ");
                 const r = await createStockDoc(companyId, {
-                  reason: "sale", docDate, warehouseId, partnerId: partnerId || null, note: memo || null,
+                  reason: "purchase", docDate, warehouseId, partnerId: partnerId || null, note: memo || null,
                   lines: use.map((l) => ({ product_id: l.product_id, qty: Number(l.qty), unit_price: l.unit_price ? Number(l.unit_price) : null })),
                 }, userId);
                 onSaved(r.skipped > 0
@@ -250,7 +278,7 @@ export function DirectShipDialog({ companyId, userId, products, warehouses, part
                   : `${r.docNo} 로 기록했습니다`);
               } catch (e) { toast(friendlyError(e, "기록하지 못했습니다"), "error"); }
               finally { setBusy(false); }
-            }}>판매 기록</button>
+            }}>매입 기록</button>
         </div>
       </div>
     </div>

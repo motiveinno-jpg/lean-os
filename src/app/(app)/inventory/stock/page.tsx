@@ -22,6 +22,7 @@ import {
 import { DateRangeField } from "@/components/date-range-field";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
 import { listAvailable } from "@/lib/inventory-sales";
+import { listIncoming } from "@/lib/inventory-purchase";
 import {
   listProducts, listOnHand, listWarehouses, listMoves, createStockDoc,
   ensureDefaultWarehouse, upsertWarehouse, STOCK_REASONS, reasonOf, reasonLabel,
@@ -57,6 +58,9 @@ export default function StockPage() {
   //   2단계 — 판매가능수량(현재고 − 아직 안 나간 주문). 주문을 안 쓰는 회사에는 값이 같아
   //     칸이 군더더기다 — 그래서 **예약이 하나라도 있을 때만** 칸을 보인다.
   const { data: available = [] } = useQuery({ queryKey: ["inv-available", companyId], queryFn: () => listAvailable(companyId!), enabled: !!companyId });
+  //   3단계 — 들어올 것(발주했는데 안 받은 것). **판매가능에는 더하지 않는다** — 아직 창고에 없다.
+  //     그런데 '부족'만 보이고 이미 시킨 것이 안 보이면 **또 시킨다**. 그래서 칸을 따로 둔다.
+  const { data: incoming = [] } = useQuery({ queryKey: ["inv-incoming", companyId], queryFn: () => listIncoming(companyId!), enabled: !!companyId });
   const { data: moves = [] } = useQuery({
     queryKey: ["inv-moves", companyId, from, to],
     queryFn: () => listMoves(companyId!, from, to),
@@ -67,6 +71,8 @@ export default function StockPage() {
   const availKey = (pid: string, wid: string) => `${pid}|${wid}`;
   const availByKey = useMemo(() => new Map(available.map((a) => [availKey(a.product_id, a.warehouse_id || ""), a])), [available]);
   const hasReserved = useMemo(() => available.some((a) => a.reserved_qty > 0), [available]);
+  const incomingByKey = useMemo(() => new Map(incoming.map((a) => [availKey(a.product_id, a.warehouse_id || ""), a.incoming_qty])), [incoming]);
+  const hasIncoming = useMemo(() => incoming.some((a) => a.incoming_qty > 0), [incoming]);
   const whById = useMemo(() => new Map(warehouses.map((w) => [w.id, w])), [warehouses]);
 
   //   실사 — 상태가 여러 곳(조회 줄·표·팝업)에 걸려 훅 하나로 모은다. 훅은 조기 return 앞이어야 한다.
@@ -183,11 +189,12 @@ export default function StockPage() {
               ) : (
                 <>
                   <div className="stg-table-wrap">
-                    <table className={hasReserved ? "ev-table ev-lined table-inv-stock table-inv-stock-avail" : "ev-table ev-lined table-inv-stock"}>
+                    <table className={hasReserved || hasIncoming ? "ev-table ev-lined table-inv-stock table-inv-stock-avail" : "ev-table ev-lined table-inv-stock"}>
                       <thead><tr>
                         <th>SKU</th><th>품목명</th><th>규격</th><th>창고</th><th>현재고</th>
                         {hasReserved && <th title="아직 안 나간 주문">주문 잡힘</th>}
                         {hasReserved && <th title="현재고 − 아직 안 나간 주문">판매가능</th>}
+                        {hasIncoming && <th title="발주했는데 아직 안 들어온 것 — 팔 수 있는 양에는 넣지 않습니다">들어올 것</th>}
                         <th>안전재고</th><th>상태</th>
                       </tr></thead>
                       <tbody>
@@ -208,6 +215,10 @@ export default function StockPage() {
                                   <td className="tr mono-number"><b className={av < 0 ? "inv-diff-minus" : undefined}>{won(av)}</b></td>
                                 </>
                               );
+                            })()}
+                            {hasIncoming && (() => {
+                              const inc = incomingByKey.get(availKey(r.product_id, r.warehouse_id)) ?? 0;
+                              return <td className="tr mono-number ev-dim">{inc > 0 ? `+${won(inc)}` : "—"}</td>;
                             })()}
                             <td className="tr mono-number ev-dim">{r.product?.safety_stock != null ? won(Number(r.product.safety_stock)) : "—"}</td>
                             <td className="tc">

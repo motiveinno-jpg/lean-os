@@ -130,6 +130,8 @@ export type MoveLine = {
   product_id: string; qty: number; unit_price?: number | null; note?: string | null;
   //   2단계 — 이 줄이 어느 주문 줄을 채우는가(결정 12). 비워 두면 '바로 출고'다.
   order_line_id?: string | null;
+  //   3단계 — 이 줄이 어느 발주 줄을 채우는가. 비워 두면 '바로 입고'다.
+  po_line_id?: string | null;
 };
 
 export type StockDocInput = {
@@ -141,6 +143,7 @@ export type StockDocInput = {
   note?: string | null;
   originalDocId?: string | null;   // 반품·정정이 가리키는 원본(결정 8)
   salesOrderId?: string | null;    // 2단계 — 주문에서 넘어온 출고. 없어도 된다(결정 5)
+  purchaseOrderId?: string | null; // 3단계 — 발주에서 넘어온 입고. 역시 없어도 된다
   lines: MoveLine[];
 };
 
@@ -191,6 +194,7 @@ export async function createStockDoc(
     to_warehouse_id: input.toWarehouseId || null,
     original_doc_id: input.originalDocId || null,
     sales_order_id: input.salesOrderId || null,
+    purchase_order_id: input.purchaseOrderId || null,
     note: input.note?.trim() || null,
     created_by: userId ?? null,
   }).select("id").single();
@@ -208,6 +212,7 @@ export async function createStockDoc(
       company_id: companyId, doc_id: docId, product_id: l.product_id,
       warehouse_id: input.warehouseId, qty: signed,
       order_line_id: l.order_line_id ?? null,
+      po_line_id: l.po_line_id ?? null,
       unit_price: l.unit_price ?? null,
       amount: l.unit_price != null ? Number(l.unit_price) * signed : null,
       moved_at: docDate, note: l.note?.trim() || null,
