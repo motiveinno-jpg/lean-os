@@ -52,6 +52,10 @@ export function MenuGlyph({ n }: { n: string }) {
     case "card": return <svg {...p}><rect x="2" y="5" width="20" height="14" rx="2.5" /><path d="M2 10h20M6 15h4" /></svg>;
     case "drive": return <svg {...p}><path d="M12 3v12" /><path d="M7.5 10.5L12 15l4.5-4.5" /><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>;
     case "sheet": return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18M3 15h18M9 3v18" /></svg>;
+    // 재고 그룹(2026-08-25 신설) — 품목(상자) · 재고(겹친 판) · 생산(공정)
+    case "box": return <svg {...p}><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>;
+    case "layers": return <svg {...p}><path d="M12 2l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /><path d="M3 17l9 5 9-5" /></svg>;
+    case "factory": return <svg {...p}><path d="M3 21V10l6 4V10l6 4V7l6 3v11H3z" /><path d="M7 21v-4M13 21v-4M18 21v-4" /></svg>;
     case "won": return <svg {...p}><path d="M4 7l3.2 10L12 9l4.8 8L20 7" /><path d="M3 12h18" /></svg>;
     case "mail": return <svg {...p}><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>;
     default: return <svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
