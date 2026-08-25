@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
 //   읽기 전용 — 출퇴근 기록/연차 데이터는 기존 attendance_records / leave_requests 그대로 사용.
 //   기존 AttendanceTab(기록 상세·수정)은 보존 — 이 보드는 그 위의 조망 레이어.
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "@/components/query-kit";
 import { supabase } from "@/lib/supabase";
@@ -84,6 +84,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
 }) {
   const isEmployee = role === "employee";
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(kstToday()));
+  //   구성원 정렬 (2026-08-25 사장님) — 근무시간순(기본)·가나다순·팀별
+  const [sortMode, setSortMode] = useState<"hours" | "name" | "team">("hours");
   const weekEnd = addDays(weekStart, 6);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const startStr = ymd(weekStart), endStr = ymd(weekEnd);
@@ -139,6 +141,31 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
     return m;
   }, [weekHolidays]);
 
+  //   회사 근무시간 — 셀 게이지의 '하루 근무량' 기준 (2026-08-25 사장님: 근무 진행률로 채움).
+  const { data: workCfg } = useQuery<{ start: number; end: number; lunch: number }>({
+    queryKey: ["flex-work-cfg", companyId],
+    queryFn: async () => {
+      const { data } = await db.from("company_settings")
+        .select("work_start_time, work_end_time, lunch_minutes").eq("company_id", companyId).maybeSingle();
+      const hhmm = (v: unknown, def: number) => {
+        const m = /^(\d{1,2}):(\d{2})/.exec(String(v || ""));
+        return m ? +m[1] * 60 + +m[2] : def;
+      };
+      return { start: hhmm(data?.work_start_time, 9 * 60), end: hhmm(data?.work_end_time, 18 * 60), lunch: Number(data?.lunch_minutes ?? 60) };
+    },
+    enabled: !!companyId,
+    staleTime: 300_000,
+  });
+  //   기대 하루 근무 분(점심 제외). 게이지 100% 기준.
+  const expectedDayMin = Math.max(60, (workCfg?.end ?? 18 * 60) - (workCfg?.start ?? 9 * 60) - (workCfg?.lunch ?? 60));
+
+  //   현재 시각(KST 분) — 진행 중인 오늘 셀 게이지가 실시간으로 차오르게 1분마다 갱신.
+  const [nowMin, setNowMin] = useState(() => { const k = new Date(Date.now() + 9 * 3600 * 1000); return k.getUTCHours() * 60 + k.getUTCMinutes(); });
+  useEffect(() => {
+    const t = setInterval(() => { const k = new Date(Date.now() + 9 * 3600 * 1000); setNowMin(k.getUTCHours() * 60 + k.getUTCMinutes()); }, 60_000);
+    return () => clearInterval(t);
+  }, []);
+
   const attByEmpDate = useMemo(() => {
     const m = new Map<string, Att>();
     for (const a of atts) m.set(`${a.employee_id}|${a.date}`, a);
@@ -189,9 +216,16 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
         if (a.is_late && (!lv || lv.kind === "pm")) lateDays += 1;
       }
       return { emp: e, total, overtime, lateDays };
-    }).sort((a, b) => b.total - a.total);
+    }).sort((a, b) => {
+      if (sortMode === "name") return a.emp.name.localeCompare(b.emp.name, "ko");
+      if (sortMode === "team") {
+        const t = String(a.emp.department || "힣").localeCompare(String(b.emp.department || "힣"), "ko");
+        return t !== 0 ? t : a.emp.name.localeCompare(b.emp.name, "ko");
+      }
+      return b.total - a.total; // 근무시간순(기본)
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targets, attByEmpDate, leaveByEmpDate, startStr]);
+  }, [targets, attByEmpDate, leaveByEmpDate, startStr, sortMode]);
 
   // 이번주 결근 집계 — 셀의 결근 배지와 동일 규칙(지난 평일 + 무기록 + 휴가 아님 + 입사 이후).
   //   요약 칩 클릭 시 명단 펼침 (2026-07-30 사장님: 결근자 이름을 클릭으로 확인).
@@ -226,20 +260,29 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
 
   const gaugeColor = (min: number) => (min > LIMIT_MIN ? FLEX.red : min > STD_MIN ? FLEX.amber : FLEX.violet);
 
-  // 일별 타임라인 바 (07:00~22:00 스케일)
-  const SCALE_FROM = 7 * 60, SCALE_TO = 22 * 60;
-  const barPos = (a: Att) => {
-    const ci = timeOf(a.check_in), co = timeOf(a.check_out);
-    if (!ci) return null;
+  //   셀 게이지 — 하루 근무 진행률(0~1)로 왼→오 채운다 (2026-08-25 사장님).
+  //     · 퇴근함(정상 출근·퇴근): 실제 근무분/기대근무분 → 보통 꽉 참
+  //     · 근무중(오늘·미퇴근): (지금−출근) 기준으로 1분마다 실시간으로 차오른다(점심 지나면 점심 제외)
+  //     · 지난 날: 저장된 근무분 기준
+  const lunchMin = workCfg?.lunch ?? 60;
+  const cellFill = (a: Att, dstr: string): { frac: number; inProgress: boolean } => {
+    const ci = timeOf(a.check_in);
+    if (!ci) return { frac: 0, inProgress: false };
     const [h1, m1] = ci.split(":").map(Number);
-    const from = Math.max(SCALE_FROM, Math.min(SCALE_TO, h1 * 60 + m1));
-    let to = from + 30;
+    const ciMin = h1 * 60 + m1;
+    const co = timeOf(a.check_out);
+    let worked: number;
+    let inProgress = false;
     if (co) {
-      const [h2, m2] = co.split(":").map(Number);
-      to = Math.max(from + 10, Math.min(SCALE_TO, h2 * 60 + m2));
+      worked = minutesOf(a);
+    } else if (dstr === todayStr && !a.auto_clocked_out) {
+      const gross = Math.max(0, nowMin - ciMin);
+      worked = gross - (gross > expectedDayMin / 2 + lunchMin / 2 ? lunchMin : 0); // 점심 지났으면 제외
+      inProgress = true;
+    } else {
+      worked = minutesOf(a);
     }
-    const span = SCALE_TO - SCALE_FROM;
-    return { left: ((from - SCALE_FROM) / span) * 100, width: ((to - from) / span) * 100, open: !co };
+    return { frac: Math.max(0, Math.min(1, worked / expectedDayMin)), inProgress };
   };
 
   return (
@@ -254,6 +297,16 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
             <button type="button" onClick={() => setWeekStart(addDays(weekStart, 7))} className="qk-quick" aria-label="다음 주">▶</button>
           </span>
           <b className="text-sm text-[var(--text)]">{weekStart.getFullYear()}년 {weekLabel}</b>
+          {/* 구성원 정렬 (2026-08-25 사장님) */}
+          <label className="flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+            정렬
+            <select value={sortMode} onChange={(e) => setSortMode(e.target.value as "hours" | "name" | "team")}
+              className="field-input-sm" style={{ width: "auto", minWidth: 92 }}>
+              <option value="hours">근무시간순</option>
+              <option value="name">가나다순</option>
+              <option value="team">팀별</option>
+            </select>
+          </label>
         </QueryBar>
         {/* 결과 요약 — 목록을 바꾸지 않는 것만. 결근 칩만 명단을 펼친다 */}
         {!isEmployee && (
@@ -338,22 +391,38 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const lv = leaveByEmpDate.get(key);
                     const weekend = i >= 5;
                     if (lv) {
-                      //   반차여도 출근을 찍었으면 출근시간을 함께 보여준다 (2026-08-25 사장님).
+                      //   반차여도 출근을 찍었으면 근무 절반의 진행 게이지 + 출근시간을 보여준다 (2026-08-25 사장님).
+                      //   오전반차 = 왼쪽 '오전반차'(휴무), 오른쪽 오후근무 게이지·시간 / 오후반차 = 그 반대.
                       const lci = a ? timeOf(a.check_in) : null;
                       const lco = a ? timeOf(a.check_out) : null;
+                      const halfFrac = a && a.check_in ? Math.min(1, cellFill(a, ymd(d)).frac * 2) : 0; // 반나절 만근=1
+                      const workColor = a?.is_late && lv.kind === "pm" ? FLEX.amber : FLEX.violet;
                       return (
-                        <td key={i} className="px-1 py-2 text-center align-middle" title={lv.tip + (lci ? ` · 출근 ${lci}${lco ? `~${lco}` : ""}` : "")}>
+                        <td key={i} className="px-1 py-2 align-middle" title={lv.tip + (lci ? ` · 출근 ${lci}${lco ? `~${lco}` : ""}` : "")}>
                           {lv.kind === "full" ? (
-                            <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">휴가</span>
+                            <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold text-center bg-[var(--success-dim)] text-[var(--success)]">휴가</span>
+                          ) : lv.kind === "half" ? (
+                            <div className="relative h-7 rounded-md bg-[var(--bg-surface)] overflow-hidden flex items-center justify-center text-[9px] font-semibold text-[var(--text-muted)]">
+                              반차{lci ? ` · ${lci}${lco ? `~${lco}` : ""}` : ""}
+                            </div>
                           ) : (
-                            // 반차 게이지 — 오전은 왼쪽 절반, 오후는 오른쪽 절반만 채운다 (2026-08-11 사장님)
-                            <span className="flex-halfday-pill">
-                              {lv.kind !== "half" && <span className={`flex-halfday-fill ${lv.kind === "am" ? "left-0" : "right-0"}`} />}
-                              <span className="flex-halfday-label">{lv.kind === "am" ? "오전 반차" : lv.kind === "pm" ? "오후 반차" : "반차"}</span>
-                            </span>
-                          )}
-                          {lv.kind !== "full" && lci && (
-                            <span className="block mt-0.5 text-[9px] leading-tight text-[var(--text-dim)] mono-number">{lci}{lco ? `~${lco}` : ""}</span>
+                            <div className="relative h-7 rounded-md bg-[var(--bg-surface)] overflow-hidden">
+                              {/* 휴무 절반 라벨 */}
+                              <div className={`absolute inset-y-0 w-1/2 ${lv.kind === "am" ? "left-0" : "right-0"} bg-[var(--success-dim)] flex items-center justify-center text-[9px] font-semibold text-[var(--success)]`}>
+                                {lv.kind === "am" ? "오전반차" : "오후반차"}
+                              </div>
+                              {/* 근무 절반의 진행 게이지 */}
+                              {halfFrac > 0 && (
+                                <div className="absolute inset-y-0 rounded transition-[width] duration-500"
+                                  style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: workColor, opacity: 0.85 }} />
+                              )}
+                              {/* 근무 절반의 시간 */}
+                              {lci && (
+                                <div className={`absolute inset-y-0 w-1/2 ${lv.kind === "am" ? "right-0" : "left-0"} flex items-center justify-center text-[9px] font-semibold text-[var(--text)] mix-blend-luminosity`}>
+                                  {lci}{lco ? `~${lco}` : ""}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </td>
                       );
@@ -381,18 +450,21 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                         </td>
                       );
                     }
-                    const pos = barPos(a);
+                    //   근무 진행률 게이지 — 왼→오로 채운다. 퇴근했으면 근무분/기대분(보통 꽉 참),
+                    //     근무중(오늘)이면 지금 시각 기준으로 1분마다 실시간으로 차오른다 (2026-08-25 사장님).
+                    const { frac, inProgress } = cellFill(a, ymd(d));
                     const ci = timeOf(a.check_in), co = timeOf(a.check_out);
+                    const barColor = a.is_late ? FLEX.amber : FLEX.violet;
                     const tip = `${ci ?? "—"} ~ ${co ?? (a.auto_clocked_out ? "자동퇴근" : "근무중")} · ${hm(minutesOf(a))}${a.is_late ? " · 지각" : ""}${Number(a.overtime_minutes || 0) > 0 ? ` · 연장 ${hm(Number(a.overtime_minutes))}` : ""}`;
                     return (
                       <td key={i} className={`px-1 py-2 align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`} title={tip}>
                         <div className="relative h-7 rounded-md bg-[var(--bg-surface)] overflow-hidden">
-                          {pos && (
-                            <div className="absolute top-1 bottom-1 rounded"
-                              style={{ left: `${pos.left}%`, width: `${Math.max(pos.width, 6)}%`, background: a.is_late ? FLEX.amber : FLEX.violet, opacity: pos.open ? 0.55 : 0.9 }} />
+                          {ci && frac > 0 && (
+                            <div className="absolute inset-y-0 left-0 rounded transition-[width] duration-500"
+                              style={{ width: `${Math.max(frac * 100, 6)}%`, background: barColor, opacity: inProgress ? 0.7 : 0.9 }} />
                           )}
                           <div className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-[var(--text)] mix-blend-luminosity">
-                            {ci}{co ? `–${co}` : ""}
+                            {ci}{co ? `–${co}` : inProgress ? " 근무중" : ""}
                           </div>
                         </div>
                       </td>
