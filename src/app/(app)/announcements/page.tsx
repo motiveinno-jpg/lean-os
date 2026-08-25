@@ -104,7 +104,8 @@ export default function AnnouncementsPage() {
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k));
   const cf = useColFilters();
   const tableRef = useRef<HTMLTableElement | null>(null);
-  const [colW, setColW] = useColWidths("announcements-colw-v1", { pin: 60, category: 100, title: 420, author: 140, created: 170 });
+  // v2 (2026-08-25 사장님): 고정·분류·작성자·등록을 좁히고 제목을 넓게 — 키를 올려 기존 저장 너비에도 적용
+  const [colW, setColW] = useColWidths("announcements-colw-v2", { pin: 44, category: 72, title: 680, author: 104, created: 150 });
   const thResize = (k: string, colIndex: number) => ({ k, colIndex, widths: colW, onResize: setColW, tableRef });
   const catLabel = (c: string) => (CATEGORY_META[c] || CATEGORY_META.notice).label;
   const day = (v: string) => String(v || "").slice(0, 10);
@@ -206,13 +207,17 @@ export default function AnnouncementsPage() {
                             </span>
                           </td>
                           <td className="text-center">{a.author_name || a.author_email || "운영자"}</td>
-                          <td className="text-center mono-number whitespace-nowrap">{new Date(a.created_at).toLocaleString("ko-KR")}{a.updated_at !== a.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
+                          {/* 초 단위는 공지에 의미가 없어 뺀다 — 등록칸을 좁히기 위함 (2026-08-25) */}
+                          <td className="text-center mono-number whitespace-nowrap">{new Date(a.created_at).toLocaleString("ko-KR", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}{a.updated_at !== a.created_at && <span className="text-[10px] text-[var(--text-dim)]"> (수정됨)</span>}</td>
                         </tr>
                         {expanded && (
+                          // 본문은 제목 칸 폭 안에서만 — 양 옆(고정·분류 / 작성자·등록)은 여백 (2026-08-25 사장님)
                           <tr className="annc-detail-row">
-                            <td colSpan={5}>
-                              <div className="text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed px-4 py-3">{a.content}</div>
+                            <td colSpan={2} />
+                            <td>
+                              <div className="annc-detail-body">{a.content}</div>
                             </td>
+                            <td colSpan={2} />
                           </tr>
                         )}
                       </Fragment>

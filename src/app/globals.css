@@ -3717,6 +3717,8 @@ table.annc-table { min-width: 860px; }
 .annc-table tbody tr.annc-row:hover td { background: var(--bg-surface); }
 .annc-table tbody tr.annc-row-open td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
 .annc-table tbody tr.annc-detail-row > td { @apply bg-[var(--bg-surface)]/40 p-0; max-width: 0; white-space: normal; }
+/* 펼침 본문 — 제목 칸 폭 안에서만, 좌우 패딩은 제목 텍스트와 정렬 (2026-08-25) */
+.annc-detail-body { @apply text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed px-3 py-3; }
 table.notif-table { min-width: 960px; }
 .notif-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
 .notif-table td.truncate { max-width: 0; }
