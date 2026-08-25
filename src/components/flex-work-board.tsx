@@ -390,37 +390,26 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const a = attByEmpDate.get(key);
                     const lv = leaveByEmpDate.get(key);
                     const weekend = i >= 5;
+                    //   셀 공통 박스 — 테두리로 배경과 구분되게, 글자는 진하게(2줄), 게이지는 바닥 얇은 바 (2026-08-25 사장님).
                     if (lv) {
-                      //   반차여도 출근을 찍었으면 근무 절반의 진행 게이지 + 출근시간을 보여준다 (2026-08-25 사장님).
-                      //   오전반차 = 왼쪽 '오전반차'(휴무), 오른쪽 오후근무 게이지·시간 / 오후반차 = 그 반대.
                       const lci = a ? timeOf(a.check_in) : null;
                       const lco = a ? timeOf(a.check_out) : null;
                       const halfFrac = a && a.check_in ? Math.min(1, cellFill(a, ymd(d)).frac * 2) : 0; // 반나절 만근=1
                       const workColor = a?.is_late && lv.kind === "pm" ? FLEX.amber : FLEX.violet;
+                      const label = lv.kind === "am" ? "오전반차" : lv.kind === "pm" ? "오후반차" : "반차";
                       return (
                         <td key={i} className="px-1 py-2 align-middle" title={lv.tip + (lci ? ` · 출근 ${lci}${lco ? `~${lco}` : ""}` : "")}>
                           {lv.kind === "full" ? (
-                            <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold text-center bg-[var(--success-dim)] text-[var(--success)]">휴가</span>
-                          ) : lv.kind === "half" ? (
-                            <div className="relative h-7 rounded-md bg-[var(--bg-surface)] overflow-hidden flex items-center justify-center text-[9px] font-semibold text-[var(--text-muted)]">
-                              반차{lci ? ` · ${lci}${lco ? `~${lco}` : ""}` : ""}
-                            </div>
+                            <div className="fw-cell fw-cell-leave">휴가</div>
                           ) : (
-                            <div className="relative h-7 rounded-md bg-[var(--bg-surface)] overflow-hidden">
-                              {/* 휴무 절반 라벨 */}
-                              <div className={`absolute inset-y-0 w-1/2 ${lv.kind === "am" ? "left-0" : "right-0"} bg-[var(--success-dim)] flex items-center justify-center text-[9px] font-semibold text-[var(--success)]`}>
-                                {lv.kind === "am" ? "오전반차" : "오후반차"}
-                              </div>
-                              {/* 근무 절반의 진행 게이지 */}
+                            <div className="fw-cell fw-cell-box relative flex flex-col items-center justify-center gap-0.5">
+                              <span className="text-[9px] font-bold text-[var(--success)] leading-none">{label}</span>
+                              {lci
+                                ? <span className="text-[9px] font-semibold text-[var(--text)] leading-none mono-number">{lci}{lco ? `~${lco}` : ""}</span>
+                                : <span className="text-[9px] text-[var(--text-dim)] leading-none">미출근</span>}
                               {halfFrac > 0 && (
-                                <div className="absolute inset-y-0 rounded transition-[width] duration-500"
-                                  style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: workColor, opacity: 0.85 }} />
-                              )}
-                              {/* 근무 절반의 시간 */}
-                              {lci && (
-                                <div className={`absolute inset-y-0 w-1/2 ${lv.kind === "am" ? "right-0" : "left-0"} flex items-center justify-center text-[9px] font-semibold text-[var(--text)] mix-blend-luminosity`}>
-                                  {lci}{lco ? `~${lco}` : ""}
-                                </div>
+                                <div className="absolute bottom-0 h-[3px] rounded-full transition-[width] duration-500"
+                                  style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: workColor }} />
                               )}
                             </div>
                           )}
@@ -428,16 +417,12 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       );
                     }
                     if (!a || (!a.check_in && !minutesOf(a))) {
-                      // 결근 표시 — 지난 평일인데 기록·휴가가 없으면 공백 대신 "결근"
-                      //   (2026-07-30 사장님). 오늘/미래·주말·입사 전 날짜는 제외.
-                      //   공휴일은 "—" 가 아니라 이름을 보여준다 (2026-08-19 사장님).
+                      // 결근/공휴일/빈칸 — 지난 평일인데 기록·휴가가 없으면 '결근' (2026-07-30 사장님).
                       const dstr = ymd(d);
                       if (holidaySet.has(dstr)) {
                         return (
                           <td key={i} className="px-1 py-2 text-center align-middle bg-[var(--bg-surface)]/30">
-                            <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--info-dim,var(--bg-surface))] text-[var(--info)]" title={holidayNameByDate.get(dstr)}>
-                              {holidayNameByDate.get(dstr) || "공휴일"}
-                            </span>
+                            <div className="fw-cell fw-cell-holiday" title={holidayNameByDate.get(dstr)}>{holidayNameByDate.get(dstr) || "공휴일"}</div>
                           </td>
                         );
                       }
@@ -445,12 +430,12 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent
-                            ? <span className="inline-block w-full py-1.5 rounded-md text-[10px] font-semibold bg-[var(--danger-dim)] text-[var(--danger)]">결근</span>
-                            : <span className="text-[var(--text-dim)]">—</span>}
+                            ? <div className="fw-cell fw-cell-absent">결근</div>
+                            : <div className="fw-cell text-[var(--text-dim)]">—</div>}
                         </td>
                       );
                     }
-                    //   근무 진행률 게이지 — 왼→오로 채운다. 퇴근했으면 근무분/기대분(보통 꽉 참),
+                    //   근무 진행률 게이지 — 바닥 바가 왼→오로 채워진다. 퇴근했으면 근무분/기대분(대개 꽉 참),
                     //     근무중(오늘)이면 지금 시각 기준으로 1분마다 실시간으로 차오른다 (2026-08-25 사장님).
                     const { frac, inProgress } = cellFill(a, ymd(d));
                     const ci = timeOf(a.check_in), co = timeOf(a.check_out);
@@ -458,14 +443,15 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const tip = `${ci ?? "—"} ~ ${co ?? (a.auto_clocked_out ? "자동퇴근" : "근무중")} · ${hm(minutesOf(a))}${a.is_late ? " · 지각" : ""}${Number(a.overtime_minutes || 0) > 0 ? ` · 연장 ${hm(Number(a.overtime_minutes))}` : ""}`;
                     return (
                       <td key={i} className={`px-1 py-2 align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`} title={tip}>
-                        <div className="relative h-7 rounded-md bg-[var(--bg-surface)] overflow-hidden">
+                        <div className="fw-cell fw-cell-box relative flex flex-col items-center justify-center gap-0.5">
+                          <span className="text-[9px] font-semibold text-[var(--text)] leading-none mono-number">{ci ?? "—"}</span>
+                          <span className="text-[9px] font-semibold leading-none mono-number" style={{ color: co ? "var(--text)" : inProgress ? barColor : "var(--text-dim)" }}>
+                            {co ? co : inProgress ? "근무중" : "—"}
+                          </span>
                           {ci && frac > 0 && (
-                            <div className="absolute inset-y-0 left-0 rounded transition-[width] duration-500"
-                              style={{ width: `${Math.max(frac * 100, 6)}%`, background: barColor, opacity: inProgress ? 0.7 : 0.9 }} />
+                            <div className="absolute bottom-0 left-0 h-[3px] rounded-full transition-[width] duration-500"
+                              style={{ width: `${Math.max(frac * 100, 4)}%`, background: barColor }} />
                           )}
-                          <div className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-[var(--text)] mix-blend-luminosity">
-                            {ci}{co ? `–${co}` : inProgress ? " 근무중" : ""}
-                          </div>
                         </div>
                       </td>
                     );
