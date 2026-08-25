@@ -530,7 +530,7 @@ export function MorningBrief({
 
         {!aiBrief && !aiBriefingEnabled && (
           <p className="morning-brief-upsell">
-            <Ico e="✦" /> 지금은 규칙으로 만든 기본 브리핑이에요. 매일 아침 AI가 오늘의 우선순위를 액션 플랜으로 정리해 주는 <b>AI 브리핑</b>은 오너뷰 요금제부터 쓸 수 있어요.{" "}
+            <Ico e="✦" /> 지금은 규칙으로 만든 기본 브리핑입니다. 매일 아침 AI가 오늘의 우선순위를 액션 플랜으로 정리해 주는 <b>AI 브리핑</b>은 오너뷰 요금제부터 사용할 수 있습니다.{" "}
             <Link href="/billing" className="text-[var(--primary)] font-semibold hover:underline">업그레이드 →</Link>
           </p>
         )}

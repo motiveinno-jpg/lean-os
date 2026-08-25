@@ -77,7 +77,7 @@ export function BoardExpiry({ items, cols, groups, partnerName, onOpen, onAdvanc
   }, [items, endCol, today]);
 
   if (!endCol) {
-    return <p className="pj-sec-empty">만기 날짜 칸이 있어야 이 화면을 그릴 수 있어요. 표에서 날짜 칸을 하나 만들어 주세요.</p>;
+    return <p className="pj-sec-empty">만기 날짜 칸이 있어야 이 화면을 그릴 수 있습니다. 표에서 날짜 칸을 하나 만들어 주세요.</p>;
   }
   return (
     <div className="pbx">
@@ -102,7 +102,7 @@ export function BoardExpiry({ items, cols, groups, partnerName, onOpen, onAdvanc
       </div>
 
       {rows.length === 0 && (
-        <p className="pj-sec-empty">아직 계약이 없어요. 위 줄에 한 줄 적으면 만기 순으로 세워 드려요.</p>
+        <p className="pj-sec-empty">아직 계약이 없습니다. 위 줄에 한 줄 적으면 만기 순으로 세워 드립니다.</p>
       )}
       {rows.map(({ it, d }) => {
         const cur = flow ? options.find((o) => o.id === it.values?.[flow.id]) : null;

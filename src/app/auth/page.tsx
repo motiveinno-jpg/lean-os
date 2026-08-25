@@ -93,7 +93,7 @@ export default function AuthPage() {
       return;
     }
     if (sp.get("error") === "auth_callback_error") {
-      setError("소셜 로그인이 완료되지 않았습니다. 동의를 거부했거나 링크가 만료됐을 수 있어요. 다시 시도해주세요.");
+      setError("소셜 로그인이 완료되지 않았습니다. 동의를 거부했거나 링크가 만료됐을 수 있습니다. 다시 시도해 주세요.");
       // 새로고침 시 에러가 또 뜨지 않게 주소만 정리 (히스토리 오염 없이)
       sp.delete("error");
       const qs = sp.toString();

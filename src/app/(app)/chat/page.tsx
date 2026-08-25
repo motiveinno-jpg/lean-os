@@ -312,7 +312,7 @@ function PersonRow({ p, active, unread, busy, isMe, onClick }: {
   const disabled = isMe || !p.userId || busy;
   return (
     <button type="button" disabled={disabled} onClick={onClick}
-      title={isMe ? "나입니다" : p.userId ? `${p.name} 님과 1:1 대화` : "앱 계정이 없어 대화를 걸 수 없어요"}
+      title={isMe ? "나입니다" : p.userId ? `${p.name} 님과 1:1 대화` : "앱 계정이 없어 대화를 걸 수 없습니다"}
       className={`chat-person ${active ? "chat-person-on" : ""} ${disabled ? "chat-person-off" : ""}`}>
       <span className="chat-person-face">{(p.name || "?").slice(0, 1)}</span>
       <span className="chat-person-body">

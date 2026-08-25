@@ -87,13 +87,13 @@ export function BoardTrash({ dealId, boardIds, boardNames, onClose }: {
         <header className="pb-doc-head">
           <div>
             <b>지운 항목</b>
-            <span>{KEEP_DAYS}일 안에는 되살릴 수 있어요</span>
+            <span>{KEEP_DAYS}일 안에는 되살릴 수 있습니다</span>
           </div>
           <button type="button" onClick={onClose} title="닫기">✕</button>
         </header>
         <div className="pb-trash-body">
           {isLoading ? <p className="pb-doc-hint">불러오는 중…</p>
-            : rows.length === 0 ? <p className="pb-doc-hint">지운 것이 없어요.</p>
+            : rows.length === 0 ? <p className="pb-doc-hint">지운 것이 없습니다.</p>
             : rows.map((r) => {
               const d = daysAgo(r.archived_at);
               const over = d >= KEEP_DAYS;

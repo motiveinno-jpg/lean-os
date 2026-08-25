@@ -142,7 +142,7 @@ export default function CompanySetupPage() {
           <div className="text-4xl mb-3" aria-hidden><Ico e="🏢" /></div>
           <h1 className="text-2xl font-extrabold text-[var(--text)]">회사 정보를 설정해주세요</h1>
           <p className="text-[var(--text-muted)] text-sm mt-1.5 leading-relaxed">
-            회사 이름만 알려주시면 바로 시작할 수 있어요.<br />
+            회사 이름만 알려주시면 바로 시작할 수 있습니다.<br />
             사업자번호는 통장·세금계산서를 쓰실 때 등록하셔도 됩니다.
           </p>
         </div>
@@ -233,7 +233,7 @@ export default function CompanySetupPage() {
                 </button>
                 {!bizNo.trim() && (
                   <p className="text-[11px] text-[var(--text-dim)] mt-2 text-center leading-relaxed">
-                    결재·일정·게시판·파일보관함은 바로 쓸 수 있어요.<br />
+                    결재·일정·게시판·파일보관함은 바로 쓸 수 있습니다.<br />
                     통장 연결·세금계산서·결제는 사업자번호를 등록하면 열립니다.
                   </p>
                 )}

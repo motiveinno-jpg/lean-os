@@ -183,7 +183,7 @@ export function GoalOverviewTab({ deal, compact, onExpand }: { deal: any; compac
   const checkinPoints = (updates as any[]).map((u) => ({ label: String(u.period_start || u.update_date || "").slice(5, 10), status: u.status }));
 
   if (kpiList.length === 0 && compact) {
-    return <p className="pj-sec-empty">‘목표 설정’에서 목표를 정하면 달성률이 여기에 표시돼요.</p>;
+    return <p className="pj-sec-empty">‘목표 설정’에서 목표를 정하면 달성률이 여기에 표시됩니다.</p>;
   }
   if (kpiList.length === 0) {
     return (

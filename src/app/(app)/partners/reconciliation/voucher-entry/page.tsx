@@ -1037,7 +1037,7 @@ export default function VoucherEntryPage() {
                   <ConditionRow label="적요" hint="전표 적요 · 줄 적요">
                     <input className="qk-input w-full" value={draft.memo} placeholder="예: 임대료" onChange={(e) => setD("memo")(e.target.value)} />
                   </ConditionRow>
-                  <ConditionRow label="출처" hint="여기서 친 것 / 자동으로 만든 것">
+                  <ConditionRow label="출처" hint="직접 입력한 것 / 자동으로 만든 것">
                     <span className="qk-quicks">
                       {[["", "전체"], ["manual", "직접 입력"], ["auto", "자동 생성"]].map(([v, l]) => (
                         <button key={v} type="button" onClick={() => setD("src")(v)} className={draft.src === v ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>

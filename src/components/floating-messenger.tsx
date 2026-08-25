@@ -125,7 +125,7 @@ export function FloatingMessenger() {
         onPointerMove={onFabPointerMove}
         onPointerUp={onFabPointerUp}
         aria-label="메신저 새 창으로 열기"
-        title="메신저를 새 창으로 엽니다 — 드래그하면 이 단추 위치를 옮길 수 있어요"
+        title="메신저를 새 창으로 엽니다 — 드래그하면 이 단추 위치를 옮길 수 있습니다"
         className={`messenger-fab ${pos ? "" : "bottom-6 right-6"}`}
         style={{ background: "linear-gradient(135deg, #4338ca, #6366f1)", boxShadow: "0 8px 24px rgba(0,0,0,0.35)", ...(pos ? { left: pos.x, top: pos.y } : {}) }}
       >

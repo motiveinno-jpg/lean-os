@@ -743,7 +743,7 @@ export function BoardDocModal({
                 ))}
               </ul>
               {kind === "contract" && (
-                <p className="pb-doc-hint">저장하면 표 위에서 이 회차대로 <b>청구 줄을 만들 수 있어요</b>. ‘＋ 발행’ 은 이 회차를 그대로 씁니다.</p>
+                <p className="pb-doc-hint">저장하면 표 위에서 이 회차대로 <b>청구 줄을 만들 수 있습니다</b>. ‘＋ 발행’ 은 이 회차를 그대로 씁니다.</p>
               )}
             </section>
           )}
@@ -772,7 +772,7 @@ export function BoardDocModal({
             </section>
           )}
           {kind === "contract" && richBody && (
-            <p className="pb-doc-hint">이 계약서는 편집기에서 <b>서식(레이아웃)</b>으로 작성돼 있어요. 본문은 아래 ‘편집기’ 에서 고치세요.</p>
+            <p className="pb-doc-hint">이 계약서는 편집기에서 <b>서식(레이아웃)</b>으로 작성돼 있습니다. 본문은 아래 ‘편집기’ 에서 고치세요.</p>
           )}
 
           {/* 비고 — 견적서 PDF 하단에 그대로 찍힌다 */}
@@ -915,7 +915,7 @@ export function BoardDocModal({
               <p className="pb-doc-hint">
                 {quoteSent
                   ? <>이 견적서는 <b>이미 거래처에 보냈습니다</b>. 보낸 문서를 사후에 바꾸면 거래처가 가진 견적서와 기록이 달라져요 — 대신 <b>개정 견적서</b>를 새로 만들어 다시 보내세요. 원본 견적은 그대로 남습니다.</>
-                  : <>이 견적서는 <b>아직 보내지 않았습니다</b>. 계약 내용으로 맞춰도 안전해요.</>}
+                  : <>이 견적서는 <b>아직 보내지 않았습니다</b>. 계약 내용으로 맞춰도 안전합니다.</>}
               </p>
             </div>
             <footer className="pb-doc-foot">

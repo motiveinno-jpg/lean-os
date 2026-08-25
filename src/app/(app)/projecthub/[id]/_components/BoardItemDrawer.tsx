@@ -161,7 +161,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
   //   같은 함수가 버킷·경로를 뽑아 살려 준다. 받을 때 이름은 올릴 때 쓴 원본 이름 그대로.
   const openFile = async (n: ItemNote) => {
     const url = await resolveSignedUrl(n.file_url, n.file_name || undefined);
-    if (!url) { toast("파일 주소를 만들지 못했어요. 다시 올려 주세요.", "error"); return; }
+    if (!url) { toast("파일 주소를 만들지 못했습니다. 다시 올려 주세요.", "error"); return; }
     const a = document.createElement("a");
     a.href = url;
     a.rel = "noopener";
@@ -176,7 +176,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
   const removeNote = async (n: ItemNote) => {
     if (!canRemoveNote(n)) return;
     const { error } = await db.from("project_board_item_notes").delete().eq("id", n.id);
-    if (error) { toast("내가 쓴 노트만 지울 수 있어요.", "error"); return; }
+    if (error) { toast("내가 쓴 노트만 삭제할 수 있습니다.", "error"); return; }
     refresh();
   };
 
@@ -206,7 +206,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
 
         <section className="pb-drawer-notes">
           <b>메모 · 파일</b>
-          {notes.length === 0 && <p className="pb-drawer-empty">아직 없어요. 진행 상황이나 파일을 여기에 남기세요.</p>}
+          {notes.length === 0 && <p className="pb-drawer-empty">아직 없습니다. 진행 상황이나 파일을 여기에 남기세요.</p>}
           {notes.map((n) => (
             <div key={n.id} className="pb-note">
               <span className="pb-note-who">{nameOf(n.user_id) || "누군가"}<em>{String(n.created_at).slice(5, 16).replace("T", " ")}</em></span>
@@ -220,7 +220,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
 
         <footer className="pb-drawer-foot">
           <textarea ref={taRef} value={text} onChange={(e) => onTextChange(e.currentTarget)} rows={3}
-            placeholder="메모 남기기 — @ 로 사람을 부를 수 있어요 (Ctrl+Enter 로 남기기)"
+            placeholder="메모 남기기 — @ 로 사람을 부를 수 있습니다 (Ctrl+Enter 로 저장)"
             onKeyDown={(e) => {
               if (at && atList.length > 0) {
                 if (e.key === "ArrowDown") { e.preventDefault(); setAt({ ...at, idx: (at.idx + 1) % atList.length }); return; }

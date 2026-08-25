@@ -110,7 +110,7 @@ export function BoardCalendar({ items, cols, flowCol, onOpen, onCreateRange }: {
   }
 
   if (dateCols.length === 0) {
-    return <p className="pj-sec-empty">날짜 칸이 있어야 달력에 얹을 수 있어요. 표에서 날짜 컬럼을 하나 만들어 주세요.</p>;
+    return <p className="pj-sec-empty">날짜 칸이 있어야 달력에 얹을 수 있습니다. 표에서 날짜 컬럼을 하나 만들어 주세요.</p>;
   }
 
   return (

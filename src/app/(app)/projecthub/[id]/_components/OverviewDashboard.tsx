@@ -72,18 +72,18 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
           sub: contractInc > 0 ? `목표 ${won(goal)} · 계약 ${won(contractInc)}` : `목표 ${won(goal)} · 아직 계약 전`,
           tone: goalPct != null && goalPct >= 100 ? "ok" : undefined }
       : { label: "계약금액", icon: "📄", chip: "pj-chip-a", value: contractInc > 0 ? won(contractInc) : "—",
-          sub: contractInc > 0 ? "VAT 포함" : "아직 정하지 않았어요" },
-    { label: "입금액", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "아직 발행 전이에요", tone: "ok" },
+          sub: contractInc > 0 ? "VAT 포함" : "아직 정하지 않았습니다" },
+    { label: "입금액", icon: "💰", chip: "pj-chip-b", value: paid > 0 ? won(paid) : "—", sub: collectRate != null ? `발행액의 ${collectRate}%` : "아직 발행 전입니다", tone: "ok" },
     // 발행이 아예 없으면 '없음'이 아니라 '—' 다 — 다 받은 것과 아직 청구를 안 한 것은 다르다
     //   (2026-08-03 사장님 지적: 입금액·마진은 '—'인데 미수금만 '없음'이라 기준이 달라 보였다)
     { label: "미수금", icon: "⏳", chip: "pj-chip-c",
       value: out > 1 ? won(out) : billed > 0 ? "없음" : "—",
-      sub: out > 1 ? "발행 후 입금 확인 전" : billed > 0 ? "모두 들어왔어요" : "아직 발행 전이에요",
+      sub: out > 1 ? "발행 후 입금 확인 전" : billed > 0 ? "모두 입금됐습니다" : "아직 발행 전입니다",
       tone: out > 1 ? "risk" : undefined },
     {
       label: "마진", icon: "📈", chip: "pj-chip-d",
       value: revenueNet > 0 ? won(marginNet) : "—",
-      sub: revenueNet <= 0 ? "매출이 잡히면 계산돼요"
+      sub: revenueNet <= 0 ? "매출이 잡히면 계산됩니다"
         : costNet <= 0 ? "비용 등록 전 · 공급가 기준"
         : `마진율 ${marginRate}% · 비용 ${won(costNet)}`,
       tone: marginNet < 0 ? "risk" : costNet > 0 ? "ok" : undefined,
@@ -113,7 +113,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
         <section className="pj-panel">
           <div className="pj-dash-head"><b>수금 현황</b><span>목표 · 계약 · 발행 · 입금 (VAT 포함)</span></div>
           {contractInc === 0 && billed === 0 && !(facts?.goalAmount) ? (
-            <p className="pj-dash-empty">계약금액이나 세금계산서가 등록되면 표시돼요.</p>
+            <p className="pj-dash-empty">계약금액이나 세금계산서가 등록되면 표시됩니다.</p>
           ) : (
             <div className="pj-dash-flow">
               {(goal > 0
@@ -129,7 +129,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
               {goal > 0 && contractInc < goal && (
                 <p className="pj-dash-note pj-dash-note-plain">목표까지 <b className="pj-dash-goal">{won(goal - contractInc)}</b> 남았어요.</p>
               )}
-              {out > 1 && <p className="pj-dash-note">미수금 <b>{won(out)}</b> — 발행액과 입금액의 차이예요.</p>}
+              {out > 1 && <p className="pj-dash-note">미수금 <b>{won(out)}</b> — 발행액과 입금액의 차이입니다.</p>}
             </div>
           )}
         </section>
@@ -138,7 +138,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
         <section className="pj-panel">
           <div className="pj-dash-head"><b>월별 발행·입금</b><span>최근 6개월</span></div>
           {months.length === 0 ? (
-            <p className="pj-dash-empty">세금계산서를 발행하면 월별로 표시돼요.</p>
+            <p className="pj-dash-empty">세금계산서를 발행하면 월별로 표시됩니다.</p>
           ) : (
             <>
               <div className="pj-dash-bars">
@@ -190,7 +190,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
               </div>
             </>
           ) : (
-            <p className="pj-dash-empty">업무를 등록하면 진행 현황이 표시돼요.</p>
+            <p className="pj-dash-empty">업무를 등록하면 진행 현황이 표시됩니다.</p>
           )}
       </section>
     </>

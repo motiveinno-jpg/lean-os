@@ -91,7 +91,7 @@ export default function SeveranceCalculatorView() {
           <div className="lp4-sec-head lp4-sec-head-c">
             <div className="lp4-eyebrow">무료 도구</div>
             <h1 className="lp4-h2">퇴직금 계산기</h1>
-            <p className="lp4-sub">입사일·퇴직일·월급만 넣으면 고용노동부 방식(평균임금 × 30일 × 재직일수/365)으로 예상 퇴직금을 계산해 드려요. 회원가입 없이 무료입니다.</p>
+            <p className="lp4-sub">입사일·퇴직일·월급만 넣으면 고용노동부 방식(평균임금 × 30일 × 재직일수/365)으로 예상 퇴직금을 계산해 드립니다. 회원가입 없이 무료입니다.</p>
           </div>
 
           <div className="lp4-freetool-card">

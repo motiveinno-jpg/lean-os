@@ -54,7 +54,7 @@ export function BoardDeals({ items, cols, partnerName, userName, onOpen, onStage
   }, [items, amtCol?.id, paidCol?.id, dateCol?.id]);
 
   if (items.length === 0) {
-    return <p className="pj-sec-empty">아직 매출 건이 없어요. ‘표’ 에서 한 줄 적으면 여기에 카드로 세워 드려요.</p>;
+    return <p className="pj-sec-empty">아직 매출 건이 없습니다. ‘표’ 에서 한 줄 적으면 여기에 카드로 세워 드립니다.</p>;
   }
 
   return (

@@ -118,7 +118,7 @@ export function ApprovalsPendingCard({ companyId }: { companyId: string }) {
 
   return (
     <ActivityCard title="결재 대기" href="/approvals" count={data?.total} empty={(data?.total ?? 0) === 0}
-      emptyText="대기 중인 결재가 없습니다 — 모두 처리했어요.">
+      emptyText="대기 중인 결재가 없습니다 — 모두 처리했습니다.">
       {items.map((it) => (
         <Link key={`${it.kind}-${it.id}`} href={it.href} className="dash-approval-row">
           <Badge label={it.badge} tone="var(--warning)" />

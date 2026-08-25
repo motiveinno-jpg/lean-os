@@ -991,7 +991,7 @@ export function ChatRoomView({ channelId, onBack, embedded, compact, onOpenChann
                 <div key={p.id} role={canDm ? "button" : undefined} tabIndex={canDm ? 0 : undefined}
                   onClick={() => canDm && openDmWith(p)}
                   onKeyDown={(e) => { if (canDm && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openDmWith(p); } }}
-                  title={isMe ? "나입니다" : canDm ? `${p.users?.name || "이 사람"} 님과 1:1 대화` : "앱 계정이 없어 대화를 걸 수 없어요"}
+                  title={isMe ? "나입니다" : canDm ? `${p.users?.name || "이 사람"} 님과 1:1 대화` : "앱 계정이 없어 대화를 걸 수 없습니다"}
                   className={`chat-participant-row ${canDm ? "chat-participant-row-go" : ""}`}>
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-[var(--primary)]/10 flex items-center justify-center text-xs font-bold text-[var(--primary)]">

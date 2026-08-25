@@ -146,7 +146,7 @@ export function ProjectMembers({ dealId, companyId, users }: {
 
           <span className="pj-mem-block">
             <b>넣기</b>
-            {matches.length === 0 ? <span className="pj-mem-empty">더 넣을 사람이 없어요</span> : matches.map((u) => (
+            {matches.length === 0 ? <span className="pj-mem-empty">더 넣을 사람이 없습니다</span> : matches.map((u) => (
               <button key={u.id} type="button" className="pj-mem-row pj-mem-pick" onClick={() => add([u.id])}>
                 <i className="pj-mem-face">{faceOf(u.name)}</i>{u.name}
               </button>

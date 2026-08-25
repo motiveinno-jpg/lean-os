@@ -293,7 +293,7 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
       ) : isLoading ? (
         <p className="pj-sec-empty">불러오는 중…</p>
       ) : rows.length === 0 ? (
-        <p className="pj-sec-empty">{since} ~ {until} 사이에 집행된 광고가 없어요.</p>
+        <p className="pj-sec-empty">{since} ~ {until} 사이에 집행된 광고가 없습니다.</p>
       ) : (<>
         {/* 담긴 위젯을 고른 차례대로 그린다 — 켜고 끄기·순서는 '위젯' 에서 (2026-08-06) */}
         {widgets.map((w) => (
@@ -588,7 +588,7 @@ function ChartBody({ chart, byDay, entities, byEntity }: {
         return { label: e.name || e.entity_id, value: Number(m[chart.metric]) || 0, v2: Number(m[chart.metric2]) || 0 };
       }).sort((a, b) => b.value - a.value).slice(0, 12);
 
-  if (data.length === 0) return <p className="pj-sec-empty">그릴 값이 없어요.</p>;
+  if (data.length === 0) return <p className="pj-sec-empty">그릴 값이 없습니다.</p>;
 
   //   ⚠️ 도넛·묶음·깔때기는 '무엇이 얼마를 차지하나'를 보는 그림이다 — 조각이 여덟을 넘으면
   //   색이 모자라 읽을 수 없다. 큰 것 일곱만 두고 나머지는 '기타'로 접는다(색을 새로 만들지 않는다).

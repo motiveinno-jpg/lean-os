@@ -989,7 +989,7 @@ export default function ReconciliationPage() {
               <span className="absolute inset-0 rounded-full bg-purple-500/20 animate-ping" />
               <span className="relative w-10 h-10 rounded-full border-4 border-purple-500/25 border-t-purple-500 animate-spin" />
             </div>
-            <div className="text-base font-bold">AI가 거래를 매칭하고 있어요</div>
+            <div className="text-base font-bold">AI가 거래를 매칭하고 있습니다</div>
             <div className="text-xs text-[var(--text-muted)] mt-1 mb-4 h-4 transition-all">{AI_MSGS[aiMsgIdx]}</div>
             {(() => {
               const total = aiProgress?.total ?? 0;

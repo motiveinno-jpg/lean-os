@@ -162,7 +162,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
         <div>
           <h3 className="text-sm font-bold text-[var(--text)]">계약 양식</h3>
           <p className="text-xs text-[var(--text-dim)] mt-1">
-            우리 회사 계약서 양식입니다. 서명 요청·견적 발송 시 사용됩니다. 새로 만들 때 오너뷰 표준 계약서에서 시작할 수 있어요.
+            우리 회사 계약서 양식입니다. 서명 요청·견적 발송 시 사용됩니다. 새로 만들 때 오너뷰 표준 계약서에서 시작할 수 있습니다.
           </p>
         </div>
         <div className="relative">
@@ -259,7 +259,7 @@ export default function ContractTemplatesManager({ companyId }: Props) {
       {/* 우리 회사가 만든 계약 양식 */}
       {listTab === "company" && (companyTemplates.length === 0 ? (
         <div className="templates-empty">
-          아직 만든 계약 양식이 없습니다. <b>+ 양식 추가</b>로 만들어 보세요. (표준 계약서에서 시작할 수 있어요)
+          아직 만든 계약 양식이 없습니다. <b>+ 양식 추가</b>로 만들어 보세요. (표준 계약서에서 시작할 수 있습니다)
         </div>
       ) : (
         <div className="grid gap-1.5">

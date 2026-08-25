@@ -98,7 +98,7 @@ export function TeamTab({ dealId, companyId, users, managerId, managerName }: {
 
   const add = async () => {
     if (!addUser) { toast("배정할 구성원을 고르세요", "error"); return; }
-    if (assignedIds.has(addUser)) { toast("이미 배정된 구성원이에요", "error"); return; }
+    if (assignedIds.has(addUser)) { toast("이미 배정된 구성원입니다", "error"); return; }
     setSaving(true);
     try {
       const { error } = await db.from("deal_assignments").insert({
@@ -107,7 +107,7 @@ export function TeamTab({ dealId, companyId, users, managerId, managerName }: {
       if (error) throw new Error(error.message);
       setAddUser("");
       qc.invalidateQueries({ queryKey: ["deal-assignments", dealId] });
-      toast("담당으로 배정했어요", "success");
+      toast("담당으로 배정했습니다", "success");
     } catch (e: any) { toast(e?.message || "배정 실패", "error"); } finally { setSaving(false); }
   };
 
@@ -120,7 +120,7 @@ export function TeamTab({ dealId, companyId, users, managerId, managerName }: {
   // 해제는 지우지 않는다 — 누가 언제까지 맡았는지가 인수인계 기록이다(is_active=false + removed_at).
   const release = async (a: Assignment) => {
     const ok = await appConfirm(
-      `${userName[a.user_id] || "이 구성원"}을 담당에서 해제할까요? 기록은 '지난 담당'에 남아요.`,
+      `${userName[a.user_id] || "이 구성원"}을 담당에서 해제할까요? 기록은 '지난 담당'에 남습니다.`,
       { title: "담당 해제", confirmLabel: "해제" },
     );
     if (!ok) return;
@@ -128,7 +128,7 @@ export function TeamTab({ dealId, companyId, users, managerId, managerName }: {
       .update({ is_active: false, removed_at: new Date().toISOString() }).eq("id", a.id);
     if (error) { toast("해제 실패: " + error.message, "error"); return; }
     qc.invalidateQueries({ queryKey: ["deal-assignments", dealId] });
-    toast("담당에서 해제했어요", "success");
+    toast("담당에서 해제했습니다", "success");
   };
 
   const candidates = users.filter((u) => !assignedIds.has(u.id));
@@ -139,19 +139,19 @@ export function TeamTab({ dealId, companyId, users, managerId, managerName }: {
       <div className="pj-team-owner glass-card">
         <span className="pj-team-owner-k">대표 담당</span>
         <b>{managerName || "미지정"}</b>
-        <span className="pj-team-owner-note">목록 카드와 알림이 이 사람을 기준으로 표시돼요. 프로젝트 수정에서 바꿔요.</span>
+        <span className="pj-team-owner-note">목록 카드와 알림이 이 사람을 기준으로 표시됩니다. 프로젝트 수정에서 바꿔요.</span>
       </div>
 
       <div className="pj-team-box glass-card">
         <div className="pj-team-head">
           <h3>함께 하는 사람 <span>{active.length}명</span></h3>
-          <span className="pj-team-hint">여러 명을 역할별로 배정할 수 있어요</span>
+          <span className="pj-team-hint">여러 명을 역할별로 배정할 수 있습니다</span>
         </div>
 
         {isLoading ? (
           <p className="pj-sec-empty">불러오는 중…</p>
         ) : active.length === 0 ? (
-          <p className="pj-sec-empty">아직 배정된 사람이 없어요. 아래에서 구성원을 추가하면 각자 맡은 역할이 여기에 남아요.</p>
+          <p className="pj-sec-empty">아직 배정된 사람이 없습니다. 아래에서 구성원을 추가하면 각자 맡은 역할이 여기에 남습니다.</p>
         ) : (
           <div className="pj-team-rows">
             {active.map((a) => {
@@ -192,7 +192,7 @@ export function TeamTab({ dealId, companyId, users, managerId, managerName }: {
         <div className="pj-team-box glass-card">
           <div className="pj-team-head"><h3>부서</h3><span className="pj-team-hint">배정된 사람의 소속</span></div>
           {byDept.length === 0 ? (
-            <p className="pj-sec-empty">배정된 사람이 없어요.</p>
+            <p className="pj-sec-empty">배정된 사람이 없습니다.</p>
           ) : (
             <div className="pj-team-depts">
               {byDept.map(([dep, names]) => (
@@ -209,7 +209,7 @@ export function TeamTab({ dealId, companyId, users, managerId, managerName }: {
           <div className="pj-team-head"><h3>프로젝트 채널</h3></div>
           {channels.length === 0 ? (
             <p className="pj-sec-empty">
-              이 프로젝트 채널이 아직 없어요. <Link href="/chat" className="pj-team-link">메신저</Link>에서 프로젝트 채널을 만들면 여기에 연결돼요.
+              이 프로젝트 채널이 아직 없습니다. <Link href="/chat" className="pj-team-link">메신저</Link>에서 프로젝트 채널을 만들면 여기에 연결됩니다.
             </p>
           ) : (
             <div className="pj-team-channels">

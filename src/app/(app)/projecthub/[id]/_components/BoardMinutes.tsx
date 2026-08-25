@@ -146,7 +146,7 @@ export function BoardMinutes({
                   <button type="button" className={`pbm-send ${sentTodo ? "pbm-send-sent" : ""}`} disabled={sending === it.id}
                     onClick={() => onSendToTodo(it)}
                     title={sentTodo
-                      ? "이미 보냈습니다 — 다시 눌러도 새 줄을 만들지 않아요 (보낸 할 일을 지웠다면 다시 보냅니다)"
+                      ? "이미 보냈습니다 — 다시 눌러도 새 줄을 만들지 않습니다 (보낸 할 일을 삭제했다면 다시 보냅니다)"
                       : "담당·기한을 그대로 '할 일 · 진행' 표에 만듭니다"}>
                     {sending === it.id ? "보내는 중…" : sentTodo ? "할 일로 보냄 ✓" : "할 일로 보내기"}
                   </button>
@@ -193,7 +193,7 @@ function AgendaText({ label, value, onSave }: {
     <div className="pbm-write">
       <label>{label}</label>
       <textarea ref={ref} defaultValue={value} rows={3}
-        placeholder="논의 내용과 결정을 적으세요. 줄을 나눠 적으면 나중에 읽기 좋아요. (Ctrl+Enter 로 저장)"
+        placeholder="논의 내용과 결정을 적으세요. 줄을 나눠 적으면 나중에 읽기 좋습니다. (Ctrl+Enter 로 저장)"
         onInput={(e) => growTextarea(e.currentTarget)}
         onBlur={(e) => { if (e.target.value !== value) onSave(e.target.value || null); }}
         onKeyDown={(e) => {

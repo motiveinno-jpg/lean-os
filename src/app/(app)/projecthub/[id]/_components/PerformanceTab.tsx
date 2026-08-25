@@ -702,7 +702,7 @@ export function PerformanceTab({ dealId, companyId, deal, users = [], onGoTab }:
               <button type="button" className="checkin-draft-btn"
                 onClick={() => { setChkDid(draft.body); setChkStatus(draft.status); }}
                 title={`신호등 제안: ${draft.reason}`}>
-                초안 채우기 <span>숫자는 이미 계산돼 있어요</span>
+                초안 채우기 <span>숫자는 이미 계산돼 있습니다</span>
               </button>
             </div>
             <textarea value={chkDid} onChange={(e) => setChkDid(e.target.value)} rows={3} placeholder="한 일·달성한 것·특이사항 한두 줄" className={`${IN} resize-y`} />

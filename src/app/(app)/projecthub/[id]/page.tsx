@@ -915,7 +915,7 @@ export default function ProjectHubDetailPage() {
       qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
       qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
       setShowChildForm(false); resetChildForm();
-      toast("하위 프로젝트를 만들었어요", "success");
+      toast("하위 프로젝트를 만들었습니다", "success");
       if (newChildId) router.push(`/projecthub/${newChildId}`);
     } catch (e: any) { toast(e?.message || "생성 실패", "error"); } finally { setCreatingChild(false); }
   };
@@ -942,7 +942,7 @@ export default function ProjectHubDetailPage() {
       if (error) throw new Error(error.message);
       qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
       qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
-      toast("하위 프로젝트를 수정했어요", "success");
+      toast("하위 프로젝트를 수정했습니다", "success");
       setEditChild(null);
     } catch (e: any) { toast(e?.message || "수정 실패", "error"); } finally { setSavingChild(false); }
   };
@@ -965,7 +965,7 @@ export default function ProjectHubDetailPage() {
       } catch { /* audit 실패 무시 */ }
       qc.invalidateQueries({ queryKey: ["projecthub-children", dealId] });
       qc.invalidateQueries({ queryKey: ["projecthub-deals"] });
-      toast("하위 프로젝트를 삭제했어요", "success");
+      toast("하위 프로젝트를 삭제했습니다", "success");
       setDeleteTarget(null);
     } catch (e: any) { toast(e?.message || "삭제 실패", "error"); } finally { setDeletingChild(false); }
   };
@@ -1303,7 +1303,7 @@ export default function ProjectHubDetailPage() {
                     {savingGoal ? "저장 중…" : "목표 정하기"}
                   </button>
                 </div>
-                <p className="goal-quick-hint">정하면 계약·매출이 목표를 얼마나 채웠는지 자동으로 계산돼요 · 지표를 더 넣으려면 <button type="button" className="goal-quick-more" onClick={() => openNow("goal")}>목표 설정</button></p>
+                <p className="goal-quick-hint">정하면 계약·매출이 목표를 얼마나 채웠는지 자동으로 계산됩니다 · 지표를 더 넣으려면 <button type="button" className="goal-quick-more" onClick={() => openNow("goal")}>목표 설정</button></p>
               </div>
             ) : !signals.hasGoal ? (
               <PerformanceTab dealId={dealId} companyId={companyId} deal={deal} users={companyUsers as any[]} onGoTab={(t) => goTab(t as TabKey)} />
@@ -1404,7 +1404,7 @@ export default function ProjectHubDetailPage() {
                   {/* 원가 구성 — 어디서 돈이 나갔는지 순위. 위 목록과 같은 데이터의 다른 표현 */}
                   <div className="cost-mix glass-card">
                     <h3 className="text-sm font-bold mb-3">원가 구성</h3>
-                    <BarList unit="원" emptyText="아직 태그된 지출이 없어요. 각 내역 화면에서 이 프로젝트를 지정하면 여기에 모여요."
+                    <BarList unit="원" emptyText="아직 연결된 지출이 없습니다. 각 내역 화면에서 이 프로젝트를 지정하면 여기에 모입니다."
                       items={COST_SOURCES.filter((c) => c.total > 0).map((c) => ({ label: c.label, value: c.total }))} />
                   </div>
                   <div className="cost-note-card glass-card">
@@ -1431,7 +1431,7 @@ export default function ProjectHubDetailPage() {
               "이제 입력은 무조건 템플릿으로. 지금은 이전 로직이 같이 살아 있어 혼동을 준다").
               이미 들어온 항목은 마진 계산에 계속 쓰이므로 지우지 않고 보이기만 한다. */}
           <p className="pj-input-note">
-            새 매출·비용은 <b>&apos;매출 흐름&apos;</b>·<b>&apos;예산 · 지출&apos;</b> 템플릿에서 입력해요.
+            새 매출·비용은 <b>&apos;매출 흐름&apos;</b>·<b>&apos;예산 · 지출&apos;</b> 템플릿에서 입력합니다.
             <button type="button" onClick={() => goSection("boards")}>템플릿으로 →</button>
           </p>
           <SubDealsTab dealId={dealId} companyId={companyId} readOnly
@@ -1622,7 +1622,7 @@ export default function ProjectHubDetailPage() {
       {viewOf("money") === "ledger" && (
         <div className="subprojects-section">
           <div className="subprojects-toolbar">
-            <p className="text-xs text-[var(--text-muted)]">이 프로젝트 안의 하위 프로젝트예요. <span className="text-[var(--text-dim)]">행을 클릭하면 상위와 똑같은 구조로 열려요.</span></p>
+            <p className="text-xs text-[var(--text-muted)]">이 프로젝트에 속한 하위 프로젝트입니다. <span className="text-[var(--text-dim)]">행을 클릭하면 상위와 똑같은 구조로 열려요.</span></p>
             <button onClick={() => { resetChildForm(); setChildName(`${deal.name || "프로젝트"} 세부`); setShowChildForm(true); }}
               className="btn-primary text-xs hover:opacity-90">+ 하위 프로젝트 추가</button>
           </div>
@@ -1743,7 +1743,7 @@ export default function ProjectHubDetailPage() {
                       className="w-full h-11 px-3 bg-[var(--bg)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
                   </div>
                 </div>
-                <p className="text-[11px] text-[var(--text-dim)]">매출/매입 금액은 그 하위 프로젝트를 열어 <b className="text-[var(--text-muted)]">돈 › 원장</b>에서 수정해요.</p>
+                <p className="text-[11px] text-[var(--text-dim)]">매출/매입 금액은 그 하위 프로젝트를 열어 <b className="text-[var(--text-muted)]">돈 › 원장</b>에서 수정합니다.</p>
                 <div className="flex items-center justify-end gap-2.5 mt-5">
                   <button onClick={() => setEditChild(null)} className="px-5 h-10 rounded-xl text-sm font-semibold text-[var(--text-muted)] border border-[var(--border)] hover:bg-[var(--bg-surface)] transition">취소</button>
                   <button onClick={saveChild} disabled={savingChild || !editChildName.trim()} className="btn-primary">{savingChild ? "저장 중..." : "저장"}</button>
@@ -1786,7 +1786,7 @@ export default function ProjectHubDetailPage() {
             ) : !signals.hasWork && !expanded.work ? (
               <button type="button" className="pj-sec-add" onClick={() => openNow("work")}>
                 ＋ <b>할 일 적기</b>
-                <span>적어두면 진행률이 저절로 계산돼요. 담당을 지정하면 그 사람 화면에도 보여요.</span>
+                <span>적어두면 진행률이 저절로 계산됩니다. 담당을 지정하면 그 사람 화면에도 보여요.</span>
               </button>
             ) : !signals.hasWork ? (
               <TasksTab dealId={dealId} companyId={companyId} users={companyUsers as any[]} />
@@ -1803,7 +1803,7 @@ export default function ProjectHubDetailPage() {
             다중 담당·부서 롤업·프로젝트 채널은 4단계에서 이 자리에 붙는다. */}
         <PjSection k="team" inTab={TAB_OF_SECTION(sec).secs.includes("team")} active={sec === "team"} onSeen={markSecOpen}
           views={SECTION_VIEWS.team} view={viewOf("team")} onView={(v: string) => pickView("team", v)}
-          hint="담당은 여러 명 지정할 수 있어요 · 해제해도 이력은 남아요">
+          hint="담당은 여러 명 지정할 수 있습니다 · 해제해도 이력은 남습니다">
           {!openSecs.has("team") ? <p className="pj-sec-empty">불러오는 중…</p>
             : viewOf("team") === "who" && companyId ? (
               <TeamTab dealId={dealId} companyId={companyId} users={companyUsers as any[]}
@@ -2098,7 +2098,7 @@ function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, co
 
   const out = settleFigs(pipe).outstanding;
   if (out > 1) rows.push({
-    tone: "bad", text: `미수 ${won(out)} — 발행했는데 아직 입금이 안 됐어요`,
+    tone: "bad", text: `미수 ${won(out)} — 발행했는데 아직 입금이 안 됐습니다`,
     why: "계산서 발행액과 통장 입금(자동 매칭)의 차이", cta: "정산 보기", go: () => onGo("money"),
   });
 
@@ -2106,12 +2106,12 @@ function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, co
   const done = deal?.stage === "completed" || deal?.stage === "settlement";
   if (end && !done) {
     const d = Math.round((new Date(`${end}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86_400_000);
-    if (d < 0) rows.push({ tone: "bad", text: `마감이 ${-d}일 지났어요`, why: `종료일 ${end}`, cta: "업무 보기", go: () => onGo("work") });
-    else if (d <= 7) rows.push({ tone: "warn", text: `마감이 ${d}일 남았어요`, why: `종료일 ${end}`, cta: "업무 보기", go: () => onGo("work") });
+    if (d < 0) rows.push({ tone: "bad", text: `마감이 ${-d}일 지났습니다`, why: `종료일 ${end}`, cta: "업무 보기", go: () => onGo("work") });
+    else if (d <= 7) rows.push({ tone: "warn", text: `마감이 ${d}일 남았습니다`, why: `종료일 ${end}`, cta: "업무 보기", go: () => onGo("work") });
   }
 
   if (quoteCount > 0 && contractCount === 0) rows.push({
-    tone: "warn", text: "견적은 보냈는데 계약서가 아직 없어요",
+    tone: "warn", text: "견적은 보냈으나 계약서가 아직 없습니다",
     why: "승인되면 계약서 초안이 자동으로 만들어져요(문서 보기에서 설정)", cta: "문서 보기", go: () => onGo("money"),
   });
 
@@ -2140,7 +2140,7 @@ function TodoQueue({ deal, pipe, won, hasMoney, hasWork, hasGoal, quoteCount, co
     <div className="pj-queue">
       <div className="pj-queue-row pj-queue-none">
         <i className="pj-queue-stripe" />
-        <p>확인할 항목이 없어요<em>아래 상황이 생기면 여기에 표시돼요</em></p>
+        <p>확인할 항목이 없습니다<em>아래 상황이 생기면 여기에 표시됩니다</em></p>
       </div>
       {[
         ["마감이 다가오거나 지났을 때", "종료일 기준 7일 전부터"],
@@ -2176,23 +2176,23 @@ function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, 
   return (
     <div className="pj-first">
       <p className="pj-first-lead">
-        {isNew ? "프로젝트를 만들었어요. " : ""}하나만 고르면 시작 준비가 끝나요 — 나머지는 나중에 채워도 돼요.
+        {isNew ? "프로젝트를 만들었습니다. " : ""}하나만 고르면 시작 준비가 끝나요 — 나머지는 나중에 채워도 됩니다.
       </p>
       <div className="pj-starters">
         <button type="button" className="pj-starter" onClick={onNewQuote} disabled={creating}>
-          <span className="pj-starter-k">보통 여기서 시작해요</span>
+          <span className="pj-starter-k">보통 여기서 시작합니다</span>
           <b>{creating ? "만드는 중…" : "견적서 만들기"}</b>
-          <span>거래처와 품목을 넣으면 공급가·부가세가 자동으로 계산돼요. 승인되면 계약서 초안까지 만들어져요.</span>
+          <span>거래처와 품목을 넣으면 공급가·부가세가 자동으로 계산됩니다. 승인되면 계약서 초안까지 만들어져요.</span>
         </button>
         <button type="button" className={`pj-starter ${open === "task" ? "pj-starter-on" : ""}`} onClick={() => toggle("task")}>
           <span className="pj-starter-k">할 일부터라면</span>
           <b>할 일 적기</b>
-          <span>세 줄만 적어도 '업무'가 열리고 진행률이 자동 계산돼요.</span>
+          <span>세 줄만 적어도 '업무'가 열리고 진행률이 자동 계산됩니다.</span>
         </button>
         <button type="button" className={`pj-starter ${open === "due" ? "pj-starter-on" : ""}`} onClick={() => toggle("due")}>
           <span className="pj-starter-k">기한부터라면</span>
           <b>마감일 정하기</b>
-          <span>마감일이 있어야 남은 날짜와 지연이 '확인 필요'에 표시돼요.</span>
+          <span>마감일이 있어야 남은 날짜와 지연이 '확인 필요'에 표시됩니다.</span>
         </button>
       </div>
 
@@ -2207,7 +2207,7 @@ function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, 
             <button type="button" className="pj-first-save" disabled={saving || !titles.some((t) => t.trim())} onClick={() => onAddTasks(titles)}>
               {saving ? "저장 중…" : "할 일 추가"}
             </button>
-            <span className="pj-first-note">담당·기한은 추가한 뒤 '업무'에서 지정하면 돼요.</span>
+            <span className="pj-first-note">담당·기한은 추가한 뒤 '업무'에서 지정하면 됩니다.</span>
           </div>
         </div>
       )}
@@ -2219,7 +2219,7 @@ function FirstStep({ isNew, onNewQuote, creating, onAddTasks, onSetDue, saving, 
             <button type="button" className="pj-first-save" disabled={saving || !due} onClick={() => onSetDue(due)}>
               {saving ? "저장 중…" : "마감일 저장"}
             </button>
-            <span className="pj-first-note">마감 7일 전부터 '확인 필요'에 표시돼요.</span>
+            <span className="pj-first-note">마감 7일 전부터 '확인 필요'에 표시됩니다.</span>
           </div>
         </div>
       )}

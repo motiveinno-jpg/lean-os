@@ -122,10 +122,10 @@ export function MenuGuideDrawer() {
                 </section>
               )}
 
-              {/* 알아두면 좋아요 */}
+              {/* 알아두면 좋습니다 */}
               {guide.tips && guide.tips.length > 0 && (
                 <section className="guide-tips">
-                  <h3 className="guide-section-title">알아두면 좋아요</h3>
+                  <h3 className="guide-section-title">알아두면 좋습니다</h3>
                   {guide.tips.map((tip, i) => (
                     <div key={i} className="guide-tip-item">
                       <span className="shrink-0"><Ico e="💡" /></span>

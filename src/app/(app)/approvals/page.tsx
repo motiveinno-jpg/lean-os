@@ -1015,7 +1015,7 @@ function MyApprovalsTab({ companyId, userId, invalidate, onGoToMyRequests, initi
           <div className="mx-auto w-16 h-16 mb-4 rounded-2xl bg-[var(--success-dim)] text-[var(--success)] flex items-center justify-center">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <div className="text-base font-bold mb-1.5">모두 처리했어요</div>
+          <div className="text-base font-bold mb-1.5">모두 처리했습니다</div>
           <div className="text-sm text-[var(--text-muted)]">
             새 결재 요청이 배정되면 이곳에 표시됩니다. 내가 승인·반려한 건은 <b>내가 결재한 건</b>에서 볼 수 있습니다.
           </div>
@@ -3761,14 +3761,14 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
 
               {/* Auto-approve indicator */}
               {matchedPolicy.auto_approve_below > 0 && effectiveAmount > 0 && effectiveAmount < matchedPolicy.auto_approve_below && (
-                <div className="kpi-callout success mt-3">이 금액은 <b>자동 승인</b> 대상이에요</div>
+                <div className="kpi-callout success mt-3">이 금액은 <b>자동 승인</b> 대상입니다</div>
               )}
             </div>
           ) : selectedApprovers.length > 0 ? (
             /* 직원 QA #11 — 양식 결재선이 지정돼 있으면 그걸 미리보기에 반영(대표/CEO 강제 표시 제거).
                실제 라우팅은 이미 customApprovers(양식 결재선)로 처리됨 — 미리보기만 정합화. */
             <div className="text-xs text-[var(--text-muted)]">
-              <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용돼요 — 지정한 승인자에서 종료(대표 결재 없음)</div>
+              <div className="kpi-callout mb-4">이 양식의 <b>결재선</b>이 적용됩니다 — 지정한 승인자에서 종료(대표 결재 없음)</div>
               <div className="space-y-0">
                 <div className="relative pl-8 pb-4">
                   <div className="absolute left-[13px] top-6 bottom-0 w-px bg-[var(--border)]" />
@@ -3790,7 +3790,7 @@ function NewRequestTab({ companyId, userId, invalidate, onComplete, presetType }
             </div>
           ) : (
             <div className="text-xs text-[var(--text-muted)]">
-              <div className="kpi-callout mb-4">매칭 정책이 없어 <b>기본 결재선(1단계)</b>이 적용돼요</div>
+              <div className="kpi-callout mb-4">매칭 정책이 없어 <b>기본 결재선(1단계)</b>이 적용됩니다</div>
               <div className="relative pl-8">
                 <div className="absolute left-0 top-0 w-[26px] h-[26px] rounded-full border-2 border-[var(--primary)]/40 bg-[var(--primary)]/8 flex items-center justify-center text-[11px] font-extrabold text-[var(--primary)]">
                   1

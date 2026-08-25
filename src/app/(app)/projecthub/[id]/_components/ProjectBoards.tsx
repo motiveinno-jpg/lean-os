@@ -438,7 +438,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     try {
       await removePreset(p.id);
       qc.invalidateQueries({ queryKey: ["pb-presets", companyId, "board"] });
-      toast(`'${p.name}' 을 회사 양식에서 뺐습니다(이미 만든 표는 그대로예요).`, "success");
+      toast(`'${p.name}' 을 회사 양식에서 뺐습니다(이미 만든 표는 그대로입니다).`, "success");
     } catch (e: any) { toast(e?.message || "삭제 실패", "error"); }
   };
   const saveSummaryPreset = async (name: string, layout: SummaryLayout, templateKey: string | null) => {
@@ -509,7 +509,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       if (gRes.error) throw new Error(gRes.error.message);
       setActiveId(bid);
       qc.invalidateQueries({ queryKey: ["pb-boards", dealId] });
-      toast("템플릿 구조를 복제했습니다(행은 안 가져왔어요).", "success");
+      toast("템플릿 구조를 복제했습니다(행은 가져오지 않았습니다).", "success");
     } catch (e: any) {
       toast(e?.message || "복제 실패", "error");
     } finally { setBusy(false); }
@@ -859,7 +859,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     await db.from("project_board_items").update({ archived_at: new Date().toISOString() }).in("id", ids);
     qc.invalidateQueries({ queryKey: ["pb-items", boardId] });
     setSelected(new Set());
-    toast(`${ids.length}건을 지웠습니다. '지운 항목'에서 되살릴 수 있어요.`, "success");
+    toast(`${ids.length}건을 지웠습니다. '지운 항목'에서 되살릴 수 있습니다.`, "success");
   };
 
   const saveName = async (item: BoardItem, name: string) => {
@@ -877,7 +877,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   // 그룹 삭제 — 안에 행이 있으면 다른 그룹으로 옮기고 지운다(값을 잃지 않게).
   const removeGroup = async (g: BoardGroup) => {
     setGroupMenu(null);
-    if (groups.length <= 1) { toast("그룹이 하나뿐이라 지울 수 없어요.", "error"); return; }
+    if (groups.length <= 1) { toast("그룹이 하나뿐이라 삭제할 수 없습니다.", "error"); return; }
     const rows = itemsByGroup[g.id] || [];
     const to = groups.find((x) => x.id !== g.id)!;
     if (rows.length > 0 && !window.confirm(`'${g.name}' 을 지우면 안에 있는 ${rows.length}건이 '${to.name}' 으로 옮겨집니다. 계속할까요?`)) return;
@@ -907,7 +907,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const sendToTodo = async (it: BoardItem) => {
     if (sendingTodo) return;
     const todoBoard = (boards as any[]).find((b) => b.template_key === "todo");
-    if (!todoBoard) { toast("'할 일 · 진행' 표가 없어요 — ＋ 템플릿에서 먼저 만들어 주세요.", "error"); return; }
+    if (!todoBoard) { toast("'할 일 · 진행' 표가 없습니다 — ＋ 템플릿에서 먼저 만들어 주세요.", "error"); return; }
     setSendingTodo(it.id);
     try {
       //   이미 보낸 안건이면 새 줄을 또 만들지 않는다 (2026-08-20 입력 점검: 누를 때마다
@@ -916,7 +916,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       if (sentId) {
         const { data: alive } = await db.from("project_board_items")
           .select("id").eq("id", sentId).is("archived_at", null).maybeSingle();
-        if (alive?.id) { toast("이미 할 일로 보냈어요 — '할 일 · 진행' 표에 있습니다.", "success"); return; }
+        if (alive?.id) { toast("이미 할 일로 보냈습니다 — '할 일 · 진행' 표에 있습니다.", "success"); return; }
       }
       const [tc, tg] = await Promise.all([
         db.from("project_board_columns").select("id, name, type, settings").eq("board_id", todoBoard.id).order("position"),
@@ -924,7 +924,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       ]);
       const tcols = (tc.data || []) as BoardColumn[];
       const gid = (tg.data || [])[0]?.id as string | undefined;
-      if (!gid) throw new Error("할 일 표에 그룹이 없어요");
+      if (!gid) throw new Error("할 일 표에 그룹이 없습니다");
       const pick = (t: string) => cols.find((c) => c.type === t) || null;
       const dst = (t: string) => tcols.find((c) => c.type === t) || null;
       const values: Record<string, any> = {};
@@ -1656,7 +1656,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
                       <td className="pb-td-sel">
                         {/* 첫 칸이 손잡이 자리 — 여기를 잡고 끌면 줄이 따라온다(이름 칸 안 16px 은 너무 좁았다) */}
                         <span className={`pb-grip ${rowDrag === it.id ? "pb-grip-on" : ""}`}
-                          title={sort ? "정렬을 끄면 순서를 바꿀 수 있어요" : "끌어서 순서 바꾸기"}>⠿</span>
+                          title={sort ? "정렬을 끄면 순서를 바꿀 수 있습니다" : "끌어서 순서 바꾸기"}>⠿</span>
                         <input type="checkbox" aria-label="줄 선택" checked={selected.has(it.id)}
                           onChange={(e) => setSelected((prev) => {
                             const n = new Set(prev);
@@ -2135,7 +2135,7 @@ function ColumnMenu({ col, sortDir, filtered, onSort, onFilter, onSaveSettings, 
               {col.type === "status" && (<>
                 <em className="pb-name-hint">이 칸에서 고를 수 있는 값 — 이름 · 색 · 순서를 여기서 정합니다.</em>
                 <LabelEditor options={draft} onChange={setDraft}
-                  note="쓰고 있던 라벨을 빼면 그 행은 빈칸이 됩니다(값은 남아요)." />
+                  note="쓰고 있던 라벨을 빼면 그 행은 빈칸이 됩니다(값은 남습니다)." />
               </>)}
               {col.type === "number" && (
                 <label className="pb-colmenu-unit">
@@ -2276,7 +2276,7 @@ function QuickFilterPanel({ facets, picked, focusColId, total, shownCount, onTog
             </section>
           ))}
         </div>
-        <p className="pb-qf-foot">같은 칸에서 여럿 고르면 <b>둘 다</b> 보이고, 칸을 여러 개 걸면 <b>모두 맞는 줄</b>만 남아요.</p>
+        <p className="pb-qf-foot">같은 칸에서 여럿 고르면 <b>둘 다</b> 보이고, 칸을 여러 개 걸면 <b>모두 맞는 줄</b>만 남습니다.</p>
       </div>
     </div>
   );
@@ -2500,9 +2500,9 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
     if (["todo", "review"].includes(tplKey)) return { sumType: "task", typeWhy: "" };
     if (["schedule", "contract"].includes(tplKey)) return { sumType: "date", typeWhy: "" };
     if (tplKey === "meeting") return { sumType: "log", typeWhy: "" };
-    if (moneyCol) return { sumType: "money", typeWhy: "금액 칸이 있어 돈 요약으로 보여드려요" };
-    if (span || dateCols.length >= 2) return { sumType: "date", typeWhy: "날짜 칸이 있어 일정 요약으로 보여드려요" };
-    if (flow) return { sumType: "task", typeWhy: "단계 칸이 있어 할 일 요약으로 보여드려요" };
+    if (moneyCol) return { sumType: "money", typeWhy: "금액 칸이 있어 돈 요약으로 보여드립니다" };
+    if (span || dateCols.length >= 2) return { sumType: "date", typeWhy: "날짜 칸이 있어 일정 요약으로 보여드립니다" };
+    if (flow) return { sumType: "task", typeWhy: "단계 칸이 있어 할 일 요약으로 보여드립니다" };
     return { sumType: "log", typeWhy: "" };
   })();
 
@@ -2530,7 +2530,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
     if (budgetTotal > 0 && moneyCol) {
       //   예산 칸 + 집행 칸 — "예산 대비 얼마나 썼나"가 결론
       const pctUsed = Math.round((totalMoney / budgetTotal) * 100);
-      headline = `${budgetCol!.name} ${shortW(budgetTotal)}원 중 ${shortW(totalMoney)}원(${pctUsed}%)을 썼어요` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요해요.` : ".");
+      headline = `${budgetCol!.name} ${shortW(budgetTotal)}원 중 ${shortW(totalMoney)}원(${pctUsed}%)을 썼어요` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요합니다.` : ".");
       why = [`남은 ${budgetCol!.name} ${shortW(Math.max(0, budgetTotal - totalMoney))}원`, thisWeek.length ? `이번 주 ${dueCol?.name || "결제"} ${thisWeek.length}건` : ""].filter(Boolean).join(" · ");
       stats = [
         { l: budgetCol!.name, v: `${shortW(budgetTotal)}원` },
@@ -2541,8 +2541,8 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
       ];
     } else {
       headline = moneyCol
-        ? `${moneyCol.name} 합계 ${shortW(totalMoney)}원 중 ${shortW(totalMoney - openMoney)}원이 끝났어요` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요해요.` : ".")
-        : `${items.length}건이 있어요.`;
+        ? `${moneyCol.name} 합계 ${shortW(totalMoney)}원 중 ${shortW(totalMoney - openMoney)}원이 끝났어요` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요합니다.` : ".")
+        : `${items.length}건이 있습니다.`;
       why = [dueCol && thisWeek.length ? `이번 주 ${dueCol.name} ${thisWeek.length}건` : "", `미완료 ${openItems.length}건 ${moneyCol ? shortW(openMoney) + "원" : ""}`].filter(Boolean).join(" · ");
       stats = [
         ...(moneyCol ? [
@@ -2554,7 +2554,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
       ];
     }
   } else if (sumType === "task") {
-    headline = `${items.length}건 중 ${doneCount}건이 끝났어요` + (overdue.length ? ` — 기한 지난 ${overdue.length}건이 밀려 있어요.` : overdue.length === 0 && dueCol ? " — 기한 지난 건은 없어요." : ".");
+    headline = `${items.length}건 중 ${doneCount}건이 끝났어요` + (overdue.length ? ` — 기한 지난 ${overdue.length}건이 밀려 있습니다.` : overdue.length === 0 && dueCol ? " — 기한 지난 건은 없습니다." : ".");
     why = [flow ? `진행 중 ${openItems.length}건` : "", thisWeek.length ? `이번 주 마감 ${thisWeek.length}건` : ""].filter(Boolean).join(" · ");
     stats = [
       { l: "전체", v: `${items.length}건` },
@@ -2564,7 +2564,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
     ];
   } else if (sumType === "date") {
     const next = upcoming[0] || null;
-    headline = `${items.length}건 중 ${doneCount}건이 끝났어요` + (overdue.length ? ` — 종료가 지난 미완료 ${overdue.length}건이 밀려 있어요.` : ".");
+    headline = `${items.length}건 중 ${doneCount}건이 끝났어요` + (overdue.length ? ` — 종료가 지난 미완료 ${overdue.length}건이 밀려 있습니다.` : ".");
     why = next ? `다음 ${dueCol?.name || "마감"} ${dval(next).slice(5)} (D-${dday(dval(next))}) · ${next.name}` : "";
     stats = [
       { l: "전체", v: `${items.length}건` },
@@ -2573,7 +2573,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
       ...(next ? [{ l: `다음 ${dueCol?.name || "마감"}`, v: dday(dval(next)) === 0 ? "오늘" : `D-${dday(dval(next))}`, s: next.name.slice(0, 16) }] : []),
     ];
   } else {
-    headline = `기록 ${items.length}건이 있어요` + (overdue.length ? ` — 후속 기한 지난 ${overdue.length}건이 밀려 있어요.` : ".");
+    headline = `기록 ${items.length}건이 있습니다` + (overdue.length ? ` — 후속 기한 지난 ${overdue.length}건이 밀려 있습니다.` : ".");
     why = flow ? "" : "";
     const opts: any[] = (flow?.settings?.options || []) as any[];
     const topStates = opts.map((o) => ({ label: String(o.label), n: items.filter((it) => it.values?.[flow!.id] === o.id).length })).filter((x) => x.n > 0).slice(0, 3);
@@ -2653,13 +2653,13 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
 
   const hint = needsHint ? groups.map((g) => g.name).filter(Boolean).slice(0, 2).join(" · ") : "";
   const TYPE_LABEL: Record<SumType, string> = { money: "돈", task: "할 일", date: "일정", log: "기록" };
-  const meta = items.length === 0 ? "아직 채운 값이 없어요"
+  const meta = items.length === 0 ? "아직 채운 값이 없습니다"
     : [hint, `${items.length}행`, `${TYPE_LABEL[sumType]} 요약`, typeWhy].filter(Boolean).join(" · ");
 
   return (
     <SummaryReport kicker="템플릿" title={boardName} meta={meta} tools={items.length === 0 ? undefined : tools}>
       {items.length === 0 ? (
-        <p className="pj-sec-empty">값을 채우면 여기에 결론 · 핵심 숫자 · 챙길 것이 자동으로 정리돼요.</p>
+        <p className="pj-sec-empty">값을 채우면 여기에 결론 · 핵심 숫자 · 챙길 것이 자동으로 정리됩니다.</p>
       ) : (
         <>
           {/* ① 결론 한 문장 */}
@@ -2680,7 +2680,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
             <div className="pbsum-todo">
               <h5>챙길 것 {todos.length > 0 && <span className="pbsum-todo-n mono-number">{todos.length}</span>}<small>— 누르면 그 행이 열립니다</small></h5>
               {todoCut.length === 0 ? (
-                <p className="pbsum-todo-empty">지금 챙길 것이 없어요 — 기한 지남 · 이번 주 마감이 생기면 여기에 떠요.</p>
+                <p className="pbsum-todo-empty">지금 챙길 것이 없습니다 — 기한 지남 · 이번 주 마감이 생기면 여기에 떠요.</p>
               ) : (
                 <ul>
                   {todoCut.map((t) => (
@@ -2708,7 +2708,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
                 {pickOpen && (
                   <div className="pbsum-picker">
                     <div className="pbsum-picker-h">이 표의 칸으로 만들 수 있는 그림</div>
-                    {addable.length === 0 ? <p className="pbsum-todo-empty">더 붙일 그림이 없어요.</p> : (
+                    {addable.length === 0 ? <p className="pbsum-todo-empty">더 붙일 그림이 없습니다.</p> : (
                       <div className="pbsum-picker-list">
                         {addable.map((x) => (
                           <button key={x.id} type="button" onClick={() => { saveMine([...mineIds, x.id]); setPickOpen(false); }}>
@@ -3000,7 +3000,7 @@ function PartnerCell({ value, partners, companyId, onSave, onCreated }: {
             ＋ &apos;{q.trim()}&apos; 새 거래처로 등록
           </button>
         )}
-        {matches.length === 0 && !q.trim() && <span className="pb-partner-none">등록된 거래처가 없어요</span>}
+        {matches.length === 0 && !q.trim() && <span className="pb-partner-none">등록된 거래처가 없습니다</span>}
       </span>
     </span>
   );

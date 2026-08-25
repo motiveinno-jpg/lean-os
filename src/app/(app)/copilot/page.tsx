@@ -529,7 +529,7 @@ export default function CopilotPage() {
         <div className="copilot2-lock-card">
           <div className="text-3xl mb-2" aria-hidden><Ico e="🔒" /></div>
           <div className="copilot2-lock-title">AI 참모를 쓰려면 요금제가 필요합니다</div>
-          <p className="copilot2-lock-desc">회사 데이터를 실시간으로 읽고 오늘 챙길 것을 정리해 드립니다. 무료는 월 10만 토큰, 오너뷰 요금제는 월 50만 토큰까지 쓸 수 있어요.</p>
+          <p className="copilot2-lock-desc">회사 데이터를 실시간으로 읽고 오늘 챙길 것을 정리해 드립니다. 무료는 월 10만 토큰, 오너뷰 요금제는 월 50만 토큰까지 쓸 수 있습니다.</p>
           <a href="/billing" className="btn-primary btn-sm">플랜 보기 · 업그레이드</a>
         </div>
       ) : (

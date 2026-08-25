@@ -185,7 +185,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
             <span className="ml-auto" />
             <button type="button" className="btn-primary btn-sm" onClick={() => { setCond(draft); setPanel(false); }}>조회</button>
           </>}>
-          <ConditionRow label="사람" hint="이름 일부를 쳐서 여러 명"><TokenField items={peopleItems} value={draft.people} onChange={(v) => setDraft((c) => ({ ...c, people: v }))} placeholder="이름 · 부서" /></ConditionRow>
+          <ConditionRow label="사람" hint="이름 일부를 입력해 여러 명"><TokenField items={peopleItems} value={draft.people} onChange={(v) => setDraft((c) => ({ ...c, people: v }))} placeholder="이름 · 부서" /></ConditionRow>
           <ConditionRow label="부서" hint="여러 개"><span className="qk-quicks">{allDepts.map((d) => <button key={d} type="button" onClick={() => setDraft((c) => ({ ...c, depts: c.depts.includes(d) ? c.depts.filter((x) => x !== d) : [...c.depts, d] }))} className={draft.depts.includes(d) ? "qk-quick qk-quick-on" : "qk-quick"}>{d}</button>)}</span></ConditionRow>
           <ConditionRow label="이 기간에" hint="고른 것 모두 해당하는 사람만"><span className="qk-quicks">{HAS.map(([k, l]) => <button key={k} type="button" onClick={() => setDraft((c) => ({ ...c, has: c.has.includes(k) ? c.has.filter((x) => x !== k) : [...c.has, k] }))} className={draft.has.includes(k) ? "qk-quick qk-quick-on" : "qk-quick"}>{l}</button>)}</span></ConditionRow>
           <ConditionRow label="출근율" hint="이하 %"><input className="qk-input h-8 w-28 px-2 text-xs" inputMode="numeric" placeholder="예: 80" value={draft.ratioMax} onChange={(e) => setDraft((c) => ({ ...c, ratioMax: e.target.value.replace(/[^0-9]/g, "") }))} /></ConditionRow>

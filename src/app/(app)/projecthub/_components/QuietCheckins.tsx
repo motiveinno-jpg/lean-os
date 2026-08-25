@@ -145,8 +145,8 @@ export function QuietCheckins({ companyId, userId, deals, tasks, outstandingOf, 
   return (
     <section className="ph-checkins">
       <div className="ph-checkins-head">
-        <b>2주 넘게 변동이 없어요</b>
-        <span>한 줄만 남겨두면 나중에 경과를 알 수 있어요. 이번 주는 {rows.length}건만 표시해요.</span>
+        <b>2주 넘게 변동이 없습니다</b>
+        <span>한 줄만 남겨두면 나중에 경과를 알 수 있습니다. 이번 주는 {rows.length}건만 표시합니다.</span>
       </div>
       {rows.map((r) => (
         <div key={r.deal.id} className="ph-checkin">

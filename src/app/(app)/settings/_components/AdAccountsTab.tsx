@@ -127,7 +127,7 @@ export function AdAccountsTab({ companyId }: { companyId: string }) {
 
       {isLoading ? <p className="ad-acc-empty">불러오는 중…</p>
         : accounts.length === 0 ? (
-          <p className="ad-acc-empty">아직 등록한 광고 계정이 없어요. 네이버 검색광고부터 붙여 보세요.</p>
+          <p className="ad-acc-empty">아직 등록한 광고 계정이 없습니다. 네이버 검색광고부터 붙여 보세요.</p>
         ) : (
           <div className="ad-acc-list">
             {accounts.map((a) => (

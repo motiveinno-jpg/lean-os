@@ -250,7 +250,7 @@ export function VATPreviewTab({ vatPreview, cardDeductions }: any) {
           const purchase = vatPreview.reduce((n: number, v: any) => n + (v.purchaseTax || 0), 0);
           const card = vatPreview.reduce((n: number, v: any) => n + (v.cardDeduction || 0), 0);
           if (sales === 0 && purchase === 0) {
-            return <p className="py-6 text-center text-xs text-[var(--text-dim)]">아직 집계된 세액이 없어요.</p>;
+            return <p className="py-6 text-center text-xs text-[var(--text-dim)]">아직 집계된 세액이 없습니다.</p>;
           }
           return (
             <WaterfallChart height={200} unit="원" steps={[

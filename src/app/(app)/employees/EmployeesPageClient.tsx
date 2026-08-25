@@ -3234,7 +3234,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                     {stepNames.length > 0 && <span><strong className="text-[var(--text)]">{stepNames.join(", ")}</strong>님에게 승인</span>}
                     {stepNames.length > 0 && ccNames.length > 0 && ", "}
                     {ccNames.length > 0 && <span><strong className="text-[var(--text)]">{ccNames.join(", ")}</strong>님에게 참조</span>}
-                    를 요청해요.
+                    를 요청합니다.
                   </div>
                 )}
               </div>

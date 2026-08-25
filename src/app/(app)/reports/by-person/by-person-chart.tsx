@@ -27,7 +27,7 @@ export default function ByPersonChart({ people, payByPerson }: ByPersonChartProp
     .slice(0, MAX_BARS);
 
   if (ranked.length === 0) {
-    return <p className="py-8 text-center text-xs text-[var(--text-dim)]">급여 자료가 없어요.</p>;
+    return <p className="py-8 text-center text-xs text-[var(--text-dim)]">급여 자료가 없습니다.</p>;
   }
 
   return (

@@ -83,7 +83,7 @@ export function ReceivablesPreview({ companyId, companyName }: { companyId: stri
   return (
     <ActivityCard title="미수금" href="/partners/ledger?type=sales" empty={!data || n === 0}
       summary={n > 0 ? <><b className="mono-number text-[var(--text)]">{won(data!.total)}</b> · {n}곳</> : undefined}
-      emptyText="미수금이 없습니다 — 발행한 세금계산서가 모두 회수됐어요.">
+      emptyText="미수금이 없습니다 — 발행한 세금계산서가 모두 회수됐습니다.">
       <div className="receivables-preview-list">
         {top.map((g) => (
           <div key={g.name} className="receivables-preview-row">

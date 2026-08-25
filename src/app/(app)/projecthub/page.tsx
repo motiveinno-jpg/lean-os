@@ -782,7 +782,7 @@ export default function ProjectHubPage() {
           <div className="collect-empty ph-empty">
             <div className="text-4xl">🔍</div>
             <div className="text-sm font-semibold text-[var(--text)]">
-              {search ? "조건에 맞는 프로젝트가 없어요." : "내가 담당한 프로젝트가 없어요."}
+              {search ? "조건에 맞는 프로젝트가 없습니다." : "내가 담당한 프로젝트가 없습니다."}
             </div>
             {/* '전체 보기' 유도는 전체 열람 권한자에게만 — 없으면 눌러도 결과가 같다 */}
             {mineOnly && canViewAllProjects && (
@@ -796,20 +796,20 @@ export default function ProjectHubPage() {
           <div className="ph-onboard">
             <div className="ph-onboard-head">
               <h3>첫 프로젝트를 만들어 보세요</h3>
-              <p>이름만 적으면 만들어져요. 그다음 하는 일에 맞는 템플릿을 고르면 돼요.</p>
+              <p>이름만 입력하면 만들어집니다. 그다음 하는 일에 맞는 템플릿을 고르면 됩니다.</p>
             </div>
             <div className="ph-onboard-steps">
               <div className="ph-onboard-step">
                 <b>① 이름만 적기</b>
-                <span>거래처·금액·기간은 안 물어봐요. 프로젝트명 하나면 만들어져요.</span>
+                <span>거래처·금액·기간은 안 물어봅니다. 프로젝트명 하나면 만들어져요.</span>
               </div>
               <div className="ph-onboard-step">
                 <b>② 템플릿 고르기</b>
-                <span>{BOARD_TEMPLATES.map((t) => t.name).join(" · ")} 중에 필요한 것만. ＋ 로 한 프로젝트에 여러 개 붙일 수 있어요.</span>
+                <span>{BOARD_TEMPLATES.map((t) => t.name).join(" · ")} 중에 필요한 것만. ＋ 로 한 프로젝트에 여러 개 붙일 수 있습니다.</span>
               </div>
               <div className="ph-onboard-step">
                 <b>③ 정리 보기</b>
-                <span>입력한 칸만 골라 합계·진행·기한을 자동으로 요약해요. 안 쓴 칸은 아예 안 나와요.</span>
+                <span>입력한 칸만 골라 합계·진행·기한을 자동으로 요약합니다. 안 쓴 칸은 아예 안 나옵니다.</span>
               </div>
             </div>
             <button onClick={() => setShowCreate(true)} className="btn-primary">+ 프로젝트 만들기</button>
@@ -1019,7 +1019,7 @@ function ProjectFormModal({ companyId, partners, users, editDeal, onClose, onSav
               <div>
                 <label className={LB}>무슨 일인가요? *</label>
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder="프로젝트명" className={IN} autoFocus />
-                <p className="text-[11px] text-[var(--text-dim)] mt-1">{isEdit ? "이름만 있으면 돼요. 나머지는 비워둬도 괜찮아요." : "만들고 나면 하는 일에 맞는 템플릿을 고르게 돼요."}</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-1">{isEdit ? "이름만 입력하면 됩니다. 나머지는 비워 두어도 됩니다." : "만든 뒤에 하는 일에 맞는 템플릿을 고르게 됩니다."}</p>
               </div>
               {isEdit && <>
               <div className="grid grid-cols-2 gap-3">

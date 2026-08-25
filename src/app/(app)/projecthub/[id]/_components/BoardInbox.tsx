@@ -109,12 +109,12 @@ export function BoardInbox({ items, cols, groups, users, userId, onAdd, onOpen, 
           <button key={t.key} type="button" onClick={() => setTab(t.key)}
             className={`pbi-tab ${tab === t.key ? "pbi-tab-on" : ""}`}>{t.label}</button>
         ))}
-        {!me && <span className="pbi-note">내 계정이 구성원 목록에 없어 전부 보여 드려요</span>}
+        {!me && <span className="pbi-note">내 계정이 구성원 목록에 없어 전부 보여 드립니다</span>}
       </div>
 
       {rows.length === 0 ? (
         <p className="pj-sec-empty">
-          {tab === "in" ? "내게 온 요청이 없어요." : tab === "out" ? "내가 낸 요청이 없어요." : "끝난 요청이 아직 없어요."}
+          {tab === "in" ? "내게 온 요청이 없습니다." : tab === "out" ? "내가 낸 요청이 없습니다." : "끝난 요청이 아직 없습니다."}
         </p>
       ) : rows.map((it) => {
         const d = dueOf(it);

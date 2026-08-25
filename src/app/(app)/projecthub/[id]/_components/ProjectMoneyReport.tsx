@@ -67,7 +67,7 @@ export function ProjectMoneyReport({ boards, cols, items }: {
         {nothingSettled ? (
           <div className="mr-hero mr-hero-none">
             <span className="mr-hero-k">마진</span>
-            <b className="mr-hero-v mr-hero-dim">아직 셀 금액이 없어요</b>
+            <b className="mr-hero-v mr-hero-dim">아직 셀 금액이 없습니다</b>
             <em>
               {basis === "cash" ? "실제로 오간 돈이 아직 없습니다" : "계약·발주까지 간 건이 아직 없습니다"}
               {planTotal > 0 ? ` · 계획으로 잡힌 금액 ${shortWon(planTotal)}원` : ""}
@@ -92,7 +92,7 @@ export function ProjectMoneyReport({ boards, cols, items }: {
       {/* ── 겹침 경고 — 몰래 더하지도 빼지도 않는다 ────── */}
       {r.overlaps.length > 0 && !ignoreOverlap && (
         <div className="mr-warn">
-          <b>같은 지출이 두 번 잡힌 것 같아요</b>
+          <b>같은 지출이 두 번 잡힌 것 같습니다</b>
           <span>
             {r.overlaps.slice(0, 3).map((o) => `${o.a} ↔ ${o.b} (${shortWon(o.amount)})`).join(" · ")}
             {r.overlaps.length > 3 ? ` 외 ${r.overlaps.length - 3}건` : ""}
@@ -190,7 +190,7 @@ function StageBars({ income, spend }: { income: MoneyRollup["income"]; spend: Mo
           //   값이 없는 축은 빈 막대를 그리지 않는다 — 빈 줄은 '0원'이 아니라 '아직 없음'이다
           <div key={row.key} className="mr-bar-row">
             <span className="mr-bar-k">{row.label}</span>
-            <span className="mr-bar-none">아직 잡힌 금액이 없어요</span>
+            <span className="mr-bar-none">아직 잡힌 금액이 없습니다</span>
           </div>
         ) : (
           <div key={row.key} className="mr-bar-row">

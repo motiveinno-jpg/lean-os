@@ -666,7 +666,7 @@ function TaxScheduleWidget({ items }: { items: ReturnType<typeof getUpcomingTaxD
   //   2026-08-19 재편 — 공용 셸(ActivityCard)로. 날짜 칸 + D-day 칩
   return (
     <ActivityCard title="세금·납부 일정" href={items[0]?.href || "/reports/vat"} summary={items.length > 0 ? "60일" : undefined} empty={items.length === 0}
-      emptyText="다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없어요.">
+      emptyText="다가오는 세금 일정이 없습니다 — 60일 안에 낼 세금이 없습니다.">
       {items.slice(0, 15).map((t) => (
         <Link key={t.id} href={t.href} className="dash-tax-row">
           <span className="min-w-0 flex-1 text-[12px] text-[var(--text)] truncate">{t.title}</span>
@@ -2481,7 +2481,7 @@ function BizNoNotice() {
       <div className="flex-1 min-w-0">
         <div className="text-sm font-bold text-[var(--text)]">사업자등록번호를 등록하면 통장·세금계산서가 열립니다</div>
         <div className="text-[11px] text-[var(--text-muted)] mt-1 leading-relaxed">
-          지금은 결재·일정·게시판·파일보관함을 쓰실 수 있어요. 번호를 넣으시면 <b>통장·카드 자동 수집</b>과
+          지금은 결재·일정·게시판·파일보관함을 쓰실 수 있습니다. 번호를 넣으시면 <b>통장·카드 자동 수집</b>과
           <b> 세금계산서 발행</b>까지 이어집니다. 회사 설정 → 회사정보에서 1분이면 됩니다.
         </div>
       </div>

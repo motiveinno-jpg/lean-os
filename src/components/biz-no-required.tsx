@@ -21,7 +21,7 @@ export function BizNoRequired({ feature, why }: {
   return (
     <div className="bizno-required">
       <div className="bizno-required-icon" aria-hidden><Ico e="🧾" /></div>
-      <div className="bizno-required-title">{feature}에는 사업자등록번호가 필요해요</div>
+      <div className="bizno-required-title">{feature}에는 사업자등록번호가 필요합니다</div>
       <p className="bizno-required-desc">{why}</p>
       <Link href="/settings?tab=company-info" className="btn-primary btn-sm bizno-required-cta">
         사업자번호 등록하러 가기
