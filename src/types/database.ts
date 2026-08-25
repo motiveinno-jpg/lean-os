@@ -14,6 +14,303 @@ export type Database = {
   }
   public: {
     Tables: {
+      products: {
+        Row: {
+          barcode: string | null
+          category: string | null
+          company_id: string
+          cost_price: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          memo: string | null
+          name: string
+          safety_stock: number | null
+          sale_price: number | null
+          sku: string
+          spec: string | null
+          track_stock: boolean
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          barcode?: string | null
+          category?: string | null
+          company_id: string
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          memo?: string | null
+          name: string
+          safety_stock?: number | null
+          sale_price?: number | null
+          sku: string
+          spec?: string | null
+          track_stock?: boolean
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          barcode?: string | null
+          category?: string | null
+          company_id?: string
+          cost_price?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          memo?: string | null
+          name?: string
+          safety_stock?: number | null
+          sale_price?: number | null
+          sku?: string
+          spec?: string | null
+          track_stock?: boolean
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      warehouses: {
+        Row: {
+          code: string | null
+          company_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          memo: string | null
+          name: string
+        }
+        Insert: {
+          code?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          memo?: string | null
+          name: string
+        }
+        Update: {
+          code?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          memo?: string | null
+          name?: string
+        }
+        Relationships: []
+      }
+      stock_docs: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          doc_date: string
+          doc_no: string
+          id: string
+          journal_entry_id: string | null
+          kind: string
+          note: string | null
+          original_doc_id: string | null
+          partner_id: string | null
+          purchase_order_id: string | null
+          reason: string
+          sales_order_id: string | null
+          tax_invoice_id: string | null
+          to_warehouse_id: string | null
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          doc_date?: string
+          doc_no: string
+          id?: string
+          journal_entry_id?: string | null
+          kind: string
+          note?: string | null
+          original_doc_id?: string | null
+          partner_id?: string | null
+          purchase_order_id?: string | null
+          reason: string
+          sales_order_id?: string | null
+          tax_invoice_id?: string | null
+          to_warehouse_id?: string | null
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          doc_date?: string
+          doc_no?: string
+          id?: string
+          journal_entry_id?: string | null
+          kind?: string
+          note?: string | null
+          original_doc_id?: string | null
+          partner_id?: string | null
+          purchase_order_id?: string | null
+          reason?: string
+          sales_order_id?: string | null
+          tax_invoice_id?: string | null
+          to_warehouse_id?: string | null
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      stock_moves: {
+        Row: {
+          amount: number | null
+          company_id: string
+          created_at: string
+          doc_id: string
+          id: string
+          moved_at: string
+          note: string | null
+          product_id: string
+          qty: number
+          unit_price: number | null
+          warehouse_id: string
+        }
+        Insert: {
+          amount?: number | null
+          company_id: string
+          created_at?: string
+          doc_id: string
+          id?: string
+          moved_at: string
+          note?: string | null
+          product_id: string
+          qty: number
+          unit_price?: number | null
+          warehouse_id: string
+        }
+        Update: {
+          amount?: number | null
+          company_id?: string
+          created_at?: string
+          doc_id?: string
+          id?: string
+          moved_at?: string
+          note?: string | null
+          product_id?: string
+          qty?: number
+          unit_price?: number | null
+          warehouse_id?: string
+        }
+        Relationships: []
+      }
+      stock_counts: {
+        Row: {
+          adjust_doc_id: string | null
+          company_id: string
+          count_date: string
+          created_at: string
+          created_by: string | null
+          id: string
+          note: string | null
+          status: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          adjust_doc_id?: string | null
+          company_id: string
+          count_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          adjust_doc_id?: string | null
+          company_id?: string
+          count_date?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      stock_count_lines: {
+        Row: {
+          company_id: string
+          count_id: string
+          counted_qty: number | null
+          created_at: string
+          id: string
+          product_id: string
+          system_qty: number
+        }
+        Insert: {
+          company_id: string
+          count_id: string
+          counted_qty?: number | null
+          created_at?: string
+          id?: string
+          product_id: string
+          system_qty?: number
+        }
+        Update: {
+          company_id?: string
+          count_id?: string
+          counted_qty?: number | null
+          created_at?: string
+          id?: string
+          product_id?: string
+          system_qty?: number
+        }
+        Relationships: []
+      }
+      product_channel_codes: {
+        Row: {
+          channel: string
+          channel_product_id: string
+          channel_sku: string | null
+          company_id: string
+          created_at: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          channel: string
+          channel_product_id: string
+          channel_sku?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          channel?: string
+          channel_product_id?: string
+          channel_sku?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: []
+      }
       _backup_company_20260810: {
         Row: {
           backed_up_at: string | null
@@ -15111,6 +15408,15 @@ export type Database = {
       }
     }
     Views: {
+      v_stock_onhand: {
+        Row: {
+          company_id: string | null
+          product_id: string | null
+          qty: number | null
+          warehouse_id: string | null
+        }
+        Relationships: []
+      }
       card_deduction_summary: {
         Row: {
           company_id: string | null

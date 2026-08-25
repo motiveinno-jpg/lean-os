@@ -79,6 +79,23 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    //   재고 — 2026-08-25 사장님 지시로 신설. 기획 https://claude.ai/code/artifact/afc625ae-c5b5-4b7b-9b51-fdcf3e93165a
+    //   ★ 파이낸스가 **돈의 흐름**이라면 재고는 **물건의 흐름**이다. 같은 서랍에 넣으면 파이낸스가 12줄이 된다.
+    //     사이드바는 레일+패널이라 새 그룹은 다른 메뉴를 한 줄도 밀지 않는다.
+    //   ★ 가르는 기준은 기능 이름이 아니라 **물건의 상태**다 —
+    //     무엇을 파는가(품목) · 지금 몇 개인가(재고) · 나가는 길(판매) · 밖에서 사 오는 길(구매) · 안에서 만드는 길(생산).
+    //   ★ 다섯은 사장님이 정한 "5개까지만 편다"의 **정확한 상한**이다. 앞으로 더할 것은 메뉴가 아니라 화면 안 갈래 탭으로.
+    label: "재고", short: "재고", icon: "package",
+    items: [
+      { href: "/inventory/products", label: "품목", icon: "package", roles: ["owner", "admin"], layer: "기초" },
+      { href: "/inventory/stock", label: "재고", icon: "layers", roles: ["owner", "admin"] },
+      //   2~4단계 — 화면은 '무엇을 하는 곳인지'만 적힌 빈 안내로 먼저 선다(메뉴를 숨기지 않는다, 결정 6)
+      { href: "/inventory/sales", label: "판매", icon: "arrow-right-left", roles: ["owner", "admin"], layer: "움직임" },
+      { href: "/inventory/purchase", label: "구매", icon: "download", roles: ["owner", "admin"] },
+      { href: "/inventory/production", label: "생산", icon: "kanban", roles: ["owner", "admin"] },
+    ],
+  },
+  {
     //   분석 — 화면 안 4갈래 탭을 사이드바로 폈다 (2026-08-11 사장님 지시).
     //   ★ 5개까지만 편다. 하위(매출·비용·월별표 / 예정지출·운영시나리오)는 화면 안 세그먼트로 남긴다
     //     — 8개를 다 펴면 사이드바가 길어져 오히려 못 찾는다.
@@ -209,6 +226,9 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   // 인사관리 — 오렌지
   "/employees": "#f97316", "/attendance": "#fb923c", "/hr-templates": "#f59e0b",
   "/team": "#ea580c",
+  // 재고 — 앰버(돈은 그린, 물건은 앰버로 갈라 본다)
+  "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
+  "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
   // 회사 관리·도움말 — 슬레이트
@@ -259,6 +279,8 @@ function NavIcon({ name, href, className = "" }: { name: string; href?: string; 
     case "book": return <svg {...props}><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>;
     case "clock": return <svg {...props}><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>;
     case "umbrella": return <svg {...props}><path d="M12 2a9 9 0 019 9H3a9 9 0 019-9z"/><path d="M12 11v8a2.5 2.5 0 005 0"/></svg>;
+    case "package": return <svg {...props}><path d="M21 8l-9-5-9 5v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v10"/></svg>;
+    case "layers": return <svg {...props}><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>;
     case "download": return <svg {...props}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
     //   지원사업 — 나라에서 주는 것이라 선물 상자 (2026-08-21)
     case "gift": return <svg {...props}><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 001 1h12a1 1 0 001-1v-8"/><line x1="12" y1="8" x2="12" y2="21"/><path d="M12 8H7.5a2.5 2.5 0 010-5C11 3 12 8 12 8z"/><path d="M12 8h4.5a2.5 2.5 0 000-5C13 3 12 8 12 8z"/></svg>;

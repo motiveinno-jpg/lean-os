@@ -105,6 +105,20 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
+    //   재고 (2026-08-25 신설) — 단가·원가가 보이므로 품목·구매는 money.
+    //   ★ 새 키는 member_permissions 에 행이 없어 **백필 전까지 마스터 외 아무도 못 본다** — 배포와 함께 백필한다.
+    group: "재고",
+    menus: [
+      { route: "/inventory/products", label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
+      { route: "/inventory/stock", label: "재고", tabs: [
+        { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
+      ] },
+      { route: "/inventory/sales", label: "판매", money: true },
+      { route: "/inventory/purchase", label: "구매", money: true },
+      { route: "/inventory/production", label: "생산" },
+    ],
+  },
+  {
     group: "인사관리",
     menus: [
       { route: "/employees", label: "구성원", tabs: [

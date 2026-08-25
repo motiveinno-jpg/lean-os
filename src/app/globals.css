@@ -10157,3 +10157,72 @@ table.sp-table { min-width: 1160px; } /* 서류·적합도 칸이 늘어 넓어�
 /* 지원사업 결과 줄 — 눌러서 거르는 숫자 (2026-08-21 사장님: 각 텍스트를 누르면 그것만 보이게) */
 .sp-stat-btn { @apply rounded-lg px-1.5 py-0.5 transition-colors hover:bg-[var(--bg-surface)]; }
 .sp-stat-on { @apply bg-[var(--primary-light)] ring-1 ring-[var(--primary)]/40 hover:bg-[var(--primary-light)]; }
+
+/* ── 재고 (2026-08-25 신설, 1단계) ────────────────────────────────────────────
+   조회 화면 표준을 따른다 — 상자 안 파란 밑줄 갈래 탭 · 조회 줄 · 결과 요약 줄 · 표 · 쪽.
+   ⚠️ 전부 새 이름이다(inv-*) — 기존 정의와 충돌 없음(grep 확인). */
+.qk-body > .inv-scroll { @apply absolute inset-0 overflow-auto p-4; }
+@media (max-width: 900px) { .qk-body > .inv-scroll { position: static; inset: auto; } }
+table.table-inv-products { min-width: 940px; }
+table.table-inv-stock { min-width: 760px; }
+table.table-inv-moves { min-width: 1040px; }
+table.table-inv-wh { min-width: 560px; }
+.inv-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
+/* 음수 줄 — 에러가 아니라 '아직 안 맞춘 것'이라 눈에는 띄되 겁주지 않는다 (결정 7) */
+.inv-row-fix { background: color-mix(in srgb, var(--danger) 6%, transparent); }
+.inv-tab-warn { @apply text-[var(--danger)]; }
+.inv-foot { @apply mt-3 text-[11.5px] leading-relaxed text-[var(--text-dim)]; }
+.inv-foot-warn { @apply rounded-lg border border-[var(--danger)]/25 bg-[var(--danger)]/5 px-3 py-2 text-[var(--text-muted)]; }
+.inv-pill { @apply inline-block rounded-full px-2 py-0.5 text-[10.5px] font-bold; }
+.inv-pill-ok { @apply bg-[var(--success)]/10 text-[var(--success)]; }
+.inv-pill-warn { @apply bg-[var(--warning)]/12 text-[var(--warning)]; }
+.inv-pill-danger { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }
+.inv-pill-ghost { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+.inv-pill-in { @apply bg-[var(--success)]/10 text-[var(--success)]; }
+.inv-pill-out { @apply bg-[var(--warning)]/12 text-[var(--warning)]; }
+.inv-wh-add { @apply inline-flex items-center gap-2; }
+.inv-wh-add .field-input { @apply h-8 w-40 text-[12px]; }
+
+/* 폼은 팝업 — 목록 줄이 밀리지 않게 (조회 화면 표준) */
+.inv-modal { @apply fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-6 backdrop-blur-sm; }
+.inv-modal-box { @apply my-6 flex w-full max-w-xl flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-2xl; }
+.inv-modal-wide { @apply max-w-3xl; }
+.inv-modal-head { @apply flex items-center justify-between gap-3 text-[15px]; }
+.inv-modal-x { @apply rounded-lg px-2 py-1 text-[var(--text-dim)] transition hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.inv-modal-desc { @apply text-[12px] leading-relaxed text-[var(--text-muted)]; }
+.inv-modal-actions { @apply mt-1 flex justify-end gap-2 border-t border-[var(--border)] pt-3; }
+.inv-form-grid { @apply grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2; }
+.inv-field { @apply flex flex-col gap-1; }
+.inv-field > span { @apply text-[11px] font-semibold text-[var(--text-muted)]; }
+.inv-field .field-input { @apply h-9 py-0 text-[13px]; }
+.inv-hint { @apply not-italic font-normal text-[var(--text-dim)]; }
+
+/* 수량 관리 체크 — 이 한 칸이 음수 재고의 절반을 없앤다(결정 6-④). 그래서 폼 한가운데 크게 둔다. */
+.inv-track { @apply flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-3.5 py-3; }
+/*   ★ 제목 b 만 block — em 안의 b 까지 block 이 되면 설명이 세 줄로 쪼개진다(화면에서 보고 잡았다) */
+.inv-track > span > b { @apply block text-[13px]; }
+.inv-track em { @apply mt-0.5 block not-italic text-[11px] leading-relaxed text-[var(--text-muted)]; }
+.inv-track em b { @apply font-bold text-[var(--text-muted)]; }
+
+.inv-lines { @apply flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3; }
+.inv-line { @apply grid items-center gap-2; grid-template-columns: minmax(0,2fr) 88px 100px 96px 28px; }
+@media (max-width: 640px) { .inv-line { grid-template-columns: 1fr 1fr; } }
+.inv-line .field-input { @apply h-9 py-0 text-[12.5px]; }
+/* 넣은 수량이 재고에 어떻게 닿는지 그 자리에서 되읽어 준다 (결정 8) */
+.inv-line-eff { @apply text-right text-[11.5px] font-bold tabular-nums; }
+.inv-line-eff-in { @apply text-[var(--success)]; }
+.inv-line-eff-out { @apply text-[var(--warning)]; }
+.inv-line-undo { @apply ml-1 rounded px-1 py-px text-[10px] font-bold bg-[var(--warning)]/12 text-[var(--warning)]; }
+.inv-line-x { @apply rounded-md px-1.5 text-[var(--text-dim)] transition hover:text-[var(--danger)]; }
+.inv-warn { @apply rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/8 px-3 py-2 text-[11.5px] text-[var(--text-muted)]; }
+.inv-paste { @apply h-auto py-2 font-mono text-[12px] leading-relaxed; }
+.inv-paste-sum { @apply text-[11.5px] text-[var(--text-muted)]; }
+.inv-paste-bad { @apply text-[var(--danger)]; }
+
+/* 아직 안 만든 단계 — 메뉴는 숨기지 않고 '무엇을 하는 곳인지'를 적는다 (결정 6) */
+.inv-soon { @apply mx-auto flex max-w-xl flex-col gap-3 rounded-2xl border border-dashed border-[var(--border)] bg-[var(--bg-card)] px-7 py-8; }
+.inv-soon-phase { @apply w-fit rounded-full bg-[var(--primary)]/10 px-2.5 py-0.5 text-[11px] font-bold text-[var(--primary)]; }
+.inv-soon-title { @apply text-[17px] font-bold tracking-tight; }
+.inv-soon-what { @apply text-[13px] leading-relaxed text-[var(--text-muted)]; }
+.inv-soon-list { @apply flex list-disc flex-col gap-1 pl-5 text-[12.5px] leading-relaxed text-[var(--text-muted)]; }
+.inv-soon-now { @apply mt-1 text-[12.5px] text-[var(--text-muted)]; }
