@@ -486,6 +486,7 @@ export async function deleteStockDoc(docId: string) {
 export type DocRowHead = {
   id: string; doc_no: string; reason: string; doc_date: string;
   partner_id: string | null; warehouse_id: string | null; order_id: string | null; note: string | null;
+  journal_entry_id: string | null;
   lines: number; supply: number; vat: number;
 };
 export async function listStockDocs(
@@ -494,7 +495,7 @@ export async function listStockDocs(
   if (!companyId) return [];
   const data = logRead("inventory:doc-list", await supabase
     .from("stock_docs")
-    .select("id, doc_no, reason, doc_date, partner_id, warehouse_id, order_id, note, stock_moves(qty, unit_price, vat_amount)")
+    .select("id, doc_no, reason, doc_date, partner_id, warehouse_id, order_id, note, journal_entry_id, stock_moves(qty, unit_price, vat_amount)")
     .eq("company_id", companyId).in("reason", reasons)
     .gte("doc_date", from).lte("doc_date", to)
     .order("doc_date", { ascending: false }).order("created_at", { ascending: false })
@@ -504,9 +505,33 @@ export async function listStockDocs(
     return {
       id: d.id, doc_no: d.doc_no, reason: d.reason, doc_date: d.doc_date,
       partner_id: d.partner_id, warehouse_id: d.warehouse_id, order_id: d.order_id, note: d.note,
+      journal_entry_id: d.journal_entry_id ?? null,
       lines: ms.length,
       supply: ms.reduce((n, m) => n + Math.abs(Number(m.unit_price || 0) * Number(m.qty || 0)), 0),
       vat: ms.reduce((n, m) => n + Math.abs(Number(m.vat_amount || 0)), 0),
     };
   });
+}
+
+
+// ── 반품 — 원본 전표를 가리키는 **반대 전표** (2026-08-25 사장님 지시, 1순위 ③) ──────
+//   지우지 않고 부호로 남긴다(결정 8). 같은 사유로 수량을 뒤집어 넣으면 createStockDoc 이 '취소'로 읽는다.
+//   original_doc_id 로 원본을 가리켜 "무엇의 반품인가"가 남는다.
+export async function returnStockDoc(companyId: string, docId: string, userId?: string | null) {
+  const { doc, moves } = await getStockDoc(docId);
+  if (!doc) throw new Error("전표를 찾을 수 없습니다");
+  if (doc.reason !== "sale" && doc.reason !== "purchase") throw new Error("판매·매입 전표만 반품할 수 있습니다");
+  if (!moves.length) throw new Error("반품할 줄이 없습니다");
+  const def = reasonOf(doc.reason)!;
+  return createStockDoc(companyId, {
+    reason: doc.reason as StockReason, warehouseId: doc.warehouse_id,
+    partnerId: doc.partner_id, originalDocId: docId, orderId: doc.order_id,
+    note: `${doc.doc_no} 반품`,
+    //   저장된 줄은 이미 부호가 붙어 있다(판매 −). 사유 부호로 나눠 '몇 개'로 되돌린 뒤 음수로 넣는다.
+    lines: moves.map((m: any) => ({
+      product_id: m.product_id, qty: -(m.qty / def.sign),
+      unit_price: m.unit_price, vat_amount: m.vat_amount == null ? null : -Math.abs(m.vat_amount),
+      note: m.note, order_line_id: m.order_line_id,
+    })),
+  }, userId);
 }

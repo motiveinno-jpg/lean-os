@@ -37,7 +37,7 @@ export type HistRow = {
 };
 
 export function DocScreen({
-  formKey, perm, saveActions, onSave, history, onOpen, onDelete, pull, headNote,
+  formKey, perm, saveActions, onSave, history, onOpen, onDelete, onReturn, popupExtra, pull, headNote,
 }: {
   formKey: FormKey;
   perm: string;
@@ -47,6 +47,10 @@ export function DocScreen({
   history: (a: { companyId: string; from: string; to: string }) => Promise<HistRow[]>;
   onOpen: (a: { id: string; ctl: DocCtl }) => Promise<void>;
   onDelete?: (a: { id: string; ctl: DocCtl }) => Promise<void>;
+  /** 반품 — 원본을 가리키는 반대 전표를 만든다. 판매·구매만 넘긴다 */
+  onReturn?: (a: { id: string; ctl: DocCtl }) => Promise<string>;
+  /** 팝업 바닥에 더 둘 동작(주문서 PDF 등) */
+  popupExtra?: (a: { ctl: DocCtl; products: Product[] }) => React.ReactNode;
   /** 주문서에서 줄을 불러오는 버튼을 둘지 */
   pull?: (ctl: DocCtl) => React.ReactNode;
   headNote?: React.ReactNode;
@@ -295,6 +299,17 @@ export function DocScreen({
                     finally { setBusy(false); }
                   }}>삭제</button>
               )}
+              {onReturn && canWrite && (
+                <button type="button" className="btn-secondary btn-sm" disabled={busy}
+                  onClick={async () => {
+                    if (!window.confirm("이 전표 전체를 반품 처리할까요? 반대 전표가 새로 만들어지고 재고가 되돌아갑니다.")) return;
+                    setBusy(true);
+                    try { const m = await onReturn({ id: ctl.editing!.id, ctl }); toast(m, "success"); closePopup(); invalidate(); }
+                    catch (e) { toast(friendlyError(e), "error"); }
+                    finally { setBusy(false); }
+                  }}>반품</button>
+              )}
+              {popupExtra?.({ ctl, products })}
               <span className="doc-sums-sp" />
               <button type="button" className="btn-secondary btn-sm" onClick={closePopup}>닫기</button>
             </div>

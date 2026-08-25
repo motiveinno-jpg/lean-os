@@ -34,6 +34,7 @@ export default function ProductsPage() {
   type SortKey = "sku" | "name" | "category" | "sale" | "cost" | "qty";
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "sku", dir: "asc" });
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
 
   const { data: products = [] } = useQuery({
     queryKey: ["inv-products", companyId],
@@ -88,7 +89,10 @@ export default function ProductsPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print"><button type="button" className="collect-tab collect-tab-on">품목</button></div>
-          <QueryBar right={<button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>}>
+          <QueryBar right={<>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setPasteOpen(true)}>엑셀 붙여넣기</button>
+            <button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>
+          </>}>
             <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 분류 · 규격 · 바코드 — 쉼표로 여러 개, Enter" />
             <button type="button" className={onlyActive ? "qk-chip qk-chip-on" : "qk-chip"} onClick={() => setOnlyActive(true)}>판매중</button>
             <button type="button" className={!onlyActive ? "qk-chip qk-chip-on" : "qk-chip"} onClick={() => setOnlyActive(false)}>전체</button>
@@ -162,6 +166,11 @@ export default function ProductsPage() {
           from={pager.from} to={pager.to} onPage={pager.setPage} />
       </QueryScreen>
 
+      {pasteOpen && companyId && (
+        <ProductPasteDialog products={products} onClose={() => setPasteOpen(false)}
+          onDone={(n) => { setPasteOpen(false); qc.invalidateQueries({ queryKey: ["inv-products", companyId] }); toast(`품목 ${n}개를 올렸습니다`, "success"); }}
+          save={(v) => upsertProduct(companyId, v, userId)} />
+      )}
       {editing && companyId && (
         <ProductDialog
           initial={editing}
@@ -249,6 +258,71 @@ function ProductDialog({ initial, onClose, onSave }: {
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
           <button type="button" className="btn-primary btn-sm" disabled={!ready} onClick={() => onSave(v)}>저장</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/** 품목 엑셀 붙여넣기 — 처음 시작할 때 수백 개를 하나씩 못 친다 (2026-08-25 사장님 지시, 1순위 ④)
+ *  칸 차례: SKU · 품목명 · 규격 · 단위 · 판매가 · 매입가 · 안전재고 · 수량관리(예/아니오)
+ *  같은 SKU 가 이미 있으면 **고친다**(두 번 올려도 두 개가 되지 않는다). */
+function ProductPasteDialog({ products, onClose, onDone, save }: {
+  products: Product[]; onClose: () => void; onDone: (n: number) => void;
+  save: (v: Partial<Product> & { id?: string }) => Promise<unknown>;
+}) {
+  const { toast } = useToast();
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const bySku = useMemo(() => new Map(products.map((p) => [p.sku.trim().toUpperCase(), p])), [products]);
+  const num = (x: string | undefined) => { const n = Number(String(x ?? "").replace(/[^0-9.-]/g, "")); return x && !Number.isNaN(n) ? n : null; };
+  const parsed = useMemo(() => {
+    const ok: (Partial<Product> & { id?: string; _new: boolean })[] = [];
+    const bad: string[] = [];
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) continue;
+      const p = line.split(/\t|\s{2,}/).map((x) => x.trim());
+      if (/^sku$/i.test(p[0] || "") || p[0] === "품목코드") continue;   // 머리줄은 건너뛴다
+      if (!p[0] || !p[1]) { bad.push(`${line.slice(0, 30)} → SKU 와 품목명이 있어야 합니다`); continue; }
+      const cur = bySku.get(p[0].toUpperCase());
+      const track = p[7] == null || p[7] === "" ? true : !/^(아니오|아니요|n|no|false|0|x)$/i.test(p[7]);
+      ok.push({
+        id: cur?.id, _new: !cur, sku: p[0], name: p[1], spec: p[2] || null, unit: p[3] || "EA",
+        sale_price: num(p[4]), cost_price: num(p[5]), safety_stock: num(p[6]), track_stock: track,
+      });
+    }
+    return { ok, bad };
+  }, [text, bySku]);
+  const newCount = parsed.ok.filter((x) => x._new).length;
+
+  return (
+    <div className="inv-modal" onClick={onClose}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">품목 엑셀 붙여넣기</h3>
+        <p className="inv-modal-desc">
+          엑셀에서 <b>SKU · 품목명 · 규격 · 단위 · 판매가 · 매입가 · 안전재고 · 수량관리(예/아니오)</b> 차례로 복사해 붙이세요.
+          앞 두 칸만 있어도 됩니다. <b>같은 SKU 가 이미 있으면 그 품목을 고칩니다.</b>
+        </p>
+        <textarea className="field-input inv-paste" rows={10} value={text} onChange={(e) => setText(e.target.value)}
+          placeholder={"TS-BK-M\t무지 티셔츠\t블랙 / M\tEA\t19000\t7200\t20\t예\nDLV\t배송비\t\t건\t3000\t\t\t아니오"} />
+        <div className="inv-paste-sum">
+          <b>{parsed.ok.length}줄 읽었습니다</b>{parsed.ok.length > 0 && <span> · 새로 {newCount} · 고침 {parsed.ok.length - newCount}</span>}
+          {parsed.bad.length > 0 && <span className="inv-paste-bad"> · 못 읽은 {parsed.bad.length}줄: {parsed.bad.slice(0, 2).join(" / ")}{parsed.bad.length > 2 ? " …" : ""}</span>}
+        </div>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!parsed.ok.length || busy}
+            onClick={async () => {
+              setBusy(true);
+              let n = 0;
+              try {
+                for (const v of parsed.ok) { const { _new, ...row } = v; await save(row); n++; }
+                onDone(n);
+              } catch (e) { toast(friendlyError(e, `${n}개까지 올리고 멈췄습니다`), "error"); }
+              finally { setBusy(false); }
+            }}>올리기</button>
         </div>
       </div>
     </div>

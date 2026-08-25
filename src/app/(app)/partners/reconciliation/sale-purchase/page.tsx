@@ -80,7 +80,7 @@ type Row = {
   refType?: RefKind;
   refId?: string;
 };
-type RefKind = "tax_invoice" | "card_transaction" | "cash_receipt";
+type RefKind = "tax_invoice" | "card_transaction" | "cash_receipt" | "stock_doc";
 
 //   상단 갈래 — 유형을 묶어 보는 필터 겸, 새 줄의 기본 유형
 const GROUPS: { key: string; label: string; codes: string[] }[] = [
@@ -95,17 +95,17 @@ const GROUPS: { key: string; label: string; codes: string[] }[] = [
 ];
 
 type EvidenceRow = {
-  key: string; kind: "tax_invoice" | "card" | "cash_receipt";
+  key: string; kind: "tax_invoice" | "card" | "cash_receipt" | "stock_doc";
   date: string; who: string; what: string;
   supply: number; vat: number; partnerId: string | null; suggested: string;
   //   금액이 음수이거나 가맹점명이 '[취소]' 로 시작하는 건 — 그대로 치면 안 되는 줄이라 눈에 띄게 표시한다
   cancelled?: boolean;
 };
 const EVIDENCE_LABEL: Record<EvidenceRow["kind"], string> = {
-  tax_invoice: "세금계산서", card: "카드", cash_receipt: "현금영수증",
+  tax_invoice: "세금계산서", card: "카드", cash_receipt: "현금영수증", stock_doc: "재고 전표",
 };
 const EVIDENCE_REF: Record<EvidenceRow["kind"], RefKind> = {
-  tax_invoice: "tax_invoice", card: "card_transaction", cash_receipt: "cash_receipt",
+  tax_invoice: "tax_invoice", card: "card_transaction", cash_receipt: "cash_receipt", stock_doc: "stock_doc",
 };
 //   카드 자동분류는 {"label":"통신비",…} JSON 문자열이라 이름만 꺼낸다 (세금계산서 화면과 같은 규칙)
 function cardLabelOf(raw: unknown): string {
@@ -402,7 +402,7 @@ function SalePurchaseInner() {
     queryFn: async () => {
       const from = fromM + "-01";
       const to = monthAfter(toM);
-      const [ti, card, cash] = await Promise.all([
+      const [ti, card, cash, stk] = await Promise.all([
         supabase.from("tax_invoices")
           .select("id, type, issue_date, counterparty_name, partner_id, item_name, supply_amount, tax_amount, tax_kind, expense_category, journal_entry_id")
           .eq("company_id", companyId!).is("journal_entry_id", null).neq("status", "void")
@@ -415,6 +415,12 @@ function SalePurchaseInner() {
           .select("id, type, issue_date, counterparty_name, supply_amount, tax_amount, amount, status, source, journal_entry_id")
           .eq("company_id", companyId!).is("journal_entry_id", null)
           .gte("issue_date", from).lt("issue_date", to).order("issue_date").limit(200),
+        //   ★ 재고 메뉴의 판매·구매 전표 — 세금계산서·카드와 같은 자리에 뜬다 (2026-08-25 사장님 지시).
+        //     전표를 자동으로 만들지 않고 여기서 사람이 불러와 저장한다(제안은 자동, 확정은 사람).
+        supabase.from("stock_docs")
+          .select("id, doc_no, reason, doc_date, partner_id, note, journal_entry_id, partners(name), stock_moves(qty, unit_price, vat_amount)")
+          .eq("company_id", companyId!).is("journal_entry_id", null).in("reason", ["sale", "purchase"])
+          .gte("doc_date", from).lt("doc_date", to).order("doc_date").limit(200),
       ]);
       const out: EvidenceRow[] = [];
       for (const r of ((ti.data as any[]) || [])) {
@@ -457,6 +463,22 @@ function SalePurchaseInner() {
         });
       }
       //   0 원 건만 뺀다. 음수(수정세금계산서·환입·카드 취소)는 그대로 둔다 — 격자가 부호를 받는다.
+      for (const r of (((stk as any).data as any[]) || [])) {
+        const ms = (r.stock_moves || []) as any[];
+        //   판매는 음수(나감)로 쌓여 있다 — 부호를 살려 합치면 반품은 음수 전표로 온다(카드 취소분과 같은 규칙)
+        const signed = ms.reduce((n, m) => n + Number(m.unit_price || 0) * Number(m.qty || 0), 0);
+        const sup = r.reason === "sale" ? -signed : signed;
+        const vat = ms.reduce((n, m) => n + Number(m.vat_amount || 0), 0) * (sup < 0 ? -1 : 1);
+        if (sup === 0) continue;                       // 단가 없이 수량만 적은 전표는 금액이 없어 전표를 못 만든다
+        out.push({
+          key: "stk:" + r.id, kind: "stock_doc", date: r.doc_date,
+          who: r.partners?.name || (String(r.note || "").match(/거래처: ([^·]+)/)?.[1] || "").trim() || "—",
+          what: `${r.doc_no}${r.note ? " · " + r.note : ""}`,
+          supply: Math.round(sup), vat: Math.round(Math.abs(vat)) * (sup < 0 ? -1 : 1),
+          partnerId: r.partner_id || null, cancelled: sup < 0,
+          suggested: r.reason === "sale" ? "11" : "51",
+        });
+      }
       return out.filter((r) => r.supply !== 0).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
     },
     enabled: !!companyId && pullOpen,

@@ -11,9 +11,13 @@ import {
   listOrders, listOrderLines, listUsed, saveOrder, deleteOrder,
 } from "@/lib/inventory-orders";
 import { listProducts } from "@/lib/inventory";
+import { buildQuoteBlobFromDoc } from "@/lib/quote-pdf";
+import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
 
 export default function OrdersPage() {
   const qc = useQueryClient();
+  const { toast } = useToast();
 
   return (
     <DocScreen
@@ -80,6 +84,33 @@ export default function OrdersPage() {
         ctl.loadDoc(o, ls);
       }}
       onDelete={async ({ id, ctl }) => { await deleteOrder(ctl.companyId!, id); }}
+      //   ★ 주문서는 견적 역할이라 상대에게 보낼 수 있어야 한다 — 프로젝트 견적서 PDF 부품을 그대로 쓴다(1순위 ②)
+      popupExtra={({ ctl, products }) => (
+        <button type="button" className="btn-secondary btn-sm"
+          onClick={async () => {
+            const b = ctl.build();
+            if (!b.lines.length) { toast("품목 줄이 없습니다", "error"); return; }
+            const byId = new Map(products.map((p) => [p.id, p]));
+            const doc = {
+              name: `주문서 ${ctl.editing?.order_no || ""}`.trim(), document_number: ctl.editing?.order_no || "-",
+              content_json: {
+                counterpartyName: b.head.partner || "",
+                header: { partnerId: b.head.partner_id || null, validUntil: b.head.due || undefined },
+                notes: b.head.note || "",
+                items: b.lines.map((l) => ({
+                  name: byId.get(l.product_id)?.name || "", spec: byId.get(l.product_id)?.spec || "",
+                  quantity: l.qty, unitPrice: l.unit_price ?? 0, supplyAmount: l.supply_amount,
+                })),
+              },
+            };
+            try {
+              const blob = await buildQuoteBlobFromDoc(doc, ctl.companyId!, ctl.userId);
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a"); a.href = url; a.download = `${doc.name}.pdf`; a.click();
+              setTimeout(() => URL.revokeObjectURL(url), 2000);
+            } catch (e) { toast(friendlyError(e, "PDF 를 만들지 못했습니다"), "error"); }
+          }}>PDF 내려받기</button>
+      )}
     />
   );
 }

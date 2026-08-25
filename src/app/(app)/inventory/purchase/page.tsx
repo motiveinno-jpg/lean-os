@@ -7,7 +7,7 @@
 import { DocScreen, type HistRow } from "../_components/doc-screen";
 import { PullOrderButton } from "../_components/pull-order";
 import {
-  createStockDoc, updateStockDoc, getStockDoc, deleteStockDoc, listStockDocs, listProducts, listWarehouses,
+  createStockDoc, updateStockDoc, getStockDoc, deleteStockDoc, listStockDocs, listProducts, listWarehouses, returnStockDoc,
 } from "@/lib/inventory";
 import { listOrders } from "@/lib/inventory-orders";
 
@@ -37,9 +37,10 @@ export default function PurchasePage() {
           return `${r.docNo} 을 수정했습니다 — 재고가 수정한 수량으로 반영됩니다`;
         }
         const r = await createStockDoc(ctl.companyId!, input, ctl.userId);
-        return r.skipped > 0
+        return (r.skipped > 0
           ? `${r.docNo} 로 기록했습니다 · 수량 관리 대상이 아닌 ${r.skipped}줄은 제외했습니다`
-          : `${r.docNo} 로 기록했습니다`;
+          : `${r.docNo} 로 기록했습니다`)
+          + " · 전표는 매입매출전표 › 증빙에서 불러오기로 만듭니다";
       }}
       history={async ({ companyId, from, to }) => {
         const [docs, prods, whs, orders] = await Promise.all([
@@ -53,7 +54,8 @@ export default function PurchasePage() {
           who: d.note || whs.find((w) => w.id === d.warehouse_id)?.name || "",
           label: (d.order_id ? `${orderNo.get(d.order_id) || "주문"} 에서 · ` : "") + `${d.lines}품목`,
           lines: d.lines, total: d.supply + d.vat,
-          state: "재고 반영됨", stateTone: "ok",
+          //   전표가 섰는지 — 매입매출전표 › 증빙에서 불러오기로 만든다(제안은 자동, 확정은 사람)
+          state: d.journal_entry_id ? "전표 있음" : "전표 없음", stateTone: d.journal_entry_id ? "ok" : "warn",
         }));
       }}
       onOpen={async ({ id, ctl }) => {
@@ -75,6 +77,7 @@ export default function PurchasePage() {
         );
       }}
       onDelete={async ({ id }) => { await deleteStockDoc(id); }}
+      onReturn={async ({ id, ctl }) => { const r = await returnStockDoc(ctl.companyId!, id, ctl.userId); return `${r.docNo} 로 반품 처리했습니다 — 재고가 되돌아갔습니다`; }}
     />
   );
 }
