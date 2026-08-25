@@ -526,7 +526,7 @@ export const CATALOG = [
       { name: "마이페이지", icon: "user", src: "/product/f-mypage-v1.png", alt: "오너뷰 마이페이지 — 내 현황·근태·휴가·급여",
         desc: "출퇴근부터 연차·급여명세·증명서까지 내 것만 모아서 봐요.",
         items: ["오늘 출퇴근·주간 근무", "연차 잔여·휴가 신청", "급여명세·근로계약 확인", "재직·경력증명서 신청"] },
-      { name: "AI 참모", icon: "chat", src: "/product/f-ai-copilot-v4.png", alt: "오너뷰 AI 참모",
+      { name: "AI 참모", icon: "chat", src: "/product/f-ai-copilot-v5.png", alt: "오너뷰 AI 참모 — 미수금 회수 우선순위와 거래처별 미수 비교",
         desc: "회사 실데이터를 근거로 지금 무엇을 먼저 할지 답해줘요.",
         items: ["실데이터 기반 답변", "미수금 회수 우선순위", "화면 위치 안내", "확정은 대표님이"] },
     ],
