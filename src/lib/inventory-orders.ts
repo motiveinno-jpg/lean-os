@@ -30,7 +30,7 @@ export type Field = {
 function baseHead(): Field[] {
   return [
     { field_id: "date",    name: "일자",   on: true,  custom: false, lock: true, why: "전표의 날짜" },
-    { field_id: "partner", name: "거래처", on: true,  custom: false, lock: true, why: "누구와 한 거래인가" },
+    { field_id: "partner", name: "거래처", on: true,  custom: false, why: "누구와 한 거래인가 — 없어도 저장됩니다" },
     { field_id: "wh",      name: "창고",   on: true,  custom: false, why: "대부분 하나라 기본값이 잡힙니다" },
     { field_id: "staff",   name: "담당자", on: false, custom: false, why: "누가 받은 건인가" },
     { field_id: "due",     name: "납기일", on: false, custom: false, why: "주기로 한 날" },
@@ -58,6 +58,9 @@ export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
     line[6].on = true;                          // 주문서엔 품목 비고
   }
   if (form === "buy") { head[4].name = "입고예정일"; head[4].on = true; }
+  //   ★ 생산은 **안에서 만드는 일**이라 거래처도 계산서도 없다(4단계 결정) — 칸을 꺼 둔다.
+  //     쓰고 싶은 회사는 양식 고치기에서 켜면 된다.
+  if (form === "make") head[1].on = false;
   return { head, line };
 }
 
