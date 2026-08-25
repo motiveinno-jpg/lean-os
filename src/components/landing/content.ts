@@ -645,7 +645,7 @@ export const CATALOG = [
       { name: "구성원", icon: "user", src: "/product/f-members-v4.png", alt: "오너뷰 구성원 목록",
         desc: "부서·직급·입사일을 관리하고, 급여는 4대보험·원천세까지 자동으로 계산돼요.",
         items: ["구성원 등록·상세", "4대보험·원천세 자동 산출", "급여 배치 · 명세서 발송", "메뉴별 권한 부여"] },
-      { name: "근태 관리", icon: "clock", src: "/product/f-hr-v4.png", alt: "오너뷰 근태 관리",
+      { name: "근태 관리", icon: "clock", src: "/product/f-hr-v5.png", alt: "오너뷰 근태 관리 — 주간 워크보드와 52시간 사용률",
         desc: "출퇴근·연차·연장근무가 자동으로 집계돼요.",
         items: ["원클릭 출퇴근", "연차 발생·사용 이력", "주 52시간 사용률", "여러 달 조회·엑셀"] },
       { name: "근로계약·서식", icon: "file", src: "/product/f-templates-v4.png", alt: "오너뷰 근로계약 서식",
