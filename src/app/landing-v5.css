@@ -204,7 +204,6 @@
   display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top;
 }
 
-
 /* ── 섹션 후킹 문구 ──
    ⚠️ v5 초안에서 이게 통째로 빠져 있었다. 장면 연출이 아무리 좋아도 "이 섹션이 무슨 말을
       하려는지"가 없으면 그냥 화면 구경이 된다. eyebrow 만으로는 전달되지 않는다. */
@@ -231,7 +230,7 @@
 .lp5-sect-dark { background: var(--dark); color: #fff; overflow: hidden; }
 .lp5-sect-dark .lp5-eyebrow { color: var(--brand2); }
 .lp5-sect-dark .lp5-lead { color: #B9B9C6; }
-.lp5-sect-dark .lp5-rail-card { background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.09); }
+
 .lp5-sect-dark .lp5-rail-dot { background: rgba(255,255,255,.2); }
 .lp5-sect-dark .lp5-rail-dot-on { background: var(--brand2); }
 .lp5-sect-dark .lp5-rail-play { background: rgba(255,255,255,.1); color: #fff; border-color: rgba(255,255,255,.16); }
@@ -262,7 +261,7 @@
 /* ⚠️ .lp5-rail-wide 는 .lp5-rail-track 과 같은 특이도(클래스 1개)인데 track 규칙이 뒤에 있어
    --cw 가 도로 720px 로 덮였다. 카드가 1040px 로 안 커지던 원인. 특이도를 올려 고정한다. */
 .lp5-rail-track.lp5-rail-wide { --cw: min(1040px, 78vw); --gap: 20px; --view: calc(100vw - var(--pad)); }
-.lp5-rail-wide .lp5-rail-card { height: min(62vh, 560px); }
+
 .lp5-rail-track {
   --cw: min(720px, 74vw);
   --gap: 22px;
@@ -272,20 +271,6 @@
 /* 마지막 카드도 왼쪽 끝까지 올 수 있게 뒤에 여백을 둔다 */
 .lp5-rail-track::after { content: ""; flex: 0 0 calc(100vw - var(--pad, 32px) - var(--cw)); }
 .lp5-rail-track.lp5-rail-tall { --cw: min(700px, 86vw); }
-.lp5-rail-card {
-  width: 100%;
-  border-radius: 26px; overflow: hidden; background: var(--canvas2);
-  border: 1px solid var(--line);
-  /* ⚠️ 비활성 카드를 흐리게(opacity .5) 두니 "음영 처리가 어색하다"는 지적이 나왔다.
-     자동 재생으로 바뀐 지금은 다 또렷하게 두고, 현재 칸은 점으로만 알린다. */
-}
-.lp5-scene-dark .lp5-rail-card { background: rgba(255,255,255,.045); border-color: rgba(255,255,255,.09); }
-
-.lp5-rail-kick { font-size: 12px; font-weight: 800; letter-spacing: .06em; color: var(--brand); }
-.lp5-rail-title {
-  font-size: clamp(18px, calc(12px + 1.15vw), 30px); font-weight: 800;
-  letter-spacing: -.025em; margin-top: 8px; line-height: 1.32; max-width: 15em;
-}
 
 /* ── 코어 카드 ── 회색 판 위에 흰 화면이 떠 있는 구조
    ⚠️ 카드 배경이 흰색이라 안에 든 오너뷰 화면(역시 흰색)과 경계가 사라져 설명이 묻혔다
@@ -298,12 +283,6 @@
   border: 1px solid rgba(11,11,15,.06);
   padding: clamp(26px, 2.6vw, 40px) 0 0 clamp(26px, 2.6vw, 40px);
 }
-.lp5-sect-dark .lp5-rail-card { background: rgba(255,255,255,.045); }
-.lp5-rail-over { padding: 0 clamp(26px, 2.6vw, 40px) clamp(20px, 2vw, 28px) 0; max-width: 40em; }
-.lp5-rail-desc {
-  font-size: clamp(14px, calc(11px + .5vw), 17px); line-height: 1.7;
-  color: var(--ink2); margin-top: 10px; max-width: 34em;
-}
 
 /* 화면 — 카드 안에서 떠 있고, 아래·오른쪽으로 흘러나간다 */
 .lp5-rail-shot {
@@ -312,7 +291,6 @@
   box-shadow: 0 2px 10px rgba(11,11,15,.06), 0 26px 60px -24px rgba(11,11,15,.34);
   border: 1px solid rgba(11,11,15,.06); border-right: 0; border-bottom: 0;
 }
-.lp5-rail-shot img { width: 100%; height: 100%; display: block; object-fit: cover; }
 
 /* ⚠️ 확대 크롭을 넣었다가 걷어냈다.
    화면마다 그 기능이 있는 자리가 다른데(어떤 건 상단 카드, 어떤 건 가운데 표) 전부 같은
@@ -324,27 +302,6 @@
 /* ══ AI 카드 — 어두운 무대 위에 실제 UI 조각이 떠 있다 ══
    ⚠️ 손으로 그린 일러스트는 "대충 만든 느낌"이라 걷어냈다. 실제 제품 화면을 쓰되
       어두운 무대 + 그림자로 띄워 전문적인 인상을 만든다(참고 이미지 구조). */
-.lp5-rail-cell { width: 100%; }
-.lp5-rail-art {
-  /* ⚠️ 어두운 타일 위에 흰 UI 를 얹었더니 검은 배경에 검은 박스가 겹쳐 경계가 안 보이고,
-     조각 비율이 제각각이라 어떤 카드는 틀이 보이고 어떤 카드는 이미지만 있는 것처럼 보였다
-     (사장님 지적). 카드 자체를 흰 판으로 통일한다 — 어두운 섹션 위에서 대비가 확실하고,
-     비율이 달라도 contain 여백까지 흰색이라 열 장이 전부 같은 모양으로 보인다. */
-  aspect-ratio: 12 / 5; border-radius: 18px; overflow: hidden; position: relative;
-  display: flex; align-items: center; justify-content: center; padding: 14px;
-  background: #fff;
-  box-shadow: 0 2px 10px rgba(0,0,0,.3), 0 26px 60px -22px rgba(0,0,0,.7);
-}
-.lp5-rail-art img {
-  width: 100%; height: 100%; object-fit: contain; object-position: center;
-  border-radius: 8px; display: block;
-}
-.lp5-rail-note { padding: 16px 2px 0; }
-.lp5-rail-note b { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; }
-.lp5-rail-note span { font-size: 14px; line-height: 1.72; color: var(--ink2); }
-.lp5-sect-dark .lp5-rail-note b { color: #fff; }
-.lp5-sect-dark .lp5-rail-note span { color: #A9A9B8; }
-.lp5-rail-where { display: block; font-size: 12px; color: var(--ink3) !important; margin-top: 7px; }
 
 /* 화살표 내비 */
 .lp5-rail-arrows { display: flex; align-items: center; gap: 9px; }
@@ -408,20 +365,6 @@
 
 /* ══ 4. 세 축 ══ */
 .lp5-ax { justify-content: center; }
-.lp5-ax-grid { display: grid; grid-template-columns: 350px 1fr; gap: 52px; align-items: center; width: 100%; }
-.lp5-ax-kick {
-  font-size: clamp(32px, calc(12px + 4.2vw), 72px); font-weight: 800; letter-spacing: -.04em; line-height: 1;
-}
-.lp5-ax-head { font-size: clamp(17px, calc(13px + .95vw), 26px); font-weight: 700; margin-top: 18px; line-height: 1.4; letter-spacing: -.02em; }
-.lp5-ax-lead { font-size: 15.5px; line-height: 1.75; color: var(--ink2); margin-top: 14px; }
-.lp5-ax-menus { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 24px; }
-.lp5-ax-menu {
-  font-size: 12.5px; font-weight: 700; color: var(--ink2);
-  background: var(--canvas2); border: 1px solid var(--line); border-radius: 9px; padding: 6px 11px;
-}
-.lp5-ax-steps { display: flex; gap: 7px; margin-top: 30px; }
-.lp5-ax-step { width: 34px; height: 3px; border-radius: 99px; background: var(--line); transition: background .3s; }
-.lp5-ax-step-on { background: var(--brand); }
 
 /* ══ 5. AI 엔진 (어두운 장면) ══ */
 .lp5-eng { justify-content: center; }
@@ -432,39 +375,11 @@
     radial-gradient(40% 46% at 84% 72%, rgba(79,70,229,.22), transparent 62%);
   transform: translateY(calc(var(--p) * -40px));
 }
-.lp5-eng-grid { display: grid; grid-template-columns: 390px 1fr; gap: 52px; align-items: center; width: 100%; position: relative; z-index: 1; }
-.lp5-eng-list { display: flex; flex-direction: column; gap: 10px; }
-.lp5-eng-item {
-  display: flex; gap: 14px; align-items: flex-start; padding: 15px 17px; border-radius: 15px;
-  border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.03);
-  transition: background .45s ease, border-color .45s ease, opacity .45s ease;
-  opacity: .42;
-}
-.lp5-eng-item-on {
-  opacity: 1; background: rgba(124,107,255,.13); border-color: rgba(124,107,255,.4);
-}
-.lp5-eng-num { font-size: 12px; font-weight: 800; color: var(--brand2); letter-spacing: .06em; margin-top: 3px; }
-.lp5-eng-name { font-size: 16.5px; font-weight: 800; letter-spacing: -.01em; }
-.lp5-eng-short { font-size: 13.5px; line-height: 1.65; color: #A9A9B8; margin-top: 5px; }
+
 .lp5-eng-h { color: #fff; }
 
 /* ══ 6. 커버리지 — 메뉴가 하나씩 켜진다 ══ */
 .lp5-cov { justify-content: center; }
-.lp5-cov-head { text-align: center; margin-bottom: 40px; }
-.lp5-cov-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; width: 100%; }
-.lp5-cov-cell {
-  border: 1px solid var(--line); border-radius: 15px; padding: 17px 15px; background: var(--canvas);
-  transition: opacity .5s ease, transform .5s ease, border-color .5s ease, box-shadow .5s ease;
-}
-/* 등장은 .lp5-rise(계단식 delay)가 맡는다 — 한 칸씩 켜던 on/off 클래스는 걷어냈다 */
-.lp5-cov-cell.lp5-rise-on { border-color: rgba(79,70,229,.28); box-shadow: 0 14px 30px -22px rgba(79,70,229,.42); }
-.lp5-cov-ico {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; border-radius: 10px; margin-bottom: 10px;
-  box-shadow: 0 3px 8px -2px rgba(11,11,15,.3);
-}
-.lp5-cov-n { font-size: 14.5px; font-weight: 700; margin-top: 6px; letter-spacing: -.01em; }
-.lp5-cov-d { font-size: 12px; line-height: 1.55; color: var(--ink3); margin-top: 5px; }
 
 /* ══ 7. 모바일 ══ */
 /* ⚠️ 사장님: "핸드폰에서 볼 때 모바일 목업이 전혀 모바일스럽지 않다."
@@ -571,7 +486,7 @@
   .lp5-shot-stack { aspect-ratio: 16 / 11; }
 }
 @media (max-width: 1200px) and (min-width: 1000px) {
-  .lp5-cov-grid { grid-template-columns: repeat(4, 1fr); }
+  
   .lp5-day-grid, .lp5-ax-grid, .lp5-eng-grid { grid-template-columns: 320px 1fr; gap: 40px; }
 }
 /* 좁은 화면에서 히어로·통합에 들어가는 폰 목업 (데스크톱 캡처 대체) */
