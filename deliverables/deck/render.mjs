@@ -11,9 +11,9 @@ const p = await (await b.newContext({ viewport: { width: 1280, height: 720 }, de
 await p.goto(`file://${resolve(DIR, "index.html")}`, { waitUntil: "networkidle" });
 await p.waitForTimeout(2500);
 
-const n = await p.locator(".slide").count();
+const n = await p.locator(".s").count();
 const broken = await p.evaluate(() => Array.from(document.images).filter((i) => !i.complete || i.naturalWidth === 0).map((i) => i.getAttribute("src")));
-const over = await p.evaluate(() => Array.from(document.querySelectorAll(".slide"))
+const over = await p.evaluate(() => Array.from(document.querySelectorAll(".s"))
   .map((s, i) => ({ i: i + 1, over: s.scrollHeight - s.clientHeight })).filter((x) => x.over > 4));
 console.log(`슬라이드 ${n}장 · 깨진 이미지 ${broken.length ? broken.join(", ") : "없음"} · 넘침 ${over.length ? over.map((o) => `${o.i}장`).join(",") : "없음"}`);
 if (broken.length || over.length) { console.error("‼ 먼저 고치고 다시 돌리세요"); }

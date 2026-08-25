@@ -56,6 +56,8 @@ export function MenuGlyph({ n }: { n: string }) {
     case "box": return <svg {...p}><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>;
     case "layers": return <svg {...p}><path d="M12 2l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /><path d="M3 17l9 5 9-5" /></svg>;
     case "factory": return <svg {...p}><path d="M3 21V10l6 4V10l6 4V7l6 3v11H3z" /><path d="M7 21v-4M13 21v-4M18 21v-4" /></svg>;
+    case "doc": return <svg {...p}><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>;
+    case "link": return <svg {...p}><path d="M10 13a5 5 0 007.5.5l2-2A5 5 0 0012.5 4.5l-1 1" /><path d="M14 11a5 5 0 00-7.5-.5l-2 2A5 5 0 0011.5 19.5l1-1" /></svg>;
     case "won": return <svg {...p}><path d="M4 7l3.2 10L12 9l4.8 8L20 7" /><path d="M3 12h18" /></svg>;
     case "mail": return <svg {...p}><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>;
     default: return <svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
