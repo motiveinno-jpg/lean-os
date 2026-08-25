@@ -15,7 +15,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { todayKst } from "@/lib/kst";
 import { QueryBar, ResultStrip, Stat, usePager, QuickSearch, quickSearchHit } from "@/components/query-kit";
 import {
-  listCounts, listCountLines, createCount, saveCountedQty, deleteCount, applyCount,
+  listCounts, listCountLines, createCount, saveCountedQty, deleteCount, applyCount, revertCount,
   type Product, type Warehouse, type OnHand, type CountLine,
 } from "@/lib/inventory";
 
@@ -119,6 +119,21 @@ export function CountBar({ ctl, warehouses, onhand }: {
               finally { ctl.setBusy(false); }
             }}>반영하기</button>
         </>
+      ) : ctl.canMove && done ? (
+        //   되돌리기 — 조정 문서를 취소하고 실사를 다시 연다(센 수량은 그대로). 지우지 않는다(결정 25).
+        <button type="button" className="btn-secondary btn-sm" disabled={ctl.busy}
+          onClick={async () => {
+            if (!window.confirm("이 실사를 되돌릴까요?\n반영했던 '실사 조정' 문서가 취소되고(지워지지 않습니다) 실사는 다시 '진행 중'이 됩니다. 센 수량은 그대로 남습니다.")) return;
+            ctl.setBusy(true);
+            try {
+              await revertCount(ctl.openId!, ctl.userId);
+              ctl.toast("되돌렸습니다 — 수량을 고쳐 다시 반영할 수 있습니다", "success");
+              ctl.qc.invalidateQueries({ queryKey: ["inv-onhand", ctl.companyId] });
+              ctl.qc.invalidateQueries({ queryKey: ["inv-moves", ctl.companyId] });
+              ctl.counts.refetch(); ctl.lines.refetch();
+            } catch (e) { ctl.toast(friendlyError(e), "error"); }
+            finally { ctl.setBusy(false); }
+          }}>되돌리기</button>
       ) : undefined}>
         <button type="button" className="btn-secondary btn-sm" onClick={() => ctl.setOpenId(null)}>← 목록</button>
         <span className="inv-count-title">

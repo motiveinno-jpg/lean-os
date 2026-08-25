@@ -9,7 +9,7 @@
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { todayKst } from "@/lib/kst";
-import { createStockDoc, type MoveLine } from "@/lib/inventory";
+import { createStockDoc, updateStockDoc, cancelStockDoc, type MoveLine } from "@/lib/inventory";
 
 export type BomLine = {
   id: string; product_id: string; component_id: string; qty: number; note: string | null;
@@ -84,7 +84,8 @@ export async function produceLines(
     try {
       const mat = await createStockDoc(companyId, {
         reason: "consume", docDate, warehouseId: input.warehouseId,
-        orderId: input.orderId || null, note: `${prod.docNo} 자재 투입`, lines: mats,
+        //   ★ 완제품 문서를 가리켜 둔다 — 수정·취소할 때 짝을 찾아 같이 움직인다(3순위)
+        orderId: input.orderId || null, originalDocId: prod.id, note: `${prod.docNo} 자재 투입`, lines: mats,
       }, userId);
       matDocNo = mat.docNo;
     } catch (e) {
@@ -94,4 +95,75 @@ export async function produceLines(
     }
   }
   return { prodDocNo: prod.docNo, matDocNo, materials: mats.length };
+}
+
+
+//   완제품 문서의 짝(자재 투입 문서) — original_doc_id 로 찾는다. 살아 있는 것만.
+async function findMatDoc(prodDocId: string): Promise<string | null> {
+  const { data } = await supabase.from("stock_docs").select("id")
+    .eq("original_doc_id", prodDocId).eq("reason", "consume").eq("status", "active").limit(1).maybeSingle();
+  return (data as { id: string } | null)?.id ?? null;
+}
+
+function matLinesOf(
+  lines: { product_id: string; qty: number }[], bomLines: BomLine[],
+): MoveLine[] {
+  const mats: MoveLine[] = [];
+  for (const l of lines) {
+    for (const b of bomLines) {
+      if (b.product_id !== l.product_id || !(b.qty > 0)) continue;
+      mats.push({ product_id: b.component_id, qty: b.qty * Number(l.qty), note: "자재 투입" });
+    }
+  }
+  return mats;
+}
+
+/**
+ * 완제품 문서를 고친다 — **자재 문서도 같이**(3순위). 둘 중 하나만 고치면 재고가 거짓말을 한다(결정 14).
+ *   자재구성 × 새 수량으로 자재를 다시 내서: 짝이 있으면 그 문서를 갈아끼우고, 없으면 새로 세우고,
+ *   자재가 0이 됐으면 짝을 취소한다(지우지 않는다).
+ */
+export async function updateProduceDoc(
+  companyId: string, prodDocId: string,
+  input: { docDate?: string; warehouseId: string; note?: string | null;
+           lines: { product_id: string; qty: number; unit_price?: number | null; vat_amount?: number | null;
+                    note?: string | null; order_line_id?: string | null }[] },
+  bomLines: BomLine[], userId?: string | null,
+) {
+  const docDate = input.docDate || todayKst();
+  const r = await updateStockDoc(companyId, prodDocId, {
+    reason: "produce", docDate, warehouseId: input.warehouseId, note: input.note ?? null,
+    lines: input.lines.map((l) => ({
+      product_id: l.product_id, qty: Number(l.qty), unit_price: l.unit_price ?? null,
+      vat_amount: l.vat_amount ?? null, note: l.note ?? null, order_line_id: l.order_line_id ?? null,
+    })),
+  }, userId);
+
+  const mats = matLinesOf(input.lines, bomLines);
+  const matId = await findMatDoc(prodDocId);
+  let matDocNo: string | null = null;
+  if (mats.length) {
+    if (matId) {
+      const m = await updateStockDoc(companyId, matId, {
+        reason: "consume", docDate, warehouseId: input.warehouseId, note: `${r.docNo} 자재 투입`, lines: mats,
+      }, userId);
+      matDocNo = m.docNo;
+    } else {
+      const m = await createStockDoc(companyId, {
+        reason: "consume", docDate, warehouseId: input.warehouseId,
+        originalDocId: prodDocId, note: `${r.docNo} 자재 투입`, lines: mats,
+      }, userId);
+      matDocNo = m.docNo;
+    }
+  } else if (matId) {
+    await cancelStockDoc(matId, "완제품 수정으로 자재 없음", userId);
+  }
+  return { prodDocNo: r.docNo, matDocNo };
+}
+
+/** 완제품 문서를 취소하면 자재 문서도 같이 취소한다 — 자재만 빠진 채 남으면 재고가 거짓말을 한다. */
+export async function cancelProduceDoc(prodDocId: string, reason: string, userId?: string | null) {
+  await cancelStockDoc(prodDocId, reason, userId);
+  const matId = await findMatDoc(prodDocId);
+  if (matId) await cancelStockDoc(matId, `완제품 취소 · ${reason}`, userId);
 }

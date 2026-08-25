@@ -591,3 +591,19 @@ export async function rememberPartnerPrices(
     .upsert([...uniq.values()], { onConflict: "company_id,partner_id,product_id,side" });
   if (error) throw error;
 }
+
+
+// ── 실사 되돌리기 (2026-08-25 사장님 지시, 3순위) ───────────────────────────────
+//   반영한 실사는 '실사 조정' 문서 한 건을 남겼다(결정 9). 되돌리기 = 그 조정 문서를 **취소**하고(결정 25, 지우지 않는다)
+//   실사를 다시 '진행 중'으로 연다. 센 수량은 그대로 있으니 고쳐서 다시 반영하면 된다.
+//   조정 문서에 회계 전표가 붙어 있으면 cancelStockDoc 이 막는다 — 장부와 재고가 어긋나지 않게.
+export async function revertCount(countId: string, userId?: string | null) {
+  const { data } = await supabase.from("stock_counts").select("status, adjust_doc_id").eq("id", countId).single();
+  const c = data as { status: string; adjust_doc_id: string | null } | null;
+  if (!c) throw new Error("실사를 찾을 수 없습니다");
+  if (c.status !== "done") throw new Error("반영하지 않은 실사입니다");
+  if (c.adjust_doc_id) await cancelStockDoc(c.adjust_doc_id, "실사 되돌림", userId);
+  const { error } = await supabase.from("stock_counts")
+    .update({ status: "draft", adjust_doc_id: null, updated_at: new Date().toISOString() }).eq("id", countId);
+  if (error) throw error;
+}
