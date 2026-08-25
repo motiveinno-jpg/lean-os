@@ -127,7 +127,7 @@ export function OverviewDashboard({ part, contract, facts, endDate, daysToEnd, w
                 </div>
               ))}
               {goal > 0 && contractInc < goal && (
-                <p className="pj-dash-note pj-dash-note-plain">목표까지 <b className="pj-dash-goal">{won(goal - contractInc)}</b> 남았어요.</p>
+                <p className="pj-dash-note pj-dash-note-plain">목표까지 <b className="pj-dash-goal">{won(goal - contractInc)}</b> 남았습니다.</p>
               )}
               {out > 1 && <p className="pj-dash-note">미수금 <b>{won(out)}</b> — 발행액과 입금액의 차이입니다.</p>}
             </div>

@@ -36,9 +36,9 @@ const GRANS: { key: Gran; label: string; buckets: number }[] = [
 //   신뢰할 수 있는 하한선으로 쓴다.
 type Scope = "all" | "external" | "search";
 const SCOPES: { key: Scope; label: string; hint: string }[] = [
-  { key: "external", label: "외부", hint: "우리 팀 방문을 뺀 숫자예요. 평소엔 이걸 보세요." },
-  { key: "search", label: "검색 유입", hint: "검색엔진을 타고 들어온 방문자만. 가장 확실한 숫자예요." },
-  { key: "all", label: "전체", hint: "우리 팀 방문까지 포함한 원래 숫자예요." },
+  { key: "external", label: "외부", hint: "우리 팀 방문을 뺀 숫자입니다. 평소에는 이 값을 보세요." },
+  { key: "search", label: "검색 유입", hint: "검색엔진을 타고 들어온 방문자만. 가장 확실한 숫자입니다." },
+  { key: "all", label: "전체", hint: "우리 팀 방문까지 포함한 원래 숫자입니다." },
 ];
 
 type MetricKey = "visitors" | "views" | "guests" | "accounts" | "companies" | "trials";

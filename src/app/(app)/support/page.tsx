@@ -41,7 +41,7 @@ const CATEGORIES: { key: string; label: string; icon: string; desc: string }[] =
   { key: "data", label: "데이터·연동", icon: "🔌", desc: "은행·홈택스 연동, 수치가 안 맞을 때" },
   { key: "billing", label: "결제·구독", icon: "💳", desc: "요금제·결제·영수증" },
   { key: "account", label: "계정·권한", icon: "🔐", desc: "로그인·권한·구성원 초대" },
-  { key: "feature", label: "기능 제안", icon: "💡", desc: "이런 기능이 있으면 좋겠어요" },
+  { key: "feature", label: "기능 제안", icon: "💡", desc: "이런 기능이 있으면 좋겠습니다" },
   { key: "etc", label: "기타", icon: "📌", desc: "그 외 모든 문의" },
 ];
 const catMeta = (k: string) => CATEGORIES.find((c) => c.key === k) || CATEGORIES[CATEGORIES.length - 1];

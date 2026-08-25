@@ -546,7 +546,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
     qc.invalidateQueries({ queryKey: ["pb-items", targetId] });
     setSelected(new Set());
     toast(dropped > 0
-      ? `${ids.length}건을 옮겼습니다. 이름이 같은 칸만 따라갔고 ${dropped}칸은 비웠어요.`
+      ? `${ids.length}건을 옮겼습니다. 이름이 같은 칸만 따라갔고 ${dropped}칸은 비웠습니다.`
       : `${ids.length}건을 옮겼습니다.`, "success");
   };
 
@@ -1121,7 +1121,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
           onClose={() => setPicking(false)} />
       )}
       {presetName !== null && (
-        <NameDialog title="회사 양식으로 저장" hint={`지금 표의 칸 ${cols.length}개를 그대로 담습니다 · 행은 안 담아요`}
+        <NameDialog title="회사 양식으로 저장" hint={`지금 표의 칸 ${cols.length}개를 그대로 담습니다 · 행은 담지 않습니다`}
           value={presetName} onCancel={() => setPresetName(null)} onSave={saveBoardAsPreset} />
       )}
 
@@ -1235,7 +1235,7 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
       {/* 지운 직후 한 번 — 놓쳐도 ⋯ > 지운 항목에서 되살릴 수 있다 */}
       {undo && (
         <div className="pb-undo" role="status">
-          <span>{undo.label} 을 지웠어요.</span>
+          <span>{undo.label} 을 삭제했습니다.</span>
           <button type="button" onClick={runUndo}>되돌리기</button>
           <button type="button" className="pb-undo-x" onClick={() => setUndo(null)} aria-label="닫기">✕</button>
         </div>
@@ -2530,7 +2530,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
     if (budgetTotal > 0 && moneyCol) {
       //   예산 칸 + 집행 칸 — "예산 대비 얼마나 썼나"가 결론
       const pctUsed = Math.round((totalMoney / budgetTotal) * 100);
-      headline = `${budgetCol!.name} ${shortW(budgetTotal)}원 중 ${shortW(totalMoney)}원(${pctUsed}%)을 썼어요` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요합니다.` : ".");
+      headline = `${budgetCol!.name} ${shortW(budgetTotal)}원 중 ${shortW(totalMoney)}원(${pctUsed}%)을 사용했습니다` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요합니다.` : ".");
       why = [`남은 ${budgetCol!.name} ${shortW(Math.max(0, budgetTotal - totalMoney))}원`, thisWeek.length ? `이번 주 ${dueCol?.name || "결제"} ${thisWeek.length}건` : ""].filter(Boolean).join(" · ");
       stats = [
         { l: budgetCol!.name, v: `${shortW(budgetTotal)}원` },
@@ -2541,7 +2541,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
       ];
     } else {
       headline = moneyCol
-        ? `${moneyCol.name} 합계 ${shortW(totalMoney)}원 중 ${shortW(totalMoney - openMoney)}원이 끝났어요` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요합니다.` : ".")
+        ? `${moneyCol.name} 합계 ${shortW(totalMoney)}원 중 ${shortW(totalMoney - openMoney)}원이 끝났습니다` + (overdue.length ? ` — ${dueCol?.name || "기한"} 지난 ${overdue.length}건은 오늘 확인이 필요합니다.` : ".")
         : `${items.length}건이 있습니다.`;
       why = [dueCol && thisWeek.length ? `이번 주 ${dueCol.name} ${thisWeek.length}건` : "", `미완료 ${openItems.length}건 ${moneyCol ? shortW(openMoney) + "원" : ""}`].filter(Boolean).join(" · ");
       stats = [
@@ -2554,7 +2554,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
       ];
     }
   } else if (sumType === "task") {
-    headline = `${items.length}건 중 ${doneCount}건이 끝났어요` + (overdue.length ? ` — 기한 지난 ${overdue.length}건이 밀려 있습니다.` : overdue.length === 0 && dueCol ? " — 기한 지난 건은 없습니다." : ".");
+    headline = `${items.length}건 중 ${doneCount}건이 끝났습니다` + (overdue.length ? ` — 기한 지난 ${overdue.length}건이 밀려 있습니다.` : overdue.length === 0 && dueCol ? " — 기한 지난 건은 없습니다." : ".");
     why = [flow ? `진행 중 ${openItems.length}건` : "", thisWeek.length ? `이번 주 마감 ${thisWeek.length}건` : ""].filter(Boolean).join(" · ");
     stats = [
       { l: "전체", v: `${items.length}건` },
@@ -2564,7 +2564,7 @@ function BoardSummary({ boardName, needsHint, templateKey, cols, items, groups, 
     ];
   } else if (sumType === "date") {
     const next = upcoming[0] || null;
-    headline = `${items.length}건 중 ${doneCount}건이 끝났어요` + (overdue.length ? ` — 종료가 지난 미완료 ${overdue.length}건이 밀려 있습니다.` : ".");
+    headline = `${items.length}건 중 ${doneCount}건이 끝났습니다` + (overdue.length ? ` — 종료가 지난 미완료 ${overdue.length}건이 밀려 있습니다.` : ".");
     why = next ? `다음 ${dueCol?.name || "마감"} ${dval(next).slice(5)} (D-${dday(dval(next))}) · ${next.name}` : "";
     stats = [
       { l: "전체", v: `${items.length}건` },
@@ -2831,7 +2831,7 @@ function SummaryFormatDialog({ all, layout, presetName, canRemove, onApply, onUp
     <div className="pb-doc-modal" {...veil}>
       <div className="pb-doc-box pb-fmt-box">
         <b className="pb-fmt-h">정리 구성{presetName ? ` — ${presetName}` : ""}</b>
-        <em className="pb-fmt-hint">켠 것만 위에서부터 그려집니다 · 나중에 새 지표가 생기면 켜진 채 뒤에 붙어요</em>
+        <em className="pb-fmt-hint">켠 것만 위에서부터 그려집니다 · 나중에 새 지표가 생기면 켜진 채 뒤에 붙습니다</em>
         <ul className="pb-fmt-rows">
           {rows.map((r, i) => (
             <li key={r.id} className={r.on ? "" : "pb-fmt-offrow"}>

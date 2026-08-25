@@ -272,7 +272,7 @@ export function UpcomingAutoTransfersCard({ companyId, windowDays = 60, maxItems
           ))}
           {allItems.length > items.length && (
             <a href="/payments?tab=recurring" className="upcoming-transfers-more">
-              가까운 {items.length}건만 보여 드렸어요 — 남은 {allItems.length - items.length}건 보기
+              가까운 {items.length}건만 표시했습니다 — 남은 {allItems.length - items.length}건 보기
             </a>
           )}
         </div>

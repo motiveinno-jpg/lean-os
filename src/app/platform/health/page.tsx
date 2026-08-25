@@ -206,7 +206,7 @@ export default function PlatformHealthPage() {
                   <div
                     className={`platform-feed-row ${l.tone === "danger" ? "platform-feed-danger" : ""} ${isError ? "cursor-pointer" : ""}`}
                     onClick={isError ? () => setExpandedIdx(open ? null : i) : undefined}
-                    title={isError ? "클릭하면 무슨 오류인지 자세히 보여드려요" : undefined}
+                    title={isError ? "클릭하면 무슨 오류인지 자세히 표시합니다" : undefined}
                   >
                     <span className="text-sm shrink-0"><Ico e={l.icon} /></span>
                     <div className="flex-1 min-w-0">

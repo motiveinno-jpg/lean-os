@@ -124,7 +124,7 @@ export function BoardItemDrawer({ item, cols, companyId, userId, users, nameLabe
         const { error: nErr } = await db.from("notifications").insert(hit.map((u) => ({
           company_id: companyId, user_id: u.id, type: "chat",
           title: "프로젝트 멘션",
-          message: `${who} 님이 「${item.name || nameLabel}」에서 회원님을 불렀어요: ${preview}`,
+          message: `${who} 님이 「${item.name || nameLabel}」에서 회원님을 언급했습니다: ${preview}`,
           entity_type: "project_board_item", entity_id: dealId, is_read: false,
         })));
         if (!nErr) toast(`${hit.map((u) => u.name).join(" · ")} 님에게 알렸습니다.`, "success");

@@ -836,7 +836,7 @@ export default function BankPage() {
           {positiveAccounts.length >= 2 && (
             <section className="bank-balance-chart pnl-panel">
               <h3>계좌별 잔액</h3>
-              <p>많은 순 · 합계 {fmtW(totalBalance)}{hiddenAccounts > 0 ? ` · 0원 이하 ${hiddenAccounts}개는 뺐어요` : ""}</p>
+              <p>많은 순 · 합계 {fmtW(totalBalance)}{hiddenAccounts > 0 ? ` · 0원 이하 ${hiddenAccounts}개는 제외했습니다` : ""}</p>
               <BarChart unit="원" data={positiveAccounts.map((a) => ({ label: a.label, value: a.balance, color: "var(--viz-1)" }))} />
             </section>
           )}

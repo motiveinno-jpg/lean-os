@@ -98,7 +98,7 @@ export function ProjectMoneyReport({ boards, cols, items }: {
             {r.overlaps.length > 3 ? ` 외 ${r.overlaps.length - 3}건` : ""}
             {" — 합계 "}{won(overlapSum)}원. 지출 표가 여럿이면 <b>모두 더해서</b> 셉니다 — 같은 건이면 한쪽을 지우세요.
           </span>
-          <button type="button" onClick={() => setIgnoreOverlap(true)}>알겠어요</button>
+          <button type="button" onClick={() => setIgnoreOverlap(true)}>확인했습니다</button>
         </div>
       )}
 
