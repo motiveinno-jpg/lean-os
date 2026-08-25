@@ -402,15 +402,16 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                           {lv.kind === "full" ? (
                             <div className="fw-cell fw-cell-leave">휴가</div>
                           ) : (
-                            <div className="fw-cell fw-cell-box relative flex flex-col items-center justify-center gap-0.5">
-                              <span className="text-[9px] font-bold text-[var(--success)] leading-none">{label}</span>
-                              {lci
-                                ? <span className="text-[9px] font-semibold text-[var(--text)] leading-none mono-number">{lci}{lco ? `~${lco}` : ""}</span>
-                                : <span className="text-[9px] text-[var(--text-dim)] leading-none">미출근</span>}
+                            <div className="fw-cell fw-cell-box">
                               {halfFrac > 0 && (
-                                <div className="absolute bottom-0 h-[3px] rounded-full transition-[width] duration-500"
-                                  style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: workColor }} />
+                                <div className="fw-cell-fill" style={{ left: lv.kind === "am" ? "50%" : 0, width: `${halfFrac * 50}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${workColor} 20%, transparent), color-mix(in srgb, ${workColor} 6%, transparent))` }}>
+                                  <span className="fw-cell-fill-edge" style={{ background: workColor }} />
+                                </div>
                               )}
+                              <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}>{label}</span>
+                              {lci
+                                ? <span className="fw-cell-t2">{lci}{lco ? `~${lco}` : ""}</span>
+                                : <span className="fw-cell-t2" style={{ color: "var(--text-dim)" }}>미출근</span>}
                             </div>
                           )}
                         </td>
@@ -443,15 +444,16 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                     const tip = `${ci ?? "—"} ~ ${co ?? (a.auto_clocked_out ? "자동퇴근" : "근무중")} · ${hm(minutesOf(a))}${a.is_late ? " · 지각" : ""}${Number(a.overtime_minutes || 0) > 0 ? ` · 연장 ${hm(Number(a.overtime_minutes))}` : ""}`;
                     return (
                       <td key={i} className={`px-1 py-2 align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`} title={tip}>
-                        <div className="fw-cell fw-cell-box relative flex flex-col items-center justify-center gap-0.5">
-                          <span className="text-[9px] font-semibold text-[var(--text)] leading-none mono-number">{ci ?? "—"}</span>
-                          <span className="text-[9px] font-semibold leading-none mono-number" style={{ color: co ? "var(--text)" : inProgress ? barColor : "var(--text-dim)" }}>
-                            {co ? co : inProgress ? "근무중" : "—"}
-                          </span>
+                        <div className="fw-cell fw-cell-box">
                           {ci && frac > 0 && (
-                            <div className="absolute bottom-0 left-0 h-[3px] rounded-full transition-[width] duration-500"
-                              style={{ width: `${Math.max(frac * 100, 4)}%`, background: barColor }} />
+                            <div className="fw-cell-fill" style={{ width: `${Math.max(frac * 100, 5)}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${barColor} 22%, transparent), color-mix(in srgb, ${barColor} 6%, transparent))` }}>
+                              <span className="fw-cell-fill-edge" style={{ background: barColor }} />
+                            </div>
                           )}
+                          <span className="fw-cell-t1">{ci ?? "—"}</span>
+                          {co ? <span className="fw-cell-t2">{co}</span>
+                            : inProgress ? <span className="fw-cell-live"><span className="fw-cell-live-dot" />근무중</span>
+                            : <span className="fw-cell-t2" style={{ color: "var(--text-dim)" }}>—</span>}
                         </div>
                       </td>
                     );

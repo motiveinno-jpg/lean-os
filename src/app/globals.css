@@ -4790,12 +4790,23 @@ table.pnl-drill-table { min-width: 760px; }
 .flex-halfday-pill { @apply relative inline-block w-full py-1.5 rounded-md text-[10px] font-semibold overflow-hidden bg-[var(--bg-surface)] text-[var(--success)]; }
 .flex-halfday-fill { @apply absolute inset-y-0 w-1/2 bg-[var(--success-dim)]; }
 .flex-halfday-label { @apply relative; }
-/* 워크보드 일별 셀 — 테두리로 배경과 구분, 글자 또렷, 게이지는 바닥 얇은 바 (2026-08-25 사장님) */
-.fw-cell { @apply h-9 w-full rounded-md flex items-center justify-center text-center text-[9px] font-semibold overflow-hidden leading-none; }
-.fw-cell-box { @apply border border-[var(--border)] bg-[var(--bg-surface)]; }
-.fw-cell-leave { @apply border border-[var(--border)] bg-[var(--success-dim)] text-[var(--success)] font-bold; }
-.fw-cell-holiday { @apply border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--info)]; }
-.fw-cell-absent { @apply border border-[var(--border)] bg-[var(--danger-dim)] text-[var(--danger)] font-bold; }
+/* 워크보드 일별 셀 — 세련된 카드 + 소프트 진행 채움 (2026-08-25 사장님: 더 이쁘게) */
+.fw-cell { @apply relative h-9 w-full rounded-lg flex flex-col items-center justify-center gap-px text-center overflow-hidden leading-none text-[9px] font-semibold; }
+.fw-cell-box { @apply border border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-200; }
+.fw-cell-box:hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--border)); box-shadow: 0 2px 6px -2px color-mix(in srgb, var(--primary) 22%, transparent); }
+/* 진행 채움 — 왼쪽 소프트 그라데이션 + 앞선 라인 */
+.fw-cell-fill { @apply absolute inset-y-0 left-0 pointer-events-none transition-[width] duration-700 ease-out; border-radius: 7px; }
+.fw-cell-fill-edge { @apply absolute inset-y-1 right-0 w-[2px] rounded-full opacity-90; }
+.fw-cell-t1 { @apply relative z-10 text-[10px] font-bold text-[var(--text)] tabular-nums leading-none; }
+.fw-cell-t2 { @apply relative z-10 text-[9px] leading-none tabular-nums text-[var(--text-muted)]; }
+.fw-cell-live { @apply relative z-10 inline-flex items-center gap-1 text-[8.5px] font-bold; color: var(--primary); }
+.fw-cell-live-dot { @apply w-1 h-1 rounded-full; background: var(--primary); animation: fw-pulse 1.4s ease-in-out infinite; }
+@keyframes fw-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.6); } }
+/* 반차·휴가·결근·공휴일 — 부드러운 알약 라벨 */
+.fw-cell-chip { @apply relative z-10 text-[9px] font-bold px-1.5 py-[1px] rounded-full leading-none; }
+.fw-cell-leave { @apply rounded-lg font-bold text-[10px]; background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); }
+.fw-cell-holiday { @apply rounded-lg; background: color-mix(in srgb, var(--info) 12%, transparent); color: var(--info); border: 1px solid color-mix(in srgb, var(--info) 26%, transparent); }
+.fw-cell-absent { @apply rounded-lg font-bold; background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent); }
 /* IP 접속 제한 차단 화면 (2026-08-11) */
 .ip-gate-overlay { @apply fixed inset-0 z-[200] flex items-center justify-center p-4; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); }
 .ip-gate-card { @apply w-full max-w-sm p-6; }
