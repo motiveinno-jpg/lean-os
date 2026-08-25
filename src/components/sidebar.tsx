@@ -89,8 +89,10 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/inventory/products", label: "품목", icon: "package", roles: ["owner", "admin"], layer: "기초" },
       { href: "/inventory/stock", label: "재고", icon: "layers", roles: ["owner", "admin"] },
-      //   2~4단계 — 화면은 '무엇을 하는 곳인지'만 적힌 빈 안내로 먼저 선다(메뉴를 숨기지 않는다, 결정 6)
-      { href: "/inventory/sales", label: "판매", icon: "arrow-right-left", roles: ["owner", "admin"], layer: "움직임" },
+      //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
+      //     주문서는 약속이라 재고를 안 건드리고, 나머지 셋이 그것을 불러와 재고를 움직인다.
+      { href: "/inventory/orders", label: "주문", icon: "clipboard", roles: ["owner", "admin"], layer: "움직임" },
+      { href: "/inventory/sales", label: "판매", icon: "arrow-right-left", roles: ["owner", "admin"] },
       { href: "/inventory/purchase", label: "구매", icon: "download", roles: ["owner", "admin"] },
       { href: "/inventory/production", label: "생산", icon: "kanban", roles: ["owner", "admin"] },
       { href: "/inventory/channels", label: "채널", icon: "link", roles: ["owner", "admin"], layer: "밖과 잇기" },
@@ -229,7 +231,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/team": "#ea580c",
   // 재고 — 앰버(돈은 그린, 물건은 앰버로 갈라 본다)
   "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
-  "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c", "/inventory/channels": "#a35f0a",
+  "/inventory/orders": "#f0b429", "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c", "/inventory/channels": "#a35f0a",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
   // 회사 관리·도움말 — 슬레이트
@@ -257,6 +259,7 @@ function NavIcon({ name, href, className = "" }: { name: string; href?: string; 
     case "arrow-right-left": return <svg {...props}><path d="M21 7H3M21 7l-4-4M21 7l-4 4M3 17h18M3 17l4-4M3 17l4 4"/></svg>;
     case "link": return <svg {...props}><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>;
     case "folder": return <svg {...props}><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>;
+    case "clipboard": return <svg {...props}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>;
     case "clipboard-check": return <svg {...props}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>;
     case "message-circle": return <svg {...props}><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>;
     case "message-square": return <svg {...props}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;

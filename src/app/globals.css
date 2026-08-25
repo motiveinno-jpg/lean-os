@@ -10182,6 +10182,8 @@ table.table-inv-bom { min-width: 880px; }
 table.table-inv-ch-codes { min-width: 880px; }
 table.table-inv-ch-imports { min-width: 760px; }
 table.table-inv-ch-check { min-width: 820px; }
+table.table-doc { min-width: 940px; }
+table.table-doc-hist { min-width: 860px; }
 .inv-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
 /* 음수 줄 — 에러가 아니라 '아직 안 맞춘 것'이라 눈에는 띄되 겁주지 않는다 (결정 7) */
 .inv-row-fix { background: color-mix(in srgb, var(--danger) 6%, transparent); }
@@ -10283,3 +10285,66 @@ table.table-inv-ch-check { min-width: 820px; }
 .ch-sum-skip { @apply bg-[var(--warning)]/12 text-[var(--warning)]; }
 .ch-sum-bad { @apply bg-[var(--danger)]/12 text-[var(--danger)]; }
 .inv-soon-note { @apply mt-2 block text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
+
+/*   재고 › 전표 입력기 — 주문서·판매·구매·생산이 같이 쓰는 격자 (2026-08-25 사장님 지시) */
+.doc-head { @apply grid gap-2 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3; }
+.doc-fld { @apply flex min-h-[34px] items-center gap-2.5; }
+.doc-fld > span { @apply w-[68px] flex-none text-right text-[12px] text-[var(--text-muted)]; }
+.doc-fld > span > b { @apply text-[var(--danger)]; }
+.doc-fld-in { @apply flex min-w-0 flex-1 gap-1.5; }
+.doc-fld-in .field-input { @apply h-8 py-0 text-[12.5px]; }
+.doc-d3 { @apply flex gap-1; }
+.doc-d3 .field-input { @apply text-center tabular-nums; }
+.doc-y { @apply w-[58px] flex-none; }
+.doc-md { @apply w-[42px] flex-none; }
+
+.doc-no { @apply w-[30px] text-center text-[11px] text-[var(--text-dim)]; }
+.ev-table td.cell { @apply relative p-0; }
+.doc-in { @apply h-[34px] w-full border-0 bg-transparent px-2 text-center text-[13px] outline-none; }
+.doc-in:focus { @apply rounded bg-[var(--primary)]/6 ring-2 ring-inset ring-[var(--primary)]; }
+.ev-table td.num .doc-in { @apply text-right tabular-nums; }
+.ev-table td.text-left .doc-in { @apply text-left; }
+.doc-auto { @apply bg-[var(--bg-subtle)] px-2.5 text-right text-[13px] tabular-nums text-[var(--text-muted)]; }
+.doc-auto b { @apply text-[var(--text)]; }
+.doc-src { @apply rounded px-1.5 py-px text-[10.5px] font-bold bg-[var(--primary)]/10 text-[var(--primary)]; }
+
+.doc-pick { @apply absolute left-0 top-full z-30 min-w-[290px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl; }
+.doc-pick > div { @apply flex cursor-pointer items-baseline gap-2 px-3 py-1.5 text-[12.5px]; }
+.doc-pick > div[aria-selected="true"] { @apply bg-[var(--primary)]/10; }
+.doc-pick code { @apply text-[11.5px] font-bold text-[var(--primary)]; }
+.doc-pick em { @apply not-italic text-[var(--text-dim)]; }
+.doc-pick small { @apply ml-auto tabular-nums text-[var(--text-dim)]; }
+
+.doc-sums { @apply flex flex-wrap items-center gap-4 border-t border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2.5; }
+.doc-sums > span { @apply flex flex-col; }
+.doc-sums em { @apply not-italic text-[11px] text-[var(--text-muted)]; }
+.doc-sums b { @apply text-[14px] tabular-nums; }
+.doc-total { @apply text-[16px] text-[var(--primary)]; }
+.doc-sums-sp { @apply flex-1; }
+.doc-note-safe { @apply rounded-md px-2 py-0.5 bg-[var(--success)]/10 text-[var(--success)]; }
+.doc-note-move { @apply rounded-md px-2 py-0.5 bg-[var(--warning)]/12 text-[var(--warning)]; }
+
+.doc-popup { @apply max-w-5xl; }
+.doc-popup-head { @apply flex items-start gap-3; }
+.doc-popup-head > div { @apply flex-1; }
+.doc-popup-body { @apply -mx-5 border-y border-[var(--border)]; }
+.doc-del { @apply text-[var(--danger)]; }
+
+/*   양식 고치기 */
+.fl-grp h4 { @apply text-[12.5px] font-bold; }
+.fl-desc { @apply mb-2 text-[11.5px] text-[var(--text-muted)]; }
+.fl-list { @apply flex flex-col gap-1.5; }
+.fl-row { @apply flex items-center gap-2.5 rounded-xl border border-[var(--border)] px-2.5 py-1.5; }
+.fl-on { @apply border-[var(--primary)]/40 bg-[var(--primary)]/5; }
+.fl-lock { @apply opacity-60; }
+.fl-row input[type="checkbox"] { @apply h-4 w-4 flex-none accent-[var(--primary)]; }
+.fl-name { @apply min-w-0 flex-1 border-0 bg-transparent px-1 text-[13px] font-bold outline-none; }
+.fl-name:focus { @apply rounded bg-[var(--bg-card)] ring-2 ring-[var(--primary)]; }
+.fl-why { @apply flex-none text-right text-[11px] text-[var(--text-muted)]; }
+.fl-add { @apply mt-2 flex gap-2; }
+.fl-note { @apply flex-1 text-[11px] text-[var(--text-muted)]; }
+
+/*   주문서 불러오기 */
+.pull-order { @apply mb-2 overflow-hidden rounded-xl border border-[var(--border)]; }
+.pull-order-head { @apply flex flex-wrap items-center gap-2 bg-[var(--bg-subtle)] px-3 py-2 text-[12.5px]; }
+.pull-order-head em { @apply not-italic text-[var(--text-muted)]; }

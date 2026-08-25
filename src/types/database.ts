@@ -188,92 +188,12 @@ export type Database = {
         }
         Relationships: []
       }
-      purchase_orders: {
+      orders: {
         Row: {
           company_id: string
           created_at: string
           created_by: string | null
-          due_date: string | null
-          id: string
-          note: string | null
-          order_date: string
-          partner_id: string | null
-          partner_name: string | null
-          po_no: string
-          status: string
-          updated_at: string
-          warehouse_id: string | null
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          created_by?: string | null
-          due_date?: string | null
-          id?: string
-          note?: string | null
-          order_date?: string
-          partner_id?: string | null
-          partner_name?: string | null
-          po_no: string
-          status?: string
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          created_by?: string | null
-          due_date?: string | null
-          id?: string
-          note?: string | null
-          order_date?: string
-          partner_id?: string | null
-          partner_name?: string | null
-          po_no?: string
-          status?: string
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Relationships: []
-      }
-      purchase_order_lines: {
-        Row: {
-          company_id: string
-          created_at: string
-          id: string
-          note: string | null
-          order_id: string
-          product_id: string
-          qty: number
-          unit_price: number | null
-        }
-        Insert: {
-          company_id: string
-          created_at?: string
-          id?: string
-          note?: string | null
-          order_id: string
-          product_id: string
-          qty: number
-          unit_price?: number | null
-        }
-        Update: {
-          company_id?: string
-          created_at?: string
-          id?: string
-          note?: string | null
-          order_id?: string
-          product_id?: string
-          qty?: number
-          unit_price?: number | null
-        }
-        Relationships: []
-      }
-      sales_orders: {
-        Row: {
-          company_id: string
-          created_at: string
-          created_by: string | null
+          custom: Json
           due_date: string | null
           id: string
           note: string | null
@@ -289,6 +209,7 @@ export type Database = {
           company_id: string
           created_at?: string
           created_by?: string | null
+          custom?: Json
           due_date?: string | null
           id?: string
           note?: string | null
@@ -304,6 +225,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           created_by?: string | null
+          custom?: Json
           due_date?: string | null
           id?: string
           note?: string | null
@@ -317,36 +239,90 @@ export type Database = {
         }
         Relationships: []
       }
-      sales_order_lines: {
+      order_lines: {
         Row: {
           company_id: string
           created_at: string
+          custom: Json
           id: string
           note: string | null
           order_id: string
           product_id: string
           qty: number
+          sort_no: number
+          supply_amount: number
           unit_price: number | null
+          vat_amount: number
         }
         Insert: {
           company_id: string
           created_at?: string
+          custom?: Json
           id?: string
           note?: string | null
           order_id: string
           product_id: string
           qty: number
+          sort_no?: number
+          supply_amount?: number
           unit_price?: number | null
+          vat_amount?: number
         }
         Update: {
           company_id?: string
           created_at?: string
+          custom?: Json
           id?: string
           note?: string | null
           order_id?: string
           product_id?: string
           qty?: number
+          sort_no?: number
+          supply_amount?: number
           unit_price?: number | null
+          vat_amount?: number
+        }
+        Relationships: []
+      }
+      form_layouts: {
+        Row: {
+          company_id: string
+          field_id: string
+          form_key: string
+          id: string
+          is_custom: boolean
+          is_on: boolean
+          name: string
+          section: string
+          sort_no: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          field_id: string
+          form_key: string
+          id?: string
+          is_custom?: boolean
+          is_on?: boolean
+          name: string
+          section: string
+          sort_no?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          field_id?: string
+          form_key?: string
+          id?: string
+          is_custom?: boolean
+          is_on?: boolean
+          name?: string
+          section?: string
+          sort_no?: number
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -361,11 +337,10 @@ export type Database = {
           journal_entry_id: string | null
           kind: string
           note: string | null
+          order_id: string | null
           original_doc_id: string | null
           partner_id: string | null
-          purchase_order_id: string | null
           reason: string
-          sales_order_id: string | null
           tax_invoice_id: string | null
           to_warehouse_id: string | null
           updated_at: string
@@ -382,11 +357,10 @@ export type Database = {
           journal_entry_id?: string | null
           kind: string
           note?: string | null
+          order_id?: string | null
           original_doc_id?: string | null
           partner_id?: string | null
-          purchase_order_id?: string | null
           reason: string
-          sales_order_id?: string | null
           tax_invoice_id?: string | null
           to_warehouse_id?: string | null
           updated_at?: string
@@ -403,11 +377,10 @@ export type Database = {
           journal_entry_id?: string | null
           kind?: string
           note?: string | null
+          order_id?: string | null
           original_doc_id?: string | null
           partner_id?: string | null
-          purchase_order_id?: string | null
           reason?: string
-          sales_order_id?: string | null
           tax_invoice_id?: string | null
           to_warehouse_id?: string | null
           updated_at?: string
@@ -426,10 +399,10 @@ export type Database = {
           moved_at: string
           note: string | null
           order_line_id: string | null
-          po_line_id: string | null
           product_id: string
           qty: number
           unit_price: number | null
+          vat_amount: number | null
           warehouse_id: string
         }
         Insert: {
@@ -441,10 +414,10 @@ export type Database = {
           moved_at: string
           note?: string | null
           order_line_id?: string | null
-          po_line_id?: string | null
           product_id: string
           qty: number
           unit_price?: number | null
+          vat_amount?: number | null
           warehouse_id: string
         }
         Update: {
@@ -456,10 +429,10 @@ export type Database = {
           moved_at?: string
           note?: string | null
           order_line_id?: string | null
-          po_line_id?: string | null
           product_id?: string
           qty?: number
           unit_price?: number | null
+          vat_amount?: number | null
           warehouse_id?: string
         }
         Relationships: []
@@ -15718,45 +15691,14 @@ export type Database = {
         }
         Relationships: []
       }
-      v_stock_incoming: {
-        Row: {
-          company_id: string | null
-          incoming_qty: number | null
-          product_id: string | null
-          warehouse_id: string | null
-        }
-        Relationships: []
-      }
-      v_purchase_line_received: {
-        Row: {
-          company_id: string | null
-          order_id: string | null
-          ordered_qty: number | null
-          po_line_id: string | null
-          product_id: string | null
-          received_qty: number | null
-        }
-        Relationships: []
-      }
-      v_stock_available: {
-        Row: {
-          available_qty: number | null
-          company_id: string | null
-          onhand_qty: number | null
-          product_id: string | null
-          reserved_qty: number | null
-          warehouse_id: string | null
-        }
-        Relationships: []
-      }
-      v_sales_line_shipped: {
+      v_order_line_used: {
         Row: {
           company_id: string | null
           order_id: string | null
           order_line_id: string | null
           ordered_qty: number | null
           product_id: string | null
-          shipped_qty: number | null
+          used_qty: number | null
         }
         Relationships: []
       }

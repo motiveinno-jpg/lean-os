@@ -113,6 +113,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/inventory/stock", label: "재고", tabs: [
         { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
       ] },
+      { route: "/inventory/orders", label: "주문", money: true, desc: "주문서·견적 — 재고는 안 움직인다" },
       { route: "/inventory/sales", label: "판매", money: true },
       { route: "/inventory/purchase", label: "구매", money: true },
       { route: "/inventory/production", label: "생산" },

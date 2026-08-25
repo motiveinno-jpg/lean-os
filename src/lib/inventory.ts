@@ -133,8 +133,8 @@ export type MoveLine = {
   product_id: string; qty: number; unit_price?: number | null; note?: string | null;
   //   2단계 — 이 줄이 어느 주문 줄을 채우는가(결정 12). 비워 두면 '바로 출고'다.
   order_line_id?: string | null;
-  //   3단계 — 이 줄이 어느 발주 줄을 채우는가. 비워 두면 '바로 입고'다.
-  po_line_id?: string | null;
+  //   주문서에서 불러온 줄이면 그 줄을 가리킨다(하나로 모았다 — 판매·구매·생산이 같은 표를 쓴다)
+  vat_amount?: number | null;
 };
 
 export type StockDocInput = {
@@ -145,8 +145,7 @@ export type StockDocInput = {
   partnerId?: string | null;
   note?: string | null;
   originalDocId?: string | null;   // 반품·정정이 가리키는 원본(결정 8)
-  salesOrderId?: string | null;    // 2단계 — 주문에서 넘어온 출고. 없어도 된다(결정 5)
-  purchaseOrderId?: string | null; // 3단계 — 발주에서 넘어온 입고. 역시 없어도 된다
+  orderId?: string | null;         // 주문서에서 넘어온 것. 없어도 된다(결정 5)
   workOrderId?: string | null;     // 4단계 — 어느 작업지시로 만든 것인가
   lines: MoveLine[];
 };
@@ -204,8 +203,7 @@ export async function createStockDoc(
     warehouse_id: input.warehouseId,
     to_warehouse_id: input.toWarehouseId || null,
     original_doc_id: input.originalDocId || null,
-    sales_order_id: input.salesOrderId || null,
-    purchase_order_id: input.purchaseOrderId || null,
+    order_id: input.orderId || null,
     work_order_id: input.workOrderId || null,
     note: input.note?.trim() || null,
     created_by: userId ?? null,
@@ -224,7 +222,7 @@ export async function createStockDoc(
       company_id: companyId, doc_id: docId, product_id: l.product_id,
       warehouse_id: input.warehouseId, qty: signed,
       order_line_id: l.order_line_id ?? null,
-      po_line_id: l.po_line_id ?? null,
+      vat_amount: l.vat_amount ?? null,
       unit_price: l.unit_price ?? null,
       amount: l.unit_price != null ? Number(l.unit_price) * signed : null,
       moved_at: docDate, note: l.note?.trim() || null,
@@ -234,6 +232,8 @@ export async function createStockDoc(
       rows.push({
         company_id: companyId, doc_id: docId, product_id: l.product_id,
         warehouse_id: input.toWarehouseId, qty: -signed,
+        order_line_id: l.order_line_id ?? null,
+        vat_amount: l.vat_amount == null ? null : -l.vat_amount,
         unit_price: l.unit_price ?? null,
         amount: l.unit_price != null ? Number(l.unit_price) * -signed : null,
         moved_at: docDate, note: l.note?.trim() || null,
@@ -400,4 +400,113 @@ export async function applyCount(
     .eq("id", countId);
   if (error) throw error;
   return { docNo, changed: moveLines.length, counted: lines.length, drifted };
+}
+
+
+// ── 전표 고치기 (2026-08-25 사장님 지시 — 이력에서 눌러 그 자리에서 고친다) ────
+//   ★ 문서는 남기고 **그 문서의 줄만 갈아끼운다.**
+//     지우고 새로 만들면 문서번호가 바뀌어 "그때 그 전표"를 다시 찾을 수 없다.
+//     현재고는 줄의 합이라(결정 3) 줄만 바꿔도 저절로 맞는다.
+export async function updateStockDoc(
+  companyId: string, docId: string, input: StockDocInput, userId?: string | null,
+): Promise<{ docNo: string; skipped: number }> {
+  const def = reasonOf(input.reason);
+  if (!def) throw new Error("알 수 없는 사유입니다");
+  const docDate = input.docDate || todayKst();
+
+  const ids = [...new Set(input.lines.map((l) => l.product_id))];
+  const tracked = new Set<string>();
+  if (ids.length) {
+    const data = logRead("inventory:trackcheck", await supabase
+      .from("products").select("id, track_stock").in("id", ids));
+    for (const r of ((data || []) as any[])) if (r.track_stock) tracked.add(r.id);
+  }
+  const lines = input.lines.filter((l) => tracked.has(l.product_id) && Number(l.qty) !== 0);
+  const skipped = input.lines.length - lines.length;
+  if (!lines.length) throw new Error("재고를 세는 품목이 한 줄도 없습니다");
+
+  const { data: cur } = await supabase.from("stock_docs").select("doc_no").eq("id", docId).single();
+  const docNo = (cur as { doc_no: string } | null)?.doc_no || "";
+
+  const { error: hErr } = await supabase.from("stock_docs").update({
+    reason: input.reason, doc_date: docDate,
+    partner_id: input.partnerId || null, warehouse_id: input.warehouseId,
+    order_id: input.orderId || null, note: input.note?.trim() || null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", docId);
+  if (hErr) throw hErr;
+
+  //   옛 줄을 걷어내고 새 줄을 깐다 — 사이에 아무도 못 읽게 한 번에 이어서 한다.
+  const { error: dErr } = await supabase.from("stock_moves").delete().eq("doc_id", docId);
+  if (dErr) throw dErr;
+
+  const rows = lines.map((l) => {
+    const raw = Number(l.qty);
+    const signed = raw * def.sign;
+    return {
+      company_id: companyId, doc_id: docId, product_id: l.product_id,
+      warehouse_id: input.warehouseId, qty: signed,
+      order_line_id: l.order_line_id ?? null,
+      vat_amount: l.vat_amount ?? null,
+      unit_price: l.unit_price ?? null,
+      amount: l.unit_price != null ? Number(l.unit_price) * signed : null,
+      moved_at: docDate, note: l.note?.trim() || null,
+    };
+  });
+  const { error: mErr } = await supabase.from("stock_moves").insert(rows);
+  if (mErr) throw mErr;
+  return { docNo, skipped };
+}
+
+/** 전표 하나를 통째로 읽는다 — 이력에서 눌러 고칠 때 쓴다. */
+export async function getStockDoc(docId: string) {
+  const { data: doc } = await supabase.from("stock_docs")
+    .select("id, doc_no, kind, reason, doc_date, partner_id, warehouse_id, order_id, note")
+    .eq("id", docId).single();
+  const data = logRead("inventory:doc-moves", await supabase
+    .from("stock_moves").select("id, product_id, qty, unit_price, vat_amount, note, order_line_id")
+    .eq("doc_id", docId).order("created_at"));
+  return {
+    doc: doc as any,
+    moves: ((data || []) as any[]).map((m) => ({
+      ...m, qty: Number(m.qty || 0),
+      unit_price: m.unit_price == null ? null : Number(m.unit_price),
+      vat_amount: m.vat_amount == null ? null : Number(m.vat_amount),
+    })),
+  };
+}
+
+/** 전표를 지운다 — 줄도 같이 지워지고, 재고는 그만큼 되돌아간다. */
+export async function deleteStockDoc(docId: string) {
+  const { error } = await supabase.from("stock_docs").delete().eq("id", docId);
+  if (error) throw error;
+}
+
+/** 그 갈래의 전표 목록 — 이력 화면이 쓴다. */
+export type DocRowHead = {
+  id: string; doc_no: string; reason: string; doc_date: string;
+  partner_id: string | null; warehouse_id: string | null; order_id: string | null; note: string | null;
+  lines: number; supply: number; vat: number;
+};
+export async function listStockDocs(
+  companyId: string, reasons: string[], from: string, to: string,
+): Promise<DocRowHead[]> {
+  if (!companyId) return [];
+  const data = logRead("inventory:doc-list", await supabase
+    .from("stock_docs")
+    .select("id, doc_no, reason, doc_date, partner_id, warehouse_id, order_id, note, stock_moves(qty, unit_price, vat_amount)")
+    .eq("company_id", companyId).in("reason", reasons)
+    .gte("doc_date", from).lte("doc_date", to)
+    .order("doc_date", { ascending: false }).order("created_at", { ascending: false })
+    .limit(1000));
+  return ((data || []) as any[]).map((d) => {
+    const ms = (d.stock_moves || []) as any[];
+    return {
+      id: d.id, doc_no: d.doc_no, reason: d.reason, doc_date: d.doc_date,
+      partner_id: d.partner_id, warehouse_id: d.warehouse_id, order_id: d.order_id, note: d.note,
+      lines: ms.length,
+      supply: ms.reduce((n, m) => n + Math.abs(Number(m.unit_price || 0) * Number(m.qty || 0)), 0),
+      vat: ms.reduce((n, m) => n + Math.abs(Number(m.vat_amount || 0)), 0),
+    };
+  });
 }
