@@ -46,7 +46,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   const { toast } = useToast();
   const qc = useQueryClient();
   const [head, setHead] = useState<Record<string, string>>({});
-  const [rows, setRows] = useState<DocRow[]>(() => [blankRow(), blankRow(), blankRow()]);
+  const [rows, setRows] = useState<DocRow[]>(() => Array.from({ length: 5 }, blankRow));
   const [editing, setEditing] = useState<Order | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [draft, setDraft] = useState<Layout | null>(null);
@@ -143,7 +143,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   }), [live]);
 
   const reset = useCallback(() => {
-    setHead({}); setRows([blankRow(), blankRow(), blankRow()]); setEditing(null);
+    setHead({}); setRows(Array.from({ length: 5 }, blankRow)); setEditing(null);
   }, []);
 
   /** 저장분을 불러 그대로 편다 — 치던 화면 그대로다. */
@@ -249,7 +249,7 @@ export function DocHead({ ctl, warehouses, partners }: { ctl: DocCtl; warehouses
     <div className="doc-head">
       {onHead.map((f) => (
         <label key={f.field_id} className="doc-fld">
-          <span>{f.name}{f.lock ? <b> *</b> : null}</span>
+          <span className="field-label">{f.name}{f.lock ? <b> *</b> : null}</span>
           <div className="doc-fld-in">
             {f.field_id === "date" ? (
               <div className="doc-d3">
@@ -268,7 +268,7 @@ export function DocHead({ ctl, warehouses, partners }: { ctl: DocCtl; warehouses
               </>
             ) : f.field_id === "wh" ? (
               <select className="field-input" value={head.wh || ""} onChange={(e) => set("wh", e.target.value)}>
-                {!warehouses.length && <option value="">창고가 없습니다 — 재고 › 창고에서 먼저</option>}
+                {!warehouses.length && <option value="">창고 없음</option>}
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             ) : f.field_id === "due" ? (

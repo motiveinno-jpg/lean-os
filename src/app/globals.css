@@ -10287,12 +10287,13 @@ table.table-doc-hist { min-width: 860px; }
 .inv-soon-note { @apply mt-2 block text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
 
 /*   재고 › 전표 입력기 — 주문서·판매·구매·생산이 같이 쓰는 격자 (2026-08-25 사장님 지시) */
-.doc-head { @apply grid gap-2 px-3 py-3 sm:grid-cols-2 lg:grid-cols-3; }
-.doc-fld { @apply flex min-h-[34px] items-center gap-2.5; }
-.doc-fld > span { @apply w-[68px] flex-none text-right text-[12px] text-[var(--text-muted)]; }
-.doc-fld > span > b { @apply text-[var(--danger)]; }
-.doc-fld-in { @apply flex min-w-0 flex-1 gap-1.5; }
-.doc-fld-in .field-input { @apply h-8 py-0 text-[12.5px]; }
+.doc-head { @apply grid gap-x-4 gap-y-2 border-b border-[var(--border)] px-4 pb-3 pt-3 sm:grid-cols-2 lg:grid-cols-3; }
+.doc-fld { @apply flex min-w-0 flex-col; }
+.doc-fld .field-label { @apply mb-0.5; }
+.doc-fld .field-label > b { @apply text-[var(--danger)]; }
+.doc-fld-in { @apply flex min-w-0 gap-1.5; }
+/*   머리 칸은 **격자 줄과 같은 밀도**로 — 입력칸이 격자보다 크면 눈이 위에 붙잡힌다 */
+.doc-fld-in .field-input { @apply rounded-lg text-[13px]; height: var(--control-h-sm); }
 .doc-d3 { @apply flex gap-1; }
 .doc-d3 .field-input { @apply text-center tabular-nums; }
 .doc-y { @apply w-[58px] flex-none; }
@@ -10315,14 +10316,17 @@ table.table-doc-hist { min-width: 860px; }
 .doc-pick em { @apply not-italic text-[var(--text-dim)]; }
 .doc-pick small { @apply ml-auto tabular-nums text-[var(--text-dim)]; }
 
-.doc-sums { @apply flex flex-wrap items-center gap-4 border-t border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2.5; }
+.doc-add { @apply px-4 py-2.5; }
+.doc-sums { @apply flex flex-wrap items-center gap-4 border-t border-[var(--border)] bg-[var(--bg-subtle)] px-4 py-2.5; }
 .doc-sums > span { @apply flex flex-col; }
 .doc-sums em { @apply not-italic text-[11px] text-[var(--text-muted)]; }
 .doc-sums b { @apply text-[14px] tabular-nums; }
-.doc-total { @apply text-[16px] text-[var(--primary)]; }
+.doc-total { @apply text-[15px] font-bold text-[var(--primary)]; }
 .doc-sums-sp { @apply flex-1; }
-.doc-note-safe { @apply rounded-md px-2 py-0.5 bg-[var(--success)]/10 text-[var(--success)]; }
-.doc-note-move { @apply rounded-md px-2 py-0.5 bg-[var(--warning)]/12 text-[var(--warning)]; }
+.doc-note-safe { @apply text-[11px] text-[var(--text-dim)]; }
+.doc-note-safe b { @apply font-bold text-[var(--success)]; }
+.doc-note-move { @apply text-[11px] text-[var(--text-dim)]; }
+.doc-note-move b { @apply font-bold text-[var(--warning)]; }
 
 .doc-popup { @apply max-w-5xl; }
 .doc-popup-head { @apply flex items-start gap-3; }

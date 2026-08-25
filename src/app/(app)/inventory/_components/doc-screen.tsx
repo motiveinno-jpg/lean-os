@@ -16,7 +16,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { todayKst } from "@/lib/kst";
 import {
-  QueryScreen, QueryHead, QueryBody, QueryBar, Pager, usePager, QuickSearch, quickSearchHit,
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, Pager, usePager, QuickSearch, quickSearchHit,
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { listProducts, listWarehouses, type Product, type Warehouse } from "@/lib/inventory";
@@ -132,18 +132,25 @@ export function DocScreen({
     <>
       <DocHead ctl={ctl} warehouses={warehouses} partners={partners} />
       <DocGrid ctl={ctl} products={products} />
-      <DocSums ctl={ctl} right={
-        <>
-          <button type="button" className="btn-secondary btn-sm" onClick={() => ctl.setRows((s) => [...s, blankRow()])}>+ 줄</button>
-          {canWrite && saveActions.map((a) => (
-            <button key={a.key} type="button" title={a.hint}
-              className={a.primary ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
-              disabled={busy} onClick={() => doSave(a.key)}>{a.label}</button>
-          ))}
-        </>
-      } />
+      <div className="doc-add">
+        <button type="button" className="btn-secondary btn-sm"
+          onClick={() => ctl.setRows((s) => [...s, blankRow()])}>+ 줄</button>
+      </div>
     </>
   );
+
+  //   실행 버튼 — 조회 줄 오른쪽에 모은다(조회 화면 표준). 파란 버튼은 화면에 하나뿐이다.
+  const runButtons = canWrite ? (
+    <>
+      {pull?.(ctl)}
+      <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>양식 고치기</button>
+      {saveActions.map((a) => (
+        <button key={a.key} type="button" title={a.hint}
+          className={a.primary ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
+          disabled={busy} onClick={() => doSave(a.key)}>{a.label}</button>
+      ))}
+    </>
+  ) : undefined;
 
   return (
     <div className="qk-shell">
@@ -159,26 +166,32 @@ export function DocScreen({
           </div>
 
           {tab === "edit" && (
-            <QueryBar right={canWrite ? (
-              <>
-                {pull?.(ctl)}
-                <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>양식 고치기</button>
-              </>
-            ) : undefined}>
-              <span className="inv-hint">
-                <b>Enter</b> 를 치면 그 칸에 <b>윗줄 값</b>이 내려오고 다음 칸으로 갑니다 ·
-                마지막 칸에서 <b>Enter</b> 면 새 줄
-              </span>
-              {headNote}
-            </QueryBar>
+            <>
+              <QueryBar right={runButtons}>{headNote}</QueryBar>
+              <ResultStrip>
+                <Stat label="줄" value={`${won(ctl.sums.lines)}개`} />
+                <Stat label="공급가액" value={`₩${won(ctl.sums.supply)}`} />
+                <Stat label="부가세" value={`₩${won(ctl.sums.vat)}`} />
+                <Stat label="합계" value={`₩${won(ctl.sums.total)}`} />
+                <span className="spv-toolbar-hint">
+                  <b>Enter</b> 를 치면 그 칸에 윗줄 값이 내려오고 다음 칸으로 넘어갑니다 · 마지막 칸에서 새 줄이 생깁니다
+                </span>
+              </ResultStrip>
+            </>
           )}
 
           {tab === "list" && (
-            <QueryBar>
-              <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-              <QuickSearch value={q} onApply={setQ} placeholder="번호 · 거래처 · 품목 — 쉼표로 여러 개, Enter" />
-              <span className="inv-hint">줄을 누르면 <b>치던 그 화면</b>이 떠서 고칠 수 있습니다.</span>
-            </QueryBar>
+            <>
+              <QueryBar>
+                <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+                <QuickSearch value={q} onApply={setQ} placeholder="번호 · 거래처 · 품목 — 쉼표로 여러 개, Enter" />
+              </QueryBar>
+              <ResultStrip>
+                <Stat label="전표" value={`${won(shown.length)}건`} />
+                <Stat label="합계" value={`₩${won(shown.reduce((n, h) => n + h.total, 0))}`} />
+                <span className="spv-toolbar-hint">줄을 누르면 <b>치던 그 화면</b>이 떠서 고칠 수 있습니다</span>
+              </ResultStrip>
+            </>
           )}
         </QueryHead>
 
@@ -234,6 +247,12 @@ export function DocScreen({
               <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>양식 고치기</button>
             </div>
             <div className="doc-popup-body">{editor}</div>
+            <DocSums ctl={ctl} right={
+              canWrite ? saveActions.map((a) => (
+                <button key={a.key} type="button" className={a.primary ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
+                  disabled={busy} onClick={() => doSave(a.key)}>{a.label}</button>
+              )) : null
+            } />
             <div className="inv-modal-actions">
               {onDelete && canWrite && (
                 <button type="button" className="btn-secondary btn-sm doc-del" disabled={busy}
