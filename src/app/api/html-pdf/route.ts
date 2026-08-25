@@ -70,10 +70,14 @@ export async function POST(req: NextRequest) {
       );
 
       await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 30000 });
+      // 한글 폰트는 정제 뒤 서버가 직접 주입한다 — 정제 설정이 <link> 를 금지하므로
+      // 문서 안의 폰트 링크는 살아남을 수 없고(그래서 발급 PDF 한글이 통째로 빠졌다),
+      // 입력을 느슨하게 여는 대신 이 고정 URL 하나만 여기서 붙인다.
+      await page.addStyleTag({ url: `${FONT_CDN}v1.3.9/dist/web/static/pretendard.css` }).catch(() => { /* CDN 장애 시 폴백 폰트로 진행 */ });
       try {
         await Promise.race([
           page.evaluate(async () => { await (document as any).fonts?.ready; }),
-          new Promise((resolve) => setTimeout(resolve, 6000)),
+          new Promise((resolve) => setTimeout(resolve, 8000)),
         ]);
       } catch { /* noop */ }
       const pdf = await page.pdf({ format: "A4", printBackground: true });
@@ -94,6 +98,6 @@ export async function POST(req: NextRequest) {
     console.error("[html-pdf]", msg);
     await logServerError({ where: "html-pdf", message: msg, context: { stack: e instanceof Error ? String(e.stack).slice(0, 1200) : null } });
     // x-ov-pdf: 배포 세대 표식 — "지금 서빙 중인 빌드에 수정이 실렸는가"를 밖에서 확인하는 용도
-    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "font-v5" } });
+    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "font-v6" } });
   }
 }
