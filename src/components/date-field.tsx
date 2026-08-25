@@ -59,6 +59,35 @@ function isCompleteDateInput(text: string): boolean {
 // 12년 묶음 그리드의 시작 연도
 const yearBlock = (y: number) => Math.floor(y / 12) * 12;
 
+// 키보드로 치는 '도중'(불완전 입력)에도 달력이 실시간으로 따라가도록, 보여줄 연·월을 최대한 해석한다.
+//   예: "2025" → {2025년}, "202503"·"2025-3" → {2025년 3월}. 완전한 날짜가 아니어도 된다.
+//   (완전한 날짜 확정은 기존 parseLoose 가 담당 — 여기선 '지금 어디를 보여줄까'만 정한다.)
+function partialView(text: string, fallbackYear: number): { y: number; m: number | null } | null {
+  const s = text.trim().replace(/[.\s/년월일]+/g, "-").replace(/^-+|-+$/g, "");
+  if (!s) return null;
+  if (/^\d+$/.test(s)) {
+    // 구분자 없는 연속 숫자 (YYYY / YYYYMM / YYYYMMDD 진행 중) — 앞 4자리가 연도 범위면 연도부터 반영
+    if (s.length >= 4) {
+      const y = +s.slice(0, 4);
+      if (y >= 1900 && y <= 2200) {
+        const mm = s.length >= 6 ? +s.slice(4, 6) : NaN;
+        return { y, m: mm >= 1 && mm <= 12 ? mm : null };
+      }
+    }
+  } else {
+    // 구분자 있는 형태에서 첫 조각이 4자리 연도면 우선 반영 (YYYY-M[-D])
+    const parts = s.split("-").filter(Boolean);
+    if (/^\d{4}$/.test(parts[0]) && +parts[0] >= 1900 && +parts[0] <= 2200) {
+      const y = +parts[0];
+      const mm = parts[1] && /^\d{1,2}$/.test(parts[1]) ? +parts[1] : NaN;
+      return { y, m: mm >= 1 && mm <= 12 ? mm : null };
+    }
+  }
+  // 그 외(축약형 MMDD·M-D 등)는 완전 파싱 결과로 이동
+  const p = parseLoose(text, fallbackYear);
+  return p ? { y: p.y, m: p.m } : null;
+}
+
 export function DateField({
   value, onChange, min, max, className = "", disabled, placeholder = "연도-월-일", id, name,
   title, style, autoFocus, onBlur,
@@ -73,7 +102,7 @@ export function DateField({
   const [open, setOpen] = useState(false);
   // 머리 클릭 드릴다운: false(일) → "year"(연도 그리드) → "month"(월 그리드) → false(일)
   const [pick, setPick] = useState<false | "year" | "month">(false);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
   const btnRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sel = parseYmd(value);
@@ -100,10 +129,17 @@ export function DateField({
   const place = () => {
     if (!btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    const W = 256, H = 300;
+    const W = 256, H = 320, gap = 4;
     const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
-    const top = r.bottom + H > window.innerHeight ? Math.max(8, r.top - H - 4) : r.bottom + 4;
-    setPos({ top, left });
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    // 입력칸을 절대 가리지 않게 (2026-08-25 사장님): 아래가 넉넉하거나 위보다 넓으면 아래(top=입력칸 밑),
+    //   아니면 위에 두되 bottom 앵커로 입력칸 위에 딱 붙인다 — 높이 추정 오차와 무관하게 겹치지 않는다.
+    if (spaceBelow >= H + gap || spaceBelow >= spaceAbove) {
+      setPos({ top: r.bottom + gap, left });
+    } else {
+      setPos({ bottom: window.innerHeight - r.top + gap, left });
+    }
   };
   const openPop = () => { if (disabled || open) return; place(); setPick(false); setOpen(true); };
   const toggle = () => {
@@ -130,11 +166,13 @@ export function DateField({
   const handleType = (raw: string) => {
     setEditing(true);
     setDraft(raw);
-    const p = parseLoose(raw, view.y);
-    if (p) {
-      setView({ y: p.y, m: p.m }); // 치는 대로 달력이 따라간다
-      // 연도까지 완성된 날짜면 Enter 없이 바로 반영 (2026-08-25 사장님)
-      if (isCompleteDateInput(raw)) {
+    // 치는 도중에도 달력이 실시간으로 따라간다 — 연도만 쳐도(예: "2025") 그 해로 이동 (2026-08-25 사장님)
+    const pv = partialView(raw, view.y);
+    if (pv) setView((v) => ({ y: pv.y, m: pv.m ?? v.m }));
+    // 연도까지 완성된 날짜면 Enter 없이 바로 반영
+    if (isCompleteDateInput(raw)) {
+      const p = parseLoose(raw, view.y);
+      if (p) {
         const v = ymd(p.y, p.m, p.d);
         if (withinRange(v)) emit(v);
       }
@@ -206,7 +244,9 @@ export function DateField({
   const outerNextTitle = pick === "year" ? "다음 12년" : pick === "month" ? "10년 후" : "다음 연도";
   const headerTitle = pick === "year" ? "일 선택으로 돌아가기" : pick === "month" ? "연도 선택으로" : "연·월 바로 이동";
 
-  const popStyle: CSSProperties = pos ? { position: "fixed", top: pos.top, left: pos.left, width: 256, zIndex: 90 } : { display: "none" };
+  const popStyle: CSSProperties = pos
+    ? { position: "fixed", left: pos.left, width: 256, zIndex: 90, ...(pos.top !== undefined ? { top: pos.top } : { bottom: pos.bottom }) }
+    : { display: "none" };
   const navBtnCls = "w-7 h-7 rounded-lg hover:bg-[var(--bg-surface)] text-[var(--text-muted)] flex items-center justify-center";
 
   return (
