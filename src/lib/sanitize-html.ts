@@ -8,7 +8,8 @@
 //   패키지(@exodus/bytes, @csstools/css-calc …)가 계속 들어와 Turbopack 의 external require 가
 //   **모듈 평가 시점에** 죽었다. 그 결과 이 파일을 import 하는 화면들
 //   (프로젝트 상세·견적 승인)이 프로덕션에서 500 이 났다. 버전 고정은 계속 재발해서 끊었다.
-//   서버에서 정제가 필요한 곳(PDF 렌더)은 sanitize-html.server.ts 를 쓴다.
+//   서버에서 정제가 필요한 곳(PDF 렌더)은 api/html-pdf 가 headless Chrome 안에서 DOMPurify 로 정제한다
+//   (pdf-sanitize-config.ts — jsdom 기반 sanitize-html.server 는 2026-08-25 모듈 로드 사고로 제거).
 import DOMPurify from "dompurify";
 
 // 계약/문서 본문에 필요한 서식 태그만 허용. on* 이벤트·script·iframe·object·form 등은 전부 차단.
@@ -52,7 +53,7 @@ export function sanitizeDocumentHtml(dirty: string | null | undefined): string {
 export function sanitizeAiContractHtml(dirty: string | null | undefined): string {
   if (!dirty) return "";
   if (!canSanitize()) {
-    throw new Error("계약 본문 정제는 브라우저에서만 됩니다. 서버에서 필요하면 sanitize-html.server 를 쓰세요.");
+    throw new Error("계약 본문 정제는 브라우저에서만 됩니다. 서버 정제는 api/html-pdf 의 브라우저 내 정제(pdf-sanitize-config)를 쓰세요.");
   }
   return DOMPurify.sanitize(String(dirty), {
     ALLOWED_TAGS: [

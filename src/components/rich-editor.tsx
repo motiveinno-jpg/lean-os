@@ -11,7 +11,7 @@ import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import { TableKit, TableRow } from "@tiptap/extension-table";
 import { TableMap } from "@tiptap/pm/tables";
-import { Node, mergeAttributes } from "@tiptap/core";
+import { Extension, Node, mergeAttributes } from "@tiptap/core";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 import {
@@ -54,6 +54,39 @@ const FlowImage = Image.extend({
           attributes.flowOffset != null ? { "data-flow-offset": String(attributes.flowOffset) } : {},
       },
     };
+  },
+});
+
+// 흐름형 PDF 문단의 들여쓰기·문단 앞 간격 보존 (2026-08-25 사장님: "PDF와 간격·위치 동일하게").
+//   pdf-flow 가 <p data-flow-indent data-flow-gap style="margin-…"> 로 내보낸 값을
+//   에디터가 버리지 않고 저장 HTML 에 다시 실어야 발급 PDF·미리보기에서도 유지된다.
+//   FlowImage 의 data-* 보존 패턴과 동일.
+const FlowParagraphLayout = Extension.create({
+  name: "flowParagraphLayout",
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["paragraph"],
+        attributes: {
+          flowIndent: {
+            default: null,
+            parseHTML: (el: HTMLElement) => Number(el.getAttribute("data-flow-indent")) || null,
+            renderHTML: (attrs: { flowIndent?: number | null }) =>
+              attrs.flowIndent
+                ? { "data-flow-indent": String(attrs.flowIndent), style: `margin-left:${attrs.flowIndent}px` }
+                : {},
+          },
+          flowGap: {
+            default: null,
+            parseHTML: (el: HTMLElement) => Number(el.getAttribute("data-flow-gap")) || null,
+            renderHTML: (attrs: { flowGap?: number | null }) =>
+              attrs.flowGap
+                ? { "data-flow-gap": String(attrs.flowGap), style: `margin-top:${attrs.flowGap}px` }
+                : {},
+          },
+        },
+      },
+    ];
   },
 });
 
@@ -395,6 +428,7 @@ export const RichEditor = forwardRef<RichEditorRef, RichEditorProps>(function Ri
       StarterKit,
       Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      FlowParagraphLayout,
       Placeholder.configure({ placeholder }),
       TextStyle,
       Color,

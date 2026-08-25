@@ -539,10 +539,12 @@ export async function createContractPackage(params: {
     const templateId = templateIds[i];
     // built-in 템플릿 ID 는 "builtin-..." 같은 문자열이라 UUID 컬럼에 못 넣음.
     const isUuidTemplate = isUuid(templateId);
-    const dbTemplateId: string | null = isUuidTemplate ? templateId : null;
 
     // Get template from DB first (only if UUID), then fall back to built-in templates
     let template: any = null;
+    // documents.template_id 는 doc_templates FK — doc_templates 에서 찾았을 때만 채운다.
+    //   (PDF 텍스트 양식 id 를 넣으면 FK 위반으로 발송 전체가 죽는다)
+    let dbTemplateId: string | null = null;
     if (isUuidTemplate) {
       const dbTemplate = logRead('lib/hr-contracts:dbTemplate', await db
         .from('doc_templates')
@@ -550,6 +552,28 @@ export async function createContractPackage(params: {
         .eq('id', templateId)
         .maybeSingle());
       template = dbTemplate;
+      if (template) dbTemplateId = templateId;
+    }
+
+    if (!template && isUuidTemplate) {
+      // 근로계약·서식 탭의 PDF 텍스트 양식(pdf_form_templates) — getContractTemplates 와 동일 매핑
+      const { data: pdfTpl } = await db
+        .from('pdf_form_templates')
+        .select('id, name, content_html')
+        .eq('id', templateId)
+        .eq('company_id', companyId)
+        .eq('template_mode', 'text')
+        .maybeSingle();
+      if (pdfTpl && (pdfTpl as any).content_html) {
+        template = {
+          id: (pdfTpl as any).id,
+          name: (pdfTpl as any).name,
+          category: 'pdf_text_form',
+          content_json: { body: (pdfTpl as any).content_html },
+          required_variables: [],
+          is_pdf_form: true,
+        };
+      }
     }
 
     if (!template) {
@@ -958,6 +982,29 @@ export async function getContractTemplates(companyId: string) {
     .eq('is_active', true)
     .order('name'));
 
+  // 근로계약·서식 탭에서 PDF 로 만든 텍스트 양식(pdf_form_templates, {{변수}} 포함 HTML)도
+  // 발송 서식으로 쓴다 (2026-08-25 사장님: "방금 만든 pdf 양식이 여기 나타나야 되는데 안 나타나").
+  //   content_json.body 에 HTML 을 실으면 변수 치환(fillVariables)·서명 화면(뷰어의
+  //   sanitize+HTML 렌더)·발급 PDF 까지 기존 경로를 그대로 탄다.
+  const pdfForms = logRead('lib/hr-contracts:pdfForms', await db
+    .from('pdf_form_templates')
+    .select('id, name, content_html, company_id')
+    .eq('company_id', companyId)
+    .eq('doc_type', 'hr_form')
+    .eq('template_mode', 'text')
+    .not('content_html', 'is', null)
+    .order('name'));
+  const pdfTemplates = ((pdfForms as any[]) || []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    category: 'pdf_text_form',
+    content_json: { body: t.content_html },
+    required_variables: [],
+    is_active: true,
+    is_pdf_form: true,          // documents.template_id(doc_templates FK)에 넣으면 안 되는 표식
+    company_id: t.company_id,
+  }));
+
   // 2026-07-16 QA: 내장 서식은 DB가 비어있을 때의 부트스트랩 폴백 — 회사가 해당 카테고리에
   //   실제 서식을 이미 갖고 있으면(예: 내장 서식을 회사 서식으로 이관) 중복 표시하지 않는다.
   const existingCategories = new Set((data || []).map((t: any) => t.category));
@@ -974,5 +1021,5 @@ export async function getContractTemplates(companyId: string) {
       company_id: null,
     }));
 
-  return [...(data || []), ...builtins];
+  return [...(data || []), ...pdfTemplates, ...builtins];
 }

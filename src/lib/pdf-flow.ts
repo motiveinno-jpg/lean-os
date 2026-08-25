@@ -60,7 +60,13 @@ function colorDistance(a: [number, number, number], b: [number, number, number])
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
 
-/** 렌더된 글자 영역에서 배경과 충분히 다른 대표색을 글자색으로 추정한다. */
+/** 렌더된 글자 영역에서 배경과 충분히 다른 대표색을 글자색으로 추정한다.
+ *  ⚠️ 2026-08-25 사장님 리포트("연한 글씨들은 아예 잘 보이지도 않아")로 수정:
+ *  예전엔 배경과 48 이상 떨어진 색 중 '가장 픽셀 수가 많은' 색을 골랐는데, 획이 가는
+ *  글자(괄호·조사·①…)는 안티앨리어스 중간톤(연회색) 픽셀이 실제 글자색보다 많아
+ *  검정 글자가 rgb(208,208,208) 같은 연회색으로 추출됐다. 이제 픽셀 수 × 배경과의
+ *  거리² 가중치로 골라 '진짜 획 색'이 이기게 하고, 그래도 배경과 너무 가까운 색이면
+ *  색을 버려 기본 글자색(진한 색)으로 렌더한다 — 안 보이는 글자를 만들지 않는다. */
 function sampleTextColor(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -92,8 +98,21 @@ function sampleTextColor(
     const ranked = [...bins.values()].sort((a, b) => b.count - a.count);
     const bg = ranked[0]?.rgb;
     if (!bg) return undefined;
-    const fg = ranked.find((value) => colorDistance(value.rgb, bg) >= 48)?.rgb;
-    return fg ? rgbHex(...fg) : undefined;
+    // 배경과의 거리²×픽셀수 가중치 최대 = 안티앨리어스 중간톤이 아닌 실제 획 색
+    let fg: [number, number, number] | undefined;
+    let best = 0;
+    for (const bin of ranked.slice(1)) {
+      const d = colorDistance(bin.rgb, bg);
+      if (d < 48) continue;
+      const score = bin.count * d * d;
+      if (score > best) { best = score; fg = bin.rgb; }
+    }
+    if (!fg) return undefined;
+    // 가독 하한: 밝은 배경에서 추출색이 여전히 연하면(모든 채널 ≥200) 색을 버린다
+    //   → span 에 color 미지정 = 문서 기본색(진한 색)으로 보인다.
+    const bgLight = bg[0] + bg[1] + bg[2] >= 600;
+    if (bgLight && Math.min(fg[0], fg[1], fg[2]) >= 200) return undefined;
+    return rgbHex(...fg);
   } catch {
     return undefined;
   }
@@ -373,26 +392,50 @@ export async function pdfToFlowHtml(
       const inner = `<span style="${styles}">${escapeHtml(text)}</span>`;
       return segment.b ? `<strong>${inner}</strong>` : inner;
     }).join("");
+    // 페이지 자체의 본문 여백(왼쪽 글 시작선·오른쪽 글 끝선)을 먼저 잰다.
+    //   절대 페이지폭 기준으로 판정하면 여백이 넓은 문서에서 본문 전체가 '가운데'로
+    //   오판되거나, 반대로 진짜 가운데 제목을 못 잡는다(2026-08-25 왼쪽 치우침 리포트).
+    const xs0 = textLines.map((l) => Math.min(...l.runs.map((r) => r.x0))).sort((a, b) => a - b);
+    const xs1 = textLines.map((l) => Math.max(...l.runs.map((r) => r.x1))).sort((a, b) => a - b);
+    const baseL = xs0.length ? xs0[Math.floor(xs0.length * 0.05)] : 0;               // 글 시작선(5분위)
+    const baseR = xs1.length ? xs1[Math.min(xs1.length - 1, Math.floor(xs1.length * 0.95))] : pageW; // 글 끝선(95분위)
     const alignOf = (l: VLine): "left" | "center" | "right" => {
       const x0 = Math.min(...l.runs.map((r) => r.x0));
       const x1 = Math.max(...l.runs.map((r) => r.x1));
-      const lm = x0, rm = pageW - x1;
-      if (Math.abs(lm - rm) < pageW * 0.1 && lm > pageW * 0.15) return "center";
-      if (rm < pageW * 0.08 && lm > pageW * 0.3) return "right";
+      const li2 = x0 - baseL;   // 본문 시작선 대비 왼쪽 들임
+      const ri2 = baseR - x1;   // 본문 끝선 대비 오른쪽 들임
+      if (li2 > pageW * 0.06 && ri2 > pageW * 0.06 && Math.abs(li2 - ri2) < pageW * 0.08) return "center";
+      if (ri2 < pageW * 0.02 && li2 > pageW * 0.25) return "right";
       return "left";
+    };
+    // 왼쪽 정렬 줄의 들여쓰기(pt) — 본문 시작선 대비. 표·중앙·오른쪽 줄은 0.
+    const indentOf = (l: VLine): number => {
+      const d = Math.min(...l.runs.map((r) => r.x0)) - baseL;
+      return d >= 6 ? d : 0; // 6pt(≈2글자 반 칸) 미만은 잡음으로 무시
     };
 
     // 4) 표 재구성 — 연속 2줄 이상이 다열(runs≥2)이면 실제 편집 가능한 table 로 만든다.
     let tablesBuilt = 0;
     const pageHtml: string[] = [];
     let nextImage = 0;
-    let para: { align: string; lines: string[] } | null = null;
+    let para: { align: string; indent: number; gap: number; lines: string[] } | null = null;
     let prevY: number | null = null;
     let prevH = 0;
     const flushPara = () => {
       if (para && para.lines.length) {
-        const alignStyle = para.align !== "left" ? ` style="text-align: ${para.align}"` : "";
-        pageHtml.push(`<p${alignStyle}>${para.lines.join("<br>")}</p>`);
+        // 들여쓰기·문단 앞 간격은 data-* 로 남겨 리치에디터(TipTap flowIndent/flowGap)가
+        // 재편집 후에도 보존한다. style 은 에디터 밖(발급 PDF·미리보기) 렌더용.
+        const indentPx = Math.round((para.indent * 4) / 3);
+        const styles = [
+          para.align !== "left" ? `text-align: ${para.align}` : "",
+          indentPx > 0 ? `margin-left: ${indentPx}px` : "",
+          para.gap > 0 ? `margin-top: ${para.gap}px` : "",
+        ].filter(Boolean).join("; ");
+        const attrs =
+          (styles ? ` style="${styles}"` : "") +
+          (indentPx > 0 ? ` data-flow-indent="${indentPx}"` : "") +
+          (para.gap > 0 ? ` data-flow-gap="${para.gap}"` : "");
+        pageHtml.push(`<p${attrs}>${para.lines.join("<br>")}</p>`);
       }
       para = null;
     };
@@ -448,13 +491,27 @@ export async function pdfToFlowHtml(
         continue;
       }
 
-      // 일반 줄: PDF 줄바꿈 그대로 — 정렬 같고 줄간격이 촘촘하면 같은 문단에 <br> 로 잇는다
+      // 일반 줄: PDF 줄바꿈 그대로 — 정렬·들여쓰기가 같고 줄간격이 촘촘하면 같은 문단에 <br> 로 잇는다
       const align = alignOf(ln);
-      const lineHtml = ln.runs.map(spanOf).join("&nbsp;&nbsp;&nbsp;");
-      const gapBig = prevY !== null && prevY - ln.y > Math.max(prevH, ln.h) * 1.9;
-      if (!para || para.align !== align || gapBig) {
+      const indent = align === "left" ? indentOf(ln) : 0;
+      // 열로 나뉜 덩어리 사이 간격을 원본 비율대로 복원 — 고정 3칸이면 라벨·값이 다 붙는다
+      const lineHtml = ln.runs.map((r, ri) => {
+        if (ri === 0) return spanOf(r);
+        const gapPt = Math.max(0, r.x0 - ln.runs[ri - 1].x1);
+        const em = Math.max(ln.runs[ri - 1].h, r.h, 6);
+        const n = Math.min(40, Math.max(2, Math.round(gapPt / (em * 0.3))));
+        return "&nbsp;".repeat(n) + spanOf(r);
+      }).join("");
+      const advance = prevY !== null ? prevY - ln.y : 0;
+      const gapBig = prevY !== null && advance > Math.max(prevH, ln.h) * 1.9;
+      // 문단 앞 간격(px): 원본의 초과 줄간격을 그대로 — "조항 사이 여백"이 살아야 자연스럽다
+      const gapPx = gapBig
+        ? Math.min(48, Math.max(4, Math.round(((advance - Math.max(prevH, ln.h) * 1.4) * 4) / 3)))
+        : 0;
+      const sameIndent = para !== null && Math.abs(para.indent - indent) < 4;
+      if (!para || para.align !== align || !sameIndent || gapBig) {
         flushPara();
-        para = { align, lines: [lineHtml] };
+        para = { align, indent, gap: gapPx, lines: [lineHtml] };
       } else {
         para.lines.push(lineHtml);
       }

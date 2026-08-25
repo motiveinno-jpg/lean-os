@@ -4,7 +4,16 @@
 import { describe, it, expect } from "vitest";
 import { isAllowedAssetUrl } from "@/lib/pdf-fetch-guard";
 import { sanitizeAiContractHtml, sanitizeDocumentHtml } from "@/lib/sanitize-html";
-import { sanitizePdfHtml } from "@/lib/sanitize-html.server";
+import DOMPurify from "dompurify";
+import { PDF_SANITIZE_CONFIG, PDF_SANITIZE_URI_REGEXP_SOURCE } from "@/lib/pdf-sanitize-config";
+
+// api/html-pdf 가 headless Chrome 안에서 돌리는 정제와 동일 구성 — 설정을 공유해 회귀를 잡는다
+//   (jsdom 기반 sanitize-html.server 는 프로덕션 모듈 로드 사고로 제거, 2026-08-25)
+const sanitizePdfHtml = (dirty: string) =>
+  DOMPurify.sanitize(dirty, {
+    ...PDF_SANITIZE_CONFIG,
+    ALLOWED_URI_REGEXP: new RegExp(PDF_SANITIZE_URI_REGEXP_SOURCE, "i"),
+  });
 
 const OV = "https://njbvdkuvtdtkxyylwngn.supabase.co";
 

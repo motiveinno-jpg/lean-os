@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRequire } from "node:module";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
-import { sanitizePdfHtml } from "@/lib/sanitize-html.server";
 import { isAllowedAssetUrl } from "@/lib/pdf-fetch-guard";
-import chromium from "@sparticuz/chromium";
-import puppeteer, { type Browser } from "puppeteer-core";
+import { logServerError } from "@/lib/server-error-log";
+import { PDF_SANITIZE_CONFIG, PDF_SANITIZE_URI_REGEXP_SOURCE } from "@/lib/pdf-sanitize-config";
+import type { Browser } from "puppeteer-core";
 
 // 임의 HTML → 인쇄품질 PDF (텍스트변환 회사양식 발급 공용). contract-pdf 의 puppeteer 패턴 재사용.
 export const runtime = "nodejs";
@@ -12,10 +13,16 @@ export const maxDuration = 120;
 const MAX_HTML_BYTES = 3 * 1024 * 1024; // 3MB — 과도한 입력 차단
 const MAX_PDF_BYTES = 20 * 1024 * 1024; // 20MB — 응답 PDF 상한
 
-// 서버리스 warm 인스턴스 재사용 — 콜드스타트(브라우저 launch) 분산
+// 서버리스 warm 인스턴스 재사용 — 콜드스타트(브라우저 launch) 분산.
+//   ⚠️ chromium/puppeteer 는 동적 import — 정적 import 로 두면 모듈 로드 자체가 죽었을 때
+//   catch·로깅까지 못 가고 빈 500 이 나간다(2026-08-25 채우기·출력 500 실사고).
 let _browser: Browser | null = null;
 async function getBrowser(): Promise<Browser> {
   if (_browser && _browser.connected) return _browser;
+  const [{ default: chromium }, { default: puppeteer }] = await Promise.all([
+    import("@sparticuz/chromium"),
+    import("puppeteer-core"),
+  ]);
   _browser = await puppeteer.launch({
     args: [...chromium.args, "--font-render-hinting=none"],
     defaultViewport: { width: 1240, height: 1754, deviceScaleFactor: 2 },
@@ -39,9 +46,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "문서가 너무 큽니다." }, { status: 413 });
     }
 
-    // XSS 방어: script·on*·iframe·object 제거 (레이아웃용 <style> 는 보존).
-    const html = sanitizePdfHtml(rawHtml);
-
     const browser = await getBrowser();
     const page = await browser.newPage();
     try {
@@ -56,6 +60,22 @@ export async function POST(req: NextRequest) {
         if (isAllowedAssetUrl(u)) return void r.continue();
         return void r.abort();
       });
+
+      // XSS 방어: script·on*·iframe·object 제거 (레이아웃용 <style> 는 보존).
+      //   정제는 jsdom 이 아니라 어차피 띄운 headless Chrome(진짜 DOM) 안에서 DOMPurify 로 —
+      //   jsdom 의존 사슬이 프로덕션 함수를 모듈 평가 시점에 죽이던 사고의 근본 제거
+      //   (pdf-sanitize-config.ts 주석 참조). dirty HTML 은 evaluate 의 '데이터 인자'로만
+      //   전달되므로 정제 전에 실행될 경로가 없다.
+      await page.setContent("<!doctype html><html><body></body></html>");
+      await page.addScriptTag({ path: createRequire(import.meta.url).resolve("dompurify/dist/purify.min.js") });
+      const html: string = await page.evaluate(
+        (dirty, cfg, uriSrc) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const dp = (window as any).DOMPurify;
+          return dp.sanitize(dirty, { ...cfg, ALLOWED_URI_REGEXP: new RegExp(uriSrc, "i") });
+        },
+        rawHtml, PDF_SANITIZE_CONFIG, PDF_SANITIZE_URI_REGEXP_SOURCE,
+      );
 
       await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 30000 });
       try {
@@ -75,8 +95,12 @@ export async function POST(req: NextRequest) {
     } finally {
       await page.close().catch(() => {});
     }
-  } catch {
-    // 내부 오류 전문 비노출
+  } catch (e) {
+    // 내부 오류 전문은 클라이언트에 비노출 — 대신 error_logs 로 적재해 운영자 화면에서 본다.
+    //   (2026-08-25 이전엔 여기서도 삼켜서 500 의 원인을 알 길이 없었다)
+    const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
+    console.error("[html-pdf]", msg);
+    await logServerError({ where: "html-pdf", message: msg, context: { stack: e instanceof Error ? String(e.stack).slice(0, 1200) : null } });
     return NextResponse.json({ error: "서버 오류" }, { status: 500 });
   }
 }
