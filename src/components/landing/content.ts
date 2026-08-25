@@ -156,16 +156,19 @@ export const FLOW = [
 //      표시·광고법상 허위/과장 소지가 있다. 새 고객이 실제로 쓰기 시작하면 그때 추가할 것.
 //   ⚠️ 세금계산서는 홈택스 '자동 수집' 수치다(직접 발행분 아님). 라벨을 바꾸지 말 것.
 //      → tax_invoices 중 source='codef_hometax' 만 센다(수기 발행 15건은 제외).
-//   ⚠️ 마지막 실측 갱신: 2026-07-30 (prod DB `ownerview`). 갱신 시 쓰는 기준:
-//      거래처=partners / 세금계산서=tax_invoices(codef_hometax) / 전자서명=signature_requests
-//      / 프로젝트=deals / 구성원=users(=employees, 전원 joined). 전부 company_id 기준 count.
-export const CASES_NOTE = "2026년 7월 기준 실제 운영 계정의 수치예요. 회사명은 비공개로 처리했어요.";
+//   ⚠️ 마지막 실측 갱신: 2026-08-25 (prod DB `ownerview`). 갱신 시 쓰는 기준:
+//      거래 자동수집=bank_transactions+card_transactions / 세금계산서=tax_invoices(codef_hometax)
+//      / 거래처=partners / 전자서명=signature_requests / 구성원=users. 전부 company_id 기준 count.
+//   ⚠️ 2026-08-25 "프로젝트 진행 37" 을 뺐다 — 실제로 6건까지 정리돼(사장님 확인) 자랑 지표가
+//      못 된다. 대신 "거래 자동 수집"(사람이 손대지 않은 건수)을 맨 앞에 둔다 — 제품의 핵심
+//      주장(입력하지 않는다)과 정확히 맞물려 더 강하다.
+export const CASES_NOTE = "2026년 8월 기준 실제 운영 계정의 수치예요. 회사명은 비공개로 처리했어요.";
 
 export const CASES = [
   {
     masked: "모**",
     industry: "IT · 소프트웨어",
-    size: "구성원 11명",
+    size: "구성원 13명",
     // ⚠️ 요금제 이름은 빼 둔다 (2026-08-07) — 이 계정은 실제로 구 '울트라' 플랜이지만,
     //    지금은 팔지 않는 요금제라 가격 화면과 대조하면 방문자가 혼란스럽다.
     //    수치는 그대로 실측이므로 사실성은 유지된다.
@@ -174,10 +177,10 @@ export const CASES = [
     //    말하는 주체를 우리로 바꾸면 같은 사실이 훨씬 자연스럽다.
     note: "아래 숫자는 저희 계정에 그대로 쌓인 실제 기록이에요.",
     metrics: [
-      { value: "684", label: "거래처 관리" },
-      { value: "1,822", label: "세금계산서 자동 수집" },
-      { value: "748", label: "전자서명 요청" },
-      { value: "37", label: "프로젝트 진행" },
+      { value: "9,592", label: "거래 자동 수집" },
+      { value: "2,539", label: "세금계산서 자동 수집" },
+      { value: "727", label: "거래처 관리" },
+      { value: "825", label: "전자서명 요청" },
     ],
   },
 ];
