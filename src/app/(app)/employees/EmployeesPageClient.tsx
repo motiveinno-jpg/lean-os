@@ -1215,7 +1215,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                               <ul className="att-day-depts">
                                 {depts.map((d) => {
                                   const key = `${s.value}:${d}`;
-                                  const members = list.filter((e) => e.department === d);
+                                  const members = list.filter((e) => e.department === d).sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
                                   const open = dayDeptOpen.has(key) ? !!dayDeptOpen.get(key) : list.length <= 8;   //   사람이 적으면 처음부터 펼침
                                   return (
                                     <li key={d}>
@@ -1856,7 +1856,7 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
         className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm"
       >
         <option value="">직원 선택...</option>
-        {employees.map((e: any) => (
+        {[...employees].sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", "ko")).map((e: any) => (
           <option key={e.id} value={e.id}>{e.name}</option>
         ))}
       </select>
@@ -4370,7 +4370,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
               </tr>
             </thead>
             <tbody>
-              {employees.map((e: any) => {
+              {[...employees].sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", "ko")).map((e: any) => {
                 const s = statuses[e.id] || "pending";
                 const meta = STATUS_META[s];
                 return (

@@ -1345,7 +1345,8 @@ export async function getCompanyUsers(companyId: string) {
   const data = logRead('getCompanyUsers', await supabase
     .from('users')
     .select('id, name, email')
-    .eq('company_id', companyId));
+    .eq('company_id', companyId)
+    .order('name'));
   return data || [];
 }
 

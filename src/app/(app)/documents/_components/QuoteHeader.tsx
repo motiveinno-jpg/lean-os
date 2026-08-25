@@ -37,7 +37,7 @@ export function QuoteHeader({
     (async () => {
       const [{ data: ps }, { data: us }] = await Promise.all([
         supabase.from("partners").select("id, name, business_number").eq("company_id", companyId).eq("is_active", true).order("name"),
-        supabase.from("users").select("id, name").eq("company_id", companyId),
+        supabase.from("users").select("id, name").eq("company_id", companyId).order("name"),
       ]);
       if (!alive) return;
       setPartners(ps || []);

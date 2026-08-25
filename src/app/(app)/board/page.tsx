@@ -267,7 +267,7 @@ export default function BoardPage() {
     queryKey: ["board-company-members", companyId],
     queryFn: async () => {
       const data = logRead('board/page:members', await db
-        .from("users").select("id, name, email").eq("company_id", companyId!));
+        .from("users").select("id, name, email").eq("company_id", companyId!).order("name"));
       return (data || []) as { id: string; name: string | null; email: string | null }[];
     },
     enabled: !!companyId,

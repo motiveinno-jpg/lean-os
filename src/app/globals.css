@@ -3713,12 +3713,18 @@ table.table-bank-manual { min-width: 640px; }
 /* ── 공지사항(/announcements) — 조회 표준 (2026-08-18) ── */
 table.annc-table { min-width: 860px; }
 .annc-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
+/* 칸 안쪽 여백 축소 — 제목 외 칸을 내용 폭까지 좁힌다. .ev-table tbody td(px-2.5)·.th-hasf(22px !important)
+   가 더 뒤/强해서 table. 접두 특이도 + !important 로 이 표에서만 이긴다 (2026-08-25) */
+table.annc-table tbody td { padding-left: 8px; padding-right: 8px; }
+table.annc-table thead th { padding-left: 8px; padding-right: 8px; }
+table.annc-table thead th.th-hasf { padding-left: 8px !important; padding-right: 20px !important; }
 .annc-table tbody tr.annc-row { @apply cursor-pointer; }
 .annc-table tbody tr.annc-row:hover td { background: var(--bg-surface); }
 .annc-table tbody tr.annc-row-open td { background: color-mix(in srgb, var(--primary) 5%, transparent); }
-.annc-table tbody tr.annc-detail-row > td { @apply bg-[var(--bg-surface)]/40 p-0; max-width: 0; white-space: normal; }
-/* 펼침 본문 — 제목 칸 폭 안에서만, 좌우 패딩은 제목 텍스트와 정렬 (2026-08-25) */
-.annc-detail-body { @apply text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed px-3 py-3; }
+/* 펼침 줄 — 칸 배경은 비워 양옆이 순수 여백으로 보이게, 본문 카드(annc-detail-body)와 구분 (2026-08-25) */
+.annc-table tbody tr.annc-detail-row > td { @apply p-0; max-width: 0; white-space: normal; }
+/* 펼침 본문 — 제목 칸 폭 안의 카드: 배경·테두리로 양옆 여백과 구분 (2026-08-25 사장님) */
+.annc-detail-body { @apply text-sm text-[var(--text-muted)] whitespace-pre-wrap leading-relaxed px-4 py-3 my-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]; }
 table.notif-table { min-width: 960px; }
 .notif-table tbody td { @apply border-b border-[var(--border)]/50 px-3 py-2 text-xs; }
 .notif-table td.truncate { max-width: 0; }
