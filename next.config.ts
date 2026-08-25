@@ -82,6 +82,14 @@ const nextConfig: NextConfig = {
   turbopack: { root: process.cwd() },
   // headless Chrome(서버 PDF 렌더)용 네이티브 패키지는 번들하지 않고 런타임 require
   serverExternalPackages: ["@sparticuz/chromium", "puppeteer-core"],
+  // ⚠️ sparticuz 의 bin/*.br(chromium 본체 + al2023 공유 라이브러리 tar)은 fs.readdir 로
+  //   읽혀 정적 트레이싱이 못 잡는다 — 빠지면 프로덕션에서 /tmp/chromium 이
+  //   "libnss3.so: cannot open shared object file" 로 즉사한다(2026-08-25 채우기·출력 500 실사고,
+  //   error_logs '[html-pdf]' 참조). PDF 렌더 라우트 함수 번들에 명시적으로 실어 준다.
+  outputFileTracingIncludes: {
+    "/api/html-pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/contract-pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+  },
   images: {
     remotePatterns: [
       {
