@@ -37,10 +37,15 @@ export async function POST(req: NextRequest) {
       page.setDefaultTimeout(30000);
 
       // SSRF·데이터 유출 차단: data: URI 와 자사 Supabase Storage 만 허용, 그 외 모든 네트워크 abort.
+      //   예외: Pretendard 폰트 CDN(고정 프리픽스) — 서버리스 Chrome 엔 한글 폰트가 없어
+      //   이걸 막으면 발급 PDF 의 한글이 통째로 빠진다(2026-08-25 실사고: 영문·숫자만 남은 PDF).
+      //   wrapTemplatePrintHtml 이 로드하는 정확한 경로만 연다.
+      const FONT_CDN = "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@";
       await page.setRequestInterception(true);
       page.on("request", (r) => {
         const u = r.url();
         if (u.startsWith("data:") || u.startsWith("blob:") || u === "about:blank") return void r.continue();
+        if (u.startsWith(FONT_CDN)) return void r.continue();
         if (isAllowedAssetUrl(u)) return void r.continue();
         return void r.abort();
       });
@@ -89,6 +94,6 @@ export async function POST(req: NextRequest) {
     console.error("[html-pdf]", msg);
     await logServerError({ where: "html-pdf", message: msg, context: { stack: e instanceof Error ? String(e.stack).slice(0, 1200) : null } });
     // x-ov-pdf: 배포 세대 표식 — "지금 서빙 중인 빌드에 수정이 실렸는가"를 밖에서 확인하는 용도
-    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "purify-v4" } });
+    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "font-v5" } });
   }
 }
