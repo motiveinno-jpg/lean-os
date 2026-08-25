@@ -56,6 +56,8 @@ const PUBLIC_ROUTES = [
   '/tools/severance-calculator', // 무료 퇴직금 계산기 — 공개 도구 2탄 (2026-08-13)
   '/tools/insurance-calculator', // 무료 4대보험 계산기 — 공개 도구 3탄 (2026-08-13)
   '/tools/salary-calculator', // 무료 실수령액 계산기 — 공개 도구 4탄 (2026-08-13)
+  '/tools/weekly-holiday-calculator', // 무료 주휴수당 계산기 — 공개 도구 5탄 (2026-08-25)
+  '/tools/vat-calculator', // 무료 부가세 계산기 — 공개 도구 6탄 (2026-08-25)
 ];
 
 function isPublicRoute(pathname: string): boolean {

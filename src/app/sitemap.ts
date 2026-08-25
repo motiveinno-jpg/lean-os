@@ -20,6 +20,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/tools/severance-calculator`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/tools/insurance-calculator`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/tools/salary-calculator`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${BASE}/tools/weekly-holiday-calculator`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${BASE}/tools/vat-calculator`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE}/auth`, changeFrequency: "yearly", priority: 0.5 },
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.3 },

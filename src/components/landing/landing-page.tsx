@@ -1123,7 +1123,7 @@ export default function LandingPage() {
             <div className="lp4-logo"><Logo size={25} /> OwnerView <span className="lp4-footer-sub">Company Operating System</span></div>
             <div className="lp4-flinks"><Link href="/features">오너뷰 알아보기</Link><a href="#engines">AI 엔진</a><Link href="/pricing">가격</Link><a href="#partner">제휴문의</a><a href="#faq">FAQ</a></div>
           </div>
-          {/* 무료 도구 — 검색 유입용 계산기 4종 내부 링크 (2026-08-13 사장님) */}
+          {/* 무료 도구 — 검색 유입용 계산기 내부 링크 (2026-08-13, 2026-08-25 주휴수당·부가세 추가) */}
           <div className="lp4-footer-tools">
             <span className="lp4-footer-tools-label">무료 도구</span>
             <div className="lp4-flinks">
@@ -1131,6 +1131,8 @@ export default function LandingPage() {
               <Link href="/tools/severance-calculator">퇴직금 계산기</Link>
               <Link href="/tools/insurance-calculator">4대보험 계산기</Link>
               <Link href="/tools/salary-calculator">실수령액 계산기</Link>
+              <Link href="/tools/weekly-holiday-calculator">주휴수당 계산기</Link>
+              <Link href="/tools/vat-calculator">부가세 계산기</Link>
             </div>
           </div>
           <div className="lp4-footer-bottom">

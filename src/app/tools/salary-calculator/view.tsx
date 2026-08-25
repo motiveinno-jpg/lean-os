@@ -187,7 +187,7 @@ export default function SalaryCalculatorView() {
           </div>
 
           <p className="lp4-freetool-note">
-            다른 무료 도구: <Link href="/tools/leave-calculator" className="lp4-freetool-crosslink">연차 계산기</Link> · <Link href="/tools/severance-calculator" className="lp4-freetool-crosslink">퇴직금 계산기</Link> · <Link href="/tools/insurance-calculator" className="lp4-freetool-crosslink">4대보험 계산기</Link>
+            다른 무료 도구: <Link href="/tools/leave-calculator" className="lp4-freetool-crosslink">연차 계산기</Link> · <Link href="/tools/severance-calculator" className="lp4-freetool-crosslink">퇴직금 계산기</Link> · <Link href="/tools/insurance-calculator" className="lp4-freetool-crosslink">4대보험 계산기</Link> · <Link href="/tools/weekly-holiday-calculator" className="lp4-freetool-crosslink">주휴수당 계산기</Link> · <Link href="/tools/vat-calculator" className="lp4-freetool-crosslink">부가세 계산기</Link>
           </p>
         </div>
       </section>

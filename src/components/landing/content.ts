@@ -770,6 +770,8 @@ export const FREE_TOOLS = [
   { href: "/tools/severance-calculator", name: "퇴직금 계산기", desc: "고용노동부 방식 예상 퇴직금" },
   { href: "/tools/insurance-calculator", name: "4대보험 계산기", desc: "직원 공제액 · 회사 부담 총액 (2026 요율)" },
   { href: "/tools/salary-calculator", name: "실수령액 계산기", desc: "간이세액표 기준 월급 실수령액" },
+  { href: "/tools/weekly-holiday-calculator", name: "주휴수당 계산기", desc: "주 15시간 이상 근로자 주휴수당 (2026 최저임금)" },
+  { href: "/tools/vat-calculator", name: "부가세 계산기", desc: "공급가액·합계금액 부가가치세 10% 양방향" },
 ];
 export const NAV_LINKS = [
   { href: TOUR_HREF, label: "오너뷰 알아보기" },
