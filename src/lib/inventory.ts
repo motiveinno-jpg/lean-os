@@ -37,6 +37,9 @@ export const STOCK_REASONS = [
   { value: "count",      label: "실사 조정",  kind: "adjust" as const, sign: +1 },
   { value: "fix",        label: "정정",       kind: "adjust" as const, sign: +1 },
   { value: "move",       label: "창고 이동",  kind: "move"   as const, sign: -1 },
+  //   4단계 — 안에서 만드는 일. 거래처도 계산서도 없다.
+  { value: "produce",    label: "생산 입고",  kind: "in"     as const, sign: +1 },
+  { value: "consume",    label: "자재 투입",  kind: "out"    as const, sign: -1 },
 ] as const;
 export type StockReason = (typeof STOCK_REASONS)[number]["value"];
 export const reasonOf = (v: string) => STOCK_REASONS.find((r) => r.value === v);
@@ -144,6 +147,7 @@ export type StockDocInput = {
   originalDocId?: string | null;   // 반품·정정이 가리키는 원본(결정 8)
   salesOrderId?: string | null;    // 2단계 — 주문에서 넘어온 출고. 없어도 된다(결정 5)
   purchaseOrderId?: string | null; // 3단계 — 발주에서 넘어온 입고. 역시 없어도 된다
+  workOrderId?: string | null;     // 4단계 — 어느 작업지시로 만든 것인가
   lines: MoveLine[];
 };
 
@@ -176,11 +180,18 @@ export async function createStockDoc(
   if (!lines.length) throw new Error("재고를 세는 품목이 한 줄도 없습니다");
 
   //   문서번호 — 사유 갈래 + 날짜 + 그 날 일련번호. 사람이 읽고 부를 수 있어야 한다.
-  const prefix = def.kind === "in" ? "IN" : def.kind === "out" ? "OUT" : def.kind === "move" ? "MOV" : "ADJ";
+  //   생산은 문서가 둘씩 서서(자재·완제품) IN/OUT 으로는 구별이 안 된다 — 부르는 이름을 따로 준다.
+  const prefix = input.reason === "produce" ? "PRD" : input.reason === "consume" ? "MTL"
+    : def.kind === "in" ? "IN" : def.kind === "out" ? "OUT" : def.kind === "move" ? "MOV" : "ADJ";
   const ymd = docDate.replace(/-/g, "").slice(2);
-  const { count } = await supabase.from("stock_docs")
-    .select("id", { count: "exact", head: true })
-    .eq("company_id", companyId).eq("doc_date", docDate).eq("kind", def.kind);
+  //   일련번호는 **이름마다** 센다 — 같은 kind 여도 PRD 와 IN 은 다른 문서다.
+  const numberBy = input.reason === "produce" || input.reason === "consume"
+    ? supabase.from("stock_docs").select("id", { count: "exact", head: true })
+        .eq("company_id", companyId).eq("doc_date", docDate).eq("reason", input.reason)
+    : supabase.from("stock_docs").select("id", { count: "exact", head: true })
+        .eq("company_id", companyId).eq("doc_date", docDate).eq("kind", def.kind)
+        .not("reason", "in", "(produce,consume)");
+  const { count } = await numberBy;
   const docNo = `${prefix}-${ymd}-${String((count || 0) + 1).padStart(2, "0")}`;
 
   const { data: doc, error: docErr } = await supabase.from("stock_docs").insert({
@@ -195,6 +206,7 @@ export async function createStockDoc(
     original_doc_id: input.originalDocId || null,
     sales_order_id: input.salesOrderId || null,
     purchase_order_id: input.purchaseOrderId || null,
+    work_order_id: input.workOrderId || null,
     note: input.note?.trim() || null,
     created_by: userId ?? null,
   }).select("id").single();

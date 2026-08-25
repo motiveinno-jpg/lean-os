@@ -107,6 +107,87 @@ export type Database = {
         }
         Relationships: []
       }
+      product_boms: {
+        Row: {
+          company_id: string
+          component_id: string
+          created_at: string
+          id: string
+          note: string | null
+          product_id: string
+          qty: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          component_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          product_id: string
+          qty: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          component_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          product_id?: string
+          qty?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      work_orders: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          note: string | null
+          order_date: string
+          planned_qty: number
+          product_id: string
+          status: string
+          updated_at: string
+          warehouse_id: string | null
+          wo_no: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_date?: string
+          planned_qty: number
+          product_id: string
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+          wo_no: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_date?: string
+          planned_qty?: number
+          product_id?: string
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+          wo_no?: string
+        }
+        Relationships: []
+      }
       purchase_orders: {
         Row: {
           company_id: string
@@ -289,6 +370,7 @@ export type Database = {
           to_warehouse_id: string | null
           updated_at: string
           warehouse_id: string | null
+          work_order_id: string | null
         }
         Insert: {
           company_id: string
@@ -309,6 +391,7 @@ export type Database = {
           to_warehouse_id?: string | null
           updated_at?: string
           warehouse_id?: string | null
+          work_order_id?: string | null
         }
         Update: {
           company_id?: string
@@ -329,6 +412,7 @@ export type Database = {
           to_warehouse_id?: string | null
           updated_at?: string
           warehouse_id?: string | null
+          work_order_id?: string | null
         }
         Relationships: []
       }
@@ -15576,6 +15660,16 @@ export type Database = {
       }
     }
     Views: {
+      v_work_order_done: {
+        Row: {
+          company_id: string | null
+          done_qty: number | null
+          planned_qty: number | null
+          product_id: string | null
+          work_order_id: string | null
+        }
+        Relationships: []
+      }
       v_stock_incoming: {
         Row: {
           company_id: string | null
