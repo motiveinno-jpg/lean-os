@@ -4,7 +4,8 @@ import AiView from "@/components/landing/ai-view";
 
 const SITE = "https://www.owner-view.com";
 const TITLE = "AI 자동화 | 오너뷰";
-const DESC = "AI 참모·거래 자동분류·아침 브리핑·3-Way 매칭·영수증 OCR·현금 소진 예측·휴면 감지·계약 갱신 알림. 사람이 매번 하던 일 8가지를 오너뷰가 대신 처리해요.";
+// ⚠️ 개수·목록은 content.ts AI_AUTOMATION 과 일치시킬 것. 2026-08-25 "계약 갱신 알림"(미동작) 삭제로 8 → 7.
+const DESC = "AI 참모·거래 자동분류·아침 브리핑·3-Way 매칭·영수증 OCR·현금 소진 예측·휴면 감지. 사람이 매번 하던 일 7가지를 오너뷰가 대신 처리해요.";
 
 export const metadata: Metadata = {
   title: TITLE,

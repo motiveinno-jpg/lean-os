@@ -110,7 +110,7 @@ export default function AiView() {
         </div>
       </section>
 
-      {/* 4개 엔진 — 위 8가지를 무엇으로 묶었는지 */}
+      {/* 4개 엔진 — 위 자동화들을 무엇으로 묶었는지 (개수는 AI_AUTOMATION.length 로 자동) */}
       <section className="lp4-section lp4-bg-tint">
         <div className="lp4-container">
           <div className="lp4-sec-head lp4-sec-head-c">
