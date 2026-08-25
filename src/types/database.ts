@@ -537,29 +537,77 @@ export type Database = {
         Row: {
           channel: string
           channel_product_id: string
+          channel_product_name: string | null
           channel_sku: string | null
           company_id: string
           created_at: string
           id: string
+          is_active: boolean
           product_id: string
+          updated_at: string
         }
         Insert: {
           channel: string
           channel_product_id: string
+          channel_product_name?: string | null
           channel_sku?: string | null
           company_id: string
           created_at?: string
           id?: string
+          is_active?: boolean
           product_id: string
+          updated_at?: string
         }
         Update: {
           channel?: string
           channel_product_id?: string
+          channel_product_name?: string | null
           channel_sku?: string | null
           company_id?: string
           created_at?: string
           id?: string
+          is_active?: boolean
           product_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      channel_order_imports: {
+        Row: {
+          amount: number | null
+          buyer_name: string | null
+          channel: string
+          channel_order_no: string
+          company_id: string
+          doc_id: string | null
+          id: string
+          imported_at: string
+          imported_by: string | null
+          order_date: string | null
+        }
+        Insert: {
+          amount?: number | null
+          buyer_name?: string | null
+          channel: string
+          channel_order_no: string
+          company_id: string
+          doc_id?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          order_date?: string | null
+        }
+        Update: {
+          amount?: number | null
+          buyer_name?: string | null
+          channel?: string
+          channel_order_no?: string
+          company_id?: string
+          doc_id?: string | null
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          order_date?: string | null
         }
         Relationships: []
       }

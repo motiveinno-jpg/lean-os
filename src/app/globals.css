@@ -10175,6 +10175,9 @@ table.table-inv-order-lines { min-width: 900px; }
 table.table-inv-sales { min-width: 940px; }
 table.table-inv-wo { min-width: 1000px; }
 table.table-inv-bom { min-width: 880px; }
+table.table-inv-ch-codes { min-width: 880px; }
+table.table-inv-ch-imports { min-width: 760px; }
+table.table-inv-ch-check { min-width: 820px; }
 .inv-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
 /* 음수 줄 — 에러가 아니라 '아직 안 맞춘 것'이라 눈에는 띄되 겁주지 않는다 (결정 7) */
 .inv-row-fix { background: color-mix(in srgb, var(--danger) 6%, transparent); }
@@ -10262,3 +10265,17 @@ table.table-inv-bom { min-width: 880px; }
 /*   재고 › 생산 — 들어가는 자재를 한 줄에 요약해 보여 주는 칩 */
 .inv-bom-chip { @apply mr-1 inline-flex items-baseline gap-1 rounded-md bg-[var(--bg-subtle)] px-1.5 py-0.5 text-[11.5px]; }
 .inv-bom-chip em { @apply not-italic text-[11px] text-[var(--text-muted)] tabular-nums; }
+
+/*   재고 › 채널 — 붙여넣고, 먼저 맞춰 보고, 넣는다 */
+.ch-import { @apply flex flex-col gap-3; }
+.ch-grid { @apply grid gap-3 sm:grid-cols-2; }
+.ch-paste { @apply font-mono text-[12px]; }
+.ch-actions { @apply flex flex-wrap items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2.5; }
+.ch-actions .inv-paste-sum { @apply flex-1; }
+.ch-link { @apply ml-1.5; }
+.ch-sum { @apply flex flex-wrap items-center gap-2 text-[12px]; }
+.ch-sum > span { @apply rounded-full px-2.5 py-0.5; }
+.ch-sum-ok { @apply bg-[var(--success)]/12 text-[var(--success)]; }
+.ch-sum-skip { @apply bg-[var(--warning)]/12 text-[var(--warning)]; }
+.ch-sum-bad { @apply bg-[var(--danger)]/12 text-[var(--danger)]; }
+.inv-soon-note { @apply mt-2 block text-[11.5px] leading-relaxed text-[var(--text-muted)]; }

@@ -116,6 +116,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/inventory/sales", label: "판매", money: true },
       { route: "/inventory/purchase", label: "구매", money: true },
       { route: "/inventory/production", label: "생산" },
+      { route: "/inventory/channels", label: "채널", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결" },
     ],
   },
   {

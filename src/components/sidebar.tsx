@@ -93,6 +93,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/inventory/sales", label: "판매", icon: "arrow-right-left", roles: ["owner", "admin"], layer: "움직임" },
       { href: "/inventory/purchase", label: "구매", icon: "download", roles: ["owner", "admin"] },
       { href: "/inventory/production", label: "생산", icon: "kanban", roles: ["owner", "admin"] },
+      { href: "/inventory/channels", label: "채널", icon: "link", roles: ["owner", "admin"], layer: "밖과 잇기" },
     ],
   },
   {
@@ -228,7 +229,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/team": "#ea580c",
   // 재고 — 앰버(돈은 그린, 물건은 앰버로 갈라 본다)
   "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
-  "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c",
+  "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c", "/inventory/channels": "#a35f0a",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
   // 회사 관리·도움말 — 슬레이트
