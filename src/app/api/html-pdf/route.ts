@@ -73,38 +73,21 @@ export async function POST(req: NextRequest) {
       // 한글 폰트는 정제 뒤 서버가 직접 주입한다 — 정제 설정이 <link> 를 금지하므로
       // 문서 안의 폰트 링크는 살아남을 수 없고(그래서 발급 PDF 한글이 통째로 빠졌다),
       // 입력을 느슨하게 여는 대신 이 고정 URL 하나만 여기서 붙인다.
-      let fontErr = "";
       await page.addStyleTag({ url: `${FONT_CDN}v1.3.9/dist/web/static/pretendard.css` })
-        .catch((e) => { fontErr = String(e?.message || e).slice(0, 200); /* CDN 장애 시 폴백 폰트로 진행 */ });
+        .catch(() => { /* CDN 장애 시 폴백 폰트로 진행 */ });
       try {
         await Promise.race([
           page.evaluate(async () => { await (document as any).fonts?.ready; }),
           new Promise((resolve) => setTimeout(resolve, 8000)),
         ]);
       } catch { /* noop */ }
-
-      // 진단 모드 — 폰트가 안 실리는 프로덕션 사고 조사용 (로그인 필요, PDF 대신 상태 JSON)
-      if (body?.probe === true) {
-        const diag = await page.evaluate(async () => {
-          const fonts = [...(document as any).fonts].map((f: any) => [f.family, f.status]);
-          let cssFetch = "";
-          try {
-            const r = await fetch("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css");
-            cssFetch = `${r.status} len=${(await r.text()).length}`;
-          } catch (e) { cssFetch = "ERR " + String(e).slice(0, 120); }
-          const stylesheets = [...document.styleSheets].map((s) => (s.href || "inline").slice(0, 90));
-          return { fontsCount: (document as any).fonts.size, fonts: fonts.slice(0, 6), cssFetch, stylesheets, ua: navigator.userAgent.slice(0, 80) };
-        });
-        return NextResponse.json({ gen: "font-v7", fontErr, ...diag }, { headers: { "x-ov-pdf": "font-v7" } });
-      }
-
       const pdf = await page.pdf({ format: "A4", printBackground: true });
       if (Buffer.byteLength(Buffer.from(pdf)) > MAX_PDF_BYTES) {
         return NextResponse.json({ error: "생성된 PDF가 너무 큽니다." }, { status: 413 });
       }
       return new NextResponse(Buffer.from(pdf), {
         status: 200,
-        headers: { "Content-Type": "application/pdf", "Cache-Control": "no-store", "x-ov-pdf": "font-v7" },
+        headers: { "Content-Type": "application/pdf", "Cache-Control": "no-store", "x-ov-pdf": "font-v8" },
       });
     } finally {
       await page.close().catch(() => {});
@@ -116,6 +99,6 @@ export async function POST(req: NextRequest) {
     console.error("[html-pdf]", msg);
     await logServerError({ where: "html-pdf", message: msg, context: { stack: e instanceof Error ? String(e.stack).slice(0, 1200) : null } });
     // x-ov-pdf: 배포 세대 표식 — "지금 서빙 중인 빌드에 수정이 실렸는가"를 밖에서 확인하는 용도
-    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "font-v7" } });
+    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "font-v8" } });
   }
 }

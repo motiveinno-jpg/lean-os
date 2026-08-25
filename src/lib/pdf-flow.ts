@@ -386,7 +386,11 @@ export async function pdfToFlowHtml(
       const styles = [
         `font-size: ${pxOf(segment.h)}px`,
         segment.c ? `color: ${segment.c}` : "",
-        segment.f ? `font-family: &quot;${escapeHtml(segment.f)}&quot;` : "",
+        // font-family 는 내보내지 않는다 (2026-08-25 발급 PDF 한글 소실의 진범):
+        //   pdfjs 가 추측한 값은 "sans-serif" 같은 제네릭이라, span 마다 박히면 문서
+        //   기본 한글 폰트(Pretendard)를 덮어써 서버 렌더에서 한글 글리프가 통째로
+        //   빠졌다. PDF 원본 폰트는 어차피 렌더 환경에 없으므로 굵기·기울임·크기·색만
+        //   보존하고 글꼴은 문서 기본을 따르게 한다.
         segment.i ? "font-style: italic" : "",
       ].filter(Boolean).join("; ");
       const inner = `<span style="${styles}">${escapeHtml(text)}</span>`;
