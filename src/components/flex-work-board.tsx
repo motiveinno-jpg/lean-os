@@ -84,8 +84,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
 }) {
   const isEmployee = role === "employee";
   const [weekStart, setWeekStart] = useState<Date>(() => mondayOf(kstToday()));
-  //   구성원 정렬 (2026-08-25 사장님) — 근무시간순(기본)·가나다순·팀별
-  const [sortMode, setSortMode] = useState<"hours" | "name" | "team">("hours");
+  //   구성원 정렬 (2026-08-25 사장님) — 가나다순(기본)·근무시간순·팀별
+  const [sortMode, setSortMode] = useState<"hours" | "name" | "team">("name");
   const weekEnd = addDays(weekStart, 6);
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const startStr = ymd(weekStart), endStr = ymd(weekEnd);
@@ -302,8 +302,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
             정렬
             <select value={sortMode} onChange={(e) => setSortMode(e.target.value as "hours" | "name" | "team")}
               className="field-input-sm" style={{ width: "auto", minWidth: 92 }}>
-              <option value="hours">근무시간순</option>
               <option value="name">가나다순</option>
+              <option value="hours">근무시간순</option>
               <option value="team">팀별</option>
             </select>
           </label>
