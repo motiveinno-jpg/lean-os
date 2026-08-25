@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
     const msg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     console.error("[html-pdf]", msg);
     await logServerError({ where: "html-pdf", message: msg, context: { stack: e instanceof Error ? String(e.stack).slice(0, 1200) : null } });
-    return NextResponse.json({ error: "서버 오류" }, { status: 500 });
+    // x-ov-pdf: 배포 세대 표식 — "지금 서빙 중인 빌드에 수정이 실렸는가"를 밖에서 확인하는 용도
+    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "trace-v2" } });
   }
 }

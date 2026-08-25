@@ -86,9 +86,13 @@ const nextConfig: NextConfig = {
   //   읽혀 정적 트레이싱이 못 잡는다 — 빠지면 프로덕션에서 /tmp/chromium 이
   //   "libnss3.so: cannot open shared object file" 로 즉사한다(2026-08-25 채우기·출력 500 실사고,
   //   error_logs '[html-pdf]' 참조). PDF 렌더 라우트 함수 번들에 명시적으로 실어 준다.
+  //   키는 App Router 내부 식별자("/api/…/route")와 매칭된다 — "/api/html-pdf" 단독 키는
+  //   프로덕션에서 매칭되지 않아 libnss3 가 계속 빠졌다(2026-08-25 배포 실측). 변형을 함께 둔다.
   outputFileTracingIncludes: {
     "/api/html-pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/html-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/contract-pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/contract-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   images: {
     remotePatterns: [
