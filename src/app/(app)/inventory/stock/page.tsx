@@ -21,6 +21,7 @@ import {
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
+import { listAvailable } from "@/lib/inventory-sales";
 import {
   listProducts, listOnHand, listWarehouses, listMoves, createStockDoc,
   ensureDefaultWarehouse, upsertWarehouse, STOCK_REASONS, reasonOf, reasonLabel,
@@ -53,6 +54,9 @@ export default function StockPage() {
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const { data: warehouses = [] } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId!), enabled: !!companyId });
   const { data: onhand = [] } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId!), enabled: !!companyId });
+  //   2단계 — 판매가능수량(현재고 − 아직 안 나간 주문). 주문을 안 쓰는 회사에는 값이 같아
+  //     칸이 군더더기다 — 그래서 **예약이 하나라도 있을 때만** 칸을 보인다.
+  const { data: available = [] } = useQuery({ queryKey: ["inv-available", companyId], queryFn: () => listAvailable(companyId!), enabled: !!companyId });
   const { data: moves = [] } = useQuery({
     queryKey: ["inv-moves", companyId, from, to],
     queryFn: () => listMoves(companyId!, from, to),
@@ -60,6 +64,9 @@ export default function StockPage() {
   });
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  const availKey = (pid: string, wid: string) => `${pid}|${wid}`;
+  const availByKey = useMemo(() => new Map(available.map((a) => [availKey(a.product_id, a.warehouse_id || ""), a])), [available]);
+  const hasReserved = useMemo(() => available.some((a) => a.reserved_qty > 0), [available]);
   const whById = useMemo(() => new Map(warehouses.map((w) => [w.id, w])), [warehouses]);
 
   //   실사 — 상태가 여러 곳(조회 줄·표·팝업)에 걸려 훅 하나로 모은다. 훅은 조기 return 앞이어야 한다.
@@ -176,8 +183,13 @@ export default function StockPage() {
               ) : (
                 <>
                   <div className="stg-table-wrap">
-                    <table className="ev-table ev-lined table-inv-stock">
-                      <thead><tr><th>SKU</th><th>품목명</th><th>규격</th><th>창고</th><th>현재고</th><th>안전재고</th><th>상태</th></tr></thead>
+                    <table className={hasReserved ? "ev-table ev-lined table-inv-stock table-inv-stock-avail" : "ev-table ev-lined table-inv-stock"}>
+                      <thead><tr>
+                        <th>SKU</th><th>품목명</th><th>규격</th><th>창고</th><th>현재고</th>
+                        {hasReserved && <th title="아직 안 나간 주문">주문 잡힘</th>}
+                        {hasReserved && <th title="현재고 − 아직 안 나간 주문">판매가능</th>}
+                        <th>안전재고</th><th>상태</th>
+                      </tr></thead>
                       <tbody>
                         {pager.view.map((r) => (
                           <tr key={`${r.product_id}-${r.warehouse_id}`} className={r.state === "fix" ? "inv-row-fix" : undefined}>
@@ -186,6 +198,17 @@ export default function StockPage() {
                             <td className="tc ev-dim">{r.product?.spec || "—"}</td>
                             <td className="tc">{r.wh?.name || "—"}</td>
                             <td className="tr mono-number"><b className={r.qty < 0 ? "text-[var(--danger)]" : undefined}>{won(r.qty)}</b></td>
+                            {hasReserved && (() => {
+                              const a = availByKey.get(availKey(r.product_id, r.warehouse_id));
+                              const rsv = a?.reserved_qty ?? 0;
+                              const av = a ? a.available_qty : r.qty;
+                              return (
+                                <>
+                                  <td className="tr mono-number ev-dim">{rsv > 0 ? won(rsv) : "—"}</td>
+                                  <td className="tr mono-number"><b className={av < 0 ? "inv-diff-minus" : undefined}>{won(av)}</b></td>
+                                </>
+                              );
+                            })()}
                             <td className="tr mono-number ev-dim">{r.product?.safety_stock != null ? won(Number(r.product.safety_stock)) : "—"}</td>
                             <td className="tc">
                               {r.state === "fix" ? <span className="inv-pill inv-pill-danger">맞춰야 함</span>

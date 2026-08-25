@@ -10165,10 +10165,14 @@ table.sp-table { min-width: 1160px; } /* 서류·적합도 칸이 늘어 넓어�
 @media (max-width: 900px) { .qk-body > .inv-scroll { position: static; inset: auto; } }
 table.table-inv-products { min-width: 940px; }
 table.table-inv-stock { min-width: 760px; }
+table.table-inv-stock-avail { min-width: 900px; }
 table.table-inv-moves { min-width: 1040px; }
 table.table-inv-wh { min-width: 560px; }
 table.table-inv-counts { min-width: 720px; }
 table.table-inv-count-lines { min-width: 820px; }
+table.table-inv-orders { min-width: 880px; }
+table.table-inv-order-lines { min-width: 900px; }
+table.table-inv-sales { min-width: 940px; }
 .inv-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
 /* 음수 줄 — 에러가 아니라 '아직 안 맞춘 것'이라 눈에는 띄되 겁주지 않는다 (결정 7) */
 .inv-row-fix { background: color-mix(in srgb, var(--danger) 6%, transparent); }
@@ -10241,3 +10245,12 @@ table.table-inv-count-lines { min-width: 820px; }
 .inv-check { @apply flex cursor-pointer items-start gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-subtle)] px-3.5 py-3 text-[12.5px]; }
 .inv-check > span > b { @apply text-[13px]; }
 .inv-check em { @apply mt-0.5 block not-italic text-[11px] leading-relaxed text-[var(--text-muted)]; }
+
+/*   재고 › 판매 — 주문(약속)과 출고(사실)를 한 화면에서 */
+.inv-grid2 { @apply grid gap-3 sm:grid-cols-2; }
+.inv-partner { @apply grid gap-2 sm:grid-cols-2; }
+.inv-modal-foot { @apply flex justify-end border-t border-[var(--border)] pt-2.5 text-[12.5px] text-[var(--text-muted)]; }
+.inv-modal-foot b { @apply ml-1.5 text-[14px] text-[var(--text)] tabular-nums; }
+.inv-ship-table { @apply max-h-[46vh] overflow-auto rounded-xl border border-[var(--border)]; }
+.inv-rate { @apply inline-flex items-baseline gap-1 text-[12px] tabular-nums; }
+.inv-rate em { @apply not-italic text-[11px] text-[var(--text-muted)]; }

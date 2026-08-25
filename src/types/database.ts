@@ -107,6 +107,87 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_orders: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          note: string | null
+          order_date: string
+          order_no: string
+          partner_id: string | null
+          partner_name: string | null
+          status: string
+          updated_at: string
+          warehouse_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_date?: string
+          order_no: string
+          partner_id?: string | null
+          partner_name?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          note?: string | null
+          order_date?: string
+          order_no?: string
+          partner_id?: string | null
+          partner_name?: string | null
+          status?: string
+          updated_at?: string
+          warehouse_id?: string | null
+        }
+        Relationships: []
+      }
+      sales_order_lines: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          note: string | null
+          order_id: string
+          product_id: string
+          qty: number
+          unit_price: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          order_id: string
+          product_id: string
+          qty: number
+          unit_price?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          order_id?: string
+          product_id?: string
+          qty?: number
+          unit_price?: number | null
+        }
+        Relationships: []
+      }
       stock_docs: {
         Row: {
           company_id: string
@@ -179,6 +260,7 @@ export type Database = {
           id: string
           moved_at: string
           note: string | null
+          order_line_id: string | null
           product_id: string
           qty: number
           unit_price: number | null
@@ -192,6 +274,7 @@ export type Database = {
           id?: string
           moved_at: string
           note?: string | null
+          order_line_id?: string | null
           product_id: string
           qty: number
           unit_price?: number | null
@@ -205,6 +288,7 @@ export type Database = {
           id?: string
           moved_at?: string
           note?: string | null
+          order_line_id?: string | null
           product_id?: string
           qty?: number
           unit_price?: number | null
@@ -15408,6 +15492,28 @@ export type Database = {
       }
     }
     Views: {
+      v_stock_available: {
+        Row: {
+          available_qty: number | null
+          company_id: string | null
+          onhand_qty: number | null
+          product_id: string | null
+          reserved_qty: number | null
+          warehouse_id: string | null
+        }
+        Relationships: []
+      }
+      v_sales_line_shipped: {
+        Row: {
+          company_id: string | null
+          order_id: string | null
+          order_line_id: string | null
+          ordered_qty: number | null
+          product_id: string | null
+          shipped_qty: number | null
+        }
+        Relationships: []
+      }
       v_stock_onhand: {
         Row: {
           company_id: string | null
