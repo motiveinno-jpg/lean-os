@@ -274,8 +274,13 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                   }}
                   onFocus={() => setDrop(f.field_id)} />
                 {drop === f.field_id && (
+                  //   ★ 칸에 친 글자로 **미리 좁혀서** 넘긴다 — 안 그러면 고르개 검색칸에 또 쳐야 한다.
+                  //     고르개 안에서 더 좁힐 수도 있다(두 겹).
                   <PickList
-                    items={(f.field_id === "partner" ? partners : (staff || [])).map((p) => ({ id: p.id, name: p.name }))}
+                    items={(f.field_id === "partner" ? partners : (staff || []))
+                      .filter((p) => { const q = (head[f.field_id] || "").trim().toLowerCase();
+                        return !q || p.name.toLowerCase().includes(q); })
+                      .map((p) => ({ id: p.id, name: p.name }))}
                     placeholder={`${f.name} 검색`}
                     empty={f.field_id === "partner" ? "등록된 거래처가 없습니다 — 이름만 입력해도 됩니다" : "등록된 구성원이 없습니다"}
                     onPick={(sel) => {
@@ -368,7 +373,12 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                             아래로 뜨는 자체 목록을 쓰다가 표 안에서 잘렸다. */}
                       {id === "sku" && pick && pick.row === i && (
                         <PickList
-                          items={products.filter((p) => p.is_active).map((p) => ({
+                          items={products.filter((p) => {
+                            if (!p.is_active) return false;
+                            //   ★ 셀에 친 글자로 미리 좁힌다 — 두 번 치지 않게
+                            const q = String(r.sku || "").trim().toLowerCase();
+                            return !q || `${p.sku} ${p.name} ${p.spec || ""}`.toLowerCase().includes(q);
+                          }).map((p) => ({
                             id: p.id, code: p.sku,
                             name: `${p.name}${p.spec ? ` (${p.spec})` : ""}`,
                           }))}

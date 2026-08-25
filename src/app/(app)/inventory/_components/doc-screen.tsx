@@ -59,7 +59,9 @@ export function DocScreen({
   const [tab, setTab] = useState<"edit" | "list">("edit");
   const [q, setQ] = useState("");
   const [from, setFrom] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); });
-  const [to, setTo] = useState(todayKst);
+  //   ★ 앞으로 한 달까지 본다 — 주문서는 **미래 일자가 정상**이다(납기에 맞춰 앞당겨 적는다).
+  //     '오늘까지'로 두면 내일 날짜로 저장한 전표가 목록에서 사라진 것처럼 보인다(실제로 겪었다).
+  const [to, setTo] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() + 1); return d.toISOString().slice(0, 10); });
   const [busy, setBusy] = useState(false);
   const [popup, setPopup] = useState(false);
 
@@ -123,6 +125,9 @@ export function DocScreen({
     try {
       const msg = await onSave({ actionKey, built, ctl, editingId: ctl.editing?.id ?? null });
       toast(msg, "success");
+      //   방금 저장한 전표가 조회 범위 밖이면 범위를 넓힌다 — 저장했는데 목록에 없으면 사라진 줄 안다
+      if (built.date < from) setFrom(built.date);
+      if (built.date > to) setTo(built.date);
       ctl.reset(); setPopup(false); invalidate();
       setTimeout(() => ctl.focusCell(0, ctl.cells[0]), 200);
     } catch (e) { toast(friendlyError(e, "저장하지 못했습니다"), "error"); }
