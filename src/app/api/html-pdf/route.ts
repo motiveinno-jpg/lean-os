@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { isAllowedAssetUrl } from "@/lib/pdf-fetch-guard";
 import { logServerError } from "@/lib/server-error-log";
@@ -50,7 +51,10 @@ export async function POST(req: NextRequest) {
       //   (pdf-sanitize-config.ts 주석 참조). dirty HTML 은 evaluate 의 '데이터 인자'로만
       //   전달되므로 정제 전에 실행될 경로가 없다.
       await page.setContent("<!doctype html><html><body></body></html>");
-      await page.addScriptTag({ path: createRequire(import.meta.url).resolve("dompurify/dist/purify.min.js") });
+      // require.resolve 는 번들러가 모듈 번호로 바꿔치기한다(프로덕션 실사고: path 인자에
+      // number 445340) — 경로 해석 없이 dist 파일을 직접 읽어 내용으로 주입한다.
+      //   next.config outputFileTracingIncludes 가 이 파일을 함수 번들에 싣는다.
+      await page.addScriptTag({ content: readFileSync(join(process.cwd(), "node_modules/dompurify/dist/purify.min.js"), "utf8") });
       const html: string = await page.evaluate(
         (dirty, cfg, uriSrc) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -85,6 +89,6 @@ export async function POST(req: NextRequest) {
     console.error("[html-pdf]", msg);
     await logServerError({ where: "html-pdf", message: msg, context: { stack: e instanceof Error ? String(e.stack).slice(0, 1200) : null } });
     // x-ov-pdf: 배포 세대 표식 — "지금 서빙 중인 빌드에 수정이 실렸는가"를 밖에서 확인하는 용도
-    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "env-v3" } });
+    return NextResponse.json({ error: "서버 오류" }, { status: 500, headers: { "x-ov-pdf": "purify-v4" } });
   }
 }

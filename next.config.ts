@@ -89,8 +89,8 @@ const nextConfig: NextConfig = {
   //   키는 App Router 내부 식별자("/api/…/route")와 매칭된다 — "/api/html-pdf" 단독 키는
   //   프로덕션에서 매칭되지 않아 libnss3 가 계속 빠졌다(2026-08-25 배포 실측). 변형을 함께 둔다.
   outputFileTracingIncludes: {
-    "/api/html-pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
-    "/api/html-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/html-pdf": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
+    "/api/html-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**", "./node_modules/dompurify/dist/purify.min.js"],
     "/api/contract-pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/contract-pdf/route": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
