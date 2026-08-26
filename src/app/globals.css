@@ -3839,9 +3839,10 @@ table.ca-hist-table { min-width: 720px; } /* table. — .ev-table(뒤에 정의)
 /* ── 근태(/attendance) — 조회 표준 (2026-08-18 Wave 4) ── */
 .qk-body > .att-scroll { @apply absolute inset-0 flex flex-col gap-3 overflow-auto p-3; }
 .qk-bar .fw-week-nav { @apply w-auto flex-nowrap; }
-table.fw-table { min-width: 860px; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다 */
-.fw-table thead th.fw-th-name { @apply sticky left-0 z-[6] text-left; min-width: 180px; }
-.fw-table thead th.fw-th-total { min-width: 170px; }
+table.fw-table { min-width: 860px; table-layout: fixed; } /* table. — .ev-table(뒤에 정의) 의 min-width 를 이긴다.
+   fixed: 요일 7칸을 항상 균등하게 — auto 레이아웃에선 반차 문구·시각 등 내용이 긴 요일이 그 주마다 제멋대로 넓어졌다 (2026-08-26 사장님) */
+.fw-table thead th.fw-th-name { @apply sticky left-0 z-[6] text-left; width: 180px; min-width: 180px; }
+.fw-table thead th.fw-th-total { width: 170px; min-width: 170px; }
 .fw-table td.fw-td-name { @apply sticky left-0 z-[5] bg-[var(--bg-card)]; }
 
 .fw-absent-panel { @apply border-b border-[var(--border)] px-3.5 py-3; }
