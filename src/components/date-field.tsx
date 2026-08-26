@@ -265,7 +265,9 @@ export function DateField({
           onChange={(e) => handleType(e.target.value)}
           // 포커스 시 기존값 전체 선택 → 키보드로 치면 기존값에 덧붙지 않고 대체된다 (2026-08-25 사장님).
           //   달력만 클릭할 땐 타이핑이 없으므로 값은 그대로 보존된다.
-          onFocus={() => { openPop(); setTimeout(() => inputRef.current?.select(), 0); }}
+          //   ★ 포커스만으로는 달력을 열지 않는다(2026-08-26 사장님 — "달력은 클릭했을 때만, 평소엔 입력만").
+          //     Tab 으로 지나가거나 화면이 커서를 줄 때 달력이 아랫줄을 덮던 것을 막는다. 열기는 칸·아이콘 클릭(onClick).
+          onFocus={() => { setTimeout(() => inputRef.current?.select(), 0); }}
           onBlur={handleInputBlur}
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); commitDraft(); }
