@@ -8979,5 +8979,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 갈래 탭 안 건수 배지 — 글자에 붙지 않게 (2026-08-26 재무 현황 처리할 것) */
 .collect-tab .inv-short-badge { @apply ml-1.5; }
 
-/* 좌측 아이콘 레일 — 홈이 예전 재무 자리(52px 아래)에서 시작 (2026-08-26 사장님: "홈부터 조금 아래로, 재무 있는 위치로") */
-.sb-rail > .sb-rail-groups { @apply pt-[52px]; }
+/* 좌측 아이콘 레일 (2026-08-26 사장님) — 홈 아이콘 세로 중심을 우측 패널 '검색' 칸 중심에 맞춘다(실측 pt 7px + 로고 mt 8px),
+   로고는 살짝 아래로. 기존 .sb-rail-groups / .sb-rail-logo 정의는 그대로, 여기서만 덧씌운다. */
+.sb-rail > .sb-rail-logo { @apply mt-2; }
+.sb-rail > .sb-rail-groups { @apply pt-[7px]; }
