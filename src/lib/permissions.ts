@@ -35,6 +35,34 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
+    //   재고 (2026-08-25 신설) — 단가·원가가 보이므로 품목·구매는 money.
+    //   ★ 새 키는 member_permissions 에 행이 없어 **백필 전까지 마스터 외 아무도 못 본다** — 배포와 함께 백필한다.
+    group: "재고",
+    menus: [
+      { route: "/inventory/products", label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
+      { route: "/inventory/stock", label: "창고관리", tabs: [
+        { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
+      ] },
+      //   ★ 보기와 입력을 가른다 (2026-08-26 사장님 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
+      { route: "/inventory/orders", label: "주문", money: true, desc: "주문서·견적 — 재고는 안 움직인다", tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 주문서를 만들거나 고칠 수 없다" },
+      ] },
+      { route: "/inventory/sales", label: "판매", money: true, tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 판매 저장·취소·반품 불가" },
+      ] },
+      { route: "/inventory/purchase", label: "구매", money: true, tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 매입 저장·취소·반품 불가" },
+      ] },
+      { route: "/inventory/production", label: "생산", tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 완성 기록·자재구성 수정 불가" },
+      ] },
+      { route: "/inventory/channels", label: "이커머스", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리", tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 보기만 — 주문 가져오기·출고 등록·발송 처리·상품 연결 불가" },
+      ] },
+      { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },
+    ],
+  },
+  {
     //   파이낸스 A안 순서(2026-08-19): 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출)
     group: "재무",
     menus: [
@@ -62,14 +90,6 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       //   2026-08-11 사이드바에서 내림(수집·전표 통장 탭이 대신). 주소로는 열리므로 게이트·옛 부여 키 호환을 위해 남긴다 — 표에는 안 그림
       { route: "/transactions", label: "자동 분류", money: true, hidden: true },
       { route: "/finance/status", label: "현황", money: true, desc: "작성된 전표의 현황·지표 — 확정·반려·종류·계정과목·부가세 유형·전표 없는 증빙" },
-    ],
-  },
-  {
-    //   분석 — 사이드바 그룹(2026-08-11). 라우트는 그대로라 기존 권한(/reports, /partners/ledger)이 그대로 먹는다.
-    group: "분석",
-    menus: [
-      { route: "/reports", label: "분석·리포트", money: true, desc: "경영 요약 · 손익 현황 · 자금 전망 · 회계 자료 · 부가세 — 한 권한으로 전부" },
-      { route: "/partners/ledger", label: "거래처 원장", money: true, desc: "미수·미지급 원장" },
     ],
   },
   {
@@ -106,34 +126,6 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
-    //   재고 (2026-08-25 신설) — 단가·원가가 보이므로 품목·구매는 money.
-    //   ★ 새 키는 member_permissions 에 행이 없어 **백필 전까지 마스터 외 아무도 못 본다** — 배포와 함께 백필한다.
-    group: "재고",
-    menus: [
-      { route: "/inventory/products", label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
-      { route: "/inventory/stock", label: "창고관리", tabs: [
-        { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
-      ] },
-      //   ★ 보기와 입력을 가른다 (2026-08-26 사장님 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
-      { route: "/inventory/orders", label: "주문", money: true, desc: "주문서·견적 — 재고는 안 움직인다", tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 주문서를 만들거나 고칠 수 없다" },
-      ] },
-      { route: "/inventory/sales", label: "판매", money: true, tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 판매 저장·취소·반품 불가" },
-      ] },
-      { route: "/inventory/purchase", label: "구매", money: true, tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 매입 저장·취소·반품 불가" },
-      ] },
-      { route: "/inventory/production", label: "생산", tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 완성 기록·자재구성 수정 불가" },
-      ] },
-      { route: "/inventory/channels", label: "이커머스", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리", tabs: [
-        { key: "write", label: "입력·수정", desc: "미부여 시 보기만 — 주문 가져오기·출고 등록·발송 처리·상품 연결 불가" },
-      ] },
-      { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },
-    ],
-  },
-  {
     group: "인사",
     menus: [
       { route: "/employees", label: "구성원", tabs: [
@@ -154,6 +146,14 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       ] },
       { route: "/hr-templates", label: "근로계약·서식" },
       { route: "/team", label: "구성원 디렉토리", always: true },
+    ],
+  },
+  {
+    //   분석 — 사이드바 그룹(2026-08-11). 라우트는 그대로라 기존 권한(/reports, /partners/ledger)이 그대로 먹는다.
+    group: "분석",
+    menus: [
+      { route: "/reports", label: "분석·리포트", money: true, desc: "경영 요약 · 손익 현황 · 자금 전망 · 회계 자료 · 부가세 — 한 권한으로 전부" },
+      { route: "/partners/ledger", label: "거래처 원장", money: true, desc: "미수·미지급 원장" },
     ],
   },
   {

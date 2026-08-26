@@ -30,6 +30,8 @@ type NavGroup = { label: string; short: string; icon: string; items: NavItem[] }
 // ── 사이드바 구조 (2026-06-04 갱신) — 홈 → 파이낸스 → 워크스페이스 → 인사관리 → 자산관리 → 설정.
 //   파이낸스(구 회계관리) 홈 바로 아래. 워크스페이스(구 그룹웨어): 게시판·채팅·승인·일정·프로젝트·전자계약.
 //   인사관리: 구성원·근태·서류. 자산관리: 통장·카드·정기결제 등. (2026-07-30 P2: 화면 한 벌 — 권한 기반 노출)
+//   ★ 2026-08-26 사장님: 그룹 순서 = **실무에서 제일 많이 쓸 기능 순** — 홈 → 재고 → 재무 → 업무 → 인사 → 분석 → 설정 → 도움말.
+//     권한 카탈로그(lib/permissions.ts)도 같은 순서. 바꿀 때 둘을 같이 옮긴다.
 const NAV_GROUPS: NavGroup[] = [
   {
     label: "홈", short: "홈", icon: "grid",
@@ -44,6 +46,29 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/support-programs", label: "지원사업추천", icon: "gift", roles: ["owner", "admin"] },
       // 마스터 전용 — 대시보드 하단 경영 종합 3종(커맨드 센터·프로젝트 경영·월결산) 이동 (2026-08-10 사장님)
       { href: "/master", label: "마스터", icon: "shield", masterOnly: true },
+    ],
+  },
+  {
+    //   재고 — 2026-08-25 사장님 지시로 신설. 기획 https://claude.ai/code/artifact/afc625ae-c5b5-4b7b-9b51-fdcf3e93165a
+    //   ★ 파이낸스가 **돈의 흐름**이라면 재고는 **물건의 흐름**이다. 같은 서랍에 넣으면 파이낸스가 12줄이 된다.
+    //     사이드바는 레일+패널이라 새 그룹은 다른 메뉴를 한 줄도 밀지 않는다.
+    //   ★ 가르는 기준은 기능 이름이 아니라 **물건의 상태**다 —
+    //     무엇을 파는가(품목) · 지금 몇 개인가(재고) · 나가는 길(판매) · 밖에서 사 오는 길(구매) · 안에서 만드는 길(생산).
+    //   ★ 다섯은 사장님이 정한 "5개까지만 편다"의 **정확한 상한**이다. 앞으로 더할 것은 메뉴가 아니라 화면 안 갈래 탭으로.
+    label: "재고", short: "재고", icon: "package",
+    items: [
+      { href: "/inventory/products", label: "품목", icon: "package", roles: ["owner", "admin"], layer: "기초" },
+      //   ★ 그룹 이름이 재고라 안쪽은 '창고관리' — "재고 › 재고" 중복·'현재고'는 상태어라 어색(2026-08-26 사장님)
+      { href: "/inventory/stock", label: "창고관리", icon: "layers", roles: ["owner", "admin"] },
+      //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
+      //     주문서는 약속이라 재고를 안 건드리고, 나머지 셋이 그것을 불러와 재고를 움직인다.
+      { href: "/inventory/orders", label: "주문", icon: "clipboard", roles: ["owner", "admin"], layer: "거래" },
+      { href: "/inventory/sales", label: "판매", icon: "arrow-right-left", roles: ["owner", "admin"] },
+      { href: "/inventory/purchase", label: "구매", icon: "download", roles: ["owner", "admin"] },
+      { href: "/inventory/production", label: "생산", icon: "kanban", roles: ["owner", "admin"] },
+      { href: "/inventory/channels", label: "이커머스", icon: "link", roles: ["owner", "admin"], layer: "연동" },
+      //   ★ 현황 — 주문·판매·구매·생산을 한 화면에 집계·그래프로. 맨 아래(2026-08-26 사장님: "현황이 제일 아래쪽으로").
+      { href: "/inventory/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
     ],
   },
   {
@@ -81,48 +106,6 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    //   재고 — 2026-08-25 사장님 지시로 신설. 기획 https://claude.ai/code/artifact/afc625ae-c5b5-4b7b-9b51-fdcf3e93165a
-    //   ★ 파이낸스가 **돈의 흐름**이라면 재고는 **물건의 흐름**이다. 같은 서랍에 넣으면 파이낸스가 12줄이 된다.
-    //     사이드바는 레일+패널이라 새 그룹은 다른 메뉴를 한 줄도 밀지 않는다.
-    //   ★ 가르는 기준은 기능 이름이 아니라 **물건의 상태**다 —
-    //     무엇을 파는가(품목) · 지금 몇 개인가(재고) · 나가는 길(판매) · 밖에서 사 오는 길(구매) · 안에서 만드는 길(생산).
-    //   ★ 다섯은 사장님이 정한 "5개까지만 편다"의 **정확한 상한**이다. 앞으로 더할 것은 메뉴가 아니라 화면 안 갈래 탭으로.
-    label: "재고", short: "재고", icon: "package",
-    items: [
-      { href: "/inventory/products", label: "품목", icon: "package", roles: ["owner", "admin"], layer: "기초" },
-      //   ★ 그룹 이름이 재고라 안쪽은 '창고관리' — "재고 › 재고" 중복·'현재고'는 상태어라 어색(2026-08-26 사장님)
-      { href: "/inventory/stock", label: "창고관리", icon: "layers", roles: ["owner", "admin"] },
-      //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
-      //     주문서는 약속이라 재고를 안 건드리고, 나머지 셋이 그것을 불러와 재고를 움직인다.
-      { href: "/inventory/orders", label: "주문", icon: "clipboard", roles: ["owner", "admin"], layer: "거래" },
-      { href: "/inventory/sales", label: "판매", icon: "arrow-right-left", roles: ["owner", "admin"] },
-      { href: "/inventory/purchase", label: "구매", icon: "download", roles: ["owner", "admin"] },
-      { href: "/inventory/production", label: "생산", icon: "kanban", roles: ["owner", "admin"] },
-      { href: "/inventory/channels", label: "이커머스", icon: "link", roles: ["owner", "admin"], layer: "연동" },
-      //   ★ 현황 — 주문·판매·구매·생산을 한 화면에 집계·그래프로. 맨 아래(2026-08-26 사장님: "현황이 제일 아래쪽으로").
-      { href: "/inventory/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
-    ],
-  },
-  {
-    //   분석 — 화면 안 4갈래 탭을 사이드바로 폈다 (2026-08-11 사장님 지시).
-    //   ★ 5개까지만 편다. 하위(매출·비용·월별표 / 예정지출·운영시나리오)는 화면 안 세그먼트로 남긴다
-    //     — 8개를 다 펴면 사이드바가 길어져 오히려 못 찾는다.
-    //   거래처 원장도 여기로 옮겼다 — 판단용 장부라 '보는 곳'이 맞다(거래처 화면의 링크는 그대로 둔다).
-    label: "분석", short: "분석", icon: "bar-chart",
-    items: [
-      { href: "/reports/summary", permKey: "/reports", label: "경영 요약", icon: "bar-chart", roles: ["owner", "admin"], match: ["/reports", "/reports/summary"] },
-      { href: "/reports/profit", permKey: "/reports", label: "손익 현황", icon: "trending-up", roles: ["owner", "admin"], match: ["/reports/profit", "/reports/revenue", "/reports/expense", "/reports/monthly"] },
-      { href: "/reports/outlook", permKey: "/reports", label: "자금 전망", icon: "clock", roles: ["owner", "admin"], match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
-      { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", roles: ["owner", "admin"], match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
-      //   부가세 — 세금계산서 화면의 탭이었는데 분석으로 옮겼다 (2026-08-13 사장님 지시).
-      //   세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞아졌다.
-      //   순서 (2026-08-20 전수 점검): 요약 → 현재(손익) → 미래(전망) → 자료(회계 자료·거래처 원장) → 신고(부가세, 신고철에만 여는 행사성이라 맨 아래)
-      { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"], match: ["/partners/ledger"] },
-      //   ★ 위 '5개까지만 편다'를 하나 넘긴다 — 부가세는 원래 최상위 탭이었고 신고철마다 찾는 화면이라 하위로 접으면 못 찾는다.
-      { href: "/reports/vat", permKey: "/reports", label: "부가세", icon: "receipt", roles: ["owner", "admin"], match: ["/reports/vat"] },
-    ],
-  },
-  {
     label: "업무", short: "업무", icon: "briefcase",
     items: [
       // 메뉴 순서: 일정/할일 → 프로젝트 → 승인요청 → 게시판 → 메신저 (전자계약은 끝 유지)
@@ -145,6 +128,25 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
       { href: "/hr-templates", label: "근로계약·서식", icon: "file-text", roles: ["owner", "admin"] },
       { href: "/team", label: "구성원 디렉토리", icon: "users" },
+    ],
+  },
+  {
+    //   분석 — 화면 안 4갈래 탭을 사이드바로 폈다 (2026-08-11 사장님 지시).
+    //   ★ 5개까지만 편다. 하위(매출·비용·월별표 / 예정지출·운영시나리오)는 화면 안 세그먼트로 남긴다
+    //     — 8개를 다 펴면 사이드바가 길어져 오히려 못 찾는다.
+    //   거래처 원장도 여기로 옮겼다 — 판단용 장부라 '보는 곳'이 맞다(거래처 화면의 링크는 그대로 둔다).
+    label: "분석", short: "분석", icon: "bar-chart",
+    items: [
+      { href: "/reports/summary", permKey: "/reports", label: "경영 요약", icon: "bar-chart", roles: ["owner", "admin"], match: ["/reports", "/reports/summary"] },
+      { href: "/reports/profit", permKey: "/reports", label: "손익 현황", icon: "trending-up", roles: ["owner", "admin"], match: ["/reports/profit", "/reports/revenue", "/reports/expense", "/reports/monthly"] },
+      { href: "/reports/outlook", permKey: "/reports", label: "자금 전망", icon: "clock", roles: ["owner", "admin"], match: ["/reports/upcoming", "/reports/outlook", "/reports/flow"] },
+      { href: "/reports/statements", permKey: "/reports", label: "회계 자료", icon: "file-text", roles: ["owner", "admin"], match: ["/reports/statements", "/reports/pnl", "/reports/bs", "/reports/costs", "/reports/by-person", "/reports/three-way-match"] },
+      //   부가세 — 세금계산서 화면의 탭이었는데 분석으로 옮겼다 (2026-08-13 사장님 지시).
+      //   세금·증빙이 '발행하는 곳'이 되면서, 매입 자료로 계산하는 신고용 화면은 성격이 안 맞아졌다.
+      //   순서 (2026-08-20 전수 점검): 요약 → 현재(손익) → 미래(전망) → 자료(회계 자료·거래처 원장) → 신고(부가세, 신고철에만 여는 행사성이라 맨 아래)
+      { href: "/partners/ledger", label: "거래처 원장", icon: "book", roles: ["owner", "admin"], match: ["/partners/ledger"] },
+      //   ★ 위 '5개까지만 편다'를 하나 넘긴다 — 부가세는 원래 최상위 탭이었고 신고철마다 찾는 화면이라 하위로 접으면 못 찾는다.
+      { href: "/reports/vat", permKey: "/reports", label: "부가세", icon: "receipt", roles: ["owner", "admin"], match: ["/reports/vat"] },
     ],
   },
   {
