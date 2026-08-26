@@ -19,6 +19,8 @@ export type Product = {
   category: string | null; spec: string | null; unit: string; barcode: string | null;
   track_stock: boolean;
   sale_price: number | null; cost_price: number | null; safety_stock: number | null;
+  /** 완제품 1개당 노무·경비 — 생산 원가에 얹는다(결정 38, 급여대장 연동 안 함) */
+  overhead_per_unit: number;
   is_active: boolean; memo: string | null;
 };
 
@@ -50,7 +52,7 @@ export async function listProducts(companyId: string): Promise<Product[]> {
   if (!companyId) return [];
   const data = logRead("inventory:products", await supabase
     .from("products")
-    .select("id, sku, name, category, spec, unit, barcode, track_stock, sale_price, cost_price, safety_stock, is_active, memo")
+    .select("id, sku, name, category, spec, unit, barcode, track_stock, sale_price, cost_price, safety_stock, is_active, memo, overhead_per_unit")
     .eq("company_id", companyId)
     .order("sku"));
   return (data || []) as Product[];
@@ -68,6 +70,7 @@ export async function upsertProduct(companyId: string, p: Partial<Product> & { i
     track_stock: p.track_stock !== false,
     sale_price: p.sale_price ?? null,
     cost_price: p.cost_price ?? null,
+    overhead_per_unit: Number(p.overhead_per_unit || 0),
     safety_stock: p.safety_stock ?? null,
     is_active: p.is_active !== false,
     memo: p.memo?.trim() || null,
@@ -146,6 +149,8 @@ export type MoveLine = {
   product_id: string; qty: number; unit_price?: number | null; note?: string | null;
   //   결정 29·30 (2026-08-26) — 자재 투입 줄의 표준 투입(로스 = qty − std_qty)과 원인, 그리고 줄 단위 창고(불량은 '불량 보류' 창고로)
   std_qty?: number | null; loss_reason?: string | null; warehouseId?: string | null;
+  /** 생산 입고 줄 — 완성 때의 단위당 노무·경비 snapshot(결정 38) */
+  overhead_unit?: number | null;
   //   2단계 — 이 줄이 어느 주문 줄을 채우는가(결정 12). 비워 두면 '바로 출고'다.
   order_line_id?: string | null;
   //   주문서에서 불러온 줄이면 그 줄을 가리킨다(하나로 모았다 — 판매·구매·생산이 같은 표를 쓴다)
@@ -236,7 +241,7 @@ export async function createStockDoc(
     rows.push({
       company_id: companyId, doc_id: docId, product_id: l.product_id,
       warehouse_id: l.warehouseId || input.warehouseId, qty: signed,
-      std_qty: l.std_qty == null ? null : Number(l.std_qty) * def.sign, loss_reason: l.loss_reason || null,
+      std_qty: l.std_qty == null ? null : Number(l.std_qty) * def.sign, loss_reason: l.loss_reason || null, overhead_unit: l.overhead_unit ?? null,
       order_line_id: l.order_line_id ?? null,
       vat_amount: l.vat_amount ?? null,
       unit_price: l.unit_price ?? null,
@@ -465,7 +470,7 @@ export async function updateStockDoc(
     return {
       company_id: companyId, doc_id: docId, product_id: l.product_id,
       warehouse_id: l.warehouseId || input.warehouseId, qty: signed,
-      std_qty: l.std_qty == null ? null : Number(l.std_qty) * def.sign, loss_reason: l.loss_reason || null,
+      std_qty: l.std_qty == null ? null : Number(l.std_qty) * def.sign, loss_reason: l.loss_reason || null, overhead_unit: l.overhead_unit ?? null,
       order_line_id: l.order_line_id ?? null,
       vat_amount: l.vat_amount ?? null,
       unit_price: l.unit_price ?? null,

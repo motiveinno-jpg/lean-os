@@ -287,6 +287,9 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
             <input className="field-input" inputMode="numeric" value={v.sale_price ?? ""} onChange={(e) => set("sale_price", num(e.target.value))} /></label>
           <label className="inv-field"><span>매입가</span>
             <input className="field-input" inputMode="numeric" value={v.cost_price ?? ""} onChange={(e) => set("cost_price", num(e.target.value))} /></label>
+          {/*   ★ 결정 38 (2026-08-26 사장님) — 생산 원가에 얹는 1개당 노무·경비. 급여대장에서 끌어오지 않는다(권한 누수). 바꾸면 그 뒤 완성 기록부터 */}
+          <label className="inv-field"><span>단위당 노무·경비 <em className="inv-hint">완제품 1개당 · 생산 원가에 얹음</em></span>
+            <input className="field-input" inputMode="numeric" value={v.overhead_per_unit ?? ""} onChange={(e) => set("overhead_per_unit", num(e.target.value))} /></label>
           <label className="inv-field"><span>안전재고 <em className="inv-hint">이 아래로 내려가면 &lsquo;부족&rsquo;</em></span>
             <input className="field-input" inputMode="numeric" disabled={v.track_stock === false}
               value={v.safety_stock ?? ""} onChange={(e) => set("safety_stock", num(e.target.value))} /></label>

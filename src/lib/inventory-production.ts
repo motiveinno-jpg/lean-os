@@ -160,9 +160,13 @@ function matLinesOf(lines: ProduceLine[], bomLines: BomLine[], materials?: MatIn
 async function prodLinesOf(companyId: string, lines: ProduceLine[]): Promise<MoveLine[]> {
   const anyDefect = lines.some((l) => Number(l.defect_qty || 0) !== 0);
   const defectWh = anyDefect ? (await ensureDefectWarehouse(companyId)).id : null;
+  //   ★ 결정 38 — 완성 때의 단위당 노무·경비를 줄에 남긴다. 나중에 품목 값을 바꿔도 이 기록은 그대로(그 뒤 완성부터).
+  const ids = [...new Set(lines.map((l) => l.product_id))];
+  const { data: ph } = await supabase.from("products").select("id, overhead_per_unit").in("id", ids);
+  const overhead = new Map(((ph || []) as any[]).map((p) => [p.id as string, Number(p.overhead_per_unit || 0)]));
   const out: MoveLine[] = [];
   for (const l of lines) {
-    const base = { product_id: l.product_id, unit_price: l.unit_price ?? null, vat_amount: l.vat_amount ?? null, order_line_id: l.order_line_id ?? null };
+    const base = { product_id: l.product_id, unit_price: l.unit_price ?? null, vat_amount: l.vat_amount ?? null, order_line_id: l.order_line_id ?? null, overhead_unit: overhead.get(l.product_id) || 0 };
     if (Number(l.qty) !== 0) out.push({ ...base, qty: Number(l.qty), note: l.note ?? null });
     if (Number(l.defect_qty || 0) !== 0) out.push({ ...base, qty: Number(l.defect_qty), warehouseId: defectWh, note: `불량${l.note ? ` · ${l.note}` : ""}` });
   }

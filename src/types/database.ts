@@ -20,6 +20,7 @@ export type Database = {
           category: string | null
           company_id: string
           cost_price: number | null
+          overhead_per_unit: number
           created_at: string
           created_by: string | null
           id: string
@@ -39,6 +40,7 @@ export type Database = {
           category?: string | null
           company_id: string
           cost_price?: number | null
+          overhead_per_unit?: number
           created_at?: string
           created_by?: string | null
           id?: string
@@ -58,6 +60,7 @@ export type Database = {
           category?: string | null
           company_id?: string
           cost_price?: number | null
+          overhead_per_unit?: number
           created_at?: string
           created_by?: string | null
           id?: string
@@ -450,6 +453,7 @@ export type Database = {
           product_id: string
           qty: number
           std_qty: number | null
+          overhead_unit: number | null
           loss_reason: string | null
           unit_price: number | null
           vat_amount: number | null
@@ -467,6 +471,7 @@ export type Database = {
           product_id: string
           qty: number
           std_qty?: number | null
+          overhead_unit?: number | null
           loss_reason?: string | null
           unit_price?: number | null
           vat_amount?: number | null
@@ -484,6 +489,7 @@ export type Database = {
           product_id?: string
           qty?: number
           std_qty?: number | null
+          overhead_unit?: number | null
           loss_reason?: string | null
           unit_price?: number | null
           vat_amount?: number | null
