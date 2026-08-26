@@ -8983,3 +8983,6 @@ table.table-inv-ch-ship { min-width: 1480px; }
    로고는 살짝 아래로. 기존 .sb-rail-groups / .sb-rail-logo 정의는 그대로, 여기서만 덧씌운다. */
 .sb-rail > .sb-rail-logo { @apply mt-2; }
 .sb-rail > .sb-rail-groups { @apply pt-[7px]; }
+
+/* 권한 화면 — 합류 시 자동 부여되는 메뉴 표시 (2026-08-26) */
+.perm-default-hint { @apply ml-1 text-[10px] font-normal text-[var(--text-dim)]; }

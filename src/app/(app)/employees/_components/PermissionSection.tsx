@@ -37,7 +37,7 @@ function SidebarPreview({ checked, empName }: { checked: Set<string>; empName: s
               return (
                 <div key={m.route} className={`perm-preview-menu ${on ? "" : "perm-preview-off"}`}>
                   <span className="perm-preview-ico" aria-hidden />
-                  <span className="truncate">{m.label}</span>
+                  <span className="truncate">{m.label}{m.defaultGrant && <small className="perm-default-hint">합류 시 기본</small>}</span>
                   {on && tabs.length > 0 && <small className="mono-number">{n}/{tabs.length}</small>}
                 </div>
               );

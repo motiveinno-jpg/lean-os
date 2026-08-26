@@ -12,7 +12,9 @@ import { useUser } from "@/components/user-context";
 //   masterOnly = 마스터만 부여/회수, sub = 위 메뉴의 하위 줄(세금·증빙 아래 전자계산서처럼), hidden = 사이드바에서 내린 옛 메뉴
 //   (화면 게이트·기존 부여 키 호환을 위해 카탈로그엔 남기되 권한 표에는 안 그린다).
 export type PermTab = { key: string; label: string; desc?: string; money?: boolean; masterOnly?: boolean };
-export type PermMenu = { route: string; label: string; tabs?: PermTab[]; always?: boolean; desc?: string; money?: boolean; sub?: boolean; hidden?: boolean };
+export type PermMenu = { route: string; label: string; tabs?: PermTab[]; always?: boolean; desc?: string; money?: boolean; sub?: boolean; hidden?: boolean;
+  /** 합류 시 자동 부여(회수 가능) — always 와 다르다. DB 트리거 `_seed_member_default_perms` 의 목록과 같아야 한다 (2026-08-26). */
+  defaultGrant?: boolean };
 export type PermGroup = { group: string; menus: PermMenu[] };
 
 // 전 메뉴·세부탭 카탈로그 — **사이드바(NAV_GROUPS)와 같은 순서·이름** (2026-08-19 사장님: 바뀐 메뉴 위치대로 정리).
@@ -36,27 +38,29 @@ export const PERMISSION_CATALOG: PermGroup[] = [
   },
   {
     //   재고 (2026-08-25 신설) — 단가·원가가 보이므로 품목·구매는 money.
+    //   ★ 직원 기본 제공(defaultGrant, 2026-08-26 사장님): 재고 보기 7개는 합류 때 자동 부여(회수 가능). 현황·:write·adjust 는 부여해야.
+    //     재무·인사는 기본 비노출 — 연봉 등 예민. 목록은 DB `_seed_member_default_perms` 와 같이 고친다.
     //   ★ 새 키는 member_permissions 에 행이 없어 **백필 전까지 마스터 외 아무도 못 본다** — 배포와 함께 백필한다.
     group: "재고",
     menus: [
-      { route: "/inventory/products", label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
-      { route: "/inventory/stock", label: "창고관리", tabs: [
+      { route: "/inventory/products", defaultGrant: true, label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
+      { route: "/inventory/stock", defaultGrant: true, label: "창고관리", tabs: [
         { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
       ] },
       //   ★ 보기와 입력을 가른다 (2026-08-26 사장님 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
-      { route: "/inventory/orders", label: "주문", money: true, desc: "주문서·견적 — 재고는 안 움직인다", tabs: [
+      { route: "/inventory/orders", defaultGrant: true, label: "주문", money: true, desc: "주문서·견적 — 재고는 안 움직인다", tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 주문서를 만들거나 고칠 수 없다" },
       ] },
-      { route: "/inventory/sales", label: "판매", money: true, tabs: [
+      { route: "/inventory/sales", defaultGrant: true, label: "판매", money: true, tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 판매 저장·취소·반품 불가" },
       ] },
-      { route: "/inventory/purchase", label: "구매", money: true, tabs: [
+      { route: "/inventory/purchase", defaultGrant: true, label: "구매", money: true, tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 매입 저장·취소·반품 불가" },
       ] },
-      { route: "/inventory/production", label: "생산", tabs: [
+      { route: "/inventory/production", defaultGrant: true, label: "생산", tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 완성 기록·자재구성 수정 불가" },
       ] },
-      { route: "/inventory/channels", label: "이커머스", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리", tabs: [
+      { route: "/inventory/channels", defaultGrant: true, label: "이커머스", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리", tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 보기만 — 주문 가져오기·출고 등록·발송 처리·상품 연결 불가" },
       ] },
       { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },
@@ -121,6 +125,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/documents", label: "파일보관함", tabs: [
         { key: "delete", label: "남의 파일 삭제", desc: "다른 사람이 올린 파일도 삭제 (미부여 시 본인이 올린 것만)" },
       ] },
+      { route: "/team", label: "구성원 디렉토리", always: true },   // 2026-08-26 인사 → 업무 (연락처. 인사 그룹은 직원 기본 비노출)
       { route: "/chat", label: "메신저", always: true },
       { route: "/signatures", label: "전자계약" },
     ],
@@ -145,7 +150,6 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "settings", label: "근무 기준", desc: "출퇴근 기준 시각·유예·야간 시간대·근무 요일·휴일" },
       ] },
       { route: "/hr-templates", label: "근로계약·서식" },
-      { route: "/team", label: "구성원 디렉토리", always: true },
     ],
   },
   {
@@ -209,6 +213,8 @@ export const ALWAYS_ALLOWED_ROUTES = new Set(
 );
 
 /** 카탈로그의 모든 메뉴 라우트 (always 포함) */
+/** 합류 시 자동 부여되는 메뉴(직원·관리자). DB 트리거와 같은 목록 — 여기만 고치면 안 된다. */
+export const DEFAULT_MEMBER_ROUTES: string[] = PERMISSION_CATALOG.flatMap((g) => g.menus).filter((m) => m.defaultGrant).map((m) => m.route);
 export const CATALOG_ROUTES: string[] = PERMISSION_CATALOG.flatMap((g) => g.menus.map((m) => m.route));
 
 /** pathname → 카탈로그 메뉴 라우트(가장 긴 접두 매치). 카탈로그 밖 경로는 null(게이트 비대상). */

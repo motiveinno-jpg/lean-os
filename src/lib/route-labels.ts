@@ -57,7 +57,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/my-contracts": { group: "홈", title: "내 서명 요청", desc: "나에게 온 서명 요청 전체 목록 (마이페이지 › 급여·계약·증명에서 옵니다)." },
 
   "/employees": { group: "인사", title: "구성원", desc: "직원 정보·급여·계약을 관리합니다." },
-  "/team": { group: "인사", title: "구성원 디렉토리", desc: "누가 어느 부서·직책에 있는지 봅니다." },
+  "/team": { group: "업무", title: "구성원 디렉토리", desc: "누가 어느 부서·직책에 있는지 봅니다." },
   "/attendance": { group: "인사", title: "근태 관리", desc: "출퇴근·근태 현황을 관리합니다." },
   "/leave": { group: "업무", title: "휴가 신청", desc: "휴가 신청은 결재 허브에서 처리합니다." },
   "/hr-templates": { group: "인사", title: "근로계약·서식", desc: "근로·연봉계약 서식을 만들고, 일괄 발송과 서명 현황을 관리합니다. (개별 발송은 구성원 상세)" },

@@ -118,6 +118,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/signatures", label: "전자계약", icon: "edit-3", roles: ["owner", "admin"] },
       //   파일보관함 — 인사관리 → 워크스페이스 (2026-08-20 사장님: 문서는 인사만의 것이 아니다)
       { href: "/documents", label: "파일보관함", icon: "folder" },
+      //   ★ 구성원 디렉토리는 연락처라 업무로 (2026-08-26 사장님: 직원에게 인사 그룹이 보이면 안 된다 — 연봉 등 예민). 인사에 always 메뉴가 없어야 그룹이 숨는다.
+      { href: "/team", label: "구성원 디렉토리", icon: "users" },
       //   내 서명 요청 — 2026-08-19 마이페이지 › 급여·계약·증명 갈래로 흡수(라우트는 전체 목록용으로 남김, 메뉴만 뺌)
     ],
   },
@@ -127,7 +129,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
       { href: "/hr-templates", label: "근로계약·서식", icon: "file-text", roles: ["owner", "admin"] },
-      { href: "/team", label: "구성원 디렉토리", icon: "users" },
     ],
   },
   {
