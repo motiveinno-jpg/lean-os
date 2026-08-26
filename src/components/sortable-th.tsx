@@ -11,6 +11,7 @@
 //     머리를 값에 맞춰 좌우로 흩으면 훑을 때 눈이 걸린다 — 사장님이 짚은 부분이다.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export type SortDir = "asc" | "desc";
 export type SortState<K extends string> = { key: K; dir: SortDir };
@@ -89,7 +90,8 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
   const [draft, setDraft] = useState<Set<string>>(new Set());
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  //   up: 아래 공간이 모자라면 버튼 위로 연다 — top 대신 bottom 을 잡아 화면 밖으로 안 나가게 (2026-08-26 사장님)
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number; maxH?: number }>({ top: 0, left: 0 });
 
   const uniq = useMemo(() => [...new Set(spec.values)], [spec.values]);
   const shown = q.trim() ? uniq.filter((v) => v.toLowerCase().includes(q.trim().toLowerCase())) : uniq;
@@ -101,8 +103,17 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
     setDraft(new Set(spec.selected ?? uniq));
     setQ("");
     const r = btnRef.current!.getBoundingClientRect();
-    //   화면 오른끝에서 잘리지 않게 — 팝업 폭 232px 기준으로 왼쪽으로 민다
-    setPos({ top: r.bottom + 4, left: Math.min(r.left, window.innerWidth - 244) });
+    //   팝업은 body 로 포털(앱 zoom 밖)하므로 rect 의 시각 좌표를 그대로 fixed 에 쓴다.
+    //   좌우는 팝업 폭(232px), 아래는 최대 높이(340px) 기준으로 화면 안에 가두고,
+    //   아래 공간이 모자라면 버튼 위로 연다 (2026-08-26 사장님: "가려져서 안 보인다").
+    const W = 232, H = 340, vw = window.innerWidth, vh = window.innerHeight;
+    const left = Math.max(8, Math.min(r.left, vw - W - 12));
+    const spaceBelow = vh - r.bottom;
+    if (spaceBelow < Math.min(H, 240) && r.top > spaceBelow) {
+      setPos({ bottom: vh - r.top + 4, left, maxH: Math.min(H, r.top - 12) });
+    } else {
+      setPos({ top: r.bottom + 4, left, maxH: Math.min(H, spaceBelow - 12) });
+    }
     setOpen(true);
   };
   useEffect(() => {
@@ -134,8 +145,10 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
           <rect x="0" y="0" width="10" height="1.6" rx="0.8" /><rect x="0" y="4.2" width="10" height="1.6" rx="0.8" /><rect x="0" y="8.4" width="10" height="1.6" rx="0.8" />
         </svg>
       </button>
-      {open && (
-        <div ref={popRef} className="thf-pop" style={{ top: pos.top, left: pos.left }}
+      {/*   body 로 포털 — 앱 전체 zoom(.app-zoom) 안에서 fixed 좌표가 zoom 배로 밀려 가려지던 것 해결.
+            body 는 zoom 밖이라 getBoundingClientRect 시각 좌표가 그대로 맞는다 (2026-08-26 사장님). */}
+      {open && createPortal(
+        <div ref={popRef} className="thf-pop" style={{ top: pos.top, bottom: pos.bottom, left: pos.left, maxHeight: pos.maxH }}
           onClick={(e) => e.stopPropagation()}>
           <input className="thf-search" value={q} placeholder="검색"
             autoFocus onChange={(e) => setQ(e.target.value)} />
@@ -168,7 +181,8 @@ export function ThFilter({ spec }: { spec: ThFilterSpec }) {
             <button type="button" className="btn-secondary btn-sm" onClick={() => setOpen(false)}>취소</button>
             <button type="button" className="btn-primary btn-sm" disabled={draft.size === 0} onClick={apply}>확인</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

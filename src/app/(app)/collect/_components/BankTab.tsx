@@ -34,8 +34,7 @@ import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
-import { findDuplicateEntries, linkTransactionToEntry, setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
-import { useDupVoucherPrompt } from "@/components/dup-voucher-prompt";
+import { setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
 import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import { fetchAllPages } from "@/lib/fetch-all";
 import { exportToExcel } from "@/lib/excel-export";
@@ -492,7 +491,6 @@ export function BankTab({
   };
 
   //   중복 의심 팝업 (2026-08-19) — 같은 날 같은 금액의 전표가 이미 있으면 새 전표/기존 전표에 연결/취소
-  const { askDup, dupPromptElement } = useDupVoucherPrompt();
   //   장부 제외 (2026-08-19) — 고른 미처리 줄을 사유와 함께 전표 없이 끝낸다. 되돌리기로 해제
   const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
   const excludeSelected = async () => {
@@ -510,18 +508,13 @@ export function BankTab({
   const confirmAll = async () => {
     if (selRows.length === 0 || busy) return;
     setBusy(true);
-    let ok = 0, linked = 0;
+    let ok = 0;
     const fails: string[] = [];
     for (const r of selRows) {
       try {
         const acc = acctOf(r).a;
         if (!acc) throw new Error("계정을 먼저 고르세요");
-        const dups = await findDuplicateEntries(companyId, r.date, Math.abs(r.amount));
-        if (dups.length > 0) {
-          const a = await askDup(`통장 ${r.date} ${r.who || ""} ${Math.abs(r.amount).toLocaleString()}원`, r.isIn ? "입금" : "출금", dups);
-          if (a.action === "cancel") { fails.push(`${r.who}: 취소`); continue; }
-          if (a.action === "link") { if (await linkTransactionToEntry("bank", r.id, a.entryId)) linked += 1; continue; }
-        }
+        //   중복 의심 팝업은 뺐다 (2026-08-26 사장님) — 같은 통장 줄 이중 전표는 서버(ALREADY_POSTED)가 막는다.
         //   ★ 보통예금 쪽(계정·통장 거래처·계좌 연결)과 차·대 방향은 **서버가 붙인다**.
         //     화면은 상대 계정·상대 거래처·적요만 보낸다 — "자동 입력"을 화면 신뢰에 맡기지 않는다.
         const { error } = await (supabase.rpc as any)("post_bank_manual_voucher", {
@@ -550,9 +543,8 @@ export function BankTab({
     qc.invalidateQueries({ queryKey: ["voucher-rules"] });
     qc.invalidateQueries({ queryKey: ["bank-partners"] });
     setBusy(false);
-    const linkedTxt = linked > 0 ? ` · 기존 전표에 연결 ${linked}건` : "";
-    if ((ok > 0 || linked > 0) && fails.length === 0) toast(`${ok > 0 ? `일반전표 ${ok}건을 만들었습니다` : "전표는 만들지 않았습니다"}${linkedTxt}`, "success");
-    else if (ok > 0 || linked > 0) toast(`${ok}건 성공${linkedTxt} · ${fails.length}건 실패 — ${fails[0]}`, "info");
+    if (ok > 0 && fails.length === 0) toast(`일반전표 ${ok}건을 만들었습니다`, "success");
+    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
     else toast(`처리하지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
 
@@ -1198,7 +1190,6 @@ export function BankTab({
       <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
         from={pager.from} to={pager.to} onPage={pager.setPage} onSize={(n) => drop({ size: n })} />
       </QueryScreen>
-      {dupPromptElement}
       {excludePromptElement}
     </div>
   );

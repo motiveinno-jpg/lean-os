@@ -32,8 +32,7 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
-import { findDuplicateEntries, linkTransactionToEntry, setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
-import { useDupVoucherPrompt } from "@/components/dup-voucher-prompt";
+import { setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
 import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import {
   VAT_TYPES, STD, buildVoucherLines, vatType, suggestVatType, normalizeSides,
@@ -441,7 +440,6 @@ export function EvidenceTab({
   };
 
   //   중복 의심 팝업 (2026-08-19) — 같은 날 같은 금액 전표가 이미 있으면 새 전표/기존 전표에 연결/취소 (카드만 연결 가능 — 세금계산서·현금영수증은 자기 RPC 가 건다)
-  const { askDup, dupPromptElement } = useDupVoucherPrompt();
   //   장부 제외 (2026-08-19) — 카드 탭만. 고른 미처리 줄을 사유와 함께 전표 없이 끝낸다 / 해제
   const { askExclude, excludePromptElement } = useLedgerExcludePrompt();
   const excludeSelected = async () => {
@@ -464,7 +462,7 @@ export function EvidenceTab({
   const makeVouchers = async () => {
     if (selRows.length === 0 || saving) return;
     setSaving(true);
-    let ok = 0, linked = 0;
+    let ok = 0;
     const fails: string[] = [];
     for (const r of selRows) {
       const lines = linesFor(r);
@@ -473,19 +471,8 @@ export function EvidenceTab({
         fails.push(`${r.partnerName}: 계정을 먼저 고르세요`);
         continue;
       }
-      const dups = await findDuplicateEntries(companyId, r.date, Math.abs(r.supply + r.vat));
-      if (dups.length > 0) {
-        const a = await askDup(`${kind === "card" ? "카드" : kind === "cash_receipt" ? "현금영수증" : "세금계산서"} ${r.date} ${r.partnerName || ""} ${Math.abs(r.supply + r.vat).toLocaleString()}원`, r.item || "", dups);
-        if (a.action === "cancel") { fails.push(`${r.partnerName}: 취소`); continue; }
-        if (a.action === "link") {
-          if (kind === "card") { if (await linkTransactionToEntry("card", r.id, a.entryId)) linked += 1; continue; }
-          //   세금계산서·현금영수증은 자기 표의 journal_entry_id 를 건다
-          const tbl = kind === "cash_receipt" ? "cash_receipts" : "tax_invoices";
-          const { data } = await supabase.from(tbl).update({ journal_entry_id: a.entryId } as never).eq("id", r.id).is("journal_entry_id", null).select("id");
-          if ((data || []).length > 0) linked += 1;
-          continue;
-        }
-      }
+      //   중복 의심 팝업은 뺐다 (2026-08-26 사장님: "전표 할 때마다 나와서 걸리적거린다") —
+      //   같은 원자료 이중 전표는 서버(ALREADY_POSTED)가 막고, 날짜·금액 우연 일치까지 여기서 묻지 않는다.
       const norm = normalizeSides(lines.map((l) => ({ side: l.side, amount: l.amount })));
       //   ★ 카드는 **차변(비용)은 가맹점, 대변(미지급금)은 카드사** — 상대가 서로 다르다.
       //     상대계정 줄은 매출이면 첫 줄, 매입이면 마지막 줄이다(buildVoucherLines 가 그렇게 만든다).
@@ -549,9 +536,8 @@ export function EvidenceTab({
     qc.invalidateQueries({ queryKey: ["collect-status"] });
     qc.invalidateQueries({ queryKey: ["voucher-rules"] });
     setSaving(false);
-    const linkedTxt = linked > 0 ? ` · 기존 전표에 연결 ${linked}건` : "";
-    if ((ok > 0 || linked > 0) && fails.length === 0) toast(`${ok > 0 ? `전표 ${ok}건을 만들었습니다` : "전표는 만들지 않았습니다"}${linkedTxt}`, "success");
-    else if (ok > 0 || linked > 0) toast(`${ok}건 성공${linkedTxt} · ${fails.length}건 실패 — ${fails[0]}`, "info");
+    if (ok > 0 && fails.length === 0) toast(`전표 ${ok}건을 만들었습니다`, "success");
+    else if (ok > 0) toast(`${ok}건 성공 · ${fails.length}건 실패 — ${fails[0]}`, "info");
     else toast(`전표를 만들지 못했습니다 — ${fails[0] ?? "알 수 없는 오류"}`, "error");
   };
 
@@ -1156,7 +1142,6 @@ export function EvidenceTab({
       <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
         from={pager.from} to={pager.to} onPage={pager.setPage} onSize={(n) => drop({ size: n })} />
       </QueryScreen>
-      {dupPromptElement}
       {excludePromptElement}
     </div>
   );
