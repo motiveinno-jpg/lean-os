@@ -72,6 +72,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/vault": { group: "자금", title: "자산", desc: "회사 자산을 관리합니다." },
 
   //   재고 (2026-08-25 신설)
+  "/inventory/profit": { group: "재고", title: "이익관리", desc: "구매·생산·판매에서 남는 돈을 원가(선입선출)가 반영된 숫자로 봅니다 — 품목·거래처·채널별 이익, 손실, 원가 층." },
   "/inventory/status": { group: "재고", title: "현황", desc: "주문·판매·구매·생산을 기간으로 집계해 그래프와 표로 봅니다. 재고 금액·마진·납기 지난 주문·자재 부족을 한 화면에서." },
   "/inventory/products": { group: "재고", title: "품목", desc: "파는 것·쓰는 것을 SKU 로 등록합니다. 수량을 세지 않는 품목(서비스)도 여기서 정합니다." },
   "/inventory/stock": { group: "재고", title: "창고관리", desc: "지금 몇 개인지 봅니다. 수량은 움직인 기록의 합이라 언제 왜 변했는지 되짚을 수 있습니다." },

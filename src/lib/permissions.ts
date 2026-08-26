@@ -64,6 +64,10 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "write", label: "입력·수정", desc: "미부여 시 보기만 — 주문 가져오기·출고 등록·발송 처리·상품 연결 불가" },
       ] },
       { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },
+      //   이익관리 (2026-08-26) — 매출원가·이익·원가 층. 직원 기본 비노출(재무 정보). :write 는 원가 방법 변경·재계산·재평가.
+      { route: "/inventory/profit", label: "이익관리", money: true, desc: "판매 이익·매출원가(선입선출)·손실·품목별 이익률·원가 층", tabs: [
+        { key: "write", label: "원가 방법·재계산·재평가", desc: "미부여 시 보기만" },
+      ] },
     ],
   },
   {

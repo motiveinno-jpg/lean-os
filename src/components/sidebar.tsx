@@ -69,6 +69,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/inventory/channels", label: "이커머스", icon: "link", roles: ["owner", "admin"], layer: "연동" },
       //   ★ 현황 — 주문·판매·구매·생산을 한 화면에 집계·그래프로. 맨 아래(2026-08-26 사장님: "현황이 제일 아래쪽으로").
       { href: "/inventory/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
+      //   ★ 이익관리 (결정 40, 2026-08-26 사장님) — 원가(FIFO) 반영 이익. 4글자는 사장님 확정 예외.
+      { href: "/inventory/profit", label: "이익관리", icon: "trending-up", roles: ["owner", "admin"] },
     ],
   },
   {
@@ -238,7 +240,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/employees": "#f97316", "/attendance": "#fb923c", "/hr-templates": "#f59e0b",
   "/team": "#ea580c",
   // 재고 — 앰버(돈은 그린, 물건은 앰버로 갈라 본다)
-  "/inventory/status": "#b7791f", "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
+  "/inventory/status": "#b7791f", "/inventory/profit": "#a16207", "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
   "/inventory/orders": "#f0b429", "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c", "/inventory/channels": "#a35f0a",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee", "/finance/status": "#0891b2",
