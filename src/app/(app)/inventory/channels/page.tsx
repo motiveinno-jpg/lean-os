@@ -302,7 +302,8 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
         const code = r.ccode.trim().toUpperCase();
         if (!code) { if (r.flag === "nocode") { changed = true; return { ...r, flag: null }; } return r; }
         if (r.product_id) { if (r.flag === "nocode") { changed = true; return { ...r, flag: null }; } return r; }
-        const pid = codeMap.get(`${r.ch || CHANNELS[0].value}|${code}`);
+        if (!r.ch) { if (r.flag !== "nocode") { changed = true; return { ...r, flag: "nocode" as const }; } return r; }
+        const pid = codeMap.get(`${r.ch}|${code}`);
         const p = pid ? byId.get(pid) : undefined;
         if (p) { const n = { ...r, custom: { ...r.custom }, flag: null as DocRow["flag"] }; ctl.fillFrom(n, p); changed = true; return n; }
         if (r.flag !== "nocode") { changed = true; return { ...r, flag: "nocode" as const }; }
@@ -313,7 +314,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
   }, [ctl.rows, codeMap, byId]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   //   주문번호가 그 채널에 이미 등록됐는지 — 줄이 바뀔 때 물어본다(그 주문번호만).
-  const nos = ctl.rows.map((r) => (r.ono.trim() ? `${r.ch || CHANNELS[0].value}|${r.ono.trim()}` : "")).filter(Boolean).join("\n");
+  const nos = ctl.rows.map((r) => (r.ono.trim() && r.ch ? `${r.ch}|${r.ono.trim()}` : "")).filter(Boolean).join("\n");
   useEffect(() => {
     if (!ctl.companyId || !nos) return;
     let alive = true;
@@ -325,7 +326,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
       ctl.setRows((rows) => {
         let changed = false;
         const next = rows.map((r) => {
-          const dup = !!r.ono.trim() && !!seen.get(r.ch || CHANNELS[0].value)?.has(r.ono.trim());
+          const dup = !!r.ono.trim() && !!r.ch && !!seen.get(r.ch)?.has(r.ono.trim());
           if (dup && r.flag !== "dup" && r.flag !== "nocode") { changed = true; return { ...r, flag: "dup" as const }; }
           if (!dup && r.flag === "dup") { changed = true; return { ...r, flag: null }; }
           return r;
@@ -339,7 +340,8 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
   const counts = useMemo(() => ({
     nocode: ctl.live.filter((r) => r.flag === "nocode").length,
     dup: ctl.live.filter((r) => r.flag === "dup").length,
-    channels: new Set(ctl.live.map((r) => r.ch || CHANNELS[0].value)).size,
+    noCh: ctl.live.filter((r) => !r.ch).length,
+    channels: new Set(ctl.live.map((r) => r.ch).filter(Boolean)).size,
   }), [ctl.live]);
 
   /** 붙여넣기·API 가 준 줄을 격자에 깐다 — 이미 친 줄은 남기고, 전체를 채널순으로 정렬한다. */
@@ -370,13 +372,15 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     const wh = built.head.wh;
     if (!ctl.live.length) { toast("입력된 항목이 없습니다", "error"); return; }
     if (!wh) { toast("출고 창고를 선택하세요", "error"); return; }
+    //   ★ 채널은 붙여넣기·가져오기만 정한다 — 손으로 친 줄은 채널이 없어 등록할 수 없다(어느 채널 주문인지 모른다)
+    if (counts.noCh) { toast(`채널이 없는 줄 ${counts.noCh} — 채널은 엑셀 붙여넣기·채널에서 가져오기로만 정해집니다`, "error"); return; }
     if (counts.nocode) { toast(`미연결 상품코드 ${counts.nocode}줄 — 품목을 고르거나 상품 연결에서 등록하세요`, "error"); return; }
     const lines = built.lines.filter((l) => l.flag !== "dup");
     if (lines.some((l) => !l.product_id || !(l.qty > 0) || !l.ono)) { toast("주문번호·품목·수량을 확인하세요", "error"); return; }
     if (!lines.length) { toast("모두 이미 등록된 주문번호입니다", "error"); return; }
     //   채널별로 한 전표씩
     const groups = new Map<string, typeof lines>();
-    for (const l of lines) { const ch = l.ch || CHANNELS[0].value; groups.set(ch, [...(groups.get(ch) || []), l]); }
+    for (const l of lines) { groups.set(l.ch, [...(groups.get(l.ch) || []), l]); }
     const msg = `${lines.length}줄을 출고(판매)로 등록합니다 — ${[...groups.entries()].map(([ch, ls]) => `${channelLabel(ch)} ${ls.length}줄`).join(" · ")}.`
       + `${counts.dup ? ` 이미 등록된 ${counts.dup}줄은 건너뜁니다.` : ""} 진행할까요?`;
     if (!window.confirm(msg)) return;
@@ -414,6 +418,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
       <ResultStrip>
         <Stat label="줄" value={`${won(ctl.sums.lines)}개`} />
         {counts.channels > 1 && <Stat label="채널" value={`${counts.channels}개`} />}
+        {counts.noCh > 0 && <Stat label="채널 없음" value={`${counts.noCh}줄`} tone="minus" />}
         {counts.nocode > 0 && <Stat label="미연결" value={`${counts.nocode}줄`} tone="minus" />}
         {counts.dup > 0 && <Stat label="기존 등록" value={`${counts.dup}줄`} />}
         <Stat label="공급가액" value={`₩${won(ctl.sums.supply)}`} />

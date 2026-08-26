@@ -48,7 +48,7 @@ function baseLine(): Field[] {
     { field_id: "vat",    name: "부가세",   on: true,  custom: false, why: "공급가액의 10% 자동 계산" },
     { field_id: "lnote",  name: "품목 비고", on: false, custom: false, why: "해당 품목에 대한 메모" },
     //   채널 주문 양식에만 쓰는 칸 — 다른 양식에서는 defaultLayout 이 빼 버린다
-    { field_id: "ch",     name: "채널",         on: true,  custom: false, lock: true, why: "어느 판매 채널의 주문인가 — 줄마다 다를 수 있습니다" },
+    { field_id: "ch",     name: "채널",         on: true,  custom: false, lock: true, why: "붙여넣기·가져오기가 정합니다 — 바꿀 수 없습니다" },
     { field_id: "ono",    name: "주문번호",     on: true,  custom: false, lock: true, why: "채널 주문번호 — 같은 번호는 두 번 등록되지 않습니다" },
     { field_id: "ccode",  name: "채널 상품코드", on: true,  custom: false, why: "상품 연결에 등록된 코드면 품목이 자동으로 채워집니다" },
     { field_id: "buyer",  name: "주문자",       on: true,  custom: false, why: "채널 주문자 이름" },

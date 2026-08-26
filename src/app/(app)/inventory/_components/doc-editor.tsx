@@ -17,7 +17,7 @@ import { todayKst } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
 import { PickList } from "@/components/pick-list";
 import { listPartnerPrices, type Product, type Warehouse } from "@/lib/inventory";
-import { CHANNELS } from "@/lib/inventory-channels";
+import { channelLabel } from "@/lib/inventory-channels";
 import {
   loadLayout, saveLayout, resetLayout, newFieldId, defaultLayout,
   FORM_LABEL, type FormKey, type Field, type Layout, type Order, type OrderLine,
@@ -393,15 +393,12 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                   const id = f.field_id;
                   const raw = id.startsWith("f_") ? (r.custom[id] || "") : String((r as any)[id] ?? "");
                   const shown = NUMS.has(id) && raw !== "" ? won(num(raw)) : raw;
-                  //   ★ 채널 칸은 고르개(한 줄 셀렉트) — 줄마다 다른 채널이 설 수 있다(2026-08-26 사장님)
+                  //   ★ 채널 칸은 **읽기 전용** — 붙여넣기·가져오기가 정한 채널이 그대로 남는다. 비었으면 '—'.
+                  //     사람이 바꾸면 불러온 내용과 달라진다(2026-08-26 사장님). 손으로 친 줄은 채널이 없어 저장이 막힌다.
                   if (id === "ch") {
                     return (
                       <td key={id} className="cell tc doc-cell-ch">
-                        <select className="doc-in doc-in-select" data-cell={`${id}-${i}`} value={r.ch || CHANNELS[0].value}
-                          onChange={(e) => setCell(i, id, e.target.value)}
-                          onKeyDown={(e) => onCellKey(e, i, id)}>
-                          {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                        </select>
+                        <span className={r.ch ? "doc-ch" : "doc-ch doc-ch-none"}>{r.ch ? channelLabel(r.ch) : "—"}</span>
                       </td>
                     );
                   }
