@@ -41,6 +41,28 @@ export function useStockCount(companyId: string | null, userId: string | null, c
 
   const head = useMemo(() => (counts.data || []).find((c) => c.id === openId) || null, [counts.data, openId]);
 
+  //   ★ 바코드·SKU 찍기 (2026-08-26 사장님 "실사 입력이 불편") — 찍을 때마다 그 품목의 센 수량 +1. 줄을 찾아 표시한다.
+  const [lastScan, setLastScan] = useState<string | null>(null);
+  const scanCode = async (raw: string): Promise<string> => {
+    const code = raw.trim();
+    if (!code) return "";
+    const prod = [...productById.values()].find((x) => (x.barcode && x.barcode === code) || x.sku.toUpperCase() === code.toUpperCase());
+    if (!prod) return `'${code}' 에 맞는 품목이 없습니다 — 품목의 바코드·SKU 를 확인하세요`;
+    const line = (lines.data || []).find((l) => l.product_id === prod.id);
+    if (!line) return `${prod.name} 은(는) 이 실사에 깔려 있지 않습니다 — '재고 0인 품목까지 깔기'로 다시 열거나 붙여넣기로 넣으세요`;
+    const cur = draft[line.id] ?? (line.counted_qty == null ? "" : String(line.counted_qty));
+    const next = String((Number(cur) || 0) + 1);
+    setDraft((d) => ({ ...d, [line.id]: next }));
+    setLastScan(line.id);
+    await saveOne(line.id, next);
+    return `${prod.name} ${next}개`;
+  };
+  /** 센 수량 칸 사이 이동 — Enter/↓ 다음 줄, ↑ 이전 줄 (저장은 칸을 떠날 때 저절로) */
+  const focusRow = (i: number) => {
+    const el = document.querySelector<HTMLInputElement>(`[data-count-row="${i}"]`);
+    if (el) { el.focus(); el.select(); }
+  };
+
   const saveOne = async (lineId: string, raw: string) => {
     const v = raw.trim() === "" ? null : Number(raw);
     if (v != null && Number.isNaN(v)) return;
@@ -61,7 +83,7 @@ export function useStockCount(companyId: string | null, userId: string | null, c
 
   return {
     openId, setOpenId, q, setQ, newOpen, setNewOpen, pasteOpen, setPasteOpen,
-    busy, setBusy, draft, setDraft, savedAt, setSavedAt, saveOne,
+    busy, setBusy, draft, setDraft, savedAt, setSavedAt, saveOne, lastScan, scanCode, focusRow,
     counts, lines, head, canMove, companyId, userId, toast, qc,
     shown, linePager, listPager,
   };
@@ -141,6 +163,17 @@ export function CountBar({ ctl, warehouses, onhand }: {
           {done ? <span className="inv-pill inv-pill-ok">반영함</span> : <span className="inv-pill inv-pill-warn">진행 중</span>}
         </span>
         <QuickSearch value={ctl.q} onApply={ctl.setQ} placeholder="품목명 · SKU · 규격 — 쉼표로 여러 개, Enter" />
+        {ctl.canMove && !done && (
+          //   ★ 스캐너는 키보드다 — 여기 커서를 두고 찍으면 그 품목 센 수량이 +1 (같은 걸 계속 찍으면 계속 +1)
+          <input className="field-input inv-scan" inputMode="numeric" placeholder="바코드·SKU 찍기 → 센 수량 +1" title="여기에 커서를 두고 바코드를 찍으면 그 품목의 센 수량이 1씩 올라갑니다"
+            onKeyDown={async (e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              const el = e.currentTarget; const v = el.value; el.value = "";
+              const msg = await ctl.scanCode(v);
+              if (msg) ctl.toast(msg, msg.includes("개") && !msg.includes("없") ? "success" : "error");
+            }} />
+        )}
         {ctl.savedAt && <span className="inv-saved">{ctl.savedAt} 저장됨</span>}
       </QueryBar>
       <ResultStrip>
@@ -166,6 +199,10 @@ export function CountBody({ ctl, warehouses, onhand, productById }: {
   const pager = ctl.linePager;
   const listPager = ctl.listPager;
   const done = ctl.head?.status === "done";
+  //   실사를 열면 첫 줄 센 수량에 커서 — 바로 치기 시작하게
+  useEffect(() => { if (ctl.openId && !done) setTimeout(() => ctl.focusRow(0), 250); }, [ctl.openId, done]);   // eslint-disable-line react-hooks/exhaustive-deps
+  //   찍은 줄이 보이게 스크롤
+  useEffect(() => { if (ctl.lastScan) document.getElementById(`count-line-${ctl.lastScan}`)?.scrollIntoView({ block: "nearest" }); }, [ctl.lastScan]);
 
   if (!ctl.openId) {
     if (!list.length) {
@@ -217,7 +254,7 @@ export function CountBody({ ctl, warehouses, onhand, productById }: {
         <table className="ev-table ev-lined table-inv-count-lines">
           <thead><tr><th>SKU</th><th>품목명</th><th>규격</th><th>장부</th><th>센 수량</th><th>차이</th><th>비고</th></tr></thead>
           <tbody>
-            {pager.view.map((l) => {
+            {pager.view.map((l, idx) => {
               const p = productById.get(l.product_id);
               const now = nowOf.get(l.product_id) ?? 0;
               const raw = ctl.draft[l.id] ?? (l.counted_qty == null ? "" : String(l.counted_qty));
@@ -225,15 +262,20 @@ export function CountBody({ ctl, warehouses, onhand, productById }: {
               const diff = has ? Number(raw) - now : null;
               const drifted = now !== l.system_qty;
               return (
-                <tr key={l.id} className={diff != null && diff !== 0 ? "inv-row-diff" : undefined}>
+                <tr key={l.id} id={`count-line-${l.id}`} className={[diff != null && diff !== 0 ? "inv-row-diff" : "", ctl.lastScan === l.id ? "inv-row-scan" : ""].filter(Boolean).join(" ") || undefined}>
                   <td className="mono-number text-left">{p?.sku || "—"}</td>
                   <td className="text-left"><b>{p?.name || "—"}</b></td>
                   <td className="tc ev-dim">{p?.spec || "—"}</td>
                   <td className="tr mono-number">{won(now)}</td>
                   <td className="tc">
                     {done ? <span className="mono-number">{l.counted_qty == null ? "—" : won(Number(l.counted_qty))}</span> : (
-                      <input className="field-input inv-count-input" inputMode="numeric" placeholder="—" value={raw}
+                      <input className="field-input inv-count-input" inputMode="numeric" placeholder="—" value={raw} data-count-row={idx}
                         onChange={(e) => ctl.setDraft((s) => ({ ...s, [l.id]: e.target.value }))}
+                        //   ★ Enter/↓ 다음 줄, ↑ 이전 줄 — 마우스 없이 위에서 아래로 죽 친다(2026-08-26 사장님). 저장은 칸을 떠날 때.
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); ctl.focusRow(idx + 1); }
+                          else if (e.key === "ArrowUp") { e.preventDefault(); ctl.focusRow(idx - 1); }
+                        }}
                         onBlur={(e) => { if ((l.counted_qty == null ? "" : String(l.counted_qty)) !== e.target.value.trim()) ctl.saveOne(l.id, e.target.value); }} />
                     )}
                   </td>

@@ -8925,3 +8925,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 창고관리 › 창고 — 창고 팝업 (2026-08-26) */
 .inv-wh-link { @apply cursor-pointer text-[var(--primary)] underline-offset-2 hover:underline; }
 .inv-wh-search { @apply mb-2; }
+
+/* 실사 — 바코드 찍기 칸·찍은 줄 표시 (2026-08-26) */
+.inv-scan { @apply h-8 w-[220px] text-[12px]; }
+.inv-row-scan td { @apply bg-[var(--primary-light)]; }
