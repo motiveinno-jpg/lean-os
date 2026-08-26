@@ -60,6 +60,15 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   const [formOpen, setFormOpen] = useState(false);
   const [draft, setDraft] = useState<Layout | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<HTMLDivElement>(null);
+  /** ★ 들어오면 커서는 **일자의 '일' 자리**(2026-08-26 사장님) — 날짜만 고치고 Tab 으로 거래처·창고·담당자·납기일 순서로 간다. */
+  const focusDate = useCallback(() => {
+    const el = headRef.current?.querySelector<HTMLInputElement>("input");
+    if (!el) return;
+    el.focus();
+    //   DateField 가 포커스 뒤 0ms 에 전체 선택을 거니, 그 뒤에 '일' 두 자리만 잡는다
+    setTimeout(() => { if (/^\d{4}-\d{2}-\d{2}$/.test(el.value)) el.setSelectionRange(8, 10); }, 40);
+  }, []);
 
   const { data: layout = defaultLayout(formKey) } = useQuery({
     queryKey: ["form-layout", companyId, formKey],
@@ -267,7 +276,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   }, [draft, companyId, formKey, userId, qc, toast]);
 
   return {
-    formKey, companyId, userId, toast, qc, gridRef,
+    formKey, companyId, userId, toast, qc, gridRef, headRef, focusDate,
     layout, onHead, onLine, cells, head, setHead, rows, setRows, setCell, onCellKey, focusCell,
     live, sums, editing, setEditing, reset, loadDoc, pullLines, build, fillFrom, priceOf,
     formOpen, setFormOpen, draft, setDraft, openForm, commitForm,
@@ -287,7 +296,7 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
   }, [warehouses]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="doc-head">
+    <div className="doc-head" ref={ctl.headRef}>
       {onHead.map((f) => (
         <label key={f.field_id} className="doc-fld">
           <span className="field-label">{f.name}{f.lock ? <b> *</b> : null}</span>

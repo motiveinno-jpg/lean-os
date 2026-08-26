@@ -115,7 +115,7 @@ export function DocScreen({
 
   //   들어오면 첫 칸에 커서 — 손이 바로 키보드에 있게(사장님 지시)
   useEffect(() => {
-    if (tab === "edit" && !popup) setTimeout(() => ctl.focusCell(0, ctl.cells[0]), 250);
+    if (tab === "edit" && !popup) setTimeout(() => ctl.focusDate(), 250);
   }, [tab, popup]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!permLoading && !(isMaster || hasPerm(perm))) {
@@ -143,7 +143,7 @@ export function DocScreen({
       if (built.date < from) setFrom(built.date);
       if (built.date > to) setTo(built.date);
       ctl.reset(); setPopup(false); invalidate();
-      setTimeout(() => ctl.focusCell(0, ctl.cells[0]), 200);
+      setTimeout(() => ctl.focusDate(), 200);
     } catch (e) { toast(friendlyError(e, "저장하지 못했습니다"), "error"); }
     finally { setBusy(false); }
   };

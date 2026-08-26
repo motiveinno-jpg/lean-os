@@ -107,7 +107,7 @@ export default function ChannelsPage() {
     goCodes: () => setTab("codes"),
   });
   //   들어오면 첫 칸에 커서(전표 화면과 같다)
-  useEffect(() => { if (tab === "import") setTimeout(() => ctl.focusCell(0, ctl.cells[0]), 250); }, [tab]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (tab === "import") setTimeout(() => ctl.focusDate(), 250); }, [tab]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!permLoading && !(isMaster || hasPerm("/inventory/channels"))) {
     return <AccessDenied detail="채널 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
