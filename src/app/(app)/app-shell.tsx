@@ -289,7 +289,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   if (isEmbed) {
     return (
       <div className="embed-page min-h-screen p-4 md:p-5">
-        <div className="app-content-scale w-full max-w-[1400px]">
+        <div className="app-content-scale w-full">
           <RouteGuard>
             <SubscriptionGate>{children}</SubscriptionGate>
           </RouteGuard>
@@ -316,8 +316,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
       <Sidebar />
       {/* 라운드6.5 TeamHub 헤더바 — 좌: 브레드크럼+타이틀 / 우: 검색 필·알림 벨·도움말·프로필 칩 */}
       <header
-        className={`chrome-glass absolute top-0 md:top-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] transition-all duration-200 md:max-w-[1400px] ${
-          collapsed ? "md:left-[120px]" : "md:left-[312px]"
+        className={`chrome-glass absolute top-0 md:top-3 z-30 h-16 flex items-center gap-2 md:gap-3 px-3 md:px-6 border-b md:border border-[var(--border)]/60 md:rounded-[20px] transition-all duration-200 ${
+          collapsed ? "md:left-[100px]" : "md:left-[292px]"
         } left-0 right-0 ${guideOpen ? "md:right-[412px]" : "md:right-3"}`}
       >
         {/* Left: Mobile hamburger — hide for limited roles on mobile (they use bottom nav) */}
@@ -409,7 +409,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
         {/* 2026-07-14 콘텐츠 좌측 정렬 + 우측 여백 + 전체 축소(사장님 요청, 오너뷰사이즈.PNG).
             max-width 로 좌측 정렬(오른쪽 여백) + zoom 으로 스퀘어·글씨를 전체적으로 살짝 작게.
             폼·문서 등 자체 --content-max 페이지는 그 안에서 추가 제한되므로 영향 없음. */}
-        <div className="app-content-scale w-full max-w-[1400px]">
+        <div className="app-content-scale w-full">
           {/* 페이지 제목·설명은 상단 크롬 헤더바(브레드크럼)에서 표시 — 본문 중복 제목 없음. */}
           {/* 세무사 열람 모드 (2026-08-11): 파트너 세무사가 포털에서 회사를 골라 들어온 세션.
               DB 가 전면 쓰기차단(advisor_ro_*)이므로 저장·수정 버튼은 동작하지 않는다는 안내. */}
