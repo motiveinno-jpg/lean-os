@@ -110,7 +110,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     group: "재고",
     menus: [
       { route: "/inventory/products", label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
-      { route: "/inventory/stock", label: "현재고", tabs: [
+      { route: "/inventory/stock", label: "창고관리", tabs: [
         { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
       ] },
       //   ★ 보기와 입력을 가른다 (2026-08-26 사장님 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
@@ -126,7 +126,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/inventory/production", label: "생산", tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 완성 기록·자재구성 수정 불가" },
       ] },
-      { route: "/inventory/channels", label: "채널", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리", tabs: [
+      { route: "/inventory/channels", label: "이커머스", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리", tabs: [
         { key: "write", label: "입력·수정", desc: "미부여 시 보기만 — 주문 가져오기·출고 등록·발송 처리·상품 연결 불가" },
       ] },
       { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },

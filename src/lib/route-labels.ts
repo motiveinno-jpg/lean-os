@@ -73,12 +73,12 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   //   재고 (2026-08-25 신설)
   "/inventory/status": { group: "재고", title: "현황", desc: "주문·판매·구매·생산을 기간으로 집계해 그래프와 표로 봅니다. 재고 금액·마진·납기 지난 주문·자재 부족을 한 화면에서." },
   "/inventory/products": { group: "재고", title: "품목", desc: "파는 것·쓰는 것을 SKU 로 등록합니다. 수량을 세지 않는 품목(서비스)도 여기서 정합니다." },
-  "/inventory/stock": { group: "재고", title: "현재고", desc: "지금 몇 개인지 봅니다. 수량은 움직인 기록의 합이라 언제 왜 변했는지 되짚을 수 있습니다." },
+  "/inventory/stock": { group: "재고", title: "창고관리", desc: "지금 몇 개인지 봅니다. 수량은 움직인 기록의 합이라 언제 왜 변했는지 되짚을 수 있습니다." },
   "/inventory/orders": { group: "재고", title: "주문" },
   "/inventory/sales": { group: "재고", title: "판매" },
   "/inventory/purchase": { group: "재고", title: "구매" },
   "/inventory/production": { group: "재고", title: "생산" },
-  "/inventory/channels": { group: "재고", title: "채널" },
+  "/inventory/channels": { group: "재고", title: "이커머스" },
   "/settings": { group: "설정", title: "회사 설정", desc: "회사 기본·회계·인사 설정을 관리합니다." },
   //   설정 5그룹 (2026-08-24) — 사이드바에 편 다섯 줄. 최장 prefix 우선이라 /settings 보다 먼저 잡힌다.
   //   설정 화면은 self-헤더(상자 안 탭 + 설명 줄)를 가지므로 desc 는 두지 않는다.

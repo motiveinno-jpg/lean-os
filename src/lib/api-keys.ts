@@ -67,7 +67,7 @@ export const API_PROVIDERS: ApiProvider[] = [
   {
     key: "smartstore",
     label: "스마트스토어 주문 (네이버 커머스API)",
-    gives: "스마트스토어 결제 완료 주문을 재고 › 채널 › 주문 가져오기에서 기간으로 불러옵니다.",
+    gives: "스마트스토어 결제 완료 주문을 재고 › 이커머스 › 주문 가져오기에서 기간으로 불러옵니다.",
     issuer: "네이버 커머스API 센터",
     issueUrl: "https://apicenter.commerce.naver.com/",
     steps: [
@@ -77,12 +77,12 @@ export const API_PROVIDERS: ApiProvider[] = [
       "아래 칸에 `클라이언트ID:클라이언트시크릿` 처럼 콜론(:)으로 붙여 한 줄로 넣습니다.",
     ],
     caution: "시크릿은 등록 직후 한 번만 보입니다 — 놓쳤으면 재발급하세요. 콜론(:) 앞뒤에 빈칸을 두지 마세요.",
-    usedBy: { href: "/inventory/channels", label: "재고 › 채널" },
+    usedBy: { href: "/inventory/channels", label: "재고 › 이커머스" },
   },
   {
     key: "coupang",
     label: "쿠팡 주문 (윙 OpenAPI)",
-    gives: "쿠팡 윙의 결제 완료(ACCEPT) 주문을 재고 › 채널 › 주문 가져오기에서 기간으로 불러옵니다.",
+    gives: "쿠팡 윙의 결제 완료(ACCEPT) 주문을 재고 › 이커머스 › 주문 가져오기에서 기간으로 불러옵니다.",
     issuer: "쿠팡 윙 (Wing)",
     issueUrl: "https://wing.coupang.com/",
     steps: [
@@ -92,7 +92,7 @@ export const API_PROVIDERS: ApiProvider[] = [
       "아래 칸에 `액세스키:시크릿키:업체코드` 처럼 콜론(:)으로 붙여 한 줄로 넣습니다.",
     ],
     caution: "시크릿키는 발급 직후 한 번만 보입니다. 키가 유출되면 윙에서 바로 재발급하고 여기도 갈아 넣으세요.",
-    usedBy: { href: "/inventory/channels", label: "재고 › 채널" },
+    usedBy: { href: "/inventory/channels", label: "재고 › 이커머스" },
   },
 ];
 

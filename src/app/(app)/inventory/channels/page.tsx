@@ -1,6 +1,6 @@
 "use client";
 
-// ── 재고 › 채널 (2026-08-25 재고 5단계) ────────────────────────────────────────
+// ── 재고 › 이커머스 (2026-08-25 재고 5단계) ────────────────────────────────────────
 //   ★ 결정 17 — 가장 무서운 것은 API 가 없는 것이 아니라 **같은 주문을 두 번 넣는 것**이다.
 //     그래서 이 화면의 뼈대는 '무엇을 이미 가져왔는가'이고, 넣기 전에 걸리는 줄을 다 보여 준다.
 //   ★ 결정 18 — 키가 없어도 오늘 쓸 수 있어야 한다. 주문 엑셀 붙여넣기가 1등 시민이다.
@@ -118,7 +118,7 @@ export default function ChannelsPage() {
   useEffect(() => { if (tab === "import") setTimeout(() => ctl.focusDate(), 250); }, [tab]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!permLoading && !(isMaster || hasPerm("/inventory/channels"))) {
-    return <AccessDenied detail="채널 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
+    return <AccessDenied detail="이커머스 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
   }
 
   const chChips = CHANNELS.map((c) => ({

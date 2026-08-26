@@ -167,7 +167,7 @@ export async function collectInventory(admin: ReturnType<typeof createClient>, c
   } catch { /* skip */ }
   if (short || out) lines.push(`재고 부족 ${short}개 품목${shortNames.length ? ` (${shortNames.join(", ")})` : ""} · 품절 ${out}개 — 구매 입력의 '부족분 채우기'로 발주`);
   if (late) lines.push(`납기가 지났는데 남은 주문 ${late}건 — 재고 › 현황 › 주문현황`);
-  if (unshipped) lines.push(`출고 등록됐지만 아직 발송하지 않은 온라인 주문 ${unshipped}건 — 재고 › 채널 › 출고 처리`);
+  if (unshipped) lines.push(`출고 등록됐지만 아직 발송하지 않은 온라인 주문 ${unshipped}건 — 재고 › 이커머스 › 출고 처리`);
   if (noVoucher) lines.push(`전표를 아직 안 만든 판매 ${noVoucher}건 — 매입매출전표 › 증빙에서 불러오기`);
   return { lines, short, out, late, unshipped, noVoucher };
 }
