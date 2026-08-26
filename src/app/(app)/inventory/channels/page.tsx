@@ -576,7 +576,7 @@ function FetchDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; ope
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">채널에서 주문 가져오기</h3>
         <p className="inv-modal-desc">
-          회사 설정에 API 키가 등록된 채널({apiChannels.map((c) => c.label).join(" · ")})의 결제 완료 주문을 <b>한 번에</b> 받아
+          설정에 API 키가 등록된 채널({apiChannels.map((c) => c.label).join(" · ")})의 결제 완료 주문을 <b>한 번에</b> 받아
           채널순으로 격자에 채웁니다. 재고에는 아직 반영되지 않습니다 — 확인 후 <b>출고 등록</b>을 누르세요.
           나머지 채널은 엑셀 붙여넣기를 이용합니다.
         </p>

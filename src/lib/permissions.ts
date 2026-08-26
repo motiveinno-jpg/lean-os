@@ -36,7 +36,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
   },
   {
     //   파이낸스 A안 순서(2026-08-19): 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출)
-    group: "파이낸스",
+    group: "재무",
     menus: [
       { route: "/bank", label: "통장", money: true, tabs: [
         { key: "overview", label: "개요" },
@@ -72,7 +72,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
-    group: "워크스페이스",
+    group: "업무",
     menus: [
       { route: "/schedule", label: "일정 / 할 일", always: true },
       // 열람 범위 — 구성원(/employees:all)과 같은 방식. '전체'가 없으면 자기가 담당자인 프로젝트만 보인다 (2026-07-31 사장님).
@@ -110,7 +110,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     group: "재고",
     menus: [
       { route: "/inventory/products", label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
-      { route: "/inventory/stock", label: "재고", tabs: [
+      { route: "/inventory/stock", label: "현재고", tabs: [
         { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
       ] },
       //   ★ 보기와 입력을 가른다 (2026-08-26 사장님 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
@@ -133,7 +133,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
-    group: "인사관리",
+    group: "인사",
     menus: [
       { route: "/employees", label: "구성원", tabs: [
         { key: "employees", label: "인력관리" },
@@ -156,7 +156,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     ],
   },
   {
-    group: "회사 관리",
+    group: "설정",
     menus: [
       // 2026-08-13 설정 탭 통합: departments→team, deal→chart, tax→closing 에 흡수. (certificate·approval 은 2026-08-12 제거)
       //   옛 키로 이미 부여된 권한은 설정 화면이 OR 매핑으로 계속 존중한다 — 여기서는 새 부여 항목만 노출.

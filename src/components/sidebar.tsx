@@ -50,7 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
     // 2026-07-23 파이낸스 4탭 통합 — 8개 항목을 목적 단위 4개 허브로. 상세는 각 화면 상단 하위 탭(FinanceTabs)으로 전환.
     //   거래처(관리·원장) / 세금·증빙(세금계산서·현금영수증) / 거래 장부(자동분류·입금매칭) / 전표입력(별도) / 분석.
     //   라우트·페이지는 그대로. match 로 허브 활성 범위를 지정(예: 거래 장부는 /partners/reconciliation 포함).
-    label: "파이낸스", short: "파이낸스", icon: "wallet",
+    label: "재무", short: "재무", icon: "wallet",
     items: [
       //   2026-08-19 사장님 확정(A안) — 층으로 쌓는다: 기초(통장·카드·거래처) → 자료(수집·전표·세금·증빙) → 기장(일반·매입매출전표) → 예정(정기 지출).
       //   "위에 있는 것이 아래를 먹여 살린다" — 새 회사는 위에서부터 차례로 채우면 된다. (예전: 매일 여는 수집·전표가 첫 자리)
@@ -88,7 +88,8 @@ const NAV_GROUPS: NavGroup[] = [
     label: "재고", short: "재고", icon: "package",
     items: [
       { href: "/inventory/products", label: "품목", icon: "package", roles: ["owner", "admin"], layer: "기초" },
-      { href: "/inventory/stock", label: "재고", icon: "layers", roles: ["owner", "admin"] },
+      //   ★ 그룹 이름이 재고라 안쪽은 '현재고' — "재고 › 재고" 중복(2026-08-26 사장님)
+      { href: "/inventory/stock", label: "현재고", icon: "layers", roles: ["owner", "admin"] },
       //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
       //     주문서는 약속이라 재고를 안 건드리고, 나머지 셋이 그것을 불러와 재고를 움직인다.
       { href: "/inventory/orders", label: "주문", icon: "clipboard", roles: ["owner", "admin"], layer: "거래" },
@@ -120,7 +121,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "워크스페이스", short: "워크", icon: "briefcase",
+    label: "업무", short: "업무", icon: "briefcase",
     items: [
       // 메뉴 순서: 일정/할일 → 프로젝트 → 승인요청 → 게시판 → 메신저 (전자계약은 끝 유지)
       //   '워크플로우'(전사 칸반 /projects)는 실행형 프로젝트 상세 마지막 탭으로 이동 (2026-06-30).
@@ -136,7 +137,7 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "인사관리", short: "인사", icon: "user-check",
+    label: "인사", short: "인사", icon: "user-check",
     items: [
       { href: "/employees", label: "구성원", icon: "user-check", roles: ["owner", "admin"] },
       { href: "/attendance", label: "근태 관리", icon: "calendar", roles: ["owner", "admin"] },
@@ -147,7 +148,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     //   2026-08-19 사장님: '설정·도움말'은 오너뷰가 주는 기능(가이드·고객센터)과 회사가 다루는 것(회사 설정)이 섞여
     //   통일감이 없다 → 둘로 가른다. 회사 관리 = 회사가 정하는 것(설정·공지·요금제) / 도움말 = 오너뷰가 주는 것.
-    label: "회사 관리", short: "회사", icon: "settings",
+    label: "설정", short: "설정", icon: "settings",
     items: [
       //   회사 설정 — 항목 13개를 **그룹 5개**로 폈다 (2026-08-24 사장님 지시: "좌측 사이드바로 메뉴화").
       //     ★ 13개를 다 펴지 않는 이유: 분석 그룹에서 사장님이 정한 "5개까지만 편다 — 8개를 다 펴면
