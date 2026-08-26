@@ -187,6 +187,22 @@ export async function listOrderLines(orderId: string): Promise<OrderLine[]> {
   })) as OrderLine[];
 }
 
+/** 여러 주문서의 줄을 한 번에 — 현황 집계용(주문서마다 따로 부르면 N번 왕복) */
+export async function listOrderLinesAll(companyId: string, orderIds: string[]): Promise<OrderLine[]> {
+  if (!companyId || !orderIds.length) return [];
+  const out: OrderLine[] = [];
+  for (let i = 0; i < orderIds.length; i += 200) {
+    const data = logRead("inventory:order-lines-all", await supabase
+      .from("order_lines").select("id, order_id, product_id, qty, unit_price, supply_amount, vat_amount, note, custom, sort_no")
+      .eq("company_id", companyId).in("order_id", orderIds.slice(i, i + 200)));
+    for (const r of ((data || []) as any[])) out.push({
+      ...r, qty: Number(r.qty || 0), unit_price: r.unit_price == null ? null : Number(r.unit_price),
+      supply_amount: Number(r.supply_amount || 0), vat_amount: Number(r.vat_amount || 0), custom: r.custom || {},
+    });
+  }
+  return out;
+}
+
 /** 주문 줄이 얼마나 쓰였나 — 판매·구매·생산이 가져간 만큼(붙은 재고 기록의 절대값 합). */
 export async function listUsed(companyId: string, orderIds?: string[]): Promise<LineUsed[]> {
   if (!companyId) return [];

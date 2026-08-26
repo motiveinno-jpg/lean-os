@@ -8890,3 +8890,14 @@ table.table-inv-summary { min-width: 760px; }
 /* 채널에서 가져온 줄 — 읽기 전용 칸 (2026-08-26) */
 .doc-cell-ro { @apply bg-[var(--bg-surface)]/60; }
 .doc-ro { @apply block px-1 text-[12.5px] leading-7 text-[var(--text)]; }
+
+/* 재고 › 현황 — 종합판 (2026-08-26) */
+.inv-status { @apply p-3; }
+.inv-status-todo { @apply list-none space-y-1.5 text-[12.5px]; }
+.inv-status-todo a { @apply block rounded-lg border border-[var(--border)] px-3 py-2 text-[var(--text)] no-underline hover:bg-[var(--bg-surface)]; }
+.inv-status-todo b { @apply text-[var(--primary)]; }
+.inv-status-bar { @apply inline-block h-1.5 w-16 overflow-hidden rounded-full bg-[var(--bg-surface)] align-middle; }
+.inv-status-bar i { @apply block h-full rounded-full bg-[var(--primary)]; }
+.inv-status-sub { @apply mb-2; }
+.inv-status-empty { @apply py-8 text-center text-[12px] text-[var(--text-dim)]; }
+table.table-inv-status { min-width: 960px; }

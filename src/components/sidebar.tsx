@@ -87,6 +87,8 @@ const NAV_GROUPS: NavGroup[] = [
     //   ★ 다섯은 사장님이 정한 "5개까지만 편다"의 **정확한 상한**이다. 앞으로 더할 것은 메뉴가 아니라 화면 안 갈래 탭으로.
     label: "재고", short: "재고", icon: "package",
     items: [
+      //   ★ 현황 — 주문·판매·구매·생산을 한 화면에 집계·그래프로 (2026-08-26 사장님 지시로 "5개까지" 상한을 넘겨 신설)
+      { href: "/inventory/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
       { href: "/inventory/products", label: "품목", icon: "package", roles: ["owner", "admin"], layer: "기초" },
       { href: "/inventory/stock", label: "재고", icon: "layers", roles: ["owner", "admin"] },
       //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
@@ -230,7 +232,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/employees": "#f97316", "/attendance": "#fb923c", "/hr-templates": "#f59e0b",
   "/team": "#ea580c",
   // 재고 — 앰버(돈은 그린, 물건은 앰버로 갈라 본다)
-  "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
+  "/inventory/status": "#b7791f", "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
   "/inventory/orders": "#f0b429", "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c", "/inventory/channels": "#a35f0a",
   // 자산관리 — 시안
   "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
