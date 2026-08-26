@@ -350,13 +350,23 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
   }), [ctl.live]);
 
   /** 붙여넣기·API 가 준 줄을 격자에 깐다 — 이미 친 줄은 남기고, 전체를 채널순으로 정렬한다. */
+  //   ★ 가져올 항목 = 입력 항목(회사 양식). 꺼 둔 칸은 채우지 않는다 — 회사마다 필요한 정보가 다르고, 다 깔면 오른쪽으로 끝없이 길어진다.
+  const onIds = useMemo(() => new Set(ctl.onLine.map((f) => f.field_id)), [ctl.onLine]);
+  const fieldPick = useMemo(() => ({
+    on: ctl.layout.line.filter((f) => f.on).map((f) => f.name),
+    off: ctl.layout.line.filter((f) => !f.on).map((f) => f.name),
+  }), [ctl.layout]);
   const putRows = (raw: (RawOrderRow & { channel: string; product_name?: string | null })[]) => {
     ctl.setRows((s) => {
       const keep = s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim());
       const add = raw.map((x) => {
         const r = blankRow();
-        r.ch = x.channel; r.ono = x.channel_order_no; r.ccode = x.channel_product_id; r.buyer = x.buyer_name || "";
-        r.rcv = x.recipient_name || ""; r.tel = x.recipient_phone || ""; r.addr = x.address || ""; r.memo = x.shipping_note || "";
+        r.ch = x.channel; r.ono = x.channel_order_no; r.ccode = x.channel_product_id;
+        if (onIds.has("buyer")) r.buyer = x.buyer_name || "";
+        if (onIds.has("rcv")) r.rcv = x.recipient_name || "";
+        if (onIds.has("tel")) r.tel = x.recipient_phone || "";
+        if (onIds.has("addr")) r.addr = x.address || "";
+        if (onIds.has("memo")) r.memo = x.shipping_note || "";
         r.qty = String(x.qty);
         const pid = codeMap.get(`${x.channel}|${x.channel_product_id.trim().toUpperCase()}`);
         const p = pid ? byId.get(pid) : undefined;
@@ -449,15 +459,27 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
   const dialogs = (
     <>
       <FormDialog ctl={ctl} />
-      {paste && <PasteDialog onClose={() => setPaste(false)} onRows={(rows) => { putRows(rows); setPaste(false); }} />}
-      {fetchOpen && <FetchDialog onClose={() => setFetchOpen(false)} onRows={(rows) => { putRows(rows); setFetchOpen(false); }} />}
+      {paste && <PasteDialog pick={fieldPick} openForm={ctl.openForm} onClose={() => setPaste(false)} onRows={(rows) => { putRows(rows); setPaste(false); }} />}
+      {fetchOpen && <FetchDialog pick={fieldPick} openForm={ctl.openForm} onClose={() => setFetchOpen(false)} onRows={(rows) => { putRows(rows); setFetchOpen(false); }} />}
     </>
   );
   return { head, body, dialogs };
 }
 
+type FieldPick = { on: string[]; off: string[] };
+/** 가져올 항목 안내 — 회사 양식(입력 항목)이 곧 선택기다 */
+function FieldPickLine({ pick, openForm }: { pick: FieldPick; openForm: () => void }) {
+  return (
+    <p className="inv-foot ch-pick">
+      <b>가져올 항목</b> {pick.on.join(" · ")}
+      {pick.off.length > 0 && <> <span className="ev-dim">· 안 가져옴: {pick.off.join(" · ")}</span></>}
+      <button type="button" className="bz-link ch-link" onClick={openForm}>입력 항목에서 바꾸기</button>
+    </p>
+  );
+}
+
 // ── 엑셀 붙여넣기 — 채널을 고르고 격자에 깐다 ──────────────────────────────
-function PasteDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
+function PasteDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
   const [channel, setChannel] = useState<ChannelValue>(CHANNELS[0].value);
   const [text, setText] = useState("");
   const parsed = useMemo(() => {
@@ -489,6 +511,7 @@ function PasteDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (Ra
           열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> · 단가 · 주문일 · 주문자 · <b>수취인 · 연락처 · 주소 · 배송 요청</b>
           (4열부터는 선택 — 비우려면 빈 칸으로 두세요). 엑셀에서 해당 열을 복사해 붙여 넣으세요. 격자에 채워지기만 하고, 출고 등록은 따로 누릅니다.
         </p>
+        <FieldPickLine pick={pick} openForm={openForm} />
         <label className="inv-field"><span>채널 *</span>
           <select className="field-input" value={channel} onChange={(e) => setChannel(e.target.value as ChannelValue)}>
             {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -511,7 +534,7 @@ function PasteDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (Ra
 }
 
 // ── 채널 API 에서 한 번에 가져오기 — 키가 등록된 채널을 모두 부른다 ──────────
-function FetchDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
+function FetchDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(todayKst);
   const [busy, setBusy] = useState(false);
@@ -526,6 +549,7 @@ function FetchDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (Ra
           채널순으로 격자에 채웁니다. 재고에는 아직 반영되지 않습니다 — 확인 후 <b>출고 등록</b>을 누르세요.
           나머지 채널은 엑셀 붙여넣기를 이용합니다.
         </p>
+        <FieldPickLine pick={pick} openForm={openForm} />
         <div className="inv-field">
           <DateRangeField label="주문 기간" from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} /></div>
         {report && (

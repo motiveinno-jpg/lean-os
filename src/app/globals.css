@@ -8882,3 +8882,6 @@ table.table-inv-summary { min-width: 760px; }
 .doc-ch-none { @apply font-normal text-[var(--text-dim)]; }
 .ch-fetch-report { @apply list-none space-y-1 rounded-lg border border-[var(--border)] px-3 py-2; }
 .ch-fetch-bad { @apply text-[var(--danger)]; }
+
+/* 채널 주문 팝업 — 가져올 항목 안내 줄 (2026-08-26) */
+.ch-pick { @apply mb-2 rounded-lg bg-[var(--bg-surface)] px-3 py-2; }
