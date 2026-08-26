@@ -61,6 +61,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/payments", label: "정기 지출", money: true },
       //   2026-08-11 사이드바에서 내림(수집·전표 통장 탭이 대신). 주소로는 열리므로 게이트·옛 부여 키 호환을 위해 남긴다 — 표에는 안 그림
       { route: "/transactions", label: "자동 분류", money: true, hidden: true },
+      { route: "/finance/status", label: "현황", money: true, desc: "통장 잔액·입출금·카드·미수/미지급·전표 없는 증빙을 한 화면에" },
     ],
   },
   {

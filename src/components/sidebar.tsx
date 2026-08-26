@@ -75,6 +75,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
       //   정기 지출은 실적이 아니라 '예정' — 성격이 달라 맨 아래. (분석 '자금 전망' 옆으로 옮길지는 사장님 결정 대기)
       { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"], layer: "예정" },
+      //   ★ 현황 — 오늘의 돈과 처리할 것(운영 콕핏). 재고 현황과 같은 자리(맨 아래). 추이·손익은 분석이 맡는다 (2026-08-26 사장님).
+      { href: "/finance/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
       // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인). 라우트(/loans, /vault)는 그대로.
     ],
   },
@@ -236,7 +238,7 @@ const NAV_ITEM_COLOR: Record<string, string> = {
   "/inventory/status": "#b7791f", "/inventory/products": "#d97706", "/inventory/stock": "#b45309", "/inventory/sales": "#f59e0b",
   "/inventory/orders": "#f0b429", "/inventory/purchase": "#ea9a17", "/inventory/production": "#c2740c", "/inventory/channels": "#a35f0a",
   // 자산관리 — 시안
-  "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee",
+  "/bank": "#06b6d4", "/cards": "#0ea5e9", "/payments": "#22d3ee", "/finance/status": "#0891b2",
   // 회사 관리·도움말 — 슬레이트
   "/settings": "#64748b", "/announcements": "#94a3b8", "/billing": "#64748b",
   //   회사 설정 5그룹 (2026-08-24) — 같은 그룹이라 전부 슬레이트 계열
