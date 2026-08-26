@@ -367,20 +367,60 @@ const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "addr", "mem
 export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] }) {
   const { onLine, rows, setRows, setCell, onCellKey, gridRef, fillFrom, priceOf } = ctl;
   const [pick, setPick] = useState<{ row: number; q: string; idx: number } | null>(null);
+  //   ★ 고르개는 글자를 치고 **잠깐 멈춘 뒤** 연다(180ms). 스캐너는 글자를 쉼 없이 쏟고 곧바로 Enter 를 보내는데,
+  //     첫 글자에 고르개가 열리면 검색칸이 커서를 가져가 나머지 글자가 거기로 들어갔다(2026-08-26 실제로 겪음).
+  const pickTimer = useRef<number | null>(null);
+  const openPickLater = (i: number, q: string) => {
+    if (pickTimer.current) window.clearTimeout(pickTimer.current);
+    pickTimer.current = window.setTimeout(() => setPick({ row: i, q, idx: 0 }), 180);
+  };
   const anySrc = rows.some((r) => r.src);
 
-  const choose = (i: number, p: Product) => {
-    setRows((s) => s.map((r, j) => {
-      if (j !== i) return r;
-      const n = { ...r, custom: { ...r.custom } };
-      fillFrom(n, p);
-      return n;
-    }));
+  //   ★ 바코드 스캔(2026-08-26 사장님) — 스캐너는 키보드다: 코드를 치고 Enter 를 보낸다.
+  //     친 글자가 어느 품목의 바코드와 **정확히** 같으면 고르개를 거치지 않고 그 품목을 잡고 수량 1을 넣는다.
+  //     같은 바코드를 또 찍으면 새 줄을 만들지 않고 **그 줄 수량을 +1** 한다. 커서는 다음 빈 줄 품목 칸으로 — 연속 스캔.
+  const choose = (i: number, p: Product, scanned = false) => {
+    let focusRow = i;
+    let focusKey: string | null = null;
+    setRows((s) => {
+      const dupIdx = scanned ? s.findIndex((r, j) => j !== i && r.product_id === p.id && !r.ch) : -1;
+      if (dupIdx >= 0) {
+        //   같은 품목 줄이 이미 있다 — 수량만 +1, 지금 줄은 비운다
+        const next = s.map((r, j) => {
+          if (j !== dupIdx) return j === i ? blankRow() : r;
+          const n = { ...r, custom: { ...r.custom } };
+          const qty = num(n.qty) + 1;
+          n.qty = String(qty);
+          if (num(n.price)) { const sup = num(n.price) * qty; n.supply = String(sup); n.vat = String(Math.round(sup * 0.1)); }
+          return n;
+        });
+        focusRow = i; focusKey = "sku";
+        return next;
+      }
+      const next = s.map((r, j) => {
+        if (j !== i) return r;
+        const n = { ...r, custom: { ...r.custom } };
+        n.sku = ""; fillFrom(n, p);
+        if (scanned && !num(n.qty)) {
+          n.qty = "1";
+          if (num(n.price)) { n.supply = String(num(n.price)); n.vat = String(Math.round(num(n.price) * 0.1)); }
+        }
+        return n;
+      });
+      if (scanned) { focusRow = i + 1; focusKey = "sku"; if (i === s.length - 1) next.push(blankRow()); }
+      return next;
+    });
     setPick(null);
     setTimeout(() => {
+      if (focusKey) { ctl.focusCell(focusRow, focusKey); return; }
       const ci = ctl.cells.indexOf("sku");
       ctl.focusCell(i, ctl.cells[Math.min(ci + 1, ctl.cells.length - 1)]);
     }, 0);
+  };
+  const scanHit = (raw: string) => {
+    const q = raw.trim();
+    if (!q) return null;
+    return products.find((p) => p.is_active && ((p.barcode && p.barcode === q) || p.sku.toUpperCase() === q.toUpperCase())) || null;
   };
 
   return (
@@ -429,11 +469,17 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                     <td key={id} className={`cell ${NUMS.has(id) ? "num" : LEFTS.has(id) ? "text-left" : "tc"}`}>
                       <input className="doc-in" data-cell={`${id}-${i}`}
                         inputMode={NUMS.has(id) ? "numeric" : undefined}
-                        placeholder={id === "sku" ? "품목명 · SKU" : f.name}
+                        placeholder={id === "sku" ? "품목명 · SKU · 바코드" : f.name}
                         value={shown}
-                        onChange={(e) => { setCell(i, id, e.target.value); if (id === "sku") setPick({ row: i, q: e.target.value, idx: 0 }); }}
+                        onChange={(e) => { setCell(i, id, e.target.value); if (id === "sku") openPickLater(i, e.target.value); }}
                         onKeyDown={(e) => {
                           //   품목 고르개가 열려 있으면 ↑↓·Enter 는 그쪽이 먹는다(PickList 안에서 처리)
+                          //   ★ Enter 인데 친 글자가 바코드·SKU 와 정확히 같다 = 스캔. 고르개를 건너뛴다.
+                          if (id === "sku" && e.key === "Enter") {
+                            if (pickTimer.current) { window.clearTimeout(pickTimer.current); pickTimer.current = null; }
+                            const hit = scanHit(raw);
+                            if (hit) { e.preventDefault(); choose(i, hit, !!hit.barcode && hit.barcode === raw.trim()); return; }
+                          }
                           if (id === "sku" && pick && pick.row === i && e.key !== "Escape") return;
                           //   ★ 빈 칸에서 목록을 보고 싶으면 ↓ — 커서만 왔다고 펼치지는 않는다
                           if (id === "sku" && e.key === "ArrowDown") { e.preventDefault(); setPick({ row: i, q: raw, idx: 0 }); return; }
@@ -447,7 +493,12 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                             if (!p.is_active) return false;
                             //   ★ 셀에 친 글자로 미리 좁힌다 — 두 번 치지 않게
                             const q = String(r.sku || "").trim().toLowerCase();
-                            return !q || `${p.sku} ${p.name} ${p.spec || ""}`.toLowerCase().includes(q);
+                            return !q || `${p.sku} ${p.name} ${p.spec || ""} ${p.barcode || ""}`.toLowerCase().includes(q);
+                          }).sort((a, b) => {
+                            //   정확히 같은 바코드·SKU 가 맨 위 — 스캐너가 보낸 Enter 가 그것을 고른다
+                            const q = String(r.sku || "").trim().toUpperCase();
+                            const ex = (p: Product) => (p.barcode === q || p.sku.toUpperCase() === q) ? 0 : 1;
+                            return ex(a) - ex(b);
                           }).map((p) => ({
                             id: p.id, code: p.sku,
                             name: `${p.name}${p.spec ? ` (${p.spec})` : ""}`,

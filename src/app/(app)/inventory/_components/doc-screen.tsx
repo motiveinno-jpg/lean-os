@@ -19,6 +19,7 @@ import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, Pager, usePager, QuickSearch, quickSearchHit,
 } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
+import { exportToExcel } from "@/lib/excel-export";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { listProducts, listWarehouses, type Product, type Warehouse } from "@/lib/inventory";
 import { FORM_LABEL, type FormKey } from "@/lib/inventory-orders";
@@ -211,7 +212,12 @@ export function DocScreen({
 
           {tab === "list" && (
             <>
-              <QueryBar>
+              <QueryBar right={
+                <button type="button" className="btn-secondary btn-sm" disabled={!shown.length}
+                  onClick={() => exportToExcel(sorted.map((h) => ({
+                    "번호": h.no, "일자": h.date, "거래처": h.who, "품목": h.label, "줄": h.lines, "합계": h.total, "상태": h.state,
+                  })), FORM_LABEL[formKey], `${FORM_LABEL[formKey]}_이력_${from}_${to}`)}>엑셀</button>
+              }>
                 <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
                 <QuickSearch value={q} onApply={setQ} placeholder="번호 · 거래처 · 품목 — 쉼표로 여러 개, Enter" />
               </QueryBar>

@@ -51,6 +51,7 @@ export default function ChannelsPage() {
   const [channel, setChannel] = useState<ChannelValue>("smartstore");
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [cSort, setCSort] = useState<SortState<CodeKey>>({ key: "code", dir: "asc" });
   const [iSort, setISort] = useState<SortState<ImpKey>>({ key: "at", dir: "desc" });
 
@@ -142,7 +143,10 @@ export default function ChannelsPage() {
 
           {tab === "codes" && (
             <>
-              <QueryBar right={canWrite ? <button type="button" className="btn-primary btn-sm" onClick={() => setAddOpen(true)}>+ 상품 연결</button> : undefined}>
+              <QueryBar right={canWrite ? (<>
+                <button type="button" className="btn-secondary btn-sm" onClick={() => setBulkOpen(true)}>엑셀 붙여넣기</button>
+                <button type="button" className="btn-primary btn-sm" onClick={() => setAddOpen(true)}>+ 상품 연결</button>
+              </>) : undefined}>
                 <ChipGroup value={channel} onChange={(v) => setChannel(v as ChannelValue)} options={chChips} />
                 <QuickSearch value={q} onApply={setQ} placeholder="채널 상품코드 · 상품명 · SKU — 쉼표로 여러 개, Enter" />
               </QueryBar>
@@ -155,7 +159,15 @@ export default function ChannelsPage() {
 
           {tab === "history" && (
             <>
-              <QueryBar>
+              <QueryBar right={
+                <button type="button" className="btn-secondary btn-sm" disabled={!shownImports.length}
+                  onClick={() => exportToExcel(sortedImports.map((i) => ({
+                    "채널": channelLabel(i.channel), "주문번호": i.channel_order_no, "주문일": i.order_date || "", "주문자": i.buyer_name || "",
+                    "수취인": i.recipient_name || "", "연락처": i.recipient_phone || "", "주소": i.address || "", "배송 요청": i.shipping_note || "",
+                    "금액": i.amount ?? "", "출고 상태": SHIP_STATUS_LABEL[i.ship_status], "택배사": i.carrier || "", "송장번호": i.tracking_no || "",
+                    "등록 시각": i.imported_at.slice(0, 16).replace("T", " "),
+                  })), "가져오기 이력", `채널주문_${channelLabel(channel)}_${todayKst()}`)}>엑셀</button>
+              }>
                 <ChipGroup value={channel} onChange={(v) => setChannel(v as ChannelValue)} options={chChips} />
                 <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 수취인 · 연락처 · 주소 — 쉼표로 여러 개, Enter" />
                 <span className="inv-hint">등록된 주문번호는 <b>다시 가져와도 건너뜁니다</b> (재고 중복 차감 방지).</span>
@@ -272,6 +284,11 @@ export default function ChannelsPage() {
       {tab === "ship" && ship.selbar}
       {grid.dialogs}
       {ship.dialogs}
+      {bulkOpen && companyId && (
+        <BulkCodeDialog companyId={companyId} channel={channel} products={products} existing={codes}
+          onClose={() => setBulkOpen(false)}
+          onSaved={(n) => { setBulkOpen(false); qc.invalidateQueries({ queryKey: ["ch-codes", companyId] }); toast(`${n}건을 연결했습니다`, "success"); }} />
+      )}
       {addOpen && companyId && (
         <CodeDialog companyId={companyId} channel={channel} products={products}
           onClose={() => setAddOpen(false)}
@@ -843,6 +860,63 @@ function PasteTrackingDialog({ imports, onClose, onSave }: {
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
           <button type="button" className="btn-primary btn-sm" disabled={!parsed.ok.length} onClick={() => onSave(carrier, parsed.ok)}>발송 처리</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 상품 연결 대량 등록 — 엑셀 두세 열 붙여넣기 (2026-08-26 사장님 지시 ④) ──────
+//   열: 채널 상품코드 · SKU · 채널 상품명(선택). SKU 는 품목 마스터와 대소문자 없이 맞춘다. 못 찾은 SKU 는 넣지 않고 적어 준다.
+//   같은 코드가 이미 연결돼 있으면 **덮어쓴다**(upsert) — 바뀐 연결을 다시 붙여 넣는 것이 흔한 일이다.
+function BulkCodeDialog({ companyId, channel: init, products, existing, onClose, onSaved }: {
+  companyId: string; channel: ChannelValue; products: Product[]; existing: ChannelCode[];
+  onClose: () => void; onSaved: (n: number) => void;
+}) {
+  const { toast } = useToast();
+  const [channel, setChannel] = useState<ChannelValue>(init);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const parsed = useMemo(() => {
+    const bySku = new Map(products.filter((p) => p.is_active).map((p) => [p.sku.trim().toUpperCase(), p]));
+    const have = new Set(existing.filter((c) => c.channel === channel).map((c) => c.channel_product_id.trim().toUpperCase()));
+    const ok: { code: string; sku: string; name: string; product_id: string; replace: boolean }[] = []; const miss: string[] = [];
+    for (const raw of text.split(/\r?\n/)) {
+      const p = raw.includes("\t") ? raw.split("\t").map((x) => x.trim()) : raw.split(/,|\s{2,}/).map((x) => x.trim());
+      if (!p[0] || !p[1]) continue;
+      const prod = bySku.get(p[1].toUpperCase());
+      if (!prod) { miss.push(`${p[0]} → ${p[1]}`); continue; }
+      ok.push({ code: p[0], sku: prod.sku, name: p[2] || "", product_id: prod.id, replace: have.has(p[0].toUpperCase()) });
+    }
+    return { ok, miss };
+  }, [text, products, existing, channel]);
+  return (
+    <div className="inv-modal" onClick={onClose}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">상품 연결 엑셀 붙여넣기</h3>
+        <p className="inv-modal-desc">열 순서: <b>채널 상품코드 · SKU</b> · 채널 상품명(선택). 같은 코드가 이미 있으면 새 연결로 바뀝니다.</p>
+        <label className="inv-field"><span>채널 *</span>
+          <select className="field-input" value={channel} onChange={(e) => setChannel(e.target.value as ChannelValue)}>
+            {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select></label>
+        <label className="inv-field"><span>목록</span>
+          <textarea className="field-input inv-paste ch-paste" rows={8} value={text} onChange={(e) => setText(e.target.value)} autoFocus
+            placeholder={"채널상품코드\tSKU\t채널상품명\nSS-1001\tA-001\t프리미엄 세트"} /></label>
+        <p className="inv-foot">
+          <b>{parsed.ok.length}건 맞춤</b>{parsed.ok.some((x) => x.replace) && <> · 기존 연결 바뀜 {parsed.ok.filter((x) => x.replace).length}건</>}
+          {parsed.miss.length > 0 && <span className="inv-paste-bad"> · SKU 못 찾음 {parsed.miss.length}건: {parsed.miss.slice(0, 3).join(" / ")}{parsed.miss.length > 3 ? " …" : ""}</span>}
+        </p>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!parsed.ok.length || busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                for (const x of parsed.ok) await upsertChannelCode(companyId, { product_id: x.product_id, channel, channel_product_id: x.code, channel_product_name: x.name || null });
+                onSaved(parsed.ok.length);
+              } catch (e) { toast(friendlyError(e, "연결하지 못했습니다"), "error"); }
+              finally { setBusy(false); }
+            }}>연결</button>
         </div>
       </div>
     </div>

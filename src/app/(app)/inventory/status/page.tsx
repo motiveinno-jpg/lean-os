@@ -26,6 +26,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { todayKst } from "@/lib/kst";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
+import { exportToExcel } from "@/lib/excel-export";
 import { ColumnChart, LineChart, DonutChart, BarChart, Legend, vizColor } from "@/components/charts/kit";
 import {
   listMoves, listStockDocs, listOnHand, listAvgCost, listProducts, listWarehouses,
@@ -287,7 +288,18 @@ export default function InventoryStatusPage() {
               <button key={k} type="button" onClick={() => setTab(k)} className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>{l}</button>
             ))}
           </div>
-          <QueryBar>
+          <QueryBar right={
+            <button type="button" className="btn-secondary btn-sm" disabled={empty} onClick={() => {
+              const name = TABS.find(([k]) => k === tab)?.[1] || "현황";
+              const rows: Record<string, unknown>[] =
+                tab === "order" ? order.rows.map((r) => ({ "번호": r.o.order_no, "주문일": r.o.order_date, "거래처": r.o.partner_name || partnerName.get(r.o.partner_id || "") || "", "납기": r.o.due_date || "", "주문 수량": r.ordered, "가져간 수량": r.used, "잔량": r.remain, "진행률": r.pct, "금액": r.amt, "상태": r.o.status === "cancelled" ? "취소" : r.remain <= 0 ? "완료" : r.late ? "납기 지남" : "진행 중" }))
+                : tab === "sale" ? perProductRows(sale.perProduct).map((r) => { const c = costOf(r.key); return { "SKU": r.p?.sku || "", "품목": r.p?.name || "", "수량": r.qty, "매출": r.amt, "원가": c == null ? "" : c * r.qty, "마진": c == null ? "" : r.amt - c * r.qty }; })
+                : tab === "buy" ? perProductRows(buy.perProduct).map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "수량": r.qty, "매입": r.amt, "평균 단가": r.qty ? r.amt / r.qty : "", "현재고": stock.byProduct.get(r.key) || 0 }))
+                : tab === "make" ? perProductRows(make.perProduct).map((r) => ({ "완제품": r.p?.name || "", "완성 수량": r.qty, "완성 금액": r.amt }))
+                : [{ "재고 금액": stock.amount, "부족": stock.short, "품절": stock.out, "기간 매출": sale.amt, "기간 매입": buy.amt, "마진": sale.margin ?? "", "전표 없는 판매": sale.noVoucher, "납기 지난 주문": order.late.length }];
+              exportToExcel(rows, name, `재고현황_${name}_${from}_${to}`);
+            }}>엑셀</button>
+          }>
             <DateRangeField from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
             <span className="inv-hint">취소 전표는 빠지고 반품은 뺀 순 금액 · 원가는 이동평균(없으면 매입가)</span>
           </QueryBar>
