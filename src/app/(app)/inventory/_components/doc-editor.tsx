@@ -139,6 +139,14 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
 
   /** ★ Enter — 그 칸 하나만 윗줄에서 내리고 다음 칸으로. 끝 칸이면 아래 줄 첫 칸(없으면 새 줄). */
   const onCellKey = useCallback((e: React.KeyboardEvent, i: number, key: string) => {
+    //   ★ ↓/↑ — 같은 칸으로 아랫줄/윗줄. 마지막 줄에서 ↓ 면 새 줄(2026-08-26 사장님: 마지막 줄에서 엔터·아래로 줄이 생기게)
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setRows((s) => (i === s.length - 1 ? [...s, blankRow()] : s));
+      setTimeout(() => focusCell(i + 1, key), 0);
+      return;
+    }
+    if (e.key === "ArrowUp") { if (i > 0) { e.preventDefault(); focusCell(i - 1, key); } return; }
     if (e.key !== "Enter") return;
     e.preventDefault();
     const ci = cells.indexOf(key);

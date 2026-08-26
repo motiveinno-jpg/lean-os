@@ -233,7 +233,8 @@ export function DocScreen({
 
         <QueryBody>
           <div className="inv-scroll">
-            {tab === "edit" ? editor : (
+            {/*   ★ 입력 화면은 상자 끝까지 차지한다(2026-08-26 사장님: 5줄에서 칸이 끝나 가독성이 떨어짐). + 줄은 맨 아래 고정. */}
+            {tab === "edit" ? <div className="doc-editor">{editor}</div> : (
               shown.length === 0 ? (
                 <div className="collect-empty">
                   이 기간에 저장된 전표가 없습니다 — <b>입력</b> 탭에서 저장하면 여기에 표시됩니다.

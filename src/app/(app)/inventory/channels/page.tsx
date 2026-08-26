@@ -184,7 +184,7 @@ export default function ChannelsPage() {
 
         <QueryBody>
           <div className="inv-scroll">
-            {tab === "import" && grid.body}
+            {tab === "import" && <div className="doc-editor">{grid.body}</div>}
             {tab === "ship" && ship.body}
 
             {tab === "codes" && (

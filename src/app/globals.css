@@ -8951,3 +8951,8 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .inv-bom-item-on { @apply border-[var(--primary)] bg-[var(--primary-light)]; }
 .inv-bom-item .inv-pill { @apply ml-1 not-italic; }
 .inv-short-badge { @apply border-[var(--danger)] text-[var(--danger)]; }
+
+/* 재고 입력 화면 — 상자 끝까지 차지, + 줄 바닥 고정 (2026-08-26) */
+.doc-editor { @apply flex min-h-full flex-col; }
+.doc-editor > .stg-table-wrap { @apply flex-1; }
+.doc-editor > .doc-add { @apply sticky bottom-0 border-t border-[var(--border)] bg-[var(--bg-card)]; }
