@@ -44,10 +44,9 @@ export default function ChannelsPage() {
 
   const [tab, setTab] = useState<Tab>("import");
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
-  //   채널은 격자 머리(head.channel)가 주인 — 상품 연결·이력 갈래의 칩도 같은 값을 쓴다
   const ctl = useDocEditor(companyId, userId, "channel", products);
-  const channel = (ctl.head.channel || "smartstore") as ChannelValue;
-  const setChannel = (v: ChannelValue) => ctl.setHead((h) => ({ ...h, channel: v }));
+  //   상품 연결·이력 갈래가 보는 채널(칩). 주문 가져오기 격자는 줄마다 채널 칸이 따로 있다.
+  const [channel, setChannel] = useState<ChannelValue>("smartstore");
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [cSort, setCSort] = useState<SortState<CodeKey>>({ key: "code", dir: "asc" });
@@ -96,10 +95,7 @@ export default function ChannelsPage() {
     imports: imports.filter((i) => i.channel === channel).length,
   }), [codes, imports, channel]);
 
-  if (!permLoading && !(isMaster || hasPerm("/inventory/channels"))) {
-    return <AccessDenied detail="채널 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
-  }
-
+  //   훅은 권한 조기 return 앞에 (훅 순서 규칙)
   const grid = useImportGrid({
     ctl, products, warehouses, codes, canWrite,
     onDone: () => {
@@ -112,6 +108,10 @@ export default function ChannelsPage() {
   });
   //   들어오면 첫 칸에 커서(전표 화면과 같다)
   useEffect(() => { if (tab === "import") setTimeout(() => ctl.focusCell(0, ctl.cells[0]), 250); }, [tab]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!permLoading && !(isMaster || hasPerm("/inventory/channels"))) {
+    return <AccessDenied detail="채널 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
+  }
 
   const chChips = CHANNELS.map((c) => ({
     value: c.value, label: `${c.label}${codes.filter((x) => x.channel === c.value).length ? ` ${codes.filter((x) => x.channel === c.value).length}` : ""}`,
@@ -267,9 +267,16 @@ export default function ChannelsPage() {
 
 // ── 주문 가져오기 — 판매와 같은 격자 입력 (2026-08-26 사장님 지시) ──────────────
 //   "여기도 입력화면 형식으로 하고, 채널별로 API 연결해서 끌고 오면 자동으로 채워지게."
+//   "각각 불러오는 것보다 한번에 가져와서 채널별로 정렬해서 보여주면. 좌측에 채널을 기입해서."
+//   ★ 채널은 머리가 아니라 **줄 맨 왼쪽 칸**이다 — 여러 채널 주문이 한 격자에 섞여 서고, 채널순으로 정렬된다.
 //   ★ 붙여넣기도 API 도 격자를 **채우기만** 한다. 출고 등록은 사람이 누른다(제안은 자동, 확정은 사람).
-//   ★ 채널 상품코드를 치면 상품 연결(결정 19)로 품목이 저절로 온다. 없으면 줄이 표시되고 저장이 막힌다 —
-//     품목을 직접 고르거나 상품 연결에서 등록한다. 주문번호가 이미 등록된 줄은 줄 그어 두고 저장 때 건너뛴다.
+//   ★ 채널 상품코드를 치면 그 채널의 상품 연결(결정 19)로 품목이 저절로 온다. 없으면 줄이 표시되고 저장이 막힌다.
+//     주문번호가 그 채널에 이미 등록된 줄은 줄 그어 두고 저장 때 건너뛴다.
+//   ★ 저장은 채널마다 출고 전표 한 건 — 주문번호 기록(channel_order_imports)이 채널 단위라서다.
+const CH_ORDER = new Map<string, number>(CHANNELS.map((c, i) => [c.value, i]));
+const sortByChannel = (rows: DocRow[]) =>
+  [...rows].sort((a, b) => (CH_ORDER.get(a.ch) ?? 99) - (CH_ORDER.get(b.ch) ?? 99) || a.ono.localeCompare(b.ono));
+
 function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goCodes }: {
   ctl: DocCtl; products: Product[]; warehouses: Warehouse[]; codes: ChannelCode[];
   canWrite: boolean; onDone: () => void; goCodes: () => void;
@@ -278,13 +285,13 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
   const [busy, setBusy] = useState(false);
   const [paste, setPaste] = useState(false);
   const [fetchOpen, setFetchOpen] = useState(false);
-  const channel = (ctl.head.channel || CHANNELS[0].value) as ChannelValue;
 
+  //   채널|상품코드 → 품목
   const codeMap = useMemo(() => {
     const m = new Map<string, string>();
-    for (const c of codes) if (c.channel === channel && c.is_active) m.set(c.channel_product_id.trim().toUpperCase(), c.product_id);
+    for (const c of codes) if (c.is_active) m.set(`${c.channel}|${c.channel_product_id.trim().toUpperCase()}`, c.product_id);
     return m;
-  }, [codes, channel]);
+  }, [codes]);
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   //   ★ 채널 상품코드 → 품목 자동 채움. 코드가 있는데 품목이 없으면 nocode 표시, 품목이 오면 표시를 지운다.
@@ -295,7 +302,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
         const code = r.ccode.trim().toUpperCase();
         if (!code) { if (r.flag === "nocode") { changed = true; return { ...r, flag: null }; } return r; }
         if (r.product_id) { if (r.flag === "nocode") { changed = true; return { ...r, flag: null }; } return r; }
-        const pid = codeMap.get(code);
+        const pid = codeMap.get(`${r.ch || CHANNELS[0].value}|${code}`);
         const p = pid ? byId.get(pid) : undefined;
         if (p) { const n = { ...r, custom: { ...r.custom }, flag: null as DocRow["flag"] }; ctl.fillFrom(n, p); changed = true; return n; }
         if (r.flag !== "nocode") { changed = true; return { ...r, flag: "nocode" as const }; }
@@ -305,17 +312,20 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     });
   }, [ctl.rows, codeMap, byId]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  //   주문번호가 이미 등록됐는지 — 줄이 바뀔 때 물어본다(그 주문번호만).
-  const nos = ctl.rows.map((r) => r.ono.trim()).filter(Boolean).join("|");
+  //   주문번호가 그 채널에 이미 등록됐는지 — 줄이 바뀔 때 물어본다(그 주문번호만).
+  const nos = ctl.rows.map((r) => (r.ono.trim() ? `${r.ch || CHANNELS[0].value}|${r.ono.trim()}` : "")).filter(Boolean).join("\n");
   useEffect(() => {
     if (!ctl.companyId || !nos) return;
     let alive = true;
-    listSeenOrderNos(ctl.companyId, channel, nos.split("|")).then((seen) => {
+    const byCh = new Map<string, string[]>();
+    for (const k of nos.split("\n")) { const [ch, no] = k.split("|"); byCh.set(ch, [...(byCh.get(ch) || []), no]); }
+    Promise.all([...byCh.entries()].map(async ([ch, list]) => [ch, await listSeenOrderNos(ctl.companyId!, ch, list)] as const)).then((res) => {
       if (!alive) return;
+      const seen = new Map(res);
       ctl.setRows((rows) => {
         let changed = false;
         const next = rows.map((r) => {
-          const dup = !!r.ono.trim() && seen.has(r.ono.trim());
+          const dup = !!r.ono.trim() && !!seen.get(r.ch || CHANNELS[0].value)?.has(r.ono.trim());
           if (dup && r.flag !== "dup" && r.flag !== "nocode") { changed = true; return { ...r, flag: "dup" as const }; }
           if (!dup && r.flag === "dup") { changed = true; return { ...r, flag: null }; }
           return r;
@@ -324,35 +334,34 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
       });
     }).catch(() => {});
     return () => { alive = false; };
-  }, [nos, channel, ctl.companyId]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [nos, ctl.companyId]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const counts = useMemo(() => ({
     nocode: ctl.live.filter((r) => r.flag === "nocode").length,
     dup: ctl.live.filter((r) => r.flag === "dup").length,
+    channels: new Set(ctl.live.map((r) => r.ch || CHANNELS[0].value)).size,
   }), [ctl.live]);
 
-  /** 붙여넣기·API 가 준 줄을 격자에 깐다 — 이미 친 줄은 남기고 뒤에 붙인다. */
-  const putRows = (raw: (RawOrderRow & { product_name?: string | null })[]) => {
+  /** 붙여넣기·API 가 준 줄을 격자에 깐다 — 이미 친 줄은 남기고, 전체를 채널순으로 정렬한다. */
+  const putRows = (raw: (RawOrderRow & { channel: string; product_name?: string | null })[]) => {
     ctl.setRows((s) => {
       const keep = s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim());
       const add = raw.map((x) => {
         const r = blankRow();
-        r.ono = x.channel_order_no; r.ccode = x.channel_product_id; r.buyer = x.buyer_name || "";
+        r.ch = x.channel; r.ono = x.channel_order_no; r.ccode = x.channel_product_id; r.buyer = x.buyer_name || "";
         r.qty = String(x.qty);
-        const pid = codeMap.get(x.channel_product_id.trim().toUpperCase());
+        const pid = codeMap.get(`${x.channel}|${x.channel_product_id.trim().toUpperCase()}`);
         const p = pid ? byId.get(pid) : undefined;
         if (p) ctl.fillFrom(r, p);
-        else if (x.product_name) r.sku = "";
         if (x.unit_price != null) {
           r.price = String(x.unit_price);
           const sup = Number(x.unit_price) * Number(x.qty);
           r.supply = String(sup); r.vat = String(Math.round(sup * 0.1));
         }
-        if (!p) r.flag = "nocode";
-        if (x.product_name && !p) r.lnote = x.product_name;
+        if (!p) { r.flag = "nocode"; if (x.product_name) r.lnote = x.product_name; }
         return r;
       });
-      return [...keep, ...add, blankRow()];
+      return [...sortByChannel([...keep, ...add]), blankRow()];
     });
   };
 
@@ -365,18 +374,25 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     const lines = built.lines.filter((l) => l.flag !== "dup");
     if (lines.some((l) => !l.product_id || !(l.qty > 0) || !l.ono)) { toast("주문번호·품목·수량을 확인하세요", "error"); return; }
     if (!lines.length) { toast("모두 이미 등록된 주문번호입니다", "error"); return; }
-    if (!window.confirm(`${lines.length}줄을 출고(판매)로 등록합니다.${counts.dup ? ` 이미 등록된 ${counts.dup}줄은 건너뜁니다.` : ""} 진행할까요?`)) return;
+    //   채널별로 한 전표씩
+    const groups = new Map<string, typeof lines>();
+    for (const l of lines) { const ch = l.ch || CHANNELS[0].value; groups.set(ch, [...(groups.get(ch) || []), l]); }
+    const msg = `${lines.length}줄을 출고(판매)로 등록합니다 — ${[...groups.entries()].map(([ch, ls]) => `${channelLabel(ch)} ${ls.length}줄`).join(" · ")}.`
+      + `${counts.dup ? ` 이미 등록된 ${counts.dup}줄은 건너뜁니다.` : ""} 진행할까요?`;
+    if (!window.confirm(msg)) return;
     setBusy(true);
     try {
-      const r = await importChannelDoc(ctl.companyId!, channel, wh, built.date, built.head.note || null,
-        lines.map((l) => ({
-          product_id: l.product_id, qty: l.qty, unit_price: l.unit_price, vat_amount: l.vat_amount,
-          channel_order_no: l.ono, channel_product_id: l.ccode, buyer_name: l.buyer || null,
-        })), ctl.userId);
-      toast(`${r.docNo} · 주문 ${r.orders}건 · ${r.lines}줄 등록${r.skipped ? ` · ${r.skipped}줄 건너뜀` : ""}`, "success");
-      const ch = channel;
-      ctl.reset(); ctl.setHead((h) => ({ ...h, channel: ch }));
-      onDone();
+      const done: string[] = [];
+      for (const [ch, ls] of groups) {
+        const r = await importChannelDoc(ctl.companyId!, ch, wh, built.date, built.head.note || null,
+          ls.map((l) => ({
+            product_id: l.product_id, qty: l.qty, unit_price: l.unit_price, vat_amount: l.vat_amount,
+            channel_order_no: l.ono, channel_product_id: l.ccode, buyer_name: l.buyer || null,
+          })), ctl.userId);
+        done.push(`${channelLabel(ch)} ${r.docNo} · 주문 ${r.orders}건${r.skipped ? ` · ${r.skipped}줄 건너뜀` : ""}`);
+      }
+      toast(done.join(" / "), "success");
+      ctl.reset(); onDone();
     } catch (e) { toast(friendlyError(e, "등록하지 못했습니다"), "error"); }
     finally { setBusy(false); }
   };
@@ -388,13 +404,16 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
           <button type="button" className="btn-secondary btn-sm" onClick={() => setFetchOpen(true)}>채널에서 가져오기</button>
           <button type="button" className="btn-secondary btn-sm" onClick={() => setPaste(true)}>엑셀 붙여넣기</button>
           <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
+          <button type="button" className="btn-secondary btn-sm" disabled={ctl.live.length < 2}
+            onClick={() => ctl.setRows((s) => [...sortByChannel(s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim())), blankRow()])}>채널순 정렬</button>
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={save}>출고 등록</button>
         </>
       ) : undefined}>
-        <span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감</b>되고 주문번호가 기록됩니다 — 같은 주문번호는 중복 등록되지 않습니다.</span>
+        <span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감</b>되고 주문번호가 기록됩니다 — 채널마다 전표 한 건, 같은 주문번호는 중복 등록되지 않습니다.</span>
       </QueryBar>
       <ResultStrip>
         <Stat label="줄" value={`${won(ctl.sums.lines)}개`} />
+        {counts.channels > 1 && <Stat label="채널" value={`${counts.channels}개`} />}
         {counts.nocode > 0 && <Stat label="미연결" value={`${counts.nocode}줄`} tone="minus" />}
         {counts.dup > 0 && <Stat label="기존 등록" value={`${counts.dup}줄`} />}
         <Stat label="공급가액" value={`₩${won(ctl.sums.supply)}`} />
@@ -418,15 +437,16 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
   const dialogs = (
     <>
       <FormDialog ctl={ctl} />
-      {paste && <PasteDialog channel={channel} onClose={() => setPaste(false)} onRows={(rows) => { putRows(rows); setPaste(false); }} />}
-      {fetchOpen && <FetchDialog channel={channel} onClose={() => setFetchOpen(false)} onRows={(rows) => { putRows(rows); setFetchOpen(false); }} />}
+      {paste && <PasteDialog onClose={() => setPaste(false)} onRows={(rows) => { putRows(rows); setPaste(false); }} />}
+      {fetchOpen && <FetchDialog onClose={() => setFetchOpen(false)} onRows={(rows) => { putRows(rows); setFetchOpen(false); }} />}
     </>
   );
   return { head, body, dialogs };
 }
 
-// ── 엑셀 붙여넣기 — 격자에 깐다 ──────────────────────────────────────────────
-function PasteDialog({ channel, onClose, onRows }: { channel: ChannelValue; onClose: () => void; onRows: (r: RawOrderRow[]) => void }) {
+// ── 엑셀 붙여넣기 — 채널을 고르고 격자에 깐다 ──────────────────────────────
+function PasteDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
+  const [channel, setChannel] = useState<ChannelValue>(CHANNELS[0].value);
   const [text, setText] = useState("");
   const parsed = useMemo(() => {
     const out: RawOrderRow[] = []; const bad: string[] = [];
@@ -451,76 +471,76 @@ function PasteDialog({ channel, onClose, onRows }: { channel: ChannelValue; onCl
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">{channelLabel(channel)} 주문 엑셀 붙여넣기</h3>
+        <h3 className="inv-modal-title">주문 엑셀 붙여넣기</h3>
         <p className="inv-modal-desc">
           열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> (단가·주문일·주문자는 선택). 엑셀에서 해당 열을 복사해 붙여 넣으세요.
           격자에 채워지기만 하고, 출고 등록은 따로 누릅니다.
         </p>
-        <textarea className="field-input inv-paste ch-paste" rows={10} value={text} onChange={(e) => setText(e.target.value)} autoFocus
-          placeholder={"주문번호\t채널상품코드\t수량\t단가\t주문일\t주문자\n2026082512345\tSS-1001\t2\t19000\t2026-08-25\t홍길동"} />
+        <label className="inv-field"><span>채널 *</span>
+          <select className="field-input" value={channel} onChange={(e) => setChannel(e.target.value as ChannelValue)}>
+            {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select></label>
+        <label className="inv-field"><span>주문 목록</span>
+          <textarea className="field-input inv-paste ch-paste" rows={10} value={text} onChange={(e) => setText(e.target.value)} autoFocus
+            placeholder={"주문번호\t채널상품코드\t수량\t단가\t주문일\t주문자\n2026082512345\tSS-1001\t2\t19000\t2026-08-25\t홍길동"} /></label>
         <p className="inv-foot">
           <b>{parsed.out.length}줄 인식</b>
           {parsed.bad.length > 0 && <span className="inv-paste-bad"> · 인식 실패 {parsed.bad.length}줄: {parsed.bad.slice(0, 2).join(" / ")}{parsed.bad.length > 2 ? " …" : ""}</span>}
         </p>
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
-          <button type="button" className="btn-primary btn-sm" disabled={!parsed.out.length} onClick={() => onRows(parsed.out)}>격자에 채우기</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!parsed.out.length}
+            onClick={() => onRows(parsed.out.map((r) => ({ ...r, channel })))}>격자에 채우기</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── 채널 API 에서 가져오기 — 회사 키로 서버가 부른다 ──────────────────────────
-function FetchDialog({ channel, onClose, onRows }: { channel: ChannelValue; onClose: () => void; onRows: (r: RawOrderRow[]) => void }) {
+// ── 채널 API 에서 한 번에 가져오기 — 키가 등록된 채널을 모두 부른다 ──────────
+function FetchDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(todayKst);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<{ message: string; noKey?: boolean; noApi?: boolean } | null>(null);
-  const hasApi = CHANNEL_HAS_API.has(channel);
+  const [report, setReport] = useState<{ ch: string; text: string; noKey?: boolean; ok: boolean }[] | null>(null);
+  const apiChannels = CHANNELS.filter((c) => CHANNEL_HAS_API.has(c.value));
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">{channelLabel(channel)}에서 주문 가져오기</h3>
-        {hasApi ? (
-          <>
-            <p className="inv-modal-desc">
-              회사 설정에 등록한 <b>{channelLabel(channel)} API 키</b>로 결제 완료 주문을 받아 격자에 채웁니다.
-              재고에는 아직 반영되지 않습니다 — 확인 후 <b>출고 등록</b>을 누르세요.
-            </p>
-            <div className="inv-field">
-              <DateRangeField label="주문 기간" from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} /></div>
-            {err && (
-              <p className="inv-foot inv-foot-warn">
-                {err.message}
-                {err.noKey && <> <Link href="/settings/integration?tab=api-keys" className="bz-link ch-link">연동·API 키로 이동</Link></>}
-              </p>
-            )}
-            <div className="inv-modal-actions">
-              <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
-              <button type="button" className="btn-primary btn-sm" disabled={busy}
-                onClick={async () => {
-                  setBusy(true); setErr(null);
-                  try {
-                    const r = await fetchChannelOrders(channel, from, to);
-                    if (!r.ok) { setErr(r); return; }
-                    if (!r.rows.length) { setErr({ message: "이 기간에 결제 완료 주문이 없습니다." }); return; }
-                    onRows(r.rows);
-                  } finally { setBusy(false); }
-                }}>{busy ? "가져오는 중…" : "가져오기"}</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="inv-modal-desc">
-              <b>{channelLabel(channel)}</b>은 아직 API 자동 수집을 지원하지 않습니다 — <b>엑셀 붙여넣기</b>로 같은 격자에 채울 수 있습니다.
-              스마트스토어·쿠팡은 회사 설정 › 연동·API 키에 키를 등록하면 여기서 바로 가져옵니다.
-            </p>
-            <div className="inv-modal-actions">
-              <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
-            </div>
-          </>
+        <h3 className="inv-modal-title">채널에서 주문 가져오기</h3>
+        <p className="inv-modal-desc">
+          회사 설정에 API 키가 등록된 채널({apiChannels.map((c) => c.label).join(" · ")})의 결제 완료 주문을 <b>한 번에</b> 받아
+          채널순으로 격자에 채웁니다. 재고에는 아직 반영되지 않습니다 — 확인 후 <b>출고 등록</b>을 누르세요.
+          나머지 채널은 엑셀 붙여넣기를 이용합니다.
+        </p>
+        <div className="inv-field">
+          <DateRangeField label="주문 기간" from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} /></div>
+        {report && (
+          <ul className="inv-foot ch-fetch-report">
+            {report.map((r) => (
+              <li key={r.ch} className={r.ok ? undefined : "ch-fetch-bad"}>
+                <b>{channelLabel(r.ch)}</b> — {r.text}
+                {r.noKey && <> <Link href="/settings/integration?tab=api-keys" className="bz-link ch-link">연동·API 키로 이동</Link></>}
+              </li>
+            ))}
+          </ul>
         )}
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
+          <button type="button" className="btn-primary btn-sm" disabled={busy}
+            onClick={async () => {
+              setBusy(true); setReport(null);
+              try {
+                const res = await Promise.all(apiChannels.map(async (c) => ({ ch: c.value, r: await fetchChannelOrders(c.value, from, to) })));
+                const rows = res.flatMap(({ ch, r }) => (r.ok ? r.rows.map((x) => ({ ...x, channel: ch })) : []));
+                const rep = res.map(({ ch, r }) => r.ok
+                  ? { ch, ok: true, text: r.rows.length ? `${r.rows.length}줄 받음` : "이 기간에 결제 완료 주문이 없습니다" }
+                  : { ch, ok: false, text: r.message, noKey: r.noKey });
+                if (rows.length) onRows(rows);
+                else setReport(rep);
+              } finally { setBusy(false); }
+            }}>{busy ? "가져오는 중…" : "가져오기"}</button>
+        </div>
       </div>
     </div>
   );

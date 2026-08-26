@@ -38,7 +38,7 @@ export type DocRow = {
   product_id?: string | null;
   sku: string; spec: string; qty: string; price: string; supply: string; vat: string; lnote: string;
   //   채널 주문 양식의 칸 — 다른 양식에서는 비어 있다
-  ono: string; ccode: string; buyer: string;
+  ch: string; ono: string; ccode: string; buyer: string;
   /** 줄에 붙는 표시 — dup: 이미 등록된 주문번호 · nocode: 상품 연결이 없는 채널 상품코드 */
   flag?: "dup" | "nocode" | null;
   custom: Record<string, string>;
@@ -46,7 +46,7 @@ export type DocRow = {
 
 let K = 1;
 export const blankRow = (): DocRow => ({
-  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", ono: "", ccode: "", buyer: "", flag: null, custom: {},
+  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", ch: "", ono: "", ccode: "", buyer: "", flag: null, custom: {},
 });
 
 export function useDocEditor(companyId: string | null, userId: string | null, formKey: FormKey, products: Product[]) {
@@ -183,8 +183,8 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
           qty: String(l.qty), price: l.unit_price == null ? "" : String(l.unit_price),
           supply: String(l.supply_amount), vat: String(l.vat_amount),
           lnote: l.note || "",
-          ono: l.custom?.ono || "", ccode: l.custom?.ccode || "", buyer: l.custom?.buyer || "",
-          custom: Object.fromEntries(Object.entries(l.custom || {}).filter(([k]) => !["ono", "ccode", "buyer"].includes(k))),
+          ch: l.custom?.ch || "", ono: l.custom?.ono || "", ccode: l.custom?.ccode || "", buyer: l.custom?.buyer || "",
+          custom: Object.fromEntries(Object.entries(l.custom || {}).filter(([k]) => !["ch", "ono", "ccode", "buyer"].includes(k))),
         } as DocRow;
       }),
       blankRow(),
@@ -240,7 +240,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
         unit_price: num(r.price) || (num(r.qty) ? num(r.supply) / num(r.qty) : null),
         supply_amount: num(r.supply), vat_amount: num(r.vat),
         note: r.lnote || null, custom: customLine,
-        ono: r.ono.trim(), ccode: r.ccode.trim(), buyer: r.buyer.trim(), flag: r.flag || null,
+        ch: r.ch, ono: r.ono.trim(), ccode: r.ccode.trim(), buyer: r.buyer.trim(), flag: r.flag || null,
       };
     });
     return {
@@ -326,10 +326,6 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                     onClose={() => setDrop(null)} />
                 )}
               </div>
-            ) : f.field_id === "channel" ? (
-              <select className="field-input" value={head.channel || CHANNELS[0].value} onChange={(e) => set("channel", e.target.value)}>
-                {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
             ) : f.field_id === "wh" ? (
               <select className="field-input" value={head.wh || ""} onChange={(e) => set("wh", e.target.value)}>
                 {!warehouses.length && <option value="">창고 없음</option>}
@@ -348,7 +344,7 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
 // ── 격자 ──────────────────────────────────────────────────────────────────────
 const W: Record<string, string> = {
   sku: "220px", spec: "150px", qty: "64px", price: "104px", supply: "116px", vat: "104px", lnote: "170px",
-  ono: "150px", ccode: "130px", buyer: "90px",
+  ch: "138px", ono: "150px", ccode: "130px", buyer: "90px",
 };
 const NUMS = new Set(["qty", "price", "supply", "vat"]);
 const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer"]);
@@ -397,6 +393,18 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                   const id = f.field_id;
                   const raw = id.startsWith("f_") ? (r.custom[id] || "") : String((r as any)[id] ?? "");
                   const shown = NUMS.has(id) && raw !== "" ? won(num(raw)) : raw;
+                  //   ★ 채널 칸은 고르개(한 줄 셀렉트) — 줄마다 다른 채널이 설 수 있다(2026-08-26 사장님)
+                  if (id === "ch") {
+                    return (
+                      <td key={id} className="cell tc doc-cell-ch">
+                        <select className="doc-in doc-in-select" data-cell={`${id}-${i}`} value={r.ch || CHANNELS[0].value}
+                          onChange={(e) => setCell(i, id, e.target.value)}
+                          onKeyDown={(e) => onCellKey(e, i, id)}>
+                          {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        </select>
+                      </td>
+                    );
+                  }
                   return (
                     <td key={id} className={`cell ${NUMS.has(id) ? "num" : LEFTS.has(id) ? "text-left" : "tc"}`}>
                       <input className="doc-in" data-cell={`${id}-${i}`}

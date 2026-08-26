@@ -8874,3 +8874,9 @@ table.table-inv-summary { min-width: 760px; }
 /* 채널 주문 격자 — 이미 등록된 주문번호 줄 (2026-08-26) */
 .doc-row-dup td { @apply opacity-50 line-through; }
 .doc-row-dup td input { @apply line-through; }
+
+/* 채널 주문 격자 — 줄 맨 왼쪽 채널 고르개 · 한 번에 가져오기 결과 (2026-08-26) */
+.doc-cell-ch { @apply px-1; }
+.doc-in-select { @apply w-full bg-transparent text-[12.5px] text-center outline-none cursor-pointer; }
+.ch-fetch-report { @apply list-none space-y-1 rounded-lg border border-[var(--border)] px-3 py-2; }
+.ch-fetch-bad { @apply text-[var(--danger)]; }
