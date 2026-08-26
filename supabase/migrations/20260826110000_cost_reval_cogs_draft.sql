@@ -179,7 +179,7 @@ end $$;
 create or replace function public.make_cogs_voucher_draft(p_company uuid, p_from date, p_to date)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare
-  v_cfg jsonb; a_cogs_p uuid; a_cogs_g uuid; a_prod uuid; a_goods uuid; a_scrap uuid; a_reval uuid; a_sample uuid;
+  v_cfg jsonb; a_cogs_p uuid; a_cogs_g uuid; a_prod uuid; a_goods uuid; a_scrap uuid; a_reval uuid; a_sample uuid; v_defect uuid;
   v_old record; v_from date := p_from; v_entry uuid; v_desc text;
   cogs_p numeric := 0; cogs_g numeric := 0; scrap_p numeric := 0; scrap_g numeric := 0; smp_p numeric := 0; smp_g numeric := 0; rev_p numeric := 0; rev_g numeric := 0; rev_gain numeric := 0;
   v_unc int := 0; v_lines int := 0;
@@ -196,6 +196,7 @@ begin
   if a_cogs_p is null or a_cogs_g is null or a_prod is null or a_goods is null then
     raise exception '계정과목 매핑이 없습니다 — 제품매출원가·상품매출원가·제품·상품 계정을 정해 주세요';
   end if;
+  select id into v_defect from warehouses where company_id = p_company and code = 'DEFECT' limit 1;
   for v_old in select * from production_voucher_drafts where company_id = p_company and status = 'draft' and kind = 'cogs' loop
     v_from := least(v_from, v_old.period_from);
     if v_old.journal_entry_id is not null then delete from journal_entries where id = v_old.journal_entry_id and status = 'ai_suggested'; end if;
@@ -204,10 +205,12 @@ begin
 
   --   기간 안 출고 원가 — 이미 확정된 매출원가 초안 기간은 뺀다. 제품/상품 = 생산 층 유무.
   with made as (select distinct product_id from stock_cost_layers where company_id = p_company and source = 'produce'),
+  --   불량 보류 창고의 폐기는 생산 초안이 집는다(결정 33) — 여기서 또 잡으면 이중 계상
   mc as (
     select c.*, (c.product_id in (select product_id from made)) as is_product
-      from stock_move_costs c
+      from stock_move_costs c join stock_moves m on m.id = c.move_id join stock_docs d on d.id = m.doc_id
      where c.company_id = p_company and c.moved_at between v_from and p_to
+       and not (d.reason = 'disposal' and v_defect is not null and d.warehouse_id = v_defect)
        and not exists (select 1 from production_voucher_drafts d where d.company_id = p_company and d.kind = 'cogs' and d.status = 'confirmed' and c.moved_at between d.period_from and d.period_to)
   ),
   rev as (
