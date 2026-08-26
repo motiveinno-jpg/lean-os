@@ -67,6 +67,7 @@ export async function generateEmploymentCertificate(params: {
   company: CertificateCompany;
   purpose?: string;
   submitTo?: string; // 제출처 (2026-07-29 사장님: 용도·제출처 입력 지원)
+  includeSeal?: boolean; // 회사 도장 출력 여부 — 실물로 직접 날인할 땐 끈다 (2026-08-26 사장님). 기본 true
 }): Promise<CertificateResult> {
   const { employee, company } = params;
   const purpose = params.purpose || '제출용';
@@ -189,7 +190,7 @@ export async function generateEmploymentCertificate(params: {
   }
 
   // ── 직인 오버레이 — 대표이사 이름 우측에 겹치게 ──
-  if (company.seal_url) {
+  if (params.includeSeal !== false && company.seal_url) {
     try {
       const img = await loadImage(company.seal_url);
       const sealSize = 26;
@@ -229,6 +230,7 @@ export async function generateCareerCertificate(params: {
   duties?: string[];
   purpose?: string;  // 용도 (2026-07-30 사장님: 재직증명서와 동일하게 용도·제출처 지원)
   submitTo?: string; // 제출처
+  includeSeal?: boolean; // 회사 도장 출력 여부 (2026-08-26 사장님). 기본 true
 }): Promise<CertificateResult> {
   const { employee, company } = params;
   const purpose = params.purpose || '제출용';
@@ -399,7 +401,7 @@ export async function generateCareerCertificate(params: {
   }
 
   // ── 직인 오버레이 — 대표이사 이름 우측에 겹치게 ──
-  if (company.seal_url) {
+  if (params.includeSeal !== false && company.seal_url) {
     try {
       const img = await loadImage(company.seal_url);
       const sealSize = 26;

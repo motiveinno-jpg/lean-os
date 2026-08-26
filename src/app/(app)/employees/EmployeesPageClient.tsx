@@ -4044,6 +4044,8 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
   const [purpose, setPurpose] = useState("");
   const [submitTo, setSubmitTo] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  //   회사 도장 출력 여부 (2026-08-26 사장님: 실물 출력해 직접 날인할 땐 도장 없이 발급). 기본 켬.
+  const [includeSeal, setIncludeSeal] = useState(true);
 
   const db = supabase;
 
@@ -4105,6 +4107,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
           company: companyData,
           purpose: purpose || undefined,
           submitTo: submitTo || undefined,
+          includeSeal,
         });
       } else {
         result = await generateCareerCertificate({
@@ -4112,6 +4115,7 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
           company: companyData,
           purpose: purpose || undefined,
           submitTo: submitTo || undefined,
+          includeSeal,
         });
       }
 
@@ -4180,6 +4184,14 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
           </div>
           <CertChoiceField label="용도" options={CERT_PURPOSE_OPTIONS} value={purpose} onChange={setPurpose} />
           <CertChoiceField label="제출처" options={CERT_SUBMIT_TO_OPTIONS} value={submitTo} onChange={setSubmitTo} />
+          {/* 회사 도장 출력 선택 (2026-08-26 사장님: 실물 출력해 직접 날인할 땐 도장 없이) */}
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 py-2 text-xs text-[var(--text-muted)] cursor-pointer select-none">
+              <input type="checkbox" checked={includeSeal} onChange={(e) => setIncludeSeal(e.target.checked)} className="w-4 h-4 accent-[var(--primary)]" />
+              <span>회사 도장 출력</span>
+              <span className="text-[10px] text-[var(--text-dim)]">(실물 날인 시 해제)</span>
+            </label>
+          </div>
           <div className="flex items-end">
             <button
               onClick={handleIssue}
