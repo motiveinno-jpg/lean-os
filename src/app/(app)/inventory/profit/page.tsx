@@ -22,7 +22,8 @@ import { exportToExcel } from "@/lib/excel-export";
 import { LineChart, BarChart, DonutChart, Legend, vizColor } from "@/components/charts/kit";
 import { listMoves, listProducts, listAvgCost, type MoveRow, type Product } from "@/lib/inventory";
 import { listImports, channelLabel } from "@/lib/inventory-channels";
-import { listMoveCosts, listLayers, getCostState, rebuildMyCosts, loadCostingMethod, saveCostingMethod, COSTING_METHODS, type CostingMethod, type MoveCost, type CostLayer } from "@/lib/inventory-cost";
+import { listMoveCosts, listLayers, getCostState, rebuildMyCosts, loadCostingMethod, saveCostingMethod, COSTING_METHODS, listRevaluations, addRevaluation, cancelRevaluation, REVAL_REASONS, revalReasonLabel, type CostingMethod, type MoveCost, type CostLayer } from "@/lib/inventory-cost";
+import { DateField } from "@/components/date-field";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
@@ -50,6 +51,8 @@ export default function InventoryProfitPage() {
   const [to, setTo] = useState(todayKst);
   const [histProduct, setHistProduct] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  //   결정 39 — 재평가 폼(품목·일자·단가·사유·비고). 기초 원가 입력도 같은 폼.
+  const [rv, setRv] = useState<{ date: string; unit: string; reason: string; note: string }>({ date: todayKst(), unit: "", reason: "reval_adjust", note: "" });
 
   const q = <T,>(key: string, fn: () => Promise<T>, extra: unknown[] = []) =>
     useQuery<T>({ queryKey: [key, companyId, ...extra], queryFn: fn, enabled: !!companyId });   // eslint-disable-line react-hooks/rules-of-hooks
@@ -61,6 +64,7 @@ export default function InventoryProfitPage() {
   const { data: state } = q("inv-cost-state", () => getCostState(companyId!));
   const { data: method = "fifo" as CostingMethod } = q("inv-cost-method", () => loadCostingMethod(companyId!));
   const { data: imports = [] } = q("ch-imports", () => listImports(companyId!, 2000));
+  const { data: revals = [] } = q("inv-cost-revals", () => listRevaluations(companyId!));
   const { data: partners = [] } = q("inv-partners", async () => {
     const { data } = await supabase.from("partners").select("id, name").eq("company_id", companyId!).limit(1000);
     return ((data || []) as { id: string; name: string }[]);
@@ -104,9 +108,14 @@ export default function InventoryProfitPage() {
         loss += cost; uncosted += unc; lossBy.set(reason, (lossBy.get(reason) || 0) + cost);
       }
     }
+    //   재평가 손익(결정 39) — 기간 안 재평가의 차액. 손실은 손실에 더하고, 이익은 손실에서 뺀다(순이익에만 반영)
+    let revalLoss = 0, revalGain = 0;
+    for (const r of revals) if (r.status === "active" && r.reval_date >= from && r.reval_date <= to) { if (r.effect_amount < 0) revalLoss += -r.effect_amount; else revalGain += r.effect_amount; }
+    if (revalLoss) lossBy.set("reval", revalLoss);
+    loss += revalLoss;
     const gp = revenue - cogs;
-    return { revenue, cogs, gp, rate: revenue > 0 ? gp / revenue : null, loss, net: gp - loss, uncosted, soldQty, perDay, perProduct, perPartner, perChannel, lossBy, saleRows };
-  }, [moves, costByMove, layerByMove, docChannel]);
+    return { revenue, cogs, gp, rate: revenue > 0 ? gp / revenue : null, loss, revalGain, net: gp - loss + revalGain, uncosted, soldQty, perDay, perProduct, perPartner, perChannel, lossBy, saleRows };
+  }, [moves, costByMove, layerByMove, docChannel, revals, from, to]);
 
   //   ── 구매·생산: 품목별 매입 단가·층 구성 ──
   const BM = useMemo(() => {
@@ -152,14 +161,35 @@ export default function InventoryProfitPage() {
   const productRows = [...S.perProduct.entries()].map(([id, r]) => ({ id, p: productById.get(id), ...r, gp: r.rev - r.cost, rate: r.rev > 0 ? (r.rev - r.cost) / r.rev : null })).sort((a, b) => b.gp - a.gp);
   const partnerRows = [...S.perPartner.entries()].map(([id, r]) => ({ id, name: id === "-" ? "(거래처 없음)" : partnerName.get(id) || "(미상)", ...r, gp: r.rev - r.cost, rate: r.rev > 0 ? (r.rev - r.cost) / r.rev : null })).sort((a, b) => b.gp - a.gp);
   const channelRows = [...S.perChannel.entries()].map(([id, r]) => ({ id, name: id === "direct" ? "직접" : channelLabel(id), ...r, gp: r.rev - r.cost, rate: r.rev > 0 ? (r.rev - r.cost) / r.rev : null })).sort((a, b) => b.gp - a.gp);
-  const lossLabel: Record<string, string> = { disposal: "폐기", sample: "샘플", gift: "증정", count: "실사 감모", fix: "정정" };
+  const lossLabel: Record<string, string> = { disposal: "폐기", sample: "샘플", gift: "증정", count: "실사 감모", fix: "정정", reval: "재고 평가손실" };
+  const submitReval = async () => {
+    if (!histProduct) { toast("품목을 먼저 고르세요", "error"); return; }
+    const unit = Number(String(rv.unit).replace(/[,\s]/g, ""));
+    if (!(unit >= 0) || rv.unit === "") { toast("단가를 넣으세요", "error"); return; }
+    const p = productById.get(histProduct);
+    const left = layers.filter((l) => l.product_id === histProduct && l.qty_left > 0);
+    const leftQty = left.reduce((n, l) => n + l.qty_left, 0);
+    const diff = left.reduce((n, l) => n + l.qty_left * (unit - (l.unit_cost ?? unit)), 0);
+    if (!window.confirm(`${rv.date}부터 ${p?.name || "이 품목"} 남은 재고 ${won(leftQty)}개의 원가를 ₩${won(unit)}로 봅니다.${diff ? ` 차액 ₩${won(Math.abs(diff))}은 ${diff < 0 ? "평가손실" : "평가이익"}로 잡힙니다.` : ""} 이 날 이후 출고부터 새 단가가 나가고, 이전 출고는 바뀌지 않습니다. 계속할까요?`)) return;
+    setBusy(true);
+    try { await addRevaluation({ product_id: histProduct, reval_date: rv.date, unit_cost: unit, reason: rv.reason, note: rv.note || null }); toast("재평가를 기록하고 다시 계산했습니다", "success"); setRv((s) => ({ ...s, unit: "", note: "" }));
+      for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-avgcost"]) qc.invalidateQueries({ queryKey: [k] }); }
+    catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
+  };
+  const undoReval = async (id: string) => {
+    if (!window.confirm("이 재평가를 취소하고 다시 계산합니다. 계속할까요?")) return;
+    setBusy(true);
+    try { await cancelRevaluation(id); toast("재평가를 취소했습니다", "success"); for (const k of ["inv-cost-revals", "inv-move-costs", "inv-cost-layers", "inv-cost-state", "inv-avgcost"]) qc.invalidateQueries({ queryKey: [k] }); }
+    catch (e) { toast(friendlyError(e), "error"); } finally { setBusy(false); }
+  };
   const stats: Record<Tab, React.ReactNode> = {
     all: (<>
       <Stat label="매출" value={`₩${won(S.revenue)}`} />
       <Stat label="매출원가" value={`₩${won(S.cogs)}`} />
       <Stat label="매출총이익" value={`₩${won(S.gp)}`} tone={S.gp < 0 ? "minus" : "plus"} />
       <Stat label="이익률" value={pct(S.rate)} />
-      <Stat label="손실(폐기·감모·샘플·증정)" value={`₩${won(S.loss)}`} tone={S.loss ? "minus" : undefined} />
+      <Stat label="손실(폐기·감모·샘플·증정·평가)" value={`₩${won(S.loss)}`} tone={S.loss ? "minus" : undefined} />
+      {S.revalGain > 0 && <Stat label="재평가 이익" value={`₩${won(S.revalGain)}`} tone="plus" />}
       <Stat label="순이익" value={`₩${won(S.net)}`} tone={S.net < 0 ? "minus" : "plus"} />
       <Stat label="원가 미확정 출고" value={`${won(S.uncosted)}개`} tone={S.uncosted ? "minus" : undefined} />
     </>),
@@ -314,8 +344,31 @@ export default function InventoryProfitPage() {
                       <select className="field-input" style={{ width: 280 }} value={histProduct} onChange={(e) => setHistProduct(e.target.value)}>
                         <option value="">전체</option>{products.filter((p) => p.track_stock).map((p) => <option key={p.id} value={p.id}>{p.sku} {p.name}</option>)}
                       </select>
-                      <em className="inv-hint">원가 재평가(특정 시점부터 단가 변경)·기초 원가 입력은 다음 단계(결정 39)에서 붙습니다.</em>
+                      <em className="inv-hint">품목을 고르면 아래 층·출고 원가가 그 품목만 보이고, 재평가를 넣을 수 있습니다.</em>
                     </div>
+                    {/*   ★ 결정 39 — 특정 시점부터 원가 변경 = 재평가. 남은 층을 새 단가로, 차액은 평가손익. 기초 원가 입력도 같은 폼. 확정은 사람(confirm). */}
+                    <div className="inv-bom-base">
+                      <span className="field-label">원가 재평가 · 기초 원가</span>
+                      <DateField value={rv.date} onChange={(e) => { const v = typeof e === "string" ? e : (e as { target: { value: string } }).target.value; setRv((s) => ({ ...s, date: v })); }} />
+                      <input className="field-input inv-count-input" style={{ width: 120 }} inputMode="numeric" placeholder="새 단가" value={rv.unit} onChange={(e) => setRv((s) => ({ ...s, unit: e.target.value }))} />
+                      <select className="field-input inv-loss-reason" style={{ width: 180 }} value={rv.reason} onChange={(e) => setRv((s) => ({ ...s, reason: e.target.value }))}>
+                        {REVAL_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                      </select>
+                      <input className="field-input" style={{ width: 220 }} placeholder="비고" value={rv.note} onChange={(e) => setRv((s) => ({ ...s, note: e.target.value }))} />
+                      <button type="button" className="btn-secondary btn-sm" disabled={busy || !histProduct} onClick={submitReval}>이 날부터 적용</button>
+                      <em className="inv-hint">{REVAL_REASONS.find((r) => r.value === rv.reason)?.desc} · 이 날 이후 출고부터 새 단가, 이전 출고는 그대로</em>
+                    </div>
+                    {revals.filter((r) => !histProduct || r.product_id === histProduct).length > 0 && (
+                      <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
+                        <thead><tr><th>적용일</th><th>품목</th><th>사유</th><th>새 단가</th><th>적용 수량</th><th>평가손익</th><th>비고</th><th>상태</th><th></th></tr></thead>
+                        <tbody>{revals.filter((r) => !histProduct || r.product_id === histProduct).map((r) => (
+                          <tr key={r.id} className={r.status === "cancelled" ? "ev-dim" : undefined}><td className="mono-number tc">{r.reval_date}</td><td className="text-left"><b>{productById.get(r.product_id)?.name || "?"}</b></td><td className="tc">{revalReasonLabel(r.reason)}</td>
+                            <td className="tr mono-number">₩{won(r.unit_cost)}</td><td className="tr mono-number">{won(r.effect_qty)}</td><td className={`tr mono-number${r.effect_amount < 0 ? " inv-diff-minus" : r.effect_amount > 0 ? " inv-diff-plus" : ""}`}>{r.effect_amount === 0 ? "—" : `${r.effect_amount > 0 ? "+" : ""}₩${won(r.effect_amount)}`}</td>
+                            <td className="text-left">{r.note || <span className="ev-dim">—</span>}</td><td className="tc">{r.status === "active" ? <span className="inv-pill inv-pill-ok">적용</span> : <span className="inv-pill inv-pill-danger">취소</span>}</td>
+                            <td className="tc">{r.status === "active" ? <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => undoReval(r.id)}>취소</button> : null}</td></tr>
+                        ))}</tbody>
+                      </table></div>
+                    )}
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">

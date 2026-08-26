@@ -52,3 +52,27 @@ export async function saveCostingMethod(companyId: string, method: CostingMethod
   if ((data as any)?.id) { const { error } = await supabase.from("company_settings").update({ settings } as never).eq("company_id", companyId); if (error) throw error; }
   else { const { error } = await supabase.from("company_settings").insert({ company_id: companyId, settings } as never); if (error) throw error; }
 }
+
+// ── 원가 재평가 (결정 39) — 특정 시점부터 남은 층의 단가를 바꾼다. 기초 원가 입력도 같은 표(옛 단가 없으면 차액 0). ──
+export type Revaluation = { id: string; product_id: string; reval_date: string; unit_cost: number; reason: string; note: string | null; status: "active" | "cancelled"; effect_amount: number; effect_qty: number; created_at: string };
+export const REVAL_REASONS: { value: string; label: string; desc: string }[] = [
+  { value: "opening", label: "기초 원가 입력", desc: "단가 없는 층에 원가를 넣는다 — 평가손익 없음" },
+  { value: "reval_market", label: "재평가 · 시세 하락", desc: "남은 재고를 시세로 낮춰 본다 — 차액은 평가손실" },
+  { value: "reval_adjust", label: "재평가 · 원가 조정", desc: "잘못 들어간 단가를 이 날부터 바로잡는다" },
+  { value: "other", label: "기타", desc: "사유는 비고에" },
+];
+export const revalReasonLabel = (v: string) => REVAL_REASONS.find((r) => r.value === v)?.label ?? v;
+export async function listRevaluations(companyId: string): Promise<Revaluation[]> {
+  const data = logRead("inventory-cost:revals", await db.from("stock_cost_revaluations")
+    .select("id, product_id, reval_date, unit_cost, reason, note, status, effect_amount, effect_qty, created_at").eq("company_id", companyId).order("reval_date", { ascending: false }).limit(500));
+  return ((data || []) as any[]).map((r) => ({ ...r, unit_cost: Number(r.unit_cost), effect_amount: Number(r.effect_amount || 0), effect_qty: Number(r.effect_qty || 0) })) as Revaluation[];
+}
+export async function addRevaluation(input: { product_id: string; reval_date: string; unit_cost: number; reason: string; note?: string | null }): Promise<string> {
+  const { data, error } = await db.rpc("add_cost_revaluation", { p_product: input.product_id, p_date: input.reval_date, p_unit_cost: input.unit_cost, p_reason: input.reason, p_note: input.note ?? null });
+  if (error) throw error;
+  return data as string;
+}
+export async function cancelRevaluation(id: string) {
+  const { error } = await db.rpc("cancel_cost_revaluation", { p_id: id });
+  if (error) throw error;
+}

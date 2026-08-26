@@ -14,8 +14,12 @@ export const CYCLES: { value: ProdVoucherCycle; label: string; desc: string }[] 
   { value: "month", label: "매월", desc: "지난달을 1일 아침 초안으로 (기본)" },
   { value: "none", label: "안 함", desc: "자동으로 만들지 않는다 — 지금 만들기만" },
 ];
-export type ProdVoucherSettings = { cycle: ProdVoucherCycle; acct_product: string | null; acct_material: string | null; acct_scrap: string | null };
-const DEFAULT: ProdVoucherSettings = { cycle: "month", acct_product: null, acct_material: null, acct_scrap: null };
+export type ProdVoucherSettings = {
+  cycle: ProdVoucherCycle; acct_product: string | null; acct_material: string | null; acct_scrap: string | null;
+  //   결정 41 — 매출원가·손실 초안 계정(비면 이름으로: 제품매출원가·상품매출원가·상품·재고자산평가손실·견본비)
+  acct_cogs_product?: string | null; acct_cogs_goods?: string | null; acct_goods?: string | null; acct_reval?: string | null; acct_sample?: string | null;
+};
+const DEFAULT: ProdVoucherSettings = { cycle: "month", acct_product: null, acct_material: null, acct_scrap: null, acct_cogs_product: null, acct_cogs_goods: null, acct_goods: null, acct_reval: null, acct_sample: null };
 
 export async function loadProdVoucherSettings(companyId: string): Promise<ProdVoucherSettings> {
   const { data } = await supabase.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
@@ -35,19 +39,26 @@ export async function saveProdVoucherSettings(companyId: string, s: ProdVoucherS
 }
 
 export type ProdDraft = {
-  id: string; period_from: string; period_to: string; journal_entry_id: string | null; status: "draft" | "confirmed" | "rejected";
-  doc_ids: string[]; amount_material: number; amount_product_valued: number; amount_scrap: number; skipped_lines: number; created_at: string;
+  id: string; kind: "production" | "cogs"; period_from: string; period_to: string; journal_entry_id: string | null; status: "draft" | "confirmed" | "rejected";
+  doc_ids: string[]; amount_material: number; amount_product_valued: number; amount_scrap: number; amount_cogs: number; amount_loss: number; skipped_lines: number; memo: string | null; created_at: string;
 };
 export async function listProdDrafts(companyId: string, limit = 12): Promise<ProdDraft[]> {
   const data = logRead("production-voucher:drafts", await (supabase as any).from("production_voucher_drafts")
-    .select("id, period_from, period_to, journal_entry_id, status, doc_ids, amount_material, amount_product_valued, amount_scrap, skipped_lines, created_at")
+    .select("id, kind, period_from, period_to, journal_entry_id, status, doc_ids, amount_material, amount_product_valued, amount_scrap, amount_cogs, amount_loss, skipped_lines, memo, created_at")
     .eq("company_id", companyId).order("period_to", { ascending: false }).limit(limit));
-  return ((data || []) as any[]).map((r) => ({ ...r, amount_material: Number(r.amount_material || 0), amount_product_valued: Number(r.amount_product_valued || 0), amount_scrap: Number(r.amount_scrap || 0) })) as ProdDraft[];
+  return ((data || []) as any[]).map((r) => ({ ...r, kind: r.kind || "production", amount_material: Number(r.amount_material || 0), amount_product_valued: Number(r.amount_product_valued || 0), amount_scrap: Number(r.amount_scrap || 0), amount_cogs: Number(r.amount_cogs || 0), amount_loss: Number(r.amount_loss || 0) })) as ProdDraft[];
 }
 
 /** 같은 규칙으로 지금 초안을 만든다. 만들 문서가 없으면 null. 계정 매핑이 없으면 throw. */
 export async function makeProdDraftNow(from: string, to: string): Promise<string | null> {
   const { data, error } = await (supabase as any).rpc("make_my_production_voucher_draft", { p_from: from, p_to: to });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
+/** 매출원가·손실 초안(결정 41) — 같은 주기 규칙. 만들 것이 없으면 null. */
+export async function makeCogsDraftNow(from: string, to: string): Promise<string | null> {
+  const { data, error } = await (supabase as any).rpc("make_my_cogs_voucher_draft", { p_from: from, p_to: to });
   if (error) throw error;
   return (data as string | null) ?? null;
 }
