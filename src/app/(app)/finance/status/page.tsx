@@ -170,11 +170,38 @@ export default function FinanceStatusPage() {
     </>),
   };
   const topN = (m: Map<string, number>, n = 10) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, n).map(([label, value], i) => ({ label, value, color: vizColor(i) }));
+  const natureMap = new Map<string, number>(); for (const r of S.acctRows) { const k = NATURE_LABEL[r.nature as keyof typeof NATURE_LABEL] || "기타"; natureMap.set(k, (natureMap.get(k) || 0) + r.total); }
+  const natureData = topN(natureMap);
   const kindData = [...S.kind.entries()].sort((a, b) => b[1].amt - a[1].amt).map(([label, v], i) => ({ label, value: v.amt, color: vizColor(i) }));
-  const entryRow = (e: Entry) => (
-    <tr key={e.id}><td className="mono-number tc">{e.entry_date}</td><td className="tc">{e.entry_kind === "sale_purchase" ? "매입매출" : `일반·${VT[e.voucher_type || "transfer"] || "대체"}`}</td>
-      <td className="text-left">{e.description || <span className="ev-dim">—</span>}</td><td className="tr mono-number">₩{won(amountOf(e))}</td><td className="tc">{SRC[e.source] || e.source}</td><td className="tc">{statusLabel(e.status)}{e.status === "confirmed" && !e.is_approved ? " · 미승인" : ""}</td></tr>
-  );
+  //   ★ 각 탭 아래 전표 목록 — 재고 현황처럼 위는 그래프, 아래는 그 탭의 목록 (2026-08-26 사장님). 최신순, 300줄까지(넘으면 적는다).
+  const partnerOf = (e: Entry) => e.journal_lines.find((l) => l.partners?.name)?.partners?.name || "";
+  const kindLabel = (e: Entry) => e.entry_kind === "sale_purchase" ? (vatType(e.vat_type)?.side === "sale" || Number(e.vat_type) < 50 ? "매출" : "매입") : (VT[e.voucher_type || "transfer"] || "대체");
+  const EntryList = ({ rows, title, sub, sp }: { rows: Entry[]; title: string; sub: string; sp?: boolean }) => {
+    const list = [...rows].sort((x, y) => (x.entry_date < y.entry_date ? 1 : x.entry_date > y.entry_date ? -1 : (y.voucher_no || 0) - (x.voucher_no || 0)));
+    const view = list.slice(0, 300);
+    return (
+      <div className="pnl-panel">
+        <h3>{title}</h3><p>{sub} · {list.length}건{list.length > 300 ? " · 앞 300줄만 보입니다 — 기간을 좁히거나 엑셀로" : ""}</p>
+        <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
+          <thead><tr><th>일자</th><th>번호</th><th>종류</th>{sp && <th>부가세 유형</th>}<th>적요</th><th>거래처</th>{sp && <><th>공급가액</th><th>세액</th></>}<th>금액</th><th>출처</th><th>상태</th></tr></thead>
+          <tbody>{view.map((e) => (
+            <tr key={e.id} className={e.status === "rejected" ? "inv-row-fix" : undefined}>
+              <td className="mono-number tc">{e.entry_date}</td><td className="mono-number tc">{e.voucher_no ?? "—"}</td>
+              <td className="tc">{e.entry_kind === "sale_purchase" ? `매입매출·${kindLabel(e)}` : `일반·${kindLabel(e)}`}</td>
+              {sp && <td className="tc">{vatType(e.vat_type)?.label || e.vat_type || "—"}</td>}
+              <td className="text-left">{e.description || <span className="ev-dim">—</span>}</td><td className="text-left">{partnerOf(e) || <span className="ev-dim">—</span>}</td>
+              {sp && <><td className="tr mono-number">₩{won(Number(e.supply_amount || 0))}</td><td className="tr mono-number">₩{won(Number(e.vat_amount || 0))}</td></>}
+              <td className="tr mono-number">₩{won(amountOf(e))}</td><td className="tc">{SRC[e.source] || e.source}</td>
+              <td className="tc"><span className={e.status === "confirmed" ? (e.is_approved ? "inv-pill inv-pill-ok" : "inv-pill") : "inv-pill inv-pill-danger"}>{statusLabel(e.status)}{e.status === "confirmed" && !e.is_approved ? " · 미승인" : ""}</span></td>
+            </tr>
+          ))}{view.length === 0 && <tr><td colSpan={sp ? 11 : 8} className="tc ev-dim">이 기간에 전표가 없습니다</td></tr>}</tbody>
+        </table></div>
+      </div>
+    );
+  };
+  const general = entries.filter((e) => e.entry_kind !== "sale_purchase"), spAll = entries.filter((e) => e.entry_kind === "sale_purchase");
+  const genDay = new Map<string, number>(); for (const e of general) if (e.status === "confirmed") genDay.set(e.entry_date, (genDay.get(e.entry_date) || 0) + amountOf(e));
+  const spDay = new Map<string, number>(); for (const e of spAll) if (e.status === "confirmed") spDay.set(e.entry_date, (spDay.get(e.entry_date) || 0) + amountOf(e));
 
   return (
     <div className="qk-shell">
@@ -232,30 +259,44 @@ export default function FinanceStatusPage() {
                       </ul>
                     </div>
                   </div>
+                  <EntryList rows={entries} title="전표 목록" sub="조회 기간의 모든 전표 · 최신순" />
                 </>)}
 
-                {tab === "general" && (
+                {tab === "general" && (<>
                   <div className="pnl-grid2">
-                    {(["cash_in", "cash_out", "transfer"] as const).map((vt) => (
-                      <div className="pnl-panel" key={vt}>
-                        <h3>{VT[vt]} 전표</h3><p>{S.gen[vt].n}건 · ₩{won(S.gen[vt].amt)} · 계정별 차변·대변</p>
-                        <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
-                          <thead><tr><th>계정</th><th>차변</th><th>대변</th><th>줄 수</th></tr></thead>
-                          <tbody>{[...(S.genAcct.get(vt) || new Map()).entries()].sort((a, b) => (b[1].debit + b[1].credit) - (a[1].debit + a[1].credit)).slice(0, 30).map(([id, v]) => (
-                            <tr key={id}><td className="text-left"><b>{acctName(id)}</b></td><td className="tr mono-number">₩{won(v.debit)}</td><td className="tr mono-number">₩{won(v.credit)}</td><td className="tr mono-number">{v.n}</td></tr>
-                          ))}{!S.gen[vt].n && <tr><td colSpan={4} className="tc ev-dim">없음</td></tr>}</tbody>
-                        </table></div>
-                      </div>
-                    ))}
                     <div className="pnl-panel">
-                      <h3>출처</h3><p>규칙(자동)으로 선 전표 비율 — 높을수록 손이 덜 간 것</p>
-                      <DonutChart unit="건" total={`${ruleRate}%`} data={[{ label: "규칙", value: S.src.rule, color: vizColor(0) }, { label: "수동", value: S.src.manual, color: vizColor(1) }]} />
-                      <Legend items={[{ name: `규칙 ${S.src.rule}건`, color: vizColor(0) }, { name: `수동 ${S.src.manual}건`, color: vizColor(1) }]} />
+                      <h3>일별 일반전표 금액</h3><p>확정 · 차변 합</p>
+                      <ColumnChart height={180} unit="원" data={days.map((k) => ({ label: dayLabel(k), value: genDay.get(k) || 0 }))} />
+                    </div>
+                    <div className="pnl-panel">
+                      <h3>유형 · 출처</h3><p>입금·출금·대체 비중 / 규칙(자동) {ruleRate}%</p>
+                      <DonutChart unit="원" total={`₩${wonShort(S.gen.cash_in.amt + S.gen.cash_out.amt + S.gen.transfer.amt)}`} data={(["cash_in", "cash_out", "transfer"] as const).map((vt, i) => ({ label: VT[vt], value: S.gen[vt].amt, color: vizColor(i) }))} />
+                      <Legend items={[...(["cash_in", "cash_out", "transfer"] as const).map((vt, i) => ({ name: `${VT[vt]} ${S.gen[vt].n}건`, color: vizColor(i) })), { name: `규칙 ${S.src.rule} · 수동 ${S.src.manual}`, color: "var(--text-dim)" }]} />
                     </div>
                   </div>
-                )}
+                  <div className="pnl-panel">
+                    <h3>유형별 계정</h3><p>확정 일반전표의 줄을 유형·계정별로 · 차변·대변</p>
+                    <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status-sm">
+                      <thead><tr><th>유형</th><th>계정</th><th>차변</th><th>대변</th><th>줄 수</th></tr></thead>
+                      <tbody>{(["cash_in", "cash_out", "transfer"] as const).flatMap((vt) => [...(S.genAcct.get(vt) || new Map()).entries()].sort((a, b) => (b[1].debit + b[1].credit) - (a[1].debit + a[1].credit)).slice(0, 20).map(([id, v]) => (
+                        <tr key={vt + id}><td className="tc">{VT[vt]}</td><td className="text-left"><b>{acctName(id)}</b></td><td className="tr mono-number">₩{won(v.debit)}</td><td className="tr mono-number">₩{won(v.credit)}</td><td className="tr mono-number">{v.n}</td></tr>
+                      )))}{!(S.gen.cash_in.n + S.gen.cash_out.n + S.gen.transfer.n) && <tr><td colSpan={5} className="tc ev-dim">확정 일반전표가 없습니다</td></tr>}</tbody>
+                    </table></div>
+                  </div>
+                  <EntryList rows={general} title="일반전표 목록" sub="입금·출금·대체 · 최신순" />
+                </>)}
 
                 {tab === "sp" && (<>
+                  <div className="pnl-grid2">
+                    <div className="pnl-panel">
+                      <h3>일별 매입매출전표 금액</h3><p>확정 · 차변 합</p>
+                      <ColumnChart height={180} unit="원" data={days.map((k) => ({ label: dayLabel(k), value: spDay.get(k) || 0 }))} />
+                    </div>
+                    <div className="pnl-panel">
+                      <h3>매출 · 매입 비중</h3><p>확정 전표 금액 · 납부 예상 ₩{won(S.saleTax - S.buyTax)}</p>
+                      {S.saleN + S.buyN ? <><DonutChart unit="원" total={`₩${wonShort(S.saleSupply + S.saleTax + S.buySupply + S.buyTax)}`} data={[{ label: "매출", value: S.saleSupply + S.saleTax, color: vizColor(0) }, { label: "매입", value: S.buySupply + S.buyTax, color: vizColor(1) }]} /><Legend items={[{ name: `매출 ${S.saleN}건`, color: vizColor(0) }, { name: `매입 ${S.buyN}건`, color: vizColor(1) }]} /></> : <div className="inv-status-empty">확정 매입매출전표가 없습니다</div>}
+                    </div>
+                  </div>
                   <div className="pnl-panel">
                     <h3>부가세 유형별</h3><p>확정 매입매출전표 · 공급가액·세액</p>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
@@ -275,9 +316,20 @@ export default function FinanceStatusPage() {
                       {S.perPartnerBuy.size ? <BarChart unit="원" data={topN(S.perPartnerBuy)} /> : <div className="inv-status-empty">매입 전표가 없습니다</div>}
                     </div>
                   </div>
+                  <EntryList sp rows={spAll} title="매입매출전표 목록" sub="부가세 유형·공급가액·세액 · 최신순" />
                 </>)}
 
-                {tab === "account" && (
+                {tab === "account" && (<>
+                  <div className="pnl-grid2">
+                    <div className="pnl-panel">
+                      <h3>많이 쓰인 계정과목</h3><p>차변+대변 합 상위 10</p>
+                      {S.acctRows.length ? <BarChart unit="원" data={S.acctRows.slice(0, 10).map((r, i) => ({ label: r.name, value: r.total, color: vizColor(i) }))} /> : <div className="inv-status-empty">확정 전표가 없습니다</div>}
+                    </div>
+                    <div className="pnl-panel">
+                      <h3>성격별 비중</h3><p>자산·부채·자본·수익·비용 · 차변+대변 합</p>
+                      {S.acctRows.length ? <><DonutChart unit="원" total={`₩${wonShort(S.acctRows.reduce((n, r) => n + r.total, 0))}`} data={natureData} /><Legend items={natureData.map((x) => ({ name: x.label, color: x.color }))} /></> : <div className="inv-status-empty">확정 전표가 없습니다</div>}
+                    </div>
+                  </div>
                   <div className="pnl-panel">
                     <h3>계정과목별</h3><p>확정 전표의 줄을 계정별로 · 차변+대변 큰 순 · 계정을 누르면 원장</p>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
@@ -288,19 +340,17 @@ export default function FinanceStatusPage() {
                       ))}{!S.acctRows.length && <tr><td colSpan={5} className="tc ev-dim">확정 전표가 없습니다</td></tr>}</tbody>
                     </table></div>
                   </div>
-                )}
+                </>)}
 
                 {tab === "todo" && (<>
-                  <div className="pnl-panel">
-                    <h3>반려 · 대기 · 미승인 전표</h3><p>재무제표는 확정 전표만 읽습니다 — 여기 있는 건 아직 장부가 아닙니다. 고치기는 <Link href="/partners/reconciliation/voucher-entry" className="bz-link">일반전표</Link> · <Link href="/partners/reconciliation/sale-purchase" className="bz-link">매입매출전표</Link></p>
-                    <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
-                      <thead><tr><th>일자</th><th>종류</th><th>적요</th><th>금액</th><th>출처</th><th>상태</th></tr></thead>
-                      <tbody>{[...S.pending, ...S.rejected, ...S.unapproved].slice(0, 200).map(entryRow)}
-                        {!(S.pending.length + S.rejected.length + S.unapproved.length) && <tr><td colSpan={6} className="tc ev-dim">처리할 전표가 없습니다</td></tr>}</tbody>
-                    </table></div>
-                  </div>
-                  <div className="pnl-panel">
-                    <h3>전표 없는 증빙</h3><p>조회 기간의 증빙 중 전표가 아직 없는 것 — 만들기는 수집·전표에서</p>
+                  <div className="pnl-grid2">
+                    <div className="pnl-panel">
+                      <h3>상태 비중</h3><p>조회 기간 전표 {entries.length}건 · 재무제표는 확정만 읽습니다 — 반려·대기는 아직 장부가 아닙니다</p>
+                      {entries.length ? <><DonutChart unit="건" total={`${entries.length}건`} data={[{ label: "확정", value: S.confirmed.length - S.unapproved.length, color: vizColor(0) }, { label: "미승인", value: S.unapproved.length, color: vizColor(2) }, { label: "대기", value: S.pending.length, color: vizColor(3) }, { label: "반려", value: S.rejected.length, color: vizColor(1) }].filter((d) => d.value > 0)} />
+                        <Legend items={[{ name: `확정 ${S.confirmed.length - S.unapproved.length}`, color: vizColor(0) }, { name: `미승인 ${S.unapproved.length}`, color: vizColor(2) }, { name: `대기 ${S.pending.length}`, color: vizColor(3) }, { name: `반려 ${S.rejected.length}`, color: vizColor(1) }]} /></> : <div className="inv-status-empty">이 기간에 전표가 없습니다</div>}
+                    </div>
+                    <div className="pnl-panel">
+                      <h3>전표 없는 증빙</h3><p>조회 기간의 증빙 중 전표가 아직 없는 것 — 만들기는 수집·전표에서</p>
                     <table className="ev-table ev-lined table-inv-status-sm">
                       <thead><tr><th>증빙</th><th>건수</th><th></th></tr></thead>
                       <tbody>
@@ -309,7 +359,9 @@ export default function FinanceStatusPage() {
                         <tr><td className="text-left"><b>통장 거래(미매칭)</b></td><td className="tr mono-number">{unposted?.bank ?? "—"}</td><td className="tc"><Link href="/collect" className="bz-link">매칭</Link></td></tr>
                       </tbody>
                     </table>
+                    </div>
                   </div>
+                  <EntryList rows={[...S.pending, ...S.rejected, ...S.unapproved]} title="반려 · 대기 · 미승인 전표" sub="고치기는 일반전표·매입매출전표 화면에서" />
                 </>)}
               </>
             )}
