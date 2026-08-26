@@ -155,6 +155,8 @@ export default function PartnerLedgerPage() {
       const inv = logRead('ledger/page:inv', await db.from("tax_invoices")
         .select("total_amount, supply_amount, settled_amount, issue_date, status, partner_id")
         .eq("company_id", companyId ?? "").eq("type", "sales").neq("status", "void")
+        // 전표처리된 건만 — 원장 집계와 동일 기준 (2026-08-26 사장님)
+        .not("journal_entry_id", "is", null)
         .gte("issue_date", kstDateStr(since)).limit(5000));
       const buckets = [
         { label: "0–30일", min: 0, max: 30, amount: 0, count: 0 },

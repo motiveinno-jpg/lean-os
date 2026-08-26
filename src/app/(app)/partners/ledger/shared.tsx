@@ -118,6 +118,8 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
         .eq("company_id", companyId).eq("type", type).neq("status", "void")
         // 실제 홈택스 발행분만 — 국세청 승인번호(nts_confirm_no) 있는 건. 미발행 수동/테스트 draft 제외.
         .not("nts_confirm_no", "is", null)
+        // 전표처리된 건만 — 좌측 목록 RPC(get_partner_ledger_by_year)와 동일 기준 (2026-08-26 사장님)
+        .not("journal_entry_id", "is", null)
         .lte("issue_date", yEnd)
         .order("issue_date", { ascending: true }).limit(2000);
       qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
@@ -1083,6 +1085,8 @@ export function PartnerDetailModal({ companyId, partnerId, type, year, partnerNa
       let qb = db.from("tax_invoices")
         .select("id, issue_date, item_name, label, total_amount, supply_amount, tax_amount, settled_amount, settlement_status, nts_confirm_no")
         .eq("company_id", companyId).eq("type", type).lte("issue_date", `${year}-12-31`)
+        // 전표처리된 건만 — 원장 집계와 동일 기준 (2026-08-26 사장님)
+        .not("journal_entry_id", "is", null)
         .order("issue_date", { ascending: false }).limit(500);
       qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
       const { data } = await qb;
