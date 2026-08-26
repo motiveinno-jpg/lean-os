@@ -18,19 +18,21 @@ import { todayKst } from "@/lib/kst";
 import { DateRangeField } from "@/components/date-range-field";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup,
-  Pager, usePager, QuickSearch, quickSearchHit,
+  Pager, usePager, QuickSearch, quickSearchHit, SelectionBar,
 } from "@/components/query-kit";
+import { exportToExcel } from "@/lib/excel-export";
 import { listProducts, listWarehouses, type Product, type Warehouse } from "@/lib/inventory";
 import { useDocEditor, DocHead, DocGrid, FormDialog, blankRow, type DocCtl, type DocRow } from "../_components/doc-editor";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import {
   CHANNELS, channelLabel, listChannelCodes, upsertChannelCode, deleteChannelCode,
   listImports, listSeenOrderNos, importChannelDoc, fetchChannelOrders, CHANNEL_HAS_API,
-  type ChannelValue, type RawOrderRow, type ChannelCode,
+  updateShipping, listImportItems, CARRIERS, SHIP_STATUS_LABEL,
+  type ChannelValue, type RawOrderRow, type ChannelCode, type OrderImport,
 } from "@/lib/inventory-channels";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
-type Tab = "import" | "codes" | "history";
+type Tab = "import" | "ship" | "codes" | "history";
 type CodeKey = "code" | "cname" | "sku" | "pname";
 type ImpKey = "no" | "date" | "buyer" | "amount" | "at";
 
@@ -93,6 +95,7 @@ export default function ChannelsPage() {
     codes: codes.filter((c) => c.channel === channel).length,
     allCodes: codes.length,
     imports: imports.filter((i) => i.channel === channel).length,
+    pending: imports.filter((i) => i.ship_status === "pending").length,
   }), [codes, imports, channel]);
 
   //   훅은 권한 조기 return 앞에 (훅 순서 규칙)
@@ -106,6 +109,8 @@ export default function ChannelsPage() {
     },
     goCodes: () => setTab("codes"),
   });
+  const ship = useShipPanel({ companyId, userId, imports, products, canWrite,
+    onDone: () => qc.invalidateQueries({ queryKey: ["ch-imports", companyId] }) });
   //   들어오면 첫 칸에 커서(전표 화면과 같다)
   useEffect(() => { if (tab === "import") setTimeout(() => ctl.focusDate(), 250); }, [tab]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -122,16 +127,18 @@ export default function ChannelsPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["import", "주문 가져오기"], ["codes", "상품 연결"], ["history", "가져오기 이력"]] as const).map(([k, l]) => (
+            {([["import", "주문 가져오기"], ["ship", "출고 처리"], ["codes", "상품 연결"], ["history", "가져오기 이력"]] as const).map(([k, l]) => (
               <button key={k} type="button" onClick={() => setTab(k as Tab)}
                 className={tab === k ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {l}
+                {k === "ship" && counts.pending > 0 && <span className="collect-tab-cnt inv-tab-warn">{counts.pending}</span>}
                 {k === "codes" && counts.allCodes === 0 && <span className="collect-tab-cnt inv-tab-warn">연결 필요</span>}
               </button>
             ))}
           </div>
 
           {tab === "import" && grid.head}
+          {tab === "ship" && ship.head}
 
           {tab === "codes" && (
             <>
@@ -164,6 +171,7 @@ export default function ChannelsPage() {
         <QueryBody>
           <div className="inv-scroll">
             {tab === "import" && grid.body}
+            {tab === "ship" && ship.body}
 
             {tab === "codes" && (
               shownCodes.length === 0 ? (
@@ -250,6 +258,7 @@ export default function ChannelsPage() {
           </div>
         </QueryBody>
 
+        {tab === "ship" && ship.pagerEl}
         {tab === "codes" && shownCodes.length > 0 && (
           <Pager page={codePager.page} pages={codePager.pages} total={shownCodes.length} size={50}
             from={codePager.from} to={codePager.to} onPage={codePager.setPage} />
@@ -260,7 +269,9 @@ export default function ChannelsPage() {
         )}
       </QueryScreen>
 
+      {tab === "ship" && ship.selbar}
       {grid.dialogs}
+      {ship.dialogs}
       {addOpen && companyId && (
         <CodeDialog companyId={companyId} channel={channel} products={products}
           onClose={() => setAddOpen(false)}
@@ -577,6 +588,261 @@ function FetchDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; ope
                 else setReport(rep);
               } finally { setBusy(false); }
             }}>{busy ? "가져오는 중…" : "가져오기"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── 출고 처리 · 송장 (2026-08-26 사장님 지시 ②) ─────────────────────────────────
+//   "이커머스는 출고 처리를 해야 한다 — 배송 요청사항·주문자 정보(연락처·주소)를 가져와야 의미가 있다."
+//   ★ 기준 — 출고 등록(재고 차감)과 **발송(송장)** 은 다른 일이다. 재고는 등록 순간 빠지고, 여기서는 '실제로 보냈나'만 다룬다.
+//     상태는 출고 대기 → 발송(송장 있음) → 배송 완료. 되돌리기는 발송 취소(송장 지움·대기로).
+//   ★ 송장 파일은 택배사 공통 열(주문번호·수취인·연락처·주소·상품·수량·배송 메시지)로 낸다 —
+//     CJ·한진 등 회사별 양식은 회사가 쓰는 택배사가 정해지면 그 열 순서로 맞춘다(지금은 '기타' 양식 하나).
+//   ★ 송장번호 붙여넣기 = 택배사 프로그램이 돌려준 "주문번호 ⇥ 송장번호" 를 그대로 붙이면 줄이 맞춰진다.
+//   ★ 채널로 발송 통보(역동기화)는 API 키 이후 — 지금은 이 화면이 사실을 갖고 있고, 채널엔 사람이 올린다.
+const SHIP_VIEWS = [["pending", "출고 대기"], ["shipped", "발송됨"], ["done", "배송 완료"], ["all", "전체"]] as const;
+type ShipView = (typeof SHIP_VIEWS)[number][0];
+
+function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }: {
+  companyId: string | null; userId: string | null; imports: OrderImport[]; products: Product[]; canWrite: boolean; onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const [view, setView] = useState<ShipView>("pending");
+  const [q, setQ] = useState("");
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [shipOpen, setShipOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [sort, setSort] = useState<SortState<"ch" | "no" | "date" | "rcv" | "status" | "at">>({ key: "at", dir: "desc" });
+
+  //   주문별 상품 — 출고 전표 줄의 비고("채널명 주문번호")로 맞춘다
+  const docIds = useMemo(() => [...new Set(imports.map((i) => i.doc_id).filter(Boolean) as string[])], [imports]);
+  const { data: items = new Map<string, { name: string; qty: number }[]>() } = useQuery({
+    queryKey: ["ch-ship-items", companyId, docIds.join(",")],
+    queryFn: () => listImportItems(companyId!, docIds, products),
+    enabled: !!companyId && docIds.length > 0,
+  });
+  const itemsOf = (i: OrderImport) => items.get(`${i.channel}|${i.channel_order_no}`) || [];
+  const itemText = (i: OrderImport) => itemsOf(i).map((x) => `${x.name} ×${x.qty}`).join(", ");
+
+  const shown = useMemo(() => imports.filter((i) =>
+    (view === "all" || i.ship_status === view) &&
+    quickSearchHit(q, [i.channel_order_no, channelLabel(i.channel), i.buyer_name, i.recipient_name, i.recipient_phone, i.address, i.tracking_no, itemText(i)])
+  ), [imports, view, q, items]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const sorted = useMemo(() => {
+    const d = sort.dir === "asc" ? 1 : -1;
+    const order: Record<string, number> = { pending: 0, shipped: 1, done: 2 };
+    const val = (i: OrderImport) => sort.key === "ch" ? channelLabel(i.channel) : sort.key === "no" ? i.channel_order_no
+      : sort.key === "date" ? (i.order_date || "") : sort.key === "rcv" ? (i.recipient_name || i.buyer_name || "")
+      : sort.key === "status" ? order[i.ship_status] : i.imported_at;
+    return [...shown].sort((a, b) => cmp(val(a), val(b)) * d);
+  }, [shown, sort]);
+  const onSort = (k: string) => setSort((s) => nextSort(s, k as typeof sort.key));
+  const pager = usePager(sorted, 50, `${view}|${q}|${sort.key}${sort.dir}`);
+  const counts = useMemo(() => ({
+    pending: imports.filter((i) => i.ship_status === "pending").length,
+    shipped: imports.filter((i) => i.ship_status === "shipped").length,
+    done: imports.filter((i) => i.ship_status === "done").length,
+  }), [imports]);
+
+  const selected = useMemo(() => imports.filter((i) => sel.has(i.id)), [imports, sel]);
+  const toggle = (id: string) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const pageIds = pager.view.map((i) => i.id);
+  const allOn = pageIds.length > 0 && pageIds.every((id) => sel.has(id));
+  const toggleAll = () => setSel((s) => { const n = new Set(s); if (allOn) pageIds.forEach((id) => n.delete(id)); else pageIds.forEach((id) => n.add(id)); return n; });
+
+  const run = async (label: string, fn: () => Promise<void>) => {
+    setBusy(true);
+    try { await fn(); toast(label, "success"); setSel(new Set()); onDone(); }
+    catch (e) { toast(friendlyError(e), "error"); }
+    finally { setBusy(false); }
+  };
+
+  /** 송장 파일 — 택배사 공통 열. 골라 둔 것이 있으면 그것만, 없으면 지금 보이는 출고 대기 전부 */
+  const downloadSheet = () => {
+    const rows = (selected.length ? selected : shown).map((i) => ({
+      "주문번호": i.channel_order_no, "채널": channelLabel(i.channel),
+      "수취인": i.recipient_name || i.buyer_name || "", "연락처": i.recipient_phone || "", "주소": i.address || "",
+      "상품": itemText(i), "수량": itemsOf(i).reduce((n, x) => n + x.qty, 0), "배송 메시지": i.shipping_note || "",
+      "주문자": i.buyer_name || "", "주문일": i.order_date || "",
+    }));
+    if (!rows.length) { toast("내려받을 줄이 없습니다", "error"); return; }
+    exportToExcel(rows, "송장", `송장_${todayKst()}`);
+    toast(`${rows.length}줄을 내려받았습니다 — 택배사 프로그램에 올리고, 돌려받은 송장번호를 '송장번호 붙여넣기'로 넣으세요`, "success");
+  };
+
+  const head = (
+    <>
+      <QueryBar right={canWrite ? (
+        <button type="button" className="btn-secondary btn-sm" onClick={downloadSheet}>송장 파일 내려받기</button>
+      ) : undefined}>
+        <ChipGroup value={view} onChange={(v) => { setView(v as ShipView); setSel(new Set()); }}
+          options={SHIP_VIEWS.map(([k, l]) => ({ value: k, label: k === "all" ? l : `${l} ${counts[k as keyof typeof counts]}` }))} />
+        <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 수취인 · 연락처 · 주소 · 상품 · 송장번호 — 쉼표로 여러 개, Enter" />
+      </QueryBar>
+      <ResultStrip>
+        <Stat label="출고 대기" value={`${counts.pending}건`} tone={counts.pending ? "minus" : undefined} />
+        <Stat label="발송됨" value={`${counts.shipped}건`} />
+        <Stat label="배송 완료" value={`${counts.done}건`} />
+        <span className="spv-toolbar-hint">줄을 고르면 아래에 <b>발송 처리</b>가 뜹니다 · 재고는 출고 등록 때 이미 차감됐고 여기서는 <b>실제 발송</b>만 기록합니다</span>
+      </ResultStrip>
+    </>
+  );
+
+  const body = imports.length === 0 ? (
+    <div className="collect-empty">출고 등록한 채널 주문이 없습니다 — <b>주문 가져오기</b>에서 출고 등록하면 여기에 출고 대기로 쌓입니다.</div>
+  ) : shown.length === 0 ? (
+    <div className="collect-empty">{SHIP_VIEWS.find(([k]) => k === view)?.[1]} 주문이 없습니다.</div>
+  ) : (
+    <div className="stg-table-wrap">
+      <table className="ev-table ev-lined table-inv-ch-ship">
+        <thead><tr>
+          <th className="w-8"><input type="checkbox" checked={allOn} onChange={toggleAll} aria-label="이 쪽 전부 선택" /></th>
+          <SortableTh label="채널" sortKey="ch" sort={sort} onSort={onSort} />
+          <SortableTh label="주문번호" sortKey="no" sort={sort} onSort={onSort} />
+          <SortableTh label="주문일" sortKey="date" sort={sort} onSort={onSort} />
+          <SortableTh label="수취인" sortKey="rcv" sort={sort} onSort={onSort} />
+          <th>연락처</th><th>주소</th><th>상품</th><th>배송 요청</th><th>택배사</th><th>송장번호</th>
+          <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} />
+        </tr></thead>
+        <tbody>
+          {pager.view.map((i) => (
+            <tr key={i.id} className={sel.has(i.id) ? "inv-row-sel" : undefined} onClick={() => toggle(i.id)}>
+              <td className="tc" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={sel.has(i.id)} onChange={() => toggle(i.id)} /></td>
+              <td className="tc">{channelLabel(i.channel)}</td>
+              <td className="mono-number text-left"><b>{i.channel_order_no}</b></td>
+              <td className="mono-number">{i.order_date || "—"}</td>
+              <td className="text-left">{i.recipient_name || i.buyer_name || "—"}</td>
+              <td className="mono-number text-left">{i.recipient_phone || "—"}</td>
+              <td className="text-left ch-addr" title={i.address || undefined}>{i.address || "—"}</td>
+              <td className="text-left ch-addr" title={itemText(i) || undefined}>{itemText(i) || "—"}</td>
+              <td className="text-left ev-dim ch-addr" title={i.shipping_note || undefined}>{i.shipping_note || "—"}</td>
+              <td className="tc">{i.carrier ? (CARRIERS.find((c) => c.value === i.carrier)?.label || i.carrier) : "—"}</td>
+              <td className="mono-number text-left">{i.tracking_no || "—"}</td>
+              <td className="tc"><span className={i.ship_status === "done" ? "inv-pill inv-pill-ok" : i.ship_status === "shipped" ? "inv-pill inv-pill-warn" : "inv-pill inv-pill-danger"}>{SHIP_STATUS_LABEL[i.ship_status]}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const pagerEl = shown.length > 0 ? (
+    <Pager page={pager.page} pages={pager.pages} total={shown.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />
+  ) : null;
+
+  const selbar = canWrite ? (
+    <SelectionBar count={sel.size} onClear={() => setSel(new Set())}
+      summary={<>{selected.filter((i) => i.ship_status === "pending").length}건 대기 · {selected.filter((i) => i.ship_status === "shipped").length}건 발송됨</>}>
+      <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={downloadSheet}>송장 파일</button>
+      <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => setPasteOpen(true)}>송장번호 붙여넣기</button>
+      {selected.some((i) => i.ship_status === "shipped") && (
+        <button type="button" className="btn-secondary btn-sm" disabled={busy}
+          onClick={() => run("배송 완료로 기록했습니다", () => updateShipping(selected.filter((i) => i.ship_status === "shipped").map((i) => i.id), { ship_status: "done" }, userId))}>배송 완료</button>
+      )}
+      {selected.some((i) => i.ship_status !== "pending") && (
+        <button type="button" className="btn-secondary btn-sm doc-del" disabled={busy}
+          onClick={() => { if (window.confirm("발송을 취소하고 출고 대기로 되돌릴까요? 송장번호가 지워집니다.")) run("출고 대기로 되돌렸습니다", () => updateShipping(selected.filter((i) => i.ship_status !== "pending").map((i) => i.id), { ship_status: "pending", carrier: null, tracking_no: null }, userId)); }}>발송 취소</button>
+      )}
+      <button type="button" className="btn-primary btn-sm" disabled={busy || !selected.some((i) => i.ship_status === "pending")} onClick={() => setShipOpen(true)}>발송 처리</button>
+    </SelectionBar>
+  ) : null;
+
+  const dialogs = (
+    <>
+      {shipOpen && (
+        <ShipDialog rows={selected.filter((i) => i.ship_status === "pending")} itemText={itemText} onClose={() => setShipOpen(false)}
+          onSave={(carrier, tracking) => { setShipOpen(false); run("발송 처리했습니다", async () => {
+            for (const [id, no] of Object.entries(tracking)) await updateShipping([id], { ship_status: "shipped", carrier, tracking_no: no || null }, userId);
+          }); }} />
+      )}
+      {pasteOpen && (
+        <PasteTrackingDialog imports={imports} onClose={() => setPasteOpen(false)}
+          onSave={(carrier, pairs) => { setPasteOpen(false); run(`${pairs.length}건에 송장번호를 넣고 발송 처리했습니다`, async () => {
+            for (const p of pairs) await updateShipping([p.id], { ship_status: "shipped", carrier, tracking_no: p.no }, userId);
+          }); }} />
+      )}
+    </>
+  );
+  return { head, body, pagerEl, selbar, dialogs };
+}
+
+/** 발송 처리 — 택배사 하나 + 줄마다 송장번호(없어도 발송으로 기록할 수 있다: 직접 배달·방문 수령) */
+function ShipDialog({ rows, itemText, onClose, onSave }: {
+  rows: OrderImport[]; itemText: (i: OrderImport) => string; onClose: () => void;
+  onSave: (carrier: string, tracking: Record<string, string>) => void;
+}) {
+  const [carrier, setCarrier] = useState<string>(CARRIERS[0].value);
+  const [tracking, setTracking] = useState<Record<string, string>>({});
+  return (
+    <div className="inv-modal" onClick={onClose}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">발송 처리 — {rows.length}건</h3>
+        <p className="inv-modal-desc">택배사를 고르고 송장번호를 적습니다. 송장번호 없이도 발송으로 기록할 수 있습니다(직접 배달·방문 수령). 재고는 이미 차감돼 있어 변하지 않습니다.</p>
+        <label className="inv-field"><span>택배사 *</span>
+          <select className="field-input" value={carrier} onChange={(e) => setCarrier(e.target.value)}>
+            {CARRIERS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select></label>
+        <div className="stg-table-wrap ch-ship-list">
+          <table className="ev-table ev-lined table-inv-status-sm">
+            <thead><tr><th>주문번호</th><th>수취인</th><th>상품</th><th>송장번호</th></tr></thead>
+            <tbody>{rows.map((i) => (
+              <tr key={i.id}>
+                <td className="mono-number text-left"><b>{i.channel_order_no}</b></td>
+                <td className="text-left">{i.recipient_name || i.buyer_name || "—"}</td>
+                <td className="text-left ch-addr">{itemText(i) || "—"}</td>
+                <td><input className="field-input doc-in" placeholder="송장번호" value={tracking[i.id] || ""} onChange={(e) => setTracking((t) => ({ ...t, [i.id]: e.target.value }))} /></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
+          <button type="button" className="btn-primary btn-sm" onClick={() => onSave(carrier, Object.fromEntries(rows.map((i) => [i.id, (tracking[i.id] || "").trim()])))}>발송 처리</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 송장번호 붙여넣기 — 택배사 프로그램이 준 "주문번호 ⇥ 송장번호" */
+function PasteTrackingDialog({ imports, onClose, onSave }: {
+  imports: OrderImport[]; onClose: () => void; onSave: (carrier: string, pairs: { id: string; no: string }[]) => void;
+}) {
+  const [carrier, setCarrier] = useState<string>(CARRIERS[0].value);
+  const [text, setText] = useState("");
+  const parsed = useMemo(() => {
+    const byNo = new Map(imports.map((i) => [i.channel_order_no.trim(), i]));
+    const ok: { id: string; no: string; orderNo: string }[] = []; const miss: string[] = [];
+    for (const raw of text.split(/\r?\n/)) {
+      const p = raw.split(/\t|,|\s{2,}/).map((s) => s.trim()).filter(Boolean);
+      if (p.length < 2) continue;
+      const i = byNo.get(p[0]);
+      if (i) ok.push({ id: i.id, no: p[1], orderNo: p[0] }); else miss.push(p[0]);
+    }
+    return { ok, miss };
+  }, [text, imports]);
+  return (
+    <div className="inv-modal" onClick={onClose}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">송장번호 붙여넣기</h3>
+        <p className="inv-modal-desc">택배사 프로그램에서 받은 <b>주문번호 · 송장번호</b> 두 열을 붙여 넣으면 주문번호로 맞춰 발송 처리됩니다.</p>
+        <label className="inv-field"><span>택배사 *</span>
+          <select className="field-input" value={carrier} onChange={(e) => setCarrier(e.target.value)}>
+            {CARRIERS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+          </select></label>
+        <label className="inv-field"><span>주문번호 · 송장번호</span>
+          <textarea className="field-input inv-paste ch-paste" rows={8} value={text} onChange={(e) => setText(e.target.value)} autoFocus
+            placeholder={"주문번호\t송장번호\n2026082512345\t123456789012"} /></label>
+        <p className="inv-foot">
+          <b>{parsed.ok.length}건 맞춤</b>
+          {parsed.miss.length > 0 && <span className="inv-paste-bad"> · 못 찾은 주문번호 {parsed.miss.length}건: {parsed.miss.slice(0, 3).join(", ")}{parsed.miss.length > 3 ? " …" : ""}</span>}
+        </p>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!parsed.ok.length} onClick={() => onSave(carrier, parsed.ok)}>발송 처리</button>
         </div>
       </div>
     </div>

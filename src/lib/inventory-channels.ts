@@ -34,7 +34,15 @@ export type OrderImport = {
   id: string; channel: string; channel_order_no: string; order_date: string | null;
   buyer_name: string | null; amount: number | null; doc_id: string | null; imported_at: string;
   recipient_name: string | null; recipient_phone: string | null; address: string | null; shipping_note: string | null;
+  ship_status: ShipStatus; carrier: string | null; tracking_no: string | null; shipped_at: string | null; delivered_at: string | null;
 };
+export type ShipStatus = "pending" | "shipped" | "done";
+export const SHIP_STATUS_LABEL: Record<ShipStatus, string> = { pending: "출고 대기", shipped: "발송됨", done: "배송 완료" };
+//   택배사 — 송장 파일 열 순서를 회사별 양식으로 맞출 때 여기에 양식을 붙인다
+export const CARRIERS = [
+  { value: "cj", label: "CJ대한통운" }, { value: "hanjin", label: "한진택배" }, { value: "lotte", label: "롯데택배" },
+  { value: "post", label: "우체국택배" }, { value: "logen", label: "로젠택배" }, { value: "direct", label: "직접 배달·방문" }, { value: "etc", label: "기타" },
+] as const;
 
 // ── 채널 상품 연결 ────────────────────────────────────────────────────────────
 export async function listChannelCodes(companyId: string): Promise<ChannelCode[]> {
@@ -74,7 +82,7 @@ export async function listImports(companyId: string, limit = 500): Promise<Order
   if (!companyId) return [];
   const data = logRead("inventory:channel-imports", await supabase
     .from("channel_order_imports")
-    .select("id, channel, channel_order_no, order_date, buyer_name, amount, doc_id, imported_at, recipient_name, recipient_phone, address, shipping_note")
+    .select("id, channel, channel_order_no, order_date, buyer_name, amount, doc_id, imported_at, recipient_name, recipient_phone, address, shipping_note, ship_status, carrier, tracking_no, shipped_at, delivered_at")
     .eq("company_id", companyId).order("imported_at", { ascending: false }).limit(limit));
   return ((data || []) as any[]).map((r) => ({ ...r, amount: r.amount == null ? null : Number(r.amount) })) as OrderImport[];
 }
@@ -273,3 +281,45 @@ export async function fetchChannelOrders(channel: string, from: string, to: stri
 }
 
 export const CHANNEL_HAS_API = new Set(["smartstore", "coupang"]);
+
+
+// ── 출고 처리 · 송장 (2026-08-26 사장님 지시 ②) ────────────────────────────────
+/** 발송·완료·되돌리기 — 상태와 함께 시각·사람을 남긴다 */
+export async function updateShipping(
+  ids: string[], patch: { ship_status: ShipStatus; carrier?: string | null; tracking_no?: string | null }, userId?: string | null,
+) {
+  if (!ids.length) return;
+  const now = new Date().toISOString();
+  const row: Partial<{ ship_status: string; carrier: string | null; tracking_no: string | null; shipped_at: string | null; shipped_by: string | null; delivered_at: string | null }> = { ship_status: patch.ship_status };
+  if ("carrier" in patch) row.carrier = patch.carrier ?? null;
+  if ("tracking_no" in patch) row.tracking_no = patch.tracking_no?.trim() || null;
+  if (patch.ship_status === "shipped") { row.shipped_at = now; row.shipped_by = userId ?? null; row.delivered_at = null; }
+  if (patch.ship_status === "done") row.delivered_at = now;
+  if (patch.ship_status === "pending") { row.shipped_at = null; row.shipped_by = null; row.delivered_at = null; }
+  const { error } = await supabase.from("channel_order_imports").update(row).in("id", ids);
+  if (error) throw error;
+}
+
+/** 주문별 상품 — 출고 전표 줄의 비고("채널명 주문번호")로 주문번호를 되찾는다. 열쇠 `채널|주문번호` */
+export async function listImportItems(
+  companyId: string, docIds: string[], products: { id: string; name: string }[],
+): Promise<Map<string, { name: string; qty: number }[]>> {
+  const out = new Map<string, { name: string; qty: number }[]>();
+  if (!companyId || !docIds.length) return out;
+  const nameOf = new Map(products.map((p) => [p.id, p.name]));
+  const labelToValue = new Map<string, string>(CHANNELS.map((c) => [c.label, c.value]));
+  for (let i = 0; i < docIds.length; i += 200) {
+    const data = logRead("inventory:channel-items", await supabase
+      .from("stock_moves").select("product_id, qty, note").eq("company_id", companyId).in("doc_id", docIds.slice(i, i + 200)));
+    for (const m of ((data || []) as any[])) {
+      const note = String(m.note || "");
+      const sp = note.indexOf(" ");
+      if (sp < 0) continue;
+      const ch = labelToValue.get(note.slice(0, sp));
+      if (!ch) continue;
+      const key = `${ch}|${note.slice(sp + 1).trim()}`;
+      out.set(key, [...(out.get(key) || []), { name: nameOf.get(m.product_id) || "?", qty: Math.abs(Number(m.qty || 0)) }]);
+    }
+  }
+  return out;
+}

@@ -598,6 +598,12 @@ export type Database = {
           recipient_phone: string | null
           address: string | null
           shipping_note: string | null
+          ship_status: string
+          carrier: string | null
+          tracking_no: string | null
+          shipped_at: string | null
+          shipped_by: string | null
+          delivered_at: string | null
           channel: string
           channel_order_no: string
           company_id: string
@@ -614,6 +620,12 @@ export type Database = {
           recipient_phone?: string | null
           address?: string | null
           shipping_note?: string | null
+          ship_status?: string
+          carrier?: string | null
+          tracking_no?: string | null
+          shipped_at?: string | null
+          shipped_by?: string | null
+          delivered_at?: string | null
           channel: string
           channel_order_no: string
           company_id: string
@@ -630,6 +642,12 @@ export type Database = {
           recipient_phone?: string | null
           address?: string | null
           shipping_note?: string | null
+          ship_status?: string
+          carrier?: string | null
+          tracking_no?: string | null
+          shipped_at?: string | null
+          shipped_by?: string | null
+          delivered_at?: string | null
           channel?: string
           channel_order_no?: string
           company_id?: string

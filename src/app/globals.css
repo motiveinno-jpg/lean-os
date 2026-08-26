@@ -8902,3 +8902,12 @@ table.table-inv-summary { min-width: 760px; }
 .inv-status-empty { @apply py-8 text-center text-[12px] text-[var(--text-dim)]; }
 table.table-inv-status { min-width: 960px; }
 table.table-inv-status-sm { min-width: 0; }
+
+/* 재고 › 채널 › 출고 처리 (2026-08-26) */
+table.table-inv-ch-ship { min-width: 1480px; }
+.inv-row-sel td { @apply bg-[var(--primary-light)]; }
+.ch-ship-list { @apply max-h-[40vh] overflow-auto; }
+
+/* 선택 바(SelectionBar)가 바닥 오른쪽 메신저 단추(.messenger-fab, right-6 · 56px)에 덮여 파란 버튼이 안 눌리던 것 —
+   2026-08-26 채널 출고 처리에서 실제로 눌러 보고 잡음. 오른쪽에 단추만큼 자리를 비운다(모든 선택 바 공통). */
+.qk-selbar { padding-right: 84px; }
