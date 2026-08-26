@@ -172,7 +172,7 @@ export default function ProductsPage() {
           save={(v) => upsertProduct(companyId, v, userId)} />
       )}
       {editing && companyId && (
-        <ProductDialog
+        <ProductDialog others={products}
           initial={editing}
           onClose={() => setEditing(null)}
           onSave={async (v) => {
@@ -192,12 +192,15 @@ export default function ProductsPage() {
 }
 
 /** 품목 등록·수정 — 폼은 팝업(목록 줄이 밀리지 않게, 조회 화면 표준) */
-function ProductDialog({ initial, onClose, onSave }: {
+function ProductDialog({ initial, others, onClose, onSave }: {
   initial: Partial<Product>;
+  /** 바코드 중복 확인용 — 다른 품목들 */
+  others: Product[];
   onClose: () => void;
   onSave: (v: Partial<Product> & { id?: string }) => void;
 }) {
   const [v, setV] = useState<Partial<Product>>({ unit: "EA", track_stock: true, is_active: true, ...initial });
+  const dupBarcode = v.barcode ? others.find((p) => p.id !== initial.id && p.barcode === v.barcode) : undefined;
   const set = (k: keyof Product, val: unknown) => setV((s) => ({ ...s, [k]: val }));
   const num = (x: unknown) => (x === "" || x == null ? null : Number(String(x).replace(/[^0-9.-]/g, "")));
   const ready = !!String(v.sku || "").trim() && !!String(v.name || "").trim();
@@ -226,8 +229,18 @@ function ProductDialog({ initial, onClose, onSave }: {
             <input className="field-input" value={v.spec || ""} onChange={(e) => set("spec", e.target.value)} placeholder="블랙 / M" /></label>
           <label className="inv-field"><span>단위</span>
             <input className="field-input" value={v.unit || ""} onChange={(e) => set("unit", e.target.value)} placeholder="EA · BOX · kg" /></label>
-          <label className="inv-field"><span>바코드</span>
-            <input className="field-input" value={v.barcode || ""} onChange={(e) => set("barcode", e.target.value)} /></label>
+          <label className="inv-field"><span>바코드{dupBarcode ? <em className="inv-field-warn"> — 이미 '{dupBarcode.name}'({dupBarcode.sku})에 쓰인 번호</em> : null}</span>
+            {/*   ★ 스캐너로 찍는 칸 — 스캐너는 숫자 뒤에 Enter 를 보낸다. Enter 는 저장이 아니라 다음 칸으로(2026-08-26 사장님 확인). */}
+            <input className={dupBarcode ? "field-input inv-input-warn" : "field-input"} inputMode="numeric" value={v.barcode || ""}
+              placeholder="커서를 두고 바코드를 찍으면 번호가 들어갑니다"
+              onChange={(e) => set("barcode", e.target.value.trim())}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                const inputs = [...(e.currentTarget.closest(".inv-modal-box")?.querySelectorAll<HTMLElement>("input, select, textarea") || [])];
+                const i = inputs.indexOf(e.currentTarget);
+                inputs[i + 1]?.focus();
+              }} /></label>
         </div>
 
         {/*   ★ 결정 6-④ · 7 — 이 체크 하나가 음수 재고의 절반을 없앤다. 그래서 폼 한가운데 크게 둔다. */}

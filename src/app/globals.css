@@ -8929,3 +8929,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 실사 — 바코드 찍기 칸·찍은 줄 표시 (2026-08-26) */
 .inv-scan { @apply h-8 w-[220px] text-[12px]; }
 .inv-row-scan td { @apply bg-[var(--primary-light)]; }
+
+/* 품목 등록 — 바코드 중복 경고 (2026-08-26) */
+.inv-field-warn { @apply not-italic text-[11px] font-normal text-[var(--danger)]; }
+.inv-input-warn { @apply border-[var(--danger)]; }
