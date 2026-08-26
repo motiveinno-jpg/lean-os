@@ -114,7 +114,9 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
     queryKey: ["ledger-sheet-inv", companyId, partnerId, type, yStart, yEnd],
     queryFn: async () => {
       let qb = db.from("tax_invoices")
-        .select("id, issue_date, item_name, label, total_amount")
+        // journal_entries 임베드 = 연결 전표의 번호 — 계산서 줄에서 전표를 바로 열기 위함 (2026-08-26 사장님).
+        //   ⚠️ FK 힌트 필수: journal_entries.linked_invoice_id 역방향 FK 도 있어 이름만 쓰면 PGRST201(모호)로 조회 전체가 빈다.
+        .select("id, issue_date, item_name, label, total_amount, journal_entry_id, journal_entries!tax_invoices_journal_entry_id_fkey(voucher_no)")
         .eq("company_id", companyId).eq("type", type).neq("status", "void")
         // 실제 홈택스 발행분만 — 국세청 승인번호(nts_confirm_no) 있는 건. 미발행 수동/테스트 draft 제외.
         .not("nts_confirm_no", "is", null)
@@ -199,6 +201,11 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
       desc: `세금계산서 · ${inv.item_name || inv.label || "품목 미상"}`,
       debit: isSales ? Number(inv.total_amount || 0) : 0,
       credit: isSales ? 0 : Number(inv.total_amount || 0),
+      // 전표처리된 계산서면 그 전표(#번호)로 바로 — 매출·매입 동일. 전표처리 전표도 source='manual'
+      //   (post_invoice_voucher·save_sale_purchase_voucher)라 수동 전표와 같은 수정 모달을 쓴다 (2026-08-26 사장님)
+      isVoucher: !!inv.journal_entry_id,
+      vid: inv.journal_entry_id || undefined,
+      no: inv.journal_entries?.voucher_no ?? null,
     });
     const settle = (s: any): SheetEntry => {
       const vid = settleVoucherMap[s.id]; // 연결된 자동 전표(있으면 정산 줄 클릭 시 그 전표 수정)
@@ -348,7 +355,7 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
                               ) : e.isVoucher && e.vid ? (
                                 <button onClick={() => setEditEntryId(e.vid!)}
                                   className="text-[var(--primary)] underline decoration-dotted underline-offset-2 hover:opacity-80 text-left"
-                                  title="수동 전표 — 클릭하면 수정/삭제(일자 변경 포함)">{e.desc}</button>
+                                  title="전표 열기 — 클릭하면 분개 확인·수정/삭제">{e.desc}</button>
                               ) : e.desc}
                             </td>
                             {/* 전표 칸 — 수동 전표는 #번호(누르면 수정), 차액 마감은 '차액'(누르면 분개), 계산서·정산은 — */}
