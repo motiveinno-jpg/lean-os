@@ -8901,3 +8901,4 @@ table.table-inv-summary { min-width: 760px; }
 .inv-status-sub { @apply mb-2; }
 .inv-status-empty { @apply py-8 text-center text-[12px] text-[var(--text-dim)]; }
 table.table-inv-status { min-width: 960px; }
+table.table-inv-status-sm { min-width: 0; }

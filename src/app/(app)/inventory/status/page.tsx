@@ -475,7 +475,7 @@ export default function InventoryStatusPage() {
                     <div className="pnl-panel">
                       <h3>자재 부족</h3><p>열린 주문 잔량 × 자재구성 − 현재고{make.noBom ? ` · 자재구성 없는 주문 줄 ${make.noBom}개는 셈에서 빠짐` : ""}</p>
                       {make.shortage.length ? (
-                        <table className="ev-table ev-lined">
+                        <table className="ev-table ev-lined table-inv-status-sm">
                           <thead><tr><th>자재</th><th>필요</th><th>현재고</th><th>부족</th></tr></thead>
                           <tbody>{make.shortage.map((x) => (
                             <tr key={x.product_id} className="inv-row-fix"><td className="text-left"><b>{productById.get(x.product_id)?.name || "?"}</b></td>
@@ -488,7 +488,7 @@ export default function InventoryStatusPage() {
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
                       <h3>완제품별</h3><p>기간 완성</p>
-                      <table className="ev-table ev-lined">
+                      <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>완제품</th><th>완성 수량</th><th>완성 금액</th></tr></thead>
                         <tbody>{perProductRows(make.perProduct).map((r) => (
                           <tr key={r.key}><td className="text-left"><b>{r.p?.name || "?"}</b></td><td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">₩{won(r.amt)}</td></tr>
@@ -497,7 +497,7 @@ export default function InventoryStatusPage() {
                     </div>
                     <div className="pnl-panel">
                       <h3>자재 투입</h3><p>기간 투입 수량·금액(이동평균)</p>
-                      <table className="ev-table ev-lined">
+                      <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>자재</th><th>투입 수량</th><th>금액</th></tr></thead>
                         <tbody>{perProductRows(make.matPer).map((r) => (
                           <tr key={r.key}><td className="text-left"><b>{r.p?.name || "?"}</b></td><td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">₩{won(r.amt)}</td></tr>
