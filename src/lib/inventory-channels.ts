@@ -33,6 +33,7 @@ export type ChannelCode = {
 export type OrderImport = {
   id: string; channel: string; channel_order_no: string; order_date: string | null;
   buyer_name: string | null; amount: number | null; doc_id: string | null; imported_at: string;
+  recipient_name: string | null; recipient_phone: string | null; address: string | null; shipping_note: string | null;
 };
 
 // ── 채널 상품 연결 ────────────────────────────────────────────────────────────
@@ -73,7 +74,7 @@ export async function listImports(companyId: string, limit = 500): Promise<Order
   if (!companyId) return [];
   const data = logRead("inventory:channel-imports", await supabase
     .from("channel_order_imports")
-    .select("id, channel, channel_order_no, order_date, buyer_name, amount, doc_id, imported_at")
+    .select("id, channel, channel_order_no, order_date, buyer_name, amount, doc_id, imported_at, recipient_name, recipient_phone, address, shipping_note")
     .eq("company_id", companyId).order("imported_at", { ascending: false }).limit(limit));
   return ((data || []) as any[]).map((r) => ({ ...r, amount: r.amount == null ? null : Number(r.amount) })) as OrderImport[];
 }
@@ -86,6 +87,10 @@ export type RawOrderRow = {
   unit_price?: number | null;
   order_date?: string | null;
   buyer_name?: string | null;
+  recipient_name?: string | null;
+  recipient_phone?: string | null;
+  address?: string | null;
+  shipping_note?: string | null;
 };
 
 export type ResolvedRow = RawOrderRow & {
@@ -201,6 +206,7 @@ export async function listSeenOrderNos(companyId: string, channel: string, order
 export type ChannelDocLine = {
   product_id: string; qty: number; unit_price: number | null; vat_amount: number | null;
   channel_order_no: string; channel_product_id: string; buyer_name: string | null; order_date?: string | null;
+  recipient_name?: string | null; recipient_phone?: string | null; address?: string | null; shipping_note?: string | null;
 };
 
 /**
@@ -239,6 +245,8 @@ export async function importChannelDoc(
     [...first.entries()].map(([no, r]) => ({
       company_id: companyId, channel, channel_order_no: no,
       order_date: r.order_date || docDate, buyer_name: r.buyer_name || null,
+      recipient_name: r.recipient_name || null, recipient_phone: r.recipient_phone || null,
+      address: r.address || null, shipping_note: r.shipping_note || null,
       amount: amount.get(no) || null, doc_id: doc.id, imported_by: userId ?? null,
     })),
   );

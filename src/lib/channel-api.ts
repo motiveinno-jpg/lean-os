@@ -20,6 +20,11 @@ export type ChannelOrderRow = {
   unit_price: number | null;
   order_date: string | null;   // YYYY-MM-DD
   buyer_name: string | null;
+  //   배송 정보 — 출고(송장)에 필요하다(2026-08-26 사장님). 없으면 null.
+  recipient_name: string | null;
+  recipient_phone: string | null;
+  address: string | null;
+  shipping_note: string | null;
 };
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -77,6 +82,10 @@ export async function naverOrders(key: string, from: string, to: string): Promis
         unit_price: po.unitPrice != null ? Number(po.unitPrice) : null,
         order_date: od.orderDate ? ymd(new Date(od.orderDate)) : null,
         buyer_name: od.ordererName || null,
+        recipient_name: po.shippingAddress?.name || null,
+        recipient_phone: po.shippingAddress?.tel1 || po.shippingAddress?.tel2 || null,
+        address: [po.shippingAddress?.baseAddress, po.shippingAddress?.detailedAddress].filter(Boolean).join(" ") || null,
+        shipping_note: po.shippingMemo || null,
       });
     }
   }
@@ -119,6 +128,10 @@ export async function coupangOrders(key: string, from: string, to: string, statu
           unit_price: it.salesPrice != null ? Number(it.salesPrice) : it.orderPrice != null ? Number(it.orderPrice) : null,
           order_date: o.orderedAt ? String(o.orderedAt).slice(0, 10) : null,
           buyer_name: o.orderer?.name || null,
+          recipient_name: o.receiver?.name || null,
+          recipient_phone: o.receiver?.receiverNumber1 || o.receiver?.safeNumber || null,
+          address: [o.receiver?.addr1, o.receiver?.addr2].filter(Boolean).join(" ") || null,
+          shipping_note: o.parcelPrintMessage || o.shippingRequest || null,
         });
       }
     }

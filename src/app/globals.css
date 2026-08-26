@@ -8703,7 +8703,8 @@ table.table-inv-counts { min-width: 720px; }
 table.table-inv-count-lines { min-width: 820px; }
 
 table.table-inv-ch-codes { min-width: 880px; }
-table.table-inv-ch-imports { min-width: 760px; }
+table.table-inv-ch-imports { min-width: 1320px; }
+.ch-addr { @apply max-w-[260px] truncate; }
 table.table-inv-ch-check { min-width: 820px; }
 table.table-doc { min-width: 940px; }
 table.table-doc-hist { min-width: 860px; }

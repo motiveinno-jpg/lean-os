@@ -77,7 +77,7 @@ export default function ChannelsPage() {
   const codePager = usePager(sortedCodes, 50, `${channel}|${q}|${cSort.key}${cSort.dir}`);
 
   const shownImports = useMemo(() => imports.filter((i) =>
-    i.channel === channel && quickSearchHit(q, [i.channel_order_no, i.buyer_name])
+    i.channel === channel && quickSearchHit(q, [i.channel_order_no, i.buyer_name, i.recipient_name, i.recipient_phone, i.address])
   ), [imports, channel, q]);
   const sortedImports = useMemo(() => {
     const d = iSort.dir === "asc" ? 1 : -1;
@@ -150,7 +150,7 @@ export default function ChannelsPage() {
             <>
               <QueryBar>
                 <ChipGroup value={channel} onChange={(v) => setChannel(v as ChannelValue)} options={chChips} />
-                <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 — 쉼표로 여러 개, Enter" />
+                <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 수취인 · 연락처 · 주소 — 쉼표로 여러 개, Enter" />
                 <span className="inv-hint">등록된 주문번호는 <b>다시 가져와도 건너뜁니다</b> (재고 중복 차감 방지).</span>
               </QueryBar>
               <ResultStrip>
@@ -224,6 +224,7 @@ export default function ChannelsPage() {
                       <SortableTh label="주문번호" sortKey="no" sort={iSort} onSort={onISort} />
                       <SortableTh label="주문일" sortKey="date" sort={iSort} onSort={onISort} />
                       <SortableTh label="주문자" sortKey="buyer" sort={iSort} onSort={onISort} />
+                      <th>수취인</th><th>연락처</th><th>주소</th><th>배송 요청</th>
                       <SortableTh label="금액" sortKey="amount" sort={iSort} onSort={onISort} />
                       <SortableTh label="등록 시각" sortKey="at" sort={iSort} onSort={onISort} />
                     </tr></thead>
@@ -233,6 +234,10 @@ export default function ChannelsPage() {
                           <td className="mono-number text-left"><b>{i.channel_order_no}</b></td>
                           <td className="mono-number">{i.order_date || "—"}</td>
                           <td className="text-left">{i.buyer_name || "—"}</td>
+                          <td className="text-left">{i.recipient_name || "—"}</td>
+                          <td className="mono-number text-left">{i.recipient_phone || "—"}</td>
+                          <td className="text-left ch-addr" title={i.address || undefined}>{i.address || "—"}</td>
+                          <td className="text-left ev-dim">{i.shipping_note || "—"}</td>
                           <td className="tr mono-number">{i.amount != null ? `₩${won(i.amount)}` : "—"}</td>
                           <td className="tc ev-dim">{i.imported_at.slice(5, 16).replace("T", " ")}</td>
                         </tr>
@@ -351,6 +356,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
       const add = raw.map((x) => {
         const r = blankRow();
         r.ch = x.channel; r.ono = x.channel_order_no; r.ccode = x.channel_product_id; r.buyer = x.buyer_name || "";
+        r.rcv = x.recipient_name || ""; r.tel = x.recipient_phone || ""; r.addr = x.address || ""; r.memo = x.shipping_note || "";
         r.qty = String(x.qty);
         const pid = codeMap.get(`${x.channel}|${x.channel_product_id.trim().toUpperCase()}`);
         const p = pid ? byId.get(pid) : undefined;
@@ -392,6 +398,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
           ls.map((l) => ({
             product_id: l.product_id, qty: l.qty, unit_price: l.unit_price, vat_amount: l.vat_amount,
             channel_order_no: l.ono, channel_product_id: l.ccode, buyer_name: l.buyer || null,
+            recipient_name: l.rcv || null, recipient_phone: l.tel || null, address: l.addr || null, shipping_note: l.memo || null,
           })), ctl.userId);
         done.push(`${channelLabel(ch)} ${r.docNo} · 주문 ${r.orders}건${r.skipped ? ` · ${r.skipped}줄 건너뜀` : ""}`);
       }
@@ -469,6 +476,7 @@ function PasteDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (Ra
         unit_price: price != null && !Number.isNaN(price) ? price : null,
         order_date: p[4] && /^\d{4}-\d{2}-\d{2}$/.test(p[4]) ? p[4] : null,
         buyer_name: p[5] || null,
+        recipient_name: p[6] || null, recipient_phone: p[7] || null, address: p[8] || null, shipping_note: p[9] || null,
       });
     }
     return { out, bad };
@@ -478,8 +486,8 @@ function PasteDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (Ra
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">주문 엑셀 붙여넣기</h3>
         <p className="inv-modal-desc">
-          열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> (단가·주문일·주문자는 선택). 엑셀에서 해당 열을 복사해 붙여 넣으세요.
-          격자에 채워지기만 하고, 출고 등록은 따로 누릅니다.
+          열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> · 단가 · 주문일 · 주문자 · <b>수취인 · 연락처 · 주소 · 배송 요청</b>
+          (4열부터는 선택 — 비우려면 빈 칸으로 두세요). 엑셀에서 해당 열을 복사해 붙여 넣으세요. 격자에 채워지기만 하고, 출고 등록은 따로 누릅니다.
         </p>
         <label className="inv-field"><span>채널 *</span>
           <select className="field-input" value={channel} onChange={(e) => setChannel(e.target.value as ChannelValue)}>
@@ -487,7 +495,7 @@ function PasteDialog({ onClose, onRows }: { onClose: () => void; onRows: (r: (Ra
           </select></label>
         <label className="inv-field"><span>주문 목록</span>
           <textarea className="field-input inv-paste ch-paste" rows={10} value={text} onChange={(e) => setText(e.target.value)} autoFocus
-            placeholder={"주문번호\t채널상품코드\t수량\t단가\t주문일\t주문자\n2026082512345\tSS-1001\t2\t19000\t2026-08-25\t홍길동"} /></label>
+            placeholder={"주문번호\t채널상품코드\t수량\t단가\t주문일\t주문자\t수취인\t연락처\t주소\t배송요청\n2026082512345\tSS-1001\t2\t19000\t2026-08-25\t홍길동\t홍길동\t010-1234-5678\t서울 강남구 …\t부재 시 문 앞"} /></label>
         <p className="inv-foot">
           <b>{parsed.out.length}줄 인식</b>
           {parsed.bad.length > 0 && <span className="inv-paste-bad"> · 인식 실패 {parsed.bad.length}줄: {parsed.bad.slice(0, 2).join(" / ")}{parsed.bad.length > 2 ? " …" : ""}</span>}

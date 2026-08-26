@@ -594,6 +594,10 @@ export type Database = {
         Row: {
           amount: number | null
           buyer_name: string | null
+          recipient_name: string | null
+          recipient_phone: string | null
+          address: string | null
+          shipping_note: string | null
           channel: string
           channel_order_no: string
           company_id: string
@@ -606,6 +610,10 @@ export type Database = {
         Insert: {
           amount?: number | null
           buyer_name?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          address?: string | null
+          shipping_note?: string | null
           channel: string
           channel_order_no: string
           company_id: string
@@ -618,6 +626,10 @@ export type Database = {
         Update: {
           amount?: number | null
           buyer_name?: string | null
+          recipient_name?: string | null
+          recipient_phone?: string | null
+          address?: string | null
+          shipping_note?: string | null
           channel?: string
           channel_order_no?: string
           company_id?: string
