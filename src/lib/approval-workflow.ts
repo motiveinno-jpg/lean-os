@@ -612,12 +612,14 @@ export async function createApprovalRequest(params: {
     //   전혀 안 가던 버그 — 결재 여부와 무관하게 통보만 받는 인원이므로 승인자와 별개로 발송.
     //   2026-07-27: entity_type 을 'approval_reference' 로 분리 — 참조자는 결재함이 비어 있으므로
     //   알림을 눌렀을 때 '참조' 탭(내용 열람)으로 바로 가야 한다(notification-routes.ts).
+    //   2026-08-26: type 도 'approval_reference' 로 분리 — 푸시 트리거가 type 을 그대로 태그로 넘기므로
+    //   'approval_request' 면 설정>알림의 '결재 요청' 토글에 걸리고 '결재 참조' 토글이 무효였다(사장님 제보).
     const referenceIds = [...new Set(params.referenceUserIds || [])].filter((id) => !approverIds.includes(id));
     for (const refId of referenceIds) {
       await createNotification({
         companyId: params.companyId,
         userId: refId,
-        type: 'approval_request',
+        type: 'approval_reference',
         title: `참조: ${params.title}`,
         message: amount > 0 ? `금액: ${amount.toLocaleString()}원` : undefined,
         entityType: 'approval_reference',
@@ -868,7 +870,7 @@ export async function approveStep(
 
   // 참조자 결과 통보 — 최종 승인 확정 시에만(중간 단계마다 알리면 소음)
   if (finallyApproved) {
-    await notifyReferences(request, 'approval_approved', `참조 · 결재 승인: ${request.title}`, '최종 승인되었습니다.');
+    await notifyReferences(request, `참조 · 결재 승인: ${request.title}`, '최종 승인되었습니다.');
   }
 }
 
@@ -876,10 +878,11 @@ export async function approveStep(
  * 참조자(CC)에게 결과를 통보한다.
  * 참조는 "결재선과 별개로 결과를 통보만 받는 인원"인데 그동안 생성 알림만 가고
  * 승인·반려 결과 알림은 전혀 안 갔다(2026-07-27 QA). 요청자 본인은 별도 알림을 받으므로 제외.
+ * 2026-08-26: type 을 'approval_reference' 로 고정 — approval_approved/rejected 를 쓰면
+ * 푸시가 '결재 요청' 토글에 걸려 '결재 참조' 토글이 무효다. 라우팅은 entity_type 이 결정하므로 무영향.
  */
 async function notifyReferences(
   request: any,
-  type: string,
   title: string,
   message?: string
 ): Promise<void> {
@@ -890,7 +893,7 @@ async function notifyReferences(
       await createNotification({
         companyId: request.company_id,
         userId: refId,
-        type,
+        type: 'approval_reference',
         title,
         message,
         entityType: 'approval_reference',
@@ -983,7 +986,7 @@ export async function rejectStep(
     }
 
     // 참조자 결과 통보 — 반려는 그 자리에서 요청 전체가 종료되므로 즉시 발송
-    await notifyReferences(request, 'approval_rejected', `참조 · 결재 반려: ${request.title}`, comment || '반려되었습니다.');
+    await notifyReferences(request, `참조 · 결재 반려: ${request.title}`, comment || '반려되었습니다.');
   }
 }
 

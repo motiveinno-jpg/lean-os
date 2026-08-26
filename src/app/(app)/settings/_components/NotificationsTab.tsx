@@ -80,15 +80,6 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
   const [iosNeedsA2HS, setIosNeedsA2HS] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
-      if (raw) {
-        const stored = JSON.parse(raw);
-        setPrefs({ ...DEFAULT_NOTIF_PREFS, ...stored });
-      }
-    } catch {}
-    setLoaded(true);
-
     if (typeof window !== "undefined" && "Notification" in window) {
       setPushSupported(true);
       setPushPermission(Notification.permission);
@@ -98,12 +89,41 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
       setIosNeedsA2HS(true);
     }
 
-    // Try to load user email
-    getCurrentUser().then((u) => {
-      if (u?.email) {
-        setPrefs((p) => ({ ...p, email: { ...p.email, address: p.email.address || u.email } }));
+    //   서버(notification_prefs)가 원본, localStorage 는 폴백 (2026-08-26 사장님 제보).
+    //   종전엔 localStorage 만 읽어서 — 다른 기기·브라우저에서 열면 기본값(전부 ON)이 뜨고,
+    //   아무 토글이나 건드리면 0.6초 자동저장이 서버에 남아 있던 OFF 를 ON 으로 되돌려 버렸다.
+    (async () => {
+      let fromServer = false;
+      let email = "";
+      try {
+        const u = await getCurrentUser();
+        email = u?.email || "";
+        const authUid = (u as { auth_id?: string } | null)?.auth_id || u?.id;
+        if (authUid) {
+          const row = logRead("settings/NotificationsTab:prefs", await (supabase)
+            .from("notification_prefs")
+            .select("prefs")
+            .eq("user_id", authUid)
+            .maybeSingle()) as { prefs?: Partial<NotifPrefs> } | null;
+          if (row?.prefs && typeof row.prefs === "object") {
+            const merged = { ...DEFAULT_NOTIF_PREFS, ...row.prefs };
+            setPrefs(merged);
+            try { localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(merged)); } catch {}
+            fromServer = true;
+          }
+        }
+      } catch {}
+      if (!fromServer) {
+        try {
+          const raw = localStorage.getItem(NOTIF_STORAGE_KEY);
+          if (raw) setPrefs({ ...DEFAULT_NOTIF_PREFS, ...JSON.parse(raw) });
+        } catch {}
       }
-    }).catch(() => {});
+      if (email) {
+        setPrefs((p) => (p.email.address ? p : { ...p, email: { ...p.email, address: email } }));
+      }
+      setLoaded(true);
+    })();
   }, []);
 
   //   자동 저장 — 값을 바꾸고 0.6초 지나면 서버·로컬에 저장(불러오는 중·첫 렌더는 건너뜀). 저장 버튼 없음 (2026-08-19).

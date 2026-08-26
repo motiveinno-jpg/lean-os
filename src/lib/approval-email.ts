@@ -86,7 +86,9 @@ export async function sendApprovalMails(params: {
 
     let ok = 0;
     for (const r of recipients) {
-      if (await sendOne(r.email!, r.name || '', r.auth_id || undefined)) ok++;
+      // 설정 저장 키 규약(auth_id || id)과 동일하게 — auth_id 가 null 인 계정을 undefined 로 보내면
+      //   엣지 함수가 수신 거부 판정을 건너뛰고 무조건 발송했다 (2026-08-26).
+      if (await sendOne(r.email!, r.name || '', r.auth_id || r.id)) ok++;
     }
 
     //   '총괄 알림'(회사설정에 적은 한 주소로 모든 상신을 1통 더 보내기)은 2026-08-24 삭제했다.

@@ -39,6 +39,8 @@ Deno.serve(async (req) => {
     approval_request: "approval_pending",
     approval_approved: "approval_pending",
     approval_rejected: "approval_pending",
+    // 참조 통보는 별도 토글 (2026-08-26) — 이 키가 없어 '결재 참조' OFF 가 푸시에 무효였다
+    approval_reference: "approval_reference",
     overtime_request: "approval_pending",
     overtime_approved: "approval_pending",
     overtime_rejected: "approval_pending",
@@ -54,10 +56,16 @@ Deno.serve(async (req) => {
     weekly_report: "weekly_report",
   };
   try {
+    // notification_prefs.user_id 는 auth.users(id), 여기 userId 는 notifications.user_id = public.users(id).
+    //   설정 화면은 auth_id || id 로 저장하므로 같은 규약으로 찾는다 — 그냥 userId 로 찾으면
+    //   두 값이 다른 레거시 계정은 prefs 를 못 찾아 설정 전체가 무시(fail-open)됐다 (2026-08-26).
+    let prefsKey = userId;
+    const { data: urow } = await admin.from("users").select("auth_id").eq("id", userId).maybeSingle();
+    if (urow?.auth_id) prefsKey = urow.auth_id;
     const { data: prefRow } = await admin
       .from("notification_prefs")
       .select("prefs")
-      .eq("user_id", userId)
+      .eq("user_id", prefsKey)
       .maybeSingle();
     const push = prefRow?.prefs?.push;
     if (push) {
