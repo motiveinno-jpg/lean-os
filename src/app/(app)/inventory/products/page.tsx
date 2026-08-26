@@ -277,7 +277,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           }} />
           <span>
             <b>자재로 만드는 품목입니다 (세트·완제품){bomCount > 0 && <span className="inv-pill inv-pill-ok">자재 {bomCount}종</span>}</b>
-            <em>체크하면 <b>자재구성</b>(1개 만들 때 드는 자재·수량)을 적는 창이 열립니다{!initial.id ? " — 새 품목은 저장 뒤에 열립니다" : ""}. 생산 › 완성 기록 때 그만큼 자재가 빠집니다.</em>
+            <em>체크하면 <b>자재구성</b>(1개당 소요 자재·소요량) 입력 창이 열립니다{!initial.id ? " — 새 품목은 저장 후 열립니다" : ""}. 생산 › 완성 기록 시 소요량만큼 자재가 출고됩니다.</em>
             {bomCount > 0 && initial.id && <button type="button" className="bz-link" onClick={(e) => { e.preventDefault(); onOpenBom({ ...(initial as Product), ...(v as Product) }); }}>자재구성 고치기</button>}
           </span>
         </label>

@@ -33,7 +33,7 @@ import {
   type MoveRow, type Product,
 } from "@/lib/inventory";
 import { listOrders, listUsed, listOrderLinesAll, type Order } from "@/lib/inventory-orders";
-import { listBoms } from "@/lib/inventory-production";
+import { listBoms, perUnit } from "@/lib/inventory-production";
 import { listImports, channelLabel } from "@/lib/inventory-channels";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
@@ -189,7 +189,7 @@ export default function InventoryStatusPage() {
       if (remain <= 0) continue;
       const bl = boms.filter((b) => b.product_id === l.product_id);
       if (!bl.length) { noBom++; continue; }
-      for (const b of bl) need.set(b.component_id, (need.get(b.component_id) || 0) + b.qty * remain);
+      for (const b of bl) need.set(b.component_id, (need.get(b.component_id) || 0) + perUnit(b) * remain);
     }
     const shortage = [...need.entries()].map(([pid, n]) => ({ product_id: pid, need: n, have: stock.byProduct.get(pid) || 0 }))
       .filter((x) => x.have < x.need).sort((a, b) => (b.need - b.have) - (a.need - a.have));

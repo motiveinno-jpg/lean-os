@@ -8939,3 +8939,8 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .inv-track-bom .inv-pill { @apply ml-1.5; }
 .inv-bom-groups { @apply mb-2 space-y-1 text-[12px]; }
 .inv-bom-group { @apply rounded-lg border border-[var(--border)] px-3 py-1.5; }
+
+/* 자재구성 기준 수량 줄 (2026-08-26) */
+.inv-bom-base { @apply mb-2 flex flex-wrap items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-[12.5px]; }
+.inv-bom-base .inv-count-input { @apply mx-1 inline-block w-[72px]; }
+.inv-bom-base .inv-hint { @apply not-italic text-[11px]; }

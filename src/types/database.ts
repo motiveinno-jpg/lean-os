@@ -149,6 +149,7 @@ export type Database = {
           note: string | null
           product_id: string
           qty: number
+          base_qty: number
           updated_at: string
         }
         Insert: {
@@ -159,6 +160,7 @@ export type Database = {
           note?: string | null
           product_id: string
           qty: number
+          base_qty?: number
           updated_at?: string
         }
         Update: {
@@ -169,6 +171,7 @@ export type Database = {
           note?: string | null
           product_id?: string
           qty?: number
+          base_qty?: number
           updated_at?: string
         }
         Relationships: []

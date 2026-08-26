@@ -13,22 +13,27 @@ import { createStockDoc, updateStockDoc, cancelStockDoc, type MoveLine } from "@
 
 export type BomLine = {
   id: string; product_id: string; component_id: string; qty: number; note: string | null;
+  /** 기준 수량 — 소요량(qty)은 완제품 base_qty 개당. 소비 = qty / base_qty × 완성 수량 */
+  base_qty: number;
 };
+/** 완제품 1개당 소요량 */
+export const perUnit = (b: BomLine) => b.qty / (b.base_qty > 0 ? b.base_qty : 1);
 // ── 자재구성 ──────────────────────────────────────────────────────────────────
 export async function listBoms(companyId: string): Promise<BomLine[]> {
   if (!companyId) return [];
   const data = logRead("inventory:boms", await supabase
-    .from("product_boms").select("id, product_id, component_id, qty, note")
+    .from("product_boms").select("id, product_id, component_id, qty, note, base_qty")
     .eq("company_id", companyId).limit(5000));
-  return ((data || []) as any[]).map((r) => ({ ...r, qty: Number(r.qty || 0) })) as BomLine[];
+  return ((data || []) as any[]).map((r) => ({ ...r, qty: Number(r.qty || 0), base_qty: Number(r.base_qty || 1) })) as BomLine[];
 }
 
-export async function upsertBomLine(companyId: string, line: { id?: string; product_id: string; component_id: string; qty: number; note?: string | null }) {
+export async function upsertBomLine(companyId: string, line: { id?: string; product_id: string; component_id: string; qty: number; base_qty?: number; note?: string | null }) {
   if (line.product_id === line.component_id) throw new Error("자기 자신을 자재로 넣을 수 없습니다");
-  if (!(Number(line.qty) > 0)) throw new Error("드는 양은 0보다 커야 합니다");
+  if (!(Number(line.qty) > 0)) throw new Error("소요량은 0보다 커야 합니다");
+  if (line.base_qty != null && !(Number(line.base_qty) > 0)) throw new Error("기준 수량은 0보다 커야 합니다");
   const row = {
     company_id: companyId, product_id: line.product_id, component_id: line.component_id,
-    qty: Number(line.qty), note: line.note?.trim() || null, updated_at: new Date().toISOString(),
+    qty: Number(line.qty), base_qty: Number(line.base_qty || 1), note: line.note?.trim() || null, updated_at: new Date().toISOString(),
   };
   const { error } = line.id
     ? await supabase.from("product_boms").update(row).eq("id", line.id)
@@ -75,7 +80,7 @@ export async function produceLines(
   for (const l of use) {
     for (const b of bomLines) {
       if (b.product_id !== l.product_id || !(b.qty > 0)) continue;
-      mats.push({ product_id: b.component_id, qty: b.qty * Number(l.qty), note: "자재 투입" });
+      mats.push({ product_id: b.component_id, qty: perUnit(b) * Number(l.qty), note: "자재 투입" });
     }
   }
 
@@ -112,7 +117,7 @@ function matLinesOf(
   for (const l of lines) {
     for (const b of bomLines) {
       if (b.product_id !== l.product_id || !(b.qty > 0)) continue;
-      mats.push({ product_id: b.component_id, qty: b.qty * Number(l.qty), note: "자재 투입" });
+      mats.push({ product_id: b.component_id, qty: perUnit(b) * Number(l.qty), note: "자재 투입" });
     }
   }
   return mats;
