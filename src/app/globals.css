@@ -640,7 +640,7 @@ input, textarea, [contenteditable="true"] {
    전부 시각-only(레이아웃 ±수px) → 회귀 최소.
    ══════════════════════════════════════════════════════════════════ */
 :root { --control-h: 2.5rem; --control-h-sm: 2rem; }
-:root { --app-zoom: 1.08; } /* 앱 전체 확대 — 2026-08-26 사장님: 1.12 는 너무 커서 한 틱 내림. 조절은 이 값 하나로 */
+:root { --app-zoom: 1.05; } /* 앱 전체 확대 — 2026-08-26 사장님: 1.12 → 1.08 → 1.05(아직 커서 살짝 더). 조절은 이 값 하나로 */
 
 /* 1) 버튼 표준 높이 — 기존 py 무력화, 세로 중앙정렬은 flex 가 처리 */
 .btn-primary, .btn-secondary, .btn-ghost, .btn-danger {
