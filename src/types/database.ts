@@ -449,6 +449,8 @@ export type Database = {
           order_line_id: string | null
           product_id: string
           qty: number
+          std_qty: number | null
+          loss_reason: string | null
           unit_price: number | null
           vat_amount: number | null
           warehouse_id: string
@@ -464,6 +466,8 @@ export type Database = {
           order_line_id?: string | null
           product_id: string
           qty: number
+          std_qty?: number | null
+          loss_reason?: string | null
           unit_price?: number | null
           vat_amount?: number | null
           warehouse_id: string
@@ -479,6 +483,8 @@ export type Database = {
           order_line_id?: string | null
           product_id?: string
           qty?: number
+          std_qty?: number | null
+          loss_reason?: string | null
           unit_price?: number | null
           vat_amount?: number | null
           warehouse_id?: string

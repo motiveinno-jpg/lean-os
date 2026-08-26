@@ -37,6 +37,8 @@ export type DocRow = {
   srcLineId?: string | null;
   product_id?: string | null;
   sku: string; spec: string; qty: string; price: string; supply: string; vat: string; lnote: string;
+  /** 생산 양식 — 불량 수량(결정 28). 다른 양식에서는 비어 있다 */
+  defect: string;
   //   채널 주문 양식의 칸 — 다른 양식에서는 비어 있다
   ch: string; ono: string; ccode: string; buyer: string;
   rcv: string; tel: string; zip: string; addr: string; memo: string;   // 배송 정보 — 출고(송장)용
@@ -47,7 +49,7 @@ export type DocRow = {
 
 let K = 1;
 export const blankRow = (): DocRow => ({
-  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", ch: "", ono: "", ccode: "", buyer: "", rcv: "", tel: "", zip: "", addr: "", memo: "", flag: null, custom: {},
+  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", defect: "", ch: "", ono: "", ccode: "", buyer: "", rcv: "", tel: "", zip: "", addr: "", memo: "", flag: null, custom: {},
 });
 
 export function useDocEditor(companyId: string | null, userId: string | null, formKey: FormKey, products: Product[]) {
@@ -200,10 +202,10 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
           sku: p ? `${p.sku} ${p.name}` : "", spec: p?.spec || "",
           qty: String(l.qty), price: l.unit_price == null ? "" : String(l.unit_price),
           supply: String(l.supply_amount), vat: String(l.vat_amount),
-          lnote: l.note || "",
+          lnote: l.note || "", defect: l.custom?.defect || "",
           ch: l.custom?.ch || "", ono: l.custom?.ono || "", ccode: l.custom?.ccode || "", buyer: l.custom?.buyer || "",
           rcv: l.custom?.rcv || "", tel: l.custom?.tel || "", zip: l.custom?.zip || "", addr: l.custom?.addr || "", memo: l.custom?.memo || "",
-          custom: Object.fromEntries(Object.entries(l.custom || {}).filter(([k]) => !CH_ONLY.includes(k))),
+          custom: Object.fromEntries(Object.entries(l.custom || {}).filter(([k]) => !CH_ONLY.includes(k) && k !== "defect")),
         } as DocRow;
       }),
       blankRow(),
@@ -258,6 +260,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
         product_id: p?.id || "", qty: num(r.qty),
         unit_price: num(r.price) || (num(r.qty) ? num(r.supply) / num(r.qty) : null),
         supply_amount: num(r.supply), vat_amount: num(r.vat),
+        defect: num(r.defect),
         note: r.lnote || null, custom: customLine,
         ch: r.ch, ono: r.ono.trim(), ccode: r.ccode.trim(), buyer: r.buyer.trim(),
         rcv: r.rcv.trim(), tel: r.tel.trim(), zip: r.zip.trim(), addr: r.addr.trim(), memo: r.memo.trim(), flag: r.flag || null,
@@ -363,10 +366,10 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
 
 // ── 격자 ──────────────────────────────────────────────────────────────────────
 const W: Record<string, string> = {
-  sku: "220px", spec: "150px", qty: "64px", price: "104px", supply: "116px", vat: "104px", lnote: "170px",
+  sku: "220px", spec: "150px", qty: "64px", defect: "64px", price: "104px", supply: "116px", vat: "104px", lnote: "170px",
   ch: "138px", ono: "150px", ccode: "130px", buyer: "90px", rcv: "90px", tel: "120px", zip: "80px", addr: "240px", memo: "170px",
 };
-const NUMS = new Set(["qty", "price", "supply", "vat"]);
+const NUMS = new Set(["qty", "defect", "price", "supply", "vat"]);
 const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"]);
 //   ★ 채널에서 가져온 줄(ch 있음)은 채널이 준 값을 **고칠 수 없다**(2026-08-26 사장님 — 데이터가 틀려지는 것을 막는다).
 //     사람이 손대는 칸은 품목(연결이 없을 때 고르기)·규격·비고·직접 추가한 항목뿐이다.

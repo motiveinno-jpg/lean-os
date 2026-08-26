@@ -14,8 +14,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { PickList } from "@/components/pick-list";
-import { listOnHand, type Product } from "@/lib/inventory";
-import { listBoms, upsertBomLine, deleteBomLine, perUnit, materialShortages, type BomLine } from "@/lib/inventory-production";
+import { listOnHand, listAvgCost, type Product } from "@/lib/inventory";
+import { listBoms, upsertBomLine, deleteBomLine, perUnit, materialShortages, LOSS_REASONS, type BomLine, type MatInput } from "@/lib/inventory-production";
 import { docWon as won } from "./doc-editor";
 
 type Row = { key: number; id?: string; component_id: string; label: string; qty: string; note: string };
@@ -164,14 +164,27 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
 }
 
 /** 자재 소요 — 완제품 목록에서 하나를 누르면 그 품목의 자재만 아래에(2026-08-26 사장님: "혼재되어 보기 불편"). 과부족은 격자 전체 소요 기준. */
-export function BomNeedDialog({ companyId, warehouseId, items, products, onClose, onEdit }: {
+export function BomNeedDialog({ companyId, warehouseId, items, products, onClose, onEdit, materials, onApply }: {
   companyId: string; warehouseId: string | null;
-  items: { product_id: string; qty: number }[]; products: Product[];
+  /** qty = 양품+불량(투입 기준). defect 는 표시용 */
+  items: { product_id: string; qty: number; defect?: number }[]; products: Product[];
   onClose: () => void; onEdit?: (p: Product) => void;
+  /** 결정 29 — 실투입 편집. 없으면 읽기 전용(품목 등록 등) */
+  materials?: MatInput[] | null; onApply?: (m: MatInput[]) => void;
 }) {
   const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId), enabled: !!companyId });
   const { data: onhand = [] } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId), enabled: !!companyId });
+  const { data: avgCost = new Map<string, number>() } = useQuery({ queryKey: ["inv-avg-cost", companyId], queryFn: () => listAvgCost(companyId), enabled: !!companyId && !!onApply });
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  //   실투입 편집값 — 키 = 완제품|자재. 비어 있으면 표준. 저장된 문서를 열었을 때는 product_id 가 빈 값으로 오므로 자재만으로 맞춘다.
+  const [edit, setEdit] = useState<Map<string, { qty: string; reason: string }>>(() => {
+    const m = new Map<string, { qty: string; reason: string }>();
+    for (const x of materials || []) m.set(`${x.product_id}|${x.component_id}`, { qty: String(x.qty), reason: x.loss_reason || "" });
+    return m;
+  });
+  const editOf = (pid: string, cid: string) => edit.get(`${pid}|${cid}`) || edit.get(`|${cid}`) || null;
+  const setE = (pid: string, cid: string, v: Partial<{ qty: string; reason: string }>, std: number) =>
+    setEdit((m) => { const n = new Map(m); const cur = n.get(`${pid}|${cid}`) || editOf(pid, cid) || { qty: String(std), reason: "" }; n.delete(`|${cid}`); n.set(`${pid}|${cid}`, { ...cur, ...v }); return n; });
   const have = useMemo(() => {
     const m = new Map<string, number>();
     for (const o of onhand) if (!warehouseId || o.warehouse_id === warehouseId) m.set(o.product_id, (m.get(o.product_id) || 0) + Number(o.qty));
@@ -197,8 +210,22 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
   const cur = grouped.find((g) => g.product.id === sel) || grouped[0];
   const rows = cur ? cur.lines.map((b) => {
     const c = byId.get(b.component_id); const mine = perUnit(b) * cur.qty; const all = totalNeed.get(b.component_id) || 0; const h = have.get(b.component_id) || 0;
-    return { c, b, mine, all, have: h, short: h < all };
+    const e = editOf(cur.product.id, b.component_id); const actual = e && e.qty !== "" ? num(e.qty) : mine;
+    return { c, b, mine, all, have: h, short: h < all, actual, loss: actual - mine, reason: e?.reason || "" };
   }).sort((a, b) => (a.have - a.all) - (b.have - b.all)) : [];
+  //   결정 31 — 단가 제안 = 실투입 자재비(이동평균, 없으면 매입가) ÷ (양품+불량)
+  const costOf = (id: string) => avgCost.get(id) ?? Number(byId.get(id)?.cost_price || 0);
+  const suggestCost = cur && cur.qty > 0 ? rows.reduce((n, x) => n + x.actual * costOf(x.b.component_id), 0) / cur.qty : 0;
+  const defectOf = (pid: string) => items.filter((i) => i.product_id === pid).reduce((n, i) => n + Number(i.defect || 0), 0);
+  const apply = () => {
+    if (!onApply) return;
+    const out: MatInput[] = [];
+    for (const g of grouped) for (const b of g.lines) {
+      const std = perUnit(b) * g.qty; const e = editOf(g.product.id, b.component_id);
+      out.push({ product_id: g.product.id, component_id: b.component_id, qty: e && e.qty !== "" ? num(e.qty) : std, std_qty: std, loss_reason: e?.reason || null });
+    }
+    onApply(out); onClose();
+  };
   const totalShort = [...totalNeed.entries()].filter(([id, n]) => (have.get(id) || 0) < n).length;
   return (
     <div className="inv-modal" onClick={onClose}>
@@ -224,12 +251,21 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
             ) : (
               <div className="stg-table-wrap ch-ship-list">
                 <table className="ev-table ev-lined table-inv-status-sm">
-                  <thead><tr><th>자재</th><th>{cur.lines[0].base_qty !== 1 ? `${won(cur.lines[0].base_qty)}개당` : "1개당"}</th><th>이 품목 소요량</th><th>전체 소요량</th><th>현재고</th><th>과부족</th><th>상태</th></tr></thead>
+                  <thead><tr><th>자재</th><th>{cur.lines[0].base_qty !== 1 ? `${won(cur.lines[0].base_qty)}개당` : "1개당"}</th><th>표준 소요</th>{onApply && <><th>실투입</th><th>로스</th><th>원인</th></>}<th>전체 소요량</th><th>현재고</th><th>과부족</th><th>상태</th></tr></thead>
                   <tbody>{rows.map((x) => (
                     <tr key={x.b.id} className={x.short ? "inv-row-fix" : undefined}>
                       <td className="text-left"><b>{x.c?.name || "?"}</b> <span className="ev-dim">{x.c?.sku}</span></td>
                       <td className="tr mono-number ev-dim">{won(x.b.qty)}</td>
                       <td className="tr mono-number">{won(x.mine)}</td>
+                      {onApply && (<>
+                        <td className="num"><input className="doc-in inv-count-input" inputMode="decimal" value={editOf(cur.product.id, x.b.component_id)?.qty ?? String(x.mine)}
+                          onChange={(e) => setE(cur.product.id, x.b.component_id, { qty: e.target.value }, x.mine)} /></td>
+                        <td className={`tr mono-number${x.loss > 0 ? " inv-diff-minus" : x.loss < 0 ? " inv-diff-plus" : ""}`}>{x.loss === 0 ? "—" : `${x.loss > 0 ? "+" : ""}${won(x.loss)}`}</td>
+                        <td className="tc">{x.loss !== 0 ? (
+                          <select className="field-input inv-loss-reason" value={x.reason} onChange={(e) => setE(cur.product.id, x.b.component_id, { reason: e.target.value }, x.mine)}>
+                            <option value="">원인</option>{LOSS_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                          </select>) : <span className="ev-dim">—</span>}</td>
+                      </>)}
                       <td className="tr mono-number">{won(x.all)}</td>
                       <td className="tr mono-number">{won(x.have)}</td>
                       <td className="tr mono-number">{x.have - x.all >= 0 ? `+${won(x.have - x.all)}` : won(x.have - x.all)}</td>
@@ -239,12 +275,22 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
                 </table>
               </div>
             ))}
+            {onApply && cur && cur.lines.length > 0 && (
+              <div className="inv-bom-base">
+                <span className="field-label">단가 제안</span>
+                <span><b className="mono-number">₩{won(Math.round(suggestCost))}</b> = 실투입 자재비 ÷ (양품 {won(cur.qty - defectOf(cur.product.id))} + 불량 {won(defectOf(cur.product.id))})</span>
+                <em className="inv-hint">로스는 원가에 얹히고, 불량은 폐기하는 순간 손실이 됩니다. 격자의 단가 칸에 직접 넣으세요 — 제안일 뿐 확정은 사람이 합니다.</em>
+              </div>
+            )}
             <div className="inv-modal-foot">완제품 {grouped.length}종{totalShort ? <> · <b className="inv-diff-minus">자재 부족 {totalShort}종</b> — 완성 기록 시 자재 재고가 음수가 됩니다</> : <> · 자재 모두 충분</>}</div>
           </>
         )}
         <div className="inv-modal-actions">
           <span className="doc-sums-sp" />
-          <button type="button" className="btn-primary btn-sm" onClick={onClose}>닫기</button>
+          {onApply ? (<>
+            <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
+            <button type="button" className="btn-primary btn-sm" onClick={apply} title="실투입·로스 원인을 완성 기록에 담습니다 — 저장은 격자의 완성 기록 버튼">실투입 반영</button>
+          </>) : <button type="button" className="btn-primary btn-sm" onClick={onClose}>닫기</button>}
         </div>
       </div>
     </div>
@@ -252,12 +298,12 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
 }
 
 /** 생산 조회 줄의 자재 부족 배지 — 치는 동안 계속 센다. 부족이 없으면 아무것도 안 그린다. */
-export function MaterialShortBadge({ ctl, onOpen }: { ctl: { companyId: string | null; live: { product_id?: string | null; qty: string }[]; head: Record<string, string> }; onOpen: () => void }) {
+export function MaterialShortBadge({ ctl, onOpen }: { ctl: { companyId: string | null; live: { product_id?: string | null; qty: string; defect?: string }[]; head: Record<string, string> }; onOpen: () => void }) {
   const companyId = ctl.companyId;
   const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId!), enabled: !!companyId });
   const { data: onhand = [] } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId!), enabled: !!companyId });
   const short = useMemo(() => materialShortages(
-    ctl.live.filter((r) => r.product_id).map((r) => ({ product_id: r.product_id!, qty: num(r.qty) })), boms, onhand, ctl.head.wh || null,
+    ctl.live.filter((r) => r.product_id).map((r) => ({ product_id: r.product_id!, qty: num(r.qty) + num(r.defect || "") })), boms, onhand, ctl.head.wh || null,
   ), [ctl.live, boms, onhand, ctl.head.wh]);
   if (!short.length) return null;
   return <button type="button" className="btn-secondary btn-sm inv-short-badge" onClick={onOpen} title="누르면 어떤 자재가 얼마나 모자라는지 보입니다">자재 부족 {short.length}종</button>;

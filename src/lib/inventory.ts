@@ -93,6 +93,19 @@ export async function listWarehouses(companyId: string): Promise<Warehouse[]> {
   return (data || []) as Warehouse[];
 }
 
+/** 불량 보류 창고 (결정 30, 2026-08-26) — 불량은 재고지만 팔 수 있는 재고와 섞지 않는다. 회사마다 하나, 처음 불량이 날 때 만든다. */
+export const DEFECT_WAREHOUSE_CODE = "DEFECT";
+export async function ensureDefectWarehouse(companyId: string): Promise<Warehouse> {
+  const list = await listWarehouses(companyId);
+  const hit = list.find((w) => w.code === DEFECT_WAREHOUSE_CODE);
+  if (hit) return hit;
+  const { data, error } = await supabase.from("warehouses")
+    .insert({ company_id: companyId, name: "불량 보류", code: DEFECT_WAREHOUSE_CODE, is_default: false })
+    .select("id, name, code, is_default, is_active").single();
+  if (error) throw error;
+  return data as Warehouse;
+}
+
 /** 창고가 하나도 없으면 '본사창고'를 만들어 준다 — 첫 입고에서 고를 것이 없으면 진도가 안 나간다. */
 export async function ensureDefaultWarehouse(companyId: string): Promise<Warehouse | null> {
   const list = await listWarehouses(companyId);
@@ -131,6 +144,8 @@ export async function listOnHand(companyId: string): Promise<OnHand[]> {
 // ── 움직임 문서 ──────────────────────────────────────────────────────────────
 export type MoveLine = {
   product_id: string; qty: number; unit_price?: number | null; note?: string | null;
+  //   결정 29·30 (2026-08-26) — 자재 투입 줄의 표준 투입(로스 = qty − std_qty)과 원인, 그리고 줄 단위 창고(불량은 '불량 보류' 창고로)
+  std_qty?: number | null; loss_reason?: string | null; warehouseId?: string | null;
   //   2단계 — 이 줄이 어느 주문 줄을 채우는가(결정 12). 비워 두면 '바로 출고'다.
   order_line_id?: string | null;
   //   주문서에서 불러온 줄이면 그 줄을 가리킨다(하나로 모았다 — 판매·구매·생산이 같은 표를 쓴다)
@@ -220,7 +235,8 @@ export async function createStockDoc(
     const signed = raw * def.sign;
     rows.push({
       company_id: companyId, doc_id: docId, product_id: l.product_id,
-      warehouse_id: input.warehouseId, qty: signed,
+      warehouse_id: l.warehouseId || input.warehouseId, qty: signed,
+      std_qty: l.std_qty == null ? null : Number(l.std_qty) * def.sign, loss_reason: l.loss_reason || null,
       order_line_id: l.order_line_id ?? null,
       vat_amount: l.vat_amount ?? null,
       unit_price: l.unit_price ?? null,
@@ -446,7 +462,8 @@ export async function updateStockDoc(
     const signed = raw * def.sign;
     return {
       company_id: companyId, doc_id: docId, product_id: l.product_id,
-      warehouse_id: input.warehouseId, qty: signed,
+      warehouse_id: l.warehouseId || input.warehouseId, qty: signed,
+      std_qty: l.std_qty == null ? null : Number(l.std_qty) * def.sign, loss_reason: l.loss_reason || null,
       order_line_id: l.order_line_id ?? null,
       vat_amount: l.vat_amount ?? null,
       unit_price: l.unit_price ?? null,
@@ -465,7 +482,7 @@ export async function getStockDoc(docId: string) {
     .select("id, doc_no, kind, reason, doc_date, partner_id, warehouse_id, order_id, note")
     .eq("id", docId).single();
   const data = logRead("inventory:doc-moves", await supabase
-    .from("stock_moves").select("id, product_id, qty, unit_price, vat_amount, note, order_line_id")
+    .from("stock_moves").select("id, product_id, qty, unit_price, vat_amount, note, order_line_id, warehouse_id, std_qty, loss_reason")
     .eq("doc_id", docId).order("created_at"));
   return {
     doc: doc as any,

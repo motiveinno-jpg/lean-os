@@ -9,7 +9,7 @@
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { todayKst } from "@/lib/kst";
-import { createStockDoc, updateStockDoc, cancelStockDoc, type MoveLine } from "@/lib/inventory";
+import { createStockDoc, updateStockDoc, cancelStockDoc, type MoveLine, ensureDefectWarehouse } from "@/lib/inventory";
 
 export type BomLine = {
   id: string; product_id: string; component_id: string; qty: number; note: string | null;
@@ -29,6 +29,34 @@ export function materialShortages(
 }
 /** 완제품 1개당 소요량 */
 export const perUnit = (b: BomLine) => b.qty / (b.base_qty > 0 ? b.base_qty : 1);
+
+// ── 로스·불량 (결정 28~31, 2026-08-26 사장님 "추천대로") ──────────────────────
+//   ★ 완성 기록은 세 숫자 — 투입 기준(=양품+불량)·양품·불량. 자재 표준 = BOM × 투입 기준.
+//   ★ 로스 = 실투입 − 표준. 별도 문서 없이 자재 투입 줄에 std_qty 로 남는다. 원인은 넷으로 고정.
+//   ★ 불량은 '불량 보류' 창고로 입고(재고는 사실이다). 처분(재작업·폐기·B급 판매)은 나중에 사람이.
+//   ★ 원가 제안 = 실투입 자재비 ÷ (양품+불량). 로스는 원가에, 불량은 폐기 때 손실로.
+export const LOSS_REASONS = [
+  { value: "spill", label: "흘림" }, { value: "scrap", label: "자투리" },
+  { value: "bad_material", label: "불량 자재" }, { value: "other", label: "기타" },
+] as const;
+export const lossReasonLabel = (v: string | null | undefined) => LOSS_REASONS.find((r) => r.value === v)?.label ?? "";
+/** 사람이 고친 실투입 — 완제품별·자재별. qty 가 실투입, std_qty 가 표준. */
+export type MatInput = { product_id: string; component_id: string; qty: number; std_qty: number; loss_reason?: string | null };
+export type ProduceLine = {
+  product_id: string; qty: number; defect_qty?: number | null; unit_price?: number | null; vat_amount?: number | null;
+  note?: string | null; order_line_id?: string | null;
+};
+const totalQty = (l: { qty: number; defect_qty?: number | null }) => Number(l.qty) + Number(l.defect_qty || 0);
+/** 표준 자재 소요 — 완제품 줄(양품+불량) × 자재구성. 실투입 입력(materials)이 있으면 그것이 이긴다. */
+export function standardMaterials(lines: ProduceLine[], bomLines: BomLine[]): MatInput[] {
+  const out: MatInput[] = [];
+  for (const l of lines) for (const b of bomLines) {
+    if (b.product_id !== l.product_id || !(b.qty > 0)) continue;
+    const std = perUnit(b) * totalQty(l);
+    out.push({ product_id: l.product_id, component_id: b.component_id, qty: std, std_qty: std });
+  }
+  return out;
+}
 // ── 자재구성 ──────────────────────────────────────────────────────────────────
 export async function listBoms(companyId: string): Promise<BomLine[]> {
   if (!companyId) return [];
@@ -65,35 +93,26 @@ export async function produceLines(
   companyId: string,
   input: {
     docDate?: string; warehouseId: string; note?: string | null; orderId?: string | null;
-    lines: { product_id: string; qty: number; unit_price?: number | null; vat_amount?: number | null;
-             note?: string | null; order_line_id?: string | null }[];
+    lines: ProduceLine[];
+    /** 사람이 고친 실투입(자재 소요 팝업). 없으면 표준(BOM × 양품+불량) */
+    materials?: MatInput[] | null;
   },
   bomLines: BomLine[],
   userId?: string | null,
 ) {
-  const use = input.lines.filter((l) => l.product_id && Number(l.qty) !== 0);
+  const use = input.lines.filter((l) => l.product_id && totalQty(l) !== 0);
   if (!use.length) throw new Error("완성 수량이 입력되지 않았습니다");
   const docDate = input.docDate || todayKst();
 
-  //   ① 완제품 — 이게 결과다
+  //   ① 완제품 — 이게 결과다. 양품은 고른 창고, 불량은 불량 보류 창고(결정 30). 단가는 둘 다 같다(결정 31).
   const prod = await createStockDoc(companyId, {
     reason: "produce", docDate, warehouseId: input.warehouseId,
     orderId: input.orderId || null, note: input.note ?? null,
-    lines: use.map((l) => ({
-      product_id: l.product_id, qty: Number(l.qty),
-      unit_price: l.unit_price ?? null, vat_amount: l.vat_amount ?? null,
-      note: l.note ?? null, order_line_id: l.order_line_id ?? null,
-    })),
+    lines: await prodLinesOf(companyId, use),
   }, userId);
 
   //   ② 자재 — 자재구성이 있는 줄만. 완제품이 음수(되돌림)면 자재도 반대로 돌아온다.
-  const mats: MoveLine[] = [];
-  for (const l of use) {
-    for (const b of bomLines) {
-      if (b.product_id !== l.product_id || !(b.qty > 0)) continue;
-      mats.push({ product_id: b.component_id, qty: perUnit(b) * Number(l.qty), note: "자재 투입" });
-    }
-  }
+  const mats = matLinesOf(use, bomLines, input.materials);
 
   let matDocNo: string | null = null;
   if (mats.length) {
@@ -121,17 +140,42 @@ async function findMatDoc(prodDocId: string): Promise<string | null> {
   return (data as { id: string } | null)?.id ?? null;
 }
 
-function matLinesOf(
-  lines: { product_id: string; qty: number }[], bomLines: BomLine[],
-): MoveLine[] {
-  const mats: MoveLine[] = [];
+function matLinesOf(lines: ProduceLine[], bomLines: BomLine[], materials?: MatInput[] | null): MoveLine[] {
+  //   실투입이 들어왔으면 격자에 남아 있는 완제품의 것만 쓴다(지운 줄의 자재는 버린다). 표준은 언제나 다시 센다 — 수량이 바뀌었을 수 있다.
+  const std = standardMaterials(lines, bomLines);
+  const alive = new Set(lines.map((l) => l.product_id));
+  const edited = new Map((materials || []).filter((m) => alive.has(m.product_id)).map((m) => [`${m.product_id}|${m.component_id}`, m]));
+  return std.map((s) => {
+    const e = edited.get(`${s.product_id}|${s.component_id}`);
+    const qty = e ? Number(e.qty) : s.std_qty;
+    const loss = qty - s.std_qty;
+    return {
+      product_id: s.component_id, qty, std_qty: s.std_qty, loss_reason: loss !== 0 ? (e?.loss_reason || "other") : null,
+      note: loss !== 0 ? `자재 투입 · 로스 ${loss > 0 ? "+" : ""}${Math.round(loss * 1000) / 1000}${e?.loss_reason ? ` (${lossReasonLabel(e.loss_reason)})` : ""}` : "자재 투입",
+    };
+  }).filter((m) => m.qty !== 0);
+}
+
+/** 완제품 줄 → 문서 줄. 불량이 있으면 그 수량은 불량 보류 창고로 한 줄 더(같은 단가). */
+async function prodLinesOf(companyId: string, lines: ProduceLine[]): Promise<MoveLine[]> {
+  const anyDefect = lines.some((l) => Number(l.defect_qty || 0) !== 0);
+  const defectWh = anyDefect ? (await ensureDefectWarehouse(companyId)).id : null;
+  const out: MoveLine[] = [];
   for (const l of lines) {
-    for (const b of bomLines) {
-      if (b.product_id !== l.product_id || !(b.qty > 0)) continue;
-      mats.push({ product_id: b.component_id, qty: perUnit(b) * Number(l.qty), note: "자재 투입" });
-    }
+    const base = { product_id: l.product_id, unit_price: l.unit_price ?? null, vat_amount: l.vat_amount ?? null, order_line_id: l.order_line_id ?? null };
+    if (Number(l.qty) !== 0) out.push({ ...base, qty: Number(l.qty), note: l.note ?? null });
+    if (Number(l.defect_qty || 0) !== 0) out.push({ ...base, qty: Number(l.defect_qty), warehouseId: defectWh, note: `불량${l.note ? ` · ${l.note}` : ""}` });
   }
-  return mats;
+  return out;
+}
+
+/** 저장된 완제품 문서의 자재 투입 줄(실투입·표준·원인) — 고칠 때 팝업 초기값 */
+export async function getProduceMaterials(prodDocId: string): Promise<MatInput[]> {
+  const matId = await findMatDoc(prodDocId);
+  if (!matId) return [];
+  const { data } = await supabase.from("stock_moves").select("product_id, qty, std_qty, loss_reason, note").eq("doc_id", matId);
+  //   자재 줄에는 완제품이 안 적혀 있다 — 같은 자재를 여러 완제품이 쓰는 경우는 첫 완제품에 붙인다(Phase 1 한계, 팝업에서 다시 고칠 수 있다)
+  return ((data || []) as any[]).map((m) => ({ product_id: "", component_id: m.product_id, qty: Math.abs(Number(m.qty || 0)), std_qty: m.std_qty == null ? Math.abs(Number(m.qty || 0)) : Math.abs(Number(m.std_qty)), loss_reason: m.loss_reason || null }));
 }
 
 /**
@@ -141,21 +185,16 @@ function matLinesOf(
  */
 export async function updateProduceDoc(
   companyId: string, prodDocId: string,
-  input: { docDate?: string; warehouseId: string; note?: string | null;
-           lines: { product_id: string; qty: number; unit_price?: number | null; vat_amount?: number | null;
-                    note?: string | null; order_line_id?: string | null }[] },
+  input: { docDate?: string; warehouseId: string; note?: string | null; lines: ProduceLine[]; materials?: MatInput[] | null },
   bomLines: BomLine[], userId?: string | null,
 ) {
   const docDate = input.docDate || todayKst();
   const r = await updateStockDoc(companyId, prodDocId, {
     reason: "produce", docDate, warehouseId: input.warehouseId, note: input.note ?? null,
-    lines: input.lines.map((l) => ({
-      product_id: l.product_id, qty: Number(l.qty), unit_price: l.unit_price ?? null,
-      vat_amount: l.vat_amount ?? null, note: l.note ?? null, order_line_id: l.order_line_id ?? null,
-    })),
+    lines: await prodLinesOf(companyId, input.lines),
   }, userId);
 
-  const mats = matLinesOf(input.lines, bomLines);
+  const mats = matLinesOf(input.lines, bomLines, input.materials);
   const matId = await findMatDoc(prodDocId);
   let matDocNo: string | null = null;
   if (mats.length) {

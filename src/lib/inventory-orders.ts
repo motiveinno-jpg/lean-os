@@ -43,6 +43,8 @@ function baseLine(): Field[] {
     { field_id: "sku",    name: "품목",     on: true,  custom: false, lock: true, why: "거래할 품목" },
     { field_id: "spec",   name: "규격",     on: true,  custom: false, why: "품목 정보에서 자동 입력" },
     { field_id: "qty",    name: "수량",     on: true,  custom: false, lock: true, why: "거래 수량" },
+    //   생산 양식에만 — 만들었지만 팔 수 없는 수량. 불량 보류 창고로 들어간다(결정 28·30, 2026-08-26)
+    { field_id: "defect", name: "불량",     on: true,  custom: false, why: "만들었지만 팔 수 없는 수량 — 불량 보류 창고로 들어갑니다. 자재는 양품+불량 기준으로 나갑니다" },
     { field_id: "price",  name: "단가",     on: false, custom: false, why: "수량과 공급가액으로 자동 계산" },
     { field_id: "supply", name: "공급가액", on: true,  custom: false, lock: true, why: "세금 전 금액" },
     { field_id: "vat",    name: "부가세",   on: true,  custom: false, why: "공급가액의 10% 자동 계산" },
@@ -63,6 +65,8 @@ function baseLine(): Field[] {
 //   양식마다 처음부터 조금 다르다 — 같은 화면이 아니라는 것이 눈에 보이게
 /** 채널 주문 양식에만 있는 줄 칸 */
 export const CH_ONLY = ["ch", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"];
+/** 생산 양식에만 있는 줄 칸 */
+export const MAKE_ONLY = ["defect"];
 
 export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   const head = baseHead(), line = baseLine();
@@ -74,16 +78,21 @@ export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   if (form === "buy") { head[4].name = "입고예정일"; head[4].on = true; }
   //   ★ 생산은 **안에서 만드는 일**이라 거래처도 계산서도 없다(4단계 결정) — 칸을 꺼 둔다.
   //     쓰고 싶은 회사는 양식 고치기에서 켜면 된다.
-  if (form === "make") head[1].on = false;
+  if (form === "make") {
+    head[1].on = false;
+    const q = line.find((f) => f.field_id === "qty")!; q.name = "양품"; q.why = "팔 수 있게 완성된 수량 — 고른 창고로 들어갑니다";
+  } else {
+    for (const id of MAKE_ONLY) { const f = line.find((x) => x.field_id === id); if (f) f.on = false; }
+  }
   //   ★ 채널 주문 — 주문번호·채널 상품코드·주문자가 앞뒤에 서고 거래처는 없다(채널이 거래처다). 창고·비고는 그대로.
   if (form === "channel") {
     head[1].on = false; head[5].on = true;
     const pick = (id: string) => line.find((f) => f.field_id === id)!;
-    const rest = line.filter((f) => !CH_ONLY.includes(f.field_id));
+    const rest = line.filter((f) => !CH_ONLY.includes(f.field_id) && !MAKE_ONLY.includes(f.field_id));
     rest.find((f) => f.field_id === "price")!.on = true;
     return { head, line: [pick("ch"), pick("ono"), pick("ccode"), ...rest, pick("buyer"), pick("rcv"), pick("tel"), pick("zip"), pick("addr"), pick("memo")] };
   }
-  return { head, line: line.filter((f) => !CH_ONLY.includes(f.field_id)) };
+  return { head, line: line.filter((f) => !CH_ONLY.includes(f.field_id) && (form === "make" || !MAKE_ONLY.includes(f.field_id))) };
 }
 
 export type Layout = { head: Field[]; line: Field[] };

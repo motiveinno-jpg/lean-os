@@ -8988,3 +8988,6 @@ table.table-inv-ch-ship { min-width: 1480px; }
 
 /* 권한 화면 — 합류 시 자동 부여되는 메뉴 표시 (2026-08-26) */
 .perm-default-hint { @apply ml-1 text-[10px] font-normal text-[var(--text-dim)]; }
+
+/* 자재 소요 팝업 — 로스 원인 셀렉트 (2026-08-26 결정 29) */
+.inv-loss-reason { @apply h-7 w-[92px] px-1 text-[12px]; }

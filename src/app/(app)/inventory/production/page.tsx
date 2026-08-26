@@ -12,16 +12,18 @@ import { PullOrderButton } from "../_components/pull-order";
 import {
   getStockDoc, listStockDocs, listProducts, listWarehouses,
 } from "@/lib/inventory";
-import { listBoms } from "@/lib/inventory-production";
+import { listBoms, getProduceMaterials, type MatInput } from "@/lib/inventory-production";
 import { produceLines, updateProduceDoc, cancelProduceDoc } from "@/lib/inventory-production";
 import { listOrders } from "@/lib/inventory-orders";
 import { BomNeedDialog, MaterialShortBadge } from "../_components/bom-editor";
 import { materialShortages } from "@/lib/inventory-production";
-import { listOnHand } from "@/lib/inventory";
+import { listOnHand, DEFECT_WAREHOUSE_CODE } from "@/lib/inventory";
 import type { DocCtl } from "../_components/doc-editor";
 
 export default function ProductionPage() {
   const [need, setNeed] = useState<{ ctl: DocCtl } | null>(null);
+  //   ★ 결정 29 — 자재 소요 팝업에서 고친 실투입. 저장에 실려 가고, 저장되면 비운다. 문서를 열면 그 문서의 자재 줄로 채운다.
+  const [mats, setMats] = useState<MatInput[] | null>(null);
   const qc = useQueryClient();
 
   return (
@@ -41,7 +43,8 @@ export default function ProductionPage() {
         saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
         headNote={
           <span className="inv-hint doc-note-move">
-            저장하면 <b>자재가 차감되고 완제품이 증가합니다</b> — 자재는 <b>자재구성</b>에 따릅니다.
+            저장하면 <b>자재가 차감되고 완제품이 증가합니다</b> — 자재는 <b>자재구성</b> × (양품+불량). <b>불량</b>은 불량 보류 창고로 들어갑니다.
+            {mats && <> · <b>실투입 반영됨</b> (자재 소요에서 고침)</>}
           </span>
         }
         onSave={async ({ built, ctl, editingId }) => {
@@ -53,17 +56,19 @@ export default function ProductionPage() {
             const r = await updateProduceDoc(ctl.companyId!, editingId, {
               docDate: built.date, warehouseId: wh, note: built.head.note || null,
               lines: built.lines.map((l) => ({
-                product_id: l.product_id, qty: l.qty, unit_price: l.unit_price,
+                product_id: l.product_id, qty: l.qty, defect_qty: l.defect, unit_price: l.unit_price,
                 vat_amount: l.vat_amount, note: l.note, order_line_id: l.srcLineId,
               })),
+              materials: mats,
             }, boms0, ctl.userId);
+            setMats(null);
             qc.invalidateQueries({ queryKey: ["inv-onhand", ctl.companyId] });
             return r.matDocNo ? `${r.prodDocNo} · 자재 ${r.matDocNo} 을 수정했습니다` : `${r.prodDocNo} 을 수정했습니다`;
           }
           const boms = await listBoms(ctl.companyId!);
           //   ★ 저장 직전 자재 부족 확인 — 제안은 자동, 확정은 사람. 모자라도 기록할 수는 있지만(실물이 먼저 들어온 경우) 알고 눌러야 한다.
           const onhand = await listOnHand(ctl.companyId!);
-          const short = materialShortages(built.lines.map((l) => ({ product_id: l.product_id, qty: l.qty })), boms, onhand, wh);
+          const short = materialShortages(built.lines.map((l) => ({ product_id: l.product_id, qty: l.qty + l.defect })), boms, onhand, wh);
           if (short.length) {
             const nameOf = new Map(ctl.products.map((p) => [p.id, p.name]));
             const msg = `자재가 부족합니다:\n${short.map((x) => `- ${nameOf.get(x.component_id) || "?"}: 소요 ${x.need} · 현재고 ${x.have} (부족 ${x.need - x.have})`).join("\n")}\n\n그래도 완성 기록할까요? 자재 재고가 음수가 됩니다.`;
@@ -72,10 +77,12 @@ export default function ProductionPage() {
           const r = await produceLines(ctl.companyId!, {
             docDate: built.date, warehouseId: wh, note: built.head.note || null,
             lines: built.lines.map((l) => ({
-              product_id: l.product_id, qty: l.qty, unit_price: l.unit_price,
+              product_id: l.product_id, qty: l.qty, defect_qty: l.defect, unit_price: l.unit_price,
               vat_amount: l.vat_amount, note: l.note, order_line_id: l.srcLineId,
             })),
+            materials: mats,
           }, boms, ctl.userId);
+          setMats(null);
           qc.invalidateQueries({ queryKey: ["inv-onhand", ctl.companyId] });
           return r.matDocNo
             ? `${r.prodDocNo} · 자재 ${r.matDocNo} 로 기록했습니다`
@@ -98,19 +105,30 @@ export default function ProductionPage() {
           }));
         }}
         onOpen={async ({ id, ctl }) => {
-          const { doc, moves } = await getStockDoc(id);
+          const [{ doc, moves }, whs, saved] = await Promise.all([getStockDoc(id), listWarehouses(ctl.companyId!), getProduceMaterials(id)]);
+          const defectWh = whs.find((w) => w.code === DEFECT_WAREHOUSE_CODE)?.id || null;
+          //   ★ 불량 줄(불량 보류 창고)은 같은 품목의 양품 줄에 '불량' 칸으로 합쳐 보인다(결정 28) — 저장할 때 다시 두 줄로 갈린다
+          const merged: any[] = [];
+          for (const m of moves as any[]) {
+            const isDefect = !!defectWh && m.warehouse_id === defectWh;
+            let row = merged.find((r) => r.product_id === m.product_id);
+            if (!row) { row = { id: m.id, product_id: m.product_id, qty: 0, defect: 0, unit_price: m.unit_price, vat_amount: 0, note: null }; merged.push(row); }
+            if (isDefect) row.defect += Math.abs(m.qty); else { row.qty += Math.abs(m.qty); row.note = m.note; row.id = m.id; }
+            row.vat_amount += Math.abs(Number(m.vat_amount || 0));
+          }
+          setMats(saved.length ? saved : null);
           ctl.loadDoc(
             {
               id: doc.id, order_no: doc.doc_no, order_date: doc.doc_date, due_date: null,
               partner_id: null, partner_name: null, warehouse_id: doc.warehouse_id,
               status: doc.status === "cancelled" ? "cancelled" : "open", note: doc.note, custom: {}, created_at: "",
             },
-            moves.map((m: any, i: number) => ({
-              id: m.id, order_id: id, product_id: m.product_id, qty: Math.abs(m.qty),
+            merged.map((m, i) => ({
+              id: m.id, order_id: id, product_id: m.product_id, qty: m.qty,
               unit_price: m.unit_price,
-              supply_amount: Math.abs(Number(m.unit_price || 0) * m.qty),
-              vat_amount: Math.abs(Number(m.vat_amount || 0)),
-              note: m.note, custom: {}, sort_no: i,
+              supply_amount: Math.abs(Number(m.unit_price || 0) * (m.qty + m.defect)),
+              vat_amount: m.vat_amount,
+              note: m.note, custom: (m.defect ? { defect: String(m.defect) } : {}) as Record<string, string>, sort_no: i,
             })),
           );
         }}
@@ -118,8 +136,9 @@ export default function ProductionPage() {
       />
       {need && need.ctl.companyId && (
         <BomNeedDialog companyId={need.ctl.companyId} warehouseId={need.ctl.head.wh || null}
-          items={need.ctl.build().lines.map((l) => ({ product_id: l.product_id, qty: l.qty }))}
+          items={need.ctl.build().lines.map((l) => ({ product_id: l.product_id, qty: l.qty + l.defect, defect: l.defect }))}
           products={need.ctl.products}
+          materials={mats} onApply={setMats}
           onClose={() => setNeed(null)} />
       )}
     </>
