@@ -33,7 +33,7 @@ export type ChannelCode = {
 export type OrderImport = {
   id: string; channel: string; channel_order_no: string; order_date: string | null;
   buyer_name: string | null; amount: number | null; doc_id: string | null; imported_at: string;
-  recipient_name: string | null; recipient_phone: string | null; address: string | null; shipping_note: string | null;
+  recipient_name: string | null; recipient_phone: string | null; address: string | null; shipping_note: string | null; recipient_zip: string | null;
   ship_status: ShipStatus; carrier: string | null; tracking_no: string | null; shipped_at: string | null; delivered_at: string | null;
 };
 export type ShipStatus = "pending" | "shipped" | "done";
@@ -82,7 +82,7 @@ export async function listImports(companyId: string, limit = 500): Promise<Order
   if (!companyId) return [];
   const data = logRead("inventory:channel-imports", await supabase
     .from("channel_order_imports")
-    .select("id, channel, channel_order_no, order_date, buyer_name, amount, doc_id, imported_at, recipient_name, recipient_phone, address, shipping_note, ship_status, carrier, tracking_no, shipped_at, delivered_at")
+    .select("id, channel, channel_order_no, order_date, buyer_name, amount, doc_id, imported_at, recipient_name, recipient_phone, address, shipping_note, recipient_zip, ship_status, carrier, tracking_no, shipped_at, delivered_at")
     .eq("company_id", companyId).order("imported_at", { ascending: false }).limit(limit));
   return ((data || []) as any[]).map((r) => ({ ...r, amount: r.amount == null ? null : Number(r.amount) })) as OrderImport[];
 }
@@ -99,6 +99,7 @@ export type RawOrderRow = {
   recipient_phone?: string | null;
   address?: string | null;
   shipping_note?: string | null;
+  recipient_zip?: string | null;
 };
 
 export type ResolvedRow = RawOrderRow & {
@@ -214,7 +215,7 @@ export async function listSeenOrderNos(companyId: string, channel: string, order
 export type ChannelDocLine = {
   product_id: string; qty: number; unit_price: number | null; vat_amount: number | null;
   channel_order_no: string; channel_product_id: string; buyer_name: string | null; order_date?: string | null;
-  recipient_name?: string | null; recipient_phone?: string | null; address?: string | null; shipping_note?: string | null;
+  recipient_name?: string | null; recipient_phone?: string | null; address?: string | null; shipping_note?: string | null; recipient_zip?: string | null;
 };
 
 /**
@@ -254,7 +255,7 @@ export async function importChannelDoc(
       company_id: companyId, channel, channel_order_no: no,
       order_date: r.order_date || docDate, buyer_name: r.buyer_name || null,
       recipient_name: r.recipient_name || null, recipient_phone: r.recipient_phone || null,
-      address: r.address || null, shipping_note: r.shipping_note || null,
+      address: r.address || null, shipping_note: r.shipping_note || null, recipient_zip: r.recipient_zip || null,
       amount: amount.get(no) || null, doc_id: doc.id, imported_by: userId ?? null,
     })),
   );
@@ -321,5 +322,81 @@ export async function listImportItems(
       out.set(key, [...(out.get(key) || []), { name: nameOf.get(m.product_id) || "?", qty: Math.abs(Number(m.qty || 0)) }]);
     }
   }
+  return out;
+}
+
+
+// ── 택배 송장 양식 (2026-08-26 사장님 지시 — "택배사가 다양하니 모든 택배사 양식을 고를 수 있게") ─────
+//   ① 표준 양식: 주요 택배사 일괄등록 엑셀의 열 순서를 시작점으로 둔다. ⚠ 택배사가 양식을 바꾸기도 하므로
+//      처음 한 번 택배사 프로그램에 올려 보고, 안 맞으면 '내 양식'으로 복사해 열을 고친다.
+//   ② 내 양식: 회사가 열을 고르고 순서·머리글을 정해 저장(shipping_sheet_layouts). 어느 택배사든 대응.
+export type SheetKey = "order_no" | "channel" | "recipient" | "phone" | "phone2" | "zip" | "address" | "product" | "qty"
+  | "memo" | "buyer" | "buyer_phone" | "order_date" | "amount" | "box" | "blank";
+export const SHEET_FIELDS: { key: SheetKey; label: string; desc?: string }[] = [
+  { key: "order_no", label: "주문번호" }, { key: "channel", label: "채널" },
+  { key: "recipient", label: "수취인" }, { key: "phone", label: "수취인 연락처" }, { key: "phone2", label: "기타 연락처", desc: "없으면 수취인 연락처를 다시 씁니다" },
+  { key: "zip", label: "우편번호" }, { key: "address", label: "주소" },
+  { key: "product", label: "상품", desc: "여러 상품이면 쉼표로 이어 씁니다" }, { key: "qty", label: "수량", desc: "상품 수량 합" }, { key: "box", label: "박스 수량", desc: "항상 1" },
+  { key: "memo", label: "배송 메시지" }, { key: "buyer", label: "주문자" }, { key: "buyer_phone", label: "주문자 연락처", desc: "채널이 안 주면 수취인 연락처" },
+  { key: "order_date", label: "주문일" }, { key: "amount", label: "금액" }, { key: "blank", label: "(빈 칸)", desc: "양식의 자리 맞춤용" },
+];
+export type SheetColumn = { key: SheetKey; label: string };
+export type SheetLayout = { id: string; name: string; columns: SheetColumn[]; builtin?: boolean };
+const C = (key: SheetKey, label: string): SheetColumn => ({ key, label });
+export const CARRIER_SHEETS: SheetLayout[] = [
+  { id: "std", name: "공통 (오너뷰 기본)", builtin: true, columns: [C("order_no", "주문번호"), C("channel", "채널"), C("recipient", "수취인"), C("phone", "연락처"), C("zip", "우편번호"), C("address", "주소"), C("product", "상품"), C("qty", "수량"), C("memo", "배송 메시지"), C("buyer", "주문자"), C("order_date", "주문일")] },
+  { id: "cj", name: "CJ대한통운 (일괄등록)", builtin: true, columns: [C("recipient", "받는분성명"), C("phone", "받는분전화번호"), C("phone2", "받는분기타연락처"), C("zip", "받는분우편번호"), C("address", "받는분주소(전체, 분할)"), C("product", "품목명"), C("box", "박스수량"), C("memo", "배송메세지1"), C("order_no", "주문번호")] },
+  { id: "hanjin", name: "한진택배 (엑셀 업로드)", builtin: true, columns: [C("order_no", "주문번호"), C("recipient", "수하인명"), C("phone", "수하인전화"), C("phone2", "수하인핸드폰"), C("zip", "수하인우편번호"), C("address", "수하인주소"), C("product", "상품명"), C("qty", "수량"), C("memo", "배송메세지")] },
+  { id: "lotte", name: "롯데택배 (엑셀 업로드)", builtin: true, columns: [C("order_no", "주문번호"), C("recipient", "받는분"), C("phone", "받는분 전화"), C("phone2", "받는분 핸드폰"), C("zip", "받는분 우편번호"), C("address", "받는분 주소"), C("product", "품목명"), C("qty", "수량"), C("memo", "배송 메시지")] },
+  { id: "post", name: "우체국택배 (계약소포 엑셀)", builtin: true, columns: [C("recipient", "받는분 성명"), C("zip", "받는분 우편번호"), C("address", "받는분 주소"), C("phone", "받는분 전화번호"), C("phone2", "받는분 휴대전화"), C("memo", "배송 메시지"), C("product", "내용품"), C("qty", "수량"), C("order_no", "주문번호")] },
+  { id: "logen", name: "로젠택배 (엑셀 등록)", builtin: true, columns: [C("order_no", "주문번호"), C("recipient", "수하인"), C("phone", "수하인 전화"), C("phone2", "수하인 휴대폰"), C("zip", "우편번호"), C("address", "수하인 주소"), C("product", "품목"), C("qty", "수량"), C("memo", "배송 메시지")] },
+  { id: "kd", name: "경동택배 (엑셀 등록)", builtin: true, columns: [C("recipient", "수하인명"), C("phone", "수하인 전화"), C("zip", "우편번호"), C("address", "수하인 주소"), C("product", "품목"), C("qty", "수량"), C("memo", "메모"), C("order_no", "주문번호")] },
+];
+
+export async function listSheetLayouts(companyId: string): Promise<SheetLayout[]> {
+  if (!companyId) return [];
+  const data = logRead("inventory:sheet-layouts", await supabase
+    .from("shipping_sheet_layouts").select("id, name, columns").eq("company_id", companyId).order("name"));
+  return ((data || []) as any[]).map((r) => ({ id: r.id, name: r.name, columns: (r.columns || []) as SheetColumn[] }));
+}
+export async function saveSheetLayout(companyId: string, layout: { id?: string; name: string; columns: SheetColumn[] }, userId?: string | null) {
+  const name = layout.name.trim();
+  if (!name) throw new Error("양식 이름을 입력하세요");
+  if (!layout.columns.length) throw new Error("열을 하나 이상 넣으세요");
+  const row = { company_id: companyId, name, columns: layout.columns, updated_at: new Date().toISOString() };
+  const { error } = layout.id
+    ? await supabase.from("shipping_sheet_layouts").update(row).eq("id", layout.id)
+    : await supabase.from("shipping_sheet_layouts").insert({ ...row, created_by: userId ?? null });
+  if (error) throw error;
+}
+export async function deleteSheetLayout(id: string) {
+  const { error } = await supabase.from("shipping_sheet_layouts").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** 주문 한 건을 양식 열에 맞춰 한 줄로 */
+export function sheetRow(i: OrderImport, items: { name: string; qty: number }[], columns: SheetColumn[]): Record<string, unknown> {
+  const val = (k: SheetKey): unknown => {
+    switch (k) {
+      case "order_no": return i.channel_order_no;
+      case "channel": return channelLabel(i.channel);
+      case "recipient": return i.recipient_name || i.buyer_name || "";
+      case "phone": return i.recipient_phone || "";
+      case "phone2": return i.recipient_phone || "";
+      case "zip": return i.recipient_zip || "";
+      case "address": return i.address || "";
+      case "product": return items.map((x) => `${x.name} ×${x.qty}`).join(", ");
+      case "qty": return items.reduce((n, x) => n + x.qty, 0);
+      case "box": return 1;
+      case "memo": return i.shipping_note || "";
+      case "buyer": return i.buyer_name || "";
+      case "buyer_phone": return i.recipient_phone || "";
+      case "order_date": return i.order_date || "";
+      case "amount": return i.amount ?? "";
+      default: return "";
+    }
+  };
+  const out: Record<string, unknown> = {};
+  columns.forEach((c, n) => { out[c.label || `열${n + 1}`] = val(c.key); });
   return out;
 }

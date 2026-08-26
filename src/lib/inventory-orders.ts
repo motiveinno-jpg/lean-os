@@ -54,6 +54,7 @@ function baseLine(): Field[] {
     { field_id: "buyer",  name: "주문자",       on: true,  custom: false, why: "채널 주문자 이름" },
     { field_id: "rcv",    name: "수취인",       on: true,  custom: false, why: "받는 사람 — 송장에 찍힙니다" },
     { field_id: "tel",    name: "연락처",       on: true,  custom: false, why: "수취인 연락처" },
+    { field_id: "zip",    name: "우편번호",     on: false, custom: false, why: "택배 양식에 우편번호 열이 있을 때 켭니다" },
     { field_id: "addr",   name: "주소",         on: true,  custom: false, why: "배송 주소" },
     { field_id: "memo",   name: "배송 요청",    on: true,  custom: false, why: "채널에서 온 배송 요청사항" },
   ];
@@ -61,7 +62,7 @@ function baseLine(): Field[] {
 
 //   양식마다 처음부터 조금 다르다 — 같은 화면이 아니라는 것이 눈에 보이게
 /** 채널 주문 양식에만 있는 줄 칸 */
-export const CH_ONLY = ["ch", "ono", "ccode", "buyer", "rcv", "tel", "addr", "memo"];
+export const CH_ONLY = ["ch", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"];
 
 export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   const head = baseHead(), line = baseLine();
@@ -80,7 +81,7 @@ export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
     const pick = (id: string) => line.find((f) => f.field_id === id)!;
     const rest = line.filter((f) => !CH_ONLY.includes(f.field_id));
     rest.find((f) => f.field_id === "price")!.on = true;
-    return { head, line: [pick("ch"), pick("ono"), pick("ccode"), ...rest, pick("buyer"), pick("rcv"), pick("tel"), pick("addr"), pick("memo")] };
+    return { head, line: [pick("ch"), pick("ono"), pick("ccode"), ...rest, pick("buyer"), pick("rcv"), pick("tel"), pick("zip"), pick("addr"), pick("memo")] };
   }
   return { head, line: line.filter((f) => !CH_ONLY.includes(f.field_id)) };
 }

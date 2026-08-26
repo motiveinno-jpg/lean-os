@@ -590,6 +590,12 @@ export type Database = {
         }
         Relationships: []
       }
+      shipping_sheet_layouts: {
+        Row: { id: string; company_id: string; name: string; columns: Json; created_by: string | null; created_at: string; updated_at: string }
+        Insert: { id?: string; company_id: string; name: string; columns?: Json; created_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { id?: string; company_id?: string; name?: string; columns?: Json; created_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       channel_order_imports: {
         Row: {
           amount: number | null
@@ -598,6 +604,7 @@ export type Database = {
           recipient_phone: string | null
           address: string | null
           shipping_note: string | null
+          recipient_zip: string | null
           ship_status: string
           carrier: string | null
           tracking_no: string | null
@@ -620,6 +627,7 @@ export type Database = {
           recipient_phone?: string | null
           address?: string | null
           shipping_note?: string | null
+          recipient_zip?: string | null
           ship_status?: string
           carrier?: string | null
           tracking_no?: string | null
@@ -642,6 +650,7 @@ export type Database = {
           recipient_phone?: string | null
           address?: string | null
           shipping_note?: string | null
+          recipient_zip?: string | null
           ship_status?: string
           carrier?: string | null
           tracking_no?: string | null

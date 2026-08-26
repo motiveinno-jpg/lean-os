@@ -8911,3 +8911,13 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 선택 바(SelectionBar)가 바닥 오른쪽 메신저 단추(.messenger-fab, right-6 · 56px)에 덮여 파란 버튼이 안 눌리던 것 —
    2026-08-26 채널 출고 처리에서 실제로 눌러 보고 잡음. 오른쪽에 단추만큼 자리를 비운다(모든 선택 바 공통). */
 .qk-selbar { padding-right: 84px; }
+
+/* 채널 › 출고 처리 › 송장 양식 (2026-08-26) */
+.ch-sheet-preview { @apply mb-3 flex flex-wrap gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-2; }
+.ch-sheet-col { @apply inline-flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1 text-[11.5px]; }
+.ch-sheet-col em { @apply not-italic text-[10px] text-[var(--text-dim)]; }
+.ch-sheet-col i { @apply not-italic text-[10px] text-[var(--text-dim)]; }
+.ch-sheet-edit { @apply mb-3 max-h-[45vh] space-y-1.5 overflow-auto; }
+.ch-sheet-row { @apply grid grid-cols-[24px_180px_1fr_auto_auto_auto] items-center gap-1.5; }
+.ch-sheet-row em { @apply not-italic text-center text-[11px] text-[var(--text-dim)]; }
+.ch-sheet-add { @apply grid-cols-[24px_1fr_auto]; }

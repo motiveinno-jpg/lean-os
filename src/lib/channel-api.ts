@@ -25,6 +25,7 @@ export type ChannelOrderRow = {
   recipient_phone: string | null;
   address: string | null;
   shipping_note: string | null;
+  recipient_zip: string | null;
 };
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -86,6 +87,7 @@ export async function naverOrders(key: string, from: string, to: string): Promis
         recipient_phone: po.shippingAddress?.tel1 || po.shippingAddress?.tel2 || null,
         address: [po.shippingAddress?.baseAddress, po.shippingAddress?.detailedAddress].filter(Boolean).join(" ") || null,
         shipping_note: po.shippingMemo || null,
+        recipient_zip: po.shippingAddress?.zipCode || null,
       });
     }
   }
@@ -132,6 +134,7 @@ export async function coupangOrders(key: string, from: string, to: string, statu
           recipient_phone: o.receiver?.receiverNumber1 || o.receiver?.safeNumber || null,
           address: [o.receiver?.addr1, o.receiver?.addr2].filter(Boolean).join(" ") || null,
           shipping_note: o.parcelPrintMessage || o.shippingRequest || null,
+          recipient_zip: o.receiver?.postCode || null,
         });
       }
     }

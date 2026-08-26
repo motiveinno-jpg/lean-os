@@ -28,6 +28,7 @@ import {
   CHANNELS, channelLabel, listChannelCodes, upsertChannelCode, deleteChannelCode,
   listImports, listSeenOrderNos, importChannelDoc, fetchChannelOrders, CHANNEL_HAS_API,
   updateShipping, listImportItems, CARRIERS, SHIP_STATUS_LABEL,
+  CARRIER_SHEETS, SHEET_FIELDS, listSheetLayouts, saveSheetLayout, deleteSheetLayout, sheetRow, type SheetLayout, type SheetColumn,
   type ChannelValue, type RawOrderRow, type ChannelCode, type OrderImport,
 } from "@/lib/inventory-channels";
 
@@ -396,6 +397,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
         if (onIds.has("tel")) r.tel = x.recipient_phone || "";
         if (onIds.has("addr")) r.addr = x.address || "";
         if (onIds.has("memo")) r.memo = x.shipping_note || "";
+        if (onIds.has("zip")) r.zip = x.recipient_zip || "";
         r.qty = String(x.qty);
         const pid = codeMap.get(`${x.channel}|${x.channel_product_id.trim().toUpperCase()}`);
         const p = pid ? byId.get(pid) : undefined;
@@ -437,7 +439,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
           ls.map((l) => ({
             product_id: l.product_id, qty: l.qty, unit_price: l.unit_price, vat_amount: l.vat_amount,
             channel_order_no: l.ono, channel_product_id: l.ccode, buyer_name: l.buyer || null,
-            recipient_name: l.rcv || null, recipient_phone: l.tel || null, address: l.addr || null, shipping_note: l.memo || null,
+            recipient_name: l.rcv || null, recipient_phone: l.tel || null, address: l.addr || null, shipping_note: l.memo || null, recipient_zip: l.zip || null,
           })), ctl.userId);
         done.push(`${channelLabel(ch)} ${r.docNo} · 주문 ${r.orders}건${r.skipped ? ` · ${r.skipped}줄 건너뜀` : ""}`);
       }
@@ -527,7 +529,7 @@ function PasteDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; ope
         unit_price: price != null && !Number.isNaN(price) ? price : null,
         order_date: p[4] && /^\d{4}-\d{2}-\d{2}$/.test(p[4]) ? p[4] : null,
         buyer_name: p[5] || null,
-        recipient_name: p[6] || null, recipient_phone: p[7] || null, address: p[8] || null, shipping_note: p[9] || null,
+        recipient_name: p[6] || null, recipient_phone: p[7] || null, address: p[8] || null, shipping_note: p[9] || null, recipient_zip: p[10] || null,
       });
     }
     return { out, bad };
@@ -537,7 +539,7 @@ function PasteDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; ope
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">주문 엑셀 붙여넣기</h3>
         <p className="inv-modal-desc">
-          열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> · 단가 · 주문일 · 주문자 · <b>수취인 · 연락처 · 주소 · 배송 요청</b>
+          열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> · 단가 · 주문일 · 주문자 · <b>수취인 · 연락처 · 주소 · 배송 요청 · 우편번호</b>
           (4열부터는 선택 — 비우려면 빈 칸으로 두세요). 엑셀에서 해당 열을 복사해 붙여 넣으세요. 격자에 채워지기만 하고, 출고 등록은 따로 누릅니다.
         </p>
         <FieldPickLine pick={pick} openForm={openForm} />
@@ -632,6 +634,7 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [shipOpen, setShipOpen] = useState(false);
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sort, setSort] = useState<SortState<"ch" | "no" | "date" | "rcv" | "status" | "at">>({ key: "at", dir: "desc" });
 
@@ -678,17 +681,17 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
     finally { setBusy(false); }
   };
 
-  /** 송장 파일 — 택배사 공통 열. 골라 둔 것이 있으면 그것만, 없으면 지금 보이는 출고 대기 전부 */
+  /** 송장 파일 — 양식을 골라 내려받는다. 골라 둔 것이 있으면 그것만, 없으면 지금 보이는 줄 전부 */
   const downloadSheet = () => {
-    const rows = (selected.length ? selected : shown).map((i) => ({
-      "주문번호": i.channel_order_no, "채널": channelLabel(i.channel),
-      "수취인": i.recipient_name || i.buyer_name || "", "연락처": i.recipient_phone || "", "주소": i.address || "",
-      "상품": itemText(i), "수량": itemsOf(i).reduce((n, x) => n + x.qty, 0), "배송 메시지": i.shipping_note || "",
-      "주문자": i.buyer_name || "", "주문일": i.order_date || "",
-    }));
-    if (!rows.length) { toast("내려받을 줄이 없습니다", "error"); return; }
-    exportToExcel(rows, "송장", `송장_${todayKst()}`);
-    toast(`${rows.length}줄을 내려받았습니다 — 택배사 프로그램에 올리고, 돌려받은 송장번호를 '송장번호 붙여넣기'로 넣으세요`, "success");
+    if (!(selected.length ? selected : shown).length) { toast("내려받을 줄이 없습니다", "error"); return; }
+    setSheetOpen(true);
+  };
+  const exportWith = (layout: SheetLayout) => {
+    const target = selected.length ? selected : shown;
+    const rows = target.map((i) => sheetRow(i, itemsOf(i), layout.columns));
+    exportToExcel(rows, "송장", `송장_${layout.name.replace(/[\\/:*?"<>|]/g, "")}_${todayKst()}`);
+    setSheetOpen(false);
+    toast(`${rows.length}줄을 '${layout.name}' 양식으로 내려받았습니다 — 택배사 프로그램에 올리고, 돌려받은 송장번호를 '송장번호 붙여넣기'로 넣으세요`, "success");
   };
 
   const head = (
@@ -776,6 +779,10 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
             for (const [id, no] of Object.entries(tracking)) await updateShipping([id], { ship_status: "shipped", carrier, tracking_no: no || null }, userId);
           }); }} />
       )}
+      {sheetOpen && companyId && (
+        <SheetDialog companyId={companyId} userId={userId} count={(selected.length ? selected : shown).length}
+          onClose={() => setSheetOpen(false)} onExport={exportWith} />
+      )}
       {pasteOpen && (
         <PasteTrackingDialog imports={imports} onClose={() => setPasteOpen(false)}
           onSave={(carrier, pairs) => { setPasteOpen(false); run(`${pairs.length}건에 송장번호를 넣고 발송 처리했습니다`, async () => {
@@ -785,6 +792,108 @@ function useShipPanel({ companyId, userId, imports, products, canWrite, onDone }
     </>
   );
   return { head, body, pagerEl, selbar, dialogs };
+}
+
+/** 송장 양식 고르기 — 표준 택배사 양식 + 내 양식. 미리보기(열 머리글)와 [양식 만들기/고치기] */
+function SheetDialog({ companyId, userId, count, onClose, onExport }: {
+  companyId: string; userId: string | null; count: number; onClose: () => void; onExport: (l: SheetLayout) => void;
+}) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const { data: mine = [] } = useQuery({ queryKey: ["sheet-layouts", companyId], queryFn: () => listSheetLayouts(companyId), enabled: !!companyId });
+  const all = useMemo(() => [...mine, ...CARRIER_SHEETS], [mine]);
+  const [pick, setPick] = useState<string>(() => {
+    try { return localStorage.getItem("ov.sheet.layout") || "std"; } catch { return "std"; }
+  });
+  const cur = all.find((l) => l.id === pick) || CARRIER_SHEETS[0];
+  const [editing, setEditing] = useState<SheetLayout | null>(null);
+  useEffect(() => { try { localStorage.setItem("ov.sheet.layout", pick); } catch { /* 저장 못 해도 동작엔 지장 없다 */ } }, [pick]);
+  return (
+    <div className="inv-modal" onClick={onClose}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">송장 파일 내려받기 — {count}건</h3>
+        <p className="inv-modal-desc">
+          택배사 양식을 고르면 그 열 순서·머리글로 엑셀이 만들어집니다. 택배사가 양식을 바꾸기도 하니 처음 한 번 올려 보고,
+          안 맞으면 <b>내 양식으로 복사</b>해 열을 고쳐 두세요. 고른 양식은 이 컴퓨터에 기억됩니다.
+        </p>
+        <label className="inv-field"><span>양식</span>
+          <select className="field-input" value={pick} onChange={(e) => setPick(e.target.value)}>
+            {mine.length > 0 && <optgroup label="내 양식">{mine.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>}
+            <optgroup label="택배사 표준">{CARRIER_SHEETS.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>
+          </select></label>
+        <div className="ch-sheet-preview">
+          {cur.columns.map((c, i) => <span key={i} className="ch-sheet-col"><em>{i + 1}</em>{c.label}<i>{SHEET_FIELDS.find((f) => f.key === c.key)?.label}</i></span>)}
+        </div>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing({ id: "", name: `${cur.name.replace(/ \(.*\)$/, "")} 내 양식`, columns: cur.columns.map((c) => ({ ...c })) })}>내 양식으로 복사</button>
+          {!cur.builtin && <button type="button" className="btn-secondary btn-sm" onClick={() => setEditing({ ...cur, columns: cur.columns.map((c) => ({ ...c })) })}>양식 고치기</button>}
+          {!cur.builtin && <button type="button" className="btn-secondary btn-sm doc-del" onClick={async () => {
+            if (!window.confirm(`'${cur.name}' 양식을 지울까요?`)) return;
+            try { await deleteSheetLayout(cur.id); qc.invalidateQueries({ queryKey: ["sheet-layouts", companyId] }); setPick("std"); toast("지웠습니다", "success"); }
+            catch (e) { toast(friendlyError(e), "error"); }
+          }}>지우기</button>}
+          <span className="doc-sums-sp" />
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
+          <button type="button" className="btn-primary btn-sm" onClick={() => onExport(cur)}>내려받기</button>
+        </div>
+        {editing && (
+          <SheetLayoutEditor layout={editing} onClose={() => setEditing(null)}
+            onSave={async (l) => {
+              try {
+                await saveSheetLayout(companyId, { id: l.id || undefined, name: l.name, columns: l.columns }, userId);
+                await qc.invalidateQueries({ queryKey: ["sheet-layouts", companyId] });
+                const saved = (await listSheetLayouts(companyId)).find((x) => x.name === l.name.trim());
+                if (saved) setPick(saved.id);
+                setEditing(null); toast("양식을 저장했습니다 — 회사 전체에서 쓸 수 있습니다", "success");
+              } catch (e) { toast(friendlyError(e, "양식을 저장하지 못했습니다"), "error"); }
+            }} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** 양식 편집 — 열 추가·순서·머리글 이름. 값은 SHEET_FIELDS 중에서 고른다 */
+function SheetLayoutEditor({ layout, onClose, onSave }: { layout: SheetLayout; onClose: () => void; onSave: (l: SheetLayout) => void }) {
+  const [name, setName] = useState(layout.name);
+  const [cols, setCols] = useState<SheetColumn[]>(layout.columns);
+  const [add, setAdd] = useState<string>(SHEET_FIELDS[0].key);
+  const move = (i: number, d: -1 | 1) => setCols((s) => { const n = [...s]; const j = i + d; if (j < 0 || j >= n.length) return s; [n[i], n[j]] = [n[j], n[i]]; return n; });
+  return (
+    <div className="inv-modal" onClick={onClose}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">{layout.id ? "양식 고치기" : "내 양식 만들기"}</h3>
+        <p className="inv-modal-desc">택배사 프로그램이 요구하는 열 순서대로 놓고, 머리글은 그 프로그램의 이름 그대로 적습니다. 자리 맞춤이 필요하면 (빈 칸)을 넣습니다.</p>
+        <label className="inv-field"><span>양식 이름 *</span>
+          <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: CJ 우리회사용" /></label>
+        <div className="ch-sheet-edit">
+          {cols.map((c, i) => (
+            <div key={i} className="ch-sheet-row">
+              <em>{i + 1}</em>
+              <select className="field-input" value={c.key} onChange={(e) => setCols((s) => s.map((x, j) => j === i ? { ...x, key: e.target.value as SheetColumn["key"] } : x))}>
+                {SHEET_FIELDS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+              </select>
+              <input className="field-input" value={c.label} placeholder="머리글" onChange={(e) => setCols((s) => s.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} />
+              <button type="button" className="btn-secondary btn-sm" onClick={() => move(i, -1)} disabled={i === 0} aria-label="위로">↑</button>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => move(i, 1)} disabled={i === cols.length - 1} aria-label="아래로">↓</button>
+              <button type="button" className="inv-line-x" onClick={() => setCols((s) => s.filter((_, j) => j !== i))} aria-label="열 지우기">✕</button>
+            </div>
+          ))}
+          <div className="ch-sheet-row ch-sheet-add">
+            <em>+</em>
+            <select className="field-input" value={add} onChange={(e) => setAdd(e.target.value)}>
+              {SHEET_FIELDS.map((f) => <option key={f.key} value={f.key}>{f.label}{f.desc ? ` — ${f.desc}` : ""}</option>)}
+            </select>
+            <button type="button" className="btn-secondary btn-sm" onClick={() => { const f = SHEET_FIELDS.find((x) => x.key === add)!; setCols((s) => [...s, { key: f.key, label: f.key === "blank" ? "" : f.label }]); }}>열 추가</button>
+          </div>
+        </div>
+        <div className="inv-modal-actions">
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!name.trim() || !cols.length} onClick={() => onSave({ ...layout, name, columns: cols })}>저장</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /** 발송 처리 — 택배사 하나 + 줄마다 송장번호(없어도 발송으로 기록할 수 있다: 직접 배달·방문 수령) */

@@ -39,7 +39,7 @@ export type DocRow = {
   sku: string; spec: string; qty: string; price: string; supply: string; vat: string; lnote: string;
   //   채널 주문 양식의 칸 — 다른 양식에서는 비어 있다
   ch: string; ono: string; ccode: string; buyer: string;
-  rcv: string; tel: string; addr: string; memo: string;   // 배송 정보 — 출고(송장)용
+  rcv: string; tel: string; zip: string; addr: string; memo: string;   // 배송 정보 — 출고(송장)용
   /** 줄에 붙는 표시 — dup: 이미 등록된 주문번호 · nocode: 상품 연결이 없는 채널 상품코드 */
   flag?: "dup" | "nocode" | null;
   custom: Record<string, string>;
@@ -47,7 +47,7 @@ export type DocRow = {
 
 let K = 1;
 export const blankRow = (): DocRow => ({
-  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", ch: "", ono: "", ccode: "", buyer: "", rcv: "", tel: "", addr: "", memo: "", flag: null, custom: {},
+  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", ch: "", ono: "", ccode: "", buyer: "", rcv: "", tel: "", zip: "", addr: "", memo: "", flag: null, custom: {},
 });
 
 export function useDocEditor(companyId: string | null, userId: string | null, formKey: FormKey, products: Product[]) {
@@ -194,7 +194,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
           supply: String(l.supply_amount), vat: String(l.vat_amount),
           lnote: l.note || "",
           ch: l.custom?.ch || "", ono: l.custom?.ono || "", ccode: l.custom?.ccode || "", buyer: l.custom?.buyer || "",
-          rcv: l.custom?.rcv || "", tel: l.custom?.tel || "", addr: l.custom?.addr || "", memo: l.custom?.memo || "",
+          rcv: l.custom?.rcv || "", tel: l.custom?.tel || "", zip: l.custom?.zip || "", addr: l.custom?.addr || "", memo: l.custom?.memo || "",
           custom: Object.fromEntries(Object.entries(l.custom || {}).filter(([k]) => !CH_ONLY.includes(k))),
         } as DocRow;
       }),
@@ -252,7 +252,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
         supply_amount: num(r.supply), vat_amount: num(r.vat),
         note: r.lnote || null, custom: customLine,
         ch: r.ch, ono: r.ono.trim(), ccode: r.ccode.trim(), buyer: r.buyer.trim(),
-        rcv: r.rcv.trim(), tel: r.tel.trim(), addr: r.addr.trim(), memo: r.memo.trim(), flag: r.flag || null,
+        rcv: r.rcv.trim(), tel: r.tel.trim(), zip: r.zip.trim(), addr: r.addr.trim(), memo: r.memo.trim(), flag: r.flag || null,
       };
     });
     return {
@@ -356,13 +356,13 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
 // ── 격자 ──────────────────────────────────────────────────────────────────────
 const W: Record<string, string> = {
   sku: "220px", spec: "150px", qty: "64px", price: "104px", supply: "116px", vat: "104px", lnote: "170px",
-  ch: "138px", ono: "150px", ccode: "130px", buyer: "90px", rcv: "90px", tel: "120px", addr: "240px", memo: "170px",
+  ch: "138px", ono: "150px", ccode: "130px", buyer: "90px", rcv: "90px", tel: "120px", zip: "80px", addr: "240px", memo: "170px",
 };
 const NUMS = new Set(["qty", "price", "supply", "vat"]);
-const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer", "rcv", "tel", "addr", "memo"]);
+const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo"]);
 //   ★ 채널에서 가져온 줄(ch 있음)은 채널이 준 값을 **고칠 수 없다**(2026-08-26 사장님 — 데이터가 틀려지는 것을 막는다).
 //     사람이 손대는 칸은 품목(연결이 없을 때 고르기)·규격·비고·직접 추가한 항목뿐이다.
-const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "addr", "memo", "qty", "price", "supply", "vat"]);
+const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo", "qty", "price", "supply", "vat"]);
 
 export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] }) {
   const { onLine, rows, setRows, setCell, onCellKey, gridRef, fillFrom, priceOf } = ctl;
