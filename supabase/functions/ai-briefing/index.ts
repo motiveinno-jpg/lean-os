@@ -169,6 +169,22 @@ export async function collectInventory(admin: ReturnType<typeof createClient>, c
   if (late) lines.push(`납기가 지났는데 남은 주문 ${late}건 — 재고 › 현황 › 주문현황`);
   if (unshipped) lines.push(`출고 등록됐지만 아직 발송하지 않은 온라인 주문 ${unshipped}건 — 재고 › 이커머스 › 출고 처리`);
   if (noVoucher) lines.push(`전표를 아직 안 만든 판매 ${noVoucher}건 — 매입매출전표 › 증빙에서 불러오기`);
+  //   ★ 결정 32 (2026-08-26) — 최근 7일 양품률 95% 미만 · 자재 로스율 5% 초과면 알린다. 기록이 없으면(불량 0·std_qty null) 조용히 있는다 — 거짓 100% 로 안심시키지 않는다.
+  try {
+    const since = new Date(new Date(today).getTime() - 7 * 86400000).toISOString().slice(0, 10);
+    const { data: wh } = await admin.from("warehouses").select("id").eq("company_id", companyId).eq("code", "DEFECT").maybeSingle();
+    const defectWh = (wh as any)?.id || null;
+    const { data: mv } = await admin.from("stock_moves")
+      .select("qty, std_qty, warehouse_id, stock_docs!inner(reason, status)")
+      .eq("company_id", companyId).eq("stock_docs.status", "active").in("stock_docs.reason", ["produce", "consume"]).gte("moved_at", since);
+    let good = 0, defect = 0, std = 0, act = 0;
+    for (const m of (mv || []) as any[]) {
+      if (m.stock_docs?.reason === "produce") { if (defectWh && m.warehouse_id === defectWh) defect += Number(m.qty || 0); else good += Number(m.qty || 0); }
+      else if (m.std_qty != null) { std += Math.abs(Number(m.std_qty)); act += Math.abs(Number(m.qty || 0)); }
+    }
+    if (good + defect > 0 && defect > 0 && good / (good + defect) < 0.95) lines.push(`최근 7일 양품률 ${(good / (good + defect) * 100).toFixed(1)}% (불량 ${defect}개) — 재고 › 현황 › 생산현황`);
+    if (std > 0 && (act - std) / std > 0.05) lines.push(`최근 7일 자재 로스율 ${((act - std) / std * 100).toFixed(1)}% — 재고 › 현황 › 생산현황에서 원인별로 보기`);
+  } catch { /* skip */ }
   return { lines, short, out, late, unshipped, noVoucher };
 }
 

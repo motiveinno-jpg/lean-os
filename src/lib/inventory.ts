@@ -269,6 +269,8 @@ export async function createStockDoc(
 export type MoveRow = {
   id: string; moved_at: string; qty: number; unit_price: number | null; amount: number | null; note: string | null;
   product_id: string; warehouse_id: string;
+  /** 자재 투입 줄의 표준(결정 29) — null 이면 로스 기록 없음 */
+  std_qty?: number | null; loss_reason?: string | null;
   doc: { id: string; doc_no: string; kind: string; reason: string; note: string | null; partner_id: string | null } | null;
 };
 
@@ -277,7 +279,7 @@ export async function listMoves(companyId: string, from: string, to: string): Pr
   const data = logRead("inventory:moves", await supabase
     .from("stock_moves")
     //   ★ 취소 전표의 줄은 이력에서도 뺀다 — 현재고와 같은 눈으로 본다(결정 25)
-    .select("id, moved_at, qty, unit_price, amount, note, product_id, warehouse_id, stock_docs!inner(id, doc_no, kind, reason, note, partner_id, status)")
+    .select("id, moved_at, qty, unit_price, amount, note, product_id, warehouse_id, std_qty, loss_reason, stock_docs!inner(id, doc_no, kind, reason, note, partner_id, status)")
     .eq("company_id", companyId).eq("stock_docs.status", "active")
     .gte("moved_at", from).lte("moved_at", to)
     .order("moved_at", { ascending: false })

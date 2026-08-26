@@ -30,10 +30,12 @@ import { exportToExcel } from "@/lib/excel-export";
 import { ColumnChart, LineChart, DonutChart, BarChart, Legend, vizColor } from "@/components/charts/kit";
 import {
   listMoves, listStockDocs, listOnHand, listAvgCost, listProducts, listWarehouses,
-  type MoveRow, type Product,
+  type MoveRow, type Product, DEFECT_WAREHOUSE_CODE,
 } from "@/lib/inventory";
 import { listOrders, listUsed, listOrderLinesAll, type Order } from "@/lib/inventory-orders";
-import { listBoms, perUnit } from "@/lib/inventory-production";
+import { listBoms, perUnit, lossReasonLabel } from "@/lib/inventory-production";
+//   수율·로스 경고 임계 — 회사설정으로 옮기기 전까지 기본값(기획 결정 32). AI 브리핑도 같은 값을 쓴다.
+const YIELD_WARN = 0.95, LOSS_WARN = 0.05;
 import { listImports, channelLabel } from "@/lib/inventory-channels";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
@@ -162,21 +164,38 @@ export default function InventoryStatusPage() {
     return { amt, qty, ret, docs: docs.filter((d) => d.reason === "purchase" && d.status === "active").length, perDay, perProduct, perPartner };
   }, [moves, docs]);
 
+  //   ★ 결정 32 (2026-08-26) — 양품률 = 양품 ÷ (양품+불량), 자재 로스율 = Σ(실투입−표준) ÷ Σ표준. 불량 = 불량 보류 창고 줄.
+  //     불량·std_qty 기록이 없는 기간은 100%/0% 가 아니라 "기록 없음"으로 적는다(거짓 100% 방지).
+  const defectWh = useMemo(() => warehouses.find((w) => w.code === DEFECT_WAREHOUSE_CODE)?.id || null, [warehouses]);
   const make = useMemo(() => {
-    let doneQty = 0, doneAmt = 0, matAmt = 0;
-    const perDay = new Map<string, number>(), perProduct = new Map<string, { qty: number; amt: number }>(), matPer = new Map<string, { qty: number; amt: number }>();
+    let doneQty = 0, doneAmt = 0, matAmt = 0, defectQty = 0, stdSum = 0, actSum = 0, lossRecords = 0, scrapLoss = 0;
+    const perDay = new Map<string, number>(), perProduct = new Map<string, { qty: number; amt: number; defect: number }>(), matPer = new Map<string, { qty: number; amt: number; std: number; loss: number }>();
+    const lossReasonSum = new Map<string, number>();
     for (const m of moves) {
       if (m.doc?.reason === "produce") {
-        doneQty += m.qty; doneAmt += Math.abs(Number(m.amount || 0));
-        perDay.set(m.moved_at, (perDay.get(m.moved_at) || 0) + m.qty);
-        const pp = perProduct.get(m.product_id) || { qty: 0, amt: 0 }; pp.qty += m.qty; pp.amt += Math.abs(Number(m.amount || 0)); perProduct.set(m.product_id, pp);
+        const isDefect = !!defectWh && m.warehouse_id === defectWh;
+        doneAmt += Math.abs(Number(m.amount || 0));
+        const pp = perProduct.get(m.product_id) || { qty: 0, amt: 0, defect: 0 };
+        if (isDefect) { defectQty += m.qty; pp.defect += m.qty; } else { doneQty += m.qty; pp.qty += m.qty; perDay.set(m.moved_at, (perDay.get(m.moved_at) || 0) + m.qty); }
+        pp.amt += Math.abs(Number(m.amount || 0)); perProduct.set(m.product_id, pp);
       } else if (m.doc?.reason === "consume") {
         const c = costOf(m.product_id) ?? 0;
         const a = Math.abs(Number(m.amount || 0)) || Math.abs(m.qty) * c;
         matAmt += a;
-        const pp = matPer.get(m.product_id) || { qty: 0, amt: 0 }; pp.qty += Math.abs(m.qty); pp.amt += a; matPer.set(m.product_id, pp);
+        const pp = matPer.get(m.product_id) || { qty: 0, amt: 0, std: 0, loss: 0 };
+        const act = Math.abs(m.qty), std = m.std_qty == null ? act : Math.abs(Number(m.std_qty));
+        pp.qty += act; pp.amt += a; pp.std += std; pp.loss += act - std; matPer.set(m.product_id, pp);
+        if (m.std_qty != null) { lossRecords++; stdSum += std; actSum += act; if (act !== std) lossReasonSum.set(m.loss_reason || "other", (lossReasonSum.get(m.loss_reason || "other") || 0) + (act - std) * c); }
+      } else if (m.doc?.reason === "disposal" && defectWh && m.warehouse_id === defectWh) {
+        //   불량 폐기 = 손실(결정 31). 금액이 없으면 이동평균으로.
+        scrapLoss += Math.abs(Number(m.amount || 0)) || Math.abs(m.qty) * (costOf(m.product_id) ?? 0);
       }
     }
+    //   불량 보류 창고의 지금 재고(수량·이동평균 금액)
+    let defectOnhand = 0, defectOnhandAmt = 0;
+    if (defectWh) for (const o of onhand) if (o.warehouse_id === defectWh && Number(o.qty) > 0) { defectOnhand += Number(o.qty); defectOnhandAmt += Number(o.qty) * (costOf(o.product_id) ?? 0); }
+    const yieldRate = doneQty + defectQty > 0 ? doneQty / (doneQty + defectQty) : null;
+    const lossRate = stdSum > 0 ? (actSum - stdSum) / stdSum : null;
     //   자재 부족 — 열린 주문의 남은 수량 × 자재구성 − 현재고
     const usedByLine = new Map(used.map((u) => [u.order_line_id, u]));
     const need = new Map<string, number>();
@@ -193,8 +212,9 @@ export default function InventoryStatusPage() {
     }
     const shortage = [...need.entries()].map(([pid, n]) => ({ product_id: pid, need: n, have: stock.byProduct.get(pid) || 0 }))
       .filter((x) => x.have < x.need).sort((a, b) => (b.need - b.have) - (a.need - a.have));
-    return { doneQty, doneAmt, matAmt, docs: docs.filter((d) => d.reason === "produce" && d.status === "active").length, perDay, perProduct, matPer, shortage, noBom };
-  }, [moves, docs, used, orderLines, boms, openOrders, stock.byProduct, avgCost]);   // eslint-disable-line react-hooks/exhaustive-deps
+    return { doneQty, doneAmt, matAmt, docs: docs.filter((d) => d.reason === "produce" && d.status === "active").length, perDay, perProduct, matPer, shortage, noBom,
+      defectQty, yieldRate, lossRate, lossRecords, lossReasonSum, scrapLoss, defectOnhand, defectOnhandAmt };
+  }, [moves, docs, used, orderLines, boms, openOrders, stock.byProduct, avgCost, defectWh, onhand]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const order = useMemo(() => {
     const usedByLine = new Map(used.map((u) => [u.order_line_id, u]));
@@ -271,10 +291,13 @@ export default function InventoryStatusPage() {
       <Stat label="거래처" value={`${buy.perPartner.size}곳`} />
     </>),
     make: (<>
-      <Stat label="완성 수량" value={won(make.doneQty)} />
-      <Stat label="완성 금액" value={`₩${won(make.doneAmt)}`} />
+      <Stat label="양품" value={won(make.doneQty)} />
+      <Stat label="불량" value={won(make.defectQty)} tone={make.defectQty ? "minus" : undefined} />
+      <Stat label="양품률" value={make.yieldRate == null ? "기록 없음" : `${(make.yieldRate * 100).toFixed(1)}%`} tone={make.yieldRate != null && make.yieldRate < YIELD_WARN ? "minus" : undefined} />
+      <Stat label="자재 로스율" value={make.lossRate == null ? "기록 없음" : `${(make.lossRate * 100).toFixed(1)}%`} tone={make.lossRate != null && make.lossRate > LOSS_WARN ? "minus" : undefined} />
+      <Stat label="불량 보류" value={`${won(make.defectOnhand)}개 · ₩${won(make.defectOnhandAmt)}`} tone={make.defectOnhand ? "minus" : undefined} />
+      <Stat label="폐기 손실" value={`₩${won(make.scrapLoss)}`} tone={make.scrapLoss ? "minus" : undefined} />
       <Stat label="자재 투입" value={`₩${won(make.matAmt)}`} />
-      <Stat label="생산 전표" value={`${make.docs}건`} />
       <Stat label="자재 부족" value={`${make.shortage.length}품목`} tone={make.shortage.length ? "minus" : undefined} />
     </>),
   };
@@ -295,7 +318,7 @@ export default function InventoryStatusPage() {
                 tab === "order" ? order.rows.map((r) => ({ "번호": r.o.order_no, "주문일": r.o.order_date, "거래처": r.o.partner_name || partnerName.get(r.o.partner_id || "") || "", "납기": r.o.due_date || "", "주문 수량": r.ordered, "가져간 수량": r.used, "잔량": r.remain, "진행률": r.pct, "금액": r.amt, "상태": r.o.status === "cancelled" ? "취소" : r.remain <= 0 ? "완료" : r.late ? "납기 지남" : "진행 중" }))
                 : tab === "sale" ? perProductRows(sale.perProduct).map((r) => { const c = costOf(r.key); return { "SKU": r.p?.sku || "", "품목": r.p?.name || "", "수량": r.qty, "매출": r.amt, "원가": c == null ? "" : c * r.qty, "마진": c == null ? "" : r.amt - c * r.qty }; })
                 : tab === "buy" ? perProductRows(buy.perProduct).map((r) => ({ "SKU": r.p?.sku || "", "품목": r.p?.name || "", "수량": r.qty, "매입": r.amt, "평균 단가": r.qty ? r.amt / r.qty : "", "현재고": stock.byProduct.get(r.key) || 0 }))
-                : tab === "make" ? perProductRows(make.perProduct).map((r) => ({ "완제품": r.p?.name || "", "완성 수량": r.qty, "완성 금액": r.amt }))
+                : tab === "make" ? [...make.perProduct.entries()].map(([id, r]) => ({ "완제품": productById.get(id)?.name || "", "양품": r.qty, "불량": r.defect, "양품률": r.qty + r.defect ? `${(r.qty / (r.qty + r.defect) * 100).toFixed(1)}%` : "", "완성 금액": r.amt }))
                 : [{ "재고 금액": stock.amount, "부족": stock.short, "품절": stock.out, "기간 매출": sale.amt, "기간 매입": buy.amt, "마진": sale.margin ?? "", "전표 없는 판매": sale.noVoucher, "납기 지난 주문": order.late.length }];
               exportToExcel(rows, name, `재고현황_${name}_${from}_${to}`);
             }}>엑셀</button>
@@ -499,21 +522,31 @@ export default function InventoryStatusPage() {
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>완제품별</h3><p>기간 완성</p>
+                      <h3>완제품별 수율</h3><p>양품률 = 양품 ÷ (양품+불량) · {YIELD_WARN * 100}% 미만은 붉게{make.defectQty === 0 && make.doneQty > 0 ? " · 이 기간엔 불량 기록이 없습니다" : ""}</p>
                       <table className="ev-table ev-lined table-inv-status-sm">
-                        <thead><tr><th>완제품</th><th>완성 수량</th><th>완성 금액</th></tr></thead>
-                        <tbody>{perProductRows(make.perProduct).map((r) => (
-                          <tr key={r.key}><td className="text-left"><b>{r.p?.name || "?"}</b></td><td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">₩{won(r.amt)}</td></tr>
-                        ))}{make.perProduct.size === 0 && <tr><td colSpan={3} className="tc ev-dim">완성 기록이 없습니다</td></tr>}</tbody>
+                        <thead><tr><th>완제품</th><th>양품</th><th>불량</th><th>양품률</th><th>완성 금액</th></tr></thead>
+                        <tbody>{[...make.perProduct.entries()].sort((a, b) => (b[1].qty + b[1].defect) - (a[1].qty + a[1].defect)).map(([id, r]) => {
+                          const y = r.qty + r.defect > 0 ? r.qty / (r.qty + r.defect) : null;
+                          return (
+                            <tr key={id} className={y != null && y < YIELD_WARN ? "inv-row-fix" : undefined}><td className="text-left"><b>{productById.get(id)?.name || "?"}</b></td>
+                              <td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">{won(r.defect)}</td><td className="tr mono-number">{y == null ? "—" : `${(y * 100).toFixed(1)}%`}</td><td className="tr mono-number">₩{won(r.amt)}</td></tr>
+                          );
+                        })}{make.perProduct.size === 0 && <tr><td colSpan={5} className="tc ev-dim">완성 기록이 없습니다</td></tr>}</tbody>
                       </table>
                     </div>
                     <div className="pnl-panel">
-                      <h3>자재 투입</h3><p>기간 투입 수량·금액(이동평균)</p>
+                      <h3>자재 투입 · 로스</h3><p>로스 = 실투입 − 표준(자재구성) · 금액은 이동평균{make.lossRecords === 0 && make.matPer.size > 0 ? " · 이 기간엔 로스 기록이 없습니다(표준=실투입으로 봄)" : ""}{make.lossReasonSum.size ? ` · 원인별 로스비 ${[...make.lossReasonSum.entries()].map(([k, v]) => `${lossReasonLabel(k) || "기타"} ₩${won(v)}`).join(", ")}` : ""}</p>
                       <table className="ev-table ev-lined table-inv-status-sm">
-                        <thead><tr><th>자재</th><th>투입 수량</th><th>금액</th></tr></thead>
-                        <tbody>{perProductRows(make.matPer).map((r) => (
-                          <tr key={r.key}><td className="text-left"><b>{r.p?.name || "?"}</b></td><td className="tr mono-number">{won(r.qty)}</td><td className="tr mono-number">₩{won(r.amt)}</td></tr>
-                        ))}{make.matPer.size === 0 && <tr><td colSpan={3} className="tc ev-dim">투입 기록이 없습니다</td></tr>}</tbody>
+                        <thead><tr><th>자재</th><th>표준</th><th>실투입</th><th>로스</th><th>로스율</th><th>금액</th></tr></thead>
+                        <tbody>{[...make.matPer.entries()].sort((a, b) => b[1].loss - a[1].loss).map(([id, r]) => {
+                          const rate = r.std > 0 ? r.loss / r.std : null;
+                          return (
+                            <tr key={id} className={rate != null && rate > LOSS_WARN ? "inv-row-fix" : undefined}><td className="text-left"><b>{productById.get(id)?.name || "?"}</b></td>
+                              <td className="tr mono-number">{won(r.std)}</td><td className="tr mono-number">{won(r.qty)}</td>
+                              <td className={`tr mono-number${r.loss > 0 ? " inv-diff-minus" : r.loss < 0 ? " inv-diff-plus" : ""}`}>{r.loss === 0 ? "—" : `${r.loss > 0 ? "+" : ""}${won(r.loss)}`}</td>
+                              <td className="tr mono-number">{rate == null ? "—" : `${(rate * 100).toFixed(1)}%`}</td><td className="tr mono-number">₩{won(r.amt)}</td></tr>
+                          );
+                        })}{make.matPer.size === 0 && <tr><td colSpan={6} className="tc ev-dim">투입 기록이 없습니다</td></tr>}</tbody>
                       </table>
                     </div>
                   </div>
