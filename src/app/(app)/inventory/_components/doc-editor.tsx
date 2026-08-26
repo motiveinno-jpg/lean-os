@@ -351,6 +351,9 @@ const W: Record<string, string> = {
 };
 const NUMS = new Set(["qty", "price", "supply", "vat"]);
 const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer", "rcv", "tel", "addr", "memo"]);
+//   ★ 채널에서 가져온 줄(ch 있음)은 채널이 준 값을 **고칠 수 없다**(2026-08-26 사장님 — 데이터가 틀려지는 것을 막는다).
+//     사람이 손대는 칸은 품목(연결이 없을 때 고르기)·규격·비고·직접 추가한 항목뿐이다.
+const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "addr", "memo", "qty", "price", "supply", "vat"]);
 
 export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] }) {
   const { onLine, rows, setRows, setCell, onCellKey, gridRef, fillFrom, priceOf } = ctl;
@@ -402,6 +405,14 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                     return (
                       <td key={id} className="cell tc doc-cell-ch">
                         <span className={r.ch ? "doc-ch" : "doc-ch doc-ch-none"}>{r.ch ? channelLabel(r.ch) : "—"}</span>
+                      </td>
+                    );
+                  }
+                  if (r.ch && IMPORTED_RO.has(id)) {
+                    return (
+                      <td key={id} className={`cell doc-cell-ro ${NUMS.has(id) ? "num" : LEFTS.has(id) ? "text-left" : "tc"}`}
+                        title="채널에서 가져온 값 — 고칠 수 없습니다">
+                        <span className={`doc-ro${NUMS.has(id) ? " mono-number" : ""}`}>{shown || "—"}</span>
                       </td>
                     );
                   }

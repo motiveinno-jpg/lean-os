@@ -441,7 +441,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
         <Stat label="공급가액" value={`₩${won(ctl.sums.supply)}`} />
         <Stat label="합계" value={`₩${won(ctl.sums.total)}`} />
         <span className="spv-toolbar-hint">
-          채널 상품코드를 입력하면 <b>연결된 품목이 자동으로</b> 채워집니다 · <b>Enter</b> 는 윗줄 값 입력 후 다음 칸
+          가져온 줄의 채널 값(주문번호·수량·금액·배송 정보)은 <b>고칠 수 없습니다</b> · 연결된 품목은 자동, 미연결이면 품목만 고릅니다
           {counts.nocode > 0 && <> · <button type="button" className="bz-link" onClick={goCodes}>상품 연결로 이동</button></>}
         </span>
       </ResultStrip>

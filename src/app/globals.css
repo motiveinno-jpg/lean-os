@@ -8885,3 +8885,7 @@ table.table-inv-summary { min-width: 760px; }
 
 /* 채널 주문 팝업 — 가져올 항목 안내 줄 (2026-08-26) */
 .ch-pick { @apply mb-2 rounded-lg bg-[var(--bg-surface)] px-3 py-2; }
+
+/* 채널에서 가져온 줄 — 읽기 전용 칸 (2026-08-26) */
+.doc-cell-ro { @apply bg-[var(--bg-surface)]/60; }
+.doc-ro { @apply block px-1 text-[12.5px] leading-7 text-[var(--text)]; }
