@@ -1,4 +1,5 @@
 "use client";
+import { CardStatusPanels } from "@/components/finance-status-panels";
 import { DonutChart, Legend, vizColor } from "@/components/charts/kit";
 import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { logRead } from "@/lib/log-read";
@@ -987,6 +988,8 @@ export default function CardsPage() {
           정렬 툴바 + 선택 액션바 낱장 구성을 버렸다 — 카드 필터는 검색조건의 '카드' 칩으로,
           정렬은 머리단으로, 선택은 바닥 SelectionBar 로. ========== */}
       {/* ========== 분석 탭 ========== */}
+      {/* 이번 달 일별 승인·카드별 비중·가맹점 상위 — 재무 › 현황에서 옮겨 옴 (2026-08-26 사장님: "카드 부분은 카드의 분석 쪽으로") */}
+      {tab === "analysis" && <CardStatusPanels companyId={companyId} from={monthRange.from} to={monthRange.to} />}
       {tab === "analysis" && (
         <div className="card-analysis-tab-panel">
           {/* 카테고리별 지출 */}

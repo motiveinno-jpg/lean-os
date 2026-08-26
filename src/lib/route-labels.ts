@@ -64,7 +64,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/documents": { group: "업무", title: "파일보관함", desc: "회사 파일·문서를 보관합니다." },
 
   "/bank": { group: "재무", title: "통장", desc: "통장 잔액과 거래를 봅니다." },
-  "/finance/status": { group: "재무", title: "현황", desc: "오늘의 돈과 처리할 것 — 통장 잔액·입출금·카드 승인·받을 돈/낼 돈·전표 없는 증빙·미매칭 거래를 한 화면에서 봅니다." },
+  "/finance/status": { group: "재무", title: "현황", desc: "작성된 전표의 현황·지표 — 확정·반려·출처, 일반·매입매출 종류, 계정과목·거래처·부가세 유형, 전표 없는 증빙을 봅니다." },
   "/cards": { group: "재무", title: "카드", desc: "법인카드 사용내역을 봅니다." },
   "/payments": { group: "재무", title: "정기 지출", desc: "정기결제·고정비를 관리합니다." },
   "/subscriptions": { group: "자금", title: "구독 관리", desc: "구독 서비스를 관리합니다." },

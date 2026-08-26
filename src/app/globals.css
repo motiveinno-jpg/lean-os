@@ -8971,3 +8971,10 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .app-zoom .bank-tx-list-card { max-height: calc(100vh / var(--app-zoom) - 210px); }
 .app-zoom .menu-guide-drawer { height: calc(100dvh / var(--app-zoom)); }
 .app-zoom .sidebar-mobile-drawer { height: calc(100dvh / var(--app-zoom)); }
+
+/* 통장 › 개요 · 카드 › 분석에 붙는 현황 판 묶음 (2026-08-26, 재무 › 현황에서 이사) */
+.fin-status-panels { @apply mb-4; }
+.fin-status-panels .pnl-panel { @apply mb-3; }
+
+/* 갈래 탭 안 건수 배지 — 글자에 붙지 않게 (2026-08-26 재무 현황 처리할 것) */
+.collect-tab .inv-short-badge { @apply ml-1.5; }

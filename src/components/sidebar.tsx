@@ -75,7 +75,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표", icon: "receipt", roles: ["owner", "admin"], match: ["/partners/reconciliation/sale-purchase"] },
       //   정기 지출은 실적이 아니라 '예정' — 성격이 달라 맨 아래. (분석 '자금 전망' 옆으로 옮길지는 사장님 결정 대기)
       { href: "/payments", label: "정기 지출", icon: "clock", roles: ["owner", "admin"], layer: "예정" },
-      //   ★ 현황 — 오늘의 돈과 처리할 것(운영 콕핏). 재고 현황과 같은 자리(맨 아래). 추이·손익은 분석이 맡는다 (2026-08-26 사장님).
+      //   ★ 현황 — 작성된 전표의 현황·지표. 통장·카드는 각자 화면의 개요/분석, 손익은 분석이 맡는다 (2026-08-26 사장님, 같은 날 재편).
       { href: "/finance/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
       // 2026-07-28 대출·자산은 실제로 쓰지 않는 기능이라 사이드바에서 내렸다(사장님 확인). 라우트(/loans, /vault)는 그대로.
     ],
