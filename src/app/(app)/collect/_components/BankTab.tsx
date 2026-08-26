@@ -898,7 +898,7 @@ export function BankTab({
                     setLive(draft); setPanelOpen(false);
                   }} />
                 <span className="ml-auto text-[11px] text-[var(--text-dim)]">{won(previewCount)}건</span>
-                <RowsPerPage value={draft.size} onChange={setD("size")} />
+                <RowsPerPage value={draft.size} onChange={setD("size")} withAll />
                 <button type="button" className="btn-primary btn-sm"
                   onClick={() => { setLive(draft); setPanelOpen(false); }}>조회</button>
               </>}>
@@ -1196,7 +1196,7 @@ export function BankTab({
 
       {/* ── 쪽 넘김 — 기본 50줄, 더 보려면 조회 줄의 '조회 줄 수'를 올린다 ── */}
       <Pager page={pager.page} pages={pager.pages} total={shown.length} size={live.size}
-        from={pager.from} to={pager.to} onPage={pager.setPage} />
+        from={pager.from} to={pager.to} onPage={pager.setPage} onSize={(n) => drop({ size: n })} />
       </QueryScreen>
       {dupPromptElement}
       {excludePromptElement}

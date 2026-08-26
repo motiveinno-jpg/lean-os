@@ -7638,6 +7638,8 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
 .qk-pager { @apply flex flex-wrap items-center justify-between gap-2 px-1 py-2; }
 .qk-pager-info { @apply text-[11.5px] text-[var(--text-dim)]; }
 .qk-pager-size { @apply not-italic ml-1.5 text-[11px] text-[var(--text-dim)] opacity-75; }
+/* 쪽 줄 수 셀렉트 — Pager onSize (2026-08-26) */
+.qk-pager-size-sel { @apply h-6 rounded-md border border-[var(--border)] bg-[var(--bg-card)] px-1 text-[11px] font-bold text-[var(--text)]; }
 .qk-pager-nav { @apply inline-flex items-center gap-1; }
 .qk-page { @apply inline-flex h-7 min-w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-1.5 text-[11.5px] font-semibold tabular-nums text-[var(--text-dim)] transition-colors; }
 .qk-page:hover:not(:disabled) { @apply border-[var(--primary)] text-[var(--text)]; }

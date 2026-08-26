@@ -403,12 +403,18 @@ export function amountHit(n: number, min: string, max: string): boolean {
 
 /** 한 쪽에 몇 줄 — **조건의 하나**라 '내 조건'에 같이 저장된다 (2026-08-13 사장님 지시) */
 export const PAGE_SIZES = [50, 100, 200, 500] as const;
-export function RowsPerPage({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+//   '전체' = 사실상 무한대인 유한 수 — Infinity 는 JSON(내 조건 저장·쿼리키)에서 null 이 되므로 못 쓴다 (2026-08-26)
+export const ALL_ROWS = 1_000_000_000;
+const sizeLabel = (n: number) => (n >= ALL_ROWS ? "전체" : `${n}줄`);
+export function RowsPerPage({ value, onChange, withAll }: { value: number; onChange: (n: number) => void; withAll?: boolean }) {
+  //   withAll: '전체' 옵션 노출 (수집·전표 — 2026-08-26 사장님). 현재 값이 목록에 없으면(주소로 온 값 등) 맨 앞에 끼워 빈 셀렉트를 막는다.
+  const list: number[] = [...PAGE_SIZES, ...(withAll ? [ALL_ROWS] : [])];
+  if (!list.includes(value)) list.unshift(value);
   return (
     <label className="qk-size">
       <span>줄 수</span>
       <select value={value} onChange={(e) => onChange(Number(e.target.value))} aria-label="한 쪽에 몇 줄">
-        {PAGE_SIZES.map((n) => <option key={n} value={n}>{n}줄</option>)}
+        {list.map((n) => <option key={n} value={n}>{sizeLabel(n)}</option>)}
       </select>
     </label>
   );
@@ -592,18 +598,31 @@ export function usePager<T>(rows: T[], size: number, resetKey?: unknown) {
 }
 
 export function Pager({
-  page, pages, total, from, to, size, onPage,
-}: { page: number; pages: number; total: number; from: number; to: number; size: number; onPage: (p: number) => void }) {
+  page, pages, total, from, to, size, onPage, onSize,
+}: { page: number; pages: number; total: number; from: number; to: number; size: number; onPage: (p: number) => void;
+  //   onSize 를 주면 '한 쪽 N줄'이 셀렉트(+'전체')가 된다 — 쪽 이동하는 자리에서 바로 줄 수를 바꾼다 (2026-08-26 사장님, 수집·전표)
+  onSize?: (n: number) => void }) {
   if (total === 0) return null;
   const nums: number[] = [];
   for (let p = Math.max(1, page - 2); p <= Math.min(pages, page + 2); p += 1) nums.push(p);
+  const sizeList: number[] = [...PAGE_SIZES, ALL_ROWS];
+  if (!sizeList.includes(size)) sizeList.unshift(size);
   return (
     <div className="qk-pager">
       <span className="qk-pager-info">
         <b className="mono-number">{from.toLocaleString("ko-KR")}–{to.toLocaleString("ko-KR")}</b>
         {" / "}
         <b className="mono-number">{total.toLocaleString("ko-KR")}</b>건
-        <em className="qk-pager-size">· 한 쪽 {size}줄</em>
+        {onSize ? (
+          <em className="qk-pager-size">· 한 쪽{" "}
+            <select className="qk-pager-size-sel" value={size} onChange={(e) => onSize(Number(e.target.value))}
+              aria-label="한 쪽에 몇 줄 — 전체를 고르면 한 쪽에 다 보입니다">
+              {sizeList.map((n) => <option key={n} value={n}>{sizeLabel(n)}</option>)}
+            </select>
+          </em>
+        ) : (
+          <em className="qk-pager-size">· 한 쪽 {sizeLabel(size)}</em>
+        )}
       </span>
       {pages > 1 && (
         <span className="qk-pager-nav">
