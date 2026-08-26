@@ -493,7 +493,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <BoardProvider>
           <PopupProvider>
             <GuideProvider>
-              <AppContent>{children}</AppContent>
+              {/*   ★ 앱 전체 글자 키우기 (2026-08-26 사장님: "전체 글자가 너무 작다는 평 — 2px 정도") — 값 하나(.app-zoom)로 사이드바·머리·본문이 같이 커진다.
+                    랜딩·온보딩은 이 껍데기 밖이라 그대로. */}
+              <div className="app-zoom"><AppContent>{children}</AppContent></div>
             </GuideProvider>
           </PopupProvider>
           {/* 페이지 무관 백그라운드 sync chain — 어떤 페이지에서든 작동 */}

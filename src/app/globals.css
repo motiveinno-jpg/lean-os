@@ -8956,3 +8956,6 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .doc-editor { @apply flex min-h-full flex-col; }
 .doc-editor > .stg-table-wrap { @apply flex-1; }
 .doc-editor > .doc-add { @apply sticky bottom-0 border-t border-[var(--border)] bg-[var(--bg-card)]; }
+
+/* 앱 전체 확대 — 12px 글자가 약 13.5px, 14px 가 약 15.7px (2026-08-26 사장님: 글자 2px 정도 키우기). 되돌리려면 이 줄만. */
+.app-zoom { zoom: 1.12; }
