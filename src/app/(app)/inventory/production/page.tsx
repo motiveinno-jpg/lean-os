@@ -17,6 +17,7 @@ import { produceLines, updateProduceDoc, cancelProduceDoc } from "@/lib/inventor
 import { listOrders } from "@/lib/inventory-orders";
 import { BomNeedDialog, MaterialShortBadge } from "../_components/bom-editor";
 import { ProdVoucherDialog } from "../_components/prod-voucher";
+import { DefectDisposeDialog } from "../_components/defect-dispose";
 import { materialShortages } from "@/lib/inventory-production";
 import { listOnHand, DEFECT_WAREHOUSE_CODE } from "@/lib/inventory";
 import type { DocCtl } from "../_components/doc-editor";
@@ -26,6 +27,7 @@ export default function ProductionPage() {
   //   ★ 결정 29 — 자재 소요 팝업에서 고친 실투입. 저장에 실려 가고, 저장되면 비운다. 문서를 열면 그 문서의 자재 줄로 채운다.
   const [mats, setMats] = useState<MatInput[] | null>(null);
   const [voucher, setVoucher] = useState<{ companyId: string; userId: string | null } | null>(null);
+  const [dispose, setDispose] = useState<{ ctl: DocCtl } | null>(null);
   const qc = useQueryClient();
 
   return (
@@ -42,6 +44,8 @@ export default function ProductionPage() {
             <MaterialShortBadge ctl={ctl} onOpen={() => setNeed({ ctl })} />
             {/*   ★ 결정 33 — 주기 전표 초안 상태·지금 만들기·설정 */}
             <button type="button" className="btn-secondary btn-sm" onClick={() => ctl.companyId && setVoucher({ companyId: ctl.companyId, userId: ctl.userId })}>생산 전표</button>
+            {/*   ★ Phase 4 — 불량 보류 재고 처분(폐기·양품 전환·B급 판매 안내) */}
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setDispose({ ctl })}>불량 처분</button>
           </>
         )}
         saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
@@ -146,6 +150,7 @@ export default function ProductionPage() {
           onClose={() => setNeed(null)} />
       )}
       {voucher && <ProdVoucherDialog companyId={voucher.companyId} userId={voucher.userId} onClose={() => setVoucher(null)} />}
+      {dispose && dispose.ctl.companyId && <DefectDisposeDialog companyId={dispose.ctl.companyId} userId={dispose.ctl.userId} products={dispose.ctl.products} onClose={() => setDispose(null)} />}
     </>
   );
 }
