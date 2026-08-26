@@ -15,10 +15,11 @@ import {
 import { listBoms } from "@/lib/inventory-production";
 import { produceLines, updateProduceDoc, cancelProduceDoc } from "@/lib/inventory-production";
 import { listOrders } from "@/lib/inventory-orders";
-import { BomPanel } from "../_components/bom-panel";
+import { BomNeedDialog } from "../_components/bom-editor";
+import type { DocCtl } from "../_components/doc-editor";
 
 export default function ProductionPage() {
-  const [bomOpen, setBomOpen] = useState(false);
+  const [need, setNeed] = useState<{ ctl: DocCtl } | null>(null);
   const qc = useQueryClient();
 
   return (
@@ -29,7 +30,8 @@ export default function ProductionPage() {
         pull={(ctl) => (
           <>
             <PullOrderButton ctl={ctl} />
-            <button type="button" className="btn-secondary btn-sm" onClick={() => setBomOpen(true)}>자재구성</button>
+            {/*   ★ 자재구성 편집은 재고 › 품목으로 갔다(2026-08-26). 여기서는 친 품목의 자재 소요만 본다. */}
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setNeed({ ctl })}>자재 소요</button>
           </>
         )}
         saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
@@ -102,7 +104,12 @@ export default function ProductionPage() {
         }}
         onCancel={async ({ id, ctl, reason }) => { await cancelProduceDoc(id, reason, ctl.userId); }}
       />
-      {bomOpen && <BomPanel onClose={() => setBomOpen(false)} />}
+      {need && need.ctl.companyId && (
+        <BomNeedDialog companyId={need.ctl.companyId} warehouseId={need.ctl.head.wh || null}
+          items={need.ctl.build().lines.map((l) => ({ product_id: l.product_id, qty: l.qty }))}
+          products={need.ctl.products}
+          onClose={() => setNeed(null)} />
+      )}
     </>
   );
 }

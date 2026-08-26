@@ -18,6 +18,8 @@ import {
 } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { listProducts, listOnHand, upsertProduct, type Product } from "@/lib/inventory";
+import { listBoms } from "@/lib/inventory-production";
+import { BomEditorDialog } from "../_components/bom-editor";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 
@@ -34,6 +36,10 @@ export default function ProductsPage() {
   type SortKey = "sku" | "name" | "category" | "sale" | "cost" | "qty";
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "sku", dir: "asc" });
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
+  //   자재구성 팝업 — 품목 등록 체크박스에서 연다(2026-08-26 사장님: 생산이 아니라 품목에 있어야)
+  const [bomFor, setBomFor] = useState<Product | null>(null);
+  const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId!), enabled: !!companyId });
+  const bomOf = useMemo(() => { const m = new Map<string, number>(); for (const b of boms) m.set(b.product_id, (m.get(b.product_id) || 0) + 1); return m; }, [boms]);
   const [pasteOpen, setPasteOpen] = useState(false);
 
   const { data: products = [] } = useQuery({
@@ -174,32 +180,44 @@ export default function ProductsPage() {
       {editing && companyId && (
         <ProductDialog others={products}
           initial={editing}
+          bomCount={editing.id ? (bomOf.get(editing.id) || 0) : 0}
+          onOpenBom={(p) => setBomFor(p)}
           onClose={() => setEditing(null)}
-          onSave={async (v) => {
+          onSave={async (v, openBom) => {
             try {
-              await upsertProduct(companyId, v, userId);
-              qc.invalidateQueries({ queryKey: ["inv-products", companyId] });
+              const id = await upsertProduct(companyId, v, userId);
+              await qc.invalidateQueries({ queryKey: ["inv-products", companyId] });
               setEditing(null);
               toast(v.id ? "품목을 고쳤습니다" : "품목을 등록했습니다", "success");
+              //   새 품목에 자재구성을 켜 두었으면 저장 직후 자재구성 팝업 — 저장 전엔 id 가 없어 줄을 못 붙인다
+              if (openBom) setBomFor({ ...(v as Product), id });
             } catch (e) {
               toast(friendlyError(e, "저장하지 못했습니다"), "error");
             }
           }}
         />
       )}
+      {bomFor && companyId && (
+        <BomEditorDialog companyId={companyId} product={bomFor} products={products} onClose={() => setBomFor(null)} />
+      )}
     </div>
   );
 }
 
 /** 품목 등록·수정 — 폼은 팝업(목록 줄이 밀리지 않게, 조회 화면 표준) */
-function ProductDialog({ initial, others, onClose, onSave }: {
+function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }: {
   initial: Partial<Product>;
   /** 바코드 중복 확인용 — 다른 품목들 */
   others: Product[];
+  /** 이 품목에 등록된 자재구성 줄 수 */
+  bomCount: number;
+  onOpenBom: (p: Product) => void;
   onClose: () => void;
-  onSave: (v: Partial<Product> & { id?: string }) => void;
+  onSave: (v: Partial<Product> & { id?: string }, openBom: boolean) => void;
 }) {
   const [v, setV] = useState<Partial<Product>>({ unit: "EA", track_stock: true, is_active: true, ...initial });
+  //   자재구성 체크 — 있는 품목이면 켜져 있고, 켜면(기존 품목) 바로 팝업, 새 품목이면 저장 뒤 팝업
+  const [wantBom, setWantBom] = useState(bomCount > 0);
   const dupBarcode = v.barcode ? others.find((p) => p.id !== initial.id && p.barcode === v.barcode) : undefined;
   const set = (k: keyof Product, val: unknown) => setV((s) => ({ ...s, [k]: val }));
   const num = (x: unknown) => (x === "" || x == null ? null : Number(String(x).replace(/[^0-9.-]/g, "")));
@@ -251,6 +269,18 @@ function ProductDialog({ initial, others, onClose, onSave }: {
             <em>끄면 재고에 잡히지 않습니다 — 설치비·배송비·용역·구독처럼 <b>셀 물건이 없는 것</b>. 주문·계산서에는 그대로 오릅니다.</em>
           </span>
         </label>
+        {/*   ★ 자재구성 — 생산 입력이 아니라 품목 등록에서(2026-08-26 사장님). 체크하면 팝업이 열린다. */}
+        <label className="inv-track inv-track-bom">
+          <input type="checkbox" checked={wantBom} onChange={(e) => {
+            setWantBom(e.target.checked);
+            if (e.target.checked && initial.id) onOpenBom({ ...(initial as Product), ...(v as Product) });
+          }} />
+          <span>
+            <b>자재로 만드는 품목입니다 (세트·완제품){bomCount > 0 && <span className="inv-pill inv-pill-ok">자재 {bomCount}종</span>}</b>
+            <em>체크하면 <b>자재구성</b>(1개 만들 때 드는 자재·수량)을 적는 창이 열립니다{!initial.id ? " — 새 품목은 저장 뒤에 열립니다" : ""}. 생산 › 완성 기록 때 그만큼 자재가 빠집니다.</em>
+            {bomCount > 0 && initial.id && <button type="button" className="bz-link" onClick={(e) => { e.preventDefault(); onOpenBom({ ...(initial as Product), ...(v as Product) }); }}>자재구성 고치기</button>}
+          </span>
+        </label>
 
         <div className="inv-form-grid">
           <label className="inv-field"><span>판매가</span>
@@ -270,7 +300,7 @@ function ProductDialog({ initial, others, onClose, onSave }: {
 
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
-          <button type="button" className="btn-primary btn-sm" disabled={!ready} onClick={() => onSave(v)}>저장</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!ready} onClick={() => onSave(v, wantBom && !initial.id)}>저장</button>
         </div>
       </div>
     </div>

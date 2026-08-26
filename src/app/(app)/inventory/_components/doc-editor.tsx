@@ -276,7 +276,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   }, [draft, companyId, formKey, userId, qc, toast]);
 
   return {
-    formKey, companyId, userId, toast, qc, gridRef, headRef, focusDate,
+    formKey, companyId, userId, toast, qc, gridRef, headRef, focusDate, products,
     layout, onHead, onLine, cells, head, setHead, rows, setRows, setCell, onCellKey, focusCell,
     live, sums, editing, setEditing, reset, loadDoc, pullLines, build, fillFrom, priceOf,
     formOpen, setFormOpen, draft, setDraft, openForm, commitForm,

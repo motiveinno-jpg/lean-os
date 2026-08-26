@@ -8933,3 +8933,9 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 품목 등록 — 바코드 중복 경고 (2026-08-26) */
 .inv-field-warn { @apply not-italic text-[11px] font-normal text-[var(--danger)]; }
 .inv-input-warn { @apply border-[var(--danger)]; }
+
+/* 품목 등록 자재구성 체크 · 생산 자재 소요 (2026-08-26) */
+.inv-track-bom { @apply mt-2; }
+.inv-track-bom .inv-pill { @apply ml-1.5; }
+.inv-bom-groups { @apply mb-2 space-y-1 text-[12px]; }
+.inv-bom-group { @apply rounded-lg border border-[var(--border)] px-3 py-1.5; }
