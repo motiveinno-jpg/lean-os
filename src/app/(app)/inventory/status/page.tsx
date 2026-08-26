@@ -318,7 +318,7 @@ export default function InventoryStatusPage() {
                     <div className="pnl-panel">
                       <h3>바로 처리할 것</h3><p>숫자를 누르면 그 화면으로 갑니다</p>
                       <ul className="inv-status-todo">
-                        <li><Link href="/inventory/stock">재고 부족 <b>{stock.short}</b> · 품절 <b>{stock.out}</b></Link></li>
+                        <li><Link href="/inventory/purchase?fill=1">재고 부족 <b>{stock.short}</b> · 품절 <b>{stock.out}</b> — 구매 입력에 부족분 채우기</Link></li>
                         <li><Link href="/partners/reconciliation/sale-purchase">전표 없는 판매 <b>{sale.noVoucher}건</b> — 매입매출전표 › 증빙에서 불러오기</Link></li>
                         <li><Link href="/inventory/orders">납기 지난 주문 <b>{order.late.length}건</b> · 열린 주문 잔량 <b>{order.open.length}건</b></Link></li>
                         <li><Link href="/inventory/production">자재 부족 <b>{make.shortage.length}품목</b>{make.noBom ? ` · 자재구성 없는 주문 줄 ${make.noBom}` : ""}</Link></li>

@@ -6,6 +6,7 @@
 
 import { DocScreen, type HistRow } from "../_components/doc-screen";
 import { PullOrderButton } from "../_components/pull-order";
+import { FillShortageButton } from "../_components/fill-shortage";
 import {
   createStockDoc, updateStockDoc, getStockDoc, listStockDocs, listProducts, listWarehouses, returnStockDoc, cancelStockDoc, rememberPartnerPrices,
 } from "@/lib/inventory";
@@ -16,7 +17,7 @@ export default function PurchasePage() {
     <DocScreen
       formKey="buy"
       perm="/inventory/purchase"
-      pull={(ctl) => <PullOrderButton ctl={ctl} />}
+      pull={(ctl) => <><PullOrderButton ctl={ctl} /><FillShortageButton ctl={ctl} /></>}
       saveActions={[{ key: "save", label: "매입 저장", primary: true, hint: "재고가 즉시 증가합니다" }]}
       headNote={<span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 증가합니다</b>.</span>}
       onSave={async ({ built, ctl, editingId }) => {

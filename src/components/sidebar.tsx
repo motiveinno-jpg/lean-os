@@ -87,8 +87,6 @@ const NAV_GROUPS: NavGroup[] = [
     //   ★ 다섯은 사장님이 정한 "5개까지만 편다"의 **정확한 상한**이다. 앞으로 더할 것은 메뉴가 아니라 화면 안 갈래 탭으로.
     label: "재고", short: "재고", icon: "package",
     items: [
-      //   ★ 현황 — 주문·판매·구매·생산을 한 화면에 집계·그래프로 (2026-08-26 사장님 지시로 "5개까지" 상한을 넘겨 신설)
-      { href: "/inventory/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
       { href: "/inventory/products", label: "품목", icon: "package", roles: ["owner", "admin"], layer: "기초" },
       { href: "/inventory/stock", label: "재고", icon: "layers", roles: ["owner", "admin"] },
       //   ★ 차례는 주문 · 판매 · 구매 · 생산 (2026-08-25 사장님 지시).
@@ -98,6 +96,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/inventory/purchase", label: "구매", icon: "download", roles: ["owner", "admin"] },
       { href: "/inventory/production", label: "생산", icon: "kanban", roles: ["owner", "admin"] },
       { href: "/inventory/channels", label: "채널", icon: "link", roles: ["owner", "admin"], layer: "연동" },
+      //   ★ 현황 — 주문·판매·구매·생산을 한 화면에 집계·그래프로. 맨 아래(2026-08-26 사장님: "현황이 제일 아래쪽으로").
+      { href: "/inventory/status", label: "현황", icon: "bar-chart", roles: ["owner", "admin"], layer: "현황" },
     ],
   },
   {

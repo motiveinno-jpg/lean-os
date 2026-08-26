@@ -16,6 +16,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { todayKst } from "@/lib/kst";
+import { DateField } from "@/components/date-field";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup,
   Pager, usePager, QuickSearch, quickSearchHit,
@@ -513,7 +514,7 @@ function StockDocDialog({ companyId, userId, products, warehouses, onClose, onSa
               ))}
             </select></label>
           <label className="inv-field"><span>일자</span>
-            <input type="date" className="field-input" value={docDate} onChange={(e) => setDocDate(e.target.value)} /></label>
+            <DateField className="field-input" value={docDate} onChange={(e) => setDocDate(e.target.value)} /></label>
           <label className="inv-field"><span>{isMove ? "보내는 창고 *" : "창고 *"}</span>
             <select className="field-input" value={whId} onChange={(e) => setWhId(e.target.value)}>
               {warehouses.length === 0 && <option value="">(첫 저장 때 본사창고가 만들어집니다)</option>}

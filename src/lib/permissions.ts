@@ -109,7 +109,6 @@ export const PERMISSION_CATALOG: PermGroup[] = [
     //   ★ 새 키는 member_permissions 에 행이 없어 **백필 전까지 마스터 외 아무도 못 본다** — 배포와 함께 백필한다.
     group: "재고",
     menus: [
-      { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },
       { route: "/inventory/products", label: "품목", money: true, desc: "SKU·규격·판매가·매입가 — 원가가 보인다" },
       { route: "/inventory/stock", label: "재고", tabs: [
         { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
@@ -118,7 +117,8 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/inventory/sales", label: "판매", money: true },
       { route: "/inventory/purchase", label: "구매", money: true },
       { route: "/inventory/production", label: "생산" },
-      { route: "/inventory/channels", label: "채널", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결" },
+      { route: "/inventory/channels", label: "채널", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리" },
+      { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },
     ],
   },
   {
