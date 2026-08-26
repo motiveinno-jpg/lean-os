@@ -25,7 +25,7 @@ import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
 import {
-  listProducts, listOnHand, listWarehouses, listMoves, listAvgCost, createStockDoc,
+  listProducts, listOnHand, listWarehouses, listMoves, listAvgCost, createStockDoc, type OnHand,
   ensureDefaultWarehouse, upsertWarehouse, STOCK_REASONS, reasonOf, reasonLabel,
   type Product, type Warehouse, type StockReason,
 } from "@/lib/inventory";
@@ -56,6 +56,7 @@ export default function StockPage() {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(todayKst);
   const [docOpen, setDocOpen] = useState(false);
+  const [whOpen, setWhOpen] = useState<Warehouse | null>(null);
   const [openingOpen, setOpeningOpen] = useState(false);
 
   //   재고를 '움직일' 권한 — 없으면 보기만 (창고 담당이 아닌 사람이 수량을 바꾸면 안 된다)
@@ -412,8 +413,9 @@ export default function StockPage() {
                       {warehouses.map((w) => {
                         const mine = onhand.filter((r) => r.warehouse_id === w.id);
                         return (
-                          <tr key={w.id}>
-                            <td className="text-left"><b>{w.name}</b></td>
+                          //   ★ 창고를 누르면 그 안에 무엇이 몇 개 있는지 팝업으로 (2026-08-26 사장님: "창고에 어떤 상품이 몇 개인지 한눈에")
+                          <tr key={w.id} className="inv-row-click" onClick={() => setWhOpen(w)} title="누르면 이 창고의 품목·수량 목록이 열립니다">
+                            <td className="text-left"><b className="inv-wh-link">{w.name}</b></td>
                             <td className="tc ev-dim">{w.code || "—"}</td>
                             <td className="tc">{w.is_default ? "✅" : "—"}</td>
                             <td className="tr mono-number">{won(mine.filter((r) => r.qty !== 0).length)}</td>
@@ -441,6 +443,10 @@ export default function StockPage() {
         {tab === "moves" && <Pager page={movePager.page} pages={movePager.pages} total={moves.length} size={50} from={movePager.from} to={movePager.to} onPage={movePager.setPage} />}
       </QueryScreen>
 
+      {whOpen && (
+        <WarehouseDialog wh={whOpen} onhand={onhand.filter((r) => r.warehouse_id === whOpen.id)} products={products} avgCost={avgCost}
+          onClose={() => setWhOpen(null)} />
+      )}
       {docOpen && companyId && (
         <StockDocDialog companyId={companyId} userId={userId} products={products} warehouses={warehouses}
           onClose={() => setDocOpen(false)}
@@ -473,6 +479,60 @@ function WarehouseAdd({ companyId, onDone }: { companyId: string | null; onDone:
           catch (e) { toast(friendlyError(e, "만들지 못했습니다"), "error"); }
         }}>+ 창고</button>
     </span>
+  );
+}
+
+/** 창고 하나의 품목·수량 — 창고 갈래에서 창고를 누르면 뜬다 (2026-08-26 사장님 지시) */
+function WarehouseDialog({ wh, onhand, products, avgCost, onClose }: {
+  wh: Warehouse; onhand: OnHand[]; products: Product[]; avgCost: Map<string, number>; onClose: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  const rows = useMemo(() => onhand
+    .filter((r) => r.qty !== 0)
+    .map((r) => {
+      const p = byId.get(r.product_id);
+      const cost = avgCost.get(r.product_id) ?? Number(p?.cost_price || 0);
+      return { r, p, cost, amount: r.qty * cost, short: p?.safety_stock != null && r.qty < p.safety_stock };
+    })
+    .filter((x) => !q.trim() || `${x.p?.sku || ""} ${x.p?.name || ""} ${x.p?.spec || ""}`.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => b.r.qty - a.r.qty), [onhand, byId, avgCost, q]);
+  const totalQty = rows.reduce((n, x) => n + x.r.qty, 0);
+  const totalAmt = rows.reduce((n, x) => n + x.amount, 0);
+  return (
+    <div className="inv-modal" onClick={onClose}>
+      <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        <h3 className="inv-modal-title">{wh.name}{wh.code ? <span className="ev-dim"> · {wh.code}</span> : null}</h3>
+        <p className="inv-modal-desc">이 창고에 있는 품목 <b>{rows.length}종</b> · 수량 <b>{won(totalQty)}</b> · 재고 금액 <b>₩{won(totalAmt)}</b>(이동평균 원가) — 부족은 안전재고보다 적은 품목</p>
+        <input className="field-input inv-wh-search" placeholder="품목명 · SKU · 규격으로 좁히기" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+        {rows.length === 0 ? (
+          <div className="inv-status-empty">{q ? "맞는 품목이 없습니다" : "이 창고에는 재고가 없습니다"}</div>
+        ) : (
+          <div className="stg-table-wrap ch-ship-list">
+            <table className="ev-table ev-lined table-inv-status-sm">
+              <thead><tr><th>SKU</th><th>품목</th><th>규격</th><th>수량</th><th>안전재고</th><th>상태</th><th>평균단가</th><th>금액</th></tr></thead>
+              <tbody>{rows.map((x) => (
+                <tr key={x.r.product_id} className={x.short ? "inv-row-fix" : undefined}>
+                  <td className="mono-number text-left">{x.p?.sku || "—"}</td>
+                  <td className="text-left"><b>{x.p?.name || "삭제된 품목"}</b></td>
+                  <td className="text-left ev-dim">{x.p?.spec || "—"}</td>
+                  <td className="tr mono-number"><b>{won(x.r.qty)}</b></td>
+                  <td className="tr mono-number ev-dim">{x.p?.safety_stock != null ? won(x.p.safety_stock) : "—"}</td>
+                  <td className="tc">{x.r.qty <= 0 ? <span className="inv-pill inv-pill-danger">품절</span> : x.short ? <span className="inv-pill inv-pill-danger">부족</span> : <span className="inv-pill inv-pill-ok">정상</span>}</td>
+                  <td className="tr mono-number ev-dim">{x.cost ? `₩${won(x.cost)}` : "—"}</td>
+                  <td className="tr mono-number">₩{won(x.amount)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+        <div className="inv-modal-actions">
+          <span className="fl-note">수량은 살아 있는 전표 줄의 합(취소 전표 제외)</span>
+          <span className="doc-sums-sp" />
+          <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -8921,3 +8921,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .ch-sheet-row { @apply grid grid-cols-[24px_180px_1fr_auto_auto_auto] items-center gap-1.5; }
 .ch-sheet-row em { @apply not-italic text-center text-[11px] text-[var(--text-dim)]; }
 .ch-sheet-add { @apply grid-cols-[24px_1fr_auto]; }
+
+/* 창고관리 › 창고 — 창고 팝업 (2026-08-26) */
+.inv-wh-link { @apply cursor-pointer text-[var(--primary)] underline-offset-2 hover:underline; }
+.inv-wh-search { @apply mb-2; }
