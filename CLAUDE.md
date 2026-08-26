@@ -97,6 +97,8 @@
 - **버튼은 `btn-primary`/`btn-secondary` + `btn-sm` 만**. 자체 색상 버튼(bg-[var(--success)] 등) 금지. 파란(확정) 버튼은 화면에 하나.
 - 입력 줄이 늘어나는 칸은 그 칸만 스크롤(최대 1/3), 아래 섹션 고정.
 - **푸시 전 hit-test**: 머리단 컨트롤 클릭, 상자 bottom = 사이드바 bottom 실측, 조건이 탭에 맞는지, 캡처만 보고 넘기지 않는다.
+  **⚠ 앱 전체가 `zoom`(--app-zoom) 안에 있다(2026-08-26). 100vh 로 잡은 높이는 zoom 배로 늘어나므로 `calc(100vh / var(--app-zoom) …)` 로 나눠 적고,
+  배포 전마다 사이드바 bottom 과 본문 상자 bottom 을 `getBoundingClientRect` 로 실측해 같은지(그리고 문서가 세로 스크롤되지 않는지) 확인한다 — 사장님 지시 "무조건 확인".
 - 훅 순서: `usePager` 등 훅은 로딩 조기 return 앞. 화면별 표 `min-width` 는 `table.xxx` 로.
 
 기획 예시(동작하는 목업): `https://claude.ai/code/artifact/a857b9f7-390e-418c-8305-ef9baf6891f3`

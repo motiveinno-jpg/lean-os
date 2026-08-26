@@ -640,6 +640,7 @@ input, textarea, [contenteditable="true"] {
    전부 시각-only(레이아웃 ±수px) → 회귀 최소.
    ══════════════════════════════════════════════════════════════════ */
 :root { --control-h: 2.5rem; --control-h-sm: 2rem; }
+:root { --app-zoom: 1.08; } /* 앱 전체 확대 — 2026-08-26 사장님: 1.12 는 너무 커서 한 틱 내림. 조절은 이 값 하나로 */
 
 /* 1) 버튼 표준 높이 — 기존 py 무력화, 세로 중앙정렬은 flex 가 처리 */
 .btn-primary, .btn-secondary, .btn-ghost, .btn-danger {
@@ -8958,4 +8959,15 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .doc-editor > .doc-add { @apply sticky bottom-0 border-t border-[var(--border)] bg-[var(--bg-card)]; }
 
 /* 앱 전체 확대 — 12px 글자가 약 13.5px, 14px 가 약 15.7px (2026-08-26 사장님: 글자 2px 정도 키우기). 되돌리려면 이 줄만. */
-.app-zoom { zoom: 1.12; }
+.app-zoom { zoom: var(--app-zoom); }
+/* ⚠ zoom 안에서는 100vh 가 zoom 배로 늘어난다 — 뷰포트에 맞춰 잡던 높이는 전부 ÷ --app-zoom 해야 사이드바 끝선과 본문 상자 끝선이 맞는다.
+   (2026-08-26 사장님 지적: "커지면서 깨지는 부분 — 사이드바 끝선과 우측 데이터 끝선이 안 맞는다. 배포 때 무조건 확인.")
+   새로 100vh 를 쓰는 규칙을 만들면 아래에 같이 나눠 적을 것. */
+.app-zoom .min-h-screen { min-height: calc(100vh / var(--app-zoom)); }
+.app-zoom .qk-shell, .app-zoom .collect-page { height: calc(100vh / var(--app-zoom) - 100px); }
+.app-zoom .app-content-scale:has(> .qk-shell), .app-zoom .app-content-scale:has(> .pj-shell) { height: calc(100vh / var(--app-zoom) - 100px); }
+.app-zoom .vault-layout { height: calc(100vh / var(--app-zoom) - 100px); }
+.app-zoom .vault-file-panel > .qk-screen { height: calc(100vh / var(--app-zoom) - 380px); }
+.app-zoom .bank-tx-list-card { max-height: calc(100vh / var(--app-zoom) - 210px); }
+.app-zoom .menu-guide-drawer { height: calc(100dvh / var(--app-zoom)); }
+.app-zoom .sidebar-mobile-drawer { height: calc(100dvh / var(--app-zoom)); }
