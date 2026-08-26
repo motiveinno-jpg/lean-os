@@ -8978,3 +8978,6 @@ table.table-inv-ch-ship { min-width: 1480px; }
 
 /* 갈래 탭 안 건수 배지 — 글자에 붙지 않게 (2026-08-26 재무 현황 처리할 것) */
 .collect-tab .inv-short-badge { @apply ml-1.5; }
+
+/* 좌측 아이콘 레일 — 홈이 예전 재무 자리(52px 아래)에서 시작 (2026-08-26 사장님: "홈부터 조금 아래로, 재무 있는 위치로") */
+.sb-rail > .sb-rail-groups { @apply pt-[52px]; }
