@@ -60,6 +60,10 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   const [rows, setRows] = useState<DocRow[]>(() => Array.from({ length: 5 }, blankRow));
   const [editing, setEditing] = useState<Order | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  //   ★ 결정 35 (2026-08-26 사장님: "바코드를 찍으면 무조건 양품 1건?") — 스캔이 들어갈 칸. 생산 양식만 불량을 쓴다.
+  //     제어 바코드 *GOOD* / *DEFECT* 를 찍어도 바뀐다(손을 안 대고). 마지막 스캔은 조회 줄에 잠깐 보여 준다.
+  const [scanMode, setScanMode] = useState<"qty" | "defect">("qty");
+  const [lastScan, setLastScan] = useState<{ name: string; qty: number; defect: number; col: "qty" | "defect" } | null>(null);
   const [draft, setDraft] = useState<Layout | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const headRef = useRef<HTMLDivElement>(null);
@@ -267,7 +271,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
       };
     });
     return {
-      ok: valid && lines.length > 0 && lines.every((l) => l.product_id && l.qty > 0),
+      ok: valid && lines.length > 0 && lines.every((l) => l.product_id && (l.qty > 0 || (formKey === "make" && l.defect > 0))),
       date,
       head: { ...head, custom: customHead } as Record<string, string> & { custom: Record<string, string> },
       lines, sums,
@@ -291,6 +295,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
     layout, onHead, onLine, cells, head, setHead, rows, setRows, setCell, onCellKey, focusCell,
     live, sums, editing, setEditing, reset, loadDoc, pullLines, build, fillFrom, priceOf,
     formOpen, setFormOpen, draft, setDraft, openForm, commitForm,
+    scanMode, setScanMode, lastScan, setLastScan,
   };
 }
 export type DocCtl = ReturnType<typeof useDocEditor>;
@@ -393,16 +398,22 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
   const choose = (i: number, p: Product, scanned = false) => {
     let focusRow = i;
     let focusKey: string | null = null;
+    //   스캔은 고른 칸(양품/불량)에 +1. 생산 양식이 아니면 언제나 수량.
+    const col: "qty" | "defect" = ctl.formKey === "make" && ctl.scanMode === "defect" ? "defect" : "qty";
+    const bump = (n: DocRow) => {
+      n[col] = String(num(n[col]) + 1);
+      const tot = num(n.qty) + (ctl.formKey === "make" ? num(n.defect) : 0);
+      if (num(n.price)) { const sup = num(n.price) * tot; n.supply = String(sup); n.vat = String(Math.round(sup * 0.1)); }
+      if (scanned) ctl.setLastScan({ name: p.name, qty: num(n.qty), defect: num(n.defect), col });
+    };
     setRows((s) => {
       const dupIdx = scanned ? s.findIndex((r, j) => j !== i && r.product_id === p.id && !r.ch) : -1;
       if (dupIdx >= 0) {
-        //   같은 품목 줄이 이미 있다 — 수량만 +1, 지금 줄은 비운다
+        //   같은 품목 줄이 이미 있다 — 그 줄의 고른 칸만 +1, 지금 줄은 비운다
         const next = s.map((r, j) => {
           if (j !== dupIdx) return j === i ? blankRow() : r;
           const n = { ...r, custom: { ...r.custom } };
-          const qty = num(n.qty) + 1;
-          n.qty = String(qty);
-          if (num(n.price)) { const sup = num(n.price) * qty; n.supply = String(sup); n.vat = String(Math.round(sup * 0.1)); }
+          bump(n);
           return n;
         });
         focusRow = i; focusKey = "sku";
@@ -412,10 +423,7 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
         if (j !== i) return r;
         const n = { ...r, custom: { ...r.custom } };
         n.sku = ""; fillFrom(n, p);
-        if (scanned && !num(n.qty)) {
-          n.qty = "1";
-          if (num(n.price)) { n.supply = String(num(n.price)); n.vat = String(Math.round(num(n.price) * 0.1)); }
-        }
+        if (scanned && !num(n[col])) bump(n);
         return n;
       });
       if (scanned) { focusRow = i + 1; focusKey = "sku"; if (i === s.length - 1) next.push(blankRow()); }
@@ -488,6 +496,10 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                           //   ★ Enter 인데 친 글자가 바코드·SKU 와 정확히 같다 = 스캔. 고르개를 건너뛴다.
                           if (id === "sku" && e.key === "Enter") {
                             if (pickTimer.current) { window.clearTimeout(pickTimer.current); pickTimer.current = null; }
+                            //   ★ 제어 바코드 — *GOOD* / *DEFECT* 를 찍으면 스캔 칸이 바뀐다(생산 양식). 칸은 비우고 커서는 그대로.
+                            if (ctl.formKey === "make" && /^\*(GOOD|DEFECT)\*$/i.test(raw.trim())) {
+                              e.preventDefault(); ctl.setScanMode(/DEFECT/i.test(raw) ? "defect" : "qty"); setCell(i, "sku", ""); return;
+                            }
                             const hit = scanHit(raw);
                             if (hit) { e.preventDefault(); choose(i, hit, !!hit.barcode && hit.barcode === raw.trim()); return; }
                           }

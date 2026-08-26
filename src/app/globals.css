@@ -8996,3 +8996,8 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .prod-voucher-cfg { @apply mt-3 flex flex-wrap items-end gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2; }
 .prod-voucher-acct { @apply flex min-w-[200px] flex-col gap-1; }
 .prod-voucher-acct .field-input { @apply h-8 text-[12.5px]; }
+
+/* 생산 스캔 모드 칩 — 불량 모드는 붉은 띠 (2026-08-26 결정 35) */
+.prod-scan-mode { @apply inline-flex items-center gap-2 rounded-lg px-1.5 py-0.5; }
+.prod-scan-defect { @apply bg-[var(--danger-dim)] ring-1 ring-[var(--danger)]; }
+.prod-scan-last { @apply not-italic text-[11.5px] text-[var(--text-muted)]; }

@@ -21,6 +21,7 @@ import { DefectDisposeDialog } from "../_components/defect-dispose";
 import { materialShortages } from "@/lib/inventory-production";
 import { listOnHand, DEFECT_WAREHOUSE_CODE } from "@/lib/inventory";
 import type { DocCtl } from "../_components/doc-editor";
+import { ChipGroup } from "@/components/query-kit";
 
 export default function ProductionPage() {
   const [need, setNeed] = useState<{ ctl: DocCtl } | null>(null);
@@ -42,6 +43,11 @@ export default function ProductionPage() {
             <button type="button" className="btn-secondary btn-sm" onClick={() => setNeed({ ctl })}>자재 소요</button>
             {/*   ★ 자재가 모자라면 치는 동안 바로 보인다(2026-08-26 사장님: "부족하면 알려주는 장치") — 누르면 소요 팝업 */}
             <MaterialShortBadge ctl={ctl} onOpen={() => setNeed({ ctl })} />
+            {/*   ★ 결정 35 — 스캔 모드: 바코드가 양품/불량 어느 칸에 +1 될지. 제어 바코드 *GOOD* / *DEFECT* 로도 바뀐다 */}
+            <span className={ctl.scanMode === "defect" ? "prod-scan-mode prod-scan-defect" : "prod-scan-mode"} title="바코드를 찍으면 이 칸에 +1 됩니다. 제어 바코드 *GOOD* / *DEFECT* 를 찍어도 바뀝니다">
+              <ChipGroup value={ctl.scanMode} onChange={ctl.setScanMode} options={[{ value: "qty", label: "양품 스캔" }, { value: "defect", label: "불량 스캔" }] as const} />
+              {ctl.lastScan && <em className="prod-scan-last">{ctl.lastScan.name} → {ctl.lastScan.col === "defect" ? "불량" : "양품"} · 양품 {ctl.lastScan.qty} / 불량 {ctl.lastScan.defect}</em>}
+            </span>
             {/*   ★ 결정 33 — 주기 전표 초안 상태·지금 만들기·설정 */}
             <button type="button" className="btn-secondary btn-sm" onClick={() => ctl.companyId && setVoucher({ companyId: ctl.companyId, userId: ctl.userId })}>생산 전표</button>
             {/*   ★ Phase 4 — 불량 보류 재고 처분(폐기·양품 전환·B급 판매 안내) */}
