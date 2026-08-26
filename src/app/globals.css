@@ -8870,3 +8870,7 @@ table.table-inv-summary { min-width: 760px; }
 .maint-popup-rows { @apply mt-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-1 divide-y divide-[var(--border)]/60; }
 .maint-popup-row { @apply flex items-start gap-3 py-2 text-sm leading-6; }
 .maint-popup-row-label { @apply shrink-0 w-16 text-[12px] font-bold text-[var(--text)] leading-6; }
+
+/* 채널 주문 격자 — 이미 등록된 주문번호 줄 (2026-08-26) */
+.doc-row-dup td { @apply opacity-50 line-through; }
+.doc-row-dup td input { @apply line-through; }

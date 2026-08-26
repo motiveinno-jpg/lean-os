@@ -64,6 +64,36 @@ export const API_PROVIDERS: ApiProvider[] = [
     caution: "IP 로 등록하면 안 됩니다 — 수집 서버 주소가 고정이 아니라 오늘은 되고 내일 막힙니다. 반드시 URL 로 등록하세요.",
     usedBy: { href: "/support-programs", label: "지원사업추천" },
   },
+  {
+    key: "smartstore",
+    label: "스마트스토어 주문 (네이버 커머스API)",
+    gives: "스마트스토어 결제 완료 주문을 재고 › 채널 › 주문 가져오기에서 기간으로 불러옵니다.",
+    issuer: "네이버 커머스API 센터",
+    issueUrl: "https://apicenter.commerce.naver.com/",
+    steps: [
+      "커머스API 센터에 스마트스토어 판매자 계정으로 로그인합니다.",
+      "애플리케이션 > [애플리케이션 등록] 에서 이름을 적고 API 권한에 '주문 조회' 를 켭니다.",
+      "등록하면 나오는 애플리케이션 ID(클라이언트 ID)와 시크릿을 복사합니다.",
+      "아래 칸에 `클라이언트ID:클라이언트시크릿` 처럼 콜론(:)으로 붙여 한 줄로 넣습니다.",
+    ],
+    caution: "시크릿은 등록 직후 한 번만 보입니다 — 놓쳤으면 재발급하세요. 콜론(:) 앞뒤에 빈칸을 두지 마세요.",
+    usedBy: { href: "/inventory/channels", label: "재고 › 채널" },
+  },
+  {
+    key: "coupang",
+    label: "쿠팡 주문 (윙 OpenAPI)",
+    gives: "쿠팡 윙의 결제 완료(ACCEPT) 주문을 재고 › 채널 › 주문 가져오기에서 기간으로 불러옵니다.",
+    issuer: "쿠팡 윙 (Wing)",
+    issueUrl: "https://wing.coupang.com/",
+    steps: [
+      "쿠팡 윙에 로그인해 [판매자정보] > [추가판매정보] > Open API 키 발급으로 갑니다.",
+      "액세스키(Access Key)와 시크릿키(Secret Key)를 발급받습니다.",
+      "업체코드(Vendor ID, A로 시작)는 윙 화면 오른쪽 위 업체 정보에서 확인합니다.",
+      "아래 칸에 `액세스키:시크릿키:업체코드` 처럼 콜론(:)으로 붙여 한 줄로 넣습니다.",
+    ],
+    caution: "시크릿키는 발급 직후 한 번만 보입니다. 키가 유출되면 윙에서 바로 재발급하고 여기도 갈아 넣으세요.",
+    usedBy: { href: "/inventory/channels", label: "재고 › 채널" },
+  },
 ];
 
 export type ApiKeyRow = {

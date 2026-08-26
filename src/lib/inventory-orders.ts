@@ -12,11 +12,12 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import { todayKst } from "@/lib/kst";
 
-export type FormKey = "order" | "sale" | "buy" | "make";
+export type FormKey = "order" | "sale" | "buy" | "make" | "channel";
 export type Section = "head" | "line";
 
 export const FORM_LABEL: Record<FormKey, string> = {
   order: "주문서", sale: "판매", buy: "구매", make: "생산",
+  channel: "채널 주문",
 };
 
 /** 칸 하나 — `lock` 은 끌 수 없는 칸(없으면 전표가 서지 않는다). */
@@ -35,6 +36,8 @@ function baseHead(): Field[] {
     { field_id: "staff",   name: "담당자", on: false, custom: false, why: "담당 직원" },
     { field_id: "due",     name: "납기일", on: false, custom: false, why: "납품 예정일" },
     { field_id: "note",    name: "비고",   on: false, custom: false, why: "전표 전체에 대한 메모" },
+    //   채널 주문 양식에만 쓰는 칸 — 다른 양식에서는 defaultLayout 이 빼 버린다
+    { field_id: "channel", name: "채널",   on: true,  custom: false, lock: true, why: "어느 판매 채널의 주문인가" },
   ];
 }
 function baseLine(): Field[] {
@@ -46,6 +49,10 @@ function baseLine(): Field[] {
     { field_id: "supply", name: "공급가액", on: true,  custom: false, lock: true, why: "세금 전 금액" },
     { field_id: "vat",    name: "부가세",   on: true,  custom: false, why: "공급가액의 10% 자동 계산" },
     { field_id: "lnote",  name: "품목 비고", on: false, custom: false, why: "해당 품목에 대한 메모" },
+    //   채널 주문 양식에만 쓰는 칸 — 다른 양식에서는 defaultLayout 이 빼 버린다
+    { field_id: "ono",    name: "주문번호",     on: true,  custom: false, lock: true, why: "채널 주문번호 — 같은 번호는 두 번 등록되지 않습니다" },
+    { field_id: "ccode",  name: "채널 상품코드", on: true,  custom: false, why: "상품 연결에 등록된 코드면 품목이 자동으로 채워집니다" },
+    { field_id: "buyer",  name: "주문자",       on: true,  custom: false, why: "채널 주문자 이름" },
   ];
 }
 
@@ -61,7 +68,17 @@ export function defaultLayout(form: FormKey): { head: Field[]; line: Field[] } {
   //   ★ 생산은 **안에서 만드는 일**이라 거래처도 계산서도 없다(4단계 결정) — 칸을 꺼 둔다.
   //     쓰고 싶은 회사는 양식 고치기에서 켜면 된다.
   if (form === "make") head[1].on = false;
-  return { head, line };
+  //   ★ 채널 주문 — 주문번호·채널 상품코드·주문자가 앞뒤에 서고 거래처는 없다(채널이 거래처다). 창고·비고는 그대로.
+  if (form === "channel") {
+    head[1].on = false; head[5].on = true;
+    const ch = head.find((f) => f.field_id === "channel")!;
+    head.splice(head.indexOf(ch), 1); head.unshift(ch);
+    const ono = line.find((f) => f.field_id === "ono")!, ccode = line.find((f) => f.field_id === "ccode")!, buyer = line.find((f) => f.field_id === "buyer")!;
+    const rest = line.filter((f) => !["ono", "ccode", "buyer"].includes(f.field_id));
+    rest.find((f) => f.field_id === "price")!.on = true;
+    return { head, line: [ono, ccode, ...rest, buyer] };
+  }
+  return { head: head.filter((f) => f.field_id !== "channel"), line: line.filter((f) => !["ono", "ccode", "buyer"].includes(f.field_id)) };
 }
 
 export type Layout = { head: Field[]; line: Field[] };

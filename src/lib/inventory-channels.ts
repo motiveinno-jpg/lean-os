@@ -180,3 +180,88 @@ export async function importChannelOrders(
 
   return { docNo: doc.docNo, lines: use.length, orders: seen.size };
 }
+
+
+// ── 격자 입력에서 바로 출고 등록 (2026-08-26 사장님 지시 — 입력 화면 형식) ─────────
+//   붙여넣기·API 가 격자를 **채우기만** 하고, 출고는 사람이 [출고 등록]을 누른다.
+
+/** 이미 등록된 채널 주문번호 — 물어본 것만 확인한다(전부 읽지 않는다). */
+export async function listSeenOrderNos(companyId: string, channel: string, orderNos: string[]): Promise<Set<string>> {
+  const nos = [...new Set(orderNos.map((n) => n.trim()).filter(Boolean))];
+  const seen = new Set<string>();
+  for (let i = 0; i < nos.length; i += 200) {
+    const data = logRead("inventory:channel-seen", await supabase
+      .from("channel_order_imports").select("channel_order_no")
+      .eq("company_id", companyId).eq("channel", channel).in("channel_order_no", nos.slice(i, i + 200)));
+    for (const r of ((data || []) as any[])) seen.add(r.channel_order_no);
+  }
+  return seen;
+}
+
+export type ChannelDocLine = {
+  product_id: string; qty: number; unit_price: number | null; vat_amount: number | null;
+  channel_order_no: string; channel_product_id: string; buyer_name: string | null; order_date?: string | null;
+};
+
+/**
+ * 격자의 줄을 판매 출고 한 건으로 등록하고 주문번호를 적어 둔다.
+ *   ★ 저장 직전에 주문번호를 **다시** 확인한다 — 화면에 깔린 뒤 다른 사람이 같은 주문을 등록했을 수 있다(결정 17).
+ *   이미 등록된 주문번호의 줄은 건너뛰고 몇 줄인지 돌려준다.
+ */
+export async function importChannelDoc(
+  companyId: string, channel: string, warehouseId: string, docDate: string, note: string | null,
+  lines: ChannelDocLine[], userId?: string | null,
+) {
+  const seen = await listSeenOrderNos(companyId, channel, lines.map((l) => l.channel_order_no));
+  const use = lines.filter((l) => l.product_id && Number(l.qty) !== 0 && !seen.has(l.channel_order_no.trim()));
+  const skipped = lines.length - use.length;
+  if (!use.length) throw new Error(skipped ? "모두 이미 등록된 주문번호입니다" : "등록할 줄이 없습니다");
+
+  const orderNos = new Set(use.map((r) => r.channel_order_no.trim()));
+  const doc = await createStockDoc(companyId, {
+    reason: "sale", docDate, warehouseId,
+    note: [note, `${channelLabel(channel)} 주문 ${orderNos.size}건`].filter(Boolean).join(" · "),
+    lines: use.map((r) => ({
+      product_id: r.product_id, qty: Number(r.qty),
+      unit_price: r.unit_price ?? null, vat_amount: r.vat_amount ?? null,
+      note: `${channelLabel(channel)} ${r.channel_order_no.trim()}`,
+    })),
+  }, userId);
+
+  const first = new Map<string, ChannelDocLine>();
+  const amount = new Map<string, number>();
+  for (const r of use) {
+    const no = r.channel_order_no.trim();
+    if (!first.has(no)) first.set(no, r);
+    amount.set(no, (amount.get(no) || 0) + (r.unit_price != null ? Number(r.unit_price) * Number(r.qty) : 0));
+  }
+  const { error } = await supabase.from("channel_order_imports").insert(
+    [...first.entries()].map(([no, r]) => ({
+      company_id: companyId, channel, channel_order_no: no,
+      order_date: r.order_date || docDate, buyer_name: r.buyer_name || null,
+      amount: amount.get(no) || null, doc_id: doc.id, imported_by: userId ?? null,
+    })),
+  );
+  if (error) {
+    //   기록이 실패하면 다음에 또 넣을 수 있게 된다 → 출고를 되돌린다(결정 17)
+    await supabase.from("stock_moves").delete().eq("doc_id", doc.id);
+    await supabase.from("stock_docs").delete().eq("id", doc.id);
+    throw error;
+  }
+  return { docNo: doc.docNo, lines: use.length, orders: first.size, skipped };
+}
+
+/** 채널 API 에서 주문을 받아 온다 — 서버가 회사 키로 부른다. 재고에는 넣지 않는다. */
+export async function fetchChannelOrders(channel: string, from: string, to: string): Promise<
+  { ok: true; rows: (RawOrderRow & { product_name?: string | null })[] } | { ok: false; message: string; noKey?: boolean; noApi?: boolean }
+> {
+  const res = await fetch("/api/integrations/channel-orders", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel, from, to }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!body.ok) return { ok: false, message: String(body.message || "가져오지 못했습니다"), noKey: !!body.noKey, noApi: !!body.noApi };
+  return { ok: true, rows: body.rows || [] };
+}
+
+export const CHANNEL_HAS_API = new Set(["smartstore", "coupang"]);

@@ -17,6 +17,7 @@ import { todayKst } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
 import { PickList } from "@/components/pick-list";
 import { listPartnerPrices, type Product, type Warehouse } from "@/lib/inventory";
+import { CHANNELS } from "@/lib/inventory-channels";
 import {
   loadLayout, saveLayout, resetLayout, newFieldId, defaultLayout,
   FORM_LABEL, type FormKey, type Field, type Layout, type Order, type OrderLine,
@@ -36,12 +37,16 @@ export type DocRow = {
   srcLineId?: string | null;
   product_id?: string | null;
   sku: string; spec: string; qty: string; price: string; supply: string; vat: string; lnote: string;
+  //   채널 주문 양식의 칸 — 다른 양식에서는 비어 있다
+  ono: string; ccode: string; buyer: string;
+  /** 줄에 붙는 표시 — dup: 이미 등록된 주문번호 · nocode: 상품 연결이 없는 채널 상품코드 */
+  flag?: "dup" | "nocode" | null;
   custom: Record<string, string>;
 };
 
 let K = 1;
 export const blankRow = (): DocRow => ({
-  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", custom: {},
+  key: K++, sku: "", spec: "", qty: "", price: "", supply: "", vat: "", lnote: "", ono: "", ccode: "", buyer: "", flag: null, custom: {},
 });
 
 export function useDocEditor(companyId: string | null, userId: string | null, formKey: FormKey, products: Product[]) {
@@ -148,7 +153,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
     }, 0);
   }, [cells, focusCell]);
 
-  const live = useMemo(() => rows.filter((r) => r.product_id || r.sku.trim() || num(r.qty) || num(r.supply)), [rows]);
+  const live = useMemo(() => rows.filter((r) => r.product_id || r.sku.trim() || num(r.qty) || num(r.supply) || r.ono.trim() || r.ccode.trim()), [rows]);
   const sums = useMemo(() => ({
     lines: live.length,
     supply: live.reduce((n, r) => n + num(r.supply), 0),
@@ -177,7 +182,9 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
           sku: p ? `${p.sku} ${p.name}` : "", spec: p?.spec || "",
           qty: String(l.qty), price: l.unit_price == null ? "" : String(l.unit_price),
           supply: String(l.supply_amount), vat: String(l.vat_amount),
-          lnote: l.note || "", custom: l.custom || {},
+          lnote: l.note || "",
+          ono: l.custom?.ono || "", ccode: l.custom?.ccode || "", buyer: l.custom?.buyer || "",
+          custom: Object.fromEntries(Object.entries(l.custom || {}).filter(([k]) => !["ono", "ccode", "buyer"].includes(k))),
         } as DocRow;
       }),
       blankRow(),
@@ -233,6 +240,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
         unit_price: num(r.price) || (num(r.qty) ? num(r.supply) / num(r.qty) : null),
         supply_amount: num(r.supply), vat_amount: num(r.vat),
         note: r.lnote || null, custom: customLine,
+        ono: r.ono.trim(), ccode: r.ccode.trim(), buyer: r.buyer.trim(), flag: r.flag || null,
       };
     });
     return {
@@ -318,6 +326,10 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                     onClose={() => setDrop(null)} />
                 )}
               </div>
+            ) : f.field_id === "channel" ? (
+              <select className="field-input" value={head.channel || CHANNELS[0].value} onChange={(e) => set("channel", e.target.value)}>
+                {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
             ) : f.field_id === "wh" ? (
               <select className="field-input" value={head.wh || ""} onChange={(e) => set("wh", e.target.value)}>
                 {!warehouses.length && <option value="">창고 없음</option>}
@@ -336,9 +348,10 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
 // ── 격자 ──────────────────────────────────────────────────────────────────────
 const W: Record<string, string> = {
   sku: "220px", spec: "150px", qty: "64px", price: "104px", supply: "116px", vat: "104px", lnote: "170px",
+  ono: "150px", ccode: "130px", buyer: "90px",
 };
 const NUMS = new Set(["qty", "price", "supply", "vat"]);
-const LEFTS = new Set(["sku", "spec", "lnote"]);
+const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer"]);
 
 export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] }) {
   const { onLine, rows, setRows, setCell, onCellKey, gridRef, fillFrom, priceOf } = ctl;
@@ -376,7 +389,8 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
             const tot = num(r.supply) + num(r.vat);
             const has = !!(r.product_id || r.sku.trim() || num(r.qty) || num(r.supply));
             return (
-              <tr key={r.key}>
+              <tr key={r.key} className={r.flag === "nocode" ? "inv-row-fix" : r.flag === "dup" ? "doc-row-dup" : undefined}
+                title={r.flag === "nocode" ? "상품 연결이 없는 채널 상품코드 — 품목을 직접 고르거나 상품 연결에서 등록하세요" : r.flag === "dup" ? "이미 등록된 주문번호 — 저장 시 건너뜁니다" : undefined}>
                 <td className="doc-no">{i + 1}</td>
                 {anySrc && <td className="tc">{r.src ? <span className="doc-src">{r.src}</span> : null}</td>}
                 {onLine.map((f) => {
