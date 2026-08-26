@@ -55,7 +55,8 @@ export default function ChannelsPage() {
   const [cSort, setCSort] = useState<SortState<CodeKey>>({ key: "code", dir: "asc" });
   const [iSort, setISort] = useState<SortState<ImpKey>>({ key: "at", dir: "desc" });
 
-  const canWrite = isMaster || hasPerm("/inventory/channels");
+  //   메뉴 권한 = 보기, `:write` = 가져오기·출고 등록·발송 처리·상품 연결 (2026-08-26 권한 세분화)
+  const canWrite = isMaster || hasPerm("/inventory/channels:write");
 
   const { data: warehouses = [] } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId!), enabled: !!companyId });
   const { data: codes = [] } = useQuery({ queryKey: ["ch-codes", companyId], queryFn: () => listChannelCodes(companyId!), enabled: !!companyId });

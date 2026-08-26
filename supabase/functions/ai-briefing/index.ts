@@ -120,7 +120,56 @@ async function collectSnapshot(admin: ReturnType<typeof createClient>, companyId
         health.findings.map((f) => `- [${sev[f.severity]}] ${f.title} — ${f.detail}`).join("\n"));
     }
   } catch { /* skip */ }
+  // 6) 재고 (2026-08-26 사장님 "알림") — 부족·품절, 납기 지난 주문, 출고 안 한 채널 주문, 전표 없는 판매
+  try {
+    const inv = await collectInventory(admin, companyId, today);
+    if (inv.lines.length) out.push("재고·주문 점검(자동 점검):\n" + inv.lines.map((l) => `- ${l}`).join("\n"));
+  } catch { /* skip */ }
   return out.join("\n\n");
+}
+
+/** 재고 신호 — 현황 화면과 같은 기준(안전재고−현재고, 납기<오늘&잔량, 출고 대기, journal_entry_id null). fail-soft. */
+export async function collectInventory(admin: ReturnType<typeof createClient>, companyId: string, today: string) {
+  const lines: string[] = [];
+  let short = 0, out = 0, late = 0, unshipped = 0, noVoucher = 0;
+  const shortNames: string[] = [];
+  try {
+    const [{ data: prods }, { data: onhand }] = await Promise.all([
+      admin.from("products").select("id, name, safety_stock, track_stock, is_active").eq("company_id", companyId),
+      admin.from("v_stock_onhand").select("product_id, qty").eq("company_id", companyId),
+    ]);
+    const have = new Map<string, number>();
+    for (const o of (onhand || []) as any[]) have.set(o.product_id, (have.get(o.product_id) || 0) + Number(o.qty || 0));
+    for (const p of (prods || []) as any[]) {
+      if (!p.track_stock || p.is_active === false) continue;
+      const q = have.get(p.id) || 0;
+      if (q <= 0) out++;
+      else if (p.safety_stock != null && q < Number(p.safety_stock)) { short++; if (shortNames.length < 3) shortNames.push(`${p.name} ${q}/${p.safety_stock}`); }
+    }
+  } catch { /* skip */ }
+  try {
+    const { data: ords } = await admin.from("orders").select("id, order_no, due_date").eq("company_id", companyId).eq("status", "open").lt("due_date", today);
+    const ids = ((ords || []) as any[]).map((o) => o.id);
+    if (ids.length) {
+      const { data: used } = await admin.from("v_order_line_used").select("order_id, ordered_qty, used_qty").in("order_id", ids);
+      const remain = new Map<string, number>();
+      for (const u of (used || []) as any[]) remain.set(u.order_id, (remain.get(u.order_id) || 0) + Math.max(0, Number(u.ordered_qty || 0) - Number(u.used_qty || 0)));
+      late = ids.filter((id) => (remain.get(id) || 0) > 0).length;
+    }
+  } catch { /* skip */ }
+  try {
+    const { count } = await admin.from("channel_order_imports").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("ship_status", "pending");
+    unshipped = count || 0;
+  } catch { /* skip */ }
+  try {
+    const { count } = await admin.from("stock_docs").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("reason", "sale").eq("status", "active").is("journal_entry_id", null);
+    noVoucher = count || 0;
+  } catch { /* skip */ }
+  if (short || out) lines.push(`재고 부족 ${short}개 품목${shortNames.length ? ` (${shortNames.join(", ")})` : ""} · 품절 ${out}개 — 구매 입력의 '부족분 채우기'로 발주`);
+  if (late) lines.push(`납기가 지났는데 남은 주문 ${late}건 — 재고 › 현황 › 주문현황`);
+  if (unshipped) lines.push(`출고 등록됐지만 아직 발송하지 않은 온라인 주문 ${unshipped}건 — 재고 › 채널 › 출고 처리`);
+  if (noVoucher) lines.push(`전표를 아직 안 만든 판매 ${noVoucher}건 — 매입매출전표 › 증빙에서 불러오기`);
+  return { lines, short, out, late, unshipped, noVoucher };
 }
 
 // ── 구조화 출력 스키마 — 액션 플랜 ──
@@ -147,8 +196,8 @@ const BRIEF_SCHEMA = {
           priority: { type: "string", enum: ["긴급", "중요", "권장"] },
           link: {
             type: "string",
-            enum: ["ar", "approvals", "tax", "todo", "bank", "payments", "pnl", "invoices", "none"],
-            description: "이 행동을 실행할 화면: ar=미수금 회수(거래처 원장), approvals=결재, tax=부가세, todo=할일/일정, bank=통장, payments=지급/정기결제, pnl=손익, invoices=세금계산서, none=해당 없음",
+            enum: ["ar", "approvals", "tax", "todo", "bank", "payments", "pnl", "invoices", "inventory", "shipping", "none"],
+            description: "이 행동을 실행할 화면: ar=미수금 회수(거래처 원장), approvals=결재, tax=부가세, todo=할일/일정, bank=통장, payments=지급/정기결제, pnl=손익, invoices=세금계산서, inventory=재고 현황(부족·발주·납기), shipping=채널 출고 처리(미발송 주문), none=해당 없음",
           },
         },
       },
@@ -285,6 +334,30 @@ async function runCron(admin: ReturnType<typeof createClient>): Promise<Response
           notified++;
         }
       } catch { /* 알림 실패는 무시 */ }
+
+      // 재고 알림 (2026-08-26) — 부족·납기 지남·미발송이 있을 때만, 대표·관리자에게 하루 한 번. 없으면 조용하다.
+      try {
+        const inv = await collectInventory(admin, companyId as string, briefDate);
+        if (inv.short + inv.out + inv.late + inv.unshipped > 0) {
+          const parts = [
+            inv.short + inv.out ? `재고 부족 ${inv.short}·품절 ${inv.out}` : "",
+            inv.late ? `납기 지난 주문 ${inv.late}건` : "",
+            inv.unshipped ? `미발송 온라인 주문 ${inv.unshipped}건` : "",
+          ].filter(Boolean).join(" · ");
+          const { data: admins } = await admin.from("users")
+            .select("id").eq("company_id", companyId).in("role", ["owner", "admin"]).limit(10);
+          for (const u of (admins || []) as any[]) {
+            //   같은 날 같은 알림이 이미 있으면 안 보낸다(하루 한 번)
+            const { count } = await admin.from("notifications").select("id", { count: "exact", head: true })
+              .eq("company_id", companyId).eq("user_id", u.id).eq("type", "inventory").gte("created_at", `${briefDate}T00:00:00+09:00`);
+            if (count) continue;
+            await admin.from("notifications").insert({
+              company_id: companyId, user_id: u.id, type: "inventory",
+              title: "재고·주문 점검", message: parts, link: inv.unshipped && !inv.short && !inv.out && !inv.late ? "/inventory/channels" : "/inventory/status",
+            });
+          }
+        }
+      } catch { /* skip */ }
     } catch { /* 회사 하나 실패해도 다음 회사 진행 */ }
   }
   return new Response(JSON.stringify({ generated, notified, companies: companyIds.length }), {

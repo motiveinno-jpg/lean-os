@@ -75,7 +75,8 @@ export function DocScreen({
   const [popup, setPopup] = useState(false);
   const [sort, setSort] = useState<SortState<HistKey>>({ key: "date", dir: "desc" });
 
-  const canWrite = isMaster || hasPerm(perm);
+  //   메뉴 권한 = 보기, `:write` = 입력·수정·취소 (2026-08-26 권한 세분화)
+  const canWrite = isMaster || hasPerm(`${perm}:write`);
 
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const { data: warehouses = [] } = useQuery({ queryKey: ["inv-warehouses", companyId], queryFn: () => listWarehouses(companyId!), enabled: !!companyId });

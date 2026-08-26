@@ -113,11 +113,22 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/inventory/stock", label: "재고", tabs: [
         { key: "adjust", label: "입·출고와 조정", desc: "미부여 시 수량 보기만 — 재고를 움직일 수 없다" },
       ] },
-      { route: "/inventory/orders", label: "주문", money: true, desc: "주문서·견적 — 재고는 안 움직인다" },
-      { route: "/inventory/sales", label: "판매", money: true },
-      { route: "/inventory/purchase", label: "구매", money: true },
-      { route: "/inventory/production", label: "생산" },
-      { route: "/inventory/channels", label: "채널", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리" },
+      //   ★ 보기와 입력을 가른다 (2026-08-26 사장님 "권한 세분화") — 메뉴만 주면 이력·현황 보기, :write 를 줘야 저장·수정·취소
+      { route: "/inventory/orders", label: "주문", money: true, desc: "주문서·견적 — 재고는 안 움직인다", tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 주문서를 만들거나 고칠 수 없다" },
+      ] },
+      { route: "/inventory/sales", label: "판매", money: true, tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 판매 저장·취소·반품 불가" },
+      ] },
+      { route: "/inventory/purchase", label: "구매", money: true, tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 매입 저장·취소·반품 불가" },
+      ] },
+      { route: "/inventory/production", label: "생산", tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 이력 보기만 — 완성 기록·자재구성 수정 불가" },
+      ] },
+      { route: "/inventory/channels", label: "채널", money: true, desc: "온라인 주문 가져오기 · 채널 상품 연결 · 출고 처리", tabs: [
+        { key: "write", label: "입력·수정", desc: "미부여 시 보기만 — 주문 가져오기·출고 등록·발송 처리·상품 연결 불가" },
+      ] },
       { route: "/inventory/status", label: "현황", money: true, desc: "주문·판매·구매·생산 집계와 그래프 — 매출·마진·재고 금액이 보인다" },
     ],
   },

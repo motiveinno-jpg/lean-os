@@ -69,6 +69,13 @@ export const NOTIFICATION_TYPES: Record<string, { label: string; icon: string; c
     color: 'text-gray-500',
     bg: 'bg-gray-500/10',
   },
+  //   재고·주문 점검 (2026-08-26) — 아침 브리핑 cron 이 부족·납기 지남·미발송이 있을 때만 하루 한 번
+  inventory: {
+    label: '재고·주문',
+    icon: 'package',
+    color: 'text-amber-600',
+    bg: 'bg-amber-500/10',
+  },
   milestone: {
     label: '마일스톤',
     icon: 'flag',

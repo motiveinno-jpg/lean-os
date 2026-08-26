@@ -79,6 +79,9 @@ const ACTION_HREF: Record<string, { href: string; label: string }> = {
   payments: { href: "/payments", label: "지급 관리" },
   pnl: { href: "/reports/pnl", label: "손익 보기" },
   invoices: { href: "/tax-invoices", label: "계산서 보기" },
+  //   재고 (2026-08-26) — 부족·발주·납기는 현황, 미발송은 채널 출고 처리
+  inventory: { href: "/inventory/status", label: "재고 현황" },
+  shipping: { href: "/inventory/channels", label: "출고 처리" },
 };
 const PRIORITY_STYLE: Record<string, string> = {
   긴급: "bg-[var(--danger-dim)] text-[var(--danger)]",
