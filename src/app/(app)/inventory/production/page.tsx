@@ -15,7 +15,9 @@ import {
 import { listBoms } from "@/lib/inventory-production";
 import { produceLines, updateProduceDoc, cancelProduceDoc } from "@/lib/inventory-production";
 import { listOrders } from "@/lib/inventory-orders";
-import { BomNeedDialog } from "../_components/bom-editor";
+import { BomNeedDialog, MaterialShortBadge } from "../_components/bom-editor";
+import { materialShortages } from "@/lib/inventory-production";
+import { listOnHand } from "@/lib/inventory";
 import type { DocCtl } from "../_components/doc-editor";
 
 export default function ProductionPage() {
@@ -32,6 +34,8 @@ export default function ProductionPage() {
             <PullOrderButton ctl={ctl} />
             {/*   ★ 자재구성 편집은 재고 › 품목으로 갔다(2026-08-26). 여기서는 친 품목의 자재 소요만 본다. */}
             <button type="button" className="btn-secondary btn-sm" onClick={() => setNeed({ ctl })}>자재 소요</button>
+            {/*   ★ 자재가 모자라면 치는 동안 바로 보인다(2026-08-26 사장님: "부족하면 알려주는 장치") — 누르면 소요 팝업 */}
+            <MaterialShortBadge ctl={ctl} onOpen={() => setNeed({ ctl })} />
           </>
         )}
         saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
@@ -57,6 +61,14 @@ export default function ProductionPage() {
             return r.matDocNo ? `${r.prodDocNo} · 자재 ${r.matDocNo} 을 수정했습니다` : `${r.prodDocNo} 을 수정했습니다`;
           }
           const boms = await listBoms(ctl.companyId!);
+          //   ★ 저장 직전 자재 부족 확인 — 제안은 자동, 확정은 사람. 모자라도 기록할 수는 있지만(실물이 먼저 들어온 경우) 알고 눌러야 한다.
+          const onhand = await listOnHand(ctl.companyId!);
+          const short = materialShortages(built.lines.map((l) => ({ product_id: l.product_id, qty: l.qty })), boms, onhand, wh);
+          if (short.length) {
+            const nameOf = new Map(ctl.products.map((p) => [p.id, p.name]));
+            const msg = `자재가 부족합니다:\n${short.map((x) => `- ${nameOf.get(x.component_id) || "?"}: 소요 ${x.need} · 현재고 ${x.have} (부족 ${x.need - x.have})`).join("\n")}\n\n그래도 완성 기록할까요? 자재 재고가 음수가 됩니다.`;
+            if (!window.confirm(msg)) throw new Error("자재 부족으로 완성 기록을 멈췄습니다 — 자재를 먼저 입고하거나 수량을 줄이세요");
+          }
           const r = await produceLines(ctl.companyId!, {
             docDate: built.date, warehouseId: wh, note: built.head.note || null,
             lines: built.lines.map((l) => ({

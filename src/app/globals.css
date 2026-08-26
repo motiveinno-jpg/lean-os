@@ -8944,3 +8944,10 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .inv-bom-base { @apply mb-2 flex flex-wrap items-center gap-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2 text-[12.5px]; }
 .inv-bom-base .inv-count-input { @apply mx-1 inline-block w-[72px]; }
 .inv-bom-base .inv-hint { @apply not-italic text-[11px]; }
+
+/* 생산 자재 소요 — 완제품 목록·부족 배지 (2026-08-26) */
+.inv-bom-list { @apply mb-2 flex flex-wrap gap-1.5; }
+.inv-bom-item { @apply inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-1.5 text-left text-[12px] hover:bg-[var(--bg-surface)]; }
+.inv-bom-item-on { @apply border-[var(--primary)] bg-[var(--primary-light)]; }
+.inv-bom-item .inv-pill { @apply ml-1 not-italic; }
+.inv-short-badge { @apply border-[var(--danger)] text-[var(--danger)]; }

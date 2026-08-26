@@ -15,7 +15,7 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { PickList } from "@/components/pick-list";
 import { listOnHand, type Product } from "@/lib/inventory";
-import { listBoms, upsertBomLine, deleteBomLine, perUnit, type BomLine } from "@/lib/inventory-production";
+import { listBoms, upsertBomLine, deleteBomLine, perUnit, materialShortages, type BomLine } from "@/lib/inventory-production";
 import { docWon as won } from "./doc-editor";
 
 type Row = { key: number; id?: string; component_id: string; label: string; qty: string; note: string };
@@ -163,7 +163,7 @@ export function BomEditorDialog({ companyId, product, products, onClose }: {
   );
 }
 
-/** 자재 소요 — 생산 격자에 친 품목 × 수량으로 자재를 모아 현재고와 견준다(읽기 전용) */
+/** 자재 소요 — 완제품 목록에서 하나를 누르면 그 품목의 자재만 아래에(2026-08-26 사장님: "혼재되어 보기 불편"). 과부족은 격자 전체 소요 기준. */
 export function BomNeedDialog({ companyId, warehouseId, items, products, onClose, onEdit }: {
   companyId: string; warehouseId: string | null;
   items: { product_id: string; qty: number }[]; products: Product[];
@@ -186,46 +186,60 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
     }
     return [...per.values()];
   }, [items, byId, boms]);
-  const need = useMemo(() => {
+  //   전체 소요(격자에 친 완제품 전부) — 같은 자재를 여러 완제품이 쓰면 합쳐서 견줘야 '충분'이 거짓말을 안 한다
+  const totalNeed = useMemo(() => {
     const m = new Map<string, number>();
     for (const g of grouped) for (const b of g.lines) m.set(b.component_id, (m.get(b.component_id) || 0) + perUnit(b) * g.qty);
-    return [...m.entries()].map(([id, n]) => ({ c: byId.get(id), need: n, have: have.get(id) || 0 })).sort((a, b) => (a.have - a.need) - (b.have - b.need));
-  }, [grouped, byId, have]);
-  const shortCount = need.filter((x) => x.have < x.need).length;
+    return m;
+  }, [grouped]);
+  const shortOf = (g: { lines: BomLine[] }) => g.lines.filter((b) => (have.get(b.component_id) || 0) < (totalNeed.get(b.component_id) || 0)).length;
+  const [sel, setSel] = useState<string | null>(null);
+  const cur = grouped.find((g) => g.product.id === sel) || grouped[0];
+  const rows = cur ? cur.lines.map((b) => {
+    const c = byId.get(b.component_id); const mine = perUnit(b) * cur.qty; const all = totalNeed.get(b.component_id) || 0; const h = have.get(b.component_id) || 0;
+    return { c, b, mine, all, have: h, short: h < all };
+  }).sort((a, b) => (a.have - a.all) - (b.have - b.all)) : [];
+  const totalShort = [...totalNeed.entries()].filter(([id, n]) => (have.get(id) || 0) < n).length;
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
-        <h3 className="inv-modal-title">자재 소요 — 지금 친 완제품 기준</h3>
-        <p className="inv-modal-desc">입력한 <b>완제품 × 완성 수량</b> 기준 소요 자재입니다. 현재고는 {warehouseId ? "선택한 창고" : "전체 창고"} 기준. 자재구성은 재고 › 품목에서 수정합니다.</p>
+        <h3 className="inv-modal-title">자재 소요</h3>
+        <p className="inv-modal-desc">완제품을 누르면 그 품목의 소요 자재가 아래에 나옵니다. 현재고는 {warehouseId ? "선택한 창고" : "전체 창고"} 기준, 과부족은 <b>입력한 완제품 전체 소요</b> 기준입니다.</p>
         {grouped.length === 0 ? <div className="inv-status-empty">완제품과 완성 수량을 먼저 입력하세요</div> : (
           <>
-            <div className="inv-bom-groups">
-              {grouped.map((g) => (
-                <div key={g.product.id} className="inv-bom-group">
-                  <b>{g.product.name}</b> <span className="ev-dim">{g.product.sku} · {won(g.qty)}개</span>
-                  {g.lines.length === 0
-                    ? <em className="inv-field-warn"> — 자재구성 없음: 완성 기록 시 자재가 출고되지 않습니다{onEdit && <> · <button type="button" className="bz-link" onClick={() => onEdit(g.product)}>등록</button></>}</em>
-                    : <span> — {g.lines[0].base_qty !== 1 ? `${won(g.lines[0].base_qty)}개당 ` : ""}{g.lines.map((b) => `${byId.get(b.component_id)?.name || "?"} ×${won(b.qty)}`).join(", ")}</span>}
-                </div>
-              ))}
+            <div className="inv-bom-list">
+              {grouped.map((g) => {
+                const n = shortOf(g);
+                return (
+                  <button key={g.product.id} type="button" className={`inv-bom-item${cur?.product.id === g.product.id ? " inv-bom-item-on" : ""}`} onClick={() => setSel(g.product.id)}>
+                    <b>{g.product.name}</b><span className="ev-dim">{g.product.sku} · {won(g.qty)}{g.product.unit || "개"}</span>
+                    {g.lines.length === 0 ? <em className="inv-pill inv-pill-warn">자재구성 없음</em>
+                      : n > 0 ? <em className="inv-pill inv-pill-danger">부족 {n}종</em> : <em className="inv-pill inv-pill-ok">자재 {g.lines.length}종 충분</em>}
+                  </button>
+                );
+              })}
             </div>
-            {need.length > 0 && (
+            {cur && (cur.lines.length === 0 ? (
+              <div className="inv-status-empty">{cur.product.name}은(는) 자재구성이 없습니다 — 완성 기록 시 자재가 출고되지 않습니다.{onEdit && <> <button type="button" className="bz-link" onClick={() => onEdit(cur.product)}>자재구성 등록</button></>}</div>
+            ) : (
               <div className="stg-table-wrap ch-ship-list">
                 <table className="ev-table ev-lined table-inv-status-sm">
-                  <thead><tr><th>자재</th><th>소요량</th><th>현재고</th><th>과부족</th><th>상태</th></tr></thead>
-                  <tbody>{need.map((x) => (
-                    <tr key={x.c?.id || "?"} className={x.have < x.need ? "inv-row-fix" : undefined}>
+                  <thead><tr><th>자재</th><th>{cur.lines[0].base_qty !== 1 ? `${won(cur.lines[0].base_qty)}개당` : "1개당"}</th><th>이 품목 소요량</th><th>전체 소요량</th><th>현재고</th><th>과부족</th><th>상태</th></tr></thead>
+                  <tbody>{rows.map((x) => (
+                    <tr key={x.b.id} className={x.short ? "inv-row-fix" : undefined}>
                       <td className="text-left"><b>{x.c?.name || "?"}</b> <span className="ev-dim">{x.c?.sku}</span></td>
-                      <td className="tr mono-number">{won(x.need)}</td>
+                      <td className="tr mono-number ev-dim">{won(x.b.qty)}</td>
+                      <td className="tr mono-number">{won(x.mine)}</td>
+                      <td className="tr mono-number">{won(x.all)}</td>
                       <td className="tr mono-number">{won(x.have)}</td>
-                      <td className="tr mono-number">{x.have - x.need >= 0 ? `+${won(x.have - x.need)}` : won(x.have - x.need)}</td>
-                      <td className="tc">{x.have < x.need ? <span className="inv-pill inv-pill-danger">부족</span> : <span className="inv-pill inv-pill-ok">충분</span>}</td>
+                      <td className="tr mono-number">{x.have - x.all >= 0 ? `+${won(x.have - x.all)}` : won(x.have - x.all)}</td>
+                      <td className="tc">{x.short ? <span className="inv-pill inv-pill-danger">부족</span> : <span className="inv-pill inv-pill-ok">충분</span>}</td>
                     </tr>
                   ))}</tbody>
                 </table>
               </div>
-            )}
-            <div className="inv-modal-foot">자재 {need.length}종{shortCount ? <> · <b className="inv-diff-minus">부족 {shortCount}종</b></> : <> · 모두 충분</>}</div>
+            ))}
+            <div className="inv-modal-foot">완제품 {grouped.length}종{totalShort ? <> · <b className="inv-diff-minus">자재 부족 {totalShort}종</b> — 완성 기록 시 자재 재고가 음수가 됩니다</> : <> · 자재 모두 충분</>}</div>
           </>
         )}
         <div className="inv-modal-actions">
@@ -235,4 +249,16 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
       </div>
     </div>
   );
+}
+
+/** 생산 조회 줄의 자재 부족 배지 — 치는 동안 계속 센다. 부족이 없으면 아무것도 안 그린다. */
+export function MaterialShortBadge({ ctl, onOpen }: { ctl: { companyId: string | null; live: { product_id?: string | null; qty: string }[]; head: Record<string, string> }; onOpen: () => void }) {
+  const companyId = ctl.companyId;
+  const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId!), enabled: !!companyId });
+  const { data: onhand = [] } = useQuery({ queryKey: ["inv-onhand", companyId], queryFn: () => listOnHand(companyId!), enabled: !!companyId });
+  const short = useMemo(() => materialShortages(
+    ctl.live.filter((r) => r.product_id).map((r) => ({ product_id: r.product_id!, qty: num(r.qty) })), boms, onhand, ctl.head.wh || null,
+  ), [ctl.live, boms, onhand, ctl.head.wh]);
+  if (!short.length) return null;
+  return <button type="button" className="btn-secondary btn-sm inv-short-badge" onClick={onOpen} title="누르면 어떤 자재가 얼마나 모자라는지 보입니다">자재 부족 {short.length}종</button>;
 }

@@ -16,6 +16,17 @@ export type BomLine = {
   /** 기준 수량 — 소요량(qty)은 완제품 base_qty 개당. 소비 = qty / base_qty × 완성 수량 */
   base_qty: number;
 };
+/** 자재 부족 — 완제품 줄(product_id·qty) × 자재구성 을 창고 현재고와 견준다. 부족한 자재만 돌려준다. */
+export function materialShortages(
+  lines: { product_id: string; qty: number }[], boms: BomLine[],
+  onhand: { product_id: string; warehouse_id: string; qty: number }[], warehouseId: string | null,
+): { component_id: string; need: number; have: number }[] {
+  const need = new Map<string, number>();
+  for (const l of lines) for (const b of boms) if (b.product_id === l.product_id && b.qty > 0) need.set(b.component_id, (need.get(b.component_id) || 0) + perUnit(b) * Number(l.qty));
+  const have = new Map<string, number>();
+  for (const o of onhand) if (!warehouseId || o.warehouse_id === warehouseId) have.set(o.product_id, (have.get(o.product_id) || 0) + Number(o.qty));
+  return [...need.entries()].map(([id, n]) => ({ component_id: id, need: n, have: have.get(id) || 0 })).filter((x) => x.have < x.need);
+}
 /** 완제품 1개당 소요량 */
 export const perUnit = (b: BomLine) => b.qty / (b.base_qty > 0 ? b.base_qty : 1);
 // ── 자재구성 ──────────────────────────────────────────────────────────────────
