@@ -45,6 +45,8 @@ Deno.serve(async (req) => {
     overtime_approved: "approval_pending",
     overtime_rejected: "approval_pending",
     chat: "chat_mention",
+    // 게시판 새 글 — 설정>알림>푸시의 '게시판 새 글' 토글 (2026-08-26). 그전엔 마스터 토글만 적용됐다.
+    board_post: "board_post",
     system: "system_alert",
     overtime_auto_clockout: "system_alert",
     payment: "payment_due",

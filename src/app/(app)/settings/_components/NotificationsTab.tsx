@@ -16,6 +16,7 @@ type NotifEvent =
   | "payment_due"
   | "tax_invoice"
   | "chat_mention"
+  | "board_post"
   | "weekly_report"
   | "system_alert";
 
@@ -25,13 +26,16 @@ interface NotifPrefs {
   quietHours: { enabled: boolean; start: string; end: string };
 }
 
-const NOTIF_EVENTS: { key: NotifEvent; label: string; desc: string }[] = [
+//   channels 를 지정하면 그 채널 목록에만 토글이 보인다 — 게시판 새 글은 메일을 아예 안 보내므로
+//   (board/page.tsx 주석: "오너뷰 안의 알림만, 메일은 보내지 않는다") 푸시에만 노출 (2026-08-26).
+const NOTIF_EVENTS: { key: NotifEvent; label: string; desc: string; channels?: NotifChannel[] }[] = [
   { key: "approval_pending", label: "결재 요청", desc: "내가 결재해야 할 항목이 새로 등록될 때" },
   { key: "approval_reference", label: "결재 참조", desc: "결재 권한 없이 참조로만 공유된 건" },
   { key: "deal_status", label: "프로젝트 상태 변경", desc: "프로젝트가 다음 단계로 이동하거나 완료될 때" },
   { key: "payment_due", label: "결제 마감 임박", desc: "D-7 이내 결제/지급 예정" },
   { key: "tax_invoice", label: "세금계산서 발행/수신", desc: "신규 세금계산서 발행 또는 매입 수신" },
   { key: "chat_mention", label: "채팅 멘션", desc: "팀 채팅에서 @멘션 받을 때" },
+  { key: "board_post", label: "게시판 새 글", desc: "회사 게시판에 새 글이 등록될 때", channels: ["push"] },
   { key: "weekly_report", label: "주간 리포트", desc: "매주 월요일 오전 9시 요약 리포트" },
   { key: "system_alert", label: "시스템 경고", desc: "런웨이/현금흐름 임계치 알림" },
 ];
@@ -47,6 +51,7 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       payment_due: true,
       tax_invoice: true,
       chat_mention: false,
+      board_post: false,   //   게시판은 메일 발송 자체가 없음 — 자리만 채움 (Record<NotifEvent, boolean>)
       weekly_report: true,
       system_alert: true,
     },
@@ -60,6 +65,7 @@ const DEFAULT_NOTIF_PREFS: NotifPrefs = {
       payment_due: true,
       tax_invoice: false,
       chat_mention: true,
+      board_post: true,   //   기존 동작 유지 — 지금까지 무조건 발송이었으므로 기본 ON (2026-08-26)
       weekly_report: false,
       system_alert: true,
     },
@@ -245,7 +251,10 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
   function setAllEvents(channel: NotifChannel, enabled: boolean) {
     setPrefs((p) => {
       const next = { ...((p[channel] as any).events) };
-      for (const ev of NOTIF_EVENTS) next[ev.key] = enabled;
+      for (const ev of NOTIF_EVENTS) {
+        if (ev.channels && !ev.channels.includes(channel)) continue;   //   그 채널에 없는 이벤트는 건드리지 않는다
+        next[ev.key] = enabled;
+      }
       return { ...p, [channel]: { ...(p[channel] as any), events: next } };
     });
   }
@@ -632,7 +641,7 @@ function EventGrid({
         </div>
       </div>
       <div className="space-y-1.5">
-        {NOTIF_EVENTS.map((ev) => (
+        {NOTIF_EVENTS.filter((ev) => !ev.channels || ev.channels.includes(channel)).map((ev) => (
           <label
             key={ev.key}
             className="flex items-start justify-between gap-3 px-3 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--border)] transition cursor-pointer"
