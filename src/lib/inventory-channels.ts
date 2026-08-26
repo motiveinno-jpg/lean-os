@@ -50,7 +50,7 @@ export async function upsertChannelCode(companyId: string, c: {
   channel_product_id: string; channel_product_name?: string | null; channel_sku?: string | null;
 }) {
   const code = c.channel_product_id.trim();
-  if (!code) throw new Error("채널 상품코드를 적으세요");
+  if (!code) throw new Error("채널 상품코드를 입력하세요");
   const row = {
     company_id: companyId, product_id: c.product_id, channel: c.channel,
     channel_product_id: code, channel_sku: c.channel_sku?.trim() || null,
@@ -146,12 +146,12 @@ export async function importChannelOrders(
   rows: ResolvedRow[], opts?: { docDate?: string }, userId?: string | null,
 ) {
   const use = rows.filter((r) => r.reason === "ok" && r.product_id && Number(r.qty) !== 0);
-  if (!use.length) throw new Error("넣을 줄이 없습니다");
+  if (!use.length) throw new Error("등록할 줄이 없습니다");
   const docDate = opts?.docDate || todayKst();
 
   const doc = await createStockDoc(companyId, {
     reason: "sale", docDate, warehouseId,
-    note: `${channelLabel(channel)} 주문 ${new Set(use.map((r) => r.channel_order_no)).size}건 가져옴`,
+    note: `${channelLabel(channel)} 주문 ${new Set(use.map((r) => r.channel_order_no)).size}건`,
     lines: use.map((r) => ({
       product_id: r.product_id!, qty: Number(r.qty),
       unit_price: r.unit_price ?? null,
