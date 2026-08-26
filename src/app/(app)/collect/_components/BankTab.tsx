@@ -40,6 +40,7 @@ import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import { fetchAllPages } from "@/lib/fetch-all";
 import { exportToExcel } from "@/lib/excel-export";
 import { downloadAccountFillSheet, parseAccountFill } from "@/lib/account-fill-excel";
+import { usePersistedPicks } from "./use-persisted-picks";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 
@@ -151,6 +152,13 @@ export function BankTab({
   const [ptPick, setPtPick] = useState<{ id: string; q: string } | null>(null);
   //   적요 — 회사 내부 확인용으로 사람이 직접 쓴다. 비우면 서버가 통장 적요를 넣는다.
   const [memo, setMemo] = useState<Record<string, string>>({});
+  //   줄별 계정·거래처·적요 선택을 새로고침해도 유지 — 복원값보다 지금 화면에서 고른 값이 우선 (2026-08-26 사장님 제보)
+  usePersistedPicks(companyId ? `ov:collect-bk-acct:${companyId}` : null, acct,
+    (saved) => setAcct((o) => ({ ...saved, ...o })));
+  usePersistedPicks(companyId ? `ov:collect-bk-pt:${companyId}` : null, pt,
+    (saved) => setPt((o) => ({ ...saved, ...o })));
+  usePersistedPicks(companyId ? `ov:collect-bk-memo:${companyId}` : null, memo,
+    (saved) => setMemo((o) => ({ ...saved, ...o })));
   const [busy, setBusy] = useState(false);
   //   머리단 정렬 — 기본은 일자 오름차순(통장은 날짜 순으로 본다)
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "date", dir: "asc" });

@@ -44,6 +44,7 @@ import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag, type RuleKind } from "@
 import { fetchAllPages } from "@/lib/fetch-all";
 import { exportToExcel } from "@/lib/excel-export";
 import { downloadAccountFillSheet, parseAccountFill } from "@/lib/account-fill-excel";
+import { usePersistedPicks } from "./use-persisted-picks";
 
 type Acct = { id: string; code: string; name: string; account_type: string };
 type Row = {
@@ -147,6 +148,9 @@ export function EvidenceTab({
   const setD = <K extends keyof Cond>(k: K) => (v: Cond[K]) => setDraft((c) => ({ ...c, [k]: v }));
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [override, setOverride] = useState<Record<string, { vatCode?: string; acct?: Acct }>>({});
+  //   줄별 계정·부가세 선택을 새로고침해도 유지 — 복원값보다 지금 화면에서 고른 값이 우선 (2026-08-26 사장님 제보)
+  usePersistedPicks(companyId ? `ov:collect-ev-picks:${companyId}` : null, override,
+    (saved) => setOverride((o) => ({ ...saved, ...o })));
   const [pick, setPick] = useState<{ id: string; q: string } | null>(null);
   //   고른 줄 전부의 계정과목을 한 번에 바꾸는 목록이 열려 있는지 (2026-08-24 사장님 지시)
   const [bulkOpen, setBulkOpen] = useState(false);
