@@ -28,6 +28,9 @@ import { exportToExcel } from "@/lib/excel-export";
 import { getAccountMap, accountById, NATURE_LABEL } from "@/lib/account-nature";
 import { vatType } from "@/lib/vat-voucher";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
+import { decideProdDraft } from "@/lib/production-voucher";
+import { useToast } from "@/components/toast";
+import { friendlyError } from "@/lib/friendly-error";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 const wonShort = (n: number) => {
@@ -53,14 +56,21 @@ type Entry = {
 export default function FinanceStatusPage() {
   const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
   const [companyId, setCompanyId] = useState<string | null>(null);
-  useEffect(() => { getCurrentUser().then((u) => setCompanyId(u?.company_id ?? null)); }, []);
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
+  const { toast } = useToast();
+  //   ★ 결정 33 — 대기 전표(생산 초안 등)는 여기서 확정·반려한다. 재무제표는 확정만 읽는다. 확정하면 트리거가 생산 문서에 전표를 묶는다.
+  const decide = async (id: string, st: "confirmed" | "rejected") => {
+    try { await decideProdDraft(id, st, userId); toast(st === "confirmed" ? "확정했습니다" : "반려했습니다", "success"); refetchEntries(); }
+    catch (e) { toast(friendlyError(e), "error"); }
+  };
   const [tab, setTab] = useState<Tab>("all");
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(todayKst);
 
   const q = <T,>(key: string, fn: () => Promise<T>, extra: unknown[] = []) =>
     useQuery<T>({ queryKey: [key, companyId, ...extra], queryFn: fn, enabled: !!companyId });   // eslint-disable-line react-hooks/rules-of-hooks
-  const { data: entries = [], isLoading } = q("fin-status-entries", async () => {
+  const { data: entries = [], isLoading, refetch: refetchEntries } = q("fin-status-entries", async () => {
     const out: Entry[] = []; const PAGE = 1000;
     for (let page = 0; ; page++) {
       const { data } = await supabase.from("journal_entries")
@@ -183,7 +193,7 @@ export default function FinanceStatusPage() {
       <div className="pnl-panel">
         <h3>{title}</h3><p>{sub} · {list.length}건{list.length > 300 ? " · 앞 300줄만 보입니다 — 기간을 좁히거나 엑셀로" : ""}</p>
         <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
-          <thead><tr><th>일자</th><th>번호</th><th>종류</th>{sp && <th>부가세 유형</th>}<th>적요</th><th>거래처</th>{sp && <><th>공급가액</th><th>세액</th></>}<th>금액</th><th>출처</th><th>상태</th></tr></thead>
+          <thead><tr><th>일자</th><th>번호</th><th>종류</th>{sp && <th>부가세 유형</th>}<th>적요</th><th>거래처</th>{sp && <><th>공급가액</th><th>세액</th></>}<th>금액</th><th>출처</th><th>상태</th><th></th></tr></thead>
           <tbody>{view.map((e) => (
             <tr key={e.id} className={e.status === "rejected" ? "inv-row-fix" : undefined}>
               <td className="mono-number tc">{e.entry_date}</td><td className="mono-number tc">{e.voucher_no ?? "—"}</td>
@@ -192,9 +202,14 @@ export default function FinanceStatusPage() {
               <td className="text-left">{e.description || <span className="ev-dim">—</span>}</td><td className="text-left">{partnerOf(e) || <span className="ev-dim">—</span>}</td>
               {sp && <><td className="tr mono-number">₩{won(Number(e.supply_amount || 0))}</td><td className="tr mono-number">₩{won(Number(e.vat_amount || 0))}</td></>}
               <td className="tr mono-number">₩{won(amountOf(e))}</td><td className="tc">{SRC[e.source] || e.source}</td>
-              <td className="tc"><span className={e.status === "confirmed" ? (e.is_approved ? "inv-pill inv-pill-ok" : "inv-pill") : "inv-pill inv-pill-danger"}>{statusLabel(e.status)}{e.status === "confirmed" && !e.is_approved ? " · 미승인" : ""}</span></td>
+              <td className="tc"><span className={e.status === "confirmed" ? (e.is_approved ? "inv-pill inv-pill-ok" : "inv-pill") : e.status === "rejected" ? "inv-pill inv-pill-danger" : "inv-pill inv-pill-warn"}>{statusLabel(e.status)}{e.status === "confirmed" && !e.is_approved ? " · 미승인" : ""}</span></td>
+              <td className="tc">{e.status !== "confirmed" && e.status !== "rejected" ? (
+                <span className="inline-flex gap-1.5">
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => decide(e.id, "rejected")}>반려</button>
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => decide(e.id, "confirmed")}>확정</button>
+                </span>) : null}</td>
             </tr>
-          ))}{view.length === 0 && <tr><td colSpan={sp ? 11 : 8} className="tc ev-dim">이 기간에 전표가 없습니다</td></tr>}</tbody>
+          ))}{view.length === 0 && <tr><td colSpan={sp ? 12 : 9} className="tc ev-dim">이 기간에 전표가 없습니다</td></tr>}</tbody>
         </table></div>
       </div>
     );

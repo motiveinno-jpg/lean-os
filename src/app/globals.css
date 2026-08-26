@@ -8991,3 +8991,8 @@ table.table-inv-ch-ship { min-width: 1480px; }
 
 /* 자재 소요 팝업 — 로스 원인 셀렉트 (2026-08-26 결정 29) */
 .inv-loss-reason { @apply h-7 w-[92px] px-1 text-[12px]; }
+
+/* 생산 전표 팝업 — 설정 줄 (2026-08-26 결정 33) */
+.prod-voucher-cfg { @apply mt-3 flex flex-wrap items-end gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-subtle)] px-3 py-2; }
+.prod-voucher-acct { @apply flex min-w-[200px] flex-col gap-1; }
+.prod-voucher-acct .field-input { @apply h-8 text-[12.5px]; }

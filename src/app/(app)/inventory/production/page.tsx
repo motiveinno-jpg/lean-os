@@ -16,6 +16,7 @@ import { listBoms, getProduceMaterials, type MatInput } from "@/lib/inventory-pr
 import { produceLines, updateProduceDoc, cancelProduceDoc } from "@/lib/inventory-production";
 import { listOrders } from "@/lib/inventory-orders";
 import { BomNeedDialog, MaterialShortBadge } from "../_components/bom-editor";
+import { ProdVoucherDialog } from "../_components/prod-voucher";
 import { materialShortages } from "@/lib/inventory-production";
 import { listOnHand, DEFECT_WAREHOUSE_CODE } from "@/lib/inventory";
 import type { DocCtl } from "../_components/doc-editor";
@@ -24,6 +25,7 @@ export default function ProductionPage() {
   const [need, setNeed] = useState<{ ctl: DocCtl } | null>(null);
   //   ★ 결정 29 — 자재 소요 팝업에서 고친 실투입. 저장에 실려 가고, 저장되면 비운다. 문서를 열면 그 문서의 자재 줄로 채운다.
   const [mats, setMats] = useState<MatInput[] | null>(null);
+  const [voucher, setVoucher] = useState<{ companyId: string; userId: string | null } | null>(null);
   const qc = useQueryClient();
 
   return (
@@ -38,6 +40,8 @@ export default function ProductionPage() {
             <button type="button" className="btn-secondary btn-sm" onClick={() => setNeed({ ctl })}>자재 소요</button>
             {/*   ★ 자재가 모자라면 치는 동안 바로 보인다(2026-08-26 사장님: "부족하면 알려주는 장치") — 누르면 소요 팝업 */}
             <MaterialShortBadge ctl={ctl} onOpen={() => setNeed({ ctl })} />
+            {/*   ★ 결정 33 — 주기 전표 초안 상태·지금 만들기·설정 */}
+            <button type="button" className="btn-secondary btn-sm" onClick={() => ctl.companyId && setVoucher({ companyId: ctl.companyId, userId: ctl.userId })}>생산 전표</button>
           </>
         )}
         saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
@@ -141,6 +145,7 @@ export default function ProductionPage() {
           materials={mats} onApply={setMats}
           onClose={() => setNeed(null)} />
       )}
+      {voucher && <ProdVoucherDialog companyId={voucher.companyId} userId={voucher.userId} onClose={() => setVoucher(null)} />}
     </>
   );
 }
