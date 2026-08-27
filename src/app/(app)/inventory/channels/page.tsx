@@ -6,6 +6,7 @@
 //   ★ 결정 18 — 키가 없어도 오늘 쓸 수 있어야 한다. 주문 엑셀 붙여넣기가 1등 시민이다.
 //   ★ 결정 19 — 채널 상품코드 ↔ SKU 는 사람이 한 번 이어 준다. 이름으로 맞히면 잘못이 곧 재고가 된다.
 
+import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../_components/simple-cond";
 import { ExcelPasteHelper } from "../_components/excel-paste-helper";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -49,7 +50,9 @@ export default function ChannelsPage() {
   const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
   const ctl = useDocEditor(companyId, userId, "channel", products);
   //   상품 연결·이력 갈래가 보는 채널(칩). 주문 가져오기 격자는 줄마다 채널 칸이 따로 있다.
-  const [channel, setChannel] = useState<ChannelValue>("smartstore");
+  const [channel, setChannel] = useState<ChannelValue>("smartstore");   // 새 연결·붙여넣기 팝업의 기본 채널
+  //   목록의 채널 필터는 검색조건(다중, 비우면 전체) — 조회 줄에 채널 칩을 늘어놓지 않는다 (2026-08-27 사장님 지적)
+  const [cond, setCond] = useState<CondLive>({});
   const [q, setQ] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -66,10 +69,10 @@ export default function ChannelsPage() {
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
 
   const shownCodes = useMemo(() => codes.filter((c) =>
-    c.channel === channel &&
+    condHit(cond, "channel", c.channel) &&
     quickSearchHit(q, [c.channel_product_id, c.channel_product_name, c.channel_sku,
       productById.get(c.product_id)?.sku, productById.get(c.product_id)?.name])
-  ), [codes, channel, q, productById]);
+  ), [codes, cond, q, productById]);
   const sortedCodes = useMemo(() => {
     const d = cSort.dir === "asc" ? 1 : -1;
     const val = (c: (typeof shownCodes)[number]) => cSort.key === "code" ? c.channel_product_id
@@ -82,8 +85,8 @@ export default function ChannelsPage() {
   const codePager = usePager(sortedCodes, 50, `${channel}|${q}|${cSort.key}${cSort.dir}`);
 
   const shownImports = useMemo(() => imports.filter((i) =>
-    i.channel === channel && quickSearchHit(q, [i.channel_order_no, i.buyer_name, i.recipient_name, i.recipient_phone, i.address])
-  ), [imports, channel, q]);
+    condHit(cond, "channel", i.channel) && quickSearchHit(q, [i.channel_order_no, i.buyer_name, i.recipient_name, i.recipient_phone, i.address])
+  ), [imports, cond, q]);
   const sortedImports = useMemo(() => {
     const d = iSort.dir === "asc" ? 1 : -1;
     const val = (i: (typeof shownImports)[number]) => iSort.key === "no" ? i.channel_order_no
@@ -149,11 +152,12 @@ export default function ChannelsPage() {
                 <button type="button" className="btn-secondary btn-sm" onClick={() => setBulkOpen(true)}>엑셀 붙여넣기</button>
                 <button type="button" className="btn-primary btn-sm" onClick={() => setAddOpen(true)}>+ 상품 연결</button>
               </>) : undefined}>
-                <ChipGroup value={channel} onChange={(v) => setChannel(v as ChannelValue)} options={chChips} />
+                <SimpleCond groups={[{ key: "channel", label: "채널", hint: "비우면 전체", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
                 <QuickSearch value={q} onApply={setQ} placeholder="채널 상품코드 · 상품명 · SKU — 쉼표로 여러 개, Enter" />
               </QueryBar>
+              <SimpleApplied groups={[{ key: "channel", label: "채널", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
               <ResultStrip>
-                <Stat label={channelLabel(channel)} value={`연결 ${won(counts.codes)}개`} />
+                <Stat label="연결" value={`${won(shownCodes.length)}개`} />
                 <Stat label="전체 채널" value={`${won(counts.allCodes)}개`} />
               </ResultStrip>
             </>
@@ -170,10 +174,11 @@ export default function ChannelsPage() {
                     "등록 시각": i.imported_at.slice(0, 16).replace("T", " "),
                   })), "가져오기 이력", `채널주문_${channelLabel(channel)}_${todayKst()}`)}>엑셀</button>
               }>
-                <ChipGroup value={channel} onChange={(v) => setChannel(v as ChannelValue)} options={chChips} />
+                <SimpleCond groups={[{ key: "channel", label: "채널", hint: "비우면 전체", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
                 <QuickSearch value={q} onApply={setQ} placeholder="주문번호 · 주문자 · 수취인 · 연락처 · 주소 — 쉼표로 여러 개, Enter" />
                 <span className="inv-hint">등록된 주문번호는 <b>다시 가져와도 건너뜁니다</b> (재고 중복 차감 방지).</span>
               </QueryBar>
+              <SimpleApplied groups={[{ key: "channel", label: "채널", options: chChips.map((c) => ({ value: c.value, label: c.label })) }]} live={cond} onApply={setCond} />
               <ResultStrip>
                 <Stat label="등록 주문" value={`${won(shownImports.length)}건`} />
                 <Stat label="금액" value={`₩${won(shownImports.reduce((n, i) => n + Number(i.amount || 0), 0))}`} />
@@ -190,7 +195,7 @@ export default function ChannelsPage() {
             {tab === "codes" && (
               shownCodes.length === 0 ? (
                 <div className="collect-empty">
-                  {channelLabel(channel)}에 연결된 상품이 없습니다. <b>+ 상품 연결</b>에서
+                  연결된 상품이 없습니다. <b>+ 상품 연결</b>에서
                   <b> 채널 상품코드</b>와 <b>SKU</b>를 연결하세요.<br />
                   연결된 상품코드는 주문 가져오기에서 자동으로 품목에 대응됩니다.
                   <span className="inv-soon-note">상품명으로 자동 대응하지 않는 이유 — 유사한 상품명이 잘못 대응되면 재고 오류로 이어집니다.</span>
@@ -237,7 +242,7 @@ export default function ChannelsPage() {
             {tab === "history" && (
               shownImports.length === 0 ? (
                 <div className="collect-empty">
-                  {channelLabel(channel)}에서 등록한 주문이 없습니다. <b>주문 가져오기</b>에서 엑셀을 붙여 넣어 등록하세요.
+                  등록한 주문이 없습니다. <b>주문 가져오기</b>에서 엑셀을 붙여 넣어 등록하세요.
                 </div>
               ) : (
                 <div className="stg-table-wrap">

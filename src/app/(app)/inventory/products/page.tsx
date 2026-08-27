@@ -5,6 +5,7 @@
 //   ★ 결정 6-④ — '수량을 관리하는 품목인가' 체크가 여기 있다. 끄면 재고에 안 잡힌다(서비스·용역).
 //     이 체크 하나가 음수 재고의 절반을 없앤다(사장님 2026-08-24).
 
+import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../_components/simple-cond";
 import { todayKst } from "@/lib/kst";
 import { exportToExcel } from "@/lib/excel-export";
 import { xNum, xBool, type ExcelColumn, type ExcelRow } from "@/lib/excel-io";
@@ -26,6 +27,7 @@ import { BomEditorDialog } from "../_components/bom-editor";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
 
+const PRODUCT_CONDS = [{ key: "state", label: "상태", hint: "비우면 전체", options: [{ value: "active", label: "판매중" }, { value: "inactive", label: "단종" }] }];
 const PRODUCT_XCOLS: ExcelColumn[] = [
   { key: "sku", label: "SKU", required: true, hint: "품목 코드 — 같은 SKU 가 있으면 고칩니다", example: "TS-BK-M" },
   { key: "name", label: "품목명", required: true, example: "무지 티셔츠" },
@@ -51,7 +53,8 @@ export default function ProductsPage() {
   useEffect(() => { getCurrentUser().then((u) => { setCompanyId(u?.company_id ?? null); setUserId(u?.id ?? null); }); }, []);
 
   const [q, setQ] = useState("");
-  const [onlyActive, setOnlyActive] = useState(true);
+  //   값 필터는 검색조건에서 — 기본은 판매중만(조회 화면 표준, 2026-08-27 사장님 지적)
+  const [cond, setCond] = useState<CondLive>({ state: ["active"] });
   type SortKey = "sku" | "name" | "category" | "sale" | "cost" | "qty";
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "sku", dir: "asc" });
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
@@ -82,7 +85,7 @@ export default function ProductsPage() {
 
   const shown = useMemo(() => {
     const arr = products.filter((p) =>
-      (!onlyActive || p.is_active) &&
+      condHit(cond, "state", p.is_active ? "active" : "inactive") &&
       quickSearchHit(q, [p.sku, p.name, p.category, p.spec, p.barcode]));
     const val = (p: Product) => {
       switch (sort.key) {
@@ -96,9 +99,9 @@ export default function ProductsPage() {
     };
     const d = sort.dir === "asc" ? 1 : -1;
     return [...arr].sort((a, b) => cmp(val(a), val(b)) * d);
-  }, [products, q, onlyActive, sort, qtyOf]);
+  }, [products, q, cond, sort, qtyOf]);
 
-  const pager = usePager(shown, 50, `${q}|${onlyActive}|${sort.key}${sort.dir}`);
+  const pager = usePager(shown, 50, `${q}|${JSON.stringify(cond)}|${sort.key}${sort.dir}`);
   const stockValue = useMemo(
     () => products.reduce((n, p) => n + (qtyOf.get(p.id) ?? 0) * Number(p.cost_price || 0), 0),
     [products, qtyOf]);
@@ -124,10 +127,10 @@ export default function ProductsPage() {
             ]} />
             <button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>
           </>}>
+            <SimpleCond groups={PRODUCT_CONDS} live={cond} onApply={setCond} />
             <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 분류 · 규격 · 바코드 — 쉼표로 여러 개, Enter" />
-            <button type="button" className={onlyActive ? "qk-chip qk-chip-on" : "qk-chip"} onClick={() => setOnlyActive(true)}>판매중</button>
-            <button type="button" className={!onlyActive ? "qk-chip qk-chip-on" : "qk-chip"} onClick={() => setOnlyActive(false)}>전체</button>
           </QueryBar>
+          <SimpleApplied groups={PRODUCT_CONDS} live={cond} onApply={setCond} />
           <ResultStrip>
             <Stat label="품목" value={`${won(shown.length)}개`} />
             <Stat label="수량 관리" value={`${won(trackedCount)}개`} />

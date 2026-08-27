@@ -7,6 +7,7 @@
 //   ★ 결정 7 — 음수는 에러가 아니라 '아직 안 맞춘 것'. 막지 않고 '맞춰야 할 것'으로 세운다.
 //   ★ 결정 8 — 지우지 않고 부호로 남긴다. 수량 칸에 음수를 넣을 수 있고, 화면이 뜻을 되읽어 준다.
 
+import { SimpleCond, SimpleApplied, condHit, type CondLive } from "../_components/simple-cond";
 import { exportToExcel } from "@/lib/excel-export";
 import { xBool, type ExcelColumn } from "@/lib/excel-io";
 import { ExcelUploadDialog } from "../_components/excel-upload";
@@ -47,6 +48,13 @@ const WAREHOUSE_XCOLS: ExcelColumn[] = [
   { key: "is_default", label: "기본창고", kind: "bool", hint: "예로 하면 입력 화면의 기본 창고", example: "아니오" },
 ];
 
+const STOCK_CONDS = (c: { low: number; zero: number; fix: number }) => [{
+  key: "state", label: "상태", hint: "여러 개 고르면 그중 하나라도", options: [
+    { value: "low", label: `부족 ${c.low}` }, { value: "zero", label: `품절 ${c.zero}` },
+    { value: "fix", label: `맞춰야 할 것 ${c.fix}`, title: "장부가 실물을 못 따라간 줄(음수) — 지우지 않고 맞춥니다" },
+  ],
+}];
+
 export default function StockPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -57,7 +65,8 @@ export default function StockPage() {
 
   const [tab, setTab] = useState<Tab>("onhand");
   const [q, setQ] = useState("");
-  const [signal, setSignal] = useState<Signal>("all");
+  //   값 필터는 검색조건 패널에서(조회 화면 표준) — 조회 줄엔 칩을 늘어놓지 않는다 (2026-08-27 사장님 지적)
+  const [cond, setCond] = useState<CondLive>({});
   const [sort, setSort] = useState<SortState<StockKey>>({ key: "state", dir: "asc" });
   const [mSort, setMSort] = useState<SortState<MoveKey>>({ key: "date", dir: "desc" });
   const [sumView, setSumView] = useState<SumView>("product");
@@ -110,9 +119,9 @@ export default function StockPage() {
   }, [onhand, productById, whById]);
 
   const shown = useMemo(() => rows.filter((r) =>
-    (signal === "all" || r.state === signal) &&
+    condHit(cond, "state", r.state) &&
     quickSearchHit(q, [r.product?.sku, r.product?.name, r.product?.spec, r.wh?.name])
-  ), [rows, signal, q]);
+  ), [rows, cond, q]);
 
   const sorted = useMemo(() => {
     const d = sort.dir === "asc" ? 1 : -1;
@@ -131,7 +140,7 @@ export default function StockPage() {
     return [...shown].sort((a, b) => cmp(val(a), val(b)) * d);
   }, [shown, sort, avgCost]);
   const onSort = (k: string) => setSort((s) => nextSort(s, k as StockKey));
-  const pager = usePager(sorted, 50, `${q}|${signal}|${sort.key}${sort.dir}`);
+  const pager = usePager(sorted, 50, `${q}|${JSON.stringify(cond)}|${sort.key}${sort.dir}`);
   const counts = useMemo(() => ({
     low: rows.filter((r) => r.state === "low").length,
     zero: rows.filter((r) => r.state === "zero").length,
@@ -214,14 +223,10 @@ export default function StockPage() {
                   <button type="button" className="btn-primary btn-sm" onClick={() => setDocOpen(true)}>+ 입·출고</button>
                 </>
               ) : undefined}>
+                <SimpleCond groups={STOCK_CONDS(counts)} live={cond} onApply={setCond} />
                 <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 규격 · 창고 — 쉼표로 여러 개, Enter" />
-                <ChipGroup value={signal} onChange={setSignal} options={[
-                  { value: "all", label: "전체" },
-                  { value: "low", label: `부족 ${counts.low}` },
-                  { value: "zero", label: `품절 ${counts.zero}` },
-                  { value: "fix", label: `맞춰야 할 것 ${counts.fix}`, title: "장부가 실물을 못 따라간 줄(음수) — 지우지 않고 맞춥니다" },
-                ]} />
               </QueryBar>
+              <SimpleApplied groups={STOCK_CONDS(counts)} live={cond} onApply={setCond} />
               <ResultStrip>
                 <Stat label="줄" value={`${won(shown.length)}개`} />
                 <Stat label="부족" value={`${won(counts.low)}개`} tone={counts.low > 0 ? "minus" : undefined} />
