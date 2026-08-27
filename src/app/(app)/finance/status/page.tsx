@@ -28,7 +28,7 @@ import { exportToExcel } from "@/lib/excel-export";
 import { getAccountMap, accountById, NATURE_LABEL } from "@/lib/account-nature";
 import { vatType } from "@/lib/vat-voucher";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
-import { decideProdDraft } from "@/lib/production-voucher";
+import { decideProdDraft, makeInventoryDraftNow, makePayrollDraftNow } from "@/lib/production-voucher";
 import { BANK_LINE_META, decideSettlement, settlementResultToast } from "@/components/bank-line-dialog";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -64,6 +64,23 @@ export default function FinanceStatusPage() {
   const decide = async (id: string, st: "confirmed" | "rejected") => {
     try { await decideProdDraft(id, st, userId); toast(st === "confirmed" ? "확정했습니다" : "반려했습니다", "success"); refetchEntries(); }
     catch (e) { toast(friendlyError(e), "error"); }
+  };
+  //   ★ ERP 공백 ② — 결산 초안(재고자산 맞추기·급여)을 여기서 바로 만든다. 월 1일 새벽엔 자동. 확정은 아래 목록에서.
+  const [closeMonth, setCloseMonth] = useState(() => { const d = new Date(); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7); });
+  const [closeBusy, setCloseBusy] = useState<"inventory" | "payroll" | null>(null);
+  const makeCloseDraft = async (kind: "inventory" | "payroll") => {
+    if (closeBusy) return;
+    setCloseBusy(kind);
+    try {
+      const last = new Date(Number(closeMonth.slice(0, 4)), Number(closeMonth.slice(5, 7)), 0);
+      const asof = `${closeMonth}-${String(last.getDate()).padStart(2, "0")}`;
+      const id = kind === "inventory" ? await makeInventoryDraftNow(asof) : await makePayrollDraftNow(closeMonth);
+      toast(id ? (kind === "inventory" ? `재고자산 맞추기 초안을 만들었습니다 (${asof}) — 아래에서 확정하세요` : `급여 초안을 만들었습니다 (${closeMonth}) — 아래에서 확정하세요`)
+        : (kind === "inventory" ? "장부와 기말 재고가 이미 같습니다 — 만들 초안이 없습니다" : `${closeMonth}에 발급된 급여명세가 없습니다`), id ? "success" : "info");
+      //   초안 일자는 그 달 말일 — 조회 기간 밖이면 안 보이므로 기간을 그 달까지 넓힌다
+      if (id) { const mStart = asof.slice(0, 8) + "01"; setFrom((f) => (f > mStart ? mStart : f)); setTo((t) => (t < asof ? asof : t)); refetchEntries(); }
+    } catch (e) { toast(friendlyError(e), "error"); }
+    finally { setCloseBusy(null); }
   };
   const [tab, setTab] = useState<Tab>("all");
   const [from, setFrom] = useState(monthStart);
@@ -384,6 +401,15 @@ export default function FinanceStatusPage() {
                       <h3>상태 비중</h3><p>조회 기간 전표 {entries.length}건 · 재무제표는 확정만 읽습니다 — 반려·대기는 아직 장부가 아닙니다</p>
                       {entries.length ? <><DonutChart unit="건" total={`${entries.length}건`} data={[{ label: "확정", value: S.confirmed.length - S.unapproved.length, color: vizColor(0) }, { label: "미승인", value: S.unapproved.length, color: vizColor(2) }, { label: "대기", value: S.pending.length, color: vizColor(3) }, { label: "반려", value: S.rejected.length, color: vizColor(1) }].filter((d) => d.value > 0)} />
                         <Legend items={[{ name: `확정 ${S.confirmed.length - S.unapproved.length}`, color: vizColor(0) }, { name: `미승인 ${S.unapproved.length}`, color: vizColor(2) }, { name: `대기 ${S.pending.length}`, color: vizColor(3) }, { name: `반려 ${S.rejected.length}`, color: vizColor(1) }]} /></> : <div className="inv-status-empty">이 기간에 전표가 없습니다</div>}
+                    </div>
+                    <div className="pnl-panel">
+                      <h3>결산 초안 만들기</h3><p>월 1일 새벽에 지난달 것이 자동으로 생깁니다 — 지금 바로 만들거나 다시 만들려면 여기서. 초안 일자는 그 달 말일이라 조회 기간이 그 날을 품어야 아래 목록에 보입니다 — 확정·반려는 목록에서.</p>
+                      <div className="fin-close-row">
+                        <input type="month" className="inv-input fin-close-month" value={closeMonth} onChange={(e) => setCloseMonth(e.target.value)} />
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("inventory")} title="기말 재고(층 원가)와 재고자산 계정 잔액의 차액을 전표 초안으로 — 제품·상품·원재료">{closeBusy === "inventory" ? "만드는 중…" : "재고자산 맞추기"}</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("payroll")} title="그 달 발급된 급여명세 합계 — 차) 직원급여 / 대) 예수금·미지급금. 개인별 금액은 전표에 싣지 않습니다">{closeBusy === "payroll" ? "만드는 중…" : "급여 전표"}</button>
+                      </div>
+                      <p className="inv-hint">출처: 장부 대조(재고 층 원가·급여명세). 계정은 회사설정 › 생산 전표 계정에서, 비어 있으면 이름(제품·상품·원재료·직원급여·예수금·미지급금)으로 찾습니다.</p>
                     </div>
                     <div className="pnl-panel">
                       <h3>전표 없는 증빙</h3><p>조회 기간의 증빙 중 전표가 아직 없는 것 — 만들기는 수집·전표에서</p>

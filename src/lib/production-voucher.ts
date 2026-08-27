@@ -18,6 +18,8 @@ export type ProdVoucherSettings = {
   cycle: ProdVoucherCycle; acct_product: string | null; acct_material: string | null; acct_scrap: string | null;
   //   결정 41 — 매출원가·손실 초안 계정(비면 이름으로: 제품매출원가·상품매출원가·상품·재고자산평가손실·견본비)
   acct_cogs_product?: string | null; acct_cogs_goods?: string | null; acct_goods?: string | null; acct_reval?: string | null; acct_sample?: string | null;
+  //   결정 54·55 — 재고자산 맞추기·급여 초안 계정(비면 이름으로: 원재료비·직원급여·예수금·미지급금)
+  acct_material_cost?: string | null; acct_salary?: string | null; acct_withholding?: string | null; acct_salary_payable?: string | null;
 };
 const DEFAULT: ProdVoucherSettings = { cycle: "month", acct_product: null, acct_material: null, acct_scrap: null, acct_cogs_product: null, acct_cogs_goods: null, acct_goods: null, acct_reval: null, acct_sample: null };
 
@@ -39,7 +41,7 @@ export async function saveProdVoucherSettings(companyId: string, s: ProdVoucherS
 }
 
 export type ProdDraft = {
-  id: string; kind: "production" | "cogs"; period_from: string; period_to: string; journal_entry_id: string | null; status: "draft" | "confirmed" | "rejected";
+  id: string; kind: "production" | "cogs" | "inventory" | "payroll"; period_from: string; period_to: string; journal_entry_id: string | null; status: "draft" | "confirmed" | "rejected";
   doc_ids: string[]; amount_material: number; amount_product_valued: number; amount_scrap: number; amount_cogs: number; amount_loss: number; skipped_lines: number; memo: string | null; created_at: string;
 };
 export async function listProdDrafts(companyId: string, limit = 12): Promise<ProdDraft[]> {
@@ -59,6 +61,19 @@ export async function makeProdDraftNow(from: string, to: string): Promise<string
 /** 매출원가·손실 초안(결정 41) — 같은 주기 규칙. 만들 것이 없으면 null. */
 export async function makeCogsDraftNow(from: string, to: string): Promise<string | null> {
   const { data, error } = await (supabase as any).rpc("make_my_cogs_voucher_draft", { p_from: from, p_to: to });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
+/** 재고자산 맞추기 초안(결정 54) — 기준일의 층 원가 가치와 장부 잔액 차액. 차액 없으면 null. */
+export async function makeInventoryDraftNow(asof: string): Promise<string | null> {
+  const { data, error } = await (supabase as any).rpc("make_my_inventory_voucher_draft", { p_asof: asof });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+/** 급여 초안(결정 55) — 그 달 발급된 급여명세 합계만. 명세가 없으면 null. */
+export async function makePayrollDraftNow(month: string): Promise<string | null> {
+  const { data, error } = await (supabase as any).rpc("make_my_payroll_voucher_draft", { p_month: month });
   if (error) throw error;
   return (data as string | null) ?? null;
 }
