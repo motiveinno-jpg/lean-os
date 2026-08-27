@@ -9196,6 +9196,9 @@ table.table-inv-ch-ship { min-width: 1480px; }
 
 /* 화면 캡처 — 영역 선택 오버레이 (2026-08-27) */
 .cap-overlay { @apply fixed inset-0 z-[3000] cursor-crosshair select-none overflow-hidden bg-black; touch-action: none; }
+/* 찍는 동안 — 떠 있는 창·토스트는 숨기고 커서는 없앤다 (2026-08-27 사장님) */
+body.cap-shooting .fw, body.cap-shooting .toast-container { visibility: hidden !important; }
+body.cap-shooting, body.cap-shooting * { cursor: none !important; }
 .cap-frame { @apply absolute; }
 .cap-mask { @apply absolute inset-0 bg-black/55; }
 .cap-sel { @apply absolute border-2 border-[var(--primary)]; background-repeat: no-repeat; }

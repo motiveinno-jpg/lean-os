@@ -83,22 +83,44 @@ function Calculator() {
   );
 }
 
-/** 화면 공유 API 로 한 프레임을 캔버스에 담는다 */
+/** 화면 공유 API 로 한 프레임을 캔버스에 담는다
+ *  2026-08-27 사장님 지적 세 가지:
+ *  · "이 탭을 보도록 허용" 이 매번 떴다 → 스트림을 끊지 않고 **살려 둔다**(brower 가 "공유 중지"를 누르거나 탭을 닫을 때까지). 두 번째부터는 안 묻는다.
+ *  · 화면이 위로 밀린 채·흐리게 찍혔다 → 공유가 시작되면 Chrome 이 위에 "공유 중" 띠를 넣어 화면을 다시 그리는데, 그 도중 프레임을 잡았다.
+ *    영상 크기가 **두 번 연속 같을 때까지** 기다린 뒤 잡는다. 해상도는 화면 픽셀(devicePixelRatio 포함)을 요청한다.
+ *  · 떠 있는 '화면 캡처' 창·커서가 같이 찍혔다 → 찍는 동안 body.cap-shooting 으로 창을 숨기고 커서를 없앤다(cursor:"never" 도 요청). */
+let liveStream: MediaStream | null = null;
+let liveVideo: HTMLVideoElement | null = null;
+const streamAlive = () => !!liveStream && liveStream.getVideoTracks().some((t) => t.readyState === "live");
+export function stopCaptureStream() { liveStream?.getTracks().forEach((t) => t.stop()); liveStream = null; liveVideo = null; }
 async function grabFrame(): Promise<HTMLCanvasElement> {
   const md: any = navigator.mediaDevices;
   if (!md?.getDisplayMedia) throw new Error("이 브라우저는 화면 캡처를 지원하지 않습니다 — Chrome·Edge 에서 쓰세요");
-  let stream: MediaStream | null = null;
-  try {
-    stream = await md.getDisplayMedia({ video: { displaySurface: "browser" }, audio: false, preferCurrentTab: true, selfBrowserSurface: "include" });
-    const video = document.createElement("video");
-    video.srcObject = stream; video.muted = true;
-    await video.play();
-    await new Promise((r) => setTimeout(r, 250));
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-    canvas.getContext("2d")!.drawImage(video, 0, 0);
-    return canvas;
-  } finally { stream?.getTracks().forEach((t) => t.stop()); }
+  const fresh = !streamAlive();
+  if (fresh) {
+    const dpr = window.devicePixelRatio || 1;
+    liveStream = await md.getDisplayMedia({
+      video: { displaySurface: "browser", width: { ideal: Math.round(window.screen.width * dpr) }, height: { ideal: Math.round(window.screen.height * dpr) }, frameRate: { ideal: 5 }, cursor: "never" },
+      audio: false, preferCurrentTab: true, selfBrowserSurface: "include", surfaceSwitching: "exclude", monitorTypeSurfaces: "exclude",
+    });
+    liveStream!.getVideoTracks()[0]?.addEventListener("ended", () => { liveStream = null; liveVideo = null; });
+    liveVideo = document.createElement("video");
+    liveVideo.srcObject = liveStream; liveVideo.muted = true;
+    await liveVideo.play();
+  }
+  const video = liveVideo!;
+  //   크기가 안정될 때까지(공유 띠로 다시 그리는 동안은 크기가 바뀐다) — 최대 2초
+  let w = 0, h = 0;
+  for (let i = 0; i < 10; i++) {
+    await new Promise((r) => setTimeout(r, fresh ? 250 : 120));
+    if (video.videoWidth === w && video.videoHeight === h && w > 0) break;
+    w = video.videoWidth; h = video.videoHeight;
+  }
+  if (!fresh) await new Promise((r) => setTimeout(r, 150));   // 창을 숨긴 뒤 새 프레임이 오도록 한 박자
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext("2d")!.drawImage(video, 0, 0);
+  return canvas;
 }
 async function saveCanvas(canvas: HTMLCanvasElement, suffix: string): Promise<{ name: string; clip: boolean }> {
   const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("png"))), "image/png"));
@@ -168,6 +190,7 @@ function Capture({ onDone }: { onDone: () => void }) {
   const shoot = async (mode: "full" | "region") => {
     if (busy) return;
     setBusy(true);
+    document.body.classList.add("cap-shooting");   // 떠 있는 창·커서 숨김 — 찍힌 화면에 안 나오게
     try {
       const canvas = await grabFrame();
       if (mode === "full") { await finish(canvas, ""); onDone(); }
@@ -175,11 +198,11 @@ function Capture({ onDone }: { onDone: () => void }) {
     } catch (e: any) {
       if (String(e?.name || "").includes("NotAllowed")) toast("캡처를 취소했습니다", "info");
       else toast(`캡처 실패 — ${e?.message || "알 수 없는 오류"}`, "error");
-    } finally { setBusy(false); }
+    } finally { setBusy(false); document.body.classList.remove("cap-shooting"); }
   };
   return (
     <div className="ht-capture">
-      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b> 한 번 묻습니다 — "이 탭"을 고르세요(브라우저 보안이라 건너뛸 수 없습니다). <b>영역 선택</b>은 찍은 화면 위에서 사각형을 끌어 그 부분만 저장합니다.</p>
+      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b> 처음 한 번만 묻습니다 — "이 탭"을 고르세요(브라우저 보안이라 건너뛸 수 없습니다). 그 뒤로는 안 묻습니다 — 브라우저의 "공유 중지"를 누르면 다음에 다시 묻습니다. <b>영역 선택</b>은 찍은 화면 위에서 사각형을 끌어 그 부분만 저장합니다.</p>
       <div className="ht-capture-btns">
         <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => shoot("full")}>{busy ? "찍는 중…" : "전체 화면"}</button>
         <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => shoot("region")}>영역 선택</button>
