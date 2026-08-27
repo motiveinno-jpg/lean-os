@@ -15,6 +15,7 @@ import { FloatingMessenger } from "@/components/floating-messenger";
 import { MenuGuide, MenuGuideDrawer } from "@/components/menu-guide";
 import { GuideProvider, useGuide } from "@/components/guide-context";
 import { NotificationBell } from "@/components/notification-bell";
+import { HeaderTools } from "@/components/header-tools";
 import { AccountChip } from "@/components/account-chip";
 import { SidebarProvider, useSidebar } from "@/components/sidebar-context";
 import { OwnerViewIcon } from "@/components/brand-logo";
@@ -389,6 +390,9 @@ function AppContent({ children }: { children: React.ReactNode }) {
             <path d="M21 21l-4.35-4.35" strokeLinecap="round" />
           </svg>
         </button>
+
+        {/* 상단바 도구 — 계산기 · 화면 캡처 · 메모 (2026-08-27 사장님 지시: 알림 왼쪽에 아이콘으로) */}
+        <HeaderTools />
 
         {/* 알림 벨 — 클릭 시 현재 페이지 유지, 최근 알림 팝오버 (전체보기 → /notifications) */}
         <NotificationBell />

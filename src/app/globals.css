@@ -9105,3 +9105,33 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .qk-body > .fa-scroll { @apply absolute inset-0 overflow-auto; }
 .table-fa { min-width: 1280px; }
 .fa-depr-row { @apply inline-flex items-center gap-1.5; }
+
+/* 상단바 도구 — 계산기 · 화면 캡처 · 메모 (2026-08-27) */
+.ht-btn-on { @apply border-[var(--primary)] text-[var(--primary)]; }
+.ht-panel { @apply w-[min(92vw,340px)]; }
+.ht-panel-note { @apply w-[min(92vw,400px)]; }
+.ht-panel-body { @apply p-3; }
+.ht-hint { @apply text-[11.5px] leading-relaxed text-[var(--text-muted)]; }
+.ht-calc { @apply flex flex-col gap-2; }
+.ht-calc-in { @apply h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 text-right text-[14px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
+.ht-calc-out { @apply cursor-pointer rounded-lg px-2.5 py-1.5 text-right text-[20px] font-bold text-[var(--text)] hover:bg-[var(--bg-surface)]; }
+.ht-calc-out-none { @apply text-[var(--text-dim)]; }
+.ht-calc-keys { @apply grid grid-cols-4 gap-1.5; }
+.ht-key { @apply h-9 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[14px] font-semibold text-[var(--text)] hover:bg-[var(--bg-surface)]; }
+.ht-key-op { @apply bg-[var(--bg-surface)] text-[var(--primary)]; }
+.ht-key-fn { @apply text-[var(--text-muted)]; }
+.ht-key-eq { @apply col-span-4 bg-[var(--primary)] text-white hover:opacity-90; }
+.ht-calc-hist { @apply flex max-h-40 flex-col gap-0.5 overflow-auto border-t border-[var(--border)] pt-2; }
+.ht-calc-hist-row { @apply flex items-center justify-between gap-2 rounded px-1.5 py-0.5 text-left text-[12px] hover:bg-[var(--bg-surface)]; }
+.ht-capture { @apply flex flex-col gap-3; }
+.ht-capture-btn { @apply self-start; }
+.ht-notes { @apply flex flex-col gap-2; }
+.ht-note-in { @apply w-full resize-y rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-[13px] leading-relaxed text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
+.ht-note-bar { @apply flex items-center gap-2; }
+.ht-note-list { @apply flex max-h-[45vh] flex-col gap-1.5 overflow-auto; }
+.ht-note { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-2.5 py-2; }
+.ht-note-pin { @apply border-[var(--warning)]/50 bg-[var(--warning-dim)]; }
+.ht-note-body { @apply cursor-text whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text)]; }
+.ht-note-foot { @apply mt-1 flex items-center gap-1 text-[11px]; }
+.ht-note-act { @apply rounded px-1.5 py-0.5 text-[12px] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
+.ht-note-empty { @apply py-3 text-center; }
