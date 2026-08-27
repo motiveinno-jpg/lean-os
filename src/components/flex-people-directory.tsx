@@ -1,4 +1,5 @@
 "use client";
+import { comparePeople } from "@/lib/people-sort";
 import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 구성원 디렉토리 (2026-06-12).
@@ -175,7 +176,9 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
         default: return e.name;
       }
     };
-    return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => cmp(val(a), val(b)) * dir || a.name.localeCompare(b.name, "ko"));
+    //   이름 정렬 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 사장님). 다른 칸은 그 칸 값 뒤에 같은 규칙
+    if (sort.key === "name") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => comparePeople(a, b) * dir);
+    return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => cmp(val(a), val(b)) * dir || comparePeople(a, b));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, sort, cf.key]);
   const cfSpec = (k: keyof ReturnType<typeof colVal>) => cf.spec(k, base.map((e) => colVal(e)[k]));
@@ -210,6 +213,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
               <span className="text-[14px] font-bold text-[var(--text)] truncate group-hover:text-[var(--primary)]">{e.name}</span>
+              {e.employee_number && <span className="emp-no">#{e.employee_number}</span>}
               <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: sm.bg, color: sm.color }}>{sm.label}</span>
             </span>
             <span className="block text-[11px] text-[var(--text-muted)] truncate mt-0.5">{[e.job_title || e.position, e.department].filter(Boolean).join(" · ") || "직책 미지정"}</span>
@@ -309,7 +313,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                             ) : (
                               <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>{initials(e.name)}</span>
                             )}
-                            <span className="font-semibold text-[var(--text)]">{e.name}</span>
+                            <span className="font-semibold text-[var(--text)]">{e.name}</span>{e.employee_number && <span className="emp-no">#{e.employee_number}</span>}
                           </span>
                         </td>
                         <td className="text-center">{e.department || "—"}</td>

@@ -9294,3 +9294,6 @@ table.table-ret-settle td { @apply text-[12px]; }
 .att-cal-edge { @apply absolute inset-y-[3px] right-0 w-[2px] rounded-full opacity-90; }
 .att-cal-chip { @apply relative z-10 rounded-full px-1.5 py-[1px] text-[9px] font-bold leading-none; }
 .att-cal-n { @apply relative z-10 ml-auto pr-1 text-[10.5px] font-bold tabular-nums text-[var(--text)]; }
+
+/* 이름 옆 사번 (2026-08-27 사장님) */
+.emp-no { @apply ml-1.5 rounded bg-[var(--bg-surface)] px-1 py-px align-middle text-[10px] font-semibold tabular-nums text-[var(--text-dim)]; }

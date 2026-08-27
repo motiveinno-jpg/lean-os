@@ -1,4 +1,5 @@
 "use client";
+import { comparePeople } from "@/lib/people-sort";
 import { logRead } from "@/lib/log-read";
 
 // 플렉스(flex.team) 스타일 주간 워크보드 (2026-06-12).
@@ -219,10 +220,10 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
       }
       return { emp: e, total, overtime, lateDays };
     }).sort((a, b) => {
-      if (sortMode === "name") return a.emp.name.localeCompare(b.emp.name, "ko");
+      if (sortMode === "name") return comparePeople(a.emp as any, b.emp as any);   // 사번 순 → 가나다 → ABC (2026-08-27)
       if (sortMode === "team") {
         const t = String(a.emp.department || "힣").localeCompare(String(b.emp.department || "힣"), "ko");
-        return t !== 0 ? t : a.emp.name.localeCompare(b.emp.name, "ko");
+        return t !== 0 ? t : comparePeople(a.emp as any, b.emp as any);
       }
       return b.total - a.total; // 근무시간순(기본)
     });
@@ -380,7 +381,7 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                         {initials(emp.name)}
                       </span>
                       <span className="min-w-0">
-                        <span className="block text-[13px] font-semibold text-[var(--text)] truncate">{emp.name}</span>
+                        <span className="block text-[13px] font-semibold text-[var(--text)] truncate">{emp.name}{(emp as any).employee_number && <span className="emp-no">#{(emp as any).employee_number}</span>}</span>
                         <span className="block text-[10px] text-[var(--text-dim)] truncate">{[emp.department, emp.position].filter(Boolean).join(" · ") || "—"}</span>
                       </span>
                       {lateDays > 0 && <span className="ml-auto shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 font-bold">지각 {lateDays}</span>}

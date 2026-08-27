@@ -323,7 +323,7 @@ export default function EmployeesPage() {
 //   목록 테이블·조직도·역할 관리 등 관리 화면은 삭제(수정은 디렉토리 상세보기에서).
 function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setShowForm, showBulkInvite, setShowBulkInvite }: any) {
   const { toast } = useToast();
-  const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "" });
+  const [form, setForm] = useState({ email: "", name: "", role: "employee" as "employee" | "admin", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
   const [inviteMsg, setInviteMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [addExisting, setAddExisting] = useState(false);
   // 엑셀 대량 초대 (2026-07-31 사장님) — 단건 초대와 동일 경로를 행 단위로 반복 (열림 상태는 부모 조회 줄 버튼이 쥔다)
@@ -363,6 +363,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
         email: form.email,
         department: form.department || null,
         position: form.position || null,
+        employee_number: form.employeeNumber.trim() || null,   // 사번 (2026-08-27 사장님)
         salary: Math.round((Number(form.salary) || 0) / 12),
         hire_date: form.hireDate || todayKst(),
         status: "invited",
@@ -387,7 +388,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
       setAcqEdiData({ name: form.name || form.email.split("@")[0], department: form.department, position: form.position, salary: form.salary });
       setShowAcqEdi(true);
       setShowForm(false);
-      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "" });
+      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
     },
     onError: (err: any) => {
       const msg = err.message || "";
@@ -414,7 +415,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
       queryClient.invalidateQueries({ queryKey: ["employee-invitations"] });
       setInviteMsg({ ok: true, msg: `${r?.name || "회원"}님을 직원으로 추가했습니다.` });
       setShowForm(false);
-      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "" });
+      setForm({ email: "", name: "", role: "employee", department: "", position: "", salary: "", hireDate: "", employeeNumber: "" });
       setTimeout(() => setInviteMsg(null), 4000);
     },
     onError: (err: any) => {
@@ -527,6 +528,7 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
             {/* 목록 선택 + 직접 추가 (2026-08-19 사장님) */}
             <DepartmentField companyId={companyId} value={form.department} onChange={(v: string) => setForm({ ...form, department: v })} />
             <PositionField companyId={companyId} label="직위" value={form.position} onChange={(v: string) => setForm({ ...form, position: v })} />
+            <div><label className="block text-xs text-[var(--text-muted)] mb-1">사번</label><input type="text" value={form.employeeNumber} onChange={e => setForm({ ...form, employeeNumber: e.target.value })} placeholder="예: 2026-014" className="field-input" /><p className="text-[10px] text-[var(--text-dim)] mt-0.5">명단은 사번 순, 없으면 이름 순</p></div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">입사일</label><DateField value={form.hireDate} onChange={e => setForm({...form, hireDate: e.target.value})} className="field-input" />{!form.hireDate && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">비워두면 오늘 날짜로 설정됩니다</p>}</div>
             <div><label className="block text-xs text-[var(--text-muted)] mb-1">연봉</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="36,000,000" className="field-input" />{form.salary && Number(form.salary) > 0 && <p className="text-[10px] text-[var(--text-dim)] mt-0.5">월 ₩{Math.round(Number(form.salary) / 12).toLocaleString('ko-KR')}</p>}</div>
             <div className="flex items-end gap-2">
