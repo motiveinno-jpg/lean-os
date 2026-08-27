@@ -198,7 +198,7 @@ export async function fetchCollectStatus(companyId: string, from: string, to: st
 // ── 실행 ───────────────────────────────────────────────────────────────
 
 export type RunPhase = "wait" | "running" | "done" | "error" | "skip";
-export type RunState = { phase: RunPhase; message?: string; synced?: number };
+export type RunState = { phase: RunPhase; message?: string; synced?: number; /** 홈택스 서버 job — 화면을 떠났다 와도 이어 기다린다 (collect-run) */ jobId?: string };
 
 /** 홈택스 백그라운드 job 시작 — 기존 세 화면이 쓰던 것과 완전히 같은 호출 */
 async function startHometaxJob(companyId: string, jobType: SourceKey, startDate: string, endDate: string) {
@@ -219,7 +219,7 @@ async function startHometaxJob(companyId: string, jobType: SourceKey, startDate:
 }
 
 /** job 이 끝날 때까지 기다린다. 진행 상황을 onTick 으로 흘려 보낸다. */
-async function waitForJob(jobId: string, onTick?: (done: number, total: number) => void): Promise<{ synced: number; error?: string }> {
+export async function waitForJob(jobId: string, onTick?: (done: number, total: number) => void): Promise<{ synced: number; error?: string }> {
   //   Edge 한 번에 다 못 끝내는 자료가 있어(세금계산서 평균 17분) 넉넉히 기다린다.
   const deadline = Date.now() + 60 * 60 * 1000;
   while (Date.now() < deadline) {
@@ -278,9 +278,9 @@ export async function runCollect(opts: CollectOptions): Promise<void> {
       onChange(s.key, { phase: "running" });
       try {
         const { jobId, joined } = await startHometaxJob(companyId, s.key, startDate, endDate);
-        if (joined) onChange(s.key, { phase: "running", message: "다른 수집이 끝나기를 기다리는 중" });
+        onChange(s.key, { phase: "running", jobId, message: joined ? "다른 수집이 끝나기를 기다리는 중" : undefined });
         const { synced, error } = await waitForJob(jobId, (done, total) =>
-          onChange(s.key, { phase: "running", message: total ? `${done}/${total}` : undefined }),
+          onChange(s.key, { phase: "running", jobId, message: total ? `${done}/${total}` : undefined }),
         );
         if (error) onChange(s.key, { phase: "error", message: error, synced });
         else {

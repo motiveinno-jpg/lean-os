@@ -8,7 +8,7 @@
 //
 //   실행 경로는 lib/collect 가 기존 화면들의 호출을 그대로 재사용한다 — 여기서 새로 만들지 않는다.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
@@ -17,8 +17,9 @@ import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { todayKst } from "@/lib/kst";
 import {
   SOURCES, HOMETAX_SOURCES, fetchCollectStatus, fetchSyncHistory,
-  runCollect, type SourceKey, type RunState,
+  type SourceKey,
 } from "@/lib/collect";
+import { useCollectRun, startCollect, restoreCollectRun } from "@/lib/collect-run";
 import { EvidenceTab } from "./_components/EvidenceTab";
 import { BankTab } from "./_components/BankTab";
 import { RulesDialog } from "./_components/RulesDialog";
@@ -66,8 +67,24 @@ function CollectInner() {
   const [mode, setMode] = useState<"new" | "range">("new");
   const [rangeFrom, setRangeFrom] = useState(`${todayKst().slice(0, 7)}-01`);
   const [rangeTo, setRangeTo] = useState(todayKst());
-  const [running, setRunning] = useState(false);
-  const [state, setState] = useState<Record<string, RunState>>({});
+  //   ★ 진행 상태는 화면 밖(collect-run 싱글턴)에 있다 — 다른 메뉴로 갔다 와도 그대로 보이고, 통장·카드 수집도 끊기지 않는다
+  //     (2026-08-27 사장님: "전표 수집 시 백그라운드 수집이 안 됨"). 새로고침 뒤에는 스냅샷을 되살려 홈택스 job 을 이어 기다린다.
+  const run = useCollectRun();
+  const running = run.running;
+  const state = run.state;
+  useEffect(() => { restoreCollectRun(); }, []);
+  //   끝났을 때 알린다 — 시작한 화면이 아니어도(여기로 돌아온 순간) 한 번
+  const seenFinish = useRef<number | null>(null);
+  useEffect(() => {
+    if (!run.finishedAt || seenFinish.current === run.finishedAt) return;
+    seenFinish.current = run.finishedAt;
+    qc.invalidateQueries({ queryKey: ["collect-status"] });
+    qc.invalidateQueries({ queryKey: ["sync-cooldowns"] });
+    if (Date.now() - run.finishedAt < 60_000) {
+      const errs = Object.values(run.state).filter((r) => r.phase === "error").length;
+      toast(errs ? `수집이 끝났습니다 — ${errs}종은 받지 못했습니다(창을 열어 확인)` : "수집이 끝났습니다", errs ? "info" : "success");
+    }
+  }, [run.finishedAt]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   //   쿨타임·요금제 — 자료마다 세는 단위가 달라 셋을 다 본다
   const cdHometax = useSyncCooldown(companyId, "hometax");
@@ -142,28 +159,15 @@ function CollectInner() {
   }, [status, runnable]);
 
   const go = async () => {
-    if (!companyId || runnable.length === 0) return;
-    setRunning(true);
-    setState(Object.fromEntries(runnable.map((k) => [k, { phase: "wait" } as RunState])));
+    if (!companyId || runnable.length === 0 || running) return;
     try { localStorage.setItem("collect-picked", JSON.stringify(picked)); } catch { /* ignore */ }
     //   요금제·쿨타임을 서버가 한 번 더 검사하고 기록한다 (자료 종류별로 각각)
     const types = [...new Set(runnable.map((k) => (HOMETAX_SOURCES.includes(k) ? "hometax" : k)))];
     for (const t of types) {
       await (t === "hometax" ? cdHometax : t === "bank" ? cdBank : cdCard).run(async () => { /* 소모만 */ });
     }
-    try {
-      await runCollect({
-        companyId, sources: runnable, startDate: start, endDate: end,
-        onChange: (key, s) => setState((prev) => ({ ...prev, [key]: s })),
-      });
-      qc.invalidateQueries({ queryKey: ["collect-status"] });
-      qc.invalidateQueries({ queryKey: ["sync-cooldowns"] });
-      toast("수집이 끝났습니다", "success");
-    } catch (e: any) {
-      toast(`수집 실패: ${e?.message || "알 수 없는 오류"}`, "error");
-    } finally {
-      setRunning(false);
-    }
+    //   여기서부터는 화면 밖에서 돈다 — 창을 닫고 다른 메뉴로 가도 계속된다
+    startCollect({ companyId, sources: runnable, startDate: start, endDate: end });
   };
 
   const totalPending = SOURCES.reduce((n, s) => n + (status?.[s.key]?.pending ?? 0), 0);
@@ -428,9 +432,15 @@ function CollectInner() {
                   진행 상황은 <b>수집 중 · 보기</b> 를 눌러 다시 열 수 있습니다.
                 </p>
               )}
-              {running && (
+              {/*   끝난 뒤에도 지난 결과가 남는다 — 다른 화면에 갔다 와서 "받았나?" 를 여기서 확인한다 (2026-08-27) */}
+              {!running && run.finishedAt && Object.keys(state).length > 0 && (
+                <p className="collect-bg-note">
+                  지난 수집 결과 ({new Date(run.finishedAt).toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}) — 실패한 자료는 다시 받으세요.
+                </p>
+              )}
+              {(running || Object.keys(state).length > 0) && (
                 <div className="collect-steps">
-                  {picked.map((k) => {
+                  {(running ? picked : run.sources).map((k) => {
                     const s = SOURCES.find((x) => x.key === k)!;
                     const r = state[k];
                     return (
@@ -441,7 +451,7 @@ function CollectInner() {
                         </span>
                         <span className="collect-step-val">
                           {r?.phase === "done" ? `완료 ${won(r.synced ?? 0)}건`
-                            : r?.phase === "error" ? "실패"
+                            : r?.phase === "error" ? <span title={r.message}>실패{r.message ? ` — ${r.message}` : ""}</span>
                             : r?.phase === "running" ? (r.message || "수집 중…")
                             : "대기"}
                         </span>
