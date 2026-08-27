@@ -391,8 +391,9 @@ export const CONTRACT_VALUE_KEY = "__contract";
  *  표식 (2026-08-20 입력 점검: 시연 데이터에 같은 할 일이 3줄 서 있었다). 1안건 = 1할 일. */
 export const TODO_LINK_KEY = "__todo_item";
 
-/** 계약서의 결제조건 한 회차 — documents.content_json.paymentSchedule 의 원소 */
-export type PayTermRow = { label: string; ratio?: number; amount?: number; condition?: string };
+/** 계약서의 결제조건 한 회차 — documents.content_json.paymentSchedule 의 원소
+ *  dueDate(예정일)가 있으면 그날 새벽 발행 대기(초안)가 자동으로 생기고 invoiceId 에 그 계산서가 적힌다 (2026-08-27 ERP ③) */
+export type PayTermRow = { label: string; ratio?: number; amount?: number; condition?: string; dueDate?: string; invoiceId?: string };
 
 /** 계약서에서 결제조건을 꺼낸다. 회차가 없으면 빈 배열. */
 export function payTermsOf(contract: any): PayTermRow[] {
@@ -401,6 +402,7 @@ export function payTermsOf(contract: any): PayTermRow[] {
   return arr.filter((x: any) => x && x.label).map((x: any) => ({
     label: String(x.label), ratio: Number(x.ratio) || undefined,
     amount: Number(x.amount) || undefined, condition: x.condition ? String(x.condition) : undefined,
+    dueDate: x.dueDate ? String(x.dueDate) : undefined, invoiceId: x.invoiceId ? String(x.invoiceId) : undefined,
   }));
 }
 

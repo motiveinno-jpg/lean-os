@@ -179,6 +179,8 @@ export function BoardDocModal({
     existing.length >= 3 ? "three" : existing.length === 2 ? "two" : "full",
   );
   const [adv, setAdv] = useState<number>(Number(existing[0]?.ratio) || 30);
+  //   회차 예정일 — 적어 두면 그날 새벽 발행 대기(초안)가 자동으로 생긴다 (2026-08-27 ERP ③). 순서로 맞춘다(선금·중도금·잔금).
+  const [termDates, setTermDates] = useState<string[]>(existing.map((x: any) => (x?.dueDate ? String(x.dueDate) : "")));
   const [mid, setMid] = useState<number>(existing.length >= 3 ? Number(existing[1]?.ratio) || 40 : 40);
 
   // 품목 합계 — 없으면 행 금액을 쓴다
@@ -251,12 +253,16 @@ export function BoardDocModal({
         ? supply - allocated
         : (t.ratio ? Math.round((supply * t.ratio) / 100) : Number(t.amount) || 0);
       allocated += amt;
-      return { label: t.label, ratio: t.ratio, condition: t.condition, amount: amt };
+      return { label: t.label, ratio: t.ratio, condition: t.condition, amount: amt, dueDate: t.dueDate, invoiceId: t.invoiceId };
     });
   }, [kind, doc, supply]);
   //   계산서 이름 — 회차까지 적어 두면 세금계산서 화면에서도 어느 회차인지 바로 보인다
   const invLabel = (t: string) => (!t || t === "전액" ? (rowName || "청구") : `${rowName || "청구"} ${t}`);
-  const issuedOf = (t: string) => (madeInvoices as any[]).find((v) => v.label === invLabel(t)) || null;
+  //   자동으로 만든 초안은 라벨이 다를 수 있어 회차에 적힌 invoiceId 로도 찾는다 (2026-08-27)
+  const issuedOf = (t: string) => {
+    const term = issueTerms.find((x) => x.label === t);
+    return (madeInvoices as any[]).find((v) => v.label === invLabel(t) || (term?.invoiceId && v.id === term.invoiceId)) || null;
+  };
   const issueSupply = issueTerm ? (issueTerms.find((t) => t.label === issueTerm)?.amount || 0) : supply;
   const issueVat = TAX_KIND[taxType] === "taxable" ? Math.round(issueSupply * 0.1) : 0;
   const alreadyIssued = issueTerms.length > 0 ? issuedOf(issueTerm) : issuedOf("");
@@ -312,7 +318,8 @@ export function BoardDocModal({
     return terms.map((t, i) => {
       const amt = i === terms.length - 1 ? supply - allocated : termAmount(t.ratio);
       allocated += amt;
-      return { label: t.label, ratio: t.ratio, amount: amt, condition: t.condition };
+      const prev: any = existing[i] || {};
+      return { label: t.label, ratio: t.ratio, amount: amt, condition: t.condition, ...(termDates[i] ? { dueDate: termDates[i] } : {}), ...(prev.invoiceId ? { invoiceId: prev.invoiceId } : {}) };
     });
   };
 
@@ -734,14 +741,19 @@ export function BoardDocModal({
                 </div>
               )}
               <ul className="pb-doc-termlist">
-                {terms.map((t) => (
+                {terms.map((t, i) => (
                   <li key={t.label}>
                     <span>{t.label} <em>{t.ratio}%</em></span>
                     <b className="pb-doc-num">{won(termAmount(t.ratio))}원</b>
                     <i>{t.condition || "협의"}</i>
+                    {kind === "contract" && (
+                      <input type="date" className="pb-doc-due" value={termDates[i] || ""} title="예정일 — 적어 두면 그날 새벽 발행 대기가 자동으로 생깁니다(승인만 누르면 발행)"
+                        onChange={(e) => { const v = e.target.value; setTermDates((d) => { const n = [...d]; n[i] = v; return n; }); setDirty(true); }} />
+                    )}
                   </li>
                 ))}
               </ul>
+              {kind === "contract" && <p className="pb-doc-hint">회차 옆 <b>예정일</b>을 적으면 그날 아침 <b>발행 대기</b>(초안)가 저절로 생기고 알림이 옵니다 — 세금·증빙에서 승인(발행)만 누르면 됩니다. 비우면 ‘＋ 발행’으로 직접 만듭니다.</p>}
               {kind === "contract" && (
                 <p className="pb-doc-hint">저장하면 표 위에서 이 회차대로 <b>청구 줄을 만들 수 있습니다</b>. ‘＋ 발행’ 은 이 회차를 그대로 씁니다.</p>
               )}

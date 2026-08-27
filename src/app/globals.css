@@ -9213,3 +9213,6 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .cr-C { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
 .cr-D { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
 .cr-none { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }
+
+/* 계약 회차 예정일 (2026-08-27) */
+.pb-doc-due { @apply ml-auto h-7 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-1.5 text-[11.5px] text-[var(--text)]; }
