@@ -770,7 +770,7 @@ function BatchDetailModal({ batchId, onClose }: { batchId: string; onClose: () =
   const sl = batch ? (statusLabel[batch.status] || statusLabel.draft) : null;
 
   const categoryLabels: Record<string, string> = {
-    rent: '임대료', insurance: '보험', loan: '대출상환', subscription: '구독', salary: '급여', utility: '공과금', other: '기타',
+    rent: '임대료', insurance: '보험', loan: '대출상환', subscription: '구독', salary: '급여', utility: '공과금', other: '기타', tax: '세금',
   };
 
   return (
