@@ -8,6 +8,7 @@
 //   조회 줄과 표를 한 컴포넌트에 담을 수 없어(QueryHead / QueryBody 는 형제다)
 //   상태는 useStockCount 훅 하나에 모으고, 화면 조각 둘이 그것을 나눠 쓴다.
 
+import { ExcelPasteHelper } from "./excel-paste-helper";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
@@ -385,6 +386,8 @@ export function CountPasteDialog({ ctl, productById }: { ctl: CountCtl; productB
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
         <h3 className="inv-modal-title">센 수량 붙여넣기</h3>
         <p className="inv-modal-desc">엑셀에서 <b>SKU · 수량</b> 두 칸을 그대로 복사해 붙이세요. 이 실사에 있는 줄만 채웁니다.</p>
+        <ExcelPasteHelper templateName="실사_양식" sheetName="실사" onText={setText}
+          cols={[{ key: "sku", label: "SKU", required: true, hint: "이 실사에 들어 있는 품목만", example: "DM-A100" }, { key: "qty", label: "실사 수량", required: true, kind: "number", example: 120 }]} />
         <textarea className="field-input inv-paste" rows={9} value={text} onChange={(e) => setText(e.target.value)}
           placeholder={"TS-BK-M\t97\nTS-WH-L\t0"} />
         <div className="inv-paste-sum">

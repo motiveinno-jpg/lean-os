@@ -64,6 +64,18 @@ export default function ProductionPage() {
             {mats && <> · <b>실투입 반영됨</b> (자재 소요에서 고침)</>}
           </span>
         }
+        onImport={async ({ docs, ctl }) => {
+          //   엑셀 일괄 완성 기록 — 자재는 자재구성 × (양품+불량) 표준으로 나간다. 실투입·로스는 올린 뒤 문서를 열어 고친다.
+          const boms = await listBoms(ctl.companyId!);
+          const nos: string[] = [];
+          for (const d of docs) {
+            const r = await produceLines(ctl.companyId!, { docDate: d.date, warehouseId: d.warehouseId, note: d.note,
+              lines: d.lines.map((l) => ({ product_id: l.product_id, qty: l.qty, defect_qty: l.defect, unit_price: l.unit_price, note: l.note })) }, boms, ctl.userId);
+            nos.push(r.prodDocNo);
+          }
+          qc.invalidateQueries({ queryKey: ["inv-onhand", ctl.companyId] });
+          return `완성 기록 ${nos.length}건 — ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
+        }}
         onSave={async ({ built, ctl, editingId }) => {
           const wh = built.head.wh;
           if (!wh) throw new Error("창고를 고르세요");

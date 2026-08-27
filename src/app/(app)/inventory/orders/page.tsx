@@ -29,6 +29,15 @@ export default function OrdersPage() {
           입력한 내용은 <b>재고에 반영되지 않습니다</b> — 판매·구매·생산에서 불러와 저장할 때 반영됩니다.
         </span>
       }
+      onImport={async ({ docs, ctl }) => {
+        const nos: string[] = [];
+        for (const d of docs) {
+          const r = await saveOrder(ctl.companyId!, { orderDate: d.date, dueDate: d.due, partnerId: d.partnerId, partnerName: d.partnerName, warehouseId: d.warehouseId, note: d.note,
+            lines: d.lines.map((l) => ({ product_id: l.product_id, qty: l.qty, unit_price: l.unit_price, supply_amount: (l.unit_price || 0) * l.qty, vat_amount: Math.round((l.unit_price || 0) * l.qty * 0.1), note: l.note })) }, ctl.userId);
+          nos.push(r.orderNo);
+        }
+        return `주문서 ${nos.length}건 — ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
+      }}
       onSave={async ({ built, ctl, editingId }) => {
         const r = await saveOrder(ctl.companyId!, {
           orderDate: built.date,

@@ -5,6 +5,10 @@
 //   ★ 결정 6-④ — '수량을 관리하는 품목인가' 체크가 여기 있다. 끄면 재고에 안 잡힌다(서비스·용역).
 //     이 체크 하나가 음수 재고의 절반을 없앤다(사장님 2026-08-24).
 
+import { todayKst } from "@/lib/kst";
+import { exportToExcel } from "@/lib/excel-export";
+import { xNum, xBool, type ExcelColumn, type ExcelRow } from "@/lib/excel-io";
+import { ExcelUploadDialog } from "../_components/excel-upload";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -14,14 +18,29 @@ import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat,
-  Pager, usePager, QuickSearch, quickSearchHit,
-} from "@/components/query-kit";
+  Pager, usePager, QuickSearch, quickSearchHit, ExcelMenu } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { listProducts, listOnHand, upsertProduct, type Product } from "@/lib/inventory";
 import { listBoms } from "@/lib/inventory-production";
 import { BomEditorDialog } from "../_components/bom-editor";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
+
+const PRODUCT_XCOLS: ExcelColumn[] = [
+  { key: "sku", label: "SKU", required: true, hint: "품목 코드 — 같은 SKU 가 있으면 고칩니다", example: "TS-BK-M" },
+  { key: "name", label: "품목명", required: true, example: "무지 티셔츠" },
+  { key: "category", label: "분류", example: "의류" },
+  { key: "spec", label: "규격", example: "블랙 / M" },
+  { key: "unit", label: "단위", hint: "EA·SET·BOX·kg 등(비우면 EA)", example: "EA" },
+  { key: "barcode", label: "바코드", hint: "스캐너로 찍는 값", example: "8801234567890" },
+  { key: "sale", label: "판매가", kind: "number", example: 19000 },
+  { key: "cost", label: "매입가", kind: "number", hint: "참고 매입가 · 기초 원가 기본값", example: 7200 },
+  { key: "overhead", label: "단위당 노무·경비", kind: "number", hint: "완제품 1개당 생산 원가에 얹는 금액", example: 0 },
+  { key: "safety", label: "안전재고", kind: "number", hint: "이 아래로 내려가면 '부족'", example: 20 },
+  { key: "track", label: "수량관리", kind: "bool", hint: "예/아니오 — 아니오면 재고를 세지 않는다(서비스·비용)", example: "예" },
+  { key: "active", label: "상태", hint: "판매중/단종(비우면 판매중)", example: "판매중" },
+  { key: "memo", label: "메모", example: "" },
+];
 
 export default function ProductsPage() {
   const { toast } = useToast();
@@ -41,6 +60,7 @@ export default function ProductsPage() {
   const { data: boms = [] } = useQuery({ queryKey: ["inv-boms", companyId], queryFn: () => listBoms(companyId!), enabled: !!companyId });
   const bomOf = useMemo(() => { const m = new Map<string, number>(); for (const b of boms) m.set(b.product_id, (m.get(b.product_id) || 0) + 1); return m; }, [boms]);
   const [pasteOpen, setPasteOpen] = useState(false);
+  const [xlsOpen, setXlsOpen] = useState(false);
 
   const { data: products = [] } = useQuery({
     queryKey: ["inv-products", companyId],
@@ -96,7 +116,13 @@ export default function ProductsPage() {
         <QueryHead>
           <div className="collect-tabs no-print"><button type="button" className="collect-tab collect-tab-on">품목</button></div>
           <QueryBar right={<>
-            <button type="button" className="btn-secondary btn-sm" onClick={() => setPasteOpen(true)}>엑셀 붙여넣기</button>
+            {/*   ★ 엑셀 — 양식·올리기·붙여넣기·내려받기를 한 버튼 안에(2026-08-27 사장님) */}
+            <ExcelMenu items={[
+              { label: "양식 내려받기", hint: "품목 일괄 등록 양식 — 머리줄·예시·안내 시트", onClick: () => setXlsOpen(true) },
+              { label: "엑셀 올리기", hint: "채운 양식을 올리면 읽어서 보여 주고, 등록을 눌러야 저장 · 같은 SKU 는 고침", onClick: () => setXlsOpen(true) },
+              { label: "붙여넣기", hint: "엑셀에서 복사한 줄을 바로 붙여넣기", onClick: () => setPasteOpen(true) },
+              { label: "조회 결과 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(shown.map((p) => ({ "SKU": p.sku, "품목명": p.name, "분류": p.category || "", "규격": p.spec || "", "단위": p.unit || "", "바코드": p.barcode || "", "판매가": p.sale_price ?? "", "매입가": p.cost_price ?? "", "단위당 노무·경비": p.overhead_per_unit || 0, "안전재고": p.safety_stock ?? "", "수량관리": p.track_stock ? "예" : "아니오", "현재고": qtyOf.get(p.id) ?? 0, "상태": p.is_active ? "판매중" : "단종", "메모": p.memo || "" })), "품목", `품목_${todayKst()}`) },
+            ]} />
             <button type="button" className="btn-primary btn-sm" onClick={() => setEditing({ track_stock: true, unit: "EA", is_active: true })}>+ 품목 등록</button>
           </>}>
             <QuickSearch value={q} onApply={setQ} placeholder="품목명 · SKU · 분류 · 규격 · 바코드 — 쉼표로 여러 개, Enter" />
@@ -172,6 +198,24 @@ export default function ProductsPage() {
           from={pager.from} to={pager.to} onPage={pager.setPage} />
       </QueryScreen>
 
+      {xlsOpen && companyId && (
+        <ExcelUploadDialog<Partial<Product> & { id?: string; _new: boolean }> title="품목" cols={PRODUCT_XCOLS} templateName="품목_양식" sheetName="품목"
+          guide={["같은 SKU 가 이미 있으면 그 품목을 고칩니다(없는 칸은 그대로 둡니다).", "수량관리를 '아니오'로 하면 재고를 세지 않는 서비스·비용 항목이 됩니다."]}
+          parse={(r) => {
+            if (!r.sku?.trim() || !r.name?.trim()) return { error: "SKU 와 품목명이 있어야 합니다" };
+            const cur = products.find((p) => p.sku.trim().toUpperCase() === r.sku.trim().toUpperCase());
+            const v: Partial<Product> & { id?: string; _new: boolean } = { id: cur?.id, _new: !cur, sku: r.sku.trim(), name: r.name.trim(), track_stock: xBool(r.track, cur?.track_stock ?? true), is_active: r.active ? xBool(r.active, true) : (cur?.is_active ?? true) };
+            const put = (k: keyof Product, val: unknown) => { if (val !== null && val !== "") (v as Record<string, unknown>)[k] = val; };
+            put("category", r.category?.trim() || null); put("spec", r.spec?.trim() || null); put("unit", r.unit?.trim() || (cur ? null : "EA")); put("barcode", r.barcode?.trim() || null);
+            put("sale_price", xNum(r.sale)); put("cost_price", xNum(r.cost)); put("overhead_per_unit", xNum(r.overhead)); put("safety_stock", xNum(r.safety)); put("memo", r.memo?.trim() || null);
+            if (cur) { for (const k of ["category", "spec", "unit", "barcode", "sale_price", "cost_price", "overhead_per_unit", "safety_stock", "memo"] as const) if ((v as Record<string, unknown>)[k] === undefined) (v as Record<string, unknown>)[k] = cur[k]; }
+            return { ok: v };
+          }}
+          previewHead={["SKU · 품목명", "규격", "단위", "판매가", "매입가", "안전재고", "수량관리", "새로/고침"]}
+          previewRow={(v) => [`${v.sku} ${v.name}`, v.spec || "—", v.unit || "EA", v.sale_price ?? "—", v.cost_price ?? "—", v.safety_stock ?? "—", v.track_stock === false ? "아니오" : "예", v._new ? "새로" : "고침"]}
+          commit={async (items) => { let n = 0, m = 0; for (const it of items) { const { _new, ...rest } = it; await upsertProduct(companyId!, rest, userId); if (_new) n++; else m++; } qc.invalidateQueries({ queryKey: ["inv-products", companyId] }); return `품목 ${n + m}건 — 새로 ${n} · 고침 ${m}`; }}
+          onClose={() => setXlsOpen(false)} />
+      )}
       {pasteOpen && companyId && (
         <ProductPasteDialog products={products} onClose={() => setPasteOpen(false)}
           onDone={(n) => { setPasteOpen(false); qc.invalidateQueries({ queryKey: ["inv-products", companyId] }); toast(`품목 ${n}개를 올렸습니다`, "success"); }}

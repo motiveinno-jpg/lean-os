@@ -19,6 +19,17 @@ export default function SalesPage() {
       pull={(ctl) => <PullOrderButton ctl={ctl} />}
       saveActions={[{ key: "save", label: "판매 저장", primary: true, hint: "재고가 즉시 차감됩니다" }]}
       headNote={<span className="inv-hint doc-note-move">저장하면 <b>재고가 즉시 차감됩니다</b>.</span>}
+      onImport={async ({ docs, ctl }) => {
+        //   엑셀 일괄 — 화면 저장과 같은 규칙(createStockDoc). 묶음마다 문서 하나. 거래처 단가 기억도 같이.
+        const nos: string[] = [];
+        for (const d of docs) {
+          const r = await createStockDoc(ctl.companyId!, { reason: "sale", docDate: d.date, warehouseId: d.warehouseId, partnerId: d.partnerId,
+            note: [d.note, d.partnerName && !d.partnerId ? `거래처: ${d.partnerName}` : ""].filter(Boolean).join(" · ") || null,
+            lines: d.lines.map((l) => ({ product_id: l.product_id, qty: l.qty, unit_price: l.unit_price, note: l.note })) }, ctl.userId);
+          nos.push(r.docNo);
+        }
+        return `${nos.length}건 기록했습니다 — ${nos.slice(0, 5).join(", ")}${nos.length > 5 ? " …" : ""}`;
+      }}
       onSave={async ({ built, ctl, editingId }) => {
         const wh = built.head.wh;
         if (!wh) throw new Error("나갈 창고를 고르세요");

@@ -6,6 +6,7 @@
 //   ★ 결정 18 — 키가 없어도 오늘 쓸 수 있어야 한다. 주문 엑셀 붙여넣기가 1등 시민이다.
 //   ★ 결정 19 — 채널 상품코드 ↔ SKU 는 사람이 한 번 이어 준다. 이름으로 맞히면 잘못이 곧 재고가 된다.
 
+import { ExcelPasteHelper } from "../_components/excel-paste-helper";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -549,6 +550,12 @@ function PasteDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; ope
             {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select></label>
         <label className="inv-field"><span>주문 목록</span>
+          <ExcelPasteHelper templateName="채널주문_양식" sheetName="채널 주문" onText={setText}
+            cols={[
+              { key: "ono", label: "주문번호", required: true, example: "2026082700001" }, { key: "code", label: "채널 상품코드", required: true, hint: "상품 연결에 등록된 코드면 품목이 자동으로", example: "SS-1001" },
+              { key: "qty", label: "수량", required: true, kind: "number", example: 1 }, { key: "price", label: "단가", kind: "number", example: 25000 }, { key: "date", label: "주문일", kind: "date", example: "2026-08-27" },
+              { key: "buyer", label: "주문자", example: "홍길동" }, { key: "rcv", label: "수취인", example: "홍길동" }, { key: "tel", label: "연락처", example: "010-0000-0000" }, { key: "addr", label: "주소", example: "서울시 …" }, { key: "memo", label: "배송 요청", example: "" }, { key: "zip", label: "우편번호", example: "04524" },
+            ]} />
           <textarea className="field-input inv-paste ch-paste" rows={10} value={text} onChange={(e) => setText(e.target.value)} autoFocus
             placeholder={"주문번호\t채널상품코드\t수량\t단가\t주문일\t주문자\t수취인\t연락처\t주소\t배송요청\n2026082512345\tSS-1001\t2\t19000\t2026-08-25\t홍길동\t홍길동\t010-1234-5678\t서울 강남구 …\t부재 시 문 앞"} /></label>
         <p className="inv-foot">
@@ -1011,6 +1018,8 @@ function BulkCodeDialog({ companyId, channel: init, products, existing, onClose,
             {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select></label>
         <label className="inv-field"><span>목록</span>
+          <ExcelPasteHelper templateName="상품연결_양식" sheetName="상품 연결" onText={setText}
+            cols={[{ key: "code", label: "채널 상품코드", required: true, example: "SS-1001" }, { key: "sku", label: "SKU", required: true, hint: "오너뷰 품목 SKU", example: "DM-A100" }, { key: "name", label: "채널 상품명", example: "프리미엄 텀블러 500ml" }]} />
           <textarea className="field-input inv-paste ch-paste" rows={8} value={text} onChange={(e) => setText(e.target.value)} autoFocus
             placeholder={"채널상품코드\tSKU\t채널상품명\nSS-1001\tA-001\t프리미엄 세트"} /></label>
         <p className="inv-foot">

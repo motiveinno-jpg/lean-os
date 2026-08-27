@@ -7,6 +7,9 @@
 //   ★ 결정 7 — 음수는 에러가 아니라 '아직 안 맞춘 것'. 막지 않고 '맞춰야 할 것'으로 세운다.
 //   ★ 결정 8 — 지우지 않고 부호로 남긴다. 수량 칸에 음수를 넣을 수 있고, 화면이 뜻을 되읽어 준다.
 
+import { exportToExcel } from "@/lib/excel-export";
+import { xBool, type ExcelColumn } from "@/lib/excel-io";
+import { ExcelUploadDialog } from "../_components/excel-upload";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
@@ -19,8 +22,7 @@ import { todayKst } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup,
-  Pager, usePager, QuickSearch, quickSearchHit,
-} from "@/components/query-kit";
+  Pager, usePager, QuickSearch, quickSearchHit, ExcelMenu } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
 import { useStockCount, CountBar, CountBody, NewCountDialog, CountPasteDialog } from "../_components/count";
@@ -38,6 +40,12 @@ type SumView = "product" | "partner" | "month";
 type MoveKey = "date" | "doc" | "reason" | "sku" | "name" | "wh" | "qty" | "price" | "amount";
 //   상태 정렬은 처리할 것이 위 (CLAUDE.md: 대기→승인→반려→취소와 같은 원칙)
 const STATE_RANK: Record<Signal, number> = { fix: 0, zero: 1, low: 2, all: 3 };
+
+const WAREHOUSE_XCOLS: ExcelColumn[] = [
+  { key: "name", label: "창고명", required: true, hint: "같은 이름이 있으면 그 창고를 고칩니다", example: "물류센터" },
+  { key: "code", label: "코드", hint: "짧은 코드(선택). DEFECT 는 불량 보류 전용이라 쓸 수 없습니다", example: "LC" },
+  { key: "is_default", label: "기본창고", kind: "bool", hint: "예로 하면 입력 화면의 기본 창고", example: "아니오" },
+];
 
 export default function StockPage() {
   const { toast } = useToast();
@@ -58,6 +66,7 @@ export default function StockPage() {
   const [docOpen, setDocOpen] = useState(false);
   const [whOpen, setWhOpen] = useState<Warehouse | null>(null);
   const [openingOpen, setOpeningOpen] = useState(false);
+  const [whXls, setWhXls] = useState(false);
 
   //   재고를 '움직일' 권한 — 없으면 보기만 (창고 담당이 아닌 사람이 수량을 바꾸면 안 된다)
   const canMove = isMaster || hasPerm("/inventory/stock:adjust");
@@ -256,7 +265,14 @@ export default function StockPage() {
 
           {tab === "warehouse" && (
             <>
-              <QueryBar right={canMove ? <WarehouseAdd companyId={companyId} onDone={invalidate} /> : undefined}>
+              <QueryBar right={canMove ? <>
+                <ExcelMenu items={[
+                  { label: "양식 내려받기", hint: "창고 일괄 등록 양식", onClick: () => setWhXls(true) },
+                  { label: "엑셀 올리기", hint: "같은 이름의 창고는 고침(코드·기본 창고)", onClick: () => setWhXls(true) },
+                  { label: "창고 목록 내려받기", count: warehouses.length, onClick: () => exportToExcel(warehouses.map((w) => ({ "창고명": w.name, "코드": w.code || "", "기본창고": w.is_default ? "예" : "아니오", "현재고 수량": onhand.filter((o) => o.warehouse_id === w.id).reduce((n, o) => n + Number(o.qty), 0) })), "창고", `창고_${todayKst()}`) },
+                ]} />
+                <WarehouseAdd companyId={companyId} onDone={invalidate} />
+              </> : undefined}>
                 <span className="inv-hint">재고는 창고마다 따로 셉니다. 창고가 없으면 첫 입·출고에서 &lsquo;본사창고&rsquo;가 자동으로 만들어집니다.</span>
               </QueryBar>
               <ResultStrip>
@@ -455,6 +471,13 @@ export default function StockPage() {
       )}
       <NewCountDialog ctl={count} warehouses={warehouses} />
       <CountPasteDialog ctl={count} productById={productById} />
+      {whXls && companyId && (
+        <ExcelUploadDialog<{ id?: string; name: string; code: string; is_default: boolean; _new: boolean }> title="창고" cols={WAREHOUSE_XCOLS} templateName="창고_양식" sheetName="창고"
+          parse={(r) => { const name = (r.name || "").trim(); if (!name) return { error: "창고명이 비었습니다" }; const code = (r.code || "").trim(); if (code.toUpperCase() === "DEFECT") return { error: "DEFECT 코드는 불량 보류 창고 전용입니다" }; const cur = warehouses.find((w) => w.name.trim() === name); return { ok: { id: cur?.id, name, code: code || cur?.code || "", is_default: r.is_default ? xBool(r.is_default, false) : (cur?.is_default ?? false), _new: !cur } }; }}
+          previewHead={["창고명", "코드", "기본창고", "새로/고침"]} previewRow={(w) => [w.name, w.code || "—", w.is_default ? "예" : "아니오", w._new ? "새로" : "고침"]}
+          commit={async (items) => { let n = 0, mm = 0; for (const w of items) { await upsertWarehouse(companyId, { id: w.id, name: w.name, code: w.code || undefined, is_default: w.is_default }); if (w._new) n++; else mm++; } invalidate(); return `창고 ${n + mm}곳 — 새로 ${n} · 고침 ${mm}`; }}
+          onClose={() => setWhXls(false)} />
+      )}
       {openingOpen && companyId && (
         <OpeningDialog companyId={companyId} userId={userId} products={products} warehouses={warehouses}
           onClose={() => setOpeningOpen(false)}
