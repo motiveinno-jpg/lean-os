@@ -29,6 +29,9 @@
 - `console.log` 프로덕션에 남기지 않기
 - 소스 코드에 API 키 하드코딩 금지
 - curl/SQL만으로 "완료" 보고 금지
+- **모티브 오너뷰(c361afb9-8a52-4cac-add9-8992f0f7c09c)만 메인·테스트 테넌트다 (2026-08-27 사장님).** 다른 회사 오너뷰의 데이터는 건드리지 않는다.
+  회사 데이터를 만드는 자동화(크론·트리거·백필·시드·**시연용 데이터 마이그레이션**)는 `feature_rollout` 게이트(`public.feature_on(feature, company)`)로 **모티브에만 먼저** 배포하고,
+  사장님이 "문제 없다" 한 뒤 `insert into feature_rollout (feature) values ('…')`(company_id null = 전체)로 전체 오너뷰 기능으로 올린다. UI 코드는 전 회사가 같이 받아도 되지만 데이터는 만들지 않는다.
 
 ---
 
