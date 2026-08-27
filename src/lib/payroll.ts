@@ -162,6 +162,19 @@ export async function previewPayroll(
     if (!emp.birth_date) skippedNoBirth.push(emp.name);
   }
 
+  //   H9 (2026-08-27 인사 6차) — 전월 **발급** 명세와 비교해 총급여가 ±20% 넘게 다르면 줄에 경고(표시만, 출처: 장부 대조).
+  if (monthKey) {
+    const [y, m] = monthKey.split('-').map(Number); const prev = `${m === 1 ? y - 1 : y}-${String(m === 1 ? 12 : m - 1).padStart(2, '0')}`;
+    const prevRows = logRead('lib/payroll:prev', await db.from('payroll_items').select('employee_id, net_pay, deductions_total').eq('company_id', companyId).eq('period_month', prev).eq('status', 'issued'));
+    const prevGross = new Map<string, number>();
+    for (const r of ((prevRows || []) as any[])) prevGross.set(r.employee_id, Number(r.net_pay || 0) + Number(r.deductions_total || 0));
+    for (const it of items) {
+      const pg = prevGross.get(it.employeeId); if (!pg) continue;
+      const cur = it.baseSalary + it.nonTaxableAmount + (it.extras || []).filter((e) => e.type === 'allowance').reduce((s, e) => s + e.amount, 0);
+      const diff = (cur - pg) / pg;
+      if (Math.abs(diff) >= 0.2) it.warn = `전월(${prev}) 총급여 ₩${Math.round(pg).toLocaleString('ko-KR')} 대비 ${diff > 0 ? '+' : ''}${Math.round(diff * 100)}%`;
+    }
+  }
   return { items, totalGross, totalDeductions, totalNet, skippedNoBirth, totalEmployer: items.reduce((s, it) => s + Number(it.employerCosts?.total || 0), 0), rates };
 }
 

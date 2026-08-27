@@ -977,19 +977,18 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
             <button
               type="button"
               onClick={() => setManualRecordOpen(true)}
-              className="btn-secondary btn-sm"
+              className="btn-primary btn-sm"
             >
-              + 출퇴근 기록
+              + 기록
             </button>
           )}
           {/* L 근태 — C-3 관리자: 가산수당 재계산 (월 일괄) */}
           {mode === "summary" && isAdmin && companyId && (
             <MonthlyRecomputeButton companyId={companyId} from={monthStart} to={monthEnd} />
           )}
+          {/*   2026-08-27 인사 6차 — 엑셀은 엑셀▾ 하나로(다른 화면과 같은 모양) */}
           {summary.length > 0 && (
-            <button
-              type="button"
-              onClick={() => {
+            <ExcelMenu items={[{ label: "월간 요약 내려받기", count: summary.length, hint: "부서·직원별 출근·지각·연장·야간·휴일·결근·총근무", onClick: () => {
                 //   다른 화면과 같은 공통 함수로 (2026-08-12) — 숫자는 서식 없이 넘겨 엑셀이 숫자로 읽게 한다
                 downloadCsv(
                   `근태_월간요약_${selectedMonth}`,
@@ -1000,11 +999,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     s.absentDays, s.remoteDays, s.halfDays, Number(s.totalHours.toFixed(1)),
                   ]),
                 );
-              }}
-              className="btn-secondary btn-sm"
-            >
-              엑셀
-            </button>
+              } }]} />
           )}
         </div>
       </div>
@@ -2145,9 +2140,10 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   const deductionSum = itemExtras.filter((e) => e.type === 'deduction').reduce((s, e) => s + Number(e.amount || 0), 0);
                   return (
                   <>
-                  <tr key={item.employeeId} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
+                  <tr key={item.employeeId} className={item.warn ? "border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] hr-row-warn" : "border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]"} title={item.warn || undefined}>
                     <td className="px-4 py-3 text-sm font-medium">
                       {item.employeeName}
+                      {!editMode && item.warn && <span className="hr-src-tag hr-src-warn" title={item.warn}>전월 대비 ±20%</span>}
                       {!editMode && item.extras?.some((e) => e.auto) && <span className="hr-src-tag" title="근태 집계(연장·야간·휴일·당직)에서 자동으로 얹힌 수당이 있습니다">근태 집계</span>}
                       {!editMode && (allowanceSum > 0 || deductionSum > 0) && (
                         <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
@@ -4174,27 +4170,24 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
   const { toast } = useToast();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
-  const storageKey = companyId ? `yet:${companyId}:${year}` : "";
-
+  //   G6 (2026-08-27 인사 6차) — 제출 상태를 localStorage(브라우저마다 달랐다) 대신 year_end_tax_status 표에. 담당자 둘이 봐도 같다.
   type Status = "pending" | "submitted" | "reviewed";
   const [statuses, setStatuses] = useState<Record<string, Status>>({});
 
   useEffect(() => {
-    if (!storageKey) return;
-    try {
-      const raw = localStorage.getItem(storageKey);
-      setStatuses(raw ? JSON.parse(raw) : {});
-    } catch { setStatuses({}); }
-  }, [storageKey]);
+    if (!companyId) return;
+    let alive = true;
+    (supabase as any).from("year_end_tax_status").select("employee_id, status").eq("company_id", companyId).eq("year", year)
+      .then(({ data }: { data: { employee_id: string; status: Status }[] | null }) => { if (!alive) return; const m: Record<string, Status> = {}; for (const r of (data || [])) m[r.employee_id] = r.status; setStatuses(m); });
+    return () => { alive = false; };
+  }, [companyId, year]);
 
-  const persist = (next: Record<string, Status>) => {
-    setStatuses(next);
-    if (storageKey) {
-      try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* ignore */ }
-    }
+  const setStatus = async (id: string, s: Status) => {
+    setStatuses((prev) => ({ ...prev, [id]: s }));
+    if (!companyId) return;
+    const { error } = await (supabase as any).from("year_end_tax_status").upsert({ company_id: companyId, employee_id: id, year, status: s, updated_at: new Date().toISOString() }, { onConflict: "company_id,employee_id,year" });
+    if (error) toast(friendlyError(error, "상태를 저장하지 못했습니다"), "error");
   };
-
-  const setStatus = (id: string, s: Status) => persist({ ...statuses, [id]: s });
 
   const counts = useMemo(() => {
     const c = { pending: 0, submitted: 0, reviewed: 0 };

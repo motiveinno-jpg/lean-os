@@ -162,6 +162,21 @@ export async function POST(req: NextRequest) {
         if (empErr) {
           return NextResponse.json({ error: `구성원 연결 실패: ${empErr.message}` }, { status: 500 });
         }
+        //   H8 (2026-08-27 인사 6차) — 합류 즉시 입사서류 체크리스트와 '입사' 발령 행을 만들어 둔다. 사람이 할 일은 서류를 받고 체크하는 것.
+        //   데이터를 만드는 자동화라 feature_rollout('onboarding_auto') 게이트(모티브 먼저). 실패해도 가입은 성공으로 둔다.
+        try {
+          const adminAny = admin as any;   // 새 표·RPC 는 생성 타입에 아직 없다
+          const { data: on } = await adminAny.rpc('feature_on', { p_feature: 'onboarding_auto', p_company: invite.company_id });
+          if (on) {
+            const DOCS: [string, string][] = [['resident_reg', '주민등록등본'], ['bank_copy', '통장사본'], ['diploma', '졸업증명서'], ['career_cert', '경력증명서'], ['health_check', '건강검진서'], ['nda', '비밀유지서약서'], ['privacy_consent', '개인정보동의서']];
+            await adminAny.from('onboarding_checklist_items').upsert(DOCS.map(([k, l]) => ({ company_id: invite.company_id, employee_id: emp.id, item_key: k, label: l })), { onConflict: 'employee_id,item_key', ignoreDuplicates: true });
+            const { data: full } = await admin.from('employees').select('hire_date, department, position').eq('id', emp.id).maybeSingle();
+            const { data: has } = await adminAny.from('hr_appointments').select('id').eq('employee_id', emp.id).eq('kind', 'hire').limit(1);
+            if (!has || has.length === 0) {
+              await adminAny.from('hr_appointments').insert({ company_id: invite.company_id, employee_id: emp.id, kind: 'hire', effective_date: full?.hire_date || new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10), department: full?.department || null, position: full?.position || null, reason: '초대 수락(자동)', source: 'onboarding' });
+            }
+          }
+        } catch (e) { await logServerError({ where: 'invite-accept/onboarding', message: (e as Error)?.message || 'onboarding auto failed' }); }
       }
     }
 

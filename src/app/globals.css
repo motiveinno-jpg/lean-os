@@ -9282,3 +9282,7 @@ table.table-ret-settle td { @apply text-[12px]; }
 .hr-todo-list { @apply flex flex-col gap-1 text-[12.5px]; }
 .hr-todo-list li { @apply flex flex-wrap items-baseline gap-2; }
 .hr-todo-go { @apply mt-1.5 inline-block text-[12px]; }
+
+/* 급여 줄 이상 감지 — 전월 대비 ±20% (2026-08-27 인사 6차 H9) */
+.hr-row-warn > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+.hr-src-warn { @apply bg-[#f59e0b]/12 text-[#b45309]; }
