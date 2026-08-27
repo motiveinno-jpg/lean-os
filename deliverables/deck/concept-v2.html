@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>오너뷰 소개서 시안 v2</title>
+<style>
+  /* 시안 v2 — 장면(후킹) 중심 구성.
+     한 장 = 고객이 겪는 순간 하나 + 화면 하나 + 숫자 하나. 나머지 말은 버린다. */
+  :root{
+    --ink:#111318; --mut:#4A4F58; --dim:#8B909A; --line:#DFE3EA; --line2:#EDF0F5;
+    --brand:#2F4FE0; --tint:#EEF2FE; --surf:#F7F8FB; --ok:#0F7B4F;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Pretendard Variable',Pretendard,-apple-system,BlinkMacSystemFont,
+      'Apple SD Gothic Neo',system-ui,'Malgun Gothic',sans-serif;
+    color:var(--ink);background:#9AA0AA;-webkit-font-smoothing:antialiased;font-feature-settings:"tnum"}
+  .s{width:1280px;height:720px;background:#fff;position:relative;margin:0 auto 14px;
+     overflow:hidden;display:flex;flex-direction:column}
+  @page{size:1280px 720px;margin:0}
+  @media print{body{background:#fff}.s{margin:0;page-break-after:always}}
+
+  .hd{display:flex;align-items:baseline;gap:12px;padding:32px 60px 0}
+  .hd .no{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--brand)}
+  .hd .sec{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.08em}
+  .hd .sec::before{content:"／";margin-right:10px;color:var(--line)}
+  .ft{position:absolute;left:60px;right:60px;bottom:22px;display:flex;justify-content:space-between;
+      font-size:11.5px;color:var(--dim);border-top:1px solid var(--line2);padding-top:11px}
+
+  /* 장면 장 — 큰 발문 + 화면 하나 + 숫자 하나 */
+  .scene{flex:1;display:flex;flex-direction:column;padding:0 60px;min-height:0}
+  .quote{font-size:20px;color:var(--dim);font-weight:600;margin-top:26px}
+  .quote::before{content:"“"}.quote::after{content:"”"}
+  h2.big{font-size:46px;font-weight:800;letter-spacing:-.035em;line-height:1.22;margin-top:10px}
+  h2.big em{font-style:normal;color:var(--brand)}
+  .scene-row{display:grid;grid-template-columns:380px 1fr;gap:40px;flex:1;min-height:0;margin-top:26px;align-items:start}
+  .proof{font-size:15px;color:var(--mut);line-height:1.75}
+  .proof b{color:var(--ink);font-weight:700}
+  .bignum{margin-top:26px;padding:20px 24px;background:var(--tint);border-radius:6px}
+  .bignum b{display:block;font-size:40px;font-weight:800;color:var(--brand);letter-spacing:-.02em;line-height:1}
+  .bignum span{display:block;font-size:12.5px;color:var(--mut);margin-top:8px;line-height:1.5}
+  .shot{min-height:0;max-height:470px;overflow:hidden;border:1px solid var(--line);border-radius:6px;
+        box-shadow:0 3px 14px -6px rgba(17,19,24,.22)}
+  .shot img{width:100%;display:block}
+  .cap{font-size:11.5px;color:var(--dim);margin-top:8px}
+
+  /* 표지 */
+  .cover{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 84px}
+  .cover .kick{font-size:15px;font-weight:700;color:var(--brand);letter-spacing:.02em}
+  .cover h1{font-size:58px;font-weight:800;line-height:1.2;letter-spacing:-.04em;margin-top:18px}
+  .cover .sub{font-size:17px;color:var(--mut);line-height:1.7;margin-top:24px;max-width:660px}
+  .cover .sub b{color:var(--ink)}
+  .cover .meta{position:absolute;left:84px;bottom:48px;font-size:12.5px;color:var(--dim);line-height:1.9}
+
+  /* 지도 장 — 41메뉴를 물량 증거로 */
+  .mapwrap{flex:1;min-height:0;margin-top:20px;display:flex;flex-direction:column}
+  .map{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .map .g{grid-column:1/-1;font-size:12px;font-weight:800;color:var(--dim);letter-spacing:.06em;margin-top:10px}
+  .map .g:first-child{margin-top:0}
+  .map .m{border:1px solid var(--line);border-radius:4px;padding:10px 8px;text-align:center;
+          font-size:12.5px;font-weight:600;color:var(--mut);background:#fff}
+  .map .m.on{background:var(--tint);border-color:#C7D2F5;color:var(--brand);font-weight:800}
+  .map-note{margin-top:auto;padding-top:16px;font-size:13.5px;color:var(--mut)}
+  .map-note b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<!-- 시안 01 표지 -->
+<section class="s">
+  <div class="cover">
+    <div class="kick">올인원 AI ERP · 오너뷰</div>
+    <h1>입력하지 않는 ERP</h1>
+    <p class="sub">통장 · 카드 · 세금계산서가 알아서 들어오고, AI가 장부를 씁니다.<br />
+      회계부터 재고 · 인사 · 계약까지 — <b>사장님은 확인과 결정만 하면 됩니다.</b></p>
+    <div class="meta">(주)모티브이노베이션 · www.owner-view.com · 2026년 8월</div>
+  </div>
+</section>
+
+<!-- 시안 02 장면① 장부 -->
+<section class="s">
+  <div class="hd"><span class="no">02</span><span class="sec">장면 ① · 장부</span></div>
+  <div class="scene">
+    <p class="quote">거래내역 내려받아서 엑셀에 붙이는 게 일이에요</p>
+    <h2 class="big">지난달 거래 9,592건,<br /><em>손으로 친 것 0건</em></h2>
+    <div class="scene-row">
+      <div>
+        <p class="proof">은행 · 법인카드 실계좌가 <b>하루 2번</b> 자동으로 들어옵니다.
+          AI가 계정과목과 부가세 구분까지 적어두고, 애매한 것만 물어봅니다.<br /><br />
+          엑셀 업로드도, 수기 입력도 없습니다.</p>
+        <div class="bignum"><b>0건</b><span>15개월간 수기 입력 — 자사 운영 계정 실측</span></div>
+      </div>
+      <div>
+        <div class="shot"><img src="../../public/product/f-bank2-v4.png" alt="통장" /></div>
+        <p class="cap">파이낸스 › 통장 — 오늘 아침에 이미 들어와 있는 거래내역</p>
+      </div>
+    </div>
+  </div>
+  <div class="ft"><span>오너뷰</span><span>02</span></div>
+</section>
+
+<!-- 시안 03 장면② 미수금 -->
+<section class="s">
+  <div class="hd"><span class="no">03</span><span class="sec">장면 ② · 받을 돈</span></div>
+  <div class="scene">
+    <p class="quote">이번 달… 누가 아직 안 줬더라?</p>
+    <h2 class="big">못 받은 돈을<br /><em>시스템이 기억합니다</em></h2>
+    <div class="scene-row">
+      <div>
+        <p class="proof">계약 · 세금계산서 · 입금 <b>세 금액을 자동으로 맞춰보고</b>,
+          안 맞는 것만 골라냅니다.<br /><br />
+          AI 참모에게 물으면 <b>수금 우선순위</b>까지 근거와 함께 정해줍니다.</p>
+        <div class="bignum"><b>3-Way</b><span>계약 · 계산서 · 입금 자동 대조 — 일치하면 전표 초안까지</span></div>
+      </div>
+      <div>
+        <div class="shot"><img src="../../public/product/f-3way-v2.png" alt="3-Way 대사" /></div>
+        <p class="cap">분석 › 3-Way 대사 — 세 금액이 안 맞는 건만 남는다</p>
+      </div>
+    </div>
+  </div>
+  <div class="ft"><span>오너뷰</span><span>03</span></div>
+</section>
+
+<!-- 시안 04 지도 -->
+<section class="s">
+  <div class="hd"><span class="no">04</span><span class="sec">전체 지도</span></div>
+  <div class="scene">
+    <h2 class="big" style="font-size:38px;margin-top:18px">그리고 <em>전부 들어 있습니다</em></h2>
+    <div class="mapwrap">
+      <div class="map">
+        <div class="g">홈</div>
+        <div class="m on">대시보드</div><div class="m on">AI 참모</div><div class="m">알림</div><div class="m">마이페이지</div><div class="m">지원사업 추천</div>
+        <div class="g">파이낸스</div>
+        <div class="m on">통장</div><div class="m on">카드</div><div class="m">거래처</div><div class="m on">수집·전표</div><div class="m on">세금·증빙</div><div class="m">일반전표</div><div class="m">매입매출전표</div>
+        <div class="g">재고</div>
+        <div class="m">품목</div><div class="m">재고</div><div class="m">주문서</div><div class="m">판매</div><div class="m">구매</div><div class="m">생산</div><div class="m">채널</div>
+        <div class="g">분석 · 워크스페이스 · 인사</div>
+        <div class="m">경영 요약</div><div class="m on">자금 전망</div><div class="m on">3-Way 대사</div><div class="m">손익·재무</div><div class="m">부가세</div><div class="m">거래처 원장</div><div class="m">월결산</div>
+        <div class="m on">전자계약</div><div class="m on">결재 허브</div><div class="m">메신저</div><div class="m">프로젝트</div><div class="m">게시판</div><div class="m on">근태·급여</div><div class="m">근로계약·서식</div>
+      </div>
+      <p class="map-note"><b>6개 영역 · 41개 메뉴 · AI 자동화 7종.</b>
+        파란 칸이 앞에서 본 장면들입니다 — 나머지는 도입하시면 그날부터 그냥 있습니다.
+        전자계약 · 결재 · 메신저를 따로 구독하지 않아도 됩니다.</p>
+    </div>
+  </div>
+  <div class="ft"><span>오너뷰</span><span>04</span></div>
+</section>
+
+</body>
+</html>
