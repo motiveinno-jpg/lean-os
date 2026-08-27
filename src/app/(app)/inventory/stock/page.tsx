@@ -266,7 +266,7 @@ export default function StockPage() {
               </ResultStrip>
             </>
           )}
-          {tab === "count" && <CountBar ctl={count} warehouses={warehouses} onhand={onhand} />}
+          {tab === "count" && <CountBar ctl={count} warehouses={warehouses} onhand={onhand} avgCost={avgCost} productById={productById} />}
 
           {tab === "warehouse" && (
             <>

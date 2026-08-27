@@ -92,9 +92,12 @@ export function useStockCount(companyId: string | null, userId: string | null, c
 export type CountCtl = ReturnType<typeof useStockCount>;
 
 // ── 조회 줄 ────────────────────────────────────────────────────────────────────
-export function CountBar({ ctl, warehouses, onhand }: {
-  ctl: CountCtl; warehouses: Warehouse[]; onhand: OnHand[];
+export function CountBar({ ctl, warehouses, onhand, avgCost, productById }: {
+  ctl: CountCtl; warehouses: Warehouse[]; onhand: OnHand[]; avgCost?: Map<string, number>; productById?: Map<string, Product>;
 }) {
+  //   A4 (2026-08-27 규칙형 자동화) — window.confirm 대신 **차이 초안 팝업**: 줄마다 장부·센 수량·차이·원가(FIFO 평균)·금액, 더 있음/모자람 합계.
+  //     초안은 화면에만 있고 '확정'을 눌러야 실사 조정 문서가 생긴다(결정 91). 출처: 장부 대조.
+  const [applyOpen, setApplyOpen] = useState(false);
   const list = ctl.counts.data || [];
   const rows = ctl.lines.data || [];
   const wh = ctl.head ? warehouses.find((w) => w.id === ctl.head!.warehouse_id) : null;
@@ -125,12 +128,12 @@ export function CountBar({ ctl, warehouses, onhand }: {
       <QueryBar right={ctl.canMove && !done ? (
         <>
           <button type="button" className="btn-secondary btn-sm" onClick={() => ctl.setPasteOpen(true)}>센 수량 붙여넣기</button>
-          <button type="button" className="btn-primary btn-sm" disabled={ctl.busy || counted.length === 0}
-            onClick={async () => {
-              const msg = diffs.length === 0
-                ? `센 ${counted.length}줄이 장부와 모두 같습니다. 조정 없이 '맞음'으로 닫을까요?`
-                : `센 ${counted.length}줄 중 ${diffs.length}줄이 다릅니다.\n차이만 '실사 조정' 문서 한 건으로 남기고 이 실사는 잠깁니다.\n\n반영할까요?`;
-              if (!window.confirm(msg)) return;
+          <button type="button" className="btn-primary btn-sm" disabled={ctl.busy || counted.length === 0} onClick={() => setApplyOpen(true)}>반영하기</button>
+          {applyOpen && (() => {
+            const costOf = (pid: string) => avgCost?.get(pid) ?? Number(productById?.get(pid)?.cost_price || 0);
+            const lines = counted.map((l) => { const now = nowOf.get(l.product_id) ?? 0; const d = Number(l.counted_qty) - now; const c = costOf(l.product_id); return { l, now, d, c, amt: d * c }; }).filter((x) => x.d !== 0).sort((a, b) => a.amt - b.amt);
+            const plus = lines.filter((x) => x.d > 0).reduce((n, x) => n + x.amt, 0), minus = lines.filter((x) => x.d < 0).reduce((n, x) => n + x.amt, 0);
+            const run = async () => {
               ctl.setBusy(true);
               try {
                 const r = await applyCount(ctl.companyId!, ctl.openId!, ctl.userId);
@@ -138,9 +141,35 @@ export function CountBar({ ctl, warehouses, onhand }: {
                 ctl.qc.invalidateQueries({ queryKey: ["inv-onhand", ctl.companyId] });
                 ctl.qc.invalidateQueries({ queryKey: ["inv-moves", ctl.companyId] });
                 ctl.counts.refetch(); ctl.lines.refetch();
+                setApplyOpen(false);
               } catch (e) { ctl.toast(friendlyError(e), "error"); }
               finally { ctl.setBusy(false); }
-            }}>반영하기</button>
+            };
+            return (
+              <div className="inv-modal" onClick={() => setApplyOpen(false)}>
+                <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+                  <div className="inv-modal-head"><h3>실사 차이 초안 — {wh?.name || "창고"}</h3><button type="button" className="inv-modal-x" onClick={() => setApplyOpen(false)}>✕</button></div>
+                  <p className="inv-modal-desc">센 {counted.length}줄 중 <b>{lines.length}줄</b>이 장부와 다릅니다. 확정하면 차이만 &lsquo;실사 조정&rsquo; 문서 한 건으로 남고 이 실사는 잠깁니다(장부를 덮어쓰지 않습니다). 금액은 FIFO 평균 원가 기준 — 출처: 장부 대조. 매출원가 초안이 다음 주기에 이 손실을 전표로 올립니다.</p>
+                  {lines.length === 0 ? <div className="collect-empty">모두 장부와 같습니다 — 조정 없이 &lsquo;맞음&rsquo;으로 닫습니다.</div> : (
+                    <div className="stg-table-wrap cs-scroll">
+                      <table className="ev-table ev-lined table-inv-status-sm">
+                        <thead><tr><th>품목</th><th>장부</th><th>센 수량</th><th>차이</th><th>원가</th><th>금액</th></tr></thead>
+                        <tbody>{lines.map(({ l, now, d, c, amt }) => (
+                          <tr key={l.id}><td className="text-left"><b>{productById?.get(l.product_id)?.name || l.product_id}</b> <span className="ev-dim mono-number">{productById?.get(l.product_id)?.sku || ""}</span></td>
+                            <td className="tr mono-number">{won(now)}</td><td className="tr mono-number">{won(Number(l.counted_qty))}</td>
+                            <td className={`tr mono-number ${d > 0 ? "inv-diff-plus" : "inv-diff-minus"}`}>{d > 0 ? `+${won(d)}` : won(d)}</td>
+                            <td className="tr mono-number ev-dim">{c ? `₩${won(c)}` : "—"}</td>
+                            <td className={`tr mono-number ${amt < 0 ? "inv-diff-minus" : ""}`}>{c ? `${amt < 0 ? "−" : "+"}₩${won(Math.abs(amt))}` : "—"}</td></tr>
+                        ))}</tbody>
+                        <tfoot><tr className="vr-sum"><td className="text-left">합계</td><td colSpan={4} className="tr">더 있음 <b>+₩{won(plus)}</b> · 모자람 <b className="inv-diff-minus">−₩{won(Math.abs(minus))}</b></td><td className="tr mono-number"><b>{plus + minus < 0 ? "−" : "+"}₩{won(Math.abs(plus + minus))}</b></td></tr></tfoot>
+                      </table>
+                    </div>
+                  )}
+                  <div className="inv-modal-actions"><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setApplyOpen(false)}>닫기</button><button type="button" className="btn-primary btn-sm" disabled={ctl.busy} onClick={run}>{lines.length ? `${lines.length}줄 조정 확정` : "맞음으로 닫기"}</button></div>
+                </div>
+              </div>
+            );
+          })()}
         </>
       ) : ctl.canMove && done ? (
         //   되돌리기 — 조정 문서를 취소하고 실사를 다시 연다(센 수량은 그대로). 지우지 않는다(결정 25).
