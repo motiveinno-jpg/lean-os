@@ -66,6 +66,24 @@ export function bankLineState(tx: BankLineTx, pendingIds?: Set<string>): BankLin
   return "unposted";
 }
 
+/** 정산 초안 확정·반려 — 잠긴 달이면 확정하지 않는다(트리거가 전표를 안 만들어 '확정'만 남는다). 확정 뒤 전표가 실제로 생겼는지 되짚는다. */
+export async function decideSettlement(id: string, st: "confirmed" | "rejected", companyId: string, txDate?: string | null): Promise<"posted" | "rejected" | "locked" | "no_voucher"> {
+  if (st === "confirmed" && txDate) {
+    const { count } = await (supabase as any).from("closing_checklists").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("month", txDate.slice(0, 7)).eq("status", "locked");
+    if (count) return "locked";
+  }
+  const { error } = await (supabase as any).from("invoice_settlements").update({ status: st }).eq("id", id);
+  if (error) throw error;
+  if (st === "rejected") return "rejected";
+  const { count: n } = await (supabase as any).from("journal_entries").select("id", { count: "exact", head: true }).eq("linked_settlement_id", id).neq("status", "rejected");
+  return n ? "posted" : "no_voucher";
+}
+export const settlementResultToast = (r: "posted" | "rejected" | "locked" | "no_voucher", month?: string): { msg: string; kind: "success" | "error" | "info" } =>
+  r === "posted" ? { msg: "확정 — 정산 전표를 만들었습니다", kind: "success" }
+  : r === "rejected" ? { msg: "반려했습니다", kind: "success" }
+  : r === "locked" ? { msg: `${month || "그 달"}은 회계마감으로 잠겨 있어 확정하지 않았습니다 — 전표가 생기지 않습니다. 마감을 풀고 다시 확정하세요`, kind: "error" }
+  : { msg: "확정했지만 전표가 생기지 않았습니다 — 계정과목에 103 보통예금·108 외상매출금·251 외상매입금이 있는지 확인하세요", kind: "info" };
+
 export function BankLineDialog({ tx, companyId, onClose, onDone }: {
   tx: BankLineTx; companyId: string; onClose: () => void; onDone?: () => void;
 }) {
@@ -118,6 +136,11 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
     queryFn: async () => (logRead("bank-line:settles", await (supabase as any).from("invoice_settlements")
       .select("id, tax_invoice_id, amount, status, match_source, reason, tax_invoices(counterparty_name, total_amount, issue_date)")
       .eq("bank_transaction_id", tx.id).neq("status", "rejected").order("created_at")) || []) as Settle[],
+  });
+  const { data: monthLocked = false } = useQuery({
+    queryKey: ["bank-line-month-locked", companyId, tx.transaction_date?.slice(0, 7)],
+    queryFn: async () => { const { count } = await (supabase as any).from("closing_checklists").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("month", tx.transaction_date.slice(0, 7)).eq("status", "locked"); return !!count; },
+    staleTime: 60_000,
   });
   const remainingOf = (inv: Inv) => Number(inv.total_amount || 0) - Number(inv.settled_amount || 0);
   const settledHere = settles.filter((s) => s.status === "confirmed").reduce((n, s) => n + Number(s.amount || 0), 0);
@@ -181,9 +204,10 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
     if (busy) return;
     setBusy(true);
     try {
-      const { error } = await (supabase as any).from("invoice_settlements").update({ status: st }).eq("id", s.id);
-      if (error) throw error;
-      toast(st === "confirmed" ? "확정 — 정산 전표를 만들었습니다" : "반려했습니다", "success");
+      const r = await decideSettlement(s.id, st, companyId, tx.transaction_date);
+      const t = settlementResultToast(r, tx.transaction_date?.slice(0, 7));
+      toast(t.msg, t.kind);
+      if (r === "locked") return;
       refetchSettles(); onDone?.();
       qc.invalidateQueries({ queryKey: ["bank-line-invoices"] });
     } catch (e) { toast(friendlyError(e, "실패"), "error"); }
@@ -280,6 +304,9 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
           <span className={`mono-number bl-tx-amt ${isIn ? "bl-in" : "bl-out"}`}>{isIn ? "+" : "-"}₩{won(amt)}</span>
           <span className={`bl-state ${meta.cls}`} title={meta.hint}>{meta.label}</span>
         </div>
+        {monthLocked && state !== "excluded" && state !== "posted" && (
+          <div className="bl-locked">⚠ {tx.transaction_date.slice(0, 7)}은 회계마감으로 잠겨 있습니다 — 증빙 연결 확정·일반전표가 막힙니다. 회계마감에서 그 달을 풀고 처리하세요.</div>
+        )}
         {state === "excluded" ? (
           <div className="bl-done">
             <p>장부에서 뺀 줄입니다 — {excludeLabelOf(tx.ledger_excluded_reason)}</p>

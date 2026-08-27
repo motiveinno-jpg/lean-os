@@ -29,7 +29,7 @@ import { getAccountMap, accountById, NATURE_LABEL } from "@/lib/account-nature";
 import { vatType } from "@/lib/vat-voucher";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
 import { decideProdDraft } from "@/lib/production-voucher";
-import { BANK_LINE_META } from "@/components/bank-line-dialog";
+import { BANK_LINE_META, decideSettlement, settlementResultToast } from "@/components/bank-line-dialog";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 
@@ -101,11 +101,13 @@ export default function FinanceStatusPage() {
       .order("created_at", { ascending: false }).limit(300);
     return (data || []) as { id: string; amount: number; status: string; reason: string | null; bank_transactions: { transaction_date: string; counterparty: string | null; amount: number; type: string } | null; tax_invoices: { counterparty_name: string | null; total_amount: number; issue_date: string; type: string } | null }[];
   });
-  const decideLink = async (id: string, st: "confirmed" | "rejected") => {
+  const decideLink = async (id: string, st: "confirmed" | "rejected", txDate?: string | null) => {
     try {
-      const { error } = await (supabase as any).from("invoice_settlements").update({ status: st }).eq("id", id);
-      if (error) throw error;
-      toast(st === "confirmed" ? "확정 — 정산 전표를 만들었습니다" : "반려했습니다", "success"); refetchLinks(); refetchEntries();
+      //   잠긴 달이면 확정하지 않는다 — 트리거가 전표를 안 만들어 '확정'만 남는 사고를 막는다 (2026-08-27 후속)
+      const r = await decideSettlement(id, st, companyId!, txDate);
+      const t = settlementResultToast(r, txDate?.slice(0, 7)); toast(t.msg, t.kind);
+      if (r === "locked") return;
+      refetchLinks(); refetchEntries();
     } catch (e) { toast(friendlyError(e), "error"); }
   };
 
@@ -409,7 +411,7 @@ export default function FinanceStatusPage() {
                               <td className="tr mono-number">₩{won(Number(p.tax_invoices?.total_amount || 0))}</td>
                               <td className="tr mono-number">₩{won(Number(p.amount || 0))}</td>
                               <td className="text-left ev-dim">{p.reason || ""}</td>
-                              <td className="tc"><span className="bl-todo-acts"><button type="button" className="btn-primary btn-sm" onClick={() => decideLink(p.id, "confirmed")}>확정</button><button type="button" className="btn-secondary btn-sm" onClick={() => decideLink(p.id, "rejected")}>반려</button></span></td>
+                              <td className="tc"><span className="bl-todo-acts"><button type="button" className="btn-primary btn-sm" onClick={() => decideLink(p.id, "confirmed", p.bank_transactions?.transaction_date)}>확정</button><button type="button" className="btn-secondary btn-sm" onClick={() => decideLink(p.id, "rejected")}>반려</button></span></td>
                             </tr>
                           ))}</tbody>
                         </table>

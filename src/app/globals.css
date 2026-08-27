@@ -9054,3 +9054,4 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .bl-todo-acts { @apply inline-flex gap-1.5; }
 
 .bl-box .inv-input { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-[12.5px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
+.bl-locked { @apply rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-dim)] px-3 py-2 text-[12.5px] text-[var(--warning)]; }
