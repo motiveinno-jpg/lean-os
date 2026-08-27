@@ -62,6 +62,13 @@
   .cover .sub b{color:var(--ink)}
   .cover .meta{position:absolute;left:84px;bottom:48px;font-size:12.5px;color:var(--dim);line-height:1.9}
 
+  /* 후킹 목록(09 재고) — 한 항목 = 굵은 후킹 한 줄 + 설명 한 줄 */
+  .hooks{margin-top:18px;display:flex;flex-direction:column;gap:15px}
+  .hooks .h b{display:block;font-size:17px;font-weight:800;letter-spacing:-.015em}
+  .hooks .h b em{color:var(--brand);font-style:normal}
+  .hooks .h p{font-size:13px;color:var(--mut);line-height:1.6;margin-top:4px}
+  .hooks .h p strong{color:var(--ink);font-weight:700}
+
   /* 하루 타임라인(02) */
   .day{margin-top:26px;border:1px solid var(--line);border-radius:6px;overflow:hidden;max-width:860px}
   .day > div{display:grid;grid-template-columns:96px 1fr;border-bottom:1px solid var(--line2)}
@@ -279,14 +286,20 @@
     <h2 class="big">주문은 종이,<br /><em>재고는 사실</em></h2>
     <div class="scene-row">
       <div>
-        <p class="proof">주문서는 재고를 움직이지 않습니다. 재고는 <b>실제로 나가고 들어올 때만</b> 바뀝니다 —
-          장부와 실물이 어긋나는 원인을 구조로 막았습니다.<br /><br />
-          생산은 자재구성(BOM)대로 자재가 빠지고 완제품이 쌓이며, 판매채널 주문은 <b>중복 없이</b> 가져옵니다.</p>
-        <div class="bignum"><b>±0</b><span>주문서가 재고에 주는 영향 — 출고 · 입고 때만 움직인다</span></div>
+        <p class="proof" style="font-size:14px">주문서는 재고를 움직이지 않습니다. 재고는 <b>실제로 나가고 들어올 때만</b> 바뀝니다 —
+          장부와 실물이 어긋날 길을 구조로 막았습니다. 그리고:</p>
+        <div class="hooks">
+          <div class="h"><b>모자라기 전에 <em>먼저 압니다</em></b>
+            <p>안전재고 밑으로 내려가면 표시되고, <strong>부족 품목만 골라 발주서를 자동으로 채웁니다.</strong></p></div>
+          <div class="h"><b>작업지시 <em>한 번</em>이면 끝</b>
+            <p>자재구성(BOM)대로 <strong>자재가 빠지고 완제품이 쌓입니다</strong> — 두 번 입력하지 않습니다.</p></div>
+          <div class="h"><b>채널 주문 중복 <em>0건</em></b>
+            <p>스마트스토어 · 쿠팡 주문을 엑셀로 붙여넣으면 <strong>같은 주문은 걸러서</strong> 들어옵니다.</p></div>
+        </div>
       </div>
       <div>
         <div class="shot"><img src="../../public/product/f-inv-stock-v3.png" alt="재고" /></div>
-        <p class="cap">재고 › 재고 — 창고별 현재고와 안전재고 대비 상태</p>
+        <p class="cap">재고 › 재고 — 창고별 현재고 · 안전재고 대비 상태 · 재고금액이 한 줄에</p>
       </div>
     </div>
   </div>
