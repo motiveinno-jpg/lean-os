@@ -19,6 +19,7 @@ import { generateEmploymentCertificate, generateCareerCertificate, saveCertifica
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { PermissionSection } from "./PermissionSection";
 import { AppointmentsSection } from "./appointments-section";
+import { RetirementSettlementBox } from "@/components/retirement-dialog";
 import { useMyPermissions } from "@/lib/permissions";
 import { DepartmentField, PositionField } from "@/components/org-option-fields";
 import { LOSS_REASONS } from "@/lib/insurance-edi";
@@ -1069,6 +1070,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
                     ))}
                   </select>
                 </div>
+
+                {/* H7 (2026-08-27) — 정산 초안: 퇴직금·미사용 연차 수당·마지막 달 일할. 확정·지급은 사람 */}
+                {canSeeSalary && companyId && termDate && <RetirementSettlementBox companyId={companyId} employeeId={employeeId} monthlySalary={Number(emp.salary || 0)} endDate={termDate} />}
 
                 {/* 체크리스트 */}
                 <div>

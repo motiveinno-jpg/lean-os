@@ -48,6 +48,8 @@ import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
 import { listAppointments, appointmentLines } from "@/lib/hr-appointments";
+import { fetchRetirementEstimates } from "@/lib/retirement";
+import { RetirementDialog } from "@/components/retirement-dialog";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, addExistingMemberAsEmployee } from "@/lib/invitations";
@@ -163,6 +165,9 @@ export default function EmployeesPage() {
   const activeForPay = employees.filter((e: any) => ["active", "joined"].includes(e.status));
   const totalSalary = activeForPay.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
   const totalRetirement = activeForPay.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
+  const [retireOpen, setRetireOpen] = useState(false);
+  const { data: retireRows } = useQuery({ queryKey: ["retirement-est", companyId, todayKst()], queryFn: () => fetchRetirementEstimates(companyId!, todayKst()), enabled: !!companyId && role !== "employee", staleTime: 300_000 });
+  const retireTotal = retireRows ? retireRows.reduce((s, r) => s + r.estimate, 0) : null;
   const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
 
   // (2026-07-30 개편 P3) 세부탭 권한 게이트 — 마스터=전체, 멤버=부여받은 탭만.
@@ -206,12 +211,17 @@ export default function EmployeesPage() {
         소규모 팀에선 총액만으로 개인 급여가 역산된다. */}
     {tabAllowed("salary") && (<>
       <Stat label="연 인건비" value={<>₩{(totalSalary * 12).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">월 ₩{totalSalary.toLocaleString()}</small></>} />
-      <Stat label="퇴직충당금" value={`₩${totalRetirement.toLocaleString()}`} />
+      {/*   G1 (2026-08-27) — 누르면 직원별 추계 표 + 충당부채 전표 초안. 직접 입력값 합계는 참고로. */}
+      <button type="button" className="qk-stat-link" title="직원별 퇴직금 추계 · 충당부채 전표 초안" onClick={() => setRetireOpen(true)}>
+        <Stat label="퇴직충당금" value={<>₩{(retireTotal ?? totalRetirement).toLocaleString()} <small className="font-normal text-[var(--text-dim)]">{retireTotal != null ? "추계" : "직접 입력"}</small></>} />
+      </button>
     </>)}
     <Stat label="미결 경비" value={`${expenses.filter((e: any) => e.status === "pending").length}건`} tone={expenses.some((e: any) => e.status === "pending") ? "minus" : undefined} />
   </>) : null;
 
-  return (
+  return (<>
+      {retireOpen && companyId && <RetirementDialog companyId={companyId} onClose={() => setRetireOpen(false)} />}
+      
     <div className="print-area qk-shell" id="employees-print-area">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
 
@@ -292,7 +302,7 @@ export default function EmployeesPage() {
         </QueryScreen>
       )}
     </div>
-  );
+  </>);
 }
 
 // ── 구성원 초대 섹션 (2026-07-30 사장님) — 구 '관리·추가/수정' 화면에서 초대만 발췌해 디렉토리로 이동.

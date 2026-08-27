@@ -9268,3 +9268,9 @@ table.table-appt { min-width: 640px; }
 .appt-kind-salary { @apply bg-[var(--info)]/10 text-[var(--info)]; }
 .appt-kind-resign, .appt-kind-leave_of_absence { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }
 .detail-subhead { @apply mt-6 mb-2 flex items-center gap-2 border-t border-[var(--border)] pt-4 text-[13px] font-bold; }
+
+/* 요약 줄 숫자를 눌러 내역 보기 (2026-08-27 인사 4차) */
+.qk-stat-link { @apply cursor-pointer rounded px-1 -mx-1 hover:bg-[var(--bg-surface)]; }
+table.table-retire { min-width: 720px; }
+.ret-settle { @apply mb-3; }
+table.table-ret-settle td { @apply text-[12px]; }
