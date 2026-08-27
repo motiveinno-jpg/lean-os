@@ -50,6 +50,9 @@ import { generateEmploymentCertificate, generateCareerCertificate, getCertificat
 import { listAppointments, appointmentLines } from "@/lib/hr-appointments";
 import { fetchRetirementEstimates } from "@/lib/retirement";
 import { RetirementDialog } from "@/components/retirement-dialog";
+import { fetchHrTodos } from "@/lib/hr-todo";
+import { HrTodoDialog } from "@/components/hr-todo-dialog";
+import { exportToExcel } from "@/lib/excel-export";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, addExistingMemberAsEmployee } from "@/lib/invitations";
@@ -65,7 +68,7 @@ import { HrAllowancePolicyPanel } from "@/components/hr-attendance-settings";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 import { payrollStats, useCertificateStats } from "@/components/flex-hr-heroes";
-import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, HelperMenu, type AppliedChip } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, HelperMenu, ExcelMenu, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
@@ -166,6 +169,8 @@ export default function EmployeesPage() {
   const totalSalary = activeForPay.reduce((s: number, e: any) => s + Number(e.salary || 0), 0);
   const totalRetirement = activeForPay.reduce((s: number, e: any) => s + Number(e.retirement_accrual || 0), 0);
   const [retireOpen, setRetireOpen] = useState(false);
+  const [todoOpen, setTodoOpen] = useState(false);
+  const { data: hrTodos, isLoading: todoLoading } = useQuery({ queryKey: ["hr-todos", companyId, todayKst(), employees.length], queryFn: () => fetchHrTodos(companyId!, employees), enabled: !!companyId && !isEmployee && employees.length > 0, staleTime: 120_000 });
   const { data: retireRows } = useQuery({ queryKey: ["retirement-est", companyId, todayKst()], queryFn: () => fetchRetirementEstimates(companyId!, todayKst()), enabled: !!companyId && role !== "employee", staleTime: 300_000 });
   const retireTotal = retireRows ? retireRows.reduce((s, r) => s + r.estimate, 0) : null;
   const activeCount = employees.filter((e: any) => ["active", "joined"].includes(e.status)).length;
@@ -207,6 +212,11 @@ export default function EmployeesPage() {
   //   휴가 탭은 시안대로 표가 주인공이라 상단 KPI 를 감춘다 (2026-08-06 사장님).
   const peopleStats = !isEmployee ? (<>
     <Stat label="재직 인원" value={`${activeCount}명`} />
+    {pendingInviteCount > 0 && <button type="button" className="qk-stat-link" title="초대 대기 목록 열기" onClick={() => setInviteFormOpen(true)}><Stat label="초대 대기" value={`${pendingInviteCount}명`} tone="minus" /></button>}
+    {/*   G4·H4·H5 (2026-08-27) — 기한·근태 이상·연차촉진을 규칙으로 모은 '처리할 것'. 누르면 내역 팝업 */}
+    <button type="button" className="qk-stat-link" title="계약 만료·수습 종료·1주년·미서명·공휴일 / 52시간 예상·연속 지각·퇴근 누락 / 연차촉진 대상" onClick={() => setTodoOpen(true)}>
+      <Stat label="처리할 것" value={hrTodos ? `${hrTodos.reduce((n, g) => n + g.items.length, 0)}건` : "…"} tone={hrTodos && hrTodos.some((g) => g.items.length) ? "minus" : undefined} />
+    </button>
     {/* 인건비·퇴직충당금은 급여 권한자만 (2026-08-19 감사) — 급여 탭 KPI(tabAllowed) 와 일관.
         소규모 팀에선 총액만으로 개인 급여가 역산된다. */}
     {tabAllowed("salary") && (<>
@@ -221,6 +231,7 @@ export default function EmployeesPage() {
 
   return (<>
       {retireOpen && companyId && <RetirementDialog companyId={companyId} onClose={() => setRetireOpen(false)} />}
+      {todoOpen && <HrTodoDialog groups={hrTodos || []} loading={todoLoading} onClose={() => setTodoOpen(false)} />}
       
     <div className="print-area qk-shell" id="employees-print-area">
       <QueryErrorBanner error={mainError as Error | null} onRetry={mainRefetch} />
@@ -233,8 +244,11 @@ export default function EmployeesPage() {
           tabs={tabsEl}
           stats={peopleStats}
           actions={!isEmployee ? (<>
-            {pendingInviteCount > 0 && <span className="text-[11px] font-semibold text-[var(--warning)] whitespace-nowrap">초대 대기 {pendingInviteCount}명</span>}
-            <button type="button" onClick={() => setBulkInviteOpen(true)} className="btn-secondary btn-sm whitespace-nowrap">엑셀로 대량 초대</button>
+            {/*   2026-08-27 인사 5차 — 조회 줄은 엑셀▾ + 파란 1개. 초대 대기·처리할 것은 요약 줄 Stat 클릭 */}
+            <ExcelMenu items={[
+              { label: "엑셀로 대량 초대", hint: "이름·이메일·부서 열을 붙여넣어 한 번에 초대", onClick: () => setBulkInviteOpen(true) },
+              { label: "명단 내려받기", count: activeCount, disabled: !activeCount, onClick: () => exportToExcel(employees.filter((e: any) => ["active", "joined"].includes(e.status)).map((e: any) => ({ "이름": e.name, "부서": e.department || "", "직책": e.position || "", "고용형태": e.employment_type || "", "입사일": e.hire_date || "", "이메일": e.email || "", "연락처": e.phone || "" })), "구성원", `구성원_${todayKst()}`) },
+            ]} />
             <button type="button" onClick={() => setInviteFormOpen((v) => !v)} className="btn-primary btn-sm whitespace-nowrap">+ 직원 초대</button>
           </>) : undefined}
           before={!isEmployee ? (
@@ -2325,6 +2339,8 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     ccUserIds: [] as string[],
   });
   const [showPromotion, setShowPromotion] = useState(false);
+  //   2026-08-27 인사 5차 — 두 층(칩 + 아래 신청 목록 칩) → 상자 안 갈래 한 줄: 직원별 연차 · 신청 · 촉진 · 설정
+  const [leaveView, setLeaveView] = useState<"roster" | "requests" | "promotion" | "settings">(focusPending || autoNew ? "requests" : "roster");
 
   // 승인자·참조자 선택 풀 — 회사 전체 구성원 (비관리자 포함).
   const { data: members = [] } = useQuery({
@@ -2375,14 +2391,14 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   const { data: promotionCandidates = [] } = useQuery({
     queryKey: ["leave-promotion-candidates", companyId, currentYear],
     queryFn: () => getLeavePromotionCandidates(companyId!, currentYear),
-    enabled: !!companyId && showPromotion,
+    enabled: !!companyId && (showPromotion || leaveView === "promotion"),
   });
 
   // Leave promotion notices
   const { data: promotionNotices = [] } = useQuery({
     queryKey: ["leave-promotion-notices", companyId, currentYear],
     queryFn: () => getLeavePromotionNotices(companyId!, currentYear),
-    enabled: !!companyId && showPromotion,
+    enabled: !!companyId && (showPromotion || leaveView === "promotion"),
   });
 
   // Create leave request mutation
@@ -2599,7 +2615,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
   const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
 
   // 휴가 탭 서브뷰 — '직원별 연차' / '설정' (2026-08-06 사장님 시안)
-  const [leaveView, setLeaveView] = useState<"roster" | "settings">("roster");
   const [calendarOpen, setCalendarOpen] = useState(false);
   // 이름 클릭 → 그 구성원의 전체 연차 신청 내역, 월 셀 클릭 → 그 달 사용 내역
   const [rosterEmp, setRosterEmp] = useState<{ id: string; name: string } | null>(null);
@@ -2817,12 +2832,12 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     <div>
       {/* ── 휴가 탭 서브뷰 (2026-08-06 사장님 시안) ──
           상단 KPI 카드는 이 탭에서 감추고, '직원별 연차'(표) / '설정'(부여 방식·휴가 유형) 로 나눈다. */}
-      <div className="leave-subtabs">
-        <ChipGroup value={leaveView} onChange={setLeaveView}
-          options={[{ value: "roster", label: "직원별 연차" }, { value: "settings", label: "설정" }] as const} />
-        {leaveView === "roster" && (
-          <button onClick={() => setCalendarOpen(true)} className="btn-secondary btn-sm">휴가 캘린더</button>
-        )}
+      <div className="collect-tabs leave-subtabs">
+        {([["roster", "직원별 연차"], ["requests", "신청"], ...(!isEmployee ? [["promotion", "촉진"]] : []), ["settings", "설정"]] as const).map(([k, l]) => (
+          <button key={k} type="button" onClick={() => setLeaveView(k as typeof leaveView)} className={leaveView === k ? "collect-tab collect-tab-on" : "collect-tab"}>
+            {l}{k === "requests" && visibleRequests.filter((r: any) => r.status === "pending").length > 0 && <span className="collect-tab-cnt inv-tab-warn">{visibleRequests.filter((r: any) => r.status === "pending").length}</span>}
+          </button>
+        ))}
       </div>
 
       {leaveView === "roster" && (<>
@@ -2883,9 +2898,13 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
               </table>
             </div>
           )}
-        <div className="leave-roster-divider" />
-      {/* Controls */}
+        </div>
+      </>)}
+
+      {leaveView === "requests" && (<>
+      {/* Controls — 상태 칩은 이 목록의 '보기', 달력은 같은 목록을 달력으로 */}
       <div ref={approveSectionRef} id="leave-approve-section" className="leave-filter-toolbar">
+        <button onClick={() => setCalendarOpen(true)} className="btn-secondary btn-sm">달력</button>
         <ChipGroup value={statusFilter} onChange={setStatusFilter}
           options={[
             { value: "all", label: "전체" },
@@ -3309,8 +3328,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
           </table></div>
         )}
       </div>
-
-        </div>
       </>)}
 
       {/* 휴가 취소 사유 모달 (2026-08-11 사장님) — 승인 건은 사유 필수, 내역 보존 + 신청과 동일 알림 */}
@@ -3563,6 +3580,115 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
 
       </>)}
 
+      {leaveView === "promotion" && !isEmployee && (<>
+          {/* Leave Promotion (연차촉진) Section */}
+          {!isEmployee && (
+            <div className="leave-promotion-section">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리</h3>
+                <span className="inv-hint">근로기준법 §61 — 소멸 6개월 전 1차, 2개월 전 2차 통보. 통보는 사람이 누른다(출처: 규칙)</span>
+              </div>
+
+              {(
+                <div className="space-y-4">
+                  {/* Candidates */}
+                  {promotionCandidates.length > 0 && (
+                    <div className="glass-card overflow-hidden">
+                      <div className="px-5 py-3 border-b border-[var(--border)] bg-yellow-500/5">
+                        <span className="text-xs font-semibold text-[var(--warning)]">미사용 연차 보유 직원 ({promotionCandidates.length}명)</span>
+                      </div>
+                      <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
+                        <thead className="sticky-bar"><tr className="table-head-row">
+                          <th className="text-center px-5 py-2 font-medium">직원</th>
+                          <th className="text-center px-5 py-2 font-medium">부서</th>
+                          <th className="text-center px-5 py-2 font-medium">총 연차</th>
+                          <th className="text-center px-5 py-2 font-medium">사용</th>
+                          <th className="text-center px-5 py-2 font-medium">미사용</th>
+                          <th className="text-center px-5 py-2 font-medium">촉진 통보</th>
+                        </tr></thead>
+                        <tbody>
+                          {promotionCandidates.map((c: any) => (
+                            <tr key={c.employeeId} className="border-b border-[var(--border)]/50">
+                              <td className="px-5 py-2.5 text-sm font-medium">{c.employeeName}</td>
+                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{c.department || "—"}</td>
+                              <td className="px-5 py-2.5 text-sm text-center">{c.totalDays}일</td>
+                              <td className="px-5 py-2.5 text-sm text-center">{c.usedDays}일</td>
+                              <td className="px-5 py-2.5 text-sm text-center font-bold text-[var(--warning)]">{c.remainingDays}일</td>
+                              <td className="px-5 py-2.5 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <button
+                                    onClick={() => c.email && sendPromotion.mutate({
+                                      employeeId: c.employeeId, noticeType: "first",
+                                      unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
+                                    })}
+                                    disabled={!c.email || sendPromotion.isPending}
+                                    className="text-[10px] px-2 py-1 rounded bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 disabled:opacity-50"
+                                  >
+                                    1차
+                                  </button>
+                                  <button
+                                    onClick={() => c.email && sendPromotion.mutate({
+                                      employeeId: c.employeeId, noticeType: "second",
+                                      unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
+                                    })}
+                                    disabled={!c.email || sendPromotion.isPending}
+                                    className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 disabled:opacity-50"
+                                  >
+                                    2차
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table></div>
+                    </div>
+                  )}
+
+                  {/* Sent notices history */}
+                  {promotionNotices.length > 0 && (
+                    <div className="glass-card overflow-hidden">
+                      <div className="px-5 py-3 border-b border-[var(--border)]">
+                        <span className="text-xs font-semibold text-[var(--text-muted)]">촉진 통보 이력</span>
+                      </div>
+                      <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
+                        <thead className="sticky-bar"><tr className="table-head-row">
+                          <th className="text-center px-5 py-2 font-medium">직원</th>
+                          <th className="text-center px-5 py-2 font-medium">차수</th>
+                          <th className="text-center px-5 py-2 font-medium">미사용</th>
+                          <th className="text-center px-5 py-2 font-medium">발송일</th>
+                          <th className="text-center px-5 py-2 font-medium">기한</th>
+                        </tr></thead>
+                        <tbody>
+                          {promotionNotices.map((n: any) => (
+                            <tr key={n.id} className="border-b border-[var(--border)]/50">
+                              <td className="px-5 py-2.5 text-sm">{n.employees?.name || "—"}</td>
+                              <td className="px-5 py-2.5 text-center">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full ${n.notice_type === 'first' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-[var(--danger)]/10 text-[var(--danger)]'}`}>
+                                  {n.notice_type === "first" ? "1차" : "2차"}
+                                </span>
+                              </td>
+                              <td className="px-5 py-2.5 text-sm text-center">{Number(n.unused_days)}일</td>
+                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.sent_at ? kstDateStr(new Date(n.sent_at)) : "—"}</td>
+                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.deadline || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table></div>
+                    </div>
+                  )}
+
+                  {promotionCandidates.length === 0 && (
+                    <div className="glass-card p-8 text-center">
+                      <div className="text-sm text-[var(--text-muted)]">모든 직원이 연차를 전부 사용했습니다</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+      </>)}
+
       {/* 휴가 캘린더 — 시안대로 팝업 (2026-08-06) */}
       {calendarOpen && (
         <div className="leave-modal-backdrop" onClick={() => setCalendarOpen(false)}>
@@ -3675,117 +3801,6 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
             </div>
           </div>
 
-          {/* Leave Promotion (연차촉진) Section */}
-          {!isEmployee && (
-            <div className="leave-promotion-section">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-[var(--text-muted)]">연차촉진 관리</h3>
-                <button
-                  onClick={() => setShowPromotion(!showPromotion)}
-                  className="text-xs px-3 py-1.5 bg-[var(--warning)]/10 text-[var(--warning)] rounded-lg hover:bg-[var(--warning)]/20 transition"
-                >
-                  {showPromotion ? "접기" : "연차촉진 관리"}
-                </button>
-              </div>
-
-              {showPromotion && (
-                <div className="space-y-4">
-                  {/* Candidates */}
-                  {promotionCandidates.length > 0 && (
-                    <div className="glass-card overflow-hidden">
-                      <div className="px-5 py-3 border-b border-[var(--border)] bg-yellow-500/5">
-                        <span className="text-xs font-semibold text-[var(--warning)]">미사용 연차 보유 직원 ({promotionCandidates.length}명)</span>
-                      </div>
-                      <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[600px]">
-                        <thead className="sticky-bar"><tr className="table-head-row">
-                          <th className="text-center px-5 py-2 font-medium">직원</th>
-                          <th className="text-center px-5 py-2 font-medium">부서</th>
-                          <th className="text-center px-5 py-2 font-medium">총 연차</th>
-                          <th className="text-center px-5 py-2 font-medium">사용</th>
-                          <th className="text-center px-5 py-2 font-medium">미사용</th>
-                          <th className="text-center px-5 py-2 font-medium">촉진 통보</th>
-                        </tr></thead>
-                        <tbody>
-                          {promotionCandidates.map((c: any) => (
-                            <tr key={c.employeeId} className="border-b border-[var(--border)]/50">
-                              <td className="px-5 py-2.5 text-sm font-medium">{c.employeeName}</td>
-                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{c.department || "—"}</td>
-                              <td className="px-5 py-2.5 text-sm text-center">{c.totalDays}일</td>
-                              <td className="px-5 py-2.5 text-sm text-center">{c.usedDays}일</td>
-                              <td className="px-5 py-2.5 text-sm text-center font-bold text-[var(--warning)]">{c.remainingDays}일</td>
-                              <td className="px-5 py-2.5 text-center">
-                                <div className="flex gap-1 justify-center">
-                                  <button
-                                    onClick={() => c.email && sendPromotion.mutate({
-                                      employeeId: c.employeeId, noticeType: "first",
-                                      unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
-                                    })}
-                                    disabled={!c.email || sendPromotion.isPending}
-                                    className="text-[10px] px-2 py-1 rounded bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 disabled:opacity-50"
-                                  >
-                                    1차
-                                  </button>
-                                  <button
-                                    onClick={() => c.email && sendPromotion.mutate({
-                                      employeeId: c.employeeId, noticeType: "second",
-                                      unusedDays: c.remainingDays, email: c.email, employeeName: c.employeeName,
-                                    })}
-                                    disabled={!c.email || sendPromotion.isPending}
-                                    className="text-[10px] px-2 py-1 rounded bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 disabled:opacity-50"
-                                  >
-                                    2차
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table></div>
-                    </div>
-                  )}
-
-                  {/* Sent notices history */}
-                  {promotionNotices.length > 0 && (
-                    <div className="glass-card overflow-hidden">
-                      <div className="px-5 py-3 border-b border-[var(--border)]">
-                        <span className="text-xs font-semibold text-[var(--text-muted)]">촉진 통보 이력</span>
-                      </div>
-                      <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[500px]">
-                        <thead className="sticky-bar"><tr className="table-head-row">
-                          <th className="text-center px-5 py-2 font-medium">직원</th>
-                          <th className="text-center px-5 py-2 font-medium">차수</th>
-                          <th className="text-center px-5 py-2 font-medium">미사용</th>
-                          <th className="text-center px-5 py-2 font-medium">발송일</th>
-                          <th className="text-center px-5 py-2 font-medium">기한</th>
-                        </tr></thead>
-                        <tbody>
-                          {promotionNotices.map((n: any) => (
-                            <tr key={n.id} className="border-b border-[var(--border)]/50">
-                              <td className="px-5 py-2.5 text-sm">{n.employees?.name || "—"}</td>
-                              <td className="px-5 py-2.5 text-center">
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full ${n.notice_type === 'first' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-[var(--danger)]/10 text-[var(--danger)]'}`}>
-                                  {n.notice_type === "first" ? "1차" : "2차"}
-                                </span>
-                              </td>
-                              <td className="px-5 py-2.5 text-sm text-center">{Number(n.unused_days)}일</td>
-                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.sent_at ? kstDateStr(new Date(n.sent_at)) : "—"}</td>
-                              <td className="px-5 py-2.5 text-xs text-[var(--text-muted)]">{n.deadline || "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table></div>
-                    </div>
-                  )}
-
-                  {promotionCandidates.length === 0 && (
-                    <div className="glass-card p-8 text-center">
-                      <div className="text-sm text-[var(--text-muted)]">모든 직원이 연차를 전부 사용했습니다</div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
             </div>
           </div>
         </div>
