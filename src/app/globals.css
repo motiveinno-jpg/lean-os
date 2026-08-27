@@ -9100,3 +9100,8 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .vr-sum td { @apply border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-semibold; }
 .vr-total td { @apply bg-[var(--primary)]/5 text-[14px]; }
 .vr-minus td { @apply text-[var(--text-muted)]; }
+
+/* 재무 › 고정자산 (2026-08-27) */
+.qk-body > .fa-scroll { @apply absolute inset-0 overflow-auto; }
+.table-fa { min-width: 1280px; }
+.fa-depr-row { @apply inline-flex items-center gap-1.5; }

@@ -67,6 +67,7 @@ const ROUTE_LABELS: Record<string, RouteCrumb> = {
   "/finance/status": { group: "재무", title: "현황", desc: "작성된 전표의 현황·지표 — 확정·반려·출처, 일반·매입매출 종류, 계정과목·거래처·부가세 유형, 전표 없는 증빙을 봅니다." },
   "/cards": { group: "재무", title: "카드", desc: "법인카드 사용내역을 봅니다." },
   "/payments": { group: "재무", title: "정기 지출", desc: "정기결제·고정비를 관리합니다." },
+  "/finance/assets": { group: "재무", title: "고정자산", desc: "장비·차량·소프트웨어를 등록하면 달마다 감가상각 전표 초안이 생깁니다." },
   "/subscriptions": { group: "자금", title: "구독 관리", desc: "구독 서비스를 관리합니다." },
   "/loans": { group: "자금", title: "대출", desc: "대출 현황을 관리합니다." },
   "/vault": { group: "자금", title: "자산", desc: "회사 자산을 관리합니다." },

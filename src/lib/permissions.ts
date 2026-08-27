@@ -94,6 +94,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
       { route: "/cash-receipts", label: "현금영수증", money: true, sub: true },
       { route: "/partners/reconciliation/voucher-entry", label: "일반전표", money: true },
       { route: "/partners/reconciliation/sale-purchase", label: "매입매출전표", money: true },
+      { route: "/finance/assets", label: "고정자산", money: true, desc: "장비·차량·소프트웨어 등록 → 월 감가상각 전표 초안" },
       { route: "/payments", label: "정기 지출", money: true },
       //   2026-08-11 사이드바에서 내림(수집·전표 통장 탭이 대신). 주소로는 열리므로 게이트·옛 부여 키 호환을 위해 남긴다 — 표에는 안 그림
       { route: "/transactions", label: "자동 분류", money: true, hidden: true },
