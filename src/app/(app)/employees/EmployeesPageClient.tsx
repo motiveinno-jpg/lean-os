@@ -19,7 +19,6 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { friendlyError } from "@/lib/friendly-error";
 import {
-  getSalaryHistory, addSalaryRecord,
   // Attendance & Leave
   getAttendanceRecords, getMonthlyAttendanceSummary,
   recomputeAttendance,
@@ -48,6 +47,7 @@ import { QueryErrorBanner } from "@/components/query-status";
 import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { generateEmploymentCertificate, generateCareerCertificate, getCertificateLogs, saveCertificateLog } from "@/lib/certificates";
+import { listAppointments, appointmentLines } from "@/lib/hr-appointments";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { type PayrollItem } from "@/lib/payment-batch";
 import { createEmployeeInvitation, getEmployeeInvitations, getInviteUrl, sendInviteEmail, cancelEmployeeInvitation, addExistingMemberAsEmployee } from "@/lib/invitations";
@@ -556,81 +556,8 @@ function EmployeeInviteSection({ companyId, userId, queryClient, showForm, setSh
 
 
 // ── Salary Tab ──
-function SalaryTab({ employees, selectedEmpId, setSelectedEmpId, salaryHistory, companyId, userId, queryClient }: any) {
-  const { toast } = useToast();
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ effectiveDate: "", salary: "", reason: "" });
+//   SalaryTab(급여이력, V1 에서 라우팅 제거된 죽은 코드 557줄)은 2026-08-27 3차에서 삭제. 급여 변경은 상세 패널 › 이력(hr_appointments)이 맡는다.
 
-  const addSalary = useMutation({
-    mutationFn: () => addSalaryRecord({
-      companyId, employeeId: selectedEmpId!, effectiveDate: form.effectiveDate,
-      salary: Number(form.salary), changeReason: form.reason, approvedBy: userId,
-    }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["salary-history"] }); setShowForm(false); setForm({ effectiveDate: "", salary: "", reason: "" }); },
-    onError: (err: any) => toast("급여 기록 실패: " + (friendlyError(err, "알 수 없는 오류")), "error"),
-  });
-
-  return (
-    <div>
-      <div className="salary-employee-selector">
-        <select value={selectedEmpId || ""} onChange={e => setSelectedEmpId(e.target.value || null)} className="px-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]">
-          <option value="">직원 선택...</option>
-          {employees.filter((e: any) => ['active', 'joined', 'invited'].includes(e.status)).map((e: any) => (
-            <option key={e.id} value={e.id}>{e.name} ({e.department || '미배정'})</option>
-          ))}
-        </select>
-        {selectedEmpId && <button onClick={() => setShowForm(!showForm)} className="btn-primary">+ 급여 변경</button>}
-      </div>
-
-      {showForm && selectedEmpId && (
-        <div className="salary-change-form glass-card">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">적용일 *</label><DateField value={form.effectiveDate} onChange={e => setForm({...form, effectiveDate: e.target.value})} className="field-input" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">변경 급여 (월급) *</label><input type="text" inputMode="numeric" value={form.salary ? Number(form.salary).toLocaleString('ko-KR') : ''} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); setForm({...form, salary: raw}); }} placeholder="3,000,000" className="field-input" /></div>
-            <div><label className="block text-xs text-[var(--text-muted)] mb-1">사유</label><input value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="승진, 연봉협상 등" className="field-input" /></div>
-          </div>
-          <button onClick={() => form.effectiveDate && form.salary && addSalary.mutate()} disabled={!form.effectiveDate || !form.salary || addSalary.isPending} className="btn-primary">{addSalary.isPending ? "등록 중..." : "등록"}</button>
-        </div>
-      )}
-
-      {!selectedEmpId ? (
-        <div className="glass-card p-16 text-center">
-          <div className="text-4xl mb-4"><Ico e="💰" /></div>
-          <div className="text-sm text-[var(--text-muted)]">직원을 선택하면 급여이력이 표시됩니다</div>
-        </div>
-      ) : (
-        <div className="salary-history-table glass-card">
-          {salaryHistory.length === 0 ? (
-            <div className="p-10 text-center text-sm text-[var(--text-muted)]">급여 변경 이력이 없습니다</div>
-          ) : (
-            <div className="overflow-auto max-h-[560px] relative"><table className="w-full min-w-[700px]">
-              <thead className="sticky-bar"><tr className="table-head-row">
-                <th className="th-cell text-center">적용일</th>
-                <th className="th-cell text-center">급여</th>
-                <th className="th-cell text-center">이전 급여</th>
-                <th className="th-cell text-center">사유</th>
-                <th className="th-cell text-center">승인자</th>
-              </tr></thead>
-              <tbody>
-                {salaryHistory.map((s: any) => (
-                  <tr key={s.id} className="border-b border-[var(--border)]/50">
-                    <td className="px-5 py-3 text-sm">{s.effective_date}</td>
-                    <td className="px-5 py-3 text-sm text-right font-medium">₩{Number(s.salary).toLocaleString()}</td>
-                    <td className="px-5 py-3 text-sm text-right text-[var(--text-dim)]">{s.previous_salary ? `₩${Number(s.previous_salary).toLocaleString()}` : "—"}</td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{s.change_reason || "—"}</td>
-                    <td className="px-5 py-3 text-xs text-[var(--text-muted)]">{s.users?.name || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table></div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// 근태 캘린더 리디자인(2026-07-15) — 직원 식별 색상. 구성원 디렉토리와 동일 팔레트로 통일.
 function attAvatarColor(id: string): string {
   let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
   const palette = ["#6C5CE7", "#0984E3", "#00B894", "#E17055", "#00CEC9", "#A29BFE", "#FF7675", "#55A3FF"];
@@ -4059,12 +3986,15 @@ function CertificateTab({ employees, companyId, userId, queryClient }: any) {
           includeSeal,
         });
       } else {
+        //   H10 (2026-08-27) — 발령 이력에서 소속·직위 변천을 자동으로 싣는다
+        const appts = await listAppointments(companyId, selectedEmpId).catch(() => []);
         result = await generateCareerCertificate({
           employee: empData,
           company: companyData,
           purpose: purpose || undefined,
           submitTo: submitTo || undefined,
           includeSeal,
+          history: appointmentLines(appts),
         });
       }
 

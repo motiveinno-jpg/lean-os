@@ -213,6 +213,43 @@ export async function generateEmploymentCertificate(params: {
 }
 
 // ────────────────────────────────────────────
+// 1-2. 인사기록카드 (2026-08-27 인사 3차 G2) — 인적사항 + 발령 이력 한 장. 증명서번호·발급 이력 없음(내부 문서).
+// ────────────────────────────────────────────
+export async function generatePersonnelRecordCard(params: {
+  employee: CertificateEmployee & { employment_type?: string; email?: string; phone?: string };
+  company: CertificateCompany;
+  history: { date: string; text: string }[];
+}): Promise<Blob> {
+  const { employee, company } = params;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  await setupKoreanFont(doc);
+  const pageW = doc.internal.pageSize.getWidth();
+  let y = 22;
+  doc.setFontSize(20); doc.setTextColor(30, 30, 30); doc.text('인 사 기 록 카 드', pageW / 2, y + 8, { align: 'center' }); y += 20;
+  doc.setFontSize(9); doc.setTextColor(120, 120, 120); doc.text(`${company.name} · 출력일 ${formatKoreanDate(new Date())}`, pageW - 14, y, { align: 'right' }); y += 4;
+  doc.setDrawColor(59, 130, 246); doc.setLineWidth(0.8); doc.line(14, y, pageW - 14, y); y += 8;
+  const hire = new Date(employee.hire_date); const end = employee.end_date ? new Date(employee.end_date) : new Date();
+  const rows: string[][] = [
+    ['성    명', employee.name, '사원번호', employee.employee_number || '-'],
+    ['생년월일', employee.birth_date || '-', '고용형태', employee.employment_type || '-'],
+    ['소    속', employee.department || '-', '직    위', employee.position || '-'],
+    ['입 사 일', formatKoreanDate(hire), employee.end_date ? '퇴 사 일' : '근속', employee.end_date ? formatKoreanDate(end) : calculateTenure(hire, end)],
+    ['연 락 처', employee.phone || '-', '이 메 일', employee.email || '-'],
+  ];
+  autoTable(doc, { startY: y, body: rows, theme: 'grid',
+    styles: { font: 'NanumGothic', fontSize: 10.5, cellPadding: { top: 4, bottom: 4, left: 6, right: 6 }, textColor: [40, 40, 40], lineColor: [200, 200, 200], lineWidth: 0.3 },
+    columnStyles: { 0: { cellWidth: 30, fontStyle: 'bold', fillColor: [245, 247, 250], halign: 'center' }, 1: { cellWidth: (pageW - 88) / 2 }, 2: { cellWidth: 30, fontStyle: 'bold', fillColor: [245, 247, 250], halign: 'center' }, 3: { cellWidth: (pageW - 88) / 2 } },
+    margin: { left: 14, right: 14 } });
+  y = (doc as any).lastAutoTable.finalY + 10;
+  doc.setFontSize(12); doc.setTextColor(40, 40, 40); doc.text('발령 이력', 16, y); y += 4;
+  autoTable(doc, { startY: y, head: [['발령일', '내용']], body: params.history.length ? params.history.map((h) => [h.date, h.text]) : [['-', '기록 없음']], theme: 'grid',
+    styles: { font: 'NanumGothic', fontSize: 10, cellPadding: { top: 4, bottom: 4, left: 6, right: 6 }, textColor: [40, 40, 40], lineColor: [200, 200, 200], lineWidth: 0.3 },
+    headStyles: { fillColor: [245, 247, 250], textColor: [60, 60, 60], fontStyle: 'bold', halign: 'center' },
+    columnStyles: { 0: { cellWidth: 34, halign: 'center' } }, margin: { left: 14, right: 14 } });
+  return doc.output('blob');
+}
+
+// ────────────────────────────────────────────
 // 2. 경력증명서 생성
 // ────────────────────────────────────────────
 
@@ -231,6 +268,8 @@ export async function generateCareerCertificate(params: {
   purpose?: string;  // 용도 (2026-07-30 사장님: 재직증명서와 동일하게 용도·제출처 지원)
   submitTo?: string; // 제출처
   includeSeal?: boolean; // 회사 도장 출력 여부 (2026-08-26 사장님). 기본 true
+  /** 2026-08-27 H10 — 발령 이력(hr_appointments)에서 자동으로: 소속·직위 변천을 표로 */
+  history?: { date: string; text: string }[];
 }): Promise<CertificateResult> {
   const { employee, company } = params;
   const purpose = params.purpose || '제출용';
@@ -312,6 +351,18 @@ export async function generateCareerCertificate(params: {
     margin: { left: 14, right: 14 },
   });
   y = (doc as any).lastAutoTable.finalY + 8;
+
+  // ── 발령 이력 (H10) ──
+  if (params.history && params.history.length > 0) {
+    doc.setFontSize(12); doc.setTextColor(40, 40, 40); doc.text('소속·직위 변천', 16, y); y += 4;
+    autoTable(doc, {
+      startY: y, head: [['발령일', '내용']], body: params.history.map((h) => [h.date, h.text]), theme: 'grid',
+      styles: { font: 'NanumGothic', fontSize: 10, cellPadding: { top: 4, bottom: 4, left: 6, right: 6 }, textColor: [40, 40, 40], lineColor: [200, 200, 200], lineWidth: 0.3 },
+      headStyles: { fillColor: [245, 247, 250], textColor: [60, 60, 60], fontStyle: 'bold', halign: 'center' },
+      columnStyles: { 0: { cellWidth: 34, halign: 'center' } }, margin: { left: 14, right: 14 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 8;
+  }
 
   // ── 담당업무 섹션 ──
   if (params.duties && params.duties.length > 0) {

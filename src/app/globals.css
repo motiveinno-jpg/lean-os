@@ -9258,3 +9258,13 @@ body.cap-shooting, body.cap-shooting * { cursor: none !important; }
 table.table-ins-rates { min-width: 640px; }
 table.table-ins-notice { min-width: 560px; }
 .table-ins-notice input { @apply w-36; }
+
+/* 상세 패널 › 이력 — 발령 표 (2026-08-27 인사 3차) */
+.appt-section { @apply flex flex-col gap-3; }
+.appt-head { @apply flex flex-wrap items-center gap-2; }
+table.table-appt { min-width: 640px; }
+.appt-kind { @apply inline-block rounded-full px-2 py-0.5 text-[10.5px] font-bold bg-[var(--bg-surface)] text-[var(--text-muted)]; }
+.appt-kind-promotion, .appt-kind-hire, .appt-kind-return { @apply bg-[var(--success)]/10 text-[var(--success)]; }
+.appt-kind-salary { @apply bg-[var(--info)]/10 text-[var(--info)]; }
+.appt-kind-resign, .appt-kind-leave_of_absence { @apply bg-[var(--danger)]/10 text-[var(--danger)]; }
+.detail-subhead { @apply mt-6 mb-2 flex items-center gap-2 border-t border-[var(--border)] pt-4 text-[13px] font-bold; }

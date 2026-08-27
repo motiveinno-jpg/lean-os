@@ -18,6 +18,7 @@ import { uploadEmployeeFile, deleteEmployeeFileByPath, getSignedUrl } from "@/li
 import { generateEmploymentCertificate, generateCareerCertificate, saveCertificateLog } from "@/lib/certificates";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
 import { PermissionSection } from "./PermissionSection";
+import { AppointmentsSection } from "./appointments-section";
 import { useMyPermissions } from "@/lib/permissions";
 import { DepartmentField, PositionField } from "@/components/org-option-fields";
 import { LOSS_REASONS } from "@/lib/insurance-edi";
@@ -36,7 +37,9 @@ function avatarColor(id: string): string {
 }
 
 // ── Employee Detail Panel ──
+//   2026-08-27 인사 3차 — 탭 8→6: 근로계약+입사서류 → 계약·서류, 노트+발령 → 이력. 옛 키(docs·notes)로 들어오면 새 탭으로 보낸다.
 type DetailTab = "info" | "docs" | "notes" | "history" | "contracts" | "certificates" | "leave" | "access";
+const TAB_MERGE: Partial<Record<DetailTab, DetailTab>> = { docs: "contracts", notes: "history" };
 
 export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab }: { employeeId: string; companyId: string; onClose: () => void; initialTab?: DetailTab }) {
   const { hasPerm: _panelHasPerm, isMaster: _panelIsMaster } = useMyPermissions();
@@ -44,8 +47,9 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
   //   전 직원 연봉·계좌번호가 보여 급여 탭의 권한 분리가 여기서 무력화됐다.
   const canSeeSalary = _panelIsMaster || _panelHasPerm("/employees:salary");
   const viewerHasGrantPerm = _panelHasPerm("/employees:permissions");
-  const [detailTab, setDetailTab] = useState<DetailTab>(initialTab || "info");
+  const [detailTab, setDetailTab] = useState<DetailTab>((initialTab && (TAB_MERGE[initialTab] || initialTab)) || "info");
   const { user: viewer } = useUser();
+  const _panelUserId: string | null = (viewer as { id?: string } | null)?.id || null;   // 발령 등록자
   const canManageAccess = !!(viewer as any)?.is_master || viewerHasGrantPerm; // 마스터 또는 위임받은 구성원(2026-07-30)
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -382,13 +386,11 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
         <div className="seg-bar flex-wrap mb-3">
           {[
             { key: "info", label: "정보" },
-            { key: "contracts", label: "근로계약" },
+            { key: "contracts", label: "계약·서류" },
             { key: "certificates", label: "증명서" },
             { key: "leave", label: "휴가" },
-            { key: "docs", label: "입사서류" },
-            { key: "notes", label: "노트" },
-            { key: "history", label: "발령" },
-            ...(canManageAccess ? [{ key: "access", label: "탭 권한" }] : []),
+            { key: "history", label: "이력" },
+            ...(canManageAccess ? [{ key: "access", label: "권한" }] : []),
           ].map((t) => (
             <button key={t.key} onClick={() => setDetailTab(t.key as any)}
               className={`seg-item ${detailTab === t.key ? "seg-item-active" : ""}`}>
@@ -614,20 +616,13 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
           </div>
         )}
 
-        {/* Files Tab */}
-        {/* 입사서류 Tab — Onboarding Document Checklist */}
-        {detailTab === "docs" && (
-          <OnboardingDocsSection employeeId={employeeId} companyId={companyId} emp={emp} queryClient={queryClient} />
-        )}
-
-        {/* Notes Tab (D-8: 관리자 인사노트) */}
-        {detailTab === "notes" && (
-          <AdminNotesSection employeeId={employeeId} emp={emp} queryClient={queryClient} />
-        )}
-
-        {/* History Tab (D-9: 인사발령 히스토리) */}
+        {/* 이력 탭 — 발령 표(hr_appointments) + 관리자 노트 (2026-08-27 3차: 노트·발령 탭을 합침) */}
         {detailTab === "history" && (
-          <EmploymentHistorySection employeeId={employeeId} emp={emp} queryClient={queryClient} companyId={companyId} />
+          <>
+            <AppointmentsSection employeeId={employeeId} companyId={companyId} emp={emp} userId={_panelUserId} />
+            <div className="detail-subhead">관리자 노트 <span className="inv-hint">본인에게 보이지 않는 인사 메모</span></div>
+            <AdminNotesSection employeeId={employeeId} emp={emp} queryClient={queryClient} />
+          </>
         )}
 
         {/* 탭 권한 (관리자/대표 전용) — 2026-07-30 개편 P1: 마스터에게는 새 권한 트리 병기.
@@ -808,6 +803,13 @@ export function EmployeeDetailPanel({ employeeId, companyId, onClose, initialTab
               </>
             )}
           </div>
+        )}
+        {/* 입사서류 — 근로계약과 같은 탭 아래 (2026-08-27 3차) */}
+        {detailTab === "contracts" && (
+          <>
+            <div className="detail-subhead">입사서류</div>
+            <OnboardingDocsSection employeeId={employeeId} companyId={companyId} emp={emp} queryClient={queryClient} />
+          </>
         )}
 
         {/* Certificates Tab — 증명서 발급/이력 */}
@@ -1421,115 +1423,7 @@ function AdminNotesSection({ employeeId, emp, queryClient }: { employeeId: strin
   );
 }
 
-// ── D-9: 인사발령 히스토리 ──
-function EmploymentHistorySection({ employeeId, emp, queryClient, companyId }: { employeeId: string; emp: any; queryClient: any; companyId: string | null }) {
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ department: "", position: "", date: "", note: "" });
-  const [saving, setSaving] = useState(false);
-
-  const history: { department: string; position: string; date: string; note: string }[] = Array.isArray(emp?.employment_history) ? emp.employment_history : [];
-
-  async function addEntry() {
-    if (!form.department && !form.position) return;
-    setSaving(true);
-    try {
-      const newEntry = {
-        department: form.department,
-        position: form.position,
-        date: form.date || todayKst(),
-        note: form.note,
-      };
-      const updated = [...history, newEntry];
-      await (supabase).from("employees").update({ employment_history: updated }).eq("id", employeeId);
-      queryClient.invalidateQueries({ queryKey: ["employee-detail", employeeId] });
-      setForm({ department: "", position: "", date: "", note: "" });
-      setShowForm(false);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="employee-history-section">
-      {/* 발령 추가 버튼 */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-semibold transition"
-        >
-          + 발령 등록
-        </button>
-      </div>
-
-      {/* 발령 등록 폼 */}
-      {showForm && (
-        <div className="glass-card p-4">
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <DepartmentField companyId={companyId} label="부서 *" value={form.department} onChange={(v) => setForm({ ...form, department: v })} />
-            <PositionField companyId={companyId} label="직위" value={form.position} onChange={(v) => setForm({ ...form, position: v })} />
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">발령일</label>
-              <DateField
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] text-[var(--text-dim)] mb-1">메모</label>
-              <input
-                value={form.note}
-                onChange={(e) => setForm({ ...form, note: e.target.value })}
-                placeholder="승진, 부서이동 등"
-                className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--primary)]"
-              />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={addEntry}
-              disabled={(!form.department && !form.position) || saving}
-              className="btn-primary btn-sm"
-            >
-              {saving ? "저장 중..." : "등록"}
-            </button>
-            <button
-              onClick={() => { setShowForm(false); setForm({ department: "", position: "", date: "", note: "" }); }}
-              className="px-3 py-2 text-xs text-[var(--text-muted)]"
-            >
-              취소
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 발령 이력 목록 */}
-      {history.length === 0 ? (
-        <div className="text-center py-8 text-sm text-[var(--text-dim)]">인사발령 이력이 없습니다</div>
-      ) : (
-        <div className="space-y-0">
-          {[...history].reverse().map((h, i) => (
-            <div key={i} className="flex gap-3">
-              {/* 타임라인 라인 */}
-              <div className="flex flex-col items-center">
-                <div className={`w-2.5 h-2.5 rounded-full mt-1.5 ${i === 0 ? "bg-[var(--primary)]" : "bg-[var(--border)]"}`} />
-                {i < history.length - 1 && <div className="w-px flex-1 bg-[var(--border)]" />}
-              </div>
-              {/* 내용 */}
-              <div className="pb-4 flex-1">
-                <div className="text-xs font-semibold text-[var(--text)]">
-                  {h.department}{h.department && h.position ? " / " : ""}{h.position}
-                </div>
-                <div className="text-[10px] text-[var(--text-dim)] mt-0.5">{h.date || "날짜 미지정"}</div>
-                {h.note && <div className="text-xs text-[var(--text-muted)] mt-1">{h.note}</div>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+//   D-9 인사발령 히스토리(employment_history jsonb) 는 2026-08-27 3차에서 hr_appointments 표(appointments-section.tsx)로 바뀌었다. 옛 글자는 '옛 기록 가져오기'로 옮긴다.
 
 function InfoRow({ label, value }: { label: string; value?: string | null }) {
   return (
