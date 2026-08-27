@@ -9297,3 +9297,5 @@ table.table-ret-settle td { @apply text-[12px]; }
 
 /* 이름 옆 사번 (2026-08-27 사장님) */
 .emp-no { @apply ml-1.5 rounded bg-[var(--bg-surface)] px-1 py-px align-middle text-[10px] font-semibold tabular-nums text-[var(--text-dim)]; }
+
+.emp-table td.emp-no-cell { @apply w-20 text-[12px] font-semibold text-[var(--text-muted)]; }   /* 구성원 표 사번 열 (2026-08-27) */

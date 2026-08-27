@@ -80,7 +80,7 @@ const STATUS_GROUPS: { key: string; label: string; raw: string[] }[] = [
 const statusGroup = (s?: string | null) => STATUS_GROUPS.find((g) => g.raw.includes(String(s || "")))?.key || "";
 const ETYPE_LABEL: Record<string, string> = { regular: "정규직", full_time: "정규직", fulltime: "정규직", contract: "계약직", temporary: "계약직", parttime: "파트타임", part_time: "파트타임", intern: "인턴", freelancer: "프리랜서", dispatch: "파견", daily: "일용직" };
 const etypeLabel = (t?: string | null) => (t ? ETYPE_LABEL[t] || t : "");
-type SortKey = "name" | "department" | "position" | "etype" | "hire_date" | "phone" | "status";
+type SortKey = "employee_number" | "name" | "department" | "position" | "etype" | "hire_date" | "phone" | "status";
 const VIEW_OPTS = [{ value: "list", label: "리스트" }, { value: "card", label: "카드" }] as const;
 
 /**
@@ -177,7 +177,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
       }
     };
     //   이름 정렬 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 사장님). 다른 칸은 그 칸 값 뒤에 같은 규칙
-    if (sort.key === "name") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => comparePeople(a, b) * dir);
+    if (sort.key === "name" || sort.key === "employee_number") return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => comparePeople(a, b) * dir);
     return base.filter((e) => cf.hit(colVal(e))).sort((a, b) => cmp(val(a), val(b)) * dir || comparePeople(a, b));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, sort, cf.key]);
@@ -289,15 +289,17 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
               <table ref={tableRef} className="ev-table ev-lined emp-table">
                 <thead>
                   <tr>
-                    <SortableTh label="이름" sortKey="name" sort={sort} onSort={onSort} resize={thResize("name", 1)} />
-                    <SortableTh label="부서" sortKey="department" sort={sort} onSort={onSort} filter={cfSpec("department")} resize={thResize("department", 2)} />
-                    <SortableTh label="직책" sortKey="position" sort={sort} onSort={onSort} filter={cfSpec("position")} resize={thResize("position", 3)} />
-                    <SortableTh label="고용형태" sortKey="etype" sort={sort} onSort={onSort} filter={cfSpec("etype")} resize={thResize("etype", 4)} />
-                    <SortableTh label="입사일" sortKey="hire_date" sort={sort} onSort={onSort} resize={thResize("hire_date", 5)} />
-                    <SortableTh label="근속" resize={thResize("tenure", 6)} />
-                    <SortableTh label="연락처" sortKey="phone" sort={sort} onSort={onSort} resize={thResize("phone", 7)} />
-                    <SortableTh label="이메일" resize={thResize("email", 8)} />
-                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} filter={cfSpec("status")} resize={thResize("status", 9)} />
+                    {/*   사번 열 — 맨 왼쪽 (2026-08-27 사장님 "좌측에 사번"). 정렬은 이름과 같은 규칙(사번 순 → 가나다 → ABC) */}
+                    <SortableTh label="사번" sortKey="employee_number" sort={sort} onSort={onSort} resize={thResize("employee_number", 1)} />
+                    <SortableTh label="이름" sortKey="name" sort={sort} onSort={onSort} resize={thResize("name", 2)} />
+                    <SortableTh label="부서" sortKey="department" sort={sort} onSort={onSort} filter={cfSpec("department")} resize={thResize("department", 3)} />
+                    <SortableTh label="직책" sortKey="position" sort={sort} onSort={onSort} filter={cfSpec("position")} resize={thResize("position", 4)} />
+                    <SortableTh label="고용형태" sortKey="etype" sort={sort} onSort={onSort} filter={cfSpec("etype")} resize={thResize("etype", 5)} />
+                    <SortableTh label="입사일" sortKey="hire_date" sort={sort} onSort={onSort} resize={thResize("hire_date", 6)} />
+                    <SortableTh label="근속" resize={thResize("tenure", 7)} />
+                    <SortableTh label="연락처" sortKey="phone" sort={sort} onSort={onSort} resize={thResize("phone", 8)} />
+                    <SortableTh label="이메일" resize={thResize("email", 9)} />
+                    <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} filter={cfSpec("status")} resize={thResize("status", 10)} />
                   </tr>
                 </thead>
                 <tbody>
@@ -305,6 +307,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                     const sm = statusMeta(e.status);
                     return (
                       <tr key={e.id} onClick={() => openEmp(e)} className="emp-row">
+                        <td className="tc mono-number emp-no-cell">{e.employee_number || <span className="ev-dim">—</span>}</td>
                         <td className="text-left">
                           <span className="flex items-center gap-2">
                             {avatarSrc(e) ? (
@@ -313,7 +316,7 @@ export function FlexPeopleDirectory({ companyId, employees, isManager, tabs, sta
                             ) : (
                               <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: avatarColor(e.id) }}>{initials(e.name)}</span>
                             )}
-                            <span className="font-semibold text-[var(--text)]">{e.name}</span>{e.employee_number && <span className="emp-no">#{e.employee_number}</span>}
+                            <span className="font-semibold text-[var(--text)]">{e.name}</span>
                           </span>
                         </td>
                         <td className="text-center">{e.department || "—"}</td>
