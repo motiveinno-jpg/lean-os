@@ -402,7 +402,7 @@ export default function PartnerLedgerPage() {
         <QueryBody>
          {/* ── 좌 목록 300px · 우 원장 나머지 전부, 상자 끝선까지. 각자 스크롤 (2026-08-19 사장님: "원장 칸이 작아 보기 어렵다") ── */}
          {view === "aging" && companyId ? (
-          <AgingView type={ledgerType} rows={agingRows} loading={agingLoading} q={q} partnerMap={partnerMap} partnerCodeMap={partnerCodeMap}
+          <AgingView type={ledgerType} rows={agingRows} loading={agingLoading} q={q} partnerMap={partnerMap} partnerCodeMap={partnerCodeMap} companyId={companyId}
             onOpen={(pid) => setDetail({ partnerId: pid, type: ledgerType, focus: "all" })} />
          ) : (
          <div className={`ledger-body ${wide ? "ledger-body-wide" : ""}`}>

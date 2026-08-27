@@ -9204,3 +9204,12 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .bar-text .ev-dim { @apply text-[11px]; }
 .bar-th { @apply inline-flex shrink-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)]; }
 .bar-th-in { @apply h-8 w-28 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-right text-[12.5px] text-[var(--text)]; }
+
+/* 거래처 신용 등급 배지 (2026-08-27) */
+.cr-badge { @apply inline-flex h-5 min-w-[22px] items-center justify-center rounded-md px-1.5 text-[11px] font-bold; }
+.cr-big { @apply h-6 px-2 text-[11.5px]; }
+.cr-A { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.cr-B { @apply bg-[var(--info-dim)] text-[var(--info)]; }
+.cr-C { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.cr-D { @apply bg-[var(--danger-dim)] text-[var(--danger)]; }
+.cr-none { @apply bg-[var(--bg-surface)] text-[var(--text-dim)]; }

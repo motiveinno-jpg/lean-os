@@ -1,4 +1,5 @@
 "use client";
+import { fetchPartnerCredit, creditReason, GRADE_LABEL } from "@/lib/partner-credit";
 import { SortableTh, nextSort, useColWidths, type SortState, type ThFilterSpec } from "@/components/sortable-th";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ExcelMenu, HelperMenu, SavedTabs, ConditionSave,
@@ -415,6 +416,11 @@ export default function PartnersPage() {
   const toTokens = (xs: string[]) => xs.map((v) => ({ value: v, label: v }));
 
   // 360도뷰: 거래처의 딜/문서/결제 데이터
+  //   신용 등급 — 입금 지연 이력(결정 78~80). 목록·상세에 배지, 근거는 툴팁. 제안이지 판정이 아니다.
+  const { data: creditMap } = useQuery({ queryKey: ["partner-credit", companyId], queryFn: () => fetchPartnerCredit(companyId!), enabled: !!companyId, staleTime: 60_000 });
+  const creditOf = (id: string) => creditMap?.get(id);
+  const CreditBadge = ({ id, big }: { id: string; big?: boolean }) => { const c = creditOf(id); const g = c?.grade; return <span className={`cr-badge ${g ? `cr-${g}` : "cr-none"} ${big ? "cr-big" : ""}`} title={creditReason(c)}>{g ? (big ? GRADE_LABEL[g] : g) : "—"}</span>; };
+
   const { data: partnerDeals = [] } = useQuery({
     queryKey: ["partner-deals", detailPartner?.id],
     queryFn: async () => {
@@ -1031,6 +1037,7 @@ export default function PartnersPage() {
                     <SortableTh label="연락처" sortKey="phone" sort={sort} onSort={onSort} resize={thResize("phone", 6)} />
                     <SortableTh label="태그" sortKey="tag" sort={sort} onSort={onSort} filter={thFilter("tag")} resize={thResize("tag", 7)} />
                     <SortableTh label="상태" sortKey="status" sort={sort} onSort={onSort} filter={thFilter("status")} resize={thResize("status", 8)} />
+                    <th className="th-c" title="입금 지연 이력으로 매긴 신용 등급 — 마우스를 올리면 근거">신용</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1103,6 +1110,7 @@ export default function PartnersPage() {
                             {p.is_active ? "활성" : "비활성"}
                           </button>
                         </td>
+                        <td className="tc"><CreditBadge id={p.id} /></td>
                       </tr>
                     );
                   })}
@@ -1168,6 +1176,7 @@ export default function PartnersPage() {
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${rs.bg} ${rs.color}`} title={`프로젝트 ${dealCount}건 / 계약 ${contractTotal.toLocaleString()}원 / 최근 소통 ${lastCommDaysAgo === null ? '없음' : lastCommDaysAgo + '일전'} / 결제이행 ${(paidRatio * 100).toFixed(0)}%`}>
                       관계점수 {rs.score} · {rs.tier}
                     </span>
+                    <CreditBadge id={detailPartner.id} big />
                     {detailPartner.is_dormant && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/15 text-amber-500" title={detailPartner.dormancy_detected_at ? `${String(detailPartner.dormancy_detected_at).slice(0,10)} 휴면 감지` : "6개월 이상 거래·연락 없음"}>
                         <Ico e="💤" /> 휴면

@@ -23,6 +23,7 @@ import { friendlyError } from "@/lib/friendly-error";
 import { SortableTh, nextSort, type SortState } from "@/components/sortable-th";
 import { quickSearchHit } from "@/components/query-kit";
 import { won } from "./shared";
+import { fetchPartnerCredit, creditReason } from "@/lib/partner-credit";
 
 export const AGE_BUCKETS = [
   { label: "0–30일", min: 0, max: 30 }, { label: "31–60일", min: 31, max: 60 },
@@ -89,12 +90,14 @@ export function useAging(companyId: string | null, type: "sales" | "purchase") {
   });
 }
 
-export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap, partnerCodeMap }: {
-  type: "sales" | "purchase"; rows: AgingRow[]; loading: boolean; q: string; partnerMap: Record<string, string>; partnerCodeMap: Record<string, number>;
+export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap, partnerCodeMap, companyId }: {
+  type: "sales" | "purchase"; rows: AgingRow[]; loading: boolean; q: string; partnerMap: Record<string, string>; partnerCodeMap: Record<string, number>; companyId?: string | null;
   onOpen: (partnerId: string | null) => void;
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  //   신용 등급(매출처만) — 결정 78~80
+  const { data: creditMap } = useQuery({ queryKey: ["partner-credit", companyId], queryFn: () => fetchPartnerCredit(companyId!), enabled: !!companyId && type === "sales", staleTime: 60_000 });
   const [sort, setSort] = useState<SortState<SortKey>>({ key: "total", dir: "desc" });
   const onSort = (k: SortKey) => setSort((c) => nextSort(c, k, k === "name" ? "asc" : "desc"));
   const [noteFor, setNoteFor] = useState<AgingRow | null>(null);
@@ -147,6 +150,7 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
               <SortableTh label={isAR ? "미수 합계" : "미지급 합계"} sortKey="total" sort={sort} onSort={onSort} />
               <SortableTh label="최장 경과" sortKey="oldest" sort={sort} onSort={onSort} />
               <SortableTh label="마지막 정산" sortKey="last" sort={sort} onSort={onSort} />
+              {isAR && <th title="입금 지연 이력 등급 — 마우스를 올리면 근거">신용</th>}
               <th>독촉 기록</th>
               <th></th>
             </tr>
@@ -159,6 +163,7 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
                 <td className="tr mono-number aging-total">{won(r.total)}</td>
                 <td className={`tr mono-number ${r.oldestDays > 90 ? "aging-b3" : ""}`} title={r.oldestDate || undefined}>{r.oldestDays}일</td>
                 <td className="tc mono-number">{r.lastSettle || <span className="ev-dim">없음</span>}</td>
+                {isAR && <td className="tc">{(() => { const c = r.partnerId ? creditMap?.get(r.partnerId) : undefined; return <span className={`cr-badge ${c?.grade ? `cr-${c.grade}` : "cr-none"}`} title={creditReason(c)}>{c?.grade || "—"}</span>; })()}</td>}
                 <td className="text-left aging-note" title={r.lastNote || undefined}>{r.lastNote ? r.lastNote.replace(/^\[(\d{4}-\d{2}-\d{2}) 독촉\]\s*/, "$1 · ") : <span className="ev-dim">—</span>}</td>
                 <td className="tc" onClick={(e) => e.stopPropagation()}>
                   <span className="bl-row-acts">
@@ -174,7 +179,7 @@ export function AgingView({ type, rows: rawRows, loading, q, onOpen, partnerMap,
               <td className="text-left"><b>합계 {shown.length}곳</b></td>
               {sums.map((v, i) => <td key={i} className="tr mono-number">{won(v)}</td>)}
               <td className="tr mono-number aging-total">{won(total)}</td>
-              <td colSpan={4}></td>
+              <td colSpan={isAR ? 5 : 4}></td>
             </tr>
           </tfoot>
         </table>
