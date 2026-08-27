@@ -9,6 +9,7 @@
 //   · 화면 캡처: 브라우저 화면 공유 API 로 지금 탭을 PNG 내려받기 + 클립보드(외부 라이브러리 없음).
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -82,49 +83,109 @@ function Calculator() {
   );
 }
 
+/** 화면 공유 API 로 한 프레임을 캔버스에 담는다 */
+async function grabFrame(): Promise<HTMLCanvasElement> {
+  const md: any = navigator.mediaDevices;
+  if (!md?.getDisplayMedia) throw new Error("이 브라우저는 화면 캡처를 지원하지 않습니다 — Chrome·Edge 에서 쓰세요");
+  let stream: MediaStream | null = null;
+  try {
+    stream = await md.getDisplayMedia({ video: { displaySurface: "browser" }, audio: false, preferCurrentTab: true, selfBrowserSurface: "include" });
+    const video = document.createElement("video");
+    video.srcObject = stream; video.muted = true;
+    await video.play();
+    await new Promise((r) => setTimeout(r, 250));
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.getContext("2d")!.drawImage(video, 0, 0);
+    return canvas;
+  } finally { stream?.getTracks().forEach((t) => t.stop()); }
+}
+async function saveCanvas(canvas: HTMLCanvasElement, suffix: string): Promise<{ name: string; clip: boolean }> {
+  const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("png"))), "image/png"));
+  const stamp = `${todayKst().replace(/-/g, "")}_${new Date().toTimeString().slice(0, 5).replace(":", "")}`;
+  const name = `오너뷰_캡처${suffix}_${stamp}.png`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  let clip = false;
+  try { if ((window as any).ClipboardItem && navigator.clipboard?.write) { await navigator.clipboard.write([new (window as any).ClipboardItem({ "image/png": blob })]); clip = true; } } catch { /* 클립보드는 덤 */ }
+  return { name, clip };
+}
+
+/** 영역 선택 — 찍은 프레임을 화면에 깔고 사각형을 끌어 고른다. Enter/버튼 = 저장, Esc = 취소 (2026-08-27 사장님) */
+function RegionPicker({ frame, onPick, onCancel }: { frame: HTMLCanvasElement; onPick: (c: HTMLCanvasElement) => void; onCancel: () => void }) {
+  const [sel, setSel] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const dragging = useRef(false);
+  const url = useMemo(() => frame.toDataURL("image/png"), [frame]);
+  //   프레임을 화면에 꽉 차게(비율 유지) — 화면 좌표 ↔ 프레임 좌표 변환
+  const fit = () => { const vw = window.innerWidth, vh = window.innerHeight; const sc = Math.min(vw / frame.width, vh / frame.height); return { sc, ox: (vw - frame.width * sc) / 2, oy: (vh - frame.height * sc) / 2 }; };
+  const rect = sel ? { x: Math.min(sel.x0, sel.x1), y: Math.min(sel.y0, sel.y1), w: Math.abs(sel.x1 - sel.x0), h: Math.abs(sel.y1 - sel.y0) } : null;
+  const confirm = () => {
+    if (!rect || rect.w < 4 || rect.h < 4) return;
+    const { sc, ox, oy } = fit();
+    const sx = Math.max(0, (rect.x - ox) / sc), sy = Math.max(0, (rect.y - oy) / sc), sw = Math.min(frame.width - sx, rect.w / sc), sh = Math.min(frame.height - sy, rect.h / sc);
+    const out = document.createElement("canvas"); out.width = Math.round(sw); out.height = Math.round(sh);
+    out.getContext("2d")!.drawImage(frame, sx, sy, sw, sh, 0, 0, out.width, out.height);
+    onPick(out);
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onCancel(); } if (e.key === "Enter") confirm(); };
+    window.addEventListener("keydown", onKey, true); return () => window.removeEventListener("keydown", onKey, true);
+  });   // eslint-disable-line react-hooks/exhaustive-deps
+  const { sc, ox, oy } = fit();
+  return createPortal(
+    <div className="cap-overlay"
+      onPointerDown={(e) => { if ((e.target as HTMLElement).closest("button")) return; dragging.current = true; setSel({ x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY }); }}
+      onPointerMove={(e) => { if (dragging.current) setSel((s) => (s ? { ...s, x1: e.clientX, y1: e.clientY } : s)); }}
+      onPointerUp={() => { dragging.current = false; }}>
+      <img src={url} alt="" className="cap-frame" style={{ left: ox, top: oy, width: frame.width * sc, height: frame.height * sc }} draggable={false} />
+      <div className="cap-mask" />
+      {rect && rect.w > 0 && (
+        <div className="cap-sel" style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, backgroundImage: `url(${url})`, backgroundSize: `${frame.width * sc}px ${frame.height * sc}px`, backgroundPosition: `${ox - rect.x}px ${oy - rect.y}px` }}>
+          <span className="cap-size mono-number">{Math.round(rect.w / sc)} × {Math.round(rect.h / sc)}</span>
+        </div>
+      )}
+      <div className="cap-bar">
+        <span>{rect && rect.w > 4 ? "영역을 골랐습니다 — Enter 또는 저장" : "저장할 영역을 마우스로 끌어 고르세요"}</span>
+        <button type="button" className="btn-secondary btn-sm" onClick={onCancel}>취소 (Esc)</button>
+        <button type="button" className="btn-primary btn-sm" disabled={!rect || rect.w < 4 || rect.h < 4} onClick={confirm}>이 영역 저장</button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function Capture({ onDone }: { onDone: () => void }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<string | null>(null);
-  const shoot = async () => {
+  const [frame, setFrame] = useState<HTMLCanvasElement | null>(null);   // 영역 선택 중인 프레임
+  const finish = async (canvas: HTMLCanvasElement, suffix: string) => {
+    const { name, clip } = await saveCanvas(canvas, suffix);
+    setLast(name);
+    toast(clip ? `${name} 내려받고 클립보드에도 넣었습니다 — 카톡·메일에 바로 붙여넣기` : `${name} 내려받았습니다`, "success");
+  };
+  const shoot = async (mode: "full" | "region") => {
     if (busy) return;
-    const md: any = navigator.mediaDevices;
-    if (!md?.getDisplayMedia) { toast("이 브라우저는 화면 캡처를 지원하지 않습니다 — Chrome·Edge 에서 쓰세요", "error"); return; }
     setBusy(true);
-    let stream: MediaStream | null = null;
     try {
-      stream = await md.getDisplayMedia({ video: { displaySurface: "browser" }, audio: false, preferCurrentTab: true, selfBrowserSurface: "include" });
-      const video = document.createElement("video");
-      video.srcObject = stream; video.muted = true;
-      await video.play();
-      await new Promise((r) => setTimeout(r, 250));
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      canvas.getContext("2d")!.drawImage(video, 0, 0);
-      const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("png"))), "image/png"));
-      const stamp = `${todayKst().replace(/-/g, "")}_${new Date().toTimeString().slice(0, 5).replace(":", "")}`;
-      const name = `오너뷰_캡처_${stamp}.png`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = name; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-      let clip = false;
-      try { if ((window as any).ClipboardItem && navigator.clipboard?.write) { await navigator.clipboard.write([new (window as any).ClipboardItem({ "image/png": blob })]); clip = true; } } catch { /* 클립보드는 덤 */ }
-      setLast(name);
-      toast(clip ? `${name} 내려받고 클립보드에도 넣었습니다 — 카톡·메일에 바로 붙여넣기` : `${name} 내려받았습니다`, "success");
-      onDone();
+      const canvas = await grabFrame();
+      if (mode === "full") { await finish(canvas, ""); onDone(); }
+      else setFrame(canvas);   // 프레임을 깔고 영역을 고르게 — 저장은 RegionPicker 가 부른다
     } catch (e: any) {
       if (String(e?.name || "").includes("NotAllowed")) toast("캡처를 취소했습니다", "info");
       else toast(`캡처 실패 — ${e?.message || "알 수 없는 오류"}`, "error");
-    } finally {
-      stream?.getTracks().forEach((t) => t.stop());
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   };
   return (
     <div className="ht-capture">
-      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b> 한 번 묻습니다 — "이 탭"을 고르세요(브라우저 보안이라 건너뛸 수 없습니다). 이 창은 캡처에 찍히지 않게 잠깐 닫힙니다.</p>
-      <button type="button" className="btn-primary btn-sm ht-capture-btn" disabled={busy} onClick={shoot}>{busy ? "찍는 중…" : "이 화면 캡처"}</button>
+      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b> 한 번 묻습니다 — "이 탭"을 고르세요(브라우저 보안이라 건너뛸 수 없습니다). <b>영역 선택</b>은 찍은 화면 위에서 사각형을 끌어 그 부분만 저장합니다.</p>
+      <div className="ht-capture-btns">
+        <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => shoot("full")}>{busy ? "찍는 중…" : "전체 화면"}</button>
+        <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => shoot("region")}>영역 선택</button>
+      </div>
       {last && <p className="ht-hint">마지막: {last}</p>}
+      {frame && <RegionPicker frame={frame} onCancel={() => setFrame(null)} onPick={async (c) => { setFrame(null); await finish(c, "_영역"); onDone(); }} />}
     </div>
   );
 }
@@ -136,15 +197,18 @@ export const NOTE_COLORS: { key: string; label: string }[] = [
 ];
 const when = (iso: string) => { const d = new Date(iso); return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
 
+const EMPTY_NOTES: Note[] = [];
 function useNotes() {
   const { user } = useUser();
   const qc = useQueryClient();
   const userId = user?.id ?? null, companyId = user?.company_id ?? null;
-  const { data: notes = [] } = useQuery<Note[]>({
+  const { data } = useQuery<Note[]>({
     queryKey: ["quick-notes", userId],
     enabled: !!userId,
     queryFn: async () => (logRead("quick-notes:list", await (supabase as any).from("quick_notes").select("id, title, body, color, pinned, updated_at").eq("user_id", userId).order("pinned", { ascending: false }).order("updated_at", { ascending: false }).limit(300)) || []) as Note[],
   });
+  //   ★ 기본값 [] 를 매번 새로 만들면 이걸 의존하는 effect 가 무한 반복한다(실제로 그랬다) — 참조를 고정한다
+  const notes = data ?? EMPTY_NOTES;
   const refresh = () => qc.invalidateQueries({ queryKey: ["quick-notes", userId] });
   const create = async (color = "yellow"): Promise<Note | null> => {
     if (!userId || !companyId) return null;
@@ -234,7 +298,13 @@ export function HeaderTools() {
   const newSticky = async () => { try { const n = await api.create(); if (n) openSticky(n); } catch (e: any) { toast(e?.message || "메모를 만들지 못했습니다", "error"); } };
   const delSticky = async (id: string) => { await api.remove(id); closeSticky(id); };
   //   목록의 최신 값으로 스티커 머리(핀 상태 등)를 맞춘다
-  useEffect(() => { setStickies((s) => s.map((x) => api.notes.find((n) => n.id === x.id) ? { ...x, pinned: api.notes.find((n) => n.id === x.id)!.pinned } : x)); }, [api.notes]);
+  useEffect(() => {
+    setStickies((s) => {
+      let changed = false;
+      const next = s.map((x) => { const n = api.notes.find((m) => m.id === x.id); if (n && n.pinned !== x.pinned) { changed = true; return { ...x, pinned: n.pinned }; } return x; });
+      return changed ? next : s;   // 바뀐 게 없으면 같은 배열 — 안 그러면 렌더가 돈다
+    });
+  }, [api.notes]);
   const onOf: Record<string, boolean> = { calc: calcOpen, capture: capOpen, note: listOpen || stickies.length > 0 };
   const toggle = (k: "calc" | "capture" | "note") => { if (k === "calc") setCalcOpen((v) => !v); else if (k === "capture") setCapOpen((v) => !v); else setListOpen((v) => !v); };
   return (

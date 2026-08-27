@@ -9186,3 +9186,12 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .sn-card-title { @apply truncate text-[12.5px]; }
 .sn-card-body { @apply line-clamp-3 whitespace-pre-wrap text-[11.5px] leading-snug opacity-80; }
 .sn-card-when { @apply text-[10px] opacity-60; }
+
+/* 화면 캡처 — 영역 선택 오버레이 (2026-08-27) */
+.cap-overlay { @apply fixed inset-0 z-[3000] cursor-crosshair select-none overflow-hidden bg-black; touch-action: none; }
+.cap-frame { @apply absolute; }
+.cap-mask { @apply absolute inset-0 bg-black/55; }
+.cap-sel { @apply absolute border-2 border-[var(--primary)]; background-repeat: no-repeat; }
+.cap-size { @apply absolute -top-6 left-0 rounded bg-black/70 px-1.5 py-0.5 text-[11px] text-white; }
+.cap-bar { @apply absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--bg-card)] px-4 py-2 text-[12.5px] text-[var(--text)] shadow-xl; }
+.ht-capture-btns { @apply flex gap-2; }
