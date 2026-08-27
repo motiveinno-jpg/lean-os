@@ -339,6 +339,13 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
           <label className="inv-field"><span>안전재고 <em className="inv-hint">이 아래로 내려가면 &lsquo;부족&rsquo;</em></span>
             <input className="field-input" inputMode="numeric" disabled={v.track_stock === false}
               value={v.safety_stock ?? ""} onChange={(e) => set("safety_stock", num(e.target.value))} /></label>
+          {/*   결정 89 (2026-08-27 재고 자동화) — 리드타임은 '곧 부족'(현재고 ÷ 일 출고 < 리드타임) 판단에, 자동 제안 끄기는 시즌성·수동 조정 품목용 */}
+          <label className="inv-field"><span>리드타임(일) <em className="inv-hint">발주 후 들어오기까지 · &lsquo;곧 부족&rsquo; 판단</em></span>
+            <input className="field-input" inputMode="numeric" value={v.lead_time_days ?? 7} onChange={(e) => set("lead_time_days", num(e.target.value))} /></label>
+          <label className="inv-field"><span>자동 제안 <em className="inv-hint">발주·곧 부족 제안에 넣을지</em></span>
+            <select className="field-input" value={v.auto_suggest === false ? "0" : "1"} onChange={(e) => set("auto_suggest", e.target.value === "1")}>
+              <option value="1">켬</option><option value="0">끔 (시즌성·수동 조정)</option>
+            </select></label>
           <label className="inv-field"><span>상태</span>
             <select className="field-input" value={v.is_active === false ? "0" : "1"} onChange={(e) => set("is_active", e.target.value === "1")}>
               <option value="1">판매중</option><option value="0">단종</option>

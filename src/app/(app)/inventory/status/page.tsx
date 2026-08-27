@@ -33,6 +33,7 @@ import {
   type MoveRow, type Product, DEFECT_WAREHOUSE_CODE,
 } from "@/lib/inventory";
 import { listOrders, listUsed, listOrderLinesAll, type Order } from "@/lib/inventory-orders";
+import { fetchOutflowStats, fetchDefectAging, soonShort } from "@/lib/inventory-suggest";
 import { listBoms, perUnit, lossReasonLabel } from "@/lib/inventory-production";
 import { loadInventorySettings, INVENTORY_DEFAULTS } from "@/lib/inventory-settings";
 import { listImports, channelLabel } from "@/lib/inventory-channels";
@@ -104,6 +105,8 @@ export default function InventoryStatusPage() {
     return ((data || []) as { id: string; name: string }[]);
   });
 
+  //   규칙형 자동화(2026-08-27): 곧 부족(A2) · 불량 보류 30일 초과 · 90일 무출고(A10) — 토큰 없음, 출처 '장부 대조'
+  const { data: outflow } = q("inv-outflow", () => fetchOutflowStats(companyId!));
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const partnerName = useMemo(() => new Map(partners.map((p) => [p.id, p.name])), [partners]);
   const whName = useMemo(() => new Map(warehouses.map((w) => [w.id, w.name])), [warehouses]);
@@ -115,6 +118,7 @@ export default function InventoryStatusPage() {
     let amount = 0, short = 0, out = 0, priced = 0;
     const byProduct = new Map<string, number>();
     const shortList: { p: Product; qty: number }[] = [], outList: { p: Product; qty: number }[] = [];
+    const soonList: { p: Product; qty: number; days: number; need: number }[] = [], staleList: { p: Product; qty: number; lastOut: string | null }[] = [];
     for (const o of onhand) byProduct.set(o.product_id, (byProduct.get(o.product_id) || 0) + Number(o.qty));
     for (const p of products) {
       if (!p.track_stock || !p.is_active) continue;
@@ -123,9 +127,13 @@ export default function InventoryStatusPage() {
       if (c != null && qty > 0) { amount += qty * c; priced++; }
       if (qty <= 0) { out++; outList.push({ p, qty }); }
       else if (p.safety_stock != null && qty < p.safety_stock) { short++; shortList.push({ p, qty }); }
+      else if (p.auto_suggest !== false) { const s = soonShort(qty, outflow?.get(p.id), p.lead_time_days ?? 7); if (s) soonList.push({ p, qty, days: s.days, need: s.need }); }
+      //   90일 무출고 — 재고가 있는데 90일 안에 판매·소비가 없다(잠긴 돈)
+      if (qty > 0 && outflow && !outflow.get(p.id)?.lastOutAt) staleList.push({ p, qty, lastOut: null });
     }
-    return { amount, short, out, priced, byProduct, shortList, outList };
-  }, [onhand, products, avgCost]);   // eslint-disable-line react-hooks/exhaustive-deps
+    soonList.sort((a, b) => a.days - b.days); staleList.sort((a, b) => (b.qty * (costOf(b.p.id) ?? 0)) - (a.qty * (costOf(a.p.id) ?? 0)));
+    return { amount, short, out, priced, byProduct, shortList, outList, soonList, staleList };
+  }, [onhand, products, avgCost, outflow]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const sale = useMemo(() => {
     let amt = 0, qty = 0, ret = 0, cost = 0, costed = 0;
@@ -172,6 +180,7 @@ export default function InventoryStatusPage() {
   //   ★ 결정 32 (2026-08-26) — 양품률 = 양품 ÷ (양품+불량), 자재 로스율 = Σ(실투입−표준) ÷ Σ표준. 불량 = 불량 보류 창고 줄.
   //     불량·std_qty 기록이 없는 기간은 100%/0% 가 아니라 "기록 없음"으로 적는다(거짓 100% 방지).
   const defectWh = useMemo(() => warehouses.find((w) => w.code === DEFECT_WAREHOUSE_CODE)?.id || null, [warehouses]);
+  const { data: defectOld = [] } = useQuery({ queryKey: ["inv-defect-aging", companyId, defectWh], queryFn: () => fetchDefectAging(companyId!, defectWh!), enabled: !!companyId && !!defectWh, staleTime: 60_000 });
   const make = useMemo(() => {
     let doneQty = 0, doneAmt = 0, matAmt = 0, defectQty = 0, stdSum = 0, actSum = 0, lossRecords = 0, scrapLoss = 0;
     const perDay = new Map<string, number>(), perProduct = new Map<string, { qty: number; amt: number; defect: number }>(), matPer = new Map<string, { qty: number; amt: number; std: number; loss: number }>();
@@ -265,6 +274,13 @@ export default function InventoryStatusPage() {
   const openShort = () => setDetail({ title: `재고 부족 ${stock.short}개`, desc: "안전재고 아래로 내려간 품목 — 창고 합계 기준", head: ["품목", "현재고", "안전재고", "모자람"],
     rows: stock.shortList.sort((a, b) => (a.qty - (a.p.safety_stock || 0)) - (b.qty - (b.p.safety_stock || 0))).map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), won(p.safety_stock || 0), won((p.safety_stock || 0) - qty)]),
     go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
+  const openSoon = () => setDetail({ title: `곧 부족 ${stock.soonList.length}개`, desc: "최근 30일 출고 속도로 보면 리드타임 안에 바닥나는 품목 — 출처: 장부 대조(안전재고 없이도 잡힘)", head: ["품목", "현재고", "일 출고", "N일 뒤 0", "제안 수량"],
+    rows: stock.soonList.map(({ p, qty, days, need }) => [<b key="n">{p.name}</b>, won(qty), (outflow?.get(p.id)?.perDay ?? 0).toFixed(1), `${days}일`, won(need)]),
+    go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
+  const openStale = () => setDetail({ title: `90일 무출고 ${stock.staleList.length}개`, desc: "재고는 있는데 90일 안에 판매·소비가 없는 품목 — 잠긴 돈. 처분·할인·창고 정리 검토", head: ["품목", "현재고", "재고 금액(원가)"],
+    rows: stock.staleList.map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), `₩${won(qty * (costOf(p.id) ?? 0))}`]), go: { href: "/inventory/stock", label: "창고관리로 →" } });
+  const openDefectOld = () => setDetail({ title: `불량 보류 30일 초과 ${defectOld.length}품목`, desc: "불량 보류 창고에 30일 넘게 있는 것 — 재작업·폐기를 정하세요", head: ["품목", "수량", "들어온 날", "경과"],
+    rows: defectOld.map((d) => [<b key="n">{nm(d.product_id)}</b>, won(d.qty), d.since, `${d.days}일`]), go: { href: "/inventory/production", label: "생산 › 도구 › 불량 처분 →" } });
   const openOut = () => setDetail({ title: `품절 ${stock.out}개`, desc: "현재고가 0 이하인 품목", head: ["품목", "현재고", "안전재고"],
     rows: stock.outList.map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), p.safety_stock != null ? won(p.safety_stock) : "—"]), go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
   const openNoVoucher = () => setDetail({ title: `전표 없는 판매 ${sale.noVoucher}건`, desc: "재고는 나갔지만 회계 전표가 아직 없는 판매 문서", head: ["일자", "문서", "거래처", "합계"],
@@ -377,6 +393,8 @@ export default function InventoryStatusPage() {
                         <li><button type="button" onClick={openShort}>재고 부족 <b>{stock.short}</b></button> · <button type="button" onClick={openOut}>품절 <b>{stock.out}</b></button> <span className="ev-dim">— 구매 입력에 부족분 채우기</span></li>
                         <li><button type="button" onClick={openNoVoucher}>전표 없는 판매 <b>{sale.noVoucher}건</b></button> <span className="ev-dim">— 매입매출전표 › 증빙에서 불러오기</span></li>
                         <li><button type="button" onClick={openLate}>납기 지난 주문 <b>{order.late.length}건</b></button> · <button type="button" onClick={openOpen}>열린 주문 잔량 <b>{order.open.length}건</b></button></li>
+                        <li><button type="button" onClick={openSoon}>곧 부족 <b>{stock.soonList.length}</b></button> <span className="ev-dim">— 출고 속도로 리드타임 안에 바닥남 · 장부 대조</span></li>
+                        <li><button type="button" onClick={openDefectOld}>불량 보류 30일 초과 <b>{defectOld.length}품목</b></button> · <button type="button" onClick={openStale}>90일 무출고 <b>{stock.staleList.length}</b></button> <span className="ev-dim">— 월말 정리</span></li>
                         <li><button type="button" onClick={openMatShort}>자재 부족 <b>{make.shortage.length}품목</b></button>{make.noBom ? <span className="ev-dim"> · 자재구성 없는 주문 줄 {make.noBom}({make.noBomNames.slice(0, 3).join(", ")}{make.noBomNames.length > 3 ? " …" : ""})</span> : null}</li>
                       </ul>
                     </div>

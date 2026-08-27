@@ -21,6 +21,10 @@ export type Product = {
   sale_price: number | null; cost_price: number | null; safety_stock: number | null;
   /** 완제품 1개당 노무·경비 — 생산 원가에 얹는다(결정 38, 급여대장 연동 안 함) */
   overhead_per_unit: number;
+  /** 리드타임(일) — '곧 부족' 판단(결정 89·90). 기본 7 */
+  lead_time_days: number;
+  /** 자동 제안 켬/끔 — 시즌성·수동 조정 품목은 끈다(결정 89) */
+  auto_suggest: boolean;
   is_active: boolean; memo: string | null;
 };
 
@@ -52,10 +56,10 @@ export async function listProducts(companyId: string): Promise<Product[]> {
   if (!companyId) return [];
   const data = logRead("inventory:products", await supabase
     .from("products")
-    .select("id, sku, name, category, spec, unit, barcode, track_stock, sale_price, cost_price, safety_stock, is_active, memo, overhead_per_unit")
+    .select("id, sku, name, category, spec, unit, barcode, track_stock, sale_price, cost_price, safety_stock, is_active, memo, overhead_per_unit, lead_time_days, auto_suggest")
     .eq("company_id", companyId)
     .order("sku"));
-  return (data || []) as Product[];
+  return ((data || []) as any[]).map((p) => ({ ...p, lead_time_days: Number(p.lead_time_days ?? 7), auto_suggest: p.auto_suggest !== false })) as Product[];
 }
 
 export async function upsertProduct(companyId: string, p: Partial<Product> & { id?: string }, userId?: string | null) {
@@ -71,18 +75,20 @@ export async function upsertProduct(companyId: string, p: Partial<Product> & { i
     sale_price: p.sale_price ?? null,
     cost_price: p.cost_price ?? null,
     overhead_per_unit: Number(p.overhead_per_unit || 0),
+    lead_time_days: p.lead_time_days == null ? 7 : Math.max(0, Number(p.lead_time_days)),
+    auto_suggest: p.auto_suggest !== false,
     safety_stock: p.safety_stock ?? null,
     is_active: p.is_active !== false,
     memo: p.memo?.trim() || null,
     updated_at: new Date().toISOString(),
   };
   if (p.id) {
-    const { error } = await supabase.from("products").update(row).eq("id", p.id);
+    const { error } = await supabase.from("products").update(row as never).eq("id", p.id);
     if (error) throw error;
     return p.id;
   }
   const { data, error } = await supabase.from("products")
-    .insert({ ...row, created_by: userId ?? null }).select("id").single();
+    .insert({ ...row, created_by: userId ?? null } as never).select("id").single();
   if (error) throw error;
   return (data as { id: string }).id;
 }
