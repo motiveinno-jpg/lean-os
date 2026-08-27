@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-context";
 import { useToast } from "@/components/toast";
 import { exportPartnerLedgersXlsx } from "./export";
+import { AgingView, useAging } from "./aging-view";
 import {
   type LedgerRow, won, AR_AP, palette,
   PartnerLedgerSheet, PartnerDetailModal,
@@ -81,6 +82,8 @@ export default function PartnerLedgerPage() {
   //   2026-08-19 원장 칸 확대(docs/20260819_PLAN_partner_ledger_layout.md): ↔ 넓게 = 목록을 접고 원장만 전폭.
   //   화면 안 상태(기억 안 함). 넓게일 때 거래처는 원장 머리의 피커 + ‹ › 로 바꾼다.
   const [wide, setWide] = useState(false);
+  //   보기: 원장(목록+시트) / 연령표(거래처×경과 구간) — 값 필터가 아니라 '보기'라 조회 줄 칩 (2026-08-27 ERP 공백 ①)
+  const [view, setView] = useState<"ledger" | "aging">("ledger");
   const [pickOpen, setPickOpen] = useState(false);
   //   미수 경과 칩 필터 — 요약 줄의 경과 칩을 누르면 그 경과 구간에 미결 계산서가 있는 거래처만 (재클릭 해제)
   const [ageFilter, setAgeFilter] = useState<number | null>(null);
@@ -118,6 +121,7 @@ export default function PartnerLedgerPage() {
   });
   const partnerMap = partnerInfo.names;
   const partnerCodeMap = partnerInfo.codes;
+  const { data: agingRows = [], isLoading: agingLoading } = useAging(companyId, ledgerType);
 
   // 수동 전표만 있는 거래처(세금계산서 없음)도 해당 탭에 노출하기 위한 분류
   //   외상매출금(108) 라인 → 매출처, 외상매입금(251) 라인 → 매입처. (매입처에서 전표 도달 불가하던 버그 해소)
@@ -364,6 +368,10 @@ export default function PartnerLedgerPage() {
                 </ConditionPanel>
               } />
             <QuickSearch value={q} onApply={setQ} placeholder="거래처명 · 코드 · 잔액 — 쉼표로 여러 개, Enter" />
+            <span className="qk-chips" title="보기 — 원장(목록+시트) / 연령표(거래처별 경과 구간)">
+              <button type="button" className={view === "ledger" ? "qk-chip qk-chip-on" : "qk-chip"} onClick={() => setView("ledger")}>원장</button>
+              <button type="button" className={view === "aging" ? "qk-chip qk-chip-on" : "qk-chip"} onClick={() => setView("aging")}>연령표</button>
+            </span>
           </QueryBar>
 
           <AppliedChips chips={chips} onClearAll={clearAll} />
@@ -393,6 +401,10 @@ export default function PartnerLedgerPage() {
 
         <QueryBody>
          {/* ── 좌 목록 300px · 우 원장 나머지 전부, 상자 끝선까지. 각자 스크롤 (2026-08-19 사장님: "원장 칸이 작아 보기 어렵다") ── */}
+         {view === "aging" && companyId ? (
+          <AgingView type={ledgerType} rows={agingRows} loading={agingLoading} q={q} partnerMap={partnerMap} partnerCodeMap={partnerCodeMap}
+            onOpen={(pid) => setDetail({ partnerId: pid, type: ledgerType, focus: "all" })} />
+         ) : (
          <div className={`ledger-body ${wide ? "ledger-body-wide" : ""}`}>
           {lLoading ? (
             <div className="collect-empty">불러오는 중…</div>
@@ -491,6 +503,7 @@ export default function PartnerLedgerPage() {
             </>
           )}
          </div>
+         )}
           {/* ── 3줄 · 고른 거래처로 하는 일 ── */}
           <SelectionBar count={checkedIds.size} onClear={() => setCheckedIds(new Set())}
             summary={<>거래처마다 시트 하나 · 회계기간 {periodLabel}</>}>

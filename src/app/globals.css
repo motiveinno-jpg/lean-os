@@ -9061,3 +9061,20 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .acct-picker-btn { @apply h-9 w-full justify-start text-[13px]; }
 .acct-picker .spv-drop { @apply left-0 right-0 w-full; }
 .card-post-exclude { @apply text-[var(--text-muted)]; }
+
+/* 채권·채무 연령표 — 거래처 원장 '연령표' 보기 (2026-08-27) */
+.qk-body > .aging-wrap { @apply absolute inset-0 flex flex-col gap-2 overflow-hidden p-3; }
+.aging-hint { @apply max-w-none; }
+.aging-scroll { @apply min-h-0 flex-1; }
+.aging-table { min-width: 1080px; width: 100%; }
+.aging-table th { @apply text-center; }
+.aging-row { @apply cursor-pointer; }
+.aging-row:hover td { @apply bg-[var(--bg-surface)]; }
+.aging-table tbody td.aging-b0 { @apply text-[var(--text)]; }
+.aging-table tbody td.aging-b1 { @apply text-[var(--info)]; }
+.aging-table tbody td.aging-b2 { @apply text-[var(--warning)] font-semibold; }
+.aging-table tbody td.aging-b3 { @apply text-[var(--danger)] font-bold; }
+.aging-table tbody td.aging-total { @apply font-bold; }
+.aging-note { @apply max-w-[260px] truncate text-[12px] text-[var(--text-muted)]; }
+.aging-foot td { @apply border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-semibold; }
+.aging-note-input { @apply w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-[12.5px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
