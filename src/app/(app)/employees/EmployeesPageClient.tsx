@@ -9,6 +9,8 @@ import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { MonthField } from "@/components/month-field";
+import { InsuranceNoticeDialog } from "@/components/insurance-notice-dialog";
+import type { InsuranceRates } from "@/lib/insurance-rates";
 import { DateTimeField } from "@/components/datetime-field";
 import { DateField } from "@/components/date-field";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -1881,13 +1883,14 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
 // ── Payroll Preview Tab ──
 function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
   const { toast } = useToast();
-  const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number; skippedNoBirth?: string[] } | null>(null);
+  const [preview, setPreview] = useState<{ items: PayrollItem[]; totalGross: number; totalDeductions: number; totalNet: number; skippedNoBirth?: string[]; totalEmployer?: number; rates?: InsuranceRates } | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   // 편집 모드 — 직원별 기본급(과세) / 비과세 직접 수정 + v4 H1 임의 수당/공제
   const [editMode, setEditMode] = useState(false);
   const [editValues, setEditValues] = useState<Record<string, { baseSalary: number; nonTaxable: number; extras: { type: 'allowance' | 'deduction'; name: string; amount: number }[]; deductions?: Record<string, number> }>>({});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);   // H2 고지서 대조 팝업 (2026-08-27)
   // 조회 월 — month picker (YYYY-MM) + 표시용 라벨 변환
   const [periodMonth, setPeriodMonth] = useState(() => {
     const d = new Date();
@@ -2120,6 +2123,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 { label: "급여대장 고치기", source: "입력", hint: "직원별 기본급·비과세·수당·공제를 이 달에만 고칩니다", disabled: !preview || preview.items.length === 0, onClick: () => setEditMode(true) },
                 { label: "전체 PDF 내려받기", source: "출력", hint: "직원별 명세서 PDF 를 한 번에", disabled: !preview || preview.items.length === 0, onClick: downloadAll },
                 { label: loading ? "계산 중…" : "다시 계산", source: "입력", hint: "근태·수당·수정값을 다시 읽어 미리보기를 새로 만듭니다", disabled: loading || !companyId, onClick: generate },
+                { label: "고지서 대조", source: "장부 대조", hint: "공단 고지 금액을 적으면 급여 계산 합계와의 차이를 보여 줍니다", disabled: !preview || preview.items.length === 0, onClick: () => setNoticeOpen(true) },
               ]} />
               <button onClick={() => handleSendPayslips()} disabled={sending || !preview || preview.items.length === 0} className="btn-primary btn-sm">
                 {sending ? "발송 중..." : `전 직원 발송${preview && preview.items.length ? ` (${preview.items.length}명)` : ""}`}
@@ -2129,6 +2133,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
         </div>
       </div>
 
+      {noticeOpen && preview && companyId && <InsuranceNoticeDialog companyId={companyId} userId={null} month={periodMonth} items={preview.items} onClose={() => setNoticeOpen(false)} />}
       {!preview ? (
         <div className="glass-card p-16 text-center">
           <div className="text-4xl mb-4"><Ico e="📋" /></div>
@@ -2154,6 +2159,11 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
               <div className="text-xs text-[var(--text-dim)]">총 실수령액</div>
               <div className="text-lg font-bold text-[var(--success)] mt-1">{fmtKRW(preview.totalNet)}</div>
             </div>
+            <div className="glass-card p-4" title="회사설정 › 회계·세무 › 4대보험 요율 기준">
+              <div className="text-xs text-[var(--text-dim)]">회사 부담 4대보험 {preview.rates?.isDefault !== false ? <span className="hr-src-tag">법정 기본값</span> : <span className="hr-src-tag">{preview.rates?.year}년 회사 요율</span>}</div>
+              <div className="text-lg font-bold mt-1">{fmtKRW(preview.totalEmployer || 0)}</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">인건비 총액 {fmtKRW(preview.totalGross + (preview.totalEmployer || 0))} · <button type="button" className="bz-link" onClick={() => setNoticeOpen(true)}>고지서와 맞춰 보기</button></div>
+            </div>
           </div>
 
           {/* Detail Table */}
@@ -2172,6 +2182,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                 <th>지방소득세</th>
                 <th>공제합계</th>
                 <th>실수령</th>
+                <th title="국민연금·건강(장기요양)·고용·산재 회사 몫 — 회사설정 › 4대보험 요율 기준">회사부담</th>
                 <th>발송</th>
               </tr></thead>
               <tbody>
@@ -2234,6 +2245,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                     ))}
                     <td className="px-4 py-3 text-sm text-right text-[var(--danger)]">-{fmtKRW(item.deductionsTotal)}</td>
                     <td className="px-4 py-3 text-sm text-right font-bold text-[var(--success)]">{fmtKRW(item.netPay)}</td>
+                    <td className="px-4 py-3 text-xs text-right text-[var(--text-muted)]" title={`국민연금 ${fmtKRW(item.employerCosts.nationalPension)} · 건강 ${fmtKRW(item.employerCosts.healthInsurance)} · 장기요양 ${fmtKRW(item.employerCosts.longTermCareInsurance || 0)} · 고용 ${fmtKRW(item.employerCosts.employmentInsurance)} · 산재 ${fmtKRW(item.employerCosts.industrialAccident)}`}>{item.employerCosts.total ? fmtKRW(item.employerCosts.total) : "—"}</td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => downloadOne(item)} title="급여명세서 PDF 다운로드" className="btn-secondary btn-sm">
@@ -2250,7 +2262,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   {/* v4 H1: 편집 모드일 때 row 아래 수당/공제 라인 편집 */}
                   {editMode && (
                     <tr key={`${item.employeeId}-extras`} className="bg-[var(--bg-surface)]/40 border-b border-[var(--border)]/30">
-                      <td colSpan={13} className="px-4 py-2">
+                      <td colSpan={14} className="px-4 py-2">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-[10px] text-[var(--text-dim)] font-semibold">임의 수당/공제 ({(ev.extras || []).length}건)</span>
                           <button type="button"
@@ -2320,6 +2332,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                       <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(sum((x) => x.localIncomeTax))}</td>
                       <td className="px-4 py-3.5 text-sm text-right font-bold text-[var(--danger)]">-{fmtKRW(preview.totalDeductions)}</td>
                       <td className="px-4 py-3.5 text-[15px] text-right font-extrabold text-[var(--success)]">{fmtKRW(preview.totalNet)}</td>
+                      <td className="px-4 py-3.5 text-xs text-right">{fmtKRW(preview.totalEmployer || 0)}</td>
                       <td className="px-4 py-3.5"></td>
                     </tr>
                   );

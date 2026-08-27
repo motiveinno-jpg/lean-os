@@ -29,6 +29,7 @@ import { CompanyDeleteTab } from "./CompanyDeleteTab";
 import { CompanyInfoTab, TaxAdvisorSection, IpRestrictionSection } from "./CompanyInfoTab";
 import { QueryScreen, QueryHead, QueryBody } from "@/components/query-kit";
 import { AccountingClosingTab } from "./AccountingClosingTab";
+import { InsuranceRatesTab } from "./InsuranceRatesTab";
 import { loadLinkedIntegrations, listApiKeys } from "@/lib/api-keys";
 import { TAB_COMPAT, settingsGroup, type SettingsGroupKey, type SettingsLeafKey } from "@/lib/settings-nav";
 // 계정·알림(개인)은 마이페이지로 이관됨(2026-07-08) — 여기선 import/렌더 제거.
@@ -621,6 +622,7 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
 
         {/* 세무 파트너 · 접속 보안 — 회사정보에서 떼어 낸 것들 (2026-08-21) */}
         {tab === "tax-partner" && <TaxAdvisorSection />}
+        {tab === "insurance" && companyId && <InsuranceRatesTab companyId={companyId} userId={userId} />}
         {/*   '결재 상신 알림(총괄 수신)'은 2026-08-24 삭제했다 — 사장님:
               "결재는 참조·결재자한테만 알람이 가면 되는 건데, 직원 100명이면 100명이 올리는 상신
                알람을 다 받을 것인가? 쓸데없는 메뉴·기능이다."

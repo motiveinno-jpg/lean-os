@@ -1,4 +1,5 @@
 import type { PayrollExtra } from './payment-batch';
+import { fetchInsuranceRates, type InsuranceRates } from './insurance-rates';
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payroll Engine
@@ -22,14 +23,20 @@ export async function previewPayroll(
   totalDeductions: number;
   totalNet: number;
   skippedNoBirth: string[]; // 생년월일 없는 직원 (비밀번호 못 거는 직원)
+  /** 2026-08-27 G3 — 회사 부담 4대보험 합계(국민·건강+장기요양·고용·산재) */
+  totalEmployer: number;
+  rates: InsuranceRates;
 }> {
+  //   결정 96 — 요율은 그 달이 속한 해의 회사 요율표(없으면 법정 기본값)
+  const rateYear = monthKey ? Number(monthKey.slice(0, 4)) : new Date().getFullYear();
+  const rates = await fetchInsuranceRates(companyId, rateYear);
   const employees = logRead('lib/payroll:employees', await db
     .from('employees')
-    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount')
+    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount, is_4_insurance')
     .eq('company_id', companyId)
     .in('status', ['active', 'joined', 'invited']));
 
-  if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0, skippedNoBirth: [] };
+  if (!employees?.length) return { items: [], totalGross: 0, totalDeductions: 0, totalNet: 0, skippedNoBirth: [], totalEmployer: 0, rates };
 
   // 해당 월 명세서 수정값(override) — employees.salary 와 무관하게 월별로 다르게 적용
   // v4 H1: extras (임의 수당/공제) 도 함께 fetch
@@ -114,6 +121,7 @@ export async function previewPayroll(
     const deduction = valid.filter((e) => e.type === 'deduction').reduce((s, e) => s + e.amount, 0);
 
     const item = calculatePayroll(salary, emp.name, emp.id, {
+      rates, insured: emp.is_4_insurance !== false,
       nonTaxableAmount: nonTaxable,
       dependents: 1,
       taxableAllowance: allowance, // 과세 수당 → 소득세·국민연금·건강·고용보험 자동 가산
@@ -154,7 +162,7 @@ export async function previewPayroll(
     if (!emp.birth_date) skippedNoBirth.push(emp.name);
   }
 
-  return { items, totalGross, totalDeductions, totalNet, skippedNoBirth };
+  return { items, totalGross, totalDeductions, totalNet, skippedNoBirth, totalEmployer: items.reduce((s, it) => s + Number(it.employerCosts?.total || 0), 0), rates };
 }
 
 // ── Get total monthly salary for burn calculation ──

@@ -13,7 +13,7 @@
 export type SettingsLeafKey =
   | "company-info" | "forms"
   | "team"
-  | "cash" | "chart" | "closing" | "tax-partner"
+  | "cash" | "chart" | "closing" | "tax-partner" | "insurance"
   | "api-keys" | "bank"
   | "security" | "delete-company";
 
@@ -82,6 +82,10 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
       { key: "tax-partner", label: "세무 파트너", perms: ["tax-partner", "company-info"],
         title: "세무 파트너", desc: "제휴 세무사를 연결하고, 우리 장부에서 무엇까지 볼 수 있는지 정합니다.",
         icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
+      //   4대보험 요율 (2026-08-27 인사 2차, 결정 96) — 급여 계산이 읽는 연도별 요율표. 회계마감·자금 권한자도 본다(옛 권한 승계).
+      { key: "insurance", label: "4대보험 요율", perms: ["insurance", "closing", "cash"],
+        title: "4대보험 요율", desc: "국민연금·건강(장기요양)·고용·산재 요율과 상·하한을 연도별로 둡니다. 급여 명세·회사 부담 계산이 이 표를 읽습니다.",
+        icon: "M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" },
     ],
   },
   {

@@ -1397,7 +1397,7 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .attendance-checkout-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4; }
 .attendance-quick-buttons { @apply flex gap-2 items-center; }
 .payroll-toolbar { @apply flex items-center justify-between mb-4; }
-.payroll-summary-cards { @apply grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6; }
+.payroll-summary-cards { @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6; }   /* 2026-08-27 회사 부담 카드 추가로 4칸 */
 .payroll-detail-table { @apply overflow-hidden; } /* co-exists with glass-card in JSX */
 .leave-type-overview { @apply mb-6; }
 .leave-grant-method-panel { @apply mb-5 p-4; } /* co-exists with glass-card in JSX */
@@ -9249,3 +9249,12 @@ body.cap-shooting, body.cap-shooting * { cursor: none !important; }
 
 /* 급여 줄 출처 태그 — 근태 집계에서 자동으로 얹힌 수당 (2026-08-27 인사 H1) */
 .hr-src-tag { @apply ml-1.5 inline-block rounded-full bg-[var(--info)]/10 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-[var(--info)]; }
+
+/* 회사설정 › 4대보험 요율 · 고지서 대조 (2026-08-27 인사 2차) */
+.ins-rates { @apply flex flex-col gap-3; }
+.ins-rates-head { @apply flex flex-wrap items-end gap-3; }
+.ins-rates-head .inv-field { @apply w-32; }
+.ins-rates .table-ins-rates input { @apply w-32; }
+table.table-ins-rates { min-width: 640px; }
+table.table-ins-notice { min-width: 560px; }
+.table-ins-notice input { @apply w-36; }

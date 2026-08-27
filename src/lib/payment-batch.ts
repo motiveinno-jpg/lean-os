@@ -1,3 +1,4 @@
+import { legalInsuranceRates, type InsuranceRates } from './insurance-rates';
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payment Batch Engine
@@ -72,23 +73,8 @@ export function sumExtras(extras?: PayrollExtra[]): { allowance: number; deducti
   return { allowance, deduction, net: allowance - deduction };
 }
 
-// ── Korean Social Insurance Rates (2026) ──
+// ── 4대보험 요율 — lib/insurance-rates.ts (회사설정 연도별 표, 결정 96) ──
 
-const RATES = {
-  nationalPension: 0.045,       // 국민연금 4.5% (직원분)
-  healthInsurance: 0.03545,     // 건강보험 3.545% (직원분)
-  longTermCare: 0.1295,         // 장기요양 건강보험의 12.95%
-  employmentInsurance: 0.009,   // 고용보험 0.9% (직원분)
-  industrialAccident: 0.007,    // 산재보험 0.7% (사업주 부담)
-};
-
-// 국민연금 상한/하한 (2025년 7월~2026년 6월 기준, 매년 7월 조정됨)
-const NATIONAL_PENSION_CEILING = 5_900_000;
-const NATIONAL_PENSION_FLOOR = 390_000;
-
-// 건강보험 상한/하한 (2026 기준)
-const HEALTH_INSURANCE_CEILING = 119_625_307;
-const HEALTH_INSURANCE_FLOOR = 279_266;
 
 // 간이세액표 기반 소득세 근사 (국세청 2025 간이세액표, 1인 기준)
 // dependents: 부양가족 수 (본인 포함, 기본 1)
@@ -157,6 +143,10 @@ function estimateIncomeTax(
 // ── Calculate payroll for a single employee ──
 
 export interface PayrollOptions {
+  /** 2026-08-27 결정 96 — 요율은 회사설정 연도별 표에서 온다. 없으면 법정 기본값(그 해). */
+  rates?: InsuranceRates;
+  /** employees.is_4_insurance — false 면 4대보험(직원·회사) 전부 0 (일용·단시간·이중가입 등) */
+  insured?: boolean;
   nonTaxableAmount?: number; // 비과세 금액 (식대 200,000 등)
   dependents?: number;       // 부양가족 수 (본인 포함, 기본 1)
   industrialAccidentRate?: number; // 산재보험율 (기본 0.7%)
@@ -171,10 +161,12 @@ export function calculatePayroll(
   employeeId: string,
   options: PayrollOptions = {},
 ): PayrollItem {
+  const R = options.rates || legalInsuranceRates(new Date().getFullYear());
+  const insured = options.insured !== false;
   const {
     nonTaxableAmount = 0,
     dependents = 1,
-    industrialAccidentRate = RATES.industrialAccident,
+    industrialAccidentRate = R.ia_rate,
     taxableAllowance = 0,
   } = options;
 
@@ -186,22 +178,16 @@ export function calculatePayroll(
   const grossPay = baseSalary + nonTaxableAmount;
 
   // 국민연금: 상한/하한 적용
-  const pensionBase = Math.min(
-    NATIONAL_PENSION_CEILING,
-    Math.max(NATIONAL_PENSION_FLOOR, taxableIncome),
-  );
-  const np = Math.round(pensionBase * RATES.nationalPension);
+  const pensionBase = Math.min(R.np_ceiling, Math.max(R.np_floor, taxableIncome));
+  const np = insured ? Math.round(pensionBase * R.np_emp) : 0;
 
   // 건강보험: 상한/하한 적용
-  const healthBase = Math.min(
-    HEALTH_INSURANCE_CEILING,
-    Math.max(HEALTH_INSURANCE_FLOOR, taxableIncome),
-  );
-  const hi = Math.round(healthBase * RATES.healthInsurance);
-  const ltc = Math.round(hi * RATES.longTermCare);
+  const healthBase = Math.min(R.hi_ceiling, Math.max(R.hi_floor, taxableIncome));
+  const hi = insured ? Math.round(healthBase * R.hi_emp) : 0;
+  const ltc = Math.round(hi * R.ltc_pct);
 
   // 고용보험
-  const ei = Math.round(taxableIncome * RATES.employmentInsurance);
+  const ei = insured ? Math.round(taxableIncome * R.ei_emp) : 0;
 
   // 소득세 (간이세액표 기반)
   const it = estimateIncomeTax(taxableIncome, dependents);
@@ -212,10 +198,11 @@ export function calculatePayroll(
   const deductions = np + hi + ltc + ei + it + lit;
 
   // 사업주 부담분 (직원 급여에서 차감하지 않음)
-  const employerNp = np; // 국민연금 사업주 부담 = 직원분과 동일
-  const employerHi = hi + ltc; // 건강보험 사업주 부담 = 직원분과 동일
-  const employerEi = Math.round(taxableIncome * 0.0135); // 고용보험 사업주 1.35%
-  const employerIa = Math.round(taxableIncome * industrialAccidentRate);
+  const employerNp = insured ? Math.round(pensionBase * R.np_er) : 0;
+  const employerHiOnly = insured ? Math.round(healthBase * R.hi_er) : 0;
+  const employerHi = employerHiOnly + Math.round(employerHiOnly * R.ltc_pct);   // 아래 employerCosts 가 장기요양을 다시 뺀다
+  const employerEi = insured ? Math.round(taxableIncome * R.ei_er) : 0;
+  const employerIa = insured ? Math.round(taxableIncome * industrialAccidentRate) : 0;
   const employerTotal = employerNp + employerHi + employerEi + employerIa;
 
   return {
@@ -234,8 +221,8 @@ export function calculatePayroll(
     netPay: grossPay - deductions, // 지급총액(기본급+비과세) - 공제
     employerCosts: {
       nationalPension: employerNp,
-      healthInsurance: employerHi - ltc, // 건강보험 사업주 부담 (장기요양 제외)
-      longTermCareInsurance: ltc, // 장기요양보험 사업주 부담
+      healthInsurance: employerHiOnly, // 건강보험 사업주 부담 (장기요양 제외)
+      longTermCareInsurance: employerHi - employerHiOnly, // 장기요양보험 사업주 부담
       employmentInsurance: employerEi,
       industrialAccident: employerIa,
       total: employerTotal,

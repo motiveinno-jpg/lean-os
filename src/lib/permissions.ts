@@ -189,6 +189,7 @@ export const PERMISSION_CATALOG: PermGroup[] = [
         { key: "closing", label: "회계마감" },
         //   2026-08-21 회사정보 분리 — 옛 'company-info' 권한자도 계속 보이게 설정 화면이 OR 로 받는다
         { key: "tax-partner", label: "세무 파트너" },
+        { key: "insurance", label: "4대보험 요율", money: true },   // 2026-08-27 — 옛 closing·cash 권한자도 설정 화면이 OR 로 받는다
         // 연동·API 키 (/settings/integration)
         //   2026-08-21 신설 — 회사가 발급받은 외부 인증키. 기존 'ads' 권한자도 볼 수 있게
         //   설정 화면이 OR 로 받아 준다(settings-nav 의 perms = ["api-keys","ads"]).
