@@ -61,7 +61,7 @@ import { HrAllowancePolicyPanel } from "@/components/hr-attendance-settings";
 import { AttendanceBadges } from "@/components/attendance-badges";
 import { FlexPeopleDirectory } from "@/components/flex-people-directory";
 import { payrollStats, useCertificateStats } from "@/components/flex-hr-heroes";
-import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, type AppliedChip } from "@/components/query-kit";
+import { QueryScreen, QueryHead, QueryBody, ResultStrip, Stat, ChipGroup, ConditionPanel, ConditionRow, AppliedChips, QuickSearch, quickSearchHit, HelperMenu, type AppliedChip } from "@/components/query-kit";
 import { SortableTh, nextSort, cmp, useColWidths, useColFilters, type SortState } from "@/components/sortable-th";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 // recomputeMonthlyAllowancesForCompany 자동 호출은 504 인시던트 3차 (2026-05-21) 후 제거됨.
@@ -1918,68 +1918,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
     enabled: !!companyId,
   });
 
-  // L 수당 — 법정 시스템 코드 → 한국어 고정 라벨
-  const legalLabelFor = (code: string): string | null => {
-    switch (code) {
-      case "overtime": return "연장수당";
-      case "night": return "야간수당";
-      case "holiday": return "휴일수당";
-      case "holiday_over_8h": return "휴일수당(8h초과)";
-      case "on_duty": return "당직비";
-      default: return null;
-    }
-  };
-
-  // 2026-05-22 급여대장 작성(편집모드)에서 해당 월 산정된 수당(allowance_entries)을 불러와
-  //   각 직원의 임의수당(extras allowance)으로 채운다. 근태 재계산(recompute)은 하지 않고
-  //   이미 산정된 값만 조회 (무거운 RPC 자동호출 금지 — 504 패턴 회피).
-  const [loadingAllowances, setLoadingAllowances] = useState(false);
-  const loadAllowances = async () => {
-    if (!companyId || !preview) return;
-    setLoadingAllowances(true);
-    try {
-      const data = logRead('employees/page:data', await (supabase)
-        .from("allowance_entries")
-        .select("employee_id, amount, allowance_types!inner(name, code, display_order, is_active)")
-        .eq("company_id", companyId)
-        .eq("payroll_month", periodMonth));
-      // 직원별 수당 그룹 (활성 + 금액>0, display_order 정렬)
-      const byEmp = new Map<string, { name: string; amount: number; order: number }[]>();
-      for (const r of (data || []) as any[]) {
-        const t = r.allowance_types;
-        if (!t?.is_active || Number(r.amount || 0) <= 0) continue;
-        const label = legalLabelFor(t.code) || t.name;
-        const arr = byEmp.get(r.employee_id) || [];
-        arr.push({ name: label, amount: Math.round(Number(r.amount)), order: Number(t.display_order || 100) });
-        byEmp.set(r.employee_id, arr);
-      }
-      let filled = 0;
-      setEditValues((prev) => {
-        const next = { ...prev };
-        for (const it of preview.items) {
-          const allowances = (byEmp.get(it.employeeId) || []).sort((a, b) => a.order - b.order);
-          if (allowances.length === 0) continue;
-          const cur = next[it.employeeId] || { baseSalary: it.baseSalary, nonTaxable: it.nonTaxableAmount, extras: [] };
-          // 기존 공제는 유지 + 불러온 수당과 이름이 겹치지 않는 기존 수당 유지 → 불러온 수당 추가(중복 방지)
-          const kept = (cur.extras || []).filter(
-            (e) => e.type === "deduction" || !allowances.some((a) => a.name === e.name),
-          );
-          next[it.employeeId] = {
-            ...cur,
-            extras: [...kept, ...allowances.map((a) => ({ type: "allowance" as const, name: a.name, amount: a.amount }))],
-          };
-          filled++;
-        }
-        return next;
-      });
-      if (filled > 0) toast(`${filled}명 수당 불러오기 완료 (저장하려면 '편집 저장')`, "success");
-      else toast(`${periodLabel} 산정된 수당이 없습니다. 근태 화면에서 수당을 먼저 산정하세요.`, "info");
-    } catch (err: any) {
-      toast("수당 불러오기 실패: " + (err.message || ""), "error");
-    }
-    setLoadingAllowances(false);
-  };
-
+  //   H1 (2026-08-27) — '수당 불러오기' 버튼과 loadAllowances 는 없앴다. 근태 집계 수당은 previewPayroll 이 자동으로 얹는다(lib/payroll.ts).
   const downloadOne = async (item: PayrollItem) => {
     try {
       const { downloadPayslipPDF } = await import("@/lib/payslip-pdf");
@@ -2095,6 +2034,9 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 
   // 편집 모드에서 저장 — 해당 월(periodMonth) payslip_overrides 에만 저장.
   // employees.salary(연봉) 는 건드리지 않음 → 인력관리 연봉 유지 + 월별 독립.
+  //   H1 — 탭을 열면·월을 바꾸면 저절로 계산(버튼 없음). generate 는 읽기+계산만이라 마운트마다 돌아도 무겁지 않다(504 는 재계산 RPC 였다).
+  useEffect(() => { if (companyId) void generate(); }, [companyId, periodMonth]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const saveEdits = async () => {
     if (!companyId || !preview) return;
     setSavingEdit(true);
@@ -2147,58 +2089,50 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
 
   return (
     <div>
+      {/*   2026-08-27 인사 1차 — 조회 줄 8개 → 3개: 월 · 도구▾(급여대장 고치기·전체 PDF·다시 계산) · 파란 '전 직원 발송'.
+            미리보기는 탭을 열면·월을 바꾸면 저절로 계산된다. 편집 중엔 [저장 · 취소]만. 수당은 근태 집계에서 자동(출처 표시). */}
       <div className="payroll-toolbar">
-        <p className="text-sm text-[var(--text-muted)]">재직 직원 급여 기준 4대보험/원천세 자동 계산 미리보기</p>
+        <p className="text-sm text-[var(--text-muted)]">
+          {editMode ? <>기본급·비과세·수당·공제를 고친 뒤 <b>저장</b> — 이 달 명세에만 적용되고 연봉은 유지됩니다.</>
+            : <>재직 직원 급여 기준 4대보험·원천세 자동 계산. <b>수당은 근태 집계에서 자동으로</b> 얹힙니다(줄에 &lsquo;근태 집계&rsquo; 표시) — 고치려면 도구 › 급여대장 고치기.</>}
+        </p>
         <div className="flex gap-2 items-center flex-wrap">
-          <MonthField
-            value={periodMonth}
-            onChange={(e) => {
-              setPeriodMonth(e.target.value);
-              // 월 변경 시 직전 달 미리보기·편집값을 비운다 (2026-08-19) — 남겨두면
-              //   이전 달 금액이 새 달 라벨로 저장·발송될 수 있다.
-              setPreview(null);
-              setEditValues({});
-            }}
-            className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs"
-            title="조회할 급여 명세 월 선택"
-          />
-          {preview && preview.items.length > 0 && (
+          {editMode ? (
             <>
-              {editMode ? (
-                <>
-                  <button onClick={loadAllowances} disabled={loadingAllowances} className="btn-secondary btn-sm" title="해당 월 근태 산정 수당(야간·연장·당직 등)을 불러와 채웁니다">
-                    {loadingAllowances ? "불러오는 중..." : "수당 불러오기"}
-                  </button>
-                  <button onClick={saveEdits} disabled={savingEdit} className="btn-primary btn-sm">
-                    {savingEdit ? "저장 중..." : "편집 저장"}
-                  </button>
-                  <button onClick={() => { setEditMode(false); generate(); }} className="btn-secondary btn-sm">
-                    취소
-                  </button>
-                </>
-              ) : (
-                <button onClick={() => setEditMode(true)} className="btn-secondary btn-sm">
-                  급여대장 직접 작성
-                </button>
-              )}
-              <button onClick={downloadAll} className="btn-secondary btn-sm">
-                전체 PDF 다운로드
-              </button>
-              <button onClick={() => handleSendPayslips()} disabled={sending} className="btn-primary btn-sm">
-                {sending ? "발송 중..." : `전 직원 발송 (${preview.items.length}명)`}
+              <button onClick={() => { setEditMode(false); generate(); }} className="btn-secondary btn-sm" disabled={savingEdit}>취소</button>
+              <button onClick={saveEdits} disabled={savingEdit} className="btn-primary btn-sm">{savingEdit ? "저장 중..." : "저장"}</button>
+            </>
+          ) : (
+            <>
+              <MonthField
+                value={periodMonth}
+                onChange={(e) => {
+                  setPeriodMonth(e.target.value);
+                  // 월 변경 시 직전 달 미리보기·편집값을 비운다 (2026-08-19) — 남겨두면
+                  //   이전 달 금액이 새 달 라벨로 저장·발송될 수 있다. 새 달은 useEffect 가 다시 계산한다.
+                  setPreview(null);
+                  setEditValues({});
+                }}
+                className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-xs"
+                title="조회할 급여 명세 월 선택"
+              />
+              <HelperMenu label="도구" items={[
+                { label: "급여대장 고치기", source: "입력", hint: "직원별 기본급·비과세·수당·공제를 이 달에만 고칩니다", disabled: !preview || preview.items.length === 0, onClick: () => setEditMode(true) },
+                { label: "전체 PDF 내려받기", source: "출력", hint: "직원별 명세서 PDF 를 한 번에", disabled: !preview || preview.items.length === 0, onClick: downloadAll },
+                { label: loading ? "계산 중…" : "다시 계산", source: "입력", hint: "근태·수당·수정값을 다시 읽어 미리보기를 새로 만듭니다", disabled: loading || !companyId, onClick: generate },
+              ]} />
+              <button onClick={() => handleSendPayslips()} disabled={sending || !preview || preview.items.length === 0} className="btn-primary btn-sm">
+                {sending ? "발송 중..." : `전 직원 발송${preview && preview.items.length ? ` (${preview.items.length}명)` : ""}`}
               </button>
             </>
           )}
-          <button onClick={generate} disabled={loading || !companyId} className="btn-secondary btn-sm">
-            {loading ? "계산 중..." : "급여 명세 미리보기"}
-          </button>
         </div>
       </div>
 
       {!preview ? (
         <div className="glass-card p-16 text-center">
           <div className="text-4xl mb-4"><Ico e="📋" /></div>
-          <div className="text-sm text-[var(--text-muted)]">"급여 명세 미리보기" 버튼을 클릭하면 이번 달 급여 명세를 확인할 수 있습니다</div>
+          <div className="text-sm text-[var(--text-muted)]">{loading ? "급여 명세를 계산하는 중…" : "급여 명세가 없습니다 — 도구 › 다시 계산"}</div>
         </div>
       ) : preview.items.length === 0 ? (
         <div className="glass-card p-16 text-center">
@@ -2252,6 +2186,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   <tr key={item.employeeId} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
                     <td className="px-4 py-3 text-sm font-medium">
                       {item.employeeName}
+                      {!editMode && item.extras?.some((e) => e.auto) && <span className="hr-src-tag" title="근태 집계(연장·야간·휴일·당직)에서 자동으로 얹힌 수당이 있습니다">근태 집계</span>}
                       {!editMode && (allowanceSum > 0 || deductionSum > 0) && (
                         <div className="text-[10px] text-[var(--text-dim)] mt-0.5">
                           {allowanceSum > 0 && <span className="text-[var(--info)]">수당 +{allowanceSum.toLocaleString()}</span>}
@@ -2343,6 +2278,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                                   setEditValues(prev => ({ ...prev, [item.employeeId]: { ...ev, extras: next } }));
                                 }} placeholder="예: 식대 / 직책수당 / 사내대출"
                                   className="flex-1 max-w-xs px-2 py-1 bg-[var(--bg)] border border-[var(--border)] rounded text-xs focus:outline-none focus:border-[var(--primary)]" />
+                                {(ex as { auto?: boolean }).auto && <span className="hr-src-tag" title="근태 집계에서 자동으로 온 값 — 고치면 이 달 명세엔 고친 값이 쓰입니다">근태 집계</span>}
                                 <CurrencyInput value={ex.amount}
                                   onValueChange={(raw) => {
                                     const next = [...(ev.extras || [])];

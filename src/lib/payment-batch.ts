@@ -26,10 +26,12 @@ export interface BatchSummary {
 }
 
 // v4 H1: 임의 수당/공제 항목 — payroll_items.extras jsonb 에 저장.
+//   auto: 근태 집계(allowance_entries)에서 자동으로 얹힌 줄 — 화면에 '근태 집계' 출처를 적는다 (2026-08-27 인사 H1)
 export type PayrollExtra = {
   type: 'allowance' | 'deduction';
   name: string;       // '식대' / '직책수당' / '사내대출' 등
   amount: number;     // 양수
+  auto?: boolean;
 };
 
 export interface PayrollItem {

@@ -1,3 +1,4 @@
+import type { PayrollExtra } from './payment-batch';
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payroll Engine
@@ -49,6 +50,26 @@ export async function previewPayroll(
     });
   }
 
+  //   H1 (2026-08-27 인사 자동화, 결정 95) — 근태 집계로 산정된 수당(allowance_entries, 근태 저장 시 자동 chain)을
+  //   미리보기에 **자동으로 얹는다**. 사람이 '수당 불러오기'를 누르던 것을 없앤다. 같은 이름의 수당을 이미 명세 수정값(extras)에
+  //   적어 두었으면 그것이 이기고(중복 없음), 자동 줄은 auto=true 로 표시해 화면·PDF 가 '근태 집계' 출처를 적을 수 있게 한다.
+  const autoAllow: Record<string, { name: string; amount: number }[]> = {};
+  if (monthKey) {
+    const rows = logRead('lib/payroll:allowances', await db
+      .from('allowance_entries')
+      .select('employee_id, amount, allowance_types!inner(name, code, display_order, is_active)')
+      .eq('company_id', companyId)
+      .eq('payroll_month', monthKey));
+    const legal: Record<string, string> = { overtime: '연장수당', night: '야간수당', holiday: '휴일수당', holiday_over_8h: '휴일수당(8h초과)', on_duty: '당직비' };
+    const tmp: Record<string, { name: string; amount: number; order: number }[]> = {};
+    for (const r of ((rows || []) as any[])) {
+      const t = r.allowance_types;
+      if (!t?.is_active || Number(r.amount || 0) <= 0) continue;
+      (tmp[r.employee_id] ||= []).push({ name: legal[t.code] || t.name, amount: Math.round(Number(r.amount)), order: Number(t.display_order || 100) });
+    }
+    for (const k of Object.keys(tmp)) autoAllow[k] = tmp[k].sort((a, b) => a.order - b.order).map(({ name, amount }) => ({ name, amount }));
+  }
+
   // 해당월 말일 — 입사일 필터용
   let monthEnd: string | null = null;
   if (monthKey) {
@@ -82,9 +103,13 @@ export async function previewPayroll(
     // v4 H1: 임의 수당/공제 — calculatePayroll 호출 전에 먼저 합산해서
     //   과세 수당(allowance)을 과세소득에 반영(소득세·4대보험 자동 재계산)한다.
     const rawExtras = Array.isArray(ov?.extras) ? ov!.extras as Array<{ type?: string; name?: string; amount?: number }> : [];
-    const valid = rawExtras
+    const valid: PayrollExtra[] = rawExtras
       .filter((e) => (e?.type === 'allowance' || e?.type === 'deduction') && typeof e?.name === 'string' && Number(e?.amount) > 0)
       .map((e) => ({ type: e.type as 'allowance' | 'deduction', name: String(e.name), amount: Math.max(0, Math.round(Number(e.amount))) }));
+    for (const a of (autoAllow[emp.id] || [])) {
+      if (valid.some((e) => e.type === 'allowance' && e.name === a.name)) continue;   // 사람이 적은 값이 이긴다
+      valid.push({ type: 'allowance', name: a.name, amount: a.amount, auto: true });
+    }
     const allowance = valid.filter((e) => e.type === 'allowance').reduce((s, e) => s + e.amount, 0);
     const deduction = valid.filter((e) => e.type === 'deduction').reduce((s, e) => s + e.amount, 0);
 
