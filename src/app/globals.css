@@ -9005,3 +9005,10 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 재고·재무 현황·이익관리 설명 칸 — 크기를 안 정해 16px(본문)로 커져 있었다. 조회 줄 안내 글은 11.5px(ev-dim·qk-stat 와 같은 눈높이) (2026-08-27 사장님 지적) */
 .inv-hint { @apply text-[11.5px] leading-relaxed; }
 .qk-bar .inv-hint { @apply max-w-[60ch]; }
+
+/* 건수 알림을 눌러 내역 보기 (2026-08-27) */
+.pay-note-link { @apply flex flex-wrap items-center gap-x-3 gap-y-1 text-left; }
+.pay-note-link > b { @apply text-[var(--text)]; }
+.pay-note-more { @apply not-italic font-bold text-[var(--primary)]; }
+.ph-legend-btn { @apply cursor-pointer underline decoration-dotted underline-offset-2; }
+.ph-legend-list { @apply mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]; }

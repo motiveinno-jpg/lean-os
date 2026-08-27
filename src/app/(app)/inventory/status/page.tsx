@@ -201,7 +201,7 @@ export default function InventoryStatusPage() {
     //   자재 부족 — 열린 주문의 남은 수량 × 자재구성 − 현재고
     const usedByLine = new Map(used.map((u) => [u.order_line_id, u]));
     const need = new Map<string, number>();
-    let noBom = 0;
+    let noBom = 0; const noBomNames = new Set<string>();
     const openIds = new Set(openOrders.map((o) => o.id));
     for (const l of orderLines) {
       if (!openIds.has(l.order_id)) continue;
@@ -209,12 +209,12 @@ export default function InventoryStatusPage() {
       const remain = Math.max(0, l.qty - (u?.used_qty || 0));
       if (remain <= 0) continue;
       const bl = boms.filter((b) => b.product_id === l.product_id);
-      if (!bl.length) { noBom++; continue; }
+      if (!bl.length) { noBom++; noBomNames.add(productById.get(l.product_id)?.name || l.product_id); continue; }
       for (const b of bl) need.set(b.component_id, (need.get(b.component_id) || 0) + perUnit(b) * remain);
     }
     const shortage = [...need.entries()].map(([pid, n]) => ({ product_id: pid, need: n, have: stock.byProduct.get(pid) || 0 }))
       .filter((x) => x.have < x.need).sort((a, b) => (b.need - b.have) - (a.need - a.have));
-    return { doneQty, doneAmt, matAmt, docs: docs.filter((d) => d.reason === "produce" && d.status === "active").length, perDay, perProduct, matPer, shortage, noBom,
+    return { doneQty, doneAmt, matAmt, docs: docs.filter((d) => d.reason === "produce" && d.status === "active").length, perDay, perProduct, matPer, shortage, noBom, noBomNames: [...noBomNames],
       defectQty, yieldRate, lossRate, lossRecords, lossReasonSum, scrapLoss, defectOnhand, defectOnhandAmt };
   }, [moves, docs, used, orderLines, boms, openOrders, stock.byProduct, avgCost, defectWh, onhand]);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -510,7 +510,7 @@ export default function InventoryStatusPage() {
                       <ColumnChart height={180} unit="개" data={series(make.perDay)} />
                     </div>
                     <div className="pnl-panel">
-                      <h3>자재 부족</h3><p>열린 주문 잔량 × 자재구성 − 현재고{make.noBom ? ` · 자재구성 없는 주문 줄 ${make.noBom}개는 셈에서 빠짐` : ""}</p>
+                      <h3>자재 부족</h3><p>열린 주문 잔량 × 자재구성 − 현재고{make.noBom ? <> · <span title={`자재구성 없음: ${make.noBomNames.join(", ")}`}>자재구성 없는 주문 줄 {make.noBom}개는 셈에서 빠짐</span> — {make.noBomNames.slice(0, 5).join(", ")}{make.noBomNames.length > 5 ? ` 외 ${make.noBomNames.length - 5}` : ""} (<Link href="/inventory/products" className="bz-link">품목에서 자재구성</Link>)</> : null}</p>
                       {make.shortage.length ? (
                         <table className="ev-table ev-lined table-inv-status-sm">
                           <thead><tr><th>자재</th><th>필요</th><th>현재고</th><th>부족</th></tr></thead>

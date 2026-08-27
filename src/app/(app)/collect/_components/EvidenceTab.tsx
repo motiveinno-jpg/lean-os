@@ -11,6 +11,7 @@
 //   계정 추천 = **같은 거래처로 지난번에 쓴 계정**. 4단계(자동분개 학습)의 뿌리다.
 //   지금은 규칙을 따로 저장하지 않고 이미 만든 전표를 되읽는다 — 사람이 고른 것이 곧 근거다.
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { appConfirm } from "@/components/global-confirm";
 import {
@@ -945,7 +946,7 @@ export function EvidenceTab({
         {capped && <b className="ev-cut">너무 많아 앞 20,000건만 받아왔습니다 — 기간을 좁혀 주세요</b>}
         {/*   감춘 것은 말한다 — 여기는 '홈택스에 있는 자료'만 다룬다(2026-08-24 사장님 지적) */}
         {hiddenDrafts > 0 && (
-          <span className="ev-draft-note">발행 전 초안 {won(hiddenDrafts)}건은 빼고 보여줍니다 — 국세청에 아직 없는 건이라 전표로 만들 수 없습니다. 세금·증빙에서 발행하면 여기에 나타납니다.</span>
+          <span className="ev-draft-note"><Link href="/e-invoices" className="bz-link" title="누르면 초안 목록(세금·증빙)">발행 전 초안 {won(hiddenDrafts)}건</Link>은 빼고 보여줍니다 — 국세청에 아직 없는 건이라 전표로 만들 수 없습니다. 세금·증빙에서 발행하면 여기에 나타납니다.</span>
         )}
       </ResultStrip>
       </QueryHead>

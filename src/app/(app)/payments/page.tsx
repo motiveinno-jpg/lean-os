@@ -1075,9 +1075,32 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
     enabled: !!companyId,
   });
   const newDetected = detected.filter((d: DetectedRecurring) => !d.alreadyRegistered);
+  const [showDetected, setShowDetected] = useState(false);
 
   return (
     <>
+      {showDetected && (
+        <div className="inv-modal" onClick={() => setShowDetected(false)}>
+          <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal-title">통장에서 잡힌 반복 지출 {newDetected.length}건</h3>
+            <p className="inv-modal-desc">같은 거래처에 같은 금액이 2개월 이상 되풀이된 통장 출금입니다. 등록하면 정기결제로 관리되고 자금 전망에 잡힙니다 — 검토·개별 등록은 <b>자동 추천</b> 탭에서.</p>
+            <div className="stg-table-wrap ch-ship-list">
+              <table className="ev-table ev-lined table-inv-status-sm">
+                <thead><tr><th>거래처</th><th>금액</th><th>횟수</th><th>기간</th><th>추천 분류</th><th>확신</th></tr></thead>
+                <tbody>{[...newDetected].sort((a: DetectedRecurring, b: DetectedRecurring) => b.amount - a.amount).map((d: DetectedRecurring) => (
+                  <tr key={`${d.counterparty}|${d.amount}`}><td className="text-left"><b>{d.counterparty}</b></td><td className="tr mono-number">₩{d.amount.toLocaleString()}</td><td className="tr mono-number">{d.occurrences}</td>
+                    <td className="mono-number tc">{d.months.length ? `${d.months[0]} ~ ${d.months[d.months.length - 1]}` : "—"}</td><td className="tc">{categories[d.suggestedCategory] || d.suggestedCategory || "—"}</td>
+                    <td className="tc"><span className={d.confidence === "high" ? "inv-pill inv-pill-ok" : d.confidence === "medium" ? "inv-pill inv-pill-warn" : "inv-pill inv-pill-ghost"}>{d.confidence === "high" ? "높음" : d.confidence === "medium" ? "보통" : "낮음"}</span></td></tr>
+                ))}</tbody>
+              </table>
+            </div>
+            <div className="inv-modal-actions">
+              <span className="doc-sums-sp" />
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setShowDetected(false)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* 조회 줄 ‖ 실행 · 결과 요약 — 상자 머리 슬롯으로 (2026-08-19). 제목 h2·큰 배너는 뺐다 */}
       <SlotHead slotId="pay-head-slot"
         bar={<span className="text-[11px] text-[var(--text-dim)]">임대료·보험·구독처럼 매달 나가는 돈을 등록해 두면 자금 전망·고정비 대조에 쓰입니다</span>}
@@ -1099,8 +1122,11 @@ function RecurringPaymentsTab({ companyId, invalidate }: { companyId: string; in
       {/* 통장에서 잡힌 반복 지출 — 한 줄 안내 + 전체 자동등록 (검토는 자동 추천 탭에서) */}
       {newDetected.length > 0 && (
         <div className="pay-note">
-          <b>통장에서 반복 지출 {newDetected.length}건이 잡혔습니다</b>
-          <span>{newDetected.slice(0, 3).map((d: DetectedRecurring) => `${d.counterparty} ₩${d.amount.toLocaleString()}`).join(" · ")}{newDetected.length > 3 && ` … 외 ${newDetected.length - 3}건`}</span>
+          {/*   ★ 건수만 알려 주지 않는다 — 누르면 27건이 무엇인지 팝업으로(2026-08-27 사장님) */}
+          <button type="button" className="pay-note-link" onClick={() => setShowDetected(true)} title="누르면 잡힌 반복 지출 전체 내역">
+            <b>통장에서 반복 지출 {newDetected.length}건이 잡혔습니다</b>
+            <span>{newDetected.slice(0, 3).map((d: DetectedRecurring) => `${d.counterparty} ₩${d.amount.toLocaleString()}`).join(" · ")}{newDetected.length > 3 && ` … 외 ${newDetected.length - 3}건`} <em className="pay-note-more">내역 보기 →</em></span>
+          </button>
           <span className="ml-auto flex gap-1.5">
             <button type="button" onClick={async () => { await registerDetectedRecurring(companyId, newDetected); queryClient.invalidateQueries({ queryKey: ["recurring-payments"] }); queryClient.invalidateQueries({ queryKey: ["detected-recurring"] }); }} className="btn-secondary btn-sm">전체 자동등록</button>
           </span>

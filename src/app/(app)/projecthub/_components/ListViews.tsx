@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { BarList } from "@/components/charts";
 import { FunnelChart, ColumnChart, vizColor } from "@/components/charts/kit";
 import { STAGE_LABEL, STAGE_ORDER, type ProjectStage } from "@/lib/project-rules";
@@ -65,6 +65,8 @@ export function ProjectTimeline({ rows, headlineOf, outstandingOf, onOpen }: {
 
   const dated = rows.filter((r) => ymd(r.start_date) || ymd(r.end_date));
   const undated = rows.length - dated.length;
+  const undatedRows = rows.filter((r) => !(ymd(r.start_date) || ymd(r.end_date)));
+  const [showUndated, setShowUndated] = useState(false);   // 건수만 알려 주지 않는다 — 누르면 어떤 프로젝트인지(2026-08-27)
 
   if (!scale || dated.length === 0) {
     return <p className="ph-view-empty">기간(시작일·종료일)이 있는 프로젝트가 없습니다. 프로젝트 수정에서 기간을 넣으면 여기에 막대로 표시됩니다.</p>;
@@ -111,8 +113,14 @@ export function ProjectTimeline({ rows, headlineOf, outstandingOf, onOpen }: {
         <span><i className="ph-legend-dot ph-legend-done" />완료·정산</span>
         <span><i className="ph-legend-dot ph-legend-late" />기한 초과</span>
         <span><i className="ph-legend-dot ph-legend-today" />오늘</span>
-        {undated > 0 && <span className="ph-legend-note">기간 미입력 {undated}건은 표시되지 않았습니다</span>}
+        {undated > 0 && <button type="button" className="ph-legend-note ph-legend-btn" onClick={() => setShowUndated((v) => !v)} title="누르면 어떤 프로젝트인지">기간 미입력 {undated}건은 표시되지 않았습니다 {showUndated ? "▴" : "▾"}</button>}
       </div>
+      {showUndated && undatedRows.length > 0 && (
+        <div className="ph-legend-list">
+          {undatedRows.map((r) => <button key={r.id} type="button" className="bz-link" onClick={() => onOpen(r.id)}>{r.name || "(이름 없음)"}</button>)}
+          <span className="ev-dim">프로젝트 수정에서 시작일·종료일을 넣으면 막대로 보입니다</span>
+        </div>
+      )}
     </div>
   );
 }
