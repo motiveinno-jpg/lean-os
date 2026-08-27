@@ -1,4 +1,5 @@
 "use client";
+import { AuditTrailPanel } from "@/components/audit-trail-panel";
 import { logRead } from "@/lib/log-read";
 import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
@@ -624,7 +625,13 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
               "결재는 참조·결재자한테만 알람이 가면 되는 건데, 직원 100명이면 100명이 올리는 상신
                알람을 다 받을 것인가? 쓸데없는 메뉴·기능이다."
               맞는 말이다. 결재 알림은 그 건의 결재자·참조자에게만 간다(그 경로는 그대로 둔다). */}
-        {tab === "security" && <IpRestrictionSection companyId={companyId} />}
+        {tab === "security" && (
+          <div className="space-y-5">
+            <IpRestrictionSection companyId={companyId} />
+            {/*   변경 이력 — 누가 언제 무엇을 바꿨나 (2026-08-27 ERP 3순위 ④) */}
+            <AuditTrailPanel companyId={companyId} />
+          </div>
+        )}
 
         {/* ═══ 구성원·초대 — 초대·합류 승인 + 부서 (2026-08-13 통합) ═══ */}
         {tab === "team" && (
