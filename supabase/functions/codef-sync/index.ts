@@ -3046,6 +3046,72 @@ serve(withSentry("codef-sync", async (req) => {
       return new Response(JSON.stringify({ success: true, accounts }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // --- Action: bank-card-sync-async (2026-08-27 결정 87) — 통장·카드 수집을 서버 job 으로.
+    //   화면이 엣지 응답을 기다리던 구조라 탭을 닫으면 끊겼다(사장님: "백그라운드 수집이 안 됨"). 홈택스처럼 job 행을 만들고
+    //   응답은 바로 202, 실제 수집은 EdgeRuntime.waitUntil 로 끝까지 돈다(한 회사 통장 ~24s·카드 ~28s). 화면은 jobId 로 기다린다.
+    if (action === "bank-card-sync-async") {
+      const jobType = syncType === "card" ? "card" : "bank";
+      if (!cid) {
+        return new Response(JSON.stringify({ error: "Connected ID가 없습니다. 설정에서 은행/카드를 먼저 연결하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const denied = await assertBankSyncAllowed(supabase, companyId);
+      if (denied) {
+        return new Response(JSON.stringify({ error: denied, code: "PLAN_BANK_SYNC_DISABLED" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: userRow } = await supabase.from("users").select("id, company_id").eq("auth_id", user.id).maybeSingle();
+      if (!userRow || userRow.company_id !== companyId) {
+        return new Response(JSON.stringify({ error: "권한이 없습니다." }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      //   같은 종류가 이미 돌고 있으면 그 job 을 넘겨준다 — 화면은 그걸 이어 본다
+      const { data: activeJobs } = await supabase.from("hometax_sync_jobs").select("id, status, current_progress")
+        .eq("company_id", companyId).eq("job_type", jobType).in("status", ["pending", "running"])
+        .gt("updated_at", new Date(Date.now() - 10 * 60 * 1000).toISOString()).limit(1);
+      if (activeJobs && activeJobs.length > 0) {
+        return new Response(JSON.stringify({ error: "이미 진행 중인 수집이 있습니다.", activeJobId: activeJobs[0].id }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      await supabase.from("hometax_sync_jobs").update({ status: "failed", completed_at: new Date().toISOString(), errors: [{ code: "STALE", message: "10분간 응답 없어 자동 종료" }] })
+        .eq("company_id", companyId).eq("job_type", jobType).in("status", ["pending", "running"]).lt("updated_at", new Date(Date.now() - 10 * 60 * 1000).toISOString());
+      const aEnd = endDate || new Date(Date.now() + 9 * 3600 * 1000).toISOString().split("T")[0].replace(/-/g, "");
+      let aStart = startDate || (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().split("T")[0].replace(/-/g, ""); })();
+      try {
+        const { data: floorRow } = await supabase.rpc("data_sync_floor", { p_company: companyId });
+        if (floorRow) { const floorYmd = String(floorRow).replace(/-/g, ""); if (floorYmd > aStart) aStart = floorYmd; }
+      } catch (_e) { /* floor 조회 실패 시 기존 동작 */ }
+      if (aStart > aEnd) aStart = aEnd;
+      const iso = (ymd: string) => `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
+      const { data: job, error: jobErr } = await supabase.from("hometax_sync_jobs")
+        .insert({ company_id: companyId, start_date: iso(aStart), end_date: iso(aEnd), status: "running", triggered_by: userRow.id, job_type: jobType, started_at: new Date().toISOString(), in_progress: true })
+        .select().single();
+      if (jobErr || !job) {
+        return new Response(JSON.stringify({ error: `job 생성 실패: ${jobErr?.message}` }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const run = async () => {
+        let res: any = null;
+        try {
+          res = jobType === "bank"
+            ? await syncBankTransactions(supabase, token, companyId, cid, aStart, aEnd)
+            : await syncCardBilling(supabase, token, companyId, cid, aStart, aEnd);
+          if (jobType === "bank") { try { await supabase.rpc("recompute_bank_balances", { p_company: companyId }); } catch { /* 다음 잔액 갱신이 보정 */ } }
+          const errs = (res?.errors ?? []) as any[];
+          await supabase.from("hometax_sync_jobs").update({
+            status: errs.length > 0 && (res?.synced ?? 0) === 0 ? "failed" : "completed", total_synced: res?.synced ?? 0, errors: errs, in_progress: false,
+            completed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+          }).eq("id", job.id);
+          await supabase.from("sync_logs").insert({ company_id: companyId, sync_type: `codef_${jobType}`, status: errs.length === 0 ? "success" : ((res?.synced ?? 0) > 0 ? "partial" : "error"), details: { [jobType]: res, job: job.id, errorCount: errs.length }, synced_by: user.id });
+        } catch (e: any) {
+          await supabase.from("hometax_sync_jobs").update({ status: "failed", in_progress: false, completed_at: new Date().toISOString(), updated_at: new Date().toISOString(), errors: [{ code: "BG_FAIL", message: e?.message || String(e) }] }).eq("id", job.id);
+        }
+      };
+      // @ts-expect-error EdgeRuntime
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
+        // @ts-expect-error EdgeRuntime
+        EdgeRuntime.waitUntil(run());
+      } else {
+        run().catch(() => {});
+      }
+      return new Response(JSON.stringify({ success: true, jobId: job.id, status: "running" }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // --- Action: sync (기존 동기화) ---
     if (!cid) {
       return new Response(JSON.stringify({ error: "Connected ID가 없습니다. 설정에서 은행/카드를 먼저 연결하세요." }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });

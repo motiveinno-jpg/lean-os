@@ -218,6 +218,24 @@ async function startHometaxJob(companyId: string, jobType: SourceKey, startDate:
   return { jobId: result.jobId as string, joined: false };
 }
 
+/** 통장·카드 서버 job 시작 (결정 87). 엣지가 이 action 을 모르면 null → 호출자가 예전 길로. 진행 중인 job 이 있으면 그 id 를 이어 받는다. */
+async function startBankCardJob(companyId: string, kind: "bank" | "card", startYmd: string, endYmd: string): Promise<{ jobId: string; joined: boolean } | { done: number; error?: string } | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("세션이 만료되었습니다. 다시 로그인하세요.");
+  const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/codef-sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ companyId, action: "bank-card-sync-async", syncType: kind, startDate: startYmd, endDate: endYmd }),
+  });
+  const result = await res.json().catch(() => ({}));
+  if (res.status === 409 && result.activeJobId) return { jobId: result.activeJobId as string, joined: true };
+  if (res.status === 202 && result.jobId) return { jobId: result.jobId as string, joined: false };
+  if (res.status === 402 || res.status === 400 || res.status === 403) throw new Error(result.error || "수집을 시작할 수 없습니다");
+  //   옛 엣지는 모르는 action 을 기본 'sync' 로 처리해 **이미 수집을 끝내고** 200 을 준다 — 그 결과를 그대로 쓴다(다시 돌리면 이중 호출·과금).
+  if (res.ok && result?.results) return { done: (kind === "bank" ? result.results.bank?.synced : result.results.card?.synced) ?? 0, error: result.success === false && result.status === "error" ? (result.errors?.[0]?.message || "수집 실패") : undefined };
+  return null;
+}
+
 /** job 이 끝날 때까지 기다린다. 진행 상황을 onTick 으로 흘려 보낸다. */
 export async function waitForJob(jobId: string, onTick?: (done: number, total: number) => void): Promise<{ synced: number; error?: string }> {
   //   Edge 한 번에 다 못 끝내는 자료가 있어(세금계산서 평균 17분) 넉넉히 기다린다.
@@ -297,13 +315,27 @@ export async function runCollect(opts: CollectOptions): Promise<void> {
     const began = Date.now();
     onChange(s.key, { phase: "running" });
     try {
+      //   ★ 결정 87 (2026-08-27) — 통장·카드도 서버 job. 엣지가 202 로 jobId 를 주고 끝까지 돈다(탭을 닫아도).
+      //     화면은 홈택스와 같이 waitForJob 으로 기다린다. 엣지가 옛 버전이면(404·알 수 없는 action) 예전 길로 되돌아간다.
       const { syncCodefData, syncBankBalances } = await import("@/lib/data-sync");
-      const result = await syncCodefData(companyId, s.key === "bank" ? "bank" : "card", ymd(startDate), ymd(endDate));
-      if (!result.success && result.status !== "partial") {
-        onChange(s.key, { phase: "error", message: result.error || "수집 실패" });
-        return;
+      let synced = 0;
+      const job = await startBankCardJob(companyId, s.key === "bank" ? "bank" : "card", ymd(startDate), ymd(endDate));
+      if (job && "done" in job) {
+        if (job.error) { onChange(s.key, { phase: "error", message: job.error, synced: job.done }); return; }
+        synced = job.done;
+      } else if (job) {
+        onChange(s.key, { phase: "running", jobId: job.jobId, message: job.joined ? "이미 돌고 있는 수집을 이어 봅니다" : undefined });
+        const { synced: n, error } = await waitForJob(job.jobId);
+        if (error) { onChange(s.key, { phase: "error", message: error, synced: n }); return; }
+        synced = n;
+      } else {
+        const result = await syncCodefData(companyId, s.key === "bank" ? "bank" : "card", ymd(startDate), ymd(endDate));
+        if (!result.success && result.status !== "partial") {
+          onChange(s.key, { phase: "error", message: result.error || "수집 실패" });
+          return;
+        }
+        synced = (s.key === "bank" ? result.bankSynced : result.cardSynced) ?? 0;
       }
-      const synced = (s.key === "bank" ? result.bankSynced : result.cardSynced) ?? 0;
       //   통장은 잔액까지 맞춰 준다 — /bank 화면이 하던 것과 같다
       if (s.key === "bank") { try { await syncBankBalances(companyId); } catch { /* 잔액 실패는 수집 결과와 별개 */ } }
       onChange(s.key, { phase: "done", synced });
