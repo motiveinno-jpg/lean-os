@@ -219,7 +219,11 @@ export default function StockPage() {
             <>
               <QueryBar right={canMove ? (
                 <>
-                  <button type="button" className="btn-secondary btn-sm" onClick={() => setOpeningOpen(true)}>기초 재고 올리기</button>
+                  {/*   2026-08-27 기획 §4 — 기초 재고 올리기는 양식·올리기와 같은 성격이라 엑셀▾ 안으로. 조회 줄은 파란 1 + 엑셀 1. */}
+                  <ExcelMenu items={[
+                    { label: "기초 재고 올리기", hint: "엑셀에서 SKU·수량을 복사해 붙여넣기 — 지금 있는 수량을 기초 등록으로", onClick: () => setOpeningOpen(true) },
+                    { label: "현재고 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((r) => ({ "SKU": r.product!.sku, "품목명": r.product!.name, "규격": r.product!.spec || "", "창고": r.wh?.name || "", "수량": Number(r.qty), "안전재고": r.product!.safety_stock ?? "", "상태": r.state === "fix" ? "맞춰야 함" : r.state === "zero" ? "품절" : r.state === "low" ? "부족" : "" })), "현재고", `현재고_${todayKst()}`) },
+                  ]} />
                   <button type="button" className="btn-primary btn-sm" onClick={() => setDocOpen(true)}>+ 입·출고</button>
                 </>
               ) : undefined}>

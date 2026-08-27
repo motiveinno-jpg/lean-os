@@ -20,6 +20,7 @@ import { DateField } from "@/components/date-field";
 import { PickList } from "@/components/pick-list";
 import { listPartnerPrices, type Product, type Warehouse } from "@/lib/inventory";
 import { channelLabel } from "@/lib/inventory-channels";
+import { QuickProductDialog, looksLikeCode } from "./quick-product";
 import {
   loadLayout, saveLayout, resetLayout, newFieldId, defaultLayout,
   FORM_LABEL, CH_ONLY, type FormKey, type Field, type Layout, type Order, type OrderLine,
@@ -433,6 +434,8 @@ const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "zip", "addr
 export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] }) {
   const { onLine, rows, setRows, setCell, onCellKey, gridRef, fillFrom, priceOf, priceWarn } = ctl;
   const [pick, setPick] = useState<{ row: number; q: string; idx: number } | null>(null);
+  //   A8 — 스캔(Enter)했는데 없는 코드 → 새 품목 등록 제안(팝업). 사람이 등록을 눌러야 생긴다.
+  const [scanMiss, setScanMiss] = useState<{ row: number; code: string } | null>(null);
   //   ★ 고르개는 글자를 치고 **잠깐 멈춘 뒤** 연다(180ms). 스캐너는 글자를 쉼 없이 쏟고 곧바로 Enter 를 보내는데,
   //     첫 글자에 고르개가 열리면 검색칸이 커서를 가져가 나머지 글자가 거기로 들어갔다(2026-08-26 실제로 겪음).
   const pickTimer = useRef<number | null>(null);
@@ -494,6 +497,11 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
 
   return (
     <div className="stg-table-wrap" ref={gridRef}>
+      {scanMiss && ctl.companyId && (
+        <QuickProductDialog companyId={ctl.companyId} userId={ctl.userId} code={scanMiss.code} toast={ctl.toast}
+          onClose={() => setScanMiss(null)}
+          onSaved={(p) => { const row = scanMiss.row; setScanMiss(null); ctl.qc.invalidateQueries({ queryKey: ["inv-products", ctl.companyId] }); choose(row, p, true); }} />
+      )}
       <table className="ev-table ev-lined table-doc">
         <thead>
           <tr>
@@ -554,6 +562,8 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                             }
                             const hit = scanHit(raw);
                             if (hit) { e.preventDefault(); choose(i, hit, !!hit.barcode && hit.barcode === raw.trim()); return; }
+                            //   A8 — 고르개가 안 열린 채 코드 모양(영숫자 4자+)을 찍고 Enter = 없는 바코드·SKU 스캔. 이름 검색(한글·띄어쓰기)은 해당 없음.
+                            if (!(pick && pick.row === i) && looksLikeCode(raw) && ctl.companyId) { e.preventDefault(); setScanMiss({ row: i, code: raw.trim() }); return; }
                           }
                           if (id === "sku" && pick && pick.row === i && e.key !== "Escape") return;
                           //   ★ 빈 칸에서 목록을 보고 싶으면 ↓ — 커서만 왔다고 펼치지는 않는다
