@@ -8972,7 +8972,12 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .app-zoom .app-content-scale:has(> .qk-shell), .app-zoom .app-content-scale:has(> .pj-shell) { height: calc(100vh / var(--app-zoom) - 100px); }
 .app-zoom .vault-layout { height: calc(100vh / var(--app-zoom) - 100px); }
 .app-zoom .chat-workspace { height: calc(100vh / var(--app-zoom) - 100px); }
-.app-zoom .inv-modal { height: calc(100vh / var(--app-zoom)); }   /* fixed inset-0 이 zoom 배로 늘어나 팝업 아래가 잘려 보였다 (2026-08-27 사장님) */   /* 메신저 상자 끝선 = 사이드바 끝선 (2026-08-27) */
+.app-zoom .inv-modal { height: calc(100vh / var(--app-zoom)); }
+.app-zoom .inv-modal-box { max-height: calc(100vh / var(--app-zoom) - 48px); overflow-y: auto; }   /* 상자가 화면보다 길면 상자 안에서 스크롤 — 바닥 버튼이 화면 밖으로 안 나간다 */
+.app-zoom .inv-modal { @apply items-center; }
+.app-zoom .inv-modal-box { @apply my-0; }
+.app-zoom .inv-modal-box { padding-bottom: 0; }
+.app-zoom .inv-modal-box > .inv-modal-actions { @apply sticky -mx-5 border-t border-[var(--border)] bg-[var(--bg-card)] px-5 py-3; bottom: 0; }   /* 저장·닫기 줄은 상자 바닥에 붙어 항상 보인다 */   /* fixed inset-0 이 zoom 배로 늘어나 팝업 아래가 잘려 보였다 (2026-08-27 사장님) */   /* 메신저 상자 끝선 = 사이드바 끝선 (2026-08-27) */
 .app-zoom .vault-file-panel > .qk-screen { height: calc(100vh / var(--app-zoom) - 380px); }
 .app-zoom .bank-tx-list-card { max-height: calc(100vh / var(--app-zoom) - 210px); }
 .app-zoom .menu-guide-drawer { height: calc(100dvh / var(--app-zoom)); }
