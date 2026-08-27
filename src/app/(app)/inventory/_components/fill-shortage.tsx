@@ -135,3 +135,26 @@ function FillDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
     </div>
   );
 }
+
+/** 다른 화면(자재 소요 등)이 sessionStorage 에 남긴 초안을 격자에 채운다 — ?prefill=1 로 들어왔을 때 한 번 (A3, 2026-08-27) */
+export function PrefillFromStorage({ ctl }: { ctl: DocCtl }) {
+  const companyId = ctl.companyId;
+  const { data: products = [] } = useQuery({ queryKey: ["inv-products", companyId], queryFn: () => listProducts(companyId!), enabled: !!companyId });
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    if (done || typeof window === "undefined" || !products.length) return;
+    if (new URLSearchParams(window.location.search).get("prefill") !== "1") { setDone(true); return; }
+    let rows: { product_id: string; qty: number; note?: string }[] = [];
+    try { rows = JSON.parse(sessionStorage.getItem("inv-purchase-prefill") || "[]"); sessionStorage.removeItem("inv-purchase-prefill"); } catch { rows = []; }
+    setDone(true);
+    if (!rows.length) return;
+    const byId = new Map(products.map((p) => [p.id, p]));
+    ctl.setRows((s) => {
+      const keep = s.filter((r) => r.product_id || r.sku.trim());
+      const add = rows.map((x) => { const p = byId.get(x.product_id); if (!p) return null; const row = blankRow(); row.qty = String(x.qty); ctl.fillFrom(row, p); row.lnote = x.note || ""; return row; }).filter(Boolean) as ReturnType<typeof blankRow>[];
+      return [...keep, ...add, blankRow()];
+    });
+    ctl.toast(`자재 부족분 ${rows.length}줄을 채웠습니다 — 수량·거래처를 확인하고 매입 저장`, "success");
+  }, [products, done]);   // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}

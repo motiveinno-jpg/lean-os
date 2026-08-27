@@ -286,6 +286,15 @@ export function BomNeedDialog({ companyId, warehouseId, items, products, onClose
           </>
         )}
         <div className="inv-modal-actions">
+          {/*   A3 (2026-08-27 규칙형 자동화) — 부족 자재를 구매 입력 격자에 초안으로 넘긴다. 저장은 사람(결정 91). */}
+          {totalShort > 0 && (
+            <button type="button" className="btn-secondary btn-sm" title="부족한 자재를 부족분만큼 구매 입력에 채워 엽니다 — 거래처·단가는 지난 매입 기준, 저장은 사람"
+              onClick={() => {
+                const rows = [...totalNeed.entries()].map(([id, n]) => ({ product_id: id, qty: Math.max(0, n - (have.get(id) || 0)), note: `자재 부족 (소요 ${won(n)} · 현재 ${won(have.get(id) || 0)})` })).filter((r) => r.qty > 0);
+                try { sessionStorage.setItem("inv-purchase-prefill", JSON.stringify(rows)); } catch { /* 저장 못 하면 빈 격자로 간다 */ }
+                window.location.assign("/inventory/purchase?prefill=1");
+              }}>부족분 구매 초안 →</button>
+          )}
           <span className="doc-sums-sp" />
           {onApply ? (<>
             <button type="button" className="btn-secondary btn-sm" onClick={onClose}>닫기</button>
