@@ -359,7 +359,9 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
   const [rail, setRail] = useState<Rail>(selectedChannel ? "rooms" : "people");
   useEffect(() => {
     if (selectedChannel) return;                 // 채널로 들어왔으면 그 화면을 그대로 둔다
-    try { const v = localStorage.getItem("chat:rail"); if (RAILS.includes(v as Rail)) setRail(v as Rail); } catch { /* 무시 */ }
+    //   ★ '일정' 은 기억하지 않는다 (2026-08-27 사장님: "메신저 메뉴에 달력이 나오는데 이게 맞는 건지") —
+    //     메신저를 열면 대화부터 보여야 한다. 사람/채팅방 선택만 기억한다.
+    try { const v = localStorage.getItem("chat:rail"); if (RAILS.includes(v as Rail) && v !== "schedule") setRail(v as Rail); } catch { /* 무시 */ }
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const pickRail = (v: Rail) => {
     setRail(v);
