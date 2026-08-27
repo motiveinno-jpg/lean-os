@@ -99,9 +99,11 @@ async function grabFrame(): Promise<HTMLCanvasElement> {
   const fresh = !streamAlive();
   if (fresh) {
     const dpr = window.devicePixelRatio || 1;
+    //   ★ 2026-08-27 "아직도 화질 저하" — 탭('browser') 캡처는 Chrome 이 **논리 해상도**(배율 125%·150% 미적용)로만 내준다. 상한이라 요청해도 안 올라간다.
+    //     그래서 **모니터 전체를 원본 픽셀로** 받고, 아래에서 브라우저의 보이는 영역만 잘라낸다(window.screenX/Y + 창틀 높이 × dpr).
     liveStream = await md.getDisplayMedia({
-      video: { displaySurface: "browser", width: { ideal: Math.round(window.screen.width * dpr) }, height: { ideal: Math.round(window.screen.height * dpr) }, frameRate: { ideal: 5 }, cursor: "never" },
-      audio: false, preferCurrentTab: true, selfBrowserSurface: "include", surfaceSwitching: "exclude", monitorTypeSurfaces: "exclude",
+      video: { displaySurface: "monitor", width: { ideal: Math.round(window.screen.width * dpr) }, height: { ideal: Math.round(window.screen.height * dpr) }, frameRate: { ideal: 5 }, cursor: "never" },
+      audio: false, preferCurrentTab: false, selfBrowserSurface: "include", surfaceSwitching: "exclude", monitorTypeSurfaces: "include",
     });
     liveStream!.getVideoTracks()[0]?.addEventListener("ended", () => { liveStream = null; liveVideo = null; });
     liveVideo = document.createElement("video");
@@ -120,7 +122,22 @@ async function grabFrame(): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth; canvas.height = video.videoHeight;
   canvas.getContext("2d")!.drawImage(video, 0, 0);
-  return canvas;
+  return cropToViewport(canvas);
+}
+/** 모니터 프레임에서 브라우저의 **보이는 영역**만 — 창 위치(screenX/Y)·창틀(outer−inner) 을 픽셀 배율로 환산. 계산이 프레임 밖이면(다른 모니터를 고른 경우) 자르지 않는다 */
+function cropToViewport(frame: HTMLCanvasElement): HTMLCanvasElement {
+  const surface = (liveStream?.getVideoTracks()[0]?.getSettings() as any)?.displaySurface;
+  if (surface && surface !== "monitor") return frame;
+  const dpr = window.devicePixelRatio || 1;
+  const k = frame.width / (window.screen.width * dpr);   // 요청한 해상도를 못 받았으면 그 비율만큼 줄여 계산
+  if (!(k > 0.2 && k <= 1.01)) return frame;
+  const chromeH = Math.max(0, window.outerHeight - window.innerHeight), chromeW = Math.max(0, window.outerWidth - window.innerWidth);
+  const x = Math.round((window.screenX + chromeW / 2) * dpr * k), y = Math.round((window.screenY + chromeH - chromeW / 2) * dpr * k);
+  const w = Math.round(window.innerWidth * dpr * k), h = Math.round(window.innerHeight * dpr * k);
+  if (x < 0 || y < 0 || w < 50 || h < 50 || x + w > frame.width + 2 || y + h > frame.height + 2) return frame;
+  const out = document.createElement("canvas"); out.width = Math.min(w, frame.width - x); out.height = Math.min(h, frame.height - y);
+  out.getContext("2d")!.drawImage(frame, x, y, out.width, out.height, 0, 0, out.width, out.height);
+  return out;
 }
 async function saveCanvas(canvas: HTMLCanvasElement, suffix: string): Promise<{ name: string; clip: boolean }> {
   const blob: Blob = await new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("png"))), "image/png"));
@@ -202,7 +219,7 @@ function Capture({ onDone }: { onDone: () => void }) {
   };
   return (
     <div className="ht-capture">
-      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b> 처음 한 번만 묻습니다 — "이 탭"을 고르세요(브라우저 보안이라 건너뛸 수 없습니다). 그 뒤로는 안 묻습니다 — 브라우저의 "공유 중지"를 누르면 다음에 다시 묻습니다. <b>영역 선택</b>은 찍은 화면 위에서 사각형을 끌어 그 부분만 저장합니다.</p>
+      <p className="ht-hint">지금 보고 있는 화면을 PNG 로 저장하고 클립보드에도 넣습니다. 브라우저가 <b>어느 화면을 찍을지</b> 처음 한 번만 묻습니다 — <b>"전체 화면"</b>에서 이 모니터를 고르세요(원본 화질로 찍고 브라우저 안쪽만 자동으로 잘라냅니다. 브라우저 보안이라 이 물음은 건너뛸 수 없습니다). 그 뒤로는 안 묻습니다 — 브라우저의 "공유 중지"를 누르면 다음에 다시 묻습니다. <b>영역 선택</b>은 찍은 화면 위에서 사각형을 끌어 그 부분만 저장합니다.</p>
       <div className="ht-capture-btns">
         <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => shoot("full")}>{busy ? "찍는 중…" : "전체 화면"}</button>
         <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => shoot("region")}>영역 선택</button>
