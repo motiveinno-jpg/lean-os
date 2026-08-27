@@ -18,13 +18,15 @@ import { getVATPreview, getTaxInvoiceSummary, type PeriodType } from "@/lib/tax-
 import { getCardDeductionSummary } from "@/lib/card-transactions";
 import { todayKst } from "@/lib/kst";
 import { SummaryTab, VatByVoucherType, VATPreviewTab } from "./_components/VatReport";
+import { VatReturn } from "./_components/VatReturn";
 
 export default function VatReportPage() {
   const searchParams = useSearchParams();
   const [companyId, setCompanyId] = useState<string | null>(null);
   //   `?tab=summary` 로 들어오면 기간별 집계부터 — 옛 링크를 그대로 살려 준다
-  const [tab, setTab] = useState<"vat" | "summary">(
-    () => (searchParams?.get("tab") === "summary" ? "summary" : "vat"));
+  //   ?tab=return — 신고서 준비(2026-08-27 ERP ④)
+  const [tab, setTab] = useState<"vat" | "summary" | "return">(
+    () => { const t = searchParams?.get("tab"); return t === "summary" ? "summary" : t === "return" ? "return" : "vat"; });
   const [periodType, setPeriodType] = useState<PeriodType>("monthly");
   //   기준 연도 — 부가세는 해 단위로 신고하므로 연도 하나만 고르면 된다(월 범위는 필요 없다)
   const [year, setYear] = useState(() => Number(todayKst().slice(0, 4)));
@@ -55,7 +57,7 @@ export default function VatReportPage() {
       {/* 리포트 표준 2차(2026-08-19) — 보기(부가세 예상/기간별 집계)·연도는 상자 머리 조회 줄에 */}
       <ReportHead
         bar={<>
-          <ChipGroup value={tab} onChange={setTab} options={[{ value: "vat", label: "부가세 예상" }, { value: "summary", label: "기간별 집계" }] as const} />
+          <ChipGroup value={tab} onChange={setTab} options={[{ value: "vat", label: "부가세 예상" }, { value: "summary", label: "기간별 집계" }, { value: "return", label: "신고서 준비" }] as const} />
           {/*   연도 — 부가세는 해 단위 신고라 달까지 고를 이유가 없다 */}
           <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
           <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs">
@@ -63,6 +65,8 @@ export default function VatReportPage() {
           </select>
         </>}
       />
+
+      {tab === "return" && <VatReturn companyId={companyId} year={year} />}
 
       {tab === "summary" && (
         <SummaryTab

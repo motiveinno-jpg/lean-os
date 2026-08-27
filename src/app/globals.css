@@ -9090,3 +9090,13 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .cs-drift { @apply rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-dim)] px-3 py-2 text-[12.5px] text-[var(--warning)]; }
 .cs-same { @apply rounded-lg border border-[var(--success)]/30 bg-[var(--success-dim)] px-3 py-2 text-[12.5px] text-[var(--success)]; }
 .cs-scroll { max-height: 55vh; overflow: auto; }
+
+/* 부가세 신고서 준비 (2026-08-27) */
+.vr-wrap { @apply flex flex-col gap-3 p-3; }
+.vr-bar { @apply flex flex-wrap items-center gap-2; }
+.vr-stats { @apply flex flex-wrap items-center gap-x-5 gap-y-1; }
+.vr-warn { @apply text-[var(--danger)]; }
+.vr-scroll { max-height: 420px; overflow: auto; }
+.vr-sum td { @apply border-t-2 border-[var(--border)] bg-[var(--bg-surface)] font-semibold; }
+.vr-total td { @apply bg-[var(--primary)]/5 text-[14px]; }
+.vr-minus td { @apply text-[var(--text-muted)]; }
