@@ -9226,3 +9226,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .at-diff { @apply grid grid-cols-2 gap-3 text-[12px]; }
 .at-diff pre, .at-meta pre { @apply mt-1 max-h-72 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-2 text-[11.5px] leading-relaxed text-[var(--text)]; }
 .at-meta { @apply text-[12px] text-[var(--text-muted)]; }
+
+/* 재고 입력 자동화 2차 (2026-08-27) — 지난번 그대로 띠 · 단가 이상 칸 */
+.doc-suggest { @apply mx-3 mb-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-3 py-1.5 text-[12.5px]; }
+.doc-in.doc-in-warn { @apply border-[var(--warning)] bg-[var(--warning-dim)] text-[var(--warning)]; }

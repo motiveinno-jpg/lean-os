@@ -74,3 +74,38 @@ export async function fetchDefectAging(companyId: string, defectWarehouseId: str
   }
   return out.sort((a, b) => b.days - a.days);
 }
+
+/* ── 2차 (A5·A6·A7) ── */
+export type LastDocLine = { product_id: string; qty: number; unit_price: number | null };
+/** 이 거래처와 마지막으로 거래한 문서의 줄 — 구매 입력에서 거래처를 고르면 "지난번 그대로" 채울 때 (A5) */
+export async function fetchLastDocLines(companyId: string, partnerId: string, reason: "purchase" | "sale"): Promise<{ doc_date: string; lines: LastDocLine[] } | null> {
+  const docs = logRead("inv-suggest:lastdoc", await (supabase as any).from("stock_docs").select("id, doc_date")
+    .eq("company_id", companyId).eq("partner_id", partnerId).eq("reason", reason).eq("status", "active").order("doc_date", { ascending: false }).order("created_at", { ascending: false }).limit(1));
+  const doc = ((docs || []) as any[])[0]; if (!doc) return null;
+  const mv = logRead("inv-suggest:lastdoc-lines", await (supabase as any).from("stock_moves").select("product_id, qty, unit_price").eq("doc_id", doc.id).limit(500));
+  const lines = ((mv || []) as any[]).filter((m) => Number(m.qty) !== 0).map((m) => ({ product_id: m.product_id, qty: Math.abs(Number(m.qty)), unit_price: m.unit_price == null ? null : Number(m.unit_price) }));
+  return lines.length ? { doc_date: String(doc.doc_date), lines } : null;
+}
+/** 이 거래처와 늘 쓰던 창고 — 최근 문서 20건의 최빈값 (A6). 없으면 null */
+export async function fetchPartnerWarehouse(companyId: string, partnerId: string, reason: "purchase" | "sale"): Promise<string | null> {
+  const docs = logRead("inv-suggest:partner-wh", await (supabase as any).from("stock_docs").select("warehouse_id")
+    .eq("company_id", companyId).eq("partner_id", partnerId).eq("reason", reason).eq("status", "active").not("warehouse_id", "is", null).order("doc_date", { ascending: false }).limit(20));
+  const cnt = new Map<string, number>();
+  for (const d of ((docs || []) as any[])) cnt.set(d.warehouse_id, (cnt.get(d.warehouse_id) || 0) + 1);
+  let best: string | null = null, n = 0;
+  for (const [k, v] of cnt) if (v > n) { best = k; n = v; }
+  return best;
+}
+export type PriceStat = { avg: number; n: number };
+/** 품목별 최근 매입 단가 평균(최근 3건) — 단가 이상 감지 (A7). 매출 쪽은 listAvgCost(원가)를 쓴다 */
+export async function fetchBuyPriceStats(companyId: string): Promise<Map<string, PriceStat>> {
+  const data = logRead("inv-suggest:buyprice", await (supabase as any).from("stock_moves")
+    .select("product_id, unit_price, moved_at, stock_docs!inner(reason, status)")
+    .eq("company_id", companyId).gt("qty", 0).gt("unit_price", 0).eq("stock_docs.reason", "purchase").eq("stock_docs.status", "active")
+    .order("moved_at", { ascending: false }).limit(5000));
+  const acc = new Map<string, number[]>();
+  for (const r of ((data || []) as any[])) { const a = acc.get(r.product_id) || []; if (a.length < 3) { a.push(Number(r.unit_price)); acc.set(r.product_id, a); } }
+  const m = new Map<string, PriceStat>();
+  for (const [pid, arr] of acc) m.set(pid, { avg: arr.reduce((x, y) => x + y, 0) / arr.length, n: arr.length });
+  return m;
+}

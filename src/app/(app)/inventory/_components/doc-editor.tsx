@@ -12,6 +12,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/components/toast";
+import { fetchLastDocLines, fetchPartnerWarehouse, fetchBuyPriceStats, type LastDocLine, type PriceStat } from "@/lib/inventory-suggest";
+import { listAvgCost } from "@/lib/inventory";
 import { friendlyError } from "@/lib/friendly-error";
 import { todayKst } from "@/lib/kst";
 import { DateField } from "@/components/date-field";
@@ -102,6 +104,42 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
   }, [companyId, head.partner_id, side]);
   const priceOf = useCallback((p: Product) => partnerPrices.get(p.id) ?? (side === "buy" ? p.cost_price : p.sale_price), [partnerPrices, side]);
 
+  //   ── 규칙형 자동화 2차 (2026-08-27, docs/20260827_PLAN_inventory_rule_automation.md A5·A6·A7 — 토큰 없음) ──
+  //   A5 거래처를 고르면 "지난번 그대로" 채울 수 있는 줄을 준비해 둔다(격자가 비어 있을 때만 띠로 제안). A6 늘 쓰던 창고를 기본값으로(사람이 창고를 만졌으면 안 건드림).
+  //   A7 단가 이상 — 매입은 최근 3건 평균 ±20%, 판매는 원가 아래. 표시만 한다.
+  const suggestReason: "purchase" | "sale" | null = formKey === "buy" ? "purchase" : formKey === "sale" ? "sale" : null;
+  const [lastLines, setLastLines] = useState<{ doc_date: string; lines: LastDocLine[] } | null>(null);
+  const whTouched = useRef(false);
+  const markWhTouched = useCallback(() => { whTouched.current = true; }, []);
+  useEffect(() => {
+    let alive = true;
+    setLastLines(null);
+    if (!companyId || !head.partner_id || !suggestReason) return;
+    fetchLastDocLines(companyId, head.partner_id, suggestReason).then((r) => { if (alive) setLastLines(r); }).catch(() => {});
+    if (!whTouched.current) fetchPartnerWarehouse(companyId, head.partner_id, suggestReason).then((wh) => { if (alive && wh) setHead((h) => (h.wh === wh ? h : { ...h, wh })); }).catch(() => {});
+    return () => { alive = false; };
+  }, [companyId, head.partner_id, suggestReason]);
+  const [priceStats, setPriceStats] = useState<Map<string, PriceStat>>(new Map());
+  const [costMap, setCostMap] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!companyId) return;
+    if (side === "buy") fetchBuyPriceStats(companyId).then(setPriceStats).catch(() => {});
+    else listAvgCost(companyId).then(setCostMap).catch(() => {});
+  }, [companyId, side]);
+  /** 줄의 단가가 이상하면 그 이유(없으면 null) — 출처: 장부 대조 */
+  const priceWarn = useCallback((r: DocRow): string | null => {
+    if (!r.product_id || !num(r.price)) return null;
+    const price = num(r.price);
+    if (side === "buy") {
+      const st = priceStats.get(r.product_id); if (!st || st.avg <= 0) return null;
+      const diff = (price - st.avg) / st.avg;
+      return Math.abs(diff) > 0.2 ? `최근 매입 평균 ₩${Math.round(st.avg).toLocaleString("ko-KR")}(${st.n}건) 대비 ${diff > 0 ? "+" : ""}${Math.round(diff * 100)}% — 단가를 확인하세요` : null;
+    }
+    const cost = costMap.get(r.product_id); if (cost == null || cost <= 0) return null;
+    return price < cost ? `원가 ₩${Math.round(cost).toLocaleString("ko-KR")} 아래로 팝니다 — 손해` : null;
+  }, [side, priceStats, costMap]);
+  const rowsBlank = useCallback((rs: DocRow[]) => rs.every((r) => !r.product_id && !r.sku.trim() && !num(r.qty)), []);
+
   /** 품목을 고르면 규격·단가를 채워 준다 — 채워만 주고 정하는 것은 사람이다. */
   const fillFrom = useCallback((r: DocRow, p: Product) => {
     r.product_id = p.id;
@@ -115,6 +153,17 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
       r.vat = String(Math.round(sup * 0.1));
     }
   }, [priceOf]);
+
+  /** A5 — 지난번 줄을 격자에 채운다(수량·단가 그대로, 저장은 사람) */
+  const applyLastLines = useCallback(() => {
+    if (!lastLines) return;
+    setRows((s) => {
+      const keep = s.filter((r) => r.product_id || r.sku.trim());
+      const add = lastLines.lines.map((l) => { const p = byId.get(l.product_id); const row = blankRow(); if (!p) return null; row.qty = String(l.qty); if (l.unit_price != null) row.price = String(l.unit_price); fillFrom(row, p); if (l.unit_price != null) { row.price = String(l.unit_price); const sup = l.unit_price * l.qty; row.supply = String(sup); row.vat = String(Math.round(sup * 0.1)); } row.lnote = `지난번(${lastLines.doc_date}) 그대로`; return row; }).filter(Boolean) as DocRow[];
+      return [...keep, ...add, blankRow()];
+    });
+    setLastLines(null);
+  }, [lastLines, byId, fillFrom]);
 
   const setCell = useCallback((i: number, key: string, v: string) => {
     setRows((s) => s.map((r, j) => {
@@ -296,6 +345,7 @@ export function useDocEditor(companyId: string | null, userId: string | null, fo
     live, sums, editing, setEditing, reset, loadDoc, pullLines, build, fillFrom, priceOf,
     formOpen, setFormOpen, draft, setDraft, openForm, commitForm,
     scanMode, setScanMode, lastScan, setLastScan,
+    lastLines, applyLastLines, dismissLastLines: () => setLastLines(null), rowsBlank, priceWarn, markWhTouched,
   };
 }
 export type DocCtl = ReturnType<typeof useDocEditor>;
@@ -355,7 +405,7 @@ export function DocHead({ ctl, warehouses, partners, staff }: {
                 )}
               </div>
             ) : f.field_id === "wh" ? (
-              <select className="field-input" value={head.wh || ""} onChange={(e) => set("wh", e.target.value)}>
+              <select className="field-input" value={head.wh || ""} onChange={(e) => { ctl.markWhTouched(); set("wh", e.target.value); }}>
                 {!warehouses.length && <option value="">창고 없음</option>}
                 {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
@@ -381,7 +431,7 @@ const LEFTS = new Set(["sku", "spec", "lnote", "ono", "ccode", "buyer", "rcv", "
 const IMPORTED_RO = new Set(["ono", "ccode", "buyer", "rcv", "tel", "zip", "addr", "memo", "qty", "price", "supply", "vat"]);
 
 export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] }) {
-  const { onLine, rows, setRows, setCell, onCellKey, gridRef, fillFrom, priceOf } = ctl;
+  const { onLine, rows, setRows, setCell, onCellKey, gridRef, fillFrom, priceOf, priceWarn } = ctl;
   const [pick, setPick] = useState<{ row: number; q: string; idx: number } | null>(null);
   //   ★ 고르개는 글자를 치고 **잠깐 멈춘 뒤** 연다(180ms). 스캐너는 글자를 쉼 없이 쏟고 곧바로 Enter 를 보내는데,
   //     첫 글자에 고르개가 열리면 검색칸이 커서를 가져가 나머지 글자가 거기로 들어갔다(2026-08-26 실제로 겪음).
@@ -484,9 +534,11 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
                       </td>
                     );
                   }
+                  //   A7 단가 이상 — 표시만, 출처: 장부 대조. 단가 칸을 꺼 둔 양식(공급가액만)에서는 공급가액 칸에 붙는다(단가 = 공급가액 ÷ 수량)
+                  const warn = id === "price" || id === "supply" ? priceWarn(r) : null;
                   return (
                     <td key={id} className={`cell ${NUMS.has(id) ? "num" : LEFTS.has(id) ? "text-left" : "tc"}`}>
-                      <input className="doc-in" data-cell={`${id}-${i}`}
+                      <input className={warn ? "doc-in doc-in-warn" : "doc-in"} data-cell={`${id}-${i}`} title={warn || undefined}
                         inputMode={NUMS.has(id) ? "numeric" : undefined}
                         placeholder={id === "sku" ? "품목명 · SKU · 바코드" : f.name}
                         value={shown}

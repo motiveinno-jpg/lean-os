@@ -192,6 +192,14 @@ export function DocScreen({
   const editor = (
     <>
       <DocHead ctl={ctl} warehouses={warehouses} partners={partners} staff={staff} />
+      {/*   A5 (2026-08-27) — 거래처를 고르면 지난번 거래 줄을 제안한다. 격자가 비어 있을 때만, 누르는 것은 사람 */}
+      {ctl.lastLines && ctl.rowsBlank(ctl.rows) && (
+        <div className="doc-suggest">
+          <span>지난번({ctl.lastLines.doc_date}) 이 거래처와 <b>{ctl.lastLines.lines.length}줄</b> 거래했습니다 — 같은 품목·수량·단가로 채울까요? <em className="ev-dim">출처: 장부 대조</em></span>
+          <button type="button" className="btn-secondary btn-sm" onClick={ctl.applyLastLines}>지난번 그대로 채우기</button>
+          <button type="button" className="ht-note-act" onClick={ctl.dismissLastLines} aria-label="닫기">✕</button>
+        </div>
+      )}
       <DocGrid ctl={ctl} products={products} />
       <div className="doc-add">
         <button type="button" className="btn-secondary btn-sm"
