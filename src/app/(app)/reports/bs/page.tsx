@@ -8,6 +8,7 @@ import { DateField } from "@/components/date-field";
 import { ReportHead } from "../_components/ReportHead";
 import { Stat } from "@/components/query-kit";
 import { fetchJournalLines, countUnposted, bsAmount } from "@/lib/journal-reports";
+import { ClosingSnapshotButton } from "@/components/closing-snapshot-button";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
@@ -492,6 +493,8 @@ function BalanceSheetPageInner() {
           <span className="text-[11px] text-[var(--text-dim)]">채권·채무는 해당연도 <b className="text-[var(--text-muted)]">1/1 ~ 기준일</b> 확정 전표 누적</span>
         </>}
         right={<>
+          {/*   마감 확정본 — 잠근 달의 재무상태표, 지금과 다르면 ⚠ (2026-08-27 ERP ③) */}
+          <ClosingSnapshotButton companyId={companyId} kind="bs" year={(cutoffInput || today).slice(0, 4)} />
           <button onClick={() => setIsCompareMode((v) => !v)} aria-label="전월 비교" className={isCompareMode ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4 4m-4-4l4-4" /></svg>
             전월 비교

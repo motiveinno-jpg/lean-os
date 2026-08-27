@@ -134,6 +134,13 @@ export async function lockClosingMonth(checklistId: string, userId: string) {
     .eq('id', checklistId)
     .single());
 
+  //   ★ 결정 57 (2026-08-27 ERP 공백 ③) — 잠그는 순간의 재무상태표·손익계산서를 확정본으로 남긴다.
+  //     실패해도 잠금은 유지한다(확정본은 다시 잠글 때 찍힌다) — 대신 원인은 던져서 화면이 알린다.
+  if (cl?.company_id && cl?.month) {
+    const { takeClosingSnapshot } = await import('@/lib/closing-snapshot');
+    await takeClosingSnapshot(cl.company_id, cl.month, userId, checklistId);
+  }
+
   await logAudit({
     company_id: cl?.company_id || '',
     user_id: userId,

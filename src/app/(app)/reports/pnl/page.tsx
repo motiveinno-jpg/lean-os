@@ -8,6 +8,7 @@ import { DateRangeField } from "@/components/date-range-field";
 import { ReportHead } from "../_components/ReportHead";
 import { Stat } from "@/components/query-kit";
 import { fetchJournalLines, countUnposted, pnlAmount, type JournalLine } from "@/lib/journal-reports";
+import { ClosingSnapshotButton } from "@/components/closing-snapshot-button";
 import Link from "next/link";
 import { fetchAllPaginated } from "@/lib/supabase-paginated";
 import { getCurrentUser } from "@/lib/queries";
@@ -613,6 +614,7 @@ function PnlPageInner() {
           />
         </>}
         right={<>
+          <ClosingSnapshotButton companyId={companyId} kind="pnl" year={customEnd.slice(0, 4)} />
           <button
             type="button"
             onClick={() => setIsCompareMode((v) => !v)}

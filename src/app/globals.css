@@ -9082,3 +9082,11 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 재무 › 전표 현황 › 처리할 것 — 결산 초안 만들기 (2026-08-27) */
 .fin-close-row { @apply mt-2 flex flex-wrap items-center gap-2; }
 .fin-close-month { @apply h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-[12.5px] text-[var(--text)]; }
+
+/* 마감 확정본 (2026-08-27) */
+.cs-btn-drift { @apply border-[var(--warning)] text-[var(--warning)]; }
+.cs-box { @apply max-w-4xl; }
+.cs-months { @apply flex flex-wrap gap-1.5; }
+.cs-drift { @apply rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-dim)] px-3 py-2 text-[12.5px] text-[var(--warning)]; }
+.cs-same { @apply rounded-lg border border-[var(--success)]/30 bg-[var(--success-dim)] px-3 py-2 text-[12.5px] text-[var(--success)]; }
+.cs-scroll { max-height: 55vh; overflow: auto; }
