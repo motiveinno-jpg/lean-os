@@ -531,8 +531,9 @@ function ChatWorkspace({ companyId, userId, selectedChannel, router }: any) {
     { key: "dm", title: "다이렉트 메시지", list: dmChannels, empty: "DM 없음" },
   ];
 
+  //   높이는 CSS 로 — zoom 안에서는 100vh 를 ÷ --app-zoom 해야 사이드바 끝선과 맞는다 (2026-08-27 사장님: "칸 크기가 좌측 사이드바랑 안 맞음")
   return (
-    <div className="chat-workspace glass-card" style={{ height: isEmbed ? "calc(100dvh - 40px)" : "calc(100dvh - 104px)" }}>
+    <div className={isEmbed ? "chat-workspace chat-workspace-embed glass-card" : "chat-workspace glass-card"}>
       {/* ── 좌측 아이콘 레일 — 사람(부서 → 구성원) / 채팅방 (2026-08-10 사장님 지시) ── */}
       <nav className="chat-rail" aria-label="메신저 보기 전환">
         <button type="button" onClick={() => pickRail("people")} aria-pressed={rail === "people"}

@@ -2198,7 +2198,8 @@ table.bs-t-table { min-width: 360px; }
 .chat-guest-input-wrapper { @apply rounded-b-2xl border border-t-0 border-[var(--border)] overflow-hidden; }
 .chat-sidebar-section { @apply mb-2; }
 .chat-channel-row { @apply w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition; }
-.chat-workspace { @apply flex overflow-hidden; }
+.chat-workspace { @apply flex overflow-hidden; height: calc(100dvh - 104px); }
+.chat-workspace-embed { height: calc(100dvh - 40px); }
 .chat-sidebar { @apply flex-col w-full lg:w-72 shrink-0 border-r border-[var(--border)] bg-[var(--bg-surface)]/40; }
 .chat-conversation-panel { @apply flex-1 min-w-0 flex-col; }
 
@@ -8969,6 +8970,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .app-zoom .qk-shell, .app-zoom .collect-page { height: calc(100vh / var(--app-zoom) - 100px); }
 .app-zoom .app-content-scale:has(> .qk-shell), .app-zoom .app-content-scale:has(> .pj-shell) { height: calc(100vh / var(--app-zoom) - 100px); }
 .app-zoom .vault-layout { height: calc(100vh / var(--app-zoom) - 100px); }
+.app-zoom .chat-workspace { height: calc(100vh / var(--app-zoom) - 100px); }   /* 메신저 상자 끝선 = 사이드바 끝선 (2026-08-27) */
 .app-zoom .vault-file-panel > .qk-screen { height: calc(100vh / var(--app-zoom) - 380px); }
 .app-zoom .bank-tx-list-card { max-height: calc(100vh / var(--app-zoom) - 210px); }
 .app-zoom .menu-guide-drawer { height: calc(100dvh / var(--app-zoom)); }
@@ -9155,3 +9157,32 @@ table.table-inv-ch-ship { min-width: 1480px; }
 
 /* 카드 해외 결제 표시 (2026-08-27) */
 .card-fx { @apply ml-1.5 inline-block rounded bg-[var(--info-dim)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--info)] align-middle; }
+
+/* 떠 있는 팝업 창 (2026-08-27) */
+.fw { @apply fixed flex flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] shadow-2xl; max-height: 80vh; }
+.fw-head { @apply flex cursor-grab select-none items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px] active:cursor-grabbing; touch-action: none; }
+.fw-title { @apply min-w-0 flex-1 truncate; }
+.fw-x { @apply rounded px-1.5 py-0.5 text-[var(--text-dim)] hover:bg-[var(--bg)] hover:text-[var(--text)]; }
+.fw-body { @apply min-h-0 flex-1 overflow-auto p-3; }
+.ht-cnt { @apply absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[9px] font-bold text-white; }
+/* 스티커 메모 */
+.sn .fw-head { @apply border-b-0; }
+.sn .fw-body { @apply p-0; }
+.sn-title { @apply min-w-0 flex-1 bg-transparent text-[13px] font-bold text-[var(--text)] outline-none placeholder:font-normal placeholder:text-[var(--text-dim)]; }
+.sn-body { @apply block h-44 w-full resize-y bg-transparent px-3 py-2 text-[13px] leading-relaxed text-[var(--text)] outline-none; }
+.sn-foot { @apply flex items-center gap-1 px-2 py-1.5 text-[11px]; }
+.sn-colors { @apply inline-flex items-center gap-1; }
+.sn-dot { @apply h-3.5 w-3.5 rounded-full border border-black/10; }
+.sn-dot-on { @apply ring-2 ring-[var(--text)]/60; }
+.sn-dot-yellow, .sn-yellow { background: #fef3a7; } .sn-dot-green, .sn-green { background: #d9f5d3; } .sn-dot-blue, .sn-blue { background: #d6e8ff; } .sn-dot-pink, .sn-pink { background: #ffd9e3; } .sn-dot-gray, .sn-gray { background: #e9e9ee; }
+.sn.fw, .sn .fw-head { color: #1f2937; }
+.sn .sn-title, .sn .sn-body, .sn .fw-x { color: #1f2937; }
+.sn.fw { border-color: rgba(0,0,0,.08); }
+.sn .fw-head { background: rgba(0,0,0,.05); }
+.sn-search { @apply h-8 flex-1 text-left text-[12.5px]; }
+.sn-list { @apply grid max-h-[55vh] grid-cols-2 gap-2 overflow-auto; }
+.sn-card { @apply flex flex-col gap-1 rounded-xl border border-black/10 p-2.5 text-left text-[#1f2937] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md; }
+.sn-card-open { @apply ring-2 ring-[var(--primary)]; }
+.sn-card-title { @apply truncate text-[12.5px]; }
+.sn-card-body { @apply line-clamp-3 whitespace-pre-wrap text-[11.5px] leading-snug opacity-80; }
+.sn-card-when { @apply text-[10px] opacity-60; }
