@@ -205,8 +205,9 @@ export function DocScreen({
   const label = FORM_LABEL[formKey];
   const excelMenu = (
     <ExcelMenu items={[
-      { label: "양식 내려받기", hint: `${label} 일괄 올리기 양식 — 머리줄·예시·안내 시트`, onClick: () => downloadTemplate(`${label}_양식`, label, xcols, formKey === "make" ? ["자재는 자재구성에 따라 저절로 나갑니다(양품+불량 기준). 실투입·로스는 올린 뒤 화면에서 고칩니다."] : []) },
-      ...(onImport && canWrite ? [{ label: "엑셀 올리기", hint: "채운 양식을 올리면 읽어서 보여 주고, 등록을 눌러야 저장", onClick: () => setXlsOpen(true) }] : []),
+      //   2026-08-27 사장님: 양식·올리기가 같은 팝업이면 메뉴도 하나 — 팝업 안에서 양식을 내려받고 채운 파일을 올린다
+      ...(onImport && canWrite ? [{ label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 뒤 올리면 읽어서 보여 주고, 등록을 눌러야 저장", onClick: () => setXlsOpen(true) }]
+        : [{ label: "양식 내려받기", hint: `${label} 일괄 올리기 양식 — 머리줄·예시·안내 시트`, onClick: () => downloadTemplate(`${label}_양식`, label, xcols, formKey === "make" ? ["자재는 자재구성에 따라 저절로 나갑니다(양품+불량 기준). 실투입·로스는 올린 뒤 화면에서 고칩니다."] : []) }]),
       ...(tab === "list" ? [{ label: "이력 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(sorted.map((h) => ({
         "번호": h.no, "일자": h.date, "거래처": h.who, "품목": h.label, "줄": h.lines, "합계": h.total, "상태": h.state,
       })), label, `${label}_이력_${from}_${to}`) }] : []),

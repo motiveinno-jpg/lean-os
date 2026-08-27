@@ -267,8 +267,7 @@ export default function StockPage() {
             <>
               <QueryBar right={canMove ? <>
                 <ExcelMenu items={[
-                  { label: "양식 내려받기", hint: "창고 일괄 등록 양식", onClick: () => setWhXls(true) },
-                  { label: "엑셀 올리기", hint: "같은 이름의 창고는 고침(코드·기본 창고)", onClick: () => setWhXls(true) },
+                  { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 뒤 올리면 등록 · 같은 이름의 창고는 고침", onClick: () => setWhXls(true) },
                   { label: "창고 목록 내려받기", count: warehouses.length, onClick: () => exportToExcel(warehouses.map((w) => ({ "창고명": w.name, "코드": w.code || "", "기본창고": w.is_default ? "예" : "아니오", "현재고 수량": onhand.filter((o) => o.warehouse_id === w.id).reduce((n, o) => n + Number(o.qty), 0) })), "창고", `창고_${todayKst()}`) },
                 ]} />
                 <WarehouseAdd companyId={companyId} onDone={invalidate} />

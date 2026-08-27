@@ -118,8 +118,7 @@ export default function ProductsPage() {
           <QueryBar right={<>
             {/*   ★ 엑셀 — 양식·올리기·붙여넣기·내려받기를 한 버튼 안에(2026-08-27 사장님) */}
             <ExcelMenu items={[
-              { label: "양식 내려받기", hint: "품목 일괄 등록 양식 — 머리줄·예시·안내 시트", onClick: () => setXlsOpen(true) },
-              { label: "엑셀 올리기", hint: "채운 양식을 올리면 읽어서 보여 주고, 등록을 눌러야 저장 · 같은 SKU 는 고침", onClick: () => setXlsOpen(true) },
+              { label: "양식 내려받기 · 올리기", hint: "양식을 받아 채운 뒤 올리면 읽어서 보여 주고, 등록을 눌러야 저장 · 같은 SKU 는 고침", onClick: () => setXlsOpen(true) },
               { label: "붙여넣기", hint: "엑셀에서 복사한 줄을 바로 붙여넣기", onClick: () => setPasteOpen(true) },
               { label: "조회 결과 내려받기", count: shown.length, disabled: !shown.length, onClick: () => exportToExcel(shown.map((p) => ({ "SKU": p.sku, "품목명": p.name, "분류": p.category || "", "규격": p.spec || "", "단위": p.unit || "", "바코드": p.barcode || "", "판매가": p.sale_price ?? "", "매입가": p.cost_price ?? "", "단위당 노무·경비": p.overhead_per_unit || 0, "안전재고": p.safety_stock ?? "", "수량관리": p.track_stock ? "예" : "아니오", "현재고": qtyOf.get(p.id) ?? 0, "상태": p.is_active ? "판매중" : "단종", "메모": p.memo || "" })), "품목", `품목_${todayKst()}`) },
             ]} />
