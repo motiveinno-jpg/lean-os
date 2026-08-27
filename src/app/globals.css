@@ -7728,6 +7728,7 @@ button.qk-tab.qk-tab-on:hover { @apply text-white; }
   .ev-wrap > .collect-note { @apply shrink-0; }
   /* 표 머리단은 어느 화면에서든 스크롤 안에서 붙어 있는다 */
   .qk-body > .ev-scroll thead th { position: sticky; top: 0; z-index: 3; }
+.ev-scroll .fw-table thead th.fw-th-name { z-index: 7; }   /* 본문 이름 칸(z5)이 머리단 '구성원'을 덮어 안 내려오는 것처럼 보였다 (2026-08-27 사장님) */
 }
 /* 표 머리단은 스크롤 안에서 붙어 있는다 — 아래로 내려가도 어느 칸인지 안 잊는다.
    (thead th 에 배경이 있어야 밑줄이 비쳐 보이지 않는다 — .ev-table thead th 가 이미 칠한다) */
@@ -9285,3 +9286,11 @@ table.table-ret-settle td { @apply text-[12px]; }
 /* 급여 줄 이상 감지 — 전월 대비 ±20% (2026-08-27 인사 6차 H9) */
 .hr-row-warn > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
 .hr-src-warn { @apply bg-[#f59e0b]/12 text-[#b45309]; }
+
+/* 근태 › 기록 상세 달력 — 상태별 작은 상자, 워크보드 셀과 같은 톤 (2026-08-27 사장님) */
+.att-cal-rows { @apply flex flex-col gap-1 w-full; }
+.att-cal-row { @apply relative flex h-[18px] w-full items-center gap-1 overflow-hidden rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-1; }
+.att-cal-fill { @apply absolute inset-y-0 left-0 pointer-events-none; border-radius: 5px; }
+.att-cal-edge { @apply absolute inset-y-[3px] right-0 w-[2px] rounded-full opacity-90; }
+.att-cal-chip { @apply relative z-10 rounded-full px-1.5 py-[1px] text-[9px] font-bold leading-none; }
+.att-cal-n { @apply relative z-10 ml-auto pr-1 text-[10.5px] font-bold tabular-nums text-[var(--text)]; }

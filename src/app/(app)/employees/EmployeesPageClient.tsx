@@ -821,6 +821,17 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
     }
   };
 
+  //   달력 상자 채움용 실제 색값 — statusColor(tailwind 클래스)와 같은 색 (2026-08-27)
+  const statusCssColor = (status: string) => {
+    switch (status) {
+      case "present": return "var(--success)";
+      case "late": return "#eab308";
+      case "absent": return "var(--danger)";
+      case "half_day": return "#fb923c";
+      case "remote": return "var(--info)";
+      default: return "#9ca3af";
+    }
+  };
   const statusLabel = (status: string) => {
     return ATTENDANCE_STATUS.find((s) => s.value === status)?.label || status;
   };
@@ -1082,13 +1093,18 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                         <span className="text-[10px] font-semibold text-[var(--danger)] truncate">{holidayNameByDate.get(dateStr)}</span>
                       )}
                     </div>
-                    <div className="flex flex-col gap-1 items-start">
-                      {ATTENDANCE_STATUS.filter((s) => dayStatusCounts.get(s.value)).map((s) => (
-                        <span key={s.value} className="inline-flex items-center gap-1 text-[11px] leading-none">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${statusColor(s.value)}`} />
-                          <span className="text-[var(--text)] font-medium">{s.label} {dayStatusCounts.get(s.value)}</span>
-                        </span>
-                      ))}
+                    {/*   2026-08-27 사장님 — 워크보드 셀과 같은 톤: 상태별 작은 상자(테두리·바닥 채움·오른쪽 색띠·칩+인원). 채움 폭 = 그 상태 인원 ÷ 재직 인원 */}
+                    <div className="att-cal-rows">
+                      {ATTENDANCE_STATUS.filter((s) => dayStatusCounts.get(s.value)).map((s) => {
+                        const n = dayStatusCounts.get(s.value) || 0; const c = statusCssColor(s.value);
+                        return (
+                          <span key={s.value} className="att-cal-row" title={`${s.label} ${n}명`}>
+                            <span className="att-cal-fill" style={{ width: `${Math.max(12, Math.round((n / Math.max(1, activeEmployees.length)) * 100))}%`, background: `linear-gradient(90deg, color-mix(in srgb, ${c} 20%, transparent), color-mix(in srgb, ${c} 6%, transparent))` }}><span className="att-cal-edge" style={{ background: c }} /></span>
+                            <span className="att-cal-chip" style={{ background: `color-mix(in srgb, ${c} 14%, transparent)`, color: c }}>{s.label}</span>
+                            <span className="att-cal-n">{n}</span>
+                          </span>
+                        );
+                      })}
                     </div>
                   </button>
                 );
