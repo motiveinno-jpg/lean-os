@@ -30,7 +30,7 @@ export default function AttendancePage() {
   //   컬럼만(민감 PII 제외) + 캐시키를 /attendance 전용으로 분리해 타 화면
   //   employees 캐시와 공유되지 않게 한다. AttendanceTab/QuickAttendanceButtons
   //   이 읽는 컬럼: id·name·status·user_id·email (+department/position 비민감).
-  const ATT_EMP_COLS = "id,name,department,position,user_id,email,hire_date,status";
+  const ATT_EMP_COLS = "id,name,department,position,user_id,email,hire_date,status,employee_number";   // 사번 — 이름 옆 태그·정렬 (2026-08-27)
   // (2026-07-30 개편 P3) 관리 판정을 권한 기반으로 — 마스터 또는 '기록 상세·수정' 권한 보유자가 관리자급.
   //   본인 출퇴근(개인 동선)은 권한 무관 항상 가능.
   const { isMaster, hasPerm } = useMyPermissions();

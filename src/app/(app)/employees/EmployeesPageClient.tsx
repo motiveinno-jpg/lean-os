@@ -842,6 +842,8 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   // active + joined 모두 포함 (초대 수락 후 아직 active 아닌 직원도 체크인 가능)
   const arVal = (r: any) => ({ emp: r.employees?.name || "—", status: statusLabel(effectiveStatus(r)) });
   const arSpec = (k: keyof ReturnType<typeof arVal>) => arCf.spec(k, (records as any[]).map((r) => arVal(r)[k]));
+  //   직원 순서 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 사장님 — 인사 전 화면 공통)
+  const empById = useMemo(() => new Map((employees as any[]).map((e: any) => [e.id, e])), [employees]);
   const shownRecords = useMemo(() => {
     const dir = arSort.dir === "asc" ? 1 : -1;
     const val = (r: any): string => {
@@ -854,9 +856,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         default: return `${r.date || ""} ${r.check_in || ""}`;
       }
     };
-    return (records as any[]).filter((r) => arCf.hit(arVal(r))).sort((a, b) => cmp(val(a), val(b)) * dir);
+    const byEmp = (a: any, b: any) => comparePeople(empById.get(a.employee_id) || { name: a.employees?.name }, empById.get(b.employee_id) || { name: b.employees?.name });
+    return (records as any[]).filter((r) => arCf.hit(arVal(r))).sort((a, b) => (arSort.key === "emp" ? byEmp(a, b) * dir || String(a.date).localeCompare(String(b.date)) : cmp(val(a), val(b)) * dir));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [records, arSort, arCf.key]);
+  }, [records, arSort, arCf.key, empById]);
   const activeEmployees = employees.filter((e: any) => e.status === "active" || e.status === "joined");
   // employee 역할: 본인 직원 레코드 자동 선택 (user_id 매칭 → 이메일 폴백)
   const isEmployeeRole = role === "employee";
@@ -1242,7 +1245,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                 {shownRecords.map((r: any) => (
                   editingRecordId === r.id ? (
                     <tr key={r.id} className="border-b border-[var(--border)]/50 bg-[var(--primary)]/5">
-                      <td className="px-5 py-2 text-sm font-medium">{r.employees?.name || "—"}</td>
+                      <td className="px-5 py-2 text-sm font-medium">{r.employees?.name || "—"}{empById.get(r.employee_id)?.employee_number && <span className="emp-no">#{empById.get(r.employee_id)?.employee_number}</span>}</td>
                       <td className="px-5 py-2 text-sm text-[var(--text-muted)]">{r.date}</td>
                       <td className="px-3 py-2">
                         <DateTimeField
@@ -1291,7 +1294,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                     </tr>
                   ) : (
                   <tr key={r.id} className="border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]">
-                    <td className="px-5 py-3 text-sm font-medium">{r.employees?.name || "—"}</td>
+                    <td className="px-5 py-3 text-sm font-medium">{r.employees?.name || "—"}{empById.get(r.employee_id)?.employee_number && <span className="emp-no">#{empById.get(r.employee_id)?.employee_number}</span>}</td>
                     <td className="px-5 py-3 text-sm text-[var(--text-muted)]">{r.date}</td>
                     <td className="px-5 py-3 text-xs text-[var(--text-muted)]">
                       {r.check_in ? new Date(r.check_in).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }) : "—"}
@@ -1385,17 +1388,18 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
         //   표 정렬·빠른검색 (2026-08-19 사장님: 직원이 많아지면 카드 격자로는 못 본다 → 표 + 정렬 + 검색)
         //   연차 = 이 달 승인 휴가일 수(leaveDaySet — 달력이 쓰는 것과 같은 것)
         const leaveCount = (empId: string) => { let n = 0; leaveDaySet.forEach((k: string) => { if (k.startsWith(`${empId}:${selectedMonth}-`)) n++; }); return n; };
-        const rowsAll = (summary as any[]).map((s) => ({ ...s, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0, leaveDays: leaveCount(s.employee_id) }));
+        const rowsAll = (summary as any[]).map((s) => ({ ...s, employee_number: empById.get(s.employee_id)?.employee_number || null, ratio: workdaysSoFar > 0 ? Math.min(1, s.totalDays / workdaysSoFar) : 0, alwTotal: allowanceByEmployee.get(s.employee_id)?.total ?? 0, leaveDays: leaveCount(s.employee_id) }));
         const rows = rowsAll.filter((r) => quickSearchHit(sumQ, [r.name, r.department])
             && (sumCond.depts.length === 0 || sumCond.depts.includes(r.department || "미배정"))
             && sumCond.has.every((k) => Number((r as any)[k] || 0) > 0)
             && (!sumCond.ratioMax || r.ratio * 100 <= Number(sumCond.ratioMax))
             && (!sumCond.hoursMin || r.totalHours >= Number(sumCond.hoursMin))
             && (!sumCond.hoursMax || r.totalHours <= Number(sumCond.hoursMax)))
-          .sort((a, b) => { const k = sumSort.key as string; const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1); });
+          .sort((a, b) => { const k = sumSort.key as string; if (k === "name") return comparePeople(a, b) * (sumSort.dir === "asc" ? 1 : -1); const av = (a as any)[k], bv = (b as any)[k]; const c = typeof av === "number" && typeof bv === "number" ? av - bv : cmp(av, bv); return c * (sumSort.dir === "asc" ? 1 : -1) || comparePeople(a, b); });
         //   부서 묶음 (2026-08-19 사장님: 부서별로 정렬하고 토글을 열면 그 부서 직원) — 부서 줄은 합계·평균, 직원 줄은 열어야 보인다
         const deptMap = new Map<string, any[]>();
         for (const r of rows) { const d = r.department || "미배정"; if (!deptMap.has(d)) deptMap.set(d, []); deptMap.get(d)!.push(r); }
+        for (const list of deptMap.values()) list.sort(comparePeople);   // 부서 안 직원 순서도 같은 규칙
         const deptRows = [...deptMap.entries()].map(([d, list]) => ({
           department: d, list, n: list.length,
           totalDays: list.reduce((x, r) => x + (r.totalDays || 0), 0) / list.length,
@@ -1495,7 +1499,7 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
                       : '수당 기록 없음';
                     return (
                       <tr key={s.employee_id} className="pnl-row-acct att-emp-row" onClick={() => setSummaryDetailId(s.employee_id)}>
-                        <td className="text-left pl-8"><span className="inline-flex items-center gap-2"><span className="inline-flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-white" style={{ background: attAvatarColor(s.employee_id) }}>{attInitials(s.name)}</span>{s.name}</span></td>
+                        <td className="text-left pl-8"><span className="inline-flex items-center gap-2"><span className="inline-flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold text-white" style={{ background: attAvatarColor(s.employee_id) }}>{attInitials(s.name)}</span>{s.name}{s.employee_number && <span className="emp-no">#{s.employee_number}</span>}</span></td>
                         <td className="text-center mono-number">{s.totalDays}일</td>
                         <td className="text-center"><span className="att-ratio"><i style={{ width: `${Math.round(s.ratio * 100)}%` }} /></span><small className="ml-1.5 mono-number text-[var(--text-dim)]">{Math.round(s.ratio * 100)}%</small></td>
                         <td className={`text-center mono-number ${s.lateDays > 0 ? "text-[var(--warning)] font-bold" : "text-[var(--text-dim)]"}`}>{s.lateDays > 0 ? `${s.lateDays}회` : "—"}</td>
