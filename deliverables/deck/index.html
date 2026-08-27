@@ -69,6 +69,15 @@
   .hooks .h p{font-size:13px;color:var(--mut);line-height:1.6;margin-top:4px}
   .hooks .h p strong{color:var(--ink);font-weight:700}
 
+
+  /* AI 자동화 정리(15) — 이름 + 한 줄 + 어느 장면에서 봤는지 */
+  .ai7{display:grid;grid-template-columns:1fr 1fr;gap:14px 30px;margin-top:10px;flex:1;align-content:space-evenly}
+  .ai7 .h b{display:block;font-size:16.5px;font-weight:800;letter-spacing:-.01em}
+  .ai7 .h b i{font-style:normal;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--dim);margin-left:8px}
+  .ai7 .h p{font-size:12.5px;color:var(--mut);line-height:1.55;margin-top:3px}
+  .ai7-close{margin-top:auto;padding-top:16px;font-size:14.5px;font-weight:700}
+  .ai7-close em{font-style:normal;color:var(--brand)}
+
   /* 하루 타임라인(02) */
   .day{margin-top:26px;border:1px solid var(--line);border-radius:6px;overflow:hidden;max-width:860px}
   .day > div{display:grid;grid-template-columns:96px 1fr;border-bottom:1px solid var(--line2)}
@@ -277,9 +286,32 @@
   <div class="ft"><span>오너뷰</span><span>08</span></div>
 </section>
 
-<!-- 09 장면⑦ 계약·결재 -->
+<!-- 09 장면⑦ 경영 숫자 -->
 <section class="s">
-  <div class="hd"><span class="no">09</span><span class="sec">장면 ⑦ · 계약과 결재</span></div>
+  <div class="hd"><span class="no">09</span><span class="sec">장면 ⑦ · 경영 숫자</span></div>
+  <div class="scene">
+    <p class="quote">장사는 되는데, 남는 건지는 모르겠어요</p>
+    <h2 class="big">돈 있나 · 벌고 있나,<br /><em>세 신호로 정리됩니다</em></h2>
+    <div class="scene-row">
+      <div>
+        <p class="proof">흩어진 거래가 모여 <b>돈 있나 · 벌고 있나 · 받을 돈과 낼 돈</b> 세 신호로
+          매일 새로 정리됩니다. 이번 주 챙길 것도 같은 화면에 붙습니다.<br /><br />
+          더 깊이 보려면 손익 현황 · 매출 · 비용 · 사람별 실적 · 월결산 · 손익계산서 · 재무상태표가
+          <b>이미 계산되어</b> 기다립니다.</p>
+        <div class="bignum"><b>세 신호</b><span>경영 요약 — 회계를 몰라도 회사 상태가 읽힌다</span></div>
+      </div>
+      <div>
+        <div class="shot"><img src="img/t-summary.png" alt="경영 요약" /></div>
+        <p class="cap">분석 › 경영 요약 — 세 신호와 이번 주 챙길 것</p>
+      </div>
+    </div>
+  </div>
+  <div class="ft"><span>오너뷰</span><span>09</span></div>
+</section>
+
+<!-- 10 장면⑧ 계약·결재 -->
+<section class="s">
+  <div class="hd"><span class="no">10</span><span class="sec">장면 ⑧ · 계약과 결재</span></div>
   <div class="scene">
     <p class="quote">도장 받으러 가는 길이 제일 멀어요</p>
     <h2 class="big">계약서는 링크 하나,<br /><em>직인은 자동</em></h2>
@@ -297,12 +329,12 @@
       </div>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>09</span></div>
+  <div class="ft"><span>오너뷰</span><span>10</span></div>
 </section>
 
-<!-- 10 장면⑧ 사람 -->
+<!-- 11 장면⑨ 사람 -->
 <section class="s">
-  <div class="hd"><span class="no">10</span><span class="sec">장면 ⑧ · 사람</span></div>
+  <div class="hd"><span class="no">11</span><span class="sec">장면 ⑨ · 사람</span></div>
   <div class="scene">
     <p class="quote">월급날마다 세무사무실에 물어봐요</p>
     <h2 class="big">급여 · 연차 · 증명서는<br /><em>손 댈 일이 없습니다</em></h2>
@@ -319,12 +351,12 @@
       </div>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>10</span></div>
+  <div class="ft"><span>오너뷰</span><span>11</span></div>
 </section>
 
-<!-- 11 장면⑨ 프로젝트 -->
+<!-- 12 장면⑩ 프로젝트 -->
 <section class="s">
-  <div class="hd"><span class="no">11</span><span class="sec">장면 ⑨ · 프로젝트</span></div>
+  <div class="hd"><span class="no">12</span><span class="sec">장면 ⑩ · 프로젝트</span></div>
   <div class="scene">
     <p class="quote">프로젝트 관리는 엑셀로 표부터 그려요</p>
     <h2 class="big">표는 이미 만들어져 있습니다<br /><em>— 업무 형태별 템플릿 8종</em></h2>
@@ -341,12 +373,12 @@
       </div>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>11</span></div>
+  <div class="ft"><span>오너뷰</span><span>12</span></div>
 </section>
 
-<!-- 12 장면⑩ 재고 (유통·제조) -->
+<!-- 13 장면⑪ 재고 (유통·제조) -->
 <section class="s">
-  <div class="hd"><span class="no">12</span><span class="sec">장면 ⑩ · 재고 — 유통 · 제조</span></div>
+  <div class="hd"><span class="no">13</span><span class="sec">장면 ⑪ · 재고 — 유통 · 제조</span></div>
   <div class="scene">
     <p class="quote">엑셀 재고랑 창고 재고가 달라요</p>
     <h2 class="big">전산 재고와 실물 재고가<br /><em>맞아떨어집니다</em></h2>
@@ -369,12 +401,12 @@
       </div>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>12</span></div>
+  <div class="ft"><span>오너뷰</span><span>13</span></div>
 </section>
 
-<!-- 13 장면⑪ 권한 -->
+<!-- 14 장면⑫ 권한 -->
 <section class="s">
-  <div class="hd"><span class="no">13</span><span class="sec">장면 ⑪ · 권한</span></div>
+  <div class="hd"><span class="no">14</span><span class="sec">장면 ⑫ · 권한</span></div>
   <div class="scene">
     <p class="quote">직원이 급여 자료까지 보게 될까 걱정돼요</p>
     <h2 class="big">사람마다<br /><em>보이는 메뉴가 다릅니다</em></h2>
@@ -391,12 +423,41 @@
       </div>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>13</span></div>
+  <div class="ft"><span>오너뷰</span><span>14</span></div>
 </section>
 
-<!-- 14 전체 지도 -->
+
+<!-- 15 AI 자동화 7종 -->
 <section class="s">
-  <div class="hd"><span class="no">14</span><span class="sec">전체 지도</span></div>
+  <div class="hd"><span class="no">15</span><span class="sec">AI 자동화</span></div>
+  <div class="scene">
+    <p class="quote">AI는 어디까지 해주나요?</p>
+    <h2 class="big">사람이 안 해도 되는 일,<br /><em>7가지</em></h2>
+    <div class="ai7">
+      <div class="h"><b>AI 계정 추천<i>장면 ②</i></b>
+        <p>수집된 거래에 계정과목 · 부가세 구분을 적어두고, 애매한 것만 물어봅니다.</p></div>
+      <div class="h"><b>매칭 제안<i>장면 ⑤</i></b>
+        <p>계약 · 세금계산서 · 입금 세 금액을 대조합니다. 입금자명이 달라도 거래처를 찾아냅니다.</p></div>
+      <div class="h"><b>AI 브리핑<i>장면 ①</i></b>
+        <p>아침마다 오늘 챙길 일을 우선순위로 정리해 대시보드에 올려둡니다.</p></div>
+      <div class="h"><b>AI 참모<i>장면 ④</i></b>
+        <p>말로 물으면 조회하고, 결재 상신 · 근태 기록 · 계약서 작성까지 실행합니다.</p></div>
+      <div class="h"><b>자금 부족 예측<i>장면 ⑥</i></b>
+        <p>90일 잔액 곡선을 그려 부족해지는 날짜를 미리 표시합니다.</p></div>
+      <div class="h"><b>중복 의심 감지</b>
+        <p>같은 거래가 두 번 들어오면 의심 건으로 표시해 이중 기장을 막습니다.</p></div>
+      <div class="h"><b>휴면 감지</b>
+        <p>거래가 끊긴 거래처를 찾아 알려줍니다 — 놓치고 있던 매출처가 보입니다.</p></div>
+    </div>
+    <p class="ai7-close">전부 이름이 '제안'입니다 — <em>확정은 언제나 사람이 합니다.</em>
+      그래서 AI가 틀려도 장부는 틀리지 않습니다.</p>
+  </div>
+  <div class="ft"><span>오너뷰</span><span>15</span></div>
+</section>
+
+<!-- 16 전체 지도 -->
+<section class="s">
+  <div class="hd"><span class="no">16</span><span class="sec">전체 지도</span></div>
   <div class="scene">
     <h2 class="big" style="font-size:36px;margin-top:14px">그리고 <em>전부 들어 있습니다</em></h2>
     <div class="mapwrap">
@@ -408,7 +469,7 @@
         <div class="g">재고</div>
         <div class="m">품목</div><div class="m on">재고</div><div class="m on">주문서</div><div class="m">판매</div><div class="m">구매</div><div class="m">생산</div><div class="m">채널</div>
         <div class="g">분석</div>
-        <div class="m">경영 요약</div><div class="m">손익 현황</div><div class="m on">자금 전망</div><div class="m on">3-Way 대사</div><div class="m">회계 자료</div><div class="m">거래처 원장</div><div class="m">부가세</div>
+        <div class="m on">경영 요약</div><div class="m">손익 현황</div><div class="m on">자금 전망</div><div class="m on">3-Way 대사</div><div class="m">회계 자료</div><div class="m">거래처 원장</div><div class="m">부가세</div>
         <div class="g">워크스페이스</div>
         <div class="m">일정 / 할 일</div><div class="m on">프로젝트</div><div class="m on">결재 허브</div><div class="m">게시판</div><div class="m on">메신저</div><div class="m on">전자계약</div><div class="m">파일보관함</div>
         <div class="g">인사관리</div>
@@ -418,12 +479,12 @@
         나머지는 도입하시면 그날부터 그냥 있습니다.</p>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>14</span></div>
+  <div class="ft"><span>오너뷰</span><span>16</span></div>
 </section>
 
-<!-- 15 증거 -->
+<!-- 17 증거 -->
 <section class="s">
-  <div class="hd"><span class="no">15</span><span class="sec">증거</span></div>
+  <div class="hd"><span class="no">17</span><span class="sec">증거</span></div>
   <div class="scene">
     <p class="quote">그래서, 진짜 이렇게 돌아가나요?</p>
     <h2 class="big">저희가 먼저<br /><em>15개월</em> 썼습니다</h2>
@@ -443,12 +504,12 @@
       </table>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>15</span></div>
+  <div class="ft"><span>오너뷰</span><span>17</span></div>
 </section>
 
-<!-- 16 도입 -->
+<!-- 18 도입 -->
 <section class="s">
-  <div class="hd"><span class="no">16</span><span class="sec">도입</span></div>
+  <div class="hd"><span class="no">18</span><span class="sec">도입</span></div>
   <div class="scene">
     <p class="quote">ERP 도입하려면 몇 달 걸리는 거 아니에요?</p>
     <h2 class="big">구축비 0 · 설치 0,<br /><em>가입한 날 씁니다</em></h2>
@@ -468,10 +529,10 @@
       </table>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>16</span></div>
+  <div class="ft"><span>오너뷰</span><span>18</span></div>
 </section>
 
-<!-- 17 문의 -->
+<!-- 19 문의 -->
 <section class="s">
   <div class="cover">
     <div class="kick">도입 문의</div>
