@@ -51,6 +51,7 @@ import { listAppointments, appointmentLines } from "@/lib/hr-appointments";
 import { fetchRetirementEstimates } from "@/lib/retirement";
 import { RetirementDialog } from "@/components/retirement-dialog";
 import { fetchHrTodos } from "@/lib/hr-todo";
+import { comparePeople } from "@/lib/people-sort";
 import { HrTodoDialog } from "@/components/hr-todo-dialog";
 import { exportToExcel } from "@/lib/excel-export";
 import { CertChoiceField, CERT_PURPOSE_OPTIONS, CERT_SUBMIT_TO_OPTIONS } from "@/components/cert-issue-fields";
@@ -1822,7 +1823,7 @@ function QuickAttendanceButtons({ employees, records, onCheckIn, onCheckOut }: a
         className="px-3 py-2 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm"
       >
         <option value="">직원 선택...</option>
-        {[...employees].sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", "ko")).map((e: any) => (
+        {[...employees].sort(comparePeople).map((e: any) => (
           <option key={e.id} value={e.id}>{e.name}</option>
         ))}
       </select>
@@ -2160,7 +2161,7 @@ function PayrollPreviewTab({ companyId }: { companyId: string | null }) {
                   <>
                   <tr key={item.employeeId} className={item.warn ? "border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)] hr-row-warn" : "border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]"} title={item.warn || undefined}>
                     <td className="px-4 py-3 text-sm font-medium">
-                      {item.employeeName}
+                      {item.employeeName}{item.employeeNumber && <span className="emp-no">#{item.employeeNumber}</span>}
                       {!editMode && item.warn && <span className="hr-src-tag hr-src-warn" title={item.warn}>전월 대비 ±20%</span>}
                       {!editMode && item.extras?.some((e) => e.auto) && <span className="hr-src-tag" title="근태 집계(연장·야간·휴일·당직)에서 자동으로 얹힌 수당이 있습니다">근태 집계</span>}
                       {!editMode && (allowanceSum > 0 || deductionSum > 0) && (
@@ -2668,7 +2669,8 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
     const targets = isEmployee
       ? (myEmployee ? [myEmployee] : [])
       : activeEmployees;
-    return (targets as any[]).map((e: any) => {
+    //   순서 = 사번 순 → 가나다 → ABC (lib/people-sort, 2026-08-27 사장님 — 디렉토리·급여표와 같은 순서)
+    return [...(targets as any[])].sort(comparePeople).map((e: any) => {
       const r = byEmp.get(e.id) || { total: 0, months: Array(12).fill(0), used: 0 };
       // 총 사용일수는 월별 칸의 합 — 표 안에서 눈으로 더한 값과 어긋나지 않게(시안 규약).
       //   leave_balances.used_days 는 차감 원장이라 조정분까지 포함될 수 있어 표의 합과 다를 수 있다.
@@ -2676,6 +2678,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
       return {
         id: e.id,
         name: e.name || "-",
+        employee_number: e.employee_number || null,
         total: r.total,
         months: r.months,
         used: usedTotal,
@@ -2885,7 +2888,7 @@ export function LeaveTab({ employees, directory, companyId, userId, queryClient,
                           className="leave-roster-name"
                           title="전체 연차 신청 내역 보기"
                         >
-                          {row.name}
+                          {row.name}{row.employee_number && <span className="emp-no">#{row.employee_number}</span>}
                         </button>
                       </td>
                       <td className="leave-roster-td mono-number">{row.total}</td>
@@ -4297,7 +4300,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
               </tr>
             </thead>
             <tbody>
-              {[...employees].sort((a: any, b: any) => (a.name || "").localeCompare(b.name || "", "ko")).map((e: any) => {
+              {[...employees].sort(comparePeople).map((e: any) => {
                 const s = statuses[e.id] || "pending";
                 const meta = STATUS_META[s];
                 return (

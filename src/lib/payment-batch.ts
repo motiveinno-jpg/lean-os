@@ -51,6 +51,8 @@ export interface PayrollItem {
   netPay: number;
   // v4 H1: 임의 수당/공제 (선택)
   extras?: PayrollExtra[];
+  /** 사번 — 표 이름 옆 태그용 (2026-08-27) */
+  employeeNumber?: string;
   /** 2026-08-27 H9 — 전월 명세 대비 ±20% 등 이상 감지 문구(표시만) */
   warn?: string;
   employerCosts: {

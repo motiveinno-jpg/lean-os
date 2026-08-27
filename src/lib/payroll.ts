@@ -1,5 +1,6 @@
 import type { PayrollExtra } from './payment-batch';
 import { fetchInsuranceRates, type InsuranceRates } from './insurance-rates';
+import { comparePeople } from './people-sort';
 import { logRead } from "@/lib/log-read";
 /**
  * OwnerView Payroll Engine
@@ -32,7 +33,7 @@ export async function previewPayroll(
   const rates = await fetchInsuranceRates(companyId, rateYear);
   const employees = logRead('lib/payroll:employees', await db
     .from('employees')
-    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount, is_4_insurance')
+    .select('id, name, salary, status, meal_allowance_included, hire_date, birth_date, non_taxable_amount, is_4_insurance, employee_number')
     .eq('company_id', companyId)
     .in('status', ['active', 'joined', 'invited']));
 
@@ -91,7 +92,8 @@ export async function previewPayroll(
   let totalDeductions = 0;
   let totalNet = 0;
 
-  for (const emp of employees as any[]) {
+  //   표 순서 = 사번 순 → 가나다 → ABC (2026-08-27 사장님, 디렉토리와 같은 규칙)
+  for (const emp of [...(employees as any[])].sort(comparePeople)) {
     const ov = overrideMap[emp.id];
     // 월별 override 가 있으면 그 값 사용, 없으면 employees.salary(연봉 ÷ 12 = 월급) 사용
     const salary = ov ? ov.base_salary : Number(emp.salary || 0);
@@ -126,6 +128,7 @@ export async function previewPayroll(
       dependents: 1,
       taxableAllowance: allowance, // 과세 수당 → 소득세·국민연금·건강·고용보험 자동 가산
     });
+    item.employeeNumber = emp.employee_number || undefined;
     // 수당/공제 항목 표시 + 실수령 가감 (세금은 calculatePayroll 이 이미 반영)
     if (valid.length > 0) {
       item.extras = valid;
