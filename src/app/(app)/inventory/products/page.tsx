@@ -251,6 +251,14 @@ export default function ProductsPage() {
 }
 
 /** 품목 등록·수정 — 폼은 팝업(목록 줄이 밀리지 않게, 조회 화면 표준) */
+/** 품목 분류 — 체크(중복 가능). 2026-08-27 사장님: 원재료·부재료·서비스·완제품 등. 상품(사서 그대로 파는 것)은 유통업에 필요해 넣었다. */
+const PRODUCT_CATS = [
+  { key: "원재료", hint: "만드는 데 들어가는 주 자재" },
+  { key: "부재료", hint: "포장·라벨 같은 보조 자재" },
+  { key: "완제품", hint: "만들어 파는 것 · 자재구성" },
+  { key: "상품", hint: "사서 그대로 파는 것" },
+  { key: "서비스", hint: "셀 물건이 없는 것" },
+];
 function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }: {
   initial: Partial<Product>;
   /** 바코드 중복 확인용 — 다른 품목들 */
@@ -262,17 +270,21 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
   onSave: (v: Partial<Product> & { id?: string }, openBom: boolean) => void;
 }) {
   const [v, setV] = useState<Partial<Product>>({ unit: "EA", track_stock: true, is_active: true, ...initial });
-  //   자재구성 체크 — 있는 품목이면 켜져 있고, 켜면(기존 품목) 바로 팝업, 새 품목이면 저장 뒤 팝업
-  const [wantBom, setWantBom] = useState(bomCount > 0);
+  //   2026-08-27 사장님 — 분류는 글자 대신 **체크(중복 가능)**. 저장은 기존 category 칸에 쉼표로(DB 변경 없음, 옛 자유 글자 값은 '기타'로 보인다).
+  //     '자재로 만드는 품목입니다' 체크는 없앴다 — **완제품**에 체크한 것이 그 뜻이라 둘을 따로 묻는 게 중복이었다.
+  const cats = useMemo(() => new Set((v.category || "").split(",").map((x) => x.trim()).filter(Boolean)), [v.category]);
+  const legacy = [...cats].filter((c) => !PRODUCT_CATS.some((k) => k.key === c));
+  const toggleCat = (key: string, on: boolean) => {
+    const next = new Set(cats); if (on) next.add(key); else next.delete(key);
+    setV((s) => ({ ...s, category: PRODUCT_CATS.map((k) => k.key).filter((k) => next.has(k)).concat(legacy).join(",") || null,
+      //   서비스만 골랐고 새 품목이면 수량 관리를 꺼 둔다(사람이 매번 판단하지 않게)
+      ...(s.id == null && on && key === "서비스" && next.size === 1 ? { track_stock: false } : {}) }));
+  };
+  const wantBom = cats.has("완제품");
   const dupBarcode = v.barcode ? others.find((p) => p.id !== initial.id && p.barcode === v.barcode) : undefined;
   const set = (k: keyof Product, val: unknown) => setV((s) => ({ ...s, [k]: val }));
   const num = (x: unknown) => (x === "" || x == null ? null : Number(String(x).replace(/[^0-9.-]/g, "")));
   const ready = !!String(v.sku || "").trim() && !!String(v.name || "").trim();
-
-  //   분류를 '서비스'로 고르면 수량 관리를 꺼진 채로 — 사람이 매번 판단하지 않아도 되게(기획 목업 그대로)
-  const onCategory = (c: string) => {
-    setV((s) => ({ ...s, category: c, ...(c.trim() === "서비스" && s.id == null ? { track_stock: false } : {}) }));
-  };
 
   return (
     <div className="inv-modal" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -287,8 +299,6 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
             <input className="field-input" value={v.sku || ""} onChange={(e) => set("sku", e.target.value)} placeholder="TS-BLK-M" /></label>
           <label className="inv-field"><span>품목명 *</span>
             <input className="field-input" value={v.name || ""} onChange={(e) => set("name", e.target.value)} placeholder="기본 티셔츠" /></label>
-          <label className="inv-field"><span>분류</span>
-            <input className="field-input" value={v.category || ""} onChange={(e) => onCategory(e.target.value)} placeholder="의류 · 부자재 · 서비스" /></label>
           <label className="inv-field"><span>규격·옵션</span>
             <input className="field-input" value={v.spec || ""} onChange={(e) => set("spec", e.target.value)} placeholder="블랙 / M" /></label>
           <label className="inv-field"><span>단위</span>
@@ -307,6 +317,15 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
               }} /></label>
         </div>
 
+        <div className="inv-field"><span>분류 <em className="inv-hint">여러 개 가능</em></span>
+          <div className="inv-cat-row">
+            {PRODUCT_CATS.map((c) => (
+              <label key={c.key}><input type="checkbox" checked={cats.has(c.key)} onChange={(e) => toggleCat(c.key, e.target.checked)} />{c.key} <em>{c.hint}</em></label>
+            ))}
+            {legacy.length > 0 && <label><input type="checkbox" checked readOnly onChange={() => setV((s) => ({ ...s, category: PRODUCT_CATS.map((k) => k.key).filter((k) => cats.has(k)).join(",") || null }))} />기타: {legacy.join(", ")} <em>예전 글자 분류 — 끄면 지워짐</em></label>}
+          </div>
+        </div>
+
         {/*   ★ 결정 6-④ · 7 — 이 체크 하나가 음수 재고의 절반을 없앤다. 그래서 폼 한가운데 크게 둔다. */}
         <label className="inv-track">
           <input type="checkbox" checked={v.track_stock !== false} onChange={(e) => set("track_stock", e.target.checked)} />
@@ -315,18 +334,16 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
             <em>끄면 재고에 잡히지 않습니다 — 설치비·배송비·용역·구독처럼 <b>셀 물건이 없는 것</b>. 주문·계산서에는 그대로 오릅니다.</em>
           </span>
         </label>
-        {/*   ★ 자재구성 — 생산 입력이 아니라 품목 등록에서(2026-08-26 사장님). 체크하면 팝업이 열린다. */}
-        <label className="inv-track inv-track-bom">
-          <input type="checkbox" checked={wantBom} onChange={(e) => {
-            setWantBom(e.target.checked);
-            if (e.target.checked && initial.id) onOpenBom({ ...(initial as Product), ...(v as Product) });
-          }} />
-          <span>
-            <b>자재로 만드는 품목입니다 (세트·완제품){bomCount > 0 && <span className="inv-pill inv-pill-ok">자재 {bomCount}종</span>}</b>
-            <em>체크하면 <b>자재구성</b>(1개당 소요 자재·소요량) 입력 창이 열립니다{!initial.id ? " — 새 품목은 저장 후 열립니다" : ""}. 생산 › 완성 기록 시 소요량만큼 자재가 출고됩니다.</em>
-            {bomCount > 0 && initial.id && <button type="button" className="bz-link" onClick={(e) => { e.preventDefault(); onOpenBom({ ...(initial as Product), ...(v as Product) }); }}>자재구성 고치기</button>}
-          </span>
-        </label>
+        {/*   ★ 자재구성 — 품목 등록에서(2026-08-26 사장님). 2026-08-27: 별도 체크 대신 분류 '완제품'이면 이 줄이 뜬다. */}
+        {wantBom && (
+          <div className="inv-track inv-track-bom">
+            <span>
+              <b>완제품 — 자재구성{bomCount > 0 && <span className="inv-pill inv-pill-ok">자재 {bomCount}종</span>}</b>
+              <em>1개당 소요 자재·소요량을 적어 두면 생산 › 완성 기록 시 소요량만큼 자재가 출고됩니다{!initial.id ? " — 새 품목은 저장 후 자재구성 창이 열립니다" : ""}.</em>
+              {initial.id && <button type="button" className="bz-link" onClick={(e) => { e.preventDefault(); onOpenBom({ ...(initial as Product), ...(v as Product) }); }}>{bomCount > 0 ? "자재구성 고치기" : "자재구성 넣기"}</button>}
+            </span>
+          </div>
+        )}
 
         <div className="inv-form-grid">
           <label className="inv-field"><span>판매가</span>
@@ -356,7 +373,7 @@ function ProductDialog({ initial, others, bomCount, onOpenBom, onClose, onSave }
 
         <div className="inv-modal-actions">
           <button type="button" className="btn-secondary btn-sm" onClick={onClose}>취소</button>
-          <button type="button" className="btn-primary btn-sm" disabled={!ready} onClick={() => onSave(v, wantBom && !initial.id)}>저장</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!ready} onClick={() => onSave(v, wantBom && !initial.id && bomCount === 0)}>저장</button>
         </div>
       </div>
     </div>

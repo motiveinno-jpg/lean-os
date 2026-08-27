@@ -8971,7 +8971,8 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .app-zoom .qk-shell, .app-zoom .collect-page { height: calc(100vh / var(--app-zoom) - 100px); }
 .app-zoom .app-content-scale:has(> .qk-shell), .app-zoom .app-content-scale:has(> .pj-shell) { height: calc(100vh / var(--app-zoom) - 100px); }
 .app-zoom .vault-layout { height: calc(100vh / var(--app-zoom) - 100px); }
-.app-zoom .chat-workspace { height: calc(100vh / var(--app-zoom) - 100px); }   /* 메신저 상자 끝선 = 사이드바 끝선 (2026-08-27) */
+.app-zoom .chat-workspace { height: calc(100vh / var(--app-zoom) - 100px); }
+.app-zoom .inv-modal { height: calc(100vh / var(--app-zoom)); }   /* fixed inset-0 이 zoom 배로 늘어나 팝업 아래가 잘려 보였다 (2026-08-27 사장님) */   /* 메신저 상자 끝선 = 사이드바 끝선 (2026-08-27) */
 .app-zoom .vault-file-panel > .qk-screen { height: calc(100vh / var(--app-zoom) - 380px); }
 .app-zoom .bank-tx-list-card { max-height: calc(100vh / var(--app-zoom) - 210px); }
 .app-zoom .menu-guide-drawer { height: calc(100dvh / var(--app-zoom)); }
@@ -9232,3 +9233,8 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .doc-suggest { @apply mx-3 mb-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-3 py-1.5 text-[12.5px]; }
 .doc-in.doc-in-warn { @apply border-[var(--warning)] bg-[var(--warning-dim)] text-[var(--warning)]; }
 .ch-import-tabs { @apply -mt-1 mb-3; }   /* A9 가져오기 팝업 갈래 (2026-08-27) */
+
+/* 품목 분류 체크(중복 가능) — 2026-08-27 사장님 */
+.inv-cat-row { @apply flex flex-wrap gap-x-4 gap-y-1.5 rounded-xl border border-[var(--border)] px-3.5 py-2.5; }
+.inv-cat-row > label { @apply flex cursor-pointer items-center gap-1.5 text-[13px]; }
+.inv-cat-row > label em { @apply not-italic text-[11px] text-[var(--text-muted)]; }
