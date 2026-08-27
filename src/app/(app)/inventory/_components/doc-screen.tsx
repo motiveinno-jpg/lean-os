@@ -16,8 +16,7 @@ import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { todayKst } from "@/lib/kst";
 import {
-  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, Pager, usePager, QuickSearch, quickSearchHit,
-} from "@/components/query-kit";
+  QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, Pager, usePager, QuickSearch, quickSearchHit, HelperMenu, type HelperItem } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
 import { exportToExcel } from "@/lib/excel-export";
 import { SortableTh, nextSort, cmp, type SortState } from "@/components/sortable-th";
@@ -38,7 +37,7 @@ export type HistRow = {
 };
 
 export function DocScreen({
-  formKey, perm, saveActions, onSave, history, onOpen, onDelete, onCancel, onReturn, popupExtra, pull, headNote,
+  formKey, perm, saveActions, onSave, history, onOpen, onDelete, onCancel, onReturn, popupExtra, pull, headNote, tools,
 }: {
   formKey: FormKey;
   perm: string;
@@ -57,6 +56,8 @@ export function DocScreen({
   /** 주문서에서 줄을 불러오는 버튼을 둘지 */
   pull?: (ctl: DocCtl) => React.ReactNode;
   headNote?: React.ReactNode;
+  /** 보조 동작 묶음 — 주면 '도구 ▾' 하나로 접히고 '입력 항목'도 그 안으로 (2026-08-27 사장님: 조회 줄 버튼 정리) */
+  tools?: (ctl: DocCtl) => HelperItem[];
 }) {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -174,7 +175,9 @@ export function DocScreen({
   const runButtons = canWrite ? (
     <>
       {pull?.(ctl)}
-      <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
+      {tools
+        ? <HelperMenu label="도구" items={[...tools(ctl), { label: "입력 항목", source: "양식", hint: "이 화면 격자에 어떤 칸을 둘지", onClick: ctl.openForm }]} />
+        : <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>}
       {saveActions.map((a) => (
         <button key={a.key} type="button" title={a.hint}
           className={a.primary ? "btn-primary btn-sm" : "btn-secondary btn-sm"}

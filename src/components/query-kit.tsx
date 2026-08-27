@@ -479,7 +479,9 @@ export type HelperItem = {
  *   ★ 줄마다 **출처를 적는다.** 배운 규칙은 사람이 고른 것이고 구분 채우기는 국세청 조회다.
  *     전부 AI 라고 뭉뚱그리면 틀렸을 때 원인을 엉뚱한 데서 찾는다.
  */
-export function HelperMenu({ items }: { items: HelperItem[] }) {
+//   ★ 2026-08-27 사장님 "버튼이 많아진다" — AI 가 아닌 보조 동작(자재 소요·전표·처분·설정)도 한 묶음으로 접는다.
+//     그때는 label 을 '도구'로 준다. AI 제안이라 부르면 이름이 거짓말한다. 줄마다 출처(source)는 그대로 적는다.
+export function HelperMenu({ items, label = "AI 제안" }: { items: HelperItem[]; label?: string }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const total = items.reduce((n, i) => n + (i.badge ?? 0), 0);
@@ -494,7 +496,7 @@ export function HelperMenu({ items }: { items: HelperItem[] }) {
     <div className="qk-help" ref={box}>
       <button type="button" onClick={() => setOpen((v) => !v)}
         className={total > 0 ? "qk-help-btn qk-help-btn-on" : "qk-help-btn"}>
-        AI 제안
+        {label}
         {total > 0 && <em className="qk-help-badge">{total}</em>}
         <span className="qk-caret">▾</span>
       </button>

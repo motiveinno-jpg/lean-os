@@ -34,8 +34,7 @@ import {
 } from "@/lib/inventory";
 import { listOrders, listUsed, listOrderLinesAll, type Order } from "@/lib/inventory-orders";
 import { listBoms, perUnit, lossReasonLabel } from "@/lib/inventory-production";
-//   수율·로스 경고 임계 — 회사설정으로 옮기기 전까지 기본값(기획 결정 32). AI 브리핑도 같은 값을 쓴다.
-const YIELD_WARN = 0.95, LOSS_WARN = 0.05;
+import { loadInventorySettings, INVENTORY_DEFAULTS } from "@/lib/inventory-settings";
 import { listImports, channelLabel } from "@/lib/inventory-channels";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
@@ -95,6 +94,9 @@ export default function InventoryStatusPage() {
   const { data: orderLines = [] } = q("inv-status-order-lines", () => listOrderLinesAll(companyId!, orderIds), [orderIds.join(",")]);
   const { data: boms = [] } = q("inv-boms", () => listBoms(companyId!));
   const { data: imports = [] } = q("ch-imports", () => listImports(companyId!, 2000));
+  //   수율·로스 경고 임계 — 회사가 정한 값(생산 › 도구 › 수율 임계값). AI 브리핑도 같은 값을 읽는다.
+  const { data: invCfg = INVENTORY_DEFAULTS } = q("inv-settings", () => loadInventorySettings(companyId!));
+  const YIELD_WARN = invCfg.yield_warn, LOSS_WARN = invCfg.loss_warn;
   const { data: partners = [] } = q("inv-partners", async () => {
     const { data } = await supabase.from("partners").select("id, name").eq("company_id", companyId!).limit(1000);
     return ((data || []) as { id: string; name: string }[]);
@@ -522,7 +524,7 @@ export default function InventoryStatusPage() {
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>완제품별 수율</h3><p>양품률 = 양품 ÷ (양품+불량) · {YIELD_WARN * 100}% 미만은 붉게{make.defectQty === 0 && make.doneQty > 0 ? " · 이 기간엔 불량 기록이 없습니다" : ""}</p>
+                      <h3>완제품별 수율</h3><p>양품률 = 양품 ÷ (양품+불량) · {Math.round(YIELD_WARN * 1000) / 10}% 미만은 붉게(생산 › 도구 › 수율 임계값){make.defectQty === 0 && make.doneQty > 0 ? " · 이 기간엔 불량 기록이 없습니다" : ""}</p>
                       <table className="ev-table ev-lined table-inv-status-sm">
                         <thead><tr><th>완제품</th><th>양품</th><th>불량</th><th>양품률</th><th>완성 금액</th></tr></thead>
                         <tbody>{[...make.perProduct.entries()].sort((a, b) => (b[1].qty + b[1].defect) - (a[1].qty + a[1].defect)).map(([id, r]) => {

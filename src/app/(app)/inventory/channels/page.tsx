@@ -18,8 +18,7 @@ import { todayKst } from "@/lib/kst";
 import { DateRangeField } from "@/components/date-range-field";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup,
-  Pager, usePager, QuickSearch, quickSearchHit, SelectionBar,
-} from "@/components/query-kit";
+  Pager, usePager, QuickSearch, quickSearchHit, SelectionBar, HelperMenu } from "@/components/query-kit";
 import { exportToExcel } from "@/lib/excel-export";
 import { listProducts, listWarehouses, type Product, type Warehouse } from "@/lib/inventory";
 import { useDocEditor, DocHead, DocGrid, FormDialog, blankRow, type DocCtl, type DocRow } from "../_components/doc-editor";
@@ -454,10 +453,12 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
       <QueryBar right={canWrite ? (
         <>
           <button type="button" className="btn-secondary btn-sm" onClick={() => setFetchOpen(true)}>채널에서 가져오기</button>
-          <button type="button" className="btn-secondary btn-sm" onClick={() => setPaste(true)}>엑셀 붙여넣기</button>
-          <button type="button" className="btn-secondary btn-sm" onClick={ctl.openForm}>입력 항목</button>
-          <button type="button" className="btn-secondary btn-sm" disabled={ctl.live.length < 2}
-            onClick={() => ctl.setRows((s) => [...sortByChannel(s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim())), blankRow()])}>채널순 정렬</button>
+          {/*   ★ 2026-08-27 — 보조 동작은 '도구 ▾' 하나로(조회 줄 버튼 정리) */}
+          <HelperMenu label="도구" items={[
+            { label: "엑셀 붙여넣기", source: "입력", hint: "채널 주문 엑셀을 복사해 격자에 채우기", onClick: () => setPaste(true) },
+            { label: "채널순 정렬", source: "입력", hint: "줄을 채널별로 모아 전표가 채널마다 하나가 되게", disabled: ctl.live.length < 2, onClick: () => ctl.setRows((s) => [...sortByChannel(s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim())), blankRow()]) },
+            { label: "입력 항목", source: "양식", hint: "격자에 어떤 칸을 둘지", onClick: ctl.openForm },
+          ]} />
           <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={save}>출고 등록</button>
         </>
       ) : undefined}>

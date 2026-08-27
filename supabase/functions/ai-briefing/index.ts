@@ -172,6 +172,9 @@ export async function collectInventory(admin: ReturnType<typeof createClient>, c
   //   ★ 결정 32 (2026-08-26) — 최근 7일 양품률 95% 미만 · 자재 로스율 5% 초과면 알린다. 기록이 없으면(불량 0·std_qty null) 조용히 있는다 — 거짓 100% 로 안심시키지 않는다.
   try {
     const since = new Date(new Date(today).getTime() - 7 * 86400000).toISOString().slice(0, 10);
+    //   임계값은 회사설정(settings.inventory) — 재고 › 생산 › 도구 › 수율 임계값. 없으면 95% / 5%.
+    const { data: cs } = await admin.from("company_settings").select("settings").eq("company_id", companyId).maybeSingle();
+    const yw = Number((cs as any)?.settings?.inventory?.yield_warn) || 0.95, lw = (cs as any)?.settings?.inventory?.loss_warn != null ? Number((cs as any).settings.inventory.loss_warn) : 0.05;
     const { data: wh } = await admin.from("warehouses").select("id").eq("company_id", companyId).eq("code", "DEFECT").maybeSingle();
     const defectWh = (wh as any)?.id || null;
     const { data: mv } = await admin.from("stock_moves")
@@ -182,8 +185,8 @@ export async function collectInventory(admin: ReturnType<typeof createClient>, c
       if (m.stock_docs?.reason === "produce") { if (defectWh && m.warehouse_id === defectWh) defect += Number(m.qty || 0); else good += Number(m.qty || 0); }
       else if (m.std_qty != null) { std += Math.abs(Number(m.std_qty)); act += Math.abs(Number(m.qty || 0)); }
     }
-    if (good + defect > 0 && defect > 0 && good / (good + defect) < 0.95) lines.push(`최근 7일 양품률 ${(good / (good + defect) * 100).toFixed(1)}% (불량 ${defect}개) — 재고 › 현황 › 생산현황`);
-    if (std > 0 && (act - std) / std > 0.05) lines.push(`최근 7일 자재 로스율 ${((act - std) / std * 100).toFixed(1)}% — 재고 › 현황 › 생산현황에서 원인별로 보기`);
+    if (good + defect > 0 && defect > 0 && good / (good + defect) < yw) lines.push(`최근 7일 양품률 ${(good / (good + defect) * 100).toFixed(1)}% (불량 ${defect}개) — 재고 › 현황 › 생산현황`);
+    if (std > 0 && (act - std) / std > lw) lines.push(`최근 7일 자재 로스율 ${((act - std) / std * 100).toFixed(1)}% — 재고 › 현황 › 생산현황에서 원인별로 보기`);
   } catch { /* skip */ }
   return { lines, short, out, late, unshipped, noVoucher };
 }

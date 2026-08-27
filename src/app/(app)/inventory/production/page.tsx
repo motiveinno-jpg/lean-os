@@ -18,6 +18,7 @@ import { listOrders } from "@/lib/inventory-orders";
 import { BomNeedDialog, MaterialShortBadge } from "../_components/bom-editor";
 import { ProdVoucherDialog } from "../_components/prod-voucher";
 import { DefectDisposeDialog } from "../_components/defect-dispose";
+import { YieldSettingsDialog } from "../_components/yield-settings";
 import { materialShortages } from "@/lib/inventory-production";
 import { listOnHand, DEFECT_WAREHOUSE_CODE } from "@/lib/inventory";
 import type { DocCtl } from "../_components/doc-editor";
@@ -29,6 +30,7 @@ export default function ProductionPage() {
   const [mats, setMats] = useState<MatInput[] | null>(null);
   const [voucher, setVoucher] = useState<{ companyId: string; userId: string | null } | null>(null);
   const [dispose, setDispose] = useState<{ ctl: DocCtl } | null>(null);
+  const [yieldCfg, setYieldCfg] = useState<string | null>(null);
   const qc = useQueryClient();
 
   return (
@@ -39,8 +41,6 @@ export default function ProductionPage() {
         pull={(ctl) => (
           <>
             <PullOrderButton ctl={ctl} />
-            {/*   ★ 자재구성 편집은 재고 › 품목으로 갔다(2026-08-26). 여기서는 친 품목의 자재 소요만 본다. */}
-            <button type="button" className="btn-secondary btn-sm" onClick={() => setNeed({ ctl })}>자재 소요</button>
             {/*   ★ 자재가 모자라면 치는 동안 바로 보인다(2026-08-26 사장님: "부족하면 알려주는 장치") — 누르면 소요 팝업 */}
             <MaterialShortBadge ctl={ctl} onOpen={() => setNeed({ ctl })} />
             {/*   ★ 결정 35 — 스캔 모드: 바코드가 양품/불량 어느 칸에 +1 될지. 제어 바코드 *GOOD* / *DEFECT* 로도 바뀐다 */}
@@ -48,12 +48,15 @@ export default function ProductionPage() {
               <ChipGroup value={ctl.scanMode} onChange={ctl.setScanMode} options={[{ value: "qty", label: "양품 스캔" }, { value: "defect", label: "불량 스캔" }] as const} />
               {ctl.lastScan && <em className="prod-scan-last">{ctl.lastScan.name} → {ctl.lastScan.col === "defect" ? "불량" : "양품"} · 양품 {ctl.lastScan.qty} / 불량 {ctl.lastScan.defect}</em>}
             </span>
-            {/*   ★ 결정 33 — 주기 전표 초안 상태·지금 만들기·설정 */}
-            <button type="button" className="btn-secondary btn-sm" onClick={() => ctl.companyId && setVoucher({ companyId: ctl.companyId, userId: ctl.userId })}>생산 전표</button>
-            {/*   ★ Phase 4 — 불량 보류 재고 처분(폐기·양품 전환·B급 판매 안내) */}
-            <button type="button" className="btn-secondary btn-sm" onClick={() => setDispose({ ctl })}>불량 처분</button>
           </>
         )}
+        //   ★ 2026-08-27 사장님 "버튼이 많아진다" — 보조 동작은 '도구 ▾' 하나로. 조회 줄엔 주문서 불러오기 · 스캔 칩 · 부족 배지 · 도구 · 완성 기록만.
+        tools={(ctl) => [
+          { label: "자재 소요", source: "입력", hint: "격자에 친 완제품의 자재 소요·실투입·로스·단가 제안", onClick: () => setNeed({ ctl }) },
+          { label: "불량 처분", source: "재고", hint: "불량 보류 창고 재고 — 폐기 · 양품 전환 · B급 판매", onClick: () => setDispose({ ctl }) },
+          { label: "생산 · 매출원가 전표", source: "전표", hint: "주기 초안 만들기 · 확정 · 계정 설정", onClick: () => ctl.companyId && setVoucher({ companyId: ctl.companyId, userId: ctl.userId }) },
+          { label: "수율 임계값", source: "설정", hint: "양품률 · 자재 로스율 경고 기준 — 생산현황과 AI 브리핑에 적용", onClick: () => ctl.companyId && setYieldCfg(ctl.companyId) },
+        ]}
         saveActions={[{ key: "save", label: "완성 기록", primary: true, hint: "자재가 차감되고 완제품이 증가합니다" }]}
         headNote={
           <span className="inv-hint doc-note-move">
@@ -156,6 +159,7 @@ export default function ProductionPage() {
           onClose={() => setNeed(null)} />
       )}
       {voucher && <ProdVoucherDialog companyId={voucher.companyId} userId={voucher.userId} onClose={() => setVoucher(null)} />}
+      {yieldCfg && <YieldSettingsDialog companyId={yieldCfg} onClose={() => setYieldCfg(null)} />}
       {dispose && dispose.ctl.companyId && <DefectDisposeDialog companyId={dispose.ctl.companyId} userId={dispose.ctl.userId} products={dispose.ctl.products} onClose={() => setDispose(null)} />}
     </>
   );
