@@ -247,7 +247,7 @@ export default function InventoryProfitPage() {
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
                       <h3>손실</h3><p>판매가 아닌 출고의 원가 — 폐기·실사 감모·샘플·증정 · 합계 ₩{won(S.loss)}</p>
-                      {S.lossBy.size ? <><DonutChart unit="원" total={`₩${wonShort(S.loss)}`} data={[...S.lossBy.entries()].map(([k, v], i) => ({ label: lossLabel[k] || k, value: v, color: vizColor(i) }))} /><Legend items={[...S.lossBy.entries()].map(([k], i) => ({ name: lossLabel[k] || k, color: vizColor(i) }))} /></> : <div className="inv-status-empty">손실이 없습니다</div>}
+                      {S.lossBy.size ? <><DonutChart unit="원" total={`₩${won(S.loss)}`} data={[...S.lossBy.entries()].map(([k, v], i) => ({ label: lossLabel[k] || k, value: v, color: vizColor(i) }))} /><Legend items={[...S.lossBy.entries()].map(([k], i) => ({ name: lossLabel[k] || k, color: vizColor(i) }))} /></> : <div className="inv-status-empty">손실이 없습니다</div>}
                     </div>
                     <div className="pnl-panel">
                       <h3>이익 구조</h3><p>매출 100 기준</p>
@@ -298,7 +298,7 @@ export default function InventoryProfitPage() {
                     </div>
                     <div className="pnl-panel">
                       <h3>채널별</h3><p>채널 주문 기록이 매인 문서는 그 채널, 나머지는 직접</p>
-                      {channelRows.length ? <><DonutChart unit="원" total={`₩${wonShort(S.gp)}`} data={channelRows.filter((r) => r.gp > 0).map((r, i) => ({ label: r.name, value: r.gp, color: vizColor(i) }))} /><Legend items={channelRows.map((r, i) => ({ name: `${r.name} ₩${wonShort(r.gp)} (${pct(r.rate)})`, color: vizColor(i) }))} /></> : <div className="inv-status-empty">판매가 없습니다</div>}
+                      {channelRows.length ? <><DonutChart unit="원" total={`₩${won(S.gp)}`} data={channelRows.filter((r) => r.gp > 0).map((r, i) => ({ label: r.name, value: r.gp, color: vizColor(i) }))} /><Legend items={channelRows.map((r, i) => ({ name: `${r.name} ₩${wonShort(r.gp)} (${pct(r.rate)})`, color: vizColor(i) }))} /></> : <div className="inv-status-empty">판매가 없습니다</div>}
                     </div>
                   </div>
                 )}
