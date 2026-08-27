@@ -75,6 +75,8 @@ export default function InventoryStatusPage() {
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(todayKst);
   const [saleView, setSaleView] = useState<"product" | "partner" | "channel">("product");
+  //   ★ 숫자는 눌러서 내역이 보여야 한다(2026-08-27 사장님) — 요약 줄·처리할 것의 건수마다 팝업 목록 + 그 화면으로 가는 링크
+  const [detail, setDetail] = useState<{ title: string; desc?: string; head: string[]; rows: React.ReactNode[][]; go?: { href: string; label: string } } | null>(null);
   const [buyView, setBuyView] = useState<"product" | "partner">("partner");
   const today = todayKst();
 
@@ -112,16 +114,17 @@ export default function InventoryStatusPage() {
   const stock = useMemo(() => {
     let amount = 0, short = 0, out = 0, priced = 0;
     const byProduct = new Map<string, number>();
+    const shortList: { p: Product; qty: number }[] = [], outList: { p: Product; qty: number }[] = [];
     for (const o of onhand) byProduct.set(o.product_id, (byProduct.get(o.product_id) || 0) + Number(o.qty));
     for (const p of products) {
       if (!p.track_stock || !p.is_active) continue;
       const qty = byProduct.get(p.id) || 0;
       const c = costOf(p.id);
       if (c != null && qty > 0) { amount += qty * c; priced++; }
-      if (qty <= 0) out++;
-      else if (p.safety_stock != null && qty < p.safety_stock) short++;
+      if (qty <= 0) { out++; outList.push({ p, qty }); }
+      else if (p.safety_stock != null && qty < p.safety_stock) { short++; shortList.push({ p, qty }); }
     }
-    return { amount, short, out, priced, byProduct };
+    return { amount, short, out, priced, byProduct, shortList, outList };
   }, [onhand, products, avgCost]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const sale = useMemo(() => {
@@ -147,7 +150,7 @@ export default function InventoryStatusPage() {
     const saleDocs = docs.filter((d) => d.reason === "sale" && d.status === "active");
     return {
       amt, qty, ret, cost, margin: costed ? amt - cost : null, docs: saleDocs.length,
-      noVoucher: saleDocs.filter((d) => !d.journal_entry_id).length,
+      noVoucher: saleDocs.filter((d) => !d.journal_entry_id).length, noVoucherDocs: saleDocs.filter((d) => !d.journal_entry_id),
       products: perProduct.size, perDay, perProduct, perPartner, perChannel,
     };
   }, [moves, docs, imports, avgCost]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -258,23 +261,39 @@ export default function InventoryStatusPage() {
     .map(([pid, v]) => ({ key: pid, p: productById.get(pid), ...v }));
   const empty = !movesLoading && moves.length === 0 && orders.length === 0;
 
+  const nm = (id: string) => productById.get(id)?.name || "?";
+  const openShort = () => setDetail({ title: `재고 부족 ${stock.short}개`, desc: "안전재고 아래로 내려간 품목 — 창고 합계 기준", head: ["품목", "현재고", "안전재고", "모자람"],
+    rows: stock.shortList.sort((a, b) => (a.qty - (a.p.safety_stock || 0)) - (b.qty - (b.p.safety_stock || 0))).map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), won(p.safety_stock || 0), won((p.safety_stock || 0) - qty)]),
+    go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
+  const openOut = () => setDetail({ title: `품절 ${stock.out}개`, desc: "현재고가 0 이하인 품목", head: ["품목", "현재고", "안전재고"],
+    rows: stock.outList.map(({ p, qty }) => [<b key="n">{p.name}</b>, won(qty), p.safety_stock != null ? won(p.safety_stock) : "—"]), go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
+  const openNoVoucher = () => setDetail({ title: `전표 없는 판매 ${sale.noVoucher}건`, desc: "재고는 나갔지만 회계 전표가 아직 없는 판매 문서", head: ["일자", "문서", "거래처", "합계"],
+    rows: sale.noVoucherDocs.map((d) => [d.doc_date, <b key="n">{d.doc_no}</b>, d.partner_id ? partnerName.get(d.partner_id) || "—" : "—", `₩${won(d.supply + d.vat)}`]), go: { href: "/partners/reconciliation/sale-purchase", label: "매입매출전표 › 증빙에서 불러오기 →" } });
+  const openLate = () => setDetail({ title: `납기 지난 주문 ${order.late.length}건`, desc: "납기가 지났는데 잔량이 남은 주문", head: ["번호", "거래처", "납기", "지난 날", "잔량"],
+    rows: order.late.map((r) => [<b key="n">{r.o.order_no}</b>, r.o.partner_name || partnerName.get(r.o.partner_id || "") || "—", r.o.due_date || "—", r.dday == null ? "—" : `D+${-r.dday}`, won(r.remain)]), go: { href: "/inventory/orders", label: "주문으로 →" } });
+  const openOpen = () => setDetail({ title: `열린 주문 잔량 ${order.open.length}건`, desc: "아직 다 채우지 못한 주문", head: ["번호", "거래처", "납기", "주문", "가져간", "잔량"],
+    rows: order.open.map((r) => [<b key="n">{r.o.order_no}</b>, r.o.partner_name || partnerName.get(r.o.partner_id || "") || "—", r.o.due_date || "—", won(r.ordered), won(r.used), won(r.remain)]), go: { href: "/inventory/orders", label: "주문으로 →" } });
+  const openMatShort = () => setDetail({ title: `자재 부족 ${make.shortage.length}품목`, desc: "열린 주문 잔량 × 자재구성 − 현재고", head: ["자재", "필요", "현재고", "부족"],
+    rows: make.shortage.map((x) => [<b key="n">{nm(x.product_id)}</b>, won(x.need), won(x.have), won(x.need - x.have)]), go: { href: "/inventory/purchase?fill=1", label: "구매 입력에서 부족분 채우기 →" } });
+  const openDefect = () => setDetail({ title: `불량 보류 ${won(make.defectOnhand)}개`, desc: "불량 보류 창고의 재고 — 처분은 생산 › 도구 › 불량 처분", head: ["품목", "수량", "금액(이동평균)"],
+    rows: defectWh ? onhand.filter((o) => o.warehouse_id === defectWh && Number(o.qty) > 0).map((o) => [<b key="n">{nm(o.product_id)}</b>, won(Number(o.qty)), `₩${won(Number(o.qty) * (costOf(o.product_id) ?? 0))}`]) : [], go: { href: "/inventory/production", label: "생산 › 불량 처분 →" } });
   const stats: Record<Tab, React.ReactNode> = {
     all: (<>
       <Stat label="재고 금액" value={`₩${won(stock.amount)}`} />
-      <Stat label="부족" value={`${stock.short}개`} tone={stock.short ? "minus" : undefined} />
-      <Stat label="품절" value={`${stock.out}개`} tone={stock.out ? "minus" : undefined} />
+      <Stat label="부족" value={<button type="button" className="inv-stat-btn" onClick={openShort}>{stock.short}개</button>} tone={stock.short ? "minus" : undefined} />
+      <Stat label="품절" value={<button type="button" className="inv-stat-btn" onClick={openOut}>{stock.out}개</button>} tone={stock.out ? "minus" : undefined} />
       <Stat label="기간 매출" value={`₩${won(sale.amt)}`} />
       <Stat label="기간 매입" value={`₩${won(buy.amt)}`} />
       <Stat label="마진(매출−원가)" value={sale.margin == null ? "—" : `₩${won(sale.margin)}`} tone={sale.margin != null && sale.margin < 0 ? "minus" : undefined} />
-      <Stat label="전표 없는 판매" value={`${sale.noVoucher}건`} tone={sale.noVoucher ? "minus" : undefined} />
-      <Stat label="납기 지난 주문" value={`${order.late.length}건`} tone={order.late.length ? "minus" : undefined} />
+      <Stat label="전표 없는 판매" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucher}>{sale.noVoucher}건</button>} tone={sale.noVoucher ? "minus" : undefined} />
+      <Stat label="납기 지난 주문" value={<button type="button" className="inv-stat-btn" onClick={openLate}>{order.late.length}건</button>} tone={order.late.length ? "minus" : undefined} />
     </>),
     order: (<>
       <Stat label="주문" value={`${order.count}건`} />
       <Stat label="주문 금액" value={`₩${won(order.amt)}`} />
       <Stat label="진행률" value={order.pct == null ? "—" : `${order.pct}%`} />
-      <Stat label="열린 주문 잔량" value={`${order.open.length}건 · ₩${won(order.remainAmt)}`} />
-      <Stat label="납기 지남" value={`${order.late.length}건`} tone={order.late.length ? "minus" : undefined} />
+      <Stat label="열린 주문 잔량" value={<button type="button" className="inv-stat-btn" onClick={openOpen}>{order.open.length}건 · ₩{won(order.remainAmt)}</button>} />
+      <Stat label="납기 지남" value={<button type="button" className="inv-stat-btn" onClick={openLate}>{order.late.length}건</button>} tone={order.late.length ? "minus" : undefined} />
     </>),
     sale: (<>
       <Stat label="판매" value={`₩${won(sale.amt)}`} />
@@ -283,7 +302,7 @@ export default function InventoryStatusPage() {
       <Stat label="품목" value={`${sale.products}종`} />
       <Stat label="반품" value={`₩${won(sale.ret)}`} tone={sale.ret ? "minus" : undefined} />
       <Stat label="마진" value={sale.margin == null ? "—" : `₩${won(sale.margin)}`} />
-      <Stat label="전표 없음" value={`${sale.noVoucher}건`} tone={sale.noVoucher ? "minus" : undefined} />
+      <Stat label="전표 없음" value={<button type="button" className="inv-stat-btn" onClick={openNoVoucher}>{sale.noVoucher}건</button>} tone={sale.noVoucher ? "minus" : undefined} />
     </>),
     buy: (<>
       <Stat label="매입" value={`₩${won(buy.amt)}`} />
@@ -297,10 +316,10 @@ export default function InventoryStatusPage() {
       <Stat label="불량" value={won(make.defectQty)} tone={make.defectQty ? "minus" : undefined} />
       <Stat label="양품률" value={make.yieldRate == null ? "기록 없음" : `${(make.yieldRate * 100).toFixed(1)}%`} tone={make.yieldRate != null && make.yieldRate < YIELD_WARN ? "minus" : undefined} />
       <Stat label="자재 로스율" value={make.lossRate == null ? "기록 없음" : `${(make.lossRate * 100).toFixed(1)}%`} tone={make.lossRate != null && make.lossRate > LOSS_WARN ? "minus" : undefined} />
-      <Stat label="불량 보류" value={`${won(make.defectOnhand)}개 · ₩${won(make.defectOnhandAmt)}`} tone={make.defectOnhand ? "minus" : undefined} />
+      <Stat label="불량 보류" value={<button type="button" className="inv-stat-btn" onClick={openDefect}>{won(make.defectOnhand)}개 · ₩{won(make.defectOnhandAmt)}</button>} tone={make.defectOnhand ? "minus" : undefined} />
       <Stat label="폐기 손실" value={`₩${won(make.scrapLoss)}`} tone={make.scrapLoss ? "minus" : undefined} />
       <Stat label="자재 투입" value={`₩${won(make.matAmt)}`} />
-      <Stat label="자재 부족" value={`${make.shortage.length}품목`} tone={make.shortage.length ? "minus" : undefined} />
+      <Stat label="자재 부족" value={<button type="button" className="inv-stat-btn" onClick={openMatShort}>{make.shortage.length}품목</button>} tone={make.shortage.length ? "minus" : undefined} />
     </>),
   };
 
@@ -353,12 +372,12 @@ export default function InventoryStatusPage() {
                   </div>
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
-                      <h3>바로 처리할 것</h3><p>숫자를 누르면 그 화면으로 갑니다</p>
-                      <ul className="inv-status-todo">
-                        <li><Link href="/inventory/purchase?fill=1">재고 부족 <b>{stock.short}</b> · 품절 <b>{stock.out}</b> — 구매 입력에 부족분 채우기</Link></li>
-                        <li><Link href="/partners/reconciliation/sale-purchase">전표 없는 판매 <b>{sale.noVoucher}건</b> — 매입매출전표 › 증빙에서 불러오기</Link></li>
-                        <li><Link href="/inventory/orders">납기 지난 주문 <b>{order.late.length}건</b> · 열린 주문 잔량 <b>{order.open.length}건</b></Link></li>
-                        <li><Link href="/inventory/production">자재 부족 <b>{make.shortage.length}품목</b>{make.noBom ? ` · 자재구성 없는 주문 줄 ${make.noBom}` : ""}</Link></li>
+                      <h3>바로 처리할 것</h3><p>숫자를 누르면 어떤 건인지 목록이 뜨고, 목록에서 그 화면으로 갑니다</p>
+                      <ul className="inv-status-todo inv-status-todo-btn">
+                        <li><button type="button" onClick={openShort}>재고 부족 <b>{stock.short}</b></button> · <button type="button" onClick={openOut}>품절 <b>{stock.out}</b></button> <span className="ev-dim">— 구매 입력에 부족분 채우기</span></li>
+                        <li><button type="button" onClick={openNoVoucher}>전표 없는 판매 <b>{sale.noVoucher}건</b></button> <span className="ev-dim">— 매입매출전표 › 증빙에서 불러오기</span></li>
+                        <li><button type="button" onClick={openLate}>납기 지난 주문 <b>{order.late.length}건</b></button> · <button type="button" onClick={openOpen}>열린 주문 잔량 <b>{order.open.length}건</b></button></li>
+                        <li><button type="button" onClick={openMatShort}>자재 부족 <b>{make.shortage.length}품목</b></button>{make.noBom ? <span className="ev-dim"> · 자재구성 없는 주문 줄 {make.noBom}({make.noBomNames.slice(0, 3).join(", ")}{make.noBomNames.length > 3 ? " …" : ""})</span> : null}</li>
                       </ul>
                     </div>
                     <div className="pnl-panel">
@@ -559,6 +578,26 @@ export default function InventoryStatusPage() {
           </div>
         </QueryBody>
       </QueryScreen>
+      {detail && (
+        <div className="inv-modal" onClick={() => setDetail(null)}>
+          <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal-title">{detail.title}</h3>
+            {detail.desc && <p className="inv-modal-desc">{detail.desc}</p>}
+            <div className="stg-table-wrap ch-ship-list">
+              <table className="ev-table ev-lined table-inv-status-sm">
+                <thead><tr>{detail.head.map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                <tbody>{detail.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className={j === 0 ? "text-left" : typeof c === "string" && /[0-9]/.test(c) ? "tr mono-number" : "tc"}>{c}</td>)}</tr>)}
+                  {detail.rows.length === 0 && <tr><td colSpan={detail.head.length} className="tc ev-dim">없습니다</td></tr>}</tbody>
+              </table>
+            </div>
+            <div className="inv-modal-actions">
+              {detail.go && <Link href={detail.go.href} className="bz-link">{detail.go.label}</Link>}
+              <span className="doc-sums-sp" />
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setDetail(null)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

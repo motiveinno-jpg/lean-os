@@ -51,6 +51,7 @@ export default function InventoryProfitPage() {
   const [to, setTo] = useState(todayKst);
   const [histProduct, setHistProduct] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [uncOpen, setUncOpen] = useState(false);   // 미확정 출고 — 숫자를 누르면 어떤 줄인지(2026-08-27)
   //   결정 39 — 재평가 폼(품목·일자·단가·사유·비고). 기초 원가 입력도 같은 폼.
   const [rv, setRv] = useState<{ date: string; unit: string; reason: string; note: string }>({ date: todayKst(), unit: "", reason: "reval_adjust", note: "" });
 
@@ -191,7 +192,7 @@ export default function InventoryProfitPage() {
       <Stat label="손실(폐기·감모·샘플·증정·평가)" value={`₩${won(S.loss)}`} tone={S.loss ? "minus" : undefined} />
       {S.revalGain > 0 && <Stat label="재평가 이익" value={`₩${won(S.revalGain)}`} tone="plus" />}
       <Stat label="순이익" value={`₩${won(S.net)}`} tone={S.net < 0 ? "minus" : "plus"} />
-      <Stat label="원가 미확정 출고" value={`${won(S.uncosted)}개`} tone={S.uncosted ? "minus" : undefined} />
+      <Stat label="원가 미확정 출고" value={<button type="button" className="inv-stat-btn" onClick={() => setUncOpen(true)}>{won(S.uncosted)}개</button>} tone={S.uncosted ? "minus" : undefined} />
     </>),
     product: (<><Stat label="품목" value={`${S.perProduct.size}종`} /><Stat label="판매 수량" value={won(S.soldQty)} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} /><Stat label="이익률" value={pct(S.rate)} /></>),
     partner: (<><Stat label="거래처" value={`${S.perPartner.size}곳`} /><Stat label="채널" value={`${S.perChannel.size}개`} /><Stat label="매출총이익" value={`₩${won(S.gp)}`} /></>),
@@ -399,6 +400,20 @@ export default function InventoryProfitPage() {
           </div>
         </QueryBody>
       </QueryScreen>
+      {uncOpen && (
+        <div className="inv-modal" onClick={() => setUncOpen(false)}>
+          <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+            <h3 className="inv-modal-title">원가 미확정 출고 {won(S.uncosted)}개</h3>
+            <p className="inv-modal-desc">층이 없어 원가를 정하지 못한 출고 — 기초 원가(원가 이력 › 재평가·기초 원가 입력)나 매입 단가를 넣고 다시 계산하면 채워집니다. 0으로 잡지 않았습니다.</p>
+            <div className="stg-table-wrap ch-ship-list"><table className="ev-table ev-lined table-inv-status-sm">
+              <thead><tr><th>일자</th><th>문서</th><th>품목</th><th>사유</th><th>미확정 수량</th></tr></thead>
+              <tbody>{costs.filter((c) => c.qty_uncosted > 0).map((c) => <tr key={c.move_id}><td className="mono-number tc">{c.moved_at}</td><td className="tc">{moves.find((m) => m.id === c.move_id)?.doc?.doc_no || "—"}</td><td className="text-left"><b>{productById.get(c.product_id)?.name || "?"}</b></td><td className="tc">{c.reason}</td><td className="tr mono-number">{won(c.qty_uncosted)}</td></tr>)}
+                {!costs.some((c) => c.qty_uncosted > 0) && <tr><td colSpan={5} className="tc ev-dim">없습니다</td></tr>}</tbody>
+            </table></div>
+            <div className="inv-modal-actions"><button type="button" className="bz-link" onClick={() => { setUncOpen(false); setTab("history"); }}>원가 이력에서 기초 원가 입력 →</button><span className="doc-sums-sp" /><button type="button" className="btn-secondary btn-sm" onClick={() => setUncOpen(false)}>닫기</button></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

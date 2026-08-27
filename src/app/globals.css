@@ -9012,3 +9012,8 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .pay-note-more { @apply not-italic font-bold text-[var(--primary)]; }
 .ph-legend-btn { @apply cursor-pointer underline decoration-dotted underline-offset-2; }
 .ph-legend-list { @apply mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]; }
+
+/* 요약 숫자·처리할 것 — 눌러서 내역 (2026-08-27) */
+.inv-stat-btn { @apply cursor-pointer font-bold underline decoration-dotted underline-offset-2 text-inherit; }
+.inv-status-todo-btn li { @apply rounded-lg border border-[var(--border)] px-3 py-2; }
+.inv-status-todo-btn li > button { @apply cursor-pointer text-[var(--text)] hover:text-[var(--primary)]; }
