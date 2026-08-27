@@ -4815,9 +4815,8 @@ table.pnl-drill-table { min-width: 760px; }
 @keyframes fw-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.6); } }
 /* 반차·휴가·결근·공휴일 — 부드러운 알약 라벨 */
 .fw-cell-chip { @apply relative z-10 text-[9px] font-bold px-1.5 py-[1px] rounded-full leading-none; }
-.fw-cell-leave { @apply rounded-lg font-bold text-[10px]; background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); }
-.fw-cell-holiday { @apply rounded-lg; background: color-mix(in srgb, var(--info) 12%, transparent); color: var(--info); border: 1px solid color-mix(in srgb, var(--info) 26%, transparent); }
-.fw-cell-absent { @apply rounded-lg font-bold; background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent); }
+/* 휴가·결근·공휴일 셀 — 근무 셀과 같은 상자(테두리·바닥 채움·오른쪽 색띠·칩+보조글) 2026-08-27 사장님 '근무중과 맞춰줘' */
+.fw-cell-status .fw-cell-fill { border-radius: 7px; }
 /* IP 접속 제한 차단 화면 (2026-08-11) */
 .ip-gate-overlay { @apply fixed inset-0 z-[200] flex items-center justify-center p-4; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); }
 .ip-gate-card { @apply w-full max-w-sm p-6; }

@@ -176,7 +176,8 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   //   시각이 없는 구 데이터 반차는 방향 미상(half) — 채움 없이 라벨만.
   //   같은 날 오전+오후 반차가 겹치면 사실상 종일이므로 full 로 승격.
   const leaveByEmpDate = useMemo(() => {
-    const m = new Map<string, { kind: "full" | "am" | "pm" | "half"; tip: string }>();
+    const m = new Map<string, { kind: "full" | "am" | "pm" | "half"; tip: string; type?: string }>();
+    const TYPE_WORD: Record<string, string> = { annual: "연차", sick: "병가", family: "경조", maternity: "출산", paternity: "배우자출산", unpaid: "무급", special: "특별", official: "공가" };
     for (const l of leaves) {
       const unit = String(l.leave_unit || "");
       const partial = unit === "half_day" || unit === "two_hours" || Number(l.days) === 0.5;
@@ -190,9 +191,10 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
         if (!(l.start_date <= s && s <= l.end_date)) continue;
         const key = `${l.employee_id}|${s}`;
         const prev = m.get(key);
-        if (!prev) { m.set(key, { kind, tip }); continue; }
-        if (prev.kind === "full" || kind === "full") { m.set(key, { kind: "full", tip: "휴가" }); continue; }
-        if (prev.kind !== kind) m.set(key, { kind: "full", tip: "휴가" }); // 오전+오후 겹침 = 종일
+        const type = TYPE_WORD[String(l.leave_type)] || (l.leave_type ? String(l.leave_type) : undefined);
+        if (!prev) { m.set(key, { kind, tip, type }); continue; }
+        if (prev.kind === "full" || kind === "full") { m.set(key, { kind: "full", tip: "휴가", type }); continue; }
+        if (prev.kind !== kind) m.set(key, { kind: "full", tip: "휴가", type }); // 오전+오후 겹침 = 종일
       }
     }
     return m;
@@ -400,7 +402,11 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       return (
                         <td key={i} className="px-1 py-2 align-middle" title={lv.tip + (lci ? ` · 출근 ${lci}${lco ? `~${lco}` : ""}` : "")}>
                           {lv.kind === "full" ? (
-                            <div className="fw-cell fw-cell-leave">휴가</div>
+                            <div className="fw-cell fw-cell-box fw-cell-status">
+                              <div className="fw-cell-fill" style={{ width: "100%", background: "linear-gradient(90deg, color-mix(in srgb, var(--success) 20%, transparent), color-mix(in srgb, var(--success) 6%, transparent))" }}><span className="fw-cell-fill-edge" style={{ background: "var(--success)" }} /></div>
+                              <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" }}>휴가</span>
+                              <span className="fw-cell-t2">{lv.type || "종일"}</span>
+                            </div>
                           ) : (
                             <div className="fw-cell fw-cell-box">
                               {halfFrac > 0 && (
@@ -423,7 +429,11 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       if (holidaySet.has(dstr)) {
                         return (
                           <td key={i} className="px-1 py-2 text-center align-middle bg-[var(--bg-surface)]/30">
-                            <div className="fw-cell fw-cell-holiday" title={holidayNameByDate.get(dstr)}>{holidayNameByDate.get(dstr) || "공휴일"}</div>
+                            <div className="fw-cell fw-cell-box fw-cell-status" title={holidayNameByDate.get(dstr)}>
+                              <div className="fw-cell-fill" style={{ width: "100%", background: "linear-gradient(90deg, color-mix(in srgb, var(--info) 18%, transparent), color-mix(in srgb, var(--info) 5%, transparent))" }}><span className="fw-cell-fill-edge" style={{ background: "var(--info)" }} /></div>
+                              <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--info) 14%, transparent)", color: "var(--info)" }}>공휴일</span>
+                              <span className="fw-cell-t2">{holidayNameByDate.get(dstr) || ""}</span>
+                            </div>
                           </td>
                         );
                       }
@@ -431,7 +441,11 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
                       return (
                         <td key={i} className={`px-1 py-2 text-center align-middle ${weekend ? "bg-[var(--bg-surface)]/30" : ""}`}>
                           {absent
-                            ? <div className="fw-cell fw-cell-absent">결근</div>
+                            ? <div className="fw-cell fw-cell-box fw-cell-status" title="지난 평일인데 출퇴근 기록·휴가가 없습니다 — 휴가 등록이나 기록 정정으로 맞추세요">
+                                <div className="fw-cell-fill" style={{ width: "100%", background: "linear-gradient(90deg, color-mix(in srgb, var(--danger) 18%, transparent), color-mix(in srgb, var(--danger) 5%, transparent))" }}><span className="fw-cell-fill-edge" style={{ background: "var(--danger)" }} /></div>
+                                <span className="fw-cell-chip" style={{ background: "color-mix(in srgb, var(--danger) 14%, transparent)", color: "var(--danger)" }}>결근</span>
+                                <span className="fw-cell-t2">무기록</span>
+                              </div>
                             : <div className="fw-cell text-[var(--text-dim)]">—</div>}
                         </td>
                       );
