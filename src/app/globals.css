@@ -9195,3 +9195,12 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .cap-size { @apply absolute -top-6 left-0 rounded bg-black/70 px-1.5 py-0.5 text-[11px] text-white; }
 .cap-bar { @apply absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[var(--bg-card)] px-4 py-2 text-[12.5px] text-[var(--text)] shadow-xl; }
 .ht-capture-btns { @apply flex gap-2; }
+
+/* 경영 알림 조건 (2026-08-27) */
+.bar-list { @apply flex flex-col gap-2; }
+.bar-row { @apply flex items-center gap-3 rounded-xl border border-[var(--border)] px-3 py-2.5; }
+.bar-row-on { @apply border-[var(--primary)]/40 bg-[var(--primary)]/5; }
+.bar-text { @apply flex min-w-0 flex-1 flex-col gap-0.5 text-[12.5px]; }
+.bar-text .ev-dim { @apply text-[11px]; }
+.bar-th { @apply inline-flex shrink-0 items-center gap-1.5 text-[12px] text-[var(--text-muted)]; }
+.bar-th-in { @apply h-8 w-28 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2 text-right text-[12.5px] text-[var(--text)]; }

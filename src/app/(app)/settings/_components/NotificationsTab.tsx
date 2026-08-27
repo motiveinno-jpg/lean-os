@@ -1,4 +1,5 @@
 "use client";
+import { BizAlertRules } from "@/components/biz-alert-rules";
 import { logRead } from "@/lib/log-read";
 import { Ico } from "@/components/ui-icon";
 
@@ -340,6 +341,9 @@ export function NotificationsTab({ companyId }: { companyId: string | null }) {
           onAll={setAllEvents}
         />
       </ChannelSection>
+
+      {/* 경영 알림 조건 — 조건형 (2026-08-27 ERP 3순위) */}
+      <BizAlertRules companyId={companyId} />
 
       {/* Quiet Hours */}
       <div className="notification-quiet-hours-card glass-card">
