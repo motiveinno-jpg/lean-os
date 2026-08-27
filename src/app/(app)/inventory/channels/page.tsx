@@ -323,8 +323,9 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
 }) {
   const { toast } = ctl;
   const [busy, setBusy] = useState(false);
-  const [paste, setPaste] = useState(false);
-  const [fetchOpen, setFetchOpen] = useState(false);
+  const qc = useQueryClient();
+  //   조회 줄 버튼 정리(기획 §4) — '채널에서 가져오기'·'엑셀 붙여넣기' 두 버튼 → **주문 가져오기 하나**, 팝업 안 갈래 탭. 결정 18(붙여넣기가 1등 시민) — 기본 갈래는 붙여넣기.
+  const [importOpen, setImportOpen] = useState<"paste" | "api" | null>(null);
 
   //   채널|상품코드 → 품목
   const codeMap = useMemo(() => {
@@ -333,6 +334,24 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     return m;
   }, [codes]);
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
+  //   A9 (2026-08-27 규칙형 자동화) — 상품 연결이 없어도 채널 상품명 = 품목명, 또는 채널 상품코드 = SKU/바코드면 **제안**으로 채운다.
+  //     유일하게 맞을 때만. 줄은 노랗게(suggest) 표시되고 저장하면 상품 연결로 학습된다(사람이 저장 = 확정, 결정 91).
+  const norm = (s: string) => s.toLowerCase().replace(/[\s\-_()\[\]/·,.]/g, "");
+  const suggestIdx = useMemo(() => {
+    const byName = new Map<string, Product[]>(); const byCode = new Map<string, Product[]>();
+    for (const p of products) {
+      if (!p.is_active) continue;
+      const n = norm(p.name); if (n) byName.set(n, [...(byName.get(n) || []), p]);
+      for (const c of [p.sku, p.barcode]) { const k = (c || "").trim().toUpperCase(); if (k) byCode.set(k, [...(byCode.get(k) || []), p]); }
+    }
+    return { byName, byCode };
+  }, [products]);
+  const suggestFor = (code: string, name?: string | null): Product | undefined => {
+    const c = suggestIdx.byCode.get(code.trim().toUpperCase());
+    if (c?.length === 1) return c[0];
+    const n = name ? suggestIdx.byName.get(norm(name)) : undefined;
+    return n?.length === 1 ? n[0] : undefined;
+  };
 
   //   ★ 채널 상품코드 → 품목 자동 채움. 코드가 있는데 품목이 없으면 nocode 표시, 품목이 오면 표시를 지운다.
   useEffect(() => {
@@ -379,6 +398,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
 
   const counts = useMemo(() => ({
     nocode: ctl.live.filter((r) => r.flag === "nocode").length,
+    suggest: ctl.live.filter((r) => r.flag === "suggest" && r.product_id).length,
     dup: ctl.live.filter((r) => r.flag === "dup").length,
     noCh: ctl.live.filter((r) => !r.ch).length,
     channels: new Set(ctl.live.map((r) => r.ch).filter(Boolean)).size,
@@ -412,7 +432,11 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
           const sup = Number(x.unit_price) * Number(x.qty);
           r.supply = String(sup); r.vat = String(Math.round(sup * 0.1));
         }
-        if (!p) { r.flag = "nocode"; if (x.product_name) r.lnote = x.product_name; }
+        if (!p) {
+          const sg = suggestFor(x.channel_product_id, x.product_name);
+          if (sg) { ctl.fillFrom(r, sg); r.flag = "suggest"; r.lnote = x.product_name ? `연결 제안 · ${x.product_name}` : "연결 제안 (SKU 일치)"; }
+          else { r.flag = "nocode"; if (x.product_name) r.lnote = x.product_name; }
+        }
         return r;
       });
       return [...sortByChannel([...keep, ...add]), blankRow()];
@@ -434,10 +458,19 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     const groups = new Map<string, typeof lines>();
     for (const l of lines) { groups.set(l.ch, [...(groups.get(l.ch) || []), l]); }
     const msg = `${lines.length}줄을 출고(판매)로 등록합니다 — ${[...groups.entries()].map(([ch, ls]) => `${channelLabel(ch)} ${ls.length}줄`).join(" · ")}.`
-      + `${counts.dup ? ` 이미 등록된 ${counts.dup}줄은 건너뜁니다.` : ""} 진행할까요?`;
+      + `${counts.dup ? ` 이미 등록된 ${counts.dup}줄은 건너뜁니다.` : ""}`
+      + `${counts.suggest ? ` 연결 제안 ${counts.suggest}줄은 상품 연결에 기억됩니다(다음부터 자동).` : ""} 진행할까요?`;
     if (!window.confirm(msg)) return;
     setBusy(true);
     try {
+      //   A9 — 제안대로(또는 사람이 고친 대로) 저장하는 줄은 상품 연결로 학습한다. 같은 채널·코드는 한 번만.
+      const learned = new Set<string>();
+      for (const l of lines) {
+        if (l.flag !== "suggest" || !l.product_id || !l.ccode || !l.ch) continue;
+        const k = `${l.ch}|${l.ccode.trim().toUpperCase()}`; if (learned.has(k)) continue; learned.add(k);
+        await upsertChannelCode(ctl.companyId!, { product_id: l.product_id, channel: l.ch, channel_product_id: l.ccode.trim(), channel_product_name: null });
+      }
+      if (learned.size) qc.invalidateQueries({ queryKey: ["ch-codes", ctl.companyId] });
       const done: string[] = [];
       for (const [ch, ls] of groups) {
         const r = await importChannelDoc(ctl.companyId!, ch, wh, built.date, built.head.note || null,
@@ -458,10 +491,9 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
     <>
       <QueryBar right={canWrite ? (
         <>
-          <button type="button" className="btn-secondary btn-sm" onClick={() => setFetchOpen(true)}>채널에서 가져오기</button>
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setImportOpen("paste")}>주문 가져오기</button>
           {/*   ★ 2026-08-27 — 보조 동작은 '도구 ▾' 하나로(조회 줄 버튼 정리) */}
           <HelperMenu label="도구" items={[
-            { label: "엑셀 붙여넣기", source: "입력", hint: "채널 주문 엑셀을 복사해 격자에 채우기", onClick: () => setPaste(true) },
             { label: "채널순 정렬", source: "입력", hint: "줄을 채널별로 모아 전표가 채널마다 하나가 되게", disabled: ctl.live.length < 2, onClick: () => ctl.setRows((s) => [...sortByChannel(s.filter((r) => r.product_id || r.sku.trim() || r.ono.trim() || r.ccode.trim())), blankRow()]) },
             { label: "입력 항목", source: "양식", hint: "격자에 어떤 칸을 둘지", onClick: ctl.openForm },
           ]} />
@@ -475,6 +507,7 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
         {counts.channels > 1 && <Stat label="채널" value={`${counts.channels}개`} />}
         {counts.noCh > 0 && <Stat label="채널 없음" value={`${counts.noCh}줄`} tone="minus" />}
         {counts.nocode > 0 && <Stat label="미연결" value={`${counts.nocode}줄`} tone="minus" />}
+        {counts.suggest > 0 && <Stat label="연결 제안" value={`${counts.suggest}줄`} />}
         {counts.dup > 0 && <Stat label="기존 등록" value={`${counts.dup}줄`} />}
         <Stat label="공급가액" value={`₩${won(ctl.sums.supply)}`} />
         <Stat label="합계" value={`₩${won(ctl.sums.total)}`} />
@@ -497,8 +530,19 @@ function useImportGrid({ ctl, products, warehouses, codes, canWrite, onDone, goC
   const dialogs = (
     <>
       <FormDialog ctl={ctl} />
-      {paste && <PasteDialog pick={fieldPick} openForm={ctl.openForm} onClose={() => setPaste(false)} onRows={(rows) => { putRows(rows); setPaste(false); }} />}
-      {fetchOpen && <FetchDialog pick={fieldPick} openForm={ctl.openForm} onClose={() => setFetchOpen(false)} onRows={(rows) => { putRows(rows); setFetchOpen(false); }} />}
+      {importOpen && (() => {
+        const tabs = (
+          <div className="collect-tabs ch-import-tabs">
+            {([["paste", "엑셀 붙여넣기"], ["api", "채널 API"]] as const).map(([k, l]) => (
+              <button key={k} type="button" className={importOpen === k ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setImportOpen(k)}>{l}</button>
+            ))}
+          </div>
+        );
+        const done = (rows: (RawOrderRow & { channel: string })[]) => { putRows(rows); setImportOpen(null); };
+        return importOpen === "paste"
+          ? <PasteDialog tabs={tabs} pick={fieldPick} openForm={ctl.openForm} onClose={() => setImportOpen(null)} onRows={done} />
+          : <FetchDialog tabs={tabs} pick={fieldPick} openForm={ctl.openForm} onClose={() => setImportOpen(null)} onRows={done} />;
+      })()}
     </>
   );
   return { head, body, dialogs };
@@ -517,7 +561,7 @@ function FieldPickLine({ pick, openForm }: { pick: FieldPick; openForm: () => vo
 }
 
 // ── 엑셀 붙여넣기 — 채널을 고르고 격자에 깐다 ──────────────────────────────
-function PasteDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
+function PasteDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.ReactNode; pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
   const [channel, setChannel] = useState<ChannelValue>(CHANNELS[0].value);
   const [text, setText] = useState("");
   const parsed = useMemo(() => {
@@ -544,6 +588,7 @@ function PasteDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; ope
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box inv-modal-wide" onClick={(e) => e.stopPropagation()}>
+        {tabs}
         <h3 className="inv-modal-title">주문 엑셀 붙여넣기</h3>
         <p className="inv-modal-desc">
           열 순서: <b>주문번호 · 채널 상품코드 · 수량</b> · 단가 · 주문일 · 주문자 · <b>수취인 · 연락처 · 주소 · 배송 요청 · 우편번호</b>
@@ -578,7 +623,7 @@ function PasteDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; ope
 }
 
 // ── 채널 API 에서 한 번에 가져오기 — 키가 등록된 채널을 모두 부른다 ──────────
-function FetchDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
+function FetchDialog({ tabs, pick, openForm, onClose, onRows }: { tabs?: React.ReactNode; pick: FieldPick; openForm: () => void; onClose: () => void; onRows: (r: (RawOrderRow & { channel: string })[]) => void }) {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10); });
   const [to, setTo] = useState(todayKst);
   const [busy, setBusy] = useState(false);
@@ -587,6 +632,7 @@ function FetchDialog({ pick, openForm, onClose, onRows }: { pick: FieldPick; ope
   return (
     <div className="inv-modal" onClick={onClose}>
       <div className="inv-modal-box" onClick={(e) => e.stopPropagation()}>
+        {tabs}
         <h3 className="inv-modal-title">채널에서 주문 가져오기</h3>
         <p className="inv-modal-desc">
           설정에 API 키가 등록된 채널({apiChannels.map((c) => c.label).join(" · ")})의 결제 완료 주문을 <b>한 번에</b> 받아

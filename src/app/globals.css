@@ -8717,6 +8717,7 @@ table.table-inv-summary { min-width: 760px; }
 .inv-row { @apply cursor-pointer transition hover:bg-[var(--bg-surface)]; }
 /* 음수 줄 — 에러가 아니라 '아직 안 맞춘 것'이라 눈에는 띄되 겁주지 않는다 (결정 7) */
 .inv-row-fix { background: color-mix(in srgb, var(--danger) 6%, transparent); }
+.inv-row-suggest { background: color-mix(in srgb, #f59e0b 9%, transparent); }   /* A9 연결 제안 줄 (2026-08-27) */
 .inv-tab-warn { @apply text-[var(--danger)]; }
 .inv-foot { @apply mt-3 text-[11.5px] leading-relaxed text-[var(--text-dim)]; }
 .inv-foot-warn { @apply rounded-lg border border-[var(--danger)]/25 bg-[var(--danger)]/5 px-3 py-2 text-[var(--text-muted)]; }
@@ -9230,3 +9231,4 @@ table.table-inv-ch-ship { min-width: 1480px; }
 /* 재고 입력 자동화 2차 (2026-08-27) — 지난번 그대로 띠 · 단가 이상 칸 */
 .doc-suggest { @apply mx-3 mb-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-3 py-1.5 text-[12.5px]; }
 .doc-in.doc-in-warn { @apply border-[var(--warning)] bg-[var(--warning-dim)] text-[var(--warning)]; }
+.ch-import-tabs { @apply -mt-1 mb-3; }   /* A9 가져오기 팝업 갈래 (2026-08-27) */

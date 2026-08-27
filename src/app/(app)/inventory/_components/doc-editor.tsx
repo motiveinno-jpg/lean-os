@@ -45,7 +45,7 @@ export type DocRow = {
   ch: string; ono: string; ccode: string; buyer: string;
   rcv: string; tel: string; zip: string; addr: string; memo: string;   // 배송 정보 — 출고(송장)용
   /** 줄에 붙는 표시 — dup: 이미 등록된 주문번호 · nocode: 상품 연결이 없는 채널 상품코드 */
-  flag?: "dup" | "nocode" | null;
+  flag?: "dup" | "nocode" | "suggest" | null;   //   suggest = 상품 연결이 없어 이름·SKU 로 맞춘 제안(A9) — 저장하면 연결로 학습
   custom: Record<string, string>;
 };
 
@@ -509,8 +509,8 @@ export function DocGrid({ ctl, products }: { ctl: DocCtl; products: Product[] })
             const tot = num(r.supply) + num(r.vat);
             const has = !!(r.product_id || r.sku.trim() || num(r.qty) || num(r.supply));
             return (
-              <tr key={r.key} className={r.flag === "nocode" ? "inv-row-fix" : r.flag === "dup" ? "doc-row-dup" : undefined}
-                title={r.flag === "nocode" ? "상품 연결이 없는 채널 상품코드 — 품목을 직접 고르거나 상품 연결에서 등록하세요" : r.flag === "dup" ? "이미 등록된 주문번호 — 저장 시 건너뜁니다" : undefined}>
+              <tr key={r.key} className={r.flag === "nocode" ? "inv-row-fix" : r.flag === "dup" ? "doc-row-dup" : r.flag === "suggest" ? "inv-row-suggest" : undefined}
+                title={r.flag === "nocode" ? "상품 연결이 없는 채널 상품코드 — 품목을 직접 고르거나 상품 연결에서 등록하세요" : r.flag === "dup" ? "이미 등록된 주문번호 — 저장 시 건너뜁니다" : r.flag === "suggest" ? "연결 제안 — 채널 상품명·SKU 가 같은 품목을 맞췄습니다. 틀리면 품목을 고치세요. 저장하면 상품 연결로 기억합니다" : undefined}>
                 <td className="doc-no">{i + 1}</td>
                 {anySrc && <td className="tc">{r.src ? <span className="doc-src">{r.src}</span> : null}</td>}
                 {onLine.map((f) => {
