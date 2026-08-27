@@ -21,14 +21,14 @@ import { useSyncCooldown } from "@/lib/sync-cooldown";
 import { getSyncPausedUntil, setSyncPause, clearSyncPause } from "@/lib/data-sync";
 import { getBankSyncAccess } from "@/lib/billing";
 import { DateRangeField } from "@/components/date-range-field";
-import { getBankAccountChanges, getDistinctBankAccountNos, updateBankAccountMeta, deleteBankAccountSafe, mapBankTransaction, ignoreBankTransaction } from "@/lib/queries";
+import { getBankAccountChanges, getDistinctBankAccountNos, updateBankAccountMeta, deleteBankAccountSafe } from "@/lib/queries";
 import { setLedgerExcluded, excludeLabelOf } from "@/lib/dup-voucher";
 import { useLedgerExcludePrompt } from "@/components/ledger-exclude-prompt";
 import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers";
 import { EmptyState } from "@/components/empty-state";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
-import { NATURE_LABEL } from "@/lib/account-nature";
+import { BankLineDialog, bankLineState, BANK_LINE_META, type BankLineTx } from "@/components/bank-line-dialog";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
 import { BankStatusPanels } from "@/components/finance-status-panels";
@@ -49,18 +49,8 @@ const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 
 type Tab = "overview" | "accounts" | "transactions";
 
-const MAPPING_META: Record<string, { label: string; bg: string; text: string }> = {
-  unmapped: { label: "미매핑", bg: "bg-[var(--warning-dim)]", text: "text-[var(--warning)]" },
-  auto_mapped: { label: "자동", bg: "bg-[var(--info-dim)]", text: "text-[var(--info)]" },
-  manual_mapped: { label: "수동", bg: "bg-[var(--success-dim)]", text: "text-[var(--success)]" },
-  ignored: { label: "무시", bg: "bg-[var(--text-muted)]/10", text: "text-[var(--text-muted)]" },
-};
-
-// 인라인 매핑용 분류(카테고리) 목록
-//   계정 성격 라벨 — 계정과목표의 account_type 은 자유 문자열이라 안전하게 되짚는다
-const natureLabel = (t: string) => (NATURE_LABEL as Record<string, string>)[t] || t;
-
-const BANK_CATEGORIES = ["복리후생비", "소모품비", "통신비", "교통비", "광고선전비", "접대비", "보험료", "세금공과", "수수료", "임대료", "기타비용"];
+//   상태 칩 — 2026-08-27: 분류(카테고리) 매핑을 없앴다. 줄의 상태는 증빙 연결·일반전표·장부 제외 셋으로만 본다
+//   (bank-line-dialog 의 bankLineState). '연결 대기'는 정산 초안(invoice_settlements suggested)이 있는 줄.
 
 /*  ── 조회 화면 표준 (2026-08-13 확정) — 수집·전표와 같은 검색조건/줄수/내 조건 구성 ──
     ★ 여기 있는 것은 **'조회'를 눌러야** 반영된다. 기간·빠른검색은 조회 줄에 있어 즉시다. */
@@ -69,8 +59,8 @@ const TX_IO_CHIPS = [
 ] as const;
 //   기본은 '미전표'(전표 안 된 것만) — 전표처리된 건은 목록에서 사라진다 (2026-08-19 사장님). 전체·전표됨은 골라 본다.
 const TX_STATE_CHIPS = [
-  { value: "unposted", label: "미전표" }, { value: "all", label: "전체" }, { value: "unmapped", label: "미매핑" }, { value: "auto_mapped", label: "자동" },
-  { value: "manual_mapped", label: "수동" }, { value: "ignored", label: "무시" }, { value: "posted", label: "전표됨" }, { value: "excluded", label: "장부 제외" },
+  { value: "unposted", label: "미처리" }, { value: "all", label: "전체" }, { value: "pending", label: "연결 대기" },
+  { value: "linked", label: "증빙 연결" }, { value: "posted", label: "전표됨" }, { value: "excluded", label: "장부 제외" },
 ] as const;
 type TxCond = {
   who: string[];    // 예금주명
@@ -92,7 +82,11 @@ export default function BankPage() {
   const companyId = user?.company_id ?? null;
   const bankCd = useSyncCooldown(companyId, "bank"); // 통장 연동 30분 쿨타임 (회사 공유 — 연속 클릭이 CODEF 오류·은행 이중로그인 유발)
   const userId = user?.id ?? null;
-  const [tab, setTab] = useState<Tab>("accounts");
+  //   ?tab=transactions — 재무 › 전표 현황 '통장 거래(미처리) › 처리' 가 거래내역으로 바로 온다 (2026-08-27)
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
+    return t === "transactions" || t === "overview" ? t : "accounts";
+  });
   const { isMaster: bankTabMaster, hasPerm: bankTabPerm } = useMyPermissions();
   // 미허용 탭 진입 가드 — 첫 허용 탭으로
   useEffect(() => {
@@ -104,14 +98,8 @@ export default function BankPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, bankTabMaster, bankTabPerm]);
   const queryClient = useQueryClient();
-  const [mapOpenId, setMapOpenId] = useState<string | null>(null);
-  const [mapCat, setMapCat] = useState("");
-  // 직원 QA — 계정과목 매핑을 전표입력처럼 검색으로 (스크롤 대신 타이핑)
-  const [mapAcctQuery, setMapAcctQuery] = useState("");
-  // 직원 QA 통장(그랜터) — 거래별 사유·태그·사용직원
-  const [mapMemo, setMapMemo] = useState("");
-  const [mapTags, setMapTags] = useState("");
-  const [mapEmployee, setMapEmployee] = useState("");
+  //   통장 줄 처리 팝업 (증빙 연결 · 일반전표 · 장부 제외) — 상태 칩을 누르면 연다
+  const [lineTx, setLineTx] = useState<any | null>(null);
   const { toast } = useToast();
   const { confirm, confirmElement } = useConfirm();
   const [syncing, setSyncing] = useState(false);
@@ -219,34 +207,6 @@ export default function BankPage() {
 
   // 통장 이름 편집은 2026-08-19 '수정' 팝업(이름·메모)으로 — setAcctEdit
 
-  // 통장 거래 인라인 매핑 (미매핑 배지에서 바로 처리 — 거래매칭 페이지 불필요)
-  //   고정비 체크: is_fixed_cost 저장 + 거래처 규칙 학습(learnRuleFromMapping) → 같은 거래처는 다음부터 자동 체크.
-  const [mapFixed, setMapFixed] = useState(false);
-  const mapMut = useMutation({
-    mutationFn: async ({ id, category, isFixedCost, memo, tags, employeeId }: { id: string; category: string; isFixedCost: boolean; memo?: string; tags?: string[]; employeeId?: string | null }) => {
-      await mapBankTransaction(id, { category: category || null, classification: category || null, isFixedCost, mappedBy: userId || "" });
-      // 직원 QA 통장(그랜터) — 사유·태그·사용직원 함께 저장
-      await (supabase).from("bank_transactions").update({ memo: memo || null, tags: tags ?? [], used_by_employee_id: employeeId || null }).eq("id", id);
-    },
-    onSuccess: () => {
-      toast("매핑 완료", "success");
-      setMapOpenId(null);
-      queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
-      // 분류는 같은 화면의 경영흐름·변동 집계에 바로 반영돼야 한다 (2026-07-29 동기화 결함류 소탕)
-      queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
-      queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
-    },
-    onError: (err: any) => toast(friendlyError(err, "매핑 실패"), "error"),
-  });
-  const ignoreMut = useMutation({
-    mutationFn: async (id: string) => { await ignoreBankTransaction(id); },
-    onSuccess: () => {
-      toast("무시 처리됨", "success");
-      setMapOpenId(null);
-      queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
-    },
-    onError: (err: any) => toast(friendlyError(err, "처리 실패"), "error"),
-  });
 
   // 통장 연동(CODEF 은행 sync + 잔액 재계산) — /transactions 의 동일 흐름 재사용.
   //   기간 필수 — 미설정이면 서버 기본(최근 3개월)에 의존해 원하는 기간이 누락될 수 있음 (카드 연동과 동일 정책).
@@ -385,7 +345,7 @@ export default function BankPage() {
     queryKey: ["bank-page-recent-tx", companyId, bankTxFrom, bankTxTo],
     queryFn: async () => {
       let q = db.from("bank_transactions")
-        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id")
+        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id, partner_id, settlement_status, settled_amount, tax_invoice_id")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(2000);
@@ -414,6 +374,23 @@ export default function BankPage() {
     enabled: !!companyId, staleTime: 300_000,
   });
 
+  //   연결 대기 — 사람이 고른 정산 초안(match_source manual · suggested)이 걸린 통장 줄. 엔진·AI 제안은 팝업 안에서만 보인다(결정 46). 확정은 팝업·재무 › 전표 현황 › 처리할 것에서
+  const { data: pendingSettles = [] } = useQuery({
+    queryKey: ["bank-page-pending-settles", companyId],
+    queryFn: async () => {
+      const data = logRead('bank/page:data', await (db as any).from("invoice_settlements").select("bank_transaction_id").eq("company_id", companyId ?? "").eq("match_source", "manual").in("status", ["suggested", "needs_review"]).not("bank_transaction_id", "is", null).limit(5000));
+      return ((data || []) as { bank_transaction_id: string }[]).map((r) => r.bank_transaction_id);
+    },
+    enabled: !!companyId, staleTime: 30_000,
+  });
+  const pendingIds = useMemo(() => new Set(pendingSettles as string[]), [pendingSettles]);
+  const lineStateOf = (tx: any) => bankLineState(tx as BankLineTx, pendingIds);
+  const afterLine = () => {
+    queryClient.invalidateQueries({ queryKey: ["bank-page-recent-tx"] });
+    queryClient.invalidateQueries({ queryKey: ["bank-page-pending-settles"] });
+    queryClient.invalidateQueries({ queryKey: ["bank-page-flow-v2"] });
+    queryClient.invalidateQueries({ queryKey: ["bank-page-changes"] });
+  };
   // 직원 QA 통장(그랜터) — 사용직원 선택용 재직 직원 목록
   const { data: bankEmployees = [] } = useQuery({
     queryKey: ["bank-page-employees", companyId],
@@ -548,7 +525,7 @@ export default function BankPage() {
       case "classification": return tx.classification || tx.category || "";
       case "amount": return `${tx.type === "income" ? "+" : "-"}${Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}`;
       case "date": return String(tx.transaction_date || "");
-      case "state": return (MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped).label;
+      case "state": return BANK_LINE_META[lineStateOf(tx)].label;
       default: return "";
     }
   };
@@ -573,10 +550,9 @@ export default function BankPage() {
     if (c.who.length && !c.who.includes(tx.counterparty || "")) return false;
     if (c.accts.length && !c.accts.includes(tx.raw_data?.accountNo || "")) return false;
     if (c.cls.length && !c.cls.includes(tx.classification || tx.category || "")) return false;
-    if (c.state === "posted") { if (!tx.journal_entry_id) return false; }
-    else if (c.state === "excluded") { if (!tx.ledger_excluded_reason) return false; }
-    else if (c.state === "unposted") { if (tx.journal_entry_id || tx.ledger_excluded_reason) return false; }
-    else if (c.state !== "all" && (tx.mapping_status || "unmapped") !== c.state) return false;
+    //   '미처리' = 아직 장부에 없는 것(연결 대기 포함) — 기본 화면은 할 일만 보인다
+    if (c.state === "unposted") { const st = lineStateOf(tx); if (st !== "unposted" && st !== "pending") return false; }
+    else if (c.state !== "all" && lineStateOf(tx) !== c.state) return false;
     if (!amountHit(Number(tx.amount || 0), c.min, c.max)) return false;
     return true;
   };
@@ -1082,7 +1058,7 @@ export default function BankPage() {
                   </tr>
                 ) : pager.view.map((tx) => {
                   const isIncome = tx.type === "income";
-                  const m = MAPPING_META[tx.mapping_status as string] || MAPPING_META.unmapped;
+                  const m = BANK_LINE_META[lineStateOf(tx)];
                   const posted = !!tx.journal_entry_id;
                   const checked = selectedTxIds.has(tx.id);
                   return (
@@ -1128,81 +1104,11 @@ export default function BankPage() {
                       <td className="px-3 py-2.5 relative">
                         <button
                           type="button"
-                          onClick={() => { setMapOpenId(mapOpenId === tx.id ? null : tx.id); setMapCat(tx.category || ""); setMapFixed(!!tx.is_fixed_cost); setMapAcctQuery(""); setMapMemo(tx.memo || ""); setMapTags((tx.tags || []).join(", ")); setMapEmployee(tx.used_by_employee_id || ""); }}
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${m.bg} ${m.text} cursor-pointer hover:ring-1 hover:ring-current`}
-                          title="클릭해서 바로 매핑/무시 처리"
+                          onClick={() => setLineTx(tx)}
+                          className={`bl-state ${m.cls} cursor-pointer hover:ring-1 hover:ring-current`}
+                          title={m.hint}
                         >{m.label}</button>
-                        {posted && <span className="ml-1.5 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--success-dim)] text-[var(--success)]">전표처리됨</span>}
-                        {!posted && tx.ledger_excluded_reason && <span className="ml-1.5 inline-flex items-center gap-1"><span className="ol-sure" title={excludeLabelOf(tx.ledger_excluded_reason)}>장부 제외 · {excludeLabelOf(tx.ledger_excluded_reason).split(" · ")[0]}</span><button type="button" onClick={() => unexclude(tx.id)} className="btn-secondary btn-sm">해제</button></span>}
-                        {mapOpenId === tx.id && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setMapOpenId(null)} />
-                            <div className="transaction-mapping-popover">
-                              <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">계정과목 검색 후 선택</div>
-                              <input value={mapAcctQuery} onChange={(e) => setMapAcctQuery(e.target.value)} autoFocus
-                                placeholder={mapCat ? `현재: ${mapCat}` : "계정과목 검색 (이름·코드)"}
-                                className="w-full px-2 py-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]" />
-                              <div className="mt-1 mb-2 max-h-40 overflow-y-auto rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]/50">
-                                <button type="button" onClick={() => { setMapCat(""); setMapAcctQuery(""); }}
-                                  className={`w-full px-2 py-1 text-xs text-left hover:bg-[var(--bg-surface)] ${!mapCat ? "text-[var(--primary)]" : "text-[var(--text-dim)]"}`}>(분류 없음)</button>
-                                {(() => {
-                                  //   계정 성격을 같이 보여 준다 — 부채인 '미지급금' 을 비용처럼 고르면
-                                  //   손익계산서 판관비에 잡히던 일이 있었다 (2026-08-10 사장님 지적).
-                                  //   비용 계정을 위로 올려 손이 먼저 닿게 한다.
-                                  const opts = coaAccounts.length > 0
-                                    ? coaAccounts.map((a: any) => ({ code: String(a.code), name: a.name, nature: a.account_type as string }))
-                                    : BANK_CATEGORIES.map((c) => ({ code: c, name: c, nature: "expense" }));
-                                  const q = mapAcctQuery.trim().toLowerCase();
-                                  const filtered = opts
-                                    .filter((o) => !q || o.name.toLowerCase().includes(q) || o.code.toLowerCase().includes(q))
-                                    .sort((a, b) => Number(b.nature === "expense") - Number(a.nature === "expense"))
-                                    .slice(0, 60);
-                                  if (filtered.length === 0) return <div className="px-2 py-2 text-[11px] text-[var(--text-dim)]">검색 결과 없음</div>;
-                                  return filtered.map((o) => (
-                                    <button key={o.code} type="button" onClick={() => { setMapCat(o.name); setMapAcctQuery(""); }}
-                                      className={`w-full flex justify-between gap-2 px-2 py-1 text-xs text-left hover:bg-[var(--bg-surface)] ${mapCat === o.name ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold" : "text-[var(--text)]"}`}>
-                                      <span className="truncate">{o.name}</span>
-                                      <span className="flex items-center gap-1.5 shrink-0">
-                                        {o.nature && o.nature !== "expense" && <span className="tx-acct-nature">{natureLabel(o.nature)}</span>}
-                                        {o.code !== o.name && <span className="text-[var(--text-dim)] mono-number">{o.code}</span>}
-                                      </span>
-                                    </button>
-                                  ));
-                                })()}
-                              </div>
-                              {(() => {
-                                //   고른 계정이 비용이 아니면 손익계산서에 안 잡힌다는 걸 **고른 자리에서** 알린다
-                                const picked = (coaAccounts as any[]).find((a) => a.name === mapCat);
-                                if (!picked || picked.account_type === "expense") return null;
-                                return (
-                                  <p className="tx-acct-nature-hint">
-                                    {mapCat}은(는) <b>{natureLabel(picked.account_type)} 계정</b>입니다 —
-                                    손익계산서 비용이 아니라 재무상태표 항목으로 처리됩니다.
-                                  </p>
-                                );
-                              })()}
-                              <label className="flex items-center gap-1.5 mb-2 text-[11px] text-[var(--text)] cursor-pointer" title="매월 반복되는 지출이면 체크 — 경영흐름·고정비 리포트에 고정비로 집계되고, 같은 거래처는 다음부터 자동 체크됩니다">
-                                <input type="checkbox" checked={mapFixed} onChange={(e) => setMapFixed(e.target.checked)} className="accent-[var(--warning)]" />
-                                고정비로 표시 <span className="text-[var(--text-dim)]">(매월 반복 지출)</span>
-                              </label>
-                              <input value={mapMemo} onChange={(e) => setMapMemo(e.target.value)} placeholder="사유 / 메모"
-                                className="w-full px-2 py-1.5 mb-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]" />
-                              <input value={mapTags} onChange={(e) => setMapTags(e.target.value)} placeholder="태그 (쉼표로 구분)"
-                                className="w-full px-2 py-1.5 mb-1.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]" />
-                              <select value={mapEmployee} onChange={(e) => setMapEmployee(e.target.value)}
-                                className="w-full px-2 py-1.5 mb-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-xs focus:outline-none focus:border-[var(--primary)]">
-                                <option value="">사용직원 선택 (선택)</option>
-                                {bankEmployees.map((e: any) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                              </select>
-                              <div className="flex gap-1.5">
-                                <button type="button" onClick={() => mapMut.mutate({ id: tx.id, category: mapCat, isFixedCost: mapFixed, memo: mapMemo, tags: mapTags.split(",").map((s) => s.trim()).filter(Boolean), employeeId: mapEmployee || null })} disabled={mapMut.isPending}
-                                  className="flex-1 btn-primary btn-sm">매핑 완료</button>
-                                <button type="button" onClick={() => ignoreMut.mutate(tx.id)} disabled={ignoreMut.isPending}
-                                  className="px-2 py-1.5 text-xs rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--bg-surface)]">무시</button>
-                              </div>
-                            </div>
-                          </>
-                        )}
+                        {!posted && tx.ledger_excluded_reason && <span className="ml-1.5 inline-flex items-center gap-1"><span className="ol-sure" title={excludeLabelOf(tx.ledger_excluded_reason)}>{excludeLabelOf(tx.ledger_excluded_reason).split(" · ")[0]}</span><button type="button" onClick={() => unexclude(tx.id)} className="btn-secondary btn-sm">해제</button></span>}
                       </td>
                     </tr>
                   );
@@ -1211,6 +1117,9 @@ export default function BankPage() {
             </table>
         </div>
 
+        {lineTx && companyId && (
+          <BankLineDialog tx={lineTx as BankLineTx} companyId={companyId} onClose={() => setLineTx(null)} onDone={afterLine} />
+        )}
         {/* ── 3줄 · 고른 줄로 하는 일 — 파란(확정) 버튼은 여기 하나 ── */}
         <SelectionBar count={selectedTxIds.size} onClear={() => setSelectedTxIds(new Set())}
           summary={<>합계 <b className="mono-number">{fmtW(selSumTx)}</b> · 이미 처리된 건은 건너뜁니다</>}>

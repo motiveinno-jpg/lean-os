@@ -9017,3 +9017,40 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .inv-stat-btn { @apply cursor-pointer font-bold underline decoration-dotted underline-offset-2 text-inherit; }
 .inv-status-todo-btn li { @apply rounded-lg border border-[var(--border)] px-3 py-2; }
 .inv-status-todo-btn li > button { @apply cursor-pointer text-[var(--text)] hover:text-[var(--primary)]; }
+
+/* 통장 줄 처리 팝업 — 증빙 연결 · 일반전표 · 장부 제외 (2026-08-27) */
+.bl-box { @apply max-w-4xl; }
+.bl-tx { @apply flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 text-[13px]; }
+.bl-tx-desc { @apply min-w-0 flex-1 truncate text-[var(--text-muted)]; }
+.bl-tx-amt { @apply font-bold; }
+.bl-in { @apply text-[var(--success)]; }
+.bl-out { @apply text-[var(--danger)]; }
+.bl-state { @apply inline-block rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold; }
+.bl-state-unposted { @apply bg-[var(--warning-dim)] text-[var(--warning)]; }
+.bl-state-pending { @apply bg-[var(--info-dim)] text-[var(--info)]; }
+.bl-state-linked { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.bl-state-posted { @apply bg-[var(--success-dim)] text-[var(--success)]; }
+.bl-state-excluded { @apply bg-[var(--text-muted)]/10 text-[var(--text-muted)]; }
+.bl-tabs { @apply -mb-1; }
+.bl-pane { @apply flex flex-col gap-2.5; }
+.bl-sub { @apply text-[12.5px] font-semibold text-[var(--text)]; }
+.bl-table { @apply w-full; }
+.bl-table tbody tr { @apply cursor-pointer; }
+.bl-row-on { @apply bg-[var(--primary)]/5; }
+.bl-row-acts { @apply inline-flex gap-1.5; }
+.bl-empty { @apply py-4 text-[12.5px]; }
+.bl-line { @apply flex flex-wrap items-center gap-3 text-[12.5px]; }
+.bl-picked { @apply text-[var(--text-muted)]; }
+.bl-amt { @apply inline-flex items-center gap-1.5 text-[var(--text-muted)]; }
+.bl-amt .inv-input { @apply w-32; }
+.bl-form { @apply grid grid-cols-1 gap-2.5 text-[12.5px] text-[var(--text-muted)] md:grid-cols-2; }
+.bl-form > label { @apply flex flex-col gap-1; }
+.bl-form .inv-input { @apply w-full; }
+.bl-check { @apply flex-row items-center gap-2; }
+.bl-note { @apply rounded-lg border border-[var(--border)] px-3 py-2 text-[12.5px]; }
+.bl-note > summary { @apply cursor-pointer text-[var(--text-muted)]; }
+.bl-note .bl-form { @apply mt-2.5; }
+.bl-done { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] flex items-center justify-between gap-3; }
+.bl-todo-acts { @apply inline-flex gap-1.5; }
+
+.bl-box .inv-input { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-[12.5px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }

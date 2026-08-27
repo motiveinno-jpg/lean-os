@@ -17,6 +17,7 @@
 
 import React, { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PickList } from "@/components/pick-list";
+import { BankLineDialog, type BankLineTx } from "@/components/bank-line-dialog";
 import {
   QueryScreen, QueryHead, QueryBody, QueryBar, ChipGroup, RowsPerPage, ResultStrip, Stat, HelperMenu, SelectionBar,
   ExcelMenu, type ExcelItem,
@@ -198,6 +199,8 @@ export function BankTab({
    *   그릇(AI 제안) 안에서는 '매칭 제안'이라 부르고, 표 안 스트립은 'AI 매칭 제안'이다.
    *   제안은 자동, 확정은 사람 — [이 계산서로 매칭]을 누르기 전에는 아무것도 안 바뀐다. */
   const [matchMode, setMatchMode] = useState(false);
+  //   통장 줄 처리 팝업 — 통장 화면과 같은 팝업(증빙 연결·일반전표·장부 제외). 줄의 "처리" 로 연다 (2026-08-27)
+  const [lineTx, setLineTx] = useState<BankLineTx | null>(null);
   const [matchOpen, setMatchOpen] = useState<string | null>(null);   // '다른 계산서 N개 더' 펼친 줄
   const [matchPick, setMatchPick] = useState<string | null>(null);   // '다른 계산서 찾기'·'계산서 직접 찾기' 검색창 연 줄
   const [matchBusy, setMatchBusy] = useState<string | null>(null);
@@ -858,6 +861,10 @@ export function BankTab({
 
   return (
     <div className="ev-wrap">
+      {lineTx && (
+        <BankLineDialog tx={lineTx} companyId={companyId} onClose={() => setLineTx(null)}
+          onDone={() => { qc.invalidateQueries({ queryKey: ["bank-rows"] }); qc.invalidateQueries({ queryKey: ["collect-status"] }); qc.invalidateQueries({ queryKey: ["bank-open-invoices"] }); }} />
+      )}
       {/*   엑셀 '채운 파일 올리기' 가 누르는 숨은 입력 — 같은 파일을 다시 골라도 열리도록 value 를 비운다 */}
       <input ref={fillRef} type="file" accept=".xlsx,.xls" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void onFillFile(f); }} />
@@ -1095,7 +1102,11 @@ export function BankTab({
                           {/*   잘못 처리한 걸 되돌릴 수 있어야 한다 — 거래 매칭의 '확정 취소'를 옮겨 왔다 */}
                           <button type="button" onClick={() => undo(r)} disabled={busy} className="rules-del">되돌리기</button>
                         </span>
-                      ) : <span className="ev-st ev-st-todo">미처리</span>}
+                      ) : <span className="bk-done"><span className="ev-st ev-st-todo">미처리</span>
+                        {/*   통장 화면과 같은 팝업 — 증빙 연결(초안) · 일반전표 · 장부 제외 (2026-08-27) */}
+                        <button type="button" disabled={busy} className="rules-del" title="증빙 연결 · 일반전표 · 장부 제외"
+                          onClick={() => setLineTx({ id: r.id, transaction_date: r.date, type: r.isIn ? "income" : "expense", amount: r.amount, counterparty: r.who, description: r.desc, partner_id: r.partnerId, journal_entry_id: r.entryId, ledger_excluded_reason: r.excluded, settled_amount: r.settledAmount, settlement_status: r.settled ? "settled" : "open" })}>처리</button>
+                      </span>}
                     </td>
                   </tr>
                   {sug !== null && (() => {

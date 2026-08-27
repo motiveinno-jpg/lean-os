@@ -29,6 +29,7 @@ import { getAccountMap, accountById, NATURE_LABEL } from "@/lib/account-nature";
 import { vatType } from "@/lib/vat-voucher";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
 import { decideProdDraft } from "@/lib/production-voucher";
+import { BANK_LINE_META } from "@/components/bank-line-dialog";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 
@@ -87,10 +88,26 @@ export default function FinanceStatusPage() {
     const [ti, card, bank] = await Promise.all([
       cnt((supabase.from("tax_invoices").select("id", { count: "exact", head: true }) as any).eq("company_id", companyId!).is("journal_entry_id", null).neq("status", "void").gte("issue_date", from).lte("issue_date", to)),
       cnt((supabase.from("card_transactions").select("id", { count: "exact", head: true }) as any).eq("company_id", companyId!).is("journal_entry_id", null).gte("transaction_date", from).lte("transaction_date", to)),
-      cnt((supabase.from("bank_transactions").select("id", { count: "exact", head: true }) as any).eq("company_id", companyId!).is("journal_entry_id", null).eq("mapping_status", "unmapped").gte("transaction_date", from).lte("transaction_date", to)),
+      cnt((supabase.from("bank_transactions").select("id", { count: "exact", head: true }) as any).eq("company_id", companyId!).is("journal_entry_id", null).is("ledger_excluded_reason", null).eq("settlement_status", "open").gte("transaction_date", from).lte("transaction_date", to)),
     ]);
     return { ti, card, bank, total: ti + card + bank };
   }, [from, to]);
+
+  //   ★ 결정 44·46 — 증빙 연결 대기 = 사람이 고른 정산 초안(manual)만. 엔진·AI 제안 696건은 여기 올리지 않는다. 통장 줄 처리 팝업이 만든 suggested 를 여기서 확정·반려한다. 확정하면 트리거가 정산 전표를 만든다.
+  const { data: pendingLinks = [], refetch: refetchLinks } = q("fin-status-pending-links", async () => {
+    const { data } = await (supabase as any).from("invoice_settlements")
+      .select("id, amount, status, reason, created_at, bank_transactions(transaction_date, counterparty, amount, type), tax_invoices(counterparty_name, total_amount, issue_date, type)")
+      .eq("company_id", companyId!).eq("match_source", "manual").in("status", ["suggested", "needs_review"]).not("bank_transaction_id", "is", null)
+      .order("created_at", { ascending: false }).limit(300);
+    return (data || []) as { id: string; amount: number; status: string; reason: string | null; bank_transactions: { transaction_date: string; counterparty: string | null; amount: number; type: string } | null; tax_invoices: { counterparty_name: string | null; total_amount: number; issue_date: string; type: string } | null }[];
+  });
+  const decideLink = async (id: string, st: "confirmed" | "rejected") => {
+    try {
+      const { error } = await (supabase as any).from("invoice_settlements").update({ status: st }).eq("id", id);
+      if (error) throw error;
+      toast(st === "confirmed" ? "확정 — 정산 전표를 만들었습니다" : "반려했습니다", "success"); refetchLinks(); refetchEntries();
+    } catch (e) { toast(friendlyError(e), "error"); }
+  };
 
   const days = useMemo(() => dayKeys(from, to), [from, to]);
   const amountOf = (e: Entry) => e.journal_lines.reduce((n, l) => n + Number(l.debit || 0), 0);
@@ -144,7 +161,7 @@ export default function FinanceStatusPage() {
   }
 
   const ruleRate = S.confirmed.length ? Math.round((S.src.rule / S.confirmed.length) * 100) : 0;
-  const todoN = S.rejected.length + S.pending.length + S.unapproved.length + (unposted?.total || 0);
+  const todoN = S.rejected.length + S.pending.length + S.unapproved.length + (unposted?.total || 0) + pendingLinks.length;
   const stats: Record<Tab, React.ReactNode> = {
     all: (<>
       <Stat label="확정 전표" value={`${S.confirmed.length}건 · ₩${won(S.total)}`} />
@@ -176,6 +193,7 @@ export default function FinanceStatusPage() {
       <Stat label="반려" value={`${S.rejected.length}건`} tone={S.rejected.length ? "minus" : undefined} />
       <Stat label="대기" value={`${S.pending.length}건`} tone={S.pending.length ? "minus" : undefined} />
       <Stat label="미승인 확정" value={`${S.unapproved.length}건`} tone={S.unapproved.length ? "minus" : undefined} />
+      <Stat label={BANK_LINE_META.pending.label} value={`${pendingLinks.length}건`} tone={pendingLinks.length ? "minus" : undefined} />
       <Stat label="전표 없는 증빙" value={unposted ? `계산서 ${unposted.ti} · 카드 ${unposted.card} · 통장 ${unposted.bank}` : "—"} tone={unposted?.total ? "minus" : undefined} />
     </>),
   };
@@ -268,6 +286,7 @@ export default function FinanceStatusPage() {
                       <ul className="inv-status-todo">
                         {S.rejected.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>반려된 전표 <b>{S.rejected.length}건</b> — 고쳐서 다시 확정</button></li>}
                         {S.pending.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>대기 전표 <b>{S.pending.length}건</b></button></li>}
+                        {pendingLinks.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>증빙 연결 대기 <b>{pendingLinks.length}건</b> — 확정해야 정산 전표가 됩니다</button></li>}
                         {S.unapproved.length > 0 && <li><button type="button" className="bz-link" onClick={() => setTab("todo")}>승인 안 된 확정 전표 <b>{S.unapproved.length}건</b></button></li>}
                         {unposted && unposted.total > 0 && <li><Link href="/collect">전표 없는 증빙 <b>{unposted.total}건</b> <span className="ev-dim">— 계산서 {unposted.ti} · 카드 {unposted.card} · 통장 {unposted.bank}</span></Link></li>}
                         {!todoN && <li className="ev-dim">지금 처리할 것이 없습니다</li>}
@@ -371,11 +390,32 @@ export default function FinanceStatusPage() {
                       <tbody>
                         <tr><td className="text-left"><b>세금계산서·계산서</b></td><td className="tr mono-number">{unposted?.ti ?? "—"}</td><td className="tc"><Link href="/collect" className="bz-link">처리</Link></td></tr>
                         <tr><td className="text-left"><b>카드 승인</b></td><td className="tr mono-number">{unposted?.card ?? "—"}</td><td className="tc"><Link href="/collect" className="bz-link">처리</Link></td></tr>
-                        <tr><td className="text-left"><b>통장 거래(미매칭)</b></td><td className="tr mono-number">{unposted?.bank ?? "—"}</td><td className="tc"><Link href="/collect" className="bz-link">매칭</Link></td></tr>
+                        <tr><td className="text-left"><b>통장 거래(미처리)</b></td><td className="tr mono-number">{unposted?.bank ?? "—"}</td><td className="tc"><Link href="/bank?tab=transactions" className="bz-link">처리</Link></td></tr>
                       </tbody>
                     </table>
                     </div>
                   </div>
+                  {pendingLinks.length > 0 && (
+                    <div className="pnl-panel">
+                      <h3>증빙 연결 대기 {pendingLinks.length}건</h3><p>통장 줄 처리에서 계산서와 짝지은 초안 — 확정하면 {"외상매출금·외상매입금 ↔ 보통예금"} 정산 전표가 생깁니다. 찾아만 두고 확정은 사람이.</p>
+                      <div className="stg-table-wrap">
+                        <table className="ev-table ev-lined table-inv-status-sm">
+                          <thead><tr><th>통장 줄</th><th>통장 금액</th><th>계산서</th><th>계산서 금액</th><th>연결 금액</th><th>근거</th><th></th></tr></thead>
+                          <tbody>{pendingLinks.map((p) => (
+                            <tr key={p.id}>
+                              <td className="text-left"><span className="mono-number ev-dim">{p.bank_transactions?.transaction_date}</span> <b>{p.bank_transactions?.counterparty || "—"}</b></td>
+                              <td className="tr mono-number">₩{won(Math.abs(Number(p.bank_transactions?.amount || 0)))}</td>
+                              <td className="text-left">{p.tax_invoices?.type === "sales" ? "매출" : "매입"} · <b>{p.tax_invoices?.counterparty_name || "—"}</b> <span className="mono-number ev-dim">{p.tax_invoices?.issue_date}</span></td>
+                              <td className="tr mono-number">₩{won(Number(p.tax_invoices?.total_amount || 0))}</td>
+                              <td className="tr mono-number">₩{won(Number(p.amount || 0))}</td>
+                              <td className="text-left ev-dim">{p.reason || ""}</td>
+                              <td className="tc"><span className="bl-todo-acts"><button type="button" className="btn-primary btn-sm" onClick={() => decideLink(p.id, "confirmed")}>확정</button><button type="button" className="btn-secondary btn-sm" onClick={() => decideLink(p.id, "rejected")}>반려</button></span></td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                   <EntryList rows={[...S.pending, ...S.rejected, ...S.unapproved]} title="반려 · 대기 · 미승인 전표" sub="고치기는 일반전표·매입매출전표 화면에서" />
                 </>)}
               </>
