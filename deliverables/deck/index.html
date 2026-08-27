@@ -94,6 +94,21 @@
   .cmp-close{margin-top:18px;font-size:14.5px;font-weight:700}
   .cmp-close em{font-style:normal;color:var(--brand)}
 
+
+  /* AI 자동화(16·17) — 기능마다 실제 화면 타일. 이미지 칸이 남는 높이를 흡수한다 */
+  .tiles{display:grid;gap:16px;margin-top:20px;flex:1;min-height:0}
+  .tiles.c2{grid-template-columns:1fr 1fr}
+  .tiles.c3{grid-template-columns:repeat(3,1fr)}
+  .tile{border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff;
+        box-shadow:0 2px 8px -4px rgba(17,19,24,.14);display:flex;flex-direction:column;min-height:0}
+  .tile .im{flex:1;min-height:120px;overflow:hidden;border-bottom:1px solid var(--line2);background:var(--surf)}
+  .tile .im img{width:100%;height:100%;object-fit:cover;object-position:top left;display:block}
+  .tile .tx{flex:none;padding:11px 14px}
+  .tile .tx b{display:block;font-size:14.5px;font-weight:800;letter-spacing:-.01em}
+  .tile .tx b i{font-style:normal;font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--dim);margin-left:8px}
+  .tile .tx p{font-size:12px;color:var(--mut);line-height:1.55;margin-top:4px}
+  .tile .tx p strong{color:var(--ink);font-weight:700}
+
   /* 하루 타임라인(02) */
   .day{margin-top:26px;border:1px solid var(--line);border-radius:6px;overflow:hidden;max-width:860px}
   .day > div{display:grid;grid-template-columns:96px 1fr;border-bottom:1px solid var(--line2)}
@@ -472,36 +487,71 @@
 </section>
 
 
-<!-- 16 AI 자동화 7종 -->
+
+
+
+<!-- 16 AI 자동화 ① 장부 -->
 <section class="s">
-  <div class="hd"><span class="no">16</span><span class="sec">AI 자동화</span></div>
+  <div class="hd"><span class="no">16</span><span class="sec">AI 자동화 ① · 장부</span></div>
   <div class="scene">
     <p class="quote">AI는 어디까지 해주나요?</p>
-    <h2 class="big">사람이 안 해도 되는 일,<br /><em>7가지</em></h2>
-    <div class="ai7">
-      <div class="h"><b>AI 계정 추천<i>장면 ②</i></b>
-        <p>수집된 거래에 계정과목 · 부가세 구분을 적어두고, 애매한 것만 물어봅니다.</p></div>
-      <div class="h"><b>매칭 제안<i>장면 ⑤</i></b>
-        <p>계약 · 세금계산서 · 입금 세 금액을 대조합니다. 입금자명이 달라도 거래처를 찾아냅니다.</p></div>
-      <div class="h"><b>AI 브리핑<i>장면 ①</i></b>
-        <p>아침마다 오늘 챙길 일을 우선순위로 정리해 대시보드에 올려둡니다.</p></div>
-      <div class="h"><b>AI 참모<i>장면 ④</i></b>
-        <p>말로 물으면 조회하고, 결재 상신 · 근태 기록 · 계약서 작성까지 실행합니다.</p></div>
-      <div class="h"><b>자금 부족 예측<i>장면 ⑥</i></b>
-        <p>90일 잔액 곡선을 그려 부족해지는 날짜를 미리 표시합니다.</p></div>
-      <div class="h"><b>중복 의심 감지</b>
-        <p>같은 거래가 두 번 들어오면 의심 건으로 표시해 이중 기장을 막습니다.</p></div>
-      <div class="h"><b>휴면 감지</b>
-        <p>거래가 끊긴 거래처를 찾아 알려줍니다 — 놓치고 있던 매출처가 보입니다.</p></div>
+    <h2 class="big">장부 정리는<br /><em>AI가 먼저 합니다</em></h2>
+    <div class="tiles c3">
+      <div class="tile">
+        <div class="im"><img src="../../public/product/f-bank-v4.png" alt="AI 계정 추천" /></div>
+        <div class="tx"><b>AI 계정 추천<i>장면 ②</i></b>
+          <p>수집된 거래에 <strong>계정과목 · 부가세 구분</strong>을 적어두고, 애매한 것만 물어봅니다.</p></div>
+      </div>
+      <div class="tile">
+        <div class="im"><img src="../../public/product/f-settlement-v4.png" alt="매칭 제안" /></div>
+        <div class="tx"><b>매칭 제안<i>장면 ⑤</i></b>
+          <p>계약 · 세금계산서 · 입금 <strong>세 금액을 대조</strong>합니다. 입금자명이 달라도 거래처를 찾아냅니다.</p></div>
+      </div>
+      <div class="tile">
+        <div class="im"><img src="../../public/product/f-voucher-v4.png" alt="중복 의심 감지" /></div>
+        <div class="tx"><b>중복 의심 감지</b>
+          <p>같은 거래가 두 번 들어오면 <strong>의심 건으로 표시</strong>해 이중 기장을 막습니다.</p></div>
+      </div>
     </div>
-    <p class="ai7-close">AI는 제안까지만 하고, <em>확정은 담당자가 합니다.</em> AI가 잘못 골라도 장부에 바로 반영되지 않습니다.</p>
   </div>
   <div class="ft"><span>오너뷰</span><span>16</span></div>
 </section>
 
-<!-- 17 전체 지도 -->
+<!-- 17 AI 자동화 ② 알림·실행 -->
 <section class="s">
-  <div class="hd"><span class="no">17</span><span class="sec">전체 지도</span></div>
+  <div class="hd"><span class="no">17</span><span class="sec">AI 자동화 ② · 알림과 실행</span></div>
+  <div class="scene">
+    <h2 class="big" style="margin-top:22px">챙길 일은<br /><em>AI가 먼저 알려줍니다</em></h2>
+    <div class="tiles c2">
+      <div class="tile">
+        <div class="im"><img src="../../public/product/f-ai-brief-v4.png" alt="AI 브리핑" /></div>
+        <div class="tx"><b>AI 브리핑<i>장면 ①</i></b>
+          <p>아침마다 <strong>오늘 챙길 일을 우선순위로</strong> 정리해 대시보드에 올려둡니다.</p></div>
+      </div>
+      <div class="tile">
+        <div class="im"><img src="../../public/product/f-ai-copilot-v4.png" alt="AI 참모" /></div>
+        <div class="tx"><b>AI 참모<i>장면 ④</i></b>
+          <p>말로 물으면 조회하고, <strong>결재 상신 · 근태 기록 · 계약서 작성</strong>까지 실행합니다.</p></div>
+      </div>
+      <div class="tile">
+        <div class="im"><img src="../../public/product/f-flow-v4.png" alt="자금 부족 예측" /></div>
+        <div class="tx"><b>자금 부족 예측<i>장면 ⑥</i></b>
+          <p>90일 잔액 곡선을 그려 <strong>부족해지는 날짜를 미리</strong> 표시합니다.</p></div>
+      </div>
+      <div class="tile">
+        <div class="im"><img src="../../public/product/f-partners-v4.png" alt="휴면 감지" /></div>
+        <div class="tx"><b>휴면 감지</b>
+          <p>거래가 끊긴 거래처를 찾아 알려줍니다 — <strong>놓치고 있던 매출처</strong>가 보입니다.</p></div>
+      </div>
+    </div>
+    <p class="ai7-close" style="margin-top:14px">AI는 제안까지만 하고, <em>확정은 담당자가 합니다.</em> AI가 잘못 골라도 장부에 바로 반영되지 않습니다.</p>
+  </div>
+  <div class="ft"><span>오너뷰</span><span>17</span></div>
+</section>
+
+<!-- 18 전체 지도 -->
+<section class="s">
+  <div class="hd"><span class="no">18</span><span class="sec">전체 지도</span></div>
   <div class="scene">
     <h2 class="big" style="font-size:36px;margin-top:14px">나머지 기능도 <em>전부 포함입니다</em></h2>
     <div class="mapwrap">
@@ -523,12 +573,12 @@
         나머지도 추가 비용 없이 전부 포함되어 있습니다.</p>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>17</span></div>
+  <div class="ft"><span>오너뷰</span><span>18</span></div>
 </section>
 
-<!-- 18 증거 -->
+<!-- 19 증거 -->
 <section class="s">
-  <div class="hd"><span class="no">18</span><span class="sec">증거</span></div>
+  <div class="hd"><span class="no">19</span><span class="sec">증거</span></div>
   <div class="scene">
     <p class="quote">그래서, 진짜 이렇게 돌아가나요?</p>
     <h2 class="big">저희가 먼저<br /><em>15개월</em> 썼습니다</h2>
@@ -548,12 +598,12 @@
       </table>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>18</span></div>
+  <div class="ft"><span>오너뷰</span><span>19</span></div>
 </section>
 
-<!-- 19 도입 -->
+<!-- 20 도입 -->
 <section class="s">
-  <div class="hd"><span class="no">19</span><span class="sec">도입</span></div>
+  <div class="hd"><span class="no">20</span><span class="sec">도입</span></div>
   <div class="scene">
     <p class="quote">ERP 도입하려면 몇 달 걸리는 거 아니에요?</p>
     <h2 class="big">구축비 0 · 설치 0,<br /><em>가입한 날 씁니다</em></h2>
@@ -573,10 +623,10 @@
       </table>
     </div>
   </div>
-  <div class="ft"><span>오너뷰</span><span>19</span></div>
+  <div class="ft"><span>오너뷰</span><span>20</span></div>
 </section>
 
-<!-- 20 문의 -->
+<!-- 21 문의 -->
 <section class="s">
   <div class="cover">
     <div class="kick">도입 문의</div>
