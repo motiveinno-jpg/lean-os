@@ -9055,3 +9055,9 @@ table.table-inv-ch-ship { min-width: 1480px; }
 
 .bl-box .inv-input { @apply rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-[12.5px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
 .bl-locked { @apply rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-dim)] px-3 py-2 text-[12.5px] text-[var(--warning)]; }
+
+/* 계정과목 고르기(검색) — 전표 모달 공용 (2026-08-27) */
+.acct-picker { @apply relative block w-full; }
+.acct-picker-btn { @apply h-9 w-full justify-start text-[13px]; }
+.acct-picker .spv-drop { @apply left-0 right-0 w-full; }
+.card-post-exclude { @apply text-[var(--text-muted)]; }

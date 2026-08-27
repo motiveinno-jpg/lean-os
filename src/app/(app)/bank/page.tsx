@@ -28,6 +28,7 @@ import { UpcomingAutoTransfersCard } from "@/components/upcoming-auto-transfers"
 import { EmptyState } from "@/components/empty-state";
 import { useConfirm } from "@/components/confirm-dialog";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { AccountPicker } from "@/components/account-picker";
 import { BankLineDialog, bankLineState, BANK_LINE_META, type BankLineTx } from "@/components/bank-line-dialog";
 import { AutoTransferHistoryCard } from "@/components/auto-transfer-history";
 import { TopExpensesThisMonth } from "@/components/top-expenses-month";
@@ -1147,13 +1148,7 @@ export default function BankPage() {
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *</label>
-                <select value={bulkAccountId} onChange={(e) => setBulkAccountId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
-                  <option value="">계정 선택</option>
-                  {(coaAccounts as any[]).map((a) => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
-                  ))}
-                </select>
+                <AccountPicker accounts={coaAccounts as any[]} value={bulkAccountId} onChange={(id) => setBulkAccountId(id)} />
               </div>
               <label className="flex items-center gap-2 text-xs text-[var(--text)] cursor-pointer">
                 <input type="checkbox" checked={bulkFixed} onChange={(e) => setBulkFixed(e.target.checked)} className="accent-[var(--warning)]" />

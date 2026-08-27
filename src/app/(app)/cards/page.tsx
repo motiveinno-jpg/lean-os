@@ -38,6 +38,7 @@ import {
 } from "@/components/query-kit";
 import { EmptyState } from "@/components/empty-state";
 import { useModalKeys } from "@/hooks/use-modal-keys";
+import { AccountPicker } from "@/components/account-picker";
 import { NATURE_LABEL } from "@/lib/account-nature";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -339,6 +340,14 @@ export default function CardsPage() {
     const reason = await askExclude(`카드 ${first?.transaction_date} ${first?.merchant_name || ""} ${fmtW(Math.abs(Number(first?.amount || 0)))}`, ids.length);
     if (!reason) return;
     try { const n = await setLedgerExcluded("card", ids, reason); toast(`${n}건 장부 제외 — 목록에서 사라졌습니다 (검색조건 상태 '장부 제외'로 다시 봅니다)`, "success"); setSelectedTxIds(new Set()); queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] }); }
+    catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
+  };
+  /** 전표처리 모달에서 바로 장부 제외 — 한 건 */
+  const excludePostCard = async () => {
+    if (!postCard) return;
+    const reason = await askExclude(`카드 ${postCard.transaction_date} ${postCard.merchant_name || ""} ${fmtW(Math.abs(Number(postCard.amount || 0)))}`, 1);
+    if (!reason) return;
+    try { await setLedgerExcluded("card", [postCard.id], reason); toast("장부 제외 — 목록에서 사라졌습니다 (검색조건 상태 '장부 제외'로 다시 봅니다)", "success"); setPostCard(null); setPostAccountId(""); queryClient.invalidateQueries({ queryKey: ["cards-page-card-tx"] }); }
     catch (e) { toast(friendlyError(e, "장부 제외 실패"), "error"); }
   };
   const unexcludeCard = async (id: string) => {
@@ -1218,17 +1227,9 @@ export default function CardsPage() {
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">계정과목 *{postCard.category ? ` (분류: ${postCard.category})` : ""}</label>
-                <select value={postAccountId} onChange={(e) => setPostAccountId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
-                  <option value="">계정 선택</option>
-                  {/* 전표입력과 동일하게 전체 계정과목 사용(이전엔 expense 타입만 → 3개로 제한됐음).
-                      비용이 아닌 계정은 이름 뒤에 성격을 적는다 — 고르면 손익계산서에 안 잡힌다 (2026-08-10) */}
-                  {(accounts as any[]).map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({a.code}){a.account_type && a.account_type !== "expense" ? ` · ${cardNatureLabel(a.account_type)}` : ""}
-                    </option>
-                  ))}
-                </select>
+                {/*   검색(이름·코드)해서 고른다 — 계정 90개를 스크롤로 찾지 않는다 (2026-08-27 사장님).
+                      전표입력과 동일하게 전체 계정과목 사용. 비용이 아닌 계정은 이름 뒤에 성격을 적는다 (2026-08-10) */}
+                <AccountPicker accounts={accounts as any[]} value={postAccountId} onChange={(id) => setPostAccountId(id)} natureLabel={cardNatureLabel} />
                 {mappingByCategory[postCard.category] && <p className="text-[10px] text-[var(--text-dim)] mt-1">이 분류의 기본 계정이 적용되었습니다.</p>}
                 {(() => {
                   //   여기서 고른 계정이 곧 손익계산서에서 이 카드 지출이 앉을 자리다 — 성격이 비용이 아니면 알린다
@@ -1271,6 +1272,9 @@ export default function CardsPage() {
             </div>
             <div className="px-5 py-3 border-t border-[var(--border)] flex justify-end gap-2 flex-wrap">
               <button onClick={() => setPostCard(null)} className="px-3 py-1.5 text-xs text-[var(--text-muted)]">취소</button>
+              {/*   전표를 만들지 않을 줄(개인·이체·중복)은 여기서 바로 장부 제외 — 목록에서 고르지 않아도 된다 (2026-08-27 사장님) */}
+              <button type="button" onClick={excludePostCard} disabled={posting} className="btn-secondary btn-sm card-post-exclude" title="전표 없이 끝낸다 — 사유를 남기고 장부에서 뺀다. 검색조건 '장부 제외'에서 해제">장부 제외</button>
+              <span className="doc-sums-sp" />
               {(() => {
                 const sameCnt = (cardTx as any[]).filter((t) => (t.merchant_name || "") === (postCard.merchant_name || "") && !t.journal_entry_id).length;
                 return sameCnt > 1 ? (
@@ -1300,13 +1304,7 @@ export default function CardsPage() {
             <div className="p-5 space-y-3">
               <div>
                 <label className="block text-xs text-[var(--text-muted)] mb-1">비용 계정과목 *</label>
-                <select value={bulkAccountId} onChange={(e) => setBulkAccountId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)] text-sm text-[var(--text)]">
-                  <option value="">계정 선택</option>
-                  {(accounts as any[]).map((a) => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.code})</option>
-                  ))}
-                </select>
+                <AccountPicker accounts={accounts as any[]} value={bulkAccountId} onChange={(id) => setBulkAccountId(id)} natureLabel={cardNatureLabel} />
               </div>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">차) 선택 계정 / 대) 보통예금 으로 각 건 전표가 생성됩니다. 카드 내역은 그대로 남고 “전표처리됨”으로 표시됩니다.</p>
             </div>
