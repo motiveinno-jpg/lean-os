@@ -137,6 +137,16 @@ const CARD_EMPTY: CardCond = { cards: [], merch: [], cls: [], state: "todo", min
 const cardCondCount = (c: CardCond) =>
   c.cards.length + c.merch.length + c.cls.length + (c.state !== "all" ? 1 : 0) + ((c.min || c.max) ? 1 : 0);
 
+//   해외 결제 (2026-08-27 ERP 2순위 '다중 통화') — CODEF 원본에 통화·외화 금액이 있다(monday.com USD 240 → ₩336,480).
+//   금액 칸은 원화 그대로(전표도 원화), 옆에 'USD 240 · 환율 1,402' 를 붙인다. 원본에 없으면 아무것도 안 붙는다.
+const foreignOf = (tx: any): { cur: string; amt: number; rate: number } | null => {
+  const a = tx?.raw_data?.approval; if (!a) return null;
+  const cur = String(a.resAccountCurrency || "").toUpperCase(); const used = Number(a.resUsedAmount || 0); const krw = Number(a.resKRWAmt || tx.amount || 0);
+  if (!cur || cur === "KRW" || !used || !krw) return null;
+  return { cur, amt: used, rate: Math.round((krw / used) * 100) / 100 };
+};
+const ForeignBadge = ({ tx }: { tx: any }) => { const f = foreignOf(tx); return f ? <span className="card-fx" title={`해외 결제 · 원화 환산 환율 ${f.rate.toLocaleString("ko-KR")}`}>{f.cur} {f.amt.toLocaleString("ko-KR")} · 환율 {f.rate.toLocaleString("ko-KR")}</span> : null; };
+
 export default function CardsPage() {
   const { user } = useUser();
   const { toast } = useToast();
@@ -261,7 +271,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-month-tx", companyId, monthRange.from, monthRange.to],
     queryFn: async () => {
       const data = logRead('cards/page:data', await db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, raw_data")
         .eq("company_id", companyId ?? "")
         .gte("transaction_date", monthRange.from)
         .lte("transaction_date", monthRange.to)
@@ -276,7 +286,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-card-tx", companyId, selectedCardId, selectedCardName, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id, raw_data")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(500);
@@ -445,7 +455,7 @@ export default function CardsPage() {
     queryKey: ["cards-page-recent-tx", companyId, cardTxFrom, cardTxTo],
     queryFn: async () => {
       let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id")
+        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id, raw_data")
         .eq("company_id", companyId ?? "")
         .order("transaction_date", { ascending: false })
         .limit(2000);
@@ -979,7 +989,7 @@ export default function CardsPage() {
                               {!tx.used_by_employee_id && !(tx.tags && tx.tags.length) && !tx.memo && <span className="text-[var(--text-dim)]">—</span>}
                             </span>
                           </td>
-                          <td className={`text-right mono-number font-bold ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : ""}`}>{Number(tx.amount || 0) < 0 ? "+" : "−"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
+                          <td className={`text-right mono-number font-bold ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : ""}`}>{Number(tx.amount || 0) < 0 ? "+" : "−"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}<ForeignBadge tx={tx} /></td>
                           <td className="text-center">{tx.journal_entry_id ? <span className="ol-sure ol-sure-ok">전표처리됨</span> : tx.ledger_excluded_reason ? <span className="ol-sure" title={excludeLabelOf(tx.ledger_excluded_reason)}>장부 제외</span> : <button type="button" onClick={() => openPost(tx)} className="btn-secondary btn-sm">전표처리</button>}</td>
                         </tr>
                       ))}
@@ -1185,7 +1195,7 @@ export default function CardsPage() {
                         </td>
                         <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)]">{cat}</td>
                         <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)]">{tx.card_name || "카드"}</td>
-                        <td className={`px-3 py-2.5 font-semibold mono-number text-right ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}</td>
+                        <td className={`px-3 py-2.5 font-semibold mono-number text-right ${Number(tx.amount || 0) < 0 ? "text-[var(--success)]" : "text-[var(--text)]"}`}>{Number(tx.amount || 0) < 0 ? "+" : "-"}₩{Math.abs(Number(tx.amount || 0)).toLocaleString("ko-KR")}<ForeignBadge tx={tx} /></td>
                         <td className="px-3 py-2.5 text-[12.5px] text-[var(--text-muted)] mono-number">
                           {tx.transaction_date}
                           {/* 승인 시각 — 승인내역이 준 건만 있다. 청구내역만 있는 건(옛 데이터·일부 카드사)은 날짜만. */}

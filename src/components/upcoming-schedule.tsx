@@ -68,15 +68,34 @@ export type { ScheduleItem };
 function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
   const items: ScheduleItem[] = [];
 
-  const vat = nextOccurrence(today, 25);
-  if (vat <= windowEnd) {
+  //   ★ 부가세는 매달이 아니라 분기(1·4·7·10월 25일) — 매달 25일로 알리던 것을 고쳤다 (2026-08-27 ERP 2순위 '세금 일정').
+  //     1·7월 = 확정 신고, 4·10월 = 예정 신고. 링크는 분석 › 부가세 › 신고서 준비.
+  for (let k = 0; k < 4; k++) {
+    const m = today.getMonth() + k;
+    const cand = new Date(today.getFullYear(), m, 25);
+    if (![0, 3, 6, 9].includes(cand.getMonth()) || cand < today) continue;
+    if (cand > windowEnd) break;
+    const mm = cand.getMonth();
     items.push({
-      id: `vat-${fmtDateKey(vat)}`,
+      id: `vat-${fmtDateKey(cand)}`,
       type: "tax",
-      title: "부가세 신고/납부",
-      date: fmtDateKey(vat),
-      daysLeft: daysBetween(today, vat),
-      href: "/tax-invoices?tab=vat",
+      title: mm === 0 || mm === 6 ? "부가세 확정 신고/납부" : "부가세 예정 신고/납부",
+      date: fmtDateKey(cand),
+      daysLeft: daysBetween(today, cand),
+      href: "/reports/vat?tab=return",
+    });
+    break;
+  }
+  //   4대보험(국민연금·건강·고용·산재) 고지분 — 매월 10일. 급여 초안엔 회사 부담분이 없으니 여기서 잊지 않게.
+  const ins = nextOccurrence(today, 10);
+  if (ins <= windowEnd) {
+    items.push({
+      id: `ins-${fmtDateKey(ins)}`,
+      type: "tax",
+      title: "4대보험 납부 (회사 부담분 전표 확인)",
+      date: fmtDateKey(ins),
+      daysLeft: daysBetween(today, ins),
+      href: "/finance/status",
     });
   }
 

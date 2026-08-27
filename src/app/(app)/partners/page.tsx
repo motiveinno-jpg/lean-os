@@ -459,6 +459,31 @@ export default function PartnersPage() {
     enabled: !!detailPartner?.id && partnerDeals.length > 0,
   });
 
+  //   ★ 흐름 한 줄(2026-08-27 ERP 2순위) — 계산서 발행·수취와 정산(입출금)을 타임라인에 같이. 그전엔 프로젝트·결제 예정·소통만이라
+  //     "견적 → 계약 → 계산서 → 수금"의 뒷부분(계산서·수금)이 빠져 있었다.
+  const { data: partnerInvoices = [] } = useQuery({
+    queryKey: ["partner-invoices", detailPartner?.id],
+    queryFn: async () => {
+      if (!detailPartner) return [];
+      const data = logRead('partners/page:inv', await (supabase).from("tax_invoices")
+        .select("id, type, issue_date, total_amount, settled_amount, status, item_name, doc_kind")
+        .eq("partner_id", detailPartner.id).neq("status", "void").order("issue_date", { ascending: false }).limit(100));
+      return (data || []) as any[];
+    },
+    enabled: !!detailPartner?.id,
+  });
+  const { data: partnerSettles = [] } = useQuery({
+    queryKey: ["partner-settles", detailPartner?.id],
+    queryFn: async () => {
+      if (!detailPartner) return [];
+      const data = logRead('partners/page:settle', await (supabase as any).from("invoice_settlements")
+        .select("id, amount, created_at, tax_invoices!inner(partner_id, type), bank_transactions(transaction_date, counterparty)")
+        .eq("status", "confirmed").eq("tax_invoices.partner_id", detailPartner.id).order("created_at", { ascending: false }).limit(100));
+      return (data || []) as any[];
+    },
+    enabled: !!detailPartner?.id,
+  });
+
   // 커뮤니케이션 로그
   const { data: partnerComms = [] } = useQuery({
     queryKey: ["partner-comms", detailPartner?.id],
@@ -1116,11 +1141,14 @@ export default function PartnersPage() {
         const rs = calcRelationshipScore({ dealCount, contractTotal, lastCommDaysAgo, paidRatio });
 
         // 타임라인 머지: deals(생성), payments(due/received), comms(comm_date)
-        type TimelineItem = { date: string; kind: 'deal' | 'payment' | 'comm'; title: string; sub?: string; amount?: number; status?: string };
+        type TimelineItem = { date: string; kind: 'deal' | 'payment' | 'comm' | 'invoice' | 'settle'; title: string; sub?: string; amount?: number; status?: string };
         const timeline: TimelineItem[] = [
           ...partnerDeals.map((d: any) => ({ date: d.created_at, kind: 'deal' as const, title: d.name, sub: `상태: ${d.status || '—'}`, amount: Number(d.contract_total || 0), status: d.status })),
           ...partnerPayments.map((p: any) => ({ date: p.due_date || p.created_at, kind: 'payment' as const, title: p.label || '결제', amount: Number(p.amount || 0), status: p.status })),
           ...partnerComms.map((c: any) => ({ date: c.comm_date || c.created_at, kind: 'comm' as const, title: c.summary, sub: COMM_TYPE_LABEL[c.comm_type] || c.comm_type })),
+          //   계산서: 매출은 '발행', 매입은 '수취'. 남은 금액이 있으면 적는다 — 흐름의 끝(수금)이 아직인지 한눈에
+          ...partnerInvoices.map((v: any) => { const rem = Number(v.total_amount || 0) - Number(v.settled_amount || 0); return ({ date: v.issue_date, kind: 'invoice' as const, title: `${v.type === 'sales' ? '세금계산서 발행' : '세금계산서 수취'}${v.item_name ? ` · ${v.item_name}` : ''}`, sub: rem > 1 ? `미정산 ${rem.toLocaleString()}원` : '정산 완료', amount: Number(v.total_amount || 0), status: v.status }); }),
+          ...partnerSettles.map((x: any) => ({ date: x.bank_transactions?.transaction_date || x.created_at, kind: 'settle' as const, title: x.tax_invoices?.type === 'sales' ? '수금' : '지급', sub: x.bank_transactions?.counterparty || undefined, amount: Number(x.amount || 0) })),
         ].filter(t => t.date).sort((a, b) => (a.date < b.date ? 1 : -1));
 
         return (
@@ -1292,6 +1320,10 @@ export default function PartnersPage() {
                         {timeline.map((t, i) => {
                           const palette = t.kind === 'deal'
                             ? { dot: 'bg-blue-500', icon: '📋', tag: 'bg-blue-500/10 text-blue-400', label: '프로젝트' }
+                            : t.kind === 'invoice'
+                            ? { dot: 'bg-sky-500', icon: '🧾', tag: 'bg-sky-500/10 text-sky-400', label: '계산서' }
+                            : t.kind === 'settle'
+                            ? { dot: 'bg-teal-500', icon: '🏦', tag: 'bg-teal-500/10 text-teal-400', label: '정산' }
                             : t.kind === 'payment'
                             ? { dot: t.status === 'received' ? 'bg-green-500' : t.status === 'overdue' ? 'bg-red-500' : 'bg-yellow-500', icon: '💰', tag: 'bg-purple-500/10 text-purple-400', label: '결제' }
                             : { dot: 'bg-emerald-500', icon: '💬', tag: 'bg-emerald-500/10 text-emerald-400', label: '소통' };

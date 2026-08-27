@@ -9135,3 +9135,23 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .ht-note-foot { @apply mt-1 flex items-center gap-1 text-[11px]; }
 .ht-note-act { @apply rounded px-1.5 py-0.5 text-[12px] text-[var(--text-muted)] hover:bg-[var(--bg-surface)] hover:text-[var(--text)]; }
 .ht-note-empty { @apply py-3 text-center; }
+
+/* 예산 입력 격자 (2026-08-27) */
+.bud-box { @apply max-w-[min(96vw,1400px)]; }
+.bud-bar { @apply flex flex-wrap items-center gap-2 text-[12.5px]; }
+.bud-year { @apply h-8 w-24; }
+.bud-search { @apply h-8 w-44; }
+.bud-scroll { max-height: 60vh; overflow: auto; }
+.bud-table { min-width: 1240px; }
+.bud-table th { @apply text-center; }
+.bud-th-acct { @apply w-48; }
+.bud-td-acct { @apply whitespace-nowrap; }
+.bud-cell { @apply h-7 w-[84px] rounded border border-[var(--border)] bg-[var(--bg-surface)] px-1.5 text-right text-[12px] text-[var(--text)] focus:border-[var(--primary)] focus:outline-none; }
+.bud-cell-all { @apply w-[72px] border-dashed text-[var(--text-dim)]; }
+.bud-cell-dirty { @apply border-[var(--primary)] bg-[var(--primary)]/5; }
+.bud-sum { @apply font-semibold; }
+.fin-acct-head { @apply flex items-start justify-between gap-3; }
+.fin-acct-head > div > h3 { @apply m-0; }
+
+/* 카드 해외 결제 표시 (2026-08-27) */
+.card-fx { @apply ml-1.5 inline-block rounded bg-[var(--info-dim)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--info)] align-middle; }

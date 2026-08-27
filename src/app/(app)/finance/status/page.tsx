@@ -30,6 +30,7 @@ import { vatType } from "@/lib/vat-voucher";
 import { dayKeys, dayLabel } from "@/components/finance-status-panels";
 import { decideProdDraft, makeInventoryDraftNow, makePayrollDraftNow } from "@/lib/production-voucher";
 import { makeDepreciationDraftNow } from "@/lib/fixed-assets";
+import { BudgetEditor, fetchBudgets } from "@/components/budget-editor";
 import { BANK_LINE_META, decideSettlement, settlementResultToast } from "@/components/bank-line-dialog";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -129,6 +130,11 @@ export default function FinanceStatusPage() {
       refetchLinks(); refetchEntries();
     } catch (e) { toast(friendlyError(e), "error"); }
   };
+
+  //   예산 대비 (2026-08-27 ERP 2순위) — 조회 기간 안 달들의 계정별 예산 합. 실적은 수익=대변−차변, 비용=차변−대변
+  const { data: budgets = [] } = q("fin-status-budgets", () => fetchBudgets(companyId!, from, to), [from, to]);
+  const budgetOf = useMemo(() => { const m = new Map<string, number>(); for (const b of budgets) m.set(b.account_id, (m.get(b.account_id) || 0) + b.amount); return m; }, [budgets]);
+  const [budgetOpen, setBudgetOpen] = useState(false);
 
   const days = useMemo(() => dayKeys(from, to), [from, to]);
   const amountOf = (e: Entry) => e.journal_lines.reduce((n, l) => n + Number(l.debit || 0), 0);
@@ -386,13 +392,25 @@ export default function FinanceStatusPage() {
                     </div>
                   </div>
                   <div className="pnl-panel">
-                    <h3>계정과목별</h3><p>확정 전표의 줄을 계정별로 · 차변+대변 큰 순 · 계정을 누르면 원장</p>
+                    <div className="fin-acct-head"><div><h3>계정과목별</h3><p>확정 전표의 줄을 계정별로 · 차변+대변 큰 순 · 계정을 누르면 원장 · 예산은 수익·비용 계정만(조회 기간 안 달의 합)</p></div>
+                      <button type="button" className="btn-secondary btn-sm" onClick={() => setBudgetOpen(true)} title="계정과목 × 월 예산 격자">예산 입력</button></div>
                     <div className="stg-table-wrap"><table className="ev-table ev-lined table-inv-status">
-                      <thead><tr><th>계정</th><th>성격</th><th>차변</th><th>대변</th><th>전표 수</th></tr></thead>
-                      <tbody>{S.acctRows.map((r) => (
+                      <thead><tr><th>계정</th><th>성격</th><th>차변</th><th>대변</th><th>전표 수</th><th>예산</th><th>실적</th><th>달성</th></tr></thead>
+                      <tbody>{S.acctRows.map((r) => {
+                        const pl = r.nature === "revenue" || r.nature === "expense";
+                        const actual = r.nature === "revenue" ? r.credit - r.debit : r.debit - r.credit;
+                        const bud = budgetOf.get(r.id) || 0;
+                        const pct = bud ? Math.round((actual / bud) * 100) : null;
+                        //   비용은 예산을 넘으면 빨강, 수익은 못 미치면 빨강
+                        const over = pct != null && (r.nature === "expense" ? pct > 100 : pct < 100);
+                        return (
                         <tr key={r.id}><td className="text-left"><Link href="/partners/ledger" className="bz-link"><b>{r.name}</b></Link></td><td className="tc">{NATURE_LABEL[r.nature as keyof typeof NATURE_LABEL] || "—"}</td>
-                          <td className="tr mono-number">₩{won(r.debit)}</td><td className="tr mono-number">₩{won(r.credit)}</td><td className="tr mono-number">{r.n}</td></tr>
-                      ))}{!S.acctRows.length && <tr><td colSpan={5} className="tc ev-dim">확정 전표가 없습니다</td></tr>}</tbody>
+                          <td className="tr mono-number">₩{won(r.debit)}</td><td className="tr mono-number">₩{won(r.credit)}</td><td className="tr mono-number">{r.n}</td>
+                          <td className="tr mono-number">{pl && bud ? `₩${won(bud)}` : <span className="ev-dim">—</span>}</td>
+                          <td className="tr mono-number">{pl ? `₩${won(actual)}` : <span className="ev-dim">—</span>}</td>
+                          <td className={`tr mono-number ${over ? "aging-b3" : ""}`}>{pct != null ? `${pct}%` : <span className="ev-dim">—</span>}</td></tr>
+                        );
+                      })}{!S.acctRows.length && <tr><td colSpan={8} className="tc ev-dim">확정 전표가 없습니다</td></tr>}</tbody>
                     </table></div>
                   </div>
                 </>)}
@@ -454,6 +472,7 @@ export default function FinanceStatusPage() {
           </div>
         </QueryBody>
       </QueryScreen>
+      {budgetOpen && companyId && <BudgetEditor companyId={companyId} userId={userId} year={Number(from.slice(0, 4))} onClose={() => setBudgetOpen(false)} />}
     </div>
   );
 }
