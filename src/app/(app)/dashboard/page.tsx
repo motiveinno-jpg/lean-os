@@ -2223,7 +2223,8 @@ function ApprovalCenterWidget({ companyId, userId }: { companyId: string; userId
       queryClient.invalidateQueries({ queryKey: ['founder-data'] });
       // Fire-and-forget: 승인 이메일 알림 (요청자에게)
       if (action?.requester) {
-        const reqUser = logRead('dashboard/page:reqUser', await supabase.from('users').select('email, name').eq('name', action.requester).limit(1).maybeSingle());
+        //   company_id 필터 필수 (2026-08-28) — 없으면 운영자 계정에선 전 고객사에서 동명이인이 잡혀 승인 메일이 오발송될 수 있다
+        const reqUser = logRead('dashboard/page:reqUser', await supabase.from('users').select('email, name').eq('company_id', companyId).eq('name', action.requester).limit(1).maybeSingle());
         if (reqUser?.email) {
           sendApprovalNotificationEmail({
             email: reqUser.email,

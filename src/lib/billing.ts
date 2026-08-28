@@ -276,7 +276,8 @@ async function verifySubscriptionOwnership(subscriptionId: string): Promise<stri
 }
 
 // ── 10. 인보이스 번호 생성 (INV-YYYYMM-XXXX) ──
-export async function generateInvoiceNumber(): Promise<string> {
+//   2026-08-28: 회사 필터 필수 — 없으면 운영자 계정에선 전 고객사 번호에서 채번한다(현재 호출자 0인 dead code지만 부활 대비)
+export async function generateInvoiceNumber(companyId: string): Promise<string> {
   const now = new Date();
   const yearMonth = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
   const prefix = `INV-${yearMonth}`;
@@ -285,6 +286,7 @@ export async function generateInvoiceNumber(): Promise<string> {
   const data = logRead('lib/billing:data', await db
     .from('invoices')
     .select('invoice_number')
+    .eq('company_id', companyId)
     .like('invoice_number', `${prefix}-%`)
     .order('invoice_number', { ascending: false })
     .limit(1)

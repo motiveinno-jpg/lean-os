@@ -4,13 +4,6 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
-function maskEmail(email: string): string {
-  const [local, domain] = email.split("@");
-  if (!domain) return "***";
-  const maskedLocal = local.length > 1 ? local[0] + "***" : "***";
-  return `${maskedLocal}@${domain}`;
-}
-
 export default function FindEmailPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -28,23 +21,17 @@ export default function FindEmailPage() {
     setLoading(true);
 
     try {
-      const { data, error: dbError } = await supabase
-        .from("users")
-        .select("email, name")
-        .ilike("name", `%${name.trim()}%`);
+      //   2026-08-28: users 직접 조회 → SECURITY DEFINER RPC 로 이전.
+      //   직접 조회는 익명에겐 RLS 로 항상 0건(기능이 죽어 있었음)이고, 운영자 계정으로 열면
+      //   전 고객사 명단이 검색되는 누수였다. RPC 는 이름 정확 일치·서버 마스킹·최대 5건만 반환.
+      const { data, error: dbError } = await (supabase.rpc as any)("find_masked_emails_by_name", { p_name: name.trim() });
 
       if (dbError) {
         setLoading(false);
         return setError("조회 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       }
 
-      if (!data || data.length === 0) {
-        setLoading(false);
-        return setResults([]);
-      }
-
-      const masked = data.map((u: { email: string }) => maskEmail(u.email));
-      setResults(masked);
+      setResults(((data || []) as string[]));
     } catch {
       setError("서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.");
     }
