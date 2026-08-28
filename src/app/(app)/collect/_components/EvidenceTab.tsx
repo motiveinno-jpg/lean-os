@@ -480,7 +480,12 @@ export function EvidenceTab({
       const cardPid = kind === "card" ? await cardPartnerOf(r.cardName) : null;
       //   ★ 카드는 **비용 줄 = 가맹점**, 미지급금 줄 = 카드사. 둘이 다르다 (2026-08-13 사장님 제보).
       //     예전엔 비용 줄 거래처가 비어 있었다(카드 원자료엔 partner_id 가 없다).
-      const mainPid = kind === "card" ? await merchantPartnerOf(r.partnerName, r.bizno) : r.partnerId;
+      //   ★ 현금영수증도 원자료에 partner_id 가 없어 전표 거래처가 비어 있었다 (2026-08-28 사장님 제보).
+      //     상호·사업자번호로 거래처를 걸어 준다. 단 **매입(지출)만** — 매출 현금영수증은 counterparty 가
+      //     발행자(자기 회사)라 걸면 원장 매출처에 자기 회사가 뜬다.
+      const resolvePartner = kind === "card"
+        || (kind === "cash_receipt" && vatType(vatCodeOf(r))?.side === "purchase");
+      const mainPid = resolvePartner ? await merchantPartnerOf(r.partnerName, r.bizno) : r.partnerId;
       const counterIdx = vatType(vatCodeOf(r))?.side === "sale" ? 0 : lines.length - 1;
       const payload = lines.map((l, i) => ({
         account_id: resolved[i]!.id,
