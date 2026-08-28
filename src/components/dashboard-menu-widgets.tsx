@@ -186,11 +186,16 @@ export function PartnersCard({ companyId }: { companyId: string }) {
 
 // ── 공지사항 — 최근 공지(핀 우선) ──
 export function AnnouncementsCard() {
+  //   전역(null) + 내 회사 공지만 — RLS 만 믿으면 운영자 계정(creative@)은 전 회사(QA 시드 포함)
+  //   공지가 다 보인다 (2026-08-28 사장님 제보 "김대표가 올린 것들 다 뭐야")
+  const { user } = useUser();
+  const companyId = (user as any)?.company_id as string | undefined;
   const { data = [] } = useQuery({
-    queryKey: ["dash-announcements"],
+    queryKey: ["dash-announcements", companyId],
     staleTime: 60_000,
     queryFn: async () => {
       const data = logRead('components/dashboard-menu-widgets:data', await db.from("announcements").select("id, title, pinned, created_at")
+        .or(companyId ? `company_id.is.null,company_id.eq.${companyId}` : "company_id.is.null")
         .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(15));
       return (data || []) as any[];
     },

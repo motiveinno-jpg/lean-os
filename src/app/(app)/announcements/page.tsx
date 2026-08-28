@@ -54,12 +54,16 @@ export default function AnnouncementsPage() {
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const markedRef = useRef(false);
 
+  //   전역(null) + 내 회사 공지만 — RLS 만 믿으면 운영자 계정(creative@)은 전 회사(QA 시드 포함)
+  //   공지가 다 보인다 (2026-08-28 사장님 제보). 배지 RPC(unread_announcement_count)도 같은 조건으로 맞춤.
+  const myCompanyId = (user as any)?.company_id as string | undefined;
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["announcements"],
+    queryKey: ["announcements", myCompanyId],
     queryFn: async () => {
       const data = logRead('announcements/page:data', await supabase
         .from("announcements")
         .select("*")
+        .or(myCompanyId ? `company_id.is.null,company_id.eq.${myCompanyId}` : "company_id.is.null")
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false }));
       return (data || []) as Announcement[];
