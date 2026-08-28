@@ -110,7 +110,8 @@ export function HrFormManager({ companyId, collapseUpload, openUploadSignal, hid
     try {
       const u = await getCurrentUser();
       const { html, pageCount, skippedBackgroundImages } = await pdfToFlowHtml(file, u ? async (f) => {
-        const res = await uploadFile({ companyId, bucket: "company-assets", file: f, userId: u.id });
+        //   register:false — 서식 내부 이미지는 파일보관함 원장에 안 남긴다 (2026-08-28 사장님 제보)
+        const res = await uploadFile({ companyId, bucket: "company-assets", file: f, userId: u.id, register: false });
         return res.fileUrl;
       } : undefined);
       const filePath = await uploadTemplateFile(companyId, file);

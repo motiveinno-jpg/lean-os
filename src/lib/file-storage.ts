@@ -29,6 +29,10 @@ interface UploadParams {
     vaultDocId?: string;
     folderId?: string;
   };
+  /** false = 스토리지에만 올리고 파일보관함 원장(document_files)에는 등록하지 않는다 (2026-08-28).
+   *  서식 편집기의 PDF 페이지 이미지처럼 **문서 자산**이지 사용자의 '파일'이 아닌 업로드용 —
+   *  종전엔 이것도 원장에 등록돼 파일보관함에 "올린 적 없는 근로계약서"가 나타났다(사장님 제보). */
+  register?: boolean;
   category?: string;
   tags?: string[];
   userId: string;
@@ -199,7 +203,7 @@ async function attachSignedUrls<T extends { bucket?: string | null; storage_path
 // ── 1. Upload single file ──
 
 export async function uploadFile(params: UploadParams): Promise<UploadResult> {
-  const { companyId, bucket, file, context, category, tags, userId } = params;
+  const { companyId, bucket, file, context, category, tags, userId, register = true } = params;
 
   // Validate
   validateFile(file, bucket);
@@ -217,6 +221,18 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
 
   // Get public URL
   const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+
+  // register:false — 문서 자산 업로드는 원장에 남기지 않는다 (파일보관함에 노출되지 않게)
+  if (!register) {
+    return {
+      id: "",
+      fileName: file.name,
+      fileUrl: urlData.publicUrl,
+      fileSize: file.size,
+      mimeType: file.type,
+      storagePath,
+    };
+  }
 
   // Create document_files record
   const { data: record, error: insertError } = await db

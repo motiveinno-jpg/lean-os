@@ -356,7 +356,8 @@ export function ContractAdminPanel({ companyId, contracts, tabs }: { companyId: 
                   // PDF 페이지 이미지를 DB(content_json)가 아닌 스토리지에 — 여러 페이지도 서식이 가벼움
                   const u = await getCurrentUser();
                   if (!u) throw new Error("로그인 정보를 확인할 수 없습니다");
-                  const res = await uploadFile({ companyId, bucket: "company-assets", file, userId: u.id });
+                  //   register:false — 서식 내부 이미지는 파일보관함 원장에 안 남긴다 (2026-08-28 사장님 제보)
+                  const res = await uploadFile({ companyId, bucket: "company-assets", file, userId: u.id, register: false });
                   return res.fileUrl;
                 }} />
             </div>
