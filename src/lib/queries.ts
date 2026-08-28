@@ -1763,7 +1763,8 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
   memo?: string;
 }>> {
   const [txs, { data: accts }] = await Promise.all([
-    // 기존 .limit(5000) 의도 유지 — 서버 max_rows=1000 절단으로 계좌별 count 가 과소집계되던 것을 페이징으로 복원
+    //   계좌별 '거래 건수'를 정확히 세려면 통장 거래 전량이 필요하다 — 5000으로 막으면 거래가 많은
+    //   회사(실사용 확인)에서 count 가 과소집계된다. 전량 페이징(2026-08-28). (최신 잔액은 날짜 desc 정렬상 앞쪽이라 무관)
     fetchPaged('getDistinctBankAccountNos', () => supabase
       .from('bank_transactions')
       .select('raw_data, balance_after, transaction_date, created_at')
@@ -1773,7 +1774,7 @@ export async function getDistinctBankAccountNos(companyId: string): Promise<Arra
       .order('transaction_date', { ascending: false })
       .order('raw_data->>trTime', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
-      .order('id', { ascending: false }), 5000),
+      .order('id', { ascending: false }), 100000),
     supabase
       .from('bank_accounts')
       .select('id, account_number, alias, bank_name, balance, is_hidden, memo')
