@@ -25,6 +25,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 import { useToast } from "@/components/toast";
 import { useUser } from "@/components/user-context";
@@ -237,12 +238,15 @@ function SalePurchaseInner() {
     queryKey: ["sp-saved", companyId, fromM, toM],
     queryFn: async () => {
       const to = monthAfter(toM);
-      const data = logRead("sale-purchase:saved", await (supabase as any)
+      //   ★ 페이징 필수 — 넓은 기간엔 매입매출전표가 1,000행(PostgREST 기본 상한)을 넘는다.
+      //     예전엔 상한에 조용히 잘려, 날짜가 늦은 전표(예: 6·7월 수도료 매입면세)가 목록에서
+      //     통째로 사라졌다 (2026-08-28 사장님 신고: "매입면세 전표가 5월부터 하나도 안 보인다").
+      const data = await fetchPaged("sale-purchase:saved", () => (supabase as any)
         .from("journal_entries")
         .select("id, voucher_no, entry_date, vat_type, supply_amount, vat_amount, description, reference_type, is_electronic, journal_lines(debit, credit, description, chart_of_accounts(id, code, name, account_type), partners(id, code, name, business_number))")
         .eq("company_id", companyId!).eq("entry_kind", "sale_purchase").eq("status", "confirmed")
         .gte("entry_date", `${fromM}-01`).lt("entry_date", to)
-        .order("entry_date").order("voucher_no"));
+        .order("entry_date").order("voucher_no"), 20000);
       return (data || []) as any[];
     },
     enabled: !!companyId,

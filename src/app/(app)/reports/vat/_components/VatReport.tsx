@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { Ico } from "@/components/ui-icon";
 import { WaterfallChart } from "@/components/charts/kit";
 import { summarizeByVatType } from "@/lib/vat-voucher";
@@ -141,7 +142,9 @@ export function VatByVoucherType({ companyId, year }: { companyId: string | null
   const { data: rows = [] } = useQuery({
     queryKey: ["vat-by-voucher-type", companyId, year],
     queryFn: async () => {
-      const data = logRead("tax-invoices:vatVouchers", await (supabase as any)
+      //   ★ 페이징 필수 — 1년치 매입매출전표는 1,000행(PostgREST 기본 상한)을 쉽게 넘는다.
+      //     페이징이 없으면 상한에서 조용히 잘려 **부가세 신고용 집계가 과소**로 나온다 (2026-08-28).
+      const data = await fetchPaged("tax-invoices:vatVouchers", () => (supabase as any)
         .from("journal_entries")
         .select("vat_type, supply_amount, vat_amount")
         .eq("company_id", companyId!)
@@ -150,7 +153,8 @@ export function VatByVoucherType({ companyId, year }: { companyId: string | null
         //     실제로 이 회사 2026년 집계에 반려 3건(공급가액 3,030,909 · 부가세 3,091)이 섞여 있었다.
         .eq("status", "confirmed")
         .gte("entry_date", `${year}-01-01`)
-        .lte("entry_date", `${year}-12-31`));
+        .lte("entry_date", `${year}-12-31`)
+        .order("entry_date"), 50000);
       return (data || []) as any[];
     },
     enabled: !!companyId,

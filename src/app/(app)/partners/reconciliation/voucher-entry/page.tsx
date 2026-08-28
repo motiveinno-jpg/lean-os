@@ -3,6 +3,7 @@ import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 전표입력 — 2단 구조 (2026-06-12 핸드오프 v2 확정본 §3-3).
 //   [상단] 입력 영역: 일자 + 구분(대체/출금/입금 — 헤더 단위) + 분개 행(No/구분/계정과목/거래처/적요/차변/대변)
@@ -219,7 +220,9 @@ export default function VoucherEntryPage() {
   const { data: entries = [] } = useQuery<SavedEntry[]>({
     queryKey: ["vouchers-of-day", companyId, fromM, toM],
     queryFn: async () => {
-      const data = logRead('voucher-entry/page:data', await db.from("journal_entries")
+      //   ★ 페이징 필수 — 넓은 기간엔 일반전표가 1,000행(PostgREST 기본 상한)을 넘어
+      //     상한에서 조용히 잘리면 날짜가 늦은 전표가 목록에서 사라진다 (2026-08-28).
+      const data = await fetchPaged("voucher-entry:vouchers-of-day", () => db.from("journal_entries")
         .select("id, entry_date, voucher_no, voucher_type, description, source, entry_kind, journal_lines(debit, credit, description, chart_of_accounts(id, code, name), partners(id, name, business_number))")
         .eq("company_id", companyId ?? "").eq("status", "confirmed")
         //   ★ 매입매출전표는 뺀다 (2026-08-11 사장님 지적) — 여기서 못 고치는 전표라(유형·공급가액이
@@ -227,7 +230,7 @@ export default function VoucherEntryPage() {
         //     ⚠️ neq 만 쓰면 entry_kind 가 NULL 인 옛 전표까지 빠진다 — is.null 을 함께 건다.
         .or("entry_kind.is.null,entry_kind.neq.sale_purchase")
         .gte("entry_date", `${fromM}-01`).lt("entry_date", monthAfter(toM))
-        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
+        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }), 20000);
       return ((data || []) as any[]).map((e) => ({
         id: e.id, entry_date: String(e.entry_date), voucher_no: e.voucher_no, voucher_type: e.voucher_type, description: e.description || "", source: e.source, entry_kind: e.entry_kind || null,
         lines: (e.journal_lines || [])

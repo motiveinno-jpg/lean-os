@@ -1,6 +1,7 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 거래처 원장 — 매출처(받을 돈)/매입처(줄 돈) 잔액 조회 (2026-06-12 메뉴 분리 핸드오프).
 //   대사 작업(확인 큐/수동 매칭/확정 내역)은 /partners/reconciliation (거래 대사)로 분리.
@@ -129,10 +130,12 @@ export default function PartnerLedgerPage() {
   const { data: voucherPartnerTypes = {} } = useQuery<Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }>>({
     queryKey: ["ledger-voucher-partners", companyId, periodStart, periodEnd],
     queryFn: async () => {
-      const data = logRead('ledger/page:data', await db.from("journal_entries")
+      //   ★ 페이징 필수 — 넓은 기간엔 수기전표가 1,000행(PostgREST 기본 상한)을 넘어
+      //     상한에서 잘리면 거래처 조정액 집계가 누락된다 (2026-08-28).
+      const data = await fetchPaged('ledger/page:data', () => db.from("journal_entries")
         .select("journal_lines(partner_id, debit, credit, chart_of_accounts(code))")
         .eq("company_id", companyId ?? "").eq("source", "manual").eq("status", "confirmed")
-        .gte("entry_date", periodStart).lte("entry_date", periodEnd));
+        .gte("entry_date", periodStart).lte("entry_date", periodEnd).order("entry_date"), 50000);
       const m: Record<string, { sales?: boolean; purchase?: boolean; salesAdj?: number; purchaseAdj?: number }> = {};
       for (const e of (data || []) as any[]) {
         for (const l of (e.journal_lines || [])) {
