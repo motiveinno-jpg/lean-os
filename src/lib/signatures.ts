@@ -617,7 +617,12 @@ export function injectContractInlineStyles(html: string): string {
       const noColwidth = String(attrs).replace(/\scolwidth\s*=\s*(["'])[^"']*\1/gi, '');
       const noWidths = stripStyleAttrWidths(noColwidth);
       // padding 8px → 6px·10px (세로 6 가로 10) 로 살짝 콤팩트 — 짧은 텍스트 셀 비대 느낌 완화.
-      return `<${tag}${append(noWidths, "border:1px solid #cbd5e1;padding:6px 10px;vertical-align:top;word-break:keep-all")}>`;
+      //   2026-08-28 사장님 제보: 서식이 셀에 vertical-align 을 지정해도 여기서 top 을 **뒤에** 이어붙여
+      //   무조건 덮어썼다(rowspan 큰 납부일자·대표자 셀이 위붙음). 서식 지정이 있으면 존중한다.
+      const base = /vertical-align\s*:/i.test(noWidths)
+        ? "border:1px solid #cbd5e1;padding:6px 10px;word-break:keep-all"
+        : "border:1px solid #cbd5e1;padding:6px 10px;vertical-align:top;word-break:keep-all";
+      return `<${tag}${append(noWidths, base)}>`;
     })
     .replace(/<img([^>]*)>/gi, (_m, attrs) => `<img${/style\s*=/i.test(attrs) ? attrs : `${attrs} style="max-width:100%;height:auto;display:block;margin:8px 0"`}>`);
 }
