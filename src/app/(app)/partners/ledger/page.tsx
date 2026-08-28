@@ -159,12 +159,13 @@ export default function PartnerLedgerPage() {
     staleTime: 60_000,
     queryFn: async () => {
       const since = new Date(); since.setDate(since.getDate() - 730);
-      const inv = logRead('ledger/page:inv', await db.from("tax_invoices")
+      //   ★ 페이징 필수 — .limit(5000)은 서버 1,000행 상한에 잘려 미수 에이징 총액이 과소됐다 (2026-08-28).
+      const inv = await fetchPaged<any>('ledger/page:inv', () => db.from("tax_invoices")
         .select("total_amount, supply_amount, settled_amount, issue_date, status, partner_id")
         .eq("company_id", companyId ?? "").eq("type", "sales").neq("status", "void")
         // 전표처리된 건만 — 원장 집계와 동일 기준 (2026-08-26 사장님)
         .not("journal_entry_id", "is", null)
-        .gte("issue_date", kstDateStr(since)).limit(5000));
+        .gte("issue_date", kstDateStr(since)).order("issue_date"), 50000);
       const buckets = [
         { label: "0–30일", min: 0, max: 30, amount: 0, count: 0 },
         { label: "31–60일", min: 31, max: 60, amount: 0, count: 0 },

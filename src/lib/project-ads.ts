@@ -11,6 +11,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { AD_VALUE_KEY, adMetricOf, type AdMetricKey, type AdRowLink, type BoardColumn, type BoardItem } from "@/lib/project-boards";
 import { todayKst } from "@/lib/kst";
 
@@ -76,9 +77,9 @@ export type CampaignRoll = {
 export async function rollupCampaigns(accountIds: string[], period: AdPeriodKey): Promise<CampaignRoll[]> {
   if (accountIds.length === 0) return [];
   const { since, until } = periodRange(period);
-  const data = logRead("project-ads:metrics", await db.from("ad_metrics_daily")
+  const data = await fetchPaged<any>("project-ads:metrics", () => db.from("ad_metrics_daily")
     .select("ad_account_id, platform, campaign_id, campaign_name, impressions, clicks, cost, conversions, conv_value")
-    .in("ad_account_id", accountIds).gte("stat_date", since).lte("stat_date", until));
+    .in("ad_account_id", accountIds).gte("stat_date", since).lte("stat_date", until).order("id"), 50000);
   const map = new Map<string, CampaignRoll>();
   for (const r of (data || []) as any[]) {
     const key = `${r.ad_account_id}:${r.campaign_id}`;

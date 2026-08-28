@@ -2,6 +2,7 @@
 import { todayKst } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { DateField } from "@/components/date-field";
@@ -344,10 +345,12 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       if (records.length === 0) throw new Error("유효한 거래 데이터가 없습니다");
 
       // ── F-4: Duplicate check (transaction_date + amount + counterparty) ──
-      const existing = logRead('transactions/page:existing', await supabase
+      //   ★ 페이징 필수 — 중복검사는 회사 전체 거래를 다 읽어야 한다. 1,000행에서 잘리면 옛 거래가
+      //     기존 Set에서 빠져 이미 있는 거래가 중복 삽입된다 (2026-08-28).
+      const existing = await fetchPaged<any>('transactions/page:existing', () => supabase
         .from("bank_transactions")
         .select("transaction_date, amount, counterparty")
-        .eq("company_id", companyId ?? ""));
+        .eq("company_id", companyId ?? "").order("id"), 100000);
 
       const existingKeys = new Set(
         (existing || []).map((e: any) =>
@@ -427,10 +430,11 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
       if (records.length === 0) throw new Error("유효한 카드 거래 데이터가 없습니다");
 
       // ── F-4: Card CSV duplicate check (transaction_date + amount + merchant_name) ──
-      const existingCards = logRead('transactions/page:existingCards', await supabase
+      //   ★ 페이징 필수 — 카드 중복검사도 회사 전체를 읽어야 한다(1,000행 절단 시 중복 삽입).
+      const existingCards = await fetchPaged<any>('transactions/page:existingCards', () => supabase
         .from("card_transactions")
         .select("transaction_date, amount, merchant_name")
-        .eq("company_id", companyId ?? ""));
+        .eq("company_id", companyId ?? "").order("id"), 100000);
 
       const existingCardKeys = new Set(
         (existingCards || []).map((e: any) =>
@@ -514,12 +518,12 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
     if (!companyId) return;
     setVatClassifying(true);
     try {
-      const { data: unmapped, error } = await supabase
+      //   ★ 페이징 필수 — 미매핑 카드거래 전체를 분류해야 한다. 1,000행 절단 시 초과분은 영원히 미분류.
+      const unmapped = await fetchPaged<any>('transactions/page:unmapped', () => supabase
         .from("card_transactions")
         .select("id, merchant_name, merchant_category, amount")
         .eq("company_id", companyId ?? "")
-        .or("mapping_status.eq.unmapped,mapping_status.is.null");
-      if (error) throw error;
+        .or("mapping_status.eq.unmapped,mapping_status.is.null").order("id"), 100000);
       if (!unmapped || unmapped.length === 0) {
         toast("분류할 미매핑 거래가 없습니다", "info");
         return;

@@ -6,6 +6,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 
 const daysAgo = (n: number) => { const d = new Date(todayKst()); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
@@ -14,10 +15,10 @@ export type OutflowStat = { qty30: number; perDay: number; lastOutAt: string | n
 /** 품목별 최근 30일 출고(판매·소비, 음수 move) 합과 하루 평균, 마지막 출고일(90일 안) */
 export async function fetchOutflowStats(companyId: string): Promise<Map<string, OutflowStat>> {
   const since90 = daysAgo(90), since30 = daysAgo(30);
-  const data = logRead("inv-suggest:outflow", await (supabase as any).from("stock_moves")
+  const data = await fetchPaged<any>("inv-suggest:outflow", () => (supabase as any).from("stock_moves")
     .select("product_id, qty, moved_at, stock_docs!inner(reason, status)")
     .eq("company_id", companyId).lt("qty", 0).gte("moved_at", since90)
-    .in("stock_docs.reason", ["sale", "consume"]).eq("stock_docs.status", "active").limit(20000));
+    .in("stock_docs.reason", ["sale", "consume"]).eq("stock_docs.status", "active").order("id"), 50000);
   const m = new Map<string, OutflowStat>();
   for (const r of ((data || []) as any[])) {
     const cur = m.get(r.product_id) || { qty30: 0, perDay: 0, lastOutAt: null };
@@ -33,10 +34,10 @@ export async function fetchOutflowStats(companyId: string): Promise<Map<string, 
 export type LastBuy = { partner_id: string | null; unit_price: number | null; doc_date: string };
 /** 품목별 마지막 매입 — 거래처·단가·일자 (활성 매입 문서, 최근 것) */
 export async function fetchLastPurchase(companyId: string): Promise<Map<string, LastBuy>> {
-  const data = logRead("inv-suggest:lastbuy", await (supabase as any).from("stock_moves")
+  const data = await fetchPaged<any>("inv-suggest:lastbuy", () => (supabase as any).from("stock_moves")
     .select("product_id, unit_price, moved_at, stock_docs!inner(partner_id, doc_date, reason, status)")
     .eq("company_id", companyId).gt("qty", 0).eq("stock_docs.reason", "purchase").eq("stock_docs.status", "active")
-    .order("moved_at", { ascending: false }).limit(5000));
+    .order("moved_at", { ascending: false }).order("id", { ascending: false }), 50000);
   const m = new Map<string, LastBuy>();
   for (const r of ((data || []) as any[])) {
     if (m.has(r.product_id)) continue;
@@ -57,8 +58,8 @@ export function soonShort(have: number, stat: OutflowStat | undefined, leadDays:
 
 /** 불량 보류 창고에 30일 넘게 있는 품목 — 마지막 입고일 기준 */
 export async function fetchDefectAging(companyId: string, defectWarehouseId: string, minDays = 30): Promise<{ product_id: string; qty: number; since: string; days: number }[]> {
-  const data = logRead("inv-suggest:defect", await (supabase as any).from("stock_moves")
-    .select("product_id, qty, moved_at").eq("company_id", companyId).eq("warehouse_id", defectWarehouseId).limit(20000));
+  const data = await fetchPaged<any>("inv-suggest:defect", () => (supabase as any).from("stock_moves")
+    .select("product_id, qty, moved_at").eq("company_id", companyId).eq("warehouse_id", defectWarehouseId).order("id"), 50000);
   const qty = new Map<string, number>(); const lastIn = new Map<string, string>();
   for (const r of ((data || []) as any[])) {
     qty.set(r.product_id, (qty.get(r.product_id) || 0) + Number(r.qty || 0));
@@ -99,10 +100,10 @@ export async function fetchPartnerWarehouse(companyId: string, partnerId: string
 export type PriceStat = { avg: number; n: number };
 /** 품목별 최근 매입 단가 평균(최근 3건) — 단가 이상 감지 (A7). 매출 쪽은 listAvgCost(원가)를 쓴다 */
 export async function fetchBuyPriceStats(companyId: string): Promise<Map<string, PriceStat>> {
-  const data = logRead("inv-suggest:buyprice", await (supabase as any).from("stock_moves")
+  const data = await fetchPaged<any>("inv-suggest:buyprice", () => (supabase as any).from("stock_moves")
     .select("product_id, unit_price, moved_at, stock_docs!inner(reason, status)")
     .eq("company_id", companyId).gt("qty", 0).gt("unit_price", 0).eq("stock_docs.reason", "purchase").eq("stock_docs.status", "active")
-    .order("moved_at", { ascending: false }).limit(5000));
+    .order("moved_at", { ascending: false }).order("id", { ascending: false }), 50000);
   const acc = new Map<string, number[]>();
   for (const r of ((data || []) as any[])) { const a = acc.get(r.product_id) || []; if (a.length < 3) { a.push(Number(r.unit_price)); acc.set(r.product_id, a); } }
   const m = new Map<string, PriceStat>();

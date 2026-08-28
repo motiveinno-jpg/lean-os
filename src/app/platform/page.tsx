@@ -2,6 +2,7 @@
 import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { planOf, countPlanKinds, type PlanKind as PK } from "./_components/plan-kind";
 import { AnalyticsSection } from "./_components/analytics-section";
 import { Donut, GaugeArc, VizLegend, VIZ_GRAY } from "./_components/viz";
@@ -123,7 +124,7 @@ export default function PlatformOverview() {
   const { data: invoices = [] } = useQuery({
     queryKey: ["p-invoices"],
     queryFn: async () => {
-      const data = logRead('platform/page:data', await db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }));
+      const data = await fetchPaged<any>("p-invoices", () => db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }), 100000);
       return data || [];
     },
     refetchInterval: 60_000,

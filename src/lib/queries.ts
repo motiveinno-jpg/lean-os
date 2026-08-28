@@ -8,7 +8,7 @@ import type { User, Company, Deal, DealNode, CashSnapshot, BankAccount, SubDeal,
 // 에러를 무시하던 읽기 쿼리들의 공통 통과 지점. 실패 시 Sentry/콘솔로 보고하고
 // data 는 그대로 반환해 기존 빈 폴백(`data || []` 등) 동작을 바꾸지 않는다.
 // 대형 select 절단 방지 페이징 — 구현/규약은 fetch-paged.ts 참조
-import { fetchPaged } from './fetch-paged';
+import { fetchPaged, fetchPagedRes } from './fetch-paged';
 
 // ── Auth helpers ──
 export type CurrentUser = {
@@ -203,11 +203,11 @@ export async function getSurvivalData(companyId: string): Promise<SurvivalData> 
 
   const [cash, deals, revenue, costs, transactions, nodes, employees] = await Promise.all([
     supabase.from('cash_snapshot').select('*').eq('company_id', companyId).maybeSingle(),
-    supabase.from('deals').select('*').eq('company_id', companyId),
-    supabase.from('deal_revenue_schedule').select('*, deals!inner(company_id, name)').eq('deals.company_id', companyId),
-    supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id, name, deals!inner(company_id))').eq('deal_nodes.deals.company_id', companyId),
-    supabase.from('transactions').select('*').eq('company_id', companyId),
-    supabase.from('deal_nodes').select('*, deals!inner(company_id, name)').eq('deals.company_id', companyId),
+    fetchPagedRes<Deal>('getSurvivalData.deals', () => supabase.from('deals').select('*').eq('company_id', companyId).order('id'), 50000),
+    fetchPagedRes('getSurvivalData.revenue', () => supabase.from('deal_revenue_schedule').select('*, deals!inner(company_id, name)').eq('deals.company_id', companyId).order('id'), 50000),
+    fetchPagedRes('getSurvivalData.costs', () => supabase.from('deal_cost_schedule').select('*, deal_nodes!inner(deal_id, name, deals!inner(company_id))').eq('deal_nodes.deals.company_id', companyId).order('id'), 50000),
+    fetchPagedRes('getSurvivalData.transactions', () => supabase.from('transactions').select('*').eq('company_id', companyId).order('id'), 50000),
+    fetchPagedRes('getSurvivalData.nodes', () => supabase.from('deal_nodes').select('*, deals!inner(company_id, name)').eq('deals.company_id', companyId).order('id'), 50000),
     supabase.from('employees').select('*').eq('company_id', companyId).in('status', ['active', 'joined']),
   ]);
 
@@ -544,9 +544,9 @@ export async function getFounderData(companyId: string) {
     supabase.from('monthly_financials').select('*').eq('company_id', companyId).order('month', { ascending: false }),
     supabase.from('financial_items').select('*').eq('company_id', companyId).eq('month', thisMonth),
     supabase.from('growth_targets').select('*').eq('company_id', companyId),
-    supabase.from('deals').select('*').eq('company_id', companyId),
-    supabase.from('deal_nodes').select('id, deal_id'),
-    supabase.from('deal_cost_schedule').select('amount, deal_node_id').eq('company_id', companyId),
+    fetchPagedRes<Deal>('getFounderData.deals', () => supabase.from('deals').select('*').eq('company_id', companyId).order('id'), 50000),
+    fetchPagedRes('getFounderData.nodes', () => supabase.from('deal_nodes').select('id, deal_id').order('id'), 100000),
+    fetchPagedRes('getFounderData.costs', () => supabase.from('deal_cost_schedule').select('amount, deal_node_id').eq('company_id', companyId).order('id'), 50000),
     supabase.from('bank_accounts').select('balance').eq('company_id', companyId),
     supabase.from('recurring_payments').select('amount, is_active').eq('company_id', companyId),
     // 2026-05-22 hasData 안전망: 집계(monthly_financials)가 아직 안 돌았어도 원천 있으면 "데이터 없음" CTA 숨김
@@ -873,13 +873,13 @@ export async function getBankAccountChanges(
   dateFrom: string,
   dateTo: string,
 ): Promise<{ byAccount: Record<string, number>; total: number }> {
-  const data = logRead('getBankAccountChanges', await supabase
+  const data = await fetchPaged<any>('getBankAccountChanges', () => supabase
     .from('bank_transactions')
     .select('raw_data, amount, type')
     .eq('company_id', companyId)
     .gte('transaction_date', dateFrom)
     .lte('transaction_date', dateTo)
-    .limit(50000));
+    .order('id'), 50000);
   const byAccount: Record<string, number> = {};
   let total = 0;
   for (const r of (data || []) as Array<{ raw_data?: { accountNo?: string }; amount: number; type: string }>) {
@@ -1674,8 +1674,8 @@ export async function deleteDealClassification(id: string) {
 export async function getFinancialDashboardData(companyId: string) {
   const [mfRes, itemsRes, dealsRes, classRes] = await Promise.all([
     supabase.from('monthly_financials').select('*').eq('company_id', companyId).order('month'),
-    supabase.from('financial_items').select('*').eq('company_id', companyId),
-    supabase.from('deals').select('*').eq('company_id', companyId),
+    fetchPagedRes('getFinancialDashboardData.items', () => supabase.from('financial_items').select('*').eq('company_id', companyId).order('id'), 50000),
+    fetchPagedRes<Deal>('getFinancialDashboardData.deals', () => supabase.from('deals').select('*').eq('company_id', companyId).order('id'), 50000),
     supabase.from('deal_classifications').select('*').eq('company_id', companyId).order('sort_order'),
   ]);
 

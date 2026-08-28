@@ -3,7 +3,7 @@
 //   이 파일은 셈만 한다 — 화면은 reports/profit·revenue·expense 가 그린다.
 
 import { supabase } from "@/lib/supabase";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged, fetchPagedRes } from "@/lib/fetch-paged";
 import { fetchJournalLines, pnlAmount, countUnposted, type JournalLine } from "@/lib/journal-reports";
 
 export type PnlSummary = {
@@ -96,10 +96,10 @@ export const pctChange = (cur: number, prev: number): number | null => (prev ===
 // ── 살펴볼 것 재료 ────────────────────────────────────────────────────────
 /** 미수금 — 매출 세금계산서 중 아직 안 들어온 것(발행 기준). 원장이 아니라 계산서 상태를 본다: 원천이 분명해서다. */
 export async function fetchReceivables(companyId: string): Promise<{ total: number; over30: number; over30Partners: number; rows: { name: string; amount: number; issueDate: string; days: number }[] }> {
-  const data = logRead("pnl-status:ar", await supabase.from("tax_invoices")
+  const data = await fetchPaged<any>("pnl-status:ar", () => supabase.from("tax_invoices")
     .select("counterparty_name, total_amount, issue_date, status")
     .eq("company_id", companyId).eq("type", "sales")
-    .in("status", ["issued", "sent", "pending", "overdue"]));
+    .in("status", ["issued", "sent", "pending", "overdue"]).order("id"), 50000);
   const today = new Date();
   const rows = ((data || []) as any[]).map((r) => {
     const d = r.issue_date ? Math.floor((today.getTime() - new Date(r.issue_date).getTime()) / 86400000) : 0;
@@ -112,9 +112,9 @@ export async function fetchReceivables(companyId: string): Promise<{ total: numb
 
 /** 미분류 출금 — 전표도 없고 처리도 안 된 통장 출금(판관비에서 빠져 있는 돈) */
 export async function fetchUnclassifiedOutflow(companyId: string, from: string, to: string): Promise<{ count: number; amount: number }> {
-  const data = logRead("pnl-status:unclassified", await (supabase.from("bank_transactions").select("amount") as any)
+  const data = await fetchPaged<{ amount: number }>("pnl-status:unclassified", () => (supabase.from("bank_transactions").select("amount") as any)
     .eq("company_id", companyId).is("journal_entry_id", null).is("ledger_excluded_reason", null).eq("settlement_status", "open").lt("amount", 0)
-    .gte("transaction_date", from).lte("transaction_date", to));
+    .gte("transaction_date", from).lte("transaction_date", to).order("id"), 50000);
   const rows = (data || []) as { amount: number }[];
   return { count: rows.length, amount: rows.reduce((s, r) => s + Math.abs(Number(r.amount || 0)), 0) };
 }
@@ -128,7 +128,7 @@ export async function fetchFixedCostCompare(companyId: string, range: MonthRange
   const [rec, fixed, bank] = await Promise.all([
     supabase.from("recurring_payments").select("id, name, amount, day_of_month, recipient_name, is_active").eq("company_id", companyId).eq("is_active", true),
     supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring").eq("company_id", companyId),
-    (supabase.from("bank_transactions").select("counterparty, description, amount") as any).eq("company_id", companyId).lt("amount", 0).gte("transaction_date", from).lte("transaction_date", to),
+    fetchPagedRes<any>("pnl-status:fixedcost-bank", () => (supabase.from("bank_transactions").select("counterparty, description, amount") as any).eq("company_id", companyId).lt("amount", 0).gte("transaction_date", from).lte("transaction_date", to).order("id"), 50000),
   ]);
   const norm = (s: string) => String(s || "").toLowerCase().replace(/\s+/g, "");
   const items: { key: string; name: string; alt: string; source: "recurring" | "fixed_cost"; monthly: number; day: number | null }[] = [

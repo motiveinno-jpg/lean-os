@@ -3,6 +3,7 @@ import { appConfirm } from "@/components/global-confirm";
 import { Ico } from "@/components/ui-icon";
 import { todayKst } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 거래처 원장 ↔ 거래 대사 공유 모듈 (2026-06-12 메뉴 분리 핸드오프).
 //   /partners/ledger (조회: 원장) 와 /partners/reconciliation (작업: 대사) 가 공용으로 쓰는
@@ -20,7 +21,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 const db = supabase;
 
 // .in() 대량 ID 는 GET URL 길이 초과로 400 — 200개씩 청크 조회(2026-07-29 오류로그 실사례)
-async function chunkedIn<T>(
+export async function chunkedIn<T>(
   fetchChunk: (ids: string[]) => PromiseLike<T[] | null>,
   ids: string[],
   size = 200,
@@ -113,19 +114,20 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   const { data: invoices = [], isLoading } = useQuery<any[]>({
     queryKey: ["ledger-sheet-inv", companyId, partnerId, type, yStart, yEnd],
     queryFn: async () => {
-      let qb = db.from("tax_invoices")
-        // journal_entries 임베드 = 연결 전표의 번호 — 계산서 줄에서 전표를 바로 열기 위함 (2026-08-26 사장님).
-        //   ⚠️ FK 힌트 필수: journal_entries.linked_invoice_id 역방향 FK 도 있어 이름만 쓰면 PGRST201(모호)로 조회 전체가 빈다.
-        .select("id, issue_date, item_name, label, total_amount, journal_entry_id, journal_entries!tax_invoices_journal_entry_id_fkey(voucher_no)")
-        .eq("company_id", companyId).eq("type", type).neq("status", "void")
-        // 실제 홈택스 발행분만 — 국세청 승인번호(nts_confirm_no) 있는 건. 미발행 수동/테스트 draft 제외.
-        .not("nts_confirm_no", "is", null)
-        // 전표처리된 건만 — 좌측 목록 RPC(get_partner_ledger_by_year)와 동일 기준 (2026-08-26 사장님)
-        .not("journal_entry_id", "is", null)
-        .lte("issue_date", yEnd)
-        .order("issue_date", { ascending: true }).limit(2000);
-      qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
-      const { data } = await qb;
+      const data = await fetchPaged<any>("ledger/shared:invoices", () => {
+        const qb = db.from("tax_invoices")
+          // journal_entries 임베드 = 연결 전표의 번호 — 계산서 줄에서 전표를 바로 열기 위함 (2026-08-26 사장님).
+          //   ⚠️ FK 힌트 필수: journal_entries.linked_invoice_id 역방향 FK 도 있어 이름만 쓰면 PGRST201(모호)로 조회 전체가 빈다.
+          .select("id, issue_date, item_name, label, total_amount, journal_entry_id, journal_entries!tax_invoices_journal_entry_id_fkey(voucher_no)")
+          .eq("company_id", companyId).eq("type", type).neq("status", "void")
+          // 실제 홈택스 발행분만 — 국세청 승인번호(nts_confirm_no) 있는 건. 미발행 수동/테스트 draft 제외.
+          .not("nts_confirm_no", "is", null)
+          // 전표처리된 건만 — 좌측 목록 RPC(get_partner_ledger_by_year)와 동일 기준 (2026-08-26 사장님)
+          .not("journal_entry_id", "is", null)
+          .lte("issue_date", yEnd)
+          .order("issue_date", { ascending: true }).order("id");
+        return partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
+      }, 50000);
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -160,11 +162,11 @@ export function PartnerLedgerSheet({ companyId, partnerId, type, year, partnerNa
   const { data: manualVouchers = [] } = useQuery<any[]>({
     queryKey: ["ledger-manual-vouchers", companyId, partnerId, yStart, yEnd],
     queryFn: async () => {
-      const data = logRead('ledger/shared:data', await db.from("journal_entries")
+      const data = await fetchPaged<any>("ledger/shared:manualVouchers", () => db.from("journal_entries")
         .select("id, entry_date, description, voucher_no, reference_type, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
         .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
         .gte("entry_date", yStart).lte("entry_date", yEnd)
-        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
+        .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }).order("id"), 50000);
       return ((data || []) as any[]).filter((e) =>
         //   세금계산서로 만든 매입매출전표는 뺀다 — 그 계산서가 이미 위에서 한 줄로 잡히기 때문에
         //   같이 세면 잔액이 두 배가 된다 (2026-08-11)

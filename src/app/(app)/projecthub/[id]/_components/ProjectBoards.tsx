@@ -14,6 +14,7 @@ import { useMemo, useState, useRef, useEffect, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { useToast } from "@/components/toast";
 import { QueryBar, ChipGroup, QuickSearch, quickSearchHit, quickTerms, ConditionPanel, ConditionRow, TokenField, AppliedChips, type AppliedChip } from "@/components/query-kit";
 import { DateRangeField } from "@/components/date-range-field";
@@ -235,9 +236,9 @@ export function ProjectBoards({ dealId, companyId, users, dealName, userId, deal
   const { data: allItems = [] } = useQuery({
     queryKey: ["pb-all-items", dealId, boardIds.length],
     queryFn: async () => {
-      const data = logRead("ProjectBoards:allItems", await db.from("project_board_items")
+      const data = await fetchPaged<any>("ProjectBoards:allItems", () => db.from("project_board_items")
         .select("id, board_id, group_id, parent_item_id, name, values, position").in("board_id", boardIds)
-        .is("archived_at", null).order("position", { ascending: true }).limit(2000));
+        .is("archived_at", null).order("position", { ascending: true }).order("id"), 50000);
       return (data || []) as BoardItem[];
     },
     enabled: summaryScope === "all" && boardIds.length > 0,

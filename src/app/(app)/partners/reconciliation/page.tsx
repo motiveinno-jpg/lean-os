@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 거래 대사 — 입금·계산서 자동 매칭 (2026-06-12 메뉴 분리: 구 거래처원장의 작업 화면).
 //   탭1 확인 큐: 규칙엔진/AI 제안 매칭을 확정/반려. 확정 시 트리거가 미수금 차감 + 자동 차액마감.
@@ -443,11 +444,11 @@ export default function ReconciliationPage() {
   const { data: openTx = [] } = useQuery<OpenTx[]>({
     queryKey: ["manual-open-tx", companyId, tab, engStart, engEnd],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("bank_transactions")
+      const data = await fetchPaged<any>('reconciliation/page:openTx', () => db.from("bank_transactions")
         .select("id, amount, settled_amount, transaction_date, counterparty, type, invoice_settlements(status, tax_invoices(counterparty_name))")
         .eq("company_id", companyId ?? "").in("settlement_status", ["open", "partial"]).in("type", ["income", "expense"])
         .gte("transaction_date", engStart).lte("transaction_date", engEnd)
-        .gt("amount", 0).order("transaction_date", { ascending: false }).limit(2000));
+        .gt("amount", 0).order("transaction_date", { ascending: false }).order("id"), 50000);
       return ((data || []) as any[]).map((t) => {
         const pending = ((t.invoice_settlements || []) as { status: string; tax_invoices?: { counterparty_name: string | null } | null }[])
           .filter((s) => s.status === "suggested" || s.status === "needs_review");
@@ -472,10 +473,10 @@ export default function ReconciliationPage() {
   const { data: unsettledInv = [] } = useQuery<UnsettledInv[]>({
     queryKey: ["manual-unsettled-inv", companyId, tab],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("tax_invoices")
+      const data = await fetchPaged<any>('reconciliation/page:unsettledInv', () => db.from("tax_invoices")
         .select("id, type, issue_date, total_amount, settled_amount, counterparty_name, partner_id")
         .eq("company_id", companyId ?? "").neq("settlement_status", "settled")
-        .order("issue_date", { ascending: false }).limit(2000));
+        .order("issue_date", { ascending: false }).order("id"), 50000);
       return (data || []) as UnsettledInv[];
     },
     enabled: !!companyId && tab === "manual",
@@ -485,10 +486,10 @@ export default function ReconciliationPage() {
   const { data: cashReceipts = [] } = useQuery<any[]>({
     queryKey: ["manual-cash", companyId, tab],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("cash_receipts")
+      const data = await fetchPaged<any>('reconciliation/page:cashReceipts', () => db.from("cash_receipts")
         .select("id, type, issue_date, amount, counterparty_name, approval_number")
         .eq("company_id", companyId ?? "").is("bank_transaction_id", null)
-        .order("issue_date", { ascending: false }).limit(2000));
+        .order("issue_date", { ascending: false }).order("id"), 50000);
       return (data || []) as any[];
     },
     enabled: !!companyId && tab === "manual",
@@ -497,10 +498,10 @@ export default function ReconciliationPage() {
   const { data: cardTxns = [] } = useQuery<any[]>({
     queryKey: ["manual-card", companyId, tab],
     queryFn: async () => {
-      const data = logRead('reconciliation/page:data', await db.from("card_transactions")
+      const data = await fetchPaged<any>('reconciliation/page:cardTxns', () => db.from("card_transactions")
         .select("id, transaction_date, amount, merchant_name, card_name, approval_number")
         .eq("company_id", companyId ?? "")
-        .order("transaction_date", { ascending: false }).limit(1000));
+        .order("transaction_date", { ascending: false }).order("id"), 50000);
       return (data || []) as any[];
     },
     enabled: !!companyId && tab === "manual",

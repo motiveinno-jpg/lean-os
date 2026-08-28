@@ -3,6 +3,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 export type FaCategory = "equipment" | "vehicle" | "machine" | "software" | "building" | "structure" | "tool" | "other";
 export const FA_CATEGORIES: { value: FaCategory; label: string; months: number; codes: string }[] = [
@@ -29,7 +30,7 @@ type DeprRow = { asset_id: string; month: string; amount: number; journal_entrie
 export async function listFixedAssets(companyId: string): Promise<FixedAsset[]> {
   const [assets, deprs] = await Promise.all([
     logRead("fixed-assets:list", await (supabase as any).from("fixed_assets").select("*").eq("company_id", companyId).order("status").order("acquired_on", { ascending: false })),
-    logRead("fixed-assets:depr", await (supabase as any).from("fixed_asset_depreciations").select("asset_id, month, amount, journal_entries(status)").eq("company_id", companyId).limit(20000)),
+    fetchPaged<any>("fixed-assets:depr", () => (supabase as any).from("fixed_asset_depreciations").select("asset_id, month, amount, journal_entries(status)").eq("company_id", companyId).order("asset_id").order("month"), 50000),
   ]);
   const acc = new Map<string, { c: number; d: number; last: string | null }>();
   for (const r of ((deprs || []) as DeprRow[])) {

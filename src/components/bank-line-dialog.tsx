@@ -23,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { PickList } from "@/components/pick-list";
@@ -103,7 +104,7 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
   });
   const { data: partners = [] } = useQuery({
     queryKey: ["bank-partners", companyId],
-    queryFn: async () => (logRead("bank-line:partners", await supabase.from("partners").select("id, name").eq("company_id", companyId).order("name").limit(2000)) || []) as Pt[],
+    queryFn: async () => (await fetchPaged<any>("bank-line:partners", () => supabase.from("partners").select("id, name").eq("company_id", companyId).order("name"), 50000) || []) as Pt[],
     staleTime: 300_000,
   });
   const { data: ruleMap } = useQuery({ queryKey: ["voucher-rules", companyId, "bank"], queryFn: () => fetchRuleMap(companyId, "bank"), staleTime: 60_000 });
@@ -111,13 +112,12 @@ export function BankLineDialog({ tx, companyId, onClose, onDone }: {
     queryKey: ["bank-line-invoices", companyId, isIn ? "sales" : "purchase"],
     queryFn: async () => {
       const since = new Date(); since.setFullYear(since.getFullYear() - 1);
-      const { data, error } = await supabase.from("tax_invoices")
+      const data = await fetchPaged<any>("bank-line-invoices", () => supabase.from("tax_invoices")
         .select("id, type, issue_date, counterparty_name, partner_id, total_amount, settled_amount, item_name, status")
         .eq("company_id", companyId).eq("type", isIn ? "sales" : "purchase")
         .not("status", "in", "(void,modified)")
         .gte("issue_date", since.toISOString().slice(0, 10))
-        .order("issue_date", { ascending: false }).limit(3000);
-      if (error) throw error;
+        .order("issue_date", { ascending: false }).order("id"), 50000);
       //   남은 금액이 있는 것만 — 다 정산된 계산서는 후보가 아니다. 취소(마이너스) 장과 짝이 맞는 원본도 뺀다
       const rows = (data || []) as Inv[];
       const cancels = new Set(rows.filter((x) => Number(x.total_amount) < 0).map((x) => `${String(x.counterparty_name || "").trim()}|${Math.abs(Number(x.total_amount))}`));

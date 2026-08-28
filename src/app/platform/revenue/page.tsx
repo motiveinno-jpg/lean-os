@@ -1,6 +1,7 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -32,7 +33,7 @@ export default function RevenuePage() {
   const { data: invoices = [] } = useQuery({
     queryKey: ["p-invoices-rev"],
     queryFn: async () => {
-      const data = logRead('revenue/page:data', await db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }));
+      const data = await fetchPaged<any>("p-invoices-rev", () => db.from("invoices").select("*, companies(name)").order("created_at", { ascending: false }), 100000);
       return data || [];
     },
     refetchInterval: 60_000,

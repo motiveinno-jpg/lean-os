@@ -2,6 +2,7 @@
 import { todayKst, kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 프로젝트(라이프사이클·손익 뷰) — 워크플로우(/projects 보드)와 같은 deals 데이터의 다른 렌즈.
 //   2026-06-17 핸드오프 v2: 신규 테이블 없이 기존 deals 재사용. 목록 → 상세(탭) 구조.
@@ -148,9 +149,9 @@ export default function ProjectHubPage() {
   const { data: settleRows = [] } = useQuery({
     queryKey: ["projecthub-settle-rollup", companyId],
     queryFn: async () => {
-      const data = logRead('projecthub/page:data', await (supabase).from("tax_invoices")
+      const data = await fetchPaged<any>("projecthub/page:settle-rollup", () => (supabase).from("tax_invoices")
         .select("deal_id, total_amount, supply_amount, settled_amount, status, issue_date")
-        .eq("company_id", companyId!).eq("type", "sales").neq("status", "void").not("deal_id", "is", null));
+        .eq("company_id", companyId!).eq("type", "sales").neq("status", "void").not("deal_id", "is", null).order("id"), 50000);
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -471,8 +472,8 @@ export default function ProjectHubPage() {
     queryKey: ["ph-board-items", pbBoardIds.length],
     queryFn: async () => {
       if (!pbBoardIds.length) return [];
-      const data = logRead("projecthub/page:pbItems", await (supabase as any).from("project_board_items")
-        .select("board_id, group_id, values, updated_at").in("board_id", pbBoardIds).limit(5000));
+      const data = await fetchPaged<any>("projecthub/page:pbItems", () => (supabase as any).from("project_board_items")
+        .select("board_id, group_id, values, updated_at").in("board_id", pbBoardIds).order("id"), 50000);
       return (data || []) as any[];
     },
     enabled: pbBoardIds.length > 0,

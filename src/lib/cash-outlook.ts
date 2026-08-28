@@ -5,6 +5,7 @@
 //   시나리오는 곡선을 하나 더 그릴 뿐 실제 숫자는 안 바뀐다.
 
 import { supabase } from "@/lib/supabase";
+import { fetchPagedRes } from "@/lib/fetch-paged";
 import { getCashPulseData } from "@/lib/queries";
 import { buildCashPulse } from "@/lib/cash-pulse";
 import { getVATPreview } from "@/lib/tax-invoice";
@@ -57,7 +58,7 @@ export async function fetchOutlook(companyId: string, days: number, userId?: str
   const year = Number(today.slice(0, 4));
   const [pulseRaw, ti, fixed, recur, vat, loans, revSched, costSched, pq, recv] = await Promise.all([
     getCashPulseData(companyId, userId),
-    supabase.from("tax_invoices").select("id, type, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).neq("status", "void").gte("issue_date", addDays(today, -180)),
+    fetchPagedRes<any>("cash-outlook:ti", () => supabase.from("tax_invoices").select("id, type, counterparty_name, total_amount, settled_amount, issue_date, status").eq("company_id", companyId).neq("status", "void").gte("issue_date", addDays(today, -180)).order("id"), 50000),
     supabase.from("fixed_costs").select("id, name, amount, payment_day, is_recurring, end_date").eq("company_id", companyId),
     supabase.from("recurring_payments").select("id, name, amount, day_of_month, is_active").eq("company_id", companyId).eq("is_active", true),
     getVATPreview(companyId, year),

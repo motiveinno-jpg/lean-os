@@ -1,5 +1,5 @@
 "use client";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 
 // granter 계좌 화면 스타일 통장 개요 (2026-05-27): 전체 잔액 + 기간 증감 + 은행별 그룹 + 3열 그리드.
@@ -212,13 +212,13 @@ export function BankAccountsOverview({ companyId, selectedAccountNo, onSelect }:
   const { data: flow } = useQuery({
     queryKey: ["bank-period-flow", companyId, fromStr, toStr],
     queryFn: async () => {
-      const data = logRead('components/bank-accounts-overview:data', await supabase
+      const data = await fetchPaged<any>("components/bank-accounts-overview:flow", () => supabase
         .from("bank_transactions")
         .select("amount, type")
         .eq("company_id", companyId)
         .gte("transaction_date", fromStr)
         .lte("transaction_date", toStr)
-        .limit(50000));
+        .order("id"), 50000);
       let income = 0, expense = 0;
       for (const r of (data || []) as Array<{ amount: number; type: string }>) {
         const amt = Math.abs(Number(r.amount || 0));

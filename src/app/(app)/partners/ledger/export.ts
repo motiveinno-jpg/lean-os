@@ -1,11 +1,12 @@
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 // 거래처원장 일괄 엑셀 내보내기 — 선택한 거래처들을 한 파일에 거래처별 시트로 저장.
 //   행 구성·잔액 계산은 PartnerLedgerSheet(shared.tsx)의 시트/CSV 로직과 동일하게 유지할 것
 //   (발생=홈택스 발행 세금계산서, 회수/지급=확정 정산, 수동 전표 AR/AP 라인, 전기이월/월계/합계 행).
 
 import * as XLSX from "xlsx-js-style";
 import { supabase } from "@/lib/supabase";
-import { ADJ_REASON_LABEL } from "./shared";
+import { ADJ_REASON_LABEL, chunkedIn } from "./shared";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -18,27 +19,30 @@ async function fetchLedgerEntries(companyId: string, partnerId: string | null, t
   const isSales = type === "sales";
 
   // 발생: 해당 거래처 세금계산서 (시트와 동일 — 홈택스 발행분만, 전기이월 위해 과거 포함)
-  let qb = db.from("tax_invoices")
-    .select("id, issue_date, item_name, label, total_amount")
-    .eq("company_id", companyId).eq("type", type).neq("status", "void")
-    .not("nts_confirm_no", "is", null)
-    .lte("issue_date", yEnd)
-    .order("issue_date", { ascending: true }).limit(2000);
-  qb = partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
-  const { data: invoices } = await qb;
+  const invoices = await fetchPaged<any>("ledger/export:invoices", () => {
+    const qb = db.from("tax_invoices")
+      .select("id, issue_date, item_name, label, total_amount")
+      .eq("company_id", companyId).eq("type", type).neq("status", "void")
+      .not("nts_confirm_no", "is", null)
+      .lte("issue_date", yEnd)
+      .order("issue_date", { ascending: true }).order("id");
+    return partnerId ? qb.eq("partner_id", partnerId) : qb.is("partner_id", null);
+  }, 50000);
   const invRows = (invoices || []) as any[];
 
   // 회수/지급: 확정 정산 (통장 거래일 기준, 차액마감은 생성일)
   const invIds = invRows.map((i) => i.id);
   let settles: any[] = [];
   if (invIds.length > 0) {
-    const setts = logRead('ledger/export:setts', await db.from("invoice_settlements")
+    //   ★ invIds/btIds 는 이제 페이징으로 수천 개까지 커질 수 있어 .in() 한 방이면 URL 상한을 넘는다 —
+    //     chunkedIn 으로 200개씩 나눠 조회한다 (2026-08-28).
+    const setts = await chunkedIn((ids) => db.from("invoice_settlements")
       .select("id, tax_invoice_id, amount, match_type, adjustment_reason, bank_transaction_id, created_at")
-      .eq("status", "confirmed").in("tax_invoice_id", invIds));
-    const btIds = [...new Set(((setts || []) as any[]).map((s) => s.bank_transaction_id).filter(Boolean))];
+      .eq("status", "confirmed").in("tax_invoice_id", ids).then((r: any) => logRead('ledger/export:setts', r)), invIds);
+    const btIds = [...new Set(((setts || []) as any[]).map((s) => s.bank_transaction_id).filter(Boolean))] as string[];
     const btMap: Record<string, { date: string; cp: string | null }> = {};
     if (btIds.length) {
-      const bts = logRead('ledger/export:bts', await db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", btIds));
+      const bts = await chunkedIn((ids) => db.from("bank_transactions").select("id, transaction_date, counterparty").in("id", ids).then((r: any) => logRead('ledger/export:bts', r)), btIds);
       for (const b of (bts || []) as any[]) btMap[b.id] = { date: b.transaction_date, cp: b.counterparty };
     }
     settles = ((setts || []) as any[]).map((s) => ({
@@ -49,11 +53,11 @@ async function fetchLedgerEntries(companyId: string, partnerId: string | null, t
   }
 
   // 수동 전표 — 이 거래처 라인을 포함한 manual·confirmed 전표 (AR/AP 라인 전부 반영)
-  const mv = logRead('ledger/export:mv', await db.from("journal_entries")
+  const mv = await fetchPaged<any>("ledger/export:mv", () => db.from("journal_entries")
     .select("id, entry_date, description, voucher_no, reference_type, journal_lines(debit, credit, partner_id, description, chart_of_accounts(code))")
     .eq("company_id", companyId).eq("source", "manual").eq("status", "confirmed")
     .gte("entry_date", yStart).lte("entry_date", yEnd)
-    .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }));
+    .order("entry_date", { ascending: true }).order("voucher_no", { ascending: true }).order("id"), 50000);
   //   세금계산서로 만든 매입매출전표는 뺀다 — 계산서가 이미 한 줄로 잡혀 있어 이중계상이 된다 (화면과 같은 규칙)
   const manualVouchers = ((mv || []) as any[]).filter((e) =>
     e.reference_type !== "tax_invoice"

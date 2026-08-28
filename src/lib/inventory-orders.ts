@@ -10,6 +10,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 
 export type FormKey = "order" | "sale" | "buy" | "make" | "channel";
@@ -175,12 +176,12 @@ export type LineUsed = { order_id: string; order_line_id: string; ordered_qty: n
 
 export async function listOrders(companyId: string, from: string, to: string): Promise<Order[]> {
   if (!companyId) return [];
-  const data = logRead("inventory:orders", await supabase
+  const data = await fetchPaged<any>("inventory:orders", () => supabase
     .from("orders")
     .select("id, order_no, order_date, due_date, partner_id, partner_name, warehouse_id, status, note, custom, created_at")
     .eq("company_id", companyId).gte("order_date", from).lte("order_date", to)
     .order("order_date", { ascending: false }).order("created_at", { ascending: false })
-    .limit(1000));
+    .order("id"), 50000);
   return ((data || []) as any[]).map((r) => ({ ...r, custom: r.custom || {} })) as Order[];
 }
 

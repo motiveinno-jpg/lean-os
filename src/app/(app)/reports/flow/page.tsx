@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { kstDateStr } from "@/lib/kst";
 import { MonthField } from "@/components/month-field";
 import { getCurrentUser } from "@/lib/queries";
@@ -51,7 +52,7 @@ export default function BusinessFlowPage() {
   const { data: pipeline } = useQuery({
     queryKey: ["flow-pipeline", companyId],
     queryFn: async () => {
-      const data = logRead("flow/page:data", await db.from("deals").select("contract_total, stage").eq("company_id", companyId ?? "").eq("status", "active").is("archived_at", null).is("parent_deal_id", null));
+      const data = await fetchPaged<any>("flow/page:deals", () => db.from("deals").select("contract_total, stage").eq("company_id", companyId ?? "").eq("status", "active").is("archived_at", null).is("parent_deal_id", null).order("id"), 50000);
       const rows = (data || []) as { contract_total: number | null; stage: string | null }[];
       return { count: rows.length, total: rows.reduce((s, d) => s + Number(d.contract_total || 0), 0), settling: rows.filter((d) => d.stage === "settlement").length };
     },
@@ -76,7 +77,7 @@ export default function BusinessFlowPage() {
   const { data: receivable } = useQuery({
     queryKey: ["flow-receivable", companyId],
     queryFn: async () => {
-      const data = logRead("flow/page:data", await db.from("tax_invoices").select("total_amount, issue_date").eq("company_id", companyId ?? "").eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]));
+      const data = await fetchPaged<any>("flow/page:tax_invoices", () => db.from("tax_invoices").select("total_amount, issue_date").eq("company_id", companyId ?? "").eq("type", "sales").in("status", ["issued", "sent", "pending", "overdue"]).order("id"), 50000);
       const rows = (data || []) as { total_amount: number | null; issue_date: string | null }[];
       const cutoff = kstDateStr(new Date(Date.now() - 30 * 24 * 3600 * 1000));
       return { total: rows.reduce((s, r) => s + Number(r.total_amount || 0), 0), over30: rows.filter((r) => (r.issue_date || "") < cutoff).reduce((s, r) => s + Number(r.total_amount || 0), 0) };

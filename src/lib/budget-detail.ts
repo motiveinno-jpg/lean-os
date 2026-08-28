@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
 //   파생행(수입/지출 총액·순이익·BEP 등)은 이미 로드된 값으로 FlowMatrix 에서 계산(여기 미포함).
 
 import { supabase } from "@/lib/supabase";
+import { fetchPagedRes } from "@/lib/fetch-paged";
 import { getAccountMap, isCostAccount } from "./account-nature";
 import { getMonthlyTotalSalary } from "./payroll";
 
@@ -116,9 +117,9 @@ export async function getBudgetCellDetail(
     const [pqRes, ctRes] = await Promise.all([
       db.from("payment_queue").select("*").eq("company_id", companyId)
         .gte("created_at", start).lt("created_at", next),
-      db.from("card_transactions").select("*").eq("company_id", companyId)
+      fetchPagedRes<any>("lib/budget-detail:cards", () => db.from("card_transactions").select("*").eq("company_id", companyId)
         .gte("transaction_date", start).lt("transaction_date", next)
-        .order("transaction_date", { ascending: true }),
+        .order("transaction_date", { ascending: true }).order("id", { ascending: true }), 50000),
     ]);
     const items: BudgetDetailItem[] = [];
     for (const p of (pqRes.data ?? [])) {

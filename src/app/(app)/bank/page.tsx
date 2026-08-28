@@ -3,6 +3,7 @@ import { todayKst, kstDateStr } from "@/lib/kst";
 import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { Ico } from "@/components/ui-icon";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // /bank — 통장 자립 페이지(시안 그대로). 시안 portfolio 카드 + 시안 거래내역 표 직접 구현.
 //   기존 BankAccountsOverview / TransactionsView 미사용 (그쪽은 /transactions 에서 그대로).
@@ -321,19 +322,18 @@ export default function BankPage() {
   const { data: flow } = useQuery({
     queryKey: ["bank-page-flow-v2", companyId, ranges.curFrom, ranges.curTo],
     queryFn: async () => {
-      const [curRes, prevRes] = await Promise.all([
-        db.from("bank_transactions").select("amount, type, mapping_status").eq("company_id", companyId ?? "").gte("transaction_date", ranges.curFrom).lte("transaction_date", ranges.curTo).limit(50000),
-        db.from("bank_transactions").select("amount, type").eq("company_id", companyId ?? "").gte("transaction_date", ranges.prevFrom).lte("transaction_date", ranges.prevTo).limit(50000),
+      const [cur, prev] = await Promise.all([
+        fetchPaged<any>("bank/page:flow-cur", () => db.from("bank_transactions").select("amount, type, mapping_status").eq("company_id", companyId ?? "").gte("transaction_date", ranges.curFrom).lte("transaction_date", ranges.curTo).order("id"), 50000),
+        fetchPaged<any>("bank/page:flow-prev", () => db.from("bank_transactions").select("amount, type").eq("company_id", companyId ?? "").gte("transaction_date", ranges.prevFrom).lte("transaction_date", ranges.prevTo).order("id"), 50000),
       ]);
       const sum = (rows: any[], t: string) => (rows || []).filter((r) => r.type === t).reduce((s: number, r: any) => s + Math.abs(Number(r.amount || 0)), 0);
-      const cur = curRes.data || [];
       const mapped = cur.filter((r: any) => r.mapping_status && r.mapping_status !== "unmapped").length;
       const total = cur.length;
       return {
         income: sum(cur, "income"),
         expense: sum(cur, "expense"),
-        prevIncome: sum(prevRes.data || [], "income"),
-        prevExpense: sum(prevRes.data || [], "expense"),
+        prevIncome: sum(prev, "income"),
+        prevExpense: sum(prev, "expense"),
         mapped, total,
       };
     },
@@ -345,14 +345,16 @@ export default function BankPage() {
   const { data: recentTx = [] } = useQuery({
     queryKey: ["bank-page-recent-tx", companyId, bankTxFrom, bankTxTo],
     queryFn: async () => {
-      let q = db.from("bank_transactions")
-        .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id, partner_id, settlement_status, settled_amount, tax_invoice_id")
-        .eq("company_id", companyId ?? "")
-        .order("transaction_date", { ascending: false })
-        .limit(2000);
-      if (bankTxFrom) q = q.gte("transaction_date", bankTxFrom);
-      if (bankTxTo) q = q.lte("transaction_date", bankTxTo);
-      const data = logRead('bank/page:tx', await q);
+      const data = await fetchPaged<any>("bank/page:tx", () => {
+        let q = db.from("bank_transactions")
+          .select("id, transaction_date, type, amount, counterparty, description, classification, category, mapping_status, balance_after, raw_data, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id, partner_id, settlement_status, settled_amount, tax_invoice_id")
+          .eq("company_id", companyId ?? "")
+          .order("transaction_date", { ascending: false })
+          .order("id");
+        if (bankTxFrom) q = q.gte("transaction_date", bankTxFrom);
+        if (bankTxTo) q = q.lte("transaction_date", bankTxTo);
+        return q;
+      }, 50000);
       const rows = (data || []) as any[];
       // 직원 QA #통장거래내역2 — 같은 날짜 거래는 시간(raw_data.trTime, HHMMSS)까지 반영해 최신순 정렬.
       //   날짜만으로 정렬하면 같은 날 거래 순서가 뒤섞여 잔액·마지막 거래가 안 맞던 문제.
@@ -379,7 +381,7 @@ export default function BankPage() {
   const { data: pendingSettles = [] } = useQuery({
     queryKey: ["bank-page-pending-settles", companyId],
     queryFn: async () => {
-      const data = logRead('bank/page:data', await (db as any).from("invoice_settlements").select("bank_transaction_id").eq("company_id", companyId ?? "").eq("match_source", "manual").in("status", ["suggested", "needs_review"]).not("bank_transaction_id", "is", null).limit(5000));
+      const data = await fetchPaged<any>("bank/page:pending-settles", () => (db as any).from("invoice_settlements").select("bank_transaction_id").eq("company_id", companyId ?? "").eq("match_source", "manual").in("status", ["suggested", "needs_review"]).not("bank_transaction_id", "is", null).order("id"), 50000);
       return ((data || []) as { bank_transaction_id: string }[]).map((r) => r.bank_transaction_id);
     },
     enabled: !!companyId, staleTime: 30_000,

@@ -5,6 +5,7 @@ import { logRead } from "@/lib/log-read";
  * 현금예산 대시보드 원클릭 최신화 (계좌잔액, 카드내역, 고정비, 매출)
  */
 import { supabase } from './supabase';
+import { fetchPaged } from './fetch-paged';
 import { logAudit } from './audit-log';
 import { isDev, devCodefEnabled } from './app-env';
 
@@ -88,7 +89,7 @@ export async function syncBankBalances(companyId: string): Promise<SyncResult> {
     if (accErr) return resultErr('bank_balances', `계좌 조회 실패: ${accErr.message}`);
     if (!accounts || accounts.length === 0) return resultSkip('bank_balances', '등록된 계좌 없음');
 
-    const { data: txs, error: txErr } = await db
+    const txs = await fetchPaged<any>('lib/data-sync:bank_balances', () => db
       .from('bank_transactions')
       .select('raw_data, balance_after, transaction_date, created_at')
       .eq('company_id', companyId)
@@ -96,9 +97,7 @@ export async function syncBankBalances(companyId: string): Promise<SyncResult> {
       .not('balance_after', 'is', null)
       .order('transaction_date', { ascending: false })
       .order('created_at', { ascending: false })
-      .limit(20000);
-
-    if (txErr) return resultErr('bank_balances', `거래 조회 실패: ${txErr.message}`);
+      .order('id'), 50000);
 
     // 계좌번호별 "가장 최근" 거래의 balance_after (PostgREST jsonb 정렬에
     // 의존하지 않고 JS 에서 명시적으로 최대 키 계산 — 정확성 보장)
@@ -491,25 +490,25 @@ export async function autoDetectFixedCosts(companyId: string): Promise<DetectedF
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-    const { data: txns, error } = await db
+    const txns = await fetchPaged<any>('lib/data-sync:fixedcost-txns', () => db
       .from('transactions')
       .select('amount, description, type, created_at')
       .eq('company_id', companyId)
       .eq('type', 'expense')
       .gte('created_at', threeMonthsAgo.toISOString())
       .order('created_at', { ascending: false })
-      .limit(2000);
+      .order('id', { ascending: false }), 50000);
 
-    if (error || !txns || txns.length === 0) return [];
+    if (txns.length === 0) return [];
 
     // Also check card transactions
-    const cardTxns = logRead('lib/data-sync:cardTxns', await db
+    const cardTxns = await fetchPaged<any>('lib/data-sync:cardTxns', () => db
       .from('card_transactions')
       .select('amount, merchant_name, transaction_date')
       .eq('company_id', companyId)
       .gte('transaction_date', threeMonthsAgo.toISOString())
       .order('transaction_date', { ascending: false })
-      .limit(2000));
+      .order('id'), 50000);
 
     // Group by payee + approximate amount (within 5% tolerance)
     const payeeMap = new Map<string, { amounts: number[]; dates: string[] }>();
@@ -957,12 +956,12 @@ export async function syncCodefData(
     if ((syncType === 'card' || syncType === 'all') && cardSynced > 0) {
       try {
         const { classifyCardTransaction, batchSaveVATClassifications } = await import('./card-vat-classification');
-        const unmapped = logRead('lib/data-sync:unmapped', await db
+        const unmapped = await fetchPaged<any>('lib/data-sync:unmapped', () => db
           .from('card_transactions')
           .select('id, merchant_name, merchant_category, amount')
           .eq('company_id', companyId)
           .is('category', null)  // 아직 분류 안 된 거래만
-          .limit(2000));
+          .order('id'), 50000);
         if (unmapped && unmapped.length > 0) {
           const classifications = unmapped.map((tx: any) => ({
             transactionId: tx.id,

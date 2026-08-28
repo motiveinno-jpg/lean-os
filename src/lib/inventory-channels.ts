@@ -10,6 +10,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 import { createStockDoc } from "@/lib/inventory";
 
@@ -47,10 +48,10 @@ export const CARRIERS = [
 // ── 채널 상품 연결 ────────────────────────────────────────────────────────────
 export async function listChannelCodes(companyId: string): Promise<ChannelCode[]> {
   if (!companyId) return [];
-  const data = logRead("inventory:channel-codes", await supabase
+  const data = await fetchPaged<any>("inventory:channel-codes", () => supabase
     .from("product_channel_codes")
     .select("id, product_id, channel, channel_product_id, channel_sku, channel_product_name, is_active")
-    .eq("company_id", companyId).limit(5000));
+    .eq("company_id", companyId).order("id"), 50000);
   return (data || []) as ChannelCode[];
 }
 

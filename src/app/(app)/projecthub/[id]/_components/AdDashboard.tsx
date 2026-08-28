@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
 import { listAdAccounts, listDealAdAccounts, linkAdAccount, unlinkAdAccount } from "@/lib/project-ads";
@@ -111,10 +112,10 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
     queryKey: ["ad-rows", dealId, linked.join(), since, until],
     enabled: linked.length > 0 && !!since && !!until,
     queryFn: async () => {
-      const data = logRead("AdDashboard:rows", await db.from("ad_metrics_daily")
+      const data = await fetchPaged<any>("AdDashboard:rows", () => db.from("ad_metrics_daily")
         .select("ad_account_id, platform, level, entity_id, campaign_id, campaign_name, stat_date, impressions, clicks, cost, conversions, conv_value, raw")
         .in("ad_account_id", linked).gte("stat_date", since).lte("stat_date", until)
-        .order("stat_date", { ascending: true }).limit(20000));
+        .order("stat_date", { ascending: true }).order("id"), 50000);
       return (data || []) as any[];
     },
   });
@@ -124,9 +125,9 @@ export function AdDashboard({ dealId, companyId, boardId }: { dealId: string; co
     queryKey: ["ad-entities", linked.join()],
     enabled: linked.length > 0,
     queryFn: async () => {
-      const data = logRead("AdDashboard:entities", await db.from("ad_entities")
+      const data = await fetchPaged<any>("AdDashboard:entities", () => db.from("ad_entities")
         .select("ad_account_id, level, entity_id, parent_id, name, status, daily_budget, ad_type, image_url, link_url, price")
-        .in("ad_account_id", linked).limit(3000));
+        .in("ad_account_id", linked).order("id"), 50000);
       return (data || []) as any[];
     },
   });

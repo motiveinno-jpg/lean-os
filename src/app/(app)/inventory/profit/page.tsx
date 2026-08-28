@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { todayKst } from "@/lib/kst";
@@ -67,7 +68,7 @@ export default function InventoryProfitPage() {
   const { data: imports = [] } = q("ch-imports", () => listImports(companyId!, 2000));
   const { data: revals = [] } = q("inv-cost-revals", () => listRevaluations(companyId!));
   const { data: partners = [] } = q("inv-partners", async () => {
-    const { data } = await supabase.from("partners").select("id, name").eq("company_id", companyId!).limit(1000);
+    const data = await fetchPaged<any>("inv-partners", () => supabase.from("partners").select("id, name").eq("company_id", companyId!).order("name"), 50000);
     return ((data || []) as { id: string; name: string }[]);
   });
 

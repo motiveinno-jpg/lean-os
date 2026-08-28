@@ -8,7 +8,7 @@
 //     조회 수가 **가맹점 수**로 줄어든다.
 
 import { supabase } from "@/lib/supabase";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 export type MerchantKind = "법인" | "일반" | "간이" | "면세";
 
@@ -70,8 +70,8 @@ export type MerchantInfo = { kind: MerchantKind | null; taxType: string | null; 
 export async function fetchMerchantKinds(companyId: string): Promise<Record<string, MerchantInfo>> {
   //   ⚠️ 새로 만든 표라 생성 타입(src/types/database.ts)에 아직 없다 — 저장소가 쓰는 방식대로 캐스팅한다.
   //     타입을 다시 뽑을 때 이 캐스팅을 걷어내면 된다.
-  const data = logRead("merchant-tax-type:cache", await (supabase as any)
-    .from("merchant_tax_types").select("bizno, kind, tax_type").eq("company_id", companyId));
+  const data = await fetchPaged<any>("merchant-tax-type:cache", () => (supabase as any)
+    .from("merchant_tax_types").select("bizno, kind, tax_type").eq("company_id", companyId).order("bizno"), 100000);
   const m: Record<string, MerchantInfo> = {};
   for (const r of ((data as any[]) || [])) {
     //   저장된 kind 를 그대로 믿지 않고 번호로 한 번 더 본다 — 옛 행은 법인 판정 전에 저장된 것이다

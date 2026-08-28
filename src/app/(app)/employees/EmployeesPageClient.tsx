@@ -6,6 +6,7 @@ import { Ico } from "@/components/ui-icon";
 import { DepartmentField, PositionField } from "@/components/org-option-fields";
 import { todayKst, kstDateStr, kstDateTimeLocal, kstLocalToIso } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { MonthField } from "@/components/month-field";
@@ -663,10 +664,10 @@ export function AttendanceTab({ employees, companyId, userId, userEmail, queryCl
   const { data: monthLeaves = [] } = useQuery({
     queryKey: ["attendance-cal-leaves", companyId, selectedMonth],
     queryFn: async () => {
-      const data = logRead('employees/page:data', await (supabase).from("leave_requests")
+      const data = await fetchPaged<any>('employees:monthLeaves', () => (supabase).from("leave_requests")
         .select("employee_id, start_date, end_date, status")
         .eq("company_id", companyId).eq("status", "approved")
-        .lte("start_date", monthEnd).gte("end_date", monthStart));
+        .lte("start_date", monthEnd).gte("end_date", monthStart).order("start_date"), 20000);
       return data || [];
     },
     enabled: !!companyId,

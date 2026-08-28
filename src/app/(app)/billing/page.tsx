@@ -1,6 +1,7 @@
 "use client";
 import { kstDateStr } from "@/lib/kst";
 import { logRead } from "@/lib/log-read";
+import { fetchPagedRes } from "@/lib/fetch-paged";
 
 import { useState, useEffect } from "react";
 import { friendlyError } from "@/lib/friendly-error";
@@ -154,7 +155,7 @@ function BillingPageInner() {
         db.from("partners").select("id", { count: "exact", head: true }).eq("company_id", companyId),
         // CODEF 동기화 크레딧 — codef_usage 원장(units=과금 추정 건수)의 이번 달 합계.
         //   테이블 미생성(마이그 미적용) 시 error 로 떨어지고 0으로 폴백 — 화면은 항상 정상.
-        db.from("codef_usage").select("units").eq("company_id", companyId).gte("created_at", iso).limit(2000),
+        fetchPagedRes<any>("billing/page:codef_usage", () => db.from("codef_usage").select("units").eq("company_id", companyId).gte("created_at", iso).order("id"), 50000),
       ]);
       // ai_usage_logs 테이블 미존재(AI 사용량 미추적) — 쿼리 제거(404 방지). 추적 도입 시 복원.
       return {

@@ -3,6 +3,7 @@ import { CardStatusPanels } from "@/components/finance-status-panels";
 import { DonutChart, Legend, vizColor } from "@/components/charts/kit";
 import { downloadCsv, rangeSuffix } from "@/lib/csv-export";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { Ico } from "@/components/ui-icon";
 
 // /cards — 카드 자립 페이지(시안 적용). 시안 3탭: 카드 / 거래내역 / 분석.
@@ -270,12 +271,12 @@ export default function CardsPage() {
   const { data: monthTx = [] } = useQuery({
     queryKey: ["cards-page-month-tx", companyId, monthRange.from, monthRange.to],
     queryFn: async () => {
-      const data = logRead('cards/page:data', await db.from("card_transactions")
+      const data = await fetchPaged<any>("cards/page:month-tx", () => db.from("card_transactions")
         .select("id, card_id, card_name, amount, category, classification, transaction_date, merchant_name, raw_data")
         .eq("company_id", companyId ?? "")
         .gte("transaction_date", monthRange.from)
         .lte("transaction_date", monthRange.to)
-        .limit(50000));
+        .order("id"), 50000);
       return (data || []) as any[];
     },
     enabled: !!companyId,
@@ -454,14 +455,16 @@ export default function CardsPage() {
   const { data: recentTx = [] } = useQuery({
     queryKey: ["cards-page-recent-tx", companyId, cardTxFrom, cardTxTo],
     queryFn: async () => {
-      let q = db.from("card_transactions")
-        .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id, raw_data")
-        .eq("company_id", companyId ?? "")
-        .order("transaction_date", { ascending: false })
-        .limit(2000);
-      if (cardTxFrom) q = q.gte("transaction_date", cardTxFrom);
-      if (cardTxTo) q = q.lte("transaction_date", cardTxTo);
-      const data = logRead('cards/page:tx', await q);
+      const data = await fetchPaged<any>("cards/page:recent-tx", () => {
+        let q = db.from("card_transactions")
+          .select("id, card_id, card_name, amount, category, classification, transaction_date, transaction_time, merchant_name, journal_entry_id, ledger_excluded_reason, is_fixed_cost, memo, tags, used_by_employee_id, raw_data")
+          .eq("company_id", companyId ?? "")
+          .order("transaction_date", { ascending: false })
+          .order("id");
+        if (cardTxFrom) q = q.gte("transaction_date", cardTxFrom);
+        if (cardTxTo) q = q.lte("transaction_date", cardTxTo);
+        return q;
+      }, 50000);
       return (data || []) as any[];
     },
     enabled: !!companyId && tab === "transactions",

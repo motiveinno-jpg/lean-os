@@ -6,6 +6,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 export type CostLayer = { id: string; product_id: string; move_id: string; layer_date: string; seq: number; qty_in: number; qty_left: number; unit_cost: number | null; source: string };
 export type MoveCost = { move_id: string; product_id: string; moved_at: string; reason: string; qty: number; cost_amount: number; qty_costed: number; qty_uncosted: number; unit_cost: number | null; method: string; layers: { layer_id: string; date: string; source: string; qty: number; unit_cost: number }[] };
@@ -19,15 +20,18 @@ export const COSTING_METHODS: { value: CostingMethod; label: string; desc: strin
 const db = supabase as any;
 
 export async function listMoveCosts(companyId: string, from: string, to: string): Promise<MoveCost[]> {
-  const data = logRead("inventory-cost:moves", await db.from("stock_move_costs")
+  const data = await fetchPaged<any>("inventory-cost:moves", () => db.from("stock_move_costs")
     .select("move_id, product_id, moved_at, reason, qty, cost_amount, qty_costed, qty_uncosted, unit_cost, method, layers")
-    .eq("company_id", companyId).gte("moved_at", from).lte("moved_at", to).limit(5000));
+    .eq("company_id", companyId).gte("moved_at", from).lte("moved_at", to).order("move_id"), 50000);
   return ((data || []) as any[]).map((r) => ({ ...r, qty: Number(r.qty), cost_amount: Number(r.cost_amount), qty_costed: Number(r.qty_costed), qty_uncosted: Number(r.qty_uncosted), unit_cost: r.unit_cost == null ? null : Number(r.unit_cost) })) as MoveCost[];
 }
 export async function listLayers(companyId: string, productId?: string | null): Promise<CostLayer[]> {
-  let q = db.from("stock_cost_layers").select("id, product_id, move_id, layer_date, seq, qty_in, qty_left, unit_cost, source").eq("company_id", companyId).order("layer_date").order("seq").limit(5000);
-  if (productId) q = q.eq("product_id", productId);
-  const data = logRead("inventory-cost:layers", await q);
+  const build = () => {
+    let q = db.from("stock_cost_layers").select("id, product_id, move_id, layer_date, seq, qty_in, qty_left, unit_cost, source").eq("company_id", companyId).order("layer_date").order("seq").order("id");
+    if (productId) q = q.eq("product_id", productId);
+    return q;
+  };
+  const data = await fetchPaged<any>("inventory-cost:layers", build, 50000);
   return ((data || []) as any[]).map((r) => ({ ...r, qty_in: Number(r.qty_in), qty_left: Number(r.qty_left), unit_cost: r.unit_cost == null ? null : Number(r.unit_cost) })) as CostLayer[];
 }
 export async function getCostState(companyId: string): Promise<CostState | null> {

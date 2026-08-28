@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 import { DateRangeField } from "@/components/date-range-field";
 import { QuickSearch, quickSearchHit, Pager, usePager } from "@/components/query-kit";
@@ -45,8 +46,8 @@ export function AuditTrailPanel({ companyId }: { companyId: string | null }) {
   const { data: rows = [], isLoading } = useQuery<Row[]>({
     queryKey: ["audit-trail", companyId, from, to],
     enabled: !!companyId,
-    queryFn: async () => (logRead("audit-trail", await (supabase as any).from("audit_logs").select("id, user_id, entity_type, entity_id, action, before_json, after_json, metadata, created_at")
-      .eq("company_id", companyId).gte("created_at", `${from}T00:00:00+09:00`).lte("created_at", `${to}T23:59:59+09:00`).order("created_at", { ascending: false }).limit(3000)) || []) as Row[],
+    queryFn: async () => (await fetchPaged<Row>("audit-trail", () => (supabase as any).from("audit_logs").select("id, user_id, entity_type, entity_id, action, before_json, after_json, metadata, created_at")
+      .eq("company_id", companyId).gte("created_at", `${from}T00:00:00+09:00`).lte("created_at", `${to}T23:59:59+09:00`).order("created_at", { ascending: false }).order("id", { ascending: false }), 50000)) as Row[],
   });
   const { data: users = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ["audit-users", companyId], enabled: !!companyId, staleTime: 300_000,

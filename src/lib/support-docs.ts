@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { fetchPaged } from "./fetch-paged";
 
 /**
  * 지원사업 신청 서류 — 무엇이 필요하고, 우리가 이미 가진 게 무엇인가 (2026-08-21 사장님 지시)
@@ -160,12 +161,12 @@ export type CompanyFile = {
 };
 
 export async function loadCompanyFiles(companyId: string): Promise<CompanyFile[]> {
-  const { data } = await supabase
+  const data = await fetchPaged<any>("support-docs:company-files", () => supabase
     .from("document_files")
     .select("id, file_name, file_url, tags, created_at, document_folders(name)")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
-    .limit(1000);
+    .order("id"), 50000);
 
   return ((data || []) as unknown as Array<CompanyFile & { document_folders?: { name?: string } | null }>)
     .map((f) => ({

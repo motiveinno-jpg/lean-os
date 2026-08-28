@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentUser } from "@/lib/queries";
 import { supabase } from "@/lib/supabase";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useMyPermissions } from "@/lib/permissions";
@@ -93,7 +94,7 @@ export default function StockPage() {
   const { data: partners = [] } = useQuery({
     queryKey: ["inv-partners", companyId],
     queryFn: async () => {
-      const { data } = await supabase.from("partners").select("id, name").eq("company_id", companyId!).limit(2000);
+      const data = await fetchPaged<any>("inv-partners", () => supabase.from("partners").select("id, name").eq("company_id", companyId!).order("name"), 50000);
       return ((data || []) as any[]).map((p) => ({ id: p.id as string, name: p.name as string }));
     },
     enabled: !!companyId && tab === "summary",

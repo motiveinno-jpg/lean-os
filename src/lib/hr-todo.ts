@@ -2,6 +2,7 @@
 //   토큰 0. 화면 안 요약 줄 + 팝업만 — 자동 메일·자동 통보 없음. 출처: 규칙 / 근태 집계.
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 import { getLeavePromotionCandidates } from "@/lib/hr";
 
@@ -58,8 +59,10 @@ export async function fetchHrTodos(companyId: string, employees: { id: string; n
   // ── H4 근태 이상 ──
   const monthStart = today.slice(0, 8) + "01";
   const dow = new Date(today).getDay(); const weekStart = addDays(today, -((dow + 6) % 7));   // 월요일
-  const att = logRead("hr-todo:att", await (supabase as any).from("attendance_records").select("employee_id, date, is_late, auto_clocked_out, regular_minutes, overtime_minutes, holiday_minutes")
-    .eq("company_id", companyId).gte("date", addDays(monthStart, -14)).lte("date", today).order("date", { ascending: false }).limit(5000));
+  //   ★ 페이징 필수 — .limit(5000)은 서버 1,000행 상한에서 잘린다. 직원 수 × 6주가 1,000행을
+  //     넘으면 일부 직원 근태 이상(주52h 초과·연속지각·자동마감)이 누락됐다 (2026-08-28).
+  const att = await fetchPaged<any>("hr-todo:att", () => (supabase as any).from("attendance_records").select("employee_id, date, is_late, auto_clocked_out, regular_minutes, overtime_minutes, holiday_minutes")
+    .eq("company_id", companyId).gte("date", addDays(monthStart, -14)).lte("date", today).order("date", { ascending: false }), 20000);
   const byEmp = new Map<string, any[]>();
   for (const r of ((att || []) as any[])) { if (!nameOf.has(r.employee_id)) continue; byEmp.set(r.employee_id, [...(byEmp.get(r.employee_id) || []), r]); }
   const over: HrTodoItem[] = [], late: HrTodoItem[] = [], auto: HrTodoItem[] = [];

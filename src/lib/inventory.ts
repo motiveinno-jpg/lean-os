@@ -12,6 +12,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 
 export type Product = {
@@ -287,14 +288,14 @@ export type MoveRow = {
 
 export async function listMoves(companyId: string, from: string, to: string): Promise<MoveRow[]> {
   if (!companyId) return [];
-  const data = logRead("inventory:moves", await supabase
+  //   ★ 페이징 필수 — .limit(2000)은 서버 1,000행 상한에 잘린다. 넓은 기간 이동 이력이 누락됐다 (2026-08-28).
+  const data = await fetchPaged<any>("inventory:moves", () => supabase
     .from("stock_moves")
     //   ★ 취소 전표의 줄은 이력에서도 뺀다 — 현재고와 같은 눈으로 본다(결정 25)
     .select("id, moved_at, qty, unit_price, amount, note, product_id, warehouse_id, std_qty, loss_reason, overhead_unit, stock_docs!inner(id, doc_no, kind, reason, note, partner_id, status)")
     .eq("company_id", companyId).eq("stock_docs.status", "active")
     .gte("moved_at", from).lte("moved_at", to)
-    .order("moved_at", { ascending: false })
-    .limit(2000));
+    .order("moved_at", { ascending: false }), 50000);
   return ((data || []) as any[]).map((r) => ({ ...r, doc: r.stock_docs ?? null })) as MoveRow[];
 }
 
@@ -326,9 +327,9 @@ export async function listCounts(companyId: string): Promise<StockCount[]> {
 
 export async function listCountLines(countId: string): Promise<CountLine[]> {
   if (!countId) return [];
-  const data = logRead("inventory:countlines", await supabase
+  const data = await fetchPaged<any>("inventory:countlines", () => supabase
     .from("stock_count_lines").select("id, product_id, system_qty, counted_qty")
-    .eq("count_id", countId).limit(5000));
+    .eq("count_id", countId).order("id"), 50000);
   return ((data || []) as any[]).map((r) => ({
     ...r, system_qty: Number(r.system_qty || 0),
     counted_qty: r.counted_qty == null ? null : Number(r.counted_qty),
@@ -525,13 +526,14 @@ export async function listStockDocs(
   companyId: string, reasons: string[], from: string, to: string,
 ): Promise<DocRowHead[]> {
   if (!companyId) return [];
-  const data = logRead("inventory:doc-list", await supabase
+  //   ★ 페이징 필수 — .limit(1000)은 서버 상한 경계라 넓은 기간·고volume 회사에선 잘려
+  //     재고 전표 이력·합계가 누락된다 (2026-08-28).
+  const data = await fetchPaged<any>("inventory:doc-list", () => supabase
     .from("stock_docs")
     .select("id, doc_no, reason, doc_date, partner_id, warehouse_id, order_id, note, journal_entry_id, status, cancel_reason, stock_moves(qty, unit_price, vat_amount)")
     .eq("company_id", companyId).in("reason", reasons)
     .gte("doc_date", from).lte("doc_date", to)
-    .order("doc_date", { ascending: false }).order("created_at", { ascending: false })
-    .limit(1000));
+    .order("doc_date", { ascending: false }).order("created_at", { ascending: false }), 50000);
   return ((data || []) as any[]).map((d) => {
     const ms = (d.stock_moves || []) as any[];
     return {

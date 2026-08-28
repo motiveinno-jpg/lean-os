@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -16,8 +17,8 @@ type Acct = { id: string; code: string; name: string; account_type: string };
 export type BudgetRow = { account_id: string; month: string; amount: number };
 
 export async function fetchBudgets(companyId: string, from: string, to: string): Promise<BudgetRow[]> {
-  const data = logRead("budgets:list", await (supabase as any).from("account_budgets").select("account_id, month, amount")
-    .eq("company_id", companyId).gte("month", from.slice(0, 7)).lte("month", to.slice(0, 7)).limit(5000));
+  const data = await fetchPaged<any>("budgets:list", () => (supabase as any).from("account_budgets").select("account_id, month, amount")
+    .eq("company_id", companyId).gte("month", from.slice(0, 7)).lte("month", to.slice(0, 7)).order("id"), 50000);
   return ((data || []) as any[]).map((r) => ({ account_id: r.account_id, month: r.month, amount: Number(r.amount || 0) }));
 }
 

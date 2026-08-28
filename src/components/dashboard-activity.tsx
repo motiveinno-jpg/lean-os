@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 대시보드 활동 요약 카드 — "오너뷰에서 지금 일어나는 일"을 표 형태로 한눈에(2026-07-14).
 //   깔끔한 카드(제목 + 전체보기 → / 표 행 + 상태 뱃지). 최근 프로젝트·최근 세금계산서.
@@ -113,9 +114,9 @@ export function RecentRevenue({ companyId }: { companyId: string }) {
       const mStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
       // limit(30) 이 합계·건수까지 잘랐다 (2026-08-19 감사: 월 45건 회사가 영원히 "30건").
       //   합계는 월 전체(상한 2000, 대시보드 위젯 부하 고려), 목록만 4건.
-      const data = logRead('components/dashboard-activity:data', await db.from("tax_invoices").select("id, counterparty_name, supply_amount, issue_date")
+      const data = await fetchPaged<any>('components/dashboard-activity:data', () => db.from("tax_invoices").select("id, counterparty_name, supply_amount, issue_date")
         .eq("company_id", companyId).eq("type", "sales").neq("status", "void")
-        .gte("issue_date", mStart).order("issue_date", { ascending: false }).limit(2000));
+        .gte("issue_date", mStart).order("issue_date", { ascending: false }).order("id"), 50000);
       const rows = (data || []) as any[];
       return { rows: rows.slice(0, 15), total: rows.reduce((s, r) => s + Number(r.supply_amount || 0), 0), count: rows.length };
     },

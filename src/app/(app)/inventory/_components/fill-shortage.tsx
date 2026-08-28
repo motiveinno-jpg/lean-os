@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listProducts, listOnHand } from "@/lib/inventory";
 import { fetchOutflowStats, fetchLastPurchase, soonShort } from "@/lib/inventory-suggest";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { blankRow, docWon as won, type DocCtl } from "./doc-editor";
 
 export function FillShortageButton({ ctl }: { ctl: DocCtl }) {
@@ -34,7 +35,7 @@ function FillDialog({ ctl, onClose }: { ctl: DocCtl; onClose: () => void }) {
   //   A2 곧 부족(30일 평균 일 출고 × 리드타임) · A1 지난 매입 거래처·단가 (2026-08-27 규칙형 자동화, 토큰 없음)
   const { data: outflow } = useQuery({ queryKey: ["inv-outflow", companyId], queryFn: () => fetchOutflowStats(companyId!), enabled: !!companyId, staleTime: 60_000 });
   const { data: lastBuy } = useQuery({ queryKey: ["inv-lastbuy", companyId], queryFn: () => fetchLastPurchase(companyId!), enabled: !!companyId, staleTime: 60_000 });
-  const { data: partners = [] } = useQuery({ queryKey: ["inv-partners-min", companyId], queryFn: async () => { const { supabase } = await import("@/lib/supabase"); const { data } = await supabase.from("partners").select("id, name").eq("company_id", companyId!).limit(2000); return (data || []) as { id: string; name: string }[]; }, enabled: !!companyId, staleTime: 300_000 });
+  const { data: partners = [] } = useQuery({ queryKey: ["inv-partners-min", companyId], queryFn: async () => { const { supabase } = await import("@/lib/supabase"); const data = await fetchPaged<any>("inv-partners-min", () => supabase.from("partners").select("id, name").eq("company_id", companyId!).order("name"), 50000); return (data || []) as { id: string; name: string }[]; }, enabled: !!companyId, staleTime: 300_000 });
   const partnerNm = (id: string | null | undefined) => (id ? partners.find((x) => x.id === id)?.name || "" : "");
   const [qty, setQty] = useState<Record<string, string>>({});
   const [picked, setPicked] = useState<Record<string, boolean>>({});

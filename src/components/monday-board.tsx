@@ -3,6 +3,7 @@ import { kstDateStr } from "@/lib/kst";
 import { Ico } from "@/components/ui-icon";
 import { appConfirm } from "@/components/global-confirm";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 2026-06-11 프로젝트 Monday.com 클론 보드 (사장님: "진짜 아예 똑같다 싶을 정도로").
 //   데이터 로직은 Phase 1·2 그대로(행=deals, 컬럼=board_columns, 셀=deals.column_values, 그룹=board_groups).
@@ -107,7 +108,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const { data: updateCounts } = useQuery<Map<string, number>>({
     queryKey: ["board-update-counts", companyId],
     queryFn: async () => {
-      const data = logRead('components/monday-board:data', await db.from("board_item_updates").select("deal_id").eq("company_id", companyId).is("subitem_id", null).limit(5000));
+      const data = await fetchPaged<any>('components/monday-board:updateCounts', () => db.from("board_item_updates").select("deal_id").eq("company_id", companyId).is("subitem_id", null).order("id"), 50000);
       const m = new Map<string, number>();
       (data || []).forEach((r: any) => m.set(r.deal_id, (m.get(r.deal_id) || 0) + 1));
       return m;
@@ -135,7 +136,7 @@ export function MondayBoard({ companyId, users = [] }: { companyId: string; user
   const { data: deals = [] } = useQuery<Deal[]>({
     queryKey: ["board-deals", companyId],
     queryFn: async () => {
-      const data = logRead('components/monday-board:data', await db.from("deals").select("id, name, board_group_id, column_values, contract_total").eq("company_id", companyId).is("archived_at", null).order("created_at", { ascending: true }));
+      const data = await fetchPaged<any>('components/monday-board:deals', () => db.from("deals").select("id, name, board_group_id, column_values, contract_total").eq("company_id", companyId).is("archived_at", null).order("created_at", { ascending: true }).order("id"), 50000);
       return (data || []).map((d: any) => ({ ...d, column_values: d.column_values || {} })) as Deal[];
     },
     enabled: !!companyId,

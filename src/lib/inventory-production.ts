@@ -7,7 +7,7 @@
 //   ★ 결정 16 — 자재가 모자라도 막지 않는다(결정 7). 이미 만든 것을 못 적게 하면 장부를 포기한다.
 
 import { supabase } from "@/lib/supabase";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { todayKst } from "@/lib/kst";
 import { createStockDoc, updateStockDoc, cancelStockDoc, type MoveLine, ensureDefectWarehouse } from "@/lib/inventory";
 
@@ -60,9 +60,9 @@ export function standardMaterials(lines: ProduceLine[], bomLines: BomLine[]): Ma
 // ── 자재구성 ──────────────────────────────────────────────────────────────────
 export async function listBoms(companyId: string): Promise<BomLine[]> {
   if (!companyId) return [];
-  const data = logRead("inventory:boms", await supabase
+  const data = await fetchPaged<any>("inventory:boms", () => supabase
     .from("product_boms").select("id, product_id, component_id, qty, note, base_qty")
-    .eq("company_id", companyId).limit(5000));
+    .eq("company_id", companyId).order("id"), 50000);
   return ((data || []) as any[]).map((r) => ({ ...r, qty: Number(r.qty || 0), base_qty: Number(r.base_qty || 1) })) as BomLine[];
 }
 

@@ -7,7 +7,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 type Ev = { event: string; params: any; path: string | null; referrer: string | null; created_at: string };
 
@@ -31,12 +31,11 @@ export default function PlatformMarketingPage() {
     queryFn: async () => {
       const since = new Date(Date.now() - 30 * 86400000).toISOString();
       // marketing_events 는 생성 타입에 아직 없다(다른 세션과의 database.ts 충돌 방지 — 재생성은 다음 라운드에)
-      const data = logRead("platform/marketing:events", await (supabase as any)
+      const data = await fetchPaged<any>("platform/marketing:events", () => (supabase as any)
         .from("marketing_events")
         .select("event, params, path, referrer, created_at")
         .gte("created_at", since)
-        .order("created_at", { ascending: false })
-        .limit(20000));
+        .order("created_at", { ascending: false }), 100000);
       return (data || []) as Ev[];
     },
     staleTime: 60_000,

@@ -9,6 +9,7 @@ import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { getMonthlyAttendanceSummary } from "@/lib/hr";
 import { downloadCsv } from "@/lib/csv-export";
 import { DateRangeField } from "@/components/date-range-field";
@@ -57,7 +58,7 @@ export function AttendanceStatusTab({ companyId, employees, isAdmin }: { company
   });
   const { data: leaves = [] } = useQuery({
     queryKey: ["att-status-leaves", companyId, rangeFrom, rangeTo],
-    queryFn: async () => (logRead("att-status:leaves", await supabase.from("leave_requests").select("employee_id, start_date, end_date").eq("company_id", companyId).eq("status", "approved").lte("start_date", rangeTo).gte("end_date", rangeFrom)) || []) as any[],
+    queryFn: async () => (await fetchPaged("att-status:leaves", () => supabase.from("leave_requests").select("employee_id, start_date, end_date").eq("company_id", companyId).eq("status", "approved").lte("start_date", rangeTo).gte("end_date", rangeFrom).order("start_date"), 20000) || []) as any[],
     enabled: !!companyId,
   });
   const { data: allowances = [] } = useQuery({

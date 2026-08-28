@@ -32,6 +32,7 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { fetchRuleMap, ruleKeyOf, learnAccount, ruleTag } from "@/lib/voucher-rules";
@@ -209,14 +210,13 @@ export function BankTab({
     queryKey: ["bank-open-invoices", companyId],
     queryFn: async () => {
       const since = new Date(); since.setFullYear(since.getFullYear() - 1);
-      const { data, error } = await supabase.from("tax_invoices")
+      const data = await fetchPaged<any>("bank-open-invoices", () => supabase.from("tax_invoices")
         .select("id, issue_date, counterparty_name, total_amount, deal_id, deals(name), partner_id, status")
         .eq("company_id", companyId).eq("type", "sales")
         .not("status", "in", "(void,matched,modified)")
         .gte("issue_date", since.toISOString().slice(0, 10))
         //   ★ 500 이면 잘린다 — 모티브 prod 만 미매칭 매출 1,366장(2026-08-18). 잘리면 취소 짝 맞추기·직접 찾기가 구멍 난다
-        .order("issue_date", { ascending: false }).limit(3000);
-      if (error) throw error;
+        .order("issue_date", { ascending: false }).order("id"), 50000);
       const rows = (data || []) as any[];
       //   ★ 취소된 원본을 걸러낸다 (2026-08-18 사장님 화면 검증에서 발견).
       //     홈택스 수정세금계산서(취소)는 원본은 그대로 두고 **같은 거래처·마이너스 금액** 한 장이 더 온다
@@ -328,8 +328,8 @@ export function BankTab({
   const { data: partners = [] } = useQuery<Pt[]>({
     queryKey: ["bank-partners", companyId],
     queryFn: async () => {
-      const data = logRead("bank:partners", await supabase
-        .from("partners").select("id, name").eq("company_id", companyId).order("name").limit(2000));
+      const data = await fetchPaged<any>("bank:partners", () => supabase
+        .from("partners").select("id, name").eq("company_id", companyId).order("name"), 50000);
       return (data || []) as Pt[];
     },
     staleTime: 300_000,

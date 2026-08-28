@@ -6,7 +6,7 @@ import { logRead } from "@/lib/log-read";
  */
 
 import { supabase } from './supabase';
-import { fetchPagedRes } from './fetch-paged';
+import { fetchPaged, fetchPagedRes } from './fetch-paged';
 import { calculateRetirementPay } from './payment-batch';
 import { getMonthlyTotalSalary } from './payroll';
 import { getAccountMap, isCostAccount } from './account-nature';
@@ -636,13 +636,13 @@ export async function getCostCategoryDetail(
 
   if (kind === 'variable' && category === 'payment_queue') {
     // 결제 대기(일회성 지출) — 취소 건 제외, 합계와 같은 규칙 (2026-08-10)
-    const data = logRead('lib/cash-budget:pq', await db.from('payment_queue')
+    const data = await fetchPaged<any>('lib/cash-budget:pq', () => db.from('payment_queue')
       .select('description, category, amount, status, created_at, is_recurring')
       .eq('company_id', companyId)
       .gte('created_at', startDate)
       .lte('created_at', `${endDate}T23:59:59`)
       .order('created_at', { ascending: false })
-      .limit(2000));
+      .order('id'), 50000);
     return (data || [])
       .filter((p: any) => !p.is_recurring && p.status !== 'cancelled')
       .map((p: any) => ({
@@ -654,13 +654,13 @@ export async function getCostCategoryDetail(
 
   if (kind === 'variable') {
     // 변동비 = 카드 실지출 (연 범위, 카테고리 매핑 동일)
-    const data = logRead('lib/cash-budget:data', await db.from('card_transactions')
+    const data = await fetchPaged<any>('lib/cash-budget:data', () => db.from('card_transactions')
       .select('merchant_name, category, transaction_date, amount')
       .eq('company_id', companyId)
       .gte('transaction_date', startDate)
       .lte('transaction_date', endDate)
       .order('transaction_date', { ascending: false })
-      .limit(2000));
+      .order('id'), 50000);
     return (data || [])
       .filter((t: any) => mapVariableCategory(t.category) === category)
       .map((t: any) => ({ label: t.merchant_name || t.category || '카드', sub: t.transaction_date ?? undefined, amount: Number(t.amount || 0) }));
@@ -670,7 +670,7 @@ export async function getCostCategoryDetail(
     // 통장 '고정비' 체크 거래 — YTD 개별 내역. 합산과 동일하게 정기결제 매칭 건 제외 +
     //   통장매핑에서 분류한 계정(category)·메모를 함께 표시 (사장님 QA 2026-07-10).
     const [{ data }, { data: recs }] = await Promise.all([
-      db.from('bank_transactions')
+      fetchPagedRes('lib/cash-budget:bank_fixed', () => db.from('bank_transactions')
         .select('counterparty, description, transaction_date, amount, category, memo')
         .eq('company_id', companyId)
         .eq('type', 'expense')
@@ -678,7 +678,7 @@ export async function getCostCategoryDetail(
         .gte('transaction_date', startDate)
         .lte('transaction_date', endDate)
         .order('transaction_date', { ascending: false })
-        .limit(2000),
+        .order('id'), 50000),
       db.from('recurring_payments').select('name, amount').eq('company_id', companyId).eq('is_active', true),
     ]);
     const matches = buildRecurringTxMatcher(recs || []);

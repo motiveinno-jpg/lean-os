@@ -7,6 +7,7 @@ import { logError } from "@/lib/error-logger";
  */
 
 import { supabase } from './supabase';
+import { fetchPaged } from './fetch-paged';
 import { getCurrentUser } from './queries';
 import {
   calcDailyAttendance,
@@ -1231,12 +1232,15 @@ export async function getMonthlyAttendanceSummary(companyId: string, yearMonth: 
   const lastDay = new Date(y, m, 0).getDate();
   const endDate = `${yearMonth}-${String(lastDay).padStart(2, '0')}`;
 
-  const records = logRead('lib/hr:records', await db
+  //   ★ 페이징 필수 — 직원 수 × 한 달(≈31일)이 1,000행(PostgREST 상한)을 넘으면 조용히 잘려
+  //     월간 근태 집계가 과소 계산된다 (2026-08-28).
+  const records = await fetchPaged<any>('lib/hr:records', () => db
     .from('attendance_records')
     .select('employee_id, status, work_hours, is_late, late_minutes, overtime_minutes, night_minutes, holiday_minutes, employees(name, department)')
     .eq('company_id', companyId)
     .gte('date', startDate)
-    .lte('date', endDate));
+    .lte('date', endDate)
+    .order('date'), 50000);
 
   if (!records) return [];
 

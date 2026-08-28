@@ -20,6 +20,7 @@ import { logRead } from "@/lib/log-read";
 // 결과: { learned (학습 표본 수), marked (자동 마킹된 거래 수), already (이미 true 인 거래) }.
 
 import { supabase } from "./supabase";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 const db = supabase;
 
@@ -44,13 +45,13 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
   const fromDate = kstDateStr(sixMonthsAgo);
 
   // 1) 학습 표본 — is_fixed_cost=true 인 거래의 counterparty+amount(1000원 반올림) 패턴
-  const learnedRows = logRead('lib/recurring-auto-mark:learnedRows', await db
+  const learnedRows = await fetchPaged<any>('lib/recurring-auto-mark:learnedRows', () => db
     .from("bank_transactions")
     .select("counterparty, amount")
     .eq("company_id", companyId)
     .eq("is_auto_transfer", true)
     .gte("transaction_date", fromDate)
-    .limit(2000));
+    .order("id"), 50000);
 
   const patternSet = new Map<string, { counterparty: string; amount: number }>();
   for (const tx of learnedRows || []) {
@@ -68,13 +69,13 @@ export async function autoMarkRecurringTransactions(companyId: string): Promise<
   }
 
   // 2) 마킹 대상 — is_fixed_cost IS NULL 거래 중 패턴 매칭 (false 는 보존)
-  const candRows = logRead('lib/recurring-auto-mark:candRows', await db
+  const candRows = await fetchPaged<any>('lib/recurring-auto-mark:candRows', () => db
     .from("bank_transactions")
     .select("id, counterparty, amount, is_auto_transfer")
     .eq("company_id", companyId)
     .is("is_auto_transfer", null)
     .gte("transaction_date", fromDate)
-    .limit(2000));
+    .order("id"), 50000);
 
   const toMarkIds: string[] = [];
   for (const tx of candRows || []) {

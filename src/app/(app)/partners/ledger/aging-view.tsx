@@ -16,7 +16,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { kstDateStr, todayKst } from "@/lib/kst";
 import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
@@ -45,16 +45,17 @@ export function useAging(companyId: string | null, type: "sales" | "purchase") {
     queryFn: async () => {
       const since = new Date(); since.setDate(since.getDate() - 730);
       const [inv, settles, notes] = await Promise.all([
-        logRead("aging:inv", await supabase.from("tax_invoices")
+        fetchPaged<any>("aging:inv", () => supabase.from("tax_invoices")
           .select("id, total_amount, supply_amount, settled_amount, issue_date, status, partner_id")
           .eq("company_id", companyId ?? "").eq("type", type).neq("status", "void")
-          .not("journal_entry_id", "is", null).gte("issue_date", kstDateStr(since)).limit(5000)),
+          .not("journal_entry_id", "is", null).gte("issue_date", kstDateStr(since))
+          .order("issue_date", { ascending: false }).order("id"), 50000),
         //   마지막 정산 — 확정된 정산의 통장 거래일(없으면 정산 확정일)
-        logRead("aging:settles", await (supabase as any).from("invoice_settlements")
-          .select("created_at, tax_invoices!inner(partner_id, type), bank_transactions(transaction_date)")
+        fetchPaged<any>("aging:settles", () => (supabase as any).from("invoice_settlements")
+          .select("created_at, id, tax_invoices!inner(partner_id, type), bank_transactions(transaction_date)")
           .eq("company_id", companyId ?? "").eq("status", "confirmed").eq("tax_invoices.type", type)
-          .order("created_at", { ascending: false }).limit(5000)),
-        logRead("aging:notes", await supabase.from("partners").select("id, notes").eq("company_id", companyId ?? "").not("notes", "is", null).limit(3000)),
+          .order("created_at", { ascending: false }).order("id"), 50000),
+        fetchPaged<any>("aging:notes", () => supabase.from("partners").select("id, notes").eq("company_id", companyId ?? "").not("notes", "is", null).order("id"), 50000),
       ]);
       const today = todayKst();
       const todayMs = new Date(today).getTime();

@@ -1,5 +1,6 @@
 "use client";
 import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 // 대시보드 하단 카드 — 2026-06-09 Stitch 시안 정렬 + 다크/라이트 적응.
 //   라운드6.5 골격 정렬: 매출 추이는 DashboardRevenueTrendCard(본문 2/3 큰 차트 카드)로 분리,
@@ -115,8 +116,8 @@ export function CardsSummaryCard({ companyId, headExtra }: { companyId: string; 
       const monthStart = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-01`;
       const _nm = new Date(_now.getFullYear(), _now.getMonth() + 1, 1);
       const nextStart = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, "0")}-01`;
-      const data = logRead('components/dashboard-bottom-cards:data', await db.from("card_transactions").select("card_name, amount")
-        .eq("company_id", companyId).gte("transaction_date", monthStart).lt("transaction_date", nextStart));
+      const data = await fetchPaged<any>("components/dashboard-bottom-cards:cards", () => db.from("card_transactions").select("card_name, amount")
+        .eq("company_id", companyId).gte("transaction_date", monthStart).lt("transaction_date", nextStart).order("id"), 50000);
       const byCard: Record<string, number> = {};
       (data || []).forEach((t: any) => { const k = t.card_name || "기타"; byCard[k] = (byCard[k] || 0) + Number(t.amount || 0); });
       const list = Object.entries(byCard).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);

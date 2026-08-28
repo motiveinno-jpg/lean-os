@@ -11,7 +11,7 @@
 //   카드에서 배운 규칙을 세금계산서에 쓰면 안 되므로 source_kind 로 칸을 나눈다.
 
 import { supabase } from "@/lib/supabase";
-import { logRead } from "@/lib/log-read";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 export type RuleKind = "tax_invoice" | "exempt_invoice" | "cash_receipt" | "card" | "bank";
 
@@ -63,12 +63,12 @@ export function ruleKeyOf(
 /** 회사의 규칙을 자료별로 읽어 (열쇠 → 가장 많이 고른 규칙) 지도로 만든다 */
 export async function fetchRuleMap(companyId: string, kind: RuleKind): Promise<Map<string, VoucherRule>> {
   //   생성 타입에 아직 없는 새 표 — 저장소 다른 곳과 같은 방식으로 캐스팅한다
-  const data = logRead("voucher-rules:list", await (supabase as any)
+  const data = await fetchPaged<any>("voucher-rules:list", () => (supabase as any)
     .from("voucher_account_rules")
     .select("id, source_kind, match_key, match_label, account_id, vat_type, hit_count, last_used_at, chart_of_accounts(id, code, name, account_type)")
     .eq("company_id", companyId).eq("source_kind", kind)
     .order("hit_count", { ascending: false }).order("last_used_at", { ascending: false })
-    .limit(2000));
+    .order("id"), 50000);
   const m = new Map<string, VoucherRule>();
   for (const r of ((data as any[]) || [])) {
     //   같은 열쇠에 계정이 여러 개면 **많이 고른 쪽이 이긴다**(정렬이 그렇게 돼 있다).

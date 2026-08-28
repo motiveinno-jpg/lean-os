@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat } from "@/components/query-kit";
 import { supabase } from "@/lib/supabase";
+import { fetchPaged } from "@/lib/fetch-paged";
 
 const db = supabase;
 
@@ -101,9 +102,9 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   const { data: atts = [] } = useQuery<Att[]>({
     queryKey: ["flex-work-week", companyId, startStr],
     queryFn: async () => {
-      const data = logRead('components/flex-work-board:data', await db.from("attendance_records")
+      const data = await fetchPaged<Att>('flex-work-board:att', () => db.from("attendance_records")
         .select("employee_id, date, check_in, check_out, regular_minutes, overtime_minutes, night_minutes, work_hours, is_late, status, auto_clocked_out")
-        .eq("company_id", companyId).gte("date", startStr).lte("date", endStr));
+        .eq("company_id", companyId).gte("date", startStr).lte("date", endStr).order("date"), 20000);
       return (data || []) as Att[];
     },
     enabled: !!companyId,
@@ -114,10 +115,10 @@ export function FlexWorkBoard({ companyId, employees, role, userId, tabs, headRi
   const { data: leaves = [] } = useQuery<{ employee_id: string; start_date: string; end_date: string; leave_type: string; leave_unit: string | null; start_time: string | null; end_time: string | null; days: number | null }[]>({
     queryKey: ["flex-work-leaves", companyId, startStr],
     queryFn: async () => {
-      const data = logRead('components/flex-work-board:data', await db.from("leave_requests")
+      const data = await fetchPaged<any>('flex-work-board:leaves', () => db.from("leave_requests")
         .select("employee_id, start_date, end_date, leave_type, leave_unit, start_time, end_time, days")
         .eq("company_id", companyId).eq("status", "approved")
-        .lte("start_date", endStr).gte("end_date", startStr));
+        .lte("start_date", endStr).gte("end_date", startStr).order("start_date"), 20000);
       return (data || []) as any[];
     },
     enabled: !!companyId,

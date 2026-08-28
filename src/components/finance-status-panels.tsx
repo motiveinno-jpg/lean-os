@@ -7,6 +7,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { fetchPaged } from "@/lib/fetch-paged";
 import { ColumnChart, LineChart, DonutChart, BarChart, Legend, vizColor } from "@/components/charts/kit";
 
 const won = (n: number) => Math.round(n || 0).toLocaleString("ko-KR");
@@ -33,8 +34,8 @@ export function BankStatusPanels({ companyId, from, to }: { companyId: string | 
   const { data: accts = [] } = useQuery({ queryKey: ["bank-status-accts", companyId], enabled: !!companyId, queryFn: async () =>
     ((await supabase.from("bank_accounts").select("id, bank_name, alias, account_number, balance, is_hidden").eq("company_id", companyId!)).data || []) as Acct[] });
   const { data: bank = [] } = useQuery({ queryKey: ["bank-status-tx", companyId, from, to], enabled: !!companyId, queryFn: async () =>
-    ((await (supabase.from("bank_transactions").select("id, bank_account_id, transaction_date, amount, type, counterparty, journal_entry_id, mapping_status") as any)
-      .eq("company_id", companyId!).gte("transaction_date", from).lte("transaction_date", to).order("transaction_date").limit(5000)).data || []) as BankTx[] });
+    await fetchPaged<BankTx>("finance-status:bank", () => (supabase.from("bank_transactions").select("id, bank_account_id, transaction_date, amount, type, counterparty, journal_entry_id, mapping_status") as any)
+      .eq("company_id", companyId!).gte("transaction_date", from).lte("transaction_date", to).order("transaction_date").order("id"), 50000) });
   const acctName = (a: Acct) => a.alias || `${a.bank_name || ""} ${a.account_number ? a.account_number.slice(-4) : ""}`.trim() || "계좌";
   const days = useMemo(() => dayKeys(from, to), [from, to]);
   const series = (m: Map<string, number>) => days.map((k) => ({ label: dayLabel(k), value: m.get(k) || 0 }));
@@ -84,8 +85,8 @@ type CardTx = { id: string; transaction_date: string; amount: number; merchant_n
 /** 카드 › 분석 — 일별 승인·카드별 비중·가맹점 상위 */
 export function CardStatusPanels({ companyId, from, to }: { companyId: string | null; from: string; to: string }) {
   const { data: cards = [] } = useQuery({ queryKey: ["card-status-tx", companyId, from, to], enabled: !!companyId, queryFn: async () =>
-    ((await (supabase.from("card_transactions").select("id, transaction_date, amount, merchant_name, card_name, journal_entry_id") as any)
-      .eq("company_id", companyId!).gte("transaction_date", from).lte("transaction_date", to).limit(5000)).data || []) as CardTx[] });
+    await fetchPaged<CardTx>("finance-status:card", () => (supabase.from("card_transactions").select("id, transaction_date, amount, merchant_name, card_name, journal_entry_id") as any)
+      .eq("company_id", companyId!).gte("transaction_date", from).lte("transaction_date", to).order("id"), 50000) });
   const days = useMemo(() => dayKeys(from, to), [from, to]);
   const s = useMemo(() => {
     let amt = 0, noVoucher = 0;
