@@ -67,6 +67,8 @@ type Row = {
   cardCategory?: string | null;
   /** 카드 이름 — 미지급금 줄에 걸 **카드사 거래처**를 찾는 열쇠 (거래처원장에서 카드대금 대조) */
   cardName?: string | null;
+  /** 해외 결제인가 — 국내 사업자번호가 없고 상호가 라틴문자(OPENAI·STRIPE 등). 구분 칸에 '해외'로 표시 */
+  foreign?: boolean;
 };
 
 const won = (n: number) => Math.round(Number(n) || 0).toLocaleString("ko-KR");
@@ -121,7 +123,7 @@ const STATE_CHIPS = [
 //   구분 — merchantKindOf 가 돌려주는 값 그대로 (lib/merchant-tax-type)
 const KIND_CHIPS = [
   { value: "", label: "전체" }, { value: "법인", label: "법인" }, { value: "일반", label: "일반" },
-  { value: "간이", label: "간이" }, { value: "면세", label: "면세" },
+  { value: "간이", label: "간이" }, { value: "면세", label: "면세" }, { value: "해외", label: "해외" },
 ] as const;
 
 const SETTLE_BY_KIND: Record<string, SettleType> = {
@@ -170,7 +172,7 @@ export function EvidenceTab({
       case "date": return r.date.slice(5);
       case "partner": return r.partnerName || "";
       case "bizno": return r.bizno || "";
-      case "kind": return merchantOf(r)?.kind ?? "";
+      case "kind": return kindOf(r);
       case "vat": return vatType(vatCodeOf(r))?.label ?? "";
       case "item": return r.item || "";
       case "supply": return amountsOf(r).supply.toLocaleString("ko");
@@ -293,6 +295,8 @@ export function EvidenceTab({
 
   /** 이 줄 가맹점의 과세유형 — 숫자만 남긴 사업자번호로 찾는다 */
   const merchantOf = (r: Row) => merchantKinds[r.bizno.replace(/[^0-9]/g, "")] ?? null;
+  //   구분 값 — 해외면 '해외', 아니면 국세청 조회로 채운 과세유형(법인·일반·간이·면세). 표시·필터·정렬·내보내기 공용.
+  const kindOf = (r: Row) => (r.foreign ? "해외" : (merchantOf(r)?.kind ?? ""));
 
   /**
    * 부가세 유형 — 사람이 고른 게 있으면 그것, 없으면 자동.
@@ -332,7 +336,7 @@ export function EvidenceTab({
     if (live.partner.length && !live.partner.includes(r.partnerName)) return false;
     if (live.acct.length && !(acct && live.acct.includes(acct.code))) return false;
     if (live.card.length && !live.card.includes(r.cardName || "")) return false;
-    if (live.kind && (merchantOf(r)?.kind ?? "") !== live.kind) return false;
+    if (live.kind && kindOf(r) !== live.kind) return false;
     if (live.item && !r.item.toLowerCase().includes(live.item.toLowerCase())) return false;
     if (!amountHit(total, live.min, live.max)) return false;
     if (!colHit(r)) return false;   // 엑셀식 머리단 필터
@@ -344,7 +348,7 @@ export function EvidenceTab({
       switch (sort.key) {
         case "partner": return r.partnerName;
         case "bizno": return r.bizno;
-        case "kind": return merchantOf(r)?.kind ?? "";
+        case "kind": return kindOf(r);
         case "vat": return vatType(vatCodeOf(r))?.label ?? "";
         case "item": return r.item;
         case "supply": return amountsOf(r).supply;
@@ -750,7 +754,7 @@ export function EvidenceTab({
       if (draft.partner.length && !draft.partner.includes(r.partnerName)) continue;
       if (draft.acct.length && !(a2 && draft.acct.includes(a2.code))) continue;
       if (draft.card.length && !draft.card.includes(r.cardName || "")) continue;
-      if (draft.kind && (merchantOf(r)?.kind ?? "") !== draft.kind) continue;
+      if (draft.kind && kindOf(r) !== draft.kind) continue;
       if (draft.item && !r.item.toLowerCase().includes(draft.item.toLowerCase())) continue;
       if (!amountHit(total, draft.min, draft.max)) continue;
       n += 1;
@@ -771,7 +775,7 @@ export function EvidenceTab({
       "일자": r.date,
       "거래처": r.partnerName,
       "사업자등록번호": r.bizno || "",
-      "구분": merchantOf(r)?.kind ?? "",
+      "구분": kindOf(r),
       "유형": vatCodeOf(r) === GENERAL_CODE ? "3. 일반" : (t?.label ?? ""),
       "품명": r.item,
       "공급가액": amt.supply,
@@ -1037,15 +1041,12 @@ export function EvidenceTab({
                             (간이과세자 중 '세금계산서 발급사업자'는 공제되므로 그대로 둔다) */}
                     <td className="tc">
                       {(() => {
+                        //   해외 결제는 '해외'로 (국세청 구분이 없다). 국내는 과세유형(법인·일반·간이·면세) 그대로만
+                        //   표시한다 — '불공제'는 굳이 붙이지 않는다 (2026-08-31 사장님).
+                        if (r.foreign) return <em className="ev-kind" title="해외 결제">해외</em>;
                         const mi = merchantOf(r);
                         if (!mi?.kind) return <span className="ev-dim">—</span>;
-                        const noVat = mi.deductible === false;
-                        return (
-                          <em className={noVat ? "ev-kind ev-kind-novat" : "ev-kind"}
-                            title={noVat ? `${mi.kind} 과세사업자 — 카드매출전표로 부가세를 공제받을 수 없습니다 (${mi.taxType || ""})` : (mi.taxType || "")}>
-                            {mi.kind}{noVat ? " · 불공제" : ""}
-                          </em>
-                        );
+                        return <em className="ev-kind" title={mi.taxType || ""}>{mi.kind}</em>;
                       })()}
                     </td>
                     <td>
@@ -1216,6 +1217,13 @@ async function fetchRows(companyId: string, from: string, to: string, kind: Sour
         vatCode: suggestVatType({ kind: "card", direction: "purchase", memo: `${r.merchant_name || ""} ${label}` }),
         settle, posted: !!r.journal_entry_id, excluded: r.ledger_excluded_reason || null, voucherNo: null,
         cardCategory: r.category || null, cardName: r.card_name || null,
+        //   해외 결제 판정 — 국내 사업자번호가 없고, 상호(취소 접두어 뺀)가 한글 없이 라틴문자면 해외.
+        //     OPENAI·STRIPE·FIGMA·FACEBK·ALIEXPRESS 등 해외 SaaS·결제가 여기 걸린다.
+        foreign: (() => {
+          if (r.merchant_bizno) return false;
+          const nm = String(r.merchant_name || "").replace(/^\[취소\]\s*/, "").trim();
+          return !!nm && !/[가-힣]/.test(nm) && /[A-Za-z]/.test(nm);
+        })(),
       } as Row;
     });
     return { rows: await attachVoucherNo(built, src.map((r) => r.journal_entry_id ?? null)), capped: got.capped };
